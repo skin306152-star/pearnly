@@ -5,6 +5,9 @@ app_description = "统一身份、授权上下文与审计核心"
 app_email = "skin@pearnly.local"
 app_license = "mit"
 
+# 头像下拉里的"密码更改"入口（三个产品共用同一页面）
+app_include_js = "/assets/pearnly_core/js/pearnly_password_menu.js"
+
 # Apps
 # ------------------
 
@@ -261,4 +264,3 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-
