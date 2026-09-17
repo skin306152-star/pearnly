@@ -152,7 +152,26 @@ services:
     mem_limit: 384m
     command: *web-command
     volumes: [sites-control:/home/frappe/frappe-bench/sites]
-    ports: ["127.0.0.1:8104:8000"]
+
+  # 前置 nginx：把静态资源与 /socket.io 一起提供。
+  #
+  # 这一步最初漏了，代价很大：Desk 启动要连 Socket.IO，没有 nginx 转发时
+  # /socket.io 的请求打到 gunicorn 上会一直挂住（Network 里显示 Pending），
+  # Desk 于是反复重试，表现为"界面壳出来了、主区域空白、一直闪"。
+  # 同时它也顺带解决了静态资源要靠 gunicorn 兜的问题。
+  #
+  # 端口只由这一层对外暴露；web 容器不再直接对外。
+  control-frontend:
+    <<: *frappe-common
+    mem_limit: 128m
+    entrypoint: [nginx-entrypoint.sh]
+    environment:
+      BACKEND: control-web:8000
+      SOCKETIO: control-socketio:9000
+      FRAPPE_SITE_NAME_HEADER: control.localhost
+    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+    ports: ["127.0.0.1:8104:8080"]
+    depends_on: [control-web, control-socketio]
 
   control-scheduler:
     <<: *frappe-common
