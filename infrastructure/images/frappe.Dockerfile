@@ -18,3 +18,10 @@ LABEL org.pearnly.image.role="frappe-sample-base" \
       org.pearnly.image.python.version="3.14.7" \
       org.pearnly.image.upstream.digest="sha256:eee240a179ff494cb82ad067d853c8db3f87171d86324f4b326892654e342144" \
       org.pearnly.image.note="arm64;目标机是 x86_64，构建目标须显式指定平台"
+
+# 自有 App。基础镜像里的 frappe/erpnext 都是 editable 安装（指向 apps/<name>），
+# 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
+# 构建上下文必须是仓库根目录，例如：
+#   docker build -f infrastructure/images/frappe.Dockerfile -t pearnly/frappe-sample:16.34.1 .
+COPY --chown=frappe:frappe apps/pearnly_core /home/frappe/frappe-bench/apps/pearnly_core
+RUN cd /home/frappe/frappe-bench && env/bin/pip install --no-deps -e apps/pearnly_core

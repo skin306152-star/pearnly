@@ -15,8 +15,12 @@ services:
     command:
       - start
       - --http-enabled=true
-      - --hostname-strict=false
-      - --hostname=http://127.0.0.1:8105
+      # 签发方必须是"浏览器"和"容器"都能到达的同一个字符串，否则容器内调用
+      # 令牌端点时 Keycloak 会按请求的 Host 生成不同的 iss，校验必然失败。
+      # 这里固定成服务名+容器端口：容器内直接可达；宿主机侧用 Host 头访问。
+      # 真实部署用正常域名+DNS，不需要这一招。
+      - --hostname-strict=true
+      - --hostname=http://keycloak:8080
       - --health-enabled=true
     environment:
       KC_DB: mariadb
