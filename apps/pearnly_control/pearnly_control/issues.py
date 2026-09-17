@@ -194,3 +194,21 @@ def api_list_issues(**kwargs):
 @frappe.whitelist()
 def api_deployments_of(issue_name):
     return deployments_of(issue_name)
+
+
+@frappe.whitelist()
+def api_context():
+    """发号页要的东西：操作人 + CSRF 令牌。
+
+    放在接口里而不是模板变量里，有两个原因：
+    1. 模板变量在这个页面上没有被渲染成值（见 docs/p4/02-issue-ui.md 的记录），
+       与其硬上不如换个确定能用的做法；
+    2. 这个接口本身要求登录，未登录会直接报错——页面不承载任何数据，
+       所有敏感动作都在这个接口之后。
+    """
+    from frappe.sessions import get_csrf_token
+
+    return {
+        "operator": _require_operator(),
+        "csrf_token": get_csrf_token(),
+    }
