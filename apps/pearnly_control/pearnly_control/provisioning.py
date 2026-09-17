@@ -58,10 +58,10 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
 
     existing = frappe.db.get_value(REQUEST, {"idempotency_key": key}, "name")
     if existing:
-        # 已经规划过：不重建资源，但**补齐后来新增的步骤**
+        # 已经规划过：不重建资源，但**同步步骤定义**
         # （流程演进时，已经开了一半的单子能靠重跑 plan 跟上，不用从头来）
         req = frappe.get_doc(REQUEST, existing)
-        _append_missing_steps(req)
+        _sync_steps(req)
         # 每次都重算：补过步骤的单子状态会停在 done，不重算就永远没人执行新步骤
         _refresh_request_status(req)
         return state(existing, allow_pending_create=False)
@@ -97,28 +97,39 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     return result
 
 
-def _append_missing_steps(req) -> int:
-    """把该请求里缺的步骤补上。已存在的 step_key 一律不动。"""
+def _sync_steps(req) -> int:
+    """让请求里的步骤与当前流程定义一致：缺的补上，**待执行的刷新参数**。
+
+    为什么要刷新参数而不只是补步骤：步骤的 payload 是规划时算好存进库的。
+    如果只补新步骤，那"改了生成逻辑"（比如工作区要带产品模块名）对已经存在的
+    步骤永远不生效 —— 表现为改了代码、重跑开通，结果还是旧的（踩过）。
+
+    只刷新 `pending` / `failed` 的步骤：`done` 的是既成事实，改了就是骗人；
+    `skipped` 是"本单不需要"，也不该被翻回。
+    """
     issue = frappe.get_doc(ISSUE, req.issue)
-    have = {s.step_key for s in req.steps}
-    added = 0
+    have = {s.step_key: s for s in req.steps}
+    changed = 0
     for row in issue.apps:
         dep = frappe.db.get_value(DEPLOYMENT, {"site_name": (row.domain or "").lower()}, "name")
         if not dep:
             continue
         dep_doc = frappe.get_doc(DEPLOYMENT, dep)
         for step in _steps_for(issue, dep_doc, row):
-            if step["step_key"] in have:
-                continue
-            req.append("steps", step)
-            added += 1
-    if added:
+            existing = have.get(step["step_key"])
+            if existing is None:
+                req.append("steps", step)
+                changed += 1
+            elif existing.status in ("pending", "failed") and existing.payload != step["payload"]:
+                existing.payload = step["payload"]
+                changed += 1
+    if changed:
         req.save(ignore_permissions=True)
         frappe.db.commit()
         # 关键：补了步骤就要重算请求状态，否则它还停在 done，
         # 而 next_steps 只挑 pending/running/partial，新步骤永远没人执行
         _refresh_request_status(req)
-    return added
+    return changed
 
 
 def _ensure_deployment(issue, row):
@@ -237,6 +248,37 @@ def _line_payload(dep, site: str, group: str) -> dict:
     return payload
 
 
+def _roles_for(issue, dep) -> dict:
+    """该部署要建的角色与权限 = 开单上**勾了**的功能。
+
+    这是"未勾选的功能不可访问"的执行入口：没勾的功能不会出现在这里，
+    于是租户站点上就不会有对应角色，那个 DocType 也就访问不了。
+    """
+    codes = [row.feature.split("-", 1)[-1] for row in (dep.features or [])]
+    spec = features_mod.roles_payload(dep.product, codes)
+    spec.update({
+        "site": dep.site_name,
+        "group": dep.bench_group,
+        "admin_user": issue.account_email,
+    })
+    return spec
+
+
+def _workspace_for(issue, dep) -> dict:
+    """该租户的工作区 + 它能看到的角色（本租户自己的角色，不跨租户）。"""
+    codes = [row.feature.split("-", 1)[-1] for row in (dep.features or [])]
+    spec = features_mod.workspace_payload(dep.product, codes, title=issue.tenant_name)
+    roles = features_mod.roles_payload(dep.product, codes)
+    spec["site"] = dep.site_name
+    spec["group"] = dep.bench_group
+    spec["roles"] = (
+        list(roles.get("base_roles") or [])
+        + ([roles["admin_role"]] if roles.get("admin_role") else [])
+        + [r["role"] for r in roles.get("roles") or []]
+    )
+    return spec
+
+
 def _steps_for(issue, dep, row) -> list[dict]:
     """一个部署的步骤序列。顺序有依赖：先有站点才能装 App，装完才能配、再绑人。"""
     site, group = dep.site_name, dep.bench_group
@@ -280,6 +322,12 @@ def _steps_for(issue, dep, row) -> list[dict]:
              "subject": issue.identity_subject,
              "deployment": dep.name,
          }, ensure_ascii=False)},
+        {"step_key": f"{dep.name}:set_roles", "deployment": dep.name,
+         "action": "set_roles", "status": "pending",
+         "payload": json.dumps(_roles_for(issue, dep), ensure_ascii=False)},
+        {"step_key": f"{dep.name}:set_workspace", "deployment": dep.name,
+         "action": "set_workspace", "status": "pending",
+         "payload": json.dumps(_workspace_for(issue, dep), ensure_ascii=False)},
         {"step_key": f"{dep.name}:mark_active", "deployment": dep.name,
          "action": "mark_active", "status": "pending",
          "payload": json.dumps({"deployment": dep.name}, ensure_ascii=False)},
@@ -294,9 +342,14 @@ def next_steps(limit: int = 20) -> list[dict]:
     """给执行器取待办步骤。只返回**所有依赖都已完成**的那些，不跳步。"""
     _require_operator()
     out = []
+    # 按**步骤**驱动，不按请求状态驱动。
+    # 坑：曾经按 `status in (pending, running, partial)` 过滤请求，结果一张单
+    # 的步骤被重置回 pending 之后，只要请求状态还停在 done，就永远没人执行它
+    # （表现是"没有待办步骤了"，而实际上有）。步骤是事实，请求状态是它的投影。
     requests = frappe.get_all(
-        REQUEST, filters={"status": ("in", ["pending", "running", "partial"])},
-        pluck="name", order_by="creation asc", limit_page_length=0,
+        "Pearnly Provisioning Step",
+        filters={"status": ("in", ["pending", "running"])},
+        pluck="parent", distinct=True, limit_page_length=0,
     )
     for req_name in requests:
         req = frappe.get_doc(REQUEST, req_name)
@@ -386,6 +439,43 @@ def mark_deployment_active(deployment: str) -> str:
     dep.save(ignore_permissions=True)
     frappe.db.commit()
     return dep.status
+
+
+def retry_failed_steps(request: str) -> dict:
+    """把失败/卡住的步骤重置为 pending，让执行器能再跑一遍。
+
+    为什么需要：执行器遇到失败会**停住不往下跳**（后面的步骤依赖它），
+    所以修好原因之后必须能重试；否则一次失败就把整张单卡死，只能重开单子。
+    幂等的步骤（建站、装 App、写配置、发角色）重跑是安全的 —— 这正是幂等
+    要求的价值所在。
+    """
+    _require_operator()
+    req = frappe.get_doc(REQUEST, request)
+    reset = []
+    for step in req.steps:
+        if step.status in ("failed", "running"):
+            step.status = "pending"
+            step.output = ""
+            step.finished_at = None
+            reset.append(step.step_key)
+    if reset:
+        req.error = ""
+        req.save(ignore_permissions=True)
+        frappe.db.commit()
+        _refresh_request_status(req)
+    return {"request": req.name, "reset": reset, "status": req.status}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_retry_failed(request):
+    return retry_failed_steps(request)
+
+
+@frappe.whitelist()
+def api_request_of_issue(issue):
+    """按发号单找开通请求名（执行器脚本用）。"""
+    _require_operator()
+    return frappe.db.get_value(REQUEST, {"issue": issue}, "name", order_by="creation desc")
 
 
 def state(request_name: str, allow_pending_create: bool = True) -> dict:

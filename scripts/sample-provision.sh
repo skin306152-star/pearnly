@@ -8,6 +8,7 @@
 # 用法:
 #   scripts/sample-provision.sh plan   <发号单号>
 #   scripts/sample-provision.sh run    [发号单号]   # 给单号则先 plan 再执行
+#   scripts/sample-provision.sh retry  <发号单号>   # 把失败步骤重置后重跑
 #   scripts/sample-provision.sh status <发号单号>
 set -euo pipefail
 
@@ -28,6 +29,11 @@ d()  { docker --context "$CTX" "$@"; }
 dc() { d compose -f "$COMPOSE" "$@"; }
 
 py() { python3 "$@"; }
+
+# 把 spec 包成 {"spec_json": "<字符串>", "admin_user": "..."}
+# 用字符串而不是嵌套 dict 传，理由见 act_set_roles
+WRAP='import json, sys; print(json.dumps({"spec_json": sys.argv[1], "admin_user": sys.argv[2]}))'
+WRAP2='import json, sys; print(json.dumps({"spec_json": sys.argv[1]}))'
 
 api_get()  { curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" "$CONTROL/api/method/$1"; }
 api_post() { curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" -H 'Content-Type: application/json' \
@@ -147,6 +153,38 @@ print(json.dumps({"email": email, "full_name": name, "subject": subject, "deploy
   printf '%s' "$out" | grep -q "created" || return 1
 }
 
+act_set_roles() {  # <payload-json>
+  # 把"勾了哪些功能"落成站点上的角色与权限，并把 System Manager 从租户管理员拿走。
+  local payload="$1" group site admin out kwargs
+  local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  admin=$(py -c "$get" "$payload" admin_user)
+  # spec 以**字符串**传：bench execute 对 --kwargs 做的是 Python eval，
+  # 传嵌套 dict 时它自己 eval 失败会报出无关的 NameError（踩过）
+  kwargs=$(py -c "$WRAP" "$payload" "$admin")
+  out=$(dc exec -T "$(bench_of "$group")" bench --site "$site" execute \
+        pearnly_core.provisioning.ensure_feature_roles \
+        --kwargs "$kwargs" 2>&1 | tail -3)
+  echo "$out"
+  printf '%s' "$out" | grep -q "roles" || return 1
+}
+
+act_set_workspace() {  # <payload-json>
+  # 给租户建"只列他买了什么"的工作区。没有它，拿掉 System Manager 后
+  # 租户打开 Desk 会是一片空白（实测）。
+  local payload="$1" group site out kwargs
+  local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  kwargs=$(py -c "$WRAP2" "$payload")
+  out=$(dc exec -T "$(bench_of "$group")" bench --site "$site" execute \
+        pearnly_core.provisioning.ensure_product_workspace \
+        --kwargs "$kwargs" 2>&1 | tail -3)
+  echo "$out"
+  printf '%s' "$out" | grep -q "workspace" || return 1
+}
+
 act_mark_active() {  # <deployment>
   api_post pearnly_control.provisioning.api_mark_active \
     "$(py -c 'import json,sys; print(json.dumps({"deployment": sys.argv[1]}))' "$1")" \
@@ -170,6 +208,8 @@ run_step() {  # <action> <payload-json>
     bind_user)   act_bind_user   "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" \
                                  "$(py -c "$get" "$payload" email)" "$(py -c "$get" "$payload" full_name)" \
                                  "$(py -c "$get" "$payload" subject)" "$(py -c "$get" "$payload" deployment)" ;;
+    set_roles)   act_set_roles "$payload" ;;
+    set_workspace) act_set_workspace "$payload" ;;
     mark_active) act_mark_active "$(py -c "$get" "$payload" deployment)" ;;
     *) echo "未知动作：$action" >&2; return 2 ;;
   esac
@@ -251,6 +291,21 @@ for dep in m["deployments"]:
         exit 1
       fi
     done
+    ;;
+
+  retry)
+    issue="${1:?给发号单号}"
+    req=$(api_get "pearnly_control.provisioning.api_request_of_issue?issue=$issue" \
+          | py -c 'import sys,json; print(json.load(sys.stdin).get("message") or "")')
+    [ -n "$req" ] || { echo "该发号单还没有开通请求" >&2; exit 1; }
+    py -c 'import json,sys; print(json.dumps({"request": sys.argv[1]}))' "$req" \
+      | { body=$(cat); api_post pearnly_control.provisioning.api_retry_failed "$body" \
+          | py -c '
+import sys, json
+m = (json.load(sys.stdin).get("message") or {})
+print("重置为待执行:", m.get("reset") or "（没有失败步骤）")
+'; }
+    exec "$0" run
     ;;
 
   *) echo "未知命令：$cmd" >&2; exit 2 ;;

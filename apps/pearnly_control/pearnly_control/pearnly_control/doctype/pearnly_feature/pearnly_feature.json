@@ -11,6 +11,9 @@
   "feature_label",
   "column_break_main",
   "default_on",
+  "section_enforce",
+  "role_name",
+  "grant_doctypes",
   "description"
  ],
  "fields": [
@@ -19,6 +22,9 @@
   {"fieldname": "feature_label", "fieldtype": "Data", "in_list_view": 1, "label": "功能名称", "reqd": 1, "columns": 3},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "常规开通", "columns": 2, "description": "打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）"},
+  {"fieldname": "section_enforce", "fieldtype": "Section Break", "label": "权限落地"},
+  {"fieldname": "role_name", "fieldtype": "Data", "in_list_view": 1, "label": "对应角色", "columns": 3, "description": "开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）"},
+  {"fieldname": "grant_doctypes", "fieldtype": "Small Text", "label": "授予的 DocType", "description": "逗号分隔。该角色拿到这些 DocType 的读写权限"},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "说明"}
  ],
  "index_web_pages_for_search": 1,

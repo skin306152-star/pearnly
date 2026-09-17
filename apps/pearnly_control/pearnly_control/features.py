@@ -87,6 +87,32 @@ CATALOG = {
 
 FEATURE = "Pearnly Feature"
 
+# ── 权限落地：功能 → 角色 → DocType ────────────────────────────────────────
+#
+# 光把功能"记在开单上"是没有约束力的 —— 用户要能感到差别，必须变成**权限**。
+# 做法：每个功能对应一个角色，角色拿到它那个 DocType 的读写权限；开通时按勾选
+# 把角色发给租户管理员。没勾的功能 → 角色没发 → 那个 DocType 访问不了。
+#
+# 只列**有实际可挡对象**的功能。没有 DocType 的功能（例如首页、套餐与余额）
+# 目前没有可挡的东西，就不在这里假装有权限 —— 等产品界面做出来再补。
+ENFORCEMENT = {
+    ("cowork", "intake"): ("Cowork 录入", ["Intake Record"]),
+    ("erp", "purchase"): ("ERP 采购", ["Purchase Document", "Purchase Line"]),
+    ("dms", "id_card_ocr"): ("DMS 身份证录入", ["DMS ID Card Intake"]),
+    ("dms", "customer_match"): ("DMS 客户匹配", ["DMS Customer Link"]),
+}
+
+# 产品管理员角色：能管本产品的员工账号，但**不含功能权限** ——
+# 功能权限一律来自上面的功能角色，这样"没买的功能"对管理员同样是关着的。
+PRODUCT_ADMIN_ROLE = {
+    "cowork": "Cowork 管理员",
+    "erp": "ERP 管理员",
+    "dms": "DMS 管理员",
+}
+
+# 租户管理员必须有的基础角色（否则连 Desk 都进不去）
+BASE_ROLES = ["Desk User"]
+
 
 def feature_name(product: str, code: str) -> str:
     """功能项的主键。与 `Pearnly Feature` 的 autoname 规则一致。"""
@@ -95,6 +121,77 @@ def feature_name(product: str, code: str) -> str:
 
 def all_codes(product: str) -> set[str]:
     return {f["code"] for f in CATALOG.get(product, [])}
+
+
+def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
+    """该功能对应的 (角色名, DocType 列表)。没配就是没有可挡对象。"""
+    role, doctypes = ENFORCEMENT.get((product, code), ("", []))
+    return role, list(doctypes)
+
+
+def roles_payload(product: str, codes: list[str]) -> dict:
+    """把"勾了哪些功能"翻成站点侧要建的角色与权限。
+
+    额外带上产品管理员角色与基础角色：租户管理员**不再给 System Manager**
+    （那是框架超管，能改系统设置、装应用），只给"产品管理员 + 买了的功能角色"。
+    """
+    roles = []
+    for code in codes or []:
+        role, doctypes = enforcement_of(product, code)
+        if role and doctypes:
+            roles.append({"role": role, "doctypes": doctypes, "feature": code})
+    return {
+        "product": product,
+        "admin_role": PRODUCT_ADMIN_ROLE.get(product, ""),
+        "base_roles": BASE_ROLES,
+        "roles": roles,
+    }
+
+
+def workspace_payload(product: str, codes: list[str], title: str = "") -> dict:
+    """该租户的工作区：只放**他买了的**功能对应的入口。
+
+    为什么要建这个：租户管理员不再有 System Manager（那是框架超管），
+    于是 Frappe 自带那些工作区对他不可见 —— 打开 Desk 会是**一片空白**（实测）。
+    产品的界面还没做，所以先给一个"只列他买了什么"的工作区，既有落点，
+    也让他一眼看出自己买了哪些功能。
+    """
+    entries = []
+    seen = set()
+    for code in codes or []:
+        _role, doctypes = enforcement_of(product, code)
+        for doctype in doctypes:
+            if doctype in seen:
+                continue
+            seen.add(doctype)
+            # 功能代码 → 中文名，用作入口标题
+            label = next(
+                (f["label"] for f in CATALOG.get(product, []) if f["code"] == code), code
+            )
+            entries.append({"doctype": doctype, "label": label})
+    return {
+        "product": product,
+        "title": title or PRODUCT_LABELS.get(product, product),
+        "icon": ICON_BY_PRODUCT.get(product, "folder"),
+        "module": MODULE_BY_PRODUCT.get(product, ""),
+        "entries": entries,
+    }
+
+
+# 工作区图标（lucide 短名，与桌面图标同一套）
+ICON_BY_PRODUCT = {"cowork": "clipboard-list", "erp": "store", "dms": "id-card"}
+
+# 工作区所属模块 = 该产品 App 的模块名（各产品 modules.txt 里的值）。
+#
+# **必须用产品的模块，不能用核心层的**：Frappe 判断工作区可见性时会检查
+# `workspace.module in user.allowed_modules`，而租户用户被允许的模块是他所用
+# 产品 App 的那几个（实测该用户有 "Pearnly DMS"，没有 "Pearnly Core"）。
+# 用核心层模块会被直接判无权限丢掉 —— 表现为"数据都建好了，桌面还是空的"。
+MODULE_BY_PRODUCT = {
+    "cowork": "Pearnly Cowork",
+    "erp": "Pearnly ERP Portal",
+    "dms": "Pearnly DMS",
+}
 
 
 def sync_features() -> dict:
@@ -114,6 +211,9 @@ def sync_features() -> dict:
                 "default_on": 1 if item.get("default_on") else 0,
                 "description": item.get("description") or "",
             }
+            role, doctypes = enforcement_of(product, item["code"])
+            payload["role_name"] = role
+            payload["grant_doctypes"] = ",".join(doctypes)
             if frappe.db.exists(FEATURE, name):
                 doc = frappe.get_doc(FEATURE, name)
                 changed = False
