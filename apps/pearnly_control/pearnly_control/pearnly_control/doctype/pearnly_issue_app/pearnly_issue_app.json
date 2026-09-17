@@ -1,0 +1,28 @@
+{
+ "actions": [],
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "app",
+  "domain",
+  "display_name"
+ ],
+ "fields": [
+  {"fieldname": "app", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
+  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "域名", "reqd": 1, "columns": 5, "description": "该产品的访问域名，例如 acme-cowork.pearnly.com"},
+  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "界面标题", "columns": 3}
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Issue App",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "idx",
+ "sort_order": "ASC"
+}

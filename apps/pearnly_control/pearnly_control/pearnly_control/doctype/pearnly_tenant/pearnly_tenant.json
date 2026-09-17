@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:T-{YYYY}-{####}",
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tenant_name",
+  "status",
+  "column_break_main",
+  "contact_name",
+  "contact_phone",
+  "notes"
+ ],
+ "fields": [
+  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "租户名称", "reqd": 1, "unique": 1},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\nsuspended", "reqd": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "contact_name", "fieldtype": "Data", "label": "联系人"},
+  {"fieldname": "contact_phone", "fieldtype": "Data", "label": "联系电话"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Tenant",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

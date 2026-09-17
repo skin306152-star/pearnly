@@ -20,6 +20,11 @@ MANIFEST = {
         "domains",       # 域名绑定
         "roles",         # 角色与账套范围
         "suspend",       # 暂停与恢复
+        # OCR 两档是**两种不同用途的能力**，不是同一功能的好坏两档：
+        #   B 档（经济）= 日常发票识别（采购/销售票据）
+        #   A 档（高精）= 银行流水 / 总账 / VAT 报表等财务扫描件
+        "ocr_economy_b",
+        "ocr_enterprise_a",
     ],
     "modules": [],
     "must_not": [

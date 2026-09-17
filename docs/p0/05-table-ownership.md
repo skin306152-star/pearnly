@@ -23,7 +23,7 @@ LINE 侧：`line_bindings`、`line_binding_codes`、`line_action_nonces`、`line
 
 进项与费用：`expense_categories`、`expense_draft`、`expense_learned`
 
-其它：`document_number_sequences`、`import_template_mappings`、`exception_whitelist`、`exceptions`、`archive_settings`、`seller_workspace_routes`、`shadow_money_log`、`line_client_bind_codes`、`line_client_contacts`、`line_client_questions`
+其它：`document_number_sequences`、`import_template_mappings`、`exception_whitelist`、`exceptions`、`archive_settings`、`seller_workspace_routes`、`line_client_bind_codes`、`line_client_contacts`、`line_client_questions`
 
 ## DMS（保留）— 6
 
@@ -63,6 +63,23 @@ LINE 侧：`line_bindings`、`line_binding_codes`、`line_action_nonces`、`line
 | 工资 | 2 | `client_payroll_rows`、`client_payroll_templates` |
 | 邮件接入 | 3 | `email_ingest_accounts`、`email_ingest_logs`、`email_ingest_seen_uids` |
 | 未使用 | 1 | `line_voice_quota`（全仓只出现在一条 alembic 迁移里） |
+| 影子双跑 | 1 | `shadow_money_log`（见下方说明：用户已确认新系统不做） |
+
+### 影子双跑不迁移（用户确认 2026-09-17）
+
+旧系统有一个机制：**B 档（经济档）正常出识别结果后，后台再异步用 A 档（高精档）
+只读复核金额字段**，结果落 `shadow_money_log` 用于统计真实错误率（不改结果、
+不计费、异常吞掉）。对应实现是 `services/ocr/shadow_money.py`、
+`shadow_money_store.py`。
+
+**用户明确：新系统这边不要影子双跑。** 因此：
+
+- `shadow_money_log` 从"保留"改为**待退役**；
+- 新系统里 A 档与 B 档是**各自独立的能力**：租户选了哪一档就用哪一档，
+  不存在"用 B 档出结果、A 档在背后偷偷复核"的行为；
+- `services/ocr/shadow_money*.py` 不迁移。
+
+这条简化也意味着：**同一份文件不会因为双跑而被收两次费**，费用口径只按实际使用的那一档算。
 
 `knowledge_bases` 同样只出现在 alembic 迁移，与其同批的 knowledge 表归入 AI 管家一族。
 
