@@ -35,6 +35,14 @@ services:
     # 8105 是对外端口；9000 是管理端口，健康检查走这里
     # （Keycloak 25 起 /health/* 不再挂在主端口上，这是踩过的坑）。
     ports: ["8105:8105", "127.0.0.1:9005:9000"]
+    volumes:
+      # 自定义登录主题（那一套"猫"的登录页）。
+      # 直接挂在 themes 目录下即可生效，**不需要跑 build**：
+      # 官方文档说放在 themes/ 里的主题不需要 build（只有打进 jar 的才要）。
+      # 改完生效的办法是跑 infrastructure/keycloak/themes/pearnly/reload-login-theme.sh
+      # （清 gzip 缓存 + 重启）—— 只重启不够：Keycloak 把主题资源的 gzip 副本缓存在
+      # 容器里 /opt/keycloak/data/tmp/kc-gzip-cache/，重启不会清，浏览器会一直拿旧文件。
+      - ../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro
     networks:
       sample:
         # 容器内也能按这个名字找到它，保证 iss 两边一致

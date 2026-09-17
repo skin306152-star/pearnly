@@ -1,0 +1,98 @@
+/* Pearnly 登录主题的增补样式。
+ *
+ * 这里只放"旧登录页没有、而身份服务这边必须补"的几条，绝不重画旧设计：
+ * 旧页的样式整份在 pearnly-auth.css 里，这个文件在它之后加载。
+ */
+
+/* ── 1. 背景图换成压缩版 ─────────────────────────────────────────────
+   旧页用的是 auth-bg-desktop.png（4096×3291，5.6 MB）；同图转成 WebP 只有
+   258 KB，画质看不出差别（整页就是这张图，省下来的是实打实的首屏时间）。
+   旧规则里那个 PNG 的相对路径指向 css/ 目录，本来也取不到图，这条既修路径
+   又换格式。CSS 只有"生效的那一条声明"会去取资源，所以 PNG 不会被请求。 */
+.auth-shell {
+  background-image: url('../img/auth-bg-desktop.webp');
+}
+
+/* ── 2. 语言切换：旧页是 JS 按钮，这里是服务端链接 ───────────────────
+   外观照抄 .language-switcher button 的规则，一个字没改。 */
+.language-switcher a {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  color: #70688a;
+  background: transparent;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.language-switcher a.active {
+  color: #fff;
+  background: linear-gradient(135deg, #7655f6, #ef55bd);
+}
+
+/* ── 3. 帮助卡钉在卡片底部 ───────────────────────────────────────────
+   旧页卡片里还有"或 / Google / LINE / 条款"四块，内容正好填满整张卡；
+   按用户要求去掉之后，卡片下半段会空出一大截。帮助卡本来就属于这张卡
+   （旧设计里就有），把它钉在底部，空档变成有意的留白，观感不变。
+   76px / 30px 跟 .auth-card 的 padding 对齐。 */
+.support-card {
+  position: absolute;
+  left: 76px;
+  right: 76px;
+  bottom: 30px;
+  margin-top: 0;
+}
+
+/* ── 4. 表单校验提示 ─────────────────────────────────────────────────
+   旧页是 JS 自己校验，没有这个元素；身份服务的错误按字段显示，补一条样式。 */
+.pn-field-error {
+  display: block;
+  margin-top: 8px;
+  color: #d33a61;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.pn-required {
+  margin: 0;
+  color: #746d88;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.pn-req {
+  color: #d33a61;
+  font-weight: 900;
+}
+
+.pn-info {
+  margin-top: 16px;
+  color: #746d88;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+/* 卡片里"换一个账号重来"的链接（身份服务的重输密码页） */
+.auth-heading .link-btn {
+  padding: 0;
+  font: inherit;
+}
+
+/* ── 5. 手机端：登录卡是可上拉的底部抽屉 ─────────────────────────────
+   旧页在手机端把卡片做成抽屉，靠 JS 加 .m-auth-open 打开。默认收起没问题，
+   但如果这次进来就带着错误（比如密码错），必须自动拉开，否则用户看不到提示。
+   **必须写在窄屏媒体查询里**：抽屉那套定位只在手机端生效，桌面端跟着动会错位。 */
+@media (max-width: 760px) {
+  .auth-stage.pn-has-error .auth-card,
+  .auth-stage.pn-has-error .auth-card.signup-mode {
+    transform: translateX(-50%) translateY(0);
+  }
+
+  .auth-stage.pn-has-error .m-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
