@@ -1,10 +1,15 @@
 # ADR
 
-登记已选定的架构决策。以下三份待写，未定稿前不按某一版实现权限合同：
+登记已选定的架构决策。
 
-- **ADR-001** 原生 Frappe Site 路线（计划 P0.01 要求，含接受较大底层改造的取舍）
-- **ADR-002** 部署决定：Contabo 新加坡 6vCPU / 12GB / 200GB 月付，服务器预算 150 元内，不选付费备份附加包；Google OCR 与必要对象存储保留
-- **ADR-003** 代码权威归属与复用方式：Cowork、ERP、DMS 与 Frappe 自有层全部落在本仓，本仓是唯一权威位置；`pearnly-app`、`pearnly-erp` 等来源仓库转只读来源，不是业务、不并行维护；需逐项写明每份业务逻辑的落点
+已定稿：
+
+- [ADR-001 原生 Frappe Site 路线](0001-native-frappe-site.md)
+- [ADR-002 目标机与外部依赖保留范围](0002-deployment-target.md)
+
+待定稿：
+
+- **ADR-003** 代码权威归属与复用方式：Cowork、ERP、DMS 与 Frappe 自有层全部落在本仓，本仓是唯一权威位置；`pearnly-app`、`pearnly-erp` 等来源仓库转只读来源，不是业务、不并行维护；需逐项写明每份业务逻辑的落点（P1 定稿）
 - **ADR-004** 控制面只在开发机运行：`pearnly_control` 不部署到云服务器，只做开户与授权，仅本人使用；云上只跑三产品 Site、Keycloak 与 WeKan 实例。需写明跨网开通通道、凭据保管、控制面数据备份与权威归属
 
 已确认但不重复询问的事项见计划包 `10-IMPLEMENTATION-HANDOFF.md` 的「已确认，不要重问」。
