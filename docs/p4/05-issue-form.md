@@ -107,3 +107,57 @@ frappe + pearnly_core + pearnly_control，import 不到三个产品的清单，�
    属于新系统上服务器时的事。
 6. **旧的自研发号页 `/pearnly-issue` 还在**（`www/pearnly-issue.py` + `sample-issue-ui.sh`）。
    它现在和 Desk 表单做同一件事，属于重复入口，建议退役——等用户确认后再删。
+
+---
+
+## 补充（同日）：桌面入口 + 一键套用常规项
+
+用户反馈"租户入口不知道从哪进"。在原生的桌面图标区（就是"框架"那张卡片旁边）
+加了一个入口，点它同标签进入开通单列表。
+
+### 桌面入口是怎么做的（原生机制）
+
+| 环节 | 做法 |
+|---|---|
+| 入口本身 | 一条 `Desktop Icon`（label「租户开通」） |
+| 点击去向 | `link_type=Workspace Sidebar` → 同标签跳转；**不用 `External`**，因为源码对 `External` 强制 `target="_blank"`（新标签页），不适合内部页面 |
+| 配套侧边栏 | `Workspace Sidebar`「租户开通」，四项：开通单 / 租户 / 功能目录 / 开户目标。**第一项必须是 Link**，它决定点图标后落到哪 |
+| 图标图形 | 本 App 自带 SVG：`public/icons/desktop_icons/{solid,subtle}/租户开通.svg`，尺寸配色照抄原生（54×54） |
+| 可见性 | 非 standard 图标默认**只有创建者能看见**；以 Administrator 身份创建 → owner=Administrator → 所有人可见（源码 `get_desktop_icons` 的查询条件） |
+
+不用 `standard=1`：standard 图标会被 migrate 的 "Removing orphan Desktop Icons"
+当成孤儿（它不在任何 app 的 fixtures 里）删掉。改由 `after_migrate` 钩子幂等重建。
+
+### 一键套用常规项
+
+功能目录里标了 `default_on` 的即"常规项"。两条路径都会带上，只补缺、不动已勾的：
+
+1. **选中产品时自动带**：在产品行选了 Cowork/ERP/DMS，且该产品功能表还空着，就自动填常规项；
+2. **工具栏「套用常规项」按钮**：手动把所有已选产品的常规项补齐（幂等，重复点不会重复加）。
+
+实测：选 cowork → 自动 6 项；再选 dms → 自动 6 项，且没动 cowork 那 6 项；
+再点按钮 → 数量不变。
+
+### 这一轮踩的坑（都会复发，记下来）
+
+1. **中文标签的图标会变成"一个空色块"。** 桌面模板取图的顺序是
+   `get_desktop_icon(label, style)` → `logo_url` → **画标签首字母**。
+   中文字在字母表 sprite 里没有，第三条路就渲染出空白方块。
+   必须给 App 自带 `public/icons/desktop_icons/<style>/<标签>.svg`。
+2. **图标风格分 `subtle` 和 `solid` 两套，要都提供。** 本站的
+   `desktop_icon_style` 是 **Solid**，只做 subtle 的话照样是空白块。
+3. **改了 DocType 的 `.js` 必须 `bench clear-cache`。** 非 developer 模式下
+   DocType meta（含 JS 正文）是缓存的。这次的表现是：文件已经是新版，
+   但界面还在显示旧版的按钮，排查了好一阵。
+4. **`frm.add_custom_button(label, fn, group)` 会把按钮塞进下拉组**，
+   界面上直接找 `button` 找不到。常用动作不要传 group。
+5. **`app_include_js` 不是必需的**：DocType 的 JS 由
+   `frappe/desk/form/meta.py` 在运行时按 `<doctype>.js` 读取注入，不用 `bench build`。
+
+### 验证
+
+- 浏览器实测（真实 Chromium，`earn` 登录）：桌面上出现「租户开通」，
+  图标 `img` 加载成功（`naturalWidth > 0`），href 为
+  `/desk/pearnly-issue?sidebar=租户开通`，点击后地址变成 `/desk/pearnly-issue`（**同标签**），无 JS 报错。
+- 截图：`docs/p4/evidence/desk-tenant-shortcut.png`、`issue-form-defaults.png`。
+- 端到端脚本 `scripts/sample-issue-form.sh` 全绿（9 个拒绝用例 + 正常开通 + 落库回读）。
