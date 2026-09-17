@@ -1,0 +1,35 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:event_id",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "event_id",
+  "status",
+  "source",
+  "column_break_main",
+  "detail"
+ ],
+ "fields": [
+  {"fieldname": "event_id", "fieldtype": "Data", "in_list_view": 1, "label": "事件 ID", "reqd": 1, "unique": 1, "columns": 5, "description": "LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理"},
+  {"default": "processing", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "processing\ndone\nignored\nfailed", "reqd": 1, "columns": 2},
+  {"fieldname": "source", "fieldtype": "Data", "label": "来源", "columns": 3},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "detail", "fieldtype": "Small Text", "label": "说明"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly LINE Event",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

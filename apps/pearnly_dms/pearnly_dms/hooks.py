@@ -5,6 +5,10 @@ app_description = "DMS 产品：身份证录入、客户匹配、操作手册、
 app_email = "skin@pearnly.local"
 app_license = "mit"
 
+# LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
+# ERP / Cowork 将来各自加一行即可，传输层不用改。
+pearnly_line_handlers = ["pearnly_dms.line_handlers.handle"]
+
 # Apps
 # ------------------
 
@@ -261,4 +265,3 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

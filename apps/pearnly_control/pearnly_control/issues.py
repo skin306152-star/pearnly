@@ -78,8 +78,6 @@ def issue(
     contact_phone: str | None = None,
     features: dict | None = None,
     delivery: str = "invite",
-    ocr_economy: bool = True,
-    ocr_enterprise: bool = False,
     notes: str | None = None,
 ) -> dict:
     """发号。返回开通清单；走 `password` 时另外返回**只出现一次**的初始密码。
@@ -136,8 +134,6 @@ def issue(
         "account_name": account_name,
         "contact_phone": contact_phone,
         "delivery": delivery,
-        "ocr_economy": 1 if ocr_economy else 0,
-        "ocr_enterprise": 1 if ocr_enterprise else 0,
         "notes": notes,
         "target": target_name,
         "apps": apps_payload,
@@ -190,10 +186,6 @@ def issue(
         "features": {
             p: [row.feature for row in doc.get(f"{p}_features") or []]
             for p in features_mod.PRODUCTS
-        },
-        "ocr": {
-            "economy_b": bool(ocr_economy),
-            "enterprise_a": bool(ocr_enterprise),
         },
         "deployments": [
             {"app": row.app, "domain": row.domain,
@@ -252,7 +244,7 @@ def list_issues(*, status=None, limit=50) -> list[dict]:
     filters = {"status": status} if status else {}
     return frappe.get_all(
         ISSUE, filters=filters,
-        fields=["name", "status", "tenant_name", "account_email", "ocr_summary",
+        fields=["name", "status", "tenant_name", "account_email", "feature_summary",
                 "issued_at", "tenant"],
         order_by="creation desc", limit_page_length=int(limit),
     )

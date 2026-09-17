@@ -45,7 +45,6 @@ class PearnlyIssue(Document):
         self._validate_account()
         self._validate_apps()
         self._validate_features()
-        self._validate_ocr()
 
     # ── 基础信息 ──────────────────────────────────────────────
     def _validate_account(self):
@@ -139,16 +138,3 @@ class PearnlyIssue(Document):
             f"{features_mod.PRODUCT_LABELS[p]} {len(picked[p])} 项"
             for p in features_mod.PRODUCTS if picked.get(p)
         )
-
-    # ── OCR ───────────────────────────────────────────────────
-    def _validate_ocr(self):
-        # A 档（高精／财务扫描件）与 B 档（经济／日常发票）是两种能力，
-        # 不要求同时选，也不允许"都不选却声称有 OCR"。
-        if not self.ocr_economy and not self.ocr_enterprise:
-            self.ocr_summary = "未开通"
-        elif self.ocr_enterprise and self.ocr_economy:
-            self.ocr_summary = "A 档 + B 档"
-        elif self.ocr_enterprise:
-            self.ocr_summary = "仅 A 档（高精·财务扫描件）"
-        else:
-            self.ocr_summary = "仅 B 档（经济·日常发票）"

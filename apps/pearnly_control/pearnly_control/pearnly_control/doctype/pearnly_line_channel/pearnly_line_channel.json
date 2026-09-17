@@ -1,0 +1,52 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:LINE-{deployment}",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "deployment",
+  "product",
+  "column_break_main",
+  "channel_id",
+  "liff_id",
+  "section_credentials",
+  "channel_secret",
+  "channel_access_token",
+  "column_break_cred",
+  "webhook_url",
+  "section_ops",
+  "notes"
+ ],
+ "fields": [
+  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "pending\nactive\nsuspended", "reqd": 1, "columns": 2},
+  {"fieldname": "deployment", "fieldtype": "Link", "in_list_view": 1, "label": "部署", "options": "Pearnly Deployment", "reqd": 1, "unique": 1, "columns": 4, "description": "一个部署（公司×产品）一条 LINE。这是隔离边界：验签与发消息都用这条自己的凭据"},
+  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2, "description": "存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口"},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "channel_id", "fieldtype": "Data", "in_list_view": 1, "label": "Channel ID", "columns": 3, "description": "Messaging API 频道的基本 ID（@xxx），用于识别与排查"},
+  {"fieldname": "liff_id", "fieldtype": "Data", "label": "LIFF ID", "description": "有 LIFF 应用才填；没有就留空"},
+  {"fieldname": "section_credentials", "fieldtype": "Section Break", "label": "凭据（只在这里存一份，开通时推到租户站点）"},
+  {"fieldname": "channel_secret", "fieldtype": "Password", "label": "Channel Secret", "description": "webhook 验签用。**每个租户一条**：租户站点只用自己的这条，别人的签名验不过"},
+  {"fieldname": "channel_access_token", "fieldtype": "Password", "label": "Channel Access Token", "description": "发消息用（long-lived）"},
+  {"fieldname": "column_break_cred", "fieldtype": "Column Break"},
+  {"fieldname": "webhook_url", "fieldtype": "Data", "label": "Webhook URL", "read_only": 1, "description": "填到 LINE 后台的那个地址，由部署域名算出"},
+  {"fieldname": "section_ops", "fieldtype": "Section Break", "label": "运维"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly LINE Channel",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "deployment",
+ "track_changes": 1
+}

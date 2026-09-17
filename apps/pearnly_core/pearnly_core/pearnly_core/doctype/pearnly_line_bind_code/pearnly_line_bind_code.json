@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:code",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "code",
+  "user",
+  "column_break_main",
+  "used",
+  "expires_at",
+  "used_at"
+ ],
+ "fields": [
+  {"fieldname": "code", "fieldtype": "Data", "in_list_view": 1, "label": "绑定码", "reqd": 1, "unique": 1, "columns": 3, "description": "一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定"},
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "本地账号", "options": "User", "reqd": 1, "columns": 4},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"default": "0", "fieldname": "used", "fieldtype": "Check", "in_list_view": 1, "label": "已使用", "columns": 2},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "label": "过期时间", "reqd": 1},
+  {"fieldname": "used_at", "fieldtype": "Datetime", "label": "使用时间"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly LINE Bind Code",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

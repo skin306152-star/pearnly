@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:line_user_id",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "line_user_id",
+  "status",
+  "column_break_main",
+  "user",
+  "display_name",
+  "section_time",
+  "bound_at",
+  "unbound_at"
+ ],
+ "fields": [
+  {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE 用户 ID", "reqd": 1, "unique": 1, "columns": 4},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\nunbound", "reqd": 1, "columns": 2},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "本地账号", "options": "User", "reqd": 1, "columns": 3},
+  {"fieldname": "display_name", "fieldtype": "Data", "label": "LINE 昵称"},
+  {"fieldname": "section_time", "fieldtype": "Section Break", "label": "时间"},
+  {"fieldname": "bound_at", "fieldtype": "Datetime", "label": "绑定时间"},
+  {"fieldname": "unbound_at", "fieldtype": "Datetime", "label": "解绑时间"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly LINE Binding",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

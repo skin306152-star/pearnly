@@ -58,7 +58,7 @@ echo "    在 cowork-a 上的身份: $BIZ"
 echo "[3] 发号：一次开三个产品，各自域名，B 档 + A 档 OCR"
 T=$(curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" "$CONTROL/pearnly-password" | sed -n 's/.*var CSRF = "\([^"]*\)".*/\1/p' | head -1)
 RESULT=$(api "pearnly_control.issues.api_issue" <<JSON
-{"tenant_name":"测试租户 ${SUFFIX}","account_email":"owner-${SUFFIX}@sample.local","account_name":"测试老板","contact_phone":"0800000000","ocr_economy":true,"ocr_enterprise":true,"apps":[{"app":"cowork","domain":"acme-cowork-${SUFFIX}.pearnly.com"},{"app":"erp","domain":"acme-erp-${SUFFIX}.pearnly.com"},{"app":"dms","domain":"acme-dms-${SUFFIX}.pearnly.com"}]}
+{"tenant_name":"测试租户 ${SUFFIX}","account_email":"owner-${SUFFIX}@sample.local","account_name":"测试老板","contact_phone":"0800000000","apps":[{"app":"cowork","domain":"acme-cowork-${SUFFIX}.pearnly.com"},{"app":"erp","domain":"acme-erp-${SUFFIX}.pearnly.com"},{"app":"dms","domain":"acme-dms-${SUFFIX}.pearnly.com"}]}
 JSON
 )
 echo "$RESULT" | python3 -c '
@@ -70,7 +70,6 @@ if not m:
 print("    发号单:", m["issue"], "| 租户:", m["tenant"])
 print("    账号:", m["account_email"], "| 身份主体:", m["identity_subject"])
 print("    初始密码（只出现一次）:", m["initial_password"])
-print("    OCR:", m["ocr"])
 for dep in m["deployments"]:
     print("    待开通:", dep["app"], "->", dep["domain"])
 open("/tmp/issue_pwd.txt","w").write(m["initial_password"])

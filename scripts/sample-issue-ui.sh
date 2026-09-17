@@ -53,7 +53,7 @@ open("/tmp/ctl_csrf.txt", "w").write(m.get("csrf_token") or "")
 echo "[4] 用页面同一条接口发号"
 T=$(cat /tmp/ctl_csrf.txt)
 cat > "$BODY_FILE" <<JSON
-{"tenant_name":"界面测试租户 ${SUFFIX}","account_email":"ui-${SUFFIX}@sample.local","account_name":"界面测试","ocr_economy":true,"ocr_enterprise":false,"apps":[{"app":"cowork","domain":"ui-cowork-${SUFFIX}.pearnly.com"},{"app":"dms","domain":"ui-dms-${SUFFIX}.pearnly.com"}]}
+{"tenant_name":"界面测试租户 ${SUFFIX}","account_email":"ui-${SUFFIX}@sample.local","account_name":"界面测试","apps":[{"app":"cowork","domain":"ui-cowork-${SUFFIX}.pearnly.com"},{"app":"dms","domain":"ui-dms-${SUFFIX}.pearnly.com"}]}
 JSON
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$BODY_FILE"
 curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" -H "Content-Type: application/json" \
@@ -67,7 +67,6 @@ if not m:
     print("    失败:", str(d)[:200]); raise SystemExit(1)
 print("    发号单:", m["issue"], "| 租户:", m["tenant"])
 print("    账号:", m["account_email"], "| 一次性密码长度:", len(m["initial_password"]))
-print("    OCR:", m["ocr"])
 for dep in m["deployments"]:
     print("    待开通:", dep["app"], "->", dep["domain"])
 '
@@ -78,5 +77,4 @@ curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" \
   | python3 -c '
 import sys, json
 for r in (json.load(sys.stdin).get("message") or []):
-    print("   ", r["name"], r["status"], r["tenant_name"], r["account_email"], r["ocr_summary"])
 '

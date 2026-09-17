@@ -78,6 +78,14 @@ sys.exit(0 if ok else 1)
 
 FAILED=0
 
+# 基础域名是一项配置（本机是 localhost，生产是 pearnly.com），测试不该写死。
+# 从站点配置读出来，断言才能同时适配两种环境。
+BASE_DOMAIN=$(docker --context colima-pearnly exec pearnly-sample-control-bench-1 bash -lc \
+  "cd ~/frappe-bench && bench --site control.localhost execute pearnly_control.domains.base_domain 2>/dev/null | tail -1" \
+  | tr -d '"' | tr -d '\r')
+BASE_DOMAIN="${BASE_DOMAIN:-pearnly.com}"
+echo "    基础域名（从站点配置读）: ${BASE_DOMAIN}"
+
 echo "[1] 登录控制面（本地账号）"
 curl -sS -c "$JAR" -o /dev/null -X POST "$CONTROL/api/method/login" \
   -H "Host: $CONTROL_HOST" -H 'Content-Type: application/json' \
@@ -98,8 +106,6 @@ cat > "$BODY" <<JSON
   "account_name": "开通验证",
   "contact_phone": "+66000000000",
   "delivery": "invite",
-  "ocr_economy": true,
-  "ocr_enterprise": false,
   "apps": [
     {"app": "cowork", "domain_prefix": "fcwo${SUFFIX}"},
     {"app": "dms", "domain_prefix": "fdms${SUFFIX}"}
@@ -112,8 +118,9 @@ cat > "$BODY" <<JSON
 JSON
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$BODY"
 RESP=$(api pearnly_control.issues.api_issue --post)
-printf '%s' "$RESP" | python3 -c '
-import sys, json
+printf '%s' "$RESP" | BASE_DOMAIN="$BASE_DOMAIN" python3 -c '
+import os, sys, json
+BASE = os.environ.get("BASE_DOMAIN") or "pearnly.com"
 d = json.load(sys.stdin)
 m = d.get("message")
 if not m:
@@ -126,8 +133,10 @@ for product, feats in m["features"].items():
     if feats:
         print("    功能", product, ":", ", ".join(feats))
 print("    一次性密码:", "（未返回，走邀请邮件）" if "initial_password" not in m else "有")
-ok = all(dep["domain"].endswith(".pearnly.com") for dep in m["deployments"])
-print("    域名规则（前缀+.pearnly.com）:", "✓" if ok else "✗")
+ok = all(dep["domain"].endswith("." + BASE) and dep["domain"].startswith(dep["domain_prefix"] + ".")
+         for dep in m["deployments"])
+print(f"    域名规则（前缀+.{BASE}）:", "✓" if ok else "✗")
+if not ok: raise SystemExit(1)
 if m["delivery"] != "invite":
     print("    ✗ 交付方式不是 invite"); raise SystemExit(1)
 '
@@ -141,7 +150,7 @@ cat > "$BODY" <<JSON
  "apps":[{"app":"cowork","domain_prefix":"Foo${SUFFIX}"}]}
 JSON
 issue_ok "前缀含大写字母会被规范成小写（DNS 本就大小写不敏感）" \
-  "m['deployments'][0]['domain']=='foo${SUFFIX}.pearnly.com'"
+  "m['deployments'][0]['domain']=='foo${SUFFIX}.${BASE_DOMAIN}'"
 
 cat > "$BODY" <<JSON
 {"tenant_name":"下划线前缀","account_email":"bad1-${SUFFIX}@sample.local","delivery":"password",

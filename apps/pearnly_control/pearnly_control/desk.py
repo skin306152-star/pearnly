@@ -46,6 +46,9 @@ SIDEBAR_ITEMS = [
     {"label": "租户", "link_type": "DocType", "link_to": "Pearnly Tenant"},
     {"label": "功能目录", "link_type": "DocType", "link_to": "Pearnly Feature"},
     {"label": "开户目标", "link_type": "DocType", "link_to": "Pearnly Target"},
+    {"label": "部署", "link_type": "DocType", "link_to": "Pearnly Deployment"},
+    {"label": "LINE 渠道", "link_type": "DocType", "link_to": "Pearnly LINE Channel"},
+    {"label": "开通进度", "link_type": "DocType", "link_to": "Pearnly Provisioning Request"},
 ]
 
 

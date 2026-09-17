@@ -85,6 +85,38 @@ act_finalize_site() {  # <group> <site>
   printf '%s' "$out" | grep -q "home_page" || return 1
 }
 
+act_set_line() {  # <payload-json>
+  # 每租户一条 LINE：把该部署自己的渠道凭据写到它自己的站点上。
+  # 站点只认自己这条密钥，别的租户的签名验不过 —— 隔离靠凭据本身。
+  local payload="$1"
+  local configured get
+  get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  configured=$(py -c "$get" "$payload" configured)
+  if [ "$configured" != "True" ]; then
+    echo "SKIPPED: 该租户还没配 LINE 渠道"
+    return 0
+  fi
+
+  local group site cid secret token liff
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  cid=$(py -c "$get" "$payload" channel_id)
+  secret=$(py -c "$get" "$payload" channel_secret)
+  token=$(py -c "$get" "$payload" channel_access_token)
+  liff=$(py -c "$get" "$payload" liff_id)
+
+  dc exec -T "$(bench_of "$group")" bash -lc "
+    set -e
+    B='bench --site $site'
+    \$B set-config pearnly_line_channel_id '$cid' >/dev/null
+    \$B set-config pearnly_line_channel_secret '$secret' >/dev/null
+    \$B set-config pearnly_line_channel_access_token '$token' >/dev/null
+    \$B set-config pearnly_line_liff_id '$liff' >/dev/null
+    \$B set-config pearnly_line_product '$(py -c "$get" "$payload" product)' >/dev/null
+  "
+  echo "已写 LINE 渠道配置 channel=$cid"
+}
+
 act_set_oidc() {  # <group> <site> <product> <issuer> <client_id> <secret> <redirect>
   # 一次写完身份相关的整组配置。刷新配置后必须重启：gunicorn 是 --preload（踩过）
   dc exec -T "$(bench_of "$1")" bash -lc "
@@ -134,6 +166,7 @@ run_step() {  # <action> <payload-json>
                                  "$(py -c "$get" "$payload" redirect_uri)" ;;
     restart_web) act_restart_web "$(py -c "$get" "$payload" group)" ;;
     finalize_site) act_finalize_site "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
+    set_line)      act_set_line "$payload" ;;
     bind_user)   act_bind_user   "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" \
                                  "$(py -c "$get" "$payload" email)" "$(py -c "$get" "$payload" full_name)" \
                                  "$(py -c "$get" "$payload" subject)" "$(py -c "$get" "$payload" deployment)" ;;
@@ -202,7 +235,15 @@ for dep in m["deployments"]:
       report "$key" running ""
       if out=$(run_step "$action" "$payload" 2>&1); then
         echo "$out" | sed 's/^/         /'
-        report "$key" done "$out"
+        # 动作可以用 SKIPPED: 开头表示"这一步对本次开通不适用"（例如租户还没配 LINE）。
+        # 显式记 skipped，不要含糊成 done —— 看进度的人要能分清"不用做"和"做完了"。
+        case "$out" in
+          SKIPPED:*)
+            report "$key" skipped "$out"
+            echo "         （记为 skipped）"
+            ;;
+          *) report "$key" done "$out" ;;
+        esac
       else
         echo "$out" | sed 's/^/         /' >&2
         report "$key" failed "$out"

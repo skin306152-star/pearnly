@@ -37,6 +37,7 @@ from pearnly_core import keycloak_admin as kc
 REQUEST = "Pearnly Provisioning Request"
 DEPLOYMENT = "Pearnly Deployment"
 ISSUE = "Pearnly Issue"
+LINE_CHANNEL = "Pearnly LINE Channel"
 
 
 def _require_operator() -> str:
@@ -198,6 +199,44 @@ def _issuer_url() -> str:
     return f"{row.base_url.rstrip('/')}/realms/{row.realm}"
 
 
+def _line_payload(dep, site: str, group: str) -> dict:
+    """该部署的 LINE 渠道配置。没有配渠道就给出空凭据，执行器会把这步标成 skipped。
+
+    为什么要"没有也走一步"：状态机里显式记 skipped（而不是不生成步骤），
+    看进度的人就能一眼分清"这个租户还没配 LINE"和"这一步被漏了"。
+    """
+    channel = frappe.db.get_value(
+        LINE_CHANNEL, {"deployment": dep.name, "status": ("!=", "suspended")},
+        ["channel_id", "channel_secret", "channel_access_token", "liff_id"],
+        as_dict=True,
+    )
+    payload = {
+        "site": site,
+        "group": group,
+        "product": dep.product,
+        "webhook_url": f"http://{site}:{dep.port}/api/method/pearnly_core.line.webhook",
+    }
+    if not channel:
+        payload["configured"] = False
+        return payload
+
+    from frappe.utils.password import get_decrypted_password
+
+    def _secret(field: str) -> str:
+        return get_decrypted_password(
+            LINE_CHANNEL, f"LINE-{dep.name}", field, raise_exception=False
+        ) or ""
+
+    payload.update({
+        "configured": True,
+        "channel_id": channel.channel_id or "",
+        "liff_id": channel.liff_id or "",
+        "channel_secret": _secret("channel_secret"),
+        "channel_access_token": _secret("channel_access_token"),
+    })
+    return payload
+
+
 def _steps_for(issue, dep, row) -> list[dict]:
     """一个部署的步骤序列。顺序有依赖：先有站点才能装 App，装完才能配、再绑人。"""
     site, group = dep.site_name, dep.bench_group
@@ -229,6 +268,9 @@ def _steps_for(issue, dep, row) -> list[dict]:
         {"step_key": f"{dep.name}:finalize_site", "deployment": dep.name,
          "action": "finalize_site", "status": "pending",
          "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},
+        {"step_key": f"{dep.name}:set_line", "deployment": dep.name,
+         "action": "set_line", "status": "pending",
+         "payload": json.dumps(_line_payload(dep, site, group), ensure_ascii=False)},
         {"step_key": f"{dep.name}:bind_user", "deployment": dep.name,
          "action": "bind_user", "status": "pending",
          "payload": json.dumps({
