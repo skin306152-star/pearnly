@@ -128,4 +128,15 @@ def change_password(current_password=None, new_password=None, confirm_password=N
     frappe.logger("pearnly.identity").info(
         f"password changed user={user} subject={identity.subject}"
     )
-    return {"ok": True}
+
+    # 改密后撤销其它会话：保留当前这一个，其余（含身份服务侧）全部作废。
+    # 这是"改密即踢掉别处登录"的落点；正常登录不会互踢。
+    revoked = 0
+    try:
+        from pearnly_core import sessions
+
+        revoked = sessions.logout_everywhere(keep_current=True).get("revoked", 0)
+    except Exception as exc:  # 撤权失败不能掩盖"密码已改成功"这个事实
+        frappe.logger("pearnly.identity").warning(f"revoke after password change failed: {exc}")
+
+    return {"ok": True, "revoked_other_sessions": revoked}

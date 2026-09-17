@@ -8,6 +8,9 @@ app_license = "mit"
 # 账号组件：产品界面左下角/右下角头像菜单 + 改密弹窗（三个产品共用）。
 # 刻意**不**注入 Frappe 自带界面：入口属于产品壳，由产品挂载。
 
+# 会话登记：每次登录后记一条，用于展示、审计与撤权。
+on_session_creation = "pearnly_core.sessions.register_session"
+
 # Apps
 # ------------------
 

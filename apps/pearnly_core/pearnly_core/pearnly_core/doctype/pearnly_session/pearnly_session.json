@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "user",
+  "deployment",
+  "status",
+  "column_break_main",
+  "session_id",
+  "keycloak_sid",
+  "user_agent",
+  "ip_address",
+  "created_at",
+  "last_seen_at",
+  "revoked_at"
+ ],
+ "fields": [
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "in_standard_filter": 1, "label": "User", "options": "User", "reqd": 1},
+  {"fieldname": "deployment", "fieldtype": "Data", "in_list_view": 1, "label": "Deployment"},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "active\nrevoked", "reqd": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "session_id", "fieldtype": "Data", "label": "Local Session", "reqd": 1, "unique": 1},
+  {"fieldname": "keycloak_sid", "fieldtype": "Data", "label": "Identity Session"},
+  {"fieldname": "user_agent", "fieldtype": "Small Text", "label": "User Agent"},
+  {"fieldname": "ip_address", "fieldtype": "Data", "label": "IP"},
+  {"fieldname": "created_at", "fieldtype": "Datetime", "label": "Created At"},
+  {"fieldname": "last_seen_at", "fieldtype": "Datetime", "label": "Last Seen At"},
+  {"fieldname": "revoked_at", "fieldtype": "Datetime", "label": "Revoked At"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Session",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "last_seen_at",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

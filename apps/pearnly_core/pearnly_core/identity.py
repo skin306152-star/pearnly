@@ -117,6 +117,13 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         frappe.throw(_("ID token 的签发方不是本站点配置的身份服务"))
 
     user = _resolve_user(token_issuer, subject)
+
+    # 把身份服务侧的会话 id 暂存，交由 on_session_creation 记进会话登记表。
+    frappe.local.pearnly_kc = {
+        "sid": claims.get("sid"),
+        "sub": subject,
+        "iss": token_issuer,
+    }
     _login_as(user)
 
     frappe.db.set_value(
