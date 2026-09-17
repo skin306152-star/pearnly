@@ -16,7 +16,7 @@ REALMS=(pearnly-platform pearnly-business)
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 env_file="$repo_root/.env.local"
 if [ ! -f "$env_file" ]; then
-  echo "缺少 $env_file（里面放 SMTP 凭据，见文件头注释）" >&2
+  echo "缺少 ${env_file}（里面放 SMTP 凭据，见文件头注释）" >&2
   exit 2
 fi
 set -a

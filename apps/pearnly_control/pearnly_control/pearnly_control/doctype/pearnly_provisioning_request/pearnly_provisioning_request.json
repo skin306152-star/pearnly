@@ -1,0 +1,45 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:PR-{YYYY}-{####}",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "idempotency_key",
+  "issue",
+  "column_break_main",
+  "started_at",
+  "finished_at",
+  "section_steps",
+  "steps",
+  "section_result",
+  "error"
+ ],
+ "fields": [
+  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "pending\nrunning\ndone\npartial\nfailed", "reqd": 1, "columns": 2},
+  {"fieldname": "idempotency_key", "fieldtype": "Data", "in_list_view": 1, "label": "幂等键", "reqd": 1, "unique": 1, "columns": 4, "description": "同一个键重复提交只会有一套资源。默认用发号单号"},
+  {"fieldname": "issue", "fieldtype": "Link", "in_list_view": 1, "label": "发号单", "options": "Pearnly Issue", "reqd": 1, "columns": 3},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "开始时间", "read_only": 1},
+  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "结束时间", "read_only": 1},
+  {"fieldname": "section_steps", "fieldtype": "Section Break", "label": "步骤"},
+  {"fieldname": "steps", "fieldtype": "Table", "label": "步骤", "options": "Pearnly Provisioning Step"},
+  {"fieldname": "section_result", "fieldtype": "Section Break", "label": "结果"},
+  {"fieldname": "error", "fieldtype": "Small Text", "label": "失败原因", "read_only": 1}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Provisioning Request",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

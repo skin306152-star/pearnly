@@ -269,6 +269,64 @@ class AdminClient:
                 _("邀请邮件发送失败：{0} {1}").format(resp.status_code, resp.text[:200])
             )
 
+    def create_oidc_client(self, client_id: str, redirect_uris: list[str],
+                           web_origins: list[str] | None = None) -> dict:
+        """建（或更新）一个部署自己的 OIDC 客户端，返回 client_id 与密钥。
+
+        为什么每个部署要一个：回调地址是按站点域名生成的，共用客户端的话
+        第二个租户的回调就不在白名单里，登录走不完（P3 合同：每部署独立 OIDC
+        回调与客户端配置）。形态照抄样板里已验证的客户端：
+        机密客户端、只开授权码流、PKCE=S256、不开密码授权。
+        """
+        if not client_id:
+            frappe.throw(_("客户端 ID 不能为空"))
+        token = self.token()
+        payload = {
+            "clientId": client_id,
+            "enabled": True,
+            "protocol": "openid-connect",
+            "publicClient": False,
+            "standardFlowEnabled": True,
+            # 密码授权必须关着：登录只走授权码 + PKCE
+            "directAccessGrantsEnabled": False,
+            "serviceAccountsEnabled": False,
+            "redirectUris": redirect_uris,
+            "webOrigins": web_origins or [],
+            "attributes": {"pkce.code.challenge.method": "S256"},
+        }
+        found = requests.get(
+            self._url("/clients"), headers=self._headers(token),
+            params={"clientId": client_id}, timeout=TIMEOUT,
+        )
+        rows = found.json() if found.status_code == 200 else []
+        if rows:
+            uid = rows[0]["id"]
+            resp = requests.put(self._url(f"/clients/{uid}"), headers=self._headers(token),
+                                json=payload, timeout=TIMEOUT)
+            if resp.status_code not in (200, 204):
+                frappe.throw(_("更新 OIDC 客户端失败：{0} {1}").format(
+                    resp.status_code, resp.text[:200]))
+        else:
+            resp = requests.post(self._url("/clients"), headers=self._headers(token),
+                                 json=payload, timeout=TIMEOUT)
+            if resp.status_code not in (201, 204):
+                frappe.throw(_("创建 OIDC 客户端失败：{0} {1}").format(
+                    resp.status_code, resp.text[:200]))
+            rows = requests.get(
+                self._url("/clients"), headers=self._headers(token),
+                params={"clientId": client_id}, timeout=TIMEOUT,
+            ).json()
+            uid = rows[0]["id"]
+
+        secret_resp = requests.get(
+            self._url(f"/clients/{uid}/client-secret"), headers=self._headers(token),
+            timeout=TIMEOUT,
+        )
+        if secret_resp.status_code != 200:
+            frappe.throw(_("取客户端密钥失败：{0} {1}").format(
+                secret_resp.status_code, secret_resp.text[:200]))
+        return {"client_id": client_id, "client_secret": secret_resp.json().get("value", "")}
+
 
 def client_for_target(target_name: str | None = None) -> tuple["AdminClient", str]:
     """按 `Pearnly Target` 取一个管理客户端。返回 (client, 目标名)。
