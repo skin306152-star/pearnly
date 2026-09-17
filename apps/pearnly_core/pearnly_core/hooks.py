@@ -11,6 +11,10 @@ app_license = "mit"
 # 会话登记：每次登录后记一条，用于展示、审计与撤权。
 on_session_creation = "pearnly_core.sessions.register_session"
 
+# 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
+# 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
+before_request = ["pearnly_core.login_redirect.redirect_guests_to_identity"]
+
 # Apps
 # ------------------
 

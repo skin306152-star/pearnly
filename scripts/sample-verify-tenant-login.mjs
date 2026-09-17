@@ -31,8 +31,32 @@ const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
 const errs = [];
 page.on("pageerror", (e) => errs.push(String(e).slice(0, 160)));
 
+// [0] 全新访客打开站点根就应该被送到统一登录页。
+// 这一条是用户实测踩到的坑：以前访客看到的是 Frappe 自带登录页，
+// 而业务账号在站点上没有密码，怎么输都是 Invalid credentials。
 await page.goto(`${site}/`, { waitUntil: "domcontentloaded" });
-console.log("站点首页:", page.url());
+await page.waitForTimeout(1500);
+const landedOnIdentity = page.url().includes("keycloak");
+console.log(`[0] 访客打开站点根 → ${page.url().split("?")[0]}`);
+if (!landedOnIdentity) {
+	console.log("    ✗ 没有跳到统一登录页（访客会看到 Frappe 自带登录页，必然登不进去）");
+} else {
+	const labels = await page.evaluate(() =>
+		[...document.querySelectorAll("label, button, a")]
+			.filter((e) => e.offsetParent !== null)
+			.map((e) => (e.innerText || "").trim())
+			.filter(Boolean)
+	);
+	const hasForgot = labels.some((l) => /Forgot|忘记/i.test(l));
+	const hasSocial = labels.some((l) => /Google|LINE|Facebook/i.test(l));
+	const hasSignup = labels.some((l) => /Register|Sign up|注册/i.test(l));
+	console.log(
+		`    登录页: 忘记密码=${hasForgot} 第三方登录=${hasSocial} 注册=${hasSignup}`
+	);
+	if (hasSocial || hasSignup) {
+		console.log("    ✗ 统一登录页不该有第三方登录或注册入口");
+	}
+}
 
 // 与真人一致：站点发起 → 身份服务登录 → 提交 → 回站点
 await page.goto(`${site}/api/method/pearnly_core.identity.begin_login`, {
@@ -68,11 +92,11 @@ try {
 
 const loggedIn = String(me).toLowerCase() === user.toLowerCase();
 const noWizard = !page.url().includes("setup-wizard");
-const ok = loggedIn && noWizard && errs.length === 0;
+const ok = loggedIn && noWizard && errs.length === 0 && landedOnIdentity;
 console.log(
 	ok
-		? "[PASS] 租户用真实浏览器登录成功，且落点是 Desk（不是设置向导）"
-		: `[FAIL] 登录=${loggedIn} 落点正常=${noWizard} 无JS报错=${errs.length === 0}`
+		? "[PASS] 统一登录口 + 登录成功 + 落点 Desk（不是设置向导）"
+		: `[FAIL] 统一登录口=${landedOnIdentity} 登录=${loggedIn} 落点正常=${noWizard} 无JS报错=${errs.length === 0}`
 );
 await browser.close();
 process.exit(ok ? 0 : 1);

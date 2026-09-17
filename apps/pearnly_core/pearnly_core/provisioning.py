@@ -80,6 +80,17 @@ def finalize_site() -> dict:
     )
     frappe.db.set_single_value("System Settings", "setup_complete", 1)
     frappe.db.set_default("desktop:home_page", "desktop")
+
+    # 业务站点关掉"本地密码登录"这条旁路。
+    # 为什么必须关：站点上的 Administrator 是有密码的，而业务账号在站点上
+    # 根本没有密码 —— 不关就等于留了一条"用站点本地密码登录"的绕行路，
+    # 与 P3 合同"业务用户无独立本地密码登录旁路"直接冲突。
+    # 这个开关同时管住网页表单和 /api/method/login（frappe/auth.py:149）。
+    # 控制面是有意用本地账号的（ADR-004），所以用 pearnly_product 区分。
+    if str(frappe.conf.get("pearnly_product") or "").strip():
+        frappe.db.set_single_value("System Settings", "disable_user_pass_login", 1)
+        # 免密码的"邮箱链接登录"也不在统一登录口内，一并关掉
+        frappe.db.set_single_value("System Settings", "login_with_email_link", 0)
     frappe.db.commit()
 
     frappe.clear_cache()
