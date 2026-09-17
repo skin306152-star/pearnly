@@ -209,8 +209,12 @@ class AdminClient:
         rows = resp.json() or []
         return rows[0]["id"] if rows else None
 
-    def create_user(self, email: str, first_name: str, password: str,
+    def create_user(self, email: str, first_name: str, password: str | None = None,
                     last_name: str = "") -> str:
+        """建号。`password=None` 表示**先不设密码**，走邀请邮件让用户自己设。
+
+        不设密码时必须立刻发出邀请（`send_invite_email`），否则这个账号登不进来。
+        """
         token = self.token()
         payload = {
             "username": email,
@@ -222,8 +226,11 @@ class AdminClient:
             # 姓名必须给，否则 Keycloak 会挂 VERIFY_PROFILE 必填动作，
             # 登录后跳到补资料页而不是回调。
             "requiredActions": [],
-            "credentials": [{"type": "password", "value": password, "temporary": False}],
         }
+        if password:
+            payload["credentials"] = [
+                {"type": "password", "value": password, "temporary": False}
+            ]
         resp = requests.post(self._url("/users"), headers=self._headers(token),
                              json=payload, timeout=TIMEOUT)
         if resp.status_code not in (201, 204):
@@ -236,6 +243,31 @@ class AdminClient:
         if not found:
             frappe.throw(_("账号已建但取不到 id"))
         return found
+
+    def send_invite_email(self, user_id: str, client_id: str,
+                          lifespan_seconds: int = 7 * 24 * 3600) -> None:
+        """让身份服务给这个账号发一封「自己设密码」的邀请邮件。
+
+        `client_id` 是身份服务用来拼链接的客户端：邮件里的地址会按它的
+        redirect URI 生成。样板阶段所有租户共用同一个客户端；真实租户各自
+        建客户端之后应当传租户自己的。
+
+        发不出去时**必须报错**：Keycloak 在 SMTP 认证失败时会返回 500
+        并记 `KC-SERVICES0029`（实测过），所以这里不是"发不发得出去都继续"。
+        """
+        if not client_id:
+            frappe.throw(_("没有配「邀请链接用的客户端 ID」，发不出邀请邮件"))
+        resp = requests.put(
+            self._url(f"/users/{user_id}/execute-actions-email"),
+            headers=self._headers(self.token()),
+            params={"client_id": client_id, "lifespan": lifespan_seconds},
+            json=["UPDATE_PASSWORD"],
+            timeout=TIMEOUT,
+        )
+        if resp.status_code not in (200, 204):
+            frappe.throw(
+                _("邀请邮件发送失败：{0} {1}").format(resp.status_code, resp.text[:200])
+            )
 
 
 def client_for_target(target_name: str | None = None) -> tuple["AdminClient", str]:
@@ -262,3 +294,9 @@ def client_for_target(target_name: str | None = None) -> tuple["AdminClient", st
         except Exception:
             pass
     return AdminClient(row.base_url, row.realm, row.admin_client_id, secret), row.target_name
+
+
+def invite_client_id_for(target_name: str | None = None) -> str:
+    """取该目标用于拼邀请链接的客户端 ID（见 `Pearnly Target.invite_client_id`）。"""
+    filters = {"target_name": target_name} if target_name else {"is_default": 1}
+    return frappe.db.get_value("Pearnly Target", filters, "invite_client_id") or ""

@@ -5,6 +5,13 @@ app_description = "控制面：开户、公司、产品与功能、域名、角�
 app_email = "skin@pearnly.local"
 app_license = "mit"
 
+# 每次 migrate 后把功能模版目录同步进 Pearnly Feature（幂等）。
+# 产品清单改了以后，跑一次 migrate 勾选项就跟着更新，不用手工建数据。
+after_migrate = ["pearnly_control.features.sync_features"]
+
+# 把基础域名交给前端，避免 JS 里再写死一份域名规则。
+boot_session = "pearnly_control.boot.boot_session"
+
 # Apps
 # ------------------
 

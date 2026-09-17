@@ -1,0 +1,38 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:{product}-{feature_code}",
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product",
+  "feature_code",
+  "feature_label",
+  "column_break_main",
+  "default_on",
+  "description"
+ ],
+ "fields": [
+  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "in_standard_filter": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
+  {"fieldname": "feature_code", "fieldtype": "Data", "in_list_view": 1, "label": "功能代码", "reqd": 1, "columns": 3, "description": "与产品清单 product_manifest.py 里的 features 键一致"},
+  {"fieldname": "feature_label", "fieldtype": "Data", "in_list_view": 1, "label": "功能名称", "reqd": 1, "columns": 3},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "常规开通", "columns": 2, "description": "打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）"},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "说明"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Feature",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "ASC",
+ "title_field": "feature_label",
+ "track_changes": 1
+}

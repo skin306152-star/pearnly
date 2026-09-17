@@ -16,6 +16,8 @@
   "admin_client_secret",
   "section_provision",
   "provision_url",
+  "section_invite",
+  "invite_client_id",
   "notes"
  ],
  "fields": [
@@ -29,6 +31,8 @@
   {"fieldname": "admin_client_secret", "fieldtype": "Password", "label": "管理客户端密钥"},
   {"fieldname": "section_provision", "fieldtype": "Section Break", "label": "建站接口"},
   {"fieldname": "provision_url", "fieldtype": "Data", "label": "控制接口地址", "description": "服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站"},
+  {"fieldname": "section_invite", "fieldtype": "Section Break", "label": "邀请邮件"},
+  {"fieldname": "invite_client_id", "fieldtype": "Data", "label": "邀请链接用的客户端 ID", "description": "身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的"},
   {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
  ],
  "index_web_pages_for_search": 1,
