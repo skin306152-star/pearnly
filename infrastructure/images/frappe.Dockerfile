@@ -25,3 +25,8 @@ LABEL org.pearnly.image.role="frappe-sample-base" \
 #   docker build -f infrastructure/images/frappe.Dockerfile -t pearnly/frappe-sample:16.34.1 .
 COPY --chown=frappe:frappe apps/pearnly_core /home/frappe/frappe-bench/apps/pearnly_core
 RUN cd /home/frappe/frappe-bench && env/bin/pip install --no-deps -e apps/pearnly_core
+
+# /assets/<app>/... 由 assets 目录里的软链提供。上游镜像构建时只给 frappe 和
+# erpnext 建了软链，自有 App 要自己补，否则前端资源 404（踩过）。
+RUN ln -s /home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public \
+          /home/frappe/frappe-bench/assets/pearnly_core

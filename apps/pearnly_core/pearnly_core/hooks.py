@@ -5,8 +5,8 @@ app_description = "统一身份、授权上下文与审计核心"
 app_email = "skin@pearnly.local"
 app_license = "mit"
 
-# 头像下拉里的"密码更改"入口（三个产品共用同一页面）
-app_include_js = "/assets/pearnly_core/js/pearnly_password_menu.js"
+# 账号组件：产品界面左下角/右下角头像菜单 + 改密弹窗（三个产品共用）。
+# 刻意**不**注入 Frappe 自带界面：入口属于产品壳，由产品挂载。
 
 # Apps
 # ------------------

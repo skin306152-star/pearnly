@@ -26,6 +26,23 @@ x-frappe-common: &frappe-common
   networks: [sample]
   restart: unless-stopped
 
+# 官方镜像自带的 start.sh 只起 gunicorn 的"动态"应用，/assets 静态资源是留给
+# 前置 nginx 的。样例里没有 nginx 层，所以直接用 application_with_statics()
+# 这个入口，让 gunicorn 一并把 /assets 提供出来——否则前端资源全部 404。
+#
+# 生产拓扑会在前面放 nginx 或由边缘承担静态，届时不必用这个入口。
+x-web-command: &web-command
+  - /home/frappe/frappe-bench/env/bin/gunicorn
+  - --chdir=/home/frappe/frappe-bench/sites
+  - --bind=0.0.0.0:8000
+  - --threads=4
+  - --workers=2
+  - --worker-class=gthread
+  - --worker-tmp-dir=/dev/shm
+  - --timeout=120
+  - --preload
+  - "frappe.app:application_with_statics()"
+
 services:
   # ── Cowork ──────────────────────────────────────────────
   cowork-bench:
@@ -37,7 +54,7 @@ services:
   cowork-web:
     <<: *frappe-common
     mem_limit: 512m
-    command: ["/usr/local/bin/start.sh"]
+    command: *web-command
     volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
     ports: ["127.0.0.1:8101:8000"]
 
@@ -69,7 +86,7 @@ services:
   erp-web:
     <<: *frappe-common
     mem_limit: 512m
-    command: ["/usr/local/bin/start.sh"]
+    command: *web-command
     volumes: [sites-erp:/home/frappe/frappe-bench/sites]
     ports: ["127.0.0.1:8102:8000"]
 
@@ -101,7 +118,7 @@ services:
   dms-web:
     <<: *frappe-common
     mem_limit: 512m
-    command: ["/usr/local/bin/start.sh"]
+    command: *web-command
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
     ports: ["127.0.0.1:8103:8000"]
 
@@ -133,7 +150,7 @@ services:
   control-web:
     <<: *frappe-common
     mem_limit: 384m
-    command: ["/usr/local/bin/start.sh"]
+    command: *web-command
     volumes: [sites-control:/home/frappe/frappe-bench/sites]
     ports: ["127.0.0.1:8104:8000"]
 
