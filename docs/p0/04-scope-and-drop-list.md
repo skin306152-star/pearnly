@@ -60,4 +60,45 @@
 
 ## 待用户决定
 
-上表 10 项中，哪些属于"不要"，哪些要留在三个产品内部。用户确认后，本表转为不迁移清单，并同步进需求映射。
+**用户已确认（2026-09-17）**：协作页 `/work`（WeKan）留，属 Cowork；对账留，属 Cowork；其余"以前开发的功能，不要了"。
+
+## 确认后的不迁移清单
+
+不要：收银台 POS（`/cashier` + `/pos`）、AI 管家（`/ai`）、Daily 周记账（`/daily`）、会计凭证与科目账簿、工单制、报税、工资、邮件接入、Excel 公式对账内测。
+
+处置仍是"新系统不搬"，旧系统照旧运行到切换完成并通过观察期。
+
+## 依赖核对结果（`appendix/module-dependencies.csv`）
+
+按"保留文件是否引用被砍模块"核对，结论分三档。
+
+### 一档：可以干净去掉（保留侧几乎无引用）
+
+| 模块 | 保留侧引用 |
+|---|---|
+| `services/ledger`（账簿） | 0 |
+| `services/tax`（报税） | 0 |
+| `services/daily`（Daily） | 0 |
+| `services/etax` | 0 |
+| `services/rd`（泰国 RD） | 1（`ocr_history/mutations.py`） |
+| `services/payroll`（工资） | 1（`workspace/tax_profile_schema.py`） |
+
+### 二档：必须"切一刀"，不能整块删
+
+| 模块 | 谁在用 | 处理 |
+|---|---|---|
+| `services/ai_gateway` | **`services/ocr/` 的 5 个文件** + `expense/category_ai.py` | OCR 识别要留，所以只砍 steward/front_desk 那一支，保留 OCR 用的 AI 通道 |
+| `services/fileconv` | `summary_import/pdf_table.py`、`reports/financials_pdf.py` | 汇总表批量建单要留，只砍独立入口 `/api/fileconv` |
+| `services/pos` | `pos_schema.py`、`startup.py`、`modules/presets.py`、`cloud_tasks/handlers.py`、`admin_pos_entitlement_routes`（租户管理） | 清启动期 schema 与预设、云任务 handler，以及租户管理里的 POS 权益入口 |
+| `services/steward` | `startup.py`、`cloud_tasks/handlers.py`、`cloud_runtime/schema.py`、`background_loops.py` | 清启动、后台循环与 schema |
+| `services/email_ingest` | `background_loops.py` | 清后台循环 |
+
+### 三档：会改动保留功能，需要确认
+
+1. **会计（`services/accounting`）**：被 `purchase/posting.py`、`sales/document.py`、`sales/credit_note.py`、`export/entries.py` 引用。即**采购与销售记录现在会自动过账生成会计凭证**。砍掉会计 = 这两条流程要去掉过账环节。需要用户确认：采购/销售录完之后还要不要生成会计那套账。
+2. **工单（`services/workorder`）**：对账侧有 `recon/workorder_recon_adapter.py` 直接适配它。**对账要留、工单不要**，这个适配口必须拆掉；另有 `background_loops.py`、`cloud_tasks/workorders.py`、`cloud_runtime/schema.py`、`workspace/purge_files.py`、`workspace/client_alias_store.py` 需要清理。
+3. **增值税计算与报税是两件事**：`services/vat` 被**对账**（`recon_routes`、`recon_routes_v1_batch`、`recon_routes_glvat`）引用。报税流程不要，但**税额计算要留**，否则对账无数据源。
+
+## 范围缩减的量级
+
+不迁移的功能约占 732 条路由中的 190 余条（POS 68、会计 36、工单 26、报税约 20、AI 管家 22、Daily 5、工资 5、邮件接入 6、Excel 内测 5）。这对目标机资源预算是明显利好，但**不改变 P1 必须先做资源样板的要求**。
