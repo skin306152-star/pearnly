@@ -11,6 +11,12 @@
 | Cloudflare Worker | `pearnly-cloud-run`，account `7dc339bc60e52e97464b8eff4638b995`，compat date `2026-09-05` |
 | Worker 路由 | `pearnly.com/*`、`www.pearnly.com/*`（zone `pearnly.com`） |
 | 源文件 | `pearnly-app/deployment/cloudflare/wrangler.jsonc`、`worker.js` |
+| Worker 部署 | 共 7 次；最近一次 2026-09-14T12:14:21Z，version `26c7263c-7fa6-447b-9516-b95e7cdc5924` |
+| Worker 操作者 | `skin306152@gmail.com` |
+
+本机已有可用的 Cloudflare 登录：wrangler OAuth token，账号邮箱 `skin306152@gmail.com`，凭据位于 `~/Library/Preferences/.wrangler/config/default.toml`，无需新建凭据即可只读查询。
+
+边缘与应用的版本差：Worker 最后部署于 2026-09-14，而 Cloud Run 应用发布于 2026-09-17T03:03Z，边缘层比应用旧三天。这与"近期发的是应用、不是边缘层"一致，但说明两侧版本不联动，发布记录要分开记。
 
 ## Cloud Run（project `pearnly`，region `asia-southeast1`）
 
@@ -61,9 +67,13 @@ web 与 worker 同镜像同修订后缀 `4f1cbab9f740`，是一次一致发布�
 
 注意：本机 `gcloud` 的**当前默认 project 就是这个 ERP 项目**。任何不带 `--project` 的命令都会打到它上面，后续脚本必须显式指定项目。
 
+## 凭据现状提醒
+
+本机这份 Cloudflare OAuth 凭据权限范围很大（`workers_scripts`、`workers_kv`、`workers_routes`、`queues`、`pipelines`、`secrets_store`、`d1`、`pages`、`ssl_certs` 均为 write，`zone` 为 read）。它能在该账号内改脚本、改路由、改证书、写 secrets。**本轮只执行了只读查询。** 后续若长期需要盘点，建议单独建一个作用域限定 `pearnly.com` 的只读 API token。
+
 ## 本轮未盘点到的（缺口）
 
-- **Cloudflare 的实际状态**：本机没有 `wrangler`、没有 API token、环境里也没有 CF 凭据，无法核对已部署 Worker 版本、DNS 记录、TLS 与缓存规则。需要 token 或登录后才能关这项。
+- **Cloudflare DNS 记录细节**：A/CNAME 记录、代理开关、TLS 模式、缓存规则未逐条核对（wrangler 不提供该命令，需要 API token 或面板）。已确认的是 `pearnly.com` 与 `www.pearnly.com` 经 Cloudflare 返回 200。
 - **Supabase**：外部服务，连接串在 `pearnly-web-env` 里，本轮未读取、未登录，实例规格、库大小、角色、RLS 现状均未知。
 - **外部 ERP 与 LINE 渠道**：只知道存在两个 LINE DMS 凭据项，渠道数量、webhook 指向、外部 ERP 目标账套未核对。
 - **`pearnly-schema` Job 的最近执行结果**、备份实际最近成功时间未核对。
