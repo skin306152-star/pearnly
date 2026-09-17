@@ -23,10 +23,18 @@ LABEL org.pearnly.image.role="frappe-sample-base" \
 # 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
 # 构建上下文必须是仓库根目录，例如：
 #   docker build -f infrastructure/images/frappe.Dockerfile -t pearnly/frappe-sample:16.34.1 .
-COPY --chown=frappe:frappe apps/pearnly_core /home/frappe/frappe-bench/apps/pearnly_core
-RUN cd /home/frappe/frappe-bench && env/bin/pip install --no-deps -e apps/pearnly_core
+# 自有 App。基础镜像里的 frappe/erpnext 都是 editable 安装（指向 apps/<name>），
+# 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
+# /assets/<app>/... 由 assets 目录里的软链提供；上游只为 frappe 和 erpnext 建了
+# 软链，自有 App 必须自己补，否则前端资源 404（踩过）。
+COPY --chown=frappe:frappe apps/pearnly_core       /home/frappe/frappe-bench/apps/pearnly_core
+COPY --chown=frappe:frappe apps/pearnly_cowork     /home/frappe/frappe-bench/apps/pearnly_cowork
+COPY --chown=frappe:frappe apps/pearnly_erp_portal /home/frappe/frappe-bench/apps/pearnly_erp_portal
+COPY --chown=frappe:frappe apps/pearnly_dms        /home/frappe/frappe-bench/apps/pearnly_dms
+COPY --chown=frappe:frappe apps/pearnly_control    /home/frappe/frappe-bench/apps/pearnly_control
 
-# /assets/<app>/... 由 assets 目录里的软链提供。上游镜像构建时只给 frappe 和
-# erpnext 建了软链，自有 App 要自己补，否则前端资源 404（踩过）。
-RUN ln -s /home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public \
-          /home/frappe/frappe-bench/assets/pearnly_core
+RUN cd /home/frappe/frappe-bench && \
+    for app in pearnly_core pearnly_cowork pearnly_erp_portal pearnly_dms pearnly_control; do \
+      env/bin/pip install --no-deps -e "apps/$app" && \
+      ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
+    done

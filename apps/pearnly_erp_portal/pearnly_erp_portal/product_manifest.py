@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+"""ERP 门户产品清单。合同见 docs/p1/04-model-contracts.md。"""
+
+MANIFEST = {
+    "product": "erp",
+    "version": 1,
+    "bench_group": "erp",
+    "entry_prefixes": ["/api/v1/erp/", "/api/v1/me/", "/pearnly-password"],
+    "apps": ["pearnly_core", "pearnly_erp_portal"],
+    "features": [
+        "products",        # 商品数据
+        "warehouses",      # 库存、入库、出库
+        "stockcard",       # 收发存报表（权限码已从 accounting 改挂 inventory）
+        "purchase",        # 采购记录、供应商、采购设置
+        "sales",           # 销售系统
+        "clients",         # 客户名录
+        "erp_push",        # 对外 ERP 推送（状态以 erp_push_logs 为唯一来源）
+    ],
+    "modules": ["sales", "expense", "inventory", "receivable"],
+    "must_not": [
+        "默认安装 ERPNext 全套业务",
+        "生成会计凭证（会计不迁移）",
+        "使用 accounting / tax / pos / workorder 相关权限码",
+        "访问其它 deployment 的数据库",
+    ],
+}
