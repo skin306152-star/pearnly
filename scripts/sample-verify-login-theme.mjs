@@ -244,6 +244,38 @@ check("[31] 手机端没有 JS 报错", merrs.length === 0, merrs.join(" | "));
 notes.push(`手机截图 ${SHOT_DIR}/login-theme-mobile.png`);
 await mctx.close();
 
+// ── 默认语言与"当前语言"高亮 ─────────────────────────────────────────────
+//
+// 两件事都在这里翻过车，所以单独立一组：
+//   1. 默认语言必须是泰语（用户 2026-09-18 定："新租户默认泰语"）；
+//   2. 语言切换上的"当前选中"必须真的高亮 —— 原来用 l.languageTag == locale.current
+//      去比，两边类型不同恒为 false，四个标签全是空 class，**表面上完全看不出来**。
+// 浏览器语言匹配优先于默认值（Keycloak 的行为）：泰/中/日/英浏览器各看各的，
+// 匹配不上才回落到默认的泰语。这四条一起验，少一条都可能掩盖问题。
+const LOCALE_CASES = [
+	{ browser: "th-TH", expectLang: "th", expectActive: "TH", why: "泰语浏览器" },
+	{ browser: "zh-CN", expectLang: "zh-CN", expectActive: "中", why: "中文浏览器" },
+	{ browser: "ja-JP", expectLang: "ja", expectActive: "日", why: "日语浏览器" },
+	{ browser: "en-US", expectLang: "en", expectActive: "EN", why: "英语浏览器" },
+	{ browser: "fr-FR", expectLang: "th", expectActive: "TH", why: "匹配不上的浏览器回落到默认" },
+];
+let localeIdx = 32;
+for (const c of LOCALE_CASES) {
+	const lctx = await browser.newContext({ viewport: { width: 1400, height: 900 }, locale: c.browser });
+	const lp = await lctx.newPage();
+	await lp.goto(`${site}/`, { waitUntil: "domcontentloaded" });
+	await lp.waitForSelector(".language-switcher a", { timeout: 25000 });
+	await lp.waitForTimeout(400);
+	const got = await lp.evaluate(() => ({
+		lang: document.documentElement.lang,
+		active: (document.querySelector(".language-switcher a.active") || {}).textContent?.trim() || "",
+	}));
+	check(`[${localeIdx++}] ${c.why}（${c.browser}）→ ${got.lang}，高亮 ${got.active || "无"}`,
+		got.lang === c.expectLang && got.active === c.expectActive,
+		`期望 lang=${c.expectLang} 高亮=${c.expectActive}`);
+	await lctx.close();
+}
+
 await browser.close();
 
 console.log("");

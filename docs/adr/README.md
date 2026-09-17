@@ -7,6 +7,7 @@
 - [ADR-001 原生 Frappe Site 路线](0001-native-frappe-site.md)
 - [ADR-002 目标机与外部依赖保留范围](0002-deployment-target.md)
 - [ADR-005 前端架构：Frappe 原生后台打底 + 新建业务页面用 Vue 3](0005-frontend-architecture.md)
+- [ADR-006 语言管理：跟着账号走，缺译错译要纠正](0006-language-management.md)
 
 待定稿：
 

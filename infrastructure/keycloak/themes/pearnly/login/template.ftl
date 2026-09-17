@@ -115,13 +115,23 @@
         <#if realm.internationalizationEnabled && locale.supported?size gt 1>
           <nav class="language-switcher" aria-label="${msg("pearnlyLanguages")}"
                style="grid-template-columns: repeat(${locale.supported?size}, 38px)">
+            <#--
+              "哪个是当前语言"要比 locale.currentLanguageTag。
+
+              这里翻过两次车，别再改回去（2026-09-18 实测）：
+              - `l.languageTag == locale.current` 永远不相等：右边是 Locale **对象**，
+                拿字符串跟对象比恒为 false，高亮**静默失效**（四个标签全是空 class）。
+              - `l.active` 直接报 500：这个版本的 Locale（org.keycloak.theme.beans.
+                LocaleBean$Locale）只有 languageTag / label / url 三个 getter，没有 active。
+              能用的就是 LocaleBean.getCurrentLanguageTag()。
+            -->
             <#assign pnOrder = ["zh-CN", "zh", "th", "en", "ja", "ja-JP"]>
             <#list pnOrder as want>
               <#list locale.supported as l>
                 <#if l.languageTag == want>
                   <a href="${l.url}" title="${l.label}"
-                     class="<#if l.languageTag == locale.current>active</#if>"
-                     <#if l.languageTag == locale.current>aria-current="true"</#if>>${pnLangShort(l.languageTag)}</a>
+                     class="<#if l.languageTag == locale.currentLanguageTag>active</#if>"
+                     <#if l.languageTag == locale.currentLanguageTag>aria-current="true"</#if>>${pnLangShort(l.languageTag)}</a>
                 </#if>
               </#list>
             </#list>
@@ -129,8 +139,8 @@
             <#list locale.supported as l>
               <#if !pnOrder?seq_contains(l.languageTag)>
                 <a href="${l.url}" title="${l.label}"
-                   class="<#if l.languageTag == locale.current>active</#if>"
-                   <#if l.languageTag == locale.current>aria-current="true"</#if>>${pnLangShort(l.languageTag)}</a>
+                   class="<#if l.languageTag == locale.currentLanguageTag>active</#if>"
+                   <#if l.languageTag == locale.currentLanguageTag>aria-current="true"</#if>>${pnLangShort(l.languageTag)}</a>
               </#if>
             </#list>
           </nav>

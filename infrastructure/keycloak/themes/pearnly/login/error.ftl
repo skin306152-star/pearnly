@@ -12,7 +12,9 @@
             <span>${kcSanitize(message.summary)?no_esc}</span>
           </div>
           <#if traceId??>
-            <p class="pn-info" id="traceId">${msg("traceIdSupportMessage", traceId)}</p>
+            <#-- 不用身份服务的标准键 traceIdSupportMessage：它只有英文，
+                 其它语言是空的，中文/泰文/日文用户会看到一句英文。这里自建。 -->
+            <p class="pn-info" id="traceId">${msg("pearnlyTraceId", traceId)}</p>
           </#if>
           <#if !skipLink??>
             <#if client?? && client.baseUrl?has_content>

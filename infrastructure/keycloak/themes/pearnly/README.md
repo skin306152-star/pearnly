@@ -50,5 +50,24 @@ login/
 cd /Users/skin/pearnly && node scripts/sample-verify-login-theme.mjs
 ```
 
-31 项，覆盖入口、几何（与线上量出来的卡片位置比对）、底图、文案、语言切换、
-密码错误提示、真实登录、忘记密码页、手机端。截图落在 `docs/p4/evidence/`。
+36 项，覆盖入口、几何（与线上量出来的卡片位置比对）、底图、文案、语言切换、
+默认语言与高亮、密码错误提示、真实登录、忘记密码页、手机端。
+截图落在 `docs/p4/evidence/`。
+
+## 语言设置
+
+默认语言与支持语言在 **realm** 上（不在主题里），用脚本改：
+
+```bash
+cd /Users/skin/pearnly && scripts/sample-configure-login-theme.sh
+```
+
+租户登录口默认泰语，控制面默认中文 —— 取法与理由见
+[ADR-006](../../../../docs/adr/0006-language-management.md)。
+
+改文案时注意两条（ADR-006）：
+
+1. **四个 `messages_*.properties` 的键必须完全对齐**，缺一条别的语言就会露英文或键名；
+2. **能复用 Keycloak 标准键就复用**，但前提是该语言下译文存在且准确 ——
+   例如泰语的 `showPassword` 是空的、`traceIdSupportMessage` 只有英文，
+   这两个就得自建。

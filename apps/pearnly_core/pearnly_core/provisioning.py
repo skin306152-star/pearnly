@@ -14,6 +14,27 @@ from frappe import _
 from pearnly_core import identity
 
 
+# ── 语言 ────────────────────────────────────────────────────────────────────
+
+# 租户默认语言（用户 2026-09-18 定："新租户默认泰语"）。
+#
+# 为什么放在这里而不是硬编码进各处：语言是"租户的开通参数"，将来某个租户要中文，
+# 只需要在它的站点上写一条 `pearnly_default_language`，不用改代码。没写就是泰语。
+#
+# 覆盖到两处，缺一个都会"看着像泰语但其实是中文"：
+#   1. `System Settings.language` —— 未登录访客与系统兜底走它；
+#   2. 新建账号的 `User.language` —— 登录之后一切都看账号自己的语言。
+# Frappe 未登录时的取值顺序是 `_lang` → cookie → Accept-Language → 用户 → 系统，
+# 所以浏览器语言排在系统默认之前；这是 Frappe 定的，我们不去改它。
+TENANT_DEFAULT_LANGUAGE = "th"
+
+
+def tenant_default_language() -> str:
+    """本站点的默认语言。站点配置 `pearnly_default_language` 优先，否则租户默认值。"""
+    configured = str(frappe.conf.get("pearnly_default_language") or "").strip()
+    return configured or TENANT_DEFAULT_LANGUAGE
+
+
 def ensure_local_user(email: str, full_name: str, subject: str,
                       deployment_id: str | None = None,
                       role: str = "System Manager") -> dict:
@@ -37,6 +58,10 @@ def ensure_local_user(email: str, full_name: str, subject: str,
             "enabled": 1,
             "send_welcome_email": 0,
             "user_type": "System User",
+            # 新账号默认跟着租户语言走（泰语）。
+            # 只在**新建**时设：已有账号不覆盖，否则重跑开通会把用户自己
+            # 在界面上改过的语言又顶回去。
+            "language": tenant_default_language(),
         })
         user.insert(ignore_permissions=True)
         created = "created"
@@ -91,6 +116,9 @@ def finalize_site() -> dict:
         frappe.db.set_single_value("System Settings", "disable_user_pass_login", 1)
         # 免密码的"邮箱链接登录"也不在统一登录口内，一并关掉
         frappe.db.set_single_value("System Settings", "login_with_email_link", 0)
+        # 租户默认语言（见 TENANT_DEFAULT_LANGUAGE 的说明）。
+        # 只给业务站点设：控制面是老板自己用的，保持原样。
+        frappe.db.set_single_value("System Settings", "language", tenant_default_language())
     frappe.db.commit()
 
     frappe.clear_cache()
@@ -102,7 +130,11 @@ def finalize_site() -> dict:
         frappe.throw(
             f"收尾没成功：desktop:home_page={home_page!r} is_setup_complete={done}"
         )
-    return {"home_page": home_page, "is_setup_complete": done}
+    return {
+        "home_page": home_page,
+        "is_setup_complete": done,
+        "language": frappe.db.get_single_value("System Settings", "language"),
+    }
 
 
 # ── 功能权限落地 ────────────────────────────────────────────────────────────

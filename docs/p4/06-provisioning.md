@@ -98,7 +98,10 @@ cookie；curl 的"localhost 例外"范围更窄（只认 `127.0.0.1` / `localhos
   落点是 `/desk`（**不是设置向导**），**无 JS 报错**。
   截图：`docs/p4/evidence/tenant-login.png`。
 - **幂等**：重跑 `run` 输出"没有待办步骤了"，不重复建资源。
-- **收尾**：`finalize_site` 返回 `{"home_page":"desktop","is_setup_complete":true}`。
+- **收尾**：`finalize_site` 返回 `{"home_page":"desktop","is_setup_complete":true,"language":"th"}`。
+  `language` 是**租户默认语言**（ADR-006：新租户默认泰语）：收尾时把站点
+  `System Settings.language` 设成它，新建账号的 `User.language` 也用它。
+  只对新账号设、不覆盖已有账号，否则重跑开通会把用户自己改过的语言顶回去。
 
 ## 踩到的坑（都会复发）
 
