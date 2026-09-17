@@ -57,6 +57,9 @@ for site in "$@"; do
     --mariadb-user-host-login-scope=% \
     --admin-password "$ADMIN_PW" >/dev/null 2>&1
   echo "[new-site] $site 完成"
+
+  # 收尾：Frappe 建站默认把 desk 首页设成 setup-wizard，不摘掉 /desk 会无限重载
+  scripts/sample-finalize-site.sh "$group" "$site"
 done
 
 echo "[done] 组 $group 就绪"
