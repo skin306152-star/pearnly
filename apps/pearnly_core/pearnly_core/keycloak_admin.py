@@ -15,6 +15,9 @@
     prefix="pearnly_oidc"          → 业务 realm（业务站点的默认）
     prefix="pearnly_business_oidc" → 业务 realm（控制面用它建号）
     prefix="pearnly_oidc"（平台站点）→ 平台 realm
+
+**控制面开户要打到服务器**：目标环境在 `Pearnly Target` 里配，不是站点配置。那种
+情况下用下面的 `AdminClient`，直接带上地址、realm 与凭据。
 """
 
 import frappe
@@ -149,3 +152,113 @@ def verify_password(username: str, password: str, prefix: str = "pearnly_oidc") 
         timeout=TIMEOUT,
     )
     return resp.status_code == 200
+
+
+# ── 按显式配置访问（控制面开户用；目标可以是本机，也可以是服务器）─────────────
+
+
+class AdminClient:
+    """一个目标环境的身份服务管理客户端。
+
+    与上面那组函数的区别：地址、realm、凭据都由调用方给，**不读站点配置**——
+    因为控制面要对准服务器，而服务器不是本机站点。
+    """
+
+    def __init__(self, base_url: str, realm: str, client_id: str, client_secret: str):
+        self.base = (base_url or "").rstrip("/")
+        self.realm = realm
+        self.client_id = client_id
+        self.client_secret = client_secret
+        if not (self.base and self.realm and self.client_id and self.client_secret):
+            frappe.throw(_("目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填"))
+
+    def token(self) -> str:
+        resp = requests.post(
+            f"{self.base}/realms/{self.realm}/protocol/openid-connect/token",
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self.client_id,
+                "client_secret": self.client_secret,
+            },
+            timeout=TIMEOUT,
+        )
+        if resp.status_code != 200:
+            frappe.throw(
+                _("连不上目标环境的身份服务（{0}）：{1} {2}").format(
+                    self.base, resp.status_code, resp.text[:200]
+                )
+            )
+        return resp.json()["access_token"]
+
+    def _url(self, path: str) -> str:
+        return f"{self.base}/admin/realms/{self.realm}{path}"
+
+    @staticmethod
+    def _headers(token: str) -> dict:
+        return {"Authorization": "Bearer " + token}
+
+    def find_user_id_by_email(self, email: str) -> str | None:
+        resp = requests.get(
+            self._url("/users"),
+            headers=self._headers(self.token()),
+            params={"email": email, "exact": "true"},
+            timeout=TIMEOUT,
+        )
+        if resp.status_code != 200:
+            frappe.throw(_("查账号失败：{0} {1}").format(resp.status_code, resp.text[:200]))
+        rows = resp.json() or []
+        return rows[0]["id"] if rows else None
+
+    def create_user(self, email: str, first_name: str, password: str,
+                    last_name: str = "") -> str:
+        token = self.token()
+        payload = {
+            "username": email,
+            "email": email,
+            "firstName": first_name or email.split("@")[0],
+            "lastName": last_name or "",
+            "enabled": True,
+            "emailVerified": True,
+            # 姓名必须给，否则 Keycloak 会挂 VERIFY_PROFILE 必填动作，
+            # 登录后跳到补资料页而不是回调。
+            "requiredActions": [],
+            "credentials": [{"type": "password", "value": password, "temporary": False}],
+        }
+        resp = requests.post(self._url("/users"), headers=self._headers(token),
+                             json=payload, timeout=TIMEOUT)
+        if resp.status_code not in (201, 204):
+            frappe.throw(_("在目标环境建账号失败：{0} {1}").format(
+                resp.status_code, resp.text[:200]))
+        location = resp.headers.get("Location", "")
+        if location:
+            return location.rstrip("/").rsplit("/", 1)[-1]
+        found = self.find_user_id_by_email(email)
+        if not found:
+            frappe.throw(_("账号已建但取不到 id"))
+        return found
+
+
+def client_for_target(target_name: str | None = None) -> tuple["AdminClient", str]:
+    """按 `Pearnly Target` 取一个管理客户端。返回 (client, 目标名)。
+
+    没指定就取默认目标；一个目标都没有则报错——开户必须知道打到哪。
+    """
+    filters = {"target_name": target_name} if target_name else {"is_default": 1}
+    row = frappe.db.get_value(
+        "Pearnly Target", filters,
+        ["target_name", "base_url", "realm", "admin_client_id", "admin_client_secret"],
+        as_dict=True,
+    )
+    if not row:
+        frappe.throw(_("没有可用的开户目标，请先在“开户目标”里配一个"))
+    secret = row.admin_client_secret
+    if secret:
+        try:
+            from frappe.utils.password import get_decrypted_password
+
+            secret = get_decrypted_password(
+                "Pearnly Target", row.target_name, "admin_client_secret", raise_exception=False
+            ) or secret
+        except Exception:
+            pass
+    return AdminClient(row.base_url, row.realm, row.admin_client_id, secret), row.target_name

@@ -38,6 +38,11 @@
 
   <div class="pi-card" id="pi-form-card">
     <h5>公司与账号</h5>
+    <div class="pi-field">
+      <label>开户目标</label>
+      <select id="pi-target" style="width:100%;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"></select>
+      <div class="pi-hint">这次开户打到哪个环境。控制面在本机跑，但开户动作是打到所选环境的身份服务上的</div>
+    </div>
     <div class="pi-row">
       <div class="pi-field">
         <label>租户名称</label>
@@ -127,15 +132,26 @@
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (res) {
       if (!res.ok || !res.j || !res.j.message) {
-        // 送进统一身份入口，不要用 Frappe 自带登录页
-        window.location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/pearnly-issue";
+        // 控制面用**本地账号**登录，不接统一身份
+        window.location.href = "/login?redirect-to=/pearnly-issue";
         return;
       }
       CSRF = res.j.message.csrf_token;
       document.getElementById("pi-operator").textContent = "当前操作人：" + res.j.message.operator;
+      var sel = document.getElementById("pi-target");
+      (res.j.message.targets || []).forEach(function (t) {
+        var o = document.createElement("option");
+        o.value = t.target_name;
+        o.textContent = t.target_name + "（" + t.base_url + "）";
+        if (t.is_default) o.selected = true;
+        sel.appendChild(o);
+      });
+      if (!sel.options.length) {
+        document.getElementById("pi-msg").textContent = "还没有配置开户目标（Pearnly Target），请先配一个";
+      }
     })
     .catch(function () {
-      window.location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/pearnly-issue";
+      window.location.href = "/login?redirect-to=/pearnly-issue";
     });
 
   APPS.forEach(function (app) {
@@ -160,6 +176,7 @@
       }
     });
     return {
+      target: document.getElementById("pi-target").value,
       tenant_name: document.getElementById("pi-tenant").value.trim(),
       account_email: document.getElementById("pi-email").value.trim(),
       account_name: document.getElementById("pi-name").value.trim(),
@@ -222,6 +239,7 @@
 
     document.getElementById("pi-result-body").innerHTML =
       "<div>发号单：<b>" + esc(m.issue) + "</b>　租户：<b>" + esc(m.tenant) + "</b></div>" +
+      "<div style='margin-top:4px'>开户目标：<b>" + esc(m.target || "-") + "</b></div>" +
       "<div style='margin-top:6px'>登录账号：<b>" + esc(m.account_email) + "</b>　身份主体：" + esc(m.identity_subject) + "</div>" +
       "<div style='margin-top:10px'>初始密码：</div>" +
       "<div class='pi-pw'>" + esc(m.initial_password) + "</div>" +

@@ -26,10 +26,6 @@ from pearnly_core import keycloak_admin as kc
 ISSUE = "Pearnly Issue"
 TENANT = "Pearnly Tenant"
 
-# 控制面往哪套配置里建租户账号：**业务 realm**。
-# 控制面自己是用平台 realm 登录的，但租户账号属于业务 realm，两者不能混。
-BUSINESS = "pearnly_business_oidc"
-
 PASSWORD_ALPHABET = string.ascii_letters + string.digits + "!@#$%^&*"
 PASSWORD_LENGTH = 14
 
@@ -72,6 +68,7 @@ def issue(
     account_email: str,
     apps: list[dict],
     *,
+    target: str | None = None,
     account_name: str | None = None,
     contact_name: str | None = None,
     contact_phone: str | None = None,
@@ -79,7 +76,11 @@ def issue(
     ocr_enterprise: bool = False,
     notes: str | None = None,
 ) -> dict:
-    """发号。返回开通清单，以及**只出现一次**的初始密码。"""
+    """发号。返回开通清单，以及**只出现一次**的初始密码。
+
+    `target` 决定这次开户打到哪个环境（见 `Pearnly Target`）：本机样板，或服务器。
+    控制面只在本机跑，但**开户动作是要打到服务器上的**，所以目标是一项配置。
+    """
     operator = _require_operator()
 
     if not isinstance(apps, list) or not apps:
@@ -87,10 +88,14 @@ def issue(
 
     account_email = (account_email or "").strip().lower()
 
+    # 这次开户打到哪个环境：本机样板，还是服务器。目标是一项配置，不写死。
+    kc_client, target_name = kc.client_for_target(target)
+
     # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
-    if kc.find_user_id_by_email(account_email, BUSINESS):
+    if kc_client.find_user_id_by_email(account_email):
         frappe.throw(
-            _("账号 {0} 在身份服务里已存在。请走邀请已有账号流程，不要重复发号").format(account_email)
+            _("账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号").format(
+                account_email, target_name)
         )
 
     doc = frappe.get_doc({
@@ -101,6 +106,7 @@ def issue(
         "ocr_economy": 1 if ocr_economy else 0,
         "ocr_enterprise": 1 if ocr_enterprise else 0,
         "notes": notes,
+        "target": target_name,
         "apps": [
             {"app": row["app"], "domain": row["domain"], "display_name": row.get("display_name")}
             for row in apps
@@ -110,11 +116,10 @@ def issue(
 
     password = _generate_password()
     try:
-        subject = kc.create_user(
+        subject = kc_client.create_user(
             account_email,
             first_name=(account_name or tenant_name)[:140],
             password=password,
-            prefix=BUSINESS,
         )
         tenant = _find_or_create_tenant(
             tenant_name, contact_name=contact_name, contact_phone=contact_phone
@@ -139,6 +144,7 @@ def issue(
     return {
         "issue": doc.name,
         "tenant": tenant,
+        "target": target_name,
         "account_email": account_email,
         "identity_subject": subject,
         # 只在这里出现一次；本系统不保存明文
@@ -211,4 +217,16 @@ def api_context():
     return {
         "operator": _require_operator(),
         "csrf_token": get_csrf_token(),
+        "targets": list_targets(),
     }
+
+
+def list_targets() -> list[dict]:
+    """可选的开户目标，供页面下拉。"""
+    _require_operator()
+    return frappe.get_all(
+        "Pearnly Target",
+        fields=["name", "target_name", "base_url", "realm", "is_default"],
+        order_by="is_default desc, target_name asc",
+        limit_page_length=0,
+    )

@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "status",
+  "target",
   "tenant_name",
   "column_break_head",
   "account_email",
@@ -29,6 +30,7 @@
  ],
  "fields": [
   {"default": "draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "draft\nissued\nfailed", "reqd": 1, "read_only": 1},
+  {"fieldname": "target", "fieldtype": "Link", "in_list_view": 1, "label": "开户目标", "options": "Pearnly Target", "read_only": 1, "description": "这次开户打到了哪个环境"},
   {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "租户名称", "reqd": 1, "description": "公司/店铺名称。公司改名不换身份，这里只是显示名"},
   {"fieldname": "column_break_head", "fieldtype": "Column Break"},
   {"fieldname": "account_email", "fieldtype": "Data", "in_list_view": 1, "label": "登录账号", "reqd": 1, "options": "Email", "description": "必须是邮箱；已存在会被拒绝，不会合并到别人的账号"},

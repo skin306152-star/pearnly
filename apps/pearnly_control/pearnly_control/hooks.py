@@ -262,11 +262,11 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
-# 控制面不用 Frappe 自带登录页：平台账号只存在于身份服务里，本站没有它的密码，
-# 用自带登录页必然报 "Invalid credentials"。任何人走到 /login 都直接送进统一身份入口。
+# 控制面**不接统一身份**：它只在本机跑、只自己用，登录方式就是 Frappe 自带的本地账号
+# （earn / earn，见 scripts/sample-ensure-earn-user.sh）。
 #
-# 只影响控制站点（本 app 只装在控制站点上）。业务站点暂不动——那边的产品界面还没做，
-# 现在还要靠自带页面验证会话与绑定。
-website_redirects = [
-    {"source": "/login", "target": "/api/method/pearnly_core.identity.begin_login"},
-]
+# 原因：给一个"只有自己在笔记本上开、永远不上服务器"的后台配一整套身份服务，
+# 是纯粹的负担。业务站点那边仍然是统一身份——两者互不影响。
+#
+# 因此这里**不做** /login 的重定向：重定向到统一身份是在控制面还要用平台 realm 时
+# 才需要的，现在不需要了。

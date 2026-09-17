@@ -1,0 +1,47 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:target_name",
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "target_name",
+  "is_default",
+  "column_break_main",
+  "base_url",
+  "realm",
+  "section_admin",
+  "admin_client_id",
+  "admin_client_secret",
+  "section_provision",
+  "provision_url",
+  "notes"
+ ],
+ "fields": [
+  {"fieldname": "target_name", "fieldtype": "Data", "in_list_view": 1, "label": "目标名称", "reqd": 1, "unique": 1, "description": "例如：本地样板 / 生产"},
+  {"default": "0", "fieldname": "is_default", "fieldtype": "Check", "in_list_view": 1, "label": "默认目标"},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "base_url", "fieldtype": "Data", "in_list_view": 1, "label": "身份服务地址", "reqd": 1, "description": "例如 http://keycloak.localhost:8105"},
+  {"default": "pearnly-business", "fieldname": "realm", "fieldtype": "Data", "in_list_view": 1, "label": "Realm", "reqd": 1},
+  {"fieldname": "section_admin", "fieldtype": "Section Break", "label": "开户凭据（只在这里存一份）"},
+  {"fieldname": "admin_client_id", "fieldtype": "Data", "label": "管理客户端 ID"},
+  {"fieldname": "admin_client_secret", "fieldtype": "Password", "label": "管理客户端密钥"},
+  {"fieldname": "section_provision", "fieldtype": "Section Break", "label": "建站接口"},
+  {"fieldname": "provision_url", "fieldtype": "Data", "label": "控制接口地址", "description": "服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Target",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 0, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
