@@ -262,3 +262,11 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+# 控制面不用 Frappe 自带登录页：平台账号只存在于身份服务里，本站没有它的密码，
+# 用自带登录页必然报 "Invalid credentials"。任何人走到 /login 都直接送进统一身份入口。
+#
+# 只影响控制站点（本 app 只装在控制站点上）。业务站点暂不动——那边的产品界面还没做，
+# 现在还要靠自带页面验证会话与绑定。
+website_redirects = [
+    {"source": "/login", "target": "/api/method/pearnly_core.identity.begin_login"},
+]
