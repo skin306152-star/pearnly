@@ -127,13 +127,16 @@
     .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
     .then(function (res) {
       if (!res.ok || !res.j || !res.j.message) {
-        window.location.href = "/login?redirect-to=/pearnly-issue";
+        // 送进统一身份入口，不要用 Frappe 自带登录页
+        window.location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/pearnly-issue";
         return;
       }
       CSRF = res.j.message.csrf_token;
       document.getElementById("pi-operator").textContent = "当前操作人：" + res.j.message.operator;
     })
-    .catch(function () { window.location.href = "/login?redirect-to=/pearnly-issue"; });
+    .catch(function () {
+      window.location.href = "/api/method/pearnly_core.identity.begin_login?redirect_to=/pearnly-issue";
+    });
 
   APPS.forEach(function (app) {
     var cb = document.getElementById("pi-app-" + app);

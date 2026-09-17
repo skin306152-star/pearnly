@@ -6,7 +6,12 @@ no_cache = 1
 
 def get_context(context):
     if frappe.session.user == "Guest":
-        frappe.local.flags.redirect_location = "/login?redirect-to=/pearnly-issue"
+        # 走**统一身份**入口，不要用 Frappe 自带的 /login：
+        # 平台账号只存在于身份服务里，本站没有它的密码，用自带登录页必然报
+        # "Invalid credentials"。
+        frappe.local.flags.redirect_location = (
+            "/api/method/pearnly_core.identity.begin_login?redirect_to=/pearnly-issue"
+        )
         raise frappe.Redirect
 
     from frappe.sessions import get_csrf_token
