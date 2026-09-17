@@ -1,0 +1,37 @@
+# P1 样板：统一身份服务
+#
+# Keycloak 用**独立的 MariaDB 库与独立账号**（`keycloak` / `keycloak`@'%'，
+# 只有自己那个库的权限），不与会话/业务库共用账号。
+#
+# 版本 26.7.4 是按实际拉取到的 tag 锁定的，不是猜的；启动成功后再写进版本矩阵。
+#
+# 内存按预算表设 1 GiB，JVM 堆上限 512M。
+name: pearnly-sample
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4
+    mem_limit: 1g
+    command:
+      - start
+      - --http-enabled=true
+      - --hostname-strict=false
+      - --hostname=http://127.0.0.1:8105
+      - --health-enabled=true
+    environment:
+      KC_DB: mariadb
+      KC_DB_URL: jdbc:mariadb://mariadb:3306/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: kc-local-only
+      KC_BOOTSTRAP_ADMIN_USERNAME: kc-admin-local
+      KC_BOOTSTRAP_ADMIN_PASSWORD: kc-admin-local-only
+      JAVA_OPTS_APPEND: "-Xms256m -Xmx512m"
+    # 8080 是对外端口；9000 是管理端口，健康检查走这里
+    # （Keycloak 25 起 /health/* 不再挂在主端口上，这是踩过的坑）。
+    ports: ["127.0.0.1:8105:8080", "127.0.0.1:9005:9000"]
+    networks: [sample]
+    restart: unless-stopped
+
+networks:
+  sample:
+    driver: bridge

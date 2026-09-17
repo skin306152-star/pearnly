@@ -1,0 +1,81 @@
+# P1 样板：两个租户各一套 WeKan
+#
+# 按计划要求"每租户独立 Mongo 库/账号、文件、服务凭据和 WeKan 进程"：
+# 这里两套完全独立，不共享 Mongo，也不共享账号。
+#
+# 重要说明：**本样板用的是发布镜像 ghcr.io/wekan/wekan:v11.83 作为占位**。
+# 项目固定的源码是 v11.58.0，两者不是同一版本；建立"镜像 ↔ 源码"的可追溯
+# 映射、以及从自有源码构建，是 P5 的任务。此处只用它测资源形态。
+name: pearnly-sample
+
+# 内存：这里踩了两次，都是实测出来的：
+#   512 MiB → 被内核 OOM 杀（OOMKilled=true / ExitCode=137，连崩 9 次）
+#   1 GiB   → 变成 V8 堆爆（ExitCode=133，`Reached heap limit`）
+# 原因见镜像自带的 /build/wekan-entrypoint.sh：堆上限按容器限额的 60% 算，
+# 而 server bundle 在"链接 + 建启动索引"阶段就会越过它——上游注释也写明
+# 这是 v10.96+ 的已知问题（issue #6606）。所以只能给容器更多内存。
+# 2 GiB（堆约 1.2 GiB）为当前实测可启动值。
+x-wekan: &wekan-common
+  image: ghcr.io/wekan/wekan:v11.83
+  mem_limit: 2g
+  networks: [sample]
+  restart: unless-stopped
+
+x-mongo: &mongo-common
+  image: mongo:7
+  # WiredTiger 默认会按宿主内存的一半去开缓存，在限额容器里会失控；
+  # 显式压到 256M，与限额 512M 匹配。
+  command: ["mongod", "--wiredTigerCacheSizeGB", "0.25", "--quiet"]
+  networks: [sample]
+  restart: unless-stopped
+
+services:
+  # ── 租户 A ──────────────────────────────────────────────
+  wekan-a-db:
+    <<: *mongo-common
+    mem_limit: 512m
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: wekan_a
+      MONGO_INITDB_ROOT_PASSWORD: wekan-a-local-only
+    volumes: [wekan-a-db:/data/db]
+
+  wekan-a:
+    <<: *wekan-common
+    depends_on: [wekan-a-db]
+    environment:
+      MONGO_URL: mongodb://wekan_a:wekan-a-local-only@wekan-a-db:27017/wekan?authSource=admin
+      ROOT_URL: http://127.0.0.1:8106
+      PORT: "8080"
+      WITH_API: "false"
+    volumes: [wekan-a-files:/data]
+    ports: ["127.0.0.1:8106:8080"]
+
+  # ── 租户 B ──────────────────────────────────────────────
+  wekan-b-db:
+    <<: *mongo-common
+    mem_limit: 512m
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: wekan_b
+      MONGO_INITDB_ROOT_PASSWORD: wekan-b-local-only
+    volumes: [wekan-b-db:/data/db]
+
+  wekan-b:
+    <<: *wekan-common
+    depends_on: [wekan-b-db]
+    environment:
+      MONGO_URL: mongodb://wekan_b:wekan-b-local-only@wekan-b-db:27017/wekan?authSource=admin
+      ROOT_URL: http://127.0.0.1:8107
+      PORT: "8080"
+      WITH_API: "false"
+    volumes: [wekan-b-files:/data]
+    ports: ["127.0.0.1:8107:8080"]
+
+volumes:
+  wekan-a-db:
+  wekan-a-files:
+  wekan-b-db:
+  wekan-b-files:
+
+networks:
+  sample:
+    driver: bridge
