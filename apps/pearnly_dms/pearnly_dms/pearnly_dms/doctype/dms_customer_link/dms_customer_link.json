@@ -1,0 +1,41 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-17 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "id_number",
+  "full_name",
+  "column_break_main",
+  "external_customer_ref",
+  "endpoint",
+  "is_new_customer",
+  "last_verified_at",
+  "notes"
+ ],
+ "fields": [
+  {"fieldname": "id_number", "fieldtype": "Data", "label": "证件号", "reqd": 1, "unique": 1, "description": "个人敏感信息：不在列表显示，不写日志"},
+  {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "姓名"},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "external_customer_ref", "fieldtype": "Data", "in_list_view": 1, "label": "DMS 客户引用", "reqd": 1},
+  {"fieldname": "endpoint", "fieldtype": "Data", "in_list_view": 1, "label": "连接端点"},
+  {"default": "1", "fieldname": "is_new_customer", "fieldtype": "Check", "label": "本次新建"},
+  {"fieldname": "last_verified_at", "fieldtype": "Datetime", "label": "最后核对时间"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-17 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly DMS",
+ "name": "DMS Customer Link",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}
