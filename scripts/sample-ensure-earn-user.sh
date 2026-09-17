@@ -18,9 +18,9 @@ echo "[earn] 建号（已存在则重置密码）"
 printf 'import frappe; print("RESULT=" + frappe.get_attr("pearnly_control.bootstrap.ensure_local_admin")())\n' \
   | dc exec -T control-bench bench --site "$SITE" console 2>&1 | grep -oE 'RESULT=[A-Z]+' | tail -1
 
-echo "[earn] 验证本地登录（登录名 earn@pearnly.local，密码 earn）"
+echo "[earn] 验证本地登录（用用户名 earn，密码 earn）"
 code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 \
   -H "Host: $SITE" -H 'Content-Type: application/x-www-form-urlencoded' \
-  --data-urlencode 'usr=earn@pearnly.local' --data-urlencode 'pwd=earn' \
+  --data-urlencode 'usr=earn' --data-urlencode 'pwd=earn' \
   "http://127.0.0.1:8104/api/method/login")
 echo "  登录接口 HTTP=$code （200 = 成功）"

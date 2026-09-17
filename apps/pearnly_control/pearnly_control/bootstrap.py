@@ -11,12 +11,20 @@
 import frappe
 from frappe import _
 
-# 登录密码按要求写死成 earn。
+# 登录名 earn、密码 earn（用户指定）。
 #
-# 登录名只能是**邮箱**：Frappe 按邮箱查账号，写 `earn` 会被
-# `InvalidEmailAddressError` 挡下，而且这一版不支持用用户名登录
-# （试过：设了 username=earn，用 usr=earn 仍然 401）。
-# 所以登录名是 earn@pearnly.local，密码 earn。
+# 两点必须知道（都从源码核实过，不是猜的）：
+#
+# 1. User 的 `name`（主键）就是邮箱，所以**新建账号必须给一个合法邮箱**，
+#    写 `earn` 会被 `InvalidEmailAddressError` 挡下。邮箱只是主键，不要求真实可用。
+# 2. Frappe **原生支持用用户名登录**，但要打开开关：
+#    System Settings → `allow_login_using_user_name`。
+#    源码 `frappe/core/doctype/user/user.py:826 find_by_credentials`：
+#    默认按邮箱查，再按开关追加 mobile_no / username。
+#    另有 `allow_login_using_mobile_number` 可启用手机号登录。
+#
+# 所以这里：邮箱用 earn@pearnly.local，username 设成 earn，并打开用户名登录开关，
+# 最终用 `earn` / `earn` 就能登进来。
 LOCAL_ADMIN = "earn@pearnly.local"
 LOCAL_USERNAME = "earn"
 LOCAL_PASSWORD = "earn"
@@ -57,13 +65,52 @@ def ensure_local_admin(email: str = LOCAL_ADMIN, password: str = LOCAL_PASSWORD)
 def _relax_password_policy() -> None:
     try:
         settings = frappe.get_single("System Settings")
+        changed = False
         if settings.enable_password_policy:
             settings.enable_password_policy = 0
+            changed = True
+        # 允许用用户名登录（Frappe 原生能力，见文件头注释）
+        if not settings.allow_login_using_user_name:
+            settings.allow_login_using_user_name = 1
+            changed = True
+        if changed:
             settings.save(ignore_permissions=True)
             frappe.db.commit()
     except Exception:
         # 关不掉也不该让建号流程整个失败；下面建号时若被策略挡下会直接报错
         pass
+
+
+def open_login_identifiers() -> dict:
+    """把**开户/登录标识**相关的原生开关全部打开。
+
+    这三项合起来就是 Frappe 原生支持的全部登录标识（源码
+    `frappe/core/doctype/user/user.py:826 find_by_credentials`）：
+
+    | 开关 | 作用 |
+    |---|---|
+    | （邮箱） | 永远支持，User 的主键就是邮箱 |
+    | `allow_login_using_user_name` | 额外支持用**用户名**登录 |
+    | `allow_login_using_mobile_number` | 额外支持用**手机号**登录 |
+
+    ⚠️ **刻意没有打开**的几个（打开会把本机控制面弄坏，不是漏做）：
+
+    - `disable_user_pass_login`：打开就**完全无法登录**。
+    - `enable_two_factor_auth`：本机没配邮件/短信，开了会把自己锁在外面。
+    - `login_with_email_link`：同上，本机发不出邮件。
+    - `deny_multiple_sessions`：一个账号同时只能有一个会话，与"多设备/多产品互不踢"直接冲突。
+    - `enable_password_policy`：会让 earn 这种密码过不了强度检查。
+    """
+    # 用 db.set_value 直接写：System Settings 走 doc.save() 在本站点没写进去（试过）。
+    values = {
+        "allow_login_using_user_name": 1,
+        "allow_login_using_mobile_number": 1,
+    }
+    for field, value in values.items():
+        frappe.db.set_value("System Settings", "System Settings", field, value)
+    frappe.db.commit()
+    frappe.clear_cache()
+    return {field: frappe.db.get_single_value("System Settings", field) for field in values}
 
 
 def ensure_target(
