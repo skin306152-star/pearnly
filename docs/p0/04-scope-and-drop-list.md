@@ -95,10 +95,46 @@
 
 ### 三档：会改动保留功能，需要确认
 
-1. **会计（`services/accounting`）**：被 `purchase/posting.py`、`sales/document.py`、`sales/credit_note.py`、`export/entries.py` 引用。即**采购与销售记录现在会自动过账生成会计凭证**。砍掉会计 = 这两条流程要去掉过账环节。需要用户确认：采购/销售录完之后还要不要生成会计那套账。
+1. **会计（`services/accounting`）**：被 `purchase/posting.py`、`sales/document.py`、`sales/credit_note.py`、`export/entries.py` 引用。即**采购与销售记录现在会自动过账生成会计凭证**。
+   **用户已确认（2026-09-17）：采购与销售录完之后不要会计。** 会计整套不迁移，见下节。
 2. **工单（`services/workorder`）**：对账侧有 `recon/workorder_recon_adapter.py` 直接适配它。**对账要留、工单不要**，这个适配口必须拆掉；另有 `background_loops.py`、`cloud_tasks/workorders.py`、`cloud_runtime/schema.py`、`workspace/purge_files.py`、`workspace/client_alias_store.py` 需要清理。
 3. **增值税计算与报税是两件事**：`services/vat` 被**对账**（`recon_routes`、`recon_routes_v1_batch`、`recon_routes_glvat`）引用。报税流程不要，但**税额计算要留**，否则对账无数据源。
 
 ## 范围缩减的量级
 
 不迁移的功能约占 732 条路由中的 190 余条（POS 68、会计 36、工单 26、报税约 20、AI 管家 22、Daily 5、工资 5、邮件接入 6、Excel 内测 5）。这对目标机资源预算是明显利好，但**不改变 P1 必须先做资源样板的要求**。
+
+## 会计不迁移的切法与连带影响
+
+### 切法是干净的：只有 4 个挂点
+
+采购/销售与会计之间只有一层薄接缝 `services/accounting/hooks.py`，4 个函数：
+
+| 函数 | 作用 | 调用点 |
+|---|---|---|
+| `enqueue_posting` | 投递凭证 | `sales/document.py:335`、`purchase/posting.py:60,146`、`sales/credit_note.py:111` |
+| `payment_event_id` | 生成过账来源 ID | `purchase/posting.py:151,233` |
+| `void_for_source` | 按来源冲销 | `purchase/posting.py:322` |
+| `void_or_reverse` | 冲销或红冲 | `purchase/posting.py:258` |
+
+把这些挂点改成空动作即可，**采购与销售的主流程代码不需要改结构**。另有 `services/accounting/vouchers.py` 被 `purchase/posting.py:222,267` 与 `export/entries.py` 懒加载，一并移除。
+
+付款/收款状态本身是业务事实，保留；只是不再产生凭证。
+
+### 对账不受影响（已核对，不是推测）
+
+- `services/recon/`、`services/recon_jobs/` **不引用** `services/accounting` 或 `services/ledger`。
+- 对账里出现的 `gl_account`/`gl_opening`/`gl_closing`/`gl_rows` **是银行流水文件里的字段名**，不是我们的账簿。
+- 对账自己的表：`vat_recon_tasks`、`reconciliation_task`、`gl_vat_task`、`bank_reconcile_*`、`vat_report`。
+
+结论：对账能独立保留，不需要会计。
+
+### 会踩到的坑：收发存报表的权限挂在会计模块下
+
+`stockcard.report.view`、`stockcard.opening.manage` 两个权限码当前映射到 `accounting` 模块（`services/authz/registry.py` 的 `_PREFIX_MODULE`）。会计模块一删，**ERP 菜单里的"收发存报表"会被模块闸一起关掉**。处理：把这两个码改挂 `inventory`（或新模块），并在模块自检里同步。
+
+### 连带清理
+
+- 权限码 `acct.entry.*`、`acct.coa.*`、`acct.settings.*`、`acct.ledger.export` 全部消失；`ROLE_PERMISSIONS` 里 accountant/clerk 的相应授予同步删除。
+- 后台的会计设置入口（`admin_*` 中与会计相关项）随之移除。
+- 不迁移的会计文件：`services/accounting`（29）、`services/ledger`（8）、`routes/accounting_*`（3 个文件 36 条路由）、凭证导出 `services/export/entries.py`。
