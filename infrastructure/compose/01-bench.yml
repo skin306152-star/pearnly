@@ -1,0 +1,154 @@
+# P1 样板：Frappe 运行组
+#
+# 三产品各一组（cowork / erp / dms），另加一组控制面（control）。
+# 每组内多个 Site 共享同一套 Bench 进程，但**库与账号各自独立**（由
+# MariaDB 侧保证，见 02-base 的隔离测试）。
+#
+# 进程数固定：web 用官方 start.sh 的 gunicorn，worker/scheduler/socketio
+# 各一。内存上限按 docs/p1/01-version-matrix.md 的预算表设置。
+#
+# 控制面只在开发机运行（ADR-004），所以它的预算不计入目标机 12GB 口径；
+# 本地样板仍在同一台机器上跑它，是为了让开发环境与生产形态一致。
+name: pearnly-sample
+
+x-frappe-env: &frappe-env
+  DB_HOST: mariadb
+  DB_PORT: "3306"
+  REDIS_CACHE: redis://redis-cache:6379
+  REDIS_QUEUE: redis://redis-queue:6379
+  SOCKETIO_PORT: "9000"
+  GUNICORN_WORKERS: "2"
+  GUNICORN_THREADS: "4"
+
+x-frappe-common: &frappe-common
+  image: pearnly/frappe-sample:16.34.1
+  environment: *frappe-env
+  networks: [sample]
+  restart: unless-stopped
+
+services:
+  # ── Cowork ──────────────────────────────────────────────
+  cowork-bench:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["sleep", "infinity"]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+
+  cowork-web:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["/usr/local/bin/start.sh"]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    ports: ["127.0.0.1:8101:8000"]
+
+  cowork-worker:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["bench", "worker", "--queue", "short,default,long"]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+
+  cowork-scheduler:
+    <<: *frappe-common
+    mem_limit: 192m
+    command: ["bench", "schedule"]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+
+  cowork-socketio:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+
+  # ── ERP ─────────────────────────────────────────────────
+  erp-bench:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["sleep", "infinity"]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+
+  erp-web:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["/usr/local/bin/start.sh"]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    ports: ["127.0.0.1:8102:8000"]
+
+  erp-worker:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["bench", "worker", "--queue", "short,default,long"]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+
+  erp-scheduler:
+    <<: *frappe-common
+    mem_limit: 192m
+    command: ["bench", "schedule"]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+
+  erp-socketio:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+
+  # ── DMS ─────────────────────────────────────────────────
+  dms-bench:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["sleep", "infinity"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+
+  dms-web:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["/usr/local/bin/start.sh"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+    ports: ["127.0.0.1:8103:8000"]
+
+  dms-worker:
+    <<: *frappe-common
+    mem_limit: 512m
+    command: ["bench", "worker", "--queue", "short,default,long"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+
+  dms-scheduler:
+    <<: *frappe-common
+    mem_limit: 192m
+    command: ["bench", "schedule"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+
+  dms-socketio:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+
+  # ── 控制面（仅开发机，不计入目标机预算）─────────────────
+  control-bench:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["sleep", "infinity"]
+    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+
+  control-web:
+    <<: *frappe-common
+    mem_limit: 384m
+    command: ["/usr/local/bin/start.sh"]
+    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+    ports: ["127.0.0.1:8104:8000"]
+
+  control-scheduler:
+    <<: *frappe-common
+    mem_limit: 192m
+    command: ["bench", "schedule"]
+    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+
+volumes:
+  sites-cowork:
+  sites-erp:
+  sites-dms:
+  sites-control:
+
+networks:
+  sample:
+    driver: bridge
