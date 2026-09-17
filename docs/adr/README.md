@@ -6,10 +6,15 @@
 
 - [ADR-001 原生 Frappe Site 路线](0001-native-frappe-site.md)
 - [ADR-002 目标机与外部依赖保留范围](0002-deployment-target.md)
+- [ADR-005 前端架构：Frappe 原生后台打底 + 新建业务页面用 Vue 3](0005-frontend-architecture.md)
 
 待定稿：
 
 - **ADR-003** 代码权威归属与复用方式：Cowork、ERP、DMS 与 Frappe 自有层全部落在本仓，本仓是唯一权威位置；`pearnly-app`、`pearnly-erp` 等来源仓库转只读来源，不是业务、不并行维护；需逐项写明每份业务逻辑的落点（P1 定稿）
 - **ADR-004** 控制面只在开发机运行：`pearnly_control` 不部署到云服务器，只做开户与授权，仅本人使用；云上只跑三产品 Site、Keycloak 与 WeKan 实例。需写明跨网开通通道、凭据保管、控制面数据备份与权威归属
+
+注：ADR-004 虽未写成独立文件，但**已经在执行中**——多处文档与实现按它约束
+（控制面无公网域名、不进服务器资源预算）。缺的只是成文与"跨网开通通道、凭据保管、
+备份与权威归属"这几项的正式记录。
 
 已确认但不重复询问的事项见计划包 `10-IMPLEMENTATION-HANDOFF.md` 的「已确认，不要重问」。
