@@ -160,6 +160,14 @@ services:
     command: ["bench", "schedule"]
     volumes: [sites-control:/home/frappe/frappe-bench/sites]
 
+  # 控制面也必须有实时服务：Desk 启动时会连 socket.io，连不上会一直重试，
+  # 表现是"界面壳出来了、内容空白、一直闪"。这一条最初漏了，踩过。
+  control-socketio:
+    <<: *frappe-common
+    mem_limit: 256m
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+
 volumes:
   sites-cowork:
   sites-erp:
