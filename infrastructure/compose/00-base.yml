@@ -1,0 +1,49 @@
+# P1 样板：共享基础层
+#
+# 本文件只起 MariaDB 与两个 Redis。所有 Site 库、Keycloak 库都落在这一个
+# MariaDB 实例的不同 database 上，但**每个 database 一个独立账号**，禁止跨库。
+# 这与"每部署独立数据库"的要求一致：隔离靠库与账号，不靠多开数据库进程。
+#
+# 内存限额按 docs/p1/01-version-matrix.md 的预算表设定。
+name: pearnly-sample
+
+services:
+  mariadb:
+    image: mariadb:11.8
+    mem_limit: 2g
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --innodb-buffer-pool-size=768M
+      - --max-connections=200
+    environment:
+      MARIADB_ROOT_PASSWORD: sample-root-local-only
+    volumes:
+      - mariadb-data:/var/lib/mysql
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+    networks: [sample]
+
+  redis-cache:
+    image: redis:6.2-alpine
+    mem_limit: 128m
+    command: [redis-server, --maxmemory, 96mb, --maxmemory-policy, allkeys-lru]
+    networks: [sample]
+
+  redis-queue:
+    image: redis:6.2-alpine
+    mem_limit: 128m
+    command: [redis-server, --appendonly, "no"]
+    networks: [sample]
+
+volumes:
+  mariadb-data:
+
+networks:
+  sample:
+    driver: bridge
