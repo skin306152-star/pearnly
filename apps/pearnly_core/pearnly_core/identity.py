@@ -134,7 +134,11 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         update_modified=False,
     )
 
-    redirect_to = saved.get("redirect_to") or "/app"
+    # 落点交给首页规则算（通常是租户自己的工作台），不要写死 /desk —— 写死的话
+    # 默认工作区形同虚设，每个人登录后都先看到"桌面"那一屏。
+    from pearnly_core import workspace as workspace_mod
+
+    redirect_to = workspace_mod.resolve_after_login(saved.get("redirect_to"))
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = redirect_to
 

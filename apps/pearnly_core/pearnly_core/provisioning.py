@@ -289,6 +289,19 @@ def ensure_product_workspace(spec_json: str) -> dict:
             "is_query_report": 0,
         })
 
+    # 工作台是按 `content` 里的"方块"画出来的，**光有 links 不够**。
+    # content 为空时页面只剩一句"欢迎来到 XXX"，租户看到的是个空工作台
+    # （2026-09-18 实测：默认落点改成工作台之后才暴露出来）。
+    # 每个 Card Break（上面那组链接的标题）对应一张卡片；一行三张，跟框架自带工作区一样。
+    blocks = [
+        {
+            "id": frappe.generate_hash(length=10),
+            "type": "card",
+            "data": {"card_name": entry["label"], "col": 4},
+        }
+        for entry in entries
+    ]
+
     if frappe.db.exists("Workspace", title):
         doc = frappe.get_doc("Workspace", title)
         doc.set("links", [])
@@ -298,6 +311,7 @@ def ensure_product_workspace(spec_json: str) -> dict:
 
     doc.public = 1
     doc.icon = icon
+    doc.content = frappe.as_json(blocks)
     # 模块必须是**该产品自己的模块**：Frappe 用
     # `workspace.module in user.allowed_modules` 判断可见性，租户用户被允许的
     # 只有他所用产品 App 的模块。写成核心层模块会被判无权限直接丢掉（踩过）。
@@ -313,10 +327,23 @@ def ensure_product_workspace(spec_json: str) -> dict:
     frappe.db.commit()
     frappe.clear_cache()
 
-    # 桌面上给它一个图标，否则登录后只在侧栏看得到
+    # 桌面上给它一个图标。这一屏已经不再是租户的落点（见下），但图标留着：
+    # 工作台侧边栏顶部的返回入口、以及将来真要回桌面时都还用得到。
     _ensure_workspace_icon(title, icon, spec.get("product") or "")
     _clear_desktop_caches()
-    return {"workspace": doc.name, "title": title, "links": len(entries), "roles": roles}
+
+    # 让租户登录后**直接落到这个工作台**，不要先过一屏"桌面"再点一次。
+    # 必须在工作区已存在之后做，这也是它放在 set_workspace 这一步的原因。
+    from pearnly_core import workspace as workspace_mod
+
+    landed = workspace_mod.apply_to_site_users()
+    return {
+        "workspace": doc.name,
+        "title": title,
+        "links": len(entries),
+        "roles": roles,
+        "landing": landed,
+    }
 
 
 def _clear_desktop_caches() -> None:

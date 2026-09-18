@@ -80,10 +80,41 @@ def redirect_guests_to_identity() -> None:
     if normalized not in GUEST_ENTRY_PATHS:
         return
 
-    # 登录后落到 desk（产品首页后续再细化）
+    # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点
+    # （现在是租户自己的产品工作台，见 pearnly_core/workspace.py）。
+    # 以前这里写死 "/desk"，等于绕开首页规则，所有人登录后都要先过一屏桌面。
     gate = (
-        "/api/method/pearnly_core.identity.begin_login?redirect_to=" + quote("/desk")
+        "/api/method/pearnly_core.identity.begin_login?redirect_to=" + quote(normalized)
     )
     # 必须用 302：301 会被浏览器**永久缓存**，以后即使登录了也会一直被弹回登录页
     # （踩过：表现为"清缓存才好"的假故障）
     raise _Redirect(gate, 302)
+
+
+def send_root_to_home() -> None:
+    """before_request 钩子：已登录的人打开**根路径**，直接送去他的工作台。
+
+    为什么需要：Frappe 把 `/desk/<工作区>` 用「URL 不变」的方式渲染成 SPA，
+    所以根路径拿到的是同一套页面、地址栏停在 `/`，SPA 看到路径是 `/` 就显示桌面。
+    结果就是"登录时对了，但从书签或重新打开浏览器进来又看见桌面"。
+
+    只处理根路径，**不碰 `/desk` 与 `/app`**：那两个是明确的"去桌面"入口，
+    拦掉会让工具栏的应用切换图标看起来"点了没反应"，反而更难用。
+    另外只在目标确实不同时才跳，避免自跳成环。
+    """
+    if frappe.session.user == "Guest":
+        return
+    if not is_business_site():
+        return
+
+    path = frappe.request.path if frappe.request else ""
+    if (path.rstrip("/") or "/") != "/":
+        return
+
+    from pearnly_core import workspace as workspace_mod
+
+    target = workspace_mod.landing_url()
+    # 目标必须是某个具体工作台才跳；否则（规则没解析出来）保持原样，不要自己跳自己
+    if not target.startswith("/desk/") or target == "/":
+        return
+    raise _Redirect(target, 302)

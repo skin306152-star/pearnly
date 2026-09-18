@@ -13,7 +13,12 @@ on_session_creation = "pearnly_core.sessions.register_session"
 
 # 统一登录入口：业务站点的 `/`、`/login`、`/app`、`/desk` 对未登录访客一律
 # 送去身份服务 —— 站点上没有业务账号的密码，用 Frappe 自带登录页必然失败。
-before_request = ["pearnly_core.login_redirect.redirect_guests_to_identity"]
+before_request = [
+    # 未登录访客：站点的门一律送去身份服务（站点上没有业务账号的密码）
+    "pearnly_core.login_redirect.redirect_guests_to_identity",
+    # 已登录用户打开根路径：直接去自己的工作台，不要先过一屏"桌面"
+    "pearnly_core.login_redirect.send_root_to_home",
+]
 
 # Apps
 # ------------------
@@ -154,13 +159,14 @@ before_request = ["pearnly_core.login_redirect.redirect_guests_to_identity"]
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+doc_events = {
+    # 登录后直接进产品工作台，不要"桌面"那一屏。
+    # 开通时会给已存在的账号设一遍默认工作区；这个钩子管**之后新增**的员工账号，
+    # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。
+    "User": {
+        "after_insert": "pearnly_core.workspace.apply_to_new_user",
+    },
+}
 
 # Scheduled Tasks
 # ---------------
