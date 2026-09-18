@@ -271,6 +271,10 @@ def _workspace_for(issue, dep) -> dict:
     roles = features_mod.roles_payload(dep.product, codes)
     spec["site"] = dep.site_name
     spec["group"] = dep.bench_group
+    # 把**买到的完整功能码**一起带过去：站点侧要拿它渲染菜单
+    # （`pearnly_core.shell.describe`）。注意这里不是 roles —— roles 只含"有可挡对象"
+    # 的功能，而菜单要显示的是买到的全部（例如"首页（订阅与计费）"就没有 DocType）。
+    spec["features"] = codes
     spec["roles"] = (
         list(roles.get("base_roles") or [])
         + ([roles["admin_role"]] if roles.get("admin_role") else [])

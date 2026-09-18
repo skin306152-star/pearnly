@@ -26,6 +26,18 @@ x-frappe-common: &frappe-common
   networks: [sample]
   restart: unless-stopped
 
+# 前端产物走**目录挂载**，不走镜像内置的那份。
+#
+# 为什么：app 代码是 COPY 进镜像的（见 infrastructure/images/frappe.Dockerfile），
+# 所以前端一行改动都要重建镜像才生效 —— 每次约 25 秒，迭代前端时太慢。
+# 这里把构建产物目录直接挂进容器，`npm run build` 完刷新页面就见效。
+# 镜像里**仍然**会打进同一份产物（构建时 COPY），所以生产不依赖这个挂载；
+# 挂载只是本机开发时让文件更新更快，去掉挂载也能跑。
+# （写成一条挂载记录，方便直接塞进各 web 的 volumes 列表）
+# 注意相对层级：compose 的相对路径是相对**本文件所在目录**（infrastructure/compose/），
+# 所以要上两层才到仓库根。写成一层会指到 infrastructure/apps/… 去（实际踩到）。
+x-frontend-mount: &frontend-mount "../../apps/pearnly_core/pearnly_core/public/pearnly-app:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public/pearnly-app:ro"
+
 # 官方镜像自带的 start.sh 只起 gunicorn 的"动态"应用，/assets 静态资源是留给
 # 前置 nginx 的。样例里没有 nginx 层，所以直接用 application_with_statics()
 # 这个入口，让 gunicorn 一并把 /assets 提供出来——否则前端资源全部 404。
@@ -55,7 +67,9 @@ services:
     <<: *frappe-common
     mem_limit: 512m
     command: *web-command
-    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - *frontend-mount
     ports: ["127.0.0.1:8101:8000"]
 
   cowork-worker:
@@ -87,7 +101,9 @@ services:
     <<: *frappe-common
     mem_limit: 512m
     command: *web-command
-    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - *frontend-mount
     ports: ["127.0.0.1:8102:8000"]
 
   erp-worker:
@@ -119,7 +135,9 @@ services:
     <<: *frappe-common
     mem_limit: 512m
     command: *web-command
-    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-dms:/home/frappe/frappe-bench/sites
+      - *frontend-mount
     ports: ["127.0.0.1:8103:8000"]
 
   dms-worker:
@@ -151,7 +169,9 @@ services:
     <<: *frappe-common
     mem_limit: 384m
     command: *web-command
-    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-control:/home/frappe/frappe-bench/sites
+      - *frontend-mount
 
   # 前置 nginx：把静态资源与 /socket.io 一起提供。
   #

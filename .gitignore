@@ -7,3 +7,8 @@ __pycache__/
 node_modules/
 sites/
 logs/
+
+# 前端构建产物。不进版本控制：文件名带 hash，每构建一次全变，进 git 只有噪音。
+# 本机开发靠 compose 的目录挂载直接读它；镜像构建时先跑一次
+# `cd frontend && npm ci && npm run build` 再 docker build（见 frontend/README.md）。
+apps/pearnly_core/pearnly_core/public/pearnly-app/

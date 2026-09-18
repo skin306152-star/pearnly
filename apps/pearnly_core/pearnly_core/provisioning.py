@@ -337,11 +337,27 @@ def ensure_product_workspace(spec_json: str) -> dict:
     from pearnly_core import workspace as workspace_mod
 
     landed = workspace_mod.apply_to_site_users()
+
+    # 把"这家买到了哪些功能"落到站点配置上 —— 前端渲染菜单要用
+    # （`pearnly_core.shell.describe` 读它）。放这一步是因为它本来就拿着这份清单：
+    # 工作区里要列什么，就是买到的那些功能；同一件事不拆成两步。
+    # 权威仍在控制面的发号单上，这里只是一份给站点自己看的投影。
+    codes = [str(code) for code in (spec.get("features") or []) if code]
+    if codes:
+        # 注意导入方式：写成 `frappe.installer.update_site_config(...)` 会炸，
+        # 因为 `frappe.installer` 不是自动挂上去的属性。而且炸出来的报错会被
+        # `bench execute` 的 kwargs eval 吞掉，换成一句无关的
+        # `NameError: name 'pearnly_core' is not defined` —— 极难定位（实测踩到）。
+        from frappe.installer import update_site_config
+
+        update_site_config("pearnly_features", codes)
+
     return {
         "workspace": doc.name,
         "title": title,
         "links": len(entries),
         "roles": roles,
+        "features": codes,
         "landing": landed,
     }
 
