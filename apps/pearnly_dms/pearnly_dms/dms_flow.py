@@ -107,12 +107,41 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
 
     pb = {k: v[0] for k, v in parse_qs(postback.get("data") or "").items()}
     action = pb.get("action")
+
+    # 逐问按钮（`data="qa:<action>[:<value>]"`）直接归逐问状态机；
+    # datetimepicker 选中的日期在 `postback.params` 里，一并带过去。
+    if str(postback.get("data") or "").startswith("qa:"):
+        from pearnly_dms import dms_booking_qa as booking_qa
+
+        booking_qa.handle_postback(
+            binding["tenant_id"],
+            line_user_id,
+            postback.get("data") or "",
+            postback.get("params") or {},
+            reply_token,
+        )
+        return
+
+    # 订车阶段的预览确认 / 取消 / 重试归建单执行体（客户档的写档动作留本文件）。
+    from pearnly_dms import dms_booking_flow as booking_flow
+
+    if action in booking_flow.BOOKING_ACTIONS:
+        booking_flow.handle_postback(binding, line_user_id, reply_token, action, pb)
+        return
+
     sess = store.get_session(line_user_id)
     payload = (sess or {}).get("payload") or {}
 
     if action == cards.ACT_RESET:
         store.clear_session(line_user_id)
         _reply(reply_token, cards.TXT_RESET)
+        return
+
+    # 菜单层：选菜单项 / 建档后继续订车 / 重拍。**不消费 nonce**，须在下方的写档守卫之前。
+    from pearnly_dms import dms_menu_flow as menu_flow
+
+    if action in menu_flow.MENU_ACTIONS:
+        menu_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
         return
 
     if action == cards.ACT_KEEP:
@@ -122,8 +151,18 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
             _reply(reply_token, cards.TXT_EXPIRED)
             return
         _reply(reply_token, cards.TXT_KEEP)
-        # 清单层未搬：这里本该交给 menu_flow.after_customer_saved 决定是否接着订车
-        _push(line_user_id, cards.TXT_DONE_SAME)
+        # 保留旧数据 = **零写入**。差异卡进订车时必须把 DMS 主档快照传下去，
+        # 不能展示本次输入的新值、最终建单却重读旧值。
+        menu_flow.after_customer_saved(
+            binding,
+            line_user_id,
+            endpoint_id=str(payload.get("endpoint_id") or ""),
+            customer_id=str(payload.get("customer_id") or ""),
+            draft=payload.get("master_draft") or payload.get("draft") or {},
+            mode=str(payload.get("mode") or ""),
+            same_data=True,
+            summary=payload.get("master_summary") or payload.get("summary"),
+        )
         return
 
     # 写动作：确认守卫（reviewing 态 + nonce 吻合）**原子清 nonce**；不符/过期 → 绝不写。
@@ -362,8 +401,20 @@ def execute(
         # create 被幂等/撞码转更新时，回执如实说"已更新"
         actual = result.get("mode") or mode
         _push(line_user_id, cards.receipt_text(result.get("customer_id") or "", name, actual))
-        _push(line_user_id, cards.TXT_DONE_SAVED)
-        store.clear_session(line_user_id)
+        # 落档后的分叉交给菜单层：`mode=booking`/缺省 → **接着开订车逐问**；
+        # `mode=customer`（菜单 1 只建档）→ 收尾不提订车。
+        from pearnly_dms import dms_menu_flow as menu_flow
+
+        menu_flow.after_customer_saved(
+            binding,
+            line_user_id,
+            endpoint_id=str(payload.get("endpoint_id") or ""),
+            customer_id=str(result.get("customer_id") or ""),
+            draft=payload.get("draft") or {},
+            name=name,
+            mode=str(payload.get("mode") or ""),
+            summary=payload.get("summary"),
+        )
     elif result.get("error_code") == "ERR_DMS_ADMIN_AUTH":
         _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL)  # 不谎称已自动通知
     else:

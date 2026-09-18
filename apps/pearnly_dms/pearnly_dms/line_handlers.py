@@ -60,12 +60,21 @@ def handle(event: dict) -> bool:
         message = event.get("message") or {}
         mtype = message.get("type")
         if mtype == "image":
-            # 拍身份证 → 后台识别（识别要几秒到十几秒，不能占着回复令牌等）
+            # 图片有两种来历：**订车逐问里的转账凭证**，和**拍身份证**（建档）。
+            # 先看会话是不是在逐问态 —— 那时图片归逐问状态机（它会自己判断这一步收不收图），
+            # 否则才当身份证走识别。识别要几秒到十几秒，一律丢后台，不占着回复令牌等。
             bound = _bound_or_prompt(user_id, reply_token)
             if not bound:
                 return True
-            from pearnly_dms import dms_flow
+            from pearnly_core import line_session as store
+            from pearnly_dms import dms_booking_qa, dms_flow
 
+            sess = store.get_session(user_id)
+            if (sess or {}).get("state") == "booking_qa":
+                if dms_booking_qa.handle_image(
+                    frappe.local.site, user_id, message.get("id") or "", reply_token, sess=sess
+                ):
+                    return True
             dms_flow.handle_image(_binding(user_id, bound), user_id, message.get("id") or "")
             return True
         if mtype != "text":
