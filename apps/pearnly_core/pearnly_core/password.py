@@ -17,7 +17,14 @@ import frappe
 import requests
 from frappe import _
 
-MIN_LENGTH = 8
+# 密码强度**不卡**（用户 2026-09-18 明确要求："密码不要卡得太严格，纯字母，
+# 纯数字都可以，包括首次使用"）。
+#
+# 所以这里只保证"非空"，长度和复杂度由用户自己决定。这也是两边一致的做法：
+# 身份服务侧本来就没有密码策略（realm 的 `passwordPolicy` 为空），
+# 卡人的一直是**我们自己**这个下限 —— 放宽后就不会出现"身份服务收下了、
+# 我们这边先拒了"的错配。
+MIN_LENGTH = 1
 
 
 def _realm_base() -> str:
@@ -106,7 +113,7 @@ def change_password(current_password=None, new_password=None, confirm_password=N
     if new_password != confirm_password:
         frappe.throw(_("两次输入的新密码不一致"))
     if len(new_password) < MIN_LENGTH:
-        frappe.throw(_("新密码至少 {0} 位").format(MIN_LENGTH))
+        frappe.throw(_("新密码不能为空"))
     if new_password == current_password:
         frappe.throw(_("新密码不能与当前密码相同"))
 

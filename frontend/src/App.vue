@@ -12,6 +12,7 @@ import { navFor, type NavEntry } from "./lib/nav";
 import { iconFor } from "./lib/icons";
 import { ApiError } from "./lib/api";
 import { SHELL_BOOT } from "./lib/boot-context";
+import AccountMenu from "./components/AccountMenu.vue";
 
 const boot = ref<ShellBoot | null>(null);
 const error = ref("");
@@ -71,10 +72,6 @@ const pageTitle = computed(() => {
   return "未建页面";
 });
 
-function initials(name: string): string {
-  const trimmed = (name || "").trim();
-  return trimmed ? trimmed.slice(0, 1).toUpperCase() : "?";
-}
 </script>
 
 <template>
@@ -95,13 +92,8 @@ function initials(name: string): string {
     <!-- 侧栏：官方组件 -->
     <Sidebar :header="header" :sections="sections">
       <template #footer-items>
-        <div class="pn-account">
-          <span class="pn-avatar">{{ initials(boot.full_name || boot.user) }}</span>
-          <span class="pn-who">
-            <strong>{{ boot.full_name || boot.user }}</strong>
-            <span>{{ boot.user }}</span>
-          </span>
-        </div>
+        <!-- 左下角账号菜单：点开是改密 / 退出（三个产品共用同一套） -->
+        <AccountMenu :boot="boot" />
       </template>
     </Sidebar>
 

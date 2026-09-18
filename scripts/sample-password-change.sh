@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 # 改密功能验证：先走一遍 OIDC 登录拿会话，再测改密的三种情况。
 #
-# 用法: scripts/sample-password-change.sh <Keycloak用户名> <当前密码> <新密码>
+# 用法: scripts/sample-password-change.sh <Keycloak用户名> <当前密码> <新密码> [站点host] [端口]
+#   默认打在样板站 cowork-a.localhost:8101；要验真租户站就把站点和端口传进来，
+#   例如: ... prov-65956@sample.local Tenant-Test-2026 abc123 qc65956.localhost 8101
 set -euo pipefail
 
-SITE_HOST=cowork-a.localhost
-SITE=http://127.0.0.1:8101
 KC_PUBLIC=http://127.0.0.1:8105
 KC_INTERNAL=http://keycloak:8080
 
 USERNAME="${1:?用法: $0 <用户名> <当前密码> <新密码>}"
 OLD_PASS="${2:?}"
 NEW_PASS="${3:?}"
+SITE_HOST="${4:-cowork-a.localhost}"
+SITE="http://127.0.0.1:${5:-8101}"
 
 JAR=$(mktemp)
 trap 'rm -f "$JAR"' EXIT

@@ -116,6 +116,13 @@ def finalize_site() -> dict:
         frappe.db.set_single_value("System Settings", "disable_user_pass_login", 1)
         # 免密码的"邮箱链接登录"也不在统一登录口内，一并关掉
         frappe.db.set_single_value("System Settings", "login_with_email_link", 0)
+        # 站点侧的密码强度开关也关掉（Frappe 原生 `enable_password_policy`）。
+        # 用户要求"密码不要卡得太严格，纯字母、纯数字都可以，包括首次使用"：
+        # 业务密码本来存在身份服务里（那边没有策略），但只要有一步会落到站点的
+        # 原生表单（例如租户自己加员工账号时用 Desk 的表单），这个开关就会把人
+        # 挡在门外。控制面早就关了同一个开关（见 pearnly_control/bootstrap.py），
+        # 两边行为保持一致。
+        frappe.db.set_single_value("System Settings", "enable_password_policy", 0)
         # 租户默认语言（见 TENANT_DEFAULT_LANGUAGE 的说明）。
         # 只给业务站点设：控制面是老板自己用的，保持原样。
         frappe.db.set_single_value("System Settings", "language", tenant_default_language())

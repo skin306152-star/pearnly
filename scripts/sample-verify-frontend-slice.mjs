@@ -53,13 +53,13 @@ function check(label, ok, detail = "") {
 
 const browser = await chromium.launch({ headless: true });
 
-async function login({ host, port, user }) {
+async function login({ host, port, user }, password = PASS) {
 	const ctx = await browser.newContext({ viewport: { width: 1440, height: 950 }, locale: "zh-CN" });
 	const page = await ctx.newPage();
 	await page.goto(`http://${host}:${port}/`, { waitUntil: "domcontentloaded" });
 	await page.waitForSelector("#kc-form-login", { timeout: 30000 });
 	await page.fill("#username", user);
-	await page.fill("#password", PASS);
+	await page.fill("#password", password);
 	await page.click("#kc-login");
 	await page.waitForURL((u) => !u.href.includes("keycloak"), { timeout: 30000 });
 	await page.waitForLoadState("domcontentloaded");
@@ -339,6 +339,94 @@ async function login({ host, port, user }) {
 	check(`点推送后那一行变「待推送」（实际 ${await rowStatus(created)}）`, (await rowStatus(created)) === "待推送");
 	await page.screenshot({ path: `${SHOT_DIR}/frontend-cowork-intake.png` });
 	await ctx.close();
+}
+
+// ── 5. 账号菜单与改密（三个产品共用；用户当时点名要的功能）────────────────
+//
+// ⚠️ 这一节会**真的改密码**，所以最后一定要改回去 —— 其它验证脚本都用
+// `Tenant-Test-2026` 登录，改不回去等于把后面的测试全弄坏。
+// 顺序：先验错误路径（不改状态），再验成功路径，最后回滚。
+//
+// 新密码刻意选**纯数字**和**纯字母**各一次：用户要求"密码不要卡得太严格，
+// 纯字母，纯数字都可以，包括首次使用"。只看代码不够，得真改一次、并真的用
+// 那个新密码登进来，才算证明身份服务那边也收。
+{
+	const DIGITS = "123456"; // 纯数字
+	const LETTERS = "abcdefgh"; // 纯字母
+	const APP = `http://${COWORK.host}:${COWORK.port}${APP_PATH}#/home`;
+
+	async function openDialog(p) {
+		await p.click(".pn-account");
+		await p.waitForTimeout(400);
+		await p.click("text=更改密码");
+		await p.waitForSelector("input[autocomplete='current-password']", { timeout: 10000 });
+	}
+	async function fillAndSubmit(p, cur, next, confirm, settleMs = 2500) {
+		await p.fill("input[autocomplete='current-password']", cur);
+		await p.fill("input[autocomplete='new-password']", next);
+		await p.fill("input[autocomplete='new-password'] >> nth=1", confirm);
+		await p.click("text=保存");
+		await p.waitForTimeout(settleMs);
+	}
+	async function dialogText(p) {
+		return p.evaluate(() => {
+			const d = document.querySelector("[role='dialog'], .modal-container, .dialog");
+			return (d?.textContent || document.body.textContent || "").replace(/\s+/g, " ");
+		});
+	}
+	// 完整走一遍：用 from 登录 → 进产品壳 → 点头像改密 → 看回执
+	async function changePassword(from, to, label) {
+		const { ctx, page } = await login(COWORK, from);
+		await page.goto(APP, { waitUntil: "domcontentloaded" });
+		await page.waitForSelector(".pn-account", { timeout: 20000 });
+		await openDialog(page);
+		// 成功回执只在弹窗里活约 1.2 秒（成功即自动关窗），必须赶在关掉之前读走，
+		// 否则读到的是关窗之后的页面 —— 那是脚本读得太晚，不是功能没做（踩过）
+		await fillAndSubmit(page, from, to, to, 800);
+		const text = await dialogText(page);
+		check(label, text.includes("密码已更新"), text.slice(0, 80));
+		await page.waitForTimeout(1500); // 等它自己关干净，免得影响下一次
+		await ctx.close();
+	}
+	// 换一个全新浏览器上下文，用这个密码真的登进来一次
+	async function canLoginWith(password, label) {
+		const session = await login(COWORK, password).catch(() => null);
+		check(label, Boolean(session));
+		if (session) await session.ctx.close();
+	}
+
+	// 5.1 弹窗本身
+	{
+		const { ctx, page } = await login(COWORK);
+		await page.goto(APP, { waitUntil: "domcontentloaded" });
+		await page.waitForSelector(".pn-account", { timeout: 20000 });
+		await openDialog(page);
+		check(
+			"点头像能打开改密弹窗，且有当前密码/新密码/确认三个字段",
+			(await page.$$("input[type='password']")).length === 3
+		);
+
+		// 5.2 错误路径：当前密码填错 → 必须显示服务端给的提示（服务端说了算）
+		await fillAndSubmit(page, "definitely-wrong-password", DIGITS, DIGITS);
+		const wrongText = await dialogText(page);
+		check(
+			`当前密码填错时显示服务端的报错（${wrongText.match(/当前密码不正确/)?.[0] ?? "未见提示"}）`,
+			wrongText.includes("当前密码不正确")
+		);
+		await ctx.close();
+	}
+
+	// 5.3 纯数字能改、能登（用户要求：纯数字也可以）
+	await changePassword(PASS, DIGITS, "纯数字新密码（123456）被接受");
+	await canLoginWith(DIGITS, "用纯数字新密码能登录（身份服务那边也收了）");
+
+	// 5.4 纯字母能改、能登（用户要求：纯字母也可以）
+	await changePassword(DIGITS, LETTERS, "纯字母新密码（abcdefgh）被接受");
+	await canLoginWith(LETTERS, "用纯字母新密码能登录");
+
+	// 5.5 ★ 回滚：改回原密码，否则后面的验证脚本全登不进去
+	await changePassword(LETTERS, PASS, "已把密码改回原值（否则后面的脚本会全部登不进去）");
+	await canLoginWith(PASS, "回滚后原密码可登录");
 }
 
 await browser.close();

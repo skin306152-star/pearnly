@@ -123,18 +123,57 @@ act_set_line() {  # <payload-json>
   echo "已写 LINE 渠道配置 channel=$cid"
 }
 
-act_set_oidc() {  # <group> <site> <product> <issuer> <client_id> <secret> <redirect>
+act_set_oidc() {  # <payload-json>
   # 一次写完身份相关的整组配置。刷新配置后必须重启：gunicorn 是 --preload（踩过）
-  dc exec -T "$(bench_of "$1")" bash -lc "
+  #
+  # 除了本部署**自己的** client，还要写 **realm 级**的两个客户端凭据：
+  #   pearnly-admin          —— 用 client_credentials 换管理员令牌（改密要用）
+  #   pearnly-password-check —— 只开密码授权，用来校验"当前密码"填得对不对
+  #
+  # 少写这两个的后果是**"能登录、改不了密码"**（改密会报"取管理令牌失败"，
+  # 因为读出来是 None）。样板站当年是手工补的，开通流程从来没下发过 ——
+  # 真租户站一直是坏的。这两个是 realm 级、同 realm 所有租户共用一套，
+  # 所以由控制面按"开户目标"下发（见 pearnly_control/provisioning.target_credentials）。
+  local payload="$1"
+  local get group site product issuer cid secret redirect
+  local admin_id admin_secret check_id check_secret
+  get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  product=$(py -c "$get" "$payload" product)
+  issuer=$(py -c "$get" "$payload" issuer)
+  cid=$(py -c "$get" "$payload" client_id)
+  secret=$(py -c "$get" "$payload" client_secret)
+  redirect=$(py -c "$get" "$payload" redirect_uri)
+  admin_id=$(py -c "$get" "$payload" admin_client_id)
+  admin_secret=$(py -c "$get" "$payload" admin_client_secret)
+  check_id=$(py -c "$get" "$payload" password_check_client_id)
+  check_secret=$(py -c "$get" "$payload" password_check_client_secret)
+
+  # 缺了就直接失败，不许"写一半"然后报成功 —— 那种站点能登录但改不了密码，
+  # 很难从现象倒推回来（踩过）。
+  if [ -z "$admin_id" ] || [ -z "$admin_secret" ] || [ -z "$check_id" ] || [ -z "$check_secret" ]; then
+    echo "[错误] 开户目标上缺 realm 级凭据（pearnly-admin / pearnly-password-check），" >&2
+    echo "       这样开出来的租户能登录、改不了密码。先在控制面把开户目标补齐。" >&2
+    return 1
+  fi
+
+  dc exec -T "$(bench_of "$group")" bash -lc "
     set -e
-    B='bench --site $2'
-    \$B set-config pearnly_oidc_issuer '$4' >/dev/null
-    \$B set-config pearnly_oidc_client_id '$5' >/dev/null
-    \$B set-config pearnly_oidc_client_secret '$6' >/dev/null
-    \$B set-config pearnly_oidc_redirect_uri '$7' >/dev/null
-    \$B set-config pearnly_product '$3' >/dev/null
+    B='bench --site $site'
+    \$B set-config pearnly_oidc_issuer '$issuer' >/dev/null
+    \$B set-config pearnly_oidc_client_id '$cid' >/dev/null
+    \$B set-config pearnly_oidc_client_secret '$secret' >/dev/null
+    \$B set-config pearnly_oidc_redirect_uri '$redirect' >/dev/null
+    \$B set-config pearnly_product '$product' >/dev/null
+    \$B set-config pearnly_oidc_admin_client_id '$admin_id' >/dev/null
+    \$B set-config pearnly_oidc_admin_client_secret '$admin_secret' >/dev/null
+    \$B set-config pearnly_oidc_password_check_client_id '$check_id' >/dev/null
+    \$B set-config pearnly_oidc_password_check_client_secret '$check_secret' >/dev/null
   "
-  echo "已写身份配置 issuer=$4 client=$5"
+  # ${cid} 要带花括号：紧跟中文时 shell 会把中文当成变量名的一部分（踩过）
+  echo "已写身份配置 issuer=$issuer client=${cid}（含 realm 级改密凭据）"
 }
 
 act_bind_user() {  # <group> <site> <email> <full_name> <subject> <deployment>
@@ -198,10 +237,7 @@ run_step() {  # <action> <payload-json>
     new_site)    act_new_site    "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
     install_app) act_install_app "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" "$(py -c "$get" "$payload" app)" ;;
     set_config)  act_set_config  "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" "$(py -c "$get" "$payload" key)" "$(py -c "$get" "$payload" value)" ;;
-    set_oidc)    act_set_oidc    "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" \
-                                 "$(py -c "$get" "$payload" product)" "$(py -c "$get" "$payload" issuer)" \
-                                 "$(py -c "$get" "$payload" client_id)" "$(py -c "$get" "$payload" client_secret)" \
-                                 "$(py -c "$get" "$payload" redirect_uri)" ;;
+    set_oidc)    act_set_oidc    "$payload" ;;
     restart_web) act_restart_web "$(py -c "$get" "$payload" group)" ;;
     finalize_site) act_finalize_site "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
     set_line)      act_set_line "$payload" ;;

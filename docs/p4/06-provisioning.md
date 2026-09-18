@@ -57,12 +57,36 @@ new_site → install_core → install_product → set_oidc → restart_web → f
 开通要能建客户端，控制面的开户凭据必须有 `manage-clients` / `view-clients`
 （原本只有 `manage-users`，实测 403）。
 
-## 本机身份服务的两个前置条件（都在 `scripts/sample-keycloak-local.sh`）
+### 还要下发 **realm 级**的两个客户端凭据（改密依赖，2026-09-18 补）
+
+上面那个是**每部署一个**的客户端。另有两个是 **realm 级、同 realm 所有租户共用一套**的，
+开通时必须**一起写进站点**，否则新租户**能登录、改不了密码**：
+
+| 客户端 | 用途 | 站点配置键 |
+|---|---|---|
+| `pearnly-admin` | `client_credentials` 换管理员令牌 → 调身份服务改密码 | `pearnly_oidc_admin_client_id/secret` |
+| `pearnly-password-check` | 只开密码授权，校验用户填的"当前密码"对不对 | `pearnly_oidc_password_check_client_id/secret` |
+
+凭据存在控制面的**开户目标**（`Pearnly Target`）上，由 `provisioning.target_credentials()`
+在 `set_oidc` 步骤里一起下发。少写这两个的症状是改密报 **"取管理令牌失败"**
+（`frappe.conf.get(...)` 读出来是 `None`）。
+
+**这个坑真发生了**：样板站当年是手工把这两组配置写进去的，**开通流程从来没下发过**，
+所以样板站改密一直是好的、真租户站一直是坏的。教训是"样板站验过"不等于"开出来的站能用"。
+
+已经开出来的站点用 `scripts/sample-backfill-realm-credentials.sh <组> <站点...>` 补
+（凭据从开户目标读，和开通流程同一份；顺手重跑一次 `finalize_site`）。
+
+## 本机身份服务的前置条件（都在 `scripts/sample-keycloak-local.sh`）
 
 1. **`sslRequired=none`（仅本机）**：本机跑 http，而 realm 默认 `external`，
    Keycloak 会给 `AUTH_SESSION_ID` / `KC_RESTART` 这些登录 cookie 加 `Secure`。
    ⚠️ **生产必须保持 `external`**（有 TLS），这条不要照抄。
 2. **开户凭据的客户端管理角色**（见上）。
+3. **`passwordPolicy` 留空**：用户 2026-09-18 要求"密码不要卡得太严格，纯字母、纯数字
+   都可以，**包括首次使用**"。首次使用 = 点邀请邮件里的链接、在身份服务自己的设密页
+   设密码，那一步的规则**完全由 realm 的 `passwordPolicy` 决定**，跟站点代码无关。
+   脚本会把两个 realm 都置空并回读校验，非空直接报错退出。
 
 顺带说明一个容易误判的现象：同样的流程用 **curl 跑会失败**（"Restart login cookie not found"），
 用**浏览器就成功**。原因是浏览器把 `*.localhost` 当作安全上下文，会正常收发 `Secure`

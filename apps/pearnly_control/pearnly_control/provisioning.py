@@ -188,6 +188,41 @@ def oidc_secret_of(deployment: str) -> str:
     ) or ""
 
 
+def target_credentials() -> dict:
+    """开户目标上的**realm 级**凭据，开通时要一起写进租户站点。
+
+    为什么必须下发，而不是让站点自己想办法：改密功能要用这两个客户端 ——
+
+    - `pearnly-admin`：以 client_credentials 换管理员令牌，去身份服务改密码；
+    - `pearnly-password-check`：只开密码授权，用来校验用户填的"当前密码"对不对。
+
+    它们是 **realm 级**的（同一 realm 下所有租户共用一套），所以存在开户目标上最合适。
+
+    踩过的坑：这两个凭据以前只在样板站上手工写过，**开通流程从来没下发** ——
+    结果是"改密在样板站验过、在真租户站上一直是坏的"（报"取管理令牌失败"，
+    因为 client_id/secret 读出来是 None）。样板站能过不代表租户站能用。
+    """
+    from frappe.utils.password import get_decrypted_password
+
+    _client, target = kc.client_for_target(None)
+    row = frappe.db.get_value(
+        "Pearnly Target",
+        {"target_name": target},
+        ["admin_client_id", "password_check_client_id"],
+        as_dict=True,
+    ) or {}
+    return {
+        "admin_client_id": row.get("admin_client_id") or "",
+        "admin_client_secret": get_decrypted_password(
+            "Pearnly Target", target, "admin_client_secret", raise_exception=False
+        ) or "",
+        "password_check_client_id": row.get("password_check_client_id") or "",
+        "password_check_client_secret": get_decrypted_password(
+            "Pearnly Target", target, "password_check_client_secret", raise_exception=False
+        ) or "",
+    }
+
+
 def _feature_rows(issue, product) -> list[dict]:
     return [
         {"feature": row.feature}
@@ -307,6 +342,9 @@ def _steps_for(issue, dep, row) -> list[dict]:
              "client_id": dep.oidc_client_id,
              "client_secret": oidc_secret_of(dep.name),
              "redirect_uri": f"http://{site}:{dep.port}/api/method/pearnly_core.identity.callback",
+             # realm 级的两个客户端凭据也要一起写：改密功能依赖它们
+             # （只写本部署的 client 会导致"能登录但改不了密码"）
+             **target_credentials(),
          }, ensure_ascii=False)},
         {"step_key": f"{dep.name}:restart_web", "deployment": dep.name,
          "action": "restart_web", "status": "pending",

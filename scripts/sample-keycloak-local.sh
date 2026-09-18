@@ -16,6 +16,12 @@
 # 3. 忘记密码开关：登录页要有"忘记密码"，前提是 realm 开着 resetPasswordAllowed
 #    （发信通道另见 sample-configure-smtp.sh）。
 #
+# 4. **密码策略留空**：用户 2026-09-18 明确要求"密码不要卡得太严格，纯字母、
+#    纯数字都可以，**包括首次使用**"。首次使用 = 用户点邀请邮件里的链接、在
+#    身份服务自己的设密页设密码，那一步的强度规则完全由 realm 的
+#    `passwordPolicy` 决定，跟我们自己的校验无关。所以这里显式写成空，
+#    保证"邀请注册"和"产品内改密"两条路的规则一致。
+#
 # 用法: scripts/sample-keycloak-local.sh
 set -euo pipefail
 
@@ -34,10 +40,10 @@ echo "已取到管理员令牌"
 api() { curl -sS -m 20 -H "Authorization: Bearer $TOKEN" "$@"; }
 
 for realm in "${REALMS[@]}"; do
-  echo "[$realm] 本机 http：sslRequired=none + 打开忘记密码"
+  echo "[$realm] 本机 http：sslRequired=none + 打开忘记密码 + 密码策略留空"
   code=$(curl -sS -m 20 -o /dev/null -w '%{http_code}' -X PUT "$KC/admin/realms/$realm" \
     -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
-    --data-binary '{"sslRequired":"none","resetPasswordAllowed":true}')
+    --data-binary '{"sslRequired":"none","resetPasswordAllowed":true,"passwordPolicy":""}')
   [ "$code" = "204" ] || { echo "  写入失败 HTTP $code" >&2; exit 1; }
 
   cid=$(api "$KC/admin/realms/$realm/clients?clientId=$ADMIN_CLIENT" \
@@ -70,7 +76,11 @@ for realm in "${REALMS[@]}"; do
   api "$KC/admin/realms/$realm" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-print('  回读: sslRequired=%s resetPasswordAllowed=%s' % (d.get('sslRequired'), d.get('resetPasswordAllowed')))
+policy = d.get('passwordPolicy') or ''
+print('  回读: sslRequired=%s resetPasswordAllowed=%s passwordPolicy=%r' % (
+    d.get('sslRequired'), d.get('resetPasswordAllowed'), policy))
+if policy:
+    sys.exit('  [错误] 密码策略非空，首次使用会被卡住：' + policy)
 "
 done
 

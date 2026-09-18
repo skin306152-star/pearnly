@@ -119,6 +119,8 @@ def ensure_target(
     realm: str = "pearnly-business",
     admin_client_id: str = "pearnly-admin",
     admin_client_secret: str | None = None,
+    password_check_client_id: str = "pearnly-password-check",
+    password_check_client_secret: str | None = None,
     is_default: int = 1,
     notes: str | None = None,
 ) -> str:
@@ -126,9 +128,16 @@ def ensure_target(
 
     **生产目标等服务器就绪后加一条即可**：把 base_url 换成服务器上的身份服务地址，
     代码不用改。
+
+    除了建站用的管理客户端，还要存**改密用的密码校验客户端**（两者都是 realm 级，
+    同 realm 下所有租户共用一套）。存齐了开通流程才会把它们一起下发到租户站点，
+    否则开出来的租户**能登录、改不了密码** —— 这个坑真踩过（样板站手工配过，
+    真租户站一直缺）。
     """
     if not admin_client_secret:
         frappe.throw(_("必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）"))
+    if not password_check_client_secret:
+        frappe.throw(_("必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）"))
 
     existing = frappe.db.get_value("Pearnly Target", {"target_name": target_name}, "name")
     if existing:
@@ -140,6 +149,8 @@ def ensure_target(
     doc.realm = realm
     doc.admin_client_id = admin_client_id
     doc.admin_client_secret = admin_client_secret
+    doc.password_check_client_id = password_check_client_id
+    doc.password_check_client_secret = password_check_client_secret
     doc.notes = notes or doc.notes
     if existing:
         doc.save(ignore_permissions=True)

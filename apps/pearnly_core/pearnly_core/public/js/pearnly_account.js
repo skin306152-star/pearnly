@@ -14,7 +14,9 @@
 
 (function (root) {
   var API = "/api/method/pearnly_core.password.change_password";
-  var MIN_LENGTH = 8;
+  // 密码强度不卡（用户 2026-09-18 要求：纯字母、纯数字都行，首次使用也一样）。
+  // 这里只挡"空"，与后端 pearnly_core/password.py 的 MIN_LENGTH 保持一致。
+  var MIN_LENGTH = 1;
 
   function csrf(opt) {
     if (opt && opt.csrfToken) return opt.csrfToken;
@@ -86,7 +88,7 @@
 
       if (!current || !next || !confirm) { msg.className = "pn-msg err"; msg.textContent = "三项都要填"; return; }
       if (next !== confirm) { msg.className = "pn-msg err"; msg.textContent = "两次输入的新密码不一致"; return; }
-      if (next.length < MIN_LENGTH) { msg.className = "pn-msg err"; msg.textContent = "新密码至少 " + MIN_LENGTH + " 位"; return; }
+      if (next.length < MIN_LENGTH) { msg.className = "pn-msg err"; msg.textContent = "新密码不能为空"; return; }
 
       msg.textContent = "提交中…";
       fetch(API, {
