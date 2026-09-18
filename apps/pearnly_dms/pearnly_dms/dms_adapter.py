@@ -385,3 +385,14 @@ class MrerpDmsAdapter:
         from pearnly_dms.dms_transport import PlaywrightTransport
 
         return PlaywrightTransport(self.page.context.request)
+
+    def client(self):
+        """业务客户端（查重/建档/建单/主档都在它上面）。
+
+        读操作走主会话；客户档**写**操作在配了 admin 且与主账号不同时懒切到 admin 会话
+        —— 传的是**方法本身**（可调用），所以 admin 浏览器只在真用得着时才起。
+        """
+        from pearnly_dms.dms_client import DmsClient
+
+        admin = self.admin_transport if self.has_distinct_admin_creds else None
+        return DmsClient(self.transport(), self.base_url, admin_transport=admin)
