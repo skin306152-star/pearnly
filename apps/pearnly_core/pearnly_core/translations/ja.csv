@@ -1,0 +1,96 @@
+A board instance is created only when this is on,有効にした時だけボードを作成します
+Amount,金額
+Balance,残高
+Batches and results of every recognition run,各認識バッチの記録と結果
+"Billing is not wired up on this site, please contact the platform",このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
+Charges,課金
+Collaboration Boards (WeKan),コラボボード（WeKan）
+Companion,コンパニオン
+Console,コンソール
+Count tasks and variance records,棚卸タスクと差異記録
+Cowork Admin,Cowork 管理者
+Cowork Intake,Cowork 取り込み
+Created At,作成日時
+Customer Match,顧客照合
+Customer master data,顧客マスタ
+Customers,顧客
+"Customers, suppliers, accounts and other reference data",顧客、仕入先、勘定科目などの基礎データ
+DMS Admin,DMS 管理者
+DMS Customer Match,DMS 顧客照合
+DMS ID Card Intake,DMS 身分証取り込み
+DMS Operator,DMS オペレーター
+DMS usage and balance,DMS側の利用量と残高
+Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失敗: {0} {1}
+Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
+Deployment,デプロイ
+Description,説明
+ERP Admin,ERP 管理者
+ERP Purchase,ERP 購買
+Email is required,メールアドレスは必須です
+Express Push Guide,Express プッシュガイド
+External ERP Push,外部ERP連携
+Failure reason,失敗理由
+File,ファイル
+Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+Home (Subscription & Billing),ホーム（プランと請求）
+How each push to the external ERP went,外部ERPへの連携過程と結果
+ID Card Intake,身分証取り込み
+IP,IP
+Identity Session,アイデンティティセッション
+"Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
+Intake Workbench,取り込みワークベンチ
+Invited By,招待者
+Issuer,発行者
+Last Login At,最終ログイン
+Last Seen At,最終アクセス
+Local Session,ローカルセッション
+Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
+Master Data,マスタデータ
+Not signed in,未ログイン
+Note,備考
+Notes,備考
+Only a company admin can top up or change the subscription,チャージとプラン変更は会社管理者のみ
+Only a company admin can view top-up records,チャージ記録は会社管理者のみ閲覧可
+Only the owner can manage it,責任者のみ管理可能
+Operator Roster,オペレーター名簿
+Pages,枚数
+Payer,支払者
+Plan & Balance,プランと残高
+Please sign in,ログインしてください
+Product,製品
+"Product home: current plan, usage and billing",製品ホーム。現在のプラン、利用量、請求を表示
+Product master data,商品マスタ
+Products,商品データ
+"Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
+Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
+Push Log,プッシュログ
+Push Records,プッシュ記録
+Push to the external ERP; the push log is the only source of status,外部ERPへ連携。状態は連携ログのみが根拠
+"Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
+Received,受領額
+Recognition Records,認識記録
+Reconcile documents against the ledger,伝票と帳簿の照合
+Reconciliation,照合センター
+Reference,参照番号
+Requested,申請額
+Result,結果
+Revoked At,失効日時
+Sales,販売
+Sales documents and customer dealings,販売伝票と顧客取引
+Same ID number means the same customer; avoids duplicate records,同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
+Status,ステータス
+Stock Card Report,受払在庫表
+Stock Count,棚卸
+Stock In / Out,在庫（入出庫）
+"Stock in/out summary (kept item, see the ERP manifest)",受払在庫の集計（維持項目。ERPマニフェスト参照）
+Subject,サブジェクト
+Summary,摘要
+The result of each push,各連携の結果
+Time,日時
+Top-ups,チャージ
+"Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
+User,ユーザー
+User Agent,ユーザーエージェント
+"Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
+"Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
+Workspace,ワークスペース

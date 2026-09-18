@@ -18,23 +18,26 @@ from frappe import _
 
 ADMIN_ROLES = (
     "System Manager",
-    "DMS 管理员",
-    "Cowork 管理员",
-    "ERP 管理员",
+    "DMS Admin",
+    "Cowork Admin",
+    "ERP Admin",
 )
 
 
 def _require_login() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("请先登录"), frappe.AuthenticationError)
+        frappe.throw(_("Please sign in"), frappe.AuthenticationError)
     return user
 
 
 def _require_admin() -> str:
     user = _require_login()
     if not set(ADMIN_ROLES) & set(frappe.get_roles(user)):
-        frappe.throw(_("充值与订阅只有公司管理员能操作"), frappe.PermissionError)
+        frappe.throw(
+            _("Only a company admin can top up or change the subscription"),
+            frappe.PermissionError,
+        )
     return user
 
 
@@ -42,7 +45,7 @@ def _client():
     from pearnly_core import billing_client
 
     if not billing_client.configured():
-        frappe.throw(_("本站还没接上计费底座，请联系平台"))
+        frappe.throw(_("Billing is not wired up on this site, please contact the platform"))
     return billing_client
 
 
@@ -118,7 +121,7 @@ def records(tab: str = "usage", period: str = "all", date: str = "", limit: int 
     is_admin = bool(set(ADMIN_ROLES) & set(frappe.get_roles(user)))
     if tab == "topup" and not is_admin:
         # 充值是公司账目，普通员工看不到（老产品同款口径）
-        frappe.throw(_("充值记录只有公司管理员能看"), frappe.PermissionError)
+        frappe.throw(_("Only a company admin can view top-up records"), frappe.PermissionError)
 
     start, end = _period_range(period, date)
     if tab == "ocr":
@@ -160,24 +163,49 @@ def export_records(date_from: str = "", date_to: str = "") -> None:
             ws.column_dimensions[get_column_letter(i)].width = 20
 
     add_sheet(
-        _("扣费"),
-        [_("时间"), _("产品"), _("张数"), _("金额"), _("余额"), _("说明"), _("单号")],
+        _("Charges"),
+        [
+            _("Time"),
+            _("Product"),
+            _("Pages"),
+            _("Amount"),
+            _("Balance"),
+            _("Description"),
+            _("Reference"),
+        ],
         [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("pages") or 0,
           float(r.get("amount_thb") or 0), float(r.get("balance_after") or 0),
           r.get("description") or "", r.get("reference") or ""] for r in usage],
     )
     if is_admin:
         add_sheet(
-            _("充值"),
-            [_("时间"), _("单号"), _("状态"), _("申请金额"), _("实收金额"), _("付款人"), _("备注")],
+            _("Top-ups"),
+            [
+                _("Time"),
+                _("Reference"),
+                _("Status"),
+                _("Requested"),
+                _("Received"),
+                _("Payer"),
+                _("Note"),
+            ],
             [[str(r.get("creation") or "")[:16], r.get("name") or "", r.get("status") or "",
               float(r.get("requested_thb") or 0), float(r.get("approved_thb") or 0),
               r.get("payer_name") or "", r.get("review_note") or r.get("note") or ""]
              for r in topup],
         )
     add_sheet(
-        _("识别记录"),
-        [_("时间"), _("产品"), _("结果"), _("文件"), _("张数"), _("扣费"), _("摘要"), _("失败原因")],
+        _("Recognition Records"),
+        [
+            _("Time"),
+            _("Product"),
+            _("Result"),
+            _("File"),
+            _("Pages"),
+            _("Charges"),
+            _("Summary"),
+            _("Failure reason"),
+        ],
         [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("status") or "",
           r.get("filename") or "", r.get("page_count") or 0,
           float(r.get("charged_thb") or 0), r.get("detail") or "", r.get("error") or ""]

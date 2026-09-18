@@ -22,7 +22,7 @@ PRODUCT_LABELS = {
     "cowork": "Cowork",
     "erp": "ERP",
     "dms": "DMS",
-    "control": "控制台",
+    "control": "Console",
 }
 
 
@@ -41,7 +41,7 @@ def describe() -> dict:
     """给前端用：这个壳是谁、买了什么、写操作要带的 csrf。"""
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
 
     product = str(frappe.conf.get("pearnly_product") or "").strip()
     return {

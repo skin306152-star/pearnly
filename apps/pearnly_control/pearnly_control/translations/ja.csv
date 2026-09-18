@@ -1,0 +1,23 @@
+Channel Access Token,チャネルアクセストークン
+Channel ID,チャネルID
+Channel Secret,チャネルシークレット
+Control-plane records,コントロールプレーンの記録
+Could not queue the deletion,削除をキューに入れられませんでした
+Could not read what would be deleted,削除対象を読み取れませんでした
+Delete tenant,テナントを削除
+Deletion queued ({0} steps). The on-host runner will do the work.,削除をキューに入れました（{0}ステップ）。以降は実行ホストが処理します。
+Deployments,デプロイ
+Issues,発行伝票
+LIFF ID,LIFF ID
+Queueing the deletion…,削除をキューに追加しています…
+Realm,レルム
+Retry deletion,削除を再試行
+Sign-in accounts,ログインアカウント
+Sites and databases,サイトとデータベース
+Teardown request {0} does not exist,撤去リクエスト {0} が存在しません
+Tenant {0} does not exist,テナント {0} が存在しません
+These accounts could not be deleted: {0},これらのアカウントを削除できません: {0}
+This removes everything about this tenant. It cannot be undone.,このテナントのすべてを削除します。元に戻せません。
+This tenant no longer exists.,このテナントは既に存在しません。
+Webhook URL,Webhook URL
+{0} — {1} features,{0} — {1} 件

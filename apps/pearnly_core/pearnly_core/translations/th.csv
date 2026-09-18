@@ -1,0 +1,96 @@
+A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
+Amount,จำนวนเงิน
+Balance,ยอดคงเหลือ
+Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ
+"Billing is not wired up on this site, please contact the platform",เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม
+Charges,ค่าบริการ
+Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
+Companion,ผู้ช่วย (Companion)
+Console,คอนโซล
+Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
+Cowork Admin,Cowork ผู้ดูแล
+Cowork Intake,Cowork บันทึกข้อมูล
+Created At,สร้างเมื่อ
+Customer Match,จับคู่ลูกค้า
+Customer master data,ข้อมูลหลักของลูกค้า
+Customers,ทะเบียนลูกค้า
+"Customers, suppliers, accounts and other reference data",ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี
+DMS Admin,DMS ผู้ดูแล
+DMS Customer Match,DMS จับคู่ลูกค้า
+DMS ID Card Intake,DMS บันทึกบัตรประชาชน
+DMS Operator,DMS พนักงาน
+DMS usage and balance,การใช้งานและยอดคงเหลือฝั่ง DMS
+Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
+Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
+Deployment,การติดตั้ง
+Description,คำอธิบาย
+ERP Admin,ERP ผู้ดูแล
+ERP Purchase,ERP จัดซื้อ
+Email is required,กรุณากรอกอีเมล
+Express Push Guide,คู่มือส่ง Express
+External ERP Push,ส่งออกไป ERP ภายนอก
+Failure reason,สาเหตุที่ล้มเหลว
+File,ไฟล์
+Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
+Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
+How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
+ID Card Intake,บันทึกบัตรประชาชน
+IP,IP
+Identity Session,เซสชันตัวตน
+"Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
+Intake Workbench,โต๊ะทำงานบันทึกข้อมูล
+Invited By,ผู้เชิญ
+Issuer,ผู้ออก
+Last Login At,เข้าสู่ระบบล่าสุด
+Last Seen At,ใช้งานล่าสุด
+Local Session,เซสชันในเครื่อง
+Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
+Master Data,ข้อมูลหลัก
+Not signed in,ยังไม่ได้เข้าสู่ระบบ
+Note,หมายเหตุ
+Notes,หมายเหตุ
+Only a company admin can top up or change the subscription,การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท
+Only a company admin can view top-up records,บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท
+Only the owner can manage it,เฉพาะเจ้าของเท่านั้นที่จัดการได้
+Operator Roster,ทะเบียนพนักงาน
+Pages,จำนวนหน้า
+Payer,ผู้ชำระเงิน
+Plan & Balance,แพ็กเกจและยอดคงเหลือ
+Please sign in,กรุณาเข้าสู่ระบบ
+Product,ผลิตภัณฑ์
+"Product home: current plan, usage and billing",หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ
+Product master data,ข้อมูลหลักของสินค้า
+Products,ข้อมูลสินค้า
+"Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ
+Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)
+Push Log,บันทึกการส่งข้อมูล
+Push Records,บันทึกการส่ง
+Push to the external ERP; the push log is the only source of status,ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น
+"Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
+Received,จำนวนที่รับจริง
+Recognition Records,บันทึกการอ่านข้อมูล
+Reconcile documents against the ledger,กระทบยอดเอกสารกับบัญชี
+Reconciliation,ศูนย์กระทบยอด
+Reference,เลขที่อ้างอิง
+Requested,จำนวนที่ขอ
+Result,ผลลัพธ์
+Revoked At,เพิกถอนเมื่อ
+Sales,ระบบขาย
+Sales documents and customer dealings,เอกสารขายและความสัมพันธ์กับลูกค้า
+Same ID number means the same customer; avoids duplicate records,เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ
+Status,สถานะ
+Stock Card Report,รายงานรับ-จ่าย-คงเหลือ
+Stock Count,ตรวจนับสต็อก
+Stock In / Out,สต็อก (รับเข้า/จ่ายออก)
+"Stock in/out summary (kept item, see the ERP manifest)",สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)
+Subject,Subject
+Summary,สรุป
+The result of each push,ผลลัพธ์ของการส่งแต่ละครั้ง
+Time,เวลา
+Top-ups,การเติมเงิน
+"Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
+User,ผู้ใช้
+User Agent,User Agent
+"Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
+"Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก
+Workspace,พื้นที่ทำงาน

@@ -65,7 +65,7 @@ def ensure_local_user(email: str, full_name: str, subject: str,
     """
     email = (email or "").strip().lower()
     if not email:
-        frappe.throw(_("邮箱不能为空"))
+        frappe.throw(_("Email is required"))
 
     created = "exists"
     if not frappe.db.exists("User", email):
@@ -156,7 +156,9 @@ def finalize_site() -> dict:
     done = frappe.is_setup_complete()
     if home_page != "desktop" or not done:
         frappe.throw(
-            f"收尾没成功：desktop:home_page={home_page!r} is_setup_complete={done}"
+            _("Finalize failed: desktop:home_page={0} is_setup_complete={1}").format(
+                home_page, done
+            )
         )
     return {
         "home_page": home_page,
@@ -327,11 +329,19 @@ def ensure_product_workspace(spec_json: str) -> dict:
     import json
 
     spec = json.loads(spec_json) if spec_json else {}
-    title = spec.get("title") or "工作区"
+    title = spec.get("title") or _("Workspace")
     icon = spec.get("icon") or "folder"
     entries = spec.get("entries") or []
     roles = list(spec.get("roles") or [])
 
+    # 入口行（卡片下面那一条）的文案 = 卡片名本身，**不拼"列表"后缀**。
+    #
+    # 拼后缀会写出第二份文案：这一段是**存进工作区内容的数据**，渲染时只做
+    # `__(label)` 精确查表，拼出来的 "Push Records 列表" 在翻译表里查不到，
+    # 于是中文永远跟着英文一起显示（2026-09-19 实测：卡片标题已经是泰文，
+    # 下面那条还是 "Push Records 列表"）。
+    # 不用后缀还有第二个好处：跟框架自带工作区一致 —— 那边的卡片标题是分组名，
+    # 下面列的是条目自己的名字，没有后缀这种自造格式。
     links = []
     for entry in entries:
         links.append({
@@ -341,7 +351,7 @@ def ensure_product_workspace(spec_json: str) -> dict:
         })
         links.append({
             "type": "Link",
-            "label": f"{entry['label']} 列表",
+            "label": entry["label"],
             "link_type": "DocType",
             "link_to": entry["doctype"],
             "dependencies": "",

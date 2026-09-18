@@ -1,0 +1,23 @@
+Channel Access Token,Channel Access Token
+Channel ID,Channel ID
+Channel Secret,Channel Secret
+Control-plane records,บันทึกฝั่งคอนโซล
+Could not queue the deletion,เข้าคิวการลบไม่สำเร็จ
+Could not read what would be deleted,อ่านรายการที่จะลบไม่ได้
+Delete tenant,ลบผู้เช่า
+Deletion queued ({0} steps). The on-host runner will do the work.,เข้าคิวการลบแล้ว ({0} ขั้นตอน) ตัวรันบนเครื่องจะทำงานต่อ
+Deployments,การติดตั้ง
+Issues,ใบเปิดใช้งาน
+LIFF ID,LIFF ID
+Queueing the deletion…,กำลังเข้าคิวการลบ…
+Realm,Realm
+Retry deletion,ลบอีกครั้ง
+Sign-in accounts,บัญชีเข้าสู่ระบบ
+Sites and databases,เว็บไซต์และฐานข้อมูล
+Teardown request {0} does not exist,คำขอรื้อถอน {0} ไม่มีอยู่
+Tenant {0} does not exist,ผู้เช่า {0} ไม่มีอยู่
+These accounts could not be deleted: {0},บัญชีเหล่านี้ลบไม่ได้: {0}
+This removes everything about this tenant. It cannot be undone.,การดำเนินการนี้จะลบทุกอย่างของผู้เช่ารายนี้ และกู้คืนไม่ได้
+This tenant no longer exists.,ผู้เช่ารายนี้ไม่มีอยู่แล้ว
+Webhook URL,Webhook URL
+{0} — {1} features,{0} — {1} ฟีเจอร์

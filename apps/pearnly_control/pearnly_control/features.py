@@ -21,67 +21,69 @@ PRODUCTS = ("cowork", "erp", "dms")
 PRODUCT_LABELS = {"cowork": "Cowork", "erp": "ERP", "dms": "DMS"}
 
 # 三个产品共有的首页（= 订阅与计费）
+# 文案一律写**英文**：渲染时会走 __()，中文/泰文/日文由翻译包给（见
+# docs/i18n.md）。msgid 写中文 = 换语言时永远是中文。
 _HOME = {
     "code": "home_subscription",
-    "label": "首页（订阅与计费）",
+    "label": "Home (Subscription & Billing)",
     "default_on": True,
-    "description": "产品首页，承载当前的订阅套餐、用量与账单",
+    "description": "Product home: current plan, usage and billing",
 }
 
 CATALOG = {
     "cowork": [
         _HOME,
         # 以下逐条对应 apps/pearnly_cowork/pearnly_cowork/product_manifest.py 的 features
-        {"code": "intake", "label": "录入工作台", "default_on": True,
-         "description": "上传票据与表格、识别字段、逐项核对与推送"},
-        {"code": "ocr_history", "label": "识别记录", "default_on": True,
-         "description": "每次识别批次的记录与结果"},
-        {"code": "push_log", "label": "推送日志", "default_on": True,
-         "description": "推送到外部 ERP 的过程与结果"},
-        {"code": "recon", "label": "对账中心", "default_on": True,
-         "description": "单据与账套的对账"},
-        {"code": "master_data", "label": "主数据", "default_on": True,
-         "description": "客户、供应商、科目等基础资料"},
-        {"code": "stocktake", "label": "库存盘点", "default_on": False,
-         "description": "盘点任务与差异记录"},
-        {"code": "boards", "label": "协作看板（WeKan）", "default_on": False,
-         "description": "启用才创建看板实例，不启用不占资源"},
-        {"code": "companion", "label": "小助手（Companion）", "default_on": False,
-         "description": "装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务"},
-        {"code": "express_guide", "label": "Express 推送手册", "default_on": False,
-         "description": "小助手的安装、配对、升级与卸载说明"},
+        {"code": "intake", "label": "Intake Workbench", "default_on": True,
+         "description": "Upload receipts and sheets, extract fields, review each item, then push"},
+        {"code": "ocr_history", "label": "Recognition Records", "default_on": True,
+         "description": "Batches and results of every recognition run"},
+        {"code": "push_log", "label": "Push Log", "default_on": True,
+         "description": "How each push to the external ERP went"},
+        {"code": "recon", "label": "Reconciliation", "default_on": True,
+         "description": "Reconcile documents against the ledger"},
+        {"code": "master_data", "label": "Master Data", "default_on": True,
+         "description": "Customers, suppliers, accounts and other reference data"},
+        {"code": "stocktake", "label": "Stock Count", "default_on": False,
+         "description": "Count tasks and variance records"},
+        {"code": "boards", "label": "Collaboration Boards (WeKan)", "default_on": False,
+         "description": "A board instance is created only when this is on"},
+        {"code": "companion", "label": "Companion", "default_on": False,
+         "description": "Windows app on the merchant's accounting PC: installer, pairing, outbound pull"},
+        {"code": "express_guide", "label": "Express Push Guide", "default_on": False,
+         "description": "Install, pair, upgrade and uninstall guide for Companion"},
     ],
     "erp": [
         _HOME,
         # 对应 apps/pearnly_erp_portal/pearnly_erp_portal/product_manifest.py
-        {"code": "products", "label": "商品数据", "default_on": True,
-         "description": "商品主数据"},
-        {"code": "warehouses", "label": "库存（入库/出库）", "default_on": True,
-         "description": "仓库、入库与出库单据"},
-        {"code": "stockcard", "label": "收发存报表", "default_on": True,
-         "description": "库存收发存汇总（保留项，见 ERP 清单）"},
-        {"code": "purchase", "label": "采购（记录/供应商/设置）", "default_on": True,
-         "description": "采购记录、供应商与采购设置"},
-        {"code": "sales", "label": "销售系统", "default_on": True,
-         "description": "销售单据与客户往来"},
-        {"code": "clients", "label": "客户名录", "default_on": True,
-         "description": "客户基础资料"},
-        {"code": "erp_push", "label": "对外 ERP 推送", "default_on": False,
-         "description": "推送到外部 ERP；状态以推送日志为唯一来源"},
+        {"code": "products", "label": "Products", "default_on": True,
+         "description": "Product master data"},
+        {"code": "warehouses", "label": "Stock In / Out", "default_on": True,
+         "description": "Warehouses, stock-in and stock-out documents"},
+        {"code": "stockcard", "label": "Stock Card Report", "default_on": True,
+         "description": "Stock in/out summary (kept item, see the ERP manifest)"},
+        {"code": "purchase", "label": "Purchasing (Records / Suppliers / Settings)", "default_on": True,
+         "description": "Purchase records, suppliers and purchasing settings"},
+        {"code": "sales", "label": "Sales", "default_on": True,
+         "description": "Sales documents and customer dealings"},
+        {"code": "clients", "label": "Customers", "default_on": True,
+         "description": "Customer master data"},
+        {"code": "erp_push", "label": "External ERP Push", "default_on": False,
+         "description": "Push to the external ERP; the push log is the only source of status"},
     ],
     "dms": [
         _HOME,
         # 对应 apps/pearnly_dms/pearnly_dms/product_manifest.py
-        {"code": "id_card_ocr", "label": "身份证录入", "default_on": True,
-         "description": "读身份证、与 DMS 客户库比对后确认资料"},
-        {"code": "customer_match", "label": "客户匹配", "default_on": True,
-         "description": "证件号相同视为同一客户，避免重复建档"},
-        {"code": "push_record", "label": "推送记录", "default_on": True,
-         "description": "每次推送的结果"},
-        {"code": "roster", "label": "操作员花名册", "default_on": True,
-         "description": "仅责任人可管理"},
-        {"code": "quota", "label": "套餐与余额", "default_on": True,
-         "description": "DMS 侧的用量与余额"},
+        {"code": "id_card_ocr", "label": "ID Card Intake", "default_on": True,
+         "description": "Read the ID card, match it against the DMS customer base, then confirm"},
+        {"code": "customer_match", "label": "Customer Match", "default_on": True,
+         "description": "Same ID number means the same customer; avoids duplicate records"},
+        {"code": "push_record", "label": "Push Records", "default_on": True,
+         "description": "The result of each push"},
+        {"code": "roster", "label": "Operator Roster", "default_on": True,
+         "description": "Only the owner can manage it"},
+        {"code": "quota", "label": "Plan & Balance", "default_on": True,
+         "description": "DMS usage and balance"},
     ],
 }
 
@@ -96,19 +98,25 @@ FEATURE = "Pearnly Feature"
 # 只列**有实际可挡对象**的功能。没有 DocType 的功能（例如首页、套餐与余额）
 # 目前没有可挡的东西，就不在这里假装有权限 —— 等产品界面做出来再补。
 ENFORCEMENT = {
-    ("cowork", "intake"): ("Cowork 录入", ["Intake Record"]),
-    ("erp", "purchase"): ("ERP 采购", ["Purchase Document", "Purchase Line"]),
-    ("dms", "id_card_ocr"): ("DMS 身份证录入", ["DMS ID Card Intake"]),
-    ("dms", "customer_match"): ("DMS 客户匹配", ["DMS Customer Link"]),
-    ("dms", "roster"): ("DMS 操作员", ["DMS Operator"]),
+    ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
+    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line"]),
+    ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
+    ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
+    ("dms", "roster"): ("DMS Operator", ["DMS Operator"]),
 }
 
 # 产品管理员角色：能管本产品的员工账号，但**不含功能权限** ——
 # 功能权限一律来自上面的功能角色，这样"没买的功能"对管理员同样是关着的。
+#
+# 角色名是**库里的记录**，按 Frappe 惯例用英文（框架自己的角色也是英文），
+# 界面上由 `__(role)` 翻（`frappe/public/js/frappe/roles_editor.js:45` 实测会翻）。
+# 改这里的名字必须同时改：
+#   · apps/pearnly_core/pearnly_core/billing_www.py 的 ADMIN_ROLES（按名字判权限）
+#   · apps/pearnly_core/pearnly_core/patches/ 里把老站点已有角色改名的那个补丁
 PRODUCT_ADMIN_ROLE = {
-    "cowork": "Cowork 管理员",
-    "erp": "ERP 管理员",
-    "dms": "DMS 管理员",
+    "cowork": "Cowork Admin",
+    "erp": "ERP Admin",
+    "dms": "DMS Admin",
 }
 
 # 租户管理员必须有的基础角色（否则连 Desk 都进不去）
@@ -227,8 +235,10 @@ def workspace_payload(product: str, codes: list[str], title: str = "") -> dict:
 ICON_BY_PRODUCT = {"cowork": "clipboard-list", "erp": "store", "dms": "id-card"}
 
 # 工作区入口标题的覆盖表（键 = (产品, DocType)）。没配就用功能自己的名字。
+# 这张表写进工作区的内容块（是**数据**），渲染时走 `__(title)`
+# （`frappe/public/js/frappe/widgets/base_widget.js:set_title`），所以同样必须是英文。
 WORKSPACE_LABEL: dict[tuple[str, str], str] = {
-    ("dms", "DMS ID Card Intake"): "推送记录",
+    ("dms", "DMS ID Card Intake"): "Push Records",
 }
 
 # 工作区所属模块 = 该产品 App 的模块名（各产品 modules.txt 里的值）。

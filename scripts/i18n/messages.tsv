@@ -1,0 +1,120 @@
+app	en	zh	th	ja
+pearnly_core	Home (Subscription & Billing)	首页（订阅与计费）	หน้าหลัก (แพ็กเกจและค่าบริการ)	ホーム（プランと請求）
+pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ
+pearnly_core	Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録
+pearnly_core	Push Log	推送日志	บันทึกการส่งข้อมูล	プッシュログ
+pearnly_core	Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター
+pearnly_core	Master Data	主数据	ข้อมูลหลัก	マスタデータ
+pearnly_core	Stock Count	库存盘点	ตรวจนับสต็อก	棚卸
+pearnly_core	Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
+pearnly_core	Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
+pearnly_core	Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
+pearnly_core	Products	商品数据	ข้อมูลสินค้า	商品データ
+pearnly_core	Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）
+pearnly_core	Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
+pearnly_core	Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）
+pearnly_core	Sales	销售系统	ระบบขาย	販売
+pearnly_core	Customers	客户名录	ทะเบียนลูกค้า	顧客
+pearnly_core	External ERP Push	对外 ERP 推送	ส่งออกไป ERP ภายนอก	外部ERP連携
+pearnly_core	ID Card Intake	身份证录入	บันทึกบัตรประชาชน	身分証取り込み
+pearnly_core	Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合
+pearnly_core	Push Records	推送记录	บันทึกการส่ง	プッシュ記録
+pearnly_core	Operator Roster	操作员花名册	ทะเบียนพนักงาน	オペレーター名簿
+pearnly_core	Plan & Balance	套餐与余额	แพ็กเกจและยอดคงเหลือ	プランと残高
+pearnly_core	Cowork Intake	Cowork 录入	Cowork บันทึกข้อมูล	Cowork 取り込み
+pearnly_core	ERP Purchase	ERP 采购	ERP จัดซื้อ	ERP 購買
+pearnly_core	DMS ID Card Intake	DMS 身份证录入	DMS บันทึกบัตรประชาชน	DMS 身分証取り込み
+pearnly_core	DMS Customer Match	DMS 客户匹配	DMS จับคู่ลูกค้า	DMS 顧客照合
+pearnly_core	DMS Operator	DMS 操作员	DMS พนักงาน	DMS オペレーター
+pearnly_core	Cowork Admin	Cowork 管理员	Cowork ผู้ดูแล	Cowork 管理者
+pearnly_core	ERP Admin	ERP 管理员	ERP ผู้ดูแล	ERP 管理者
+pearnly_core	DMS Admin	DMS 管理员	DMS ผู้ดูแล	DMS 管理者
+pearnly_core	Console	控制台	คอนโซล	コンソール
+pearnly_core	Not signed in	未登录	ยังไม่ได้เข้าสู่ระบบ	未ログイン
+pearnly_core	Please sign in	请先登录	กรุณาเข้าสู่ระบบ	ログインしてください
+pearnly_core	Only a company admin can top up or change the subscription	充值与订阅只有公司管理员能操作	การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท	チャージとプラン変更は会社管理者のみ
+pearnly_core	Billing is not wired up on this site, please contact the platform	本站还没接上计费底座，请联系平台	เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม	このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
+pearnly_core	Only a company admin can view top-up records	充值记录只有公司管理员能看	บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท	チャージ記録は会社管理者のみ閲覧可
+pearnly_core	Charges	扣费	ค่าบริการ	課金
+pearnly_core	Time	时间	เวลา	日時
+pearnly_core	Product	产品	ผลิตภัณฑ์	製品
+pearnly_core	Pages	张数	จำนวนหน้า	枚数
+pearnly_core	Amount	金额	จำนวนเงิน	金額
+pearnly_core	Balance	余额	ยอดคงเหลือ	残高
+pearnly_core	Description	说明	คำอธิบาย	説明
+pearnly_core	Reference	单号	เลขที่อ้างอิง	参照番号
+pearnly_core	Top-ups	充值	การเติมเงิน	チャージ
+pearnly_core	Status	状态	สถานะ	ステータス
+pearnly_core	Requested	申请金额	จำนวนที่ขอ	申請額
+pearnly_core	Received	实收金额	จำนวนที่รับจริง	受領額
+pearnly_core	Payer	付款人	ผู้ชำระเงิน	支払者
+pearnly_core	Note	备注	หมายเหตุ	備考
+pearnly_core	Result	结果	ผลลัพธ์	結果
+pearnly_core	File	文件	ไฟล์	ファイル
+pearnly_core	Summary	摘要	สรุป	摘要
+pearnly_core	Failure reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由
+pearnly_core	Product home: current plan, usage and billing	产品首页，承载当前的订阅套餐、用量与账单	หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ	製品ホーム。現在のプラン、利用量、請求を表示
+pearnly_core	Upload receipts and sheets, extract fields, review each item, then push	上传票据与表格、识别字段、逐项核对与推送	อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ	領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
+pearnly_core	Batches and results of every recognition run	每次识别批次的记录与结果	บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ	各認識バッチの記録と結果
+pearnly_core	How each push to the external ERP went	推送到外部 ERP 的过程与结果	ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก	外部ERPへの連携過程と結果
+pearnly_core	Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับบัญชี	伝票と帳簿の照合
+pearnly_core	Customers, suppliers, accounts and other reference data	客户、供应商、科目等基础资料	ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี	顧客、仕入先、勘定科目などの基礎データ
+pearnly_core	Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録
+pearnly_core	A board instance is created only when this is on	启用才创建看板实例，不启用不占资源	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
+pearnly_core	Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
+pearnly_core	Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
+pearnly_core	Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ
+pearnly_core	Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
+pearnly_core	Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总（保留项，见 ERP 清单）	สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)	受払在庫の集計（維持項目。ERPマニフェスト参照）
+pearnly_core	Purchase records, suppliers and purchasing settings	采购记录、供应商与采购设置	บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ	購買記録、仕入先、購買設定
+pearnly_core	Sales documents and customer dealings	销售单据与客户往来	เอกสารขายและความสัมพันธ์กับลูกค้า	販売伝票と顧客取引
+pearnly_core	Customer master data	客户基础资料	ข้อมูลหลักของลูกค้า	顧客マスタ
+pearnly_core	Push to the external ERP; the push log is the only source of status	推送到外部 ERP；状态以推送日志为唯一来源	ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น	外部ERPへ連携。状態は連携ログのみが根拠
+pearnly_core	Read the ID card, match it against the DMS customer base, then confirm	读身份证、与 DMS 客户库比对后确认资料	อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล	身分証を読み取り、DMS顧客と照合して確定
+pearnly_core	Same ID number means the same customer; avoids duplicate records	证件号相同视为同一客户，避免重复建档	เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ	同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
+pearnly_core	The result of each push	每次推送的结果	ผลลัพธ์ของการส่งแต่ละครั้ง	各連携の結果
+pearnly_core	Only the owner can manage it	仅责任人可管理	เฉพาะเจ้าของเท่านั้นที่จัดการได้	責任者のみ管理可能
+pearnly_core	DMS usage and balance	DMS 侧的用量与余额	การใช้งานและยอดคงเหลือฝั่ง DMS	DMS側の利用量と残高
+pearnly_control	{0} — {1} features	{0} — {1} 项	{0} — {1} ฟีเจอร์	{0} — {1} 件
+pearnly_core	Workspace	工作区	พื้นที่ทำงาน	ワークスペース
+pearnly_core	Email is required	邮箱不能为空	กรุณากรอกอีเมล	メールアドレスは必須です
+pearnly_core	Finalize failed: desktop:home_page={0} is_setup_complete={1}	收尾没成功：desktop:home_page={0} is_setup_complete={1}	ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}	仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+pearnly_control	Delete tenant	删除租户	ลบผู้เช่า	テナントを削除
+pearnly_control	Retry deletion	重试删除	ลบอีกครั้ง	削除を再試行
+pearnly_control	Queueing the deletion…	正在排队删除…	กำลังเข้าคิวการลบ…	削除をキューに追加しています…
+pearnly_control	Deletion queued ({0} steps). The on-host runner will do the work.	已排队删除（{0} 步），接下来由本机执行器完成。	เข้าคิวการลบแล้ว ({0} ขั้นตอน) ตัวรันบนเครื่องจะทำงานต่อ	削除をキューに入れました（{0}ステップ）。以降は実行ホストが処理します。
+pearnly_control	This removes everything about this tenant. It cannot be undone.	这会删除这个租户的一切，且不可恢复。	การดำเนินการนี้จะลบทุกอย่างของผู้เช่ารายนี้ และกู้คืนไม่ได้	このテナントのすべてを削除します。元に戻せません。
+pearnly_control	This tenant no longer exists.	这个租户已经不存在了。	ผู้เช่ารายนี้ไม่มีอยู่แล้ว	このテナントは既に存在しません。
+pearnly_control	Could not read what would be deleted	读不到要删除的内容	อ่านรายการที่จะลบไม่ได้	削除対象を読み取れませんでした
+pearnly_control	Could not queue the deletion	排队删除失败	เข้าคิวการลบไม่สำเร็จ	削除をキューに入れられませんでした
+pearnly_control	Control-plane records	控制面记录	บันทึกฝั่งคอนโซล	コントロールプレーンの記録
+pearnly_control	Deployments	部署	การติดตั้ง	デプロイ
+pearnly_control	Issues	发号单	ใบเปิดใช้งาน	発行伝票
+pearnly_control	Sign-in accounts	登录账号	บัญชีเข้าสู่ระบบ	ログインアカウント
+pearnly_control	Sites and databases	站点与数据库	เว็บไซต์และฐานข้อมูล	サイトとデータベース
+pearnly_control	Teardown request {0} does not exist	拆除请求 {0} 不存在	คำขอรื้อถอน {0} ไม่มีอยู่	撤去リクエスト {0} が存在しません
+pearnly_control	Tenant {0} does not exist	租户 {0} 不存在	ผู้เช่า {0} ไม่มีอยู่	テナント {0} が存在しません
+pearnly_control	These accounts could not be deleted: {0}	这些账号删不掉：{0}	บัญชีเหล่านี้ลบไม่ได้: {0}	これらのアカウントを削除できません: {0}
+pearnly_control	Channel ID	渠道 ID	Channel ID	チャネルID
+pearnly_control	Channel Secret	渠道密钥	Channel Secret	チャネルシークレット
+pearnly_control	Channel Access Token	渠道访问令牌	Channel Access Token	チャネルアクセストークン
+pearnly_control	LIFF ID	LIFF ID	LIFF ID	LIFF ID
+pearnly_control	Webhook URL	Webhook 地址	Webhook URL	Webhook URL
+pearnly_control	Realm	Realm	Realm	レルム
+pearnly_core	Deleting the OIDC client failed: {0} {1}	删除 OIDC 客户端失败：{0} {1}	ลบ OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの削除に失敗: {0} {1}
+pearnly_core	Looking up the OIDC client failed: {0} {1}	查询 OIDC 客户端失败：{0} {1}	ค้นหา OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの照会に失敗: {0} {1}
+pearnly_core	Deleting the account failed: {0} {1}	删除账号失败：{0} {1}	ลบบัญชีไม่สำเร็จ: {0} {1}	アカウントの削除に失敗: {0} {1}
+pearnly_core	Created At	创建时间	สร้างเมื่อ	作成日時
+pearnly_core	IP	IP	IP	IP
+pearnly_core	Identity Session	身份会话	เซสชันตัวตน	アイデンティティセッション
+pearnly_core	Last Login At	最近登录	เข้าสู่ระบบล่าสุด	最終ログイン
+pearnly_core	Last Seen At	最近活跃	ใช้งานล่าสุด	最終アクセス
+pearnly_core	Local Session	本地会话	เซสชันในเครื่อง	ローカルセッション
+pearnly_core	Revoked At	吊销时间	เพิกถอนเมื่อ	失効日時
+pearnly_core	Deployment	部署	การติดตั้ง	デプロイ
+pearnly_core	Invited By	邀请人	ผู้เชิญ	招待者
+pearnly_core	Issuer	签发方	ผู้ออก	発行者
+pearnly_core	Notes	备注	หมายเหตุ	備考
+pearnly_core	Subject	主体	Subject	サブジェクト
+pearnly_core	User	用户	ผู้ใช้	ユーザー
+pearnly_core	User Agent	浏览器标识	User Agent	ユーザーエージェント

@@ -1,0 +1,23 @@
+Channel Access Token,渠道访问令牌
+Channel ID,渠道 ID
+Channel Secret,渠道密钥
+Control-plane records,控制面记录
+Could not queue the deletion,排队删除失败
+Could not read what would be deleted,读不到要删除的内容
+Delete tenant,删除租户
+Deletion queued ({0} steps). The on-host runner will do the work.,已排队删除（{0} 步），接下来由本机执行器完成。
+Deployments,部署
+Issues,发号单
+LIFF ID,LIFF ID
+Queueing the deletion…,正在排队删除…
+Realm,Realm
+Retry deletion,重试删除
+Sign-in accounts,登录账号
+Sites and databases,站点与数据库
+Teardown request {0} does not exist,拆除请求 {0} 不存在
+Tenant {0} does not exist,租户 {0} 不存在
+These accounts could not be deleted: {0},这些账号删不掉：{0}
+This removes everything about this tenant. It cannot be undone.,这会删除这个租户的一切，且不可恢复。
+This tenant no longer exists.,这个租户已经不存在了。
+Webhook URL,Webhook 地址
+{0} — {1} features,{0} — {1} 项

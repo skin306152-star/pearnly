@@ -124,8 +124,10 @@ class PearnlyIssue(Document):
         剩下的事只有一件 —— 把结果写清楚给操作人看。
         """
         selected = {row.app for row in self.apps}
-        self.feature_summary = "；".join(
-            f"{features_mod.PRODUCT_LABELS[p]} {len(features_mod.codes_of(p))} 项"
+        self.feature_summary = "; ".join(
+            _("{0} — {1} features").format(
+                features_mod.PRODUCT_LABELS[p], len(features_mod.codes_of(p))
+            )
             for p in features_mod.PRODUCTS
             if p in selected
         )
