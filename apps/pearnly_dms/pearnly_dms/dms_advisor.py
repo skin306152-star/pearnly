@@ -14,8 +14,16 @@ POST 上去的**（真机取证："填谁存谁"，与登录账号无关；三�
    顾问下拉的 code/name 列。
 
 账号不在顾问名册（老板借号、代录员）时，可以在端点上**钉死归属**，钉死优先于一切匹配。
+钉死只认那个 **id**：文字（name）每次按 id 从**实时**名册重解，存下来的名字不作数 ——
+名字直接决定月底提成表上印谁，客户端能改的值不能信；名册里已删/改名 → 拦下来，
+不拿旧配置放行。
 
-照搬老产品 `services/erp/dms_advisor.py`。
+照搬老产品 `services/erp/dms_advisor.py`（线上基准 `501589f0`）。两处容易搬错的
+地方按线上 `b78697f3`（2026-09-12，"实时校验完整主档关系与变更，禁止旧值及首项兜底"）：
+
+1. 无传入快照时**一律现抓** `get_masters(force_refresh=True, require_complete=True)`，
+   不认缓存；
+2. `_pinned_advisor` 的 id 必须在当前名册里，**名字取实时值、读取失败不放行**。
 """
 
 from __future__ import annotations
@@ -99,15 +107,10 @@ def resolve_operator_advisor(
         return None, ""
     if masters is not None:
         return match_in_masters(masters, username), username
-    cached = dms_masters_cache.read_fresh_masters(endpoint)
-    hit = match_in_masters(cached, username)
-    if hit is None:
-        # 拦截话术让人"去 DMS 名册加上这个账号再试"—— 主档缓存 12 小时，
-        # 不现抓一次的话，那句"再试一次"在半天内都是假的（缓存也可能是旧版只存了 10 行）。
-        # 缓存本来就冷/过期时 get_masters 自己会现抓，不必 force（免得同一请求连抓两遍）。
-        fresh = dms_masters_cache.get_masters(endpoint, force_refresh=cached is not None) or {}
-        hit = match_in_masters(fresh, username)
-    return hit, username
+    # 一律现抓（force + require_complete），**不认缓存**：顾问栏直接决定月底提成算给谁，
+    # 拿一份可能缺行/陈旧的名单去匹配，等于把人记错。抓不到就空表 → 下面的 None 走拦截。
+    fresh = dms_masters_cache.get_masters(endpoint, force_refresh=True, require_complete=True) or {}
+    return match_in_masters(fresh, username), username
 
 
 def _pinned_advisor(
@@ -118,20 +121,20 @@ def _pinned_advisor(
 ) -> Optional[Dict[str, str]]:
     """端点上钉死的归属（账号不在顾问名册时的出路）。
 
-    `name` 缺就从已暖的主档缓存按 id 补一个给预览卡显示；补不到也照样放行 ——
-    建单层（`_advisor_ref_strict`）还会按 id 再解析一次拿权威名字。
+    指定 ID 仍必须在**当前主档**存在；文字采用实时值，**读取失败不得使用旧配置放行**。
+
+    存下来的 `advisor_name` 只当线索、**不作数**：客户端能改的名字直接决定月底提成表上
+    印谁，一律按 id 从实时名册重解。名册里已删/改名的钉子 → None（拦截），
+    不拿旧配置继续放行。
     """
     advisor_id = str(pinned.get("advisor_id") or "").strip()
-    name = str(pinned.get("advisor_name") or "").strip()
-    cached = masters if masters is not None else dms_masters_cache.read_fresh_masters(endpoint) or {}
-    row = row_by_id(cached.get("advisors"), advisor_id)
-    if masters is not None:
-        if row is None:
-            return None
-        name = _cell(row, _COL_NAME)
-    elif not name and row:
-        name = _cell(row, _COL_NAME)
-    return {"id": advisor_id, "name": name}
+    fresh = (
+        masters
+        if masters is not None
+        else dms_masters_cache.get_masters(endpoint, force_refresh=True, require_complete=True) or {}
+    )
+    row = row_by_id(fresh.get("advisors"), advisor_id)
+    return _ref(row) if row is not None else None
 
 
 def booking_defaults(endpoint: Any) -> Dict[str, Any]:
