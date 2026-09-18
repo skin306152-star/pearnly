@@ -124,3 +124,66 @@ dms.card.car.gear,เกียร์
 dms.card.car.year,ปีผลิต
 dms.card.car.engine,เครื่องยนต์
 dms.card.car.price,ราคาตาม DMS
+dms.card.qa.TXT_ASK_SLIP,ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
+dms.card.qa.TXT_ASK_PLACE,สถานที่รับจอง — กดเลือกด้านล่าง
+dms.card.qa.TXT_ASK_CAR,รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax
+dms.card.qa.TXT_CAR_PICK,เลือกรุ่นรถ (พบ {n} รายการ)
+dms.card.qa.TXT_CAR_NONE,ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง
+dms.card.qa.TXT_ASK_PAINT,เลือกสีของ {car}
+dms.card.qa.TXT_PAINT_MANY,มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้
+dms.card.qa.TXT_ASK_DATE,วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่
+dms.card.qa.BTN_PICK_DATE,เลือกวันที่
+dms.card.qa.TXT_ASK_TERM,เงื่อนไขการขาย — กดเลือกด้านล่าง
+dms.card.qa.TXT_ASK_REGIS,จดทะเบียนในนาม — กดเลือกด้านล่าง
+dms.card.qa.TXT_ASK_REGIS_NAME,ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น
+dms.card.qa.BTN_REGIS_NAME_CARD,ใช้ชื่อตามบัตร
+dms.card.qa.TXT_ASK_PAY_CHANNEL,ช่องทางชำระเงินจอง — เลือกช่องทาง
+dms.card.qa.pay.cash,เงินสด
+dms.card.qa.pay.transfer,เงินโอน
+dms.card.qa.pay.cheque,เช็ค
+dms.card.qa.pay.cashier_cheque,แคชเชียร์เช็ค
+dms.card.qa.pay.card,บัตรเครดิต/เดบิต
+dms.card.qa.pay.other,อื่นๆ
+dms.card.qa.TXT_ASK_AMOUNT,ยอดเงิน ({channel}) — พิมพ์จำนวนเงิน เช่น 5000
+dms.card.qa.TXT_BAD_AMOUNT,"จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
+dms.card.qa.TXT_ASK_PAY_DST,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
+dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
+dms.card.qa.TXT_ASK_CHEQUE_REF,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
+"
+dms.card.qa.TXT_ASK_CARD_REF,พิมพ์ประเภทบัตร เช่น VISA
+dms.card.qa.TXT_ASK_OTHER_REF,รายละเอียดช่องทาง — พิมพ์
+dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
+dms.card.qa.TXT_ASK_MORE,มีช่องทางอื่นอีกไหม
+dms.card.qa.BTN_MORE_DONE,ครบแล้ว
+dms.card.qa.BTN_MORE_ADD,เพิ่มช่องทาง
+dms.card.qa.TXT_NEED_SLIP,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
+dms.card.qa.TXT_SLIP_CONFLICT,พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ
+dms.card.qa.BTN_ADD_TRANSFER,เพิ่มเงินโอน
+dms.card.qa.BTN_REMOVE_SLIP,ลบสลิปแล้วไปต่อ
+dms.card.qa.TXT_PREVIEW_TITLE,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
+dms.card.qa.BTN_CONFIRM,ยืนยัน
+dms.card.qa.BTN_EDIT,แก้ไข
+dms.card.qa.BTN_DISCARD,ทิ้ง
+dms.card.qa.TXT_SLIP_ONLY_IMAGE,ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
+dms.card.qa.TXT_CONFIRM_ABOVE,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
+dms.card.qa.TXT_NO_IMAGE_NEEDED,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
+dms.card.qa.TXT_ATTACH_FAIL,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
+dms.card.qa._TH_RETRY, แล้วลองใหม่อีกครั้ง
+dms.card.qa.LBL_ADVISOR,ที่ปรึกษาการขาย
+dms.card.qa.LBL_POSTCODE,รหัสไปรษณีย์
+dms.card.qa.LBL_PLACE,สถานที่รับจอง
+dms.card.qa.LBL_CAR,รุ่น/สี
+dms.card.qa.LBL_DELIVERY,วันส่งมอบ
+dms.card.qa.LBL_TERM,เงื่อนไขการขาย
+dms.card.qa.LBL_REGIS,จดทะเบียนในนาม
+dms.card.qa.LBL_TOTAL,ยอดเงินจองรวม
+dms.card.qa.LBL_ATTACH_CARD,สำเนาบัตรประชาชน
+dms.card.qa.LBL_ATTACH_SLIP,ใบโอนเงินจอง
+dms.card.qa.VAL_ATTACHED,แนบแล้ว
+dms.card.qa.BTN_PAGE_PREV,ก่อนหน้า
+dms.card.qa.BTN_PAGE_NEXT,ถัดไป
+dms.card.qa.TXT_SEP_HINT,"คั่นช่องด้วย | , / หรือ ·"
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
+"
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,"พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
+"
