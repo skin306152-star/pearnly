@@ -405,6 +405,9 @@ async function login({ host, port, user }, password = PASS) {
 			"点头像能打开改密弹窗，且有当前密码/新密码/确认三个字段",
 			(await page.$$("input[type='password']")).length === 3
 		);
+		// 弹窗有淡入动画，等它稳下来再截图，否则截到半透明的中间帧
+		await page.waitForTimeout(700);
+		await page.screenshot({ path: `${SHOT_DIR}/frontend-password-dialog.png` });
 
 		// 5.2 错误路径：当前密码填错 → 必须显示服务端给的提示（服务端说了算）
 		await fillAndSubmit(page, "definitely-wrong-password", DIGITS, DIGITS);
