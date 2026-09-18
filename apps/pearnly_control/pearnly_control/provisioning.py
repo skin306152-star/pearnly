@@ -494,15 +494,32 @@ def report_step(step_key: str, status: str, output: str = "") -> dict:
     frappe.db.commit()
 
     _refresh_request_status(req)
+    if not frappe.db.exists(REQUEST, req.name):
+        # 拆除请求在最后一步报完成时把自己连同租户记录一起删掉了（见
+        # `_refresh_request_status`）。这时候**不能再回读** —— 请求已经不存在，
+        # 回读会抛 DoesNotExist，让执行器收到一个莫名其妙的 500。
+        return {"request": req.name, "status": "done", "counts": {}, "steps": [],
+                "purged": True}
     return state(req.name, allow_pending_create=False)
 
 
 def _refresh_request_status(req) -> None:
     req.reload()
     statuses = [s.status for s in req.steps]
+    is_teardown = any(s.action in ("drop_site", "purge_control") for s in req.steps)
     if all(s in ("done", "skipped") for s in statuses):
         req.status = "done"
         req.finished_at = now()
+        req.save(ignore_permissions=True)
+        frappe.db.commit()
+        if is_teardown:
+            # 拆除的最后一步报完成 → 控制面的记录整片删掉（含这条请求自己）。
+            # 放在这里、而不是执行器里：执行器刚刚还在往这条请求上写状态，
+            # 先删了它就无处可报（顺序错了会表现成"最后一步永远失败"）。
+            from pearnly_control import teardown
+
+            teardown.purge_records(req.name)
+        return
     elif any(s == "failed" for s in statuses):
         # 有失败就是 partial/failed，绝不写成 done
         req.status = "failed" if not any(s == "done" for s in statuses) else "partial"

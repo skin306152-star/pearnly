@@ -209,6 +209,53 @@ class AdminClient:
         rows = resp.json() or []
         return rows[0]["id"] if rows else None
 
+    def delete_user(self, subject: str) -> bool:
+        """删掉一个账号（**按 subject 精确删**）。已经不在 → 也算成功（幂等）。
+
+        ⚠️ 只接受 subject，不提供"按邮箱删"：邮箱可能同时是别人的登录名，
+        误删别人的账号是不可逆的。调用方要自己保证 subject 是**这条记录里存的那个**。
+        """
+        if not subject:
+            return False
+        resp = requests.delete(
+            self._url(f"/users/{subject}"),
+            headers=self._headers(self.token()),
+            timeout=TIMEOUT,
+        )
+        if resp.status_code in (200, 204, 404):
+            return True
+        frappe.throw(_("Deleting the account failed: {0} {1}").format(
+            resp.status_code, resp.text[:200]))
+
+    def find_client_uuid(self, client_id: str) -> str | None:
+        """按 clientId 找客户端的内部 uuid（Keycloak 的删除接口要的是它）。"""
+        if not client_id:
+            return None
+        rows = requests.get(
+            self._url("/clients"), headers=self._headers(self.token()),
+            params={"clientId": client_id}, timeout=TIMEOUT,
+        )
+        if rows.status_code != 200:
+            frappe.throw(_("Looking up the OIDC client failed: {0} {1}").format(
+                rows.status_code, rows.text[:200]))
+        found = rows.json() or []
+        return found[0]["id"] if found else None
+
+    def delete_oidc_client(self, client_id: str) -> bool:
+        """删掉一个部署自己的 OIDC 客户端。不在 → 也算成功（幂等）。"""
+        uuid = self.find_client_uuid(client_id)
+        if not uuid:
+            return True
+        resp = requests.delete(
+            self._url(f"/clients/{uuid}"),
+            headers=self._headers(self.token()),
+            timeout=TIMEOUT,
+        )
+        if resp.status_code in (200, 204, 404):
+            return True
+        frappe.throw(_("Deleting the OIDC client failed: {0} {1}").format(
+            resp.status_code, resp.text[:200]))
+
     def create_user(self, email: str, first_name: str, password: str | None = None,
                     last_name: str = "", username: str | None = None) -> str:
         """建号。返回 subject。

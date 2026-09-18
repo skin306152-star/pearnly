@@ -296,6 +296,61 @@ act_mark_active() {  # <deployment>
     | py -c 'import sys,json; d=json.load(sys.stdin); print("部署状态 ->", (d.get("message") or {}).get("status") or d)'
 }
 
+act_drop_site() {  # <group> <site>
+  # 拆掉一个租户站点：**不备份**（用户 2026-09-19 定："删除就是清空所有"）。
+  #
+  # 幂等：站点不在了就算做完 —— 重复点"删除租户"不该报错。
+  # 但"删干净"要**复核**：drop-site 删库，站点目录（含 private/files）得自己删，
+  # 两样都确认真的没了才算这一步完成（少一样就是"看起来删了"）。
+  local group="$1" site="$2" left
+  if ! site_exists "$group" "$site"; then
+    echo "${site} 已经不在（跳过）"
+    return 0
+  fi
+
+  dc exec -T "$(bench_of "$group")" bench drop-site "$site" \
+    --db-root-username root --db-root-password "$DB_ROOT_PW" --force --no-backup 2>&1 | tail -3
+  # 站点目录连同它的文件一起删
+  dc exec -T "$(bench_of "$group")" bash -lc \
+    "rm -rf /home/frappe/frappe-bench/sites/${site}" || return 1
+  # ⚠️ `bench drop-site` 不是"删掉"，是**搬到 archived/sites** 当备份。
+  # 用户要的是"不备份、清空"，所以那份归档也要一起删（不删就等于留了一份完整副本）。
+  dc exec -T "$(bench_of "$group")" bash -lc \
+    "rm -rf /home/frappe/frappe-bench/archived/sites/${site}" || return 1
+
+  left=$(dc exec -T "$(bench_of "$group")" bash -lc \
+    "test -d /home/frappe/frappe-bench/sites/${site} && echo dir" 2>/dev/null | tr -d '\r')
+  [ -z "$left" ] || { echo "[错误] 站点目录还在：${site}" >&2; return 1; }
+  left=$(dc exec -T "$(bench_of "$group")" bash -lc \
+    "test -d /home/frappe/frappe-bench/archived/sites/${site} && echo archive" 2>/dev/null | tr -d '\r')
+  [ -z "$left" ] || { echo "[错误] 归档副本还在：${site}" >&2; return 1; }
+  left=$(dc exec -T "$(bench_of "$group")" bash -lc \
+    "mysql -h mariadb -uroot -p'${DB_ROOT_PW}' -N -e \"show databases like '${site}'\"" 2>/dev/null | tr -d '\r')
+  [ -z "$left" ] || { echo "[错误] 数据库还在：${left}" >&2; return 1; }
+  echo "${site} 已删除（站点目录 + 数据库，未备份）"
+}
+
+act_purge_control() {  # <payload-json>
+  # 外部清理：删身份服务里的账号与这个部署的 OIDC 客户端。
+  # 只有控制面知道它们是谁（subject 记在发号单上），所以这一步是"让控制面去做"。
+  local payload="$1" request out
+  local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  request=$(py -c "$get" "$payload" request)
+  out=$(api_post pearnly_control.teardown.api_purge_control \
+    "$(py -c 'import json,sys; print(json.dumps({"request": sys.argv[1]}))' "$request")")
+  printf '%s' "$out" | py -c '
+import sys, json
+d = json.load(sys.stdin)
+m = d.get("message") or {}
+if not m:
+    print("清理失败:", json.dumps(d, ensure_ascii=False)[:200])
+    raise SystemExit(1)
+print("账号 删 %d 个；保留 %d 个（别的租户还在用）；OIDC 客户端 删 %d 个"
+      % (len(m.get("removed_users") or []), len(m.get("kept_users") or []),
+         len(m.get("removed_oidc_clients") or [])))
+'
+}
+
 run_step() {  # <action> <payload-json>
   local action="$1" payload="$2"
   local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
@@ -315,6 +370,8 @@ run_step() {  # <action> <payload-json>
     set_roles)   act_set_roles "$payload" ;;
     set_workspace) act_set_workspace "$payload" ;;
     mark_active) act_mark_active "$(py -c "$get" "$payload" deployment)" ;;
+    drop_site)     act_drop_site     "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
+    purge_control) act_purge_control "$payload" ;;
     *) echo "未知动作：$action" >&2; return 2 ;;
   esac
 }
