@@ -25,8 +25,9 @@ group="${1:?用法: $0 <组>}"
 docker --context "$CTX" compose "${args[@]}" exec -T "$group-bench" \
   bash -lc 'mkdir -p /tmp/dmscheck && cat > /tmp/dmscheck/verify_client.py' < "$CHECK"
 
+# ⚠️ `|| true`：见 sample-verify-dms-intake.sh 里同一个坑的说明。
 out=$(docker --context "$CTX" compose "${args[@]}" exec -T -e PYTHONUNBUFFERED=1 "$group-bench" \
-  bash -lc '/home/frappe/frappe-bench/env/bin/python /tmp/dmscheck/verify_client.py' 2>&1)
+  bash -lc '/home/frappe/frappe-bench/env/bin/python /tmp/dmscheck/verify_client.py' 2>&1 || true)
 printf '%s\n' "$out"
 
 if printf '%s' "$out" | grep -q "^RESULT: ALL PASS"; then

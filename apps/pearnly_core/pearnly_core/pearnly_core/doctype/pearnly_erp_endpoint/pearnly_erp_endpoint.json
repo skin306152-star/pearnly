@@ -28,6 +28,8 @@
   "column_break_state",
   "success_count",
   "failure_count",
+  "section_booking",
+  "booking_defaults",
   "section_notes",
   "notes"
  ],
@@ -168,6 +170,17 @@
    "fieldtype": "Int",
    "label": "失败次数",
    "read_only": 1
+  },
+  {
+   "fieldname": "section_booking",
+   "fieldtype": "Section Break",
+   "label": "建单默认值"
+  },
+  {
+   "description": "DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。\n\n顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。",
+   "fieldname": "booking_defaults",
+   "fieldtype": "JSON",
+   "label": "建单默认值"
   },
   {
    "fieldname": "section_notes",

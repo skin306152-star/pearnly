@@ -29,7 +29,7 @@ docker --context "$CTX" compose "${args[@]}" exec -T "$group-bench" \
 
 echo "真连 DMS 做只读验证（起 chromium，约 30–90 秒）…"
 out=$(docker --context "$CTX" compose "${args[@]}" exec -T -e PYTHONUNBUFFERED=1 "$group-bench" \
-  bash -lc "cd /home/frappe/frappe-bench/sites && /home/frappe/frappe-bench/env/bin/python /tmp/dmscheck/verify_client_real.py $site" 2>&1)
+  bash -lc "cd /home/frappe/frappe-bench/sites && /home/frappe/frappe-bench/env/bin/python /tmp/dmscheck/verify_client_real.py $site" 2>&1 || true)
 
 clean=$(printf '%s\n' "$out" | grep -vE "^\s*(- |taking|waiting|fonts)")
 printf '%s\n' "$clean" | grep -E "^(PASS|FAIL|RESULT|Traceback|  )" || true

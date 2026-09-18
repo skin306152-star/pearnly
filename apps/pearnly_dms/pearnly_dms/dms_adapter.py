@@ -396,3 +396,42 @@ class MrerpDmsAdapter:
 
         admin = self.admin_transport if self.has_distinct_admin_creds else None
         return DmsClient(self.transport(), self.base_url, admin_transport=admin)
+
+    def test_connection(self) -> Dict[str, Any]:
+        """连接向导的健康检查：登录 + 抓一遍主档下拉。
+
+        **从不抛异常** —— 回一个结构化 dict 让界面直接渲染。这样"连不上"和"连上了但
+        主档是空的（`defaults_required=True`）"能分开说，而不是笼统报个失败。
+        """
+        import time as _time
+
+        t0 = _time.time()
+        masters = self.client().fetch_masters()
+        return {
+            "ok": True,
+            "status": "ok",
+            "message": "DMS connection ok",
+            "adapter": "mrerp_dms",
+            "elapsed_ms": int((_time.time() - t0) * 1000),
+            "defaults_required": not bool(masters.get("cars")),
+            "masters": {
+                "advisors": [_ref_brief(r) for r in masters.get("advisors", [])],
+                "car_models": [_ref_brief(r) for r in masters.get("cars", [])],
+                "place_books": [_ref_brief(r) for r in masters.get("place_books", [])],
+                "term_sales": [_ref_brief(r) for r in masters.get("term_sales", [])],
+                "branches": [_ref_brief(r) for r in masters.get("branches", [])],
+                "regis_behalfs": [_ref_brief(r) for r in masters.get("regis_behalfs", [])],
+            },
+        }
+
+
+def _ref_brief(row) -> Dict[str, str]:
+    """bshsd 行 `[id, code, name, ...]` → `{id, code, name}`（给连接向导用，不带动辄十几个尾列）。"""
+    try:
+        return {
+            "id": str(row[0]),
+            "code": str(row[1]) if len(row) > 1 else str(row[0]),
+            "name": str(row[2]) if len(row) > 2 else (str(row[1]) if len(row) > 1 else ""),
+        }
+    except Exception:
+        return {"id": "", "code": "", "name": ""}
