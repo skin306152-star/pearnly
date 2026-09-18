@@ -133,15 +133,22 @@ services:
     volumes: [sites-erp:/home/frappe/frappe-bench/sites]
 
   # ── DMS ─────────────────────────────────────────────────
+  # ⚠️ DMS 组的内存上限比别的组高，因为**它要跑真浏览器**：
+  #    MR.ERP DMS 没有开放 API，推送/查重/建档都靠服务端 Playwright 操作它的网页
+  #    （老产品铁律，见 docs/p4/16-legacy-credentials-found.md）。
+  #    实测踩到：256m 时 chromium 被 OOM 杀掉，表现是脚本**静默死掉**、输出全丢、
+  #    而且账号锁来不及释放（留下 15 分钟的死锁）—— 三个症状看起来毫不相干，其实是同一件事。
+  #    `dms-web` 也要给：连接向导的"测试连接"是一个 web 请求，老产品就在 web 进程里跑 Playwright。
+  #    以后 Cowork / ERP 的推送同样要浏览器时，照这三行加。
   dms-bench:
     <<: *frappe-common
-    mem_limit: 256m
+    mem_limit: 1g
     command: ["sleep", "infinity"]
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
 
   dms-web:
     <<: *frappe-common
-    mem_limit: 512m
+    mem_limit: 1g
     command: *web-command
     volumes:
       - sites-dms:/home/frappe/frappe-bench/sites
@@ -150,7 +157,7 @@ services:
 
   dms-worker:
     <<: *frappe-common
-    mem_limit: 512m
+    mem_limit: 1g
     command: ["bench", "worker", "--queue", "short,default,long"]
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
 

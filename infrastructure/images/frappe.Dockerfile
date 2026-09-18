@@ -48,3 +48,28 @@ RUN cd /home/frappe/frappe-bench && \
 # （本机开发见 `infrastructure/compose/04-dev-mounts.yml` 的 credentials 挂载；
 # 生产走 Secret/环境变量，与老产品 `GOOGLE_APPLICATION_CREDENTIALS` 一致）。
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "google-auth==2.36.0"
+
+# ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
+#
+# 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走
+# 服务端 Playwright，不做抓包重放"（`AGENTS.md` §7）。DMS 会话由真实浏览器登录
+# 持有，业务客户端只拿它当 transport。
+#
+# 三个要点，缺一个都会在运行时才炸：
+#
+# 1. `--with-deps` 装的是系统库（libnss3 / libatk 等），**必须 root 跑**；
+# 2. 浏览器**不能**落在 `/root/.cache` —— 容器以 `frappe`(1000) 身份跑，
+#    读不到 root 的家目录。所以显式钉 `PLAYWRIGHT_BROWSERS_PATH`，
+#    让"安装"和"运行时"看到同一个路径（老产品是 root 跑，用的是默认路径，
+#    这里身份不同，不能照抄那一段）；
+# 3. 版本对齐老产品 `requirements.lock.txt`：`playwright==1.60.0`。
+#
+# 本机容器 `/dev/shm` 只有 64M（实测），所以 `_browser.py` 里那句
+# `--disable-dev-shm-usage` 是必需的，不是可有可无的优化。
+ARG PLAYWRIGHT_VERSION=1.60.0
+ENV PLAYWRIGHT_BROWSERS_PATH=/opt/ms-playwright
+USER root
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "playwright==${PLAYWRIGHT_VERSION}" \
+ && /home/frappe/frappe-bench/env/bin/playwright install --with-deps chromium \
+ && chmod -R a+rX /opt/ms-playwright
+USER frappe
