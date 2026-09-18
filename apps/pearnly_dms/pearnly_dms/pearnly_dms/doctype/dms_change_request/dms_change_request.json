@@ -1,0 +1,53 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "hash",
+ "creation": "2026-09-19 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "operator_user",
+  "customer_id",
+  "customer_name",
+  "endpoint_id",
+  "column_break_main",
+  "target_user",
+  "decided_by",
+  "decided_at",
+  "processing_at",
+  "expires_at",
+  "section_payload",
+  "field_diffs",
+  "draft"
+ ],
+ "fields": [
+  {"fieldname": "status", "fieldtype": "Select", "options": "pending\nprocessing\napproved\nrejected\nexpired", "default": "pending", "in_list_view": 1, "in_standard_filter": 1, "label": "状态", "reqd": 1, "columns": 2},
+  {"fieldname": "operator_user", "fieldtype": "Link", "options": "User", "in_list_view": 1, "in_standard_filter": 1, "label": "申请人", "reqd": 1, "columns": 3, "description": "谁提的这单（销售本人）。执行时用的是**批准人**自己的凭据，这里只记来源。"},
+  {"fieldname": "customer_id", "fieldtype": "Data", "label": "DMS 客户号", "reqd": 1, "description": "要改的是哪个客户。"},
+  {"fieldname": "customer_name", "fieldtype": "Data", "in_list_view": 1, "label": "客户名", "columns": 3},
+  {"fieldname": "endpoint_id", "fieldtype": "Data", "label": "DMS 连接"},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "target_user", "fieldtype": "Link", "options": "User", "label": "指定审批人", "description": "留空 = 发给所有管理员（谁先看到谁批）。"},
+  {"fieldname": "decided_by", "fieldtype": "Link", "options": "User", "label": "认领人", "description": "点批准的那个人（认领时刻写下；写失败回炉时会清掉）。"},
+  {"fieldname": "decided_at", "fieldtype": "Datetime", "label": "处理时间"},
+  {"fieldname": "processing_at", "fieldtype": "Datetime", "label": "开始执行时间", "description": "执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。"},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "过期时间", "reqd": 1, "columns": 3},
+  {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "申请内容快照"},
+  {"fieldname": "field_diffs", "fieldtype": "JSON", "label": "逐字段差异", "description": "`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。"},
+  {"fieldname": "draft", "fieldtype": "JSON", "label": "客户档快照", "description": "批准执行时回填表单用的客户资料快照。"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-19 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly DMS",
+ "name": "DMS Change Request",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
