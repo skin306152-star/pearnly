@@ -84,6 +84,15 @@ export function storedTicket(): string {
   }
 }
 
+/** 丢掉缓存的那张票据（失效时用：不清掉的话会一直拿它重试）。 */
+export function forgetTicket(): void {
+  try {
+    sessionStorage.removeItem(TICKET_KEY);
+  } catch {
+    /* 存不下也就没有要清的 */
+  }
+}
+
 function rememberTicket(ticket: string): string {
   try {
     sessionStorage.setItem(TICKET_KEY, ticket);

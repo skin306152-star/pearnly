@@ -34,7 +34,7 @@ def main():
     user = (os.environ.get("SITE_USER") or "").strip()
     nonce = (os.environ.get("NONCE") or "").strip()
 
-    if mode in ("prepare", "prepare-customer"):
+    if mode in ("prepare", "prepare-customer", "handoff", "handoff-customer"):
         # **用真实主档造草稿**：选项 id 全都取自当下这一次真登录读到的 DMS 主档。
         # 拿假 id 造的草稿，页面能打开、一保存就会被服务端的权威复核挡下
         # （那正是它该有的行为），验收就变成"验了个假的"。
@@ -110,7 +110,7 @@ def main():
             "files": {"id_card_mid": "MID-ID", "slip_mid": None},
             "payments": [{"channel": "cash", "amount": "5000.00", "extra": {}}],
         }
-        customer_mode = mode == "prepare-customer"
+        customer_mode = mode in ("prepare-customer", "handoff-customer")
         line_uid = "verify-page-" + secrets.token_hex(4)
         nonce = secrets.token_hex(8)
         line_binding.bind(line_uid, user, "page-verify")
@@ -132,10 +132,7 @@ def main():
             store.set_session(line_uid, be.STATE, {"nonce": nonce, "qa": qa,
                                                    "endpoint_id": endpoint["id"]})
         ticket = tickets.issue(line_uid, "customer" if customer_mode else "booking")
-        print(
-            "FIXTURE "
-            + json.dumps(
-                {
+        payload = {
                     "line_user_id": line_uid,
                     "nonce": nonce,
                     "ticket": ticket,
@@ -145,10 +142,14 @@ def main():
                     "paint_label": qa["answers"]["paint"]["name"],
                     "prefix_id": qa["draft"]["prefix_id"],
                     "province_id": real["geo"]["province_id"],
-                },
-                ensure_ascii=False,
-            )
-        )
+        }
+        if mode.startswith("handoff"):
+            # 给人点的那条链：站点地址 + `/liff/dms-booking`（本机没 LIFF，走的是网页回落）。
+            # 打开那一页时会用**你自己的站点会话**换一张新票据，再接给前端页面。
+            base = (os.environ.get("PUBLIC_BASE") or "").rstrip("/")
+            query = "draft=%s%s" % (nonce, "&editor=customer" if customer_mode else "")
+            payload["open_url"] = "%s/liff/dms-booking?%s" % (base, query)
+        print("FIXTURE " + json.dumps(payload, ensure_ascii=False))
         return
 
     if mode == "inspect":

@@ -24,6 +24,7 @@ import {
   CHANNEL_FIELDS,
   MAX_PAYMENTS,
   ensureTicket,
+  forgetTicket,
   loadConfig,
   loadDraft,
   loadGeo,
@@ -358,7 +359,17 @@ onMounted(async () => {
     const config = await loadConfig();
     if (config.liff_id) void loadLiff();
     ticket.value = await ensureTicket(nonce.value, mode.value);
-    const draft = await loadDraft(ticket.value, nonce.value);
+    let draft: Draft;
+    try {
+      draft = await loadDraft(ticket.value, nonce.value);
+    } catch (err) {
+      // 缓存里那张票据可能已经过期（30 分钟）或早就被换掉了。**清掉再来一次** ——
+      // 不清的话会一直拿同一张废票重试，页面上只剩一句看不懂的失败。
+      if (!(err instanceof ApiError) || err.status !== 401) throw err;
+      forgetTicket();
+      ticket.value = await ensureTicket(nonce.value, mode.value);
+      draft = await loadDraft(ticket.value, nonce.value);
+    }
     adopt(draft);
     await hydrateGeo();
     stage.value = "ready";
