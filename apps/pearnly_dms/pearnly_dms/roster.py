@@ -113,9 +113,9 @@ def create_operator(
     """新增操作员：建一个**只走 LINE** 的本地账号 + 一行档案。
 
     ⚠️ 与老产品的一处已知差异（明写，不隐瞒）：老产品要求"先连接你自己的 MR.ERP DMS，
-    再新增操作员"（拿老板那条连接当模板），**新平台还没有 DMS 连接（endpoint）的后端**，
-    所以这条前置检查现在无处可依，暂时不做。等 DMS 连接做出来要补上，否则会开出
-    "挂着一个不存在的 DMS 连接"的操作员。
+    再新增操作员"（拿老板那条连接当模板）。**这条前置检查现在还没做** —— 不是没处可依
+    （`Pearnly ERP Endpoint` 与连接向导已经在了），是还没排在批次里。补上之前，
+    这里能开出"挂着一个不存在的 DMS 连接"的操作员。
     """
     _require_admin()
     display_name = _clean(display_name)
@@ -152,8 +152,13 @@ def create_operator(
         "dms_password": dms_password,
         "can_query_dms": 1 if can_query_dms else 0,
         "advisor_id": _clean(advisor_id),
-        # 名字由服务端解（老产品：不信客户端传的）；新平台还没有顾问名册来源，
-        # 所以这里只收调用方给的显示名，取不到就留空。
+        # ⚠️ 已知缺口（对齐线上时别漏）：老产品保存钉死归属前会拿**老板端点**的实时
+        # 顾问名册校验一次（`services/dms_roster/advisors.py`：取数失败 → 拦，
+        # id 不在名册 → 拦），名字**一律服务端按 id 解**、不信调用方传的。
+        # 新平台现在直接收下调用方给的 id + name，没有这层校验。
+        # 危害有限：下单侧 `dms_advisor._pinned_advisor` 已按实时名册重解，
+        # id 不在名册就拦下订车 —— 错值不会算错提成，只是**发现得晚**（保存时不报，
+        # 到下单才报）。补这层是"早点告诉人"，不是堵钱窟窿。
         "advisor_name": _clean(advisor_name),
     })
     doc.insert(ignore_permissions=True)
@@ -188,6 +193,8 @@ def update_operator(
     if can_query_dms is not None:
         doc.can_query_dms = 1 if can_query_dms else 0
     if advisor_id is not None:
+        # 同 create_operator 里那条已知缺口：没有按实时名册校验 id、名字也没按 id 解。
+        # 空串 = 清除钉死、回到自动匹配（老产品契约）。
         doc.advisor_id = _clean(advisor_id)
         doc.advisor_name = _clean(advisor_name)
     if notes is not None:

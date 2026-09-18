@@ -81,7 +81,7 @@ booking → payload / readback / submit / org
 | # | 内容 | 状态 |
 |---|---|---|
 | 1 | `dms_cards.py` 语言包化 | ✅ 本批 |
-| 2 | `dms_advisor.py` 返工（依赖 master_shared） | 下一批 |
+| 2 | `dms_advisor.py` 返工（依赖 master_shared） | ✅ [26](26-dms-advisor-parity.md) |
 | 3 | 客户写入链：`client_ops` / `client_forms` / `company_banks` / `docno` / `intake` | |
 | 4 | 订车执行链：`booking_org` / `booking_payload` / `booking_readback` / `booking_submit` / `booking_customer` / `booking_errors` | |
 | 5 | 订车逐问（线上 9 个文件 ~2800 行）：`booking_qa*` / `qa_cards` / `qa_util` / `text_fields` | |
