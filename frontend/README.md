@@ -57,6 +57,22 @@ src/App.vue             产品壳：侧栏 + 顶栏 + 主区
 src/pages/              页面（按产品分目录）
 ```
 
+## 外壳用官方组件
+
+侧栏等外壳用 **Frappe UI**（用户 2026-09-18 定），业务内容自己写。
+
+| 要装 | 为什么 |
+|---|---|
+| `tailwindcss` + `frappe-ui/tailwind` preset | 官方组件是 Tailwind 写的，没 preset 那些类根本不存在 |
+| `unplugin-icons` | 组件源码里写着 `~icons/lucide/...` |
+| tailwind `content` 里扫 `node_modules/frappe-ui/src/**` | 它按需编译、没有预构建产物，不扫会把类名摇掉 |
+
+**颜色仍是我们的**：`src/styles/tailwind.css` 把官方组件的 CSS 变量指到本仓令牌
+（见 [ADR-007](../docs/adr/0007-frontend-skin.md)）。不要直接改官方组件源码。
+
+类型上 frappe-ui 是个"无类型源码包"，所以 tsconfig 的 `paths` 把它指向
+`src/types/frappe-ui.ts` 的类型桩：类型检查走桩、构建走真包。用了新组件就往桩里加一行。
+
 ## 两条硬规则
 
 1. **色值只从 `design/pearnly-ui.css` 的令牌取**，组件里不写死颜色字面量。

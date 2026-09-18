@@ -15,7 +15,13 @@
     "noEmit": true,
     "types": ["vite/client"],
     "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] }
+    "paths": {
+      "@/*": ["src/*"],
+      // 第三方边界：类型走我们的桩，构建走真包（Vite 不读 tsconfig 的 paths）。
+      // 理由见 src/types/frappe-ui.ts 的说明。
+      "frappe-ui": ["./src/types/frappe-ui.ts"],
+      "frappe-ui/vite": ["./src/types/frappe-ui-vite.ts"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
 }

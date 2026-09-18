@@ -1,5 +1,11 @@
-/* 壳自己的少量排版。色值一律取 design/pearnly-ui.css 的令牌，不写死字面量
-   （ADR-007：色值只有一份来源）。 */
+/* 壳的布局，以及**业务内容**的样式。
+ *
+ * 分工（用户 2026-09-18 定）：
+ *   - 侧栏等外壳：官方 Frappe UI 组件，样式由它自己带（配色在 tailwind.css 里接到我们的令牌）
+ *   - 业务内容（下面这些 .pn-* 业务类、页面里的卡片/表格/表单）：我们自己写
+ *
+ * 色值一律取 design/pearnly-ui.css 的令牌，不写死字面量（ADR-007：色值只有一份来源）。
+ */
 
 html,
 body {
@@ -8,105 +14,69 @@ body {
   height: 100%;
   background: var(--bg);
   color: var(--ink);
-  font-family: "Inter", "Noto Sans Thai", "Noto Sans SC", -apple-system,
-    BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 #app {
   height: 100%;
 }
 
+/* 侧栏宽度由官方组件自己给（w-60 / 收起时 w-12），所以这里用 flex 让它自适应，
+   不要写死列宽 —— 写死之后收起侧栏会留一条空白。 */
 .pn-shell {
-  display: grid;
-  grid-template-columns: 232px minmax(0, 1fr);
-  height: 100%;
-}
-
-.pn-sidebar {
   display: flex;
-  flex-direction: column;
-  border-right: 1px solid var(--line);
-  background: var(--card);
+  height: 100%;
   min-height: 0;
 }
 
-.pn-brand {
+.pn-main {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pn-topbar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 18px 16px 14px;
-  font-weight: 800;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--line);
+  background: var(--card);
+}
+
+.pn-page-title {
   font-size: 17px;
-  color: var(--accent);
+  font-weight: 800;
 }
 
-.pn-brand-dot {
-  width: 26px;
-  height: 26px;
-  border-radius: 9px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-deep));
-}
-
-.pn-nav {
+.pn-content {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 8px 12px;
+  padding: 22px 24px 40px;
 }
 
-.pn-nav-item {
+/* 侧栏底部那块账号信息（走官方 Sidebar 的 footer 插槽） */
+.pn-account {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  margin: 2px 0;
-  border-radius: var(--radius);
-  color: var(--ink2);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.pn-nav-item:hover {
-  background: var(--line2);
-  color: var(--ink);
-}
-
-.pn-nav-item.is-active {
-  background: var(--accent-weak);
-  color: var(--accent-deep);
-  font-weight: 750;
-}
-
-.pn-nav-group {
-  margin-top: 14px;
-}
-
-.pn-nav-group-label {
-  padding: 0 12px 6px;
-  color: var(--ink3);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.pn-sidebar-foot {
-  border-top: 1px solid var(--line);
-  padding: 12px 16px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 6px 4px;
+  min-width: 0;
 }
 
 .pn-avatar {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
+  flex: none;
   border-radius: 50%;
   background: var(--accent-weak);
   color: var(--accent-deep);
   display: grid;
   place-items: center;
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .pn-who {
@@ -117,6 +87,7 @@ body {
   display: block;
   font-size: 13px;
   font-weight: 700;
+  color: var(--ink);
 }
 
 .pn-who span {
@@ -125,30 +96,10 @@ body {
   color: var(--ink3);
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.pn-main {
-  min-width: 0;
-  overflow-y: auto;
-}
-
-.pn-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--line);
-  background: var(--card);
-}
-
-.pn-page-title {
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.pn-content {
-  padding: 22px 24px 40px;
-}
+/* ── 业务内容 ─────────────────────────────────────────────────────────── */
 
 .pn-card {
   background: var(--card);

@@ -38,6 +38,35 @@ frontend/                        四个入口共用的前端
 | csrf 由站点下发，不从 cookie 找 | Frappe 校验请求头与会话里存的值是否相等（`frappe/auth.py:81`）。会话里的值前端看不到，也**没有 csrf cookie** 可读 |
 | 不做 dev server 代理 | 接口靠会话 cookie 认证。代理到另一个源之后，登录态、CSRF 规则都和线上不是一回事，在那里"验证通过"说明不了问题。本地开发用 `--watch` 构建 + 直接开站点域名 |
 
+## 外壳用官方组件、业务内容用自己的（用户 2026-09-18 定）
+
+> "侧栏的前端组件用官方的吧，作业业务内容用我们的。"
+
+侧栏换成 **Frappe UI 的 `Sidebar`**（sections / header / footer 插槽 / 收起展开都是它自带的），
+业务页面（采购那套卡片、表格、表单）仍是我们自己写的。
+
+**颜色仍然全部是我们的**，做法是**接管官方组件的 CSS 变量**：
+
+```text
+Frappe UI 把颜色写成 CSS 变量：--surface-menu-bar / --ink-gray-6 / --outline-gray-1 …
+我们在 src/styles/tailwind.css 里把这些变量指向 design/pearnly-ui.css 的令牌
+→ 组件的行为与可访问性是官方的，观感是我们的（ADR-007）
+```
+
+没有去改它的组件，也没有把它的颜色调成我们的之后"顺便改改组件"——
+只动变量，官方组件原样升级。
+
+配套要装的东西（都不是可选的，缺一个组件就没样式）：Tailwind + `frappe-ui/tailwind` 的 preset、
+`unplugin-icons`（组件源码里写着 `~icons/lucide/...`）。`content` 里必须扫
+`node_modules/frappe-ui/src/**` —— 它是按需编译的、没有预构建产物，不扫就会把类名摇掉。
+
+### 类型边界
+
+frappe-ui 只发**源码**不发 d.ts，于是 `vue-tsc` 会进去检查它内部每个文件，
+而它们在我们这套严格设置下有一批报错。处理办法是在 tsconfig 的 `paths` 里把
+`frappe-ui` 指到我们自己的类型桩（`src/types/frappe-ui.ts`）：**类型检查走桩、构建走真包**
+（Vite 不读 tsconfig 的 paths）。用了新组件就往桩里加一行。
+
 ## 授权怎么走（这一条决定架构）
 
 ```text

@@ -32,8 +32,27 @@ ADR-005 定了新业务页面用 Vue 3，但没说**长什么样**。而旧产�
 
 ### 2. 组件：Frappe UI 打底 + 这套令牌
 
-ADR-005 选 Frappe UI 的理由不变（与 Frappe 生态同源、上游维护）。所以组件层用 Frappe UI，
+ADR-005 选 Frappe UI 的理由不变（与 Frappe 生态同源、上游维护）。用户 2026-09-18 进一步定了
+分工：**外壳（侧栏等）用官方组件，业务内容用自己的**。所以组件层用 Frappe UI，
 **把它套上这份令牌的皮**：色值、圆角、控件高度节奏都从令牌取，不写死字面量。
+
+### 怎么"套皮"：接管它的 CSS 变量（已落地）
+
+Frappe UI 把颜色写成 CSS 变量（`--surface-menu-bar` / `--ink-gray-*` / `--outline-gray-*`），
+所以在 `frontend/src/styles/tailwind.css` 里把这些变量指向本仓令牌即可：
+
+```css
+:root {
+  --surface-menu-bar: var(--card);
+  --ink-gray-9: var(--ink);
+  --surface-selected: var(--accent-weak);
+  /* … 其余同名类推 */
+}
+```
+
+**没有改它的组件一行代码**：行为、可访问性、收起展开都还是官方的，官方升级能直接跟。
+验证脚本里有三条断言盯着这件事（侧栏底色 = `--card`、文字 = `--ink`、选中高亮 = `--accent-weak`）——
+哪天有人把官方默认色盖回来，测试会失败。
 
 这样两边的职责是清楚的：
 

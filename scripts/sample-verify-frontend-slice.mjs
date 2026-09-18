@@ -30,6 +30,18 @@ const PASS = "Tenant-Test-2026";
 const COWORK = { host: "qc65956.localhost", port: "8101", user: "prov-65956@sample.local" };
 const ERP = { host: "qerp124510.localhost", port: "8102", user: "erp-front-124510@sample.local" };
 const APP_PATH = "/assets/pearnly_core/pearnly-app/index.html";
+// 官方 Frappe UI 的侧栏容器就带这个类（bg-surface-menu-bar）。
+// 用它当选择器还有个好处：**顺带证明侧栏确实是官方组件渲染的**，不是我们自己写的。
+const SIDEBAR = ".bg-surface-menu-bar";
+
+// 我们的设计令牌值（design/pearnly-ui.css）。用来断言"官方组件套的是我们的皮肤"。
+// 写死在这里是有意的：令牌改了这里就该失败，然后有人来核对是不是真改了皮肤
+// （比"看起来差不多"可靠）。
+const TOKEN = {
+  card: "rgb(255, 255, 255)", // --card
+  ink: "rgb(35, 25, 66)", // --ink #231942
+  accentWeak: "rgb(238, 229, 255)", // --accent-weak #eee5ff
+};
 
 const failures = [];
 let seq = 0;
@@ -69,11 +81,37 @@ async function login({ host, port, user }) {
 	check("启动接口给了 csrf（写操作要用）", typeof boot.csrf_token === "string" && boot.csrf_token.length > 0);
 
 	await page.goto(`http://${COWORK.host}:${COWORK.port}${APP_PATH}`, { waitUntil: "domcontentloaded" });
-	await page.waitForSelector(".pn-nav", { timeout: 20000 });
-	await page.waitForTimeout(500);
-	const nav = await page.$$eval(".pn-nav-item", (els) => els.map((e) => e.textContent.trim()));
+	await page.waitForSelector(SIDEBAR, { timeout: 20000 });
+	await page.waitForTimeout(600);
+	const nav = await page.$$eval(`${SIDEBAR} button`, (els) =>
+		els
+			.map((e) => e.textContent.trim())
+			// 官方侧栏自带"收起/展开"按钮，不是业务菜单项
+			.filter((t) => t && t !== "Collapse" && t !== "Expand"),
+	);
 	console.log("   cowork 侧栏：", nav.join(" / "));
 	check("侧栏渲染出来了", nav.length > 0);
+	// 「官方组件 + 我们的皮肤」这两条一起验：组件是官方的（选择器命中它自己的类名），
+	// 颜色是我们的（值来自设计令牌，不是 Frappe 默认灰）
+	{
+		const skin = await page.evaluate((sel) => {
+			const el = document.querySelector(sel);
+			if (!el) return null;
+			const active = el.querySelector("button.bg-surface-selected, button[class*='surface-selected']");
+			return {
+				bg: getComputedStyle(el).backgroundColor,
+				color: getComputedStyle(el).color,
+				activeBg: active ? getComputedStyle(active).backgroundColor : null,
+			};
+		}, SIDEBAR);
+		check(`侧栏底色是我们的 --card（${skin?.bg}）`, skin?.bg === TOKEN.card);
+		check(`侧栏文字色是我们的 --ink（${skin?.color}）`, skin?.color === TOKEN.ink);
+		check(
+			`选中项高亮是我们的 --accent-weak（${skin?.activeBg}）`,
+			skin?.activeBg === TOKEN.accentWeak,
+			"官方组件的高亮色被我们的令牌接管了"
+		);
+	}
 	check("买的「录入工作台」在菜单里", nav.includes("录入工作台"));
 	check(
 		"没买的「库存盘点」不在菜单里",

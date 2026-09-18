@@ -1,12 +1,15 @@
 <script setup lang="ts">
-// 产品壳：左边导航（按买到的功能过滤）+ 上边栏 + 主区。
+// 产品壳。**侧栏用官方 Frappe UI 组件**（用户 2026-09-18 定："侧栏的前端组件用官方的"），
+// 业务内容用自己的（见 src/pages/）。
 //
-// 启动数据在挂载前就问好（main.ts 之前？不 —— 在这里问），因为这决定整个壳长什么样：
-// 什么产品、买了什么、界面语言。拿不到就显示错误，不装作能跑。
+// 侧栏里显示哪些项由**后端给的授权**决定（`pearnly_core.shell.describe` 的 features），
+// 前端不自己判断买了什么。前端隐藏只是别让人点进死路，真正的拦截在后端。
 import { computed, onMounted, provide, ref, watch } from "vue";
 import { useRoute } from "vue-router";
+import { Sidebar } from "frappe-ui";
 import { loadShell, type ShellBoot } from "./lib/shell";
 import { navFor, type NavEntry } from "./lib/nav";
+import { iconFor } from "./lib/icons";
 import { ApiError } from "./lib/api";
 import { SHELL_BOOT } from "./lib/boot-context";
 
@@ -25,7 +28,6 @@ onMounted(async () => {
   }
 });
 
-// 页面通过 inject 拿启动数据（不是给 RouterView 传 props —— 那条路传不通）
 provide(SHELL_BOOT, boot as unknown as ShellBoot);
 
 watch(
@@ -38,31 +40,45 @@ watch(
   { immediate: true },
 );
 
-const nav = computed<NavEntry[]>(() =>
-  boot.value ? navFor(boot.value.product, boot.value.features) : [],
-);
+// 官方 Sidebar 要的形状：header + sections[{ label, items[] }]
+const header = computed(() => ({
+  title: "Pearnly",
+  subtitle: boot.value?.product_label || "",
+}));
+
+const sections = computed(() => {
+  if (!boot.value) return [];
+  const current = route.path;
+  return navFor(boot.value.product, boot.value.features).map((entry: NavEntry) => {
+    const items = "items" in entry ? entry.items : [entry];
+    return {
+      label: "items" in entry ? entry.label : "",
+      items: items.map((item) => ({
+        label: item.label,
+        icon: iconFor(item.route),
+        to: item.route,
+        isActive: current === item.route,
+      })),
+    };
+  });
+});
 
 const pageTitle = computed(() => {
-  if (!boot.value) return "";
-  for (const entry of nav.value) {
-    if ("items" in entry) {
-      const hit = entry.items.find((i) => i.route === route.path);
-      if (hit) return hit.label;
-    } else if (entry.route === route.path) {
-      return entry.label;
-    }
+  for (const section of sections.value) {
+    const hit = section.items.find((i) => i.isActive);
+    if (hit) return hit.label;
   }
   return "未建页面";
 });
 
-function initial(name: string): string {
+function initials(name: string): string {
   const trimmed = (name || "").trim();
   return trimmed ? trimmed.slice(0, 1).toUpperCase() : "?";
 }
 </script>
 
 <template>
-  <div v-if="error" class="pn-boot-error">
+  <div v-if="error" class="pn-center">
     <div class="pn-card">
       <div class="pn-error">{{ error }}</div>
       <p class="pn-muted" style="margin: 12px 0 0">
@@ -71,50 +87,23 @@ function initial(name: string): string {
     </div>
   </div>
 
-  <div v-else-if="!boot" class="pn-boot-loading">
+  <div v-else-if="!boot" class="pn-center">
     <div class="pn-skeleton" style="width: 220px" />
   </div>
 
   <div v-else class="pn-shell">
-    <aside class="pn-sidebar">
-      <div class="pn-brand">
-        <span class="pn-brand-dot" aria-hidden="true" />
-        <span>Pearnly</span>
-      </div>
-
-      <nav class="pn-nav" aria-label="主导航">
-        <template v-for="entry in nav" :key="'items' in entry ? entry.label : entry.route">
-          <div v-if="'items' in entry" class="pn-nav-group">
-            <div class="pn-nav-group-label">{{ entry.label }}</div>
-            <RouterLink
-              v-for="item in entry.items"
-              :key="item.route"
-              class="pn-nav-item"
-              :class="{ 'is-active': route.path === item.route }"
-              :to="item.route"
-            >
-              {{ item.label }}
-            </RouterLink>
-          </div>
-          <RouterLink
-            v-else
-            class="pn-nav-item"
-            :class="{ 'is-active': route.path === entry.route }"
-            :to="entry.route"
-          >
-            {{ entry.label }}
-          </RouterLink>
-        </template>
-      </nav>
-
-      <div class="pn-sidebar-foot">
-        <span class="pn-avatar">{{ initial(boot.full_name || boot.user) }}</span>
-        <span class="pn-who">
-          <strong>{{ boot.full_name || boot.user }}</strong>
-          <span>{{ boot.user }}</span>
-        </span>
-      </div>
-    </aside>
+    <!-- 侧栏：官方组件 -->
+    <Sidebar :header="header" :sections="sections">
+      <template #footer-items>
+        <div class="pn-account">
+          <span class="pn-avatar">{{ initials(boot.full_name || boot.user) }}</span>
+          <span class="pn-who">
+            <strong>{{ boot.full_name || boot.user }}</strong>
+            <span>{{ boot.user }}</span>
+          </span>
+        </div>
+      </template>
+    </Sidebar>
 
     <main class="pn-main">
       <header class="pn-topbar">
@@ -129,8 +118,7 @@ function initial(name: string): string {
 </template>
 
 <style scoped>
-.pn-boot-error,
-.pn-boot-loading {
+.pn-center {
   display: grid;
   place-items: center;
   height: 100%;

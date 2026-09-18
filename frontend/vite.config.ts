@@ -1,6 +1,7 @@
 import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import frappeui from "frappe-ui/vite";
 
 // 构建成**静态文件**交给站点的 web 提供（ADR-005：不做常驻 Node 服务，不增服务器）。
 //
@@ -13,7 +14,14 @@ export default defineConfig({
   // 用默认的 base `/` 时，产物里会写成 `/assets/index.<hash>.js`，
   // 那个 URL 会被当成"某个叫 index.<hash>.js 的 App"，直接 404（这是必踩的坑）。
   base: "/assets/pearnly_core/pearnly-app/",
-  plugins: [vue()],
+  plugins: [
+    // 外壳组件用官方 Frappe UI（用户要求），它的源码要用图标插件编译
+    // （组件里写着 `~icons/lucide/...`）。这里只开图标这一项：
+    // frappe-ui 的插件默认还会塞一个 dev server 代理和 jinja boot 注入，
+    // 那些跟我们的形态不符（见下面 server 的说明），显式关掉。
+    frappeui({ lucideIcons: true, frappeProxy: false, jinjaBootData: false, buildConfig: false }),
+    vue(),
+  ],
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
