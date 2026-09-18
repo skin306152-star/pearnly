@@ -179,6 +179,26 @@ def main():
     check("on_attempt 在 POST 之前调用（POST 后崩溃不能变成第二张单）",
           order == ["attempt:BK1", "POST"], order)
 
+    # 5.2b 建单入口要把 on_attempt **透传**下去
+    # 判据本身在上面钉过；这里防的是"半路丢了回调" —— `book_in_session` 是 LINE 那条
+    # 链唯一进建单的门，漏透传等于登记永远不生效，而症状只在超时/重发时才出现。
+    import ast
+
+    from pearnly_dms import dms_booking as booking_mod
+
+    tree = ast.parse(open(booking_mod.__file__, encoding="utf-8").read())
+    forwarded = False
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.FunctionDef) and node.name == "book_in_session"):
+            continue
+        params = [a.arg for a in node.args.args] + [a.arg for a in node.args.kwonlyargs]
+        for sub in ast.walk(node):
+            if (isinstance(sub, ast.Call)
+                    and getattr(sub.func, "attr", "") == "create_booking_via_form"):
+                forwarded = "on_attempt" in params and any(
+                    k.arg == "on_attempt" for k in sub.keywords)
+    check("book_in_session 把 on_attempt 透传给建单调用", forwarded)
+
     # 5.3 明确的重复号 → 顺号重写一次
     seen = []
 

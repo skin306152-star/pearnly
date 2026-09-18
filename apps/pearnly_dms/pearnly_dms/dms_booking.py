@@ -91,6 +91,8 @@ def book_in_session(
     payload: dict,
     attach_files: Optional[List[dict]] = None,
     attach_failed: Optional[List[dict]] = None,
+    *,
+    on_attempt=None,
 ) -> Dict[str, Any]:
     """一个 DMS 会话内：复核主档 → 建单 → 挂附件 → 顺手全量刷主档缓存（零额外登录）。
 
@@ -99,8 +101,12 @@ def book_in_session(
     （`_advisor_ref_strict`）按该 id 严格校验，**匹配不上宁可报错也不落到别人头上**；
     交车日用逐问值覆盖（端点默认只给推算基线）。
 
-    返回 `{ok, booking_no, booking_id, attach_ok, attached, attach_failed}`
+　　返回 `{ok, booking_no, booking_id, attach_ok, attached, attach_failed}`
     或 `run_logged_in` 的 err dict（`ok=False`）。
+
+    ⚠️ `on_attempt`（提交前登记，防重复建单）**必须原样透传**到建单调用：LINE 那条链
+    只有这一个门进建单，半路丢了回调等于登记永远不生效 —— 而症状只在超时/重发时出现。
+    真正的"登记先于写"判据在 `dms_booking_submit.submit_booking`（脚本 5.2 钉住）。
     """
     from pearnly_dms.dms_booking_customer import card_from_customer
     from pearnly_dms.dms_client_base import DmsClientError
@@ -174,7 +180,8 @@ def book_in_session(
         # 客户写入 / 附件挂载 / 主档刷新这些慢步骤不进共享锁。
         with booking_lock(endpoint):
             booking_id, booking_no = cl.create_booking_via_form(
-                customer_id=customer_id, booking=booking, card=master_card
+                customer_id=customer_id, booking=booking, card=master_card,
+                on_attempt=on_attempt,
             )
         attached = 0
         failed = list(attach_failed or [])
