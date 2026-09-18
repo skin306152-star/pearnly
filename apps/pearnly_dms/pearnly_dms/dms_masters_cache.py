@@ -34,7 +34,16 @@ _COMPLETE_KEYS = (
     "regis_behalfs",
     "advisors",
     "company_banks",
+    # 订车付款要用到的四类银行目录（线上 2026-09 补的）：
+    # 少一个键，"主档完整"的判据就会宽，缺表被当成读全了。
+    "source_banks",
+    "cheque_banks",
+    "cashier_banks",
+    "card_banks",
 )
+
+# 银行类目录的键（与 dms_company_banks 的付款渠道同集）。
+_BANK_KEYS = ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")
 
 
 def _eid(endpoint: Any) -> str:
@@ -71,13 +80,28 @@ def _read(endpoint: Any) -> Optional[Dict[str, Any]]:
     return {"masters": masters, "age_seconds": max(0.0, time.time() - float(blob.get("ts") or 0))}
 
 
-def _write(endpoint: Any, masters: Dict[str, Any]) -> None:
+def _write(endpoint: Any, masters: Dict[str, Any], *, touch_refreshed_at: bool = True) -> None:
+    """写缓存。
+
+    `touch_refreshed_at=False`：**只并入颜色**，不动整体的新鲜度时间戳。
+    为什么要有它：抓某个车型的颜色可能会花几秒，而这几秒里别的请求可能刚做完一次
+    全量刷新 —— 颜色请求不能把"整体主档"的时间戳往前推，否则别人会以为主档也刚刷过。
+    （线上用 SQL 的 jsonb 合并实现；这里用"重读当前 blob 再合并"，语义等价。）
+    """
     import frappe
 
     eid = _eid(endpoint)
     if not eid:
         return
     try:
+        if not touch_refreshed_at:
+            current = frappe.cache().get_value(_key(eid)) or {}
+            cur_masters = current.get("masters") or {}
+            merged = dict(cur_masters)
+            for k in ("paints_by_car", "paints_refreshed_at"):
+                if masters.get(k):
+                    merged[k] = {**(cur_masters.get(k) or {}), **masters[k]}
+            masters = merged
         frappe.cache().set_value(
             _key(eid),
             {"masters": masters or {}, "ts": time.time()},
@@ -85,6 +109,34 @@ def _write(endpoint: Any, masters: Dict[str, Any]) -> None:
         )
     except Exception:
         logger.warning("[dms masters] 写缓存失败（不影响本次结果）", exc_info=True)
+
+
+def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> None:
+    """整份替换主档，但**不丢掉并发期间拿到的颜色**。
+
+    全量刷新要好几秒；这期间某个颜色请求可能已经跑完。所以不能光用"刷新前读到的那个
+    blob"去合并 —— 要在**写入那一刻**重读当前缓存，把它的颜色并进来
+    （线上是在同一条 SQL 里合并；这里读-合-写，窗口极小且语义一致）。
+    """
+    import frappe
+
+    eid = _eid(endpoint)
+    if not eid:
+        return
+    try:
+        current = frappe.cache().get_value(_key(eid)) or {}
+        cur = current.get("masters") or {}
+        pbc = {**(cur.get("paints_by_car") or {}), **(masters.get("paints_by_car") or {})}
+        prt = {**(cur.get("paints_refreshed_at") or {}), **(masters.get("paints_refreshed_at") or {})}
+        if pbc:
+            masters = {**masters, "paints_by_car": pbc, "paints_refreshed_at": prt}
+        frappe.cache().set_value(
+            _key(eid),
+            {"masters": masters or {}, "ts": time.time()},
+            expires_in_sec=CACHE_TTL_SECONDS,
+        )
+    except Exception:
+        logger.warning("[dms masters] 整份写缓存失败（不影响本次结果）", exc_info=True)
 
 
 # ── 登录抓取（失败即软回退） ──────────────────────────────────────────────
@@ -110,6 +162,23 @@ def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
     from pearnly_dms.dms_intake import run_logged_in
 
     res = run_logged_in(endpoint, lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id))
+    if isinstance(res, dict):
+        return None
+    return res
+
+
+def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional[Dict[str, List[list]]]:
+    """一次登录抓**多个**车型的颜色（预热用；逐个抓要登 N 次，会把会话踢来踢去）。"""
+    from pearnly_dms.dms_intake import run_logged_in
+
+    want = [str(c) for c in car_ids if c]
+    if not want:
+        return {}
+
+    def _fetch(client, _adapter):
+        return {car: (client._bshsd_all("txtcarpaint", idcar=car) or []) for car in want}
+
+    res = run_logged_in(endpoint, _fetch)
     if isinstance(res, dict):
         return None
     return res
@@ -164,17 +233,21 @@ def get_paints(
     masters: Optional[Dict[str, Any]] = None,
     *,
     require_complete: bool = False,
+    force_refresh: bool = False,
 ) -> List[list]:
     """某车型的颜色主档（惰性）。已缓存直接回；否则登录抓 + 并入 `paints_by_car` 落缓存。
 
     传入 `masters`（调用方同请求已读的 blob）则复用，省一次读。
+
+    `force_refresh=True` 时**不认缓存**，按 DMS 现状抓 —— 用于"刚在 DMS 改过颜色、
+    马上要按新数据判"的场合；抓不到就按 `require_complete` 决定抛错还是空表（fail closed）。
     """
     car_id = str(car_id or "")
     if masters is None:
         cached = _read(endpoint)
         masters = (cached["masters"] if cached else {}) or {}
     pbc = dict(masters.get("paints_by_car") or {})
-    if car_id in pbc:
+    if car_id in pbc and not force_refresh:
         return pbc[car_id]
     paints = _fetch_paints_via_login(endpoint, car_id)
     if paints is None:
@@ -187,8 +260,50 @@ def get_paints(
             )
         return []
     pbc[car_id] = paints
-    _write(endpoint, {**masters, "paints_by_car": pbc})
+    _write(
+        endpoint,
+        {**masters, "paints_by_car": pbc, "paints_refreshed_at": {car_id: time.time()}},
+        touch_refreshed_at=False,
+    )
     return paints
+
+
+def write_authoritative_snapshot(
+    endpoint: Any,
+    masters: Dict[str, Any],
+    *,
+    car_id: str = "",
+    paints: Optional[List[list]] = None,
+) -> None:
+    """用**本次权威只读复核已取到的**快照落缓存 —— 成功后再二次登录/抓取一律不做。
+
+    旧路径在订车成功后拿手上的会话再抓一次全量主档：**销售会话那一抓会把管理员的完整
+    缓存覆盖成销售裁剪视图**（车型/银行看起来变空），还白付一轮远程读取。
+    这里只吃调用方已经在提交前抓过的权威行。
+
+    两个容易写错的地方（线上踩过，注释留在那儿）：
+      · 颜色：`None` = 这次没读到（该车型旧条目原样保留）；`[]` = **权威结论"这车已无颜色"**
+        → 必须清掉旧色。用 falsy 判断会把旧色留下来。
+      · 银行类目录：同样只看"这个 key 在不在这次快照里"。存在且为 `[]` 是**权威删除结果**，
+        不能被旧值盖回去。
+    """
+    if not masters:
+        return
+    cached = _read(endpoint)
+    old = (cached or {}).get("masters") or {}
+    merged = dict(masters)
+    pbc = dict(old.get("paints_by_car") or {})
+    prt = dict(old.get("paints_refreshed_at") or {})
+    if paints is not None and car_id:
+        pbc[str(car_id)] = list(paints)
+        prt[str(car_id)] = time.time()
+    if pbc or (paints is not None and car_id):
+        merged["paints_by_car"] = pbc
+        merged["paints_refreshed_at"] = prt
+    for key in _BANK_KEYS:
+        if key not in merged and old.get(key):
+            merged[key] = old[key]
+    _write(endpoint, merged)
 
 
 def refresh_from_client(endpoint: Any, client: Any) -> None:
