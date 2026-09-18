@@ -45,9 +45,30 @@ def handle(event: dict) -> bool:
         line_binding.unbind(user_id)
         return True
 
+    if etype == "postback":
+        bound = _bound_or_prompt(user_id, reply_token)
+        if not bound:
+            return True
+        from pearnly_dms import dms_flow
+
+        dms_flow.handle_postback(
+            _binding(user_id, bound), user_id, reply_token, event.get("postback") or {}
+        )
+        return True
+
     if etype == "message":
         message = event.get("message") or {}
-        if message.get("type") != "text":
+        mtype = message.get("type")
+        if mtype == "image":
+            # 拍身份证 → 后台识别（识别要几秒到十几秒，不能占着回复令牌等）
+            bound = _bound_or_prompt(user_id, reply_token)
+            if not bound:
+                return True
+            from pearnly_dms import dms_flow
+
+            dms_flow.handle_image(_binding(user_id, bound), user_id, message.get("id") or "")
+            return True
+        if mtype != "text":
             # 非文本（图片等）属于后续的业务录入，现在先明确回一句，
             # 不要静默丢弃让用户以为发丢了。
             _reply_need_bind_or_help(user_id, reply_token)
@@ -56,6 +77,18 @@ def handle(event: dict) -> bool:
         return True
 
     return False
+
+
+def _bound_or_prompt(line_user_id: str, reply_token: str):
+    """已绑定就返回本地账号；没绑定就回一句提示并返回 None。
+
+    图片和 postback 都不该在未绑定时静默丢弃 —— 用户会以为发丢了。
+    """
+    bound = line_binding.user_of(line_user_id)
+    if not bound:
+        line.reply(reply_token, [{"type": "text", "text": MSG_NEED_BIND}])
+        return None
+    return bound
 
 
 def _handle_text(user_id: str, text: str, reply_token: str) -> None:
@@ -82,10 +115,24 @@ def _handle_text(user_id: str, text: str, reply_token: str) -> None:
         ])
         return
 
-    # 已绑定：业务动作的入口。DMS 的具体动作（身份证录入、客户查询）后续在这里接。
-    line.reply(reply_token, [
-        {"type": "text", "text": MSG_HELP.format(bound, CMD_UNBIND)}
-    ])
+    # 已绑定 → 交给对话流（建档：拍身份证 + 输手机号 → 确认 → 写客户档）。
+    # 命令词、状态分支、号码透传的顺序都在 text_router 里，**这里不许就地加判断**
+    # （老产品的教训：判据散在两处，用户改姓名时打 เมนู 被当成新姓名）。
+    from pearnly_dms import dms_text_router
+
+    dms_text_router.route(_binding(user_id, bound), user_id, reply_token, text)
+
+
+def _binding(line_user_id: str, user: str) -> dict:
+    """对话流要的绑定上下文。
+
+    `tenant_id` = 站点名：我们"每产品一个站点"就是租户隔离，所以会话/台账都不用再带
+    租户字段（见 `pearnly_core/line_session.py`）；这里保留这个键只是为了和对话流的
+    签名对齐，值为站点名。
+    """
+    import frappe
+
+    return {"line_user_id": line_user_id, "user_id": user, "tenant_id": frappe.local.site}
 
 
 def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:

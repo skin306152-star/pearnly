@@ -26,6 +26,8 @@ import requests
 from frappe import _
 
 TIMEOUT = 15
+# 下载媒体比发消息慢得多（图片可能好几 MB），单独给一个更宽的超时
+DOWNLOAD_TIMEOUT = 60
 EVENT = "Pearnly LINE Event"
 
 
@@ -109,6 +111,29 @@ def get_profile(user_id: str) -> dict:
         headers=_headers(), timeout=TIMEOUT,
     )
     return resp.json() if resp.status_code == 200 else {}
+
+
+def download_message_content(message_id: str) -> bytes:
+    """下载用户发来的**图片/文件**内容。
+
+    ⚠️ 媒体内容不在 `api.line.me` 而在 `api-data.line.me` —— 用错域名会 404，
+    这是 LINE 的一个常见坑。
+
+    拿不到就返回 `b""`：调用方按"读不出"回话，而不是抛异常把整条流程打断。
+    """
+    if not message_id:
+        return b""
+    resp = requests.get(
+        f"https://api-data.line.me/v2/bot/message/{message_id}/content",
+        headers=_headers(), timeout=DOWNLOAD_TIMEOUT,
+    )
+    if resp.status_code != 200:
+        frappe.log_error(
+            title="LINE 取媒体失败",
+            message=f"{message_id}: {resp.status_code} {resp.text[:200]}",
+        )
+        return b""
+    return resp.content or b""
 
 
 # ── 事件幂等 ────────────────────────────────────────────────────────────────

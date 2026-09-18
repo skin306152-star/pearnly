@@ -49,6 +49,18 @@ RUN cd /home/frappe/frappe-bench && \
 # 生产走 Secret/环境变量，与老产品 `GOOGLE_APPLICATION_CREDENTIALS` 一致）。
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "google-auth==2.36.0"
 
+# PDF 首页栅格化（身份证/发票走共享上传流水线时会被包成单页 PDF）。
+#
+# 为什么必须装：老产品的注释写得很清楚 —— 相册/相机图片在到达接口前会经
+# `imagesToPdf` 变成 `photo_*.pdf`，而识别器只吃图片，不解的话直接报"读不出"。
+#
+# ⚠️ **版本与老产品不同，原因是我们 Python 更新**：老产品锁 `pymupdf==1.24.10`
+#    跑在 Python 3.11 上；本镜像基础层是 **Python 3.14**，1.24.10 没有 cp314 轮子，
+#    pip 会退回源码编译并失败（实测）。
+#    1.28.2 提供 `cp310-abi3` 轮子（abi3 = 跨 3.10+ 通用），3.14 直接可用。
+#    这是版本跟随，不是换库：调用方式与渲染语义都没变。
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pymupdf==1.28.2"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走
