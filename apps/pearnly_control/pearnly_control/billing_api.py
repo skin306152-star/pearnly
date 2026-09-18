@@ -1,0 +1,210 @@
+# -*- coding: utf-8 -*-
+"""计费底座的对外口子：**产品站点**用的（服务令牌）+ **控制面界面**用的（Desk 会话）。
+
+两类调用方，两种鉴权，别混：
+
+- 产品站点（DMS / Cowork / ERP）用**服务令牌**（`X-Pearnly-Billing-Token`）：
+  它们是机器，没有控制面的登录会话。令牌是一次生成、开通时下发到各站点的
+  （见 `provisioning._billing_payload`）。
+- 控制面界面用**Desk 会话**（管理员本人点「同意」）。钱的动作要给得出人名，
+  所以审核这条路只认登录身份，不认令牌。
+"""
+
+from __future__ import annotations
+
+import secrets
+
+import frappe
+from frappe import _
+from frappe.utils import now
+
+from pearnly_control import billing
+
+TOKEN_KEY = "pearnly_billing_token"
+
+
+def service_token(*, create: bool = True) -> str:
+    """服务令牌：控制面与产品站点共享的那一个。站点配置里没有就生成一个。"""
+    token = frappe.conf.get(TOKEN_KEY)
+    if token or not create:
+        return token or ""
+    from frappe.installer import update_site_config
+
+    token = secrets.token_urlsafe(32)
+    update_site_config(TOKEN_KEY, token)
+    frappe.conf[TOKEN_KEY] = token
+    frappe.db.commit()
+    return token
+
+
+def _require_admin() -> str:
+    user = frappe.session.user
+    if not user or user == "Guest":
+        frappe.throw(_("未登录"), frappe.AuthenticationError)
+    if "System Manager" not in frappe.get_roles(user):
+        frappe.throw(_("只有平台管理员能处理充值与余额"), frappe.PermissionError)
+    return user
+
+
+def _require_service() -> None:
+    """产品站点来的调用。令牌不对就当没这回事（不透露"令牌存在但错了"）。"""
+    expected = service_token(create=False)
+    got = (frappe.get_request_header("X-Pearnly-Billing-Token") or "").strip()
+    if not expected or not got or not secrets.compare_digest(got, expected):
+        frappe.throw(_("服务令牌无效"), frappe.AuthenticationError)
+
+
+def _tenant_or_throw(tenant: str) -> str:
+    tenant = (tenant or "").strip()
+    if not tenant or not frappe.db.exists("Pearnly Tenant", tenant):
+        frappe.throw(_("租户不存在：{0}").format(tenant or "(空)"))
+    return tenant
+
+
+# ── 产品站点调用（服务令牌）─────────────────────────────────────────────────
+
+
+@frappe.whitelist(allow_guest=True)
+def service_status(tenant: str, kind: str, units: int = 0, tier: str = "B") -> dict:
+    """开工前的余额闸。`error_code` 三种：空 / insufficient_balance / lookup_error。"""
+    _require_service()
+    return billing.gate(_tenant_or_throw(tenant), kind=kind, units=int(units or 0), tier=tier)
+
+
+@frappe.whitelist(allow_guest=True)
+def service_charge(tenant: str, product: str, kind: str, units: int, tier: str = "B",
+                   reference: str = "", description: str = "") -> dict:
+    """干完活后扣费。调用方必须是"确实识别成功了"的那一刻。"""
+    _require_service()
+    return billing.charge(
+        _tenant_or_throw(tenant), product=product, kind=kind, units=int(units or 0),
+        tier=tier, reference=reference, description=description,
+    )
+
+
+@frappe.whitelist(allow_guest=True)
+def service_wallet(tenant: str) -> dict:
+    """产品站点上的「套餐与余额」页读这个。"""
+    _require_service()
+    return billing.wallet_summary(_tenant_or_throw(tenant))
+
+
+@frappe.whitelist(allow_guest=True)
+def service_topup_request(tenant: str, amount_thb: float, note: str = "",
+                          payer_name: str = "") -> dict:
+    """租户在产品站点上点「充值」→ 在这里落一条待审核申请。
+
+    只落申请，**不动余额** —— 钱到不到账由控制面的审核决定。
+    """
+    _require_service()
+    tenant = _tenant_or_throw(tenant)
+    amt = float(amount_thb or 0)
+    if amt <= 0 or amt > 500000:
+        frappe.throw(_("充值金额要在 ฿0.01 到 ฿500,000 之间"))
+    doc = frappe.get_doc({
+        "doctype": billing.TOPUP,
+        "tenant": tenant,
+        "status": "pending",
+        "requested_thb": amt,
+        "note": (note or "")[:500],
+        "payer_name": (payer_name or "")[:200],
+        "requested_at": now(),
+    })
+    doc.insert(ignore_permissions=True)
+    frappe.db.commit()
+    return {"request": doc.name, "status": doc.status, "requested_thb": amt}
+
+
+@frappe.whitelist(allow_guest=True)
+def service_topup_status(tenant: str) -> dict:
+    """租户看自己最近几次充值的状态（待审核 / 已到账 / 已拒绝）。"""
+    _require_service()
+    tenant = _tenant_or_throw(tenant)
+    return {
+        "items": frappe.get_all(
+            billing.TOPUP, filters={"tenant": tenant},
+            fields=["name", "status", "requested_thb", "approved_thb", "creation",
+                    "review_note"],
+            order_by="creation desc", limit_page_length=20,
+        )
+    }
+
+
+# ── 控制面界面调用（Desk 会话）──────────────────────────────────────────────
+
+
+@frappe.whitelist()
+def admin_summary(tenant: str) -> dict:
+    _require_admin()
+    return billing.wallet_summary(_tenant_or_throw(tenant))
+
+
+@frappe.whitelist()
+def admin_pending_topups() -> dict:
+    _require_admin()
+    return {
+        "items": frappe.get_all(
+            billing.TOPUP, filters={"status": "pending"},
+            fields=["name", "tenant", "requested_thb", "payer_name", "note", "creation"],
+            order_by="creation asc", limit_page_length=100,
+        )
+    }
+
+
+@frappe.whitelist(methods=["POST"])
+def admin_approve(request: str, actual_amount_thb: float | None = None, note: str = "") -> dict:
+    """同意充值：**改实收金额 → 立刻入账 + 落台账**（同一事务）。
+
+    实收金额可以和申请金额不一样（转账少转、多转都真实存在）——
+    以银行到账为准，不以申请为准。
+    """
+    admin = _require_admin()
+    doc = frappe.get_doc(billing.TOPUP, request)
+    if doc.status != "pending":
+        frappe.throw(_("这张申请已经处理过了（当前：{0}）").format(doc.status))
+
+    amt = float(actual_amount_thb if actual_amount_thb is not None else doc.requested_thb)
+    if amt <= 0:
+        frappe.throw(_("实收金额必须大于 0"))
+
+    doc.status = "approved"
+    doc.approved_thb = amt
+    doc.review_note = (note or "")[:500]
+    doc.reviewed_by = admin
+    doc.reviewed_at = now()
+    doc.save(ignore_permissions=True)
+
+    new_balance = billing.grant(
+        doc.tenant, amt, txn_type="topup",
+        description=f"充值审核通过 · 申请 {doc.name}",
+        reference=doc.name,
+    )
+    frappe.db.commit()
+    return {"ok": True, "request": doc.name, "tenant": doc.tenant,
+            "approved_thb": amt, "new_balance": float(new_balance)}
+
+
+@frappe.whitelist(methods=["POST"])
+def admin_reject(request: str, note: str = "") -> dict:
+    admin = _require_admin()
+    doc = frappe.get_doc(billing.TOPUP, request)
+    if doc.status != "pending":
+        frappe.throw(_("这张申请已经处理过了（当前：{0}）").format(doc.status))
+    if not (note or "").strip():
+        frappe.throw(_("拒绝要写原因，租户那边要看到"))
+    doc.status = "rejected"
+    doc.review_note = note.strip()[:500]
+    doc.reviewed_by = admin
+    doc.reviewed_at = now()
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return {"ok": True, "request": doc.name, "status": doc.status}
+
+
+@frappe.whitelist(methods=["POST"])
+def admin_adjust(tenant: str, amount_thb: float, note: str) -> dict:
+    """人工调账（补录、补偿、冲正）。**必须写原因** —— 无说明的调账等于黑账。"""
+    admin = _require_admin()
+    tenant = _tenant_or_throw(tenant)
+    new_balance = billing.adjust(tenant, float(amount_thb or 0), note=note, actor=admin)
+    return {"ok": True, "tenant": tenant, "new_balance": float(new_balance)}

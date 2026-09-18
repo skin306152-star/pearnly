@@ -164,15 +164,53 @@ def editable_id_card(id_card: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _billing_gate(user: str) -> Dict[str, Any]:
-    """余额闸。
+def _billing_gate(pages: int = 1) -> Dict[str, Any]:
+    """余额闸：钱不够就不许开工。
 
-    ⚠️ **老产品在这里拦余额不足（402），我们还没搬计费子系统，所以现在是放行。**
-    搬计费时按老产品 `services/erp/dms_id_ocr.py:_billing_gate` 原样接上：
-    先分流"查不到余额（503）"和"余额不足（402）"，再放行豁免账号 ——
-    绝不能把"我们自己坏了"报成"余额不足"叫用户去充值。
+    身份证 OCR 走 **A 档**（高精，见 `services/ocr` 的 task 覆写表）——
+    银行件、总账、VAT、身份证都是财务件，跟发票那种 B 档是两种业务。
+
+    **三条出路各说各的**（老产品栽过：把系统故障报成"余额不足"，
+    结果会计去充了一笔本来就够的钱）：
+
+    - 钱够 → 放行；
+    - `insufficient_balance` → 402，界面引导去充值；
+    - `lookup_error` → 503，是**我们**查不出来，让用户稍后重试。
     """
-    return {"is_exempt": True, "subscription": None, "billing_not_ported": True}
+    from pearnly_core import billing_client
+
+    status = billing_client.status("pdf", pages, tier="A")
+    if status.get("allowed"):
+        return status
+
+    code = status.get("error_code") or "lookup_error"
+    if code == "lookup_error":
+        raise DmsOcrError(
+            "billing.lookup_error", 503,
+            {"code": "billing.lookup_error", "msg": status.get("reason") or "余额查不出来"},
+        )
+    raise DmsOcrError(
+        "insufficient_balance", 402,
+        {
+            "code": "insufficient_balance",
+            "balance_thb": status.get("balance_thb"),
+            "estimate_thb": status.get("estimate_thb"),
+        },
+    )
+
+
+def _charge_id_card(reference: str = "") -> None:
+    """识别成功之后报账。
+
+    只在这一刻扣：**识别失败不收费**（老产品全站口径）。报账失败只记日志，
+    绝不把已经做完的识别说成失败 —— 记账是记在后面的账，不是识别的前置条件。
+    """
+    from pearnly_core import billing_client
+
+    billing_client.charge(
+        "dms", "pdf", 1, tier="A", reference=reference,
+        description="身份证识别（高精档）",
+    )
 
 
 def _flag_bad_id_checksum(ocr: Dict[str, Any]) -> None:
@@ -212,7 +250,7 @@ def recognize_id_card(
     ep = resolve_dms_endpoint(user, endpoint_id)
     if not ep:
         raise DmsOcrError("dms.no_endpoint", 400, "dms.no_endpoint")
-    _billing_gate(user)
+    _billing_gate()
 
     image_bytes = ensure_image_bytes(content, content_type)
     t0 = time.time()
@@ -242,4 +280,5 @@ def recognize_id_card(
         )
     elapsed = int((time.time() - t0) * 1000)
     _flag_bad_id_checksum(ocr)
+    _charge_id_card(reference=f"idcard:{user}")
     return ep, ocr, elapsed

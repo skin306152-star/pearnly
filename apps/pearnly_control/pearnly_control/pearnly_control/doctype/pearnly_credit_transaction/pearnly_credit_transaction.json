@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:CT-{YYYY}-{#####}",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tenant",
+  "type",
+  "column_break_main",
+  "amount_thb",
+  "balance_after",
+  "section_detail",
+  "product",
+  "units",
+  "pages",
+  "column_break_detail",
+  "description",
+  "reference"
+ ],
+ "fields": [
+  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "租户", "options": "Pearnly Tenant", "reqd": 1},
+  {"fieldname": "type", "fieldtype": "Select", "in_list_view": 1, "label": "类型", "options": "topup\nusage\nadjustment", "reqd": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "amount_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "金额（泰铢）", "options": "THB", "reqd": 1},
+  {"fieldname": "balance_after", "fieldtype": "Currency", "in_list_view": 1, "label": "变动后余额", "options": "THB", "read_only": 1},
+  {"fieldname": "section_detail", "fieldtype": "Section Break", "label": "明细"},
+  {"fieldname": "product", "fieldtype": "Select", "label": "产品", "options": "\ncowork\nerp\ndms"},
+  {"fieldname": "units", "fieldtype": "Int", "label": "计费单位"},
+  {"fieldname": "pages", "fieldtype": "Int", "label": "页数"},
+  {"fieldname": "column_break_detail", "fieldtype": "Column Break"},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "说明"},
+  {"fieldname": "reference", "fieldtype": "Data", "label": "外部单号"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Credit Transaction",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 0, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 0}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

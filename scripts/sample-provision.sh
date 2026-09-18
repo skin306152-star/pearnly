@@ -91,6 +91,34 @@ act_finalize_site() {  # <group> <site>
   printf '%s' "$out" | grep -q "home_page" || return 1
 }
 
+act_set_billing() {  # <payload-json>
+  # 计费底座的地址 / 令牌 / 自己是哪个租户，写给这个站点。
+  # 余额与台账在控制面（三套产品共用一份），站点只带着身份去问，不自己算钱。
+  local payload="$1" group site tenant api host token
+  local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  tenant=$(py -c "$get" "$payload" tenant)
+  api=$(py -c "$get" "$payload" api)
+  host=$(py -c "$get" "$payload" host_header)
+  token=$(py -c "$get" "$payload" token)
+
+  if [ -z "$tenant" ] || [ -z "$token" ]; then
+    echo "[错误] 计费配置不全（租户或令牌为空）：站点会拿不到余额，OCR 会全被拦下" >&2
+    return 1
+  fi
+
+  dc exec -T "$(bench_of "$group")" bash -lc "
+    set -e
+    B='bench --site $site'
+    \$B set-config pearnly_tenant '$tenant' >/dev/null
+    \$B set-config pearnly_billing_api '$api' >/dev/null
+    \$B set-config pearnly_billing_host_header '$host' >/dev/null
+    \$B set-config pearnly_billing_token '$token' >/dev/null
+  "
+  echo "已写计费配置 tenant=$tenant api=$api"
+}
+
 act_set_line() {  # <payload-json>
   # 每租户一条 LINE：把该部署自己的渠道凭据写到它自己的站点上。
   # 站点只认自己这条密钥，别的租户的签名验不过 —— 隔离靠凭据本身。
@@ -238,6 +266,7 @@ run_step() {  # <action> <payload-json>
     install_app) act_install_app "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" "$(py -c "$get" "$payload" app)" ;;
     set_config)  act_set_config  "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" "$(py -c "$get" "$payload" key)" "$(py -c "$get" "$payload" value)" ;;
     set_oidc)    act_set_oidc    "$payload" ;;
+    set_billing) act_set_billing "$payload" ;;
     restart_web) act_restart_web "$(py -c "$get" "$payload" group)" ;;
     finalize_site) act_finalize_site "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
     set_line)      act_set_line "$payload" ;;
@@ -329,7 +358,9 @@ if not m:
     print("没有该发号单的开通请求:", json.dumps(d, ensure_ascii=False)[:300]); raise SystemExit(0)
 print("请求:", m["request"], "| 状态:", m["status"], "|", m["counts"])
 for s in m["steps"]:
-    print(f"   [{s[\"status\"]:7}] {s[\"step_key\"]}")
+# 注意：f-string 的表达式里不能出现反斜杠（Python 3.12 之前），
+# 所以这里用 .format 而不是 f-string —— 之前写成 f-string 直接语法错，整个 status 命令是坏的。
+    print("   [{:7}] {}".format(s["status"], s["step_key"]))
 for dep in m["deployments"]:
     print("  部署:", dep["site_name"], dep["status"], dep["url"] or "")
 '
@@ -363,10 +394,15 @@ for dep in m["deployments"]:
 
   retry)
     issue="${1:?给发号单号}"
+    # --all：连 skipped 一起补跑。LINE 这种"先开通、后配渠道"的步骤要靠它 ——
+    # 配好渠道之后跑一次，那一步才会真的把密钥写到站点上。
+    include_skipped=0
+    [ "${2:-}" = "--all" ] && include_skipped=1
     req=$(api_get "pearnly_control.provisioning.api_request_of_issue?issue=$issue" \
           | py -c 'import sys,json; print(json.load(sys.stdin).get("message") or "")')
     [ -n "$req" ] || { echo "该发号单还没有开通请求" >&2; exit 1; }
-    py -c 'import json,sys; print(json.dumps({"request": sys.argv[1]}))' "$req" \
+    py -c 'import json,sys; print(json.dumps({"request": sys.argv[1], "include_skipped": int(sys.argv[2])}))' \
+      "$req" "$include_skipped" \
       | { body=$(cat); api_post pearnly_control.provisioning.api_retry_failed "$body" \
           | py -c '
 import sys, json

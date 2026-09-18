@@ -324,6 +324,28 @@ def _workspace_for(issue, dep) -> dict:
     return spec
 
 
+def _billing_payload(issue, dep) -> dict:
+    """把计费底座的地址、令牌、租户身份写给这个站点。
+
+    为什么站点要知道这三样：余额与台账在**控制面**（三套产品共用一份），
+    产品站点自己算不了钱，只能带着"我是谁"去问。
+
+    地址用容器名 `control-web:8000` 而不是 `control.localhost:8104` ——
+    站点跑在容器里，走的是 compose 内网；`Host` 头由执行器那边带上，
+    Frappe 靠它认站点。
+    """
+    from pearnly_control import billing_api
+
+    return {
+        "site": dep.site_name,
+        "group": dep.bench_group,
+        "tenant": issue.tenant,
+        "api": "http://control-web:8000",
+        "host_header": "control.localhost",
+        "token": billing_api.service_token(),
+    }
+
+
 def _steps_for(issue, dep, row) -> list[dict]:
     """一个部署的步骤序列。顺序有依赖：先有站点才能装 App，装完才能配、再绑人。"""
     site, group = dep.site_name, dep.bench_group
@@ -355,6 +377,10 @@ def _steps_for(issue, dep, row) -> list[dict]:
         {"step_key": f"{dep.name}:restart_web", "deployment": dep.name,
          "action": "restart_web", "status": "pending",
          "payload": json.dumps({"group": group}, ensure_ascii=False)},
+        # 计费底座：余额与台账在控制面，站点要拿到地址 + 令牌 + 自己是谁
+        {"step_key": f"{dep.name}:set_billing", "deployment": dep.name,
+         "action": "set_billing", "status": "pending",
+         "payload": json.dumps(_billing_payload(issue, dep), ensure_ascii=False)},
         {"step_key": f"{dep.name}:finalize_site", "deployment": dep.name,
          "action": "finalize_site", "status": "pending",
          "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},
@@ -489,19 +515,31 @@ def mark_deployment_active(deployment: str) -> str:
     return dep.status
 
 
-def retry_failed_steps(request: str) -> dict:
+def retry_failed_steps(request: str, include_skipped: bool = False) -> dict:
     """把失败/卡住的步骤重置为 pending，让执行器能再跑一遍。
 
     为什么需要：执行器遇到失败会**停住不往下跳**（后面的步骤依赖它），
     所以修好原因之后必须能重试；否则一次失败就把整张单卡死，只能重开单子。
     幂等的步骤（建站、装 App、写配置、发角色）重跑是安全的 —— 这正是幂等
     要求的价值所在。
+
+    `include_skipped=True` 连 `skipped` 一起翻回 pending。为什么需要这个开关：
+    "跳过"有两种，含义完全不同 ——
+
+    - 「这一步本单不需要」（例如没买看板，就不建看板）→ 永远不该重跑；
+    - 「**现在还没到配的时候**」（例如 LINE 渠道：先开通、后配渠道）
+      → 配好之后必须能补跑，否则那一步就永远停在 skipped，
+      站点上永远拿不到渠道密钥，而看进度的人会以为"这件事处理过了"。
+
+    LINE 属于后者。所以补跑时带上这个开关。（默认不带：把"不需要"也重跑一遍
+    没有意义，还会让人误以为流程会自愈。）
     """
     _require_operator()
     req = frappe.get_doc(REQUEST, request)
     reset = []
     for step in req.steps:
-        if step.status in ("failed", "running"):
+        retryable = ("failed", "running") + (("skipped",) if include_skipped else ())
+        if step.status in retryable:
             step.status = "pending"
             step.output = ""
             step.finished_at = None
@@ -515,8 +553,8 @@ def retry_failed_steps(request: str) -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def api_retry_failed(request):
-    return retry_failed_steps(request)
+def api_retry_failed(request, include_skipped: int | bool = 0):
+    return retry_failed_steps(request, include_skipped=bool(int(include_skipped or 0)))
 
 
 @frappe.whitelist()

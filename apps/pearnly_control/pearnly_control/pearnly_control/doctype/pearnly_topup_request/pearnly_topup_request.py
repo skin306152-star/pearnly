@@ -1,0 +1,26 @@
+# -*- coding: utf-8 -*-
+"""充值申请：租户提交 → 管理员审核 → 通过才进余额。
+
+状态机是单向的：`pending → approved | rejected`。**审核过的不许再改**
+（改钱的动作必须一次性、可追溯），所以状态与金额在审核后都是只读的。
+
+余额的加值不在这里做 —— 走 `pearnly_control.billing.grant()`，
+它同时落台账。这里只管"这笔申请被同意了没有"。
+"""
+
+import frappe
+from frappe import _
+from frappe.model.document import Document
+
+
+class PearnlyTopupRequest(Document):
+    def validate(self):
+        if self.status in ("approved", "rejected"):
+            before = self.get_doc_before_save()
+            if before and before.status in ("approved", "rejected"):
+                frappe.throw(_("这张充值申请已经审核过了，不能重复处理"))
+        amt = float(self.requested_thb or 0)
+        if amt <= 0:
+            frappe.throw(_("申请金额必须大于 0"))
+        if amt > 500000:
+            frappe.throw(_("单笔充值上限 ฿500,000"))

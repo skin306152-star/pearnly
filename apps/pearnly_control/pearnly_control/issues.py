@@ -200,6 +200,11 @@ def _activate(doc, operator: str, *, target_name: str) -> dict:
         # 不再发邀请邮件：用户拿的就是初始密码，能直接登录。
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
         tenant = _find_or_create_tenant(doc.tenant_name)
+        # 开出来的租户**余额是 0**（用户 2026-09-18 确认的口径）：
+        # 钱包这时候就建好，免得第一次用 OCR 时才发现没账本。
+        from pearnly_control import billing
+
+        billing.wallet_of(tenant)
     except Exception:
         frappe.db.rollback()
         doc.reload()
