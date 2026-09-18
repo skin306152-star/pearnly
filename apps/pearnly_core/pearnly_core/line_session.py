@@ -273,6 +273,62 @@ def record_booking_attempt(
         _unlock_scope(line_user_id, lock)
 
 
+def replace_claimed_booking_payload(
+    line_user_id: str,
+    expected_nonce: str,
+    state: Optional[str],
+    payload: Optional[dict],
+    ttl_minutes: Optional[int] = None,
+) -> bool:
+    """改写 / 丢弃一张**已被认领、且还没登记过提交**的订车草稿。
+
+    提交前的两条回头路要用它：主档在确认那一瞬间变了（改名 → 重发摘要；被删 → 退回
+    对应步骤重选），以及"建单前就被 DMS 挡住、值得原样再试一次"。
+
+    判据与线上那条 UPDATE 一一对应：会话在 `booking_review`、nonce 已被消费、
+    认领标记就是这个 nonce、**且还没有登记过提交**（`booking_attempt` 为空）。
+    最后一条要紧：登记过就说明请求已经发出去了，那时改草稿会让人误以为"没提交过"。
+
+    `state=None` → 丢弃这张草稿（删会话）；否则写到 `state`。写 `booking_review`
+    时必须带**新 nonce** —— 预览卡的确认按钮要能再次生效。落库前把 `booking_claim`
+    与 `booking_attempt` 两个内部标记摘掉，不带到新草稿里（线上同款清理）。
+    """
+    if not expected_nonce or state not in {None, "booking_review", "booking_qa"}:
+        return False
+    if state == "booking_review" and not (payload or {}).get("nonce"):
+        return False
+    lock = _lock_scope(line_user_id)
+    if not lock:
+        logger.warning("[line_session] 会话被占用，跳过草稿改写")
+        return False
+    try:
+        sess = get_session(line_user_id)
+        current = (sess or {}).get("payload") or {}
+        if not sess or sess.get("state") != "booking_review":
+            return False
+        if current.get("nonce") is not None:
+            return False
+        if str(current.get("booking_claim") or "") != str(expected_nonce):
+            return False
+        if current.get("booking_attempt"):
+            return False  # 已经登记过提交 → 不许再动这张草稿
+        if state is None:
+            clear_session(line_user_id)
+            return True
+        clean = {
+            key: value
+            for key, value in (payload or {}).items()
+            if key not in {"booking_claim", "booking_attempt"}
+        }
+        set_session(line_user_id, state, clean, ttl_minutes=ttl_minutes)
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 订车草稿改写失败", exc_info=True)
+        return False
+    finally:
+        _unlock_scope(line_user_id, lock)
+
+
 def clear_booking_attempt(line_user_id: str, nonce: str) -> bool:
     """提交收尾：**只清自己认领的那张草稿**，别人的草稿一律不动。
 

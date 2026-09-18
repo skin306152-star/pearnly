@@ -171,7 +171,13 @@ def main():
     for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
         src = open(path, encoding="utf-8").read()
         used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
-        used |= set(re.findall(r"cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|MSG_[A-Z0-9_]+)", src))
+        # ⚠️ `(?<!qa_)` 不能少：不带它，`qa_cards.TXT_XXX` 会被当成 `cards.TXT_XXX`，
+        # 于是拿一条**住在 `dms.card.qa.*` 里**的键去 `dms.card.*` 里找 → 假报缺键。
+        used |= set(re.findall(
+            r"(?<!qa_)cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|MSG_[A-Z0-9_]+)", src))
+        # `qa_cards.` 那条路也扫（那是另一套命名空间 `dms.card.qa.*`）
+        used |= {f"qa.{m}" for m in re.findall(
+            r"qa_cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|LBL_[A-Z0-9_]+|VAL_[A-Z0-9_]+)", src)}
     used |= {f"edit.{f}" for f, _ in C.EDIT_FIELDS}
     used |= {f"diff.{f}" for f in C.FIELD_LABELS_TH}
     used |= {f"sum.{f}" for f in C._SUMMARY_FIELD_NAMES}
@@ -189,7 +195,9 @@ def main():
         used |= {f"qa.{m}" for m in re.findall(
             r"""qat\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']""", src)}
     used |= {f"qa.pay.{ch}" for ch in _qa.PAY_LABELS}
-    used.discard("TXT_XXX")  # i18n.py 文档串里举的例子，不是真引用
+    # 文档串里举的例子，不是真引用（`dms_qa_cards.__getattr__` 的说明里也举了一个）
+    used.discard("TXT_XXX")
+    used.discard("qa.TXT_XXX")
     missing = sorted(k for k in used if i18n.t("dms.card." + k, lang="th").startswith("dms.card."))
     check("代码引用的卡片键在语言包里都有（防漏键）", not missing,
           "共查 %d 个键，缺 %s" % (len(used), missing))

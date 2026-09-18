@@ -27,7 +27,6 @@
 from __future__ import annotations
 
 import json
-import inspect
 import logging
 import secrets
 from typing import Any, Dict, List, Optional
@@ -39,6 +38,7 @@ from pearnly_core import line_session as store
 from pearnly_dms import dms_cards as cards
 from pearnly_dms import dms_draft as draft
 from pearnly_dms import dms_intake, dms_ocr_review as ocr_review, dms_ocr_service as _id_ocr
+from pearnly_dms import dms_out as out
 
 logger = logging.getLogger(__name__)
 
@@ -81,19 +81,12 @@ def _enqueue(job: str, fn, *args) -> None:
     `background_jobs.execute_job`），这里原来写成 `arg0/arg1/...`，看着像位置参数，
     实际会在 worker 里 `TypeError` —— webhook 这边只看到"已入队"，用户那边表现为
     **发完照片一直没有回卡**，从日志之外看不出是谁的错。所以按函数签名映射。
+
+    实现在 `dms_out.enqueue`（LINE 出口那一层，老产品的 `_out.make_spawn` 同位置），
+    这样别的流（订车执行体）用同一套，不必各写一份。
     """
-    names = [name for name in inspect.signature(fn).parameters if name != "self"]
-    if len(names) != len(args):
-        # 参数对不上是**写代码时**的错：当场炸，别让它变成 worker 里的静默失败
-        raise TypeError(f"{fn.__name__} 需要 {len(names)} 个参数，但入队传了 {len(args)} 个")
     try:
-        frappe.enqueue(
-            "pearnly_dms.dms_flow." + fn.__name__,
-            queue="long",
-            timeout=600,
-            job_id=f"dms-{job}-{secrets.token_hex(4)}",
-            **dict(zip(names, args)),
-        )
+        out.enqueue(job, fn, *args)
     except Exception:
         # 入队失败不能静默：用户会一直等一张永远不来的卡
         logger.exception("[dms flow] 后台任务入队失败")

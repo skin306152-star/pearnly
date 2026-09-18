@@ -114,6 +114,32 @@ def push(to: str, messages: list) -> bool:
     return True
 
 
+def start_loading(user_id: str, seconds: int = 30) -> bool:
+    """给对方看"正在输入"动画。**阻塞 HTTP**，调用方自己负责别占着 webhook。
+
+    重活（识别身份证、建单）开始之前叫一次，用户才知道系统在动 —— 老产品同一处也这么做。
+    ⚠️ LINE 只接受 5~60 秒、且以 5 秒为步长的值；别的会被接口拒。这里先夹再对齐步长。
+    """
+    if not user_id:
+        return False
+    step = int(seconds or 0) or 30
+    step = max(5, min(60, step))
+    step = min(60, max(5, (step // 5) * 5))
+    resp = requests.post(
+        "https://api.line.me/v2/bot/chat/loading/start",
+        headers=_headers(),
+        json={"chatId": user_id, "loadingSeconds": step},
+        timeout=TIMEOUT,
+    )
+    if resp.status_code != 200:
+        frappe.log_error(
+            title="LINE loading 动画失败",
+            message=f"{resp.status_code} {resp.text[:300]}",
+        )
+        return False
+    return True
+
+
 def get_profile(user_id: str) -> dict:
     resp = requests.get(
         f"https://api.line.me/v2/bot/profile/{user_id}",

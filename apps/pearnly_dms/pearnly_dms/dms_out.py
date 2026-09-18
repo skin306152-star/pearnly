@@ -14,9 +14,13 @@
 
 from __future__ import annotations
 
+import logging
+import secrets
 from typing import Any, Dict, Optional
 
 from pearnly_core import line
+
+logger = logging.getLogger(__name__)
 
 
 def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: str = "") -> bool:
@@ -42,3 +46,46 @@ def reply_text(reply_token: str, text: str) -> bool:
 def push_text(line_user_id: str, text: str) -> bool:
     """纯文本推送（老产品 `_out._push`）。"""
     return line.push(line_user_id, [{"type": "text", "text": text}])
+
+
+def start_loading(line_user_id: str, seconds: int = 30) -> bool:
+    """重活开始前给对方一个"正在输入"（老产品 `_out.start_loading`）。"""
+    return line.start_loading(line_user_id, seconds)
+
+
+def download_content(message_id: str) -> Optional[bytes]:
+    """下载消息内容（图片/凭证）。取不到就 None —— 调用方按"附件失败"如实告知。"""
+    if not message_id:
+        return None
+    try:
+        return line.download_message_content(message_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("[dms out] 下载消息内容失败：%s", message_id, exc_info=True)
+        return None
+
+
+def enqueue(job: str, fn, *args) -> None:
+    """把重活丢后台（老产品 `_out.make_spawn` 那一层）。
+
+    webhook 必须立刻返回，否则 LINE 会超时重发 —— 而重发会让同一个按钮被点两次。
+
+    ⚠️ **参数按形参名传**：后台 worker 是 `method(**kwargs)`（frappe 的
+    `background_jobs.execute_job`），写成 `arg0/arg1/...` 会在 worker 里 `TypeError`，
+    而 webhook 这边只看到"已入队"（用户表现为一直没有回卡）。点号路径取自函数自身，
+    不写死模块名。
+    """
+    import inspect
+
+    import frappe
+
+    names = [name for name in inspect.signature(fn).parameters if name != "self"]
+    if len(names) != len(args):
+        # 参数对不上是**写代码时**的错：当场炸，别留成 worker 里的静默失败
+        raise TypeError(f"{fn.__name__} 需要 {len(names)} 个参数，但入队传了 {len(args)} 个")
+    frappe.enqueue(
+        f"{fn.__module__}.{fn.__name__}",
+        queue="long",
+        timeout=600,
+        job_id=f"dms-{job}-{secrets.token_hex(4)}",
+        **dict(zip(names, args)),
+    )
