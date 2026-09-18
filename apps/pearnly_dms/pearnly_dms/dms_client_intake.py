@@ -15,8 +15,10 @@
 **都不要"顺手改好"**：
 
 1. 保存走 `cus/new.php`（建）/ `cus/edit.php`（改），要带 `stsel` + `idsel` 上下文；
-2. **空的必填 select（称谓/邮编）会让服务端报误导性的"ข้อมูลถูกใช้งานในระบบ"**
-   —— 保存前必须补全；
+2. **必填 select（称谓/地址四级）不许猜**：新建时先清掉新表单自带的默认地址，
+   再把每个值拿去和**实时**父级链核对 —— 显式给值且对得上才放行，否则拦下让人去选。
+   （老实现是"空了就拿第一项补"，结果客户被填上凭空捏造的称谓；线上 `b78697f3` 禁掉了。
+   见 `dms_customer_geo.py` 顶部。）
 3. **PHP 返回 200 / 没有 err:: 不代表写库成功** → 建完要用搜索复核，改完要重读姓名复核。
 """
 
@@ -30,6 +32,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from pearnly_dms.dms_client_base import DmsClientError
+from pearnly_dms.dms_customer_geo import clear_customer_select_defaults, validate_customer_selects
 
 logger = logging.getLogger(__name__)
 
@@ -261,6 +264,10 @@ class DmsClientIntakeMixin:
         if mode == "create" and not (fields.get("people_id") and data.get("txtcuscode")):
             data["txtcuscode"] = fields.get("people_id") or data.get("txtcuscode") or ""
 
+        if mode == "create":
+            # 新建表单自带一组省/县/区/邮编预选值：不清掉，客户就会带着一个
+            # 没人选过的地址被存进 DMS（见 dms_customer_geo 顶部第 1 条）。
+            clear_customer_select_defaults(data)
         self._apply_customer_fields(data, fields, addresses)
         self._guard_required_selects(data, form_html)
 
@@ -348,21 +355,8 @@ class DmsClientIntakeMixin:
                     data[dms + sfx] = str(blk.get(fk) or "")
 
     def _guard_required_selects(self, data: Dict[str, str], form_html: str) -> None:
-        """空的必填 select 会触发误导性的"already in use"，补成有效值（实测坑）。"""
-        if not data.get("selprefix"):
-            opts = self._select_options(form_html, "selprefix")
-            if opts:
-                data["selprefix"] = opts[0][0]
-        for sfx in _ADDR_SUFFIXES:
-            zk = "selzipcodes" + sfx
-            if not data.get(zk):
-                sub = data.get("selsubdistricts" + sfx) or data.get("selsubdistricts")
-                if sub:
-                    z = self._fetch_options(
-                        "cus/component/listzipcodes.php", {"selsubdistricts": sub}
-                    )
-                    if z:
-                        data[zk] = z[0][0]
+        """称谓与地址四级必须与**实时**级联对账；空值/被删值不再拿第一项补齐。"""
+        validate_customer_selects(self, data, form_html)
 
     def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str]) -> str:
         """**PHP 成功码 ≠ 真写库**（这条在老产品是铁律）：

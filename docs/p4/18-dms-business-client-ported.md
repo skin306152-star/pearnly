@@ -75,9 +75,15 @@ HTML 写死的正则，换模板就会**静默返回空**，所以必须拿真�
 
 **下拉"没选"会以空串回到 data 里。** `_selected_value` 在没有 `selected` 时取
 **第一个 option 的值**，而真实表单第一项通常是 `<option value="">-- เลือก --</option>`
-占位 → 得到空串。这是**照抄老产品的行为**，靠后面的 `_guard_required_selects`
-（空必填 select 会触发误导性报错）补成有效值。没有把它"顺手改好"：
-改了就跟老产品行为不一致，而老产品这套是拿真机调出来的。
+占位 → 得到空串。（"取第一项"这个解析行为仍是照抄老产品的。）
+
+> **2026-09-18 更正：** 上面这段的结论当时说对了、收尾说错了。靠
+> `_guard_required_selects` **补第一项**恰恰是线上 `b78697f3` 禁掉的做法 ——
+> 补出来的是客户从没选过的称谓/地址。现已按线上改成
+> `dms_customer_geo.validate_customer_selects`：显式给值 + 与实时父级链核对，
+> 对不上就拦。新建客户前还会先 `clear_customer_select_defaults` 清掉新表单自带的
+> 默认地址（不清 = 客户凭空多一个没人选过的地址）。见
+> [27-customer-geo-parity.md](27-customer-geo-parity.md)。
 
 另外两个是我把假 HTML 写错了（少了 `onclick="ctllistdata"`）、以及断言写在了错误字段上
 （拿"报错信息"去比"错误码"）。两个都在测试侧修掉，没动业务代码。

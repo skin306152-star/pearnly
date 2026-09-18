@@ -125,7 +125,9 @@ def main():
     check("表单默认值：普通 input", d.get("txtcuscode") == "C0001")
     # ⚠️ 这个行为照抄老产品：`_selected_value` 没有 selected 时取【第一个 option 的值】，
     # 而真实表单第一项通常是 `<option value="">-- เลือก --</option>` 占位 → 得到空串。
-    # 所以"下拉没选"会以空串形式回到 data 里，靠 `_guard_required_selects` 补成有效值。
+    # 所以"下拉没选"会以空串形式回到 data 里 —— 注意：**不再靠补第一项蒙混过去**，
+    # 而是被 `_guard_required_selects`（= `dms_customer_geo.validate_customer_selects`）
+    # 拦下来要求显式选择。见本文件第 5 节的拦截用例。
     check("表单默认值：没有 selected 时取第一项（占位为空串，照老产品行为）",
           d.get("selprefix") == "", repr(d.get("selprefix")))
     d_sel = cl._parse_form_defaults(
@@ -193,11 +195,55 @@ def main():
     # ══ 6. 建档：幂等转覆盖 / 写库后必须回读复核 ══════════════════════════
     state = {"name": ""}
 
+    # 新建表单**自带一组默认地址**（P1/D1/S1/Z1）：不清掉，客户就会带着一个
+    # 没人选过的地址被存进 DMS。这里就用这组默认值当陷阱。
     def cus_form(data):
         nm = state["name"] if data.get("status") == "e" else ""
         return ('<form><input name="txtcuscode" value="C0002">'
                 '<input name="txtcusname" value="%s">'
-                '<select name="selprefix"><option value="17">นาย</option></select></form>' % nm)
+                '<select name="selprefix"><option value="17">นาย</option></select>'
+                # 表单带「全量选项」+ 一组「预选默认值」——真实表单就是这样，
+                # 坑在预选的那组：不清掉就会被当成客户自己填的地址。
+                '<select name="selprovinces">'
+                '<option value="P1" selected>กทม</option>'
+                '<option value="P9">เชียงใหม่</option></select>'
+                '<select name="seldistricts">'
+                '<option value="D1" selected>เขต 1</option>'
+                '<option value="D9">เขต 9</option></select>'
+                '<select name="selsubdistricts">'
+                '<option value="S1" selected>แขวง 1</option>'
+                '<option value="S9">แขวง 9</option></select>'
+                '<select name="selzipcodes">'
+                '<option value="Z1" selected>10100</option>'
+                '<option value="Z9">10900</option></select>'
+                '</form>' % nm)
+
+    # 实时级联：请求哪个父级就只认那个父级下的子项（对不上要能拦下来）
+    CHILD_ROUTES = {
+        "cus/component/listdistricts.php": {"P9": ("D9", "เขต 9")},
+        "cus/component/listsubdistricts.php": {"D9": ("S9", "แขวง 9")},
+        "cus/component/listzipcodes.php": {"S9": ("Z9", "10900")},
+    }
+
+    def _child_routes():
+        out = {}
+        for path, by_parent in CHILD_ROUTES.items():
+            parent = {"listdistricts.php": "selprovinces",
+                      "listsubdistricts.php": "seldistricts",
+                      "listzipcodes.php": "selsubdistricts"}[path.split("/")[-1]]
+
+            def handler(data, by_parent=by_parent, parent=parent):
+                hit = by_parent.get(str(data.get(parent) or ""))
+                return ('<option value="%s">%s</option>' % hit) if hit else ""
+
+            out[path] = handler
+        return out
+
+    # 面板选好的地址（P9/D9/S9/Z9）—— 与表单自带的 P1/D1/S1/Z1 不同，
+    # 存下去的是哪个，一眼能看出来。
+    GOOD_ADDR = {"": {"province_id": "P9", "district_id": "D9",
+                      "subdistrict_id": "S9", "zipcode_id": "Z9"}}
+    GOOD_FIELDS = {"people_id": "1000000730317", "name": "สมชาย ใจดี", "prefix_id": "17"}
 
     saves = FakeTransport(routes={
         "cus/form.php": cus_form,
@@ -206,24 +252,69 @@ def main():
             if "1000000730317" in (data.get("sd") or "") else ""),
         "cus/new.php": lambda data: (state.update(name=data.get("txtcusname", "")), "")[1],
         "cus/edit.php": lambda data: (state.update(name=data.get("txtcusname", "")), "")[1],
+        **_child_routes(),
     })
     cl5 = DmsClient(saves, "https://example.test/dms/")
     cid, converted = cl5.save_customer(
-        fields={"people_id": "1000000730317", "name": "สมชาย ใจดี"}, mode="create")
+        fields=GOOD_FIELDS, mode="create", addresses=GOOD_ADDR)
     check("create 时发现已存在 → 转覆盖，并如实回传 converted=True",
           cid == "777" and converted is True, (cid, converted))
     check("转覆盖时走的是 edit.php",
           any("cus/edit.php" in u for u, _ in saves.calls),
           [u.split("/dms/")[-1] for u, _ in saves.calls])
 
+    # 面板选的地址要盖过表单自带默认值（这次转覆盖，走 edit.php）。
+    # 取"真正提交那次"——保存后还有一次复核重读表单，别把那次当提交。
+    posted = dict(next(d for u, d in saves.calls
+                       if "cus/new.php" in u or "cus/edit.php" in u))
+    check("存下去的是面板选的地址（不是表单自带的 P1/D1/S1/Z1）",
+          posted.get("selprovinces") == "P9" and posted.get("selzipcodes") == "Z9",
+          {k: posted.get(k) for k in ("selprovinces", "seldistricts",
+                                      "selsubdistricts", "selzipcodes")})
+
+    # 规则 1 直接验：新建前必须把表单自带的默认值清空（否则没选地址的客户
+    # 会带着 P1/D1/S1/Z1 被存进 DMS），而且**只清下拉、别动别的东西**。
+    from pearnly_dms import dms_customer_geo as geo  # noqa: E402
+
+    defaults = {"selprefix": "17", "selprovinces": "P1", "seldistricts": "D1",
+                "selsubdistricts": "S1", "selzipcodes": "Z1",
+                "selprovinces_ct": "P1", "txtcusname": "x", "txtpeopleid": "1"}
+    geo.clear_customer_select_defaults(defaults)
+    check("新建前清掉表单自带的地址默认值（含 _ct/_sd 各套）",
+          not any(defaults[k] for k in ("selprefix", "selprovinces", "seldistricts",
+                                        "selsubdistricts", "selzipcodes", "selprovinces_ct")),
+          {k: v for k, v in defaults.items() if v})
+    check("清默认值时不动客户姓名/证号", 
+          defaults["txtcusname"] == "x" and defaults["txtpeopleid"] == "1")
+
+    def _save_with(fields, addresses=None):
+        t = FakeTransport(routes={
+            "cus/form.php": cus_form,
+            "cus/component/showdata.php": lambda data: '<div data-val="779" onclick="x">x</div>',
+            "cus/new.php": lambda data: "",
+            **_child_routes(),
+        })
+        cl = DmsClient(t, "https://example.test/dms/")
+        return raises(lambda: cl.save_customer(
+            fields=fields, mode="create", addresses=addresses), DmsClientError), t
+
+    bad_prefix, _ = _save_with({**GOOD_FIELDS, "prefix_id": "999"}, GOOD_ADDR)
+    check("称谓不在名册里 → 拦（不猜）", bad_prefix[0], bad_prefix[1])
+    bad_prov, _ = _save_with(GOOD_FIELDS, {"": {**GOOD_ADDR[""], "province_id": "PX"}})
+    check("省不在实时名册里 → 拦", bad_prov[0], bad_prov[1])
+    bad_child, _ = _save_with(GOOD_FIELDS,
+                              {"": {**GOOD_ADDR[""], "district_id": "D1"}})
+    check("县不属于所选省 → 拦（父级链对不上）", bad_child[0], bad_child[1])
+
     noread = FakeTransport(routes={
         "cus/form.php": cus_form,
         "cus/component/showdata.php": lambda data: "",
         "cus/new.php": lambda data: "",
+        **_child_routes(),
     })
     cl6 = DmsClient(noread, "https://example.test/dms/")
     ok, detail = raises(lambda: cl6.save_customer(
-        fields={"people_id": "1000000730317", "name": "X"}, mode="create"), DmsClientError)
+        fields=GOOD_FIELDS, mode="create", addresses=GOOD_ADDR), DmsClientError)
     check("create 成功码但搜不到 → 报错（PHP 200 不算写库成功）", ok, detail)
 
     # ══ 7. 附件：回读校验必须能发现"没真挂上" ════════════════════════════

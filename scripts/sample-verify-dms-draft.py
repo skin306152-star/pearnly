@@ -55,9 +55,15 @@ def main():
           (d["province_id"], d["district_id"], d["subdistrict_id"], d["zipcode_id"]))
     check("zipcode 是可读名（卡片显示用）", d["zipcode"] == "10500", d["zipcode"])
 
-    # 称谓 OCR 认不出 → 回退主档首项（不让建档卡在"称谓空"上）
+    # 称谓 OCR 认不出 → **留空**，交给编辑器的人确认（线上契约，见 _prefix_id）。
+    # 不许回退主档首项：那会把一个没确认过的称谓写进客户档，还是错的（旧实现把
+    # นาย 写成 นางสาว 就是这么来的）。空值到了写库层会被地址/称谓校验拦下，
+    # 用户被明确要求去选一个，而不是被悄悄填一个。
     d2 = build_draft({**card, "prefix_name": "ไม่รู้จัก"}, geo, prefixes, "")
-    check("称谓认不出 → 回退主档首项", d2["prefix_id"] == "17", d2["prefix_id"])
+    check("称谓认不出 → 留空交给用户确认（不回退首项）",
+          d2["prefix_id"] == "", repr(d2["prefix_id"]))
+    check("认不出时仍保留原始身份证称谓（编辑器要用）",
+          d2["prefix_name"] == "ไม่รู้จัก", d2["prefix_name"])
     # OCR 没给地址文本时，geo 解析出来的文本优先
     d3 = build_draft({"people_id": "1", "address": {}}, geo, prefixes, "")
     check("地址文本取级联解析结果", d3["house_no"] == "99/1" and d3["road"] == "สุขุมวิท",
