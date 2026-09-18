@@ -27,6 +27,7 @@
 from __future__ import annotations
 
 import json
+import inspect
 import logging
 import secrets
 from typing import Any, Dict, List, Optional
@@ -74,14 +75,24 @@ def _send(line_user_id: str, message: Dict[str, Any]) -> None:
 
 
 def _enqueue(job: str, fn, *args) -> None:
-    """把重活丢后台。webhook 必须立刻返回，否则 LINE 会超时重发。"""
+    """把重活丢后台。webhook 必须立刻返回，否则 LINE 会超时重发。
+
+    ⚠️ **参数必须按形参名传**。后台 worker 是 `method(**kwargs)`（frappe 的
+    `background_jobs.execute_job`），这里原来写成 `arg0/arg1/...`，看着像位置参数，
+    实际会在 worker 里 `TypeError` —— webhook 这边只看到"已入队"，用户那边表现为
+    **发完照片一直没有回卡**，从日志之外看不出是谁的错。所以按函数签名映射。
+    """
+    names = [name for name in inspect.signature(fn).parameters if name != "self"]
+    if len(names) != len(args):
+        # 参数对不上是**写代码时**的错：当场炸，别让它变成 worker 里的静默失败
+        raise TypeError(f"{fn.__name__} 需要 {len(names)} 个参数，但入队传了 {len(args)} 个")
     try:
         frappe.enqueue(
             "pearnly_dms.dms_flow." + fn.__name__,
             queue="long",
             timeout=600,
             job_id=f"dms-{job}-{secrets.token_hex(4)}",
-            **{f"arg{i}": a for i, a in enumerate(args)},
+            **dict(zip(names, args)),
         )
     except Exception:
         # 入队失败不能静默：用户会一直等一张永远不来的卡
