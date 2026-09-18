@@ -132,6 +132,13 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
     sess = store.get_session(line_user_id)
     payload = (sess or {}).get("payload") or {}
 
+    # 查询那一族（含菜单第 5 项）：自己的状态与权限门都在 `query_flow` 里。
+    from pearnly_dms import dms_query_flow as query_flow
+
+    if action in query_flow.QUERY_ACTIONS:
+        query_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
+        return
+
     if action == cards.ACT_RESET:
         store.clear_session(line_user_id)
         _reply(reply_token, cards.TXT_RESET)

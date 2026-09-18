@@ -45,9 +45,10 @@ MENU_ACTIONS = frozenset(
 # `mode` 语义的**单一落点**：customer = 只建档收尾；其余（booking/缺省直拍）串联订车。
 MODE_CUSTOMER = "customer"
 
-# 查询那一族（query_flow / query_cards）还没搬 → **不显示第 5 项、也不认 "5"**。
-# 判据留着（`can_query` 是真的），等人到位那一批把它翻成 True 即可：点不动的按钮比没有更糟。
-QUERY_FLOW_LANDED = False
+# 查询那一族（`dms_query_flow` / `dms_query_cards` / `dms_sales_readback`）**已落地**，
+# 所以第 5 项与单字 "5" 都开了。真判据是花名册那一栏（`dms_query_access.can_query`）——
+# 这里的开关只管"这一版有没有这个功能"，不再当权限门用。
+QUERY_FLOW_LANDED = True
 
 _MENU_CHOICES = {
     "1": cards.ACT_MENU_CUSTOMER,
@@ -87,7 +88,7 @@ def open_menu(
 
 
 def can_query(binding: dict) -> bool:
-    """第 5 项要不要画：真判据在后端，且查询那一族没搬之前一律 False。"""
+    """第 5 项要不要画：功能已落地 → 看花名册那一栏（真判据在后端）。"""
     return bool(QUERY_FLOW_LANDED and query_access.can_query(binding))
 
 
@@ -105,9 +106,6 @@ def handle_choice(
     if action == cards.ACT_MENU_QUERY:
         if not QUERY_FLOW_LANDED:
             return False  # 查询那族没搬：不认这个字，别假装接管了
-        # 查询那族（query_flow / query_cards）落地后在这里调 `open_query` 并把
-        # `QUERY_FLOW_LANDED` 翻成 True —— 这个 import 故意放在函数体内，
-        # 免得未搬的模块拖累本模块的导入。
         from pearnly_dms import dms_query_flow as query_flow
 
         query_flow.open_query(binding, line_user_id, reply_token)

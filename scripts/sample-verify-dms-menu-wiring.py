@@ -60,17 +60,22 @@ def main():
        menu_cards.icon_base().endswith("/assets/pearnly_dms/images/menu")
        and "pearnly.com" not in menu_cards.icon_base(), menu_cards.icon_base())
     # 门在 `menu_flow.can_query`（**不是**卡片构造器：构造器本来就该听参数）。
-    # 花名册给了权限、但查询那族还没搬 → 入口仍然不显示第 5 项（点不动的按钮比没有更糟）。
+    # 查询那族已落地 → 现在就看花名册那一栏：给了画第 5 项，没给不画。
     from pearnly_dms import dms_query_access as query_access
 
     real_can = query_access.can_query
-    query_access.can_query = lambda binding: True
+    allowed = {"v": True}
+    query_access.can_query = lambda binding: allowed["v"]
     try:
         menu_flow.query_access = query_access
-        ck("花名册给了查询权限，但查询那族没搬 → 入口仍不画第 5 项",
-           menu_flow.can_query({}) is False
+        ck("花名册给了查询权 → 入口画出第 5 项；没给 → 不画",
+           menu_flow.can_query({}) is True
+           and cards.ACT_MENU_QUERY in str(
+               menu_cards.menu_card(can_query=menu_flow.can_query({})))
+           and (allowed.update(v=False) or menu_flow.can_query({}) is False)
            and cards.ACT_MENU_QUERY not in str(
-               menu_cards.menu_card(can_query=menu_flow.can_query({}))))
+               menu_cards.menu_card(can_query=menu_flow.can_query({}))),
+           (allowed["v"], menu_flow.can_query({})))
     finally:
         query_access.can_query = real_can
 
@@ -99,8 +104,18 @@ def main():
                                                           "1") is False)
     ck("手机号不会被当成菜单键", menu_flow.handle_choice(binding, uid, "tok", sess, "0812345678")
        is False)
-    ck("查询那一项还没搬 → 不认 '5'（也不假装接管）",
-       menu_flow.handle_choice(binding, uid, "tok", sess, "5") is False)
+    # 查询那族已落地：menu 态打 '5' 要**交给查询层**（权限门在它里面，不在这里重复判）
+    opened = []
+    import pearnly_dms.dms_query_flow as query_flow
+
+    real_open = query_flow.open_query
+    query_flow.open_query = lambda binding, luid, token: opened.append(luid)
+    try:
+        ck("menu 态打 '5' → 交给查询层（它自己会过权限门）",
+           menu_flow.handle_choice(binding, uid, "tok", sess, "5") is True and opened == [uid],
+           opened)
+    finally:
+        query_flow.open_query = real_open
 
     replied.clear()
     menu_flow.handle_choice(binding, uid, "tok", sess, "1")

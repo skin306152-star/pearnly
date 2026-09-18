@@ -175,10 +175,12 @@ def main():
         # 就会拿一批住在别的命名空间的键去 `dms.card.*` 里找，报一整屏假"缺键"。
         if "dms.card.query." not in src:
             used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
-        # ⚠️ `(?<!qa_)` 不能少：不带它，`qa_cards.TXT_XXX` 会被当成 `cards.TXT_XXX`，
-        # 于是拿一条**住在 `dms.card.qa.*` 里**的键去 `dms.card.*` 里找 → 假报缺键。
+        # ⚠️ 前缀 lookbehind 不能少：**本仓库有三套命名空间**（`dms.card.*` /
+        # `dms.card.qa.*` / `dms.card.query.*`），而它们的模块分别叫 `cards` / `qa_cards` /
+        # `query_cards`。只写 `cards\.` 会把后两个也算进来，于是拿别的命名空间的键去
+        # `dms.card.*` 里找 → 假报缺键（真踩了两次：先 `qa_cards`、后 `query_cards`）。
         used |= set(re.findall(
-            r"(?<!qa_)cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|MSG_[A-Z0-9_]+)", src))
+            r"(?<![\w.])cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|MSG_[A-Z0-9_]+)", src))
         # `qa_cards.` 那条路也扫（那是另一套命名空间 `dms.card.qa.*`）
         used |= {f"qa.{m}" for m in re.findall(
             r"qa_cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|LBL_[A-Z0-9_]+|VAL_[A-Z0-9_]+)", src)}

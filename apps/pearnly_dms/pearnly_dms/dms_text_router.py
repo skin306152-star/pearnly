@@ -29,6 +29,7 @@ from pearnly_dms import dms_commands as commands
 from pearnly_dms import dms_menu_cards as menu_cards
 from pearnly_dms import dms_menu_flow as menu_flow
 from pearnly_dms import dms_qa_cards as qa_cards
+from pearnly_dms import dms_query_flow as query_flow
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,11 @@ def route(binding: dict, line_user_id: str, reply_token: str, text: str) -> None
         return
 
     state = (sess or {}).get("state")
+
+    # 查询那两条"等打字"的态**排在订车前面**（照线上顺序：查询 → 逐问 → 待确认）。
+    # 它自带权限门，且只接管自己那两个态，别的态一律返 False。
+    if query_flow.handle_text(binding, line_user_id, reply_token, sess, text):
+        return
 
     # 逐问/待确认态**先于一切文本路**（尤其"含数字→手机号"）：金额、单字被吃成号码就废一次会话。
     # 待确认态的文本只提醒点确认/丢弃，**不覆写会话**（确认/取消是 postback 专属）。

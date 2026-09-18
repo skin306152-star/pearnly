@@ -274,3 +274,4 @@ dms.card.query.EMPTY_TOP,ไม่พบยอดขายในช่วงเ�
 dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
 dms.card.query.TOP_NOTE_PREFIX,ทุกสาขา/ทีมที่บัญชีนี้มองเห็น · อ่านล่าสุด
+dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
