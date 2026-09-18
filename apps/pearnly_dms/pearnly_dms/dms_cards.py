@@ -12,7 +12,8 @@
 
 from __future__ import annotations
 
-from typing import Dict
+from typing import Any, Dict, List
+from urllib.parse import urlencode
 
 # ── 文案 ─────────────────────────────────────────────────────────────────
 TXT_BLURRY = "อ่านบัตรไม่ชัด กรุณาถ่ายใหม่"
@@ -137,3 +138,250 @@ FIELD_LABELS_TH: Dict[str, str] = {
     "subdistrict_id": "ตำบล",
     "zipcode_id": "รหัสไปรษณีย์",
 }
+
+_MAX_CANDIDATES = 4  # 候选卡按钮上限（LINE bubble 体积限制）
+
+
+# ── 构造器 ───────────────────────────────────────────────────────────────
+def _data(action: str, **kw: str) -> str:
+    """postback 的 data 编码：action + 可选 nonce/cid。querystring 稳定、可核对。"""
+    return urlencode({"action": action, **{k: v for k, v in kw.items() if v}})
+
+
+def _qr_item(label: str, data: str) -> Dict[str, Any]:
+    """quick reply 项（postback，data 里带 action + nonce + field）。"""
+    return {
+        "type": "action",
+        "action": {"type": "postback", "label": label, "data": data, "displayText": label},
+    }
+
+
+def edit_menu_message(nonce: str) -> Dict[str, Any]:
+    """[แก้ไข] 展开的字段选择（quick reply）：每项带 field，末项是取消。"""
+    items = [
+        _qr_item(label, _data(ACT_EDIT_FIELD, nonce=nonce, field=key)) for key, label in EDIT_FIELDS
+    ]
+    items.append(_qr_item(BTN_EDIT_CANCEL, _data(ACT_EDIT_CANCEL, nonce=nonce)))
+    return {"type": "text", "text": TXT_EDIT_PICK, "quickReply": {"items": items}}
+
+
+def edit_prompt(field: str) -> str:
+    """选中字段后的输入提示。"""
+    return f"พิมพ์ค่าใหม่ของ{_EDIT_LABELS.get(field, field)}"
+
+
+def _btn(label: str, data: str, style: str = "primary") -> Dict[str, Any]:
+    return {
+        "type": "button",
+        "style": style,
+        "height": "sm",
+        "action": {"type": "postback", "label": label, "data": data, "displayText": label},
+    }
+
+
+def _kv_row(label: str, value: str) -> Dict[str, Any]:
+    return {
+        "type": "box",
+        "layout": "baseline",
+        "spacing": "sm",
+        "contents": [
+            {"type": "text", "text": label, "size": "sm", "color": "#8a8a8a", "flex": 2},
+            {
+                "type": "text",
+                "text": value or "—",
+                "size": "sm",
+                "color": "#111111",
+                "flex": 5,
+                "wrap": True,
+            },
+        ],
+    }
+
+
+def diff_rows(display_diffs: List[Dict[str, str]]) -> List[Dict[str, Any]]:
+    """逐条「字段标签（粗）+ 旧 → 新（红）」行。差异卡与审批申请卡共用同一渲染。"""
+    return [
+        {
+            "type": "box",
+            "layout": "vertical",
+            "contents": [
+                {
+                    "type": "text",
+                    "text": d.get("label", ""),
+                    "size": "sm",
+                    "weight": "bold",
+                    "color": "#111111",
+                },
+                {
+                    "type": "text",
+                    "text": f"{d.get('old') or '—'}  →  {d.get('new') or '—'}",
+                    "size": "sm",
+                    "color": "#c0392b",
+                    "wrap": True,
+                },
+            ],
+        }
+        for d in display_diffs
+    ]
+
+
+def _bubble(
+    header: str, body_rows: List[Dict[str, Any]], footer_btns: List[Dict[str, Any]], alt: str
+) -> Dict[str, Any]:
+    return {
+        "type": "flex",
+        "altText": alt,
+        "contents": {
+            "type": "bubble",
+            "body": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "sm",
+                "contents": [
+                    {"type": "text", "text": header, "weight": "bold", "size": "md", "wrap": True},
+                    {"type": "separator", "margin": "sm"},
+                    *body_rows,
+                ],
+            },
+            "footer": {
+                "type": "box",
+                "layout": "vertical",
+                "spacing": "sm",
+                "contents": footer_btns,
+            },
+        },
+    }
+
+
+def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
+    """五要素复述行（新客 / 一致 / 差异三张卡共用同一预览区）。
+
+    为什么三张卡都要复述全信息：操作员（和泰方）拍板过 —— **每张卡先看全信息**，
+    只回一句"一致"会把识别或手输出错的销售堵死。
+    """
+    s = summary or {}
+    return [
+        _kv_row("เลขบัตร", s.get("people_id", "")),
+        _kv_row("ชื่อ", s.get("name", "")),
+        _kv_row("วันเกิด", s.get("birthday_be", "")),
+        _kv_row("ที่อยู่", s.get("address", "")),
+        _kv_row("เบอร์โทร", s.get("phone", "")),
+    ]
+
+
+def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
+    """场景①新建：五要素复述 + [บันทึกลูกค้าใหม่][แก้ไข]。
+
+    只有两个按钮是有意的（拍板瘦身）：重拍 = 直接再发照片，重来 = 打"เมนู"，
+    不占按钮位。
+    """
+    footer = [
+        _btn(BTN_SAVE_NEW, _data(ACT_CREATE, nonce=nonce), "primary"),
+        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+    ]
+    return _bubble(
+        "ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก",
+        _summary_rows(summary),
+        footer,
+        "ยืนยันบันทึกลูกค้าใหม่",
+    )
+
+
+def same_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
+    """场景②已有客户 · 资料一致（不分模式）：预览复述 + [ใช้ข้อมูลเดิม][แก้ไข]。
+
+    只回一句「ตรงกัน」会把识别/手输出错的销售堵死 —— 预览和修正入口必须在。
+    """
+    footer = [
+        _btn(BTN_KEEP, _data(ACT_KEEP, nonce=nonce), "primary"),
+        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+    ]
+    return _bubble(TXT_SAME, _summary_rows(summary), footer, "ข้อมูลลูกค้าตรงกัน")
+
+
+def booking_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
+    """菜单2 认出"资料一致"的客户时，确认后进入订车逐问。"""
+    footer = [
+        _btn(BTN_CONTINUE_BOOKING, _data(ACT_KEEP, nonce=nonce), "primary"),
+        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+    ]
+    return _bubble("พบข้อมูลลูกค้าในระบบ", _summary_rows(summary), footer, "พบข้อมูลลูกค้าในระบบ")
+
+
+def diff_card(
+    display_diffs: List[Dict[str, str]],
+    nonce: str,
+    *,
+    primary: str = "none",
+    summary: Dict[str, str],
+) -> Dict[str, Any]:
+    """场景③已有客户 + 有差异：新资料完整预览 + 逐条「字段：旧 → 新」放同一张卡
+    （2026-07-19 拍板），按钮 [主键][ใช้ข้อมูลเดิม][แก้ไข]。
+
+    **主按钮由调用方按角色解出，渲染层不藏优先级**：
+
+    · `primary='approval'`（信用授权类 · 策略要审）→ [ส่งขออนุมัติ]
+    · `primary='update'`（有改写权）→ [อัปเดตข้อมูล]
+    · `primary='none'`（无改写权且没配 admin）→ 只给一句提示，**不给主按钮**
+      （让用户点了才发现"要管理员"是最差体验）
+    """
+    rows: List[Dict[str, Any]] = _summary_rows(summary)
+    rows.append({"type": "separator", "margin": "sm"})
+    rows.append({"type": "text", "text": "ความต่าง", "size": "xs", "color": "#8a8a8a"})
+    rows += diff_rows(display_diffs)
+    footer: List[Dict[str, Any]] = []
+    if primary == "approval":
+        footer.append(_btn(BTN_SUBMIT_APPROVAL, _data(ACT_SUBMIT_APPROVAL, nonce=nonce), "primary"))
+    elif primary == "update":
+        footer.append(_btn(BTN_UPDATE, _data(ACT_UPDATE, nonce=nonce), "primary"))
+    else:
+        rows.append({"type": "separator", "margin": "sm"})
+        rows.append(
+            {
+                "type": "text",
+                "text": TXT_ADMIN_NEEDED,
+                "size": "xs",
+                "color": "#8a8a8a",
+                "wrap": True,
+            }
+        )
+    footer.append(_btn(BTN_KEEP, _data(ACT_KEEP, nonce=nonce), "secondary"))
+    footer.append(_btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"))
+    return _bubble("พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน", rows, footer, "พบข้อมูลลูกค้าที่ต่างกัน")
+
+
+def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, Any]:
+    """场景④相似：候选按钮（码 · 姓名 · 证号尾 4）+ [ลูกค้าใหม่] 兜底。人工认领。"""
+    rows: List[Dict[str, Any]] = []
+    for c in candidates[:_MAX_CANDIDATES]:
+        cid = str(c.get("customer_id") or "")
+        tail = (str(c.get("people_id") or ""))[-4:]
+        label = f"{c.get('cuscode') or '—'} · {c.get('name') or ''}"
+        if tail:
+            label += f" · x{tail}"
+        rows.append(_btn(label[:40], _data(ACT_PICK, nonce=nonce, cid=cid), "link"))
+    footer = [_btn(BTN_NEW_CUSTOMER, _data(ACT_CREATE, nonce=nonce), "primary")]
+    return _bubble(
+        "พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน", rows, footer, "เลือกลูกค้าที่ตรงกัน"
+    )
+
+
+def receipt_text(customer_id: str, name: str, mode: str) -> str:
+    """写档成功回执：客户码 + 姓名 + **实际做了什么**（诚实告知，不谎称新建）。"""
+    action = "สร้างลูกค้าใหม่" if mode == "create" else "อัปเดตข้อมูลลูกค้า"
+    return f"บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id or '—'}\nชื่อ: {name or '—'}"
+
+
+def booking_receipt_text(
+    booking_no: str, car: str, delivery_date_be: str, advisor_name: str
+) -> str:
+    """订车成功回执：BK 单号 + 车型 + 交车日 + 销售顾问。
+
+    顾问那一行 = **提成归属的当场回执**，销售不用登 DMS 就能核对
+    （名字缺就整行不出，不留空槽）。
+    """
+    text = (
+        f"เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no or '—'}\n"
+        f"รุ่นรถ: {car or '—'}\nวันที่ส่งมอบ: {delivery_date_be or '—'}"
+    )
+    return f"{text}\nที่ปรึกษา: {advisor_name}" if advisor_name else text
