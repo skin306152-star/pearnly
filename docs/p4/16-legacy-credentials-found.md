@@ -74,10 +74,30 @@ dump 里 22 条 DMS 连接分属不同账号。**只能拿测试账号做实验*
 
 换机器（或 dump 更新了）重跑这三条即可，不用重新去库里挖。
 
-## 六、还没做的
+## 六、已经真连过一次 DMS（2026-09-18）
 
-- **真连一次 DMS**：登录是 Playwright 真浏览器（老产品 `mrerp_dms_client.py`
-  注释原文："the DMS session is owned by a real Playwright browser login"），
-  客户端还没搬过来 —— 这是清单上的下一件。
+搬那 2500 行客户端之前先证明"这套账号从本机真能登进去"，否则搬完才发现连不上。
+`scripts/probe-dms-login.py`（探针，不是客户端）：
+
+| 项 | 结果 |
+|---|---|
+| `checklogin.php` 响应 | **`lct::1::1`** —— status 1 = 普通用户，grant 1 = 已批准 |
+| 落点 | `https://www.mrerp4sme.com/dms/home/home.php`，标题 `Mr.erp` |
+| 弹窗 | 无（没有"重复登录"提示，说明当时没有别的会话占着） |
+| 截图 | [evidence/dms-login-dmstest-20260918.png](evidence/dms-login-dmstest-20260918.png) |
+
+界面是泰文，抬头 BANGKOK 分公司、年度 2569，客户列表里是
+`ลูกค้า ทดสอบ ราย 1`（测试客户 1）—— 正是留给实验用的数据，不是客户真数据。
+
+顺带确认了登录的时序坑（老产品注释里的 prod bug）：`index.js` 把点击处理绑在
+`window.load` 上，`goto` 必须 `wait_until="load"`，且点击要多试几次，
+否则是**静默无操作**——看起来像"密码错"，其实根本没提交。
+
+## 七、还没做的
+
+- **把 DMS 客户端搬过来**（真实浏览器登录 + 表单提交，约 2500 行）：
+  探针只证明了"能登"，查重/建档/推送都还没有。这是清单上的下一件。
+- **Playwright 进我们的镜像**：现在探针借老产品的 venv 跑；
+  正经搬过来时要把浏览器依赖装进自己的镜像（老产品生产也是服务端跑 Playwright）。
 - **LINE 真回调**：凭据齐了，但 `*.localhost` 收不到 LINE 的公网回调，
   需要公网 HTTPS 地址才能真正验证（接口按租户隔离的部分照计划做）。
