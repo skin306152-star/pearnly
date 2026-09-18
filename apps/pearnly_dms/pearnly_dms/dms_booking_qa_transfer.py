@@ -10,6 +10,11 @@ async → 同步。
 
 ⚠️ 拆解用户那句话、把它变成 DMS 原生槽位的是 `dms_booking_payments`；本文件只管
 "该问哪一步、收到的文字往哪走"。两处边界不要混。
+
+⚠️ **注入的 `masters` 有两种调用形状**（老产品就这样，别把它"统一"掉）：
+· `handle_text` 那条路用 `masters_reader` 造的读取器 → `(line_user_id, qa, key)`；
+· `pick_bank` 由状态机直接传 `dms_booking_qa_sync.masters` → `(tenant_id, line_user_id, qa, key)`。
+改签名前先看调用方是哪条路。
 """
 
 from __future__ import annotations
@@ -188,7 +193,8 @@ def pick_bank(
     channel = qa["pending_channel"].get("channel")
     other = qa.get("step") == "pay_bank"
     key = PAYMENT_CHANNEL_BANKS[channel] if other else "company_banks"
-    rows = masters(line_user_id, qa, key, persist=persist)
+    # 注意形状：这条路由状态机调用，`masters` 就是 `dms_booking_qa_sync.masters` 本身
+    rows = masters(tenant_id, line_user_id, qa, key, persist=persist)
     row = find_row(rows, value)
     if row is None:
         send_step(tenant_id, line_user_id, qa, qa["step"], reply_token)

@@ -201,11 +201,19 @@ def main():
        not qa.get("payments") and len(rec_out) == 1 and rec.sent == [], (qa, rec.sent))
 
     # ── 6. 选银行 ──────────────────────────────────────────────────────
+    # ⚠️ `pick_bank` 的 `masters` 是**状态机直接传下来的**（形状同
+    # `dms_booking_qa_sync.masters`：`(tenant_id, line_user_id, qa, key)`），
+    # 与 `handle_text` 那条路的 `masters_reader` 形状不同 —— 别"统一"掉。
+    def machine_masters(rows_by_key):
+        def read(tenant_id, line_user_id, qa, key, persist=None):
+            return rows_by_key.get(key, [])
+        return read
+
     rec = Rec()
     qa = {"step": "pay_bank", "pending_channel": {"channel": "cheque", "amount": "500.00"},
           "pages": {"cheque_banks": 2}}
     transfer.pick_bank("t", "u", qa, "1", "tok",
-                       masters=masters_reader({"cheque_banks": [["1", "KBANK", "KBank"]]}),
+                       masters=machine_masters({"cheque_banks": [["1", "KBANK", "KBank"]]}),
                        persist=rec.persist, send_step=rec.send_step)
     ck("选了渠道银行 → 挂 bank_id/bank_name 并进资料步",
        qa["pending_channel"]["extra"]["bank_id"] == "1"
@@ -220,7 +228,7 @@ def main():
                                         "dst_branch_name": "B"}},
           "files": {"slip_mid": "m1"}}
     transfer.pick_bank("t", "u", qa, "1", "tok",
-                       masters=masters_reader({"company_banks": [["1", "SCB", "SCB", "BR1", "123-4"]]}),
+                       masters=machine_masters({"company_banks": [["1", "SCB", "SCB", "BR1", "123-4"]]}),
                        persist=rec.persist, send_step=rec.send_step)
     # 选完就完结这一笔 → 待填渠道搬进 payments（`complete_channel`），从这里读回去
     extra = (qa.get("payments") or [{}])[0].get("extra") or {}
@@ -235,7 +243,7 @@ def main():
           "pending_channel": {"channel": "transfer", "amount": "100.00", "extra": {}},
           "files": {}}
     transfer.pick_bank("t", "u", qa, "1", "tok",
-                       masters=masters_reader({"company_banks": [["1", "SCB", "SCB", "123-4"]]}),
+                       masters=machine_masters({"company_banks": [["1", "SCB", "SCB", "123-4"]]}),
                        persist=rec.persist, send_step=rec.send_step)
     ck("转账选完账户但还没凭证 → 要凭证（拿完回'还要加渠道吗'）",
        qa.get("step") == "slip_after" and qa.get("after_slip") == "pay_more", qa)

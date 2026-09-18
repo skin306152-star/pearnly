@@ -14,8 +14,11 @@
 2. **审批流未搬**：老产品有差异且销售无改写权时走"提交审核"。现在按
    `has_admin` 决定主按钮（有 → 更新；没有 → 提示先配管理员）。**审批策略接上时，
    这里换回 `exact_diff_card` 即可，其余代码不用动。**
-3. **订车逐问未搬**：老产品建档后可在 LINE 里接着订车（`booking_qa`）。现在到建档为止
-   —— 但建单本身已经搬完并验过（`dms_booking`），只是没有 LINE 那一层的逐问界面。
+3. **订车逐问搬完但未接线**：老产品建档后可在 LINE 里接着订车。状态机与它的七个分件
+   都已落地并验过（`dms_booking_qa` / `dms_booking_qa_start|sync|pages|payment|transfer`
+   + `dms_out`），缺的是**入口**：老产品靠菜单层决定"建档之后接着订车"，而菜单层
+   （`menu_cards` / `menu_flow` / `menu_sync`）还没搬。接线之前这一层不会被调用；
+   建单本身也早已搬完并验过（`dms_booking`）。
 
 重活（识别 / DMS 登录 / 写库）一律**丢后台任务**，webhook 不占着回复令牌等它
 （老产品是 spawn 后台 + start_loading + push 结果，同一个思路）。
