@@ -24,8 +24,6 @@ import IconPurchase from "~icons/lucide/shopping-cart";
 import IconSuppliers from "~icons/lucide/truck";
 import IconSettings from "~icons/lucide/settings-2";
 import IconSales from "~icons/lucide/receipt";
-import IconConnect from "~icons/lucide/plug-zap";
-import IconLineBind from "~icons/lucide/qr-code";
 import IconRecords from "~icons/lucide/list";
 import IconRoster from "~icons/lucide/id-card";
 import IconDot from "~icons/lucide/circle";
@@ -52,8 +50,6 @@ const BY_ROUTE: Record<string, Component> = {
   "/suppliers": IconSuppliers,
   "/purchase-settings": IconSettings,
   "/sales": IconSales,
-  "/connect": IconConnect,
-  "/line-bind": IconLineBind,
   "/records": IconRecords,
   "/roster": IconRoster,
 };

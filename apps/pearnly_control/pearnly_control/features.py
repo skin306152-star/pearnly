@@ -100,6 +100,7 @@ ENFORCEMENT = {
     ("erp", "purchase"): ("ERP 采购", ["Purchase Document", "Purchase Line"]),
     ("dms", "id_card_ocr"): ("DMS 身份证录入", ["DMS ID Card Intake"]),
     ("dms", "customer_match"): ("DMS 客户匹配", ["DMS Customer Link"]),
+    ("dms", "roster"): ("DMS 操作员", ["DMS Operator"]),
 }
 
 # 产品管理员角色：能管本产品的员工账号，但**不含功能权限** ——

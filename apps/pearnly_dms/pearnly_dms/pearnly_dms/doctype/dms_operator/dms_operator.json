@@ -1,0 +1,143 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:user",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "display_name",
+  "user",
+  "column_break_main",
+  "dms_role",
+  "status",
+  "section_credentials",
+  "dms_username",
+  "dms_password",
+  "section_advisor",
+  "advisor_id",
+  "advisor_name",
+  "section_flags",
+  "can_query_dms",
+  "notes"
+ ],
+ "fields": [
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "显示名",
+   "reqd": 1,
+   "description": "老板在这张表里认人用的名字，例如：阿明（销售）"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "本地账号",
+   "options": "User",
+   "reqd": 1,
+   "unique": 1,
+   "description": "本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "sales",
+   "fieldname": "dms_role",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "角色",
+   "options": "sales\nadmin",
+   "reqd": 1,
+   "description": "sales=销售，admin=管理员（老产品的两种角色，没有第三种）"
+  },
+  {
+   "default": "active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "状态",
+   "options": "active\ninactive",
+   "reqd": 1,
+   "description": "停用后其 DMS 推送停止并解除 LINE 绑定"
+  },
+  {
+   "fieldname": "section_credentials",
+   "fieldtype": "Section Break",
+   "label": "该操作员自己的 DMS 账密"
+  },
+  {
+   "fieldname": "dms_username",
+   "fieldtype": "Data",
+   "label": "DMS 用户名"
+  },
+  {
+   "fieldname": "dms_password",
+   "fieldtype": "Password",
+   "label": "DMS 密码"
+  },
+  {
+   "fieldname": "section_advisor",
+   "fieldtype": "Section Break",
+   "label": "销售提成归属",
+   "description": "留空 = 按 DMS 账号自动匹配（老产品的默认行为）"
+  },
+  {
+   "fieldname": "advisor_id",
+   "fieldtype": "Data",
+   "label": "DMS 顾问 ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "advisor_name",
+   "fieldtype": "Data",
+   "label": "DMS 顾问名称",
+   "read_only": 1,
+   "description": "名字在钉的时候由服务端解出，不信客户端传来的值"
+  },
+  {
+   "fieldname": "section_flags",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "can_query_dms",
+   "fieldtype": "Check",
+   "label": "允许在 LINE 使用查询功能"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "备注"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly DMS",
+ "name": "DMS Operator",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "display_name",
+ "track_changes": 1
+}

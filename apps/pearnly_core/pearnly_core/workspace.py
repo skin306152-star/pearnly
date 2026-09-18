@@ -63,21 +63,35 @@ def product_module() -> str:
 def site_product_workspace() -> str:
     """本站点的产品工作区名字。没有就返回空串。
 
-    按"模块属于本站点的产品 App"来找：Frappe 判断工作区可见性时会检查
-    `workspace.module in user.allowed_modules`，所以产品工作区必然是产品模块下的，
-    这样不会误取到框架自带的那几个工作区（Build / Users / Website…）。
+    首选**站点配置里的 `pearnly_workspace`**（开通时写下的那个名字）。
+
+    为什么不再按 module 反查：工作区的 `module` 必须为空，否则 `bench migrate`
+    会把它当"没有对应文件的公开工作区"删掉（原因写在
+    `pearnly_core/provisioning.ensure_product_workspace` 里的长注释）。
+    module 为空就反查不到，所以名字改成由我们自己写、自己读。
+
+    回退：老站点（配置里还没有这一键）仍按产品模块找一次，找到就补写进配置 ——
+    已有的租户不用重跑开通也能对上。
     """
     module = product_module()
-    if not module:
-        return ""
-    names = frappe.get_all(
-        "Workspace",
-        filters={"module": module, "public": 1},
-        pluck="name",
-        order_by="creation desc",
-        limit=1,
-    )
-    return names[0] if names else ""
+    configured = str(frappe.conf.get("pearnly_workspace") or "").strip()
+    if configured and frappe.db.exists("Workspace", configured):
+        return configured
+
+    if module:
+        names = frappe.get_all(
+            "Workspace",
+            filters={"module": module, "public": 1},
+            pluck="name",
+            order_by="creation desc",
+            limit=1,
+        )
+        if names:
+            from frappe.installer import update_site_config
+
+            update_site_config("pearnly_workspace", names[0])
+            return names[0]
+    return ""
 
 
 def _needs_default_workspace(user: str, current: str | None) -> bool:
@@ -85,13 +99,37 @@ def _needs_default_workspace(user: str, current: str | None) -> bool:
 
     **已经有值的不动** —— 那可能是用户自己在界面上选的，重跑开通不能顶掉。
     只处理站点自己的业务账号：Administrator 与网站用户不属于产品使用者。
+
+    例外：现有值**指向一个已经不存在的工作区**时必须修。这种悬空值真出现过 ——
+    `bench migrate` 会把生成的工作区删掉（原因见
+    `provisioning.ensure_product_workspace`），而用户身上还留着旧名字。
     """
     if not user or user in ("Administrator", "Guest"):
         return False
     if current:
-        return False
+        return not frappe.db.exists("Workspace", current)
     user_type = frappe.db.get_value("User", user, "user_type")
     return user_type == "System User"
+
+
+def clear_dangling_default_workspace(user: str) -> bool:
+    """把用户身上**指向已不存在的工作区**的那个值清掉。返回是否清了。
+
+    为什么需要：`User.default_workspace` 是 Link 字段，值指向不存在的记录时，
+    保存这个用户会直接抛 `LinkValidationError: Could not find <默认工作区>`——
+    于是"给用户发角色"这种跟工作区无关的动作也会连带失败，报错还看不出关联。
+
+    什么时候会出现悬空值：`bench migrate` 会删掉我们生成的工作区
+    （原因见 `provisioning.ensure_product_workspace`）。所以任何保存用户之前
+    都值得先清一下，而不是假设它一定是好的。
+    """
+    if not user or not frappe.db.exists("User", user):
+        return False
+    current = frappe.db.get_value("User", user, "default_workspace")
+    if not current or frappe.db.exists("Workspace", current):
+        return False
+    frappe.db.set_value("User", user, "default_workspace", None, update_modified=False)
+    return True
 
 
 def apply_to_site_users() -> dict:

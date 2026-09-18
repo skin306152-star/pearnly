@@ -99,6 +99,39 @@
    容器重建不会清。**改完 hooks 必须 `bench --site <站点> clear-cache`。**
 2. **工作台空态不容易发现**：`links` 有数据、工作区也在侧边栏看得到，
    只有 `content` 是空的那一句"欢迎来到…"。不打开看是发现不了的。
+3. **工作区会被 `bench migrate` 删掉**（2026-09-18 修）。这条最隐蔽，展开说。
+
+### 坑 3：工作区活不过一次 migrate
+
+**症状**：跑完 `bench migrate` 之后，给用户发角色这种**跟工作区毫无关系**的动作会失败，
+报 `LinkValidationError: Could not find <租户工作区>`；`bench execute` 还会把它吞掉、
+换成一句无关的 `NameError: name 'pearnly_core' is not defined`（老坑叠加）。
+
+**根因**（读源码得到，不是猜）：`frappe/model/sync.py:remove_orphan_entities()` 会删掉
+**`public=1` 且 `module` 有值 且 `app` 有值、但在 App 目录里没有对应 json 文件**的
+Workspace；而 `Workspace.validate()` 会自动由 module 推出 app。我们的工作区是
+**每个租户按需生成**的，永远不可能在 App 目录里有文件 —— 所以只要填了 module，
+跑一次 migrate 就没了。工作区没了，用户身上的 `User.default_workspace` 还指着它，
+于是**保存任何用户都抛 LinkValidationError**。
+
+**修法**（三处，缺一个都还会复发）：
+
+1. 生成的工作区把 **`module` 留空** —— 空 module 既有反直觉的好处：
+   `frappe/desk/desktop.py` 的可见性检查是
+   `if self.doc.module and self.doc.module not in self.allowed_modules: PermissionError`，
+   module 为空这一条整个跳过（填了反而要挑对模块，填错就被判无权限丢掉 —— 更早踩过）。
+2. 工作区名字改由**站点配置 `pearnly_workspace`** 记录
+   （module 为空就反查不到，只能自己写自己读；`site_product_workspace()` 保留按模块
+   回退一次，好让老站点不用重跑开通也能对上）。
+3. **保存用户之前先清悬空值**：`workspace.clear_dangling_default_workspace()`
+   在 `ensure_feature_roles` 里调用；`_needs_default_workspace()` 也把
+   "现有值指向不存在的工作区"当成需要重设。
+
+**另一个顺序坑**：`ensure_product_workspace` 里必须**先写站点配置、再调
+`apply_to_site_users()`**。反过来的话，`site_product_workspace()` 因为 module 为空、
+配置又还没写而找不到工作区，返回"本站点还没有产品工作区"，**落点就静默没设上**（实测）。
+
+**回归证据**：修完后再跑一次 `bench migrate`，工作区与 `default_workspace` 都在。
 
 ## 边界（没做 / 不确定）
 

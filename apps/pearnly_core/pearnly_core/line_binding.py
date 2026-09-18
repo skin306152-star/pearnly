@@ -54,7 +54,18 @@ def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dic
     })
     doc.insert(ignore_permissions=True, set_name=code)
     frappe.db.commit()
-    return {"code": code, "expires_at": str(doc.expires_at), "ttl_minutes": ttl_minutes}
+    # ⚠️ **一定要给 `expires_in`（剩余秒数）**，界面别去解析 `expires_at` 那个字符串。
+    #
+    # 为什么：`expires_at` 是**站点时区的裸时间**（例如站点时区是 Asia/Kolkata 时就是
+    # IST），而浏览器按**自己所在时区**解析同一串字符。两边不一致时算出来的
+    # "还能用多久"就是错的 —— 实测：站点时区 IST、浏览器 +07，刚生成的码立刻显示
+    # "已过期"。秒数没有时区问题，倒计时只认它。
+    return {
+        "code": code,
+        "expires_at": str(doc.expires_at),
+        "expires_in": int(ttl_minutes) * 60,
+        "ttl_minutes": ttl_minutes,
+    }
 
 
 def consume_bind_code(code: str):
@@ -126,78 +137,8 @@ def unbind(line_user_id: str) -> bool:
     frappe.db.commit()
     return True
 
-
-# ── 网页端接口 ──────────────────────────────────────────────────────────────
-#
-# 网页端这边**只做两件事**：给我生成一个一次性绑定码、告诉我现在绑了哪些 LINE 账号。
-# 业务本身（身份证录入、客户查询）在 LINE 对话里完成 —— 用户 2026-09-17 定的：
-# "DMS 身份证录入网页端不要了，业务几乎都在 LINE 完成，网页只负责绑定"。
-#
-# 所以这里**刻意没有**"替别人生成绑定码"的接口：拿到别人的码就等于把别人的 LINE
-# 绑到自己账号上。要换人，请对方自己登录生成。
-
-
-def _current_user() -> str:
-    user = frappe.session.user
-    if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
-    return user
-
-
-def mask_line_user_id(value: str) -> str:
-    """LINE 用户 ID 是外部标识，界面上不需要全量，留尾八位够人工核对。"""
-    value = value or ""
-    return "…" + value[-8:] if len(value) > 8 else value
-
-
-@frappe.whitelist(methods=["POST"])
-def api_generate_bind_code(minutes=None):
-    """给自己生成一次性绑定码（网页端「LINE 绑定码」页用）。
-
-    只给自己生成 —— 不接受 user 参数（理由见上面那段注释）。
-    """
-    user = _current_user()
-    try:
-        ttl = int(minutes) if minutes else DEFAULT_TTL_MINUTES
-    except (TypeError, ValueError):
-        ttl = DEFAULT_TTL_MINUTES
-    # 给个上界：码是拿来找回账号的凭证，不该长期有效
-    ttl = max(1, min(ttl, 24 * 60))
-    return generate_bind_code(user, ttl)
-
-
-@frappe.whitelist()
-def api_my_bindings():
-    """我名下还生效的 LINE 绑定。网页端用它显示"已绑定 / 还没绑"。"""
-    user = _current_user()
-    rows = frappe.get_all(
-        BINDING,
-        filters={"user": user, "status": "active"},
-        fields=["line_user_id", "display_name", "bound_at"],
-        order_by="bound_at desc",
-        limit_page_length=0,
-    )
-    pending = frappe.get_all(
-        BIND_CODE,
-        filters={"user": user, "used": 0},
-        fields=["code", "expires_at"],
-        order_by="creation desc",
-        limit_page_length=1,
-    )
-    return {
-        "user": user,
-        "bindings": [
-            {
-                "line_user_id": mask_line_user_id(row.line_user_id),
-                "display_name": row.display_name or "",
-                "bound_at": str(row.bound_at or ""),
-            }
-            for row in rows
-        ],
-        # 页面刷新后还能看到刚才那个码（只要没过期、没用掉）
-        "pending_code": (
-            {"code": pending[0].code, "expires_at": str(pending[0].expires_at)}
-            if pending
-            else None
-        ),
-    }
+# 网页端**没有**"给我自己发绑定码"的接口，这是有意的：
+# 老产品的绑定码只从**操作员花名册的某一行**发出（见 `pearnly_dms/roster.py` 的
+# `api_operator_bind_code`），因为绑定的对象是"某个操作员"，不是"当前登录的人"。
+# 曾经按自己理解的"独立绑定码页"写过一对 api_my_bindings / api_generate_bind_code，
+# 后来对照老产品发现那一页并不存在，就删了 —— 多出来的接口就是多出来的漏洞面。

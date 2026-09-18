@@ -22,15 +22,10 @@ const routes: RouteRecordRaw[] = [
     component: () => import("./pages/cowork/IntakePage.vue"),
   },
   {
-    // DMS：网页端只负责"把账号接上 LINE"和"看推送结果"，录入在 LINE 里做
-    path: "/line-bind",
-    name: "line-bind",
-    component: () => import("./pages/dms/LineBindPage.vue"),
-  },
-  {
-    path: "/records",
-    name: "records",
-    component: () => import("./pages/dms/RecordsPage.vue"),
+    // DMS 操作员花名册（老产品里这一页仅老板可见，含每行「发绑定码」）
+    path: "/roster",
+    name: "roster",
+    component: () => import("./pages/dms/RosterPage.vue"),
   },
   {
     // 清单里有、但还没做的页面：给一个诚实的占位，不假装能点

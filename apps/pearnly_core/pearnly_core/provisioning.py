@@ -28,11 +28,29 @@ from pearnly_core import identity
 # 所以浏览器语言排在系统默认之前；这是 Frappe 定的，我们不去改它。
 TENANT_DEFAULT_LANGUAGE = "th"
 
+# 租户默认时区。
+#
+# 为什么必须显式设：Frappe 装出来的站点默认时区是 **Asia/Kolkata**（实测：租户站点
+# 的 System Settings 就是它）。业务在泰国，差 1.5 小时会让所有"时间"看起来都不对 ——
+# 列表里的创建时间、单据时间、以及**倒计时**（绑定码有效期）全都会偏。
+# 绑定码那次就是被它咬到的：服务端给的是 IST 的字符串，浏览器按 +07 解析，
+# 算出来"已经过期"。倒计时另外改成了用秒数传（见 `line_binding.generate_bind_code`），
+# 但显示时间这件事只能靠时区本身对。
+#
+# 与语言同理，可以用站点配置 `pearnly_default_timezone` 覆盖。
+TENANT_DEFAULT_TIMEZONE = "Asia/Bangkok"
+
 
 def tenant_default_language() -> str:
     """本站点的默认语言。站点配置 `pearnly_default_language` 优先，否则租户默认值。"""
     configured = str(frappe.conf.get("pearnly_default_language") or "").strip()
     return configured or TENANT_DEFAULT_LANGUAGE
+
+
+def tenant_default_timezone() -> str:
+    """本站点的默认时区。站点配置 `pearnly_default_timezone` 优先。"""
+    configured = str(frappe.conf.get("pearnly_default_timezone") or "").strip()
+    return configured or TENANT_DEFAULT_TIMEZONE
 
 
 def ensure_local_user(email: str, full_name: str, subject: str,
@@ -126,6 +144,9 @@ def finalize_site() -> dict:
         # 租户默认语言（见 TENANT_DEFAULT_LANGUAGE 的说明）。
         # 只给业务站点设：控制面是老板自己用的，保持原样。
         frappe.db.set_single_value("System Settings", "language", tenant_default_language())
+        # 租户默认时区（见 TENANT_DEFAULT_TIMEZONE 的说明）。
+        # 不设就会留在 Frappe 的默认值 Asia/Kolkata 上，泰国业务差 1.5 小时。
+        frappe.db.set_single_value("System Settings", "time_zone", tenant_default_timezone())
     frappe.db.commit()
 
     frappe.clear_cache()
@@ -205,6 +226,15 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
 
     # 换掉租户管理员的角色组合
     user = frappe.get_doc("User", admin_user)
+
+    # 保存用户之前先清掉悬空的默认工作区。不清的话这里会抛
+    # `LinkValidationError: Could not find <默认工作区>`，而这一步跟工作区毫无关系 ——
+    # 报错完全指不到真正的原因（`bench migrate` 会删掉生成的工作区）。
+    from pearnly_core.workspace import clear_dangling_default_workspace
+
+    if clear_dangling_default_workspace(admin_user):
+        user = frappe.get_doc("User", admin_user)
+
     want = set(base_roles) | ({admin_role} if admin_role else set())
     want |= {r["role"] for r in feature_roles}
     have = {r.role for r in user.roles}
@@ -341,10 +371,23 @@ def ensure_product_workspace(spec_json: str) -> dict:
     doc.public = 1
     doc.icon = icon
     doc.content = frappe.as_json(blocks)
-    # 模块必须是**该产品自己的模块**：Frappe 用
-    # `workspace.module in user.allowed_modules` 判断可见性，租户用户被允许的
-    # 只有他所用产品 App 的模块。写成核心层模块会被判无权限直接丢掉（踩过）。
-    doc.module = spec.get("module") or "Pearnly Core"
+    # ⚠️ **module 必须留空**，两条理由（都是实测出来的，不是猜的）：
+    #
+    # 1. **填了会被 migrate 删掉**。`frappe/model/sync.py:remove_orphan_entities()`
+    #    清的是"`public=1` 且 `module` 有值 且 `app` 有值、但在 App 目录里没有对应
+    #    json 文件"的 Workspace；而 `Workspace.validate()` 会自动由 module 推出 app。
+    #    我们的工作区是**每个租户按需生成**的，永远不可能在 App 目录里有文件 ——
+    #    所以只要填了 module，跑一次 `bench migrate` 就没了。实测：跑完 migrate 后
+    #    工作区消失，而 `User.default_workspace` 还指着它，于是保存任何用户都会报
+    #    `LinkValidationError: Could not find พื้นที่ทำงานเริ่มต้น: <租户工作区>`。
+    # 2. **留空反而更稳**。可见性在 `frappe/desk/desktop.py` 的 `Workspace.__init__`：
+    #    `if self.doc.module and self.doc.module not in self.allowed_modules: PermissionError`。
+    #    module 为空 → 这一条整个跳过 → 不会因为"模块不在该用户的允许模块里"被挡。
+    #    （反过来说，填核心层模块会被判无权限丢掉 —— 这是更早踩过的坑。）
+    #
+    # 工作区名字因此不能靠 module 反查，改用站点配置里的 `pearnly_workspace`
+    # （见 `pearnly_core/workspace.site_product_workspace`）。
+    doc.module = ""
     doc.label = title
     doc.sequence_id = 1.0
     for link in links:
@@ -361,12 +404,6 @@ def ensure_product_workspace(spec_json: str) -> dict:
     _ensure_workspace_icon(title, icon, spec.get("product") or "")
     _clear_desktop_caches()
 
-    # 让租户登录后**直接落到这个工作台**，不要先过一屏"桌面"再点一次。
-    # 必须在工作区已存在之后做，这也是它放在 set_workspace 这一步的原因。
-    from pearnly_core import workspace as workspace_mod
-
-    landed = workspace_mod.apply_to_site_users()
-
     # 把"这家买到了哪些功能"落到站点配置上 —— 前端渲染菜单要用
     # （`pearnly_core.shell.describe` 读它）。放这一步是因为它本来就拿着这份清单：
     # 工作区里要列什么，就是买到的那些功能；同一件事不拆成两步。
@@ -380,6 +417,23 @@ def ensure_product_workspace(spec_json: str) -> dict:
         from frappe.installer import update_site_config
 
         update_site_config("pearnly_features", codes)
+
+    # 工作区名字记到站点配置里。为什么不能靠 module 反查：工作区的 module 必须为空
+    # （否则 migrate 会删掉它，见上面的长注释），而 `site_product_workspace()`
+    # 原来就是按 module 找的 —— 换成一个我们自己写、自己读的键，两边才一致。
+    from frappe.installer import update_site_config
+
+    update_site_config("pearnly_workspace", doc.name)
+
+    # 让租户登录后**直接落到这个工作台**，不要先过一屏"桌面"再点一次。
+    #
+    # ⚠️ 顺序：必须在**两个站点配置都写完之后**再调 `apply_to_site_users()`。
+    # 它内部靠 `site_product_workspace()` 找本站点的工作区，而工作区的 module
+    # 是空的（见上），所以只能靠 `pearnly_workspace` 这个配置找 —— 先调它就会
+    # 得到"本站点还没有产品工作区"，落点也就没设上（实测踩到）。
+    from pearnly_core import workspace as workspace_mod
+
+    landed = workspace_mod.apply_to_site_users()
 
     return {
         "workspace": doc.name,

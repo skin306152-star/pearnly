@@ -91,8 +91,6 @@ const NAV: Record<string, NavEntry[]> = {
   ],
   dms: [
     HOME,
-    { label: "连接第三方 DMS", route: "/connect" },
-    { label: "LINE 绑定码", route: "/line-bind" },
     { label: "推送记录", route: "/records", feature: "push_record" },
     { label: "操作员", route: "/roster", feature: "roster" },
   ],
