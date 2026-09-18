@@ -91,3 +91,8 @@ def find_row(rows: Optional[List[list]], rid: Optional[str]) -> Optional[list]:
         if r and str(r[0]) == str(rid):
             return r
     return None
+
+
+def deposit_total(payments: List[Dict[str, Any]]) -> Decimal:
+    """各渠道订金金额求和（金额一律 `Decimal`，不用 float）。"""
+    return sum((Decimal(str(p.get("amount") or "0")) for p in payments or []), Decimal("0"))
