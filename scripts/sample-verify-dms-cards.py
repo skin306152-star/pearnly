@@ -175,6 +175,9 @@ def main():
     used |= {f"edit.{f}" for f, _ in C.EDIT_FIELDS}
     used |= {f"diff.{f}" for f in C.FIELD_LABELS_TH}
     used |= {f"sum.{f}" for f in C._SUMMARY_FIELD_NAMES}
+    from pearnly_dms import dms_booking_car_details as _car_details
+
+    used |= {f"car.{name}" for _, name in _car_details._FIELD_NAMES}
     used.discard("TXT_XXX")  # i18n.py 文档串里举的例子，不是真引用
     missing = sorted(k for k in used if i18n.t("dms.card." + k, lang="th").startswith("dms.card."))
     check("代码引用的卡片键在语言包里都有（防漏键）", not missing,
@@ -194,6 +197,84 @@ def main():
         ("候选卡", C.candidates_card([], "n4")),
     ) if "dms.card." in str(msg)]
     check("卡片正文不露裸 key", not leaked, leaked)
+
+    # ── 10. 车型规格卡 + 提交前权威复核 ────────────────────────────────
+    from pearnly_dms import dms_booking_car_details, dms_booking_preflight
+    from pearnly_dms.dms_client_base import DmsClientError
+    from pearnly_dms.dms_models import DMSMasterRef
+
+    full_car = ["3", "C", "Camry", "", "Toyota", "", "รถเก๋ง", "", "2.5 HV", "",
+                "G", "", "อัตโนมัติ", "2568", "", "2.5L", "1,599,000", "X"]
+    qa = {"answers": {"car": {"id": "3"}},
+          "master_snapshot": {"rows": {"cars": [full_car]}}}
+    rows10 = dms_booking_car_details.rows(qa)
+    labels = [r["contents"][0]["text"] for r in rows10]
+    check("车型规格卡：标签取自语言包（不是写死的泰文）",
+          labels == [i18n.t("dms.card.car." + n, lang="th")
+                     for _, n in dms_booking_car_details._FIELD_NAMES],
+          labels[:3])
+    check("车型规格卡：正文不露裸 key", "dms.card." not in str(rows10))
+    check("车型规格卡：取不到的列直接不出，不留空槽",
+          all(r["contents"][1]["text"] for r in rows10) and len(rows10) == 8, len(rows10))
+    short_car = ["3", "C", "Camry", "", "Toyota", "", "รถเก๋ง"]
+    got = dms_booking_car_details.rows(
+        {"answers": {"car": {"id": "3"}},
+         "master_snapshot": {"rows": {"cars": [short_car]}}})
+    # 只列到 index 6：能出的就是 4(品牌) 与 6(类型) 两行
+    check("车型规格卡：只有前几列时只出这两行", len(got) == 2
+          and [r["contents"][0]["text"] for r in got]
+          == [i18n.t("dms.card.car.brand", lang="th"), i18n.t("dms.card.car.type", lang="th")],
+          len(got))
+    check("车型规格卡：车不在快照里 → 空（不编）",
+          dms_booking_car_details.rows({"answers": {"car": {"id": "999"}}}) == [])
+
+    # 提交前权威复核：主档没变 → ok；变了 → 报回字段；颜色取不到 → 明确失败
+    unchanged = {"answers": {"car": {"id": "3"}, "paint": {"id": "P1"}},
+                 "master_snapshot": {"rows": {"cars": [full_car], "paints_by_car": {"3": []}}}}
+    live = {"cars": [full_car], "advisors": [], "place_books": [], "term_sales": [],
+            "branches": [], "regis_behalfs": [], "company_banks": []}
+
+    class _Pre:
+        def _bshsd_all(self, elem, **kw):
+            return [["P1", "", "ขาว"]]
+
+    # 复核的结论**照 reconcile 的判定透传**，并带上"是哪个字段变了"
+    with_advisor = {**unchanged, "advisor": {"id": "7", "name": "สมชาย"}}
+    live_full = {**live, "advisors": [["7", "S07", "สมชาย"]]}
+    gone = {"advisor": {"id": "7", "name": "สมชาย"}, "answers": {"car": {"id": "999"}},
+            "master_snapshot": {"rows": {"cars": []}}}
+    res = dms_booking_preflight.readonly_preflight(
+        _Pre(), object(), gone,
+        fetch_masters=lambda cl: live_full, fetch_payment_banks=lambda ad: {})
+    # 注意：reconcile 是按它自己的顺序逐项查（顾问 → 店 → … → 车），所以这里断言的是
+    # "preflight 把 reconcile 的结论**原样透传**并带上字段与错误码"，不是"一定报车"。
+    check("主档对不上 → 透传 reconcile 的结论（非 ok + 字段 + 错误码）",
+          res["status"] != "ok" and bool(res.get("field")) and bool(res.get("code")),
+          {k: res.get(k) for k in ("status", "field", "code")})
+    no_advisor = {"answers": {"car": {"id": "3"}}, "master_snapshot": {"rows": {}}}
+    res = dms_booking_preflight.readonly_preflight(
+        _Pre(), object(), no_advisor,
+        fetch_masters=lambda cl: live_full, fetch_payment_banks=lambda ad: {})
+    check("顾问没了 → 报的是 advisor（不把根因说成车）",
+          res["status"] != "ok" and res.get("field") == "advisor",
+          {k: res.get(k) for k in ("status", "field", "code")})
+    check("复核函数本身不吃 qa 的空值（不炸）",
+          isinstance(dms_booking_preflight.readonly_preflight(
+              _Pre(), object(), with_advisor,
+              fetch_masters=lambda cl: live_full, fetch_payment_banks=lambda ad: {}), dict))
+
+    class _NoPaint:
+        def _bshsd_all(self, elem, **kw):
+            return None  # 取数失败，不是"这车没颜色"
+
+    try:
+        dms_booking_preflight.readonly_preflight(
+            _NoPaint(), object(), unchanged,
+            fetch_masters=lambda cl: live, fetch_payment_banks=lambda ad: {})
+        check("颜色取数失败 → 明确失败（不拿空表冒充「这车没颜色」）", False, "没抛")
+    except DmsClientError as exc:
+        check("颜色取数失败 → 明确失败（不拿空表冒充「这车没颜色」）",
+              exc.error_code == "ERR_DMS_MASTER_UNAVAILABLE", exc.error_code)
 
     failed = [x for x in results if not x[1]]
     print("")

@@ -116,3 +116,11 @@ dms.card.TXT_ACTION_UPDATE,อัปเดตข้อมูลลูกค้�
 dms.card.TXT_RECEIPT_SAVE,บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id}\nชื่อ: {name}
 dms.card.TXT_RECEIPT_BOOKING,เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}
 dms.card.TXT_RECEIPT_ADVISOR,ที่ปรึกษา: {name}
+dms.card.car.brand,ยี่ห้อ
+dms.card.car.type,ประเภทรถ
+dms.card.car.desc,รายละเอียดรถ
+dms.card.car.grade,เกรด
+dms.card.car.gear,เกียร์
+dms.card.car.year,ปีผลิต
+dms.card.car.engine,เครื่องยนต์
+dms.card.car.price,ราคาตาม DMS
