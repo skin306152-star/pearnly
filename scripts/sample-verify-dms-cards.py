@@ -170,7 +170,11 @@ def main():
     used = set()
     for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
         src = open(path, encoding="utf-8").read()
-        used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
+        # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`：别的模块（比如 `dms_query_cards`）
+        # 也有一个 `_t`，但它写的是 `dms.card.query.*` —— 不分青红皂白地收进来，
+        # 就会拿一批住在别的命名空间的键去 `dms.card.*` 里找，报一整屏假"缺键"。
+        if "dms.card.query." not in src:
+            used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
         # ⚠️ `(?<!qa_)` 不能少：不带它，`qa_cards.TXT_XXX` 会被当成 `cards.TXT_XXX`，
         # 于是拿一条**住在 `dms.card.qa.*` 里**的键去 `dms.card.*` 里找 → 假报缺键。
         used |= set(re.findall(

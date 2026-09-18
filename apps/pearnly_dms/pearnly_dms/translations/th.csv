@@ -190,3 +190,87 @@ dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็�
 dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
 dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
 dms.card.qa.TXT_PICK_BANK,เลือกธนาคาร
+dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
+dms.card.query.TXT_PICK_TYPE,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
+dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
+dms.card.query.TXT_PICK_SALES,เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ
+dms.card.query.TXT_LOADING,กำลังอ่านข้อมูลล่าสุดจาก DMS
+dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
+dms.card.query.TXT_NO_ENDPOINT,ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน
+dms.card.query.TYPE_SALES,1 บันทึกการขาย
+dms.card.query.TYPE_INVENTORY,2 สินค้าคงคลัง
+dms.card.query.TYPE_OTHER,3 รายการอื่น
+dms.card.query.DIM_LATEST,ล่าสุด 10 รายการ
+dms.card.query.DIM_ADVISOR,ที่ปรึกษาการขาย
+dms.card.query.DIM_VEHICLE,รุ่นรถ
+dms.card.query.DIM_CUSTOMER,ลูกค้า
+dms.card.query.DIM_COLOR,สี
+dms.card.query.DIM_BOOKING_DATE,วันที่จอง
+dms.card.query.DIM_DELIVERY_DATE,วันที่ส่งมอบ
+dms.card.query.DIM_FINANCE,เงินสด/ไฟแนนซ์
+dms.card.query.DIM_ALLOCATION,การจัดสรรรถ
+dms.card.query.DIM_CONTRACT,สถานะสัญญา
+dms.card.query.DIM_SALES_DOC_NO,เลขที่เอกสารขาย
+dms.card.query.DIM_ENGINE_NO,หมายเลขเครื่อง
+dms.card.query.DIM_TOP,ยอดขายสูงสุด
+dms.card.query.ASK_ADVISOR,พิมพ์ชื่อที่ปรึกษาการขาย
+dms.card.query.ASK_VEHICLE,พิมพ์รุ่นรถ
+dms.card.query.ASK_CUSTOMER,พิมพ์ชื่อลูกค้า
+dms.card.query.ASK_COLOR,พิมพ์สีรถ
+dms.card.query.ASK_BOOKING_DATE,พิมพ์วันที่จอง เช่น 01/09/2569
+dms.card.query.ASK_DELIVERY_DATE,พิมพ์วันที่คาดว่าจะส่งมอบ เช่น 15/09/2569
+dms.card.query.ASK_SALES_DOC_NO,พิมพ์เลขที่เอกสารการขาย
+dms.card.query.ASK_ENGINE_NO,พิมพ์หมายเลขเครื่อง
+dms.card.query.ASK_ANY,พิมพ์คำที่ต้องการค้นหา
+dms.card.query.PICK_STATUS,เลือกสถานะที่ต้องการ
+dms.card.query.ST_CASH,ซื้อเงินสด
+dms.card.query.ST_FINANCE_PENDING,ไฟแนนซ์รออนุมัติ
+dms.card.query.ST_FINANCE_APPROVED,ไฟแนนซ์อนุมัติ
+dms.card.query.ST_MANAGER_PENDING,รอ ผจก.ขาย
+dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
+dms.card.query.ST_ALLOCATED,จัดสรรแล้ว
+dms.card.query.ST_READY,พร้อมรับรถ
+dms.card.query.ST_CONTRACT_OPENED,เปิดสัญญาแล้ว
+dms.card.query.ST_CONTRACT_NOT_OPENED,ยังไม่เปิดสัญญา
+dms.card.query.ST_BOOKING,ใบจอง
+dms.card.query.ST_DRAFT,แบบร่าง
+dms.card.query.ASK_TOP_GROUP,จัดอันดับยอดขายตามอะไร
+dms.card.query.GRP_MODEL,รุ่นรถ
+dms.card.query.GRP_TYPE,ประเภทรถ
+dms.card.query.GRP_SUBTYPE,ประเภทย่อย
+dms.card.query.ASK_TOP_METRIC,จัดอันดับด้วยจำนวนคันหรือยอดเงิน
+dms.card.query.MET_QTY,จำนวนคัน
+dms.card.query.MET_AMOUNT,ยอดเงิน
+dms.card.query.ASK_TOP_PERIOD,เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
+dms.card.query.PERIOD_M_5,เดือนนี้ Top 5
+dms.card.query.PERIOD_M_10,เดือนนี้ Top 10
+dms.card.query.PERIOD_M_20,เดือนนี้ Top 20
+dms.card.query.PERIOD_M_30,เดือนนี้ Top 30
+dms.card.query.PERIOD_Y_10,ปีนี้ Top 10
+dms.card.query.PERIOD_CUSTOM,กำหนดเอง 1–30
+dms.card.query.ASK_TOP_CUSTOM,พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
+dms.card.query.STATUS_UNKNOWN,ไม่ระบุสถานะ
+dms.card.query.LBL_CUSTOMER,ลูกค้า
+dms.card.query.LBL_CAR,รถ
+dms.card.query.LBL_ADVISOR,ที่ปรึกษา
+dms.card.query.LBL_DATE,วันที่
+dms.card.query.LBL_DELIVERY,ส่งมอบ
+dms.card.query.LBL_FINANCE,ไฟแนนซ์
+dms.card.query.LBL_ALLOCATION,จัดสรร
+dms.card.query.LBL_DOCS,เอกสาร/เครื่อง
+dms.card.query.NAV_REFRESH,อ่านใหม่
+dms.card.query.NAV_PREV,หน้าก่อน
+dms.card.query.NAV_NEXT,หน้าถัดไป
+dms.card.query.ALT_RECORDS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
+dms.card.query.EMPTY_RECORDS_PREFIX,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
+dms.card.query.CARD_TITLE,บันทึกการขายจาก DMS
+dms.card.query.CARD_NOTE,สถานะเอกสารแสดงตาม DMS จริง · แบบร่างไม่นับเป็นยอดขาย
+dms.card.query.LBL_PAGE,หน้า
+dms.card.query.LBL_COUNT,จำนวน
+dms.card.query.LBL_READ_AT,อ่านล่าสุด
+dms.card.query.UNIT_AMOUNT,บาท
+dms.card.query.UNIT_QTY,คัน
+dms.card.query.EMPTY_TOP,ไม่พบยอดขายในช่วงเวลานี้
+dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
+dms.card.query.TITLE_TOP,ยอดขายสูงสุด
+dms.card.query.TOP_NOTE_PREFIX,ทุกสาขา/ทีมที่บัญชีนี้มองเห็น · อ่านล่าสุด
