@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import uuid
 from typing import Any, Dict, Optional
 
 import frappe
@@ -128,6 +129,10 @@ def consume_nonce(
 
     一次性 token：清掉 nonce 后同一 nonce 的二次确认必然 mismatch
     （防双击双写 / 双建单）。
+
+    `booking_review` 这一态额外**留下认领标记** `booking_claim = <被消费的 nonce>`：
+    "订车草稿被谁认领提交过"必须能从会话里读出来，否则防重复建单那一层无从判断
+    （老产品叫 `_booking_claim`，语义逐字相同）。其它态不留 —— 建档那条链不需要。
     """
     sess = get_session(line_user_id)
     payload = (sess or {}).get("payload") or {}
@@ -135,7 +140,10 @@ def consume_nonce(
         return None
     if not payload.get("nonce") or payload.get("nonce") != nonce:
         return None
-    set_session(line_user_id, expect_state, {**payload, "nonce": None})
+    claimed = {**payload, "nonce": None}
+    if expect_state == "booking_review":
+        claimed["booking_claim"] = nonce
+    set_session(line_user_id, expect_state, claimed)
     return payload
 
 
@@ -153,3 +161,145 @@ def replace_review_payload(line_user_id: str, expected_nonce: str, payload: dict
         return False
     set_session(line_user_id, "booking_review", payload)
     return True
+
+
+# ── 订车"提交登记"：跨过写边界之前先记下来（防重复建单） ─────────────────────
+#
+# 这一对函数只服务一件事：**同一张订车草稿只能被提交一次**。线上是老平台的
+# Postgres 单语句 CAS（`session_store.record_booking_attempt`，见 docs/p4/43）。
+# 新平台的会话在 Frappe DocType 上，没有 CAS，所以改成"**Redis 锁 + 锁内读改写**"：
+# 锁的粒度是 `line_user_id`（一个用户同时只可能有一次提交），锁内先读会话、
+# 逐条判据、再写回去 —— 与线上那条 WHERE 的每一条判据**一一对应**。
+
+_LOCK_PREFIX = "pearnly:line-session:lock:"
+ATTEMPT_LOCK_SECONDS = 30
+
+
+def _lock_scope(line_user_id: str):
+    """抢这把会话锁。返回 owner（拿到）或 None（别人正在动这条会话）。
+
+    ⚠️ 与 `adapter/master_shared` 同一套写法：Redis `SET NX PX`，进程崩了到点自己
+    消失，不用清死锁。**读到的是 bytes，比较前要解码** —— 那个坑那边已经踩过。
+    """
+    import frappe
+
+    owner = uuid.uuid4().hex
+    try:
+        ok = frappe.cache().set(
+            _LOCK_PREFIX + str(line_user_id), owner,
+            nx=True, px=ATTEMPT_LOCK_SECONDS * 1000,
+        )
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 抢会话锁失败", exc_info=True)
+        return None
+    return owner if ok else None
+
+
+def _unlock_scope(line_user_id: str, owner: str) -> None:
+    import frappe
+
+    try:
+        current = frappe.cache().get(_LOCK_PREFIX + str(line_user_id))
+        if isinstance(current, (bytes, bytearray)):
+            current = current.decode("utf-8", "ignore")
+        if current is not None and str(current) != str(owner):
+            return  # 别人的锁不能删
+        frappe.cache().delete(_LOCK_PREFIX + str(line_user_id))
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 释放会话锁失败（到点会自己过期）", exc_info=True)
+
+
+def record_booking_attempt(
+    line_user_id: str, nonce: str, booking_no: str, owner: str,
+    previous_no: Optional[str] = None,
+) -> bool:
+    """把"我要提交这张草稿"登记进会话。**只有满足全部判据才写**，否则回 False。
+
+    判据（与线上那条 CAS 的 WHERE 逐条对应）：
+
+    1. 会话在 `booking_review` 态（提交中的草稿就是这个态）；
+    2. `payload.nonce is None` —— 草稿**已被认领**（nonce 已被 `consume_nonce` 消费）；
+    3. `payload.booking_claim == nonce` —— 认领的正是这一张，**换过的草稿顶不掉**；
+    4. 要么**从来没登记过**（`previous_no` 为空且没有既有标记），
+       要么是**同一个执行体在顺号重试**（`owner` 与 `booking_no` 都对上：
+       DMS 说这个号重复了，同一个执行体换下一个号再登记，属于同一次提交）。
+
+    任一条不满足 → 拒绝：调用方据此**不写 DMS**（宁可少写，不可重复建单）。
+    """
+    if not nonce or not booking_no or not owner:
+        return False
+    lock = _lock_scope(line_user_id)
+    if not lock:
+        # 抢不到锁说明另一个执行体正在登记同一张草稿 —— 这次绝不放行
+        logger.warning("[line_session] 会话被占用，拒绝登记订车提交")
+        return False
+    try:
+        sess = get_session(line_user_id)
+        payload = (sess or {}).get("payload") or {}
+        if not sess or sess.get("state") != "booking_review":
+            return False
+        if payload.get("nonce") is not None:
+            return False
+        if str(payload.get("booking_claim") or "") != str(nonce):
+            return False
+        marker = payload.get("booking_attempt") or {}
+        if previous_no is None:
+            if marker:
+                return False  # 这一张已经登记过了
+        else:
+            same_execution = (
+                str(marker.get("owner") or "") == str(owner)
+                and str(marker.get("booking_no") or "") == str(previous_no)
+            )
+            if not same_execution:
+                return False  # 别的执行体 / 别的号，不许顶掉
+        set_session(
+            line_user_id,
+            "booking_review",
+            {
+                **payload,
+                "booking_attempt": {
+                    "nonce": str(nonce),
+                    "booking_no": str(booking_no),
+                    "owner": str(owner),
+                },
+            },
+        )
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 订车提交登记失败；写 DMS 被拦下", exc_info=True)
+        return False
+    finally:
+        _unlock_scope(line_user_id, lock)
+
+
+def clear_booking_attempt(line_user_id: str, nonce: str) -> bool:
+    """提交收尾：**只清自己认领的那张草稿**，别人的草稿一律不动。
+
+    判据：还在 `booking_review`、nonce 已被消费、认领标记就是这个 nonce、
+    且登记用的也是这个 nonce。任一条不符 → False（不删）。
+    """
+    if not nonce:
+        return False
+    lock = _lock_scope(line_user_id)
+    if not lock:
+        logger.warning("[line_session] 会话被占用，跳过草稿清理")
+        return False
+    try:
+        sess = get_session(line_user_id)
+        payload = (sess or {}).get("payload") or {}
+        if not sess or sess.get("state") != "booking_review":
+            return False
+        if payload.get("nonce") is not None:
+            return False
+        if str(payload.get("booking_claim") or "") != str(nonce):
+            return False
+        if str((payload.get("booking_attempt") or {}).get("nonce") or "") != str(nonce):
+            return False
+        clear_session(line_user_id)
+        return True
+    except Exception:  # noqa: BLE001
+        logger.warning("[line_session] 订车草稿清理失败", exc_info=True)
+        return False
+    finally:
+        _unlock_scope(line_user_id, lock)
