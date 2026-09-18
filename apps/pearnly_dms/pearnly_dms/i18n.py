@@ -44,7 +44,15 @@ APP = "pearnly_dms"
 PREFIX = "dms."
 
 # 本项目支持的语言（与 translations/ 下的文件名一一对应）。
-LANGUAGES = ("th", "en", "zh", "zh_TW", "ja")
+#
+# **四种**：中 / 英 / 泰 / 日 —— 与产品界面上的语言开关一致（老产品 `scripts/check_i18n.py`
+# 写的就是这个集合）。
+#
+# ⚠️ **不要因为某个字典里出现了 `zh_TW` 就给它建一套包。** 老产品那份错误话术字典里
+# 确实有 `zh_TW` 的条目，但它的正规做法是 **`zh_TW` 回落到 `zh`**（同一份 check_i18n.py
+# 写明："zh_TW 通过 fallback 到 zh"）。这一档不是要维护的第五种语言；建包会让某个词
+# 只在繁体里被单独改掉，两边慢慢就不一致了。回落逻辑见 `pack()`。
+LANGUAGES = ("th", "en", "zh", "ja")
 FALLBACK_LANG = "th"
 
 _cache: dict[str, dict] = {}
@@ -64,6 +72,10 @@ def pack(lang: str) -> dict:
         data = get_translation_dict_from_file(path, lang, APP) or {}
     except Exception:
         logger.warning("[i18n] 读不到语言包 %s（按空包处理）", lang, exc_info=True)
+    # 带地区码的没包就回落基语言（`zh_TW` → `zh`）—— 不为此多维护几套译文。
+    base = lang.split("_")[0].split("-")[0]
+    if not data and base and base != lang:
+        data = pack(base)
     _cache[lang] = data
     return data
 

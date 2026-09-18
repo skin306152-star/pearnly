@@ -150,6 +150,20 @@ def main():
     f = friendly("ERR_DMS_ADVISOR_REQUIRED")
     check("已知码有中/泰/英三种话",
           all(f.get(k) for k in ("zh", "th", "en")), sorted(f))
+    # 语言集**只有四种**（中/英/泰/日），与产品界面的语言开关一致。
+    # 老产品那份话术字典里出现过 zh_TW，但它的正规做法是**回落读中文**
+    # （老产品 scripts/check_i18n.py："zh_TW 通过 fallback 到 zh"）——
+    # 不为此多维护一套包，否则某个词只在繁体里被单独改掉，两边慢慢就不一致。
+    from pearnly_dms import i18n as _i18n
+
+    check("语言集就是四种（不多不少）",
+          tuple(_i18n.LANGUAGES) == ("th", "en", "zh", "ja"), _i18n.LANGUAGES)
+    check("没有为 zh_TW 单独建包",
+          not (_i18n.pack("zh_TW") and _i18n.pack("zh_TW") != _i18n.pack("zh")))
+    check("zh_TW 回落读中文（同一个词拿到同一句）",
+          _i18n.t("dms.err.ERR_DMS_ADVISOR_REQUIRED", lang="zh_TW")
+          == _i18n.t("dms.err.ERR_DMS_ADVISOR_REQUIRED", lang="zh"),
+          _i18n.t("dms.err.ERR_DMS_ADVISOR_REQUIRED", lang="zh_TW")[:30])
     check("认不出的码 → 回「服务器内部错误」，不把英文堆栈丢给用户",
           friendly("ERR_NOT_A_REAL_CODE") == friendly("ERR_UNEXPECTED"))
 
