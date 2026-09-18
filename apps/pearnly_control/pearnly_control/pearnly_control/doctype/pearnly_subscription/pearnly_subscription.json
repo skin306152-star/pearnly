@@ -1,0 +1,51 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:tenant",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "tenant",
+  "plan_code",
+  "status",
+  "column_break_main",
+  "cycle_start",
+  "cycle_end",
+  "auto_renew",
+  "section_quota",
+  "quota",
+  "pages_used_this_cycle",
+  "column_break_quota",
+  "over_rate",
+  "monthly_fee"
+ ],
+ "fields": [
+  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "租户", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
+  {"fieldname": "plan_code", "fieldtype": "Select", "in_list_view": 1, "label": "套餐", "options": "S\nM\nL", "reqd": 1},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\ncancelled", "reqd": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "cycle_start", "fieldtype": "Datetime", "label": "本周期开始"},
+  {"fieldname": "cycle_end", "fieldtype": "Datetime", "label": "本周期结束"},
+  {"default": "1", "fieldname": "auto_renew", "fieldtype": "Check", "label": "到期自动续订"},
+  {"fieldname": "section_quota", "fieldtype": "Section Break", "label": "额度"},
+  {"fieldname": "quota", "fieldtype": "Int", "label": "每周期额度（张）"},
+  {"fieldname": "pages_used_this_cycle", "fieldtype": "Int", "label": "本周期已用（张）", "read_only": 1},
+  {"fieldname": "column_break_quota", "fieldtype": "Column Break"},
+  {"fieldname": "over_rate", "fieldtype": "Currency", "label": "超额单价（每张）", "options": "THB"},
+  {"fieldname": "monthly_fee", "fieldtype": "Currency", "label": "月费", "options": "THB"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Control",
+ "name": "Pearnly Subscription",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 1
+}

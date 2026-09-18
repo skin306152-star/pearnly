@@ -45,6 +45,7 @@ from frappe.utils import now
 WALLET = "Pearnly Wallet"
 TXN = "Pearnly Credit Transaction"
 TOPUP = "Pearnly Topup Request"
+SUBSCRIPTION = "Pearnly Subscription"
 
 # 价格：老产品 services/billing/pricing.py 的原值，别改着改着漂了
 PDF_TIER1_LIMIT = 200
@@ -60,6 +61,15 @@ TIER_A_MULTIPLIER = Decimal("3")
 
 TIERS = ("B", "A")
 _PRODUCTS = ("cowork", "erp", "dms")
+
+# 订阅套餐目录（老产品 services/billing/pricing.py 的 SUBSCRIPTION_PLANS 原值）。
+# 周期 = 订阅日起 30 天；额度单位是"张"，字符档文件按 doc_quota_pages 折算成张。
+SUBSCRIPTION_PLANS = {
+    "S": {"quota": 100, "fee": Decimal("150"), "over_rate": Decimal("1.50")},
+    "M": {"quota": 200, "fee": Decimal("250"), "over_rate": Decimal("1.25")},
+    "L": {"quota": 500, "fee": Decimal("500"), "over_rate": Decimal("1.00")},
+}
+SUBSCRIPTION_CYCLE_DAYS = 30
 
 
 def _money(x) -> Decimal:
@@ -173,6 +183,14 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
                 "balance_after": float(balance_of(tenant)), "reason": "no_units"}
 
     wallet = wallet_of(tenant)
+    # 有订阅就先吃套餐额度：额度内的免费，超出的按套餐超额单价扣。
+    # （老产品的口径：订阅与按量阶梯价互不干扰，有订阅走套餐、没订阅走阶梯。）
+    sub = _active_by_cycle(tenant)
+    if sub is not None:
+        return _charge_with_subscription(tenant, wallet, sub, product=product, kind=kind,
+                                         units=units, tier=tier, description=description,
+                                         reference=reference)
+
     ym = _bkk_year_month()
     used = _pages_used_this_month(tenant, ym) if kind == "pdf" else 0
     cost = estimate_cost_thb(used, kind, units, tier)
@@ -200,6 +218,50 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
         "kind": kind,
         "units": units,
         "tier": (tier or "B").upper(),
+    }
+
+
+def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier,
+                             description, reference) -> dict:
+    """套餐内扣费：额度内免费，超出按 over_rate 从余额扣。"""
+    quota_need = int(units) if kind == "pdf" else doc_quota_pages(units)
+    quota = int(sub.quota or 0)
+    used = int(sub.pages_used_this_cycle or 0)
+    consumed = min(quota_need, max(0, quota - used))
+    billable = quota_need - consumed
+    over_rate = _money(sub.over_rate or 0)
+    cost = _money(Decimal(billable) * over_rate) if billable > 0 else Decimal("0.00")
+
+    new_balance = _money(Decimal(str(wallet.balance_thb or 0)) - cost)
+    wallet.balance_thb = new_balance
+    wallet.updated_at = now()
+    wallet.save(ignore_permissions=True)
+
+    sub.pages_used_this_cycle = used + quota_need
+    sub.save(ignore_permissions=True)
+
+    if cost > 0:
+        _write_txn(tenant, "usage", -cost, new_balance,
+                   description or f"{product} 套餐外扫描（超额 {billable} 张）",
+                   reference, product=product, units=units,
+                   pages=units if kind == "pdf" else 0)
+    elif consumed > 0:
+        # 额度内：金额为 0，但**要留一行**，否则这个周期用了多少张在台账里看不到
+        _write_txn(tenant, "usage", Decimal("0.00"), new_balance,
+                   description or f"{product} 套餐内扫描（{consumed} 张，额度内）",
+                   reference, product=product, units=units,
+                   pages=units if kind == "pdf" else 0)
+    frappe.db.commit()
+    return {
+        "ok": True,
+        "charged_thb": float(cost),
+        "balance_after": float(new_balance),
+        "kind": kind,
+        "units": units,
+        "tier": (tier or "B").upper(),
+        "subscription": True,
+        "quota_pages": quota_need,
+        "billable_pages": billable,
     }
 
 
@@ -299,12 +361,26 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
     if est <= 0:
         return {"allowed": True, "balance_thb": float(balance),
                 "estimate_thb": 0.0, "error_code": ""}
-    if balance < est:
+
+    # 有订阅且额度吃得下 → 免费放行（不看余额）；吃不下 → 只有超额那部分要钱
+    sub = _active_by_cycle(tenant)
+    quota_need = int(units) if kind == "pdf" else doc_quota_pages(units)
+    payable = est
+    if sub is not None:
+        remaining = max(0, int(sub.quota or 0) - int(sub.pages_used_this_cycle or 0))
+        if remaining >= quota_need:
+            return {"allowed": True, "balance_thb": float(balance),
+                    "estimate_thb": 0.0, "error_code": "", "subscription": True,
+                    "quota_remaining": remaining}
+        billable = quota_need - remaining
+        payable = _money(Decimal(billable) * _money(sub.over_rate or 0))
+
+    if balance < payable:
         return {"allowed": False, "error_code": "insufficient_balance",
-                "balance_thb": float(balance), "estimate_thb": float(est),
+                "balance_thb": float(balance), "estimate_thb": float(payable),
                 "reason": "余额不足，请先充值"}
     return {"allowed": True, "balance_thb": float(balance),
-            "estimate_thb": float(est), "error_code": ""}
+            "estimate_thb": float(payable), "error_code": ""}
 
 
 def wallet_summary(tenant: str) -> dict:
@@ -322,3 +398,127 @@ def wallet_summary(tenant: str) -> dict:
             order_by="creation desc", limit_page_length=20,
         ),
     }
+
+
+# ── 订阅 ────────────────────────────────────────────────────────────────────
+
+
+def plans() -> list[dict]:
+    """套餐目录（给界面渲染那三张卡）。"""
+    return [
+        {"code": code, "quota": spec["quota"], "fee": float(spec["fee"]),
+         "over_rate": float(spec["over_rate"]), "cycle_days": SUBSCRIPTION_CYCLE_DAYS}
+        for code, spec in SUBSCRIPTION_PLANS.items()
+    ]
+
+
+def subscription_of(tenant: str):
+    """当前**有效**订阅。没有 / 已取消 / 已过期都返回 None（当作按量计费）。"""
+    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name")
+    if not name:
+        return None
+    doc = frappe.get_doc(SUBSCRIPTION, name)
+    if doc.status != "active":
+        return None
+    if doc.cycle_end and str(now()) > str(doc.cycle_end):
+        return None
+    return doc
+
+
+def subscription_view(tenant: str) -> dict | None:
+    """给界面看的订阅状态（含剩余额度）。"""
+    sub = subscription_of(tenant)
+    if not sub:
+        return None
+    return {
+        "plan_code": sub.plan_code,
+        "status": sub.status,
+        "quota": int(sub.quota or 0),
+        "pages_used_this_cycle": int(sub.pages_used_this_cycle or 0),
+        "remaining": max(0, int(sub.quota or 0) - int(sub.pages_used_this_cycle or 0)),
+        "over_rate": float(sub.over_rate or 0),
+        "monthly_fee": float(sub.monthly_fee or 0),
+        "auto_renew": bool(sub.auto_renew),
+        "cycle_end": str(sub.cycle_end or ""),
+    }
+
+
+def subscribe(tenant: str, plan_code: str) -> dict:
+    """订阅 / 换套餐：**从余额扣月费**，余额不够就是 402（老产品口径）。
+
+    换套餐 = 重新开一个周期（旧的额度作废）。这是老产品的做法，不是 bug ——
+    订阅是"买这个周期的额度"，改单就是重新买。
+    """
+    code = (plan_code or "").strip().upper()
+    spec = SUBSCRIPTION_PLANS.get(code)
+    if not spec:
+        frappe.throw(_("没有这个套餐：{0}").format(plan_code))
+
+    fee = _money(spec["fee"])
+    balance = balance_of(tenant)
+    if balance < fee:
+        return {
+            "ok": False,
+            "error": "insufficient_balance",
+            "balance_thb": float(balance),
+            "needed_thb": float(fee),
+            "reason": _("余额不够付月费（需要 ฿{0}，只有 ฿{1}）").format(fee, balance),
+        }
+
+    wallet = wallet_of(tenant)
+    new_balance = _money(Decimal(str(wallet.balance_thb or 0)) - fee)
+    wallet.balance_thb = new_balance
+    wallet.updated_at = now()
+    wallet.save(ignore_permissions=True)
+
+    start = now()
+    end = frappe.utils.add_days(start, SUBSCRIPTION_CYCLE_DAYS)
+    if frappe.db.exists(SUBSCRIPTION, {"tenant": tenant}):
+        sub = frappe.get_doc(SUBSCRIPTION, frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name"))
+    else:
+        sub = frappe.get_doc({"doctype": SUBSCRIPTION, "tenant": tenant})
+    sub.plan_code = code
+    sub.status = "active"
+    sub.cycle_start = start
+    sub.cycle_end = end
+    sub.quota = int(spec["quota"])
+    sub.over_rate = float(spec["over_rate"])
+    sub.monthly_fee = float(fee)
+    sub.pages_used_this_cycle = 0
+    sub.auto_renew = 1
+    sub.save(ignore_permissions=True)
+
+    # 月费要落台账：类型用 usage（这是消耗，不是充值）
+    _write_txn(tenant, "usage", -fee, new_balance,
+               f"订阅套餐 {code}（{SUBSCRIPTION_CYCLE_DAYS} 天 · {spec['quota']} 张）",
+               sub.name, units=0)
+    frappe.db.commit()
+    return {"ok": True, "plan_code": code, "charged_thb": float(fee),
+            "balance_after": float(new_balance), "cycle_end": str(end),
+            "subscription": subscription_view(tenant)}
+
+
+def cancel(tenant: str) -> dict:
+    """取消订阅：**当前周期用到到期**，不再续。不退款（老产品口径）。"""
+    sub = subscription_of(tenant)
+    if not sub:
+        return {"ok": False, "error": "no_active_subscription"}
+    sub.status = "cancelled"
+    sub.auto_renew = 0
+    sub.save(ignore_permissions=True)
+    # 注意：status 改成 cancelled 之后 subscription_of 就不认它了，
+    # 但老产品的语义是"本周期额度还能用完"。所以这里按周期到期时间来判，
+    # 不按 status —— 见 _active_by_cycle。
+    frappe.db.commit()
+    return {"ok": True, "subscription": subscription_view(tenant)}
+
+
+def _active_by_cycle(tenant: str):
+    """本周期还没到期的订阅（含已取消但周期未满的）—— 扣费走这个。"""
+    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name")
+    if not name:
+        return None
+    doc = frappe.get_doc(SUBSCRIPTION, name)
+    if not doc.cycle_end or str(now()) > str(doc.cycle_end):
+        return None
+    return doc

@@ -112,3 +112,16 @@ def topup_request(amount_thb: float, note: str = "", payer_name: str = "") -> di
 
 def topup_status() -> dict:
     return _call("service_topup_status", {})
+
+
+def home() -> dict:
+    """首页（订阅与计费）要的全部：余额 + 流水 + 当前套餐 + 套餐目录。"""
+    return _call("service_home", {})
+
+
+def subscribe(plan_code: str) -> dict:
+    return _call("service_subscribe", {"plan_code": plan_code})
+
+
+def cancel_subscription() -> dict:
+    return _call("service_cancel_subscription", {})

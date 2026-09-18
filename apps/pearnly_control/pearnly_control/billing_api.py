@@ -130,6 +130,40 @@ def service_topup_status(tenant: str) -> dict:
     }
 
 
+@frappe.whitelist(allow_guest=True)
+def service_home(tenant: str) -> dict:
+    """产品首页（订阅与计费）要的全部东西，一次取完。
+
+    三次调用变一次：这一页是打开频率最高的一页，不该为了显示一行余额打三个来回。
+    """
+    _require_service()
+    tenant = _tenant_or_throw(tenant)
+    summary = billing.wallet_summary(tenant)
+    return {
+        **summary,
+        "subscription": billing.subscription_view(tenant),
+        "plans": billing.plans(),
+        "pending_topups": frappe.get_all(
+            billing.TOPUP, filters={"tenant": tenant, "status": "pending"},
+            fields=["name", "requested_thb", "creation"],
+            order_by="creation desc", limit_page_length=10,
+        ),
+    }
+
+
+@frappe.whitelist(allow_guest=True)
+def service_subscribe(tenant: str, plan_code: str) -> dict:
+    """订阅套餐：从余额扣月费。余额不够就返回 insufficient_balance（界面引导充值）。"""
+    _require_service()
+    return billing.subscribe(_tenant_or_throw(tenant), plan_code)
+
+
+@frappe.whitelist(allow_guest=True)
+def service_cancel_subscription(tenant: str) -> dict:
+    _require_service()
+    return billing.cancel(_tenant_or_throw(tenant))
+
+
 # ── 控制面界面调用（Desk 会话）──────────────────────────────────────────────
 
 
