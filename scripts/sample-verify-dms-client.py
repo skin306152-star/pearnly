@@ -40,6 +40,8 @@ def main():
     from pearnly_dms import dms_docno, dms_employees, dms_payments
     from pearnly_dms.dms_client import DmsClient, DmsClientError
     from pearnly_dms.dms_models import BookingDefaults
+    from pearnly_dms.dms_models import DMSBookingPayload
+    from pearnly_dms.dms_models import ThaiIdCardPayload
 
     results = []
 
@@ -368,6 +370,107 @@ def main():
          "content_type": "image/jpeg", "content": b"x"},
     ])
     check("附件回读校验能发现没挂上", r["ok"] is False and r["attached"] == 0, r)
+
+    # ══ 8. 原生取号状态机 + 订车表单字段（线上 2026-09-13 修复的根因）══════
+    from pearnly_dms.dms_booking_org import BookingOrganization
+
+    CFG = '[16,1,"BK",6,1]'
+    DETAIL = '[27,1,"BK000002609000001"]'
+    st = dms_docno.autonum_state(CFG, DETAIL)
+    check("取号状态：前缀/完整号/位宽/隐藏字段都对",
+          (st.prefix, st.docno, st.digits, st.idautonumdetail, st.nextautonum)
+          == ("BK", "BK000002609000001", 6, "27", 1),
+          (st.prefix, st.docno, st.digits, st.idautonumdetail, st.nextautonum))
+    check("数字主体 = 完整号去掉精确前缀", st.body == "000002609000001", st.body)
+    moved = st.with_docno("BK000002609000005")
+    check("换号把 natn 同量前移（不发散）", moved.nextautonum == 5 and moved.docno.endswith("000005"),
+          (moved.docno, moved.nextautonum))
+    # natn 已经贴地（0）还往回挪尾号 → 拒绝，不写出一个负数计数器
+    grounded = dms_docno.DMSBookingAutonumState(
+        prefix="BK", docno="BK000002609000001", digits=6, idautonumdetail="27", nextautonum=0)
+    check("natn 会变成负数 → 直接拒（不写出坏的计数器）",
+          raises(lambda: grounded.with_docno("BK000002609000000"), ValueError)[0])
+    for bad, why in (("[16,1]", "字段不足"),
+                     ('[16,0,"BK",6,1]', "自动编号没开"),
+                     ('[16,1,"",6,1]', "前缀为空"),
+                     ('[16,1,"BK",0,1]', "位宽非正"),
+                     ('[16,1,"BK","x",1]', "位宽不是整数")):
+        check("取号协议不合 → fail closed（%s）" % why,
+              raises(lambda b=bad: dms_docno.autonum_state(b, DETAIL), ValueError)[0])
+    for bad, why in (('[27,1,"XX000002609000001"]', "号不以配置前缀开头"),
+                     ('[27,1,"BK0000026090000A1"]', "尾号不是数字"),
+                     ('["",1,"BK000002609000001"]', "缺 idatndt"),
+                     ('[27,-1,"BK000002609000001"]', "natn 为负"),
+                     ('[27,1]', "detail 字段不足")):
+        check("取号明细不合 → fail closed（%s）" % why,
+              raises(lambda b=bad: dms_docno.autonum_state(CFG, b), ValueError)[0])
+
+    class _Cells:
+        def __init__(self, body):
+            self.body = body
+
+        def post(self, url, data=None, files=None, timeout_ms=None):
+            return Resp(200, self.body, b"")
+
+        def get(self, url, timeout_ms=None):
+            return Resp(200, "", b"")
+
+    listing = "BK000002609000001 BK000002609000003"
+    scan = dms_docno.scan_unoccupied_docno("BK000002609000002", 6, lambda p, b: listing)
+    check("未占号扫描：从现有最大流水之后取（绕过失步的计数器）",
+          (scan.docno, scan.delta) == ("BK000002609000004", 2), (scan.docno, scan.delta))
+    scan = dms_docno.scan_unoccupied_docno("BK000002609000009", 6, lambda p, b: listing)
+    check("候选号本来就靠后 → 不动它（delta=0）",
+          (scan.docno, scan.delta) == ("BK000002609000009", 0), (scan.docno, scan.delta))
+
+    def _boom(p, b):
+        raise TimeoutError("listing down")
+
+    scan = dms_docno.scan_unoccupied_docno("BK000002609000002", 6, _boom)
+    check("列表取数失败 → 原样返回候选号（不为顺号去猜）",
+          (scan.docno, scan.delta) == ("BK000002609000002", 0), (scan.docno, scan.delta))
+
+    # 提交体：前缀栏 + 数字主体 + 两个隐藏字段；回读体带完整号
+    cl_po = DmsClient(FakeTransport(), "https://example.test/dms/")
+    w = cl_po._booking_write_payload({"stsel": "n"}, st)
+    check("提交体：前缀栏 + 数字主体 + idatndt/natn 隐藏字段",
+          w["txtprefixautonum"] == "BK" and w["txtdocno"] == "000002609000001"
+          and w["idatndt"] == "27" and w["natn"] == "1",
+          {k: w.get(k) for k in ("txtprefixautonum", "txtdocno", "idatndt", "natn")})
+    check("提交体**不**把完整号塞进 txtdocno（否则前缀栏空、计数器不推进）",
+          w["txtdocno"] != st.docno, w["txtdocno"])
+    rbw = cl_po._booking_readback_payload({"stsel": "n"}, st)
+    check("回读体用**完整号**比对（用纯数字主体会把正确的单判成不一致）",
+          rbw["txtdocno"] == st.docno and rbw["txtprefixautonum"] == "BK", rbw)
+
+    # 订车表单字段：顾问电话缺失必须拦（旧版填 "." = 编一个不存在的电话）
+    def _ref(i, nm, extra=()):
+        from pearnly_dms.dms_models import DMSMasterRef
+
+        return DMSMasterRef(id=i, code=i, name=nm, extra=extra)
+
+    org = BookingOrganization(branch=_ref("1", "กทม"), team=_ref("2", "ทีม 1"),
+                              form_fields=(("branch_bookval", "1"), ("txtbranch_sell", "กทม")))
+    card = ThaiIdCardPayload(people_id="100007303170", first_name="สมชาย", last_name="",
+                             birthday_be="01/01/2530")
+    base_payload = dict(
+        doc_date_be="18/09/2569", delivery_date_be="08/10/2569",
+        car=_ref("3", "Camry"), paint=_ref("P1", "ขาว"), place_book=_ref("B1", "店 1"),
+        term_sale=_ref("T1", "现金"), branch=org.branch, team=org.team,
+        regis_behalf=_ref("R1", "自己"), organization_fields=org.form_fields,
+    )
+    good = DMSBookingPayload(advisor=_ref("7", "สมชาย", ("0812345678",)), **base_payload)
+    data = {}
+    cl_po._apply_booking_form_fields(data, customer_id="77", booking=good, card=card)
+    check("顾问电话进 txtuserstel", data.get("txtuserstel") == "0812345678", data.get("txtuserstel"))
+    check("组织字段整包进表单（两侧分店/组）",
+          data.get("branch_bookval") == "1" and data.get("txtbranch_sell") == "กทม",
+          {k: data.get(k) for k in ("branch_bookval", "txtbranch_sell")})
+    nophone = DMSBookingPayload(advisor=_ref("7", "สมชาย", ()), **base_payload)
+    ok, detail = raises(lambda: cl_po._apply_booking_form_fields(
+        {}, customer_id="77", booking=nophone, card=card), DmsClientError)
+    check("顾问没有电话 → 拦（不许编一个电话推进业务单据）",
+          ok and "ERR_DMS_ADVISOR_UNMATCHED" in detail, detail)
 
     failed = [x for x in results if not x[1]]
     print("")

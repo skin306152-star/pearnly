@@ -22,6 +22,9 @@ from datetime import date, timedelta
 from typing import Any, Dict, List, Optional
 
 from pearnly_dms import dms_docno, dms_employees
+from pearnly_dms.dms_booking_org import resolve_booking_org
+from pearnly_dms.dms_booking_payload import payload_from_refs
+from pearnly_dms.dms_booking_submit import submit_booking
 from pearnly_dms.dms_client_base import DmsClientError, to_be_date
 from pearnly_dms.dms_master_rows import memo as _memo
 from pearnly_dms.dms_master_rows import parse_rows as _parse_bshsd_rows
@@ -41,23 +44,8 @@ logger = logging.getLogger(__name__)
 _DRFCBC_IDMENU = "25"
 _DRFCBC_MENULV = "2"
 
-# DMS autonum 计数器按分店分段，跟全局唯一约束会失步：它回的"下一个号"
-# 可能已被其它分店/历史单占用，提交即报「เลขที่ใบจอง ซ้ำ」（单号重复）。
-# 撞重复就往后顺号重试，跳过所有已占用号。
-_BOOKING_DOCNO_MAX_TRIES = dms_docno.BOOKING_DOCNO_MAX_TRIES
-
 # 顾问名册翻页页大小（真机探过：服务端尊重 bshsdamt，200 行一页覆盖单店全部销售）。
 _ADVISOR_PAGE_SIZE = 200
-
-
-def _is_duplicate_docno_error(body: str) -> bool:
-    """DMS 单号重复报错（`err::"เลขที่ใบจอง" ซ้ำ`）· `ซ้ำ` = 泰语"重复"。"""
-    return dms_docno.is_duplicate_docno_error(body)
-
-
-def _bump_docno(docno: str) -> str:
-    """末尾连续数字段 +1 并保持位宽：BK2606000001 → BK2606000002。无数字尾则补 1。"""
-    return dms_docno.bump_docno(docno)
 
 
 class DmsClientOpsMixin:
@@ -73,11 +61,16 @@ class DmsClientOpsMixin:
 
         **不含** `stsel`/`idsel`/`txtdocno` —— 那三个由调用方按建/改设置。
         """
+        # 顾问电话是原生表单的必填项。以前这里缺了就填一个 "."，等于**编一个不存在的
+        # 电话**推进业务单据；现在缺了就拦下（顾问名册里没电话 = 归属没配好）。
+        advisor_phone = str((booking.advisor.extra or ("",))[0] or "").strip()
+        if not advisor_phone:
+            raise DmsClientError("DMS advisor phone is missing", "ERR_DMS_ADVISOR_UNMATCHED")
         data.update(
             {
                 "usersval": booking.advisor.id,
                 "txtusers": booking.advisor.name,
-                "txtuserstel": booking.advisor.extra[0] if booking.advisor.extra else ".",
+                "txtuserstel": advisor_phone,
                 "placebookval": booking.place_book.id,
                 "txtplacebook": booking.place_book.name,
                 "cusval": customer_id,
@@ -125,16 +118,26 @@ class DmsClientOpsMixin:
         )
         # 有订金渠道时覆盖上面的 0.00 默认并补渠道字段；空 payments 则保持现状。
         data.update(payment_form_fields(booking.payments))
+        # 顾问归属带出来的**原生组织字段**（订车/销售两侧分店与组 + 四级主管）。
+        # 组织只能按顾问 id 问出来 —— 分店列表的首行不是这个顾问的分店。
+        data.update(dict(booking.organization_fields))
         self._apply_address_to_booking_form(data, card.address)
 
     def create_booking_via_form(
-        self, *, customer_id: str, booking: DMSBookingPayload, card: ThaiIdCardPayload
+        self,
+        *,
+        customer_id: str,
+        booking: DMSBookingPayload,
+        card: ThaiIdCardPayload,
+        on_attempt=None,
     ) -> tuple:
         """走 DMS **原生订车单表单**建单 · 由 DMS autonum 出 BK 号（符合公司规则·零手填）。
         返回 `(booking_id, booking_no)`。
 
-        autonum 计数器与全局唯一约束失步时会回已占用号 → 提交即"单号重复"。
-        撞重复就往后顺号重试（`_bump_docno`），跳过被占用的号。
+        autonum 计数器与全局唯一约束失步时会回已占用号 → 提交即「单号重复」。
+        建单前先**只读扫列表**，从实际最大流水之后选号，并把 `natn` 同量前移；
+        撞重复仍往后顺号重试（数字主体与 `natn` 同步 +1），跳过被占用的号。
+        `booking_no` / 回读 / 台账一律用**完整号**（DMS 返回的前缀 + 数字主体）。
         """
         form_html = self._post_text("drfcbc/form.php", {"status": "n"})
         base = self._parse_form_defaults(form_html)
@@ -144,60 +147,78 @@ class DmsClientOpsMixin:
         base["menulv"] = _DRFCBC_MENULV
         self._apply_booking_form_fields(base, customer_id=customer_id, booking=booking, card=card)
 
-        docno = self._next_booking_docno(booking.branch.id)
-        if not docno:
-            raise DmsClientError("booking auto number unavailable", "ERR_DMS_IMPORT")
-        digits = getattr(self, "_booking_docno_digits", 6)
-        docno = dms_docno.next_unoccupied_docno(docno, digits, self._post_text)
-        last_body = ""
-        for _ in range(_BOOKING_DOCNO_MAX_TRIES):
-            data = dict(base)
-            data["txtdocno"] = docno
-            resp = self.transport.post(self._url("drfcbc/new.php"), data=data, timeout_ms=120000)
-            last_body = (resp.text or "").strip()
-            if resp.status_code == 200 and not last_body.startswith("err::"):
-                booking_id = self.search_booking(docno)
-                if not booking_id:
-                    raise DmsClientError(
-                        "booking create returned ok but search failed", "ERR_DMS_IMPORT"
-                    )
-                return booking_id, docno
-            if resp.status_code == 200 and _is_duplicate_docno_error(last_body):
-                docno = _bump_docno(docno)
-                continue
-            break
-        raise DmsClientError(f"booking create failed: {last_body[:300]!r}", "ERR_DMS_IMPORT")
+        state = self._next_booking_docno(booking.branch.id)
+        scan = dms_docno.scan_unoccupied_docno(state.docno, state.digits, self._post_text)
+        if scan.docno != state.docno:
+            # **换号的唯一入口**：`with_docno` 只把 `natn` 前移"所选尾号 − 原候选尾号"
+            # 的 delta。计数器基数（`natn`）可能不等于候选尾号，绝不能被新尾号绝对值
+            # 覆盖，也不能在调用前先手动 align 一次 —— 那会把同一个 delta 推两次。
+            state = state.with_docno(scan.docno)
+        return submit_booking(
+            self,
+            base,
+            state,
+            on_attempt=on_attempt,
+            write_payload=self._booking_write_payload,
+            readback_payload=self._booking_readback_payload,
+        )
 
-    def _next_booking_docno(self, branch_id: str) -> str:
-        """取 DMS 订车单的下一个自动编号（BK + 期间 + 流水）。autonum 关/异常时返回空。"""
+    def _next_booking_docno(self, branch_id: str) -> dms_docno.DMSBookingAutonumState:
+        """取 DMS **原生**订车单取号状态（前缀 + 完整号 + 隐藏字段）。
+
+        `autonum.php` / `autonumdetail.php` 缺字段或形状不符原生协议时 **fail closed**
+        （`ERR_DMS_IMPORT`），绝不回退成空串或自造单号 —— 旧版丢掉 `idatndt`/`natn`
+        导致计数器永不推进，正是这次要修的根因。
+        """
         try:
-            cfg = json.loads(
-                self._post_text(
-                    "component/php/autonum.php",
-                    {"menulv": _DRFCBC_MENULV, "idmenu": _DRFCBC_IDMENU},
-                )
+            cfg_body = self._post_text(
+                "component/php/autonum.php",
+                {"menulv": _DRFCBC_MENULV, "idmenu": _DRFCBC_IDMENU},
             )
-            if not cfg or cfg[0] is None or str(cfg[1]) != "1":
-                return ""
-            digits = int(cfg[3])
-            if digits <= 0:
-                return ""
-            self._booking_docno_digits = digits
-            det = json.loads(
-                self._post_text(
-                    "component/php/autonumdetail.php",
-                    {
-                        "idautonum": cfg[0],
-                        "prefixautonum": cfg[2],
-                        "digitautonum": cfg[3],
-                        "idautonumformat": cfg[4],
-                        "idbranch": branch_id or "",
-                    },
-                )
+            cfg = json.loads(cfg_body)
+            detail_body = self._post_text(
+                "component/php/autonumdetail.php",
+                {
+                    "idautonum": cfg[0],
+                    "prefixautonum": cfg[2],
+                    "digitautonum": cfg[3],
+                    "idautonumformat": cfg[4],
+                    "idbranch": branch_id or "",
+                },
             )
-            return str(det[2]) if len(det) > 2 and det[2] else ""
-        except Exception:
-            return ""
+            return dms_docno.autonum_state(cfg_body, detail_body)
+        except Exception as exc:
+            raise DmsClientError(
+                f"booking auto number protocol unavailable: {type(exc).__name__}",
+                "ERR_DMS_IMPORT",
+            ) from exc
+
+    def _booking_write_payload(self, base: Dict[str, str], state) -> Dict[str, str]:
+        """`drfcbc/new.php` 的提交体 —— **完全模拟原生表单**：
+
+        `txtprefixautonum` = 配置前缀，`txtdocno` = 完整号去掉精确前缀后的数字主体，
+        外加保存用隐藏字段 `idatndt`（detail[0]）与 `natn`（与实际选号对齐的下一个流水）。
+        单号整串**不**塞进 `txtdocno`，否则前缀栏为空、计数器也不推进。
+        """
+        return {
+            **base,
+            "txtprefixautonum": state.prefix,
+            "txtdocno": state.body,
+            dms_docno.HIDDEN_IDAUTNUMDETAIL: state.idautonumdetail,
+            dms_docno.HIDDEN_NEXTAUTONUM: str(state.nextautonum),
+        }
+
+    def _booking_readback_payload(self, base: Dict[str, str], state) -> Dict[str, str]:
+        """回读比对用的 submitted 视图 —— 必须带**完整号**，不能退化成纯数字主体。
+
+        真实 POST 的 `txtdocno` 是纯数字，直接拿它比对会把正确的单判成不一致；
+        这里构造一份**只用于比对**的副本（不参与任何写入）。
+        """
+        return {
+            **base,
+            "txtprefixautonum": state.prefix,
+            "txtdocno": state.docno,
+        }
 
     def attach_booking_files(self, *, booking_id: str, files: list) -> dict:
         """给已存在的订车单挂附件 —— 逐文件独立一轮 `edit.php` POST，失败不中断。
@@ -324,10 +345,12 @@ class DmsClientOpsMixin:
     def resolve_booking_payload(
         self, defaults: BookingDefaults, card: ThaiIdCardPayload, *, today: Optional[date] = None
     ) -> DMSBookingPayload:
-        """由端点的默认值 + 实时主档，拼出一张订车单草稿。"""
-        today = today or date.today()
-        delivery = today + timedelta(days=defaults.delivery_days)
+        """由端点默认值 + 实时主档拼出订车单草稿；用户没钉死的主档引用现场解。
 
+        **按需取数版**（单凭据兼容路径）：每个主档一次 `bshsd`。
+        订车提交路径**不走这里** —— 那里吃权威预检已取到的快照
+        （`build_booking_payload`），不重复取数。
+        """
         advisor = self._advisor_ref_strict(defaults)
         car = self._ref_from_default("txtcar", defaults.car_id, defaults.car_code, "")
         paint = self._ref_from_default(
@@ -335,23 +358,21 @@ class DmsClientOpsMixin:
         )
         place = self._ref_from_default("txtplacebook", defaults.place_book_id, "", "")
         term = self._ref_from_default("txttermsale", defaults.term_sale_id, "", "")
-        branch = self._ref_from_default("txtbranch_book", defaults.branch_id, "", "")
-        team = self._ref_from_default(
-            "txtteam_book", defaults.team_id, "", "", branch_book=branch.id
-        )
+        # 组织（分店 + 组 + 四级主管）只能**按顾问 id** 问出来 ——
+        # 分店列表的首行不是这个顾问的分店。
+        org = resolve_booking_org(self, advisor.id, defaults)
         regis = self._ref_from_default("txtregisbehalf", defaults.regis_behalf_id, "", "")
 
-        return DMSBookingPayload(
-            doc_date_be=to_be_date(today),
-            delivery_date_be=to_be_date(delivery),
+        return payload_from_refs(
+            defaults,
             advisor=advisor,
             car=car,
             paint=paint,
-            place_book=place,
-            term_sale=term,
-            branch=branch,
-            team=team,
-            regis_behalf=regis,
+            place=place,
+            term=term,
+            org=org,
+            regis=regis,
+            today=today,
         )
 
     def search_customer(self, text: str) -> Optional[str]:
