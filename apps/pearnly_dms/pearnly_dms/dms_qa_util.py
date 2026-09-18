@@ -96,3 +96,14 @@ def find_row(rows: Optional[List[list]], rid: Optional[str]) -> Optional[list]:
 def deposit_total(payments: List[Dict[str, Any]]) -> Decimal:
     """各渠道订金金额求和（金额一律 `Decimal`，不用 float）。"""
     return sum((Decimal(str(p.get("amount") or "0")) for p in payments or []), Decimal("0"))
+
+
+def qat(name: str, **kw) -> str:
+    """取一条**订车逐问**的文案（`dms.card.qa.*`），默认泰文（LINE 通道的语言）。
+
+    放这个纯函数叶子里，是为了让 `dms_qa_cards` 与 `dms_qa_payment_cards`
+    都能取词而**不必互相 import**（那两份本来就是互相引用的，见各自顶部）。
+    """
+    from pearnly_dms import i18n
+
+    return i18n.t(f"dms.card.qa.{name}", lang=kw.pop("lang", "th"), **kw)

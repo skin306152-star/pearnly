@@ -178,6 +178,17 @@ def main():
     from pearnly_dms import dms_booking_car_details as _car_details
 
     used |= {f"car.{name}" for _, name in _car_details._FIELD_NAMES}
+    # 订车逐问那两族（`dms_qa_cards` / `dms_qa_payment_cards`）另有一套取词：
+    # 显式常量与键同名、值一律 `qat("KEY")`，所以扫 `qat(...)` 字面量就够；
+    # 渠道名是 `qat(f"pay.{渠道}")` 拼出来的，**动态那条单独按渠道表补**
+    # （不然 6 条 `qa.pay.*` 会从守卫里溜过去）。
+    from pearnly_dms import dms_qa_cards as _qa
+
+    for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
+        src = open(path, encoding="utf-8").read()
+        used |= {f"qa.{m}" for m in re.findall(
+            r"""qat\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']""", src)}
+    used |= {f"qa.pay.{ch}" for ch in _qa.PAY_LABELS}
     used.discard("TXT_XXX")  # i18n.py 文档串里举的例子，不是真引用
     missing = sorted(k for k in used if i18n.t("dms.card." + k, lang="th").startswith("dms.card."))
     check("代码引用的卡片键在语言包里都有（防漏键）", not missing,

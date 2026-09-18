@@ -148,8 +148,7 @@ dms.card.qa.TXT_ASK_AMOUNT,ยอดเงิน ({channel}) — พิมพ์
 dms.card.qa.TXT_BAD_AMOUNT,"จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
 dms.card.qa.TXT_ASK_PAY_DST,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
 dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
-dms.card.qa.TXT_ASK_CHEQUE_REF,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
-"
+dms.card.qa.TXT_ASK_CHEQUE_REF,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01"
 dms.card.qa.TXT_ASK_CARD_REF,พิมพ์ประเภทบัตร เช่น VISA
 dms.card.qa.TXT_ASK_OTHER_REF,รายละเอียดช่องทาง — พิมพ์
 dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
@@ -168,7 +167,9 @@ dms.card.qa.TXT_SLIP_ONLY_IMAGE,ขั้นนี้ต้องการรู
 dms.card.qa.TXT_CONFIRM_ABOVE,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
 dms.card.qa.TXT_NO_IMAGE_NEEDED,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
 dms.card.qa.TXT_ATTACH_FAIL,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
-dms.card.qa._TH_RETRY, แล้วลองใหม่อีกครั้ง
+dms.card.qa._TH_RETRY,แล้วลองใหม่อีกครั้ง
+dms.card.qa.TXT_ADVISOR_BLOCK,ยังเปิดใบจองไม่ได้ครับ · บัญชี DMS ที่ใช้อยู่คือ «{username}»
+dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้
 dms.card.qa.LBL_ADVISOR,ที่ปรึกษาการขาย
 dms.card.qa.LBL_POSTCODE,รหัสไปรษณีย์
 dms.card.qa.LBL_PLACE,สถานที่รับจอง
@@ -183,7 +184,9 @@ dms.card.qa.VAL_ATTACHED,แนบแล้ว
 dms.card.qa.BTN_PAGE_PREV,ก่อนหน้า
 dms.card.qa.BTN_PAGE_NEXT,ถัดไป
 dms.card.qa.TXT_SEP_HINT,"คั่นช่องด้วย | , / หรือ ·"
-dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
-"
-dms.card.qa.TXT_ASK_CARD_REF_MANUAL,"พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
-"
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank"
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,"พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA"
+dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็จ
+dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
+dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
+dms.card.qa.TXT_PICK_BANK,เลือกธนาคาร
