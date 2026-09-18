@@ -52,15 +52,6 @@ def __getattr__(name: str) -> Any:
 #   TXT_MENU_*         菜单层：欢迎语 → 选建档或订车；配 BTN_* 按钮。
 #   TXT_BOOKING_*      订车阶段（确认 / 取消 / 重试）。
 
-# 逐字段修正的可改字段（顺序 = quick reply 呈现顺序）；标签从语言包取。
-# 地理四级 id（จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์）**不进此表** ——
-# 改地址文本后由既有级联匹配重新解析。
-_EDIT_FIELD_NAMES = ("name", "people_id", "birthday_be", "phone",
-                     "house_no", "moo", "soi", "road")
-EDIT_FIELDS = tuple((f, _t(f"edit.{f}")) for f in _EDIT_FIELD_NAMES)
-_EDIT_LABELS = dict(EDIT_FIELDS)
-
-
 # 动作名（flow 侧 dispatch 用同一常量，避免拼写漂移）
 ACT_CREATE = "create_new"
 ACT_UPDATE = "update"
@@ -68,8 +59,6 @@ ACT_KEEP = "keep"
 ACT_RESET = "reset"
 ACT_PICK = "pick"
 ACT_EDIT = "edit"
-ACT_EDIT_FIELD = "edit_field"
-ACT_EDIT_CANCEL = "edit_cancel"
 ACT_MENU_CUSTOMER = "menu_customer"
 ACT_MENU_BOOKING = "menu_booking"
 ACT_MENU_QUERY = "menu_query"
@@ -107,20 +96,6 @@ def _qr_item(label: str, data: str) -> Dict[str, Any]:
     }
 
 
-def edit_menu_message(nonce: str) -> Dict[str, Any]:
-    """[แก้ไข] 展开的字段选择（quick reply）：每项带 field，末项是取消。"""
-    items = [
-        _qr_item(label, _data(ACT_EDIT_FIELD, nonce=nonce, field=key)) for key, label in EDIT_FIELDS
-    ]
-    items.append(_qr_item(_t("BTN_EDIT_CANCEL"), _data(ACT_EDIT_CANCEL, nonce=nonce)))
-    return {"type": "text", "text": _t("TXT_EDIT_PICK"), "quickReply": {"items": items}}
-
-
-def edit_prompt(field: str) -> str:
-    """选中字段后的输入提示（字段标签来自语言包）。"""
-    return _t("TXT_EDIT_PROMPT", label=_EDIT_LABELS.get(field, field))
-
-
 def _btn(label: str, data: str, style: str = "primary") -> Dict[str, Any]:
     return {
         "type": "button",
@@ -128,6 +103,28 @@ def _btn(label: str, data: str, style: str = "primary") -> Dict[str, Any]:
         "height": "sm",
         "action": {"type": "postback", "label": label, "data": data, "displayText": label},
     }
+
+
+def _edit_button(nonce: str) -> Dict[str, Any]:
+    """客户档的 `[แก้ไข]`（编辑）按钮 —— **能拿到深链就用深链**。
+
+    线上（`services/line_dms/cards.py` 的 `_edit_button`，基准 501589f0）就是这个形状：
+    默认是个 postback，能解析出本站点编辑页地址时**把 action 换成 uri**，于是点一下
+    直接开浏览器编辑页。拿不到地址（没配 LIFF 也没站点地址）就退回 postback，
+    由 `dms_flow` 的 `ACT_EDIT` 处理器回一句话术 —— 那样至少用户知道发生了什么，
+    比一个按不动的按钮强。
+
+    注意是**客户档**编辑器（`customer=True`）：LINE 里那张卡的 [แก้ไข] 改的就是客户资料。
+    订车预览卡上那个编辑按钮走 `dms_qa_cards._edit_url`（不带 `editor`，即订车模式）。
+    """
+    from pearnly_dms import dms_edit_link
+
+    label = _t("BTN_EDIT")
+    button = _btn(label, _data(ACT_EDIT, nonce=nonce), "secondary")
+    uri = dms_edit_link.url(nonce, customer=True)
+    if uri:
+        button["action"] = {"type": "uri", "label": label, "uri": uri}
+    return button
 
 
 def _kv_row(label: str, value: str) -> Dict[str, Any]:
@@ -217,6 +214,18 @@ def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
     return [_kv_row(_t(f"sum.{f}"), s.get(f, "")) for f in _SUMMARY_FIELD_NAMES]
 
 
+def edit_entry_card(nonce: str) -> Dict[str, Any]:
+    """点 [แก้ไข] 之后回的那张卡：就一个"打开编辑页"的按钮。
+
+    线上 `customer_edit_entry._open` 就是这个形状（`cards._bubble(BTN_EDIT, [],
+    [cards._edit_button(nonce)], BTN_EDIT)`）—— 点编辑不再展开字段菜单，
+    而是给一个能开浏览器编辑页的入口。正文故意是空的：多一句话就多一处要翻译、
+    要维护的文案，而这个按钮本身已经把事说清楚了。
+    """
+    label = _t("BTN_EDIT")
+    return _bubble(label, [], [_edit_button(nonce)], label)
+
+
 def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     """场景①新建：五要素复述 + [บันทึกลูกค้าใหม่][แก้ไข]。
 
@@ -225,7 +234,7 @@ def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     """
     footer = [
         _btn(_t("BTN_SAVE_NEW"), _data(ACT_CREATE, nonce=nonce), "primary"),
-        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _edit_button(nonce),
     ]
     return _bubble(
         _t("TXT_NEW_CARD_HEAD"),
@@ -242,7 +251,7 @@ def same_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     """
     footer = [
         _btn(_t("BTN_KEEP"), _data(ACT_KEEP, nonce=nonce), "primary"),
-        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _edit_button(nonce),
     ]
     return _bubble(_t("TXT_SAME"), _summary_rows(summary), footer, _t("TXT_SAME_ALT"))
 
@@ -251,7 +260,7 @@ def booking_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]
     """菜单2 认出"资料一致"的客户时，确认后进入订车逐问。"""
     footer = [
         _btn(_t("BTN_CONTINUE_BOOKING"), _data(ACT_KEEP, nonce=nonce), "primary"),
-        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _edit_button(nonce),
     ]
     return _bubble(
         _t("TXT_BOOKING_CUSTOMER"),

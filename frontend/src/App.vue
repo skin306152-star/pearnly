@@ -18,7 +18,13 @@ const boot = ref<ShellBoot | null>(null);
 const error = ref("");
 const route = useRoute();
 
+// 独立页（LINE 内的编辑器）：**不套外壳、也不问启动数据**。
+// 它靠一次性票据认身份，没有站点会话 —— 去调 `shell.describe` 只会拿到 401，
+// 页面就永远停在"需要登录站点"那一屏（真踩过）。
+const standalone = computed(() => route.meta.standalone === true);
+
 onMounted(async () => {
+  if (standalone.value) return;
   try {
     boot.value = await loadShell();
   } catch (err) {
@@ -77,7 +83,9 @@ const pageTitle = computed(() => {
 </script>
 
 <template>
-  <div v-if="error" class="pn-center">
+  <RouterView v-if="standalone" />
+
+  <div v-else-if="error" class="pn-center">
     <div class="pn-card">
       <div class="pn-error">{{ error }}</div>
       <p class="pn-muted" style="margin: 12px 0 0">

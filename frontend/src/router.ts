@@ -34,6 +34,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import("./pages/dms/RosterPage.vue"),
   },
   {
+    // **LINE 内的草稿编辑器**（老产品 `/liff/dms-booking` 的落地页）。
+    // `meta.standalone` = 不套产品外壳：这一页在 LINE 的 webview 里打开，身份是
+    // 一次性票据而不是站点会话，所以既没有侧栏也不该去问 `shell.describe`。
+    path: "/dms/editor",
+    name: "dms-editor",
+    meta: { standalone: true },
+    component: () => import("./pages/dms/EditorPage.vue"),
+  },
+  {
     // 清单里有、但还没做的页面：给一个诚实的占位，不假装能点
     path: "/:pathMatch(.*)*",
     name: "not-built",

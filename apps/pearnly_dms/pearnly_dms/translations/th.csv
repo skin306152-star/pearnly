@@ -74,14 +74,6 @@ dms.card.BTN_CANCEL_BOOKING,ยกเลิก
 dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
 dms.card.TXT_BOOKING_CANCELLED,ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่
 dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
-dms.card.edit.name,ชื่อ-นามสกุล
-dms.card.edit.people_id,เลขบัตรประชาชน
-dms.card.edit.birthday_be,วันเกิด
-dms.card.edit.phone,เบอร์โทร
-dms.card.edit.house_no,บ้านเลขที่
-dms.card.edit.moo,หมู่
-dms.card.edit.soi,ซอย
-dms.card.edit.road,ถนน
 dms.card.diff.prefix_id,คำนำหน้า
 dms.card.diff.name,ชื่อ
 dms.card.diff.birthday_be,วันเกิด
@@ -99,9 +91,6 @@ dms.card.sum.name,ชื่อ
 dms.card.sum.birthday_be,วันเกิด
 dms.card.sum.address,ที่อยู่
 dms.card.sum.phone,เบอร์โทร
-dms.card.TXT_EDIT_PROMPT,พิมพ์ค่าใหม่ของ{label}
-dms.card.BTN_EDIT_CANCEL,ยกเลิก
-dms.card.TXT_EDIT_PICK,ต้องการแก้ไขข้อมูลใด
 dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
 dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
@@ -148,7 +137,7 @@ dms.card.qa.TXT_ASK_AMOUNT,ยอดเงิน ({channel}) — พิมพ์
 dms.card.qa.TXT_BAD_AMOUNT,"จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
 dms.card.qa.TXT_ASK_PAY_DST,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
 dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
-dms.card.qa.TXT_ASK_CHEQUE_REF,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01"
+dms.card.qa.TXT_ASK_CHEQUE_REF,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
 dms.card.qa.TXT_ASK_CARD_REF,พิมพ์ประเภทบัตร เช่น VISA
 dms.card.qa.TXT_ASK_OTHER_REF,รายละเอียดช่องทาง — พิมพ์
 dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
@@ -184,8 +173,8 @@ dms.card.qa.VAL_ATTACHED,แนบแล้ว
 dms.card.qa.BTN_PAGE_PREV,ก่อนหน้า
 dms.card.qa.BTN_PAGE_NEXT,ถัดไป
 dms.card.qa.TXT_SEP_HINT,"คั่นช่องด้วย | , / หรือ ·"
-dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,"พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank"
-dms.card.qa.TXT_ASK_CARD_REF_MANUAL,"พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA"
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
+dms.card.qa.TXT_ASK_CARD_REF_MANUAL,พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
 dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็จ
 dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
 dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
@@ -299,3 +288,86 @@ dms.card.approval.LBL_REQUESTER,ผู้ขอ
 dms.card.approval.LBL_CUSTOMER,ลูกค้า
 dms.card.approval.LBL_SENT_TO,ส่งถึง
 dms.card.approval.TXT_SALES_FALLBACK,พนักงานขาย
+dms.edit.customerTitle,แก้ไขข้อมูลลูกค้า
+dms.edit.customerSub,บันทึกแล้วระบบจะส่งบัตรข้อมูลใหม่ไปที่ LINE กรุณาตรวจสอบและกดอัปเดตข้อมูลเพื่อบันทึกลง DMS
+dms.edit.title,แก้ไขใบจอง
+dms.edit.sub,แก้ข้อมูลแล้วบันทึก ระบบจะส่งสรุปใหม่กลับไปที่ LINE ก่อนบันทึกจริง
+dms.edit.customer,ข้อมูลลูกค้า
+dms.edit.booking,ข้อมูลการจอง
+dms.edit.payment,ช่องทางชำระเงิน
+dms.edit.files,ไฟล์แนบ
+dms.edit.save,บันทึกและส่งสรุปใหม่
+dms.edit.cancel,กลับ LINE
+dms.edit.loading,กำลังโหลดข้อมูล…
+dms.edit.saved,บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย
+dms.edit.failed,บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองใหม่
+dms.edit.expired,รายการนี้หมดอายุหรือถูกแก้ไขแล้ว กรุณาใช้สรุปล่าสุดใน LINE
+dms.edit.liffUnavailable,หน้าสำหรับ OA นี้ยังไม่เปิดใช้งาน กรุณาเปิดเมนู DMS ใหม่จาก LINE
+dms.edit.masterChanged,ตัวเลือกเปลี่ยนไปแล้ว กรุณาใช้สรุปล่าสุดใน LINE แล้วลองอีกครั้ง
+dms.edit.masterUnavailable,ยังโหลดตัวเลือกล่าสุดจาก DMS ไม่ได้ กรุณาลองใหม่อีกครั้ง
+dms.edit.postcodeMissing,กรุณาเลือกรหัสไปรษณีย์จากรายการที่กำหนด
+dms.edit.geoUnavailable,ข้อมูลที่อยู่ยังโหลดไม่ได้ กรุณาลองใหม่สักครู่
+dms.edit.previewSendFailed,ส่งสรุปใหม่ไปที่ LINE ไม่สำเร็จ กรุณาลองอีกครั้ง
+dms.edit.slipConflict,มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก
+dms.edit.paymentDetailRequired,กรุณากรอกรายละเอียดการชำระเงินที่จำเป็นให้ครบ
+dms.edit.duplicatePayment,ช่องทางชำระเงินแต่ละแบบเพิ่มได้เพียงครั้งเดียว
+dms.edit.advisor,ที่ปรึกษาการขาย (ระบบกำหนด)
+dms.edit.total,ยอดเงินจองรวม
+dms.edit.addPayment,เพิ่มช่องทาง
+dms.edit.attached,เก็บไฟล์แนบนี้
+dms.edit.fileHint,ยกเลิกเครื่องหมายเพื่อไม่นำไฟล์นี้ไปแนบกับใบจอง
+dms.edit.idCard,สำเนาบัตรประชาชน
+dms.edit.slip,ใบโอนเงินจอง
+dms.edit.idWarn,หากแก้ไขข้อมูลลูกค้า ระบบจะอัปเดตข้อมูลลูกค้าใน DMS เมื่อกดยืนยัน
+dms.edit.confirmId,เลขบัตรประชาชน
+dms.edit.prefix,คำนำหน้า
+dms.edit.name,ชื่อ นามสกุล
+dms.edit.birth,วันเกิด (วว/ดด/พ.ศ.)
+dms.edit.phone,เบอร์โทร
+dms.edit.house,เลขที่
+dms.edit.building,อาคาร
+dms.edit.floor,ชั้น
+dms.edit.room,ห้อง
+dms.edit.village,หมู่บ้าน
+dms.edit.moo,หมู่ที่
+dms.edit.soi,ตรอก/ซอย
+dms.edit.road,ถนน
+dms.edit.province,จังหวัด
+dms.edit.district,อำเภอ/เขต
+dms.edit.subdistrict,ตำบล/แขวง
+dms.edit.postcode,รหัสไปรษณีย์
+dms.edit.place,สถานที่รับจอง
+dms.edit.car,รุ่นรถ
+dms.edit.paint,สีรถ
+dms.edit.delivery,วันที่คาดว่าจะส่งมอบ
+dms.edit.term,เงื่อนไขการขาย
+dms.edit.regis,จดทะเบียนในนาม
+dms.edit.regisName,ชื่อผู้จดทะเบียน
+dms.edit.channel,ช่องทาง
+dms.edit.amount,จำนวนเงิน
+dms.edit.source,บัญชีต้นทาง
+dms.edit.sourceBank,ธนาคารต้นทาง
+dms.edit.sourceAccount,เลขบัญชีต้นทาง
+dms.edit.sourceAccountName,ชื่อบัญชีต้นทาง
+dms.edit.sourceBranch,สาขาต้นทาง
+dms.edit.chooseOption,กรุณาเลือก
+dms.edit.chooseBank,เลือกธนาคาร
+dms.edit.destination,ธนาคารที่รับเงิน
+dms.edit.destinationName,ชื่อบัญชีบริษัทที่รับเงิน
+dms.edit.destinationAccount,เลขบัญชีที่รับเงิน
+dms.edit.destinationBranch,สาขาธนาคารที่รับเงิน
+dms.edit.chequeNo,เลขที่เช็ค
+dms.edit.chequeBookNo,เล่มที่เช็ค
+dms.edit.cashierNo,เลขที่แคชเชียร์เช็ค
+dms.edit.cashierBookNo,เล่มที่แคชเชียร์เช็ค
+dms.edit.bankName,ธนาคาร
+dms.edit.cardType,ประเภทบัตร
+dms.edit.detail,รายละเอียด
+dms.edit.remove,ลบ
+dms.edit.cash,เงินสด
+dms.edit.transfer,เงินโอน
+dms.edit.cheque,เช็ค
+dms.edit.cashier_cheque,แคชเชียร์เช็ค
+dms.edit.card,บัตรเครดิต/เดบิต
+dms.edit.other,อื่นๆ
+dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ

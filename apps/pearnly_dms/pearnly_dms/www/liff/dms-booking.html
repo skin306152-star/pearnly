@@ -1,0 +1,242 @@
+<!--
+  LINE 内编辑器的交接页：换票据 → 交给 SPA（老产品 `/liff/dms-booking` 的对应物）。
+  这一屏只负责"正在交接"和"交接失败"，真正的编辑器界面在 /assets/pearnly_core/pearnly-app/ 里。
+
+  ⚠️ 这里**没有**配套的 `.py` 控制器，是有意的：Frappe 找同名控制器时会把文件名里的
+  `-` 换成 `_`（`template_page.set_pymodule`），所以 `dms-booking.py` 永远不会被执行 ——
+  页面需要的 LIFF ID 与 csrf 令牌改成**页面自己问接口要**（`browser_config`）。
+  少一个静默不生效的环节，就少一处"改了没反应"。
+
+  页面上的文字**全部**从服务端的语言包取（`browser_text`），这里不写死任何一句文案。
+  下面那行 `no-cache` 注释是 Frappe 的模板标记（`no_cache = 1`）：这是每次都带不同
+  query 的身份交接，缓存住会把人锁在一张死票据上。
+-->
+<!-- no-cache -->
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="white" />
+    <title>Pearnly DMS</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Noto Sans Thai", "Segoe UI", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f7f6fb;
+        color: #1d1438;
+        padding: 24px;
+      }
+      .card {
+        max-width: 420px;
+        width: 100%;
+        text-align: center;
+      }
+      .spinner {
+        width: 28px;
+        height: 28px;
+        border: 3px solid #ddd2ff;
+        border-top-color: #7c4dff;
+        border-radius: 50%;
+        display: inline-block;
+        animation: spin 0.8s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      #msg {
+        margin: 14px 0 0;
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      #msg.error {
+        color: #b3261e;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div id="spin"><span class="spinner"></span></div>
+      <p id="msg"></p>
+    </div>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+      (function () {
+        "use strict";
+
+        // 前端产物的地址。**必须**与 `frontend/vite.config.ts` 的 `base` 一致 ——
+        // 不一致的话这一跳就 404（那一处注释里写了同样的约定）。
+        var APP_URL = "/assets/pearnly_core/pearnly-app/index.html";
+        var CONFIG = { liffId: "", csrf: "" };
+        var API = "/api/method/pearnly_dms.dms_browser_api.";
+        // 票据与语言放 sessionStorage（同源、不落 URL）：SPA 那边读同一把钥匙。
+        var TICKET_KEY = "pearnly_dms_ticket";
+        var LANG_KEY = "pearnly_dms_lang";
+        var CACHE_LANG_KEY = "pearnly_lang";
+        var msg = document.getElementById("msg");
+        var TEXTS = {};
+
+        function param(name) {
+          var sp = new URLSearchParams(location.search);
+          // LINE 内打开时，原始 query 在 liff.state 里（SDK 的约定）。
+          var state = sp.get("liff.state");
+          if (state) {
+            var cut = state.indexOf("?");
+            state = cut >= 0 ? state.slice(cut + 1) : state;
+            return new URLSearchParams(state).get(name) || "";
+          }
+          return sp.get(name) || "";
+        }
+
+        function locale() {
+          try {
+            var saved = localStorage.getItem(CACHE_LANG_KEY);
+            if (saved) return saved;
+          } catch (e) {
+            /* 隐私模式下拿不到，按浏览器语言判 */
+          }
+          var nav = (navigator.language || "").toLowerCase();
+          if (nav.indexOf("zh") === 0) return "zh";
+          if (nav.indexOf("ja") === 0) return "ja";
+          if (nav.indexOf("en") === 0) return "en";
+          return "th";
+        }
+
+        var LANG = locale();
+
+        function text(key) {
+          var bag = TEXTS[key];
+          if (bag) return bag[LANG] || bag.th || bag.en || key;
+          return key;
+        }
+
+        async function get(method, params) {
+          var url = new URL(API + method, location.origin);
+          Object.keys(params).forEach(function (k) {
+            if (params[k] !== undefined && params[k] !== null && params[k] !== "") {
+              url.searchParams.set(k, String(params[k]));
+            }
+          });
+          var response = await fetch(url, { headers: { Accept: "application/json" } });
+          var body = await response.json().catch(function () {
+            return null;
+          });
+          if (!response.ok) throw failure(body, response.status);
+          return body && body.message;
+        }
+
+        async function post(method, payload) {
+          var response = await fetch(API + method, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Accept: "application/json",
+              "X-Frappe-CSRF-Token": CONFIG.csrf
+            },
+            body: JSON.stringify(Object.assign({ csrf_token: CONFIG.csrf }, payload))
+          });
+          var body = await response.json().catch(function () {
+            return null;
+          });
+          if (!response.ok) throw failure(body, response.status);
+          return body && body.message;
+        }
+
+        function failure(body, status) {
+          var raw = body && body._server_messages;
+          var code = "";
+          try {
+            var list = JSON.parse(raw || "[]");
+            code = JSON.parse(list[0] || "{}").message || "";
+          } catch (e) {
+            code = "";
+          }
+          var error = new Error(code || "failed");
+          error.code = code;
+          error.status = status;
+          return error;
+        }
+
+        async function loadTexts(keys) {
+          try {
+            var bag = await get("browser_text", { keys: JSON.stringify(keys) });
+            Object.assign(TEXTS, bag || {});
+          } catch (e) {
+            /* 文案拉不到就显示 key，便于排查，不假装一切正常 */
+          }
+        }
+
+        function showError(key) {
+          document.getElementById("spin").hidden = true;
+          msg.className = "error";
+          msg.textContent = text(key);
+        }
+
+        function handOff(ticket, draft, editor) {
+          try {
+            sessionStorage.setItem(TICKET_KEY, ticket);
+            sessionStorage.setItem(LANG_KEY, LANG);
+          } catch (e) {
+            /* 存不下（极端隐私模式）→ SPA 那边会按站点会话再换一次票据 */
+          }
+          var target =
+            APP_URL +
+            "#/dms/editor?draft=" +
+            encodeURIComponent(draft) +
+            "&editor=" +
+            encodeURIComponent(editor);
+          location.replace(target);
+        }
+
+        async function main() {
+          var draft = param("draft");
+          var editor = param("editor") === "customer" ? "customer" : "booking";
+          await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable"]);
+          msg.textContent = text("dms.edit.loading");
+          if (!draft) return showError("dms.edit.expired");
+          // 配置也从接口拿（LIFF ID + csrf），不依赖模板变量 —— 见文件头的说明。
+          var config = await get("browser_config", {});
+          CONFIG.liffId = (config && config.liff_id) || "";
+          CONFIG.csrf = (config && config.csrf_token) || "";
+          var payload = { draft: draft, editor: editor };
+          if (CONFIG.liffId && window.liff) {
+            // LINE 内：验一次身份（`liff.init` 只在这个 endpoint 路径下可用 —— 所以身份
+            // 这一步留在这一页做，拿到票据之后才跳进 SPA）。
+            await window.liff.init({ liffId: CONFIG.liffId });
+            if (!window.liff.isLoggedIn()) {
+              window.liff.login({ redirectUri: location.href });
+              return;
+            }
+            payload.id_token = window.liff.getIDToken() || "";
+          }
+          var auth = await post("browser_auth", payload);
+          try {
+            if (auth && auth.language) sessionStorage.setItem(LANG_KEY, auth.language);
+          } catch (e) {
+            /* 拿不到就按页面自己判的语言渲染 */
+          }
+          handOff(auth.ticket, draft, editor);
+        }
+
+        main().catch(function (error) {
+          var key = "dms.edit.failed";
+          if (error && error.code === "dms_booking.line_auth_required") {
+            key = "dms.edit.liffUnavailable";
+          } else if (error && error.code === "dms_booking.expired") {
+            key = "dms.edit.expired";
+          }
+          showError(key);
+        });
+      })();
+    </script>
+  </body>
+</html>

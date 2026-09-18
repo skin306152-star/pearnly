@@ -22,3 +22,86 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
+dms.edit.customerTitle,修改客户资料
+dms.edit.customerSub,保存后会发送新版客户卡到 LINE；请核对后点击“更新资料”，才会写入 DMS。
+dms.edit.title,编辑订车单
+dms.edit.sub,保存修改后，系统会先把新版预览发回 LINE，确认后才真正录入。
+dms.edit.customer,客户资料
+dms.edit.booking,订车资料
+dms.edit.payment,订金支付方式
+dms.edit.files,附件
+dms.edit.save,保存并发送新版预览
+dms.edit.cancel,返回 LINE
+dms.edit.loading,正在加载订车资料…
+dms.edit.saved,草稿已保存，新版预览已发送到 LINE。
+dms.edit.failed,保存失败，请检查字段后重试。
+dms.edit.expired,此草稿已过期或已被修改，请使用 LINE 中最新的预览卡。
+dms.edit.liffUnavailable,此入口尚未为这个 LINE OA 开通，请从 LINE 重新打开 DMS 菜单。
+dms.edit.masterChanged,可选项目已更新，请使用 LINE 中的最新预览卡后重试。
+dms.edit.masterUnavailable,暂时无法读取 DMS 最新选项，请稍后重试。
+dms.edit.postcodeMissing,请从列表中选择邮编。
+dms.edit.geoUnavailable,地址数据暂时不可用，请稍后重试。
+dms.edit.previewSendFailed,新版预览发送到 LINE 失败，请重试。
+dms.edit.slipConflict,已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。
+dms.edit.paymentDetailRequired,请填写完整的必填付款信息。
+dms.edit.duplicatePayment,每种付款方式只能添加一次。
+dms.edit.advisor,销售顾问（系统指定）
+dms.edit.total,订金合计
+dms.edit.addPayment,添加支付方式
+dms.edit.attached,保留此附件
+dms.edit.fileHint,取消勾选后，此文件不会附到订车单。
+dms.edit.idCard,身份证复印件
+dms.edit.slip,订金转账凭证
+dms.edit.idWarn,修改客户资料后，最终确认时会同步更新 DMS 客户主档。
+dms.edit.confirmId,身份证号
+dms.edit.prefix,称谓
+dms.edit.name,客户姓名
+dms.edit.birth,出生日期（DD/MM/佛历）
+dms.edit.phone,电话
+dms.edit.house,门牌号
+dms.edit.building,大楼
+dms.edit.floor,楼层
+dms.edit.room,房间
+dms.edit.village,村/小区
+dms.edit.moo,村组
+dms.edit.soi,巷
+dms.edit.road,道路
+dms.edit.province,府
+dms.edit.district,县/区
+dms.edit.subdistrict,镇/街道
+dms.edit.postcode,邮编
+dms.edit.place,接收订车地点
+dms.edit.car,车型
+dms.edit.paint,车色
+dms.edit.delivery,预计交车日期
+dms.edit.term,销售条件
+dms.edit.regis,登记名义
+dms.edit.regisName,登记人姓名
+dms.edit.channel,方式
+dms.edit.amount,金额
+dms.edit.source,付款账户
+dms.edit.sourceBank,付款银行
+dms.edit.sourceAccount,付款账号
+dms.edit.sourceAccountName,付款账户名
+dms.edit.sourceBranch,付款分行
+dms.edit.chooseOption,请选择
+dms.edit.chooseBank,请选择银行
+dms.edit.destination,收款银行
+dms.edit.destinationName,公司收款户名
+dms.edit.destinationAccount,实际收款账号
+dms.edit.destinationBranch,收款银行分行
+dms.edit.chequeNo,支票号码
+dms.edit.chequeBookNo,支票簿号
+dms.edit.cashierNo,银行本票号码
+dms.edit.cashierBookNo,银行本票簿号
+dms.edit.bankName,银行
+dms.edit.cardType,卡类型
+dms.edit.detail,详情
+dms.edit.remove,删除
+dms.edit.cash,现金
+dms.edit.transfer,转账
+dms.edit.cheque,支票
+dms.edit.cashier_cheque,银行本票
+dms.edit.card,信用卡/借记卡
+dms.edit.other,其他
+dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。

@@ -20,14 +20,19 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 
 import frappe
 import requests
 from frappe import _
 
+logger = logging.getLogger(__name__)
+
 TIMEOUT = 15
 # 下载媒体比发消息慢得多（图片可能好几 MB），单独给一个更宽的超时
 DOWNLOAD_TIMEOUT = 60
+# LIFF `id_token` 的验签端点（见 `verify_id_token`）
+_VERIFY_ENDPOINT = "https://api.line.me/oauth2/v2.1/verify"
 EVENT = "Pearnly LINE Event"
 
 
@@ -50,6 +55,43 @@ def liff_id() -> str:
     没配就是空串 —— 调用方据此**省略按钮**，而不是给一个打不开的链接。
     """
     return _conf("liff_id")
+
+
+def verify_id_token(id_token: str) -> "dict | None":
+    """LINE 内 LIFF 页拿到的 `id_token` → 验签后的 claims；**验不过一律 None**。
+
+    照搬老产品 `services/line_platform/liff.verify_id_token`（线上基准 501589f0），
+    但**去掉了多 OA 那层**：老产品一个 LIFF 服务好几个官方号，所以要按 `liff_env` 查
+    渠道注册表、还要处理"这个 OA 没有自己的 LIFF 就借共享 Provider 的"。新平台
+    一站一渠道，渠道 id 只有一个来源：本站点配置。
+
+    用哪个 client_id 验：优先 `channel_id`；没单独配就用 LIFF ID 的**前缀**
+    （`2006123456-AbCdEf` 里 `-` 前面那段就是 LINE Login 渠道号，这是 LINE 自己的格式）。
+    两者都取不到 → **直接 None，不发这次请求**（fail closed：宁可不认，也不去认一个
+    别的渠道签出来的 token）。
+    """
+    channel = channel_id()
+    if not channel:
+        liff = liff_id()
+        channel = liff.split("-")[0] if liff else ""
+    if not id_token or not channel:
+        return None
+    try:
+        response = requests.post(
+            _VERIFY_ENDPOINT,
+            data={"id_token": id_token, "client_id": channel},
+            timeout=TIMEOUT,
+        )
+    except requests.RequestException:
+        logger.warning("[line] id_token 验签请求失败", exc_info=True)
+        return None
+    if response.status_code != 200:
+        return None
+    try:
+        claims = response.json()
+    except ValueError:
+        return None
+    return claims if isinstance(claims, dict) else None
 
 
 # ── 验签 ────────────────────────────────────────────────────────────────────
@@ -76,10 +118,60 @@ def _headers() -> dict:
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 
+def mirroring() -> bool:
+    """本机样例站点的**本地镜像**是否开启（见 `_mirror`）。
+
+    两个条件**同时**成立才算开：站点开了 `pearnly_line_mirror`，**并且**这个站点根本没配
+    LINE 凭据。第二个条件是安全绳：真有 LINE 通道的站点永远走真实发送 ——
+    哪怕开关被误写进生产配置，也不会把消息吞进日志了事。
+    """
+    return _conf("mirror") == "1" and not is_configured()
+
+
+def _mirror(kind: str, target: str, messages: list) -> bool:
+    """把"本该发到 LINE"的消息记进 `Pearnly Push Log`，返回**已投递**。
+
+    为什么要有它：本机样例站点没有 LINE 通道，可编辑器的保存那一步**必须确认卡片送达**
+    才算成功（`dms_booking_edit.save`）—— 没有镜像的话，本机点一次保存永远是
+    `preview_send_failed`，用户没法在本机验收任何一条涉及 LINE 的闭环。
+
+    记的账目是诚实的：`trigger="line_mirror"` 与真实推送一眼可分，正文里写明
+    "本机镜像，未发往 LINE"，卡片原文在 `response_body` 里，能逐字核对。
+    """
+    import json
+
+    from pearnly_core import push_log
+
+    logger.info("[line] 本地镜像 %s → %s（未发往 LINE）", kind, target or "-")
+    try:
+        push_log.record(
+            "success",
+            trigger="line_mirror",
+            reference_doctype="Pearnly LINE Binding",
+            business_key=str(target or ""),
+            response_body=json.dumps(
+                {
+                    "mirrored": True,
+                    "note": "本机样例站点：未发往 LINE，仅记录原文",
+                    "kind": kind,
+                    "to": target or "",
+                    "messages": messages,
+                },
+                ensure_ascii=False,
+            ),
+        )
+    except Exception:
+        # 记账失败不能把发送结果翻成失败：卡片该"发"还是发了（镜像里）。
+        logger.warning("[line] 本地镜像记账失败", exc_info=True)
+    return True
+
+
 def reply(reply_token: str, messages: list) -> bool:
     """用 reply token 回复（免费、一次有效、60 秒内）。"""
     if not reply_token:
         return False
+    if mirroring():
+        return _mirror("reply", reply_token, messages)
     resp = requests.post(
         "https://api.line.me/v2/bot/message/reply",
         headers=_headers(),
@@ -99,6 +191,8 @@ def push(to: str, messages: list) -> bool:
     """主动推送（计费）。用于没有 reply token 的场合，例如定时提醒。"""
     if not to:
         return False
+    if mirroring():
+        return _mirror("push", to, messages)
     resp = requests.post(
         "https://api.line.me/v2/bot/message/push",
         headers=_headers(),

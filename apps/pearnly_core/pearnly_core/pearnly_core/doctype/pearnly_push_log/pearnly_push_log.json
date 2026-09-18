@@ -63,9 +63,9 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "触发方式",
-   "options": "manual\nline\nauto",
+   "options": "manual\nline\nline_mirror\nauto",
    "reqd": 1,
-   "description": "老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留三档通用值，业务线本身记在 reference_doctype 上"
+   "description": "老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上"
   },
   {
    "default": "1",

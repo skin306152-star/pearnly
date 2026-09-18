@@ -22,3 +22,86 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデー
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
+dms.edit.customerTitle,顧客情報を編集
+dms.edit.customerSub,保存すると新しい確認カードを LINE に送信します。確認後に情報更新を押すと DMS に登録されます。
+dms.edit.title,予約票を編集
+dms.edit.sub,変更を保存すると、確定前に新しいプレビューが LINE に送信されます。
+dms.edit.customer,顧客情報
+dms.edit.booking,予約情報
+dms.edit.payment,支払方法
+dms.edit.files,添付ファイル
+dms.edit.save,保存して新しいプレビューを送信
+dms.edit.cancel,LINE に戻る
+dms.edit.loading,予約情報を読み込み中…
+dms.edit.saved,下書きを保存し、新しいプレビューを LINE に送信しました。
+dms.edit.failed,保存できませんでした。入力内容を確認して再試行してください。
+dms.edit.expired,この下書きは期限切れ、または変更済みです。LINE の最新プレビューを使用してください。
+dms.edit.liffUnavailable,この画面はこのLINE OAでは利用できません。LINEからDMSメニューを開き直してください。
+dms.edit.masterChanged,選択肢が更新されました。LINE の最新プレビューで再試行してください。
+dms.edit.masterUnavailable,DMS の最新選択肢を取得できません。しばらくして再試行してください。
+dms.edit.postcodeMissing,リストから郵便番号を選択してください。
+dms.edit.geoUnavailable,住所データを取得できませんでした。しばらくして再試行してください。
+dms.edit.previewSendFailed,新しいプレビューを LINE に送信できませんでした。再試行してください。
+dms.edit.slipConflict,振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。
+dms.edit.paymentDetailRequired,必須の支払情報を入力してください。
+dms.edit.duplicatePayment,各支払方法は1回のみ追加できます。
+dms.edit.advisor,販売担当者（システム指定）
+dms.edit.total,予約金合計
+dms.edit.addPayment,支払方法を追加
+dms.edit.attached,この添付を保持
+dms.edit.fileHint,オフにすると予約票に添付されません。
+dms.edit.idCard,身分証明書の写し
+dms.edit.slip,振込票
+dms.edit.idWarn,顧客情報を変更すると、確定時に DMS の顧客台帳が更新されます。
+dms.edit.confirmId,国民ID
+dms.edit.prefix,敬称
+dms.edit.name,氏名
+dms.edit.birth,生年月日（DD/MM/仏暦）
+dms.edit.phone,電話番号
+dms.edit.house,番地
+dms.edit.building,建物
+dms.edit.floor,階
+dms.edit.room,部屋
+dms.edit.village,村・住宅地
+dms.edit.moo,ムー
+dms.edit.soi,ソイ
+dms.edit.road,道路
+dms.edit.province,県
+dms.edit.district,郡・区
+dms.edit.subdistrict,町・地区
+dms.edit.postcode,郵便番号
+dms.edit.place,予約受付場所
+dms.edit.car,車種
+dms.edit.paint,色
+dms.edit.delivery,納車予定日
+dms.edit.term,販売条件
+dms.edit.regis,登録名義
+dms.edit.regisName,登録者名
+dms.edit.channel,方法
+dms.edit.amount,金額
+dms.edit.source,振込元口座
+dms.edit.sourceBank,振込元銀行
+dms.edit.sourceAccount,振込元口座番号
+dms.edit.sourceAccountName,振込元口座名義
+dms.edit.sourceBranch,振込元支店
+dms.edit.chooseOption,選択してください
+dms.edit.chooseBank,銀行を選択
+dms.edit.destination,受取銀行
+dms.edit.destinationName,会社の受取口座名義
+dms.edit.destinationAccount,受取口座番号
+dms.edit.destinationBranch,受取銀行支店
+dms.edit.chequeNo,小切手番号
+dms.edit.chequeBookNo,小切手帳番号
+dms.edit.cashierNo,銀行小切手番号
+dms.edit.cashierBookNo,銀行小切手帳番号
+dms.edit.bankName,銀行
+dms.edit.cardType,カード種別
+dms.edit.detail,詳細
+dms.edit.remove,削除
+dms.edit.cash,現金
+dms.edit.transfer,振込
+dms.edit.cheque,小切手
+dms.edit.cashier_cheque,銀行小切手
+dms.edit.card,クレジット/デビットカード
+dms.edit.other,その他
+dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。

@@ -44,7 +44,16 @@ def main():
         return out
 
     def actions(msg):
-        return [parse_qs(b["action"]["data"]).get("action", [""])[0] for b in buttons(msg)]
+        """卡片上每个按钮的 postback 动作名。
+
+        ⚠️ 编辑按钮现在是 **uri** 深链（线上行为），没有 `data` —— 所以这里必须用
+        `.get("data", "")` 而不是直接取键，否则一取就 KeyError（真踩过一次）。
+        """
+        out = []
+        for button in buttons(msg):
+            data = button["action"].get("data", "")
+            out.append(parse_qs(data).get("action", [""])[0] if data else "")
+        return out
 
     summary = {
         "people_id": "9990000000014", "name": "สมชาย ใจดี", "birthday_be": "01/01/2530",
@@ -69,14 +78,21 @@ def main():
     check("新客卡复述五要素（每张卡先看全信息）",
           sum(1 for r in card["contents"]["body"]["contents"] if r.get("type") == "box") == 5,
           sum(1 for r in card["contents"]["body"]["contents"] if r.get("type") == "box"))
+    # 第二个按钮是**编辑深链**（uri，没有 postback 的 data），所以只比较动作名会得到空串 ——
+    # 线上就是这么发的（`cards._edit_button`：能拿到地址就把 action 换成 uri）。
     check("新客卡按钮 = 保存/修改，只有两个（拍板瘦身）",
-          actions(card) == ["create_new", "edit"], actions(card))
+          actions(card) == ["create_new", ""]
+          and [b["action"].get("type") for b in buttons(card)] == ["postback", "uri"],
+          [b["action"].get("type") for b in buttons(card)])
     check("缺失字段显示占位符 — 而不是空白",
           C._kv_row("x", "")["contents"][1]["text"] == "—")
 
     # ── 3. 一致卡 ─────────────────────────────────────────────────────
     same = C.same_customer_card(summary, "n2")
-    check("一致卡按钮 = 用旧资料/修改", actions(same) == ["keep", "edit"], actions(same))
+    check("一致卡按钮 = 用旧资料/修改（修改同样是深链）",
+          actions(same)[0] == "keep"
+          and [b["action"].get("type") for b in buttons(same)][1] == "uri",
+          [b["action"].get("type") for b in buttons(same)])
     check("一致卡仍带完整预览（不然会把手输出错的销售堵死）",
           any("9990000000014" in t for t in body_texts(same)),
           [t for t in body_texts(same) if "9990" in t])
@@ -136,26 +152,64 @@ def main():
     check("没顾问 → 整行不出，不留空槽",
           "ที่ปรึกษา" not in no_adv, no_adv.replace("\n", " / "))
 
-    # ── 8. 修改菜单 ────────────────────────────────────────────────────
-    # ⚠️ 这套「选字段 → 输入新值」的逐字段文字编辑，**线上已退役**
-    #    （线上 `services/line_dms/customer_edit_entry.py` 写明 "retired text-edit
-    #    events cannot change customer fields"，点 [แก้ไข] 改成直接开浏览器编辑页）。
-    #    新平台这段目前**没有任何调用方**，本节只保证它在被删掉之前不自相矛盾。
-    #    第 8 批返工（customer_edit / customer_edit_entry / edit_link）时，本节连同
-    #    `edit_menu_message` / `edit_prompt` / `EDIT_FIELDS` 一起替换成「编辑按钮产出
-    #    URI 深链」的验证。
-    menu = C.edit_menu_message("n7")
-    qr = menu["quickReply"]["items"]
-    check("修改菜单列出全部可改字段 + 取消",
-          len(qr) == len(C.EDIT_FIELDS) + 1, len(qr))
-    fields = [parse_qs(i["action"]["data"]).get("field", [""])[0] for i in qr]
-    check("每项都带 field", all(f for f in fields[:-1]), fields)
-    check("末项是取消", parse_qs(qr[-1]["action"]["data"])["action"][0] == "edit_cancel")
-    check("修改提示用泰文标签", "ชื่อ-นามสกุล" in C.edit_prompt("name"), C.edit_prompt("name"))
-    check("地址四级 id 不进可改字段（改文本后由级联重解）",
-          all(k not in dict(C.EDIT_FIELDS)
-              for k in ("province_id", "district_id", "zipcode_id")),
-          [k for k, _ in C.EDIT_FIELDS])
+    # ── 8. 编辑入口：**一个深链按钮**，不是逐字段菜单 ──────────────────
+    # ⚠️ 线上（基准 501589f0）早把"在 LINE 里逐字段改"退役了：`customer_edit_entry.py`
+    #    写明 "retired text-edit events cannot change customer fields"，点 [แก้ไข]
+    #    改成「回一个按钮 → 打开浏览器编辑页」。新平台这次跟着改齐 ——
+    #    `edit_menu_message` / `edit_prompt` / `EDIT_FIELDS` / `ACT_EDIT_FIELD` /
+    #    `ACT_EDIT_CANCEL` 全部删掉（线上也没有这些）。
+    import frappe
+    from unittest import mock
+
+    for gone in ("edit_menu_message", "edit_prompt", "EDIT_FIELDS",
+                 "ACT_EDIT_FIELD", "ACT_EDIT_CANCEL"):
+        check("逐字段编辑已退役，模块里不再有 %s" % gone, not hasattr(C, gone))
+
+    before = frappe.conf.get("pearnly_line_liff_id")
+
+    def edit_buttons(msg):
+        return [b for b in buttons(msg) if b["action"].get("type") == "uri"]
+
+    try:
+        frappe.conf["pearnly_line_liff_id"] = "2006123456-AbCdEf"
+        card = C.new_customer_card(summary, "n7")
+        uris = edit_buttons(card)
+        check("配了 LIFF → [แก้ไข] 是**深链按钮**（uri），不是 postback",
+              len(uris) == 1, [b["action"].get("type") for b in buttons(card)])
+        uri = uris[0]["action"]["uri"] if uris else ""
+        check("深链进的是**客户档**编辑器（带 editor=customer）",
+              "editor=customer" in uri and "draft=n7" in uri, uri)
+        check("按钮文案取自语言包（BTN_EDIT）",
+              bool(uris) and uris[0]["action"]["label"] == C.BTN_EDIT,
+              uris[0]["action"] if uris else "")
+
+        # 没配 LIFF 也**不是不给按钮**：回落本站点网页路径（与老 `edit_link` 同规则）。
+        frappe.conf["pearnly_line_liff_id"] = ""
+        fallback = edit_buttons(C.same_customer_card(summary, "n7"))
+        check("没配 LIFF → 深链落到本站点网页路径（不是空链接、也不是报错）",
+              len(fallback) == 1 and "/liff/dms-booking" in fallback[0]["action"]["uri"],
+              fallback[0]["action"] if fallback else "")
+
+        # 连站点地址都取不到（极端情形）→ 退回 postback，由 `ACT_EDIT` 处理器说话。
+        with mock.patch("frappe.utils.get_url", return_value=""):
+            bare = C.same_customer_card(summary, "n7")
+        check("拿不到任何地址 → 退回 postback（不生成按不动的空链接）",
+              not edit_buttons(bare)
+              and any(b["action"].get("type") == "postback" for b in buttons(bare)),
+              [b["action"].get("type") for b in buttons(bare)])
+
+        # 「点编辑之后回的那张卡」与卡片上的按钮同源（线上 `customer_edit_entry._open`）。
+        entry = C.edit_entry_card("n7")
+        check("点编辑回的卡只有一个按钮", len(buttons(entry)) == 1, buttons(entry))
+        check("且它就是同一条深链",
+              bool(edit_buttons(entry))
+              and "draft=n7" in edit_buttons(entry)[0]["action"]["uri"],
+              buttons(entry))
+    finally:
+        if before is None:
+            frappe.conf.pop("pearnly_line_liff_id", None)
+        else:
+            frappe.conf["pearnly_line_liff_id"] = before
 
     # ── 9. 文案必须在语言包里（防漏键）────────────────────────────────
     # 教训：卡片文案从代码搬进 `translations/th.csv` 时漏了两个键，
@@ -188,7 +242,6 @@ def main():
         # `qa_cards.` 那条路也扫（那是另一套命名空间 `dms.card.qa.*`）
         used |= {f"qa.{m}" for m in re.findall(
             r"qa_cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|LBL_[A-Z0-9_]+|VAL_[A-Z0-9_]+)", src)}
-    used |= {f"edit.{f}" for f, _ in C.EDIT_FIELDS}
     used |= {f"diff.{f}" for f in C.FIELD_LABELS_TH}
     used |= {f"sum.{f}" for f in C._SUMMARY_FIELD_NAMES}
     from pearnly_dms import dms_booking_car_details as _car_details

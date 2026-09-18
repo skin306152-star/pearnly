@@ -147,19 +147,27 @@ def consume_nonce(
     return payload
 
 
-def replace_review_payload(line_user_id: str, expected_nonce: str, payload: dict) -> bool:
-    """受守卫地替换一份"待确认订车"草稿，并轮换它的 nonce（一次写入完成）。
+def replace_review_payload(
+    line_user_id: str, expected_nonce: str, payload: dict, *, state: str = "booking_review"
+) -> bool:
+    """受守卫地替换一份"待确认"草稿，并轮换它的 nonce（一次写入完成）。
 
     返回是否真的替换成功 —— 调用方据此决定要不要说"已更新"。
+
+    `state` 有两个合法取值（与老产品 `session_store.replace_review_payload` 一字不差）：
+    `booking_review`（订车草稿）与 `reviewing`（客户档草稿 —— 浏览器编辑器改完客户资料
+    后写回的就是这一态）。**别的态一律拒绝**：拿这个方法去改别的会话态会把守卫本身作废。
     """
+    if state not in {"reviewing", "booking_review"}:
+        return False
     if not expected_nonce or not payload.get("nonce"):
         return False
     sess = get_session(line_user_id)
-    if not sess or sess.get("state") != "booking_review":
+    if not sess or sess.get("state") != state:
         return False
     if (sess.get("payload") or {}).get("nonce") != expected_nonce:
         return False
-    set_session(line_user_id, "booking_review", payload)
+    set_session(line_user_id, state, payload)
     return True
 
 

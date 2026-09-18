@@ -180,6 +180,13 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         )
         return
 
+    # 编辑：线上早把"LINE 里逐字段改"退役了 —— 点 [แก้ไข] 就是**打开浏览器编辑页**。
+    # 与 `ACT_KEEP` 同理，**只校验不消费 nonce**（用户可能来回点几次），所以也必须排在
+    # 下面的写档守卫之前。
+    if action == cards.ACT_EDIT:
+        _open_browser_editor(line_user_id, reply_token, pb, sess)
+        return
+
     # 写动作：确认守卫（reviewing 态 + nonce 吻合）**原子清 nonce**；不符/过期 → 绝不写。
     # 清掉之后同一个 nonce 的第二次点击必然 mismatch（防双击双写）。
     payload = store.consume_nonce(line_user_id, "reviewing", pb.get("nonce"))
@@ -201,6 +208,44 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         _enqueue("update", write_update, binding, line_user_id, {**payload, "customer_id": cid})
     else:
         _reply(reply_token, cards.TXT_EXPIRED)
+
+
+# ── 编辑入口（线上行为：开浏览器编辑页，不再逐字段问） ─────────────────────
+def _open_browser_editor(
+    line_user_id: str, reply_token: str, pb: Dict[str, Any], sess: Optional[dict]
+) -> None:
+    """回一个"打开编辑页"的按钮；历史编辑态先退役再开页。
+
+    照搬老产品 `services/line_dms/customer_edit_entry.py`：
+
+    · 只有 `reviewing`（当前）与 `editing`（**老产品的历史态**）两张卡认；
+      别的态/过期 nonce → 说过期，绝不静默当成功。
+    · `editing` 态进来时**保留草稿、只把 nonce 换掉**再开页：用户在 LINE 里打了一半的
+      文字不能因为"这条链退役了"就丢掉（那是老产品的原话与做法）。
+    · 拿不到编辑页地址（没配 LIFF 也没站点地址）→ **说一句"打不开，请重来"**，
+      不给一个按不动的按钮。
+    """
+    state = (sess or {}).get("state")
+    nonce = str(pb.get("nonce") or "")
+    if state not in {"reviewing", "editing"} or not store.verify_nonce(sess, nonce, state):
+        _reply(reply_token, cards.TXT_EXPIRED)
+        return
+    if state == "editing":
+        payload = {
+            key: value
+            for key, value in ((sess or {}).get("payload") or {}).items()
+            if key != "editing_field"
+        }
+        payload["nonce"] = secrets.token_hex(8)
+        store.set_session(line_user_id, "reviewing", payload)
+        nonce = str(payload["nonce"])
+
+    from pearnly_dms import dms_edit_link
+
+    if not dms_edit_link.url(nonce, customer=True):
+        _reply(reply_token, cards.TXT_EDIT_UNAVAILABLE)
+        return
+    line.reply(reply_token, [cards.edit_entry_card(nonce)])
 
 
 # ── collecting：识别 ───────────────────────────────────────────────────────
