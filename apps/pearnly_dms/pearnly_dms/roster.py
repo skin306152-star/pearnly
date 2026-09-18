@@ -20,6 +20,7 @@
 """
 
 import secrets
+from typing import List, Optional
 
 import frappe
 from frappe import _
@@ -90,6 +91,50 @@ def _row(doc) -> dict:
         "advisor_name": doc.advisor_name or "",
         **_line_status(doc.user),
     }
+
+
+# ── 给别的模块读的档案口子（审批流要按账号查档案、查已绑 LINE 的管理员） ──────
+#
+# 键名与老产品 `dms_roster.store` 对齐（`user_id` / `dms_role` / `line_user_id`），
+# 这样搬过来的流程层可以直接吃，不必到处改键名。
+
+
+def _profile_row(doc) -> dict:
+    return {
+        "user_id": doc.user,
+        "display_name": doc.display_name or "",
+        "dms_role": doc.dms_role or "",
+        "status": doc.status or "active",
+        "can_query_dms": bool(doc.can_query_dms),
+        "line_user_id": line_user_id_of(doc.user),
+    }
+
+
+def line_user_id_of(user: str) -> str:
+    """这个本地账号当前绑的 LINE 用户 id（没绑 → 空串）。真值在绑定表里。"""
+    if not user:
+        return ""
+    return str(
+        frappe.db.get_value(BINDING, {"user": user, "status": "active"}, "line_user_id") or ""
+    )
+
+
+def get_profile(user: str) -> Optional[dict]:
+    """某人的花名册档案；**没有档案回 None**（调用方据此判断"是不是自己人"）。"""
+    if not user:
+        return None
+    name = frappe.db.get_value(OPERATOR, {"user": user}, "name")
+    if not name:
+        return None
+    return _profile_row(frappe.get_doc(OPERATOR, name))
+
+
+def list_profiles() -> List[dict]:
+    """全租户的档案（含各自绑的 LINE）。审批人选人卡用它筛"能收卡的管理员"。"""
+    return [
+        _profile_row(frappe.get_doc(OPERATOR, name))
+        for name in frappe.get_all(OPERATOR, pluck="name")
+    ]
 
 
 def list_operators() -> dict:

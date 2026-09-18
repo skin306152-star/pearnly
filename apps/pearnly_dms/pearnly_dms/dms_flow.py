@@ -151,6 +151,14 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         menu_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
         return
 
+    # 审批那一族（提审 / 选人 / 改派 / 批 / 拒）：一次性由存储的原子认领保证，
+    # 所以这里**不消费 nonce**，但必须排在下方的写档守卫之前。
+    from pearnly_dms import dms_approval_flow as approval_flow
+
+    if action in approval_flow.APPROVAL_ACTIONS:
+        approval_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
+        return
+
     if action == cards.ACT_KEEP:
         # 零写入不等于零后果：它会接着开订车逐问。nonce **只校验不消费**，
         # 否则翻聊天记录点任意一张旧卡都能白开一轮会话。
@@ -289,13 +297,12 @@ def run_dedup(
             )
             has_admin = draft.has_admin_creds(ep_name)
             display = draft.display_diffs(field_diffs, geo)
-            # ⚠️ 审批流未搬：老产品这里调 approval_flow.exact_diff_card 按策略给主按钮。
-            #    现在只按"有没有配 admin"决定（有改写权 → 更新；没有 → 提示先配管理员）。
-            card = cards.diff_card(
-                display,
-                nonce,
-                primary="update" if has_admin else "none",
-                summary=summary,
+            # 主按钮按**花名册角色 + 审批策略**解出（搬自老产品的 `exact_diff_card`）：
+            # 销售 + 该类改动要审 → 提审卡；有写权 → 直接更新；都没有 → 只提示去设置。
+            from pearnly_dms import dms_approval_flow as approval_flow
+
+            card, needs_approval = approval_flow.exact_diff_card(
+                str(binding.get("user_id") or ""), display, has_admin, nonce, summary
             )
             payload.update(
                 field_diffs=field_diffs,
@@ -303,6 +310,7 @@ def run_dedup(
                 display_diffs=display,
                 master_draft=master_draft,
                 master_summary=master_summary,
+                approval=needs_approval,
             )
         else:
             # 菜单层未搬 → 统一走"资料一致"卡（老产品直拍路径就是这样）

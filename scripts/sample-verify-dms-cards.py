@@ -170,10 +170,14 @@ def main():
     used = set()
     for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
         src = open(path, encoding="utf-8").read()
-        # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`：别的模块（比如 `dms_query_cards`）
-        # 也有一个 `_t`，但它写的是 `dms.card.query.*` —— 不分青红皂白地收进来，
-        # 就会拿一批住在别的命名空间的键去 `dms.card.*` 里找，报一整屏假"缺键"。
-        if "dms.card.query." not in src:
+        # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`。本仓库现在有四个命名空间
+        # （`dms.card.*` / `.qa.*` / `.query.*` / `.approval.*`），各自的模块都叫
+        # `dms_<ns>_cards.py`，每个都有自己那个 `_t`。不分青红皂白地收进来，就会拿一批
+        # 住在别的命名空间的键去 `dms.card.*` 里找，报一整屏假"缺键"（**踩了三次**：
+        # qa_cards、query_cards、approval_cards）。
+        # 判据：文件里只要出现 `dms.card.<子命名空间>.` 就说明它用的是那套，跳过。
+        # 各命名空间自己的"防漏键"由各自的验收脚本负责（qa-cards / query-cards / approval-flow）。
+        if not re.search(r"dms\.card\.[a-z_]+\.", src):
             used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
         # ⚠️ 前缀 lookbehind 不能少：**本仓库有三套命名空间**（`dms.card.*` /
         # `dms.card.qa.*` / `dms.card.query.*`），而它们的模块分别叫 `cards` / `qa_cards` /

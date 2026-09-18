@@ -275,3 +275,27 @@ dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
 dms.card.query.TOP_NOTE_PREFIX,ทุกสาขา/ทีมที่บัญชีนี้มองเห็น · อ่านล่าสุด
 dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
+dms.card.approval.TXT_PICK_APPROVER,ส่งคำขอให้ใครอนุมัติ
+dms.card.approval.TXT_PICK_APPROVER_SUB,เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
+dms.card.approval.BTN_ALL_APPROVERS,ส่งหาทุกคน
+dms.card.approval.BTN_CHANGE_APPROVER,เปลี่ยนผู้อนุมัติ
+dms.card.approval.BTN_APPROVE,อนุมัติ
+dms.card.approval.BTN_REJECT,ปฏิเสธ
+dms.card.approval.TXT_NO_APPROVERS,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
+dms.card.approval.TXT_SENT_WAIT,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
+dms.card.approval.TXT_REQ_STALE,คำขอนี้ถูกดำเนินการไปแล้ว
+dms.card.approval.TXT_REQ_EXPIRED,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
+dms.card.approval.TXT_REQ_APPROVED_ADMIN,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
+dms.card.approval.TXT_REQ_APPROVED_SALES,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
+dms.card.approval.TXT_REQ_REJECTED_ADMIN,ปฏิเสธคำขอแล้ว
+dms.card.approval.TXT_REQ_REJECTED_SALES,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
+dms.card.approval.TXT_EXEC_FAIL_ADMIN,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
+dms.card.approval.TXT_APPROVER_NO_ENDPOINT,บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
+dms.card.approval.TXT_NOT_APPROVER,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
+dms.card.approval.TXT_PROCESSING,กำลังอัปเดตข้อมูล กรุณารอสักครู่
+dms.card.approval.LBL_APPROVER,ผู้อนุมัติ
+dms.card.approval.TITLE_REQUEST,คำขอแก้ไขข้อมูลลูกค้า
+dms.card.approval.LBL_REQUESTER,ผู้ขอ
+dms.card.approval.LBL_CUSTOMER,ลูกค้า
+dms.card.approval.LBL_SENT_TO,ส่งถึง
+dms.card.approval.TXT_SALES_FALLBACK,พนักงานขาย
