@@ -137,6 +137,13 @@ def main():
           "ที่ปรึกษา" not in no_adv, no_adv.replace("\n", " / "))
 
     # ── 8. 修改菜单 ────────────────────────────────────────────────────
+    # ⚠️ 这套「选字段 → 输入新值」的逐字段文字编辑，**线上已退役**
+    #    （线上 `services/line_dms/customer_edit_entry.py` 写明 "retired text-edit
+    #    events cannot change customer fields"，点 [แก้ไข] 改成直接开浏览器编辑页）。
+    #    新平台这段目前**没有任何调用方**，本节只保证它在被删掉之前不自相矛盾。
+    #    第 8 批返工（customer_edit / customer_edit_entry / edit_link）时，本节连同
+    #    `edit_menu_message` / `edit_prompt` / `EDIT_FIELDS` 一起替换成「编辑按钮产出
+    #    URI 深链」的验证。
     menu = C.edit_menu_message("n7")
     qr = menu["quickReply"]["items"]
     check("修改菜单列出全部可改字段 + 取消",
@@ -149,6 +156,44 @@ def main():
           all(k not in dict(C.EDIT_FIELDS)
               for k in ("province_id", "district_id", "zipcode_id")),
           [k for k, _ in C.EDIT_FIELDS])
+
+    # ── 9. 文案必须在语言包里（防漏键）────────────────────────────────
+    # 教训：卡片文案从代码搬进 `translations/th.csv` 时漏了两个键，
+    # 界面上直接把 `dms.card.BTN_EDIT_CANCEL` 露给泰国销售看。
+    # 这里扫一遍**全 app**：代码里引用到的每个卡片键，包里都必须有。
+    import glob
+    import os
+    import re
+
+    from pearnly_dms import i18n
+
+    used = set()
+    for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
+        src = open(path, encoding="utf-8").read()
+        used |= set(re.findall(r'_t\(\s*"([A-Za-z_][A-Za-z0-9_]*)"', src))
+        used |= set(re.findall(r"cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|MSG_[A-Z0-9_]+)", src))
+    used |= {f"edit.{f}" for f, _ in C.EDIT_FIELDS}
+    used |= {f"diff.{f}" for f in C.FIELD_LABELS_TH}
+    used |= {f"sum.{f}" for f in C._SUMMARY_FIELD_NAMES}
+    used.discard("TXT_XXX")  # i18n.py 文档串里举的例子，不是真引用
+    missing = sorted(k for k in used if i18n.t("dms.card." + k, lang="th").startswith("dms.card."))
+    check("代码引用的卡片键在语言包里都有（防漏键）", not missing,
+          "共查 %d 个键，缺 %s" % (len(used), missing))
+
+    pack = i18n.pack("th")
+    check("语言包里没有空文案", all(str(x).strip() for x in pack.values()),
+          [k for k, x in pack.items() if not str(x).strip()])
+
+    # 卡片正文里不该出现 `dms.card.` —— 出现就说明取词失败、把 key 露给用户了
+    leaked = [name for name, msg in (
+        ("新客卡", C.new_customer_card({"people_id": "1", "name": "n", "birthday_be": "b",
+                                        "address": "a", "phone": "p"}, "n1")),
+        ("一致卡", C.same_customer_card({}, "n2")),
+        ("差异卡", C.diff_card([{"label": "ชื่อ", "old": "a", "new": "b"}], "n3",
+                               primary="none", summary={})),
+        ("候选卡", C.candidates_card([], "n4")),
+    ) if "dms.card." in str(msg)]
+    check("卡片正文不露裸 key", not leaked, leaked)
 
     failed = [x for x in results if not x[1]]
     print("")

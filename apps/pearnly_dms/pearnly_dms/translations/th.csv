@@ -22,3 +22,97 @@ dms.err.ERR_DMS_MASTER_UNMATCHED,รายการที่เลือกไ�
 dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง
+dms.card.TXT_BLURRY,อ่านบัตรไม่ชัด กรุณาถ่ายใหม่
+dms.card.TXT_ASK_PHONE,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
+dms.card.TXT_ASK_CARD,รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า
+dms.card.TXT_RESET,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
+dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
+dms.card.TXT_NEED_BOTH,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
+dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
+dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
+dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
+dms.card.TXT_KEEP,ใช้ข้อมูลเดิมต่อ
+dms.card.TXT_ADMIN_NEEDED,ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้
+dms.card.TXT_ADMIN_AUTH_FAIL,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
+dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
+dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
+dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
+dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_MENU_TITLE,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+dms.card.TXT_MENU_SUBTITLE,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
+dms.card.TXT_MENU_SEND_CARD,กรุณาส่งรูปบัตรประชาชนของลูกค้า
+dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
+dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
+dms.card.BTN_RESTART,เริ่มใหม่
+dms.card.BTN_UPDATE,อัปเดตข้อมูล
+dms.card.BTN_KEEP,ใช้ข้อมูลเดิม
+dms.card.BTN_NEW_CUSTOMER,ลูกค้าใหม่
+dms.card.BTN_EDIT,แก้ไข
+dms.card.TXT_MENU_GREETING,"สวัสดีค่ะ 🙏
+ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
+dms.card.TXT_MENU_PICK,กรุณาเลือกเมนูที่ต้องการ
+dms.card.TXT_MENU_PICK_SUB,เลือกรายการเพื่อดำเนินการต่อ
+dms.card.TXT_MENU_ITEM1,จัดทำข้อมูลลูกค้า
+dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
+dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
+dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
+dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
+dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
+dms.card.TXT_MENU_ITEM4,เปลี่ยนบัญชีและรหัสผ่าน
+dms.card.TXT_MENU_D4,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
+dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
+dms.card.TXT_MENU_D5,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
+dms.card.TXT_MENU_HINT,พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา
+dms.card.BTN_CONTINUE_BOOKING,ทำใบจองต่อ
+dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
+dms.card.BTN_CONFIRM_BOOKING,ยืนยันจอง
+dms.card.BTN_CANCEL_BOOKING,ยกเลิก
+dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
+dms.card.TXT_BOOKING_CANCELLED,ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่
+dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
+dms.card.edit.name,ชื่อ-นามสกุล
+dms.card.edit.people_id,เลขบัตรประชาชน
+dms.card.edit.birthday_be,วันเกิด
+dms.card.edit.phone,เบอร์โทร
+dms.card.edit.house_no,บ้านเลขที่
+dms.card.edit.moo,หมู่
+dms.card.edit.soi,ซอย
+dms.card.edit.road,ถนน
+dms.card.diff.prefix_id,คำนำหน้า
+dms.card.diff.name,ชื่อ
+dms.card.diff.birthday_be,วันเกิด
+dms.card.diff.phone,เบอร์โทร
+dms.card.diff.house_no,บ้านเลขที่
+dms.card.diff.moo,หมู่
+dms.card.diff.soi,ซอย
+dms.card.diff.road,ถนน
+dms.card.diff.province_id,จังหวัด
+dms.card.diff.district_id,อำเภอ
+dms.card.diff.subdistrict_id,ตำบล
+dms.card.diff.zipcode_id,รหัสไปรษณีย์
+dms.card.sum.people_id,เลขบัตร
+dms.card.sum.name,ชื่อ
+dms.card.sum.birthday_be,วันเกิด
+dms.card.sum.address,ที่อยู่
+dms.card.sum.phone,เบอร์โทร
+dms.card.TXT_EDIT_PROMPT,พิมพ์ค่าใหม่ของ{label}
+dms.card.BTN_EDIT_CANCEL,ยกเลิก
+dms.card.TXT_EDIT_PICK,ต้องการแก้ไขข้อมูลใด
+dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
+dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
+dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
+dms.card.TXT_BOOKING_CUSTOMER,พบข้อมูลลูกค้าในระบบ
+dms.card.TXT_DIFF_HEADER,ความต่าง
+dms.card.TXT_DIFF_HEAD,พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
+dms.card.TXT_DIFF_ALT,พบข้อมูลลูกค้าที่ต่างกัน
+dms.card.TXT_CANDIDATES_HEAD,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
+dms.card.TXT_CANDIDATES_ALT,เลือกลูกค้าที่ตรงกัน
+dms.card.TXT_ACTION_CREATE,สร้างลูกค้าใหม่
+dms.card.TXT_ACTION_UPDATE,อัปเดตข้อมูลลูกค้า
+dms.card.TXT_RECEIPT_SAVE,บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id}\nชื่อ: {name}
+dms.card.TXT_RECEIPT_BOOKING,เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}
+dms.card.TXT_RECEIPT_ADVISOR,ที่ปรึกษา: {name}

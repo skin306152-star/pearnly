@@ -1,13 +1,16 @@
 # -*- coding: utf-8 -*-
-"""DMS LINE 对话的泰语文案与字段标签（**单一来源**）。
+"""DMS LINE 对话的泰语文案与字段标签。
 
-文案集中在一处，测试才能照着断言；散在各个 handler 里就没人说得清"用户到底会看到什么"。
-**面向的是经销商销售员**，所以：简洁、不堆 emoji、不用书面语。
+## 文案不进代码，进语言包
 
-照搬老产品 `services/line_dms/cards.py` 的**数据部分**（文案、按钮、动作名、字段标签）；
-卡片布局构造（Flex JSON）是下一批要搬的，搬上来时也放这个模块。
+这些文案在 `translations/th.csv` 里（key = `dms.card.<常量名>`）。
+**代码里一个泰文字符都不留** —— 改文案是改数据文件，不是改代码发版。
 
-⚠️ 这些泰文一字未改 —— 它们是泰方逐句定过的。
+为什么卡片只有泰文：LINE 官方号服务的是泰国经销商销售，这条通道本来就只有泰文
+（老产品也是）。要加语言就往 CSV 里加行，不用动这里。
+
+`ACT_*`（动作码）**不是文案**，是 postback 的载荷，必须留在代码里且不能翻译 ——
+翻译了按钮就点不动了。同理下面 `FIELD_*` 里作为"字段标识"用的值也不进包。
 """
 
 from __future__ import annotations
@@ -15,83 +18,48 @@ from __future__ import annotations
 from typing import Any, Dict, List
 from urllib.parse import urlencode
 
+from pearnly_dms import i18n
+
+
+def _t(key: str, lang: str = "th", **kw) -> str:
+    """按键取卡片文案。默认泰文（LINE 通道的语言）。
+
+    首参叫 `key` 不叫 `name`：回执模板本身就有 `name=` 这个占位符
+    （客户姓名），参数名撞了会直接 `TypeError`。
+    """
+    return i18n.t(f"dms.card.{key}", lang=lang, **kw)
+
+
+def __getattr__(name: str) -> Any:
+    """让 `cards.TXT_XXX` 这种老写法继续可用（外部 28 处在用）。
+
+    文案在包里，所以这里动态解析 —— 模块里不再有同名常量，
+    Python 找不到全局名就会走到这儿（PEP 562）。
+    """
+    if name.startswith(("TXT_", "BTN_", "MSG_")):
+        return _t(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 # ── 文案 ─────────────────────────────────────────────────────────────────
-TXT_BLURRY = "อ่านบัตรไม่ชัด กรุณาถ่ายใหม่"
-TXT_ASK_PHONE = "รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า"
-TXT_ASK_CARD = "รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า"
-TXT_RESET = "เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า"
-TXT_INTRO = "ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่"
-TXT_NEED_BOTH = "กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า"
-TXT_PICK_ABOVE = "กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่"
-TXT_EXPIRED = "รายการหมดอายุ เริ่มใหม่อีกครั้ง"
-TXT_SAME = "ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน"
-TXT_KEEP = "ใช้ข้อมูลเดิมต่อ"
-TXT_ADMIN_NEEDED = "ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้"
-TXT_ADMIN_AUTH_FAIL = "อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly"
-TXT_NO_ENDPOINT = "ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล"
-# 402 指路：销售员治不了余额，把动作交给公司管理员并给自助入口，不留死胡同
-TXT_NO_CREDIT = "เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms"
-TXT_SYSTEM_ERROR = "ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง"
-TXT_LOOKUP_FAIL = "ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่"
-TXT_SAVE_FAIL = "บันทึกไม่สำเร็จ กรุณาลองใหม่"
+# 文案正文在 `translations/th.csv`（key = `dms.card.*`）。下面这些"拍板"结论
+# 按 key 归类留着 —— 改文案时对照着看，别把当初为什么这么写话给改没了：
+#
+#   TXT_NO_CREDIT      402 指路：销售员自己治不了余额，话术要把动作交给公司
+#                      管理员，并给自助入口（pearnly.com/dms），不留死胡同。
+#   TXT_INTRO / RESET  菜单1（只建档）**不提订车**（泰方拍板）。
+#   TXT_DONE_SAVED     真写档与零写入（TXT_DONE_SAME）分开话术 —— 不许谎称。
+#   TXT_MENU_*         菜单层：欢迎语 → 选建档或订车；配 BTN_* 按钮。
+#   TXT_BOOKING_*      订车阶段（确认 / 取消 / 重试）。
 
-# 菜单层：欢迎语 → 选建档或订车
-TXT_MENU_TITLE = "ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS"
-TXT_MENU_SUBTITLE = "กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
-TXT_MENU_SEND_CARD = "กรุณาส่งรูปบัตรประชาชนของลูกค้า"
-# 菜单1（只建档）收尾：**不提订车**（泰方拍板），真写档与零写入分开话术
-TXT_DONE_SAVED = "บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น"
-TXT_DONE_SAME = "ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น"
-TXT_RETAKE = "กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง"
-
-BTN_SAVE_NEW = "บันทึกลูกค้าใหม่"
-BTN_RESTART = "เริ่มใหม่"
-BTN_UPDATE = "อัปเดตข้อมูล"
-BTN_KEEP = "ใช้ข้อมูลเดิม"
-BTN_NEW_CUSTOMER = "ลูกค้าใหม่"
-BTN_EDIT = "แก้ไข"
-BTN_EDIT_CANCEL = "ยกเลิก"
-
-TXT_MENU_GREETING = "สวัสดีค่ะ 🙏\n" + TXT_MENU_TITLE + "\n" + TXT_MENU_SUBTITLE
-TXT_MENU_PICK = "กรุณาเลือกเมนูที่ต้องการ"
-TXT_MENU_PICK_SUB = "เลือกรายการเพื่อดำเนินการต่อ"
-TXT_MENU_ITEM1 = "จัดทำข้อมูลลูกค้า"
-TXT_MENU_D1 = "จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม"
-TXT_MENU_ITEM2 = "จัดทำใบจอง"
-TXT_MENU_D2 = "สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง"
-TXT_MENU_ITEM3 = "เข้าสู่ระบบ DMS"
-TXT_MENU_D3 = "เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง"
-TXT_MENU_ITEM4 = "เปลี่ยนบัญชีและรหัสผ่าน"
-TXT_MENU_D4 = "อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly"
-TXT_MENU_ITEM5 = "ค้นหาข้อมูล"
-TXT_MENU_D5 = "ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ"
-TXT_MENU_HINT = "พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา"
-BTN_CONTINUE_BOOKING = "ทำใบจองต่อ"
-BTN_SUBMIT_APPROVAL = "ส่งขออนุมัติ"
-
-# 逐字段修正：可改字段与地道泰文标签（顺序 = quick reply 呈现顺序）。
+# 逐字段修正的可改字段（顺序 = quick reply 呈现顺序）；标签从语言包取。
 # 地理四级 id（จังหวัด/อำเภอ/ตำบล/รหัสไปรษณีย์）**不进此表** ——
 # 改地址文本后由既有级联匹配重新解析。
-EDIT_FIELDS = (
-    ("name", "ชื่อ-นามสกุล"),
-    ("people_id", "เลขบัตรประชาชน"),
-    ("birthday_be", "วันเกิด"),
-    ("phone", "เบอร์โทร"),
-    ("house_no", "บ้านเลขที่"),
-    ("moo", "หมู่"),
-    ("soi", "ซอย"),
-    ("road", "ถนน"),
-)
+_EDIT_FIELD_NAMES = ("name", "people_id", "birthday_be", "phone",
+                     "house_no", "moo", "soi", "road")
+EDIT_FIELDS = tuple((f, _t(f"edit.{f}")) for f in _EDIT_FIELD_NAMES)
 _EDIT_LABELS = dict(EDIT_FIELDS)
 
-TXT_EDIT_PICK = "ต้องการแก้ไขข้อมูลใด"
-TXT_EDIT_CANCELLED = "ยกเลิกการแก้ไขแล้ว"
-TXT_EDIT_BAD_ID = (
-    "เลขบัตรประชาชนไม่ถูกต้อง (เลขตรวจสอบท้ายบัตรไม่ผ่าน) กรุณาตรวจสอบและพิมพ์ใหม่อีกครั้ง"
-)
-TXT_EDIT_BAD_BIRTHDAY = "วันเกิดไม่ถูกต้อง กรุณาพิมพ์เป็น วว/ดด/ปปปป (พ.ศ.)"
-TXT_EDIT_BAD_PHONE = "กรุณาพิมพ์เบอร์โทรศัพท์"
-TXT_EDIT_EMPTY = "กรุณาพิมพ์ข้อมูลให้ครบถ้วน"
 
 # 动作名（flow 侧 dispatch 用同一常量，避免拼写漂移）
 ACT_CREATE = "create_new"
@@ -116,28 +84,11 @@ ACT_APPROVAL_APPROVE = "approval_approve"
 ACT_APPROVAL_REJECT = "approval_reject"
 ACT_APPROVAL_RETARGET = "approval_retarget"
 
-# 订车阶段文案与按钮
-BTN_CONFIRM_BOOKING = "ยืนยันจอง"
-BTN_CANCEL_BOOKING = "ยกเลิก"
-BTN_RETRY_BOOKING = "ลองสร้างใบจองอีกครั้ง"
-TXT_BOOKING_CANCELLED = "ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่"
-TXT_BOOKING_FAIL = "สร้างใบจองไม่สำเร็จ กรุณาลองใหม่"
-
-# 差异卡上的字段名（泰文）—— 只列会出现在 diff 里的那些
-FIELD_LABELS_TH: Dict[str, str] = {
-    "prefix_id": "คำนำหน้า",
-    "name": "ชื่อ",
-    "birthday_be": "วันเกิด",
-    "phone": "เบอร์โทร",
-    "house_no": "บ้านเลขที่",
-    "moo": "หมู่",
-    "soi": "ซอย",
-    "road": "ถนน",
-    "province_id": "จังหวัด",
-    "district_id": "อำเภอ",
-    "subdistrict_id": "ตำบล",
-    "zipcode_id": "รหัสไปรษณีย์",
-}
+# 差异卡上的字段名 —— 只列会出现在 diff 里的那些；标签从语言包取
+_DIFF_FIELD_NAMES = ("prefix_id", "name", "birthday_be", "phone", "house_no",
+                     "moo", "soi", "road", "province_id", "district_id",
+                     "subdistrict_id", "zipcode_id")
+FIELD_LABELS_TH: Dict[str, str] = {f: _t(f"diff.{f}") for f in _DIFF_FIELD_NAMES}
 
 _MAX_CANDIDATES = 4  # 候选卡按钮上限（LINE bubble 体积限制）
 
@@ -161,13 +112,13 @@ def edit_menu_message(nonce: str) -> Dict[str, Any]:
     items = [
         _qr_item(label, _data(ACT_EDIT_FIELD, nonce=nonce, field=key)) for key, label in EDIT_FIELDS
     ]
-    items.append(_qr_item(BTN_EDIT_CANCEL, _data(ACT_EDIT_CANCEL, nonce=nonce)))
-    return {"type": "text", "text": TXT_EDIT_PICK, "quickReply": {"items": items}}
+    items.append(_qr_item(_t("BTN_EDIT_CANCEL"), _data(ACT_EDIT_CANCEL, nonce=nonce)))
+    return {"type": "text", "text": _t("TXT_EDIT_PICK"), "quickReply": {"items": items}}
 
 
 def edit_prompt(field: str) -> str:
-    """选中字段后的输入提示。"""
-    return f"พิมพ์ค่าใหม่ของ{_EDIT_LABELS.get(field, field)}"
+    """选中字段后的输入提示（字段标签来自语言包）。"""
+    return _t("TXT_EDIT_PROMPT", label=_EDIT_LABELS.get(field, field))
 
 
 def _btn(label: str, data: str, style: str = "primary") -> Dict[str, Any]:
@@ -253,6 +204,9 @@ def _bubble(
     }
 
 
+_SUMMARY_FIELD_NAMES = ("people_id", "name", "birthday_be", "address", "phone")
+
+
 def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
     """五要素复述行（新客 / 一致 / 差异三张卡共用同一预览区）。
 
@@ -260,13 +214,7 @@ def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
     只回一句"一致"会把识别或手输出错的销售堵死。
     """
     s = summary or {}
-    return [
-        _kv_row("เลขบัตร", s.get("people_id", "")),
-        _kv_row("ชื่อ", s.get("name", "")),
-        _kv_row("วันเกิด", s.get("birthday_be", "")),
-        _kv_row("ที่อยู่", s.get("address", "")),
-        _kv_row("เบอร์โทร", s.get("phone", "")),
-    ]
+    return [_kv_row(_t(f"sum.{f}"), s.get(f, "")) for f in _SUMMARY_FIELD_NAMES]
 
 
 def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
@@ -276,14 +224,14 @@ def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     不占按钮位。
     """
     footer = [
-        _btn(BTN_SAVE_NEW, _data(ACT_CREATE, nonce=nonce), "primary"),
-        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _btn(_t("BTN_SAVE_NEW"), _data(ACT_CREATE, nonce=nonce), "primary"),
+        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
     ]
     return _bubble(
-        "ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก",
+        _t("TXT_NEW_CARD_HEAD"),
         _summary_rows(summary),
         footer,
-        "ยืนยันบันทึกลูกค้าใหม่",
+        _t("TXT_NEW_CARD_ALT"),
     )
 
 
@@ -293,19 +241,24 @@ def same_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     只回一句「ตรงกัน」会把识别/手输出错的销售堵死 —— 预览和修正入口必须在。
     """
     footer = [
-        _btn(BTN_KEEP, _data(ACT_KEEP, nonce=nonce), "primary"),
-        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _btn(_t("BTN_KEEP"), _data(ACT_KEEP, nonce=nonce), "primary"),
+        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
     ]
-    return _bubble(TXT_SAME, _summary_rows(summary), footer, "ข้อมูลลูกค้าตรงกัน")
+    return _bubble(_t("TXT_SAME"), _summary_rows(summary), footer, _t("TXT_SAME_ALT"))
 
 
 def booking_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:
     """菜单2 认出"资料一致"的客户时，确认后进入订车逐问。"""
     footer = [
-        _btn(BTN_CONTINUE_BOOKING, _data(ACT_KEEP, nonce=nonce), "primary"),
-        _btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"),
+        _btn(_t("BTN_CONTINUE_BOOKING"), _data(ACT_KEEP, nonce=nonce), "primary"),
+        _btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"),
     ]
-    return _bubble("พบข้อมูลลูกค้าในระบบ", _summary_rows(summary), footer, "พบข้อมูลลูกค้าในระบบ")
+    return _bubble(
+        _t("TXT_BOOKING_CUSTOMER"),
+        _summary_rows(summary),
+        footer,
+        _t("TXT_BOOKING_CUSTOMER"),
+    )
 
 
 def diff_card(
@@ -327,27 +280,27 @@ def diff_card(
     """
     rows: List[Dict[str, Any]] = _summary_rows(summary)
     rows.append({"type": "separator", "margin": "sm"})
-    rows.append({"type": "text", "text": "ความต่าง", "size": "xs", "color": "#8a8a8a"})
+    rows.append({"type": "text", "text": _t("TXT_DIFF_HEADER"), "size": "xs", "color": "#8a8a8a"})
     rows += diff_rows(display_diffs)
     footer: List[Dict[str, Any]] = []
     if primary == "approval":
-        footer.append(_btn(BTN_SUBMIT_APPROVAL, _data(ACT_SUBMIT_APPROVAL, nonce=nonce), "primary"))
+        footer.append(_btn(_t("BTN_SUBMIT_APPROVAL"), _data(ACT_SUBMIT_APPROVAL, nonce=nonce), "primary"))
     elif primary == "update":
-        footer.append(_btn(BTN_UPDATE, _data(ACT_UPDATE, nonce=nonce), "primary"))
+        footer.append(_btn(_t("BTN_UPDATE"), _data(ACT_UPDATE, nonce=nonce), "primary"))
     else:
         rows.append({"type": "separator", "margin": "sm"})
         rows.append(
             {
                 "type": "text",
-                "text": TXT_ADMIN_NEEDED,
+                "text": _t("TXT_ADMIN_NEEDED"),
                 "size": "xs",
                 "color": "#8a8a8a",
                 "wrap": True,
             }
         )
-    footer.append(_btn(BTN_KEEP, _data(ACT_KEEP, nonce=nonce), "secondary"))
-    footer.append(_btn(BTN_EDIT, _data(ACT_EDIT, nonce=nonce), "secondary"))
-    return _bubble("พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน", rows, footer, "พบข้อมูลลูกค้าที่ต่างกัน")
+    footer.append(_btn(_t("BTN_KEEP"), _data(ACT_KEEP, nonce=nonce), "secondary"))
+    footer.append(_btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"))
+    return _bubble(_t("TXT_DIFF_HEAD"), rows, footer, _t("TXT_DIFF_ALT"))
 
 
 def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, Any]:
@@ -360,16 +313,21 @@ def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, A
         if tail:
             label += f" · x{tail}"
         rows.append(_btn(label[:40], _data(ACT_PICK, nonce=nonce, cid=cid), "link"))
-    footer = [_btn(BTN_NEW_CUSTOMER, _data(ACT_CREATE, nonce=nonce), "primary")]
+    footer = [_btn(_t("BTN_NEW_CUSTOMER"), _data(ACT_CREATE, nonce=nonce), "primary")]
     return _bubble(
-        "พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน", rows, footer, "เลือกลูกค้าที่ตรงกัน"
+        _t("TXT_CANDIDATES_HEAD"), rows, footer, _t("TXT_CANDIDATES_ALT")
     )
 
 
 def receipt_text(customer_id: str, name: str, mode: str) -> str:
     """写档成功回执：客户码 + 姓名 + **实际做了什么**（诚实告知，不谎称新建）。"""
-    action = "สร้างลูกค้าใหม่" if mode == "create" else "อัปเดตข้อมูลลูกค้า"
-    return f"บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id or '—'}\nชื่อ: {name or '—'}"
+    action = _t("TXT_ACTION_CREATE") if mode == "create" else _t("TXT_ACTION_UPDATE")
+    return _t(
+        "TXT_RECEIPT_SAVE",
+        action=action,
+        customer_id=customer_id or "—",
+        name=name or "—",
+    )
 
 
 def booking_receipt_text(
@@ -380,8 +338,10 @@ def booking_receipt_text(
     顾问那一行 = **提成归属的当场回执**，销售不用登 DMS 就能核对
     （名字缺就整行不出，不留空槽）。
     """
-    text = (
-        f"เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no or '—'}\n"
-        f"รุ่นรถ: {car or '—'}\nวันที่ส่งมอบ: {delivery_date_be or '—'}"
+    text = _t(
+        "TXT_RECEIPT_BOOKING",
+        booking_no=booking_no or "—",
+        car=car or "—",
+        delivery_date_be=delivery_date_be or "—",
     )
-    return f"{text}\nที่ปรึกษา: {advisor_name}" if advisor_name else text
+    return f"{text}\n{_t('TXT_RECEIPT_ADVISOR', name=advisor_name)}" if advisor_name else text
