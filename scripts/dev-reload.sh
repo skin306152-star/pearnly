@@ -108,6 +108,10 @@ for g in "${groups[@]}"; do
       # 缓存必须清：hooks / DocType 元数据都在 Redis 里，容器重建不会清
       # （表现是"代码改了、行为没变"）。没动 hooks/DocType 时可以用 --no-cache 跳过。
       dc exec -T "$g-bench" bench --site "$s" clear-cache >/dev/null 2>&1 || true
+      # 再显式清一次 meta：DocType 的客户端脚本（表单里那个 `__js`）缓在 meta 上，
+      # 只跑 clear-cache 有时不够 —— 实测改完 doctype 的 .js，表单还在跑旧脚本，
+      # 表现是"新加的按钮不出现"，很难往缓存上想。
+      dc exec -T "$g-bench" bench --site "$s" execute frappe.clear_cache >/dev/null 2>&1 || true
       echo "   clear-cache $s"
     fi
   done

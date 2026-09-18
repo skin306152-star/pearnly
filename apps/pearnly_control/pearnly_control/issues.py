@@ -115,13 +115,6 @@ def issue(
     # 这次开户打到哪个环境：本机样板，还是服务器。目标是一项配置，不写死。
     kc_client, target_name = kc.client_for_target(target)
 
-    # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
-    if kc_client.find_user_id_by_email(account_email):
-        frappe.throw(
-            _("账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号").format(
-                account_email, target_name)
-        )
-
     apps_payload = []
     for row in apps:
         # 兼容老调用方直接给完整域名：拆出前缀。新调用方只给前缀。
@@ -151,17 +144,62 @@ def issue(
         "dms_features": _feature_rows("dms", features.get("dms")),
     })
     doc.insert()  # validate 会算域名前缀→域名、查冲突、汇总已开通功能
+    return _activate(doc, operator, target_name=target_name)
+
+
+def issue_from_doc(issue_name: str) -> dict:
+    """对**已经存好的**发号单执行"发号"。
+
+    为什么需要这条入口：Desk 上那张表单是先存草稿再点按钮的两步动作，
+    和 `issue()` 的"一次把参数全给齐"不是同一条路。但"发号"这件事本身只有一种做法，
+    所以两者共用 `_activate()`。
+
+    幂等：已经 issued 的单子重复点不会重复建账号（账号已存在会被 `_activate` 拒绝，
+    这里直接返回现状）。
+    """
+    operator = _require_operator()
+    doc = frappe.get_doc(ISSUE, issue_name)
+    if doc.status == "issued" and doc.identity_subject:
+        return _result(doc, doc.identity_subject, doc.target or "")
+    if doc.status == "failed":
+        frappe.throw(_("这张单上次发号失败了，先把它改回 draft 再发"))
+    kc_client, target_name = kc.client_for_target(doc.target)
+    doc.target = target_name
+    return _activate(doc, operator, target_name=target_name)
+
+
+def _activate(doc, operator: str, *, target_name: str) -> dict:
+    """把一张**已保存**的发号单真正发出去：在身份服务建号 + 建/找租户。
+
+    两条入口（API 一次发号、Desk 存草稿后点发号）共用这一份 ——
+    分开写迟早会有一条路忘了改。
+    """
+    kc_client, _target = kc.client_for_target(target_name)
+
+    # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
+    if kc_client.find_user_id_by_email(doc.account_email):
+        frappe.throw(
+            _("账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号").format(
+                doc.account_email, target_name)
+        )
 
     try:
+        # ⚠️ 必须用 get_password()：`account_password` 是 Frappe 的 Password 字段，
+        # 直接读属性拿到的是**密文**（`__Auth` 里的那段），拿它建号等于建了个假密码 ——
+        # 现象是"账号建出来了、就是登不进去"（Desk 路径踩过；API 路径因为密码来自参数
+        # 所以一直是好的，两边共用 _activate 之后才暴露）。
+        initial_password = doc.get_password("account_password", raise_exception=False)
+        if not initial_password:
+            frappe.throw(_("这张单上没有可用的初始密码，重新填一次再发号"))
         subject = kc_client.create_user(
-            account_email,
-            username=account_username,
-            first_name=account_username[:140],
-            password=account_password,
+            doc.account_email,
+            username=doc.account_username,
+            first_name=doc.account_username[:140],
+            password=initial_password,
         )
         # 不再发邀请邮件：用户拿的就是初始密码，能直接登录。
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
-        tenant = _find_or_create_tenant(tenant_name, contact_name=contact_name)
+        tenant = _find_or_create_tenant(doc.tenant_name)
     except Exception:
         frappe.db.rollback()
         doc.reload()
@@ -179,23 +217,29 @@ def issue(
     doc.save(ignore_permissions=True)
     frappe.db.commit()
 
-    result = {
+    return _result(doc, subject, target_name)
+
+
+def _result(doc, subject: str, target_name: str) -> dict:
+    """发号结果。⚠️ **不回显密码**：开户人自己设的，他知道。"""
+    return {
         "issue": doc.name,
-        "tenant": tenant,
+        "tenant": doc.tenant,
         "target": target_name,
-        "account_email": account_email,
-        "account_username": account_username,
+        "account_email": doc.account_email,
+        "account_username": doc.account_username,
         "identity_subject": subject,
-        # ⚠️ **不回显密码**：开户人自己设的，他知道；回显只会多一份明文副本。
         "delivery": "password",
-        "features": features,
+        "features": {
+            p: [row.feature for row in doc.get(f"{p}_features") or []]
+            for p in features_mod.PRODUCTS
+        },
         "deployments": [
             {"app": row.app, "domain": row.domain,
              "domain_prefix": row.domain_prefix, "status": "pending"}
             for row in doc.apps
         ],
     }
-    return result
 
 
 def _feature_rows(product: str, codes) -> list[dict]:
@@ -239,6 +283,12 @@ def deployments_of(issue_name: str) -> list[dict]:
 def api_issue(**kwargs):
     kwargs.pop("cmd", None)
     return issue(**kwargs)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_issue_from_doc(issue):
+    """Desk 表单上的「发号」按钮走这条（单子已经存好了）。"""
+    return issue_from_doc(issue)
 
 
 @frappe.whitelist()

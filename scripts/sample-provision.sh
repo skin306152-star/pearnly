@@ -257,6 +257,48 @@ report() {  # report <step_key> <status> <output>
   api_post pearnly_control.provisioning.api_report "$body" >/dev/null
 }
 
+has_pending() {  # 有没有待办步骤（只问一句，不打印）
+  local one
+  one=$(api_get "pearnly_control.provisioning.api_next_steps?limit=1" \
+        | py -c 'import sys,json; m=json.load(sys.stdin).get("message") or []; print("yes" if m else "")')
+  [ -n "$one" ]
+}
+
+# 把所有待办步骤跑完。没有待办就返回 0；有一步失败就立刻返回 1（不往下跳）。
+# `run` 与 `watch` 共用这一份，免得两条路径的执行逻辑各长一棵。
+run_pending() {
+  local guard=0 step key action payload out
+  while :; do
+    guard=$((guard + 1))
+    [ "$guard" -gt 200 ] && { echo "步数异常，停止" >&2; return 1; }
+    step=$(api_get "pearnly_control.provisioning.api_next_steps?limit=1" \
+           | py -c 'import sys,json; m=json.load(sys.stdin).get("message") or []; print(json.dumps(m[0]) if m else "")')
+    [ -z "$step" ] && { echo "[完成] 没有待办步骤了"; return 0; }
+    key=$(py -c 'import json,sys; print(json.loads(sys.argv[1])["step_key"])' "$step")
+    action=$(py -c 'import json,sys; print(json.loads(sys.argv[1])["action"])' "$step")
+    payload=$(py -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["payload"]))' "$step")
+    echo "[执行] $key  ($action)"
+    report "$key" running ""
+    if out=$(run_step "$action" "$payload" 2>&1); then
+      echo "$out" | sed 's/^/         /'
+      # 动作可以用 SKIPPED: 开头表示"这一步对本次开通不适用"（例如租户还没配 LINE）。
+      # 显式记 skipped，不要含糊成 done —— 看进度的人要能分清"不用做"和"做完了"。
+      case "$out" in
+        SKIPPED:*)
+          report "$key" skipped "$out"
+          echo "         （记为 skipped）"
+          ;;
+        *) report "$key" done "$out" ;;
+      esac
+    else
+      echo "$out" | sed 's/^/         /' >&2
+      report "$key" failed "$out"
+      echo "[失败] $key —— 停下来，不往下跳" >&2
+      return 1
+    fi
+  done
+}
+
 # ── 主流程 ─────────────────────────────────────────────────────────────────
 
 cmd="${1:?用法: $0 plan|run|status …}"; shift || true
@@ -297,35 +339,25 @@ for dep in m["deployments"]:
     if [ "${1:-}" ]; then
       "$0" plan "$1" >/dev/null
     fi
-    guard=0
+    run_pending || exit 1
+    ;;
+
+  watch)
+    # 一直盯着控制面的待办：谁在表单上点了「执行开通」，这里几秒内就开始建站。
+    # 会话会过期，所以隔一阵重登一次（一次 HTTP，很便宜）。
+    POLL="${PEARNLY_WATCH_POLL:-3}"
+    RELOGIN_EVERY="${PEARNLY_WATCH_RELOGIN:-20}"
+    i=0
+    echo "[盯梢] 每 ${POLL}s 看一次待办；重登间隔 ${RELOGIN_EVERY} 轮"
     while :; do
-      guard=$((guard + 1))
-      [ "$guard" -gt 200 ] && { echo "步数异常，停止" >&2; exit 1; }
-      step=$(api_get "pearnly_control.provisioning.api_next_steps?limit=1" \
-             | py -c 'import sys,json; m=json.load(sys.stdin).get("message") or []; print(json.dumps(m[0]) if m else "")')
-      [ -z "$step" ] && { echo "[完成] 没有待办步骤了"; break; }
-      key=$(py -c 'import json,sys; print(json.loads(sys.argv[1])["step_key"])' "$step")
-      action=$(py -c 'import json,sys; print(json.loads(sys.argv[1])["action"])' "$step")
-      payload=$(py -c 'import json,sys; print(json.dumps(json.loads(sys.argv[1])["payload"]))' "$step")
-      echo "[执行] $key  ($action)"
-      report "$key" running ""
-      if out=$(run_step "$action" "$payload" 2>&1); then
-        echo "$out" | sed 's/^/         /'
-        # 动作可以用 SKIPPED: 开头表示"这一步对本次开通不适用"（例如租户还没配 LINE）。
-        # 显式记 skipped，不要含糊成 done —— 看进度的人要能分清"不用做"和"做完了"。
-        case "$out" in
-          SKIPPED:*)
-            report "$key" skipped "$out"
-            echo "         （记为 skipped）"
-            ;;
-          *) report "$key" done "$out" ;;
-        esac
-      else
-        echo "$out" | sed 's/^/         /' >&2
-        report "$key" failed "$out"
-        echo "[失败] $key —— 停下来，不往下跳" >&2
-        exit 1
+      i=$((i + 1))
+      if [ $((i % RELOGIN_EVERY)) -eq 1 ]; then login >/dev/null; fi
+      if has_pending; then
+        if ! run_pending; then
+          echo "[盯梢] 有步骤失败，停在失败处（修好后 $0 retry <单号>）" >&2
+        fi
       fi
+      sleep "$POLL"
     done
     ;;
 
