@@ -170,7 +170,15 @@ def normalize(data: dict) -> dict:
 
 
 def extract(image_bytes: bytes) -> dict:
-    """身份证图 → 归一后的字段。两档都不出号时抛 `IdCardExtractError`。"""
+    """身份证图 → 归一后的字段。
+
+    三种结果分得很清楚，**不要混**：
+
+    · 读出来了 → 返回归一结果（里面用 `needs_review` 表达"这张图够不够格"）；
+    · 服务是通的但两档都没读出内容 → 抛 `IdCardExtractError`（图的问题）；
+    · **根本调不动模型**（限流/配额/网络）→ 抛 `OcrUnavailable`（基础设施的问题），
+      原样往上抛，**绝不伪装成"图不合格"**。
+    """
     if not image_bytes:
         raise IdCardExtractError("empty image bytes")
 
@@ -185,6 +193,8 @@ def extract(image_bytes: bytes) -> dict:
     def _has_id(d) -> bool:
         return isinstance(d, dict) and len(_digits(d.get("people_id"))) == 13
 
+    # `OcrUnavailable` 会从这里直接冒出去（刻意不 catch）：配额/限流是基础设施问题，
+    # 上层要能分辨，不能落进"待人工核对"里。
     data = ocr.try_with_fallback(_call, ok=_has_id, label="dms.id_card")
     if data is None:
         raise IdCardExtractError("两档都没读出结果（网络/密钥/模型名都可能）")

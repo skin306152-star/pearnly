@@ -1,4 +1,6 @@
-# 开发用覆盖层：把 5 个自有 App 的**源码目录**挂进容器，改完不用重建镜像。
+# 开发用覆盖层：把自有 App 的**源码目录**和**本机凭据目录**挂进容器。
+#
+# ── 一、源码挂载：改完不用重建镜像 ─────────────────────────────────────────
 #
 # 为什么需要（这是"每次部署都很慢"的根因）：
 #   app 代码是 `COPY` 进镜像的（见 infrastructure/images/frappe.Dockerfile），
@@ -6,59 +8,67 @@
 #   放到服务器上更糟 —— 每次要传 4GB。
 #
 # 挂上之后：
-#   · 改 Python / hooks / doctype json → 重启对应运行组（约 0.4 秒）+ 清缓存
-#   · 改前端 → `npm run build`（约 2.5 秒），连重启都不用
+#   · 改 Python / hooks / doctype json → 重启对应运行组 + 清缓存（`dev-reload.sh`）
+#   · 改前端 → `npm run build`（约 3 秒），连重启都不用
 #   · 只有**依赖变化或要出正式镜像**时才重建
 #
 # ⚠️ 只挂**内层包目录**（`apps/<app>/<app>`），不挂整个 `apps/<app>`：
-#   `pip install -e` 会在项目根生成 `<app>.egg-info`（即 `apps/<app>/<app>.egg-info`），
-#   整个目录挂上去会把它盖掉，`importlib.metadata` 查版本就会失败。
+#   `pip install -e` 会在项目根生成 `<app>.egg-info`，整个目录挂上去会把它盖掉，
+#   `importlib.metadata` 查版本就会失败。
+# ⚠️ 只读：容器不需要往源码里写。Python 写不了 `__pycache__` 会静默跳过，不影响运行。
 #
-# ⚠️ 只读（`:ro`）：容器不需要往源码里写。Python 写不了 `__pycache__` 会静默跳过，
-#   不影响运行（只是首次导入慢一点点）。
+# ── 二、凭据挂载：服务账号 JSON（OCR 走 Vertex 要用）──────────────────────
 #
-# 这层**只用于开发/预发**。生产镜像仍然打进同一份代码，不依赖挂载。
+# 凭据**不进镜像、不进版本库**。默认指向本机目录，别人换台机器只要设环境变量：
+#   PEARNLY_CRED_DIR=/path/to/creds scripts/stack.sh up
+#
+# 目录不存在时 Docker 会建一个空目录（不报错），应用侧会明确说"没有配服务账号"，
+# 不会静默失败。
+#
+# 这层**只用于开发/预发**：生产镜像打进同一份代码、凭据走 Secret/环境变量
+# （与老产品 `GOOGLE_APPLICATION_CREDENTIALS` 一致），不依赖这里的挂载。
 #
 # 用法：见 scripts/stack.sh（它会把这一层和其余三层一起带上）
 
-x-app-sources: &app-sources
+x-app-volumes: &app-volumes
   - "../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro"
   - "../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro"
   - "../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro"
   - "../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro"
   - "../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro"
+  - "${PEARNLY_CRED_DIR:-/Users/skin/.config/pearnly/credentials}:/etc/pearnly/credentials:ro"
 
 services:
   cowork-bench:
-    volumes: *app-sources
+    volumes: *app-volumes
   cowork-web:
-    volumes: *app-sources
+    volumes: *app-volumes
   cowork-worker:
-    volumes: *app-sources
+    volumes: *app-volumes
   cowork-scheduler:
-    volumes: *app-sources
+    volumes: *app-volumes
 
   erp-bench:
-    volumes: *app-sources
+    volumes: *app-volumes
   erp-web:
-    volumes: *app-sources
+    volumes: *app-volumes
   erp-worker:
-    volumes: *app-sources
+    volumes: *app-volumes
   erp-scheduler:
-    volumes: *app-sources
+    volumes: *app-volumes
 
   dms-bench:
-    volumes: *app-sources
+    volumes: *app-volumes
   dms-web:
-    volumes: *app-sources
+    volumes: *app-volumes
   dms-worker:
-    volumes: *app-sources
+    volumes: *app-volumes
   dms-scheduler:
-    volumes: *app-sources
+    volumes: *app-volumes
 
   control-bench:
-    volumes: *app-sources
+    volumes: *app-volumes
   control-web:
-    volumes: *app-sources
+    volumes: *app-volumes
   control-scheduler:
-    volumes: *app-sources
+    volumes: *app-volumes

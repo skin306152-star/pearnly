@@ -38,3 +38,13 @@ RUN cd /home/frappe/frappe-bench && \
       env/bin/pip install --no-deps -e "apps/$app" && \
       ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
     done
+
+# OCR 走 Vertex 时要的认证库（服务账号 JSON → access token）。
+#
+# 为什么不自己签 JWT：那要再拖一个 `cryptography`（编译依赖、镜像更大），
+# 而 `google-auth` 是官方库、老产品生产也在用同一套认证语义。
+#
+# ⚠️ **凭据本身不进镜像**：这里只装库，服务账号 JSON 由运行时挂载进来
+# （本机开发见 `infrastructure/compose/04-dev-mounts.yml` 的 credentials 挂载；
+# 生产走 Secret/环境变量，与老产品 `GOOGLE_APPLICATION_CREDENTIALS` 一致）。
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "google-auth==2.36.0"

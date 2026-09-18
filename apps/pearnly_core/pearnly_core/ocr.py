@@ -13,17 +13,30 @@
 | **A 档** | `enterprise`（企业档） | `gemini-3.8-flash` | `gemini-3.8-flash` |
 | **B 档** | `economy`（省钱档） | `gemini-3.1-flash-lite` | `gemini-3.8-flash` |
 
-⚠️ **一处与老产品的差异，必须记住**：老产品的 `enterprise` 档除了换模型，还把
-**后端切到 Vertex**（`MODE_BACKENDS: {"enterprise": "vertex"}`），那是"数据驻留"
-的合规选择。新平台现在只有一把 **Gemini API key**（从 Secret Manager
-`pearnly-erp-gemini-api-key` 取的），走的是公开的 `generativelanguage.googleapis.com`。
-也就是说：**模型档位照搬了，数据驻留这条路还没接**。将来要合规时，在
-`_call_model()` 里加 Vertex 分支即可（老产品 `providers/vertex.py` 有实现可参考）。
+**后端**也照老产品分两种（`OCR_LLM_BACKEND`）：
+
+| 后端 | 认证 | 地址 |
+|---|---|---|
+| `vertex`（**默认**，同生产） | GCP 服务账号 | `{location}-aiplatform.googleapis.com` |
+| `aistudio` | Gemini API key | `generativelanguage.googleapis.com` |
+
+生产的配置是 `OCR_LLM_BACKEND=vertex` + `GCP_PROJECT=pearnly` +
+`VERTEX_LOCATION=asia-southeast1`（见本机 `~/.config/pearnly-migration/20260905/web.env`），
+所以新平台默认也走 Vertex —— 那不只是换地址，是**数据驻留**这条合规属性的来源。
+
+⚠️ **区域规则不能自己想当然**：老产品 `_GLOBAL_ONLY_PREFIXES` 记录了一批只在
+**global 端点**发布的模型（2.5 / 3.1 / 3.6 / 3.8），就近区域（asia-southeast1）
+会 404。实测确认：`gemini-3.8-flash`、`gemini-3.1-flash-lite` 必须走 global，
+而 `gemini-3.5-flash` 走 asia-southeast1。所以区域要**按模型**选，不是全域一个值。
 
 密钥与档位都放站点配置（`frappe.conf`），不硬编码：
 
-  pearnly_ocr_api_key    Gemini API key
-  pearnly_ocr_mode       enterprise（默认）| economy
+  pearnly_ocr_backend      vertex（默认）| aistudio
+  pearnly_ocr_api_key      aistudio 用
+  pearnly_ocr_credentials  vertex 用：服务账号 JSON 的路径
+  pearnly_ocr_project      vertex 用：GCP 项目（默认 pearnly）
+  pearnly_ocr_location     vertex 用：就近区域（默认 asia-southeast1）
+  pearnly_ocr_mode         enterprise（默认）| economy
 """
 
 import base64
@@ -50,13 +63,116 @@ DEFAULT_MODE = "enterprise"
 DEFAULT_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 DEFAULT_TIMEOUT_SECONDS = 120
 
+DEFAULT_BACKEND = "vertex"
+DEFAULT_PROJECT = "pearnly"
+DEFAULT_LOCATION = "asia-southeast1"
+
+# 只在 **global 端点**发布的模型前缀（照抄老产品 `providers/vertex.py` 的
+# `_GLOBAL_ONLY_PREFIXES`）。落错区域的表现是 404 或空 JSON —— 很难从报错看出来。
+_GLOBAL_ONLY_PREFIXES = ("gemini-2.5", "gemini-3.1", "gemini-3.6", "gemini-3.8")
+
 
 class OcrError(RuntimeError):
     """OCR 调用失败。调用方据此决定是回"待人工核对"还是报错。"""
 
 
+class OcrUnavailable(OcrError):
+    """**调不动模型**：网络不通、限流、配额耗尽、模型名不存在。
+
+    为什么要跟"模型读了但没读出内容"分开：那是两件完全不同的事 ——
+
+    · 读不出内容 → 业务上的"这张图不合格"，该标 `needs_review` 让人工看；
+    · 调不动模型 → 基础设施问题（配额/网络），**不该伪装成"图不合格"**，
+      否则运维看不到、用户只会以为"系统认不出我的卡"。
+
+    实测踩到：连续跑 8 张图，后几张被 Vertex 限流返回 **429**；
+    当时的实现一律返回 None，于是限流被当成"读不出"—— 一次真实的配额问题
+    被显示成了"证件识别不了"。
+    """
+
+
 def api_key() -> str:
     return str(frappe.conf.get("pearnly_ocr_api_key") or "").strip()
+
+
+def backend() -> str:
+    b = str(frappe.conf.get("pearnly_ocr_backend") or "").strip().lower()
+    return b if b in ("vertex", "aistudio") else DEFAULT_BACKEND
+
+
+def project() -> str:
+    return str(frappe.conf.get("pearnly_ocr_project") or "").strip() or DEFAULT_PROJECT
+
+
+def location() -> str:
+    return str(frappe.conf.get("pearnly_ocr_location") or "").strip() or DEFAULT_LOCATION
+
+
+def credentials_path() -> str:
+    import os
+
+    return (
+        str(frappe.conf.get("pearnly_ocr_credentials") or "").strip()
+        or os.environ.get("GOOGLE_APPLICATION_CREDENTIALS", "").strip()
+    )
+
+
+def location_for_model(model: str) -> str:
+    """按模型选区域。global-only 的那批必须走 `global`，其余留就近区域。"""
+    m = (model or "").lower()
+    if m.startswith(_GLOBAL_ONLY_PREFIXES):
+        return "global"
+    return location()
+
+
+def vertex_url(model: str) -> str:
+    loc = location_for_model(model)
+    host = "aiplatform.googleapis.com" if loc == "global" else f"{loc}-aiplatform.googleapis.com"
+    return (
+        f"https://{host}/v1/projects/{project()}/locations/{loc}"
+        f"/publishers/google/models/{model}:generateContent"
+    )
+
+
+_token_cache: dict = {}
+
+
+def access_token() -> str:
+    """服务账号 → access token（带缓存，缓存到快过期为止）。
+
+    需要 `google-auth`（已随镜像装）。**没有凭据就明确报错**，
+    不要悄悄退回一个不可用的路径。
+    """
+    path = credentials_path()
+    if not path:
+        raise OcrError(_("没有配服务账号（站点配置 pearnly_ocr_credentials）"))
+
+    cached = _token_cache.get(path)
+    now = frappe.utils.now_datetime()
+    if cached and cached["expiry"] > now:
+        return cached["token"]
+
+    try:
+        from google.auth.transport.requests import Request
+        from google.oauth2 import service_account
+
+        creds = service_account.Credentials.from_service_account_file(
+            path, scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        creds.refresh(Request())
+    except ImportError as exc:
+        raise OcrError(_("缺少 google-auth（镜像里应已安装）：{0}").format(exc)) from exc
+    except Exception as exc:  # 文件不存在/格式不对/被拒
+        raise OcrError(_("服务账号换令牌失败：{0}").format(str(exc)[:200])) from exc
+
+    # 提前 5 分钟过期，避免边界上刚好用到失效令牌
+    expiry = creds.expiry
+    if expiry is not None:
+        from datetime import timedelta
+
+        expiry = expiry - timedelta(minutes=5)
+    _token_cache[path] = {"token": creds.token, "expiry": expiry or now}
+    return creds.token
 
 
 def endpoint() -> str:
@@ -81,7 +197,17 @@ def model_for(tier: str) -> str:
 
 
 def is_configured() -> bool:
-    """没配 key 就是没配 —— 界面上要如实说"OCR 不可用"，不要假装能识别。"""
+    """能不能用。**按后端判**，不是一律看 key。
+
+    vertex 后端用的是服务账号文件、`api_key` 对它毫无意义（老产品那句
+    "api_key 参数对 Vertex 无意义(忽略)"）；反过来只配了 key 而没配服务账号时，
+    vertex 后端也是不可用的。所以这里必须分叉，否则会给出一个错误的"可用"。
+    """
+    if backend() == "vertex":
+        import os
+
+        path = credentials_path()
+        return bool(path and os.path.exists(path))
     return bool(api_key())
 
 
@@ -107,9 +233,18 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     （`responseMimeType: application/json`）、一次调用不做内部重试
     （重试交给上层的"升档再读一次"）。
     """
-    key = api_key()
-    if not key:
-        raise OcrError(_("没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）"))
+    if backend() == "vertex":
+        url = vertex_url(model)
+        headers = {
+            "Authorization": "Bearer " + access_token(),
+            "Content-Type": "application/json",
+        }
+    else:
+        key = api_key()
+        if not key:
+            raise OcrError(_("没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）"))
+        url = endpoint().format(model=model)
+        headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
 
     parts: list[dict] = [{"text": prompt}]
     for data, mime in images:
@@ -121,7 +256,9 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         })
 
     payload = {
-        "contents": [{"parts": parts}],
+        # ⚠️ `role: "user"` 不能省：AI Studio 端点容忍缺 role，**Vertex 会直接 400**
+        # （`Please use a valid role: user, model.`）。实测踩到。
+        "contents": [{"role": "user", "parts": parts}],
         "generationConfig": {
             "temperature": 0,
             "maxOutputTokens": max_tokens,
@@ -130,27 +267,26 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     }
 
     try:
-        resp = requests.post(
-            endpoint().format(model=model),
-            headers={"x-goog-api-key": key, "Content-Type": "application/json"},
-            json=payload,
-            timeout=timeout_s,
-        )
+        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
     except requests.RequestException as exc:
         frappe.logger("pearnly.ocr").warning(f"ocr request failed model={model}: {exc}")
-        return None
+        raise OcrUnavailable(_("连不上 OCR 服务：{0}").format(str(exc)[:200])) from exc
 
     if resp.status_code != 200:
         frappe.logger("pearnly.ocr").warning(
             f"ocr http {resp.status_code} model={model}: {resp.text[:300]}"
         )
-        return None
+        raise OcrUnavailable(
+            _("OCR 服务返回 HTTP {0}：{1}").format(resp.status_code, resp.text[:200])
+        )
 
     try:
         body = resp.json()
         text = body["candidates"][0]["content"]["parts"][0]["text"]
         return json.loads(text)
     except (KeyError, IndexError, ValueError, TypeError) as exc:
+        # 走到这里说明**服务是通的**（HTTP 200），只是这次输出没法用
+        # （被截断、不是 JSON、空候选）。返回 None 让上层决定要不要升档。
         frappe.logger("pearnly.ocr").warning(f"ocr unparsable model={model}: {exc}")
         return None
 
@@ -183,9 +319,14 @@ def api_status():
     """OCR 现在到底能不能用。界面据此显示"可用/没配密钥"，不猜。"""
     return {
         "configured": is_configured(),
+        "backend": backend(),
         "mode": mode(),
         "models": MODE_MODEL_MAPS[mode()],
         "modes": sorted(MODE_MODEL_MAPS.keys()),
+        # 每个模型实际会打哪个区域 —— 这就是"落错区域 404"那条坑的可观测面
+        "locations": {
+            tier: location_for_model(m) for tier, m in MODE_MODEL_MAPS[mode()].items()
+        },
     }
 
 
@@ -197,16 +338,27 @@ def api_selftest():
     （实际踩到：`gemini-2.5-flash` 对新建用户已经不可用，返回 404），
     只看"有没有配"会给出一个错误的"可用"。
     """
-    if not is_configured():
-        return {"ok": False, "reason": "no_key"}
     model = model_for("flash_lite")
+    if backend() == "vertex":
+        if not is_configured():
+            return {"ok": False, "reason": "no_credentials", "backend": "vertex",
+                    "hint": "站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON"}
+        try:
+            token = access_token()
+        except OcrError as exc:
+            return {"ok": False, "reason": "credentials", "backend": "vertex",
+                    "detail": str(exc)[:300]}
+        url = vertex_url(model)
+        headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
+    else:
+        if not is_configured():
+            return {"ok": False, "reason": "no_key", "backend": "aistudio"}
+        url = endpoint().format(model=model)
+        headers = {"x-goog-api-key": api_key(), "Content-Type": "application/json"}
+
+    payload = {"contents": [{"role": "user", "parts": [{"text": "reply with the single word: ok"}]}]}
     try:
-        resp = requests.post(
-            endpoint().format(model=model),
-            headers={"x-goog-api-key": api_key(), "Content-Type": "application/json"},
-            json={"contents": [{"parts": [{"text": "reply with the single word: ok"}]}]},
-            timeout=30,
-        )
+        resp = requests.post(url, headers=headers, json=payload, timeout=30)
     except requests.RequestException as exc:
         return {"ok": False, "reason": "network", "detail": str(exc)[:200], "model": model}
 
@@ -216,6 +368,13 @@ def api_selftest():
             "reason": "http",
             "http_status": resp.status_code,
             "model": model,
+            "location": location_for_model(model),
             "detail": resp.text[:300],
         }
-    return {"ok": True, "model": model, "mode": mode()}
+    return {
+        "ok": True,
+        "backend": backend(),
+        "model": model,
+        "location": location_for_model(model),
+        "mode": mode(),
+    }

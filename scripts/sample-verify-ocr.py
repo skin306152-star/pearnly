@@ -26,6 +26,9 @@ def main():
 
     results = []
     captured = []
+    # 桩的行为开关：escalate = 第一次给不合格的号、第二次给合格的号；
+    # quota = 一律回 429（模拟限流/配额耗尽）
+    state = {"mode": "escalate"}
 
     def check(label, ok, detail=""):
         results.append((label, bool(ok), detail))
@@ -63,6 +66,15 @@ def main():
                 "body": body,
                 "key": self.headers.get("x-goog-api-key") or "",
             })
+            if state["mode"] == "quota":
+                err = json.dumps({"error": {"code": 429, "status": "RESOURCE_EXHAUSTED",
+                                            "message": "quota exceeded"}}).encode()
+                self.send_response(429)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(err)))
+                self.end_headers()
+                self.wfile.write(err)
+                return
             # 第 1 次给不合格的号（触发升档），第 2 次给合格的号
             payload = BAD if len(captured) == 1 else GOOD
             out = json.dumps({
@@ -87,6 +99,10 @@ def main():
     saved_key = frappe.conf.get("pearnly_ocr_api_key")
     saved_endpoint = frappe.conf.get("pearnly_ocr_endpoint")
     saved_mode = frappe.conf.get("pearnly_ocr_mode")
+    saved_backend = frappe.conf.get("pearnly_ocr_backend")
+    # 桩只能拦"可按地址覆盖"的后端，所以这一段强制走 aistudio；
+    # Vertex 那条路的东西用下面的纯函数断言覆盖（区域规则是最容易踩的）。
+    frappe.conf["pearnly_ocr_backend"] = "aistudio"
     frappe.conf["pearnly_ocr_api_key"] = "stub-key-not-real"
     frappe.conf["pearnly_ocr_endpoint"] = (
         f"http://127.0.0.1:{port}/v1beta/models/{{model}}:generateContent"
@@ -189,11 +205,47 @@ def main():
         selftest = ocr.api_selftest()
         check("没配密钥时自检返回 no_key", selftest.get("reason") == "no_key", selftest)
 
+        # ── 6. 限流/配额耗尽**不能**伪装成"这张图读不出" ────────────────────
+        # 实测踩到：连续跑 8 张图，后几张被 Vertex 回 429；原本的实现一律返回 None，
+        # 于是配额问题被显示成"证件识别不了"——运维看不到、用户只会以为卡有问题。
+        frappe.conf["pearnly_ocr_api_key"] = "stub-key-not-real"
+        state["mode"] = "quota"
+        captured.clear()
+        raised = ""
+        try:
+            ocr_id_card.extract(png)
+        except Exception as exc:  # noqa: BLE001 — 这里就是要看它抛的是哪一类
+            raised = type(exc).__name__
+        check("配额/限流时抛 OcrUnavailable（说的是'调不动'）", raised == "OcrUnavailable",
+              raised or "没抛异常（被当成读不出）")
+        check("限流时**不**走'待人工核对'那条路",
+              raised not in ("IdCardExtractError", ""), raised)
+
+        # ── 7. Vertex 的区域规则（纯函数，不联网）──────────────────────────
+        # 老产品 `_GLOBAL_ONLY_PREFIXES` 记的那批模型只在 global 端点发布，
+        # 落错区域是 404/空 JSON，很难从报错看出来。实测确认过：
+        # gemini-3.8-flash 与 gemini-3.1-flash-lite 必须 global，
+        # gemini-3.5-flash 走 asia-southeast1。
+        frappe.conf["pearnly_ocr_backend"] = "vertex"
+        frappe.conf["pearnly_ocr_project"] = "pearnly"
+        frappe.conf["pearnly_ocr_location"] = "asia-southeast1"
+        check("3.8 走 global（不是就近区域）",
+              ocr.location_for_model("gemini-3.8-flash") == "global")
+        check("3.1-flash-lite 走 global", ocr.location_for_model("gemini-3.1-flash-lite") == "global")
+        check("3.5 走就近区域 asia-southeast1",
+              ocr.location_for_model("gemini-3.5-flash") == "asia-southeast1")
+        url = ocr.vertex_url("gemini-3.8-flash")
+        check("global 模型拼出的地址是 aiplatform.googleapis.com 且带 locations/global",
+              "https://aiplatform.googleapis.com/v1/projects/pearnly/locations/global" in url, url)
+        check("区域模型的地址带区域前缀",
+              "https://asia-southeast1-aiplatform.googleapis.com" in ocr.vertex_url("gemini-3.5-flash"))
+
     finally:
         server.shutdown()
         for k, v in (("pearnly_ocr_api_key", saved_key),
                      ("pearnly_ocr_endpoint", saved_endpoint),
-                     ("pearnly_ocr_mode", saved_mode)):
+                     ("pearnly_ocr_mode", saved_mode),
+                     ("pearnly_ocr_backend", saved_backend)):
             if v is None:
                 frappe.conf.pop(k, None)
             else:
