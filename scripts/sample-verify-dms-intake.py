@@ -167,6 +167,36 @@ def main():
     check("认不出的码 → 回「服务器内部错误」，不把英文堆栈丢给用户",
           friendly("ERR_NOT_A_REAL_CODE") == friendly("ERR_UNEXPECTED"))
 
+    # ══ 7. 权威只读入口 + 主档完整度（五类银行目录算进去）════════════════
+    import inspect
+
+    from pearnly_dms import dms_intake as _intake
+    from pearnly_dms import dms_masters_cache as mc
+
+    check("run_logged_in 有 authoritative_read 开关（整块读取借管理员会话）",
+          "authoritative_read" in inspect.signature(_intake.run_logged_in).parameters)
+
+    BANK_KEYS = ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")
+    check("五类银行目录都在完整度判据里",
+          all(k in mc._COMPLETE_KEYS for k in BANK_KEYS),
+          [k for k in BANK_KEYS if k not in mc._COMPLETE_KEYS])
+
+    FULL = {key: [] for key in mc._COMPLETE_KEYS}
+    MISSING_ONE = {k: v for k, v in FULL.items() if k != "source_banks"}
+    calls = []
+    real_read, real_fetch, real_write = mc._read, mc._fetch_masters_via_login, mc._write
+    try:
+        mc._read = lambda ep: {"masters": FULL, "age_seconds": 1}
+        mc._fetch_masters_via_login = lambda ep, require_complete=False: (calls.append(1), FULL)[1]
+        mc._write = lambda *a, **k: None
+        mc.get_masters("EP-1")
+        check("缓存齐全且在有效期内 → 不重登 DMS", not calls, calls)
+        mc._read = lambda ep: {"masters": MISSING_ONE, "age_seconds": 1}
+        mc.get_masters("EP-1")
+        check("缓存缺一类银行目录 → 判不可用并重取（不把残缺当齐全）", len(calls) == 1, calls)
+    finally:
+        mc._read, mc._fetch_masters_via_login, mc._write = real_read, real_fetch, real_write
+
     failed = [x for x in results if not x[1]]
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(results) - len(failed), len(failed)))

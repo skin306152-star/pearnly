@@ -34,22 +34,11 @@ _COMPLETE_KEYS = (
     "regis_behalfs",
     "advisors",
     "company_banks",
+    "source_banks",
+    "cheque_banks",
+    "cashier_banks",
+    "card_banks",
 )
-
-# 订车付款要用到的另外四类银行目录（线上把它们也算进 `_COMPLETE_KEYS`）。
-#
-# ⚠️ **暂时不算进"完整"判据** —— 但原因已经变了，别再照旧理由判断：
-#
-# · 取数**已经搬完**（`dms_company_banks.fetch_payment_bank_masters`，本批搬的）；
-# · 卡住的是**权威只读**：这四类目录在销售账号下常被裁成空表，
-#   空表会被完整度判据当成"没抓到" → 完整度永远不满足 → 每次读主档都重新登录 DMS
-#   → 又变成互踢 + 每步白等几十秒（正是当初延后要躲的那个后果）。
-#   线上靠 `_run_logged_in(..., authoritative_read=True)` 借管理员会话读，才敢并进去。
-# · 新平台的 `dms_intake.run_logged_in` 现在**还没有** `authoritative_read` 这个开关。
-#
-# 所以：**下一步把 `authoritative_read` 加上，再把这两处（抓取 + 判据）一次并进去**，
-# 不要只并判据 —— 只并判据就是上面那个失败模式。
-_PENDING_COMPLETE_KEYS = ("source_banks", "cheque_banks", "cashier_banks", "card_banks")
 
 # 银行类目录的键（与 dms_company_banks 的付款渠道同集）。
 _BANK_KEYS = ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")
@@ -150,27 +139,40 @@ def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> Non
 
 # ── 登录抓取（失败即软回退） ──────────────────────────────────────────────
 def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False):
-    """登录 DMS 抓全量主档；登录/抓取失败（`run_logged_in` 回 err dict）→ None。"""
-    from pearnly_dms.dms_company_banks import fetch_company_banks
+    """登录 DMS 抓全量主档；登录/抓取失败（`run_logged_in` 回 err dict）→ None。
+
+    走**权威只读**：配了独立管理员凭据组的租户借管理员会话读 —— 销售账号常看不到
+    车型/银行全表，拿不完整视图当"主档是空的"会静默把存在的车/银行判成不存在；
+    而五类银行目录现在也算进完整度判据，看不到就永远不满足、每次重读都要重登。
+    管理员登录失败 → `ERR_DMS_ADMIN_AUTH` 落成 None，由调用方 fail closed，不静默退回销售。
+    """
+    from pearnly_dms.dms_company_banks import fetch_payment_bank_masters
     from pearnly_dms.dms_intake import run_logged_in
 
     def _fetch(client, adapter):
         return {
             **client.fetch_masters(strict=require_complete),
-            "company_banks": fetch_company_banks(adapter),
+            **fetch_payment_bank_masters(adapter, client=client),
         }
 
-    res = run_logged_in(endpoint, _fetch)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True)
     if isinstance(res, dict) and res.get("ok") is False:
         return None
     return res
 
 
 def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
-    """登录 DMS 抓某车型的颜色（**翻页取全** —— 只取第一页会漏掉第 2 页起的颜色）；失败 → None。"""
+    """登录 DMS 抓某车型的颜色（**翻页取全** —— 只取第一页会漏掉第 2 页起的颜色）；失败 → None。
+
+    同理走**权威只读**：颜色主档在销售账号下可能被裁成空表，空表会被误判成"这车没颜色"。
+    """
     from pearnly_dms.dms_intake import run_logged_in
 
-    res = run_logged_in(endpoint, lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id))
+    res = run_logged_in(
+        endpoint,
+        lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id),
+        authoritative_read=True,
+    )
     if isinstance(res, dict):
         return None
     return res
@@ -187,7 +189,7 @@ def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional
     def _fetch(client, _adapter):
         return {car: (client._bshsd_all("txtcarpaint", idcar=car) or []) for car in want}
 
-    res = run_logged_in(endpoint, _fetch)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True)
     if isinstance(res, dict):
         return None
     return res
@@ -206,7 +208,9 @@ def get_masters(
     （否则 DMS 新增/删除的颜色会被旧色遮住）。
     """
     cached = _read(endpoint)
-    cache_usable = bool(cached) and "company_banks" in cached["masters"]
+    # 判据要求**完整的**键集都在（含五类银行目录）—— 缺任何一类就当缓存不可用，
+    # 否则会把一份残缺的主档当成"已经取全"，而完整度判据又要它完整，来回打架。
+    cache_usable = bool(cached) and all(key in cached["masters"] for key in _COMPLETE_KEYS)
     if require_complete and cache_usable:
         cache_usable = all(isinstance(cached["masters"].get(key), list) for key in _COMPLETE_KEYS)
     if not force_refresh and cache_usable and cached["age_seconds"] < CACHE_TTL_SECONDS:
@@ -328,6 +332,9 @@ def refresh_from_client(endpoint: Any, client: Any) -> None:
         pbc = old.get("paints_by_car")
         if pbc:
             masters = {**masters, "paints_by_car": pbc}
-        if "company_banks" in old:
-            masters = {**masters, "company_banks": old["company_banks"]}
+        # 就地刷新走的是**销售会话**的 `fetch_masters()`，不含任何银行目录。
+        # 不把它们从旧缓存带过来，缓存就会瞬间缺五类键 → 判据判不可用 → 下次又重登。
+        for key in _BANK_KEYS:
+            if key not in masters and old.get(key):
+                masters = {**masters, key: old[key]}
     _write(endpoint, masters)

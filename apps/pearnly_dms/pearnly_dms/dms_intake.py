@@ -57,10 +57,15 @@ def err(code: str, raw: str = "") -> Dict[str, Any]:
     }
 
 
-def run_logged_in(endpoint: Any, fn):
+def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
+
+    `authoritative_read=True`：**整块 DMS 读取**借管理员会话（配了独立管理员凭据组时），
+    销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
+    管理员 transport；未配管理员照样走销售；配了但管理员登录失败 →
+    `ERR_DMS_ADMIN_AUTH` **明确失败关闭**，不静默降级。**写操作（上传/提交）不走这个入口。**
     """
     name = endpoint_name(endpoint)
     adapter, build_err = build_adapter(name)
@@ -79,13 +84,27 @@ def run_logged_in(endpoint: Any, fn):
                         return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
                     raise
                 try:
-                    out = fn(adapter.client(), adapter)
+                    client = adapter.client()
+                    if authoritative_read:
+                        from pearnly_dms.dms_admin_read import authoritative_read_session
+
+                        with authoritative_read_session(client):
+                            out = fn(client, adapter)
+                    else:
+                        out = fn(client, adapter)
                 except DmsClientError as exc:
-                    if adapter.concurrent_login_detected:
+                    # 提交类失败带着"已经发出去了"的证据（`response_body.submitted`）：
+                    # 这时候报"被别人顶下线"会误导 —— 单可能已经建出来了。
+                    if adapter.concurrent_login_detected and not getattr(
+                        exc, "response_body", {}
+                    ).get("submitted"):
                         return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
                     return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc))
-                # 收尾再查一次：中途被别人顶下线，结果不能算数
-                if adapter.concurrent_login_detected:
+                # 收尾再查一次：中途被别人顶下线，结果不能算数。
+                # 但**已经拿到单号**的结果算数 —— 单确实建出来了。
+                if adapter.concurrent_login_detected and not (
+                    isinstance(out, dict) and out.get("booking_id")
+                ):
                     return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
                 return out
         except DmsAdminAuthError as exc:
