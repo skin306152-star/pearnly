@@ -199,8 +199,12 @@ function render_provision(frm) {
 function issue_and_provision(frm) {
 	// 先存：发号读的是库里的单子，不存就发的是旧值
 	frappe.dom.freeze(__("正在发号…"));
-	frm
-		.save()
+	// ⚠️ **表单没改动时不能等 `frm.save()`**：Frappe 那条路只弹一句"未做任何修改"，
+	// 压根不调回调 —— 而 `frm.save()` 是 `new Promise((resolve) => …)`，
+	// 回调不调就**永远不落地**，链子会卡死在 freeze 上：界面一直"正在发号…"，
+	// 后台什么也没发生（今天就是这么卡住的）。所以按 `is_dirty()` 分流。
+	const save = () => (frm.is_dirty() ? frm.save() : Promise.resolve());
+	save()
 		.then(() => pcall("pearnly_control.issues.api_issue_from_doc", { issue: frm.doc.name }))
 		.then((res) => {
 			frappe.dom.unfreeze();
