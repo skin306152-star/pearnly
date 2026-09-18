@@ -22,6 +22,12 @@ const routes: RouteRecordRaw[] = [
     component: () => import("./pages/cowork/IntakePage.vue"),
   },
   {
+    // 「开户 → 使用」的第一站：租户拿到站点后先把自己的 DMS 连接配上
+    path: "/connect",
+    name: "dms-connect",
+    component: () => import("./pages/dms/ConnectPage.vue"),
+  },
+  {
     // DMS 操作员花名册（老产品里这一页仅老板可见，含每行「发绑定码」）
     path: "/roster",
     name: "roster",

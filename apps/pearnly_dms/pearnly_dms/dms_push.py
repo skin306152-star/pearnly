@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any, Dict, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -50,28 +51,31 @@ def test_dms_endpoint(endpoint_name: str) -> Dict[str, Any]:
     成功回向导形状的 dict；失败回 `{ok: False, error_code, error_friendly, raw_error, masters: {}}`。
     同步函数（Playwright 同步 API），web 层要放到线程里调。
     """
-    import time as _time
+    t0 = time.time()
+    adapter, build_err = build_adapter(endpoint_name)
+    if build_err:
+        return _failed_probe(build_err["error_code"], build_err["raw"], t0)
+    return _probe_adapter(adapter, t0)
 
+
+def test_adapter(adapter) -> Dict[str, Any]:
+    """用**还没落库的**凭据跑一次健康检查（连接向导的"先测再存"）。
+
+    老产品的向导就是这个顺序：先在内存里拿用户刚填的账号密码真登一次，
+    登上了才写库 —— 免得把错的凭据存进去。所以这一步必须能脱离 endpoint 文档跑。
+    **从不抛异常**，形状与 `test_dms_endpoint` 完全一致。
+    """
+    return _probe_adapter(adapter, time.time())
+
+
+def _probe_adapter(adapter, t0: float) -> Dict[str, Any]:
+    """`test_adapter` / `test_dms_endpoint` 共用的探针主体。"""
     from pearnly_dms.dms_errors import friendly
 
-    t0 = _time.time()
-
     def _fail(code: str, raw: str = "") -> Dict[str, Any]:
-        return {
-            "ok": False,
-            "adapter": "mrerp_dms",
-            "elapsed_ms": int((_time.time() - t0) * 1000),
-            "masters": {},
-            "error_code": code,
-            "error_friendly": friendly(code),
-            "raw_error": (raw or "")[:300],
-        }
+        return _failed_probe(code, raw, t0, friendly(code))
 
     try:
-        adapter, build_err = build_adapter(endpoint_name)
-        if build_err:
-            return _fail(build_err["error_code"], build_err["raw"])
-
         from pearnly_dms.dms_adapter import DmsAuthError, DmsTechnicalError
 
         try:
@@ -90,8 +94,25 @@ def test_dms_endpoint(endpoint_name: str) -> Dict[str, Any]:
         except DmsTechnicalError as exc:
             return _fail("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
     except Exception as exc:  # noqa: BLE001
-        logger.exception("test_dms_endpoint 意外失败")
+        logger.exception("连接测试意外失败")
         return _fail("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")
+
+
+def _failed_probe(code: str, raw: str, t0: float, friendly_text: str = "") -> Dict[str, Any]:
+    """失败结果。和成功结果同为"向导形状"，界面不需要分两条渲染路径。"""
+    if not friendly_text:
+        from pearnly_dms.dms_errors import friendly
+
+        friendly_text = friendly(code)
+    return {
+        "ok": False,
+        "adapter": "mrerp_dms",
+        "elapsed_ms": int((time.time() - t0) * 1000),
+        "masters": {},
+        "error_code": code,
+        "error_friendly": friendly_text,
+        "raw_error": (raw or "")[:300],
+    }
 
 
 def id_card_payload_from_dict(id_card: Dict[str, Any]):

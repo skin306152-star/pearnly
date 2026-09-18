@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 """发号单：一次开户动作。
 
-一张单子表达"给某家公司开哪几个产品、各自的域名是什么、开哪些功能、给什么 OCR 能力"。
-提交时校验域名、账号与功能，创建租户与登录账号，产出**开通清单**。
+一张单子表达"给某家公司开哪几个产品、各自的域名是什么"。
+提交时校验域名与账号，创建租户与登录账号，产出**开通清单**。
+
+**功能不再单独勾选**（用户 2026-09-18 定）：选了哪个产品，那个产品的功能就全开。
 
 真正的建站执行（建 Site、建库、装 App、绑证书）不在这里做——那是后续阶段。
 本单只保证：**要开什么被完整、无歧义地记下来了**。
@@ -10,7 +12,14 @@
 硬规则：
 - 域名冲突就拒绝，不做"先建了再说"。
 - 账号已存在时拒绝，不按邮箱合并到已有账号（那是另一个流程）。
-- 凭据要么走邀请邮件（用户自己设密码），要么当场生成一次性初始密码；**都不落库**。
+
+账号三件套（用户 2026-09-18 定）：**邮箱 + 用户名 + 初使密码**。
+这三样构成"首次绑定关系"——用户拿到初使密码**当天就能登录**（不强制改密），
+之后可以在系统内改密码，也可以在登录页用邮箱走自助改密。
+
+⚠️ 初使密码**会落库**（Frappe `Password` 字段 → `__Auth` 加密表）。
+老设计里密码是当场随机生成、只在返回值里出现一次；现在由开户人指定，
+要活到"执行开通"那一刻，所以必须存。存的是密文，接口**不回显**。
 """
 
 import re
@@ -28,6 +37,9 @@ EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # 用户 2026-09-17 定的规则：开通时只填前缀，系统补成「前缀.pearnly.com」。
 PREFIX_RE = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
 
+# 用户名：登录标识之一。不跟邮箱抢语义，所以只收常见的账号字符。
+USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,30}$")
+
 # 不让租户占用这些前缀：要么是基础设施在用，要么会被误认成官方入口。
 # 通配符证书 *.pearnly.com 会把这些名字一起盖住，所以必须在开通这一步挡住。
 RESERVED_PREFIXES = {
@@ -44,17 +56,24 @@ class PearnlyIssue(Document):
     def validate(self):
         self._validate_account()
         self._validate_apps()
-        self._validate_features()
+        self._summarize_features()
 
     # ── 基础信息 ──────────────────────────────────────────────
     def _validate_account(self):
         self.account_email = (self.account_email or "").strip().lower()
         if not EMAIL_RE.match(self.account_email):
-            frappe.throw(_("登录账号必须是合法邮箱"))
+            frappe.throw(_("邮箱不合法"))
+        self.account_username = (self.account_username or "").strip()
+        if not USERNAME_RE.match(self.account_username):
+            frappe.throw(_("用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30"))
+        # 初使密码**不查复杂度**（用户明确要求别卡太严：纯字母、纯数字都行），只要不是空的。
+        # 卡得越严，开户现场越容易卡在"想不出密码"上，而这是他自己租户的账号。
+        self.account_password = (self.account_password or "").strip()
+        if not self.account_password:
+            frappe.throw(_("初使密码必填（用户拿它直接登录）"))
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
-            frappe.throw(_("租户名称必填"))
-        self.contact_phone = (self.contact_phone or "").strip()
+            frappe.throw(_("公司名称必填"))
 
     # ── 产品与域名 ────────────────────────────────────────────
     def _validate_apps(self):
@@ -97,44 +116,16 @@ class PearnlyIssue(Document):
             row.domain_prefix = prefix
             row.domain = domain
 
-    # ── 功能模版 ──────────────────────────────────────────────
-    def _validate_features(self):
-        """勾的功能必须：属于对应产品、且那个产品确实开通了。
+    # ── 已开通功能 ────────────────────────────────────────────
+    def _summarize_features(self):
+        """选了哪个产品，那个产品的功能就**全开**（用户 2026-09-18 定）。
 
-        「归到哪个产品」是靠表本身区分的（cowork_features / erp_features /
-        dms_features），所以这里要挡住"把 ERP 的功能勾进 Cowork 那一栏"。
+        以前这里是"勾选校验"：三张功能模版表 + 归属校验 + 摘要。现在没有勾选了，
+        剩下的事只有一件 —— 把结果写清楚给操作人看。
         """
         selected = {row.app for row in self.apps}
-        tables = {
-            "cowork": self.cowork_features,
-            "erp": self.erp_features,
-            "dms": self.dms_features,
-        }
-        picked = {}
-        for product, rows in tables.items():
-            if rows and product not in selected:
-                frappe.throw(
-                    _("填了 {0} 的功能，但上面的产品里没有选 {0}").format(
-                        features_mod.PRODUCT_LABELS.get(product, product))
-                )
-            seen = set()
-            for row in rows or []:
-                if not row.feature:
-                    frappe.throw(_("功能行里有一项没选功能"))
-                if row.feature in seen:
-                    frappe.throw(_("功能重复勾选：{0}").format(row.feature))
-                seen.add(row.feature)
-
-                actual = frappe.db.get_value("Pearnly Feature", row.feature, "product")
-                if not actual:
-                    frappe.throw(_("功能不存在：{0}").format(row.feature))
-                if actual != product:
-                    frappe.throw(
-                        _("功能 {0} 属于 {1}，不能勾在 {2} 那一栏").format(
-                            row.feature, actual, product)
-                    )
-            picked[product] = sorted(seen)
         self.feature_summary = "；".join(
-            f"{features_mod.PRODUCT_LABELS[p]} {len(picked[p])} 项"
-            for p in features_mod.PRODUCTS if picked.get(p)
+            f"{features_mod.PRODUCT_LABELS[p]} {len(features_mod.codes_of(p))} 项"
+            for p in features_mod.PRODUCTS
+            if p in selected
         )

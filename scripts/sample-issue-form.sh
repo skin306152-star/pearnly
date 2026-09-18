@@ -2,8 +2,11 @@
 # 控制面「租户开通」表单的端到端验证：走的是表单用的同一条接口。
 #
 # 覆盖：
-#   1) 正常开通（域名只填前缀 → 服务端补成 前缀.pearnly.com + 功能模版 + 邀请邮件）
-#   2) 一批必须被拒绝的输入（前缀格式、保留名、重复、功能挂错产品、账号已存在）
+#   1) 正常开通（域名只填前缀 → 服务端补成 前缀.pearnly.com；功能按产品全开）
+#   2) 一批必须被拒绝的输入（前缀格式、保留名、重复、账号三件套、账号已存在）
+#
+# 账号三件套（用户 2026-09-18 定）：邮箱 + 用户名 + 初使密码。
+# 功能不再勾选：选了哪个产品，那个产品的功能就全开。
 #
 # 用法: scripts/sample-issue-form.sh [接收邀请的邮箱]
 #   不给邮箱时用 form-<时间戳>@sample.local（不会真投递，适合反复跑）。
@@ -86,6 +89,14 @@ BASE_DOMAIN=$(docker --context colima-pearnly exec pearnly-sample-control-bench-
 BASE_DOMAIN="${BASE_DOMAIN:-pearnly.com}"
 echo "    基础域名（从站点配置读）: ${BASE_DOMAIN}"
 
+# 功能项数也不写死：从控制面的目录读，目录改了脚本跟着走。
+FEATURE_COUNTS=$(docker --context colima-pearnly exec pearnly-sample-control-bench-1 bash -lc \
+  "cd ~/frappe-bench && bench --site control.localhost execute pearnly_control.features.counts 2>/dev/null | tail -1" \
+  | tr -d '\r' | python3 -c 'import sys,json; print(json.dumps(json.JSONDecoder().raw_decode(sys.stdin.read().strip())[0]))' 2>/dev/null)
+# 注意别写成 "${FEATURE_COUNTS:-{}}"：第一个 } 会结束展开，多补一个花括号出来。
+[ -n "$FEATURE_COUNTS" ] || FEATURE_COUNTS='{}'
+echo "    各产品功能项数: ${FEATURE_COUNTS}"
+
 echo "[1] 登录控制面（本地账号）"
 curl -sS -c "$JAR" -o /dev/null -X POST "$CONTROL/api/method/login" \
   -H "Host: $CONTROL_HOST" -H 'Content-Type: application/json' \
@@ -98,47 +109,50 @@ CSRF=$(curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" \
   | python3 -c 'import sys,json; print((json.load(sys.stdin).get("message") or {}).get("csrf_token") or "")')
 echo "    CSRF 令牌长度: ${#CSRF}"
 
-echo "[2] 正常开通：前缀 + 功能模版 + 邀请邮件"
+echo "[2] 正常开通：域名前缀 + 账号三件套（功能按产品全开）"
 cat > "$BODY" <<JSON
 {
   "tenant_name": "表单验证租户 ${SUFFIX}",
   "account_email": "${EMAIL}",
-  "account_name": "开通验证",
-  "contact_phone": "+66000000000",
-  "delivery": "invite",
+  "account_username": "formuse${SUFFIX}",
+  "account_password": "abc123",
   "apps": [
     {"app": "cowork", "domain_prefix": "fcwo${SUFFIX}"},
     {"app": "dms", "domain_prefix": "fdms${SUFFIX}"}
-  ],
-  "features": {
-    "cowork": ["home_subscription", "intake", "recon"],
-    "dms": ["home_subscription", "id_card_ocr", "quota"]
-  }
+  ]
 }
 JSON
 python3 -c 'import json,sys; json.load(open(sys.argv[1]))' "$BODY"
 RESP=$(api pearnly_control.issues.api_issue --post)
-printf '%s' "$RESP" | BASE_DOMAIN="$BASE_DOMAIN" python3 -c '
+printf '%s' "$RESP" | BASE_DOMAIN="$BASE_DOMAIN" FEATURE_COUNTS="$FEATURE_COUNTS" python3 -c '
 import os, sys, json
 BASE = os.environ.get("BASE_DOMAIN") or "pearnly.com"
+COUNTS = json.loads(os.environ.get("FEATURE_COUNTS") or "{}")
+EXPECT = {p: COUNTS[p] for p in ("cowork", "dms")}  # 按产品全开
 d = json.load(sys.stdin)
 m = d.get("message")
 if not m:
     print("    ✗ 开通失败:", str(d)[:300]); raise SystemExit(1)
 print("    发号单:", m["issue"], "| 租户:", m["tenant"])
-print("    账号:", m["account_email"], "| 交付方式:", m["delivery"])
+print("    账号:", m["account_email"], "| 用户名:", m["account_username"])
+if m.get("delivery") != "password":
+    print("    ✗ 交付方式不是 password"); raise SystemExit(1)
 for dep in m["deployments"]:
     print("    待开通:", dep["app"], "->", dep["domain"])
-for product, feats in m["features"].items():
-    if feats:
-        print("    功能", product, ":", ", ".join(feats))
-print("    一次性密码:", "（未返回，走邀请邮件）" if "initial_password" not in m else "有")
+for product, count in sorted(EXPECT.items()):
+    got = len(m["features"].get(product) or [])
+    flag = "✓" if got == count else "✗"
+    print(f"    功能 {product}：{got} 项 {flag}")
+    if got != count:
+        raise SystemExit(1)
+if m["features"].get("erp"):
+    print("    ✗ 没选 ERP，却带了 ERP 的功能"); raise SystemExit(1)
 ok = all(dep["domain"].endswith("." + BASE) and dep["domain"].startswith(dep["domain_prefix"] + ".")
          for dep in m["deployments"])
 print(f"    域名规则（前缀+.{BASE}）:", "✓" if ok else "✗")
 if not ok: raise SystemExit(1)
-if m["delivery"] != "invite":
-    print("    ✗ 交付方式不是 invite"); raise SystemExit(1)
+if "account_password" in m or "initial_password" in m:
+    print("    ✗ 接口回显了密码（不该回显）"); raise SystemExit(1)
 '
 ISSUE_NO=$(printf '%s' "$RESP" | python3 -c 'import sys,json; print((json.load(sys.stdin).get("message") or {}).get("issue") or "")')
 if [ -z "$ISSUE_NO" ]; then echo "    ✗ 拿不到发号单号"; exit 1; fi
@@ -146,60 +160,66 @@ if [ -z "$ISSUE_NO" ]; then echo "    ✗ 拿不到发号单号"; exit 1; fi
 echo "[3] 必须被拒绝的输入"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"大写前缀","account_email":"norm-${SUFFIX}@sample.local","delivery":"password",
+{"tenant_name":"大写前缀","account_email":"norm-${SUFFIX}@sample.local",
+ "account_username":"normuse${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"Foo${SUFFIX}"}]}
 JSON
 issue_ok "前缀含大写字母会被规范成小写（DNS 本就大小写不敏感）" \
   "m['deployments'][0]['domain']=='foo${SUFFIX}.${BASE_DOMAIN}'"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"下划线前缀","account_email":"bad1-${SUFFIX}@sample.local","delivery":"password",
+{"tenant_name":"下划线前缀","account_email":"bad1-${SUFFIX}@sample.local",
+ "account_username":"bad1u${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"foo_bar"}]}
 JSON
 expect_reject "前缀含下划线" "前缀不合法"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"全数字前缀","account_email":"bad6-${SUFFIX}@sample.local","delivery":"password",
+{"tenant_name":"全数字前缀","account_email":"bad6-${SUFFIX}@sample.local",
+ "account_username":"bad6u${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"123456"}]}
 JSON
 expect_reject "前缀全是数字" "不能全是数字"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"保留名","account_email":"bad2-${SUFFIX}@sample.local","delivery":"password",
+{"tenant_name":"保留名","account_email":"bad2-${SUFFIX}@sample.local",
+ "account_username":"bad2u${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"www"}]}
 JSON
 expect_reject "前缀是保留名 www" "保留名"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"同单重复域名","account_email":"bad3-${SUFFIX}@sample.local","delivery":"password",
+{"tenant_name":"同单重复域名","account_email":"bad3-${SUFFIX}@sample.local",
+ "account_username":"bad3u${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"dup${SUFFIX}"},
          {"app":"dms","domain_prefix":"dup${SUFFIX}"}]}
 JSON
 expect_reject "同一张单里域名重复" "重复"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"功能挂错产品","account_email":"bad4-${SUFFIX}@sample.local","delivery":"password",
- "apps":[{"app":"cowork","domain_prefix":"wrong${SUFFIX}"}],
- "features":{"cowork":["sales"]}}
+{"tenant_name":"邮箱不合法","account_email":"not-an-email",
+ "account_username":"bad4u${SUFFIX}","account_password":"abc123",
+ "apps":[{"app":"cowork","domain_prefix":"badmail${SUFFIX}"}]}
 JSON
-expect_reject "把 ERP 的功能勾进 Cowork" "属于 ERP"
+expect_reject "邮箱不是邮箱" "邮箱"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"功能不存在","account_email":"bad7-${SUFFIX}@sample.local","delivery":"password",
- "apps":[{"app":"cowork","domain_prefix":"nofeat${SUFFIX}"}],
- "features":{"cowork":["no_such_feature"]}}
+{"tenant_name":"用户名不合法","account_email":"bad7-${SUFFIX}@sample.local",
+ "account_username":"张三","account_password":"abc123",
+ "apps":[{"app":"cowork","domain_prefix":"baduser${SUFFIX}"}]}
 JSON
-expect_reject "功能代码不存在" "没有这个功能"
+expect_reject "用户名含非 ASCII 字符" "用户名"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"功能无对应产品","account_email":"bad5-${SUFFIX}@sample.local","delivery":"password",
- "apps":[{"app":"cowork","domain_prefix":"noprod${SUFFIX}"}],
- "features":{"dms":["id_card_ocr"]}}
+{"tenant_name":"初使密码为空","account_email":"bad5-${SUFFIX}@sample.local",
+ "account_username":"bad5u${SUFFIX}","account_password":"",
+ "apps":[{"app":"cowork","domain_prefix":"nopwd${SUFFIX}"}]}
 JSON
-expect_reject "勾了 DMS 功能但没开 DMS" "没有选"
+expect_reject "初使密码为空" "初使密码"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"账号已存在","account_email":"${EMAIL}","delivery":"password",
+{"tenant_name":"账号已存在","account_email":"${EMAIL}",
+ "account_username":"dupuse${SUFFIX}","account_password":"abc123",
  "apps":[{"app":"cowork","domain_prefix":"again${SUFFIX}"}]}
 JSON
 expect_reject "同一账号重复开通" "已存在"

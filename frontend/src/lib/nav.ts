@@ -91,6 +91,9 @@ const NAV: Record<string, NavEntry[]> = {
   ],
   dms: [
     HOME,
+    // 连接第三方 DMS 不设 feature：它是这个产品的地基，老产品也从不藏它。
+    // 真正会挡住人的是后端（没配连接就推不动）。
+    { label: "连接第三方 DMS", route: "/connect" },
     { label: "推送记录", route: "/records", feature: "push_record" },
     { label: "操作员", route: "/roster", feature: "roster" },
   ],

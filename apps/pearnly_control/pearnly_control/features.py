@@ -124,6 +124,20 @@ def all_codes(product: str) -> set[str]:
     return {f["code"] for f in CATALOG.get(product, [])}
 
 
+def codes_of(product: str) -> list[str]:
+    """该产品的**全部**功能代码，顺序与目录一致。
+
+    用户 2026-09-18 定：开通**不分功能模版**了 —— 选了哪个产品，就把那个产品的
+    功能全开。所以这里给的是全集，调用方不再需要"勾选项"这个概念。
+    """
+    return [f["code"] for f in CATALOG.get(product, [])]
+
+
+def counts() -> dict:
+    """各产品的功能项数。给界面显示与验证脚本读，避免两边各写一份数字。"""
+    return {p: len(CATALOG.get(p, [])) for p in PRODUCTS}
+
+
 def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
     """该功能对应的 (角色名, DocType 列表)。没配就是没有可挡对象。"""
     role, doctypes = ENFORCEMENT.get((product, code), ("", []))

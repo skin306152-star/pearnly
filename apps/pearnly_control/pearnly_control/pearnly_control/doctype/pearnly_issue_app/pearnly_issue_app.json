@@ -12,9 +12,9 @@
  ],
  "fields": [
   {"fieldname": "app", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
-  {"fieldname": "domain_prefix", "fieldtype": "Data", "in_list_view": 1, "label": "域名前缀", "reqd": 1, "columns": 3, "description": "只填前缀，例如 aerp；系统自动补成 aerp.pearnly.com。只能用小写字母、数字和短横线，全局唯一"},
-  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "访问域名", "read_only": 1, "columns": 5, "description": "由前缀自动生成，保存时以服务端计算为准"},
-  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "界面标题", "columns": 2, "description": "产品界面顶部显示的名字，留空则用租户名称"}
+  {"fieldname": "domain_prefix", "fieldtype": "Data", "in_list_view": 1, "label": "域名前缀", "reqd": 1, "columns": 3, "description": "只填前缀，如 aerp"},
+  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "访问域名", "read_only": 1, "columns": 5},
+  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "界面标题", "columns": 2, "description": "留空用公司名称"}
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

@@ -17,16 +17,11 @@
   .pi-app .name{width:96px;color:#374151}
   .pi-app input[type=text]{flex:1;padding:8px 10px;border:1px solid #d1d5db;border-radius:8px}
   .pi-app input[type=text]:disabled{background:#f9fafb;color:#9ca3af}
-  .pi-ocr{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
-  .pi-ocr input{width:16px;height:16px;margin-top:2px}
-  .pi-ocr .t{color:#374151}.pi-ocr .d{color:#9ca3af;font-size:12px}
   .pi-actions{display:flex;gap:10px;align-items:center}
   .pi-actions button{padding:10px 22px;border:0;border-radius:9px;background:#6d5bd0;color:#fff;font-size:14px;cursor:pointer}
   .pi-actions button[disabled]{opacity:.6;cursor:default}
   .pi-msg{color:#dc2626;min-height:18px}
   .pi-result{display:none}
-  .pi-pw{font-family:ui-monospace,Menlo,monospace;font-size:16px;background:#f3f4f6;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;margin:6px 0;user-select:all}
-  .pi-warn{color:#b45309;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:10px;margin:10px 0}
   table.pi-list{width:100%;border-collapse:collapse;margin-top:8px}
   table.pi-list th,table.pi-list td{border-bottom:1px solid #eef2f7;padding:7px 6px;text-align:left;font-size:13px}
   table.pi-list th{color:#6b7280;font-weight:500}
@@ -34,74 +29,52 @@
 
 <div class="pi-wrap">
   <h3>发号</h3>
-  <p class="pi-sub">给一家公司开一批产品。提交后产出开通清单与一次性初始密码。<span id="pi-operator"></span></p>
+  <p class="pi-sub">给一家公司开一批产品。<span id="pi-operator"></span></p>
 
   <div class="pi-card" id="pi-form-card">
     <h5>公司与账号</h5>
     <div class="pi-field">
       <label>开户目标</label>
       <select id="pi-target" style="width:100%;padding:9px 11px;border:1px solid #d1d5db;border-radius:8px;font-size:14px"></select>
-      <div class="pi-hint">这次开户打到哪个环境。控制面在本机跑，但开户动作是打到所选环境的身份服务上的</div>
     </div>
     <div class="pi-row">
       <div class="pi-field">
-        <label>租户名称</label>
+        <label>公司名称</label>
         <input type="text" id="pi-tenant" placeholder="例如：曼谷五金有限公司">
-        <div class="pi-hint">公司改名不换身份，这里只是显示名</div>
       </div>
       <div class="pi-field">
-        <label>登录账号</label>
+        <label>邮箱</label>
         <input type="text" id="pi-email" placeholder="owner@company.com">
-        <div class="pi-hint">必须是邮箱。已存在会被拒绝，不会合并到别人的账号</div>
       </div>
     </div>
     <div class="pi-row">
       <div class="pi-field">
-        <label>使用人姓名</label>
-        <input type="text" id="pi-name" placeholder="例如：สมชาย">
+        <label>用户名</label>
+        <input type="text" id="pi-username" placeholder="例如：somchai">
       </div>
       <div class="pi-field">
-        <label>联系电话（可选）</label>
-        <input type="text" id="pi-phone">
+        <label>初使密码</label>
+        <input type="text" id="pi-password" placeholder="用户拿它直接登录">
       </div>
     </div>
   </div>
 
   <div class="pi-card">
-    <h5>开通哪些产品（可多选，每个产品填自己的域名）</h5>
+    <h5>产品与域名（勾选即开通该产品全部功能）</h5>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-cowork" data-app="cowork">
       <span class="name">Cowork</span>
-      <input type="text" id="pi-dom-cowork" placeholder="acme-cowork.pearnly.com" disabled>
+      <input type="text" id="pi-dom-cowork" placeholder="只填前缀，如 acme" disabled>
     </div>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-erp" data-app="erp">
       <span class="name">ERP</span>
-      <input type="text" id="pi-dom-erp" placeholder="acme-erp.pearnly.com" disabled>
+      <input type="text" id="pi-dom-erp" placeholder="只填前缀，如 acme" disabled>
     </div>
     <div class="pi-app">
       <input type="checkbox" id="pi-app-dms" data-app="dms">
       <span class="name">DMS</span>
-      <input type="text" id="pi-dom-dms" placeholder="acme-dms.pearnly.com" disabled>
-    </div>
-    <div class="pi-hint">域名全局唯一，撞车会被当场拒绝</div>
-  </div>
-
-  <div class="pi-card">
-    <h5>OCR 能力（两种不同用途，可多选）</h5>
-    <div class="pi-ocr">
-      <input type="checkbox" id="pi-ocr-economy" checked>
-      <div>
-        <div class="t">B 档：经济档</div>
-        <div class="d">日常发票识别（采购票、销售票、收据）。便宜快</div>
-      </div>
-    </div>
-    <div class="pi-ocr">
-      <input type="checkbox" id="pi-ocr-enterprise">
-      <div>
-        <div class="t">A 档：高精档</div>
-        <div class="d">财务扫描件（银行流水、总账、VAT 报表）。单价约为 B 档的 3–5 倍。与 B 档是两种业务，不是同一功能的好坏两档</div>
-      </div>
+      <input type="text" id="pi-dom-dms" placeholder="只填前缀，如 acme" disabled>
     </div>
   </div>
 
@@ -162,7 +135,7 @@
       if (cb.checked && !dom.value) {
         var tenant = (document.getElementById("pi-tenant").value || "acme")
           .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "acme";
-        dom.value = tenant + "-" + app + ".pearnly.com";
+        dom.value = tenant + "-" + app;
       }
       if (!cb.checked) dom.value = "";
     });
@@ -172,17 +145,15 @@
     var apps = [];
     APPS.forEach(function (app) {
       if (document.getElementById("pi-app-" + app).checked) {
-        apps.push({ app: app, domain: document.getElementById("pi-dom-" + app).value.trim() });
+        apps.push({ app: app, domain_prefix: document.getElementById("pi-dom-" + app).value.trim() });
       }
     });
     return {
       target: document.getElementById("pi-target").value,
       tenant_name: document.getElementById("pi-tenant").value.trim(),
       account_email: document.getElementById("pi-email").value.trim(),
-      account_name: document.getElementById("pi-name").value.trim(),
-      contact_phone: document.getElementById("pi-phone").value.trim(),
-      ocr_economy: document.getElementById("pi-ocr-economy").checked,
-      ocr_enterprise: document.getElementById("pi-ocr-enterprise").checked,
+      account_username: document.getElementById("pi-username").value.trim(),
+      account_password: document.getElementById("pi-password").value,
       notes: document.getElementById("pi-notes").value.trim(),
       apps: apps
     };
@@ -200,9 +171,14 @@
     var btn = this, msg = document.getElementById("pi-msg");
     msg.textContent = "";
     var body = collect();
-    if (!body.tenant_name) { msg.textContent = "请填租户名称"; return; }
-    if (!body.account_email) { msg.textContent = "请填登录账号"; return; }
+    if (!body.tenant_name) { msg.textContent = "请填公司名称"; return; }
+    if (!body.account_email) { msg.textContent = "请填邮箱"; return; }
+    if (!body.account_username) { msg.textContent = "请填用户名"; return; }
+    if (!body.account_password) { msg.textContent = "请填初使密码"; return; }
     if (!body.apps.length) { msg.textContent = "至少要选一个产品"; return; }
+    if (body.apps.some(function (a) { return !a.domain_prefix; })) {
+      msg.textContent = "每个选中的产品都要填域名前缀"; return;
+    }
 
     btn.disabled = true; btn.textContent = "提交中…";
     fetch("/api/method/pearnly_control.issues.api_issue", {
@@ -233,20 +209,18 @@
       return "<tr><td>" + esc(d.app) + "</td><td>" + esc(d.domain) +
              "</td><td>待开通</td></tr>";
     }).join("");
-    var ocr = [];
-    if (m.ocr.enterprise_a) ocr.push("A 档（高精）");
-    if (m.ocr.economy_b) ocr.push("B 档（经济）");
+    var feats = Object.keys(m.features || {})
+      .filter(function (p) { return (m.features[p] || []).length; })
+      .map(function (p) { return p + " " + m.features[p].length + " 项"; })
+      .join("；");
 
     document.getElementById("pi-result-body").innerHTML =
       "<div>发号单：<b>" + esc(m.issue) + "</b>　租户：<b>" + esc(m.tenant) + "</b></div>" +
       "<div style='margin-top:4px'>开户目标：<b>" + esc(m.target || "-") + "</b></div>" +
-      "<div style='margin-top:6px'>登录账号：<b>" + esc(m.account_email) + "</b>　身份主体：" + esc(m.identity_subject) + "</div>" +
-      "<div style='margin-top:10px'>初始密码：</div>" +
-      "<div class='pi-pw'>" + esc(m.initial_password) + "</div>" +
-      "<div class='pi-warn'>这个密码只显示这一次，本系统不保存明文。请立刻交给客户，并提醒首次登录后自行改密。</div>" +
-      "<div style='margin-top:6px'>OCR 能力：" + esc(ocr.join("、") || "未开通") + "</div>" +
-      "<table class='pi-list'><tr><th>产品</th><th>域名</th><th>状态</th></tr>" + rows + "</table>" +
-      "<div class='pi-hint' style='margin-top:10px'>账号已建好，但<b>还不能登录任何站点</b>——要等对应的部署建好、身份在目标站点登记之后。</div>";
+      "<div style='margin-top:6px'>邮箱：<b>" + esc(m.account_email) + "</b>　用户名：<b>" + esc(m.account_username) + "</b></div>" +
+      "<div style='margin-top:6px'>已开通功能：" + esc(feats || "-") + "</div>" +
+      "<div style='margin-top:6px'>身份主体：" + esc(m.identity_subject) + "</div>" +
+      "<table class='pi-list'><tr><th>产品</th><th>域名</th><th>状态</th></tr>" + rows + "</table>";
     document.getElementById("pi-result").style.display = "block";
   }
 </script>

@@ -14,4 +14,4 @@ class PearnlyTenant(Document):
     def validate(self):
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
-            frappe.throw(_("租户名称必填"))
+            frappe.throw(_("公司名称必填"))

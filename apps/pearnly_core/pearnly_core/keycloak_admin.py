@@ -81,13 +81,13 @@ def find_user_id_by_email(email: str, prefix: str = "pearnly_oidc") -> str | Non
 
 
 def create_user(email: str, first_name: str, last_name: str = "", password: str | None = None,
-                prefix: str = "pearnly_oidc") -> str:
+                prefix: str = "pearnly_oidc", username: str | None = None) -> str:
     """建账号。返回 subject（身份服务里的用户 id）。
 
     注意：**不按邮箱自动合并**。调用方负责先判断账号是否已存在。
     """
     payload = {
-        "username": email,
+        "username": username or email,
         "email": email,
         "firstName": first_name or email.split("@")[0],
         "lastName": last_name or "",
@@ -210,14 +210,18 @@ class AdminClient:
         return rows[0]["id"] if rows else None
 
     def create_user(self, email: str, first_name: str, password: str | None = None,
-                    last_name: str = "") -> str:
-        """建号。`password=None` 表示**先不设密码**，走邀请邮件让用户自己设。
+                    last_name: str = "", username: str | None = None) -> str:
+        """建号。返回 subject。
 
-        不设密码时必须立刻发出邀请（`send_invite_email`），否则这个账号登不进来。
+        `username` 缺省用邮箱 —— 老调用方行为不变。给了就用它当**登录名**：
+        用户既能用邮箱也能用用户名登录（前提是 realm 允许用邮箱登录）。
+
+        `password` 一旦给了就是**永久密码**（`temporary=False`）：用户当天就能登录、
+        不会被强制改密。
         """
         token = self.token()
         payload = {
-            "username": email,
+            "username": username or email,
             "email": email,
             "firstName": first_name or email.split("@")[0],
             "lastName": last_name or "",

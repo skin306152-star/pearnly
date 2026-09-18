@@ -14,7 +14,7 @@
   "notes"
  ],
  "fields": [
-  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "租户名称", "reqd": 1, "unique": 1},
+  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "公司名称", "reqd": 1, "unique": 1},
   {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\nsuspended", "reqd": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
   {"fieldname": "contact_name", "fieldtype": "Data", "label": "联系人"},

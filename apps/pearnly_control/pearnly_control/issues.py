@@ -3,10 +3,13 @@
 
 一次发号做四件事：
 
-1. 校验（域名前缀与全局唯一、账号邮箱、产品多选、功能归属、OCR 档位）；
+1. 校验（域名前缀与全局唯一、账号邮箱、产品多选）；
 2. 租户：按名称找到或新建；
 3. 账号：在身份服务里建号，**已存在则拒绝**（不按邮箱合并到别人的账号）；
-4. 产出开通清单：每个产品一行（含各自域名）+ 各产品勾选的功能。
+4. 产出开通清单：每个产品一行（含各自域名）+ 该产品的**全部**功能。
+
+**功能不勾了**（用户 2026-09-18 定）：选了哪个产品，那个产品的功能就全开，
+所以这里没有"功能参数"这回事。
 
 凭据交付有两种方式（`delivery`）：
 - `invite`（默认，正式流程）：账号先不设密码，由身份服务发**邀请邮件**，用户自己设；
@@ -73,14 +76,15 @@ def issue(
     apps: list[dict],
     *,
     target: str | None = None,
-    account_name: str | None = None,
+    account_username: str | None = None,
+    account_password: str | None = None,
     contact_name: str | None = None,
-    contact_phone: str | None = None,
-    features: dict | None = None,
-    delivery: str = "invite",
     notes: str | None = None,
 ) -> dict:
-    """发号。返回开通清单；走 `password` 时另外返回**只出现一次**的初始密码。
+    """发号。返回开通清单。
+
+    **账号三件套**：`account_email`（邮箱）+ `account_username`（用户名）+
+    `account_password`（初使密码）。用户拿到初使密码当天就能登录，邮箱和用户名都能当登录名。
 
     `target` 决定这次开户打到哪个环境（见 `Pearnly Target`）：本机样板，或服务器。
     控制面只在本机跑，但**开户动作是要打到服务器上的**，所以目标是一项配置。
@@ -88,9 +92,7 @@ def issue(
     `apps` 每项：`{"app": "cowork", "domain_prefix": "acme", "display_name": ...}`。
     域名**只填前缀**，完整域名由服务端按统一规则生成（见 `pearnly_control.domains`）。
 
-    `features` 按产品给功能**代码**，例如
-    `{"cowork": ["intake", "recon"], "erp": ["sales"]}`；代码取自
-    `pearnly_control.features.CATALOG`，也接受 `cowork-intake` 这种完整名字。
+    功能不再作为入参：**选了哪个产品，那个产品的功能就全开**。
     """
     operator = _require_operator()
 
@@ -98,11 +100,17 @@ def issue(
         frappe.throw(_("至少要选一个产品"))
 
     account_email = (account_email or "").strip().lower()
-    delivery = (delivery or "invite").strip().lower()
-    if delivery not in ("invite", "password"):
-        frappe.throw(_("凭据交付方式只能是 invite（邀请邮件）或 password（初始密码）"))
-    features = features or {}
-    _check_feature_codes(features)
+    account_username = (account_username or "").strip()
+    account_password = (account_password or "").strip()
+    if not account_username or not account_password:
+        frappe.throw(_("用户名和初使密码都要填：它们是用户首次登录的凭据"))
+    # 开通的功能 = 所选产品的全集。控制面自己算，调用方无从勾选。
+    selected_products = [row.get("app") for row in apps if row.get("app")]
+    for product in selected_products:
+        if product not in features_mod.PRODUCTS:
+            frappe.throw(_("未知产品：{0}").format(product))
+    features = {p: features_mod.codes_of(p) for p in features_mod.PRODUCTS
+                if p in selected_products}
 
     # 这次开户打到哪个环境：本机样板，还是服务器。目标是一项配置，不写死。
     kc_client, target_name = kc.client_for_target(target)
@@ -131,9 +139,10 @@ def issue(
         "doctype": ISSUE,
         "tenant_name": tenant_name,
         "account_email": account_email,
-        "account_name": account_name,
-        "contact_phone": contact_phone,
-        "delivery": delivery,
+        "account_username": account_username,
+        "account_password": account_password,
+        # delivery 字段保留在表里（老单子还在用），但表单不再展示：凭据就是开户人给的初使密码
+        "delivery": "password",
         "notes": notes,
         "target": target_name,
         "apps": apps_payload,
@@ -141,21 +150,18 @@ def issue(
         "erp_features": _feature_rows("erp", features.get("erp")),
         "dms_features": _feature_rows("dms", features.get("dms")),
     })
-    doc.insert()  # validate 会算域名前缀→域名、查冲突、校验功能归属
+    doc.insert()  # validate 会算域名前缀→域名、查冲突、汇总已开通功能
 
-    password = _generate_password() if delivery == "password" else None
     try:
         subject = kc_client.create_user(
             account_email,
-            first_name=(account_name or tenant_name)[:140],
-            password=password,
+            username=account_username,
+            first_name=account_username[:140],
+            password=account_password,
         )
-        if delivery == "invite":
-            # 建号时没设密码，这一步发不出去的话账号是登不进来的，所以必须报错
-            kc_client.send_invite_email(subject, kc.invite_client_id_for(target_name))
-        tenant = _find_or_create_tenant(
-            tenant_name, contact_name=contact_name, contact_phone=contact_phone
-        )
+        # 不再发邀请邮件：用户拿的就是初使密码，能直接登录。
+        # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
+        tenant = _find_or_create_tenant(tenant_name, contact_name=contact_name)
     except Exception:
         frappe.db.rollback()
         doc.reload()
@@ -169,10 +175,7 @@ def issue(
     doc.status = "issued"
     doc.issued_at = now()
     doc.issued_by = operator
-    if delivery == "invite":
-        doc.invited_at = now()
-    else:
-        doc.password_delivered_at = now()
+    doc.password_delivered_at = now()
     doc.save(ignore_permissions=True)
     frappe.db.commit()
 
@@ -181,21 +184,17 @@ def issue(
         "tenant": tenant,
         "target": target_name,
         "account_email": account_email,
+        "account_username": account_username,
         "identity_subject": subject,
-        "delivery": delivery,
-        "features": {
-            p: [row.feature for row in doc.get(f"{p}_features") or []]
-            for p in features_mod.PRODUCTS
-        },
+        # ⚠️ **不回显密码**：开户人自己设的，他知道；回显只会多一份明文副本。
+        "delivery": "password",
+        "features": features,
         "deployments": [
             {"app": row.app, "domain": row.domain,
              "domain_prefix": row.domain_prefix, "status": "pending"}
             for row in doc.apps
         ],
     }
-    if password:
-        # 只在这里出现一次；本系统不保存明文
-        result["initial_password"] = password
     return result
 
 
@@ -209,34 +208,6 @@ def _feature_rows(product: str, codes) -> list[dict]:
         name = code if code.startswith(f"{product}-") else features_mod.feature_name(product, code)
         rows.append({"feature": name})
     return rows
-
-
-def _check_feature_codes(features: dict) -> None:
-    """动数据库之前先把功能代码检一遍。
-
-    为什么要提前查：子表的 Link 校验只会报"找不到行 #1: 功能: cowork-sales"，
-    说不清是"功能不存在"还是"挂错了产品"。这里先把两种情况分开报清楚。
-    """
-    for product, codes in (features or {}).items():
-        if product not in features_mod.PRODUCTS:
-            frappe.throw(_("未知产品：{0}").format(product))
-        allowed = features_mod.all_codes(product)
-        for raw in codes or []:
-            code = str(raw or "").strip()
-            if not code:
-                continue
-            if code.startswith(f"{product}-"):
-                code = code[len(product) + 1:]
-            if code in allowed:
-                continue
-            owner = next((p for p in features_mod.PRODUCTS
-                          if p != product and code in features_mod.all_codes(p)), None)
-            if owner:
-                frappe.throw(_("功能 {0} 属于 {1}，不能勾在 {2} 那一栏").format(
-                    code, features_mod.PRODUCT_LABELS.get(owner, owner),
-                    features_mod.PRODUCT_LABELS.get(product, product)))
-            frappe.throw(_("{0} 里没有这个功能：{1}").format(
-                features_mod.PRODUCT_LABELS.get(product, product), code))
 
 
 def list_issues(*, status=None, limit=50) -> list[dict]:

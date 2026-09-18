@@ -224,9 +224,15 @@ def target_credentials() -> dict:
 
 
 def _feature_rows(issue, product) -> list[dict]:
+    """该部署开通的功能 = 那个产品的**全部**功能。
+
+    以前从开单的三张功能模版表里抄；现在开单不分功能模版（用户 2026-09-18 定），
+    所以由目录直接给全集。部署上的 `features` 仍然保留 —— 它是"这个租户当时
+    开到了什么"的档案，以后目录变了也不会追溯改掉历史部署。
+    """
     return [
-        {"feature": row.feature}
-        for row in (issue.get(f"{product}_features") or [])
+        {"feature": features_mod.feature_name(product, code)}
+        for code in features_mod.codes_of(product)
     ]
 
 
