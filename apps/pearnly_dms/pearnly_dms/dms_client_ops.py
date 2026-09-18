@@ -25,6 +25,7 @@ from pearnly_dms import dms_docno, dms_employees
 from pearnly_dms.dms_client_base import DmsClientError, to_be_date
 from pearnly_dms.dms_master_rows import memo as _memo
 from pearnly_dms.dms_master_rows import parse_rows as _parse_bshsd_rows
+from pearnly_dms.dms_master_rows import row_by_id  # noqa: F401  既有对外名（dms_advisor）
 from pearnly_dms.dms_models import (
     BookingDefaults,
     DMSBookingPayload,
@@ -57,14 +58,6 @@ def _is_duplicate_docno_error(body: str) -> bool:
 def _bump_docno(docno: str) -> str:
     """末尾连续数字段 +1 并保持位宽：BK2606000001 → BK2606000002。无数字尾则补 1。"""
     return dms_docno.bump_docno(docno)
-
-
-def row_by_id(rows: Optional[List[list]], rid: str) -> Optional[list]:
-    """bshsd 主档行按 id 命中（首列即 id），取首个；没有 → None。"""
-    for row in rows or []:
-        if row and str(row[0]) == str(rid):
-            return row
-    return None
 
 
 class DmsClientOpsMixin:

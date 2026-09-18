@@ -14,6 +14,8 @@ import json
 import logging
 from typing import Any, Dict, List, Optional
 
+from pearnly_dms.dms_models import DMSMasterRef
+
 logger = logging.getLogger(__name__)
 
 
@@ -34,3 +36,25 @@ def parse_rows(elemname: str, text: str) -> Optional[List[List[Any]]]:
         logger.warning("[dms] bshsd %s：返回体不是 JSON 数组，按取数失败处理", elemname)
         return None
     return rows
+
+
+def row_by_id(rows: Optional[List[list]], rid: str) -> Optional[list]:
+    """按首列 id 命中一行；没有 → None。"""
+    for row in rows or []:
+        if row and str(row[0]) == str(rid):
+            return row
+    return None
+
+
+def ref_from_row(row: list) -> DMSMasterRef:
+    """主档行 → `DMSMasterRef`。行形照 DMS 惯例是 `[id, code, name, …]`。
+
+    code/name 缺的时候逐级回落（code → id，name → code → id），
+    因为有些主档只有两列，不能因此把名字丢掉。
+    """
+    return DMSMasterRef(
+        id=str(row[0]),
+        code=str(row[1]) if len(row) > 1 else str(row[0]),
+        name=str(row[2]) if len(row) > 2 else (str(row[1]) if len(row) > 1 else ""),
+        extra=tuple(row[3:]),
+    )

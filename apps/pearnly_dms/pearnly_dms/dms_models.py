@@ -90,6 +90,10 @@ class DMSBookingPayload:
     # 订金支付渠道明细，元素 {"channel", "amount", "extra"}；由
     # `dms_payments.payment_form_fields` 聚合进表单，空 = 现状（订金 0.00）
     payments: tuple = ()
+    # 顾问归属带出来的**原生组织字段**（branch/team + 四级主管，订车与销售两套）。
+    # 由 `dms_booking_org.resolve_booking_org` 按顾问实时解出，整包进表单；
+    # 空 = 这条路径还没解组织（不能拿分店列表首行硬填，见 booking_org 顶部）。
+    organization_fields: tuple = ()
 
 
 # booking_defaults 里属于「个人」的键：顾问 = 销售提成归属，是个人身份不是租户策略，
