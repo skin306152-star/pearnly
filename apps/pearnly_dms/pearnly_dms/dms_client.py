@@ -52,3 +52,15 @@ class DmsClient(DmsClientOpsMixin, DmsClientFormsMixin, DmsClientIntakeMixin):
         if self._admin_transport_cached is None:
             self._admin_transport_cached = src() if callable(src) else src
         return self._admin_transport_cached
+
+    @property
+    def admin_transport(self) -> Any:
+        """配没配独立管理员 —— **只读判据，绝不触发管理员登录**。
+
+        配了但还没懒起会话时返回那个工厂本身（非 None）。权威只读层靠它决定
+        要不要走管理员会话：如果这里顺手把会话建起来，一次只读就会多登一次 DMS，
+        而 DMS 对同一账号是单会话的（会把别的会话踢下线）。
+        """
+        if self._admin_transport_cached is not None:
+            return self._admin_transport_cached
+        return self._admin_transport

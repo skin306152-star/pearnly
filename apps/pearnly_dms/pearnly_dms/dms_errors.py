@@ -85,6 +85,15 @@ FRIENDLY: Dict[str, Dict[str, str]] = {
         "zh_TW": "儲存客戶到 DMS 失敗 · 請檢查欄位後重試",
         "ja": "DMS への顧客保存に失敗しました · 項目を確認して再試行してください",
     },
+    # 订车提交前要核客户资料，核不到就**不发**（线上的说法：
+    # 这条不是"建档失败"，用户不该再建一次档 —— 文案必须把这点说清楚）
+    "ERR_DMS_CUSTOMER_LOOKUP": {
+        "zh": "订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。",
+        "en": "Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer.",
+        "th": "ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่",
+        "zh_TW": "訂車尚未提交：無法核驗 DMS 客戶資料。請檢查客戶資料及帳號存取權限後重試，無需重新建檔。",
+        "ja": "予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。",
+    },
     "ERR_DMS_IMPORT": {
         "zh": "建订车单失败 · 请稍后重试",
         "en": "Failed to create the booking — please retry",
@@ -154,6 +163,30 @@ FRIENDLY: Dict[str, Dict[str, str]] = {
         "th": "รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง",
         "zh_TW": "所選項目在 DMS 主檔裡已變更或不存在 · 請返回重新選擇後重試",
         "ja": "選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください",
+    },
+    # ── 订车提交的三个"别乱动"话术（线上 dms_booking_errors.BOOKING_MAPPING_ERRORS）──
+    # 这三条的共同点：**都不能让用户以为"再点一次就行"**。前两条点了会重复提交，
+    # 第三条要说清"草稿还在，去补资料"。照着线上原文，一个字不改。
+    "ERR_DMS_BOOKING_ATTEMPT_BLOCKED": {
+        "zh": "本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。",
+        "zh_TW": "本次訂車草稿已改變，或已有提交紀錄，已停止再次送出。請查看目前草稿和推送紀錄。",
+        "en": "This booking draft changed or already has a submission attempt. No new request was sent. Check the current draft and push history.",
+        "th": "ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง",
+        "ja": "下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。",
+    },
+    "ERR_DMS_BOOKING_OUTCOME_UNKNOWN": {
+        "zh": "订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。",
+        "zh_TW": "訂車請求已送出，但尚未核實 DMS 單據結果。請勿重複提交，請聯絡管理員按本次單號核對。",
+        "en": "The booking request was sent, but the DMS result is unverified. Do not submit again. Ask an administrator to check this booking number.",
+        "th": "ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้",
+        "ja": "予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。",
+    },
+    "ERR_DMS_PAYMENT_INCOMPLETE": {
+        "zh": "订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。",
+        "zh_TW": "訂車尚未提交：收款資料不完整。草稿已保留，請補齊帳戶資訊後重新確認。",
+        "en": "Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.",
+        "th": "ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง",
+        "ja": "予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。",
     },
 }
 

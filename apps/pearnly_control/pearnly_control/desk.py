@@ -51,8 +51,6 @@ SIDEBAR_ITEMS = [
     {"label": "开通进度", "link_type": "DocType", "link_to": "Pearnly Provisioning Request"},
     # 计费底座：余额与台账在控制面，三套产品共用一份（表归属见 P0.05）
     {"label": "充值审核", "link_type": "DocType", "link_to": "Pearnly Topup Request"},
-    {"label": "余额", "link_type": "DocType", "link_to": "Pearnly Wallet"},
-    {"label": "余额流水", "link_type": "DocType", "link_to": "Pearnly Credit Transaction"},
 ]
 
 

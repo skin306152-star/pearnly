@@ -25,6 +25,12 @@ _DIFF_FIELDS = (
     "birthday_be",
     "phone",
     "house_no",
+    # 楼/层/房/村 也是地址的一部分（线上 2026-09 补的）：
+    # 少这四个字段，用户就看不到这几栏变了，会漏更新。
+    "building",
+    "floor",
+    "room",
+    "village",
     "moo",
     "soi",
     "road",
