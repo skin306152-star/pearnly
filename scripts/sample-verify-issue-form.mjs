@@ -1,7 +1,7 @@
-// 验「开户单」的形式：字段是**邮箱 + 用户名 + 初使密码**，且页面上不堆解释文案。
+// 验「开户单」的形式：字段是**邮箱 + 用户名 + 初始密码**，且页面上不堆解释文案。
 //
 // 用户 2026-09-18 的两条要求：
-//   1. "使用姓名改为用户名，联系电话改为初使密码" —— 换成邮箱/用户名/初使密码三件套，
+//   1. "使用姓名改为用户名，联系电话改为初始密码" —— 换成邮箱/用户名/初始密码三件套，
 //      它们构成首次绑定关系；
 //   2. "不要加那么多文案说明，字段对齐" —— 每个字段下面不该再挂一段解释。
 //
@@ -51,7 +51,7 @@ const visible = async (sel) => !!(await page.$(`${sel}:visible`));
 check("有「公司名称」", await visible("input[data-fieldname='tenant_name']"));
 check("有「邮箱」", await visible("input[data-fieldname='account_email']"));
 check("有「用户名」", await visible("input[data-fieldname='account_username']"));
-check("有「初使密码」，且是密码框", await visible("input[data-fieldname='account_password'][type='password']"));
+check("有「初始密码」，且是密码框", await visible("input[data-fieldname='account_password'][type='password']"));
 
 check(
 	"没有「使用姓名」（旧字段已去掉）",
@@ -62,7 +62,7 @@ check(
 	!(await visible("[data-fieldname='contact_phone']"))
 );
 // delivery 字段仍在表里（老单子的历史数据要留着），但表单上不再出现
-check("表单上不显示「凭据交付方式」（已固定用初使密码）", !(await visible("[data-fieldname='delivery']")));
+check("表单上不显示「凭据交付方式」（已固定用初始密码）", !(await visible("[data-fieldname='delivery']")));
 
 // 字段下面的解释文案：Frappe 渲染成 `.help-box` / `.description` 之类的小字。
 // 要求是**一个都不留** —— 有就说明文案又堆回来了。

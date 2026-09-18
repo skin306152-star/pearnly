@@ -5,7 +5,7 @@
 #   1) 正常开通（域名只填前缀 → 服务端补成 前缀.pearnly.com；功能按产品全开）
 #   2) 一批必须被拒绝的输入（前缀格式、保留名、重复、账号三件套、账号已存在）
 #
-# 账号三件套（用户 2026-09-18 定）：邮箱 + 用户名 + 初使密码。
+# 账号三件套（用户 2026-09-18 定）：邮箱 + 用户名 + 初始密码。
 # 功能不再勾选：选了哪个产品，那个产品的功能就全开。
 #
 # 用法: scripts/sample-issue-form.sh [接收邀请的邮箱]
@@ -211,11 +211,11 @@ JSON
 expect_reject "用户名含非 ASCII 字符" "用户名"
 
 cat > "$BODY" <<JSON
-{"tenant_name":"初使密码为空","account_email":"bad5-${SUFFIX}@sample.local",
+{"tenant_name":"初始密码为空","account_email":"bad5-${SUFFIX}@sample.local",
  "account_username":"bad5u${SUFFIX}","account_password":"",
  "apps":[{"app":"cowork","domain_prefix":"nopwd${SUFFIX}"}]}
 JSON
-expect_reject "初使密码为空" "初使密码"
+expect_reject "初始密码为空" "初始密码"
 
 cat > "$BODY" <<JSON
 {"tenant_name":"账号已存在","account_email":"${EMAIL}",

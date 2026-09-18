@@ -41,7 +41,7 @@ dc exec -T "$GROUP-bench" bash -lc 'cat > /tmp/clean_issues.py' < "$HERE/scripts
 
 # 变量后面紧跟中文时要用 ${}：全角括号的字节会被 bash 当成变量名的一部分
 echo "[2/2] 执行（DRY=${DRY}）"
-out=$(dc exec -T -e "ISSUES=$ISSUES_ARG" -e "SUBJECTS=$SUBJECTS_ARG" -e "DRY=$DRY" "$GROUP-bench" bash -lc \
+out=$(dc exec -T -e "ISSUES=$ISSUES_ARG" -e "SUBJECTS=$SUBJECTS_ARG" -e "DRY=$DRY" -e "FORCE=${FORCE:-0}" "$GROUP-bench" bash -lc \
   "printf 'exec(open(\"/tmp/clean_issues.py\").read())\nmain()\n' | PYTHONUNBUFFERED=1 bench --site $SITE console 2>&1" || true)
 
 printf '%s\n' "$out" | sed -E 's/^In \[[0-9]+\]: //' | grep -E "^(  |DRY|已删|身份账号|FAIL)" || true

@@ -13,11 +13,11 @@
 - 域名冲突就拒绝，不做"先建了再说"。
 - 账号已存在时拒绝，不按邮箱合并到已有账号（那是另一个流程）。
 
-账号三件套（用户 2026-09-18 定）：**邮箱 + 用户名 + 初使密码**。
-这三样构成"首次绑定关系"——用户拿到初使密码**当天就能登录**（不强制改密），
+账号三件套（用户 2026-09-18 定）：**邮箱 + 用户名 + 初始密码**。
+这三样构成"首次绑定关系"——用户拿到初始密码**当天就能登录**（不强制改密），
 之后可以在系统内改密码，也可以在登录页用邮箱走自助改密。
 
-⚠️ 初使密码**会落库**（Frappe `Password` 字段 → `__Auth` 加密表）。
+⚠️ 初始密码**会落库**（Frappe `Password` 字段 → `__Auth` 加密表）。
 老设计里密码是当场随机生成、只在返回值里出现一次；现在由开户人指定，
 要活到"执行开通"那一刻，所以必须存。存的是密文，接口**不回显**。
 """
@@ -66,11 +66,11 @@ class PearnlyIssue(Document):
         self.account_username = (self.account_username or "").strip()
         if not USERNAME_RE.match(self.account_username):
             frappe.throw(_("用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30"))
-        # 初使密码**不查复杂度**（用户明确要求别卡太严：纯字母、纯数字都行），只要不是空的。
+        # 初始密码**不查复杂度**（用户明确要求别卡太严：纯字母、纯数字都行），只要不是空的。
         # 卡得越严，开户现场越容易卡在"想不出密码"上，而这是他自己租户的账号。
         self.account_password = (self.account_password or "").strip()
         if not self.account_password:
-            frappe.throw(_("初使密码必填（用户拿它直接登录）"))
+            frappe.throw(_("初始密码必填（用户拿它直接登录）"))
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
             frappe.throw(_("公司名称必填"))

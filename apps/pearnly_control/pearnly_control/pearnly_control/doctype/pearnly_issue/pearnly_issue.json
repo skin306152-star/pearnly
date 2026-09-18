@@ -35,7 +35,7 @@
   {"fieldname": "account_email", "fieldtype": "Data", "in_list_view": 1, "label": "邮箱", "options": "Email", "reqd": 1},
   {"fieldname": "column_break_head", "fieldtype": "Column Break"},
   {"fieldname": "account_username", "fieldtype": "Data", "label": "用户名", "reqd": 1},
-  {"fieldname": "account_password", "fieldtype": "Password", "label": "初使密码", "reqd": 1},
+  {"fieldname": "account_password", "fieldtype": "Password", "label": "初始密码", "reqd": 1},
   {"fieldname": "section_apps", "fieldtype": "Section Break", "label": "产品与域名"},
   {"fieldname": "apps", "fieldtype": "Table", "label": "产品与域名", "options": "Pearnly Issue App", "reqd": 1},
   {"fieldname": "feature_summary", "fieldtype": "Data", "label": "已开通功能", "read_only": 1},

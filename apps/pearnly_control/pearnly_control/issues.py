@@ -84,7 +84,7 @@ def issue(
     """发号。返回开通清单。
 
     **账号三件套**：`account_email`（邮箱）+ `account_username`（用户名）+
-    `account_password`（初使密码）。用户拿到初使密码当天就能登录，邮箱和用户名都能当登录名。
+    `account_password`（初始密码）。用户拿到初始密码当天就能登录，邮箱和用户名都能当登录名。
 
     `target` 决定这次开户打到哪个环境（见 `Pearnly Target`）：本机样板，或服务器。
     控制面只在本机跑，但**开户动作是要打到服务器上的**，所以目标是一项配置。
@@ -103,7 +103,7 @@ def issue(
     account_username = (account_username or "").strip()
     account_password = (account_password or "").strip()
     if not account_username or not account_password:
-        frappe.throw(_("用户名和初使密码都要填：它们是用户首次登录的凭据"))
+        frappe.throw(_("用户名和初始密码都要填：它们是用户首次登录的凭据"))
     # 开通的功能 = 所选产品的全集。控制面自己算，调用方无从勾选。
     selected_products = [row.get("app") for row in apps if row.get("app")]
     for product in selected_products:
@@ -141,7 +141,7 @@ def issue(
         "account_email": account_email,
         "account_username": account_username,
         "account_password": account_password,
-        # delivery 字段保留在表里（老单子还在用），但表单不再展示：凭据就是开户人给的初使密码
+        # delivery 字段保留在表里（老单子还在用），但表单不再展示：凭据就是开户人给的初始密码
         "delivery": "password",
         "notes": notes,
         "target": target_name,
@@ -159,7 +159,7 @@ def issue(
             first_name=account_username[:140],
             password=account_password,
         )
-        # 不再发邀请邮件：用户拿的就是初使密码，能直接登录。
+        # 不再发邀请邮件：用户拿的就是初始密码，能直接登录。
         # 密码丢了走登录页的「忘记密码」（用邮箱收信），这条路是通的。
         tenant = _find_or_create_tenant(tenant_name, contact_name=contact_name)
     except Exception:

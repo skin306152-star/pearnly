@@ -53,7 +53,7 @@
         <input type="text" id="pi-username" placeholder="例如：somchai">
       </div>
       <div class="pi-field">
-        <label>初使密码</label>
+        <label>初始密码</label>
         <input type="text" id="pi-password" placeholder="用户拿它直接登录">
       </div>
     </div>
@@ -174,7 +174,7 @@
     if (!body.tenant_name) { msg.textContent = "请填公司名称"; return; }
     if (!body.account_email) { msg.textContent = "请填邮箱"; return; }
     if (!body.account_username) { msg.textContent = "请填用户名"; return; }
-    if (!body.account_password) { msg.textContent = "请填初使密码"; return; }
+    if (!body.account_password) { msg.textContent = "请填初始密码"; return; }
     if (!body.apps.length) { msg.textContent = "至少要选一个产品"; return; }
     if (body.apps.some(function (a) { return !a.domain_prefix; })) {
       msg.textContent = "每个选中的产品都要填域名前缀"; return;
