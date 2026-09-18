@@ -24,11 +24,16 @@ const USER = process.env.PEARNLY_LANDING_USER || "prov-65956@sample.local";
 const PASS = process.env.PEARNLY_LANDING_PASS || "Tenant-Test-2026";
 
 // [标签, 域名, 端口, 该租户买到的功能在工作台上应该出现的字样, 截图名]
+//
+// DMS 那条期望值 2026-09-18 从「身份证录入」改成了「推送记录」：网页端不再提供
+// 录入入口（业务在 LINE 上做），工作台上那个入口按网页端的职责改名了。
+// 这是**有意**改的，不是断言写错 —— 改这里的时候要对着 features.py 的
+// WORKSPACE_LABEL 一起看。
 const SITES = JSON.parse(
 	process.env.PEARNLY_LANDING_SITES ||
 		JSON.stringify([
 			["cowork 租户", "qc65956.localhost", "8101", "录入工作台", "tenant-landing-cowork.png"],
-			["dms 租户", "qd65956.localhost", "8103", "身份证录入", "tenant-landing-dms.png"],
+			["dms 租户", "qd65956.localhost", "8103", "推送记录", "tenant-landing-dms.png"],
 		])
 );
 

@@ -125,3 +125,24 @@ export function flatNav(product: string): Map<string, NavItem> {
   }
   return map;
 }
+
+/**
+ * 路由 → 页面标题，**不看买没买**。
+ *
+ * 为什么要有它：顶部那行标题原来是"从过滤后的侧栏里找当前项"，于是直接输地址
+ * 进一个没买的功能（深链接、别人发来的链接）时，标题会变成"未建页面"—— 而
+ * 页面明明是有的，只是菜单里不显示。标题属于"这个路由是什么"，不属于"我买到什么"。
+ */
+export function titleFor(route: string): string {
+  for (const entries of Object.values(NAV)) {
+    for (const entry of entries) {
+      if (isGroup(entry)) {
+        const hit = entry.items.find((item) => item.route === route);
+        if (hit) return hit.label;
+      } else if (entry.route === route) {
+        return entry.label;
+      }
+    }
+  }
+  return "";
+}

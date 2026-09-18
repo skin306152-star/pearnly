@@ -582,3 +582,27 @@ def api_state_for_issue(issue):
     _require_operator()
     name = frappe.db.get_value(REQUEST, {"issue": issue}, "name", order_by="creation desc")
     return state(name) if name else None
+
+
+@frappe.whitelist()
+def api_reapply_payloads(deployment):
+    """按**当前**的功能目录，重算某个部署的「角色」与「工作区」载荷。
+
+    为什么需要单独一个接口：开通步骤的 payload 是**建单时**就存进库的字符串，
+    之后目录改了不会跟着动（实测：老单子的 `set_oidc` payload 里就没有后来新增的
+    凭据字段）。所以"目录改了，已经开通的站点也要跟上"这件事，只能按现在这份
+    目录重算一份再打过去。
+
+    这里**只算不写**：往哪台机器上写由本机的开通代理决定（控制面没有 docker）。
+    """
+    _require_operator()
+    dep = frappe.get_doc(DEPLOYMENT, deployment)
+    issue = frappe.get_doc(ISSUE, dep.issue)
+    return {
+        "deployment": dep.name,
+        "site": dep.site_name,
+        "group": dep.bench_group,
+        "product": dep.product,
+        "roles": _roles_for(issue, dep),
+        "workspace": _workspace_for(issue, dep),
+    }

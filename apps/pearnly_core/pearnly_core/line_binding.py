@@ -125,3 +125,79 @@ def unbind(line_user_id: str) -> bool:
     frappe.db.set_value(BINDING, name, {"status": "unbound", "unbound_at": now()})
     frappe.db.commit()
     return True
+
+
+# ── 网页端接口 ──────────────────────────────────────────────────────────────
+#
+# 网页端这边**只做两件事**：给我生成一个一次性绑定码、告诉我现在绑了哪些 LINE 账号。
+# 业务本身（身份证录入、客户查询）在 LINE 对话里完成 —— 用户 2026-09-17 定的：
+# "DMS 身份证录入网页端不要了，业务几乎都在 LINE 完成，网页只负责绑定"。
+#
+# 所以这里**刻意没有**"替别人生成绑定码"的接口：拿到别人的码就等于把别人的 LINE
+# 绑到自己账号上。要换人，请对方自己登录生成。
+
+
+def _current_user() -> str:
+    user = frappe.session.user
+    if not user or user == "Guest":
+        frappe.throw(_("未登录"), frappe.AuthenticationError)
+    return user
+
+
+def mask_line_user_id(value: str) -> str:
+    """LINE 用户 ID 是外部标识，界面上不需要全量，留尾八位够人工核对。"""
+    value = value or ""
+    return "…" + value[-8:] if len(value) > 8 else value
+
+
+@frappe.whitelist(methods=["POST"])
+def api_generate_bind_code(minutes=None):
+    """给自己生成一次性绑定码（网页端「LINE 绑定码」页用）。
+
+    只给自己生成 —— 不接受 user 参数（理由见上面那段注释）。
+    """
+    user = _current_user()
+    try:
+        ttl = int(minutes) if minutes else DEFAULT_TTL_MINUTES
+    except (TypeError, ValueError):
+        ttl = DEFAULT_TTL_MINUTES
+    # 给个上界：码是拿来找回账号的凭证，不该长期有效
+    ttl = max(1, min(ttl, 24 * 60))
+    return generate_bind_code(user, ttl)
+
+
+@frappe.whitelist()
+def api_my_bindings():
+    """我名下还生效的 LINE 绑定。网页端用它显示"已绑定 / 还没绑"。"""
+    user = _current_user()
+    rows = frappe.get_all(
+        BINDING,
+        filters={"user": user, "status": "active"},
+        fields=["line_user_id", "display_name", "bound_at"],
+        order_by="bound_at desc",
+        limit_page_length=0,
+    )
+    pending = frappe.get_all(
+        BIND_CODE,
+        filters={"user": user, "used": 0},
+        fields=["code", "expires_at"],
+        order_by="creation desc",
+        limit_page_length=1,
+    )
+    return {
+        "user": user,
+        "bindings": [
+            {
+                "line_user_id": mask_line_user_id(row.line_user_id),
+                "display_name": row.display_name or "",
+                "bound_at": str(row.bound_at or ""),
+            }
+            for row in rows
+        ],
+        # 页面刷新后还能看到刚才那个码（只要没过期、没用掉）
+        "pending_code": (
+            {"code": pending[0].code, "expires_at": str(pending[0].expires_at)}
+            if pending
+            else None
+        ),
+    }

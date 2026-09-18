@@ -129,6 +129,26 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
     return role, list(doctypes)
 
 
+# 网页端**只读**的表。
+#
+# 为什么需要：DMS 的身份证录入作业在 LINE 上完成（用户 2026-09-17 定："DMS 身份证
+# 录入网页端不要了……网页只负责绑定第三方 dms，只取消网页前端的录入入口"）。
+# 所以这张表在网页端只能看、不能新建 —— Frappe 原生就是按 `create` 权限显示"新增"
+# 按钮的，禁掉它就等于取消了网页端的录入入口，不需要改前端、也不需要另造开关。
+#
+# 这**不影响将来的 LINE 录入**：webhook 是 `allow_guest` 的独立通道，走的不是这个
+# 角色（今天 LINE 侧还只做绑定，没有录入分支）。
+READ_ONLY_ON_WEB: set[tuple[str, str]] = {("dms", "DMS ID Card Intake")}
+READ_ONLY_PERMS = {"read": 1, "report": 1}
+
+
+def perms_override(product: str, doctype: str) -> dict | None:
+    """该表是否要用"只读"覆盖默认的功能权限；None = 用默认（可读可写可建）。"""
+    if (product, doctype) in READ_ONLY_ON_WEB:
+        return dict(READ_ONLY_PERMS)
+    return None
+
+
 def roles_payload(product: str, codes: list[str]) -> dict:
     """把"勾了哪些功能"翻成站点侧要建的角色与权限。
 
@@ -139,7 +159,15 @@ def roles_payload(product: str, codes: list[str]) -> dict:
     for code in codes or []:
         role, doctypes = enforcement_of(product, code)
         if role and doctypes:
-            roles.append({"role": role, "doctypes": doctypes, "feature": code})
+            entry = {"role": role, "doctypes": doctypes, "feature": code}
+            overrides = {}
+            for doctype in doctypes:
+                perms = perms_override(product, doctype)
+                if perms is not None:
+                    overrides[doctype] = perms
+            if overrides:
+                entry["perms_by_doctype"] = overrides
+            roles.append(entry)
     return {
         "product": product,
         "admin_role": PRODUCT_ADMIN_ROLE.get(product, ""),
@@ -164,8 +192,10 @@ def workspace_payload(product: str, codes: list[str], title: str = "") -> dict:
             if doctype in seen:
                 continue
             seen.add(doctype)
-            # 功能代码 → 中文名，用作入口标题
-            label = next(
+            # 入口标题：先看有没有按"网页端职责"起的名字，没有才用功能名。
+            # DMS 那张表在网页端是「推送记录」而不是「身份证录入」—— 名字本身
+            # 就在告诉租户"这里不是录入的地方，录入在 LINE 里做"。
+            label = WORKSPACE_LABEL.get((product, doctype)) or next(
                 (f["label"] for f in CATALOG.get(product, []) if f["code"] == code), code
             )
             entries.append({"doctype": doctype, "label": label})
@@ -180,6 +210,11 @@ def workspace_payload(product: str, codes: list[str], title: str = "") -> dict:
 
 # 工作区图标（lucide 短名，与桌面图标同一套）
 ICON_BY_PRODUCT = {"cowork": "clipboard-list", "erp": "store", "dms": "id-card"}
+
+# 工作区入口标题的覆盖表（键 = (产品, DocType)）。没配就用功能自己的名字。
+WORKSPACE_LABEL: dict[tuple[str, str], str] = {
+    ("dms", "DMS ID Card Intake"): "推送记录",
+}
 
 # 工作区所属模块 = 该产品 App 的模块名（各产品 modules.txt 里的值）。
 #

@@ -166,6 +166,8 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
     拿走之后他只有：产品管理员角色 + 买了的功能角色 + 基础角色（Desk User）。
 
     `spec_json` 形状见控制面的 `pearnly_control.features.roles_payload`。
+    其中每个功能角色可以带 `perms_by_doctype`，给某张表单独换个权限档
+    （DMS 的身份证录入表在网页端是**只读**的 —— 录入在 LINE 上做）。
 
     为什么收 JSON **字符串**而不是 dict：调用方是 `bench execute`，它对
     `--kwargs` 做的是 Python `eval`（`frappe/commands/utils.py:286`），
@@ -182,17 +184,24 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
     base_roles = list(spec.get("base_roles") or [])
     feature_roles = spec.get("roles") or []
 
+    # 把"角色 → 表 → 权限"摊平。功能角色默认拿 FEATURE_PERMS，但每张表都可以被
+    # `perms_by_doctype` 覆盖（例如 DMS 那张表在网页端只读，见控制面的 features.py）。
+    grants: list[tuple[str, str, dict]] = []
+    if admin_role:
+        grants += [(admin_role, doctype, ADMIN_PERMS) for doctype in ADMIN_DOCTYPES]
+    for row in feature_roles:
+        overrides = row.get("perms_by_doctype") or {}
+        for doctype in row.get("doctypes") or []:
+            grants.append((row["role"], doctype, overrides.get(doctype) or FEATURE_PERMS))
+
     created_roles = []
-    for role_name, doctypes, perms in (
-        [(admin_role, ADMIN_DOCTYPES, ADMIN_PERMS)] if admin_role else []
-    ) + [(r["role"], r["doctypes"], FEATURE_PERMS) for r in feature_roles]:
+    for role_name, doctype, perms in grants:
         if not role_name:
             continue
         _ensure_role(role_name)
         created_roles.append(role_name)
-        for doctype in doctypes or []:
-            if frappe.db.exists("DocType", doctype):
-                _grant(doctype, role_name, perms)
+        if frappe.db.exists("DocType", doctype):
+            _grant(doctype, role_name, perms)
 
     # 换掉租户管理员的角色组合
     user = frappe.get_doc("User", admin_user)
@@ -231,6 +240,18 @@ def _ensure_role(role_name: str) -> None:
     frappe.db.commit()
 
 
+# 授权时**整份**写这些字段。
+#
+# 为什么不能只写"给定的那几个键"：更新已有权限时只 set 给定的键，上一版给过的
+# 权限会**残留**下来。实测过：把 DMS 那张表改成只读之后，`create` 还是 1，
+# 网页上"新增"按钮照旧出现 —— 因为上一次授权把它设成了 1，这次没提它。
+# 所以每次授权都把整组字段写满，让"这次给的"就是"最终生效的"。
+PERM_FIELDS = (
+    "read", "write", "create", "delete", "submit", "cancel", "amend",
+    "report", "export", "import", "share", "print", "email",
+)
+
+
 def _grant(doctype: str, role: str, perms: dict) -> None:
     """给角色加一条 DocType 权限。已有就更新，不重复建（幂等）。"""
     from frappe.permissions import setup_custom_perms
@@ -238,6 +259,7 @@ def _grant(doctype: str, role: str, perms: dict) -> None:
     # 这一步会把标准权限复制成自定义权限；否则新增的角色权限会被标准权限盖掉
     setup_custom_perms(doctype)
 
+    wanted = {key: (1 if perms.get(key) else 0) for key in PERM_FIELDS}
     existing = frappe.db.get_value(
         "Custom DocPerm",
         {"parent": doctype, "role": role, "permlevel": 0, "if_owner": 0},
@@ -245,7 +267,7 @@ def _grant(doctype: str, role: str, perms: dict) -> None:
     )
     if existing:
         doc = frappe.get_doc("Custom DocPerm", existing)
-        for key, value in perms.items():
+        for key, value in wanted.items():
             doc.set(key, value)
         doc.save(ignore_permissions=True)
     else:
@@ -257,7 +279,7 @@ def _grant(doctype: str, role: str, perms: dict) -> None:
             "parentfield": "permissions",
             "role": role,
             "permlevel": 0,
-            **perms,
+            **wanted,
         }).save(ignore_permissions=True)
     frappe.db.commit()
 

@@ -8,7 +8,7 @@ import { computed, onMounted, provide, ref, watch } from "vue";
 import { useRoute } from "vue-router";
 import { Sidebar } from "frappe-ui";
 import { loadShell, type ShellBoot } from "./lib/shell";
-import { navFor, type NavEntry } from "./lib/nav";
+import { navFor, titleFor, type NavEntry } from "./lib/nav";
 import { iconFor } from "./lib/icons";
 import { ApiError } from "./lib/api";
 import { SHELL_BOOT } from "./lib/boot-context";
@@ -69,7 +69,9 @@ const pageTitle = computed(() => {
     const hit = section.items.find((i) => i.isActive);
     if (hit) return hit.label;
   }
-  return "未建页面";
+  // 侧栏里找不到不等于"没这一页"：没买的功能不显示在菜单里，但页面本身在。
+  // 标题按路由查，查不到才是真的没建。
+  return titleFor(route.path) || "未建页面";
 });
 
 </script>
