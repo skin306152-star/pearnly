@@ -70,8 +70,123 @@ def subscribe(plan_code: str) -> dict:
     return _client().subscribe(plan_code)
 
 
-@frappe.whitelist(methods=["POST"])
-def cancel_subscription() -> dict:
-    """取消订阅：本周期额度用到到期，不再续（不退款）。"""
-    _require_admin()
-    return _client().cancel_subscription()
+# ── 记录明细（扣费 / 充值 / 识别）──────────────────────────────────────────
+
+
+def _period_range(period: str, anchor: str) -> tuple[str, str]:
+    """把 day / month / year / all 换成 [start, end) 两个日期。
+
+    日期锚按 **Asia/Bangkok（UTC+7）** 算 —— 与计费的"月度"口径保持一致，
+    否则"本月"在账单上和在筛选里会是两个范围（老产品踩过这个）。
+    """
+    from datetime import datetime, timedelta, timezone
+
+    if period not in ("day", "month", "year"):
+        return "", ""
+    try:
+        d = datetime.strptime(anchor, "%Y-%m-%d").date()
+    except Exception:
+        d = (datetime.now(timezone.utc) + timedelta(hours=7)).date()
+    if period == "day":
+        return d.isoformat(), (d + timedelta(days=1)).isoformat()
+    if period == "month":
+        start = d.replace(day=1)
+        end = (start.replace(year=start.year + 1, month=1) if start.month == 12
+               else start.replace(month=start.month + 1))
+        return start.isoformat(), end.isoformat()
+    start = d.replace(month=1, day=1)
+    return start.isoformat(), start.replace(year=start.year + 1).isoformat()
+
+
+def _ocr_rows(start: str, end: str, limit: int) -> list[dict]:
+    """识别记录来自**本站**（每个租户一个站点，识别就发生在这里）。"""
+    filters = {}
+    if start or end:
+        filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
+    return frappe.get_all(
+        "Pearnly OCR Record", filters=filters,
+        fields=["name", "creation", "product", "status", "filename", "page_count",
+                "charged_thb", "detail", "error"],
+        order_by="creation desc", limit_page_length=int(limit),
+    )
+
+
+@frappe.whitelist()
+def records(tab: str = "usage", period: str = "all", date: str = "", limit: int = 100) -> dict:
+    """记录明细：`usage`（扣费）/ `topup`（充值）/ `ocr`（识别）。"""
+    user = _require_login()
+    is_admin = bool(set(ADMIN_ROLES) & set(frappe.get_roles(user)))
+    if tab == "topup" and not is_admin:
+        # 充值是公司账目，普通员工看不到（老产品同款口径）
+        frappe.throw(_("充值记录只有公司管理员能看"), frappe.PermissionError)
+
+    start, end = _period_range(period, date)
+    if tab == "ocr":
+        rows = _ocr_rows(start, end, int(limit))
+    else:
+        rows = _client().records(tab, start=start, end=end, limit=int(limit)).get("rows") or []
+    return {"tab": tab, "period": period, "start": start, "end": end, "rows": rows}
+
+
+@frappe.whitelist()
+def export_records(date_from: str = "", date_to: str = "") -> None:
+    """导出全量明细 → 一个 xlsx，三个 sheet（扣费 / 充值 / 识别）。
+
+    列名跟着界面语言走：导出来是给人看的，不是给程序读的。
+    """
+    user = _require_login()
+    is_admin = bool(set(ADMIN_ROLES) & set(frappe.get_roles(user)))
+    start, end = (date_from or ""), (date_to or "")
+
+    usage = _client().records("usage", start=start, end=end, limit=5000).get("rows") or []
+    topup = (_client().records("topup", start=start, end=end, limit=5000).get("rows") or []
+             if is_admin else [])
+    ocr = _ocr_rows(start, end, 5000)
+
+    import io
+
+    from openpyxl import Workbook
+    from openpyxl.utils import get_column_letter
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    def add_sheet(title: str, headers: list[str], rows: list[list]) -> None:
+        ws = wb.create_sheet(title[:31])
+        ws.append(headers)
+        for r in rows:
+            ws.append(r)
+        for i, _h in enumerate(headers, start=1):
+            ws.column_dimensions[get_column_letter(i)].width = 20
+
+    add_sheet(
+        _("扣费"),
+        [_("时间"), _("产品"), _("张数"), _("金额"), _("余额"), _("说明"), _("单号")],
+        [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("pages") or 0,
+          float(r.get("amount_thb") or 0), float(r.get("balance_after") or 0),
+          r.get("description") or "", r.get("reference") or ""] for r in usage],
+    )
+    if is_admin:
+        add_sheet(
+            _("充值"),
+            [_("时间"), _("单号"), _("状态"), _("申请金额"), _("实收金额"), _("付款人"), _("备注")],
+            [[str(r.get("creation") or "")[:16], r.get("name") or "", r.get("status") or "",
+              float(r.get("requested_thb") or 0), float(r.get("approved_thb") or 0),
+              r.get("payer_name") or "", r.get("review_note") or r.get("note") or ""]
+             for r in topup],
+        )
+    add_sheet(
+        _("识别记录"),
+        [_("时间"), _("产品"), _("结果"), _("文件"), _("张数"), _("扣费"), _("摘要"), _("失败原因")],
+        [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("status") or "",
+          r.get("filename") or "", r.get("page_count") or 0,
+          float(r.get("charged_thb") or 0), r.get("detail") or "", r.get("error") or ""]
+         for r in ocr],
+    )
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    frappe.local.response.filename = "pearnly-billing.xlsx"
+    frappe.local.response.filecontent = buf.read()
+    frappe.local.response.type = "download"

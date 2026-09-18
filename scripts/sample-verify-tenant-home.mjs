@@ -137,7 +137,7 @@ await openHome();
 const afterTopup = await text();
 check(`余额变成 ฿${TOPUP}.00`, new RegExp(`账户余额฿${TOPUP}\\.00`).test(afterTopup),
 	bahtIn(afterTopup, /账户余额(฿[\d.]+)/));
-check("记录明细里有这一笔充值", /充值/.test(afterTopup) && afterTopup.includes(`+฿${TOPUP}.00`));
+	// 这一笔在「充值」页签里（见下面切页签那段），默认页签是扣费
 
 // ── 订阅套餐 S（฿150）──────────────────────────────────────────────────────
 await page.click("button:has-text('订阅此套餐')");
@@ -151,6 +151,94 @@ check(`月费从余额扣掉了（应为 ฿${expect}.00）`,
 	bahtIn(afterSub, /账户余额(฿[\d.]+)/));
 check("本周期额度显示出来了", /100 张/.test(afterSub));
 check("记录了订阅这笔扣费", afterSub.includes("订阅套餐 S"));
+
+// ── 真跑一次识别，好让「识别记录」有真数据 ─────────────────────────────────
+// 走的是 DMS 的识别入口（含余额闸 + 真模型 + 报账 + 落识别记录）——
+// 不是直接调模型，否则记不上账也落不了记录。
+function runRealOcr() {
+	const samples = "/Users/skin/pearnly/samples/ocr-id-card/images";
+	const group = "dms";
+	try {
+		execFileSync("docker", ["--context", "colima-pearnly", "compose",
+			"-f", "/Users/skin/pearnly/infrastructure/compose/00-base.yml",
+			"-f", "/Users/skin/pearnly/infrastructure/compose/01-bench.yml",
+			"-f", "/Users/skin/pearnly/infrastructure/compose/02-keycloak.yml",
+			"-f", "/Users/skin/pearnly/infrastructure/compose/03-wekan.yml",
+			"-f", "/Users/skin/pearnly/infrastructure/compose/04-dev-mounts.yml",
+			"exec", "-T", `${group}-bench`, "bash", "-lc",
+			"mkdir -p /tmp/ocr-real/images && rm -f /tmp/ocr-real/images/*",
+		], { encoding: "utf8" });
+		execFileSync("docker", ["--context", "colima-pearnly", "cp",
+			`${samples}/.`, `pearnly-sample-${group}-bench-1:/tmp/ocr-real/images`],
+			{ encoding: "utf8" });
+	} catch (e) {
+		console.log("  （样本拷不进去，识别记录那一段会没有数据）", String(e).slice(0, 200));
+		return "";
+	}
+	// 脚本内容从 stdin 写进去再 exec —— 别用 printf 拼转义（我拼坏过一次，
+	// 表现是"什么都没发生"，还看不出为什么）。
+	const py = `def main():
+    import os
+    import frappe
+    from pearnly_dms.dms_ocr_service import recognize_id_card, DmsOcrError
+
+    names = sorted(os.listdir("/tmp/ocr-real/images"))
+    if not names:
+        print("OCR-RESULT no-samples")
+        return
+    b = open("/tmp/ocr-real/images/" + names[0], "rb").read()
+    try:
+        ep, ocr, ms = recognize_id_card("Administrator", b, names[0], "image/jpeg")
+        print("OCR-RESULT ok %s ms" % ms)
+    except DmsOcrError as e:
+        print("OCR-RESULT %s %s" % (e.code, e.http_status))
+`;
+	execFileSync("docker", ["--context", "colima-pearnly", "exec", "-i",
+		"pearnly-sample-dms-bench-1", "bash", "-lc", "cat > /tmp/ocr_trigger.py"],
+		{ input: py, encoding: "utf8" });
+	return execFileSync("docker", ["--context", "colima-pearnly", "exec",
+		"pearnly-sample-dms-bench-1", "bash", "-lc",
+		`cd /home/frappe/frappe-bench && printf 'exec(open("/tmp/ocr_trigger.py").read())\\nmain()\\n' | PYTHONUNBUFFERED=1 bench --site ${host} console 2>&1 | grep OCR-RESULT | tail -2`],
+		{ encoding: "utf8" });
+}
+const ocrOut = runRealOcr();
+if (ocrOut) console.log("  识别:", ocrOut.trim().split("\n").slice(-2).join(" / "));
+
+await openHome();
+
+// ── 三个页签 ────────────────────────────────────────────────────────────────
+await page.click("button.pn-tab:has-text('充值')");
+await page.waitForTimeout(1200);
+const topupTab = await text();
+check("充值页签有记录", /已到账/.test(topupTab) && topupTab.includes(`฿${TOPUP}.00`));
+
+await page.click("button.pn-tab:has-text('识别记录')");
+await page.waitForTimeout(1200);
+const ocrTab = await text();
+check("识别记录页签有记录（跑的是真识别）",
+	/识别记录/.test(ocrTab) && /(成功|待复核|失败)/.test(ocrTab.slice(ocrTab.indexOf("识别记录"))),
+	ocrTab.slice(ocrTab.indexOf("识别记录"), ocrTab.indexOf("识别记录") + 160));
+
+// ── 导出明细：真下到一个 xlsx，三个 sheet ──────────────────────────────────
+const [download] = await Promise.all([
+	page.waitForEvent("download", { timeout: 30000 }),
+	page.click("button:has-text('导出明细')"),
+]);
+const file = await download.path();
+// xlsx 就是个 zip：直接读里面的 workbook.xml 拿 sheet 名，不依赖 openpyxl
+const xlsxOk = execFileSync("python3", ["-c", `
+import sys, zipfile, re
+z = zipfile.ZipFile(sys.argv[1])
+names = z.namelist()
+if "xl/workbook.xml" not in names:
+    print("NOT-XLSX"); sys.exit(0)
+xml = z.read("xl/workbook.xml").decode("utf-8", "ignore")
+sheets = re.findall(r'name="([^"]+)"', xml)
+print("SHEETS=" + "|".join(sheets) + " FILES=" + str(len(names)))
+`, file], { encoding: "utf8" }).trim();
+check("导出的是 xlsx 且 sheet 齐（扣费 / 识别记录）",
+	/扣费/.test(xlsxOk) && /识别记录/.test(xlsxOk), xlsxOk);
+console.log("  导出文件名:", download.suggestedFilename(), "|", xlsxOk);
 
 await page.screenshot({ path: `${SHOT_DIR}/tenant-home-billing.png` });
 

@@ -381,6 +381,12 @@ def _steps_for(issue, dep, row) -> list[dict]:
         {"step_key": f"{dep.name}:set_billing", "deployment": dep.name,
          "action": "set_billing", "status": "pending",
          "payload": json.dumps(_billing_payload(issue, dep), ensure_ascii=False)},
+        # OCR 是三个产品**共用的底座**（用户 2026-09-18 定：它不是可选项）。
+        # 所以不进发号单让谁勾，直接每个站点都配 —— 漏了这一步的后果是
+        # "站点开出来好好的，就是识别不了"（老样板站是手工补的）。
+        {"step_key": f"{dep.name}:set_ocr", "deployment": dep.name,
+         "action": "set_ocr", "status": "pending",
+         "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},
         {"step_key": f"{dep.name}:finalize_site", "deployment": dep.name,
          "action": "finalize_site", "status": "pending",
          "payload": json.dumps({"site": site, "group": group}, ensure_ascii=False)},

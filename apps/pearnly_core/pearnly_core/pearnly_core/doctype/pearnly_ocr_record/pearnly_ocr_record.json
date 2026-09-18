@@ -1,0 +1,49 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:OCR-{YYYY}-{######}",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product",
+  "status",
+  "column_break_main",
+  "user",
+  "filename",
+  "page_count",
+  "section_billing",
+  "charged_thb",
+  "reference",
+  "column_break_billing",
+  "detail",
+  "error"
+ ],
+ "fields": [
+  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1},
+  {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "结果", "options": "ok\nneeds_review\nfailed", "reqd": 1},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "user", "fieldtype": "Link", "label": "操作人", "options": "User"},
+  {"fieldname": "filename", "fieldtype": "Data", "in_list_view": 1, "label": "文件"},
+  {"fieldname": "page_count", "fieldtype": "Int", "label": "张数", "default": "1"},
+  {"fieldname": "section_billing", "fieldtype": "Section Break", "label": "计费"},
+  {"fieldname": "charged_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "扣费", "options": "THB"},
+  {"fieldname": "reference", "fieldtype": "Data", "label": "外部单号"},
+  {"fieldname": "column_break_billing", "fieldtype": "Column Break"},
+  {"fieldname": "detail", "fieldtype": "Small Text", "label": "摘要"},
+  {"fieldname": "error", "fieldtype": "Small Text", "label": "失败原因"}
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly OCR Record",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 0
+}

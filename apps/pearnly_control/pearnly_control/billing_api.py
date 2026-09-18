@@ -159,9 +159,32 @@ def service_subscribe(tenant: str, plan_code: str) -> dict:
 
 
 @frappe.whitelist(allow_guest=True)
-def service_cancel_subscription(tenant: str) -> dict:
+def service_records(tenant: str, tab: str = "usage", start: str = "", end: str = "",
+                    limit: int = 500) -> dict:
+    """记录明细按区间取数。`tab` 只有 usage / topup 两种 ——
+    识别记录在产品站点本地（`Pearnly OCR Record`），不在这儿取。"""
     _require_service()
-    return billing.cancel(_tenant_or_throw(tenant))
+    tenant = _tenant_or_throw(tenant)
+    limit = max(1, min(int(limit or 500), 5000))
+    filters = {"tenant": tenant}
+    if tab == "topup":
+        filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
+        rows = frappe.get_all(
+            billing.TOPUP, filters=filters,
+            fields=["name", "creation", "status", "requested_thb", "approved_thb",
+                    "payer_name", "note", "review_note", "reviewed_at"],
+            order_by="creation desc", limit_page_length=limit,
+        )
+    else:
+        filters["type"] = "usage"
+        filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
+        rows = frappe.get_all(
+            billing.TXN, filters=filters,
+            fields=["name", "creation", "product", "units", "pages", "amount_thb",
+                    "balance_after", "description", "reference"],
+            order_by="creation desc", limit_page_length=limit,
+        )
+    return {"tab": tab, "rows": rows, "total": len(rows)}
 
 
 # ── 控制面界面调用（Desk 会话）──────────────────────────────────────────────

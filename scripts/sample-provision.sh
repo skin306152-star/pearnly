@@ -119,6 +119,44 @@ act_set_billing() {  # <payload-json>
   echo "已写计费配置 tenant=$tenant api=$api"
 }
 
+act_set_ocr() {  # <payload-json>
+  # OCR 是三产品共用的底座，每个站点都要能识别。
+  #
+  # 服务账号**从宿主机拷进容器**、不放进步骤 payload —— 私钥不进控制面的库。
+  # 拷到 sites 外面（/home/frappe/ocr-sa.json）：站点是会被重建/搬迁的，
+  # 凭据不该跟着站点目录走。
+  local payload="$1" group site sa
+  local get='import json,sys; print(json.loads(sys.argv[1]).get(sys.argv[2],""))'
+  group=$(py -c "$get" "$payload" group)
+  site=$(py -c "$get" "$payload" site)
+  sa="${PEARNLY_OCR_SA:-$HOME/.config/pearnly/credentials/pearnly-ocr-sa-20260902.json}"
+
+  if [ ! -f "$sa" ]; then
+    # 不算失败：站点照样能用，只是识别会 503。如实说明原因，别让人以为是识别坏了。
+    echo "SKIPPED: 本机没有 OCR 服务账号（$sa），该站点还不能识别"
+    return 0
+  fi
+  # ⚠️ 用 `cat >` 从 stdin 写进去，**不要**用 docker cp：
+  # cp 进来的文件属主是宿主用户（501），容器里的 frappe 用户（1000）读不了，
+  # 而且 chmod 也会因为"不是文件属主"而失败 —— 这一步就白做了。
+  dc exec -T "$(bench_of "$group")" bash -lc \
+    'rm -f /home/frappe/ocr-sa.json && cat > /home/frappe/ocr-sa.json \
+     && chmod 600 /home/frappe/ocr-sa.json && head -c 20 /home/frappe/ocr-sa.json >/dev/null' < "$sa" \
+    || return 1
+  # 每一步都要能失败：`set -e` 在命令替换里是**不生效**的（这个函数就是在 $() 里跑的），
+  # 不显式判断的话，写失败也会一路走到最后那句 echo，被记成"完成"（真踩过）。
+  dc exec -T "$(bench_of "$group")" bash -lc "
+    set -e
+    B='bench --site $site'
+    \$B set-config pearnly_ocr_backend vertex >/dev/null
+    \$B set-config pearnly_ocr_credentials /home/frappe/ocr-sa.json >/dev/null
+    \$B set-config pearnly_ocr_project pearnly >/dev/null
+    \$B set-config pearnly_ocr_location asia-southeast1 >/dev/null
+    grep -q pearnly_ocr_backend sites/$site/site_config.json
+  " || return 1
+  echo "已写 OCR 配置 backend=vertex project=pearnly"
+}
+
 act_set_line() {  # <payload-json>
   # 每租户一条 LINE：把该部署自己的渠道凭据写到它自己的站点上。
   # 站点只认自己这条密钥，别的租户的签名验不过 —— 隔离靠凭据本身。
@@ -267,6 +305,7 @@ run_step() {  # <action> <payload-json>
     set_config)  act_set_config  "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" "$(py -c "$get" "$payload" key)" "$(py -c "$get" "$payload" value)" ;;
     set_oidc)    act_set_oidc    "$payload" ;;
     set_billing) act_set_billing "$payload" ;;
+    set_ocr)     act_set_ocr     "$payload" ;;
     restart_web) act_restart_web "$(py -c "$get" "$payload" group)" ;;
     finalize_site) act_finalize_site "$(py -c "$get" "$payload" group)" "$(py -c "$get" "$payload" site)" ;;
     set_line)      act_set_line "$payload" ;;
@@ -375,19 +414,15 @@ for dep in m["deployments"]:
 
   watch)
     # 一直盯着控制面的待办：谁在表单上点了「执行开通」，这里几秒内就开始建站。
-    # 会话会过期，所以隔一阵重登一次（一次 HTTP，很便宜）。
+    #
+    # ⚠️ 干活那一步**另起一个进程**（`$0 run`），不是在本进程里直接调 run_pending。
+    # 原因：bash 是边读边执行脚本的，跑着的 watcher 一直握着启动时那份内容 ——
+    # 改了执行器代码不重启它就不生效，表现是"代码明明改了、行为还是旧的"
+    # （这个坑我踩了两次）。每轮起新进程，改完立刻生效，不用记得重启。
     POLL="${PEARNLY_WATCH_POLL:-3}"
-    RELOGIN_EVERY="${PEARNLY_WATCH_RELOGIN:-20}"
-    i=0
-    echo "[盯梢] 每 ${POLL}s 看一次待办；重登间隔 ${RELOGIN_EVERY} 轮"
+    echo "[盯梢] 每 ${POLL}s 看一次待办（每轮起新进程，改代码即生效）"
     while :; do
-      i=$((i + 1))
-      if [ $((i % RELOGIN_EVERY)) -eq 1 ]; then login >/dev/null; fi
-      if has_pending; then
-        if ! run_pending; then
-          echo "[盯梢] 有步骤失败，停在失败处（修好后 $0 retry <单号>）" >&2
-        fi
-      fi
+      if has_pending; then "$0" run || echo "[盯梢] 有步骤失败，停在失败处（修好后 $0 retry <单号>）" >&2; fi
       sleep "$POLL"
     done
     ;;

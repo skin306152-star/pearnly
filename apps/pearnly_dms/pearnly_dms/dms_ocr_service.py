@@ -199,7 +199,7 @@ def _billing_gate(pages: int = 1) -> Dict[str, Any]:
     )
 
 
-def _charge_id_card(reference: str = "") -> None:
+def _charge_id_card(reference: str = "") -> dict:
     """识别成功之后报账。
 
     只在这一刻扣：**识别失败不收费**（老产品全站口径）。报账失败只记日志，
@@ -207,7 +207,7 @@ def _charge_id_card(reference: str = "") -> None:
     """
     from pearnly_core import billing_client
 
-    billing_client.charge(
+    return billing_client.charge(
         "dms", "pdf", 1, tier="A", reference=reference,
         description="身份证识别（高精档）",
     )
@@ -263,6 +263,7 @@ def recognize_id_card(
         # ⚠️ **调不动模型 ≠ 读不出**：限流/配额是基础设施问题，绝不能报成"证件识别不了"
         # （否则运维看不到，用户以为系统认不出他的卡）。这条是搬 OCR 时专门分开的。
         logger.warning("[dms ocr] 调不动模型: %s", exc)
+        _record_ocr("failed", filename, error=f"调不动模型：{str(exc)[:200]}", user=user)
         raise DmsOcrError(
             "ocr.unavailable", 503, {"code": "ocr.unavailable", "msg": str(exc)[:200]}
         )
@@ -270,6 +271,7 @@ def recognize_id_card(
         is_unreadable = type(exc).__name__ == "IdCardExtractError"
         if not is_unreadable:
             logger.exception("dms id-card OCR failed")
+        _record_ocr("failed", filename, error=str(exc)[:200], user=user)
         raise DmsOcrError(
             "ocr.id_card_unreadable" if is_unreadable else "ocr.failed",
             422 if is_unreadable else 500,
@@ -280,5 +282,27 @@ def recognize_id_card(
         )
     elapsed = int((time.time() - t0) * 1000)
     _flag_bad_id_checksum(ocr)
-    _charge_id_card(reference=f"idcard:{user}")
+    charge = _charge_id_card(reference=f"idcard:{user}")
+    # 识别记录：读出来了但校验位不对的标 needs_review（要人看一眼），其余算 ok
+    _record_ocr(
+        "needs_review" if ocr.get("needs_review") else "ok",
+        filename,
+        user=user,
+        charged=charge.get("charged_thb"),
+        detail=(ocr.get("id_card") or {}).get("thai_name") or "",
+    )
     return ep, ocr, elapsed
+
+
+def _record_ocr(status: str, filename: str, *, user: str = "", charged=None,
+                detail: str = "", error: str = "") -> None:
+    """写一条识别记录。**失败也不许影响识别本身** —— 落不上就只记日志。"""
+    try:
+        from pearnly_core import ocr_record
+
+        ocr_record.record(
+            "dms", status, filename=filename, page_count=1, charged_thb=charged,
+            reference=f"idcard:{user}" if user else "", detail=detail, error=error, user=user,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception("写识别记录失败（不影响识别本身）")

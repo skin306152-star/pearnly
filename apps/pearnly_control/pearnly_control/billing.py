@@ -438,7 +438,6 @@ def subscription_view(tenant: str) -> dict | None:
         "remaining": max(0, int(sub.quota or 0) - int(sub.pages_used_this_cycle or 0)),
         "over_rate": float(sub.over_rate or 0),
         "monthly_fee": float(sub.monthly_fee or 0),
-        "auto_renew": bool(sub.auto_renew),
         "cycle_end": str(sub.cycle_end or ""),
     }
 
@@ -485,7 +484,6 @@ def subscribe(tenant: str, plan_code: str) -> dict:
     sub.over_rate = float(spec["over_rate"])
     sub.monthly_fee = float(fee)
     sub.pages_used_this_cycle = 0
-    sub.auto_renew = 1
     sub.save(ignore_permissions=True)
 
     # 月费要落台账：类型用 usage（这是消耗，不是充值）
@@ -498,23 +496,12 @@ def subscribe(tenant: str, plan_code: str) -> dict:
             "subscription": subscription_view(tenant)}
 
 
-def cancel(tenant: str) -> dict:
-    """取消订阅：**当前周期用到到期**，不再续。不退款（老产品口径）。"""
-    sub = subscription_of(tenant)
-    if not sub:
-        return {"ok": False, "error": "no_active_subscription"}
-    sub.status = "cancelled"
-    sub.auto_renew = 0
-    sub.save(ignore_permissions=True)
-    # 注意：status 改成 cancelled 之后 subscription_of 就不认它了，
-    # 但老产品的语义是"本周期额度还能用完"。所以这里按周期到期时间来判，
-    # 不按 status —— 见 _active_by_cycle。
-    frappe.db.commit()
-    return {"ok": True, "subscription": subscription_view(tenant)}
-
-
 def _active_by_cycle(tenant: str):
-    """本周期还没到期的订阅（含已取消但周期未满的）—— 扣费走这个。"""
+    """本周期还没到期的订阅 —— 扣费走这个。
+
+    **不做自动续订**（用户 2026-09-18 定）：套餐就是买 30 天的额度，到期结束，
+    要续就重新订阅。所以这里只看周期有没有到点，不看别的状态。
+    """
     name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name")
     if not name:
         return None

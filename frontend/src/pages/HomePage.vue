@@ -58,14 +58,46 @@ const notice = ref("");
 const topupOpen = ref(false);
 const topupForm = reactive({ amount: 1000, note: "", payer_name: "" });
 
+// 记录明细：三个页签 + 区间筛选（照老产品：扣费 / 充值 / 识别记录）
+type TabKey = "usage" | "topup" | "ocr";
+const TAB_LABEL: Record<TabKey, string> = {
+  usage: "扣费",
+  topup: "充值",
+  ocr: "识别记录",
+};
+const PERIODS = [
+  { key: "all", label: "全部" },
+  { key: "day", label: "今天" },
+  { key: "month", label: "本月" },
+  { key: "year", label: "今年" },
+];
+const tab = ref<TabKey>("usage");
+const period = ref("all");
+const rows = ref<Record<string, unknown>[]>([]);
+const rowsLoading = ref(false);
+const exporting = ref(false);
+
 const sub = computed(() => home.value?.subscription ?? null);
 const canManage = computed(() => home.value?.can_manage ?? false);
 const pending = computed(() => home.value?.pending_topups ?? []);
+const tabs = computed<TabKey[]>(() => (canManage.value ? ["usage", "topup", "ocr"] : ["usage", "ocr"]));
 
-const TYPE_LABEL: Record<string, string> = {
-  topup: "充值",
-  usage: "扣费",
-  adjustment: "调账",
+const STATUS_LABEL: Record<string, string> = {
+  pending: "待审核",
+  approved: "已到账",
+  rejected: "已拒绝",
+};
+
+const OCR_LABEL: Record<string, string> = {
+  ok: "成功",
+  needs_review: "待复核",
+  failed: "失败",
+};
+
+const OCR_COLOR: Record<string, string> = {
+  ok: "var(--good)",
+  needs_review: "var(--warn, #b45309)",
+  failed: "var(--danger, #b91c1c)",
 };
 
 function baht(n: number | undefined): string {
@@ -86,11 +118,45 @@ async function refresh(): Promise<void> {
   error.value = "";
   try {
     home.value = await call<Home>("pearnly_core.billing_www.home");
+    await loadRows();
   } catch (err) {
     error.value = explain(err);
   } finally {
     loading.value = false;
   }
+}
+
+async function loadRows(): Promise<void> {
+  rowsLoading.value = true;
+  try {
+    const data = await call<{ rows: Record<string, unknown>[] }>(
+      "pearnly_core.billing_www.records",
+      { tab: tab.value, period: period.value },
+    );
+    rows.value = data.rows || [];
+  } catch (err) {
+    error.value = explain(err);
+    rows.value = [];
+  } finally {
+    rowsLoading.value = false;
+  }
+}
+
+function pickTab(k: TabKey): void {
+  tab.value = k;
+  void loadRows();
+}
+
+function pickPeriod(p: string): void {
+  period.value = p;
+  void loadRows();
+}
+
+function exportRecords(): void {
+  // 走浏览器下载：同源 + 会话 cookie，拿到的就是 xlsx（三个 sheet）
+  exporting.value = true;
+  window.location.href = "/api/method/pearnly_core.billing_www.export_records";
+  window.setTimeout(() => (exporting.value = false), 4000);
 }
 
 async function run(key: string, fn: () => Promise<void>): Promise<void> {
@@ -131,14 +197,6 @@ function pickPlan(plan: Plan): Promise<void> {
   });
 }
 
-function cancelPlan(): Promise<void> {
-  return run("cancel", async () => {
-    await call("pearnly_core.billing_www.cancel_subscription", {}, { method: "POST" });
-    notice.value = "已取消续订，本周期额度可以用到到期。";
-    await refresh();
-  });
-}
-
 onMounted(refresh);
 </script>
 
@@ -175,14 +233,8 @@ onMounted(refresh);
             本周期已用 {{ sub.pages_used_this_cycle }} / {{ sub.quota }} 张，剩 {{ sub.remaining }} 张
           </div>
           <div class="pn-muted">超额 {{ baht(sub.over_rate) }}/张 · 周期到 {{ when(sub.cycle_end) }}</div>
-          <div v-if="canManage" style="margin-top: 12px">
-            <Button
-              variant="outline"
-              theme="gray"
-              :label="busy === 'cancel' ? '处理中…' : '取消续订'"
-              :disabled="busy === 'cancel'"
-              @click="cancelPlan"
-            />
+          <div class="pn-muted" style="margin-top: 8px; font-size: 12px">
+            套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。
           </div>
         </template>
         <template v-else>
@@ -274,38 +326,111 @@ onMounted(refresh);
 
     <!-- 记录明细 -->
     <div class="pn-card">
-      <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
         <div style="font-size: 16px; font-weight: 800">记录明细</div>
-        <div class="pn-muted" style="font-size: 12px">扣费 / 充值 / 调账 · 按时间倒序</div>
+        <div style="display: flex; gap: 8px; align-items: center">
+          <select v-model="period" class="form-input" style="width: auto" @change="pickPeriod(period)">
+            <option v-for="p in PERIODS" :key="p.key" :value="p.key">{{ p.label }}</option>
+          </select>
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="exporting ? '导出中…' : '导出明细'"
+            :disabled="exporting"
+            @click="exportRecords"
+          />
+        </div>
       </div>
-      <div v-if="loading" class="pn-skeleton" style="width: 200px; margin-top: 12px" />
-      <p v-else-if="!(home?.transactions ?? []).length" class="pn-muted" style="margin: 12px 0 0">
+
+      <div style="display: flex; gap: 6px; margin: 12px 0">
+        <button
+          v-for="k in tabs"
+          :key="k"
+          type="button"
+          class="pn-tab"
+          :class="{ 'is-on': tab === k }"
+          @click="pickTab(k)"
+        >
+          {{ TAB_LABEL[k] }}
+        </button>
+      </div>
+
+      <div v-if="rowsLoading" class="pn-skeleton" style="width: 200px; margin-top: 12px" />
+      <p v-else-if="!rows.length" class="pn-muted" style="margin: 12px 0 0">
         还没有记录
       </p>
-      <table v-else class="pn-table" style="margin-top: 10px">
+
+      <!-- 扣费 -->
+      <table v-else-if="tab === 'usage'" class="pn-table" style="margin-top: 6px">
         <thead>
           <tr>
             <th>时间</th>
-            <th>类型</th>
+            <th>产品</th>
+            <th>张数</th>
             <th>金额</th>
             <th>变动后余额</th>
             <th>说明</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="t in home?.transactions ?? []" :key="t.name">
-            <td class="pn-muted">{{ when(t.creation) }}</td>
-            <td>{{ TYPE_LABEL[t.type] ?? t.type }}</td>
-            <td
-              :style="{
-                color: t.amount_thb < 0 ? 'var(--danger, #b91c1c)' : 'var(--good)',
-                fontWeight: 700,
-              }"
-            >
-              {{ t.amount_thb > 0 ? "+" : "" }}{{ baht(t.amount_thb) }}
+          <tr v-for="t in rows" :key="String(t.name)">
+            <td class="pn-muted">{{ when(String(t.creation)) }}</td>
+            <td>{{ t.product || "—" }}</td>
+            <td>{{ t.pages || 0 }}</td>
+            <td style="font-weight: 700; color: var(--danger, #b91c1c)">
+              {{ baht(Number(t.amount_thb)) }}
             </td>
-            <td>{{ baht(t.balance_after) }}</td>
+            <td>{{ baht(Number(t.balance_after)) }}</td>
             <td class="pn-muted">{{ t.description }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 充值 -->
+      <table v-else-if="tab === 'topup'" class="pn-table" style="margin-top: 6px">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>单号</th>
+            <th>状态</th>
+            <th>申请金额</th>
+            <th>实收金额</th>
+            <th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="t in rows" :key="String(t.name)">
+            <td class="pn-muted">{{ when(String(t.creation)) }}</td>
+            <td>{{ t.name }}</td>
+            <td>{{ STATUS_LABEL[String(t.status)] ?? t.status }}</td>
+            <td>{{ baht(Number(t.requested_thb)) }}</td>
+            <td>{{ t.approved_thb ? baht(Number(t.approved_thb)) : "—" }}</td>
+            <td class="pn-muted">{{ t.review_note || t.note || "—" }}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- 识别记录 -->
+      <table v-else class="pn-table" style="margin-top: 6px">
+        <thead>
+          <tr>
+            <th>时间</th>
+            <th>结果</th>
+            <th>文件</th>
+            <th>扣费</th>
+            <th>摘要</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in rows" :key="String(r.name)">
+            <td class="pn-muted">{{ when(String(r.creation)) }}</td>
+            <td :style="{ color: OCR_COLOR[String(r.status)] ?? 'inherit', fontWeight: 700 }">
+              {{ OCR_LABEL[String(r.status)] ?? r.status }}
+            </td>
+            <td>{{ r.filename || "—" }}</td>
+            <!-- 0 要说成 ฿0.00（套餐内就是这么扣的），不能显示成"—"（那是"没这笔"） -->
+            <td>{{ r.charged_thb === null || r.charged_thb === undefined ? "—" : baht(Number(r.charged_thb)) }}</td>
+            <td class="pn-muted">{{ r.error || r.detail || "—" }}</td>
           </tr>
         </tbody>
       </table>
@@ -355,5 +480,20 @@ onMounted(refresh);
 .pn-label {
   color: var(--ink3);
   font-size: 13px;
+}
+.pn-tab {
+  padding: 5px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink3);
+  font-size: 13px;
+  cursor: pointer;
+}
+.pn-tab.is-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
 }
 </style>
