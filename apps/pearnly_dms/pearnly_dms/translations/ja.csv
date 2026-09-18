@@ -1,0 +1,24 @@
+dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください
+dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
+dms.err.ERR_KMS_MISSING,サーバーの暗号化キーが設定されていません。運用担当者にお問い合わせください
+dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してください
+dms.err.ERR_CRED_DECRYPT,認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください
+dms.err.ERR_DMS_AUTH,DMS へのログインに失敗しました · ユーザー名とパスワードをご確認ください
+dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
+dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
+dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください
+dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
+dms.err.ERR_DMS_IMPORT,予約の作成に失敗しました · 再試行してください
+dms.err.ERR_DMS_IMPORT_REPORT,DMS が予約取込を拒否しました · 予約内容をご確認ください
+dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
+dms.err.ERR_DMS_ADVISOR_REQUIRED,この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください
+dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に読み取れません · しばらくしてから再試行してください
+dms.err.ERR_DMS_MASTER_EMPTY,この DMS マスター項目は未設定です。管理者が DMS に追加してから再試行してください
+dms.err.ERR_DMS_MASTER_CHANGED,DMS マスターデータが変更されました。更新後の概要を確認し、もう一度確定してください
+dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。

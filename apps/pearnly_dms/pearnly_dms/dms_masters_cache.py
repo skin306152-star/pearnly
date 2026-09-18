@@ -34,13 +34,15 @@ _COMPLETE_KEYS = (
     "regis_behalfs",
     "advisors",
     "company_banks",
-    # 订车付款要用到的四类银行目录（线上 2026-09 补的）：
-    # 少一个键，"主档完整"的判据就会宽，缺表被当成读全了。
-    "source_banks",
-    "cheque_banks",
-    "cashier_banks",
-    "card_banks",
 )
+
+# 订车付款要用到的另外四类银行目录（线上 2026-09 补进 _COMPLETE_KEYS 的）。
+#
+# ⚠️ **暂时不算进"完整"判据**：判据要求"这些键都存在且是列表"，而我们现在**还抓不到**
+# 它们（多渠道路径的银行取数还没搬）。现在加进去的后果是：完整度永远不满足 →
+# 每次读主档都重新登录 DMS → 又变成互踢 + 每步白等几十秒。
+# 等 `company_banks` 那套多渠道路径搬完，**同时**把它们并进 _COMPLETE_KEYS。
+_PENDING_COMPLETE_KEYS = ("source_banks", "cheque_banks", "cashier_banks", "card_banks")
 
 # 银行类目录的键（与 dms_company_banks 的付款渠道同集）。
 _BANK_KEYS = ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")

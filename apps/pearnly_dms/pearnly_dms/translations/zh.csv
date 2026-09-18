@@ -1,0 +1,24 @@
+dms.err.ERR_UNEXPECTED,"服务器内部错误,请联系管理员"
+dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"
+dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
+dms.err.ERR_NO_CREDS,请输入用户名和密码
+dms.err.ERR_CRED_DECRYPT,凭据解密失败 · 请重新输入用户名和密码
+dms.err.ERR_DMS_AUTH,DMS 登录失败 · 请检查用户名和密码
+dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
+dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
+dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理员凭据登录失败 · 请检查管理员用户名和密码
+dms.err.ERR_DMS_CUSTOMER_SAVE,保存客户到 DMS 失败 · 请检查字段后重试
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。
+dms.err.ERR_DMS_IMPORT,建订车单失败 · 请稍后重试
+dms.err.ERR_DMS_IMPORT_REPORT,订车单导入被 DMS 拒绝 · 请检查订车资料
+dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
+dms.err.ERR_DMS_ADVISOR_REQUIRED,这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,"在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属"
+dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重试
+dms.err.ERR_DMS_MASTER_EMPTY,DMS 尚未配置这个主档选项 · 请让管理员在 DMS 添加后重试
+dms.err.ERR_DMS_MASTER_CHANGED,DMS 主档刚刚发生变化 · 系统已更新摘要 · 请重新核对并再次确认
+dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。

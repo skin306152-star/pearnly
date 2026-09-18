@@ -1,0 +1,24 @@
+dms.err.ERR_UNEXPECTED,"Internal server error, please contact admin"
+dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency
+dms.err.ERR_KMS_MISSING,Server KMS key is not configured
+dms.err.ERR_NO_CREDS,Username and password required
+dms.err.ERR_CRED_DECRYPT,Credential decrypt failed — please re-enter username and password
+dms.err.ERR_DMS_AUTH,DMS login failed — check username and password
+dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
+dms.err.ERR_DMS_CONCURRENT_LOGIN,This DMS account is being used elsewhere — sign out there and retry
+dms.err.ERR_DMS_ADMIN_AUTH,DMS admin credential login failed — check the admin username and password
+dms.err.ERR_DMS_CUSTOMER_SAVE,Failed to save the customer to DMS — check the fields and retry
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."
+dms.err.ERR_DMS_IMPORT,Failed to create the booking — please retry
+dms.err.ERR_DMS_IMPORT_REPORT,DMS rejected the booking import — check the booking details
+dms.err.ERR_DMS_BOOKING_PATCH,Failed to fill in the booking details — please retry
+dms.err.ERR_DMS_ADVISOR_REQUIRED,"This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again"
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,"The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it"
+dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable — please retry
+dms.err.ERR_DMS_MASTER_EMPTY,"This DMS master option has not been configured. Ask an admin to add it in DMS, then retry."
+dms.err.ERR_DMS_MASTER_CHANGED,DMS master data just changed. The summary has been updated; review it and confirm again.
+dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data — go back, re-select it, and retry"
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,This booking draft changed or already has a submission attempt. No new request was sent. Check the current draft and push history.
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,"The booking request was sent, but the DMS result is unverified. Do not submit again. Ask an administrator to check this booking number."
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
