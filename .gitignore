@@ -12,3 +12,8 @@ logs/
 # 本机开发靠 compose 的目录挂载直接读它；镜像构建时先跑一次
 # `cd frontend && npm ci && npm run build` 再 docker build（见 frontend/README.md）。
 apps/pearnly_core/pearnly_core/public/pearnly-app/
+
+# 前端插件自动生成的声明文件（unplugin-* 在构建时按需生成）。
+# 我们不依赖自动导入，代码里都是显式 import；留着只会每次构建都产生 diff。
+frontend/auto-imports.d.ts
+frontend/components.d.ts
