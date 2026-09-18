@@ -1,0 +1,37 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:line_user_id",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "line_user_id",
+  "state",
+  "column_break_main",
+  "expires_at",
+  "section_payload",
+  "payload"
+ ],
+ "fields": [
+  {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE 用户 ID", "reqd": 1, "unique": 1, "columns": 4},
+  {"fieldname": "state", "fieldtype": "Data", "in_list_view": 1, "label": "当前状态", "columns": 2},
+  {"fieldname": "column_break_main", "fieldtype": "Column Break"},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "过期时间", "columns": 3},
+  {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "会话载荷"},
+  {"description": "多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。\n\n**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。", "fieldname": "payload", "fieldtype": "JSON", "label": "载荷"}
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly LINE Session",
+ "owner": "Administrator",
+ "permissions": [
+  {"create": 1, "delete": 1, "email": 0, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 0, "write": 1}
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
