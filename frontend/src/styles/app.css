@@ -123,57 +123,29 @@ body {
   font-weight: 650;
 }
 
-/* 控件高度节奏沿用令牌（ADR-007：控件高度从 --ctrl-* 取） */
-.pn-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: var(--ctrl-pad-y) var(--ctrl-pad-x);
-  border: 1px solid transparent;
-  border-radius: var(--radius);
-  font-size: var(--ctrl-font);
-  font-weight: 700;
-  cursor: pointer;
+/* ── 控件：尺寸/间距用官方原生的，只有颜色是我们的 ──────────────────────
+ *
+ * 用户 2026-09-18："按钮大小，间距都用官方原生的，操作习惯还是用我们的。"
+ *
+ * 所以按钮用官方 `Button` 组件（尺寸档 sm/md/lg 与内边距都归它），
+ * 输入框用官方原生类 `form-input`（高度 h-7、圆角、内边距都是官方的）。
+ *
+ * 这里**只**补官方没有的那一件事：主色。官方 Button 只有 gray/blue/green/red
+ * 四个主题，没有我们的紫，所以加一个只改配色的类，不改尺寸。
+ * 它必须靠"在样式表里排最后"来盖住官方工具类（见 main.ts 的引入顺序）。
+ */
+.pn-primary {
   background: var(--accent);
   color: var(--accent-ink);
 }
 
-.pn-btn:hover {
+.pn-primary:hover {
   background: var(--accent-deep);
 }
 
-.pn-btn:disabled {
+.pn-primary:disabled {
   opacity: 0.55;
   cursor: not-allowed;
-}
-
-.pn-btn--ghost {
-  background: var(--card);
-  border-color: var(--line);
-  color: var(--ink2);
-}
-
-.pn-btn--ghost:hover {
-  background: var(--line2);
-  color: var(--ink);
-}
-
-.pn-input {
-  width: 100%;
-  padding: var(--ctrl-pad-y) var(--ctrl-pad-x);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--card);
-  color: var(--ink);
-  font-size: var(--ctrl-font);
-  font-family: inherit;
-}
-
-.pn-input:focus {
-  outline: 0;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-weak);
 }
 
 .pn-table {

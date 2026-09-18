@@ -8,6 +8,7 @@
 // 金额**不在前端算**：服务端会从小发明细重算小计/增值税/价税合计/应付净额。
 // 这里展示的都是服务端返回的数字。
 import { computed, onMounted, reactive, ref } from "vue";
+import { Button } from "frappe-ui";
 import { call, ApiError } from "../../lib/api";
 
 interface Row {
@@ -178,12 +179,22 @@ onMounted(refresh);
           <div class="pn-muted">金额由服务端重算，这里显示的都是服务端返回的数字</div>
         </div>
         <div style="display: flex; gap: 8px">
-          <button class="pn-btn pn-btn--ghost" :disabled="loading" @click="refresh">
-            {{ loading ? "加载中…" : "刷新" }}
-          </button>
-          <button class="pn-btn" @click="showForm = !showForm">
-            {{ showForm ? "收起" : "新建采购单" }}
-          </button>
+          <!-- 尺寸/间距用官方原生的（Button 自带尺寸档与内边距），只有主色用我们的
+               （pn-primary）—— 操作习惯与流程不变。 -->
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="loading ? '加载中…' : '刷新'"
+            :disabled="loading"
+            @click="refresh"
+          />
+          <Button
+            variant="solid"
+            theme="gray"
+            class="pn-primary"
+            :label="showForm ? '收起' : '新建采购单'"
+            @click="showForm = !showForm"
+          />
         </div>
       </div>
 
@@ -191,15 +202,15 @@ onMounted(refresh);
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px">
           <label>
             <span class="pn-muted">供应商</span>
-            <input v-model="draft.supplier_name" class="pn-input" placeholder="供应商名称" />
+            <input v-model="draft.supplier_name" class="form-input w-full" placeholder="供应商名称" />
           </label>
           <label>
             <span class="pn-muted">单据日期</span>
-            <input v-model="draft.doc_date" type="date" class="pn-input" />
+            <input v-model="draft.doc_date" type="date" class="form-input w-full" />
           </label>
           <label>
             <span class="pn-muted">外部单据号</span>
-            <input v-model="draft.doc_no" class="pn-input" placeholder="可留空" />
+            <input v-model="draft.doc_no" class="form-input w-full" placeholder="可留空" />
           </label>
         </div>
 
@@ -210,21 +221,30 @@ onMounted(refresh);
             :key="index"
             style="display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px"
           >
-            <input v-model="line.description" class="pn-input" placeholder="品名 / 说明" />
-            <input v-model.number="line.qty" type="number" step="0.01" class="pn-input" placeholder="数量" />
-            <input v-model.number="line.unit_price" type="number" step="0.01" class="pn-input" placeholder="单价" />
-            <input v-model.number="line.vat_rate" type="number" step="0.01" class="pn-input" placeholder="税率%" />
-            <button class="pn-btn pn-btn--ghost" :disabled="draft.lines.length === 1" @click="removeLine(index)">
-              删
-            </button>
+            <input v-model="line.description" class="form-input w-full" placeholder="品名 / 说明" />
+            <input v-model.number="line.qty" type="number" step="0.01" class="form-input w-full" placeholder="数量" />
+            <input v-model.number="line.unit_price" type="number" step="0.01" class="form-input w-full" placeholder="单价" />
+            <input v-model.number="line.vat_rate" type="number" step="0.01" class="form-input w-full" placeholder="税率%" />
+            <Button
+              variant="outline"
+              theme="gray"
+              label="删"
+              :disabled="draft.lines.length === 1"
+              @click="removeLine(index)"
+            />
           </div>
-          <button class="pn-btn pn-btn--ghost" @click="addLine">加一行</button>
+          <Button variant="outline" theme="gray" label="加一行" @click="addLine" />
         </div>
 
         <div style="margin-top: 16px; display: flex; gap: 8px; align-items: center">
-          <button class="pn-btn" :disabled="!canSubmit" @click="submit">
-            {{ saving ? "提交中…" : "保存采购单" }}
-          </button>
+          <Button
+            variant="solid"
+            theme="gray"
+            class="pn-primary"
+            :label="saving ? '提交中…' : '保存采购单'"
+            :disabled="!canSubmit"
+            @click="submit"
+          />
           <span class="pn-muted">合计由服务端算，不用填</span>
         </div>
       </div>

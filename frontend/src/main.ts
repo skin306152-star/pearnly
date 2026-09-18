@@ -6,8 +6,10 @@ import { router } from "./router";
 // 走打包器引入而不是 index.html 里挂 <link>：这样它会带 hash 参与构建，
 // 不会被站点缓存成旧版本。
 import "../design/pearnly-ui.css";
-import "./styles/app.css";
-// Tailwind 与"把官方组件配色接到我们令牌上"的覆盖放最后：它要盖住 Tailwind 的 base 层
 import "./styles/tailwind.css";
+// app.css 放最后：我们的样式要能盖住 Tailwind 的工具类
+// （例如给官方按钮指定主色，靠的就是"我们的类在后"）。
+// Tailwind 自己带 base 层，所以 tailwind.css 必须排在 design 之后。
+import "./styles/app.css";
 
 createApp(App).use(router).mount("#app");

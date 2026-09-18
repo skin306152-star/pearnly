@@ -41,6 +41,7 @@ const TOKEN = {
   card: "rgb(255, 255, 255)", // --card
   ink: "rgb(35, 25, 66)", // --ink #231942
   accentWeak: "rgb(238, 229, 255)", // --accent-weak #eee5ff
+  accent: "rgb(124, 77, 255)", // --accent #7c4dff
 };
 
 const failures = [];
@@ -147,6 +148,47 @@ async function login({ host, port, user }) {
 	// 建单
 	await page.click("text=新建采购单");
 	await page.waitForTimeout(400);
+
+	// 控件尺寸：用户要求"按钮大小、间距都用官方原生的"。
+	// 官方 Button 默认档是 sm：高 h-7=28px、内边距 px-2=8px、圆角 rounded=8px；
+	// 官方原生输入框（.form-input）同样 28px 高。这里按实际渲染值断言 ——
+	// 哪天有人把尺寸改成自己的一套，测试会失败。
+	{
+		const controls = await page.evaluate(() => {
+			const byLabel = (t) =>
+				[...document.querySelectorAll("button")].find((b) => b.textContent.trim() === t);
+			const box = (el) => {
+				if (!el) return null;
+				const cs = getComputedStyle(el);
+				return {
+					h: Math.round(el.getBoundingClientRect().height),
+					pad: `${cs.paddingTop} ${cs.paddingRight}`,
+					radius: cs.borderRadius,
+					bg: cs.backgroundColor,
+				};
+			};
+			return {
+				primary: box(byLabel("保存采购单")),
+				outline: box(byLabel("刷新")),
+				input: box(document.querySelector("input.form-input")),
+			};
+		});
+		check(
+			`按钮高度是官方原生档（${controls.primary?.h}px / ${controls.outline?.h}px）`,
+			controls.primary?.h === 28 && controls.outline?.h === 28
+		);
+		check(
+			`按钮内边距与圆角是官方原生（${controls.primary?.pad} / ${controls.primary?.radius}）`,
+			controls.primary?.pad === "0px 8px" && controls.primary?.radius === "8px"
+		);
+		check(`输入框高度是官方原生（${controls.input?.h}px）`, controls.input?.h === 28);
+		check(
+			`主按钮只是换了颜色（${controls.primary?.bg}）`,
+			controls.primary?.bg === TOKEN.accent,
+			"尺寸与间距归官方，配色归我们"
+		);
+	}
+
 	const supplier = `回归验证供应商 ${Date.now()}`;
 	await page.fill('input[placeholder="供应商名称"]', supplier);
 	await page.fill('input[placeholder="品名 / 说明"]', "回归验证品名");
