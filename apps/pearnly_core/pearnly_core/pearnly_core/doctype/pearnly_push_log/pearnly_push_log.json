@@ -1,0 +1,211 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:PL-{YYYY}-{#####}",
+ "creation": "2026-09-18 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "endpoint",
+  "column_break_main",
+  "trigger",
+  "attempt",
+  "section_ref",
+  "reference_doctype",
+  "reference_name",
+  "business_key",
+  "section_transport",
+  "http_status",
+  "elapsed_ms",
+  "section_payload",
+  "request_body",
+  "response_body",
+  "error_msg",
+  "section_retry",
+  "retry_count",
+  "max_retries",
+  "next_retry_at",
+  "column_break_retry",
+  "lease_owner",
+  "lease_expires_at",
+  "section_actor",
+  "actor"
+ ],
+ "fields": [
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "状态",
+   "options": "pending\nretrying\nsuccess\nfailed\nskipped_dup\nmanual",
+   "reqd": 1,
+   "description": "取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里"
+  },
+  {
+   "fieldname": "endpoint",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "连接",
+   "options": "Pearnly ERP Endpoint",
+   "description": "推到哪条连接。留空 = 还没选到连接就失败了"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "manual",
+   "fieldname": "trigger",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "触发方式",
+   "options": "manual\nline\nauto",
+   "reqd": 1,
+   "description": "老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留三档通用值，业务线本身记在 reference_doctype 上"
+  },
+  {
+   "default": "1",
+   "fieldname": "attempt",
+   "fieldtype": "Int",
+   "label": "第几次尝试"
+  },
+  {
+   "fieldname": "section_ref",
+   "fieldtype": "Section Break",
+   "label": "推的是哪一单"
+  },
+  {
+   "fieldname": "reference_doctype",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "业务单据类型",
+   "options": "DocType"
+  },
+  {
+   "fieldname": "reference_name",
+   "fieldtype": "Dynamic Link",
+   "in_list_view": 1,
+   "label": "业务单据",
+   "options": "reference_doctype"
+  },
+  {
+   "fieldname": "business_key",
+   "fieldtype": "Data",
+   "label": "业务键",
+   "description": "对端用来判重的键（例如 DMS 客户号、发票号）。老产品的 invoice_no / history_id 就是这一类"
+  },
+  {
+   "fieldname": "section_transport",
+   "fieldtype": "Section Break",
+   "label": "传输结果"
+  },
+  {
+   "fieldname": "http_status",
+   "fieldtype": "Int",
+   "label": "HTTP 状态"
+  },
+  {
+   "fieldname": "elapsed_ms",
+   "fieldtype": "Int",
+   "label": "耗时(ms)"
+  },
+  {
+   "fieldname": "section_payload",
+   "fieldtype": "Section Break",
+   "label": "请求与响应"
+  },
+  {
+   "fieldname": "request_body",
+   "fieldtype": "Code",
+   "label": "请求内容",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "response_body",
+   "fieldtype": "Code",
+   "label": "响应内容",
+   "options": "Text"
+  },
+  {
+   "fieldname": "error_msg",
+   "fieldtype": "Small Text",
+   "label": "错误信息"
+  },
+  {
+   "fieldname": "section_retry",
+   "fieldtype": "Section Break",
+   "label": "重试与租约"
+  },
+  {
+   "default": "0",
+   "fieldname": "retry_count",
+   "fieldtype": "Int",
+   "label": "已重试次数"
+  },
+  {
+   "default": "3",
+   "fieldname": "max_retries",
+   "fieldtype": "Int",
+   "label": "最多重试"
+  },
+  {
+   "fieldname": "next_retry_at",
+   "fieldtype": "Datetime",
+   "label": "下次重试时间"
+  },
+  {
+   "fieldname": "column_break_retry",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lease_owner",
+   "fieldtype": "Data",
+   "label": "租约持有者",
+   "description": "谁正在处理这一条。老产品用租约保证**同一条只被推一次**（pending 才有租约，过期可被抢）"
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "fieldtype": "Datetime",
+   "label": "租约到期"
+  },
+  {
+   "fieldname": "section_actor",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "操作人",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-18 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Pearnly Core",
+ "name": "Pearnly Push Log",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 0,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 0,
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "track_changes": 0
+}
