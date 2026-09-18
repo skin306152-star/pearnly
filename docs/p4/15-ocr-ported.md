@@ -91,14 +91,48 @@ scripts/sample-verify-ocr.sh dms qd65956.localhost
 
 | 键 | 值 |
 |---|---|
-| `pearnly_ocr_api_key` | 已设（就是那把额度用尽的 key） |
+| `pearnly_ocr_backend` | `vertex`（走生产同一套认证，不用那把额度用尽的 AI Studio key） |
 | `pearnly_ocr_mode` | `enterprise`（A 档） |
-| `pearnly_ocr_endpoint` | 未设 → 默认 `generativelanguage.googleapis.com`；接 Vertex 或指向桩时改它 |
+| `pearnly_ocr_credentials` | `/etc/pearnly/credentials/pearnly-ocr-sa-20260902.json`（**只挂载，不进镜像**） |
+| `pearnly_ocr_project` / `pearnly_ocr_location` | `pearnly` / `asia-southeast1` |
+
+实测 `ocr.api_status()` 回报：`backend=vertex`、`mode=enterprise`、
+`gemini-3.8-flash` 两臂都落 **global**（`gemini-3.5-flash` 才落 `asia-southeast1`）。
+
+## 真样本验证（2026-09-18 补，这一步原先是缺的）
+
+**真图片 + 真 Vertex**，`scripts/sample-verify-ocr-real.sh dms qd65956.localhost` →
+**6/6 全字段一致**：
+
+| 场景 | 结果 |
+|---|---|
+| `id_card_clean_001` / `_002` | 全字段一致 |
+| `id_card_skewed_001`（歪 8–20°） | 全字段一致 |
+| `id_card_glare_001`（反光） | 全字段一致 |
+| `id_card_expired_001`（过期证） | 全字段一致 |
+| `id_card_photocopy_006`（复印件） | 全字段一致 |
+
+比对字段：13 位身份证号、名、姓、出生日期、到期日、称谓、区/府/邮编 —— 全部对上，
+没有一个字段靠猜。**没触发限流**（连续 6 张）。
+
+样本从哪来：老产品的评测料 `tests/eval/vision_ablation_p3/id_card/`（合成泰国身份证，
+非真人数据）。图被 gitignore，但有固定种子的生成器 `generate.cjs`，本机 5 秒重新生成：
+
+```bash
+cd <老产品> && node tests/eval/vision_ablation_p3/generate.cjs
+```
+
+已**复制进本仓库** `samples/ocr-id-card/`（40 图 + 40 真值，1.9MB），
+所以验证不再依赖老仓库在不在本机。
+
+⚠️ 真值里的日期是 ISO（`2540-11-11`，佛历年），我们的归一输出是 `dd/mm/yyyy`，
+检查脚本负责两式归一后再比 —— 别把格式差当成识别错。
 
 ## 下一步
 
 清单里还剩：**MR.ERP DMS 客户端**（真实浏览器登录 + 表单提交，约 2500 行）、
 查重/建档编排、推送编排、主数据缓存、LINE 业务流。
 
-这四件的共同前置是 **DMS 的连接凭据**（那家 MR.ERP DMS 的账号），
-和 OCR 一样属于"必须用户提供才能真连"的东西 —— 见下一条。
+**前置的 DMS 连接凭据已经解决了** —— 不用问用户，老产品里就有，
+已解密并写进本站 `EP-00029`（测试账号 `dmstest`）：见
+[16-legacy-credentials-found.md](16-legacy-credentials-found.md)。
