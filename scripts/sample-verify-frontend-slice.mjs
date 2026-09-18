@@ -235,6 +235,112 @@ async function login({ host, port, user }) {
 	await ctx.close();
 }
 
+// ── 4. Cowork 录入工作台：状态机是后端在卡，不是界面把按钮灰掉 ──────────
+{
+	const { ctx, page } = await login(COWORK);
+	await page.goto(`http://${COWORK.host}:${COWORK.port}${APP_PATH}#/intake`, {
+		waitUntil: "domcontentloaded",
+	});
+	await page.waitForSelector(".pn-main", { timeout: 20000 });
+	await page.waitForTimeout(1500);
+	check("录入工作台打开了", (await page.evaluate(() => document.body.innerText)).includes("录入工作台"));
+
+	// 建一张草稿
+	await page.click("text=新建录入");
+	await page.waitForTimeout(400);
+	const party = `回归验证对方 ${Date.now()}`;
+	await page.fill('input[placeholder="供应商 / 客户"]', party);
+	await page.fill('input[placeholder="可留空"]', "INV-REG-1");
+	await page.click("text=保存");
+	await page.waitForTimeout(2500);
+	const afterCreate = await page.evaluate(() => document.body.innerText);
+	check("录入成功提示出现", /已录入：/.test(afterCreate), afterCreate.match(/已录入：\S+/)?.[0] || "");
+	check("新建的对方出现在列表里", afterCreate.includes(party));
+	check("新记录是「草稿」状态", afterCreate.includes("草稿"));
+
+	// ★ 关键一条：拿刚建的草稿**直接调推送接口**，必须被后端拒绝。
+	//   这条验的是"状态机在后端"——界面把按钮藏起来不算数。
+	const created = afterCreate.match(/已录入：(\S+)/)?.[1] || "";
+	const blocked = await page.evaluate(async (name) => {
+		const boot = await (
+			await fetch("/api/method/pearnly_core.shell.describe", { credentials: "include" })
+		).json();
+		const r = await fetch("/api/method/pearnly_cowork.intake.api_queue_for_push", {
+			method: "POST",
+			credentials: "include",
+			headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": boot.message.csrf_token },
+			body: JSON.stringify({ name, channel: "companion" }),
+		});
+		return { status: r.status, body: (await r.text()).slice(0, 300) };
+	}, created);
+	check(
+		`未确认的草稿直接调推送接口被拒（HTTP ${blocked.status}）`,
+		blocked.status >= 400,
+		blocked.body.replace(/\s+/g, " ").slice(0, 140)
+	);
+
+	// 走界面：确认 → 推送。
+	//
+	// ⚠️ 必须**按行定位**，不能拿整页文字断言。踩过一次：页面上方有汇总卡片，
+	// 标签里本来就写着「待推送」「已确认及以上」，用 `body.innerText.includes(...)`
+	// 会**永远为真**（假通过）；而且 `click("text=确认")` 会点到卡片标签上，
+	// 动作根本没发生，测试却全绿。现在改成读那一行的状态单元格。
+	async function rowStatus(name) {
+		return page.evaluate((n) => {
+			const tr = [...document.querySelectorAll(".pn-table tbody tr")].find((r) =>
+				r.textContent.includes(n),
+			);
+			if (!tr) return null;
+			const cells = tr.querySelectorAll("td");
+			// 列序：0 单号 / 1 方向 / 2 对方 / 3 单据号 / 4 日期 / 5 状态 / 6 价税合计 / 7 操作
+			return cells[5]?.textContent.trim() ?? null;
+		}, name);
+	}
+	async function clickRowAction(name, label) {
+		await page.evaluate(
+			({ n, l }) => {
+				const tr = [...document.querySelectorAll(".pn-table tbody tr")].find((r) =>
+					r.textContent.includes(n),
+				);
+				const btn = tr && [...tr.querySelectorAll("button")].find((b) => b.textContent.trim() === l);
+				if (btn) btn.click();
+			},
+			{ n: name, l: label },
+		);
+	}
+
+	check(`操作前那一行是「草稿」（实际 ${await rowStatus(created)}）`, (await rowStatus(created)) === "草稿");
+
+	await clickRowAction(created, "确认");
+	await page.waitForTimeout(2500);
+	check(`点确认后那一行变「已确认」（实际 ${await rowStatus(created)}）`, (await rowStatus(created)) === "已确认");
+
+	// 汇总卡片的数字必须跟着动。这条是补一个真踩过的坑：卡片原来把接口字段名写错了
+	// （服务端是 purchase_confirmed，页面写成 purchase_total），
+	// 结果金额永远显示 "—" —— 键名对不上不报错，只是安静地显示空值。
+	{
+		const cards = await page.evaluate(() => {
+			const read = (label) => {
+				const card = [...document.querySelectorAll(".pn-card")].find((c) =>
+					c.textContent.includes(label),
+				);
+				return card?.querySelector("div:nth-child(2)")?.textContent.trim() ?? "";
+			};
+			return { pendingConfirm: read("待确认"), readyToPush: read("已确认 · 可推送") };
+		});
+		check(
+			`汇总：已确认·可推送 ≥ 1（实际 ${cards.readyToPush}）`,
+			Number(cards.readyToPush) >= 1
+		);
+	}
+
+	await clickRowAction(created, "推送");
+	await page.waitForTimeout(2500);
+	check(`点推送后那一行变「待推送」（实际 ${await rowStatus(created)}）`, (await rowStatus(created)) === "待推送");
+	await page.screenshot({ path: `${SHOT_DIR}/frontend-cowork-intake.png` });
+	await ctx.close();
+}
+
 await browser.close();
 
 console.log("");
