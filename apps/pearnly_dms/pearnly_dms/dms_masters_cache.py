@@ -36,12 +36,19 @@ _COMPLETE_KEYS = (
     "company_banks",
 )
 
-# 订车付款要用到的另外四类银行目录（线上 2026-09 补进 _COMPLETE_KEYS 的）。
+# 订车付款要用到的另外四类银行目录（线上把它们也算进 `_COMPLETE_KEYS`）。
 #
-# ⚠️ **暂时不算进"完整"判据**：判据要求"这些键都存在且是列表"，而我们现在**还抓不到**
-# 它们（多渠道路径的银行取数还没搬）。现在加进去的后果是：完整度永远不满足 →
-# 每次读主档都重新登录 DMS → 又变成互踢 + 每步白等几十秒。
-# 等 `company_banks` 那套多渠道路径搬完，**同时**把它们并进 _COMPLETE_KEYS。
+# ⚠️ **暂时不算进"完整"判据** —— 但原因已经变了，别再照旧理由判断：
+#
+# · 取数**已经搬完**（`dms_company_banks.fetch_payment_bank_masters`，本批搬的）；
+# · 卡住的是**权威只读**：这四类目录在销售账号下常被裁成空表，
+#   空表会被完整度判据当成"没抓到" → 完整度永远不满足 → 每次读主档都重新登录 DMS
+#   → 又变成互踢 + 每步白等几十秒（正是当初延后要躲的那个后果）。
+#   线上靠 `_run_logged_in(..., authoritative_read=True)` 借管理员会话读，才敢并进去。
+# · 新平台的 `dms_intake.run_logged_in` 现在**还没有** `authoritative_read` 这个开关。
+#
+# 所以：**下一步把 `authoritative_read` 加上，再把这两处（抓取 + 判据）一次并进去**，
+# 不要只并判据 —— 只并判据就是上面那个失败模式。
 _PENDING_COMPLETE_KEYS = ("source_banks", "cheque_banks", "cashier_banks", "card_banks")
 
 # 银行类目录的键（与 dms_company_banks 的付款渠道同集）。

@@ -4,7 +4,7 @@
 无状态叶子：零 IO、零会话，也不反向依赖状态机本体（状态机单向 import 这里）。
 **金额一律 `Decimal`，不用 float** —— 订金金额不能有浮点误差。
 
-照搬老产品 `services/line_dms/qa_util.py`，整份搬。
+照搬老产品 `services/line_dms/qa_util.py`（线上基准 `501589f0`），整份搬。
 """
 
 from __future__ import annotations
@@ -15,12 +15,16 @@ from typing import Any, Dict, List, Optional
 MAX_AMOUNT = Decimal("99999999")
 THAI_DIGITS = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 
-# 支付渠道补充信息的形态（单一事实源：步进与卡片文案共用）：
-#   src_dst = 转账要问来源 + 到账两步；ref = 单条补充文本；detail = 自由描述；
-#   None = 金额即完结。
+# 支付渠道补充信息的形态（**单一事实源**：逐问步进与卡片文案共用）。
+#
+# ⚠️ 这里的值描述的是「**要问几步、问什么**」，不是 DMS 的字段名：
+#   destination = 转账只问**到账方银行/账户**；ref = 单条补充文本（票据号等）；
+#   detail = 自由描述；None = 金额即完结。
+# 把那句自由文本拆成 DMS 的原生槽位（`cheque_no` / `card_type` / `dst_bank_id`…）
+# 是 `booking_payments` 那一层的事，**不在这里、也不在 `dms_payments`**。
 CHANNEL_EXTRA_SHAPE = {
     "cash": None,
-    "transfer": "src_dst",
+    "transfer": "destination",
     "cheque": "ref",
     "cashier_cheque": "ref",
     "card": "ref",

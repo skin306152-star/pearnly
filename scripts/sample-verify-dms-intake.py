@@ -124,9 +124,22 @@ def main():
     ok, detail = raises(lambda: banks.validate_company_bank_payments(_Ad([row]), [
         {"channel": "transfer", "amount": "1000", "extra": {"dst_id": "999"}}]), DmsClientError)
     check("已选账户不在主档里 → 报错，绝不拿旧值提交", ok, detail)
-    check("没有转账就不去多打接口",
+    # 现金不走任何银行目录 → 一次取数都不该发生（哪怕银行那头是 None）。
+    # 注意返回值现在一律带 `extra`（线上就是逐笔补齐 extra 再返回）。
+    check("没有银行渠道时不额外取数",
           banks.validate_company_bank_payments(_Ad(None), [{"channel": "cash", "amount": "1"}])
-          == [{"channel": "cash", "amount": "1"}])
+          == [{"channel": "cash", "amount": "1", "extra": {}}])
+    # 这一层不只管转账：支票/现金支票/刷卡也要按各自的实时银行目录核对身份，
+    # 最后统一过完整性校验（线上把"无转账就早退"的捷径删掉了）。
+    ok, detail = raises(lambda: banks.validate_company_bank_payments(_Ad([row]), [
+        {"channel": "cheque", "amount": "1000", "extra": {"cheque_no": "123"}}]), DmsClientError)
+    check("支票没说清是哪家银行 → UNMATCHED（认不出，不猜）",
+          ok and "ERR_DMS_MASTER_UNMATCHED" in detail, detail)
+    ok, detail = raises(lambda: banks.validate_company_bank_payments(_Ad([row]), [
+        {"channel": "cheque", "amount": "1000",
+         "extra": {"cheque_no": "123", "bank_id": "77"}}]), DmsClientError)
+    check("支票银行对上了、但收款资料不全 → INCOMPLETE（不许出本地）",
+          ok and "ERR_DMS_PAYMENT_INCOMPLETE" in detail, detail)
     check("公司银行展示值", "Kasikorn" in banks.company_bank_label(row), banks.company_bank_label(row))
     check("没有 id 的脏行被丢弃",
           banks.normalize_company_bank_rows([{"details": ["x"]}, ["9", "A", "B"]])

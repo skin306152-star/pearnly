@@ -69,17 +69,54 @@ def main():
           == {"BK2606000007", "BK2606000008"})
 
     # ══ 2. 订金渠道映射 ══════════════════════════════════════════════════
+    # 这一层只认 DMS 的**原生槽位名**；把 LINE 的自由文本拆成槽位是上一层
+    # （booking_payments）的事 —— 所以下面那些 `{"src": ...}` 形态**必须被拒**。
+    GOOD_TRANSFER = {
+        "src_account_no": "ACC-SRC", "src_account_name": "CUSTOMER",
+        "src_bank_name": "SCB", "src_bank_id": "7", "src_branch_name": "Bangkok",
+        "dst_account_no": "ACC-DST", "dst_bank_name": "BBL", "dst_bank_id": "2",
+        "dst_branch_name": "Rayong",
+    }
     fields = dms_payments.payment_form_fields((
         {"channel": "cash", "amount": "5000.00"},
-        {"channel": "transfer", "amount": "1500.5", "extra": {"src": "KBANK 1234567890"}},
+        {"channel": "transfer", "amount": "1500.5", "extra": GOOD_TRANSFER},
     ))
     check("订金合计正确", fields.get("txtearnestmoney") == "6500.50", fields.get("txtearnestmoney"))
     check("现金字段", fields.get("txtmoneycash") == "5000.00", fields.get("txtmoneycash"))
-    check("转账字段", fields.get("txtmoneytfmon") == "1500.50", fields.get("txtmoneytfmon"))
-    check("转账来源拆成银行名+账号",
-          fields.get("txtbanknametffrom") == "KBANK"
-          and fields.get("txtaccountnumtffrom") == "1234567890",
-          (fields.get("txtbanknametffrom"), fields.get("txtaccountnumtffrom")))
+    check("转账金额字段", fields.get("txtmoneytfmon") == "1500.50", fields.get("txtmoneytfmon"))
+    check("转账来源/到账逐槽位映射",
+          fields.get("txtbanknametffrom") == "SCB" and fields.get("banktffromval") == "7"
+          and fields.get("txtaccountnumtfmon") == "ACC-DST" and fields.get("banktfmonval") == "2",
+          {k: fields.get(k) for k in
+           ("txtbanknametffrom", "banktffromval", "txtaccountnumtfmon", "banktfmonval")})
+    check("转账不写时间字段（线上已删：DMS 不要求）", "txttimetffrom" not in fields)
+
+    for extra, why in (
+        ({"src": "KBANK 1234567890"}, "旧形态把来源写成一句话"),
+        ({"src": "-", "dst_account_no": "ACC-DST"}, "只给到账账号"),
+        ({"src": "SCB"}, "只给来源银行名"),
+    ):
+        ok, detail = raises(lambda e=extra: dms_payments.payment_form_fields(
+            ({"channel": "transfer", "amount": "1000", "extra": e},)), DmsClientError)
+        check("收款不完整必须本地拦（%s）" % why,
+              ok and "ERR_DMS_PAYMENT_INCOMPLETE" in detail, detail)
+
+    for channel, extra, why in (
+        ("cheque", {"cheque_no": "123", "bank_name": "SCB"}, "支票缺 bank_id"),
+        ("cashier_cheque", {"cashier_no": "123", "bank_name": "SCB"}, "现金支票缺 bank_id"),
+        ("card", {"card_type": "VISA", "bank_name": "SCB"}, "刷卡缺 bank_id"),
+        ("other", {}, "其它渠道缺 detail"),
+    ):
+        ok, detail = raises(lambda c=channel, e=extra: dms_payments.payment_form_fields(
+            ({"channel": c, "amount": "1000", "extra": e},)), DmsClientError)
+        check("收款不完整必须本地拦（%s）" % why,
+              ok and "ERR_DMS_PAYMENT_INCOMPLETE" in detail, detail)
+
+    check("手工填来源银行名时 bank id 可以省（不伪造目录 id）",
+          dms_payments.payment_form_fields(({
+              "channel": "transfer", "amount": "1000",
+              "extra": {**GOOD_TRANSFER, "src_bank_id": "",
+                        dms_payments.MANUAL_BANK_FLAG: "1"}},)).get("banktffromval") is None)
     check("未知渠道必须报错（不许静默丢钱）",
           *raises(lambda: dms_payments.payment_form_fields(
               ({"channel": "crypto", "amount": "1"},)), ValueError))

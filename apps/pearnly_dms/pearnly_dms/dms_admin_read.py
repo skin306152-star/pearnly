@@ -18,7 +18,7 @@
   的惰性工厂缓存），不按字段/每一步重复登录。
 
 凭据来源集中在这里判定：`DmsClient._resolve_admin_transport()` —— 也就是适配器
-`_client()` 注入的懒 admin 工厂。各模块不再自己去读端点配置或私自分叉判定。
+`client()` 注入的懒 admin 工厂。各模块不再自己去读端点配置或私自分叉判定。
 
 照搬老产品 `services/erp/dms_admin_read.py`（线上基准 `501589f0`）。
 """
