@@ -121,6 +121,6 @@ def send_root_to_home() -> None:
 
     target = workspace_mod.landing_url()
     # 目标必须是某个具体工作台才跳；否则（规则没解析出来）保持原样，不要自己跳自己
-    if not target.startswith("/desk/") or target == "/":
+    if not (target.startswith("/desk/") or target == "/pearnly-app"):
         return
     raise _Redirect(target, 302)

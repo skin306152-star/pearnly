@@ -105,6 +105,7 @@ def publish(p):
         raise ValueError("Tenant DNS does not point to this server")
     path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{site}.conf")
     cert = Path(f"/etc/letsencrypt/live/{site}/fullchain.pem")
+    Path("/var/www/letsencrypt").mkdir(parents=True, exist_ok=True, mode=0o755)
     path.write_text(nginx(site, group, cert.exists()))
     run(["nginx", "-t"])
     run(["systemctl", "reload", "nginx"])

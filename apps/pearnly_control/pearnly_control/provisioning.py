@@ -619,7 +619,8 @@ def retry_failed_steps(request: str, include_skipped: bool = False) -> dict:
         # 才把外部条件配好的。不重算就会拿建单时那份旧参数去执行 —— 实测：配好 LINE
         # 渠道再补跑，执行器读到的是旧的 `configured: false`，又记一次 skipped，
         # 站点上永远拿不到密钥，而看进度的人以为这件事处理过了。
-        _sync_steps(req)
+        if not str(req.idempotency_key).startswith("teardown:"):
+            _sync_steps(req)
         _refresh_request_status(req)
     return {"request": req.name, "reset": reset, "status": req.status}
 

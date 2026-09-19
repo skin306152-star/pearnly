@@ -195,6 +195,9 @@ def landing_url() -> str:
     为什么不直接写 `/desk`：那样等于绕开首页规则 —— 表现就是"默认工作区设了也没用，
     登录后还是先落桌面那一屏"（2026-09-18 实测）。
     """
+    if is_tenant_site():
+        return "/pearnly-app"
+
     from frappe.website.utils import get_home_page
 
     try:
@@ -213,6 +216,10 @@ def resolve_after_login(redirect_to: str | None) -> str:
     （`/`、`/desk`、`/app`…），就换成他自己的首页 —— 否则每次登录都先落一屏桌面。
     """
     target = (redirect_to or "").strip()
+    # Only same-origin paths may survive the identity round trip.
+    if target and (not target.startswith("/") or target.startswith("//")
+                   or "\\" in target or any(ord(char) < 32 for char in (redirect_to or ""))):
+        return landing_url()
     if target.rstrip("/") in {p.rstrip("/") for p in ENTRY_PATHS}:
         return landing_url()
     return target or landing_url()

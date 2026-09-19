@@ -62,6 +62,18 @@ if any(row["realm"] == REALM for row in realms):
 else:
     request("/admin/realms", "POST", settings, token)
 
+# Provisioning collects a company, username and email, not separate personal
+# first/last names. Keep native profile validation, but do not require names.
+profile_path = f"/admin/realms/{REALM}/users/profile"
+profile = request(profile_path, token=token)
+for attribute in profile.get("attributes", []):
+    if attribute.get("name") in ("firstName", "lastName"):
+        attribute.pop("required", None)
+request(profile_path, "PUT", profile, token)
+assert all(not attribute.get("required") for attribute in
+           request(profile_path, token=token).get("attributes", [])
+           if attribute.get("name") in ("firstName", "lastName"))
+
 # Dedicated local control-plane client. Never copy this secret to tenant Sites.
 clients_path = f"/admin/realms/{REALM}/clients"
 client = request(clients_path + "?clientId=pearnly-control", token=token)
