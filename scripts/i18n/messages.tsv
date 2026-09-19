@@ -613,3 +613,24 @@ pearnly_control	The balance could not be read; this is not 'insufficient balance
 pearnly_control	Insufficient balance; please top up first	余额不足，请先充值	ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน	残高不足です。先にチャージしてください
 pearnly_control	Plan {0} ({1} days · {2} pages)	订阅套餐 {0}（{1} 天 · {2} 张）	แพ็กเกจ {0} ({1} วัน · {2} หน้า)	プラン {0}（{1}日 · {2}枚）
 pearnly_control	Top-up approved · request {0}	充值审核通过 · 申请 {0}	อนุมัติการเติมเงินแล้ว · คำขอ {0}	チャージ承認 · 申請 {0}
+pearnly_control	Create the site	建站点	สร้างเว็บไซต์	サイトを作成
+pearnly_control	Install core apps	装基础 App	ติดตั้งแอปพื้นฐาน	基盤アプリを導入
+pearnly_control	Install the product app	装产品 App	ติดตั้งแอปผลิตภัณฑ์	製品アプリを導入
+pearnly_control	Set up unified sign-in	配统一登录	ตั้งค่าการเข้าสู่ระบบแบบรวม	統一ログインを設定
+pearnly_control	Restart services	重启服务	รีสตาร์ตบริการ	サービスを再起動
+pearnly_control	Finalize the site	收尾站点	เก็บงานเว็บไซต์ให้เรียบร้อย	サイトを仕上げ
+pearnly_control	Set up the LINE channel	配 LINE 渠道	ตั้งค่าช่องทาง LINE	LINEチャネルを設定
+pearnly_control	Create the tenant account	建租户账号	สร้างบัญชีผู้เช่า	テナントアカウントを作成
+pearnly_control	Grant feature roles	发功能权限	มอบบทบาทตามฟีเจอร์	機能ロールを付与
+pearnly_control	Build the workspace	建工作台	สร้างพื้นที่ทำงาน	ワークスペースを作成
+pearnly_control	Mark provisioning done	标记开通完成	ทำเครื่องหมายว่าเปิดใช้งานเสร็จ	開通完了にする
+pearnly_control	Done	完成	เสร็จแล้ว	完了
+pearnly_control	Skipped	不用做	ไม่ต้องทำ	不要
+pearnly_control	Running	进行中	กำลังทำ	実行中
+pearnly_control	Failed	失败	ล้มเหลว	失敗
+pearnly_control	Pending	待办	รอดำเนินการ	未処理
+pearnly_control	Not provisioned	未开通	ยังไม่เปิดใช้งาน	未開通
+pearnly_control	Provisioning failed	开通失败	เปิดใช้งานไม่สำเร็จ	開通に失敗
+pearnly_control	Enabled — {0} steps	已开通 {0} 步	เปิดใช้งานแล้ว {0} ขั้นตอน	開通済み {0} ステップ
+pearnly_control	Partly done {0}/{1}	部分完成 {0}/{1}	ทำไปบางส่วน {0}/{1}	一部完了 {0}/{1}
+pearnly_control	Provisioning {0}/{1}	开通中 {0}/{1}	กำลังเปิดใช้งาน {0}/{1}	開通中 {0}/{1}

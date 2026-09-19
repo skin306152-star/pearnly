@@ -20,6 +20,7 @@ Balance After,ยอดคงเหลือหลังเปลี่ยนแ
 Basic Info,ข้อมูลพื้นฐาน
 Bench Group,กลุ่มรัน
 Billing Units,หน่วยคิดค่าบริการ
+Build the workspace,สร้างพื้นที่ทำงาน
 "Cannot read the provisioning target, so the identity service URL is unknown",อ่านเป้าหมายการเปิดใช้ไม่ได้ จึงไม่ทราบที่อยู่บริการตัวตน
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -42,6 +43,8 @@ Could not queue provisioning,เข้าคิวการเปิดใช้
 Could not queue the deletion,เข้าคิวการลบไม่สำเร็จ
 Could not read what would be deleted,อ่านรายการที่จะลบไม่ได้
 Could not reject,ปฏิเสธไม่สำเร็จ
+Create the site,สร้างเว็บไซต์
+Create the tenant account,สร้างบัญชีผู้เช่า
 Creating a channel requires both secret and access token,การสร้างช่องทางต้องระบุทั้ง secret และ access token
 Credential Delivery,วิธีส่งมอบข้อมูลรับรอง
 "Credentials (stored only here, pushed to the tenant site at provisioning)",ข้อมูลรับรอง (เก็บไว้ที่นี่ที่เดียว ผลักไปเว็บไซต์ผู้เช่าตอนเปิดใช้)
@@ -62,26 +65,33 @@ Domain Prefix,คำนำหน้าโดเมน
 Domain already taken: {0} (issue {1}),โดเมนถูกใช้แล้ว: {0} (ใบเปิดใช้งาน {1})
 Domain prefix cannot be all digits: {0},คำนำหน้าโดเมนเป็นตัวเลขล้วนไม่ได้: {0}
 Domain prefix {0} is reserved; pick another,คำนำหน้าโดเมน {0} สงวนไว้ กรุณาเลือกใหม่
+Done,เสร็จแล้ว
 Duplicate domain on the same issue: {0},โดเมนซ้ำในใบเดียวกัน: {0}
 Email,อีเมล
 Enabled Features,ฟีเจอร์ที่เปิดใช้
+Enabled — {0} steps,เปิดใช้งานแล้ว {0} ขั้นตอน
 Enforcement,การบังคับสิทธิ์
 External Reference,เลขที่อ้างอิงภายนอก
+Failed,ล้มเหลว
 Feature,ฟีเจอร์
 Feature Catalog,แคตตาล็อกฟีเจอร์
 Feature Code,รหัสฟีเจอร์
 Feature Name,ชื่อฟีเจอร์
 Features,ฟีเจอร์
 Fill in only if a LIFF app exists; otherwise leave empty.,กรอกเฉพาะเมื่อมีแอป LIFF ถ้าไม่มีให้เว้นว่าง
+Finalize the site,เก็บงานเว็บไซต์ให้เรียบร้อย
 Finished At,สิ้นสุดเมื่อ
 For example http://keycloak.localhost:8105,ตัวอย่าง http://keycloak.localhost:8105
 For example: local sample / production,ตัวอย่าง: ตัวอย่างในเครื่อง / โปรดักชัน
+Grant feature roles,มอบบทบาทตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
 Idempotency Key,คีย์กันซ้ำ
 Identity Service URL,ที่อยู่บริการตัวตน
 Identity Subject,ตัวตนSubject
 Initial Password,รหัสผ่านเริ่มต้น
 Initial password is required (the user signs in with it directly),ต้องระบุรหัสผ่านเริ่มต้น (ผู้ใช้ใช้เข้าสู่ระบบโดยตรง)
+Install core apps,ติดตั้งแอปพื้นฐาน
+Install the product app,ติดตั้งแอปผลิตภัณฑ์
 Insufficient balance; please top up first,ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63
 Invalid email,อีเมลไม่ถูกต้อง
@@ -104,6 +114,7 @@ Leave empty to use the company name,เว้นว่างเพื่อใ�
 Local Port,พอร์ตในเครื่อง
 Local URL,ที่อยู่ในเครื่อง
 Manual adjustment · {0},ปรับยอดด้วยคน · {0}
+Mark provisioning done,ทำเครื่องหมายว่าเปิดใช้งานเสร็จ
 Matches the feature keys in the product manifest (product_manifest.py).,ตรงกับคีย์ features ในรายการผลิตภัณฑ์ (product_manifest.py)
 Monthly Fee,ค่าบริการรายเดือน
 No provisioning request yet; click “Run provisioning” to start,"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"
@@ -112,6 +123,7 @@ No such plan: {0},ไม่มีแพ็กเกจนี้: {0}
 No such step: {0},ไม่พบขั้นตอน {0}
 No such tenant: {0},ไม่มีผู้เช่านี้: {0}
 Not issued,ยังไม่ออกใบ
+Not provisioned,ยังไม่เปิดใช้งาน
 Notes,หมายเหตุ
 OIDC Client ID,OIDC Client ID
 OIDC Client Secret,OIDC Client Secret
@@ -123,10 +135,12 @@ Output,ผลลัพธ์การทำงาน
 Over-rate (per page),ราคาส่วนเกิน (ต่อหน้า)
 Pages,จำนวนหน้า
 Pages Used This Month,หน้าใช้ไปเดือนนี้
+Partly done {0}/{1},ทำไปบางส่วน {0}/{1}
 Password Delivered At,ส่งรหัสผ่านเริ่มต้นเมื่อ
 Password-check Client ID,Client ID ตรวจรหัสผ่าน
 Password-check Client Secret,Client Secret ตรวจรหัสผ่าน
 Payload,พารามิเตอร์
+Pending,รอดำเนินการ
 Pick at least one product,เลือกอย่างน้อยหนึ่งผลิตภัณฑ์
 Plan,แพ็กเกจ
 Plan {0} ({1} days · {2} pages),แพ็กเกจ {0} ({1} วัน · {2} หน้า)
@@ -138,7 +152,9 @@ Proof,หลักฐาน
 Provisioning Credentials (stored only here),ข้อมูลรับรองการเปิดใช้ (เก็บไว้ที่นี่ที่เดียว)
 Provisioning Progress,ความคืบหน้าการเปิดใช้งาน
 Provisioning Target,เป้าหมายการเปิดใช้
+Provisioning failed,เปิดใช้งานไม่สำเร็จ
 Provisioning progress,ความคืบหน้าการเปิดใช้งาน
+Provisioning {0}/{1},กำลังเปิดใช้งาน {0}/{1}
 Queued for provisioning; building the site now,เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์
 Queueing provisioning…,กำลังเข้าคิวการเปิดใช้งาน…
 Queueing the deletion…,กำลังเข้าคิวการลบ…
@@ -154,6 +170,7 @@ Reject top-up,ปฏิเสธการเติมเงิน
 Rejected,ถูกปฏิเสธ
 Requested Amount,จำนวนที่ขอ
 Requested At,ขอเมื่อ
+Restart services,รีสตาร์ตบริการ
 Retry deletion,ลบอีกครั้ง
 Review,ดำเนินการ
 Review Note,หมายเหตุการตรวจสอบ
@@ -162,7 +179,10 @@ Reviewed By,ตรวจสอบโดย
 Role,บทบาท
 Row {0} on the issue has no domain; cannot build the site,แถว {0} ในใบเปิดใช้งานไม่มีโดเมน สร้างเว็บไซต์ไม่ได้
 Run provisioning,เริ่มเปิดใช้งาน
+Running,กำลังทำ
 Service URL is required,ต้องระบุที่อยู่บริการ
+Set up the LINE channel,ตั้งค่าช่องทาง LINE
+Set up unified sign-in,ตั้งค่าการเข้าสู่ระบบแบบรวม
 Sign-in accounts,บัญชีเข้าสู่ระบบ
 Site,เว็บไซต์
 Site Name,ชื่อเว็บไซต์
@@ -170,6 +190,7 @@ Site Provisioning API,API สร้างเว็บไซต์
 Site name {0} is already taken by deployment {1},ชื่อเว็บไซต์ {0} ถูกการติดตั้ง {1} ใช้อยู่
 Sites and databases,เว็บไซต์และฐานข้อมูล
 Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้ Bench โปรเซสเดียวกัน บันทึกไว้เพื่อจำกัดขอบเขตของปัญหา
+Skipped,ไม่ต้องทำ
 Source,ที่มา
 Started At,เริ่มเมื่อ
 Step,ขั้นตอน

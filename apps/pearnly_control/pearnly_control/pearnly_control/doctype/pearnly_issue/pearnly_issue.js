@@ -40,17 +40,17 @@ frappe.ui.form.on("Pearnly Issue App", {
 
 // 步骤名 → 人话。执行器认的是下面这些动作（见 pearnly_control/provisioning.py）。
 const STEP_LABEL = {
-	new_site: "建站点",
-	install_core: "装基础 App",
-	install_product: "装产品 App",
-	set_oidc: "配统一登录",
-	restart_web: "重启服务",
-	finalize_site: "收尾站点",
-	set_line: "配 LINE 渠道",
-	bind_user: "建租户账号",
-	set_roles: "发功能权限",
-	set_workspace: "建工作台",
-	mark_active: "标记开通完成",
+	new_site: __("Create the site"),
+	install_core: __("Install core apps"),
+	install_product: __("Install the product app"),
+	set_oidc: __("Set up unified sign-in"),
+	restart_web: __("Restart services"),
+	finalize_site: __("Finalize the site"),
+	set_line: __("Set up the LINE channel"),
+	bind_user: __("Create the tenant account"),
+	set_roles: __("Grant feature roles"),
+	set_workspace: __("Build the workspace"),
+	mark_active: __("Mark provisioning done"),
 };
 
 const STEP_COLOR = {
@@ -62,11 +62,11 @@ const STEP_COLOR = {
 };
 
 const STEP_TEXT = {
-	done: "完成",
-	skipped: "不用做",
-	running: "进行中",
-	failed: "失败",
-	pending: "待办",
+	done: __("Done"),
+	skipped: __("Skipped"),
+	running: __("Running"),
+	failed: __("Failed"),
+	pending: __("Pending"),
 };
 
 function pcall(method, args) {
@@ -81,12 +81,12 @@ function state_of(frm) {
 
 // 灯的颜色与话术。没有请求 = 还没开通；有请求就看它的状态。
 function status_label(m) {
-	if (!m) return ["未开通", "blue"];
+	if (!m) return [__("Not provisioned"), "blue"];
 	const c = m.counts || {};
-	if (m.status === "done") return [`已开通 ${c.total || 0} 步`, "green"];
-	if (m.status === "failed") return ["开通失败", "red"];
-	if (m.status === "partial") return [`部分完成 ${c.done || 0}/${c.total || 0}`, "orange"];
-	return [`开通中 ${c.done || 0}/${c.total || 0}`, "orange"];
+	if (m.status === "done") return [__("Enabled — {0} steps", [c.total || 0]), "green"];
+	if (m.status === "failed") return [__("Provisioning failed"), "red"];
+	if (m.status === "partial") return [__("Partly done {0}/{1}", [c.done || 0, c.total || 0]), "orange"];
+	return [__("Provisioning {0}/{1}", [c.done || 0, c.total || 0]), "orange"];
 }
 
 function steps_html(m) {

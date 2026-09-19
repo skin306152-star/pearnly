@@ -20,6 +20,7 @@ Balance After,变动后余额
 Basic Info,基础信息
 Bench Group,运行组
 Billing Units,计费单位
+Build the workspace,建工作台
 "Cannot read the provisioning target, so the identity service URL is unknown",取不到开户目标，无法确定身份服务地址
 Channel Access Token,渠道访问令牌
 Channel ID,渠道 ID
@@ -42,6 +43,8 @@ Could not queue provisioning,排不进开通队列
 Could not queue the deletion,排队删除失败
 Could not read what would be deleted,读不到要删除的内容
 Could not reject,拒绝失败
+Create the site,建站点
+Create the tenant account,建租户账号
 Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
 Credential Delivery,凭据交付方式
 "Credentials (stored only here, pushed to the tenant site at provisioning)",凭据（只在这里存一份，开通时推到租户站点）
@@ -62,26 +65,33 @@ Domain Prefix,域名前缀
 Domain already taken: {0} (issue {1}),域名已被占用：{0}（发号单 {1}）
 Domain prefix cannot be all digits: {0},域名前缀不能全是数字：{0}
 Domain prefix {0} is reserved; pick another,域名前缀 {0} 是保留名，换一个
+Done,完成
 Duplicate domain on the same issue: {0},域名在同一张单里重复：{0}
 Email,邮箱
 Enabled Features,已开通功能
+Enabled — {0} steps,已开通 {0} 步
 Enforcement,权限落地
 External Reference,外部单号
+Failed,失败
 Feature,功能
 Feature Catalog,功能目录
 Feature Code,功能代码
 Feature Name,功能名称
 Features,功能
 Fill in only if a LIFF app exists; otherwise leave empty.,有 LIFF 应用才填；没有就留空
+Finalize the site,收尾站点
 Finished At,结束时间
 For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
 For example: local sample / production,例如：本地样板 / 生产
+Grant feature roles,发功能权限
 Granted DocTypes,授予的 DocType
 Idempotency Key,幂等键
 Identity Service URL,身份服务地址
 Identity Subject,身份主体
 Initial Password,初始密码
 Initial password is required (the user signs in with it directly),初始密码必填（用户拿它直接登录）
+Install core apps,装基础 App
+Install the product app,装产品 App
 Insufficient balance; please top up first,余额不足，请先充值
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63
 Invalid email,邮箱不合法
@@ -104,6 +114,7 @@ Leave empty to use the company name,留空用公司名称
 Local Port,本机端口
 Local URL,本机访问地址
 Manual adjustment · {0},人工调账 · {0}
+Mark provisioning done,标记开通完成
 Matches the feature keys in the product manifest (product_manifest.py).,与产品清单 product_manifest.py 里的 features 键一致
 Monthly Fee,月费
 No provisioning request yet; click “Run provisioning” to start,还没有开通请求，点「执行开通」开始
@@ -112,6 +123,7 @@ No such plan: {0},没有这个套餐：{0}
 No such step: {0},找不到步骤 {0}
 No such tenant: {0},租户不存在：{0}
 Not issued,未发号
+Not provisioned,未开通
 Notes,备注
 OIDC Client ID,OIDC 客户端 ID
 OIDC Client Secret,OIDC 客户端密钥
@@ -123,10 +135,12 @@ Output,执行输出
 Over-rate (per page),超额单价（每张）
 Pages,页数
 Pages Used This Month,本月已用页数
+Partly done {0}/{1},部分完成 {0}/{1}
 Password Delivered At,初始密码交付时间
 Password-check Client ID,改密校验客户端 ID
 Password-check Client Secret,改密校验客户端密钥
 Payload,参数
+Pending,待办
 Pick at least one product,至少要选一个产品
 Plan,套餐
 Plan {0} ({1} days · {2} pages),订阅套餐 {0}（{1} 天 · {2} 张）
@@ -138,7 +152,9 @@ Proof,凭证
 Provisioning Credentials (stored only here),开户凭据（只在这里存一份）
 Provisioning Progress,开通进度
 Provisioning Target,开户目标
+Provisioning failed,开通失败
 Provisioning progress,开通进度
+Provisioning {0}/{1},开通中 {0}/{1}
 Queued for provisioning; building the site now,已排入开通队列，正在建站
 Queueing provisioning…,正在排入开通队列…
 Queueing the deletion…,正在排队删除…
@@ -154,6 +170,7 @@ Reject top-up,拒绝充值
 Rejected,已拒绝
 Requested Amount,申请金额
 Requested At,申请时间
+Restart services,重启服务
 Retry deletion,重试删除
 Review,处理
 Review Note,审核备注
@@ -162,7 +179,10 @@ Reviewed By,审核人
 Role,对应角色
 Row {0} on the issue has no domain; cannot build the site,发号单里 {0} 这一行没有域名，无法建站
 Run provisioning,执行开通
+Running,进行中
 Service URL is required,服务地址必填
+Set up the LINE channel,配 LINE 渠道
+Set up unified sign-in,配统一登录
 Sign-in accounts,登录账号
 Site,站点
 Site Name,站点名
@@ -170,6 +190,7 @@ Site Provisioning API,建站接口
 Site name {0} is already taken by deployment {1},站点名 {0} 已被部署 {1} 占用
 Sites and databases,站点与数据库
 Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同产品的多个站点共享一个 Bench 进程，记录在这里以便定位故障范围
+Skipped,不用做
 Source,来源
 Started At,开始时间
 Step,步骤
