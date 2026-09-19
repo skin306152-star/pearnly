@@ -16,7 +16,7 @@
 def main():
     import frappe
 
-    from pearnly_dms import dms_approval_store as store
+    from pearnly_dms.approval import approval_store as store
 
     ok = []
 

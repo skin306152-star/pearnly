@@ -3,7 +3,7 @@
 
 用户说得很明确：**"OCR 是所有 app 的共享底座，不是可选项"**。所以模型调用、
 档位、密钥这些放在共用层；"某个产品要抽哪些字段"放各自产品的 App 里
-（例如 DMS 的身份证在 `pearnly_dms/ocr_id_card.py`）。
+（例如 DMS 的身份证在 `pearnly_dms/ocr/ocr_id_card.py`）。
 
 照老产品搬（`services/ocr/model_client.py` + `gemini_models.py` + `engine_policy.py`），
 **两个档原样保留**（用户口中的 A 档 / B 档）：

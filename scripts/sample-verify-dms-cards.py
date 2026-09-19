@@ -12,9 +12,10 @@
 
 
 def main():
+    from pathlib import Path
     from urllib.parse import parse_qs
 
-    from pearnly_dms import dms_cards as C
+    from pearnly_dms.line import cards as C
 
     results = []
 
@@ -222,8 +223,8 @@ def main():
     from pearnly_dms import i18n
 
     used = set()
-    for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
-        src = open(path, encoding="utf-8").read()
+    for path in glob.glob(os.path.join(os.path.dirname(i18n.__file__), "**", "*.py"), recursive=True):
+        src = Path(path).read_text(encoding="utf-8")
         # ⚠️ 只有**本命名空间**的 `_t` 才算 `dms.card.*`。本仓库现在有四个命名空间
         # （`dms.card.*` / `.qa.*` / `.query.*` / `.approval.*`），各自的模块都叫
         # `dms_<ns>_cards.py`，每个都有自己那个 `_t`。不分青红皂白地收进来，就会拿一批
@@ -244,17 +245,17 @@ def main():
             r"qa_cards\.(TXT_[A-Z0-9_]+|BTN_[A-Z0-9_]+|LBL_[A-Z0-9_]+|VAL_[A-Z0-9_]+)", src)}
     used |= {f"diff.{f}" for f in C.FIELD_LABELS_TH}
     used |= {f"sum.{f}" for f in C._SUMMARY_FIELD_NAMES}
-    from pearnly_dms import dms_booking_car_details as _car_details
+    from pearnly_dms.booking import booking_car_details as _car_details
 
     used |= {f"car.{name}" for _, name in _car_details._FIELD_NAMES}
     # 订车逐问那两族（`dms_qa_cards` / `dms_qa_payment_cards`）另有一套取词：
     # 显式常量与键同名、值一律 `qat("KEY")`，所以扫 `qat(...)` 字面量就够；
     # 渠道名是 `qat(f"pay.{渠道}")` 拼出来的，**动态那条单独按渠道表补**
     # （不然 6 条 `qa.pay.*` 会从守卫里溜过去）。
-    from pearnly_dms import dms_qa_cards as _qa
+    from pearnly_dms.booking.conversation import qa_cards as _qa
 
-    for path in glob.glob(os.path.join(os.path.dirname(C.__file__), "*.py")):
-        src = open(path, encoding="utf-8").read()
+    for path in glob.glob(os.path.join(os.path.dirname(i18n.__file__), "**", "*.py"), recursive=True):
+        src = Path(path).read_text(encoding="utf-8")
         used |= {f"qa.{m}" for m in re.findall(
             r"""qat\(\s*["']([A-Za-z_][A-Za-z0-9_]*)["']""", src)}
     used |= {f"qa.pay.{ch}" for ch in _qa.PAY_LABELS}
@@ -281,9 +282,10 @@ def main():
     check("卡片正文不露裸 key", not leaked, leaked)
 
     # ── 10. 车型规格卡 + 提交前权威复核 ────────────────────────────────
-    from pearnly_dms import dms_booking_car_details, dms_booking_preflight
-    from pearnly_dms.dms_client_base import DmsClientError
-    from pearnly_dms.dms_models import DMSMasterRef
+    from pearnly_dms.booking import booking_car_details as dms_booking_car_details
+    from pearnly_dms.booking import booking_preflight as dms_booking_preflight
+    from pearnly_dms.contracts.client_base import DmsClientError
+    from pearnly_dms.contracts.models import DMSMasterRef
 
     full_car = ["3", "C", "Camry", "", "Toyota", "", "รถเก๋ง", "", "2.5 HV", "",
                 "G", "", "อัตโนมัติ", "2568", "", "2.5L", "1,599,000", "X"]

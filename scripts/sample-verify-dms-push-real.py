@@ -29,8 +29,8 @@ def make_test_people_id() -> str:
 def main():
     import frappe
 
-    from pearnly_dms import dms_intake
-    from pearnly_dms.dms_id_validate import is_valid_thai_id
+    from pearnly_dms.intake import service as dms_intake
+    from pearnly_dms.contracts.id_validate import is_valid_thai_id
 
     ENDPOINT_LABEL = "MR.ERP DMS（测试账号）"
     # 这几个 id 是上一轮"查重"里由 OCR 文本解析出来的真实主档 id

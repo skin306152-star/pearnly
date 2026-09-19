@@ -18,10 +18,11 @@ def main():
     from pearnly_core import line as line_api
     from pearnly_core import line_binding
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_booking_flow
-    from pearnly_dms import dms_cards as cards
-    from pearnly_dms import dms_flow, line_handlers
-    from pearnly_dms import dms_qa_cards as qa_cards
+    from pearnly_dms.booking.conversation import booking_flow as dms_booking_flow
+    from pearnly_dms.line import cards as cards
+    from pearnly_dms.intake import flow as dms_flow
+    from pearnly_dms.line import handlers as line_handlers
+    from pearnly_dms.booking.conversation import qa_cards as qa_cards
 
     ok = []
 

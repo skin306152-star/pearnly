@@ -80,7 +80,7 @@ async function refresh(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    conn.value = await call<Connection>("pearnly_dms.api.get_connection");
+    conn.value = await call<Connection>("pearnly_dms.connections.api.get_connection");
   } catch (err) {
     error.value = explain(err);
   } finally {
@@ -114,7 +114,7 @@ function connectAndSave(): Promise<void> {
     const username = form.username.trim();
     const password = form.password;
     const probe = await call<Probe>(
-      "pearnly_dms.api.test_credentials",
+      "pearnly_dms.connections.api.test_credentials",
       { username, password },
       { method: "POST" },
     );
@@ -122,7 +122,7 @@ function connectAndSave(): Promise<void> {
       error.value = probe.error_friendly || t("connect.error.failed");
       return;
     }
-    await call("pearnly_dms.api.save_connection", { username, password }, { method: "POST" });
+    await call("pearnly_dms.connections.api.save_connection", { username, password }, { method: "POST" });
     notice.value = tf("connect.notice.connected", masterSummary(probe));
     open.value = false;
     form.password = "";
@@ -135,7 +135,7 @@ function testSaved(): Promise<void> {
     const name = ep.value?.name;
     if (!name) return;
     const probe = await call<Probe>(
-      "pearnly_dms.api.test_endpoint",
+      "pearnly_dms.connections.api.test_endpoint",
       { endpoint: name },
       { method: "POST" },
     );
@@ -148,7 +148,7 @@ function testSaved(): Promise<void> {
 function toggleEnabled(): Promise<void> {
   return run("toggle", async () => {
     const next = !ep.value?.enabled;
-    await call("pearnly_dms.api.set_connection_enabled", { enabled: next ? 1 : 0 }, { method: "POST" });
+    await call("pearnly_dms.connections.api.set_connection_enabled", { enabled: next ? 1 : 0 }, { method: "POST" });
     notice.value = next ? t("connect.state.enabled") : t("connect.state.disabled");
     await refresh();
   });

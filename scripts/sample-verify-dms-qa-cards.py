@@ -15,8 +15,8 @@
 
 
 def main():
-    from pearnly_dms import dms_qa_cards as q
-    from pearnly_dms import dms_qa_payment_cards as pc
+    from pearnly_dms.booking.conversation import qa_cards as q
+    from pearnly_dms.booking.conversation import qa_payment_cards as pc
 
     ok = []
 
@@ -31,7 +31,7 @@ def main():
        q.TXT_ASK_CAR == "รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax", q.TXT_ASK_CAR[:20])
     ck("错误话术走 dms.err（不另存一份）",
        q.TXT_MASTER_CHANGED
-       == __import__("pearnly_dms.dms_errors", fromlist=["x"]).friendly("ERR_DMS_MASTER_CHANGED")["th"])
+       == __import__("pearnly_dms.line.errors", fromlist=["x"]).friendly("ERR_DMS_MASTER_CHANGED")["th"])
     # 这一条**必须**查 `dms.card.` —— 前缀原本是线上函数体里的内联字面量，
     # 只查「结尾是重试尾」的话，取不到词时整串会变成 `<裸 key> + 错误原文 + 重试尾`，
     # 照样通过（真漏过一次，靠防漏键守卫才发现）。
@@ -118,7 +118,7 @@ def main():
     # 这里静态扫：函数体里引用的全大写名字，必须在模块级（或函数内 import/赋值）有定义。
     import ast as _ast
 
-    from pearnly_dms import dms_qa_payment_cards as _pc
+    from pearnly_dms.booking.conversation import qa_payment_cards as _pc
 
     def _naked(mod):
         tree = _ast.parse(open(mod.__file__, encoding="utf-8").read())

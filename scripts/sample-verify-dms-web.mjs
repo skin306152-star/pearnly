@@ -67,7 +67,7 @@ for (const label of FORBIDDEN_NAV) {
 const denied = await page.evaluate(async () => {
 	const boot = await (await fetch("/api/method/pearnly_core.shell.describe")).json();
 	const csrf = boot?.message?.csrf_token || "";
-	const r = await fetch("/api/method/pearnly_dms.id_card.api_create_intake", {
+	const r = await fetch("/api/method/pearnly_dms.intake.id_card.api_create_intake", {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "X-Frappe-CSRF-Token": csrf },
 		body: JSON.stringify({ id_number: "1101700000099", full_name: "权限验证" }),
@@ -82,7 +82,7 @@ check(
 
 // 只读仍然可用：列表接口照常返回（否则这一页就没法看了）
 const canRead = await page.evaluate(async () => {
-	const r = await fetch("/api/method/pearnly_dms.id_card.api_list_intake");
+	const r = await fetch("/api/method/pearnly_dms.intake.id_card.api_list_intake");
 	return r.status;
 });
 check(`列表接口仍然可读（HTTP ${canRead}）`, canRead === 200);

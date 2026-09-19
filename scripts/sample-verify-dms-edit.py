@@ -28,12 +28,12 @@ def main():
 
     from pearnly_core import line, line_binding
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_booking_edit as be
-    from pearnly_dms import dms_browser_api as api
-    from pearnly_dms import dms_browser_ticket as tickets
-    from pearnly_dms import dms_customer_edit as ce
-    from pearnly_dms import dms_edit_snapshot as snap
-    from pearnly_dms import dms_out
+    from pearnly_dms.editor import booking_edit as be
+    from pearnly_dms.editor import browser_api as api
+    from pearnly_dms.editor import browser_ticket as tickets
+    from pearnly_dms.editor import customer_edit as ce
+    from pearnly_dms.editor import edit_snapshot as snap
+    from pearnly_dms.line import out as dms_out
 
     results = []
 

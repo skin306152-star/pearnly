@@ -22,7 +22,7 @@ def main():
     import frappe
 
     from pearnly_core import ocr
-    from pearnly_dms import ocr_id_card
+    from pearnly_dms.ocr import ocr_id_card as ocr_id_card
 
     results = []
     captured = []

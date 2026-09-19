@@ -344,7 +344,7 @@ def _dispatch(event: dict) -> bool:
     """把事件交给产品注册的处理器。**没有处理器就当作未处理**，不报错。
 
     产品通过 hooks 注册：
-        pearnly_line_handlers = ["pearnly_dms.line_handlers.handle"]
+        pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
     每个处理器签名 `handle(event: dict) -> bool`，返回 True 表示"这个事件我处理了"。
     多个处理器按注册顺序尝试，第一个返回 True 的就结束。
     """

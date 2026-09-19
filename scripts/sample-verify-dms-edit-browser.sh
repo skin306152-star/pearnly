@@ -42,7 +42,7 @@ fi
 API=http://127.0.0.1:${port}
 fail=0
 
-config=$(curl -sS -H "Host: $site" "$API/api/method/pearnly_dms.dms_browser_api.browser_config")
+config=$(curl -sS -H "Host: $site" "$API/api/method/pearnly_dms.editor.browser_api.browser_config")
 if printf '%s' "$config" | grep -q '"available": *false' \
    && printf '%s' "$config" | grep -qE '"csrf_token": *"[^"]+"'; then
   echo "PASS 真实请求里 browser_config 下发 csrf、并如实说本机没有 LIFF"
@@ -52,7 +52,7 @@ else
 fi
 
 texts=$(curl -sS -H "Host: $site" \
-  "$API/api/method/pearnly_dms.dms_browser_api.browser_text?keys=%5B%22dms.edit.save%22%5D")
+  "$API/api/method/pearnly_dms.editor.browser_api.browser_text?keys=%5B%22dms.edit.save%22%5D")
 if printf '%s' "$texts" | grep -q 'บันทึกและส่งสรุปใหม่'; then
   echo "PASS 游客能取到页面文案（allow_guest 生效，且只给 dms.* 命名空间）"
 else
@@ -64,7 +64,7 @@ fi
 page=$(curl -sS -H "Host: $site" "$API/liff/dms-booking?draft=n1&editor=customer")
 if printf '%s' "$page" | grep -q '/assets/pearnly_core/pearnly-app/index.html' \
    && printf '%s' "$page" | grep -q 'static.line-scdn.net/liff' \
-   && printf '%s' "$page" | grep -q 'pearnly_dms.dms_browser_api.' \
+   && printf '%s' "$page" | grep -q 'pearnly_dms.editor.browser_api.' \
    && printf '%s' "$page" | grep -q '"browser_auth"' \
    && printf '%s' "$page" | grep -q 'pearnly_dms_ticket'; then
   echo "PASS /liff/dms-booking 真能打开（LIFF 落地页 → 换票据 → 交给前端产物）"

@@ -18,13 +18,13 @@
 
 
 def main():
-    from pearnly_dms import dms_booking_qa_pages as pages
-    from pearnly_dms import dms_booking_qa_payment as pay
-    from pearnly_dms import dms_booking_qa_sync as sync
-    from pearnly_dms import dms_booking_qa_transfer as transfer
-    from pearnly_dms import dms_qa_cards as qa_cards
-    from pearnly_dms.dms_master_contract import MasterSyncError
-    from pearnly_dms.dms_payments import MANUAL_BANK_FLAG
+    from pearnly_dms.booking.conversation import booking_qa_pages as pages
+    from pearnly_dms.booking.conversation import booking_qa_payment as pay
+    from pearnly_dms.booking.conversation import booking_qa_sync as sync
+    from pearnly_dms.booking.conversation import booking_qa_transfer as transfer
+    from pearnly_dms.booking.conversation import qa_cards as qa_cards
+    from pearnly_dms.masters.master_contract import MasterSyncError
+    from pearnly_dms.contracts.payments import MANUAL_BANK_FLAG
 
     ok = []
 

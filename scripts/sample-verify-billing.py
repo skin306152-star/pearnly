@@ -33,7 +33,7 @@ def main():
     check("站点拿到了计费配置", billing_client.configured())
 
     if phase == "gate":
-        from pearnly_dms.dms_ocr_service import DmsOcrError, recognize_id_card
+        from pearnly_dms.ocr.ocr_service import DmsOcrError, recognize_id_card
 
         # 余额闸排在"端点存在"之后（照老产品的顺序：先看配置对不对，再看钱够不够）。
         # 所以这里先保证站点上有一条最简端点 —— 闸在登录 DMS **之前**，

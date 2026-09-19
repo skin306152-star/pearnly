@@ -7,7 +7,7 @@ app_license = "mit"
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # ERP / Cowork 将来各自加一行即可，传输层不用改。
-pearnly_line_handlers = ["pearnly_dms.line_handlers.handle"]
+pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
 
 # Apps
 # ------------------
@@ -21,7 +21,7 @@ pearnly_line_handlers = ["pearnly_dms.line_handlers.handle"]
 # 		"logo": "/assets/pearnly_dms/logo.png",
 # 		"title": "Pearnly DMS",
 # 		"route": "/pearnly_dms",
-# 		"has_permission": "pearnly_dms.api.permission.has_app_permission"
+# 		"has_permission": "pearnly_dms.connections.api.permission.has_app_permission"
 # 	}
 # ]
 

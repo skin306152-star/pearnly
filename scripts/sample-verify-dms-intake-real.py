@@ -19,7 +19,7 @@
 def main():
     import frappe
 
-    from pearnly_dms import dms_intake
+    from pearnly_dms.intake import service as dms_intake
 
     ENDPOINT_LABEL = "MR.ERP DMS（测试账号）"
     TEST_PEOPLE_ID = "1234567890123"   # 测试客户的证号

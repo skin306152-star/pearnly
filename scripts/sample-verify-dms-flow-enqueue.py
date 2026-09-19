@@ -16,12 +16,13 @@
 
 
 def main():
+    from pathlib import Path
     import ast
     import inspect
 
     import frappe
 
-    from pearnly_dms import dms_flow
+    from pearnly_dms.intake import flow as dms_flow
 
     ok = []
 
@@ -50,7 +51,7 @@ def main():
         if key in inspect.signature(dms_flow.process_image).parameters
     }
     ck("入队用的点号路径指到同一个函数",
-       captured.get("method") == "pearnly_dms.dms_flow.process_image", captured.get("method"))
+       captured.get("method") == "pearnly_dms.intake.flow.process_image", captured.get("method"))
     ck("入队的 kwargs 就是形参名（不是 arg0/arg1）",
        sorted(payload) == ["binding", "line_user_id", "message_id"]
        and not [k for k in (captured.get("kwargs") or {}) if k.startswith("arg")],
@@ -69,7 +70,7 @@ def main():
     except TypeError as exc:
         ck("参数个数对不上时当场炸（不留成 worker 里的静默失败）", True, str(exc)[:40])
 
-    src = open(dms_flow.__file__, encoding="utf-8").read()
+    src = Path(dms_flow.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     want_by_name = {}
     for node in ast.walk(tree):

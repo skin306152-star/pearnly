@@ -15,12 +15,13 @@
 
 
 def main():
-    from pearnly_dms import dms_advisor, dms_company_banks as banks
-    from pearnly_dms.dms_client_base import DmsClientError
-    from pearnly_dms.dms_customer_diff import diff_customer_fields
-    from pearnly_dms.dms_errors import friendly
-    from pearnly_dms.dms_id_validate import is_valid_thai_id, normalize_thai_id
-    from pearnly_dms.dms_intake import score_candidates
+    from pearnly_dms.masters import advisor as dms_advisor
+    from pearnly_dms.masters import company_banks as banks
+    from pearnly_dms.contracts.client_base import DmsClientError
+    from pearnly_dms.intake.customer_diff import diff_customer_fields
+    from pearnly_dms.line.errors import friendly
+    from pearnly_dms.contracts.id_validate import is_valid_thai_id, normalize_thai_id
+    from pearnly_dms.intake.service import score_candidates
 
     results = []
 
@@ -170,8 +171,8 @@ def main():
     # ══ 7. 权威只读入口 + 主档完整度（五类银行目录算进去）════════════════
     import inspect
 
-    from pearnly_dms import dms_intake as _intake
-    from pearnly_dms import dms_masters_cache as mc
+    from pearnly_dms.intake import service as _intake
+    from pearnly_dms.masters import masters_cache as mc
 
     check("run_logged_in 有 authoritative_read 开关（整块读取借管理员会话）",
           "authoritative_read" in inspect.signature(_intake.run_logged_in).parameters)

@@ -32,7 +32,7 @@ def main():
     import frappe
 
     from pearnly_core.session_lock import SessionLockUnavailable, account_lock, dms_login_key
-    from pearnly_dms.dms_adapter import MrerpDmsAdapter
+    from pearnly_dms.adapter.session import MrerpDmsAdapter
 
     ENDPOINT_LABEL = "MR.ERP DMS（测试账号）"
     results = []

@@ -10,9 +10,9 @@
 
 
 def main():
-    from pearnly_dms import dms_booking_payments as bp
-    from pearnly_dms import dms_text_fields as tf
-    from pearnly_dms.dms_payments import MANUAL_BANK_FLAG
+    from pearnly_dms.booking import booking_payments as bp
+    from pearnly_dms.contracts import text_fields as tf
+    from pearnly_dms.contracts.payments import MANUAL_BANK_FLAG
 
     results = []
 
@@ -141,7 +141,7 @@ def main():
                 "extra": {"bank_name": "手工银行", "cheque_no": "1", "cheque_book_no": "2"}}], {}))
           == "dms_booking.invalid_bank")
     check("规范化结果能直接喂给 dms_payments（边界在这层接上）",
-          (lambda: (__import__("pearnly_dms.dms_payments", fromlist=["x"])
+          (lambda: (__import__("pearnly_dms.contracts.payments", fromlist=["x"])
                     .payment_form_fields(tuple(good))).get("txtmoneycheque") == "100.00")())
 
     # ══ 4. 确认卡摘要：与 DMS 字段同源 ═══════════════════════════════════

@@ -17,9 +17,9 @@ def main():
     import re
 
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_approval_cards as ac
-    from pearnly_dms import dms_approval_flow as af
-    from pearnly_dms import dms_cards as cards
+    from pearnly_dms.approval import approval_cards as ac
+    from pearnly_dms.approval import approval_flow as af
+    from pearnly_dms.line import cards as cards
 
     ok = []
 
@@ -412,7 +412,7 @@ def main():
     store.clear_session(uid)
 
     # ── 9. 接线：差异卡按策略解主按钮 + postback 派发 ──────────────────
-    from pearnly_dms import dms_flow
+    from pearnly_dms.intake import flow as dms_flow
 
     hits = []
     real_pb = af.handle_postback

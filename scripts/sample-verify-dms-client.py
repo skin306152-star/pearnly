@@ -31,17 +31,19 @@ class FakeTransport:
         return Resp(200, "", b"")
 
 
-from pearnly_dms.dms_transport import Resp  # noqa: E402
+from pearnly_dms.client.transport import Resp  # noqa: E402
 
 
 def main():
     import json
 
-    from pearnly_dms import dms_docno, dms_employees, dms_payments
-    from pearnly_dms.dms_client import DmsClient, DmsClientError
-    from pearnly_dms.dms_models import BookingDefaults
-    from pearnly_dms.dms_models import DMSBookingPayload
-    from pearnly_dms.dms_models import ThaiIdCardPayload
+    from pearnly_dms.client import docno as dms_docno
+    from pearnly_dms.masters import employees as dms_employees
+    from pearnly_dms.contracts import payments as dms_payments
+    from pearnly_dms.client.gateway import DmsClient, DmsClientError
+    from pearnly_dms.contracts.models import BookingDefaults
+    from pearnly_dms.contracts.models import DMSBookingPayload
+    from pearnly_dms.contracts.models import ThaiIdCardPayload
 
     results = []
 
@@ -313,7 +315,7 @@ def main():
 
     # 规则 1 直接验：新建前必须把表单自带的默认值清空（否则没选地址的客户
     # 会带着 P1/D1/S1/Z1 被存进 DMS），而且**只清下拉、别动别的东西**。
-    from pearnly_dms import dms_customer_geo as geo  # noqa: E402
+    from pearnly_dms.intake import customer_geo as geo  # noqa: E402
 
     defaults = {"selprefix": "17", "selprovinces": "P1", "seldistricts": "D1",
                 "selsubdistricts": "S1", "selzipcodes": "Z1",
@@ -372,7 +374,7 @@ def main():
     check("附件回读校验能发现没挂上", r["ok"] is False and r["attached"] == 0, r)
 
     # ══ 8. 原生取号状态机 + 订车表单字段（线上 2026-09-13 修复的根因）══════
-    from pearnly_dms.dms_booking_org import BookingOrganization
+    from pearnly_dms.booking.booking_org import BookingOrganization
 
     CFG = '[16,1,"BK",6,1]'
     DETAIL = '[27,1,"BK000002609000001"]'
@@ -445,7 +447,7 @@ def main():
 
     # 订车表单字段：顾问电话缺失必须拦（旧版填 "." = 编一个不存在的电话）
     def _ref(i, nm, extra=()):
-        from pearnly_dms.dms_models import DMSMasterRef
+        from pearnly_dms.contracts.models import DMSMasterRef
 
         return DMSMasterRef(id=i, code=i, name=nm, extra=extra)
 

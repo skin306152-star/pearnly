@@ -31,7 +31,7 @@ def main():
     import time
 
     from pearnly_core import ocr
-    from pearnly_dms import ocr_id_card
+    from pearnly_dms.ocr import ocr_id_card as ocr_id_card
 
     SAMPLES = os.environ.get("PEARNLY_OCR_SAMPLES_DIR") or "/tmp/ocr-real"
     IMAGES = os.path.join(SAMPLES, "images")

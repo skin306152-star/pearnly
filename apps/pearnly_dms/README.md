@@ -31,3 +31,7 @@ Pre-commit is configured to use the following tools for checking and formatting 
 ### License
 
 mit
+
+## 当前模块入口
+
+业务实现已按域归位，见 [架构与职责](../../docs/development/architecture.md) 及 [旧新路径映射](../../docs/development/dms-module-map.json)。根层的旧 API/队列模块只保留兼容导出，不再承载业务；历史 P4 文档中的路径需通过映射表定位。

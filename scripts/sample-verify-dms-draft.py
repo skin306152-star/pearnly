@@ -10,7 +10,7 @@
 
 
 def main():
-    from pearnly_dms.dms_draft import (
+    from pearnly_dms.intake.draft import (
         build_draft,
         build_summary,
         display_diffs,

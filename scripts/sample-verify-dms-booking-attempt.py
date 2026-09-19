@@ -13,8 +13,8 @@ def main():
     import secrets
 
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_booking_attempt as attempt
-    from pearnly_dms.dms_client_base import DmsClientError
+    from pearnly_dms.booking import booking_attempt as attempt
+    from pearnly_dms.contracts.client_base import DmsClientError
 
     ok = []
 

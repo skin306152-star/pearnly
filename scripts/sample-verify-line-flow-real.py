@@ -21,7 +21,8 @@ def main():
     import frappe
 
     from pearnly_core import line, line_binding
-    from pearnly_dms import dms_flow, line_handlers
+    from pearnly_dms.intake import flow as dms_flow
+    from pearnly_dms.line import handlers as line_handlers
 
     IMG = "/tmp/dmscheck/idcard.jpg"
     LINE_UID = "U_verify_flow_0001"

@@ -138,7 +138,7 @@ def unbind(line_user_id: str) -> bool:
     return True
 
 # 网页端**没有**"给我自己发绑定码"的接口，这是有意的：
-# 老产品的绑定码只从**操作员花名册的某一行**发出（见 `pearnly_dms/roster.py` 的
+# 老产品的绑定码只从**操作员花名册的某一行**发出（见 `pearnly_dms/operators/roster.py` 的
 # `api_operator_bind_code`），因为绑定的对象是"某个操作员"，不是"当前登录的人"。
 # 曾经按自己理解的"独立绑定码页"写过一对 api_my_bindings / api_generate_bind_code，
 # 后来对照老产品发现那一页并不存在，就删了 —— 多出来的接口就是多出来的漏洞面。

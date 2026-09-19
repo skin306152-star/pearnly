@@ -55,7 +55,7 @@ _LEASE_PREFIX = "pearnly:dms:lease:"
 
 def _scope(endpoint: Any) -> str:
     """缓存/租约的作用域 = 本站在控制面里的这条 DMS 连接。"""
-    from pearnly_dms.dms_masters_cache import _eid
+    from pearnly_dms.masters.masters_cache import _eid
 
     return _eid(endpoint)
 
@@ -103,7 +103,7 @@ def _complete(cached: Optional[dict], require_complete: bool) -> bool:
         return False
     if not require_complete:
         return True
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     masters = cached["masters"]
     return all(isinstance(masters.get(key), list) for key in cache._COMPLETE_KEYS)
@@ -116,14 +116,14 @@ def _fresh(cached: Optional[dict], max_age_seconds: float, require_complete: boo
 
 
 def needs_refresh(endpoint: Any, max_age_seconds: float = SESSION_MAX_AGE_SECONDS) -> bool:
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     return not _fresh(cache._read(endpoint), max_age_seconds, True)
 
 
 def _wait_for_fresh(scope_key: str, max_age_seconds: float, require_complete: bool) -> dict:
     """别人正在刷 —— 等他出结果复用，不自己再登一次（那正是互踢的来源）。"""
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     deadline = time.monotonic() + REFRESH_WAIT_SECONDS
     while time.monotonic() < deadline:
@@ -160,7 +160,7 @@ def get_session_masters(
     require_complete: bool = True,
 ) -> Dict[str, Any]:
     """有界新鲜的**完整**主档；并发的刷新会被合并成一次真实登录。"""
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     scope_key = _scope(endpoint)
     cached = cache._read(scope_key)
@@ -201,7 +201,7 @@ def _paint_fresh(masters: dict, car_id: str, max_age_seconds: float) -> bool:
 
 
 def _paint_result(scope_key: str, car_id: str, max_age_seconds: float) -> Optional[list]:
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     cached = cache._read(scope_key)
     masters = (cached or {}).get("masters") or {}
@@ -218,8 +218,8 @@ def get_session_paints(
     require_complete: bool = True,
 ) -> list:
     """某车型的有界新鲜颜色，跨并发用户共享。"""
-    from pearnly_dms import dms_masters_cache as cache
-    from pearnly_dms.dms_client_base import DmsClientError
+    from pearnly_dms.masters import masters_cache as cache
+    from pearnly_dms.contracts.client_base import DmsClientError
 
     car_id = str(car_id or "")
     if not car_id:
@@ -275,7 +275,7 @@ def warm_cached_paints(
 
     每个车型单独持租约，避免和交互式刷新打架；一次登录服务整批。
     """
-    from pearnly_dms import dms_masters_cache as cache
+    from pearnly_dms.masters import masters_cache as cache
 
     scope_key = _scope(endpoint)
     cached = cache._read(scope_key)

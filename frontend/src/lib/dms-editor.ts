@@ -74,7 +74,7 @@ export interface Config {
 }
 
 const TICKET_KEY = "pearnly_dms_ticket";
-const API = "pearnly_dms.dms_browser_api.";
+const API = "pearnly_dms.editor.browser_api.";
 
 export function storedTicket(): string {
   try {

@@ -15,11 +15,11 @@ def main():
     import secrets
 
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_booking_qa as booking_qa
-    from pearnly_dms import dms_cards as cards
-    from pearnly_dms import dms_menu_cards as menu_cards
-    from pearnly_dms import dms_menu_flow as menu_flow
-    from pearnly_dms import dms_text_router as router
+    from pearnly_dms.booking.conversation import booking_qa as booking_qa
+    from pearnly_dms.line import cards as cards
+    from pearnly_dms.menu import menu_cards as menu_cards
+    from pearnly_dms.menu import menu_flow as menu_flow
+    from pearnly_dms.line import text_router as router
 
     ok = []
 
@@ -61,7 +61,7 @@ def main():
        and "pearnly.com" not in menu_cards.icon_base(), menu_cards.icon_base())
     # 门在 `menu_flow.can_query`（**不是**卡片构造器：构造器本来就该听参数）。
     # 查询那族已落地 → 现在就看花名册那一栏：给了画第 5 项，没给不画。
-    from pearnly_dms import dms_query_access as query_access
+    from pearnly_dms.query import query_access as query_access
 
     real_can = query_access.can_query
     allowed = {"v": True}
@@ -106,7 +106,7 @@ def main():
        is False)
     # 查询那族已落地：menu 态打 '5' 要**交给查询层**（权限门在它里面，不在这里重复判）
     opened = []
-    import pearnly_dms.dms_query_flow as query_flow
+    import pearnly_dms.query.query_flow as query_flow
 
     real_open = query_flow.open_query
     query_flow.open_query = lambda binding, luid, token: opened.append(luid)
@@ -131,7 +131,7 @@ def main():
 
     replied.clear()
     menu_flow._enqueue_flow = None
-    from pearnly_dms import dms_flow as flow_mod
+    from pearnly_dms.intake import flow as flow_mod
 
     enq = []
     flow_mod._enqueue = lambda job, fn, *args: enq.append((job, fn.__name__, args))
@@ -268,8 +268,8 @@ def main():
     store.clear_session(uid)
 
     # ── 7. `dms_flow` 的 postback 分发顺序 ───────────────────────────
-    from pearnly_dms import dms_booking_flow as booking_flow
-    from pearnly_dms import dms_flow as flow
+    from pearnly_dms.booking.conversation import booking_flow as booking_flow
+    from pearnly_dms.intake import flow as flow
 
     hits = []
     flow_mod_qa = booking_qa

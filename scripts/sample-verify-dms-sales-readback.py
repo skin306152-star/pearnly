@@ -12,8 +12,8 @@ HTML 夹具**把字段映射、分页、失败关闭都钉住（不连 DMS、不
 def main():
     from datetime import date
 
-    from pearnly_dms import dms_sales_readback as rb
-    from pearnly_dms.dms_client_base import DmsClientError
+    from pearnly_dms.query import sales_readback as rb
+    from pearnly_dms.contracts.client_base import DmsClientError
 
     ok = []
 

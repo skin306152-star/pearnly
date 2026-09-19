@@ -13,8 +13,8 @@
 def main():
     from decimal import Decimal
 
-    from pearnly_dms import dms_booking_ledger as ledger
-    from pearnly_dms.dms_qa_util import deposit_total
+    from pearnly_dms.booking import booking_ledger as ledger
+    from pearnly_dms.booking.conversation.qa_util import deposit_total
 
     results = []
 

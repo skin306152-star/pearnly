@@ -17,10 +17,11 @@ def main():
 
     import frappe
 
-    from pearnly_dms import dms_advisor, dms_intake
-    from pearnly_dms.dms_booking import book_in_session
-    from pearnly_dms.dms_company_banks import fetch_company_banks
-    from pearnly_dms.dms_qa_util import car_label, row_name
+    from pearnly_dms.masters import advisor as dms_advisor
+    from pearnly_dms.intake import service as dms_intake
+    from pearnly_dms.booking.service import book_in_session
+    from pearnly_dms.masters.company_banks import fetch_company_banks
+    from pearnly_dms.booking.conversation.qa_util import car_label, row_name
 
     ENDPOINT_LABEL = "MR.ERP DMS（测试账号）"
     PEOPLE_ID = "9990000000014"          # 上一轮建的那个测试客户

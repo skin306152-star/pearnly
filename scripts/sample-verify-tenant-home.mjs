@@ -180,7 +180,7 @@ function runRealOcr() {
 	const py = `def main():
     import os
     import frappe
-    from pearnly_dms.dms_ocr_service import recognize_id_card, DmsOcrError
+    from pearnly_dms.ocr.ocr_service import recognize_id_card, DmsOcrError
 
     names = sorted(os.listdir("/tmp/ocr-real/images"))
     if not names:

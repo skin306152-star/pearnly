@@ -15,7 +15,7 @@ A 部分（假管道）验的是"规则对不对"；这一半验的是"解析认
 def main():
     import frappe
 
-    from pearnly_dms.dms_adapter import MrerpDmsAdapter
+    from pearnly_dms.adapter.session import MrerpDmsAdapter
 
     ENDPOINT_LABEL = "MR.ERP DMS（测试账号）"
     results = []

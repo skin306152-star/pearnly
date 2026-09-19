@@ -33,13 +33,14 @@ class FakeTransport:
         return Resp(200, "", b"")
 
 
-from pearnly_dms.dms_transport import Resp  # noqa: E402
+from pearnly_dms.client.transport import Resp  # noqa: E402
 
 
 def main():
-    from pearnly_dms import dms_booking_submit as submit
-    from pearnly_dms import dms_booking_readback as rb
-    from pearnly_dms.dms_client import DmsClient, DmsClientError
+    from pathlib import Path
+    from pearnly_dms.booking import booking_submit as submit
+    from pearnly_dms.booking import booking_readback as rb
+    from pearnly_dms.client.gateway import DmsClient, DmsClientError
 
     results = []
 
@@ -184,9 +185,10 @@ def main():
     # 链唯一进建单的门，漏透传等于登记永远不生效，而症状只在超时/重发时才出现。
     import ast
 
-    from pearnly_dms import dms_booking as booking_mod
+    from importlib.util import find_spec
 
-    tree = ast.parse(open(booking_mod.__file__, encoding="utf-8").read())
+    # Inspect the forwarding contract without importing runtime adapters.
+    tree = ast.parse(Path(find_spec("pearnly_dms.booking.service").origin).read_text(encoding="utf-8"))
     forwarded = False
     for node in ast.walk(tree):
         if not (isinstance(node, ast.FunctionDef) and node.name == "book_in_session"):

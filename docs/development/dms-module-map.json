@@ -1,0 +1,164 @@
+{
+  "baseline": "0411949b7b27d5d13ea946694a11b50a5e4e03ec",
+  "modules": {
+    "pearnly_dms.dms_models": "pearnly_dms.contracts.models",
+    "pearnly_dms.dms_client_base": "pearnly_dms.contracts.client_base",
+    "pearnly_dms.dms_id_validate": "pearnly_dms.contracts.id_validate",
+    "pearnly_dms.dms_text_fields": "pearnly_dms.contracts.text_fields",
+    "pearnly_dms.dms_payments": "pearnly_dms.contracts.payments",
+    "pearnly_dms.dms_client": "pearnly_dms.client.gateway",
+    "pearnly_dms.dms_client_forms": "pearnly_dms.client.client_forms",
+    "pearnly_dms.dms_client_intake": "pearnly_dms.client.client_intake",
+    "pearnly_dms.dms_client_ops": "pearnly_dms.client.client_ops",
+    "pearnly_dms.dms_docno": "pearnly_dms.client.docno",
+    "pearnly_dms.dms_transport": "pearnly_dms.client.transport",
+    "pearnly_dms.dms_adapter": "pearnly_dms.adapter.session",
+    "pearnly_dms.dms_admin_read": "pearnly_dms.adapter.admin_read",
+    "pearnly_dms.dms_push": "pearnly_dms.adapter.push",
+    "pearnly_dms.dms_booking": "pearnly_dms.booking.service",
+    "pearnly_dms.dms_booking_attempt": "pearnly_dms.booking.booking_attempt",
+    "pearnly_dms.dms_booking_car_details": "pearnly_dms.booking.booking_car_details",
+    "pearnly_dms.dms_booking_customer": "pearnly_dms.booking.booking_customer",
+    "pearnly_dms.dms_booking_ledger": "pearnly_dms.booking.booking_ledger",
+    "pearnly_dms.dms_booking_org": "pearnly_dms.booking.booking_org",
+    "pearnly_dms.dms_booking_payload": "pearnly_dms.booking.booking_payload",
+    "pearnly_dms.dms_booking_payments": "pearnly_dms.booking.booking_payments",
+    "pearnly_dms.dms_booking_preflight": "pearnly_dms.booking.booking_preflight",
+    "pearnly_dms.dms_booking_readback": "pearnly_dms.booking.booking_readback",
+    "pearnly_dms.dms_booking_submit": "pearnly_dms.booking.booking_submit",
+    "pearnly_dms.dms_booking_flow": "pearnly_dms.booking.conversation.booking_flow",
+    "pearnly_dms.dms_booking_qa": "pearnly_dms.booking.conversation.booking_qa",
+    "pearnly_dms.dms_booking_qa_pages": "pearnly_dms.booking.conversation.booking_qa_pages",
+    "pearnly_dms.dms_booking_qa_payment": "pearnly_dms.booking.conversation.booking_qa_payment",
+    "pearnly_dms.dms_booking_qa_start": "pearnly_dms.booking.conversation.booking_qa_start",
+    "pearnly_dms.dms_booking_qa_sync": "pearnly_dms.booking.conversation.booking_qa_sync",
+    "pearnly_dms.dms_booking_qa_transfer": "pearnly_dms.booking.conversation.booking_qa_transfer",
+    "pearnly_dms.dms_qa_cards": "pearnly_dms.booking.conversation.qa_cards",
+    "pearnly_dms.dms_qa_payment_cards": "pearnly_dms.booking.conversation.qa_payment_cards",
+    "pearnly_dms.dms_qa_util": "pearnly_dms.booking.conversation.qa_util",
+    "pearnly_dms.dms_booking_edit": "pearnly_dms.editor.booking_edit",
+    "pearnly_dms.dms_browser_api": "pearnly_dms.editor.browser_api",
+    "pearnly_dms.dms_browser_ticket": "pearnly_dms.editor.browser_ticket",
+    "pearnly_dms.dms_customer_edit": "pearnly_dms.editor.customer_edit",
+    "pearnly_dms.dms_edit_link": "pearnly_dms.editor.edit_link",
+    "pearnly_dms.dms_edit_snapshot": "pearnly_dms.editor.edit_snapshot",
+    "pearnly_dms.dms_customer_diff": "pearnly_dms.intake.customer_diff",
+    "pearnly_dms.dms_customer_geo": "pearnly_dms.intake.customer_geo",
+    "pearnly_dms.dms_draft": "pearnly_dms.intake.draft",
+    "pearnly_dms.dms_flow": "pearnly_dms.intake.flow",
+    "pearnly_dms.dms_intake": "pearnly_dms.intake.service",
+    "pearnly_dms.id_card": "pearnly_dms.intake.id_card",
+    "pearnly_dms.dms_advisor": "pearnly_dms.masters.advisor",
+    "pearnly_dms.dms_company_banks": "pearnly_dms.masters.company_banks",
+    "pearnly_dms.dms_employees": "pearnly_dms.masters.employees",
+    "pearnly_dms.dms_master_contract": "pearnly_dms.masters.master_contract",
+    "pearnly_dms.dms_master_rows": "pearnly_dms.masters.master_rows",
+    "pearnly_dms.dms_masters_cache": "pearnly_dms.masters.masters_cache",
+    "pearnly_dms.dms_cards": "pearnly_dms.line.cards",
+    "pearnly_dms.dms_commands": "pearnly_dms.line.commands",
+    "pearnly_dms.dms_errors": "pearnly_dms.line.errors",
+    "pearnly_dms.dms_out": "pearnly_dms.line.out",
+    "pearnly_dms.dms_text_router": "pearnly_dms.line.text_router",
+    "pearnly_dms.line_handlers": "pearnly_dms.line.handlers",
+    "pearnly_dms.dms_approval_cards": "pearnly_dms.approval.approval_cards",
+    "pearnly_dms.dms_approval_flow": "pearnly_dms.approval.approval_flow",
+    "pearnly_dms.dms_approval_store": "pearnly_dms.approval.approval_store",
+    "pearnly_dms.dms_query_access": "pearnly_dms.query.query_access",
+    "pearnly_dms.dms_query_cards": "pearnly_dms.query.query_cards",
+    "pearnly_dms.dms_query_flow": "pearnly_dms.query.query_flow",
+    "pearnly_dms.dms_sales_readback": "pearnly_dms.query.sales_readback",
+    "pearnly_dms.dms_menu_cards": "pearnly_dms.menu.menu_cards",
+    "pearnly_dms.dms_menu_flow": "pearnly_dms.menu.menu_flow",
+    "pearnly_dms.dms_ocr_review": "pearnly_dms.ocr.ocr_review",
+    "pearnly_dms.dms_ocr_service": "pearnly_dms.ocr.ocr_service",
+    "pearnly_dms.ocr_id_card": "pearnly_dms.ocr.ocr_id_card",
+    "pearnly_dms.roster": "pearnly_dms.operators.roster",
+    "pearnly_dms.api": "pearnly_dms.connections.api"
+  },
+  "compatibility": {
+    "pearnly_dms.dms_booking_flow": {
+      "module": "pearnly_dms.booking.conversation.booking_flow",
+      "exports": [
+        "_execute_booking"
+      ]
+    },
+    "pearnly_dms.dms_browser_api": {
+      "module": "pearnly_dms.editor.browser_api",
+      "exports": [
+        "browser_auth",
+        "browser_config",
+        "browser_draft",
+        "browser_geo",
+        "browser_paints",
+        "browser_save",
+        "browser_text"
+      ]
+    },
+    "pearnly_dms.dms_flow": {
+      "module": "pearnly_dms.intake.flow",
+      "exports": [
+        "process_image",
+        "run_dedup",
+        "write_create",
+        "write_update"
+      ]
+    },
+    "pearnly_dms.id_card": {
+      "module": "pearnly_dms.intake.id_card",
+      "exports": [
+        "api_confirm_intake",
+        "api_create_intake",
+        "api_list_intake",
+        "api_match_customer",
+        "api_queue_push",
+        "api_summary"
+      ]
+    },
+    "pearnly_dms.line_handlers": {
+      "module": "pearnly_dms.line.handlers",
+      "exports": [
+        "handle"
+      ]
+    },
+    "pearnly_dms.dms_approval_flow": {
+      "module": "pearnly_dms.approval.approval_flow",
+      "exports": [
+        "_execute_approved"
+      ]
+    },
+    "pearnly_dms.dms_query_flow": {
+      "module": "pearnly_dms.query.query_flow",
+      "exports": [
+        "_run_records",
+        "_run_top"
+      ]
+    },
+    "pearnly_dms.ocr_id_card": {
+      "module": "pearnly_dms.ocr.ocr_id_card",
+      "exports": [
+        "api_status"
+      ]
+    },
+    "pearnly_dms.roster": {
+      "module": "pearnly_dms.operators.roster",
+      "exports": [
+        "api_create_operator",
+        "api_delete_operator",
+        "api_list_operators",
+        "api_operator_bind_code",
+        "api_set_operator_status",
+        "api_update_operator"
+      ]
+    },
+    "pearnly_dms.api": {
+      "module": "pearnly_dms.connections.api",
+      "exports": [
+        "get_connection",
+        "save_connection",
+        "set_connection_enabled",
+        "test_credentials",
+        "test_endpoint"
+      ]
+    }
+  }
+}

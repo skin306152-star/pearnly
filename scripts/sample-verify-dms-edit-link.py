@@ -14,7 +14,7 @@
 def main():
     import frappe
 
-    from pearnly_dms import dms_edit_link as e
+    from pearnly_dms.editor import edit_link as e
 
     results = []
 

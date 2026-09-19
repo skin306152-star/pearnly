@@ -34,15 +34,17 @@ class FakeTransport:
         return Resp(200, "", b"")
 
 
-from pearnly_dms.dms_transport import Resp  # noqa: E402
+from pearnly_dms.client.transport import Resp  # noqa: E402
 
 
 def main():
     from datetime import date
 
-    from pearnly_dms import dms_admin_read, dms_booking_org, dms_booking_payload
-    from pearnly_dms.dms_client import DmsClient, DmsClientError
-    from pearnly_dms.dms_models import BookingDefaults
+    from pearnly_dms.adapter import admin_read as dms_admin_read
+    from pearnly_dms.booking import booking_org as dms_booking_org
+    from pearnly_dms.booking import booking_payload as dms_booking_payload
+    from pearnly_dms.client.gateway import DmsClient, DmsClientError
+    from pearnly_dms.contracts.models import BookingDefaults
 
     results = []
 

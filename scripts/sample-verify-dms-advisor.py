@@ -15,7 +15,8 @@
 
 
 def main():
-    from pearnly_dms import dms_advisor, dms_masters_cache
+    from pearnly_dms.masters import advisor as dms_advisor
+    from pearnly_dms.masters import masters_cache as dms_masters_cache
 
     results = []
 
@@ -69,7 +70,7 @@ def main():
         calls.append((force_refresh, require_complete))
         return {"advisors": ADVISORS, "employees": EMPLOYEES}
 
-    import pearnly_dms.dms_masters_cache as cache_mod
+    import pearnly_dms.masters.masters_cache as cache_mod
 
     real_get = cache_mod.get_masters
     real_defaults = dms_advisor.booking_defaults

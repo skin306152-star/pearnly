@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """DMS 操作员档案。
 
-**校验放在服务层（`pearnly_dms.roster`）**，这里只留 DocType 自己的约束 ——
+**校验放在服务层（`pearnly_dms.operators.roster`）**，这里只留 DocType 自己的约束 ——
 两边各写一套规则迟早不一致，而"谁能改花名册"是权限问题，不属于文档校验。
 """
 

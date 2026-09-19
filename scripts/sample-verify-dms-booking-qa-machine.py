@@ -18,8 +18,8 @@
 
 
 def main():
-    from pearnly_dms import dms_booking_qa as machine
-    from pearnly_dms import dms_qa_cards as qa_cards
+    from pearnly_dms.booking.conversation import booking_qa as machine
+    from pearnly_dms.booking.conversation import qa_cards as qa_cards
 
     ok = []
 

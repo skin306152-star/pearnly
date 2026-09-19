@@ -15,10 +15,10 @@ def main():
     import secrets
 
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_cards as cards
-    from pearnly_dms import dms_query_cards as qc
-    from pearnly_dms import dms_query_flow as qf
-    from pearnly_dms import dms_sales_readback as rb
+    from pearnly_dms.line import cards as cards
+    from pearnly_dms.query import query_cards as qc
+    from pearnly_dms.query import query_flow as qf
+    from pearnly_dms.query import sales_readback as rb
 
     ok = []
 
@@ -317,10 +317,10 @@ def main():
     ck("流程层里一个泰文字符都不留（分页过期那句也已进包）", not thai, thai[:5])
 
     # ── 10. 接线：菜单第 5 项 / 单字 5 / 路由 / postback 分发 ──────────
-    from pearnly_dms import dms_flow
-    from pearnly_dms import dms_menu_cards as mc
-    from pearnly_dms import dms_menu_flow as mf
-    from pearnly_dms import dms_text_router as router
+    from pearnly_dms.intake import flow as dms_flow
+    from pearnly_dms.menu import menu_cards as mc
+    from pearnly_dms.menu import menu_flow as mf
+    from pearnly_dms.line import text_router as router
 
     readonly = {"v": False}
 

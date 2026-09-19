@@ -8,7 +8,7 @@
 //              让对方在 LINE 加好友、把码发过来，可重新生成、显示剩余有效期。
 //
 // 老产品里这一页**仅老板（owner）可见**，员工直调后端会 403。这里前端照做
-// （后端 `pearnly_dms.roster._require_admin` 才是真正的边界）。
+// （后端 `pearnly_dms.operators.roster._require_admin` 才是真正的边界）。
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { Button, Dialog } from "frappe-ui";
 import { createTexts } from "../../lib/i18n";
@@ -75,7 +75,7 @@ async function refresh(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const data = await call<{ items: Operator[] }>("pearnly_dms.roster.api_list_operators");
+    const data = await call<{ items: Operator[] }>("pearnly_dms.operators.roster.api_list_operators");
     rows.value = data.items || [];
   } catch (err) {
     error.value = explain(err);
@@ -100,7 +100,7 @@ async function run(key: string, fn: () => Promise<void>): Promise<void> {
 function createOperator(): Promise<void> {
   return run("create", async () => {
     await call(
-      "pearnly_dms.roster.api_create_operator",
+      "pearnly_dms.operators.roster.api_create_operator",
       {
         display_name: draft.display_name.trim(),
         dms_username: draft.dms_username.trim(),
@@ -152,7 +152,7 @@ function tick(): void {
 async function issueCode(row: Operator, open = true): Promise<void> {
   await run(`code:${row.name}`, async () => {
     const data = await call<{ code: string; expires_at: string; expires_in: number }>(
-      "pearnly_dms.roster.api_operator_bind_code",
+      "pearnly_dms.operators.roster.api_operator_bind_code",
       { name: row.name },
       { method: "POST" },
     );
@@ -194,7 +194,7 @@ function saveEdit(): Promise<void> {
       return;
     }
     await call(
-      "pearnly_dms.roster.api_update_operator",
+      "pearnly_dms.operators.roster.api_update_operator",
       {
         name: row.name,
         dms_username: editForm.dms_username || null,
@@ -234,7 +234,7 @@ function toggleStatus(row: Operator): Promise<void> {
       () =>
         run(`status:${row.name}`, async () => {
           const res = await call<{ status: string }>(
-            "pearnly_dms.roster.api_set_operator_status",
+            "pearnly_dms.operators.roster.api_set_operator_status",
             { name: row.name, status: toInactive ? "inactive" : "active" },
             { method: "POST" },
           );
@@ -253,7 +253,7 @@ function removeOperator(row: Operator): Promise<void> {
       () =>
         run(`del:${row.name}`, async () => {
           await call(
-            "pearnly_dms.roster.api_delete_operator",
+            "pearnly_dms.operators.roster.api_delete_operator",
             { name: row.name },
             { method: "POST" },
           );

@@ -13,8 +13,8 @@ def main():
     import secrets
 
     from pearnly_core import line_session as store
-    from pearnly_dms import dms_booking_flow as flow
-    from pearnly_dms import dms_cards as cards
+    from pearnly_dms.booking.conversation import booking_flow as flow
+    from pearnly_dms.line import cards as cards
 
     ok = []
 
@@ -263,7 +263,7 @@ def main():
 
     sent_structured.clear()
     calls = []
-    import pearnly_dms.dms_booking_qa as bq
+    import pearnly_dms.booking.conversation.booking_qa as bq
 
     bq.send_step = lambda *a, **k: calls.append(a)
     uid13 = "verify-flow-" + secrets.token_hex(4)

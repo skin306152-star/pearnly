@@ -20,7 +20,7 @@ def main():
 
     import frappe
 
-    from pearnly_dms import dms_query_cards as qc
+    from pearnly_dms.query import query_cards as qc
     from pearnly_dms import i18n
 
     ok = []
