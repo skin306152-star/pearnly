@@ -1,7 +1,10 @@
 <!doctype html>
-<!-- 产品业务前端的入口页（三个产品共用这一个壳）。**故意不写成模板**：
-     这条路径上没有走 Frappe 的模板渲染（实测 `{{ }}` 原样输出），
-     写成模板会得到一页没挂任何资源的空壳。
+<!-- 产品业务前端的入口页（三个产品共用这一个壳）。
+
+     ⚠️ **这个文件会过 Frappe 的 Jinja 渲染**：所以正文里不能出现双层花括号
+     （哪怕是写在注释里举例也不行 —— 注释照样被 Jinja 解析，直接抛模板语法错，
+     整页 417。2026-09-19 踩过：一条说明里写了那对花括号，页面就打不开了）。
+     要举例就写成 `花括号` 这种描述，别真写符号。
 
      资源标签**不抄在这里**：前端产物带内容哈希（`index.B0z1ErHN.js`），
      抄一份就得每次构建跟着改，忘一次就是白屏、还看不出原因。
@@ -13,19 +16,39 @@
     <title>Pearnly</title>
     <script>
       // 同步拿（XHR）：异步注入会让首屏先闪一下空壳。
+      //
+      // ⚠️ 不能用 innerHTML 塞标签：**innerHTML 建出来的 script/link 浏览器不会执行、
+      // 也不会加载**（拿到的是被标记成"已启动"的空壳）。必须逐个 createElement 再设属性。
       (function () {
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "/assets/pearnly_core/pearnly-app/index.html", false);
         try { xhr.send(null); } catch (e) { return; }
         if (xhr.status !== 200) return;
         var html = xhr.responseText;
-        var re = /<(script|link)\b[^>]*>(?:<\/script>)?/gi;
-        var m;
-        while ((m = re.exec(html)) !== null) {
-          var box = document.createElement("div");
-          box.innerHTML = m[0];
-          var node = box.firstChild;
-          if (node && node.tagName) document.head.appendChild(node);
+        var tags = /<(script|link)\b[^>]*>/gi;
+        var attrRe = /([a-zA-Z-]+)="([^"]*)"/g;
+        var tag;
+        while ((tag = tags.exec(html)) !== null) {
+          var raw = tag[0];
+          var name = tag[1].toLowerCase();
+          var attrs = {};
+          var a;
+          attrRe.lastIndex = 0;
+          while ((a = attrRe.exec(raw)) !== null) attrs[a[1].toLowerCase()] = a[2];
+          var el;
+          if (name === "script") {
+            if (!attrs.src) continue;
+            el = document.createElement("script");
+            el.src = attrs.src;
+            if (attrs.type) el.type = attrs.type;
+          } else {
+            if (!attrs.href) continue;
+            el = document.createElement("link");
+            el.rel = attrs.rel || "stylesheet";
+            el.href = attrs.href;
+          }
+          if ("crossorigin" in attrs) el.crossOrigin = "anonymous";
+          document.head.appendChild(el);
         }
       })();
     </script>
