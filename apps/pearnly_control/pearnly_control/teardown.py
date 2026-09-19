@@ -173,7 +173,14 @@ def api_plan_teardown(tenant: str) -> dict:
 
 
 def _placeholder_issue(tenant: str) -> str:
-    """只剩租户、没有发号单时的占位单：把能对的上的信息尽量填上，别留空壳。"""
+    """只剩租户、没有发号单时的占位单：把能对的上的信息尽量填上，别留空壳。
+
+    **故意跳过发号单的业务校验**（`ignore_validate`）：这张单子是拆除流程的锚点
+    （`Pearnly Provisioning Request.issue` 是必填），不是一次开户。发号单的校验里
+    有一条"必须选产品"，而这里恰恰是"产品早就不在了"的残局 —— 不跳过就建不出来，
+    表现是**删除租户点下去只弹一句「请选择一个产品」，而界面上根本没有产品可选**
+    （2026-09-19 实测，就是用户卡住的那一步）。
+    """
     tenant_name = frappe.db.get_value(TENANT, tenant, "tenant_name") or tenant
     doc = frappe.get_doc({
         "doctype": ISSUE,
@@ -183,8 +190,14 @@ def _placeholder_issue(tenant: str) -> str:
         "account_password": frappe.generate_hash(length=16),
         "tenant": tenant,
         "status": "draft",
+        "target": frappe.db.get_value("Pearnly Target", {"is_default": 1}, "name"),
         "notes": "Auto-created placeholder for teardown",
     })
+    # Frappe 跳过校验的方式是打 flag（`insert(ignore_validate=…)` 没有这个参数，实测 TypeError）。
+    # 两个都要：`ignore_validate` 跳过 DocType 自己的规则（"必须选产品"），
+    # `ignore_mandatory` 跳过"apps 是必填"—— 这张单子本来就没有、也不该有产品。
+    doc.flags.ignore_validate = True
+    doc.flags.ignore_mandatory = True
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
     return doc.name
