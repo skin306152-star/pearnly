@@ -252,3 +252,8 @@ Invalid billing reference,課金参照番号が無効です
 Connect cloud billing,クラウド課金に接続
 Set up OCR,OCR を設定
 Enable HTTPS access,HTTPS アクセスを有効化
+LINE credentials are required before activation.,有効化する前に LINE の認証情報を入力してください。
+LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
+Open the LINE channel,LINEチャネルを開く
+Site URL,サイトのURL
+The address this tenant is reached at.,このテナントのアクセス先アドレス

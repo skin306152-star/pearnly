@@ -93,10 +93,14 @@ def main():
         config(pearnly_ocr_backend="vertex", pearnly_ocr_credentials="/run/secrets/ocr.json",
                pearnly_ocr_project="pearnly", pearnly_ocr_location="asia-southeast1")
     elif action == "set_line":
-        assert p["configured"] and p["channel_secret"] and p["channel_access_token"]
-        config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
-               pearnly_line_channel_access_token=p["channel_access_token"],
-               pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
+        if p.get("clear_credentials"):
+            config(pearnly_line_channel_id="", pearnly_line_channel_secret="",
+                   pearnly_line_channel_access_token="", pearnly_line_liff_id="")
+        else:
+            assert p["configured"] and p["channel_secret"] and p["channel_access_token"]
+            config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
+                   pearnly_line_channel_access_token=p["channel_access_token"],
+                   pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()

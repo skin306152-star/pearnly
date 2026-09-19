@@ -25,6 +25,20 @@ assert provisioning._issuer_url(target) == "https://auth.pearnly.com/realms/pear
 assert not any(job["payload"].get("site", "").endswith(".pearnly.com") for job in provisioning.next_steps())
 print("PASS target routing, local TEST URL preservation, no cloud realm secret in tenant payload")
 
+# A native LINE form must display the same public URL as its cloud deployment.
+from unittest.mock import patch
+from pearnly_control.pearnly_control.doctype.pearnly_line_channel.pearnly_line_channel import PearnlyLINEChannel
+channel = frappe.new_doc("Pearnly LINE Channel")
+channel.deployment = "DEP-2026-0191"
+def deployment_value(doctype, name, fields, **kwargs):
+    assert "url" in fields
+    return frappe._dict(product="dms", site_name="cloudcheck0919.pearnly.com", port=0,
+                        url="https://cloudcheck0919.pearnly.com")
+with patch.object(frappe.db, "get_value", deployment_value):
+    PearnlyLINEChannel.validate(channel)
+assert channel.webhook_url == "https://cloudcheck0919.pearnly.com/api/method/pearnly_core.line.webhook"
+print("PASS native LINE form uses deployment HTTPS URL, not local port rules")
+
 if "--fixture" in sys.argv:
     email = "cloudcheck0919@pearnly.invalid"
     existing = frappe.db.get_value("Pearnly Issue", {"account_email": email}, "name")

@@ -252,3 +252,8 @@ Invalid billing reference,无效的计费编号
 Connect cloud billing,接通云端计费
 Set up OCR,配置 OCR
 Enable HTTPS access,启用 HTTPS 访问
+LINE credentials are required before activation.,启用前请填写 LINE 密钥和访问令牌。
+LINE configuration is being applied. Try again shortly.,LINE 配置正在下发，请稍后重试。
+Open the LINE channel,打开 LINE 渠道
+Site URL,站点地址
+The address this tenant is reached at.,这个租户的访问地址

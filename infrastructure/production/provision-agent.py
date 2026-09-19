@@ -62,6 +62,26 @@ def compose(group, *args):
                 str(ROOT / "infrastructure/production/compose.yml"), "--profile", group, *args])
 
 
+def restart_group(group):
+    """Restart one product's app processes.
+
+    Why this is not optional after a config write: Frappe caches `site_config.json`
+    inside each web process (`frappe.config._cached_get_site_config`, a process-local
+    cache with a coarse TTL). Writing a key is therefore **not** visible to a running
+    worker right away — measured on this host, a changed secret kept being accepted by
+    the tenant webhook for up to about two minutes. For turning a channel off that
+    window is a security gap: the credentials are gone from disk while the endpoint
+    still verifies the old secret. So every operator-visible config change restarts the
+    product here and takes effect immediately.
+    """
+    # `compose up -d` is a no-op when nothing about the containers changed, which is
+    # exactly our case (same image, same volumes) — it left the old processes running
+    # and the new configuration unread. `restart` is the operation that actually gives
+    # the product fresh processes.
+    compose(group, "restart", "-t", "30", *[group + "-" + suffix for suffix in
+            ("web", "worker", "scheduler", "socketio", "frontend")])
+
+
 def site_step(job):
     group = job["payload"]["group"]
     return run(["docker", "run", "--rm", "-i", "--user", "0", "--network", "pearnly-production_runtime",
@@ -147,8 +167,7 @@ def main():
             manifest.chmod(0o600)
         image()
         if action == "restart_web":
-            compose(p["group"], "up", "-d", *[p["group"] + "-" + suffix for suffix in
-                    ("web", "worker", "scheduler", "socketio", "frontend")])
+            restart_group(p["group"])
         elif action == "drop_site":
             path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")
             path.unlink(missing_ok=True)
@@ -166,10 +185,16 @@ def main():
             manifest.write_text(json.dumps({**owner, "deleted": True}))
         elif action == "publish_site":
             publish(p)
-        elif action == "set_line" and not p.get("configured"):
+        elif action == "set_line" and not p.get("configured") and not p.get("clear_credentials"):
             return {"status": "skipped"}
         else:
             site_step(job)
+            # `verify_site` is the last step of a provisioning run (the local runner maps
+            # `mark_active` to it) and `set_line` is the "configure the channel after the
+            # tenant exists" step. Both must leave the product serving the configuration
+            # that was just written, not the copy its workers happen to still hold.
+            if action in {"verify_site", "set_line"}:
+                restart_group(p["group"])
         return {"status": "done"}
 
 

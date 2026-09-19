@@ -226,8 +226,14 @@ volumes:
     external: true
     name: pearnly-production_sites-billing
   sites-dms:
+    external: true
+    name: pearnly-production_sites-dms
   sites-erp:
+    external: true
+    name: pearnly-production_sites-erp
   sites-cowork:
+    external: true
+    name: pearnly-production_sites-cowork
 
 networks:
   runtime:

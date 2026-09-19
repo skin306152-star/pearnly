@@ -272,8 +272,8 @@ def _line_payload(dep, site: str, group: str) -> dict:
     看进度的人就能一眼分清"这个租户还没配 LINE"和"这一步被漏了"。
     """
     channel = frappe.db.get_value(
-        LINE_CHANNEL, {"deployment": dep.name, "status": ("!=", "suspended")},
-        ["channel_id", "channel_secret", "channel_access_token", "liff_id"],
+        LINE_CHANNEL, {"deployment": dep.name},
+        ["name", "status", "channel_id", "channel_secret", "channel_access_token", "liff_id"],
         as_dict=True,
     )
     payload = {
@@ -285,12 +285,18 @@ def _line_payload(dep, site: str, group: str) -> dict:
     if not channel:
         payload["configured"] = False
         return payload
+    cloud = infra.is_cloud(frappe.db.get_value(ISSUE, dep.issue, "target"))
+    if channel.status == "suspended" or (cloud and channel.status != "active"):
+        payload.update(configured=False, clear_credentials=cloud)
+        return payload
 
     from frappe.utils.password import get_decrypted_password
 
     def _secret(field: str) -> str:
+        # 用查出来的**单据名**，不按命名规则拼：拼出来的是"猜的"，改名或换命名规则后
+        # 会静默取到空串（表现是"渠道配好了，站点却发不出消息"）。
         return get_decrypted_password(
-            LINE_CHANNEL, f"LINE-{dep.name}", field, raise_exception=False
+            LINE_CHANNEL, channel.name, field, raise_exception=False
         ) or ""
 
     payload.update({
@@ -301,6 +307,51 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "channel_access_token": _secret("channel_access_token"),
     })
     return payload
+
+
+def queue_cloud_line_config(channel, *, enabled: bool | None = None):
+    """把"这条渠道现在长什么样"重排成云端的 set_line 步骤。**开通之后再配渠道就走这里。**
+
+    为什么不是"开通时配好就完事"：真实的顺序是**先开通租户、后配渠道**（用户 2026-09-19
+    问的就是这件事）。开通时渠道还不存在，那一步记 `skipped`；等这里补上凭据，
+    必须能把那一步翻回 `pending` 并且**带上现在的凭据**，否则站点永远拿不到密钥，
+    而看进度的人以为这件事处理过了。
+
+    `enabled` 默认按渠道自己的状态算；删除渠道时显式传 False（那时单据还是 active）。
+    """
+    if enabled is None:
+        enabled = channel.status == "active"
+    if not channel.deployment or not frappe.db.exists(DEPLOYMENT, channel.deployment):
+        return  # 部署/租户已经拆掉了，没有站点可下发
+    dep = frappe.get_doc(DEPLOYMENT, channel.deployment)
+    target = frappe.db.get_value(ISSUE, dep.issue, "target")
+    if not infra.is_cloud(target):
+        return
+    tenant = frappe.db.get_value(ISSUE, dep.issue, "tenant")
+    if tenant and frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting":
+        return  # 正在拆除：站点马上要被删，不要再往它上面写配置
+    parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
+    if not parent:
+        return  # The initial provisioning plan will pick up these credentials.
+    req = frappe.get_doc(REQUEST, parent, for_update=True)
+    step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_line"), None)
+    if not step:
+        return
+    if step.status == "running":
+        frappe.throw(_("LINE configuration is being applied. Try again shortly."))
+    secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
+    token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
+    if enabled and not (secret and token):
+        frappe.throw(_("LINE credentials are required before activation."))
+    payload = {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
+               "configured": enabled, "clear_credentials": not enabled,
+               "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
+               "channel_secret": secret, "channel_access_token": token}
+    step.payload = json.dumps(payload)
+    step.status, step.output, step.finished_at = "pending", "", None
+    req.status, req.error, req.finished_at = "pending", "", None
+    req.save(ignore_permissions=True)
+    # Commit together with the channel save. The runner sees only committed state.
 
 
 def _roles_for(issue, dep) -> dict:

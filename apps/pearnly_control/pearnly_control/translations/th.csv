@@ -252,3 +252,8 @@ Invalid billing reference,เลขอ้างอิงการเรียก
 Connect cloud billing,เชื่อมต่อระบบเรียกเก็บเงินบนคลาวด์
 Set up OCR,ตั้งค่า OCR
 Enable HTTPS access,เปิดใช้งานการเข้าถึงผ่าน HTTPS
+LINE credentials are required before activation.,กรุณากรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน
+LINE configuration is being applied. Try again shortly.,กำลังนำการตั้งค่า LINE ไปใช้ กรุณาลองอีกครั้งในอีกสักครู่
+Open the LINE channel,เปิดช่องทาง LINE
+Site URL,ที่อยู่เว็บไซต์
+The address this tenant is reached at.,ที่อยู่ที่เข้าถึงผู้เช่ารายนี้

@@ -243,3 +243,8 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 Connect cloud billing,Connect cloud billing
 Set up OCR,Set up OCR
 Enable HTTPS access,Enable HTTPS access
+LINE credentials are required before activation.,LINE credentials are required before activation.
+LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
+Open the LINE channel,Open the LINE channel
+Site URL,Site URL
+The address this tenant is reached at.,The address this tenant is reached at.
