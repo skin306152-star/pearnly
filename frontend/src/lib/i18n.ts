@@ -42,6 +42,31 @@ export function rememberLocale(locale: Locale): void {
   }
 }
 
+/**
+ * 当前语言是**全局共享**的一份，不是每个取词器各一份。
+ *
+ * 为什么必须共享：侧栏（App.vue）和页面正文（HomePage.vue 等）各自建取词器；
+ * 如果各自持有语言状态，切语言时只会变一半 —— 侧栏泰文、正文中文，
+ * 而且"按账号语言设定"要写两遍、漏一处就不一致。
+ */
+const current = ref<Locale>(cachedLocale() || guessLocale());
+
+export const localeRef: Ref<Locale> = current;
+
+/**
+ * 按**账号**的语言设定（ADR-006：账号为准，浏览器只当缓存）。
+ *
+ * 原来前端只按浏览器语言猜：同一个账号换台电脑就看到不同语言，
+ * 与"账号为准"直接冲突。
+ */
+export function adoptAccountLocale(value: string): void {
+  const next = (value || "").slice(0, 2) as Locale;
+  if (!LOCALES.includes(next)) return;
+  current.value = next;
+  rememberLocale(next);
+  document.documentElement.lang = next;
+}
+
 /** 没缓存时按浏览器语言猜（`zh-CN` → `zh`），猜不到就是泰语。 */
 export function guessLocale(): Locale {
   const nav = (navigator.language || "").toLowerCase();
@@ -60,7 +85,6 @@ export interface Texts {
   load: () => Promise<void>;
   setLocale: (locale: Locale) => void;
   /** 按**账号**的语言设定（ADR-006：账号为准，浏览器只当缓存）。 */
-  adoptAccountLocale: (locale: string) => void;
 }
 
 /**
@@ -76,7 +100,7 @@ export interface Texts {
  */
 export function createTexts(keys: string[] = [], prefix = ""): Texts {
   const texts = ref<Record<string, Record<string, string>>>({});
-  const locale = ref<Locale>(cachedLocale() || guessLocale());
+  const locale = current;
 
   function t(key: string): string {
     const bag = texts.value[key];
@@ -110,20 +134,5 @@ export function createTexts(keys: string[] = [], prefix = ""): Texts {
     document.documentElement.lang = next;
   }
 
-  /**
-   * 用账号上的语言。
-   *
-   * 规矩是**账号为准、浏览器只当缓存**（ADR-006）：站点按账号语言渲染，
-   * 前端不该自己按浏览器语言猜 —— 那会让同一个账号在不同电脑上看到不同语言。
-   * 只有账号上没设语言时才退回浏览器缓存/猜测。
-   */
-  function adoptAccountLocale(value: string): void {
-    const next = (value || "").slice(0, 2) as Locale;
-    if (!LOCALES.includes(next)) return;
-    locale.value = next;
-    rememberLocale(next);
-    document.documentElement.lang = next;
-  }
-
-  return { texts, locale, t, tf, load, setLocale, adoptAccountLocale };
+  return { texts, locale, t, tf, load, setLocale };
 }
