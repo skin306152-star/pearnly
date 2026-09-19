@@ -249,3 +249,6 @@ This is a read-only copy of the cloud billing request,これはクラウド入�
 Invalid amount,金額が無効です
 Not permitted,操作する権限がありません
 Invalid billing reference,課金参照番号が無効です
+Connect cloud billing,クラウド課金に接続
+Set up OCR,OCR を設定
+Enable HTTPS access,HTTPS アクセスを有効化

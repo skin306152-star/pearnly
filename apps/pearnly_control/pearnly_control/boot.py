@@ -14,6 +14,9 @@ def boot_session(bootinfo):
         from pearnly_control.domains import base_domain
 
         bootinfo.pearnly_base_domain = base_domain()
+        bootinfo.pearnly_target_domains = {
+            name: base_domain(name) for name in frappe.get_all("Pearnly Target", pluck="name")
+        }
         bootinfo.pearnly_products = {
             p: features_mod.PRODUCT_LABELS.get(p, p) for p in features_mod.PRODUCTS
         }

@@ -16,7 +16,11 @@ import frappe
 DEFAULT_BASE_DOMAIN = "pearnly.com"
 
 
-def base_domain() -> str:
+def base_domain(target=None) -> str:
+    from pearnly_control.infra import target_settings
+    configured = target_settings(target).get("base_domain")
+    if configured:
+        return configured.strip().lower()
     return (frappe.conf.get("pearnly_base_domain") or DEFAULT_BASE_DOMAIN).strip().lower()
 
 

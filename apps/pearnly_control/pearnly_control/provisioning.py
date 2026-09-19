@@ -44,6 +44,7 @@ def _require_operator() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    frappe.only_for("System Manager")
     return user
 
 
@@ -140,7 +141,10 @@ def _ensure_deployment(issue, row):
 
     name = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name}, "name")
     if name:
-        return frappe.get_doc(DEPLOYMENT, name)
+        existing = frappe.get_doc(DEPLOYMENT, name)
+        if existing.issue != issue.name or existing.tenant != issue.tenant:
+            frappe.throw(_("Site name {0} is already taken by deployment {1}").format(site_name, name))
+        return existing
 
     other = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name, "issue": ("!=", issue.name)}, "name")
     if other:
@@ -155,7 +159,7 @@ def _ensure_deployment(issue, row):
         "bench_group": infra.group_of(row.app),
         "app": infra.app_of(row.app),
         "port": infra.port_of(row.app),
-        "url": infra.site_base_url(site_name, infra.port_of(row.app)),
+        "url": infra.target_site_url(issue.target, site_name, row.app),
         "issue": issue.name,
         "features": _feature_rows(issue, row.app),
     })
@@ -171,9 +175,16 @@ def _ensure_oidc_client(dep, target: str | None = None) -> None:
     """
     client, _target_name = kc.client_for_target(target)
     base = infra.deployment_base_url(dep)
-    urls = [f"{base}/*"]
+    urls = [f"{base}/api/method/pearnly_core.identity.callback"]
     origins = [base]
-    result = client.create_oidc_client(dep.site_name, urls, origins)
+    attributes = {}
+    if infra.is_cloud(target):
+        attributes = {
+            "post.logout.redirect.uris": base + "/",
+            "backchannel.logout.url": base + "/api/method/pearnly_core.identity.backchannel_logout",
+            "backchannel.logout.session.required": "true",
+        }
+    result = client.create_oidc_client(dep.site_name, urls, origins, attributes=attributes)
     dep.oidc_client_id = result["client_id"]
     dep.oidc_client_secret = result["client_secret"]
     dep.save(ignore_permissions=True)
@@ -189,7 +200,7 @@ def oidc_secret_of(deployment: str) -> str:
     ) or ""
 
 
-def target_credentials() -> dict:
+def target_credentials(target_name=None) -> dict:
     """开户目标上的**realm 级**凭据，开通时要一起写进租户站点。
 
     为什么必须下发，而不是让站点自己想办法：改密功能要用这两个客户端 ——
@@ -205,7 +216,9 @@ def target_credentials() -> dict:
     """
     from frappe.utils.password import get_decrypted_password
 
-    _client, target = kc.client_for_target(None)
+    if infra.is_cloud(target_name):
+        return {"native_account": True}
+    _client, target = kc.client_for_target(target_name)
     row = frappe.db.get_value(
         "Pearnly Target",
         {"target_name": target},
@@ -237,13 +250,13 @@ def _feature_rows(issue, product) -> list[dict]:
     ]
 
 
-def _issuer_url() -> str:
+def _issuer_url(target_name=None) -> str:
     """统一身份签发方。必须浏览器与容器都能访问到同一个字符串。
 
     取目标环境配的地址（本机样板是 http://keycloak.localhost:8105/realms/pearnly-business），
     与各样板站点用的完全一致，避免出现两套 issuer。
     """
-    _client, target = kc.client_for_target(None)
+    _client, target = kc.client_for_target(target_name)
     row = frappe.db.get_value(
         "Pearnly Target", {"target_name": target}, ["base_url", "realm"], as_dict=True
     )
@@ -338,7 +351,7 @@ def _billing_payload(issue, dep) -> dict:
     from pearnly_control import billing_api
 
     from pearnly_control import billing_remote
-    if billing_remote.enabled():
+    if infra.is_cloud(issue.target):
         scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name)
         return {
             "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,
@@ -375,13 +388,13 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "payload": json.dumps({
              "site": site, "group": group,
              "product": dep.product,
-             "issuer": _issuer_url(),
+             "issuer": _issuer_url(issue.target),
              "client_id": dep.oidc_client_id,
              "client_secret": oidc_secret_of(dep.name),
              "redirect_uri": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.identity.callback",
              # realm 级的两个客户端凭据也要一起写：改密功能依赖它们
              # （只写本部署的 client 会导致"能登录但改不了密码"）
-             **target_credentials(),
+             **target_credentials(issue.target),
          }, ensure_ascii=False)},
         {"step_key": f"{dep.name}:restart_web", "deployment": dep.name,
          "action": "restart_web", "status": "pending",
@@ -421,13 +434,19 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "action": "mark_active", "status": "pending",
          "payload": json.dumps({"deployment": dep.name}, ensure_ascii=False)},
     ]
+    if infra.is_cloud(issue.target):
+        steps.insert(-1, {
+            "step_key": f"{dep.name}:publish_site", "deployment": dep.name,
+            "action": "publish_site", "status": "pending",
+            "payload": json.dumps({"site": site, "group": group}),
+        })
     return steps
 
 
 # ── 执行器接口 ──────────────────────────────────────────────────────────────
 
 
-def next_steps(limit: int = 20) -> list[dict]:
+def next_steps(limit: int = 20, target: str | None = None) -> list[dict]:
     """给执行器取待办步骤。只返回**所有依赖都已完成**的那些，不跳步。"""
     _require_operator()
     out = []
@@ -442,6 +461,16 @@ def next_steps(limit: int = 20) -> list[dict]:
     )
     for req_name in requests:
         req = frappe.get_doc(REQUEST, req_name)
+        tenant = frappe.db.get_value(ISSUE, req.issue, "tenant")
+        if (tenant and frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting"
+                and not str(req.idempotency_key).startswith("teardown:")):
+            continue
+        issue_target = frappe.db.get_value(ISSUE, req.issue, "target")
+        # Legacy runner has no target argument. It must never consume cloud jobs.
+        if target and issue_target != target:
+            continue
+        if not target and infra.is_cloud(issue_target):
+            continue
         for step in req.steps:
             if len(out) >= limit:
                 break
@@ -452,11 +481,16 @@ def next_steps(limit: int = 20) -> list[dict]:
                 break
             if _blocked_by_previous(req, step):
                 break
+            payload = json.loads(step.payload or "{}")
+            if target and step.deployment:
+                dep = frappe.get_doc(DEPLOYMENT, step.deployment)
+                payload.update(site=dep.site_name, group=dep.bench_group,
+                               deployment=dep.name, tenant=dep.tenant)
             out.append({
                 "request": req.name,
                 "step_key": step.step_key,
                 "action": step.action,
-                "payload": json.loads(step.payload or "{}"),
+                "payload": payload,
             })
             break
     return out

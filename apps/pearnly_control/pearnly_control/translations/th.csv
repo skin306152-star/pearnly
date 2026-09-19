@@ -249,3 +249,6 @@ This is a read-only copy of the cloud billing request,รายการนี�
 Invalid amount,จำนวนเงินไม่ถูกต้อง
 Not permitted,ไม่มีสิทธิ์ดำเนินการ
 Invalid billing reference,เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง
+Connect cloud billing,เชื่อมต่อระบบเรียกเก็บเงินบนคลาวด์
+Set up OCR,ตั้งค่า OCR
+Enable HTTPS access,เปิดใช้งานการเข้าถึงผ่าน HTTPS

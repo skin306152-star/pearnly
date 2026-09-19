@@ -249,3 +249,6 @@ This is a read-only copy of the cloud billing request,此记录是云端充值�
 Invalid amount,金额无效
 Not permitted,无权操作
 Invalid billing reference,无效的计费编号
+Connect cloud billing,接通云端计费
+Set up OCR,配置 OCR
+Enable HTTPS access,启用 HTTPS 访问

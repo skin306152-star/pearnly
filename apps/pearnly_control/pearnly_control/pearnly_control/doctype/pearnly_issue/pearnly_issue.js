@@ -11,6 +11,7 @@
 //   2. 状态灯 + 进度弹窗：轮着问控制面"做到哪了"，做完自动刷新。
 
 const BASE = (frappe.boot && frappe.boot.pearnly_base_domain) || "pearnly.com";
+const base_for = (frm) => (frappe.boot.pearnly_target_domains || {})[frm.doc.target] || BASE;
 
 // 只做展示用：打开表单时把已有前缀的完整域名补出来，免得"访问域名"一直空着。
 // 真值仍由服务端 validate 计算（同一条规则，见 pearnly_control/domains.py）。
@@ -18,7 +19,7 @@ function preview_domains(frm) {
 	let changed = false;
 	(frm.doc.apps || []).forEach((row) => {
 		const prefix = (row.domain_prefix || "").trim().toLowerCase();
-		const want = prefix ? `${prefix}.${BASE}` : "";
+		const want = prefix ? `${prefix}.${base_for(frm)}` : "";
 		if (row.domain !== want) {
 			row.domain = want;
 			changed = true;
@@ -31,7 +32,7 @@ frappe.ui.form.on("Pearnly Issue App", {
 	domain_prefix(frm, cdt, cdn) {
 		const row = locals[cdt][cdn];
 		const prefix = (row.domain_prefix || "").trim().toLowerCase();
-		row.domain = prefix ? `${prefix}.${BASE}` : "";
+		row.domain = prefix ? `${prefix}.${base_for(frm)}` : "";
 		frm.refresh_field("apps");
 	},
 });
@@ -44,6 +45,9 @@ const STEP_LABEL = {
 	install_core: __("Install core apps"),
 	install_product: __("Install the product app"),
 	set_oidc: __("Set up unified sign-in"),
+	set_billing: __("Connect cloud billing"),
+	set_ocr: __("Set up OCR"),
+	publish_site: __("Enable HTTPS access"),
 	restart_web: __("Restart services"),
 	finalize_site: __("Finalize the site"),
 	set_line: __("Set up the LINE channel"),
@@ -98,7 +102,7 @@ function steps_html(m) {
            <span style="width:52px;flex:none;color:${STEP_COLOR[s.status] || "inherit"};font-weight:600">${
 					STEP_TEXT[s.status] || s.status
 				}</span>
-           <span>${frappe.utils.escape_html(STEP_LABEL[s.step_key] || s.step_key)}</span>
+           <span>${frappe.utils.escape_html(STEP_LABEL[s.step_key.split(":").pop()] || s.step_key)}</span>
          </div>`
 		)
 		.join("");

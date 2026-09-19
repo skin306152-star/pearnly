@@ -46,7 +46,7 @@ WALLET = "Pearnly Wallet"
 CREDIT = "Pearnly Credit Transaction"
 SUBSCRIPTION = "Pearnly Subscription"
 TOPUP = "Pearnly Topup Request"
-LINE_CHANNEL = "Pearnly Line Channel"
+LINE_CHANNEL = "Pearnly LINE Channel"
 
 
 def _require_operator() -> str:
@@ -65,7 +65,7 @@ def targets_of(tenant: str) -> dict:
 
     deployments = frappe.get_all(
         DEPLOYMENT, filters={"tenant": tenant},
-        fields=["name", "site_name", "bench_group", "app", "port", "url", "oidc_client_id"],
+        fields=["name", "site_name", "bench_group", "app", "port", "url", "oidc_client_id", "issue"],
     )
     issues = frappe.get_all(
         ISSUE, filters={"tenant": tenant},
@@ -132,7 +132,7 @@ def api_plan_teardown(tenant: str) -> dict:
 
     existing = frappe.db.get_value(
         REQUEST,
-        {"issue": issue, "status": ("in", ("pending", "running", "failed"))},
+        {"idempotency_key": f"teardown:{tenant}"},
         "name",
         order_by="creation desc",
     )
@@ -248,25 +248,27 @@ def api_purge_control(request: str) -> dict:
     # 有东西要删就必须拿到管理客户端：拿不到就**如实失败**。
     # 曾经这里写过 `except: client = None` 悄悄跳过 —— 结果这一步"成功"了、
     # 账号和 OIDC 客户端一个都没删（真踩过，验收脚本当场抓到）。
-    if not subjects and not targets["oidc_clients"]:
-        return {"purged": True, "removed_users": [], "kept_users": [], "removed_oidc_clients": []}
-    client, _target = kc.client_for_target(None)
-
     for issue_name, subject in subjects:
+        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, issue_name, "target"))
         if _subject_used_elsewhere(subject, keep_issues={name for name, _ in subjects} | {doc.issue}):
             # 同一个登录邮箱还挂在别的租户上：**不删**，如实记下来
             kept_users.append(subject)
             continue
         if client and client.delete_user(subject):
             removed_users.append(subject)
-        try:
-            frappe.db.delete(IDENTITY, {"subject": subject})
-        except Exception:
-            logger.warning("[teardown] 删身份绑定失败 subject=%s", subject, exc_info=True)
+        frappe.db.delete(IDENTITY, {"subject": subject})
 
-    for client_id in targets["oidc_clients"]:
+    for dep in targets["deployments"]:
+        client_id = dep.get("oidc_client_id")
+        if not client_id:
+            continue
+        client, _target = kc.client_for_target(frappe.db.get_value(ISSUE, dep["issue"], "target"))
         if client and client.delete_oidc_client(client_id):
             removed_clients.append(client_id)
+
+    from pearnly_control import infra, billing_remote
+    if any(infra.is_cloud(row.get("target")) for row in targets["issues"]):
+        billing_remote.call("purge", tenant=tenant)
 
     frappe.db.commit()
     # 复核：该删的都真删了才算这一步成功（"报了完成但其实还在"是最难查的一种）
@@ -331,21 +333,24 @@ def purge_records(request: str) -> dict:
     ):
         if not filters:
             continue
-        try:
-            removed[doctype] = frappe.db.count(doctype, filters)
-            frappe.db.delete(doctype, filters)
-        except Exception:
-            logger.warning("[teardown] 删 %s 失败（继续往下）", doctype, exc_info=True)
+        names = frappe.get_all(doctype, filters=filters, pluck="name")
+        removed[doctype] = len(names)
+        for name in names:
+            frappe.delete_doc(doctype, name, ignore_permissions=True, force=True, delete_permanently=True)
 
+    request_names = frappe.get_all(REQUEST, filters={"issue": ("in", issue_names)}, pluck="name")
+    for name in request_names:
+        if name != request:
+            frappe.delete_doc(REQUEST, name, ignore_permissions=True, force=True, delete_permanently=True)
     for name in deployment_names:
-        frappe.delete_doc(DEPLOYMENT, name, ignore_permissions=True, force=True)
+        frappe.delete_doc(DEPLOYMENT, name, ignore_permissions=True, force=True, delete_permanently=True)
     for name in issue_names:
         if name and frappe.db.exists(ISSUE, name):
-            frappe.delete_doc(ISSUE, name, ignore_permissions=True, force=True)
+            frappe.delete_doc(ISSUE, name, ignore_permissions=True, force=True, delete_permanently=True)
     if tenant and frappe.db.exists(TENANT, tenant):
-        frappe.delete_doc(TENANT, tenant, ignore_permissions=True, force=True)
+        frappe.delete_doc(TENANT, tenant, ignore_permissions=True, force=True, delete_permanently=True)
     # 请求（带子步骤）最后删：执行器已经报完最后一步，没有谁还要往上写了
-    frappe.delete_doc(REQUEST, request, ignore_permissions=True, force=True)
+    frappe.delete_doc(REQUEST, request, ignore_permissions=True, force=True, delete_permanently=True)
     frappe.db.commit()
     logger.warning("[teardown] 控制面记录已清空：request=%s tenant=%s removed=%s",
                    request, tenant, removed)

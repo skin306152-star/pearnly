@@ -16,6 +16,7 @@ export interface ShellBoot {
   full_name: string;
   language: string;
   csrf_token: string;
+  native_account?: boolean;
 }
 
 let cached: ShellBoot | null = null;

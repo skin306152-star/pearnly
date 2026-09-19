@@ -240,3 +240,6 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 "{0} in-plan scan ({1} pages, within quota)","{0} in-plan scan ({1} pages, within quota)"
 {0} out-of-plan scan ({1} over quota),{0} out-of-plan scan ({1} over quota)
 {0} — {1} features,{0} — {1} features
+Connect cloud billing,Connect cloud billing
+Set up OCR,Set up OCR
+Enable HTTPS access,Enable HTTPS access

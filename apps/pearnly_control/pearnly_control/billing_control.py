@@ -75,6 +75,16 @@ def dispatch(action: str, payload=None):
             fields=["name", "tenant", "status", "requested_thb", "approved_thb", "payer_name",
                     "note", "review_note", "requested_at", "reviewed_at", "reviewed_by",
                     "creation", "modified"], order_by="name asc", limit_page_length=500)}
+    if action == "purge":
+        tenant = str(payload.get("tenant") or "").strip()
+        if not tenant:
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+        for doctype in ("Pearnly Credit Transaction", billing.TOPUP, billing.SUBSCRIPTION, billing.WALLET):
+            frappe.db.delete(doctype, {"tenant": tenant})
+        if frappe.db.exists("Pearnly Tenant", tenant):
+            frappe.delete_doc("Pearnly Tenant", tenant, ignore_permissions=True, force=True, delete_permanently=True)
+        frappe.db.commit()
+        return {"purged": True}
     if action == "summary":
         return billing.wallet_summary(billing_api._tenant_or_throw(payload.get("tenant")))
     if action == "approve":

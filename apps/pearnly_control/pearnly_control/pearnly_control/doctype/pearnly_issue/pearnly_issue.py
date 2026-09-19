@@ -48,12 +48,14 @@ RESERVED_PREFIXES = {
     "status", "support", "help", "docs", "blog", "shop", "store", "pay", "billing",
     "keycloak", "auth", "sso", "id", "login", "account", "accounts", "console",
     "control", "desk", "dev", "test", "staging", "stage", "demo", "sandbox",
-    "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana",
+    "pearnly", "cowork", "erp", "dms", "internal", "monitor", "grafana", "work",
 }
 
 
 class PearnlyIssue(Document):
     def validate(self):
+        if not self.target:
+            self.target = frappe.db.get_value("Pearnly Target", {"is_default": 1}, "name")
         self._validate_account()
         self._validate_apps()
         self._summarize_features()
@@ -96,7 +98,7 @@ class PearnlyIssue(Document):
                 frappe.throw(_("Domain prefix {0} is reserved; pick another").format(prefix))
 
             # 域名由前缀统一生成，不让手填，避免同一件事有两种写法
-            domain = f"{prefix}.{base_domain()}"
+            domain = f"{prefix}.{base_domain(self.target)}"
             if domain in seen_domains:
                 frappe.throw(_("Duplicate domain on the same issue: {0}").format(domain))
             seen_domains[domain] = row.app

@@ -9,6 +9,10 @@ def get_context(context):
         frappe.local.flags.redirect_location = "/login?redirect-to=/pearnly-password"
         raise frappe.Redirect
 
+    if frappe.conf.get("pearnly_native_account"):
+        frappe.local.flags.redirect_location = "/api/method/pearnly_core.identity.begin_password_change"
+        raise frappe.Redirect
+
     # CSRF 令牌必须在这里显式取。模板里直接写 frappe.session.csrf_token 会渲染成
     # 字符串 "None"（该字段在会话数据里可能还没生成），前端拿它去请求必然失败。
     from frappe.sessions import get_csrf_token
