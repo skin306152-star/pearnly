@@ -62,11 +62,15 @@ export interface Texts {
 /**
  * 建一套取词器。
  *
- * `keys` 传空数组 → 服务端把**这一页的整个命名空间**（`dms.edit.*`）给回来。
+ * `keys` 传空数组 → 服务端把**这一页的整个命名空间**（由 `prefix` 指定，例如 `dms.edit.`）给回来。
  * 这样页面不用维护一份"我要用哪些键"的清单：清单和语言包一旦不同步，
  * 页面就会露出 key（真发生过）。
+ *
+ * 接口挂在公共层 `pearnly_core.browser_text`（2026-09-19 定的方案 A）：
+ * 原来挂在 `pearnly_dms` 里，而 Cowork / ERP 的站点不装 DMS，那两个产品的页面
+ * 根本取不到文案。公共层按**键的命名空间**决定读哪个 App 的语言包。
  */
-export function createTexts(keys: string[] = []): Texts {
+export function createTexts(keys: string[] = [], prefix = ""): Texts {
   const texts = ref<Record<string, Record<string, string>>>({});
   const locale = ref<Locale>(cachedLocale() || guessLocale());
 
@@ -78,8 +82,8 @@ export function createTexts(keys: string[] = []): Texts {
 
   async function load(): Promise<void> {
     texts.value = await call<Record<string, Record<string, string>>>(
-      "pearnly_dms.dms_browser_api.browser_text",
-      { keys: JSON.stringify(keys) },
+      "pearnly_core.browser_text.browser_text",
+      { keys: JSON.stringify(keys), prefix },
     );
   }
 

@@ -209,38 +209,18 @@ def browser_save(ticket: str, nonce: str, form: Any = None) -> dict:
 def browser_text(keys: Any = None) -> dict:
     """页面要的文案：**四语一次给全**（页面有语言开关，切换时不该再跑一趟网络）。
 
-    两种用法：
+    实现已经挪到公共层 `pearnly_core.browser_text`（Cowork / ERP 的页面也要用它，
+    而它们不装这个 App —— 2026-09-19 定的方案 A）。这里只保留**老的入口形状**，
+    让已经在用的 DMS 编辑器不用改调用。
 
-      · 给了 key 列表 → 只回这些键（**只服务 `dms.*` 命名空间** —— 这是 guest 可调的接口，
-        不能当成"随便翻点什么"的查询口）；
-      · **给空列表** → 回这个页面的整个命名空间（`dms.edit.*`）。页面因此不必自己维护
-        "我要用哪些键"的清单：清单与语言包一旦不同步，页面上就会露出 key（真发生过）。
+    两种用法（与公共层一致）：
+
+      · 给了 key 列表 → 只回这些键（白名单命名空间内）；
+      · **给空列表** → 回这个页面的整个命名空间（`dms.edit.*`）。
     """
-    from pearnly_dms import i18n
+    from pearnly_core import browser_text as core_text
 
-    prefix = "dms.edit."
-    wanted = keys
-    if isinstance(wanted, str):
-        try:
-            wanted = json.loads(wanted)
-        except ValueError:
-            wanted = [part.strip() for part in wanted.split(",") if part.strip()]
-    if not isinstance(wanted, (list, tuple)):
-        wanted = []
-    out: Dict[str, Dict[str, str]] = {}
-    if not wanted:
-        # 整包模式：以**兜底语言**的键集为准列键（缺哪一语的译，由 `all_languages` 决定）。
-        for key in i18n.pack(i18n.FALLBACK_LANG):
-            if key.startswith(prefix):
-                out[key] = i18n.all_languages(key)
-        return out
-    for key in wanted:
-        name = str(key or "").strip()
-        # 只服务 dms.* 命名空间：这个接口是 guest 可调的，不能当成"随便翻点什么"的查询口。
-        if not name.startswith("dms."):
-            continue
-        out[name] = i18n.all_languages(name)
-    return out
+    return core_text.browser_text(keys=keys, prefix="dms.edit.")
 
 
 __all__ = [

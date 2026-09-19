@@ -43,8 +43,9 @@ const mode = computed<EditorMode>(() =>
 );
 const nonce = ref(String(route.query.draft || ""));
 
-// keys 传空 → 服务端把 `dms.edit.*` 整包给回来（四语齐全）。页面不维护"我要用哪些键"的清单。
-const { t, locale, load: loadTexts, setLocale } = createTexts();
+// keys 传空 + 给前缀 → 服务端把 `dms.edit.*` 整包给回来（四语齐全）。
+// 页面不维护"我要用哪些键"的清单：清单与语言包一旦不同步，页面上就会露出 key。
+const { t, locale, load: loadTexts, setLocale } = createTexts([], "dms.edit.");
 
 const stage = ref<"loading" | "ready" | "saved" | "failed">("loading");
 const errorText = ref("");
