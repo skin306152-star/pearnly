@@ -2,6 +2,7 @@
 Run in an existing Frappe test/maintenance runtime with a candidate package path.
 """
 import csv
+from html.parser import HTMLParser
 from email import policy
 from email.parser import Parser
 from pathlib import Path
@@ -46,7 +47,14 @@ try:
             assert 'hello@pearnly.com' in str(mime['Reply-To'])
             assert mime['Bcc'] is None
             assert any(p.get_content_type()=='image/png' for p in mime.walk())
-            assert 'cid:' in mime.get_body(preferencelist=('html',)).get_content()
+            html_body=mime.get_body(preferencelist=('html',)).get_content()
+            class Images(HTMLParser):
+                def handle_starttag(self, tag, attrs):
+                    if tag == 'img':
+                        sources=[v for k,v in attrs if k=='src']
+                        assert len(sources)==1 and sources[0].startswith('cid:'), 'Image must have exactly one CID source'
+                        assert dict(attrs).get('height')=='54', 'Reserve the logo height in email clients'
+            Images().feed(html_body)
             q.redact_message();q.reload()
             assert 'Secret' not in q.message and 'company.example.com' not in q.message
         print('PASS: four languages, escaped credentials, official headers, CID logo, native queue and redaction; no SMTP')
