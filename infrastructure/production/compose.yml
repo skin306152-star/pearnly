@@ -222,6 +222,9 @@ volumes:
   database:
   queue:
   sites-billing:
+    # Created by bootstrap before billing-web starts; never removed by compose down.
+    external: true
+    name: pearnly-production_sites-billing
   sites-dms:
   sites-erp:
   sites-cowork:

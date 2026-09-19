@@ -10,6 +10,7 @@ compose="$root/infrastructure/production/compose.yml"
 export PEARNLY_IMAGE="$image"
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 docker compose --env-file /opt/pearnly/secrets/runtime.env -f "$compose" config --quiet
+docker volume create pearnly-production_sites-billing >/dev/null
 docker compose --env-file /opt/pearnly/secrets/runtime.env -f "$compose" up -d mariadb redis-cache redis-queue keycloak
 docker run --rm --user 0 --network pearnly-production_runtime \
   -v pearnly-production_sites-billing:/home/frappe/frappe-bench/sites \
