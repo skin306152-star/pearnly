@@ -171,6 +171,21 @@ function start_provision(frm) {
 		});
 }
 
+function retry_provision(frm, request) {
+	frappe.dom.freeze(__("Queueing provisioning…"));
+	const save = frm.is_dirty() ? frm.save() : Promise.resolve();
+	return save
+		.then(() => pcall("pearnly_control.provisioning.api_retry_failed", { request }))
+		.then(() => frm.reload_doc())
+		.then(() => open_progress(frm))
+		.catch((e) => frappe.msgprint({
+			title: __("Could not queue provisioning"),
+			message: (e && e.message) || String(e),
+			indicator: "red",
+		}))
+		.finally(() => frappe.dom.unfreeze());
+}
+
 function render_provision(frm) {
 	if (frm.is_new() || frm.doc.status !== "issued") {
 		// 还没发号（新单也算）：这一步是 Desk 上原来缺的那一环 ——
@@ -189,6 +204,9 @@ function render_provision(frm) {
 			if (running) {
 				frm.add_custom_button(__("Provisioning Progress"), () => open_progress(frm));
 			} else {
+				if (m && m.request && ["failed", "partial"].includes(m.status) && m.counts.failed > 0) {
+					frm.add_custom_button(__("Retry provisioning"), () => retry_provision(frm, m.request));
+				}
 				// 不抢主按钮：表单还是脏的时候，主按钮得留给"保存"
 				frm.add_custom_button(
 					m ? __("View progress") : __("Run provisioning"),

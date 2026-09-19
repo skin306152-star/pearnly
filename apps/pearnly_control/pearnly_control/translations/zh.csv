@@ -270,3 +270,4 @@ LINE Channel Secret,LINE 渠道密钥
 LINE Channel Access Token,LINE 渠道访问令牌
 Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：配 LINE 渠道需要同时填密钥和访问令牌
 Account opening is available only for configured cloud targets,仅可为已配置的云端目标开户
+Retry provisioning,重试开通

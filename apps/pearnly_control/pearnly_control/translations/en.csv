@@ -261,3 +261,4 @@ LINE Channel Secret,LINE Channel Secret
 LINE Channel Access Token,LINE Channel Access Token
 Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Account opening is available only for configured cloud targets,Account opening is available only for configured cloud targets
+Retry provisioning,Retry provisioning

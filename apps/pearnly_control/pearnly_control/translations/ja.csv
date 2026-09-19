@@ -270,3 +270,4 @@ LINE Channel Secret,LINEチャネルシークレット
 LINE Channel Access Token,LINEチャネルアクセストークン
 Row {0}: a LINE channel needs both the channel secret and the access token,行 {0}: LINEチャネルにはシークレットとアクセストークンの両方が必要です
 Account opening is available only for configured cloud targets,設定済みのクラウド環境でのみアカウントを開設できます
+Retry provisioning,開通処理を再試行

@@ -23,6 +23,11 @@ jobs:
         run: python3 scripts/check-dms-offline.py
       - name: Verify forced SSH provisioning entry and contracts
         run: python3 scripts/production/test-provision-agent.py
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.14.0'
+      - name: Verify Desk retry actions
+        run: node scripts/production/test-issue-actions.cjs
       - name: Check generated translations
         run: python3 scripts/i18n-build.py --check
       - name: Check whitespace

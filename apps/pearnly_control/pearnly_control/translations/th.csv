@@ -270,3 +270,4 @@ LINE Channel Secret,LINE Channel Secret
 LINE Channel Access Token,LINE Channel Access Token
 Row {0}: a LINE channel needs both the channel secret and the access token,แถวที่ {0}: ช่องทาง LINE ต้องกรอกทั้ง secret และ access token
 Account opening is available only for configured cloud targets,เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น
+Retry provisioning,ลองเปิดใช้งานอีกครั้ง
