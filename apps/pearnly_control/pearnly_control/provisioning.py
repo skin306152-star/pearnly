@@ -571,6 +571,12 @@ def retry_failed_steps(request: str, include_skipped: bool = False) -> dict:
         req.error = ""
         req.save(ignore_permissions=True)
         frappe.db.commit()
+        # 翻回「待执行」之后**必须按现在的情况重算参数**：步骤的 payload 是规划时
+        # 算好存进库的字符串，而「先开通、后配渠道」这类步骤恰恰是**在 skipped 期间**
+        # 才把外部条件配好的。不重算就会拿建单时那份旧参数去执行 —— 实测：配好 LINE
+        # 渠道再补跑，执行器读到的是旧的 `configured: false`，又记一次 skipped，
+        # 站点上永远拿不到密钥，而看进度的人以为这件事处理过了。
+        _sync_steps(req)
         _refresh_request_status(req)
     return {"request": req.name, "reset": reset, "status": req.status}
 
