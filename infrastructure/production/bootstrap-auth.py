@@ -76,6 +76,7 @@ manager = request(clients_path + "?clientId=realm-management", token=token)[0]["
 roles = [request(clients_path + f"/{manager}/roles/{role}", token=token)
          for role in ("view-users", "manage-users", "view-clients", "manage-clients")]
 request(f"/admin/realms/{REALM}/users/{service_user}/role-mappings/clients/{manager}", "POST", roles, token)
+request(clients_path + f"/{cid}/scope-mappings/clients/{manager}", "POST", roles, token)
 secret = request(clients_path + f"/{cid}/client-secret", token=token)["value"]
 secret_file = ROOT / "control-identity.json"
 fd = os.open(secret_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -89,3 +90,9 @@ assert all(readback.get(key) == settings[key] for key in (
 assert not request(f"/admin/realms/{REALM}/identity-provider/instances", token=token)
 print("Production realm verified: Thai default, cat theme, email/username login, reset enabled, no social/signup")
 print("Local control client configured; secret stored privately, not printed")
+service_token = request(f"/realms/{REALM}/protocol/openid-connect/token", "POST", {
+    "grant_type": "client_credentials", "client_id": "pearnly-control", "client_secret": secret,
+}, form=True)["access_token"]
+request(f"/admin/realms/{REALM}/users?max=1", token=service_token)
+request(clients_path + "?clientId=pearnly-control", token=service_token)
+print("Control service-account user and client queries verified")

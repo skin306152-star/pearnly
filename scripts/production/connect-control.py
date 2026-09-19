@@ -17,5 +17,8 @@ result = subprocess.run(["docker", "--context", "colima-pearnly", "exec", "-i",
     "pearnly-sample-control-bench-1", "/home/frappe/frappe-bench/env/bin/python", "-m",
     "pearnly_control.runner_bridge"], input=json.dumps(payload), text=True, capture_output=True)
 if result.returncode:
-    raise SystemExit("Could not configure the local control plane; no secrets printed")
+    error = result.stderr
+    for secret in (payload["args"]["billing_token"], payload["args"]["identity"]["client_secret"]):
+        error = error.replace(secret, "[redacted]")
+    raise SystemExit(error[-4000:])
 print("Production target connected; secrets transferred without logging")
