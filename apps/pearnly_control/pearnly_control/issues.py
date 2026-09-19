@@ -43,6 +43,7 @@ def _require_operator() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    frappe.only_for("System Manager")
     return user
 
 
@@ -57,9 +58,8 @@ def _generate_password() -> str:
 
 def _find_or_create_tenant(tenant_name: str, *, contact_name: str | None = None,
                            contact_phone: str | None = None) -> str:
-    existing = frappe.db.get_value(TENANT, {"tenant_name": tenant_name}, "name")
-    if existing:
-        return existing
+    # Company names are labels, never tenant identities. Issued requests are
+    # already idempotent by issue id; distinct issues must not merge companies.
     doc = frappe.get_doc({
         "doctype": TENANT,
         "tenant_name": tenant_name,
@@ -144,6 +144,7 @@ def issue(
         "dms_features": _feature_rows("dms", features.get("dms")),
     })
     doc.insert()  # validate 会算域名前缀→域名、查冲突、汇总已开通功能
+    frappe.db.commit()  # Preserve the request before touching an external identity system.
     return _activate(doc, operator, target_name=target_name)
 
 
@@ -169,6 +170,17 @@ def issue_from_doc(issue_name: str) -> dict:
 
 
 def _activate(doc, operator: str, *, target_name: str) -> dict:
+    with frappe.cache.lock(f"pearnly:issue:{doc.name}", timeout=120, blocking_timeout=2):
+        doc.reload()
+        if doc.status == "issued" and doc.identity_subject:
+            return _result(doc, doc.identity_subject, doc.target or target_name)
+        doc.target = target_name
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
+        return _activate_locked(doc, operator, target_name=target_name)
+
+
+def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
     """把一张**已保存**的发号单真正发出去：在身份服务建号 + 建/找租户。
 
     两条入口（API 一次发号、Desk 存草稿后点发号）共用这一份 ——
@@ -183,6 +195,7 @@ def _activate(doc, operator: str, *, target_name: str) -> dict:
                 doc.account_email, target_name)
         )
 
+    subject = None
     try:
         # ⚠️ 必须用 get_password()：`account_password` 是 Frappe 的 Password 字段，
         # 直接读属性拿到的是**密文**（`__Auth` 里的那段），拿它建号等于建了个假密码 ——
@@ -202,25 +215,28 @@ def _activate(doc, operator: str, *, target_name: str) -> dict:
         tenant = _find_or_create_tenant(doc.tenant_name)
         # 开出来的租户**余额是 0**（用户 2026-09-18 确认的口径）：
         # 钱包这时候就建好，免得第一次用 OCR 时才发现没账本。
-        from pearnly_control import billing
+        from pearnly_control import billing, infra
 
-        billing.wallet_of(tenant)
+        if not infra.is_cloud(target_name):
+            billing.wallet_of(tenant)
+        doc.tenant = tenant
+        doc.identity_subject = subject
+        doc.status = "issued"
+        doc.issued_at = now()
+        doc.issued_by = operator
+        doc.password_delivered_at = now()
+        doc.save(ignore_permissions=True)
+        frappe.db.commit()
     except Exception:
         frappe.db.rollback()
+        if subject:
+            # Only compensate the exact identity created by this attempt.
+            kc_client.delete_user(subject)
         doc.reload()
         doc.status = "failed"
         doc.save(ignore_permissions=True)
         frappe.db.commit()
         raise
-
-    doc.tenant = tenant
-    doc.identity_subject = subject
-    doc.status = "issued"
-    doc.issued_at = now()
-    doc.issued_by = operator
-    doc.password_delivered_at = now()
-    doc.save(ignore_permissions=True)
-    frappe.db.commit()
 
     return _result(doc, subject, target_name)
 

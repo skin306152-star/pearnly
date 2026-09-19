@@ -27,6 +27,10 @@ const options = computed(() => [
     label: t("account.changePassword"),
     icon: "key",
     onClick: () => {
+      if (props.boot.native_account) {
+        window.location.href = "/api/method/pearnly_core.identity.begin_password_change";
+        return;
+      }
       passwordOpen.value = true;
     },
   },
@@ -36,7 +40,9 @@ const options = computed(() => [
     // 退出走站点自己的登出端点：它会把会话结束并送回统一登录口。
     // （"退出所有设备"是另一个能力，等做会话列表时再放出来，不在这里假装有。）
     onClick: () => {
-      window.location.href = "/api/method/logout?redirect-to=/";
+      window.location.href = props.boot.native_account
+        ? "/api/method/pearnly_core.identity.sign_out"
+        : "/api/method/logout?redirect-to=/";
     },
   },
 ]);

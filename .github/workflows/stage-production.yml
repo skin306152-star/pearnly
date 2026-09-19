@@ -1,0 +1,35 @@
+name: Stage verified production image
+
+on:
+  workflow_dispatch:
+    inputs:
+      digest:
+        description: 'Image sha256 digest from a successful production build'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  stage:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Transfer pull credential to restricted image receiver
+        env:
+          DIGEST: ${{ inputs.digest }}
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SSH_KEY: ${{ secrets.PRODUCTION_IMAGE_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
+        run: |
+          [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/image_receiver
+          chmod 600 ~/.ssh/image_receiver
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n%s\n' "ghcr.io/$GITHUB_REPOSITORY/frappe@$DIGEST" "$REGISTRY_TOKEN" |
+            ssh -i ~/.ssh/image_receiver -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes root@194.233.74.40
+          printf 'Staged (not started): `%s@%s`\n' "ghcr.io/$GITHUB_REPOSITORY/frappe" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"

@@ -22,7 +22,7 @@ class PearnlyLINEChannel(Document):
     def validate(self):
         dep = frappe.db.get_value(
             "Pearnly Deployment", self.deployment,
-            ["product", "site_name", "port"], as_dict=True,
+            ["product", "site_name", "port", "url"], as_dict=True,
         )
         if not dep:
             frappe.throw(_("No such deployment: {0}").format(self.deployment))
@@ -35,3 +35,21 @@ class PearnlyLINEChannel(Document):
         self.webhook_url = (
             f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook"
         )
+
+    def on_update(self):
+        """渠道一保存就把当前凭据/开关状态排进云端的 set_line 步骤（开通之后再配渠道靠它）。
+
+        开户单带进来的那次保存**跳过排队**：它发生在开通步骤还没生成的时候，`set_line`
+        的载荷由规划阶段自己算（见 `provisioning._ensure_line_channel`）。
+        """
+        if self.flags.get("pearnly_from_issue"):
+            return
+        from pearnly_control.provisioning import queue_cloud_line_config
+
+        queue_cloud_line_config(self)
+
+    def on_trash(self):
+        """删除渠道 = 站点上这条渠道作废：不清掉密钥，旧 webhook 还能继续被调用。"""
+        from pearnly_control.provisioning import queue_cloud_line_config
+
+        queue_cloud_line_config(self, enabled=False)

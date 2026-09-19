@@ -95,4 +95,23 @@ def site_base_url(site_name: str, port: int | None = None) -> str:
 
 def deployment_base_url(dep) -> str:
     """某个部署（Pearnly Deployment）的对外地址。"""
+    if getattr(dep, "url", None):
+        return dep.url.rstrip("/")
     return site_base_url(getattr(dep, "site_name", ""), getattr(dep, "port", None))
+
+
+def target_settings(target=None):
+    if not target:
+        target = frappe.db.get_value("Pearnly Target", {"is_default": 1}, "name")
+    return dict((frappe.conf.get("pearnly_target_runtime") or {}).get(target) or {})
+
+
+def is_cloud(target):
+    return target_settings(target).get("executor") == "production"
+
+
+def target_site_url(target, site, product):
+    config = target_settings(target)
+    if config.get("executor") == "production":
+        return f"https://{site}"
+    return site_base_url(site, port_of(product))

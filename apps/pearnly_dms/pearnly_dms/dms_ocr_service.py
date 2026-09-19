@@ -237,6 +237,7 @@ def recognize_id_card(
     filename: str,
     content_type: str = "",
     endpoint_id: Optional[str] = None,
+    billing_reference: str = "",
 ) -> Tuple[Dict[str, Any], Dict[str, Any], int]:
     """选端点 + 识别身份证 + 打校验位标记。返回 `(ep, ocr, elapsed_ms)`。
 
@@ -283,7 +284,11 @@ def recognize_id_card(
         )
     elapsed = int((time.time() - t0) * 1000)
     _flag_bad_id_checksum(ocr)
-    charge = _charge_id_card(reference=f"idcard:{user}")
+    # LINE retries reuse the message identity; a different card must be a new charge.
+    # The former per-user reference is not an idempotency key.
+    from uuid import uuid4
+    reference = billing_reference or f"idcard:{uuid4().hex}"
+    charge = _charge_id_card(reference=reference)
     # 识别记录：读出来了但校验位不对的标 needs_review（要人看一眼），其余算 ok
     _record_ocr(
         "needs_review" if ocr.get("needs_review") else "ok",
@@ -291,19 +296,20 @@ def recognize_id_card(
         user=user,
         charged=charge.get("charged_thb"),
         detail=(ocr.get("id_card") or {}).get("thai_name") or "",
+        reference=reference,
     )
     return ep, ocr, elapsed
 
 
 def _record_ocr(status: str, filename: str, *, user: str = "", charged=None,
-                detail: str = "", error: str = "") -> None:
+                detail: str = "", error: str = "", reference: str = "") -> None:
     """写一条识别记录。**失败也不许影响识别本身** —— 落不上就只记日志。"""
     try:
         from pearnly_core import ocr_record
 
         ocr_record.record(
             "dms", status, filename=filename, page_count=1, charged_thb=charged,
-            reference=f"idcard:{user}" if user else "", detail=detail, error=error, user=user,
+            reference=reference, detail=detail, error=error, user=user,
         )
     except Exception:  # noqa: BLE001
         logger.exception("写识别记录失败（不影响识别本身）")

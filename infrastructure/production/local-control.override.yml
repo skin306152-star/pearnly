@@ -1,0 +1,11 @@
+# Override only the local control services. Existing product Sites keep their mounts.
+x-source: &source
+  - "${PEARNLY_CONTROL_SOURCE:?}/apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro"
+  - "${PEARNLY_CONTROL_SOURCE:?}/apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro"
+services:
+  control-bench:
+    volumes: *source
+  control-web:
+    volumes: *source
+  control-scheduler:
+    volumes: *source

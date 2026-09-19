@@ -44,6 +44,7 @@ def _require_operator() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    frappe.only_for("System Manager")
     return user
 
 
@@ -84,6 +85,8 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     steps = []
     for row in issue.apps:
         dep = _ensure_deployment(issue, row)
+        # 必须在 `_steps_for` **之前**：那一步会把渠道的当前状态算进 `set_line` 的载荷。
+        _ensure_line_channel(issue, row, dep)
         deployments.append(dep.name)
         steps.extend(_steps_for(issue, dep, row))
 
@@ -140,7 +143,10 @@ def _ensure_deployment(issue, row):
 
     name = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name}, "name")
     if name:
-        return frappe.get_doc(DEPLOYMENT, name)
+        existing = frappe.get_doc(DEPLOYMENT, name)
+        if existing.issue != issue.name or existing.tenant != issue.tenant:
+            frappe.throw(_("Site name {0} is already taken by deployment {1}").format(site_name, name))
+        return existing
 
     other = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name, "issue": ("!=", issue.name)}, "name")
     if other:
@@ -155,13 +161,48 @@ def _ensure_deployment(issue, row):
         "bench_group": infra.group_of(row.app),
         "app": infra.app_of(row.app),
         "port": infra.port_of(row.app),
-        "url": infra.site_base_url(site_name, infra.port_of(row.app)),
+        "url": infra.target_site_url(issue.target, site_name, row.app),
         "issue": issue.name,
         "features": _feature_rows(issue, row.app),
     })
     dep.insert()
     _ensure_oidc_client(dep, issue.target)
     return dep
+
+
+def _ensure_line_channel(issue, row, dep):
+    """开户单上填了 LINE 就顺手把渠道建好 —— 这样**同一次开通**就把渠道下发到站点。
+
+    为什么要有它（用户 2026-09-19 问的）：渠道必须挂在部署上，而部署是点「发号并开通」
+    时才建的，所以原来的顺序只能是"先开户、等建好再去配渠道"——那一步必然记 `skipped`。
+    把凭据收在开户单的**产品行**上，规划时就落成渠道记录，`_line_payload` 这一轮就能读到
+    `configured: True`，`set_line` 在同一次开通里落地。
+
+    只在产品行**带了凭据**时才动渠道（幂等）：没填就完全保持现状——离线开户、之后再配。
+    反过来，如果渠道已经存在而开户单上又填了新的，以开户单为准（那是运维的显式修改）。
+    """
+    secret = row.get_password("line_channel_secret", raise_exception=False) if row.line_channel_secret else ""
+    token = row.get_password("line_channel_access_token", raise_exception=False) if row.line_channel_access_token else ""
+    if not (secret or token):
+        return None
+    if not (secret and token):
+        frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
+
+    existing = frappe.db.get_value(LINE_CHANNEL, {"deployment": dep.name}, "name")
+    channel = frappe.get_doc(LINE_CHANNEL, existing) if existing else frappe.new_doc(LINE_CHANNEL)
+    channel.update({
+        "deployment": dep.name,
+        "status": "active",
+        "channel_id": row.line_channel_id or "",
+        "liff_id": row.line_liff_id or "",
+        "channel_secret": secret,
+        "channel_access_token": token,
+    })
+    # 开户单上的值直接落库：打标记让 `on_update` 跳过排队 —— 这一步发生在开通步骤
+    # 还没生成的时候，`set_line` 的载荷由下面的规划自己算。
+    channel.flags.pearnly_from_issue = True
+    channel.save(ignore_permissions=True)
+    return channel.name
 
 
 def _ensure_oidc_client(dep, target: str | None = None) -> None:
@@ -171,9 +212,16 @@ def _ensure_oidc_client(dep, target: str | None = None) -> None:
     """
     client, _target_name = kc.client_for_target(target)
     base = infra.deployment_base_url(dep)
-    urls = [f"{base}/*"]
+    urls = [f"{base}/api/method/pearnly_core.identity.callback"]
     origins = [base]
-    result = client.create_oidc_client(dep.site_name, urls, origins)
+    attributes = {}
+    if infra.is_cloud(target):
+        attributes = {
+            "post.logout.redirect.uris": base + "/",
+            "backchannel.logout.url": base + "/api/method/pearnly_core.identity.backchannel_logout",
+            "backchannel.logout.session.required": "true",
+        }
+    result = client.create_oidc_client(dep.site_name, urls, origins, attributes=attributes)
     dep.oidc_client_id = result["client_id"]
     dep.oidc_client_secret = result["client_secret"]
     dep.save(ignore_permissions=True)
@@ -189,7 +237,7 @@ def oidc_secret_of(deployment: str) -> str:
     ) or ""
 
 
-def target_credentials() -> dict:
+def target_credentials(target_name=None) -> dict:
     """开户目标上的**realm 级**凭据，开通时要一起写进租户站点。
 
     为什么必须下发，而不是让站点自己想办法：改密功能要用这两个客户端 ——
@@ -205,7 +253,9 @@ def target_credentials() -> dict:
     """
     from frappe.utils.password import get_decrypted_password
 
-    _client, target = kc.client_for_target(None)
+    if infra.is_cloud(target_name):
+        return {"native_account": True}
+    _client, target = kc.client_for_target(target_name)
     row = frappe.db.get_value(
         "Pearnly Target",
         {"target_name": target},
@@ -237,13 +287,13 @@ def _feature_rows(issue, product) -> list[dict]:
     ]
 
 
-def _issuer_url() -> str:
+def _issuer_url(target_name=None) -> str:
     """统一身份签发方。必须浏览器与容器都能访问到同一个字符串。
 
     取目标环境配的地址（本机样板是 http://keycloak.localhost:8105/realms/pearnly-business），
     与各样板站点用的完全一致，避免出现两套 issuer。
     """
-    _client, target = kc.client_for_target(None)
+    _client, target = kc.client_for_target(target_name)
     row = frappe.db.get_value(
         "Pearnly Target", {"target_name": target}, ["base_url", "realm"], as_dict=True
     )
@@ -259,8 +309,8 @@ def _line_payload(dep, site: str, group: str) -> dict:
     看进度的人就能一眼分清"这个租户还没配 LINE"和"这一步被漏了"。
     """
     channel = frappe.db.get_value(
-        LINE_CHANNEL, {"deployment": dep.name, "status": ("!=", "suspended")},
-        ["channel_id", "channel_secret", "channel_access_token", "liff_id"],
+        LINE_CHANNEL, {"deployment": dep.name},
+        ["name", "status", "channel_id", "channel_secret", "channel_access_token", "liff_id"],
         as_dict=True,
     )
     payload = {
@@ -272,12 +322,18 @@ def _line_payload(dep, site: str, group: str) -> dict:
     if not channel:
         payload["configured"] = False
         return payload
+    cloud = infra.is_cloud(frappe.db.get_value(ISSUE, dep.issue, "target"))
+    if channel.status == "suspended" or (cloud and channel.status != "active"):
+        payload.update(configured=False, clear_credentials=cloud)
+        return payload
 
     from frappe.utils.password import get_decrypted_password
 
     def _secret(field: str) -> str:
+        # 用查出来的**单据名**，不按命名规则拼：拼出来的是"猜的"，改名或换命名规则后
+        # 会静默取到空串（表现是"渠道配好了，站点却发不出消息"）。
         return get_decrypted_password(
-            LINE_CHANNEL, f"LINE-{dep.name}", field, raise_exception=False
+            LINE_CHANNEL, channel.name, field, raise_exception=False
         ) or ""
 
     payload.update({
@@ -288,6 +344,55 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "channel_access_token": _secret("channel_access_token"),
     })
     return payload
+
+
+def queue_cloud_line_config(channel, *, enabled: bool | None = None):
+    """把"这条渠道现在长什么样"重排成云端的 set_line 步骤。**开通之后再配渠道就走这里。**
+
+    为什么不是"开通时配好就完事"：真实的顺序是**先开通租户、后配渠道**（用户 2026-09-19
+    问的就是这件事）。开通时渠道还不存在，那一步记 `skipped`；等这里补上凭据，
+    必须能把那一步翻回 `pending` 并且**带上现在的凭据**，否则站点永远拿不到密钥，
+    而看进度的人以为这件事处理过了。
+
+    `enabled` 默认按渠道自己的状态算；删除渠道时显式传 False（那时单据还是 active）。
+    """
+    if enabled is None:
+        enabled = channel.status == "active"
+    if not channel.deployment or not frappe.db.exists(DEPLOYMENT, channel.deployment):
+        return  # 部署/租户已经拆掉了，没有站点可下发
+    dep = frappe.get_doc(DEPLOYMENT, channel.deployment)
+    target = frappe.db.get_value(ISSUE, dep.issue, "target")
+    if not infra.is_cloud(target):
+        return
+    tenant = frappe.db.get_value(ISSUE, dep.issue, "tenant")
+    if tenant and frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting":
+        return  # 正在拆除：站点马上要被删，不要再往它上面写配置
+    parent = frappe.db.get_value(REQUEST, {"idempotency_key": dep.issue}, "name")
+    if not parent:
+        return  # The initial provisioning plan will pick up these credentials.
+    req = frappe.get_doc(REQUEST, parent, for_update=True)
+    step = next((s for s in req.steps if s.deployment == dep.name and s.action == "set_line"), None)
+    if not step:
+        return
+    if step.status == "running":
+        frappe.throw(_("LINE configuration is being applied. Try again shortly."))
+    secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
+    token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
+    if enabled and not (secret and token):
+        frappe.throw(_("LINE credentials are required before activation."))
+    # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟
+    # （Frappe 进程内缓存 `site_config.json`）。开/停渠道是运维动作，容忍一次该产品组的
+    # 重启，换"立刻生效"。开通流程本身不带这个键 —— 新站点没有旧副本，不需要重启，
+    # 也就不该把该产品下的其他租户一起踢下线（见 provision-agent 里的说明）。
+    payload = {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
+               "configured": enabled, "clear_credentials": not enabled, "restart": True,
+               "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
+               "channel_secret": secret, "channel_access_token": token}
+    step.payload = json.dumps(payload)
+    step.status, step.output, step.finished_at = "pending", "", None
+    req.status, req.error, req.finished_at = "pending", "", None
+    req.save(ignore_permissions=True)
+    # Commit together with the channel save. The runner sees only committed state.
 
 
 def _roles_for(issue, dep) -> dict:
@@ -337,6 +442,14 @@ def _billing_payload(issue, dep) -> dict:
     """
     from pearnly_control import billing_api
 
+    from pearnly_control import billing_remote
+    if infra.is_cloud(issue.target):
+        scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name)
+        return {
+            "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,
+            "api": "http://billing-web:8000", "host_header": "billing.internal", "token": scope["token"],
+        }
+
     return {
         "site": dep.site_name,
         "group": dep.bench_group,
@@ -367,13 +480,13 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "payload": json.dumps({
              "site": site, "group": group,
              "product": dep.product,
-             "issuer": _issuer_url(),
+             "issuer": _issuer_url(issue.target),
              "client_id": dep.oidc_client_id,
              "client_secret": oidc_secret_of(dep.name),
              "redirect_uri": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.identity.callback",
              # realm 级的两个客户端凭据也要一起写：改密功能依赖它们
              # （只写本部署的 client 会导致"能登录但改不了密码"）
-             **target_credentials(),
+             **target_credentials(issue.target),
          }, ensure_ascii=False)},
         {"step_key": f"{dep.name}:restart_web", "deployment": dep.name,
          "action": "restart_web", "status": "pending",
@@ -399,7 +512,11 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "payload": json.dumps({
              "site": site, "group": group,
              "email": issue.account_email,
-             "full_name": issue.account_name or issue.tenant_name,
+             # 字段是 `account_username`（"用户名"，用户 2026-09-19 从"使用人姓名"改过来）。
+             # 这里曾经写的是旧名 `account_name`：旧列还在库里、DocType 元数据里已经没有了，
+             # 于是 `bench migrate` 同步一次字段就会让这行抛 AttributeError、把整条开通链卡死
+             # （2026-09-19 实踩）。取不到就退回公司名。
+             "full_name": issue.get("account_username") or issue.tenant_name,
              "subject": issue.identity_subject,
              "deployment": dep.name,
          }, ensure_ascii=False)},
@@ -413,13 +530,19 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "action": "mark_active", "status": "pending",
          "payload": json.dumps({"deployment": dep.name}, ensure_ascii=False)},
     ]
+    if infra.is_cloud(issue.target):
+        steps.insert(-1, {
+            "step_key": f"{dep.name}:publish_site", "deployment": dep.name,
+            "action": "publish_site", "status": "pending",
+            "payload": json.dumps({"site": site, "group": group}),
+        })
     return steps
 
 
 # ── 执行器接口 ──────────────────────────────────────────────────────────────
 
 
-def next_steps(limit: int = 20) -> list[dict]:
+def next_steps(limit: int = 20, target: str | None = None) -> list[dict]:
     """给执行器取待办步骤。只返回**所有依赖都已完成**的那些，不跳步。"""
     _require_operator()
     out = []
@@ -434,6 +557,16 @@ def next_steps(limit: int = 20) -> list[dict]:
     )
     for req_name in requests:
         req = frappe.get_doc(REQUEST, req_name)
+        tenant = frappe.db.get_value(ISSUE, req.issue, "tenant")
+        if (tenant and frappe.db.get_value("Pearnly Tenant", tenant, "status") == "deleting"
+                and not str(req.idempotency_key).startswith("teardown:")):
+            continue
+        issue_target = frappe.db.get_value(ISSUE, req.issue, "target")
+        # Legacy runner has no target argument. It must never consume cloud jobs.
+        if target and issue_target != target:
+            continue
+        if not target and infra.is_cloud(issue_target):
+            continue
         for step in req.steps:
             if len(out) >= limit:
                 break
@@ -444,11 +577,16 @@ def next_steps(limit: int = 20) -> list[dict]:
                 break
             if _blocked_by_previous(req, step):
                 break
+            payload = json.loads(step.payload or "{}")
+            if target and step.deployment:
+                dep = frappe.get_doc(DEPLOYMENT, step.deployment)
+                payload.update(site=dep.site_name, group=dep.bench_group,
+                               deployment=dep.name, tenant=dep.tenant)
             out.append({
                 "request": req.name,
                 "step_key": step.step_key,
                 "action": step.action,
-                "payload": json.loads(step.payload or "{}"),
+                "payload": payload,
             })
             break
     return out
@@ -577,7 +715,8 @@ def retry_failed_steps(request: str, include_skipped: bool = False) -> dict:
         # 才把外部条件配好的。不重算就会拿建单时那份旧参数去执行 —— 实测：配好 LINE
         # 渠道再补跑，执行器读到的是旧的 `configured: false`，又记一次 skipped，
         # 站点上永远拿不到密钥，而看进度的人以为这件事处理过了。
-        _sync_steps(req)
+        if not str(req.idempotency_key).startswith("teardown:"):
+            _sync_steps(req)
         _refresh_request_status(req)
     return {"request": req.name, "reset": reset, "status": req.status}
 

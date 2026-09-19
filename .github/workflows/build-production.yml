@@ -1,0 +1,74 @@
+name: Build production image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: production-image-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build the shared frontend
+        working-directory: frontend
+        run: npm ci && npm run build
+      - name: Build an amd64 image from the exact source revision
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker build --platform linux/amd64 \
+            --label org.opencontainers.image.revision="$GITHUB_SHA" \
+            --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
+            -f infrastructure/images/frappe.Dockerfile -t "$IMAGE" .
+      - name: Verify runtime and frontend assets
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker run --rm --entrypoint /home/frappe/frappe-bench/env/bin/python "$IMAGE" -c '
+          import platform
+          from pathlib import Path
+          import frappe, erpnext, pearnly_core, pearnly_dms, pearnly_cowork, pearnly_erp_portal
+          assert platform.machine() == "x86_64", platform.machine()
+          assert frappe.__version__ == "16.33.0", frappe.__version__
+          assert erpnext.__version__ == "16.34.1", erpnext.__version__
+          root = Path("/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core/public/pearnly-app")
+          assert (root / "index.html").is_file()
+          assert list((root / "assets").glob("*.js"))
+          from playwright.sync_api import sync_playwright
+          with sync_playwright() as p:
+              browser = p.chromium.launch(args=["--no-sandbox", "--disable-dev-shm-usage"])
+              page = browser.new_page()
+              page.set_content("<title>Pearnly runtime check</title>")
+              assert page.title() == "Pearnly runtime check"
+              browser.close()
+          print("Runtime, architecture, frontend assets and Chromium passed")'
+      - name: Publish private image and record digest
+        env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE"
+          docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}' > image-digest.txt
+          printf 'Source: `%s`\n\nImage: `%s`\n' "$GITHUB_SHA" "$(cat image-digest.txt)" >> "$GITHUB_STEP_SUMMARY"
+          docker logout ghcr.io
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: production-image-digest
+          path: image-digest.txt
+          retention-days: 7

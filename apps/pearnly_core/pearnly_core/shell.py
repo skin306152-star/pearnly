@@ -54,4 +54,5 @@ def describe() -> dict:
         # 语言（用户自己的偏好优先），前端拿它设 <html lang>。
         "language": frappe.local.lang or "",
         "csrf_token": frappe.sessions.get_csrf_token(),
+        "native_account": bool(frappe.conf.get("pearnly_native_account")),
     }

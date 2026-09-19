@@ -16,6 +16,7 @@
 import base64
 import hashlib
 import secrets
+import time
 from urllib.parse import urlencode
 
 import frappe
@@ -67,13 +68,25 @@ def _state_key(state: str) -> str:
 
 @frappe.whitelist(allow_guest=True)
 def begin_login(redirect_to: str | None = None):
+    return _begin_login(redirect_to)
+
+
+@frappe.whitelist()
+def begin_password_change():
+    if frappe.session.user == "Guest":
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
+    return _begin_login(None, password_change=True)
+
+
+def _begin_login(redirect_to=None, password_change=False):
     state = secrets.token_urlsafe(32)
     nonce = secrets.token_urlsafe(32)
     verifier, challenge = _pkce_pair()
 
     frappe.cache.set_value(
         _state_key(state),
-        {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to},
+        {"nonce": nonce, "verifier": verifier, "redirect_to": redirect_to,
+         "expected_user": frappe.session.user if password_change else None},
         expires_in_sec=STATE_TTL,
     )
 
@@ -87,6 +100,8 @@ def begin_login(redirect_to: str | None = None):
         "code_challenge": challenge,
         "code_challenge_method": "S256",
     }
+    if password_change:
+        params.update(kc_action="UPDATE_PASSWORD", prompt="login", login_hint=frappe.session.user)
     url = _discovery()["authorization_endpoint"] + "?" + urlencode(params)
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = url
@@ -117,6 +132,8 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         frappe.throw(_("The ID token issuer is not the identity service configured for this site"))
 
     user = _resolve_user(token_issuer, subject)
+    if saved.get("expected_user") and user != saved["expected_user"]:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
 
     # 把身份服务侧的会话 id 暂存，交由 on_session_creation 记进会话登记表。
     frappe.local.pearnly_kc = {
@@ -141,6 +158,42 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     redirect_to = workspace_mod.resolve_after_login(saved.get("redirect_to"))
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = redirect_to
+
+
+@frappe.whitelist()
+def sign_out():
+    """End the Site session and use the provider's native logout confirmation."""
+    endpoint = _discovery()["end_session_endpoint"]
+    url = endpoint + "?" + urlencode({
+        "client_id": _conf("pearnly_oidc_client_id"),
+        "post_logout_redirect_uri": str(_conf("host_name")).rstrip("/") + "/",
+    })
+    frappe.local.login_manager.logout()
+    frappe.local.response.update(type="redirect", location=url)
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def backchannel_logout(logout_token=None):
+    """OIDC back-channel logout: a signed provider event, never an admin token."""
+    try:
+        signing_key = jwt.PyJWKClient(_discovery()["jwks_uri"]).get_signing_key_from_jwt(logout_token)
+        claims = jwt.decode(logout_token, signing_key.key, algorithms=["RS256"],
+            audience=_conf("pearnly_oidc_client_id"), issuer=issuer(),
+            options={"require": ["iat", "jti", "iss", "aud", "sid"]})
+        event = "http://schemas.openid.net/event/backchannel-logout"
+        if (event not in claims.get("events", {}) or "nonce" in claims
+                or not 0 <= time.time() - claims["iat"] <= 120):
+            raise ValueError("Invalid logout event")
+    except (jwt.PyJWTError, ValueError, TypeError, KeyError):
+        frappe.throw(_("Not permitted"), frappe.AuthenticationError)
+    from frappe.sessions import delete_session
+    rows = frappe.get_all("Pearnly Session", filters={"keycloak_sid": claims["sid"], "status": "active"},
+                          fields=["name", "user", "session_id"])
+    for row in rows:
+        delete_session(row.session_id, user=row.user)
+        frappe.db.set_value("Pearnly Session", row.name, "status", "revoked")
+    frappe.db.commit()
+    return {"ok": True}
 
 
 def _exchange_and_verify(code: str, saved: dict) -> dict:

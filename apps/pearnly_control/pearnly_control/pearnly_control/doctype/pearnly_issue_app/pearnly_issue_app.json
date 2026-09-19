@@ -8,13 +8,82 @@
   "app",
   "domain_prefix",
   "domain",
-  "display_name"
+  "display_name",
+  "section_line",
+  "line_channel_id",
+  "line_liff_id",
+  "line_channel_secret",
+  "line_channel_access_token"
  ],
  "fields": [
-  {"fieldname": "app", "fieldtype": "Select", "in_list_view": 1, "label": "Product", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
-  {"fieldname": "domain_prefix", "fieldtype": "Data", "in_list_view": 1, "label": "Domain Prefix", "reqd": 1, "columns": 3, "description": "Prefix only, e.g. aerp"},
-  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "Domain", "read_only": 1, "columns": 5},
-  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "Display Name", "columns": 2, "description": "Leave empty to use the company name"}
+  {
+   "fieldname": "app",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Product",
+   "options": "cowork\nerp\ndms",
+   "reqd": 1,
+   "columns": 2
+  },
+  {
+   "fieldname": "domain_prefix",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Domain Prefix",
+   "reqd": 1,
+   "columns": 3,
+   "description": "Prefix only, e.g. aerp"
+  },
+  {
+   "fieldname": "domain",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Domain",
+   "read_only": 1,
+   "columns": 5
+  },
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Display Name",
+   "columns": 2,
+   "description": "Leave empty to use the company name"
+  },
+  {
+   "fieldname": "section_line",
+   "fieldtype": "Section Break",
+   "label": "LINE channel (optional)",
+   "description": "Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later."
+  },
+  {
+   "fieldname": "line_channel_id",
+   "fieldtype": "Data",
+   "label": "LINE Channel ID",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "line_liff_id",
+   "fieldtype": "Data",
+   "label": "LINE LIFF ID",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "line_channel_secret",
+   "fieldtype": "Password",
+   "label": "LINE Channel Secret",
+   "in_list_view": 1,
+   "columns": 3
+  },
+  {
+   "fieldname": "line_channel_access_token",
+   "fieldtype": "Password",
+   "label": "LINE Channel Access Token",
+   "in_list_view": 1,
+   "columns": 3
+  }
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

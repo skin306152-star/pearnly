@@ -240,3 +240,23 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 "{0} in-plan scan ({1} pages, within quota)","{0} in-plan scan ({1} pages, within quota)"
 {0} out-of-plan scan ({1} over quota),{0} out-of-plan scan ({1} over quota)
 {0} — {1} features,{0} — {1} features
+Connect cloud billing,Connect cloud billing
+Set up OCR,Set up OCR
+Enable HTTPS access,Enable HTTPS access
+LINE credentials are required before activation.,LINE credentials are required before activation.
+LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
+Open the LINE channel,Open the LINE channel
+Site URL,Site URL
+The address this tenant is reached at.,The address this tenant is reached at.
+Pearnly Wallet,Pearnly Wallet
+Pearnly Credit Transaction,Pearnly Credit Transaction
+Pearnly Subscription,Pearnly Subscription
+Pearnly Topup Request,Pearnly Topup Request
+A deployment is a live site. Delete the tenant so its site and database go away too.,A deployment is a live site. Delete the tenant so its site and database go away too.
+LINE channel (optional),LINE channel (optional)
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
+LINE Channel ID,LINE Channel ID
+LINE LIFF ID,LINE LIFF ID
+LINE Channel Secret,LINE Channel Secret
+LINE Channel Access Token,LINE Channel Access Token
+Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token

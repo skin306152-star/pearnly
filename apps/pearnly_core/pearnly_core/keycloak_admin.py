@@ -321,7 +321,7 @@ class AdminClient:
             )
 
     def create_oidc_client(self, client_id: str, redirect_uris: list[str],
-                           web_origins: list[str] | None = None) -> dict:
+                           web_origins: list[str] | None = None, attributes=None) -> dict:
         """建（或更新）一个部署自己的 OIDC 客户端，返回 client_id 与密钥。
 
         为什么每个部署要一个：回调地址是按站点域名生成的，共用客户端的话
@@ -343,7 +343,7 @@ class AdminClient:
             "serviceAccountsEnabled": False,
             "redirectUris": redirect_uris,
             "webOrigins": web_origins or [],
-            "attributes": {"pkce.code.challenge.method": "S256"},
+            "attributes": {"pkce.code.challenge.method": "S256", **(attributes or {})},
         }
         found = requests.get(
             self._url("/clients"), headers=self._headers(token),
@@ -402,7 +402,8 @@ def client_for_target(target_name: str | None = None) -> tuple["AdminClient", st
             ) or secret
         except Exception:
             pass
-    return AdminClient(row.base_url, row.realm, row.admin_client_id, secret), row.target_name
+    api_url = (frappe.conf.get("pearnly_target_api_urls") or {}).get(row.target_name) or row.base_url
+    return AdminClient(api_url, row.realm, row.admin_client_id, secret), row.target_name
 
 
 def invite_client_id_for(target_name: str | None = None) -> str:

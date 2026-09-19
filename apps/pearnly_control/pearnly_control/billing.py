@@ -35,6 +35,8 @@ A 档（高精），发票走 B 档（经济）。两档是两种业务，不是
 from __future__ import annotations
 
 import math
+import hashlib
+import json
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
@@ -74,7 +76,14 @@ SUBSCRIPTION_CYCLE_DAYS = 30
 
 def _money(x) -> Decimal:
     """一切金额过这个口：先 Decimal 再两位小数。float 进钱的路一律不认。"""
-    return Decimal(str(x or 0)).quantize(Decimal("0.01"))
+    from decimal import InvalidOperation
+    try:
+        value = Decimal(str(x or 0)).quantize(Decimal("0.01"))
+        if not value.is_finite():
+            raise InvalidOperation
+        return value
+    except (InvalidOperation, ValueError):
+        frappe.throw(_("Invalid amount"))
 
 
 def price_multiplier(tier: str) -> Decimal:
@@ -134,9 +143,13 @@ def estimate_cost_thb(used_this_month: int, kind: str, units: int, tier: str = "
 
 def wallet_of(tenant: str, *, create: bool = True):
     """取租户钱包。新租户余额是 0（不是"默认给点钱"）。"""
-    name = frappe.db.get_value(WALLET, {"tenant": tenant}, "name")
+    # A stable parent row also serializes creation of the initially absent wallet.
+    # All mutations lock this row first; wallet/quota/ledger update together.
+    if create:
+        frappe.db.sql("select name from `tabPearnly Tenant` where name=%s for update", (tenant,))
+    name = frappe.db.get_value(WALLET, {"tenant": tenant}, "name", for_update=create)
     if name:
-        return frappe.get_doc(WALLET, name)
+        return frappe.get_doc(WALLET, name, for_update=create)
     if not create:
         return None
     doc = frappe.get_doc({"doctype": WALLET, "tenant": tenant, "balance_thb": 0})
@@ -177,6 +190,10 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
     允许扣成负数：用量已经发生（OCR 跑完了），余额是欠账，靠后续充值补。
     老产品就是这么做的，不是 bug。
     """
+    if product not in _PRODUCTS or kind not in ("pdf", "excel"):
+        frappe.throw(_("Unknown billing unit: {0}").format(kind))
+    if len(reference) > 140:
+        frappe.throw(_("Invalid billing reference"))
     units = int(units or 0)
     if units <= 0:
         return {"ok": True, "charged_thb": 0.0,
@@ -185,11 +202,27 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
     wallet = wallet_of(tenant)
     # 有订阅就先吃套餐额度：额度内的免费，超出的按套餐超额单价扣。
     # （老产品的口径：订阅与按量阶梯价互不干扰，有订阅走套餐、没订阅走阶梯。）
+    fingerprint = hashlib.sha256(json.dumps(
+        [product, kind, units, (tier or "B").upper()], separators=(",", ":")
+    ).encode()).hexdigest()
+    if reference:
+        previous = frappe.db.get_value(
+            TXN, {"tenant": tenant, "product": product, "type": "usage", "reference": reference},
+            ["amount_thb", "balance_after", "request_hash"], as_dict=True, for_update=True,
+        )
+        if previous:
+            if not previous.request_hash or previous.request_hash != fingerprint:
+                frappe.throw(_("The billing reference was already used for another request"))
+            return {"ok": True, "charged_thb": float(-_money(previous.amount_thb)),
+                    "balance_after": float(previous.balance_after), "duplicate": True,
+                    "kind": kind, "units": units, "tier": (tier or "B").upper()}
+    elif frappe.conf.get("pearnly_billing_scoped_tokens"):
+        frappe.throw(_("A billing reference is required"))
     sub = _active_by_cycle(tenant)
     if sub is not None:
         return _charge_with_subscription(tenant, wallet, sub, product=product, kind=kind,
                                          units=units, tier=tier, description=description,
-                                         reference=reference)
+                                         reference=reference, request_hash=fingerprint)
 
     ym = _bkk_year_month()
     used = _pages_used_this_month(tenant, ym) if kind == "pdf" else 0
@@ -209,6 +242,7 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
         tenant, "usage", -cost, new_balance,
         description or f"{product} OCR {kind} units={units} tier={(tier or 'B').upper()}",
         reference, product=product, units=units, pages=units if kind == "pdf" else 0,
+        request_hash=fingerprint,
     )
     frappe.db.commit()
     return {
@@ -222,7 +256,7 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
 
 
 def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier,
-                             description, reference) -> dict:
+                             description, reference, request_hash="") -> dict:
     """套餐内扣费：额度内免费，超出按 over_rate 从余额扣。"""
     quota_need = int(units) if kind == "pdf" else doc_quota_pages(units)
     quota = int(sub.quota or 0)
@@ -244,13 +278,13 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
         _write_txn(tenant, "usage", -cost, new_balance,
                    description or _("{0} out-of-plan scan ({1} over quota)").format(product, billable),
                    reference, product=product, units=units,
-                   pages=units if kind == "pdf" else 0)
+                   pages=units if kind == "pdf" else 0, request_hash=request_hash)
     elif consumed > 0:
         # 额度内：金额为 0，但**要留一行**，否则这个周期用了多少张在台账里看不到
         _write_txn(tenant, "usage", Decimal("0.00"), new_balance,
                    description or _("{0} in-plan scan ({1} pages, within quota)").format(product, consumed),
                    reference, product=product, units=units,
-                   pages=units if kind == "pdf" else 0)
+                   pages=units if kind == "pdf" else 0, request_hash=request_hash)
     frappe.db.commit()
     return {
         "ok": True,
@@ -266,7 +300,7 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
 
 
 def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
-               *, product=None, units=0, pages=0) -> None:
+               *, product=None, units=0, pages=0, request_hash="") -> None:
     """落一行台账。**只由本模块调** —— 别处写台账等于绕过钱的一致性。"""
     frappe.get_doc({
         "doctype": TXN,
@@ -279,6 +313,7 @@ def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
         "pages": int(pages or 0),
         "description": (description or "")[:500],
         "reference": (reference or "")[:140],
+        "request_hash": request_hash,
     }).insert(ignore_permissions=True)
 
 
@@ -326,6 +361,7 @@ def _pages_used_this_month(tenant: str, ym: str) -> int:
         from `tabPearnly Credit Transaction`
         where tenant = %(tenant)s and type = 'usage'
           and left(creation, 7) = %(ym)s
+        for update
         """,
         {"tenant": tenant, "ym": ym},
         as_dict=True,
@@ -454,7 +490,8 @@ def subscribe(tenant: str, plan_code: str) -> dict:
         frappe.throw(_("No such plan: {0}").format(plan_code))
 
     fee = _money(spec["fee"])
-    balance = balance_of(tenant)
+    wallet = wallet_of(tenant)
+    balance = _money(wallet.balance_thb)
     if balance < fee:
         return {
             "ok": False,
@@ -464,7 +501,6 @@ def subscribe(tenant: str, plan_code: str) -> dict:
             "reason": _("Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})").format(fee, balance),
         }
 
-    wallet = wallet_of(tenant)
     new_balance = _money(Decimal(str(wallet.balance_thb or 0)) - fee)
     wallet.balance_thb = new_balance
     wallet.updated_at = now()
@@ -472,8 +508,9 @@ def subscribe(tenant: str, plan_code: str) -> dict:
 
     start = now()
     end = frappe.utils.add_days(start, SUBSCRIPTION_CYCLE_DAYS)
-    if frappe.db.exists(SUBSCRIPTION, {"tenant": tenant}):
-        sub = frappe.get_doc(SUBSCRIPTION, frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name"))
+    sub_name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name", for_update=True)
+    if sub_name:
+        sub = frappe.get_doc(SUBSCRIPTION, sub_name, for_update=True)
     else:
         sub = frappe.get_doc({"doctype": SUBSCRIPTION, "tenant": tenant})
     sub.plan_code = code
@@ -504,10 +541,10 @@ def _active_by_cycle(tenant: str):
     **不做自动续订**（用户 2026-09-18 定）：套餐就是买 30 天的额度，到期结束，
     要续就重新订阅。所以这里只看周期有没有到点，不看别的状态。
     """
-    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name")
+    name = frappe.db.get_value(SUBSCRIPTION, {"tenant": tenant}, "name", for_update=True)
     if not name:
         return None
-    doc = frappe.get_doc(SUBSCRIPTION, name)
-    if not doc.cycle_end or str(now()) > str(doc.cycle_end):
+    doc = frappe.get_doc(SUBSCRIPTION, name, for_update=True)
+    if doc.status != "active" or not doc.cycle_end or str(now()) > str(doc.cycle_end):
         return None
     return doc

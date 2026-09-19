@@ -89,17 +89,17 @@ const canManage = computed(() => home.value?.can_manage ?? false);
 const pending = computed(() => home.value?.pending_topups ?? []);
 const tabs = computed<TabKey[]>(() => (canManage.value ? ["usage", "topup", "ocr"] : ["usage", "ocr"]));
 
-const STATUS_LABEL: Record<string, string> = {
+const STATUS_LABEL = computed<Record<string, string>>(() => ({
   pending: t("home.status.pending"),
   approved: t("home.status.credited"),
   rejected: t("home.status.rejected"),
-};
+}));
 
-const OCR_LABEL: Record<string, string> = {
+const OCR_LABEL = computed<Record<string, string>>(() => ({
   ok: t("home.status.ok"),
   needs_review: t("home.status.toreview"),
   failed: t("home.status.failed"),
-};
+}));
 
 const OCR_COLOR: Record<string, string> = {
   ok: "var(--good)",

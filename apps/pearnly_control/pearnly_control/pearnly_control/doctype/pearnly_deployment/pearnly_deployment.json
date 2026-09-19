@@ -38,7 +38,7 @@
   {"fieldname": "oidc_client_id", "fieldtype": "Data", "label": "OIDC Client ID", "read_only": 1, "description": "One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out."},
   {"fieldname": "oidc_client_secret", "fieldtype": "Password", "label": "OIDC Client Secret", "read_only": 1},
   {"fieldname": "column_break_site", "fieldtype": "Column Break"},
-  {"fieldname": "url", "fieldtype": "Data", "label": "Local URL", "read_only": 1},
+  {"fieldname": "url", "fieldtype": "Data", "label": "Site URL", "read_only": 1, "description": "The address this tenant is reached at."},
   {"fieldname": "section_features", "fieldtype": "Section Break", "label": "Features"},
   {"fieldname": "features", "fieldtype": "Table", "label": "Enabled Features", "options": "Pearnly Issue Feature", "description": "Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md)."},
   {"fieldname": "section_src", "fieldtype": "Section Break", "label": "Source"},

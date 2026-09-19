@@ -46,11 +46,20 @@ def _require_admin() -> str:
     return user
 
 
-def _require_service() -> None:
+def _require_service(tenant: str, product: str | None = None) -> None:
     """产品站点来的调用。令牌不对就当没这回事（不透露"令牌存在但错了"）。"""
     expected = service_token(create=False)
     got = (frappe.get_request_header("X-Pearnly-Billing-Token") or "").strip()
-    if not expected or not got or not secrets.compare_digest(got, expected):
+    if frappe.conf.get("pearnly_billing_scoped_tokens"):
+        from pearnly_control.billing_auth import valid_token
+
+        scope = frappe.get_request_header("X-Pearnly-Billing-Product") or ""
+        valid = valid_token(expected, (tenant or "").strip(), scope, got)
+        if product is not None and product != scope:
+            valid = False
+    else:
+        valid = bool(expected and got and secrets.compare_digest(got, expected))
+    if not valid:
         frappe.throw(_("Invalid service token"), frappe.AuthenticationError)
 
 
@@ -67,15 +76,15 @@ def _tenant_or_throw(tenant: str) -> str:
 @frappe.whitelist(allow_guest=True)
 def service_status(tenant: str, kind: str, units: int = 0, tier: str = "B") -> dict:
     """开工前的余额闸。`error_code` 三种：空 / insufficient_balance / lookup_error。"""
-    _require_service()
+    _require_service(tenant)
     return billing.gate(_tenant_or_throw(tenant), kind=kind, units=int(units or 0), tier=tier)
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def service_charge(tenant: str, product: str, kind: str, units: int, tier: str = "B",
                    reference: str = "", description: str = "") -> dict:
     """干完活后扣费。调用方必须是"确实识别成功了"的那一刻。"""
-    _require_service()
+    _require_service(tenant, product)
     return billing.charge(
         _tenant_or_throw(tenant), product=product, kind=kind, units=int(units or 0),
         tier=tier, reference=reference, description=description,
@@ -85,20 +94,20 @@ def service_charge(tenant: str, product: str, kind: str, units: int, tier: str =
 @frappe.whitelist(allow_guest=True)
 def service_wallet(tenant: str) -> dict:
     """产品站点上的「套餐与余额」页读这个。"""
-    _require_service()
+    _require_service(tenant)
     return billing.wallet_summary(_tenant_or_throw(tenant))
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def service_topup_request(tenant: str, amount_thb: float, note: str = "",
                           payer_name: str = "") -> dict:
     """租户在产品站点上点「充值」→ 在这里落一条待审核申请。
 
     只落申请，**不动余额** —— 钱到不到账由控制面的审核决定。
     """
-    _require_service()
+    _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
-    amt = float(amount_thb or 0)
+    amt = billing._money(amount_thb)
     if amt <= 0 or amt > 500000:
         frappe.throw(_("The top-up amount must be between ฿0.01 and ฿500,000"))
     doc = frappe.get_doc({
@@ -112,13 +121,13 @@ def service_topup_request(tenant: str, amount_thb: float, note: str = "",
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
-    return {"request": doc.name, "status": doc.status, "requested_thb": amt}
+    return {"request": doc.name, "status": doc.status, "requested_thb": float(amt)}
 
 
 @frappe.whitelist(allow_guest=True)
 def service_topup_status(tenant: str) -> dict:
     """租户看自己最近几次充值的状态（待审核 / 已到账 / 已拒绝）。"""
-    _require_service()
+    _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
     return {
         "items": frappe.get_all(
@@ -136,7 +145,7 @@ def service_home(tenant: str) -> dict:
 
     三次调用变一次：这一页是打开频率最高的一页，不该为了显示一行余额打三个来回。
     """
-    _require_service()
+    _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
     summary = billing.wallet_summary(tenant)
     return {
@@ -151,10 +160,10 @@ def service_home(tenant: str) -> dict:
     }
 
 
-@frappe.whitelist(allow_guest=True)
+@frappe.whitelist(allow_guest=True, methods=["POST"])
 def service_subscribe(tenant: str, plan_code: str) -> dict:
     """订阅套餐：从余额扣月费。余额不够就返回 insufficient_balance（界面引导充值）。"""
-    _require_service()
+    _require_service(tenant)
     return billing.subscribe(_tenant_or_throw(tenant), plan_code)
 
 
@@ -163,7 +172,7 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
                     limit: int = 500) -> dict:
     """记录明细按区间取数。`tab` 只有 usage / topup 两种 ——
     识别记录在产品站点本地（`Pearnly OCR Record`），不在这儿取。"""
-    _require_service()
+    _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
     limit = max(1, min(int(limit or 500), 5000))
     filters = {"tenant": tenant}
@@ -193,12 +202,18 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
 @frappe.whitelist()
 def admin_summary(tenant: str) -> dict:
     _require_admin()
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        return billing_remote.call("summary", tenant=tenant)
     return billing.wallet_summary(_tenant_or_throw(tenant))
 
 
 @frappe.whitelist()
 def admin_pending_topups() -> dict:
     _require_admin()
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        return {"items": list(billing_remote.topups(pending=True))}
     return {
         "items": frappe.get_all(
             billing.TOPUP, filters={"status": "pending"},
@@ -216,11 +231,19 @@ def admin_approve(request: str, actual_amount_thb: float | None = None, note: st
     以银行到账为准，不以申请为准。
     """
     admin = _require_admin()
-    doc = frappe.get_doc(billing.TOPUP, request)
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        return billing_remote.review("approve", request, admin, actual_amount_thb, note)
+    return approve_local(request, admin, actual_amount_thb, note)
+
+
+def approve_local(request, admin, actual_amount_thb=None, note=""):
+    frappe.db.sql("select name from `tabPearnly Topup Request` where name=%s for update", (request,))
+    doc = frappe.get_doc(billing.TOPUP, request, for_update=True)
     if doc.status != "pending":
         frappe.throw(_("This request has already been handled (currently: {0})").format(doc.status))
 
-    amt = float(actual_amount_thb if actual_amount_thb is not None else doc.requested_thb)
+    amt = billing._money(actual_amount_thb if actual_amount_thb is not None else doc.requested_thb)
     if amt <= 0:
         frappe.throw(_("The received amount must be greater than 0"))
 
@@ -238,13 +261,21 @@ def admin_approve(request: str, actual_amount_thb: float | None = None, note: st
     )
     frappe.db.commit()
     return {"ok": True, "request": doc.name, "tenant": doc.tenant,
-            "approved_thb": amt, "new_balance": float(new_balance)}
+            "approved_thb": float(amt), "new_balance": float(new_balance)}
 
 
 @frappe.whitelist(methods=["POST"])
 def admin_reject(request: str, note: str = "") -> dict:
     admin = _require_admin()
-    doc = frappe.get_doc(billing.TOPUP, request)
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        return billing_remote.review("reject", request, admin, note=note)
+    return reject_local(request, admin, note)
+
+
+def reject_local(request, admin, note=""):
+    frappe.db.sql("select name from `tabPearnly Topup Request` where name=%s for update", (request,))
+    doc = frappe.get_doc(billing.TOPUP, request, for_update=True)
     if doc.status != "pending":
         frappe.throw(_("This request has already been handled (currently: {0})").format(doc.status))
     if not (note or "").strip():
@@ -262,6 +293,9 @@ def admin_reject(request: str, note: str = "") -> dict:
 def admin_adjust(tenant: str, amount_thb: float, note: str) -> dict:
     """人工调账（补录、补偿、冲正）。**必须写原因** —— 无说明的调账等于黑账。"""
     admin = _require_admin()
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        return billing_remote.call("adjust", tenant=tenant, amount=amount_thb, note=note, actor=admin)
     tenant = _tenant_or_throw(tenant)
     new_balance = billing.adjust(tenant, float(amount_thb or 0), note=note, actor=admin)
     return {"ok": True, "tenant": tenant, "new_balance": float(new_balance)}

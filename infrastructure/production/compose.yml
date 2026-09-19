@@ -1,0 +1,240 @@
+name: pearnly-production
+
+x-runtime: &runtime
+  image: ${PEARNLY_IMAGE:?Set the verified image digest}
+  restart: unless-stopped
+  init: true
+  networks: [runtime]
+  logging: &logging
+    driver: json-file
+    options: {max-size: 10m, max-file: '3'}
+  environment: &frappe-env
+    DB_HOST: mariadb
+    REDIS_CACHE: redis://redis-cache:6379
+    REDIS_QUEUE: redis://redis-queue:6379
+    SOCKETIO_PORT: '9000'
+    GUNICORN_WORKERS: '2'
+    GUNICORN_THREADS: '4'
+
+x-web: &web
+  <<: *runtime
+  mem_limit: 768m
+  command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites, --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread, --worker-tmp-dir=/dev/shm, --timeout=120, --preload, frappe.app:application]
+  depends_on:
+    mariadb: {condition: service_healthy}
+    redis-cache: {condition: service_healthy}
+    redis-queue: {condition: service_healthy}
+
+x-worker: &worker
+  <<: *runtime
+  mem_limit: 768m
+  command: [bench, worker, --queue, 'short,default,long']
+
+x-scheduler: &scheduler
+  <<: *runtime
+  mem_limit: 192m
+  stop_grace_period: 5s
+  command: [bench, schedule]
+
+x-socketio: &socketio
+  <<: *runtime
+  mem_limit: 256m
+  command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
+
+x-frontend: &frontend
+  <<: *runtime
+  mem_limit: 128m
+  entrypoint: [nginx-entrypoint.sh]
+
+services:
+  mariadb:
+    image: mariadb:11.8@sha256:79d59758afc91b89b120b0a8904d637f5a3b3e1c4900f29b740d6d46c72fef68
+    restart: unless-stopped
+    mem_limit: 2g
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G]
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
+      MARIADB_DATABASE: keycloak
+      MARIADB_USER: keycloak
+      MARIADB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+    volumes: [database:/var/lib/mysql]
+    networks: [runtime]
+    logging: *logging
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  redis-cache:
+    image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
+    restart: unless-stopped
+    mem_limit: 192m
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, allkeys-lru]
+    networks: [runtime]
+    logging: *logging
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  redis-queue:
+    image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
+    restart: unless-stopped
+    mem_limit: 256m
+    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec]
+    volumes: [queue:/data]
+    networks: [runtime]
+    logging: *logging
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+    restart: unless-stopped
+    mem_limit: 1g
+    command: [start, --http-enabled=true, --hostname-strict=true, --health-enabled=true, --proxy-headers=xforwarded]
+    environment:
+      KC_HOSTNAME: https://${AUTH_HOST:?}
+      KC_DB: mariadb
+      KC_DB_URL: jdbc:mariadb://mariadb:3306/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?}
+      KC_BOOTSTRAP_ADMIN_USERNAME: pearnly-bootstrap
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      JAVA_OPTS_APPEND: -Xms256m -Xmx512m
+    ports: ['127.0.0.1:8180:8080', '127.0.0.1:9180:9000']
+    volumes: ['../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro']
+    networks: [runtime]
+    logging: *logging
+    depends_on:
+      mariadb: {condition: service_healthy}
+
+  billing-web:
+    <<: *web
+    mem_limit: 512m
+    ports: ['127.0.0.1:8184:8000']
+    volumes: [sites-billing:/home/frappe/frappe-bench/sites]
+
+  dms-web:
+    profiles: [dms]
+    <<: *web
+    mem_limit: 1g
+    volumes: &dms-volumes
+      - sites-dms:/home/frappe/frappe-bench/sites
+      - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  dms-worker:
+    profiles: [dms]
+    <<: *worker
+    mem_limit: 1g
+    volumes: *dms-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  dms-scheduler:
+    profiles: [dms]
+    <<: *scheduler
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+  dms-socketio:
+    profiles: [dms]
+    <<: *socketio
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+  dms-frontend:
+    profiles: [dms]
+    <<: *frontend
+    environment: {BACKEND: 'dms-web:8000', SOCKETIO: 'dms-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+    ports: ['127.0.0.1:8183:8080']
+    depends_on: [dms-web, dms-socketio]
+
+  erp-web:
+    profiles: [erp]
+    <<: *web
+    volumes: &erp-volumes
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  erp-worker:
+    profiles: [erp]
+    <<: *worker
+    volumes: *erp-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  erp-scheduler:
+    profiles: [erp]
+    <<: *scheduler
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+  erp-socketio:
+    profiles: [erp]
+    <<: *socketio
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+  erp-frontend:
+    profiles: [erp]
+    <<: *frontend
+    environment: {BACKEND: 'erp-web:8000', SOCKETIO: 'erp-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    ports: ['127.0.0.1:8182:8080']
+    depends_on: [erp-web, erp-socketio]
+
+  cowork-web:
+    profiles: [cowork]
+    <<: *web
+    volumes: &cowork-volumes
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  cowork-worker:
+    profiles: [cowork]
+    <<: *worker
+    volumes: *cowork-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  cowork-scheduler:
+    profiles: [cowork]
+    <<: *scheduler
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+  cowork-socketio:
+    profiles: [cowork]
+    <<: *socketio
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+  cowork-frontend:
+    profiles: [cowork]
+    <<: *frontend
+    environment: {BACKEND: 'cowork-web:8000', SOCKETIO: 'cowork-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    ports: ['127.0.0.1:8181:8080']
+    depends_on: [cowork-web, cowork-socketio]
+
+volumes:
+  database:
+  queue:
+  sites-billing:
+    # Created by bootstrap before billing-web starts; never removed by compose down.
+    external: true
+    name: pearnly-production_sites-billing
+  sites-dms:
+    external: true
+    name: pearnly-production_sites-dms
+  sites-erp:
+    external: true
+    name: pearnly-production_sites-erp
+  sites-cowork:
+    external: true
+    name: pearnly-production_sites-cowork
+
+networks:
+  runtime:
+    driver: bridge
