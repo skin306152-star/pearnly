@@ -10,6 +10,8 @@ from pearnly_control.onboarding.welcome import SENDER
 
 def configure(values):
     frappe.only_for("System Manager")
+    if frappe.local.site != "control.localhost":
+        raise ValueError("Official onboarding mail belongs to the local control site")
     if values.get("SMTP_FROM") != SENDER:
         raise ValueError("Official sender must be hello@pearnly.com")
     if not all(values.get(k) for k in ("SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD")):
@@ -31,6 +33,7 @@ def configure(values):
         "add_signature": 0, "append_emails_to_sent_folder": 0,
     })
     account.save(ignore_permissions=True)
+    frappe.db.set_single_value("System Settings", "enable_scheduler", 1)
     frappe.db.commit()
     update_site_config("pearnly_welcome_email_account", account.name)
     return {"sender": SENDER, "account": account.name, "email_sent": False}
