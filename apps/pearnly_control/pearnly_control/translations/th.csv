@@ -82,6 +82,7 @@ Identity Service URL,ที่อยู่บริการตัวตน
 Identity Subject,ตัวตนSubject
 Initial Password,รหัสผ่านเริ่มต้น
 Initial password is required (the user signs in with it directly),ต้องระบุรหัสผ่านเริ่มต้น (ผู้ใช้ใช้เข้าสู่ระบบโดยตรง)
+Insufficient balance; please top up first,ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63
 Invalid email,อีเมลไม่ถูกต้อง
 Invalid service token,โทเคนบริการไม่ถูกต้อง
@@ -102,6 +103,7 @@ Last Updated,แก้ไขล่าสุด
 Leave empty to use the company name,เว้นว่างเพื่อใช้ชื่อบริษัท
 Local Port,พอร์ตในเครื่อง
 Local URL,ที่อยู่ในเครื่อง
+Manual adjustment · {0},ปรับยอดด้วยคน · {0}
 Matches the feature keys in the product manifest (product_manifest.py).,ตรงกับคีย์ features ในรายการผลิตภัณฑ์ (product_manifest.py)
 Monthly Fee,ค่าบริการรายเดือน
 No provisioning request yet; click “Run provisioning” to start,"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"
@@ -127,6 +129,7 @@ Password-check Client Secret,Client Secret ตรวจรหัสผ่าน
 Payload,พารามิเตอร์
 Pick at least one product,เลือกอย่างน้อยหนึ่งผลิตภัณฑ์
 Plan,แพ็กเกจ
+Plan {0} ({1} days · {2} pages),แพ็กเกจ {0} ({1} วัน · {2} หน้า)
 "Prefix only, e.g. aerp",ใส่เฉพาะคำนำหน้า เช่น aerp
 Product App,แอปผลิตภัณฑ์
 Product {0} is selected twice,เลือกผลิตภัณฑ์ {0} สองครั้ง
@@ -181,6 +184,7 @@ Tenant {0} does not exist,ผู้เช่า {0} ไม่มีอยู่
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา
 "The URL to paste into the LINE console, derived from the deployment domain.",ที่อยู่ที่นำไปใส่ในหลังบ้าน LINE คำนวณจากโดเมนของการติดตั้ง
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)
+The balance could not be read; this is not 'insufficient balance',อ่านยอดคงเหลือไม่ได้ ไม่ใช่ยอดไม่พอ
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",คือโดเมนของการติดตั้งนี้ Frappe เลือกเว็บไซต์จาก Host จึงใช้ค่าเดียวกัน
 The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,บริการตัวตนสร้างลิงก์ในอีเมลเชิญจากไคลเอนต์นี้ ระยะตัวอย่างผู้เช่าทุกรายใช้ร่วมกัน ผู้เช่าจริงจะมีไคลเอนต์ของตนเอง
 The last issue attempt failed; set it back to draft before issuing again,การออกใบครั้งก่อนล้มเหลว ตั้งกลับเป็น draft ก่อนออกใหม่
@@ -199,6 +203,7 @@ This tenant no longer exists.,ผู้เช่ารายนี้ไม่�
 This top-up request was already reviewed; it cannot be handled twice,คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).","ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น กระดานทำงานร่วม, ผู้ช่วย)"
 Top-up Review,ตรวจสอบการเติมเงิน
+Top-up approved · request {0},อนุมัติการเติมเงินแล้ว · คำขอ {0}
 Transfer Slip,สลิปโอนเงิน
 Type,ประเภท
 Unknown billing unit: {0},หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}
@@ -213,4 +218,6 @@ Username and initial password are both required: they are the credentials for th
 View progress,ดูความคืบหน้า
 Webhook URL,Webhook URL
 grant only handles money in (topup / adjustment); use charge() for deductions,grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()
+"{0} in-plan scan ({1} pages, within quota)",{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)
+{0} out-of-plan scan ({1} over quota),{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)
 {0} — {1} features,{0} — {1} ฟีเจอร์

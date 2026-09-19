@@ -342,7 +342,7 @@ def api_selftest():
     if backend() == "vertex":
         if not is_configured():
             return {"ok": False, "reason": "no_credentials", "backend": "vertex",
-                    "hint": "站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON"}
+                    "hint": _("Site config pearnly_ocr_credentials must point at an existing service-account JSON")}
         try:
             token = access_token()
         except OcrError as exc:

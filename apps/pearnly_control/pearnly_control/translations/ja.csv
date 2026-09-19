@@ -82,6 +82,7 @@ Identity Service URL,アイデンティティサービスURL
 Identity Subject,アイデンティティのサブジェクト
 Initial Password,初期パスワード
 Initial password is required (the user signs in with it directly),初期パスワードは必須です（そのままログインに使います）
+Insufficient balance; please top up first,残高不足です。先にチャージしてください
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63
 Invalid email,メールアドレスの形式が正しくありません
 Invalid service token,サービストークンが無効です
@@ -102,6 +103,7 @@ Last Updated,最終更新
 Leave empty to use the company name,空欄なら会社名を使います
 Local Port,ローカルポート
 Local URL,ローカルURL
+Manual adjustment · {0},手動調整 · {0}
 Matches the feature keys in the product manifest (product_manifest.py).,製品マニフェスト product_manifest.py の features キーと一致します。
 Monthly Fee,月額
 No provisioning request yet; click “Run provisioning” to start,開通リクエストはまだありません。「開通を実行」を押してください。
@@ -127,6 +129,7 @@ Password-check Client Secret,パスワード確認用クライアントシーク
 Payload,パラメータ
 Pick at least one product,製品を1つ以上選んでください
 Plan,プラン
+Plan {0} ({1} days · {2} pages),プラン {0}（{1}日 · {2}枚）
 "Prefix only, e.g. aerp",接頭辞のみ（例: aerp）
 Product App,製品アプリ
 Product {0} is selected twice,製品 {0} が二重に選ばれています
@@ -181,6 +184,7 @@ Tenant {0} does not exist,テナント {0} が存在しません
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
 "The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
+The balance could not be read; this is not 'insufficient balance',残高を読み取れません。残高不足ではありません
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
 The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
 The last issue attempt failed; set it back to draft before issuing again,前回の発行に失敗しました。draft に戻してから再発行してください。
@@ -199,6 +203,7 @@ This tenant no longer exists.,このテナントは既に存在しません。
 This top-up request was already reviewed; it cannot be handled twice,この入金申請は審査済みです。二重処理はできません。
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",チェックは既定で有効、外したものは追加購入（コラボボード、コンパニオンなど）。
 Top-up Review,チャージ承認
+Top-up approved · request {0},チャージ承認 · 申請 {0}
 Transfer Slip,振込明細
 Type,種別
 Unknown billing unit: {0},不明な課金単位: {0}
@@ -213,4 +218,6 @@ Username and initial password are both required: they are the credentials for th
 View progress,進捗を見る
 Webhook URL,Webhook URL
 grant only handles money in (topup / adjustment); use charge() for deductions,grant は入金（topup / adjustment）専用。控除は charge() を使います。
+"{0} in-plan scan ({1} pages, within quota)",{0} プラン内スキャン（{1} 枚、枠内）
+{0} out-of-plan scan ({1} over quota),{0} プラン外スキャン（枠超過 {1} 枚）
 {0} — {1} features,{0} — {1} 件

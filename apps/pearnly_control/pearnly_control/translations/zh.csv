@@ -82,6 +82,7 @@ Identity Service URL,身份服务地址
 Identity Subject,身份主体
 Initial Password,初始密码
 Initial password is required (the user signs in with it directly),初始密码必填（用户拿它直接登录）
+Insufficient balance; please top up first,余额不足，请先充值
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63
 Invalid email,邮箱不合法
 Invalid service token,服务令牌无效
@@ -102,6 +103,7 @@ Last Updated,最近变动
 Leave empty to use the company name,留空用公司名称
 Local Port,本机端口
 Local URL,本机访问地址
+Manual adjustment · {0},人工调账 · {0}
 Matches the feature keys in the product manifest (product_manifest.py).,与产品清单 product_manifest.py 里的 features 键一致
 Monthly Fee,月费
 No provisioning request yet; click “Run provisioning” to start,还没有开通请求，点「执行开通」开始
@@ -127,6 +129,7 @@ Password-check Client Secret,改密校验客户端密钥
 Payload,参数
 Pick at least one product,至少要选一个产品
 Plan,套餐
+Plan {0} ({1} days · {2} pages),订阅套餐 {0}（{1} 天 · {2} 张）
 "Prefix only, e.g. aerp",只填前缀，如 aerp
 Product App,产品 App
 Product {0} is selected twice,产品 {0} 选了两次
@@ -181,6 +184,7 @@ Tenant {0} does not exist,租户 {0} 不存在
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
 "The URL to paste into the LINE console, derived from the deployment domain.",填到 LINE 后台的那个地址，由部署域名算出
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）
+The balance could not be read; this is not 'insufficient balance',余额查不出来，不是余额不足
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",就是该部署的域名。Frappe 按 Host 认站点，所以站点名与域名是同一个值
 The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的
 The last issue attempt failed; set it back to draft before issuing again,这张单上次发号失败了，先把它改回 draft 再发
@@ -199,6 +203,7 @@ This tenant no longer exists.,这个租户已经不存在了。
 This top-up request was already reviewed; it cannot be handled twice,这张充值申请已经审核过了，不能重复处理
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）
 Top-up Review,充值审核
+Top-up approved · request {0},充值审核通过 · 申请 {0}
 Transfer Slip,转账截图
 Type,类型
 Unknown billing unit: {0},未知的计费单位：{0}
@@ -213,4 +218,6 @@ Username and initial password are both required: they are the credentials for th
 View progress,查看进度
 Webhook URL,Webhook 地址
 grant only handles money in (topup / adjustment); use charge() for deductions,grant 只处理进账（topup / adjustment）；扣费走 charge()
+"{0} in-plan scan ({1} pages, within quota)",{0} 套餐内扫描（{1} 张，额度内）
+{0} out-of-plan scan ({1} over quota),{0} 套餐外扫描（超额 {1} 张）
 {0} — {1} features,{0} — {1} 项

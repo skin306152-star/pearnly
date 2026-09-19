@@ -25,6 +25,7 @@ Auto Push,自動送信
 Balance,残高
 Batches and results of every recognition run,各認識バッチの記録と結果
 Billing,課金
+Billing is not configured on this site (pearnly_billing_*),このサイトは課金基盤が未設定です（pearnly_billing_*）
 "Billing is not wired up on this site, please contact the platform",このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
 Bind Code,連携コード
 Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
@@ -37,6 +38,7 @@ Business Key,業務キー
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
 Cannot reach the OCR service: {0},OCRサービスに接続できません: {0}
+Cannot reach the billing service: {0},課金基盤に接続できません: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
 Charges,課金
 Claimed By,担当者
@@ -45,6 +47,7 @@ Client ID is required,クライアントIDは必須です
 Collaboration Boards (WeKan),コラボボード（WeKan）
 Companion,コンパニオン
 Company Tax ID,自社の税番号
+"Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
 Confirmed At,確認日時
 Confirmed By,確認者
 Connection,接続
@@ -197,6 +200,7 @@ No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定で
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
 No service account configured (site config pearnly_ocr_credentials),サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
+No sign-in credentials configured,ログイン資格情報が未設定です
 No such local account: {0},ローカルアカウントがありません: {0}
 Not signed in,未ログイン
 Note,備考
@@ -209,6 +213,7 @@ Only an admin can configure DMS connections,DMS接続を設定できるのは管
 Only an admin can manage the operator roster,オペレーター名簿を管理できるのは管理者だけです
 Only confirmed documents can be queued for push,確定済みの伝票だけが送信キューに入れられます
 Only one default per account + adapter (the legacy product's unique index).,同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
+Only the config was checked; a real connectivity test waits for the adapter,設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
 Only the owner can manage it,責任者のみ管理可能
 Operator,ユーザー
 Operator Roster,オペレーター名簿
@@ -275,6 +280,7 @@ Sign-in Credentials,ログイン資格情報
 Site config is missing {0},サイト設定に {0} がありません
 Site config is missing {0}_admin_client_id / _secret,サイト設定に {0}_admin_client_id / _secret がありません
 Site config is missing {0}_issuer,サイト設定に {0}_issuer がありません
+Site config pearnly_ocr_credentials must point at an existing service-account JSON,サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります
 Source,ソース
 Source Attachment,元の添付ファイル
 Status,ステータス
@@ -291,6 +297,7 @@ Summary,摘要
 Supplier,仕入先
 Supplier Tax ID,仕入先の税番号
 System URL,システムURL
+System URL is not filled in,システムURLが未入力です
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
@@ -298,6 +305,8 @@ The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しま�
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
 The account is disabled,アカウントは無効化されています
 The account was created but no id came back,アカウントは作成されましたがIDが返りませんでした
+The billing service returned HTTP {0},課金基盤が HTTP {0} を返しました
+The control plane is not affected,コントロールプレーンは影響を受けません
 The current password is wrong,現在のパスワードが正しくありません
 The customer snapshot used to refill the form when approval executes.,承認実行時にフォームへ戻すための顧客情報スナップショット。
 "The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
@@ -342,6 +351,7 @@ This invoice has already been recorded: {0},この請求書は既に登録済み
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
 "This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
 This site has no product manifest installed; it cannot run as a business site.,このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
+This site has no product workspace yet,このサイトにはまだ製品ワークスペースがありません
 Time,日時
 Top-ups,チャージ
 Transport Result,転送結果
@@ -380,3 +390,7 @@ google-auth is missing (the image should have it): {0},google-auth がありま�
 nonce mismatch,nonce が一致しません
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 state is invalid or has expired,state が無効か期限切れです
+{0}: entry prefixes must start with /: {1},{0}: エントリ接頭辞は / で始まる必要があります: {1}
+{0}: missing field {1},{0}: フィールド {1} がありません
+"{0}: the manifest requires {1}, but this site does not have it",{0}: マニフェストは {1} を要求していますが、このサイトには入っていません
+{0}: {1} cannot be empty,{0}: {1} は空にできません

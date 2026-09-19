@@ -140,15 +140,15 @@ def api_test_connection(name: str):
     doc = frappe.get_doc(ENDPOINT, name)
     problems = []
     if not _clean(doc.system_url):
-        problems.append("没填系统地址")
+        problems.append(_("System URL is not filled in"))
     if not has_credential(name):
-        problems.append("没配登录凭据")
+        problems.append(_("No sign-in credentials configured"))
     if problems:
         return {"ok": False, "checked": "config", "problems": problems,
-                "note": "只检查了配置；真实连通性测试要等适配器实现"}
+                "note": _("Only the config was checked; a real connectivity test waits for the adapter")}
     return {
         "ok": True,
         "checked": "config",
         "problems": [],
-        "note": "配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通",
+        "note": _("Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise"),
     }

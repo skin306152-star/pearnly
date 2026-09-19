@@ -233,7 +233,7 @@ def admin_approve(request: str, actual_amount_thb: float | None = None, note: st
 
     new_balance = billing.grant(
         doc.tenant, amt, txn_type="topup",
-        description=f"充值审核通过 · 申请 {doc.name}",
+        description=_("Top-up approved · request {0}").format(doc.name),
         reference=doc.name,
     )
     frappe.db.commit()

@@ -55,16 +55,22 @@ def check() -> list[str]:
         # 早期用 bool 判断会把它们误报成缺字段。
         missing = [k for k in REQUIRED_KEYS if k not in manifest]
         if missing:
-            problems.append(f"{product}: 缺少字段 {missing}")
+            problems.append(_("{0}: missing field {1}").format(product, missing))
         for key in ("product", "version"):
             if not manifest.get(key):
-                problems.append(f"{product}: {key} 不能为空")
+                problems.append(_("{0}: {1} cannot be empty").format(product, key))
         for app in manifest.get("apps", []):
             if app not in frappe.get_installed_apps():
-                problems.append(f"{product}: 清单要求安装 {app}，但本站点没装")
+                problems.append(
+                    _("{0}: the manifest requires {1}, but this site does not have it").format(
+                        product, app
+                    )
+                )
         for prefix in manifest.get("entry_prefixes", []):
             if not prefix.startswith("/"):
-                problems.append(f"{product}: 入口前缀必须以 / 开头：{prefix}")
+                problems.append(
+                    _("{0}: entry prefixes must start with /: {1}").format(product, prefix)
+                )
     return problems
 
 

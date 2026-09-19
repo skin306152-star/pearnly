@@ -27,6 +27,7 @@ import logging
 
 import frappe
 import requests
+from frappe import _
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,7 @@ def configured() -> bool:
 def _call(method: str, params: dict | None = None) -> dict:
     c = _conf()
     if not configured():
-        raise BillingUnavailable("本站还没配计费底座（pearnly_billing_*）")
+        raise BillingUnavailable(_("Billing is not configured on this site (pearnly_billing_*)"))
     # 租户由本站自己带上：产品站点只可能替**自己那个租户**说话，
     # 不给自己填（会漏），也不接受别处传一个别人的租户号进来。
     payload = dict(params or {})
@@ -66,9 +67,9 @@ def _call(method: str, params: dict | None = None) -> dict:
     try:
         resp = requests.post(url, json=payload, headers=headers, timeout=TIMEOUT)
     except Exception as exc:  # noqa: BLE001
-        raise BillingUnavailable(f"连不上计费底座：{exc}") from exc
+        raise BillingUnavailable(_("Cannot reach the billing service: {0}").format(exc)) from exc
     if resp.status_code != 200:
-        raise BillingUnavailable(f"计费底座返回 HTTP {resp.status_code}")
+        raise BillingUnavailable(_("The billing service returned HTTP {0}").format(resp.status_code))
     body = resp.json()
     if "message" not in body:
         raise BillingUnavailable(str(body)[:200])

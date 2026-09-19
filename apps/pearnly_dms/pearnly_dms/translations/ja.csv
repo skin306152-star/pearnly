@@ -105,3 +105,9 @@ dms.edit.cashier_cheque,銀行小切手
 dms.edit.card,クレジット/デビットカード
 dms.edit.other,その他
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
+dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
+dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
+dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
+dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
+dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。
+dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。

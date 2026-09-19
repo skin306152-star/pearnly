@@ -28,6 +28,7 @@ Frappe 决定"登录后去哪"的地方是 `frappe/website/utils.py` 的 `_get_h
 import os
 
 import frappe
+from frappe import _
 
 # 产品代码 → 承载它的 App。工作区所属模块从该 App 自己的 `modules.txt` 读，
 # 不在这里再抄一份模块名 —— 模块名的唯一权威是各产品 App。
@@ -135,10 +136,10 @@ def clear_dangling_default_workspace(user: str) -> bool:
 def apply_to_site_users() -> dict:
     """给本站点所有还没有默认工作区的业务账号设上。幂等。"""
     if not is_tenant_site():
-        return {"skipped": "控制面不受影响"}
+        return {"skipped": _("The control plane is not affected")}
     workspace = site_product_workspace()
     if not workspace:
-        return {"skipped": "本站点还没有产品工作区"}
+        return {"skipped": _("This site has no product workspace yet")}
 
     changed = []
     users = frappe.get_all(

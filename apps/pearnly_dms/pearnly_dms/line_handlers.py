@@ -12,19 +12,21 @@
 import frappe
 
 from pearnly_core import line, line_binding
+from pearnly_dms import dms_cards as cards
 
-# 与产品无关的通用指令
-CMD_UNBIND = "解绑"
+# 解绑指令词：这是**用户手打的词**，所以按通道语言认（LINE 那头是泰国销售），
+# 同时容错中文与英文 —— 认不出就等于这个功能对用户不存在。
+# 放进元组而不是常量：老产品只认一个中文词，泰国销售根本没人能解绑（没人知道要打中文）。
+UNBIND_WORDS = ("ยกเลิกการผูก", "解绑", "unbind")
 
-MSG_GREETING = (
-    "你好，这里是 DMS 助手。\n"
-    "请把网页上生成的绑定码发给我，完成账号绑定。"
-)
-MSG_BOUND = "绑定成功，账号：{0}\n现在可以直接把工作交给我。"
-MSG_BAD_CODE = "这个绑定码无效或已过期，请回到网页重新生成。"
-MSG_UNBOUND = "已解除绑定。需要时请用新的绑定码重新绑定。"
-MSG_NEED_BIND = "还没有绑定账号。请把网页上生成的绑定码发给我。"
-MSG_HELP = "已绑定账号：{0}\n发「{1}」可以解除绑定。"
+
+def _is_unbind(text: str) -> bool:
+    return text.strip().casefold() in {w.casefold() for w in UNBIND_WORDS}
+
+
+# 回复话术全部取自语言包（键 = `dms.card.MSG_BIND_*`），代码里不留中文 ——
+# 这与本产品其他卡片文案同一套机制（见 `dms_cards.py` 开头那段说明）。
+# 取词走 `cards.*`，所以 `scripts/sample-verify-dms-cards.py` 的"防漏键"守卫会自动覆盖到。
 
 
 def handle(event: dict) -> bool:
@@ -38,7 +40,7 @@ def handle(event: dict) -> bool:
         return False
 
     if etype == "follow":
-        line.reply(reply_token, [{"type": "text", "text": MSG_GREETING}])
+        line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_GREETING}])
         return True
 
     if etype == "unfollow":
@@ -95,7 +97,7 @@ def _bound_or_prompt(line_user_id: str, reply_token: str):
     """
     bound = line_binding.user_of(line_user_id)
     if not bound:
-        line.reply(reply_token, [{"type": "text", "text": MSG_NEED_BIND}])
+        line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_NEED}])
         return None
     return bound
 
@@ -103,24 +105,24 @@ def _bound_or_prompt(line_user_id: str, reply_token: str):
 def _handle_text(user_id: str, text: str, reply_token: str) -> None:
     bound = line_binding.user_of(user_id)
 
-    if text.upper() == CMD_UNBIND.upper():
+    if _is_unbind(text):
         if bound:
             line_binding.unbind(user_id)
-            line.reply(reply_token, [{"type": "text", "text": MSG_UNBOUND}])
+            line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_UNBOUND}])
         else:
-            line.reply(reply_token, [{"type": "text", "text": MSG_NEED_BIND}])
+            line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_NEED}])
         return
 
     # 未绑定：把这条文本当绑定码试一次
     if not bound:
         consumed = line_binding.consume_bind_code(text)
         if not consumed:
-            line.reply(reply_token, [{"type": "text", "text": MSG_BAD_CODE}])
+            line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_BAD_CODE}])
             return
         profile = line.get_profile(user_id) or {}
         line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
         line.reply(reply_token, [
-            {"type": "text", "text": MSG_BOUND.format(consumed["user"])}
+            {"type": "text", "text": cards.MSG_BIND_OK.format(consumed["user"])}
         ])
         return
 
@@ -146,5 +148,5 @@ def _binding(line_user_id: str, user: str) -> dict:
 
 def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:
     bound = line_binding.user_of(user_id)
-    text = MSG_HELP.format(bound, CMD_UNBIND) if bound else MSG_NEED_BIND
+    text = cards.MSG_BIND_HELP.format(bound, UNBIND_WORDS[0]) if bound else cards.MSG_BIND_NEED
     line.reply(reply_token, [{"type": "text", "text": text}])

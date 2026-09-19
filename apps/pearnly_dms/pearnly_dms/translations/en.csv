@@ -105,3 +105,9 @@ dms.edit.cashier_cheque,Cashier's cheque
 dms.edit.card,Credit/debit card
 dms.edit.other,Other
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
+dms.card.MSG_BIND_GREETING,Hello, this is the DMS assistant.\nSend me the bind code from the web page to link your account.
+dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
+dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
+dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
+dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
+dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.

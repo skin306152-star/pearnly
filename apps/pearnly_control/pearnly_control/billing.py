@@ -242,13 +242,13 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
 
     if cost > 0:
         _write_txn(tenant, "usage", -cost, new_balance,
-                   description or f"{product} 套餐外扫描（超额 {billable} 张）",
+                   description or _("{0} out-of-plan scan ({1} over quota)").format(product, billable),
                    reference, product=product, units=units,
                    pages=units if kind == "pdf" else 0)
     elif consumed > 0:
         # 额度内：金额为 0，但**要留一行**，否则这个周期用了多少张在台账里看不到
         _write_txn(tenant, "usage", Decimal("0.00"), new_balance,
-                   description or f"{product} 套餐内扫描（{consumed} 张，额度内）",
+                   description or _("{0} in-plan scan ({1} pages, within quota)").format(product, consumed),
                    reference, product=product, units=units,
                    pages=units if kind == "pdf" else 0)
     frappe.db.commit()
@@ -300,7 +300,7 @@ def adjust(tenant: str, amount_thb, *, note: str, actor: str = "") -> Decimal:
     wallet.save(ignore_permissions=True)
     _write_txn(
         tenant, "adjustment", amt, new_balance,
-        f"人工调账 · {note}" + (f" · by {actor}" if actor else ""), "",
+        _("Manual adjustment · {0}").format(note) + (f" · by {actor}" if actor else ""), "",
     )
     frappe.db.commit()
     return new_balance
@@ -356,7 +356,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
     except Exception as exc:  # noqa: BLE001
         frappe.log_error(str(exc)[:400], "billing.gate 查余额失败")
         return {"allowed": False, "error_code": "lookup_error",
-                "reason": "余额查不出来，不是余额不足"}
+                "reason": _("The balance could not be read; this is not 'insufficient balance'")}
 
     if est <= 0:
         return {"allowed": True, "balance_thb": float(balance),
@@ -378,7 +378,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
     if balance < payable:
         return {"allowed": False, "error_code": "insufficient_balance",
                 "balance_thb": float(balance), "estimate_thb": float(payable),
-                "reason": "余额不足，请先充值"}
+                "reason": _("Insufficient balance; please top up first")}
     return {"allowed": True, "balance_thb": float(balance),
             "estimate_thb": float(payable), "error_code": ""}
 
@@ -488,7 +488,9 @@ def subscribe(tenant: str, plan_code: str) -> dict:
 
     # 月费要落台账：类型用 usage（这是消耗，不是充值）
     _write_txn(tenant, "usage", -fee, new_balance,
-               f"订阅套餐 {code}（{SUBSCRIPTION_CYCLE_DAYS} 天 · {spec['quota']} 张）",
+               _("Plan {0} ({1} days · {2} pages)").format(
+                   code, SUBSCRIPTION_CYCLE_DAYS, spec["quota"]
+               ),
                sub.name, units=0)
     frappe.db.commit()
     return {"ok": True, "plan_code": code, "charged_thb": float(fee),

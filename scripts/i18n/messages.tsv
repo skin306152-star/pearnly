@@ -592,3 +592,24 @@ pearnly_core	Connection "{0}" has no account with write access configured, so wr
 pearnly_core	Connection "{0}" has no sign-in credentials yet	连接「{0}」还没有配登录凭据	การเชื่อมต่อ "{0}" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	接続「{0}」はログイン資格情報が未設定です
 pearnly_core	Could not send the invitation email: {0} {1}	邀请邮件发送失败：{0} {1}	ส่งอีเมลเชิญไม่สำเร็จ: {0} {1}	招待メールの送信に失敗: {0} {1}
 pearnly_core	A purchase document needs at least one line	采购单至少要有一行	ใบจัดซื้อต้องมีอย่างน้อยหนึ่งบรรทัด	購買伝票には1行以上の明細が必要です
+pearnly_core	System URL is not filled in	没填系统地址	ยังไม่ได้กรอกที่อยู่ระบบ	システムURLが未入力です
+pearnly_core	No sign-in credentials configured	没配登录凭据	ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報が未設定です
+pearnly_core	Only the config was checked; a real connectivity test waits for the adapter	只检查了配置；真实连通性测试要等适配器实现	ตรวจเฉพาะการตั้งค่า การทดสอบเชื่อมต่อจริงต้องรออะแดปเตอร์	設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
+pearnly_core	Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise	配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通	ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้	設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
+pearnly_core	Billing is not configured on this site (pearnly_billing_*)	本站还没配计费底座（pearnly_billing_*）	เว็บไซต์นี้ยังไม่ได้ตั้งค่าระบบเรียกเก็บเงิน (pearnly_billing_*)	このサイトは課金基盤が未設定です（pearnly_billing_*）
+pearnly_core	Cannot reach the billing service: {0}	连不上计费底座：{0}	เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}	課金基盤に接続できません: {0}
+pearnly_core	The billing service returned HTTP {0}	计费底座返回 HTTP {0}	ระบบเรียกเก็บเงินตอบกลับ HTTP {0}	課金基盤が HTTP {0} を返しました
+pearnly_core	{0}: missing field {1}	{0}: 缺少字段 {1}	{0}: ขาดฟิลด์ {1}	{0}: フィールド {1} がありません
+pearnly_core	{0}: {1} cannot be empty	{0}: {1} 不能为空	{0}: {1} ต้องไม่ว่าง	{0}: {1} は空にできません
+pearnly_core	{0}: the manifest requires {1}, but this site does not have it	{0}: 清单要求安装 {1}，但本站点没装	{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง	{0}: マニフェストは {1} を要求していますが、このサイトには入っていません
+pearnly_core	{0}: entry prefixes must start with /: {1}	{0}: 入口前缀必须以 / 开头：{1}	{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}	{0}: エントリ接頭辞は / で始まる必要があります: {1}
+pearnly_core	The control plane is not affected	控制面不受影响	คอนโทรลเพลนไม่ได้รับผลกระทบ	コントロールプレーンは影響を受けません
+pearnly_core	This site has no product workspace yet	本站点还没有产品工作区	เว็บไซต์นี้ยังไม่มีพื้นที่ทำงานของผลิตภัณฑ์	このサイトにはまだ製品ワークスペースがありません
+pearnly_core	Site config pearnly_ocr_credentials must point at an existing service-account JSON	站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON	ค่าตั้งเว็บไซต์ pearnly_ocr_credentials ต้องชี้ไปที่ไฟล์ JSON ของบัญชีบริการที่มีอยู่จริง	サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります
+pearnly_control	{0} out-of-plan scan ({1} over quota)	{0} 套餐外扫描（超额 {1} 张）	{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)	{0} プラン外スキャン（枠超過 {1} 枚）
+pearnly_control	{0} in-plan scan ({1} pages, within quota)	{0} 套餐内扫描（{1} 张，额度内）	{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)	{0} プラン内スキャン（{1} 枚、枠内）
+pearnly_control	Manual adjustment · {0}	人工调账 · {0}	ปรับยอดด้วยคน · {0}	手動調整 · {0}
+pearnly_control	The balance could not be read; this is not 'insufficient balance'	余额查不出来，不是余额不足	อ่านยอดคงเหลือไม่ได้ ไม่ใช่ยอดไม่พอ	残高を読み取れません。残高不足ではありません
+pearnly_control	Insufficient balance; please top up first	余额不足，请先充值	ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน	残高不足です。先にチャージしてください
+pearnly_control	Plan {0} ({1} days · {2} pages)	订阅套餐 {0}（{1} 天 · {2} 张）	แพ็กเกจ {0} ({1} วัน · {2} หน้า)	プラン {0}（{1}日 · {2}枚）
+pearnly_control	Top-up approved · request {0}	充值审核通过 · 申请 {0}	อนุมัติการเติมเงินแล้ว · คำขอ {0}	チャージ承認 · 申請 {0}

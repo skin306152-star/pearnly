@@ -25,6 +25,7 @@ Auto Push,自动推送
 Balance,余额
 Batches and results of every recognition run,每次识别批次的记录与结果
 Billing,计费
+Billing is not configured on this site (pearnly_billing_*),本站还没配计费底座（pearnly_billing_*）
 "Billing is not wired up on this site, please contact the platform",本站还没接上计费底座，请联系平台
 Bind Code,绑定码
 Binding needs a LINE user and a local account,绑定需要 LINE 用户与本地账号
@@ -37,6 +38,7 @@ Business Key,业务键
 Cannot confirm while the status is {0},当前状态 {0} 不能确认
 Cannot match while the status is {0},当前状态 {0} 不能做匹配
 Cannot reach the OCR service: {0},连不上 OCR 服务：{0}
+Cannot reach the billing service: {0},连不上计费底座：{0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},连不上目标环境的身份服务（{0}）：{1} {2}
 Charges,扣费
 Claimed By,认领人
@@ -45,6 +47,7 @@ Client ID is required,客户端 ID 不能为空
 Collaboration Boards (WeKan),协作看板（WeKan）
 Companion,小助手（Companion）
 Company Tax ID,本方税号
+"Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通
 Confirmed At,确认时间
 Confirmed By,确认人
 Connection,连接
@@ -197,6 +200,7 @@ No OCR key configured (site config pearnly_ocr_api_key),没有配 OCR 密钥（�
 No existing customer matched and no DMS customer reference was given: confirm manually first,匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认
 No provisioning target is available; configure one under “Provisioning Target” first,没有可用的开户目标，请先在“开户目标”里配一个
 No service account configured (site config pearnly_ocr_credentials),没有配服务账号（站点配置 pearnly_ocr_credentials）
+No sign-in credentials configured,没配登录凭据
 No such local account: {0},本地账号不存在：{0}
 Not signed in,未登录
 Note,备注
@@ -209,6 +213,7 @@ Only an admin can configure DMS connections,只有管理员能配置 DMS 连接
 Only an admin can manage the operator roster,只有管理员能管操作员花名册
 Only confirmed documents can be queued for push,只有已确认的单据才能排队推送
 Only one default per account + adapter (the legacy product's unique index).,同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）
+Only the config was checked; a real connectivity test waits for the adapter,只检查了配置；真实连通性测试要等适配器实现
 Only the owner can manage it,仅责任人可管理
 Operator,操作人
 Operator Roster,操作员花名册
@@ -275,6 +280,7 @@ Sign-in Credentials,登录凭据
 Site config is missing {0},站点配置缺少 {0}
 Site config is missing {0}_admin_client_id / _secret,站点配置缺少 {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,站点配置缺少 {0}_issuer
+Site config pearnly_ocr_credentials must point at an existing service-account JSON,站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON
 Source,来源
 Source Attachment,原始附件
 Status,状态
@@ -291,6 +297,7 @@ Summary,摘要
 Supplier,供应商
 Supplier Tax ID,供应商税号
 System URL,系统地址
+System URL is not filled in,没填系统地址
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
@@ -298,6 +305,8 @@ The OCR service returned HTTP {0}: {1},OCR 服务返回 HTTP {0}：{1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。
 The account is disabled,账号已停用
 The account was created but no id came back,账号已建但取不到 id
+The billing service returned HTTP {0},计费底座返回 HTTP {0}
+The control plane is not affected,控制面不受影响
 The current password is wrong,当前密码不正确
 The customer snapshot used to refill the form when approval executes.,批准执行时回填表单用的客户资料快照。
 "The details are not confirmed yet, so it cannot be pushed to DMS",资料还没确认，不能推送 DMS
@@ -342,6 +351,7 @@ This invoice has already been recorded: {0},这张票已经录过：{0}
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品
 "This site has no LINE access token configured, so it cannot send messages",本站点没有配 LINE access token，发不出消息
 This site has no product manifest installed; it cannot run as a business site.,本站点没有安装任何产品清单，不能作为业务站点运行
+This site has no product workspace yet,本站点还没有产品工作区
 Time,时间
 Top-ups,充值
 Transport Result,传输结果
@@ -380,3 +390,7 @@ google-auth is missing (the image should have it): {0},缺少 google-auth（镜�
 nonce mismatch,nonce 不匹配
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 state is invalid or has expired,state 无效或已过期
+{0}: entry prefixes must start with /: {1},{0}: 入口前缀必须以 / 开头：{1}
+{0}: missing field {1},{0}: 缺少字段 {1}
+"{0}: the manifest requires {1}, but this site does not have it",{0}: 清单要求安装 {1}，但本站点没装
+{0}: {1} cannot be empty,{0}: {1} 不能为空

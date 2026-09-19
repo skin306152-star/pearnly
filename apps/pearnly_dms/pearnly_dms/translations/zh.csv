@@ -105,3 +105,9 @@ dms.edit.cashier_cheque,银行本票
 dms.edit.card,信用卡/借记卡
 dms.edit.other,其他
 dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
+dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
+dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
+dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
+dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
+dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码发给我。
+dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。

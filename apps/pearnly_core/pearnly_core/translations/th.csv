@@ -25,6 +25,7 @@ Auto Push,ส่งอัตโนมัติ
 Balance,ยอดคงเหลือ
 Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ
 Billing,การคิดค่าบริการ
+Billing is not configured on this site (pearnly_billing_*),เว็บไซต์นี้ยังไม่ได้ตั้งค่าระบบเรียกเก็บเงิน (pearnly_billing_*)
 "Billing is not wired up on this site, please contact the platform",เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม
 Bind Code,รหัสผูก
 Binding needs a LINE user and a local account,การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง
@@ -37,6 +38,7 @@ Business Key,คีย์ธุรกิจ
 Cannot confirm while the status is {0},ยืนยันไม่ได้ในสถานะ {0}
 Cannot match while the status is {0},จับคู่ไม่ได้ในสถานะ {0}
 Cannot reach the OCR service: {0},เชื่อมต่อบริการ OCR ไม่ได้: {0}
+Cannot reach the billing service: {0},เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}
 Charges,ค่าบริการ
 Claimed By,ผู้รับเรื่อง
@@ -45,6 +47,7 @@ Client ID is required,ต้องระบุ Client ID
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Companion,ผู้ช่วย (Companion)
 Company Tax ID,เลขผู้เสียภาษีของบริษัท
+"Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้
 Confirmed At,ยืนยันเมื่อ
 Confirmed By,ยืนยันโดย
 Connection,การเชื่อมต่อ
@@ -197,6 +200,7 @@ No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่มีอยู่และไม่ได้ระบุรหัสลูกค้า DMS: กรุณายืนยันด้วยคนก่อน
 No provisioning target is available; configure one under “Provisioning Target” first,"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"
 No service account configured (site config pearnly_ocr_credentials),ยังไม่ได้ตั้งค่าบัญชีบริการ (ค่าตั้งเว็บไซต์ pearnly_ocr_credentials)
+No sign-in credentials configured,ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ
 No such local account: {0},ไม่มีบัญชีในเครื่องนี้: {0}
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Note,หมายเหตุ
@@ -209,6 +213,7 @@ Only an admin can configure DMS connections,เฉพาะผู้ดูแล
 Only an admin can manage the operator roster,เฉพาะผู้ดูแลเท่านั้นที่จัดการทะเบียนพนักงานได้
 Only confirmed documents can be queued for push,เฉพาะเอกสารที่ยืนยันแล้วเท่านั้นที่เข้าคิวส่งได้
 Only one default per account + adapter (the legacy product's unique index).,บัญชี + อะแดปเตอร์เดียวกันมีค่าเริ่มต้นได้เพียงรายการเดียว (ดัชนีไม่ซ้ำของผลิตภัณฑ์เดิม)
+Only the config was checked; a real connectivity test waits for the adapter,ตรวจเฉพาะการตั้งค่า การทดสอบเชื่อมต่อจริงต้องรออะแดปเตอร์
 Only the owner can manage it,เฉพาะเจ้าของเท่านั้นที่จัดการได้
 Operator,ผู้ใช้
 Operator Roster,ทะเบียนพนักงาน
@@ -275,6 +280,7 @@ Sign-in Credentials,ข้อมูลรับรองเข้าสู่ร
 Site config is missing {0},ค่าตั้งเว็บไซต์ขาด {0}
 Site config is missing {0}_admin_client_id / _secret,ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret
 Site config is missing {0}_issuer,ค่าตั้งเว็บไซต์ขาด {0}_issuer
+Site config pearnly_ocr_credentials must point at an existing service-account JSON,ค่าตั้งเว็บไซต์ pearnly_ocr_credentials ต้องชี้ไปที่ไฟล์ JSON ของบัญชีบริการที่มีอยู่จริง
 Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
 Status,สถานะ
@@ -291,6 +297,7 @@ Summary,สรุป
 Supplier,ผู้ขาย
 Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
 System URL,ที่อยู่ระบบ
+System URL is not filled in,ยังไม่ได้กรอกที่อยู่ระบบ
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้
@@ -298,6 +305,8 @@ The OCR service returned HTTP {0}: {1},บริการ OCR ตอบกลั
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน
 The account is disabled,บัญชีถูกปิดใช้งาน
 The account was created but no id came back,สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา
+The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
+The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
 The customer snapshot used to refill the form when approval executes.,สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ
 "The details are not confirmed yet, so it cannot be pushed to DMS",ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้
@@ -342,6 +351,7 @@ This invoice has already been recorded: {0},ใบนี้ถูกบันท
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว
 "This site has no LINE access token configured, so it cannot send messages",เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้
 This site has no product manifest installed; it cannot run as a business site.,เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงรันเป็นเว็บไซต์ธุรกิจไม่ได้
+This site has no product workspace yet,เว็บไซต์นี้ยังไม่มีพื้นที่ทำงานของผลิตภัณฑ์
 Time,เวลา
 Top-ups,การเติมเงิน
 Transport Result,ผลการรับส่ง
@@ -380,3 +390,7 @@ google-auth is missing (the image should have it): {0},ขาด google-auth (�
 nonce mismatch,nonce ไม่ตรงกัน
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
+{0}: entry prefixes must start with /: {1},{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}
+{0}: missing field {1},{0}: ขาดฟิลด์ {1}
+"{0}: the manifest requires {1}, but this site does not have it",{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง
+{0}: {1} cannot be empty,{0}: {1} ต้องไม่ว่าง
