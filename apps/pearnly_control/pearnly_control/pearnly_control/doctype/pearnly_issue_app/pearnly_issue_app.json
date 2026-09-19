@@ -73,6 +73,7 @@
   {
    "fieldname": "line_channel_secret",
    "fieldtype": "Password",
+   "length": 200,
    "label": "LINE Channel Secret",
    "in_list_view": 1,
    "columns": 3
@@ -80,6 +81,7 @@
   {
    "fieldname": "line_channel_access_token",
    "fieldtype": "Password",
+   "length": 200,
    "label": "LINE Channel Access Token",
    "in_list_view": 1,
    "columns": 3
