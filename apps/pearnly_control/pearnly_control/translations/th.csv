@@ -242,3 +242,10 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 "{0} in-plan scan ({1} pages, within quota)",{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)
 {0} out-of-plan scan ({1} over quota),{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)
 {0} — {1} features,{0} — {1} ฟีเจอร์
+The billing reference was already used for another request,เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว
+A billing reference is required,ต้องระบุเลขอ้างอิงการเรียกเก็บเงิน
+Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองอีกครั้ง
+This is a read-only copy of the cloud billing request,รายการนี้เป็นสำเนาคำขอเติมเงินบนคลาวด์สำหรับอ่านเท่านั้น
+Invalid amount,จำนวนเงินไม่ถูกต้อง
+Not permitted,ไม่มีสิทธิ์ดำเนินการ
+Invalid billing reference,เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง

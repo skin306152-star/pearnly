@@ -15,6 +15,9 @@ from frappe.model.document import Document
 
 class PearnlyTopupRequest(Document):
     def validate(self):
+        from pearnly_control import billing_remote
+        if billing_remote.enabled() and not self.flags.billing_remote_sync:
+            frappe.throw(_("This is a read-only copy of the cloud billing request"))
         if self.status in ("approved", "rejected"):
             before = self.get_doc_before_save()
             if before and before.status in ("approved", "rejected"):

@@ -337,6 +337,14 @@ def _billing_payload(issue, dep) -> dict:
     """
     from pearnly_control import billing_api
 
+    from pearnly_control import billing_remote
+    if billing_remote.enabled():
+        scope = billing_remote.provision_scope(issue.tenant, dep.product, issue.tenant_name)
+        return {
+            "site": dep.site_name, "group": dep.bench_group, "tenant": issue.tenant,
+            "api": "http://billing-web:8000", "host_header": "billing.internal", "token": scope["token"],
+        }
+
     return {
         "site": dep.site_name,
         "group": dep.bench_group,

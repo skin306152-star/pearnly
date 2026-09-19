@@ -242,3 +242,10 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 "{0} in-plan scan ({1} pages, within quota)",{0} プラン内スキャン（{1} 枚、枠内）
 {0} out-of-plan scan ({1} over quota),{0} プラン外スキャン（枠超過 {1} 枚）
 {0} — {1} features,{0} — {1} 件
+The billing reference was already used for another request,この課金参照番号は別のリクエストで使用されています
+A billing reference is required,課金参照番号が必要です
+Billing service unavailable; please retry,課金サービスを利用できません。もう一度お試しください
+This is a read-only copy of the cloud billing request,これはクラウド入金申請の読み取り専用コピーです
+Invalid amount,金額が無効です
+Not permitted,操作する権限がありません
+Invalid billing reference,課金参照番号が無効です

@@ -16,6 +16,11 @@ after_migrate = [
 # 把基础域名交给前端，避免 JS 里再写死一份域名规则。
 boot_session = "pearnly_control.boot.boot_session"
 
+before_request = [
+    "pearnly_control.billing_control.guard_private_site",
+    "pearnly_control.billing_remote.before_request",
+]
+
 # Apps
 # ------------------
 

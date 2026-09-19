@@ -242,3 +242,10 @@ grant only handles money in (topup / adjustment); use charge() for deductions,gr
 "{0} in-plan scan ({1} pages, within quota)",{0} 套餐内扫描（{1} 张，额度内）
 {0} out-of-plan scan ({1} over quota),{0} 套餐外扫描（超额 {1} 张）
 {0} — {1} features,{0} — {1} 项
+The billing reference was already used for another request,该计费编号已用于另一笔请求
+A billing reference is required,缺少计费编号
+Billing service unavailable; please retry,计费服务暂时不可用，请重试
+This is a read-only copy of the cloud billing request,此记录是云端充值申请的只读副本
+Invalid amount,金额无效
+Not permitted,无权操作
+Invalid billing reference,无效的计费编号

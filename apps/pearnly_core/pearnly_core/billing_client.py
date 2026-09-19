@@ -44,6 +44,7 @@ def _conf() -> dict:
         "api": (frappe.conf.get("pearnly_billing_api") or "").rstrip("/"),
         "host": (frappe.conf.get("pearnly_billing_host_header") or "").strip(),
         "token": (frappe.conf.get("pearnly_billing_token") or "").strip(),
+        "product": (frappe.conf.get("pearnly_product") or "").strip(),
     }
 
 
@@ -60,7 +61,8 @@ def _call(method: str, params: dict | None = None) -> dict:
     # 不给自己填（会漏），也不接受别处传一个别人的租户号进来。
     payload = dict(params or {})
     payload["tenant"] = c["tenant"]
-    headers = {"X-Pearnly-Billing-Token": c["token"], "Accept": "application/json"}
+    headers = {"X-Pearnly-Billing-Token": c["token"], "Accept": "application/json",
+               "X-Pearnly-Billing-Product": c["product"]}
     if c["host"]:
         headers["Host"] = c["host"]
     url = f"{c['api']}/api/method/pearnly_control.billing_api.{method}"

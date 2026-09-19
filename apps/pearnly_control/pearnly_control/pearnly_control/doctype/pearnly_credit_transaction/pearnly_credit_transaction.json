@@ -17,7 +17,8 @@
   "pages",
   "column_break_detail",
   "description",
-  "reference"
+  "reference",
+  "request_hash"
  ],
  "fields": [
   {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1},
@@ -31,7 +32,8 @@
   {"fieldname": "pages", "fieldtype": "Int", "label": "Pages"},
   {"fieldname": "column_break_detail", "fieldtype": "Column Break"},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
-  {"fieldname": "reference", "fieldtype": "Data", "label": "Reference"}
+  {"fieldname": "reference", "fieldtype": "Data", "label": "Reference"},
+  {"fieldname": "request_hash", "fieldtype": "Data", "hidden": 1, "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

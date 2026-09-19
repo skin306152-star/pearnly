@@ -257,7 +257,10 @@ def process_image(binding: dict, line_user_id: str, message_id: str) -> None:
         _push(line_user_id, cards.TXT_BLURRY)
         return
     try:
-        ep, ocr, _ = _id_ocr.recognize_id_card(user_id, content, f"line_{message_id}.jpg", "", None)
+        ep, ocr, _ = _id_ocr.recognize_id_card(
+            user_id, content, f"line_{message_id}.jpg", "", None,
+            billing_reference=f"idcard:line:{message_id}",
+        )
     except _id_ocr.DmsOcrError as exc:
         _push(line_user_id, ocr_error_text(exc))
         return
