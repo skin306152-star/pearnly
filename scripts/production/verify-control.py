@@ -16,7 +16,7 @@ assert infra.is_cloud(target)
 assert domains.base_domain(target) == "pearnly.com"
 assert not infra.is_cloud("本地样板")
 assert domains.base_domain("本地样板") == "localhost"
-assert infra.deployment_base_url({"url": "http://testdms.localhost:8103", "site_name": "testdms.localhost", "product": "dms"}) == "http://testdms.localhost:8103"
+assert infra.deployment_base_url(frappe._dict(url="http://testdms.localhost:8103", site_name="testdms.localhost", product="dms")) == "http://testdms.localhost:8103"
 assert provisioning.target_credentials(target) == {"native_account": True}
 client, name = client_for_target()
 assert name == target
