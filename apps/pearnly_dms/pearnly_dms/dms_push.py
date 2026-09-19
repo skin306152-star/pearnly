@@ -27,18 +27,19 @@ def build_adapter(endpoint_name: str):
     一个能落进推送日志的结果。
     """
     try:
-        from pearnly_dms.dms_adapter import MrerpDmsAdapter
+        from pearnly_dms.dms_adapter import MissingCredentials, MrerpDmsAdapter
     except ImportError as exc:
         code = "ERR_PLAYWRIGHT_MISSING" if "playwright" in str(exc).lower() else "ERR_UNEXPECTED"
         return None, {"error_code": code, "raw": f"{type(exc).__name__}: {exc}"}
 
     try:
         adapter = MrerpDmsAdapter.from_endpoint(endpoint_name, headless=True)
+    except MissingCredentials as exc:
+        # 端点不存在 / 停用 / 适配器不对 / 没配全 —— 都算"没凭据"。
+        # **按类型判，不按文案判**：文案是给人看的、会翻译，拿它当判据一翻译就失效。
+        return None, {"error_code": "ERR_NO_CREDS", "raw": str(exc)}
     except ValueError as exc:
-        # 端点不存在 / 停用 / 适配器不对 / 没配密码 —— 都算"没凭据"
-        msg = str(exc)
-        code = "ERR_NO_CREDS" if "密码" in msg else "ERR_UNEXPECTED"
-        return None, {"error_code": code, "raw": msg}
+        return None, {"error_code": "ERR_UNEXPECTED", "raw": str(exc)}
     except Exception as exc:  # noqa: BLE001
         logger.exception("build_adapter 失败")
         return None, {"error_code": "ERR_UNEXPECTED", "raw": f"{type(exc).__name__}: {exc}"}

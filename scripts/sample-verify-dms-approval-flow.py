@@ -97,7 +97,7 @@ def main():
             "get_profile": staticmethod(lambda u: {"dms_role": role, "display_name": "x"}),
             "list_profiles": staticmethod(lambda: []),
             "line_user_id_of": staticmethod(lambda u: ""),
-            "ADMIN_ROLES": ("DMS 管理员",),
+            "ADMIN_ROLES": ("DMS Admin",),
         })
 
     diff = [{"label": "a", "old": "1", "new": "2"}]
@@ -124,7 +124,7 @@ def main():
         "get_profile": staticmethod(lambda u: {"dms_role": "admin", "display_name": "x"}),
         "list_profiles": staticmethod(lambda: []),
         "line_user_id_of": staticmethod(lambda u: ""),
-        "ADMIN_ROLES": ("DMS 管理员",),
+        "ADMIN_ROLES": ("DMS Admin",),
     })
     card2, needs2 = af.exact_diff_card("u", [{"label": "a", "old": "1", "new": "2"}],
                                        False, "n1", {})
@@ -134,7 +134,7 @@ def main():
         "get_profile": staticmethod(lambda u: None),
         "list_profiles": staticmethod(lambda: []),
         "line_user_id_of": staticmethod(lambda u: ""),
-        "ADMIN_ROLES": ("DMS 管理员",),
+        "ADMIN_ROLES": ("DMS Admin",),
     })
     card3, needs3 = af.exact_diff_card("u", [{"label": "a", "old": "1", "new": "2"}],
                                        False, "n1", {})
@@ -157,7 +157,7 @@ def main():
         "list_profiles": staticmethod(lambda: profiles),
         "line_user_id_of": staticmethod(
             lambda u: next((p["line_user_id"] for p in profiles if p["user_id"] == u), "")),
-        "ADMIN_ROLES": ("DMS 管理员",),
+        "ADMIN_ROLES": ("DMS Admin",),
     })
     ck("能收审批卡的管理员：管理员 + 启用 + 已绑 LINE（三个条件都要）",
        [a["user_id"] for a in af._bound_approvers()] == ["a1"],
@@ -165,7 +165,7 @@ def main():
     ck("能批：有管理员档案即可；停用的不行；销售不行",
        af._approver_eligible("a1") is True and af._approver_eligible("a2") is False
        and af._approver_eligible("s1") is False)
-    af.frappe = type("F", (), {"get_roles": staticmethod(lambda u: ["DMS 管理员"])})
+    af.frappe = type("F", (), {"get_roles": staticmethod(lambda u: ["DMS Admin"])})
     ck("没有档案但本身是租户管理员（老板）也能批",
        af._approver_eligible("老板") is True)
 
@@ -199,7 +199,7 @@ def main():
     af.roster_store = type("R", (), {"list_profiles": staticmethod(lambda: []),
                                      "get_profile": staticmethod(lambda u: None),
                                      "line_user_id_of": staticmethod(lambda u: ""),
-                                     "ADMIN_ROLES": ("DMS 管理员",)})
+                                     "ADMIN_ROLES": ("DMS Admin",)})
     af._submit(binding, uid, "tok", {"nonce": "n1"})
     ck("一个能收卡的管理员都没有 → 明说并指路（不让销售以为提上去了）",
        replied[-1] == ac.TXT_NO_APPROVERS, replied[-1:])
@@ -286,7 +286,7 @@ def main():
         "get_profile": staticmethod(lambda u: {"dms_role": "sales", "status": "active"}),
         "list_profiles": staticmethod(lambda: profiles),
         "line_user_id_of": staticmethod(lambda u: "L9"),
-        "ADMIN_ROLES": ("DMS 管理员",)})
+        "ADMIN_ROLES": ("DMS Admin",)})
     af._decide(binding, uid, "tok", {"req": "R9"}, approve=True)
     ck("销售自己批不了 → 明确回'你没有审批权'",
        replied[-1] == ac.TXT_NOT_APPROVER, replied[-1:])
@@ -337,7 +337,7 @@ def main():
         "get_profile": staticmethod(lambda u: {"dms_role": "sales", "status": "active"}),
         "list_profiles": staticmethod(lambda: profiles),
         "line_user_id_of": staticmethod(lambda u: "L9"),
-        "ADMIN_ROLES": ("DMS 管理员",)})
+        "ADMIN_ROLES": ("DMS Admin",)})
     af._execute_approved({"tenant_id": "t", "user_id": "a1"}, uid,
                          {"id": "R9", "operator_user_id": "s1"})
     ck("认领之后权限被收回 → 退回待批（不让单卡在'执行中'）",

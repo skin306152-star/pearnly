@@ -22,7 +22,9 @@ ADAPTER = "mrerp_dms"
 DEFAULT_LABEL = "MR.ERP DMS"
 
 ENDPOINT = "Pearnly ERP Endpoint"
-ADMIN_ROLES = ("DMS 管理员", "System Manager")
+# 角色名必须和控制面 `features.PRODUCT_ADMIN_ROLE` 一字不差（那边是 "DMS Admin"）。
+# 这里写过中文名，改名后租户管理员会被判成"没权限" —— 表现为整块功能突然打不开。
+ADMIN_ROLES = ("DMS Admin", "System Manager")
 
 
 def _require_admin() -> str:

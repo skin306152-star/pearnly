@@ -41,6 +41,15 @@ def is_concurrent_login_dialog(message: str) -> bool:
     return _CONCURRENT_LOGIN_MARKER in str(message or "")
 
 
+class MissingCredentials(ValueError):
+    """端点没配全（地址/账号/密码/停用/适配器不对）—— 都算"没凭据"。
+
+    单独一个类型，是为了让调用方**按类型**判，别去猜文案：`dms_push` 原来用
+    `if "密码" in msg` 挑错误码，文案一翻译（2026-09-19 的 i18n 改造）这条判断就永远为假，
+    错误码会从 ERR_NO_CREDS 变成 ERR_UNEXPECTED —— 界面上的提示跟着错。
+    """
+
+
 class DmsAuthError(RuntimeError):
     """DMS 拒了这次登录：账号密码不对、或账号没被批准。**重试没用。**"""
 
@@ -74,9 +83,9 @@ class MrerpDmsAdapter:
         slow_mo_ms: int = 0,
     ):
         if not system_url:
-            raise ValueError("system_url 必填")
+            raise MissingCredentials("system_url 必填")
         if not username or not password:
-            raise ValueError("username / password 必填")
+            raise MissingCredentials("username / password 必填")
         self.login_url, self.base_url = self._normalize_urls(system_url)
         self._username = username
         self._password = password
@@ -108,14 +117,14 @@ class MrerpDmsAdapter:
 
         doc = frappe.get_doc("Pearnly ERP Endpoint", endpoint_name)
         if doc.adapter != "mrerp_dms":
-            raise ValueError(
+            raise MissingCredentials(
                 "端点 %s 的适配器是 %s，不是 mrerp_dms" % (endpoint_name, doc.adapter)
             )
         if not doc.enabled:
-            raise ValueError("端点 %s 已停用" % endpoint_name)
+            raise MissingCredentials("端点 %s 已停用" % endpoint_name)
         password = doc.get_password("password", raise_exception=False)
         if not password:
-            raise ValueError("端点 %s 没配密码" % endpoint_name)
+            raise MissingCredentials("端点 %s 没配密码" % endpoint_name)
         kwargs.setdefault("headless", True)
         if kwargs.get("screenshot_dir") is None:
             try:

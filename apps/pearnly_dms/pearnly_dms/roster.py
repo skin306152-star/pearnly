@@ -32,9 +32,10 @@ BINDING = "Pearnly LINE Binding"
 VALID_ROLES = ("sales", "admin")
 VALID_STATUS = ("active", "inactive")
 
-# 能管花名册的角色 = 租户管理员。开通时发的是 "DMS 管理员"（见控制面
-# features.PRODUCT_ADMIN_ROLE）；System Manager 是框架超管，本机调试要用。
-ADMIN_ROLES = ("DMS 管理员", "System Manager")
+# 能管花名册的角色 = 租户管理员。开通时发的是 "DMS Admin"（见控制面
+# features.PRODUCT_ADMIN_ROLE，**必须一字不差**：写过中文名，改名后管理员就被挡在外面）；
+# System Manager 是框架超管，本机调试要用。
+ADMIN_ROLES = ("DMS Admin", "System Manager")
 
 # 操作员账号的邮箱后缀。**不是真实邮箱**：这些账号不用来收发信、也不用来登录，
 # 只是 Frappe 的 User 主键必须是邮箱，所以造一个。
