@@ -276,7 +276,10 @@ pearnly_control	Issue failed	发号失败	ออกใบไม่สำเร�
 pearnly_control	Issue and provision	发号并开通	ออกใบและเปิดใช้งาน	発行して開通
 pearnly_control	Issued: {0} / tenant {1}	已发号：{0} / 租户 {1}	ออกใบแล้ว: {0} / ผู้เช่า {1}	発行済み: {0} / テナント {1}
 pearnly_control	Queued for provisioning; building the site now	已排入开通队列，正在建站	เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์	開通キューに入りました。サイトを構築中です。
-pearnly_control	Provisioning progress	开通进度	ความคืบหน้าการเปิดใช้งาน	開通の進捗
+pearnly_control	Provisioning Progress	开通进度	ความคืบหน้าการเปิดใช้งาน	開通の進捗
+pearnly_control	Feature Catalog	功能目录	แคตตาล็อกฟีเจอร์	機能カタログ
+pearnly_control	LINE Channel	LINE 渠道	ช่องทาง LINE	LINEチャネル
+pearnly_control	Top-up Review	充值审核	ตรวจสอบการเติมเงิน	チャージ承認
 pearnly_control	Run provisioning	执行开通	เริ่มเปิดใช้งาน	開通を実行
 pearnly_control	Could not queue provisioning	排不进开通队列	เข้าคิวการเปิดใช้งานไม่ได้	開通キューに入れられませんでした
 pearnly_control	Not issued	未发号	ยังไม่ออกใบ	未発行
@@ -493,3 +496,99 @@ pearnly_core	Unit Price	单价	ราคาต่อหน่วย	単価
 pearnly_core	Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
 pearnly_core	VAT Rate %	税率%	อัตราภาษี %	税率%
 pearnly_core	Line Amount	行金额	จำนวนเงินบรรทัด	行金額
+pearnly_core	The ID token issuer is not the identity service configured for this site	ID token 的签发方不是本站点配置的身份服务	ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้	IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
+pearnly_core	The ID token has no sub	ID token 缺少 sub	ID token ไม่มี sub	IDトークンに sub がありません
+pearnly_core	The OCR service returned HTTP {0}: {1}	OCR 服务返回 HTTP {0}：{1}	บริการ OCR ตอบกลับ HTTP {0}: {1}	OCRサービスが HTTP {0} を返しました: {1}
+pearnly_core	Both issuer and subject are required	issuer 与 subject 都是必填	ต้องระบุทั้ง issuer และ subject	issuer と subject はどちらも必須です
+pearnly_core	nonce mismatch	nonce 不匹配	nonce ไม่ตรงกัน	nonce が一致しません
+pearnly_core	state is invalid or has expired	state 无效或已过期	state ไม่ถูกต้องหรือหมดอายุ	state が無効か期限切れです
+pearnly_core	All three fields are required	三项都要填	ต้องกรอกทั้งสามช่อง	3項目とも入力が必要です
+pearnly_core	The two new passwords do not match	两次输入的新密码不一致	รหัสผ่านใหม่ที่กรอกสองครั้งไม่ตรงกัน	新しいパスワードが2回で一致しません
+pearnly_core	A disabled operator cannot issue a bind code; enable them first	停用的操作员不能发绑定码，先启用	ผู้ปฏิบัติงานที่ปิดอยู่ ออกรหัสผูกไม่ได้ ต้องเปิดใช้งานก่อน	無効化中のオペレーターは連携コードを発行できません。先に有効化してください
+pearnly_core	Could not create the OIDC client: {0} {1}	创建 OIDC 客户端失败：{0} {1}	สร้าง OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの作成に失敗: {0} {1}
+pearnly_core	No existing customer matched and no DMS customer reference was given: confirm manually first	匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认	ไม่พบลูกค้าที่มีอยู่และไม่ได้ระบุรหัสลูกค้า DMS: กรุณายืนยันด้วยคนก่อน	既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
+pearnly_core	Match result must be unmatched / existing customer / new customer	匹配结果只能是 未匹配/已有客户/新建客户	ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่	照合結果は 不一致／既存顧客／新規顧客 のいずれかです
+pearnly_core	Could not read the client secret: {0} {1}	取客户端密钥失败：{0} {1}	อ่าน client secret ไม่สำเร็จ: {0} {1}	クライアントシークレットの取得に失敗: {0} {1}
+pearnly_core	Could not get the admin token	取管理令牌失败	ขอโทเคนผู้ดูแลไม่สำเร็จ	管理者トークンの取得に失敗しました
+pearnly_core	Could not get the admin token: {0}	取管理令牌失败：{0}	ขอโทเคนผู้ดูแลไม่สำเร็จ: {0}	管理者トークンの取得に失敗: {0}
+pearnly_core	Only confirmed documents can be queued for push	只有已确认的单据才能排队推送	เฉพาะเอกสารที่ยืนยันแล้วเท่านั้นที่เข้าคิวส่งได้	確定済みの伝票だけが送信キューに入れられます
+pearnly_core	Only an admin can manage the operator roster	只有管理员能管操作员花名册	เฉพาะผู้ดูแลเท่านั้นที่จัดการทะเบียนพนักงานได้	オペレーター名簿を管理できるのは管理者だけです
+pearnly_core	Only an admin can configure DMS connections	只有管理员能配置 DMS 连接	เฉพาะผู้ดูแลเท่านั้นที่ตั้งค่าการเชื่อมต่อ DMS ได้	DMS接続を設定できるのは管理者だけです
+pearnly_core	Account "{0}" already has a default connection ({1}); clear that one's default first	同一账号下「{0}」已经有一条默认连接（{1}），请先取消它的默认	บัญชี "{0}" มีการเชื่อมต่อเริ่มต้นอยู่แล้ว ({1}) กรุณายกเลิกค่าเริ่มต้นของอันนั้นก่อน	同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください
+pearnly_core	Could not create the account in the target environment: {0} {1}	在目标环境建账号失败：{0} {1}	สร้างบัญชีในสภาพแวดล้อมเป้าหมายไม่สำเร็จ: {0} {1}	対象環境でのアカウント作成に失敗: {0} {1}
+pearnly_core	Client ID is required	客户端 ID 不能为空	ต้องระบุ Client ID	クライアントIDは必須です
+pearnly_core	Could not create the account: {0} {1}	建账号失败：{0} {1}	สร้างบัญชีไม่สำเร็จ: {0} {1}	アカウントの作成に失敗: {0} {1}
+pearnly_core	The current password is wrong	当前密码不正确	รหัสผ่านปัจจุบันไม่ถูกต้อง	現在のパスワードが正しくありません
+pearnly_core	Cannot match while the status is {0}	当前状态 {0} 不能做匹配	จับคู่ไม่ได้ในสถานะ {0}	ステータス {0} では照合できません
+pearnly_core	Cannot confirm while the status is {0}	当前状态 {0} 不能确认	ยืนยันไม่ได้ในสถานะ {0}	ステータス {0} では確定できません
+pearnly_core	This account has no identity binding, so it cannot change its own password; contact an admin	当前账号没有登记身份绑定，无法自助改密，请联系管理员	บัญชีนี้ยังไม่ได้ผูกตัวตน จึงเปลี่ยนรหัสผ่านเองไม่ได้ กรุณาติดต่อผู้ดูแล	このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
+pearnly_core	Customer matching must be done before confirming	必须先完成客户匹配才能确认	ต้องจับคู่ลูกค้าให้เสร็จก่อนจึงจะยืนยันได้	確定する前に顧客照合を完了してください
+pearnly_core	Customer matching is required before confirming	确认前必须完成客户匹配	ต้องจับคู่ลูกค้าก่อนยืนยัน	確定の前に顧客照合が必要です
+pearnly_core	A DMS customer reference is required; otherwise this link means nothing	必须有 DMS 客户引用，否则这条对照没有意义	ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย	DMS顧客参照が必要です。なければこの紐付けは意味を持ちません
+pearnly_core	Claiming a push job requires a connection	抢推送任务必须指定连接	การรับงานส่งต้องระบุการเชื่อมต่อ	送信ジョブの取得には接続の指定が必要です
+pearnly_core	Could not look the account up by email: {0}	按邮箱查账号失败：{0}	ค้นหาบัญชีด้วยอีเมลไม่สำเร็จ: {0}	メールでアカウントを照会できませんでした: {0}
+pearnly_core	Could not exchange the token: {0}	换取令牌失败：{0}	แลกโทเคนไม่สำเร็จ: {0}	トークンの交換に失敗: {0}
+pearnly_core	Invalid push channel	推送渠道不合法	ช่องทางส่งไม่ถูกต้อง	送信チャネルが不正です
+pearnly_core	The push channel must be companion or cloud	推送渠道只能是 companion 或 cloud	ช่องทางส่งต้องเป็น companion หรือ cloud	送信チャネルは companion または cloud のみです
+pearnly_core	Push status must be one of {0}	推送状态只能是 {0}	สถานะการส่งต้องเป็นหนึ่งใน {0}	送信ステータスは {0} のいずれかです
+pearnly_core	The new password cannot be the same as the current one	新密码不能与当前密码相同	รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน	新しいパスワードは現在のものと同じにできません
+pearnly_core	The new password is required	新密码不能为空	ต้องระบุรหัสผ่านใหม่	新しいパスワードは必須です
+pearnly_core	A new record can only start as draft or recognized	新记录只能从 draft 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก draft หรือ recognized เท่านั้น	新規レコードは draft または recognized からしか開始できません
+pearnly_core	A new record can only start as uploaded or recognized	新记录只能从 uploaded 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก uploaded หรือ recognized เท่านั้น	新規レコードは uploaded または recognized からしか開始できません
+pearnly_core	Direction must be inbound or outbound	方向只能是进项或销项	ทิศทางต้องเป็นขาเข้าหรือขาออก	方向は仕入または売上のみです
+pearnly_core	Could not update the OIDC client: {0} {1}	更新 OIDC 客户端失败：{0} {1}	อัปเดต OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの更新に失敗: {0} {1}
+pearnly_core	The service account could not exchange its token: {0}	服务账号换令牌失败：{0}	บัญชีบริการแลกโทเคนไม่สำเร็จ: {0}	サービスアカウントのトークン交換に失敗: {0}
+pearnly_core	No such local account: {0}	本地账号不存在：{0}	ไม่มีบัญชีในเครื่องนี้: {0}	ローカルアカウントがありません: {0}
+pearnly_core	This site has more than one product manifest installed: {0}. One deployment can host only one product.	本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品	เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว	このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
+pearnly_core	This site has no product manifest installed; it cannot run as a business site.	本站点没有安装任何产品清单，不能作为业务站点运行	เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงรันเป็นเว็บไซต์ธุรกิจไม่ได้	このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
+pearnly_core	This site has no LINE access token configured, so it cannot send messages	本站点没有配 LINE access token，发不出消息	เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้	このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
+pearnly_core	Could not look up the account: {0} {1}	查账号失败：{0} {1}	ค้นหาบัญชีไม่สำเร็จ: {0} {1}	アカウントの照会に失敗: {0} {1}
+pearnly_core	The FX rate must be greater than 0	汇率必须大于 0	อัตราแลกเปลี่ยนต้องมากกว่า 0	為替レートは0より大きい必要があります
+pearnly_core	There is no DMS customer reference, so it cannot be pushed	没有 DMS 客户引用，不能推送	ไม่มีรหัสอ้างอิงลูกค้า DMS จึงส่งไม่ได้	DMS顧客参照がないため送信できません
+pearnly_core	No provisioning target is available; configure one under “Provisioning Target” first	没有可用的开户目标，请先在“开户目标”里配一个	ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ "เป้าหมายการเปิดใช้" ก่อน	利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
+pearnly_core	No OCR key configured (site config pearnly_ocr_api_key)	没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）	ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)	OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
+pearnly_core	No client ID for invitation links is configured, so the invitation email cannot be sent	没有配「邀请链接用的客户端 ID」，发不出邀请邮件	ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงส่งอีเมลเชิญไม่ได้	招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
+pearnly_core	No service account configured (site config pearnly_ocr_credentials)	没有配服务账号（站点配置 pearnly_ocr_credentials）	ยังไม่ได้ตั้งค่าบัญชีบริการ (ค่าตั้งเว็บไซต์ pearnly_ocr_credentials)	サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
+pearnly_core	Status cannot go backwards: {0} → {1}	状态不能回退：{0} → {1}	สถานะถอยกลับไม่ได้: {0} → {1}	ステータスを戻すことはできません: {0} → {1}
+pearnly_core	Status must be active or inactive	状态只能是 active 或 inactive	สถานะต้องเป็น active หรือ inactive	ステータスは active または inactive のみです
+pearnly_core	Could not generate a bind code; please try again	生成绑定码失败，请重试	สร้างรหัสผูกไม่สำเร็จ กรุณาลองใหม่	連携コードの生成に失敗しました。もう一度お試しください
+pearnly_core	The target environment is incomplete: URL, realm, client ID and secret are all required	目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填	การตั้งค่าสภาพแวดล้อมเป้าหมายไม่ครบ: ต้องกรอกที่อยู่, realm, Client ID และ Secret	対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です
+pearnly_core	A DMS customer reference is required before confirming or pushing	确认或推送前必须有 DMS 客户引用	ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง	DMS顧客参照は確定または送信の前に必要です
+pearnly_core	Site config is missing {0}	站点配置缺少 {0}	ค่าตั้งเว็บไซต์ขาด {0}	サイト設定に {0} がありません
+pearnly_core	Site config is missing {0}_admin_client_id / _secret	站点配置缺少 {0}_admin_client_id / _secret	ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret	サイト設定に {0}_admin_client_id / _secret がありません
+pearnly_core	Site config is missing {0}_issuer	站点配置缺少 {0}_issuer	ค่าตั้งเว็บไซต์ขาด {0}_issuer	サイト設定に {0}_issuer がありません
+pearnly_core	Row {0}: unit price cannot be negative	第 {0} 行单价不能为负	บรรทัด {0}: ราคาต่อหน่วยติดลบไม่ได้	{0} 行目: 単価はマイナスにできません
+pearnly_core	Row {0}: quantity must be greater than 0	第 {0} 行数量必须大于 0	บรรทัด {0}: จำนวนต้องมากกว่า 0	{0} 行目: 数量は0より大きい必要があります
+pearnly_core	Binding needs a LINE user and a local account	绑定需要 LINE 用户与本地账号	การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง	連携にはLINEユーザーとローカルアカウントが必要です
+pearnly_core	endpoint is missing (which connection to test)	缺 endpoint（要测哪条连接）	ขาด endpoint (จะทดสอบการเชื่อมต่อใด)	endpoint がありません（どの接続をテストするか）
+pearnly_core	Missing code or state	缺少 code 或 state	ขาด code หรือ state	code または state がありません
+pearnly_core	google-auth is missing (the image should have it): {0}	缺少 google-auth（镜像里应已安装）：{0}	ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}	google-auth がありません（イメージには入っているはず）: {0}
+pearnly_core	Provide at least one line item	至少给一行明细	ต้องมีรายการอย่างน้อยหนึ่งบรรทัด	明細を1行以上入力してください
+pearnly_core	Role must be sales or admin	角色只能是 sales（销售）或 admin（管理员）	บทบาทต้องเป็น sales หรือ admin	ロールは sales（営業）または admin（管理者）のみです
+pearnly_core	Could not set the password: {0} {1}	设置密码失败：{0} {1}	ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}	パスワードの設定に失敗: {0} {1}
+pearnly_core	ID number is required	证件号必填	ต้องระบุเลขบัตร	身分証番号は必須です
+pearnly_core	This identity is already bound to {0}	该身份已绑定到 {0}	ตัวตนนี้ผูกกับ {0} แล้ว	このアイデンティティは既に {0} に紐づいています
+pearnly_core	This identity is already bound to account {0} (record {1})	该身份已绑定到账号 {0}（记录 {1}）	ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})	このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
+pearnly_core	This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)	该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）	ตัวตนนี้ยังไม่ลงทะเบียนบนเว็บไซต์นี้ กรุณาให้ผู้ดูแลเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่รับสมัครเอง)	このアイデンティティはこのサイトに未登録です。管理者に招待を依頼して再試行してください（自己登録は受け付けていません）
+pearnly_core	Fill in the display name, DMS username and password	请填写显示名、DMS 用户名和密码	กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน	表示名、DMSユーザー名、パスワードを入力してください
+pearnly_core	Could not read the account profile: {0}	读取账号资料失败：{0}	อ่านข้อมูลบัญชีไม่สำเร็จ: {0}	アカウント情報の読み取りに失敗: {0}
+pearnly_core	Both account and password are required	账号和密码都要填	ต้องกรอกทั้งบัญชีและรหัสผ่าน	アカウントとパスワードの両方が必要です
+pearnly_core	The account is disabled	账号已停用	บัญชีถูกปิดใช้งาน	アカウントは無効化されています
+pearnly_core	The account was created but no id came back	账号已建但取不到 id	สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา	アカウントは作成されましたがIDが返りませんでした
+pearnly_core	The details are not confirmed yet, so it cannot be pushed to DMS	资料还没确认，不能推送 DMS	ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้	情報が未確定のためDMSへ送信できません
+pearnly_core	The identity service refused the password change: {0} {1}	身份服务拒绝改密：{0} {1}	บริการตัวตนปฏิเสธการเปลี่ยนรหัสผ่าน: {0} {1}	アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
+pearnly_core	The identity service did not return an id_token	身份服务未返回 id_token	บริการตัวตนไม่ได้ส่ง id_token กลับมา	アイデンティティサービスが id_token を返しませんでした
+pearnly_core	The identity service returned an error: {0}	身份服务返回错误：{0}	บริการตัวตนตอบกลับข้อผิดพลาด: {0}	アイデンティティサービスがエラーを返しました: {0}
+pearnly_core	No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)	还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）	ยังไม่ได้กรอกบัญชีใด ๆ การเชื่อมต่อนี้จึงใช้ไม่ได้ตอนนี้ (ตั้งค่าข้อมูลรับรองแล้วค่อยทดสอบการเชื่อมต่อ)	まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
+pearnly_core	No DMS connection has been configured yet	还没有配过 DMS 连接	ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS	DMS接続はまだ設定されていません
+pearnly_core	Unconfirmed documents cannot be pushed	还没确认的单据不能推送	เอกสารที่ยังไม่ยืนยันส่งไม่ได้	未確定の伝票は送信できません
+pearnly_core	This document has already been recorded: {0}	这张单已经录过：{0}	เอกสารนี้ถูกบันทึกแล้ว: {0}	この伝票は既に登録済みです: {0}
+pearnly_core	This invoice has already been recorded: {0}	这张票已经录过：{0}	ใบนี้ถูกบันทึกแล้ว: {0}	この請求書は既に登録済みです: {0}
+pearnly_core	For an inbound document the counterparty tax ID cannot be your own	进项的对方税号不能等于自己	สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง	仕入伝票では取引先の税番号を自社と同じにできません
+pearnly_core	Cannot reach the OCR service: {0}	连不上 OCR 服务：{0}	เชื่อมต่อบริการ OCR ไม่ได้: {0}	OCRサービスに接続できません: {0}
+pearnly_core	Cannot reach the identity service of the target environment ({0}): {1} {2}	连不上目标环境的身份服务（{0}）：{1} {2}	เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}	対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
+pearnly_core	Connection "{0}" is disabled and cannot be used	连接「{0}」已停用，不能使用	การเชื่อมต่อ "{0}" ถูกปิดใช้งาน ใช้ไม่ได้	接続「{0}」は無効化されており使えません
+pearnly_core	Connection "{0}" has no account with write access configured, so writes are not possible	连接「{0}」没有配「有修改权限的账号」，无法做写入操作	การเชื่อมต่อ "{0}" ยังไม่ได้ตั้งค่าบัญชีที่มีสิทธิ์แก้ไข จึงเขียนข้อมูลไม่ได้	接続「{0}」に書き込み権限のあるアカウントが未設定のため、書き込みできません
+pearnly_core	Connection "{0}" has no sign-in credentials yet	连接「{0}」还没有配登录凭据	การเชื่อมต่อ "{0}" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	接続「{0}」はログイン資格情報が未設定です
+pearnly_core	Could not send the invitation email: {0} {1}	邀请邮件发送失败：{0} {1}	ส่งอีเมลเชิญไม่สำเร็จ: {0} {1}	招待メールの送信に失敗: {0} {1}
+pearnly_core	A purchase document needs at least one line	采购单至少要有一行	ใบจัดซื้อต้องมีอย่างน้อยหนึ่งบรรทัด	購買伝票には1行以上の明細が必要です

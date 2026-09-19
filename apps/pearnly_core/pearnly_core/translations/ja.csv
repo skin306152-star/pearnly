@@ -1,13 +1,21 @@
+A DMS customer reference is required before confirming or pushing,DMS顧客参照は確定または送信の前に必要です
+A DMS customer reference is required; otherwise this link means nothing,DMS顧客参照が必要です。なければこの紐付けは意味を持ちません
 A board instance is created only when this is on,有効にした時だけボードを作成します
+A disabled operator cannot issue a bind code; enable them first,無効化中のオペレーターは連携コードを発行できません。先に有効化してください
 "A human-readable name, e.g. MR.ERP DMS",人が読むための名前（例: MR.ERP DMS）
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
+A new record can only start as draft or recognized,新規レコードは draft または recognized からしか開始できません
+A new record can only start as uploaded or recognized,新規レコードは uploaded または recognized からしか開始できません
 A one-time short code. The user sends it to this tenant's LINE official account to bind.,1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。
+A purchase document needs at least one line,購買伝票には1行以上の明細が必要です
 Account,アカウント
+"Account ""{0}"" already has a default connection ({1}); clear that one's default first",同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください
 Account With Write Access,書き込み権限のあるアカウント
 Adapter,アダプタ
 Address,住所
 Admin Account,管理者アカウント
 Admin Password,管理者パスワード
+All three fields are required,3項目とも入力が必要です
 Allow DMS queries from LINE,LINEでの照会機能を許可
 Amount,金額
 Approval,承認
@@ -19,19 +27,45 @@ Batches and results of every recognition run,各認識バッチの記録と結�
 Billing,課金
 "Billing is not wired up on this site, please contact the platform",このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
 Bind Code,連携コード
+Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
 Birth Date,生年月日
 Booking Defaults,起票の既定値
+Both account and password are required,アカウントとパスワードの両方が必要です
+Both issuer and subject are required,issuer と subject はどちらも必須です
 Bound At,連携日時
 Business Key,業務キー
+Cannot confirm while the status is {0},ステータス {0} では確定できません
+Cannot match while the status is {0},ステータス {0} では照合できません
+Cannot reach the OCR service: {0},OCRサービスに接続できません: {0}
+Cannot reach the identity service of the target environment ({0}): {1} {2},対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
 Charges,課金
 Claimed By,担当者
+Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
+Client ID is required,クライアントIDは必須です
 Collaboration Boards (WeKan),コラボボード（WeKan）
 Companion,コンパニオン
 Company Tax ID,自社の税番号
 Confirmed At,確認日時
 Confirmed By,確認者
 Connection,接続
+"Connection ""{0}"" has no account with write access configured, so writes are not possible",接続「{0}」に書き込み権限のあるアカウントが未設定のため、書き込みできません
+"Connection ""{0}"" has no sign-in credentials yet",接続「{0}」はログイン資格情報が未設定です
+"Connection ""{0}"" is disabled and cannot be used",接続「{0}」は無効化されており使えません
 Console,コンソール
+Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
+Could not create the account in the target environment: {0} {1},対象環境でのアカウント作成に失敗: {0} {1}
+Could not create the account: {0} {1},アカウントの作成に失敗: {0} {1}
+Could not exchange the token: {0},トークンの交換に失敗: {0}
+Could not generate a bind code; please try again,連携コードの生成に失敗しました。もう一度お試しください
+Could not get the admin token,管理者トークンの取得に失敗しました
+Could not get the admin token: {0},管理者トークンの取得に失敗: {0}
+Could not look the account up by email: {0},メールでアカウントを照会できませんでした: {0}
+Could not look up the account: {0} {1},アカウントの照会に失敗: {0} {1}
+Could not read the account profile: {0},アカウント情報の読み取りに失敗: {0}
+Could not read the client secret: {0} {1},クライアントシークレットの取得に失敗: {0} {1}
+Could not send the invitation email: {0} {1},招待メールの送信に失敗: {0} {1}
+Could not set the password: {0} {1},パスワードの設定に失敗: {0} {1}
+Could not update the OIDC client: {0} {1},OIDCクライアントの更新に失敗: {0} {1}
 Count tasks and variance records,棚卸タスクと差異記録
 Counterparty,取引先名
 Counterparty Tax ID,取引先の税番号
@@ -44,6 +78,8 @@ Customer Match,顧客照合
 Customer Name,顧客名
 Customer Snapshot,顧客情報のスナップショット
 Customer master data,顧客マスタ
+Customer matching is required before confirming,確定の前に顧客照合が必要です
+Customer matching must be done before confirming,確定する前に顧客照合を完了してください
 Customers,顧客
 "Customers, suppliers, accounts and other reference data",顧客、仕入先、勘定科目などの基礎データ
 DMS Admin,DMS 管理者
@@ -71,6 +107,7 @@ Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
 Deployment,デプロイ
 Description,説明
 Direction,方向
+Direction must be inbound or outbound,方向は仕入または売上のみです
 Display Name,表示名
 Doc Date,伝票日付
 Doc No,伝票番号
@@ -101,8 +138,10 @@ Failure reason,失敗理由
 Failures,失敗回数
 Field Diffs,項目ごとの差分
 File,ファイル
+"Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
 Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
 Flow Status,進行ステータス
+For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
 Full Name,氏名
 Gender,性別
 Grand Total,税込合計
@@ -114,12 +153,14 @@ ID Card Intake,身分証取り込み
 ID Details,身分証情報
 ID Image,身分証画像
 ID Number,身分証番号
+ID number is required,身分証番号は必須です
 IP,IP
 Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 "Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
+Invalid push channel,送信チャネルが不正です
 Invited By,招待者
 Issuer,発行者
 Item / Description,品名・説明
@@ -141,12 +182,22 @@ Local Account,ローカルアカウント
 Local Session,ローカルセッション
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
 Master Data,マスタデータ
+Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
 Max Retries,最大再試行
+Missing code or state,code または state がありません
 Name,名称
 Net Amount,税抜金額
 Net Payable,支払純額
 New Customer,今回新規作成
 Next Retry At,次回再試行日時
+No DMS connection has been configured yet,DMS接続はまだ設定されていません
+No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
+"No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
+"No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
+No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
+No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
+No service account configured (site config pearnly_ocr_credentials),サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
+No such local account: {0},ローカルアカウントがありません: {0}
 Not signed in,未ログイン
 Note,備考
 Notes,備考
@@ -154,6 +205,9 @@ Notes,備考
 Once disabled its DMS pushes stop and the LINE binding is released,無効にするとDMSへの送信が止まり、LINE連携も解除されます
 Only a company admin can top up or change the subscription,チャージとプラン変更は会社管理者のみ
 Only a company admin can view top-up records,チャージ記録は会社管理者のみ閲覧可
+Only an admin can configure DMS connections,DMS接続を設定できるのは管理者だけです
+Only an admin can manage the operator roster,オペレーター名簿を管理できるのは管理者だけです
+Only confirmed documents can be queued for push,確定済みの伝票だけが送信キューに入れられます
 Only one default per account + adapter (the legacy product's unique index).,同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
 Only the owner can manage it,責任者のみ管理可能
 Operator,ユーザー
@@ -175,6 +229,7 @@ Product Ref,商品の外部参照
 "Product home: current plan, usage and billing",製品ホーム。現在のプラン、利用量、請求を表示
 Product master data,商品マスタ
 Products,商品データ
+Provide at least one line item,明細を1行以上入力してください
 "Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
 Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
 Push,送信
@@ -183,6 +238,7 @@ Push Log,プッシュログ
 Push Log Reference,送信ログ参照
 Push Records,プッシュ記録
 Push Status,送信ステータス
+Push status must be one of {0},送信ステータスは {0} のいずれかです
 Push to the external ERP; the push log is the only source of status,外部ERPへ連携。状態は連携ログのみが根拠
 Qty,数量
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
@@ -206,16 +262,24 @@ Retry & Lease,再試行とリース
 Retry Count,再試行回数
 Revoked At,失効日時
 Role,ロール
+Role must be sales or admin,ロールは sales（営業）または admin（管理者）のみです
 Rounding,端数調整
+Row {0}: quantity must be greater than 0,{0} 行目: 数量は0より大きい必要があります
+Row {0}: unit price cannot be negative,{0} 行目: 単価はマイナスにできません
 Sales,販売
 Sales Commission Owner,販売手数料の帰属
 Sales documents and customer dealings,販売伝票と顧客取引
 Same ID number means the same customer; avoids duplicate records,同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
 Session Payload,セッションのペイロード
 Sign-in Credentials,ログイン資格情報
+Site config is missing {0},サイト設定に {0} がありません
+Site config is missing {0}_admin_client_id / _secret,サイト設定に {0}_admin_client_id / _secret がありません
+Site config is missing {0}_issuer,サイト設定に {0}_issuer がありません
 Source,ソース
 Source Attachment,元の添付ファイル
 Status,ステータス
+Status cannot go backwards: {0} → {1},ステータスを戻すことはできません: {0} → {1}
+Status must be active or inactive,ステータスは active または inactive のみです
 Stock Card Report,受払在庫表
 Stock Count,棚卸
 Stock In / Out,在庫（入出庫）
@@ -227,9 +291,20 @@ Summary,摘要
 Supplier,仕入先
 Supplier Tax ID,仕入先の税番号
 System URL,システムURL
+The FX rate must be greater than 0,為替レートは0より大きい必要があります
+The ID token has no sub,IDトークンに sub がありません
+The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
+The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しました: {1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
+The account is disabled,アカウントは無効化されています
+The account was created but no id came back,アカウントは作成されましたがIDが返りませんでした
+The current password is wrong,現在のパスワードが正しくありません
 The customer snapshot used to refill the form when approval executes.,承認実行時にフォームへ戻すための顧客情報スナップショット。
+"The details are not confirmed yet, so it cannot be pushed to DMS",情報が未確定のためDMSへ送信できません
 The document number the supplier issued; it must be kept as-is,仕入先が発行した伝票番号。そのまま保持する必要があります
+The identity service did not return an id_token,アイデンティティサービスが id_token を返しませんでした
+The identity service refused the password change: {0} {1},アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
+The identity service returned an error: {0},アイデンティティサービスがエラーを返しました: {0}
 "The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
 
 **One row per session** (a LINE user runs only one flow at a time inside one tenant).","多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。
@@ -242,21 +317,38 @@ The legacy product used trigger to tell business lines apart (e.g. trigger='id_c
 The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
 The name is resolved server-side when pinning; the client's value is not trusted,名前は固定時にサーバー側で解決します。クライアントの値は信用しません
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
+The new password cannot be the same as the current one,新しいパスワードは現在のものと同じにできません
+The new password is required,新しいパスワードは必須です
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
+The push channel must be companion or cloud,送信チャネルは companion または cloud のみです
 The result of each push,各連携の結果
+The service account could not exchange its token: {0},サービスアカウントのトークン交換に失敗: {0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
+"The target environment is incomplete: URL, realm, client ID and secret are all required",対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です
 The test for a duplicate upload of the same document,同じ伝票を二重アップロードしたときの判定基準
 "The truth is in erp_push_logs, trigger=id_card",真値は erp_push_logs、trigger=id_card
 The truth is in erp_push_logs; this is only a display reference,真値は erp_push_logs。ここは表示用の参照のみ
+The two new passwords do not match,新しいパスワードが2回で一致しません
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
+"There is no DMS customer reference, so it cannot be pushed",DMS顧客参照がないため送信できません
 This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
+"This account has no identity binding, so it cannot change its own password; contact an admin",このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
+This document has already been recorded: {0},この伝票は既に登録済みです: {0}
+This identity is already bound to account {0} (record {1}),このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
+This identity is already bound to {0},このアイデンティティは既に {0} に紐づいています
+This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),このアイデンティティはこのサイトに未登録です。管理者に招待を依頼して再試行してください（自己登録は受け付けていません）
+This invoice has already been recorded: {0},この請求書は既に登録済みです: {0}
+This site has more than one product manifest installed: {0}. One deployment can host only one product.,このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
+"This site has no LINE access token configured, so it cannot send messages",このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
+This site has no product manifest installed; it cannot run as a business site.,このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
 Time,日時
 Top-ups,チャージ
 Transport Result,転送結果
 Trigger,トリガー
 Type,種別
 Unbound At,連携解除日時
+Unconfirmed documents cannot be pushed,未確定の伝票は送信できません
 Unit,単位
 Unit Price,単価
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
@@ -283,4 +375,8 @@ Withholding Tax,源泉税
 Workspace,ワークスペース
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。"
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
+endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
+google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+nonce mismatch,nonce が一致しません
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+state is invalid or has expired,state が無効か期限切れです

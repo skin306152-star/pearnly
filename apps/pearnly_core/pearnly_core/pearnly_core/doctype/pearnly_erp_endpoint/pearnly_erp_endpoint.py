@@ -46,7 +46,7 @@ class PearnlyERPEndpoint(Document):
             )
             if clash:
                 frappe.throw(
-                    _("同一账号下「{0}」已经有一条默认连接（{1}），请先取消它的默认").format(
+                    _("Account \"{0}\" already has a default connection ({1}); clear that one's default first").format(
                         self.adapter, clash
                     )
                 )
@@ -56,7 +56,7 @@ class PearnlyERPEndpoint(Document):
         # 因为向导分两步保存（先地址、后凭据），卡死会让人配不下去。
         if self.system_url and not (self.username or self.admin_username):
             frappe.msgprint(
-                _("还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）"),
+                _("No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"),
                 indicator="orange",
                 alert=True,
             )

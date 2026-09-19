@@ -39,7 +39,7 @@ def _admin_token() -> str:
         timeout=15,
     )
     if resp.status_code != 200:
-        frappe.throw(_("取管理令牌失败"))
+        frappe.throw(_("Could not get the admin token"))
     return resp.json()["access_token"]
 
 
@@ -122,7 +122,7 @@ def my_sessions():
     """当前账号的活跃会话列表（供产品界面展示"登录设备"）。"""
     user = frappe.session.user
     if user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return frappe.get_all(
         "Pearnly Session",
         filters={"user": user, "status": "active"},
@@ -153,7 +153,7 @@ def logout_everywhere(keep_current: bool = False):
     """
     user = frappe.session.user
     if user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
 
     current_sid = frappe.session.sid
     rows = _my_rows(user)

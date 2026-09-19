@@ -24,7 +24,7 @@ DOCTYPE = "Purchase Document"
 def _require_user() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
 
 
@@ -57,11 +57,11 @@ def create_purchase(
     _require_user()
 
     if not isinstance(lines, list) or not lines:
-        frappe.throw(_("至少给一行明细"))
+        frappe.throw(_("Provide at least one line item"))
 
     if dedupe_key and frappe.db.exists(DOCTYPE, {"dedupe_key": dedupe_key}):
         existing = frappe.db.get_value(DOCTYPE, {"dedupe_key": dedupe_key}, "name")
-        frappe.throw(_("这张单已经录过：{0}").format(existing))
+        frappe.throw(_("This document has already been recorded: {0}").format(existing))
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,

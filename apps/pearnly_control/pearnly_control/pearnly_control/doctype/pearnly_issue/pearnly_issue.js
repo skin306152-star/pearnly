@@ -115,7 +115,7 @@ function stop_polling() {
 
 function open_progress(frm) {
 	const d = new frappe.ui.Dialog({
-		title: __("Provisioning progress"),
+		title: __("Provisioning Progress"),
 		size: "small",
 		fields: [{ fieldtype: "HTML", fieldname: "body" }],
 		primary_action_label: __("Close"),
@@ -183,7 +183,7 @@ function render_provision(frm) {
 			frm.page.set_indicator(__(label), color);
 			const running = m && ["pending", "running"].includes(m.status);
 			if (running) {
-				frm.add_custom_button(__("Provisioning progress"), () => open_progress(frm));
+				frm.add_custom_button(__("Provisioning Progress"), () => open_progress(frm));
 			} else {
 				// 不抢主按钮：表单还是脏的时候，主按钮得留给"保存"
 				frm.add_custom_button(

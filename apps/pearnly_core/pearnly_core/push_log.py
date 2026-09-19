@@ -49,7 +49,7 @@ def record(
     直接塞 dict 会被 Frappe 拒绝。
     """
     if status not in STATUSES:
-        frappe.throw(_("推送状态只能是 {0}").format(" / ".join(STATUSES)))
+        frappe.throw(_("Push status must be one of {0}").format(" / ".join(STATUSES)))
 
     if request_body is not None and not isinstance(request_body, str):
         request_body = json.dumps(request_body, ensure_ascii=False, default=str)
@@ -85,7 +85,7 @@ def claim_for_push(endpoint: str, *, owner: str, ttl_minutes: int = 10) -> list[
     对端就会建两份档。
     """
     if not endpoint:
-        frappe.throw(_("抢推送任务必须指定连接"))
+        frappe.throw(_("Claiming a push job requires a connection"))
     stamp = now()
     names = frappe.db.sql(
         f"""
@@ -129,7 +129,7 @@ def finish(name: str, status: str, *, http_status: int | None = None,
            business_key: str | None = None) -> dict:
     """给一条推送收口：改状态、释放租约、按需记业务键。"""
     if status not in STATUSES:
-        frappe.throw(_("推送状态只能是 {0}").format(" / ".join(STATUSES)))
+        frappe.throw(_("Push status must be one of {0}").format(" / ".join(STATUSES)))
     doc = frappe.get_doc(LOG, name)
     doc.status = status
     if http_status is not None:

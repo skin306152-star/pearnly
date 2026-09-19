@@ -33,14 +33,14 @@ class PurchaseDocument(Document):
 
     def _validate_amounts(self):
         if not self.lines:
-            frappe.throw(_("采购单至少要有一行"))
+            frappe.throw(_("A purchase document needs at least one line"))
         if flt(self.fx_rate) <= 0:
-            frappe.throw(_("汇率必须大于 0"))
+            frappe.throw(_("The FX rate must be greater than 0"))
         for line in self.lines:
             if flt(line.qty) <= 0:
-                frappe.throw(_("第 {0} 行数量必须大于 0").format(line.idx))
+                frappe.throw(_("Row {0}: quantity must be greater than 0").format(line.idx))
             if flt(line.unit_price) < 0:
-                frappe.throw(_("第 {0} 行单价不能为负").format(line.idx))
+                frappe.throw(_("Row {0}: unit price cannot be negative").format(line.idx))
 
     def _recompute(self):
         """金额一律重算，不接受前端传进来的合计——避免对不上账。"""

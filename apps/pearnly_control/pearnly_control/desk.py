@@ -27,30 +27,39 @@
         app 取图标自己的 `app` 字段。（原生那些图标走的就是这条）
      b. 没有就退回 `logo_url` / `icon_image`
      c. 再没有就画**标签首字母**（从 alphabets.svg 取字形）+ 底色方块
-   中文标签在 (c) 走不通——字母表里没有汉字，结果是"一个空色块"（踩过）。
-   所以本 App 自带一个 SVG：`public/icons/desktop_icons/subtle/租户开通.svg`，
-   尺寸与配色照抄原生（54×54，底 #7B808A/19%，字 #6B6F78）。
-   注意 `frappe.scrub()` 对中文原样保留，所以文件名就用标签本身。
+   本 App 自带一个 SVG：`public/icons/desktop_icons/subtle/tenant_provisioning.svg`
+   （尺寸与配色照抄原生：54×54，底 #7B808A/19%，字 #6B6F78）。
+   历史：标签原来是中文（"租户开通"），而 `frappe.scrub()` 对中文原样保留、
+   字母表里又没有汉字，所以那时 (c) 走不通、必须自带 SVG（踩过）。现在标签是英文，
+   (c) 也能画出首字母了；SVG 留着不影响（本地样例站点没挂 assets，就走的首字母）。
 
 幂等：每次 migrate 后重跑，已存在则更新，不会重复建。
 """
 
 import frappe
 
-SIDEBAR_TITLE = "租户开通"
+# 侧边栏的名字。**这个值是存进库的记录名**，渲染时框架不翻它
+# （`frappe/public/js/frappe/ui/sidebar/sidebar_header.js` 直接把 title 打进 DOM），
+# 所以按 Frappe 的惯例用英文 —— 与它下面的 "Pearnly Control" 一致。
+# 菜单项不一样：`sidebar_item.js:393` 会 `__(item.label)`，所以项写英文 msgid 就能跟着语言走。
+# 用户 2026-09-19 定的规矩是"不许写死文案"，这里的取舍是"名字用英文、项走翻译包"。
+SIDEBAR_TITLE = "Tenant Provisioning"
 ICON = "building-2"
+
+# 改名前的旧名字。库里已经有这条记录的话要清掉，否则侧边栏会多出一个旧的（中文）条目。
+LEGACY_TITLES = ("租户开通",)
 
 # 侧边栏里的项。**第一项必须是 Link**，因为它决定点桌面图标后落到哪。
 SIDEBAR_ITEMS = [
-    {"label": "开通单", "link_type": "DocType", "link_to": "Pearnly Issue"},
-    {"label": "租户", "link_type": "DocType", "link_to": "Pearnly Tenant"},
-    {"label": "功能目录", "link_type": "DocType", "link_to": "Pearnly Feature"},
-    {"label": "开户目标", "link_type": "DocType", "link_to": "Pearnly Target"},
-    {"label": "部署", "link_type": "DocType", "link_to": "Pearnly Deployment"},
-    {"label": "LINE 渠道", "link_type": "DocType", "link_to": "Pearnly LINE Channel"},
-    {"label": "开通进度", "link_type": "DocType", "link_to": "Pearnly Provisioning Request"},
+    {"label": "Issue", "link_type": "DocType", "link_to": "Pearnly Issue"},
+    {"label": "Tenant", "link_type": "DocType", "link_to": "Pearnly Tenant"},
+    {"label": "Feature Catalog", "link_type": "DocType", "link_to": "Pearnly Feature"},
+    {"label": "Provisioning Target", "link_type": "DocType", "link_to": "Pearnly Target"},
+    {"label": "Deployment", "link_type": "DocType", "link_to": "Pearnly Deployment"},
+    {"label": "LINE Channel", "link_type": "DocType", "link_to": "Pearnly LINE Channel"},
+    {"label": "Provisioning Progress", "link_type": "DocType", "link_to": "Pearnly Provisioning Request"},
     # 计费底座：余额与台账在控制面，三套产品共用一份（表归属见 P0.05）
-    {"label": "充值审核", "link_type": "DocType", "link_to": "Pearnly Topup Request"},
+    {"label": "Top-up Review", "link_type": "DocType", "link_to": "Pearnly Topup Request"},
 ]
 
 
@@ -58,8 +67,28 @@ def ensure_shortcuts() -> dict:
     """建/更新「租户开通」的侧边栏与桌面图标。幂等。"""
     sidebar = _ensure_sidebar()
     icon = _ensure_desktop_icon()
+    removed = _drop_legacy()
     frappe.clear_cache()
-    return {"sidebar": sidebar, "desktop_icon": icon}
+    return {"sidebar": sidebar, "desktop_icon": icon, "removed": removed}
+
+
+def _drop_legacy() -> list:
+    """清掉改名前的旧侧边栏与旧桌面图标。
+
+    不清的后果：侧边栏下拉里会同时出现中英两条（旧的那条指向同样的页面，
+    看着像重复菜单）。这两条记录都是本模块生成的，不是用户数据，所以直接删。
+    """
+    removed = []
+    for old in LEGACY_TITLES:
+        if old == SIDEBAR_TITLE:
+            continue
+        for doctype in ("Workspace Sidebar", "Desktop Icon"):
+            if frappe.db.exists(doctype, old):
+                frappe.delete_doc(doctype, old, ignore_permissions=True, force=True)
+                removed.append("%s:%s" % (doctype, old))
+    if removed:
+        frappe.db.commit()
+    return removed
 
 
 def _ensure_sidebar() -> str:

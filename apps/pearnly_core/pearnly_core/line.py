@@ -114,7 +114,7 @@ def verify_signature(body: bytes, signature: str) -> bool:
 def _headers() -> dict:
     token = _conf("channel_access_token")
     if not token:
-        frappe.throw(_("本站点没有配 LINE access token，发不出消息"))
+        frappe.throw(_("This site has no LINE access token configured, so it cannot send messages"))
     return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
 

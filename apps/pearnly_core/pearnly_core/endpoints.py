@@ -70,20 +70,20 @@ def credentials(name: str, *, as_admin: bool = False) -> dict:
     """
     doc = frappe.get_doc(ENDPOINT, name)
     if not doc.enabled:
-        frappe.throw(_("连接「{0}」已停用，不能使用").format(doc.label))
+        frappe.throw(_("Connection \"{0}\" is disabled and cannot be used").format(doc.label))
 
     if as_admin:
         username = _clean(doc.admin_username)
         password = get_decrypted_password(ENDPOINT, name, "admin_password", raise_exception=False) or ""
         if not (username and password):
             frappe.throw(
-                _("连接「{0}」没有配「有修改权限的账号」，无法做写入操作").format(doc.label)
+                _("Connection \"{0}\" has no account with write access configured, so writes are not possible").format(doc.label)
             )
     else:
         username = _clean(doc.username)
         password = get_decrypted_password(ENDPOINT, name, "password", raise_exception=False) or ""
         if not (username and password):
-            frappe.throw(_("连接「{0}」还没有配登录凭据").format(doc.label))
+            frappe.throw(_("Connection \"{0}\" has no sign-in credentials yet").format(doc.label))
 
     return {
         "endpoint": doc.name,

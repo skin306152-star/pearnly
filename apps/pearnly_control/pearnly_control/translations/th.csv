@@ -68,6 +68,7 @@ Enabled Features,ฟีเจอร์ที่เปิดใช้
 Enforcement,การบังคับสิทธิ์
 External Reference,เลขที่อ้างอิงภายนอก
 Feature,ฟีเจอร์
+Feature Catalog,แคตตาล็อกฟีเจอร์
 Feature Code,รหัสฟีเจอร์
 Feature Name,ชื่อฟีเจอร์
 Features,ฟีเจอร์
@@ -96,6 +97,7 @@ Issued: {0} / tenant {1},ออกใบแล้ว: {0} / ผู้เช่�
 Issues,ใบเปิดใช้งาน
 Issuing…,กำลังออกใบ…
 LIFF ID,LIFF ID
+LINE Channel,ช่องทาง LINE
 Last Updated,แก้ไขล่าสุด
 Leave empty to use the company name,เว้นว่างเพื่อใช้ชื่อบริษัท
 Local Port,พอร์ตในเครื่อง
@@ -131,6 +133,7 @@ Product {0} is selected twice,เลือกผลิตภัณฑ์ {0} ส
 Products & Domains,ผลิตภัณฑ์และโดเมน
 Proof,หลักฐาน
 Provisioning Credentials (stored only here),ข้อมูลรับรองการเปิดใช้ (เก็บไว้ที่นี่ที่เดียว)
+Provisioning Progress,ความคืบหน้าการเปิดใช้งาน
 Provisioning Target,เป้าหมายการเปิดใช้
 Provisioning progress,ความคืบหน้าการเปิดใช้งาน
 Queued for provisioning; building the site now,เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์
@@ -195,6 +198,7 @@ This request has already been handled (currently: {0}),คำขอนี้ถ�
 This tenant no longer exists.,ผู้เช่ารายนี้ไม่มีอยู่แล้ว
 This top-up request was already reviewed; it cannot be handled twice,คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).","ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น กระดานทำงานร่วม, ผู้ช่วย)"
+Top-up Review,ตรวจสอบการเติมเงิน
 Transfer Slip,สลิปโอนเงิน
 Type,ประเภท
 Unknown billing unit: {0},หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}

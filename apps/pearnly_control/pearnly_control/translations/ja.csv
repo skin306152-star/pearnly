@@ -68,6 +68,7 @@ Enabled Features,有効な機能
 Enforcement,権限の適用
 External Reference,外部参照番号
 Feature,機能
+Feature Catalog,機能カタログ
 Feature Code,機能コード
 Feature Name,機能名
 Features,機能
@@ -96,6 +97,7 @@ Issued: {0} / tenant {1},発行済み: {0} / テナント {1}
 Issues,発行伝票
 Issuing…,発行中…
 LIFF ID,LIFF ID
+LINE Channel,LINEチャネル
 Last Updated,最終更新
 Leave empty to use the company name,空欄なら会社名を使います
 Local Port,ローカルポート
@@ -131,6 +133,7 @@ Product {0} is selected twice,製品 {0} が二重に選ばれています
 Products & Domains,製品とドメイン
 Proof,証憑
 Provisioning Credentials (stored only here),開通の資格情報（ここにだけ保存）
+Provisioning Progress,開通の進捗
 Provisioning Target,開通ターゲット
 Provisioning progress,開通の進捗
 Queued for provisioning; building the site now,開通キューに入りました。サイトを構築中です。
@@ -195,6 +198,7 @@ This request has already been handled (currently: {0}),この申請はすでに�
 This tenant no longer exists.,このテナントは既に存在しません。
 This top-up request was already reviewed; it cannot be handled twice,この入金申請は審査済みです。二重処理はできません。
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",チェックは既定で有効、外したものは追加購入（コラボボード、コンパニオンなど）。
+Top-up Review,チャージ承認
 Transfer Slip,振込明細
 Type,種別
 Unknown billing unit: {0},不明な課金単位: {0}

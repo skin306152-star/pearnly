@@ -39,7 +39,7 @@ def _identity_for(user: str) -> dict:
         as_dict=True,
     )
     if not row:
-        frappe.throw(_("当前账号没有登记身份绑定，无法自助改密，请联系管理员"))
+        frappe.throw(_("This account has no identity binding, so it cannot change its own password; contact an admin"))
     return row
 
 
@@ -54,7 +54,7 @@ def _admin_token() -> str:
         timeout=15,
     )
     if resp.status_code != 200:
-        frappe.throw(_("取管理令牌失败"))
+        frappe.throw(_("Could not get the admin token"))
     return resp.json()["access_token"]
 
 
@@ -65,7 +65,7 @@ def _keycloak_username(subject: str) -> str:
         timeout=15,
     )
     if resp.status_code != 200:
-        frappe.throw(_("读取账号资料失败：{0}").format(resp.status_code))
+        frappe.throw(_("Could not read the account profile: {0}").format(resp.status_code))
     return resp.json()["username"]
 
 
@@ -94,7 +94,7 @@ def _verify_current_password(subject: str, current_password: str) -> None:
         timeout=15,
     )
     if resp.status_code != 200:
-        frappe.throw(_("当前密码不正确"), frappe.AuthenticationError)
+        frappe.throw(_("The current password is wrong"), frappe.AuthenticationError)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -102,20 +102,20 @@ def change_password(current_password=None, new_password=None, confirm_password=N
     """改自己的密码。任何产品页面都调这一个接口。"""
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
 
     current_password = (current_password or "").strip()
     new_password = (new_password or "").strip()
     confirm_password = (confirm_password or "").strip()
 
     if not current_password or not new_password or not confirm_password:
-        frappe.throw(_("三项都要填"))
+        frappe.throw(_("All three fields are required"))
     if new_password != confirm_password:
-        frappe.throw(_("两次输入的新密码不一致"))
+        frappe.throw(_("The two new passwords do not match"))
     if len(new_password) < MIN_LENGTH:
-        frappe.throw(_("新密码不能为空"))
+        frappe.throw(_("The new password is required"))
     if new_password == current_password:
-        frappe.throw(_("新密码不能与当前密码相同"))
+        frappe.throw(_("The new password cannot be the same as the current one"))
 
     identity = _identity_for(user)
     _verify_current_password(identity.subject, current_password)
@@ -130,7 +130,7 @@ def change_password(current_password=None, new_password=None, confirm_password=N
         timeout=15,
     )
     if resp.status_code not in (200, 204):
-        frappe.throw(_("身份服务拒绝改密：{0} {1}").format(resp.status_code, resp.text[:200]))
+        frappe.throw(_("The identity service refused the password change: {0} {1}").format(resp.status_code, resp.text[:200]))
 
     frappe.logger("pearnly.identity").info(
         f"password changed user={user} subject={identity.subject}"

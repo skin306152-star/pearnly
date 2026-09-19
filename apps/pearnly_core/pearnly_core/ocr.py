@@ -145,7 +145,7 @@ def access_token() -> str:
     """
     path = credentials_path()
     if not path:
-        raise OcrError(_("没有配服务账号（站点配置 pearnly_ocr_credentials）"))
+        raise OcrError(_("No service account configured (site config pearnly_ocr_credentials)"))
 
     cached = _token_cache.get(path)
     now = frappe.utils.now_datetime()
@@ -161,9 +161,9 @@ def access_token() -> str:
         )
         creds.refresh(Request())
     except ImportError as exc:
-        raise OcrError(_("缺少 google-auth（镜像里应已安装）：{0}").format(exc)) from exc
+        raise OcrError(_("google-auth is missing (the image should have it): {0}").format(exc)) from exc
     except Exception as exc:  # 文件不存在/格式不对/被拒
-        raise OcrError(_("服务账号换令牌失败：{0}").format(str(exc)[:200])) from exc
+        raise OcrError(_("The service account could not exchange its token: {0}").format(str(exc)[:200])) from exc
 
     # 提前 5 分钟过期，避免边界上刚好用到失效令牌
     expiry = creds.expiry
@@ -242,7 +242,7 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     else:
         key = api_key()
         if not key:
-            raise OcrError(_("没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）"))
+            raise OcrError(_("No OCR key configured (site config pearnly_ocr_api_key)"))
         url = endpoint().format(model=model)
         headers = {"x-goog-api-key": key, "Content-Type": "application/json"}
 
@@ -270,14 +270,14 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
         resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
     except requests.RequestException as exc:
         frappe.logger("pearnly.ocr").warning(f"ocr request failed model={model}: {exc}")
-        raise OcrUnavailable(_("连不上 OCR 服务：{0}").format(str(exc)[:200])) from exc
+        raise OcrUnavailable(_("Cannot reach the OCR service: {0}").format(str(exc)[:200])) from exc
 
     if resp.status_code != 200:
         frappe.logger("pearnly.ocr").warning(
             f"ocr http {resp.status_code} model={model}: {resp.text[:300]}"
         )
         raise OcrUnavailable(
-            _("OCR 服务返回 HTTP {0}：{1}").format(resp.status_code, resp.text[:200])
+            _("The OCR service returned HTTP {0}: {1}").format(resp.status_code, resp.text[:200])
         )
 
     try:

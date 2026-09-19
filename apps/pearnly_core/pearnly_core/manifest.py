@@ -36,10 +36,10 @@ def current() -> dict:
     """
     found = load_all()
     if not found:
-        frappe.throw(_("本站点没有安装任何产品清单，不能作为业务站点运行"))
+        frappe.throw(_("This site has no product manifest installed; it cannot run as a business site."))
     if len(found) > 1:
         frappe.throw(
-            _("本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品").format(
+            _("This site has more than one product manifest installed: {0}. One deployment can host only one product.").format(
                 ", ".join(sorted(found))
             )
         )

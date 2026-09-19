@@ -17,6 +17,6 @@ class DMSCustomerLink(Document):
     def validate(self):
         self.id_number = (self.id_number or "").strip()
         if not self.id_number:
-            frappe.throw(_("证件号必填"))
+            frappe.throw(_("ID number is required"))
         if not self.external_customer_ref:
-            frappe.throw(_("必须有 DMS 客户引用，否则这条对照没有意义"))
+            frappe.throw(_("A DMS customer reference is required; otherwise this link means nothing"))

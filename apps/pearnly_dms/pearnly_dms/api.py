@@ -29,9 +29,9 @@ def _require_admin() -> str:
     """权限边界在后端，不在"前端把菜单藏起来"。"""
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     if not set(ADMIN_ROLES) & set(frappe.get_roles(user)):
-        frappe.throw(_("只有管理员能配置 DMS 连接"), frappe.PermissionError)
+        frappe.throw(_("Only an admin can configure DMS connections"), frappe.PermissionError)
     return user
 
 
@@ -78,7 +78,7 @@ def test_credentials(username: str, password: str, system_url: str | None = None
     username = (username or "").strip()
     password = password or ""
     if not username or not password:
-        frappe.throw(_("账号和密码都要填"))
+        frappe.throw(_("Both account and password are required"))
 
     from pearnly_dms.dms_adapter import MrerpDmsAdapter
     from pearnly_dms.dms_push import test_adapter
@@ -103,7 +103,7 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     _require_admin()
     username = (username or "").strip()
     if not username or not password:
-        frappe.throw(_("账号和密码都要填"))
+        frappe.throw(_("Both account and password are required"))
 
     url = (system_url or _default_url()).strip()
     name = _endpoint_name()
@@ -137,7 +137,7 @@ def set_connection_enabled(enabled: int | bool = 1) -> dict:
     _require_admin()
     name = _endpoint_name()
     if not name:
-        frappe.throw(_("还没有配过 DMS 连接"))
+        frappe.throw(_("No DMS connection has been configured yet"))
     doc = frappe.get_doc(ENDPOINT, name)
     doc.enabled = 1 if int(enabled or 0) else 0
     doc.save(ignore_permissions=False)
@@ -150,7 +150,7 @@ def test_endpoint(endpoint: str) -> dict:
     """测试**已保存**的连接（界面上那个「测试」按钮）。"""
     _require_admin()
     if not endpoint:
-        frappe.throw(_("缺 endpoint（要测哪条连接）"))
+        frappe.throw(_("endpoint is missing (which connection to test)"))
 
     from pearnly_dms.dms_push import test_dms_endpoint
 

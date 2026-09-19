@@ -22,7 +22,7 @@ DOCTYPE = "Intake Record"
 def _require_user() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
 
 
@@ -52,7 +52,7 @@ def create_intake(
     _require_user()
 
     if dedupe_key and frappe.db.exists(DOCTYPE, {"dedupe_key": dedupe_key}):
-        frappe.throw(_("这张票已经录过：{0}").format(
+        frappe.throw(_("This invoice has already been recorded: {0}").format(
             frappe.db.get_value(DOCTYPE, {"dedupe_key": dedupe_key}, "name")))
 
     doc = frappe.get_doc({
@@ -84,7 +84,7 @@ def confirm_intake(name: str, *, net_amount=None, vat_amount=None, **fields) -> 
     _require_user()
     doc = frappe.get_doc(DOCTYPE, name)
     if doc.status not in ("draft", "recognized"):
-        frappe.throw(_("当前状态 {0} 不能确认").format(doc.status))
+        frappe.throw(_("Cannot confirm while the status is {0}").format(doc.status))
 
     for key, value in fields.items():
         if hasattr(doc, key) and value is not None:
@@ -106,10 +106,10 @@ def queue_for_push(name: str, *, channel: str = "companion") -> dict:
     """排队推送。渠道决定是小助手出站拉取，还是云端直接推。"""
     _require_user()
     if channel not in ("companion", "cloud"):
-        frappe.throw(_("推送渠道只能是 companion 或 cloud"))
+        frappe.throw(_("The push channel must be companion or cloud"))
     doc = frappe.get_doc(DOCTYPE, name)
     if doc.status != "confirmed":
-        frappe.throw(_("只有已确认的单据才能排队推送"))
+        frappe.throw(_("Only confirmed documents can be queued for push"))
     doc.push_channel = channel
     doc.status = "queued"
     doc.save()

@@ -32,7 +32,7 @@ DEFAULT_TTL_MINUTES = 30
 def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dict:
     """给某个本地账号生成一次性绑定码。旧的未用码同时作废（一人同时只有一个有效码）。"""
     if not frappe.db.exists("User", user):
-        frappe.throw(_("本地账号不存在：{0}").format(user))
+        frappe.throw(_("No such local account: {0}").format(user))
 
     frappe.db.delete(BIND_CODE, {"user": user, "used": 0})
 
@@ -43,7 +43,7 @@ def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dic
             code = candidate
             break
     if not code:
-        frappe.throw(_("生成绑定码失败，请重试"))
+        frappe.throw(_("Could not generate a bind code; please try again"))
 
     doc = frappe.get_doc({
         "doctype": BIND_CODE,
@@ -89,9 +89,9 @@ def consume_bind_code(code: str):
 def bind(line_user_id: str, user: str, display_name: str = "") -> str:
     """建或更新绑定。已存在就更新，不重复建（幂等）。"""
     if not line_user_id or not user:
-        frappe.throw(_("绑定需要 LINE 用户与本地账号"))
+        frappe.throw(_("Binding needs a LINE user and a local account"))
     if not frappe.db.exists("User", user):
-        frappe.throw(_("本地账号不存在：{0}").format(user))
+        frappe.throw(_("No such local account: {0}").format(user))
 
     name = frappe.db.get_value(BINDING, {"line_user_id": line_user_id}, "name")
     if name:

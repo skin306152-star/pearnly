@@ -33,7 +33,7 @@ DISCOVERY_TTL = 3600
 def _conf(key, required=True):
     value = frappe.conf.get(key)
     if required and not value:
-        frappe.throw(_("站点配置缺少 {0}").format(key))
+        frappe.throw(_("Site config is missing {0}").format(key))
     return value
 
 
@@ -98,23 +98,23 @@ def begin_login(redirect_to: str | None = None):
 @frappe.whitelist(allow_guest=True)
 def callback(code: str | None = None, state: str | None = None, error: str | None = None):
     if error:
-        frappe.throw(_("身份服务返回错误：{0}").format(error))
+        frappe.throw(_("The identity service returned an error: {0}").format(error))
     if not code or not state:
-        frappe.throw(_("缺少 code 或 state"))
+        frappe.throw(_("Missing code or state"))
 
     saved = frappe.cache.get_value(_state_key(state))
     # 一次性消费：无论成功失败都作废，防重放
     frappe.cache.delete_value(_state_key(state))
     if not saved:
-        frappe.throw(_("state 无效或已过期"))
+        frappe.throw(_("state is invalid or has expired"))
 
     claims = _exchange_and_verify(code, saved)
     subject = claims.get("sub")
     token_issuer = claims.get("iss")
     if not subject:
-        frappe.throw(_("ID token 缺少 sub"))
+        frappe.throw(_("The ID token has no sub"))
     if token_issuer != issuer():
-        frappe.throw(_("ID token 的签发方不是本站点配置的身份服务"))
+        frappe.throw(_("The ID token issuer is not the identity service configured for this site"))
 
     user = _resolve_user(token_issuer, subject)
 
@@ -158,11 +158,11 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
         timeout=15,
     )
     if resp.status_code != 200:
-        frappe.throw(_("换取令牌失败：{0}").format(resp.text[:300]))
+        frappe.throw(_("Could not exchange the token: {0}").format(resp.text[:300]))
     tokens = resp.json()
     id_token = tokens.get("id_token")
     if not id_token:
-        frappe.throw(_("身份服务未返回 id_token"))
+        frappe.throw(_("The identity service did not return an id_token"))
 
     jwks_client = jwt.PyJWKClient(disc["jwks_uri"])
     signing_key = jwks_client.get_signing_key_from_jwt(id_token)
@@ -174,7 +174,7 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
         options={"require": ["exp", "iat", "sub", "iss"]},
     )
     if claims.get("nonce") != saved["nonce"]:
-        frappe.throw(_("nonce 不匹配"))
+        frappe.throw(_("nonce mismatch"))
     return claims
 
 
@@ -188,12 +188,12 @@ def _resolve_user(token_issuer: str, subject: str) -> str:
     if not name:
         # 明确拒绝，绝不自动建号；也不按邮箱兜底匹配。
         frappe.throw(
-            _("该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）"),
+            _("This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)"),
             frappe.PermissionError,
         )
     user = frappe.db.get_value("Pearnly Identity", name, "user")
     if not frappe.db.get_value("User", user, "enabled"):
-        frappe.throw(_("账号已停用"), frappe.PermissionError)
+        frappe.throw(_("The account is disabled"), frappe.PermissionError)
     return user
 
 
@@ -209,13 +209,13 @@ def bind_identity(user: str, subject: str, issuer_value: str | None = None, depl
     """把某个身份绑定到本地账号。只允许已登录且有权限的人调用。"""
     frappe.only_for(("System Manager",))
     if not frappe.db.exists("User", user):
-        frappe.throw(_("本地账号不存在：{0}").format(user))
+        frappe.throw(_("No such local account: {0}").format(user))
 
     existing = frappe.db.exists(
         "Pearnly Identity", {"issuer": issuer_value or issuer(), "subject": subject}
     )
     if existing:
-        frappe.throw(_("该身份已绑定到 {0}").format(
+        frappe.throw(_("This identity is already bound to {0}").format(
             frappe.db.get_value("Pearnly Identity", existing, "user")
         ))
 

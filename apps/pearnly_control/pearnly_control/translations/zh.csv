@@ -68,6 +68,7 @@ Enabled Features,已开通功能
 Enforcement,权限落地
 External Reference,外部单号
 Feature,功能
+Feature Catalog,功能目录
 Feature Code,功能代码
 Feature Name,功能名称
 Features,功能
@@ -96,6 +97,7 @@ Issued: {0} / tenant {1},已发号：{0} / 租户 {1}
 Issues,发号单
 Issuing…,正在发号…
 LIFF ID,LIFF ID
+LINE Channel,LINE 渠道
 Last Updated,最近变动
 Leave empty to use the company name,留空用公司名称
 Local Port,本机端口
@@ -131,6 +133,7 @@ Product {0} is selected twice,产品 {0} 选了两次
 Products & Domains,产品与域名
 Proof,凭证
 Provisioning Credentials (stored only here),开户凭据（只在这里存一份）
+Provisioning Progress,开通进度
 Provisioning Target,开户目标
 Provisioning progress,开通进度
 Queued for provisioning; building the site now,已排入开通队列，正在建站
@@ -195,6 +198,7 @@ This request has already been handled (currently: {0}),这张申请已经处理�
 This tenant no longer exists.,这个租户已经不存在了。
 This top-up request was already reviewed; it cannot be handled twice,这张充值申请已经审核过了，不能重复处理
 "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）
+Top-up Review,充值审核
 Transfer Slip,转账截图
 Type,类型
 Unknown billing unit: {0},未知的计费单位：{0}

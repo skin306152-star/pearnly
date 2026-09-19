@@ -37,13 +37,13 @@ class IntakeRecord(Document):
 
     def _validate_direction(self):
         if self.direction not in ("purchase", "sales"):
-            frappe.throw(_("方向只能是进项或销项"))
+            frappe.throw(_("Direction must be inbound or outbound"))
         # 注意：两边都为空时不能判成"相等"——那会把没填税号的正常单据全拦下来。
         # 只有两边都填了且相同才是真的填错。
         mine = (self.company_tax_id or "").strip()
         theirs = (self.counterparty_tax_id or "").strip()
         if self.direction == "purchase" and mine and theirs and mine == theirs:
-            frappe.throw(_("进项的对方税号不能等于自己"))
+            frappe.throw(_("For an inbound document the counterparty tax ID cannot be your own"))
 
     def _recompute(self):
         net = Decimal(str(self.net_amount or 0))
@@ -54,17 +54,17 @@ class IntakeRecord(Document):
         """状态只能沿链路往前走；推送必须有确认过的单据。"""
         if self.is_new():
             if self.status not in ("draft", "recognized"):
-                frappe.throw(_("新记录只能从 draft 或 recognized 开始"))
+                frappe.throw(_("A new record can only start as draft or recognized"))
             return
 
         before = frappe.db.get_value(self.doctype, self.name, "status")
         order = ["draft", "recognized", "confirmed", "queued", "pushed"]
         if before in order and self.status in order:
             if order.index(self.status) < order.index(before):
-                frappe.throw(_("状态不能回退：{0} → {1}").format(before, self.status))
+                frappe.throw(_("Status cannot go backwards: {0} → {1}").format(before, self.status))
 
         if self.status in ("queued", "pushed") and before not in ("confirmed", "queued", "pushed"):
-            frappe.throw(_("还没确认的单据不能推送"))
+            frappe.throw(_("Unconfirmed documents cannot be pushed"))
 
         if self.push_channel not in PUSH_CHANNELS:
-            frappe.throw(_("推送渠道不合法"))
+            frappe.throw(_("Invalid push channel"))

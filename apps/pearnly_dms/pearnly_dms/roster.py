@@ -45,9 +45,9 @@ def _require_admin() -> str:
     """老产品这一页是 owner-only。权限边界在后端，不在"前端把菜单藏起来"。"""
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     if not set(ADMIN_ROLES) & set(frappe.get_roles(user)):
-        frappe.throw(_("只有管理员能管操作员花名册"), frappe.PermissionError)
+        frappe.throw(_("Only an admin can manage the operator roster"), frappe.PermissionError)
     return user
 
 
@@ -168,9 +168,9 @@ def create_operator(
     dms_password = str(dms_password or "")
 
     if not display_name or not dms_username or not dms_password:
-        frappe.throw(_("请填写显示名、DMS 用户名和密码"))
+        frappe.throw(_("Fill in the display name, DMS username and password"))
     if dms_role not in VALID_ROLES:
-        frappe.throw(_("角色只能是 sales（销售）或 admin（管理员）"))
+        frappe.throw(_("Role must be sales or admin"))
 
     # 账号名随机、密码随机且**不回显不外传**（操作员只走 LINE，不需要网页密码）。
     # 邮箱是造的：Frappe 的 User 主键就是邮箱，而这些账号不收发信。
@@ -233,7 +233,7 @@ def update_operator(
         doc.dms_password = str(dms_password)
     if dms_role:
         if dms_role not in VALID_ROLES:
-            frappe.throw(_("角色只能是 sales（销售）或 admin（管理员）"))
+            frappe.throw(_("Role must be sales or admin"))
         doc.dms_role = dms_role
     if can_query_dms is not None:
         doc.can_query_dms = 1 if can_query_dms else 0
@@ -258,7 +258,7 @@ def set_status(name: str, status: str) -> dict:
     """
     _require_admin()
     if status not in VALID_STATUS:
-        frappe.throw(_("状态只能是 active 或 inactive"))
+        frappe.throw(_("Status must be active or inactive"))
     doc = frappe.get_doc(OPERATOR, name)
     doc.status = status
     doc.save(ignore_permissions=True)
@@ -341,7 +341,7 @@ def api_operator_bind_code(name, minutes=None):
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
     if doc.status != "active":
-        frappe.throw(_("停用的操作员不能发绑定码，先启用"))
+        frappe.throw(_("A disabled operator cannot issue a bind code; enable them first"))
 
     from pearnly_core import line_binding
 

@@ -31,7 +31,7 @@ LIST_FIELDS = [
 def _require_user() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
 
 
@@ -57,7 +57,7 @@ def create_id_card_intake(
     _require_user()
     id_number = (id_number or "").strip()
     if not id_number:
-        frappe.throw(_("证件号必填"))
+        frappe.throw(_("ID number is required"))
 
     doc = frappe.get_doc({
         "doctype": INTAKE,
@@ -86,7 +86,7 @@ def match_customer(name: str, *, external_customer_ref: str | None = None) -> di
     _require_user()
     doc = frappe.get_doc(INTAKE, name)
     if doc.status not in ("uploaded", "recognized"):
-        frappe.throw(_("当前状态 {0} 不能做匹配").format(doc.status))
+        frappe.throw(_("Cannot match while the status is {0}").format(doc.status))
 
     existing = frappe.db.get_value(
         LINK, {"id_number": doc.id_number}, ["name", "external_customer_ref"], as_dict=True
@@ -112,7 +112,7 @@ def match_customer(name: str, *, external_customer_ref: str | None = None) -> di
         doc.external_ref = external_customer_ref
         doc.match_result = "new"
     else:
-        frappe.throw(_("匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认"))
+        frappe.throw(_("No existing customer matched and no DMS customer reference was given: confirm manually first"))
 
     doc.status = "matched"
     doc.save()
@@ -130,7 +130,7 @@ def confirm_intake(name: str, **fields) -> dict:
     _require_user()
     doc = frappe.get_doc(INTAKE, name)
     if doc.status != "matched":
-        frappe.throw(_("必须先完成客户匹配才能确认"))
+        frappe.throw(_("Customer matching must be done before confirming"))
 
     for key, value in fields.items():
         if hasattr(doc, key) and value is not None:
@@ -148,9 +148,9 @@ def queue_push(name: str) -> dict:
     _require_user()
     doc = frappe.get_doc(INTAKE, name)
     if doc.status != "confirmed":
-        frappe.throw(_("资料还没确认，不能推送 DMS"))
+        frappe.throw(_("The details are not confirmed yet, so it cannot be pushed to DMS"))
     if not doc.external_ref:
-        frappe.throw(_("没有 DMS 客户引用，不能推送"))
+        frappe.throw(_("There is no DMS customer reference, so it cannot be pushed"))
     doc.status = "pushed"
     doc.save()
     frappe.db.commit()

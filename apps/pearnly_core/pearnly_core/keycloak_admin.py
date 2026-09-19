@@ -30,7 +30,7 @@ TIMEOUT = 15
 def realm_base(prefix: str = "pearnly_oidc") -> str:
     value = str(frappe.conf.get(f"{prefix}_issuer") or "").rstrip("/")
     if not value:
-        frappe.throw(_("站点配置缺少 {0}_issuer").format(prefix))
+        frappe.throw(_("Site config is missing {0}_issuer").format(prefix))
     return value
 
 
@@ -48,7 +48,7 @@ def admin_token(prefix: str = "pearnly_oidc") -> str:
     client_id = frappe.conf.get(f"{prefix}_admin_client_id")
     client_secret = frappe.conf.get(f"{prefix}_admin_client_secret")
     if not client_id or not client_secret:
-        frappe.throw(_("站点配置缺少 {0}_admin_client_id / _secret").format(prefix))
+        frappe.throw(_("Site config is missing {0}_admin_client_id / _secret").format(prefix))
     resp = requests.post(
         realm_base(prefix) + "/protocol/openid-connect/token",
         data={
@@ -59,7 +59,7 @@ def admin_token(prefix: str = "pearnly_oidc") -> str:
         timeout=TIMEOUT,
     )
     if resp.status_code != 200:
-        frappe.throw(_("取管理令牌失败：{0}").format(resp.status_code))
+        frappe.throw(_("Could not get the admin token: {0}").format(resp.status_code))
     return resp.json()["access_token"]
 
 
@@ -75,7 +75,7 @@ def find_user_id_by_email(email: str, prefix: str = "pearnly_oidc") -> str | Non
         timeout=TIMEOUT,
     )
     if resp.status_code != 200:
-        frappe.throw(_("按邮箱查账号失败：{0}").format(resp.status_code))
+        frappe.throw(_("Could not look the account up by email: {0}").format(resp.status_code))
     rows = resp.json() or []
     return rows[0]["id"] if rows else None
 
@@ -103,14 +103,14 @@ def create_user(email: str, first_name: str, last_name: str = "", password: str 
     resp = requests.post(admin_url("/users", prefix), headers=_headers(prefix),
                          json=payload, timeout=TIMEOUT)
     if resp.status_code not in (201, 204):
-        frappe.throw(_("建账号失败：{0} {1}").format(resp.status_code, resp.text[:200]))
+        frappe.throw(_("Could not create the account: {0} {1}").format(resp.status_code, resp.text[:200]))
 
     location = resp.headers.get("Location", "")
     if location:
         return location.rstrip("/").rsplit("/", 1)[-1]
     subject = find_user_id_by_email(email, prefix)
     if not subject:
-        frappe.throw(_("账号已建但取不到 id"))
+        frappe.throw(_("The account was created but no id came back"))
     return subject
 
 
@@ -123,7 +123,7 @@ def set_password(subject: str, password: str, *, temporary: bool = False,
         timeout=TIMEOUT,
     )
     if resp.status_code not in (200, 204):
-        frappe.throw(_("设置密码失败：{0} {1}").format(resp.status_code, resp.text[:200]))
+        frappe.throw(_("Could not set the password: {0} {1}").format(resp.status_code, resp.text[:200]))
 
 
 def kill_session(sid: str, prefix: str = "pearnly_oidc") -> bool:
@@ -170,7 +170,7 @@ class AdminClient:
         self.client_id = client_id
         self.client_secret = client_secret
         if not (self.base and self.realm and self.client_id and self.client_secret):
-            frappe.throw(_("目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填"))
+            frappe.throw(_("The target environment is incomplete: URL, realm, client ID and secret are all required"))
 
     def token(self) -> str:
         resp = requests.post(
@@ -184,7 +184,7 @@ class AdminClient:
         )
         if resp.status_code != 200:
             frappe.throw(
-                _("连不上目标环境的身份服务（{0}）：{1} {2}").format(
+                _("Cannot reach the identity service of the target environment ({0}): {1} {2}").format(
                     self.base, resp.status_code, resp.text[:200]
                 )
             )
@@ -205,7 +205,7 @@ class AdminClient:
             timeout=TIMEOUT,
         )
         if resp.status_code != 200:
-            frappe.throw(_("查账号失败：{0} {1}").format(resp.status_code, resp.text[:200]))
+            frappe.throw(_("Could not look up the account: {0} {1}").format(resp.status_code, resp.text[:200]))
         rows = resp.json() or []
         return rows[0]["id"] if rows else None
 
@@ -285,14 +285,14 @@ class AdminClient:
         resp = requests.post(self._url("/users"), headers=self._headers(token),
                              json=payload, timeout=TIMEOUT)
         if resp.status_code not in (201, 204):
-            frappe.throw(_("在目标环境建账号失败：{0} {1}").format(
+            frappe.throw(_("Could not create the account in the target environment: {0} {1}").format(
                 resp.status_code, resp.text[:200]))
         location = resp.headers.get("Location", "")
         if location:
             return location.rstrip("/").rsplit("/", 1)[-1]
         found = self.find_user_id_by_email(email)
         if not found:
-            frappe.throw(_("账号已建但取不到 id"))
+            frappe.throw(_("The account was created but no id came back"))
         return found
 
     def send_invite_email(self, user_id: str, client_id: str,
@@ -307,7 +307,7 @@ class AdminClient:
         并记 `KC-SERVICES0029`（实测过），所以这里不是"发不发得出去都继续"。
         """
         if not client_id:
-            frappe.throw(_("没有配「邀请链接用的客户端 ID」，发不出邀请邮件"))
+            frappe.throw(_("No client ID for invitation links is configured, so the invitation email cannot be sent"))
         resp = requests.put(
             self._url(f"/users/{user_id}/execute-actions-email"),
             headers=self._headers(self.token()),
@@ -317,7 +317,7 @@ class AdminClient:
         )
         if resp.status_code not in (200, 204):
             frappe.throw(
-                _("邀请邮件发送失败：{0} {1}").format(resp.status_code, resp.text[:200])
+                _("Could not send the invitation email: {0} {1}").format(resp.status_code, resp.text[:200])
             )
 
     def create_oidc_client(self, client_id: str, redirect_uris: list[str],
@@ -330,7 +330,7 @@ class AdminClient:
         机密客户端、只开授权码流、PKCE=S256、不开密码授权。
         """
         if not client_id:
-            frappe.throw(_("客户端 ID 不能为空"))
+            frappe.throw(_("Client ID is required"))
         token = self.token()
         payload = {
             "clientId": client_id,
@@ -355,13 +355,13 @@ class AdminClient:
             resp = requests.put(self._url(f"/clients/{uid}"), headers=self._headers(token),
                                 json=payload, timeout=TIMEOUT)
             if resp.status_code not in (200, 204):
-                frappe.throw(_("更新 OIDC 客户端失败：{0} {1}").format(
+                frappe.throw(_("Could not update the OIDC client: {0} {1}").format(
                     resp.status_code, resp.text[:200]))
         else:
             resp = requests.post(self._url("/clients"), headers=self._headers(token),
                                  json=payload, timeout=TIMEOUT)
             if resp.status_code not in (201, 204):
-                frappe.throw(_("创建 OIDC 客户端失败：{0} {1}").format(
+                frappe.throw(_("Could not create the OIDC client: {0} {1}").format(
                     resp.status_code, resp.text[:200]))
             rows = requests.get(
                 self._url("/clients"), headers=self._headers(token),
@@ -374,7 +374,7 @@ class AdminClient:
             timeout=TIMEOUT,
         )
         if secret_resp.status_code != 200:
-            frappe.throw(_("取客户端密钥失败：{0} {1}").format(
+            frappe.throw(_("Could not read the client secret: {0} {1}").format(
                 secret_resp.status_code, secret_resp.text[:200]))
         return {"client_id": client_id, "client_secret": secret_resp.json().get("value", "")}
 
@@ -391,7 +391,7 @@ def client_for_target(target_name: str | None = None) -> tuple["AdminClient", st
         as_dict=True,
     )
     if not row:
-        frappe.throw(_("没有可用的开户目标，请先在“开户目标”里配一个"))
+        frappe.throw(_("No provisioning target is available; configure one under “Provisioning Target” first"))
     secret = row.admin_client_secret
     if secret:
         try:

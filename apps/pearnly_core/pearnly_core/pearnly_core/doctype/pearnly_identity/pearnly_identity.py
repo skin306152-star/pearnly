@@ -12,7 +12,7 @@ from frappe.model.document import Document
 class PearnlyIdentity(Document):
     def validate(self):
         if not self.issuer or not self.subject:
-            frappe.throw(_("issuer 与 subject 都是必填"))
+            frappe.throw(_("Both issuer and subject are required"))
 
         # 复合唯一：(issuer, subject) 只能对应一个本地账号。
         # Frappe 的字段级 unique 不做复合约束，所以在这里显式拦。
@@ -24,8 +24,8 @@ class PearnlyIdentity(Document):
         )
         if duplicate:
             frappe.throw(
-                _("该身份已绑定到账号 {0}（记录 {1}）").format(duplicate.user, duplicate.name)
+                _("This identity is already bound to account {0} (record {1})").format(duplicate.user, duplicate.name)
             )
 
         if not frappe.db.exists("User", self.user):
-            frappe.throw(_("本地账号不存在：{0}").format(self.user))
+            frappe.throw(_("No such local account: {0}").format(self.user))
