@@ -501,6 +501,67 @@ nav.suppliers,供应商
 nav.team,团队管理
 nav.work,工作协作
 nonce mismatch,nonce 不匹配
+roster.add,新增操作员
+roster.addHint,填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
+roster.advisor.auto,自动匹配（按 DMS 账号）
+roster.advisor.note,新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
+roster.allowQuery,允许
+roster.bound,已绑
+roster.cancel,取消
+roster.close,关闭
+roster.code.expired,已过期
+roster.code.expiredHint,绑定码已过期，请重新生成
+roster.code.step1,1. 让该操作员在 LINE 添加 Pearnly DMS 好友
+roster.code.step2,2. 在 LINE 对话中发送此绑定码完成连接
+roster.code.title,绑定码
+roster.code.validFor,剩余有效期 {0}
+roster.col.actions,操作
+roster.col.line,LINE 状态
+roster.col.operator,操作员
+roster.col.query,查询权限
+roster.collapse,收起
+roster.confirm.delete,将解绑「{0}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？
+roster.confirm.disable,确定停用「{0}」？停用后其 DMS 推送停止并解除 LINE 绑定。
+roster.confirm.enable,确定启用「{0}」？启用后需重新发绑定码连接 LINE。
+roster.confirm.title,请确认
+roster.delete,删除
+roster.disable,停用
+roster.edit,编辑
+roster.editTitle,编辑操作员
+roster.enable,启用
+roster.error.http,请求失败（HTTP {0}）
+roster.field.advisor,销售提成归属
+roster.field.canQuery,允许在 LINE 使用查询功能
+roster.field.displayName,显示名
+roster.field.dmsPassword,DMS 密码
+roster.field.dmsUsername,DMS 用户名
+roster.field.newDmsPassword,新 DMS 密码
+roster.field.role,角色
+roster.hint.displayName,如：阿明（销售）
+roster.hint.dmsPassword,该操作员的 DMS 密码
+roster.hint.dmsUsername,该操作员的 DMS 账号
+roster.issueCode,发绑定码
+roster.keepBlank,留空则不修改
+roster.list.empty,还没有操作员，先在上方新增
+roster.list.title,操作员名单
+roster.loading,加载中…
+roster.noQuery,未允许
+roster.notice.created,操作员已新增
+roster.notice.deleted,已删除
+roster.notice.disabled,已停用
+roster.notice.enabled,已启用
+roster.notice.noChanges,没有要保存的改动
+roster.notice.saved,已保存
+roster.ok,确定
+roster.refresh,刷新
+roster.regenerate,重新生成
+roster.role.admin,管理员
+roster.role.sales,销售
+roster.save,保存
+roster.saving,保存中…
+roster.subtitle,每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码
+roster.title,操作员
+roster.unbound,未绑
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 state is invalid or has expired,state 无效或已过期
 system_url is required,system_url 必填

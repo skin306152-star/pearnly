@@ -501,6 +501,67 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
+roster.add,オペレーターを追加
+roster.addHint,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
+roster.advisor.auto,自動照合（DMSアカウント基準）
+roster.advisor.note,新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
+roster.allowQuery,許可
+roster.bound,連携済み
+roster.cancel,キャンセル
+roster.close,閉じる
+roster.code.expired,期限切れ
+roster.code.expiredHint,連携コードの期限が切れました。再生成してください
+roster.code.step1,1. このオペレーターにLINEでPearnly DMSを友だち追加してもらいます
+roster.code.step2,2. LINEのトークでこの連携コードを送ると接続できます
+roster.code.title,連携コード
+roster.code.validFor,残り有効時間 {0}
+roster.col.actions,操作
+roster.col.line,LINEステータス
+roster.col.operator,オペレーター
+roster.col.query,照会権限
+roster.collapse,閉じる
+roster.confirm.delete,「{0}」のLINE連携を解除しDMS接続も削除します。送信ログは残ります。削除しますか。
+roster.confirm.disable,「{0}」を無効化しますか。DMS送信が止まり、LINE連携も解除されます。
+roster.confirm.enable,「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。
+roster.confirm.title,確認してください
+roster.delete,削除
+roster.disable,無効化
+roster.edit,編集
+roster.editTitle,オペレーターを編集
+roster.enable,有効化
+roster.error.http,リクエスト失敗（HTTP {0}）
+roster.field.advisor,販売手数料の帰属
+roster.field.canQuery,LINEでのDMS照会を許可
+roster.field.displayName,表示名
+roster.field.dmsPassword,DMSパスワード
+roster.field.dmsUsername,DMSユーザー名
+roster.field.newDmsPassword,新しいDMSパスワード
+roster.field.role,ロール
+roster.hint.displayName,例：ミン（営業）
+roster.hint.dmsPassword,このオペレーターのDMSパスワード
+roster.hint.dmsUsername,このオペレーターのDMSアカウント
+roster.issueCode,連携コードを発行
+roster.keepBlank,空欄なら変更しません
+roster.list.empty,オペレーターがまだいません。上で追加してください
+roster.list.title,オペレーター一覧
+roster.loading,読み込み中…
+roster.noQuery,不許可
+roster.notice.created,オペレーターを追加しました
+roster.notice.deleted,削除しました
+roster.notice.disabled,無効化しました
+roster.notice.enabled,有効化しました
+roster.notice.noChanges,保存する変更はありません
+roster.notice.saved,保存しました
+roster.ok,OK
+roster.refresh,更新
+roster.regenerate,再生成
+roster.role.admin,管理者
+roster.role.sales,営業
+roster.save,保存
+roster.saving,保存中…
+roster.subtitle,1行につき営業または管理者1名。各自のDMS資格情報を持ち、LINE連携コードも個別に発行します
+roster.title,オペレーター
+roster.unbound,未連携
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 state is invalid or has expired,state が無効か期限切れです
 system_url is required,system_url は必須です

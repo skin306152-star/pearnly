@@ -40,6 +40,7 @@ APP_BY_PREFIX = {
     "erp.": "pearnly_erp_portal",
     "nav.": "pearnly_core",
     "home.": "pearnly_core",
+    "roster.": "pearnly_core",
     "common.": "pearnly_core",
 }
 

@@ -27,6 +27,10 @@ from werkzeug.utils import redirect as werkzeug_redirect
 # 也该先去身份服务，而不是先看到一屏"取不到启动数据"的错误。
 GUEST_ENTRY_PATHS = {"/", "/login", "/app", "/desk", "/pearnly-app"}
 
+# 业务前端的入口**前缀**：它的子路径同样是入口。`/pearnly-app/roster` 这种是
+# 别人发来的深链接，访客打开时也该先去登录，而不是先看到一屏取不到数据的空壳。
+APP_ENTRY_PREFIX = "/pearnly-app/"
+
 # 这些前缀一律不拦：接口、静态资源、身份服务自己的端点、LINE webhook
 SKIP_PREFIXES = (
     "/api/",
@@ -79,7 +83,7 @@ def redirect_guests_to_identity() -> None:
         return
 
     normalized = path.rstrip("/") or "/"
-    if normalized not in GUEST_ENTRY_PATHS:
+    if normalized not in GUEST_ENTRY_PATHS and not normalized.startswith(APP_ENTRY_PREFIX):
         return
 
     # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点

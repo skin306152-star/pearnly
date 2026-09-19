@@ -499,6 +499,67 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.work,Work together
 nonce mismatch,nonce mismatch
+roster.add,Add operator
+roster.addHint,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
+roster.advisor.auto,Automatic (by DMS account)
+roster.advisor.note,"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
+roster.allowQuery,Allowed
+roster.bound,Linked
+roster.cancel,Cancel
+roster.close,Close
+roster.code.expired,Expired
+roster.code.expiredHint,The bind code has expired — please regenerate
+roster.code.step1,1. Have this operator add Pearnly DMS as a LINE friend
+roster.code.step2,2. Send this bind code in the LINE chat to connect
+roster.code.title,Bind code
+roster.code.validFor,Valid for {0}
+roster.col.actions,Actions
+roster.col.line,LINE status
+roster.col.operator,Operator
+roster.col.query,Query access
+roster.collapse,Collapse
+roster.confirm.delete,"This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?"
+roster.confirm.disable,"Disable ""{0}""? Its DMS pushes stop and the LINE link is released."
+roster.confirm.enable,"Enable ""{0}""? A new bind code is needed to link LINE again."
+roster.confirm.title,Please confirm
+roster.delete,Delete
+roster.disable,Disable
+roster.edit,Edit
+roster.editTitle,Edit operator
+roster.enable,Enable
+roster.error.http,Request failed (HTTP {0})
+roster.field.advisor,Sales commission owner
+roster.field.canQuery,Allow DMS queries from LINE
+roster.field.displayName,Display name
+roster.field.dmsPassword,DMS password
+roster.field.dmsUsername,DMS username
+roster.field.newDmsPassword,New DMS password
+roster.field.role,Role
+roster.hint.displayName,e.g. Ming (sales)
+roster.hint.dmsPassword,This operator's DMS password
+roster.hint.dmsUsername,This operator's DMS account
+roster.issueCode,Issue bind code
+roster.keepBlank,Leave blank to keep unchanged
+roster.list.empty,No operators yet — add one above
+roster.list.title,Operator list
+roster.loading,Loading…
+roster.noQuery,Not allowed
+roster.notice.created,Operator added
+roster.notice.deleted,Deleted
+roster.notice.disabled,Disabled
+roster.notice.enabled,Enabled
+roster.notice.noChanges,Nothing to save
+roster.notice.saved,Saved
+roster.ok,OK
+roster.refresh,Refresh
+roster.regenerate,Regenerate
+roster.role.admin,Administrator
+roster.role.sales,Salesperson
+roster.save,Save
+roster.saving,Saving…
+roster.subtitle,One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code
+roster.title,Operators
+roster.unbound,Not linked
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
 state is invalid or has expired,state is invalid or has expired
 system_url is required,system_url is required

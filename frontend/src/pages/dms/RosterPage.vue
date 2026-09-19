@@ -3,7 +3,7 @@
 //
 // 照老产品搬：`static/dms/dms-roster.js` + `dms-roster-html.js`。
 // 页面职责（老产品的原话）：
-//   副标题 —— "每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码"
+//   副标题 —— "{{ t('roster.subtitle') }}"
 //   绑定码 —— 是**每一行**上的动作，不是单独一页：点「发绑定码」弹窗，
 //              让对方在 LINE 加好友、把码发过来，可重新生成、显示剩余有效期。
 //
@@ -11,7 +11,11 @@
 // （后端 `pearnly_dms.roster._require_admin` 才是真正的边界）。
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
 import { Button, Dialog } from "frappe-ui";
+import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
+
+// 页面文案走语言包（键 = `roster.*`）：一次取整包，页面上不维护"我要用哪些键"的清单。
+const { t, tf, load: loadTexts } = createTexts([], "roster.");
 
 interface Operator {
   name: string;
@@ -30,7 +34,7 @@ interface Operator {
 }
 
 // 老产品就两种角色，没有第三种
-const ROLE_LABEL: Record<string, string> = { sales: "销售", admin: "管理员" };
+const ROLE_LABEL: Record<string, string> = { sales: t("roster.role.sales"), admin: t("roster.role.admin") };
 
 const rows = ref<Operator[]>([]);
 const loading = ref(true);
@@ -55,7 +59,7 @@ const canSubmit = computed(
 );
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || `请求失败（HTTP ${err.status}）`;
+  if (err instanceof ApiError) return err.message || tf("roster.error.http", err.status);
   return String(err);
 }
 
@@ -98,7 +102,7 @@ function createOperator(): Promise<void> {
       },
       { method: "POST" },
     );
-    notice.value = "操作员已新增";
+    notice.value = t("roster.notice.created");
     addOpen.value = false;
     draft.display_name = "";
     draft.dms_username = "";
@@ -128,7 +132,7 @@ function stopTimer(): void {
 
 function tick(): void {
   if (codeRemaining.value <= 0) {
-    remain.value = "已过期";
+    remain.value = t("roster.code.expired");
     stopTimer();
     return;
   }
@@ -178,7 +182,7 @@ function saveEdit(): Promise<void> {
   return run(`edit:${row?.name}`, async () => {
     if (!row) return;
     if (!editForm.dms_username && !editForm.dms_password) {
-      error.value = "没有要保存的改动";
+      error.value = t("roster.notice.noChanges");
       return;
     }
     await call(
@@ -190,7 +194,7 @@ function saveEdit(): Promise<void> {
       },
       { method: "POST" },
     );
-    notice.value = "已保存";
+    notice.value = t("roster.notice.saved");
     editOpen.value = false;
     await refresh();
   });
@@ -217,8 +221,8 @@ function toggleStatus(row: Operator): Promise<void> {
   return new Promise((resolve) => {
     ask(
       toInactive
-        ? `确定停用「${row.display_name}」？停用后其 DMS 推送停止并解除 LINE 绑定。`
-        : `确定启用「${row.display_name}」？启用后需重新发绑定码连接 LINE。`,
+        ? tf("roster.confirm.disable", row.display_name)
+        : tf("roster.confirm.enable", row.display_name),
       () =>
         run(`status:${row.name}`, async () => {
           const res = await call<{ status: string }>(
@@ -226,7 +230,7 @@ function toggleStatus(row: Operator): Promise<void> {
             { name: row.name, status: toInactive ? "inactive" : "active" },
             { method: "POST" },
           );
-          notice.value = res.status === "active" ? "已启用" : "已停用";
+          notice.value = res.status === "active" ? t("roster.notice.enabled") : t("roster.notice.disabled");
           await refresh();
           resolve();
         }),
@@ -237,7 +241,7 @@ function toggleStatus(row: Operator): Promise<void> {
 function removeOperator(row: Operator): Promise<void> {
   return new Promise((resolve) => {
     ask(
-      `将解绑「${row.display_name}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？`,
+      tf("roster.confirm.delete", row.display_name),
       () =>
         run(`del:${row.name}`, async () => {
           await call(
@@ -245,7 +249,7 @@ function removeOperator(row: Operator): Promise<void> {
             { name: row.name },
             { method: "POST" },
           );
-          notice.value = "已删除";
+          notice.value = t("roster.notice.deleted");
           await refresh();
           resolve();
         }),
@@ -253,7 +257,11 @@ function removeOperator(row: Operator): Promise<void> {
   });
 }
 
-onMounted(refresh);
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+  return refresh();
+});
 onUnmounted(stopTimer);
 </script>
 
@@ -271,14 +279,14 @@ onUnmounted(stopTimer);
     <div class="pn-card">
       <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap">
         <div>
-          <div style="font-size: 16px; font-weight: 800">操作员</div>
-          <div class="pn-muted">每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码</div>
+          <div style="font-size: 16px; font-weight: 800">{{ t('roster.title') }}</div>
+          <div class="pn-muted">{{ t('roster.subtitle') }}</div>
         </div>
         <div style="display: flex; gap: 8px">
           <Button
             variant="outline"
             theme="gray"
-            :label="loading ? '加载中…' : '刷新'"
+            :label="loading ? t('roster.loading') : t('roster.refresh')"
             :disabled="loading"
             @click="refresh"
           />
@@ -286,7 +294,7 @@ onUnmounted(stopTimer);
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="addOpen ? '收起' : '新增操作员'"
+            :label="addOpen ? t('roster.collapse') : t('roster.add')"
             @click="addOpen = !addOpen"
           />
         </div>
@@ -296,41 +304,41 @@ onUnmounted(stopTimer);
         v-if="addOpen"
         style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px"
       >
-        <div style="font-weight: 800; margin-bottom: 4px">新增操作员</div>
+        <div style="font-weight: 800; margin-bottom: 4px">{{ t('roster.add') }}</div>
         <div class="pn-muted" style="margin-bottom: 12px">
-          填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
+          {{ t('roster.addHint') }}
         </div>
         <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
           <label>
-            <span class="pn-muted">显示名</span>
-            <input v-model="draft.display_name" class="form-input w-full" placeholder="如：阿明（销售）" />
+            <span class="pn-muted">{{ t('roster.field.displayName') }}</span>
+            <input v-model="draft.display_name" class="form-input w-full":placeholder="t('roster.hint.displayName')" />
           </label>
           <label>
-            <span class="pn-muted">DMS 用户名</span>
-            <input v-model="draft.dms_username" class="form-input w-full" placeholder="该操作员的 DMS 账号" />
+            <span class="pn-muted">{{ t('roster.field.dmsUsername') }}</span>
+            <input v-model="draft.dms_username" class="form-input w-full":placeholder="t('roster.hint.dmsUsername')" />
           </label>
           <label>
-            <span class="pn-muted">DMS 密码</span>
-            <input v-model="draft.dms_password" type="password" class="form-input w-full" placeholder="该操作员的 DMS 密码" />
+            <span class="pn-muted">{{ t('roster.field.dmsPassword') }}</span>
+            <input v-model="draft.dms_password" type="password" class="form-input w-full":placeholder="t('roster.hint.dmsPassword')" />
           </label>
           <label>
-            <span class="pn-muted">角色</span>
+            <span class="pn-muted">{{ t('roster.field.role') }}</span>
             <select v-model="draft.dms_role" class="form-input w-full">
-              <option value="sales">销售</option>
-              <option value="admin">管理员</option>
+              <option value="sales">{{ t('roster.role.sales') }}</option>
+              <option value="admin">{{ t('roster.role.admin') }}</option>
             </select>
           </label>
           <label style="display: flex; align-items: center; gap: 8px; align-self: end">
             <input v-model="draft.can_query_dms" type="checkbox" />
-            <span class="pn-muted">允许在 LINE 使用查询功能</span>
+            <span class="pn-muted">{{ t('roster.field.canQuery') }}</span>
           </label>
           <label>
-            <span class="pn-muted">销售提成归属</span>
+            <span class="pn-muted">{{ t('roster.field.advisor') }}</span>
             <select class="form-input w-full" disabled>
-              <option>自动匹配（按 DMS 账号）</option>
+              <option>{{ t('roster.advisor.auto') }}</option>
             </select>
             <span class="pn-muted" style="font-size: 11px">
-              新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
+              {{ t('roster.advisor.note') }}
             </span>
           </label>
         </div>
@@ -339,7 +347,7 @@ onUnmounted(stopTimer);
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="busy === 'create' ? '保存中…' : '新增操作员'"
+            :label="busy === 'create' ? t('roster.saving') : t('roster.add')"
             :disabled="!canSubmit || busy === 'create'"
             @click="createOperator"
           />
@@ -348,20 +356,20 @@ onUnmounted(stopTimer);
     </div>
 
     <div class="pn-card">
-      <div style="font-size: 16px; font-weight: 800; margin-bottom: 10px">操作员名单</div>
+      <div style="font-size: 16px; font-weight: 800; margin-bottom: 10px">{{ t('roster.list.title') }}</div>
       <div v-if="loading" class="pn-skeleton" style="width: 200px" />
       <p v-else-if="!rows.length" class="pn-muted" style="margin: 0">
-        还没有操作员，先在上方新增
+        {{ t('roster.list.empty') }}
       </p>
       <table v-else class="pn-table">
         <thead>
           <tr>
-            <th>操作员</th>
-            <th>角色</th>
-            <th>查询权限</th>
-            <th>LINE 状态</th>
-            <th>状态</th>
-            <th>操作</th>
+            <th>{{ t('roster.col.operator') }}</th>
+            <th>{{ t('roster.field.role') }}</th>
+            <th>{{ t('roster.col.query') }}</th>
+            <th>{{ t('roster.col.line') }}</th>
+            <th>{{ t('home.col.status') }}</th>
+            <th>{{ t('roster.col.actions') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -371,30 +379,30 @@ onUnmounted(stopTimer);
               <div class="pn-muted" style="font-size: 11px">{{ row.dms_username || "—" }}</div>
             </td>
             <td>{{ ROLE_LABEL[row.role] ?? row.role }}</td>
-            <td>{{ row.can_query_dms ? "允许" : "未允许" }}</td>
+            <td>{{ row.can_query_dms ? t('roster.allowQuery') : t('roster.noQuery') }}</td>
             <td>
               <span :style="{ color: row.line_bound ? 'var(--good)' : 'var(--muted)' }">
-                {{ row.line_bound ? "已绑" : "未绑" }}
+                {{ row.line_bound ? t('roster.bound') : t('roster.unbound') }}
               </span>
             </td>
-            <td>{{ row.status === "active" ? "启用" : "停用" }}</td>
+            <td>{{ row.status === "active" ? t('roster.enable') : t('roster.disable') }}</td>
             <td>
               <div style="display: flex; gap: 6px; flex-wrap: wrap">
                 <Button
                   variant="outline"
                   theme="gray"
-                  label="发绑定码"
+                 :label="t('roster.issueCode')"
                   :disabled="row.status !== 'active' || busy === `code:${row.name}`"
                   @click="issueCode(row)"
                 />
-                <Button variant="outline" theme="gray" label="编辑" @click="openEdit(row)" />
+                <Button variant="outline" theme="gray":label="t('roster.edit')" @click="openEdit(row)" />
                 <Button
                   variant="outline"
                   theme="gray"
-                  :label="row.status === 'active' ? '停用' : '启用'"
+                  :label="row.status === 'active' ? t('roster.disable') : t('roster.enable')"
                   @click="toggleStatus(row)"
                 />
-                <Button variant="outline" theme="gray" label="删除" @click="removeOperator(row)" />
+                <Button variant="outline" theme="gray":label="t('roster.delete')" @click="removeOperator(row)" />
               </div>
             </td>
           </tr>
@@ -403,11 +411,11 @@ onUnmounted(stopTimer);
     </div>
 
     <!-- 绑定码弹窗：话术照老产品，不自己改 -->
-    <Dialog v-model="codeOpen" :options="{ title: '绑定码', size: 'sm' }">
+    <Dialog v-model="codeOpen" :options="{ title: t('roster.code.title'), size: 'sm' }">
       <template #body-content>
         <div style="display: flex; flex-direction: column; gap: 12px">
-          <div class="pn-muted">1. 让该操作员在 LINE 添加 Pearnly DMS 好友</div>
-          <div class="pn-muted">2. 在 LINE 对话中发送此绑定码完成连接</div>
+          <div class="pn-muted">{{ t('roster.code.step1') }}</div>
+          <div class="pn-muted">{{ t('roster.code.step2') }}</div>
           <div
             style="
               text-align: center;
@@ -420,44 +428,44 @@ onUnmounted(stopTimer);
             {{ code }}
           </div>
           <div class="pn-muted" style="text-align: center">
-            <template v-if="remain && remain !== '已过期'">剩余有效期 {{ remain }}</template>
-            <template v-else-if="remain">绑定码已过期，请重新生成</template>
+            <template v-if="remain && remain !== t('roster.code.expired')">{{ tf('roster.code.validFor', remain) }}</template>
+            <template v-else-if="remain">{{ t('roster.code.expiredHint') }}</template>
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray" label="关闭" @click="codeOpen = false" />
-            <Button variant="solid" theme="gray" class="pn-primary" label="重新生成" @click="regenCode" />
+            <Button variant="outline" theme="gray":label="t('roster.close')" @click="codeOpen = false" />
+            <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.regenerate')" @click="regenCode" />
           </div>
         </div>
       </template>
     </Dialog>
 
     <!-- 编辑弹窗：两个框都留空 = 不修改 -->
-    <Dialog v-model="editOpen" :options="{ title: '编辑操作员', size: 'sm' }">
+    <Dialog v-model="editOpen" :options="{ title: t('roster.editTitle'), size: 'sm' }">
       <template #body-content>
         <div style="display: flex; flex-direction: column; gap: 12px">
           <label>
-            <span class="pn-muted">DMS 用户名</span>
-            <input v-model="editForm.dms_username" class="form-input w-full" placeholder="留空则不修改" />
+            <span class="pn-muted">{{ t('roster.field.dmsUsername') }}</span>
+            <input v-model="editForm.dms_username" class="form-input w-full":placeholder="t('roster.keepBlank')" />
           </label>
           <label>
-            <span class="pn-muted">新 DMS 密码</span>
-            <input v-model="editForm.dms_password" type="password" class="form-input w-full" placeholder="留空则不修改" />
+            <span class="pn-muted">{{ t('roster.field.newDmsPassword') }}</span>
+            <input v-model="editForm.dms_password" type="password" class="form-input w-full":placeholder="t('roster.keepBlank')" />
           </label>
           <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray" label="取消" @click="editOpen = false" />
-            <Button variant="solid" theme="gray" class="pn-primary" label="保存" @click="saveEdit" />
+            <Button variant="outline" theme="gray":label="t('roster.cancel')" @click="editOpen = false" />
+            <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.save')" @click="saveEdit" />
           </div>
         </div>
       </template>
     </Dialog>
 
-    <Dialog v-model="confirmOpen" :options="{ title: '请确认', size: 'sm' }">
+    <Dialog v-model="confirmOpen" :options="{ title: t('roster.confirm.title'), size: 'sm' }">
       <template #body-content>
         <p style="margin: 0 0 12px">{{ confirmText }}</p>
         <div style="display: flex; gap: 8px; justify-content: flex-end">
-          <Button variant="outline" theme="gray" label="取消" @click="confirmOpen = false" />
-          <Button variant="solid" theme="gray" class="pn-primary" label="确定" @click="runConfirm" />
+          <Button variant="outline" theme="gray":label="t('roster.cancel')" @click="confirmOpen = false" />
+          <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.ok')" @click="runConfirm" />
         </div>
       </template>
     </Dialog>

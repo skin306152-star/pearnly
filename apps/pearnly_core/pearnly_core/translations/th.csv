@@ -501,6 +501,67 @@ nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
 nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
+roster.add,เพิ่มพนักงาน
+roster.addHint,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
+roster.advisor.auto,อัตโนมัติ (ตามบัญชี DMS)
+roster.advisor.note,แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น
+roster.allowQuery,อนุญาต
+roster.bound,ผูกแล้ว
+roster.cancel,ยกเลิก
+roster.close,ปิด
+roster.code.expired,หมดอายุ
+roster.code.expiredHint,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
+roster.code.step1,1. ให้พนักงานรายนี้เพิ่ม Pearnly DMS เป็นเพื่อนใน LINE
+roster.code.step2,2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ
+roster.code.title,รหัสผูก
+roster.code.validFor,เหลืออายุ {0}
+roster.col.actions,การจัดการ
+roster.col.line,สถานะ LINE
+roster.col.operator,พนักงาน
+roster.col.query,สิทธิ์ค้นหา
+roster.collapse,ย่อ
+roster.confirm.delete,"จะยกเลิกการผูก LINE ของ ""{0}"" และลบการเชื่อมต่อ DMS ส่วนบันทึกการส่งยังเก็บไว้ ยืนยันลบ?"
+roster.confirm.disable,"ยืนยันปิด ""{0}""? การส่งไป DMS จะหยุดและยกเลิกการผูก LINE"
+roster.confirm.enable,"ยืนยันเปิด ""{0}""? ต้องออกรหัสผูกใหม่เพื่อเชื่อม LINE อีกครั้ง"
+roster.confirm.title,กรุณายืนยัน
+roster.delete,ลบ
+roster.disable,ปิดใช้งาน
+roster.edit,แก้ไข
+roster.editTitle,แก้ไขพนักงาน
+roster.enable,เปิดใช้งาน
+roster.error.http,คำขอล้มเหลว (HTTP {0})
+roster.field.advisor,เจ้าของค่าคอมมิชชัน
+roster.field.canQuery,อนุญาตให้ค้นหา DMS ผ่าน LINE
+roster.field.displayName,ชื่อที่แสดง
+roster.field.dmsPassword,รหัสผ่าน DMS
+roster.field.dmsUsername,ชื่อผู้ใช้ DMS
+roster.field.newDmsPassword,รหัสผ่าน DMS ใหม่
+roster.field.role,บทบาท
+roster.hint.displayName,เช่น มิ่ง (ขาย)
+roster.hint.dmsPassword,รหัสผ่าน DMS ของพนักงานรายนี้
+roster.hint.dmsUsername,บัญชี DMS ของพนักงานรายนี้
+roster.issueCode,ออกรหัสผูก
+roster.keepBlank,เว้นว่างไว้หากไม่แก้ไข
+roster.list.empty,ยังไม่มีพนักงาน เพิ่มด้านบนก่อน
+roster.list.title,รายชื่อพนักงาน
+roster.loading,กำลังโหลด…
+roster.noQuery,ไม่อนุญาต
+roster.notice.created,เพิ่มพนักงานแล้ว
+roster.notice.deleted,ลบแล้ว
+roster.notice.disabled,ปิดใช้งานแล้ว
+roster.notice.enabled,เปิดใช้งานแล้ว
+roster.notice.noChanges,ไม่มีการแก้ไขที่ต้องบันทึก
+roster.notice.saved,บันทึกแล้ว
+roster.ok,ตกลง
+roster.refresh,รีเฟรช
+roster.regenerate,สร้างใหม่
+roster.role.admin,ผู้ดูแล
+roster.role.sales,พนักงานขาย
+roster.save,บันทึก
+roster.saving,กำลังบันทึก…
+roster.subtitle,หนึ่งแถวต่อพนักงานขาย/ผู้ดูแล แต่ละคนมีบัญชี DMS ของตัวเองและออกรหัสผูก LINE แยกกัน
+roster.title,พนักงาน
+roster.unbound,ยังไม่ผูก
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url

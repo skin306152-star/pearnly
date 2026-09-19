@@ -750,3 +750,64 @@ pearnly_core	Charges	扣费	ค่าบริการ	課金	home.col.charges
 pearnly_core	Summary	摘要	สรุป	摘要	home.col.summary
 pearnly_core	Payer	付款人	ผู้ชำระเงิน	支払者	home.field.payer
 pearnly_core	The balance grows once the platform confirms the transfer.	提交后平台确认到账，余额才会增加。	ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน	プラットフォームが着金を確認すると残高に反映されます。	home.topup.hint
+pearnly_core	Administrator	管理员	ผู้ดูแล	管理者	roster.role.admin
+pearnly_core	Salesperson	销售	พนักงานขาย	営業	roster.role.sales
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	roster.error.http
+pearnly_core	Operator added	操作员已新增	เพิ่มพนักงานแล้ว	オペレーターを追加しました	roster.notice.created
+pearnly_core	Expired	已过期	หมดอายุ	期限切れ	roster.code.expired
+pearnly_core	Nothing to save	没有要保存的改动	ไม่มีการแก้ไขที่ต้องบันทึก	保存する変更はありません	roster.notice.noChanges
+pearnly_core	Saved	已保存	บันทึกแล้ว	保存しました	roster.notice.saved
+pearnly_core	Disable "{0}"? Its DMS pushes stop and the LINE link is released.	确定停用「{0}」？停用后其 DMS 推送停止并解除 LINE 绑定。	ยืนยันปิด "{0}"? การส่งไป DMS จะหยุดและยกเลิกการผูก LINE	「{0}」を無効化しますか。DMS送信が止まり、LINE連携も解除されます。	roster.confirm.disable
+pearnly_core	Enable "{0}"? A new bind code is needed to link LINE again.	确定启用「{0}」？启用后需重新发绑定码连接 LINE。	ยืนยันเปิด "{0}"? ต้องออกรหัสผูกใหม่เพื่อเชื่อม LINE อีกครั้ง	「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。	roster.confirm.enable
+pearnly_core	Disabled	已停用	ปิดใช้งานแล้ว	無効化しました	roster.notice.disabled
+pearnly_core	Enabled	已启用	เปิดใช้งานแล้ว	有効化しました	roster.notice.enabled
+pearnly_core	This unlinks "{0}" from LINE and removes the DMS connection; push records are kept. Delete?	将解绑「{0}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？	จะยกเลิกการผูก LINE ของ "{0}" และลบการเชื่อมต่อ DMS ส่วนบันทึกการส่งยังเก็บไว้ ยืนยันลบ?	「{0}」のLINE連携を解除しDMS接続も削除します。送信ログは残ります。削除しますか。	roster.confirm.delete
+pearnly_core	Deleted	已删除	ลบแล้ว	削除しました	roster.notice.deleted
+pearnly_core	Loading…	加载中…	กำลังโหลด…	読み込み中…	roster.loading
+pearnly_core	Refresh	刷新	รีเฟรช	更新	roster.refresh
+pearnly_core	Collapse	收起	ย่อ	閉じる	roster.collapse
+pearnly_core	Add operator	新增操作员	เพิ่มพนักงาน	オペレーターを追加	roster.add
+pearnly_core	e.g. Ming (sales)	如：阿明（销售）	เช่น มิ่ง (ขาย)	例：ミン（営業）	roster.hint.displayName
+pearnly_core	This operator's DMS account	该操作员的 DMS 账号	บัญชี DMS ของพนักงานรายนี้	このオペレーターのDMSアカウント	roster.hint.dmsUsername
+pearnly_core	This operator's DMS password	该操作员的 DMS 密码	รหัสผ่าน DMS ของพนักงานรายนี้	このオペレーターのDMSパスワード	roster.hint.dmsPassword
+pearnly_core	Saving…	保存中…	กำลังบันทึก…	保存中…	roster.saving
+pearnly_core	Not allowed	未允许	ไม่อนุญาต	不許可	roster.noQuery
+pearnly_core	Allowed	允许	อนุญาต	許可	roster.allowQuery
+pearnly_core	Linked	已绑	ผูกแล้ว	連携済み	roster.bound
+pearnly_core	Not linked	未绑	ยังไม่ผูก	未連携	roster.unbound
+pearnly_core	Enable	启用	เปิดใช้งาน	有効化	roster.enable
+pearnly_core	Disable	停用	ปิดใช้งาน	無効化	roster.disable
+pearnly_core	Issue bind code	发绑定码	ออกรหัสผูก	連携コードを発行	roster.issueCode
+pearnly_core	Edit	编辑	แก้ไข	編集	roster.edit
+pearnly_core	Delete	删除	ลบ	削除	roster.delete
+pearnly_core	Bind code	绑定码	รหัสผูก	連携コード	roster.code.title
+pearnly_core	Close	关闭	ปิด	閉じる	roster.close
+pearnly_core	Regenerate	重新生成	สร้างใหม่	再生成	roster.regenerate
+pearnly_core	Edit operator	编辑操作员	แก้ไขพนักงาน	オペレーターを編集	roster.editTitle
+pearnly_core	Leave blank to keep unchanged	留空则不修改	เว้นว่างไว้หากไม่แก้ไข	空欄なら変更しません	roster.keepBlank
+pearnly_core	Cancel	取消	ยกเลิก	キャンセル	roster.cancel
+pearnly_core	Save	保存	บันทึก	保存	roster.save
+pearnly_core	Please confirm	请确认	กรุณายืนยัน	確認してください	roster.confirm.title
+pearnly_core	OK	确定	ตกลง	OK	roster.ok
+pearnly_core	Operators	操作员	พนักงาน	オペレーター	roster.title
+pearnly_core	One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code	每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码	หนึ่งแถวต่อพนักงานขาย/ผู้ดูแล แต่ละคนมีบัญชี DMS ของตัวเองและออกรหัสผูก LINE แยกกัน	1行につき営業または管理者1名。各自のDMS資格情報を持ち、LINE連携コードも個別に発行します	roster.subtitle
+pearnly_core	Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving	填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码	กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก	表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します	roster.addHint
+pearnly_core	Display name	显示名	ชื่อที่แสดง	表示名	roster.field.displayName
+pearnly_core	DMS username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名	roster.field.dmsUsername
+pearnly_core	DMS password	DMS 密码	รหัสผ่าน DMS	DMSパスワード	roster.field.dmsPassword
+pearnly_core	New DMS password	新 DMS 密码	รหัสผ่าน DMS ใหม่	新しいDMSパスワード	roster.field.newDmsPassword
+pearnly_core	Role	角色	บทบาท	ロール	roster.field.role
+pearnly_core	Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ค้นหา DMS ผ่าน LINE	LINEでのDMS照会を許可	roster.field.canQuery
+pearnly_core	Sales commission owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属	roster.field.advisor
+pearnly_core	Automatic (by DMS account)	自动匹配（按 DMS 账号）	อัตโนมัติ (ตามบัญชี DMS)	自動照合（DMSアカウント基準）	roster.advisor.auto
+pearnly_core	The new platform has no DMS advisor roster source yet, so for now only automatic matching is available	新平台还没有 DMS 顾问名册来源，暂时只能自动匹配	แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น	新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです	roster.advisor.note
+pearnly_core	Operator list	操作员名单	รายชื่อพนักงาน	オペレーター一覧	roster.list.title
+pearnly_core	No operators yet — add one above	还没有操作员，先在上方新增	ยังไม่มีพนักงาน เพิ่มด้านบนก่อน	オペレーターがまだいません。上で追加してください	roster.list.empty
+pearnly_core	Operator	操作员	พนักงาน	オペレーター	roster.col.operator
+pearnly_core	Query access	查询权限	สิทธิ์ค้นหา	照会権限	roster.col.query
+pearnly_core	LINE status	LINE 状态	สถานะ LINE	LINEステータス	roster.col.line
+pearnly_core	Actions	操作	การจัดการ	操作	roster.col.actions
+pearnly_core	1. Have this operator add Pearnly DMS as a LINE friend	1. 让该操作员在 LINE 添加 Pearnly DMS 好友	1. ให้พนักงานรายนี้เพิ่ม Pearnly DMS เป็นเพื่อนใน LINE	1. このオペレーターにLINEでPearnly DMSを友だち追加してもらいます	roster.code.step1
+pearnly_core	2. Send this bind code in the LINE chat to connect	2. 在 LINE 对话中发送此绑定码完成连接	2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ	2. LINEのトークでこの連携コードを送ると接続できます	roster.code.step2
+pearnly_core	Valid for {0}	剩余有效期 {0}	เหลืออายุ {0}	残り有効時間 {0}	roster.code.validFor
+pearnly_core	The bind code has expired — please regenerate	绑定码已过期，请重新生成	รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่	連携コードの期限が切れました。再生成してください	roster.code.expiredHint
