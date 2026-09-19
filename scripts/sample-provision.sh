@@ -36,6 +36,22 @@ WRAP='import json, sys; print(json.dumps({"spec_json": sys.argv[1], "admin_user"
 WRAP2='import json, sys; print(json.dumps({"spec_json": sys.argv[1]}))'
 
 api_get()  { curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" "$CONTROL/api/method/$1"; }
+
+# 会话失效会自动重登的 GET，**盯梢循环必须用它**。
+# 为什么：控制面跑一次 migrate / 清缓存会把所有会话作废（实测）。那时请求拿回来的
+# 是一个空跳转页，直接喂给 json 就是 "Expecting value: line 1 column 1 (char 0)"。
+# 而盯梢循环以前只在启动时登录一次 —— 于是它会永远看不见待办：表现是"点了删除/开通，
+# 控制面明明有单子，本机执行器一动不动，日志里只有一串 json 报错"（2026-09-19 实踩）。
+api_get_json() {  # <method path>：内容不是 JSON 就重登一次再取
+  local path="$1" out
+  out=$(api_get "$path" || true)
+  if ! printf '%s' "$out" | py -c 'import sys,json; json.load(sys.stdin)' >/dev/null 2>&1; then
+    echo "[重登] 会话已失效，重新登录后再取：$path" >&2
+    login
+    out=$(api_get "$path")
+  fi
+  printf '%s' "$out"
+}
 api_post() { curl -sS -b "$JAR" -H "Host: $CONTROL_HOST" -H 'Content-Type: application/json' \
                -H "X-Frappe-CSRF-Token: $CSRF" -X POST "$CONTROL/api/method/$1" --data-binary "$2"; }
 
@@ -384,7 +400,7 @@ report() {  # report <step_key> <status> <output>
 
 has_pending() {  # 有没有待办步骤（只问一句，不打印）
   local one
-  one=$(api_get "pearnly_control.provisioning.api_next_steps?limit=1" \
+  one=$(api_get_json "pearnly_control.provisioning.api_next_steps?limit=1" \
         | py -c 'import sys,json; m=json.load(sys.stdin).get("message") or []; print("yes" if m else "")')
   [ -n "$one" ]
 }
@@ -396,7 +412,7 @@ run_pending() {
   while :; do
     guard=$((guard + 1))
     [ "$guard" -gt 200 ] && { echo "步数异常，停止" >&2; return 1; }
-    step=$(api_get "pearnly_control.provisioning.api_next_steps?limit=1" \
+    step=$(api_get_json "pearnly_control.provisioning.api_next_steps?limit=1" \
            | py -c 'import sys,json; m=json.load(sys.stdin).get("message") or []; print(json.dumps(m[0]) if m else "")')
     [ -z "$step" ] && { echo "[完成] 没有待办步骤了"; return 0; }
     key=$(py -c 'import json,sys; print(json.loads(sys.argv[1])["step_key"])' "$step")
@@ -490,7 +506,7 @@ for dep in m["deployments"]:
     # 配好渠道之后跑一次，那一步才会真的把密钥写到站点上。
     include_skipped=0
     [ "${2:-}" = "--all" ] && include_skipped=1
-    req=$(api_get "pearnly_control.provisioning.api_request_of_issue?issue=$issue" \
+    req=$(api_get_json "pearnly_control.provisioning.api_request_of_issue?issue=$issue" \
           | py -c 'import sys,json; print(json.load(sys.stdin).get("message") or "")')
     [ -n "$req" ] || { echo "该发号单还没有开通请求" >&2; exit 1; }
     py -c 'import json,sys; print(json.dumps({"request": sys.argv[1], "include_skipped": int(sys.argv[2])}))' \
