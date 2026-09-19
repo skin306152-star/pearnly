@@ -41,7 +41,7 @@ settings = {
     "sslRequired": "external", "registrationAllowed": False,
     "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False,
     "resetPasswordAllowed": True, "rememberMe": True, "passwordPolicy": "",
-    "loginTheme": "pearnly", "internationalizationEnabled": True,
+    "loginTheme": "pearnly", "emailTheme": "pearnly", "internationalizationEnabled": True,
     "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
     "bruteForceProtected": True, "permanentLockout": False,
     "failureFactor": 10, "waitIncrementSeconds": 60, "maxFailureWaitSeconds": 900,
