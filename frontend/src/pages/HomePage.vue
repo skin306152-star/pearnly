@@ -10,6 +10,10 @@
 import { computed, onMounted, reactive, ref } from "vue";
 import { Button, Dialog } from "frappe-ui";
 import { call, ApiError } from "../lib/api";
+import { createTexts } from "../lib/i18n";
+
+// 页面文案走语言包（键 = `home.*`）：一次取整包，页面上不维护"我要用哪些键"的清单。
+const { t, tf, load: loadTexts } = createTexts([], "home.");
 
 interface Txn {
   name: string;
@@ -60,17 +64,20 @@ const topupForm = reactive({ amount: 1000, note: "", payer_name: "" });
 
 // 记录明细：三个页签 + 区间筛选（照老产品：扣费 / 充值 / 识别记录）
 type TabKey = "usage" | "topup" | "ocr";
-const TAB_LABEL: Record<TabKey, string> = {
-  usage: "扣费",
-  topup: "充值",
-  ocr: "识别记录",
-};
-const PERIODS = [
-  { key: "all", label: "全部" },
-  { key: "day", label: "今天" },
-  { key: "month", label: "本月" },
-  { key: "year", label: "今年" },
-];
+// ⚠️ 必须写成 computed：这几处标签原来是普通常量，`t()` 在 setup 时就求值了一次
+// —— 那时文案还没取回来，于是页签和区间下拉**永远显示键名**（`home.ledger.usage`）。
+// 界面上要变的文字，取值必须留在**渲染时**发生。
+const TAB_LABEL = computed<Record<TabKey, string>>(() => ({
+  usage: t("home.ledger.usage"),
+  topup: t("home.topup"),
+  ocr: t("home.ledger.ocr"),
+}));
+const PERIODS = computed(() => [
+  { key: "all", label: t("home.period.all") },
+  { key: "day", label: t("home.period.today") },
+  { key: "month", label: t("home.period.month") },
+  { key: "year", label: t("home.period.year") },
+]);
 const tab = ref<TabKey>("usage");
 const period = ref("all");
 const rows = ref<Record<string, unknown>[]>([]);
@@ -83,15 +90,15 @@ const pending = computed(() => home.value?.pending_topups ?? []);
 const tabs = computed<TabKey[]>(() => (canManage.value ? ["usage", "topup", "ocr"] : ["usage", "ocr"]));
 
 const STATUS_LABEL: Record<string, string> = {
-  pending: "待审核",
-  approved: "已到账",
-  rejected: "已拒绝",
+  pending: t("home.status.pending"),
+  approved: t("home.status.credited"),
+  rejected: t("home.status.rejected"),
 };
 
 const OCR_LABEL: Record<string, string> = {
-  ok: "成功",
-  needs_review: "待复核",
-  failed: "失败",
+  ok: t("home.status.ok"),
+  needs_review: t("home.status.toreview"),
+  failed: t("home.status.failed"),
 };
 
 const OCR_COLOR: Record<string, string> = {
@@ -109,7 +116,7 @@ function when(s: string): string {
 }
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || `请求失败（HTTP ${err.status}）`;
+  if (err instanceof ApiError) return err.message || tf("home.error.http", err.status);
   return String(err);
 }
 
@@ -179,7 +186,7 @@ function submitTopup(): Promise<void> {
       { amount_thb: topupForm.amount, note: topupForm.note, payer_name: topupForm.payer_name },
       { method: "POST" },
     );
-    notice.value = `充值申请已提交（${res.request} · ${baht(res.requested_thb)}），等平台确认到账后余额才会增加。`;
+    notice.value = tf("home.topup.submitted", res.request, baht(res.requested_thb));
     topupOpen.value = false;
     await refresh();
   });
@@ -192,12 +199,16 @@ function pickPlan(plan: Plan): Promise<void> {
       { plan_code: plan.code },
       { method: "POST" },
     );
-    notice.value = `已订阅套餐 ${plan.code}，月费从余额扣除，当前余额 ${baht(res.balance_after)}。`;
+    notice.value = tf("home.plan.subscribed", plan.code, baht(res.balance_after));
     await refresh();
   });
 }
 
-onMounted(refresh);
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+  return refresh();
+});
 </script>
 
 <template>
@@ -215,38 +226,38 @@ onMounted(refresh);
       class="pn-card"
       style="padding: 12px 14px; font-size: 13px"
     >
-      有 {{ pending.length }} 笔充值待平台确认：
+      {{ tf('home.pending.count', pending.length) }}
       <b>{{ pending.map((p) => baht(p.requested_thb)).join("、") }}</b>
-      —— 确认后余额会自动增加。
+      {{ t('home.pending.hint') }}
     </div>
 
     <!-- 当前套餐 + 账户余额 -->
     <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px">
       <div class="pn-card">
-        <div class="pn-muted">当前套餐</div>
+        <div class="pn-muted">{{ t('home.plan.current') }}</div>
         <div v-if="loading" class="pn-skeleton" style="width: 120px; margin-top: 10px" />
         <template v-else-if="sub">
           <div style="font-size: 22px; font-weight: 800; margin-top: 4px">
-            套餐 {{ sub.plan_code }}
+            {{ t('home.plan.code') }} {{ sub.plan_code }}
           </div>
           <div class="pn-muted" style="margin-top: 6px">
-            本周期已用 {{ sub.pages_used_this_cycle }} / {{ sub.quota }} 张，剩 {{ sub.remaining }} 张
+            {{ tf('home.plan.usage', sub.pages_used_this_cycle, sub.quota, sub.remaining) }}
           </div>
-          <div class="pn-muted">超额 {{ baht(sub.over_rate) }}/张 · 周期到 {{ when(sub.cycle_end) }}</div>
+          <div class="pn-muted">{{ tf('home.plan.over', baht(sub.over_rate), when(sub.cycle_end)) }}</div>
           <div class="pn-muted" style="margin-top: 8px; font-size: 12px">
-            套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。
+            {{ t('home.plan.cycleNote') }}
           </div>
         </template>
         <template v-else>
-          <div style="font-size: 22px; font-weight: 800; margin-top: 4px">未订阅</div>
+          <div style="font-size: 22px; font-weight: 800; margin-top: 4px">{{ t('home.plan.none') }}</div>
           <div class="pn-muted" style="margin-top: 6px">
-            当前按量计费 · 订阅后在下方选套餐更省
+            {{ t('home.plan.noneHint') }}
           </div>
         </template>
       </div>
 
       <div class="pn-card">
-        <div class="pn-muted">账户余额</div>
+        <div class="pn-muted">{{ t('home.balance.title') }}</div>
         <div v-if="loading" class="pn-skeleton" style="width: 120px; margin-top: 10px" />
         <template v-else>
           <div
@@ -257,11 +268,10 @@ onMounted(refresh);
           </div>
           <div class="pn-muted" style="margin-top: 6px">
             <template v-if="sub">
-              本月已用 {{ home?.pages_used_this_month ?? 0 }} 张 · 套餐 {{ sub.plan_code }} 本周期剩
-              {{ sub.remaining }} 张
+              {{ tf('home.balance.used', home?.pages_used_this_month ?? 0, sub.plan_code, sub.remaining) }}
             </template>
             <template v-else>
-              本月已用 {{ home?.pages_used_this_month ?? 0 }} 张 · 未订阅按量计费
+              {{ tf('home.balance.usedNoPlan', home?.pages_used_this_month ?? 0) }}
             </template>
           </div>
           <div v-if="canManage" style="margin-top: 12px; display: flex; gap: 8px">
@@ -269,13 +279,13 @@ onMounted(refresh);
               variant="solid"
               theme="gray"
               class="pn-primary"
-              label="充值"
+              :label="t('home.topup')"
               @click="topupOpen = true"
             />
             <Button
               variant="outline"
               theme="gray"
-              :label="loading ? '加载中…' : '刷新'"
+              :label="loading ? t('home.loading') : t('home.refresh')"
               :disabled="loading"
               @click="refresh"
             />
@@ -286,9 +296,9 @@ onMounted(refresh);
 
     <!-- 选择套餐 -->
     <div class="pn-card">
-      <div style="font-size: 16px; font-weight: 800">选择套餐</div>
+      <div style="font-size: 16px; font-weight: 800">{{ t('home.plans.title') }}</div>
       <div class="pn-muted" style="margin-bottom: 12px">
-        订阅后先用套餐额度，超额按套餐单价从余额扣
+        {{ t('home.plans.hint') }}
       </div>
       <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
         <div
@@ -300,10 +310,10 @@ onMounted(refresh);
         >
           <div style="font-weight: 800">Package {{ p.code }}</div>
           <div style="font-size: 20px; font-weight: 800; margin: 6px 0">
-            {{ baht(p.fee) }}<span class="pn-muted" style="font-size: 12px"> / {{ p.cycle_days }} 天</span>
+            {{ baht(p.fee) }}<span class="pn-muted" style="font-size: 12px"> {{ tf('home.plans.perCycle', p.cycle_days) }}</span>
           </div>
-          <div class="pn-muted">每周期额度 {{ p.quota }} 张</div>
-          <div class="pn-muted">超额 {{ baht(p.over_rate) }}/张</div>
+          <div class="pn-muted">{{ tf('home.plans.quota', p.quota) }}</div>
+          <div class="pn-muted">{{ tf('home.plans.over', baht(p.over_rate)) }}</div>
           <div v-if="canManage" style="margin-top: 12px">
             <Button
               variant="solid"
@@ -311,10 +321,10 @@ onMounted(refresh);
               class="pn-primary"
               :label="
                 busy === `plan:${p.code}`
-                  ? '订阅中…'
+                  ? t('home.plan.subscribing')
                   : sub?.plan_code === p.code
-                    ? '当前套餐'
-                    : '订阅此套餐'
+                    ? t('home.plan.current')
+                    : t('home.plan.subscribe')
               "
               :disabled="busy === `plan:${p.code}` || sub?.plan_code === p.code"
               @click="pickPlan(p)"
@@ -327,7 +337,7 @@ onMounted(refresh);
     <!-- 记录明细 -->
     <div class="pn-card">
       <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap">
-        <div style="font-size: 16px; font-weight: 800">记录明细</div>
+        <div style="font-size: 16px; font-weight: 800">{{ t('home.ledger.title') }}</div>
         <div style="display: flex; gap: 8px; align-items: center">
           <select v-model="period" class="form-input" style="width: auto" @change="pickPeriod(period)">
             <option v-for="p in PERIODS" :key="p.key" :value="p.key">{{ p.label }}</option>
@@ -335,7 +345,7 @@ onMounted(refresh);
           <Button
             variant="outline"
             theme="gray"
-            :label="exporting ? '导出中…' : '导出明细'"
+            :label="exporting ? t('home.ledger.exporting') : t('home.ledger.export')"
             :disabled="exporting"
             @click="exportRecords"
           />
@@ -357,19 +367,19 @@ onMounted(refresh);
 
       <div v-if="rowsLoading" class="pn-skeleton" style="width: 200px; margin-top: 12px" />
       <p v-else-if="!rows.length" class="pn-muted" style="margin: 12px 0 0">
-        还没有记录
+        {{ t('home.ledger.none') }}
       </p>
 
       <!-- 扣费 -->
       <table v-else-if="tab === 'usage'" class="pn-table" style="margin-top: 6px">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>产品</th>
-            <th>张数</th>
-            <th>金额</th>
-            <th>变动后余额</th>
-            <th>说明</th>
+            <th>{{ t('home.col.time') }}</th>
+            <th>{{ t('home.col.product') }}</th>
+            <th>{{ t('home.col.pages') }}</th>
+            <th>{{ t('home.col.amount') }}</th>
+            <th>{{ t('home.col.balanceAfter') }}</th>
+            <th>{{ t('home.col.description') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -390,12 +400,12 @@ onMounted(refresh);
       <table v-else-if="tab === 'topup'" class="pn-table" style="margin-top: 6px">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>单号</th>
-            <th>状态</th>
-            <th>申请金额</th>
-            <th>实收金额</th>
-            <th>备注</th>
+            <th>{{ t('home.col.time') }}</th>
+            <th>{{ t('home.col.reference') }}</th>
+            <th>{{ t('home.col.status') }}</th>
+            <th>{{ t('home.col.requested') }}</th>
+            <th>{{ t('home.col.received') }}</th>
+            <th>{{ t('home.col.note') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -414,11 +424,11 @@ onMounted(refresh);
       <table v-else class="pn-table" style="margin-top: 6px">
         <thead>
           <tr>
-            <th>时间</th>
-            <th>结果</th>
-            <th>文件</th>
-            <th>扣费</th>
-            <th>摘要</th>
+            <th>{{ t('home.col.time') }}</th>
+            <th>{{ t('home.col.result') }}</th>
+            <th>{{ t('home.col.file') }}</th>
+            <th>{{ t('home.col.charges') }}</th>
+            <th>{{ t('home.col.summary') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -436,26 +446,26 @@ onMounted(refresh);
       </table>
     </div>
 
-    <Dialog v-model="topupOpen" :options="{ title: '充值', size: 'sm' }">
+    <Dialog v-model="topupOpen" :options="{ title: t('home.topup'), size: 'sm' }">
       <template #body-content>
         <div class="pn-form">
-          <label class="pn-label">金额</label>
+          <label class="pn-label">{{ t('home.col.amount') }}</label>
           <input v-model.number="topupForm.amount" type="number" min="1" class="form-input" />
-          <label class="pn-label">付款人</label>
-          <input v-model="topupForm.payer_name" class="form-input" placeholder="银行转账时的付款方" />
-          <label class="pn-label">备注</label>
+          <label class="pn-label">{{ t('home.field.payer') }}</label>
+          <input v-model="topupForm.payer_name" class="form-input" :placeholder="t('home.topup.payerHint')" />
+          <label class="pn-label">{{ t('home.col.note') }}</label>
           <input v-model="topupForm.note" class="form-input" />
           <div v-if="error" class="pn-error" style="grid-column: 1 / -1" role="alert">{{ error }}</div>
           <div class="pn-muted" style="grid-column: 1 / -1; font-size: 11px">
-            提交后平台确认到账，余额才会增加。
+            {{ t('home.topup.hint') }}
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray" label="取消" @click="topupOpen = false" />
+            <Button variant="outline" theme="gray" :label="t('home.cancel')" @click="topupOpen = false" />
             <Button
               variant="solid"
               theme="gray"
               class="pn-primary"
-              :label="busy === 'topup' ? '提交中…' : '提交申请'"
+              :label="busy === 'topup' ? t('home.topup.submitting') : t('home.topup.submit')"
               :disabled="busy === 'topup' || !topupForm.amount"
               @click="submitTopup"
             />

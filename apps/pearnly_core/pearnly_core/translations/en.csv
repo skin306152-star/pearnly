@@ -405,22 +405,56 @@ Workspace,Workspace
 "companion = pulled outbound by Companion on the local machine, then stored here","companion = pulled outbound by Companion on the local machine, then stored here"
 endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
+home.balance.title,Account balance
+home.balance.used,"Used {0} pages this month · plan {1}, {2} left this cycle"
+home.balance.usedNoPlan,Used {0} pages this month · pay-as-you-go
 home.cancel,Cancel
+home.col.amount,Amount
+home.col.balanceAfter,Balance after
+home.col.charges,Charges
+home.col.description,Description
+home.col.file,File
+home.col.note,Notes
+home.col.pages,Pages
+home.col.product,Product
+home.col.received,Received
+home.col.reference,Reference
+home.col.requested,Requested
+home.col.result,Result
+home.col.status,Status
+home.col.summary,Summary
+home.col.time,Time
 home.error.http,Request failed (HTTP {0})
+home.field.payer,Payer
 home.ledger.empty,No records
 home.ledger.export,Export details
 home.ledger.exporting,Exporting…
+home.ledger.none,No records yet
 home.ledger.ocr,Recognition records
+home.ledger.title,Records
 home.ledger.usage,Charges
 home.loading,Loading…
+home.pending.count,{0} top-up request(s) awaiting platform confirmation:
+home.pending.hint,The balance grows automatically once confirmed.
 home.period.all,All
 home.period.month,This month
 home.period.today,Today
 home.period.year,This year
+home.plan.code,Plan
 home.plan.current,Current plan
+home.plan.cycleNote,Plans run 30 days and end at the cycle end (no auto-renewal) — subscribe again below when it ends.
+home.plan.none,Not subscribed
+home.plan.noneHint,Pay-as-you-go now · subscribing below is cheaper
+home.plan.over,Over-rate {0}/page · cycle ends {1}
 home.plan.subscribe,Subscribe to this plan
 home.plan.subscribed,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
 home.plan.subscribing,Subscribing…
+home.plan.usage,"Used this cycle {0} / {1} pages, {2} left"
+home.plans.hint,The plan quota is used first; anything over is charged per plan rate from the balance
+home.plans.over,Over-rate {0}/page
+home.plans.perCycle,/ {0} days
+home.plans.quota,Quota per cycle {0} pages
+home.plans.title,Choose a plan
 home.refresh,Refresh
 home.status.credited,Credited
 home.status.failed,Failed
@@ -429,6 +463,7 @@ home.status.pending,Pending review
 home.status.rejected,Rejected
 home.status.toreview,To verify
 home.topup,Top up
+home.topup.hint,The balance grows once the platform confirms the transfer.
 home.topup.payerHint,Payer name on the bank transfer
 home.topup.submit,Submit request
 home.topup.submitted,Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.

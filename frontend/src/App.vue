@@ -9,7 +9,7 @@ import { useRoute } from "vue-router";
 import { Sidebar } from "frappe-ui";
 import { loadShell, type ShellBoot } from "./lib/shell";
 import { navFor, titleFor, type NavEntry } from "./lib/nav";
-import { createTexts } from "./lib/i18n";
+import { adoptAccountLocale, createTexts } from "./lib/i18n";
 import { iconFor } from "./lib/icons";
 import { ApiError } from "./lib/api";
 import { SHELL_BOOT } from "./lib/boot-context";
@@ -49,6 +49,9 @@ watch(
   boot,
   (value) => {
     if (!value) return;
+    // 语言以**账号**为准（ADR-006）：浏览器里缓存的那份只当兜底。
+    // 不这样做，同一个账号换台电脑就会看到不同语言。
+    adoptAccountLocale(value.language || "");
     document.documentElement.lang = value.language || "zh-CN";
     if (value.product_label) document.title = `Pearnly ${value.product_label}`;
   },

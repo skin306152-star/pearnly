@@ -407,22 +407,56 @@ Workspace,พื้นที่ทำงาน
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+home.balance.title,ยอดคงเหลือในบัญชี
+home.balance.used,ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า
+home.balance.usedNoPlan,ใช้ไปเดือนนี้ {0} หน้า · ยังไม่สมัคร คิดตามใช้จริง
 home.cancel,ยกเลิก
+home.col.amount,จำนวนเงิน
+home.col.balanceAfter,ยอดคงเหลือหลังเปลี่ยนแปลง
+home.col.charges,ค่าบริการ
+home.col.description,คำอธิบาย
+home.col.file,ไฟล์
+home.col.note,หมายเหตุ
+home.col.pages,จำนวนหน้า
+home.col.product,ผลิตภัณฑ์
+home.col.received,จำนวนที่รับจริง
+home.col.reference,เลขที่อ้างอิง
+home.col.requested,จำนวนที่ขอ
+home.col.result,ผลลัพธ์
+home.col.status,สถานะ
+home.col.summary,สรุป
+home.col.time,เวลา
 home.error.http,คำขอล้มเหลว (HTTP {0})
+home.field.payer,ผู้ชำระเงิน
 home.ledger.empty,ไม่มีรายการ
 home.ledger.export,ส่งออกรายละเอียด
 home.ledger.exporting,กำลังส่งออก…
+home.ledger.none,ยังไม่มีรายการ
 home.ledger.ocr,บันทึกการอ่านข้อมูล
+home.ledger.title,รายละเอียดบันทึก
 home.ledger.usage,ค่าบริการ
 home.loading,กำลังโหลด…
+home.pending.count,มี {0} รายการเติมเงินรอแพลตฟอร์มยืนยัน:
+home.pending.hint,—— ยอดคงเหลือจะเพิ่มอัตโนมัติเมื่อยืนยันแล้ว
 home.period.all,ทั้งหมด
 home.period.month,เดือนนี้
 home.period.today,วันนี้
 home.period.year,ปีนี้
+home.plan.code,แพ็กเกจ
 home.plan.current,แพ็กเกจปัจจุบัน
+home.plan.cycleNote,แพ็กเกจเป็นรอบ 30 วัน สิ้นสุดเมื่อครบรอบ (ไม่ต่ออัตโนมัติ) — ครบแล้วสมัครใหม่ด้านล่างได้เลย
+home.plan.none,ยังไม่สมัคร
+home.plan.noneHint,ตอนนี้คิดตามใช้จริง · สมัครแพ็กเกจด้านล่างจะประหยัดกว่า
+home.plan.over,ส่วนเกิน {0}/หน้า · ครบรอบ {1}
 home.plan.subscribe,สมัครแพ็กเกจนี้
 home.plan.subscribed,สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}
 home.plan.subscribing,กำลังสมัคร…
+home.plan.usage,ใช้ไปรอบนี้ {0} / {1} หน้า เหลือ {2} หน้า
+home.plans.hint,หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ
+home.plans.over,ส่วนเกิน {0}/หน้า
+home.plans.perCycle,/ {0} วัน
+home.plans.quota,โควตาต่อรอบ {0} หน้า
+home.plans.title,เลือกแพ็กเกจ
 home.refresh,รีเฟรช
 home.status.credited,เข้าบัญชีแล้ว
 home.status.failed,ล้มเหลว
@@ -431,6 +465,7 @@ home.status.pending,รอตรวจสอบ
 home.status.rejected,ถูกปฏิเสธ
 home.status.toreview,รอตรวจซ้ำ
 home.topup,เติมเงิน
+home.topup.hint,ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 home.topup.payerHint,ชื่อผู้โอนในสลิปธนาคาร
 home.topup.submit,ส่งคำขอ
 home.topup.submitted,ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน

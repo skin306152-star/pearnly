@@ -715,3 +715,38 @@ pearnly_core	Payer name on the bank transfer	银行转账时的付款方	ชื�
 pearnly_core	Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.	充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。	ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน	チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。	home.topup.submitted
 pearnly_core	Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.	已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。	สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}	プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。	home.plan.subscribed
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	home.error.http
+pearnly_core	{0} top-up request(s) awaiting platform confirmation:	有 {0} 笔充值待平台确认：	มี {0} รายการเติมเงินรอแพลตฟอร์มยืนยัน:	プラットフォーム確認待ちのチャージが {0} 件あります：	home.pending.count
+pearnly_core	The balance grows automatically once confirmed.	—— 确认后余额会自动增加。	—— ยอดคงเหลือจะเพิ่มอัตโนมัติเมื่อยืนยันแล้ว	—— 確認されると残高に自動反映されます。	home.pending.hint
+pearnly_core	Plan	套餐	แพ็กเกจ	プラン	home.plan.code
+pearnly_core	Used this cycle {0} / {1} pages, {2} left	本周期已用 {0} / {1} 张，剩 {2} 张	ใช้ไปรอบนี้ {0} / {1} หน้า เหลือ {2} หน้า	今サイクル使用 {0} / {1} 枚、残り {2} 枚	home.plan.usage
+pearnly_core	Over-rate {0}/page · cycle ends {1}	超额 {0}/张 · 周期到 {1}	ส่วนเกิน {0}/หน้า · ครบรอบ {1}	超過 {0}/枚 · サイクル終了 {1}	home.plan.over
+pearnly_core	Plans run 30 days and end at the cycle end (no auto-renewal) — subscribe again below when it ends.	套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。	แพ็กเกจเป็นรอบ 30 วัน สิ้นสุดเมื่อครบรอบ (ไม่ต่ออัตโนมัติ) — ครบแล้วสมัครใหม่ด้านล่างได้เลย	プランは30日周期で、期間終了で終わります（自動更新なし）。終了後に下から再登録してください。	home.plan.cycleNote
+pearnly_core	Not subscribed	未订阅	ยังไม่สมัคร	未登録	home.plan.none
+pearnly_core	Pay-as-you-go now · subscribing below is cheaper	当前按量计费 · 订阅后在下方选套餐更省	ตอนนี้คิดตามใช้จริง · สมัครแพ็กเกจด้านล่างจะประหยัดกว่า	現在は従量課金です。下からプランを登録すると安くなります	home.plan.noneHint
+pearnly_core	Account balance	账户余额	ยอดคงเหลือในบัญชี	口座残高	home.balance.title
+pearnly_core	Used {0} pages this month · plan {1}, {2} left this cycle	本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张	ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า	今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚	home.balance.used
+pearnly_core	Used {0} pages this month · pay-as-you-go	本月已用 {0} 张 · 未订阅按量计费	ใช้ไปเดือนนี้ {0} หน้า · ยังไม่สมัคร คิดตามใช้จริง	今月 {0} 枚使用 · 未登録の従量課金	home.balance.usedNoPlan
+pearnly_core	Choose a plan	选择套餐	เลือกแพ็กเกจ	プランを選ぶ	home.plans.title
+pearnly_core	The plan quota is used first; anything over is charged per plan rate from the balance	订阅后先用套餐额度，超额按套餐单价从余额扣	หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ	登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます	home.plans.hint
+pearnly_core	/ {0} days	/ {0} 天	/ {0} วัน	/ {0}日	home.plans.perCycle
+pearnly_core	Quota per cycle {0} pages	每周期额度 {0} 张	โควตาต่อรอบ {0} หน้า	1サイクルの枠 {0} 枚	home.plans.quota
+pearnly_core	Over-rate {0}/page	超额 {0}/张	ส่วนเกิน {0}/หน้า	超過 {0}/枚	home.plans.over
+pearnly_core	Records	记录明细	รายละเอียดบันทึก	明細	home.ledger.title
+pearnly_core	No records yet	还没有记录	ยังไม่มีรายการ	まだ記録がありません	home.ledger.none
+pearnly_core	Time	时间	เวลา	日時	home.col.time
+pearnly_core	Product	产品	ผลิตภัณฑ์	製品	home.col.product
+pearnly_core	Pages	张数	จำนวนหน้า	枚数	home.col.pages
+pearnly_core	Amount	金额	จำนวนเงิน	金額	home.col.amount
+pearnly_core	Balance after	变动后余额	ยอดคงเหลือหลังเปลี่ยนแปลง	変動後の残高	home.col.balanceAfter
+pearnly_core	Description	说明	คำอธิบาย	説明	home.col.description
+pearnly_core	Reference	单号	เลขที่อ้างอิง	参照番号	home.col.reference
+pearnly_core	Status	状态	สถานะ	ステータス	home.col.status
+pearnly_core	Requested	申请金额	จำนวนที่ขอ	申請額	home.col.requested
+pearnly_core	Received	实收金额	จำนวนที่รับจริง	受領額	home.col.received
+pearnly_core	Notes	备注	หมายเหตุ	備考	home.col.note
+pearnly_core	Result	结果	ผลลัพธ์	結果	home.col.result
+pearnly_core	File	文件	ไฟล์	ファイル	home.col.file
+pearnly_core	Charges	扣费	ค่าบริการ	課金	home.col.charges
+pearnly_core	Summary	摘要	สรุป	摘要	home.col.summary
+pearnly_core	Payer	付款人	ผู้ชำระเงิน	支払者	home.field.payer
+pearnly_core	The balance grows once the platform confirms the transfer.	提交后平台确认到账，余额才会增加。	ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน	プラットフォームが着金を確認すると残高に反映されます。	home.topup.hint

@@ -407,22 +407,56 @@ Workspace,工作区
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机出站拉取后落库
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+home.balance.title,账户余额
+home.balance.used,本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张
+home.balance.usedNoPlan,本月已用 {0} 张 · 未订阅按量计费
 home.cancel,取消
+home.col.amount,金额
+home.col.balanceAfter,变动后余额
+home.col.charges,扣费
+home.col.description,说明
+home.col.file,文件
+home.col.note,备注
+home.col.pages,张数
+home.col.product,产品
+home.col.received,实收金额
+home.col.reference,单号
+home.col.requested,申请金额
+home.col.result,结果
+home.col.status,状态
+home.col.summary,摘要
+home.col.time,时间
 home.error.http,请求失败（HTTP {0}）
+home.field.payer,付款人
 home.ledger.empty,没这笔
 home.ledger.export,导出明细
 home.ledger.exporting,导出中…
+home.ledger.none,还没有记录
 home.ledger.ocr,识别记录
+home.ledger.title,记录明细
 home.ledger.usage,扣费
 home.loading,加载中…
+home.pending.count,有 {0} 笔充值待平台确认：
+home.pending.hint,—— 确认后余额会自动增加。
 home.period.all,全部
 home.period.month,本月
 home.period.today,今天
 home.period.year,今年
+home.plan.code,套餐
 home.plan.current,当前套餐
+home.plan.cycleNote,套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。
+home.plan.none,未订阅
+home.plan.noneHint,当前按量计费 · 订阅后在下方选套餐更省
+home.plan.over,超额 {0}/张 · 周期到 {1}
 home.plan.subscribe,订阅此套餐
 home.plan.subscribed,已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。
 home.plan.subscribing,订阅中…
+home.plan.usage,本周期已用 {0} / {1} 张，剩 {2} 张
+home.plans.hint,订阅后先用套餐额度，超额按套餐单价从余额扣
+home.plans.over,超额 {0}/张
+home.plans.perCycle,/ {0} 天
+home.plans.quota,每周期额度 {0} 张
+home.plans.title,选择套餐
 home.refresh,刷新
 home.status.credited,已到账
 home.status.failed,失败
@@ -431,6 +465,7 @@ home.status.pending,待审核
 home.status.rejected,已拒绝
 home.status.toreview,待复核
 home.topup,充值
+home.topup.hint,提交后平台确认到账，余额才会增加。
 home.topup.payerHint,银行转账时的付款方
 home.topup.submit,提交申请
 home.topup.submitted,充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。
