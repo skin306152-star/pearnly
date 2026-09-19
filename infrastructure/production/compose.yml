@@ -157,11 +157,19 @@ services:
   erp-web:
     profiles: [erp]
     <<: *web
-    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    volumes: &erp-volumes
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
   erp-worker:
     profiles: [erp]
     <<: *worker
-    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    volumes: *erp-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
   erp-scheduler:
     profiles: [erp]
     <<: *scheduler
@@ -181,11 +189,19 @@ services:
   cowork-web:
     profiles: [cowork]
     <<: *web
-    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    volumes: &cowork-volumes
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
   cowork-worker:
     profiles: [cowork]
     <<: *worker
-    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    volumes: *cowork-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
   cowork-scheduler:
     profiles: [cowork]
     <<: *scheduler

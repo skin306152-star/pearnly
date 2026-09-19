@@ -18,4 +18,5 @@ docker run --rm --user 0 --network pearnly-production_runtime \
   --entrypoint /home/frappe/frappe-bench/env/bin/python "$image" /run/bootstrap-billing.py
 docker compose --env-file /opt/pearnly/secrets/runtime.env -f "$compose" run --rm --no-deps billing-web bench --site billing.internal migrate
 docker compose --env-file /opt/pearnly/secrets/runtime.env -f "$compose" up -d --no-deps billing-web
+docker image inspect "$image" --format '{{json .RepoDigests}}' > /opt/pearnly/deploy/active-image.json
 printf 'Foundation activated. Product tenant services remain disabled.\n'
