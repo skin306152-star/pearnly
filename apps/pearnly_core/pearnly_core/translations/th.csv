@@ -404,7 +404,70 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Workspace,พื้นที่ทำงาน
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก"
+account.cancel,ยกเลิก
+account.changePassword,เปลี่ยนรหัสผ่าน
+account.error.http,คำขอล้มเหลว (HTTP {0})
+account.pwd.confirm,ยืนยันรหัสผ่านใหม่
+account.pwd.current,รหัสผ่านปัจจุบัน
+account.pwd.done,อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่
+account.pwd.mismatch,รหัสผ่านทั้งสองไม่ตรงกัน
+account.pwd.new,รหัสผ่านใหม่
+account.save,บันทึก
+account.saving,กำลังบันทึก…
+account.signOut,ออกจากระบบ
+common.backHome,กลับหน้าหลัก
+common.cancel,ยกเลิก
+common.col.date,วันที่
+common.col.grandTotal,รวมภาษี
+common.col.name,เลขที่
+common.col.status,สถานะ
+common.collapse,ย่อ
+common.error.http,คำขอล้มเหลว (HTTP {0})
+common.field.docDate,วันที่เอกสาร
+common.field.docNo,เลขที่เอกสาร
+common.loading,กำลังโหลด…
+common.no,ไม่
+common.placeholder.optional,เว้นว่างได้
+common.processing,กำลังดำเนินการ…
+common.refresh,รีเฟรช
+common.save,บันทึก
+common.saving,กำลังบันทึก…
+common.yes,ใช่
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่
+connect.action.connect,เชื่อมต่อ DMS
+connect.action.connectSave,เชื่อมต่อและบันทึก
+connect.action.connecting,กำลังเชื่อมต่อ…
+connect.action.disable,ปิดใช้งาน
+connect.action.edit,แก้ไขบัญชี
+connect.action.enable,เปิดใช้งาน
+connect.action.test,ทดสอบการเชื่อมต่อ
+connect.action.testing,กำลังทดสอบ…
+connect.cancel,ยกเลิก
+connect.error.failed,เชื่อมต่อไม่สำเร็จ
+connect.error.http,คำขอล้มเหลว (HTTP {0})
+connect.field.account,บัญชี
+connect.field.adminCreds,บัญชีที่มีสิทธิ์
+connect.field.lastResult,ผลล่าสุด
+connect.field.password,รหัสผ่าน
+connect.field.status,สถานะ
+connect.field.successFailure,สำเร็จ / ล้มเหลว
+connect.field.url,ที่อยู่
+connect.master.advisors,ที่ปรึกษา {0}
+connect.master.branches,สาขา {0}
+connect.master.carModels,รุ่นรถ {0}
+connect.master.terms,คำนำหน้า {0}
+connect.no,ไม่
+connect.notice.connected,เชื่อมต่อแล้ว · {0}
+connect.notice.ok,การเชื่อมต่อปกติ · {0}
+connect.placeholder.password,รหัสผ่านเข้า DMS
+connect.placeholder.username,บัญชีเข้า DMS
+connect.processing,กำลังดำเนินการ…
+connect.state.connected,เชื่อมต่อแล้ว
+connect.state.disabled,ปิดใช้งานแล้ว
+connect.state.enabled,เปิดใช้งานแล้ว
+connect.state.notConnected,ยังไม่เชื่อมต่อ
+connect.title,เชื่อมต่อ DMS ภายนอก
+connect.yes,ใช่
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 home.balance.title,ยอดคงเหลือในบัญชี
@@ -470,6 +533,58 @@ home.topup.payerHint,ชื่อผู้โอนในสลิปธนา�
 home.topup.submit,ส่งคำขอ
 home.topup.submitted,ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 home.topup.submitting,กำลังส่ง…
+intake.action.confirm,ยืนยัน
+intake.action.new,บันทึกใหม่
+intake.action.queue,ส่ง
+intake.card.purchaseTotal,ยอดซื้อ (ยืนยันแล้วขึ้นไป)
+intake.card.readyToPush,ยืนยันแล้ว · พร้อมส่ง
+intake.card.salesTotal,ยอดขาย (ยืนยันแล้วขึ้นไป)
+intake.card.waiting,รอยืนยัน
+intake.col.actions,การจัดการ
+intake.col.counterparty,คู่ค้า
+intake.col.date,วันที่
+intake.col.direction,ทิศทาง
+intake.col.grandTotal,รวมภาษี
+intake.col.name,เลขที่
+intake.col.status,สถานะ
+intake.collapse,ย่อ
+intake.dir.purchase,ซื้อ
+intake.dir.purchaseFull,ซื้อ (บิลที่ได้รับ)
+intake.dir.sales,ขาย
+intake.dir.salesFull,ขาย (บิลที่เราออก)
+intake.empty,"ยังไม่มีรายการ กด ""บันทึกใหม่"" ที่มุมขวาบนเพื่อเพิ่มรายการแรก"
+intake.error.http,คำขอล้มเหลว (HTTP {0})
+intake.field.counterparty,คู่ค้า
+intake.field.direction,ซื้อ / ขาย
+intake.field.docDate,วันที่เอกสาร
+intake.field.docNo,เลขที่เอกสาร
+intake.field.netAmount,ยอดก่อนภาษี
+intake.field.source,แหล่งที่มา
+intake.field.vatAmount,ภาษีมูลค่าเพิ่ม
+intake.filter.allDirections,ทุกทิศทาง
+intake.filter.allStatuses,ทุกสถานะ
+intake.hint.afterSave,บันทึกแล้วจะเป็นฉบับร่าง ต้องยืนยันก่อนจึงจะส่งได้
+intake.loading,กำลังโหลด…
+intake.notice.created,บันทึกแล้ว: {0}
+intake.notice.moved,{0} → {1}
+intake.placeholder.counterparty,ผู้ขาย / ลูกค้า
+intake.placeholder.docNo,เว้นว่างได้
+intake.processing,กำลังดำเนินการ…
+intake.refresh,รีเฟรช
+intake.save,บันทึก
+intake.saving,กำลังบันทึก…
+intake.source.email,อีเมล
+intake.source.manual,กรอกเอง
+intake.source.upload,อัปโหลด
+intake.status.confirmed,ยืนยันแล้ว
+intake.status.draft,ฉบับร่าง
+intake.status.failed,ส่งไม่สำเร็จ
+intake.status.pushed,ส่งแล้ว
+intake.status.queued,รอส่ง
+intake.status.recognized,อ่านแล้ว
+intake.status.rejected,ตีกลับ
+intake.subtitle,ข้อจำกัด: เอกสารที่ยังไม่ยืนยันส่งออกไม่ได้ (ระบบตรวจที่เซิร์ฟเวอร์ ไม่ได้แค่ทำให้ปุ่มเป็นสีเทา)
+intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
 nav.connect,เชื่อมต่อ DMS ภายนอก
@@ -501,6 +616,37 @@ nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
 nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
+purchase.action.addLine,เพิ่มรายการ
+purchase.action.new,สร้างใบซื้อใหม่
+purchase.action.removeLine,ลบ
+purchase.action.save,บันทึกใบซื้อ
+purchase.card.count,จำนวนเอกสาร
+purchase.card.netPayable,ยอดที่ต้องจ่ายสุทธิ
+purchase.card.outstanding,ค้างจ่าย
+purchase.col.date,วันที่
+purchase.col.grandTotal,รวมภาษี
+purchase.col.name,เลขที่
+purchase.col.status,สถานะ
+purchase.collapse,ย่อ
+purchase.empty,"ยังไม่มีใบซื้อ กด ""สร้างใบซื้อใหม่"" ที่มุมขวาบนเพื่อเพิ่มใบแรก"
+purchase.error.http,คำขอล้มเหลว (HTTP {0})
+purchase.field.docDate,วันที่เอกสาร
+purchase.field.docNo,เลขที่เอกสารภายนอก
+purchase.field.lines,รายการ
+purchase.field.supplier,ผู้ขาย
+purchase.hint.serverTotal,ยอดรวมคำนวณที่เซิร์ฟเวอร์ ไม่ต้องกรอก
+purchase.loading,กำลังโหลด…
+purchase.notice.created,สร้างใบซื้อแล้ว: {0}
+purchase.placeholder.description,ชื่อสินค้า / คำอธิบาย
+purchase.placeholder.docNo,เว้นว่างได้
+purchase.placeholder.qty,จำนวน
+purchase.placeholder.supplier,ชื่อผู้ขาย
+purchase.placeholder.unitPrice,ราคาต่อหน่วย
+purchase.placeholder.vatRate,ภาษี %
+purchase.refresh,รีเฟรช
+purchase.saving,กำลังบันทึก…
+purchase.subtitle,ยอดเงินคำนวณใหม่ที่เซิร์ฟเวอร์ ตัวเลขที่แสดงมาจากเซิร์ฟเวอร์ทั้งหมด
+purchase.title,บันทึกการจัดซื้อ
 roster.add,เพิ่มพนักงาน
 roster.addHint,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
 roster.advisor.auto,อัตโนมัติ (ตามบัญชี DMS)
@@ -563,6 +709,19 @@ roster.subtitle,หนึ่งแถวต่อพนักงานขาย/
 roster.title,พนักงาน
 roster.unbound,ยังไม่ผูก
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
+shell.backHome,กลับหน้าหลัก
+shell.boot.failed,เริ่มระบบล้มเหลว (HTTP {0}): {1}
+shell.boot.failedPlain,เริ่มระบบล้มเหลว: {0}
+shell.bootCard.account,บัญชีปัจจุบัน
+shell.bootCard.features,ฟังก์ชันที่ซื้อแล้ว
+shell.bootCard.language,ภาษาของหน้าจอ
+shell.bootCard.none,(ไม่มีเลย)
+shell.bootCard.product,ผลิตภัณฑ์
+shell.bootCard.title,ข้อมูลเริ่มต้นของเว็บไซต์นี้
+shell.needLogin,หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ
+shell.notBuilt,หน้านี้ยังไม่ได้ทำ
+shell.notBuilt.body,เมนูจัดตามรายการหน้า แต่ฟังก์ชันยังไม่ได้ทำ เส้นทางปัจจุบัน:
+shell.notBuilt.title,หน้านี้ยังไม่ได้ทำ
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password

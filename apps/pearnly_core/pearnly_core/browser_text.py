@@ -42,6 +42,11 @@ APP_BY_PREFIX = {
     "home.": "pearnly_core",
     "roster.": "pearnly_core",
     "common.": "pearnly_core",
+    "intake.": "pearnly_core",
+    "purchase.": "pearnly_core",
+    "connect.": "pearnly_core",
+    "account.": "pearnly_core",
+    "shell.": "pearnly_core",
 }
 
 # 四种语言与兜底：与各产品 `i18n.py` 保持一致（泰文是 LINE 通道的语言）。

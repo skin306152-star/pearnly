@@ -12,7 +12,11 @@
 // 界面上**不放解释性文案**：卡片只列字段，结果只说结果。
 import { computed, onMounted, reactive, ref } from "vue";
 import { Button, Dialog } from "frappe-ui";
+import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
+
+// 页面文案走语言包（键 = `connect.*`）：一次取整包，页面上不维护"我要用哪些键"的清单。
+const { t, tf, load: loadTexts } = createTexts([], "connect.");
 
 interface EndpointRow {
   name: string;
@@ -68,7 +72,7 @@ const ep = computed(() => conn.value?.endpoint ?? null);
 const canSubmit = computed(() => form.username.trim().length > 0 && form.password.length > 0);
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || `请求失败（HTTP ${err.status}）`;
+  if (err instanceof ApiError) return err.message || tf("connect.error.http", err.status);
   return String(err);
 }
 
@@ -115,11 +119,11 @@ function connectAndSave(): Promise<void> {
       { method: "POST" },
     );
     if (!probe.ok) {
-      error.value = probe.error_friendly || "连接失败";
+      error.value = probe.error_friendly || t("connect.error.failed");
       return;
     }
     await call("pearnly_dms.api.save_connection", { username, password }, { method: "POST" });
-    notice.value = `已连接 · ${masterSummary(probe)}`;
+    notice.value = tf("connect.notice.connected", masterSummary(probe));
     open.value = false;
     form.password = "";
     await refresh();
@@ -135,8 +139,8 @@ function testSaved(): Promise<void> {
       { endpoint: name },
       { method: "POST" },
     );
-    if (probe.ok) notice.value = `连接正常 · ${masterSummary(probe)}`;
-    else error.value = probe.error_friendly || "连接失败";
+    if (probe.ok) notice.value = tf("connect.notice.ok", masterSummary(probe));
+    else error.value = probe.error_friendly || t("connect.error.failed");
     await refresh();
   });
 }
@@ -145,7 +149,7 @@ function toggleEnabled(): Promise<void> {
   return run("toggle", async () => {
     const next = !ep.value?.enabled;
     await call("pearnly_dms.api.set_connection_enabled", { enabled: next ? 1 : 0 }, { method: "POST" });
-    notice.value = next ? "已启用" : "已停用";
+    notice.value = next ? t("connect.state.enabled") : t("connect.state.disabled");
     await refresh();
   });
 }
@@ -153,14 +157,18 @@ function toggleEnabled(): Promise<void> {
 function masterSummary(p: Probe): string {
   const m = p.masters ?? {};
   return [
-    `车型 ${m.car_models?.length ?? 0}`,
-    `分店 ${m.branches?.length ?? 0}`,
-    `顾问 ${m.advisors?.length ?? 0}`,
-    `称谓 ${m.term_sales?.length ?? 0}`,
+    tf("connect.master.carModels", m.car_models?.length ?? 0),
+    tf("connect.master.branches", m.branches?.length ?? 0),
+    tf("connect.master.advisors", m.advisors?.length ?? 0),
+    tf("connect.master.terms", m.term_sales?.length ?? 0),
   ].join(" · ");
 }
 
-onMounted(refresh);
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+  return refresh();
+});
 </script>
 
 <template>
@@ -176,13 +184,13 @@ onMounted(refresh);
 
     <div class="pn-card">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
-        <div style="font-size: 16px; font-weight: 800">{{ ep?.label || "连接第三方 DMS" }}</div>
+        <div style="font-size: 16px; font-weight: 800">{{ ep?.label || t('connect.title') }}</div>
         <div style="display: flex; gap: 8px">
           <Button
             v-if="configured"
             variant="outline"
             theme="gray"
-            :label="busy === 'test' ? '测试中…' : '测试连接'"
+            :label="busy === 'test' ? t('connect.action.testing') : t('connect.action.test')"
             :disabled="busy === 'test'"
             @click="testSaved"
           />
@@ -190,7 +198,13 @@ onMounted(refresh);
             v-if="configured"
             variant="outline"
             theme="gray"
-            :label="busy === 'toggle' ? '处理中…' : ep?.enabled ? '停用' : '启用'"
+            :label="
+              busy === 'toggle'
+                ? t('connect.processing')
+                : ep?.enabled
+                  ? t('connect.action.disable')
+                  : t('connect.action.enable')
+            "
             :disabled="busy === 'toggle'"
             @click="toggleEnabled"
           />
@@ -198,7 +212,7 @@ onMounted(refresh);
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="configured ? '修改账号' : '连接 DMS'"
+            :label="configured ? t('connect.action.edit') : t('connect.action.connect')"
             @click="openWizard"
           />
         </div>
@@ -206,49 +220,70 @@ onMounted(refresh);
 
       <div v-if="loading" class="pn-skeleton" style="width: 220px; margin-top: 14px" />
       <div v-else class="pn-fields">
-        <div class="pn-label">状态</div>
+        <div class="pn-label">{{ t('connect.field.status') }}</div>
         <div :style="{ color: ep?.enabled ? 'var(--good)' : 'var(--ink3)', fontWeight: 700 }">
-          {{ configured ? (ep?.enabled ? "已连接" : "已停用") : "未连接" }}
+          {{
+            configured
+              ? ep?.enabled
+                ? t('connect.state.connected')
+                : t('connect.state.disabled')
+              : t('connect.state.notConnected')
+          }}
         </div>
-        <div class="pn-label">账号</div>
+        <div class="pn-label">{{ t('connect.field.account') }}</div>
         <div>{{ ep?.username || "—" }}</div>
 
-        <div class="pn-label">地址</div>
+        <div class="pn-label">{{ t('connect.field.url') }}</div>
         <div>{{ ep?.system_url || "—" }}</div>
-        <div class="pn-label">有权限账号</div>
-        <div>{{ ep?.has_admin_creds ? "是" : "否" }}</div>
+        <div class="pn-label">{{ t('connect.field.adminCreds') }}</div>
+        <div>{{ ep?.has_admin_creds ? t('connect.yes') : t('connect.no') }}</div>
 
-        <div class="pn-label">最近结果</div>
+        <div class="pn-label">{{ t('connect.field.lastResult') }}</div>
         <div>{{ ep?.last_status || "—" }}</div>
-        <div class="pn-label">成功 / 失败</div>
+        <div class="pn-label">{{ t('connect.field.successFailure') }}</div>
         <div>{{ ep?.success_count ?? 0 }} / {{ ep?.failure_count ?? 0 }}</div>
       </div>
     </div>
 
     <!-- 向导弹窗：地址写死隐藏，只填账号密码 -->
-    <Dialog v-model="open" :options="{ title: configured ? '修改账号' : '连接 DMS', size: 'sm' }">
+    <Dialog
+      v-model="open"
+      :options="{
+        title: configured ? t('connect.action.edit') : t('connect.action.connect'),
+        size: 'sm',
+      }"
+    >
       <template #body-content>
         <div class="pn-form">
-          <label class="pn-label">账号</label>
-          <input v-model="form.username" class="form-input" placeholder="DMS 登录账号" />
-          <label class="pn-label">密码</label>
+          <label class="pn-label">{{ t('connect.field.account') }}</label>
+          <input
+            v-model="form.username"
+            class="form-input"
+            :placeholder="t('connect.placeholder.username')"
+          />
+          <label class="pn-label">{{ t('connect.field.password') }}</label>
           <input
             v-model="form.password"
             type="password"
             class="form-input"
-            placeholder="DMS 登录密码"
+            :placeholder="t('connect.placeholder.password')"
             autocomplete="new-password"
           />
           <div v-if="error" class="pn-error" style="grid-column: 1 / -1" role="alert">
             {{ error }}
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray" label="取消" @click="open = false" />
+            <Button
+              variant="outline"
+              theme="gray"
+              :label="t('connect.cancel')"
+              @click="open = false"
+            />
             <Button
               variant="solid"
               theme="gray"
               class="pn-primary"
-              :label="busy === 'save' ? '连接中…' : '连接并保存'"
+              :label="busy === 'save' ? t('connect.action.connecting') : t('connect.action.connectSave')"
               :disabled="!canSubmit || busy === 'save'"
               @click="connectAndSave"
             />

@@ -811,3 +811,144 @@ pearnly_core	1. Have this operator add Pearnly DMS as a LINE friend	1. 让该操
 pearnly_core	2. Send this bind code in the LINE chat to connect	2. 在 LINE 对话中发送此绑定码完成连接	2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ	2. LINEのトークでこの連携コードを送ると接続できます	roster.code.step2
 pearnly_core	Valid for {0}	剩余有效期 {0}	เหลืออายุ {0}	残り有効時間 {0}	roster.code.validFor
 pearnly_core	The bind code has expired — please regenerate	绑定码已过期，请重新生成	รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่	連携コードの期限が切れました。再生成してください	roster.code.expiredHint
+pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	intake.title
+pearnly_core	Limit: unconfirmed documents cannot be pushed (the state machine blocks it on the server, not by greying out the button)	上限：未确认的单据推不出去（状态机在后端卡着，不是靠界面按钮灰掉）	ข้อจำกัด: เอกสารที่ยังไม่ยืนยันส่งออกไม่ได้ (ระบบตรวจที่เซิร์ฟเวอร์ ไม่ได้แค่ทำให้ปุ่มเป็นสีเทา)	制限：未確認の伝票は送信できません（状態機械がサーバー側で止めます。ボタンを灰色にしているだけではありません）	intake.subtitle
+pearnly_core	To confirm	待确认	รอยืนยัน	確認待ち	intake.card.waiting
+pearnly_core	Confirmed · ready to push	已确认 · 可推送	ยืนยันแล้ว · พร้อมส่ง	確認済み・送信可能	intake.card.readyToPush
+pearnly_core	Purchases (confirmed and above)	进项合计（已确认及以上）	ยอดซื้อ (ยืนยันแล้วขึ้นไป)	仕入合計（確認済み以上）	intake.card.purchaseTotal
+pearnly_core	Sales (confirmed and above)	销项合计（已确认及以上）	ยอดขาย (ยืนยันแล้วขึ้นไป)	売上合計（確認済み以上）	intake.card.salesTotal
+pearnly_core	Draft	草稿	ฉบับร่าง	下書き	intake.status.draft
+pearnly_core	Recognized	已识别	อ่านแล้ว	読み取り済み	intake.status.recognized
+pearnly_core	Confirmed	已确认	ยืนยันแล้ว	確認済み	intake.status.confirmed
+pearnly_core	Queued to push	待推送	รอส่ง	送信待ち	intake.status.queued
+pearnly_core	Pushed	已推送	ส่งแล้ว	送信済み	intake.status.pushed
+pearnly_core	Push failed	推送失败	ส่งไม่สำเร็จ	送信失敗	intake.status.failed
+pearnly_core	Returned	已退回	ตีกลับ	差戻し	intake.status.rejected
+pearnly_core	Purchase	进项	ซื้อ	仕入	intake.dir.purchase
+pearnly_core	Sale	销项	ขาย	売上	intake.dir.sales
+pearnly_core	Purchase (bills received)	进项（收到的票）	ซื้อ (บิลที่ได้รับ)	仕入（受領した請求書）	intake.dir.purchaseFull
+pearnly_core	Sale (bills we issue)	销项（自己开的票）	ขาย (บิลที่เราออก)	売上（自社発行の請求書）	intake.dir.salesFull
+pearnly_core	Purchase / Sale	进项 / 销项	ซื้อ / ขาย	仕入 / 売上	intake.field.direction
+pearnly_core	Source	来源	แหล่งที่มา	取得元	intake.field.source
+pearnly_core	Upload	上传	อัปโหลด	アップロード	intake.source.upload
+pearnly_core	Email	邮件	อีเมล	メール	intake.source.email
+pearnly_core	Manual	手工	กรอกเอง	手入力	intake.source.manual
+pearnly_core	All directions	全部方向	ทุกทิศทาง	全ての区分	intake.filter.allDirections
+pearnly_core	All statuses	全部状态	ทุกสถานะ	全てのステータス	intake.filter.allStatuses
+pearnly_core	Counterparty	对方名称	คู่ค้า	取引先	intake.field.counterparty
+pearnly_core	Supplier / customer	供应商 / 客户	ผู้ขาย / ลูกค้า	仕入先 / 顧客	intake.placeholder.counterparty
+pearnly_core	Net amount	未税金额	ยอดก่อนภาษี	税抜金額	intake.field.netAmount
+pearnly_core	VAT	税额	ภาษีมูลค่าเพิ่ม	税額	intake.field.vatAmount
+pearnly_core	New entry	新建录入	บันทึกใหม่	新規入力	intake.action.new
+pearnly_core	Confirm	确认	ยืนยัน	確認	intake.action.confirm
+pearnly_core	Push	推送	ส่ง	送信	intake.action.queue
+pearnly_core	Saved as a draft; confirm it before it can be pushed	保存后是「草稿」，确认之后才能推送	บันทึกแล้วจะเป็นฉบับร่าง ต้องยืนยันก่อนจึงจะส่งได้	保存すると下書きになります。確認してから送信できます	intake.hint.afterSave
+pearnly_core	No records yet. Use “New entry” in the top right to add the first one.	还没有记录。点右上角「新建录入」录第一张。	ยังไม่มีรายการ กด "บันทึกใหม่" ที่มุมขวาบนเพื่อเพิ่มรายการแรก	まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。	intake.empty
+pearnly_core	Created: {0}	已录入：{0}	บันทึกแล้ว: {0}	登録しました：{0}	intake.notice.created
+pearnly_core	{0} → {1}	{0} → {1}	{0} → {1}	{0} → {1}	intake.notice.moved
+pearnly_core	Direction	方向	ทิศทาง	区分	intake.col.direction
+pearnly_core	Counterparty	对方	คู่ค้า	取引先	intake.col.counterparty
+pearnly_core	Actions	操作	การจัดการ	操作	intake.col.actions
+pearnly_core	Purchase Records	采购记录	บันทึกการจัดซื้อ	仕入記録	purchase.title
+pearnly_core	Amounts are recalculated on the server; every figure shown here comes from the server	金额由服务端重算，这里显示的都是服务端返回的数字	ยอดเงินคำนวณใหม่ที่เซิร์ฟเวอร์ ตัวเลขที่แสดงมาจากเซิร์ฟเวอร์ทั้งหมด	金額はサーバーで再計算されます。ここに表示される数値はすべてサーバーが返したものです	purchase.subtitle
+pearnly_core	Documents	单据数	จำนวนเอกสาร	伝票数	purchase.card.count
+pearnly_core	Net payable	应付净额	ยอดที่ต้องจ่ายสุทธิ	支払純額	purchase.card.netPayable
+pearnly_core	Outstanding	未付	ค้างจ่าย	未払い	purchase.card.outstanding
+pearnly_core	New purchase order	新建采购单	สร้างใบซื้อใหม่	仕入伝票を作成	purchase.action.new
+pearnly_core	Supplier	供应商	ผู้ขาย	仕入先	purchase.field.supplier
+pearnly_core	Supplier name	供应商名称	ชื่อผู้ขาย	仕入先名	purchase.placeholder.supplier
+pearnly_core	Lines	明细	รายการ	明細	purchase.field.lines
+pearnly_core	Item / description	品名 / 说明	ชื่อสินค้า / คำอธิบาย	品名・摘要	purchase.placeholder.description
+pearnly_core	Qty	数量	จำนวน	数量	purchase.placeholder.qty
+pearnly_core	Unit price	单价	ราคาต่อหน่วย	単価	purchase.placeholder.unitPrice
+pearnly_core	VAT %	税率%	ภาษี %	税率%	purchase.placeholder.vatRate
+pearnly_core	Delete	删	ลบ	削除	purchase.action.removeLine
+pearnly_core	Add a line	加一行	เพิ่มรายการ	行を追加	purchase.action.addLine
+pearnly_core	Save purchase order	保存采购单	บันทึกใบซื้อ	仕入伝票を保存	purchase.action.save
+pearnly_core	The total is calculated on the server — no need to fill it in	合计由服务端算，不用填	ยอดรวมคำนวณที่เซิร์ฟเวอร์ ไม่ต้องกรอก	合計はサーバーが計算します。入力は不要です	purchase.hint.serverTotal
+pearnly_core	No purchase orders yet. Use “New purchase order” in the top right to add the first one.	还没有采购单。点右上角「新建采购单」录第一张。	ยังไม่มีใบซื้อ กด "สร้างใบซื้อใหม่" ที่มุมขวาบนเพื่อเพิ่มใบแรก	まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。	purchase.empty
+pearnly_core	Purchase order created: {0}	已建单：{0}	สร้างใบซื้อแล้ว: {0}	伝票を作成しました：{0}	purchase.notice.created
+pearnly_core	Connect third-party DMS	连接第三方 DMS	เชื่อมต่อ DMS ภายนอก	外部DMSに接続	connect.title
+pearnly_core	Status	状态	สถานะ	ステータス	connect.field.status
+pearnly_core	Test connection	测试连接	ทดสอบการเชื่อมต่อ	接続テスト	connect.action.test
+pearnly_core	Testing…	测试中…	กำลังทดสอบ…	テスト中…	connect.action.testing
+pearnly_core	Enable	启用	เปิดใช้งาน	有効化	connect.action.enable
+pearnly_core	Enabled	已启用	เปิดใช้งานแล้ว	有効	connect.state.enabled
+pearnly_core	Disable	停用	ปิดใช้งาน	無効化	connect.action.disable
+pearnly_core	Disabled	已停用	ปิดใช้งานแล้ว	無効	connect.state.disabled
+pearnly_core	Connected	已连接	เชื่อมต่อแล้ว	接続済み	connect.state.connected
+pearnly_core	Not connected	未连接	ยังไม่เชื่อมต่อ	未接続	connect.state.notConnected
+pearnly_core	Change account	修改账号	แก้ไขบัญชี	アカウントを変更	connect.action.edit
+pearnly_core	Connect DMS	连接 DMS	เชื่อมต่อ DMS	DMSに接続	connect.action.connect
+pearnly_core	Connect and save	连接并保存	เชื่อมต่อและบันทึก	接続して保存	connect.action.connectSave
+pearnly_core	Connecting…	连接中…	กำลังเชื่อมต่อ…	接続中…	connect.action.connecting
+pearnly_core	Account	账号	บัญชี	アカウント	connect.field.account
+pearnly_core	Address	地址	ที่อยู่	アドレス	connect.field.url
+pearnly_core	Account with admin rights	有权限账号	บัญชีที่มีสิทธิ์	権限アカウント	connect.field.adminCreds
+pearnly_core	Last result	最近结果	ผลล่าสุด	最新の結果	connect.field.lastResult
+pearnly_core	Success / failure	成功 / 失败	สำเร็จ / ล้มเหลว	成功・失敗	connect.field.successFailure
+pearnly_core	Password	密码	รหัสผ่าน	パスワード	connect.field.password
+pearnly_core	DMS login account	DMS 登录账号	บัญชีเข้า DMS	DMSログインアカウント	connect.placeholder.username
+pearnly_core	DMS login password	DMS 登录密码	รหัสผ่านเข้า DMS	DMSログインパスワード	connect.placeholder.password
+pearnly_core	Connected · {0}	已连接 · {0}	เชื่อมต่อแล้ว · {0}	接続しました · {0}	connect.notice.connected
+pearnly_core	Connection OK · {0}	连接正常 · {0}	การเชื่อมต่อปกติ · {0}	接続正常 · {0}	connect.notice.ok
+pearnly_core	Connection failed	连接失败	เชื่อมต่อไม่สำเร็จ	接続に失敗しました	connect.error.failed
+pearnly_core	Car models {0}	车型 {0}	รุ่นรถ {0}	車種 {0}	connect.master.carModels
+pearnly_core	Branches {0}	分店 {0}	สาขา {0}	支店 {0}	connect.master.branches
+pearnly_core	Advisors {0}	顾问 {0}	ที่ปรึกษา {0}	担当者 {0}	connect.master.advisors
+pearnly_core	Titles {0}	称谓 {0}	คำนำหน้า {0}	敬称 {0}	connect.master.terms
+pearnly_core	Change password	更改密码	เปลี่ยนรหัสผ่าน	パスワード変更	account.changePassword
+pearnly_core	Sign out	退出登录	ออกจากระบบ	ログアウト	account.signOut
+pearnly_core	Current password	当前密码	รหัสผ่านปัจจุบัน	現在のパスワード	account.pwd.current
+pearnly_core	New password	新密码	รหัสผ่านใหม่	新しいパスワード	account.pwd.new
+pearnly_core	Confirm new password	确认新密码	ยืนยันรหัสผ่านใหม่	新しいパスワード（確認）	account.pwd.confirm
+pearnly_core	The two passwords do not match	两次输入不一致	รหัสผ่านทั้งสองไม่ตรงกัน	パスワードが一致しません	account.pwd.mismatch
+pearnly_core	Password updated. Use the new password next time you sign in.	密码已更新。下次登录请用新密码。	อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่	パスワードを更新しました。次回は新しいパスワードでログインしてください。	account.pwd.done
+pearnly_core	Failed to start (HTTP {0}): {1}	启动失败（HTTP {0}）：{1}	เริ่มระบบล้มเหลว (HTTP {0}): {1}	起動に失敗しました（HTTP {0}）：{1}	shell.boot.failed
+pearnly_core	Failed to start: {0}	启动失败：{0}	เริ่มระบบล้มเหลว: {0}	起動に失敗しました：{0}	shell.boot.failedPlain
+pearnly_core	Page not built	未建页面	หน้านี้ยังไม่ได้ทำ	未作成のページ	shell.notBuilt
+pearnly_core	You need to sign in to the site before opening this page. Enter through the site domain and sign in.	这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。	หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ	このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。	shell.needLogin
+pearnly_core	This page is not built yet	这一页还没做	หน้านี้ยังไม่ได้ทำ	このページはまだ作成していません	shell.notBuilt.title
+pearnly_core	The menu lists the pages from the plan; the features are not implemented yet. Current route:	菜单是照页面清单列出来的，功能还没实现。当前路由：	เมนูจัดตามรายการหน้า แต่ฟังก์ชันยังไม่ได้ทำ เส้นทางปัจจุบัน:	メニューはページ一覧に沿って並べたもので、機能はまだ実装していません。現在のルート：	shell.notBuilt.body
+pearnly_core	Tenant boot data	本站点启动数据	ข้อมูลเริ่มต้นของเว็บไซต์นี้	このサイトの起動データ	shell.bootCard.title
+pearnly_core	Product	产品	ผลิตภัณฑ์	製品	shell.bootCard.product
+pearnly_core	Current account	当前账号	บัญชีปัจจุบัน	現在のアカウント	shell.bootCard.account
+pearnly_core	UI language	界面语言	ภาษาของหน้าจอ	表示言語	shell.bootCard.language
+pearnly_core	Features purchased	买到的功能	ฟังก์ชันที่ซื้อแล้ว	購入済みの機能	shell.bootCard.features
+pearnly_core	(none)	（一个都没有）	(ไม่มีเลย)	（なし）	shell.bootCard.none
+pearnly_core	Back to home	回到首页	กลับหน้าหลัก	ホームに戻る	shell.backHome
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	intake.error.http
+pearnly_core	Loading…	加载中…	กำลังโหลด…	読み込み中…	intake.loading
+pearnly_core	Refresh	刷新	รีเฟรช	更新	intake.refresh
+pearnly_core	Collapse	收起	ย่อ	閉じる	intake.collapse
+pearnly_core	Save	保存	บันทึก	保存	intake.save
+pearnly_core	Saving…	提交中…	กำลังบันทึก…	保存中…	intake.saving
+pearnly_core	Processing…	处理中…	กำลังดำเนินการ…	処理中…	intake.processing
+pearnly_core	No.	单号	เลขที่	番号	intake.col.name
+pearnly_core	Date	日期	วันที่	日付	intake.col.date
+pearnly_core	Status	状态	สถานะ	ステータス	intake.col.status
+pearnly_core	Total incl. VAT	价税合计	รวมภาษี	税込合計	intake.col.grandTotal
+pearnly_core	Document no.	单据号	เลขที่เอกสาร	伝票番号	intake.field.docNo
+pearnly_core	Document date	单据日期	วันที่เอกสาร	伝票日付	intake.field.docDate
+pearnly_core	Optional	可留空	เว้นว่างได้	空欄可	intake.placeholder.docNo
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	purchase.error.http
+pearnly_core	Loading…	加载中…	กำลังโหลด…	読み込み中…	purchase.loading
+pearnly_core	Refresh	刷新	รีเฟรช	更新	purchase.refresh
+pearnly_core	Collapse	收起	ย่อ	閉じる	purchase.collapse
+pearnly_core	Saving…	提交中…	กำลังบันทึก…	保存中…	purchase.saving
+pearnly_core	No.	单号	เลขที่	番号	purchase.col.name
+pearnly_core	Date	日期	วันที่	日付	purchase.col.date
+pearnly_core	Status	状态	สถานะ	ステータス	purchase.col.status
+pearnly_core	Total incl. VAT	价税合计	รวมภาษี	税込合計	purchase.col.grandTotal
+pearnly_core	External document no.	外部单据号	เลขที่เอกสารภายนอก	外部伝票番号	purchase.field.docNo
+pearnly_core	Document date	单据日期	วันที่เอกสาร	伝票日付	purchase.field.docDate
+pearnly_core	Optional	可留空	เว้นว่างได้	空欄可	purchase.placeholder.docNo
+pearnly_core	Cancel	取消	ยกเลิก	キャンセル	connect.cancel
+pearnly_core	Processing…	处理中…	กำลังดำเนินการ…	処理中…	connect.processing
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	connect.error.http
+pearnly_core	Yes	是	ใช่	はい	connect.yes
+pearnly_core	No	否	ไม่	いいえ	connect.no
+pearnly_core	Cancel	取消	ยกเลิก	キャンセル	account.cancel
+pearnly_core	Save	保存	บันทึก	保存	account.save
+pearnly_core	Saving…	提交中…	กำลังบันทึก…	保存中…	account.saving
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	account.error.http

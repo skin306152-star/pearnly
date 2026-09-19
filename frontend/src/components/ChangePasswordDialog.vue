@@ -12,9 +12,13 @@
 // **密码强度前端也不卡**（用户 2026-09-18 要求："密码不要卡得太严格，
 // 纯字母，纯数字都可以，包括首次使用"）：这里只提示"两次输入不一致"，
 // 不再提示长度，免得出现"界面说还差几位、其实后端已经收下"的错配。
-import { computed, ref, watch } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { Button, Dialog } from "frappe-ui";
+import { createTexts } from "../lib/i18n";
 import { call, ApiError } from "../lib/api";
+
+// 弹窗文案走语言包（键 = `account.*`）。
+const { t, tf, load: loadTexts } = createTexts([], "account.");
 
 const open = defineModel<boolean>("open", { required: true });
 const emit = defineEmits<{ changed: [] }>();
@@ -27,7 +31,9 @@ const error = ref("");
 const done = ref("");
 
 const hint = computed(() => {
-  if (confirmPassword.value && newPassword.value !== confirmPassword.value) return "两次输入不一致";
+  if (confirmPassword.value && newPassword.value !== confirmPassword.value) {
+    return t("account.pwd.mismatch");
+  }
   return "";
 });
 
@@ -51,9 +57,14 @@ watch(open, (isOpen) => {
 });
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || `请求失败（HTTP ${err.status}）`;
+  if (err instanceof ApiError) return err.message || tf("account.error.http", err.status);
   return String(err);
 }
+
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+});
 
 async function submit(): Promise<void> {
   saving.value = true;
@@ -69,7 +80,7 @@ async function submit(): Promise<void> {
       },
       { method: "POST" },
     );
-    done.value = "密码已更新。下次登录请用新密码。";
+    done.value = t("account.pwd.done");
     emit("changed");
     setTimeout(() => {
       open.value = false;
@@ -83,11 +94,11 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <Dialog v-model="open" :options="{ title: '更改密码', size: 'sm' }">
+  <Dialog v-model="open" :options="{ title: t('account.changePassword'), size: 'sm' }">
     <template #body-content>
       <div style="display: flex; flex-direction: column; gap: 12px">
         <label>
-          <span class="pn-muted">当前密码</span>
+          <span class="pn-muted">{{ t('account.pwd.current') }}</span>
           <input
             v-model="currentPassword"
             type="password"
@@ -96,7 +107,7 @@ async function submit(): Promise<void> {
           />
         </label>
         <label>
-          <span class="pn-muted">新密码</span>
+          <span class="pn-muted">{{ t('account.pwd.new') }}</span>
           <input
             v-model="newPassword"
             type="password"
@@ -105,7 +116,7 @@ async function submit(): Promise<void> {
           />
         </label>
         <label>
-          <span class="pn-muted">确认新密码</span>
+          <span class="pn-muted">{{ t('account.pwd.confirm') }}</span>
           <input
             v-model="confirmPassword"
             type="password"
@@ -121,12 +132,17 @@ async function submit(): Promise<void> {
         </p>
 
         <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px">
-          <Button variant="outline" theme="gray" label="取消" @click="open = false" />
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="t('account.cancel')"
+            @click="open = false"
+          />
           <Button
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="saving ? '提交中…' : '保存'"
+            :label="saving ? t('account.saving') : t('account.save')"
             :disabled="!canSubmit"
             @click="submit"
           />

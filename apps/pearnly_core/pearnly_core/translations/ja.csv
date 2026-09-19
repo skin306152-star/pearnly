@@ -404,7 +404,70 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,源泉税
 Workspace,ワークスペース
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。"
+account.cancel,キャンセル
+account.changePassword,パスワード変更
+account.error.http,リクエスト失敗（HTTP {0}）
+account.pwd.confirm,新しいパスワード（確認）
+account.pwd.current,現在のパスワード
+account.pwd.done,パスワードを更新しました。次回は新しいパスワードでログインしてください。
+account.pwd.mismatch,パスワードが一致しません
+account.pwd.new,新しいパスワード
+account.save,保存
+account.saving,保存中…
+account.signOut,ログアウト
+common.backHome,ホームに戻る
+common.cancel,キャンセル
+common.col.date,日付
+common.col.grandTotal,税込合計
+common.col.name,番号
+common.col.status,ステータス
+common.collapse,閉じる
+common.error.http,リクエスト失敗（HTTP {0}）
+common.field.docDate,伝票日付
+common.field.docNo,伝票番号
+common.loading,読み込み中…
+common.no,いいえ
+common.placeholder.optional,空欄可
+common.processing,処理中…
+common.refresh,更新
+common.save,保存
+common.saving,保存中…
+common.yes,はい
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
+connect.action.connect,DMSに接続
+connect.action.connectSave,接続して保存
+connect.action.connecting,接続中…
+connect.action.disable,無効化
+connect.action.edit,アカウントを変更
+connect.action.enable,有効化
+connect.action.test,接続テスト
+connect.action.testing,テスト中…
+connect.cancel,キャンセル
+connect.error.failed,接続に失敗しました
+connect.error.http,リクエスト失敗（HTTP {0}）
+connect.field.account,アカウント
+connect.field.adminCreds,権限アカウント
+connect.field.lastResult,最新の結果
+connect.field.password,パスワード
+connect.field.status,ステータス
+connect.field.successFailure,成功・失敗
+connect.field.url,アドレス
+connect.master.advisors,担当者 {0}
+connect.master.branches,支店 {0}
+connect.master.carModels,車種 {0}
+connect.master.terms,敬称 {0}
+connect.no,いいえ
+connect.notice.connected,接続しました · {0}
+connect.notice.ok,接続正常 · {0}
+connect.placeholder.password,DMSログインパスワード
+connect.placeholder.username,DMSログインアカウント
+connect.processing,処理中…
+connect.state.connected,接続済み
+connect.state.disabled,無効
+connect.state.enabled,有効
+connect.state.notConnected,未接続
+connect.title,外部DMSに接続
+connect.yes,はい
 endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 home.balance.title,口座残高
@@ -470,6 +533,58 @@ home.topup.payerHint,銀行振込の振込人名
 home.topup.submit,申請する
 home.topup.submitted,チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。
 home.topup.submitting,送信中…
+intake.action.confirm,確認
+intake.action.new,新規入力
+intake.action.queue,送信
+intake.card.purchaseTotal,仕入合計（確認済み以上）
+intake.card.readyToPush,確認済み・送信可能
+intake.card.salesTotal,売上合計（確認済み以上）
+intake.card.waiting,確認待ち
+intake.col.actions,操作
+intake.col.counterparty,取引先
+intake.col.date,日付
+intake.col.direction,区分
+intake.col.grandTotal,税込合計
+intake.col.name,番号
+intake.col.status,ステータス
+intake.collapse,閉じる
+intake.dir.purchase,仕入
+intake.dir.purchaseFull,仕入（受領した請求書）
+intake.dir.sales,売上
+intake.dir.salesFull,売上（自社発行の請求書）
+intake.empty,まだ記録がありません。右上の「新規入力」から最初の1件を登録してください。
+intake.error.http,リクエスト失敗（HTTP {0}）
+intake.field.counterparty,取引先
+intake.field.direction,仕入 / 売上
+intake.field.docDate,伝票日付
+intake.field.docNo,伝票番号
+intake.field.netAmount,税抜金額
+intake.field.source,取得元
+intake.field.vatAmount,税額
+intake.filter.allDirections,全ての区分
+intake.filter.allStatuses,全てのステータス
+intake.hint.afterSave,保存すると下書きになります。確認してから送信できます
+intake.loading,読み込み中…
+intake.notice.created,登録しました：{0}
+intake.notice.moved,{0} → {1}
+intake.placeholder.counterparty,仕入先 / 顧客
+intake.placeholder.docNo,空欄可
+intake.processing,処理中…
+intake.refresh,更新
+intake.save,保存
+intake.saving,保存中…
+intake.source.email,メール
+intake.source.manual,手入力
+intake.source.upload,アップロード
+intake.status.confirmed,確認済み
+intake.status.draft,下書き
+intake.status.failed,送信失敗
+intake.status.pushed,送信済み
+intake.status.queued,送信待ち
+intake.status.recognized,読み取り済み
+intake.status.rejected,差戻し
+intake.subtitle,制限：未確認の伝票は送信できません（状態機械がサーバー側で止めます。ボタンを灰色にしているだけではありません）
+intake.title,取り込みワークベンチ
 nav.clients,顧客管理
 nav.company,会社情報
 nav.connect,外部DMSに接続
@@ -501,6 +616,37 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
+purchase.action.addLine,行を追加
+purchase.action.new,仕入伝票を作成
+purchase.action.removeLine,削除
+purchase.action.save,仕入伝票を保存
+purchase.card.count,伝票数
+purchase.card.netPayable,支払純額
+purchase.card.outstanding,未払い
+purchase.col.date,日付
+purchase.col.grandTotal,税込合計
+purchase.col.name,番号
+purchase.col.status,ステータス
+purchase.collapse,閉じる
+purchase.empty,まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。
+purchase.error.http,リクエスト失敗（HTTP {0}）
+purchase.field.docDate,伝票日付
+purchase.field.docNo,外部伝票番号
+purchase.field.lines,明細
+purchase.field.supplier,仕入先
+purchase.hint.serverTotal,合計はサーバーが計算します。入力は不要です
+purchase.loading,読み込み中…
+purchase.notice.created,伝票を作成しました：{0}
+purchase.placeholder.description,品名・摘要
+purchase.placeholder.docNo,空欄可
+purchase.placeholder.qty,数量
+purchase.placeholder.supplier,仕入先名
+purchase.placeholder.unitPrice,単価
+purchase.placeholder.vatRate,税率%
+purchase.refresh,更新
+purchase.saving,保存中…
+purchase.subtitle,金額はサーバーで再計算されます。ここに表示される数値はすべてサーバーが返したものです
+purchase.title,仕入記録
 roster.add,オペレーターを追加
 roster.addHint,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
 roster.advisor.auto,自動照合（DMSアカウント基準）
@@ -563,6 +709,19 @@ roster.subtitle,1行につき営業または管理者1名。各自のDMS資格�
 roster.title,オペレーター
 roster.unbound,未連携
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+shell.backHome,ホームに戻る
+shell.boot.failed,起動に失敗しました（HTTP {0}）：{1}
+shell.boot.failedPlain,起動に失敗しました：{0}
+shell.bootCard.account,現在のアカウント
+shell.bootCard.features,購入済みの機能
+shell.bootCard.language,表示言語
+shell.bootCard.none,（なし）
+shell.bootCard.product,製品
+shell.bootCard.title,このサイトの起動データ
+shell.needLogin,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
+shell.notBuilt,未作成のページ
+shell.notBuilt.body,メニューはページ一覧に沿って並べたもので、機能はまだ実装していません。現在のルート：
+shell.notBuilt.title,このページはまだ作成していません
 state is invalid or has expired,state が無効か期限切れです
 system_url is required,system_url は必須です
 username / password are required,username / password は必須です

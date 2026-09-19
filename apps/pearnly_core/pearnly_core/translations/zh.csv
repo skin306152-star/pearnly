@@ -404,7 +404,70 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,预扣税
 Workspace,工作区
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。"
+account.cancel,取消
+account.changePassword,更改密码
+account.error.http,请求失败（HTTP {0}）
+account.pwd.confirm,确认新密码
+account.pwd.current,当前密码
+account.pwd.done,密码已更新。下次登录请用新密码。
+account.pwd.mismatch,两次输入不一致
+account.pwd.new,新密码
+account.save,保存
+account.saving,提交中…
+account.signOut,退出登录
+common.backHome,回到首页
+common.cancel,取消
+common.col.date,日期
+common.col.grandTotal,价税合计
+common.col.name,单号
+common.col.status,状态
+common.collapse,收起
+common.error.http,请求失败（HTTP {0}）
+common.field.docDate,单据日期
+common.field.docNo,单据号
+common.loading,加载中…
+common.no,否
+common.placeholder.optional,可留空
+common.processing,处理中…
+common.refresh,刷新
+common.save,保存
+common.saving,提交中…
+common.yes,是
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机出站拉取后落库
+connect.action.connect,连接 DMS
+connect.action.connectSave,连接并保存
+connect.action.connecting,连接中…
+connect.action.disable,停用
+connect.action.edit,修改账号
+connect.action.enable,启用
+connect.action.test,测试连接
+connect.action.testing,测试中…
+connect.cancel,取消
+connect.error.failed,连接失败
+connect.error.http,请求失败（HTTP {0}）
+connect.field.account,账号
+connect.field.adminCreds,有权限账号
+connect.field.lastResult,最近结果
+connect.field.password,密码
+connect.field.status,状态
+connect.field.successFailure,成功 / 失败
+connect.field.url,地址
+connect.master.advisors,顾问 {0}
+connect.master.branches,分店 {0}
+connect.master.carModels,车型 {0}
+connect.master.terms,称谓 {0}
+connect.no,否
+connect.notice.connected,已连接 · {0}
+connect.notice.ok,连接正常 · {0}
+connect.placeholder.password,DMS 登录密码
+connect.placeholder.username,DMS 登录账号
+connect.processing,处理中…
+connect.state.connected,已连接
+connect.state.disabled,已停用
+connect.state.enabled,已启用
+connect.state.notConnected,未连接
+connect.title,连接第三方 DMS
+connect.yes,是
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 home.balance.title,账户余额
@@ -470,6 +533,58 @@ home.topup.payerHint,银行转账时的付款方
 home.topup.submit,提交申请
 home.topup.submitted,充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。
 home.topup.submitting,提交中…
+intake.action.confirm,确认
+intake.action.new,新建录入
+intake.action.queue,推送
+intake.card.purchaseTotal,进项合计（已确认及以上）
+intake.card.readyToPush,已确认 · 可推送
+intake.card.salesTotal,销项合计（已确认及以上）
+intake.card.waiting,待确认
+intake.col.actions,操作
+intake.col.counterparty,对方
+intake.col.date,日期
+intake.col.direction,方向
+intake.col.grandTotal,价税合计
+intake.col.name,单号
+intake.col.status,状态
+intake.collapse,收起
+intake.dir.purchase,进项
+intake.dir.purchaseFull,进项（收到的票）
+intake.dir.sales,销项
+intake.dir.salesFull,销项（自己开的票）
+intake.empty,还没有记录。点右上角「新建录入」录第一张。
+intake.error.http,请求失败（HTTP {0}）
+intake.field.counterparty,对方名称
+intake.field.direction,进项 / 销项
+intake.field.docDate,单据日期
+intake.field.docNo,单据号
+intake.field.netAmount,未税金额
+intake.field.source,来源
+intake.field.vatAmount,税额
+intake.filter.allDirections,全部方向
+intake.filter.allStatuses,全部状态
+intake.hint.afterSave,保存后是「草稿」，确认之后才能推送
+intake.loading,加载中…
+intake.notice.created,已录入：{0}
+intake.notice.moved,{0} → {1}
+intake.placeholder.counterparty,供应商 / 客户
+intake.placeholder.docNo,可留空
+intake.processing,处理中…
+intake.refresh,刷新
+intake.save,保存
+intake.saving,提交中…
+intake.source.email,邮件
+intake.source.manual,手工
+intake.source.upload,上传
+intake.status.confirmed,已确认
+intake.status.draft,草稿
+intake.status.failed,推送失败
+intake.status.pushed,已推送
+intake.status.queued,待推送
+intake.status.recognized,已识别
+intake.status.rejected,已退回
+intake.subtitle,上限：未确认的单据推不出去（状态机在后端卡着，不是靠界面按钮灰掉）
+intake.title,录入工作台
 nav.clients,客户管理
 nav.company,公司资料
 nav.connect,连接第三方 DMS
@@ -501,6 +616,37 @@ nav.suppliers,供应商
 nav.team,团队管理
 nav.work,工作协作
 nonce mismatch,nonce 不匹配
+purchase.action.addLine,加一行
+purchase.action.new,新建采购单
+purchase.action.removeLine,删
+purchase.action.save,保存采购单
+purchase.card.count,单据数
+purchase.card.netPayable,应付净额
+purchase.card.outstanding,未付
+purchase.col.date,日期
+purchase.col.grandTotal,价税合计
+purchase.col.name,单号
+purchase.col.status,状态
+purchase.collapse,收起
+purchase.empty,还没有采购单。点右上角「新建采购单」录第一张。
+purchase.error.http,请求失败（HTTP {0}）
+purchase.field.docDate,单据日期
+purchase.field.docNo,外部单据号
+purchase.field.lines,明细
+purchase.field.supplier,供应商
+purchase.hint.serverTotal,合计由服务端算，不用填
+purchase.loading,加载中…
+purchase.notice.created,已建单：{0}
+purchase.placeholder.description,品名 / 说明
+purchase.placeholder.docNo,可留空
+purchase.placeholder.qty,数量
+purchase.placeholder.supplier,供应商名称
+purchase.placeholder.unitPrice,单价
+purchase.placeholder.vatRate,税率%
+purchase.refresh,刷新
+purchase.saving,提交中…
+purchase.subtitle,金额由服务端重算，这里显示的都是服务端返回的数字
+purchase.title,采购记录
 roster.add,新增操作员
 roster.addHint,填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
 roster.advisor.auto,自动匹配（按 DMS 账号）
@@ -563,6 +709,19 @@ roster.subtitle,每行一位销售/管理员：各自 DMS 账密，逐行发 LIN
 roster.title,操作员
 roster.unbound,未绑
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
+shell.backHome,回到首页
+shell.boot.failed,启动失败（HTTP {0}）：{1}
+shell.boot.failedPlain,启动失败：{0}
+shell.bootCard.account,当前账号
+shell.bootCard.features,买到的功能
+shell.bootCard.language,界面语言
+shell.bootCard.none,（一个都没有）
+shell.bootCard.product,产品
+shell.bootCard.title,本站点启动数据
+shell.needLogin,这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。
+shell.notBuilt,未建页面
+shell.notBuilt.body,菜单是照页面清单列出来的，功能还没实现。当前路由：
+shell.notBuilt.title,这一页还没做
 state is invalid or has expired,state 无效或已过期
 system_url is required,system_url 必填
 username / password are required,username / password 必填

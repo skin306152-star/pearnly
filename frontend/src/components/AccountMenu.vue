@@ -3,10 +3,14 @@
 //
 // 用户当时的要求："改密放在登录后产品内，左下角或者右下角点开头像改，不是登录页"。
 // 三个产品共用同一套（本仓前端本来就只有一份）。
-import { ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { Dropdown } from "frappe-ui";
 import type { ShellBoot } from "../lib/shell";
+import { createTexts } from "../lib/i18n";
 import ChangePasswordDialog from "./ChangePasswordDialog.vue";
+
+// 菜单文案走语言包（键 = `account.*`）。
+const { t, load: loadTexts } = createTexts([], "account.");
 
 const props = defineProps<{ boot: ShellBoot }>();
 
@@ -17,16 +21,17 @@ function initials(name: string): string {
   return trimmed ? trimmed.slice(0, 1).toUpperCase() : "?";
 }
 
-const options = [
+// **必须是 computed**：语言包是异步取回来的，在这里求值一次就会永久定格成键名。
+const options = computed(() => [
   {
-    label: "更改密码",
+    label: t("account.changePassword"),
     icon: "key",
     onClick: () => {
       passwordOpen.value = true;
     },
   },
   {
-    label: "退出登录",
+    label: t("account.signOut"),
     icon: "log-out",
     // 退出走站点自己的登出端点：它会把会话结束并送回统一登录口。
     // （"退出所有设备"是另一个能力，等做会话列表时再放出来，不在这里假装有。）
@@ -34,7 +39,12 @@ const options = [
       window.location.href = "/api/method/logout?redirect-to=/";
     },
   },
-];
+]);
+
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+});
 </script>
 
 <template>

@@ -9,7 +9,11 @@
 // 这里展示的都是服务端返回的数字。
 import { computed, onMounted, reactive, ref } from "vue";
 import { Button } from "frappe-ui";
+import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
+
+// 页面文案走语言包（键 = `purchase.*`）：一次取整包，页面上不维护"我要用哪些键"的清单。
+const { t, tf, load: loadTexts } = createTexts([], "purchase.");
 
 interface Row {
   name: string;
@@ -69,7 +73,7 @@ function money(value: number | string, currency = "THB"): string {
 }
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || `请求失败（HTTP ${err.status}）`;
+  if (err instanceof ApiError) return err.message || tf("purchase.error.http", err.status);
   return String(err);
 }
 
@@ -119,7 +123,7 @@ async function submit(): Promise<void> {
       },
       { method: "POST" },
     );
-    okMessage.value = `已建单：${created.name}`;
+    okMessage.value = tf("purchase.notice.created", created.name);
     // 建完就清空，避免手快连点建出两张一样的
     draft.supplier_name = "";
     draft.doc_no = "";
@@ -133,7 +137,11 @@ async function submit(): Promise<void> {
   }
 }
 
-onMounted(refresh);
+onMounted(() => {
+  // 文案取不到不该把整页挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+  loadTexts().catch(() => {});
+  return refresh();
+});
 </script>
 
 <template>
@@ -149,23 +157,23 @@ onMounted(refresh);
 
     <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
       <div class="pn-card">
-        <div class="pn-muted">单据数</div>
+        <div class="pn-muted">{{ t('purchase.card.count') }}</div>
         <div style="font-size: 22px; font-weight: 800">{{ summary?.count ?? "—" }}</div>
       </div>
       <div class="pn-card">
-        <div class="pn-muted">价税合计</div>
+        <div class="pn-muted">{{ t('purchase.col.grandTotal') }}</div>
         <div style="font-size: 22px; font-weight: 800">
           {{ summary ? money(summary.grand_total) : "—" }}
         </div>
       </div>
       <div class="pn-card">
-        <div class="pn-muted">应付净额</div>
+        <div class="pn-muted">{{ t('purchase.card.netPayable') }}</div>
         <div style="font-size: 22px; font-weight: 800">
           {{ summary ? money(summary.net_payable) : "—" }}
         </div>
       </div>
       <div class="pn-card">
-        <div class="pn-muted">未付</div>
+        <div class="pn-muted">{{ t('purchase.card.outstanding') }}</div>
         <div style="font-size: 22px; font-weight: 800; color: var(--warn)">
           {{ summary ? money(summary.outstanding) : "—" }}
         </div>
@@ -175,8 +183,8 @@ onMounted(refresh);
     <div class="pn-card">
       <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
         <div>
-          <div style="font-size: 16px; font-weight: 800">采购记录</div>
-          <div class="pn-muted">金额由服务端重算，这里显示的都是服务端返回的数字</div>
+          <div style="font-size: 16px; font-weight: 800">{{ t('purchase.title') }}</div>
+          <div class="pn-muted">{{ t('purchase.subtitle') }}</div>
         </div>
         <div style="display: flex; gap: 8px">
           <!-- 尺寸/间距用官方原生的（Button 自带尺寸档与内边距），只有主色用我们的
@@ -184,7 +192,7 @@ onMounted(refresh);
           <Button
             variant="outline"
             theme="gray"
-            :label="loading ? '加载中…' : '刷新'"
+            :label="loading ? t('purchase.loading') : t('purchase.refresh')"
             :disabled="loading"
             @click="refresh"
           />
@@ -192,7 +200,7 @@ onMounted(refresh);
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="showForm ? '收起' : '新建采购单'"
+            :label="showForm ? t('purchase.collapse') : t('purchase.action.new')"
             @click="showForm = !showForm"
           />
         </div>
@@ -201,39 +209,74 @@ onMounted(refresh);
       <div v-if="showForm" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px">
         <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px">
           <label>
-            <span class="pn-muted">供应商</span>
-            <input v-model="draft.supplier_name" class="form-input w-full" placeholder="供应商名称" />
+            <span class="pn-muted">{{ t('purchase.field.supplier') }}</span>
+            <input
+              v-model="draft.supplier_name"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.supplier')"
+            />
           </label>
           <label>
-            <span class="pn-muted">单据日期</span>
+            <span class="pn-muted">{{ t('purchase.field.docDate') }}</span>
             <input v-model="draft.doc_date" type="date" class="form-input w-full" />
           </label>
           <label>
-            <span class="pn-muted">外部单据号</span>
-            <input v-model="draft.doc_no" class="form-input w-full" placeholder="可留空" />
+            <span class="pn-muted">{{ t('purchase.field.docNo') }}</span>
+            <input
+              v-model="draft.doc_no"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.docNo')"
+            />
           </label>
         </div>
 
         <div style="margin-top: 14px">
-          <div class="pn-muted" style="margin-bottom: 6px">明细</div>
+          <div class="pn-muted" style="margin-bottom: 6px">{{ t('purchase.field.lines') }}</div>
           <div
             v-for="(line, index) in draft.lines"
             :key="index"
             style="display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px"
           >
-            <input v-model="line.description" class="form-input w-full" placeholder="品名 / 说明" />
-            <input v-model.number="line.qty" type="number" step="0.01" class="form-input w-full" placeholder="数量" />
-            <input v-model.number="line.unit_price" type="number" step="0.01" class="form-input w-full" placeholder="单价" />
-            <input v-model.number="line.vat_rate" type="number" step="0.01" class="form-input w-full" placeholder="税率%" />
+            <input
+              v-model="line.description"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.description')"
+            />
+            <input
+              v-model.number="line.qty"
+              type="number"
+              step="0.01"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.qty')"
+            />
+            <input
+              v-model.number="line.unit_price"
+              type="number"
+              step="0.01"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.unitPrice')"
+            />
+            <input
+              v-model.number="line.vat_rate"
+              type="number"
+              step="0.01"
+              class="form-input w-full"
+              :placeholder="t('purchase.placeholder.vatRate')"
+            />
             <Button
               variant="outline"
               theme="gray"
-              label="删"
+              :label="t('purchase.action.removeLine')"
               :disabled="draft.lines.length === 1"
               @click="removeLine(index)"
             />
           </div>
-          <Button variant="outline" theme="gray" label="加一行" @click="addLine" />
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="t('purchase.action.addLine')"
+            @click="addLine"
+          />
         </div>
 
         <div style="margin-top: 16px; display: flex; gap: 8px; align-items: center">
@@ -241,11 +284,11 @@ onMounted(refresh);
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="saving ? '提交中…' : '保存采购单'"
+            :label="saving ? t('purchase.saving') : t('purchase.action.save')"
             :disabled="!canSubmit"
             @click="submit"
           />
-          <span class="pn-muted">合计由服务端算，不用填</span>
+          <span class="pn-muted">{{ t('purchase.hint.serverTotal') }}</span>
         </div>
       </div>
 
@@ -254,18 +297,18 @@ onMounted(refresh);
           <div class="pn-skeleton" v-for="i in 4" :key="i" />
         </div>
         <p v-else-if="!rows.length" class="pn-muted" style="margin: 0">
-          还没有采购单。点右上角"新建采购单"录第一张。
+          {{ t('purchase.empty') }}
         </p>
         <table v-else class="pn-table">
           <thead>
             <tr>
-              <th>单号</th>
-              <th>供应商</th>
-              <th>外部单据号</th>
-              <th>日期</th>
-              <th>状态</th>
-              <th class="pn-num">价税合计</th>
-              <th class="pn-num">应付净额</th>
+              <th>{{ t('purchase.col.name') }}</th>
+              <th>{{ t('purchase.field.supplier') }}</th>
+              <th>{{ t('purchase.field.docNo') }}</th>
+              <th>{{ t('purchase.col.date') }}</th>
+              <th>{{ t('purchase.col.status') }}</th>
+              <th class="pn-num">{{ t('purchase.col.grandTotal') }}</th>
+              <th class="pn-num">{{ t('purchase.card.netPayable') }}</th>
             </tr>
           </thead>
           <tbody>

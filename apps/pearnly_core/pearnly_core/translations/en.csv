@@ -402,7 +402,70 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 Withholding Tax,Withholding Tax
 Workspace,Workspace
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session."
+account.cancel,Cancel
+account.changePassword,Change password
+account.error.http,Request failed (HTTP {0})
+account.pwd.confirm,Confirm new password
+account.pwd.current,Current password
+account.pwd.done,Password updated. Use the new password next time you sign in.
+account.pwd.mismatch,The two passwords do not match
+account.pwd.new,New password
+account.save,Save
+account.saving,Saving…
+account.signOut,Sign out
+common.backHome,Back to home
+common.cancel,Cancel
+common.col.date,Date
+common.col.grandTotal,Total incl. VAT
+common.col.name,No.
+common.col.status,Status
+common.collapse,Collapse
+common.error.http,Request failed (HTTP {0})
+common.field.docDate,Document date
+common.field.docNo,Document no.
+common.loading,Loading…
+common.no,No
+common.placeholder.optional,Optional
+common.processing,Processing…
+common.refresh,Refresh
+common.save,Save
+common.saving,Saving…
+common.yes,Yes
 "companion = pulled outbound by Companion on the local machine, then stored here","companion = pulled outbound by Companion on the local machine, then stored here"
+connect.action.connect,Connect DMS
+connect.action.connectSave,Connect and save
+connect.action.connecting,Connecting…
+connect.action.disable,Disable
+connect.action.edit,Change account
+connect.action.enable,Enable
+connect.action.test,Test connection
+connect.action.testing,Testing…
+connect.cancel,Cancel
+connect.error.failed,Connection failed
+connect.error.http,Request failed (HTTP {0})
+connect.field.account,Account
+connect.field.adminCreds,Account with admin rights
+connect.field.lastResult,Last result
+connect.field.password,Password
+connect.field.status,Status
+connect.field.successFailure,Success / failure
+connect.field.url,Address
+connect.master.advisors,Advisors {0}
+connect.master.branches,Branches {0}
+connect.master.carModels,Car models {0}
+connect.master.terms,Titles {0}
+connect.no,No
+connect.notice.connected,Connected · {0}
+connect.notice.ok,Connection OK · {0}
+connect.placeholder.password,DMS login password
+connect.placeholder.username,DMS login account
+connect.processing,Processing…
+connect.state.connected,Connected
+connect.state.disabled,Disabled
+connect.state.enabled,Enabled
+connect.state.notConnected,Not connected
+connect.title,Connect third-party DMS
+connect.yes,Yes
 endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 home.balance.title,Account balance
@@ -468,6 +531,58 @@ home.topup.payerHint,Payer name on the bank transfer
 home.topup.submit,Submit request
 home.topup.submitted,Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.
 home.topup.submitting,Submitting…
+intake.action.confirm,Confirm
+intake.action.new,New entry
+intake.action.queue,Push
+intake.card.purchaseTotal,Purchases (confirmed and above)
+intake.card.readyToPush,Confirmed · ready to push
+intake.card.salesTotal,Sales (confirmed and above)
+intake.card.waiting,To confirm
+intake.col.actions,Actions
+intake.col.counterparty,Counterparty
+intake.col.date,Date
+intake.col.direction,Direction
+intake.col.grandTotal,Total incl. VAT
+intake.col.name,No.
+intake.col.status,Status
+intake.collapse,Collapse
+intake.dir.purchase,Purchase
+intake.dir.purchaseFull,Purchase (bills received)
+intake.dir.sales,Sale
+intake.dir.salesFull,Sale (bills we issue)
+intake.empty,No records yet. Use “New entry” in the top right to add the first one.
+intake.error.http,Request failed (HTTP {0})
+intake.field.counterparty,Counterparty
+intake.field.direction,Purchase / Sale
+intake.field.docDate,Document date
+intake.field.docNo,Document no.
+intake.field.netAmount,Net amount
+intake.field.source,Source
+intake.field.vatAmount,VAT
+intake.filter.allDirections,All directions
+intake.filter.allStatuses,All statuses
+intake.hint.afterSave,Saved as a draft; confirm it before it can be pushed
+intake.loading,Loading…
+intake.notice.created,Created: {0}
+intake.notice.moved,{0} → {1}
+intake.placeholder.counterparty,Supplier / customer
+intake.placeholder.docNo,Optional
+intake.processing,Processing…
+intake.refresh,Refresh
+intake.save,Save
+intake.saving,Saving…
+intake.source.email,Email
+intake.source.manual,Manual
+intake.source.upload,Upload
+intake.status.confirmed,Confirmed
+intake.status.draft,Draft
+intake.status.failed,Push failed
+intake.status.pushed,Pushed
+intake.status.queued,Queued to push
+intake.status.recognized,Recognized
+intake.status.rejected,Returned
+intake.subtitle,"Limit: unconfirmed documents cannot be pushed (the state machine blocks it on the server, not by greying out the button)"
+intake.title,Intake Workbench
 nav.clients,Customers
 nav.company,Company Profile
 nav.connect,Connect third-party DMS
@@ -499,6 +614,37 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.work,Work together
 nonce mismatch,nonce mismatch
+purchase.action.addLine,Add a line
+purchase.action.new,New purchase order
+purchase.action.removeLine,Delete
+purchase.action.save,Save purchase order
+purchase.card.count,Documents
+purchase.card.netPayable,Net payable
+purchase.card.outstanding,Outstanding
+purchase.col.date,Date
+purchase.col.grandTotal,Total incl. VAT
+purchase.col.name,No.
+purchase.col.status,Status
+purchase.collapse,Collapse
+purchase.empty,No purchase orders yet. Use “New purchase order” in the top right to add the first one.
+purchase.error.http,Request failed (HTTP {0})
+purchase.field.docDate,Document date
+purchase.field.docNo,External document no.
+purchase.field.lines,Lines
+purchase.field.supplier,Supplier
+purchase.hint.serverTotal,The total is calculated on the server — no need to fill it in
+purchase.loading,Loading…
+purchase.notice.created,Purchase order created: {0}
+purchase.placeholder.description,Item / description
+purchase.placeholder.docNo,Optional
+purchase.placeholder.qty,Qty
+purchase.placeholder.supplier,Supplier name
+purchase.placeholder.unitPrice,Unit price
+purchase.placeholder.vatRate,VAT %
+purchase.refresh,Refresh
+purchase.saving,Saving…
+purchase.subtitle,Amounts are recalculated on the server; every figure shown here comes from the server
+purchase.title,Purchase Records
 roster.add,Add operator
 roster.addHint,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
 roster.advisor.auto,Automatic (by DMS account)
@@ -561,6 +707,19 @@ roster.subtitle,One row per salesperson/administrator: each has their own DMS cr
 roster.title,Operators
 roster.unbound,Not linked
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
+shell.backHome,Back to home
+shell.boot.failed,Failed to start (HTTP {0}): {1}
+shell.boot.failedPlain,Failed to start: {0}
+shell.bootCard.account,Current account
+shell.bootCard.features,Features purchased
+shell.bootCard.language,UI language
+shell.bootCard.none,(none)
+shell.bootCard.product,Product
+shell.bootCard.title,Tenant boot data
+shell.needLogin,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
+shell.notBuilt,Page not built
+shell.notBuilt.body,The menu lists the pages from the plan; the features are not implemented yet. Current route:
+shell.notBuilt.title,This page is not built yet
 state is invalid or has expired,state is invalid or has expired
 system_url is required,system_url is required
 username / password are required,username / password are required

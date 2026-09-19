@@ -24,6 +24,10 @@ const route = useRoute();
 // 清单和语言包一旦不同步，界面上就会露出键名（真发生过）。
 const { t: tNav, load: loadNavTexts } = createTexts([], "nav.");
 
+// 壳自己的文案（启动失败、未建页面提示…）另走 `shell.*`。
+// 整包取词一次只取一个命名空间，所以这里建第二个取词器。
+const { t: tShell, tf: tfShell, load: loadShellTexts } = createTexts([], "shell.");
+
 // 独立页（LINE 内的编辑器）：**不套外壳、也不问启动数据**。
 // 它靠一次性票据认身份，没有站点会话 —— 去调 `shell.describe` 只会拿到 401，
 // 页面就永远停在"需要登录站点"那一屏（真踩过）。
@@ -34,12 +38,12 @@ onMounted(async () => {
   try {
     boot.value = await loadShell();
     // 文案取不到不该把整个壳挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
-    await loadNavTexts().catch(() => {});
+    await Promise.all([loadNavTexts(), loadShellTexts()]).catch(() => {});
   } catch (err) {
     error.value =
       err instanceof ApiError
-        ? `启动失败（HTTP ${err.status}）：${err.message}`
-        : `启动失败：${String(err)}`;
+        ? tfShell("shell.boot.failed", err.status, err.message)
+        : tfShell("shell.boot.failedPlain", String(err));
   }
 });
 
@@ -88,7 +92,7 @@ const pageTitle = computed(() => {
   }
   // 侧栏里找不到不等于"没这一页"：没买的功能不显示在菜单里，但页面本身在。
   // 标题按路由查，查不到才是真的没建。
-  return titleFor(route.path) ? tNav(titleFor(route.path)) : "未建页面";
+  return titleFor(route.path) ? tNav(titleFor(route.path)) : tShell("shell.notBuilt");
 });
 
 </script>
@@ -100,7 +104,7 @@ const pageTitle = computed(() => {
     <div class="pn-card">
       <div class="pn-error">{{ error }}</div>
       <p class="pn-muted" style="margin: 12px 0 0">
-        这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。
+        {{ tShell('shell.needLogin') }}
       </p>
     </div>
   </div>

@@ -33,8 +33,16 @@ interface Operator {
   line_bound_at: string;
 }
 
-// 老产品就两种角色，没有第三种
-const ROLE_LABEL: Record<string, string> = { sales: t("roster.role.sales"), admin: t("roster.role.admin") };
+// 老产品就两种角色，没有第三种。
+//
+// 这里存的是**文案编号**：语言包是异步取回来的，在这一行就把 `t()` 的结果存下来，
+// 角色列会永远显示键名（`roster.role.sales`）—— 页面上真的这样显示过。
+const ROLE_KEYS: Record<string, string> = { sales: "roster.role.sales", admin: "roster.role.admin" };
+
+/** 认不出的角色原样显示：宁可露出英文码，也不显示成空白。 */
+function roleLabel(code: string): string {
+  return ROLE_KEYS[code] ? t(ROLE_KEYS[code]) : code;
+}
 
 const rows = ref<Operator[]>([]);
 const loading = ref(true);
@@ -378,7 +386,7 @@ onUnmounted(stopTimer);
               <div style="font-weight: 700">{{ row.display_name }}</div>
               <div class="pn-muted" style="font-size: 11px">{{ row.dms_username || "—" }}</div>
             </td>
-            <td>{{ ROLE_LABEL[row.role] ?? row.role }}</td>
+            <td>{{ roleLabel(row.role) }}</td>
             <td>{{ row.can_query_dms ? t('roster.allowQuery') : t('roster.noQuery') }}</td>
             <td>
               <span :style="{ color: row.line_bound ? 'var(--good)' : 'var(--muted)' }">
