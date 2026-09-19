@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """No network or database writes: domain, application and routing contracts."""
 import importlib.util
+import json
+import os
+import subprocess
 from pathlib import Path
 import unittest
 
@@ -11,6 +14,15 @@ spec.loader.exec_module(agent)
 
 
 class Contracts(unittest.TestCase):
+    def test_forced_ssh_entry_is_executable_and_rejects_invalid_job(self):
+        self.assertTrue(os.access(path, os.X_OK), "Forced SSH command must retain its Git executable bit")
+        result = subprocess.run([str(path)], input="{}", text=True, capture_output=True,
+                                env=dict(os.environ, SSH_ORIGINAL_COMMAND="provision"), timeout=5)
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(json.loads(result.stdout),
+                         {"status": "failed", "error": "Unsupported action or product"})
+
+
     def job(self, **overrides):
         return {"action": "new_site", "payload": {
             "site": "acme-dms.pearnly.com", "group": "dms", "tenant": "T-2026-9999",
