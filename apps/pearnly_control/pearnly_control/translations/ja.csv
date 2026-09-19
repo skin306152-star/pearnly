@@ -261,3 +261,4 @@ Pearnly Wallet,残高アカウント
 Pearnly Credit Transaction,残高の履歴
 Pearnly Subscription,プラン契約
 Pearnly Topup Request,チャージ申請
+A deployment is a live site. Delete the tenant so its site and database go away too.,デプロイは実在するサイトです。サイトとデータベースも削除されるよう「テナントを削除」から行ってください。

@@ -336,6 +336,14 @@ def purge_records(request: str) -> dict:
     ]
 
     removed = {}
+    # 拆除流程就是"要删站点"的那条合法路径：它已经先让执行器把站点与库删掉了
+    # （drop_site 那一步），这里才轮到清记录。所以整段打上放行标记，绕开
+    # `PearnlyDeployment.on_trash` 里"别单删部署"的保护。
+    from pearnly_control.pearnly_control.doctype.pearnly_deployment.pearnly_deployment import (
+        TEARDOWN_FLAG,
+    )
+
+    frappe.flags[TEARDOWN_FLAG] = True
     for doctype, filters in (
         (CREDIT, {"tenant": tenant} if tenant else None),
         (TOPUP, {"tenant": tenant} if tenant else None),
@@ -364,6 +372,8 @@ def purge_records(request: str) -> dict:
         frappe.delete_doc(TENANT, tenant, ignore_permissions=True, force=True, delete_permanently=True)
     # 请求（带子步骤）最后删：执行器已经报完最后一步，没有谁还要往上写了
     frappe.delete_doc(REQUEST, request, ignore_permissions=True, force=True, delete_permanently=True)
+    # 放行标记只在这一次拆除里有效：留在进程上会让**之后**的误删也不再被拦住。
+    frappe.flags.pop(TEARDOWN_FLAG, None)
     frappe.db.commit()
     logger.warning("[teardown] 控制面记录已清空：request=%s tenant=%s removed=%s",
                    request, tenant, removed)

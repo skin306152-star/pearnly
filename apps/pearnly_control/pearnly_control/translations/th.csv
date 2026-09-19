@@ -261,3 +261,4 @@ Pearnly Wallet,กระเป๋าเงิน
 Pearnly Credit Transaction,รายการเดินบัญชี
 Pearnly Subscription,การสมัครแพ็กเกจ
 Pearnly Topup Request,คำขอเติมเงิน
+A deployment is a live site. Delete the tenant so its site and database go away too.,การติดตั้งหนึ่งรายการคือเว็บไซต์จริง โปรดใช้เมนูลบผู้เช่า เพื่อให้เว็บไซต์และฐานข้อมูลถูกลบไปด้วย

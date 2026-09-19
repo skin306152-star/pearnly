@@ -252,3 +252,4 @@ Pearnly Wallet,Pearnly Wallet
 Pearnly Credit Transaction,Pearnly Credit Transaction
 Pearnly Subscription,Pearnly Subscription
 Pearnly Topup Request,Pearnly Topup Request
+A deployment is a live site. Delete the tenant so its site and database go away too.,A deployment is a live site. Delete the tenant so its site and database go away too.

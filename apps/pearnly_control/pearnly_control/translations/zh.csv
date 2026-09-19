@@ -261,3 +261,4 @@ Pearnly Wallet,余额账户
 Pearnly Credit Transaction,余额流水
 Pearnly Subscription,套餐订阅
 Pearnly Topup Request,充值申请
+A deployment is a live site. Delete the tenant so its site and database go away too.,一条部署就是一台真实站点。请改用「删除租户」，这样站点与数据库才会一起删掉。

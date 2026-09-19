@@ -113,8 +113,16 @@ def main():
             _delete_identity(subject)
 
         # 2) 部署（有 active 的已被上面的守卫挡掉，这里只剩 pending/failed/skipped）
+        # 这些部署**从来没建成站点**（守卫已经挡掉 active 的），所以直接删记录是安全的；
+        # 打放行标记绕开 `PearnlyDeployment.on_trash` 对"活站点别单删"的保护。
+        from pearnly_control.pearnly_control.doctype.pearnly_deployment.pearnly_deployment import (
+            TEARDOWN_FLAG,
+        )
+
+        frappe.flags[TEARDOWN_FLAG] = True
         for dep in frappe.get_all("Pearnly Deployment", filters={"issue": name}, pluck="name"):
             frappe.delete_doc("Pearnly Deployment", dep, force=1, ignore_permissions=True)
+        frappe.flags.pop(TEARDOWN_FLAG, None)
 
         # 3) 单子与租户
         tenant = issue.tenant
