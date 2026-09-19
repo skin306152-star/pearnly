@@ -152,7 +152,7 @@ def _mirror(kind: str, target: str, messages: list) -> bool:
             response_body=json.dumps(
                 {
                     "mirrored": True,
-                    "note": "本机样例站点：未发往 LINE，仅记录原文",
+                    "note": _("Local sample site: not sent to LINE, the raw text is only recorded"),
                     "kind": kind,
                     "to": target or "",
                     "messages": messages,

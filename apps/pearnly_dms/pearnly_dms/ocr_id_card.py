@@ -19,6 +19,7 @@
 import re
 
 import frappe
+from frappe import _
 
 from pearnly_core import ocr
 
@@ -197,7 +198,9 @@ def extract(image_bytes: bytes) -> dict:
     # 上层要能分辨，不能落进"待人工核对"里。
     data = ocr.try_with_fallback(_call, ok=_has_id, label="dms.id_card")
     if data is None:
-        raise IdCardExtractError("两档都没读出结果（网络/密钥/模型名都可能）")
+        raise IdCardExtractError(
+            _("Neither tier produced a result (network, key or model name could all be the cause)")
+        )
     return normalize(data)
 
 

@@ -25,6 +25,7 @@ import logging
 import os
 from contextlib import contextmanager
 from typing import Optional
+from frappe import _
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +110,7 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
         except Exception as exc:  # noqa: BLE001 — 锁基础设施坏了要如实处理，不能装作没事
             if not _allow_lockless():
                 raise SessionLockUnavailable(
-                    "取锁失败（Redis 不通？）：%s" % type(exc).__name__
+                    _("Could not take the lock (Redis down?): {0}").format(type(exc).__name__)
                 ) from exc
             logger.warning("[session-lock] 取锁异常 · 已允许降级放行: %s", exc)
             yield False
@@ -119,14 +120,14 @@ def account_lock(account_key: str, timeout_sec: float = 180.0):
             if not _allow_lockless():
                 left = lock_remaining_sec(lock)
                 hint = (
-                    "锁还剩 %ds（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）"
-                    % left
+                    _("The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)").format(left)
                     if left is not None
-                    else "拿不到剩余时间"
+                    else _("Cannot read the remaining time")
                 )
                 raise SessionLockUnavailable(
-                    "等 %.0fs 仍没拿到同一账号的锁（%s）—— 绝不并发登同一个账号。%s"
-                    % (timeout_sec, _mask(account_key), hint)
+                    _("Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}").format(
+                        int(timeout_sec), _mask(account_key), hint
+                    )
                 )
             logger.warning(
                 "[session-lock] 等 %.0fs 未取到锁 · 已允许降级放行（可能与他会话并发）",

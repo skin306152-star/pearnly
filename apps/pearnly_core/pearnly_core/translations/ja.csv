@@ -18,6 +18,7 @@ Admin Password,管理者パスワード
 All three fields are required,3項目とも入力が必要です
 Allow DMS queries from LINE,LINEでの照会機能を許可
 Amount,金額
+An admin session was requested but no admin credentials are configured,adminセッションが要求されましたが、admin資格情報が未設定です
 Approval,承認
 Assign To,承認者の指定
 Attempt,試行回数
@@ -40,6 +41,7 @@ Cannot match while the status is {0},ステータス {0} では照合できま�
 Cannot reach the OCR service: {0},OCRサービスに接続できません: {0}
 Cannot reach the billing service: {0},課金基盤に接続できません: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
+Cannot read the remaining time,残り時間を取得できません
 Charges,課金
 Claimed By,担当者
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
@@ -55,6 +57,7 @@ Connection,接続
 "Connection ""{0}"" has no sign-in credentials yet",接続「{0}」はログイン資格情報が未設定です
 "Connection ""{0}"" is disabled and cannot be used",接続「{0}」は無効化されており使えません
 Console,コンソール
+Could not call the model: {0},モデルを呼び出せません: {0}
 Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
 Could not create the account in the target environment: {0} {1},対象環境でのアカウント作成に失敗: {0} {1}
 Could not create the account: {0} {1},アカウントの作成に失敗: {0} {1}
@@ -68,6 +71,7 @@ Could not read the account profile: {0},アカウント情報の読み取りに�
 Could not read the client secret: {0} {1},クライアントシークレットの取得に失敗: {0} {1}
 Could not send the invitation email: {0} {1},招待メールの送信に失敗: {0} {1}
 Could not set the password: {0} {1},パスワードの設定に失敗: {0} {1}
+Could not take the lock (Redis down?): {0},ロックを取得できません（Redis不通？）: {0}
 Could not update the OIDC client: {0} {1},OIDCクライアントの更新に失敗: {0} {1}
 Count tasks and variance records,棚卸タスクと差異記録
 Counterparty,取引先名
@@ -97,11 +101,14 @@ DMS ID Card Intake,DMS 身分証取り込み
 DMS Operator,DMS オペレーター
 DMS Password,DMSパスワード
 DMS Username,DMSユーザー名
+DMS admin credentials failed to sign in: {0},DMS管理者の資格情報でログインできません: {0}
 "DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
 
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。
 
 アドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。"
+DMS refused the sign-in: {0},DMSがログインを拒否しました: {0}
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
 DMS usage and balance,DMS側の利用量と残高
 Dedupe Key,重複防止キー
 Default Connection,既定の接続
@@ -124,6 +131,9 @@ Empty = matched automatically from the DMS account (the legacy product's default
 Empty = sent to all admins (whoever sees it first approves).,空欄＝全管理者に送信（先に見た人が承認）。
 Enabled,有効
 Endpoint,接続先
+Endpoint {0} has no password configured,端点 {0} にパスワードが設定されていません
+Endpoint {0} is disabled,端点 {0} は無効です
+"Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} のアダプタは {1} で、mrerp_dms ではありません
 Error Message,エラーメッセージ
 Event ID,イベントID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
@@ -156,6 +166,7 @@ ID Card Intake,身分証取り込み
 ID Details,身分証情報
 ID Image,身分証画像
 ID Number,身分証番号
+ID card recognition (tier A),身分証認識（高精度A）
 ID number is required,身分証番号は必須です
 IP,IP
 Identity Session,アイデンティティセッション
@@ -183,12 +194,14 @@ Line Discount,行値引
 Line No,行番号
 Local Account,ローカルアカウント
 Local Session,ローカルセッション
+"Local sample site: not sent to LINE, the raw text is only recorded",ローカル見本サイト：LINEへは送信せず、原文のみ記録
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
 Master Data,マスタデータ
 Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
 Max Retries,最大再試行
 Missing code or state,code または state がありません
 Name,名称
+"Neither tier produced a result (network, key or model name could all be the cause)",どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 Net Amount,税抜金額
 Net Payable,支払純額
 New Customer,今回新規作成
@@ -298,6 +311,8 @@ Supplier,仕入先
 Supplier Tax ID,仕入先の税番号
 System URL,システムURL
 System URL is not filled in,システムURLが未入力です
+The DMS account is marked as resigned,DMSアカウントは退職として記録されています
+The DMS account is not approved to use the system,DMSアカウントはシステム利用が承認されていません
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
@@ -305,6 +320,8 @@ The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しま�
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
 The account is disabled,アカウントは無効化されています
 The account was created but no id came back,アカウントは作成されましたがIDが返りませんでした
+The admin session must be requested inside a `with` block,adminセッションは `with` ブロック内で要求する必要があります
+The balance could not be read,残高を読み取れません
 The billing service returned HTTP {0},課金基盤が HTTP {0} を返しました
 The control plane is not affected,コントロールプレーンは影響を受けません
 The current password is wrong,現在のパスワードが正しくありません
@@ -324,6 +341,7 @@ The legacy product keeps this off for this connection (the whole path is manual:
 The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
 The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+"The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）
 The name is resolved server-side when pinning; the client's value is not trusted,名前は固定時にサーバー側で解決します。クライアントの値は信用しません
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
 The new password cannot be the same as the current one,新しいパスワードは現在のものと同じにできません
@@ -361,6 +379,7 @@ Unbound At,連携解除日時
 Unconfirmed documents cannot be pushed,未確定の伝票は送信できません
 Unit,単位
 Unit Price,単価
+Unknown product: {0},不明な製品: {0}
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 Usage,利用状況
 Used,使用済み
@@ -371,6 +390,7 @@ VAT,消費税
 VAT Amount,税額
 VAT Included,税込
 VAT Rate %,税率%
+Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
 What Was Pushed,何を送ったか
 What Was Recognised,認識の記録
@@ -390,6 +410,9 @@ google-auth is missing (the image should have it): {0},google-auth がありま�
 nonce mismatch,nonce が一致しません
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 state is invalid or has expired,state が無効か期限切れです
+system_url is required,system_url は必須です
+username / password are required,username / password は必須です
+"{0} takes {1} arguments, but {2} were passed to the queue",{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
 {0}: entry prefixes must start with /: {1},{0}: エントリ接頭辞は / で始まる必要があります: {1}
 {0}: missing field {1},{0}: フィールド {1} がありません
 "{0}: the manifest requires {1}, but this site does not have it",{0}: マニフェストは {1} を要求していますが、このサイトには入っていません

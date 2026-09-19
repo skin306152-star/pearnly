@@ -114,7 +114,9 @@ def open_login_identifiers() -> dict:
 
 
 def ensure_target(
-    target_name: str = "本地样板",
+    # 默认目标名会**写进记录**（Pearnly Target 的主键），按 Frappe 惯例用英文：
+    # 记录名是数据，不做翻译。
+    target_name: str = "Local sample",
     base_url: str = "http://keycloak.localhost:8105",
     realm: str = "pearnly-business",
     admin_client_id: str = "pearnly-admin",

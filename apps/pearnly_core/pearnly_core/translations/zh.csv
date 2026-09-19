@@ -18,6 +18,7 @@ Admin Password,管理员密码
 All three fields are required,三项都要填
 Allow DMS queries from LINE,允许在 LINE 使用查询功能
 Amount,金额
+An admin session was requested but no admin credentials are configured,没配 admin 凭据却要求 admin 会话
 Approval,审批
 Assign To,指定审批人
 Attempt,第几次尝试
@@ -40,6 +41,7 @@ Cannot match while the status is {0},当前状态 {0} 不能做匹配
 Cannot reach the OCR service: {0},连不上 OCR 服务：{0}
 Cannot reach the billing service: {0},连不上计费底座：{0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},连不上目标环境的身份服务（{0}）：{1} {2}
+Cannot read the remaining time,拿不到剩余时间
 Charges,扣费
 Claimed By,认领人
 Claiming a push job requires a connection,抢推送任务必须指定连接
@@ -55,6 +57,7 @@ Connection,连接
 "Connection ""{0}"" has no sign-in credentials yet",连接「{0}」还没有配登录凭据
 "Connection ""{0}"" is disabled and cannot be used",连接「{0}」已停用，不能使用
 Console,控制台
+Could not call the model: {0},调不动模型：{0}
 Could not create the OIDC client: {0} {1},创建 OIDC 客户端失败：{0} {1}
 Could not create the account in the target environment: {0} {1},在目标环境建账号失败：{0} {1}
 Could not create the account: {0} {1},建账号失败：{0} {1}
@@ -68,6 +71,7 @@ Could not read the account profile: {0},读取账号资料失败：{0}
 Could not read the client secret: {0} {1},取客户端密钥失败：{0} {1}
 Could not send the invitation email: {0} {1},邀请邮件发送失败：{0} {1}
 Could not set the password: {0} {1},设置密码失败：{0} {1}
+Could not take the lock (Redis down?): {0},取锁失败（Redis 不通？）：{0}
 Could not update the OIDC client: {0} {1},更新 OIDC 客户端失败：{0} {1}
 Count tasks and variance records,盘点任务与差异记录
 Counterparty,对方名称
@@ -97,11 +101,14 @@ DMS ID Card Intake,DMS 身份证录入
 DMS Operator,DMS 操作员
 DMS Password,DMS 密码
 DMS Username,DMS 用户名
+DMS admin credentials failed to sign in: {0},DMS 管理员凭据登录失败：{0}
 "DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
 
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。
 
 顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。"
+DMS refused the sign-in: {0},DMS 拒绝了登录：{0}
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · 可能页面加载太慢或被拦了）
 DMS usage and balance,DMS 侧的用量与余额
 Dedupe Key,去重键
 Default Connection,默认连接
@@ -124,6 +131,9 @@ Empty = matched automatically from the DMS account (the legacy product's default
 Empty = sent to all admins (whoever sees it first approves).,留空 = 发给所有管理员（谁先看到谁批）。
 Enabled,启用
 Endpoint,连接端点
+Endpoint {0} has no password configured,端点 {0} 没配密码
+Endpoint {0} is disabled,端点 {0} 已停用
+"Endpoint {0} uses adapter {1}, not mrerp_dms",端点 {0} 的适配器是 {1}，不是 mrerp_dms
 Error Message,错误信息
 Event ID,事件 ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
@@ -156,6 +166,7 @@ ID Card Intake,身份证录入
 ID Details,证件资料
 ID Image,证件影像
 ID Number,证件号
+ID card recognition (tier A),身份证识别（高精档）
 ID number is required,证件号必填
 IP,IP
 Identity Session,身份会话
@@ -183,12 +194,14 @@ Line Discount,行折扣
 Line No,行号
 Local Account,本地账号
 Local Session,本地会话
+"Local sample site: not sent to LINE, the raw text is only recorded",本机样例站点：未发往 LINE，仅记录原文
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
 Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果只能是 未匹配/已有客户/新建客户
 Max Retries,最多重试
 Missing code or state,缺少 code 或 state
 Name,名称
+"Neither tier produced a result (network, key or model name could all be the cause)",两档都没读出结果（网络/密钥/模型名都可能）
 Net Amount,不含税金额
 Net Payable,应付净额
 New Customer,本次新建
@@ -298,6 +311,8 @@ Supplier,供应商
 Supplier Tax ID,供应商税号
 System URL,系统地址
 System URL is not filled in,没填系统地址
+The DMS account is marked as resigned,DMS 账号已标记为离职
+The DMS account is not approved to use the system,DMS 账号未被批准使用系统
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
@@ -305,6 +320,8 @@ The OCR service returned HTTP {0}: {1},OCR 服务返回 HTTP {0}：{1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。
 The account is disabled,账号已停用
 The account was created but no id came back,账号已建但取不到 id
+The admin session must be requested inside a `with` block,admin 会话必须在 `with` 块里请求
+The balance could not be read,余额查不出来
 The billing service returned HTTP {0},计费底座返回 HTTP {0}
 The control plane is not affected,控制面不受影响
 The current password is wrong,当前密码不正确
@@ -324,6 +341,7 @@ The legacy product keeps this off for this connection (the whole path is manual:
 The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据
 The legacy system's product identifier; it becomes a link once product master data lands,旧系统的商品标识；商品主数据落地后再换成链接
+"The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",锁还剩 {0}s（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）
 The name is resolved server-side when pinning; the client's value is not trusted,名字在钉的时候由服务端解出，不信客户端传来的值
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",老板在这张表里认人用的名字，例如：阿明（销售）
 The new password cannot be the same as the current one,新密码不能与当前密码相同
@@ -361,6 +379,7 @@ Unbound At,解绑时间
 Unconfirmed documents cannot be pushed,还没确认的单据不能推送
 Unit,单位
 Unit Price,单价
+Unknown product: {0},未知产品：{0}
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
 Usage,使用情况
 Used,已使用
@@ -371,6 +390,7 @@ VAT,增值税
 VAT Amount,税额
 VAT Included,含增值税
 VAT Rate %,税率%
+Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推的是哪一单
 What Was Recognised,识别留证
@@ -390,6 +410,9 @@ google-auth is missing (the image should have it): {0},缺少 google-auth（镜�
 nonce mismatch,nonce 不匹配
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 state is invalid or has expired,state 无效或已过期
+system_url is required,system_url 必填
+username / password are required,username / password 必填
+"{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，但入队传了 {2} 个
 {0}: entry prefixes must start with /: {1},{0}: 入口前缀必须以 / 开头：{1}
 {0}: missing field {1},{0}: 缺少字段 {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}: 清单要求安装 {1}，但本站点没装

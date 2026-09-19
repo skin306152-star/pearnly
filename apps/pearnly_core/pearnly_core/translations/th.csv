@@ -18,6 +18,7 @@ Admin Password,รหัสผ่านผู้ดูแล
 All three fields are required,ต้องกรอกทั้งสามช่อง
 Allow DMS queries from LINE,อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE
 Amount,จำนวนเงิน
+An admin session was requested but no admin credentials are configured,ขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin
 Approval,การอนุมัติ
 Assign To,มอบหมายให้
 Attempt,ครั้งที่พยายาม
@@ -40,6 +41,7 @@ Cannot match while the status is {0},จับคู่ไม่ได้ใน�
 Cannot reach the OCR service: {0},เชื่อมต่อบริการ OCR ไม่ได้: {0}
 Cannot reach the billing service: {0},เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}
+Cannot read the remaining time,อ่านเวลาที่เหลือไม่ได้
 Charges,ค่าบริการ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
@@ -55,6 +57,7 @@ Connection,การเชื่อมต่อ
 "Connection ""{0}"" has no sign-in credentials yet","การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ"
 "Connection ""{0}"" is disabled and cannot be used","การเชื่อมต่อ ""{0}"" ถูกปิดใช้งาน ใช้ไม่ได้"
 Console,คอนโซล
+Could not call the model: {0},เรียกโมเดลไม่สำเร็จ: {0}
 Could not create the OIDC client: {0} {1},สร้าง OIDC client ไม่สำเร็จ: {0} {1}
 Could not create the account in the target environment: {0} {1},สร้างบัญชีในสภาพแวดล้อมเป้าหมายไม่สำเร็จ: {0} {1}
 Could not create the account: {0} {1},สร้างบัญชีไม่สำเร็จ: {0} {1}
@@ -68,6 +71,7 @@ Could not read the account profile: {0},อ่านข้อมูลบัญ�
 Could not read the client secret: {0} {1},อ่าน client secret ไม่สำเร็จ: {0} {1}
 Could not send the invitation email: {0} {1},ส่งอีเมลเชิญไม่สำเร็จ: {0} {1}
 Could not set the password: {0} {1},ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}
+Could not take the lock (Redis down?): {0},ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}
 Could not update the OIDC client: {0} {1},อัปเดต OIDC client ไม่สำเร็จ: {0} {1}
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
 Counterparty,ชื่อคู่ค้า
@@ -97,11 +101,14 @@ DMS ID Card Intake,DMS บันทึกบัตรประชาชน
 DMS Operator,DMS พนักงาน
 DMS Password,รหัสผ่าน DMS
 DMS Username,ชื่อผู้ใช้ DMS
+DMS admin credentials failed to sign in: {0},เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}
 "DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
 
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**
 
 ช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่"
+DMS refused the sign-in: {0},DMS ปฏิเสธการเข้าสู่ระบบ: {0}
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),การเข้าสู่ระบบ DMS ไม่จบ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)
 DMS usage and balance,การใช้งานและยอดคงเหลือฝั่ง DMS
 Dedupe Key,คีย์กันซ้ำ
 Default Connection,การเชื่อมต่อเริ่มต้น
@@ -124,6 +131,9 @@ Empty = matched automatically from the DMS account (the legacy product's default
 Empty = sent to all admins (whoever sees it first approves).,เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)
 Enabled,เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
+Endpoint {0} has no password configured,ปลายทาง {0} ยังไม่ได้ตั้งรหัสผ่าน
+Endpoint {0} is disabled,ปลายทาง {0} ถูกปิดใช้งาน
+"Endpoint {0} uses adapter {1}, not mrerp_dms",ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)
@@ -156,6 +166,7 @@ ID Card Intake,บันทึกบัตรประชาชน
 ID Details,ข้อมูลบัตร
 ID Image,ภาพบัตร
 ID Number,เลขบัตร
+ID card recognition (tier A),อ่านบัตรประชาชน (ระดับ A)
 ID number is required,ต้องระบุเลขบัตร
 IP,IP
 Identity Session,เซสชันตัวตน
@@ -183,12 +194,14 @@ Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
 Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
+"Local sample site: not sent to LINE, the raw text is only recorded",เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
 Master Data,ข้อมูลหลัก
 Match result must be unmatched / existing customer / new customer,ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่
 Max Retries,ลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
 Name,ชื่อ
+"Neither tier produced a result (network, key or model name could all be the cause)",ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)
 Net Amount,ยอดก่อนภาษี
 Net Payable,ยอดสุทธิที่ต้องจ่าย
 New Customer,สร้างใหม่ครั้งนี้
@@ -298,6 +311,8 @@ Supplier,ผู้ขาย
 Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
 System URL,ที่อยู่ระบบ
 System URL is not filled in,ยังไม่ได้กรอกที่อยู่ระบบ
+The DMS account is marked as resigned,บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว
+The DMS account is not approved to use the system,บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้
@@ -305,6 +320,8 @@ The OCR service returned HTTP {0}: {1},บริการ OCR ตอบกลั
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน
 The account is disabled,บัญชีถูกปิดใช้งาน
 The account was created but no id came back,สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา
+The admin session must be requested inside a `with` block,ต้องขอเซสชัน admin ภายในบล็อก `with`
+The balance could not be read,อ่านยอดคงเหลือไม่ได้
 The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
@@ -324,6 +341,7 @@ The legacy product keeps this off for this connection (the whole path is manual:
 The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,ผลิตภัณฑ์เดิมใช้ trigger แยกสายงาน (เช่น trigger='id_card' คือบัตรประชาชน→DMS) ที่นี่เก็บค่าทั่วไปไว้ไม่กี่ค่า (line_mirror = เว็บไซต์ตัวอย่างในเครื่องบันทึกข้อความที่ควรส่งไป LINE ดู pearnly_core.line._mirror) ส่วนสายงานจริงเก็บใน reference_doctype
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",คำพูดของผลิตภัณฑ์เดิม: ข้อมูลรับรองชุดนี้ใช้ทั้งเชื่อมต่อ ตรวจซ้ำ สร้าง และแก้ไข พนักงานขายยังใช้บัญชีของตนเองจับคู่เจ้าของค่าคอม และเซิร์ฟเวอร์จะใช้ข้อมูลรับรองของเจ้าของเมื่อต้องแก้ข้อมูลลูกค้า ดังนั้นการเขียนข้อมูลธุรกิจใช้ชุดนี้ ไม่ใช่ของพนักงาน
 The legacy system's product identifier; it becomes a link once product master data lands,รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ
+"The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",ล็อกยังเหลือ {0} วินาที (ดูเหมือนล็อกค้างจากโปรเซสที่ถูกฆ่า ถ้าไม่มีใครรันอยู่ ลบ key นี้ได้)
 The name is resolved server-side when pinning; the client's value is not trusted,ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)
 The new password cannot be the same as the current one,รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน
@@ -361,6 +379,7 @@ Unbound At,ยกเลิกผูกเมื่อ
 Unconfirmed documents cannot be pushed,เอกสารที่ยังไม่ยืนยันส่งไม่ได้
 Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
+Unknown product: {0},ไม่รู้จักผลิตภัณฑ์: {0}
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
 Usage,การใช้งาน
 Used,ใช้แล้ว
@@ -371,6 +390,7 @@ VAT,ภาษีมูลค่าเพิ่ม
 VAT Amount,ภาษีมูลค่าเพิ่ม
 VAT Included,รวมภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
+Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,ส่งอะไรไป
 What Was Recognised,สิ่งที่อ่านได้
@@ -390,6 +410,9 @@ google-auth is missing (the image should have it): {0},ขาด google-auth (�
 nonce mismatch,nonce ไม่ตรงกัน
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
+system_url is required,ต้องระบุ system_url
+username / password are required,ต้องระบุ username / password
+"{0} takes {1} arguments, but {2} were passed to the queue",{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว
 {0}: entry prefixes must start with /: {1},{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}
 {0}: missing field {1},{0}: ขาดฟิลด์ {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง

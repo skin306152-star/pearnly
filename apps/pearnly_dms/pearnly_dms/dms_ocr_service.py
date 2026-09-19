@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 import time
 from typing import Any, Dict, Optional, Tuple
+from frappe import _
 
 logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ def _billing_gate(pages: int = 1) -> Dict[str, Any]:
     if code == "lookup_error":
         raise DmsOcrError(
             "billing.lookup_error", 503,
-            {"code": "billing.lookup_error", "msg": status.get("reason") or "余额查不出来"},
+            {"code": "billing.lookup_error", "msg": status.get("reason") or _("The balance could not be read")},
         )
     raise DmsOcrError(
         "insufficient_balance", 402,
@@ -209,7 +210,7 @@ def _charge_id_card(reference: str = "") -> dict:
 
     return billing_client.charge(
         "dms", "pdf", 1, tier="A", reference=reference,
-        description="身份证识别（高精档）",
+        description=_("ID card recognition (tier A)"),
     )
 
 
@@ -263,7 +264,7 @@ def recognize_id_card(
         # ⚠️ **调不动模型 ≠ 读不出**：限流/配额是基础设施问题，绝不能报成"证件识别不了"
         # （否则运维看不到，用户以为系统认不出他的卡）。这条是搬 OCR 时专门分开的。
         logger.warning("[dms ocr] 调不动模型: %s", exc)
-        _record_ocr("failed", filename, error=f"调不动模型：{str(exc)[:200]}", user=user)
+        _record_ocr("failed", filename, error=_("Could not call the model: {0}").format(str(exc)[:200]), user=user)
         raise DmsOcrError(
             "ocr.unavailable", 503, {"code": "ocr.unavailable", "msg": str(exc)[:200]}
         )

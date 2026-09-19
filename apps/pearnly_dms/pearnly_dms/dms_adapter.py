@@ -29,6 +29,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from pearnly_core.browser import BrowserSession
 from pearnly_core.session_lock import account_lock, dms_login_key
+from frappe import _
 
 logger = logging.getLogger(__name__)
 
@@ -83,9 +84,9 @@ class MrerpDmsAdapter:
         slow_mo_ms: int = 0,
     ):
         if not system_url:
-            raise MissingCredentials("system_url 必填")
+            raise MissingCredentials(_("system_url is required"))
         if not username or not password:
-            raise MissingCredentials("username / password 必填")
+            raise MissingCredentials(_("username / password are required"))
         self.login_url, self.base_url = self._normalize_urls(system_url)
         self._username = username
         self._password = password
@@ -118,13 +119,13 @@ class MrerpDmsAdapter:
         doc = frappe.get_doc("Pearnly ERP Endpoint", endpoint_name)
         if doc.adapter != "mrerp_dms":
             raise MissingCredentials(
-                "端点 %s 的适配器是 %s，不是 mrerp_dms" % (endpoint_name, doc.adapter)
+                _("Endpoint {0} uses adapter {1}, not mrerp_dms").format(endpoint_name, doc.adapter)
             )
         if not doc.enabled:
-            raise MissingCredentials("端点 %s 已停用" % endpoint_name)
+            raise MissingCredentials(_("Endpoint {0} is disabled").format(endpoint_name))
         password = doc.get_password("password", raise_exception=False)
         if not password:
-            raise MissingCredentials("端点 %s 没配密码" % endpoint_name)
+            raise MissingCredentials(_("Endpoint {0} has no password configured").format(endpoint_name))
         kwargs.setdefault("headless", True)
         if kwargs.get("screenshot_dir") is None:
             try:
@@ -339,8 +340,8 @@ class MrerpDmsAdapter:
                 pass
 
         raise DmsAuthError(
-            "DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · "
-            "可能页面加载太慢或被拦了）"
+            _("DMS sign-in did not finish (after retrying there was neither a successful "
+              "checklogin response nor a redirect · the page may be slow to load or blocked)")
         )
 
     def _classify_login_body(self, body: str) -> None:
@@ -352,12 +353,12 @@ class MrerpDmsAdapter:
             grant = parts[2].strip() if len(parts) > 2 else ""
             status = parts[1].strip() if len(parts) > 1 else ""
             if grant == "2":
-                raise DmsAuthError("DMS 账号未被批准使用系统")
+                raise DmsAuthError(_("The DMS account is not approved to use the system"))
             if status == "3":
-                raise DmsAuthError("DMS 账号已标记为离职")
+                raise DmsAuthError(_("The DMS account is marked as resigned"))
             return  # status 1/2/4 都算通过
         # al:: / err:: / 其它一律当拒绝
-        raise DmsAuthError("DMS 拒绝了登录：%s" % body[:160])
+        raise DmsAuthError(_("DMS refused the sign-in: {0}").format(body[:160]))
 
     def ensure_admin_session(self) -> None:
         """在**同一个**已运行的浏览器上另开隔离 context 登录 admin 凭据组。
@@ -368,9 +369,9 @@ class MrerpDmsAdapter:
         if self._admin_logged_in:
             return
         if not self.has_admin_creds:
-            raise DmsTechnicalError("没配 admin 凭据却要求 admin 会话")
+            raise DmsTechnicalError(_("An admin session was requested but no admin credentials are configured"))
         if self._session is None:
-            raise DmsTechnicalError("admin 会话必须在 `with` 块里请求")
+            raise DmsTechnicalError(_("The admin session must be requested inside a `with` block"))
         secrets = [self._admin_password]
         if len(self._admin_username) >= 3:
             secrets.append(self._admin_username)
@@ -378,7 +379,7 @@ class MrerpDmsAdapter:
         try:
             self._perform_login(self._admin_page, self._admin_username, self._admin_password)
         except DmsAuthError as exc:
-            raise DmsAdminAuthError("DMS 管理员凭据登录失败：%s" % exc)
+            raise DmsAdminAuthError(_("DMS admin credentials failed to sign in: {0}").format(exc))
         self._admin_logged_in = True
 
     def admin_transport(self):

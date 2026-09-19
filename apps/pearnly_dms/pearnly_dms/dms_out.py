@@ -19,6 +19,7 @@ import secrets
 from typing import Any, Dict, Optional
 
 from pearnly_core import line
+from frappe import _
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,11 @@ def enqueue(job: str, fn, *args) -> None:
     names = [name for name in inspect.signature(fn).parameters if name != "self"]
     if len(names) != len(args):
         # 参数对不上是**写代码时**的错：当场炸，别留成 worker 里的静默失败
-        raise TypeError(f"{fn.__name__} 需要 {len(names)} 个参数，但入队传了 {len(args)} 个")
+        raise TypeError(
+            _("{0} takes {1} arguments, but {2} were passed to the queue").format(
+                fn.__name__, len(names), len(args)
+            )
+        )
     frappe.enqueue(
         f"{fn.__module__}.{fn.__name__}",
         queue="long",

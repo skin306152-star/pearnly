@@ -634,3 +634,26 @@ pearnly_control	Provisioning failed	开通失败	เปิดใช้งาน�
 pearnly_control	Enabled — {0} steps	已开通 {0} 步	เปิดใช้งานแล้ว {0} ขั้นตอน	開通済み {0} ステップ
 pearnly_control	Partly done {0}/{1}	部分完成 {0}/{1}	ทำไปบางส่วน {0}/{1}	一部完了 {0}/{1}
 pearnly_control	Provisioning {0}/{1}	开通中 {0}/{1}	กำลังเปิดใช้งาน {0}/{1}	開通中 {0}/{1}
+pearnly_core	Could not take the lock (Redis down?): {0}	取锁失败（Redis 不通？）：{0}	ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}	ロックを取得できません（Redis不通？）: {0}
+pearnly_core	The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)	锁还剩 {0}s（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）	ล็อกยังเหลือ {0} วินาที (ดูเหมือนล็อกค้างจากโปรเซสที่ถูกฆ่า ถ้าไม่มีใครรันอยู่ ลบ key นี้ได้)	ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）
+pearnly_core	Cannot read the remaining time	拿不到剩余时间	อ่านเวลาที่เหลือไม่ได้	残り時間を取得できません
+pearnly_core	Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}	等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}	รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}	{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
+pearnly_core	Local sample site: not sent to LINE, the raw text is only recorded	本机样例站点：未发往 LINE，仅记录原文	เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ	ローカル見本サイト：LINEへは送信せず、原文のみ記録
+pearnly_core	Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}
+pearnly_core	system_url is required	system_url 必填	ต้องระบุ system_url	system_url は必須です
+pearnly_core	username / password are required	username / password 必填	ต้องระบุ username / password	username / password は必須です
+pearnly_core	Endpoint {0} uses adapter {1}, not mrerp_dms	端点 {0} 的适配器是 {1}，不是 mrerp_dms	ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms	端点 {0} のアダプタは {1} で、mrerp_dms ではありません
+pearnly_core	Endpoint {0} is disabled	端点 {0} 已停用	ปลายทาง {0} ถูกปิดใช้งาน	端点 {0} は無効です
+pearnly_core	Endpoint {0} has no password configured	端点 {0} 没配密码	ปลายทาง {0} ยังไม่ได้ตั้งรหัสผ่าน	端点 {0} にパスワードが設定されていません
+pearnly_core	DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · 可能页面加载太慢或被拦了）	การเข้าสู่ระบบ DMS ไม่จบ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
+pearnly_core	The DMS account is not approved to use the system	DMS 账号未被批准使用系统	บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ	DMSアカウントはシステム利用が承認されていません
+pearnly_core	The DMS account is marked as resigned	DMS 账号已标记为离职	บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว	DMSアカウントは退職として記録されています
+pearnly_core	DMS refused the sign-in: {0}	DMS 拒绝了登录：{0}	DMS ปฏิเสธการเข้าสู่ระบบ: {0}	DMSがログインを拒否しました: {0}
+pearnly_core	An admin session was requested but no admin credentials are configured	没配 admin 凭据却要求 admin 会话	ขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin	adminセッションが要求されましたが、admin資格情報が未設定です
+pearnly_core	The admin session must be requested inside a `with` block	admin 会话必须在 `with` 块里请求	ต้องขอเซสชัน admin ภายในบล็อก `with`	adminセッションは `with` ブロック内で要求する必要があります
+pearnly_core	DMS admin credentials failed to sign in: {0}	DMS 管理员凭据登录失败：{0}	เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}	DMS管理者の資格情報でログインできません: {0}
+pearnly_core	The balance could not be read	余额查不出来	อ่านยอดคงเหลือไม่ได้	残高を読み取れません
+pearnly_core	ID card recognition (tier A)	身份证识别（高精档）	อ่านบัตรประชาชน (ระดับ A)	身分証認識（高精度A）
+pearnly_core	Could not call the model: {0}	调不动模型：{0}	เรียกโมเดลไม่สำเร็จ: {0}	モデルを呼び出せません: {0}
+pearnly_core	Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
+pearnly_core	{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました

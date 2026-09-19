@@ -12,6 +12,7 @@
 """
 
 import frappe
+from frappe import _
 
 # 产品 → 运行组。目前一对一；分开写是因为"组"是部署概念，"产品"是业务概念。
 PRODUCT_GROUP = {"cowork": "cowork", "erp": "erp", "dms": "dms"}
@@ -48,7 +49,7 @@ def compose_file() -> str:
 def group_of(product: str) -> str:
     group = PRODUCT_GROUP.get(product)
     if not group:
-        frappe.throw(f"未知产品：{product}")
+        frappe.throw(_("Unknown product: {0}").format(product))
     return group
 
 

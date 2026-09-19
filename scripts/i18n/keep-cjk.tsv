@@ -1,0 +1,25 @@
+# 有意保留的中文：登记在这里，check-i18n 会把它们单独列出、不当作"写死文案"。
+#
+# 为什么要有这张表：不改的东西必须**显式**登记，否则闸门永远是红的，
+# 以后真写死了新文案也淹没在噪音里看不出来。
+#
+# 格式（制表符分隔）：文件路径 <TAB> 文案 <TAB> 理由
+#   · 文案写具体那一条，就只豁免那一条；
+#   · 文案写 `*`，表示**这个文件里的中文都是有意保留的**（用于规格清单、元数据这类整文件如此的东西）。
+#   · 文件路径支持后缀匹配（写 `hooks.py` 会命中所有 app 的 hooks.py）。
+#
+# 三种"有意保留"：
+#   1. **输入词**：用户手打的命令词（解绑），翻了会让用户打不出来；
+#   2. **清理用的旧键**：改名后用来找旧记录的名字（旧侧边栏名），只在升级路径上用；
+#   3. **规格与元数据**：产品清单的"禁止事项"、app 描述 —— 不进任何界面，是给开发/审计看的。
+apps/pearnly_dms/pearnly_dms/line_handlers.py	解绑	输入词：用户手打的解绑指令，翻了泰国销售就打不出来（另两种语言在 UNBIND_WORDS 里）
+apps/pearnly_control/pearnly_control/desk.py	租户开通	清理用的旧键：改名后用来找并删掉旧侧边栏/桌面图标，只在升级路径上读
+apps/pearnly_dms/pearnly_dms/product_manifest.py	*	规格：产品清单的"禁止事项"，给开发与审计看，不进界面
+apps/pearnly_cowork/pearnly_cowork/product_manifest.py	*	规格：同上
+apps/pearnly_erp_portal/pearnly_erp_portal/product_manifest.py	*	规格：同上
+apps/pearnly_control/pearnly_control/product_manifest.py	*	规格：同上
+apps/pearnly_core/pearnly_core/hooks.py	*	元数据：app_description，只出现在 Frappe 的 Apps 列表（管理员页），按 Frappe 惯例是纯文本
+apps/pearnly_control/pearnly_control/hooks.py	*	元数据：同上
+apps/pearnly_cowork/pearnly_cowork/hooks.py	*	元数据：同上
+apps/pearnly_dms/pearnly_dms/hooks.py	*	元数据：同上
+apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py	*	元数据：同上

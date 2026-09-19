@@ -43,6 +43,7 @@ from collections import Counter, defaultdict
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 APPS_ROOT = os.path.join(ROOT, "apps")
+KEEP_FILE = os.path.join(HERE, "i18n", "keep-cjk.tsv")
 
 # 我们自己维护的 app。控制面站点上只装 frappe + core + control，
 # 产品站点装 frappe + core + 对应产品 —— 所以译文放哪个 app 是有讲究的。
@@ -109,6 +110,44 @@ JSON_TEXT_KEYS = (
 
 def _rel(path: str) -> str:
     return os.path.relpath(path, ROOT)
+
+
+def load_keep() -> tuple[dict, set]:
+    """读"有意保留"登记表：返回 ((文件后缀, 文案) → 理由, 整文件豁免的后缀集合)。"""
+    exact: dict = {}
+    whole_files: set = set()
+    if not os.path.exists(KEEP_FILE):
+        return exact, whole_files
+    with open(KEEP_FILE, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.rstrip("\n")
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            parts = line.split("\t")
+            if len(parts) < 3:
+                continue
+            path, text, why = parts[0].strip(), parts[1].strip(), parts[2].strip()
+            if text == "*":
+                whole_files.add(path)
+            else:
+                exact[(path, text)] = why
+    return exact, whole_files
+
+
+def split_kept(findings: list) -> tuple[list, list]:
+    """把"有意保留"的挑出来。两种命中：整文件豁免、或（文件后缀 + 文案）精确匹配。"""
+    exact, whole_files = load_keep()
+    kept, real = [], []
+    for item in findings:
+        path = item["file"].replace(os.sep, "/")
+        if any(path.endswith(suffix) for suffix in whole_files):
+            kept.append(item)
+            continue
+        if any(path.endswith(p) and item["text"] == t for (p, t) in exact):
+            kept.append(item)
+            continue
+        real.append(item)
+    return kept, real
 
 
 def _walk_app(app: str, suffixes: tuple):
@@ -428,9 +467,31 @@ def merged_translations(lang: str) -> dict:
     return merged
 
 
-MSGID_CALL = re.compile(
-    r"""(?:^|[^\w.])(?:_|__|_lt|N_)\(\s*(['"])(?P<text>(?:\\.|(?!\1).)*)\1"""
-)
+CALL_HEAD = re.compile(r"(?:^|[^\w.])(?:_|__|_lt|N_)\(\s*")
+LITERAL = re.compile(r"""(?P<q>['"])(?P<text>(?:\\.|(?!(?P=q)).)*)(?P=q)""", re.S)
+BETWEEN = re.compile(r"\s*(?:\+\s*)?")
+
+
+def _msgid_at(src: str, pos: int) -> str:
+    """从 pos 开始读**相邻拼接**的字面量，拼成一条 msgid。
+
+    必须认拼接：`_("前半，" "后半")` 是一条文案，只取第一截会永远报"缺译文"
+    （Python 与 JS 都会把相邻字面量接起来）。
+    """
+    parts = []
+    end = pos
+    while True:
+        match = LITERAL.match(src, end)
+        if not match:
+            break
+        parts.append(match.group("text"))
+        end = match.end()
+        probe = BETWEEN.match(src, end).end()
+        if LITERAL.match(src, probe):
+            end = probe
+            continue
+        break
+    return "".join(parts)
 
 
 def _unescape(text: str) -> str:
@@ -447,8 +508,8 @@ def english_msgids() -> dict:
                 src = open(path, encoding="utf-8").read()
             except OSError:
                 continue
-            for match in MSGID_CALL.finditer(src):
-                text = _unescape(match.group("text")).strip()
+            for head in CALL_HEAD.finditer(src):
+                text = _unescape(_msgid_at(src, head.end())).strip()
                 if not text or CJK.search(text):
                     continue
                 found[text].add(_rel(path))
@@ -598,8 +659,19 @@ def main() -> int:
         return 2
 
     findings = collect(apps)
-    report(findings, apps, args.list)
-    if args.strict and findings:
+    kept, real = split_kept(findings)
+    report(real, apps, args.list)
+    if kept:
+        print("")
+        print("== 有意保留的中文（已登记在 scripts/i18n/keep-cjk.tsv）：%d 条 ==" % len(kept))
+        seen_reason = set()
+        for item in kept:
+            reason = item["file"].replace(os.sep, "/")
+            if reason in seen_reason:
+                continue
+            seen_reason.add(reason)
+            print("  %s" % reason)
+    if args.strict and real:
         print("RESULT: FAIL（--strict）")
         return 1
     print("RESULT: REPORT-ONLY")
