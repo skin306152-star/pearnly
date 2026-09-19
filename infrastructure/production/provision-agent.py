@@ -8,6 +8,7 @@ import re
 import socket
 import subprocess
 import sys
+import time
 import urllib.request
 
 ROOT = Path("/opt/pearnly/deploy")
@@ -135,9 +136,22 @@ def publish(p):
     path.write_text(nginx(site, group, True))
     run(["nginx", "-t"])
     run(["systemctl", "reload", "nginx"])
-    with urllib.request.urlopen(f"https://{site}/api/method/ping", timeout=20) as response:
-        if json.load(response).get("message") != "pong":
-            raise RuntimeError("Tenant HTTPS health check failed")
+    # `systemctl reload nginx` 一返回只说明信号发出去了，**不代表新配置已经开始服务新连接**。
+    # 紧接着做 HTTPS 自检会撞进那个窗口：拿到的握手对不上这张证书（实测报
+    # TLSV1_UNRECOGNIZED_NAME），于是这一步被记成失败、整条开通链停在这里 —— 而站点
+    # 其实已经完全就绪（2026-09-19 实测：报失败的站点用 curl 访问是 200）。
+    # 所以自检要重试；只有一直不通才算真失败。
+    last_error = None
+    for _ in range(6):
+        try:
+            with urllib.request.urlopen(f"https://{site}/api/method/ping", timeout=20) as response:
+                if json.load(response).get("message") == "pong":
+                    return
+                last_error = "unexpected response body"
+        except Exception as error:  # noqa: BLE001 - 任何传输/证书层面的抖动都值得重试
+            last_error = f"{type(error).__name__}: {error}"
+        time.sleep(5)
+    raise RuntimeError(f"Tenant HTTPS health check failed after retries: {last_error}")
 
 
 def main():
@@ -167,7 +181,12 @@ def main():
             manifest.chmod(0o600)
         image()
         if action == "restart_web":
-            restart_group(p["group"])
+            # 新站点**不需要重启**：Frappe 是"按站点"读 `site_config.json` 的，而这个站点
+            # 从未被 web 进程加载过，不存在读到旧副本的问题。这里只要保证产品组在跑即可。
+            # 曾经这里放的是真重启 —— 那会把**该产品下所有已有租户**一起踢下线，开一个新
+            # 租户的代价变成"别人抖一下"（用户 2026-09-19 指出）。
+            compose(p["group"], "up", "-d", *[p["group"] + "-" + suffix for suffix in
+                    ("web", "worker", "scheduler", "socketio", "frontend")])
         elif action == "drop_site":
             path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")
             path.unlink(missing_ok=True)
@@ -189,11 +208,15 @@ def main():
             return {"status": "skipped"}
         else:
             site_step(job)
-            # `verify_site` is the last step of a provisioning run (the local runner maps
-            # `mark_active` to it) and `set_line` is the "configure the channel after the
-            # tenant exists" step. Both must leave the product serving the configuration
-            # that was just written, not the copy its workers happen to still hold.
-            if action in {"verify_site", "set_line"}:
+            # 重启是**按工单显式要求**的，不是默认动作。
+            #
+            # 只有"改一个已经在服务的站点"才需要它：Frappe 在 web 进程内缓存
+            # `site_config.json`（见 `restart_group` 的说明），运行中的站点会继续按旧副本
+            # 应答最长一分钟。而同一轮开通里刚建的站点没被加载过，没有旧副本。
+            #
+            # 所以控制面只在**运维人员改已有站点的渠道**时带上 `restart`；开通流程不带 ——
+            # 否则每开一个租户都要把该产品组的其他租户一起重启一遍。
+            if p.get("restart"):
                 restart_group(p["group"])
         return {"status": "done"}
 

@@ -85,6 +85,8 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     steps = []
     for row in issue.apps:
         dep = _ensure_deployment(issue, row)
+        # 必须在 `_steps_for` **之前**：那一步会把渠道的当前状态算进 `set_line` 的载荷。
+        _ensure_line_channel(issue, row, dep)
         deployments.append(dep.name)
         steps.extend(_steps_for(issue, dep, row))
 
@@ -166,6 +168,41 @@ def _ensure_deployment(issue, row):
     dep.insert()
     _ensure_oidc_client(dep, issue.target)
     return dep
+
+
+def _ensure_line_channel(issue, row, dep):
+    """开户单上填了 LINE 就顺手把渠道建好 —— 这样**同一次开通**就把渠道下发到站点。
+
+    为什么要有它（用户 2026-09-19 问的）：渠道必须挂在部署上，而部署是点「发号并开通」
+    时才建的，所以原来的顺序只能是"先开户、等建好再去配渠道"——那一步必然记 `skipped`。
+    把凭据收在开户单的**产品行**上，规划时就落成渠道记录，`_line_payload` 这一轮就能读到
+    `configured: True`，`set_line` 在同一次开通里落地。
+
+    只在产品行**带了凭据**时才动渠道（幂等）：没填就完全保持现状——离线开户、之后再配。
+    反过来，如果渠道已经存在而开户单上又填了新的，以开户单为准（那是运维的显式修改）。
+    """
+    secret = row.get_password("line_channel_secret", raise_exception=False) if row.line_channel_secret else ""
+    token = row.get_password("line_channel_access_token", raise_exception=False) if row.line_channel_access_token else ""
+    if not (secret or token):
+        return None
+    if not (secret and token):
+        frappe.throw(_("Row {0}: a LINE channel needs both the channel secret and the access token").format(row.app))
+
+    existing = frappe.db.get_value(LINE_CHANNEL, {"deployment": dep.name}, "name")
+    channel = frappe.get_doc(LINE_CHANNEL, existing) if existing else frappe.new_doc(LINE_CHANNEL)
+    channel.update({
+        "deployment": dep.name,
+        "status": "active",
+        "channel_id": row.line_channel_id or "",
+        "liff_id": row.line_liff_id or "",
+        "channel_secret": secret,
+        "channel_access_token": token,
+    })
+    # 开户单上的值直接落库：打标记让 `on_update` 跳过排队 —— 这一步发生在开通步骤
+    # 还没生成的时候，`set_line` 的载荷由下面的规划自己算。
+    channel.flags.pearnly_from_issue = True
+    channel.save(ignore_permissions=True)
+    return channel.name
 
 
 def _ensure_oidc_client(dep, target: str | None = None) -> None:
@@ -343,8 +380,12 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
     token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
     if enabled and not (secret and token):
         frappe.throw(_("LINE credentials are required before activation."))
+    # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟
+    # （Frappe 进程内缓存 `site_config.json`）。开/停渠道是运维动作，容忍一次该产品组的
+    # 重启，换"立刻生效"。开通流程本身不带这个键 —— 新站点没有旧副本，不需要重启，
+    # 也就不该把该产品下的其他租户一起踢下线（见 provision-agent 里的说明）。
     payload = {"site": dep.site_name, "group": dep.bench_group, "product": dep.product,
-               "configured": enabled, "clear_credentials": not enabled,
+               "configured": enabled, "clear_credentials": not enabled, "restart": True,
                "channel_id": channel.channel_id or "", "liff_id": channel.liff_id or "",
                "channel_secret": secret, "channel_access_token": token}
     step.payload = json.dumps(payload)
@@ -471,7 +512,11 @@ def _steps_for(issue, dep, row) -> list[dict]:
          "payload": json.dumps({
              "site": site, "group": group,
              "email": issue.account_email,
-             "full_name": issue.account_name or issue.tenant_name,
+             # 字段是 `account_username`（"用户名"，用户 2026-09-19 从"使用人姓名"改过来）。
+             # 这里曾经写的是旧名 `account_name`：旧列还在库里、DocType 元数据里已经没有了，
+             # 于是 `bench migrate` 同步一次字段就会让这行抛 AttributeError、把整条开通链卡死
+             # （2026-09-19 实踩）。取不到就退回公司名。
+             "full_name": issue.get("account_username") or issue.tenant_name,
              "subject": issue.identity_subject,
              "deployment": dep.name,
          }, ensure_ascii=False)},

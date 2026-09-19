@@ -262,3 +262,10 @@ Pearnly Credit Transaction,รายการเดินบัญชี
 Pearnly Subscription,การสมัครแพ็กเกจ
 Pearnly Topup Request,คำขอเติมเงิน
 A deployment is a live site. Delete the tenant so its site and database go away too.,การติดตั้งหนึ่งรายการคือเว็บไซต์จริง โปรดใช้เมนูลบผู้เช่า เพื่อให้เว็บไซต์และฐานข้อมูลถูกลบไปด้วย
+LINE channel (optional),ช่องทาง LINE (ไม่บังคับ)
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,กรอกส่วนนี้เพื่อส่งมอบช่องทาง LINE ของผู้เช่ารายนี้ตั้งแต่ตอนเปิดใช้งาน ถ้าเว้นว่างไว้ค่อยกำหนดภายหลัง
+LINE Channel ID,LINE Channel ID
+LINE LIFF ID,LINE LIFF ID
+LINE Channel Secret,LINE Channel Secret
+LINE Channel Access Token,LINE Channel Access Token
+Row {0}: a LINE channel needs both the channel secret and the access token,แถวที่ {0}: ช่องทาง LINE ต้องกรอกทั้ง secret และ access token

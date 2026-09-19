@@ -253,3 +253,10 @@ Pearnly Credit Transaction,Pearnly Credit Transaction
 Pearnly Subscription,Pearnly Subscription
 Pearnly Topup Request,Pearnly Topup Request
 A deployment is a live site. Delete the tenant so its site and database go away too.,A deployment is a live site. Delete the tenant so its site and database go away too.
+LINE channel (optional),LINE channel (optional)
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
+LINE Channel ID,LINE Channel ID
+LINE LIFF ID,LINE LIFF ID
+LINE Channel Secret,LINE Channel Secret
+LINE Channel Access Token,LINE Channel Access Token
+Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token

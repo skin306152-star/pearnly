@@ -262,3 +262,10 @@ Pearnly Credit Transaction,残高の履歴
 Pearnly Subscription,プラン契約
 Pearnly Topup Request,チャージ申請
 A deployment is a live site. Delete the tenant so its site and database go away too.,デプロイは実在するサイトです。サイトとデータベースも削除されるよう「テナントを削除」から行ってください。
+LINE channel (optional),LINEチャネル（任意）
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
+LINE Channel ID,LINEチャネルID
+LINE LIFF ID,LINE LIFF ID
+LINE Channel Secret,LINEチャネルシークレット
+LINE Channel Access Token,LINEチャネルアクセストークン
+Row {0}: a LINE channel needs both the channel secret and the access token,行 {0}: LINEチャネルにはシークレットとアクセストークンの両方が必要です

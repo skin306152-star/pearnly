@@ -262,3 +262,10 @@ Pearnly Credit Transaction,余额流水
 Pearnly Subscription,套餐订阅
 Pearnly Topup Request,充值申请
 A deployment is a live site. Delete the tenant so its site and database go away too.,一条部署就是一台真实站点。请改用「删除租户」，这样站点与数据库才会一起删掉。
+LINE channel (optional),LINE 渠道（可选）
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,填了就在本次开通里把这个租户自己的 LINE 渠道一起下发；留空则之后再配。
+LINE Channel ID,LINE 渠道 ID
+LINE LIFF ID,LINE LIFF ID
+LINE Channel Secret,LINE 渠道密钥
+LINE Channel Access Token,LINE 渠道访问令牌
+Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：配 LINE 渠道需要同时填密钥和访问令牌
