@@ -952,3 +952,4 @@ pearnly_core	Cancel	取消	ยกเลิก	キャンセル	account.cancel
 pearnly_core	Save	保存	บันทึก	保存	account.save
 pearnly_core	Saving…	提交中…	กำลังบันทึก…	保存中…	account.saving
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	account.error.http
+pearnly_control	Account opening is available only for configured cloud targets	仅可为已配置的云端目标开户	เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น	設定済みのクラウド環境でのみアカウントを開設できます

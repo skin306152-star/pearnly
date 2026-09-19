@@ -24,6 +24,8 @@ jobs:
           node-version: '22.14.0'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - name: Enforce architecture boundaries
+        run: python3 scripts/check-architecture.py
       - name: Build the shared frontend
         working-directory: frontend
         run: npm ci && npm run build
@@ -35,6 +37,16 @@ jobs:
             --label org.opencontainers.image.revision="$GITHUB_SHA" \
             --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
             -f infrastructure/images/frappe.Dockerfile -t "$IMAGE" .
+      - name: Verify account policy and legacy entry points in the candidate runtime
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_cloud_onboarding.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" \
+            -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
+            "$IMAGE" /candidate/tests/test_dms_entrypoints.py
       - name: Verify runtime and frontend assets
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}

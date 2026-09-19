@@ -1,0 +1,27 @@
+name: Development checks
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  architecture-and-offline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Test the architecture guard
+        run: python3 tests/test_architecture_guard.py
+      - name: Enforce architecture boundaries
+        run: python3 scripts/check-architecture.py
+      - name: Exercise audited offline DMS contracts
+        run: python3 scripts/check-dms-offline.py
+      - name: Check generated translations
+        run: python3 scripts/i18n-build.py --check
+      - name: Check whitespace
+        run: git diff --check

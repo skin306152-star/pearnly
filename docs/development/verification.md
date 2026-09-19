@@ -78,3 +78,11 @@ App 下虽然有 `.pre-commit-config.yaml`，本工作树根目录尚未配置�
 记录：时间、源码 SHA（未提交变更另记差异）、环境/数据归属、命令或操作、预期、实际、退出码及未覆盖项。日志/截图存受控位置并脱敏，索引写工作包。
 
 分别标记实现、本地验证、CI、部署、外部结果、用户验收为“通过 / 失败 / 未执行 / 不适用 / 阻塞”，并给依据。只有用户确认才记录用户验收；一个层级通过不自动推进下一个层级。历史通过保留原日期，不改写成当前版本通过。
+
+## 架构与开户边界
+
+所有代码工作包先运行 `python3 scripts/check-architecture.py`；DMS 改动运行 `python3 scripts/check-dms-offline.py`（207 条离线业务断言，无网络）。不要批量执行未审过的 sample 脚本。
+
+使用锁定 Frappe 运行环境、候选源码挂载、`--network none` 运行 `tests/test_cloud_onboarding.py` 和 `tests/test_dms_entrypoints.py`。前者以替身身份服务和数据库验证拒绝边界，后者验证真实框架的导入、RPC 白名单和旧队列路径解析；两者都不证明真实开户、收款或 DMS 写单已经验收。
+
+本次模块搬移另用 `python3 scripts/verify-dms-reorganization.py` 对照固定基线验证 AST 等价。它是搬移验收工具，未来业务有意改变后不应继续作为常规零差异检查。

@@ -54,8 +54,11 @@ RESERVED_PREFIXES = {
 
 class PearnlyIssue(Document):
     def validate(self):
-        if not self.target:
-            self.target = frappe.db.get_value("Pearnly Target", {"is_default": 1}, "name")
+        # Existing issued history remains readable; new or reopened requests are cloud-only.
+        if self.is_new() or self.status != "issued" or self.has_value_changed("target"):
+            from pearnly_control.onboarding.targets import require_cloud_target
+
+            self.target = require_cloud_target(self.target)
         self._validate_account()
         self._validate_apps()
         self._summarize_features()

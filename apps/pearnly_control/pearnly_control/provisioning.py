@@ -55,6 +55,9 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
     """把发号单拆成步骤。幂等：同一幂等键只会有一套请求与部署。"""
     _require_operator()
     issue = frappe.get_doc(ISSUE, issue)
+    from pearnly_control.onboarding.targets import require_cloud_target
+
+    require_cloud_target(issue.target, use_default=False)
     key = (idempotency_key or issue.name).strip()
 
     existing = frappe.db.get_value(REQUEST, {"idempotency_key": key}, "name")
@@ -562,6 +565,10 @@ def next_steps(limit: int = 20, target: str | None = None) -> list[dict]:
                 and not str(req.idempotency_key).startswith("teardown:")):
             continue
         issue_target = frappe.db.get_value(ISSUE, req.issue, "target")
+        # Historical local provisioning requests must never resume or be retargeted.
+        # Explicit teardown remains a separate, previously authorized lifecycle.
+        if not str(req.idempotency_key).startswith("teardown:") and not infra.is_cloud(issue_target):
+            continue
         # Legacy runner has no target argument. It must never consume cloud jobs.
         if target and issue_target != target:
             continue

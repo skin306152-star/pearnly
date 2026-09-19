@@ -233,6 +233,11 @@ function issue_and_provision(frm) {
 }
 
 frappe.ui.form.on("Pearnly Issue", {
+	setup(frm) {
+		frm.set_query("target", () => ({
+			query: "pearnly_control.onboarding.targets.search",
+		}));
+	},
 	refresh(frm) {
 		preview_domains(frm);
 		render_provision(frm);

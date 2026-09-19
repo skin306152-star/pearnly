@@ -1,0 +1,163 @@
+{
+  "root_modules": {
+    "pearnly_core": [
+      "__init__.py",
+      "billing_client.py",
+      "billing_www.py",
+      "browser.py",
+      "browser_text.py",
+      "endpoints.py",
+      "hooks.py",
+      "identity.py",
+      "keycloak_admin.py",
+      "line.py",
+      "line_binding.py",
+      "line_session.py",
+      "login_redirect.py",
+      "manifest.py",
+      "ocr.py",
+      "ocr_record.py",
+      "password.py",
+      "provisioning.py",
+      "push_log.py",
+      "session_lock.py",
+      "sessions.py",
+      "shell.py",
+      "workspace.py"
+    ],
+    "pearnly_dms": [
+      "__init__.py",
+      "api.py",
+      "dms_approval_flow.py",
+      "dms_booking_flow.py",
+      "dms_browser_api.py",
+      "dms_flow.py",
+      "dms_query_flow.py",
+      "hooks.py",
+      "i18n.py",
+      "id_card.py",
+      "line_handlers.py",
+      "ocr_id_card.py",
+      "product_manifest.py",
+      "roster.py"
+    ],
+    "pearnly_erp_portal": [
+      "__init__.py",
+      "hooks.py",
+      "product_manifest.py",
+      "purchase.py"
+    ],
+    "pearnly_cowork": [
+      "__init__.py",
+      "hooks.py",
+      "intake.py",
+      "product_manifest.py"
+    ],
+    "pearnly_control": [
+      "__init__.py",
+      "billing.py",
+      "billing_api.py",
+      "billing_auth.py",
+      "billing_control.py",
+      "billing_remote.py",
+      "boot.py",
+      "bootstrap.py",
+      "desk.py",
+      "domains.py",
+      "features.py",
+      "hooks.py",
+      "infra.py",
+      "issues.py",
+      "line_admin.py",
+      "product_manifest.py",
+      "provisioning.py",
+      "runner_bridge.py",
+      "teardown.py"
+    ]
+  },
+  "dms_domain_dependencies": {
+    "adapter": [
+      "client",
+      "contracts",
+      "line",
+      "masters"
+    ],
+    "approval": [
+      "intake",
+      "line",
+      "ocr",
+      "operators"
+    ],
+    "booking": [
+      "adapter",
+      "client",
+      "contracts",
+      "editor",
+      "intake",
+      "line",
+      "masters",
+      "ocr"
+    ],
+    "client": [
+      "booking",
+      "contracts",
+      "intake",
+      "masters"
+    ],
+    "connections": [
+      "adapter"
+    ],
+    "contracts": [],
+    "editor": [
+      "approval",
+      "booking",
+      "contracts",
+      "intake",
+      "line",
+      "masters",
+      "menu",
+      "ocr"
+    ],
+    "intake": [
+      "adapter",
+      "approval",
+      "booking",
+      "contracts",
+      "editor",
+      "line",
+      "menu",
+      "ocr",
+      "query"
+    ],
+    "line": [
+      "booking",
+      "editor",
+      "intake",
+      "menu",
+      "query"
+    ],
+    "masters": [
+      "booking",
+      "client",
+      "contracts",
+      "intake"
+    ],
+    "menu": [
+      "booking",
+      "intake",
+      "line",
+      "query"
+    ],
+    "ocr": [
+      "contracts",
+      "line"
+    ],
+    "operators": [],
+    "query": [
+      "contracts",
+      "intake",
+      "line",
+      "ocr"
+    ]
+  }
+}

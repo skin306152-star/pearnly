@@ -29,6 +29,7 @@ from frappe.utils import now
 
 from pearnly_core import keycloak_admin as kc
 from pearnly_control import features as features_mod
+from pearnly_control.onboarding.targets import cloud_target_names, require_cloud_target
 
 ISSUE = "Pearnly Issue"
 TENANT = "Pearnly Tenant"
@@ -86,7 +87,7 @@ def issue(
     **账号三件套**：`account_email`（邮箱）+ `account_username`（用户名）+
     `account_password`（初始密码）。用户拿到初始密码当天就能登录，邮箱和用户名都能当登录名。
 
-    `target` 决定这次开户打到哪个环境（见 `Pearnly Target`）：本机样板，或服务器。
+    `target` 决定这次开户打到哪个环境（见 `Pearnly Target`）：仅限已配置的云端目标。
     控制面只在本机跑，但**开户动作是要打到服务器上的**，所以目标是一项配置。
 
     `apps` 每项：`{"app": "cowork", "domain_prefix": "acme", "display_name": ...}`。
@@ -112,8 +113,8 @@ def issue(
     features = {p: features_mod.codes_of(p) for p in features_mod.PRODUCTS
                 if p in selected_products}
 
-    # 这次开户打到哪个环境：本机样板，还是服务器。目标是一项配置，不写死。
-    kc_client, target_name = kc.client_for_target(target)
+    # 本地后台只向明确配置的云端目标开户，缺配置时拒绝。
+    kc_client, target_name = kc.client_for_target(require_cloud_target(target))
 
     apps_payload = []
     for row in apps:
@@ -164,7 +165,7 @@ def issue_from_doc(issue_name: str) -> dict:
         return _result(doc, doc.identity_subject, doc.target or "")
     if doc.status == "failed":
         frappe.throw(_("The last issue attempt failed; set it back to draft before issuing again"))
-    kc_client, target_name = kc.client_for_target(doc.target)
+    kc_client, target_name = kc.client_for_target(require_cloud_target(doc.target, use_default=False))
     doc.target = target_name
     return _activate(doc, operator, target_name=target_name)
 
@@ -186,7 +187,7 @@ def _activate_locked(doc, operator: str, *, target_name: str) -> dict:
     两条入口（API 一次发号、Desk 存草稿后点发号）共用这一份 ——
     分开写迟早会有一条路忘了改。
     """
-    kc_client, _target = kc.client_for_target(target_name)
+    kc_client, _target = kc.client_for_target(require_cloud_target(target_name, use_default=False))
 
     # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
     if kc_client.find_user_id_by_email(doc.account_email):
@@ -347,6 +348,7 @@ def list_targets() -> list[dict]:
     _require_operator()
     return frappe.get_all(
         "Pearnly Target",
+        filters={"name": ["in", cloud_target_names()]},
         fields=["name", "target_name", "base_url", "realm", "is_default"],
         order_by="is_default desc, target_name asc",
         limit_page_length=0,
