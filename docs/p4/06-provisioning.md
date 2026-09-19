@@ -105,6 +105,22 @@ cookie；curl 的"localhost 例外"范围更窄（只认 `127.0.0.1` / `localhos
 
 本机用 `localhost` 是为了能**真的用浏览器点开**；生产改一个配置即可，代码不动。
 
+### 协议与端口（2026-09-19 收拢成配置）
+
+站点地址（webhook 地址、OIDC 回调、Keycloak 客户端回调、部署上的地址）原先在四处
+各自拼 `http://{站点}:{端口}` —— 那样上生产得挨个改，漏一处就静默出错
+（典型表现：webhook 地址变成 `http://xxx.pearnly.com:8103/...`，LINE 后台直接拒收）。
+现在统一由 `pearnly_control.infra.site_base_url()` 生成，只差两项配置：
+
+| 配置项 | 本机样板 | 生产 |
+|---|---|---|
+| `pearnly_base_domain` | `localhost` | `pearnly.com` |
+| `pearnly_public_scheme` | 不写（默认 `http`） | `https` |
+| `pearnly_public_port` | 不写（用每组自己的端口 8101/8102/8103） | `0`（不带端口，走 443） |
+
+已实测两种模式：本机算出 `http://testdms.localhost:8103/api/method/pearnly_core.line.webhook`，
+生产配置下算出 `https://testdms.localhost/api/method/pearnly_core.line.webhook`。
+
 ## 验证证据
 
 一次真实开通（发号单 `ISS-2026-0039`，cowork + dms 两个部署，共 16 步）：
@@ -145,7 +161,9 @@ cookie；curl 的"localhost 例外"范围更窄（只认 `127.0.0.1` / `localhos
    而且三个产品目前**没有自己的界面**（只有接口与清单），所以现在也没有可见的东西可挡。
    下一步是 P4.04 授权管理。
 2. **还没打到服务器**：现在只在本机样板建站。控制面的「开户目标」里 `provision_url`
-   是给服务器留的口子，服务器就绪后才用得上。
+   是给服务器留的口子 —— **代码里一处都还没用到**，跨网开通通道尚未成文。
+   另外计费底座写给站点的地址是容器内网名（`http://control-web:8000` + `Host: control.localhost`）：
+   控制面留在本机、站点在云上时，这条也得单独设计（借 `provision_url` 那条通道一并做）。
 3. **没有 TLS / 真实 DNS**：本机是 `*.localhost` + http；生产要有证书与通配解析。
 4. **资源准入未实施**：P4.07 要求 `cowork.boards` 才建 WeKan 且要算资源（每实例约 2 GiB），
    现在只保证不静默减少功能，真机配额要等服务器。

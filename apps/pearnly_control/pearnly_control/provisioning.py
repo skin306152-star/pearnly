@@ -155,7 +155,7 @@ def _ensure_deployment(issue, row):
         "bench_group": infra.group_of(row.app),
         "app": infra.app_of(row.app),
         "port": infra.port_of(row.app),
-        "url": infra.local_url(site_name, row.app),
+        "url": infra.site_base_url(site_name, infra.port_of(row.app)),
         "issue": issue.name,
         "features": _feature_rows(issue, row.app),
     })
@@ -170,8 +170,9 @@ def _ensure_oidc_client(dep, target: str | None = None) -> None:
     回调地址按站点域名与端口算 —— 这正是"共用客户端不行"的原因。
     """
     client, _target_name = kc.client_for_target(target)
-    urls = [f"http://{dep.site_name}:{dep.port}/*"]
-    origins = [f"http://{dep.site_name}:{dep.port}"]
+    base = infra.deployment_base_url(dep)
+    urls = [f"{base}/*"]
+    origins = [base]
     result = client.create_oidc_client(dep.site_name, urls, origins)
     dep.oidc_client_id = result["client_id"]
     dep.oidc_client_secret = result["client_secret"]
@@ -266,7 +267,7 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "site": site,
         "group": group,
         "product": dep.product,
-        "webhook_url": f"http://{site}:{dep.port}/api/method/pearnly_core.line.webhook",
+        "webhook_url": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook",
     }
     if not channel:
         payload["configured"] = False
@@ -369,7 +370,7 @@ def _steps_for(issue, dep, row) -> list[dict]:
              "issuer": _issuer_url(),
              "client_id": dep.oidc_client_id,
              "client_secret": oidc_secret_of(dep.name),
-             "redirect_uri": f"http://{site}:{dep.port}/api/method/pearnly_core.identity.callback",
+             "redirect_uri": f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.identity.callback",
              # realm 级的两个客户端凭据也要一起写：改密功能依赖它们
              # （只写本部署的 client 会导致"能登录但改不了密码"）
              **target_credentials(),

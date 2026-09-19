@@ -28,4 +28,10 @@ class PearnlyLINEChannel(Document):
             frappe.throw(_("No such deployment: {0}").format(self.deployment))
         # 产品以部署为准，避免单据之间对不上
         self.product = dep.product
-        self.webhook_url = f"http://{dep.site_name}:{dep.port}/api/method/pearnly_core.line.webhook"
+        # 地址由**部署的对外地址**算出来，与开通时下发给站点的那条永远一致：
+        # 本机是 http://xxx.localhost:8103/…，生产是 https://xxx.pearnly.com/…（不带端口）。
+        from pearnly_control import infra
+
+        self.webhook_url = (
+            f"{infra.deployment_base_url(dep)}/api/method/pearnly_core.line.webhook"
+        )

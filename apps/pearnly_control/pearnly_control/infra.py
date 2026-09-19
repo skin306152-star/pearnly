@@ -61,5 +61,38 @@ def port_of(product: str) -> int:
     return int(group_ports().get(group_of(product), 0))
 
 
-def local_url(site_name: str, product: str) -> str:
-    return f"http://{site_name}:{port_of(product)}"
+# 站点对外的协议与端口。**只有这两项在换环境时会变**，所以单独拎出来：
+#   本机样板：http + 每组一个端口（cowork 8101 / erp 8102 / dms 8103）
+#   生产    ：https + 443（不带端口）
+# 站点地址被四处用到（webhook 地址、OIDC 回调、Keycloak 客户端、部署上的本机地址），
+# 以前各自拼 `http://{站点}:{端口}` —— 上生产前得挨个改。现在统一走这里。
+#
+#   pearnly_public_scheme = "https"
+#   pearnly_public_port   = 0        # 0 或留空 = 不带端口，走 443
+DEFAULT_SCHEME = "http"
+
+
+def public_scheme() -> str:
+    return str(frappe.conf.get("pearnly_public_scheme") or DEFAULT_SCHEME).strip().lower()
+
+
+def _port_part(explicit: int | None) -> str:
+    """端口后缀。生产在 `pearnly_public_port` 里显式定（0 = 不带）；
+    没配时用这个部署自己的端口（本机样板就是这种）。"""
+    if "pearnly_public_port" in frappe.conf:
+        value = int(frappe.conf.get("pearnly_public_port") or 0)
+    else:
+        value = int(explicit or 0)
+    return f":{value}" if value else ""
+
+
+def site_base_url(site_name: str, port: int | None = None) -> str:
+    """站点对外地址（不带结尾斜杠）。webhook、OIDC 回调都用它算，
+    保证四处永远一致。"""
+    name = (site_name or "").strip().lower()
+    return f"{public_scheme()}://{name}{_port_part(port)}"
+
+
+def deployment_base_url(dep) -> str:
+    """某个部署（Pearnly Deployment）的对外地址。"""
+    return site_base_url(getattr(dep, "site_name", ""), getattr(dep, "port", None))
