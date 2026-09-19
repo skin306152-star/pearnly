@@ -407,6 +407,34 @@ Workspace,พื้นที่ทำงาน
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+home.cancel,ยกเลิก
+home.error.http,คำขอล้มเหลว (HTTP {0})
+home.ledger.empty,ไม่มีรายการ
+home.ledger.export,ส่งออกรายละเอียด
+home.ledger.exporting,กำลังส่งออก…
+home.ledger.ocr,บันทึกการอ่านข้อมูล
+home.ledger.usage,ค่าบริการ
+home.loading,กำลังโหลด…
+home.period.all,ทั้งหมด
+home.period.month,เดือนนี้
+home.period.today,วันนี้
+home.period.year,ปีนี้
+home.plan.current,แพ็กเกจปัจจุบัน
+home.plan.subscribe,สมัครแพ็กเกจนี้
+home.plan.subscribed,สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}
+home.plan.subscribing,กำลังสมัคร…
+home.refresh,รีเฟรช
+home.status.credited,เข้าบัญชีแล้ว
+home.status.failed,ล้มเหลว
+home.status.ok,สำเร็จ
+home.status.pending,รอตรวจสอบ
+home.status.rejected,ถูกปฏิเสธ
+home.status.toreview,รอตรวจซ้ำ
+home.topup,เติมเงิน
+home.topup.payerHint,ชื่อผู้โอนในสลิปธนาคาร
+home.topup.submit,ส่งคำขอ
+home.topup.submitted,ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
+home.topup.submitting,กำลังส่ง…
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
 nav.connect,เชื่อมต่อ DMS ภายนอก

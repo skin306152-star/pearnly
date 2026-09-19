@@ -407,6 +407,34 @@ Workspace,工作区
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机出站拉取后落库
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+home.cancel,取消
+home.error.http,请求失败（HTTP {0}）
+home.ledger.empty,没这笔
+home.ledger.export,导出明细
+home.ledger.exporting,导出中…
+home.ledger.ocr,识别记录
+home.ledger.usage,扣费
+home.loading,加载中…
+home.period.all,全部
+home.period.month,本月
+home.period.today,今天
+home.period.year,今年
+home.plan.current,当前套餐
+home.plan.subscribe,订阅此套餐
+home.plan.subscribed,已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。
+home.plan.subscribing,订阅中…
+home.refresh,刷新
+home.status.credited,已到账
+home.status.failed,失败
+home.status.ok,成功
+home.status.pending,待审核
+home.status.rejected,已拒绝
+home.status.toreview,待复核
+home.topup,充值
+home.topup.payerHint,银行转账时的付款方
+home.topup.submit,提交申请
+home.topup.submitted,充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。
+home.topup.submitting,提交中…
 nav.clients,客户管理
 nav.company,公司资料
 nav.connect,连接第三方 DMS

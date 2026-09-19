@@ -55,8 +55,12 @@ export interface Texts {
   texts: Ref<Record<string, Record<string, string>>>;
   locale: Ref<Locale>;
   t: (key: string) => string;
+  /** 带占位符的取词：语言包里写成 `{0}` `{1}`，这里按位置填。 */
+  tf: (key: string, ...args: (string | number)[]) => string;
   load: () => Promise<void>;
   setLocale: (locale: Locale) => void;
+  /** 按**账号**的语言设定（ADR-006：账号为准，浏览器只当缓存）。 */
+  adoptAccountLocale: (locale: string) => void;
 }
 
 /**
@@ -80,6 +84,19 @@ export function createTexts(keys: string[] = [], prefix = ""): Texts {
     return bag[locale.value] || bag[FALLBACK] || bag.en || key;
   }
 
+  /**
+   * 带占位符取词。
+   *
+   * 为什么不让页面自己拼字符串：拼出来的 `"已订阅套餐 S，月费…"` 在语言包里
+   * **查不到**（泰文/日文的语序和中文不一样，拼不出来），就会永远显示中文。
+   * 所以文案整条进包、变量留 `{0}` 占位。
+   */
+  function tf(key: string, ...args: (string | number)[]): string {
+    const text = t(key);
+    if (!args.length) return text;
+    return text.replace(/\{(\d+)\}/g, (_all, i) => String(args[Number(i)] ?? ""));
+  }
+
   async function load(): Promise<void> {
     texts.value = await call<Record<string, Record<string, string>>>(
       "pearnly_core.browser_text.browser_text",
@@ -93,5 +110,20 @@ export function createTexts(keys: string[] = [], prefix = ""): Texts {
     document.documentElement.lang = next;
   }
 
-  return { texts, locale, t, load, setLocale };
+  /**
+   * 用账号上的语言。
+   *
+   * 规矩是**账号为准、浏览器只当缓存**（ADR-006）：站点按账号语言渲染，
+   * 前端不该自己按浏览器语言猜 —— 那会让同一个账号在不同电脑上看到不同语言。
+   * 只有账号上没设语言时才退回浏览器缓存/猜测。
+   */
+  function adoptAccountLocale(value: string): void {
+    const next = (value || "").slice(0, 2) as Locale;
+    if (!LOCALES.includes(next)) return;
+    locale.value = next;
+    rememberLocale(next);
+    document.documentElement.lang = next;
+  }
+
+  return { texts, locale, t, tf, load, setLocale, adoptAccountLocale };
 }

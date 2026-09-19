@@ -687,3 +687,31 @@ pearnly_core	Customers	客户	ลูกค้า	顧客	nav.erpClients
 pearnly_core	Connect third-party DMS	连接第三方 DMS	เชื่อมต่อ DMS ภายนอก	外部DMSに接続	nav.connect
 pearnly_core	Push Records	推送记录	บันทึกการส่ง	プッシュ記録	nav.records
 pearnly_core	Operators	操作员	พนักงาน	オペレーター	nav.roster
+pearnly_core	Today	今天	วันนี้	今日	home.period.today
+pearnly_core	This month	本月	เดือนนี้	今月	home.period.month
+pearnly_core	This year	今年	ปีนี้	今年	home.period.year
+pearnly_core	All	全部	ทั้งหมด	すべて	home.period.all
+pearnly_core	Top up	充值	เติมเงิน	チャージ	home.topup
+pearnly_core	Cancel	取消	ยกเลิก	キャンセル	home.cancel
+pearnly_core	Failed	失败	ล้มเหลว	失敗	home.status.failed
+pearnly_core	Succeeded	成功	สำเร็จ	成功	home.status.ok
+pearnly_core	Credited	已到账	เข้าบัญชีแล้ว	入金済み	home.status.credited
+pearnly_core	Rejected	已拒绝	ถูกปฏิเสธ	却下済み	home.status.rejected
+pearnly_core	Pending review	待审核	รอตรวจสอบ	審査待ち	home.status.pending
+pearnly_core	To verify	待复核	รอตรวจซ้ำ	要確認	home.status.toreview
+pearnly_core	Charges	扣费	ค่าบริการ	課金	home.ledger.usage
+pearnly_core	Recognition records	识别记录	บันทึกการอ่านข้อมูล	認識記録	home.ledger.ocr
+pearnly_core	No records	没这笔	ไม่มีรายการ	記録なし	home.ledger.empty
+pearnly_core	Current plan	当前套餐	แพ็กเกจปัจจุบัน	現在のプラン	home.plan.current
+pearnly_core	Subscribe to this plan	订阅此套餐	สมัครแพ็กเกจนี้	このプランに登録	home.plan.subscribe
+pearnly_core	Subscribing…	订阅中…	กำลังสมัคร…	登録中…	home.plan.subscribing
+pearnly_core	Submit request	提交申请	ส่งคำขอ	申請する	home.topup.submit
+pearnly_core	Submitting…	提交中…	กำลังส่ง…	送信中…	home.topup.submitting
+pearnly_core	Export details	导出明细	ส่งออกรายละเอียด	明細をエクスポート	home.ledger.export
+pearnly_core	Exporting…	导出中…	กำลังส่งออก…	エクスポート中…	home.ledger.exporting
+pearnly_core	Refresh	刷新	รีเฟรช	更新	home.refresh
+pearnly_core	Loading…	加载中…	กำลังโหลด…	読み込み中…	home.loading
+pearnly_core	Payer name on the bank transfer	银行转账时的付款方	ชื่อผู้โอนในสลิปธนาคาร	銀行振込の振込人名	home.topup.payerHint
+pearnly_core	Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.	充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。	ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน	チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。	home.topup.submitted
+pearnly_core	Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.	已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。	สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}	プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。	home.plan.subscribed
+pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	home.error.http

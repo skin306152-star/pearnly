@@ -407,6 +407,34 @@ Workspace,ワークスペース
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
 endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+home.cancel,キャンセル
+home.error.http,リクエスト失敗（HTTP {0}）
+home.ledger.empty,記録なし
+home.ledger.export,明細をエクスポート
+home.ledger.exporting,エクスポート中…
+home.ledger.ocr,認識記録
+home.ledger.usage,課金
+home.loading,読み込み中…
+home.period.all,すべて
+home.period.month,今月
+home.period.today,今日
+home.period.year,今年
+home.plan.current,現在のプラン
+home.plan.subscribe,このプランに登録
+home.plan.subscribed,プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。
+home.plan.subscribing,登録中…
+home.refresh,更新
+home.status.credited,入金済み
+home.status.failed,失敗
+home.status.ok,成功
+home.status.pending,審査待ち
+home.status.rejected,却下済み
+home.status.toreview,要確認
+home.topup,チャージ
+home.topup.payerHint,銀行振込の振込人名
+home.topup.submit,申請する
+home.topup.submitted,チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。
+home.topup.submitting,送信中…
 nav.clients,顧客管理
 nav.company,会社情報
 nav.connect,外部DMSに接続

@@ -405,6 +405,34 @@ Workspace,Workspace
 "companion = pulled outbound by Companion on the local machine, then stored here","companion = pulled outbound by Companion on the local machine, then stored here"
 endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
+home.cancel,Cancel
+home.error.http,Request failed (HTTP {0})
+home.ledger.empty,No records
+home.ledger.export,Export details
+home.ledger.exporting,Exporting…
+home.ledger.ocr,Recognition records
+home.ledger.usage,Charges
+home.loading,Loading…
+home.period.all,All
+home.period.month,This month
+home.period.today,Today
+home.period.year,This year
+home.plan.current,Current plan
+home.plan.subscribe,Subscribe to this plan
+home.plan.subscribed,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
+home.plan.subscribing,Subscribing…
+home.refresh,Refresh
+home.status.credited,Credited
+home.status.failed,Failed
+home.status.ok,Succeeded
+home.status.pending,Pending review
+home.status.rejected,Rejected
+home.status.toreview,To verify
+home.topup,Top up
+home.topup.payerHint,Payer name on the bank transfer
+home.topup.submit,Submit request
+home.topup.submitted,Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.
+home.topup.submitting,Submitting…
 nav.clients,Customers
 nav.company,Company Profile
 nav.connect,Connect third-party DMS
