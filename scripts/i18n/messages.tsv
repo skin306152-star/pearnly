@@ -1,4 +1,4 @@
-app	en	zh	th	ja
+app	en	zh	th	ja	key
 pearnly_core	Home (Subscription & Billing)	首页（订阅与计费）	หน้าหลัก (แพ็กเกจและค่าบริการ)	ホーム（プランと請求）
 pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ
 pearnly_core	Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録
@@ -657,3 +657,33 @@ pearnly_core	ID card recognition (tier A)	身份证识别（高精档）	อ่�
 pearnly_core	Could not call the model: {0}	调不动模型：{0}	เรียกโมเดลไม่สำเร็จ: {0}	モデルを呼び出せません: {0}
 pearnly_core	Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 pearnly_core	{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
+pearnly_core	Home	首页	หน้าหลัก	ホーム	nav.home
+pearnly_core	Work together	工作协作	ทำงานร่วมกัน	コラボレーション	nav.work
+pearnly_core	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	nav.cowork
+pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	nav.intake
+pearnly_core	Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録	nav.history
+pearnly_core	Push Log	推送日志	บันทึกการส่งข้อมูล	プッシュログ	nav.pushLogs
+pearnly_core	Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター	nav.reconcile
+pearnly_core	Stock Count	库存盘点	ตรวจนับสต็อก	棚卸	nav.stocktake
+pearnly_core	Master Data	主数据	ข้อมูลหลัก	マスタデータ	nav.masterData
+pearnly_core	Customers	客户管理	จัดการลูกค้า	顧客管理	nav.clients
+pearnly_core	Company Profile	公司资料	ข้อมูลบริษัท	会社情報	nav.company
+pearnly_core	Team	团队管理	ทีมงาน	チーム	nav.team
+pearnly_core	Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
+pearnly_core	Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
+pearnly_core	Products & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
+pearnly_core	Products	商品数据	ข้อมูลสินค้า	商品データ	nav.products
+pearnly_core	Stock	库存	สต็อก	在庫	nav.inventory
+pearnly_core	Stock In	入库	รับเข้า	入庫	nav.stockIn
+pearnly_core	Stock Out	出库	จ่ายออก	出庫	nav.stockOut
+pearnly_core	Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表	nav.stockCard
+pearnly_core	Purchasing	采购系统	การจัดซื้อ	購買	nav.erpPurchase
+pearnly_core	Purchase Records	采购记录	บันทึกการจัดซื้อ	購買記録	nav.purchase
+pearnly_core	Suppliers	供应商	ผู้ขาย	仕入先	nav.suppliers
+pearnly_core	Purchasing Settings	采购设置	ตั้งค่าการจัดซื้อ	購買設定	nav.purchaseSettings
+pearnly_core	Sales	销售系统	ระบบขาย	販売	nav.erpSales
+pearnly_core	Sales Records	销售记录	บันทึกการขาย	販売記録	nav.sales
+pearnly_core	Customers	客户	ลูกค้า	顧客	nav.erpClients
+pearnly_core	Connect third-party DMS	连接第三方 DMS	เชื่อมต่อ DMS ภายนอก	外部DMSに接続	nav.connect
+pearnly_core	Push Records	推送记录	บันทึกการส่ง	プッシュ記録	nav.records
+pearnly_core	Operators	操作员	พนักงาน	オペレーター	nav.roster

@@ -38,7 +38,13 @@ ROOT = os.path.dirname(HERE)
 SOURCE = os.path.join(HERE, "i18n", "messages.tsv")
 
 LANGS = ("zh", "th", "ja")
-FIELDS = ("app", "en") + LANGS
+# 也要出一份 `en.csv`：Frappe 那套里"英文就是 msgid 本身"、不需要文件；
+# 但**业务前端**是按 key 取文案的（`nav.home` 这种），英语那一档没有文件
+# 就会把 key 直接显示出来。所以英文也要有包。
+EN = "en"
+# 最后一列 `key` 可选：填了就说明这条是**语义键**（CSV 第一列用 key，`en` 列当英文文案）；
+# 不填就是 Frappe 那套"英文原文当 msgid"。
+FIELDS = ("app", "en") + LANGS + ("key",)
 
 
 def read_glossary() -> tuple[list[dict], list[str]]:
@@ -53,13 +59,15 @@ def read_glossary() -> tuple[list[dict], list[str]]:
             )
             return [], problems
         for index, row in enumerate(reader, start=2):
-            missing = [f for f in FIELDS if not str(row.get(f) or "").strip()]
+            # `key` 可以留空（那表示用英文原文当 msgid），其余列必填
+            missing = [f for f in FIELDS if f != "key" and not str(row.get(f) or "").strip()]
             if missing:
                 problems.append("第 %d 行缺列：%s" % (index, ", ".join(missing)))
                 continue
-            key = (row["app"].strip(), row["en"].strip())
             # `\n` 是转义写法（TSV 一行放不下真换行），出译文时要还原
-            item = {f: str(row[f]).replace("\\n", "\n").strip() for f in FIELDS}
+            item = {f: str(row.get(f) or "").replace("\\n", "\n").strip() for f in FIELDS}
+            item["msgid"] = item["key"] or item["en"]
+            key = (item["app"], item["msgid"])
             if key in seen:
                 # 同一个英文 msgid 允许出现多行（两个中文说法对应同一个英文，
                 # 例如「明细」和「细节」都翻 Details）—— 但译文必须一致，
@@ -120,10 +128,12 @@ def main() -> int:
 
     written = []
     for app, items in sorted(by_app.items()):
-        for lang in LANGS:
+        for lang in (EN,) + LANGS:
             table = existing(app, lang)
             for item in items:
-                table[item["en"]] = item[lang]
+                msgid = item["msgid"]
+                # 英文档：语义键的值是英文文案，英文原文当 msgid 的那种值就是它自己
+                table[msgid] = item["en"] if lang == EN else item[lang]
             written.append(write(app, lang, table))
     for path in written:
         print("  写入 %s" % path)

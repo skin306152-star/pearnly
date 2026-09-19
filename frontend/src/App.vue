@@ -9,6 +9,7 @@ import { useRoute } from "vue-router";
 import { Sidebar } from "frappe-ui";
 import { loadShell, type ShellBoot } from "./lib/shell";
 import { navFor, titleFor, type NavEntry } from "./lib/nav";
+import { createTexts } from "./lib/i18n";
 import { iconFor } from "./lib/icons";
 import { ApiError } from "./lib/api";
 import { SHELL_BOOT } from "./lib/boot-context";
@@ -17,6 +18,11 @@ import AccountMenu from "./components/AccountMenu.vue";
 const boot = ref<ShellBoot | null>(null);
 const error = ref("");
 const route = useRoute();
+
+// 侧栏文案走语言包（键 = `nav.*`）。`createTexts([], "nav.")` 表示
+// "把 nav. 这个命名空间的整包取回来" —— 页面不维护"我要用哪些键"的清单，
+// 清单和语言包一旦不同步，界面上就会露出键名（真发生过）。
+const { t: tNav, load: loadNavTexts } = createTexts([], "nav.");
 
 // 独立页（LINE 内的编辑器）：**不套外壳、也不问启动数据**。
 // 它靠一次性票据认身份，没有站点会话 —— 去调 `shell.describe` 只会拿到 401，
@@ -27,6 +33,8 @@ onMounted(async () => {
   if (standalone.value) return;
   try {
     boot.value = await loadShell();
+    // 文案取不到不该把整个壳挡住：`t()` 取不到会显示键名 —— 看得见、可排查。
+    await loadNavTexts().catch(() => {});
   } catch (err) {
     error.value =
       err instanceof ApiError
@@ -59,9 +67,9 @@ const sections = computed(() => {
   return navFor(boot.value.product, boot.value.features).map((entry: NavEntry) => {
     const items = "items" in entry ? entry.items : [entry];
     return {
-      label: "items" in entry ? entry.label : "",
+      label: "items" in entry ? tNav(entry.key) : "",
       items: items.map((item) => ({
-        label: item.label,
+        label: tNav(item.key),
         icon: iconFor(item.route),
         to: item.route,
         isActive: current === item.route,
@@ -77,7 +85,7 @@ const pageTitle = computed(() => {
   }
   // 侧栏里找不到不等于"没这一页"：没买的功能不显示在菜单里，但页面本身在。
   // 标题按路由查，查不到才是真的没建。
-  return titleFor(route.path) || "未建页面";
+  return titleFor(route.path) ? tNav(titleFor(route.path)) : "未建页面";
 });
 
 </script>

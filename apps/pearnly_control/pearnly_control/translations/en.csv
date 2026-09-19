@@ -1,0 +1,242 @@
+(empty),(empty)
+A rejection needs a reason; the tenant will see it,A rejection needs a reason; the tenant will see it
+"A single top-up is capped at ฿500,000","A single top-up is capped at ฿500,000"
+A wallet must belong to a tenant,A wallet must belong to a tenant
+"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.","Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."
+Action,Action
+Action name the runner understands; see pearnly_control/provisioning.py,Action name the runner understands; see pearnly_control/provisioning.py
+Admin Client ID,Admin Client ID
+Admin Client Secret,Admin Client Secret
+Amount (THB),Amount (THB)
+Amount must be greater than 0,Amount must be greater than 0
+An adjustment cannot be 0,An adjustment cannot be 0
+An adjustment must have a reason,An adjustment must have a reason
+Approve and credit,Approve and credit
+Approve top-up,Approve top-up
+At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).
+Balance (THB),Balance (THB)
+Balance After,Balance After
+"Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})","Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})"
+Basic Info,Basic Info
+Bench Group,Bench Group
+Billing Units,Billing Units
+Build the workspace,Build the workspace
+"Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"
+Channel Access Token,Channel Access Token
+Channel ID,Channel ID
+Channel Secret,Channel Secret
+Client ID for Invitation Links,Client ID for Invitation Links
+"Client with only the password grant, used to verify the current password. Shared by all three products.","Client with only the password grant, used to verify the current password. Shared by all three products."
+Close,Close
+Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).
+Comma separated. The role gets read/write on these DocTypes.,Comma separated. The role gets read/write on these DocTypes.
+Company Name,Company Name
+Company name is required,Company name is required
+Confirm credit,Confirm credit
+Confirm rejection,Confirm rejection
+Contact Name,Contact Name
+Contact Phone,Contact Phone
+Control API URL,Control API URL
+Control-plane records,Control-plane records
+Could not credit,Could not credit
+Could not queue provisioning,Could not queue provisioning
+Could not queue the deletion,Could not queue the deletion
+Could not read what would be deleted,Could not read what would be deleted
+Could not reject,Could not reject
+Create the site,Create the site
+Create the tenant account,Create the tenant account
+Creating a channel requires both secret and access token,Creating a channel requires both secret and access token
+Credential Delivery,Credential Delivery
+"Credentials (stored only here, pushed to the tenant site at provisioning)","Credentials (stored only here, pushed to the tenant site at provisioning)"
+Credited ฿{0}; {1} now has ฿{2},Credited ฿{0}; {1} now has ฿{2}
+Crediting…,Crediting…
+Cycle End,Cycle End
+Cycle Start,Cycle Start
+DMS is the one already proven; ERP and Cowork use the same API surface.,DMS is the one already proven; ERP and Cowork use the same API surface.
+Default On,Default On
+Default Target,Default Target
+Delete tenant,Delete tenant
+Deletion queued ({0} steps). The on-host runner will do the work.,Deletion queued ({0} steps). The on-host runner will do the work.
+Deployments,Deployments
+Details,Details
+Display Name,Display Name
+Domain,Domain
+Domain Prefix,Domain Prefix
+Domain already taken: {0} (issue {1}),Domain already taken: {0} (issue {1})
+Domain prefix cannot be all digits: {0},Domain prefix cannot be all digits: {0}
+Domain prefix {0} is reserved; pick another,Domain prefix {0} is reserved; pick another
+Done,Done
+Duplicate domain on the same issue: {0},Duplicate domain on the same issue: {0}
+Email,Email
+Enabled Features,Enabled Features
+Enabled — {0} steps,Enabled — {0} steps
+Enforcement,Enforcement
+External Reference,External Reference
+Failed,Failed
+Feature,Feature
+Feature Catalog,Feature Catalog
+Feature Code,Feature Code
+Feature Name,Feature Name
+Features,Features
+Fill in only if a LIFF app exists; otherwise leave empty.,Fill in only if a LIFF app exists; otherwise leave empty.
+Finalize the site,Finalize the site
+Finished At,Finished At
+For example http://keycloak.localhost:8105,For example http://keycloak.localhost:8105
+For example: local sample / production,For example: local sample / production
+Grant feature roles,Grant feature roles
+Granted DocTypes,Granted DocTypes
+Idempotency Key,Idempotency Key
+Identity Service URL,Identity Service URL
+Identity Subject,Identity Subject
+Initial Password,Initial Password
+Initial password is required (the user signs in with it directly),Initial password is required (the user signs in with it directly)
+Install core apps,Install core apps
+Install the product app,Install the product app
+Insufficient balance; please top up first,Insufficient balance; please top up first
+"Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63","Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63"
+Invalid email,Invalid email
+Invalid service token,Invalid service token
+Invitation Email,Invitation Email
+Invitation Sent At,Invitation Sent At
+Issue,Issue
+Issue and provision,Issue and provision
+Issue failed,Issue failed
+Issue {0} is {1}; only an issued one can be provisioned,Issue {0} is {1}; only an issued one can be provisioned
+Issued At,Issued At
+Issued By,Issued By
+Issued: {0} / tenant {1},Issued: {0} / tenant {1}
+Issues,Issues
+Issuing…,Issuing…
+LIFF ID,LIFF ID
+LINE Channel,LINE Channel
+Last Updated,Last Updated
+Leave empty to use the company name,Leave empty to use the company name
+Local Port,Local Port
+Local URL,Local URL
+Manual adjustment · {0},Manual adjustment · {0}
+Mark provisioning done,Mark provisioning done
+Matches the feature keys in the product manifest (product_manifest.py).,Matches the feature keys in the product manifest (product_manifest.py).
+Monthly Fee,Monthly Fee
+No provisioning request yet; click “Run provisioning” to start,No provisioning request yet; click “Run provisioning” to start
+No such deployment: {0},No such deployment: {0}
+No such plan: {0},No such plan: {0}
+No such step: {0},No such step: {0}
+No such tenant: {0},No such tenant: {0}
+Not issued,Not issued
+Not provisioned,Not provisioned
+Notes,Notes
+OIDC Client ID,OIDC Client ID
+OIDC Client Secret,OIDC Client Secret
+One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.
+"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.","One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out."
+Only a platform admin can handle top-ups and balances,Only a platform admin can handle top-ups and balances
+Operations,Operations
+Output,Output
+Over-rate (per page),Over-rate (per page)
+Pages,Pages
+Pages Used This Month,Pages Used This Month
+Partly done {0}/{1},Partly done {0}/{1}
+Password Delivered At,Password Delivered At
+Password-check Client ID,Password-check Client ID
+Password-check Client Secret,Password-check Client Secret
+Payload,Payload
+Pending,Pending
+Pick at least one product,Pick at least one product
+Plan,Plan
+Plan {0} ({1} days · {2} pages),Plan {0} ({1} days · {2} pages)
+"Prefix only, e.g. aerp","Prefix only, e.g. aerp"
+Product App,Product App
+Product {0} is selected twice,Product {0} is selected twice
+Products & Domains,Products & Domains
+Proof,Proof
+Provisioning Credentials (stored only here),Provisioning Credentials (stored only here)
+Provisioning Progress,Provisioning Progress
+Provisioning Target,Provisioning Target
+Provisioning failed,Provisioning failed
+Provisioning {0}/{1},Provisioning {0}/{1}
+Queued for provisioning; building the site now,Queued for provisioning; building the site now
+Queueing provisioning…,Queueing provisioning…
+Queueing the deletion…,Queueing the deletion…
+Quota,Quota
+Quota per Cycle (pages),Quota per Cycle (pages)
+Realm,Realm
+Reason (the tenant will see it; required),Reason (the tenant will see it; required)
+Received Amount,Received Amount
+Received amount (as actually credited by the bank),Received amount (as actually credited by the bank)
+Reject,Reject
+Reject top-up,Reject top-up
+Rejected,Rejected
+Requested Amount,Requested Amount
+Requested At,Requested At
+Restart services,Restart services
+Retry deletion,Retry deletion
+Review,Review
+Review Note,Review Note
+Reviewed At,Reviewed At
+Reviewed By,Reviewed By
+Role,Role
+Row {0} on the issue has no domain; cannot build the site,Row {0} on the issue has no domain; cannot build the site
+Run provisioning,Run provisioning
+Running,Running
+Service URL is required,Service URL is required
+Set up the LINE channel,Set up the LINE channel
+Set up unified sign-in,Set up unified sign-in
+Sign-in accounts,Sign-in accounts
+Site,Site
+Site Name,Site Name
+Site Provisioning API,Site Provisioning API
+Site name {0} is already taken by deployment {1},Site name {0} is already taken by deployment {1}
+Sites and databases,Sites and databases
+Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.
+Skipped,Skipped
+Source,Source
+Started At,Started At
+Step,Step
+Step Details,Step Details
+Steps,Steps
+Target Name,Target Name
+Target name is required,Target name is required
+Teardown request {0} does not exist,Teardown request {0} does not exist
+Tenant,Tenant
+Tenant Note,Tenant Note
+Tenant {0} does not exist,Tenant {0} does not exist
+"The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.","The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting."
+"The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
+The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
+The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
+"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."
+The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.
+The last issue attempt failed; set it back to draft before issuing again,The last issue attempt failed; set it back to draft before issuing again
+The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)
+The product app installed on this site; pearnly_core is shared by every product.,The product app installed on this site; pearnly_core is shared by every product.
+"The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.","The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
+The received amount must be greater than 0,The received amount must be greater than 0
+The requested amount must be greater than 0,The requested amount must be greater than 0
+The same key submitted twice yields only one set of resources. Defaults to the issue number.,The same key submitted twice yields only one set of resources. Defaults to the issue number.
+"The top-up amount must be between ฿0.01 and ฿500,000","The top-up amount must be between ฿0.01 and ฿500,000"
+These accounts could not be deleted: {0},These accounts could not be deleted: {0}
+This issue has no usable initial password; fill it in again before issuing,This issue has no usable initial password; fill it in again before issuing
+This removes everything about this tenant. It cannot be undone.,This removes everything about this tenant. It cannot be undone.
+This request has already been handled (currently: {0}),This request has already been handled (currently: {0})
+This tenant no longer exists.,This tenant no longer exists.
+This top-up request was already reviewed; it cannot be handled twice,This top-up request was already reviewed; it cannot be handled twice
+"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).","Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion)."
+Top-up Review,Top-up Review
+Top-up approved · request {0},Top-up approved · request {0}
+Transfer Slip,Transfer Slip
+Type,Type
+Unknown billing unit: {0},Unknown billing unit: {0}
+Unknown product: {0},Unknown product: {0}
+Unknown step status: {0},Unknown step status: {0}
+Used This Cycle (pages),Used This Cycle (pages)
+Used to send messages (long-lived).,Used to send messages (long-lived).
+"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.","Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass."
+Username,Username
+Username and initial password are both required: they are the credentials for the user's first sign-in,Username and initial password are both required: they are the credentials for the user's first sign-in
+"Username may only contain letters, digits, dot, underscore and hyphen, length 3–30","Username may only contain letters, digits, dot, underscore and hyphen, length 3–30"
+View progress,View progress
+Webhook URL,Webhook URL
+grant only handles money in (topup / adjustment); use charge() for deductions,grant only handles money in (topup / adjustment); use charge() for deductions
+"{0} in-plan scan ({1} pages, within quota)","{0} in-plan scan ({1} pages, within quota)"
+{0} out-of-plan scan ({1} over quota),{0} out-of-plan scan ({1} over quota)
+{0} — {1} features,{0} — {1} features

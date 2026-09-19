@@ -407,6 +407,36 @@ Workspace,พื้นที่ทำงาน
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+nav.clients,จัดการลูกค้า
+nav.company,ข้อมูลบริษัท
+nav.connect,เชื่อมต่อ DMS ภายนอก
+nav.cowork,Pearnly Cowork
+nav.erpClients,ลูกค้า
+nav.erpPurchase,การจัดซื้อ
+nav.erpSales,ระบบขาย
+nav.erpStock,สินค้าและสต็อก
+nav.guide,คู่มือใช้งาน
+nav.history,บันทึกการอ่านข้อมูล
+nav.home,หน้าหลัก
+nav.intake,โต๊ะทำงานบันทึกข้อมูล
+nav.integrations,การเชื่อมต่อ
+nav.inventory,สต็อก
+nav.masterData,ข้อมูลหลัก
+nav.products,ข้อมูลสินค้า
+nav.purchase,บันทึกการจัดซื้อ
+nav.purchaseSettings,ตั้งค่าการจัดซื้อ
+nav.pushLogs,บันทึกการส่งข้อมูล
+nav.reconcile,ศูนย์กระทบยอด
+nav.records,บันทึกการส่ง
+nav.roster,พนักงาน
+nav.sales,บันทึกการขาย
+nav.stockCard,รายงานรับ-จ่าย-คงเหลือ
+nav.stockIn,รับเข้า
+nav.stockOut,จ่ายออก
+nav.stocktake,ตรวจนับสต็อก
+nav.suppliers,ผู้ขาย
+nav.team,ทีมงาน
+nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ

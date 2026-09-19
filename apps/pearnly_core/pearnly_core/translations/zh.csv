@@ -407,6 +407,36 @@ Workspace,工作区
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机出站拉取后落库
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+nav.clients,客户管理
+nav.company,公司资料
+nav.connect,连接第三方 DMS
+nav.cowork,Pearnly Cowork
+nav.erpClients,客户
+nav.erpPurchase,采购系统
+nav.erpSales,销售系统
+nav.erpStock,商品与库存
+nav.guide,使用教程
+nav.history,识别记录
+nav.home,首页
+nav.intake,录入工作台
+nav.integrations,集成
+nav.inventory,库存
+nav.masterData,主数据
+nav.products,商品数据
+nav.purchase,采购记录
+nav.purchaseSettings,采购设置
+nav.pushLogs,推送日志
+nav.reconcile,对账中心
+nav.records,推送记录
+nav.roster,操作员
+nav.sales,销售记录
+nav.stockCard,收发存报表
+nav.stockIn,入库
+nav.stockOut,出库
+nav.stocktake,库存盘点
+nav.suppliers,供应商
+nav.team,团队管理
+nav.work,工作协作
 nonce mismatch,nonce 不匹配
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 state is invalid or has expired,state 无效或已过期

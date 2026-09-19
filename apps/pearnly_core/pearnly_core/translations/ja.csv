@@ -407,6 +407,36 @@ Workspace,ワークスペース
 "companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
 endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+nav.clients,顧客管理
+nav.company,会社情報
+nav.connect,外部DMSに接続
+nav.cowork,Pearnly Cowork
+nav.erpClients,顧客
+nav.erpPurchase,購買
+nav.erpSales,販売
+nav.erpStock,商品と在庫
+nav.guide,使い方
+nav.history,認識記録
+nav.home,ホーム
+nav.intake,取り込みワークベンチ
+nav.integrations,連携
+nav.inventory,在庫
+nav.masterData,マスタデータ
+nav.products,商品データ
+nav.purchase,購買記録
+nav.purchaseSettings,購買設定
+nav.pushLogs,プッシュログ
+nav.reconcile,照合センター
+nav.records,プッシュ記録
+nav.roster,オペレーター
+nav.sales,販売記録
+nav.stockCard,受払在庫表
+nav.stockIn,入庫
+nav.stockOut,出庫
+nav.stocktake,棚卸
+nav.suppliers,仕入先
+nav.team,チーム
+nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 state is invalid or has expired,state が無効か期限切れです
