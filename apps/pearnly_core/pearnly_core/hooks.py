@@ -8,6 +8,14 @@ app_license = "mit"
 # 账号组件：产品界面左下角/右下角头像菜单 + 改密弹窗（三个产品共用）。
 # 刻意**不**注入 Frappe 自带界面：入口属于产品壳，由产品挂载。
 
+# 业务前端的入口：`/pearnly-app/<任意子路径>` 都交给同一个壳页，
+# 子路径由前端自己按地址渲染（单页应用）。没有这条规则时，
+# 直接把地址贴给别人（深链接）会 404 —— Frappe 只认精确路径。
+website_route_rules = [
+    {"from_route": "/pearnly-app/<path:app_path>", "to_route": "pearnly-app"},
+    {"from_route": "/pearnly-app", "to_route": "pearnly-app"},
+]
+
 # 会话登记：每次登录后记一条，用于展示、审计与撤权。
 on_session_creation = "pearnly_core.sessions.register_session"
 

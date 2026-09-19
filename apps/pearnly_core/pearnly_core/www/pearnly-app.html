@@ -1,0 +1,36 @@
+<!doctype html>
+<!-- 产品业务前端的入口页（三个产品共用这一个壳）。**故意不写成模板**：
+     这条路径上没有走 Frappe 的模板渲染（实测 `{{ }}` 原样输出），
+     写成模板会得到一页没挂任何资源的空壳。
+
+     资源标签**不抄在这里**：前端产物带内容哈希（`index.B0z1ErHN.js`），
+     抄一份就得每次构建跟着改，忘一次就是白屏、还看不出原因。
+     所以运行时去读产物里那份 index.html，把它的 script/link 原样搬过来。 -->
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pearnly</title>
+    <script>
+      // 同步拿（XHR）：异步注入会让首屏先闪一下空壳。
+      (function () {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/assets/pearnly_core/pearnly-app/index.html", false);
+        try { xhr.send(null); } catch (e) { return; }
+        if (xhr.status !== 200) return;
+        var html = xhr.responseText;
+        var re = /<(script|link)\b[^>]*>(?:<\/script>)?/gi;
+        var m;
+        while ((m = re.exec(html)) !== null) {
+          var box = document.createElement("div");
+          box.innerHTML = m[0];
+          var node = box.firstChild;
+          if (node && node.tagName) document.head.appendChild(node);
+        }
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+  </body>
+</html>

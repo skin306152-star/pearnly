@@ -23,7 +23,9 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.utils import redirect as werkzeug_redirect
 
 # 未登录访客在这几个入口会被送去身份服务
-GUEST_ENTRY_PATHS = {"/", "/login", "/app", "/desk"}
+# `/pearnly-app` 是业务前端的入口（见 www/pearnly-app.html）—— 访客打开它
+# 也该先去身份服务，而不是先看到一屏"取不到启动数据"的错误。
+GUEST_ENTRY_PATHS = {"/", "/login", "/app", "/desk", "/pearnly-app"}
 
 # 这些前缀一律不拦：接口、静态资源、身份服务自己的端点、LINE webhook
 SKIP_PREFIXES = (
