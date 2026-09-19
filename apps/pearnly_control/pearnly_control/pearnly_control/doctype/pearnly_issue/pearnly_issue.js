@@ -196,6 +196,14 @@ function render_provision(frm) {
 		frm.add_custom_button(__("Issue and provision"), () => issue_and_provision(frm), null);
 		return;
 	}
+	if (frm.doc.welcome_email_queue) {
+		frm.add_custom_button(__("View welcome email"), () =>
+			frappe.set_route("Form", "Email Queue", frm.doc.welcome_email_queue));
+	} else if (frm.doc.welcome_email_error) {
+		frm.add_custom_button(__("Retry welcome email"), () =>
+			pcall("pearnly_control.onboarding.welcome.retry_queue", { issue: frm.doc.name })
+				.then(() => frm.reload_doc()));
+	}
 	state_of(frm)
 		.then((m) => {
 			const [label, color] = status_label(m);

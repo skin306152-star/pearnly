@@ -2,7 +2,7 @@ app_name = "pearnly_cowork"
 app_title = "Pearnly Cowork"
 app_publisher = "Pearnly"
 app_description = "Cowork 产品：录入工作台、识别记录、推送日志、对账中心、库存盘点、协作看板"
-app_email = "skin@pearnly.local"
+app_email = "hello@pearnly.com"
 app_license = "mit"
 
 # Apps

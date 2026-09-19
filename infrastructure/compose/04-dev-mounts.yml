@@ -70,5 +70,7 @@ services:
     volumes: *app-volumes
   control-web:
     volumes: *app-volumes
+  control-worker:
+    volumes: *app-volumes
   control-scheduler:
     volumes: *app-volumes

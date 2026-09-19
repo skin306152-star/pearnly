@@ -132,7 +132,7 @@ def publish(p):
     run(["systemctl", "reload", "nginx"])
     if not cert.exists():
         run(["certbot", "certonly", "--webroot", "-w", "/var/www/letsencrypt", "--non-interactive",
-             "--agree-tos", "--email", "skinzihao@gmail.com", "--cert-name", site, "-d", site], timeout=300)
+             "--agree-tos", "--email", "hello@pearnly.com", "--cert-name", site, "-d", site], timeout=300)
     path.write_text(nginx(site, group, True))
     run(["nginx", "-t"])
     run(["systemctl", "reload", "nginx"])

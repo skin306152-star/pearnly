@@ -1,7 +1,11 @@
 (empty),（空）
+A billing reference is required,課金参照番号が必要です
+A deployment is a live site. Delete the tenant so its site and database go away too.,デプロイは実在するサイトです。サイトとデータベースも削除されるよう「テナントを削除」から行ってください。
 A rejection needs a reason; the tenant will see it,却下には理由が必要です。テナント側に表示されます。
 "A single top-up is capped at ฿500,000","1回のチャージ上限は ฿500,000 です"
 A wallet must belong to a tenant,ウォレットはテナントに紐づける必要があります
+Account information,アカウント情報
+Account opening is available only for configured cloud targets,設定済みのクラウド環境でのみアカウントを開設できます
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
 Action,アクション
 Action name the runner understands; see pearnly_control/provisioning.py,実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。
@@ -20,6 +24,7 @@ Balance After,変動後の残高
 Basic Info,基本情報
 Bench Group,実行グループ
 Billing Units,課金単位
+Billing service unavailable; please retry,課金サービスを利用できません。もう一度お試しください
 Build the workspace,ワークスペースを作成
 "Cannot read the provisioning target, so the identity service URL is unknown",開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
 Channel Access Token,チャネルアクセストークン
@@ -34,8 +39,10 @@ Company Name,会社名
 Company name is required,会社名は必須です
 Confirm credit,入金を確定
 Confirm rejection,却下を確定
+Connect cloud billing,クラウド課金に接続
 Contact Name,担当者名
 Contact Phone,連絡先電話
+Contact us,お問い合わせ
 Control API URL,制御APIのURL
 Control-plane records,コントロールプレーンの記録
 Could not credit,入金に失敗しました
@@ -53,6 +60,7 @@ Crediting…,入金処理中…
 Cycle End,今サイクル終了
 Cycle Start,今サイクル開始
 DMS is the one already proven; ERP and Cowork use the same API surface.,DMSが実績あり。ERPとCoworkも同じAPIを使います。
+"Dear customer,",お客様各位
 Default On,既定で有効
 Default Target,既定のターゲット
 Delete tenant,テナントを削除
@@ -68,6 +76,7 @@ Domain prefix {0} is reserved; pick another,ドメイン接頭辞 {0} は予約�
 Done,完了
 Duplicate domain on the same issue: {0},同じ伝票内でドメインが重複しています: {0}
 Email,メールアドレス
+Enable HTTPS access,HTTPS アクセスを有効化
 Enabled Features,有効な機能
 Enabled — {0} steps,開通済み {0} ステップ
 Enforcement,権限の適用
@@ -79,20 +88,26 @@ Feature Code,機能コード
 Feature Name,機能名
 Features,機能
 Fill in only if a LIFF app exists; otherwise leave empty.,LIFFアプリがある場合のみ入力。なければ空欄。
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
 Finalize the site,サイトを仕上げ
 Finished At,終了日時
 For example http://keycloak.localhost:8105,例: http://keycloak.localhost:8105
 For example: local sample / production,例：ローカル見本 / 本番
+"For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
 Grant feature roles,機能ロールを付与
 Granted DocTypes,付与するDocType
 Idempotency Key,冪等キー
 Identity Service URL,アイデンティティサービスURL
 Identity Subject,アイデンティティのサブジェクト
+"If you encounter any problems while using our services, please contact us through the official channels below.",ご利用中に問題が発生した場合は、以下の公式窓口までお問い合わせください。
 Initial Password,初期パスワード
+Initial password,初期パスワード
 Initial password is required (the user signs in with it directly),初期パスワードは必須です（そのままログインに使います）
 Install core apps,基盤アプリを導入
 Install the product app,製品アプリを導入
 Insufficient balance; please top up first,残高不足です。先にチャージしてください
+Invalid amount,金額が無効です
+Invalid billing reference,課金参照番号が無効です
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63
 Invalid email,メールアドレスの形式が正しくありません
 Invalid service token,サービストークンが無効です
@@ -107,8 +122,16 @@ Issued By,発行者
 Issued: {0} / tenant {1},発行済み: {0} / テナント {1}
 Issues,発行伝票
 Issuing…,発行中…
+"Kind regards,",よろしくお願いいたします。
 LIFF ID,LIFF ID
 LINE Channel,LINEチャネル
+LINE Channel Access Token,LINEチャネルアクセストークン
+LINE Channel ID,LINEチャネルID
+LINE Channel Secret,LINEチャネルシークレット
+LINE LIFF ID,LINE LIFF ID
+LINE channel (optional),LINEチャネル（任意）
+LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
+LINE credentials are required before activation.,有効化する前に LINE の認証情報を入力してください。
 Last Updated,最終更新
 Leave empty to use the company name,空欄なら会社名を使います
 Local Port,ローカルポート
@@ -123,6 +146,7 @@ No such plan: {0},そのプランはありません: {0}
 No such step: {0},ステップ {0} が見つかりません
 No such tenant: {0},そのテナントはありません: {0}
 Not issued,未発行
+Not permitted,操作する権限がありません
 Not provisioned,未開通
 Notes,備考
 OIDC Client ID,OIDCクライアントID
@@ -130,6 +154,7 @@ OIDC Client Secret,OIDCクライアントシークレット
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。
 "One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。
 Only a platform admin can handle top-ups and balances,チャージと残高を扱えるのはプラットフォーム管理者のみです
+Open the LINE channel,LINEチャネルを開く
 Operations,運用
 Output,実行出力
 Over-rate (per page),超過単価（1枚あたり）
@@ -140,10 +165,16 @@ Password Delivered At,初期パスワード交付日時
 Password-check Client ID,パスワード確認用クライアントID
 Password-check Client Secret,パスワード確認用クライアントシークレット
 Payload,パラメータ
+Pearnly Credit Transaction,残高の履歴
+Pearnly Customer Support,Pearnly カスタマーサポート
+Pearnly Subscription,プラン契約
+Pearnly Topup Request,チャージ申請
+Pearnly Wallet,残高アカウント
 Pending,未処理
 Pick at least one product,製品を1つ以上選んでください
 Plan,プラン
 Plan {0} ({1} days · {2} pages),プラン {0}（{1}日 · {2}枚）
+Please change your initial password promptly,初期パスワードを速やかに変更してください
 "Prefix only, e.g. aerp",接頭辞のみ（例: aerp）
 Product App,製品アプリ
 Product {0} is selected twice,製品 {0} が二重に選ばれています
@@ -153,6 +184,7 @@ Provisioning Credentials (stored only here),開通の資格情報（ここにだ
 Provisioning Progress,開通の進捗
 Provisioning Target,開通ターゲット
 Provisioning failed,開通に失敗
+Provisioning must be complete before sending the welcome email.,開設完了後にウェルカムメールを送信できます。
 Provisioning progress,開通の進捗
 Provisioning {0}/{1},開通中 {0}/{1}
 Queued for provisioning; building the site now,開通キューに入りました。サイトを構築中です。
@@ -172,21 +204,28 @@ Requested Amount,申請額
 Requested At,申請日時
 Restart services,サービスを再起動
 Retry deletion,削除を再試行
+Retry provisioning,開通処理を再試行
+Retry welcome email,ウェルカムメールを再試行
 Review,処理
 Review Note,審査備考
 Reviewed At,審査日時
 Reviewed By,審査者
 Role,対応ロール
 Row {0} on the issue has no domain; cannot build the site,発行伝票の {0} 行にドメインがなく、サイトを構築できません
+Row {0}: a LINE channel needs both the channel secret and the access token,行 {0}: LINEチャネルにはシークレットとアクセストークンの両方が必要です
 Run provisioning,開通を実行
 Running,実行中
 Service URL is required,サービスURLは必須です
+Set up OCR,OCR を設定
 Set up the LINE channel,LINEチャネルを設定
 Set up unified sign-in,統一ログインを設定
+Sign in to your account,ログイン
+Sign-in account,ログインアカウント
 Sign-in accounts,ログインアカウント
 Site,サイト
 Site Name,サイト名
 Site Provisioning API,サイト構築API
+Site URL,サイトのURL
 Site name {0} is already taken by deployment {1},サイト名 {0} はデプロイ {1} が使用中です
 Sites and databases,サイトとデータベース
 Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。
@@ -196,16 +235,21 @@ Started At,開始日時
 Step,ステップ
 Step Details,ステップ詳細
 Steps,ステップ
+Support email,サポートメール
+Support phone,電話番号
 Target Name,ターゲット名
 Target name is required,ターゲット名は必須です
 Teardown request {0} does not exist,撤去リクエスト {0} が存在しません
 Tenant,テナント
 Tenant Note,テナント備考
 Tenant {0} does not exist,テナント {0} が存在しません
+Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
 "The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
+The address this tenant is reached at.,このテナントのアクセス先アドレス
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
 The balance could not be read; this is not 'insufficient balance',残高を読み取れません。残高不足ではありません
+The billing reference was already used for another request,この課金参照番号は別のリクエストで使用されています
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
 The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
 The last issue attempt failed; set it back to draft before issuing again,前回の発行に失敗しました。draft に戻してから再発行してください。
@@ -217,6 +261,8 @@ The requested amount must be greater than 0,申請額は0より大きい必要�
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。
 "The top-up amount must be between ฿0.01 and ฿500,000","チャージ額は฿0.01〜฿500,000の範囲で入力してください"
 These accounts could not be deleted: {0},これらのアカウントを削除できません: {0}
+This is a read-only copy of the cloud billing request,これはクラウド入金申請の読み取り専用コピーです
+"This is an account activation notice. If you did not request this account, please contact our support team.",本メールはアカウント開設のご案内です。お心当たりがない場合は、サポート窓口までご連絡ください。
 This issue has no usable initial password; fill it in again before issuing,この伝票には有効な初期パスワードがありません。再入力してから発行してください。
 This removes everything about this tenant. It cannot be undone.,このテナントのすべてを削除します。元に戻せません。
 This request has already been handled (currently: {0}),この申請はすでに処理済みです（現在: {0}）
@@ -237,37 +283,17 @@ Username,ユーザー名
 Username and initial password are both required: they are the credentials for the user's first sign-in,ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30
 View progress,進捗を見る
+View welcome email,ウェルカムメールを表示
 Webhook URL,Webhook URL
+Welcome Email Error,ウェルカムメールエラー
+Welcome Email Language,ウェルカムメールの言語
+Welcome Email Queue,ウェルカムメールキュー
+"Welcome email could not be queued. Check the outgoing email account, then retry the email.",メールをキューに追加できませんでした。送信設定を確認して再試行してください。
+Welcome to,ようこそ
+Welcome to {0} — your account is ready,{0}へようこそ — アカウント開設完了
+Your access domain,アクセスドメイン
+Your account is ready,アカウント開設完了
 grant only handles money in (topup / adjustment); use charge() for deductions,grant は入金（topup / adjustment）専用。控除は charge() を使います。
 "{0} in-plan scan ({1} pages, within quota)",{0} プラン内スキャン（{1} 枚、枠内）
 {0} out-of-plan scan ({1} over quota),{0} プラン外スキャン（枠超過 {1} 枚）
 {0} — {1} features,{0} — {1} 件
-The billing reference was already used for another request,この課金参照番号は別のリクエストで使用されています
-A billing reference is required,課金参照番号が必要です
-Billing service unavailable; please retry,課金サービスを利用できません。もう一度お試しください
-This is a read-only copy of the cloud billing request,これはクラウド入金申請の読み取り専用コピーです
-Invalid amount,金額が無効です
-Not permitted,操作する権限がありません
-Invalid billing reference,課金参照番号が無効です
-Connect cloud billing,クラウド課金に接続
-Set up OCR,OCR を設定
-Enable HTTPS access,HTTPS アクセスを有効化
-LINE credentials are required before activation.,有効化する前に LINE の認証情報を入力してください。
-LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
-Open the LINE channel,LINEチャネルを開く
-Site URL,サイトのURL
-The address this tenant is reached at.,このテナントのアクセス先アドレス
-Pearnly Wallet,残高アカウント
-Pearnly Credit Transaction,残高の履歴
-Pearnly Subscription,プラン契約
-Pearnly Topup Request,チャージ申請
-A deployment is a live site. Delete the tenant so its site and database go away too.,デプロイは実在するサイトです。サイトとデータベースも削除されるよう「テナントを削除」から行ってください。
-LINE channel (optional),LINEチャネル（任意）
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
-LINE Channel ID,LINEチャネルID
-LINE LIFF ID,LINE LIFF ID
-LINE Channel Secret,LINEチャネルシークレット
-LINE Channel Access Token,LINEチャネルアクセストークン
-Row {0}: a LINE channel needs both the channel secret and the access token,行 {0}: LINEチャネルにはシークレットとアクセストークンの両方が必要です
-Account opening is available only for configured cloud targets,設定済みのクラウド環境でのみアカウントを開設できます
-Retry provisioning,開通処理を再試行

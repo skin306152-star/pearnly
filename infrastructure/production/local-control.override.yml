@@ -7,5 +7,7 @@ services:
     volumes: *source
   control-web:
     volumes: *source
+  control-worker:
+    volumes: *source
   control-scheduler:
     volumes: *source

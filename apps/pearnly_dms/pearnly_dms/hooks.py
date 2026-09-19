@@ -2,7 +2,7 @@ app_name = "pearnly_dms"
 app_title = "Pearnly DMS"
 app_publisher = "Pearnly"
 app_description = "DMS 产品：身份证录入、客户匹配、操作手册、推送记录"
-app_email = "skin@pearnly.local"
+app_email = "hello@pearnly.com"
 app_license = "mit"
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。

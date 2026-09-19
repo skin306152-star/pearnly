@@ -954,3 +954,29 @@ pearnly_core	Saving…	提交中…	กำลังบันทึก…	保存�
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	account.error.http
 pearnly_control	Account opening is available only for configured cloud targets	仅可为已配置的云端目标开户	เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น	設定済みのクラウド環境でのみアカウントを開設できます
 pearnly_control	Retry provisioning	重试开通	ลองเปิดใช้งานอีกครั้ง	開通処理を再試行
+pearnly_control	Welcome to	欢迎使用	ยินดีต้อนรับสู่	ようこそ
+pearnly_control	Your account is ready	已成功开通	เปิดใช้งานสำเร็จ	アカウント開設完了
+pearnly_control	Dear customer,	尊敬的用户，您好！	เรียน ผู้ใช้งาน	お客様各位
+pearnly_control	Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.	感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。	ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที	Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
+pearnly_control	Account information	账户信息	ข้อมูลบัญชี	アカウント情報
+pearnly_control	Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
+pearnly_control	Sign-in account	登录账号	บัญชีผู้ใช้	ログインアカウント
+pearnly_control	Initial password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード
+pearnly_control	Sign in to your account	登录账户	เข้าสู่ระบบ	ログイン
+pearnly_control	Please change your initial password promptly	请尽快修改初始密码	กรุณาเปลี่ยนรหัสผ่านเริ่มต้นโดยเร็ว	初期パスワードを速やかに変更してください
+pearnly_control	For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.	为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。	เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น	安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
+pearnly_control	Contact us	联系我们	ติดต่อเรา	お問い合わせ
+pearnly_control	If you encounter any problems while using our services, please contact us through the official channels below.	在使用过程中遇到任何问题，欢迎通过以下官方联系方式与我们联系。	หากพบปัญหาระหว่างการใช้งาน โปรดติดต่อเราผ่านช่องทางอย่างเป็นทางการด้านล่าง	ご利用中に問題が発生した場合は、以下の公式窓口までお問い合わせください。
+pearnly_control	Support email	客服邮箱	อีเมลฝ่ายบริการลูกค้า	サポートメール
+pearnly_control	Support phone	客服电话	โทรศัพท์	電話番号
+pearnly_control	Kind regards,	此致	ขอแสดงความนับถือ	よろしくお願いいたします。
+pearnly_control	Pearnly Customer Support	Pearnly 客户服务团队	ฝ่ายบริการลูกค้า Pearnly	Pearnly カスタマーサポート
+pearnly_control	This is an account activation notice. If you did not request this account, please contact our support team.	这是一封账户开通通知。若您未申请开通，请联系官方客服。	อีเมลแจ้งการเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า	本メールはアカウント開設のご案内です。お心当たりがない場合は、サポート窓口までご連絡ください。
+pearnly_control	Welcome to {0} — your account is ready	欢迎使用 {0}，您的账户已开通	ยินดีต้อนรับสู่ {0} บัญชีของคุณเปิดใช้งานแล้ว	{0}へようこそ — アカウント開設完了
+pearnly_control	Welcome Email Language	欢迎邮件语言	ภาษาของอีเมลต้อนรับ	ウェルカムメールの言語
+pearnly_control	Welcome Email Queue	欢迎邮件队列	คิวอีเมลต้อนรับ	ウェルカムメールキュー
+pearnly_control	Welcome Email Error	欢迎邮件错误	ข้อผิดพลาดของอีเมลต้อนรับ	ウェルカムメールエラー
+pearnly_control	Retry welcome email	重试欢迎邮件	ลองส่งอีเมลต้อนรับอีกครั้ง	ウェルカムメールを再試行
+pearnly_control	View welcome email	查看欢迎邮件	ดูอีเมลต้อนรับ	ウェルカムメールを表示
+pearnly_control	Welcome email could not be queued. Check the outgoing email account, then retry the email.	欢迎邮件未能加入队列，请检查发信配置后重试邮件。	ไม่สามารถเพิ่มอีเมลต้อนรับเข้าคิวได้ โปรดตรวจสอบบัญชีส่งอีเมลแล้วลองอีกครั้ง	メールをキューに追加できませんでした。送信設定を確認して再試行してください。
+pearnly_control	Provisioning must be complete before sending the welcome email.	开通完成后才能发送欢迎邮件。	ต้องเปิดใช้งานให้เสร็จก่อนส่งอีเมลต้อนรับ	開設完了後にウェルカムメールを送信できます。

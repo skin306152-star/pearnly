@@ -48,6 +48,9 @@ settings = {
 }
 if "--smtp" in sys.argv:
     settings["smtpServer"] = json.load(sys.stdin)
+    if settings["smtpServer"].get("from") != "hello@pearnly.com":
+        raise SystemExit("Official sender must be hello@pearnly.com")
+    settings["smtpServer"].update({"replyTo": "hello@pearnly.com", "fromDisplayName": "Pearnly"})
     import smtplib
     import ssl
     smtp = settings["smtpServer"]

@@ -2,7 +2,7 @@ app_name = "pearnly_core"
 app_title = "Pearnly Core"
 app_publisher = "Pearnly"
 app_description = "统一身份、授权上下文与审计核心"
-app_email = "skin@pearnly.local"
+app_email = "hello@pearnly.com"
 app_license = "mit"
 
 # 账号组件：产品界面左下角/右下角头像菜单 + 改密弹窗（三个产品共用）。

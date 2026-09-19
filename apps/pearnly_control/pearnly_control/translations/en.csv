@@ -1,7 +1,10 @@
 (empty),(empty)
+A deployment is a live site. Delete the tenant so its site and database go away too.,A deployment is a live site. Delete the tenant so its site and database go away too.
 A rejection needs a reason; the tenant will see it,A rejection needs a reason; the tenant will see it
 "A single top-up is capped at ฿500,000","A single top-up is capped at ฿500,000"
 A wallet must belong to a tenant,A wallet must belong to a tenant
+Account information,Account information
+Account opening is available only for configured cloud targets,Account opening is available only for configured cloud targets
 "Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.","Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."
 Action,Action
 Action name the runner understands; see pearnly_control/provisioning.py,Action name the runner understands; see pearnly_control/provisioning.py
@@ -34,8 +37,10 @@ Company Name,Company Name
 Company name is required,Company name is required
 Confirm credit,Confirm credit
 Confirm rejection,Confirm rejection
+Connect cloud billing,Connect cloud billing
 Contact Name,Contact Name
 Contact Phone,Contact Phone
+Contact us,Contact us
 Control API URL,Control API URL
 Control-plane records,Control-plane records
 Could not credit,Could not credit
@@ -53,6 +58,7 @@ Crediting…,Crediting…
 Cycle End,Cycle End
 Cycle Start,Cycle Start
 DMS is the one already proven; ERP and Cowork use the same API surface.,DMS is the one already proven; ERP and Cowork use the same API surface.
+"Dear customer,","Dear customer,"
 Default On,Default On
 Default Target,Default Target
 Delete tenant,Delete tenant
@@ -68,6 +74,7 @@ Domain prefix {0} is reserved; pick another,Domain prefix {0} is reserved; pick 
 Done,Done
 Duplicate domain on the same issue: {0},Duplicate domain on the same issue: {0}
 Email,Email
+Enable HTTPS access,Enable HTTPS access
 Enabled Features,Enabled Features
 Enabled — {0} steps,Enabled — {0} steps
 Enforcement,Enforcement
@@ -79,16 +86,20 @@ Feature Code,Feature Code
 Feature Name,Feature Name
 Features,Features
 Fill in only if a LIFF app exists; otherwise leave empty.,Fill in only if a LIFF app exists; otherwise leave empty.
+Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
 Finalize the site,Finalize the site
 Finished At,Finished At
 For example http://keycloak.localhost:8105,For example http://keycloak.localhost:8105
 For example: local sample / production,For example: local sample / production
+"For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
 Idempotency Key,Idempotency Key
 Identity Service URL,Identity Service URL
 Identity Subject,Identity Subject
+"If you encounter any problems while using our services, please contact us through the official channels below.","If you encounter any problems while using our services, please contact us through the official channels below."
 Initial Password,Initial Password
+Initial password,Initial password
 Initial password is required (the user signs in with it directly),Initial password is required (the user signs in with it directly)
 Install core apps,Install core apps
 Install the product app,Install the product app
@@ -107,8 +118,16 @@ Issued By,Issued By
 Issued: {0} / tenant {1},Issued: {0} / tenant {1}
 Issues,Issues
 Issuing…,Issuing…
+"Kind regards,","Kind regards,"
 LIFF ID,LIFF ID
 LINE Channel,LINE Channel
+LINE Channel Access Token,LINE Channel Access Token
+LINE Channel ID,LINE Channel ID
+LINE Channel Secret,LINE Channel Secret
+LINE LIFF ID,LINE LIFF ID
+LINE channel (optional),LINE channel (optional)
+LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
+LINE credentials are required before activation.,LINE credentials are required before activation.
 Last Updated,Last Updated
 Leave empty to use the company name,Leave empty to use the company name
 Local Port,Local Port
@@ -130,6 +149,7 @@ OIDC Client Secret,OIDC Client Secret
 One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.
 "One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.","One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out."
 Only a platform admin can handle top-ups and balances,Only a platform admin can handle top-ups and balances
+Open the LINE channel,Open the LINE channel
 Operations,Operations
 Output,Output
 Over-rate (per page),Over-rate (per page)
@@ -140,10 +160,16 @@ Password Delivered At,Password Delivered At
 Password-check Client ID,Password-check Client ID
 Password-check Client Secret,Password-check Client Secret
 Payload,Payload
+Pearnly Credit Transaction,Pearnly Credit Transaction
+Pearnly Customer Support,Pearnly Customer Support
+Pearnly Subscription,Pearnly Subscription
+Pearnly Topup Request,Pearnly Topup Request
+Pearnly Wallet,Pearnly Wallet
 Pending,Pending
 Pick at least one product,Pick at least one product
 Plan,Plan
 Plan {0} ({1} days · {2} pages),Plan {0} ({1} days · {2} pages)
+Please change your initial password promptly,Please change your initial password promptly
 "Prefix only, e.g. aerp","Prefix only, e.g. aerp"
 Product App,Product App
 Product {0} is selected twice,Product {0} is selected twice
@@ -153,6 +179,7 @@ Provisioning Credentials (stored only here),Provisioning Credentials (stored onl
 Provisioning Progress,Provisioning Progress
 Provisioning Target,Provisioning Target
 Provisioning failed,Provisioning failed
+Provisioning must be complete before sending the welcome email.,Provisioning must be complete before sending the welcome email.
 Provisioning {0}/{1},Provisioning {0}/{1}
 Queued for provisioning; building the site now,Queued for provisioning; building the site now
 Queueing provisioning…,Queueing provisioning…
@@ -170,21 +197,28 @@ Requested Amount,Requested Amount
 Requested At,Requested At
 Restart services,Restart services
 Retry deletion,Retry deletion
+Retry provisioning,Retry provisioning
+Retry welcome email,Retry welcome email
 Review,Review
 Review Note,Review Note
 Reviewed At,Reviewed At
 Reviewed By,Reviewed By
 Role,Role
 Row {0} on the issue has no domain; cannot build the site,Row {0} on the issue has no domain; cannot build the site
+Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
 Service URL is required,Service URL is required
+Set up OCR,Set up OCR
 Set up the LINE channel,Set up the LINE channel
 Set up unified sign-in,Set up unified sign-in
+Sign in to your account,Sign in to your account
+Sign-in account,Sign-in account
 Sign-in accounts,Sign-in accounts
 Site,Site
 Site Name,Site Name
 Site Provisioning API,Site Provisioning API
+Site URL,Site URL
 Site name {0} is already taken by deployment {1},Site name {0} is already taken by deployment {1}
 Sites and databases,Sites and databases
 Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.
@@ -194,14 +228,18 @@ Started At,Started At
 Step,Step
 Step Details,Step Details
 Steps,Steps
+Support email,Support email
+Support phone,Support phone
 Target Name,Target Name
 Target name is required,Target name is required
 Teardown request {0} does not exist,Teardown request {0} does not exist
 Tenant,Tenant
 Tenant Note,Tenant Note
 Tenant {0} does not exist,Tenant {0} does not exist
+Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.","The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting."
 "The URL to paste into the LINE console, derived from the deployment domain.","The URL to paste into the LINE console, derived from the deployment domain."
+The address this tenant is reached at.,The address this tenant is reached at.
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)
 The balance could not be read; this is not 'insufficient balance',The balance could not be read; this is not 'insufficient balance'
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.","The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value."
@@ -215,6 +253,7 @@ The requested amount must be greater than 0,The requested amount must be greater
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,The same key submitted twice yields only one set of resources. Defaults to the issue number.
 "The top-up amount must be between ฿0.01 and ฿500,000","The top-up amount must be between ฿0.01 and ฿500,000"
 These accounts could not be deleted: {0},These accounts could not be deleted: {0}
+"This is an account activation notice. If you did not request this account, please contact our support team.","This is an account activation notice. If you did not request this account, please contact our support team."
 This issue has no usable initial password; fill it in again before issuing,This issue has no usable initial password; fill it in again before issuing
 This removes everything about this tenant. It cannot be undone.,This removes everything about this tenant. It cannot be undone.
 This request has already been handled (currently: {0}),This request has already been handled (currently: {0})
@@ -235,30 +274,17 @@ Username,Username
 Username and initial password are both required: they are the credentials for the user's first sign-in,Username and initial password are both required: they are the credentials for the user's first sign-in
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30","Username may only contain letters, digits, dot, underscore and hyphen, length 3–30"
 View progress,View progress
+View welcome email,View welcome email
 Webhook URL,Webhook URL
+Welcome Email Error,Welcome Email Error
+Welcome Email Language,Welcome Email Language
+Welcome Email Queue,Welcome Email Queue
+"Welcome email could not be queued. Check the outgoing email account, then retry the email.","Welcome email could not be queued. Check the outgoing email account, then retry the email."
+Welcome to,Welcome to
+Welcome to {0} — your account is ready,Welcome to {0} — your account is ready
+Your access domain,Your access domain
+Your account is ready,Your account is ready
 grant only handles money in (topup / adjustment); use charge() for deductions,grant only handles money in (topup / adjustment); use charge() for deductions
 "{0} in-plan scan ({1} pages, within quota)","{0} in-plan scan ({1} pages, within quota)"
 {0} out-of-plan scan ({1} over quota),{0} out-of-plan scan ({1} over quota)
 {0} — {1} features,{0} — {1} features
-Connect cloud billing,Connect cloud billing
-Set up OCR,Set up OCR
-Enable HTTPS access,Enable HTTPS access
-LINE credentials are required before activation.,LINE credentials are required before activation.
-LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
-Open the LINE channel,Open the LINE channel
-Site URL,Site URL
-The address this tenant is reached at.,The address this tenant is reached at.
-Pearnly Wallet,Pearnly Wallet
-Pearnly Credit Transaction,Pearnly Credit Transaction
-Pearnly Subscription,Pearnly Subscription
-Pearnly Topup Request,Pearnly Topup Request
-A deployment is a live site. Delete the tenant so its site and database go away too.,A deployment is a live site. Delete the tenant so its site and database go away too.
-LINE channel (optional),LINE channel (optional)
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
-LINE Channel ID,LINE Channel ID
-LINE LIFF ID,LINE LIFF ID
-LINE Channel Secret,LINE Channel Secret
-LINE Channel Access Token,LINE Channel Access Token
-Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
-Account opening is available only for configured cloud targets,Account opening is available only for configured cloud targets
-Retry provisioning,Retry provisioning

@@ -2,7 +2,7 @@ app_name = "pearnly_control"
 app_title = "Pearnly Control"
 app_publisher = "Pearnly"
 app_description = "控制面：开户、公司、产品与功能、域名、角色、账套（仅开发机运行）"
-app_email = "skin@pearnly.local"
+app_email = "hello@pearnly.com"
 app_license = "mit"
 
 # 每次 migrate 后把功能模版目录同步进 Pearnly Feature（幂等）。
@@ -286,3 +286,10 @@ before_request = [
 #
 # 因此这里**不做** /login 的重定向：重定向到统一身份是在控制面还要用平台 realm 时
 # 才需要的，现在不需要了。
+
+# Completion only; email failures never change deployment status.
+doc_events = {
+    "Pearnly Provisioning Request": {
+        "on_update": "pearnly_control.onboarding.welcome.request_completed",
+    },
+}

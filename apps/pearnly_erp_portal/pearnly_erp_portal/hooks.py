@@ -2,7 +2,7 @@ app_name = "pearnly_erp_portal"
 app_title = "Pearnly ERP Portal"
 app_publisher = "Pearnly"
 app_description = "ERP 门户产品：商品与库存、采购、销售、收发存"
-app_email = "skin@pearnly.local"
+app_email = "hello@pearnly.com"
 app_license = "mit"
 
 # Apps
