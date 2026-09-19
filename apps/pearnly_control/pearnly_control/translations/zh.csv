@@ -1,23 +1,211 @@
+(empty),（空）
+A rejection needs a reason; the tenant will see it,拒绝要写原因，租户那边要看到
+"A single top-up is capped at ฿500,000","单笔充值上限 ฿500,000"
+A wallet must belong to a tenant,钱包必须挂在某个租户上
+"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号
+Action,动作
+Action name the runner understands; see pearnly_control/provisioning.py,执行器认识的动作名，见 pearnly_control/provisioning.py
+Admin Client ID,管理客户端 ID
+Admin Client Secret,管理客户端密钥
+Amount (THB),金额（泰铢）
+Amount must be greater than 0,金额必须大于 0
+An adjustment cannot be 0,调账金额不能是 0
+An adjustment must have a reason,调账必须写原因
+Approve and credit,同意并到账
+Approve top-up,同意充值
+At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）
+Balance (THB),余额（泰铢）
+Balance After,变动后余额
+"Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",余额不够付月费（需要 ฿{0}，只有 ฿{1}）
+Basic Info,基础信息
+Bench Group,运行组
+Billing Units,计费单位
+"Cannot read the provisioning target, so the identity service URL is unknown",取不到开户目标，无法确定身份服务地址
 Channel Access Token,渠道访问令牌
 Channel ID,渠道 ID
 Channel Secret,渠道密钥
+Client ID for Invitation Links,邀请链接用的客户端 ID
+"Client with only the password grant, used to verify the current password. Shared by all three products.",只开密码授权、用于校验『当前密码』的客户端。三产品共用
+Close,关闭
+Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,来自发号单。功能级强制暂未实施（见 docs/p4/06-provisioning.md）
+Comma separated. The role gets read/write on these DocTypes.,逗号分隔。该角色拿到这些 DocType 的读写权限
+Company Name,公司名称
+Company name is required,公司名称必填
+Confirm credit,确认到账
+Confirm rejection,确认拒绝
+Contact Name,联系人
+Contact Phone,联系电话
+Control API URL,控制接口地址
 Control-plane records,控制面记录
+Could not credit,入账失败
+Could not queue provisioning,排不进开通队列
 Could not queue the deletion,排队删除失败
 Could not read what would be deleted,读不到要删除的内容
+Could not reject,拒绝失败
+Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
+Credential Delivery,凭据交付方式
+"Credentials (stored only here, pushed to the tenant site at provisioning)",凭据（只在这里存一份，开通时推到租户站点）
+Credited ฿{0}; {1} now has ฿{2},已到账 ฿{0}，{1} 现在余额 ฿{2}
+Crediting…,入账中…
+Cycle End,本周期结束
+Cycle Start,本周期开始
+DMS is the one already proven; ERP and Cowork use the same API surface.,存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口
+Default On,常规开通
+Default Target,默认目标
 Delete tenant,删除租户
 Deletion queued ({0} steps). The on-host runner will do the work.,已排队删除（{0} 步），接下来由本机执行器完成。
 Deployments,部署
+Details,明细
+Display Name,界面标题
+Domain,访问域名
+Domain Prefix,域名前缀
+Domain already taken: {0} (issue {1}),域名已被占用：{0}（发号单 {1}）
+Domain prefix cannot be all digits: {0},域名前缀不能全是数字：{0}
+Domain prefix {0} is reserved; pick another,域名前缀 {0} 是保留名，换一个
+Duplicate domain on the same issue: {0},域名在同一张单里重复：{0}
+Email,邮箱
+Enabled Features,已开通功能
+Enforcement,权限落地
+Feature,功能
+Feature Code,功能代码
+Feature Name,功能名称
+Features,功能
+Fill in only if a LIFF app exists; otherwise leave empty.,有 LIFF 应用才填；没有就留空
+Finished At,结束时间
+For example http://keycloak.localhost:8105,例如 http://keycloak.localhost:8105
+For example: local sample / production,例如：本地样板 / 生产
+Granted DocTypes,授予的 DocType
+Idempotency Key,幂等键
+Identity Service URL,身份服务地址
+Identity Subject,身份主体
+Initial Password,初始密码
+Initial password is required (the user signs in with it directly),初始密码必填（用户拿它直接登录）
+"Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63
+Invalid email,邮箱不合法
+Invalid service token,服务令牌无效
+Invitation Email,邀请邮件
+Invitation Sent At,邀请邮件发送时间
+Issue,发号单
+Issue and provision,发号并开通
+Issue failed,发号失败
+Issue {0} is {1}; only an issued one can be provisioned,发号单 {0} 状态是 {1}，只有 issued 的发号单才能开通
+Issued At,发号时间
+Issued By,操作人
+Issued: {0} / tenant {1},已发号：{0} / 租户 {1}
 Issues,发号单
+Issuing…,正在发号…
 LIFF ID,LIFF ID
+Last Updated,最近变动
+Leave empty to use the company name,留空用公司名称
+Local Port,本机端口
+Local URL,本机访问地址
+Matches the feature keys in the product manifest (product_manifest.py).,与产品清单 product_manifest.py 里的 features 键一致
+Monthly Fee,月费
+No provisioning request yet; click “Run provisioning” to start,还没有开通请求，点「执行开通」开始
+No such deployment: {0},部署不存在：{0}
+No such plan: {0},没有这个套餐：{0}
+No such step: {0},找不到步骤 {0}
+No such tenant: {0},租户不存在：{0}
+Not issued,未发号
+Notes,备注
+OIDC Client ID,OIDC 客户端 ID
+OIDC Client Secret,OIDC 客户端密钥
+One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,一个部署（公司×产品）一条 LINE。这是隔离边界：验签与发消息都用这条自己的凭据
+"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",每个部署一个：回调地址按站点域名算，共用客户端会让第二个租户登不进来
+Only a platform admin can handle top-ups and balances,只有平台管理员能处理充值与余额
+Operations,运维
+Output,执行输出
+Over-rate (per page),超额单价（每张）
+Pages,页数
+Pages Used This Month,本月已用页数
+Password Delivered At,初始密码交付时间
+Password-check Client ID,改密校验客户端 ID
+Password-check Client Secret,改密校验客户端密钥
+Payload,参数
+Pick at least one product,至少要选一个产品
+Plan,套餐
+"Prefix only, e.g. aerp",只填前缀，如 aerp
+Product App,产品 App
+Product {0} is selected twice,产品 {0} 选了两次
+Products & Domains,产品与域名
+Proof,凭证
+Provisioning Credentials (stored only here),开户凭据（只在这里存一份）
+Provisioning Target,开户目标
+Provisioning progress,开通进度
+Queued for provisioning; building the site now,已排入开通队列，正在建站
+Queueing provisioning…,正在排入开通队列…
 Queueing the deletion…,正在排队删除…
+Quota,额度
+Quota per Cycle (pages),每周期额度（张）
 Realm,Realm
+Reason (the tenant will see it; required),原因（租户那边看得到，必填）
+Received Amount,实收金额
+Received amount (as actually credited by the bank),实收金额（以银行到账为准）
+Reference,外部单号
+Reject,拒绝
+Reject top-up,拒绝充值
+Rejected,已拒绝
+Requested Amount,申请金额
+Requested At,申请时间
 Retry deletion,重试删除
+Review,处理
+Review Note,审核备注
+Reviewed At,审核时间
+Reviewed By,审核人
+Role,对应角色
+Row {0} on the issue has no domain; cannot build the site,发号单里 {0} 这一行没有域名，无法建站
+Run provisioning,执行开通
+Service URL is required,服务地址必填
 Sign-in accounts,登录账号
+Site,站点
+Site Name,站点名
+Site Provisioning API,建站接口
+Site name {0} is already taken by deployment {1},站点名 {0} 已被部署 {1} 占用
 Sites and databases,站点与数据库
+Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同产品的多个站点共享一个 Bench 进程，记录在这里以便定位故障范围
+Source,来源
+Started At,开始时间
+Step,步骤
+Step Details,细节
+Steps,步骤
+Target Name,目标名称
+Target name is required,目标名称必填
 Teardown request {0} does not exist,拆除请求 {0} 不存在
+Tenant,租户
+Tenant Note,租户备注
 Tenant {0} does not exist,租户 {0} 不存在
+"The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
+"The URL to paste into the LINE console, derived from the deployment domain.",填到 LINE 后台的那个地址，由部署域名算出
+The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）
+"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",就是该部署的域名。Frappe 按 Host 认站点，所以站点名与域名是同一个值
+The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的
+The last issue attempt failed; set it back to draft before issuing again,这张单上次发号失败了，先把它改回 draft 再发
+The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
+The product app installed on this site; pearnly_core is shared by every product.,该站点安装的产品 App，另有所有产品共用的 pearnly_core
+"The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站
+The received amount must be greater than 0,实收金额必须大于 0
+The requested amount must be greater than 0,申请金额必须大于 0
+The same key submitted twice yields only one set of resources. Defaults to the issue number.,同一个键重复提交只会有一套资源。默认用发号单号
+"The top-up amount must be between ฿0.01 and ฿500,000","充值金额要在 ฿0.01 到 ฿500,000 之间"
 These accounts could not be deleted: {0},这些账号删不掉：{0}
+This issue has no usable initial password; fill it in again before issuing,这张单上没有可用的初始密码，重新填一次再发号
 This removes everything about this tenant. It cannot be undone.,这会删除这个租户的一切，且不可恢复。
+This request has already been handled (currently: {0}),这张申请已经处理过了（当前：{0}）
 This tenant no longer exists.,这个租户已经不存在了。
+This top-up request was already reviewed; it cannot be handled twice,这张充值申请已经审核过了，不能重复处理
+"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）
+Transfer Slip,转账截图
+Type,类型
+Unknown billing unit: {0},未知的计费单位：{0}
+Unknown product: {0},未知产品：{0}
+Unknown step status: {0},未知步骤状态：{0}
+Used This Cycle (pages),本周期已用（张）
+Used to send messages (long-lived).,发消息用（long-lived）
+"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",webhook 验签用。**每个租户一条**：租户站点只用自己的这条，别人的签名验不过
+Username,用户名
+Username and initial password are both required: they are the credentials for the user's first sign-in,用户名和初始密码都要填：它们是用户首次登录的凭据
+"Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30
+View progress,查看进度
 Webhook URL,Webhook 地址
+grant only handles money in (topup / adjustment); use charge() for deductions,grant 只处理进账（topup / adjustment）；扣费走 charge()
 {0} — {1} features,{0} — {1} 项

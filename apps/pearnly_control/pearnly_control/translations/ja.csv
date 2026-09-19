@@ -1,23 +1,211 @@
+(empty),（空）
+A rejection needs a reason; the tenant will see it,却下には理由が必要です。テナント側に表示されます。
+"A single top-up is capped at ฿500,000","1回のチャージ上限は ฿500,000 です"
+A wallet must belong to a tenant,ウォレットはテナントに紐づける必要があります
+"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again.",アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
+Action,アクション
+Action name the runner understands; see pearnly_control/provisioning.py,実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。
+Admin Client ID,管理者クライアントID
+Admin Client Secret,管理者クライアントシークレット
+Amount (THB),金額（バーツ）
+Amount must be greater than 0,金額は0より大きい必要があります
+An adjustment cannot be 0,調整額は0にできません
+An adjustment must have a reason,調整には理由が必要です
+Approve and credit,承認して入金
+Approve top-up,チャージを承認
+At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
+Balance (THB),残高（バーツ）
+Balance After,変動後の残高
+"Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",月額を支払う残高が足りません（必要 ฿{0}、残高 ฿{1}）
+Basic Info,基本情報
+Bench Group,実行グループ
+Billing Units,課金単位
+"Cannot read the provisioning target, so the identity service URL is unknown",開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
 Channel Access Token,チャネルアクセストークン
 Channel ID,チャネルID
 Channel Secret,チャネルシークレット
+Client ID for Invitation Links,招待リンク用クライアントID
+"Client with only the password grant, used to verify the current password. Shared by all three products.",パスワードグラントのみ有効なクライアント。現在のパスワード確認に使い、3製品で共用します。
+Close,閉じる
+Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).,発行伝票から取得。機能単位の強制は未実装です（docs/p4/06-provisioning.md 参照）。
+Comma separated. The role gets read/write on these DocTypes.,カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。
+Company Name,会社名
+Company name is required,会社名は必須です
+Confirm credit,入金を確定
+Confirm rejection,却下を確定
+Contact Name,担当者名
+Contact Phone,連絡先電話
+Control API URL,制御APIのURL
 Control-plane records,コントロールプレーンの記録
+Could not credit,入金に失敗しました
+Could not queue provisioning,開通キューに入れられませんでした
 Could not queue the deletion,削除をキューに入れられませんでした
 Could not read what would be deleted,削除対象を読み取れませんでした
+Could not reject,却下に失敗しました
+Creating a channel requires both secret and access token,チャネル作成には secret と access token の両方が必要です
+Credential Delivery,資格情報の受け渡し方法
+"Credentials (stored only here, pushed to the tenant site at provisioning)",資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
+Credited ฿{0}; {1} now has ฿{2},฿{0} を入金しました。{1} の残高は ฿{2} です
+Crediting…,入金処理中…
+Cycle End,今サイクル終了
+Cycle Start,今サイクル開始
+DMS is the one already proven; ERP and Cowork use the same API surface.,DMSが実績あり。ERPとCoworkも同じAPIを使います。
+Default On,既定で有効
+Default Target,既定のターゲット
 Delete tenant,テナントを削除
 Deletion queued ({0} steps). The on-host runner will do the work.,削除をキューに入れました（{0}ステップ）。以降は実行ホストが処理します。
 Deployments,デプロイ
+Details,明細
+Display Name,表示名
+Domain,アクセスドメイン
+Domain Prefix,ドメイン接頭辞
+Domain already taken: {0} (issue {1}),ドメインは既に使用済みです: {0}（発行伝票 {1}）
+Domain prefix cannot be all digits: {0},ドメイン接頭辞を数字だけにはできません: {0}
+Domain prefix {0} is reserved; pick another,ドメイン接頭辞 {0} は予約済みです。別のものを指定してください
+Duplicate domain on the same issue: {0},同じ伝票内でドメインが重複しています: {0}
+Email,メールアドレス
+Enabled Features,有効な機能
+Enforcement,権限の適用
+Feature,機能
+Feature Code,機能コード
+Feature Name,機能名
+Features,機能
+Fill in only if a LIFF app exists; otherwise leave empty.,LIFFアプリがある場合のみ入力。なければ空欄。
+Finished At,終了日時
+For example http://keycloak.localhost:8105,例: http://keycloak.localhost:8105
+For example: local sample / production,例：ローカル見本 / 本番
+Granted DocTypes,付与するDocType
+Idempotency Key,冪等キー
+Identity Service URL,アイデンティティサービスURL
+Identity Subject,アイデンティティのサブジェクト
+Initial Password,初期パスワード
+Initial password is required (the user signs in with it directly),初期パスワードは必須です（そのままログインに使います）
+"Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63
+Invalid email,メールアドレスの形式が正しくありません
+Invalid service token,サービストークンが無効です
+Invitation Email,招待メール
+Invitation Sent At,招待メール送信日時
+Issue,発行伝票
+Issue and provision,発行して開通
+Issue failed,発行に失敗しました
+Issue {0} is {1}; only an issued one can be provisioned,発行伝票 {0} は {1} です。開通できるのは issued の伝票だけです
+Issued At,発行日時
+Issued By,発行者
+Issued: {0} / tenant {1},発行済み: {0} / テナント {1}
 Issues,発行伝票
+Issuing…,発行中…
 LIFF ID,LIFF ID
+Last Updated,最終更新
+Leave empty to use the company name,空欄なら会社名を使います
+Local Port,ローカルポート
+Local URL,ローカルURL
+Matches the feature keys in the product manifest (product_manifest.py).,製品マニフェスト product_manifest.py の features キーと一致します。
+Monthly Fee,月額
+No provisioning request yet; click “Run provisioning” to start,開通リクエストはまだありません。「開通を実行」を押してください。
+No such deployment: {0},そのデプロイはありません: {0}
+No such plan: {0},そのプランはありません: {0}
+No such step: {0},ステップ {0} が見つかりません
+No such tenant: {0},そのテナントはありません: {0}
+Not issued,未発行
+Notes,備考
+OIDC Client ID,OIDCクライアントID
+OIDC Client Secret,OIDCクライアントシークレット
+One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.,デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。
+"One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.",デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。
+Only a platform admin can handle top-ups and balances,チャージと残高を扱えるのはプラットフォーム管理者のみです
+Operations,運用
+Output,実行出力
+Over-rate (per page),超過単価（1枚あたり）
+Pages,ページ数
+Pages Used This Month,今月の使用ページ数
+Password Delivered At,初期パスワード交付日時
+Password-check Client ID,パスワード確認用クライアントID
+Password-check Client Secret,パスワード確認用クライアントシークレット
+Payload,パラメータ
+Pick at least one product,製品を1つ以上選んでください
+Plan,プラン
+"Prefix only, e.g. aerp",接頭辞のみ（例: aerp）
+Product App,製品アプリ
+Product {0} is selected twice,製品 {0} が二重に選ばれています
+Products & Domains,製品とドメイン
+Proof,証憑
+Provisioning Credentials (stored only here),開通の資格情報（ここにだけ保存）
+Provisioning Target,開通ターゲット
+Provisioning progress,開通の進捗
+Queued for provisioning; building the site now,開通キューに入りました。サイトを構築中です。
+Queueing provisioning…,開通をキューに追加しています…
 Queueing the deletion…,削除をキューに追加しています…
+Quota,枠
+Quota per Cycle (pages),1サイクルの枠（枚）
 Realm,レルム
+Reason (the tenant will see it; required),理由（テナント側に表示されます。必須）
+Received Amount,受領額
+Received amount (as actually credited by the bank),受領額（銀行の実際の入金額）
+Reference,外部参照番号
+Reject,却下
+Reject top-up,チャージを却下
+Rejected,却下済み
+Requested Amount,申請額
+Requested At,申請日時
 Retry deletion,削除を再試行
+Review,処理
+Review Note,審査備考
+Reviewed At,審査日時
+Reviewed By,審査者
+Role,対応ロール
+Row {0} on the issue has no domain; cannot build the site,発行伝票の {0} 行にドメインがなく、サイトを構築できません
+Run provisioning,開通を実行
+Service URL is required,サービスURLは必須です
 Sign-in accounts,ログインアカウント
+Site,サイト
+Site Name,サイト名
+Site Provisioning API,サイト構築API
+Site name {0} is already taken by deployment {1},サイト名 {0} はデプロイ {1} が使用中です
 Sites and databases,サイトとデータベース
+Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.,同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。
+Source,ソース
+Started At,開始日時
+Step,ステップ
+Step Details,ステップ詳細
+Steps,ステップ
+Target Name,ターゲット名
+Target name is required,ターゲット名は必須です
 Teardown request {0} does not exist,撤去リクエスト {0} が存在しません
+Tenant,テナント
+Tenant Note,テナント備考
 Tenant {0} does not exist,テナント {0} が存在しません
+"The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
+"The URL to paste into the LINE console, derived from the deployment domain.",LINE管理画面に貼るURL。デプロイのドメインから算出します。
+The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
+"The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
+The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
+The last issue attempt failed; set it back to draft before issuing again,前回の発行に失敗しました。draft に戻してから再発行してください。
+The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET),パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
+The product app installed on this site; pearnly_core is shared by every product.,このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。
+"The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.",サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
+The received amount must be greater than 0,受領額は0より大きい必要があります
+The requested amount must be greater than 0,申請額は0より大きい必要があります
+The same key submitted twice yields only one set of resources. Defaults to the issue number.,同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。
+"The top-up amount must be between ฿0.01 and ฿500,000","チャージ額は฿0.01〜฿500,000の範囲で入力してください"
 These accounts could not be deleted: {0},これらのアカウントを削除できません: {0}
+This issue has no usable initial password; fill it in again before issuing,この伝票には有効な初期パスワードがありません。再入力してから発行してください。
 This removes everything about this tenant. It cannot be undone.,このテナントのすべてを削除します。元に戻せません。
+This request has already been handled (currently: {0}),この申請はすでに処理済みです（現在: {0}）
 This tenant no longer exists.,このテナントは既に存在しません。
+This top-up request was already reviewed; it cannot be handled twice,この入金申請は審査済みです。二重処理はできません。
+"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",チェックは既定で有効、外したものは追加購入（コラボボード、コンパニオンなど）。
+Transfer Slip,振込明細
+Type,種別
+Unknown billing unit: {0},不明な課金単位: {0}
+Unknown product: {0},不明な製品: {0}
+Unknown step status: {0},不明なステップ状態: {0}
+Used This Cycle (pages),今サイクル使用量（枚）
+Used to send messages (long-lived).,メッセージ送信用（long-lived）。
+"Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.",Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。
+Username,ユーザー名
+Username and initial password are both required: they are the credentials for the user's first sign-in,ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
+"Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30
+View progress,進捗を見る
 Webhook URL,Webhook URL
+grant only handles money in (topup / adjustment); use charge() for deductions,grant は入金（topup / adjustment）専用。控除は charge() を使います。
 {0} — {1} features,{0} — {1} 件

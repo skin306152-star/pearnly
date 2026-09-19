@@ -7,27 +7,27 @@ frappe.ui.form.on("Pearnly Topup Request", {
 	refresh(frm) {
 		if (frm.is_new() || frm.doc.status !== "pending") return;
 
-		frm.add_custom_button(__("同意并到账"), () => approve(frm), null);
-		frm.add_custom_button(__("拒绝"), () => reject(frm), null);
+		frm.add_custom_button(__("Approve and credit"), () => approve(frm), null);
+		frm.add_custom_button(__("Reject"), () => reject(frm), null);
 	},
 });
 
 function approve(frm) {
 	const d = new frappe.ui.Dialog({
-		title: __("同意充值"),
+		title: __("Approve top-up"),
 		fields: [
 			{
 				fieldtype: "Currency",
 				fieldname: "actual_amount_thb",
-				label: __("实收金额（以银行到账为准）"),
+				label: __("Received amount (as actually credited by the bank)"),
 				default: frm.doc.requested_thb,
 				reqd: 1,
 			},
-			{ fieldtype: "Small Text", fieldname: "note", label: __("审核备注") },
+			{ fieldtype: "Small Text", fieldname: "note", label: __("Review Note") },
 		],
-		primary_action_label: __("确认到账"),
+		primary_action_label: __("Confirm credit"),
 		primary_action(values) {
-			frappe.dom.freeze(__("入账中…"));
+			frappe.dom.freeze(__("Crediting…"));
 			frappe
 				.call({
 					method: "pearnly_control.billing_api.admin_approve",
@@ -44,7 +44,7 @@ function approve(frm) {
 					const m = r.message || {};
 					frappe.show_alert(
 						{
-							message: __("已到账 ฿{0}，{1} 现在余额 ฿{2}", [
+							message: __("Credited ฿{0}; {1} now has ฿{2}", [
 								m.approved_thb,
 								m.tenant,
 								m.new_balance,
@@ -58,7 +58,7 @@ function approve(frm) {
 				.catch((e) => {
 					frappe.dom.unfreeze();
 					frappe.msgprint({
-						title: __("入账失败"),
+						title: __("Could not credit"),
 						message: (e && e.message) || String(e),
 						indicator: "red",
 					});
@@ -70,16 +70,16 @@ function approve(frm) {
 
 function reject(frm) {
 	const d = new frappe.ui.Dialog({
-		title: __("拒绝充值"),
+		title: __("Reject top-up"),
 		fields: [
 			{
 				fieldtype: "Small Text",
 				fieldname: "note",
-				label: __("原因（租户那边看得到，必填）"),
+				label: __("Reason (the tenant will see it; required)"),
 				reqd: 1,
 			},
 		],
-		primary_action_label: __("确认拒绝"),
+		primary_action_label: __("Confirm rejection"),
 		primary_action(values) {
 			frappe
 				.call({
@@ -89,12 +89,12 @@ function reject(frm) {
 				})
 				.then(() => {
 					d.hide();
-					frappe.show_alert({ message: __("已拒绝"), indicator: "orange" }, 4);
+					frappe.show_alert({ message: __("Rejected"), indicator: "orange" }, 4);
 					frm.reload_doc();
 				})
 				.catch((e) => {
 					frappe.msgprint({
-						title: __("拒绝失败"),
+						title: __("Could not reject"),
 						message: (e && e.message) || String(e),
 						indicator: "red",
 					});

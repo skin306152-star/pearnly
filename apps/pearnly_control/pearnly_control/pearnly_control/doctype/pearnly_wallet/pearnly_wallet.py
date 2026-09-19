@@ -18,4 +18,4 @@ from frappe.model.document import Document
 class PearnlyWallet(Document):
     def validate(self):
         if not self.tenant:
-            frappe.throw(_("钱包必须挂在某个租户上"))
+            frappe.throw(_("A wallet must belong to a tenant"))

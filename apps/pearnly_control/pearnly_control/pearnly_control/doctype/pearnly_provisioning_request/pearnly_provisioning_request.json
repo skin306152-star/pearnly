@@ -18,16 +18,16 @@
   "error"
  ],
  "fields": [
-  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "pending\nrunning\ndone\npartial\nfailed", "reqd": 1, "columns": 2},
-  {"fieldname": "idempotency_key", "fieldtype": "Data", "in_list_view": 1, "label": "幂等键", "reqd": 1, "unique": 1, "columns": 4, "description": "同一个键重复提交只会有一套资源。默认用发号单号"},
-  {"fieldname": "issue", "fieldtype": "Link", "in_list_view": 1, "label": "发号单", "options": "Pearnly Issue", "reqd": 1, "columns": 3},
+  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "pending\nrunning\ndone\npartial\nfailed", "reqd": 1, "columns": 2},
+  {"fieldname": "idempotency_key", "fieldtype": "Data", "in_list_view": 1, "label": "Idempotency Key", "reqd": 1, "unique": 1, "columns": 4, "description": "The same key submitted twice yields only one set of resources. Defaults to the issue number."},
+  {"fieldname": "issue", "fieldtype": "Link", "in_list_view": 1, "label": "Issue", "options": "Pearnly Issue", "reqd": 1, "columns": 3},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "开始时间", "read_only": 1},
-  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "结束时间", "read_only": 1},
-  {"fieldname": "section_steps", "fieldtype": "Section Break", "label": "步骤"},
-  {"fieldname": "steps", "fieldtype": "Table", "label": "步骤", "options": "Pearnly Provisioning Step"},
-  {"fieldname": "section_result", "fieldtype": "Section Break", "label": "结果"},
-  {"fieldname": "error", "fieldtype": "Small Text", "label": "失败原因", "read_only": 1}
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
+  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "Finished At", "read_only": 1},
+  {"fieldname": "section_steps", "fieldtype": "Section Break", "label": "Steps"},
+  {"fieldname": "steps", "fieldtype": "Table", "label": "Steps", "options": "Pearnly Provisioning Step"},
+  {"fieldname": "section_result", "fieldtype": "Section Break", "label": "Result"},
+  {"fieldname": "error", "fieldtype": "Small Text", "label": "Failure reason", "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

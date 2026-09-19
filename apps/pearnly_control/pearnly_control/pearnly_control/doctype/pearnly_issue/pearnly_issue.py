@@ -62,44 +62,43 @@ class PearnlyIssue(Document):
     def _validate_account(self):
         self.account_email = (self.account_email or "").strip().lower()
         if not EMAIL_RE.match(self.account_email):
-            frappe.throw(_("邮箱不合法"))
+            frappe.throw(_("Invalid email"))
         self.account_username = (self.account_username or "").strip()
         if not USERNAME_RE.match(self.account_username):
-            frappe.throw(_("用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30"))
+            frappe.throw(_("Username may only contain letters, digits, dot, underscore and hyphen, length 3–30"))
         # 初始密码**不查复杂度**（用户明确要求别卡太严：纯字母、纯数字都行），只要不是空的。
         # 卡得越严，开户现场越容易卡在"想不出密码"上，而这是他自己租户的账号。
         self.account_password = (self.account_password or "").strip()
         if not self.account_password:
-            frappe.throw(_("初始密码必填（用户拿它直接登录）"))
+            frappe.throw(_("Initial password is required (the user signs in with it directly)"))
         self.tenant_name = (self.tenant_name or "").strip()
         if not self.tenant_name:
-            frappe.throw(_("公司名称必填"))
+            frappe.throw(_("Company name is required"))
 
     # ── 产品与域名 ────────────────────────────────────────────
     def _validate_apps(self):
         if not self.apps:
-            frappe.throw(_("至少要选一个产品"))
+            frappe.throw(_("Pick at least one product"))
         seen_apps, seen_domains = set(), {}
         for row in self.apps:
             if row.app in seen_apps:
-                frappe.throw(_("产品 {0} 选了两次").format(row.app))
+                frappe.throw(_("Product {0} is selected twice").format(row.app))
             seen_apps.add(row.app)
 
             prefix = (row.domain_prefix or "").strip().lower()
             if not PREFIX_RE.match(prefix):
                 frappe.throw(
-                    _("域名前缀不合法：{0}。只能用小写字母、数字和短横线，"
-                      "首尾不能是短横线，长度 1–63").format(row.domain_prefix or "(空)")
+                    _("Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63").format(row.domain_prefix or _("(empty)"))
                 )
             if prefix.isdigit():
-                frappe.throw(_("域名前缀不能全是数字：{0}").format(prefix))
+                frappe.throw(_("Domain prefix cannot be all digits: {0}").format(prefix))
             if prefix in RESERVED_PREFIXES:
-                frappe.throw(_("域名前缀 {0} 是保留名，换一个").format(prefix))
+                frappe.throw(_("Domain prefix {0} is reserved; pick another").format(prefix))
 
             # 域名由前缀统一生成，不让手填，避免同一件事有两种写法
             domain = f"{prefix}.{base_domain()}"
             if domain in seen_domains:
-                frappe.throw(_("域名在同一张单里重复：{0}").format(domain))
+                frappe.throw(_("Duplicate domain on the same issue: {0}").format(domain))
             seen_domains[domain] = row.app
 
             # 全局唯一：不允许两个租户（或两次发号）撞同一个域名
@@ -111,7 +110,7 @@ class PearnlyIssue(Document):
             )
             if other:
                 frappe.throw(
-                    _("域名已被占用：{0}（发号单 {1}）").format(domain, other.parent)
+                    _("Domain already taken: {0} (issue {1})").format(domain, other.parent)
                 )
             row.domain_prefix = prefix
             row.domain = domain

@@ -13,11 +13,11 @@
   "updated_at"
  ],
  "fields": [
-  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "租户", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
-  {"default": "0", "fieldname": "balance_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "余额（泰铢）", "options": "THB", "read_only": 1},
+  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
+  {"default": "0", "fieldname": "balance_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "Balance (THB)", "options": "THB", "read_only": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "pages_used_this_month", "fieldtype": "Int", "label": "本月已用页数", "read_only": 1},
-  {"fieldname": "updated_at", "fieldtype": "Datetime", "label": "最近变动", "read_only": 1}
+  {"fieldname": "pages_used_this_month", "fieldtype": "Int", "label": "Pages Used This Month", "read_only": 1},
+  {"fieldname": "updated_at", "fieldtype": "Datetime", "label": "Last Updated", "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

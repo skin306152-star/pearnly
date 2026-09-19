@@ -17,15 +17,15 @@
   "description"
  ],
  "fields": [
-  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "in_standard_filter": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
-  {"fieldname": "feature_code", "fieldtype": "Data", "in_list_view": 1, "label": "功能代码", "reqd": 1, "columns": 3, "description": "与产品清单 product_manifest.py 里的 features 键一致"},
-  {"fieldname": "feature_label", "fieldtype": "Data", "in_list_view": 1, "label": "功能名称", "reqd": 1, "columns": 3},
+  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "in_standard_filter": 1, "label": "Product", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
+  {"fieldname": "feature_code", "fieldtype": "Data", "in_list_view": 1, "label": "Feature Code", "reqd": 1, "columns": 3, "description": "Matches the feature keys in the product manifest (product_manifest.py)."},
+  {"fieldname": "feature_label", "fieldtype": "Data", "in_list_view": 1, "label": "Feature Name", "reqd": 1, "columns": 3},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "常规开通", "columns": 2, "description": "打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）"},
-  {"fieldname": "section_enforce", "fieldtype": "Section Break", "label": "权限落地"},
-  {"fieldname": "role_name", "fieldtype": "Data", "in_list_view": 1, "label": "对应角色", "columns": 3, "description": "开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）"},
-  {"fieldname": "grant_doctypes", "fieldtype": "Small Text", "label": "授予的 DocType", "description": "逗号分隔。该角色拿到这些 DocType 的读写权限"},
-  {"fieldname": "description", "fieldtype": "Small Text", "label": "说明"}
+  {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "Default On", "columns": 2, "description": "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion)."},
+  {"fieldname": "section_enforce", "fieldtype": "Section Break", "label": "Enforcement"},
+  {"fieldname": "role_name", "fieldtype": "Data", "in_list_view": 1, "label": "Role", "columns": 3, "description": "At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page)."},
+  {"fieldname": "grant_doctypes", "fieldtype": "Small Text", "label": "Granted DocTypes", "description": "Comma separated. The role gets read/write on these DocTypes."},
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

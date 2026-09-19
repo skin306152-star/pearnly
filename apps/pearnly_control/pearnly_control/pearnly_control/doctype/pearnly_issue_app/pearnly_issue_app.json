@@ -11,10 +11,10 @@
   "display_name"
  ],
  "fields": [
-  {"fieldname": "app", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
-  {"fieldname": "domain_prefix", "fieldtype": "Data", "in_list_view": 1, "label": "域名前缀", "reqd": 1, "columns": 3, "description": "只填前缀，如 aerp"},
-  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "访问域名", "read_only": 1, "columns": 5},
-  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "界面标题", "columns": 2, "description": "留空用公司名称"}
+  {"fieldname": "app", "fieldtype": "Select", "in_list_view": 1, "label": "Product", "options": "cowork\nerp\ndms", "reqd": 1, "columns": 2},
+  {"fieldname": "domain_prefix", "fieldtype": "Data", "in_list_view": 1, "label": "Domain Prefix", "reqd": 1, "columns": 3, "description": "Prefix only, e.g. aerp"},
+  {"fieldname": "domain", "fieldtype": "Data", "in_list_view": 1, "label": "Domain", "read_only": 1, "columns": 5},
+  {"fieldname": "display_name", "fieldtype": "Data", "in_list_view": 1, "label": "Display Name", "columns": 2, "description": "Leave empty to use the company name"}
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

@@ -21,7 +21,7 @@ def upsert_channel(deployment: str, channel_id: str = "", channel_secret: str = 
                    status: str = "active") -> dict:
     """建或更新某个部署的 LINE 渠道。幂等：同一部署只有一条。"""
     if not frappe.db.exists("Pearnly Deployment", deployment):
-        frappe.throw(_("部署不存在：{0}").format(deployment))
+        frappe.throw(_("No such deployment: {0}").format(deployment))
 
     product = frappe.db.get_value("Pearnly Deployment", deployment, "product")
     existing = frappe.db.get_value(CHANNEL, {"deployment": deployment}, "name")
@@ -44,7 +44,7 @@ def upsert_channel(deployment: str, channel_id: str = "", channel_secret: str = 
         doc.save(ignore_permissions=True)
     else:
         if not channel_secret or not channel_access_token:
-            frappe.throw(_("新建渠道必须同时给 secret 与 access token"))
+            frappe.throw(_("Creating a channel requires both secret and access token"))
         doc = frappe.get_doc({"doctype": CHANNEL, **payload})
         doc.insert(ignore_permissions=True)
     frappe.db.commit()

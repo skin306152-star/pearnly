@@ -20,18 +20,18 @@
   "monthly_fee"
  ],
  "fields": [
-  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "租户", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
-  {"fieldname": "plan_code", "fieldtype": "Select", "in_list_view": 1, "label": "套餐", "options": "S\nM\nL", "reqd": 1},
-  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\ncancelled", "reqd": 1},
+  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1, "unique": 1},
+  {"fieldname": "plan_code", "fieldtype": "Select", "in_list_view": 1, "label": "Plan", "options": "S\nM\nL", "reqd": 1},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "active\ncancelled", "reqd": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "cycle_start", "fieldtype": "Datetime", "label": "本周期开始"},
-  {"fieldname": "cycle_end", "fieldtype": "Datetime", "label": "本周期结束"},
-  {"fieldname": "section_quota", "fieldtype": "Section Break", "label": "额度"},
-  {"fieldname": "quota", "fieldtype": "Int", "label": "每周期额度（张）"},
-  {"fieldname": "pages_used_this_cycle", "fieldtype": "Int", "label": "本周期已用（张）", "read_only": 1},
+  {"fieldname": "cycle_start", "fieldtype": "Datetime", "label": "Cycle Start"},
+  {"fieldname": "cycle_end", "fieldtype": "Datetime", "label": "Cycle End"},
+  {"fieldname": "section_quota", "fieldtype": "Section Break", "label": "Quota"},
+  {"fieldname": "quota", "fieldtype": "Int", "label": "Quota per Cycle (pages)"},
+  {"fieldname": "pages_used_this_cycle", "fieldtype": "Int", "label": "Used This Cycle (pages)", "read_only": 1},
   {"fieldname": "column_break_quota", "fieldtype": "Column Break"},
-  {"fieldname": "over_rate", "fieldtype": "Currency", "label": "超额单价（每张）", "options": "THB"},
-  {"fieldname": "monthly_fee", "fieldtype": "Currency", "label": "月费", "options": "THB"}
+  {"fieldname": "over_rate", "fieldtype": "Currency", "label": "Over-rate (per page)", "options": "THB"},
+  {"fieldname": "monthly_fee", "fieldtype": "Currency", "label": "Monthly Fee", "options": "THB"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

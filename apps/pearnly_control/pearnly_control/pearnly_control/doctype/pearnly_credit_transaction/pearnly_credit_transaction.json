@@ -20,18 +20,18 @@
   "reference"
  ],
  "fields": [
-  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "租户", "options": "Pearnly Tenant", "reqd": 1},
-  {"fieldname": "type", "fieldtype": "Select", "in_list_view": 1, "label": "类型", "options": "topup\nusage\nadjustment", "reqd": 1},
+  {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1},
+  {"fieldname": "type", "fieldtype": "Select", "in_list_view": 1, "label": "Type", "options": "topup\nusage\nadjustment", "reqd": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "amount_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "金额（泰铢）", "options": "THB", "reqd": 1},
-  {"fieldname": "balance_after", "fieldtype": "Currency", "in_list_view": 1, "label": "变动后余额", "options": "THB", "read_only": 1},
-  {"fieldname": "section_detail", "fieldtype": "Section Break", "label": "明细"},
-  {"fieldname": "product", "fieldtype": "Select", "label": "产品", "options": "\ncowork\nerp\ndms"},
-  {"fieldname": "units", "fieldtype": "Int", "label": "计费单位"},
-  {"fieldname": "pages", "fieldtype": "Int", "label": "页数"},
+  {"fieldname": "amount_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "Amount (THB)", "options": "THB", "reqd": 1},
+  {"fieldname": "balance_after", "fieldtype": "Currency", "in_list_view": 1, "label": "Balance After", "options": "THB", "read_only": 1},
+  {"fieldname": "section_detail", "fieldtype": "Section Break", "label": "Details"},
+  {"fieldname": "product", "fieldtype": "Select", "label": "Product", "options": "\ncowork\nerp\ndms"},
+  {"fieldname": "units", "fieldtype": "Int", "label": "Billing Units"},
+  {"fieldname": "pages", "fieldtype": "Int", "label": "Pages"},
   {"fieldname": "column_break_detail", "fieldtype": "Column Break"},
-  {"fieldname": "description", "fieldtype": "Small Text", "label": "说明"},
-  {"fieldname": "reference", "fieldtype": "Data", "label": "外部单号"}
+  {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
+  {"fieldname": "reference", "fieldtype": "Data", "label": "Reference"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

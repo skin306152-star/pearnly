@@ -44,7 +44,7 @@ FIELDS = ("app", "en") + LANGS
 def read_glossary() -> tuple[list[dict], list[str]]:
     problems: list[str] = []
     rows: list[dict] = []
-    seen: set[tuple[str, str]] = set()
+    seen: dict[tuple[str, str], dict] = {}
     with open(SOURCE, encoding="utf-8", newline="") as handle:
         reader = csv.DictReader(handle, delimiter="\t")
         if tuple(reader.fieldnames or ()) != FIELDS:
@@ -58,11 +58,18 @@ def read_glossary() -> tuple[list[dict], list[str]]:
                 problems.append("第 %d 行缺列：%s" % (index, ", ".join(missing)))
                 continue
             key = (row["app"].strip(), row["en"].strip())
+            item = {f: str(row[f]).strip() for f in FIELDS}
             if key in seen:
-                problems.append("第 %d 行重复：%s / %s" % (index, key[0], key[1]))
+                # 同一个英文 msgid 允许出现多行（两个中文说法对应同一个英文，
+                # 例如「明细」和「细节」都翻 Details）—— 但译文必须一致，
+                # 否则生成时谁覆盖谁全看顺序，那种不一致要挡下来。
+                if any(seen[key][lang] != item[lang] for lang in LANGS):
+                    problems.append(
+                        "第 %d 行与前面的 %s 同英文但译文不同：%s" % (index, key[1], seen[key]["zh"])
+                    )
                 continue
-            seen.add(key)
-            rows.append({f: str(row[f]).strip() for f in FIELDS})
+            seen[key] = item
+            rows.append(item)
     return rows, problems
 
 

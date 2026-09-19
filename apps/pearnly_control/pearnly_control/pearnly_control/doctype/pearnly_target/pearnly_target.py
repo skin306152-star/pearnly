@@ -18,9 +18,9 @@ from frappe.model.document import Document
 class PearnlyTarget(Document):
     def validate(self):
         if not self.target_name:
-            frappe.throw(_("目标名称必填"))
+            frappe.throw(_("Target name is required"))
         if not self.base_url:
-            frappe.throw(_("服务地址必填"))
+            frappe.throw(_("Service URL is required"))
         self.base_url = self.base_url.rstrip("/")
         if self.is_default:
             # 只能有一个默认目标

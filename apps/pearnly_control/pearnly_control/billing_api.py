@@ -40,9 +40,9 @@ def service_token(*, create: bool = True) -> str:
 def _require_admin() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     if "System Manager" not in frappe.get_roles(user):
-        frappe.throw(_("只有平台管理员能处理充值与余额"), frappe.PermissionError)
+        frappe.throw(_("Only a platform admin can handle top-ups and balances"), frappe.PermissionError)
     return user
 
 
@@ -51,13 +51,13 @@ def _require_service() -> None:
     expected = service_token(create=False)
     got = (frappe.get_request_header("X-Pearnly-Billing-Token") or "").strip()
     if not expected or not got or not secrets.compare_digest(got, expected):
-        frappe.throw(_("服务令牌无效"), frappe.AuthenticationError)
+        frappe.throw(_("Invalid service token"), frappe.AuthenticationError)
 
 
 def _tenant_or_throw(tenant: str) -> str:
     tenant = (tenant or "").strip()
     if not tenant or not frappe.db.exists("Pearnly Tenant", tenant):
-        frappe.throw(_("租户不存在：{0}").format(tenant or "(空)"))
+        frappe.throw(_("No such tenant: {0}").format(tenant or _("(empty)")))
     return tenant
 
 
@@ -100,7 +100,7 @@ def service_topup_request(tenant: str, amount_thb: float, note: str = "",
     tenant = _tenant_or_throw(tenant)
     amt = float(amount_thb or 0)
     if amt <= 0 or amt > 500000:
-        frappe.throw(_("充值金额要在 ฿0.01 到 ฿500,000 之间"))
+        frappe.throw(_("The top-up amount must be between ฿0.01 and ฿500,000"))
     doc = frappe.get_doc({
         "doctype": billing.TOPUP,
         "tenant": tenant,
@@ -218,11 +218,11 @@ def admin_approve(request: str, actual_amount_thb: float | None = None, note: st
     admin = _require_admin()
     doc = frappe.get_doc(billing.TOPUP, request)
     if doc.status != "pending":
-        frappe.throw(_("这张申请已经处理过了（当前：{0}）").format(doc.status))
+        frappe.throw(_("This request has already been handled (currently: {0})").format(doc.status))
 
     amt = float(actual_amount_thb if actual_amount_thb is not None else doc.requested_thb)
     if amt <= 0:
-        frappe.throw(_("实收金额必须大于 0"))
+        frappe.throw(_("The received amount must be greater than 0"))
 
     doc.status = "approved"
     doc.approved_thb = amt
@@ -246,9 +246,9 @@ def admin_reject(request: str, note: str = "") -> dict:
     admin = _require_admin()
     doc = frappe.get_doc(billing.TOPUP, request)
     if doc.status != "pending":
-        frappe.throw(_("这张申请已经处理过了（当前：{0}）").format(doc.status))
+        frappe.throw(_("This request has already been handled (currently: {0})").format(doc.status))
     if not (note or "").strip():
-        frappe.throw(_("拒绝要写原因，租户那边要看到"))
+        frappe.throw(_("A rejection needs a reason; the tenant will see it"))
     doc.status = "rejected"
     doc.review_note = note.strip()[:500]
     doc.reviewed_by = admin

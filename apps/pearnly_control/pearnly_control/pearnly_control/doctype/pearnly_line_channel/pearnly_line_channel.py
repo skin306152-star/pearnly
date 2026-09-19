@@ -25,7 +25,7 @@ class PearnlyLINEChannel(Document):
             ["product", "site_name", "port"], as_dict=True,
         )
         if not dep:
-            frappe.throw(_("部署不存在：{0}").format(self.deployment))
+            frappe.throw(_("No such deployment: {0}").format(self.deployment))
         # 产品以部署为准，避免单据之间对不上
         self.product = dep.product
         self.webhook_url = f"http://{dep.site_name}:{dep.port}/api/method/pearnly_core.line.webhook"

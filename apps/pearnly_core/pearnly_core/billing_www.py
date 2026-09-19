@@ -187,7 +187,7 @@ def export_records(date_from: str = "", date_to: str = "") -> None:
                 _("Requested"),
                 _("Received"),
                 _("Payer"),
-                _("Note"),
+                _("Notes"),
             ],
             [[str(r.get("creation") or "")[:16], r.get("name") or "", r.get("status") or "",
               float(r.get("requested_thb") or 0), float(r.get("approved_thb") or 0),

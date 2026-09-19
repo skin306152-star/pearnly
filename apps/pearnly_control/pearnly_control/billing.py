@@ -126,7 +126,7 @@ def estimate_cost_thb(used_this_month: int, kind: str, units: int, tier: str = "
         return pdf_cost_thb(used_this_month, units, tier)
     if kind == "excel":
         return excel_cost_thb(units, tier)
-    frappe.throw(_("未知的计费单位：{0}").format(kind))
+    frappe.throw(_("Unknown billing unit: {0}").format(kind))
 
 
 # ── 钱包与台账 ──────────────────────────────────────────────────────────────
@@ -155,10 +155,10 @@ def grant(tenant: str, amount_thb, *, txn_type: str = "topup", description: str 
     直接 UPDATE 余额而不落台账，钱账就对不上（老产品铁律：钱写入必须同时落两处）。
     """
     if txn_type not in ("topup", "adjustment"):
-        frappe.throw(_("grant 只处理进账（topup / adjustment）；扣费走 charge()"))
+        frappe.throw(_("grant only handles money in (topup / adjustment); use charge() for deductions"))
     amt = _money(amount_thb)
     if amt <= 0:
-        frappe.throw(_("金额必须大于 0"))
+        frappe.throw(_("Amount must be greater than 0"))
 
     wallet = wallet_of(tenant)
     new_balance = _money(Decimal(str(wallet.balance_thb or 0)) + amt)
@@ -288,10 +288,10 @@ def adjust(tenant: str, amount_thb, *, note: str, actor: str = "") -> Decimal:
     不走 `charge()` —— 调账是给定金额，不是按页/字符算出来的。
     """
     if not (note or "").strip():
-        frappe.throw(_("调账必须写原因"))
+        frappe.throw(_("An adjustment must have a reason"))
     amt = _money(amount_thb)
     if amt == 0:
-        frappe.throw(_("调账金额不能是 0"))
+        frappe.throw(_("An adjustment cannot be 0"))
 
     wallet = wallet_of(tenant)
     new_balance = _money(Decimal(str(wallet.balance_thb or 0)) + amt)
@@ -451,7 +451,7 @@ def subscribe(tenant: str, plan_code: str) -> dict:
     code = (plan_code or "").strip().upper()
     spec = SUBSCRIPTION_PLANS.get(code)
     if not spec:
-        frappe.throw(_("没有这个套餐：{0}").format(plan_code))
+        frappe.throw(_("No such plan: {0}").format(plan_code))
 
     fee = _money(spec["fee"])
     balance = balance_of(tenant)
@@ -461,7 +461,7 @@ def subscribe(tenant: str, plan_code: str) -> dict:
             "error": "insufficient_balance",
             "balance_thb": float(balance),
             "needed_thb": float(fee),
-            "reason": _("余额不够付月费（需要 ฿{0}，只有 ฿{1}）").format(fee, balance),
+            "reason": _("Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})").format(fee, balance),
         }
 
     wallet = wallet_of(tenant)

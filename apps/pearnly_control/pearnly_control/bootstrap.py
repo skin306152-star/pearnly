@@ -135,9 +135,9 @@ def ensure_target(
     真租户站一直缺）。
     """
     if not admin_client_secret:
-        frappe.throw(_("必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）"))
+        frappe.throw(_("The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)"))
     if not password_check_client_secret:
-        frappe.throw(_("必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）"))
+        frappe.throw(_("The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)"))
 
     existing = frappe.db.get_value("Pearnly Target", {"target_name": target_name}, "name")
     if existing:

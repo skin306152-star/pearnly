@@ -42,7 +42,7 @@ PRODUCT_LABEL = {"cowork": "Cowork", "erp": "ERP", "dms": "DMS"}
 def _require_operator() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
 
 
@@ -97,18 +97,18 @@ def issue(
     operator = _require_operator()
 
     if not isinstance(apps, list) or not apps:
-        frappe.throw(_("至少要选一个产品"))
+        frappe.throw(_("Pick at least one product"))
 
     account_email = (account_email or "").strip().lower()
     account_username = (account_username or "").strip()
     account_password = (account_password or "").strip()
     if not account_username or not account_password:
-        frappe.throw(_("用户名和初始密码都要填：它们是用户首次登录的凭据"))
+        frappe.throw(_("Username and initial password are both required: they are the credentials for the user's first sign-in"))
     # 开通的功能 = 所选产品的全集。控制面自己算，调用方无从勾选。
     selected_products = [row.get("app") for row in apps if row.get("app")]
     for product in selected_products:
         if product not in features_mod.PRODUCTS:
-            frappe.throw(_("未知产品：{0}").format(product))
+            frappe.throw(_("Unknown product: {0}").format(product))
     features = {p: features_mod.codes_of(p) for p in features_mod.PRODUCTS
                 if p in selected_products}
 
@@ -162,7 +162,7 @@ def issue_from_doc(issue_name: str) -> dict:
     if doc.status == "issued" and doc.identity_subject:
         return _result(doc, doc.identity_subject, doc.target or "")
     if doc.status == "failed":
-        frappe.throw(_("这张单上次发号失败了，先把它改回 draft 再发"))
+        frappe.throw(_("The last issue attempt failed; set it back to draft before issuing again"))
     kc_client, target_name = kc.client_for_target(doc.target)
     doc.target = target_name
     return _activate(doc, operator, target_name=target_name)
@@ -179,7 +179,7 @@ def _activate(doc, operator: str, *, target_name: str) -> dict:
     # 账号已存在就拒绝：绝不按邮箱把新租户挂到别人的账号上。
     if kc_client.find_user_id_by_email(doc.account_email):
         frappe.throw(
-            _("账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号").format(
+            _("Account {0} already exists in target \"{1}\". Invite the existing account instead of issuing again.").format(
                 doc.account_email, target_name)
         )
 
@@ -190,7 +190,7 @@ def _activate(doc, operator: str, *, target_name: str) -> dict:
         # 所以一直是好的，两边共用 _activate 之后才暴露）。
         initial_password = doc.get_password("account_password", raise_exception=False)
         if not initial_password:
-            frappe.throw(_("这张单上没有可用的初始密码，重新填一次再发号"))
+            frappe.throw(_("This issue has no usable initial password; fill it in again before issuing"))
         subject = kc_client.create_user(
             doc.account_email,
             username=doc.account_username,

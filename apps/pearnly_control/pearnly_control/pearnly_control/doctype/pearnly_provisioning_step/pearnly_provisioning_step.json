@@ -18,17 +18,17 @@
   "finished_at"
  ],
  "fields": [
-  {"fieldname": "step_key", "fieldtype": "Data", "in_list_view": 1, "label": "步骤", "reqd": 1, "columns": 3},
-  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "pending\nrunning\ndone\nfailed\nskipped", "reqd": 1, "columns": 2},
+  {"fieldname": "step_key", "fieldtype": "Data", "in_list_view": 1, "label": "Step", "reqd": 1, "columns": 3},
+  {"default": "pending", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "pending\nrunning\ndone\nfailed\nskipped", "reqd": 1, "columns": 2},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "deployment", "fieldtype": "Link", "in_list_view": 1, "label": "部署", "options": "Pearnly Deployment", "columns": 3},
-  {"fieldname": "action", "fieldtype": "Data", "in_list_view": 1, "label": "动作", "reqd": 1, "columns": 2, "description": "执行器认识的动作名，见 pearnly_control/provisioning.py"},
-  {"fieldname": "section_detail", "fieldtype": "Section Break", "label": "细节"},
-  {"fieldname": "payload", "fieldtype": "Code", "options": "JSON", "label": "参数"},
-  {"fieldname": "output", "fieldtype": "Code", "options": "Text", "label": "执行输出"},
-  {"fieldname": "section_time", "fieldtype": "Section Break", "label": "时间"},
-  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "开始时间", "read_only": 1},
-  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "结束时间", "read_only": 1}
+  {"fieldname": "deployment", "fieldtype": "Link", "in_list_view": 1, "label": "Deployment", "options": "Pearnly Deployment", "columns": 3},
+  {"fieldname": "action", "fieldtype": "Data", "in_list_view": 1, "label": "Action", "reqd": 1, "columns": 2, "description": "Action name the runner understands; see pearnly_control/provisioning.py"},
+  {"fieldname": "section_detail", "fieldtype": "Section Break", "label": "Step Details"},
+  {"fieldname": "payload", "fieldtype": "Code", "options": "JSON", "label": "Payload"},
+  {"fieldname": "output", "fieldtype": "Code", "options": "Text", "label": "Output"},
+  {"fieldname": "section_time", "fieldtype": "Section Break", "label": "Time"},
+  {"fieldname": "started_at", "fieldtype": "Datetime", "label": "Started At", "read_only": 1},
+  {"fieldname": "finished_at", "fieldtype": "Datetime", "label": "Finished At", "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

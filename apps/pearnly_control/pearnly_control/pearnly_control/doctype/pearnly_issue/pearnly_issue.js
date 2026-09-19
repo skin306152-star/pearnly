@@ -90,7 +90,7 @@ function status_label(m) {
 }
 
 function steps_html(m) {
-	if (!m) return '<div class="text-muted">' + __("还没有开通请求，点「执行开通」开始") + "</div>";
+	if (!m) return '<div class="text-muted">' + __("No provisioning request yet; click “Run provisioning” to start") + "</div>";
 	return (m.steps || [])
 		.map(
 			(s) =>
@@ -115,10 +115,10 @@ function stop_polling() {
 
 function open_progress(frm) {
 	const d = new frappe.ui.Dialog({
-		title: __("开通进度"),
+		title: __("Provisioning progress"),
 		size: "small",
 		fields: [{ fieldtype: "HTML", fieldname: "body" }],
-		primary_action_label: __("关闭"),
+		primary_action_label: __("Close"),
 		primary_action() {
 			d.hide();
 		},
@@ -150,17 +150,17 @@ function open_progress(frm) {
 
 function start_provision(frm) {
 	// api_plan 是幂等的（幂等键就是单号）：重复点不会重复建站，只会把新步骤补进来。
-	frappe.dom.freeze(__("正在排入开通队列…"));
+	frappe.dom.freeze(__("Queueing provisioning…"));
 	pcall("pearnly_control.provisioning.api_plan", { issue: frm.doc.name })
 		.then(() => {
 			frappe.dom.unfreeze();
-			frappe.show_alert({ message: __("已排入开通队列，正在建站"), indicator: "green" }, 4);
+			frappe.show_alert({ message: __("Queued for provisioning; building the site now"), indicator: "green" }, 4);
 			open_progress(frm);
 		})
 		.catch((e) => {
 			frappe.dom.unfreeze();
 			frappe.msgprint({
-				title: __("排不进开通队列"),
+				title: __("Could not queue provisioning"),
 				message: (e && e.message) || String(e),
 				indicator: "red",
 			});
@@ -173,8 +173,8 @@ function render_provision(frm) {
 		// 保存只是存了条记录，没有任何东西会把账号建出来。
 		// 所以给一个「发号并开通」，它自己会先保存再发号。新单不碰状态灯，
 		// 那个位置得留给 "尚未保存"。
-		if (!frm.is_new()) frm.page.set_indicator(__("未发号"), "gray");
-		frm.add_custom_button(__("发号并开通"), () => issue_and_provision(frm), null);
+		if (!frm.is_new()) frm.page.set_indicator(__("Not issued"), "gray");
+		frm.add_custom_button(__("Issue and provision"), () => issue_and_provision(frm), null);
 		return;
 	}
 	state_of(frm)
@@ -183,11 +183,11 @@ function render_provision(frm) {
 			frm.page.set_indicator(__(label), color);
 			const running = m && ["pending", "running"].includes(m.status);
 			if (running) {
-				frm.add_custom_button(__("开通进度"), () => open_progress(frm));
+				frm.add_custom_button(__("Provisioning progress"), () => open_progress(frm));
 			} else {
 				// 不抢主按钮：表单还是脏的时候，主按钮得留给"保存"
 				frm.add_custom_button(
-					m ? __("查看进度") : __("执行开通"),
+					m ? __("View progress") : __("Run provisioning"),
 					() => (m ? open_progress(frm) : start_provision(frm)),
 					null
 				);
@@ -198,7 +198,7 @@ function render_provision(frm) {
 
 function issue_and_provision(frm) {
 	// 先存：发号读的是库里的单子，不存就发的是旧值
-	frappe.dom.freeze(__("正在发号…"));
+	frappe.dom.freeze(__("Issuing…"));
 	// ⚠️ **表单没改动时不能等 `frm.save()`**：Frappe 那条路只弹一句"未做任何修改"，
 	// 压根不调回调 —— 而 `frm.save()` 是 `new Promise((resolve) => …)`，
 	// 回调不调就**永远不落地**，链子会卡死在 freeze 上：界面一直"正在发号…"，
@@ -210,7 +210,7 @@ function issue_and_provision(frm) {
 			frappe.dom.unfreeze();
 			frappe.show_alert(
 				{
-					message: __("已发号：{0} / 租户 {1}", [res.issue, res.tenant]),
+					message: __("Issued: {0} / tenant {1}", [res.issue, res.tenant]),
 					indicator: "green",
 				},
 				5
@@ -221,7 +221,7 @@ function issue_and_provision(frm) {
 		.catch((e) => {
 			frappe.dom.unfreeze();
 			frappe.msgprint({
-				title: __("发号失败"),
+				title: __("Issue failed"),
 				message: (e && e.message) || String(e),
 				indicator: "red",
 			});

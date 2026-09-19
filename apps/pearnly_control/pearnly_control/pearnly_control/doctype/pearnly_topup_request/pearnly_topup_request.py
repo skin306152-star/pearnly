@@ -18,9 +18,9 @@ class PearnlyTopupRequest(Document):
         if self.status in ("approved", "rejected"):
             before = self.get_doc_before_save()
             if before and before.status in ("approved", "rejected"):
-                frappe.throw(_("这张充值申请已经审核过了，不能重复处理"))
+                frappe.throw(_("This top-up request was already reviewed; it cannot be handled twice"))
         amt = float(self.requested_thb or 0)
         if amt <= 0:
-            frappe.throw(_("申请金额必须大于 0"))
+            frappe.throw(_("The requested amount must be greater than 0"))
         if amt > 500000:
-            frappe.throw(_("单笔充值上限 ฿500,000"))
+            frappe.throw(_("A single top-up is capped at ฿500,000"))

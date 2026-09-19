@@ -433,6 +433,11 @@ MSGID_CALL = re.compile(
 )
 
 
+def _unescape(text: str) -> str:
+    """源码里写的是 `\\"`，运行时 `_()` 收到的是 `"`。查译文表要用后者。"""
+    return re.sub(r"\\(.)", r"\1", text)
+
+
 def english_msgids() -> dict:
     """我们自己代码里的英文 msgid → 出现在哪些文件。"""
     found = defaultdict(set)
@@ -443,7 +448,7 @@ def english_msgids() -> dict:
             except OSError:
                 continue
             for match in MSGID_CALL.finditer(src):
-                text = match.group("text").strip()
+                text = _unescape(match.group("text")).strip()
                 if not text or CJK.search(text):
                     continue
                 found[text].add(_rel(path))

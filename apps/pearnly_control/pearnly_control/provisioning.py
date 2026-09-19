@@ -43,7 +43,7 @@ LINE_CHANNEL = "Pearnly LINE Channel"
 def _require_operator() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
-        frappe.throw(_("未登录"), frappe.AuthenticationError)
+        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     return user
 
 
@@ -68,7 +68,7 @@ def build_plan(issue: str, idempotency_key: str | None = None) -> dict:
 
     license_ok = issue.status == "issued"
     if not license_ok:
-        frappe.throw(_("发号单 {0} 状态是 {1}，只有 issued 的发号单才能开通").format(
+        frappe.throw(_("Issue {0} is {1}; only an issued one can be provisioned").format(
             issue.name, issue.status))
 
     request = frappe.get_doc({
@@ -136,7 +136,7 @@ def _ensure_deployment(issue, row):
     """一个产品一条部署。同一个站点已经存在就复用（幂等）。"""
     site_name = (row.domain or "").strip().lower()
     if not site_name:
-        frappe.throw(_("发号单里 {0} 这一行没有域名，无法建站").format(row.app))
+        frappe.throw(_("Row {0} on the issue has no domain; cannot build the site").format(row.app))
 
     name = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name}, "name")
     if name:
@@ -144,7 +144,7 @@ def _ensure_deployment(issue, row):
 
     other = frappe.db.get_value(DEPLOYMENT, {"site_name": site_name, "issue": ("!=", issue.name)}, "name")
     if other:
-        frappe.throw(_("站点名 {0} 已被部署 {1} 占用").format(site_name, other))
+        frappe.throw(_("Site name {0} is already taken by deployment {1}").format(site_name, other))
 
     dep = frappe.get_doc({
         "doctype": DEPLOYMENT,
@@ -247,7 +247,7 @@ def _issuer_url() -> str:
         "Pearnly Target", {"target_name": target}, ["base_url", "realm"], as_dict=True
     )
     if not row:
-        frappe.throw(_("取不到开户目标，无法确定身份服务地址"))
+        frappe.throw(_("Cannot read the provisioning target, so the identity service URL is unknown"))
     return f"{row.base_url.rstrip('/')}/realms/{row.realm}"
 
 
@@ -469,14 +469,14 @@ def report_step(step_key: str, status: str, output: str = "") -> dict:
     """执行器回报一步的结果。全部做完才把请求标成 done（不虚报）。"""
     _require_operator()
     if status not in ("running", "done", "failed", "skipped"):
-        frappe.throw(_("未知步骤状态：{0}").format(status))
+        frappe.throw(_("Unknown step status: {0}").format(status))
 
     found = frappe.db.get_value(
         "Pearnly Provisioning Step", {"step_key": step_key}, ["name", "parent"],
         as_dict=True,
     )
     if not found:
-        frappe.throw(_("找不到步骤 {0}").format(step_key))
+        frappe.throw(_("No such step: {0}").format(step_key))
 
     req = frappe.get_doc(REQUEST, found.parent)
     step = next(s for s in req.steps if s.name == found.name)

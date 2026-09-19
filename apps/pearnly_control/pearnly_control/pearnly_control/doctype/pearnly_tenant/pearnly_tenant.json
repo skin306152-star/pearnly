@@ -14,12 +14,12 @@
   "notes"
  ],
  "fields": [
-  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "公司名称", "reqd": 1, "unique": 1},
-  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "active\nsuspended\ndeleting", "reqd": 1},
+  {"fieldname": "tenant_name", "fieldtype": "Data", "in_list_view": 1, "label": "Company Name", "reqd": 1, "unique": 1},
+  {"default": "active", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "active\nsuspended\ndeleting", "reqd": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "contact_name", "fieldtype": "Data", "label": "联系人"},
-  {"fieldname": "contact_phone", "fieldtype": "Data", "label": "联系电话"},
-  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+  {"fieldname": "contact_name", "fieldtype": "Data", "label": "Contact Name"},
+  {"fieldname": "contact_phone", "fieldtype": "Data", "label": "Contact Phone"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

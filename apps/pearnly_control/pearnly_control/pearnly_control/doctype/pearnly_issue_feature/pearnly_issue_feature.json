@@ -8,7 +8,7 @@
   "feature"
  ],
  "fields": [
-  {"fieldname": "feature", "fieldtype": "Link", "in_list_view": 1, "label": "功能", "options": "Pearnly Feature", "reqd": 1, "columns": 8}
+  {"fieldname": "feature", "fieldtype": "Link", "in_list_view": 1, "label": "Feature", "options": "Pearnly Feature", "reqd": 1, "columns": 8}
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

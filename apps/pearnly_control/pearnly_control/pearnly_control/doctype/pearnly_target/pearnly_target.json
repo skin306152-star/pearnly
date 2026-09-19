@@ -27,17 +27,17 @@
    "fieldname": "target_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "目标名称",
+   "label": "Target Name",
    "reqd": 1,
    "unique": 1,
-   "description": "例如：本地样板 / 生产"
+   "description": "For example: local sample / production"
   },
   {
    "default": "0",
    "fieldname": "is_default",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "默认目标"
+   "label": "Default Target"
   },
   {
    "fieldname": "column_break_main",
@@ -47,9 +47,9 @@
    "fieldname": "base_url",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "身份服务地址",
+   "label": "Identity Service URL",
    "reqd": 1,
-   "description": "例如 http://keycloak.localhost:8105"
+   "description": "For example http://keycloak.localhost:8105"
   },
   {
    "default": "pearnly-business",
@@ -62,55 +62,55 @@
   {
    "fieldname": "section_admin",
    "fieldtype": "Section Break",
-   "label": "开户凭据（只在这里存一份）"
+   "label": "Provisioning Credentials (stored only here)"
   },
   {
    "fieldname": "admin_client_id",
    "fieldtype": "Data",
-   "label": "管理客户端 ID"
+   "label": "Admin Client ID"
   },
   {
    "fieldname": "admin_client_secret",
    "fieldtype": "Password",
-   "label": "管理客户端密钥"
+   "label": "Admin Client Secret"
   },
   {
    "fieldname": "password_check_client_id",
    "fieldtype": "Data",
-   "label": "改密校验客户端 ID",
-   "description": "只开密码授权、用于校验『当前密码』的客户端。三产品共用"
+   "label": "Password-check Client ID",
+   "description": "Client with only the password grant, used to verify the current password. Shared by all three products."
   },
   {
    "fieldname": "password_check_client_secret",
    "fieldtype": "Password",
-   "label": "改密校验客户端密钥"
+   "label": "Password-check Client Secret"
   },
   {
    "fieldname": "section_provision",
    "fieldtype": "Section Break",
-   "label": "建站接口"
+   "label": "Site Provisioning API"
   },
   {
    "fieldname": "provision_url",
    "fieldtype": "Data",
-   "label": "控制接口地址",
-   "description": "服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站"
+   "label": "Control API URL",
+   "description": "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
   },
   {
    "fieldname": "section_invite",
    "fieldtype": "Section Break",
-   "label": "邀请邮件"
+   "label": "Invitation Email"
   },
   {
    "fieldname": "invite_client_id",
    "fieldtype": "Data",
-   "label": "邀请链接用的客户端 ID",
-   "description": "身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的"
+   "label": "Client ID for Invitation Links",
+   "description": "The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client."
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "备注"
+   "label": "Notes"
   }
  ],
  "index_web_pages_for_search": 1,
