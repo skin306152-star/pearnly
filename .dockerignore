@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.DS_Store
+docs
+samples
+logs
+sites
