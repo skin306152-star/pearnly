@@ -208,7 +208,11 @@ services:
       BACKEND: control-web:8000
       SOCKETIO: control-socketio:9000
       FRAPPE_SITE_NAME_HEADER: control.localhost
-    volumes: [sites-control:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-control:/home/frappe/frappe-bench/sites
+      # 前端 nginx 模板：上游改成"每次请求重新解析"。
+      # 镜像里那份会在启动时把 web 的 IP 缓存住，web 容器一重建就 502（见模板里的注释）。
+      - ../../infrastructure/compose/nginx/frappe.conf.template:/templates/nginx/frappe.conf.template:ro
     ports: ["127.0.0.1:8104:8080"]
     depends_on: [control-web, control-socketio]
 
