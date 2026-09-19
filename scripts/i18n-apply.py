@@ -20,6 +20,7 @@
     python3 scripts/i18n-apply.py --check      # 只报告会改什么、哪些没收录
     python3 scripts/i18n-apply.py              # 真改
     python3 scripts/i18n-apply.py --app pearnly_control
+    python3 scripts/i18n-apply.py --scope json # 只改 DocType 标签，不动服务端消息
 """
 
 from __future__ import annotations
@@ -70,8 +71,10 @@ def read_glossary():
     with open(SOURCE, encoding="utf-8", newline="") as handle:
         for row in csv.DictReader(handle, delimiter="\t"):
             app = (row.get("app") or "").strip()
-            en = (row.get("en") or "").strip()
-            zh = (row.get("zh") or "").strip()
+            # 术语表用 `\n` 写换行（DocType 的说明里有真的多行文本，
+            # TSV 一行放不下真换行）。这里还原成真换行再比对。
+            en = (row.get("en") or "").replace("\\n", "\n").strip()
+            zh = (row.get("zh") or "").replace("\\n", "\n").strip()
             if not app or not en or not zh:
                 continue
             key = (app, zh)
@@ -222,6 +225,12 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="只报告，不写")
     parser.add_argument("--app", default="", help="只看某个 app")
+    parser.add_argument(
+        "--scope",
+        choices=("all", "json", "msgid"),
+        default="all",
+        help="json=只改 DocType 标签；msgid=只改已包在 _()/__() 里的文案",
+    )
     args = parser.parse_args()
 
     by_app, anywhere = read_glossary()
@@ -235,11 +244,13 @@ def main():
     missing = []
     files = 0
     for app in apps:
-        for path in _walk(app, (".json",)):
-            if os.sep + "doctype" + os.sep in path:
-                files += apply_doctype_json(app, path, by_app, anywhere, not args.check, todo, missing)
-        for path in _walk(app, (".py", ".js")):
-            files += apply_wrapped_msgid(app, path, by_app, anywhere, not args.check, todo, missing)
+        if args.scope in ("all", "json"):
+            for path in _walk(app, (".json",)):
+                if os.sep + "doctype" + os.sep in path:
+                    files += apply_doctype_json(app, path, by_app, anywhere, not args.check, todo, missing)
+        if args.scope in ("all", "msgid"):
+            for path in _walk(app, (".py", ".js")):
+                files += apply_wrapped_msgid(app, path, by_app, anywhere, not args.check, todo, missing)
 
     print("术语表：%d 个 App、%d 条中文→英文" % (len({a for a, _ in by_app}), len(by_app)))
     print("%s %d 个文件、%d 处" % ("将修改" if not args.check else "待修改", files, len(todo)))

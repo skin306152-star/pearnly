@@ -13,11 +13,11 @@
   "detail"
  ],
  "fields": [
-  {"fieldname": "event_id", "fieldtype": "Data", "in_list_view": 1, "label": "事件 ID", "reqd": 1, "unique": 1, "columns": 5, "description": "LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理"},
-  {"default": "processing", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "状态", "options": "processing\ndone\nignored\nfailed", "reqd": 1, "columns": 2},
-  {"fieldname": "source", "fieldtype": "Data", "label": "来源", "columns": 3},
+  {"fieldname": "event_id", "fieldtype": "Data", "in_list_view": 1, "label": "Event ID", "reqd": 1, "unique": 1, "columns": 5, "description": "The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice."},
+  {"default": "processing", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "processing\ndone\nignored\nfailed", "reqd": 1, "columns": 2},
+  {"fieldname": "source", "fieldtype": "Data", "label": "Source", "columns": 3},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "detail", "fieldtype": "Small Text", "label": "说明"}
+  {"fieldname": "detail", "fieldtype": "Small Text", "label": "Description"}
  ],
  "index_web_pages_for_search": 0,
  "links": [],

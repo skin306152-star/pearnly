@@ -38,19 +38,19 @@
    "fieldname": "label",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "名称",
+   "label": "Name",
    "reqd": 1,
-   "description": "给人看的名字，例如：MR.ERP DMS"
+   "description": "A human-readable name, e.g. MR.ERP DMS"
   },
   {
    "fieldname": "adapter",
    "fieldtype": "Select",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "适配器",
+   "label": "Adapter",
    "options": "mrerp_dms\nmrerp\nwebhook\nexpress",
    "reqd": 1,
-   "description": "对端是什么系统。取值照老产品（webhook | xero | flowaccount | mrerp | mrerp_dms | express）；新平台目前只实现 mrerp_dms，其余列着是为了**不偷偷改契约**"
+   "description": "Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently."
   },
   {
    "fieldname": "column_break_main",
@@ -61,96 +61,96 @@
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "归属账号",
+   "label": "Owner Account",
    "options": "User",
-   "description": "这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板"
+   "description": "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
   },
   {
    "default": "1",
    "fieldname": "enabled",
    "fieldtype": "Check",
    "in_list_view": 1,
-   "label": "启用",
-   "description": "停用后不再参与推送（老产品：停用是「同批不误投」的闸）"
+   "label": "Enabled",
+   "description": "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place)."
   },
   {
    "default": "0",
    "fieldname": "is_default",
    "fieldtype": "Check",
-   "label": "默认连接",
-   "description": "同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）"
+   "label": "Default Connection",
+   "description": "Only one default per account + adapter (the legacy product's unique index)."
   },
   {
    "fieldname": "section_target",
    "fieldtype": "Section Break",
-   "label": "对端地址"
+   "label": "Remote Address"
   },
   {
    "fieldname": "system_url",
    "fieldtype": "Data",
-   "label": "系统地址",
-   "description": "例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码"
+   "label": "System URL",
+   "description": "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change."
   },
   {
    "fieldname": "section_credentials",
    "fieldtype": "Section Break",
-   "label": "登录凭据"
+   "label": "Sign-in Credentials"
   },
   {
    "fieldname": "username",
    "fieldtype": "Data",
-   "label": "账号"
+   "label": "Account"
   },
   {
    "fieldname": "password",
    "fieldtype": "Password",
-   "label": "密码",
-   "description": "Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**"
+   "label": "Password",
+   "description": "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back."
   },
   {
    "fieldname": "section_admin_credentials",
    "fieldtype": "Section Break",
-   "label": "有修改权限的账号",
-   "description": "老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据"
+   "label": "Account With Write Access",
+   "description": "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials."
   },
   {
    "fieldname": "admin_username",
    "fieldtype": "Data",
-   "label": "管理员账号"
+   "label": "Admin Account"
   },
   {
    "fieldname": "admin_password",
    "fieldtype": "Password",
-   "label": "管理员密码"
+   "label": "Admin Password"
   },
   {
    "fieldname": "admin_note",
    "fieldtype": "Small Text",
-   "label": "说明",
+   "label": "Description",
    "read_only": 1
   },
   {
    "fieldname": "section_state",
    "fieldtype": "Section Break",
-   "label": "使用情况"
+   "label": "Usage"
   },
   {
    "default": "0",
    "fieldname": "auto_push",
    "fieldtype": "Check",
-   "label": "自动推送",
-   "description": "老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）"
+   "label": "Auto Push",
+   "description": "The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog)."
   },
   {
    "fieldname": "last_used_at",
    "fieldtype": "Datetime",
-   "label": "最近使用",
+   "label": "Last Used",
    "read_only": 1
   },
   {
    "fieldname": "last_status",
    "fieldtype": "Data",
-   "label": "最近结果",
+   "label": "Last Result",
    "read_only": 1
   },
   {
@@ -161,26 +161,26 @@
    "default": "0",
    "fieldname": "success_count",
    "fieldtype": "Int",
-   "label": "成功次数",
+   "label": "Successes",
    "read_only": 1
   },
   {
    "default": "0",
    "fieldname": "failure_count",
    "fieldtype": "Int",
-   "label": "失败次数",
+   "label": "Failures",
    "read_only": 1
   },
   {
    "fieldname": "section_booking",
    "fieldtype": "Section Break",
-   "label": "建单默认值"
+   "label": "Booking Defaults"
   },
   {
-   "description": "DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。\n\n顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。",
+   "description": "DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.\n\nThe advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.",
    "fieldname": "booking_defaults",
    "fieldtype": "JSON",
-   "label": "建单默认值"
+   "label": "Booking Defaults"
   },
   {
    "fieldname": "section_notes",
@@ -189,7 +189,7 @@
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "备注"
+   "label": "Notes"
   }
  ],
  "index_web_pages_for_search": 0,

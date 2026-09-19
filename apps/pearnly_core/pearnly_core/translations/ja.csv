@@ -1,96 +1,286 @@
 A board instance is created only when this is on,有効にした時だけボードを作成します
+"A human-readable name, e.g. MR.ERP DMS",人が読むための名前（例: MR.ERP DMS）
+"A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
+A one-time short code. The user sends it to this tenant's LINE official account to bind.,1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。
+Account,アカウント
+Account With Write Access,書き込み権限のあるアカウント
+Adapter,アダプタ
+Address,住所
+Admin Account,管理者アカウント
+Admin Password,管理者パスワード
+Allow DMS queries from LINE,LINEでの照会機能を許可
 Amount,金額
+Approval,承認
+Assign To,承認者の指定
+Attempt,試行回数
+Auto Push,自動送信
 Balance,残高
 Batches and results of every recognition run,各認識バッチの記録と結果
+Billing,課金
 "Billing is not wired up on this site, please contact the platform",このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
+Bind Code,連携コード
+Birth Date,生年月日
+Booking Defaults,起票の既定値
+Bound At,連携日時
+Business Key,業務キー
 Charges,課金
+Claimed By,担当者
 Collaboration Boards (WeKan),コラボボード（WeKan）
 Companion,コンパニオン
+Company Tax ID,自社の税番号
+Confirmed At,確認日時
+Confirmed By,確認者
+Connection,接続
 Console,コンソール
 Count tasks and variance records,棚卸タスクと差異記録
+Counterparty,取引先名
+Counterparty Tax ID,取引先の税番号
 Cowork Admin,Cowork 管理者
 Cowork Intake,Cowork 取り込み
 Created At,作成日時
+Currency,通貨
+Current State,現在の状態
 Customer Match,顧客照合
+Customer Name,顧客名
+Customer Snapshot,顧客情報のスナップショット
 Customer master data,顧客マスタ
 Customers,顧客
 "Customers, suppliers, accounts and other reference data",顧客、仕入先、勘定科目などの基礎データ
 DMS Admin,DMS 管理者
+DMS Advisor ID,DMSアドバイザーID
+DMS Advisor Name,DMSアドバイザー名
+DMS Connection,DMS接続
 DMS Customer Match,DMS 顧客照合
+DMS Customer No,DMS顧客番号
+DMS Customer Ref,DMS顧客参照
+DMS Endpoint,DMSエンドポイント
 DMS ID Card Intake,DMS 身分証取り込み
 DMS Operator,DMS オペレーター
+DMS Password,DMSパスワード
+DMS Username,DMSユーザー名
+"DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
+
+The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。
+
+アドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。"
 DMS usage and balance,DMS側の利用量と残高
+Dedupe Key,重複防止キー
+Default Connection,既定の接続
 Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失敗: {0} {1}
 Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
 Deployment,デプロイ
 Description,説明
+Direction,方向
+Display Name,表示名
+Doc Date,伝票日付
+Doc No,伝票番号
+Document Type,伝票種別
+Due Date,支払期日
 ERP Admin,ERP 管理者
 ERP Purchase,ERP 購買
+Elapsed (ms),所要時間(ms)
 Email is required,メールアドレスは必須です
+Empty = matched automatically from the DMS account (the legacy product's default).,空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
+Empty = sent to all admins (whoever sees it first approves).,空欄＝全管理者に送信（先に見た人が承認）。
+Enabled,有効
+Endpoint,接続先
+Error Message,エラーメッセージ
+Event ID,イベントID
+Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
+Expense / Item Category,費用・商品カテゴリ
+Expires At,有効期限
 Express Push Guide,Express プッシュガイド
+External Doc No,外部伝票番号
 External ERP Push,外部ERP連携
+External IDs & Dedupe,外部IDと重複排除
+External Reference,外部参照番号
+External System Reference,外部システム参照
+FX Rate,為替レート
+Failure Reason,失敗理由
 Failure reason,失敗理由
+Failures,失敗回数
+Field Diffs,項目ごとの差分
 File,ファイル
 Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+Flow Status,進行ステータス
+Full Name,氏名
+Gender,性別
+Grand Total,税込合計
+HTTP Status,HTTPステータス
+Handled At,処理日時
 Home (Subscription & Billing),ホーム（プランと請求）
 How each push to the external ERP went,外部ERPへの連携過程と結果
 ID Card Intake,身分証取り込み
+ID Details,身分証情報
+ID Image,身分証画像
+ID Number,身分証番号
 IP,IP
 Identity Session,アイデンティティセッション
+Image Fingerprint,画像フィンガープリント
+Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 "Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
 Invited By,招待者
 Issuer,発行者
+Item / Description,品名・説明
+"Kept as evidence, not a business field",証跡用で業務フィールドではありません
+"Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
+LINE Display Name,LINE表示名
+LINE User ID,LINEユーザーID
 Last Login At,最終ログイン
+Last Result,最新の結果
 Last Seen At,最終アクセス
+Last Used,最終使用
+Last Verified At,最終確認日時
+Lease Expires,リース期限
+Lease Owner,リース保有者
+Line Amount,行金額
+Line Discount,行値引
+Line No,行番号
+Local Account,ローカルアカウント
 Local Session,ローカルセッション
 Looking up the OIDC client failed: {0} {1},OIDCクライアントの照会に失敗: {0} {1}
 Master Data,マスタデータ
+Max Retries,最大再試行
+Name,名称
+Net Amount,税抜金額
+Net Payable,支払純額
+New Customer,今回新規作成
+Next Retry At,次回再試行日時
 Not signed in,未ログイン
 Note,備考
 Notes,備考
+"Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。
+Once disabled its DMS pushes stop and the LINE binding is released,無効にするとDMSへの送信が止まり、LINE連携も解除されます
 Only a company admin can top up or change the subscription,チャージとプラン変更は会社管理者のみ
 Only a company admin can view top-up records,チャージ記録は会社管理者のみ閲覧可
+Only one default per account + adapter (the legacy product's unique index).,同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
 Only the owner can manage it,責任者のみ管理可能
+Operator,ユーザー
 Operator Roster,オペレーター名簿
+Order Discount,伝票全体の値引
+Owner Account,所属アカウント
 Pages,枚数
+Paid Amount,支払済金額
+Password,パスワード
 Payer,支払者
+Payload,ペイロード
+Payment Status,支払状況
+Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
 Plan & Balance,プランと残高
 Please sign in,ログインしてください
+Processing Started At,実行開始日時
 Product,製品
+Product Ref,商品の外部参照
 "Product home: current plan, usage and billing",製品ホーム。現在のプラン、利用量、請求を表示
 Product master data,商品マスタ
 Products,商品データ
 "Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
 Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
+Push,送信
+Push Channel,送信チャネル
 Push Log,プッシュログ
+Push Log Reference,送信ログ参照
 Push Records,プッシュ記録
+Push Status,送信ステータス
 Push to the external ERP; the push log is the only source of status,外部ERPへ連携。状態は連携ログのみが根拠
+Qty,数量
 "Read the ID card, match it against the DMS customer base, then confirm",身分証を読み取り、DMS顧客と照合して確定
 Received,受領額
+Recognition Raw,認識の生データ
 Recognition Records,認識記録
 Reconcile documents against the ledger,伝票と帳簿の照合
 Reconciliation,照合センター
 Reference,参照番号
+Reference DocType,業務伝票のDocType
+Reference Name,業務伝票
+Remote Address,接続先アドレス
+Request & Response,リクエストと応答
+Request Body,リクエスト内容
+Request Snapshot,申請内容のスナップショット
 Requested,申請額
+Requested By,申請者
+Response Body,レスポンス内容
 Result,結果
+Retry & Lease,再試行とリース
+Retry Count,再試行回数
 Revoked At,失効日時
+Role,ロール
+Rounding,端数調整
 Sales,販売
+Sales Commission Owner,販売手数料の帰属
 Sales documents and customer dealings,販売伝票と顧客取引
 Same ID number means the same customer; avoids duplicate records,同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
+Session Payload,セッションのペイロード
+Sign-in Credentials,ログイン資格情報
+Source,ソース
+Source Attachment,元の添付ファイル
 Status,ステータス
 Stock Card Report,受払在庫表
 Stock Count,棚卸
 Stock In / Out,在庫（入出庫）
 "Stock in/out summary (kept item, see the ERP manifest)",受払在庫の集計（維持項目。ERPマニフェスト参照）
 Subject,サブジェクト
+Subtotal,小計
+Successes,成功回数
 Summary,摘要
+Supplier,仕入先
+Supplier Tax ID,仕入先の税番号
+System URL,システムURL
+The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
+The customer snapshot used to refill the form when approval executes.,承認実行時にフォームへ戻すための顧客情報スナップショット。
+The document number the supplier issued; it must be kept as-is,仕入先が発行した伝票番号。そのまま保持する必要があります
+"The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
+
+**One row per session** (a LINE user runs only one flow at a time inside one tenant).","多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。
+
+**1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。"
+"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
+The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。
+The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
+"The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
+The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+The name is resolved server-side when pinning; the client's value is not trusted,名前は固定時にサーバー側で解決します。クライアントの値は信用しません
+"The name the owner uses to tell people apart on this table, e.g. Ming (sales).",オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
+The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
 The result of each push,各連携の結果
+"The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
+The test for a duplicate upload of the same document,同じ伝票を二重アップロードしたときの判定基準
+"The truth is in erp_push_logs, trigger=id_card",真値は erp_push_logs、trigger=id_card
+The truth is in erp_push_logs; this is only a display reference,真値は erp_push_logs。ここは表示用の参照のみ
+"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
+The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
+This Operator's Own DMS Credentials,このオペレーター自身のDMS資格情報
 Time,日時
 Top-ups,チャージ
+Transport Result,転送結果
+Trigger,トリガー
+Type,種別
+Unbound At,連携解除日時
+Unit,単位
+Unit Price,単価
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
+Usage,利用状況
+Used,使用済み
+Used At,使用日時
 User,ユーザー
 User Agent,ユーザーエージェント
+VAT,消費税
+VAT Amount,税額
+VAT Included,税込
+VAT Rate %,税率%
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
+What Was Pushed,何を送ったか
+What Was Recognised,認識の記録
+Which connection it went to. Empty = it failed before a connection was chosen.,どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
+Which customer is being changed.,どの顧客を変更するか。
+Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
+"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
+Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,誰が起案したか（営業本人）。実行時は**承認者自身**の資格情報を使い、ここは由来の記録だけです。
+"Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
+Withholding Tax,源泉税
 Workspace,ワークスペース
+"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。"
+"companion = pulled outbound by Companion on the local machine, then stored here",companion = ローカルのコンパニオンが出站取得してから取り込み
+"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）

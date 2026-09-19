@@ -20,18 +20,18 @@
   "error"
  ],
  "fields": [
-  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "label": "产品", "options": "cowork\nerp\ndms", "reqd": 1},
-  {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "结果", "options": "ok\nneeds_review\nfailed", "reqd": 1},
+  {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "label": "Product", "options": "cowork\nerp\ndms", "reqd": 1},
+  {"fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Result", "options": "ok\nneeds_review\nfailed", "reqd": 1},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "user", "fieldtype": "Link", "label": "操作人", "options": "User"},
-  {"fieldname": "filename", "fieldtype": "Data", "in_list_view": 1, "label": "文件"},
-  {"fieldname": "page_count", "fieldtype": "Int", "label": "张数", "default": "1"},
-  {"fieldname": "section_billing", "fieldtype": "Section Break", "label": "计费"},
-  {"fieldname": "charged_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "扣费", "options": "THB"},
-  {"fieldname": "reference", "fieldtype": "Data", "label": "外部单号"},
+  {"fieldname": "user", "fieldtype": "Link", "label": "Operator", "options": "User"},
+  {"fieldname": "filename", "fieldtype": "Data", "in_list_view": 1, "label": "File"},
+  {"fieldname": "page_count", "fieldtype": "Int", "label": "Pages", "default": "1"},
+  {"fieldname": "section_billing", "fieldtype": "Section Break", "label": "Billing"},
+  {"fieldname": "charged_thb", "fieldtype": "Currency", "in_list_view": 1, "label": "Charges", "options": "THB"},
+  {"fieldname": "reference", "fieldtype": "Data", "label": "External Reference"},
   {"fieldname": "column_break_billing", "fieldtype": "Column Break"},
-  {"fieldname": "detail", "fieldtype": "Small Text", "label": "摘要"},
-  {"fieldname": "error", "fieldtype": "Small Text", "label": "失败原因"}
+  {"fieldname": "detail", "fieldtype": "Small Text", "label": "Summary"},
+  {"fieldname": "error", "fieldtype": "Small Text", "label": "Failure Reason"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

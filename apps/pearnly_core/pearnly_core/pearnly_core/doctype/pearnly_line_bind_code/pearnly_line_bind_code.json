@@ -14,12 +14,12 @@
   "used_at"
  ],
  "fields": [
-  {"fieldname": "code", "fieldtype": "Data", "in_list_view": 1, "label": "绑定码", "reqd": 1, "unique": 1, "columns": 3, "description": "一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定"},
-  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "本地账号", "options": "User", "reqd": 1, "columns": 4},
+  {"fieldname": "code", "fieldtype": "Data", "in_list_view": 1, "label": "Bind Code", "reqd": 1, "unique": 1, "columns": 3, "description": "A one-time short code. The user sends it to this tenant's LINE official account to bind."},
+  {"fieldname": "user", "fieldtype": "Link", "in_list_view": 1, "label": "Local Account", "options": "User", "reqd": 1, "columns": 4},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"default": "0", "fieldname": "used", "fieldtype": "Check", "in_list_view": 1, "label": "已使用", "columns": 2},
-  {"fieldname": "expires_at", "fieldtype": "Datetime", "label": "过期时间", "reqd": 1},
-  {"fieldname": "used_at", "fieldtype": "Datetime", "label": "使用时间"}
+  {"default": "0", "fieldname": "used", "fieldtype": "Check", "in_list_view": 1, "label": "Used", "columns": 2},
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "label": "Expires At", "reqd": 1},
+  {"fieldname": "used_at", "fieldtype": "Datetime", "label": "Used At"}
  ],
  "index_web_pages_for_search": 0,
  "links": [],

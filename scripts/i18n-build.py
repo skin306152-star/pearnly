@@ -58,7 +58,8 @@ def read_glossary() -> tuple[list[dict], list[str]]:
                 problems.append("第 %d 行缺列：%s" % (index, ", ".join(missing)))
                 continue
             key = (row["app"].strip(), row["en"].strip())
-            item = {f: str(row[f]).strip() for f in FIELDS}
+            # `\n` 是转义写法（TSV 一行放不下真换行），出译文时要还原
+            item = {f: str(row[f]).replace("\\n", "\n").strip() for f in FIELDS}
             if key in seen:
                 # 同一个英文 msgid 允许出现多行（两个中文说法对应同一个英文，
                 # 例如「明细」和「细节」都翻 Details）—— 但译文必须一致，

@@ -1,96 +1,286 @@
 A board instance is created only when this is on,启用才创建看板实例，不启用不占资源
+"A human-readable name, e.g. MR.ERP DMS",给人看的名字，例如：MR.ERP DMS
+"A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**
+A one-time short code. The user sends it to this tenant's LINE official account to bind.,一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定
+Account,账号
+Account With Write Access,有修改权限的账号
+Adapter,适配器
+Address,地址
+Admin Account,管理员账号
+Admin Password,管理员密码
+Allow DMS queries from LINE,允许在 LINE 使用查询功能
 Amount,金额
+Approval,审批
+Assign To,指定审批人
+Attempt,第几次尝试
+Auto Push,自动推送
 Balance,余额
 Batches and results of every recognition run,每次识别批次的记录与结果
+Billing,计费
 "Billing is not wired up on this site, please contact the platform",本站还没接上计费底座，请联系平台
+Bind Code,绑定码
+Birth Date,出生日期
+Booking Defaults,建单默认值
+Bound At,绑定时间
+Business Key,业务键
 Charges,扣费
+Claimed By,认领人
 Collaboration Boards (WeKan),协作看板（WeKan）
 Companion,小助手（Companion）
+Company Tax ID,本方税号
+Confirmed At,确认时间
+Confirmed By,确认人
+Connection,连接
 Console,控制台
 Count tasks and variance records,盘点任务与差异记录
+Counterparty,对方名称
+Counterparty Tax ID,对方税号
 Cowork Admin,Cowork 管理员
 Cowork Intake,Cowork 录入
 Created At,创建时间
+Currency,币种
+Current State,当前状态
 Customer Match,客户匹配
+Customer Name,客户名
+Customer Snapshot,客户档快照
 Customer master data,客户基础资料
 Customers,客户名录
 "Customers, suppliers, accounts and other reference data",客户、供应商、科目等基础资料
 DMS Admin,DMS 管理员
+DMS Advisor ID,DMS 顾问 ID
+DMS Advisor Name,DMS 顾问名称
+DMS Connection,DMS 连接
 DMS Customer Match,DMS 客户匹配
+DMS Customer No,DMS 客户号
+DMS Customer Ref,DMS 客户引用
+DMS Endpoint,DMS 端点
 DMS ID Card Intake,DMS 身份证录入
 DMS Operator,DMS 操作员
+DMS Password,DMS 密码
+DMS Username,DMS 用户名
+"DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
+
+The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。
+
+顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。"
 DMS usage and balance,DMS 侧的用量与余额
+Dedupe Key,去重键
+Default Connection,默认连接
 Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
 Deployment,部署
 Description,说明
+Direction,方向
+Display Name,显示名
+Doc Date,单据日期
+Doc No,单据号
+Document Type,单据类型
+Due Date,到期日
 ERP Admin,ERP 管理员
 ERP Purchase,ERP 采购
+Elapsed (ms),耗时(ms)
 Email is required,邮箱不能为空
+Empty = matched automatically from the DMS account (the legacy product's default).,留空 = 按 DMS 账号自动匹配（老产品的默认行为）
+Empty = sent to all admins (whoever sees it first approves).,留空 = 发给所有管理员（谁先看到谁批）。
+Enabled,启用
+Endpoint,连接端点
+Error Message,错误信息
+Event ID,事件 ID
+Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
+Expense / Item Category,费用/商品类别
+Expires At,过期时间
 Express Push Guide,Express 推送手册
+External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
+External IDs & Dedupe,外部标识与去重
+External Reference,外部单号
+External System Reference,外部系统引用
+FX Rate,汇率
+Failure Reason,失败原因
 Failure reason,失败原因
+Failures,失败次数
+Field Diffs,逐字段差异
 File,文件
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
+Flow Status,流程状态
+Full Name,姓名
+Gender,性别
+Grand Total,价税合计
+HTTP Status,HTTP 状态
+Handled At,处理时间
 Home (Subscription & Billing),首页（订阅与计费）
 How each push to the external ERP went,推送到外部 ERP 的过程与结果
 ID Card Intake,身份证录入
+ID Details,证件资料
+ID Image,证件影像
+ID Number,证件号
 IP,IP
 Identity Session,身份会话
+Image Fingerprint,影像指纹
+Inbound = invoices received; outbound = invoices issued,进项=收到的票；销项=开出的票
 "Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
 Invited By,邀请人
 Issuer,签发方
+Item / Description,品名/说明
+"Kept as evidence, not a business field",留证用，不是业务字段
+"Kept as evidence, not a business field; only the confirmed fields are.",留证用，不是业务字段；确认后的字段才是
+LINE Display Name,LINE 昵称
+LINE User ID,LINE 用户 ID
 Last Login At,最近登录
+Last Result,最近结果
 Last Seen At,最近活跃
+Last Used,最近使用
+Last Verified At,最后核对时间
+Lease Expires,租约到期
+Lease Owner,租约持有者
+Line Amount,行金额
+Line Discount,行折扣
+Line No,行号
+Local Account,本地账号
 Local Session,本地会话
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
 Master Data,主数据
+Max Retries,最多重试
+Name,名称
+Net Amount,不含税金额
+Net Payable,应付净额
+New Customer,本次新建
+Next Retry At,下次重试时间
 Not signed in,未登录
 Note,备注
 Notes,备注
+"Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",停用后不再参与推送（老产品：停用是「同批不误投」的闸）
+Once disabled its DMS pushes stop and the LINE binding is released,停用后其 DMS 推送停止并解除 LINE 绑定
 Only a company admin can top up or change the subscription,充值与订阅只有公司管理员能操作
 Only a company admin can view top-up records,充值记录只有公司管理员能看
+Only one default per account + adapter (the legacy product's unique index).,同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）
 Only the owner can manage it,仅责任人可管理
+Operator,操作人
 Operator Roster,操作员花名册
+Order Discount,整单折扣
+Owner Account,归属账号
 Pages,张数
+Paid Amount,已付金额
+Password,密码
 Payer,付款人
+Payload,载荷
+Payment Status,付款状态
+Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
 Plan & Balance,套餐与余额
 Please sign in,请先登录
+Processing Started At,开始执行时间
 Product,产品
+Product Ref,商品外部标识
 "Product home: current plan, usage and billing",产品首页，承载当前的订阅套餐、用量与账单
 Product master data,商品主数据
 Products,商品数据
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
+Push,推送
+Push Channel,推送渠道
 Push Log,推送日志
+Push Log Reference,推送日志引用
 Push Records,推送记录
+Push Status,推送状态
 Push to the external ERP; the push log is the only source of status,推送到外部 ERP；状态以推送日志为唯一来源
+Qty,数量
 "Read the ID card, match it against the DMS customer base, then confirm",读身份证、与 DMS 客户库比对后确认资料
 Received,实收金额
+Recognition Raw,识别原始输出
 Recognition Records,识别记录
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
 Reference,单号
+Reference DocType,业务单据类型
+Reference Name,业务单据
+Remote Address,对端地址
+Request & Response,请求与响应
+Request Body,请求内容
+Request Snapshot,申请内容快照
 Requested,申请金额
+Requested By,申请人
+Response Body,响应内容
 Result,结果
+Retry & Lease,重试与租约
+Retry Count,已重试次数
 Revoked At,吊销时间
+Role,角色
+Rounding,尾差
 Sales,销售系统
+Sales Commission Owner,销售提成归属
 Sales documents and customer dealings,销售单据与客户往来
 Same ID number means the same customer; avoids duplicate records,证件号相同视为同一客户，避免重复建档
+Session Payload,会话载荷
+Sign-in Credentials,登录凭据
+Source,来源
+Source Attachment,原始附件
 Status,状态
 Stock Card Report,收发存报表
 Stock Count,库存盘点
 Stock In / Out,库存（入库/出库）
 "Stock in/out summary (kept item, see the ERP manifest)",库存收发存汇总（保留项，见 ERP 清单）
 Subject,主体
+Subtotal,小计
+Successes,成功次数
 Summary,摘要
+Supplier,供应商
+Supplier Tax ID,供应商税号
+System URL,系统地址
+The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。
+The customer snapshot used to refill the form when approval executes.,批准执行时回填表单用的客户资料快照。
+The document number the supplier issued; it must be kept as-is,供应商开的单据号，必须原样保留
+"The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
+
+**One row per session** (a LINE user runs only one flow at a time inside one tenant).","多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。
+
+**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。"
+"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",对端用来判重的键（例如 DMS 客户号、发票号）。老产品的 invoice_no / history_id 就是这一类
+The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）
+The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上
+"The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据
+The legacy system's product identifier; it becomes a link once product master data lands,旧系统的商品标识；商品主数据落地后再换成链接
+The name is resolved server-side when pinning; the client's value is not trusted,名字在钉的时候由服务端解出，不信客户端传来的值
+"The name the owner uses to tell people apart on this table, e.g. Ming (sales).",老板在这张表里认人用的名字，例如：阿明（销售）
+The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,点批准的那个人（认领时刻写下；写失败回炉时会清掉）。
 The result of each push,每次推送的结果
+"The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码
+The test for a duplicate upload of the same document,同一张票重复上传时的判据
+"The truth is in erp_push_logs, trigger=id_card",真值在 erp_push_logs，trigger=id_card
+The truth is in erp_push_logs; this is only a display reference,以 erp_push_logs 为准，这里只做展示引用
+"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里
+The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理
+This Operator's Own DMS Credentials,该操作员自己的 DMS 账密
 Time,时间
 Top-ups,充值
+Transport Result,传输结果
+Trigger,触发方式
+Type,类型
+Unbound At,解绑时间
+Unit,单位
+Unit Price,单价
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
+Usage,使用情况
+Used,已使用
+Used At,使用时间
 User,用户
 User Agent,浏览器标识
+VAT,增值税
+VAT Amount,税额
+VAT Included,含增值税
+VAT Rate %,税率%
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
+What Was Pushed,推的是哪一单
+What Was Recognised,识别留证
+Which connection it went to. Empty = it failed before a connection was chosen.,推到哪条连接。留空 = 还没选到连接就失败了
+Which customer is being changed.,要改的是哪个客户。
+Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,对端是什么系统。取值照老产品（webhook | xero | flowaccount | mrerp | mrerp_dms | express）；新平台目前只实现 mrerp_dms，其余列着是为了**不偷偷改契约**
+"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",谁正在处理这一条。老产品用租约保证**同一条只被推一次**（pending 才有租约，过期可被抢）
+Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,谁提的这单（销售本人）。执行时用的是**批准人**自己的凭据，这里只记来源。
+"Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务
+Withholding Tax,预扣税
 Workspace,工作区
+"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。"
+"companion = pulled outbound by Companion on the local machine, then stored here",companion = 由小助手在本机出站拉取后落库
+"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）

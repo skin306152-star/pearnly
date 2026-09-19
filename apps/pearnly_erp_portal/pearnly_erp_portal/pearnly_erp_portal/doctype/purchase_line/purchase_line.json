@@ -17,16 +17,16 @@
   "line_total"
  ],
  "fields": [
-  {"fieldname": "line_no", "fieldtype": "Int", "label": "行号", "in_list_view": 1},
-  {"default": "goods", "fieldname": "item_type", "fieldtype": "Select", "label": "类型", "options": "goods\nservice", "in_list_view": 1},
-  {"fieldname": "description", "fieldtype": "Data", "label": "品名/说明", "in_list_view": 1, "reqd": 1},
-  {"fieldname": "product_ref", "fieldtype": "Data", "label": "商品外部标识", "description": "旧系统的商品标识；商品主数据落地后再换成链接"},
-  {"default": "1", "fieldname": "qty", "fieldtype": "Float", "label": "数量", "precision": "3", "in_list_view": 1, "reqd": 1},
-  {"fieldname": "unit", "fieldtype": "Data", "label": "单位"},
-  {"default": "0", "fieldname": "unit_price", "fieldtype": "Currency", "label": "单价", "in_list_view": 1, "reqd": 1},
-  {"default": "0", "fieldname": "discount", "fieldtype": "Currency", "label": "行折扣"},
-  {"default": "7", "fieldname": "vat_rate", "fieldtype": "Float", "label": "税率%", "precision": "2"},
-  {"default": "0", "fieldname": "line_total", "fieldtype": "Currency", "label": "行金额", "in_list_view": 1, "read_only": 1}
+  {"fieldname": "line_no", "fieldtype": "Int", "label": "Line No", "in_list_view": 1},
+  {"default": "goods", "fieldname": "item_type", "fieldtype": "Select", "label": "Type", "options": "goods\nservice", "in_list_view": 1},
+  {"fieldname": "description", "fieldtype": "Data", "label": "Item / Description", "in_list_view": 1, "reqd": 1},
+  {"fieldname": "product_ref", "fieldtype": "Data", "label": "Product Ref", "description": "The legacy system's product identifier; it becomes a link once product master data lands"},
+  {"default": "1", "fieldname": "qty", "fieldtype": "Float", "label": "Qty", "precision": "3", "in_list_view": 1, "reqd": 1},
+  {"fieldname": "unit", "fieldtype": "Data", "label": "Unit"},
+  {"default": "0", "fieldname": "unit_price", "fieldtype": "Currency", "label": "Unit Price", "in_list_view": 1, "reqd": 1},
+  {"default": "0", "fieldname": "discount", "fieldtype": "Currency", "label": "Line Discount"},
+  {"default": "7", "fieldname": "vat_rate", "fieldtype": "Float", "label": "VAT Rate %", "precision": "2"},
+  {"default": "0", "fieldname": "line_total", "fieldtype": "Currency", "label": "Line Amount", "in_list_view": 1, "read_only": 1}
  ],
  "index_web_pages_for_search": 0,
  "istable": 1,

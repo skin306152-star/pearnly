@@ -26,20 +26,20 @@
    "fieldname": "display_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "显示名",
+   "label": "Display Name",
    "reqd": 1,
-   "description": "老板在这张表里认人用的名字，例如：阿明（销售）"
+   "description": "The name the owner uses to tell people apart on this table, e.g. Ming (sales)."
   },
   {
    "fieldname": "user",
    "fieldtype": "Link",
    "in_list_view": 1,
    "in_standard_filter": 1,
-   "label": "本地账号",
+   "label": "Local Account",
    "options": "User",
    "reqd": 1,
    "unique": 1,
-   "description": "本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。"
+   "description": "The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password."
   },
   {
    "fieldname": "column_break_main",
@@ -50,54 +50,54 @@
    "fieldname": "dms_role",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "角色",
+   "label": "Role",
    "options": "sales\nadmin",
    "reqd": 1,
-   "description": "sales=销售，admin=管理员（老产品的两种角色，没有第三种）"
+   "description": "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
   },
   {
    "default": "active",
    "fieldname": "status",
    "fieldtype": "Select",
    "in_list_view": 1,
-   "label": "状态",
+   "label": "Status",
    "options": "active\ninactive",
    "reqd": 1,
-   "description": "停用后其 DMS 推送停止并解除 LINE 绑定"
+   "description": "Once disabled its DMS pushes stop and the LINE binding is released"
   },
   {
    "fieldname": "section_credentials",
    "fieldtype": "Section Break",
-   "label": "该操作员自己的 DMS 账密"
+   "label": "This Operator's Own DMS Credentials"
   },
   {
    "fieldname": "dms_username",
    "fieldtype": "Data",
-   "label": "DMS 用户名"
+   "label": "DMS Username"
   },
   {
    "fieldname": "dms_password",
    "fieldtype": "Password",
-   "label": "DMS 密码"
+   "label": "DMS Password"
   },
   {
    "fieldname": "section_advisor",
    "fieldtype": "Section Break",
-   "label": "销售提成归属",
-   "description": "留空 = 按 DMS 账号自动匹配（老产品的默认行为）"
+   "label": "Sales Commission Owner",
+   "description": "Empty = matched automatically from the DMS account (the legacy product's default)."
   },
   {
    "fieldname": "advisor_id",
    "fieldtype": "Data",
-   "label": "DMS 顾问 ID",
+   "label": "DMS Advisor ID",
    "read_only": 1
   },
   {
    "fieldname": "advisor_name",
    "fieldtype": "Data",
-   "label": "DMS 顾问名称",
+   "label": "DMS Advisor Name",
    "read_only": 1,
-   "description": "名字在钉的时候由服务端解出，不信客户端传来的值"
+   "description": "The name is resolved server-side when pinning; the client's value is not trusted"
   },
   {
    "fieldname": "section_flags",
@@ -107,12 +107,12 @@
    "default": "0",
    "fieldname": "can_query_dms",
    "fieldtype": "Check",
-   "label": "允许在 LINE 使用查询功能"
+   "label": "Allow DMS queries from LINE"
   },
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "备注"
+   "label": "Notes"
   }
  ],
  "index_web_pages_for_search": 0,

@@ -51,7 +51,7 @@ pearnly_core	Payer	付款人	ผู้ชำระเงิน	支払者
 pearnly_core	Result	结果	ผลลัพธ์	結果
 pearnly_core	File	文件	ไฟล์	ファイル
 pearnly_core	Summary	摘要	สรุป	摘要
-pearnly_core	Failure reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由
+pearnly_core	Failure Reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由
 pearnly_core	Product home: current plan, usage and billing	产品首页，承载当前的订阅套餐、用量与账单	หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ	製品ホーム。現在のプラン、利用量、請求を表示
 pearnly_core	Upload receipts and sheets, extract fields, review each item, then push	上传票据与表格、识别字段、逐项核对与推送	อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ	領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 pearnly_core	Batches and results of every recognition run	每次识别批次的记录与结果	บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ	各認識バッチの記録と結果
@@ -227,7 +227,7 @@ pearnly_control	Reviewed By	审核人	ตรวจสอบโดย	審査者
 pearnly_control	Balance (THB)	余额（泰铢）	ยอดคงเหลือ (บาท)	残高（バーツ）
 pearnly_control	Pages Used This Month	本月已用页数	หน้าใช้ไปเดือนนี้	今月の使用ページ数
 pearnly_control	Last Updated	最近变动	แก้ไขล่าสุด	最終更新
-pearnly_control	Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
+pearnly_control	External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
 pearnly_control	Step Details	细节	รายละเอียดขั้นตอน	ステップ詳細
 pearnly_control	Unknown billing unit: {0}	未知的计费单位：{0}	หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}	不明な課金単位: {0}
 pearnly_control	grant only handles money in (topup / adjustment); use charge() for deductions	grant 只处理进账（topup / adjustment）；扣费走 charge()	grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()	grant は入金（topup / adjustment）専用。控除は charge() を使います。
@@ -305,3 +305,191 @@ pearnly_control	Notes	备注	หมายเหตุ	備考
 pearnly_control	(empty)	（空）	(ว่าง)	（空）
 pearnly_control	Feature	功能	ฟีเจอร์	機能
 pearnly_control	Features	功能	ฟีเจอร์	機能
+pearnly_core	Name	名称	ชื่อ	名称
+pearnly_core	A human-readable name, e.g. MR.ERP DMS	给人看的名字，例如：MR.ERP DMS	ชื่อที่อ่านง่าย เช่น MR.ERP DMS	人が読むための名前（例: MR.ERP DMS）
+pearnly_core	Adapter	适配器	อะแดปเตอร์	アダプタ
+pearnly_core	Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.	对端是什么系统。取值照老产品（webhook | xero | flowaccount | mrerp | mrerp_dms | express）；新平台目前只实现 mrerp_dms，其余列着是为了**不偷偷改契约**	ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ	接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
+pearnly_core	Owner Account	归属账号	บัญชีเจ้าของ	所属アカウント
+pearnly_core	Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.	这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板	การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ	この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
+pearnly_core	Enabled	启用	เปิดใช้งาน	有効
+pearnly_core	Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).	停用后不再参与推送（老产品：停用是「同批不误投」的闸）	เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)	無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。
+pearnly_core	Default Connection	默认连接	การเชื่อมต่อเริ่มต้น	既定の接続
+pearnly_core	Only one default per account + adapter (the legacy product's unique index).	同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）	บัญชี + อะแดปเตอร์เดียวกันมีค่าเริ่มต้นได้เพียงรายการเดียว (ดัชนีไม่ซ้ำของผลิตภัณฑ์เดิม)	同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
+pearnly_core	Remote Address	对端地址	ที่อยู่ปลายทาง	接続先アドレス
+pearnly_core	System URL	系统地址	ที่อยู่ระบบ	システムURL
+pearnly_core	The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.	例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码	ที่อยู่เข้าสู่ระบบ เช่น ของ MR.ERP DMS ผลิตภัณฑ์เดิมเขียนตายและซ่อนไว้สำหรับ DMS (มีอินสแตนซ์เดียว) เราเปิดให้กรอกเพื่อเปลี่ยนอินสแตนซ์ภายหลังโดยไม่ต้องแก้โค้ด	ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
+pearnly_core	Sign-in Credentials	登录凭据	ข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報
+pearnly_core	Account	账号	บัญชี	アカウント
+pearnly_core	Password	密码	รหัสผ่าน	パスワード
+pearnly_core	A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.	Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**	ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ	Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
+pearnly_core	Account With Write Access	有修改权限的账号	บัญชีที่มีสิทธิ์แก้ไข	書き込み権限のあるアカウント
+pearnly_core	The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.	老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据	คำพูดของผลิตภัณฑ์เดิม: ข้อมูลรับรองชุดนี้ใช้ทั้งเชื่อมต่อ ตรวจซ้ำ สร้าง และแก้ไข พนักงานขายยังใช้บัญชีของตนเองจับคู่เจ้าของค่าคอม และเซิร์ฟเวอร์จะใช้ข้อมูลรับรองของเจ้าของเมื่อต้องแก้ข้อมูลลูกค้า ดังนั้นการเขียนข้อมูลธุรกิจใช้ชุดนี้ ไม่ใช่ของพนักงาน	旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
+pearnly_core	Admin Account	管理员账号	บัญชีผู้ดูแล	管理者アカウント
+pearnly_core	Admin Password	管理员密码	รหัสผ่านผู้ดูแล	管理者パスワード
+pearnly_core	Usage	使用情况	การใช้งาน	利用状況
+pearnly_core	Auto Push	自动推送	ส่งอัตโนมัติ	自動送信
+pearnly_core	The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).	老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）	ผลิตภัณฑ์เดิมปิดตัวนี้สำหรับการเชื่อมต่อนี้ (ขั้นตอนทั้งหมดทำมือ: วิซาร์ด + กล่องยืนยัน)	旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。
+pearnly_core	Last Used	最近使用	ใช้ล่าสุด	最終使用
+pearnly_core	Last Result	最近结果	ผลล่าสุด	最新の結果
+pearnly_core	Successes	成功次数	จำนวนสำเร็จ	成功回数
+pearnly_core	Failures	失败次数	จำนวนล้มเหลว	失敗回数
+pearnly_core	Booking Defaults	建单默认值	ค่าเริ่มต้นการสร้างใบ	起票の既定値
+pearnly_core	DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.\n\nThe advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.	DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。\n\n顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。	ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**\n\nช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่	DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。\n\nアドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。
+pearnly_core	Bind Code	绑定码	รหัสผูก	連携コード
+pearnly_core	A one-time short code. The user sends it to this tenant's LINE official account to bind.	一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定	รหัสสั้นใช้ครั้งเดียว ผู้ใช้ส่งให้บัญชี LINE ทางการของผู้เช่ารายนี้เพื่อผูก	1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。
+pearnly_core	Local Account	本地账号	บัญชีในเครื่อง	ローカルアカウント
+pearnly_core	Used	已使用	ใช้แล้ว	使用済み
+pearnly_core	Expires At	过期时间	หมดอายุเมื่อ	有効期限
+pearnly_core	Used At	使用时间	ใช้เมื่อ	使用日時
+pearnly_core	LINE User ID	LINE 用户 ID	LINE User ID	LINEユーザーID
+pearnly_core	LINE Display Name	LINE 昵称	ชื่อที่แสดงบน LINE	LINE表示名
+pearnly_core	Time	时间	เวลา	日時
+pearnly_core	Bound At	绑定时间	ผูกเมื่อ	連携日時
+pearnly_core	Unbound At	解绑时间	ยกเลิกผูกเมื่อ	連携解除日時
+pearnly_core	Event ID	事件 ID	Event ID	イベントID
+pearnly_core	The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.	LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理	webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก	LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
+pearnly_core	Source	来源	ที่มา	ソース
+pearnly_core	Current State	当前状态	สถานะปัจจุบัน	現在の状態
+pearnly_core	Session Payload	会话载荷	เพย์โหลดเซสชัน	セッションのペイロード
+pearnly_core	Payload	载荷	เพย์โหลด	ペイロード
+pearnly_core	The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.\n\n**One row per session** (a LINE user runs only one flow at a time inside one tenant).	多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。\n\n**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。	สถานะระหว่างทางของบทสนทนาหลายรอบ: ตอบถึงข้อไหน ตัวเลือกที่พักไว้ และ nonce กันกดซ้ำ\n\n**หนึ่งแถวต่อหนึ่งเซสชัน** (ผู้ใช้ LINE หนึ่งคนเดินได้ทีละขั้นตอนในหนึ่งผู้เช่า)	多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。\n\n**1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。
+pearnly_core	Result	结果	ผลลัพธ์	結果
+pearnly_core	File	文件	ไฟล์	ファイル
+pearnly_core	Pages	张数	จำนวนหน้า	枚数
+pearnly_core	Billing	计费	การคิดค่าบริการ	課金
+pearnly_core	Charges	扣费	ค่าบริการ	課金
+pearnly_core	External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
+pearnly_core	Summary	摘要	สรุป	摘要
+pearnly_core	Connection	连接	การเชื่อมต่อ	接続
+pearnly_core	Which connection it went to. Empty = it failed before a connection was chosen.	推到哪条连接。留空 = 还没选到连接就失败了	ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ	どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
+pearnly_core	Trigger	触发方式	รูปแบบการทริกเกอร์	トリガー
+pearnly_core	The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.	老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上	ผลิตภัณฑ์เดิมใช้ trigger แยกสายงาน (เช่น trigger='id_card' คือบัตรประชาชน→DMS) ที่นี่เก็บค่าทั่วไปไว้ไม่กี่ค่า (line_mirror = เว็บไซต์ตัวอย่างในเครื่องบันทึกข้อความที่ควรส่งไป LINE ดู pearnly_core.line._mirror) ส่วนสายงานจริงเก็บใน reference_doctype	旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
+pearnly_core	Attempt	第几次尝试	ครั้งที่พยายาม	試行回数
+pearnly_core	What Was Pushed	推的是哪一单	ส่งอะไรไป	何を送ったか
+pearnly_core	Reference DocType	业务单据类型	DocType ของเอกสารธุรกิจ	業務伝票のDocType
+pearnly_core	Reference Name	业务单据	เอกสารธุรกิจ	業務伝票
+pearnly_core	Business Key	业务键	คีย์ธุรกิจ	業務キー
+pearnly_core	The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.	对端用来判重的键（例如 DMS 客户号、发票号）。老产品的 invoice_no / history_id 就是这一类	คีย์ที่ปลายทางใช้ตรวจข้อมูลซ้ำ (เช่น เลขลูกค้า DMS เลขใบกำกับ) invoice_no / history_id ของผลิตภัณฑ์เดิมคือประเภทนี้	相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
+pearnly_core	Transport Result	传输结果	ผลการรับส่ง	転送結果
+pearnly_core	HTTP Status	HTTP 状态	สถานะ HTTP	HTTPステータス
+pearnly_core	Elapsed (ms)	耗时(ms)	ใช้เวลา (ms)	所要時間(ms)
+pearnly_core	Request & Response	请求与响应	คำขอและการตอบกลับ	リクエストと応答
+pearnly_core	Request Body	请求内容	เนื้อหาคำขอ	リクエスト内容
+pearnly_core	Response Body	响应内容	เนื้อหาการตอบกลับ	レスポンス内容
+pearnly_core	Error Message	错误信息	ข้อความข้อผิดพลาด	エラーメッセージ
+pearnly_core	Retry & Lease	重试与租约	ลองใหม่และสัญญาเช่า	再試行とリース
+pearnly_core	Retry Count	已重试次数	จำนวนครั้งที่ลองใหม่	再試行回数
+pearnly_core	Max Retries	最多重试	ลองใหม่สูงสุด	最大再試行
+pearnly_core	Next Retry At	下次重试时间	ลองใหม่ครั้งถัดไปเมื่อ	次回再試行日時
+pearnly_core	Lease Owner	租约持有者	ผู้ถือสัญญาเช่า	リース保有者
+pearnly_core	Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).	谁正在处理这一条。老产品用租约保证**同一条只被推一次**（pending 才有租约，过期可被抢）	ใครกำลังจัดการแถวนี้อยู่ ผลิตภัณฑ์เดิมใช้สัญญาเช่าเพื่อรับประกันว่า**แต่ละแถวถูกส่งเพียงครั้งเดียว** (เฉพาะ pending ที่มีสัญญาเช่า และตัวที่หมดอายุสามารถถูกยึดได้)	今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
+pearnly_core	Lease Expires	租约到期	สัญญาเช่าหมดอายุ	リース期限
+pearnly_core	What Was Recognised	识别留证	สิ่งที่อ่านได้	認識の記録
+pearnly_core	Recognition Raw	识别原始输出	ผลการอ่านดิบ	認識の生データ
+pearnly_core	Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー
+pearnly_core	Image Fingerprint	影像指纹	ลายนิ้วมือภาพ	画像フィンガープリント
+pearnly_core	Confirmed By	确认人	ยืนยันโดย	確認者
+pearnly_core	Confirmed At	确认时间	ยืนยันเมื่อ	確認日時
+pearnly_core	Push	推送	การส่ง	送信
+pearnly_core	Push Log Reference	推送日志引用	อ้างอิงบันทึกการส่ง	送信ログ参照
+pearnly_core	The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any "did it actually push" decision must read here.	取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里	ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า "ส่งสำเร็จหรือยัง" ต้องดูที่นี่	値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
+pearnly_core	Kept as evidence, not a business field; only the confirmed fields are.	留证用，不是业务字段；确认后的字段才是	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น	証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
+pearnly_core	Kept as evidence, not a business field	留证用，不是业务字段	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ	証跡用で業務フィールドではありません
+pearnly_core	Direction	方向	ทิศทาง	方向
+pearnly_core	Inbound = invoices received; outbound = invoices issued	进项=收到的票；销项=开出的票	ขาเข้า = ใบที่ได้รับ ขาออก = ใบที่ออกให้	仕入＝受け取った請求書、売上＝発行した請求書
+pearnly_core	Doc No	单据号	เลขที่เอกสาร	伝票番号
+pearnly_core	Doc Date	单据日期	วันที่เอกสาร	伝票日付
+pearnly_core	Counterparty	对方名称	ชื่อคู่ค้า	取引先名
+pearnly_core	Counterparty Tax ID	对方税号	เลขผู้เสียภาษีคู่ค้า	取引先の税番号
+pearnly_core	Company Tax ID	本方税号	เลขผู้เสียภาษีของบริษัท	自社の税番号
+pearnly_core	Net Amount	不含税金额	ยอดก่อนภาษี	税抜金額
+pearnly_core	VAT Amount	税额	ภาษีมูลค่าเพิ่ม	税額
+pearnly_core	Grand Total	价税合计	ยอดรวม	税込合計
+pearnly_core	Currency	币种	สกุลเงิน	通貨
+pearnly_core	Expense / Item Category	费用/商品类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
+pearnly_core	Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル
+pearnly_core	Push Channel	推送渠道	ช่องทางส่ง	送信チャネル
+pearnly_core	companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机出站拉取后落库	companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み
+pearnly_core	Push Status	推送状态	สถานะการส่ง	送信ステータス
+pearnly_core	The truth is in erp_push_logs; this is only a display reference	以 erp_push_logs 为准，这里只做展示引用	ค่าจริงอยู่ที่ erp_push_logs ที่นี่เป็นเพียงการอ้างอิงเพื่อแสดง	真値は erp_push_logs。ここは表示用の参照のみ
+pearnly_core	The truth is in erp_push_logs, trigger=id_card	真值在 erp_push_logs，trigger=id_card	ค่าจริงอยู่ที่ erp_push_logs, trigger=id_card	真値は erp_push_logs、trigger=id_card
+pearnly_core	Operator	操作人	ผู้ใช้	ユーザー
+pearnly_core	ID Number	证件号	เลขบัตร	身分証番号
+pearnly_core	Personal data: not shown in lists and never written to logs	个人敏感信息：不在列表显示，不写日志	ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก	個人情報のため一覧に表示せず、ログにも書きません
+pearnly_core	Full Name	姓名	ชื่อ-นามสกุล	氏名
+pearnly_core	DMS Customer Ref	DMS 客户引用	รหัสอ้างอิงลูกค้า DMS	DMS顧客参照
+pearnly_core	Endpoint	连接端点	ปลายทางการเชื่อมต่อ	接続先
+pearnly_core	New Customer	本次新建	สร้างใหม่ครั้งนี้	今回新規作成
+pearnly_core	Last Verified At	最后核对时间	ตรวจสอบล่าสุดเมื่อ	最終確認日時
+pearnly_core	DMS Customer No	DMS 客户号	เลขลูกค้า DMS	DMS顧客番号
+pearnly_core	Which customer is being changed.	要改的是哪个客户。	จะแก้ลูกค้ารายใด	どの顧客を変更するか。
+pearnly_core	Customer Name	客户名	ชื่อลูกค้า	顧客名
+pearnly_core	DMS Connection	DMS 连接	การเชื่อมต่อ DMS	DMS接続
+pearnly_core	Assign To	指定审批人	มอบหมายให้	承認者の指定
+pearnly_core	Empty = sent to all admins (whoever sees it first approves).	留空 = 发给所有管理员（谁先看到谁批）。	เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)	空欄＝全管理者に送信（先に見た人が承認）。
+pearnly_core	Claimed By	认领人	ผู้รับเรื่อง	担当者
+pearnly_core	The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).	点批准的那个人（认领时刻写下；写失败回炉时会清掉）。	คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)	承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
+pearnly_core	Handled At	处理时间	จัดการเมื่อ	処理日時
+pearnly_core	Processing Started At	开始执行时间	เริ่มดำเนินการเมื่อ	実行開始日時
+pearnly_core	Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).	执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。	สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)	実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
+pearnly_core	Requested By	申请人	ผู้ขอ	申請者
+pearnly_core	Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.	谁提的这单（销售本人）。执行时用的是**批准人**自己的凭据，这里只记来源。	ใครเป็นผู้เสนอ (ตัวพนักงานขาย) ตอนดำเนินการใช้ข้อมูลรับรองของ**ผู้อนุมัติ**เอง ที่นี่บันทึกแค่ที่มา	誰が起案したか（営業本人）。実行時は**承認者自身**の資格情報を使い、ここは由来の記録だけです。
+pearnly_core	Request Snapshot	申请内容快照	สแนปช็อตคำขอ	申請内容のスナップショット
+pearnly_core	Field Diffs	逐字段差异	ส่วนต่างรายฟิลด์	項目ごとの差分
+pearnly_core	`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.	`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。	`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก	`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。
+pearnly_core	Customer Snapshot	客户档快照	สแนปช็อตข้อมูลลูกค้า	顧客情報のスナップショット
+pearnly_core	The customer snapshot used to refill the form when approval executes.	批准执行时回填表单用的客户资料快照。	สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ	承認実行時にフォームへ戻すための顧客情報スナップショット。
+pearnly_core	Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合
+pearnly_core	DMS Endpoint	DMS 端点	ปลายทาง DMS	DMSエンドポイント
+pearnly_core	ID Details	证件资料	ข้อมูลบัตร	身分証情報
+pearnly_core	Birth Date	出生日期	วันเกิด	生年月日
+pearnly_core	Address	地址	ที่อยู่	住所
+pearnly_core	Gender	性别	เพศ	性別
+pearnly_core	ID Image	证件影像	ภาพบัตร	身分証画像
+pearnly_core	Display Name	显示名	ชื่อที่แสดง	表示名
+pearnly_core	The name the owner uses to tell people apart on this table, e.g. Ming (sales).	老板在这张表里认人用的名字，例如：阿明（销售）	ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)	オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
+pearnly_core	The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.	本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。	บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน	このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
+pearnly_core	Role	角色	บทบาท	ロール
+pearnly_core	sales=salesperson, admin=administrator (the legacy product's two roles, no third one)	sales=销售，admin=管理员（老产品的两种角色，没有第三种）	sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)	sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+pearnly_core	Once disabled its DMS pushes stop and the LINE binding is released	停用后其 DMS 推送停止并解除 LINE 绑定	เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE	無効にするとDMSへの送信が止まり、LINE連携も解除されます
+pearnly_core	This Operator's Own DMS Credentials	该操作员自己的 DMS 账密	บัญชี DMS ของผู้ปฏิบัติงานรายนี้	このオペレーター自身のDMS資格情報
+pearnly_core	DMS Username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名
+pearnly_core	DMS Password	DMS 密码	รหัสผ่าน DMS	DMSパスワード
+pearnly_core	Sales Commission Owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属
+pearnly_core	Empty = matched automatically from the DMS account (the legacy product's default).	留空 = 按 DMS 账号自动匹配（老产品的默认行为）	เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)	空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
+pearnly_core	DMS Advisor ID	DMS 顾问 ID	DMS Advisor ID	DMSアドバイザーID
+pearnly_core	DMS Advisor Name	DMS 顾问名称	ชื่อที่ปรึกษา DMS	DMSアドバイザー名
+pearnly_core	The name is resolved server-side when pinning; the client's value is not trusted	名字在钉的时候由服务端解出，不信客户端传来的值	ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา	名前は固定時にサーバー側で解決します。クライアントの値は信用しません
+pearnly_core	Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE	LINEでの照会機能を許可
+pearnly_core	Document Type	单据类型	ประเภทเอกสาร	伝票種別
+pearnly_core	Supplier	供应商	ผู้ขาย	仕入先
+pearnly_core	Supplier Tax ID	供应商税号	เลขผู้เสียภาษีผู้ขาย	仕入先の税番号
+pearnly_core	External Doc No	外部单据号	เลขเอกสารภายนอก	外部伝票番号
+pearnly_core	The document number the supplier issued; it must be kept as-is	供应商开的单据号，必须原样保留	เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ	仕入先が発行した伝票番号。そのまま保持する必要があります
+pearnly_core	Due Date	到期日	วันครบกำหนด	支払期日
+pearnly_core	FX Rate	汇率	อัตราแลกเปลี่ยน	為替レート
+pearnly_core	VAT Included	含增值税	รวมภาษีมูลค่าเพิ่ม	税込
+pearnly_core	Subtotal	小计	ยอดรวมย่อย	小計
+pearnly_core	Order Discount	整单折扣	ส่วนลดทั้งใบ	伝票全体の値引
+pearnly_core	VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税
+pearnly_core	Withholding Tax	预扣税	ภาษีหัก ณ ที่จ่าย	源泉税
+pearnly_core	Rounding	尾差	ส่วนต่างปัดเศษ	端数調整
+pearnly_core	Net Payable	应付净额	ยอดสุทธิที่ต้องจ่าย	支払純額
+pearnly_core	Approval	审批	การอนุมัติ	承認
+pearnly_core	Flow Status	流程状态	สถานะขั้นตอน	進行ステータス
+pearnly_core	Payment Status	付款状态	สถานะการชำระ	支払状況
+pearnly_core	Paid Amount	已付金额	จำนวนที่จ่ายแล้ว	支払済金額
+pearnly_core	External IDs & Dedupe	外部标识与去重	รหัสภายนอกและการกันซ้ำ	外部IDと重複排除
+pearnly_core	External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照
+pearnly_core	The test for a duplicate upload of the same document	同一张票重复上传时的判据	เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ	同じ伝票を二重アップロードしたときの判定基準
+pearnly_core	Line No	行号	ลำดับบรรทัด	行番号
+pearnly_core	Type	类型	ประเภท	種別
+pearnly_core	Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
+pearnly_core	Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+pearnly_core	The legacy system's product identifier; it becomes a link once product master data lands	旧系统的商品标识；商品主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+pearnly_core	Qty	数量	จำนวน	数量
+pearnly_core	Unit	单位	หน่วย	単位
+pearnly_core	Unit Price	单价	ราคาต่อหน่วย	単価
+pearnly_core	Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
+pearnly_core	VAT Rate %	税率%	อัตราภาษี %	税率%
+pearnly_core	Line Amount	行金额	จำนวนเงินบรรทัด	行金額

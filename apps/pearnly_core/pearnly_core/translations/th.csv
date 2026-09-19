@@ -1,96 +1,286 @@
 A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
+"A human-readable name, e.g. MR.ERP DMS",ชื่อที่อ่านง่าย เช่น MR.ERP DMS
+"A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ
+A one-time short code. The user sends it to this tenant's LINE official account to bind.,รหัสสั้นใช้ครั้งเดียว ผู้ใช้ส่งให้บัญชี LINE ทางการของผู้เช่ารายนี้เพื่อผูก
+Account,บัญชี
+Account With Write Access,บัญชีที่มีสิทธิ์แก้ไข
+Adapter,อะแดปเตอร์
+Address,ที่อยู่
+Admin Account,บัญชีผู้ดูแล
+Admin Password,รหัสผ่านผู้ดูแล
+Allow DMS queries from LINE,อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE
 Amount,จำนวนเงิน
+Approval,การอนุมัติ
+Assign To,มอบหมายให้
+Attempt,ครั้งที่พยายาม
+Auto Push,ส่งอัตโนมัติ
 Balance,ยอดคงเหลือ
 Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ
+Billing,การคิดค่าบริการ
 "Billing is not wired up on this site, please contact the platform",เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม
+Bind Code,รหัสผูก
+Birth Date,วันเกิด
+Booking Defaults,ค่าเริ่มต้นการสร้างใบ
+Bound At,ผูกเมื่อ
+Business Key,คีย์ธุรกิจ
 Charges,ค่าบริการ
+Claimed By,ผู้รับเรื่อง
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Companion,ผู้ช่วย (Companion)
+Company Tax ID,เลขผู้เสียภาษีของบริษัท
+Confirmed At,ยืนยันเมื่อ
+Confirmed By,ยืนยันโดย
+Connection,การเชื่อมต่อ
 Console,คอนโซล
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
+Counterparty,ชื่อคู่ค้า
+Counterparty Tax ID,เลขผู้เสียภาษีคู่ค้า
 Cowork Admin,Cowork ผู้ดูแล
 Cowork Intake,Cowork บันทึกข้อมูล
 Created At,สร้างเมื่อ
+Currency,สกุลเงิน
+Current State,สถานะปัจจุบัน
 Customer Match,จับคู่ลูกค้า
+Customer Name,ชื่อลูกค้า
+Customer Snapshot,สแนปช็อตข้อมูลลูกค้า
 Customer master data,ข้อมูลหลักของลูกค้า
 Customers,ทะเบียนลูกค้า
 "Customers, suppliers, accounts and other reference data",ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี
 DMS Admin,DMS ผู้ดูแล
+DMS Advisor ID,DMS Advisor ID
+DMS Advisor Name,ชื่อที่ปรึกษา DMS
+DMS Connection,การเชื่อมต่อ DMS
 DMS Customer Match,DMS จับคู่ลูกค้า
+DMS Customer No,เลขลูกค้า DMS
+DMS Customer Ref,รหัสอ้างอิงลูกค้า DMS
+DMS Endpoint,ปลายทาง DMS
 DMS ID Card Intake,DMS บันทึกบัตรประชาชน
 DMS Operator,DMS พนักงาน
+DMS Password,รหัสผ่าน DMS
+DMS Username,ชื่อผู้ใช้ DMS
+"DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
+
+The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**
+
+ช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่"
 DMS usage and balance,การใช้งานและยอดคงเหลือฝั่ง DMS
+Dedupe Key,คีย์กันซ้ำ
+Default Connection,การเชื่อมต่อเริ่มต้น
 Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
 Deployment,การติดตั้ง
 Description,คำอธิบาย
+Direction,ทิศทาง
+Display Name,ชื่อที่แสดง
+Doc Date,วันที่เอกสาร
+Doc No,เลขที่เอกสาร
+Document Type,ประเภทเอกสาร
+Due Date,วันครบกำหนด
 ERP Admin,ERP ผู้ดูแล
 ERP Purchase,ERP จัดซื้อ
+Elapsed (ms),ใช้เวลา (ms)
 Email is required,กรุณากรอกอีเมล
+Empty = matched automatically from the DMS account (the legacy product's default).,เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)
+Empty = sent to all admins (whoever sees it first approves).,เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)
+Enabled,เปิดใช้งาน
+Endpoint,ปลายทางการเชื่อมต่อ
+Error Message,ข้อความข้อผิดพลาด
+Event ID,Event ID
+Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)
+Expense / Item Category,หมวดค่าใช้จ่าย/สินค้า
+Expires At,หมดอายุเมื่อ
 Express Push Guide,คู่มือส่ง Express
+External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งออกไป ERP ภายนอก
+External IDs & Dedupe,รหัสภายนอกและการกันซ้ำ
+External Reference,เลขที่อ้างอิงภายนอก
+External System Reference,รหัสอ้างอิงระบบภายนอก
+FX Rate,อัตราแลกเปลี่ยน
+Failure Reason,สาเหตุที่ล้มเหลว
 Failure reason,สาเหตุที่ล้มเหลว
+Failures,จำนวนล้มเหลว
+Field Diffs,ส่วนต่างรายฟิลด์
 File,ไฟล์
 Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
+Flow Status,สถานะขั้นตอน
+Full Name,ชื่อ-นามสกุล
+Gender,เพศ
+Grand Total,ยอดรวม
+HTTP Status,สถานะ HTTP
+Handled At,จัดการเมื่อ
 Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
 How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
 ID Card Intake,บันทึกบัตรประชาชน
+ID Details,ข้อมูลบัตร
+ID Image,ภาพบัตร
+ID Number,เลขบัตร
 IP,IP
 Identity Session,เซสชันตัวตน
+Image Fingerprint,ลายนิ้วมือภาพ
+Inbound = invoices received; outbound = invoices issued,ขาเข้า = ใบที่ได้รับ ขาออก = ใบที่ออกให้
 "Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
 Intake Workbench,โต๊ะทำงานบันทึกข้อมูล
 Invited By,ผู้เชิญ
 Issuer,ผู้ออก
+Item / Description,ชื่อสินค้า/คำอธิบาย
+"Kept as evidence, not a business field",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ
+"Kept as evidence, not a business field; only the confirmed fields are.",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น
+LINE Display Name,ชื่อที่แสดงบน LINE
+LINE User ID,LINE User ID
 Last Login At,เข้าสู่ระบบล่าสุด
+Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
+Last Used,ใช้ล่าสุด
+Last Verified At,ตรวจสอบล่าสุดเมื่อ
+Lease Expires,สัญญาเช่าหมดอายุ
+Lease Owner,ผู้ถือสัญญาเช่า
+Line Amount,จำนวนเงินบรรทัด
+Line Discount,ส่วนลดรายบรรทัด
+Line No,ลำดับบรรทัด
+Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
 Master Data,ข้อมูลหลัก
+Max Retries,ลองใหม่สูงสุด
+Name,ชื่อ
+Net Amount,ยอดก่อนภาษี
+Net Payable,ยอดสุทธิที่ต้องจ่าย
+New Customer,สร้างใหม่ครั้งนี้
+Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Note,หมายเหตุ
 Notes,หมายเหตุ
+"Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)
+Once disabled its DMS pushes stop and the LINE binding is released,เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE
 Only a company admin can top up or change the subscription,การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท
 Only a company admin can view top-up records,บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท
+Only one default per account + adapter (the legacy product's unique index).,บัญชี + อะแดปเตอร์เดียวกันมีค่าเริ่มต้นได้เพียงรายการเดียว (ดัชนีไม่ซ้ำของผลิตภัณฑ์เดิม)
 Only the owner can manage it,เฉพาะเจ้าของเท่านั้นที่จัดการได้
+Operator,ผู้ใช้
 Operator Roster,ทะเบียนพนักงาน
+Order Discount,ส่วนลดทั้งใบ
+Owner Account,บัญชีเจ้าของ
 Pages,จำนวนหน้า
+Paid Amount,จำนวนที่จ่ายแล้ว
+Password,รหัสผ่าน
 Payer,ผู้ชำระเงิน
+Payload,เพย์โหลด
+Payment Status,สถานะการชำระ
+Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
 Plan & Balance,แพ็กเกจและยอดคงเหลือ
 Please sign in,กรุณาเข้าสู่ระบบ
+Processing Started At,เริ่มดำเนินการเมื่อ
 Product,ผลิตภัณฑ์
+Product Ref,รหัสอ้างอิงสินค้า
 "Product home: current plan, usage and billing",หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ
 Product master data,ข้อมูลหลักของสินค้า
 Products,ข้อมูลสินค้า
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)
+Push,การส่ง
+Push Channel,ช่องทางส่ง
 Push Log,บันทึกการส่งข้อมูล
+Push Log Reference,อ้างอิงบันทึกการส่ง
 Push Records,บันทึกการส่ง
+Push Status,สถานะการส่ง
 Push to the external ERP; the push log is the only source of status,ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น
+Qty,จำนวน
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Received,จำนวนที่รับจริง
+Recognition Raw,ผลการอ่านดิบ
 Recognition Records,บันทึกการอ่านข้อมูล
 Reconcile documents against the ledger,กระทบยอดเอกสารกับบัญชี
 Reconciliation,ศูนย์กระทบยอด
 Reference,เลขที่อ้างอิง
+Reference DocType,DocType ของเอกสารธุรกิจ
+Reference Name,เอกสารธุรกิจ
+Remote Address,ที่อยู่ปลายทาง
+Request & Response,คำขอและการตอบกลับ
+Request Body,เนื้อหาคำขอ
+Request Snapshot,สแนปช็อตคำขอ
 Requested,จำนวนที่ขอ
+Requested By,ผู้ขอ
+Response Body,เนื้อหาการตอบกลับ
 Result,ผลลัพธ์
+Retry & Lease,ลองใหม่และสัญญาเช่า
+Retry Count,จำนวนครั้งที่ลองใหม่
 Revoked At,เพิกถอนเมื่อ
+Role,บทบาท
+Rounding,ส่วนต่างปัดเศษ
 Sales,ระบบขาย
+Sales Commission Owner,เจ้าของค่าคอมมิชชัน
 Sales documents and customer dealings,เอกสารขายและความสัมพันธ์กับลูกค้า
 Same ID number means the same customer; avoids duplicate records,เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ
+Session Payload,เพย์โหลดเซสชัน
+Sign-in Credentials,ข้อมูลรับรองเข้าสู่ระบบ
+Source,ที่มา
+Source Attachment,ไฟล์แนบต้นฉบับ
 Status,สถานะ
 Stock Card Report,รายงานรับ-จ่าย-คงเหลือ
 Stock Count,ตรวจนับสต็อก
 Stock In / Out,สต็อก (รับเข้า/จ่ายออก)
 "Stock in/out summary (kept item, see the ERP manifest)",สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)
 Subject,Subject
+Subtotal,ยอดรวมย่อย
+Successes,จำนวนสำเร็จ
 Summary,สรุป
+Supplier,ผู้ขาย
+Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
+System URL,ที่อยู่ระบบ
+The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน
+The customer snapshot used to refill the form when approval executes.,สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ
+The document number the supplier issued; it must be kept as-is,เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ
+"The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.
+
+**One row per session** (a LINE user runs only one flow at a time inside one tenant).","สถานะระหว่างทางของบทสนทนาหลายรอบ: ตอบถึงข้อไหน ตัวเลือกที่พักไว้ และ nonce กันกดซ้ำ
+
+**หนึ่งแถวต่อหนึ่งเซสชัน** (ผู้ใช้ LINE หนึ่งคนเดินได้ทีละขั้นตอนในหนึ่งผู้เช่า)"
+"The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.",คีย์ที่ปลายทางใช้ตรวจข้อมูลซ้ำ (เช่น เลขลูกค้า DMS เลขใบกำกับ) invoice_no / history_id ของผลิตภัณฑ์เดิมคือประเภทนี้
+The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,ผลิตภัณฑ์เดิมปิดตัวนี้สำหรับการเชื่อมต่อนี้ (ขั้นตอนทั้งหมดทำมือ: วิซาร์ด + กล่องยืนยัน)
+The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,ผลิตภัณฑ์เดิมใช้ trigger แยกสายงาน (เช่น trigger='id_card' คือบัตรประชาชน→DMS) ที่นี่เก็บค่าทั่วไปไว้ไม่กี่ค่า (line_mirror = เว็บไซต์ตัวอย่างในเครื่องบันทึกข้อความที่ควรส่งไป LINE ดู pearnly_core.line._mirror) ส่วนสายงานจริงเก็บใน reference_doctype
+"The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",คำพูดของผลิตภัณฑ์เดิม: ข้อมูลรับรองชุดนี้ใช้ทั้งเชื่อมต่อ ตรวจซ้ำ สร้าง และแก้ไข พนักงานขายยังใช้บัญชีของตนเองจับคู่เจ้าของค่าคอม และเซิร์ฟเวอร์จะใช้ข้อมูลรับรองของเจ้าของเมื่อต้องแก้ข้อมูลลูกค้า ดังนั้นการเขียนข้อมูลธุรกิจใช้ชุดนี้ ไม่ใช่ของพนักงาน
+The legacy system's product identifier; it becomes a link once product master data lands,รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ
+The name is resolved server-side when pinning; the client's value is not trusted,ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา
+"The name the owner uses to tell people apart on this table, e.g. Ming (sales).",ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)
+The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)
 The result of each push,ผลลัพธ์ของการส่งแต่ละครั้ง
+"The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ที่อยู่เข้าสู่ระบบ เช่น ของ MR.ERP DMS ผลิตภัณฑ์เดิมเขียนตายและซ่อนไว้สำหรับ DMS (มีอินสแตนซ์เดียว) เราเปิดให้กรอกเพื่อเปลี่ยนอินสแตนซ์ภายหลังโดยไม่ต้องแก้โค้ด
+The test for a duplicate upload of the same document,เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ
+"The truth is in erp_push_logs, trigger=id_card","ค่าจริงอยู่ที่ erp_push_logs, trigger=id_card"
+The truth is in erp_push_logs; this is only a display reference,ค่าจริงอยู่ที่ erp_push_logs ที่นี่เป็นเพียงการอ้างอิงเพื่อแสดง
+"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า ""ส่งสำเร็จหรือยัง"" ต้องดูที่นี่"
+The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก
+This Operator's Own DMS Credentials,บัญชี DMS ของผู้ปฏิบัติงานรายนี้
 Time,เวลา
 Top-ups,การเติมเงิน
+Transport Result,ผลการรับส่ง
+Trigger,รูปแบบการทริกเกอร์
+Type,ประเภท
+Unbound At,ยกเลิกผูกเมื่อ
+Unit,หน่วย
+Unit Price,ราคาต่อหน่วย
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
+Usage,การใช้งาน
+Used,ใช้แล้ว
+Used At,ใช้เมื่อ
 User,ผู้ใช้
 User Agent,User Agent
+VAT,ภาษีมูลค่าเพิ่ม
+VAT Amount,ภาษีมูลค่าเพิ่ม
+VAT Included,รวมภาษีมูลค่าเพิ่ม
+VAT Rate %,อัตราภาษี %
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
+What Was Pushed,ส่งอะไรไป
+What Was Recognised,สิ่งที่อ่านได้
+Which connection it went to. Empty = it failed before a connection was chosen.,ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ
+Which customer is being changed.,จะแก้ลูกค้ารายใด
+Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.,ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ
+"Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).",ใครกำลังจัดการแถวนี้อยู่ ผลิตภัณฑ์เดิมใช้สัญญาเช่าเพื่อรับประกันว่า**แต่ละแถวถูกส่งเพียงครั้งเดียว** (เฉพาะ pending ที่มีสัญญาเช่า และตัวที่หมดอายุสามารถถูกยึดได้)
+Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.,ใครเป็นผู้เสนอ (ตัวพนักงานขาย) ตอนดำเนินการใช้ข้อมูลรับรองของ**ผู้อนุมัติ**เอง ที่นี่บันทึกแค่ที่มา
+"Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก
+Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Workspace,พื้นที่ทำงาน
+"`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก"
+"companion = pulled outbound by Companion on the local machine, then stored here",companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่
+"sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"

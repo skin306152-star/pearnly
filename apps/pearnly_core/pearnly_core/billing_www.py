@@ -204,7 +204,7 @@ def export_records(date_from: str = "", date_to: str = "") -> None:
             _("Pages"),
             _("Charges"),
             _("Summary"),
-            _("Failure reason"),
+            _("Failure Reason"),
         ],
         [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("status") or "",
           r.get("filename") or "", r.get("page_count") or 0,

@@ -16,14 +16,14 @@
   "notes"
  ],
  "fields": [
-  {"fieldname": "id_number", "fieldtype": "Data", "label": "证件号", "reqd": 1, "unique": 1, "description": "个人敏感信息：不在列表显示，不写日志"},
-  {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "姓名"},
+  {"fieldname": "id_number", "fieldtype": "Data", "label": "ID Number", "reqd": 1, "unique": 1, "description": "Personal data: not shown in lists and never written to logs"},
+  {"fieldname": "full_name", "fieldtype": "Data", "in_list_view": 1, "label": "Full Name"},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "external_customer_ref", "fieldtype": "Data", "in_list_view": 1, "label": "DMS 客户引用", "reqd": 1},
-  {"fieldname": "endpoint", "fieldtype": "Data", "in_list_view": 1, "label": "连接端点"},
-  {"default": "1", "fieldname": "is_new_customer", "fieldtype": "Check", "label": "本次新建"},
-  {"fieldname": "last_verified_at", "fieldtype": "Datetime", "label": "最后核对时间"},
-  {"fieldname": "notes", "fieldtype": "Small Text", "label": "备注"}
+  {"fieldname": "external_customer_ref", "fieldtype": "Data", "in_list_view": 1, "label": "DMS Customer Ref", "reqd": 1},
+  {"fieldname": "endpoint", "fieldtype": "Data", "in_list_view": 1, "label": "Endpoint"},
+  {"default": "1", "fieldname": "is_new_customer", "fieldtype": "Check", "label": "New Customer"},
+  {"fieldname": "last_verified_at", "fieldtype": "Datetime", "label": "Last Verified At"},
+  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

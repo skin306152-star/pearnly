@@ -14,12 +14,12 @@
   "payload"
  ],
  "fields": [
-  {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE 用户 ID", "reqd": 1, "unique": 1, "columns": 4},
-  {"fieldname": "state", "fieldtype": "Data", "in_list_view": 1, "label": "当前状态", "columns": 2},
+  {"fieldname": "line_user_id", "fieldtype": "Data", "in_list_view": 1, "label": "LINE User ID", "reqd": 1, "unique": 1, "columns": 4},
+  {"fieldname": "state", "fieldtype": "Data", "in_list_view": 1, "label": "Current State", "columns": 2},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "过期时间", "columns": 3},
-  {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "会话载荷"},
-  {"description": "多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。\n\n**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。", "fieldname": "payload", "fieldtype": "JSON", "label": "载荷"}
+  {"fieldname": "expires_at", "fieldtype": "Datetime", "in_list_view": 1, "label": "Expires At", "columns": 3},
+  {"fieldname": "section_payload", "fieldtype": "Section Break", "label": "Session Payload"},
+  {"description": "The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.\n\n**One row per session** (a LINE user runs only one flow at a time inside one tenant).", "fieldname": "payload", "fieldtype": "JSON", "label": "Payload"}
  ],
  "index_web_pages_for_search": 0,
  "links": [],
