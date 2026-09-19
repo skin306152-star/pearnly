@@ -59,22 +59,30 @@
   {
    "fieldname": "line_channel_id",
    "fieldtype": "Data",
-   "label": "LINE Channel ID"
+   "label": "LINE Channel ID",
+   "in_list_view": 1,
+   "columns": 3
   },
   {
    "fieldname": "line_liff_id",
    "fieldtype": "Data",
-   "label": "LINE LIFF ID"
+   "label": "LINE LIFF ID",
+   "in_list_view": 1,
+   "columns": 3
   },
   {
    "fieldname": "line_channel_secret",
    "fieldtype": "Password",
-   "label": "LINE Channel Secret"
+   "label": "LINE Channel Secret",
+   "in_list_view": 1,
+   "columns": 3
   },
   {
    "fieldname": "line_channel_access_token",
    "fieldtype": "Password",
-   "label": "LINE Channel Access Token"
+   "label": "LINE Channel Access Token",
+   "in_list_view": 1,
+   "columns": 3
   }
  ],
  "index_web_pages_for_search": 0,
