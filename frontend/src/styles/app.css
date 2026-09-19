@@ -1,11 +1,4 @@
-/* 壳的布局，以及**业务内容**的样式。
- *
- * 分工（用户 2026-09-18 定）：
- *   - 侧栏等外壳：官方 Frappe UI 组件，样式由它自己带（配色在 tailwind.css 里接到我们的令牌）
- *   - 业务内容（下面这些 .pn-* 业务类、页面里的卡片/表格/表单）：我们自己写
- *
- * 色值一律取 design/pearnly-ui.css 的令牌，不写死字面量（ADR-007：色值只有一份来源）。
- */
+/* Layout and business-specific composition. Generic controls use Frappe UI; brand colors use shared tokens. */
 
 html,
 body {
@@ -101,26 +94,9 @@ body {
 
 /* ── 业务内容 ─────────────────────────────────────────────────────────── */
 
-.pn-card {
-  background: var(--card);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-3);
-  box-shadow: var(--shadow-sm);
-  padding: 18px 20px;
-}
-
 .pn-muted {
   color: var(--ink3);
   font-size: 13px;
-}
-
-.pn-error {
-  background: var(--bad-weak);
-  color: var(--bad);
-  border-radius: var(--radius);
-  padding: 12px 14px;
-  font-size: 13px;
-  font-weight: 650;
 }
 
 /* ── 控件：尺寸/间距用官方原生的，只有颜色是我们的 ──────────────────────
@@ -128,7 +104,7 @@ body {
  * 用户 2026-09-18："按钮大小，间距都用官方原生的，操作习惯还是用我们的。"
  *
  * 所以按钮用官方 `Button` 组件（尺寸档 sm/md/lg 与内边距都归它），
- * 输入框用官方原生类 `form-input`（高度 h-7、圆角、内边距都是官方的）。
+ * 输入框使用官方 FormControl，错误/提示使用 ErrorMessage 与 Alert。
  *
  * 这里**只**补官方没有的那一件事：主色。官方 Button 只有 gray/blue/green/red
  * 四个主题，没有我们的紫，所以加一个只改配色的类，不改尺寸。
@@ -143,50 +119,7 @@ body {
   background: var(--accent-deep);
 }
 
-.pn-primary:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.pn-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.pn-table th {
-  text-align: left;
-  padding: 10px 12px;
-  color: var(--ink3);
-  font-weight: 700;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
-}
-
-.pn-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--line2);
-  color: var(--ink);
-}
-
-.pn-table tbody tr:hover {
-  background: var(--line2);
-}
-
 .pn-num {
   text-align: right;
   font-variant-numeric: tabular-nums;
-}
-
-.pn-skeleton {
-  height: 14px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--line) 25%, var(--line2) 37%, var(--line) 63%);
-  background-size: 400% 100%;
-  animation: pn-shimmer 1.4s ease infinite;
-}
-
-@keyframes pn-shimmer {
-  0% { background-position: 100% 50%; }
-  100% { background-position: 0 50%; }
 }

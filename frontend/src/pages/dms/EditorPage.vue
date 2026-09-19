@@ -15,7 +15,7 @@
 // 文案全部来自服务端语言包（`dms.edit.*`），代码里只出现文案编号。
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
-import { Button, FormControl, Spinner } from "frappe-ui";
+import { Button, FormControl, Spinner, ErrorMessage } from "frappe-ui";
 
 import { ApiError } from "../../lib/api";
 import {
@@ -35,7 +35,12 @@ import {
   type Option,
   type Payment,
 } from "../../lib/dms-editor";
-import { LOCALES, LOCALE_LABELS, createTexts, type Locale } from "../../lib/i18n";
+import {
+  LOCALES,
+  LOCALE_LABELS,
+  createTexts,
+  type Locale,
+} from "../../lib/i18n";
 
 const route = useRoute();
 const mode = computed<EditorMode>(() =>
@@ -116,17 +121,24 @@ const optionList = (rows: Option[] | undefined) =>
   (rows || []).map((row) => ({ label: row.label, value: row.id }));
 
 const total = computed(() =>
-  payments.value.reduce((sum, row) => sum + (Number(String(row.amount).replace(/,/g, "")) || 0), 0),
+  payments.value.reduce(
+    (sum, row) => sum + (Number(String(row.amount).replace(/,/g, "")) || 0),
+    0,
+  ),
 );
 const totalText = computed(() =>
-  total.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+  total.value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }),
 );
 
 function explain(err: unknown): string {
   const code = err instanceof ApiError ? err.message : "";
   const key = ERROR_KEYS[code];
   if (key) return t(`dms.edit.${key}`);
-  if (err instanceof ApiError && err.status === 409) return t("dms.edit.expired");
+  if (err instanceof ApiError && err.status === 409)
+    return t("dms.edit.expired");
   return t("dms.edit.failed");
 }
 
@@ -150,7 +162,8 @@ function loadLiff(): Promise<void> {
 }
 
 async function closePage(): Promise<void> {
-  const liff = (window as unknown as { liff?: Record<string, () => unknown> }).liff;
+  const liff = (window as unknown as { liff?: Record<string, () => unknown> })
+    .liff;
   if (liff && typeof liff.isInClient === "function" && liff.isInClient()) {
     (liff.closeWindow as () => void)();
     return;
@@ -167,7 +180,10 @@ function adopt(draft: Draft): void {
     if (!(field in customer)) customer[field] = "";
   });
 
-  const a = (draft.form.answers || {}) as Record<string, { id?: string } | string>;
+  const a = (draft.form.answers || {}) as Record<
+    string,
+    { id?: string } | string
+  >;
   const ref = (key: string) => {
     const value = a[key];
     return value && typeof value === "object" ? String(value.id || "") : "";
@@ -226,7 +242,11 @@ async function hydrateGeo(): Promise<void> {
 }
 
 /** 取下一级选项；父级为空就是空表（与老产品一致，不去请求）。 */
-async function cascade(level: string, parentId: string, targetField: string): Promise<void> {
+async function cascade(
+  level: string,
+  parentId: string,
+  targetField: string,
+): Promise<void> {
   geo[level] = [];
   customer[targetField] = "";
   if (!parentId) return;
@@ -379,8 +399,8 @@ onMounted(async () => {
   }
 });
 
-function changeLocale(event: Event): void {
-  setLocale((event.target as HTMLSelectElement).value as Locale);
+function changeLocale(value: Locale): void {
+  setLocale(value);
 }
 </script>
 
@@ -391,9 +411,19 @@ function changeLocale(event: Event): void {
         <span class="pn-editor-mark">P</span>
         <span>Pearnly DMS</span>
       </span>
-      <select class="pn-editor-lang" :value="locale" :aria-label="t('dms.edit.title')" @change="changeLocale">
-        <option v-for="code in LOCALES" :key="code" :value="code">{{ LOCALE_LABELS[code] }}</option>
-      </select>
+      <FormControl
+        type="select"
+        class="w-28"
+        :model-value="locale"
+        :aria-label="t('dms.edit.title')"
+        @update:model-value="changeLocale"
+        :options="[
+          ...LOCALES.map((code) => ({
+            value: code,
+            label: LOCALE_LABELS[code],
+          })),
+        ]"
+      />
     </header>
 
     <main class="pn-editor-body">
@@ -408,16 +438,29 @@ function changeLocale(event: Event): void {
 
       <section v-else-if="stage === 'saved'" class="pn-editor-state">
         <h1 class="pn-editor-h1">{{ t("dms.edit.saved") }}</h1>
-        <Button variant="solid" class="pn-primary" :label="t('dms.edit.cancel')" @click="closePage" />
+        <Button
+          variant="solid"
+          class="pn-primary"
+          :label="t('dms.edit.cancel')"
+          @click="closePage"
+        />
       </section>
 
       <form v-else class="pn-editor-form" @submit.prevent="save">
         <div class="pn-editor-intro">
           <h1 class="pn-editor-h1">
-            {{ t(mode === "customer" ? "dms.edit.customerTitle" : "dms.edit.title") }}
+            {{
+              t(
+                mode === "customer"
+                  ? "dms.edit.customerTitle"
+                  : "dms.edit.title",
+              )
+            }}
           </h1>
           <p class="pn-editor-sub">
-            {{ t(mode === "customer" ? "dms.edit.customerSub" : "dms.edit.sub") }}
+            {{
+              t(mode === "customer" ? "dms.edit.customerSub" : "dms.edit.sub")
+            }}
           </p>
         </div>
 
@@ -431,7 +474,12 @@ function changeLocale(event: Event): void {
               :options="optionList(masters.prefixes)"
               v-model="customer.prefix_id"
             />
-            <FormControl type="text" :label="t('dms.edit.name')" required v-model="customer.name" />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.name')"
+              required
+              v-model="customer.name"
+            />
             <FormControl
               type="text"
               :label="t('dms.edit.confirmId')"
@@ -444,15 +492,53 @@ function changeLocale(event: Event): void {
               required
               v-model="customer.birthday_be"
             />
-            <FormControl type="text" :label="t('dms.edit.phone')" required v-model="customer.phone" />
-            <FormControl type="text" :label="t('dms.edit.house')" required v-model="customer.house_no" />
-            <FormControl type="text" :label="t('dms.edit.building')" v-model="customer.building" />
-            <FormControl type="text" :label="t('dms.edit.floor')" v-model="customer.floor" />
-            <FormControl type="text" :label="t('dms.edit.room')" v-model="customer.room" />
-            <FormControl type="text" :label="t('dms.edit.village')" v-model="customer.village" />
-            <FormControl type="text" :label="t('dms.edit.moo')" v-model="customer.moo" />
-            <FormControl type="text" :label="t('dms.edit.soi')" v-model="customer.soi" />
-            <FormControl type="text" :label="t('dms.edit.road')" v-model="customer.road" />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.phone')"
+              required
+              v-model="customer.phone"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.house')"
+              required
+              v-model="customer.house_no"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.building')"
+              v-model="customer.building"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.floor')"
+              v-model="customer.floor"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.room')"
+              v-model="customer.room"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.village')"
+              v-model="customer.village"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.moo')"
+              v-model="customer.moo"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.soi')"
+              v-model="customer.soi"
+            />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.road')"
+              v-model="customer.road"
+            />
             <FormControl
               type="select"
               :label="t('dms.edit.province')"
@@ -540,17 +626,41 @@ function changeLocale(event: Event): void {
                 :options="optionList(masters.regis)"
                 v-model="answers.regis_id"
               />
-              <FormControl type="text" :label="t('dms.edit.regisName')" required v-model="answers.regis_name" />
+              <FormControl
+                type="text"
+                :label="t('dms.edit.regisName')"
+                required
+                v-model="answers.regis_name"
+              />
             </div>
           </section>
 
           <section class="pn-editor-section">
             <h2 class="pn-editor-h2">{{ t("dms.edit.payment") }}</h2>
-            <div v-for="(row, index) in payments" :key="index" class="pn-editor-payment">
-              <FormControl type="select" :label="t('dms.edit.channel')" :options="optionList(
-                CHANNELS.map((channel) => ({ id: channel, label: t(`dms.edit.${channel}`) })),
-              )" v-model="row.channel" />
-              <FormControl type="text" :label="t('dms.edit.amount')" required v-model="row.amount" />
+            <div
+              v-for="(row, index) in payments"
+              :key="index"
+              class="pn-editor-payment"
+            >
+              <FormControl
+                type="select"
+                :label="t('dms.edit.channel')"
+                :options="
+                  optionList(
+                    CHANNELS.map((channel) => ({
+                      id: channel,
+                      label: t(`dms.edit.${channel}`),
+                    })),
+                  )
+                "
+                v-model="row.channel"
+              />
+              <FormControl
+                type="text"
+                :label="t('dms.edit.amount')"
+                required
+                v-model="row.amount"
+              />
               <FormControl
                 v-if="row.channel === 'transfer'"
                 type="select"
@@ -597,7 +707,12 @@ function changeLocale(event: Event): void {
               :disabled="payments.length >= MAX_PAYMENTS || !freeChannel()"
               @click="addPayment"
             />
-            <FormControl type="text" :label="t('dms.edit.total')" :model-value="totalText" disabled />
+            <FormControl
+              type="text"
+              :label="t('dms.edit.total')"
+              :model-value="totalText"
+              disabled
+            />
           </section>
 
           <section class="pn-editor-section">
@@ -618,10 +733,15 @@ function changeLocale(event: Event): void {
           </section>
         </template>
 
-        <p v-if="errorText" class="pn-editor-error" role="alert">{{ errorText }}</p>
+        <ErrorMessage v-if="errorText" :message="errorText" />
 
         <div class="pn-editor-actions">
-          <Button variant="outline" theme="gray" :label="t('dms.edit.cancel')" @click="closePage" />
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="t('dms.edit.cancel')"
+            @click="closePage"
+          />
           <Button
             type="submit"
             variant="solid"

@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-inventory",
+  "page_name": "pearnly-inventory",
+  "title": "nav.inventory",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

@@ -60,17 +60,21 @@ def home() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def topup(amount_thb: float, note: str = "", payer_name: str = "") -> dict:
+def topup(amount_thb: float, note: str = "", payer_name: str = "", slip_file: str = "") -> dict:
     """提交充值申请。**只落申请，余额要等平台审核通过才变。**"""
     _require_admin()
-    return _client().topup_request(float(amount_thb or 0), note=note, payer_name=payer_name)
+    from pearnly_core.payments.proof import payload
+    return _client().topup_request(amount_thb, note=note, payer_name=payer_name, proof=payload(slip_file))
 
 
 @frappe.whitelist(methods=["POST"])
 def subscribe(plan_code: str) -> dict:
     """订阅 / 换套餐：当场从余额扣月费。余额不够会返回 insufficient_balance。"""
     _require_admin()
-    return _client().subscribe(plan_code)
+    result = _client().subscribe(plan_code)
+    if result.get("ok") is not True:
+        frappe.throw(result.get("reason") or _("The subscription could not be activated"))
+    return result
 
 
 # ── 记录明细（扣费 / 充值 / 识别）──────────────────────────────────────────

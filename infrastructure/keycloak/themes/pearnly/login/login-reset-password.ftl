@@ -33,7 +33,7 @@
 
             <div class="form-split">
               <span></span>
-              <a class="link-btn" href="${url.loginUrl}">${msg("backToLogin")}</a>
+              <a class="link-btn" data-reset-back href="${url.loginUrl}">${msg("backToLogin")}</a>
             </div>
 
             <button class="primary-btn" type="submit">${msg("pearnlyResetSubmit")}</button>

@@ -13,9 +13,11 @@ import frappe
 from frappe.email.doctype.email_account.email_account import EmailAccount
 
 package = Path(sys.argv[1])
-frappe.init(site='control.localhost',sites_path='/home/frappe/frappe-bench/sites')
+frappe.init(site=sys.argv[2] if len(sys.argv)>2 else 'control.localhost',sites_path='/home/frappe/frappe-bench/sites')
 frappe.connect();frappe.set_user('Administrator')
 before=frappe.db.count('Email Queue')
+# Only local request memory: queue verification never changes site SMTP settings.
+frappe.conf.mute_emails = False
 try:
     account=frappe.get_doc({'doctype':'Email Account','name':'Pearnly','email_account_name':'Pearnly',
         'email_id':'hello@pearnly.com','enable_outgoing':1,'always_use_account_email_id_as_sender':1,

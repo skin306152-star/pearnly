@@ -20,8 +20,15 @@
       // ⚠️ 不能用 innerHTML 塞标签：**innerHTML 建出来的 script/link 浏览器不会执行、
       // 也不会加载**（拿到的是被标记成"已启动"的空壳）。必须逐个 createElement 再设属性。
       (function () {
+        var route = (location.hash.replace(/^#/, "") || location.pathname.replace(/^\/pearnly-app/, "") || "/home").split("?")[0].replace(/^\/|\/$/g, "");
+        if (route !== "dms/editor") {
+          var pages = {"home": "pearnly-home", "connect": "pearnly-connect", "records": "pearnly-records", "roster": "pearnly-roster", "work": "pearnly-work", "intake": "pearnly-intake", "history": "pearnly-history", "push-logs": "pearnly-push-logs", "reconcile": "pearnly-reconcile", "stocktake": "pearnly-stocktake", "clients": "pearnly-clients", "company": "pearnly-company", "team": "pearnly-team", "integrations": "pearnly-integrations", "guide": "pearnly-guide", "products": "pearnly-products", "inventory": "pearnly-inventory", "stock-in": "pearnly-stock-in", "stock-out": "pearnly-stock-out", "stock-card": "pearnly-stock-card", "purchase": "pearnly-purchase", "suppliers": "pearnly-suppliers", "purchase-settings": "pearnly-buy-settings", "sales": "pearnly-sales"};
+          location.replace("/desk/" + (pages[route] || "pearnly-home"));
+          return;
+        }
         var xhr = new XMLHttpRequest();
-        xhr.open("GET", "/assets/pearnly_core/pearnly-app/index.html", false);
+        // Only the small entry manifest bypasses cache; hashed JS/CSS stays cacheable.
+        xhr.open("GET", "/assets/pearnly_core/pearnly-app/index.html?v=" + Date.now(), false);
         try { xhr.send(null); } catch (e) { return; }
         if (xhr.status !== 200) return;
         var html = xhr.responseText;

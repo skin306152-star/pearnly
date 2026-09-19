@@ -90,7 +90,8 @@ def recent_dms_customer_ids_by_tail(people_id_tail: str, limit: int = 5) -> list
                 "business_key": ("!=", ""),
                 # ⚠️ 这里要 `%%`：字符串里那个字面 `%` 不转义的话，`%` 会被当成格式符
                 # （实测报 `unsupported format character '"'`，台账兜底整段失效）。
-                "request_body": ("like", '%%"people_id_tail": "%s"' % tail),
+                # JSON still has a closing brace (and may have later fields).
+                "request_body": ("like", '%%"people_id_tail": "%s"%%' % tail),
             },
             fields=["business_key"],
             order_by="creation desc",

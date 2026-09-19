@@ -63,7 +63,7 @@ function confirm_teardown(frm, targets) {
 						message: __("Deletion queued ({0} steps). The on-host runner will do the work.", [
 							(state && state.counts && state.counts.total) || 0,
 						]),
-						indicator: "red",
+						indicator: "green",
 					},
 					6
 				);

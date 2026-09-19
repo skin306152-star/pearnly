@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-clients",
+  "page_name": "pearnly-clients",
+  "title": "nav.clients",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

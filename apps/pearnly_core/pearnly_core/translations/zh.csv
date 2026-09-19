@@ -73,6 +73,7 @@ Could not send the invitation email: {0} {1},邀请邮件发送失败：{0} {1}
 Could not set the password: {0} {1},设置密码失败：{0} {1}
 Could not take the lock (Redis down?): {0},取锁失败（Redis 不通？）：{0}
 Could not update the OIDC client: {0} {1},更新 OIDC 客户端失败：{0} {1}
+Could not update the account language.,无法更新账户语言，请稍后重试。
 Count tasks and variance records,盘点任务与差异记录
 Counterparty,对方名称
 Counterparty Tax ID,对方税号
@@ -241,6 +242,7 @@ Payment Status,付款状态
 Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
 Plan & Balance,套餐与余额
 Please sign in,请先登录
+Please sign in again before changing your language.,请重新登录后再切换语言。
 Processing Started At,开始执行时间
 Product,产品
 Product Ref,商品外部标识
@@ -380,8 +382,11 @@ Unconfirmed documents cannot be pushed,还没确认的单据不能推送
 Unit,单位
 Unit Price,单价
 Unknown product: {0},未知产品：{0}
+Upload a transfer slip before submitting,请先上传转账凭证再提交
+Upload a transfer slip up to 10 MB,请上传不超过 10 MB 的转账凭证
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
 Usage,使用情况
+"Use a JPG, PNG or PDF transfer slip",转账凭证须为 JPG、PNG 或 PDF
 Used,已使用
 Used At,使用时间
 User,用户
@@ -407,6 +412,10 @@ Workspace,工作区
 account.cancel,取消
 account.changePassword,更改密码
 account.error.http,请求失败（HTTP {0}）
+account.error.languageFailed,无法更新账户语言，请稍后重试。
+account.error.reloginLanguage,请重新登录后再切换语言。
+account.identityPasswordOnly,请在个人资料中使用“更改密码”修改登录密码。
+account.language,语言
 account.pwd.confirm,确认新密码
 account.pwd.current,当前密码
 account.pwd.done,密码已更新。下次登录请用新密码。
@@ -414,7 +423,12 @@ account.pwd.mismatch,两次输入不一致
 account.pwd.new,新密码
 account.save,保存
 account.saving,提交中…
+account.sidebarOrder,侧栏排序
+account.signInAgain,退出并重新登录
 account.signOut,退出登录
+account.signOutConfirm,确定要退出登录吗？
+account.themeDark,Pearnly 深色
+account.themeLight,Pearnly 浅色
 common.backHome,回到首页
 common.cancel,取消
 common.col.date,日期
@@ -462,17 +476,33 @@ connect.notice.ok,连接正常 · {0}
 connect.placeholder.password,DMS 登录密码
 connect.placeholder.username,DMS 登录账号
 connect.processing,处理中…
+connect.records.businessNumber,业务编号
+connect.records.confirmDelete,删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。
+connect.records.contactSupport,请提供记录编号联系支持
+connect.records.deletedCount,已删除 {0} 条推送记录
+connect.records.failed,失败
+connect.records.manual,人工处理
+connect.records.pagination,第 {0} / {1} 页 · 共 {2} 条
+connect.records.pending,待处理
+connect.records.result,结果说明
+connect.records.retrying,重试中
+connect.records.skipped_dup,重复已跳过
+connect.records.success,成功
+connect.records.time,时间
 connect.state.connected,已连接
 connect.state.disabled,已停用
 connect.state.enabled,已启用
 connect.state.notConnected,未连接
-connect.title,连接第三方 DMS
+connect.title,连接DMS
 connect.yes,是
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 home.balance.title,账户余额
 home.balance.used,本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张
 home.balance.usedNoPlan,本月已用 {0} 张 · 未订阅按量计费
+home.bank.account,收款账号
+home.bank.holder,收款户名
+home.bank.name,收款银行
 home.cancel,取消
 home.col.amount,金额
 home.col.balanceAfter,变动后余额
@@ -508,6 +538,7 @@ home.period.year,今年
 home.plan.code,套餐
 home.plan.current,当前套餐
 home.plan.cycleNote,套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。
+home.plan.failed,套餐未能开通
 home.plan.none,未订阅
 home.plan.noneHint,当前按量计费 · 订阅后在下方选套餐更省
 home.plan.over,超额 {0}/张 · 周期到 {1}
@@ -528,11 +559,15 @@ home.status.pending,待审核
 home.status.rejected,已拒绝
 home.status.toreview,待复核
 home.topup,充值
+home.topup.attached,已附上转账凭证
 home.topup.hint,提交后平台确认到账，余额才会增加。
 home.topup.payerHint,银行转账时的付款方
+home.topup.slip,上传转账凭证
+home.topup.slipFormats,JPG、PNG 或 PDF，最大 10 MB
 home.topup.submit,提交申请
 home.topup.submitted,充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。
 home.topup.submitting,提交中…
+home.topup.transfer,请向以下账户转账，然后上传转账凭证提交审核。
 intake.action.confirm,确认
 intake.action.new,新建录入
 intake.action.queue,推送
@@ -587,7 +622,7 @@ intake.subtitle,上限：未确认的单据推不出去（状态机在后端卡�
 intake.title,录入工作台
 nav.clients,客户管理
 nav.company,公司资料
-nav.connect,连接第三方 DMS
+nav.connect,连接DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,客户
 nav.erpPurchase,采购系统
@@ -650,14 +685,22 @@ purchase.title,采购记录
 roster.add,新增操作员
 roster.addHint,填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
 roster.advisor.auto,自动匹配（按 DMS 账号）
+roster.advisor.empty,DMS 顾问名册为空。
+roster.advisor.invalid,该顾问已不在当前 DMS 名册中，请重新选择。
+roster.advisor.loadError,无法读取当前顾问名册。请重试后再修改归属。
+roster.advisor.loading,正在读取顾问名册…
+roster.advisor.noConnection,连接 DMS 后才能读取顾问名册。
 roster.advisor.note,新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
+roster.advisor.reload,重新读取顾问名册
 roster.allowQuery,允许
+roster.bindLine,绑定 LINE
 roster.bound,已绑
 roster.cancel,取消
 roster.close,关闭
 roster.code.expired,已过期
 roster.code.expiredHint,绑定码已过期，请重新生成
-roster.code.step1,1. 让该操作员在 LINE 添加 Pearnly DMS 好友
+roster.code.instruction,扫码添加好友，再发送此绑定码。
+roster.code.step1,1. 添加本公司配置的 LINE 官方账号为好友
 roster.code.step2,2. 在 LINE 对话中发送此绑定码完成连接
 roster.code.title,绑定码
 roster.code.validFor,剩余有效期 {0}
@@ -667,15 +710,19 @@ roster.col.operator,操作员
 roster.col.query,查询权限
 roster.collapse,收起
 roster.confirm.delete,将解绑「{0}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？
+roster.confirm.deleteSelected,确定删除选中的 {0} 名操作员？将解除 LINE 绑定并移除 DMS 连接，推送记录保留。
 roster.confirm.disable,确定停用「{0}」？停用后其 DMS 推送停止并解除 LINE 绑定。
 roster.confirm.enable,确定启用「{0}」？启用后需重新发绑定码连接 LINE。
 roster.confirm.title,请确认
+roster.confirm.unbind,确定解绑 {0} 的 LINE？未使用的绑定码也将作废，操作员和 DMS 凭据保留。
 roster.delete,删除
 roster.disable,停用
 roster.edit,编辑
+roster.edit.passwordHint,留空则不修改当前密码。
 roster.editTitle,编辑操作员
 roster.enable,启用
 roster.error.http,请求失败（HTTP {0}）
+roster.error.noConnection,请先连接 DMS，再添加操作员。
 roster.field.advisor,销售提成归属
 roster.field.canQuery,允许在 LINE 使用查询功能
 roster.field.displayName,显示名
@@ -688,12 +735,16 @@ roster.hint.dmsPassword,该操作员的 DMS 密码
 roster.hint.dmsUsername,该操作员的 DMS 账号
 roster.issueCode,发绑定码
 roster.keepBlank,留空则不修改
+roster.line.addFriend,添加官方账号为好友
+roster.line.notConfigured,本公司尚未配置 LINE 官方账号。
+roster.line.unavailable,无法核实本公司的 LINE 官方账号，请重试。
 roster.list.empty,还没有操作员，先在上方新增
 roster.list.title,操作员名单
 roster.loading,加载中…
 roster.noQuery,未允许
 roster.notice.created,操作员已新增
 roster.notice.deleted,已删除
+roster.notice.deletedCount,已删除 {0} 名操作员
 roster.notice.disabled,已停用
 roster.notice.enabled,已启用
 roster.notice.noChanges,没有要保存的改动
@@ -707,6 +758,7 @@ roster.save,保存
 roster.saving,保存中…
 roster.subtitle,每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码
 roster.title,操作员
+roster.unbindLine,解绑 LINE
 roster.unbound,未绑
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 shell.backHome,回到首页

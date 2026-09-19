@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-integrations",
+  "page_name": "pearnly-integrations",
+  "title": "nav.integrations",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

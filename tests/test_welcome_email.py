@@ -2,6 +2,7 @@
 import importlib.util
 from pathlib import Path
 import sys
+import json
 from types import SimpleNamespace as NS, ModuleType
 import unittest
 from unittest.mock import Mock
@@ -25,7 +26,13 @@ class EmailTests(unittest.TestCase):
         self.fields = {}
         self.issue.get = lambda k: self.fields.get(k)
         self.request = NS(name="PR-TEST", issue=self.issue.name, status="done", has_value_changed=lambda k: True,
-            steps=[NS(action=a, deployment="DEP-TEST", status="done") for a in welcome.REQUIRED])
+            steps=[NS(action=a, deployment="DEP-TEST", status="done")
+                   for a in ("new_site", "set_oidc", "bind_user", "publish_site", "mark_active")] + [
+                NS(action="install_app", deployment="DEP-TEST", status="done", step_key="DEP-TEST:install_core",
+                   payload=json.dumps({"site": "company.example.com", "app": "pearnly_core"})),
+                NS(action="install_app", deployment="DEP-TEST", status="done", step_key="DEP-TEST:install_product",
+                   payload=json.dumps({"site": "company.example.com", "app": "pearnly_dms"})),
+            ])
         self.account = NS(name="Pearnly", enable_outgoing=1, email_id=welcome.SENDER, always_bcc="")
         frappe.conf = {"pearnly_welcome_email_account": "Pearnly"}
         frappe.db = NS(sql=Mock(),get_value=Mock(return_value="DEP-TEST"),
@@ -78,6 +85,19 @@ class EmailTests(unittest.TestCase):
         with self.assertRaises(ValueError):welcome.queue_for_request(self.request)
         frappe.sendmail.assert_not_called()
 
+    def test_missing_or_wrong_installation_cannot_send(self):
+        for field, value in [("status", "skipped"), ("deployment", "OTHER"),
+                             ("step_key", "DEP-TEST:install_core"),
+                             ("payload", '{"site":"company.example.com","app":"pearnly_core"}'),
+                             ("payload", '{"site":"other.example.com","app":"pearnly_dms"}')]:
+            step = self.request.steps[-1]
+            previous = getattr(step, field)
+            setattr(step, field, value)
+            with self.assertRaises(ValueError):
+                welcome.queue_for_request(self.request)
+            setattr(step, field, previous)
+        frappe.sendmail.assert_not_called()
+
     def test_inactive_wrong_owner_or_missing_deployment_blocks(self):
         frappe.db.get_value.return_value=None
         with self.assertRaises(ValueError):welcome.queue_for_request(self.request)
@@ -110,6 +130,19 @@ class EmailTests(unittest.TestCase):
 
     def test_multiple_products_keep_separate_domains(self):
         self.issue.apps.append(NS(app='erp',domain='erp.example.com'))
+        frappe.db.get_value.side_effect = lambda dt, filters, field: "DEP-ERP" if filters.get("product") == "erp" else "DEP-TEST"
+        import copy
+        extra = copy.deepcopy(self.request.steps)
+        for step in extra:
+            step.deployment = "DEP-ERP"
+            if step.action == "install_app":
+                step.step_key = step.step_key.replace("DEP-TEST", "DEP-ERP")
+                payload = json.loads(step.payload)
+                payload["site"] = "erp.example.com"
+                if payload["app"] == "pearnly_dms":
+                    payload["app"] = "pearnly_erp_portal"
+                step.payload = json.dumps(payload)
+        self.request.steps.extend(extra)
         welcome.queue_for_request(self.request)
         args=frappe.sendmail.call_args.kwargs
         self.assertEqual(args['args']['product_name'],'Pearnly')

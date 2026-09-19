@@ -6,6 +6,7 @@ reviewed baseline, not a pattern for new business features.
 """
 import ast
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +81,29 @@ def check(root=ROOT):
         path = root / "apps/pearnly_dms" / (new.replace(".", "/") + ".py")
         if not path.is_file():
             errors.append(f"module mapping has no destination: {old} -> {new}")
+    # General UI primitives belong to the pinned official component library.
+    # Business layouts and the Dropdown's custom account trigger are intentional.
+    for path in (root / "frontend/src").rglob("*.vue"):
+        source = re.sub(r"<!--.*?-->", "", path.read_text(), flags=re.S)
+        forbidden = re.search(r"<(?:input|select|textarea|table)\b|\b(?:window\.)?(?:alert|confirm|prompt)\(", source)
+        if forbidden:
+            errors.append(f"{path.relative_to(root)}: use official Frappe UI controls/dialogs/lists")
+        if re.search(r"\bpn-(?:error|table|skeleton|card)\b", source):
+            errors.append(f"{path.relative_to(root)}: replace custom generic UI with official components")
+        if re.search(r"<button\b", source) and path.relative_to(root).as_posix() != "frontend/src/components/AccountMenu.vue":
+            errors.append(f"{path.relative_to(root)}: use Frappe UI Button")
+    # ADR-005: normal product routes must not grow a second Vue shell.
+    router = root / "frontend/src/router.ts"
+    if router.exists():
+        routes = re.findall(r'path:\s*["\']([^"\']+)', router.read_text())
+        if any(route != "/dms/editor" for route in routes):
+            errors.append("frontend/src/router.ts: product Web routes must use native Desk; only LINE editor is standalone")
+    for path in (root / "apps").glob("*/*/public/desk/*.js"):
+        source = path.read_text()
+        if re.search(r"(?<![\w.])(?:window\.)?(?:alert|confirm|prompt)\(", source):
+            errors.append(f"{path.relative_to(root)}: use native frappe Dialog/confirm/msgprint")
+        if re.search(r"<(?:input|select|textarea|table)\b", source):
+            errors.append(f"{path.relative_to(root)}: use native Desk controls and Grid/DataTable")
     return errors
 
 

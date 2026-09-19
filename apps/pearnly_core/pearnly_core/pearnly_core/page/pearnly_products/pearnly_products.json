@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-products",
+  "page_name": "pearnly-products",
+  "title": "nav.products",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

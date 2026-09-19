@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-company",
+  "page_name": "pearnly-company",
+  "title": "nav.company",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

@@ -145,6 +145,7 @@ No such deployment: {0},ไม่มีการติดตั้งนี้: 
 No such plan: {0},ไม่มีแพ็กเกจนี้: {0}
 No such step: {0},ไม่พบขั้นตอน {0}
 No such tenant: {0},ไม่มีผู้เช่านี้: {0}
+No transfer slip is attached,ยังไม่ได้แนบหลักฐานการโอน
 Not issued,ยังไม่ออกใบ
 Not permitted,ไม่มีสิทธิ์ดำเนินการ
 Not provisioned,ยังไม่เปิดใช้งาน
@@ -283,6 +284,7 @@ Username,ชื่อผู้ใช้
 Username and initial password are both required: they are the credentials for the user's first sign-in,ต้องกรอกทั้งชื่อผู้ใช้และรหัสผ่านเริ่มต้น เพราะเป็นข้อมูลรับรองสำหรับการเข้าสู่ระบบครั้งแรก
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ยาว 3–30
 View progress,ดูความคืบหน้า
+View transfer slip,ดูหลักฐานการโอน
 View welcome email,ดูอีเมลต้อนรับ
 Webhook URL,Webhook URL
 Welcome Email Error,ข้อผิดพลาดของอีเมลต้อนรับ

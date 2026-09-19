@@ -1,3 +1,5 @@
+from pearnly_core.desk.assets import versioned_asset
+
 app_name = "pearnly_erp_portal"
 app_title = "Pearnly ERP Portal"
 app_publisher = "Pearnly"
@@ -262,3 +264,5 @@ app_license = "mit"
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
 
+
+app_include_js = [versioned_asset("pearnly_erp_portal", "desk/purchase.js")]

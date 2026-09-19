@@ -26,6 +26,8 @@ import frappe
 from frappe import _
 from frappe.utils.password import get_decrypted_password
 
+from pearnly_dms.operators import advisors, line_account
+
 OPERATOR = "DMS Operator"
 BINDING = "Pearnly LINE Binding"
 
@@ -138,13 +140,19 @@ def list_profiles() -> List[dict]:
     ]
 
 
-def list_operators() -> dict:
+def list_operators(start=0, page_length=20) -> dict:
     """花名册列表。老产品的列：操作员 / 角色 / 查询权限 / LINE 状态 / 状态 / 操作。"""
     _require_admin()
-    docs = frappe.get_all(
-        OPERATOR, fields=["name"], order_by="creation asc", limit_page_length=0
-    )
-    return {"items": [_row(frappe.get_doc(OPERATOR, d.name)) for d in docs]}
+    try:
+        start, page_length = int(start), int(page_length)
+    except (TypeError, ValueError):
+        frappe.throw(_("Invalid value"))
+    if start < 0 or not 1 <= page_length <= 2500:
+        frappe.throw(_("Invalid value"))
+    docs = frappe.get_all(OPERATOR, fields=["name"], order_by="creation asc, name asc",
+                          limit_start=start, limit_page_length=page_length)
+    return {"items": [_row(frappe.get_doc(OPERATOR, d.name)) for d in docs],
+            "total": frappe.db.count(OPERATOR)}
 
 
 def create_operator(
@@ -156,13 +164,7 @@ def create_operator(
     advisor_id: str | None = None,
     advisor_name: str | None = None,
 ) -> dict:
-    """新增操作员：建一个**只走 LINE** 的本地账号 + 一行档案。
-
-    ⚠️ 与老产品的一处已知差异（明写，不隐瞒）：老产品要求"先连接你自己的 MR.ERP DMS，
-    再新增操作员"（拿老板那条连接当模板）。**这条前置检查现在还没做** —— 不是没处可依
-    （`Pearnly ERP Endpoint` 与连接向导已经在了），是还没排在批次里。补上之前，
-    这里能开出"挂着一个不存在的 DMS 连接"的操作员。
-    """
+    """建立仅用于 LINE 绑定的操作员身份，沿用已连接的本站 DMS。"""
     _require_admin()
     display_name = _clean(display_name)
     dms_username = _clean(dms_username)
@@ -173,7 +175,12 @@ def create_operator(
     if dms_role not in VALID_ROLES:
         frappe.throw(_("Role must be sales or admin"))
 
-    # 账号名随机、密码随机且**不回显不外传**（操作员只走 LINE，不需要网页密码）。
+    if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1}):
+        frappe.throw(_("roster.error.noConnection"))
+
+    pinned = advisors.resolve(advisor_id)
+
+    # 内部身份不提供后台登录，不分配平台角色。
     # 邮箱是造的：Frappe 的 User 主键就是邮箱，而这些账号不收发信。
     username = "dmsop-" + secrets.token_hex(4)
     user = frappe.get_doc({
@@ -183,6 +190,8 @@ def create_operator(
         "first_name": display_name[:140],
         "enabled": 1,
         "send_welcome_email": 0,
+        "user_type": "Website User",
+        "language": "th",
     })
     user.flags.ignore_password_policy = True
     # 不设密码、不发欢迎信、不给任何角色 —— 这个账号的用途只有一个：当 LINE 绑定的落点
@@ -197,15 +206,8 @@ def create_operator(
         "dms_username": dms_username,
         "dms_password": dms_password,
         "can_query_dms": 1 if can_query_dms else 0,
-        "advisor_id": _clean(advisor_id),
-        # ⚠️ 已知缺口（对齐线上时别漏）：老产品保存钉死归属前会拿**老板端点**的实时
-        # 顾问名册校验一次（`services/dms_roster/advisors.py`：取数失败 → 拦，
-        # id 不在名册 → 拦），名字**一律服务端按 id 解**、不信调用方传的。
-        # 新平台现在直接收下调用方给的 id + name，没有这层校验。
-        # 危害有限：下单侧 `dms_advisor._pinned_advisor` 已按实时名册重解，
-        # id 不在名册就拦下订车 —— 错值不会算错提成，只是**发现得晚**（保存时不报，
-        # 到下单才报）。补这层是"早点告诉人"，不是堵钱窟窿。
-        "advisor_name": _clean(advisor_name),
+        "advisor_id": pinned["id"],
+        "advisor_name": pinned["name"],
     })
     doc.insert(ignore_permissions=True)
     frappe.db.commit()
@@ -216,6 +218,7 @@ def create_operator(
 def update_operator(
     name: str,
     *,
+    display_name: str | None = None,
     dms_username: str | None = None,
     dms_password: str | None = None,
     dms_role: str | None = None,
@@ -228,6 +231,11 @@ def update_operator(
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
 
+    pinned = advisors.resolve(advisor_id) if advisor_id is not None else None
+    if display_name is not None:
+        if not _clean(display_name):
+            frappe.throw(_("Fill in the display name, DMS username and password"))
+        doc.display_name = _clean(display_name)
     if dms_username is not None and _clean(dms_username):
         doc.dms_username = _clean(dms_username)
     if dms_password:
@@ -238,11 +246,9 @@ def update_operator(
         doc.dms_role = dms_role
     if can_query_dms is not None:
         doc.can_query_dms = 1 if can_query_dms else 0
-    if advisor_id is not None:
-        # 同 create_operator 里那条已知缺口：没有按实时名册校验 id、名字也没按 id 解。
-        # 空串 = 清除钉死、回到自动匹配（老产品契约）。
-        doc.advisor_id = _clean(advisor_id)
-        doc.advisor_name = _clean(advisor_name)
+    if pinned is not None:
+        doc.advisor_id = pinned["id"]
+        doc.advisor_name = pinned["name"]
     if notes is not None:
         doc.notes = notes
 
@@ -266,6 +272,7 @@ def set_status(name: str, status: str) -> dict:
 
     unbound = 0
     if status == "inactive":
+        frappe.db.delete("Pearnly LINE Bind Code", {"user": doc.user, "used": 0})
         from pearnly_core import line_binding
 
         for row in frappe.get_all(
@@ -282,6 +289,7 @@ def delete_operator(name: str) -> dict:
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
     user = doc.user
+    frappe.db.delete("Pearnly LINE Bind Code", {"user": user, "used": 0})
 
     from pearnly_core import line_binding
 
@@ -301,19 +309,23 @@ def delete_operator(name: str) -> dict:
 
 
 @frappe.whitelist()
-def api_list_operators():
-    return list_operators()
+def api_list_operators(start=0, page_length=20):
+    return list_operators(start, page_length)
 
 
 @frappe.whitelist(methods=["POST"])
 def api_create_operator(**kwargs):
     kwargs.pop("cmd", None)
+    if "can_query_dms" in kwargs:
+        kwargs["can_query_dms"] = frappe.utils.cint(kwargs["can_query_dms"])
     return create_operator(**kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
 def api_update_operator(name, **kwargs):
     kwargs.pop("cmd", None)
+    if "can_query_dms" in kwargs:
+        kwargs["can_query_dms"] = frappe.utils.cint(kwargs["can_query_dms"])
     return update_operator(name, **kwargs)
 
 
@@ -329,15 +341,9 @@ def api_delete_operator(name):
 
 @frappe.whitelist(methods=["POST"])
 def api_operator_bind_code(name, minutes=None):
-    """给**某一个操作员**生成一次性绑定码（列表每行那个「发绑定码」按钮）。
+    """Issue an operator-scoped code only after verifying this site's assigned OA.
 
-    老产品的弹窗是两步话术：
-      1. 让该操作员在 LINE 添加 Pearnly DMS 好友；
-      2. 在 LINE 对话中发送此绑定码完成连接。
-    所以这里只发码，码怎么用是界面的事（话术照抄，不自己改）。
-
-    只给**操作员**发码 —— 不接受任意 user 参数。拿到别人的码就等于把别人的 LINE
-    绑到自己账号上。
+    Never accept an arbitrary user: the code grants that operator's LINE identity.
     """
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
@@ -352,5 +358,31 @@ def api_operator_bind_code(name, minutes=None):
         ttl = line_binding.DEFAULT_TTL_MINUTES
     ttl = max(1, min(ttl, 24 * 60))
 
+    account = line_account.public_account()
     result = line_binding.generate_bind_code(doc.user, ttl)
-    return {**result, "operator": doc.name, "display_name": doc.display_name}
+    return {**result, "operator": doc.name, "display_name": doc.display_name, "line": account}
+
+
+@frappe.whitelist(methods=["GET"])
+def api_advisors():
+    """Commission options for the roster dialog, with the failure as a code.
+
+    A failed read must not abort the dialog or surface a server toast: the operator's
+    existing assignment stays selected and saving simply omits the field. The save path
+    (`advisors.resolve`) still throws, so an unverified id can never be written.
+    """
+    _require_admin()
+    items, error = advisors.read_options()
+    return {"items": items, "error": error}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_unbind_operator(name):
+    """Disconnect this employee's LINE, retaining their roster and DMS credentials."""
+    _require_admin()
+    doc = frappe.get_doc(OPERATOR, name)
+    frappe.db.delete("Pearnly LINE Bind Code", {"user": doc.user, "used": 0})
+    # One transaction for all bindings; do not call the helper that commits each row.
+    for binding in frappe.get_all(BINDING, filters={"user": doc.user, "status": "active"}, pluck="name"):
+        frappe.db.set_value(BINDING, binding, {"status": "unbound", "unbound_at": frappe.utils.now()})
+    return _row(doc)

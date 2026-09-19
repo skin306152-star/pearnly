@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-buy-settings",
+  "page_name": "pearnly-buy-settings",
+  "title": "nav.purchaseSettings",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

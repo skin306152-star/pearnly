@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-stock-out",
+  "page_name": "pearnly-stock-out",
+  "title": "nav.stockOut",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

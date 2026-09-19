@@ -18,7 +18,7 @@ def call(action, **payload):
         response = requests.post(
             url + "/api/method/pearnly_control.billing_control.dispatch",
             json={"action": action, "payload": payload},
-            headers={"X-Pearnly-Billing-Management": token, "Host": "billing.internal"},
+            headers={"X-Pearnly-Billing-Management": token, "Host": frappe.conf.get("pearnly_billing_remote_host") or "billing.internal"},
             timeout=20, allow_redirects=False,
         )
         response.raise_for_status()

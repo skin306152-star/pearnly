@@ -28,6 +28,30 @@ class ArchitectureGuard(unittest.TestCase):
         (docs / "architecture-policy.json").write_text(json.dumps({"root_modules": {"pearnly_dms": ["__init__.py", "hooks.py", "dms_models.py"]}}))
         (docs / "dms-module-map.json").write_text(json.dumps({"modules": {"pearnly_dms.dms_models": "pearnly_dms.contracts.models"}, "compatibility": {}}))
 
+    def test_custom_ui_is_rejected(self):
+        page = self.root / "frontend/src/pages/Example.vue"
+        page.parent.mkdir(parents=True)
+        page.write_text('<template><input /><div class="pn-error">Error</div></template>')
+        self.assertTrue(any("official" in error for error in guard.check(self.root)))
+        page.write_text('<template><FormControl /><Alert :title="error" /></template>')
+        self.assertEqual(guard.check(self.root), [])
+
+    def test_product_vue_route_is_rejected_but_liff_is_retained(self):
+        router = self.root / "frontend/src/router.ts"
+        router.parent.mkdir(parents=True)
+        router.write_text('routes: [{path: "/home"}]')
+        self.assertTrue(any("native Desk" in error for error in guard.check(self.root)))
+        router.write_text('routes: [{path: "/dms/editor"}]')
+        self.assertEqual(guard.check(self.root), [])
+
+    def test_desk_cannot_replace_native_dialog_with_browser_confirm(self):
+        js = self.package / "public/desk/test.js"
+        js.parent.mkdir(parents=True)
+        js.write_text('window.confirm("sure");')
+        self.assertTrue(any("native frappe" in error for error in guard.check(self.root)))
+        js.write_text('frappe.confirm("sure", action);')
+        self.assertEqual(guard.check(self.root), [])
+
     def test_valid_domain_package(self):
         self.assertEqual(guard.check(self.root), [])
 

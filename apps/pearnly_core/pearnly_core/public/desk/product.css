@@ -1,0 +1,110 @@
+/* Existing Pearnly accent tokens; all neutral surfaces and component geometry stay native. */
+body.pearnly-product-desk {
+	--pearnly-accent: #7c4dff;
+	--pearnly-accent-deep: #6b3ff2;
+	--pearnly-accent-weak: #eee5ff;
+	--primary: var(--pearnly-accent);
+	--primary-color: var(--pearnly-accent);
+	--btn-primary: var(--pearnly-accent);
+	--checkbox-color: var(--pearnly-accent);
+}
+/* Native alphabet icon keeps its shape; use the same accent as primary actions. */
+body.pearnly-product-desk .sidebar-header .header-logo .icon-container {
+	background-color: var(--pearnly-accent) !important;
+}
+body.pearnly-product-desk .sidebar-header .header-logo .desktop-alphabet {
+	color: #fff !important;
+}
+body.pearnly-product-desk .sidebar-header .pearnly-company-initial {
+	color: #fff;
+	justify-content: center;
+	font-size: 18px;
+	font-weight: 600;
+}
+body.pearnly-product-desk .body-sidebar-container.expanded .sidebar-header {
+	height: auto;
+	min-height: 48px;
+}
+body.pearnly-product-desk .sidebar-header .title-container {
+	min-width: 0;
+}
+body.pearnly-product-desk .body-sidebar-container.expanded .sidebar-header .header-title {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	text-overflow: clip;
+}
+body.pearnly-product-desk .sidebar-header .header-subtitle {
+	display: none;
+}
+body.pearnly-product-desk .sidebar-header .sidebar-item-icon,
+body.pearnly-product-desk .sidebar-header .drop-icon {
+	flex-shrink: 0;
+}
+/* The compact rail has room for the company icon only. */
+body.pearnly-product-desk .body-sidebar-container:not(.expanded) .sidebar-header .title-container,
+body.pearnly-product-desk .body-sidebar-container:not(.expanded) .sidebar-header .drop-icon {
+	display: none;
+}
+/* Native ListView's trailing action area holds the product's supported actions. */
+body.pearnly-product-desk .pearnly-row-actions {
+	display: inline-flex;
+	gap: var(--margin-sm);
+	flex-shrink: 0;
+}
+body.pearnly-product-desk .pearnly-list-with-actions .result .list-row .level-right,
+body.pearnly-product-desk .pearnly-list-with-actions .result .list-row-head .level-right {
+	flex: 0 0 calc(var(--pearnly-actions-width, 180px) + 2 * var(--padding-sm));
+	width: calc(var(--pearnly-actions-width, 180px) + 2 * var(--padding-sm));
+	padding-inline: var(--padding-sm);
+	border-left: 0;
+	box-shadow: none;
+}
+body.pearnly-product-desk .pearnly-compact-list .result .level-left {
+	min-width: 0;
+}
+body.pearnly-product-desk .pearnly-compact-list .result .list-row-col {
+	margin-right: var(--margin-sm);
+}
+body.pearnly-product-desk .btn.btn-primary {
+	color: #fff;
+	border-color: var(--pearnly-accent);
+}
+body.pearnly-product-desk .btn.btn-primary:not(:disabled):hover,
+body.pearnly-product-desk .btn.btn-primary:not(:disabled):active {
+	background-color: var(--pearnly-accent-deep) !important;
+	border-color: var(--pearnly-accent-deep);
+	color: #fff !important;
+}
+body.pearnly-product-desk .standard-sidebar-item.active-sidebar {
+	background-color: var(--pearnly-accent-weak);
+	color: #6b3ff2;
+}
+body.pearnly-product-desk .form-tabs .nav-link.active {
+	border-bottom-color: var(--pearnly-accent);
+}
+/* The only business layout addition: a quiet outline around each plan. */
+body.pearnly-product-desk .pearnly-plan {
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+	padding: var(--padding-sm);
+	margin: 0;
+}
+
+body.pearnly-product-desk .standard-sidebar-item.active-sidebar .sidebar-item-label,
+body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
+	color: var(--pearnly-accent-deep);
+	--icon-stroke: var(--pearnly-accent-deep);
+}
+
+/* The native User form also serves administrators; these document-only surfaces
+   are inapplicable when a customer opens their own account preferences. */
+.pearnly-product-desk .pearnly-account-profile #user-connections_tab-tab,
+.pearnly-product-desk .pearnly-account-profile .form-footer {
+	display: none;
+}
+
+/* Ordering retains native handles/save/discard; changing destinations is not a preference. */
+.pearnly-product-desk .pearnly-sidebar-order .edit-menu,
+.pearnly-product-desk .pearnly-sidebar-order [data-name="add-sidebar-item"] {
+	display: none !important;
+}

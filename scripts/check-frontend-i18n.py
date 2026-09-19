@@ -68,10 +68,12 @@ def allowed_prefixes() -> set:
 def used_keys() -> dict:
     """前端代码里用到的键 → 出现在哪些文件。"""
     found: dict = {}
-    for base, dirs, files in os.walk(SRC):
+    roots = [SRC] + [os.path.join(ROOT, "apps", app, app, "public", "desk")
+                     for app in ("pearnly_core", "pearnly_dms", "pearnly_cowork", "pearnly_erp_portal")]
+    for base, dirs, files in (entry for root in roots for entry in os.walk(root)):
         dirs[:] = [d for d in dirs if d not in ("node_modules", "dist")]
         for name in sorted(files):
-            if not name.endswith((".vue", ".ts")):
+            if not name.endswith((".vue", ".ts", ".js")):
                 continue
             path = os.path.join(base, name)
             rel = os.path.relpath(path, ROOT)
@@ -84,7 +86,10 @@ def used_keys() -> dict:
                 l for l in src.split("\n") if not l.strip().startswith(("//", "*", "/*"))
             )
             for match in USED.finditer(body):
-                found.setdefault(match.group("key"), set()).add(rel)
+                key = match.group("key")
+                if key.endswith("."):
+                    continue  # Dynamic prefixes are verified by the page contract tests.
+                found.setdefault(key, set()).add(rel)
     return found
 
 

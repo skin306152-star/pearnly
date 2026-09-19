@@ -65,6 +65,9 @@ def dispatch(action: str, payload=None):
         billing.wallet_of(tenant)
         frappe.db.commit()
         return {"token": tenant_token(billing_api.service_token(create=False), tenant, product)}
+    if action == "slip":
+        from pearnly_control.payments.topup import evidence
+        return evidence(payload["request"])
     if action == "topups":
         filters = {"name": payload["name"]} if payload.get("name") else {}
         if payload.get("after") and not payload.get("name"):

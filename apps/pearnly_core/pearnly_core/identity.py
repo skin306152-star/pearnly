@@ -17,12 +17,13 @@ import base64
 import hashlib
 import secrets
 import time
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 import frappe
 import jwt
 import requests
 from frappe import _
+from pearnly_core.account import oidc_session, preferences
 
 STATE_TTL = 600  # 秒
 DISCOVERY_TTL = 3600
@@ -75,7 +76,7 @@ def begin_login(redirect_to: str | None = None):
 def begin_password_change():
     if frappe.session.user == "Guest":
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
-    return _begin_login(None, password_change=True)
+    return _begin_login("/desk/user/" + quote(frappe.session.user, safe=""), password_change=True)
 
 
 def _begin_login(redirect_to=None, password_change=False):
@@ -100,6 +101,9 @@ def _begin_login(redirect_to=None, password_change=False):
         "code_challenge": challenge,
         "code_challenge_method": "S256",
     }
+    preferred = frappe.request.cookies.get("pearnly_locale") if frappe.request else None
+    if preferred in preferences.LANGUAGES.values():
+        params["ui_locales"] = preferred
     if password_change:
         params.update(kc_action="UPDATE_PASSWORD", prompt="login", login_hint=frappe.session.user)
     url = _discovery()["authorization_endpoint"] + "?" + urlencode(params)
@@ -142,6 +146,8 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
         "iss": token_issuer,
     }
     _login_as(user)
+    oidc_session.remember(frappe.local.pearnly_verified_tokens, subject)
+    preferences.finish_login_locale(user, claims.get("locale"))
 
     frappe.db.set_value(
         "Pearnly Identity",
@@ -160,16 +166,22 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     frappe.local.response["location"] = redirect_to
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def sign_out():
-    """End the Site session and use the provider's native logout confirmation."""
+    """After the in-app confirmation, end this session via native OIDC logout."""
     endpoint = _discovery()["end_session_endpoint"]
-    url = endpoint + "?" + urlencode({
+    params = {
         "client_id": _conf("pearnly_oidc_client_id"),
         "post_logout_redirect_uri": str(_conf("host_name")).rstrip("/") + "/",
-    })
+    }
+    hint = oidc_session.logout_hint()
+    if hint:
+        params["id_token_hint"] = hint
+    # Old sessions without a hint retain the provider's safe confirmation fallback.
+    url = endpoint + "?" + urlencode(params)
+    oidc_session.forget()
     frappe.local.login_manager.logout()
-    frappe.local.response.update(type="redirect", location=url)
+    return {"redirect_url": url}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
@@ -228,6 +240,7 @@ def _exchange_and_verify(code: str, saved: dict) -> dict:
     )
     if claims.get("nonce") != saved["nonce"]:
         frappe.throw(_("nonce mismatch"))
+    frappe.local.pearnly_verified_tokens = resp.json()
     return claims
 
 

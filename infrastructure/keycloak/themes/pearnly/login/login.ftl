@@ -10,13 +10,21 @@
   所以租户直接填邮箱即可。
 -->
 <#import "template.ftl" as layout>
-<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=false; section>
+<#-- Native reset can skip the email form for an existing SSO session. Show its
+     privacy-preserving result instead of presenting another password prompt. -->
+<#assign resetRequested = message?has_content && message.type == "success" && message.summary == msg("emailSentMessage")>
+<@layout.registrationLayout displayMessage=!messagesPerField.existsError('username','password') displayInfo=false resetResult=resetRequested; section>
 
     <#if section = "header">
-        <h2 id="auth-title">${msg("pearnlyLoginTitle")}</h2>
-        <p id="auth-subtitle">${msg("pearnlyLoginSub")}</p>
+        <h2 id="auth-title"><#if resetRequested>${msg("pearnlyResetTitle")}<#else>${msg("pearnlyLoginTitle")}</#if></h2>
+        <#if !resetRequested><p id="auth-subtitle">${msg("pearnlyLoginSub")}</p></#if>
 
     <#elseif section = "form">
+        <#if resetRequested>
+          <div class="form-stack" data-reset-requested>
+            <a class="primary-btn" data-reset-back href="${url.loginRestartFlowUrl}">${msg("backToLogin")}</a>
+          </div>
+        <#else>
         <#-- id 用身份服务约定的 kc-form-login（它自己的脚本按这个 id 找表单），
              外观类名仍旧是旧登录页那套 .auth-form.active，两边都不冲突。 -->
         <form class="auth-form active" id="kc-form-login" action="${url.loginAction}" method="post" autocomplete="on">
@@ -39,7 +47,7 @@
             </#if>
 
             <div class="form-row">
-              <label for="password">${msg("pearnlyPassword")}</label>
+              <label for="password"><#if usernameHidden??>${msg("pearnlyCurrentPassword")}<#else>${msg("pearnlyPassword")}</#if></label>
               <div class="field">
                 <span class="field-icon"><@layout.pnIco name="lock" /></span>
                 <input id="password" name="password" type="password"
@@ -70,7 +78,7 @@
               </#if>
 
               <#if realm.resetPasswordAllowed>
-                <a class="link-btn" href="${url.loginResetCredentialsUrl}">${msg("pearnlyForgot")}</a>
+                <a class="link-btn" data-reset-login-return="${url.loginRestartFlowUrl}" href="${url.loginResetCredentialsUrl?keep_before("?")}?client_id=${client.clientId?url("UTF-8")}&amp;kc_locale=${locale.currentLanguageTag?url("UTF-8")}">${msg("pearnlyForgot")}</a>
               </#if>
             </div>
 
@@ -79,5 +87,6 @@
             <button class="primary-btn" id="kc-login" name="login" type="submit">${msg("pearnlyLoginBtn")}</button>
           </div>
         </form>
+        </#if>
     </#if>
 </@layout.registrationLayout>

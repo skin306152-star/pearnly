@@ -30,7 +30,9 @@
   "lease_owner",
   "lease_expires_at",
   "section_actor",
-  "actor"
+  "actor",
+  "records_deleted_at",
+  "records_deleted_by"
  ],
  "fields": [
   {
@@ -182,6 +184,23 @@
    "label": "Operator",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "records_deleted_at",
+   "fieldtype": "Datetime",
+   "label": "Removed from Product History At",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "records_deleted_by",
+   "fieldtype": "Link",
+   "options": "User",
+   "label": "Removed from Product History By",
+   "read_only": 1,
+   "hidden": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,

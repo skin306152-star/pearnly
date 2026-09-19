@@ -1,0 +1,60 @@
+{
+  "realm": "auth-preview",
+  "enabled": true,
+  "sslRequired": "none",
+  "resetPasswordAllowed": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "loginTheme": "pearnly",
+  "emailTheme": "pearnly",
+  "internationalizationEnabled": true,
+  "defaultLocale": "th",
+  "supportedLocales": [
+    "th",
+    "zh-CN",
+    "en",
+    "ja"
+  ],
+  "clients": [
+    {
+      "clientId": "auth-preview",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "preview-client-local-only",
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://auth-preview.localhost:8184/*"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://auth-preview.localhost:8184/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "11223344-1234-4321-8765-112233445566",
+      "username": "preview@example.test",
+      "email": "preview@example.test",
+      "firstName": "Preview",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "locale": [
+          "th"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Preview-2026",
+          "temporary": false
+        }
+      ],
+      "lastName": "User",
+      "realmRoles": [
+        "default-roles-auth-preview"
+      ]
+    }
+  ]
+}

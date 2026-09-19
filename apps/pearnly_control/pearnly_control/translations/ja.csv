@@ -145,6 +145,7 @@ No such deployment: {0},そのデプロイはありません: {0}
 No such plan: {0},そのプランはありません: {0}
 No such step: {0},ステップ {0} が見つかりません
 No such tenant: {0},そのテナントはありません: {0}
+No transfer slip is attached,振込明細が添付されていません
 Not issued,未発行
 Not permitted,操作する権限がありません
 Not provisioned,未開通
@@ -283,6 +284,7 @@ Username,ユーザー名
 Username and initial password are both required: they are the credentials for the user's first sign-in,ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30
 View progress,進捗を見る
+View transfer slip,振込明細を表示
 View welcome email,ウェルカムメールを表示
 Webhook URL,Webhook URL
 Welcome Email Error,ウェルカムメールエラー

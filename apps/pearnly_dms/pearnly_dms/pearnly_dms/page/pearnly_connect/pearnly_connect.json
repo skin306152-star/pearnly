@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-connect",
+  "page_name": "pearnly-connect",
+  "title": "nav.connect",
+  "module": "Pearnly DMS",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

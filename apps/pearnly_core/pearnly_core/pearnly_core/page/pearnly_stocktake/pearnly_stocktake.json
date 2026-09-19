@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-stocktake",
+  "page_name": "pearnly-stocktake",
+  "title": "nav.stocktake",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

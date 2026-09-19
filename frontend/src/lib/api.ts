@@ -23,6 +23,8 @@ let csrfToken = "";
 /** 启动接口拿到 csrf 之后由 shell.ts 交给这里；写操作会自动带上。 */
 export function setCsrfToken(token: string): void {
   csrfToken = token || "";
+  // Official FileUploader uses the native Frappe CSRF entry.
+  (window as Window & { csrf_token?: string }).csrf_token = csrfToken;
 }
 
 type CallOptions = {

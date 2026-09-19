@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-records",
+  "page_name": "pearnly-records",
+  "title": "nav.records",
+  "module": "Pearnly DMS",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

@@ -10,7 +10,15 @@
 // 老产品里这一页**仅老板（owner）可见**，员工直调后端会 403。这里前端照做
 // （后端 `pearnly_dms.operators.roster._require_admin` 才是真正的边界）。
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import { Button, Dialog } from "frappe-ui";
+import {
+  Card,
+  Button,
+  Dialog,
+  Alert,
+  LoadingIndicator,
+  FormControl,
+  ListView,
+} from "frappe-ui";
 import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
 
@@ -37,7 +45,10 @@ interface Operator {
 //
 // 这里存的是**文案编号**：语言包是异步取回来的，在这一行就把 `t()` 的结果存下来，
 // 角色列会永远显示键名（`roster.role.sales`）—— 页面上真的这样显示过。
-const ROLE_KEYS: Record<string, string> = { sales: "roster.role.sales", admin: "roster.role.admin" };
+const ROLE_KEYS: Record<string, string> = {
+  sales: "roster.role.sales",
+  admin: "roster.role.admin",
+};
 
 /** 认不出的角色原样显示：宁可露出英文码，也不显示成空白。 */
 function roleLabel(code: string): string {
@@ -67,7 +78,8 @@ const canSubmit = computed(
 );
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || tf("roster.error.http", err.status);
+  if (err instanceof ApiError)
+    return err.message || tf("roster.error.http", err.status);
   return String(err);
 }
 
@@ -75,7 +87,9 @@ async function refresh(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    const data = await call<{ items: Operator[] }>("pearnly_dms.operators.roster.api_list_operators");
+    const data = await call<{ items: Operator[] }>(
+      "pearnly_dms.operators.roster.api_list_operators",
+    );
     rows.value = data.items || [];
   } catch (err) {
     error.value = explain(err);
@@ -151,7 +165,11 @@ function tick(): void {
 
 async function issueCode(row: Operator, open = true): Promise<void> {
   await run(`code:${row.name}`, async () => {
-    const data = await call<{ code: string; expires_at: string; expires_in: number }>(
+    const data = await call<{
+      code: string;
+      expires_at: string;
+      expires_in: number;
+    }>(
       "pearnly_dms.operators.roster.api_operator_bind_code",
       { name: row.name },
       { method: "POST" },
@@ -238,7 +256,10 @@ function toggleStatus(row: Operator): Promise<void> {
             { name: row.name, status: toInactive ? "inactive" : "active" },
             { method: "POST" },
           );
-          notice.value = res.status === "active" ? t("roster.notice.enabled") : t("roster.notice.disabled");
+          notice.value =
+            res.status === "active"
+              ? t("roster.notice.enabled")
+              : t("roster.notice.disabled");
           await refresh();
           resolve();
         }),
@@ -248,19 +269,17 @@ function toggleStatus(row: Operator): Promise<void> {
 
 function removeOperator(row: Operator): Promise<void> {
   return new Promise((resolve) => {
-    ask(
-      tf("roster.confirm.delete", row.display_name),
-      () =>
-        run(`del:${row.name}`, async () => {
-          await call(
-            "pearnly_dms.operators.roster.api_delete_operator",
-            { name: row.name },
-            { method: "POST" },
-          );
-          notice.value = t("roster.notice.deleted");
-          await refresh();
-          resolve();
-        }),
+    ask(tf("roster.confirm.delete", row.display_name), () =>
+      run(`del:${row.name}`, async () => {
+        await call(
+          "pearnly_dms.operators.roster.api_delete_operator",
+          { name: row.name },
+          { method: "POST" },
+        );
+        notice.value = t("roster.notice.deleted");
+        await refresh();
+        resolve();
+      }),
     );
   });
 }
@@ -275,20 +294,21 @@ onUnmounted(stopTimer);
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px">
-    <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
-    <div
-      v-if="notice"
-      class="pn-card"
-      style="padding: 12px 14px; color: var(--good); font-weight: 700; font-size: 13px"
-    >
-      {{ notice }}
-    </div>
+    <Alert v-if="error" theme="red" :title="error" />
+    <Alert v-if="notice" theme="green" :title="notice" />
 
-    <div class="pn-card">
-      <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+    <Card :title="t('roster.title')" class="">
+      <div
+        style="
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        "
+      >
         <div>
-          <div style="font-size: 16px; font-weight: 800">{{ t('roster.title') }}</div>
-          <div class="pn-muted">{{ t('roster.subtitle') }}</div>
+          <div class="pn-muted">{{ t("roster.subtitle") }}</div>
         </div>
         <div style="display: flex; gap: 8px">
           <Button
@@ -310,45 +330,67 @@ onUnmounted(stopTimer);
 
       <div
         v-if="addOpen"
-        style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px"
+        style="
+          margin-top: 16px;
+          border-top: 1px solid var(--line);
+          padding-top: 16px;
+        "
       >
-        <div style="font-weight: 800; margin-bottom: 4px">{{ t('roster.add') }}</div>
-        <div class="pn-muted" style="margin-bottom: 12px">
-          {{ t('roster.addHint') }}
+        <div style="font-weight: 800; margin-bottom: 4px">
+          {{ t("roster.add") }}
         </div>
-        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
-          <label>
-            <span class="pn-muted">{{ t('roster.field.displayName') }}</span>
-            <input v-model="draft.display_name" class="form-input w-full":placeholder="t('roster.hint.displayName')" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('roster.field.dmsUsername') }}</span>
-            <input v-model="draft.dms_username" class="form-input w-full":placeholder="t('roster.hint.dmsUsername')" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('roster.field.dmsPassword') }}</span>
-            <input v-model="draft.dms_password" type="password" class="form-input w-full":placeholder="t('roster.hint.dmsPassword')" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('roster.field.role') }}</span>
-            <select v-model="draft.dms_role" class="form-input w-full">
-              <option value="sales">{{ t('roster.role.sales') }}</option>
-              <option value="admin">{{ t('roster.role.admin') }}</option>
-            </select>
-          </label>
-          <label style="display: flex; align-items: center; gap: 8px; align-self: end">
-            <input v-model="draft.can_query_dms" type="checkbox" />
-            <span class="pn-muted">{{ t('roster.field.canQuery') }}</span>
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('roster.field.advisor') }}</span>
-            <select class="form-input w-full" disabled>
-              <option>{{ t('roster.advisor.auto') }}</option>
-            </select>
-            <span class="pn-muted" style="font-size: 11px">
-              {{ t('roster.advisor.note') }}
-            </span>
-          </label>
+        <div class="pn-muted" style="margin-bottom: 12px">
+          {{ t("roster.addHint") }}
+        </div>
+        <div
+          style="
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+          "
+        >
+          <FormControl
+            :label="t('roster.field.displayName')"
+            v-model="draft.display_name"
+            class="w-full"
+            :placeholder="t('roster.hint.displayName')"
+          />
+          <FormControl
+            :label="t('roster.field.dmsUsername')"
+            v-model="draft.dms_username"
+            class="w-full"
+            :placeholder="t('roster.hint.dmsUsername')"
+          />
+          <FormControl
+            :label="t('roster.field.dmsPassword')"
+            v-model="draft.dms_password"
+            type="password"
+            class="w-full"
+            :placeholder="t('roster.hint.dmsPassword')"
+          />
+          <FormControl
+            :label="t('roster.field.role')"
+            type="select"
+            v-model="draft.dms_role"
+            class="w-full"
+            :options="[
+              { value: 'sales', label: t('roster.role.sales') },
+              { value: 'admin', label: t('roster.role.admin') },
+            ]"
+          />
+          <FormControl
+            v-model="draft.can_query_dms"
+            type="checkbox"
+            :label="t('roster.field.canQuery')"
+          />
+          <FormControl
+            type="select"
+            :label="t('roster.field.advisor')"
+            :model-value="'auto'"
+            disabled
+            :options="[{ value: 'auto', label: t('roster.advisor.auto') }]"
+            :description="t('roster.advisor.note')"
+          />
         </div>
         <div style="margin-top: 14px">
           <Button
@@ -361,69 +403,98 @@ onUnmounted(stopTimer);
           />
         </div>
       </div>
-    </div>
+    </Card>
 
-    <div class="pn-card">
-      <div style="font-size: 16px; font-weight: 800; margin-bottom: 10px">{{ t('roster.list.title') }}</div>
-      <div v-if="loading" class="pn-skeleton" style="width: 200px" />
+    <Card :title="t('roster.list.title')" class="">
+      <LoadingIndicator v-if="loading" class="h-5 w-5" />
       <p v-else-if="!rows.length" class="pn-muted" style="margin: 0">
-        {{ t('roster.list.empty') }}
+        {{ t("roster.list.empty") }}
       </p>
-      <table v-else class="pn-table">
-        <thead>
-          <tr>
-            <th>{{ t('roster.col.operator') }}</th>
-            <th>{{ t('roster.field.role') }}</th>
-            <th>{{ t('roster.col.query') }}</th>
-            <th>{{ t('roster.col.line') }}</th>
-            <th>{{ t('home.col.status') }}</th>
-            <th>{{ t('roster.col.actions') }}</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="row in rows" :key="row.name">
-            <td>
-              <div style="font-weight: 700">{{ row.display_name }}</div>
-              <div class="pn-muted" style="font-size: 11px">{{ row.dms_username || "—" }}</div>
-            </td>
-            <td>{{ roleLabel(row.role) }}</td>
-            <td>{{ row.can_query_dms ? t('roster.allowQuery') : t('roster.noQuery') }}</td>
-            <td>
-              <span :style="{ color: row.line_bound ? 'var(--good)' : 'var(--muted)' }">
-                {{ row.line_bound ? t('roster.bound') : t('roster.unbound') }}
-              </span>
-            </td>
-            <td>{{ row.status === "active" ? t('roster.enable') : t('roster.disable') }}</td>
-            <td>
-              <div style="display: flex; gap: 6px; flex-wrap: wrap">
-                <Button
-                  variant="outline"
-                  theme="gray"
-                 :label="t('roster.issueCode')"
-                  :disabled="row.status !== 'active' || busy === `code:${row.name}`"
-                  @click="issueCode(row)"
-                />
-                <Button variant="outline" theme="gray":label="t('roster.edit')" @click="openEdit(row)" />
-                <Button
-                  variant="outline"
-                  theme="gray"
-                  :label="row.status === 'active' ? t('roster.disable') : t('roster.enable')"
-                  @click="toggleStatus(row)"
-                />
-                <Button variant="outline" theme="gray":label="t('roster.delete')" @click="removeOperator(row)" />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <ListView
+        v-else
+        :columns="[
+          { key: 'c0', label: t('roster.col.operator'), width: '150px' },
+          { key: 'c1', label: t('roster.field.role'), width: '150px' },
+          { key: 'c2', label: t('roster.col.query'), width: '150px' },
+          { key: 'c3', label: t('roster.col.line'), width: '150px' },
+          { key: 'c4', label: t('home.col.status'), width: '150px' },
+          { key: 'c5', label: t('roster.col.actions'), width: '220px' },
+        ]"
+        :rows="rows"
+        row-key="name"
+        :options="{ selectable: false, showTooltip: false }"
+      >
+        <template #cell="{ column, row: row }">
+          <span v-if="column.key === 'c0'">
+            <div style="font-weight: 700">{{ row.display_name }}</div>
+            <div class="pn-muted" style="font-size: 11px">
+              {{ row.dms_username || "—" }}
+            </div>
+          </span>
+          <span v-if="column.key === 'c1'">{{ roleLabel(row.role) }}</span>
+          <span v-if="column.key === 'c2'">{{
+            row.can_query_dms ? t("roster.allowQuery") : t("roster.noQuery")
+          }}</span>
+          <span v-if="column.key === 'c3'">
+            <span
+              :style="{
+                color: row.line_bound ? 'var(--good)' : 'var(--muted)',
+              }"
+            >
+              {{ row.line_bound ? t("roster.bound") : t("roster.unbound") }}
+            </span>
+          </span>
+          <span v-if="column.key === 'c4'">{{
+            row.status === "active" ? t("roster.enable") : t("roster.disable")
+          }}</span>
+          <span v-if="column.key === 'c5'">
+            <div style="display: flex; gap: 6px; flex-wrap: wrap">
+              <Button
+                variant="outline"
+                theme="gray"
+                :label="t('roster.issueCode')"
+                :disabled="
+                  row.status !== 'active' || busy === `code:${row.name}`
+                "
+                @click="issueCode(row)"
+              />
+              <Button
+                variant="outline"
+                theme="gray"
+                :label="t('roster.edit')"
+                @click="openEdit(row)"
+              />
+              <Button
+                variant="outline"
+                theme="gray"
+                :label="
+                  row.status === 'active'
+                    ? t('roster.disable')
+                    : t('roster.enable')
+                "
+                @click="toggleStatus(row)"
+              />
+              <Button
+                variant="outline"
+                theme="gray"
+                :label="t('roster.delete')"
+                @click="removeOperator(row)"
+              />
+            </div>
+          </span>
+        </template>
+      </ListView>
+    </Card>
 
     <!-- 绑定码弹窗：话术照老产品，不自己改 -->
-    <Dialog v-model="codeOpen" :options="{ title: t('roster.code.title'), size: 'sm' }">
+    <Dialog
+      v-model="codeOpen"
+      :options="{ title: t('roster.code.title'), size: 'sm' }"
+    >
       <template #body-content>
         <div style="display: flex; flex-direction: column; gap: 12px">
-          <div class="pn-muted">{{ t('roster.code.step1') }}</div>
-          <div class="pn-muted">{{ t('roster.code.step2') }}</div>
+          <div class="pn-muted">{{ t("roster.code.step1") }}</div>
+          <div class="pn-muted">{{ t("roster.code.step2") }}</div>
           <div
             style="
               text-align: center;
@@ -436,44 +507,92 @@ onUnmounted(stopTimer);
             {{ code }}
           </div>
           <div class="pn-muted" style="text-align: center">
-            <template v-if="remain && remain !== t('roster.code.expired')">{{ tf('roster.code.validFor', remain) }}</template>
-            <template v-else-if="remain">{{ t('roster.code.expiredHint') }}</template>
+            <template v-if="remain && remain !== t('roster.code.expired')">{{
+              tf("roster.code.validFor", remain)
+            }}</template>
+            <template v-else-if="remain">{{
+              t("roster.code.expiredHint")
+            }}</template>
           </div>
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray":label="t('roster.close')" @click="codeOpen = false" />
-            <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.regenerate')" @click="regenCode" />
+            <Button
+              variant="outline"
+              theme="gray"
+              :label="t('roster.close')"
+              @click="codeOpen = false"
+            />
+            <Button
+              variant="solid"
+              theme="gray"
+              class="pn-primary"
+              :label="t('roster.regenerate')"
+              @click="regenCode"
+            />
           </div>
         </div>
       </template>
     </Dialog>
 
     <!-- 编辑弹窗：两个框都留空 = 不修改 -->
-    <Dialog v-model="editOpen" :options="{ title: t('roster.editTitle'), size: 'sm' }">
+    <Dialog
+      v-model="editOpen"
+      :options="{ title: t('roster.editTitle'), size: 'sm' }"
+    >
       <template #body-content>
         <div style="display: flex; flex-direction: column; gap: 12px">
-          <label>
-            <span class="pn-muted">{{ t('roster.field.dmsUsername') }}</span>
-            <input v-model="editForm.dms_username" class="form-input w-full":placeholder="t('roster.keepBlank')" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('roster.field.newDmsPassword') }}</span>
-            <input v-model="editForm.dms_password" type="password" class="form-input w-full":placeholder="t('roster.keepBlank')" />
-          </label>
-          <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
+          <FormControl
+            :label="t('roster.field.dmsUsername')"
+            v-model="editForm.dms_username"
+            class="w-full"
+            :placeholder="t('roster.keepBlank')"
+          />
+          <FormControl
+            :label="t('roster.field.newDmsPassword')"
+            v-model="editForm.dms_password"
+            type="password"
+            class="w-full"
+            :placeholder="t('roster.keepBlank')"
+          />
+          <Alert v-if="error" theme="red" :title="error" />
           <div style="display: flex; gap: 8px; justify-content: flex-end">
-            <Button variant="outline" theme="gray":label="t('roster.cancel')" @click="editOpen = false" />
-            <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.save')" @click="saveEdit" />
+            <Button
+              variant="outline"
+              theme="gray"
+              :label="t('roster.cancel')"
+              @click="editOpen = false"
+            />
+            <Button
+              variant="solid"
+              theme="gray"
+              class="pn-primary"
+              :label="t('roster.save')"
+              @click="saveEdit"
+            />
           </div>
         </div>
       </template>
     </Dialog>
 
-    <Dialog v-model="confirmOpen" :options="{ title: t('roster.confirm.title'), size: 'sm' }">
+    <Dialog
+      v-model="confirmOpen"
+      :options="{ title: t('roster.confirm.title'), size: 'sm' }"
+    >
       <template #body-content>
         <p style="margin: 0 0 12px">{{ confirmText }}</p>
         <div style="display: flex; gap: 8px; justify-content: flex-end">
-          <Button variant="outline" theme="gray":label="t('roster.cancel')" @click="confirmOpen = false" />
-          <Button variant="solid" theme="gray" class="pn-primary":label="t('roster.ok')" @click="runConfirm" />
+          <Button
+            variant="outline"
+            theme="gray"
+            :label="t('roster.cancel')"
+            @click="confirmOpen = false"
+          />
+          <Button
+            variant="solid"
+            theme="gray"
+            class="pn-primary"
+            :label="t('roster.ok')"
+            @click="runConfirm"
+          />
         </div>
       </template>
     </Dialog>

@@ -152,12 +152,16 @@
       "contracts",
       "line"
     ],
-    "operators": [],
+    "operators": [
+      "masters"
+    ],
     "query": [
       "contracts",
       "intake",
       "line",
-      "ocr"
-    ]
+      "ocr",
+      "records"
+    ],
+    "records": []
   }
 }

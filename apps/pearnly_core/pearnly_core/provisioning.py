@@ -147,6 +147,9 @@ def finalize_site() -> dict:
         # 租户默认时区（见 TENANT_DEFAULT_TIMEZONE 的说明）。
         # 不设就会留在 Frappe 的默认值 Asia/Kolkata 上，泰国业务差 1.5 小时。
         frappe.db.set_single_value("System Settings", "time_zone", tenant_default_timezone())
+        from pearnly_core.desk.branding import ensure_site_favicon
+
+        ensure_site_favicon()
     frappe.db.commit()
 
     frappe.clear_cache()
@@ -174,7 +177,7 @@ def finalize_site() -> dict:
 FEATURE_PERMS = {"read": 1, "write": 1, "create": 1, "print": 1, "email": 1, "report": 1}
 
 # 产品管理员角色拿到的权限：能管本产品的员工账号，**但碰不到系统设置**。
-ADMIN_DOCTYPES = ["User", "Role", "User Permission", "Contact"]
+ADMIN_DOCTYPES = ["User", "Contact"]
 ADMIN_PERMS = {"read": 1, "write": 1, "create": 1, "email": 1, "report": 1}
 
 
@@ -225,6 +228,9 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
         created_roles.append(role_name)
         if frappe.db.exists("DocType", doctype):
             _grant(doctype, role_name, perms)
+
+    from pearnly_core.desk.permissions import restrict_platform_permissions
+    restrict_platform_permissions()
 
     # 换掉租户管理员的角色组合
     user = frappe.get_doc("User", admin_user)
@@ -434,6 +440,7 @@ def ensure_product_workspace(spec_json: str) -> dict:
     from frappe.installer import update_site_config
 
     update_site_config("pearnly_workspace", doc.name)
+    update_site_config("pearnly_company_name", title)
 
     # 让租户登录后**直接落到这个工作台**，不要先过一屏"桌面"再点一次。
     #
@@ -444,6 +451,8 @@ def ensure_product_workspace(spec_json: str) -> dict:
     from pearnly_core import workspace as workspace_mod
 
     landed = workspace_mod.apply_to_site_users()
+    from pearnly_core.desk.navigation import ensure_navigation
+    ensure_navigation()
 
     return {
         "workspace": doc.name,

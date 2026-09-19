@@ -141,6 +141,7 @@ No such deployment: {0},No such deployment: {0}
 No such plan: {0},No such plan: {0}
 No such step: {0},No such step: {0}
 No such tenant: {0},No such tenant: {0}
+No transfer slip is attached,No transfer slip is attached
 Not issued,Not issued
 Not provisioned,Not provisioned
 Notes,Notes
@@ -274,6 +275,7 @@ Username,Username
 Username and initial password are both required: they are the credentials for the user's first sign-in,Username and initial password are both required: they are the credentials for the user's first sign-in
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30","Username may only contain letters, digits, dot, underscore and hyphen, length 3–30"
 View progress,View progress
+View transfer slip,View transfer slip
 View welcome email,View welcome email
 Webhook URL,Webhook URL
 Welcome Email Error,Welcome Email Error

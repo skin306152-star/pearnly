@@ -8,7 +8,14 @@
 // 金额**不在前端算**：服务端会从小发明细重算小计/增值税/价税合计/应付净额。
 // 这里展示的都是服务端返回的数字。
 import { computed, onMounted, reactive, ref } from "vue";
-import { Button } from "frappe-ui";
+import {
+  Card,
+  Button,
+  Alert,
+  LoadingIndicator,
+  FormControl,
+  ListView,
+} from "frappe-ui";
 import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
 
@@ -56,7 +63,9 @@ const draft = reactive({
   supplier_name: "",
   doc_date: new Date().toISOString().slice(0, 10),
   doc_no: "",
-  lines: [{ description: "", qty: 1, unit_price: 0, vat_rate: 7 }] as LineDraft[],
+  lines: [
+    { description: "", qty: 1, unit_price: 0, vat_rate: 7 },
+  ] as LineDraft[],
 });
 
 const canSubmit = computed(
@@ -73,7 +82,8 @@ function money(value: number | string, currency = "THB"): string {
 }
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || tf("purchase.error.http", err.status);
+  if (err instanceof ApiError)
+    return err.message || tf("purchase.error.http", err.status);
   return String(err);
 }
 
@@ -83,7 +93,9 @@ async function refresh(): Promise<void> {
   try {
     // 两个接口并行取：列表与汇总互不依赖
     const [list, sum] = await Promise.all([
-      call<Row[]>("pearnly_erp_portal.purchase.api_list_purchases", { limit: 50 }),
+      call<Row[]>("pearnly_erp_portal.purchase.api_list_purchases", {
+        limit: 50,
+      }),
       call<Summary>("pearnly_erp_portal.purchase.api_summary"),
     ]);
     rows.value = list;
@@ -146,45 +158,49 @@ onMounted(() => {
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px">
-    <div class="pn-error" v-if="error" role="alert">{{ error }}</div>
-    <div
-      v-if="okMessage"
-      class="pn-card"
-      style="padding: 12px 14px; color: var(--good); font-weight: 700; font-size: 13px"
-    >
-      {{ okMessage }}
-    </div>
+    <Alert v-if="error" theme="red" :title="error" />
+    <Alert v-if="okMessage" theme="green" :title="okMessage" />
 
-    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('purchase.card.count') }}</div>
-        <div style="font-size: 22px; font-weight: 800">{{ summary?.count ?? "—" }}</div>
-      </div>
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('purchase.col.grandTotal') }}</div>
+    <div
+      style="
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      "
+    >
+      <Card :title="t('purchase.card.count')" class="">
+        <div style="font-size: 22px; font-weight: 800">
+          {{ summary?.count ?? "—" }}
+        </div>
+      </Card>
+      <Card :title="t('purchase.col.grandTotal')" class="">
         <div style="font-size: 22px; font-weight: 800">
           {{ summary ? money(summary.grand_total) : "—" }}
         </div>
-      </div>
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('purchase.card.netPayable') }}</div>
+      </Card>
+      <Card :title="t('purchase.card.netPayable')" class="">
         <div style="font-size: 22px; font-weight: 800">
           {{ summary ? money(summary.net_payable) : "—" }}
         </div>
-      </div>
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('purchase.card.outstanding') }}</div>
+      </Card>
+      <Card :title="t('purchase.card.outstanding')" class="">
         <div style="font-size: 22px; font-weight: 800; color: var(--warn)">
           {{ summary ? money(summary.outstanding) : "—" }}
         </div>
-      </div>
+      </Card>
     </div>
 
-    <div class="pn-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <Card :title="t('purchase.title')" class="">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+        "
+      >
         <div>
-          <div style="font-size: 16px; font-weight: 800">{{ t('purchase.title') }}</div>
-          <div class="pn-muted">{{ t('purchase.subtitle') }}</div>
+          <div class="pn-muted">{{ t("purchase.subtitle") }}</div>
         </div>
         <div style="display: flex; gap: 8px">
           <!-- 尺寸/间距用官方原生的（Button 自带尺寸档与内边距），只有主色用我们的
@@ -200,67 +216,86 @@ onMounted(() => {
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="showForm ? t('purchase.collapse') : t('purchase.action.new')"
+            :label="
+              showForm ? t('purchase.collapse') : t('purchase.action.new')
+            "
             @click="showForm = !showForm"
           />
         </div>
       </div>
 
-      <div v-if="showForm" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px">
-        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px">
-          <label>
-            <span class="pn-muted">{{ t('purchase.field.supplier') }}</span>
-            <input
-              v-model="draft.supplier_name"
-              class="form-input w-full"
-              :placeholder="t('purchase.placeholder.supplier')"
-            />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('purchase.field.docDate') }}</span>
-            <input v-model="draft.doc_date" type="date" class="form-input w-full" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('purchase.field.docNo') }}</span>
-            <input
-              v-model="draft.doc_no"
-              class="form-input w-full"
-              :placeholder="t('purchase.placeholder.docNo')"
-            />
-          </label>
+      <div
+        v-if="showForm"
+        style="
+          margin-top: 16px;
+          border-top: 1px solid var(--line);
+          padding-top: 16px;
+        "
+      >
+        <div
+          style="display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px"
+        >
+          <FormControl
+            :label="t('purchase.field.supplier')"
+            v-model="draft.supplier_name"
+            class="w-full"
+            :placeholder="t('purchase.placeholder.supplier')"
+          />
+          <FormControl
+            :label="t('purchase.field.docDate')"
+            v-model="draft.doc_date"
+            type="date"
+            class="w-full"
+          />
+          <FormControl
+            :label="t('purchase.field.docNo')"
+            v-model="draft.doc_no"
+            class="w-full"
+            :placeholder="t('purchase.placeholder.docNo')"
+          />
         </div>
 
         <div style="margin-top: 14px">
-          <div class="pn-muted" style="margin-bottom: 6px">{{ t('purchase.field.lines') }}</div>
+          <div class="pn-muted" style="margin-bottom: 6px">
+            {{ t("purchase.field.lines") }}
+          </div>
           <div
             v-for="(line, index) in draft.lines"
             :key="index"
-            style="display: grid; grid-template-columns: 3fr 1fr 1fr 1fr auto; gap: 8px; margin-bottom: 8px"
+            style="
+              display: grid;
+              grid-template-columns: 3fr 1fr 1fr 1fr auto;
+              gap: 8px;
+              margin-bottom: 8px;
+            "
           >
-            <input
+            <FormControl
               v-model="line.description"
-              class="form-input w-full"
+              class="w-full"
               :placeholder="t('purchase.placeholder.description')"
             />
-            <input
-              v-model.number="line.qty"
+            <FormControl
+              :model-value="line.qty"
+              @update:model-value="line.qty = Number($event)"
               type="number"
               step="0.01"
-              class="form-input w-full"
+              class="w-full"
               :placeholder="t('purchase.placeholder.qty')"
             />
-            <input
-              v-model.number="line.unit_price"
+            <FormControl
+              :model-value="line.unit_price"
+              @update:model-value="line.unit_price = Number($event)"
               type="number"
               step="0.01"
-              class="form-input w-full"
+              class="w-full"
               :placeholder="t('purchase.placeholder.unitPrice')"
             />
-            <input
-              v-model.number="line.vat_rate"
+            <FormControl
+              :model-value="line.vat_rate"
+              @update:model-value="line.vat_rate = Number($event)"
               type="number"
               step="0.01"
-              class="form-input w-full"
+              class="w-full"
               :placeholder="t('purchase.placeholder.vatRate')"
             />
             <Button
@@ -279,7 +314,9 @@ onMounted(() => {
           />
         </div>
 
-        <div style="margin-top: 16px; display: flex; gap: 8px; align-items: center">
+        <div
+          style="margin-top: 16px; display: flex; gap: 8px; align-items: center"
+        >
           <Button
             variant="solid"
             theme="gray"
@@ -288,42 +325,53 @@ onMounted(() => {
             :disabled="!canSubmit"
             @click="submit"
           />
-          <span class="pn-muted">{{ t('purchase.hint.serverTotal') }}</span>
+          <span class="pn-muted">{{ t("purchase.hint.serverTotal") }}</span>
         </div>
       </div>
 
       <div style="margin-top: 16px">
-        <div v-if="loading" style="display: flex; flex-direction: column; gap: 8px">
-          <div class="pn-skeleton" v-for="i in 4" :key="i" />
+        <div
+          v-if="loading"
+          style="display: flex; flex-direction: column; gap: 8px"
+        >
+          <LoadingIndicator v-for="i in 4" :key="i" class="h-5 w-5" />
         </div>
         <p v-else-if="!rows.length" class="pn-muted" style="margin: 0">
-          {{ t('purchase.empty') }}
+          {{ t("purchase.empty") }}
         </p>
-        <table v-else class="pn-table">
-          <thead>
-            <tr>
-              <th>{{ t('purchase.col.name') }}</th>
-              <th>{{ t('purchase.field.supplier') }}</th>
-              <th>{{ t('purchase.field.docNo') }}</th>
-              <th>{{ t('purchase.col.date') }}</th>
-              <th>{{ t('purchase.col.status') }}</th>
-              <th class="pn-num">{{ t('purchase.col.grandTotal') }}</th>
-              <th class="pn-num">{{ t('purchase.card.netPayable') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.name">
-              <td>{{ row.name }}</td>
-              <td>{{ row.supplier_name }}</td>
-              <td>{{ row.doc_no || "—" }}</td>
-              <td>{{ row.doc_date }}</td>
-              <td>{{ row.status }}{{ row.payment_status ? ` / ${row.payment_status}` : "" }}</td>
-              <td class="pn-num">{{ money(row.grand_total, row.currency) }}</td>
-              <td class="pn-num">{{ money(row.net_payable, row.currency) }}</td>
-            </tr>
-          </tbody>
-        </table>
+        <ListView
+          v-else
+          :columns="[
+            { key: 'c0', label: t('purchase.col.name'), width: '150px' },
+            { key: 'c1', label: t('purchase.field.supplier'), width: '150px' },
+            { key: 'c2', label: t('purchase.field.docNo'), width: '150px' },
+            { key: 'c3', label: t('purchase.col.date'), width: '150px' },
+            { key: 'c4', label: t('purchase.col.status'), width: '150px' },
+            { key: 'c5', label: t('purchase.col.grandTotal'), width: '150px' },
+            { key: 'c6', label: t('purchase.card.netPayable'), width: '150px' },
+          ]"
+          :rows="rows"
+          row-key="name"
+          :options="{ selectable: false, showTooltip: false }"
+        >
+          <template #cell="{ column, row: row }">
+            <span v-if="column.key === 'c0'">{{ row.name }}</span>
+            <span v-if="column.key === 'c1'">{{ row.supplier_name }}</span>
+            <span v-if="column.key === 'c2'">{{ row.doc_no || "—" }}</span>
+            <span v-if="column.key === 'c3'">{{ row.doc_date }}</span>
+            <span v-if="column.key === 'c4'"
+              >{{ row.status
+              }}{{ row.payment_status ? ` / ${row.payment_status}` : "" }}</span
+            >
+            <span v-if="column.key === 'c5'" class="pn-num">{{
+              money(row.grand_total, row.currency)
+            }}</span>
+            <span v-if="column.key === 'c6'" class="pn-num">{{
+              money(row.net_payable, row.currency)
+            }}</span>
+          </template>
+        </ListView>
       </div>
-    </div>
+    </Card>
   </div>
 </template>

@@ -37,7 +37,7 @@
   </#if>
 </#function>
 
-<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false>
+<#macro registrationLayout bodyClass="" displayInfo=false displayMessage=true displayRequiredFields=false resetResult=false>
 <!DOCTYPE html>
 <html lang="${lang}"<#if realm.internationalizationEnabled> dir="${(locale.rtl)?then('rtl','ltr')}"</#if>>
 <head>
@@ -147,7 +147,7 @@
         </#if>
 
         <div class="auth-heading">
-          <#if auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
+          <#if !resetResult && auth?has_content && auth.showUsername() && !auth.showResetCredentials()>
             <h2>${auth.attemptedUsername}</h2>
             <p><a href="${url.loginRestartFlowUrl}" class="link-btn">${msg("restartLoginTooltip")}</a></p>
           <#else>

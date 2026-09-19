@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-roster",
+  "page_name": "pearnly-roster",
+  "title": "nav.roster",
+  "module": "Pearnly DMS",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

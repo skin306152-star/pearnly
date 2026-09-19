@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-push-logs",
+  "page_name": "pearnly-push-logs",
+  "title": "nav.pushLogs",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { Card } from "frappe-ui";
 // 临时卡片：把启动数据摊在界面上，方便一眼确认"这个壳认对了产品、也认对了买到的功能"。
 // 等各页都做完就撤掉。
 import { onMounted } from "vue";
@@ -17,34 +18,28 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="pn-card">
-    <div style="font-size: 15px; font-weight: 800; margin-bottom: 10px">
-      {{ t('shell.bootCard.title') }}
-    </div>
-    <table class="pn-table">
-      <tbody>
-        <tr>
-          <td class="pn-muted">{{ t('shell.bootCard.product') }}</td>
-          <td>{{ boot.product }}（{{ boot.product_label }}）</td>
-        </tr>
-        <tr>
-          <td class="pn-muted">{{ t('shell.bootCard.account') }}</td>
-          <td>{{ boot.full_name }} &lt;{{ boot.user }}&gt;</td>
-        </tr>
-        <tr>
-          <td class="pn-muted">{{ t('shell.bootCard.language') }}</td>
-          <td>{{ boot.language }}</td>
-        </tr>
-        <tr>
-          <td class="pn-muted">{{ t('shell.bootCard.features') }}</td>
-          <td>
-            <code v-for="code in boot.features" :key="code" class="pn-chip">{{ code }}</code>
-            <span v-if="!boot.features.length" class="pn-muted">{{ t('shell.bootCard.none') }}</span>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+  <Card :title="t('shell.bootCard.title')" class="">
+    <dl class="grid grid-cols-[auto_1fr] gap-3">
+      <dt class="pn-muted">{{ t("shell.bootCard.product") }}</dt>
+      <dd>{{ boot.product }}（{{ boot.product_label }}）</dd>
+
+      <dt class="pn-muted">{{ t("shell.bootCard.account") }}</dt>
+      <dd>{{ boot.full_name }} &lt;{{ boot.user }}&gt;</dd>
+
+      <dt class="pn-muted">{{ t("shell.bootCard.language") }}</dt>
+      <dd>{{ boot.language }}</dd>
+
+      <dt class="pn-muted">{{ t("shell.bootCard.features") }}</dt>
+      <dd>
+        <code v-for="code in boot.features" :key="code" class="pn-chip">{{
+          code
+        }}</code>
+        <span v-if="!boot.features.length" class="pn-muted">{{
+          t("shell.bootCard.none")
+        }}</span>
+      </dd>
+    </dl>
+  </Card>
 </template>
 
 <style scoped>

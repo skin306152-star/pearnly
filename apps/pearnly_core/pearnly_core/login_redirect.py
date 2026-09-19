@@ -83,7 +83,7 @@ def redirect_guests_to_identity() -> None:
         return
 
     normalized = path.rstrip("/") or "/"
-    if normalized not in GUEST_ENTRY_PATHS and not normalized.startswith(APP_ENTRY_PREFIX):
+    if normalized not in GUEST_ENTRY_PATHS and not normalized.startswith((APP_ENTRY_PREFIX, "/desk/")):
         return
 
     # 把访客**本来要去的那个入口**带过去，登录成功后由首页规则决定最终落点
@@ -98,23 +98,14 @@ def redirect_guests_to_identity() -> None:
 
 
 def send_root_to_home() -> None:
-    """before_request 钩子：已登录的人打开**根路径**，直接送去他的工作台。
-
-    为什么需要：Frappe 把 `/desk/<工作区>` 用「URL 不变」的方式渲染成 SPA，
-    所以根路径拿到的是同一套页面、地址栏停在 `/`，SPA 看到路径是 `/` 就显示桌面。
-    结果就是"登录时对了，但从书签或重新打开浏览器进来又看见桌面"。
-
-    只处理根路径，**不碰 `/desk` 与 `/app`**：那两个是明确的"去桌面"入口，
-    拦掉会让工具栏的应用切换图标看起来"点了没反应"，反而更难用。
-    另外只在目标确实不同时才跳，避免自跳成环。
-    """
+    """Product roots land on the business home; control-plane Desk stays native."""
     if frappe.session.user == "Guest":
         return
     if not is_business_site():
         return
 
     path = frappe.request.path if frappe.request else ""
-    if (path.rstrip("/") or "/") != "/":
+    if (path.rstrip("/") or "/") not in {"/", "/desk", "/app"}:
         return
 
     from pearnly_core import workspace as workspace_mod

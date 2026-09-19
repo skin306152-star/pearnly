@@ -30,6 +30,7 @@
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
 | `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
+| `records` | 推送历史的列表移除与审计 | `manage.delete_records`；只改展示标记，保留权威推送凭据 |
 | `query` | 查询权限、记录/排行及结果卡片 | `query_flow`；只读路径不承担写入 |
 | `menu`、`line` | 菜单、事件路由、公共卡片与消息输出 | `line.handlers.handle`，共享输出 `line.out` |
 | `ocr` | OCR 调用与身份证归一化 | `ocr_service` / `ocr_id_card` |
@@ -59,3 +60,17 @@
 根 `AGENTS.md` 会作为该仓库后续任务的开发指令。已经运行的窗口可能保留旧上下文；它们需要重新读取当前文件或同步主线。文档不能远程替换已运行任务的上下文，自动检查负责发现代码层面的违规。
 
 参考：[Frappe App 结构](https://docs.frappe.io/framework/user/en/basics/apps)、[创建 App](https://docs.frappe.io/framework/user/en/tutorial/create-an-app)、[hooks](https://docs.frappe.io/framework/user/en/python-api/hooks)。业务域分组和云端开户限制是本项目的约定，不冒称为上游强制目录规范。
+
+## 通用界面框架
+
+所有迁移与新功能遵循 ADR-005/007：产品 Web 与管理后台复用同一版本原生 Frappe Desk，页面/表单/列表/弹窗/提示/音效使用原生 API。品牌色仅用于强调，保留官方白底、深色正文与布局。业务 API、角色、购买功能和鉴权边界保持服务端约束，不授予客户平台超管。
+
+只有 LINE 票据编辑器保留独立 Vue + Frappe UI，因为它使用一次性票据而非 Desk 登录。Keycloak 与邮件分别保留自己的原生认证主题、邮件兼容模板。此例外不得扩展成第二套产品 Web 壳。
+
+### 操作员提成归属的读取边界（2026-09-20）
+
+`operators.advisors` 通过 `masters.masters_cache.get_masters(force_refresh=True, require_complete=True)` 读取管理员端点的顾问名册，保存时按 ID 重新解析名称。此依赖只读，不向主档或外部 DMS 写入，不反向引用 roster；实际读取链 `masters_cache` → `intake.service.run_logged_in` → `adapter` → `client` 不调用 roster；其他业务流程的历史域间循环仍按既有债务记录。顾问业务校验归 operators，抓取、会话互斥和缓存仍归既有 masters/adapter。登记 operators → masters 是为恢复旧线上已具备的提成归属校验，不授权其他反向依赖或绕过刷新失败。
+
+### 推送记录管理的边界（2026-09-20）
+
+`records.access` 提供 DMS 推送历史的产品/角色/功能权限和当前 Site 内的记录范围，`query.records` 只读复用这些定义，因此登记 query → records 单向依赖。`records.manage` 用 POST 原子校验选中记录并记录移除人/时间；原生 Push Log 的业务字段、状态、重试和客户查重凭据保留。此依赖不指向 query、外部适配器或业务写入，不增加循环，也不授予通用 DocType 删除权限。

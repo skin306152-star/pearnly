@@ -12,7 +12,14 @@
 //
 // 操作习惯沿用我们自己的：进项/销项分本批区分、列表按状态筛、逐条确认再推送。
 import { computed, onMounted, reactive, ref } from "vue";
-import { Button } from "frappe-ui";
+import {
+  Card,
+  Button,
+  Alert,
+  LoadingIndicator,
+  FormControl,
+  ListView,
+} from "frappe-ui";
 import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
 
@@ -109,7 +116,8 @@ function money(value: number | string, currency = "THB"): string {
 }
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || tf("intake.error.http", err.status);
+  if (err instanceof ApiError)
+    return err.message || tf("intake.error.http", err.status);
   return String(err);
 }
 
@@ -182,7 +190,10 @@ async function submit(): Promise<void> {
   }
 }
 
-async function doAction(row: IntakeRow, action: { key: string; label: string }): Promise<void> {
+async function doAction(
+  row: IntakeRow,
+  action: { key: string; label: string },
+): Promise<void> {
   busy.value = row.name;
   error.value = "";
   notice.value = "";
@@ -193,8 +204,14 @@ async function doAction(row: IntakeRow, action: { key: string; label: string }):
         : "pearnly_cowork.intake.api_queue_for_push";
     const body: Record<string, unknown> = { name: row.name };
     if (action.key === "queue") body.channel = "companion"; // 小助手出站拉取
-    const result = await call<{ name: string; status: string }>(method, body, { method: "POST" });
-    notice.value = tf("intake.notice.moved", row.name, statusLabel(result.status));
+    const result = await call<{ name: string; status: string }>(method, body, {
+      method: "POST",
+    });
+    notice.value = tf(
+      "intake.notice.moved",
+      row.name,
+      statusLabel(result.status),
+    );
     await refresh();
   } catch (err) {
     error.value = explain(err);
@@ -212,62 +229,86 @@ onMounted(() => {
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px">
-    <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
-    <div
-      v-if="notice"
-      class="pn-card"
-      style="padding: 12px 14px; color: var(--good); font-weight: 700; font-size: 13px"
-    >
-      {{ notice }}
-    </div>
+    <Alert v-if="error" theme="red" :title="error" />
+    <Alert v-if="notice" theme="green" :title="notice" />
 
-    <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('intake.card.waiting') }}</div>
+    <div
+      style="
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      "
+    >
+      <Card :title="t('intake.card.waiting')" class="">
         <div style="font-size: 22px; font-weight: 800">
-          {{ (summary?.by_status?.draft ?? 0) + (summary?.by_status?.recognized ?? 0) }}
+          {{
+            (summary?.by_status?.draft ?? 0) +
+            (summary?.by_status?.recognized ?? 0)
+          }}
         </div>
-      </div>
-      <div class="pn-card">
+      </Card>
+      <Card :title="t('intake.card.readyToPush')" class="">
         <!-- 这一格数的是"已确认、还没排队"——那才是现在能推的东西。
              叫"待推送"会和状态里的 queued（已排队待推送）撞名，所以写清楚。 -->
-        <div class="pn-muted">{{ t('intake.card.readyToPush') }}</div>
+
         <div style="font-size: 22px; font-weight: 800">
           {{ summary?.by_status?.confirmed ?? 0 }}
         </div>
-      </div>
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('intake.card.purchaseTotal') }}</div>
+      </Card>
+      <Card :title="t('intake.card.purchaseTotal')" class="">
         <div style="font-size: 22px; font-weight: 800">
-          {{ summary?.purchase_confirmed ? money(summary.purchase_confirmed) : "—" }}
+          {{
+            summary?.purchase_confirmed
+              ? money(summary.purchase_confirmed)
+              : "—"
+          }}
         </div>
-      </div>
-      <div class="pn-card">
-        <div class="pn-muted">{{ t('intake.card.salesTotal') }}</div>
+      </Card>
+      <Card :title="t('intake.card.salesTotal')" class="">
         <div style="font-size: 22px; font-weight: 800">
           {{ summary?.sales_confirmed ? money(summary.sales_confirmed) : "—" }}
         </div>
-      </div>
+      </Card>
     </div>
 
-    <div class="pn-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
+    <Card :title="t('intake.title')" class="">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        "
+      >
         <div>
-          <div style="font-size: 16px; font-weight: 800">{{ t('intake.title') }}</div>
           <div class="pn-muted">
-            {{ t('intake.subtitle') }}
+            {{ t("intake.subtitle") }}
           </div>
         </div>
         <div style="display: flex; gap: 8px; align-items: center">
-          <select v-model="filterDirection" class="form-input" @change="refresh">
-            <option value="">{{ t('intake.filter.allDirections') }}</option>
-            <option value="purchase">{{ t('intake.dir.purchase') }}</option>
-            <option value="sales">{{ t('intake.dir.sales') }}</option>
-          </select>
-          <select v-model="filterStatus" class="form-input" @change="refresh">
-            <option value="">{{ t('intake.filter.allStatuses') }}</option>
-            <option v-for="code in STATUS_CODES" :key="code" :value="code">{{ statusLabel(code) }}</option>
-          </select>
+          <FormControl
+            type="select"
+            v-model="filterDirection"
+            @update:model-value="refresh"
+            :options="[
+              { value: '', label: t('intake.filter.allDirections') },
+              { value: 'purchase', label: t('intake.dir.purchase') },
+              { value: 'sales', label: t('intake.dir.sales') },
+            ]"
+          />
+          <FormControl
+            type="select"
+            v-model="filterStatus"
+            @update:model-value="refresh"
+            :options="[
+              { value: '', label: t('intake.filter.allStatuses') },
+              ...STATUS_CODES.map((code) => ({
+                value: code,
+                label: statusLabel(code),
+              })),
+            ]"
+          />
           <Button
             variant="outline"
             theme="gray"
@@ -285,55 +326,78 @@ onMounted(() => {
         </div>
       </div>
 
-      <div v-if="showForm" style="margin-top: 16px; border-top: 1px solid var(--line); padding-top: 16px">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px">
-          <label>
-            <span class="pn-muted">{{ t('intake.field.direction') }}</span>
-            <select v-model="draft.direction" class="form-input w-full">
-              <option value="purchase">{{ t('intake.dir.purchaseFull') }}</option>
-              <option value="sales">{{ t('intake.dir.salesFull') }}</option>
-            </select>
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('intake.field.source') }}</span>
-            <select v-model="draft.source" class="form-input w-full">
-              <option value="upload">{{ t('intake.source.upload') }}</option>
-              <option value="line">LINE</option>
-              <option value="email">{{ t('intake.source.email') }}</option>
-              <option value="manual">{{ t('intake.source.manual') }}</option>
-            </select>
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('intake.field.counterparty') }}</span>
-            <input
-              v-model="draft.counterparty_name"
-              class="form-input w-full"
-              :placeholder="t('intake.placeholder.counterparty')"
-            />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('intake.field.docNo') }}</span>
-            <input
-              v-model="draft.doc_no"
-              class="form-input w-full"
-              :placeholder="t('intake.placeholder.docNo')"
-            />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('intake.field.docDate') }}</span>
-            <input v-model="draft.doc_date" type="date" class="form-input w-full" />
-          </label>
+      <div
+        v-if="showForm"
+        style="
+          margin-top: 16px;
+          border-top: 1px solid var(--line);
+          padding-top: 16px;
+        "
+      >
+        <div
+          style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px"
+        >
+          <FormControl
+            :label="t('intake.field.direction')"
+            type="select"
+            v-model="draft.direction"
+            class="w-full"
+            :options="[
+              { value: 'purchase', label: t('intake.dir.purchaseFull') },
+              { value: 'sales', label: t('intake.dir.salesFull') },
+            ]"
+          />
+          <FormControl
+            :label="t('intake.field.source')"
+            type="select"
+            v-model="draft.source"
+            class="w-full"
+            :options="[
+              { value: 'upload', label: t('intake.source.upload') },
+              { value: 'line', label: 'LINE' },
+              { value: 'email', label: t('intake.source.email') },
+              { value: 'manual', label: t('intake.source.manual') },
+            ]"
+          />
+          <FormControl
+            :label="t('intake.field.counterparty')"
+            v-model="draft.counterparty_name"
+            class="w-full"
+            :placeholder="t('intake.placeholder.counterparty')"
+          />
+          <FormControl
+            :label="t('intake.field.docNo')"
+            v-model="draft.doc_no"
+            class="w-full"
+            :placeholder="t('intake.placeholder.docNo')"
+          />
+          <FormControl
+            :label="t('intake.field.docDate')"
+            v-model="draft.doc_date"
+            type="date"
+            class="w-full"
+          />
           <div />
-          <label>
-            <span class="pn-muted">{{ t('intake.field.netAmount') }}</span>
-            <input v-model.number="draft.net_amount" type="number" step="0.01" class="form-input w-full" />
-          </label>
-          <label>
-            <span class="pn-muted">{{ t('intake.field.vatAmount') }}</span>
-            <input v-model.number="draft.vat_amount" type="number" step="0.01" class="form-input w-full" />
-          </label>
+          <FormControl
+            :label="t('intake.field.netAmount')"
+            :model-value="draft.net_amount"
+            @update:model-value="draft.net_amount = Number($event)"
+            type="number"
+            step="0.01"
+            class="w-full"
+          />
+          <FormControl
+            :label="t('intake.field.vatAmount')"
+            :model-value="draft.vat_amount"
+            @update:model-value="draft.vat_amount = Number($event)"
+            type="number"
+            step="0.01"
+            class="w-full"
+          />
         </div>
-        <div style="margin-top: 16px; display: flex; gap: 8px; align-items: center">
+        <div
+          style="margin-top: 16px; display: flex; gap: 8px; align-items: center"
+        >
           <Button
             variant="solid"
             theme="gray"
@@ -342,57 +406,71 @@ onMounted(() => {
             :disabled="!canSubmit"
             @click="submit"
           />
-          <span class="pn-muted">{{ t('intake.hint.afterSave') }}</span>
+          <span class="pn-muted">{{ t("intake.hint.afterSave") }}</span>
         </div>
       </div>
 
       <div style="margin-top: 16px">
-        <div v-if="loading" style="display: flex; flex-direction: column; gap: 8px">
-          <div v-for="i in 4" :key="i" class="pn-skeleton" />
+        <div
+          v-if="loading"
+          style="display: flex; flex-direction: column; gap: 8px"
+        >
+          <LoadingIndicator v-for="i in 4" :key="i" class="h-5 w-5" />
         </div>
         <p v-else-if="!rows.length" class="pn-muted" style="margin: 0">
-          {{ t('intake.empty') }}
+          {{ t("intake.empty") }}
         </p>
-        <table v-else class="pn-table">
-          <thead>
-            <tr>
-              <th>{{ t('intake.col.name') }}</th>
-              <th>{{ t('intake.col.direction') }}</th>
-              <th>{{ t('intake.col.counterparty') }}</th>
-              <th>{{ t('intake.field.docNo') }}</th>
-              <th>{{ t('intake.col.date') }}</th>
-              <th>{{ t('intake.col.status') }}</th>
-              <th class="pn-num">{{ t('intake.col.grandTotal') }}</th>
-              <th>{{ t('intake.col.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="row in rows" :key="row.name">
-              <td>{{ row.name }}</td>
-              <td>{{ dirLabel(row.direction) }}</td>
-              <td>{{ row.counterparty_name || "—" }}</td>
-              <td>{{ row.doc_no || "—" }}</td>
-              <td>{{ row.doc_date || "—" }}</td>
-              <td>
-                {{ statusLabel(row.status) }}
-                <span v-if="row.push_status" class="pn-muted"> / {{ row.push_status }}</span>
-              </td>
-              <td class="pn-num">{{ money(row.grand_total, row.currency) }}</td>
-              <td>
-                <Button
-                  v-for="action in actions(row)"
-                  :key="action.key"
-                  variant="outline"
-                  theme="gray"
-                  :label="busy === row.name ? t('intake.processing') : action.label"
-                  :disabled="!!busy"
-                  @click="doAction(row, action)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <ListView
+          v-else
+          :columns="[
+            { key: 'c0', label: t('intake.col.name'), width: '150px' },
+            { key: 'c1', label: t('intake.col.direction'), width: '150px' },
+            { key: 'c2', label: t('intake.col.counterparty'), width: '150px' },
+            { key: 'c3', label: t('intake.field.docNo'), width: '150px' },
+            { key: 'c4', label: t('intake.col.date'), width: '150px' },
+            { key: 'c5', label: t('intake.col.status'), width: '150px' },
+            { key: 'c6', label: t('intake.col.grandTotal'), width: '150px' },
+            { key: 'c7', label: t('intake.col.actions'), width: '220px' },
+          ]"
+          :rows="rows"
+          row-key="name"
+          :options="{ selectable: false, showTooltip: false }"
+        >
+          <template #cell="{ column, row: row }">
+            <span v-if="column.key === 'c0'">{{ row.name }}</span>
+            <span v-if="column.key === 'c1'">{{
+              dirLabel(row.direction)
+            }}</span>
+            <span v-if="column.key === 'c2'">{{
+              row.counterparty_name || "—"
+            }}</span>
+            <span v-if="column.key === 'c3'">{{ row.doc_no || "—" }}</span>
+            <span v-if="column.key === 'c4'">{{ row.doc_date || "—" }}</span>
+            <span v-if="column.key === 'c5'">
+              {{ statusLabel(row.status) }}
+              <span v-if="row.push_status" class="pn-muted">
+                / {{ row.push_status }}</span
+              >
+            </span>
+            <span v-if="column.key === 'c6'" class="pn-num">{{
+              money(row.grand_total, row.currency)
+            }}</span>
+            <span v-if="column.key === 'c7'">
+              <Button
+                v-for="action in actions(row)"
+                :key="action.key"
+                variant="outline"
+                theme="gray"
+                :label="
+                  busy === row.name ? t('intake.processing') : action.label
+                "
+                :disabled="!!busy"
+                @click="doAction(row, action)"
+              />
+            </span>
+          </template>
+        </ListView>
       </div>
-    </div>
+    </Card>
   </div>
 </template>

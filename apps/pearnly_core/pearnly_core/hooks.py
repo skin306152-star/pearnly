@@ -1,3 +1,5 @@
+from pearnly_core.desk.assets import versioned_asset
+
 app_name = "pearnly_core"
 app_title = "Pearnly Core"
 app_publisher = "Pearnly"
@@ -5,8 +7,7 @@ app_description = "统一身份、授权上下文与审计核心"
 app_email = "hello@pearnly.com"
 app_license = "mit"
 
-# 账号组件：产品界面左下角/右下角头像菜单 + 改密弹窗（三个产品共用）。
-# 刻意**不**注入 Frappe 自带界面：入口属于产品壳，由产品挂载。
+# 产品账户设置沿用原生 User 表单，自有扩展只衔接统一身份。
 
 # 业务前端的入口：`/pearnly-app/<任意子路径>` 都交给同一个壳页，
 # 子路径由前端自己按地址渲染（单页应用）。没有这条规则时，
@@ -172,6 +173,8 @@ doc_events = {
     # 开通时会给已存在的账号设一遍默认工作区；这个钩子管**之后新增**的员工账号，
     # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。
     "User": {
+        "before_validate": "pearnly_core.account.profile.reject_local_password",
+        "before_save": "pearnly_core.account.preferences.sync_profile_language",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
     },
 }
@@ -285,3 +288,22 @@ doc_events = {
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+# Product Desk uses the same native UI runtime as the management Site.
+boot_session = "pearnly_core.desk.navigation.extend_boot"
+app_include_css = [versioned_asset("pearnly_core", "desk/product.css")]
+app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
+after_migrate = [
+    "pearnly_core.desk.navigation.ensure_navigation",
+    "pearnly_core.desk.branding.ensure_site_favicon",
+]
+
+# Keep the native user form; do not add a second account settings page.
+doctype_js = {"User": "public/desk/user.js"}
+
+# Product account preferences never expose the framework user directory.
+has_permission = {"User": "pearnly_core.desk.permissions.user_permission"}
+permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query"}
+
+# Native clear-cache must not discard still-active identity sessions/state.
+persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]

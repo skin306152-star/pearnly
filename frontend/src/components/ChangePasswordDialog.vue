@@ -13,7 +13,7 @@
 // 纯字母，纯数字都可以，包括首次使用"）：这里只提示"两次输入不一致"，
 // 不再提示长度，免得出现"界面说还差几位、其实后端已经收下"的错配。
 import { computed, onMounted, ref, watch } from "vue";
-import { Button, Dialog } from "frappe-ui";
+import { Button, Dialog, Alert, FormControl } from "frappe-ui";
 import { createTexts } from "../lib/i18n";
 import { call, ApiError } from "../lib/api";
 
@@ -57,7 +57,8 @@ watch(open, (isOpen) => {
 });
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || tf("account.error.http", err.status);
+  if (err instanceof ApiError)
+    return err.message || tf("account.error.http", err.status);
   return String(err);
 }
 
@@ -94,44 +95,46 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <Dialog v-model="open" :options="{ title: t('account.changePassword'), size: 'sm' }">
+  <Dialog
+    v-model="open"
+    :options="{ title: t('account.changePassword'), size: 'sm' }"
+  >
     <template #body-content>
       <div style="display: flex; flex-direction: column; gap: 12px">
-        <label>
-          <span class="pn-muted">{{ t('account.pwd.current') }}</span>
-          <input
-            v-model="currentPassword"
-            type="password"
-            autocomplete="current-password"
-            class="form-input w-full"
-          />
-        </label>
-        <label>
-          <span class="pn-muted">{{ t('account.pwd.new') }}</span>
-          <input
-            v-model="newPassword"
-            type="password"
-            autocomplete="new-password"
-            class="form-input w-full"
-          />
-        </label>
-        <label>
-          <span class="pn-muted">{{ t('account.pwd.confirm') }}</span>
-          <input
-            v-model="confirmPassword"
-            type="password"
-            autocomplete="new-password"
-            class="form-input w-full"
-          />
-        </label>
+        <FormControl
+          :label="t('account.pwd.current')"
+          v-model="currentPassword"
+          type="password"
+          autocomplete="current-password"
+          class="w-full"
+        />
+        <FormControl
+          :label="t('account.pwd.new')"
+          v-model="newPassword"
+          type="password"
+          autocomplete="new-password"
+          class="w-full"
+        />
+        <FormControl
+          :label="t('account.pwd.confirm')"
+          v-model="confirmPassword"
+          type="password"
+          autocomplete="new-password"
+          class="w-full"
+        />
 
         <p v-if="hint" class="pn-muted" style="margin: 0">{{ hint }}</p>
-        <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
-        <p v-if="done" style="margin: 0; color: var(--good); font-weight: 700; font-size: 13px">
-          {{ done }}
-        </p>
+        <Alert v-if="error" theme="red" :title="error" />
+        <Alert v-if="done" theme="green" :title="done" />
 
-        <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px">
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            margin-top: 4px;
+          "
+        >
           <Button
             variant="outline"
             theme="gray"

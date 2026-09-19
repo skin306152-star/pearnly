@@ -156,6 +156,8 @@ def summary(*, from_date=None, to_date=None) -> dict:
 def api_create_purchase(**kwargs):
     # 框架会把 cmd 一起塞进 kwargs，必须摘掉再传给业务函数
     kwargs.pop("cmd", None)
+    if isinstance(kwargs.get("lines"), str):
+        kwargs["lines"] = frappe.parse_json(kwargs["lines"])
     return {"name": create_purchase(**kwargs)}
 
 

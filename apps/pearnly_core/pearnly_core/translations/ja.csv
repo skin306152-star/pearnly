@@ -73,6 +73,7 @@ Could not send the invitation email: {0} {1},招待メールの送信に失敗: 
 Could not set the password: {0} {1},パスワードの設定に失敗: {0} {1}
 Could not take the lock (Redis down?): {0},ロックを取得できません（Redis不通？）: {0}
 Could not update the OIDC client: {0} {1},OIDCクライアントの更新に失敗: {0} {1}
+Could not update the account language.,アカウントの言語を更新できませんでした。
 Count tasks and variance records,棚卸タスクと差異記録
 Counterparty,取引先名
 Counterparty Tax ID,取引先の税番号
@@ -241,6 +242,7 @@ Payment Status,支払状況
 Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
 Plan & Balance,プランと残高
 Please sign in,ログインしてください
+Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Processing Started At,実行開始日時
 Product,製品
 Product Ref,商品の外部参照
@@ -380,8 +382,11 @@ Unconfirmed documents cannot be pushed,未確定の伝票は送信できませ�
 Unit,単位
 Unit Price,単価
 Unknown product: {0},不明な製品: {0}
+Upload a transfer slip before submitting,送信前に振込明細をアップロードしてください
+Upload a transfer slip up to 10 MB,10 MB 以下の振込明細をアップロードしてください
 "Upload receipts and sheets, extract fields, review each item, then push",領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
 Usage,利用状況
+"Use a JPG, PNG or PDF transfer slip",振込明細は JPG・PNG・PDF を使用してください
 Used,使用済み
 Used At,使用日時
 User,ユーザー
@@ -407,6 +412,10 @@ Workspace,ワークスペース
 account.cancel,キャンセル
 account.changePassword,パスワード変更
 account.error.http,リクエスト失敗（HTTP {0}）
+account.error.languageFailed,アカウントの言語を更新できませんでした。
+account.error.reloginLanguage,言語を変更する前に再ログインしてください。
+account.identityPasswordOnly,プロフィールの「パスワード変更」からログインパスワードを変更してください。
+account.language,言語
 account.pwd.confirm,新しいパスワード（確認）
 account.pwd.current,現在のパスワード
 account.pwd.done,パスワードを更新しました。次回は新しいパスワードでログインしてください。
@@ -414,7 +423,12 @@ account.pwd.mismatch,パスワードが一致しません
 account.pwd.new,新しいパスワード
 account.save,保存
 account.saving,保存中…
+account.sidebarOrder,サイドバーの並べ替え
+account.signInAgain,ログアウトして再ログイン
 account.signOut,ログアウト
+account.signOutConfirm,ログアウトしますか？
+account.themeDark,Pearnly ダーク
+account.themeLight,Pearnly ライト
 common.backHome,ホームに戻る
 common.cancel,キャンセル
 common.col.date,日付
@@ -462,17 +476,33 @@ connect.notice.ok,接続正常 · {0}
 connect.placeholder.password,DMSログインパスワード
 connect.placeholder.username,DMSログインアカウント
 connect.processing,処理中…
+connect.records.businessNumber,業務番号
+connect.records.confirmDelete,選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。
+connect.records.contactSupport,記録番号を添えてサポートへご連絡ください
+connect.records.deletedCount,{0}件の送信記録を削除しました
+connect.records.failed,失敗
+connect.records.manual,手動処理
+connect.records.pagination,{0} / {1} ページ · 全 {2} 件
+connect.records.pending,処理待ち
+connect.records.result,結果の詳細
+connect.records.retrying,再試行中
+connect.records.skipped_dup,重複のためスキップ
+connect.records.success,成功
+connect.records.time,日時
 connect.state.connected,接続済み
 connect.state.disabled,無効
 connect.state.enabled,有効
 connect.state.notConnected,未接続
-connect.title,外部DMSに接続
+connect.title,DMSに接続
 connect.yes,はい
 endpoint is missing (which connection to test),endpoint がありません（どの接続をテストするか）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 home.balance.title,口座残高
 home.balance.used,今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 home.balance.usedNoPlan,今月 {0} 枚使用 · 未登録の従量課金
+home.bank.account,口座番号
+home.bank.holder,口座名義
+home.bank.name,銀行
 home.cancel,キャンセル
 home.col.amount,金額
 home.col.balanceAfter,変動後の残高
@@ -508,6 +538,7 @@ home.period.year,今年
 home.plan.code,プラン
 home.plan.current,現在のプラン
 home.plan.cycleNote,プランは30日周期で、期間終了で終わります（自動更新なし）。終了後に下から再登録してください。
+home.plan.failed,プランを有効化できませんでした
 home.plan.none,未登録
 home.plan.noneHint,現在は従量課金です。下からプランを登録すると安くなります
 home.plan.over,超過 {0}/枚 · サイクル終了 {1}
@@ -528,11 +559,15 @@ home.status.pending,審査待ち
 home.status.rejected,却下済み
 home.status.toreview,要確認
 home.topup,チャージ
+home.topup.attached,振込明細を添付しました
 home.topup.hint,プラットフォームが着金を確認すると残高に反映されます。
 home.topup.payerHint,銀行振込の振込人名
+home.topup.slip,振込明細をアップロード
+home.topup.slipFormats,JPG・PNG・PDF、10 MB まで
 home.topup.submit,申請する
 home.topup.submitted,チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。
 home.topup.submitting,送信中…
+home.topup.transfer,下記口座に振り込み、振込明細をアップロードして審査を申請してください。
 intake.action.confirm,確認
 intake.action.new,新規入力
 intake.action.queue,送信
@@ -587,7 +622,7 @@ intake.subtitle,制限：未確認の伝票は送信できません（状態機�
 intake.title,取り込みワークベンチ
 nav.clients,顧客管理
 nav.company,会社情報
-nav.connect,外部DMSに接続
+nav.connect,DMSに接続
 nav.cowork,Pearnly Cowork
 nav.erpClients,顧客
 nav.erpPurchase,購買
@@ -650,14 +685,22 @@ purchase.title,仕入記録
 roster.add,オペレーターを追加
 roster.addHint,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
 roster.advisor.auto,自動照合（DMSアカウント基準）
+roster.advisor.empty,DMS担当者一覧は空です。
+roster.advisor.invalid,現在のDMS一覧にこの担当者は存在しません。選択し直してください。
+roster.advisor.loadError,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
+roster.advisor.loading,担当者一覧を読み込み中…
+roster.advisor.noConnection,DMSを接続すると担当者一覧を読み込めます。
 roster.advisor.note,新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
+roster.advisor.reload,担当者一覧を再読み込み
 roster.allowQuery,許可
+roster.bindLine,LINEを連携
 roster.bound,連携済み
 roster.cancel,キャンセル
 roster.close,閉じる
 roster.code.expired,期限切れ
 roster.code.expiredHint,連携コードの期限が切れました。再生成してください
-roster.code.step1,1. このオペレーターにLINEでPearnly DMSを友だち追加してもらいます
+roster.code.instruction,スキャンして友だち追加し、LINEでこの連携コードを送信してください。
+roster.code.step1,1. 会社のLINE公式アカウントを友だち追加してください
 roster.code.step2,2. LINEのトークでこの連携コードを送ると接続できます
 roster.code.title,連携コード
 roster.code.validFor,残り有効時間 {0}
@@ -667,15 +710,19 @@ roster.col.operator,オペレーター
 roster.col.query,照会権限
 roster.collapse,閉じる
 roster.confirm.delete,「{0}」のLINE連携を解除しDMS接続も削除します。送信ログは残ります。削除しますか。
+roster.confirm.deleteSelected,選択した{0}名の操作員を削除しますか。LINE連携とDMS接続を解除し、送信ログは保持します。
 roster.confirm.disable,「{0}」を無効化しますか。DMS送信が止まり、LINE連携も解除されます。
 roster.confirm.enable,「{0}」を有効化しますか。LINE連携には新しい連携コードが必要です。
 roster.confirm.title,確認してください
+roster.confirm.unbind,{0} のLINE連携を解除しますか？未使用コードも無効になります。担当者とDMS認証情報は保持されます。
 roster.delete,削除
 roster.disable,無効化
 roster.edit,編集
+roster.edit.passwordHint,空欄の場合、現在のパスワードを保持します。
 roster.editTitle,オペレーターを編集
 roster.enable,有効化
 roster.error.http,リクエスト失敗（HTTP {0}）
+roster.error.noConnection,オペレーターを追加する前にDMSを接続してください。
 roster.field.advisor,販売手数料の帰属
 roster.field.canQuery,LINEでのDMS照会を許可
 roster.field.displayName,表示名
@@ -688,12 +735,16 @@ roster.hint.dmsPassword,このオペレーターのDMSパスワード
 roster.hint.dmsUsername,このオペレーターのDMSアカウント
 roster.issueCode,連携コードを発行
 roster.keepBlank,空欄なら変更しません
+roster.line.addFriend,公式アカウントを友だち追加
+roster.line.notConfigured,会社のLINE公式アカウントはまだ設定されていません。
+roster.line.unavailable,会社のLINE公式アカウントを確認できません。再試行してください。
 roster.list.empty,オペレーターがまだいません。上で追加してください
 roster.list.title,オペレーター一覧
 roster.loading,読み込み中…
 roster.noQuery,不許可
 roster.notice.created,オペレーターを追加しました
 roster.notice.deleted,削除しました
+roster.notice.deletedCount,{0}名の操作員を削除しました
 roster.notice.disabled,無効化しました
 roster.notice.enabled,有効化しました
 roster.notice.noChanges,保存する変更はありません
@@ -707,6 +758,7 @@ roster.save,保存
 roster.saving,保存中…
 roster.subtitle,1行につき営業または管理者1名。各自のDMS資格情報を持ち、LINE連携コードも個別に発行します
 roster.title,オペレーター
+roster.unbindLine,LINE連携を解除
 roster.unbound,未連携
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 shell.backHome,ホームに戻る

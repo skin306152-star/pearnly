@@ -145,6 +145,7 @@ No such deployment: {0},部署不存在：{0}
 No such plan: {0},没有这个套餐：{0}
 No such step: {0},找不到步骤 {0}
 No such tenant: {0},租户不存在：{0}
+No transfer slip is attached,未附转账凭证
 Not issued,未发号
 Not permitted,无权操作
 Not provisioned,未开通
@@ -283,6 +284,7 @@ Username,用户名
 Username and initial password are both required: they are the credentials for the user's first sign-in,用户名和初始密码都要填：它们是用户首次登录的凭据
 "Username may only contain letters, digits, dot, underscore and hyphen, length 3–30",用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30
 View progress,查看进度
+View transfer slip,查看转账凭证
 View welcome email,查看欢迎邮件
 Webhook URL,Webhook 地址
 Welcome Email Error,欢迎邮件错误

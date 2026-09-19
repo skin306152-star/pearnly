@@ -5,7 +5,21 @@
 
 frappe.ui.form.on("Pearnly Topup Request", {
 	refresh(frm) {
-		if (frm.is_new() || frm.doc.status !== "pending") return;
+		if (frm.is_new()) return;
+        if (frm.doc.__onload?.billing_remote) {
+            frm.disable_save();
+            for (const field of frm.meta.fields) {
+                if (frappe.model.is_value_type(field.fieldtype)) {
+                    frm.set_df_property(field.fieldname, "read_only", 1);
+                }
+            }
+            // Evidence is downloaded through authenticated management RPC.
+            frm.toggle_display("slip", false);
+        }
+        frm.add_custom_button(__("View transfer slip"), () => {
+            window.open("/api/method/pearnly_control.billing_api.admin_slip?request=" + encodeURIComponent(frm.doc.name), "_blank", "noopener");
+        });
+        if (frm.doc.status !== "pending") return;
 
 		frm.add_custom_button(__("Approve and credit"), () => approve(frm), null);
 		frm.add_custom_button(__("Reject"), () => reject(frm), null);

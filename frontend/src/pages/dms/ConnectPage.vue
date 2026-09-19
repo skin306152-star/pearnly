@@ -11,7 +11,14 @@
 //
 // 界面上**不放解释性文案**：卡片只列字段，结果只说结果。
 import { computed, onMounted, reactive, ref } from "vue";
-import { Button, Dialog } from "frappe-ui";
+import {
+  Card,
+  Button,
+  Dialog,
+  Alert,
+  LoadingIndicator,
+  FormControl,
+} from "frappe-ui";
 import { createTexts } from "../../lib/i18n";
 import { call, ApiError } from "../../lib/api";
 
@@ -66,13 +73,18 @@ const notice = ref("");
 const open = ref(false);
 const form = reactive({ username: "", password: "" });
 
-const configured = computed(() => !!conn.value?.connected && !!conn.value?.endpoint);
+const configured = computed(
+  () => !!conn.value?.connected && !!conn.value?.endpoint,
+);
 const ep = computed(() => conn.value?.endpoint ?? null);
 
-const canSubmit = computed(() => form.username.trim().length > 0 && form.password.length > 0);
+const canSubmit = computed(
+  () => form.username.trim().length > 0 && form.password.length > 0,
+);
 
 function explain(err: unknown): string {
-  if (err instanceof ApiError) return err.message || tf("connect.error.http", err.status);
+  if (err instanceof ApiError)
+    return err.message || tf("connect.error.http", err.status);
   return String(err);
 }
 
@@ -80,7 +92,9 @@ async function refresh(): Promise<void> {
   loading.value = true;
   error.value = "";
   try {
-    conn.value = await call<Connection>("pearnly_dms.connections.api.get_connection");
+    conn.value = await call<Connection>(
+      "pearnly_dms.connections.api.get_connection",
+    );
   } catch (err) {
     error.value = explain(err);
   } finally {
@@ -122,7 +136,11 @@ function connectAndSave(): Promise<void> {
       error.value = probe.error_friendly || t("connect.error.failed");
       return;
     }
-    await call("pearnly_dms.connections.api.save_connection", { username, password }, { method: "POST" });
+    await call(
+      "pearnly_dms.connections.api.save_connection",
+      { username, password },
+      { method: "POST" },
+    );
     notice.value = tf("connect.notice.connected", masterSummary(probe));
     open.value = false;
     form.password = "";
@@ -148,8 +166,14 @@ function testSaved(): Promise<void> {
 function toggleEnabled(): Promise<void> {
   return run("toggle", async () => {
     const next = !ep.value?.enabled;
-    await call("pearnly_dms.connections.api.set_connection_enabled", { enabled: next ? 1 : 0 }, { method: "POST" });
-    notice.value = next ? t("connect.state.enabled") : t("connect.state.disabled");
+    await call(
+      "pearnly_dms.connections.api.set_connection_enabled",
+      { enabled: next ? 1 : 0 },
+      { method: "POST" },
+    );
+    notice.value = next
+      ? t("connect.state.enabled")
+      : t("connect.state.disabled");
     await refresh();
   });
 }
@@ -173,24 +197,29 @@ onMounted(() => {
 
 <template>
   <div style="display: flex; flex-direction: column; gap: 16px">
-    <div v-if="error" class="pn-error" role="alert">{{ error }}</div>
-    <div
-      v-if="notice"
-      class="pn-card"
-      style="padding: 12px 14px; color: var(--good); font-weight: 700; font-size: 13px"
-    >
-      {{ notice }}
-    </div>
+    <Alert v-if="error" theme="red" :title="error" />
+    <Alert v-if="notice" theme="green" :title="notice" />
 
-    <div class="pn-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap">
-        <div style="font-size: 16px; font-weight: 800">{{ ep?.label || t('connect.title') }}</div>
+    <Card :title="ep?.label || t('connect.title')" class="">
+      <div
+        style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          flex-wrap: wrap;
+        "
+      >
         <div style="display: flex; gap: 8px">
           <Button
             v-if="configured"
             variant="outline"
             theme="gray"
-            :label="busy === 'test' ? t('connect.action.testing') : t('connect.action.test')"
+            :label="
+              busy === 'test'
+                ? t('connect.action.testing')
+                : t('connect.action.test')
+            "
             :disabled="busy === 'test'"
             @click="testSaved"
           />
@@ -212,66 +241,80 @@ onMounted(() => {
             variant="solid"
             theme="gray"
             class="pn-primary"
-            :label="configured ? t('connect.action.edit') : t('connect.action.connect')"
+            :label="
+              configured
+                ? t('connect.action.edit')
+                : t('connect.action.connect')
+            "
             @click="openWizard"
           />
         </div>
       </div>
 
-      <div v-if="loading" class="pn-skeleton" style="width: 220px; margin-top: 14px" />
+      <LoadingIndicator v-if="loading" class="h-5 w-5" />
       <div v-else class="pn-fields">
-        <div class="pn-label">{{ t('connect.field.status') }}</div>
-        <div :style="{ color: ep?.enabled ? 'var(--good)' : 'var(--ink3)', fontWeight: 700 }">
+        <div class="pn-label">{{ t("connect.field.status") }}</div>
+        <div
+          :style="{
+            color: ep?.enabled ? 'var(--good)' : 'var(--ink3)',
+            fontWeight: 700,
+          }"
+        >
           {{
             configured
               ? ep?.enabled
-                ? t('connect.state.connected')
-                : t('connect.state.disabled')
-              : t('connect.state.notConnected')
+                ? t("connect.state.connected")
+                : t("connect.state.disabled")
+              : t("connect.state.notConnected")
           }}
         </div>
-        <div class="pn-label">{{ t('connect.field.account') }}</div>
+        <div class="pn-label">{{ t("connect.field.account") }}</div>
         <div>{{ ep?.username || "—" }}</div>
 
-        <div class="pn-label">{{ t('connect.field.url') }}</div>
+        <div class="pn-label">{{ t("connect.field.url") }}</div>
         <div>{{ ep?.system_url || "—" }}</div>
-        <div class="pn-label">{{ t('connect.field.adminCreds') }}</div>
-        <div>{{ ep?.has_admin_creds ? t('connect.yes') : t('connect.no') }}</div>
+        <div class="pn-label">{{ t("connect.field.adminCreds") }}</div>
+        <div>
+          {{ ep?.has_admin_creds ? t("connect.yes") : t("connect.no") }}
+        </div>
 
-        <div class="pn-label">{{ t('connect.field.lastResult') }}</div>
+        <div class="pn-label">{{ t("connect.field.lastResult") }}</div>
         <div>{{ ep?.last_status || "—" }}</div>
-        <div class="pn-label">{{ t('connect.field.successFailure') }}</div>
+        <div class="pn-label">{{ t("connect.field.successFailure") }}</div>
         <div>{{ ep?.success_count ?? 0 }} / {{ ep?.failure_count ?? 0 }}</div>
       </div>
-    </div>
+    </Card>
 
     <!-- 向导弹窗：地址写死隐藏，只填账号密码 -->
     <Dialog
       v-model="open"
       :options="{
-        title: configured ? t('connect.action.edit') : t('connect.action.connect'),
+        title: configured
+          ? t('connect.action.edit')
+          : t('connect.action.connect'),
         size: 'sm',
       }"
     >
       <template #body-content>
         <div class="pn-form">
-          <label class="pn-label">{{ t('connect.field.account') }}</label>
-          <input
+          <FormControl
+            :label="t('connect.field.account')"
             v-model="form.username"
-            class="form-input"
             :placeholder="t('connect.placeholder.username')"
           />
-          <label class="pn-label">{{ t('connect.field.password') }}</label>
-          <input
+          <FormControl
+            :label="t('connect.field.password')"
             v-model="form.password"
             type="password"
-            class="form-input"
             :placeholder="t('connect.placeholder.password')"
             autocomplete="new-password"
           />
-          <div v-if="error" class="pn-error" style="grid-column: 1 / -1" role="alert">
-            {{ error }}
-          </div>
+          <Alert
+            v-if="error"
+            style="grid-column: 1 / -1"
+            theme="red"
+            :title="error"
+          />
           <div style="display: flex; gap: 8px; justify-content: flex-end">
             <Button
               variant="outline"
@@ -283,7 +326,11 @@ onMounted(() => {
               variant="solid"
               theme="gray"
               class="pn-primary"
-              :label="busy === 'save' ? t('connect.action.connecting') : t('connect.action.connectSave')"
+              :label="
+                busy === 'save'
+                  ? t('connect.action.connecting')
+                  : t('connect.action.connectSave')
+              "
               :disabled="!canSubmit || busy === 'save'"
               @click="connectAndSave"
             />
@@ -308,7 +355,7 @@ onMounted(() => {
 }
 .pn-form {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   column-gap: 10px;
   row-gap: 12px;

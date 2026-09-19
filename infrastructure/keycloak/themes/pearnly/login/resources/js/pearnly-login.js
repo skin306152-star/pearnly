@@ -7,6 +7,23 @@
     var stage = document.querySelector('.auth-stage');
     if (!stage) return;
 
+    // Keep the native originating login flow while reset uses its own auth session.
+    var resetReturnKey = 'pearnly-reset-return:' + location.pathname.split('/login-actions/')[0].split('/protocol/')[0];
+    var forgotLink = document.querySelector('[data-reset-login-return]');
+    if (forgotLink) forgotLink.addEventListener('click', function () {
+        try { sessionStorage.setItem(resetReturnKey, forgotLink.dataset.resetLoginReturn); } catch (_) {}
+    });
+    var resetBack = document.querySelector('[data-reset-back]');
+    if (resetBack) {
+        try {
+            var saved = sessionStorage.getItem(resetReturnKey);
+            var backUrl = saved && new URL(saved, location.origin);
+            if (backUrl && backUrl.origin === location.origin && /\/login-actions\/restart$/.test(backUrl.pathname)) {
+                resetBack.href = backUrl.href;
+            }
+        } catch (_) {}
+    }
+
     // ── 1. 密码显示 / 隐藏 ──────────────────────────────────────────────
     document.addEventListener('click', function (event) {
         var toggle = event.target.closest('[data-toggle-password]');

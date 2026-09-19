@@ -17,6 +17,8 @@ jobs:
           persist-credentials: false
       - name: Test the architecture guard
         run: python3 tests/test_architecture_guard.py
+      - name: Verify native Desk contracts
+        run: python3 tests/test_native_desk_contract.py
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Exercise audited offline DMS contracts
@@ -26,6 +28,12 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.14.0'
+      - name: Verify native Desk lifecycle
+        run: node tests/test-native-desk.cjs
+      - name: Verify product list selection and deletion
+        run: |
+          node tests/test-roster-selection.cjs
+          node tests/test-records-selection.cjs
       - name: Verify Desk retry actions
         run: node scripts/production/test-issue-actions.cjs
       - name: Verify welcome email contracts

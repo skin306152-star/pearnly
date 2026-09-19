@@ -1,6 +1,7 @@
 """First-use welcome mail; native queue delivery is independent of provisioning."""
 from pathlib import Path
 import re
+import json
 
 import frappe
 from frappe import _
@@ -12,7 +13,8 @@ REQUEST = "Pearnly Provisioning Request"
 SENDER = "hello@pearnly.com"
 PRODUCTS = {"dms": "Pearnly DMS", "erp": "Pearnly ERP", "cowork": "Pearnly Cowork"}
 DOMAIN = re.compile(r"(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$")
-REQUIRED = {"new_site", "install_core", "install_product", "set_oidc", "bind_user", "publish_site", "mark_active"}
+REQUIRED = {"new_site", "set_oidc", "bind_user", "publish_site", "mark_active"}
+PRODUCT_APPS = {"dms": "pearnly_dms", "erp": "pearnly_erp_portal", "cowork": "pearnly_cowork"}
 
 
 def request_completed(doc, method=None):
@@ -56,6 +58,19 @@ def ready_products(issue, request):
         actions = {s.action for s in request.steps if s.deployment == dep and s.status == "done"}
         if not dep or not REQUIRED.issubset(actions):
             raise ValueError("Published account is not ready")
+        # install_core/install_product are step keys, not executable actions.
+        # Require both actual app installations for this deployment; do not
+        # accept an unrelated install_app or the same step duplicated twice.
+        installed = {}
+        for step in request.steps:
+            if step.deployment != dep or step.status != "done" or step.action != "install_app":
+                continue
+            payload = json.loads(step.payload or "{}")
+            if payload.get("site") == domain:
+                installed[step.step_key] = payload.get("app")
+        if (installed.get(f"{dep}:install_core") != "pearnly_core"
+                or installed.get(f"{dep}:install_product") != PRODUCT_APPS[row.app]):
+            raise ValueError("Required product apps are not installed")
         products.append({"name": PRODUCTS[row.app], "domain": domain, "url": f"https://{domain}/"})
     return products
 

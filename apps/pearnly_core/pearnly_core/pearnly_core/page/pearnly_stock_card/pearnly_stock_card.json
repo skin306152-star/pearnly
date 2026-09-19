@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-stock-card",
+  "page_name": "pearnly-stock-card",
+  "title": "nav.stockCard",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

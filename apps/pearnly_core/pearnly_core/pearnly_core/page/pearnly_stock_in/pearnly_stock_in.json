@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-stock-in",
+  "page_name": "pearnly-stock-in",
+  "title": "nav.stockIn",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

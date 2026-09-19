@@ -100,7 +100,7 @@ def service_wallet(tenant: str) -> dict:
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def service_topup_request(tenant: str, amount_thb: float, note: str = "",
-                          payer_name: str = "") -> dict:
+                          payer_name: str = "", proof=None) -> dict:
     """租户在产品站点上点「充值」→ 在这里落一条待审核申请。
 
     只落申请，**不动余额** —— 钱到不到账由控制面的审核决定。
@@ -110,6 +110,8 @@ def service_topup_request(tenant: str, amount_thb: float, note: str = "",
     amt = billing._money(amount_thb)
     if amt <= 0 or amt > 500000:
         frappe.throw(_("The top-up amount must be between ฿0.01 and ฿500,000"))
+    from pearnly_control.payments.topup import decode_proof, attach
+    content, suffix = decode_proof(frappe.parse_json(proof))
     doc = frappe.get_doc({
         "doctype": billing.TOPUP,
         "tenant": tenant,
@@ -120,6 +122,7 @@ def service_topup_request(tenant: str, amount_thb: float, note: str = "",
         "requested_at": now(),
     })
     doc.insert(ignore_permissions=True)
+    attach(doc, content, suffix)
     frappe.db.commit()
     return {"request": doc.name, "status": doc.status, "requested_thb": float(amt)}
 
@@ -148,7 +151,9 @@ def service_home(tenant: str) -> dict:
     _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
     summary = billing.wallet_summary(tenant)
+    from pearnly_control.payments.topup import account
     return {
+        "collection_account": account(),
         **summary,
         "subscription": billing.subscription_view(tenant),
         "plans": billing.plans(),
@@ -299,3 +304,15 @@ def admin_adjust(tenant: str, amount_thb: float, note: str) -> dict:
     tenant = _tenant_or_throw(tenant)
     new_balance = billing.adjust(tenant, float(amount_thb or 0), note=note, actor=admin)
     return {"ok": True, "tenant": tenant, "new_balance": float(new_balance)}
+
+
+@frappe.whitelist()
+def admin_slip(request: str):
+    """Authenticated management download; cloud private paths stay private."""
+    _require_admin()
+    import base64
+    from pearnly_control import billing_remote
+    from pearnly_control.payments.topup import evidence
+    data = billing_remote.call("slip", request=request) if billing_remote.enabled() else evidence(request)
+    frappe.local.response.update({"type": "download", "filename": data["filename"],
+        "filecontent": base64.b64decode(data["content"], validate=True), "display_content_as": "attachment"})

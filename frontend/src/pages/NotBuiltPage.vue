@@ -5,7 +5,7 @@
 // 点进去 404 会让人以为是坏了。这里如实说"还没做"，把"清单是什么"和"做到哪了"分开。
 import { onMounted } from "vue";
 import { useRoute } from "vue-router";
-import { Button } from "frappe-ui";
+import { Card, Button } from "frappe-ui";
 import { createTexts } from "../lib/i18n";
 
 const route = useRoute();
@@ -20,11 +20,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="pn-card">
-    <h2 style="margin: 0 0 6px; font-size: 18px">{{ t('shell.notBuilt.title') }}</h2>
+  <Card class="">
+    <h2 style="margin: 0 0 6px; font-size: 18px">
+      {{ t("shell.notBuilt.title") }}
+    </h2>
     <p class="pn-muted" style="margin: 0 0 12px">
-      {{ t('shell.notBuilt.body') }}<code>{{ route.path }}</code>
+      {{ t("shell.notBuilt.body") }}<code>{{ route.path }}</code>
     </p>
-    <Button variant="outline" theme="gray" :label="t('shell.backHome')" route="/home" />
-  </div>
+    <Button
+      variant="outline"
+      theme="gray"
+      :label="t('shell.backHome')"
+      route="/home"
+    />
+  </Card>
 </template>

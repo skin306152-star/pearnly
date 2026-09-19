@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-history",
+  "page_name": "pearnly-history",
+  "title": "nav.history",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

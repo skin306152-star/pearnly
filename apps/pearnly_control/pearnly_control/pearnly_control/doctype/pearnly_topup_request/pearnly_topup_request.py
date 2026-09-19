@@ -14,6 +14,10 @@ from frappe.model.document import Document
 
 
 class PearnlyTopupRequest(Document):
+    def onload(self):
+        from pearnly_control import billing_remote
+        self.set_onload("billing_remote", billing_remote.enabled())
+
     def validate(self):
         from pearnly_control import billing_remote
         if billing_remote.enabled() and not self.flags.billing_remote_sync:

@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-reconcile",
+  "page_name": "pearnly-reconcile",
+  "title": "nav.reconcile",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

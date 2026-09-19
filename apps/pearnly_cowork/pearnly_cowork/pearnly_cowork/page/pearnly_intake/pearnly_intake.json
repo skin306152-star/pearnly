@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-intake",
+  "page_name": "pearnly-intake",
+  "title": "nav.intake",
+  "module": "Pearnly Cowork",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

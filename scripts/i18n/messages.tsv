@@ -684,7 +684,7 @@ pearnly_core	Purchasing Settings	采购设置	ตั้งค่าการจ�
 pearnly_core	Sales	销售系统	ระบบขาย	販売	nav.erpSales
 pearnly_core	Sales Records	销售记录	บันทึกการขาย	販売記録	nav.sales
 pearnly_core	Customers	客户	ลูกค้า	顧客	nav.erpClients
-pearnly_core	Connect third-party DMS	连接第三方 DMS	เชื่อมต่อ DMS ภายนอก	外部DMSに接続	nav.connect
+pearnly_core	Connect DMS	连接DMS	เชื่อมต่อ DMS	DMSに接続	nav.connect
 pearnly_core	Push Records	推送记录	บันทึกการส่ง	プッシュ記録	nav.records
 pearnly_core	Operators	操作员	พนักงาน	オペレーター	nav.roster
 pearnly_core	Today	今天	วันนี้	今日	home.period.today
@@ -807,7 +807,7 @@ pearnly_core	Operator	操作员	พนักงาน	オペレーター	roster.
 pearnly_core	Query access	查询权限	สิทธิ์ค้นหา	照会権限	roster.col.query
 pearnly_core	LINE status	LINE 状态	สถานะ LINE	LINEステータス	roster.col.line
 pearnly_core	Actions	操作	การจัดการ	操作	roster.col.actions
-pearnly_core	1. Have this operator add Pearnly DMS as a LINE friend	1. 让该操作员在 LINE 添加 Pearnly DMS 好友	1. ให้พนักงานรายนี้เพิ่ม Pearnly DMS เป็นเพื่อนใน LINE	1. このオペレーターにLINEでPearnly DMSを友だち追加してもらいます	roster.code.step1
+pearnly_core	1. Add your company’s LINE official account as a friend	1. 添加本公司配置的 LINE 官方账号为好友	1. เพิ่มบัญชี LINE ทางการของบริษัทเป็นเพื่อน	1. 会社のLINE公式アカウントを友だち追加してください	roster.code.step1
 pearnly_core	2. Send this bind code in the LINE chat to connect	2. 在 LINE 对话中发送此绑定码完成连接	2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ	2. LINEのトークでこの連携コードを送ると接続できます	roster.code.step2
 pearnly_core	Valid for {0}	剩余有效期 {0}	เหลืออายุ {0}	残り有効時間 {0}	roster.code.validFor
 pearnly_core	The bind code has expired — please regenerate	绑定码已过期，请重新生成	รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่	連携コードの期限が切れました。再生成してください	roster.code.expiredHint
@@ -868,7 +868,7 @@ pearnly_core	Save purchase order	保存采购单	บันทึกใบซื�
 pearnly_core	The total is calculated on the server — no need to fill it in	合计由服务端算，不用填	ยอดรวมคำนวณที่เซิร์ฟเวอร์ ไม่ต้องกรอก	合計はサーバーが計算します。入力は不要です	purchase.hint.serverTotal
 pearnly_core	No purchase orders yet. Use “New purchase order” in the top right to add the first one.	还没有采购单。点右上角「新建采购单」录第一张。	ยังไม่มีใบซื้อ กด "สร้างใบซื้อใหม่" ที่มุมขวาบนเพื่อเพิ่มใบแรก	まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。	purchase.empty
 pearnly_core	Purchase order created: {0}	已建单：{0}	สร้างใบซื้อแล้ว: {0}	伝票を作成しました：{0}	purchase.notice.created
-pearnly_core	Connect third-party DMS	连接第三方 DMS	เชื่อมต่อ DMS ภายนอก	外部DMSに接続	connect.title
+pearnly_core	Connect DMS	连接DMS	เชื่อมต่อ DMS	DMSに接続	connect.title
 pearnly_core	Status	状态	สถานะ	ステータス	connect.field.status
 pearnly_core	Test connection	测试连接	ทดสอบการเชื่อมต่อ	接続テスト	connect.action.test
 pearnly_core	Testing…	测试中…	กำลังทดสอบ…	テスト中…	connect.action.testing
@@ -980,3 +980,55 @@ pearnly_control	Retry welcome email	重试欢迎邮件	ลองส่งอี�
 pearnly_control	View welcome email	查看欢迎邮件	ดูอีเมลต้อนรับ	ウェルカムメールを表示
 pearnly_control	Welcome email could not be queued. Check the outgoing email account, then retry the email.	欢迎邮件未能加入队列，请检查发信配置后重试邮件。	ไม่สามารถเพิ่มอีเมลต้อนรับเข้าคิวได้ โปรดตรวจสอบบัญชีส่งอีเมลแล้วลองอีกครั้ง	メールをキューに追加できませんでした。送信設定を確認して再試行してください。
 pearnly_control	Provisioning must be complete before sending the welcome email.	开通完成后才能发送欢迎邮件。	ต้องเปิดใช้งานให้เสร็จก่อนส่งอีเมลต้อนรับ	開設完了後にウェルカムメールを送信できます。
+pearnly_core	Are you sure you want to sign out?	确定要退出登录吗？	คุณต้องการออกจากระบบหรือไม่?	ログアウトしますか？	account.signOutConfirm
+pearnly_core	Language	语言	ภาษา	言語	account.language
+pearnly_core	Please sign in again before changing your language.	请重新登录后再切换语言。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา	言語を変更する前に再ログインしてください。	account.error.reloginLanguage
+pearnly_core	Could not update the account language.	无法更新账户语言，请稍后重试。	ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองอีกครั้ง	アカウントの言語を更新できませんでした。	account.error.languageFailed
+pearnly_core	The subscription could not be activated	套餐未能开通	ไม่สามารถเปิดใช้แพ็กเกจได้	プランを有効化できませんでした	home.plan.failed
+pearnly_core	Transfer to the account below, then upload your slip for review.	请向以下账户转账，然后上传转账凭证提交审核。	กรุณาโอนเงินเข้าบัญชีด้านล่าง แล้วอัปโหลดหลักฐานเพื่อรอการตรวจสอบ	下記口座に振り込み、振込明細をアップロードして審査を申請してください。	home.topup.transfer
+pearnly_core	Bank	收款银行	ธนาคาร	銀行	home.bank.name
+pearnly_core	Account number	收款账号	เลขที่บัญชี	口座番号	home.bank.account
+pearnly_core	Account name	收款户名	ชื่อบัญชี	口座名義	home.bank.holder
+pearnly_core	Upload transfer slip	上传转账凭证	อัปโหลดหลักฐานการโอน	振込明細をアップロード	home.topup.slip
+pearnly_core	Transfer slip attached	已附上转账凭证	แนบหลักฐานการโอนแล้ว	振込明細を添付しました	home.topup.attached
+pearnly_core	Upload a transfer slip before submitting	请先上传转账凭证再提交	กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง	送信前に振込明細をアップロードしてください
+pearnly_core	Upload a transfer slip up to 10 MB	请上传不超过 10 MB 的转账凭证	กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB	10 MB 以下の振込明細をアップロードしてください
+pearnly_core	Use a JPG, PNG or PDF transfer slip	转账凭证须为 JPG、PNG 或 PDF	หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF	振込明細は JPG・PNG・PDF を使用してください
+pearnly_control	View transfer slip	查看转账凭证	ดูหลักฐานการโอน	振込明細を表示
+pearnly_control	No transfer slip is attached	未附转账凭证	ยังไม่ได้แนบหลักฐานการโอน	振込明細が添付されていません
+pearnly_core	Sign out and sign in again	退出并重新登录	ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง	ログアウトして再ログイン	account.signInAgain
+pearnly_core	JPG, PNG or PDF, up to 10 MB	JPG、PNG 或 PDF，最大 10 MB	JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB	JPG・PNG・PDF、10 MB まで	home.topup.slipFormats
+pearnly_core	Change your password from your account profile using Change Password.	请在个人资料中使用“更改密码”修改登录密码。	กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว	プロフィールの「パスワード変更」からログインパスワードを変更してください。	account.identityPasswordOnly
+pearnly_core	Reorder sidebar	侧栏排序	จัดลำดับแถบด้านข้าง	サイドバーの並べ替え	account.sidebarOrder
+pearnly_core	Pearnly Light	Pearnly 浅色	Pearnly โหมดสว่าง	Pearnly ライト	account.themeLight
+pearnly_core	Pearnly Dark	Pearnly 深色	Pearnly โหมดมืด	Pearnly ダーク	account.themeDark
+pearnly_core	Pending	待处理	รอดำเนินการ	処理待ち	connect.records.pending
+pearnly_core	Retrying	重试中	กำลังลองใหม่	再試行中	connect.records.retrying
+pearnly_core	Succeeded	成功	สำเร็จ	成功	connect.records.success
+pearnly_core	Failed	失败	ล้มเหลว	失敗	connect.records.failed
+pearnly_core	Duplicate skipped	重复已跳过	ข้ามรายการซ้ำ	重複のためスキップ	connect.records.skipped_dup
+pearnly_core	Manual handling	人工处理	ดำเนินการด้วยตนเอง	手動処理	connect.records.manual
+pearnly_core	Result details	结果说明	รายละเอียดผลลัพธ์	結果の詳細	connect.records.result
+pearnly_core	Contact support with the record ID	请提供记录编号联系支持	ติดต่อฝ่ายสนับสนุนพร้อมหมายเลขรายการ	記録番号を添えてサポートへご連絡ください	connect.records.contactSupport
+pearnly_core	Time	时间	เวลา	日時	connect.records.time
+pearnly_core	Business number	业务编号	หมายเลขรายการ	業務番号	connect.records.businessNumber
+pearnly_core	Page {0} of {1} · {2} records	第 {0} / {1} 页 · 共 {2} 条	หน้า {0} จาก {1} · {2} รายการ	{0} / {1} ページ · 全 {2} 件	connect.records.pagination
+pearnly_core	Bind LINE	绑定 LINE	ผูก LINE	LINEを連携	roster.bindLine
+pearnly_core	Connect DMS before adding an operator.	请先连接 DMS，再添加操作员。	กรุณาเชื่อมต่อ DMS ก่อนเพิ่มผู้ปฏิบัติงาน	オペレーターを追加する前にDMSを接続してください。	roster.error.noConnection
+pearnly_core	Unbind LINE	解绑 LINE	ยกเลิกการผูก LINE	LINE連携を解除	roster.unbindLine
+pearnly_core	Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.	确定解绑 {0} 的 LINE？未使用的绑定码也将作废，操作员和 DMS 凭据保留。	ยกเลิกการผูก LINE ของ {0} หรือไม่? รหัสที่ยังไม่ได้ใช้จะถูกยกเลิก โดยเก็บข้อมูลพนักงานและข้อมูล DMS ไว้	{0} のLINE連携を解除しますか？未使用コードも無効になります。担当者とDMS認証情報は保持されます。	roster.confirm.unbind
+pearnly_core	Loading advisors…	正在读取顾问名册…	กำลังโหลดรายชื่อที่ปรึกษา…	担当者一覧を読み込み中…	roster.advisor.loading
+pearnly_core	Reload advisors	重新读取顾问名册	โหลดรายชื่อที่ปรึกษาใหม่	担当者一覧を再読み込み	roster.advisor.reload
+pearnly_core	Unable to read the current advisor list. Retry before changing the assignment.	无法读取当前顾问名册。请重试后再修改归属。	ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ โปรดลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน	現在の担当者一覧を取得できません。再試行してから帰属を変更してください。	roster.advisor.loadError
+pearnly_core	This advisor is no longer in the current DMS list. Please select again.	该顾问已不在当前 DMS 名册中，请重新选择。	ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่	現在のDMS一覧にこの担当者は存在しません。選択し直してください。	roster.advisor.invalid
+pearnly_core	The DMS advisor list is empty.	DMS 顾问名册为空。	รายชื่อที่ปรึกษา DMS ว่างเปล่า	DMS担当者一覧は空です。	roster.advisor.empty
+pearnly_core	Leave blank to keep the current password.	留空则不修改当前密码。	เว้นว่างไว้เพื่อใช้รหัสผ่านเดิม	空欄の場合、現在のパスワードを保持します。	roster.edit.passwordHint
+pearnly_core	This company’s LINE official account is not configured yet.	本公司尚未配置 LINE 官方账号。	บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ	会社のLINE公式アカウントはまだ設定されていません。	roster.line.notConfigured
+pearnly_core	Unable to verify this company’s LINE official account. Please try again.	无法核实本公司的 LINE 官方账号，请重试。	ไม่สามารถตรวจสอบบัญชี LINE ทางการของบริษัทได้ กรุณาลองใหม่	会社のLINE公式アカウントを確認できません。再試行してください。	roster.line.unavailable
+pearnly_core	Add official account	添加官方账号为好友	เพิ่มบัญชีทางการเป็นเพื่อน	公式アカウントを友だち追加	roster.line.addFriend
+pearnly_core	Connect DMS to load the advisor list.	连接 DMS 后才能读取顾问名册。	เชื่อมต่อ DMS เพื่ออ่านรายชื่อที่ปรึกษา	DMSを接続すると担当者一覧を読み込めます。	roster.advisor.noConnection
+pearnly_core	Scan to add this account, then send the bind code in LINE.	扫码添加好友，再发送此绑定码。	สแกนเพื่อเพิ่มเพื่อน แล้วส่งรหัสผูกนี้ใน LINE	スキャンして友だち追加し、LINEでこの連携コードを送信してください。	roster.code.instruction
+pearnly_core	Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.	确定删除选中的 {0} 名操作员？将解除 LINE 绑定并移除 DMS 连接，推送记录保留。	ยืนยันลบผู้ปฏิบัติงานที่เลือก {0} คน? การผูก LINE และการเชื่อมต่อ DMS จะถูกลบ โดยเก็บบันทึกการส่งไว้	選択した{0}名の操作員を削除しますか。LINE連携とDMS接続を解除し、送信ログは保持します。	roster.confirm.deleteSelected
+pearnly_core	Deleted {0} operators	已删除 {0} 名操作员	ลบผู้ปฏิบัติงานแล้ว {0} คน	{0}名の操作員を削除しました	roster.notice.deletedCount
+pearnly_core	Delete {0} selected push records from this list? Sent business documents will not be affected.	删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。	ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ	選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。	connect.records.confirmDelete
+pearnly_core	Deleted {0} push records	已删除 {0} 条推送记录	ลบบันทึกการส่งแล้ว {0} รายการ	{0}件の送信記録を削除しました	connect.records.deletedCount

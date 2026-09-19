@@ -62,7 +62,8 @@ def _call(method: str, params: dict | None = None) -> dict:
     payload = dict(params or {})
     payload["tenant"] = c["tenant"]
     headers = {"X-Pearnly-Billing-Token": c["token"], "Accept": "application/json",
-               "X-Pearnly-Billing-Product": c["product"]}
+               "X-Pearnly-Billing-Product": c["product"],
+               "Accept-Language": getattr(frappe.local, "lang", None) or "th"}
     if c["host"]:
         headers["Host"] = c["host"]
     url = f"{c['api']}/api/method/pearnly_control.billing_api.{method}"
@@ -108,9 +109,9 @@ def wallet() -> dict:
     return _call("service_wallet", {})
 
 
-def topup_request(amount_thb: float, note: str = "", payer_name: str = "") -> dict:
+def topup_request(amount_thb: float, note: str = "", payer_name: str = "", proof=None) -> dict:
     return _call("service_topup_request",
-                 {"amount_thb": amount_thb, "note": note, "payer_name": payer_name})
+                 {"amount_thb": amount_thb, "note": note, "payer_name": payer_name, "proof": proof})
 
 
 def topup_status() -> dict:

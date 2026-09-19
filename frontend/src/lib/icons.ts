@@ -40,6 +40,7 @@ const BY_ROUTE: Record<string, Component> = {
   "/company": IconCompany,
   "/team": IconTeam,
   "/integrations": IconIntegrations,
+  "/connect": IconIntegrations,
   "/guide": IconGuide,
   "/products": IconProducts,
   "/inventory": IconInventory,

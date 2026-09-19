@@ -15,6 +15,9 @@
 // 实现是官方包真正的那份（构建时由 Vite 解析过去）。
 import type { Component } from "vue";
 
+declare const FileUploader: Component;
+declare const Alert: Component;
+declare const ListView: Component;
 declare const Sidebar: Component;
 declare const SidebarItem: Component;
 declare const SidebarHeader: Component;
@@ -52,6 +55,9 @@ declare function createResource(options: Record<string, unknown>): unknown;
 declare function frappeRequest(options: Record<string, unknown>): Promise<unknown>;
 
 export {
+  FileUploader,
+  Alert,
+  ListView,
   Sidebar,
   SidebarItem,
   SidebarHeader,

@@ -1,3 +1,5 @@
+from pearnly_core.desk.assets import versioned_asset
+
 app_name = "pearnly_dms"
 app_title = "Pearnly DMS"
 app_publisher = "Pearnly"
@@ -265,3 +267,5 @@ pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
+
+app_include_js = [versioned_asset("pearnly_dms", "desk/connect.js"), versioned_asset("pearnly_dms", "desk/roster.js"), versioned_asset("pearnly_dms", "desk/records.js")]

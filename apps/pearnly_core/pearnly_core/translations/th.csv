@@ -73,6 +73,7 @@ Could not send the invitation email: {0} {1},ส่งอีเมลเชิ�
 Could not set the password: {0} {1},ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}
 Could not take the lock (Redis down?): {0},ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}
 Could not update the OIDC client: {0} {1},อัปเดต OIDC client ไม่สำเร็จ: {0} {1}
+Could not update the account language.,ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองอีกครั้ง
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
 Counterparty,ชื่อคู่ค้า
 Counterparty Tax ID,เลขผู้เสียภาษีคู่ค้า
@@ -241,6 +242,7 @@ Payment Status,สถานะการชำระ
 Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
 Plan & Balance,แพ็กเกจและยอดคงเหลือ
 Please sign in,กรุณาเข้าสู่ระบบ
+Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Processing Started At,เริ่มดำเนินการเมื่อ
 Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้า
@@ -380,8 +382,11 @@ Unconfirmed documents cannot be pushed,เอกสารที่ยังไ�
 Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
 Unknown product: {0},ไม่รู้จักผลิตภัณฑ์: {0}
+Upload a transfer slip before submitting,กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง
+Upload a transfer slip up to 10 MB,กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
 Usage,การใช้งาน
+"Use a JPG, PNG or PDF transfer slip","หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF"
 Used,ใช้แล้ว
 Used At,ใช้เมื่อ
 User,ผู้ใช้
@@ -407,6 +412,10 @@ Workspace,พื้นที่ทำงาน
 account.cancel,ยกเลิก
 account.changePassword,เปลี่ยนรหัสผ่าน
 account.error.http,คำขอล้มเหลว (HTTP {0})
+account.error.languageFailed,ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองอีกครั้ง
+account.error.reloginLanguage,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
+account.identityPasswordOnly,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว
+account.language,ภาษา
 account.pwd.confirm,ยืนยันรหัสผ่านใหม่
 account.pwd.current,รหัสผ่านปัจจุบัน
 account.pwd.done,อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่
@@ -414,7 +423,12 @@ account.pwd.mismatch,รหัสผ่านทั้งสองไม่ต�
 account.pwd.new,รหัสผ่านใหม่
 account.save,บันทึก
 account.saving,กำลังบันทึก…
+account.sidebarOrder,จัดลำดับแถบด้านข้าง
+account.signInAgain,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
 account.signOut,ออกจากระบบ
+account.signOutConfirm,คุณต้องการออกจากระบบหรือไม่?
+account.themeDark,Pearnly โหมดมืด
+account.themeLight,Pearnly โหมดสว่าง
 common.backHome,กลับหน้าหลัก
 common.cancel,ยกเลิก
 common.col.date,วันที่
@@ -462,17 +476,33 @@ connect.notice.ok,การเชื่อมต่อปกติ · {0}
 connect.placeholder.password,รหัสผ่านเข้า DMS
 connect.placeholder.username,บัญชีเข้า DMS
 connect.processing,กำลังดำเนินการ…
+connect.records.businessNumber,หมายเลขรายการ
+connect.records.confirmDelete,ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ
+connect.records.contactSupport,ติดต่อฝ่ายสนับสนุนพร้อมหมายเลขรายการ
+connect.records.deletedCount,ลบบันทึกการส่งแล้ว {0} รายการ
+connect.records.failed,ล้มเหลว
+connect.records.manual,ดำเนินการด้วยตนเอง
+connect.records.pagination,หน้า {0} จาก {1} · {2} รายการ
+connect.records.pending,รอดำเนินการ
+connect.records.result,รายละเอียดผลลัพธ์
+connect.records.retrying,กำลังลองใหม่
+connect.records.skipped_dup,ข้ามรายการซ้ำ
+connect.records.success,สำเร็จ
+connect.records.time,เวลา
 connect.state.connected,เชื่อมต่อแล้ว
 connect.state.disabled,ปิดใช้งานแล้ว
 connect.state.enabled,เปิดใช้งานแล้ว
 connect.state.notConnected,ยังไม่เชื่อมต่อ
-connect.title,เชื่อมต่อ DMS ภายนอก
+connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 home.balance.title,ยอดคงเหลือในบัญชี
 home.balance.used,ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า
 home.balance.usedNoPlan,ใช้ไปเดือนนี้ {0} หน้า · ยังไม่สมัคร คิดตามใช้จริง
+home.bank.account,เลขที่บัญชี
+home.bank.holder,ชื่อบัญชี
+home.bank.name,ธนาคาร
 home.cancel,ยกเลิก
 home.col.amount,จำนวนเงิน
 home.col.balanceAfter,ยอดคงเหลือหลังเปลี่ยนแปลง
@@ -508,6 +538,7 @@ home.period.year,ปีนี้
 home.plan.code,แพ็กเกจ
 home.plan.current,แพ็กเกจปัจจุบัน
 home.plan.cycleNote,แพ็กเกจเป็นรอบ 30 วัน สิ้นสุดเมื่อครบรอบ (ไม่ต่ออัตโนมัติ) — ครบแล้วสมัครใหม่ด้านล่างได้เลย
+home.plan.failed,ไม่สามารถเปิดใช้แพ็กเกจได้
 home.plan.none,ยังไม่สมัคร
 home.plan.noneHint,ตอนนี้คิดตามใช้จริง · สมัครแพ็กเกจด้านล่างจะประหยัดกว่า
 home.plan.over,ส่วนเกิน {0}/หน้า · ครบรอบ {1}
@@ -528,11 +559,15 @@ home.status.pending,รอตรวจสอบ
 home.status.rejected,ถูกปฏิเสธ
 home.status.toreview,รอตรวจซ้ำ
 home.topup,เติมเงิน
+home.topup.attached,แนบหลักฐานการโอนแล้ว
 home.topup.hint,ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 home.topup.payerHint,ชื่อผู้โอนในสลิปธนาคาร
+home.topup.slip,อัปโหลดหลักฐานการโอน
+home.topup.slipFormats,"JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB"
 home.topup.submit,ส่งคำขอ
 home.topup.submitted,ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 home.topup.submitting,กำลังส่ง…
+home.topup.transfer,กรุณาโอนเงินเข้าบัญชีด้านล่าง แล้วอัปโหลดหลักฐานเพื่อรอการตรวจสอบ
 intake.action.confirm,ยืนยัน
 intake.action.new,บันทึกใหม่
 intake.action.queue,ส่ง
@@ -587,7 +622,7 @@ intake.subtitle,ข้อจำกัด: เอกสารที่ยัง�
 intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
-nav.connect,เชื่อมต่อ DMS ภายนอก
+nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,ลูกค้า
 nav.erpPurchase,การจัดซื้อ
@@ -650,14 +685,22 @@ purchase.title,บันทึกการจัดซื้อ
 roster.add,เพิ่มพนักงาน
 roster.addHint,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
 roster.advisor.auto,อัตโนมัติ (ตามบัญชี DMS)
+roster.advisor.empty,รายชื่อที่ปรึกษา DMS ว่างเปล่า
+roster.advisor.invalid,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
+roster.advisor.loadError,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ โปรดลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
+roster.advisor.loading,กำลังโหลดรายชื่อที่ปรึกษา…
+roster.advisor.noConnection,เชื่อมต่อ DMS เพื่ออ่านรายชื่อที่ปรึกษา
 roster.advisor.note,แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น
+roster.advisor.reload,โหลดรายชื่อที่ปรึกษาใหม่
 roster.allowQuery,อนุญาต
+roster.bindLine,ผูก LINE
 roster.bound,ผูกแล้ว
 roster.cancel,ยกเลิก
 roster.close,ปิด
 roster.code.expired,หมดอายุ
 roster.code.expiredHint,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
-roster.code.step1,1. ให้พนักงานรายนี้เพิ่ม Pearnly DMS เป็นเพื่อนใน LINE
+roster.code.instruction,สแกนเพื่อเพิ่มเพื่อน แล้วส่งรหัสผูกนี้ใน LINE
+roster.code.step1,1. เพิ่มบัญชี LINE ทางการของบริษัทเป็นเพื่อน
 roster.code.step2,2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ
 roster.code.title,รหัสผูก
 roster.code.validFor,เหลืออายุ {0}
@@ -667,15 +710,19 @@ roster.col.operator,พนักงาน
 roster.col.query,สิทธิ์ค้นหา
 roster.collapse,ย่อ
 roster.confirm.delete,"จะยกเลิกการผูก LINE ของ ""{0}"" และลบการเชื่อมต่อ DMS ส่วนบันทึกการส่งยังเก็บไว้ ยืนยันลบ?"
+roster.confirm.deleteSelected,ยืนยันลบผู้ปฏิบัติงานที่เลือก {0} คน? การผูก LINE และการเชื่อมต่อ DMS จะถูกลบ โดยเก็บบันทึกการส่งไว้
 roster.confirm.disable,"ยืนยันปิด ""{0}""? การส่งไป DMS จะหยุดและยกเลิกการผูก LINE"
 roster.confirm.enable,"ยืนยันเปิด ""{0}""? ต้องออกรหัสผูกใหม่เพื่อเชื่อม LINE อีกครั้ง"
 roster.confirm.title,กรุณายืนยัน
+roster.confirm.unbind,ยกเลิกการผูก LINE ของ {0} หรือไม่? รหัสที่ยังไม่ได้ใช้จะถูกยกเลิก โดยเก็บข้อมูลพนักงานและข้อมูล DMS ไว้
 roster.delete,ลบ
 roster.disable,ปิดใช้งาน
 roster.edit,แก้ไข
+roster.edit.passwordHint,เว้นว่างไว้เพื่อใช้รหัสผ่านเดิม
 roster.editTitle,แก้ไขพนักงาน
 roster.enable,เปิดใช้งาน
 roster.error.http,คำขอล้มเหลว (HTTP {0})
+roster.error.noConnection,กรุณาเชื่อมต่อ DMS ก่อนเพิ่มผู้ปฏิบัติงาน
 roster.field.advisor,เจ้าของค่าคอมมิชชัน
 roster.field.canQuery,อนุญาตให้ค้นหา DMS ผ่าน LINE
 roster.field.displayName,ชื่อที่แสดง
@@ -688,12 +735,16 @@ roster.hint.dmsPassword,รหัสผ่าน DMS ของพนักงา
 roster.hint.dmsUsername,บัญชี DMS ของพนักงานรายนี้
 roster.issueCode,ออกรหัสผูก
 roster.keepBlank,เว้นว่างไว้หากไม่แก้ไข
+roster.line.addFriend,เพิ่มบัญชีทางการเป็นเพื่อน
+roster.line.notConfigured,บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ
+roster.line.unavailable,ไม่สามารถตรวจสอบบัญชี LINE ทางการของบริษัทได้ กรุณาลองใหม่
 roster.list.empty,ยังไม่มีพนักงาน เพิ่มด้านบนก่อน
 roster.list.title,รายชื่อพนักงาน
 roster.loading,กำลังโหลด…
 roster.noQuery,ไม่อนุญาต
 roster.notice.created,เพิ่มพนักงานแล้ว
 roster.notice.deleted,ลบแล้ว
+roster.notice.deletedCount,ลบผู้ปฏิบัติงานแล้ว {0} คน
 roster.notice.disabled,ปิดใช้งานแล้ว
 roster.notice.enabled,เปิดใช้งานแล้ว
 roster.notice.noChanges,ไม่มีการแก้ไขที่ต้องบันทึก
@@ -707,6 +758,7 @@ roster.save,บันทึก
 roster.saving,กำลังบันทึก…
 roster.subtitle,หนึ่งแถวต่อพนักงานขาย/ผู้ดูแล แต่ละคนมีบัญชี DMS ของตัวเองและออกรหัสผูก LINE แยกกัน
 roster.title,พนักงาน
+roster.unbindLine,ยกเลิกการผูก LINE
 roster.unbound,ยังไม่ผูก
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 shell.backHome,กลับหน้าหลัก
