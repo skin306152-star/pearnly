@@ -23,6 +23,9 @@ doc_events = {
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
 scheduler_events = {"cron": {
+    # 主档后台预热：每分钟只看新鲜度，超过 45 秒才派发一次刷新（口径照老产品
+    # `dms_master_refresh.sweep`）。没有它，用户点第一下就要现场等一次全量登录。
+    "* * * * *": ["pearnly_dms.adapter.warm.sweep"],
     "*/10 * * * *": [schedule_menu_reconciliation],
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",

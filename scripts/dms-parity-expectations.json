@@ -103,8 +103,8 @@
       "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_transfer.py"
     },
     "cards.py": {
-      "diff_lines": 118,
-      "digest": "c88431633cc040955dc72573c534a0d5de94f9dda342b9d9e8eeb335621241dd",
+      "diff_lines": 116,
+      "digest": "dcd797cfc7ae80f4a671917b6f3a8cea6ddb2ae53faab41f400f441863167d7e",
       "new": "apps/pearnly_dms/pearnly_dms/line/cards.py"
     },
     "commands.py": {

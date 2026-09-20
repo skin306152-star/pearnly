@@ -466,3 +466,58 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 **未做**：镜像构建、部署、真机与业务验收 —— 用户 2026-09-21 要求"改完先停、不部署"。
 下次部署后要真机验的四条：①有档案的客户出"差异对比卡"；②编辑页地址首屏就有值；
 ③登录 DMS 一次点击；④断连提示为"DMS 连接超时 — 请重试"且自动重试过一次。
+
+## 2026-09-21 第二批：真机报障四条 + 主档新鲜度方案（本地完成，未部署）
+
+用户 2026-09-21 真机验收第一批后报障四条并确认方案：
+**批 1（本次全做）** 图一编辑入口、差异卡地址显示、图三门户外站、后台预热；
+**批 2（本次一起做）** 编辑页改走"读走有界新鲜共享快照 + 写前权威复核"。
+
+### 报障与定论
+
+1. **点 [แก้ไข] 多弹一张卡**（图一）——**回归**：`diff_card` 的编辑按钮写成了裸 postback，
+   没走 `_edit_button()`；而老基准（`501589f0:services/line_dms/cards.py` 的 `diff_card`）
+   用的是 `_edit_button(nonce)`（能拿深链就用 `uri` 动作）。其它卡（新客户/资料一致/订车预览）
+   本来就是一次点击直开编辑页，所以只有差异卡犯这个毛病。
+2. **差异卡"旧值"印出裸 id**（用户要求拿结果对原件）——卡上 `อำเภอ 151 / ตำบล 1082 /
+   รหัสไปรษณีย์ 1084`，原件是 `ขลุง / ขลุง / 22110`（已在生产只读查证：DMS 主档 115 的
+   省表属 จันทบุรี，级联查得 151=ขลุง、1082=ขลุง、1084=22110）。
+   原因：`display_diffs`/`geo_name` 只在**新地址那一支**的选项表里反查（省表是全量所以省没露馅）。
+3. **登录 DMS 报"这个 OA 还没启用"**（图三）——服务器访问日志：`20:48:53` 打开
+   `?action=portal&openExternalBrowser=1`，UA 是 Chrome(CriOS)，随后
+   `account.api.authenticate` → **401** → 页面显示 `dms.edit.liffUnavailable`。
+   原因：入口把 `openExternalBrowser=1` 加在**LIFF 页本身**上，LINE 于是把我们的 LIFF 页丢进
+   系统浏览器 —— 那里没有 LIFF、拿不到 id_token。老产品是"先在 LINE 内换票、再带票出站"。
+4. **编辑页首屏 12.3 秒、且不复用**（实测：紧接着再读一次仍 12.8 秒）；订车主档快照热时 0.0 秒。
+   老产品口径（`docs/deployment/MIGRATION_STATUS.md:202`）：会话 90 秒、后台 45 秒预热、
+   12 小时兜底 + 写前权威复核。
+5. **后台预热没搬**：`adapter/master_shared.py` 的 `needs_refresh()`/`warm_cached_paints()`
+   都在，但**全仓无调用**，scheduler 也没有这一项 —— 冷启动的直接原因。
+
+### 改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `line/cards.py` | `diff_card` 的 [แก้ไข] 改回 `_edit_button(nonce)`（深链，一次点击进编辑页） |
+| `intake/service.py` | 差异卡额外并进**主档那一支**的县/镇/邮编级联（`_merge_geo_rows`，按 id 去重，同支不重复取） |
+| `menu/links.py` | 门户入口改走 LIFF（去掉 `openExternalBrowser=1`），"出站"交给页面 |
+| `adapter/warm.py`（新） | 主档后台预热：每分钟只查新鲜度，超过 45 秒才派发刷新 + 颜色预热（口径照老产品 `dms_master_refresh.sweep`），只刷**共享范围** |
+| `hooks.py` | 注册 `* * * * *` → `pearnly_dms.adapter.warm.sweep` |
+| `editor/edit_snapshot.py` | 主档与预热颜色改从**共享热快照**取（拿不到才退回现场抓全量）；客户现值与地址级联仍实时读；写前复核不变 |
+| `frontend/src/lib/liff.ts`（新） | LIFF SDK 装载/初始化/带票出站，编辑页与账号页共用 |
+| `frontend/src/pages/dms/AccountPage.vue` | 门户改"LINE 内验身份 → 换票 → `openWindow({external:true})` 带票出站" |
+| `docs/development/architecture-policy.json` | `editor` 允许依赖 `adapter`（编辑页读共享主档快照；架构检查先拦下、复核后登记） |
+
+### 本地验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS（0 违规；`masters→adapter` 的反向依赖已按规则改到 `adapter/warm.py`） |
+| `python3 tests/test_architecture_guard.py` | 9 OK |
+| `python3 scripts/check-dms-offline.py` | 全 PASS（booking-foundation 45 / payments 42 / readback 43 …） |
+| 前端 `vue-tsc --noEmit` / `vite build` | 0 错 / 构建通过（AccountPage 产物 hash 已变） |
+| `python3 scripts/check-dms-parity.py` | 复核 `cards.py` 差异（118→116 行）后 `--update`，现"没有漂移" |
+
+**未做**：镜像构建、部署、真机验收。部署后要真机验：①差异卡的 [แก้ไข] 一次点击进编辑页；
+②差异卡旧值显示 ขลุง/ขลุง/22110 而不是 151/1082/1084；③菜单3 在 LINE 内一次点击后跳到系统浏览器；
+④编辑页首屏时间（预期从 12.3 秒降到数秒级，且后台预热生效后更稳）。
