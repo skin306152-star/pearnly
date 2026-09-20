@@ -1,0 +1,177 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork ERP Refresh",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-22 00:00:00.000000",
+ "modified": "2026-09-22 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_key",
+  "workspace",
+  "client",
+  "connection",
+  "connection_revision",
+  "binding_generation",
+  "adapter",
+  "scope_kind",
+  "scope_key",
+  "actor",
+  "account_set_key",
+  "request_hash",
+  "status",
+  "requested_at",
+  "completed_at",
+  "result_revision"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "label": "Buyer Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "connection",
+   "label": "ERP Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork ERP Connection"
+  },
+  {
+   "fieldname": "connection_revision",
+   "label": "Connection Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "binding_generation",
+   "label": "Binding Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "adapter",
+   "label": "Adapter",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "scope_kind",
+   "label": "Directory Scope Kind",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "scope_key",
+   "label": "Directory Scope Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "actor",
+   "label": "Requested By",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "account_set_key",
+   "label": "Account Set Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "request_hash",
+   "label": "Request Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "status",
+   "label": "Refresh Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "requested\nsuperseded\nsucceeded\nfailed"
+  },
+  {
+   "fieldname": "requested_at",
+   "label": "Requested At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "label": "Completed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "result_revision",
+   "label": "Result Directory Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

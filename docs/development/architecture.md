@@ -100,8 +100,18 @@ Cowork `ocr.execution`单向依赖engine/table_engine/inputs_runtime/table_input
 
 Cowork第六批 `roundtrip` 域提供固定复核工作簿契约、字节解析、导出和旧记录权限边界；ocr.execution在入队前选择确定性回导，复用Core工作单与计费；roundtrip不反向依赖执行编排。roundtrip.contracts/results只复用OCR schema/pages纯值，intake复用有界table_inputs；files的manifest新增roundtrip_document单位，每个解析单据对应源sheet/行，不把工作表数当票数。导出只消费授权History，外部ERP事实尚未接入，不新增前端入口。纯规约共用同一份spec/money，不能在读写端各算一套。见[往返原生合同](../work/cowork-backend/roundtrip-native.md)。
 
-Cowork第七批 `targets` 是无IO的目录/目标证据合同；`push.express` 是显式输入的进销项准备闭包，单向依赖 `contracts.push`、`targets.identity` 与 `push.receipts` 的纯解包；`push.lifecycle/retry/receipts` 定义状态、恢复判据和回执投影。两种置信规则分别服务OCR字段证据与费用过账门槛，不能互换。以上不依赖Frappe、HTTP、环境变量、数据库或工作队列；日期和授权目录由后续服务端注入，不反向依赖识别执行或页面。没有注册ERP写入消费者，不能用共享OCR Work装载外部订单。原生连接、目录收集、写者锁与持久账本尚待装配，本批纯 `ready` 不是能力交付或外部成功证明。见[运行证据与执行缺口](../work/cowork-backend/push-runtime-baseline.md)。
+Cowork第七批 `targets` 是无IO的目录/目标证据合同；`push.express` 是显式输入的进销项准备闭包，单向依赖 `contracts.push`、`targets.identity` 与 `push.receipts` 的纯解包；`push.lifecycle/retry/receipts` 定义状态、恢复判据和回执投影。两种置信规则分别服务OCR字段证据与费用过账门槛，不能互换。以上不依赖Frappe、HTTP、环境变量、数据库或工作队列；日期和授权目录由后续服务端注入，不反向依赖识别执行或页面。没有注册ERP写入消费者，不能用共享OCR Work装载外部订单。第八批已装配原生连接、推送准备和持久账本；真实目录收集及外部消费者仍未接通，纯 `ready` 不是外部成功证明。见[运行证据与执行缺口](../work/cowork-backend/push-runtime-baseline.md)。
 
 MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
 
 `infrastructure/production/capacity.py` 在正式开户或激活前按候选 Compose 的内存硬限额计入所有现有产品及宿主预留，拒绝超额，不以空闲 RSS 推断容量。上线预算与证据见 [共享 OCR 容量](../operations/shared-ocr-capacity.md)。
+
+### Cowork 连接与推送账本（2026-09-21）
+
+`connections` 域持有原生 Connection/Snapshot/Refresh、显式连接授予、当前目录与可信准备资料；依赖 `targets` 纯合同和 Core 权益，不反向引用推送。Connection 是配置、刷新、快照安装和预留共用的事务锁；目录、用户、角色与公司范围使用当前读取。凭据只进原生 Password，专用查询不返回原文。没有安装真实采集器，公开请求不能上传权威快照。
+
+`push.application` 是专用服务端装配入口：先连接、后票据加锁，重验当前权限和版本，解析不可变 Source/Batch 的回导原键，读取本地成功账本，再调用纯 Express 准备并保存冻结结果。公司税号来自 Workspace，客户端不能替换公司或凭证来源。只返回准备状态、诊断与回执摘要，不返回运输载荷或凭据。RPC 只在无外部IO的本地事务发生数据库冲突时有界重试；内部组合调用必须直接使用 service。
+
+`push.native` 单向依赖 connections、history/access 和纯 targets/lifecycle/receipts；以三个原生 DocType 持久化 Record、Attempt、Writer Lock。记录及载荷不可变、当前版本放行、端点与公司/账套互斥、随机尝试令牌摘要及递增序号共同防重；旧派发结果未知时保留写锁，不自动重领。过时准备仅在从未派发的证据完整时可撤销替换；真实旧尝试的迟到回执仍可记录。所有框架 CRUD、分享入口拒绝绕过专用域服务。
+
+本批没有公开 activate/lease/ACK、队列消费者、scheduler、Companion或MRERP运输入口。内部 AdapterContext 只是服务端装配约束，不是客户机身份认证，不能宣称跨Site/物理设备写者锁已验收。新Record的 prepared 只代表本地准备，不是排队、发送或入账成功。未添加菜单、页面或其它产品能力入口；依赖及剩余外推边界见[原生连接](../work/cowork-backend/connections-native.md)和[原生推送](../work/cowork-backend/push-native.md)。

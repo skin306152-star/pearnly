@@ -17,7 +17,7 @@ from unittest.mock import patch
 import frappe
 
 SITE = os.environ.get("PEARNLY_COWORK_TEST_SITE", "cowork-backend-a.localhost")
-ALLOWED_SITES = {"cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
+ALLOWED_SITES = {"cowork-backend-push.localhost", "cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
                  "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
 OTHER_SITE = "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")

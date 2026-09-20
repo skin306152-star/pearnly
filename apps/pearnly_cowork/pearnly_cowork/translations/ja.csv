@@ -4,8 +4,14 @@ A name is required.,名前を入力してください。
 A positive record revision is required.,レコードの版には正の整数が必要です。
 A positive source page number is required.,元ファイルのページ番号には正の整数が必要です。
 A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
+Account Key,会計データキー
+Account Set Key,会計データ選択キー
+Ack Digest,確認応答ダイジェスト
+Active Attempt,現在の試行
+Active Key,有効な重複防止キー
 Actor,実行者
 Actual Qty,実棚数量
+Allowed Users,許可ユーザー
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Anchor Date,基準日
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
@@ -17,28 +23,45 @@ Billing Receipt,課金処理結果
 Billing Reference,課金参照番号
 Billing State,課金状態
 Billing Units,課金単位
+Binding Generation,関連付け世代
+Blocked By,ブロック元の記録
 Book Qty,帳簿数量
+Bound Account Set,関連付けられた会計データ
 Bound Invoice Records,関連付け済みの請求書記録
+Bound Profile Key,関連付け設定キー
+Branch,実行分岐
 Buyer Client,買い手顧客
 Changed At (UTC),変更日時（UTC）
 Changed By,変更者
+Checks Json,検証結果JSON
 Client,顧客
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
 Company,会社
+Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
+Connection Configuration,接続設定
+Connection Name,接続名
+Connection Revision,接続リビジョン
+Content Hash,内容ハッシュ
 Corrected Value,修正値
 Count Mode,棚卸方式
 Counted At,棚卸日時
 Counted By,棚卸担当者
 Cowork Client,Cowork 買い手顧客
+Cowork ERP Connection,Cowork ERP接続
+Cowork ERP Refresh,Cowork ERPディレクトリ更新
+Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
 Cowork Master Data,Cowork マスタデータ
 Cowork OCR Batch,Cowork 認識バッチ
 Cowork OCR Correction,Cowork 認識修正例
 Cowork OCR History,Cowork 認識履歴
 Cowork OCR requires a configured provider credential reference.,Cowork 認識サービスの認証情報参照を設定してください。
 Cowork OCR requires an explicit invoice configuration.,Cowork の請求書認識設定を指定してください。
+Cowork Push Attempt,Cowork送信試行
+Cowork Push Record,Cowork送信記録
+Cowork Push Writer Lock,Cowork送信書き込みロック
 Cowork Source File,Cowork 元ファイル
 Cowork Stocktake,Cowork 棚卸
 Cowork Stocktake Entry,Cowork 棚卸記録
@@ -48,11 +71,22 @@ Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Workspace,Cowork 会計対象会社
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Created By,作成者
+Creation Request Hash,作成要求ハッシュ
+Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Direction,取引方向
+Directory Revision,ディレクトリリビジョン
+Directory Scope Key,ディレクトリ範囲キー
+Directory Scope Kind,ディレクトリ範囲タイプ
+Directory Snapshot,ディレクトリスナップショット
+Document Key,伝票重複防止キー
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
+ERP Connection,ERP接続
+ERP Password,ERPパスワード
+ERP Token,ERPトークン
+ERP Username,ERPユーザー名
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
 Edit Count,編集回数
@@ -60,11 +94,19 @@ Entry,エントリー
 Event Key,イベント識別子
 Evidence Fingerprint,証跡フィンガープリント
 Examples Json,修正例データ（JSON）
+External Docnum,ERP伝票番号
+Failure Count,失敗回数
+Fence,試行分離番号
 Field,項目
 File Hash,ファイルのハッシュ値
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+History,伝票履歴
 History Records,認識記録
+History Version,伝票履歴バージョン
+Holder,ロック保持者
+Holder Fence,ロック保持試行番号
+Installed At (UTC),インストール日時（UTC）
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid original document manifest.,元文書の内容索引が無効です。
 Invalid original filename.,元ファイル名が無効です。
@@ -72,6 +114,7 @@ Invalid recognized invoice group.,認識した請求書グループが無効で�
 Invoice Count,請求書の件数
 Invoice Date,請求書の日付
 Invoice Index,請求書の順番
+Invoice No,伝票番号
 Invoice Number,請求書番号
 Invoice Pages,請求書のページ
 Invoice References Complete,請求書の関連付け完了
@@ -80,10 +123,16 @@ Invoice Total,請求書合計
 Invoice pages do not match the original page references.,請求書のページが元ファイルの参照ページと一致しません。
 Item,項目
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
+Last Request Hash,最終要求ハッシュ
+Last Request Key,最終要求キー
+Lease Expires At,リース有効期限
 Location,場所
+Lock Key,ロックキー
+Lock Kind,ロック種別
 Native Content Hash,標準ファイルの内容ハッシュ
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 Not Permitted,適切な権限がありません
+Observed At (UTC),観測日時（UTC）
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
 Original File,元ファイル
@@ -96,33 +145,49 @@ Original files can only be changed through the Cowork file service.,元ファイ
 Original files cannot be changed.,元ファイルは変更できません。
 Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
 Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
+Outcome,実行結果
+Owner Id,実行者ID
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
 Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
+Payload Json,固定ペイロードJSON
 Pearnly Cowork,Pearnly Cowork
 Phase,処理段階
 Posting Kind,記帳区分
+Preparation Evidence,準備情報の証拠
 Previous Json,変更前のデータ（JSON）
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
 Product Code,商品コード
 Product Name,商品名
 Provider Evidence,プロバイダー呼び出し証跡
+Push Record,送信記録
 Quantity,数量
+Reason,理由
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Record Id,レコード ID
+Record Key,記録キー
 Record Revision,レコードの版
+Refresh Request Aliases,更新要求の冪等索引
+Refresh Status,更新状態
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+Request Digest,要求ダイジェスト
 Request Fingerprint,リクエスト内容のフィンガープリント
+Request Hash,要求内容ハッシュ
 Request Json,リクエストデータ（JSON）
 Request Key,リクエストキー
+Requested At (UTC),要求日時（UTC）
 Requires Review,確認が必要
+Response Json,確認応答JSON
+Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
+Result Unknown,結果不明
+Revision,リビジョン
 Row {0}: {1},{0} 行目：{1}
 Sample Key,修正例識別子
 Scope Key,権限範囲識別子
@@ -136,12 +201,15 @@ Site,サイト
 Source Digest,元データのダイジェスト
 Source File,元ファイル
 Source Format,元データの形式
+Source Hash,ソースハッシュ
 Source History,元の認識記録
 Source PDF ID,元のPDFのID
 Source Page Indices,元ファイルのページ番号
 Source Reference Count,元ファイルの参照項目数
 Source Reference Kind,元ファイルの参照種別
 Source Sha256,元ファイルの SHA-256
+Started At,開始日時
+Target Json,固定送信先JSON
 Task,タスク
 Tax ID,納税者番号
 The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
@@ -170,6 +238,7 @@ This page is too large to preview safely.,このページは大きすぎるた�
 This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
 Title,タイトル
+Token Digest,トークンダイジェスト
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
@@ -180,18 +249,42 @@ Use the Cowork original-file service to access this file.,このファイルに�
 Version,バージョン
 Voided,無効化済み
 Warehouse,倉庫
+Wire Attempt,送信試行回数
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
 active,有効
 admitted,受け付け済み
+catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
+catalog_refresh_pending,ディレクトリの更新を待機しています。
+catalog_refresh_required,先に会計データのディレクトリを更新してください。
+catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
 charged,課金済み
 closed,クローズ済み
 confirmed,確認済み
+connection.adapter_invalid,このERP接続タイプはサポートされていません。
+connection.config_invalid,ERP接続設定を確認してください。
+connection.disabled,この接続は無効です。
+connection.lock_required,送信先を読み取る前に接続をロックしてください。
+connection.not_found,接続またはディレクトリの記録が見つかりません。
+connection.preparation_incomplete,この会計データの送信準備情報が不足しています。
+connection.preparation_invalid,準備情報が接続または会計データと一致しません。
+connection.refresh_stale,この更新要求は期限切れです。再度要求してください。
+connection.request_conflict,この要求キーは別の内容に使用されています。
+connection.request_key_invalid,要求キーが無効です。
+connection.revision_conflict,接続が更新されました。再読み込みしてお試しください。
+connection.scope_immutable,接続の会社、顧客、タイプは変更できません。
+connection.snapshot_invalid,ディレクトリのスナップショットが接続と一致しません。
+connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
+connection.url_invalid,ERPのアドレスが無効か、許可されていません。
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.quality.pending,要確認
 cowork_line,Cowork LINE
 document,文書
+erp.account_set_unavailable,この会計データは利用できません。
+erp.endpoint_disabled,このERP接続は無効です。
+erp.target_access_denied,このERP送信先にアクセスする権限がありません。
+erp.target_context_invalid,ERP送信先の情報が一致しません。
 excel,Excel
 failed,失敗
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
@@ -244,6 +337,29 @@ ocr.unsupported_format,このファイル形式には対応していません。
 pdf,PDF
 pending,処理待ち
 physical_page,物理ページ
+push.adapter_not_connected,このERPアダプターはまだ接続されていません。
+push.branch_invalid,送信実行モードが無効です。
+push.native_ack_conflict,確認応答が記録済みの結果と矛盾しています。
+push.native_history_changed,伝票が変更されました。再度準備してください。
+push.native_lock_conflict,別の送信が書き込みロックを保持しています。
+push.native_payload_too_large,送信データがサイズ制限を超えています。
+push.native_record_not_found,送信記録が見つかりません。
+push.native_request_invalid,送信要求が無効です。
+push.native_reservation_conflict,この要求は既存の送信予約と矛盾しています。
+push.native_revision_conflict,送信記録が更新されました。再読み込みしてお試しください。
+push.native_stale_attempt,この送信試行は無効になっています。
+push.native_state_invalid,現在の送信状態ではこの操作はできません。
+push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
+push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
+push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
+push.posting_kind_invalid,転記タイプが無効です。
+push.preparation_cancelled,未送信の準備を取り消しました。
+push.preparation_superseded,古い未送信の準備を置き換えました。
+push.prior_document_number_missing,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
+push.record_not_found,送信記録が見つかりません。
+push.request_conflict,この要求キーは別の送信内容に使用されています。
+push.request_invalid,送信要求が無効です。
+push.utc_required,タイムゾーン付きのUTC時刻が必要です。
 recognized,認識済み
 recognizing,認識中
 roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。

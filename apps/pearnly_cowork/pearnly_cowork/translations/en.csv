@@ -4,8 +4,14 @@ A name is required.,A name is required.
 A positive record revision is required.,A positive record revision is required.
 A positive source page number is required.,A positive source page number is required.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
+Account Key,Account Key
+Account Set Key,Account Set Key
+Ack Digest,Ack Digest
+Active Attempt,Active Attempt
+Active Key,Active Key
 Actor,Actor
 Actual Qty,Actual Qty
+Allowed Users,Allowed Users
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
@@ -17,28 +23,45 @@ Billing Receipt,Billing Receipt
 Billing Reference,Billing Reference
 Billing State,Billing State
 Billing Units,Billing Units
+Binding Generation,Binding Generation
+Blocked By,Blocked By
 Book Qty,Book Qty
+Bound Account Set,Bound Account Set
 Bound Invoice Records,Bound Invoice Records
+Bound Profile Key,Bound Profile Key
+Branch,Branch
 Buyer Client,Buyer Client
 Changed At (UTC),Changed At (UTC)
 Changed By,Changed By
+Checks Json,Checks Json
 Client,Client
 Closed At,Closed At
 Closed By,Closed By
 Company,Company
+Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
+Connection Configuration,Connection Configuration
+Connection Name,Connection Name
+Connection Revision,Connection Revision
+Content Hash,Content Hash
 Corrected Value,Corrected Value
 Count Mode,Count Mode
 Counted At,Counted At
 Counted By,Counted By
 Cowork Client,Cowork Client
+Cowork ERP Connection,Cowork ERP Connection
+Cowork ERP Refresh,Cowork ERP Refresh
+Cowork ERP Snapshot,Cowork ERP Snapshot
 Cowork Master Data,Cowork Master Data
 Cowork OCR Batch,Cowork OCR Batch
 Cowork OCR Correction,Cowork OCR Correction
 Cowork OCR History,Cowork OCR History
 Cowork OCR requires a configured provider credential reference.,Cowork OCR requires a configured provider credential reference.
 Cowork OCR requires an explicit invoice configuration.,Cowork OCR requires an explicit invoice configuration.
+Cowork Push Attempt,Cowork Push Attempt
+Cowork Push Record,Cowork Push Record
+Cowork Push Writer Lock,Cowork Push Writer Lock
 Cowork Source File,Cowork Source File
 Cowork Stocktake,Cowork Stocktake
 Cowork Stocktake Entry,Cowork Stocktake Entry
@@ -48,11 +71,22 @@ Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Workspace,Cowork Workspace
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created By,Created By
+Creation Request Hash,Creation Request Hash
+Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Direction,Direction
+Directory Revision,Directory Revision
+Directory Scope Key,Directory Scope Key
+Directory Scope Kind,Directory Scope Kind
+Directory Snapshot,Directory Snapshot
+Document Key,Document Key
 Draft,Draft
 Duplicate records are not allowed.,Duplicate records are not allowed.
+ERP Connection,ERP Connection
+ERP Password,ERP Password
+ERP Token,ERP Token
+ERP Username,ERP Username
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Edit Count,Edit Count
@@ -60,11 +94,19 @@ Entry,Entry
 Event Key,Event Key
 Evidence Fingerprint,Evidence Fingerprint
 Examples Json,Examples Json
+External Docnum,External Docnum
+Failure Count,Failure Count
+Fence,Fence
 Field,Field
 File Hash,File Hash
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+History,History
 History Records,History Records
+History Version,History Version
+Holder,Holder
+Holder Fence,Holder Fence
+Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid original document manifest.,Invalid original document manifest.
 Invalid original filename.,Invalid original filename.
@@ -72,6 +114,7 @@ Invalid recognized invoice group.,Invalid recognized invoice group.
 Invoice Count,Invoice Count
 Invoice Date,Invoice Date
 Invoice Index,Invoice Index
+Invoice No,Invoice No
 Invoice Number,Invoice Number
 Invoice Pages,Invoice Pages
 Invoice References Complete,Invoice References Complete
@@ -80,10 +123,16 @@ Invoice Total,Invoice Total
 Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
 Item,Item
 Last Fields Edit (UTC),Last Fields Edit (UTC)
+Last Request Hash,Last Request Hash
+Last Request Key,Last Request Key
+Lease Expires At,Lease Expires At
 Location,Location
+Lock Key,Lock Key
+Lock Kind,Lock Kind
 Native Content Hash,Native Content Hash
 New records must start as drafts.,New records must start as drafts.
 Not Permitted,Not Permitted
+Observed At (UTC),Observed At (UTC)
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
 Original File,Original File
@@ -96,33 +145,49 @@ Original files can only be changed through the Cowork file service.,Original fil
 Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
+Outcome,Outcome
+Owner Id,Owner Id
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
 Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
+Payload Json,Payload Json
 Pearnly Cowork,Pearnly Cowork
 Phase,Phase
 Posting Kind,Posting Kind
+Preparation Evidence,Preparation Evidence
 Previous Json,Previous Json
 Private File,Private File
 Private Storage URL,Private Storage URL
 Product Code,Product Code
 Product Name,Product Name
 Provider Evidence,Provider Evidence
+Push Record,Push Record
 Quantity,Quantity
+Reason,Reason
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Record Id,Record Id
+Record Key,Record Key
 Record Revision,Record Revision
+Refresh Request Aliases,Refresh Request Aliases
+Refresh Status,Refresh Status
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
+Request Digest,Request Digest
 Request Fingerprint,Request Fingerprint
+Request Hash,Request Hash
 Request Json,Request Json
 Request Key,Request Key
+Requested At (UTC),Requested At (UTC)
 Requires Review,Requires Review
+Response Json,Response Json
+Result Directory Revision,Result Directory Revision
 Result Json,Result Json
+Result Unknown,Result Unknown
+Revision,Revision
 Row {0}: {1},Row {0}: {1}
 Sample Key,Sample Key
 Scope Key,Scope Key
@@ -136,12 +201,15 @@ Site,Site
 Source Digest,Source Digest
 Source File,Source File
 Source Format,Source Format
+Source Hash,Source Hash
 Source History,Source History
 Source PDF ID,Source PDF ID
 Source Page Indices,Source Page Indices
 Source Reference Count,Source Reference Count
 Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
+Started At,Started At
+Target Json,Target Json
 Task,Task
 Tax ID,Tax ID
 The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
@@ -170,6 +238,7 @@ This page is too large to preview safely.,This page is too large to preview safe
 This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
 This request key has already been used for different content.,This request key has already been used for different content.
 Title,Title
+Token Digest,Token Digest
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Updated At,Updated At
 Updated By,Updated By
@@ -180,18 +249,42 @@ Use the Cowork original-file service to access this file.,Use the Cowork origina
 Version,Version
 Voided,Voided
 Warehouse,Warehouse
+Wire Attempt,Wire Attempt
 Work Name,Work Name
 Workspace,Workspace
 active,active
 admitted,admitted
+catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
+catalog_refresh_pending,The directory refresh is still pending.
+catalog_refresh_required,Refresh the account directory before continuing.
+catalog_refresh_stale,The account directory is out of date. Refresh it again.
 charged,charged
 closed,closed
 confirmed,Confirmed
+connection.adapter_invalid,Unsupported ERP connection type.
+connection.config_invalid,Check the ERP connection settings.
+connection.disabled,This connection is disabled.
+connection.lock_required,Lock the connection before reading the push target.
+connection.not_found,Connection or directory record not found.
+connection.preparation_incomplete,Preparation data for this account set is incomplete.
+connection.preparation_invalid,Preparation data does not match the connection or account set.
+connection.refresh_stale,This refresh request has expired. Request a new refresh.
+connection.request_conflict,This request key was used for different content.
+connection.request_key_invalid,Invalid request key.
+connection.revision_conflict,The connection has changed. Reload and try again.
+connection.scope_immutable,"The company, client and type of a connection cannot be changed."
+connection.snapshot_invalid,The directory snapshot does not match this connection.
+connection.snapshot_too_large,The directory snapshot exceeds the 16 MiB limit.
+connection.url_invalid,The ERP address is invalid or not allowed.
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review
 cowork_line,Cowork LINE
 document,document
+erp.account_set_unavailable,This account set is unavailable.
+erp.endpoint_disabled,This ERP connection is disabled.
+erp.target_access_denied,You do not have access to this ERP target.
+erp.target_context_invalid,The ERP target context is inconsistent.
 excel,excel
 failed,Failed
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
@@ -244,6 +337,29 @@ ocr.unsupported_format,This file type is not supported.
 pdf,pdf
 pending,Pending
 physical_page,physical_page
+push.adapter_not_connected,This ERP adapter is not connected yet.
+push.branch_invalid,Invalid push execution mode.
+push.native_ack_conflict,The acknowledgement conflicts with the recorded result.
+push.native_history_changed,The invoice has changed. Prepare it again.
+push.native_lock_conflict,Another push holds the writer lock.
+push.native_payload_too_large,The push data exceeds the size limit.
+push.native_record_not_found,Push record not found.
+push.native_request_invalid,Invalid push request.
+push.native_reservation_conflict,This request conflicts with an existing reservation.
+push.native_revision_conflict,The push record has changed. Reload and try again.
+push.native_stale_attempt,This push attempt is no longer current.
+push.native_state_invalid,This action is not allowed in the current push state.
+push.native_target_changed,The push target has changed. Prepare the invoice again.
+push.native_target_mismatch,The frozen push target does not match the authorized target.
+push.original_reference_invalid,The original invoice reference is invalid or unavailable.
+push.posting_kind_invalid,Invalid posting type.
+push.preparation_cancelled,The unsent preparation was cancelled.
+push.preparation_superseded,The outdated unsent preparation was replaced.
+push.prior_document_number_missing,A successful push has no ERP document number. Check its receipt.
+push.record_not_found,Push record not found.
+push.request_conflict,This request key was used for different push content.
+push.request_invalid,Invalid push request.
+push.utc_required,A timezone-aware UTC timestamp is required.
 recognized,recognized
 recognizing,recognizing
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.

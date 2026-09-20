@@ -354,3 +354,48 @@ App为pearnly_cowork；新增roundtrip业务域，复用OCR纯schema、表格有
 前端仍暂不接。未合回主线、未推送、未部署；主目录末次只读核对仍为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`。本任务分支的纯规则通过不代表与最新主线已集成或用户已验收。
 
 第七批收尾：架构检查0违规，纯代码无框架/IO/墙钟依赖检查通过；没有新依赖、结构、运行入口或前端，不重复无关业务套件。专用bench/db/redis继续保持停止，既有合成Site/卷原样保留；临时无网测试容器自动移除。本批保存独立本地提交检查点，后续从原生连接和权威账本装配继续。
+
+## 第八批：原生连接、推送准备与持久账本（2026-09-21）
+
+承接本地提交 `0e5cd94e84f444c2246b57b4838263163c9cdfc3`，独立工作树和不接前端、不推送、不部署、不写外部ERP的边界不变。开工工作树干净；主目录仍为 `3bacdbd`，不将并行DMS改动混入本批。
+
+开工来源 `baseline-eighth-start.json` SHA256 `95f1e96fd6560046d7d88db9b90a80b739ec38aca331a619e78d3e9e0935f1f1`，运行配置 `push-runtime-eighth-start.json` SHA256 `1389e17789dbe9416021d16383b880034f9ed847e5a06101549c79d411342983`；两者与第七交付比较PASS。实际源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；客户端实际二进制及未采目录关联表不在这些证据范围内。
+
+本批职责：`connections` 持有当前Site的连接授权/配置与目录刷新快照；`push.application` 在当前用户下锁定历史、连接和服务端证据，调用既有纯准备；`push.native` 持有唯一推送记录、不可变载荷和尝试/写者状态。依赖只从装配层指向连接、原生账本和纯规则；连接不反向导入推送。新增DocType按原生迁移维护，通用REST和DocShare不得绕过专用服务。记录准备完成不表示已排队到真实客户端或入账成功，不挂接scheduler/外部消费者。
+
+计划在专有无外网lab完成新Site安装、已有Site升级和重复迁移、并发请求、防重、陈旧ACK、未知恢复、撤权和原件PRN来源验证。先做本地模拟运输，真实Companion/MRERP及业务验收不由此代替。
+
+
+### 实现、保持的契约与明确变化
+
+- 新增 Connection/Snapshot/Refresh、Push Record/Attempt/Writer Lock 六个原生DocType。连接管理、授权、目录选择和安全DTO已接专用接口；credentials进入原生Password，不进入公开DTO。没有菜单/页面或公开运输/ACK入口。
+- `prepare` 在连接与票据当前锁下复核身份、公司/买方、显式连接授权及版本；公司税号读当前Workspace，准备资料必须完整且匹配账套，不能把缺映射当已查询为空。Express pure ready装配为持久 prepared；仍无真实collector和外推消费者，MRERP明确未接通。
+- 同请求按原参数/冻结结果重放，当前授权与不可变PRN原票权限仍重验。旧键只取封存Source清单/唯一saved Batch与冻结结果的共同事实，可编辑history_id不能改防重来源。成功原凭证查询沿源兼容express_docnum/meta.docnum，读取失败或缺凭证号不伪装为空。
+- 同scope/revision/generation的目录请求合并同一requested ID，保持旧线上行为；不同request key的durable aliases保留重放，已完成后新key才新请求。版本改变不能重绑旧key。alias保留策略尚未实现，不冒充真实采集队列。
+- 本地唯一账本、跨连接同公司/root/account互斥、每次领取独立随机令牌摘要和递增fence。晚回执不能污染新尝试，成功不被晚失败覆盖。已领取超时保留锁并标未知，绝不自动重发。ACK格式沿实际legacy/managed调用闭包，只有成功保留line_modes；legacy才派生fallback_count/created_masters。
+- 原生全量耐久reserve、全部attempt fencing和未知保留锁是明确保护改进，旧legacy并非本来如此；没有假称逐行搬运。当前actor/History/Connection/branch/generation与Record冻结值必须一致，当前目录撤销也阻止派发。只有prepared、fence0、无active_attempt、查无任何Attempt、非未知，且原版本过期或原actor当前权限明确失效，才可由新已授权请求原子替换；原payload和操作者审计保留。当前旧actor仍有效时不能抢占，数据库异常不当撤权。
+- 所有新DocType通用REST/Desk CRUD及DocShare拒绝，真实专用接口仍走当前角色与范围。内部Python AdapterContext不是Companion身份认证；不能借合成ACK声称真实外推成功。
+
+### 本地验证与最终来源
+
+候选镜像仍 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，Python3.14.7/Frappe16.33.0；没有依赖升级或生产镜像构建。Docker context `colima-pearnly`、project `pearnly-cowork-backend-lab`，只读挂本树代码、独立Sites/DB卷、internal网络、无端口/外部凭据/worker/scheduler。bench为sleep进程。
+
+- 新 `cowork-backend-push.localhost` 安装与迁移通过；最终alias字段追加后再次migrate。既有 `cowork-backend-roundtrip.localhost` 最终结构升级和重复migrate通过，14张原有业务/权限/用户表、340条记录的规范化摘要完全一致：`9990203abcd9624875cadff72842c23ffadf58baf67d22951b765cf663e19e20`。用户只纳入name/enabled/type/language，不读取密码。六个新增表不涉及旧业务数据转换，未执行破坏性清空或另一次全库恢复演练。
+- 最终离线无网候选：所有 `test_cowork_*.py` **652项通过、无skip**（631既有+连接9+原生合同12），日志 `/tmp/cowork-eighth-unit.log`。纯规则边界仍覆盖所有第七批纯文件，并新增相对依赖检查；native/application有明确IO职责，不通过扩大纯模块白名单掩盖依赖。
+- 新原生 **63项通过**：连接21（2.134s）、推送账本24（7.997s）、应用与不可变PRN装配18（3.641s）。分别见 `/tmp/cowork-eighth-connections-final.log`、`/tmp/cowork-eighth-native-complete.log`、`/tmp/cowork-eighth-application-final.log`。含两真实数据库进程同/不同key竞争和双领取、旧RR快照后的税号更新、实际撤角色/范围、原生Password、两连接同账套互斥、错误token/fence、未知锁保留、晚ACK、防重/取消/恢复及事务中断回滚。内部运输与计费使用替身，无外部业务副作用。
+- 18项应用用例包含真实WSGI认证POST prepare→detail→cancel，以及GET写操作、Guest、原生GET/PUT旁路拒绝；负面PermissionError日志为预期。PRN含实际导出/上传/识别保存来源链、篡改可编辑键无效、原引用撤权拒绝。旧往返受影响回归15项通过（2.916s），合计本批 **78项原生测试**，没有把重复运行次数叠加。
+- 受影响receipt纯对照在候选无网容器核验7固定源hash后通过：229分类、480 ACK状态效果、340显示单号、5冻结、208发起层结果，共 **1,262组**。当前24项账本额外覆盖legacy/managed×6种stage的12组响应字段合同。它们不是真实建单数，不证明实际Companion或外部回读。
+- 初轮native22项失败11/错误1：测试进程提交的holder与后续同公司/root/account fixture相撞，正确写锁拒绝领取；非默认账套fixture缺独立映射；并发RR冲突需要调用方整段本地事务重试。修复fixture隔离与完整准备包，合成worker仅对QueryDeadlockError最多3次rollback后重新授权/领取。没有吞错、删断言、放开锁或重试外部IO。此前应用current税号测试暴露真实MariaDB1020，专用无外部IO RPC亦有界重试；内部service不擅自重试整个较大事务。
+- 独立审查发现的meta凭证号漏读、精确head回落、冻结context可被新context复活、目录撤销后仍领取、撤权后预留永久阻塞均修复。三项最后组合问题已在实际函数定向审查及原生测试关闭；[审查记录](cowork-backend/eighth-source-review.md)保留证据边界。
+- 语言包新增116词条，仅生成Cowork四份CSV；每语404项，en/zh/th/ja共464次新增词条原生查询与术语表相等。新增错误码及六个DocType label均从产品已安装Core/Cowork包可取，补复制原先只存在Control的Started At。母语措辞和页面未验收。
+- `i18n-build --check`、新增词条检查、架构0违规、Python语法和diff检查通过。全仓 `check-i18n --strict` **未通过**：147处/43文件/135条，抽取提交基线HEAD用同脚本复核后结果完全一致（只规范化源码行号），本批零新增、未扩大keep-cjk；这仍是待处理旧语言债务，不写成全仓语言通过。
+- 交付来源canonical evidence checksum `61ab9d88c93942de9a42bbedd1e5bd7d2a0f62a1e1f726c6928bdfe9b1e1e640`；交付运行checksum `54e821dd71557b0360c96d546ab9c513512526c9093ae344a60a2800de6eb699`。本批start/delivery比较PASS，Web/Worker实际流量对应源码、digest与采集配置未变，settings_unchanged=true / observations_changed=false。四份脱敏原文件已存 `cowork-backend/evidence/`；这些是规范化evidence内容摘要，不是含校验字段的JSON文件字节hash。
+
+### 仍未完成与下一段
+
+本批完成的是本地持久准备及账本，不是整条ERP外推或Cowork迁移完成。下一段需把真实Companion身份/绑定/目录采集与运输、ACK及未知回读恢复接到这些入口，补旧成功日志和原History UUID映射；实际Windows运行文件来源未核验前不移植未证实客户端。MRERP HTTP、History状态镜像/stock-master计数/通知副作用、导出ERP显示列尚未接权威账本。跨Site/跨公司或别名路径同物理写者也尚未证明。
+
+更早余项仍包括LINE、对账/盘点剩余路径、其它汇总/导出/归档、旧文件及历史迁入、WeKan来源与迁移，以及真实模型/账单、业务与用户验收。前端仍未开始，待后端范围承接到位后再讨论；不搬旧UI。未合回集成主线、未推送、未部署；主目录末次只读核对仍为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`，没有改并行DMS工作树或运行组。
+
+
+第八批收尾：本任务bench/db/redis三个容器已停止（sleep bench退出137，DB/Redis退出0）；全部测试已结束，独立Sites/DB/日志卷及合成数据保留，未清理其它工作树或容器。提交使用共享钩子检查实际暂存快照，本地保存本批检查点；未合回主线、未推送或部署。

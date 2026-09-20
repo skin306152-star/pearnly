@@ -1336,3 +1336,119 @@ pearnly_cowork	Sales invoices need line items with tax-exclusive amounts before 
 pearnly_cowork	Export records from the same company and client together.	同次导出只能包含同一公司、同一客户的记录。	การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน	同じ会社・顧客の履歴をまとめてエクスポートしてください。	roundtrip.export_scope_mixed
 pearnly_cowork	The invoice contains text that Excel cannot store safely. Check its length and characters.	发票包含 Excel 无法完整保存的文本，请检查长度和字符。	ใบแจ้งหนี้มีข้อความที่ Excel ไม่สามารถจัดเก็บได้ครบถ้วน กรุณาตรวจสอบความยาวและอักขระ	請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。	roundtrip.export_text_invalid
 pearnly_cowork	A referenced history record is unavailable in the selected company and client.	所选公司和客户范围内无法访问引用的历史记录。	ไม่สามารถเข้าถึงประวัติที่อ้างอิงภายใต้บริษัทและลูกค้าที่เลือกได้	選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。	roundtrip.reference_unavailable
+pearnly_cowork	Unsupported ERP connection type.	不支持此ERP连接类型。	ไม่รองรับประเภทการเชื่อมต่อ ERP นี้	このERP接続タイプはサポートされていません。	connection.adapter_invalid
+pearnly_cowork	Check the ERP connection settings.	请检查ERP连接配置。	โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP	ERP接続設定を確認してください。	connection.config_invalid
+pearnly_cowork	This connection is disabled.	此连接已停用。	การเชื่อมต่อนี้ถูกปิดใช้งาน	この接続は無効です。	connection.disabled
+pearnly_cowork	Lock the connection before reading the push target.	读取推送目标前必须锁定连接。	ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง	送信先を読み取る前に接続をロックしてください。	connection.lock_required
+pearnly_cowork	Connection or directory record not found.	找不到此连接或目录记录。	ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี	接続またはディレクトリの記録が見つかりません。	connection.not_found
+pearnly_cowork	Preparation data for this account set is incomplete.	此账套的推送准备资料尚未完整获取。	ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน	この会計データの送信準備情報が不足しています。	connection.preparation_incomplete
+pearnly_cowork	Preparation data does not match the connection or account set.	推送准备资料与当前连接或账套不一致。	ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี	準備情報が接続または会計データと一致しません。	connection.preparation_invalid
+pearnly_cowork	This refresh request has expired. Request a new refresh.	此刷新请求已过期，请重新申请刷新。	คำขอรีเฟรชนี้หมดอายุแล้ว โปรดส่งคำขอใหม่	この更新要求は期限切れです。再度要求してください。	connection.refresh_stale
+pearnly_cowork	This request key was used for different content.	此请求编号已用于其他内容。	รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว	この要求キーは別の内容に使用されています。	connection.request_conflict
+pearnly_cowork	Invalid request key.	请求编号无效。	รหัสคำขอไม่ถูกต้อง	要求キーが無効です。	connection.request_key_invalid
+pearnly_cowork	The connection has changed. Reload and try again.	连接已更新，请重新读取后再试。	การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง	接続が更新されました。再読み込みしてお試しください。	connection.revision_conflict
+pearnly_cowork	The company, client and type of a connection cannot be changed.	连接的公司、客户和类型不能直接修改。	ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้	接続の会社、顧客、タイプは変更できません。	connection.scope_immutable
+pearnly_cowork	The directory snapshot does not match this connection.	目录快照与当前连接不一致。	ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้	ディレクトリのスナップショットが接続と一致しません。	connection.snapshot_invalid
+pearnly_cowork	The directory snapshot exceeds the 16 MiB limit.	目录快照超过16MiB限制。	ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB	ディレクトリのスナップショットが16 MiBの上限を超えています。	connection.snapshot_too_large
+pearnly_cowork	The ERP address is invalid or not allowed.	ERP连接地址无效或不允许访问。	ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต	ERPのアドレスが無効か、許可されていません。	connection.url_invalid
+pearnly_cowork	This ERP adapter is not connected yet.	此ERP适配器尚未接通。	ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ	このERPアダプターはまだ接続されていません。	push.adapter_not_connected
+pearnly_cowork	Invalid push execution mode.	推送执行模式无效。	โหมดการส่งไม่ถูกต้อง	送信実行モードが無効です。	push.branch_invalid
+pearnly_cowork	The acknowledgement conflicts with the recorded result.	回执与已记录结果冲突。	ผลตอบรับขัดแย้งกับผลที่บันทึกไว้	確認応答が記録済みの結果と矛盾しています。	push.native_ack_conflict
+pearnly_cowork	The invoice has changed. Prepare it again.	票据已修改，请重新准备。	เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่	伝票が変更されました。再度準備してください。	push.native_history_changed
+pearnly_cowork	Another push holds the writer lock.	另一笔推送正在占用写入锁。	การส่งอื่นกำลังใช้ล็อกการเขียน	別の送信が書き込みロックを保持しています。	push.native_lock_conflict
+pearnly_cowork	The push data exceeds the size limit.	推送数据超过大小限制。	ข้อมูลส่งเกินขีดจำกัดขนาด	送信データがサイズ制限を超えています。	push.native_payload_too_large
+pearnly_cowork	Push record not found.	找不到推送记录。	ไม่พบรายการส่ง	送信記録が見つかりません。	push.native_record_not_found
+pearnly_cowork	Invalid push request.	推送请求无效。	คำขอส่งไม่ถูกต้อง	送信要求が無効です。	push.native_request_invalid
+pearnly_cowork	This request conflicts with an existing reservation.	此请求与已有推送预留冲突。	คำขอนี้ขัดแย้งกับรายการที่จองไว้	この要求は既存の送信予約と矛盾しています。	push.native_reservation_conflict
+pearnly_cowork	The push record has changed. Reload and try again.	推送记录已更新，请重新读取后再试。	รายการส่งมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง	送信記録が更新されました。再読み込みしてお試しください。	push.native_revision_conflict
+pearnly_cowork	This push attempt is no longer current.	此推送尝试已失效。	ความพยายามส่งนี้ไม่ใช่รายการปัจจุบันแล้ว	この送信試行は無効になっています。	push.native_stale_attempt
+pearnly_cowork	This action is not allowed in the current push state.	当前推送状态不允许此操作。	สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้	現在の送信状態ではこの操作はできません。	push.native_state_invalid
+pearnly_cowork	The push target has changed. Prepare the invoice again.	推送目标已变更，请重新准备票据。	ปลายทางการส่งเปลี่ยนแปลง โปรดเตรียมเอกสารใหม่	送信先が変更されました。伝票を再度準備してください。	push.native_target_changed
+pearnly_cowork	The frozen push target does not match the authorized target.	已冻结的推送目标与授权目标不一致。	ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต	固定された送信先が許可された送信先と一致しません。	push.native_target_mismatch
+pearnly_cowork	The original invoice reference is invalid or unavailable.	原票据引用无效或不可访问。	การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้	元の伝票の参照が無効か、アクセスできません。	push.original_reference_invalid
+pearnly_cowork	Invalid posting type.	过账类型无效。	ประเภทการลงบัญชีไม่ถูกต้อง	転記タイプが無効です。	push.posting_kind_invalid
+pearnly_cowork	The unsent preparation was cancelled.	尚未发送的推送准备已撤销。	ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว	未送信の準備を取り消しました。	push.preparation_cancelled
+pearnly_cowork	The outdated unsent preparation was replaced.	已替换过期且尚未发送的推送准备。	แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว	古い未送信の準備を置き換えました。	push.preparation_superseded
+pearnly_cowork	A successful push has no ERP document number. Check its receipt.	已有成功推送缺少ERP凭证号，请核对回执。	รายการส่งสำเร็จไม่มีเลขที่เอกสาร ERP โปรดตรวจสอบผลตอบรับ	成功済みの送信にERP伝票番号がありません。確認応答を確認してください。	push.prior_document_number_missing
+pearnly_cowork	Push record not found.	找不到推送记录。	ไม่พบรายการส่ง	送信記録が見つかりません。	push.record_not_found
+pearnly_cowork	This request key was used for different push content.	此请求编号已用于其他推送内容。	รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว	この要求キーは別の送信内容に使用されています。	push.request_conflict
+pearnly_cowork	Invalid push request.	推送请求无效。	คำขอส่งไม่ถูกต้อง	送信要求が無効です。	push.request_invalid
+pearnly_cowork	A timezone-aware UTC timestamp is required.	必须提供带时区的UTC时间。	ต้องระบุเวลา UTC พร้อมเขตเวลา	タイムゾーン付きのUTC時刻が必要です。	push.utc_required
+pearnly_cowork	You do not have access to this ERP target.	无权访问此ERP目标。	คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้	このERP送信先にアクセスする権限がありません。	erp.target_access_denied
+pearnly_cowork	The ERP target context is inconsistent.	ERP目标上下文不一致。	บริบทของปลายทาง ERP ไม่สอดคล้องกัน	ERP送信先の情報が一致しません。	erp.target_context_invalid
+pearnly_cowork	This ERP connection is disabled.	此ERP连接已停用。	การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน	このERP接続は無効です。	erp.endpoint_disabled
+pearnly_cowork	This account set is unavailable.	此账套不可用。	ชุดบัญชีนี้ไม่พร้อมใช้งาน	この会計データは利用できません。	erp.account_set_unavailable
+pearnly_cowork	The directory evidence is invalid. Refresh and select again.	目录证据无效，请刷新后重新选择。	หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่	ディレクトリの情報が無効です。更新して選択し直してください。	catalog_refresh_invalid
+pearnly_cowork	The directory refresh is still pending.	目录正在等待刷新。	กำลังรอการรีเฟรชไดเรกทอรี	ディレクトリの更新を待機しています。	catalog_refresh_pending
+pearnly_cowork	Refresh the account directory before continuing.	请先刷新账套目录。	โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ	先に会計データのディレクトリを更新してください。	catalog_refresh_required
+pearnly_cowork	The account directory is out of date. Refresh it again.	账套目录已过期，请重新刷新。	ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่	会計データのディレクトリが古くなっています。再度更新してください。	catalog_refresh_stale
+pearnly_cowork	Account Key	账套键	คีย์ชุดบัญชี	会計データキー	Account Key
+pearnly_cowork	Account Set Key	账套选择键	คีย์เลือกชุดบัญชี	会計データ選択キー	Account Set Key
+pearnly_cowork	Ack Digest	回执摘要	แฮชผลตอบรับ	確認応答ダイジェスト	Ack Digest
+pearnly_cowork	Active Attempt	当前尝试	ความพยายามปัจจุบัน	現在の試行	Active Attempt
+pearnly_cowork	Active Key	活动防重键	คีย์ป้องกันรายการซ้ำที่ใช้งาน	有効な重複防止キー	Active Key
+pearnly_cowork	Allowed Users	授权用户	ผู้ใช้ที่ได้รับอนุญาต	許可ユーザー	Allowed Users
+pearnly_cowork	Binding Generation	绑定版本	รุ่นการผูก	関連付け世代	Binding Generation
+pearnly_cowork	Blocked By	阻塞记录	รายการที่ขัดขวาง	ブロック元の記録	Blocked By
+pearnly_cowork	Bound Account Set	绑定账套	ชุดบัญชีที่ผูกไว้	関連付けられた会計データ	Bound Account Set
+pearnly_cowork	Bound Profile Key	绑定配置键	คีย์โปรไฟล์ที่ผูกไว้	関連付け設定キー	Bound Profile Key
+pearnly_cowork	Branch	执行分支	สาขาการดำเนินการ	実行分岐	Branch
+pearnly_cowork	Checks Json	检查结果JSON	ผลตรวจสอบ JSON	検証結果JSON	Checks Json
+pearnly_cowork	Completed At	完成时间	เวลาที่เสร็จสิ้น	完了日時	Completed At
+pearnly_cowork	Connection Configuration	连接配置	การตั้งค่าการเชื่อมต่อ	接続設定	Connection Configuration
+pearnly_cowork	Connection Name	连接名称	ชื่อการเชื่อมต่อ	接続名	Connection Name
+pearnly_cowork	Connection Revision	连接版本	รุ่นการเชื่อมต่อ	接続リビジョン	Connection Revision
+pearnly_cowork	Content Hash	内容摘要	แฮชเนื้อหา	内容ハッシュ	Content Hash
+pearnly_cowork	Cowork ERP Connection	Cowork ERP连接	การเชื่อมต่อ ERP ของ Cowork	Cowork ERP接続	Cowork ERP Connection
+pearnly_cowork	Cowork ERP Refresh	Cowork ERP目录刷新	การรีเฟรชไดเรกทอรี ERP ของ Cowork	Cowork ERPディレクトリ更新	Cowork ERP Refresh
+pearnly_cowork	Cowork ERP Snapshot	Cowork ERP目录快照	ภาพข้อมูลไดเรกทอรี ERP ของ Cowork	Cowork ERPディレクトリスナップショット	Cowork ERP Snapshot
+pearnly_cowork	Cowork Push Attempt	Cowork推送尝试	ความพยายามส่งของ Cowork	Cowork送信試行	Cowork Push Attempt
+pearnly_cowork	Cowork Push Record	Cowork推送记录	รายการส่งของ Cowork	Cowork送信記録	Cowork Push Record
+pearnly_cowork	Cowork Push Writer Lock	Cowork推送写入锁	ล็อกการเขียนของ Cowork	Cowork送信書き込みロック	Cowork Push Writer Lock
+pearnly_cowork	Creation Request Hash	创建请求摘要	แฮชคำขอสร้าง	作成要求ハッシュ	Creation Request Hash
+pearnly_cowork	Current Directory Heads	当前目录版本索引	ดัชนีรุ่นไดเรกทอรีปัจจุบัน	現在のディレクトリ索引	Current Directory Heads
+pearnly_cowork	Directory Revision	目录版本	รุ่นไดเรกทอรี	ディレクトリリビジョン	Directory Revision
+pearnly_cowork	Directory Scope Key	目录范围键	คีย์ขอบเขตไดเรกทอรี	ディレクトリ範囲キー	Directory Scope Key
+pearnly_cowork	Directory Scope Kind	目录范围类型	ประเภทขอบเขตไดเรกทอรี	ディレクトリ範囲タイプ	Directory Scope Kind
+pearnly_cowork	Directory Snapshot	目录快照	ภาพข้อมูลไดเรกทอรี	ディレクトリスナップショット	Directory Snapshot
+pearnly_cowork	Document Key	单据防重键	คีย์ป้องกันเอกสารซ้ำ	伝票重複防止キー	Document Key
+pearnly_cowork	ERP Connection	ERP连接	การเชื่อมต่อ ERP	ERP接続	ERP Connection
+pearnly_cowork	ERP Password	ERP密码	รหัสผ่าน ERP	ERPパスワード	ERP Password
+pearnly_cowork	ERP Token	ERP令牌	โทเค็น ERP	ERPトークン	ERP Token
+pearnly_cowork	ERP Username	ERP用户名	ชื่อผู้ใช้ ERP	ERPユーザー名	ERP Username
+pearnly_cowork	External Docnum	ERP凭证号	เลขที่เอกสาร ERP	ERP伝票番号	External Docnum
+pearnly_cowork	Failure Count	失败次数	จำนวนครั้งที่ล้มเหลว	失敗回数	Failure Count
+pearnly_cowork	Fence	尝试隔离序号	ลำดับแยกความพยายาม	試行分離番号	Fence
+pearnly_cowork	History	票据历史	ประวัติเอกสาร	伝票履歴	History
+pearnly_cowork	History Version	票据历史版本	รุ่นประวัติเอกสาร	伝票履歴バージョン	History Version
+pearnly_cowork	Holder	锁持有者	ผู้ถือล็อก	ロック保持者	Holder
+pearnly_cowork	Holder Fence	持锁尝试序号	ลำดับผู้ถือล็อก	ロック保持試行番号	Holder Fence
+pearnly_cowork	Installed At (UTC)	安装时间（UTC）	เวลาติดตั้ง (UTC)	インストール日時（UTC）	Installed At (UTC)
+pearnly_cowork	Invoice No	票据号码	เลขที่เอกสาร	伝票番号	Invoice No
+pearnly_cowork	Last Request Hash	最近请求摘要	แฮชคำขอล่าสุด	最終要求ハッシュ	Last Request Hash
+pearnly_cowork	Last Request Key	最近请求编号	คีย์คำขอล่าสุด	最終要求キー	Last Request Key
+pearnly_cowork	Lease Expires At	租约到期时间	เวลาที่สิทธิ์ถือครองหมดอายุ	リース有効期限	Lease Expires At
+pearnly_cowork	Lock Key	锁键	คีย์ล็อก	ロックキー	Lock Key
+pearnly_cowork	Lock Kind	锁类型	ประเภทล็อก	ロック種別	Lock Kind
+pearnly_cowork	Observed At (UTC)	观测时间（UTC）	เวลาสังเกต (UTC)	観測日時（UTC）	Observed At (UTC)
+pearnly_cowork	Outcome	执行结果	ผลการดำเนินการ	実行結果	Outcome
+pearnly_cowork	Owner Id	执行者编号	รหัสผู้ดำเนินการ	実行者ID	Owner Id
+pearnly_cowork	Payload Json	冻结载荷JSON	ข้อมูลส่งที่ตรึงไว้ JSON	固定ペイロードJSON	Payload Json
+pearnly_cowork	Preparation Evidence	准备资料证据	หลักฐานข้อมูลเตรียมส่ง	準備情報の証拠	Preparation Evidence
+pearnly_cowork	Push Record	推送记录	รายการส่ง	送信記録	Push Record
+pearnly_cowork	Reason	原因	เหตุผล	理由	Reason
+pearnly_cowork	Record Key	记录键	คีย์รายการ	記録キー	Record Key
+pearnly_cowork	Refresh Status	刷新状态	สถานะการรีเฟรช	更新状態	Refresh Status
+pearnly_cowork	Refresh Request Aliases	刷新请求幂等索引	ดัชนีคำขอรีเฟรช	更新要求の冪等索引	Refresh Request Aliases
+pearnly_cowork	Request Digest	请求摘要	แฮชคำขอ	要求ダイジェスト	Request Digest
+pearnly_cowork	Request Hash	请求内容摘要	แฮชเนื้อหาคำขอ	要求内容ハッシュ	Request Hash
+pearnly_cowork	Requested At (UTC)	请求时间（UTC）	เวลาร้องขอ (UTC)	要求日時（UTC）	Requested At (UTC)
+pearnly_cowork	Response Json	回执JSON	ผลตอบรับ JSON	確認応答JSON	Response Json
+pearnly_cowork	Result Directory Revision	结果目录版本	รุ่นไดเรกทอรีผลลัพธ์	結果ディレクトリリビジョン	Result Directory Revision
+pearnly_cowork	Result Unknown	结果未知	ไม่ทราบผลลัพธ์	結果不明	Result Unknown
+pearnly_cowork	Revision	版本	รุ่น	リビジョン	Revision
+pearnly_cowork	Source Hash	来源摘要	แฮชต้นทาง	ソースハッシュ	Source Hash
+pearnly_cowork	Target Json	冻结目标JSON	ปลายทางที่ตรึงไว้ JSON	固定送信先JSON	Target Json
+pearnly_cowork	Token Digest	令牌摘要	แฮชโทเค็น	トークンダイジェスト	Token Digest
+pearnly_cowork	Wire Attempt	发送尝试次数	จำนวนครั้งที่พยายามส่ง	送信試行回数	Wire Attempt
+pearnly_cowork	Started At	开始时间	เริ่มเมื่อ	開始日時	Started At

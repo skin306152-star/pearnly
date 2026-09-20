@@ -1,0 +1,115 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Push Writer Lock",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "lock_key",
+  "lock_kind",
+  "workspace",
+  "client",
+  "connection",
+  "account_key",
+  "holder",
+  "holder_fence",
+  "lease_expires_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record Id",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "lock_key",
+   "label": "Lock Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "lock_kind",
+   "label": "Lock Kind",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "endpoint\naccount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection"
+  },
+  {
+   "fieldname": "account_key",
+   "label": "Account Key",
+   "fieldtype": "Data",
+   "length": 500,
+   "read_only": 1
+  },
+  {
+   "fieldname": "holder",
+   "label": "Holder",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Push Record"
+  },
+  {
+   "fieldname": "holder_fence",
+   "label": "Holder Fence",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "label": "Lease Expires At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

@@ -257,6 +257,13 @@ def current_receipts(rows, *, status_filter=None):
     return result
 
 
+def express_prior_number(response_body):
+    """Old prior-write lookup accepts meta.docnum as well as the display key."""
+    body = coerce_body(response_body)
+    meta = body.get("meta") if isinstance(body.get("meta"), dict) else {}
+    return str(body.get("express_docnum") or meta.get("docnum") or "").strip() or None
+
+
 def prior_document(rows, *, tenant_id, endpoint_id, history_id, account_set):
     """Read an original's last successful number from authoritative scoped rows.
 
@@ -273,7 +280,5 @@ def prior_document(rows, *, tenant_id, endpoint_id, history_id, account_set):
                 or row.get("history_id") != history_id or row.get("status") != "success"
                 or reservation_account(row) != account_set.casefold()):
             continue
-        body = coerce_body(row.get("response_body"))
-        meta = body.get("meta") if isinstance(body.get("meta"), dict) else {}
-        return str(body.get("express_docnum") or meta.get("docnum") or "").strip() or None
+        return express_prior_number(row.get("response_body"))
     return None

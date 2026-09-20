@@ -61,7 +61,7 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 | --- | --- |
 | OCR 上传、分票、缓存、计费、队列及失败恢复 | PDF/image已接原生执行、供应商适配、文本/图片路径、授权例库、原子保存及计费回执；普通表格/文本已有逻辑区段与字符计费执行；真实付费模型/账单验收、旧例库回灌、非staged缓存仍待补；专用roundtrip已接第六批本地后端，真实ERP重推未接，见执行合同 |
 | 原件、PDF 预览、附件 | 新上传原件、整份及按物理页读取已实现；跨公司/同页多票拒绝越权，原生下载/ZIP旁路已堵；旧可搜索PDF、加密文件及历史回灌尚未迁 |
-| 外推、目标刷新、年度账套、权威日志 | 本批只有纯预检；连接、锁、reservation、消费者、未知结果和回读均待迁 |
+| 外推、目标刷新、年度账套、权威日志 | 第八批已接原生连接、目录申请/快照、准备RPC、持久防重/attempt/写锁与本地回执；真实采集、运输消费者、外部未知回读及旧推送记录导入未迁 |
 | LINE、Companion | 来源映射已完成；验签、当前绑定、单次票据、租约/ACK、消息回执等仍待迁；Windows 实际运行来源待核验 |
 | 对账 | 仅第一轮单号强配对。金额取整/容差与 Decimal 有已证实差异，第二轮、银行、GL/VAT 未迁 |
 | 盘点 | 原生任务/商品/扫描/回执、增改作废、关闭、JSON 报告已迁；XLSX字节适配、照片、LINE、legacy直接盘点、历史数据回灌及10,000行容量尚未验收 |
@@ -101,3 +101,16 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 - 原记录PRN键是内容声明，须在受理、执行、保存前重验当前Site/公司/客户。旧平台UUID尚未映射时明确拒绝。不可变原件清单与冻结结果保存权威引用；将来ERP推送不能信任可编辑pages.fields.history_id替代这些证据。
 - 承接旧Excel字符计费；生成新History和封存原件一次提交，计费失败只补回执。命中空表、带空格异常表名、50空行后残留数据、解析失败均返回稳定错误码，不退模型。金额不能无损往返、未绑定的多页历史明确拦截导出。
 - [整链合同与有意变化](roundtrip-native.md)、[独立审计](roundtrip-parity-audit.md)。外部ERP重推、旧数据映射、其它导出格式、前端及真实业务验收仍未完成。
+
+## 第八批连接与推送准备合同
+
+连接域入口为 `pearnly_cowork.connections.api`，具体参数、当前授权与不泄露凭据的DTO见[原生连接](connections-native.md)。管理要求 master_data + Cowork Admin；使用要求 intake + 当前角色、公司/买方与显式连接授予。目录请求仍显示 collector_available=false，本批没有后台采集器，不能把请求成功理解为真实目录已经取得。
+
+推送入口为 `pearnly_cowork.push.application.api`：
+
+- POST `prepare(history,connection,request_key,expected_history_version,expected_connection_revision,account_set_key?,catalog_request_id?,catalog_revision?,posting_kind?)`：服务端读取真实历史、目录和准备资料并冻结。支持 Express；MRERP明确返回尚未接通。未启用总推送开关返回 disabled；预检待人工返回 manual；通过返回 prepared，不创建OCR Work或外部队列。
+- 同一请求key与原始参数重放同一记录和冻结内容。仍重新检查当前权限以及不可变PRN原记录权限；不能用重放绕过撤权。同key换内容拒绝；不同key同单同目标受权威账本防重。历史或配置变更必须重新准备，不能靠新context放行旧载荷。
+- GET `detail(name)` / `records(connection,start=0,limit=50)`：要求 push_log + 当前日志角色、公司/买方与连接授予；输出名称、状态、版本、检查项和外部单号投影，不返回冻结目标/载荷、凭据或原始响应。停用连接可在有效日志授权下查询。
+- POST `cancel_prepared(name,expected_revision)`：只允许原提交者撤销本人明确从未发送的 prepared；不删除证据，不解除未知结果或已领取锁。原授权失效/票据配置过期的从未发送预留如何安全替换，见[账本合同](push-native.md)。
+
+上述API没有页面按钮或导航。原生演练使用合成数据和内部运输替身；真实客户机身份、目录采集、外部创建/回读/重试、MRERP运输、旧ERP成功记录导入仍缺，不能将本地准备与合成ACK计作完整外推验收。回导原键现在能查本Site同公司/买方/连接/账套成功记录；旧平台数据尚未导入，导出的ERP显示列仍未接权威账本，不能声称旧业务记录已可重推。

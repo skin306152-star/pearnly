@@ -1,0 +1,414 @@
+"""Transactional Cowork connection and trusted projection store.
+
+No collector, external request, dispatcher or commit lives here. Every mutation
+locks Connection first; snapshots/refresh use current reads in the same unit.
+"""
+from copy import deepcopy
+from dataclasses import dataclass
+from datetime import datetime, timezone
+import uuid
+
+import frappe
+from frappe import _
+from frappe.utils.password import get_decrypted_password
+from pearnly_core.shell import entitlements
+
+from pearnly_cowork.targets import TargetAccess, TargetEvidence
+from pearnly_cowork.targets.identity import normalize_express_account_key
+from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
+from . import access, model
+
+CONNECTION, SNAPSHOT, REFRESH = access.TYPES
+
+
+@dataclass
+class LoadedConnection:
+    doc: object
+    endpoint: dict
+    access: TargetAccess
+    evidence: TargetEvidence
+    revision: int
+
+
+def _now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _error(code):
+    frappe.throw(_(code))
+
+
+def _name(value):
+    if not isinstance(value, str) or not value or len(value) > 140:
+        _error("connection.not_found")
+    return value
+
+
+def _read(doctype, name, *, lock=True):
+    # get_doc(for_update=True) is a current InnoDB read, never an RR snapshot.
+    if not frappe.db.get_value(doctype, _name(name), "name", for_update=lock):
+        _error("connection.not_found")
+    return frappe.get_doc(doctype, name, for_update=lock)
+
+
+def _heads(doc):
+    return model.parse(doc.projection_heads, {})
+
+
+def _scope(account, adapter=None):
+    if adapter == "express" and account not in (None, "", "@endpoint"):
+        account = normalize_express_account_key(account)
+    kind, key = normalize_scope(None if account in (None, "", "@endpoint") else account)
+    return kind, key, model.fingerprint([kind, key])
+
+
+def _dto(doc):
+    return {"name": doc.name, "label": doc.label, "adapter": doc.adapter, "workspace": doc.workspace,
+            "client": doc.client or None, "enabled": bool(doc.enabled), "revision": int(doc.record_revision),
+            "config": model.parse(doc.config_json, {}), "users": model.parse(doc.allowed_users, []),
+            "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
+            "has_token": bool(doc.get("credential_token")), "collector_available": False}
+
+
+def configure(workspace, adapter, request_key, label, config, client=None, users=None,
+              name=None, expected_revision=None, enabled=True, credentials=None):
+    actor = access.require_actor(management=True)
+    access.require_scope(workspace, client)
+    adapter = str(adapter or "").strip().lower()
+    config = model.configuration(adapter, config)
+    existing = _read(CONNECTION, name) if name else None
+    if existing:
+        access.require_connection(existing, management=True, enabled=False)
+    users = model.parse(users, model.parse(existing.allowed_users, []) if existing else [actor])
+    credentials = model.parse(credentials, {})
+    if (not isinstance(label, str) or not label.strip() or len(label) > 80
+            or not isinstance(users, list) or not users or len(users) > 200
+            or any(not isinstance(u, str) or not u or len(u) > 140 for u in users)
+            or len(users) != len(set(users)) or not isinstance(credentials, dict)
+            or set(credentials) - {"username", "password", "token"}
+            or any(not isinstance(v, str) or len(v) > 8192 or "***" in v for v in credentials.values())):
+        _error("connection.config_invalid")
+    for user in users:
+        access.require_assignee(user, workspace, client)
+    enabled = model.boolean(enabled)
+    operation = model.request_identity(frappe.local.site, actor, "configure:" + (name or workspace), request_key)
+    digest = model.fingerprint([workspace, client or "", adapter, label, config, sorted(users), enabled, credentials])
+    if name:
+        doc = existing
+        if (doc.workspace, doc.client or "", doc.adapter) != (workspace, client or "", adapter):
+            _error("connection.scope_immutable")
+        if doc.last_request_key == operation:
+            if doc.last_request_hash != digest:
+                _error("connection.request_conflict")
+            return _dto(doc)
+        if isinstance(expected_revision, bool) or str(expected_revision) != str(doc.record_revision):
+            _error("connection.revision_conflict")
+        doc.record_revision += 1
+        # Retain immutable old evidence but remove its current authority.
+        doc.projection_heads = "{}"
+    else:
+        name = "CWEC-" + operation
+        # Scope row serializes first creation too; no gap-lock race swallowing.
+        frappe.db.get_value("Cowork Workspace", workspace, "name", for_update=True)
+        if frappe.db.get_value(CONNECTION, name, "name", for_update=True):
+            doc = _read(CONNECTION, name)
+            access.require_connection(doc, management=True, enabled=False)
+            if doc.create_request_hash != digest:
+                _error("connection.request_conflict")
+            return _dto(doc)
+        doc = frappe.get_doc({"doctype": CONNECTION, "record_key": name, "workspace": workspace,
+                              "client": client or "", "adapter": adapter, "record_revision": 1,
+                              "binding_generation": 0, "bound_account_set": "", "bound_profile_key": "",
+                              "create_request_hash": digest, "projection_heads": "{}"})
+    doc.update({"label": label.strip(), "enabled": enabled, "config_json": model.dumps(config),
+                "allowed_users": model.dumps(sorted(users)), "last_request_key": operation, "last_request_hash": digest})
+    for key, value in credentials.items():
+        doc.set("credential_" + key, value)
+    access.write(doc)
+    return _dto(doc)
+
+
+def detail(name):
+    doc = _read(CONNECTION, name)
+    # A manager can inspect disabled/unassigned configuration without acquiring
+    # permission to submit orders. All other callers need actual use permission.
+    if _manager_view():
+        access.require_connection(doc, management=True, enabled=False)
+    else:
+        access.require_connection(doc)
+    return _dto(doc)
+
+
+def _manager_view():
+    return "master_data" in entitlements() and "Cowork Admin" in access.roles(frappe.session.user)
+
+
+def targets(name):
+    """Safe current directory for selection; raw preparation never leaves IO."""
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc, management=_manager_view())
+    _, _, key = _scope(None)
+    head = _heads(doc).get(key, {})
+    result = {"connection": doc.name, "connection_revision": doc.record_revision,
+              "status": head.get("status") or "missing", "refresh_request_id": head.get("request_id"),
+              "revision": head.get("revision"), "account_sets": [], "collector_available": False}
+    if head.get("request_id"):
+        refresh = _read(REFRESH, head["request_id"])
+        if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
+            _error("connection.snapshot_invalid")
+        result["refresh_status"] = refresh.status
+    if head.get("snapshot_id"):
+        snapshot = _read(SNAPSHOT, head["snapshot_id"])
+        if snapshot.connection != doc.name or snapshot.connection_revision != doc.record_revision:
+            _error("connection.snapshot_invalid")
+        for row in model.parse(snapshot.body)["account_sets"]:
+            attributes = row.get("attributes") or {}
+            safe = {key: attributes[key] for key in ("path", "root", "root_label", "writable", "company", "row", "comidyear", "seldb")
+                    if key in attributes}
+            mapping = attributes.get("mapping")
+            if isinstance(mapping, dict):
+                safe["mapping"] = {key: mapping[key] for key in ("revenue_acc", "ar_acc", "vat_output_acc", "fallback_acc", "ap_acc", "vat_input_acc") if key in mapping}
+            result["account_sets"].append({"source_id": row["source_id"], "label": row.get("label"),
+                                           "active": row.get("active", True), "attributes": safe})
+    return result
+
+
+def records(workspace, client=None, start=0, limit=50):
+    actor = frappe.session.user
+    management = _manager_view()
+    access.require_actor(management=management)
+    access.require_scope(workspace, client)
+    try:
+        start, limit = max(0, int(start)), max(1, min(100, int(limit)))
+    except (ValueError, TypeError):
+        _error("connection.config_invalid")
+    # Exact client scope: no-client is an explicit scope, not every client.
+    names = frappe.db.sql("""SELECT name FROM `tabCowork ERP Connection`
+        WHERE workspace=%s AND COALESCE(client,'')=%s ORDER BY modified DESC,name
+        LIMIT %s OFFSET %s LOCK IN SHARE MODE""", (workspace, client or "", limit, start), as_dict=True)
+    result = []
+    for row in names:
+        doc = _read(CONNECTION, row.name)
+        if management or (doc.enabled and actor in model.parse(doc.allowed_users, [])):
+            access.require_connection(doc, management=management, enabled=not management)
+            result.append(_dto(doc))
+    return result
+
+
+def request_refresh(name, request_key, account_set_key=None):
+    doc = _read(CONNECTION, name)
+    actor = access.require_connection(doc)
+    kind, key, head_key = _scope(account_set_key, doc.adapter)
+    identity = model.request_identity(frappe.local.site, actor, "refresh:" + name, request_key)
+    signature = model.fingerprint([name, int(doc.record_revision), kind, key])
+    aliases = model.parse(doc.get("refresh_request_aliases"), {})
+    alias = aliases.get(identity)
+    # Older rows created before aliases use their operation UUID as row name.
+    # Retain that durable receipt when first replayed after the schema upgrade.
+    replay_name = alias.get("request_id") if alias else frappe.db.get_value(REFRESH, identity, "name", for_update=True)
+    if replay_name:
+        refresh = _read(REFRESH, replay_name)
+        if (refresh.connection != name or refresh.request_hash != signature
+                or refresh.connection_revision != doc.record_revision
+                or refresh.binding_generation != doc.binding_generation
+                or (alias and alias.get("request_hash") != signature)):
+            _error("connection.request_conflict")
+        if alias is None:
+            aliases[identity] = {"request_id": refresh.name, "request_hash": signature}
+            doc.refresh_request_aliases = model.dumps(aliases)
+            access.write(doc)
+        return _refresh_dto(refresh)
+    heads = _heads(doc)
+    previous = heads.get(head_key, {})
+    if previous.get("request_id"):
+        old = _read(REFRESH, previous["request_id"])
+        if (old.status == "requested" and old.connection == name
+                and old.connection_revision == doc.record_revision
+                and old.binding_generation == doc.binding_generation
+                and old.adapter == doc.adapter and (old.scope_kind, old.scope_key) == (kind, key)):
+            # Fixed source target_refresh.request_refresh coalesces requested
+            # work, updating requested_at instead of replacing its request ID.
+            old.requested_at = _now()
+            access.write(old)
+            aliases[identity] = {"request_id": old.name, "request_hash": signature}
+            doc.refresh_request_aliases = model.dumps(aliases)
+            access.write(doc)
+            return _refresh_dto(old)
+    refresh = frappe.get_doc({"doctype": REFRESH, "record_key": identity, "connection": name,
+        "workspace": doc.workspace, "client": doc.client or "", "actor": actor,
+        "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
+        "adapter": doc.adapter, "scope_kind": kind, "scope_key": key,
+        "account_set_key": "@endpoint" if kind == "endpoint" else key,
+        "request_hash": signature, "status": "requested", "requested_at": _now(), "result_revision": 0})
+    access.write(refresh)
+    heads[head_key] = {**previous, "request_id": identity, "status": "pending"}
+    doc.projection_heads = model.dumps(heads)
+    aliases[identity] = {"request_id": refresh.name, "request_hash": signature}
+    doc.refresh_request_aliases = model.dumps(aliases)
+    access.write(doc)
+    return _refresh_dto(refresh)
+
+
+def _refresh_dto(doc):
+    return {"request_id": doc.name, "connection": doc.connection, "status": doc.status,
+            "account_set_key": doc.account_set_key, "result_revision": doc.result_revision or None,
+            "collector_available": False}
+
+
+def refresh_status(name, request_id):
+    doc = _read(CONNECTION, name)
+    access.require_connection(doc)
+    refresh = _read(REFRESH, request_id)
+    if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
+        _error("connection.refresh_stale")
+    return _refresh_dto(refresh)
+
+
+def install_snapshot(name, observation, request_id, expected_revision, preparation=None):
+    """Trusted internal collector completion, deliberately NOT an RPC.
+
+    The caller has authenticated and collected the observation. This function
+    only checks and atomically stores it; it does not create collection evidence.
+    """
+    doc = _read(CONNECTION, name)
+    if not doc.enabled or str(expected_revision) != str(doc.record_revision):
+        _error("connection.refresh_stale")
+    normalized = normalize_projection(observation)
+    if normalized.adapter != doc.adapter:
+        _error("connection.snapshot_invalid")
+    prepared = model.preparation(preparation)
+    kind, key, head_key = _scope(None if normalized.scope_kind == "endpoint" else normalized.scope_key, doc.adapter)
+    refresh = _read(REFRESH, request_id)
+    heads = _heads(doc)
+    head = heads.get(head_key, {})
+    if (refresh.connection != name or refresh.connection_revision != doc.record_revision
+            or refresh.binding_generation != doc.binding_generation or refresh.adapter != doc.adapter
+            or (refresh.scope_kind, refresh.scope_key) != (kind, key) or head.get("request_id") != request_id
+            or refresh.status not in {"requested", "succeeded"}):
+        _error("connection.refresh_stale")
+    body = {"adapter": normalized.adapter, "scope_kind": kind, "scope_key": key,
+            "account_sets": normalized.account_sets, "masters": normalized.masters,
+            "form_schema": normalized.form_schema, "capabilities": normalized.capabilities,
+            "entity_counts": normalized.entity_counts, "component_hashes": normalized.component_hashes,
+            "collector": normalized.collector, "observed_at": normalized.observed_at.isoformat()}
+    if len(model.dumps(body).encode()) > 16 * 1024 * 1024:
+        _error("connection.snapshot_too_large")
+    if prepared is not None and kind == "account_set":
+        identity = normalize_express_account_key if doc.adapter == "express" else lambda v: str(v or "").strip()
+        if identity(prepared["account_set"]) != identity(key):
+            _error("connection.preparation_invalid")
+    content_hash = model.fingerprint([normalized.source_hash, prepared])
+    current = _read(SNAPSHOT, head["snapshot_id"]) if head.get("snapshot_id") else None
+    same = bool(current and current.content_hash == content_hash)
+    if refresh.status == "succeeded" and not same:
+        _error("connection.refresh_stale")
+    if same:
+        snapshot = current
+    else:
+        revision = int(head.get("revision") or 0) + 1
+        snapshot = frappe.get_doc({"doctype": SNAPSHOT, "record_key": "CWES-" + uuid.uuid4().hex,
+            "connection": name, "workspace": doc.workspace, "client": doc.client or "",
+            "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
+            "scope_kind": kind, "scope_key": key, "projection_revision": revision,
+            "adapter": doc.adapter, "source_hash": normalized.source_hash, "content_hash": content_hash,
+            "body": model.dumps(body), "preparation": model.dumps(prepared), "observed_at": normalized.observed_at.replace(tzinfo=None),
+            "installed_at": _now()})
+        access.write(snapshot)
+    heads[head_key] = {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision,
+                       "request_id": request_id, "status": "fresh"}
+    doc.projection_heads = model.dumps(heads)
+    access.write(doc)
+    refresh.status = "succeeded"
+    refresh.result_revision = snapshot.projection_revision
+    refresh.completed_at = _now()
+    access.write(refresh)
+    return {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision, "published": not same}
+
+
+def read_for_push(connection_id, workspace, client=None, actor=None, lock=True):
+    if lock is not True:
+        _error("connection.lock_required")
+    doc = _read(CONNECTION, connection_id, lock=True)
+    actor = access.require_connection(doc, actor=actor)
+    if (doc.workspace, doc.client or "") != (workspace, client or ""):
+        access.deny()
+    config = model.parse(doc.config_json, {})
+    endpoint = {"id": doc.name, "adapter": doc.adapter, "enabled": bool(doc.enabled), "config": config,
+                "tenant_id": frappe.local.site, "workspace_client_id": doc.workspace,
+                "binding_generation": int(doc.binding_generation or 0), "bound_account_set": doc.bound_account_set or "",
+                "bound_profile_key": doc.bound_profile_key or ""}
+    _, _, key = _scope(None)
+    head = _heads(doc).get(key, {})
+    snapshot, latest = None, None
+    if head.get("snapshot_id"):
+        saved = _read(SNAPSHOT, head["snapshot_id"])
+        if saved.connection != doc.name or saved.connection_revision != doc.record_revision:
+            _error("connection.snapshot_invalid")
+        body = model.parse(saved.body)
+        snapshot = {"snapshot_id": saved.name, "adapter": saved.adapter, "account_sets": body["account_sets"],
+                    "head_snapshot_id": saved.name, "head_revision": head["revision"], "head_status": head["status"]}
+    if head.get("request_id"):
+        saved = _read(REFRESH, head["request_id"])
+        if saved.connection != doc.name or saved.connection_revision != doc.record_revision:
+            _error("connection.snapshot_invalid")
+        latest = {"id": saved.name, "status": saved.status, "account_set_key": saved.account_set_key,
+                  "adapter": saved.adapter, "result_revision": saved.result_revision}
+    grant = TargetAccess(frappe.local.site, actor, doc.name, doc.workspace, True)
+    evidence = TargetEvidence(frappe.local.site, actor, doc.name, latest, snapshot)
+    return LoadedConnection(doc, endpoint, grant, evidence, int(doc.record_revision))
+
+
+def preparation_for_target(loaded, target):
+    """Return complete facts only for this exact currently locked target."""
+    doc = _read(CONNECTION, loaded.doc.name)
+    access.require_connection(doc, actor=loaded.access.user_id)
+    if int(doc.record_revision) != loaded.revision:
+        _error("connection.revision_conflict")
+    if (target.endpoint_id != doc.name or target.tenant_id != frappe.local.site
+            or target.user_id != loaded.access.user_id or target.binding_generation != doc.binding_generation):
+        _error("connection.preparation_invalid")
+    identity = normalize_express_account_key if doc.adapter == "express" else lambda v: str(v or "").strip()
+    heads = _heads(doc)
+    _, _, account_key = _scope(target.account_set, doc.adapter)
+    _, _, endpoint_key = _scope(None)
+    # An exact-account refresh owns the authority as soon as it exists. Never
+    # fall back to old endpoint facts while that account is pending or stale.
+    head = heads[account_key] if account_key in heads else heads.get(endpoint_key, {})
+    if head.get("status") != "fresh" or not head.get("snapshot_id"):
+        _error("connection.preparation_incomplete")
+    saved = _read(SNAPSHOT, head["snapshot_id"])
+    if (saved.connection != doc.name or saved.connection_revision != loaded.revision
+            or saved.binding_generation != target.binding_generation):
+        _error("connection.preparation_invalid")
+    value = model.parse(saved.preparation)
+    if (not value or identity(value["account_set"]) != identity(target.account_set)
+            or value["complete"] is not True or (doc.adapter == "express" and
+            normalize_express_account_key(value["root_key"]) != normalize_express_account_key(target.root_key))):
+        _error("connection.preparation_incomplete")
+    return deepcopy(value)
+
+
+def read_for_log(connection_id, workspace=None, client=None, actor=None, lock=False):
+    # Caller has already checked the dedicated push-log feature/role. Keep this
+    # authorization independent of intake (viewing logs never grants sending).
+    actor = actor or frappe.session.user
+    if (frappe.conf.get("pearnly_product") != "cowork" or "push_log" not in entitlements()
+            or actor == "Guest" or not {"Cowork Push Log", "Cowork Admin"}.intersection(access.roles(actor))):
+        access.deny()
+    user = access._current("SELECT enabled FROM `tabUser` WHERE name=%s", (actor,))
+    if not user or not user[0].enabled:
+        access.deny()
+    doc = _read(CONNECTION, connection_id, lock=True)
+    access.require_scope(doc.workspace, doc.client, actor=actor)
+    if actor not in model.parse(doc.allowed_users, []) or (workspace and (workspace, client or "") != (doc.workspace, doc.client or "")):
+        access.deny()
+    return _dto(doc)
+
+
+def credentials_for_use(loaded):
+    """Internal plaintext boundary for a future authenticated outbound adapter."""
+    current = read_for_push(loaded.doc.name, loaded.doc.workspace, loaded.doc.client, actor=loaded.access.user_id)
+    if current.revision != loaded.revision:
+        _error("connection.revision_conflict")
+    return {key.removeprefix("credential_"): get_decrypted_password(CONNECTION, current.doc.name, key, raise_exception=False) or ""
+            for key in model.SECRET_FIELDS}

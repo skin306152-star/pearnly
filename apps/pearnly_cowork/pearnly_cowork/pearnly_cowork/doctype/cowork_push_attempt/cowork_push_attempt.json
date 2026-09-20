@@ -1,0 +1,166 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Push Attempt",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "push_record",
+  "workspace",
+  "client",
+  "connection",
+  "fence",
+  "owner_id",
+  "token_digest",
+  "binding_generation",
+  "status",
+  "started_at",
+  "lease_expires_at",
+  "ack_digest",
+  "outcome",
+  "response_json",
+  "completed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record Id",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "push_record",
+   "label": "Push Record",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Push Record",
+   "reqd": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1
+  },
+  {
+   "fieldname": "fence",
+   "label": "Fence",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "owner_id",
+   "label": "Owner Id",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "token_digest",
+   "label": "Token Digest",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "binding_generation",
+   "label": "Binding Generation",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "leased\nunknown\nfinished",
+   "reqd": 1
+  },
+  {
+   "fieldname": "started_at",
+   "label": "Started At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "label": "Lease Expires At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "ack_digest",
+   "label": "Ack Digest",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1
+  },
+  {
+   "fieldname": "outcome",
+   "label": "Outcome",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "response_json",
+   "label": "Response Json",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "label": "Completed At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}
