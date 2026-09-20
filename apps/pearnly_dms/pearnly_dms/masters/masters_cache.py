@@ -60,6 +60,7 @@ def scope(endpoint: Any) -> str:
     credential change creates a new cache scope; no password is stored in keys.
     """
     import frappe
+    from pearnly_core.endpoints import read_password
     from pearnly_core.session_lock import dms_login_key
 
     eid = _eid(endpoint)
@@ -68,10 +69,11 @@ def scope(endpoint: Any) -> str:
     doc = frappe.get_doc("Pearnly ERP Endpoint", eid)
     if not doc.enabled or doc.adapter != "mrerp_dms":
         return eid
-    admin_password = doc.get_password("admin_password", raise_exception=False)
+    # 共用读取口：解不开密文只回空串，不会把框架技术细节排进消息队列。
+    admin_password = read_password("Pearnly ERP Endpoint", eid, "admin_password")
     use_admin = bool(doc.admin_username and admin_password)
     username = doc.admin_username if use_admin else doc.username
-    password = admin_password if use_admin else doc.get_password("password", raise_exception=False)
+    password = admin_password if use_admin else read_password("Pearnly ERP Endpoint", eid, "password")
     material = dms_login_key(doc.system_url, username) + "\0" + (password or "")
     return "shared-v2:" + hashlib.sha256(material.encode()).hexdigest()
 

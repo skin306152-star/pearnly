@@ -17,6 +17,8 @@ from __future__ import annotations
 import frappe
 from frappe import _
 
+from pearnly_core.endpoints import read_password
+
 # 本站只连一个 DMS（老产品把地址写死隐藏，向导只维护一组账号密码）。保持一致。
 ADAPTER = "mrerp_dms"
 DEFAULT_LABEL = "MR.ERP DMS"
@@ -42,6 +44,10 @@ def _endpoint_name() -> str | None:
 
 
 def _row(doc) -> dict:
+    # 凭据用"读得出来吗"判断，不是"这条记录存在吗"：站点密钥换过或密文损坏时，
+    # 记录照样在，但每次读取都失败（2026-09-20 现场）。
+    password = read_password(ENDPOINT, doc.name, "password")
+    admin_password = read_password(ENDPOINT, doc.name, "admin_password")
     return {
         "name": doc.name,
         "label": doc.label,
@@ -49,10 +55,12 @@ def _row(doc) -> dict:
         "enabled": bool(doc.enabled),
         "system_url": doc.system_url,
         "username": doc.username,
-        "has_password": bool(doc.get_password("password", raise_exception=False)),
-        "has_admin_creds": bool(
-            doc.admin_username and doc.get_password("admin_password", raise_exception=False)
-        ),
+        "has_password": bool(password),
+        "has_admin_creds": bool(doc.admin_username and admin_password),
+        # "可用"= 启用 + 这组账号的密码现在真解得开。列表/状态显示都用它。
+        "usable": bool(doc.enabled and (
+            (doc.username and password) or (doc.admin_username and admin_password)
+        )),
         "last_status": doc.last_status or "",
         "last_used_at": str(doc.last_used_at or ""),
         "success_count": doc.success_count or 0,
@@ -62,12 +70,18 @@ def _row(doc) -> dict:
 
 @frappe.whitelist()
 def get_connection() -> dict:
-    """本站的 DMS 连接现状。没配过就回 `connected=False`，界面直接进空态。"""
+    """本站的 DMS 连接现状。没配过就回 `connected=False`，界面直接进空态。
+
+    `connected` 只说**现在能不能用**：连接记录存在不算。以前这里只要有一条 Endpoint
+    就回 `connected=True`，于是向导显示"已连接"、状态显示"已连接"，而每次读凭据其实
+    都在失败（2026-09-20 现场：解密报错与"已连接"同时出现）。
+    """
     _require_admin()
     name = _endpoint_name()
     if not name:
         return {"connected": False, "default_url": _default_url()}
-    return {"connected": True, "default_url": _default_url(), "endpoint": _row(frappe.get_doc(ENDPOINT, name))}
+    row = _row(frappe.get_doc(ENDPOINT, name))
+    return {"connected": bool(row["usable"]), "default_url": _default_url(), "endpoint": row}
 
 
 @frappe.whitelist()
@@ -130,7 +144,11 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     doc.save(ignore_permissions=False)
     frappe.db.commit()
 
-    return {"endpoint": _row(frappe.get_doc(ENDPOINT, doc.name))}
+    # **保存后回读**：写进去但解不开（站点密钥被换过）不是"保存成功"。
+    saved = _row(frappe.get_doc(ENDPOINT, doc.name))
+    if not saved["usable"]:
+        frappe.throw(_("The saved credentials cannot be read back; check the site encryption key"))
+    return {"endpoint": saved}
 
 
 @frappe.whitelist(methods=["POST"])

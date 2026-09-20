@@ -150,6 +150,16 @@ def finalize_site() -> dict:
         from pearnly_core.desk.branding import ensure_site_favicon
 
         ensure_site_favicon()
+        # 账户"个人资料"那一屏的字段与排列（公司/域名/静音/改密，见 account/layout.py）。
+        #
+        # 为什么必须在收尾里再跑一次：那个初始化只挂在 `after_migrate` 上，而**新开户
+        # 不走 migrate**（装完 App 就直接设产品配置、收尾）。2026-09-20 正式租户现场：
+        # User 的 Custom Field 与 Property Setter 都是 0，`pearnly_company` /
+        # `pearnly_domain` / `pearnly_change_password` 根本不存在，姓名标签也没改成用户名。
+        # 收尾幂等，升级路径仍由 after_migrate 负责，两边落到的都是同一份布局。
+        from pearnly_core.account.layout import ensure_profile_fields
+
+        ensure_profile_fields()
     frappe.db.commit()
 
     frappe.clear_cache()

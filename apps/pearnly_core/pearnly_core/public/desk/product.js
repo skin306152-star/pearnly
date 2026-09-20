@@ -119,17 +119,41 @@ frappe.provide("frappe.pearnly");
 				);
 			}
 			add_navbar_items() {
-				// Upstream couples Display/Logout to notifications; keep these working native
-				// actions explicitly while leaving unrelated framework navigation unexposed.
+				// 原生顺序：首页、网站、分隔线、侧栏排序、显示、刷新、分隔线、注销。
+				// 上游把"显示"和"注销"挂在通知开关上（产品有意关掉全局搜索/通知），
+				// 所以这几项在这里显式给出；行为仍交给原生 SidebarHeader、主题切换、
+				// clear_cache 与侧栏编辑态，不自建主题或控件。
+				// "侧栏排序"按原生放"编辑侧栏"的位置（第一条分隔线之后、显示之前）。
+				const is_dark = frappe.ui.get_current_theme() === "dark";
 				this.dropdown_items = [
+					{ name: "home", label: __("Home"), icon: "home",
+						onClick: () => frappe.set_route("/desk/pearnly-home") },
+					{ name: "website", label: __("Website"), icon: "web",
+						onClick: () => window.open("https://pearnly.com") },
+					{ is_divider: true },
 					{ name: "reorder-sidebar", label: __("account.sidebarOrder"), icon: "list",
 						condition: () => frappe.boot.pearnly_pages.length > 1,
 						onClick: () => p.reorder_sidebar() },
+					{ name: "display", label: __("Display"), icon: "monitor",
+						items: this.get_display_siblings(is_dark) },
 					{ name: "reload", label: __("Reload"), icon: "rotate-ccw",
 						onClick: () => frappe.ui.toolbar.clear_cache() },
+					{ is_divider: true },
 					{ name: "logout", label: __("Logout"), icon: "logout",
 						onClick: () => frappe.app.logout() },
 				];
+			}
+			populate_dropdown_menu() {
+				// 标题里那份菜单是逐项渲染的，原生没有"分隔线行"，照搬会多出一行
+				// `undefined`。分隔线交给原生 context menu（同一次点击里的另一份）画，
+				// 这里只列真正可点的项。
+				const items = this.dropdown_items;
+				this.dropdown_items = items.filter((item) => !item.is_divider);
+				try {
+					super.populate_dropdown_menu();
+				} finally {
+					this.dropdown_items = items;
+				}
 			}
 		};
 	}

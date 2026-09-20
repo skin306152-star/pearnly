@@ -7,6 +7,7 @@ import json
 
 import frappe
 from frappe import _
+from pearnly_core.endpoints import read_password
 from pearnly_dms.contracts.models import PERSONAL_BOOKING_DEFAULT_KEYS
 
 ENDPOINT = "Pearnly ERP Endpoint"
@@ -35,12 +36,13 @@ def sync_operator(operator, method=None):
     endpoint.label = operator.display_name
     endpoint.system_url = template.system_url
     endpoint.username = operator.dms_username
-    password = operator.get_password("dms_password", raise_exception=False)
+    # 共用读取口：凭据解不开时按"没配"处理（回空串），不把框架技术细节弹给用户。
+    password = read_password("DMS Operator", operator.name, "dms_password")
     if not endpoint.username or not password:
         frappe.throw(_("Fill in the display name, DMS username and password"))
     endpoint.password = password
     endpoint.admin_username = template.admin_username or ""
-    endpoint.admin_password = template.get_password("admin_password", raise_exception=False) or ""
+    endpoint.admin_password = read_password(ENDPOINT, template.name, "admin_password")
     defaults = frappe.parse_json(template.booking_defaults or "{}") or {}
     defaults = {key: value for key, value in defaults.items() if key not in PERSONAL_BOOKING_DEFAULT_KEYS}
     defaults.update(advisor_id=operator.advisor_id or "", advisor_name=operator.advisor_name or "")

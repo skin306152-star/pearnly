@@ -1121,3 +1121,4 @@ pearnly_cowork	The source page number must be a positive integer.	源文件页�
 pearnly_cowork	The date reference year is missing. Reload and try again.	缺少日期参考年份，请重新加载后重试。	ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年がありません。再読み込みしてから再試行してください。	history.date_anchor_required
 pearnly_cowork	The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
 pearnly_cowork	Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません
+pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください

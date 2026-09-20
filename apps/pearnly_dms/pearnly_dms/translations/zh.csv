@@ -1,6 +1,7 @@
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
+The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
 dms.account.hint,更新 Pearnly 保存的 DMS 登录凭据，不会修改 DMS 系统的密码。

@@ -13,6 +13,8 @@
 3. **停用即不参与**。`enabled=0` 的连接不能拿来推送（"同批不误投"的闸）。
 """
 
+import contextlib
+
 import frappe
 from frappe import _
 from frappe.utils.password import get_decrypted_password
@@ -22,6 +24,37 @@ ENDPOINT = "Pearnly ERP Endpoint"
 
 def _clean(value) -> str:
     return str(value or "").strip()
+
+
+@contextlib.contextmanager
+def _quiet_decrypt():
+    """丢掉本次解密排队的那条框架消息。
+
+    为什么需要：Frappe 解不开密文时（站点密钥换过、密文损坏）是**先 msgprint 再抛**，
+    而 `raise_exception=False` 只把异常转成 None —— 那条消息仍留在消息队列里，
+    于是"只是想看一眼配没配过密码"也会在界面上弹出加密密钥的技术细节，
+    同一次请求里多个字段各弹一次就会重复出现。这里只清消息队列，
+    异常语义、缓存与解密行为都不变。
+    """
+    log = getattr(frappe.local, "message_log", None)
+    if log is None:
+        yield
+        return
+    frappe.local.message_log = []
+    try:
+        yield
+    finally:
+        frappe.local.message_log = log
+
+
+def read_password(doctype: str, name: str, fieldname: str = "password") -> str:
+    """读一个 Password 字段的明文；读不出来（没配过、或站点密钥对不上）返回空串。
+
+    空串是统一的"不可用"信号：调用方据此判断这组凭据能不能用，而**不是**判断
+    "配没配过"。解密失败不会抛异常，也不会在界面留下框架技术细节（见 `_quiet_decrypt`）。
+    """
+    with _quiet_decrypt():
+        return get_decrypted_password(doctype, name, fieldname, raise_exception=False) or ""
 
 
 def list_for(adapter: str | None = None, *, owner_user: str | None = None,
@@ -55,8 +88,8 @@ def list_for(adapter: str | None = None, *, owner_user: str | None = None,
 
 def has_credential(name: str) -> bool:
     """这条连接配过密码没有。老产品也是这么判的（成对存在才算配过）。"""
-    user_pw = get_decrypted_password(ENDPOINT, name, "password", raise_exception=False) or ""
-    admin_pw = get_decrypted_password(ENDPOINT, name, "admin_password", raise_exception=False) or ""
+    user_pw = read_password(ENDPOINT, name, "password")
+    admin_pw = read_password(ENDPOINT, name, "admin_password")
     user_name = _clean(frappe.db.get_value(ENDPOINT, name, "username"))
     admin_name = _clean(frappe.db.get_value(ENDPOINT, name, "admin_username"))
     return bool((user_name and user_pw) or (admin_name and admin_pw))
@@ -74,14 +107,14 @@ def credentials(name: str, *, as_admin: bool = False) -> dict:
 
     if as_admin:
         username = _clean(doc.admin_username)
-        password = get_decrypted_password(ENDPOINT, name, "admin_password", raise_exception=False) or ""
+        password = read_password(ENDPOINT, name, "admin_password")
         if not (username and password):
             frappe.throw(
                 _("Connection \"{0}\" has no account with write access configured, so writes are not possible").format(doc.label)
             )
     else:
         username = _clean(doc.username)
-        password = get_decrypted_password(ENDPOINT, name, "password", raise_exception=False) or ""
+        password = read_password(ENDPOINT, name, "password")
         if not (username and password):
             frappe.throw(_("Connection \"{0}\" has no sign-in credentials yet").format(doc.label))
 
