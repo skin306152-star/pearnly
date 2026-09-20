@@ -130,3 +130,7 @@ def subscribe(plan_code: str) -> dict:
 def records(tab: str, start: str = "", end: str = "", limit: int = 500, offset: int = 0) -> dict:
     return _call("service_records",
                  {"tab": tab, "start": start, "end": end, "limit": int(limit), "offset": int(offset)})
+
+
+def delete_records(tab: str, names: list[str], actor: str) -> dict:
+    return _call("service_delete_records", {"tab": tab, "names": names, "actor": actor})

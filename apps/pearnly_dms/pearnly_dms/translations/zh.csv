@@ -67,7 +67,7 @@ dms.edit.invalidAmount,请填写有效的正数付款金额。
 dms.edit.invalidField,请检查“{0}”的填写内容。
 dms.edit.invalidPayment,请选择有效的付款方式。
 dms.edit.liffUnavailable,此入口尚未为这个 LINE OA 开通，请从 LINE 重新打开 DMS 菜单。
-dms.edit.loading,正在加载订车资料…
+dms.edit.loading,正在加载资料…
 dms.edit.masterChanged,可选项目已更新，请使用 LINE 中的最新预览卡后重试。
 dms.edit.masterUnavailable,暂时无法读取 DMS 最新选项，请稍后重试。
 dms.edit.moo,村组

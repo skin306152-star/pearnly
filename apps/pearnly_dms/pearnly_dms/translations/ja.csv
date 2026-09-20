@@ -67,7 +67,7 @@ dms.edit.invalidAmount,支払金額はゼロより大きい有効な数値を入
 dms.edit.invalidField,「{0}」の入力内容を確認してください。
 dms.edit.invalidPayment,有効な支払方法を選択してください。
 dms.edit.liffUnavailable,この画面はこのLINE OAでは利用できません。LINEからDMSメニューを開き直してください。
-dms.edit.loading,予約情報を読み込み中…
+dms.edit.loading,情報を読み込み中…
 dms.edit.masterChanged,選択肢が更新されました。LINE の最新プレビューで再試行してください。
 dms.edit.masterUnavailable,DMS の最新選択肢を取得できません。しばらくして再試行してください。
 dms.edit.moo,ムー

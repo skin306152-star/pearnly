@@ -60,16 +60,16 @@ async function submit() {
 
 <template>
   <LineLayout :locale="locale" :disabled="busy" @update:locale="setLocale">
-    <section class="space-y-5 rounded-xl border border-outline-gray-2 bg-surface-white p-4">
+    <section class="space-y-5 rounded border border-outline-gray-2 bg-surface-white p-4">
       <h1 class="text-xl font-semibold">{{ t(portal ? "dms.account.portal" : "dms.account.title") }}</h1>
-      <p class="text-sm text-gray-600">{{ t(portal ? "dms.account.portalHint" : "dms.account.hint") }}</p>
+      <p class="text-sm text-ink-gray-9">{{ t(portal ? "dms.account.portalHint" : "dms.account.hint") }}</p>
       <ErrorMessage v-if="error" :message="error" />
       <Spinner v-if="!ready && !error" class="h-5 w-5" />
       <form v-if="ready" class="space-y-5" @submit.prevent="submit">
-        <FormControl v-model="username" :label="t('dms.account.username')" :disabled="portal || busy" autocomplete="username" required />
-        <FormControl v-if="!portal" v-model="password" type="password" :label="t('dms.account.password')" :disabled="busy" autocomplete="off" required />
-        <p v-if="saved" role="status" class="text-sm text-green-700">{{ t('dms.account.saved') }}</p>
-        <Button variant="solid" theme="gray" type="submit" :loading="busy" :disabled="!portal && (!username.trim() || !password)">
+        <FormControl variant="outline" v-model="username" :label="t('dms.account.username')" :disabled="portal || busy" autocomplete="username" required />
+        <FormControl variant="outline" v-if="!portal" v-model="password" type="password" :label="t('dms.account.password')" :disabled="busy" autocomplete="off" required />
+        <p v-if="saved" role="status" class="text-sm text-ink-gray-9">{{ t('dms.account.saved') }}</p>
+        <Button variant="solid" theme="gray" class="pn-primary" type="submit" :loading="busy" :disabled="!portal && (!username.trim() || !password)">
           {{ t(portal ? 'dms.account.open' : 'dms.account.save') }}
         </Button>
       </form>

@@ -6,8 +6,8 @@
 在 worker 里 TypeError**，webhook 这边却只看到"已入队"。症状是"发完照片一直没有回卡"，
 不看 worker 日志根本查不出。所以这里钉四件事：
 
-1. 入队的 kwargs **就是目标函数的形参名**；
-2. 点号路径能解析回同一个函数；
+1. 守卫载荷的 kwargs **就是目标函数的形参名**；
+2. 原生队列经过绑定版本守卫，再解析到目标函数；OCR 走共享持久任务入口；
 3. 参数个数对不上时**当场炸**（不许留成 worker 里的静默失败）；
 4. 静态扫本模块所有 `_enqueue(...)` 调用点，别再有对不上的。
 
@@ -19,10 +19,12 @@ def main():
     from pathlib import Path
     import ast
     import inspect
+    from unittest.mock import patch
 
     import frappe
 
     from pearnly_dms.intake import flow as dms_flow
+    from pearnly_dms.line import out
 
     ok = []
 
@@ -36,26 +38,46 @@ def main():
         captured["method"] = method
         captured["kwargs"] = kwargs
 
-    real_enqueue = frappe.enqueue
-    frappe.enqueue = fake_enqueue
-    try:
+    identity = {"user": "operator@example.test", "binding_revision": "fixture-revision"}
+    with patch.object(frappe, "enqueue", fake_enqueue), \
+            patch("pearnly_dms.line.identity.current", return_value=identity), \
+            patch.object(out, "start_loading") as loading:
         dms_flow._enqueue("probe", dms_flow.process_image,
-                          {"line_user_id": "U"}, "U", "MID")
-    finally:
-        frappe.enqueue = real_enqueue
+                          {"user_id": identity["user"]}, "U", "MID")
+        loading.assert_called_once_with("U", 60)
 
-    # frappe.enqueue 的控制参数（queue/timeout/job_id）不是目标函数的参数，先剥掉
-    payload = {
-        key: value
-        for key, value in (captured.get("kwargs") or {}).items()
-        if key in inspect.signature(dms_flow.process_image).parameters
-    }
-    ck("入队用的点号路径指到同一个函数",
-       captured.get("method") == "pearnly_dms.intake.flow.process_image", captured.get("method"))
+    # 原生队列控制参数不进入业务载荷；守卫原样展开 arguments 给目标函数。
+    payload = captured.get("kwargs", {}).get("arguments") or {}
+    ck("队列守卫和业务目标点号路径完整",
+       captured.get("method") == "pearnly_dms.line.out.run_guarded"
+       and captured.get("kwargs", {}).get("target") == "pearnly_dms.intake.flow.process_image")
     ck("入队的 kwargs 就是形参名（不是 arg0/arg1）",
        sorted(payload) == ["binding", "line_user_id", "message_id"]
-       and not [k for k in (captured.get("kwargs") or {}) if k.startswith("arg")],
+       and not [k for k in payload if k.startswith("arg")],
        sorted(payload))
+    ck("排队期间保留原绑定版本",
+       payload.get("binding", {}).get("binding_revision") == identity["binding_revision"])
+
+    with patch("pearnly_dms.line.identity.matches", return_value=True), \
+            patch.object(frappe, "get_attr", return_value=lambda **kw: kw) as resolve:
+        ck("worker 守卫按具名参数交给业务函数",
+           out.run_guarded(captured["kwargs"]["target"], payload) == payload)
+        resolve.assert_called_once_with("pearnly_dms.intake.flow.process_image")
+    with patch("pearnly_dms.line.identity.matches", return_value=False), \
+            patch.object(frappe, "get_attr") as resolve:
+        ck("解绑后的旧任务在解析业务函数前取消",
+           out.run_guarded(captured["kwargs"]["target"], payload) == {"cancelled": "binding_changed"})
+        resolve.assert_not_called()
+
+    with patch("pearnly_dms.line.identity.current", return_value=identity), \
+            patch.object(out, "start_loading"), \
+            patch("pearnly_core.execution.work.submit", return_value="work-id") as submit, \
+            patch.object(frappe, "enqueue") as enqueue:
+        dms_flow._enqueue("image", dms_flow.process_image,
+                          {"user_id": identity["user"]}, "U", "MID")
+        submit.assert_called_once_with("dms.id_card", "MID", payload, identity["user"])
+        enqueue.assert_not_called()
+        ck("图片识别交给共享持久任务，使用消息幂等键", True)
 
     try:
         # worker 就是这么调的：`method(**kwargs)`（frappe execute_job 最后一行）
@@ -97,6 +119,8 @@ def main():
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(ok) - len(failed), len(failed)))
     print("RESULT: %s" % ("ALL PASS" if not failed else "FAIL"))
+    if failed:
+        raise AssertionError("Queue contract failed")
 
 
 if __name__ == "__main__":

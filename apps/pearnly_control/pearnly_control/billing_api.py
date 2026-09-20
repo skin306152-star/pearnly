@@ -138,7 +138,7 @@ def service_topup_status(tenant: str) -> dict:
     tenant = _tenant_or_throw(tenant)
     return {
         "items": frappe.get_all(
-            billing.TOPUP, filters={"tenant": tenant},
+            billing.TOPUP, filters={"tenant": tenant, "records_deleted_at": ["is", "not set"]},
             fields=["name", "status", "requested_thb", "approved_thb", "creation",
                     "review_note"],
             order_by="creation desc", limit_page_length=20,
@@ -191,7 +191,7 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
     offset = max(0, int(offset or 0))
     if tab not in ("usage", "topup"):
         frappe.throw(_("Invalid value"))
-    filters = {"tenant": tenant}
+    filters = {"tenant": tenant, "records_deleted_at": ["is", "not set"]}
     if tab == "topup":
         filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
         rows = frappe.get_all(
@@ -211,6 +211,13 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
         )
     total = frappe.db.count(billing.TOPUP if tab == "topup" else billing.TXN, filters)
     return {"tab": tab, "rows": rows, "total": total}
+
+
+@frappe.whitelist(allow_guest=True, methods=["POST"])
+def service_delete_records(tenant: str, tab: str, names, actor: str) -> dict:
+    _require_service(tenant)
+    from pearnly_control.payments.history import delete_records
+    return delete_records(_tenant_or_throw(tenant), tab, names, actor)
 
 
 # ── 控制面界面调用（Desk 会话）──────────────────────────────────────────────

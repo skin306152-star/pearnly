@@ -81,6 +81,12 @@
 
 `records.access` 提供 DMS 推送历史的产品/角色/功能权限和当前 Site 内的记录范围，`query.records` 只读复用这些定义，因此登记 query → records 单向依赖。`records.manage` 用 POST 原子校验选中记录并记录移除人/时间；原生 Push Log 的业务字段、状态、重试和客户查重凭据保留。此依赖不指向 query、外部适配器或业务写入，不增加循环，也不授予通用 DocType 删除权限。
 
+### 首页记录删除的边界（2026-09-20）
+
+`core.payments.history` 提供选中项校验和原生记录展示删除标记；产品 `billing_www.delete_records` 必须先校验公司管理员。OCR 记录限定当前产品 Site；用量和充值记录经既有受鉴权的 `billing_client` 发送给 `control.payments.history`，由计费端固定 DocType 并按服务凭据对应租户逐项加锁校验。Control 单向依赖 Core 的内部记录标记方法；Core 不导入 Control。请求不能指定 DocType 或租户。
+
+三种原生记录增加隐藏只读 `records_deleted_at/by`。产品列表和导出不再展示被删除项；钱包、阶梯页数、计费幂等、充值审核及原始凭据继续读取原行。删除不退款、不取消待审核充值、不授予通用 DocType 删除权限。首页仅复用现有原生列表的选择和确认行为，不另造表格或分页。
+
 ### 已成功订车的后续交付
 
 `booking.delivery` 使用自有原生 `DMS Booking Delivery` 持久化已经独立回读确认的订单结果、原身份版本和稳定回执key。先保存后释放当前LINE草稿，后台只补附件及LINE回执，不调用建单入口。其权限仅System Manager只读，不新增产品导航；未核实订单仍保留原提交标记。`booking.attachments` 负责已选择消息的内容获取，`client.attachments` 负责原生完整表单上传与逐件回读，依赖方向不反转。

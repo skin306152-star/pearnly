@@ -26,8 +26,8 @@ Auto Push,ส่งอัตโนมัติ
 Balance,ยอดคงเหลือ
 Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ
 Billing,การคิดค่าบริการ
-Billing is not configured on this site (pearnly_billing_*),เว็บไซต์นี้ยังไม่ได้ตั้งค่าระบบเรียกเก็บเงิน (pearnly_billing_*)
-"Billing is not wired up on this site, please contact the platform",เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม
+Billing is not configured on this site (pearnly_billing_*),ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
+"Billing is not wired up on this site, please contact the platform",ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
 Bind Code,รหัสผูก
 Binding needs a LINE user and a local account,การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง
 Birth Date,วันเกิด
@@ -167,7 +167,7 @@ ID Card Intake,บันทึกบัตรประชาชน
 ID Details,ข้อมูลบัตร
 ID Image,ภาพบัตร
 ID Number,เลขบัตร
-ID card recognition (tier A),อ่านบัตรประชาชน (ระดับ A)
+ID card recognition (tier A),อ่านบัตรประชาชน
 ID number is required,ต้องระบุเลขบัตร
 IP,IP
 Identity Session,เซสชันตัวตน
@@ -527,38 +527,40 @@ home.col.summary,สรุป
 home.col.time,เวลา
 home.error.http,คำขอล้มเหลว (HTTP {0})
 home.field.payer,ผู้ชำระเงิน
+home.ledger.confirmDelete,ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง
+home.ledger.deletedCount,ลบแล้ว {0} รายการ
 home.ledger.empty,ไม่มีรายการ
 home.ledger.export,ส่งออกรายละเอียด
 home.ledger.exporting,กำลังส่งออก…
-home.ledger.none,ยังไม่มีรายการ
+home.ledger.none,ไม่มีรายการ
 home.ledger.ocr,บันทึกการอ่านข้อมูล
 home.ledger.title,รายละเอียดบันทึก
 home.ledger.usage,ค่าบริการ
 home.loading,กำลังโหลด…
-home.pending.count,มี {0} รายการเติมเงินรอแพลตฟอร์มยืนยัน:
-home.pending.hint,—— ยอดคงเหลือจะเพิ่มอัตโนมัติเมื่อยืนยันแล้ว
+home.pending.count,มีคำขอเติมเงิน {0} รายการรอตรวจสอบ
+home.pending.hint,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 home.period.all,ทั้งหมด
 home.period.month,เดือนนี้
 home.period.today,วันนี้
 home.period.year,ปีนี้
 home.plan.code,แพ็กเกจ
 home.plan.current,แพ็กเกจปัจจุบัน
-home.plan.cycleNote,แพ็กเกจเป็นรอบ 30 วัน สิ้นสุดเมื่อครบรอบ (ไม่ต่ออัตโนมัติ) — ครบแล้วสมัครใหม่ด้านล่างได้เลย
+home.plan.cycleNote,แพ็กเกจไม่ต่ออายุอัตโนมัติ สามารถสมัครใหม่ได้เมื่อหมดอายุ
 home.plan.failed,ไม่สามารถเปิดใช้แพ็กเกจได้
 home.plan.none,ยังไม่สมัคร
-home.plan.noneHint,ตอนนี้คิดตามใช้จริง · สมัครแพ็กเกจด้านล่างจะประหยัดกว่า
-home.plan.over,ส่วนเกิน {0}/หน้า · ครบรอบ {1}
+home.plan.noneHint,ปัจจุบันคิดค่าบริการตามการใช้งาน
+home.plan.over,ส่วนเกิน: {0}/หน้า · หมดอายุ: {1}
 home.plan.subscribe,สมัครแพ็กเกจนี้
 home.plan.subscribed,สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}
 home.plan.subscribing,กำลังสมัคร…
-home.plan.usage,ใช้ไปรอบนี้ {0} / {1} หน้า เหลือ {2} หน้า
+home.plan.usage,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
 home.plans.hint,หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ
-home.plans.over,ส่วนเกิน {0}/หน้า
+home.plans.over,ส่วนเกิน: {0}/หน้า
 home.plans.perCycle,/ {0} วัน
-home.plans.quota,โควตาต่อรอบ {0} หน้า
+home.plans.quota,{0} หน้าต่อรอบ
 home.plans.title,เลือกแพ็กเกจ
 home.pricing.chars,ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม
-home.pricing.pages,คิดตามใช้จริง: {0} หน้าแรกต่อเดือนปฏิทินกรุงเทพฯ {1}/หน้า จากนั้น {2}/หน้า
+home.pricing.pages,คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า
 home.refresh,รีเฟรช
 home.status.credited,เข้าบัญชีแล้ว
 home.status.failed,ล้มเหลว
@@ -626,7 +628,7 @@ intake.status.pushed,ส่งแล้ว
 intake.status.queued,รอส่ง
 intake.status.recognized,อ่านแล้ว
 intake.status.rejected,ตีกลับ
-intake.subtitle,ข้อจำกัด: เอกสารที่ยังไม่ยืนยันส่งออกไม่ได้ (ระบบตรวจที่เซิร์ฟเวอร์ ไม่ได้แค่ทำให้ปุ่มเป็นสีเทา)
+intake.subtitle,ตรวจสอบและยืนยันเอกสารก่อนส่ง
 intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
@@ -677,7 +679,7 @@ purchase.field.docDate,วันที่เอกสาร
 purchase.field.docNo,เลขที่เอกสารภายนอก
 purchase.field.lines,รายการ
 purchase.field.supplier,ผู้ขาย
-purchase.hint.serverTotal,ยอดรวมคำนวณที่เซิร์ฟเวอร์ ไม่ต้องกรอก
+purchase.hint.serverTotal,ระบบคำนวณยอดรวมอัตโนมัติ
 purchase.loading,กำลังโหลด…
 purchase.notice.created,สร้างใบซื้อแล้ว: {0}
 purchase.placeholder.description,ชื่อสินค้า / คำอธิบาย
@@ -688,7 +690,7 @@ purchase.placeholder.unitPrice,ราคาต่อหน่วย
 purchase.placeholder.vatRate,ภาษี %
 purchase.refresh,รีเฟรช
 purchase.saving,กำลังบันทึก…
-purchase.subtitle,ยอดเงินคำนวณใหม่ที่เซิร์ฟเวอร์ ตัวเลขที่แสดงมาจากเซิร์ฟเวอร์ทั้งหมด
+purchase.subtitle,จัดการเอกสารซื้อและรายละเอียดการชำระเงิน
 purchase.title,บันทึกการจัดซื้อ
 roster.add,เพิ่มพนักงาน
 roster.addHint,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
@@ -773,15 +775,15 @@ shell.backHome,กลับหน้าหลัก
 shell.boot.failed,เริ่มระบบล้มเหลว (HTTP {0}): {1}
 shell.boot.failedPlain,เริ่มระบบล้มเหลว: {0}
 shell.bootCard.account,บัญชีปัจจุบัน
-shell.bootCard.features,ฟังก์ชันที่ซื้อแล้ว
+shell.bootCard.features,ฟังก์ชันที่เปิดใช้งาน
 shell.bootCard.language,ภาษาของหน้าจอ
-shell.bootCard.none,(ไม่มีเลย)
+shell.bootCard.none,(ไม่มี)
 shell.bootCard.product,ผลิตภัณฑ์
 shell.bootCard.title,ข้อมูลเริ่มต้นของเว็บไซต์นี้
 shell.needLogin,หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ
-shell.notBuilt,หน้านี้ยังไม่ได้ทำ
-shell.notBuilt.body,เมนูจัดตามรายการหน้า แต่ฟังก์ชันยังไม่ได้ทำ เส้นทางปัจจุบัน:
-shell.notBuilt.title,หน้านี้ยังไม่ได้ทำ
+shell.notBuilt,ไม่สามารถใช้งานหน้านี้ได้
+shell.notBuilt.body,กรุณากลับหน้าหลักเพื่อดำเนินการต่อ
+shell.notBuilt.title,ไม่สามารถใช้งานหน้านี้ได้
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password

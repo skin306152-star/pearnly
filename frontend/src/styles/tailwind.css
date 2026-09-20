@@ -2,75 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ─────────────────────────────────────────────────────────────────────────
-   把官方组件（Frappe UI）的配色接到 Pearnly 令牌上。
-
-   Frappe UI 把颜色写成 CSS 变量（`--surface-*` / `--ink-*` / `--outline-*`），
-   所以不必去改它的组件，只要把变量指过来 —— 官方组件的行为与可访问性照旧，
-   观感是我们的（ADR-007：色值只有一份来源）。
-
-   为什么必须在这里覆盖：Tailwind 的 base 层会先写入 Frappe 自己的灰/紫，
-   我们的覆盖要排在它之后才生效（本文件在 main.ts 里最后引入）。
-   ───────────────────────────────────────────────────────────────────────── */
+/* Frappe UI owns controls, focus, disabled states and the neutral palette.
+   LINE pages use white surfaces and dark text; the existing brand accent is
+   applied only by .pn-primary. Root tokens also reach teleported menus. */
 :root {
-  /* 表面 */
-  --surface-white: var(--card);
-  --surface-menu-bar: var(--card);
-  --surface-cards: var(--card);
-  --surface-modal: var(--card);
-  --surface-gray-1: var(--line2);
-  --surface-gray-2: var(--line2);
-  --surface-gray-3: var(--line);
-  --surface-gray-4: var(--line);
-  --surface-gray-5: var(--line);
-  --surface-gray-6: var(--ink3);
-  --surface-gray-7: var(--ink2);
-  --surface-selected: var(--accent-weak);
-  --surface-violet-1: var(--accent-weak);
-
-  /* 文字 */
-  --ink-white: var(--accent-ink);
-  --ink-gray-1: var(--ink3);
-  --ink-gray-2: var(--ink3);
-  --ink-gray-3: var(--ink3);
-  --ink-gray-4: var(--ink3);
-  --ink-gray-5: var(--ink2);
-  --ink-gray-6: var(--ink2);
-  --ink-gray-7: var(--ink);
-  --ink-gray-8: var(--ink);
-  --ink-gray-9: var(--ink);
-  --ink-violet-1: var(--accent);
-
-  /* 描边 */
-  --outline-white: var(--line);
-  --outline-gray-1: var(--line);
-  --outline-gray-2: var(--line);
-  --outline-gray-3: var(--line);
-  --outline-gray-4: var(--line);
-  --outline-gray-5: var(--ink3);
-  --outline-gray-modals: var(--line);
-
-  /* 状态色 */
-  --ink-red-1: var(--bad);
-  --ink-red-2: var(--bad);
-  --ink-red-3: var(--bad);
-  --surface-red-1: var(--bad-weak);
-  --surface-red-2: var(--bad-weak);
-  --outline-red-1: var(--bad);
-  --ink-green-1: var(--good);
-  --ink-green-2: var(--good);
-  --ink-green-3: var(--good);
-  --surface-green-1: var(--good-weak);
-  --surface-green-2: var(--good-weak);
-  --outline-green-1: var(--good);
-  --ink-amber-1: var(--warn);
-  --ink-amber-2: var(--warn);
-  --surface-amber-1: var(--warn-weak);
-  --surface-amber-2: var(--warn-weak);
-  --outline-amber-1: var(--warn);
+  --bg: #fff;
+  --card: #fff;
+  --ink: var(--ink-gray-9);
+  --ink2: var(--ink-gray-8);
+  --ink3: var(--ink-gray-6);
+  --line: var(--outline-gray-2);
+  --line2: var(--surface-gray-1);
+  --surface-selected: var(--surface-gray-2);
+  --surface-violet-1: var(--surface-gray-2);
+  --ink-violet-1: var(--ink-gray-9);
+  --ink-red-3: var(--ink-gray-9);
+  --ink-red-4: var(--ink-gray-9);
 }
-
-/* 官方组件默认字体是 Frappe 的 InterVar；我们的令牌用 Inter，保持一致 */
 html {
   font-family: "Inter", "Noto Sans Thai", "Noto Sans SC", -apple-system,
     BlinkMacSystemFont, "Segoe UI", sans-serif;

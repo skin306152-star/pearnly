@@ -7,6 +7,7 @@
 			timer,
 			busy = false;
 		let tab = "usage", period = "all", pageLength = 20;
+		let deleting = false, confirming = false;
 		const money = (value) => format_currency(Number(value || 0), "THB");
 		const read = (name, label, value, fieldtype = "Data") => ({
 			fieldname: name,
@@ -17,7 +18,7 @@
 			options: fieldtype === "Currency" ? "THB" : undefined,
 		});
 		async function refresh() {
-			if (busy || !$(wrapper).is(":visible")) return;
+			if (busy || deleting || confirming || !$(wrapper).is(":visible")) return;
 			busy = true;
 			try {
 				home = await p.call("pearnly_core.billing_www.home");
@@ -25,8 +26,7 @@
 				table?.destroy();
 				page.main.empty();
 				const sub = home.subscription;
-				if (home.can_manage) page.set_primary_action(t("home.topup"), topup);
-				else page.clear_primary_action();
+				updateAction([]);
 				page.clear_inner_toolbar();
 				if (home.can_manage) page.add_inner_button(t("home.plans.title"), subscription);
 				page.add_inner_button(t("home.ledger.export"), () =>
@@ -136,10 +136,45 @@
 				busy = false;
 			}
 		}
+		function updateAction(rows) {
+			if (home?.can_manage && rows.length) {
+				page.set_primary_action(__("Delete"), removeSelected);
+				page.btn_primary.prop("disabled", deleting || confirming);
+			} else if (home?.can_manage) {
+				page.set_primary_action(t("home.topup"), topup);
+				page.btn_primary.prop("disabled", false);
+			} else page.clear_primary_action();
+		}
+		function removeSelected() {
+			if (deleting || confirming) return;
+			const selectedTable = table, selectedTab = tab;
+			const names = [...new Set(selectedTable.get_checked_items().map(row => row.name))];
+			if (!names.length) return;
+			confirming = true;
+			updateAction(selectedTable.get_checked_items());
+			const reset = () => {
+				confirming = deleting = false;
+				updateAction(table?.get_checked_items() || []);
+			};
+			const dialog = frappe.confirm(p.escape(t("home.ledger.confirmDelete", names.length)), async () => {
+				if (deleting) return;
+				deleting = true;
+				try {
+					const result = await p.call("pearnly_core.billing_www.delete_records",
+						{tab: selectedTab, names}, "POST");
+					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted));
+					if (table === selectedTable) await table.reload();
+				} catch (error) {
+					if (!error?._server_messages && !error?.responseJSON) console.error(error);
+				} finally { reset(); }
+			}, reset);
+			dialog.onhide = () => { if (!deleting) reset(); };
+		}
 		async function records() {
 			if (!form?.fields_dict.records) return;
 			pageLength = table?.selected_page_count || pageLength;
 			table?.destroy();
+			updateAction([]);
 			const activeTab = tab, activePeriod = period;
 			const status = code => t({pending: "home.status.pending", approved: "home.status.credited",
 				rejected: "home.status.rejected", ok: "home.status.ok", needs_review: "home.status.toreview",
@@ -156,7 +191,8 @@
 						["amount_thb", "amount", money], ["balance_after", "balanceAfter", money],
 						["description", "description", value => __(value || "")]];
 			table = p.list({page, page_length: pageLength, container: form.fields_dict.records.$wrapper,
-				doctype: "Pearnly OCR Record",
+				doctype: "Pearnly OCR Record", selectable: home.can_manage,
+				on_selection: updateAction,
 				columns: columns.map(([fieldname, label, format]) => ({fieldname,
 					label: t("home.col." + label), format: fieldname === "creation"
 						? value => frappe.datetime.str_to_user(value) : format})),
@@ -277,7 +313,8 @@
 		timer = setInterval(() => {
 			const editingFilter = $(document.activeElement).closest(page.main).length &&
 				$(document.activeElement).is("input,select,textarea,[role=combobox]");
-			if (!document.hidden && !cur_dialog && !editingFilter && $(wrapper).is(":visible"))
+			if (!document.hidden && !cur_dialog && !editingFilter &&
+				!table?.get_checked_items().length && $(wrapper).is(":visible"))
 				void refresh().catch(() => {});
 		}, 30000);
 		$(wrapper).one("remove", () => clearInterval(timer));

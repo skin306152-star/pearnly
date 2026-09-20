@@ -67,7 +67,7 @@ dms.edit.invalidAmount,Enter a valid payment amount greater than zero.
 dms.edit.invalidField,Check the value for {0}.
 dms.edit.invalidPayment,Select a valid payment method.
 dms.edit.liffUnavailable,This editor is not enabled for this LINE OA. Reopen the DMS menu from LINE.
-dms.edit.loading,Loading booking…
+dms.edit.loading,Loading details…
 dms.edit.masterChanged,An option changed since this draft was created. Use the latest preview in LINE and try again.
 dms.edit.masterUnavailable,The latest DMS options are unavailable. Try again shortly.
 dms.edit.moo,Moo

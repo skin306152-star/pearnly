@@ -110,12 +110,12 @@ body {
  * 四个主题，没有我们的紫，所以加一个只改配色的类，不改尺寸。
  * 它必须靠"在样式表里排最后"来盖住官方工具类（见 main.ts 的引入顺序）。
  */
-.pn-primary {
+.pn-primary:not(:disabled) {
   background: var(--accent);
   color: var(--accent-ink);
 }
 
-.pn-primary:hover {
+.pn-primary:not(:disabled):hover {
   background: var(--accent-deep);
 }
 

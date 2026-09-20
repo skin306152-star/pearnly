@@ -26,8 +26,8 @@ Auto Push,Auto Push
 Balance,Balance
 Batches and results of every recognition run,Batches and results of every recognition run
 Billing,Billing
-Billing is not configured on this site (pearnly_billing_*),Billing is not configured on this site (pearnly_billing_*)
-"Billing is not wired up on this site, please contact the platform","Billing is not wired up on this site, please contact the platform"
+Billing is not configured on this site (pearnly_billing_*),Billing is unavailable. Please contact support.
+"Billing is not wired up on this site, please contact the platform",Billing is unavailable. Please contact support.
 Bind Code,Bind Code
 Binding needs a LINE user and a local account,Binding needs a LINE user and a local account
 Birth Date,Birth Date
@@ -166,7 +166,7 @@ ID Card Intake,ID Card Intake
 ID Details,ID Details
 ID Image,ID Image
 ID Number,ID Number
-ID card recognition (tier A),ID card recognition (tier A)
+ID card recognition (tier A),ID card recognition
 ID number is required,ID number is required
 IP,IP
 Identity Session,Identity Session
@@ -525,38 +525,40 @@ home.col.summary,Summary
 home.col.time,Time
 home.error.http,Request failed (HTTP {0})
 home.field.payer,Payer
+home.ledger.confirmDelete,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
+home.ledger.deletedCount,{0} record(s) deleted.
 home.ledger.empty,No records
 home.ledger.export,Export details
 home.ledger.exporting,Exporting…
-home.ledger.none,No records yet
+home.ledger.none,No records
 home.ledger.ocr,Recognition records
 home.ledger.title,Records
 home.ledger.usage,Charges
 home.loading,Loading…
-home.pending.count,{0} top-up request(s) awaiting platform confirmation:
-home.pending.hint,The balance grows automatically once confirmed.
+home.pending.count,{0} top-up request(s) pending review.
+home.pending.hint,Approved amounts are credited to your balance.
 home.period.all,All
 home.period.month,This month
 home.period.today,Today
 home.period.year,This year
 home.plan.code,Plan
 home.plan.current,Current plan
-home.plan.cycleNote,Plans run 30 days and end at the cycle end (no auto-renewal) — subscribe again below when it ends.
+home.plan.cycleNote,Plans do not renew automatically. Subscribe again after expiry.
 home.plan.failed,The subscription could not be activated
 home.plan.none,Not subscribed
-home.plan.noneHint,Pay-as-you-go now · subscribing below is cheaper
-home.plan.over,Over-rate {0}/page · cycle ends {1}
+home.plan.noneHint,Current billing: pay as you go.
+home.plan.over,Overage: {0}/page · Expires: {1}
 home.plan.subscribe,Subscribe to this plan
 home.plan.subscribed,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
 home.plan.subscribing,Subscribing…
-home.plan.usage,"Used this cycle {0} / {1} pages, {2} left"
+home.plan.usage,{0} of {1} pages used this cycle; {2} remaining.
 home.plans.hint,The plan quota is used first; anything over is charged per plan rate from the balance
-home.plans.over,Over-rate {0}/page
+home.plans.over,Overage: {0}/page
 home.plans.perCycle,/ {0} days
-home.plans.quota,Quota per cycle {0} pages
+home.plans.quota,{0} pages per cycle
 home.plans.title,Choose a plan
 home.pricing.chars,"Text files: {1} per {0} characters, rounded up."
-home.pricing.pages,Pay as you go: first {0} pages per Bangkok calendar month {1}/page; thereafter {2}/page.
+home.pricing.pages,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
 home.refresh,Refresh
 home.status.credited,Credited
 home.status.failed,Failed
@@ -624,7 +626,7 @@ intake.status.pushed,Pushed
 intake.status.queued,Queued to push
 intake.status.recognized,Recognized
 intake.status.rejected,Returned
-intake.subtitle,"Limit: unconfirmed documents cannot be pushed (the state machine blocks it on the server, not by greying out the button)"
+intake.subtitle,Review and confirm documents before sending.
 intake.title,Intake Workbench
 nav.clients,Customers
 nav.company,Company Profile
@@ -657,7 +659,7 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.work,Work together
 nonce mismatch,nonce mismatch
-purchase.action.addLine,Add a line
+purchase.action.addLine,Add row
 purchase.action.new,New purchase order
 purchase.action.removeLine,Delete
 purchase.action.save,Save purchase order
@@ -675,7 +677,7 @@ purchase.field.docDate,Document date
 purchase.field.docNo,External document no.
 purchase.field.lines,Lines
 purchase.field.supplier,Supplier
-purchase.hint.serverTotal,The total is calculated on the server — no need to fill it in
+purchase.hint.serverTotal,The total is calculated automatically.
 purchase.loading,Loading…
 purchase.notice.created,Purchase order created: {0}
 purchase.placeholder.description,Item / description
@@ -686,7 +688,7 @@ purchase.placeholder.unitPrice,Unit price
 purchase.placeholder.vatRate,VAT %
 purchase.refresh,Refresh
 purchase.saving,Saving…
-purchase.subtitle,Amounts are recalculated on the server; every figure shown here comes from the server
+purchase.subtitle,Manage purchase orders and payment details.
 purchase.title,Purchase Records
 roster.add,Add operator
 roster.addHint,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
@@ -771,15 +773,15 @@ shell.backHome,Back to home
 shell.boot.failed,Failed to start (HTTP {0}): {1}
 shell.boot.failedPlain,Failed to start: {0}
 shell.bootCard.account,Current account
-shell.bootCard.features,Features purchased
+shell.bootCard.features,Enabled features
 shell.bootCard.language,UI language
 shell.bootCard.none,(none)
 shell.bootCard.product,Product
 shell.bootCard.title,Tenant boot data
 shell.needLogin,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
-shell.notBuilt,Page not built
-shell.notBuilt.body,The menu lists the pages from the plan; the features are not implemented yet. Current route:
-shell.notBuilt.title,This page is not built yet
+shell.notBuilt,Page unavailable
+shell.notBuilt.body,Return to the home page to continue.
+shell.notBuilt.title,Page unavailable
 state is invalid or has expired,state is invalid or has expired
 system_url is required,system_url is required
 username / password are required,username / password are required

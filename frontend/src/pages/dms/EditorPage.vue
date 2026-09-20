@@ -473,10 +473,10 @@ function changeLocale(value: Locale): void {
           </p>
         </div>
 
-        <section class="pn-editor-section">
+        <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
           <h2 class="pn-editor-h2">{{ t("dms.edit.customer") }}</h2>
           <div class="pn-editor-grid">
-            <FormControl
+            <FormControl variant="outline"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -485,72 +485,72 @@ function changeLocale(value: Locale): void {
               :options="optionList(masters.prefixes)"
               v-model="customer.prefix_id"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.name')"
               required
               v-model="customer.name"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.confirmId')"
               required
               v-model="customer.people_id"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.birth')"
               required
               v-model="customer.birthday_be"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.phone')"
               required
               v-model="customer.phone"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.house')"
               required
               v-model="customer.house_no"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.building')"
               v-model="customer.building"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.floor')"
               v-model="customer.floor"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.room')"
               v-model="customer.room"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.village')"
               v-model="customer.village"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.moo')"
               v-model="customer.moo"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.soi')"
               v-model="customer.soi"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.road')"
               v-model="customer.road"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -560,7 +560,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.province_id"
               @update:model-value="onProvinceChange"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -570,7 +570,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.district_id"
               @update:model-value="onDistrictChange"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -580,7 +580,7 @@ function changeLocale(value: Locale): void {
               v-model="customer.subdistrict_id"
               @update:model-value="onSubdistrictChange"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="select"
               :placeholder="t('dms.edit.chooseOption')"
               :empty-text="t('dms.edit.noOptions')"
@@ -594,16 +594,16 @@ function changeLocale(value: Locale): void {
         </section>
 
         <template v-if="mode === 'booking'">
-          <section class="pn-editor-section">
+          <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
             <h2 class="pn-editor-h2">{{ t("dms.edit.booking") }}</h2>
             <div class="pn-editor-grid">
-              <FormControl
+              <FormControl variant="outline"
                 type="text"
                 :label="t('dms.edit.advisor')"
                 :model-value="advisor"
                 disabled
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -612,7 +612,7 @@ function changeLocale(value: Locale): void {
                 :options="optionList(masters.places)"
                 v-model="answers.place_id"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -622,7 +622,7 @@ function changeLocale(value: Locale): void {
                 v-model="answers.car_id"
                 @update:model-value="onCarChange"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -631,13 +631,13 @@ function changeLocale(value: Locale): void {
                 :options="optionList(paints)"
                 v-model="answers.paint_id"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="text"
                 :label="t('dms.edit.delivery')"
                 required
                 v-model="answers.delivery_date_be"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -646,7 +646,7 @@ function changeLocale(value: Locale): void {
                 :options="optionList(masters.terms)"
                 v-model="answers.term_id"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -655,7 +655,7 @@ function changeLocale(value: Locale): void {
                 :options="optionList(masters.regis)"
                 v-model="answers.regis_id"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="text"
                 :label="t('dms.edit.regisName')"
                 required
@@ -664,14 +664,14 @@ function changeLocale(value: Locale): void {
             </div>
           </section>
 
-          <section class="pn-editor-section">
+          <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
             <h2 class="pn-editor-h2">{{ t("dms.edit.payment") }}</h2>
             <div
               v-for="(row, index) in payments"
               :key="index"
               class="pn-editor-payment"
             >
-              <FormControl
+              <FormControl variant="outline"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
                 :empty-text="t('dms.edit.noOptions')"
@@ -686,13 +686,13 @@ function changeLocale(value: Locale): void {
                 "
                 v-model="row.channel"
               />
-              <FormControl
+              <FormControl variant="outline"
                 type="text"
                 :label="t('dms.edit.amount')"
                 required
                 v-model="row.amount"
               />
-              <FormControl
+              <FormControl variant="outline"
                 v-if="row.channel === 'transfer'"
                 type="select"
                 :placeholder="t('dms.edit.chooseOption')"
@@ -703,14 +703,14 @@ function changeLocale(value: Locale): void {
                 v-model="row.extra.dst_id"
               />
               <template v-if="CHANNEL_BANK[row.channel]">
-                <FormControl
+                <FormControl variant="outline"
                   v-if="bankIsManual(row.channel)"
                   type="text"
                   :label="t('dms.edit.bankName')"
                   required
                   v-model="row.extra.bank_name"
                 />
-                <FormControl
+                <FormControl variant="outline"
                   v-else
                   type="select"
                   :placeholder="t('dms.edit.chooseOption')"
@@ -721,7 +721,7 @@ function changeLocale(value: Locale): void {
                   v-model="row.extra.bank_id"
                 />
               </template>
-              <FormControl
+              <FormControl variant="outline"
                 v-for="field in CHANNEL_FIELDS[row.channel] || []"
                 :key="field"
                 type="text"
@@ -742,7 +742,7 @@ function changeLocale(value: Locale): void {
               :disabled="payments.length >= MAX_PAYMENTS || !freeChannel()"
               @click="addPayment"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="text"
               :label="t('dms.edit.total')"
               :model-value="totalText"
@@ -750,16 +750,16 @@ function changeLocale(value: Locale): void {
             />
           </section>
 
-          <section class="pn-editor-section">
+          <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
             <h2 class="pn-editor-h2">{{ t("dms.edit.files") }}</h2>
             <p class="pn-editor-hint">{{ t("dms.edit.fileHint") }}</p>
-            <FormControl
+            <FormControl variant="outline"
               type="checkbox"
               :label="`${t('dms.edit.idCard')} · ${t(hasFiles.id_card ? 'dms.edit.attached' : 'dms.edit.notAttached')}`"
               :disabled="!hasFiles.id_card"
               v-model="keep.id_card"
             />
-            <FormControl
+            <FormControl variant="outline"
               type="checkbox"
               :label="`${t('dms.edit.slip')} · ${t(hasFiles.slip ? 'dms.edit.attached' : 'dms.edit.notAttached')}`"
               :disabled="!hasFiles.slip"
@@ -818,10 +818,6 @@ function changeLocale(value: Locale): void {
 }
 
 .pn-editor-section {
-  background: var(--card);
-  border: 1px solid var(--outline-gray-2, #e5e7eb);
-  border-radius: 14px;
-  padding: 14px;
   margin-bottom: 14px;
 }
 
@@ -846,7 +842,7 @@ function changeLocale(value: Locale): void {
   display: grid;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px dashed var(--outline-gray-2, #e5e7eb);
+  border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
 }
 
 .pn-editor-hint {
@@ -856,15 +852,6 @@ function changeLocale(value: Locale): void {
   line-height: 1.5;
 }
 
-.pn-editor-error {
-  margin: 0 0 12px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--surface-red-1, #fef2f2);
-  color: var(--ink-red-6, #b3261e);
-  font-size: 14px;
-}
-
 /* 操作条贴底：手机上单手够得着（老产品也是 sticky）。 */
 .pn-editor-actions {
   position: sticky;
@@ -872,10 +859,10 @@ function changeLocale(value: Locale): void {
   display: flex;
   gap: 10px;
   padding: 10px 0 16px;
-  background: linear-gradient(to top, var(--bg) 70%, transparent);
+  background: var(--bg);
 }
 
 .pn-editor-actions > * {
-  flex: 1;
+  flex: none;
 }
 </style>

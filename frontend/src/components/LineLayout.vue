@@ -12,7 +12,7 @@ const emit = defineEmits<{ "update:locale": [locale: Locale] }>();
       <span class="pn-line-brand">Pearnly</span>
       <div class="flex flex-wrap gap-1">
         <Button v-for="code in LOCALES" :key="code" size="sm"
-          :variant="locale === code ? 'solid' : 'ghost'" :disabled="disabled"
+          :variant="locale === code ? 'outline' : 'ghost'" :disabled="disabled"
           :aria-pressed="locale === code" @click="emit('update:locale', code)">
           {{ LOCALE_LABELS[code] }}
         </Button>
@@ -27,6 +27,6 @@ const emit = defineEmits<{ "update:locale": [locale: Locale] }>();
 .pn-line-bar { display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 8px; padding: 10px 14px; background: var(--card);
   border-bottom: 1px solid var(--outline-gray-2); }
-.pn-line-brand { font-weight: 600; color: var(--accent); }
+.pn-line-brand { font-weight: 600; color: var(--ink); }
 .pn-line-body { width: 100%; max-width: 720px; margin: 0 auto; padding: 14px; }
 </style>

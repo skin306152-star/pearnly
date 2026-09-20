@@ -26,8 +26,8 @@ Auto Push,自動送信
 Balance,残高
 Batches and results of every recognition run,各認識バッチの記録と結果
 Billing,課金
-Billing is not configured on this site (pearnly_billing_*),このサイトは課金基盤が未設定です（pearnly_billing_*）
-"Billing is not wired up on this site, please contact the platform",このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
+Billing is not configured on this site (pearnly_billing_*),課金サービスを利用できません。サポートにお問い合わせください。
+"Billing is not wired up on this site, please contact the platform",課金サービスを利用できません。サポートにお問い合わせください。
 Bind Code,連携コード
 Binding needs a LINE user and a local account,連携にはLINEユーザーとローカルアカウントが必要です
 Birth Date,生年月日
@@ -167,7 +167,7 @@ ID Card Intake,身分証取り込み
 ID Details,身分証情報
 ID Image,身分証画像
 ID Number,身分証番号
-ID card recognition (tier A),身分証認識（高精度A）
+ID card recognition (tier A),身分証認識
 ID number is required,身分証番号は必須です
 IP,IP
 Identity Session,アイデンティティセッション
@@ -516,7 +516,7 @@ home.col.charges,課金
 home.col.description,説明
 home.col.file,ファイル
 home.col.note,備考
-home.col.pages,枚数
+home.col.pages,ページ数
 home.col.product,製品
 home.col.received,受領額
 home.col.reference,参照番号
@@ -527,38 +527,40 @@ home.col.summary,摘要
 home.col.time,日時
 home.error.http,リクエスト失敗（HTTP {0}）
 home.field.payer,支払者
-home.ledger.empty,記録なし
+home.ledger.confirmDelete,選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。
+home.ledger.deletedCount,{0}件を削除しました。
+home.ledger.empty,記録はありません
 home.ledger.export,明細をエクスポート
 home.ledger.exporting,エクスポート中…
-home.ledger.none,まだ記録がありません
+home.ledger.none,記録はありません
 home.ledger.ocr,認識記録
 home.ledger.title,明細
 home.ledger.usage,課金
 home.loading,読み込み中…
-home.pending.count,プラットフォーム確認待ちのチャージが {0} 件あります：
-home.pending.hint,—— 確認されると残高に自動反映されます。
+home.pending.count,チャージ申請{0}件が審査待ちです。
+home.pending.hint,承認後、残高に反映されます。
 home.period.all,すべて
 home.period.month,今月
 home.period.today,今日
 home.period.year,今年
 home.plan.code,プラン
 home.plan.current,現在のプラン
-home.plan.cycleNote,プランは30日周期で、期間終了で終わります（自動更新なし）。終了後に下から再登録してください。
+home.plan.cycleNote,自動更新はありません。有効期限後に再登録できます。
 home.plan.failed,プランを有効化できませんでした
 home.plan.none,未登録
-home.plan.noneHint,現在は従量課金です。下からプランを登録すると安くなります
-home.plan.over,超過 {0}/枚 · サイクル終了 {1}
+home.plan.noneHint,現在は従量課金です。
+home.plan.over,超過料金：{0}/ページ · 有効期限：{1}
 home.plan.subscribe,このプランに登録
 home.plan.subscribed,プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。
 home.plan.subscribing,登録中…
-home.plan.usage,今サイクル使用 {0} / {1} 枚、残り {2} 枚
+home.plan.usage,今期{0}/{1}ページ使用、残り{2}ページ。
 home.plans.hint,登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます
-home.plans.over,超過 {0}/枚
+home.plans.over,超過料金：{0}/ページ
 home.plans.perCycle,/ {0}日
-home.plans.quota,1サイクルの枠 {0} 枚
+home.plans.quota,1期間あたり{0}ページ
 home.plans.title,プランを選ぶ
 home.pricing.chars,テキストファイル：{0}文字ごとに{1}、端数切り上げ。
-home.pricing.pages,従量課金：バンコク暦月ごとに最初の{0}ページは{1}/ページ、以降は{2}/ページ。
+home.pricing.pages,従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。
 home.refresh,更新
 home.status.credited,入金済み
 home.status.failed,失敗
@@ -626,7 +628,7 @@ intake.status.pushed,送信済み
 intake.status.queued,送信待ち
 intake.status.recognized,読み取り済み
 intake.status.rejected,差戻し
-intake.subtitle,制限：未確認の伝票は送信できません（状態機械がサーバー側で止めます。ボタンを灰色にしているだけではありません）
+intake.subtitle,内容を確認して確定後、送信してください。
 intake.title,取り込みワークベンチ
 nav.clients,顧客管理
 nav.company,会社情報
@@ -659,7 +661,7 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
-purchase.action.addLine,行を追加
+purchase.action.addLine,明細を追加
 purchase.action.new,仕入伝票を作成
 purchase.action.removeLine,削除
 purchase.action.save,仕入伝票を保存
@@ -677,7 +679,7 @@ purchase.field.docDate,伝票日付
 purchase.field.docNo,外部伝票番号
 purchase.field.lines,明細
 purchase.field.supplier,仕入先
-purchase.hint.serverTotal,合計はサーバーが計算します。入力は不要です
+purchase.hint.serverTotal,合計金額は自動計算されます。
 purchase.loading,読み込み中…
 purchase.notice.created,伝票を作成しました：{0}
 purchase.placeholder.description,品名・摘要
@@ -688,7 +690,7 @@ purchase.placeholder.unitPrice,単価
 purchase.placeholder.vatRate,税率%
 purchase.refresh,更新
 purchase.saving,保存中…
-purchase.subtitle,金額はサーバーで再計算されます。ここに表示される数値はすべてサーバーが返したものです
+purchase.subtitle,仕入伝票と支払明細を管理します。
 purchase.title,仕入記録
 roster.add,オペレーターを追加
 roster.addHint,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
@@ -773,15 +775,15 @@ shell.backHome,ホームに戻る
 shell.boot.failed,起動に失敗しました（HTTP {0}）：{1}
 shell.boot.failedPlain,起動に失敗しました：{0}
 shell.bootCard.account,現在のアカウント
-shell.bootCard.features,購入済みの機能
+shell.bootCard.features,有効な機能
 shell.bootCard.language,表示言語
 shell.bootCard.none,（なし）
 shell.bootCard.product,製品
 shell.bootCard.title,このサイトの起動データ
 shell.needLogin,このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。
-shell.notBuilt,未作成のページ
-shell.notBuilt.body,メニューはページ一覧に沿って並べたもので、機能はまだ実装していません。現在のルート：
-shell.notBuilt.title,このページはまだ作成していません
+shell.notBuilt,このページは利用できません
+shell.notBuilt.body,ホームに戻って操作を続けてください。
+shell.notBuilt.title,このページは利用できません
 state is invalid or has expired,state が無効か期限切れです
 system_url is required,system_url は必須です
 username / password are required,username / password は必須です

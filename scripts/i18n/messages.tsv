@@ -33,7 +33,7 @@ pearnly_core	Console	控制台	คอนโซล	コンソール
 pearnly_core	Not signed in	未登录	ยังไม่ได้เข้าสู่ระบบ	未ログイン
 pearnly_core	Please sign in	请先登录	กรุณาเข้าสู่ระบบ	ログインしてください
 pearnly_core	Only a company admin can top up or change the subscription	充值与订阅只有公司管理员能操作	การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท	チャージとプラン変更は会社管理者のみ
-pearnly_core	Billing is not wired up on this site, please contact the platform	本站还没接上计费底座，请联系平台	เว็บไซต์นี้ยังไม่ได้เชื่อมระบบเรียกเก็บเงิน กรุณาติดต่อแพลตฟอร์ม	このサイトは課金基盤に未接続です。プラットフォームにお問い合わせください
+pearnly_core	Billing is unavailable. Please contact support.	计费服务暂不可用，请联系客服。	ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน	課金サービスを利用できません。サポートにお問い合わせください。	Billing is not wired up on this site, please contact the platform
 pearnly_core	Only a company admin can view top-up records	充值记录只有公司管理员能看	บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท	チャージ記録は会社管理者のみ閲覧可
 pearnly_core	Charges	扣费	ค่าบริการ	課金
 pearnly_core	Time	时间	เวลา	日時
@@ -596,7 +596,7 @@ pearnly_core	System URL is not filled in	没填系统地址	ยังไม่�
 pearnly_core	No sign-in credentials configured	没配登录凭据	ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報が未設定です
 pearnly_core	Only the config was checked; a real connectivity test waits for the adapter	只检查了配置；真实连通性测试要等适配器实现	ตรวจเฉพาะการตั้งค่า การทดสอบเชื่อมต่อจริงต้องรออะแดปเตอร์	設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
 pearnly_core	Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise	配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通	ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้	設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
-pearnly_core	Billing is not configured on this site (pearnly_billing_*)	本站还没配计费底座（pearnly_billing_*）	เว็บไซต์นี้ยังไม่ได้ตั้งค่าระบบเรียกเก็บเงิน (pearnly_billing_*)	このサイトは課金基盤が未設定です（pearnly_billing_*）
+pearnly_core	Billing is unavailable. Please contact support.	计费服务暂不可用，请联系客服。	ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน	課金サービスを利用できません。サポートにお問い合わせください。	Billing is not configured on this site (pearnly_billing_*)
 pearnly_core	Cannot reach the billing service: {0}	连不上计费底座：{0}	เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}	課金基盤に接続できません: {0}
 pearnly_core	The billing service returned HTTP {0}	计费底座返回 HTTP {0}	ระบบเรียกเก็บเงินตอบกลับ HTTP {0}	課金基盤が HTTP {0} を返しました
 pearnly_core	{0}: missing field {1}	{0}: 缺少字段 {1}	{0}: ขาดฟิลด์ {1}	{0}: フィールド {1} がありません
@@ -653,7 +653,7 @@ pearnly_core	An admin session was requested but no admin credentials are configu
 pearnly_core	The admin session must be requested inside a `with` block	admin 会话必须在 `with` 块里请求	ต้องขอเซสชัน admin ภายในบล็อก `with`	adminセッションは `with` ブロック内で要求する必要があります
 pearnly_core	DMS admin credentials failed to sign in: {0}	DMS 管理员凭据登录失败：{0}	เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}	DMS管理者の資格情報でログインできません: {0}
 pearnly_core	The balance could not be read	余额查不出来	อ่านยอดคงเหลือไม่ได้	残高を読み取れません
-pearnly_core	ID card recognition (tier A)	身份证识别（高精档）	อ่านบัตรประชาชน (ระดับ A)	身分証認識（高精度A）
+pearnly_core	ID card recognition	身份证识别	อ่านบัตรประชาชน	身分証認識	ID card recognition (tier A)
 pearnly_core	Could not call the model: {0}	调不动模型：{0}	เรียกโมเดลไม่สำเร็จ: {0}	モデルを呼び出せません: {0}
 pearnly_core	Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 pearnly_core	{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
@@ -701,7 +701,7 @@ pearnly_core	Pending review	待审核	รอตรวจสอบ	審査待ち	h
 pearnly_core	To verify	待复核	รอตรวจซ้ำ	要確認	home.status.toreview
 pearnly_core	Charges	扣费	ค่าบริการ	課金	home.ledger.usage
 pearnly_core	Recognition records	识别记录	บันทึกการอ่านข้อมูล	認識記録	home.ledger.ocr
-pearnly_core	No records	没这笔	ไม่มีรายการ	記録なし	home.ledger.empty
+pearnly_core	No records	暂无记录	ไม่มีรายการ	記録はありません	home.ledger.empty
 pearnly_core	Current plan	当前套餐	แพ็กเกจปัจจุบัน	現在のプラン	home.plan.current
 pearnly_core	Subscribe to this plan	订阅此套餐	สมัครแพ็กเกจนี้	このプランに登録	home.plan.subscribe
 pearnly_core	Subscribing…	订阅中…	กำลังสมัคร…	登録中…	home.plan.subscribing
@@ -715,27 +715,27 @@ pearnly_core	Payer name on the bank transfer	银行转账时的付款方	ชื�
 pearnly_core	Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.	充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。	ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน	チャージ申請を送信しました（{0} · {1}）。プラットフォームが着金を確認すると残高に反映されます。	home.topup.submitted
 pearnly_core	Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.	已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。	สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}	プラン {0} を登録しました。月額は残高から引かれ、現在の残高は {1} です。	home.plan.subscribed
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	home.error.http
-pearnly_core	{0} top-up request(s) awaiting platform confirmation:	有 {0} 笔充值待平台确认：	มี {0} รายการเติมเงินรอแพลตฟอร์มยืนยัน:	プラットフォーム確認待ちのチャージが {0} 件あります：	home.pending.count
-pearnly_core	The balance grows automatically once confirmed.	—— 确认后余额会自动增加。	—— ยอดคงเหลือจะเพิ่มอัตโนมัติเมื่อยืนยันแล้ว	—— 確認されると残高に自動反映されます。	home.pending.hint
+pearnly_core	{0} top-up request(s) pending review.	{0} 笔充值申请待审核。	มีคำขอเติมเงิน {0} รายการรอตรวจสอบ	チャージ申請{0}件が審査待ちです。	home.pending.count
+pearnly_core	Approved amounts are credited to your balance.	审核通过后计入账户余额。	ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ	承認後、残高に反映されます。	home.pending.hint
 pearnly_core	Plan	套餐	แพ็กเกจ	プラン	home.plan.code
-pearnly_core	Used this cycle {0} / {1} pages, {2} left	本周期已用 {0} / {1} 张，剩 {2} 张	ใช้ไปรอบนี้ {0} / {1} หน้า เหลือ {2} หน้า	今サイクル使用 {0} / {1} 枚、残り {2} 枚	home.plan.usage
-pearnly_core	Over-rate {0}/page · cycle ends {1}	超额 {0}/张 · 周期到 {1}	ส่วนเกิน {0}/หน้า · ครบรอบ {1}	超過 {0}/枚 · サイクル終了 {1}	home.plan.over
-pearnly_core	Plans run 30 days and end at the cycle end (no auto-renewal) — subscribe again below when it ends.	套餐按 30 天一期，到期结束（不做自动续订）—— 到期后在下面重新订阅即可。	แพ็กเกจเป็นรอบ 30 วัน สิ้นสุดเมื่อครบรอบ (ไม่ต่ออัตโนมัติ) — ครบแล้วสมัครใหม่ด้านล่างได้เลย	プランは30日周期で、期間終了で終わります（自動更新なし）。終了後に下から再登録してください。	home.plan.cycleNote
+pearnly_core	{0} of {1} pages used this cycle; {2} remaining.	本周期已用 {0}/{1} 页，剩余 {2} 页。	รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า	今期{0}/{1}ページ使用、残り{2}ページ。	home.plan.usage
+pearnly_core	Overage: {0}/page · Expires: {1}	超额单价：{0}/页 · 到期时间：{1}	ส่วนเกิน: {0}/หน้า · หมดอายุ: {1}	超過料金：{0}/ページ · 有効期限：{1}	home.plan.over
+pearnly_core	Plans do not renew automatically. Subscribe again after expiry.	套餐不自动续订，到期后可重新订阅。	แพ็กเกจไม่ต่ออายุอัตโนมัติ สามารถสมัครใหม่ได้เมื่อหมดอายุ	自動更新はありません。有効期限後に再登録できます。	home.plan.cycleNote
 pearnly_core	Not subscribed	未订阅	ยังไม่สมัคร	未登録	home.plan.none
-pearnly_core	Pay-as-you-go now · subscribing below is cheaper	当前按量计费 · 订阅后在下方选套餐更省	ตอนนี้คิดตามใช้จริง · สมัครแพ็กเกจด้านล่างจะประหยัดกว่า	現在は従量課金です。下からプランを登録すると安くなります	home.plan.noneHint
+pearnly_core	Current billing: pay as you go.	当前按量计费。	ปัจจุบันคิดค่าบริการตามการใช้งาน	現在は従量課金です。	home.plan.noneHint
 pearnly_core	Account balance	账户余额	ยอดคงเหลือในบัญชี	口座残高	home.balance.title
 pearnly_core	Used {0} pages this month · plan {1}, {2} left this cycle	本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张	ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า	今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚	home.balance.used
 pearnly_core	Used {0} pages this month · pay-as-you-go	本月已用 {0} 张 · 未订阅按量计费	ใช้ไปเดือนนี้ {0} หน้า · ยังไม่สมัคร คิดตามใช้จริง	今月 {0} 枚使用 · 未登録の従量課金	home.balance.usedNoPlan
 pearnly_core	Choose a plan	选择套餐	เลือกแพ็กเกจ	プランを選ぶ	home.plans.title
 pearnly_core	The plan quota is used first; anything over is charged per plan rate from the balance	订阅后先用套餐额度，超额按套餐单价从余额扣	หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ	登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます	home.plans.hint
 pearnly_core	/ {0} days	/ {0} 天	/ {0} วัน	/ {0}日	home.plans.perCycle
-pearnly_core	Quota per cycle {0} pages	每周期额度 {0} 张	โควตาต่อรอบ {0} หน้า	1サイクルの枠 {0} 枚	home.plans.quota
-pearnly_core	Over-rate {0}/page	超额 {0}/张	ส่วนเกิน {0}/หน้า	超過 {0}/枚	home.plans.over
+pearnly_core	{0} pages per cycle	每周期 {0} 页	{0} หน้าต่อรอบ	1期間あたり{0}ページ	home.plans.quota
+pearnly_core	Overage: {0}/page	超额单价：{0}/页	ส่วนเกิน: {0}/หน้า	超過料金：{0}/ページ	home.plans.over
 pearnly_core	Records	记录明细	รายละเอียดบันทึก	明細	home.ledger.title
-pearnly_core	No records yet	还没有记录	ยังไม่มีรายการ	まだ記録がありません	home.ledger.none
+pearnly_core	No records	暂无记录	ไม่มีรายการ	記録はありません	home.ledger.none
 pearnly_core	Time	时间	เวลา	日時	home.col.time
 pearnly_core	Product	产品	ผลิตภัณฑ์	製品	home.col.product
-pearnly_core	Pages	张数	จำนวนหน้า	枚数	home.col.pages
+pearnly_core	Pages	页数	จำนวนหน้า	ページ数	home.col.pages
 pearnly_core	Amount	金额	จำนวนเงิน	金額	home.col.amount
 pearnly_core	Balance after	变动后余额	ยอดคงเหลือหลังเปลี่ยนแปลง	変動後の残高	home.col.balanceAfter
 pearnly_core	Description	说明	คำอธิบาย	説明	home.col.description
@@ -812,7 +812,7 @@ pearnly_core	2. Send this bind code in the LINE chat to connect	2. 在 LINE 对�
 pearnly_core	Valid for {0}	剩余有效期 {0}	เหลืออายุ {0}	残り有効時間 {0}	roster.code.validFor
 pearnly_core	The bind code has expired — please regenerate	绑定码已过期，请重新生成	รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่	連携コードの期限が切れました。再生成してください	roster.code.expiredHint
 pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	intake.title
-pearnly_core	Limit: unconfirmed documents cannot be pushed (the state machine blocks it on the server, not by greying out the button)	上限：未确认的单据推不出去（状态机在后端卡着，不是靠界面按钮灰掉）	ข้อจำกัด: เอกสารที่ยังไม่ยืนยันส่งออกไม่ได้ (ระบบตรวจที่เซิร์ฟเวอร์ ไม่ได้แค่ทำให้ปุ่มเป็นสีเทา)	制限：未確認の伝票は送信できません（状態機械がサーバー側で止めます。ボタンを灰色にしているだけではありません）	intake.subtitle
+pearnly_core	Review and confirm documents before sending.	核对并确认单据后即可推送。	ตรวจสอบและยืนยันเอกสารก่อนส่ง	内容を確認して確定後、送信してください。	intake.subtitle
 pearnly_core	To confirm	待确认	รอยืนยัน	確認待ち	intake.card.waiting
 pearnly_core	Confirmed · ready to push	已确认 · 可推送	ยืนยันแล้ว · พร้อมส่ง	確認済み・送信可能	intake.card.readyToPush
 pearnly_core	Purchases (confirmed and above)	进项合计（已确认及以上）	ยอดซื้อ (ยืนยันแล้วขึ้นไป)	仕入合計（確認済み以上）	intake.card.purchaseTotal
@@ -850,7 +850,7 @@ pearnly_core	Direction	方向	ทิศทาง	区分	intake.col.direction
 pearnly_core	Counterparty	对方	คู่ค้า	取引先	intake.col.counterparty
 pearnly_core	Actions	操作	การจัดการ	操作	intake.col.actions
 pearnly_core	Purchase Records	采购记录	บันทึกการจัดซื้อ	仕入記録	purchase.title
-pearnly_core	Amounts are recalculated on the server; every figure shown here comes from the server	金额由服务端重算，这里显示的都是服务端返回的数字	ยอดเงินคำนวณใหม่ที่เซิร์ฟเวอร์ ตัวเลขที่แสดงมาจากเซิร์ฟเวอร์ทั้งหมด	金額はサーバーで再計算されます。ここに表示される数値はすべてサーバーが返したものです	purchase.subtitle
+pearnly_core	Manage purchase orders and payment details.	管理采购单据及付款明细。	จัดการเอกสารซื้อและรายละเอียดการชำระเงิน	仕入伝票と支払明細を管理します。	purchase.subtitle
 pearnly_core	Documents	单据数	จำนวนเอกสาร	伝票数	purchase.card.count
 pearnly_core	Net payable	应付净额	ยอดที่ต้องจ่ายสุทธิ	支払純額	purchase.card.netPayable
 pearnly_core	Outstanding	未付	ค้างจ่าย	未払い	purchase.card.outstanding
@@ -862,10 +862,10 @@ pearnly_core	Item / description	品名 / 说明	ชื่อสินค้า /
 pearnly_core	Qty	数量	จำนวน	数量	purchase.placeholder.qty
 pearnly_core	Unit price	单价	ราคาต่อหน่วย	単価	purchase.placeholder.unitPrice
 pearnly_core	VAT %	税率%	ภาษี %	税率%	purchase.placeholder.vatRate
-pearnly_core	Delete	删	ลบ	削除	purchase.action.removeLine
-pearnly_core	Add a line	加一行	เพิ่มรายการ	行を追加	purchase.action.addLine
+pearnly_core	Delete	删除	ลบ	削除	purchase.action.removeLine
+pearnly_core	Add row	添加明细	เพิ่มรายการ	明細を追加	purchase.action.addLine
 pearnly_core	Save purchase order	保存采购单	บันทึกใบซื้อ	仕入伝票を保存	purchase.action.save
-pearnly_core	The total is calculated on the server — no need to fill it in	合计由服务端算，不用填	ยอดรวมคำนวณที่เซิร์ฟเวอร์ ไม่ต้องกรอก	合計はサーバーが計算します。入力は不要です	purchase.hint.serverTotal
+pearnly_core	The total is calculated automatically.	合计金额自动计算。	ระบบคำนวณยอดรวมอัตโนมัติ	合計金額は自動計算されます。	purchase.hint.serverTotal
 pearnly_core	No purchase orders yet. Use “New purchase order” in the top right to add the first one.	还没有采购单。点右上角「新建采购单」录第一张。	ยังไม่มีใบซื้อ กด "สร้างใบซื้อใหม่" ที่มุมขวาบนเพื่อเพิ่มใบแรก	まだ仕入伝票がありません。右上の「仕入伝票を作成」から最初の1件を登録してください。	purchase.empty
 pearnly_core	Purchase order created: {0}	已建单：{0}	สร้างใบซื้อแล้ว: {0}	伝票を作成しました：{0}	purchase.notice.created
 pearnly_core	Connect DMS	连接DMS	เชื่อมต่อ DMS	DMSに接続	connect.title
@@ -906,16 +906,16 @@ pearnly_core	The two passwords do not match	两次输入不一致	รหัส�
 pearnly_core	Password updated. Use the new password next time you sign in.	密码已更新。下次登录请用新密码。	อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่	パスワードを更新しました。次回は新しいパスワードでログインしてください。	account.pwd.done
 pearnly_core	Failed to start (HTTP {0}): {1}	启动失败（HTTP {0}）：{1}	เริ่มระบบล้มเหลว (HTTP {0}): {1}	起動に失敗しました（HTTP {0}）：{1}	shell.boot.failed
 pearnly_core	Failed to start: {0}	启动失败：{0}	เริ่มระบบล้มเหลว: {0}	起動に失敗しました：{0}	shell.boot.failedPlain
-pearnly_core	Page not built	未建页面	หน้านี้ยังไม่ได้ทำ	未作成のページ	shell.notBuilt
+pearnly_core	Page unavailable	页面暂不可用	ไม่สามารถใช้งานหน้านี้ได้	このページは利用できません	shell.notBuilt
 pearnly_core	You need to sign in to the site before opening this page. Enter through the site domain and sign in.	这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。	หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ	このページはサイトにログインしてから開けます。サイトのドメインから入ってログインしてください。	shell.needLogin
-pearnly_core	This page is not built yet	这一页还没做	หน้านี้ยังไม่ได้ทำ	このページはまだ作成していません	shell.notBuilt.title
-pearnly_core	The menu lists the pages from the plan; the features are not implemented yet. Current route:	菜单是照页面清单列出来的，功能还没实现。当前路由：	เมนูจัดตามรายการหน้า แต่ฟังก์ชันยังไม่ได้ทำ เส้นทางปัจจุบัน:	メニューはページ一覧に沿って並べたもので、機能はまだ実装していません。現在のルート：	shell.notBuilt.body
+pearnly_core	Page unavailable	页面暂不可用	ไม่สามารถใช้งานหน้านี้ได้	このページは利用できません	shell.notBuilt.title
+pearnly_core	Return to the home page to continue.	请返回首页继续操作。	กรุณากลับหน้าหลักเพื่อดำเนินการต่อ	ホームに戻って操作を続けてください。	shell.notBuilt.body
 pearnly_core	Tenant boot data	本站点启动数据	ข้อมูลเริ่มต้นของเว็บไซต์นี้	このサイトの起動データ	shell.bootCard.title
 pearnly_core	Product	产品	ผลิตภัณฑ์	製品	shell.bootCard.product
 pearnly_core	Current account	当前账号	บัญชีปัจจุบัน	現在のアカウント	shell.bootCard.account
 pearnly_core	UI language	界面语言	ภาษาของหน้าจอ	表示言語	shell.bootCard.language
-pearnly_core	Features purchased	买到的功能	ฟังก์ชันที่ซื้อแล้ว	購入済みの機能	shell.bootCard.features
-pearnly_core	(none)	（一个都没有）	(ไม่มีเลย)	（なし）	shell.bootCard.none
+pearnly_core	Enabled features	已开通功能	ฟังก์ชันที่เปิดใช้งาน	有効な機能	shell.bootCard.features
+pearnly_core	(none)	（无）	(ไม่มี)	（なし）	shell.bootCard.none
 pearnly_core	Back to home	回到首页	กลับหน้าหลัก	ホームに戻る	shell.backHome
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	intake.error.http
 pearnly_core	Loading…	加载中…	กำลังโหลด…	読み込み中…	intake.loading
@@ -1043,5 +1043,7 @@ pearnly_core	Your access domain	您的访问域名	โดเมนสำหร�
 pearnly_dms	The recognition queue is busy. Please send the image again shortly.	识别队列繁忙，请稍后重新发送图片。	คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่	認識キューが混雑しています。しばらくしてから画像を再送してください。
 pearnly_dms	The recognition result needs checking. Please do not resend this image yet.	识别结果待核实，请先不要重复发送这张图片。	กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ	認識結果を確認中です。この画像を再送しないでください。
 pearnly_dms	Recognition could not finish. Please try again shortly.	识别未完成，请稍后重试。	อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่	認識を完了できませんでした。しばらくしてから再試行してください。
-pearnly_core	Pay as you go: first {0} pages per Bangkok calendar month {1}/page; thereafter {2}/page.	按量计费：每个曼谷自然月前 {0} 页 {1}/页，之后 {2}/页。	คิดตามใช้จริง: {0} หน้าแรกต่อเดือนปฏิทินกรุงเทพฯ {1}/หน้า จากนั้น {2}/หน้า	従量課金：バンコク暦月ごとに最初の{0}ページは{1}/ページ、以降は{2}/ページ。	home.pricing.pages
+pearnly_core	Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.	按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。	คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า	従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。	home.pricing.pages
 pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
+pearnly_core	Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
+pearnly_core	{0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount

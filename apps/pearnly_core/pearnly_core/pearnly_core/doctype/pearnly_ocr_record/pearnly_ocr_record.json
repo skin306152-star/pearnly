@@ -17,7 +17,9 @@
   "reference",
   "column_break_billing",
   "detail",
-  "error"
+  "error",
+  "records_deleted_at",
+  "records_deleted_by"
  ],
  "fields": [
   {"fieldname": "product", "fieldtype": "Select", "in_list_view": 1, "label": "Product", "options": "cowork\nerp\ndms", "reqd": 1},
@@ -31,7 +33,9 @@
   {"fieldname": "reference", "fieldtype": "Data", "label": "External Reference"},
   {"fieldname": "column_break_billing", "fieldtype": "Column Break"},
   {"fieldname": "detail", "fieldtype": "Small Text", "label": "Summary"},
-  {"fieldname": "error", "fieldtype": "Small Text", "label": "Failure Reason"}
+  {"fieldname": "error", "fieldtype": "Small Text", "label": "Failure Reason"},
+  {"fieldname": "records_deleted_at", "fieldtype": "Datetime", "label": "Removed At", "hidden": 1, "read_only": 1},
+  {"fieldname": "records_deleted_by", "fieldtype": "Data", "label": "Removed By", "hidden": 1, "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

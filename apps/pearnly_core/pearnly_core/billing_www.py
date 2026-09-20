@@ -107,7 +107,7 @@ def _period_range(period: str, anchor: str) -> tuple[str, str]:
 
 def _ocr_rows(start: str, end: str, limit: int, offset: int = 0) -> list[dict]:
     """识别记录来自**本站**（每个租户一个站点，识别就发生在这里）。"""
-    filters = {}
+    filters = {"records_deleted_at": ["is", "not set"]}
     if start or end:
         filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
     return frappe.get_all(
@@ -134,11 +134,18 @@ def records(tab: str = "usage", period: str = "all", date: str = "", limit: int 
     if tab == "ocr":
         rows = _ocr_rows(start, end, limit, offset)
         filters = {"creation": ("between", [start or "1970-01-01", end or "2999-12-31"])} if start or end else {}
+        filters["records_deleted_at"] = ["is", "not set"]
         total = frappe.db.count("Pearnly OCR Record", filters)
     else:
         result = _client().records(tab, start=start, end=end, limit=limit, offset=offset)
         rows, total = result.get("rows") or [], int(result.get("total") or 0)
     return {"tab": tab, "period": period, "start": start, "end": end, "rows": rows, "total": total}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_records(tab: str, names) -> dict:
+    from pearnly_core.payments.history import delete_product_records
+    return delete_product_records(tab, names, actor=_require_admin())
 
 
 @frappe.whitelist()

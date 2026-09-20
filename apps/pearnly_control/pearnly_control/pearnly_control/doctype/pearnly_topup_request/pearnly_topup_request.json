@@ -21,7 +21,9 @@
   "requested_at",
   "reviewed_at",
   "column_break_audit",
-  "reviewed_by"
+  "reviewed_by",
+  "records_deleted_at",
+  "records_deleted_by"
  ],
  "fields": [
   {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1},
@@ -39,7 +41,9 @@
   {"fieldname": "requested_at", "fieldtype": "Datetime", "label": "Requested At"},
   {"fieldname": "reviewed_at", "fieldtype": "Datetime", "label": "Reviewed At", "read_only": 1},
   {"fieldname": "column_break_audit", "fieldtype": "Column Break"},
-  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1}
+  {"fieldname": "reviewed_by", "fieldtype": "Link", "label": "Reviewed By", "options": "User", "read_only": 1},
+  {"fieldname": "records_deleted_at", "fieldtype": "Datetime", "label": "Removed At", "hidden": 1, "read_only": 1},
+  {"fieldname": "records_deleted_by", "fieldtype": "Data", "label": "Removed By", "hidden": 1, "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],
