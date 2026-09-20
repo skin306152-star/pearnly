@@ -20,6 +20,7 @@ def ssh_command(key):
     return ["ssh", "-i", str(Path.home() / ".config/pearnly-production" / key),
             "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes",
             "-o", "StrictHostKeyChecking=yes", "-o", "ConnectTimeout=10",
+            "-o", "ServerAliveInterval=30", "-o", "ServerAliveCountMax=6",
             "root@" + load_target()["ssh_host"]]
 
 

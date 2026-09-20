@@ -15,7 +15,7 @@ permissions:
 jobs:
   stage:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
@@ -34,6 +34,7 @@ jobs:
           chmod 600 ~/.ssh/image_receiver
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf '%s\n%s\n' "ghcr.io/$GITHUB_REPOSITORY/frappe@$DIGEST" "$REGISTRY_TOKEN" |
-            ssh -i ~/.ssh/image_receiver -o IdentitiesOnly=yes -o BatchMode=yes \
+            ssh -T -i ~/.ssh/image_receiver -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o ConnectTimeout=15 -o ServerAliveInterval=30 -o ServerAliveCountMax=6 \
               -o StrictHostKeyChecking=yes "root@$target_host"
           printf 'Staged (not started): `%s@%s`\n' "ghcr.io/$GITHUB_REPOSITORY/frappe" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"
