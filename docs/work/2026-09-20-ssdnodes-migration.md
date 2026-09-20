@@ -4,6 +4,8 @@
 
 > 追加：用户随后要求「开户慢的问题一起处理」，接手窗口在新机上做了只读诊断 + 一次性计时，确认**一半是我们自己每步重复加的开销（已改掉），一半是这台机器的磁盘写延迟（代码改不了）**，见文末「H14 开户慢：自己排查的结果」。
 
+> 再追加：用户要求「DMS 容器对齐到最新版（含本轮改动）并拉起来」。已把 main 推到 `8f1851f`、构建并通过投递把 DMS 产品组切到新镜像，工具副本与本机 runner 也已对齐，见文末「DMS 对齐到 8f1851f（已上线）」。
+
 基线：`7415c1e`；工作树 `ssdnodes-migration/pearnly`，分支 `codex/ssdnodes-migration`。
 
 ## 用户决策
@@ -363,3 +365,40 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 - `provision-agent.py`、`provision-runner.py` 只影响宿主机与本机，可以独立先上；runner 是 launchd 常驻进程，跑的是**主检出** `/Users/skin/pearnly/scripts/production/provision-runner.py`，所以要合回 `main` 才生效。
 - `site-step.py` 这边的改动（H07/H13/H15）**依赖新镜像**：它调用 `pearnly_dms.menu.rich_menu.published_state` 与新的 `finalize_site` 账户布局初始化，镜像里没有这两个东西时 `set_line` 会直接失败。所以工具同步必须和"构镜像→投递→激活"同一次做。
 - 真实收益要到下一次开户才有端到端数字（需要你触发一次开户）；本文件里的数字是同一台机器上的分步实测与彩排，不是整轮验收。
+
+## DMS 对齐到 8f1851f（已上线，2026-09-20）
+
+用户要求「dms 这边的容器对齐到最新版，包括你的改动，拉起来我看看，等下再做开新租户测试」。执行过程与回读如下（全部有命令回读，不是"应该没问题"）。
+
+### 发布链
+
+- main 快进到 `8f1851f`（= 本任务分支的 3 个提交：H01/H02/H04/H05/H07/H08/H09/H13/H15 + 菜单保留 + H14 执行链），已推送。
+- 构建 [run 35523469754](https://github.com/skin306152-star/pearnly/actions/runs/35523469754) 成功（含架构检查、前端构建、镜像内 `test_cloud_onboarding.py` / `test_dms_entrypoints.py` 与运行期自检）。
+- 镜像：`ghcr.io/skin306152-star/pearnly/frappe@sha256:5346ad0b737827bc3d1c408ca61851d29a94e4bbba870bf83a7f006be4bda271`，镜像内 revision 标签回读为 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a`。
+- 投递 [run 35523736225](https://github.com/skin306152-star/pearnly/actions/runs/35523736225) 成功（受限镜像接收器只拉取、不启动）。
+- 激活：`bash scripts/production/activate-product.sh <image> dms`，3 分 37 秒，输出 `Product dms activated with verified image.`（含维护模式开关、旧镜像整站备份、`bench migrate`、7 个容器重建）。激活前先逐字比对过服务器上的 `activate-product.sh` 与 `compose.yml`，与仓库 SHA-256 一致。
+
+### 发布后必须补的两件事（都做了）
+
+- **`active-image.json` 指向新 digest**：`activate-product.sh` 不写这个文件，只有 `activate-foundation.sh` 写。不补的话，下一次任何 `compose up -d`（例如开户里的 `restart_web`）会用旧的 `PEARNLY_IMAGE` 重建容器，把这次改动**悄悄回退**。
+- **宿主机工具副本同步**：`infrastructure/production/provision-agent.py`、`site-step.py` 已覆盖到 `/opt/pearnly/deploy/...`，与本地 SHA-256 逐文件一致（`31d1da5d…` / `17818b7d…`），`provision-agent.py` 的执行位保留（755）。
+- 本机生产 runner（launchd `com.pearnly.production-provisioner`，跑的是**主检出**的 `scripts/production/provision-runner.py`）已重启：pid 42526 → 75791，新的"步间不空转"逻辑生效。
+
+### 回读
+
+- 7 个 DMS 容器全部为 `5346ad0b7378`：frontend / web / worker / ocr-worker / ocr-dispatch / socketio / scheduler。`billing-web` 仍是 `f67d0b72e961`（基础层这次没有激活，属于有意保持）。
+- `https://testdms.pearnly.com/api/method/ping` → `{"message":"pong"}`；`/desk` 与 `/login` 302 到统一身份；`/liff/dms-booking` 200；`/assets/pearnly_core/desk/home.js` 200。
+- 浏览器会加载到的 `assets/pearnly_core/desk/product.js` 已含 `reorder-sidebar` / `https://pearnly.com` / `/desk/pearnly-home`，`user.js` 已含 `pearnlyProfileScope`。
+- 站点状态：`maintenance_mode=0`、调度器 active、`encryption_key` 存在、LINE LIFF 已配。
+- **账户布局也已补到既有租户**：激活时的 `bench migrate` 触发了 `after_migrate`，User 的三个 Custom Field 与 `first_name` 标签 Property Setter、field_order 现在都存在 —— H02 的修复对"新开户"和"升级"两条路径都落地了。
+- 仍为空的是 `pearnly_dms_rich_menus`：LINE 持久菜单还没发布（H10/H13 的**线上动作**，属于对 LINE 的外部写入，未做）。
+- DMS 各容器发布后 8 分钟内没有 traceback/异常。
+
+### 一个观察（不影响使用，值得盯一次）
+
+`dms-ocr-dispatch` 在发布窗口内（16:54–16:57）重启了 7 次，之后自 16:57:27 起稳定运行至今（进程在跑、CPU 时间在涨、OCR 队列为空、日志无报错）。窗口内正是维护模式开着、容器被重建的时段，而 `execution/dispatch.py` 本身在 `maintenance_mode` 下不派发、启动早期连 Redis 失败会在循环外退出——这解释了重启的形状，但本次没有更细的证据，属于**下次发布时再核对一次**的观察项，不是本轮的代码改动引入的。
+
+### 本轮未做（保持边界）
+
+- 基础层（billing / keycloak / mariadb）没有重新激活，仍跑旧镜像。
+- LINE 菜单发布、H06 存量密文处理、真机与业务验收、新租户开户测试：都还没做；开新租户测试用当前这套（新镜像 + 新工具 + 新 runner）即可。
