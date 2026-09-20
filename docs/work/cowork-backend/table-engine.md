@@ -42,9 +42,9 @@ result = run_table(document, model_call, config=config,
 
 旧 `erp_roundtrip.py` 指纹要求 Excel 真实第一行包含七个必需回导列，且工作表 strip 后是 `ขาย`、`ซื้อ`、`รอจำแนก`；`สาขาคู่ค้า` 是可选列。列位置、额外列和重复列不改变该指纹。新输入层额外保留 `roundtrip_headers`（data_only=False 的真实第一行），避免把公式缓存值误当真实表头；通用识别仍沿旧 data_only=True。
 
-本批命中指纹在模型与受理前明确拒绝。**确定性回导尚未迁移**，不是把它删除或当普通表格处理。后续独立工作应包含：销项按历史键/票号聚合商品行、进项一行一票、50 个连续空行后的旧停止规则、表名决定方向、待判保留、Decimal 税基/VAT 的 0.02 票面信任容差与 ROUND_HALF_EVEN、source rows、原 History 键的账套权限与既有 ERP 推送关联。上传的 `PRN:<history_id>:<行序>` 只是内容，不能授予跨客户记录权限；外部重推和删除旧单的业务也不能在纯解析器内实现。
+第五批曾在模型与受理前拒绝命中指纹的文件；第六批已在 `ocr.execution` 先分流到 `roundtrip` 专用解析。通用 `run_table/validate_document` 仍拒绝回导模板，防止误喂模型。销项按历史键/票号聚合商品行、进项一行一票、表名方向、待判、Decimal金额及源行证据已接本地原生流程；50空行后有未读业务行明确拒绝。旧History权限、当前Site和公司/客户逐次复核；上传PRN不授予权限。尚无旧UUID映射、外部ERP重推或旧单删除，详见 [第六批整链合同](roundtrip-native.md)。
 
-旧回导 `estimated_cost_thb=0` 表示没有 provider 调用；旧 recognize 保存成功后的字符收费并未据此豁免用户。后续回导计费须明确保留该边界，不能看到模型成本 0 就自行免单。
+旧回导 `estimated_cost_thb=0` 表示没有 provider 调用；旧 recognize 保存成功后的字符收费并未据此豁免用户。第六批已按原Excel字符单位，在原子保存后以稳定引用结算，零模型调用不免业务计费。
 
 ## 失败、复核与收费证据
 

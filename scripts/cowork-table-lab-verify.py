@@ -218,12 +218,11 @@ class NativeTableExecution(unittest.TestCase):
         book = Workbook()
         book.active.title = "ขาย"
         book.active.append(sorted(REQUIRED_HEADERS))
-        book.active.append(["synthetic"] * len(REQUIRED_HEADERS))
         data = io.BytesIO()
         book.save(data)
         self.upload(data=data.getvalue())
         result = self.api.submit(self.source["name"], self.key)
-        self.assertEqual(result, {"accepted": False, "code": "ocr.table_roundtrip_not_supported"})
+        self.assertEqual(result, {"accepted": False, "code": "ocr.roundtrip_empty"})
         self.status.assert_not_called()
         self.http.assert_not_called()
 

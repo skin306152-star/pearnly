@@ -113,7 +113,7 @@ def _document_manifest(source, document):
                 or type(count) is not int or count < 1
                 or [page.page_number for page in document.pages] != list(range(1, count + 1))
                 or provenance["version"] != 1 or provenance["reference_kind"] != "logical_section"
-                or provenance["unit_kind"] not in {"worksheet", "delimited_text", "word_document", "decoded_text"}
+                or provenance["unit_kind"] not in {"worksheet", "delimited_text", "word_document", "decoded_text", "roundtrip_document"}
                 or type(provenance["coverage_complete"]) is not bool
                 or not isinstance(provenance["coverage_issues"], list)
                 or (provenance["coverage_complete"] and provenance["coverage_issues"])

@@ -58,7 +58,10 @@ def _require_complete(result, expected_page_count):
         fallback = bool(chain & _L2_REVIEW_FALLBACKS)
         # A schema-valid empty object is still an unrecognized physical page.
         # Do not seal an empty History or charge it merely because L3 returned 200.
-        if not _has_retained_result(page.invoice) or hard_failure or ((page.error or fallback) and
+        pending = (result.engine == "roundtrip_workbook" and page.layer_chain == ["roundtrip_workbook"]
+                   and page.needs_manual_review and not page.declared_direction
+                   and bool(page.invoice.notes) and not page.invoice.additional_invoices)
+        if (not _has_retained_result(page.invoice) and not pending) or hard_failure or ((page.error or fallback) and
                             ("L2" not in chain or not _has_retained_result(page.invoice))):
             failed.append(page.page_number)
         elif page.error or fallback or page.needs_manual_review or page.confidence_band == "needs_review":
@@ -92,6 +95,17 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
             or (client is not None and (not isinstance(client, str) or not client.strip()))):
         raise OcrResultError("ocr.scope_required")
     review_pages = _require_complete(result, expected_page_count)
+    if result.engine == "roundtrip_workbook":
+        from pearnly_cowork.roundtrip.results import prepare_groups
+        if (reference_kind != "logical_section" or any(p.layer_chain != ["roundtrip_workbook"]
+                or p.invoice.additional_invoices for p in result.pages)):
+            raise OcrResultError("ocr.result_unvalidated")
+        groups = prepare_groups(result, workspace=workspace, client=client, source=source,
+                                posting_kind=normalize_posting_kind(posting_kind))
+        return {"state": "review_required" if review_pages else "ready", "groups": groups,
+                "raw_pages": flatten_pipeline_pages(result.pages), "invoice_count": len(groups),
+                **references, "confidence": None, "confidence_band": aggregate_confidence_band(result.pages),
+                "requires_review": bool(review_pages), "has_billable_result": bool(groups)}
     raw = flatten_pipeline_pages(result.pages)
     # A recoverable L3 / image-first failure keeps its validated L2 evidence.
     # Preserve the source error and force review, including every invoice on a

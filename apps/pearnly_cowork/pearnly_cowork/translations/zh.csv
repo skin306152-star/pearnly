@@ -217,6 +217,12 @@ ocr.file_too_large,文件超过允许的大小上限。
 ocr.invalid_input_metadata,文件大小或页数信息无效。
 ocr.invalid_pdf,无法读取该 PDF 文件。
 ocr.page_association_invalid,识别内容与原件关联不一致。
+ocr.roundtrip_empty,复核工作簿中没有可回导的发票行。
+ocr.roundtrip_invalid_number,复核工作簿包含无效数值。
+ocr.roundtrip_not_matched,此文件不符合复核工作簿格式。
+ocr.roundtrip_parse_failed,无法读取复核工作簿，请检查格式和内容。
+ocr.roundtrip_sheet_name_invalid,复核工作表名称包含多余空格，请恢复原工作表名。
+ocr.roundtrip_trailing_rows,复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。
 ocr.table_archive_member_limit,文档内部文件数量超过上限。
 ocr.table_archive_size_limit,文档解压后的大小超过上限。
 ocr.table_cell_limit,文档单元格数量超过上限。
@@ -240,6 +246,22 @@ pending,待处理
 physical_page,物理页
 recognized,已识别
 recognizing,识别中
+roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。
+roundtrip.export_amount_missing,发票缺少必要金额，请补全后再导出。
+roundtrip.export_amount_not_roundtrippable,此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
+roundtrip.export_date_invalid,发票日期无效，请更正后再导出。
+roundtrip.export_facts_invalid,已核实的 ERP 导出信息无效。
+roundtrip.export_history_invalid,导出包含无效或重复的历史记录引用。
+roundtrip.export_line_amount_missing,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
+roundtrip.export_multipage_unverified,此多页发票缺少经核实的合并记录，请复核后再导出。
+roundtrip.export_number_invalid,发票中有无效数值，请更正后再导出。
+roundtrip.export_number_precision,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
+roundtrip.export_record_invalid,发票数据无效，无法导出。
+roundtrip.export_records_invalid,请选择 1 至 100 条不重复的历史记录导出。
+roundtrip.export_sales_items_required,销项发票需要包含税前金额的明细后才能导出。
+roundtrip.export_scope_mixed,同次导出只能包含同一公司、同一客户的记录。
+roundtrip.export_text_invalid,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
+roundtrip.reference_unavailable,所选公司和客户范围内无法访问引用的历史记录。
 saved,已保存
 scan,扫描
 service,服务

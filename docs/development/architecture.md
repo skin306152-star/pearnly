@@ -95,7 +95,10 @@
 
 Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。DMS 已接入；Cowork 现在登记 `cowork.invoice`，PDF/图片及普通表格/文本识别到原生草稿和稳定账单回执已在隔离Site以假外部出口验证，未部署、未做付费模型验收；ERP仍预留。不能据此宣称整产品 OCR 迁移或线上验收完成。
 
-Cowork `ocr.execution`单向依赖engine/table_engine/inputs_runtime/table_inputs/providers、files/history/feedback与Core；history保存单向调用feedback，feedback通过本Site原生记录检查来源，不反向导入history流程。Batch固定actor/公司/原件/日期/策略/纠错快照，Core Work只存Batch引用。新controller与Work mixin阻断原生更新/分享绕开付费检查点，不给共享Work增加客户read权限。`ocr.engine`、schema、validation及纠错model保持纯计算。细节见[执行合同](../work/cowork-backend/invoice-execution.md)。 表格字节解析归table_inputs，纯L2编排复用engine；files持有不可变逻辑区段清单，history的逻辑索引不授予PDF预览。Batch分别固定结果单元数与字符计费单位，旧PDF/image任务字段向后兼容；完整性与未迁回导限制见[表格执行](../work/cowork-backend/table-engine.md)。
+Cowork `ocr.execution`单向依赖engine/table_engine/inputs_runtime/table_inputs/providers、files/history/feedback与Core；history保存单向调用feedback，feedback通过本Site原生记录检查来源，不反向导入history流程。Batch固定actor/公司/原件/日期/策略/纠错快照，Core Work只存Batch引用。新controller与Work mixin阻断原生更新/分享绕开付费检查点，不给共享Work增加客户read权限。`ocr.engine`、schema、validation及纠错model保持纯计算。细节见[执行合同](../work/cowork-backend/invoice-execution.md)。 表格字节解析归table_inputs，纯L2编排复用engine；files持有不可变逻辑区段清单，history的逻辑索引不授予PDF预览。Batch分别固定结果单元数与字符计费单位，旧PDF/image任务字段向后兼容；完整性与通用模型边界见[表格执行](../work/cowork-backend/table-engine.md)。
+
+
+Cowork第六批 `roundtrip` 域提供固定复核工作簿契约、字节解析、导出和旧记录权限边界；ocr.execution在入队前选择确定性回导，复用Core工作单与计费；roundtrip不反向依赖执行编排。roundtrip.contracts/results只复用OCR schema/pages纯值，intake复用有界table_inputs；files的manifest新增roundtrip_document单位，每个解析单据对应源sheet/行，不把工作表数当票数。导出只消费授权History，外部ERP事实尚未接入，不新增前端入口。纯规约共用同一份spec/money，不能在读写端各算一套。见[往返原生合同](../work/cowork-backend/roundtrip-native.md)。
 
 MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
 

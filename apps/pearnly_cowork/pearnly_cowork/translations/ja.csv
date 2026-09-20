@@ -217,6 +217,12 @@ ocr.file_too_large,ファイルサイズが上限を超えています。
 ocr.invalid_input_metadata,ファイルサイズまたはページ情報が無効です。
 ocr.invalid_pdf,この PDF ファイルを読み取れません。
 ocr.page_association_invalid,認識した内容が元ファイルの参照項目と一致しません。
+ocr.roundtrip_empty,確認用ワークブックに再取り込みできる請求書の行がありません。
+ocr.roundtrip_invalid_number,確認用ワークブックに無効な数値が含まれています。
+ocr.roundtrip_not_matched,このファイルは確認用ワークブックの形式と一致しません。
+ocr.roundtrip_parse_failed,確認用ワークブックを読み取れません。形式と内容を確認してください。
+ocr.roundtrip_sheet_name_invalid,確認用シート名に余分な空白があります。元のシート名に戻してください。
+ocr.roundtrip_trailing_rows,確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。
 ocr.table_archive_member_limit,文書内のファイル数が上限を超えています。
 ocr.table_archive_size_limit,展開後の文書サイズが上限を超えています。
 ocr.table_cell_limit,文書のセル数が上限を超えています。
@@ -240,6 +246,22 @@ pending,処理待ち
 physical_page,物理ページ
 recognized,認識済み
 recognizing,認識中
+roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
+roundtrip.export_amount_missing,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
+roundtrip.export_amount_not_roundtrippable,この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+roundtrip.export_date_invalid,請求書の日付が無効です。修正してからエクスポートしてください。
+roundtrip.export_facts_invalid,確認済みの ERP エクスポート情報が無効です。
+roundtrip.export_history_invalid,エクスポート対象に無効または重複した履歴参照があります。
+roundtrip.export_line_amount_missing,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
+roundtrip.export_multipage_unverified,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
+roundtrip.export_number_invalid,請求書に無効な数値があります。修正してからエクスポートしてください。
+roundtrip.export_number_precision,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
+roundtrip.export_record_invalid,請求書データが無効なため、エクスポートできません。
+roundtrip.export_records_invalid,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
+roundtrip.export_sales_items_required,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
+roundtrip.export_scope_mixed,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+roundtrip.export_text_invalid,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
+roundtrip.reference_unavailable,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
 saved,保存済み
 scan,スキャン
 service,サービス

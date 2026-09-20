@@ -27,6 +27,9 @@ from pearnly_cowork.ocr.results import prepare_history_batch
 from pearnly_cowork.ocr.schema import PipelineResult
 from pearnly_cowork.ocr.table_inputs import extract_table
 from pearnly_cowork.ocr.table_engine import run_table, validate_document
+from pearnly_cowork.ocr.engine.contracts import EngineResult
+from pearnly_cowork.roundtrip import intake as roundtrip
+from pearnly_cowork.roundtrip.access import require_links
 
 
 def _require_work(doc):
@@ -73,6 +76,15 @@ def _recognize(doc, frozen, examples):
     source = _check(doc, frozen, examples)
     kind, units = service.billing_basis(doc)
     service.balance(units, frozen["billing_tier"], kind=kind)
+    if frozen.get("input_engine") == roundtrip.ENGINE:
+        content = read_bytes(source)
+        document, pipeline = roundtrip.decode(content, extract_table(content, source.filename),
+            anchor_year=date.fromisoformat(str(doc.anchor_date)).year)
+        freeze_doc_manifest(source, document)
+        require_links(pipeline, doc.workspace, doc.client)
+        if kind != "excel" or units != document.billing_characters:
+            frappe.throw(_("Recognition input and ownership cannot be changed."))
+        return _freeze_result(doc, EngineResult(pipeline, ()), frozen, examples)
     environment = frozen["environment"]
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
@@ -109,6 +121,10 @@ def _recognize(doc, frozen, examples):
             result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
                 anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
                 today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
+    return _freeze_result(doc, result, frozen, examples)
+
+
+def _freeze_result(doc, result, frozen, examples):
     frappe.db.commit()
     _check(doc, frozen, examples)
     doc = store.read(doc.name, lock=True, write=True)
@@ -125,6 +141,8 @@ def _persist(doc):
     _check(doc)
     anchor = date.fromisoformat(str(doc.anchor_date)).year
     result = PipelineResult.model_validate_json(doc.result_json, context={"anchor_year": anchor})
+    if result.engine == roundtrip.ENGINE:
+        require_links(result, doc.workspace, doc.client)
     plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
         source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
         reference_kind=doc.get("reference_kind") or "physical_page")

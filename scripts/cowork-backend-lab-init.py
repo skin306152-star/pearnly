@@ -17,7 +17,8 @@ def main():
     marker = sites / ".cowork-backend-lab"
     allowed = {"cowork-backend-a.localhost", "cowork-backend-b.localhost",
                "cowork-backend-fresh.localhost", "cowork-backend-files.localhost",
-               "cowork-backend-execution.localhost", "cowork-backend-table.localhost"}
+               "cowork-backend-execution.localhost", "cowork-backend-table.localhost",
+               "cowork-backend-roundtrip.localhost"}
     requested = set(os.environ.get("PEARNLY_COWORK_LAB_SITES", "").split()) or allowed
     if not requested <= allowed:
         raise SystemExit("Refusing an unknown lab Site")

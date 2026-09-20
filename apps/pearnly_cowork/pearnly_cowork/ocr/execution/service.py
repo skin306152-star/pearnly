@@ -1,6 +1,7 @@
 """Admit one immutable invoice task per original; RPCs cannot select a tenant/model."""
 import hashlib
 import json
+from datetime import date
 
 import frappe
 from frappe import _
@@ -15,6 +16,9 @@ from pearnly_cowork.ocr.execution import access, settings, store, work_guard
 from pearnly_cowork.ocr.feedback import service as feedback
 from pearnly_cowork.ocr.table_inputs import extract_table
 from pearnly_cowork.ocr.table_engine import validate_document
+from pearnly_cowork.ocr.table_engine.roundtrip import has_roundtrip_sheet
+from pearnly_cowork.roundtrip import intake as roundtrip
+from pearnly_cowork.roundtrip.access import require_links
 
 KIND = "cowork.invoice"
 
@@ -51,14 +55,22 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None):
     if source.binding_complete:
         frappe.throw(_("The original file already has a completed invoice manifest."))
     count, billing_kind, billing_units = int(source.page_count), "pdf", int(source.page_count)
+    frozen = None
     if source.kind == "document":
-        document = extract_table(originals.read_bytes(source), source.filename)
-        validate_document(document)
+        content = originals.read_bytes(source)
+        document = extract_table(content, source.filename)
+        if has_roundtrip_sheet(document.provenance):
+            frozen = settings.snapshot(deterministic=True)
+            document, result = roundtrip.decode(content, document,
+                anchor_year=date.fromisoformat(frozen["anchor_date"]).year)
+            require_links(result, source.workspace, source.client)
+        else:
+            validate_document(document)
         originals.freeze_doc_manifest(source, document)
         count, billing_kind, billing_units = document.page_count, "excel", document.billing_characters
     elif source.kind not in {"image", "pdf"}:
         frappe.throw(_("This file type is not supported."))
-    frozen = settings.snapshot()
+    frozen = frozen or settings.snapshot()
     examples = feedback.snapshot_for_scope(source.workspace, source.client) if frozen["fewshot"] else None
     balance(billing_units, frozen["billing_tier"], kind=billing_kind)
     work_name = hashlib.sha256((KIND + "\0" + name).encode()).hexdigest()

@@ -24,7 +24,7 @@ def target():
             "credentials_path": ocr.credentials_path(), "endpoint": ocr.endpoint()}
 
 
-def snapshot():
+def snapshot(*, deterministic=False):
     environment = frappe.conf.get("pearnly_cowork_ocr_environment")
     policy = frappe.conf.get("pearnly_cowork_ocr_policy")
     if not isinstance(environment, dict) or not isinstance(policy, dict) or "mode" not in policy:
@@ -49,6 +49,11 @@ def snapshot():
         today = datetime.now(ZoneInfo(environment.get("TZ") or "UTC")).date()
     except (ValueError, TypeError, KeyError) as exc:
         frappe.throw(_("Invalid Cowork OCR configuration."))
+    if deterministic:
+        return {"environment": environment, "policy": policy, "target": None,
+                "mode": selected.mode, "billing_tier": "B" if selected.mode == "economy" else "A",
+                "fewshot": False, "anchor_date": today.isoformat(), "schema": 1,
+                "input_engine": "roundtrip_workbook"}
     if selected.mode not in {"economy", "enterprise"} or selected.backend != "vertex":
         frappe.throw(_("This Cowork OCR mode is not available on the new platform yet."))
     if selected.double_read or selected.image_first:
@@ -71,5 +76,8 @@ def snapshot():
 
 
 def revalidate(saved):
+    if (saved.get("schema") == 1 and saved.get("input_engine") == "roundtrip_workbook"
+            and saved.get("target") is None and saved.get("fewshot") is False):
+        return
     if saved.get("schema") != 1 or saved.get("target") != target():
         frappe.throw(_("The OCR connection changed after this task was accepted."))

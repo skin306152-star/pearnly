@@ -4,11 +4,10 @@ Only the source sheet-name and real first-row fingerprint are used. A history
 key in an uploaded cell never confers permission to another history record.
 """
 
-DATA_SHEETS = frozenset(("ขาย", "ซื้อ", "รอจำแนก"))
-REQUIRED_HEADERS = frozenset((
-    "เลขประจำตัวผู้เสียภาษีคู่ค้า", "ภาษีมูลค่าเพิ่มรวม", "เลขที่เอกสาร ERP",
-    "รหัสสินค้า ERP", "รหัสคู่ค้า ERP", "สถานะการส่ง", "รหัสอ้างอิงระบบ",
-))
+from pearnly_cowork.roundtrip import spec
+
+DATA_SHEETS = frozenset(spec.DATA_SHEETS)
+REQUIRED_HEADERS = frozenset(spec.REQUIRED_HEADERS)
 
 
 def has_roundtrip_sheet(provenance: dict) -> bool:

@@ -59,7 +59,7 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 
 | 能力 | 当前状态 / 继续工作 |
 | --- | --- |
-| OCR 上传、分票、缓存、计费、队列及失败恢复 | PDF/image已接原生执行、供应商适配、文本/图片路径、授权例库、原子保存及计费回执；普通表格/文本已有逻辑区段与字符计费执行；真实付费模型/账单验收、旧例库回灌、非staged缓存、专用roundtrip重导入仍待补，见执行合同 |
+| OCR 上传、分票、缓存、计费、队列及失败恢复 | PDF/image已接原生执行、供应商适配、文本/图片路径、授权例库、原子保存及计费回执；普通表格/文本已有逻辑区段与字符计费执行；真实付费模型/账单验收、旧例库回灌、非staged缓存仍待补；专用roundtrip已接第六批本地后端，真实ERP重推未接，见执行合同 |
 | 原件、PDF 预览、附件 | 新上传原件、整份及按物理页读取已实现；跨公司/同页多票拒绝越权，原生下载/ZIP旁路已堵；旧可搜索PDF、加密文件及历史回灌尚未迁 |
 | 外推、目标刷新、年度账套、权威日志 | 本批只有纯预检；连接、锁、reservation、消费者、未知结果和回读均待迁 |
 | LINE、Companion | 来源映射已完成；验签、当前绑定、单次票据、租约/ACK、消息回执等仍待迁；Windows 实际运行来源待核验 |
@@ -89,7 +89,15 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 
 - Batch详情新增 `reference_kind`（physical_page/logical_section）、`billing_kind`（pdf/excel）、`billing_units`。其中 `page_count` 是模型结果逻辑单元数；表格绝不可当PDF页数或字符收费单位。老Batch没有新字段时仅回落到旧PDF/image合同。
 - `files.api.metadata` 另返 `reference_kind/reference_count/reference_unit/coverage_complete`；原件原始 `page_count=1` 文档占位不参与表格授权。History详情 `source_reference_kind` 说明 `source_page_indices` 的真实单位；document 的 `source_pdf_id` 为空，下载用 `source_file`。
-- `accepted=false, code=ocr.table_*` 表示受理前拒绝；不建立模型任务、不扣费。超过30,000模型输入字符、结构资源上限、损坏文件和未迁roundtrip模板不能误显示识别完成。单sheet的LLM提取结果仍须人工复核，未进行真实模型质量验收。
+- `accepted=false, code=ocr.table_*` 表示受理前拒绝；不建立模型任务、不扣费。超过30,000模型输入字符、结构资源上限和损坏文件不能误显示识别完成。第六批roundtrip专用路径见下文；单sheet的LLM提取结果仍须人工复核，未进行真实模型质量验收。
 - 原件按字节校验、逻辑清单与解析投影摘要不可变。没有完整关联所有sheet或旧解析明显漏读内容时，其他用户不能据一张票据获得整份原件；上传者仍须当前公司/买方权限。文档无PDF物理页预览。
 
 详细来源、限制和有意变化见 [表格输入](table-inputs.md)、[表格识别](table-engine.md)、[原件逻辑清单](table-source-manifest.md)。本批没有新增菜单或页面，前端尚未接入。
+
+## 第六批复核工作簿合同
+
+- `POST pearnly_cowork.roundtrip.api.export(names)`：1至100个当前Site历史ID，必须全部可读且同公司/客户，不跳过缺失或无权记录。直接返回固定泰文四表xlsx私有附件；没有导航入口，不能宣称UI交付。真实ERP推送事实尚未接入，状态、ERP码与新建主档清单留空，不接受浏览器伪造事实。
+- 仍由 `files.api.upload` 上传，再调用 `ocr.api.submit`。真实首行指纹命中后确定性解析，零模型调用；`reference_unit=roundtrip_document`，每解析单据一个逻辑编号。表名决定方向；待判留人工、不套整批方向。新建History保留旧记录键，旧记录和ERP数据均不改。
+- 原记录PRN键是内容声明，须在受理、执行、保存前重验当前Site/公司/客户。旧平台UUID尚未映射时明确拒绝。不可变原件清单与冻结结果保存权威引用；将来ERP推送不能信任可编辑pages.fields.history_id替代这些证据。
+- 承接旧Excel字符计费；生成新History和封存原件一次提交，计费失败只补回执。命中空表、带空格异常表名、50空行后残留数据、解析失败均返回稳定错误码，不退模型。金额不能无损往返、未绑定的多页历史明确拦截导出。
+- [整链合同与有意变化](roundtrip-native.md)、[独立审计](roundtrip-parity-audit.md)。外部ERP重推、旧数据映射、其它导出格式、前端及真实业务验收仍未完成。

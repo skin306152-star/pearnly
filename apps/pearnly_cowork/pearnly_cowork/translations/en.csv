@@ -217,6 +217,12 @@ ocr.file_too_large,The file exceeds the allowed size.
 ocr.invalid_input_metadata,The file size or page metadata is invalid.
 ocr.invalid_pdf,The PDF file cannot be read.
 ocr.page_association_invalid,The recognized content does not match the original references.
+ocr.roundtrip_empty,The review workbook contains no invoice rows to import.
+ocr.roundtrip_invalid_number,The review workbook contains an invalid number.
+ocr.roundtrip_not_matched,This file does not match the review workbook format.
+ocr.roundtrip_parse_failed,The review workbook cannot be read. Check its format and content.
+ocr.roundtrip_sheet_name_invalid,The review worksheet name contains extra spaces. Restore the original name.
+ocr.roundtrip_trailing_rows,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
 ocr.table_archive_member_limit,The document contains too many internal files.
 ocr.table_archive_size_limit,The document exceeds the allowed size after decompression.
 ocr.table_cell_limit,The document contains too many cells.
@@ -240,6 +246,22 @@ pending,Pending
 physical_page,physical_page
 recognized,recognized
 recognizing,recognizing
+roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
+roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
+roundtrip.export_amount_not_roundtrippable,"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+roundtrip.export_date_invalid,The invoice date is invalid. Correct it before exporting.
+roundtrip.export_facts_invalid,The verified ERP export details are invalid.
+roundtrip.export_history_invalid,The export contains an invalid or repeated history reference.
+roundtrip.export_line_amount_missing,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
+roundtrip.export_multipage_unverified,This multi-page invoice has no verified combined record. Review it before exporting.
+roundtrip.export_number_invalid,A numeric value in the invoice is invalid. Correct it before exporting.
+roundtrip.export_number_precision,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
+roundtrip.export_record_invalid,The invoice data is invalid and cannot be exported.
+roundtrip.export_records_invalid,Select between 1 and 100 distinct history records to export.
+roundtrip.export_sales_items_required,Sales invoices need line items with tax-exclusive amounts before export.
+roundtrip.export_scope_mixed,Export records from the same company and client together.
+roundtrip.export_text_invalid,The invoice contains text that Excel cannot store safely. Check its length and characters.
+roundtrip.reference_unavailable,A referenced history record is unavailable in the selected company and client.
 saved,saved
 scan,scan
 service,Service

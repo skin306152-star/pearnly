@@ -217,6 +217,12 @@ ocr.file_too_large,ไฟล์มีขนาดเกินขีดจำก�
 ocr.invalid_input_metadata,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
 ocr.invalid_pdf,ไม่สามารถอ่านไฟล์ PDF นี้ได้
 ocr.page_association_invalid,เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ
+ocr.roundtrip_empty,สมุดงานตรวจทานไม่มีแถวใบแจ้งหนี้ให้นำเข้ากลับ
+ocr.roundtrip_invalid_number,สมุดงานตรวจทานมีค่าตัวเลขที่ไม่ถูกต้อง
+ocr.roundtrip_not_matched,ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน
+ocr.roundtrip_parse_failed,ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา
+ocr.roundtrip_sheet_name_invalid,ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม
+ocr.roundtrip_trailing_rows,สมุดงานตรวจทานยังมีข้อมูลหลังแถวว่างติดต่อกัน 50 แถว กรุณาลบช่วงแถวว่างก่อนนำเข้ากลับ
 ocr.table_archive_member_limit,เอกสารมีจำนวนไฟล์ภายในเกินขีดจำกัด
 ocr.table_archive_size_limit,เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด
 ocr.table_cell_limit,เอกสารมีจำนวนเซลล์เกินขีดจำกัด
@@ -240,6 +246,22 @@ pending,รอดำเนินการ
 physical_page,หน้าจริงของเอกสาร
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
+roundtrip.document_limit,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
+roundtrip.export_amount_missing,ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก
+roundtrip.export_amount_not_roundtrippable,การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
+roundtrip.export_date_invalid,วันที่ใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
+roundtrip.export_facts_invalid,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
+roundtrip.export_history_invalid,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
+roundtrip.export_line_amount_missing,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
+roundtrip.export_multipage_unverified,ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก
+roundtrip.export_number_invalid,มีค่าตัวเลขในใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก
+roundtrip.export_number_precision,ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
+roundtrip.export_record_invalid,ข้อมูลใบแจ้งหนี้ไม่ถูกต้อง จึงไม่สามารถส่งออกได้
+roundtrip.export_records_invalid,กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก
+roundtrip.export_sales_items_required,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
+roundtrip.export_scope_mixed,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
+roundtrip.export_text_invalid,ใบแจ้งหนี้มีข้อความที่ Excel ไม่สามารถจัดเก็บได้ครบถ้วน กรุณาตรวจสอบความยาวและอักขระ
+roundtrip.reference_unavailable,ไม่สามารถเข้าถึงประวัติที่อ้างอิงภายใต้บริษัทและลูกค้าที่เลือกได้
 saved,บันทึกแล้ว
 scan,สแกน
 service,บริการ
