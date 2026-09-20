@@ -85,3 +85,12 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "playwright==${
  && /home/frappe/frappe-bench/env/bin/playwright install --with-deps chromium \
  && chmod -R a+rX /opt/ms-playwright
 USER frappe
+
+# ── 宿主侧部署工具的副本（激活时用来核对服务器上那份是不是同一版） ─────────────
+#
+# 为什么不省这一步：镜像和 `/opt/pearnly/deploy` 是**两份拷贝**，发布时两半都要换。
+# 只换一半不会立刻报错（站点跑新代码、开户还用旧脚本），所以激活脚本会把这里的内容
+# 和服务器上那份逐文件比对（scripts/production/check-deploy-image.py），不同源就拒绝激活。
+# 这里只放"部署拷贝真正包含"的两个目录，其他（compose/、docs/、示例脚本）不进镜像。
+COPY --chown=frappe:frappe infrastructure/production /opt/pearnly/deploy-src/infrastructure/production
+COPY --chown=frappe:frappe scripts/production          /opt/pearnly/deploy-src/scripts/production

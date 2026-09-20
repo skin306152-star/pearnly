@@ -9,6 +9,9 @@ exec 9>/opt/pearnly/state/provision.lock
 flock 9
 export PEARNLY_IMAGE="$image"
 compose=(docker compose --env-file /opt/pearnly/secrets/runtime.env -f /opt/pearnly/deploy/infrastructure/production/compose.yml --profile "$product")
+# 先核对"服务器上这套部署脚本"和"这个镜像自带的副本"是同一份：不同源就停在这里，
+# 不要出现"站点已经跑新代码、开户还在用旧脚本"这种当时不报错的错配。
+python3 /opt/pearnly/deploy/scripts/production/check-deploy-image.py "$image" /opt/pearnly/deploy
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 python3 /opt/pearnly/deploy/infrastructure/production/capacity.py --product "$product"
 previous_container=$("${compose[@]}" ps --quiet "$product-web")
@@ -26,6 +29,11 @@ PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
 "${compose[@]}" up -d --no-deps --force-recreate "$product-web" "$product-worker" "$product-ocr-worker" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
+# 记下"这一组现在用的是哪张镜像"。不记的话，之后任何 `compose up -d`（例如开户里的
+# restart_web 步骤、或容器重建）会拿旧的 PEARNLY_IMAGE 重建本组容器，
+# 表现就是"发布成功、过一会儿自己退回旧版"。这份记录也是 agent 取镜像的来源。
+mkdir -p /opt/pearnly/deploy
+docker image inspect "$image" --format '{{json .RepoDigests}}' > /opt/pearnly/deploy/active-image.json
 "${compose[@]}" exec -T "$product-web" bench --site all set-maintenance-mode off
 trap - ERR
 printf 'Product %s activated with verified image.\n' "$product"

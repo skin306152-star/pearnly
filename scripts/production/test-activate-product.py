@@ -6,7 +6,61 @@ import tempfile
 import unittest
 
 SOURCE = Path(__file__).with_name('activate-product.sh')
+CHECKER = Path(__file__).with_name('check-deploy-image.py')
 IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'a' * 64
+
+
+class DeployToolingMatch(unittest.TestCase):
+    """The activation gate that compares the server's deploy copy with the image's copy."""
+
+    def run_checker(self, mutate=lambda image_copy, deploy_root: None):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            image_copy, deploy_root = root / 'image', root / 'deploy'
+            for relative in ('infrastructure/production', 'scripts/production'):
+                (image_copy / relative).mkdir(parents=True)
+                (deploy_root / relative).mkdir(parents=True)
+                for name, body, mode in (('compose.yml', 'services: {}\n', 0o644),
+                                         ('provision-agent.py', '#!/usr/bin/env python3\n', 0o755)):
+                    for base in (image_copy, deploy_root):
+                        target = base / relative / name
+                        target.write_text(body)
+                        target.chmod(mode)
+            fake = root / 'docker'
+            fake.write_text('#!/bin/sh\ncase "$1" in\n'
+                            '  cp) mkdir -p "$3" && cp -a "$FAKE_IMAGE_COPY/." "$3/" ;;\n'
+                            'esac\nexit 0\n')
+            fake.chmod(0o755)
+            mutate(image_copy, deploy_root)
+            result = subprocess.run(['python3', str(CHECKER), IMAGE, str(deploy_root)],
+                                    env=dict(os.environ, PATH=str(root) + os.pathsep + os.environ['PATH'],
+                                             FAKE_IMAGE_COPY=str(image_copy)),
+                                    text=True, capture_output=True, timeout=10)
+            return result
+
+    def test_same_tooling_passes(self):
+        result = self.run_checker()
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+    def test_missing_edited_or_extra_file_fails(self):
+        def missing(image_copy, deploy_root):
+            (deploy_root / 'scripts/production/provision-agent.py').unlink()
+
+        def edited(image_copy, deploy_root):
+            (deploy_root / 'infrastructure/production/compose.yml').write_text('services: {changed: 1}\n')
+
+        def lost_executable_bit(image_copy, deploy_root):
+            (deploy_root / 'scripts/production/provision-agent.py').chmod(0o644)
+
+        def extra(image_copy, deploy_root):
+            (deploy_root / 'scripts/production/hand-edited.sh').write_text('echo hi\n')
+
+        for name, mutate in (('missing', missing), ('edited', edited),
+                             ('lost executable bit', lost_executable_bit), ('extra', extra)):
+            with self.subTest(case=name):
+                result = self.run_checker(mutate)
+                self.assertEqual(result.returncode, 1, result.stdout)
+                self.assertIn('not the copy that ships with this image', result.stderr)
 
 
 class Activation(unittest.TestCase):
@@ -39,6 +93,8 @@ elif 'ps' in args:
                 target.chmod(0o755)
             # Capacity is independently tested; replace only this one copied call.
             source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
+            # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
+            source = source.replace('python3 ' + str(root) + '/deploy/scripts/production/check-deploy-image.py', 'true')
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                        TRACE=str(root/'trace'), FAIL_AT=failure)

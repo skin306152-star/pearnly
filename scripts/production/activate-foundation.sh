@@ -8,6 +8,8 @@ image=${1:?Pass a verified GHCR image digest}
 root=/opt/pearnly/deploy
 compose="$root/infrastructure/production/compose.yml"
 export PEARNLY_IMAGE="$image"
+# 同 activate-product.sh：基础层的部署脚本也必须和这个镜像自带的副本同源。
+python3 "$root/scripts/production/check-deploy-image.py" "$image" "$root"
 docker image inspect "$image" --format '{{index .Config.Labels "org.opencontainers.image.revision"}}'
 docker compose --env-file /opt/pearnly/secrets/runtime.env -f "$compose" config --quiet
 docker volume create pearnly-production_sites-billing >/dev/null
