@@ -606,8 +606,13 @@ def main():
             texts = api.browser_text(["dms.edit.save", "dms.edit.expired"])
             check("browser_text 一次给全四语",
                   set(texts["dms.edit.save"]) == {"th", "en", "zh", "ja"}, sorted(texts["dms.edit.save"]))
-            check("泰文就是老产品那句（逐字搬的）",
-                  texts["dms.edit.save"]["th"] == "บันทึกและส่งสรุปใหม่",
+            check("保存按钮文案就是「保存」（2026-09-21 用户要求，四语同步）",
+                  texts["dms.edit.save"]["th"] == "บันทึก",
+                  texts["dms.edit.save"]["th"])
+            check("中文/英文/日文同样是「保存」",
+                  texts["dms.edit.save"]["zh"] == "保存"
+                  and texts["dms.edit.save"]["en"] == "Save"
+                  and texts["dms.edit.save"]["ja"] == "保存",
                   texts["dms.edit.save"]["th"])
             check("只服务 dms.* 命名空间（游客调不到别人的翻译）",
                   api.browser_text(["frappe.core.x", "dms.edit.save"]).keys()

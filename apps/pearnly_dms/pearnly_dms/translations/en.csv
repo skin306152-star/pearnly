@@ -92,7 +92,7 @@ dms.edit.regisName,Registered owner name
 dms.edit.remove,Remove
 dms.edit.road,Road
 dms.edit.room,Room
-dms.edit.save,Save and send new preview
+dms.edit.save,Save
 dms.edit.saved,Draft saved. A revised preview was sent to LINE.
 dms.edit.slip,Transfer slip
 dms.edit.slipConflict,"A transfer slip is attached, but there is no transfer payment. Add a transfer payment or remove the slip."

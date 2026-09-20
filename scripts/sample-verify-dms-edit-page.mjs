@@ -101,7 +101,7 @@ async function main() {
   // 这是环境的真实性质，不是页面 bug，所以这里刷新重试几次；真机上没有这个问题。
   for (let attempt = 1; attempt <= 4; attempt += 1) {
     const ready = await page
-      .waitForSelector("text=Save and send new preview", { timeout: 30000 })
+      .waitForSelector('text="Save"', { timeout: 30000 })
       .then(() => true)
       .catch(() => false);
     if (ready) break;
@@ -165,11 +165,11 @@ async function main() {
 
   // ── 4. 语言开关真的换文案（文案来自服务端语言包）────────────────────
   await page.selectOption(".pn-editor-lang", "zh");
-  await page.waitForSelector("text=保存并发送新版预览", { timeout: 5000 });
+  await page.waitForSelector('text="保存"', { timeout: 5000 });
   const zhTitle = await page.locator("h2").first().textContent();
   check("切中文 → 文案变了（服务端语言包四语齐全）", zhTitle.includes("客户资料"), zhTitle || "");
   await page.selectOption(".pn-editor-lang", "en");
-  await page.waitForSelector("text=Save and send new preview", { timeout: 5000 });
+  await page.waitForSelector('text="Save"', { timeout: 5000 });
 
   // ── 5. 改一格 → 保存 ────────────────────────────────────────────────
   const newPhone = "0866666666";
@@ -180,7 +180,7 @@ async function main() {
   let saved = false;
   let lastShown = "";
   for (let attempt = 1; attempt <= 4 && !saved; attempt += 1) {
-    await page.click("text=Save and send new preview");
+    await page.click('text="Save"');
     saved = await page
       .waitForSelector("text=A revised preview was sent to LINE", { timeout: 60000 })
       .then(() => true)

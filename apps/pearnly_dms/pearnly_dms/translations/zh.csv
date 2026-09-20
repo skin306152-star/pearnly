@@ -92,7 +92,7 @@ dms.edit.regisName,登记人姓名
 dms.edit.remove,删除
 dms.edit.road,道路
 dms.edit.room,房间
-dms.edit.save,保存并发送新版预览
+dms.edit.save,保存
 dms.edit.saved,草稿已保存，新版预览已发送到 LINE。
 dms.edit.slip,订金转账凭证
 dms.edit.slipConflict,已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。

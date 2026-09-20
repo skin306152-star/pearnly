@@ -26,6 +26,13 @@ onMounted(async () => {
     setCsrfToken(config.csrf_token);
     ticket = sessionStorage.getItem("pearnly_dms_account_ticket") || "";
     if (!ticket) throw new Error("dms_booking.line_auth_required");
+    if (portal) {
+      // 菜单3「เข้าสู่ระบบ DMS」：照老产品**自动**换取门户链接并直接跳转。
+      // 老页面是 LIFF 侧自动 `openWindow` + 中转页一个按钮；这里多留一个按钮
+      // 就变成"点两次才打开 DMS"，销售会以为坏了（2026-09-21 回归修复）。
+      await openPortal();
+      return;
+    }
     const result = await call<{ username: string }>(api + "credentials", { ticket }, { method: "POST" });
     username.value = result.username;
     ready.value = true;
@@ -34,18 +41,26 @@ onMounted(async () => {
   }
 });
 
+async function openPortal(): Promise<void> {
+  busy.value = true;
+  error.value = "";
+  try {
+    const result = await call<{ url: string }>(api + "portal_ticket", { ticket, language: locale.value }, { method: "POST" });
+    window.location.assign(result.url);
+  } catch (e) {
+    const key = e instanceof ApiError && [401, 403].includes(e.status) ? "dms.account.expired" : "dms.account.failed";
+    error.value = t(key);
+    busy.value = false;
+  }
+}
+
 async function submit() {
   if (busy.value) return;
   busy.value = true; error.value = ""; saved.value = false;
   try {
-    if (portal) {
-      const result = await call<{ url: string }>(api + "portal_ticket", { ticket, language: locale.value }, { method: "POST" });
-      window.location.assign(result.url);
-    } else {
-      await call(api + "save_credentials", { ticket, username: username.value, password: password.value }, { method: "POST" });
-      password.value = "";
-      saved.value = true;
-    }
+    await call(api + "save_credentials", { ticket, username: username.value, password: password.value }, { method: "POST" });
+    password.value = "";
+    saved.value = true;
   } catch (e) {
     const key = e instanceof Error ? e.message : "";
     if (e instanceof ApiError && [401, 403].includes(e.status)) {
@@ -64,13 +79,13 @@ async function submit() {
       <h1 class="text-xl font-semibold">{{ t(portal ? "dms.account.portal" : "dms.account.title") }}</h1>
       <p class="text-sm text-ink-gray-9">{{ t(portal ? "dms.account.portalHint" : "dms.account.hint") }}</p>
       <ErrorMessage v-if="error" :message="error" />
-      <Spinner v-if="!ready && !error" class="h-5 w-5" />
-      <form v-if="ready" class="space-y-5" @submit.prevent="submit">
-        <FormControl variant="outline" v-model="username" :label="t('dms.account.username')" :disabled="portal || busy" autocomplete="username" required />
-        <FormControl variant="outline" v-if="!portal" v-model="password" type="password" :label="t('dms.account.password')" :disabled="busy" autocomplete="off" required />
+      <Spinner v-if="!error && (portal || !ready)" class="h-5 w-5" />
+      <form v-if="ready && !portal" class="space-y-5" @submit.prevent="submit">
+        <FormControl variant="outline" v-model="username" :label="t('dms.account.username')" :disabled="busy" autocomplete="username" required />
+        <FormControl variant="outline" v-model="password" type="password" :label="t('dms.account.password')" :disabled="busy" autocomplete="off" required />
         <p v-if="saved" role="status" class="text-sm text-ink-gray-9">{{ t('dms.account.saved') }}</p>
-        <Button variant="solid" theme="gray" class="pn-primary" type="submit" :loading="busy" :disabled="!portal && (!username.trim() || !password)">
-          {{ t(portal ? 'dms.account.open' : 'dms.account.save') }}
+        <Button variant="solid" theme="gray" class="pn-primary" type="submit" :loading="busy" :disabled="!username.trim() || !password">
+          {{ t('dms.account.save') }}
         </Button>
       </form>
     </section>

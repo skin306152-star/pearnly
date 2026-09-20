@@ -7,18 +7,18 @@
 状态只有两个：`collecting`（集料）→ `reviewing`（候审）。会话态存在
 `Pearnly LINE Session`（见 `pearnly_core/line_session.py`）。
 
-### 三处与老产品的**已标出的差异**（都是"那块还没搬"，不是重新设计规则）
+### 三条支线都已接线（曾经标过"未搬"，2026-09-21 复核后改正）
 
-1. **菜单层未搬**：老产品建档后会按 `mode` 分叉（菜单1 只建档 / 菜单2 接着订车）。
-   现在统一走"只建档"的收尾；`exact` 且无差异时出"用旧资料"卡（老产品直拍路径的行为）。
-2. **审批流未搬**：老产品有差异且销售无改写权时走"提交审核"。现在按
-   `has_admin` 决定主按钮（有 → 更新；没有 → 提示先配管理员）。**审批策略接上时，
-   这里换回 `exact_diff_card` 即可，其余代码不用动。**
-3. **订车逐问搬完但未接线**：老产品建档后可在 LINE 里接着订车。状态机与它的七个分件
-   都已落地并验过（`dms_booking_qa` / `dms_booking_qa_start|sync|pages|payment|transfer`
-   + `dms_out`），缺的是**入口**：老产品靠菜单层决定"建档之后接着订车"，而菜单层
-   （`menu_cards` / `menu_flow` / `menu_sync`）还没搬。接线之前这一层不会被调用；
-   建单本身也早已搬完并验过（`dms_booking`）。
+这段注释一度写着"菜单层/审批流/订车逐问还没搬"，与代码不符，会误导维护（见
+`docs/work/2026-09-20-ssdnodes-migration.md` 的差异台账）。**现在的实际落点**：
+
+1. **菜单分叉**：`mode` 仍由 `pearnly_dms.menu.menu_flow` 写进会话，建档后的分叉在
+   `menu_flow.after_customer_saved`（`booking`/缺省 → 接着订车；`customer` → 只收尾）。
+2. **审批流**：无改写权且有差异时走 `pearnly_dms.approval.approval_flow.exact_diff_card`
+   （提审 → 管理员批 → **以批准人凭据执行**）。
+3. **订车逐问**：入口就在上面的 `after_customer_saved` → `booking_qa.start`。
+
+`exact` 且无差异时出"用旧资料"卡（老产品直拍路径的行为，未变）。
 
 重活（识别 / DMS 登录 / 写库）一律**丢后台任务**，webhook 不占着回复令牌等它
 （老产品是 spawn 后台 + start_loading + push 结果，同一个思路）。

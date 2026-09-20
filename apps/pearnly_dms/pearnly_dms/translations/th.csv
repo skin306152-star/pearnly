@@ -358,7 +358,7 @@ dms.edit.regisName,ชื่อผู้จดทะเบียน
 dms.edit.remove,ลบ
 dms.edit.road,ถนน
 dms.edit.room,ห้อง
-dms.edit.save,บันทึกและส่งสรุปใหม่
+dms.edit.save,บันทึก
 dms.edit.saved,บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย
 dms.edit.slip,ใบโอนเงินจอง
 dms.edit.slipConflict,มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก

@@ -273,7 +273,9 @@ def recognize_lookup(
             "prefixes": prefixes,
         }
 
-    return run_logged_in(endpoint, _do)
+    # 查重是**整块权威读**：销售的 DMS 账号常常看不到客户档，拿它判会把
+    # "DMS 里明明存在"的客户当成新客户（老产品线上基准 501589f0 这三处都借管理员会话）。
+    return run_logged_in(endpoint, _do, authoritative_read=True)
 
 
 def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
@@ -291,7 +293,8 @@ def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
             "prefixes": cl.list_prefixes(),
         }
 
-    return run_logged_in(endpoint, _do)
+    # 按客户号直读属于权威读：销售读不到时不能把"读不到"当成"这个客户没资料"。
+    return run_logged_in(endpoint, _do, authoritative_read=True)
 
 
 def geo_options(endpoint: Any, *, level: str, parent_id: str = "") -> Dict[str, Any]:
@@ -300,7 +303,8 @@ def geo_options(endpoint: Any, *, level: str, parent_id: str = "") -> Dict[str, 
     def _do(cl, adapter):
         return {"ok": True, "options": cl.list_geo(level, parent_id)}
 
-    return run_logged_in(endpoint, _do)
+    # 级联是建档表单的选项来源，同样按权威视图读（未配管理员即原样用销售会话）。
+    return run_logged_in(endpoint, _do, authoritative_read=True)
 
 
 def push_idcard_fields(
