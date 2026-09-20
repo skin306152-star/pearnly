@@ -16,7 +16,7 @@ def main():
     sites.mkdir(exist_ok=True)
     marker = sites / ".cowork-backend-lab"
     allowed = {"cowork-backend-a.localhost", "cowork-backend-b.localhost",
-               "cowork-backend-fresh.localhost"}
+               "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
     existing = {p.parent.name for p in sites.glob("*/site_config.json")}
     if existing - allowed or (existing and not marker.exists()):
         raise SystemExit("Refusing an existing or foreign Site volume")
@@ -46,7 +46,7 @@ def main():
                            pause_scheduler=1, disable_scheduler=1, mute_emails=1)
         site_file.write_text(json.dumps(site_config, indent=2) + "\n")
         subprocess.run(["bench", "--site", name, "migrate"], check=True)
-    print("Cowork backend lab ready; three local Sites, no scheduler or external credentials")
+    print("Cowork backend lab ready; four local Sites, no scheduler or external credentials")
 
 
 if __name__ == "__main__":

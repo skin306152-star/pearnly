@@ -40,7 +40,8 @@
   "source_total",
   "filename",
   "file_hash",
-  "page_count"
+  "page_count",
+  "source_file"
  ],
  "fields": [
   {
@@ -233,6 +234,14 @@
    "fieldtype": "Int",
    "label": "Page Count",
    "read_only": 1
+  },
+  {
+   "fieldname": "source_file",
+   "fieldtype": "Link",
+   "label": "Original File",
+   "options": "Cowork Source File",
+   "read_only": 1,
+   "search_index": 1
   }
  ],
  "permissions": [

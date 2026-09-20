@@ -1122,3 +1122,109 @@ pearnly_cowork	The date reference year is missing. Reload and try again.	缺少�
 pearnly_cowork	The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
 pearnly_cowork	Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません
 pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+pearnly_cowork	A positive source page number is required.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。
+pearnly_cowork	Actor	操作人	ผู้ดำเนินการ	実行者
+pearnly_cowork	Actual Qty	实盘数量	จำนวนที่ตรวจนับจริง	実棚数量
+pearnly_cowork	Barcode	条形码	บาร์โค้ด	バーコード
+pearnly_cowork	Book Qty	账面数量	จำนวนตามบัญชี	帳簿数量
+pearnly_cowork	Closed At	关闭时间	เวลาปิด	クローズ日時
+pearnly_cowork	Closed By	关闭人	ผู้ปิด	クローズしたユーザー
+pearnly_cowork	Count Mode	盘点方式	วิธีตรวจนับ	棚卸方式
+pearnly_cowork	Counted At	盘点时间	เวลาตรวจนับ	棚卸日時
+pearnly_cowork	Counted By	盘点人	ผู้ตรวจนับ	棚卸担当者
+pearnly_cowork	Cowork Source File	Cowork 原始文件	ไฟล์ต้นฉบับ Cowork	Cowork 元ファイル
+pearnly_cowork	Cowork Stocktake	Cowork 库存盘点	ตรวจนับสต็อก Cowork	Cowork 棚卸
+pearnly_cowork	Cowork Stocktake Entry	Cowork 盘点记录	รายการตรวจนับสต็อก Cowork	Cowork 棚卸記録
+pearnly_cowork	Cowork Stocktake Item	Cowork 盘点品项	รายการสินค้าสำหรับตรวจนับ Cowork	Cowork 棚卸品目
+pearnly_cowork	Cowork Stocktake Operation	Cowork 盘点操作记录	บันทึกการดำเนินการตรวจนับ Cowork	Cowork 棚卸操作記録
+pearnly_cowork	Cowork Stocktake Task	Cowork 盘点任务	งานตรวจนับสต็อก Cowork	Cowork 棚卸タスク
+pearnly_cowork	Created By	创建人	ผู้สร้าง	作成者
+pearnly_cowork	Current Json	当前数据（JSON）	ข้อมูลปัจจุบัน (JSON)	現在のデータ（JSON）
+pearnly_cowork	Entry	记录	รายการ	エントリー
+pearnly_cowork	Invalid original filename.	原始文件名无效。	ชื่อไฟล์ต้นฉบับไม่ถูกต้อง	元ファイル名が無効です。
+pearnly_cowork	Invoice References Complete	发票关联已完整	เชื่อมโยงใบแจ้งหนี้ครบแล้ว	請求書の関連付け完了
+pearnly_cowork	Invoice References Fingerprint	发票关联指纹	ลายนิ้วมือการเชื่อมโยงใบแจ้งหนี้	請求書関連付けのフィンガープリント
+pearnly_cowork	Item	项目	รายการ	項目
+pearnly_cowork	Location	位置	ตำแหน่ง	場所
+pearnly_cowork	Native Content Hash	原生文件内容哈希	ค่าแฮชเนื้อหาไฟล์ของระบบ	標準ファイルの内容ハッシュ
+pearnly_cowork	Original SHA-256	原始文件 SHA-256	SHA-256 ของไฟล์ต้นฉบับ	元ファイルの SHA-256
+pearnly_cowork	Original Size	原始文件大小	ขนาดไฟล์ต้นฉบับ	元ファイルサイズ
+pearnly_cowork	Original Type	原始文件类型	ประเภทไฟล์ต้นฉบับ	元ファイルの種類
+pearnly_cowork	Original files can only be changed through the Cowork file service.	只能通过 Cowork 文件服务更改原始文件。	เปลี่ยนแปลงไฟล์ต้นฉบับได้ผ่านบริการไฟล์ Cowork เท่านั้น	元ファイルの変更には Cowork ファイルサービスを使用してください。
+pearnly_cowork	Original files cannot be changed.	原始文件不可更改。	ไม่สามารถเปลี่ยนแปลงไฟล์ต้นฉบับได้	元ファイルは変更できません。
+pearnly_cowork	Original files cannot be deleted while invoice references may exist.	可能仍有关联发票时，不可删除原始文件。	ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่	関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
+pearnly_cowork	Original files cannot be shared separately from their invoices.	原始文件不能与其关联发票分开共享。	ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้	元ファイルを関連する請求書と別に共有することはできません。
+pearnly_cowork	PDF files must contain between 1 and 50 pages.	PDF 文件必须为 1 至 50 页。	ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า	PDF ファイルのページ数は 1～50 ページにしてください。
+pearnly_cowork	Page preview is available only for PDF and image originals.	仅支持 PDF 和图像原件的页面预览。	ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น	ページプレビューは PDF と画像の元ファイルにのみ対応しています。
+pearnly_cowork	Password-protected PDF files cannot be read.	无法读取受密码保护的 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้	パスワードで保護された PDF ファイルは読み取れません。
+pearnly_cowork	Previous Json	更改前数据（JSON）	ข้อมูลก่อนเปลี่ยนแปลง (JSON)	変更前のデータ（JSON）
+pearnly_cowork	Private File	私有文件	ไฟล์ส่วนตัว	非公開ファイル
+pearnly_cowork	Private Storage URL	私有存储地址	URL ที่จัดเก็บส่วนตัว	非公開ストレージ URL
+pearnly_cowork	Product Code	产品编码	รหัสสินค้า	商品コード
+pearnly_cowork	Product Name	产品名称	ชื่อสินค้า	商品名
+pearnly_cowork	Quantity	数量	จำนวน	数量
+pearnly_cowork	Record Id	记录 ID	รหัสรายการ	レコード ID
+pearnly_cowork	Request Json	请求数据（JSON）	ข้อมูลคำขอ (JSON)	リクエストデータ（JSON）
+pearnly_cowork	Select a file to upload.	请选择要上传的文件。	กรุณาเลือกไฟล์ที่จะอัปโหลด	アップロードするファイルを選択してください。
+pearnly_cowork	Source Digest	来源摘要	ค่าแฮชของข้อมูลต้นทาง	元データのダイジェスト
+pearnly_cowork	Source Format	来源格式	รูปแบบข้อมูลต้นทาง	元データの形式
+pearnly_cowork	Task	任务	งาน	タスク
+pearnly_cowork	The PDF file cannot be read.	无法读取该 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF นี้ได้	この PDF ファイルを読み取れません。
+pearnly_cowork	The image file cannot be read.	无法读取该图像文件。	ไม่สามารถอ่านไฟล์รูปภาพนี้ได้	この画像ファイルを読み取れません。
+pearnly_cowork	The original file checksum does not match.	原始文件校验值不匹配。	ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน	元ファイルのチェックサムが一致しません。
+pearnly_cowork	The original file is not ready for page preview.	原始文件尚未准备好，暂时无法预览页面。	ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า	元ファイルのページプレビューはまだ準備できていません。
+pearnly_cowork	The original file reference has changed.	原始文件关联已改变。	การเชื่อมโยงไฟล์ต้นฉบับเปลี่ยนไปแล้ว	元ファイルの参照が変更されています。
+pearnly_cowork	The requested page is not part of this invoice.	请求的页面不属于这张发票。	หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้	指定したページはこの請求書に含まれていません。
+pearnly_cowork	The uploaded file exceeds the 100 MiB limit.	上传文件超过 100 MiB 上限。	ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB	アップロードしたファイルは上限の 100 MiB を超えています。
+pearnly_cowork	The uploaded file is empty.	上传文件为空。	ไฟล์ที่อัปโหลดว่างเปล่า	アップロードしたファイルは空です。
+pearnly_cowork	This file type is not supported.	不支持此文件类型。	ไม่รองรับไฟล์ประเภทนี้	このファイル形式には対応していません。
+pearnly_cowork	This page is too large to preview safely.	该页面尺寸过大，无法安全预览。	หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย	このページは大きすぎるため、安全にプレビューできません。
+pearnly_cowork	Title	标题	ชื่อเรื่อง	タイトル
+pearnly_cowork	Updated At	更新时间	เวลาแก้ไข	更新日時
+pearnly_cowork	Updated By	更新人	ผู้แก้ไข	更新者
+pearnly_cowork	Uploaded By	上传人	ผู้อัปโหลด	アップロードしたユーザー
+pearnly_cowork	Use the Cowork original-file service to access this file.	请通过 Cowork 原始文件服务访问此文件。	กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork	このファイルには Cowork 元ファイルサービスからアクセスしてください。
+pearnly_cowork	Version	版本	เวอร์ชัน	バージョン
+pearnly_cowork	Voided	已作废	ยกเลิกแล้ว	無効化済み
+pearnly_cowork	Warehouse	仓库	คลังสินค้า	倉庫
+pearnly_cowork	active	有效	ใช้งานอยู่	有効
+pearnly_cowork	closed	已关闭	ปิดแล้ว	クローズ済み
+pearnly_cowork	document	文档	เอกสาร	文書
+pearnly_cowork	image	图像	รูปภาพ	画像
+pearnly_cowork	legacy	旧版	ระบบเดิม	旧形式
+pearnly_cowork	pdf	PDF	PDF	PDF
+pearnly_cowork	scan	扫描	สแกน	スキャン
+pearnly_cowork	Row {0}: {1}	第 {0} 行：{1}	แถว {0}: {1}	{0} 行目：{1}
+pearnly_cowork	The uploaded file is empty.	上传文件为空。	ไฟล์ที่อัปโหลดว่างเปล่า	アップロードしたファイルは空です。	ocr.empty_file
+pearnly_cowork	The file exceeds the allowed size.	文件超过允许的大小上限。	ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต	ファイルサイズが上限を超えています。	ocr.file_too_large
+pearnly_cowork	The file size or page metadata is invalid.	文件大小或页数信息无效。	ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง	ファイルサイズまたはページ情報が無効です。	ocr.invalid_input_metadata
+pearnly_cowork	The PDF file cannot be read.	无法读取该 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF นี้ได้	この PDF ファイルを読み取れません。	ocr.invalid_pdf
+pearnly_cowork	The PDF exceeds the allowed page count.	PDF 超过允许的页数上限。	ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต	PDF のページ数が上限を超えています。	ocr.too_many_pages
+pearnly_cowork	This file type is not supported.	不支持此文件类型。	ไม่รองรับไฟล์ประเภทนี้	このファイル形式には対応していません。	ocr.unsupported_format
+pearnly_cowork	A product code or barcode identifies more than one product.	产品编码或条形码对应了多个产品。	รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ	商品コードまたはバーコードが複数の商品に対応しています。	stocktake.ambiguous_code
+pearnly_cowork	Product codes and barcodes must be stored as text.	产品编码和条形码必须以文本格式保存。	รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ	商品コードとバーコードは文字列として保存してください。	stocktake.code_as_text
+pearnly_cowork	Use the stock count workflow to change these records.	请通过盘点流程更改这些记录。	กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก	これらの記録は棚卸の操作から変更してください。	stocktake.dedicated_api_required
+pearnly_cowork	The import contains a repeated product code.	导入数据包含重复的产品编码。	ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ	インポートデータに重複する商品コードがあります。	stocktake.duplicate
+pearnly_cowork	The import contains no product rows.	导入数据中没有产品行。	ข้อมูลนำเข้าไม่มีรายการสินค้า	インポートデータに商品行がありません。	stocktake.empty
+pearnly_cowork	The import columns do not match the stock count template.	导入列与盘点模板不匹配。	คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก	インポートする列が棚卸テンプレートと一致しません。	stocktake.headers_invalid
+pearnly_cowork	Enter a stock count title of 1 to 120 characters.	请输入 1 至 120 个字符的盘点标题。	กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร	棚卸のタイトルを 1～120 文字で入力してください。	stocktake.name_invalid
+pearnly_cowork	The stock count record was not found.	找不到盘点记录。	ไม่พบรายการตรวจนับสต็อก	棚卸記録が見つかりません。	stocktake.not_found
+pearnly_cowork	This operation ID has already been used for another request.	此操作 ID 已用于其他请求。	รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว	この操作 ID は別のリクエストで使用されています。	stocktake.operation_conflict
+pearnly_cowork	Enter a valid quantity with no more than six decimal places.	请输入有效数量，最多保留六位小数。	กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง	有効な数量を小数点以下 6 桁以内で入力してください。	stocktake.quantity_invalid
+pearnly_cowork	The stock count request is invalid. Reload and try again.	盘点请求无效，请重新加载后重试。	คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	棚卸リクエストが無効です。再読み込みしてから再試行してください。	stocktake.request_invalid
+pearnly_cowork	The import row is invalid or has missing required values.	导入行无效或缺少必填值。	แถวนำเข้าไม่ถูกต้องหรือขาดค่าที่จำเป็น	インポート行が無効か、必須項目が不足しています。	stocktake.row_invalid
+pearnly_cowork	The import exceeds the limit of 10,000 rows.	导入数据超过 10,000 行上限。	ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว	インポートデータが上限の 10,000 行を超えています。	stocktake.too_many_rows
+pearnly_cowork	Check the warehouse and location. A warehouse is required.	请检查仓库和位置，仓库为必填项。	กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า	倉庫と場所を確認してください。倉庫は必須です。	stocktake.warehouse_required
+pearnly_cowork	This import request ID has already been used for different content.	此导入请求 ID 已用于不同内容。	รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว	このインポートリクエスト ID は異なる内容で使用されています。	stocktake.import_conflict
+pearnly_cowork	This task uses the previous count format and cannot accept scan entries.	此任务使用旧版盘点格式，不能接收扫描记录。	งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้	このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。	stocktake.legacy_task
+pearnly_cowork	This stock count task is closed.	此盘点任务已关闭。	งานตรวจนับสต็อกนี้ปิดแล้ว	この棚卸タスクはクローズ済みです。	stocktake.closed
+pearnly_cowork	This count entry has changed. Refresh it and try again.	此盘点记录已更改，请刷新后重试。	รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง	この棚卸記録は変更されています。再読み込みしてから再試行してください。	stocktake.conflict
+pearnly_cowork	An original file is already stored for this source.	此来源已保存原始文件。	ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว	この参照元には既に元ファイルが保存されています。
+pearnly_cowork	Bound Invoice Records	已关联发票记录	รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว	関連付け済みの請求書記録
+pearnly_cowork	Invalid recognized invoice group.	识别出的发票分组无效。	กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง	認識した請求書グループが無効です。
+pearnly_cowork	Invoice pages do not match the original page references.	发票页面与原件页码关联不一致。	หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง	請求書のページが元ファイルの参照ページと一致しません。
+pearnly_cowork	Original File	原始文件	ไฟล์ต้นฉบับ	元ファイル
+pearnly_cowork	The original file already has a completed invoice manifest.	此原始文件已完成发票关联。	ไฟล์ต้นฉบับนี้เชื่อมโยงใบแจ้งหนี้ครบแล้ว	この元ファイルの請求書関連付けは既に完了しています。
+pearnly_cowork	The original invoice manifest is incomplete.	原始文件的发票关联清单不完整。	รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน	元ファイルの請求書関連付け一覧が不完全です。
+pearnly_cowork	Stock count photos are not yet supported. Remove the photos before saving.	盘点照片尚未接入，请先移除照片后保存。	ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก	棚卸写真にはまだ対応していません。写真を削除してから保存してください。	stocktake.photos_not_supported
+pearnly_cowork	Select valid files to download.	请选择有效文件进行下载。	กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด	ダウンロードする有効なファイルを選択してください。

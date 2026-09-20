@@ -15,7 +15,7 @@ _CREATE_TOKEN = object()
 _UPDATE_TOKEN = object()
 IMMUTABLE = ("workspace", "client", "source", "request_key", "request_fingerprint",
              "ai_raw", "confidence", "posting_kind", "source_pdf_id", "source_page_indices",
-             "source_index", "source_total", "filename", "file_hash", "page_count")
+             "source_index", "source_total", "filename", "file_hash", "page_count", "source_file")
 SUMMARY_FIELDS = ("invoice_no", "invoice_date", "seller_name", "total_amount")
 
 
@@ -93,6 +93,13 @@ def validate_document(doc):
     doc.quality_status = list_status(doc.confidence, summary)
 
 
+def guard_write(doc):
+    token = _CREATE_TOKEN if doc.is_new() else _UPDATE_TOKEN
+    actual = doc.flags.cowork_history_create if doc.is_new() else doc.flags.cowork_history_update
+    if actual is not token:
+        frappe.throw(_("Update invoice records through the Cowork review service."))
+
+
 def create_manual(workspace, pages, request_key, client=None):
     # A caller-entered page is not an OCR result. Only a trusted recognition
     # workflow may set source/confidence/first-model evidence.
@@ -115,13 +122,15 @@ def create_recognized(workspace, pages, request_key, *, source, confidence, ai_r
     return _create(workspace, body, request_key, client)
 
 
-def _create(workspace, body, request_key, client=None):
+def _create(workspace, body, request_key, client=None, *, attachment=None):
     scope.require("intake")
     scope.require_scope(workspace, client)
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
-    fingerprint = hashlib.sha256(encode({"workspace": workspace, "client": client or None,
-                                       "body": body}).encode()).hexdigest()
+    identity = {"workspace": workspace, "client": client or None, "body": body}
+    if attachment:
+        identity["attachment"] = attachment
+    fingerprint = hashlib.sha256(encode(identity).encode()).hexdigest()
     key = hashlib.sha256(encode([workspace, frappe.session.user, request_key]).encode()).hexdigest()
     name = "CWH-" + key[:48]
     if frappe.db.exists(DOCTYPE, name):
@@ -133,6 +142,8 @@ def _create(workspace, body, request_key, client=None):
                           "request_key": key, "request_fingerprint": fingerprint,
                           "page_count": len(body["pages"]),
                           "source_page_indices": encode(body["source_page_indices"])})
+    if attachment:
+        doc.update(attachment)
     doc.flags.cowork_history_create = _CREATE_TOKEN
     frappe.db.savepoint("cowork_create")
     try:
@@ -166,7 +177,7 @@ def project(doc):
         "name", "workspace", "client", "source", "staged", "record_version",
         "confidence", "quality_status", "posting_kind", *SUMMARY_FIELDS,
         "edit_count", "fields_edited_at", "confirmed_by", "confirmed_at",
-        "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count")}
+        "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count")}
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)

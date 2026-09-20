@@ -272,10 +272,32 @@ permission_query_conditions = {
     "Cowork Workspace": "pearnly_cowork.access.scope.workspace_query",
     "Cowork Client": "pearnly_cowork.access.scope.client_query",
     "Cowork OCR History": "pearnly_cowork.access.scope.history_query",
+    "Cowork Source File": "pearnly_cowork.files.access.source_query",
+    "File": "pearnly_cowork.files.access.file_query",
+    "Cowork Stocktake Task": "pearnly_cowork.stocktake.access.task_query",
+    "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.item_query",
+    "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.entry_query",
+    "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.operation_query",
 }
 has_permission = {
     "Cowork Workspace": "pearnly_cowork.access.scope.workspace_permission",
     "Cowork Client": "pearnly_cowork.access.scope.client_permission",
     "Cowork OCR History": "pearnly_cowork.access.scope.history_permission",
+    "Cowork Source File": "pearnly_cowork.files.access.source_permission",
+    "File": "pearnly_cowork.files.access.file_permission",
+    "Cowork Stocktake Task": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.has_permission",
 }
-doc_events = {"DocShare": {"validate": "pearnly_cowork.access.scope.reject_share"}}
+doc_events = {"DocShare": {
+    "before_validate": ["pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share"],
+    "validate": ["pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share"],
+}}
+extend_doctype_class = {"File": ["pearnly_cowork.files.guard.CoworkFileGuard"]}
+after_request = ["pearnly_cowork.files.api.protect_response"]
+override_whitelisted_methods = {
+    "frappe.core.api.file.zip_files": "pearnly_cowork.files.api.guarded_zip_files",
+}

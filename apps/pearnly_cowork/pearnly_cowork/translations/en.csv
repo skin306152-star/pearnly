@@ -2,59 +2,136 @@ A client cannot be moved to another company.,A client cannot be moved to another
 A completed record cannot become a draft.,A completed record cannot become a draft.
 A name is required.,A name is required.
 A positive record revision is required.,A positive record revision is required.
+A positive source page number is required.,A positive source page number is required.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
+Actor,Actor
+Actual Qty,Actual Qty
+An original file is already stored for this source.,An original file is already stored for this source.
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
+Barcode,Barcode
+Book Qty,Book Qty
+Bound Invoice Records,Bound Invoice Records
 Buyer Client,Buyer Client
+Closed At,Closed At
+Closed By,Closed By
 Company,Company
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
+Count Mode,Count Mode
+Counted At,Counted At
+Counted By,Counted By
 Cowork Client,Cowork Client
 Cowork Master Data,Cowork Master Data
 Cowork OCR History,Cowork OCR History
+Cowork Source File,Cowork Source File
+Cowork Stocktake,Cowork Stocktake
+Cowork Stocktake Entry,Cowork Stocktake Entry
+Cowork Stocktake Item,Cowork Stocktake Item
+Cowork Stocktake Operation,Cowork Stocktake Operation
+Cowork Stocktake Task,Cowork Stocktake Task
 Cowork Workspace,Cowork Workspace
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
+Created By,Created By
+Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Draft,Draft
 Duplicate records are not allowed.,Duplicate records are not allowed.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Edit Count,Edit Count
+Entry,Entry
 File Hash,File Hash
 First Recognition Snapshot,First Recognition Snapshot
+Invalid original filename.,Invalid original filename.
+Invalid recognized invoice group.,Invalid recognized invoice group.
 Invoice Count,Invoice Count
 Invoice Date,Invoice Date
 Invoice Index,Invoice Index
 Invoice Number,Invoice Number
 Invoice Pages,Invoice Pages
+Invoice References Complete,Invoice References Complete
+Invoice References Fingerprint,Invoice References Fingerprint
 Invoice Total,Invoice Total
+Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
+Item,Item
 Last Fields Edit (UTC),Last Fields Edit (UTC)
+Location,Location
+Native Content Hash,Native Content Hash
 New records must start as drafts.,New records must start as drafts.
 Not Permitted,Not Permitted
+Original File,Original File
 Original Filename,Original Filename
+Original SHA-256,Original SHA-256
+Original Size,Original Size
+Original Type,Original Type
 Original evidence and ownership cannot be changed.,Original evidence and ownership cannot be changed.
+Original files can only be changed through the Cowork file service.,Original files can only be changed through the Cowork file service.
+Original files cannot be changed.,Original files cannot be changed.
+Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
+Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
+PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
 Page Count,Page Count
+Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
+Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Pearnly Cowork,Pearnly Cowork
 Posting Kind,Posting Kind
+Previous Json,Previous Json
+Private File,Private File
+Private Storage URL,Private Storage URL
+Product Code,Product Code
+Product Name,Product Name
+Quantity,Quantity
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
+Record Id,Record Id
 Record Revision,Record Revision
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Request Fingerprint,Request Fingerprint
+Request Json,Request Json
 Request Key,Request Key
+Row {0}: {1},Row {0}: {1}
+Select a file to upload.,Select a file to upload.
 Select between 1 and 500 records.,Select between 1 and 500 records.
+Select valid files to download.,Select valid files to download.
 Seller Name,Seller Name
+Source Digest,Source Digest
+Source Format,Source Format
 Source PDF ID,Source PDF ID
 Source Page Indices,Source Page Indices
+Task,Task
 Tax ID,Tax ID
+The PDF file cannot be read.,The PDF file cannot be read.
+The image file cannot be read.,The image file cannot be read.
+The original file already has a completed invoice manifest.,The original file already has a completed invoice manifest.
+The original file checksum does not match.,The original file checksum does not match.
+The original file is not ready for page preview.,The original file is not ready for page preview.
+The original file reference has changed.,The original file reference has changed.
+The original invoice manifest is incomplete.,The original invoice manifest is incomplete.
 The record changed. Reload it before saving.,The record changed. Reload it before saving.
+The requested page is not part of this invoice.,The requested page is not part of this invoice.
+The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
+The uploaded file is empty.,The uploaded file is empty.
+This file type is not supported.,This file type is not supported.
+This page is too large to preview safely.,This page is too large to preview safely.
 This request key has already been used for different content.,This request key has already been used for different content.
+Title,Title
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
+Updated At,Updated At
+Updated By,Updated By
+Uploaded By,Uploaded By
+Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
+Version,Version
+Voided,Voided
+Warehouse,Warehouse
+active,active
+closed,closed
 confirmed,Confirmed
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review
 cowork_line,Cowork LINE
+document,document
 failed,Failed
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.
@@ -67,8 +144,37 @@ history.page_index_invalid,The source page number must be a positive integer.
 history.pages_invalid,The invoice page data has an invalid format.
 history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
+image,image
+legacy,legacy
 manual,Manual
+ocr.empty_file,The uploaded file is empty.
+ocr.file_too_large,The file exceeds the allowed size.
+ocr.invalid_input_metadata,The file size or page metadata is invalid.
+ocr.invalid_pdf,The PDF file cannot be read.
+ocr.too_many_pages,The PDF exceeds the allowed page count.
+ocr.unsupported_format,This file type is not supported.
+pdf,pdf
 pending,Pending
+scan,scan
 service,Service
 stock,Stock
+stocktake.ambiguous_code,A product code or barcode identifies more than one product.
+stocktake.closed,This stock count task is closed.
+stocktake.code_as_text,Product codes and barcodes must be stored as text.
+stocktake.conflict,This count entry has changed. Refresh it and try again.
+stocktake.dedicated_api_required,Use the stock count workflow to change these records.
+stocktake.duplicate,The import contains a repeated product code.
+stocktake.empty,The import contains no product rows.
+stocktake.headers_invalid,The import columns do not match the stock count template.
+stocktake.import_conflict,This import request ID has already been used for different content.
+stocktake.legacy_task,This task uses the previous count format and cannot accept scan entries.
+stocktake.name_invalid,Enter a stock count title of 1 to 120 characters.
+stocktake.not_found,The stock count record was not found.
+stocktake.operation_conflict,This operation ID has already been used for another request.
+stocktake.photos_not_supported,Stock count photos are not yet supported. Remove the photos before saving.
+stocktake.quantity_invalid,Enter a valid quantity with no more than six decimal places.
+stocktake.request_invalid,The stock count request is invalid. Reload and try again.
+stocktake.row_invalid,The import row is invalid or has missing required values.
+stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
+stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
 summary_table_batch,Summary table import

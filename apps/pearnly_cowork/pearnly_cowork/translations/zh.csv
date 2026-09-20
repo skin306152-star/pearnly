@@ -2,59 +2,136 @@ A client cannot be moved to another company.,客户不能转移到另一家公�
 A completed record cannot become a draft.,已完成的记录不能改回草稿。
 A name is required.,请填写名称。
 A positive record revision is required.,记录版本必须是正整数。
+A positive source page number is required.,源文件页码必须是正整数。
 A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 个字符。
+Actor,操作人
+Actual Qty,实盘数量
+An original file is already stored for this source.,此来源已保存原始文件。
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
+Barcode,条形码
+Book Qty,账面数量
+Bound Invoice Records,已关联发票记录
 Buyer Client,买方客户
+Closed At,关闭时间
+Closed By,关闭人
 Company,公司
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
+Count Mode,盘点方式
+Counted At,盘点时间
+Counted By,盘点人
 Cowork Client,Cowork 买方客户
 Cowork Master Data,Cowork 主数据
 Cowork OCR History,Cowork 识别记录
+Cowork Source File,Cowork 原始文件
+Cowork Stocktake,Cowork 库存盘点
+Cowork Stocktake Entry,Cowork 盘点记录
+Cowork Stocktake Item,Cowork 盘点品项
+Cowork Stocktake Operation,Cowork 盘点操作记录
+Cowork Stocktake Task,Cowork 盘点任务
 Cowork Workspace,Cowork 公司账套
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
+Created By,创建人
+Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
 Draft,草稿
 Duplicate records are not allowed.,不能重复选择同一条记录。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
 Edit Count,修改次数
+Entry,记录
 File Hash,文件哈希值
 First Recognition Snapshot,首次识别快照
+Invalid original filename.,原始文件名无效。
+Invalid recognized invoice group.,识别出的发票分组无效。
 Invoice Count,发票数量
 Invoice Date,发票日期
 Invoice Index,发票序号
 Invoice Number,发票号码
 Invoice Pages,发票页面
+Invoice References Complete,发票关联已完整
+Invoice References Fingerprint,发票关联指纹
 Invoice Total,发票总额
+Invoice pages do not match the original page references.,发票页面与原件页码关联不一致。
+Item,项目
 Last Fields Edit (UTC),最近字段修改时间（UTC）
+Location,位置
+Native Content Hash,原生文件内容哈希
 New records must start as drafts.,新记录必须先保存为草稿。
 Not Permitted,没有权限
+Original File,原始文件
 Original Filename,原始文件名
+Original SHA-256,原始文件 SHA-256
+Original Size,原始文件大小
+Original Type,原始文件类型
 Original evidence and ownership cannot be changed.,原始凭据及归属不能修改。
+Original files can only be changed through the Cowork file service.,只能通过 Cowork 文件服务更改原始文件。
+Original files cannot be changed.,原始文件不可更改。
+Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
+Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
+PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
 Page Count,页数
+Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
+Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Pearnly Cowork,Pearnly Cowork
 Posting Kind,过账类型
+Previous Json,更改前数据（JSON）
+Private File,私有文件
+Private Storage URL,私有存储地址
+Product Code,产品编码
+Product Name,产品名称
+Quantity,数量
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
+Record Id,记录 ID
 Record Revision,记录版本
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Request Fingerprint,请求内容指纹
+Request Json,请求数据（JSON）
 Request Key,请求标识
+Row {0}: {1},第 {0} 行：{1}
+Select a file to upload.,请选择要上传的文件。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
+Select valid files to download.,请选择有效文件进行下载。
 Seller Name,卖方名称
+Source Digest,来源摘要
+Source Format,来源格式
 Source PDF ID,来源 PDF 标识
 Source Page Indices,源文件页码
+Task,任务
 Tax ID,纳税人识别号
+The PDF file cannot be read.,无法读取该 PDF 文件。
+The image file cannot be read.,无法读取该图像文件。
+The original file already has a completed invoice manifest.,此原始文件已完成发票关联。
+The original file checksum does not match.,原始文件校验值不匹配。
+The original file is not ready for page preview.,原始文件尚未准备好，暂时无法预览页面。
+The original file reference has changed.,原始文件关联已改变。
+The original invoice manifest is incomplete.,原始文件的发票关联清单不完整。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
+The requested page is not part of this invoice.,请求的页面不属于这张发票。
+The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
+The uploaded file is empty.,上传文件为空。
+This file type is not supported.,不支持此文件类型。
+This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
 This request key has already been used for different content.,此请求标识已用于其他内容。
+Title,标题
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
+Updated At,更新时间
+Updated By,更新人
+Uploaded By,上传人
+Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
+Version,版本
+Voided,已作废
+Warehouse,仓库
+active,有效
+closed,已关闭
 confirmed,已确认
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核
 cowork_line,Cowork LINE
+document,文档
 failed,失败
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
@@ -67,8 +144,37 @@ history.page_index_invalid,源文件页码必须是正整数。
 history.pages_invalid,发票页面数据格式不正确。
 history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
+image,图像
+legacy,旧版
 manual,手工
+ocr.empty_file,上传文件为空。
+ocr.file_too_large,文件超过允许的大小上限。
+ocr.invalid_input_metadata,文件大小或页数信息无效。
+ocr.invalid_pdf,无法读取该 PDF 文件。
+ocr.too_many_pages,PDF 超过允许的页数上限。
+ocr.unsupported_format,不支持此文件类型。
+pdf,PDF
 pending,待处理
+scan,扫描
 service,服务
 stock,库存
+stocktake.ambiguous_code,产品编码或条形码对应了多个产品。
+stocktake.closed,此盘点任务已关闭。
+stocktake.code_as_text,产品编码和条形码必须以文本格式保存。
+stocktake.conflict,此盘点记录已更改，请刷新后重试。
+stocktake.dedicated_api_required,请通过盘点流程更改这些记录。
+stocktake.duplicate,导入数据包含重复的产品编码。
+stocktake.empty,导入数据中没有产品行。
+stocktake.headers_invalid,导入列与盘点模板不匹配。
+stocktake.import_conflict,此导入请求 ID 已用于不同内容。
+stocktake.legacy_task,此任务使用旧版盘点格式，不能接收扫描记录。
+stocktake.name_invalid,请输入 1 至 120 个字符的盘点标题。
+stocktake.not_found,找不到盘点记录。
+stocktake.operation_conflict,此操作 ID 已用于其他请求。
+stocktake.photos_not_supported,盘点照片尚未接入，请先移除照片后保存。
+stocktake.quantity_invalid,请输入有效数量，最多保留六位小数。
+stocktake.request_invalid,盘点请求无效，请重新加载后重试。
+stocktake.row_invalid,导入行无效或缺少必填值。
+stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
+stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
 summary_table_batch,汇总表导入

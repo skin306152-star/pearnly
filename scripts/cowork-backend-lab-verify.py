@@ -16,15 +16,17 @@ from unittest.mock import patch
 
 import frappe
 
-SITE = "cowork-backend-a.localhost"
-OTHER_SITE = "cowork-backend-b.localhost"
+SITE = os.environ.get("PEARNLY_COWORK_TEST_SITE", "cowork-backend-a.localhost")
+ALLOWED_SITES = {"cowork-backend-a.localhost", "cowork-backend-b.localhost",
+                 "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
+OTHER_SITE = "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
 
 
 def connect(site=SITE):
     if os.environ.get("PEARNLY_COWORK_BACKEND_LAB") != "1":
         raise SystemExit("Dedicated lab environment required")
-    if site not in {SITE, OTHER_SITE} or not (SITE_ROOT / ".cowork-backend-lab").is_file():
+    if site not in ALLOWED_SITES or not (SITE_ROOT / ".cowork-backend-lab").is_file():
         raise SystemExit("Dedicated lab Site marker required")
     os.chdir(SITE_ROOT)
     frappe.init(site=site, sites_path=str(SITE_ROOT))
@@ -53,7 +55,9 @@ def grant(user_name, doctype, name):
 
 
 def snapshot():
-    tables = ("Cowork Workspace", "Cowork Client", "Cowork OCR History", "User Permission")
+    tables = ("Cowork Workspace", "Cowork Client", "Cowork OCR History", "User Permission",
+              "Cowork Source File", "Cowork Stocktake Task", "Cowork Stocktake Item",
+              "Cowork Stocktake Entry", "Cowork Stocktake Operation")
     state = {table: frappe.get_all(table, fields=["*"], order_by="name", limit_page_length=0)
              for table in tables}
     state["users"] = frappe.get_all("User", filters={"name": ["like", "cw-%@example.invalid"]},
@@ -61,6 +65,10 @@ def snapshot():
         limit_page_length=0)
     state["roles"] = frappe.get_all("Has Role", filters={"parent": ["like", "cw-%@example.invalid"]},
         fields=["parent", "role"], order_by="parent, role", limit_page_length=0)
+    from pearnly_cowork.files.service import read_bytes
+    state["source_bytes"] = [{"source": row.name, "sha256": hashlib.sha256(read_bytes(
+        frappe.get_doc("Cowork Source File", row.name))).hexdigest()}
+        for row in state["Cowork Source File"]]
     digest = hashlib.sha256(json.dumps(state, ensure_ascii=False, sort_keys=True,
                                        default=str).encode()).hexdigest()
     return {"site": SITE, "sha256": digest, "counts": {key: len(value) for key, value in state.items()}}

@@ -2,59 +2,136 @@ A client cannot be moved to another company.,ไม่สามารถย้�
 A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
 A name is required.,กรุณาระบุชื่อ
 A positive record revision is required.,รุ่นของรายการต้องเป็นจำนวนเต็มบวก
+A positive source page number is required.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 A request key of 1 to 128 characters is required.,รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ
+Actor,ผู้ดำเนินการ
+Actual Qty,จำนวนที่ตรวจนับจริง
+An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
+Barcode,บาร์โค้ด
+Book Qty,จำนวนตามบัญชี
+Bound Invoice Records,รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว
 Buyer Client,ลูกค้าผู้ซื้อ
+Closed At,เวลาปิด
+Closed By,ผู้ปิด
 Company,บริษัท
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
+Count Mode,วิธีตรวจนับ
+Counted At,เวลาตรวจนับ
+Counted By,ผู้ตรวจนับ
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Master Data,Cowork ข้อมูลหลัก
 Cowork OCR History,Cowork ประวัติการอ่านเอกสาร
+Cowork Source File,ไฟล์ต้นฉบับ Cowork
+Cowork Stocktake,ตรวจนับสต็อก Cowork
+Cowork Stocktake Entry,รายการตรวจนับสต็อก Cowork
+Cowork Stocktake Item,รายการสินค้าสำหรับตรวจนับ Cowork
+Cowork Stocktake Operation,บันทึกการดำเนินการตรวจนับ Cowork
+Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
+Created By,ผู้สร้าง
+Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Draft,ฉบับร่าง
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
 Edit Count,จำนวนครั้งที่แก้ไข
+Entry,รายการ
 File Hash,ค่าแฮชของไฟล์
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
+Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
+Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
 Invoice Count,จำนวนใบแจ้งหนี้
 Invoice Date,วันที่ใบแจ้งหนี้
 Invoice Index,ลำดับใบแจ้งหนี้
 Invoice Number,เลขที่ใบแจ้งหนี้
 Invoice Pages,หน้าใบแจ้งหนี้
+Invoice References Complete,เชื่อมโยงใบแจ้งหนี้ครบแล้ว
+Invoice References Fingerprint,ลายนิ้วมือการเชื่อมโยงใบแจ้งหนี้
 Invoice Total,ยอดรวมใบแจ้งหนี้
+Invoice pages do not match the original page references.,หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง
+Item,รายการ
 Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
+Location,ตำแหน่ง
+Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 Not Permitted,ไม่ได้รับอนุญาต
+Original File,ไฟล์ต้นฉบับ
 Original Filename,ชื่อไฟล์ต้นฉบับ
+Original SHA-256,SHA-256 ของไฟล์ต้นฉบับ
+Original Size,ขนาดไฟล์ต้นฉบับ
+Original Type,ประเภทไฟล์ต้นฉบับ
 Original evidence and ownership cannot be changed.,ไม่สามารถแก้ไขหลักฐานต้นฉบับและข้อมูลเจ้าของได้
+Original files can only be changed through the Cowork file service.,เปลี่ยนแปลงไฟล์ต้นฉบับได้ผ่านบริการไฟล์ Cowork เท่านั้น
+Original files cannot be changed.,ไม่สามารถเปลี่ยนแปลงไฟล์ต้นฉบับได้
+Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
+Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
+PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
 Page Count,จำนวนหน้า
+Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
+Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Pearnly Cowork,Pearnly Cowork
 Posting Kind,ประเภทการผ่านรายการ
+Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
+Private File,ไฟล์ส่วนตัว
+Private Storage URL,URL ที่จัดเก็บส่วนตัว
+Product Code,รหัสสินค้า
+Product Name,ชื่อสินค้า
+Quantity,จำนวน
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
+Record Id,รหัสรายการ
 Record Revision,รุ่นของรายการ
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Request Fingerprint,ลายนิ้วมือข้อมูลคำขอ
+Request Json,ข้อมูลคำขอ (JSON)
 Request Key,รหัสคำขอ
+Row {0}: {1},แถว {0}: {1}
+Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
+Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
 Seller Name,ชื่อผู้ขาย
+Source Digest,ค่าแฮชของข้อมูลต้นทาง
+Source Format,รูปแบบข้อมูลต้นทาง
 Source PDF ID,รหัส PDF ต้นฉบับ
 Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบับ
+Task,งาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
+The PDF file cannot be read.,ไม่สามารถอ่านไฟล์ PDF นี้ได้
+The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
+The original file already has a completed invoice manifest.,ไฟล์ต้นฉบับนี้เชื่อมโยงใบแจ้งหนี้ครบแล้ว
+The original file checksum does not match.,ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน
+The original file is not ready for page preview.,ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า
+The original file reference has changed.,การเชื่อมโยงไฟล์ต้นฉบับเปลี่ยนไปแล้ว
+The original invoice manifest is incomplete.,รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน
 The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
+The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้
+The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
+The uploaded file is empty.,ไฟล์ที่อัปโหลดว่างเปล่า
+This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
+This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
 This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
+Title,ชื่อเรื่อง
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
+Updated At,เวลาแก้ไข
+Updated By,ผู้แก้ไข
+Uploaded By,ผู้อัปโหลด
+Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
+Version,เวอร์ชัน
+Voided,ยกเลิกแล้ว
+Warehouse,คลังสินค้า
+active,ใช้งานอยู่
+closed,ปิดแล้ว
 confirmed,ยืนยันแล้ว
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 cowork.quality.pending,รอตรวจสอบ
 cowork_line,Cowork LINE
+document,เอกสาร
 failed,ล้มเหลว
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -67,8 +144,37 @@ history.page_index_invalid,หมายเลขหน้าไฟล์ต้�
 history.pages_invalid,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
 history.source_invalid,ไม่รองรับแหล่งที่มาของรายการนี้
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
+image,รูปภาพ
+legacy,ระบบเดิม
 manual,กรอกเอง
+ocr.empty_file,ไฟล์ที่อัปโหลดว่างเปล่า
+ocr.file_too_large,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
+ocr.invalid_input_metadata,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
+ocr.invalid_pdf,ไม่สามารถอ่านไฟล์ PDF นี้ได้
+ocr.too_many_pages,ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต
+ocr.unsupported_format,ไม่รองรับไฟล์ประเภทนี้
+pdf,PDF
 pending,รอดำเนินการ
+scan,สแกน
 service,บริการ
 stock,สต็อก
+stocktake.ambiguous_code,รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ
+stocktake.closed,งานตรวจนับสต็อกนี้ปิดแล้ว
+stocktake.code_as_text,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
+stocktake.conflict,รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง
+stocktake.dedicated_api_required,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
+stocktake.duplicate,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
+stocktake.empty,ข้อมูลนำเข้าไม่มีรายการสินค้า
+stocktake.headers_invalid,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
+stocktake.import_conflict,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
+stocktake.legacy_task,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
+stocktake.name_invalid,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
+stocktake.not_found,ไม่พบรายการตรวจนับสต็อก
+stocktake.operation_conflict,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
+stocktake.photos_not_supported,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
+stocktake.quantity_invalid,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
+stocktake.request_invalid,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
+stocktake.row_invalid,แถวนำเข้าไม่ถูกต้องหรือขาดค่าที่จำเป็น
+stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
+stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 summary_table_batch,นำเข้าตารางสรุป

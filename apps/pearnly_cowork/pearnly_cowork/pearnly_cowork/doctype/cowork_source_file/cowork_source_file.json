@@ -1,0 +1,161 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Source File",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "allow_rename": 0,
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1
+  },
+  {
+   "role": "Cowork Intake",
+   "read": 1
+  },
+  {
+   "role": "Cowork OCR History",
+   "read": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Company",
+   "read_only": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "label": "Buyer Client",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "filename",
+   "fieldtype": "Data",
+   "label": "Original Filename",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "kind",
+   "fieldtype": "Select",
+   "label": "Original Type",
+   "read_only": 1,
+   "options": "pdf\nimage\ndocument"
+  },
+  {
+   "fieldname": "uploaded_by",
+   "fieldtype": "Link",
+   "label": "Uploaded By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "page_count",
+   "fieldtype": "Int",
+   "label": "Page Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "byte_size",
+   "fieldtype": "Int",
+   "label": "Original Size",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sha256",
+   "fieldtype": "Data",
+   "label": "Original SHA-256",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "stored_file",
+   "fieldtype": "Link",
+   "label": "Private File",
+   "read_only": 1,
+   "options": "File",
+   "hidden": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "storage_url",
+   "fieldtype": "Code",
+   "label": "Private Storage URL",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "length": 255,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_fingerprint",
+   "fieldtype": "Data",
+   "label": "Request Fingerprint",
+   "read_only": 1,
+   "length": 255,
+   "hidden": 1
+  },
+  {
+   "fieldname": "native_content_hash",
+   "fieldtype": "Data",
+   "label": "Native Content Hash",
+   "hidden": 1,
+   "read_only": 1,
+   "length": 32,
+   "search_index": 1
+  },
+  {
+   "fieldname": "binding_complete",
+   "fieldtype": "Check",
+   "label": "Invoice References Complete",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "binding_fingerprint",
+   "fieldtype": "Data",
+   "label": "Invoice References Fingerprint",
+   "hidden": 1,
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "binding_records",
+   "fieldtype": "Code",
+   "options": "JSON",
+   "label": "Bound Invoice Records",
+   "hidden": 1,
+   "read_only": 1
+  }
+ ],
+ "field_order": [
+  "workspace",
+  "client",
+  "filename",
+  "kind",
+  "uploaded_by",
+  "page_count",
+  "byte_size",
+  "sha256",
+  "stored_file",
+  "storage_url",
+  "request_key",
+  "request_fingerprint",
+  "native_content_hash",
+  "binding_complete",
+  "binding_fingerprint",
+  "binding_records"
+ ]
+}

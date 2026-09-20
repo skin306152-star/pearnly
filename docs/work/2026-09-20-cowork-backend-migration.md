@@ -45,10 +45,10 @@
 | 层 | 当前状态 |
 | --- | --- |
 | 开工来源版本 | Web / Worker 已现场核对；WeKan / Companion 的独立运行来源待补 |
-| 实现 | 第一批录入/复核/完成/历史原生后端闭环已实现；其余模块见缺口表 |
-| 架构 / 离线 / 真实 Site | 架构0违规；90个离线测试；21个真实Site用例；原生WSGI API通过 |
+| 实现 | 录入/复核/完成/历史、原件与物理页读取、盘点原生后端已实现；OCR供应商和其它模块仍有缺口 |
+| 架构 / 离线 / 真实 Site | 架构0违规；106个Cowork离线测试；55个真实Site用例；history/files/stocktake 原生WSGI API通过 |
 | 前端接入 / 浏览器验收 | 按用户要求暂不实施 |
-| CI / 合并 / 推送 | 未执行 |
+| CI / 合并 / 推送 | 主线8f1851f已单向合入任务分支；未合回主目录，未推送，未运行CI |
 | 部署 / 外部写入 / 真机 / 用户验收 | 未执行，不在本次默认授权中 |
 
 交付前重新读取旧线上身份。若相关源码或配置变化，补齐增量并重验。新仓 SHA、候选源码挂载、安装升级及重复迁移结果、未覆盖项随本记录更新；不把模拟出口当真实外部成功。
@@ -103,3 +103,45 @@ python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/ev
 这些测试在本地专有卷创建合成记录，不能对真实租户执行；HTTP测试是进程内WSGI请求，不访问外网。验证结束停止本任务三个容器以释放内存，保留工作树、证据和本任务数据卷，便于继续；未停止其它窗口的任何容器。
 
 本批实现已本地提交为 `10f7ef449db036d06ca2f477893183aedaf46463`，共享暂存快照钩子通过。收尾发现其它窗口已将主线推进到 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a`（开户、DMS、侧栏修复）；本任务未回退或改写它。当前验证仍绑定本任务原基线及本批提交，**尚未验证与最新主线合并后的组合**。后续合并须保留双方术语表增量，并按共享配置/身份影响补定向回归。主目录和本任务工作树最后检查均无未提交改动（本记录收尾提交后再核对）。
+
+
+## 第二批后端检查点（2026-09-21）
+
+用户要求继续。本批先将主线 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a` 合入独立任务分支，合并提交 `f409bce560df11f78ee5fc7908e71129c4e37a36`；术语表唯一冲突保留双方新增项。主目录及其他任务分支/容器未修改。收尾观察主线又推进至 `d3cf80b1ed2336f7c01f0ae7339543ac929fd7d3`，新增是正式部署工具与记录；本轮不部署，不将此未纳入组合冒称已集成。
+
+### 本批实现
+
+- `pearnly_cowork.files`：原生 Source File + 私有 File，上传原字节/校验 SHA、实际页数、幂等与受控下载。沿固定来源100 MiB/50页门禁；PDF/图片解析失败明确拒绝。原件不去EXIF、不与普通附件共用磁盘路径；普通File的全站设置保持原生行为。
+- `history.recognition`：可信内部入口整批保存与封存原件关联；原件初始范围、每张票据范围、物理页证据一并检查。保存 history ID 清单让另一授权用户重放时仍返回原批。等待其它事务绑定后，用 current read 回读这些ID，避免新ID/旧快照混用。不是OCR RPC，没有运行模型、收费或入队。
+- 权限覆盖业务原件/按页预览与原生私有URL、File详情、ZIP、公开切换、修改/删除、路径/缩略图/同hash别名。普通File原生读取/权限/删除有回归。DocShare同时在before_validate和validate拒绝，JSON ignore_validate不能关闭保护。
+- `stocktake`：四个原生DocType，解码行快照、任务/明细、扫描增改作废、operation回执、累计、关单、JSON报告；关单不写库存账。实测MariaDB1020后，在专用RPC增加最多三次整事务尝试；内部service不隐式重试调用方事务。
+- `ocr.inputs/pages`：迁移纯文件门禁、页展开、同页多票与置信度，保留固定源码差分；供应商、完整金额分组及计费接线未搬。四语术语表本批追加106条，仅定向生成Cowork的en/zh/th/ja CSV，每语180条；原有词条保留。
+
+接口及最新缺口见 [后端接口](cowork-backend/backend-api.md)、[文件守卫](cowork-backend/files-guards.md)、[盘点原生后端](cowork-backend/stocktake-native.md)、[OCR接线断点](cowork-backend/ocr-pipeline.md)。没有新增前端或产品导航。旧可搜索PDF/可选加密存储与新上传原字节分开；本批不导入真实旧文件，不宣称旧加密/留底行为已迁完。
+
+### 本地证据
+
+仍使用第一批锁定镜像/Frappe16.33.0/Python3.14.7和专有Compose内网，未共享DMS的Site/卷，未启动worker/scheduler或外部通道。
+
+- `PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_*.py'`：106项通过（90项原合同+12项OCR+4项盘点原生合同）。初次误用系统Python且未设置包路径的导入失败不算业务失败；改用本仓App路径和3.14后实际通过。
+- 固定源OCR差分：336文件门禁、2000质量批次、200同页多票批次、9非发票场景，通过。未把纯层差分当供应商/完整分组通过。
+- `cowork-backend-lab-verify.py`：21项通过；`cowork-files-lab-verify.py`：20项通过；`cowork-stocktake-lab-verify.py`：14项通过。文件覆盖跨公司PDF、同页跨公司拒绝、完整/不完整清单、跨操作者重放、旧快照回放、晚失败整批回滚、撤权、伪造能力/ignore_validate、路径及缩略图别名、同hash隐私副作用、26MiB原件、开启EXIF清除设置仍保留JPEG原字节、普通File权限/删除、两进程并发上传单行。
+- 最后连续补测触发Site A原生每小时新增用户限流，失败发生在合成账号准备阶段。未关闭或提高限流；验证脚本现在只允许通过 `PEARNLY_COWORK_TEST_SITE` 选择四个既定专用Site，转到刚安装的files Site后，文件HTTP与盘点14项均通过。没有向真实租户创建测试账号。
+- 三组原生WSGI验证：历史创建/修改拒绝/完成；盘点创建/计数/关闭/报告；文件multipart上传/精确下载/PNG预览。越权、匿名、原生owner下载/ZIP/解压/公开切换和GET写方法按预期拒绝；原件及PNG的no-store/nosniff已回读。ZIP在公开入口预检后才交给原生实现，避免打开archive后权限异常导致未关闭警告。无浏览器或真机验收。
+- 新增第四个专用 `cowork-backend-files.localhost`，全新安装Core/Cowork与迁移成功；已有三个Site升级/重复migrate成功。前后摘要 `636eb546e39f52facb7a3142e2f97f4e7f547a91c3620592cb90456320683e39` 一致，覆盖30条历史、5个原件及其磁盘SHA、10个盘点任务/20商品/8扫描/8回执、公司/买方/权限/用户/角色。此摘要绑定比较当时数据；随后并发验证又写入标记清楚的合成记录。没有执行真实旧数据库回灌或备份恢复演练。
+- 合入主线后的定向集成：DMS离线207断言通过；锁定镜像、只读任务源码挂载、`--network none`下`test_cloud_onboarding.py` + `test_dms_entrypoints.py`共20项通过。只读边界测试，不代表DMS线上业务由本任务验收。
+- 架构0违规、i18n生成一致、差异空白检查通过；没有前端改动，不跑前端构建。母语译文、UI、外部业务、CI与部署均未验收。
+
+### 生产来源再次核对
+
+本批开工及交付凭据已保存 `cowork-backend/evidence/baseline-second-start.json` 与 `baseline-second-delivery.json`，离线compare通过：Web/Worker实际流量revision、镜像digest、固定源码与不可变配置引用未变化。
+
+- 开工内容摘要：`3c1c2f256ecf789504401b3549a8b0747d8ff790864dbef5b75e72d5db4be2c8`。
+- 交付内容摘要：`dd9495ce2bd0071e0a46a46b12c82b0380317a7f8a701c7d9966d0bcd794b2dd`。
+- 仍为源码`ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`及前述镜像。秘密值未写入凭据；OCR运行参数的有效值仍需在接供应商前单独核对，不能从源码默认值推断。
+
+### 后续与并行边界
+
+整体后端迁移继续中，尚未到整产品前端接入验收。下一段依次补固定来源的完整OCR schema/金额闸/分组、Core执行/检查点/缓存/计费、外推日志与写者边界、LINE/Companion、完整对账。盘点还缺XLSX字节导入/导出、照片、旧legacy操作、历史回灌和10000行容量验证；WeKan/Companion独立运行来源仍需核对。不得用现有人工pages或纯OCR函数把这些标记完成。
+
+本批只在任务分支本地提交，不合回正被其它窗口使用的main，不推送、不部署。测试容器在收尾停止，保留本任务卷、工作树和凭据以便继续；不清理其他任务资源。

@@ -1,6 +1,8 @@
-# 第一批原生后端接口与前端讨论边界
+# 原生后端接口与前端讨论边界
 
 本批完成的是“公司/客户授权 → 保存完整票面草稿 → 复核保存 → 幂等完成 → 历史回读”的后端闭环。已可据此讨论第一屏录入/复核的交互，但**不是整个 Cowork 迁移完成**。未编写页面或修改现有导航；现有 `Intake Record` 页面仍是早期样板，不是这些接口的前端。
+
+2026-09-21 继续完成原件上传/受控下载/物理页预览、识别结果整批绑定，以及盘点原生后端。下面清单已按第二批状态更新；仍按用户要求先补后端，不自行启动前端施工。
 
 ## 原生落点
 
@@ -10,7 +12,9 @@
 | masters | 公司、买方客户创建及稳定分页 | Cowork Workspace / Cowork Client；不存外部凭据、不自动开外部账套 |
 | history | 完整 pages、首存 ai_raw、摘要、保存、完成、版本冲突及请求幂等 | Cowork OCR History；依赖 access 和纯 contracts |
 | contracts | 来源、日期、摘要、方向、过账声明和外推选择预检 | 无 Frappe / 网络 / 数据库 |
-| reconciliation / stocktake | 已核实的第一轮强配对和盘点纯计算 | 仅内部纯函数；尚无任务持久化或产品 API |
+| files / history.recognition | 精确原件、按页授权、不可变整批关联与跨操作者幂等回读 | Cowork Source File + 原生私有 File；files 不反向导入 history，关联查询只读当前 Site |
+| stocktake | 原生任务/商品/扫描/回执、累计、关闭和 JSON 报告 | 四个 Cowork Stocktake DocType；不写库存账；详见盘点记录 |
+| ocr / reconciliation | 输入限制、页展开、置信度及第一轮强配对纯函数 | 尚无供应商执行、完整分组或对账任务持久化 |
 
 DocType 控制器留在原生目录，hooks 只登记入口。没有修改 Core、DMS、Control、前端或底座版本。术语新增沿既有 TSV → Frappe CSV 入口，只生成 Cowork 语言包。
 
@@ -54,15 +58,25 @@ DocType 控制器留在原生目录，hooks 只登记入口。没有修改 Core�
 
 | 能力 | 当前状态 / 继续工作 |
 | --- | --- |
-| OCR 上传、分票、缓存、计费、队列及失败恢复 | 只有保存合同；继续接 Core execution 和固定来源识别流程 |
-| 原件、PDF 预览、附件 | 尚无下载 API；同 PDF 多票跨公司时须按允许页输出或验证整份权限，不能仅授权一条记录就放整份文件 |
+| OCR 上传、分票、缓存、计费、队列及失败恢复 | 原件上传、输入限制、页关联、置信度和整批保存已有；供应商/ThaiInvoice/金额闸/完整分组、Core execution 接线、计费与缓存待迁，见 OCR 记录 |
+| 原件、PDF 预览、附件 | 新上传原件、整份及按物理页读取已实现；跨公司/同页多票拒绝越权，原生下载/ZIP旁路已堵；旧可搜索PDF、加密文件及历史回灌尚未迁 |
 | 外推、目标刷新、年度账套、权威日志 | 本批只有纯预检；连接、锁、reservation、消费者、未知结果和回读均待迁 |
 | LINE、Companion | 来源映射已完成；验签、当前绑定、单次票据、租约/ACK、消息回执等仍待迁；Windows 实际运行来源待核验 |
 | 对账 | 仅第一轮单号强配对。金额取整/容差与 Decimal 有已证实差异，第二轮、银行、GL/VAT 未迁 |
-| 盘点 | 纯数量/导入校验/差异已迁；原生任务、条目、照片、关闭、导出等未迁 |
+| 盘点 | 原生任务/商品/扫描/回执、增改作废、关闭、JSON 报告已迁；XLSX字节适配、照片、LINE、legacy直接盘点、历史数据回灌及10,000行容量尚未验收 |
 | 汇总表、邮件、归档、导出、删除、自动主档匹配 | 来源已登记，业务链未迁；汇总表旧桥接正式单据行为不能混进普通完成 |
 | WeKan | 旧 VM 已停止；当前运行来源证据不足，未启动或移植 |
 | 现有早期 Intake Record 页面 | 没有接新接口；不作为功能验收 |
 | 员工界面、授权操作和各页面导航 | 本批仅后端原生 Role/User Permission；前端与控制面易用性在后续接入时核对 |
 
 前端讨论从录入/复核这条已验证接口开始，以现有 DMS 的原生 Desk 交互为参考；不搬旧 UI。附件预览、上传识别或推送按钮必须等相应后端完成，不能用本批人工 pages 接口伪装这些能力。
+
+## 第二批新增入口
+
+`files.api.upload` 仅 POST multipart，参数 `workspace/request_key/client?` 与 `file`，返回 name、filename、kind、page_count、byte_size、sha256 等投影，不返回原生 File URL。上限沿旧固定源码为 100 MiB、PDF 1–50 个实际解析页；图片保持一页语义。PDF/图片须能实际解析，超大图片预览有额外像素上限。
+
+`files.api.metadata(name)`、`original(name)` 校验整份权限；`page(history_name, physical_page)` 只输出已封存清单中允许的物理页 PNG。整份返回原字节并强制附件，页返回 PNG；均 `no-store/nosniff` 并调用原生 Access Log（异步日志仍需生产调度器刷新）。入口要求 intake/ocr_history 功能及对应角色、有效公司/买方范围。原生 File URL、File metadata、ZIP、修改和删除不代替这些 API。
+
+内部 `history.recognition.persist_batch(source_file, groups, request_key)` 无 RPC 白名单，不执行 OCR；groups 包含 workspace/client、完整 pages、source、confidence、ai_raw 与 source_page_indices。完整绑定一次提交并保存生成的 history IDs；相同批次重放返回原记录，封存后不再追加或更改关联。原件初始范围与每个结果范围都必须授权。重复物理页号归一为权限集合，所有票面仍保留；History.file_hash 未用于新SHA缓存，旧首条成功结果缓存规则仍待完整OCR接线。
+
+盘点 RPC 与输入输出见 [盘点后端](stocktake-native.md)，File 的框架适配及有意变化见 [原件守卫](files-guards.md)，识别来源与断点见 [OCR 迁移](ocr-pipeline.md)。这些入口均没有新增产品菜单。

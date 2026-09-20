@@ -2,59 +2,136 @@ A client cannot be moved to another company.,顧客を別の会社に移動す�
 A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
 A name is required.,名前を入力してください。
 A positive record revision is required.,レコードの版には正の整数が必要です。
+A positive source page number is required.,元ファイルのページ番号には正の整数が必要です。
 A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
+Actor,実行者
+Actual Qty,実棚数量
+An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
+Barcode,バーコード
+Book Qty,帳簿数量
+Bound Invoice Records,関連付け済みの請求書記録
 Buyer Client,買い手顧客
+Closed At,クローズ日時
+Closed By,クローズしたユーザー
 Company,会社
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
+Count Mode,棚卸方式
+Counted At,棚卸日時
+Counted By,棚卸担当者
 Cowork Client,Cowork 買い手顧客
 Cowork Master Data,Cowork マスタデータ
 Cowork OCR History,Cowork 認識履歴
+Cowork Source File,Cowork 元ファイル
+Cowork Stocktake,Cowork 棚卸
+Cowork Stocktake Entry,Cowork 棚卸記録
+Cowork Stocktake Item,Cowork 棚卸品目
+Cowork Stocktake Operation,Cowork 棚卸操作記録
+Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Workspace,Cowork 会計対象会社
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
+Created By,作成者
+Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
 Edit Count,編集回数
+Entry,エントリー
 File Hash,ファイルのハッシュ値
 First Recognition Snapshot,初回認識結果のスナップショット
+Invalid original filename.,元ファイル名が無効です。
+Invalid recognized invoice group.,認識した請求書グループが無効です。
 Invoice Count,請求書の件数
 Invoice Date,請求書の日付
 Invoice Index,請求書の順番
 Invoice Number,請求書番号
 Invoice Pages,請求書のページ
+Invoice References Complete,請求書の関連付け完了
+Invoice References Fingerprint,請求書関連付けのフィンガープリント
 Invoice Total,請求書合計
+Invoice pages do not match the original page references.,請求書のページが元ファイルの参照ページと一致しません。
+Item,項目
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
+Location,場所
+Native Content Hash,標準ファイルの内容ハッシュ
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 Not Permitted,適切な権限がありません
+Original File,元ファイル
 Original Filename,元のファイル名
+Original SHA-256,元ファイルの SHA-256
+Original Size,元ファイルサイズ
+Original Type,元ファイルの種類
 Original evidence and ownership cannot be changed.,元の証跡と所属情報は変更できません。
+Original files can only be changed through the Cowork file service.,元ファイルの変更には Cowork ファイルサービスを使用してください。
+Original files cannot be changed.,元ファイルは変更できません。
+Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
+Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
+PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
 Page Count,ページ数
+Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
+Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Pearnly Cowork,Pearnly Cowork
 Posting Kind,記帳区分
+Previous Json,変更前のデータ（JSON）
+Private File,非公開ファイル
+Private Storage URL,非公開ストレージ URL
+Product Code,商品コード
+Product Name,商品名
+Quantity,数量
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
+Record Id,レコード ID
 Record Revision,レコードの版
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Request Fingerprint,リクエスト内容のフィンガープリント
+Request Json,リクエストデータ（JSON）
 Request Key,リクエストキー
+Row {0}: {1},{0} 行目：{1}
+Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
+Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Seller Name,売り手名
+Source Digest,元データのダイジェスト
+Source Format,元データの形式
 Source PDF ID,元のPDFのID
 Source Page Indices,元ファイルのページ番号
+Task,タスク
 Tax ID,納税者番号
+The PDF file cannot be read.,この PDF ファイルを読み取れません。
+The image file cannot be read.,この画像ファイルを読み取れません。
+The original file already has a completed invoice manifest.,この元ファイルの請求書関連付けは既に完了しています。
+The original file checksum does not match.,元ファイルのチェックサムが一致しません。
+The original file is not ready for page preview.,元ファイルのページプレビューはまだ準備できていません。
+The original file reference has changed.,元ファイルの参照が変更されています。
+The original invoice manifest is incomplete.,元ファイルの請求書関連付け一覧が不完全です。
 The record changed. Reload it before saving.,レコードが変更されました。再読み込みしてから保存してください。
+The requested page is not part of this invoice.,指定したページはこの請求書に含まれていません。
+The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
+The uploaded file is empty.,アップロードしたファイルは空です。
+This file type is not supported.,このファイル形式には対応していません。
+This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
+Title,タイトル
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
+Updated At,更新日時
+Updated By,更新者
+Uploaded By,アップロードしたユーザー
+Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
+Version,バージョン
+Voided,無効化済み
+Warehouse,倉庫
+active,有効
+closed,クローズ済み
 confirmed,確認済み
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.quality.pending,要確認
 cowork_line,Cowork LINE
+document,文書
 failed,失敗
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
@@ -67,8 +144,37 @@ history.page_index_invalid,元ファイルのページ番号には正の整数�
 history.pages_invalid,請求書のページデータの形式が正しくありません。
 history.source_invalid,このレコードの取得元には対応していません。
 history.source_not_public,この画面からは手入力のレコードのみ作成できます。
+image,画像
+legacy,旧形式
 manual,手入力
+ocr.empty_file,アップロードしたファイルは空です。
+ocr.file_too_large,ファイルサイズが上限を超えています。
+ocr.invalid_input_metadata,ファイルサイズまたはページ情報が無効です。
+ocr.invalid_pdf,この PDF ファイルを読み取れません。
+ocr.too_many_pages,PDF のページ数が上限を超えています。
+ocr.unsupported_format,このファイル形式には対応していません。
+pdf,PDF
 pending,処理待ち
+scan,スキャン
 service,サービス
 stock,在庫
+stocktake.ambiguous_code,商品コードまたはバーコードが複数の商品に対応しています。
+stocktake.closed,この棚卸タスクはクローズ済みです。
+stocktake.code_as_text,商品コードとバーコードは文字列として保存してください。
+stocktake.conflict,この棚卸記録は変更されています。再読み込みしてから再試行してください。
+stocktake.dedicated_api_required,これらの記録は棚卸の操作から変更してください。
+stocktake.duplicate,インポートデータに重複する商品コードがあります。
+stocktake.empty,インポートデータに商品行がありません。
+stocktake.headers_invalid,インポートする列が棚卸テンプレートと一致しません。
+stocktake.import_conflict,このインポートリクエスト ID は異なる内容で使用されています。
+stocktake.legacy_task,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
+stocktake.name_invalid,棚卸のタイトルを 1～120 文字で入力してください。
+stocktake.not_found,棚卸記録が見つかりません。
+stocktake.operation_conflict,この操作 ID は別のリクエストで使用されています。
+stocktake.photos_not_supported,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
+stocktake.quantity_invalid,有効な数量を小数点以下 6 桁以内で入力してください。
+stocktake.request_invalid,棚卸リクエストが無効です。再読み込みしてから再試行してください。
+stocktake.row_invalid,インポート行が無効か、必須項目が不足しています。
+stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超えています。"
+stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
 summary_table_batch,集計表の取り込み
