@@ -11,6 +11,7 @@ const frappe = {
     populate_dropdown_menu(){this.rendered_items = this.dropdown_items.slice();}
   }},
   boot: {pearnly_product:'dms', desk_settings:{search_bar:1,notifications:1,form_navigation_buttons:1}, navbar_settings:{settings_dropdown:[]},
+    pearnly_pages:['pearnly-home','pearnly-connect'],
     pearnly_account_actions:[{name:'language',label:'Language',action:'language'}]},
   Application: class { constructor() { ready(); } logout() { return nativeLogout(); } },
 };
@@ -26,17 +27,22 @@ console.log('PASS native constructor-time logout extension and no duplicate acco
 const header = new frappe.ui.SidebarHeader();
 header.dropdown_items = [{name:'desktop'},{name:'website'},{name:'help'},{name:'display'},{name:'logout'}];
 header.add_navbar_items();
-// Native order asked for by the user: home, website, divider, display, reload, divider, logout.
+// Native order asked for by the user, with the product's own sidebar reorder kept:
+// home, website, divider, reorder-sidebar, display, reload, divider, logout.
 assert.deepEqual(Array.from(header.dropdown_items,item=>item.is_divider?'divider':item.name),
-  ['home','website','divider','display','reload','divider','logout']);
+  ['home','website','divider','reorder-sidebar','display','reload','divider','logout']);
 assert.deepEqual(Array.from(header.dropdown_items.find(i=>i.name==='display').items,item=>item.name),
   ['toggle-theme','toggle-full-width','toggle-sidebar'],'Display keeps the native theme/full-width/sidebar actions');
+const reorderSidebar = header.dropdown_items.find(i=>i.name==='reorder-sidebar');
+assert.equal(typeof reorderSidebar.condition, 'function');
+assert.equal(reorderSidebar.condition(), true, 'Sidebar reorder stays available while the product has several pages');
 header.dropdown_items.find(item=>item.name==='home').onClick();
 assert.equal(frappe.route,'/desk/pearnly-home','Home opens this product subscription home, not the control plane');
 header.dropdown_items.find(item=>item.name==='website').onClick();
 assert.deepEqual(opened,['https://pearnly.com']);
 header.populate_dropdown_menu();
-assert.deepEqual(Array.from(header.rendered_items,item=>item.name),['home','website','display','reload','logout'],
+assert.deepEqual(Array.from(header.rendered_items,item=>item.name),
+  ['home','website','reorder-sidebar','display','reload','logout'],
   'Dividers only render in the native context menu, never as an undefined row');
 assert.equal(header.dropdown_items.filter(item=>item.is_divider).length,2,'Dividers stay in the dropdown contract');
 

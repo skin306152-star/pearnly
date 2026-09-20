@@ -119,10 +119,11 @@ frappe.provide("frappe.pearnly");
 				);
 			}
 			add_navbar_items() {
-				// 原生顺序：首页、网站、分隔线、显示、刷新、分隔线、注销。
+				// 原生顺序：首页、网站、分隔线、侧栏排序、显示、刷新、分隔线、注销。
 				// 上游把"显示"和"注销"挂在通知开关上（产品有意关掉全局搜索/通知），
-				// 所以这几项在这里显式给出；行为仍交给原生 SidebarHeader、
-				// ThemeSwitcher 与 clear_cache，不自建主题或控件。
+				// 所以这几项在这里显式给出；行为仍交给原生 SidebarHeader、主题切换、
+				// clear_cache 与侧栏编辑态，不自建主题或控件。
+				// "侧栏排序"按原生放"编辑侧栏"的位置（第一条分隔线之后、显示之前）。
 				const is_dark = frappe.ui.get_current_theme() === "dark";
 				this.dropdown_items = [
 					{ name: "home", label: __("Home"), icon: "home",
@@ -130,6 +131,9 @@ frappe.provide("frappe.pearnly");
 					{ name: "website", label: __("Website"), icon: "web",
 						onClick: () => window.open("https://pearnly.com") },
 					{ is_divider: true },
+					{ name: "reorder-sidebar", label: __("account.sidebarOrder"), icon: "list",
+						condition: () => frappe.boot.pearnly_pages.length > 1,
+						onClick: () => p.reorder_sidebar() },
 					{ name: "display", label: __("Display"), icon: "monitor",
 						items: this.get_display_siblings(is_dark) },
 					{ name: "reload", label: __("Reload"), icon: "rotate-ccw",

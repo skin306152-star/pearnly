@@ -284,7 +284,7 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 | --- | --- | --- |
 | H01 | 个人资料不再只留一份"可见字段名单"，而是按字段顺序算出可见字段**真实所在的页签/分节/分列**并一起保留；改完补一次原生布局刷新，让首次绘制与表单刷新看到同一份内容 | `apps/pearnly_core/pearnly_core/public/desk/user.js` |
 | H02 | 建站收尾显式执行账户布局初始化（幂等）。原因：该初始化只挂 `after_migrate`，而新开户不走 migrate，正式租户上 Custom Field / Property Setter 全为 0 | `apps/pearnly_core/pearnly_core/provisioning.py` |
-| H04 H05 | 公司标题下拉菜单按用户指定的原生顺序恢复：首页（`/desk/pearnly-home`）、网站（`https://pearnly.com`，保留网站图标）、分隔线、显示（原生主题/全宽/侧栏三项）、刷新、分隔线、注销。标题里那份菜单不渲染分隔线行（原生那份没有该行、照搬会多出一行 `undefined`） | `apps/pearnly_core/pearnly_core/public/desk/product.js` |
+| H04 H05 | 公司标题下拉菜单按用户指定的原生顺序恢复：首页（`/desk/pearnly-home`）、网站（`https://pearnly.com`，保留网站图标）、分隔线、**侧栏排序**（用户 2026-09-20 明确保留，放原生"编辑侧栏"的位置即第一条分隔线之后）、显示（原生主题/全宽/侧栏三项）、刷新、分隔线、注销。标题里那份菜单不渲染分隔线行（原生那份没有该行、照搬会多出一行 `undefined`） | `apps/pearnly_core/pearnly_core/public/desk/product.js` |
 | H07 | 新站点在建站步骤就固定 `encryption_key`，且**只在缺失时**写；已有站点只校验不重生成，避免换掉整站密钥让现在能解的密文一起失效 | `infrastructure/production/site-step.py` |
 | H08 | 连接状态改成"现在真能用"：启用 **且** 这组账号的密码解得开才算 `connected`；保存后回读，读不回来直接报错，不再"记录存在就显示已连接" | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
 | H09 | 新增共用凭据读取口：解不开密文只回空串，并丢掉 Frappe 解密时排队的那条框架消息（`raise_exception=False` 只吞异常、不吞消息，这才是弹框泄露技术细节的来源）。连接、适配器登录、主档缓存作用域、操作员与连接同步、花名册、本人门户都改走这一个口 | `apps/pearnly_core/pearnly_core/endpoints.py` + DMS 六处调用点 |
