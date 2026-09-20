@@ -37,6 +37,23 @@ from pearnly_dms.adapter.push import build_adapter
 logger = logging.getLogger(__name__)
 
 
+def _merge_geo_rows(base: Optional[List[Any]], extra: Optional[List[Any]]) -> List[Any]:
+    """把两支地址的级联表并成一张（按 id 去重，保持 base 的顺序）。
+
+    差异卡要用它把"主档那套地址"的 id 也映成名字；只多几行，不影响选择。
+    """
+    out: List[Any] = list(base or [])
+    seen = {str(row[0]) for row in out if row and row[0] is not None}
+    for row in extra or []:
+        if not row or row[0] is None:
+            continue
+        if str(row[0]) in seen:
+            continue
+        out.append(row)
+        seen.add(str(row[0]))
+    return out
+
+
 def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[str, Any]:
     """失败结果。带 `response_body` 是有意的：**光有 error_code 分不清**
     "DMS 拒了"还是"我们复核没查到"，这两件事的处理方式完全不同。"""
@@ -238,6 +255,21 @@ def recognize_lookup(
                 "road": addr.road,
             },
         }
+        # 差异卡的**旧值**来自 DMS 主档，而那套地址可能是**另一个省**的：
+        # 卡上的地址名是靠上面这张选项表反查的，表里只有「新地址那一支」的
+        # 县/镇/邮编，主档那几个 id 查不到就会把裸 id 印给用户（实测：151/1082/1084
+        # 本来该显示 ขลุง/ขลุง/22110）。省表是全量的所以省不犯这个毛病。
+        # 只补主档那一支的 2–3 个请求，且与已取的相同就跳过。
+        master = (look.get("fields") or {}) if look.get("found") else {}
+        for level, parent_field, taken_parent in (
+            ("districts", "province_id", resolved.province_id),
+            ("subdistricts", "district_id", resolved.district_id),
+            ("zipcodes", "subdistrict_id", resolved.subdistrict_id),
+        ):
+            parent = str(master.get(parent_field) or "")
+            if not parent or parent == str(taken_parent or ""):
+                continue
+            geo[level] = _merge_geo_rows(geo[level], cl.list_geo(level, parent))
         if look["found"]:
             scenario = "exact"
             fields = look["fields"]

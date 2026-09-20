@@ -5,6 +5,7 @@ import { useRoute } from "vue-router";
 import { Button, FormControl, Spinner, ErrorMessage } from "frappe-ui";
 import { ApiError, call, setCsrfToken } from "../../lib/api";
 import { adoptAccountLocale, createTexts } from "../../lib/i18n";
+import { initLiff, openExternal } from "../../lib/liff";
 
 const route = useRoute();
 const portal = route.query.action === "portal";
@@ -16,14 +17,16 @@ const busy = ref(false);
 const error = ref("");
 const saved = ref(false);
 let ticket = "";
+let liffId = "";
 const api = "pearnly_dms.account.api.";
 
 onMounted(async () => {
   try {
     adoptAccountLocale(sessionStorage.getItem("pearnly_dms_lang") || "th");
     await load();
-    const config = await call<{ csrf_token: string }>("pearnly_dms.editor.browser_api.browser_config");
+    const config = await call<{ csrf_token: string; liff_id?: string }>("pearnly_dms.editor.browser_api.browser_config");
     setCsrfToken(config.csrf_token);
+    liffId = config.liff_id || "";
     ticket = sessionStorage.getItem("pearnly_dms_account_ticket") || "";
     if (!ticket) throw new Error("dms_booking.line_auth_required");
     if (portal) {
@@ -45,8 +48,11 @@ async function openPortal(): Promise<void> {
   busy.value = true;
   error.value = "";
   try {
+    // **先在 LINE 内把身份验完、换成票，再"带票出站"**（对齐老产品 portalMode）：
+    // 系统浏览器里没有 LIFF、没有会话，只有这张 60 秒的一次性票。
+    const liff = await initLiff(liffId);
     const result = await call<{ url: string }>(api + "portal_ticket", { ticket, language: locale.value }, { method: "POST" });
-    window.location.assign(result.url);
+    openExternal(liff, result.url);
   } catch (e) {
     const key = e instanceof ApiError && [401, 403].includes(e.status) ? "dms.account.expired" : "dms.account.failed";
     error.value = t(key);
