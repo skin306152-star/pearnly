@@ -314,3 +314,43 @@ App为pearnly_cowork；新增roundtrip业务域，复用OCR纯schema、表格有
 第六批收尾补记：四语新增22词条，Cowork每语288项；22个新增键无缺漏/重复/跨App冲突，仅生成Cowork四份CSV。生成器check通过；专用Site原生en/zh/th/ja全部88次查询与术语表相等。真实母语业务措辞及页面尚未验收。最终独立审查指出的多页商品重复已修复并经真实保存回读覆盖；故障注入证据措辞亦按实情收紧。业务检查通过后只补语言、文档和Git收尾，不重复已通过的业务全套。
 
 收尾已停止本任务bench/db/redis三个容器，Sites/DB/日志卷及合成样本保留。bench是sleep进程在宽限期后退出137，测试已全部结束；db/redis退出0。未清理其它工作树、数据库或容器。本批形成独立本地提交检查点，未合回主目录、未推送、未部署。
+
+## 第七批：ERP 目标、Express 准备与恢复合同（2026-09-21）
+
+### 范围与开工证据
+
+承接本地 `407ad132b2e69c871bcb272e2a7a361b6363d295`。仍在独立 `codex/cowork-backend-migration`；开工主目录为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`，本批没有合入或修改它。用户继续授权本地后端迁移，强调行为一致；前端、不上线、不部署、不向真实 ERP 写入的边界不变。
+
+- `baseline-seventh-start.json` SHA256 `d3f6ed40079ebf9049096e007a51ac3ee5cf581614004c558c46717e718449a5`：Web/Worker 实际100%流量仍为 `ec2e5c957e6b` 对应 revision，完整源码 SHA、digest 与第六交付比较 PASS。
+- 先补推送专用只读采集，再开始业务纯代码。`push-runtime-seventh-start.json` SHA256 `111119d806e9daed01724baeec825453432078020717e21d484a4a7fe723573a`：两服务 `ERP_PUSH_ENABLED=true`，动态 shared/target_projection 开关 enabled/all；60 个端点全部 generation0，managed 数0。Express启用7，6个有 token/协议1；历史自报版本不是客户机二进制证明。详见[推送运行基准](cowork-backend/push-runtime-baseline.md)。
+- 没有读取业务票据、凭据明文输出或客户机文件，没有触发建表/修表。目录、映射和其它未取的动态值不冒充完整业务配置快照；source固定只证明服务端算法来源。
+
+### 本批职责与验收边界
+
+本批先迁完整的纯目标选择/证据判断、Express进销项预检与载荷闭包、队列状态/权威回执判据。没有可靠目标收集器前不创建可误认为待发送成功的原生记录；不新增 Push RPC、worker、DocType 或导航。下一段才接原生 Connection/Snapshot/Refresh、Push Record、当前权限与写者锁。
+
+- `targets`：固定来源目录规范化、账套选择、refresh与projection证据、切换目标清理旧科目缓存；服务端注入权限/目录后冻结目标，不能把用户config当权威证明。
+- `push.express`：预检、进销项payload、科目/金额/税/付款/库存策略。显式注入日期、已授权映射/供应商/银行和原凭证号；`ready`仅表示这些输入通过准备，永不等同 queued/success。旧 `stock_lane_enabled` 实际恒False，不凭函数名扩展成开关。
+- `push.lifecycle/retry/receipts`：旧legacy与managed分开；等待锁的attempt不同；确认放行后失联不重领；HTTP reservation结果未知转manual；显示最新状态与历史成功防重分离。
+- 旧legacy ACK没有attempt fencing、managed确认任务过期可停在不可重领pending、旧PRN查失败返回空以及跨账套查询都是已发现的来源缺口。保留纯行为证据并登记；原生外推接入前须明确修复，不能把本批合同当作安全执行器。
+- PRN纯查询明确改为同原History/租户JOIN/端点/账套；失败查询与成功空结果区分。原生调用尚未连接，未来必须从不可变Source/Batch取原键并重新授权，不读可编辑fields作为权限事实。
+
+### 第七批验证与交付范围
+
+- 候选仍为第六批 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9` / Python3.14.7，没有增依赖或重建镜像。仅用 `docker run --rm --network none`（512MiB/1CPU）只读挂本工作树执行纯测试；没有启动bench/db/redis，没有Site结构或数据改动。
+- 最终所有 `test_cowork_*.py` **631项通过、无skip**：385既有、Express170、targets28、lifecycle/receipt29、运行采集17、纯依赖边界2。独立复核后的修改已在同一候选环境重新验证，非沿用修改前结果。
+- 候选运行时固定源码差分：Express **1,013组/28固定源hash**、targets **7,156组/7源hash**、push状态与回执 **1,262组/7源hash**（229分类、480 ACK参数效果、340外单号、5冻结、208发起层分类），全部通过。这是合成输入和替身读写口的算法对照，不是9,431次真实建单或原生队列验证。目标组合另外6项源接受而新冻结拒绝的案例单列，不计入相等数。
+- 独立审查复现并修复目标root与最终程序目录不一致、证明账套B但实际config残留A的问题；默认账套使用服务器明确根目录，保留无需刷新目录的旧行为；MRERP年/库分别trim，不以过严保护缩减原功能。缺真正根目录/非默认仅父目录推断/目标相矛盾的输入明确拒绝并登记。
+- 修复零次attempt只在legacy失败分支规整、SQL普通空格/lower与Pythonstrip/casefold误等价；补终态晚ACK不得回退、Express技术失败与数据错误的调度区别。PRN查失败明确拒绝、同目标回执限制为有意收紧；其它已登记旧行为没有顺手改动。具体案例与范围见[状态与回执](cowork-backend/push-lifecycle.md)、[Express载荷](cowork-backend/express-payload.md)、[目标合同](cowork-backend/push-targets.md)。
+- 初次source v1配置摘要没有覆盖所有端点config键，独立审查指出后增加v2完整JSON的数据库内集合摘要，不返回任何值。补充基准 `push-runtime-seventh-expanded-start.json` SHA256 `638c13bf1b7572bb1a649f2ef481deef4ed0301871be025bdb27fe4926fa84f1`；只证明补充采集时刻起的范围，未回写或替换最初v1。
+- 交付来源 `baseline-seventh-delivery.json` SHA256 `2b66ac9fe67b7ba68c1a6780e78ee4b62bf3d034a54c2842f60191aad578d3df`；与start compare PASS，生产100%流量revision/SHA/digest未变。v2交付配置 `push-runtime-seventh-delivery.json` SHA256 `93d9019400e052a32f7dcfcd21486cde6a22188260f22b194d85ee272578f199`；与expanded-start compare PASS（settings不变、observations不变）。5份原始脱敏证据在 `cowork-backend/evidence/`。
+- 源定义通过stdin传给无网容器并在容器内核验hash。曾直接挂宿主`/tmp`固定源失败（Colima未共享，文件不存在），没有执行到差分；换stdin后成功。没有绕开哈希校验、原生钩子或删失败断言。
+- 本批没有改DMS/Core、共享配置或运行依赖，按影响面未重复DMS/Site/前端检查；现有通过记录只代表原批版本。新增纯异常码/诊断没有接产品入口，不宣称原生四语页面已验收，也未扩大既有i18n忽略。
+
+### 下一段仍需接通
+
+原生 Connection/Snapshot/Refresh和唯一Push Record、当前角色/公司/客户/连接授权、不可变PRN原键查询、端点/账套写者互斥、持久化预留与attempt fencing、真实队列和ACK、失败回读/原目标恢复，才构成可用的后端外推链。MRERP HTTP适配/真实回读、Companion当前执行文件到源码的证据、WeKan、LINE、旧记录导入等前批余项仍在；没有用本批pure ready关闭它们。
+
+前端仍暂不接。未合回主线、未推送、未部署；主目录末次只读核对仍为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`。本任务分支的纯规则通过不代表与最新主线已集成或用户已验收。
+
+第七批收尾：架构检查0违规，纯代码无框架/IO/墙钟依赖检查通过；没有新依赖、结构、运行入口或前端，不重复无关业务套件。专用bench/db/redis继续保持停止，既有合成Site/卷原样保留；临时无网测试容器自动移除。本批保存独立本地提交检查点，后续从原生连接和权威账本装配继续。
