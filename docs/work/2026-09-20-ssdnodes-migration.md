@@ -402,3 +402,67 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 
 - 基础层（billing / keycloak / mariadb）没有重新激活，仍跑旧镜像。
 - LINE 菜单发布、H06 存量密文处理、真机与业务验收、新租户开户测试：都还没做；开新租户测试用当前这套（新镜像 + 新工具 + 新 runner）即可。
+
+## 2026-09-21 用户报障三例 + 新旧差异清单（第 1 批修复：本地完成，**未部署**）
+
+用户明确：`6/7/9/10/11` 不做，其余做；**改完先停、不部署**，等 SSD Nodes 主机迁移结果。
+
+### 基准与对账卡口（新增）
+
+- **唯一老基准是 `origin/master` 上的 `501589f0`**（2026-09-18，当时真在服务线上流量的那版）。
+  本地老仓库的 `master` 落后 12 天、`services/line_dms` 少 15 个文件，**拿它当基准会误报一大堆差异**
+  （本轮排查先踩过这个坑）。
+- 新增 `scripts/check-dms-parity.py` + `scripts/dms-parity-expectations.json`：以 `501589f0` 为基准，
+  对老 `services/line_dms`（含登记的重命名落点）逐个模块做 **AST 级**对比（去注释/文档字符串/import），
+  把"已复核过的差异"冻成指纹；差异一变即失败退出。基准不在本机（CI）时跳过、不阻断。
+
+### 三个报障的定论（2026-09-21 生产只读排查，均有现场证据）
+
+1. **有档案的客户被判成"新客户"，看不到资料差异对比** —— 查重这条读没借管理员账号。
+   证据：客户 `115` 在 DMS 真实存在（证号 `1103702587460`，直读 `cus/form.php` 读到）；
+   用 `sale02` 搜证号/姓名/手机号/客户号**全部** 返回 DMS 的"无数据"（`ndt::`），
+   用 `dmstest` 搜同一证号**命中 115**。老基准里 `recognize_lookup` / `customer_fields` /
+   `geo_mrerp_dms` 三处都是 `authoritative_read=True`，新仓这三处丢了（自 2026-09-18 首版起就没带）。
+2. **编辑页地址首屏空白、点一下才显示** —— 值在、选项表没到。服务端只返回"有父级的层级"的表
+   （实测：只给府 → 府+县；什么都没有 → 一张表都没有）；前端 `hydrateGeo()` 只兜底县/镇/邮编，
+   **府那一级不兜底**（老页面是 `bundled.provinces || await geo('provinces','')`），
+   而下拉框找不到选项就显示空白，用户一交互级联把选项补上才"映射出来"。
+3. **登录 DMS 要点两次** —— 菜单3 的 SPA 页多留了一个按钮：第一次点击只跳到中转页，
+   中转页还有第二个按钮才真打开。老页面在 LIFF 侧自动换链接，只在中转页点一次。
+4. **网络断连被兜成"服务器内部错误"**（2026-09-20 01:50 那次 `socket hang up`）——
+   读请求断连没有归类成 `ERR_DMS_TECHNICAL`（"DMS 连接超时 — 请重试"），一路冒到最外层变
+   `ERR_UNEXPECTED`，也不重试。老项目同样代码、同样会这样（近 30 天云端日志 0 次同类，属低频）。
+
+### 本轮改动
+
+| 文件 | 改动 | 为什么 |
+| --- | --- | --- |
+| `apps/pearnly_dms/pearnly_dms/intake/service.py` | `recognize_lookup` / `customer_fields` / `geo_options` 三处读加回 `authoritative_read=True`（写路径 `push_idcard_fields` 不动） | 报障 1；与老基准的三处对齐 |
+| `apps/pearnly_dms/pearnly_dms/client/transport.py` | 传输层断连：**读**路径（`component/`、`/form.php`）重试一次后归类 `ERR_DMS_TECHNICAL`；**写**路径绝不重试（连接断了不代表没落库）；非传输类异常原样抛出 | 报障 4 |
+| `frontend/src/pages/dms/EditorPage.vue` | `hydrateGeo()` 补上"府"、四级都兜底；操作条 `justify-content: flex-end`（按钮移到右下角） | 报障 2 + 用户要求 |
+| `frontend/src/pages/dms/AccountPage.vue` | 门户模式改为**挂载即自动换取链接并跳转**（不再留第二个按钮、不再显示账号框）；账号维护页保留账号/密码表单 | 报障 3 |
+| `translations/{th,en,zh,ja}.csv` | 保存按钮文案 → 保存 / Save / บันทึก / 保存（原为"保存并发送新版预览"） | 用户要求 |
+| `apps/pearnly_dms/pearnly_dms/line/handlers.py` | 解绑词补回老 DMS 通道的泰文 `ยกเลิกการเชื่อมต่อ`；改正"老产品只认一个中文词"的错误注释 | 老用户按旧话术打字必须能解绑 |
+| `intake/flow.py` / `line/text_router.py` | 改正"菜单层/审批流/查询未搬"的过期注释（实际都已接线，并写明落点） | 注释与代码不符会误导后续维护 |
+| `scripts/sample-verify-dms-edit.py`、`scripts/sample-verify-dms-edit-page.mjs` | 断言与选择器跟着新文案改（`text="Save"` / `text="保存"`） | 保持检查有效 |
+
+### 用户明确不做（本轮不碰）
+
+`6` 按租户 LINE 灰度闸（新架构一站一租户，站点级/开通功能级已天然隔离）；
+`7` 车型/银行目录"已取消"项过滤（已实测：DMS 里 `byd/f3` 状态就是 `ยกเลิก`，被 `active_models` 静默滤掉）；
+`9` 订车逐问中图片消息的判断位置；`10` postback 分发顺序；`11` 新站点台账为空（数据属性，不是 bug）。
+
+### 本地验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/check-dms-offline.py` | 全 PASS（client 77、booking-foundation 45、booking-payments 42、booking-readback 43 …） |
+| `python3 tests/test_architecture_guard.py` / `test_native_desk_contract.py` | 9 OK / 15 OK |
+| `python3 scripts/check-i18n.py` / `check-frontend-i18n.py` | 0 问题 / 0 问题 |
+| 前端 `vue-tsc --noEmit` / `vite build` | 0 错 / 构建通过 |
+| `python3 scripts/check-dms-parity.py` | 与老产品差异**没有漂移**（47 个模块登记在案） |
+
+**未做**：镜像构建、部署、真机与业务验收 —— 用户 2026-09-21 要求"改完先停、不部署"。
+下次部署后要真机验的四条：①有档案的客户出"差异对比卡"；②编辑页地址首屏就有值；
+③登录 DMS 一次点击；④断连提示为"DMS 连接超时 — 请重试"且自动重试过一次。
