@@ -11,6 +11,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+from datetime import datetime, timezone
 
 ROOT = Path("/opt/pearnly/deploy")
 STATE = Path("/opt/pearnly/state/sites")
@@ -20,6 +21,10 @@ RESERVED = {"auth", "www", "work", "api", "admin", "mail", "control", "billing",
 ACTIONS = {"new_site", "install_app", "set_oidc", "set_billing", "set_ocr", "set_line",
            "finalize_site", "bind_user", "set_roles", "set_workspace", "restart_web", "publish_site",
            "verify_site", "drop_site"}
+MAINTENANCE_PREFIX = "pearnly-maintenance-"
+MAINTENANCE_MAX_AGE_HOURS = 12
+BENCH_PYTHON = "/home/frappe/frappe-bench/env/bin/python"
+POD_NETWORK = "pearnly-production_runtime"
 
 
 def validate(job):
@@ -91,15 +96,78 @@ def restart_group(group):
 
 def site_step(job):
     group = job["payload"]["group"]
-    if job["action"] != "drop_site":
+    # 拆除时不再做容量准入（旧行为一致：拆除是释放内存的那一步，不该被容量检查挡住）。
+    name = ensure_maintenance(group, check=job["action"] != "drop_site")
+    output = run(["docker", "exec", "-i", name, BENCH_PYTHON, "/run/site-step.py"], data=json.dumps(job))
+    if job["action"] in ("verify_site", "drop_site"):
+        remove_maintenance(group)
+    return output
+
+
+def maintenance_name(group):
+    """这一步用的维护容器名：一个产品组一个，整轮开通复用。"""
+    return MAINTENANCE_PREFIX + group
+
+
+def _inspect(name, template):
+    result = subprocess.run(["docker", "inspect", "--format", template, name],
+                            capture_output=True, text=True)
+    return result.stdout.strip() if result.returncode == 0 else None
+
+
+def _maintenance_age_hours(name):
+    started = _inspect(name, "{{.State.StartedAt}}")
+    if not started:
+        return None
+    try:
+        when = datetime.strptime(started[:19], "%Y-%m-%dT%H:%M:%S")
+    except ValueError:
+        return None
+    return (datetime.now(timezone.utc).replace(tzinfo=None) - when).total_seconds() / 3600
+
+
+def ensure_maintenance(group, *, check=True):
+    """给这个产品组备一个**可复用**的受限维护容器，返回容器名。
+
+    为什么要复用：每步新起一个容器的代价在本机实测是每个步骤 5 秒以上（2026-09-20
+    同一批测量：一步里的 `import frappe` 在全新容器里 10.32 秒、在已有容器里 4.76 秒；
+    空转一次 3.55 秒对 0.74 秒），而且每次都要冷读一遍应用树。14 步下来就是一分多钟，
+    纯属自己加的开销。
+
+    容器仍然是**同一个受限容器**：同一个已验证镜像 digest、同一份只读密钥、
+    同一个 sites 卷、uid 0、内存 1 GiB 上限、只在内部网络里，没有额外权限，
+    只跑 `sleep`，每一步仍是独立的 `site-step.py` 进程（逐步回执、逐步失败恢复不变）。
+    寿命由三件事限住：镜像 digest 变了就重建、超过 MAINTENANCE_MAX_AGE_HOURS 就重建、
+    `verify_site`/`drop_site` 收尾时删除。
+    """
+    name = maintenance_name(group)
+    digest = image()
+    running = _inspect(name, "{{.State.Running}}")
+    label = _inspect(name, '{{index .Config.Labels "pearnly.image"}}')
+    age = _maintenance_age_hours(name) if running == "true" else None
+    if running == "true" and label == digest and age is not None and age < MAINTENANCE_MAX_AGE_HOURS:
+        return name
+    if running is not None or label is not None:
+        # 旧镜像、已停止或活得太久的容器：先收掉再建，避免两个不同镜像的容器混用。
+        remove_maintenance(group)
+    # 容量检查跟着容器生命周期走（一次），不再每一步重算 —— 保护不变，重复开销去掉。
+    if check:
         check_capacity(group, transient_mib=1024)
-    return run(["docker", "run", "--rm", "-i", "--user", "0", "--memory", "1g", "--memory-swap", "1g", "--network", "pearnly-production_runtime",
+    run(["docker", "run", "-d", "--name", name, "--user", "0",
+        "--memory", "1g", "--memory-swap", "1g", "--network", POD_NETWORK,
+        "--label", "pearnly.image=" + digest, "--label", "pearnly.role=maintenance",
+        "--label", "pearnly.group=" + group,
         "-v", f"pearnly-production_sites-{group}:/home/frappe/frappe-bench/sites",
         "-v", f"{ROOT}/infrastructure/production/site-step.py:/run/site-step.py:ro",
         "-v", "/opt/pearnly/secrets/runtime.env:/run/secrets/runtime.env:ro",
         "-v", "/opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro",
-        "--entrypoint", "/home/frappe/frappe-bench/env/bin/python", image(), "/run/site-step.py"],
-        data=json.dumps(job))
+        "--entrypoint", "/bin/sh", digest, "-c", "sleep infinity"])
+    return name
+
+
+def remove_maintenance(group):
+    """收掉这个产品组的维护容器；没有就什么也不做。"""
+    subprocess.run(["docker", "rm", "-f", maintenance_name(group)], capture_output=True)
 
 
 def nginx(site, group, tls=False):
