@@ -1,5 +1,7 @@
 # SSD Nodes 空环境切换
 
+> 状态更新：上个窗口按用户要求停手并留下交接；接手窗口已按用户「只处理问题、不扩大设计和改动、只修 bug」的指示修完 **H01/H02/H04/H05/H07/H08/H09/H13/H15** 的代码部分，见文末「本轮修复」。仍未合并、未推送、未部署；H06 的存量密文、H10/H12 的线上菜单发布以及 H16/H17 的账目与显示问题仍在原地。
+
 基线：`7415c1e`；工作树 `ssdnodes-migration/pearnly`，分支 `codex/ssdnodes-migration`。
 
 ## 用户决策
@@ -75,3 +77,231 @@ SSH 已使用现有 operator 密钥验证；只开放 22/80/443。Docker、Compo
 - 已删除：该租户、发号单及产品子表、部署、原开户请求 `PR-2026-0247`、删除请求 `PR-2026-0249`、1 条 LINE 渠道、1 条充值申请。无本地钱包、扣费流水、订阅或 Identity 关联行。逐项回读不存在，`testdms` 前缀及域名均不再占用，新默认目标仍为 `production-ssdnodes`。
 - 版本现场核对：新机 active image 和运行计费容器均为 digest `f67d0b72…` / 源码 `56e2497`；`git diff 56e2497..ed678c6 -- apps frontend infrastructure/images` 为空，两个业务工作树均干净且其提交已包含在 main。故此前业务改动已包含在新机镜像，但 DMS/ERP/Cowork 产品组尚未启用，不等于租户业务已上线。
 - 后续运维差异只有 CI 保活、接收脚本执行位、本机 SSH/SMTP 导出工具及文档。CI/本机已使用新版本；此次也同步了新机上的 SSH/SMTP 工具副本，并逐文件 SHA-256 回读一致。没有因仅运维脚本/文档差异重新构建或重启业务镜像。
+
+## 首次重新开户与速度诊断
+
+用户要求等本次全部开户完成后诊断每一步变慢的原因。本节为现场诊断，不把建议写成已经实施；代码基线仍为 `1d7832e`，镜像仍为上述 `56e2497`。只有本节记录修改，未改正式服务参数或开户逻辑。
+
+- 新发号单 `ISS-2026-0250`、请求 `PR-2026-0252`、部署 `DEP-2026-0253`：14/14 全部 done，控制面计时 20:38:28 至 20:51:37，共 789 秒。DMS 运行组已启动，正式租户 `testdms.pearnly.com` 的 HTTPS ping 为 200，原生身份与计费校验通过；这不是 LINE、OCR 或第三方 DMS 业务验收。
+- 对照来自删除前原生数据库备份 `retired-tenant-20260920`，只解析旧 `DEP-2026-0248` 步骤和时间，不恢复数据库。旧第一步至最后一步约 303 秒，新同口径约 781 秒。旧 set_line 后来被重新配置，结束时间已覆盖，不能用该行计算首次开通耗时。
+
+| 步骤 | 旧机秒数 | 新机秒数 |
+| --- | ---: | ---: |
+| new_site | 123.8 | 265.0 |
+| install_core | 20.4 | 51.7 |
+| install_product | 14.8 | 44.6 |
+| set_oidc | 10.7 | 23.7 |
+| restart_web | 4.0 | 34.9 |
+| set_billing | 9.4 | 39.0 |
+| set_ocr | 8.7 | 23.6 |
+| finalize_site | 10.8 | 42.6 |
+| set_line | 后续重跑覆盖 | 28.5 |
+| bind_user | 13.2 | 40.4 |
+| set_roles | 14.0 | 47.1 |
+| set_workspace | 12.0 | 66.8 |
+| publish_site | 14.4 | 21.2 |
+| mark_active | 10.8 | 25.3 |
+
+### 已测量的开销与边界
+
+- 新机是 x86_64 / KVM，CPU 为 Xeon Silver 4214 2.20GHz。建站时 CPU 大部分空闲、内存约 2/32 GiB；维护容器无 CPU quota，cgroup throttled 为 0，内存没有 OOM。资源未满不能证明单次执行速度正常，撤回此前仅凭空闲率作出的“正常”判断。
+- 一次 SSH 空命令 1.98 秒；现有容器 exec 空命令 0.84 秒；新建/运行/退出空容器 6.48 秒。匹配开户的现有 sites 卷后分段测量：create 1.10 秒、start/wait 4.33 秒、remove 0.43 秒，共 5.85 秒。该探针只执行 true，sites 卷只读，命名探针及其匿名 logs 卷已删除，没有删除命名卷。
+- 只读 Frappe 导入、Site 连接、20 次 SELECT 1 和 Redis ping：现有容器总 4.11 秒，新临时容器总 9.28 秒；其中导入 Frappe 1.67–2.88 秒。另一条完整只读验收路径导入 3.58 秒、首次 System Settings 读取 3.06 秒，内部钱包读取 0.24 秒。容量核查本身约 2.07 秒，保留该保护。
+- 因此每步独立 SSH、Docker run、框架加载有确定重复成本。仅将临时执行容器复用，在这次样本下每步有约 5 秒可节省空间；不能声称仅此能消除全部约 8 分钟差距。新机第一次启动整个 DMS 运行组与旧机运行组已存在也不完全同条件。
+- 使用宿主机同一 ext4 文件系统的自动删除临时文件，仅写 24 次 4 KiB 并逐次 fsync（共 96 KiB）：中位 19.42 ms、最大 56.68 ms；容器启动阶段块设备 214 次写累计 4185 ms。同步写入延迟是建表/提交变慢的重要嫌疑，但不是数据库提交耗时的直接测量，不能据此声称全部延迟来自磁盘或证明商家使用机械硬盘。
+- ext4 启用 discard，fstrim.timer 也已启用。探针各阶段 discard 累计仅 9–18 ms，不支持把在线 TRIM 认定为本次主要原因，因此未修改挂载选项。
+- MariaDB buffer pool 1 GiB，737750 次逻辑读 / 764 次物理读；没有 redo log wait、Slow_queries 为 0，建站采样没有锁等待，完成后累计只有 1 次 row-lock wait。没有证据支持盲目加大缓存。performance_schema 为 OFF，缺少历史语句/文件等待分解；未重启数据库开启它。
+- 服务端回环访问正式 HTTPS ping 约 0.21–0.43 秒，身份 discovery 约 0.44 秒；这是轻量端点读数，不代表桌面页面、真实用户网络或并发容量验收。未执行 LINE 消息、收费 OCR、业务建单或全套负载测试。
+
+### 建议处理顺序（未实施）
+
+1. 在当前受限 SSH、站点归属校验、容量检查及逐步幂等回执下，复用仅供开户的维护容器，避免每步创建/销毁；不向产品 web 容器授予数据库 root 凭据。进一步合并同一轮配置写入须保留每一步状态和失败恢复。
+2. 核验服务器供应商的同步写入延迟和节点性能；若同一轻量样本持续偏高，要求供应商排查存储或迁移节点。旧机已停用，当前没有同版本、同缓存条件的双机基准，暂不能精确拆分单核与存储各占多少。
+3. 保持 MariaDB `innodb_flush_log_at_trx_commit=1` 的持久性；不通过降低订单/账务落盘保证换取开户速度。也不凭 32 GiB 内存增大 worker 数或承诺并发容量。
+4. 后续用户要求实施时，只改开户执行链，并用受控的独立验收 Site 验证重试/恢复和完整开通；不要重开或覆盖本次已成功的正式租户。
+
+参考：[Docker exec](https://docs.docker.com/reference/cli/docker/container/exec/)、[MariaDB InnoDB 系统变量](https://mariadb.com/docs/server/server-usage/storage-engines/innodb/innodb-system-variables)、[Linux fstrim](https://man7.org/linux/man-pages/man8/fstrim.8.html)。本节诊断记录保留在 `codex/ssdnodes-migration` 工作树，尚未合并或推送；正式应用没有因为此次诊断重新发布。
+
+## 新租户个人资料与 DMS 凭据故障诊断
+
+用户提供四张正式租户截图，要求诊断显示不一致、之前要求收拢的账户功能缺失及 DMS 解密报错。本节仅诊断；未修改生产配置、密钥、凭据、业务数据或部署。基线 `1d7832e`，正式镜像仍为 `56e2497`。
+
+### 现场证据与结论
+
+1. **个人资料功能没有在新开户落地。** 正式 Site 的 User `Custom Field` 与 `Property Setter` 都为零；`pearnly_company`、`pearnly_domain`、`pearnly_change_password` 不存在，first_name 仍标为 First Name，mute_sounds 仍在原生 Settings 页签。浏览器 onload 已收到正确 company/domain，native_account=true，因此不是缺少公司数据或身份开关。正式 `account/layout.py`、`public/desk/user.js`、hooks.py 与主线文件 SHA-256 逐个相同；不是这三个源码漏投递。`ensure_profile_fields` 只挂 after_migrate；正式开户 install_app 后设置产品配置，再 finalize_site，未执行这个布局初始化。旧实验 Site 已初始化不能替代新租户验收。
+2. **语言/时区所在的整列被本方脚本误隐藏。** 浏览器现场：全页刷新后两字段可见；点击表单刷新、等待响应完成后两字段不可见，表单未脏。两字段实际位于原生 `column_break_11`，而 user.js 白名单只保留 `column_break0`，把前者 df.hidden 设为 1。初次绘制还未将列的隐藏状态更新到 DOM，后续原生 layout.refresh 将其变为 `hide-control`，所以同一页表现不同。是布局结构与刷新时序缺陷，不能用要求用户清浏览器缓存结案。
+3. **公司 DMS 连接的两项密文确实无法解密。** 对正式 `__Auth` 只读检查，EP-00001 的 password/admin_password 用当前文件中的站点密钥解密均为 InvalidToken；EP-00002 的 password 可解密。未输出密钥、密码或完整密文。EP-00001 两项密文的 Fernet 时间为 15:26:51 UTC，站点配置文件最后修改为 15:26:52.188 UTC。nginx 日志对应 15:26:51 test_credentials 200、save_connection 200，15:26:52 get_connection 200 且返回体包含错误消息。没有证据表明是第三方账号密码输错，也不是恢复旧租户数据库造成。
+4. **首次密钥生成有跨请求/进程覆盖窗口。** 新开户未在发布前创建 encryption_key。锁定 Frappe 的 get_encryption_key 根据请求内 conf 判断缺失，再生成并写文件；请求站点配置有进程内 60 秒缓存，写入清除只作用于本进程。另一个持有无密钥旧快照的请求可再次生成并覆盖。仅在本地自动清理临时目录、无数据库/网络的隔离复现中，两个旧快照顺序调用真实原生函数，第二个密钥替换第一个，第一份密文随即无法解密。两环境 password.py SHA-256 相同（08394257…）。该机制与正式一秒内的写入/读取顺序吻合；没有保存当时各 worker 内存快照，不能把具体 worker 调度当作已采集历史证据。
+5. **连接状态和异常呈现误导。** get_connection 只要存在 Endpoint 行便返回 connected=true，没有结合启用状态及凭据可解密性。连接向导的绿色成功提示使用保存前的 test_credentials 结果；后续 refresh 读取持久化密码失败，却仍展示“已连接”。Frappe 的 raise_exception=False 会吞 ValidationError，但 decrypt 内 frappe.throw 已将消息入队，因此普通读取也弹出框架技术细节；花名册读取关联连接会重复出现同一错误。
+6. **开户完成检查覆盖不足。** verify_site 只校验产品/租户/身份、禁本地密码、scheduler 和钱包；没有校验账户扩展字段/排列、站点密钥提前固定及保存后跨进程读取凭据。14/14 done 不能证明这些产品能力完整。旧环境升级验证和镜像源码一致也不能替代全新开户后的业务验收。
+
+### 修复顺序与边界（尚未实施）
+
+- 新站点在 web/worker 接流量前固定唯一加密密钥；已有站点只校验、不重新生成替换。确认当前损坏凭据有原密钥备份时才恢复，否则经用户正常输入重新保存；不得直接换整站密钥，避免破坏已经可用的其他密文。
+- 账户布局初始化接入原生新开户收尾与升级两条路径，幂等补齐字段、用户名标签及静音/改密位置；在产品配置已设置后执行。白名单保留可见字段的真实原生分栏/分节/页签结构，使首次加载、表单刷新、路由返回一致。
+- 凭据读取失败应保留内部诊断、返回简洁且准确的不可用状态。连接向导须区分保存前探针成功与保存后实际可用；不得再凭记录存在显示已连接。检查花名册、LINE 及后台推送共用读取链。
+- 补一组定向的新租户初始化/双进程密钥稳定性/账户两种刷新路径检查，不重复全套业务测试；最终部署与用户业务验收单独记录。
+
+本节没有运行真实 LINE、付费 OCR、第三方 DMS 登录或建单；仅浏览器导航/刷新、服务器只读查询、源码核对及本地临时目录复现。诊断记录与上一节速度记录仍留在迁移工作树，未合并推送。
+
+## LINE 新旧入口混用与网页下拉菜单核对
+
+用户随后补充手机编辑器、聊天菜单/底部菜单、网页公司下拉菜单截图，要求查明为什么与上一版及已要求的效果不一致。以下仍为诊断，没有发布菜单、改 LIFF、发消息、登录第三方 DMS 或提交业务数据。
+
+### 已从当前外部配置确认
+
+- DMS-TEST 的 Messaging API `channel/webhook/endpoint` GET 返回 active=true，地址为 `https://testdms.pearnly.com/api/method/pearnly_core.line.webhook`；新站点配置的 LIFF 为 `2010411313-6iTLjpWn`。LINE Developers 实际页面显示此 LIFF 的 Endpoint 为 `https://testdms.pearnly.com/liff/dms-booking`，scope 为 openid，配置本身正确。
+- 同一 OA 的 `user/all/richmenu` GET 仍返回旧菜单 `richmenu-1aa682af66e6a7b64c3350c1131166ef`，名称 `pearnly-dms-basic-v4-provider-liff-dms_a`，只有四个入口。当前唯一已绑定用户的独立菜单 GET 为 404，因而使用该默认菜单。菜单列表里的五份菜单均为旧 v1/v3/v4，未见新平台按内容散列命名的菜单。
+- 旧默认菜单第 3 项实际 URL 是 `https://pearnly.com/home/dms-booking?portal=dms&channel=dms_a&openExternalBrowser=1`；第 4 项实际 URL 是 `https://liff.line.me/2010411313-K4TWQwYo/dms-booking?credentials=dms&channel=dms_a`。LINE Developers 页面确认后一个 LIFF 名称为 Pearnly Purchase、Endpoint 为 `https://pearnly.com/home`。它与新 DMS LIFF 不同，直接解释截图中仍打开旧域名、绿色主按钮及旧凭据表单。
+- 新租户 `pearnly_dms_rich_menus` 配置不存在。当前已绑定用户的服务端 can_query=true，但未关联查询菜单。`request_sync`/`sync` 在缺少已发布菜单配置时直接返回，所以勾选查询权限后聊天卡片可出现第 5 项，而底部仍只有四项；这不证明查询业务本身已完成真机验收。
+- `site-step.py` 的 set_line 只写 channel/secret/token/liff 配置；开户与 verify_site 没有发布/核对 OA 默认菜单及已绑定用户菜单的步骤。这次产品消息入口切换了，持续菜单发布遗漏，代码存在不能代替外部配置落地。
+
+### 前端版本与下拉菜单
+
+- 正式 product.js、menu/rich_menu.py、menu/links.py 与本地主线逐文件 SHA-256 一致。新站点公开提供的编辑器 index.html、index.2iTnqFA0.js、index.CRgWimy8.css 均为 200，且字节散列与当前运行镜像一致；本次截图中的旧编辑器来自旧入口，不能归因于新站点没投递这三个产物。
+- 当前 AccountPage/LineLayout 使用白底深色文字、原生 Frappe UI 控件和紫色 pn-primary；截图旧页面有绿色 P 图标、绿色保存按钮及再次确认密码，这些不属于当前 AccountPage 模板。这里确认的是源码/产物与路由，尚未替用户完成真实 LINE 登录后的新页面操作验收。
+- 网页公司下拉菜单在当前 product.js 明确设为“侧栏排序、刷新、注销”。与 14f0bb6 相比，5b7181a 去掉主题/Display，是用户此前要求取消无权限主题入口对应的变化。不能将这项有意变化当成随机版本回退；其配套“静音、改密码、公司信息收进用户详细信息”因上一节的新开户初始化缺失而没有落地。
+
+### 必须分别闭环的缺口
+
+1. OA 默认菜单与权限菜单发布、关联和回读，确保聊天菜单/底部菜单的同名动作最终进入同一租户与同一版本。
+2. 验证入口 1–5 的真实目的地，尤其 3/4、查询权限变化及编辑器白底/黑字/紫色主按钮；不应通过修改共用的 Pearnly Purchase LIFF 来掩盖 DMS 菜单错误。
+3. 新开户/升级两条路径补齐账户字段和原生布局；修复刷新后语言/时区整列隐藏。
+4. 提前固定新站点密钥，处理现有损坏凭据，准确展示连接状态；不可把连接测试成功当作保存后的实际可用。
+5. 发布完成检查纳入以上外部配置及新租户初始化回读。源码、镜像、14/14 开户步骤和业务入口一致性是不同证据，当前不标记为整体迁移验收完成。
+
+当前只更新本任务诊断记录，未修改正式代码/配置，未运行全套测试；未合并或推送本节。新增证据来自当前 LINE GET、Developers 控制台、站点只读配置/权限和静态资源核对。
+
+## 停止施工后的完整交接（2026-09-20，最新有效状态）
+
+用户最后指示：**“你别搞了，你把全部问题列出来，我让下一个窗口修。分支保留着，你的改动保留着，让下个窗口接得上。”**
+
+本窗口停止业务修改、外部配置写入和部署，只整理本交接。接手窗口按用户的继续指示施工；不要因本文里的历史部署授权自动在本窗口恢复执行。未删除或清理任何工作树、分支、实验数据或生产资源，没有停止正常运行的产品服务、SSH 隧道或开户常驻服务。
+
+### 分支、差异与版本
+
+- 本任务工作树：`/Users/skin/.codex/worktrees/ssdnodes-migration/pearnly`。
+- 分支：`codex/ssdnodes-migration`；HEAD 为 `1d7832e6c5c767b310542b9022750992ec9957b0`。
+- 本次交接现场 `main`、`origin/main`、`origin/codex/ssdnodes-migration` 均为同一 SHA。主目录 `/Users/skin/pearnly` 干净。
+- 本轮诊断开始后没有业务源码补丁。唯一未提交改动是本文件：交接前已有 94 行诊断追加，本次继续追加交接和顶部提示。暂存区为空，未提交、未合并、未推送这些诊断与交接。
+- 此前已完成并已部署的迁机实现仍在上述提交历史中，不能把“本轮没有业务补丁”理解成此前迁机没有做。
+- 其他任务工作树保留不动：`auth-flow-fixes/pearnly`（`14f0bb6`）、`dms-line-diagnosis/pearnly`（`7415c1e`）。它们的挂载/数据不因 main 已包含提交就可删除。
+- 最近生产核对：镜像源码 `56e249760d58df08ee23f72a06e727f5faa94600`，digest `sha256:f67d0b72e9615f3c5ea182bd989b5f428a738fa0db79e559060283ce1e3df844`。相关 App/前端差异及关键文件散列已在前文核对，新的故障修复尚未发布。接手后重新只读确认实际运行版本，不拿旧记录代替。
+
+### 最新产品要求（覆盖较早相反要求）
+
+1. 公司标题的下拉菜单按原生顺序：**首页、网站、分隔线、显示、刷新、分隔线、注销**。原“桌面”改“首页”，进入当前产品的订阅首页（现有 `/desk/pearnly-home`）；网站打开 `https://pearnly.com`，保留网站图标；帮助去掉。不要把首页指向旧 `/home` 或控制面。
+2. “显示”及其原生主题能力恢复并真正可用，不能仅放回无权限入口。此前“删除主题入口”的要求被此次明确恢复要求替代。原生其他显示能力应保留；当前自定义顶层“侧栏排序”不在用户指定的新排列中。
+3. 用户资料：用户名、公司/开户信息、语言、时区、静音、改密码归入用户详细信息；去掉中间名/姓等无关字段，不把设置和改密码另列入口。邮箱不可随用户名变化重新绑定，身份关联保持 issuer/sub。
+4. LINE 客户编辑、订车编辑和本人凭据页同一套白底深色字、仅主按钮紫色、官方控件及与网页一致的尺寸；手机适配复用框架。新版链接必须实际打开新版，不以资源存在代替。
+5. 绑定码纯六位数字。绑定成功提示和网页操作人显示用户名/姓名，系统 ID 只留审计。
+6. 按量价格以用户最后纠正为准：每自然月前 200 页 THB 1.50，之后 THB 0.75（不是 1.00）。字符规则每 50 字符 THB 0.01，向上取整。去掉对用户无关的“曼谷/高精档”等文案，金额来自同一计费规则。
+7. 只有 DMS-TEST 可供 LINE 验收；先本地必要闭环，再新服务器部署及真机验收。不要要求用户另建测试 OA。不重复已通过且无新修改影响的整套压测。
+
+### 全部待办清单：已确认缺陷、最新待查、历史验收缺口分开
+
+下列项目全部纳入接手范围。标为“历史本地通过”的项目不要求重写或无条件重测，但不能据此认定本次新服务器/新租户已验收。E01–E85 的完整历史清单见后面的关联记录，未在此删除任何旧待验项。
+
+| 编号 | 问题/要求 | 当前证据与剩余工作 |
+| --- | --- | --- |
+| H01 | 用户资料每次打开内容不同，语言/时区消失 | 已复现。user.js 隐藏了真实父列 `column_break_11`；首次绘制和后续 layout.refresh 不一致。按可见字段保留真实页签/分节/分列祖先，验证首次打开、表单刷新、路由返回一致。 |
+| H02 | 公司、域名、静音、改密码缺失；姓名标签没改成用户名 | 已确认新 Site 没有 User Custom Field/Property Setter；初始化只在 after_migrate，新开户没有执行。新建与升级都应幂等落地，不能只修一个存量站。 |
+| H03 | 改用户名、改密码、邮箱登录同步 | 旧实验有真实本地 Keycloak/HTTP 通过记录；新租户入口目前因 H02 不完整。补新租户实际链路验证，保持邮箱/sub，不借修改第三方 DMS 密码完成 Pearnly 改密。 |
+| H04 | 公司标题下拉菜单回退/缺显示和网站入口 | 已确认 current product.js 只有侧栏排序、刷新、注销。按上方最新菜单精确恢复；原生 theme API 为本人 desk_theme 更新，仍需以普通租户角色确认点击与保存有效。 |
+| H05 | 网站图标与新租户品牌图标 | 网站菜单图标及 https://pearnly.com 去向待改；此前要求租户浏览器默认用 Pearnly favicon 需新开户回读，不把公司字母头像与 favicon 混为一项。 |
+| H06 | 公司 DMS 凭据解密失败 | EP-00001 password/admin_password 用现有 key 均 InvalidToken，EP-00002 password 可解。先找可靠原 key/同一账户的有效凭据来源；缺来源则明确需要重新输入。不得换整站 key、重置第三方密码或把未知密码强行填入。 |
+| H07 | 新站点首次 encryption_key 竞争覆盖 | 已隔离复现原生按旧 conf 快照再次生成覆盖。建站接流量前固定 key；现有 key 只校验不替换。验证跨进程读写稳定，新开户验收应包含此项。 |
+| H08 | 解密失败却显示“已连接/连接正常” | 已确认 connected 只看 Endpoint 是否存在，向导用保存前探针结果报成功。改为启用状态与实际可用凭据/保存后回读一致；不以记录存在判断连接。 |
+| H09 | 连接和操作员页弹框泄露框架技术错误、重复报错 | raise_exception=False 仍残留 decrypt 的消息队列。统一相关凭据读取/错误呈现，覆盖连接、花名册、主档、LINE、本人的外部凭据页和后台任务，不吞业务失败。 |
+| H10 | 聊天菜单和底部菜单不一致、缺查询项 | OA 默认还是旧四项菜单；唯一绑定用户没有独立菜单，服务端 can_query=true；Site 缺 `pearnly_dms_rich_menus`。发布新版 basic/query 菜单，按权限绑定并回读；解绑/权限变化也须同步。 |
+| H11 | LINE 打开的编辑器仍为旧绿色页面 | 已确认底部菜单 3/4 指向旧 pearnly.com 公共路径/旧 Purchase LIFF；新站 JS/CSS 与镜像一致。修真实入口后验客户、订车、本人凭据三页，不盲目重发静态包结案。 |
+| H12 | LINE 公共域名/LIFF/菜单入口切换不全 | 当前 webhook 和新 DMS LIFF Endpoint 正确；具体新旧 URL 见下一节。只更新 DMS 对应入口，不能修改共用 Purchase LIFF 或 apex/www 归属来掩盖菜单错误。 |
+| H13 | 开户没有发布并验证 LINE 持久菜单 | set_line 只写凭据，verify_site 没有外部菜单回读。将幂等发布和权限关联接到站点 HTTPS 已可用之后，确保未来新 OA/新租户不会重犯。 |
+| H14 | 新开户每步很慢 | 14 步约 789 秒，旧同口径约 303 秒。实测每步 Docker 新建约 5 秒额外成本，框架导入也重复；同步写延迟偏高但未证明全部来自硬件。优化维护容器复用/配置写入，保留容量、归属、逐步回执和恢复能力，不能给业务容器 DB root 凭据。 |
+| H15 | 开户“14/14”缺少产品完整性检查 | 现验收缺账户布局、稳定密钥、保存后凭据、LINE 外部菜单。补新租户初始化/升级差异的必要检查，不能用老实验 Site 已存在字段充当新建成功。 |
+| H16 | 首页记录时间显示不完整（最新截图） | 用户新报，尚未复现。截图行值可见到秒，具体视口/列宽/截断处未定位；检查原生列表列宽、窄屏、时区与完整值显示，勿先猜改日期格式。 |
+| H17 | 2026-09-20 22:43:53 身份证识别扣费 THB 0.00，摘要为“—” | 尚未查账。截图显示 M 当前套餐、1 页、结果“成功”、余额 750，同页有 -250 套餐费。套餐额度抵扣是可能解释而非结论。需关联 OCR 任务、用量 reference、套餐页数变化、账本和外部推送记录，明确识别成功/失败、计费/额度、推送结果分别是什么；不能凭 0 元判定未识别或推送失败。 |
+| H18 | A 档之前 ×3、4.50 与报价不一致 | 历史已定位新仓误加售价乘数，候选已去除并有真账本检查，现镜像包含该历史改动。仍需核对新站实际规则与 H17；供应商成本和租户售价分开。原旧租户两笔共多扣 6 THB 的历史未冲正，不能移记到新空环境租户。 |
+| H19 | 套餐/无套餐/字符/密集件/并发重复扣费规则 | 旧清单有 97 项计费和 HTTP 快照冲突定向检查。当前新机需只对有证据的偏差核查；续订是否恢复自动扣款历史未定，不自行恢复自动扣费。 |
+| H20 | LINE 原生 loading 初期不出现、后期才出现 | 历史已改调用时机及 HTTP 202 处理，本地通过；DMS-TEST 真机表现未闭环。不要用模拟 loading 宣称官方客户端通过。 |
+| H21 | OA 官方首次欢迎语重复 | 历史任务没有改官方开关。仍需关闭官方欢迎语，保留必要绑定引导，并以后台回读/真机 follow 证明。 |
+| H22 | 绑定回执/推送记录显示系统 ID、六位码及撤销行为 | 历史姓名投影、数字码、过期/防猜/重绑已有本地检查；新 OA 验证实际展示与绑定变化，不输出内部 operators.local。 |
+| H23 | 编辑按钮、取消/清空/保存重开、所有编辑字段真实推送 | 历史客户/订车本地真实 DMS 回读通过，仍需新入口验收。保持已编辑/主动清空值，不回填旧值；逐字段清单关联 below，不宣称任意未来字段自动映射。 |
+| H24 | 订单确认后没回执、疑似没推送 | 最早手机 05:29 那笔没有重放或成功证据；最新 H17 同样未对账。先查真实外部单号和详情，再处理附件/消息补发，禁止为了显示成功伪报或盲目再次建单。 |
+| H25 | LINE 菜单 1–5 全部能力和查询权限 | 历史有真建客、订车、本人门户登录、凭据保存、查询状态对照；生产新路由和损坏凭据会影响实际行为。按本人权限核实，管理员查询不能借给销售；非空排行仍缺外部业务证据。 |
+| H26 | DMS 车型/颜色等主档增删改同步与字段映射 | 历史自建主档 CRUD/实时缓存/提交前失效守卫已验证，夹具已精确清理；非空主管/汇款方槽、每一种车型派生属性变化未逐项另建单。避免把当前支持字段说成未来全字段自动兼容。 |
+| H27 | Web 首页/推送记录/操作员列表、刷新/勾选删除一致 | 历史已有原生列表及单选/全选、选中右上角删除、软删除保留审计实现和本地证据。最新需修 H16；保持刷新小图标、选择不被自动刷新打断，不因 UI 删除影响账本/余额。 |
+| H28 | 三 App 共享 OCR 并发、队列、恢复与容量 | 已有共享限流/公平性/独立 OCR worker/恢复等代码与本地测量；32 GB 新机未测极限，真实供应商吞吐未由替身压测证明。不要承诺最大人数或无限并发；ERP/Cowork 实际 OCR 入口未完整迁入，不能称三产品业务全通。 |
+| H29 | 手机适配与正式文案 | 旧桌面/390px本地检查通过，但旧 LINE 入口仍让用户看到错误皮肤。修入口后按实际页面检查；计费文案同源，无“曼谷/高精档”展示，语言/尺寸遵守原生能力。 |
+| H30 | 统一部署、外部验证、用户验收 | 以上本轮新增缺陷未修复未部署。合回 main、推送、CI 镜像、生产 digest、原生迁移、静态产物、外部菜单回读分别留证；DMS 真落单/手机回执/真实登录不得由健康检查代签。生产密码重置邮件送达、定期异地备份/恢复演练仍是历史边界，不能宣称已完成。 |
+
+H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地址。新增截图只作为报告，不等于已经查到 H16/H17 根因。
+
+### LINE 精确配置交接（此前只读核验，未修改）
+
+- OA：DMS-TEST，Messaging API channel `2011511433`。
+- 已正确：Webhook `https://testdms.pearnly.com/api/method/pearnly_core.line.webhook`，active=true。
+- 已正确：新 DMS LIFF `2010411313-6iTLjpWn`，Endpoint `https://testdms.pearnly.com/liff/dms-booking`，openid。
+- 新平台动作：菜单 3 进入本租户门户交接（`action=portal`）；菜单 4 用上面新 LIFF（`action=credentials`）。客户/订车票据编辑也使用新平台入口。
+- 仍错误：OA 默认 `richmenu-1aa682af66e6a7b64c3350c1131166ef`（`pearnly-dms-basic-v4-provider-liff-dms_a`）第 3 项是 `https://pearnly.com/home/dms-booking?portal=dms&channel=dms_a&openExternalBrowser=1`。
+- 仍错误：其第 4 项是 `https://liff.line.me/2010411313-K4TWQwYo/dms-booking?credentials=dms&channel=dms_a`；后者属于 **Pearnly Purchase**，Endpoint `https://pearnly.com/home`。不能全局改这个 LIFF；替换 DMS 菜单指向才是本任务边界。
+- 当前租户没有 `pearnly_dms_rich_menus`，导致普通同步直接返回。需要发布新菜单并回读 default/per-user。旧菜单暂未删，接手须先完成替换与关联验证，不先批量删除。
+
+### 实现落点与建议顺序（仅方案，尚未动手）
+
+1. 先处理密钥和凭据：`infrastructure/production/site-step.py`、`apps/pearnly_core/pearnly_core/provisioning.py`；共享凭据契约参考 `pearnly_core/endpoints.py`。DMS 受影响读取在 `connections/api.py`、`operators/endpoints.py`、`masters/masters_cache.py`、`adapter/session.py`、`account/api.py`。防止引入 adapter→connections 的循环依赖；`pearnly_core/password.py` 是 Pearnly 身份密码逻辑，不能仅因文件名相同塞入第三方密文处理。
+2. 账户布局：`account/layout.py`、`hooks.py`、`public/desk/user.js`；新开户 finalize 在产品配置设好后调用现有幂等布局初始化，旧站仍走 native migrate。父布局可按元数据动态取实际祖先。
+3. 原生菜单：`public/desk/product.js`；复用锁定 Frappe SidebarHeader `get_display_siblings()` 与 ThemeSwitcher、clear_cache，不改上游源码或自建主题控件。
+4. LINE：`apps/pearnly_dms/pearnly_dms/menu/rich_menu.py` 的 publish/reconcile/sync 与 `menu/links.py`。发布门槛应放在真实 HTTPS 已可用、正确产品/归属/凭据已确认之后；不向用户额外发测试消息来验证菜单。
+5. 开户速度：`infrastructure/production/provision-agent.py`、`site-step.py`、`scripts/production/provision-runner.py`。可复用单独 root 维护容器，限定镜像/挂载/所有权、寿命、内存和最后清理，仍每步骤独立回执/原生执行；不能改成向常驻 web 提供 root 凭据。性能改善需要新测量，不能把每步约 5 秒节省说成解决全部 8 分钟差额。
+6. 最新账目/时间：`public/desk/home.js`、`billing_www.py`、Control payments 与 OCR execution 记录。先只读关联这笔 usage/OCR/reference/Subscription/Push Log/Delivery 后再改显示；必要时将“套餐额度内，余额扣费 0”准确表达，但未经核实不要先写定结论。
+7. 最后按有修改的影响面做架构、DMS 离线和定向检查。新建初始化必须用独立验收 Site，不覆盖 testdms；UI 首开/刷新/窄屏及外部菜单回读为必要场景，不无条件再跑 E01–E85 全套。
+
+### 运行连接与环境归属
+
+- 新服务器：`107.155.65.74`，SSH 使用 `/Users/skin/.config/pearnly-production/operator`，`IdentitiesOnly=yes`、`BatchMode=yes`、`StrictHostKeyChecking=yes`。凭据不写本文、不输出运行 env 或 Site key。
+- 生产根：`/opt/pearnly/deploy`，`active-image.json` 是数组结构；私有配置在 `/opt/pearnly/secrets`。Compose 项目 `pearnly-production`，DMS 容器包括 `dms-web`、普通 worker、OCR worker、OCR dispatch、scheduler、socketio、frontend，另有私有 billing/Keycloak/MariaDB/Redis。
+- 正式 Site：`testdms.pearnly.com`；新 issue `ISS-2026-0250`、request `PR-2026-0252`、deployment `DEP-2026-0253`。旧 `DEP-2026-0248` 已退休删除本地记录，不能把旧账目/绑定重新导入新站。
+- 已知本地 Docker context `colima-pearnly`。`pearnly-dms-line-lab-site-1` 的 App 挂载来自 **dms-line-diagnosis 工作树**；控制面 `pearnly-sample-control-bench-1` 从 **main** 挂载。不要从迁移工作树擅自接管共享卷/源目录或覆盖其他任务代码。
+- 发布入口：`.github/workflows/build-production.yml`、`stage-production.yml` 与 `scripts/production/activate-product.sh`。此前投递成功不等于本次新修复上线。实际执行前读脚本与当前运行状态，按既有备份/维护/660秒业务退出边界执行。
+- 本次交接未启动发布或业务修复命令；正常长期服务保留。未建立自动继续施工的定时任务。
+
+### 历史证据与不能遗漏的细项
+
+- [E01–E85 完整清单与分层证据](2026-09-20-dms-line-production-diagnosis.md)：包含 loading、欢迎语、姓名、绑定、1–5、会话/权限、附件与回执、查询、账户、UI、计费、共享预算与恢复。其顶部仍记录旧 Contabo 发布阻塞；**该服务器状态已被本文新 SSD Nodes 事实取代**，内部“未提交/未部署”等分时段描述不能直接当当前 Git 状态。
+- [字段映射清册](2026-09-20-dms-line-field-map.md)：客户28项、编辑/订单104项、派生43项的实际回读边界，以及仍缺非空样本/属性变更的槽位。不要漏掉主动清空、三套地址复制、佛历日期、收款六渠道和两类附件。
+- [共享 OCR 容量与恢复](../operations/shared-ocr-capacity.md)：当前起步预算全局4在途、单租户2、每模型桶30请求/分钟、全局排队300/租户50/最长30分钟；这些是应用配置，**不是供应商保底配额或新机承载上限**。有真实单笔 OCR 和模拟供应商负载的分别说明。
+- [原生 Desk/身份的较早验收](2026-09-20-auth-flow-fixes.md)、[早期部署](../releases/2026-09-20-product-desk.md) 只证明其当时版本，不能覆盖这次新站初始化缺陷。
+- 本次最新截图：`codex-clipboard-e522ac71-3bb9-4f18-8986-78718bdec136.png`、`codex-clipboard-5205fe53-54cd-4de1-9d2f-50313d0136ac.png`，原文件在用户提供的 macOS 临时目录；敏感原始资料不复制入仓。
+
+交接验证限 Git 状态及本文件 `git diff --check`；没有因文档追加运行架构/业务/OCR/并发测试。下一窗口应从本文件的最新要求、H01–H30 和当前 Git/生产只读核对开始，而不是从旧状态卡重新部署旧候选。
+
+## 本轮修复（接手窗口，只改代码）
+
+用户指示：**只处理问题，不扩大设计和改动，不擅自添加东西，只修 bug。** 因此本轮只动 H01–H30 里能落到代码上的缺陷，不做设计调整、不加功能、不动生产、不发布菜单、不发 LINE、不跑付费 OCR，也没有创建租户。基线仍是 `1d7832e`。
+
+| 编号 | 改了什么 | 落点 |
+| --- | --- | --- |
+| H01 | 个人资料不再只留一份"可见字段名单"，而是按字段顺序算出可见字段**真实所在的页签/分节/分列**并一起保留；改完补一次原生布局刷新，让首次绘制与表单刷新看到同一份内容 | `apps/pearnly_core/pearnly_core/public/desk/user.js` |
+| H02 | 建站收尾显式执行账户布局初始化（幂等）。原因：该初始化只挂 `after_migrate`，而新开户不走 migrate，正式租户上 Custom Field / Property Setter 全为 0 | `apps/pearnly_core/pearnly_core/provisioning.py` |
+| H04 H05 | 公司标题下拉菜单按用户指定的原生顺序恢复：首页（`/desk/pearnly-home`）、网站（`https://pearnly.com`，保留网站图标）、分隔线、显示（原生主题/全宽/侧栏三项）、刷新、分隔线、注销。标题里那份菜单不渲染分隔线行（原生那份没有该行、照搬会多出一行 `undefined`） | `apps/pearnly_core/pearnly_core/public/desk/product.js` |
+| H07 | 新站点在建站步骤就固定 `encryption_key`，且**只在缺失时**写；已有站点只校验不重生成，避免换掉整站密钥让现在能解的密文一起失效 | `infrastructure/production/site-step.py` |
+| H08 | 连接状态改成"现在真能用"：启用 **且** 这组账号的密码解得开才算 `connected`；保存后回读，读不回来直接报错，不再"记录存在就显示已连接" | `apps/pearnly_dms/pearnly_dms/connections/api.py` |
+| H09 | 新增共用凭据读取口：解不开密文只回空串，并丢掉 Frappe 解密时排队的那条框架消息（`raise_exception=False` 只吞异常、不吞消息，这才是弹框泄露技术细节的来源）。连接、适配器登录、主档缓存作用域、操作员与连接同步、花名册、本人门户都改走这一个口 | `apps/pearnly_core/pearnly_core/endpoints.py` + DMS 六处调用点 |
+| H13 H15 | `set_line` 在写渠道配置后幂等发布持久菜单（只在 DMS 且配了 LIFF 时）；入口检查 `verify_site` 增加：站点密钥已固定、账户布局字段与标签存在、已配 LIFF 的租户其 OA 默认菜单就是本租户发布的菜单 | `infrastructure/production/site-step.py`、`apps/pearnly_dms/pearnly_dms/menu/rich_menu.py` |
+
+新增文案一条（保存后凭据读不回来）已按流程进术语表并生成四语包：`scripts/i18n/messages.tsv` 与 `apps/pearnly_dms/pearnly_dms/translations/*.csv`。
+
+### 本地证据
+
+- `node tests/test-native-desk.cjs`：在原有用例上补了个人资料字段祖先可见性与公司菜单断言，通过（含"显示"项仍拿原生主题/全宽/侧栏动作、首页去 `/desk/pearnly-home`、网站打开 `https://pearnly.com`、分隔线不会渲染成 `undefined` 行）。
+- `python3 scripts/check-architecture.py` 0 违规；`tests/test_architecture_guard.py`、`tests/test_native_desk_contract.py`、`scripts/check-dms-offline.py`（client / booking-foundation / booking-payments / booking-readback 全通过）、`scripts/i18n-build.py --check`、`tests/test_welcome_email.py`、`scripts/production/test-provision-agent.py`、`scripts/check-production-capacity.py`、`scripts/production/test-activate-product.py`、`node tests/test-roster-selection.cjs`、`node tests/test-records-selection.cjs`、`node scripts/production/test-issue-actions.cjs` 均通过；`git diff --check` 干净。
+- 凭据读取与连接可用性另做了一次性本地桩校验（临时目录，不入仓）：解密失败回空串且框架消息队列保持为空、`has_credential` 不把读不出的凭据算成已配置、`get_connection` 只在"启用且凭据可解"时为 true、停用为 false。
+- **未跑**：真实 Site、浏览器/窄屏、LINE 真机、付费 OCR、生产部署；`tests/test_dms_entrypoints.py`、`tests/check_*_runtime.py` 需要容器内的 Frappe 与数据库，本轮未跑。
+
+### 仍未处理（留给需要现场或授权的动作）
+
+- H06 的存量损坏密文：需要原密钥备份，否则要用户重新输入；本轮只保证不再发生（H07）并且界面如实显示（H08）。
+- H10/H12/H13 的**线上**动作：现有租户（`testdms.pearnly.com`）的 OA 默认菜单仍是旧菜单，发布是对 LINE 的外部写入，需要单独授权。
+- H16（首页时间显示不完整）与 H17（0.00 扣费）：都要现场截图/账目与 OCR、用量、推送记录关联，未复现前不改日期格式或金额显示。
+- H20–H29 的真机与业务验收、H30 的合并/推送/部署。

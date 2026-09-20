@@ -1,6 +1,7 @@
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
+The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
 dms.account.hint,Update the DMS credentials stored in Pearnly. This does not change your password at DMS.

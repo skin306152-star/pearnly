@@ -1047,3 +1047,4 @@ pearnly_core	Pay as you go: first {0} pages each calendar month at {1}/page; sub
 pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
 pearnly_core	Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
 pearnly_core	{0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
+pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください

@@ -12,6 +12,7 @@ from werkzeug.wrappers import Response
 from pearnly_dms.editor import browser_api, browser_ticket
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
 from pearnly_dms.account import portal
+from pearnly_core.endpoints import read_password
 
 PORTAL_PREFIX = "pearnly:dms:portal:"
 
@@ -91,7 +92,12 @@ def open_portal(token: str):
         browser_api._fail("dms_booking.expired", 409)
     who = _identity(record["account_ticket"])
     endpoint = _endpoint(who)
+    # 凭据解不开（密钥换过/密文损坏）= 这个门户现在用不了：回一句"没配连接"，
+    # 而不是把框架的加密报错抖给用户。
+    password = read_password("Pearnly ERP Endpoint", endpoint.name, "password")
+    if not password:
+        browser_api._fail("dms_booking.no_endpoint", 409)
     page, headers = portal.render(endpoint.system_url, endpoint.username,
-                                  endpoint.get_password("password"),
+                                  password,
                                   record.get("language") or browser_api._bound_language(who["line_user_id"]))
     return Response(page, mimetype="text/html", headers=headers)

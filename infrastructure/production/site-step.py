@@ -69,6 +69,19 @@ def main():
         frappe.clear_cache()
 
     if action == "new_site":
+        # 站点加密密钥**在接流量之前**固定下来，而且只写一次。
+        #
+        # 为什么必须在这一步做：Frappe 的 `get_encryption_key()` 是按"本进程看到的
+        # site_config 里有没有 encryption_key"决定要不要新生成并写文件的
+        # （frappe/utils/password.py），而站点配置在请求进程里有 60 秒缓存，写文件后的
+        # 缓存清理只作用于本进程。新开户不先固定密钥，就会有两个请求各自生成一次、
+        # 后写的覆盖先写的 —— 先写那次加密的凭据随后全部解不开（2026-09-20 正式租户现场：
+        # EP-00001 的两条密文在秒级内失效，站点配置文件最后修改时间就在它们之后）。
+        # 已有站点只校验、绝不重新生成：换整站密钥会让**现在还能解**的密文一起失效。
+        if not frappe.conf.get("encryption_key"):
+            from cryptography.fernet import Fernet
+
+            config(encryption_key=Fernet.generate_key().decode())
         config(host_name="https://" + site, developer_mode=0, maintenance_mode=0,
                pause_scheduler=0, enable_scheduler=True)
     elif action == "install_app":
@@ -103,6 +116,14 @@ def main():
             config(pearnly_line_channel_id=p["channel_id"], pearnly_line_channel_secret=p["channel_secret"],
                    pearnly_line_channel_access_token=p["channel_access_token"],
                    pearnly_line_liff_id=p.get("liff_id", ""), pearnly_line_product=group)
+            # 持久菜单：凭据写进去**不等于交付**。用户看到的是 OA 上那条真实菜单，
+            # 而 2026-09-20 现场正是"新平台动作已切换、OA 默认菜单还指着旧 pearnly.com
+            # 公共路径与旧 Purchase LIFF"。发布是幂等的（按内容散列命名），所以每次
+            # 下发渠道配置都对齐一次；没有 LIFF 就不发布 —— 菜单 3/4 本来就依赖它。
+            if group == "dms" and p.get("liff_id"):
+                from pearnly_dms.menu import rich_menu
+
+                rich_menu.publish()
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()
@@ -130,6 +151,21 @@ def main():
         assert frappe.db.count("Pearnly Identity", {"status": "active"}) > 0
         from pearnly_core.billing_client import wallet
         wallet()
+        # "14/14 全 done"只证明步骤跑完，不证明产品能力落地。下面这几项都是**新建时
+        # 就该存在**的东西：密钥固定、账户个人资料布局、以及租户 OA 上真实生效的菜单。
+        assert frappe.conf.get("encryption_key"), "The site encryption key must be fixed before traffic"
+        for fieldname in ("pearnly_company", "pearnly_domain", "pearnly_change_password"):
+            assert frappe.db.exists("Custom Field", {"dt": "User", "fieldname": fieldname}), \
+                "Account profile fields must be created when the site is opened"
+        assert frappe.db.exists("Property Setter", {"doc_type": "User", "field_name": "first_name",
+                                                    "property": "label", "value": "Username"}), \
+            "The account name field must be labelled Username"
+        if group == "dms" and frappe.conf.get("pearnly_line_liff_id"):
+            from pearnly_dms.menu import rich_menu
+
+            state = rich_menu.published_state()
+            assert state["basic"] and state["query"], "This tenant's DMS rich menus are not published"
+            assert state["default"] == state["basic"], "The OA default rich menu is not this tenant's menu"
     else:
         raise ValueError("Unsupported Site action")
     frappe.db.commit()

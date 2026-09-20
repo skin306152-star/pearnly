@@ -87,6 +87,28 @@ def publish():
         return result
 
 
+def published_state() -> dict:
+    """回读 OA 上现在真实生效的菜单：本租户发布过的两条 + 当前默认那条。
+
+    为什么要有它：`publish()` 不报错只说明"我们发过一次请求"，不说明用户手机里
+    看到的是这条菜单 —— 现场就出现过"新平台的菜单已发布、OA 默认菜单还是旧 OA 的"
+    （旧菜单指着 `pearnly.com` 公共路径和另一个产品的 LIFF）。所以交付前的检查要读
+    OA 的当前状态，而不是读我们自己的配置。
+    """
+    menus = frappe.conf.get(CONFIG) or {}
+    listed = {
+        item.get("name")
+        for item in _request("GET", "richmenu/list").get("richmenus", [])
+        if str(item.get("name") or "").startswith("pearnly-dms-")
+    }
+    return {
+        "basic": menus.get("basic") or "",
+        "query": menus.get("query") or "",
+        "default": (_request("GET", "user/all/richmenu", missing_ok=True) or {}).get("richMenuId") or "",
+        "listed": sorted(name for name in listed if name),
+    }
+
+
 def sync(line_user_id):
     menus = frappe.conf.get(CONFIG) or {}
     if not all(menus.get(key) for key in ("basic", "query")):

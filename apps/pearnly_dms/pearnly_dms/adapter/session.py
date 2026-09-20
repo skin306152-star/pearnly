@@ -29,6 +29,7 @@ from typing import Any, Dict, Optional
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from pearnly_core.browser import BrowserSession
+from pearnly_core.endpoints import read_password
 from pearnly_core.session_lock import account_lock, dms_login_key
 from frappe import _
 
@@ -124,7 +125,8 @@ class MrerpDmsAdapter:
             )
         if not doc.enabled:
             raise MissingCredentials(_("Endpoint {0} is disabled").format(endpoint_name))
-        password = doc.get_password("password", raise_exception=False)
+        # 用共用读取口：解不开密文时只回空串，不会把框架的加密技术细节留在消息队列里。
+        password = read_password("Pearnly ERP Endpoint", endpoint_name, "password")
         if not password:
             raise MissingCredentials(_("Endpoint {0} has no password configured").format(endpoint_name))
         kwargs.setdefault("headless", True)
@@ -140,7 +142,7 @@ class MrerpDmsAdapter:
             username=doc.username,
             password=password,
             admin_username=doc.admin_username,
-            admin_password=doc.get_password("admin_password", raise_exception=False),
+            admin_password=read_password("Pearnly ERP Endpoint", endpoint_name, "admin_password") or None,
             **kwargs,
         )
 

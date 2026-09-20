@@ -24,8 +24,8 @@ from typing import List, Optional
 
 import frappe
 from frappe import _
-from frappe.utils.password import get_decrypted_password
 
+from pearnly_core.endpoints import read_password
 from pearnly_dms.operators import advisors, line_account
 
 OPERATOR = "DMS Operator"
@@ -85,11 +85,8 @@ def _row(doc) -> dict:
         "can_query_dms": bool(doc.can_query_dms),
         "dms_username": doc.dms_username or "",
         # 密码**不回显**：老产品的编辑框是"留空则不修改"，界面只需要知道有没有配过
-        "has_dms_password": bool(
-            get_decrypted_password(
-                OPERATOR, doc.name, "dms_password", raise_exception=False
-            )
-        ),
+        # （用共用读取口：解不开密文只算"没配"，不会把框架技术细节弹到操作员页上）
+        "has_dms_password": bool(read_password(OPERATOR, doc.name, "dms_password")),
         "advisor_id": doc.advisor_id or "",
         "advisor_name": doc.advisor_name or "",
         **_line_status(doc.user),
