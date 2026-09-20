@@ -1,0 +1,89 @@
+{
+  "evidence": {
+    "schema": "pearnly-cowork-ocr-runtime-v1",
+    "captured_at": "2026-09-20T17:50:55.528077+00:00",
+    "source_baseline_sha256": "ed778db8459accbf27de222f5c86fe5309b1cfefe8a443a6c1cec9207be5d9cc",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "components": {
+      "pearnly-web": {
+        "revision": "pearnly-web-ec2e5c957e6b-s3",
+        "runtime_secret": {
+          "name": "pearnly-web-env",
+          "version": "3"
+        },
+        "configured_environment": {
+          "GCP_PROJECT": "pearnly",
+          "GOOGLE_CLOUD_PROJECT": "pearnly",
+          "OCR_ESCALATE_MODEL": "gemini-3.5-flash",
+          "OCR_FALLBACK_MODEL": "gemini-3.5-flash",
+          "OCR_FAST_PATH_ENABLED": "true",
+          "OCR_FEWSHOT_ENABLED": "1",
+          "OCR_FLASHLITE_MODEL": "gemini-3.5-flash",
+          "OCR_FLASH_MODEL": "gemini-3.5-flash",
+          "OCR_LLM_BACKEND": "vertex",
+          "VERTEX_LOCATION": "asia-southeast1"
+        },
+        "policy": {
+          "present": true,
+          "enabled": true,
+          "updated_at": "2026-09-05T15:19:52.896684+00:00",
+          "value_type": "object",
+          "mode": "economy",
+          "invoice_override": "economy",
+          "defaults_by_plan": {
+            "L": "economy",
+            "M": "economy",
+            "S": "economy",
+            "none": "economy",
+            "exempt": "economy"
+          }
+        },
+        "credential_presence": {
+          "GOOGLE_API_KEY": false,
+          "GEMINI_API_KEY": true,
+          "GOOGLE_APPLICATION_CREDENTIALS": false
+        }
+      },
+      "pearnly-worker": {
+        "revision": "pearnly-worker-ec2e5c957e6b-s3",
+        "runtime_secret": {
+          "name": "pearnly-worker-env",
+          "version": "3"
+        },
+        "configured_environment": {
+          "GCP_PROJECT": "pearnly",
+          "GOOGLE_CLOUD_PROJECT": "pearnly",
+          "OCR_ESCALATE_MODEL": "gemini-3.5-flash",
+          "OCR_FALLBACK_MODEL": "gemini-3.5-flash",
+          "OCR_FAST_PATH_ENABLED": "true",
+          "OCR_FEWSHOT_ENABLED": "1",
+          "OCR_FLASHLITE_MODEL": "gemini-3.5-flash",
+          "OCR_FLASH_MODEL": "gemini-3.5-flash",
+          "OCR_LLM_BACKEND": "vertex",
+          "VERTEX_LOCATION": "asia-southeast1"
+        },
+        "policy": {
+          "present": true,
+          "enabled": true,
+          "updated_at": "2026-09-05T15:19:52.896684+00:00",
+          "value_type": "object",
+          "mode": "economy",
+          "invoice_override": "economy",
+          "defaults_by_plan": {
+            "L": "economy",
+            "M": "economy",
+            "S": "economy",
+            "none": "economy",
+            "exempt": "economy"
+          }
+        },
+        "credential_presence": {
+          "GOOGLE_API_KEY": false,
+          "GEMINI_API_KEY": true,
+          "GOOGLE_APPLICATION_CREDENTIALS": false
+        }
+      }
+    }
+  },
+  "sha256": "682292fdf84387179fe8f019b216689c0a7c89fb5b86636b5bf6e152c1f626fc"
+}

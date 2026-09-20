@@ -14,7 +14,7 @@
 | contracts | 来源、日期、摘要、方向、过账声明和外推选择预检 | 无 Frappe / 网络 / 数据库 |
 | files / history.recognition | 精确原件、按页授权、不可变整批关联与跨操作者幂等回读 | Cowork Source File + 原生私有 File；files 不反向导入 history，关联查询只读当前 Site |
 | stocktake | 原生任务/商品/扫描/回执、累计、关闭和 JSON 报告 | 四个 Cowork Stocktake DocType；不写库存账；详见盘点记录 |
-| ocr / reconciliation | 输入限制、页展开、置信度及第一轮强配对纯函数 | 尚无供应商执行、完整分组或对账任务持久化 |
+| ocr / reconciliation | 输入限制、完整发票schema/校验/分组、结果准备、纠错提示、策略及第一轮强配对纯函数 | 尚无供应商执行或对账任务持久化；结果准备已与原生历史做本地集成验证 |
 
 DocType 控制器留在原生目录，hooks 只登记入口。没有修改 Core、DMS、Control、前端或底座版本。术语新增沿既有 TSV → Frappe CSV 入口，只生成 Cowork 语言包。
 
@@ -58,7 +58,7 @@ DocType 控制器留在原生目录，hooks 只登记入口。没有修改 Core�
 
 | 能力 | 当前状态 / 继续工作 |
 | --- | --- |
-| OCR 上传、分票、缓存、计费、队列及失败恢复 | 原件上传、输入限制、页关联、置信度和整批保存已有；供应商/ThaiInvoice/金额闸/完整分组、Core execution 接线、计费与缓存待迁，见 OCR 记录 |
+| OCR 上传、分票、缓存、计费、队列及失败恢复 | 原件上传、完整发票schema/金额闸/分组、物理页完整性及整批保存已有；真实供应商、输入渲染/文本快路、原生纠错例库、Core execution、计费与缓存待接，见 OCR 记录 |
 | 原件、PDF 预览、附件 | 新上传原件、整份及按物理页读取已实现；跨公司/同页多票拒绝越权，原生下载/ZIP旁路已堵；旧可搜索PDF、加密文件及历史回灌尚未迁 |
 | 外推、目标刷新、年度账套、权威日志 | 本批只有纯预检；连接、锁、reservation、消费者、未知结果和回读均待迁 |
 | LINE、Companion | 来源映射已完成；验签、当前绑定、单次票据、租约/ACK、消息回执等仍待迁；Windows 实际运行来源待核验 |

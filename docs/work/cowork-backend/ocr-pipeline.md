@@ -1,11 +1,11 @@
 # Cowork OCR 来源与执行接入断点
 
-日期：2026-09-21。新平台审计基线 `f409bce560df11f78ee5fc7908e71129c4e37a36`；工作树 `cowork-backend-migration`。
+日期：2026-09-21。第二批审计基线 `f409bce560df11f78ee5fc7908e71129c4e37a36`；第三批起点 `392d9d917cb62c1a00d0bb43f72dc7b806082a86`；工作树 `cowork-backend-migration`。
 旧来源固定为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，快照 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`。主代理已重新核对该版本仍承接旧生产；本子任务只读源码，没有访问生产数据、调用供应商、启动容器或执行部署。
 
 ## 本批实际交付
 
-仅迁移不依赖 Frappe、供应商和 IO 的输入元数据、物理页关联及质量判定。没有注册 OCR handler，没有公开识别 RPC，没有接入模型，也没有宣布旧识别链完成迁移。
+第二批迁移输入元数据、物理页关联及质量判定。第三批补齐 [发票schema和纯校验](invoice-contracts.md)、[完整分组](invoice-grouping.md)、结果准备、[纠错提示合同](invoice-feedback.md)及[实际运行策略](ocr-runtime-policy.md)，并验证完整结果在原生Site保存。没有注册 OCR handler，没有公开识别 RPC，没有接入模型，也没有宣布旧识别链完成迁移。
 
 | 新落点 | 来源 | 保持的行为 |
 |---|---|---|
@@ -16,7 +16,7 @@
 | `ocr/pages.py:all_pages_not_invoice` | `services/ocr/entrypoints.py:187-197` | 全部页明确非发票才返回 true；空列表不算；字符串仅 `true`（忽略大小写/两端空白）算真 |
 | `ocr/pages.py:history_pages` | `recognize/persist.py:178-186` | 保留全部 source_pages，只把第一项 fields 替换为分组合并字段 |
 
-这些函数使用独立副本，避免历史页修改反向污染管线结果。`flatten_pipeline_pages` 的输入是已校验的管线值对象（具有 `model_dump`），不是供应商原始 JSON；本批尚未迁移该对象的完整 schema。
+这些函数使用独立副本，避免历史页修改反向污染管线结果。`flatten_pipeline_pages` 的输入是已校验的管线值对象（具有 `model_dump`），不是供应商原始 JSON；第三批已迁移 invoice/auto 所需完整 schema，尚未接模型运行。
 
 ### 可复用签名
 
@@ -50,7 +50,7 @@ history_pages(group) -> list[dict]
 
 来源入口 `services/ocr/recognize/core.py:65`：作用域/方向归一 → 文件门禁 → 非 staged 的授权缓存查询 → 余额查询（失败关闭）→ `entrypoints.run_pipeline_for_file` → 规范化页面 → 全部非发票拒绝 → 重复/质量 → `persist_invoices` → 计费及后处理。staged 不命中缓存，也不自动推送。
 
-普通发票/auto 的默认主路是图像直读：`direct_read.py:67,119` 默认启用，最多 20 物理页；逐页模型输出经 `ThaiInvoice`、金额勾稽与结构闸；不可接受时 `DirectReadFallback` 回落整件 Vision 管线。超过直读页数或其他路由走 L1 Vision → L2 结构提取 → 必要 L3 重读。不能只用“JSON 能解析”代替这些闸。
+普通发票/auto 的图像路径默认启用直读（`direct_read.py:67,119`），最多20物理页；但第三批实查线上 `OCR_FAST_PATH_ENABLED=true`，文本PDF达到阈值会先走文本L2，优先于直读。逐页模型输出经 `ThaiInvoice`、金额勾稽与结构闸；不可接受时 `DirectReadFallback` 回落整件 Vision 管线。超过直读页数或其他路由走 L1 Vision → L2 → 必要L3；当前旧配置还缺Vision必需环境，不能称此回落已验证可用，详见运行策略证据。不能只用“JSON 能解析”代替这些闸。
 
 `direct_read.py:429` 的硬闸包括总额存在、`_check_amount_math` 和 `evaluate_sanity`（包含税号校验等）；允许有记录的折扣推导。缺单号仅软警告；credit note、异常日期、折扣推导等影响人工复核。`OCR_DOUBLE_READ` 默认关闭，开启时首次结果与重读差异须留底。
 
@@ -58,13 +58,13 @@ history_pages(group) -> list[dict]
 
 建议第一个可接执行的业务切片：人工上传的 invoice/auto，正确持久化原件、物理页与首次结果，产出 staged histories 供复核；保留所选范围内的 schema/金额闸/失败与回落语义。若先只提供少量格式或直读而暂不提供 Vision 回落，需要显式声明范围缩小，并在未支持路由失败关闭；它不等同旧识别完整对齐。本批只完成该切片的纯合同前置部分。
 
-### Schema 和金额分组尚未迁移
+### Schema 和金额分组：第三批已迁纯层
 
 `schemas_invoice.py` 的金额/数量字段是字符串，不是 float：`total_amount` 是折扣后的净应付，不能用实付现金或找零代替；`subtotal/vat/discount/wht_rate/wht_amount/payment_received/cash_amount/change_amount` 分开。items 使用 `name/qty/price/subtotal`。空 THB currency 与非空外币不同；保留 `date_raw`、`source_refs`、document_type、additional_invoices、is_copy_or_duplicate。
 
 来源 schema 会将数字转字符串，null 标量转空串；document_type 未识别值变 other。其年份归一基于 `date.today().year` 的候选窗口，只改年份而保留模型月日；这与已迁 history 人工修改的曼谷时间/完整日期处理不完全相同，不能直接替换。迁移时应注入明示时钟并补边界差分。
 
-`invoice_grouper.py` 根据单号比例分三路：单号主导分组（允许跨不连续页同号）；多数无单号时以金额页作边界；都无金额时整体一组。items 合并含规范名称、qty/price、子串及相似度去重；来源使用 `money.normalize_money` 的 **float** 和两位格式化。半分舍入、超大金额可改变判重结果；迁入新仓必须使用 Decimal 并登记具体有意变化，不能声称逐字等价。本批没有复制该模块，也没有用简化逐页分组替代它。
+`invoice_grouper.py` 根据单号比例分三路：单号主导分组（允许跨不连续页同号）；多数无单号时以金额页作边界；都无金额时整体一组。items 合并含规范名称、qty/price、子串及相似度去重。第三批已按此完整逻辑实现 `ocr.grouping`，使用Decimal并对普通输入严格差分；半分舍入、极大/极小金额导致的判重变化单列精确断言，不能声称逐字等价。`ocr.results.prepare_history_batch` 拒绝缺失物理页，保留有效L2但重读失败的待人工复核草稿；内部组装结果可传已有persist_batch，不是RPC/收费/模型工作流。
 
 ## 供应商协议、配置和新 Core 差距
 

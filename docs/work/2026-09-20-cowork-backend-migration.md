@@ -45,8 +45,8 @@
 | 层 | 当前状态 |
 | --- | --- |
 | 开工来源版本 | Web / Worker 已现场核对；WeKan / Companion 的独立运行来源待补 |
-| 实现 | 录入/复核/完成/历史、原件与物理页读取、盘点原生后端已实现；OCR供应商和其它模块仍有缺口 |
-| 架构 / 离线 / 真实 Site | 架构0违规；106个Cowork离线测试；55个真实Site用例；history/files/stocktake 原生WSGI API通过 |
+| 实现 | 录入/复核/完成/历史、原件、盘点原生后端已有；完整发票纯schema/校验/分组/结果准备/纠错提示/策略已接；OCR供应商和其它模块仍有缺口 |
+| 架构 / 离线 / 真实 Site | 第三批架构0违规、199个Cowork离线测试和6项新Site集成通过；第二批55项Site及3组WSGI证据保留，未重复冒充本批重新运行 |
 | 前端接入 / 浏览器验收 | 按用户要求暂不实施 |
 | CI / 合并 / 推送 | 主线8f1851f已单向合入任务分支；未合回主目录，未推送，未运行CI |
 | 部署 / 外部写入 / 真机 / 用户验收 | 未执行，不在本次默认授权中 |
@@ -145,3 +145,43 @@ python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/ev
 整体后端迁移继续中，尚未到整产品前端接入验收。下一段依次补固定来源的完整OCR schema/金额闸/分组、Core执行/检查点/缓存/计费、外推日志与写者边界、LINE/Companion、完整对账。盘点还缺XLSX字节导入/导出、照片、旧legacy操作、历史回灌和10000行容量验证；WeKan/Companion独立运行来源仍需核对。不得用现有人工pages或纯OCR函数把这些标记完成。
 
 本批只在任务分支本地提交，不合回正被其它窗口使用的main，不推送、不部署。测试容器在收尾停止，保留本任务卷、工作树和凭据以便继续；不清理其他任务资源。
+
+## 第三批后端检查点（2026-09-21）
+
+用户要求继续，沿任务分支 `392d9d917cb62c1a00d0bb43f72dc7b806082a86` 施工。App/域明确为 `pearnly_cowork.ocr`，新增的schema、金额/日期/来源/置信校验、分组、纠错提示、策略和结果准备都是纯合同；依赖向既有纯history/push合同及Pydantic单向流动，不依赖Frappe/HTTP/时钟/环境。新增Site脚本负责把已验证结果交已有 `history.recognition.persist_batch`。没有增加RPC、队列handler、DocType、产品导航、前端或共享Core默认行为。
+
+### 实现与保持行为
+
+- [完整发票模型及校验](cowork-backend/invoice-contracts.md)：30个票据字段、同页附加发票、OCR位置/词置信度、首次证据、贷项/折扣/WHT/金额来源保留；年份和日期由调用方显式传入。金额运算改Decimal，非有限值与超过float精度的差额显式阻断，差异独立登记。
+- [完整分组及结果准备](cowork-backend/invoice-grouping.md)：同号非连续页回并、金额结束页、整件归一、items去重和复写联规则；调用方输入不被合并污染。纯结果核对原件权威物理页集合，缺页/重复物理页/早期失败拒绝；完整有效L2而L3/image-first失败保留为 `review_required` 草稿，不丢掉可人工复核的票据。全非票返回零组及不可作为收费结果的标记。
+- `ocr.results.prepare_history_batch` → 已有 `persist_batch`，每组保留所有source pages、唯一权限页集合与独立ai_raw。`has_billable_result`只是有票据结果，不是余额检查或扣费授权。PDF物理页和表格虚拟行不能混用，本接口不冒充表格来源映射已完成。
+- [纠错提示纯合同](cowork-backend/invoice-feedback.md)：首存AI与人工修正差分、主页卖方、前4税号/每税号20例/最终12例、去重和提示字节保留；只接已授权样例。原生例库、保存hook、真实历史样例导入尚未接。
+- [运行策略](cowork-backend/ocr-runtime-policy.md)：补上只读动态配置取证工具和纯档位解析。实查两个服务invoice均economy+vertex：首读3.1 Flash Lite、升级3.8 Flash。旧env四个模型值虽然写3.5，但被mode覆盖。文本PDF快路和历史纠错注入均开启；不能只照默认image-direct移植。旧Vision回落所需环境缺失已记录，未修生产或试调模型。
+
+新错误码目前是内部纯合同错误，未公开到产品UI；前端/公开API接线时沿现有术语表补齐映射。模型提示块是模型输入合同，不当作产品翻译文案。没有冒称界面、泰/日用词或真实识别质量已验收。
+
+### 验证
+
+继续使用独立 `pearnly-cowork-backend-lab`、锁定镜像/Frappe16.33.0/Python3.14.7；本批确认Pydantic2.12.5。无发布端口、无真实凭据、无scheduler/worker，源码只读挂载本任务工作树；容器内网隔离。不需要新增结构，未重复migrate或跑无关DMS业务。
+
+- 目标运行环境全部 `test_cowork_*.py`：**199项通过**（第二批106 + 本批93）。最终审查修正空fallback与实际L3模型的区分、空timeout回落60秒、证据完整结构/时序检查和独立凭据Secret引用拒绝；补齐断言后，用同一锁定镜像、`--network none`、只读本任务源码的一次性容器运行全套通过，容器自动删除、无Site/数据卷挂载。没有删断言或放宽容差。
+- 固定源码哈希差分：980模型；2500 sanity + 2500金额 + 12折扣 + 56日期来源 + 800置信；10固定 + 3000随机分组、11441普通金额、3000税号；5120策略、120模型档位、45区域；3000编辑、6000卖方、3000提示、3000禁用。普通输入严格对照，明确Decimal舍入/非有限/极值差异单列，不称所有输入逐字一致。
+- `scripts/cowork-invoice-lab-verify.py`：**6项真实Site集成通过**，写入专有 `cowork-backend-files.localhost` 合成数据。验证同页多票+跨页合并保存、物理页预览、同请求返回原ID、缺页不封存、L3失败可复核草稿、首次ai_raw在人工修改后不变、越权拒绝、全非票不生历史。没有模型调用、真实扣费或浏览器。
+- 架构0违规，源码语法与空白检查通过；没有前端或语言包改动，不跑前端构建。安装/升级、55项原生Site、3组WSGI、DMS207断言仍是前批绑定的证据，本批不以旧通过代称新跑。
+
+### 开工与交付生产证据
+
+`evidence/baseline-third-start.json` 与 `baseline-third-delivery.json` compare通过，来源仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。首尾实际流量、镜像digest及固定配置引用未变化。
+
+- 来源开工摘要：`ed778db8459accbf27de222f5c86fe5309b1cfefe8a443a6c1cec9207be5d9cc`。
+- 来源交付摘要：`f9db5642104971bd679ba911d4feecd6fa1e3b48038546b280ce952caa7f2423`。
+- OCR动态配置开工摘要：`682292fdf84387179fe8f019b216689c0a7c89fb5b86636b5bf6e152c1f626fc`。
+- OCR动态配置交付摘要：`e08c07233965dbec5cfe543e9f500d136006cde08fd361b4e2ed78ae6103d104`。
+
+配置取证首尾compare通过。固定Secret只在本机进程内读取，证据只含白名单参数、引用和凭据存在性；数据库只读事务只查一行OCR策略，未读用户/票据/例库数据。瞬时DB读不证明每个进程30秒缓存、用户私钥或实际供应商可调用；未迁真实纠错样例，不能声称模型提示输入和线上完全一致。
+
+### 下一段与收尾
+
+下一段接真实执行链：服务端固定actor/锚定日期/策略及授权样例；PDF文本/200DPI渲染与图像路径；通过Core provider预算/持久检查点调用；同一work逐页串行避免whole-JSON检查点丢更新；结果未知不自动重付费；余额查询失败关闭、保存与稳定reference计费重试分离。缓存、原生纠错例库/保存hook、可搜索PDF、表格回导及原生历史导入需分别补齐。其余推送、对账、盘点缺项、LINE/Companion/WeKan保持第二批清单，不因这批纯层通过被划掉。
+
+主目录收尾观察为 `55d1df4b0a69024c3e7ac446ea98d2697409c13e`，相对上批主目录新增DMS rich-menu修复；未改动、回退或合入此窗口，尚未验证与此最新main的组合。主目录无未提交改动。本批只在独立任务分支本地提交，不合回、不推送、不部署。完成后停止本任务三个容器，保留卷及源码，供下次续接；不影响DMS窗口及其Site/容器。
