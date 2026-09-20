@@ -12,6 +12,77 @@ SOURCE = "Cowork Source File"
 HISTORY = "Cowork OCR History"
 FILE_FIELDS = ("name", "file_name", "file_url", "thumbnail_url", "is_private", "content_hash",
                "attached_to_doctype", "attached_to_name")
+MANIFEST_FIELDS = ("reference_kind", "reference_count", "provenance_json", "coverage_complete")
+MANIFEST_SCHEMA = "cowork-document-manifest-v1"
+MAX_DOCUMENT_MANIFEST_BYTES = 8 * 1024 * 1024
+_MANIFEST_CAPABILITY = object()
+
+
+def reference_kind(source):
+    value = source.get("reference_kind")
+    if source.kind in {"pdf", "image"} and value in (None, "", "physical_page"):
+        return "physical_page"
+    if source.kind == "document" and value in (None, "", "logical_section"):
+        return "logical_section"
+    return None
+
+
+def reference_count(source):
+    """Old PDF/image rows retain their physical count; documents never use 1."""
+    kind = reference_kind(source)
+    value = None
+    if kind == "physical_page":
+        value = source.page_count
+    elif (kind == "logical_section" and source.get("reference_kind") == kind
+            and source.get("provenance_json")):
+        value = source.get("reference_count")
+    if type(value) is int and value > 0:
+        return value
+    return 0
+
+
+def _manifest_state(source):
+    return (source.get("reference_kind") or "", int(source.get("reference_count") or 0),
+            source.get("provenance_json") or "", int(source.get("coverage_complete") or 0))
+
+
+def validate_manifest(doc):
+    """Before-validate guard: only the file service may freeze, exactly once.
+
+    Generic original binding has a different capability and cannot change this
+    evidence. Legacy empty fields stay empty until a document is explicitly
+    parsed; they must not be upgraded from a placeholder page count.
+    """
+    previous = doc.get_doc_before_save()
+    current = _manifest_state(doc)
+    prior = _manifest_state(previous) if previous else ("", 0, "", 0)
+    if current == prior:
+        return
+    if (prior != ("", 0, "", 0) or not previous or previous.kind != "document"
+            or previous.binding_complete
+            or doc.flags.get("cowork_document_manifest") is not _MANIFEST_CAPABILITY):
+        frappe.throw(_("The original document manifest cannot be changed."), frappe.PermissionError)
+    if (doc.kind != "document" or doc.page_count != previous.page_count or doc.sha256 != previous.sha256
+            or doc.reference_kind != "logical_section" or type(doc.reference_count) is not int
+            or doc.reference_count < 1 or doc.coverage_complete not in (0, 1)):
+        frappe.throw(_("Invalid original document manifest."))
+    try:
+        body = json.loads(doc.provenance_json)
+        if (len(doc.provenance_json.encode()) > MAX_DOCUMENT_MANIFEST_BYTES
+                or body["schema"] != MANIFEST_SCHEMA or body["source_sha256"] != doc.sha256
+                or body["reference_count"] != doc.reference_count
+                or body["provenance"]["reference_kind"] != "logical_section"
+                or type(body["provenance"]["coverage_complete"]) is not bool
+                or body["provenance"]["coverage_complete"] != bool(doc.coverage_complete)
+                or len(body["page_inputs_sha256"]) != doc.reference_count
+                or any(not isinstance(value, str) or len(value) != 64
+                       or any(char not in "0123456789abcdef" for char in value)
+                       for value in body["page_inputs_sha256"])
+                or [unit["page_number"] for unit in body["provenance"]["units"]]
+                    != list(range(1, doc.reference_count + 1))):
+            raise ValueError("Invalid manifest")
+    except (ValueError, KeyError, TypeError, AttributeError):
+        frappe.throw(_("Invalid original document manifest."))
 
 
 def readable(user=None):
@@ -41,10 +112,13 @@ def full_allowed(source, user=None):
     if any(not scope.contains(row.workspace, row.client, user) for row in rows):
         return False
     covered = set().union(*(page_indices(row.source_page_indices) for row in rows))
+    count = reference_count(source)
+    complete = (reference_kind(source) == "physical_page"
+                or (source.get("reference_kind") == "logical_section" and bool(source.get("coverage_complete"))))
     # The uploader had the original bytes; still recheck all current known scopes.
-    # Others may read the whole source only after every physical page is assigned.
-    return bool(user == source.uploaded_by or (source.get("binding_complete") and rows and source.page_count
-                and covered == set(range(1, int(source.page_count) + 1))))
+    # Others need complete parser coverage and every physical/logical reference.
+    return bool(user == source.uploaded_by or (complete and source.get("binding_complete") and rows and count
+                and covered == set(range(1, count + 1))))
 
 
 def require_full(source, user=None):
@@ -58,6 +132,10 @@ def require_page(history, page):
     if type(page) is not int or page not in page_indices(history.source_page_indices):
         frappe.throw(_("The requested page is not part of this invoice."), frappe.PermissionError)
     source = frappe.get_doc(SOURCE, history.source_file)
+    if reference_kind(source) != "physical_page":
+        # Logical sections are not PDF/image coordinates, even if their integer
+        # index happens to be 1. Reject before granting a byte-read capability.
+        frappe.throw(_("Page preview is available only for PDF and image originals."), frappe.PermissionError)
     # A later invoice in the same OCR batch may share this physical page. Wait
     # until the complete manifest was committed before exposing any preview.
     if not source.get("binding_complete") or not 1 <= page <= int(source.page_count or 0):

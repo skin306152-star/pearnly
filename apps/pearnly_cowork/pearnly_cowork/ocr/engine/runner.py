@@ -395,3 +395,43 @@ def run_invoice(source: PageSource, model_call: ModelCall, vision_call: VisionCa
     return EngineResult(PipelineResult(pages=pages, page_count=source.page_count,
                                        elapsed_ms=sum(c.elapsed_ms for c in calls), engine=engine),
                         tuple(calls))
+
+
+def run_text_pages(pages: list[Page] | tuple[Page, ...], model_call: ModelCall, *,
+                   config: EngineConfig, anchor_year: int, today: date,
+                   fewshot_selector: Callable[[str], str] | None = None) -> EngineResult:
+    """Run already-decoded logical units through the shared invoice L2 decisions.
+
+    This is the table path, not a physical PDF page source. It never renders or
+    calls Vision/direct/L3, and does not borrow the PDF's 50-page limit. The
+    table adapter validates document limits before calling this pure boundary.
+    """
+    from dataclasses import replace
+
+    if (config.document_type not in ("invoice", "auto") or config.mode not in ("economy", "enterprise")
+            or config.provider != "vertex" or config.double_read or config.image_first):
+        raise EngineError("ocr.engine_mode_not_supported")
+    if not config.layer2_model or config.json_retries not in (0, 1):
+        raise EngineError("ocr.engine_config_invalid")
+    if not pages or any(not isinstance(p, Page) or p.page_number != i
+                        for i, p in enumerate(pages, 1)):
+        raise EngineError("ocr.page_association_invalid")
+    validate_invoice({}, anchor_year=anchor_year)
+    if not isinstance(today, date):
+        raise EngineError("ocr.date_context_invalid")
+    # Copy the complete input before the first callback, including later units.
+    frozen_pages = tuple(p.model_copy(deep=True) for p in pages)
+    run = _Run(None, model_call, None,
+               replace(config, direct_enabled=False, enable_layer3=False),
+               anchor_year, today, fewshot_selector, None)
+    results = [run.pipeline_page(p.page_number, p) for p in frozen_pages]
+    seen, calls = set(), []
+    for call in run.calls:
+        if call.checkpoint_key and call.checkpoint_key in seen:
+            continue
+        if call.checkpoint_key:
+            seen.add(call.checkpoint_key)
+        calls.append(call)
+    return EngineResult(PipelineResult(pages=results, page_count=len(results),
+                                       elapsed_ms=sum(c.elapsed_ms for c in calls),
+                                       engine="pipeline_v1_table"), tuple(calls))

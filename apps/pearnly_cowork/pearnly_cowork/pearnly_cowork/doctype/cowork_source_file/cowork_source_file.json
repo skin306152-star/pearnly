@@ -62,6 +62,32 @@
    "read_only": 1
   },
   {
+   "fieldname": "reference_kind",
+   "fieldtype": "Select",
+   "label": "Source Reference Kind",
+   "read_only": 1,
+   "options": "\nphysical_page\nlogical_section"
+  },
+  {
+   "fieldname": "reference_count",
+   "fieldtype": "Int",
+   "label": "Source Reference Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "provenance_json",
+   "fieldtype": "Long Text",
+   "label": "Original Document Manifest",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "coverage_complete",
+   "fieldtype": "Check",
+   "label": "Original Content Coverage Complete",
+   "read_only": 1
+  },
+  {
    "fieldname": "byte_size",
    "fieldtype": "Int",
    "label": "Original Size",
@@ -147,6 +173,10 @@
   "kind",
   "uploaded_by",
   "page_count",
+  "reference_kind",
+  "reference_count",
+  "provenance_json",
+  "coverage_complete",
   "byte_size",
   "sha256",
   "stored_file",

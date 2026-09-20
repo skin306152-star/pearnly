@@ -66,6 +66,11 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pymupdf==1.28.
 # merely because a future base image changes its transitive dependencies.
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pypdf==6.15.0"
 
+# Cowork structured originals. Keep the native base's lxml patch version;
+# table/Word parity is checked against the source lock separately.
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
+    "openpyxl==3.1.5" "et-xmlfile==2.0.0" "python-docx==1.2.0" "lxml==6.1.2"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走

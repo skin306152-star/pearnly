@@ -12,9 +12,11 @@ Assign Cowork access through company and client permissions.,กรุณาก�
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 Barcode,บาร์โค้ด
 Billing Code,รหัสค่าบริการ
+Billing Kind,ประเภทการคิดค่าบริการ
 Billing Receipt,ผลยืนยันการเรียกเก็บเงิน
 Billing Reference,เลขที่อ้างอิงการเรียกเก็บเงิน
 Billing State,สถานะการเรียกเก็บเงิน
+Billing Units,หน่วยคิดค่าบริการ
 Book Qty,จำนวนตามบัญชี
 Bound Invoice Records,รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว
 Buyer Client,ลูกค้าผู้ซื้อ
@@ -64,6 +66,7 @@ First Recognition Snapshot,สำเนาผลการอ่านครั�
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 History Records,บันทึกการอ่านเอกสาร
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
+Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
 Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
 Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
 Invoice Count,จำนวนใบแจ้งหนี้
@@ -81,6 +84,8 @@ Location,ตำแหน่ง
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 Not Permitted,ไม่ได้รับอนุญาต
+Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
+Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
 Original File,ไฟล์ต้นฉบับ
 Original Filename,ชื่อไฟล์ต้นฉบับ
 Original SHA-256,SHA-256 ของไฟล์ต้นฉบับ
@@ -134,6 +139,8 @@ Source Format,รูปแบบข้อมูลต้นทาง
 Source History,บันทึกการอ่านเอกสารต้นทาง
 Source PDF ID,รหัส PDF ต้นฉบับ
 Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบับ
+Source Reference Count,จำนวนรายการอ้างอิงต้นฉบับ
+Source Reference Kind,ประเภทการอ้างอิงต้นฉบับ
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
 Task,งาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
@@ -143,6 +150,9 @@ The billing receipt cannot be reverted.,ไม่สามารถย้อน�
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
 The invoice configuration does not match the OCR connection.,การตั้งค่าการอ่านใบแจ้งหนี้ไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร
+The original document manifest cannot be changed.,ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้
+The original document manifest exceeds the 8 MiB limit.,ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB
+The original document manifest is not ready.,ดัชนีเนื้อหาเอกสารต้นฉบับยังไม่พร้อมใช้งาน
 The original file already has a completed invoice manifest.,ไฟล์ต้นฉบับนี้เชื่อมโยงใบแจ้งหนี้ครบแล้ว
 The original file checksum does not match.,ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน
 The original file is not ready for page preview.,ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า
@@ -182,6 +192,7 @@ cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ�
 cowork.quality.pending,รอตรวจสอบ
 cowork_line,Cowork LINE
 document,เอกสาร
+excel,Excel
 failed,ล้มเหลว
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -196,6 +207,7 @@ history.source_invalid,ไม่รองรับแหล่งที่มา
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
 legacy,ระบบเดิม
+logical_section,ส่วนข้อมูลของเอกสาร
 manual,กรอกเอง
 not_billable,ไม่ต้องเรียกเก็บเงิน
 not_due,ยังไม่ถึงขั้นตอนเรียกเก็บเงิน
@@ -204,10 +216,28 @@ ocr.empty_file,ไฟล์ที่อัปโหลดว่างเปล�
 ocr.file_too_large,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
 ocr.invalid_input_metadata,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
 ocr.invalid_pdf,ไม่สามารถอ่านไฟล์ PDF นี้ได้
+ocr.page_association_invalid,เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ
+ocr.table_archive_member_limit,เอกสารมีจำนวนไฟล์ภายในเกินขีดจำกัด
+ocr.table_archive_size_limit,เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด
+ocr.table_cell_limit,เอกสารมีจำนวนเซลล์เกินขีดจำกัด
+ocr.table_column_limit,เอกสารมีจำนวนคอลัมน์เกินขีดจำกัด
+ocr.table_dependency_unavailable,บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ
+ocr.table_format_not_supported,ไม่รองรับรูปแบบเอกสารนี้
+ocr.table_invalid_archive,ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้
+ocr.table_invalid_bytes,เนื้อหาเอกสารไม่ถูกต้อง
+ocr.table_invalid_dimensions,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
+ocr.table_parse_failed,ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง
+ocr.table_roundtrip_not_supported,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
+ocr.table_row_limit,เอกสารมีจำนวนแถวเกินขีดจำกัด
+ocr.table_text_limit,เอกสารมีปริมาณข้อความเกินขีดจำกัด
+ocr.table_text_too_long,"มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน"
+ocr.table_units_invalid,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
+ocr.table_xml_declaration_not_allowed,เอกสารมีการประกาศ XML ที่ไม่รองรับ
 ocr.too_many_pages,ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต
 ocr.unsupported_format,ไม่รองรับไฟล์ประเภทนี้
 pdf,PDF
 pending,รอดำเนินการ
+physical_page,หน้าจริงของเอกสาร
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
 saved,บันทึกแล้ว

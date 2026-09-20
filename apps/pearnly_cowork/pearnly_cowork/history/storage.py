@@ -181,6 +181,12 @@ def project(doc):
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)
+    if doc.source_file:
+        from pearnly_cowork.files.access import reference_kind
+        original = frappe.get_doc("Cowork Source File", doc.source_file)
+        result["source_reference_kind"] = reference_kind(original)
+    else:
+        result["source_reference_kind"] = None
     return result
 
 

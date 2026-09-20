@@ -12,7 +12,8 @@ import time
 import frappe
 from frappe import _
 from pearnly_core.execution.errors import Deferred
-from pearnly_cowork.files.service import read_bytes
+from pearnly_cowork.files.service import read_bytes, freeze_doc_manifest
+from pearnly_cowork.files.access import reference_count, reference_kind
 from pearnly_cowork.history.recognition import persist_batch
 from pearnly_cowork.ocr.engine import run_invoice
 from pearnly_cowork.ocr.engine.config import config_from_environment
@@ -24,6 +25,8 @@ from pearnly_cowork.ocr.policy import invoice_policy
 from pearnly_cowork.ocr.providers.core import build_client
 from pearnly_cowork.ocr.results import prepare_history_batch
 from pearnly_cowork.ocr.schema import PipelineResult
+from pearnly_cowork.ocr.table_inputs import extract_table
+from pearnly_cowork.ocr.table_engine import run_table, validate_document
 
 
 def _require_work(doc):
@@ -40,7 +43,8 @@ def _check(doc, frozen=None, examples=None):
     # invalidates Redis. Reset the actor context before each paid call/save.
     frappe.set_user(doc.actor)
     source = access.require_batch(doc, write=True)
-    if source.sha256 != doc.source_sha256 or source.page_count != doc.page_count:
+    if (source.sha256 != doc.source_sha256 or reference_count(source) != doc.page_count
+            or reference_kind(source) != (doc.get("reference_kind") or "physical_page")):
         frappe.throw(_("The original file checksum does not match."))
     if frozen is not None:
         settings.revalidate(frozen)
@@ -67,7 +71,8 @@ def _evidence(calls):
 
 def _recognize(doc, frozen, examples):
     source = _check(doc, frozen, examples)
-    service.balance(doc.page_count, frozen["billing_tier"])
+    kind, units = service.billing_basis(doc)
+    service.balance(units, frozen["billing_tier"], kind=kind)
     environment = frozen["environment"]
     selected = invoice_policy(environment, frozen["policy"])
     config = config_from_environment(environment, selected)
@@ -88,12 +93,22 @@ def _recognize(doc, frozen, examples):
             return callback(*args, **kwargs)
         return invoke
 
-    with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
-                    enable_text_path=selected.text_fast_path,
-                    image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400"))) as pages:
-        result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+    if source.kind == "document":
+        document = extract_table(read_bytes(source), source.filename)
+        validate_document(document)
+        freeze_doc_manifest(source, document)  # unchanged input/manifest required on every replay
+        if kind != "excel" or units != document.billing_characters:
+            frappe.throw(_("Recognition input and ownership cannot be changed."))
+        result = run_table(document, guarded(client.model_call), config=config,
             anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
             today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
+    else:
+        with PageSource(read_bytes(source), source.filename, expected_page_count=int(doc.page_count),
+                        enable_text_path=selected.text_fast_path,
+                        image_max_long_edge=int(environment.get("OCR_IMG_MAX_LONG_EDGE", "2400"))) as pages:
+            result = run_invoice(pages, guarded(client.model_call), guarded(client.vision_call), config=config,
+                anchor_year=date.fromisoformat(str(doc.anchor_date)).year,
+                today=date.fromisoformat(str(doc.anchor_date)), fewshot_selector=selector)
     frappe.db.commit()
     _check(doc, frozen, examples)
     doc = store.read(doc.name, lock=True, write=True)
@@ -111,7 +126,8 @@ def _persist(doc):
     anchor = date.fromisoformat(str(doc.anchor_date)).year
     result = PipelineResult.model_validate_json(doc.result_json, context={"anchor_year": anchor})
     plan = prepare_history_batch(result, expected_page_count=int(doc.page_count), workspace=doc.workspace,
-        source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind)
+        source="manual", client=doc.client or None, direction=doc.direction, posting_kind=doc.posting_kind,
+        reference_kind=doc.get("reference_kind") or "physical_page")
     # Read after provider/result commits. This transaction contains every history,
     # its sealed source binding, and the receipt that makes billing eligible.
     doc = store.read(doc.name, lock=True, write=True)

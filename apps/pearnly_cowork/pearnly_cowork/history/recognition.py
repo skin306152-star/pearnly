@@ -25,6 +25,10 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
     scope.require_scope(source.workspace, source.client)
     if not source.binding_complete:
         access.require_full(source)
+    count = access.reference_count(source)
+    kind = access.reference_kind(source)
+    if not count or kind not in {"physical_page", "logical_section"}:
+        frappe.throw(_("The original document manifest is not ready."))
     prepared = []
     for group in groups:
         if not isinstance(group, dict):
@@ -32,7 +36,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
         scope.require_scope(group.get("workspace"), group.get("client"))
         indices = group.get("source_page_indices")
         if (not isinstance(indices, list) or not indices
-                or any(type(p) is not int or not 1 <= p <= source.page_count for p in indices)):
+                or any(type(p) is not int or not 1 <= p <= count for p in indices)):
             frappe.throw(_("The requested page is not part of this invoice."))
         body = storage.contract(initial_history, group.get("pages"), source=group.get("source"),
             confidence=group.get("confidence"), ai_raw=group.get("ai_raw"),
@@ -41,7 +45,10 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
             frappe.throw(_("Invoice pages do not match the original page references."))
         prepared.append({"workspace": group["workspace"], "client": group.get("client"),
                          "body": body, "indices": sorted(set(indices))})
-    fingerprint = hashlib.sha256(storage.encode([request_key, prepared]).encode()).hexdigest()
+    identity = [request_key, prepared]
+    if kind == "logical_section":
+        identity.append(hashlib.sha256(source.provenance_json.encode()).hexdigest())
+    fingerprint = hashlib.sha256(storage.encode(identity).encode()).hexdigest()
     if source.binding_complete and source.binding_fingerprint != fingerprint:
         frappe.throw(_("The original file already has a completed invoice manifest."))
     if source.binding_complete:
@@ -61,7 +68,8 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
     frappe.db.savepoint("cowork_bind_original")
     try:
         for index, group in enumerate(prepared, 1):
-            attachment = {"source_file": source.name, "source_pdf_id": source.name,
+            attachment = {"source_file": source.name,
+                "source_pdf_id": source.name if kind == "physical_page" else None,
                 "source_page_indices": storage.encode(group["indices"]),
                 "source_index": index if len(groups) > 1 else None,
                 "source_total": len(groups) if len(groups) > 1 else None,

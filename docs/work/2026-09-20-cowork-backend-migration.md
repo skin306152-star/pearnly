@@ -45,8 +45,8 @@
 | 层 | 当前状态 |
 | --- | --- |
 | 开工来源版本 | Web / Worker 已现场核对；WeKan / Companion 的独立运行来源待补 |
-| 实现 | 录入/复核/完成/历史、原件、盘点原生后端已有；完整发票纯schema/校验/分组/结果准备/纠错提示/策略已接；OCR供应商和其它模块仍有缺口 |
-| 架构 / 离线 / 真实 Site | 第三批架构0违规、199个Cowork离线测试和6项新Site集成通过；第二批55项Site及3组WSGI证据保留，未重复冒充本批重新运行 |
+| 实现 | 录入/复核/完成/历史、原件、盘点已有；PDF/图片/普通表格识别已接原生执行、授权纠错、草稿及计费回执；专用回导、外推与其它模块仍待迁 |
+| 架构 / 离线 / 真实 Site | 第五批架构0违规、353个Cowork离线测试、17项新增及63项既有Site回归通过；各批差分、范围及外部替身边界见下文 |
 | 前端接入 / 浏览器验收 | 按用户要求暂不实施 |
 | CI / 合并 / 推送 | 主线8f1851f已单向合入任务分支；未合回主目录，未推送，未运行CI |
 | 部署 / 外部写入 / 真机 / 用户验收 | 未执行，不在本次默认授权中 |
@@ -236,3 +236,36 @@ python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/ev
 尚未到整个Cowork接前端的讨论门槛。后续优先补表格/虚拟页、可搜索PDF、历史导入和非staged缓存，再接外推连接/写者锁/完整日志回读、对账余项和盘点缺项；LINE/Companion/WeKan独立来源与接口仍需继续核验。真实OCR、账单、部署、浏览器/用户验收均未进行。
 
 主目录本次末读仍为`55d1df4b0a69024c3e7ac446ea98d2697409c13e`且干净，未改其它任务分支、Site或容器。本批留在`codex/cowork-backend-migration`独立树，本地提交，不合回main、不推送、不部署；未验证和最新main组合。收尾停止本任务三个容器，保留标记的合成数据与工作树供续接。
+
+## 第五批：结构化原件识别与原件关联（2026-09-21，本地完成）
+
+承接第四批本地提交 `ecdfd99ded2ea73c365d5b15922fbd4a3614f7a5`。开工工作树干净；主目录为 `55d1df4`，本批未合入主目录新变化、未接管共享DMS运行环境。
+
+开工重新只读采集 Web/Worker 实际来源与 OCR 运行配置，两类比较均 PASS：实际生产仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。开工证据 `baseline-fifth-start.json` SHA256 `7ae9d5fb97fbf1ef563a74d5dba7e14ebe69befde6d167bad611768f30011362`；`ocr-runtime-fifth-start.json` SHA256 `4ae8163362bf8aa46d524ba7c51cab77e1188c355bd107a367070870b4a4db3b`。表格路径未引入额外动态配置键，继承已冻结模型/L2超时/日期/fewshot/金额置信配置。
+
+- 所有实现仍在 Cowork 域：`ocr/table_inputs` 负责本地字节解析，`ocr/table_engine` 负责无IO的L2编排，既有 `ocr/execution` 负责原生队列/权限/结果/计费，`files`/`history` 负责不可变逻辑区段清单。
+- 保留旧普通表格合同：Excel每sheet一逻辑区段，CSV/TSV/DOCX/DOC/TXT一逻辑区段，禁止调用图像直读/Vision/L3。字符计费保持旧原始输入估算（包括纯表DOCX为0），不拿sheet数或发票数替代费用单位。
+- 原件上传保持原字节与原请求指纹；受理识别才冻结逻辑清单。未冻结的document不能用旧占位page_count=1证明全文已分配。部分内容被旧结构化路径遗漏时保留证据并限制原件访问；所有文档都不伪装成PDF页面。
+- 有意变化：拒绝资源超限与模型实际输入超过30,000字符的原件，不继承旧静默截断。保留旧表头覆盖/首表读取等提示词行为，同时记录不完整覆盖。专用roundtrip Excel指纹命中明确拒绝，本批不改走LLM；独立往返导入协议留待后续迁移。
+- 本地lab只在原镜像上新增 `python-docx==1.2.0`；openpyxl3.1.5、et-xmlfile2.0.0已存在，lxml保留原生6.1.2（来源6.1.1）。候选镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，源基底 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`；增量构建仅 `RUN env/bin/pip install --no-cache-dir --no-deps python-docx==1.2.0`。生产构建定义同步锁定四项依赖，未构建/发布正式业务镜像。
+
+
+### 第五批验证结果
+
+- 生产交付复核：`baseline-fifth-delivery.json` SHA256 `646b3e4d0174753c0ca67d701cf60e1d9e53561f31c05b4bc7a3f6698cbf57f8`、`ocr-runtime-fifth-delivery.json` SHA256 `afc275ebd5aa25aa589f7a9290d7860e0eb22a9fde700c6412474b36a83fc327`；均与本批开工比较 PASS，实际业务来源及相关配置未变化。结构化证据在 `cowork-backend/evidence/`。
+- 最终候选镜像（上述d5c874…）`--network none` 跑全部 `test_cowork_*.py`：**353项通过**。其中新增表格engine20、输入20、原件manifest28；既有285项保持通过。固定源码差分另外执行：输入345组Page全部字段及字符单位相等、5种失败一致；引擎1500指纹和288提示/决定相等，另1条验证30K提前拒绝这一有意差异。详见三个模块记录。
+- 专用 `cowork-backend-table.localhost` 全新安装；现有 `cowork-backend-execution.localhost` 升级；两者重复 migrate 通过。既有 Source150、Batch101、History52、Correction4、CoreWork101、UserPermission24、User29严格按原字段比对不变。原生fixtures重建了20个Page的Has Role子行随机ID，128条角色语义集合保持一致，用户角色未变。保存比对基线 SHA256 `5bb312e7d8ec7492ebe7b4de46f973400dfa2844b0d01b768d6b531e45b108f6`，不把子行ID变化说成整个数据库字节不变。
+- 真实Site **17项新增**：多工作表仅L2/一笔字符计费、CP874与计费字符口径分离、纯表DOCX零单位、旧Batch新字段空值仍可运行、二连接RR旧快照幂等受理、Word遗漏/重复列头/部分sheet/未冻结文档的整原件拒绝、配额断点不重买前sheet、整件失败不落库不扣费、30K/损坏/回导模板提前拒绝、清单不可变、账单回执单独重试、即时撤权。真实File/SQL/Redis/Work路径运行；仅模型、token和计费传输替换。
+- 原有Site回归：识别执行22、原件20、历史21，合计 **63项通过**。本批没有改DMS业务或共享Core；因候选镜像依赖及运行装配变化，仍跑DMS四组离线 **207项通过**。所有云端写入、真实OCR、真实账单和业务推送均未执行。
+- 最后原生断言发现并修正：Frappe `_save` 会覆盖 `flags.ignore_version`，需要显式 `save(ignore_version=True)` 才能防止原件清单复制到Version。已改实现和原生/fake回归；同时核对Correction的track_changes=0，未擅改无此问题的其它域。先前失败只产生专用lab合成测试记录，保留为验证痕迹，没有真实资料。
+- 提出过RR快照重复受理候选，已以两个真实进程的READY/GO屏障验证：第二连接读快照在第一请求提交前建立，并确认RR及旧查询仍不见Batch，再经现有有界API重试返回相同Batch、库内仅一条。未复现未捕获的重复插入，不无证据扩改该流程。
+- 四语新增30词条，Cowork每语266项；新增字段、错误码与服务文案缺漏0、重复0。生成器check通过，真实Site en/zh/th/ja共12次原生翻译查找通过。全仓既有23个msgid×3语缺项仍在，不声称严格全仓i18n通过；页面布局及母语业务措辞未验收。
+- 架构检查0违规、Compose解析、Python语法与diff检查通过。专用环境仍无外网路由、端口、凭据或worker/scheduler；不接管其它任务容器。
+
+### 第五批交付边界与下一步
+
+普通表格识别与逻辑原件关联完成到本地后端验证。仍未接前端，不上线/不部署/不推送；未合回主目录，保留独立工作树与本地提交检查点，防止干扰并行DMS/平台工作。
+
+下一段是专用Excel往返导入、导出以及外推的权威日志/幂等恢复链；随后按依赖推进LINE/Companion、对账剩余路径及其它已登记缺口。真实BIFF xls旧路由不可用、DOC仅有限解码、旧长输入静默截断等已逐条登记，不能宣传全格式或整个Cowork已迁完。WeKan当前运行来源仍不足，未启动或猜版本移植。前端正式接入仍须在后端承接完整后再与用户讨论。
+
+第五批收尾已停止本任务 bench/db/redis 三个容器；Sites/DB/日志卷和合成验证记录保留。bench 的 `sleep infinity` 在停止宽限期后退出137，停前全部测试已经结束、没有运行中的worker；db/redis退出0。再次确认候选镜像d5c874…、源码挂载仅本任务树、无端口发布，未改其它项目资源。

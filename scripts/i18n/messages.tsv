@@ -1284,3 +1284,33 @@ pearnly_cowork	not_invoice	非发票	ไม่ใช่ใบแจ้งหน�
 pearnly_cowork	recognized	已识别	อ่านเอกสารแล้ว	認識済み
 pearnly_cowork	recognizing	识别中	กำลังอ่านเอกสาร	認識中
 pearnly_cowork	saved	已保存	บันทึกแล้ว	保存済み
+pearnly_cowork	Billing Kind	计费类型	ประเภทการคิดค่าบริการ	課金種別
+pearnly_cowork	Billing Units	计费单位	หน่วยคิดค่าบริการ	課金単位
+pearnly_cowork	Source Reference Kind	原件关联类型	ประเภทการอ้างอิงต้นฉบับ	元ファイルの参照種別
+pearnly_cowork	Source Reference Count	原件关联项数	จำนวนรายการอ้างอิงต้นฉบับ	元ファイルの参照項目数
+pearnly_cowork	Original Document Manifest	原件内容索引	ดัชนีเนื้อหาเอกสารต้นฉบับ	元文書の内容索引
+pearnly_cowork	Original Content Coverage Complete	原件内容已完整覆盖	ครอบคลุมเนื้อหาต้นฉบับครบถ้วน	元ファイルの内容をすべて網羅
+pearnly_cowork	excel	Excel	Excel	Excel
+pearnly_cowork	physical_page	物理页	หน้าจริงของเอกสาร	物理ページ
+pearnly_cowork	logical_section	文档逻辑单元	ส่วนข้อมูลของเอกสาร	文書の論理単位
+pearnly_cowork	Invalid original document manifest.	原件内容索引无效。	ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง	元文書の内容索引が無効です。
+pearnly_cowork	The original document manifest cannot be changed.	原件内容索引不能修改。	ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้	元文書の内容索引は変更できません。
+pearnly_cowork	The original document manifest exceeds the 8 MiB limit.	原件内容索引超过 8 MiB 上限。	ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB	元文書の内容索引が上限の 8 MiB を超えています。
+pearnly_cowork	The original document manifest is not ready.	原件内容索引尚未就绪。	ดัชนีเนื้อหาเอกสารต้นฉบับยังไม่พร้อมใช้งาน	元文書の内容索引はまだ準備できていません。
+pearnly_cowork	The recognized content does not match the original references.	识别内容与原件关联不一致。	เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ	認識した内容が元ファイルの参照項目と一致しません。	ocr.page_association_invalid
+pearnly_cowork	The document contains too many internal files.	文档内部文件数量超过上限。	เอกสารมีจำนวนไฟล์ภายในเกินขีดจำกัด	文書内のファイル数が上限を超えています。	ocr.table_archive_member_limit
+pearnly_cowork	The document exceeds the allowed size after decompression.	文档解压后的大小超过上限。	เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด	展開後の文書サイズが上限を超えています。	ocr.table_archive_size_limit
+pearnly_cowork	The document contains too many cells.	文档单元格数量超过上限。	เอกสารมีจำนวนเซลล์เกินขีดจำกัด	文書のセル数が上限を超えています。	ocr.table_cell_limit
+pearnly_cowork	The document contains too many columns.	文档列数超过上限。	เอกสารมีจำนวนคอลัมน์เกินขีดจำกัด	文書の列数が上限を超えています。	ocr.table_column_limit
+pearnly_cowork	The document reader is unavailable. Contact your administrator.	文档读取服务不可用，请联系管理员。	บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ	文書の読み取り機能が利用できません。管理者にお問い合わせください。	ocr.table_dependency_unavailable
+pearnly_cowork	This document format is not supported.	不支持此文档格式。	ไม่รองรับรูปแบบเอกสารนี้	この文書形式には対応していません。	ocr.table_format_not_supported
+pearnly_cowork	The document file is damaged or cannot be decompressed.	文档文件已损坏或无法解压。	ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้	文書ファイルが破損しているか、展開できません。	ocr.table_invalid_archive
+pearnly_cowork	The document content is invalid.	文档内容无效。	เนื้อหาเอกสารไม่ถูกต้อง	文書の内容が無効です。	ocr.table_invalid_bytes
+pearnly_cowork	The worksheet row or column information is invalid.	工作表行列信息无效。	ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง	ワークシートの行または列の情報が無効です。	ocr.table_invalid_dimensions
+pearnly_cowork	The document could not be read. Check the file and try again.	无法读取文档，请检查文件后重试。	ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง	文書を読み取れません。ファイルを確認してから再試行してください。	ocr.table_parse_failed
+pearnly_cowork	Reimporting review workbooks is not available on the new platform yet.	新平台暂不支持复核工作簿回导。	แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ	新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。	ocr.table_roundtrip_not_supported
+pearnly_cowork	The document contains too many rows.	文档行数超过上限。	เอกสารมีจำนวนแถวเกินขีดจำกัด	文書の行数が上限を超えています。	ocr.table_row_limit
+pearnly_cowork	The document contains too much text.	文档文本总量超过上限。	เอกสารมีปริมาณข้อความเกินขีดจำกัด	文書のテキスト量が上限を超えています。	ocr.table_text_limit
+pearnly_cowork	A document section exceeds 30,000 characters. Split the document before recognition.	文档中有单个单元超过 30,000 字符，请拆分文档后再识别。	มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน	文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。	ocr.table_text_too_long
+pearnly_cowork	The document sections are incomplete or invalid.	文档逻辑单元不完整或无效。	ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง	文書の論理単位が不完全または無効です。	ocr.table_units_invalid
+pearnly_cowork	The document contains unsupported XML declarations.	文档包含不支持的 XML 声明。	เอกสารมีการประกาศ XML ที่ไม่รองรับ	文書に対応していない XML 宣言が含まれています。	ocr.table_xml_declaration_not_allowed

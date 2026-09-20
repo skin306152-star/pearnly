@@ -17,6 +17,7 @@
 | Meteor | `3.5.2-rc.0` | `~/wekan/.meteor/release` |
 | MongoDB | `7` | `~/wekan/docker-compose-mongodb-v7.yml` |
 | Cowork PDF文本提取 pypdf | `6.15.0` | 2026-09-21 独立lab锁定镜像实查，与固定旧来源requirements.lock同版；frappe.Dockerfile显式锁定 |
+| Cowork 表格/Word | `openpyxl 3.1.5` / `et-xmlfile 2.0.0` / `python-docx 1.2.0` / `lxml 6.1.2` | 前三项与固定旧来源 lock 相同；lxml 保留锁定原生镜像已安装的6.1.2（旧来源6.1.1），以表格差分与真实Site检查验证；不降级底座 |
 
 ## 尚未锁定（不能凭记忆写）
 

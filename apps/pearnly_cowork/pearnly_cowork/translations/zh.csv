@@ -12,9 +12,11 @@ Assign Cowork access through company and client permissions.,请通过公司和�
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 Barcode,条形码
 Billing Code,计费代码
+Billing Kind,计费类型
 Billing Receipt,计费回执
 Billing Reference,计费关联号
 Billing State,计费状态
+Billing Units,计费单位
 Book Qty,账面数量
 Bound Invoice Records,已关联发票记录
 Buyer Client,买方客户
@@ -64,6 +66,7 @@ First Recognition Snapshot,首次识别快照
 First Recognition Value,首次识别值
 History Records,识别记录
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
+Invalid original document manifest.,原件内容索引无效。
 Invalid original filename.,原始文件名无效。
 Invalid recognized invoice group.,识别出的发票分组无效。
 Invoice Count,发票数量
@@ -81,6 +84,8 @@ Location,位置
 Native Content Hash,原生文件内容哈希
 New records must start as drafts.,新记录必须先保存为草稿。
 Not Permitted,没有权限
+Original Content Coverage Complete,原件内容已完整覆盖
+Original Document Manifest,原件内容索引
 Original File,原始文件
 Original Filename,原始文件名
 Original SHA-256,原始文件 SHA-256
@@ -134,6 +139,8 @@ Source Format,来源格式
 Source History,来源识别记录
 Source PDF ID,来源 PDF 标识
 Source Page Indices,源文件页码
+Source Reference Count,原件关联项数
+Source Reference Kind,原件关联类型
 Source Sha256,原始文件 SHA-256
 Task,任务
 Tax ID,纳税人识别号
@@ -143,6 +150,9 @@ The billing receipt cannot be reverted.,计费回执不能撤回。
 The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
 The image file cannot be read.,无法读取该图像文件。
 The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
+The original document manifest cannot be changed.,原件内容索引不能修改。
+The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
+The original document manifest is not ready.,原件内容索引尚未就绪。
 The original file already has a completed invoice manifest.,此原始文件已完成发票关联。
 The original file checksum does not match.,原始文件校验值不匹配。
 The original file is not ready for page preview.,原始文件尚未准备好，暂时无法预览页面。
@@ -182,6 +192,7 @@ cowork.quality.failed,未识别到摘要
 cowork.quality.pending,待复核
 cowork_line,Cowork LINE
 document,文档
+excel,Excel
 failed,失败
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
@@ -196,6 +207,7 @@ history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
 legacy,旧版
+logical_section,文档逻辑单元
 manual,手工
 not_billable,无需计费
 not_due,尚无需计费
@@ -204,10 +216,28 @@ ocr.empty_file,上传文件为空。
 ocr.file_too_large,文件超过允许的大小上限。
 ocr.invalid_input_metadata,文件大小或页数信息无效。
 ocr.invalid_pdf,无法读取该 PDF 文件。
+ocr.page_association_invalid,识别内容与原件关联不一致。
+ocr.table_archive_member_limit,文档内部文件数量超过上限。
+ocr.table_archive_size_limit,文档解压后的大小超过上限。
+ocr.table_cell_limit,文档单元格数量超过上限。
+ocr.table_column_limit,文档列数超过上限。
+ocr.table_dependency_unavailable,文档读取服务不可用，请联系管理员。
+ocr.table_format_not_supported,不支持此文档格式。
+ocr.table_invalid_archive,文档文件已损坏或无法解压。
+ocr.table_invalid_bytes,文档内容无效。
+ocr.table_invalid_dimensions,工作表行列信息无效。
+ocr.table_parse_failed,无法读取文档，请检查文件后重试。
+ocr.table_roundtrip_not_supported,新平台暂不支持复核工作簿回导。
+ocr.table_row_limit,文档行数超过上限。
+ocr.table_text_limit,文档文本总量超过上限。
+ocr.table_text_too_long,"文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
+ocr.table_units_invalid,文档逻辑单元不完整或无效。
+ocr.table_xml_declaration_not_allowed,文档包含不支持的 XML 声明。
 ocr.too_many_pages,PDF 超过允许的页数上限。
 ocr.unsupported_format,不支持此文件类型。
 pdf,PDF
 pending,待处理
+physical_page,物理页
 recognized,已识别
 recognizing,识别中
 saved,已保存

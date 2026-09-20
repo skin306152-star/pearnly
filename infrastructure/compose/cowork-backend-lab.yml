@@ -20,7 +20,7 @@ services:
     cpus: 0.5
     command: [redis-server, --maxmemory, 96mb, --maxmemory-policy, noeviction]
   bench:
-    image: sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3
+    image: sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9
     mem_limit: 768m
     cpus: 1
     command: [sleep, infinity]

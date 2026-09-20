@@ -190,6 +190,29 @@
    "label": "Billing Receipt",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "reference_kind",
+   "fieldtype": "Select",
+   "label": "Source Reference Kind",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "physical_page\nlogical_section"
+  },
+  {
+   "fieldname": "billing_kind",
+   "fieldtype": "Select",
+   "label": "Billing Kind",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "pdf\nexcel"
+  },
+  {
+   "fieldname": "billing_units",
+   "fieldtype": "Int",
+   "label": "Billing Units",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "field_order": [
@@ -215,6 +238,9 @@
   "result_json",
   "history_records",
   "provider_evidence",
-  "billing_receipt"
+  "billing_receipt",
+  "reference_kind",
+  "billing_kind",
+  "billing_units"
  ]
 }

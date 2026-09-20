@@ -10,14 +10,23 @@ from pearnly_core.execution.errors import Deferred
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts.push import normalize_direction, normalize_posting_kind
 from pearnly_cowork.files import access as files
+from pearnly_cowork.files import service as originals
 from pearnly_cowork.ocr.execution import access, settings, store, work_guard
 from pearnly_cowork.ocr.feedback import service as feedback
+from pearnly_cowork.ocr.table_inputs import extract_table
+from pearnly_cowork.ocr.table_engine import validate_document
 
 KIND = "cowork.invoice"
 
 
-def balance(page_count, tier):
-    result = billing_client.status("pdf", page_count, tier=tier)
+def billing_basis(doc):
+    # Old immutable batches predate explicit billing fields; they only admitted
+    # PDF/image originals. An explicit zero-character Word file remains zero.
+    return (doc.billing_kind, int(doc.billing_units)) if doc.get("billing_kind") else ("pdf", int(doc.page_count))
+
+
+def balance(units, tier, *, kind="pdf"):
+    result = billing_client.status(kind, units, tier=tier)
     if result.get("allowed") is not True:
         code = "insufficient_balance" if result.get("error_code") == "insufficient_balance" else "lookup_error"
         raise Deferred(code, 60)
@@ -31,8 +40,6 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None):
     source = frappe.get_doc(files.SOURCE, source_file, for_update=True)
     scope.require_scope(source.workspace, source.client)
     files.require_full(source)
-    if source.kind not in {"image", "pdf"}:
-        frappe.throw(_("This recognition service currently accepts PDF and image originals."))
     name = store.digest([KIND, source.name])
     fingerprint = store.digest([source.name, source.sha256, frappe.session.user, request_key, direction, posting_kind])
     if frappe.db.exists(access.DOCTYPE, name):
@@ -43,13 +50,23 @@ def submit(source_file, request_key, *, direction=None, posting_kind=None):
         return store.project(doc)
     if source.binding_complete:
         frappe.throw(_("The original file already has a completed invoice manifest."))
+    count, billing_kind, billing_units = int(source.page_count), "pdf", int(source.page_count)
+    if source.kind == "document":
+        document = extract_table(originals.read_bytes(source), source.filename)
+        validate_document(document)
+        originals.freeze_doc_manifest(source, document)
+        count, billing_kind, billing_units = document.page_count, "excel", document.billing_characters
+    elif source.kind not in {"image", "pdf"}:
+        frappe.throw(_("This file type is not supported."))
     frozen = settings.snapshot()
     examples = feedback.snapshot_for_scope(source.workspace, source.client) if frozen["fewshot"] else None
-    balance(source.page_count, frozen["billing_tier"])
+    balance(billing_units, frozen["billing_tier"], kind=billing_kind)
     work_name = hashlib.sha256((KIND + "\0" + name).encode()).hexdigest()
     doc = store.create({"source_file": source.name, "workspace": source.workspace, "client": source.client or "",
         "actor": frappe.session.user, "request_key": request_key, "request_fingerprint": fingerprint,
-        "source_sha256": source.sha256, "page_count": source.page_count,
+        "source_sha256": source.sha256, "page_count": count,
+        "reference_kind": "logical_section" if source.kind == "document" else "physical_page",
+        "billing_kind": billing_kind, "billing_units": billing_units,
         "billing_reference": "cowork.invoice:" + name, "settings_json": store.encode(frozen),
         "examples_json": store.encode(examples), "anchor_date": frozen["anchor_date"],
         "direction": direction, "posting_kind": posting_kind, "phase": "admitted",
@@ -73,8 +90,9 @@ def settle(name):
     if doc.phase != "saved" or doc.billing_state == "charged":
         return doc
     frozen = json.loads(doc.settings_json)
+    kind, units = billing_basis(doc)
     try:
-        result = billing_client.charge("cowork", "pdf", doc.page_count,
+        result = billing_client.charge("cowork", kind, units,
             tier=frozen["billing_tier"], reference=doc.billing_reference,
             description="Cowork invoice recognition")
     except Exception:

@@ -14,7 +14,8 @@ from pearnly_cowork.ocr.execution import access
 WRITE = object()
 IMMUTABLE = ("source_file", "workspace", "client", "actor", "request_key", "request_fingerprint",
              "source_sha256", "page_count", "billing_reference", "settings_json", "examples_json",
-             "anchor_date", "direction", "posting_kind", "work_name")
+             "anchor_date", "direction", "posting_kind", "work_name",
+             "reference_kind", "billing_kind", "billing_units")
 
 
 def encode(value):
@@ -85,6 +86,9 @@ def project(doc):
     if state not in {"saved", "not_invoice"} and work:
         state = work.status
     return {"name": doc.name, "source_file": doc.source_file, "page_count": doc.page_count,
+            "reference_kind": doc.get("reference_kind") or "physical_page",
+            "billing_kind": doc.get("billing_kind") or "pdf",
+            "billing_units": int(doc.billing_units) if doc.get("billing_kind") else int(doc.page_count),
             "state": state, "billing_state": doc.billing_state, "billing_code": doc.billing_code or "",
             "requires_review": bool(doc.requires_review),
             "history_records": json.loads(doc.history_records or "[]"),

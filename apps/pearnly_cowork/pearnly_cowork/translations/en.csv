@@ -12,9 +12,11 @@ Assign Cowork access through company and client permissions.,Assign Cowork acces
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 Barcode,Barcode
 Billing Code,Billing Code
+Billing Kind,Billing Kind
 Billing Receipt,Billing Receipt
 Billing Reference,Billing Reference
 Billing State,Billing State
+Billing Units,Billing Units
 Book Qty,Book Qty
 Bound Invoice Records,Bound Invoice Records
 Buyer Client,Buyer Client
@@ -64,6 +66,7 @@ First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
 History Records,History Records
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
+Invalid original document manifest.,Invalid original document manifest.
 Invalid original filename.,Invalid original filename.
 Invalid recognized invoice group.,Invalid recognized invoice group.
 Invoice Count,Invoice Count
@@ -81,6 +84,8 @@ Location,Location
 Native Content Hash,Native Content Hash
 New records must start as drafts.,New records must start as drafts.
 Not Permitted,Not Permitted
+Original Content Coverage Complete,Original Content Coverage Complete
+Original Document Manifest,Original Document Manifest
 Original File,Original File
 Original Filename,Original Filename
 Original SHA-256,Original SHA-256
@@ -134,6 +139,8 @@ Source Format,Source Format
 Source History,Source History
 Source PDF ID,Source PDF ID
 Source Page Indices,Source Page Indices
+Source Reference Count,Source Reference Count
+Source Reference Kind,Source Reference Kind
 Source Sha256,Source Sha256
 Task,Task
 Tax ID,Tax ID
@@ -143,6 +150,9 @@ The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The image file cannot be read.,The image file cannot be read.
 The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
+The original document manifest cannot be changed.,The original document manifest cannot be changed.
+The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
+The original document manifest is not ready.,The original document manifest is not ready.
 The original file already has a completed invoice manifest.,The original file already has a completed invoice manifest.
 The original file checksum does not match.,The original file checksum does not match.
 The original file is not ready for page preview.,The original file is not ready for page preview.
@@ -182,6 +192,7 @@ cowork.quality.failed,No invoice summary found
 cowork.quality.pending,Needs review
 cowork_line,Cowork LINE
 document,document
+excel,excel
 failed,Failed
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.
@@ -196,6 +207,7 @@ history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
 legacy,legacy
+logical_section,logical_section
 manual,Manual
 not_billable,not_billable
 not_due,not_due
@@ -204,10 +216,28 @@ ocr.empty_file,The uploaded file is empty.
 ocr.file_too_large,The file exceeds the allowed size.
 ocr.invalid_input_metadata,The file size or page metadata is invalid.
 ocr.invalid_pdf,The PDF file cannot be read.
+ocr.page_association_invalid,The recognized content does not match the original references.
+ocr.table_archive_member_limit,The document contains too many internal files.
+ocr.table_archive_size_limit,The document exceeds the allowed size after decompression.
+ocr.table_cell_limit,The document contains too many cells.
+ocr.table_column_limit,The document contains too many columns.
+ocr.table_dependency_unavailable,The document reader is unavailable. Contact your administrator.
+ocr.table_format_not_supported,This document format is not supported.
+ocr.table_invalid_archive,The document file is damaged or cannot be decompressed.
+ocr.table_invalid_bytes,The document content is invalid.
+ocr.table_invalid_dimensions,The worksheet row or column information is invalid.
+ocr.table_parse_failed,The document could not be read. Check the file and try again.
+ocr.table_roundtrip_not_supported,Reimporting review workbooks is not available on the new platform yet.
+ocr.table_row_limit,The document contains too many rows.
+ocr.table_text_limit,The document contains too much text.
+ocr.table_text_too_long,"A document section exceeds 30,000 characters. Split the document before recognition."
+ocr.table_units_invalid,The document sections are incomplete or invalid.
+ocr.table_xml_declaration_not_allowed,The document contains unsupported XML declarations.
 ocr.too_many_pages,The PDF exceeds the allowed page count.
 ocr.unsupported_format,This file type is not supported.
 pdf,pdf
 pending,Pending
+physical_page,physical_page
 recognized,recognized
 recognizing,recognizing
 saved,saved

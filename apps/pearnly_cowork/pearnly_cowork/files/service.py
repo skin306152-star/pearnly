@@ -91,8 +91,84 @@ def create(workspace, filename, content, request_key, client=None):
 
 
 def project(doc):
-    return {key: doc.get(key) for key in ("name", "workspace", "client", "filename", "kind",
-                                         "page_count", "byte_size", "sha256", "uploaded_by")}
+    result = {key: doc.get(key) for key in ("name", "workspace", "client", "filename", "kind",
+                                          "page_count", "byte_size", "sha256", "uploaded_by")}
+    kind = access.reference_kind(doc)
+    result.update(reference_kind=kind, reference_count=access.reference_count(doc),
+                  coverage_complete=bool(doc.get("coverage_complete")) if kind == "logical_section" else None,
+                  reference_unit="page" if kind == "physical_page" else None)
+    if kind == "logical_section" and doc.get("provenance_json"):
+        result["reference_unit"] = json.loads(doc.provenance_json)["provenance"]["unit_kind"]
+    # Provenance contains original cells/paragraphs. Never add it to metadata.
+    return result
+
+
+def _document_manifest(source, document):
+    """Bind local parser evidence to exact original bytes before any paid call."""
+    try:
+        count = document.page_count
+        provenance = document.provenance
+        if (source.kind != "document" or source.page_count != 1
+                or document.source_sha256 != source.sha256
+                or type(count) is not int or count < 1
+                or [page.page_number for page in document.pages] != list(range(1, count + 1))
+                or provenance["version"] != 1 or provenance["reference_kind"] != "logical_section"
+                or provenance["unit_kind"] not in {"worksheet", "delimited_text", "word_document", "decoded_text"}
+                or type(provenance["coverage_complete"]) is not bool
+                or not isinstance(provenance["coverage_issues"], list)
+                or (provenance["coverage_complete"] and provenance["coverage_issues"])
+                or [unit["page_number"] for unit in provenance["units"]] != list(range(1, count + 1))
+                or type(document.billing_characters) is not int or document.billing_characters < 0
+                or not isinstance(document.engine, str) or not document.engine):
+            raise ValueError("Invalid manifest")
+        body = {"schema": access.MANIFEST_SCHEMA, "source_sha256": source.sha256,
+                "reference_count": count, "engine": document.engine,
+                "billing_characters": document.billing_characters, "provenance": provenance,
+                # Bind the parsed projection too: identical raw row evidence
+                # must not mask a parser upgrade changing model input on replay.
+                "page_inputs_sha256": [hashlib.sha256(json.dumps(page.model_dump(mode="json"),
+                    ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()).hexdigest()
+                    for page in document.pages]}
+        encoded = json.dumps(body, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
+    except (ValueError, TypeError, KeyError, AttributeError):
+        frappe.throw(_("Invalid original document manifest."))
+    if len(encoded.encode("utf-8")) > access.MAX_DOCUMENT_MANIFEST_BYTES:
+        frappe.throw(_("The original document manifest exceeds the 8 MiB limit."))
+    return encoded
+
+
+def freeze_doc_manifest(source, document):
+    """Internal admission operation; row lock and caller transaction are retained.
+
+    A trusted local parser supplies the complete source provenance. A worker can
+    call this again to verify an unchanged parse, but cannot revise the first
+    accepted evidence. The ordinary original-write capability is insufficient.
+    """
+    scope.require("intake")
+    source = frappe.get_doc(access.SOURCE, source.name, for_update=True)
+    access.require_full(source)
+    encoded = _document_manifest(source, document)
+    read_bytes(source)
+    if any(source.get(field) for field in access.MANIFEST_FIELDS):
+        if (source.get("reference_kind") != "logical_section"
+                or source.get("reference_count") != document.page_count
+                or bool(source.get("coverage_complete")) != document.coverage_complete
+                or source.get("provenance_json") != encoded):
+            frappe.throw(_("The original document manifest cannot be changed."), frappe.PermissionError)
+        return source
+    if source.binding_complete:
+        frappe.throw(_("The original document manifest cannot be changed."), frappe.PermissionError)
+    source.reference_kind = "logical_section"
+    source.reference_count = document.page_count
+    source.provenance_json = encoded
+    source.coverage_complete = int(document.coverage_complete)
+    source.flags.cowork_original_write = guard.WRITE_CAPABILITY
+    source.flags.cowork_document_manifest = access._MANIFEST_CAPABILITY
+    # Source track_changes must not copy the original rows into a native Version.
+    source.flags.notify_update = False
+    # Frappe _save resets flags.ignore_version from this explicit argument.
+    source.save(ignore_permissions=True, ignore_version=True)
+    return source
 
 
 def read_bytes(source):

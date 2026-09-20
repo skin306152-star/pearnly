@@ -1,10 +1,9 @@
 """Pure whole-result preparation for native history.recognition.persist_batch.
 
-Only validated, complete physical-page results belong here. The caller supplies
-the original file's independently verified page count and explicit workspace /
-source channel. This module performs no permission decision, persistence, model
-call or charge. Table rows are not physical PDF pages and need a separate source
-mapping before using this contract.
+Only validated, complete source-unit results belong here. The caller supplies
+the independently verified physical-page or logical-section count and explicit
+workspace/source channel. The persistence service checks its frozen manifest.
+This module performs no permission decision, persistence, model call or charge.
 """
 from collections import Counter
 from copy import deepcopy
@@ -72,7 +71,8 @@ def _require_complete(result, expected_page_count):
 
 
 def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, workspace: str,
-                          source: str, client=None, posting_kind=None, direction=None) -> dict:
+                          source: str, client=None, posting_kind=None, direction=None,
+                          reference_kind="physical_page") -> dict:
     """Prepare groups for persist_batch; a result is never a billing permission.
 
     ``has_billable_result`` only distinguishes an invoice result from a complete
@@ -84,6 +84,10 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
     of this pure slice. The persistence service rechecks every assigned scope.
     """
     source = normalize_source(source)
+    if reference_kind not in {"physical_page", "logical_section"}:
+        raise OcrResultError("ocr.reference_kind_invalid")
+    references = {"reference_kind": reference_kind, "reference_count": expected_page_count,
+                  "physical_page_count": expected_page_count if reference_kind == "physical_page" else None}
     if (not isinstance(workspace, str) or not workspace.strip()
             or (client is not None and (not isinstance(client, str) or not client.strip()))):
         raise OcrResultError("ocr.scope_required")
@@ -101,7 +105,7 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
     # silently discard noninvoice pages; grouping retains their source evidence.
     if all_pages_not_invoice(raw):
         return {"state": "not_invoice", "groups": [], "raw_pages": raw, "invoice_count": 0,
-                "physical_page_count": expected_page_count, "confidence": None,
+                **references, "confidence": None,
                 "confidence_band": band, "requires_review": bool(review_pages), "has_billable_result": False}
     assessed = assess_confidence(raw)
     groups = group_invoices(assessed["pages"])
@@ -118,5 +122,5 @@ def prepare_history_batch(result: PipelineResult, *, expected_page_count: int, w
             "posting_kind": normalize_posting_kind(posting_kind)})
     return {"state": "review_required" if review_pages else "ready", "groups": prepared,
             "raw_pages": raw, "invoice_count": len(prepared),
-            "physical_page_count": expected_page_count, "confidence": assessed["confidence"],
+            **references, "confidence": assessed["confidence"],
             "confidence_band": band, "requires_review": bool(review_pages), "has_billable_result": bool(prepared)}

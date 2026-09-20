@@ -14,7 +14,7 @@
 | contracts | 来源、日期、摘要、方向、过账声明和外推选择预检 | 无 Frappe / 网络 / 数据库 |
 | files / history.recognition | 精确原件、按页授权、不可变整批关联与跨操作者幂等回读 | Cowork Source File + 原生私有 File；files 不反向导入 history，关联查询只读当前 Site |
 | stocktake | 原生任务/商品/扫描/回执、累计、关闭和 JSON 报告 | 四个 Cowork Stocktake DocType；不写库存账；详见盘点记录 |
-| ocr | PDF/image识别、受控供应商调用、队列/检查点、冻结结果、授权纠错、原子草稿及幂等计费回执 | Cowork OCR Batch/Correction + Core Work；假外部出口下真实Site验证，未部署 |
+| ocr | PDF/image与普通表格/文本识别、受控供应商调用、队列/检查点、冻结结果、授权纠错、原子草稿及幂等计费回执 | Cowork OCR Batch/Correction + Core Work；假外部出口下真实Site验证，未部署 |
 | reconciliation | 第一轮强配对纯函数 | 对账任务持久化和后续配对/银行/GL/VAT仍未迁 |
 
 DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修正无失败回调时的收尾；DMS、Control和前端代码未改。术语新增沿既有TSV→Frappe CSV入口，只生成Cowork语言包。
@@ -59,7 +59,7 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 
 | 能力 | 当前状态 / 继续工作 |
 | --- | --- |
-| OCR 上传、分票、缓存、计费、队列及失败恢复 | PDF/image已接原生执行、供应商适配、文本/图片路径、授权例库、原子保存及计费回执；真实付费模型/账单验收、旧例库回灌、非staged缓存和表格执行仍待补，见执行合同 |
+| OCR 上传、分票、缓存、计费、队列及失败恢复 | PDF/image已接原生执行、供应商适配、文本/图片路径、授权例库、原子保存及计费回执；普通表格/文本已有逻辑区段与字符计费执行；真实付费模型/账单验收、旧例库回灌、非staged缓存、专用roundtrip重导入仍待补，见执行合同 |
 | 原件、PDF 预览、附件 | 新上传原件、整份及按物理页读取已实现；跨公司/同页多票拒绝越权，原生下载/ZIP旁路已堵；旧可搜索PDF、加密文件及历史回灌尚未迁 |
 | 外推、目标刷新、年度账套、权威日志 | 本批只有纯预检；连接、锁、reservation、消费者、未知结果和回读均待迁 |
 | LINE、Companion | 来源映射已完成；验签、当前绑定、单次票据、租约/ACK、消息回执等仍待迁；Windows 实际运行来源待核验 |
@@ -81,3 +81,15 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 内部 `history.recognition.persist_batch(source_file, groups, request_key)` 无 RPC 白名单，不执行 OCR；groups 包含 workspace/client、完整 pages、source、confidence、ai_raw 与 source_page_indices。完整绑定一次提交并保存生成的 history IDs；相同批次重放返回原记录，封存后不再追加或更改关联。原件初始范围与每个结果范围都必须授权。重复物理页号归一为权限集合，所有票面仍保留；History.file_hash 未用于新SHA缓存，旧首条成功结果缓存规则仍待完整OCR接线。
 
 盘点 RPC 与输入输出见 [盘点后端](stocktake-native.md)，File 的框架适配及有意变化见 [原件守卫](files-guards.md)，识别来源与断点见 [OCR 迁移](ocr-pipeline.md)。这些入口均没有新增产品菜单。
+
+
+## 第五批结构化原件合同
+
+`ocr.api.submit` 复用现有 POST/幂等入队契约，增加普通 xlsx/xlsm/csv/tsv/docx/doc/txt 结构化解析。旧xls路由只支持以该后缀命名的OOXML，真实BIFF二进制xls仍不能解析；DOC保持旧尽力解码，不能宣传完整Word支持。识别、解析、权限和计费分别由对应域负责，不接受前端传模型、计费单位或原件清单。
+
+- Batch详情新增 `reference_kind`（physical_page/logical_section）、`billing_kind`（pdf/excel）、`billing_units`。其中 `page_count` 是模型结果逻辑单元数；表格绝不可当PDF页数或字符收费单位。老Batch没有新字段时仅回落到旧PDF/image合同。
+- `files.api.metadata` 另返 `reference_kind/reference_count/reference_unit/coverage_complete`；原件原始 `page_count=1` 文档占位不参与表格授权。History详情 `source_reference_kind` 说明 `source_page_indices` 的真实单位；document 的 `source_pdf_id` 为空，下载用 `source_file`。
+- `accepted=false, code=ocr.table_*` 表示受理前拒绝；不建立模型任务、不扣费。超过30,000模型输入字符、结构资源上限、损坏文件和未迁roundtrip模板不能误显示识别完成。单sheet的LLM提取结果仍须人工复核，未进行真实模型质量验收。
+- 原件按字节校验、逻辑清单与解析投影摘要不可变。没有完整关联所有sheet或旧解析明显漏读内容时，其他用户不能据一张票据获得整份原件；上传者仍须当前公司/买方权限。文档无PDF物理页预览。
+
+详细来源、限制和有意变化见 [表格输入](table-inputs.md)、[表格识别](table-engine.md)、[原件逻辑清单](table-source-manifest.md)。本批没有新增菜单或页面，前端尚未接入。
