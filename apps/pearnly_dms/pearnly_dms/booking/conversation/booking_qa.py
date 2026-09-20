@@ -364,9 +364,7 @@ def _pick_master(
         return
     (qa.get("pages") or {}).pop(masters_key, None)
     qa["answers"][answer_key] = {"id": str(row[0]), "name": row_name(row)}
-    qa["step"] = next_step
-    _persist(tenant_id, line_user_id, qa)
-    send_step(tenant_id, line_user_id, qa, next_step, reply_token)
+    _advance_answer(tenant_id, line_user_id, qa, answer_key, next_step, reply_token)
 
 
 def _pick_car(tenant_id, line_user_id, qa, value, reply_token) -> None:
@@ -377,9 +375,9 @@ def _pick_car(tenant_id, line_user_id, qa, value, reply_token) -> None:
         return
     qa.pop("car_search", None)  # 选完即清命中集，不留残渣
     qa["answers"]["car"] = {"id": str(row[0]), "label": car_label(row)}
-    qa["step"] = "paint"
-    _persist(tenant_id, line_user_id, qa)
-    send_step(tenant_id, line_user_id, qa, "paint", reply_token)
+    qa["answers"].pop("paint", None)
+    qa.pop("paint_snapshots", None)
+    _advance_answer(tenant_id, line_user_id, qa, "car", "paint", reply_token)
 
 
 def _pick_paint(tenant_id, line_user_id, qa, value, reply_token) -> None:
@@ -394,9 +392,22 @@ def _pick_paint(tenant_id, line_user_id, qa, value, reply_token) -> None:
 def _commit_paint(tenant_id, line_user_id, qa, row, reply_token) -> None:
     (qa.get("pages") or {}).pop("paints", None)
     qa["answers"]["paint"] = {"id": str(row[0]), "name": row_name(row)}
-    qa["step"] = "date"
+    _advance_answer(tenant_id, line_user_id, qa, "paint", "date", reply_token)
+
+
+def _advance_answer(tenant_id, line_user_id, qa, field, next_step, reply_token):
+    """A stale master repair reasks its dependencies, then requires a new review."""
+    repair = qa.get("repair_fields") or []
+    if field in repair:
+        repair.remove(field)
+        if not repair:
+            qa.pop("repair_fields", None)
+            _to_preview(tenant_id, line_user_id, qa, reply_token)
+            return
+        next_step = {"car": "car_search"}.get(repair[0], repair[0])
+    qa["step"] = next_step
     _persist(tenant_id, line_user_id, qa)
-    send_step(tenant_id, line_user_id, qa, "date", reply_token)
+    send_step(tenant_id, line_user_id, qa, next_step, reply_token)
 
 
 def _pick_date(tenant_id, line_user_id, qa, params, reply_token) -> None:

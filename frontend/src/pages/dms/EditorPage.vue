@@ -13,6 +13,7 @@
 //
 // 界面：外壳与控件用官方 Frappe UI，配色取 Pearnly 令牌（ADR-007）；
 // 文案全部来自服务端语言包（`dms.edit.*`），代码里只出现文案编号。
+import LineLayout from "../../components/LineLayout.vue";
 import { computed, onMounted, reactive, ref } from "vue";
 import { useRoute } from "vue-router";
 import { Button, FormControl, Spinner, ErrorMessage } from "frappe-ui";
@@ -36,8 +37,6 @@ import {
   type Payment,
 } from "../../lib/dms-editor";
 import {
-  LOCALES,
-  LOCALE_LABELS,
   createTexts,
   type Locale,
 } from "../../lib/i18n";
@@ -50,7 +49,15 @@ const nonce = ref(String(route.query.draft || ""));
 
 // keys 传空 + 给前缀 → 服务端把 `dms.edit.*` 整包给回来（四语齐全）。
 // 页面不维护"我要用哪些键"的清单：清单与语言包一旦不同步，页面上就会露出 key。
-const { t, locale, load: loadTexts, setLocale } = createTexts([], "dms.edit.");
+const { t, tf, locale, load: loadTexts, setLocale } = createTexts([], "dms.edit.");
+const paymentFieldLabels: Record<string, string> = {
+  cheque_no: "dms.edit.chequeNo",
+  cheque_book_no: "dms.edit.chequeBookNo",
+  cashier_no: "dms.edit.cashierNo",
+  cashier_book_no: "dms.edit.cashierBookNo",
+  card_type: "dms.edit.cardType",
+  detail: "dms.edit.detail",
+};
 
 const stage = ref<"loading" | "ready" | "saved" | "failed">("loading");
 const errorText = ref("");
@@ -98,7 +105,7 @@ const CUSTOMER_TEXT_FIELDS = [
   "road",
 ] as const;
 
-/** 错误码 → 文案编号。照老产品 `DMS_BOOKING_ERROR_KEYS` 一字不差地搬。 */
+/** 服务端校验码 → 四语文案；校验失败时保留整份表单供修正。 */
 const ERROR_KEYS: Record<string, string> = {
   "dms_booking.invalid_master": "masterChanged",
   "dms_booking.invalid_bank": "masterChanged",
@@ -107,6 +114,10 @@ const ERROR_KEYS: Record<string, string> = {
   "dms_booking.geo_unavailable": "geoUnavailable",
   "dms_booking.preview_send_failed": "previewSendFailed",
   "dms_booking.slip_without_transfer": "slipConflict",
+  "dms_booking.slip_required": "slipRequired",
+  "dms_booking.payment_required": "paymentRequired",
+  "dms_booking.invalid_payment": "invalidPayment",
+  "dms_booking.invalid_amount": "invalidAmount",
   "dms_booking.payment_detail_required": "paymentDetailRequired",
   "dms_booking.duplicate_payment": "duplicatePayment",
   "dms_booking.liff_unavailable": "liffUnavailable",
@@ -115,6 +126,12 @@ const ERROR_KEYS: Record<string, string> = {
   "dms_booking.expired": "expired",
   "dms_booking.not_bound": "liffUnavailable",
   "dms_booking.no_endpoint": "masterUnavailable",
+};
+
+const INVALID_FIELD_KEYS: Record<string, string> = {
+  people_id: "confirmId", name: "name", phone: "phone", birthday: "birth",
+  house_no: "house", province_id: "province", district_id: "district",
+  subdistrict_id: "subdistrict", delivery: "delivery", regis_name: "regisName",
 };
 
 const optionList = (rows: Option[] | undefined) =>
@@ -137,6 +154,8 @@ function explain(err: unknown): string {
   const code = err instanceof ApiError ? err.message : "";
   const key = ERROR_KEYS[code];
   if (key) return t(`dms.edit.${key}`);
+  const field = INVALID_FIELD_KEYS[code.replace(/^dms_booking\.invalid_/, "")];
+  if (field) return tf("dms.edit.invalidField", t(`dms.edit.${field}`));
   if (err instanceof ApiError && err.status === 409)
     return t("dms.edit.expired");
   return t("dms.edit.failed");
@@ -242,22 +261,27 @@ async function hydrateGeo(): Promise<void> {
 }
 
 /** 取下一级选项；父级为空就是空表（与老产品一致，不去请求）。 */
+const geoRequest: Record<string, number> = { districts: 0, subdistricts: 0, zipcodes: 0 };
 async function cascade(
   level: string,
   parentId: string,
   targetField: string,
 ): Promise<void> {
+  const request = ++geoRequest[level];
   geo[level] = [];
   customer[targetField] = "";
   if (!parentId) return;
   try {
-    geo[level] = await loadGeo(ticket.value, nonce.value, level, parentId);
+    const rows = await loadGeo(ticket.value, nonce.value, level, parentId);
+    if (request === geoRequest[level]) geo[level] = rows;
   } catch (err) {
-    errorText.value = explain(err);
+    if (request === geoRequest[level]) errorText.value = explain(err);
   }
 }
 
 async function onProvinceChange(): Promise<void> {
+  ++geoRequest.subdistricts;
+  ++geoRequest.zipcodes;
   customer.district_id = "";
   customer.subdistrict_id = "";
   customer.zipcode_id = "";
@@ -268,6 +292,7 @@ async function onProvinceChange(): Promise<void> {
 }
 
 async function onDistrictChange(): Promise<void> {
+  ++geoRequest.zipcodes;
   customer.subdistrict_id = "";
   customer.zipcode_id = "";
   geo.subdistricts = [];
@@ -282,14 +307,18 @@ async function onSubdistrictChange(): Promise<void> {
 }
 
 /** 换车型 → 颜色必须重取（颜色属于车型，留着旧颜色提交必被服务端挡）。 */
+let paintRequest = 0;
 async function onCarChange(): Promise<void> {
+  const request = ++paintRequest;
+  const carId = answers.car_id;
   answers.paint_id = "";
   paints.value = [];
-  if (!answers.car_id) return;
+  if (!carId) return;
   try {
-    paints.value = await loadPaints(ticket.value, nonce.value, answers.car_id);
+    const rows = await loadPaints(ticket.value, nonce.value, carId);
+    if (request === paintRequest) paints.value = rows;
   } catch (err) {
-    errorText.value = explain(err);
+    if (request === paintRequest) errorText.value = explain(err);
   }
 }
 
@@ -358,7 +387,8 @@ async function save(): Promise<void> {
     stage.value = "saved";
     setTimeout(() => void closePage(), 900);
   } catch (err) {
-    fail(err);
+    // 即使服务端拒绝本次保存，也不丢掉用户编辑的值。
+    errorText.value = explain(err);
   } finally {
     busy.value = false;
   }
@@ -405,28 +435,7 @@ function changeLocale(value: Locale): void {
 </script>
 
 <template>
-  <div class="pn-editor">
-    <header class="pn-editor-bar">
-      <span class="pn-editor-brand">
-        <span class="pn-editor-mark">P</span>
-        <span>Pearnly DMS</span>
-      </span>
-      <FormControl
-        type="select"
-        class="w-28"
-        :model-value="locale"
-        :aria-label="t('dms.edit.title')"
-        @update:model-value="changeLocale"
-        :options="[
-          ...LOCALES.map((code) => ({
-            value: code,
-            label: LOCALE_LABELS[code],
-          })),
-        ]"
-      />
-    </header>
-
-    <main class="pn-editor-body">
+  <LineLayout :locale="locale" :disabled="busy" @update:locale="changeLocale">
       <section v-if="stage === 'loading'" class="pn-editor-state">
         <Spinner class="h-6 w-6" />
         <p>{{ t("dms.edit.loading") }}</p>
@@ -469,6 +478,8 @@ function changeLocale(value: Locale): void {
           <div class="pn-editor-grid">
             <FormControl
               type="select"
+              :placeholder="t('dms.edit.chooseOption')"
+              :empty-text="t('dms.edit.noOptions')"
               :label="t('dms.edit.prefix')"
               required
               :options="optionList(masters.prefixes)"
@@ -541,6 +552,8 @@ function changeLocale(value: Locale): void {
             />
             <FormControl
               type="select"
+              :placeholder="t('dms.edit.chooseOption')"
+              :empty-text="t('dms.edit.noOptions')"
               :label="t('dms.edit.province')"
               required
               :options="optionList(geo.provinces)"
@@ -549,6 +562,8 @@ function changeLocale(value: Locale): void {
             />
             <FormControl
               type="select"
+              :placeholder="t('dms.edit.chooseOption')"
+              :empty-text="t('dms.edit.noOptions')"
               :label="t('dms.edit.district')"
               required
               :options="optionList(geo.districts)"
@@ -557,6 +572,8 @@ function changeLocale(value: Locale): void {
             />
             <FormControl
               type="select"
+              :placeholder="t('dms.edit.chooseOption')"
+              :empty-text="t('dms.edit.noOptions')"
               :label="t('dms.edit.subdistrict')"
               required
               :options="optionList(geo.subdistricts)"
@@ -565,6 +582,8 @@ function changeLocale(value: Locale): void {
             />
             <FormControl
               type="select"
+              :placeholder="t('dms.edit.chooseOption')"
+              :empty-text="t('dms.edit.noOptions')"
               :label="t('dms.edit.postcode')"
               required
               :options="optionList(geo.zipcodes)"
@@ -586,6 +605,8 @@ function changeLocale(value: Locale): void {
               />
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.place')"
                 required
                 :options="optionList(masters.places)"
@@ -593,6 +614,8 @@ function changeLocale(value: Locale): void {
               />
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.car')"
                 required
                 :options="optionList(masters.cars)"
@@ -601,6 +624,8 @@ function changeLocale(value: Locale): void {
               />
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.paint')"
                 required
                 :options="optionList(paints)"
@@ -614,6 +639,8 @@ function changeLocale(value: Locale): void {
               />
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.term')"
                 required
                 :options="optionList(masters.terms)"
@@ -621,6 +648,8 @@ function changeLocale(value: Locale): void {
               />
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.regis')"
                 required
                 :options="optionList(masters.regis)"
@@ -644,6 +673,8 @@ function changeLocale(value: Locale): void {
             >
               <FormControl
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.channel')"
                 :options="
                   optionList(
@@ -664,6 +695,8 @@ function changeLocale(value: Locale): void {
               <FormControl
                 v-if="row.channel === 'transfer'"
                 type="select"
+                :placeholder="t('dms.edit.chooseOption')"
+                :empty-text="t('dms.edit.noOptions')"
                 :label="t('dms.edit.destination')"
                 required
                 :options="optionList(masters.company_banks)"
@@ -680,6 +713,8 @@ function changeLocale(value: Locale): void {
                 <FormControl
                   v-else
                   type="select"
+                  :placeholder="t('dms.edit.chooseOption')"
+                  :empty-text="t('dms.edit.noOptions')"
                   :label="t('dms.edit.bankName')"
                   required
                   :options="optionList(bankList(row.channel))"
@@ -690,7 +725,7 @@ function changeLocale(value: Locale): void {
                 v-for="field in CHANNEL_FIELDS[row.channel] || []"
                 :key="field"
                 type="text"
-                :label="t(`dms.edit.${field}`)"
+                :label="t(paymentFieldLabels[field])"
                 required
                 v-model="row.extra[field]"
               />
@@ -720,13 +755,13 @@ function changeLocale(value: Locale): void {
             <p class="pn-editor-hint">{{ t("dms.edit.fileHint") }}</p>
             <FormControl
               type="checkbox"
-              :label="`${t('dms.edit.idCard')} · ${t('dms.edit.attached')}`"
+              :label="`${t('dms.edit.idCard')} · ${t(hasFiles.id_card ? 'dms.edit.attached' : 'dms.edit.notAttached')}`"
               :disabled="!hasFiles.id_card"
               v-model="keep.id_card"
             />
             <FormControl
               type="checkbox"
-              :label="`${t('dms.edit.slip')} · ${t('dms.edit.attached')}`"
+              :label="`${t('dms.edit.slip')} · ${t(hasFiles.slip ? 'dms.edit.attached' : 'dms.edit.notAttached')}`"
               :disabled="!hasFiles.slip"
               v-model="keep.slip"
             />
@@ -751,69 +786,12 @@ function changeLocale(value: Locale): void {
           />
         </div>
       </form>
-    </main>
-  </div>
+  </LineLayout>
 </template>
 
 <style scoped>
 /* 这一页是**手机上的 LINE 页面**，不是产品后台：单列、贴底操作条、按令牌配色。
    控件本身还是官方组件（间距圆角由它们自己带），这里只管布局。 */
-.pn-editor {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background: var(--bg);
-  color: var(--ink);
-}
-
-.pn-editor-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 14px;
-  background: var(--card);
-  border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-
-.pn-editor-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-weight: 600;
-}
-
-.pn-editor-mark {
-  width: 24px;
-  height: 24px;
-  border-radius: 8px;
-  background: var(--accent);
-  color: var(--accent-ink);
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-}
-
-.pn-editor-lang {
-  border: 1px solid var(--outline-gray-2, #e5e7eb);
-  border-radius: 8px;
-  padding: 4px 8px;
-  background: var(--card);
-  color: inherit;
-  font-size: 14px;
-}
-
-.pn-editor-body {
-  flex: 1;
-  padding: 14px;
-  max-width: 720px;
-  width: 100%;
-  margin: 0 auto;
-}
-
 .pn-editor-state {
   display: grid;
   place-items: center;

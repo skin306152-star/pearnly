@@ -1,14 +1,9 @@
 # -*- coding: utf-8 -*-
 """DMS 下拉主档（顾问/车型/颜色/分店…）的缓存。
 
-为什么缓存：**每次登录 DMS 抓全量太贵**（一次登录要十几秒，主档还有好几页）。
-缓存 12 小时内直接复用。
-
-和老产品的两处实现差异（逻辑一样）：
-
-· 老产品存 Postgres 表；我们存 Frappe 的 Redis 缓存 —— 它本来就是缓存，
-  过期/被逐出都只是"下次重新抓"，不存在数据正确性问题；
-· 端点的键用**文档名**（我们是 Frappe，「一个端点 = 一个文档」）。
+Redis 保留 12 小时；LINE 普通读取经 master_shared 限制为 90 秒新鲜度，
+编辑与最终提交使用权威读取。保留期不是业务允许使用旧数据的时长。
+缓存按 Site、外部系统及实际读取凭据隔离；相同权威读取范围可合并刷新。
 
 **失败语义（照抄，很重要）**：
 
@@ -20,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 import time
 from typing import Any, Dict, List, Optional
 
@@ -54,7 +50,30 @@ def _eid(endpoint: Any) -> str:
 
 
 def _key(eid: str) -> str:
-    return f"pearnly:dms:masters:{eid}"
+    return f"pearnly:dms:masters:{scope(eid)}"
+
+
+def scope(endpoint: Any) -> str:
+    """Share only the same Site, DMS and effective reader credentials.
+
+    Sales without an authoritative reader keep their own permission scope. A
+    credential change creates a new cache scope; no password is stored in keys.
+    """
+    import frappe
+    from pearnly_core.session_lock import dms_login_key
+
+    eid = _eid(endpoint)
+    if eid.startswith("shared-v2:"):
+        return eid
+    doc = frappe.get_doc("Pearnly ERP Endpoint", eid)
+    if not doc.enabled or doc.adapter != "mrerp_dms":
+        return eid
+    admin_password = doc.get_password("admin_password", raise_exception=False)
+    use_admin = bool(doc.admin_username and admin_password)
+    username = doc.admin_username if use_admin else doc.username
+    password = admin_password if use_admin else doc.get_password("password", raise_exception=False)
+    material = dms_login_key(doc.system_url, username) + "\0" + (password or "")
+    return "shared-v2:" + hashlib.sha256(material.encode()).hexdigest()
 
 
 # ── 缓存读写 ─────────────────────────────────────────────────────────────
@@ -66,7 +85,8 @@ def _read(endpoint: Any) -> Optional[Dict[str, Any]]:
     if not eid:
         return None
     try:
-        blob = frappe.cache().get_value(_key(eid))
+        # Pollers must see another worker's refresh, not Frappe's request-local copy.
+        blob = frappe.cache().get_value(_key(eid), use_local_cache=False)
     except Exception:
         logger.warning("[dms masters] 读缓存失败，按 miss 处理", exc_info=True)
         return None
@@ -84,7 +104,7 @@ def _write(endpoint: Any, masters: Dict[str, Any], *, touch_refreshed_at: bool =
     `touch_refreshed_at=False`：**只并入颜色**，不动整体的新鲜度时间戳。
     为什么要有它：抓某个车型的颜色可能会花几秒，而这几秒里别的请求可能刚做完一次
     全量刷新 —— 颜色请求不能把"整体主档"的时间戳往前推，否则别人会以为主档也刚刷过。
-    （线上用 SQL 的 jsonb 合并实现；这里用"重读当前 blob 再合并"，语义等价。）
+    读改写在同一短锁内完成，且只并入本次实际读取的车型。
     """
     import frappe
 
@@ -92,29 +112,43 @@ def _write(endpoint: Any, masters: Dict[str, Any], *, touch_refreshed_at: bool =
     if not eid:
         return
     try:
-        if not touch_refreshed_at:
-            current = frappe.cache().get_value(_key(eid)) or {}
-            cur_masters = current.get("masters") or {}
-            merged = dict(cur_masters)
-            for k in ("paints_by_car", "paints_refreshed_at"):
-                if masters.get(k):
-                    merged[k] = {**(cur_masters.get(k) or {}), **masters[k]}
-            masters = merged
-        frappe.cache().set_value(
-            _key(eid),
-            {"masters": masters or {}, "ts": time.time()},
-            expires_in_sec=CACHE_TTL_SECONDS,
-        )
+        cache = frappe.cache()
+        key = _key(eid)
+        with cache.lock(cache.make_key(key + ":merge"), timeout=10, blocking_timeout=5):
+            stamp = time.time()
+            if not touch_refreshed_at:
+                current = cache.get_value(key, use_local_cache=False) or {}
+                stamp = current.get("ts") or 0
+                masters = _merge_paints(current.get("masters") or {}, masters)
+            cache.set_value(key, {"masters": masters or {}, "ts": stamp},
+                            expires_in_sec=CACHE_TTL_SECONDS)
     except Exception:
         logger.warning("[dms masters] 写缓存失败（不影响本次结果）", exc_info=True)
 
 
-def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> None:
+def _merge_paints(base: dict, incoming: dict) -> dict:
+    """Merge per-car results by actual read time, including authoritative empty rows."""
+    out = dict(base)
+    paints = dict(base.get("paints_by_car") or {})
+    stamps = dict(base.get("paints_refreshed_at") or {})
+    valid = {str(row[0]) for row in base.get("cars", []) if row}
+    for car, rows in (incoming.get("paints_by_car") or {}).items():
+        stamp = float((incoming.get("paints_refreshed_at") or {}).get(car) or 0)
+        if ("cars" not in base or str(car) in valid) and stamp >= float(stamps.get(car) or 0):
+            paints[car], stamps[car] = rows, stamp
+    if "cars" in base:
+        paints = {key: rows for key, rows in paints.items() if str(key) in valid}
+        stamps = {key: value for key, value in stamps.items() if key in paints}
+    out.update(paints_by_car=paints, paints_refreshed_at=stamps)
+    return out
+
+
+def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> Optional[dict]:
     """整份替换主档，但**不丢掉并发期间拿到的颜色**。
 
     全量刷新要好几秒；这期间某个颜色请求可能已经跑完。所以不能光用"刷新前读到的那个
     blob"去合并 —— 要在**写入那一刻**重读当前缓存，把它的颜色并进来
-    （线上是在同一条 SQL 里合并；这里读-合-写，窗口极小且语义一致）。
+    在短 Redis 锁内合并，以单车型读取时间决定新旧，删除车型不复活旧颜色。
     """
     import frappe
 
@@ -122,17 +156,14 @@ def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> Non
     if not eid:
         return
     try:
-        current = frappe.cache().get_value(_key(eid)) or {}
-        cur = current.get("masters") or {}
-        pbc = {**(cur.get("paints_by_car") or {}), **(masters.get("paints_by_car") or {})}
-        prt = {**(cur.get("paints_refreshed_at") or {}), **(masters.get("paints_refreshed_at") or {})}
-        if pbc:
-            masters = {**masters, "paints_by_car": pbc, "paints_refreshed_at": prt}
-        frappe.cache().set_value(
-            _key(eid),
-            {"masters": masters or {}, "ts": time.time()},
-            expires_in_sec=CACHE_TTL_SECONDS,
-        )
+        cache = frappe.cache()
+        key = _key(eid)
+        with cache.lock(cache.make_key(key + ":merge"), timeout=10, blocking_timeout=5):
+            current = cache.get_value(key, use_local_cache=False) or {}
+            masters = _merge_paints(masters, current.get("masters") or {})
+            cache.set_value(key, {"masters": masters, "ts": time.time()},
+                            expires_in_sec=CACHE_TTL_SECONDS)
+            return masters
     except Exception:
         logger.warning("[dms masters] 整份写缓存失败（不影响本次结果）", exc_info=True)
 
@@ -173,9 +204,7 @@ def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
         lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id),
         authoritative_read=True,
     )
-    if isinstance(res, dict):
-        return None
-    return res
+    return res if isinstance(res, list) else None
 
 
 def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional[Dict[str, List[list]]]:
@@ -190,9 +219,7 @@ def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional
         return {car: (client._bshsd_all("txtcarpaint", idcar=car) or []) for car in want}
 
     res = run_logged_in(endpoint, _fetch, authoritative_read=True)
-    if isinstance(res, dict):
-        return None
-    return res
+    return res if isinstance(res, dict) and res.get("ok") is not False else None
 
 
 # ── 对外：主档 / 颜色 ────────────────────────────────────────────────────
@@ -272,10 +299,9 @@ def get_paints(
                 "ERR_DMS_MASTER_UNAVAILABLE",
             )
         return []
-    pbc[car_id] = paints
     _write(
         endpoint,
-        {**masters, "paints_by_car": pbc, "paints_refreshed_at": {car_id: time.time()}},
+        {"paints_by_car": {car_id: paints}, "paints_refreshed_at": {car_id: time.time()}},
         touch_refreshed_at=False,
     )
     return paints
@@ -316,7 +342,7 @@ def write_authoritative_snapshot(
     for key in _BANK_KEYS:
         if key not in merged and old.get(key):
             merged[key] = old[key]
-    _write(endpoint, merged)
+    _write_full_preserving_paints(endpoint, merged)
 
 
 def refresh_from_client(endpoint: Any, client: Any) -> None:

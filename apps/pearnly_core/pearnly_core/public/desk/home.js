@@ -6,9 +6,7 @@
 			table,
 			timer,
 			busy = false;
-		let tab = "usage",
-			period = "all",
-			recordRequest = 0;
+		let tab = "usage", period = "all", pageLength = 20;
 		const money = (value) => format_currency(Number(value || 0), "THB");
 		const read = (name, label, value, fieldtype = "Data") => ({
 			fieldname: name,
@@ -23,6 +21,7 @@
 			busy = true;
 			try {
 				home = await p.call("pearnly_core.billing_www.home");
+				pageLength = table?.selected_page_count || pageLength;
 				table?.destroy();
 				page.main.empty();
 				const sub = home.subscription;
@@ -60,6 +59,13 @@
 						options: sub
 							? `<p>${p.escape(t("home.plan.usage", sub.pages_used_this_cycle, sub.quota, sub.remaining))}</p><p class="text-muted">${p.escape(t("home.plan.over", money(sub.over_rate), frappe.datetime.str_to_user(sub.cycle_end)))}</p><p class="text-muted">${p.escape(t("home.plan.cycleNote"))}</p>`
 							: `<p class="text-muted">${p.escape(t("home.plan.noneHint"))}</p>`,
+					},
+					{
+						fieldtype: "HTML",
+						options: home.pricing ? `<p class="text-muted">${p.escape(t("home.pricing.pages",
+							home.pricing.pdf_first_pages, money(home.pricing.pdf_first_rate), money(home.pricing.pdf_after_rate)))}</p>
+							<p class="text-muted">${p.escape(t("home.pricing.chars", home.pricing.chars_per_unit,
+							money(home.pricing.char_rate)))}</p>` : "",
 					},
 					{ fieldtype: "Section Break", label: t("home.plans.title") },
 					{ fieldtype: "HTML", fieldname: "plans" },
@@ -132,58 +138,37 @@
 		}
 		async function records() {
 			if (!form?.fields_dict.records) return;
-			const request = ++recordRequest;
-			const data = await p.call("pearnly_core.billing_www.records", { tab, period });
-			if (request !== recordRequest) return;
-			const status = (code) =>
-				t(
-					{
-						pending: "home.status.pending",
-						approved: "home.status.credited",
-						rejected: "home.status.rejected",
-						ok: "home.status.ok",
-						needs_review: "home.status.toreview",
-						failed: "home.status.failed",
-					}[code] || code,
-				);
-			let cols, rows;
-			if (tab === "topup") {
-				cols = ["time", "reference", "status", "requested", "received", "note"];
-				rows = data.rows.map((r) => [
-					r.creation,
-					r.name,
-					status(r.status),
-					money(r.requested_thb),
-					r.approved_thb ? money(r.approved_thb) : "—",
-					r.review_note || r.note || "—",
-				]);
-			} else if (tab === "ocr") {
-				cols = ["time", "result", "file", "charges", "summary"];
-				rows = data.rows.map((r) => [
-					r.creation,
-					status(r.status),
-					r.filename || "—",
-					r.charged_thb == null ? "—" : money(r.charged_thb),
-					r.error || r.detail || "—",
-				]);
-			} else {
-				cols = ["time", "product", "pages", "amount", "balanceAfter", "description"];
-				rows = data.rows.map((r) => [
-					r.creation,
-					r.product,
-					r.pages || 0,
-					money(r.amount_thb),
-					money(r.balance_after),
-					r.description,
-				]);
-			}
+			pageLength = table?.selected_page_count || pageLength;
 			table?.destroy();
-			table = await p.table(
-				form.fields_dict.records.$wrapper,
-				cols.map((k) => t("home.col." + k)),
-				rows,
-			);
+			const activeTab = tab, activePeriod = period;
+			const status = code => t({pending: "home.status.pending", approved: "home.status.credited",
+				rejected: "home.status.rejected", ok: "home.status.ok", needs_review: "home.status.toreview",
+				failed: "home.status.failed"}[code] || code);
+			const columns = activeTab === "topup"
+				? [["creation", "time"], ["name", "reference"], ["status", "status", status],
+					["requested_thb", "requested", money], ["approved_thb", "received", money],
+					["note", "note", (v, row) => row.review_note || v || "—"]]
+				: activeTab === "ocr"
+					? [["creation", "time"], ["status", "result", status], ["filename", "file"],
+						["charged_thb", "charges", v => v == null ? "—" : money(v)],
+						["detail", "summary", (v, row) => row.error || v || "—"]]
+					: [["creation", "time"], ["product", "product"], ["pages", "pages"],
+						["amount_thb", "amount", money], ["balance_after", "balanceAfter", money],
+						["description", "description", value => __(value || "")]];
+			table = p.list({page, page_length: pageLength, container: form.fields_dict.records.$wrapper,
+				doctype: "Pearnly OCR Record",
+				columns: columns.map(([fieldname, label, format]) => ({fieldname,
+					label: t("home.col." + label), format: fieldname === "creation"
+						? value => frappe.datetime.str_to_user(value) : format})),
+				load: async ({start, page_length}) => {
+					const result = await p.call("pearnly_core.billing_www.records", {
+						tab: activeTab, period: activePeriod, offset: start, limit: page_length});
+					return {items: result.rows, total: result.total};
+				},
+			});
+			await table.ready;
 		}
+
 		function subscription(code) {
 			const plans = home.plans;
 			p.dialog(
@@ -290,7 +275,9 @@
 		p.add_refresh(page, refresh);
 		await refresh();
 		timer = setInterval(() => {
-			if (!document.hidden && !cur_dialog && $(wrapper).is(":visible"))
+			const editingFilter = $(document.activeElement).closest(page.main).length &&
+				$(document.activeElement).is("input,select,textarea,[role=combobox]");
+			if (!document.hidden && !cur_dialog && !editingFilter && $(wrapper).is(":visible"))
 				void refresh().catch(() => {});
 		}, 30000);
 		$(wrapper).one("remove", () => clearInterval(timer));

@@ -55,7 +55,7 @@ def pending(tenant, line_user_id, payload) -> Optional[Dict[str, Any]]:
     return None
 
 
-def recorder(tenant, line_user_id, payload):
+def recorder(tenant, line_user_id, payload, *, binding=None, endpoint="", endpoint_fingerprint=""):
     """造一个"只能记一次"的登记器（每次执行一个 owner）。
 
     同一个执行体在**顺号重试**时可以再记一次（DMS 说这个号重复了，换下一个号）——
@@ -64,10 +64,29 @@ def recorder(tenant, line_user_id, payload):
     owner = secrets.token_hex(16)
     previous_no = None
 
-    def record(booking_no):
+    def assert_current():
+        current = store.get_session(line_user_id) or {}
+        draft = current.get("payload") or {}
+        marker = draft.get("booking_attempt") or {}
+        if (current.get("state") != "booking_review" or draft.get("nonce") is not None
+                or draft.get("booking_claim") != payload.get("nonce")
+                or (marker and (marker.get("owner") != owner or marker.get("booking_no") != previous_no))):
+            raise DmsClientError('Booking draft is no longer owned by this worker',
+                                 'ERR_DMS_BOOKING_ATTEMPT_BLOCKED')
+        if binding:
+            from pearnly_dms.line.identity import matches
+            if not matches(binding, line_user_id):
+                raise DmsClientError('Operator binding changed before submission',
+                                     'ERR_DMS_BOOKING_ATTEMPT_BLOCKED')
+
+    def record(booking_no, submitted=None):
         nonlocal previous_no
+        assert_current()
         if not store.record_booking_attempt(
-            line_user_id, (payload or {}).get("nonce"), str(booking_no), owner, previous_no
+            line_user_id, (payload or {}).get("nonce"), str(booking_no), owner, previous_no,
+            context={"binding": binding or {}, "endpoint": endpoint,
+                     "endpoint_fingerprint": endpoint_fingerprint,
+                     "submitted": submitted or {}, "qa": (payload or {}).get("qa") or {}},
         ):
             raise DmsClientError(
                 "booking draft was replaced or attempt already exists; not submitted",
@@ -75,6 +94,10 @@ def recorder(tenant, line_user_id, payload):
             )
         previous_no = str(booking_no)
 
+    # Plain one-argument callbacks retain their public contract. Production's
+    # recorder additionally saves the exact readback contract before external IO.
+    record.capture_submission = record
+    record.assert_current = assert_current
     return record
 
 

@@ -61,6 +61,12 @@
 
 参考：[Frappe App 结构](https://docs.frappe.io/framework/user/en/basics/apps)、[创建 App](https://docs.frappe.io/framework/user/en/tutorial/create-an-app)、[hooks](https://docs.frappe.io/framework/user/en/python-api/hooks)。业务域分组和云端开户限制是本项目的约定，不冒称为上游强制目录规范。
 
+### 操作员连接同步（2026-09-20 LINE 修复）
+
+`operators.endpoints` 负责花名册到本人 Endpoint 的事务内同步，通过原生 DocType 更新和共享连接 `on_update` hook 触发；不调用外部 DMS。公司配置与管理员读凭据继承到员工连接，员工销售密码和提成归属保持独立。新增 `operators → contracts` 仅复用纯常量 `PERSONAL_BOOKING_DEFAULT_KEYS`，防止继承老板的顾问身份；contracts 无框架、IO 或反向依赖，不产生循环。原生迁移补齐已有操作员连接，停用/删除保留 Endpoint 与 User 审计关联并撤销使用权。
+
+`account` 域恢复旧线上 LINE 菜单 3/4：依赖 `editor.browser_ticket` 的独立 account scope 与 `ocr.resolve_dms_endpoint` 的本人连接判据；不反向依赖 account。凭据修改走 DMS Operator 原生保存及上述同步 hook。门户只消费 60 秒单次票据并提交给配置的 HTTPS DMS。LINE 绑定变更以 core hook 通知 menu；menu 读取 query 权限，异步同步已经发布的菜单，不在文档保存时创建或切换默认菜单。
+
 ## 通用界面框架
 
 所有迁移与新功能遵循 ADR-005/007：产品 Web 与管理后台复用同一版本原生 Frappe Desk，页面/表单/列表/弹窗/提示/音效使用原生 API。品牌色仅用于强调，保留官方白底、深色正文与布局。业务 API、角色、购买功能和鉴权边界保持服务端约束，不授予客户平台超管。
@@ -74,3 +80,15 @@
 ### 推送记录管理的边界（2026-09-20）
 
 `records.access` 提供 DMS 推送历史的产品/角色/功能权限和当前 Site 内的记录范围，`query.records` 只读复用这些定义，因此登记 query → records 单向依赖。`records.manage` 用 POST 原子校验选中记录并记录移除人/时间；原生 Push Log 的业务字段、状态、重试和客户查重凭据保留。此依赖不指向 query、外部适配器或业务写入，不增加循环，也不授予通用 DocType 删除权限。
+
+### 已成功订车的后续交付
+
+`booking.delivery` 使用自有原生 `DMS Booking Delivery` 持久化已经独立回读确认的订单结果、原身份版本和稳定回执key。先保存后释放当前LINE草稿，后台只补附件及LINE回执，不调用建单入口。其权限仅System Manager只读，不新增产品导航；未核实订单仍保留原提交标记。`booking.attachments` 负责已选择消息的内容获取，`client.attachments` 负责原生完整表单上传与逐件回读，依赖方向不反转。
+
+### 三产品共享识别执行
+
+Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。当前只有 DMS 已接入真实识别流程，另外两产品预留同一基础能力，不能据此宣称它们的 OCR 迁移已经完成。
+
+MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
+
+`infrastructure/production/capacity.py` 在正式开户或激活前按候选 Compose 的内存硬限额计入所有现有产品及宿主预留，拒绝超额，不以空闲 RSS 推断容量。上线预算与证据见 [共享 OCR 容量](../operations/shared-ocr-capacity.md)。

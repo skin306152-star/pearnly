@@ -105,7 +105,7 @@ def _period_range(period: str, anchor: str) -> tuple[str, str]:
     return start.isoformat(), start.replace(year=start.year + 1).isoformat()
 
 
-def _ocr_rows(start: str, end: str, limit: int) -> list[dict]:
+def _ocr_rows(start: str, end: str, limit: int, offset: int = 0) -> list[dict]:
     """识别记录来自**本站**（每个租户一个站点，识别就发生在这里）。"""
     filters = {}
     if start or end:
@@ -114,14 +114,17 @@ def _ocr_rows(start: str, end: str, limit: int) -> list[dict]:
         "Pearnly OCR Record", filters=filters,
         fields=["name", "creation", "product", "status", "filename", "page_count",
                 "charged_thb", "detail", "error"],
-        order_by="creation desc", limit_page_length=int(limit),
+        order_by="creation desc, name desc", limit_page_length=int(limit), limit_start=offset,
     )
 
 
 @frappe.whitelist()
-def records(tab: str = "usage", period: str = "all", date: str = "", limit: int = 100) -> dict:
+def records(tab: str = "usage", period: str = "all", date: str = "", limit: int = 100, offset: int = 0) -> dict:
     """记录明细：`usage`（扣费）/ `topup`（充值）/ `ocr`（识别）。"""
     user = _require_login()
+    if tab not in ("usage", "topup", "ocr"):
+        frappe.throw(_("Invalid value"))
+    limit, offset = max(1, min(int(limit or 100), 5000)), max(0, int(offset or 0))
     is_admin = bool(set(ADMIN_ROLES) & set(frappe.get_roles(user)))
     if tab == "topup" and not is_admin:
         # 充值是公司账目，普通员工看不到（老产品同款口径）
@@ -129,10 +132,13 @@ def records(tab: str = "usage", period: str = "all", date: str = "", limit: int 
 
     start, end = _period_range(period, date)
     if tab == "ocr":
-        rows = _ocr_rows(start, end, int(limit))
+        rows = _ocr_rows(start, end, limit, offset)
+        filters = {"creation": ("between", [start or "1970-01-01", end or "2999-12-31"])} if start or end else {}
+        total = frappe.db.count("Pearnly OCR Record", filters)
     else:
-        rows = _client().records(tab, start=start, end=end, limit=int(limit)).get("rows") or []
-    return {"tab": tab, "period": period, "start": start, "end": end, "rows": rows}
+        result = _client().records(tab, start=start, end=end, limit=limit, offset=offset)
+        rows, total = result.get("rows") or [], int(result.get("total") or 0)
+    return {"tab": tab, "period": period, "start": start, "end": end, "rows": rows, "total": total}
 
 
 @frappe.whitelist()
@@ -179,7 +185,7 @@ def export_records(date_from: str = "", date_to: str = "") -> None:
         ],
         [[str(r.get("creation") or "")[:16], r.get("product") or "", r.get("pages") or 0,
           float(r.get("amount_thb") or 0), float(r.get("balance_after") or 0),
-          r.get("description") or "", r.get("reference") or ""] for r in usage],
+          _(r.get("description") or ""), r.get("reference") or ""] for r in usage],
     )
     if is_admin:
         add_sheet(

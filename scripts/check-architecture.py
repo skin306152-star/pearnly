@@ -96,8 +96,8 @@ def check(root=ROOT):
     router = root / "frontend/src/router.ts"
     if router.exists():
         routes = re.findall(r'path:\s*["\']([^"\']+)', router.read_text())
-        if any(route != "/dms/editor" for route in routes):
-            errors.append("frontend/src/router.ts: product Web routes must use native Desk; only LINE editor is standalone")
+        if any(route not in {"/dms/editor", "/dms/account"} for route in routes):
+            errors.append("frontend/src/router.ts: product Web routes must use native Desk; only scoped LINE editors are standalone")
     for path in (root / "apps").glob("*/*/public/desk/*.js"):
         source = path.read_text()
         if re.search(r"(?<![\w.])(?:window\.)?(?:alert|confirm|prompt)\(", source):

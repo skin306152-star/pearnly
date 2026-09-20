@@ -127,6 +127,6 @@ def subscribe(plan_code: str) -> dict:
     return _call("service_subscribe", {"plan_code": plan_code})
 
 
-def records(tab: str, start: str = "", end: str = "", limit: int = 500) -> dict:
+def records(tab: str, start: str = "", end: str = "", limit: int = 500, offset: int = 0) -> dict:
     return _call("service_records",
-                 {"tab": tab, "start": start, "end": end, "limit": int(limit)})
+                 {"tab": tab, "start": start, "end": end, "limit": int(limit), "offset": int(offset)})

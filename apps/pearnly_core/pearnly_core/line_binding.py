@@ -15,6 +15,7 @@
 """
 
 import secrets
+import hashlib
 
 import frappe
 from frappe import _
@@ -23,36 +24,56 @@ from frappe.utils import add_to_date, now
 BINDING = "Pearnly LINE Binding"
 BIND_CODE = "Pearnly LINE Bind Code"
 
-# 去掉容易看错的字符（0 与 O、1 与 I 与 l），因为用户要手打或口述这个码
-CODE_ALPHABET = "ACDEFGHJKLMNPQRSTUVWXY23456789"
+# Six digits are kept as text so leading zeroes survive manual entry.
+CODE_ALPHABET = "0123456789"
 CODE_LENGTH = 6
 DEFAULT_TTL_MINUTES = 30
 
 
 def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dict:
     """给某个本地账号生成一次性绑定码。旧的未用码同时作废（一人同时只有一个有效码）。"""
-    if not frappe.db.exists("User", user):
-        frappe.throw(_("No such local account: {0}").format(user))
+    # This function already owns a committed transaction. Retry its local-only
+    # work after MariaDB snapshot conflicts; callers must not batch other writes.
+    # Allocation and revocation share one short site-scoped critical section.
+    # This also avoids InnoDB next-key lock cycles between fresh user ranges.
+    with frappe.cache.lock(frappe.cache.make_key("pearnly_bind_allocation"), timeout=30, blocking_timeout=10):
+        for attempt in range(3):
+            try:
+                return _generate_bind_code(user, ttl_minutes)
+            except frappe.QueryDeadlockError:
+                frappe.db.rollback()
+                if attempt == 2:
+                    raise
 
+
+def _generate_bind_code(user, ttl_minutes):
+    rows = frappe.db.sql("select name, enabled from `tabUser` where name=%s for update", (user,), as_dict=True)
+    if not rows:
+        frappe.throw(_("No such local account: {0}").format(user))
+    if not rows[0].enabled:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     frappe.db.delete(BIND_CODE, {"user": user, "used": 0})
 
-    code = ""
-    for _ in range(20):
-        candidate = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
-        if not frappe.db.exists(BIND_CODE, candidate):
-            code = candidate
+    # The primary key is the allocation lock: an existence check alone races
+    # when different operators request codes concurrently.
+    for attempt in range(20):
+        code = "".join(secrets.choice(CODE_ALPHABET) for digit in range(CODE_LENGTH))
+        frappe.db.savepoint("bind_code_candidate")
+        doc = frappe.get_doc({
+            "doctype": BIND_CODE,
+            "code": code,
+            "user": user,
+            "expires_at": add_to_date(now(), minutes=ttl_minutes),
+            "used": 0,
+        })
+        try:
+            doc.insert(ignore_permissions=True, set_name=code)
             break
-    if not code:
+        except frappe.DuplicateEntryError:
+            frappe.db.rollback(save_point="bind_code_candidate")
+    else:
         frappe.throw(_("Could not generate a bind code; please try again"))
 
-    doc = frappe.get_doc({
-        "doctype": BIND_CODE,
-        "code": code,
-        "user": user,
-        "expires_at": add_to_date(now(), minutes=ttl_minutes),
-        "used": 0,
-    })
-    doc.insert(ignore_permissions=True, set_name=code)
     frappe.db.commit()
     # ⚠️ **一定要给 `expires_in`（剩余秒数）**，界面别去解析 `expires_at` 那个字符串。
     #
@@ -68,31 +89,60 @@ def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dic
     }
 
 
-def consume_bind_code(code: str):
+def consume_bind_code(code: str, *, line_user_id: str = ""):
     """一次性消费绑定码。过期、已用、不存在都返回 None。"""
     code = (code or "").strip().upper()
-    if not code or not frappe.db.exists(BIND_CODE, code):
+    # During rollout, already-issued six-character codes remain valid until expiry.
+    if len(code) != CODE_LENGTH or not code.isascii() or not code.isalnum():
         return None
-
-    doc = frappe.get_doc(BIND_CODE, code)
+    if not line_user_id:
+        return None
+    # Signed webhook supplies the sender. Atomic, site-scoped fixed window prevents
+    # the shorter human-friendly code from becoming an unlimited guessing oracle.
+    actor = hashlib.sha256(line_user_id.encode()).hexdigest()
+    key = frappe.cache.make_key("pearnly_bind_attempts:" + actor)
+    attempts = frappe.cache.eval(
+        "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],900) end; return n",
+        1, key,
+    )
+    if attempts > 5:
+        return None
+    rows = frappe.db.sql(
+        "select user, used, expires_at from `tabPearnly LINE Bind Code` "
+        "where name=%s for update", (code,), as_dict=True,
+    )
+    if not rows:
+        return None
+    doc = rows[0]
     if doc.used:
         return None
     if str(doc.expires_at) < str(now()):
         return None
 
-    # 先标记已用再返回：并发下只有一个能拿到
+    if not frappe.db.get_value("User", doc.user, "enabled"):
+        return None
+    # 行锁覆盖读与写；另一个请求必须在提交后重新读取 used。
     frappe.db.set_value(BIND_CODE, code, {"used": 1, "used_at": now()})
     frappe.db.commit()
+    frappe.cache.delete(key)
     return {"user": doc.user}
 
 
 def bind(line_user_id: str, user: str, display_name: str = "") -> str:
-    """建或更新绑定。已存在就更新，不重复建（幂等）。"""
+    """一位员工对应一个有效 LINE 账号；换绑同时收回旧账号。"""
     if not line_user_id or not user:
         frappe.throw(_("Binding needs a LINE user and a local account"))
     if not frappe.db.exists("User", user):
         frappe.throw(_("No such local account: {0}").format(user))
-
+    frappe.db.sql("select name from `tabUser` where name=%s for update", (user,))
+    prior = frappe.db.sql(
+        "select name, line_user_id from `tabPearnly LINE Binding` "
+        "where user=%s and status='active' and line_user_id<>%s for update",
+        (user, line_user_id), as_dict=True,
+    )
+    for row in prior:
+        frappe.db.set_value(BINDING, row.name, {"status": "unbound", "unbound_at": now()})
+        _notify_changed(row.line_user_id)
     name = frappe.db.get_value(BINDING, {"line_user_id": line_user_id}, "name")
     if name:
         frappe.db.set_value(BINDING, name, {
@@ -110,18 +160,22 @@ def bind(line_user_id: str, user: str, display_name: str = "") -> str:
             "status": "active",
             "bound_at": now(),
         }).insert(ignore_permissions=True)
+    _notify_changed(line_user_id)
     frappe.db.commit()
     return user
 
 
 def binding_of(line_user_id: str):
     """按 LINE 用户查绑定。没绑定或已解绑都返回 None。"""
-    return frappe.db.get_value(
+    row = frappe.db.get_value(
         BINDING,
         {"line_user_id": line_user_id, "status": "active"},
-        ["name", "user", "display_name"],
+        ["name", "user", "display_name", "modified", "bound_at"],
         as_dict=True,
     )
+    if row and frappe.db.get_value("User", row.user, "enabled"):
+        return row
+    return None
 
 
 def user_of(line_user_id: str):
@@ -134,8 +188,14 @@ def unbind(line_user_id: str) -> bool:
     if not name:
         return False
     frappe.db.set_value(BINDING, name, {"status": "unbound", "unbound_at": now()})
+    _notify_changed(line_user_id)
     frappe.db.commit()
     return True
+
+
+def _notify_changed(line_user_id):
+    for handler in frappe.get_hooks("pearnly_line_binding_changed"):
+        frappe.get_attr(handler)(line_user_id)
 
 # 网页端**没有**"给我自己发绑定码"的接口，这是有意的：
 # 老产品的绑定码只从**操作员花名册的某一行**发出（见 `pearnly_dms/operators/roster.py` 的

@@ -23,6 +23,8 @@ Balance After,ยอดคงเหลือหลังเปลี่ยนแ
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",ยอดคงเหลือไม่พอชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} มี ฿{1})
 Basic Info,ข้อมูลพื้นฐาน
 Bench Group,กลุ่มรัน
+Billing Mode,รูปแบบการคิดค่าบริการ
+Billing Month,เดือนที่คิดค่าบริการ
 Billing Units,หน่วยคิดค่าบริการ
 Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองอีกครั้ง
 Build the workspace,สร้างพื้นที่ทำงาน

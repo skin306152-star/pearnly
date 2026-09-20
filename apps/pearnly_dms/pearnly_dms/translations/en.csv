@@ -1,113 +1,136 @@
-dms.err.ERR_UNEXPECTED,"Internal server error, please contact admin"
-dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency
-dms.err.ERR_KMS_MISSING,Server KMS key is not configured
-dms.err.ERR_NO_CREDS,Username and password required
-dms.err.ERR_CRED_DECRYPT,Credential decrypt failed — please re-enter username and password
-dms.err.ERR_DMS_AUTH,DMS login failed — check username and password
-dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
-dms.err.ERR_DMS_CONCURRENT_LOGIN,This DMS account is being used elsewhere — sign out there and retry
-dms.err.ERR_DMS_ADMIN_AUTH,DMS admin credential login failed — check the admin username and password
-dms.err.ERR_DMS_CUSTOMER_SAVE,Failed to save the customer to DMS — check the fields and retry
-dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."
-dms.err.ERR_DMS_IMPORT,Failed to create the booking — please retry
-dms.err.ERR_DMS_IMPORT_REPORT,DMS rejected the booking import — check the booking details
-dms.err.ERR_DMS_BOOKING_PATCH,Failed to fill in the booking details — please retry
-dms.err.ERR_DMS_ADVISOR_REQUIRED,"This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again"
-dms.err.ERR_DMS_ADVISOR_UNMATCHED,"The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it"
-dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
-dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable — please retry
-dms.err.ERR_DMS_MASTER_EMPTY,"This DMS master option has not been configured. Ask an admin to add it in DMS, then retry."
-dms.err.ERR_DMS_MASTER_CHANGED,DMS master data just changed. The summary has been updated; review it and confirm again.
-dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data — go back, re-select it, and retry"
-dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,This booking draft changed or already has a submission attempt. No new request was sent. Check the current draft and push history.
-dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,"The booking request was sent, but the DMS result is unverified. Do not submit again. Ask an administrator to check this booking number."
-dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
-dms.edit.customerTitle,Edit customer details
-dms.edit.customerSub,Save to send a new customer card to LINE. Review it and tap Update details to write to DMS.
-dms.edit.title,Edit booking
-dms.edit.sub,Save your changes and a revised preview will be sent to LINE before anything is recorded.
-dms.edit.customer,Customer
-dms.edit.booking,Booking
-dms.edit.payment,Payment methods
-dms.edit.files,Attachments
-dms.edit.save,Save and send new preview
-dms.edit.cancel,Back to LINE
-dms.edit.loading,Loading booking…
-dms.edit.saved,Draft saved. A revised preview was sent to LINE.
-dms.edit.failed,Could not save. Check the fields and try again.
-dms.edit.expired,This draft expired or was changed. Use the latest preview in LINE.
-dms.edit.liffUnavailable,This editor is not enabled for this LINE OA. Reopen the DMS menu from LINE.
-dms.edit.masterChanged,An option changed since this draft was created. Use the latest preview in LINE and try again.
-dms.edit.masterUnavailable,The latest DMS options are unavailable. Try again shortly.
-dms.edit.postcodeMissing,Choose a postcode from the list.
-dms.edit.geoUnavailable,Address data is unavailable right now. Try again shortly.
-dms.edit.previewSendFailed,Could not send the revised preview to LINE. Try again.
-dms.edit.slipConflict,"A transfer slip is attached, but there is no transfer payment. Add a transfer payment or remove the slip."
-dms.edit.paymentDetailRequired,Complete the required payment details.
-dms.edit.duplicatePayment,Each payment method can only be added once.
-dms.edit.advisor,Sales adviser (system assigned)
-dms.edit.total,Booking deposit total
+Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
+The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
+The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
+dms.account.expired,This link expired. Open it from the LINE menu again.
+dms.account.failed,Could not complete this action. Try again or reopen the menu.
+dms.account.hint,Update the DMS credentials stored in Pearnly. This does not change your password at DMS.
+dms.account.invalid,Enter a valid DMS username and password.
+dms.account.open,Open DMS
+dms.account.password,DMS password
+dms.account.portal,Open DMS
+dms.account.portalHint,Open DMS with your own account
+dms.account.save,Save
+dms.account.saved,Saved. The next DMS login will use these credentials.
+dms.account.title,My DMS account
+dms.account.username,DMS username
+dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
+dms.card.MSG_BIND_GREETING,Hello
+dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
+dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
+dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
+dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
+dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
 dms.edit.addPayment,Add payment method
-dms.edit.attached,Keep this attachment
-dms.edit.fileHint,Turn this off to exclude the file from the booking.
-dms.edit.idCard,ID card copy
-dms.edit.slip,Transfer slip
-dms.edit.idWarn,Changing customer fields will update the DMS customer record when you confirm.
-dms.edit.confirmId,National ID
-dms.edit.prefix,Title
-dms.edit.name,Full name
-dms.edit.birth,Birth date (DD/MM/B.E.)
-dms.edit.phone,Phone
-dms.edit.house,House no.
-dms.edit.building,Building
-dms.edit.floor,Floor
-dms.edit.room,Room
-dms.edit.village,Village
-dms.edit.moo,Moo
-dms.edit.soi,Soi
-dms.edit.road,Road
-dms.edit.province,Province
-dms.edit.district,District
-dms.edit.subdistrict,Subdistrict
-dms.edit.postcode,Postcode
-dms.edit.place,Booking location
-dms.edit.car,Vehicle model
-dms.edit.paint,Colour
-dms.edit.delivery,Expected delivery date
-dms.edit.term,Sales terms
-dms.edit.regis,Register in the name of
-dms.edit.regisName,Registered owner name
-dms.edit.channel,Method
+dms.edit.advisor,Sales adviser (system assigned)
 dms.edit.amount,Amount
-dms.edit.source,Source account
-dms.edit.sourceBank,Source bank
-dms.edit.sourceAccount,Source account number
-dms.edit.sourceAccountName,Source account name
-dms.edit.sourceBranch,Source branch
-dms.edit.chooseOption,Please choose
+dms.edit.attached,Keep this attachment
+dms.edit.bankName,Bank
+dms.edit.birth,Birth date (DD/MM/B.E.)
+dms.edit.booking,Booking
+dms.edit.building,Building
+dms.edit.cancel,Back to LINE
+dms.edit.car,Vehicle model
+dms.edit.card,Credit/debit card
+dms.edit.cardType,Card type
+dms.edit.cash,Cash
+dms.edit.cashierBookNo,Cashier's cheque book number (optional)
+dms.edit.cashierNo,Cashier's cheque number
+dms.edit.cashier_cheque,Cashier's cheque
+dms.edit.channel,Method
+dms.edit.cheque,Cheque
+dms.edit.chequeBookNo,Cheque book number
+dms.edit.chequeNo,Cheque number
 dms.edit.chooseBank,Choose a bank
+dms.edit.chooseOption,Please choose
+dms.edit.confirmId,National ID
+dms.edit.customer,Customer
+dms.edit.customerSub,Save to send a new customer card to LINE. Review it and tap Update details to write to DMS.
+dms.edit.customerTitle,Edit customer details
+dms.edit.delivery,Expected delivery date
 dms.edit.destination,Receiving bank
-dms.edit.destinationName,Receiving company account name
 dms.edit.destinationAccount,Receiving account number
 dms.edit.destinationBranch,Receiving bank branch
-dms.edit.chequeNo,Cheque number
-dms.edit.chequeBookNo,Cheque book number
-dms.edit.cashierNo,Cashier's cheque number
-dms.edit.cashierBookNo,Cashier's cheque book number (optional)
-dms.edit.bankName,Bank
-dms.edit.cardType,Card type
+dms.edit.destinationName,Receiving company account name
 dms.edit.detail,Details
-dms.edit.remove,Remove
-dms.edit.cash,Cash
-dms.edit.transfer,Transfer
-dms.edit.cheque,Cheque
-dms.edit.cashier_cheque,Cashier's cheque
-dms.edit.card,Credit/debit card
+dms.edit.district,District
+dms.edit.duplicatePayment,Each payment method can only be added once.
+dms.edit.expired,This draft expired or was changed. Use the latest preview in LINE.
+dms.edit.failed,Could not save. Check the fields and try again.
+dms.edit.fileHint,Turn this off to exclude the file from the booking.
+dms.edit.files,Attachments
+dms.edit.floor,Floor
+dms.edit.geoUnavailable,Address data is unavailable right now. Try again shortly.
+dms.edit.house,House no.
+dms.edit.idCard,ID card copy
+dms.edit.idWarn,Changing customer fields will update the DMS customer record when you confirm.
+dms.edit.invalidAmount,Enter a valid payment amount greater than zero.
+dms.edit.invalidField,Check the value for {0}.
+dms.edit.invalidPayment,Select a valid payment method.
+dms.edit.liffUnavailable,This editor is not enabled for this LINE OA. Reopen the DMS menu from LINE.
+dms.edit.loading,Loading booking…
+dms.edit.masterChanged,An option changed since this draft was created. Use the latest preview in LINE and try again.
+dms.edit.masterUnavailable,The latest DMS options are unavailable. Try again shortly.
+dms.edit.moo,Moo
+dms.edit.name,Full name
+dms.edit.noOptions,No options available
+dms.edit.notAttached,Not attached
 dms.edit.other,Other
-dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
-dms.card.MSG_BIND_GREETING,Hello, this is the DMS assistant.\nSend me the bind code from the web page to link your account.
-dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
-dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
-dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
-dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
-dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
+dms.edit.paint,Colour
+dms.edit.payment,Payment methods
+dms.edit.paymentDetailRequired,Complete the required payment details.
+dms.edit.paymentRequired,Add at least one payment method.
+dms.edit.phone,Phone
+dms.edit.place,Booking location
+dms.edit.postcode,Postcode
+dms.edit.postcodeMissing,Choose a postcode from the list.
+dms.edit.prefix,Title
+dms.edit.previewSendFailed,Could not send the revised preview to LINE. Try again.
+dms.edit.province,Province
+dms.edit.regis,Register in the name of
+dms.edit.regisName,Registered owner name
+dms.edit.remove,Remove
+dms.edit.road,Road
+dms.edit.room,Room
+dms.edit.save,Save and send new preview
+dms.edit.saved,Draft saved. A revised preview was sent to LINE.
+dms.edit.slip,Transfer slip
+dms.edit.slipConflict,"A transfer slip is attached, but there is no transfer payment. Add a transfer payment or remove the slip."
+dms.edit.slipRequired,Transfer requires a receipt. This draft has none. Remove this payment method or start the booking again in LINE and upload the receipt.
+dms.edit.soi,Soi
+dms.edit.source,Source account
+dms.edit.sourceAccount,Source account number
+dms.edit.sourceAccountName,Source account name
+dms.edit.sourceBank,Source bank
+dms.edit.sourceBranch,Source branch
+dms.edit.sub,Save your changes and a revised preview will be sent to LINE before anything is recorded.
+dms.edit.subdistrict,Subdistrict
+dms.edit.term,Sales terms
+dms.edit.title,Edit booking
+dms.edit.total,Booking deposit total
+dms.edit.transfer,Transfer
+dms.edit.village,Village
+dms.err.ERR_CRED_DECRYPT,Credential decrypt failed — please re-enter username and password
+dms.err.ERR_DMS_ADMIN_AUTH,DMS admin credential login failed — check the admin username and password
+dms.err.ERR_DMS_ADVISOR_REQUIRED,"This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again"
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,"The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it"
+dms.err.ERR_DMS_AUTH,DMS login failed — check username and password
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,This booking draft changed or already has a submission attempt. No new request was sent. Check the current draft and push history.
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,"The booking request was sent, but the DMS result is unverified. Do not submit again. Ask an administrator to check this booking number."
+dms.err.ERR_DMS_BOOKING_PATCH,Failed to fill in the booking details — please retry
+dms.err.ERR_DMS_CONCURRENT_LOGIN,This DMS account is being used elsewhere — sign out there and retry
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,"Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer."
+dms.err.ERR_DMS_CUSTOMER_SAVE,Failed to save the customer to DMS — check the fields and retry
+dms.err.ERR_DMS_IMPORT,Failed to create the booking — please retry
+dms.err.ERR_DMS_IMPORT_REPORT,DMS rejected the booking import — check the booking details
+dms.err.ERR_DMS_MASTER_CHANGED,DMS master data just changed. The summary has been updated; review it and confirm again.
+dms.err.ERR_DMS_MASTER_EMPTY,"This DMS master option has not been configured. Ask an admin to add it in DMS, then retry."
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable — please retry
+dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data — go back, re-select it, and retry"
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
+dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
+dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
+dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
+dms.err.ERR_KMS_MISSING,Server KMS key is not configured
+dms.err.ERR_NO_CREDS,Username and password required
+dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency
+dms.err.ERR_UNEXPECTED,"Internal server error, please contact admin"

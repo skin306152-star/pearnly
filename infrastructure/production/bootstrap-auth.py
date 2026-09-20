@@ -39,7 +39,7 @@ token = request("/realms/master/protocol/openid-connect/token", "POST", {
 settings = {
     "realm": REALM, "enabled": True, "displayName": "Pearnly",
     "sslRequired": "external", "registrationAllowed": False,
-    "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False,
+    "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False, "editUsernameAllowed": True,
     "resetPasswordAllowed": True, "rememberMe": True, "passwordPolicy": "",
     "loginTheme": "pearnly", "emailTheme": "pearnly", "internationalizationEnabled": True,
     "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
@@ -101,7 +101,7 @@ with os.fdopen(fd, "w") as handle:
 readback = request(f"/admin/realms/{REALM}", token=token)
 assert all(readback.get(key) == settings[key] for key in (
     "sslRequired", "registrationAllowed", "loginWithEmailAllowed", "loginTheme",
-    "defaultLocale", "bruteForceProtected", "resetPasswordAllowed"))
+    "defaultLocale", "bruteForceProtected", "resetPasswordAllowed", "editUsernameAllowed"))
 assert not request(f"/admin/realms/{REALM}/identity-provider/instances", token=token)
 print("Production realm verified: Thai default, cat theme, email/username login, reset enabled, no social/signup")
 print("Local control client configured; secret stored privately, not printed")

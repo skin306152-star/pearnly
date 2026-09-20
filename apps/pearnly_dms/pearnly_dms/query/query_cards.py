@@ -81,8 +81,6 @@ def query_type_message() -> Dict[str, Any]:
         _t("TXT_PICK_TYPE"),
         [
             _item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales"),
-            _item(_t("TYPE_INVENTORY"), ACT_QUERY_TYPE, kind="inventory"),
-            _item(_t("TYPE_OTHER"), ACT_QUERY_TYPE, kind="other"),
         ],
     )
 
@@ -105,10 +103,11 @@ _DIMENSIONS = (
 )
 
 
-def sales_dimension_message() -> Dict[str, Any]:
+def sales_dimension_message(*, top_sales=True) -> Dict[str, Any]:
     return _quick(
         _t("TXT_PICK_SALES"),
-        [_item(_t(key), ACT_QUERY_DIMENSION, dimension=value) for key, value in _DIMENSIONS],
+        [_item(_t(key), ACT_QUERY_DIMENSION, dimension=value) for key, value in _DIMENSIONS
+         if value != "top" or top_sales],
     )
 
 

@@ -181,10 +181,10 @@
           msg.textContent = text(key);
         }
 
-        function handOff(ticket, draft, editor) {
+        function handOff(ticket, draft, editor, accountAction, language) {
           try {
-            sessionStorage.setItem(TICKET_KEY, ticket);
-            sessionStorage.setItem(LANG_KEY, LANG);
+            sessionStorage.setItem(accountAction ? "pearnly_dms_account_ticket" : TICKET_KEY, ticket);
+            sessionStorage.setItem(LANG_KEY, language || LANG);
           } catch (e) {
             /* 存不下（极端隐私模式）→ SPA 那边会按站点会话再换一次票据 */
           }
@@ -194,15 +194,17 @@
             encodeURIComponent(draft) +
             "&editor=" +
             encodeURIComponent(editor);
+          if (accountAction) target = APP_URL + "#/dms/account?action=" + encodeURIComponent(accountAction);
           location.replace(target);
         }
 
         async function main() {
           var draft = param("draft");
           var editor = param("editor") === "customer" ? "customer" : "booking";
+          var accountAction = ["portal", "credentials"].includes(param("action")) ? param("action") : "";
           await loadTexts(["dms.edit.loading", "dms.edit.failed", "dms.edit.liffUnavailable"]);
           msg.textContent = text("dms.edit.loading");
-          if (!draft) return showError("dms.edit.expired");
+          if (!draft && !accountAction) return showError("dms.edit.expired");
           // 配置也从接口拿（LIFF ID + csrf），不依赖模板变量 —— 见文件头的说明。
           var config = await get("browser_config", {});
           CONFIG.liffId = (config && config.liff_id) || "";
@@ -218,13 +220,15 @@
             }
             payload.id_token = window.liff.getIDToken() || "";
           }
-          var auth = await post("browser_auth", payload);
+          if (accountAction) API = "/api/method/pearnly_dms.account.api.";
+          var auth = await post(accountAction ? "authenticate" : "browser_auth",
+            accountAction ? { id_token: payload.id_token || "" } : payload);
           try {
             if (auth && auth.language) sessionStorage.setItem(LANG_KEY, auth.language);
           } catch (e) {
             /* 拿不到就按页面自己判的语言渲染 */
           }
-          handOff(auth.ticket, draft, editor);
+          handOff(auth.ticket, draft, editor, accountAction, auth.language);
         }
 
         main().catch(function (error) {

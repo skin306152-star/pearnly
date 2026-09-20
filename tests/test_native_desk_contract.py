@@ -54,11 +54,11 @@ class NativeDeskContract(unittest.TestCase):
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase'})
         self.assertEqual(source.count('route in AVAILABLE_PAGES'), 2)
 
-    def test_line_editor_remains_only_standalone_vue_route(self):
+    def test_only_ticket_based_line_editor_and_account_keep_standalone_routes(self):
         source = (ROOT/'frontend/src/router.ts').read_text()
-        self.assertEqual(re.findall(r'path:\s*"([^"]+)"', source), ['/dms/editor'])
+        self.assertEqual(re.findall(r'path:\s*"([^"]+)"', source), ['/dms/account', '/dms/editor'])
         html = (ROOT/'apps/pearnly_core/pearnly_core/www/pearnly-app.html').read_text()
-        self.assertIn('route !== "dms/editor"', html)
+        self.assertIn('!["dms/editor", "dms/account"].includes(route)', html)
         self.assertIn('location.replace("/desk/"', html)
 
 

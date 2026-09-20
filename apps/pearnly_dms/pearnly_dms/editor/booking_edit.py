@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import logging
 import secrets
-from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from pearnly_core import line_session as store
@@ -44,6 +43,7 @@ from pearnly_dms.masters.company_banks import (
 )
 from pearnly_dms.editor.edit_snapshot import read_edit_snapshot
 from pearnly_dms.contracts.id_validate import is_valid_thai_id, normalize_thai_id
+from pearnly_dms.contracts.client_base import parse_be_date
 from pearnly_dms.intake.service import geo_options as _geo_options
 from pearnly_dms.masters.master_contract import MasterSyncError, build_paint_snapshot, build_snapshot
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
@@ -232,7 +232,10 @@ def load(line_user_id: str, nonce: str) -> dict:
     # 主档 + 本次要展示的车型颜色在**同一次登录**里读回（不再为同一车型颜色登第二次）。
     car_id = str(((qa.get("answers") or {}).get("car") or {}).get("id") or "")
     form = _form(qa)
-    customer_id = str((qa.get("customer") or {}).get("id") or "")
+    # An explicitly saved form is complete, including intentional blanks and
+    # corrected identity fields. Do not refill it with the still-unsubmitted
+    # external customer record when reopening the editor.
+    customer_id = "" if qa.get("customer_edited") else str((qa.get("customer") or {}).get("id") or "")
     snapshot = _snapshot(
         endpoint,
         car_ids=(car_id,) if car_id else (),
@@ -302,7 +305,7 @@ def _customer(raw: dict) -> dict:
     out["name"] = _required(out["name"], "dms_booking.invalid_name")
     out["phone"] = _required(out["phone"], "dms_booking.invalid_phone", 30)
     try:
-        datetime.strptime(out["birthday_be"], "%d/%m/%Y")
+        parse_be_date(out["birthday_be"])
     except ValueError as exc:
         raise DmsBookingEditError("dms_booking.invalid_birthday") from exc
     for field in ("house_no", "province_id", "district_id", "subdistrict_id", "zipcode_id"):
@@ -375,7 +378,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
         raise DmsBookingEditError("dms_booking.invalid_master")
     delivery = _required(raw_answers.get("delivery_date_be"), "dms_booking.invalid_delivery")
     try:
-        datetime.strptime(delivery, "%d/%m/%Y")
+        parse_be_date(delivery)
     except ValueError as exc:
         raise DmsBookingEditError("dms_booking.invalid_delivery") from exc
     qa["draft"] = {**(qa.get("draft") or {}), **customer}
@@ -383,6 +386,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     qa["summary"] = qa_cards._fallback_summary(qa)
     # 网页端改过客户资料 → 记一条，后续"资料有差异"的分支按它走。
     qa["customer_dirty"] = bool(qa.get("customer_dirty")) or customer_changed
+    qa["customer_edited"] = True
     qa["answers"] = {
         "place": _pick(masters, "place", raw_answers.get("place_id")),
         "car": car,

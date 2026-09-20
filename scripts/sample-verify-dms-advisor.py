@@ -56,12 +56,15 @@ def main():
             "employees": [{"id": "Z9", "code": "Z9", "login": "sale01", "name": "没资格"}]}
     check("员工没顾问资格 → 拦截，不猜给谁",
           dms_advisor.match_in_masters(trap, "sale01") is None)
-    check("员工表为空 → 回落启发层",
-          (dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": []}, "sale02")
-           or {}).get("id") == "335")
-    check("登录名不在员工表 → 回落启发层",
-          (dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": EMPLOYEES}, "sale02")
-           or {}).get("id") == "335")
+    check("员工表为空 → 不猜测编号或姓名",
+          dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": []}, "sale02") is None)
+    check("登录名不在员工表 → 不分配给编号恰巧相同的人",
+          dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": EMPLOYEES}, "sale02") is None)
+    check("员工表无法读取 → 不猜测归属",
+          dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": None}, "sale02") is None)
+    duplicates = EMPLOYEES + [{**EMPLOYEES[0], 'id': '335'}]
+    check("重复登录名 → 不猜测归属",
+          dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": duplicates}, "sale01") is None)
 
     # ── 3. 端点解析：现抓、钉死校验、失败不放行 ───────────────────────
     calls = []

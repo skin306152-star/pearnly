@@ -147,6 +147,8 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     }
     _login_as(user)
     oidc_session.remember(frappe.local.pearnly_verified_tokens, subject)
+    from pearnly_core.account.profile import apply_login_username
+    apply_login_username(user, claims)
     preferences.finish_login_locale(user, claims.get("locale"))
 
     frappe.db.set_value(
@@ -162,6 +164,9 @@ def callback(code: str | None = None, state: str | None = None, error: str | Non
     from pearnly_core import workspace as workspace_mod
 
     redirect_to = workspace_mod.resolve_after_login(saved.get("redirect_to"))
+    # OIDC redirects arrive as GET. Native Frappe rolls GET writes back unless
+    # explicitly marked: persist the verified profile projection and login audit.
+    frappe.flags.commit = True
     frappe.local.response["type"] = "redirect"
     frappe.local.response["location"] = redirect_to
 

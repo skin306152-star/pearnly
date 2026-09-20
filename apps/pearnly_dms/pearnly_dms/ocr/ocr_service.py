@@ -4,11 +4,8 @@
 照搬老产品 `services/erp/dms_id_ocr.py`：端点解析 + 余额闸 + PDF 栅格化 +
 专用身份证识别 + 校验位标记。出错抛 `DmsOcrError`，带 code，上层按 code 出人话。
 
-### 一处**未搬**，已标出（不是设计变更）
-
-老产品这里有**余额闸**（`_billing_gate`）：余额不足直接 402 拦下，绝不"先识别再扣成负"。
-我们的计费子系统还没搬，所以这里现在是**放行**。这一点在 `_billing_gate` 里写得很显眼 ——
-搬计费时把那段按原逻辑接上即可，其余代码不用动。
+余额闸接本站配置的控制面计费接口；余额不足和计费服务不可用分别拒绝，
+成功识别再按同一业务引用结算。
 """
 
 from __future__ import annotations
@@ -17,6 +14,7 @@ import logging
 import time
 from typing import Any, Dict, Optional, Tuple
 from frappe import _
+from pearnly_core.execution.errors import Deferred, Uncertain
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +44,14 @@ def resolve_dms_endpoint(user: str, endpoint_id: Optional[str]) -> Optional[Dict
 
     dt = "Pearnly ERP Endpoint"
     try:
+        if not user or not frappe.db.get_value("User", user, "enabled"):
+            return None
+        profile = frappe.db.get_value("DMS Operator", {"user": user}, ["name", "status"], as_dict=True)
+        if profile and profile.status != "active":
+            return None
+        is_admin = bool({"DMS Admin", "System Manager"} & set(frappe.get_roles(user)))
+        if not profile and not is_admin:
+            return None
         if endpoint_id:
             if not frappe.db.exists(dt, endpoint_id):
                 return None
@@ -55,15 +61,15 @@ def resolve_dms_endpoint(user: str, endpoint_id: Optional[str]) -> Optional[Dict
             owner = info.get("owner_user")
             if owner and str(owner) != str(user):
                 return None
+            if profile and not owner:
+                return None
             return {"id": endpoint_id, "name": endpoint_id}
-        name = None
-        if user:
-            name = frappe.db.get_value(
-                dt, {"adapter": "mrerp_dms", "enabled": 1, "owner_user": user}, "name"
-            )
-        if not name:
-            # 没有归属给这个账号的，退一步取任意启用的（与老产品"取第一个"一致）
-            name = frappe.db.get_value(dt, {"adapter": "mrerp_dms", "enabled": 1}, "name")
+        names = frappe.get_all(dt, filters={"adapter": "mrerp_dms", "enabled": 1, "owner_user": user},
+                               pluck="name", limit_page_length=2)
+        if not names and not profile and is_admin:
+            names = frappe.get_all(dt, filters={"adapter": "mrerp_dms", "enabled": 1, "owner_user": ["is", "not set"]},
+                                   pluck="name", limit_page_length=2)
+        name = names[0] if len(names) == 1 else None
         return {"id": name, "name": name} if name else None
     except Exception:
         logger.warning("[dms ocr] 解析端点失败", exc_info=True)
@@ -129,7 +135,9 @@ def ensure_image_bytes(content: bytes, content_type: str = "") -> bytes:
             doc.close()
             return content
         page = doc.load_page(0)
-        pix = page.get_pixmap(matrix=fitz.Matrix(300 / 72.0, 300 / 72.0), alpha=False)
+        # Keep large-format PDF pages from allocating unbounded raster buffers.
+        scale = min(300 / 72.0, 4096 / max(page.rect.width, page.rect.height, 1))
+        pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
         png = pix.tobytes("png")
         doc.close()
         return png or content
@@ -187,10 +195,8 @@ def _billing_gate(pages: int = 1) -> Dict[str, Any]:
 
     code = status.get("error_code") or "lookup_error"
     if code == "lookup_error":
-        raise DmsOcrError(
-            "billing.lookup_error", 503,
-            {"code": "billing.lookup_error", "msg": status.get("reason") or _("The balance could not be read")},
-        )
+        # Retry the balance lookup before contacting the paid provider.
+        raise Deferred("billing_unavailable", 30)
     raise DmsOcrError(
         "insufficient_balance", 402,
         {
@@ -204,14 +210,14 @@ def _billing_gate(pages: int = 1) -> Dict[str, Any]:
 def _charge_id_card(reference: str = "") -> dict:
     """识别成功之后报账。
 
-    只在这一刻扣：**识别失败不收费**（老产品全站口径）。报账失败只记日志，
-    绝不把已经做完的识别说成失败 —— 记账是记在后面的账，不是识别的前置条件。
+    识别失败不收费。暂时无法报账时保留已完成模型结果，由持久化任务
+    使用同一 reference 续报，不重复调用模型或重复扣费。
     """
     from pearnly_core import billing_client
 
     return billing_client.charge(
         "dms", "pdf", 1, tier="A", reference=reference,
-        description=_("ID card recognition (tier A)"),
+        description="ID card recognition (tier A)",
     )
 
 
@@ -253,7 +259,9 @@ def recognize_id_card(
     ep = resolve_dms_endpoint(user, endpoint_id)
     if not ep:
         raise DmsOcrError("dms.no_endpoint", 400, "dms.no_endpoint")
-    _billing_gate()
+    from pearnly_core.execution.work import has_completed_call
+    if not has_completed_call():
+        _billing_gate()
 
     image_bytes = ensure_image_bytes(content, content_type)
     t0 = time.time()
@@ -262,6 +270,8 @@ def recognize_id_card(
         from pearnly_dms.ocr import ocr_id_card as _idcard
 
         ocr = _idcard.extract(image_bytes)
+    except (Deferred, Uncertain):
+        raise
     except _ocr.OcrUnavailable as exc:
         # ⚠️ **调不动模型 ≠ 读不出**：限流/配额是基础设施问题，绝不能报成"证件识别不了"
         # （否则运维看不到，用户以为系统认不出他的卡）。这条是搬 OCR 时专门分开的。
@@ -290,6 +300,8 @@ def recognize_id_card(
     from uuid import uuid4
     reference = billing_reference or f"idcard:{uuid4().hex}"
     charge = _charge_id_card(reference=reference)
+    if charge.get("ok") is not True:
+        raise Deferred("billing_unavailable", 30)
     # 识别记录：读出来了但校验位不对的标 needs_review（要人看一眼），其余算 ok
     _record_ocr(
         "needs_review" if ocr.get("needs_review") else "ok",
@@ -306,6 +318,9 @@ def _record_ocr(status: str, filename: str, *, user: str = "", charged=None,
                 detail: str = "", error: str = "", reference: str = "") -> None:
     """写一条识别记录。**失败也不许影响识别本身** —— 落不上就只记日志。"""
     try:
+        import frappe
+        if reference and frappe.db.exists("Pearnly OCR Record", {"reference": reference, "user": user}):
+            return
         from pearnly_core import ocr_record
 
         ocr_record.record(

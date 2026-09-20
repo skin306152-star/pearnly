@@ -40,6 +40,9 @@ from typing import Any, Dict, List, Optional, Tuple
 from pearnly_core import line_session as store
 from pearnly_dms.booking import booking_attempt as booking_attempt
 from pearnly_dms.booking import booking_ledger as booking_ledger
+from pearnly_dms.booking import recovery
+from pearnly_dms.booking.attachments import download as _download_attach_files
+from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.line import cards as cards
 from pearnly_dms.booking.conversation import qa_cards as qa_cards
 from pearnly_dms.line import out as _out
@@ -54,12 +57,6 @@ BOOKING_ACTIONS = frozenset(
     {cards.ACT_CONFIRM_BOOKING, cards.ACT_CANCEL_BOOKING, cards.ACT_RETRY_BOOKING}
 )
 _RETRY_TTL_MINUTES = 30
-
-# 附件种类表：（qa.files 键尾，DMS 显示名，落盘文件名）。
-_ATTACH_KINDS = (
-    ("id_card", "สำเนาบัตรประชาชน", "idcard.jpg"),
-    ("slip", "ใบโอนเงินจอง", "slip.jpg"),
-)
 
 
 def _push(line_user_id: str, text: str) -> None:
@@ -92,8 +89,8 @@ def handle_postback(
             # 登记过就别假装"已取消"：请求可能已经发出去了，如实让管理员按号核
             _reply(reply_token, booking_attempt.message(marker))
             return
-        store.clear_session(line_user_id)
-        _reply(reply_token, cards.TXT_BOOKING_CANCELLED)
+        cancelled = store.cancel_review(line_user_id, "booking_review", pb.get("nonce"))
+        _reply(reply_token, cards.TXT_BOOKING_CANCELLED if cancelled else cards.TXT_EXPIRED)
         return
 
     if action == cards.ACT_RETRY_BOOKING:
@@ -101,7 +98,7 @@ def handle_postback(
         if payload is None:
             _reply(reply_token, cards.TXT_EXPIRED)
             return
-        _enqueue("booking", _execute_booking, binding, line_user_id, payload)
+        _queue_claimed(binding, line_user_id, payload)
         return
 
     # 确认守卫（`booking_review` 态 + nonce 吻合）**原子清 nonce** 并回 payload；
@@ -110,12 +107,41 @@ def handle_postback(
     if payload is None:
         _reply(reply_token, cards.TXT_EXPIRED)
         return
-    _enqueue("booking", _execute_booking, binding, line_user_id, payload)
+    _queue_claimed(binding, line_user_id, payload)
+
+
+def _queue_claimed(binding, line_user_id, payload):
+    try:
+        _enqueue("booking", _execute_booking, binding, line_user_id, payload)
+    except Exception:
+        # Even an ambiguous enqueue cannot authorize two writes: rotating the
+        # claim revokes any old job before its customer/order write guard.
+        nonce = secrets.token_hex(8)
+        if _arm_retry(binding["tenant_id"], line_user_id, payload, nonce):
+            _send(line_user_id, qa_cards.booking_retry_card(cards.TXT_SYSTEM_ERROR, nonce))
 
 
 # ── 建订车单 ─────────────────────────────────────────────────────────────────
 def _execute_booking(binding: dict, line_user_id: str, payload: dict) -> None:
+    try:
+        _execute_owned_booking(binding, line_user_id, payload)
+    except Exception:
+        logger.exception("Booking worker interrupted; preserving submission boundary")
+        # Safe only before the order-attempt marker; an unknown order is never replayed.
+        retry_nonce = secrets.token_hex(8)
+        if _arm_retry(binding["tenant_id"], line_user_id, payload, retry_nonce):
+            _send(line_user_id, qa_cards.booking_retry_card(cards.TXT_SYSTEM_ERROR, retry_nonce))
+        else:
+            recovery.request(line_user_id)
+
+
+def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> None:
     tenant, user_id = binding["tenant_id"], binding["user_id"]
+    current = store.get_session(line_user_id) or {}
+    claimed = current.get("payload") or {}
+    if (current.get("state") != "booking_review" or claimed.get("nonce") is not None
+            or claimed.get("booking_claim") != payload.get("nonce")):
+        return
     qa = payload.get("qa") or {}
     pending = booking_attempt.pending(tenant, line_user_id, payload)
     if pending:
@@ -125,33 +151,25 @@ def _execute_booking(binding: dict, line_user_id: str, payload: dict) -> None:
     _out.start_loading(line_user_id)
     endpoint = resolve_dms_endpoint(user_id, qa.get("endpoint_id"))
     if not endpoint:
-        _push(line_user_id, cards.TXT_NO_ENDPOINT)
-        return
+        raise ValueError("Booking endpoint is unavailable")
     attach_files, attach_failed = _download_attach_files(qa)
     result = book_in_session(
         endpoint,
         payload,
         attach_files,
         attach_failed,
-        on_attempt=booking_attempt.recorder(tenant, line_user_id, payload),
+        on_attempt=booking_attempt.recorder(
+            tenant, line_user_id, payload, binding=binding, endpoint=endpoint_name(endpoint),
+            endpoint_fingerprint=recovery.endpoint_fingerprint(endpoint),
+        ),
     )
     if result.get("preflight"):
         _resume_after_master_change(binding, line_user_id, payload, result)
         return
+    qa = payload.get("qa") or {}
     booking_ledger.log_booking(endpoint=endpoint, payload=payload, result=result, actor=user_id)
     if result.get("ok"):
-        answers = qa.get("answers") or {}
-        text = cards.booking_receipt_text(
-            result.get("booking_no", ""),
-            str((answers.get("car") or {}).get("label") or ""),
-            str(answers.get("delivery_date_be") or ""),
-            str((qa.get("advisor") or {}).get("name") or ""),
-        )
-        # 建单成功但附件没挂全 → 如实补一句，绝不谎报附件成功
-        if not result.get("attach_ok"):
-            text = f"{text}\n{qa_cards.TXT_ATTACH_FAIL}"
-        _push(line_user_id, text)
-        booking_attempt.clear_completed(tenant, line_user_id, payload)
+        recovery.finish(line_user_id, payload.get("nonce"), qa, result)
         return
 
     friendly = result.get("error_friendly") or {}
@@ -243,37 +261,3 @@ def _arm_retry(tenant: str, line_user_id: str, payload: dict, nonce: str) -> boo
         {**payload, "nonce": nonce},
         ttl_minutes=_RETRY_TTL_MINUTES,
     )
-
-
-def _download_attach_files(qa: dict) -> Tuple[List[dict], List[dict]]:
-    """按 `qa.files` 下载附件字节。**下载失败单独记、不阻断建单**。
-
-    LINE 的内容下载有期限（消息太久就取不到），那种按"附件失败"记，由回执如实告知。
-    """
-    files = qa.get("files") or {}
-    downloaded: List[dict] = []
-    failed: List[dict] = []
-    for key, display, fname in _ATTACH_KINDS:
-        mid = files.get(f"{key}_mid")
-        if not mid:
-            continue
-        content = _out.download_content(mid)
-        if not content:
-            failed.append({"display_name": display, "error": "line content download failed"})
-            continue
-        downloaded.append(
-            {
-                "display_name": display,
-                "filename": fname,
-                "content_type": _content_type(content),
-                "content": content,
-            }
-        )
-    return downloaded, failed
-
-
-def _content_type(content: bytes) -> str:
-    """附件类型：LINE 的下载接口不给响应头，按字节头推断，认不出就按 jpeg。"""
-    if content[:4] == b"\x89PNG":
-        return "image/png"
-    return "image/jpeg"

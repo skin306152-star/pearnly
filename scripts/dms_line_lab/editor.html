@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>本地 LINE 身份交接</title>
+<p id="state">使用模拟 LINE 身份，经过真实验证接口换取编辑票据…</p>
+<script>
+(async()=>{try{const q=new URLSearchParams(location.search);const base='/api/method/pearnly_dms.editor.browser_api.';
+const config=(await(await fetch(base+'browser_config')).json()).message;
+const identity=await(await fetch('/__lab/identity',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user:q.get('user')})})).json();
+const accountAction=['portal','credentials'].includes(q.get('action'))?q.get('action'):'';
+const response=await fetch(accountAction?'/api/method/pearnly_dms.account.api.authenticate':base+'browser_auth',{method:'POST',headers:{'Content-Type':'application/json','X-Frappe-CSRF-Token':config.csrf_token},body:JSON.stringify({id_token:identity.id_token,draft:q.get('draft'),editor:q.get('editor')||'booking'})});
+const body=await response.json();if(!response.ok||!body.message?.ticket)throw Error(JSON.stringify(body));
+sessionStorage.setItem(accountAction?'pearnly_dms_account_ticket':'pearnly_dms_ticket',body.message.ticket);sessionStorage.setItem('pearnly_dms_lang',body.message.language);
+if(accountAction){location.replace('/assets/pearnly_core/pearnly-app/index.html#/dms/account?action='+accountAction);return;}
+location.replace('/assets/pearnly_core/pearnly-app/index.html#/dms/editor?draft='+encodeURIComponent(q.get('draft')||'')+'&editor='+encodeURIComponent(q.get('editor')||'booking'));
+}catch(e){document.getElementById('state').textContent='身份交接失败：'+e.message}})();
+</script>

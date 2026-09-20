@@ -408,6 +408,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Withholding Tax,源泉税
 Workspace,ワークスペース
+Your access domain,アクセスドメイン
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。"
 account.cancel,キャンセル
 account.changePassword,パスワード変更
@@ -416,6 +417,8 @@ account.error.languageFailed,アカウントの言語を更新できませんで
 account.error.reloginLanguage,言語を変更する前に再ログインしてください。
 account.identityPasswordOnly,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 account.language,言語
+account.profileChanged,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
+account.profileUpdateFailed,アカウントを更新できませんでした。再読み込みしてお試しください。
 account.pwd.confirm,新しいパスワード（確認）
 account.pwd.current,現在のパスワード
 account.pwd.done,パスワードを更新しました。次回は新しいパスワードでログインしてください。
@@ -425,10 +428,13 @@ account.save,保存
 account.saving,保存中…
 account.sidebarOrder,サイドバーの並べ替え
 account.signInAgain,ログアウトして再ログイン
+account.signInToRename,ユーザー名を変更する前に再ログインしてください。
 account.signOut,ログアウト
 account.signOutConfirm,ログアウトしますか？
 account.themeDark,Pearnly ダーク
 account.themeLight,Pearnly ライト
+account.usernameFormat,ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
+account.usernameTaken,このユーザー名は使用されています。
 common.backHome,ホームに戻る
 common.cancel,キャンセル
 common.col.date,日付
@@ -551,6 +557,8 @@ home.plans.over,超過 {0}/枚
 home.plans.perCycle,/ {0}日
 home.plans.quota,1サイクルの枠 {0} 枚
 home.plans.title,プランを選ぶ
+home.pricing.chars,テキストファイル：{0}文字ごとに{1}、端数切り上げ。
+home.pricing.pages,従量課金：バンコク暦月ごとに最初の{0}ページは{1}/ページ、以降は{2}/ページ。
 home.refresh,更新
 home.status.credited,入金済み
 home.status.failed,失敗

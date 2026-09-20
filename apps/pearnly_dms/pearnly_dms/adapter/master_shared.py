@@ -55,9 +55,9 @@ _LEASE_PREFIX = "pearnly:dms:lease:"
 
 def _scope(endpoint: Any) -> str:
     """缓存/租约的作用域 = 本站在控制面里的这条 DMS 连接。"""
-    from pearnly_dms.masters.masters_cache import _eid
+    from pearnly_dms.masters.masters_cache import scope
 
-    return _eid(endpoint)
+    return scope(endpoint)
 
 
 # ── 租约（Redis SET NX PX）──────────────────────────────────────────────────
@@ -69,8 +69,9 @@ def _acquire(scope_key: str, lease_seconds: int = REFRESH_LEASE_SECONDS) -> Opti
 
     owner = str(uuid.uuid4())
     try:
-        ok = frappe.cache().set(
-            _LEASE_PREFIX + scope_key, owner, nx=True, px=max(1, int(lease_seconds)) * 1000
+        cache = frappe.cache()
+        ok = cache.set(
+            cache.make_key(_LEASE_PREFIX + scope_key), owner, nx=True, px=max(1, int(lease_seconds)) * 1000
         )
     except Exception:
         logger.warning("[dms masters] 抢租约失败", exc_info=True)
@@ -83,14 +84,10 @@ def _release(scope_key: str, owner: str) -> None:
     import frappe
 
     try:
-        cur = frappe.cache().get(_LEASE_PREFIX + scope_key)
-        # ⚠️ Redis 拿回来是 **bytes**，直接跟 str 比永远不等 ——
-        # 那样租约就永远删不掉，后面的请求全得白等 45 秒再超时（实测踩到）。
-        if isinstance(cur, (bytes, bytearray)):
-            cur = cur.decode("utf-8", "ignore")
-        if cur is not None and str(cur) != str(owner):
-            return
-        frappe.cache().delete(_LEASE_PREFIX + scope_key)
+        cache = frappe.cache()
+        cache.eval("if redis.call('get', KEYS[1]) == ARGV[1] then "
+                   "return redis.call('del', KEYS[1]) else return 0 end", 1,
+                   cache.make_key(_LEASE_PREFIX + scope_key), owner)
     except Exception:
         logger.warning("[dms masters] 释放租约失败（到点会自己过期）", exc_info=True)
 
@@ -181,7 +178,7 @@ def get_session_masters(
             logger.warning("[dms masters] 刷新结果不完整，缓存保持不动")
             return {}
         fresh = _preserve_paints(dict(fresh), cached)
-        cache._write_full_preserving_paints(scope_key, fresh)
+        fresh = cache._write_full_preserving_paints(scope_key, fresh) or fresh
         return fresh
     finally:
         _release(scope_key, owner)
@@ -231,12 +228,7 @@ def get_session_paints(
 
     owner = _acquire(scope_key + ":paint:" + car_id)
     if not owner:
-        # 后台预热或另一个操作员正在刷这个车型 —— 复用上一份完整结果，
-        # 不让 LINE 的回复卡在 DMS 会话上（提交前那次权威复核仍然会实时读）。
-        cached = cache._read(scope_key)
-        stale = (((cached or {}).get("masters") or {}).get("paints_by_car") or {}).get(car_id)
-        if isinstance(stale, list):
-            return list(stale)
+        # Wait for the bounded-fresh result; do not silently return expired colors.
         deadline = time.monotonic() + REFRESH_WAIT_SECONDS
         while time.monotonic() < deadline:
             existing = _paint_result(scope_key, car_id, max_age_seconds)

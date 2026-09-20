@@ -18,6 +18,8 @@
 
 LINE 的 /pearnly-app/#/dms/editor 使用一次性票据而非 Desk 会话。它保留独立 Vue + Frappe UI 页面、既有 URL/查询参数/票据契约；不能为外观统一而强制站点登录或放松票据鉴权。此例外不授权新增第二套普通产品 Web 界面。
 
+2026-09-20 用户要求恢复旧线上菜单 3/4：`/dms/account` 是同类 LINE 票据编辑器，仅展示本人 DMS 凭据编辑和门户交接，复用官方 Frappe UI。票据 scope 为 account，不能读写客户/订车草稿，也不生成 Desk 登录。门户最终页面因跨域 HTML 表单 POST 建立第三方 cookie，保留最小无缓存原生表单及一次性票据，不加载通用产品壳；凭据只发配置的 HTTPS DMS，不回显给凭据查询 API。验收覆盖解绑/重绑、错 scope、重复消费、跨 Site、下一次真实 DMS 登录、手机和桌面交接。
+
 ## 开发与验收
 
 新产品页放所属 App 的 `<module>/page/` 与 `public/desk/`，共用适配放 core/desk，不修改 Frappe 源码。共享规则由根 AGENTS、架构检查和 CI 执行。静态资源按内容生成版本号，避免旧浏览器缓存使代码与界面不一致。

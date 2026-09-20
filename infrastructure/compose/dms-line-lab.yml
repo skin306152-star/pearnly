@@ -1,0 +1,117 @@
+# Dedicated E2E laboratory. Never a formal tenant provisioning target.
+name: pearnly-dms-line-lab
+x-runtime: &runtime
+  image: sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3
+  environment:
+    REQUESTS_CA_BUNDLE: /lab-certs/ca-bundle.pem
+  volumes: &mounts
+    - sites:/home/frappe/frappe-bench/sites
+    - certs:/lab-certs:ro
+    - ${HOME}/.config/pearnly-dms-line-lab/private:/lab-private:ro
+    - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+    - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+    - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+    - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+    - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+    - ../../scripts:/workspace/scripts:ro
+services:
+  db:
+    image: mariadb:11.8@sha256:8b5f33ebd85d1775657e974ed10434128bb493c80e826ceaa54074fd1a92a112
+    environment:
+      MARIADB_ROOT_PASSWORD: line-lab-local-only
+    volumes: ["db:/var/lib/mysql"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  redis:
+    image: redis:6.2-alpine@sha256:d0c875bdacfb5c4d2c2d9124de3f53cee1dc9ceff8936bd459fabc135cb33015
+    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec, --maxmemory-policy, noeviction]
+    volumes: ["queue:/data"]
+  site:
+    <<: *runtime
+    mem_limit: 1g
+    command: ["env/bin/gunicorn", "--chdir=/home/frappe/frappe-bench/sites", "--bind=0.0.0.0:8000", "--threads=4", "--workers=2", "--worker-class=gthread", "--worker-tmp-dir=/dev/shm", "--timeout=120", "--preload", "frappe.app:application_with_statics()"]
+    ports: ["127.0.0.1:8194:8000"]
+    networks:
+      default:
+        aliases: [dms-line-lab.localhost, dms-line-lab-b.localhost, dms-line-lab-control.localhost]
+  worker:
+    <<: *runtime
+    mem_limit: 1g
+    command: ["bench", "worker-pool", "--queue", "short,default,long", "--num-workers", "2"]
+  scheduler:
+    <<: *runtime
+    command: ["bench", "schedule"]
+  ocr-worker:
+    <<: *runtime
+    mem_limit: 512m
+    command: ["bench", "worker-pool", "--queue", "ocr", "--num-workers", "2"]
+  ocr-dispatch:
+    <<: *runtime
+    mem_limit: 128m
+    command: ["env/bin/python", "-m", "pearnly_core.execution.dispatch"]
+  socketio:
+    <<: *runtime
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    ports: ["127.0.0.1:8196:8196"]
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.4@sha256:82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c
+    command: ["start", "--http-enabled=true", "--http-port=8198", "--hostname=http://dms-line-lab-keycloak.localhost:8198", "--import-realm"]
+    environment:
+      KC_DB: mariadb
+      KC_DB_URL: jdbc:mariadb://db:3306/keycloak_line_lab
+      KC_DB_USERNAME: keycloak_line_lab
+      KC_DB_PASSWORD: line-lab-db-only
+      JAVA_OPTS_APPEND: -Xms256m -Xmx512m
+      KC_BOOTSTRAP_ADMIN_USERNAME: line-lab-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: line-lab-local-only
+    ports: ["127.0.0.1:8198:8198"]
+    volumes:
+      - ../keycloak/themes/pearnly:/opt/keycloak/themes/pearnly:ro
+      - ../keycloak/dms-line-lab:/opt/keycloak/data/import:ro
+    networks:
+      default:
+        aliases: [dms-line-lab-keycloak.localhost]
+  mail:
+    <<: *runtime
+    user: "0:0"
+    command: ["env/bin/python", "/workspace/scripts/dms_line_lab/mailbox.py"]
+    volumes:
+      - ../../scripts:/workspace/scripts:ro
+      - mailbox:/lab-mail
+  simulator:
+    <<: *runtime
+    user: "0:0"
+    command: ["env/bin/python", "/workspace/scripts/dms_line_lab/server.py"]
+    ports: ["127.0.0.1:8197:8090"]
+    volumes:
+      - ../../scripts:/workspace/scripts:ro
+      - certs:/lab-certs:ro
+      - simulator:/lab-data
+    networks:
+      default:
+        aliases: [api.line.me, api-data.line.me]
+  ocr-fixture:
+    <<: *runtime
+    profiles: [capacity-test]
+    mem_limit: 128m
+    command: ["env/bin/python", "/workspace/scripts/dms_line_lab/ocr_provider.py"]
+    volumes:
+      - ../../scripts:/workspace/scripts:ro
+  cert-init:
+    <<: *runtime
+    user: "0:0"
+    command: ["env/bin/python", "/workspace/scripts/dms_line_lab/certificates.py"]
+    profiles: [setup]
+    volumes:
+      - ../../scripts:/workspace/scripts:ro
+      - certs:/lab-certs
+volumes:
+  db:
+  sites:
+  certs:
+  simulator:
+  mailbox:
+  queue:

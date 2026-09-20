@@ -23,6 +23,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urljoin, urlsplit, urlunsplit
@@ -173,9 +174,18 @@ class MrerpDmsAdapter:
 
     def __enter__(self) -> "MrerpDmsAdapter":
         # 先抢账号锁：拿不到就不许开浏览器（并发登同一账号会把对方踢下线）
-        self._lock_cm = account_lock(dms_login_key(self.login_url, self._username))
+        # Lock both actual logins in stable order. Distinct employees can share
+        # one admin reader; locking only the employee lets those readers eject
+        # each other midway through a preflight or customer write.
+        self._lock_cm = ExitStack()
         try:
-            self._lock_held = self._lock_cm.__enter__()
+            self._lock_cm.__enter__()
+            accounts = {dms_login_key(self.login_url, self._username)}
+            if self.has_distinct_admin_creds:
+                accounts.add(dms_login_key(self.login_url, self._admin_username))
+            self._lock_held = all([
+                self._lock_cm.enter_context(account_lock(key)) for key in sorted(accounts)
+            ])
             secrets = [self._password]
             if len(self._username) >= 3:
                 secrets.append(self._username)

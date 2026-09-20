@@ -31,6 +31,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from pearnly_dms.booking.conversation.qa_util import deposit_total
+from pearnly_dms.contracts.endpoint import endpoint_name
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ def booking_log_response_body(result: Dict[str, Any]) -> Dict[str, Any]:
 
 def log_booking(
     *,
-    endpoint: str,
+    endpoint: Any,
     payload: Dict[str, Any],
     result: Dict[str, Any],
     actor: Optional[str] = None,
@@ -108,9 +109,19 @@ def log_booking(
     try:
         import frappe
 
+        if ok and result.get("booking_no"):
+            existing = frappe.db.get_value(LOG, {
+                "status": "success", "business_key": str(result["booking_no"]),
+                "endpoint": endpoint_name(endpoint), "actor": actor,
+            }, "name")
+            if existing:
+                frappe.db.set_value(LOG, existing, "response_body", json.dumps(
+                    booking_log_response_body(result), ensure_ascii=False, default=str))
+                frappe.db.commit()
+                return existing
         doc = frappe.new_doc(LOG)
         doc.status = "success" if ok else "failed"
-        doc.endpoint = endpoint or None
+        doc.endpoint = endpoint_name(endpoint) or None
         # 触发方式取本平台台账的 Select 选项（manual/line/auto）—— 这条是 LINE 推的。
         doc.trigger = "line"
         doc.attempt = 1

@@ -99,18 +99,6 @@ frappe.provide("frappe.pearnly");
 	};
 
 	if (frappe.boot.pearnly_product) {
-		// Keep the native theme picker and persistence; only brand its display labels.
-		const NativeThemeSwitcher = frappe.ui.ThemeSwitcher;
-		frappe.ui.ThemeSwitcher = class ProductThemeSwitcher extends NativeThemeSwitcher {
-			async fetch_themes() {
-				await super.fetch_themes();
-				const labels = { light: __("account.themeLight"), dark: __("account.themeDark") };
-				this.themes.forEach(theme => {
-					if (labels[theme.name]) theme.label = labels[theme.name];
-				});
-				return this.themes;
-			}
-		};
 		frappe.re_route[""] = "/desk/pearnly-home";
 		// Use the framework's initialization switches: no search/notification widgets or
 		// their keyboard targets. A hidden icon alone would leave the global routes active.
@@ -137,8 +125,6 @@ frappe.provide("frappe.pearnly");
 					{ name: "reorder-sidebar", label: __("account.sidebarOrder"), icon: "list",
 						condition: () => frappe.boot.pearnly_pages.length > 1,
 						onClick: () => p.reorder_sidebar() },
-					{ name: "display", label: __("Display"), icon: "monitor",
-						items: this.get_display_siblings(frappe.ui.get_current_theme() === "dark") },
 					{ name: "reload", label: __("Reload"), icon: "rotate-ccw",
 						onClick: () => frappe.ui.toolbar.clear_cache() },
 					{ name: "logout", label: __("Logout"), icon: "logout",

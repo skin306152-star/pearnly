@@ -544,7 +544,9 @@ def main():
         ticket = tickets.issue(LINE_UID, "customer")
         resolved = tickets.resolve(ticket)
         check("票据往返：LINE 用户 + 模式都取回来",
-              resolved == {"line_user_id": LINE_UID, "mode": "customer"}, resolved)
+              resolved == {"line_user_id": LINE_UID, "mode": "customer", "user": USER,
+                           "binding_revision": str(line_binding.binding_of(LINE_UID).modified)},
+              bool(resolved))
         check("乱编的票据 → None（fail closed）", tickets.resolve("nope") is None)
         check("空票据 → None", tickets.resolve("") is None)
         check("模式归一：只认 customer，其余当订车",

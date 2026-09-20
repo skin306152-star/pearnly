@@ -1,379 +1,402 @@
-dms.err.ERR_UNEXPECTED,ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล
-dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright
-dms.err.ERR_KMS_MISSING,เซิร์ฟเวอร์ยังไม่ตั้งค่าคีย์เข้ารหัส
-dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน
-dms.err.ERR_CRED_DECRYPT,ถอดรหัสข้อมูลรับรองไม่สำเร็จ
-dms.err.ERR_DMS_AUTH,เข้าสู่ระบบ DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่าน
-dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
-dms.err.ERR_DMS_CONCURRENT_LOGIN,บัญชี DMS นี้กำลังถูกใช้งานที่อื่น · กรุณาออกจากระบบที่อื่นแล้วลองใหม่
-dms.err.ERR_DMS_ADMIN_AUTH,เข้าสู่ระบบด้วยบัญชีผู้ดูแล DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่านผู้ดูแล
-dms.err.ERR_DMS_CUSTOMER_SAVE,บันทึกลูกค้าเข้า DMS ไม่สำเร็จ — ตรวจสอบข้อมูลแล้วลองใหม่
-dms.err.ERR_DMS_CUSTOMER_LOOKUP,ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่
-dms.err.ERR_DMS_IMPORT,สร้างใบจองรถไม่สำเร็จ — กรุณาลองใหม่
-dms.err.ERR_DMS_IMPORT_REPORT,DMS ปฏิเสธการนำเข้าใบจอง — ตรวจสอบรายละเอียดการจอง
-dms.err.ERR_DMS_BOOKING_PATCH,เติมข้อมูลใบจองไม่สำเร็จ — กรุณาลองใหม่
-dms.err.ERR_DMS_ADVISOR_REQUIRED,ใบจองนี้ยังไม่ได้กำหนดที่ปรึกษาการขาย กรุณาให้ผู้ดูแลกำหนดที่ปรึกษาให้บัญชี DMS นี้ แล้วเปิดใบจองใหม่
-dms.err.ERR_DMS_ADVISOR_UNMATCHED,ไม่พบที่ปรึกษาการขายรายนี้ในรายชื่อที่ปรึกษาของ DMS กรุณาให้ผู้ดูแลเพิ่มบัญชีนี้ในรายชื่อที่ปรึกษาการขาย หรือติดต่อทีม Pearnly เพื่อกำหนดให้
-dms.err.ERR_DMS_TEMPLATE,ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่
-dms.err.ERR_DMS_MASTER_UNAVAILABLE,อ่านข้อมูลหลักของ DMS ไม่ได้ชั่วคราว — กรุณาลองใหม่อีกครั้ง
-dms.err.ERR_DMS_MASTER_EMPTY,ยังไม่ได้ตั้งค่าตัวเลือกข้อมูลหลักนี้ใน DMS กรุณาให้ผู้ดูแลเพิ่มข้อมูลใน DMS แล้วลองใหม่อีกครั้ง
-dms.err.ERR_DMS_MASTER_CHANGED,ข้อมูลหลักของ DMS เพิ่งมีการเปลี่ยนแปลง ระบบอัปเดตสรุปแล้ว กรุณาตรวจสอบและยืนยันอีกครั้ง
-dms.err.ERR_DMS_MASTER_UNMATCHED,รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง
-dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง
-dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้
-dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง
-dms.card.TXT_BLURRY,อ่านบัตรไม่ชัด กรุณาถ่ายใหม่
-dms.card.TXT_ASK_PHONE,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
-dms.card.TXT_ASK_CARD,รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า
-dms.card.TXT_RESET,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
-dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
-dms.card.TXT_NEED_BOTH,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
-dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
-dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
-dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
-dms.card.TXT_KEEP,ใช้ข้อมูลเดิมต่อ
-dms.card.TXT_ADMIN_NEEDED,ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้
-dms.card.TXT_ADMIN_AUTH_FAIL,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
-dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
-dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
-dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
-dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
-dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
-dms.card.TXT_MENU_TITLE,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
-dms.card.TXT_MENU_SUBTITLE,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
-dms.card.TXT_MENU_SEND_CARD,กรุณาส่งรูปบัตรประชาชนของลูกค้า
-dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
-dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
-dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
-dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
-dms.card.BTN_RESTART,เริ่มใหม่
-dms.card.BTN_UPDATE,อัปเดตข้อมูล
+Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
+The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
+The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
+dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
+dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
+dms.account.hint,อัปเดตข้อมูลเข้าสู่ DMS ที่บันทึกใน Pearnly ไม่ได้เปลี่ยนรหัสผ่านที่ DMS
+dms.account.invalid,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน DMS ให้ถูกต้อง
+dms.account.open,เปิด DMS
+dms.account.password,รหัสผ่าน DMS
+dms.account.portal,เข้าสู่ระบบ DMS
+dms.account.portalHint,เปิด DMS ด้วยบัญชีของคุณ
+dms.account.save,บันทึก
+dms.account.saved,บันทึกแล้ว การเข้าสู่ DMS ครั้งถัดไปจะใช้ข้อมูลนี้
+dms.account.title,บัญชี DMS ของฉัน
+dms.account.username,ชื่อผู้ใช้ DMS
+dms.card.BTN_CANCEL_BOOKING,ยกเลิก
+dms.card.BTN_CONFIRM_BOOKING,ยืนยันจอง
+dms.card.BTN_CONTINUE_BOOKING,ทำใบจองต่อ
+dms.card.BTN_EDIT,แก้ไข
 dms.card.BTN_KEEP,ใช้ข้อมูลเดิม
 dms.card.BTN_NEW_CUSTOMER,ลูกค้าใหม่
-dms.card.BTN_EDIT,แก้ไข
+dms.card.BTN_RESTART,เริ่มใหม่
+dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
+dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
+dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
+dms.card.BTN_UPDATE,อัปเดตข้อมูล
+dms.card.MSG_BIND_BAD_CODE,รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ
+dms.card.MSG_BIND_GREETING,สวัสดีครับ นี่คือผู้ช่วย DMS\nกรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม เพื่อผูกบัญชีให้เสร็จ
+dms.card.MSG_BIND_HELP,บัญชีที่ผูกแล้ว: {0}\nพิมพ์ «{1}» เพื่อยกเลิกการผูก
+dms.card.MSG_BIND_NEED,ยังไม่ได้ผูกบัญชี กรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม
+dms.card.MSG_BIND_OK,ผูกบัญชีสำเร็จ บัญชี: {0}\nตอนนี้ส่งงานให้ผมได้เลย
+dms.card.MSG_BIND_UNBOUND,ยกเลิกการผูกแล้ว หากต้องการใช้ใหม่ กรุณาสร้างรหัสผูกใหม่
+dms.card.TXT_ACTION_CREATE,สร้างลูกค้าใหม่
+dms.card.TXT_ACTION_UPDATE,อัปเดตข้อมูลลูกค้า
+dms.card.TXT_ADMIN_AUTH_FAIL,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลตรวจสอบรหัสแอดมินใน Pearnly
+dms.card.TXT_ADMIN_NEEDED,ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้
+dms.card.TXT_ASK_CARD,รับเบอร์โทรแล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า
+dms.card.TXT_ASK_PHONE,รับรูปบัตรแล้ว กรุณาพิมพ์เบอร์โทรศัพท์ของลูกค้า
+dms.card.TXT_BLURRY,อ่านบัตรไม่ชัด กรุณาถ่ายใหม่
+dms.card.TXT_BOOKING_CANCELLED,ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่
+dms.card.TXT_BOOKING_CUSTOMER,พบข้อมูลลูกค้าในระบบ
+dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_CANDIDATES_ALT,เลือกลูกค้าที่ตรงกัน
+dms.card.TXT_CANDIDATES_HEAD,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
+dms.card.TXT_DIFF_ALT,พบข้อมูลลูกค้าที่ต่างกัน
+dms.card.TXT_DIFF_HEAD,พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
+dms.card.TXT_DIFF_HEADER,ความต่าง
+dms.card.TXT_DONE_SAME,ใช้ข้อมูลเดิมเรียบร้อย พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_DONE_SAVED,บันทึกข้อมูลลูกค้าเรียบร้อยแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
+dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ
+dms.card.TXT_EXPIRED,รายการหมดอายุ เริ่มใหม่อีกครั้ง
+dms.card.TXT_INTRO,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
+dms.card.TXT_KEEP,ใช้ข้อมูลเดิมต่อ
+dms.card.TXT_LOOKUP_FAIL,ตรวจสอบข้อมูลลูกค้าไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
+dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
+dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
+dms.card.TXT_MENU_D4,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
+dms.card.TXT_MENU_D5,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 dms.card.TXT_MENU_GREETING,"สวัสดีค่ะ 🙏
 ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน"
+dms.card.TXT_MENU_HINT,พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา
+dms.card.TXT_MENU_ITEM1,จัดทำข้อมูลลูกค้า
+dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
+dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
+dms.card.TXT_MENU_ITEM4,เปลี่ยนบัญชีและรหัสผ่าน
+dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
 dms.card.TXT_MENU_PICK,กรุณาเลือกเมนูที่ต้องการ
 dms.card.TXT_MENU_PICK_SUB,เลือกรายการเพื่อดำเนินการต่อ
-dms.card.TXT_MENU_ITEM1,จัดทำข้อมูลลูกค้า
-dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าใหม่จากบัตรประชาชน หรืออัปเดตข้อมูลลูกค้าเดิม
-dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
-dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
-dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
-dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
-dms.card.TXT_MENU_ITEM4,เปลี่ยนบัญชีและรหัสผ่าน
-dms.card.TXT_MENU_D4,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
-dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
-dms.card.TXT_MENU_D5,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
-dms.card.TXT_MENU_HINT,พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา
-dms.card.BTN_CONTINUE_BOOKING,ทำใบจองต่อ
-dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
-dms.card.BTN_CONFIRM_BOOKING,ยืนยันจอง
-dms.card.BTN_CANCEL_BOOKING,ยกเลิก
-dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
-dms.card.TXT_BOOKING_CANCELLED,ทิ้งรายการแล้ว ไม่มีข้อมูลถูกบันทึก · พิมพ์ เมนู เพื่อเริ่มใหม่
-dms.card.TXT_BOOKING_FAIL,สร้างใบจองไม่สำเร็จ กรุณาลองใหม่
-dms.card.diff.prefix_id,คำนำหน้า
-dms.card.diff.name,ชื่อ
+dms.card.TXT_MENU_SEND_CARD,กรุณาส่งรูปบัตรประชาชนของลูกค้า
+dms.card.TXT_MENU_SUBTITLE,กรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน
+dms.card.TXT_MENU_TITLE,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
+dms.card.TXT_NEED_BOTH,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
+dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
+dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
+dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
+dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแล
+dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
+dms.card.TXT_RECEIPT_ADVISOR,ที่ปรึกษา: {name}
+dms.card.TXT_RECEIPT_BOOKING,เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}
+dms.card.TXT_RECEIPT_SAVE,บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id}\nชื่อ: {name}
+dms.card.TXT_RESET,เริ่มรายการใหม่แล้ว ถ่ายรูปบัตรประชาชนเพื่อเริ่มบันทึกลูกค้า
+dms.card.TXT_RETAKE,กรุณาถ่ายรูปบัตรประชาชนใหม่อีกครั้ง
+dms.card.TXT_SAME,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
+dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
+dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
+dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
+dms.card.approval.BTN_ALL_APPROVERS,ส่งหาทุกคน
+dms.card.approval.BTN_APPROVE,อนุมัติ
+dms.card.approval.BTN_CHANGE_APPROVER,เปลี่ยนผู้อนุมัติ
+dms.card.approval.BTN_REJECT,ปฏิเสธ
+dms.card.approval.LBL_APPROVER,ผู้อนุมัติ
+dms.card.approval.LBL_CUSTOMER,ลูกค้า
+dms.card.approval.LBL_REQUESTER,ผู้ขอ
+dms.card.approval.LBL_SENT_TO,ส่งถึง
+dms.card.approval.TITLE_REQUEST,คำขอแก้ไขข้อมูลลูกค้า
+dms.card.approval.TXT_APPROVER_NO_ENDPOINT,บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
+dms.card.approval.TXT_EXEC_FAIL_ADMIN,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
+dms.card.approval.TXT_NOT_APPROVER,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
+dms.card.approval.TXT_NO_APPROVERS,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
+dms.card.approval.TXT_PICK_APPROVER,ส่งคำขอให้ใครอนุมัติ
+dms.card.approval.TXT_PICK_APPROVER_SUB,เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
+dms.card.approval.TXT_PROCESSING,กำลังอัปเดตข้อมูล กรุณารอสักครู่
+dms.card.approval.TXT_REQ_APPROVED_ADMIN,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
+dms.card.approval.TXT_REQ_APPROVED_SALES,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
+dms.card.approval.TXT_REQ_EXPIRED,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
+dms.card.approval.TXT_REQ_REJECTED_ADMIN,ปฏิเสธคำขอแล้ว
+dms.card.approval.TXT_REQ_REJECTED_SALES,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
+dms.card.approval.TXT_REQ_STALE,คำขอนี้ถูกดำเนินการไปแล้ว
+dms.card.approval.TXT_SALES_FALLBACK,พนักงานขาย
+dms.card.approval.TXT_SENT_WAIT,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
+dms.card.car.brand,ยี่ห้อ
+dms.card.car.desc,รายละเอียดรถ
+dms.card.car.engine,เครื่องยนต์
+dms.card.car.gear,เกียร์
+dms.card.car.grade,เกรด
+dms.card.car.price,ราคาตาม DMS
+dms.card.car.type,ประเภทรถ
+dms.card.car.year,ปีผลิต
 dms.card.diff.birthday_be,วันเกิด
-dms.card.diff.phone,เบอร์โทร
+dms.card.diff.district_id,อำเภอ
 dms.card.diff.house_no,บ้านเลขที่
 dms.card.diff.moo,หมู่
-dms.card.diff.soi,ซอย
-dms.card.diff.road,ถนน
+dms.card.diff.name,ชื่อ
+dms.card.diff.phone,เบอร์โทร
+dms.card.diff.prefix_id,คำนำหน้า
 dms.card.diff.province_id,จังหวัด
-dms.card.diff.district_id,อำเภอ
+dms.card.diff.road,ถนน
+dms.card.diff.soi,ซอย
 dms.card.diff.subdistrict_id,ตำบล
 dms.card.diff.zipcode_id,รหัสไปรษณีย์
-dms.card.sum.people_id,เลขบัตร
-dms.card.sum.name,ชื่อ
-dms.card.sum.birthday_be,วันเกิด
-dms.card.sum.address,ที่อยู่
-dms.card.sum.phone,เบอร์โทร
-dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ ยืนยันข้อมูลเพื่อบันทึก
-dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
-dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
-dms.card.TXT_BOOKING_CUSTOMER,พบข้อมูลลูกค้าในระบบ
-dms.card.TXT_DIFF_HEADER,ความต่าง
-dms.card.TXT_DIFF_HEAD,พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
-dms.card.TXT_DIFF_ALT,พบข้อมูลลูกค้าที่ต่างกัน
-dms.card.TXT_CANDIDATES_HEAD,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
-dms.card.TXT_CANDIDATES_ALT,เลือกลูกค้าที่ตรงกัน
-dms.card.TXT_ACTION_CREATE,สร้างลูกค้าใหม่
-dms.card.TXT_ACTION_UPDATE,อัปเดตข้อมูลลูกค้า
-dms.card.TXT_RECEIPT_SAVE,บันทึกสำเร็จ · {action}\nรหัสลูกค้า: {customer_id}\nชื่อ: {name}
-dms.card.TXT_RECEIPT_BOOKING,เปิดใบจองสำเร็จ\nเลขที่ใบจอง: {booking_no}\nรุ่นรถ: {car}\nวันที่ส่งมอบ: {delivery_date_be}
-dms.card.TXT_RECEIPT_ADVISOR,ที่ปรึกษา: {name}
-dms.card.car.brand,ยี่ห้อ
-dms.card.car.type,ประเภทรถ
-dms.card.car.desc,รายละเอียดรถ
-dms.card.car.grade,เกรด
-dms.card.car.gear,เกียร์
-dms.card.car.year,ปีผลิต
-dms.card.car.engine,เครื่องยนต์
-dms.card.car.price,ราคาตาม DMS
-dms.card.qa.TXT_ASK_SLIP,ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
-dms.card.qa.TXT_ASK_PLACE,สถานที่รับจอง — กดเลือกด้านล่าง
-dms.card.qa.TXT_ASK_CAR,รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax
-dms.card.qa.TXT_CAR_PICK,เลือกรุ่นรถ (พบ {n} รายการ)
-dms.card.qa.TXT_CAR_NONE,ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง
-dms.card.qa.TXT_ASK_PAINT,เลือกสีของ {car}
-dms.card.qa.TXT_PAINT_MANY,มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้
-dms.card.qa.TXT_ASK_DATE,วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่
-dms.card.qa.BTN_PICK_DATE,เลือกวันที่
-dms.card.qa.TXT_ASK_TERM,เงื่อนไขการขาย — กดเลือกด้านล่าง
-dms.card.qa.TXT_ASK_REGIS,จดทะเบียนในนาม — กดเลือกด้านล่าง
-dms.card.qa.TXT_ASK_REGIS_NAME,ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น
-dms.card.qa.BTN_REGIS_NAME_CARD,ใช้ชื่อตามบัตร
-dms.card.qa.TXT_ASK_PAY_CHANNEL,ช่องทางชำระเงินจอง — เลือกช่องทาง
-dms.card.qa.pay.cash,เงินสด
-dms.card.qa.pay.transfer,เงินโอน
-dms.card.qa.pay.cheque,เช็ค
-dms.card.qa.pay.cashier_cheque,แคชเชียร์เช็ค
-dms.card.qa.pay.card,บัตรเครดิต/เดบิต
-dms.card.qa.pay.other,อื่นๆ
-dms.card.qa.TXT_ASK_AMOUNT,ยอดเงิน ({channel}) — พิมพ์จำนวนเงิน เช่น 5000
-dms.card.qa.TXT_BAD_AMOUNT,"จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
-dms.card.qa.TXT_ASK_PAY_DST,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
-dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
-dms.card.qa.TXT_ASK_CHEQUE_REF,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
-dms.card.qa.TXT_ASK_CARD_REF,พิมพ์ประเภทบัตร เช่น VISA
-dms.card.qa.TXT_ASK_OTHER_REF,รายละเอียดช่องทาง — พิมพ์
-dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
-dms.card.qa.TXT_ASK_MORE,มีช่องทางอื่นอีกไหม
-dms.card.qa.BTN_MORE_DONE,ครบแล้ว
-dms.card.qa.BTN_MORE_ADD,เพิ่มช่องทาง
-dms.card.qa.TXT_NEED_SLIP,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
-dms.card.qa.TXT_SLIP_CONFLICT,พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ
 dms.card.qa.BTN_ADD_TRANSFER,เพิ่มเงินโอน
-dms.card.qa.BTN_REMOVE_SLIP,ลบสลิปแล้วไปต่อ
-dms.card.qa.TXT_PREVIEW_TITLE,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
 dms.card.qa.BTN_CONFIRM,ยืนยัน
-dms.card.qa.BTN_EDIT,แก้ไข
 dms.card.qa.BTN_DISCARD,ทิ้ง
-dms.card.qa.TXT_SLIP_ONLY_IMAGE,ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
-dms.card.qa.TXT_CONFIRM_ABOVE,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
-dms.card.qa.TXT_NO_IMAGE_NEEDED,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
-dms.card.qa.TXT_ATTACH_FAIL,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
-dms.card.qa._TH_RETRY,แล้วลองใหม่อีกครั้ง
-dms.card.qa.TXT_ADVISOR_BLOCK,ยังเปิดใบจองไม่ได้ครับ · บัญชี DMS ที่ใช้อยู่คือ «{username}»
-dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้
+dms.card.qa.BTN_EDIT,แก้ไข
+dms.card.qa.BTN_MORE_ADD,เพิ่มช่องทาง
+dms.card.qa.BTN_MORE_DONE,ครบแล้ว
+dms.card.qa.BTN_PAGE_NEXT,ถัดไป
+dms.card.qa.BTN_PAGE_PREV,ก่อนหน้า
+dms.card.qa.BTN_PICK_DATE,เลือกวันที่
+dms.card.qa.BTN_REGIS_NAME_CARD,ใช้ชื่อตามบัตร
+dms.card.qa.BTN_REMOVE_SLIP,ลบสลิปแล้วไปต่อ
 dms.card.qa.LBL_ADVISOR,ที่ปรึกษาการขาย
-dms.card.qa.LBL_POSTCODE,รหัสไปรษณีย์
-dms.card.qa.LBL_PLACE,สถานที่รับจอง
-dms.card.qa.LBL_CAR,รุ่น/สี
-dms.card.qa.LBL_DELIVERY,วันส่งมอบ
-dms.card.qa.LBL_TERM,เงื่อนไขการขาย
-dms.card.qa.LBL_REGIS,จดทะเบียนในนาม
-dms.card.qa.LBL_TOTAL,ยอดเงินจองรวม
 dms.card.qa.LBL_ATTACH_CARD,สำเนาบัตรประชาชน
 dms.card.qa.LBL_ATTACH_SLIP,ใบโอนเงินจอง
-dms.card.qa.VAL_ATTACHED,แนบแล้ว
-dms.card.qa.BTN_PAGE_PREV,ก่อนหน้า
-dms.card.qa.BTN_PAGE_NEXT,ถัดไป
-dms.card.qa.TXT_SEP_HINT,"คั่นช่องด้วย | , / หรือ ·"
-dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
+dms.card.qa.LBL_CAR,รุ่น/สี
+dms.card.qa.LBL_DELIVERY,วันส่งมอบ
+dms.card.qa.LBL_PLACE,สถานที่รับจอง
+dms.card.qa.LBL_POSTCODE,รหัสไปรษณีย์
+dms.card.qa.LBL_REGIS,จดทะเบียนในนาม
+dms.card.qa.LBL_TERM,เงื่อนไขการขาย
+dms.card.qa.LBL_TOTAL,ยอดเงินจองรวม
+dms.card.qa.TXT_ADVISOR_BLOCK,ยังเปิดใบจองไม่ได้ครับ · บัญชี DMS ที่ใช้อยู่คือ «{username}»
+dms.card.qa.TXT_ADVISOR_BLOCK_NO_USER,ยังเปิดใบจองไม่ได้ครับ · ระบบยังอ่านบัญชี DMS ของผู้ใช้นี้ไม่ได้
+dms.card.qa.TXT_ASK_AMOUNT,ยอดเงิน ({channel}) — พิมพ์จำนวนเงิน เช่น 5000
+dms.card.qa.TXT_ASK_CAR,รุ่นรถ — พิมพ์ชื่อรุ่นสั้น ๆ เพื่อค้นหา เช่น dmax
+dms.card.qa.TXT_ASK_CARD_REF,พิมพ์ประเภทบัตร เช่น VISA
 dms.card.qa.TXT_ASK_CARD_REF_MANUAL,พิมพ์ ชื่อธนาคาร | ประเภทบัตร เช่น KBank | VISA
+dms.card.qa.TXT_ASK_CHEQUE_REF,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค เช่น 123456 | 01
+dms.card.qa.TXT_ASK_CHEQUE_REF_MANUAL,พิมพ์ เลขที่เช็ค | เล่มที่เช็ค | ชื่อธนาคาร เช่น 123456 | 01 | KBank
+dms.card.qa.TXT_ASK_DATE,วันที่คาดว่าจะส่งมอบรถ — กดปุ่มเพื่อเลือกวันที่
+dms.card.qa.TXT_ASK_MORE,มีช่องทางอื่นอีกไหม
+dms.card.qa.TXT_ASK_OTHER_REF,รายละเอียดช่องทาง — พิมพ์
+dms.card.qa.TXT_ASK_PAINT,เลือกสีของ {car}
+dms.card.qa.TXT_ASK_PAY_CHANNEL,ช่องทางชำระเงินจอง — เลือกช่องทาง
+dms.card.qa.TXT_ASK_PAY_DST,ธนาคารปลายทาง — เลือกธนาคารที่บริษัทได้รับเงิน
+dms.card.qa.TXT_ASK_PLACE,สถานที่รับจอง — กดเลือกด้านล่าง
+dms.card.qa.TXT_ASK_REGIS,จดทะเบียนในนาม — กดเลือกด้านล่าง
+dms.card.qa.TXT_ASK_REGIS_NAME,ชื่อผู้จดทะเบียน — กดปุ่มใช้ชื่อตามบัตร หรือพิมพ์ชื่ออื่น
+dms.card.qa.TXT_ASK_SLIP,ส่งสลิปโอนเงินจอง (ใบโอนเงิน) ได้เลยครับ · ถ้าลูกค้าจ่ายเงินสด พิมพ์ เงินสด เพื่อข้ามขั้นนี้
+dms.card.qa.TXT_ASK_TERM,เงื่อนไขการขาย — กดเลือกด้านล่าง
+dms.card.qa.TXT_ATTACH_FAIL,แนบไฟล์ไม่ครบ กรุณาแนบเพิ่มในระบบ DMS
+dms.card.qa.TXT_BAD_AMOUNT,"จำนวนเงินไม่ถูกต้อง พิมพ์เป็นตัวเลข เช่น 5000 หรือ 5,000.50"
+dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อง กรุณาพิมพ์ข้อมูลทั้ง 2 ช่อง {hint}
+dms.card.qa.TXT_CAR_NONE,ไม่พบรุ่นที่ตรง ลองพิมพ์ใหม่อีกครั้ง
+dms.card.qa.TXT_CAR_PICK,เลือกรุ่นรถ (พบ {n} รายการ)
+dms.card.qa.TXT_CONFIRM_ABOVE,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
+dms.card.qa.TXT_NEED_SLIP,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
+dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่มีข้อมูลบัญชีรับเงินของบริษัท กรุณาให้ผู้ดูแลตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
+dms.card.qa.TXT_NO_IMAGE_NEEDED,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
+dms.card.qa.TXT_PAINT_MANY,มีสีมากกว่านี้ พิมพ์ชื่อสีเพื่อค้นหาได้
+dms.card.qa.TXT_PICK_BANK,เลือกธนาคาร
+dms.card.qa.TXT_PREVIEW_TITLE,สรุปใบจอง — ตรวจสอบก่อนยืนยัน
+dms.card.qa.TXT_SEP_HINT,"คั่นช่องด้วย | , / หรือ ·"
+dms.card.qa.TXT_SLIP_CONFLICT,พบสลิปโอนเงินแนบอยู่ แต่ยังไม่มีช่องทางเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุปครับ
+dms.card.qa.TXT_SLIP_ONLY_IMAGE,ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
+dms.card.qa.VAL_ATTACHED,แนบแล้ว
+dms.card.qa._TH_RETRY,แล้วลองใหม่อีกครั้ง
+dms.card.qa.pay.card,บัตรเครดิต/เดบิต
+dms.card.qa.pay.cash,เงินสด
+dms.card.qa.pay.cashier_cheque,แคชเชียร์เช็ค
+dms.card.qa.pay.cheque,เช็ค
+dms.card.qa.pay.other,อื่นๆ
+dms.card.qa.pay.transfer,เงินโอน
+dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
 dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็จ
 dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
-dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
-dms.card.qa.TXT_PICK_BANK,เลือกธนาคาร
-dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
-dms.card.query.TXT_PICK_TYPE,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
-dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
-dms.card.query.TXT_PICK_SALES,เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ
-dms.card.query.TXT_LOADING,กำลังอ่านข้อมูลล่าสุดจาก DMS
-dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
-dms.card.query.TXT_NO_ENDPOINT,ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน
-dms.card.query.TYPE_SALES,1 บันทึกการขาย
-dms.card.query.TYPE_INVENTORY,2 สินค้าคงคลัง
-dms.card.query.TYPE_OTHER,3 รายการอื่น
-dms.card.query.DIM_LATEST,ล่าสุด 10 รายการ
-dms.card.query.DIM_ADVISOR,ที่ปรึกษาการขาย
-dms.card.query.DIM_VEHICLE,รุ่นรถ
-dms.card.query.DIM_CUSTOMER,ลูกค้า
-dms.card.query.DIM_COLOR,สี
-dms.card.query.DIM_BOOKING_DATE,วันที่จอง
-dms.card.query.DIM_DELIVERY_DATE,วันที่ส่งมอบ
-dms.card.query.DIM_FINANCE,เงินสด/ไฟแนนซ์
-dms.card.query.DIM_ALLOCATION,การจัดสรรรถ
-dms.card.query.DIM_CONTRACT,สถานะสัญญา
-dms.card.query.DIM_SALES_DOC_NO,เลขที่เอกสารขาย
-dms.card.query.DIM_ENGINE_NO,หมายเลขเครื่อง
-dms.card.query.DIM_TOP,ยอดขายสูงสุด
+dms.card.query.ALT_RECORDS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
+dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
 dms.card.query.ASK_ADVISOR,พิมพ์ชื่อที่ปรึกษาการขาย
-dms.card.query.ASK_VEHICLE,พิมพ์รุ่นรถ
-dms.card.query.ASK_CUSTOMER,พิมพ์ชื่อลูกค้า
-dms.card.query.ASK_COLOR,พิมพ์สีรถ
-dms.card.query.ASK_BOOKING_DATE,พิมพ์วันที่จอง เช่น 01/09/2569
-dms.card.query.ASK_DELIVERY_DATE,พิมพ์วันที่คาดว่าจะส่งมอบ เช่น 15/09/2569
-dms.card.query.ASK_SALES_DOC_NO,พิมพ์เลขที่เอกสารการขาย
-dms.card.query.ASK_ENGINE_NO,พิมพ์หมายเลขเครื่อง
 dms.card.query.ASK_ANY,พิมพ์คำที่ต้องการค้นหา
-dms.card.query.PICK_STATUS,เลือกสถานะที่ต้องการ
-dms.card.query.ST_CASH,ซื้อเงินสด
-dms.card.query.ST_FINANCE_PENDING,ไฟแนนซ์รออนุมัติ
-dms.card.query.ST_FINANCE_APPROVED,ไฟแนนซ์อนุมัติ
-dms.card.query.ST_MANAGER_PENDING,รอ ผจก.ขาย
-dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
-dms.card.query.ST_ALLOCATED,จัดสรรแล้ว
-dms.card.query.ST_READY,พร้อมรับรถ
-dms.card.query.ST_CONTRACT_OPENED,เปิดสัญญาแล้ว
-dms.card.query.ST_CONTRACT_NOT_OPENED,ยังไม่เปิดสัญญา
-dms.card.query.ST_BOOKING,ใบจอง
-dms.card.query.ST_DRAFT,แบบร่าง
+dms.card.query.ASK_BOOKING_DATE,พิมพ์วันที่จอง เช่น 01/09/2569
+dms.card.query.ASK_COLOR,พิมพ์สีรถ
+dms.card.query.ASK_CUSTOMER,พิมพ์ชื่อลูกค้า
+dms.card.query.ASK_DELIVERY_DATE,พิมพ์วันที่คาดว่าจะส่งมอบ เช่น 15/09/2569
+dms.card.query.ASK_ENGINE_NO,พิมพ์หมายเลขเครื่อง
+dms.card.query.ASK_SALES_DOC_NO,พิมพ์เลขที่เอกสารการขาย
+dms.card.query.ASK_TOP_CUSTOM,พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
 dms.card.query.ASK_TOP_GROUP,จัดอันดับยอดขายตามอะไร
-dms.card.query.GRP_MODEL,รุ่นรถ
-dms.card.query.GRP_TYPE,ประเภทรถ
-dms.card.query.GRP_SUBTYPE,ประเภทย่อย
 dms.card.query.ASK_TOP_METRIC,จัดอันดับด้วยจำนวนคันหรือยอดเงิน
-dms.card.query.MET_QTY,จำนวนคัน
-dms.card.query.MET_AMOUNT,ยอดเงิน
 dms.card.query.ASK_TOP_PERIOD,เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
-dms.card.query.PERIOD_M_5,เดือนนี้ Top 5
+dms.card.query.ASK_VEHICLE,พิมพ์รุ่นรถ
+dms.card.query.CARD_NOTE,สถานะเอกสารแสดงตาม DMS จริง · แบบร่างไม่นับเป็นยอดขาย
+dms.card.query.CARD_TITLE,บันทึกการขายจาก DMS
+dms.card.query.DIM_ADVISOR,ที่ปรึกษาการขาย
+dms.card.query.DIM_ALLOCATION,การจัดสรรรถ
+dms.card.query.DIM_BOOKING_DATE,วันที่จอง
+dms.card.query.DIM_COLOR,สี
+dms.card.query.DIM_CONTRACT,สถานะสัญญา
+dms.card.query.DIM_CUSTOMER,ลูกค้า
+dms.card.query.DIM_DELIVERY_DATE,วันที่ส่งมอบ
+dms.card.query.DIM_ENGINE_NO,หมายเลขเครื่อง
+dms.card.query.DIM_FINANCE,เงินสด/ไฟแนนซ์
+dms.card.query.DIM_LATEST,ล่าสุด 10 รายการ
+dms.card.query.DIM_SALES_DOC_NO,เลขที่เอกสารขาย
+dms.card.query.DIM_TOP,ยอดขายสูงสุด
+dms.card.query.DIM_VEHICLE,รุ่นรถ
+dms.card.query.EMPTY_RECORDS_PREFIX,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
+dms.card.query.EMPTY_TOP,ไม่พบยอดขายในช่วงเวลานี้
+dms.card.query.GRP_MODEL,รุ่นรถ
+dms.card.query.GRP_SUBTYPE,ประเภทย่อย
+dms.card.query.GRP_TYPE,ประเภทรถ
+dms.card.query.LBL_ADVISOR,ที่ปรึกษา
+dms.card.query.LBL_ALLOCATION,จัดสรร
+dms.card.query.LBL_CAR,รถ
+dms.card.query.LBL_COUNT,จำนวน
+dms.card.query.LBL_CUSTOMER,ลูกค้า
+dms.card.query.LBL_DATE,วันที่
+dms.card.query.LBL_DELIVERY,ส่งมอบ
+dms.card.query.LBL_DOCS,เอกสาร/เครื่อง
+dms.card.query.LBL_FINANCE,ไฟแนนซ์
+dms.card.query.LBL_PAGE,หน้า
+dms.card.query.LBL_READ_AT,อ่านล่าสุด
+dms.card.query.MET_AMOUNT,ยอดเงิน
+dms.card.query.MET_QTY,จำนวนคัน
+dms.card.query.NAV_NEXT,หน้าถัดไป
+dms.card.query.NAV_PREV,หน้าก่อน
+dms.card.query.NAV_REFRESH,อ่านใหม่
+dms.card.query.PERIOD_CUSTOM,กำหนดเอง 1–30
 dms.card.query.PERIOD_M_10,เดือนนี้ Top 10
 dms.card.query.PERIOD_M_20,เดือนนี้ Top 20
 dms.card.query.PERIOD_M_30,เดือนนี้ Top 30
+dms.card.query.PERIOD_M_5,เดือนนี้ Top 5
 dms.card.query.PERIOD_Y_10,ปีนี้ Top 10
-dms.card.query.PERIOD_CUSTOM,กำหนดเอง 1–30
-dms.card.query.ASK_TOP_CUSTOM,พิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
+dms.card.query.PICK_STATUS,เลือกสถานะที่ต้องการ
 dms.card.query.STATUS_UNKNOWN,ไม่ระบุสถานะ
-dms.card.query.LBL_CUSTOMER,ลูกค้า
-dms.card.query.LBL_CAR,รถ
-dms.card.query.LBL_ADVISOR,ที่ปรึกษา
-dms.card.query.LBL_DATE,วันที่
-dms.card.query.LBL_DELIVERY,ส่งมอบ
-dms.card.query.LBL_FINANCE,ไฟแนนซ์
-dms.card.query.LBL_ALLOCATION,จัดสรร
-dms.card.query.LBL_DOCS,เอกสาร/เครื่อง
-dms.card.query.NAV_REFRESH,อ่านใหม่
-dms.card.query.NAV_PREV,หน้าก่อน
-dms.card.query.NAV_NEXT,หน้าถัดไป
-dms.card.query.ALT_RECORDS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
-dms.card.query.EMPTY_RECORDS_PREFIX,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
-dms.card.query.CARD_TITLE,บันทึกการขายจาก DMS
-dms.card.query.CARD_NOTE,สถานะเอกสารแสดงตาม DMS จริง · แบบร่างไม่นับเป็นยอดขาย
-dms.card.query.LBL_PAGE,หน้า
-dms.card.query.LBL_COUNT,จำนวน
-dms.card.query.LBL_READ_AT,อ่านล่าสุด
-dms.card.query.UNIT_AMOUNT,บาท
-dms.card.query.UNIT_QTY,คัน
-dms.card.query.EMPTY_TOP,ไม่พบยอดขายในช่วงเวลานี้
-dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
+dms.card.query.ST_ALLOCATED,จัดสรรแล้ว
+dms.card.query.ST_BOOKING,ใบจอง
+dms.card.query.ST_CASH,ซื้อเงินสด
+dms.card.query.ST_CONTRACT_NOT_OPENED,ยังไม่เปิดสัญญา
+dms.card.query.ST_CONTRACT_OPENED,เปิดสัญญาแล้ว
+dms.card.query.ST_DRAFT,แบบร่าง
+dms.card.query.ST_FINANCE_APPROVED,ไฟแนนซ์อนุมัติ
+dms.card.query.ST_FINANCE_PENDING,ไฟแนนซ์รออนุมัติ
+dms.card.query.ST_MANAGER_PENDING,รอ ผจก.ขาย
+dms.card.query.ST_READY,พร้อมรับรถ
+dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
 dms.card.query.TOP_NOTE_PREFIX,ทุกสาขา/ทีมที่บัญชีนี้มองเห็น · อ่านล่าสุด
+dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
+dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
-dms.card.approval.TXT_PICK_APPROVER,ส่งคำขอให้ใครอนุมัติ
-dms.card.approval.TXT_PICK_APPROVER_SUB,เลือกผู้อนุมัติ หรือส่งหาทุกคนเพื่อให้คนที่ว่างก่อนอนุมัติ
-dms.card.approval.BTN_ALL_APPROVERS,ส่งหาทุกคน
-dms.card.approval.BTN_CHANGE_APPROVER,เปลี่ยนผู้อนุมัติ
-dms.card.approval.BTN_APPROVE,อนุมัติ
-dms.card.approval.BTN_REJECT,ปฏิเสธ
-dms.card.approval.TXT_NO_APPROVERS,ยังไม่มีผู้อนุมัติที่เชื่อมต่อ LINE ในระบบ กรุณาแจ้งผู้ดูแลเพิ่มผู้อนุมัติที่ pearnly.com/dms
-dms.card.approval.TXT_SENT_WAIT,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
-dms.card.approval.TXT_REQ_STALE,คำขอนี้ถูกดำเนินการไปแล้ว
-dms.card.approval.TXT_REQ_EXPIRED,คำขอนี้หมดอายุแล้ว กรุณาเริ่มรายการใหม่
-dms.card.approval.TXT_REQ_APPROVED_ADMIN,อนุมัติแล้ว อัปเดตข้อมูลลูกค้าเรียบร้อย
-dms.card.approval.TXT_REQ_APPROVED_SALES,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
-dms.card.approval.TXT_REQ_REJECTED_ADMIN,ปฏิเสธคำขอแล้ว
-dms.card.approval.TXT_REQ_REJECTED_SALES,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
-dms.card.approval.TXT_EXEC_FAIL_ADMIN,อัปเดตไม่สำเร็จ (ระบบ DMS ปฏิเสธ) คำขอยังค้างอยู่ กดอนุมัติอีกครั้งเพื่อลองใหม่
-dms.card.approval.TXT_APPROVER_NO_ENDPOINT,บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
-dms.card.approval.TXT_NOT_APPROVER,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
-dms.card.approval.TXT_PROCESSING,กำลังอัปเดตข้อมูล กรุณารอสักครู่
-dms.card.approval.LBL_APPROVER,ผู้อนุมัติ
-dms.card.approval.TITLE_REQUEST,คำขอแก้ไขข้อมูลลูกค้า
-dms.card.approval.LBL_REQUESTER,ผู้ขอ
-dms.card.approval.LBL_CUSTOMER,ลูกค้า
-dms.card.approval.LBL_SENT_TO,ส่งถึง
-dms.card.approval.TXT_SALES_FALLBACK,พนักงานขาย
-dms.edit.customerTitle,แก้ไขข้อมูลลูกค้า
-dms.edit.customerSub,บันทึกแล้วระบบจะส่งบัตรข้อมูลใหม่ไปที่ LINE กรุณาตรวจสอบและกดอัปเดตข้อมูลเพื่อบันทึกลง DMS
-dms.edit.title,แก้ไขใบจอง
-dms.edit.sub,แก้ข้อมูลแล้วบันทึก ระบบจะส่งสรุปใหม่กลับไปที่ LINE ก่อนบันทึกจริง
-dms.edit.customer,ข้อมูลลูกค้า
-dms.edit.booking,ข้อมูลการจอง
-dms.edit.payment,ช่องทางชำระเงิน
-dms.edit.files,ไฟล์แนบ
-dms.edit.save,บันทึกและส่งสรุปใหม่
-dms.edit.cancel,กลับ LINE
-dms.edit.loading,กำลังโหลดข้อมูล…
-dms.edit.saved,บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย
-dms.edit.failed,บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองใหม่
-dms.edit.expired,รายการนี้หมดอายุหรือถูกแก้ไขแล้ว กรุณาใช้สรุปล่าสุดใน LINE
-dms.edit.liffUnavailable,หน้าสำหรับ OA นี้ยังไม่เปิดใช้งาน กรุณาเปิดเมนู DMS ใหม่จาก LINE
-dms.edit.masterChanged,ตัวเลือกเปลี่ยนไปแล้ว กรุณาใช้สรุปล่าสุดใน LINE แล้วลองอีกครั้ง
-dms.edit.masterUnavailable,ยังโหลดตัวเลือกล่าสุดจาก DMS ไม่ได้ กรุณาลองใหม่อีกครั้ง
-dms.edit.postcodeMissing,กรุณาเลือกรหัสไปรษณีย์จากรายการที่กำหนด
-dms.edit.geoUnavailable,ข้อมูลที่อยู่ยังโหลดไม่ได้ กรุณาลองใหม่สักครู่
-dms.edit.previewSendFailed,ส่งสรุปใหม่ไปที่ LINE ไม่สำเร็จ กรุณาลองอีกครั้ง
-dms.edit.slipConflict,มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก
-dms.edit.paymentDetailRequired,กรุณากรอกรายละเอียดการชำระเงินที่จำเป็นให้ครบ
-dms.edit.duplicatePayment,ช่องทางชำระเงินแต่ละแบบเพิ่มได้เพียงครั้งเดียว
-dms.edit.advisor,ที่ปรึกษาการขาย (ระบบกำหนด)
-dms.edit.total,ยอดเงินจองรวม
+dms.card.query.TXT_LOADING,กำลังอ่านข้อมูลล่าสุดจาก DMS
+dms.card.query.TXT_NO_ENDPOINT,ไม่พบบัญชี DMS ที่เปิดใช้งาน กรุณาให้เจ้าของตรวจสอบข้อมูลผู้ปฏิบัติงาน
+dms.card.query.TXT_PICK_SALES,เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ
+dms.card.query.TXT_PICK_TYPE,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
+dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
+dms.card.query.TYPE_INVENTORY,2 สินค้าคงคลัง
+dms.card.query.TYPE_OTHER,3 รายการอื่น
+dms.card.query.TYPE_SALES,1 บันทึกการขาย
+dms.card.query.UNIT_AMOUNT,บาท
+dms.card.query.UNIT_QTY,คัน
+dms.card.sum.address,ที่อยู่
+dms.card.sum.birthday_be,วันเกิด
+dms.card.sum.name,ชื่อ
+dms.card.sum.people_id,เลขบัตร
+dms.card.sum.phone,เบอร์โทร
 dms.edit.addPayment,เพิ่มช่องทาง
-dms.edit.attached,เก็บไฟล์แนบนี้
-dms.edit.fileHint,ยกเลิกเครื่องหมายเพื่อไม่นำไฟล์นี้ไปแนบกับใบจอง
-dms.edit.idCard,สำเนาบัตรประชาชน
-dms.edit.slip,ใบโอนเงินจอง
-dms.edit.idWarn,หากแก้ไขข้อมูลลูกค้า ระบบจะอัปเดตข้อมูลลูกค้าใน DMS เมื่อกดยืนยัน
-dms.edit.confirmId,เลขบัตรประชาชน
-dms.edit.prefix,คำนำหน้า
-dms.edit.name,ชื่อ นามสกุล
-dms.edit.birth,วันเกิด (วว/ดด/พ.ศ.)
-dms.edit.phone,เบอร์โทร
-dms.edit.house,เลขที่
-dms.edit.building,อาคาร
-dms.edit.floor,ชั้น
-dms.edit.room,ห้อง
-dms.edit.village,หมู่บ้าน
-dms.edit.moo,หมู่ที่
-dms.edit.soi,ตรอก/ซอย
-dms.edit.road,ถนน
-dms.edit.province,จังหวัด
-dms.edit.district,อำเภอ/เขต
-dms.edit.subdistrict,ตำบล/แขวง
-dms.edit.postcode,รหัสไปรษณีย์
-dms.edit.place,สถานที่รับจอง
-dms.edit.car,รุ่นรถ
-dms.edit.paint,สีรถ
-dms.edit.delivery,วันที่คาดว่าจะส่งมอบ
-dms.edit.term,เงื่อนไขการขาย
-dms.edit.regis,จดทะเบียนในนาม
-dms.edit.regisName,ชื่อผู้จดทะเบียน
-dms.edit.channel,ช่องทาง
+dms.edit.advisor,ที่ปรึกษาการขาย (ระบบกำหนด)
 dms.edit.amount,จำนวนเงิน
-dms.edit.source,บัญชีต้นทาง
-dms.edit.sourceBank,ธนาคารต้นทาง
-dms.edit.sourceAccount,เลขบัญชีต้นทาง
-dms.edit.sourceAccountName,ชื่อบัญชีต้นทาง
-dms.edit.sourceBranch,สาขาต้นทาง
-dms.edit.chooseOption,กรุณาเลือก
+dms.edit.attached,เก็บไฟล์แนบนี้
+dms.edit.bankName,ธนาคาร
+dms.edit.birth,วันเกิด (วว/ดด/พ.ศ.)
+dms.edit.booking,ข้อมูลการจอง
+dms.edit.building,อาคาร
+dms.edit.cancel,กลับ LINE
+dms.edit.car,รุ่นรถ
+dms.edit.card,บัตรเครดิต/เดบิต
+dms.edit.cardType,ประเภทบัตร
+dms.edit.cash,เงินสด
+dms.edit.cashierBookNo,เล่มที่แคชเชียร์เช็ค
+dms.edit.cashierNo,เลขที่แคชเชียร์เช็ค
+dms.edit.cashier_cheque,แคชเชียร์เช็ค
+dms.edit.channel,ช่องทาง
+dms.edit.cheque,เช็ค
+dms.edit.chequeBookNo,เล่มที่เช็ค
+dms.edit.chequeNo,เลขที่เช็ค
 dms.edit.chooseBank,เลือกธนาคาร
+dms.edit.chooseOption,กรุณาเลือก
+dms.edit.confirmId,เลขบัตรประชาชน
+dms.edit.customer,ข้อมูลลูกค้า
+dms.edit.customerSub,บันทึกแล้วระบบจะส่งบัตรข้อมูลใหม่ไปที่ LINE กรุณาตรวจสอบและกดอัปเดตข้อมูลเพื่อบันทึกลง DMS
+dms.edit.customerTitle,แก้ไขข้อมูลลูกค้า
+dms.edit.delivery,วันที่คาดว่าจะส่งมอบ
 dms.edit.destination,ธนาคารที่รับเงิน
-dms.edit.destinationName,ชื่อบัญชีบริษัทที่รับเงิน
 dms.edit.destinationAccount,เลขบัญชีที่รับเงิน
 dms.edit.destinationBranch,สาขาธนาคารที่รับเงิน
-dms.edit.chequeNo,เลขที่เช็ค
-dms.edit.chequeBookNo,เล่มที่เช็ค
-dms.edit.cashierNo,เลขที่แคชเชียร์เช็ค
-dms.edit.cashierBookNo,เล่มที่แคชเชียร์เช็ค
-dms.edit.bankName,ธนาคาร
-dms.edit.cardType,ประเภทบัตร
+dms.edit.destinationName,ชื่อบัญชีบริษัทที่รับเงิน
 dms.edit.detail,รายละเอียด
-dms.edit.remove,ลบ
-dms.edit.cash,เงินสด
-dms.edit.transfer,เงินโอน
-dms.edit.cheque,เช็ค
-dms.edit.cashier_cheque,แคชเชียร์เช็ค
-dms.edit.card,บัตรเครดิต/เดบิต
+dms.edit.district,อำเภอ/เขต
+dms.edit.duplicatePayment,ช่องทางชำระเงินแต่ละแบบเพิ่มได้เพียงครั้งเดียว
+dms.edit.expired,รายการนี้หมดอายุหรือถูกแก้ไขแล้ว กรุณาใช้สรุปล่าสุดใน LINE
+dms.edit.failed,บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองใหม่
+dms.edit.fileHint,ยกเลิกเครื่องหมายเพื่อไม่นำไฟล์นี้ไปแนบกับใบจอง
+dms.edit.files,ไฟล์แนบ
+dms.edit.floor,ชั้น
+dms.edit.geoUnavailable,ข้อมูลที่อยู่ยังโหลดไม่ได้ กรุณาลองใหม่สักครู่
+dms.edit.house,เลขที่
+dms.edit.idCard,สำเนาบัตรประชาชน
+dms.edit.idWarn,หากแก้ไขข้อมูลลูกค้า ระบบจะอัปเดตข้อมูลลูกค้าใน DMS เมื่อกดยืนยัน
+dms.edit.invalidAmount,กรุณาระบุจำนวนเงินที่ถูกต้องและมากกว่าศูนย์
+dms.edit.invalidField,กรุณาตรวจสอบข้อมูลในช่อง {0}
+dms.edit.invalidPayment,กรุณาเลือกช่องทางชำระเงินที่ถูกต้อง
+dms.edit.liffUnavailable,หน้าสำหรับ OA นี้ยังไม่เปิดใช้งาน กรุณาเปิดเมนู DMS ใหม่จาก LINE
+dms.edit.loading,กำลังโหลดข้อมูล…
+dms.edit.masterChanged,ตัวเลือกเปลี่ยนไปแล้ว กรุณาใช้สรุปล่าสุดใน LINE แล้วลองอีกครั้ง
+dms.edit.masterUnavailable,ยังโหลดตัวเลือกล่าสุดจาก DMS ไม่ได้ กรุณาลองใหม่อีกครั้ง
+dms.edit.moo,หมู่ที่
+dms.edit.name,ชื่อ นามสกุล
+dms.edit.noOptions,ไม่มีตัวเลือก
+dms.edit.notAttached,ยังไม่ได้แนบไฟล์
 dms.edit.other,อื่นๆ
-dms.card.TXT_EDIT_UNAVAILABLE,ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ
-dms.card.MSG_BIND_GREETING,สวัสดีครับ นี่คือผู้ช่วย DMS\nกรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม เพื่อผูกบัญชีให้เสร็จ
-dms.card.MSG_BIND_OK,ผูกบัญชีสำเร็จ บัญชี: {0}\nตอนนี้ส่งงานให้ผมได้เลย
-dms.card.MSG_BIND_BAD_CODE,รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ
-dms.card.MSG_BIND_UNBOUND,ยกเลิกการผูกแล้ว หากต้องการใช้ใหม่ กรุณาสร้างรหัสผูกใหม่
-dms.card.MSG_BIND_NEED,ยังไม่ได้ผูกบัญชี กรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม
-dms.card.MSG_BIND_HELP,บัญชีที่ผูกแล้ว: {0}\nพิมพ์ «{1}» เพื่อยกเลิกการผูก
+dms.edit.paint,สีรถ
+dms.edit.payment,ช่องทางชำระเงิน
+dms.edit.paymentDetailRequired,กรุณากรอกรายละเอียดการชำระเงินที่จำเป็นให้ครบ
+dms.edit.paymentRequired,กรุณาระบุช่องทางชำระเงินอย่างน้อยหนึ่งช่องทาง
+dms.edit.phone,เบอร์โทร
+dms.edit.place,สถานที่รับจอง
+dms.edit.postcode,รหัสไปรษณีย์
+dms.edit.postcodeMissing,กรุณาเลือกรหัสไปรษณีย์จากรายการที่กำหนด
+dms.edit.prefix,คำนำหน้า
+dms.edit.previewSendFailed,ส่งสรุปใหม่ไปที่ LINE ไม่สำเร็จ กรุณาลองอีกครั้ง
+dms.edit.province,จังหวัด
+dms.edit.regis,จดทะเบียนในนาม
+dms.edit.regisName,ชื่อผู้จดทะเบียน
+dms.edit.remove,ลบ
+dms.edit.road,ถนน
+dms.edit.room,ห้อง
+dms.edit.save,บันทึกและส่งสรุปใหม่
+dms.edit.saved,บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย
+dms.edit.slip,ใบโอนเงินจอง
+dms.edit.slipConflict,มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก
+dms.edit.slipRequired,การโอนเงินต้องมีสลิป ร่างนี้ยังไม่มีสลิป กรุณานำช่องทางเงินโอนออก หรือเริ่มทำใบจองใหม่ใน LINE และแนบสลิป
+dms.edit.soi,ตรอก/ซอย
+dms.edit.source,บัญชีต้นทาง
+dms.edit.sourceAccount,เลขบัญชีต้นทาง
+dms.edit.sourceAccountName,ชื่อบัญชีต้นทาง
+dms.edit.sourceBank,ธนาคารต้นทาง
+dms.edit.sourceBranch,สาขาต้นทาง
+dms.edit.sub,แก้ข้อมูลแล้วบันทึก ระบบจะส่งสรุปใหม่กลับไปที่ LINE ก่อนบันทึกจริง
+dms.edit.subdistrict,ตำบล/แขวง
+dms.edit.term,เงื่อนไขการขาย
+dms.edit.title,แก้ไขใบจอง
+dms.edit.total,ยอดเงินจองรวม
+dms.edit.transfer,เงินโอน
+dms.edit.village,หมู่บ้าน
+dms.err.ERR_CRED_DECRYPT,ถอดรหัสข้อมูลรับรองไม่สำเร็จ
+dms.err.ERR_DMS_ADMIN_AUTH,เข้าสู่ระบบด้วยบัญชีผู้ดูแล DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่านผู้ดูแล
+dms.err.ERR_DMS_ADVISOR_REQUIRED,ใบจองนี้ยังไม่ได้กำหนดที่ปรึกษาการขาย กรุณาให้ผู้ดูแลกำหนดที่ปรึกษาให้บัญชี DMS นี้ แล้วเปิดใบจองใหม่
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,ไม่พบที่ปรึกษาการขายรายนี้ในรายชื่อที่ปรึกษาของ DMS กรุณาให้ผู้ดูแลเพิ่มบัญชีนี้ในรายชื่อที่ปรึกษาการขาย หรือติดต่อทีม Pearnly เพื่อกำหนดให้
+dms.err.ERR_DMS_AUTH,เข้าสู่ระบบ DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่าน
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้
+dms.err.ERR_DMS_BOOKING_PATCH,เติมข้อมูลใบจองไม่สำเร็จ — กรุณาลองใหม่
+dms.err.ERR_DMS_CONCURRENT_LOGIN,บัญชี DMS นี้กำลังถูกใช้งานที่อื่น · กรุณาออกจากระบบที่อื่นแล้วลองใหม่
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่
+dms.err.ERR_DMS_CUSTOMER_SAVE,บันทึกลูกค้าเข้า DMS ไม่สำเร็จ — ตรวจสอบข้อมูลแล้วลองใหม่
+dms.err.ERR_DMS_IMPORT,สร้างใบจองรถไม่สำเร็จ — กรุณาลองใหม่
+dms.err.ERR_DMS_IMPORT_REPORT,DMS ปฏิเสธการนำเข้าใบจอง — ตรวจสอบรายละเอียดการจอง
+dms.err.ERR_DMS_MASTER_CHANGED,ข้อมูลหลักของ DMS เพิ่งมีการเปลี่ยนแปลง ระบบอัปเดตสรุปแล้ว กรุณาตรวจสอบและยืนยันอีกครั้ง
+dms.err.ERR_DMS_MASTER_EMPTY,ยังไม่ได้ตั้งค่าตัวเลือกข้อมูลหลักนี้ใน DMS กรุณาให้ผู้ดูแลเพิ่มข้อมูลใน DMS แล้วลองใหม่อีกครั้ง
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,อ่านข้อมูลหลักของ DMS ไม่ได้ชั่วคราว — กรุณาลองใหม่อีกครั้ง
+dms.err.ERR_DMS_MASTER_UNMATCHED,รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง
+dms.err.ERR_DMS_QUERY_SCOPE,บัญชี DMS นี้ยังไม่มีสิทธิ์ดูอันดับยอดขาย กรุณาติดต่อผู้ดูแล DMS
+dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
+dms.err.ERR_DMS_TEMPLATE,ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่
+dms.err.ERR_KMS_MISSING,เซิร์ฟเวอร์ยังไม่ตั้งค่าคีย์เข้ารหัส
+dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน
+dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright
+dms.err.ERR_UNEXPECTED,ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล

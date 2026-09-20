@@ -1,0 +1,70 @@
+{
+  "realm": "dms-line-lab",
+  "enabled": true,
+  "sslRequired": "none",
+  "resetPasswordAllowed": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "editUsernameAllowed": true,
+  "loginTheme": "pearnly",
+  "emailTheme": "pearnly",
+  "internationalizationEnabled": true,
+  "defaultLocale": "th",
+  "supportedLocales": [
+    "th",
+    "zh-CN",
+    "en",
+    "ja"
+  ],
+  "clients": [
+    {
+      "clientId": "dms-line-lab",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "line-lab-client-only",
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://dms-line-lab.localhost:8197/*"
+      ],
+      "attributes": {
+        "post.logout.redirect.uris": "http://dms-line-lab.localhost:8197/*"
+      }
+    }
+  ],
+  "users": [
+    {
+      "id": "09202609-2000-4000-8000-000000000001",
+      "username": "line-lab@example.test",
+      "email": "line-lab@example.test",
+      "firstName": "LINE Laboratory",
+      "enabled": true,
+      "emailVerified": true,
+      "attributes": {
+        "locale": [
+          "th"
+        ]
+      },
+      "credentials": [
+        {
+          "type": "password",
+          "value": "LineLab-2026-Local",
+          "temporary": false
+        }
+      ],
+      "lastName": "Local Test",
+      "realmRoles": [
+        "default-roles-dms-line-lab"
+      ]
+    }
+  ],
+  "smtpServer": {
+    "host": "mail",
+    "port": "2525",
+    "from": "no-reply@example.test",
+    "fromDisplayName": "Pearnly Local Lab",
+    "ssl": "false",
+    "starttls": "false",
+    "auth": "false"
+  }
+}

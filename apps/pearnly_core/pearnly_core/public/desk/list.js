@@ -6,9 +6,10 @@
 	class ProductList extends frappe.views.BaseList {
 		constructor(options) {
 			super(options);
+			if (options.container) this.page = Object.assign(Object.create(this.page), {main: $(options.container)});
 			this.parent = {page: this.page};
-			Object.assign(this, {view: "List", start: 0, page_length: 20,
-				selected_page_count: 20, data: [], total: 0, sequence: 0,
+			Object.assign(this, {view: "List", start: 0, page_length: options.page_length || 20,
+				selected_page_count: options.page_length || 20, data: [], total: 0, sequence: 0,
 				hide_filters: true, hide_sort_selector: true, column_max_widths: {},
 				link_field_title_fields: {}, list_view_settings: {}});
 			this.settings = {formatters: {}, button: options.button};
@@ -24,7 +25,10 @@
 				return {type: i === 0 ? "Subject" : "Field", df: {fieldtype: "Data", ...column}};
 			});
 			this.page.main.addClass("layout-main-list list-view");
-			this.ready = frappe.model.with_doctype(this.doctype).then(() => this.setup_main_section()).then(() => {
+			this.ready = frappe.model.with_doctype(this.doctype).then(() => {
+				if (!this.destroyed) return this.setup_main_section();
+			}).then(() => {
+				if (this.destroyed) return;
 				this.$frappe_list.toggleClass("pearnly-list-with-actions", Boolean(this.row_actions));
 				this.$frappe_list.toggleClass("pearnly-compact-list", Boolean(this.compact_columns));
 				if (this.selectable) this.setup_check_events();
@@ -52,9 +56,9 @@
 				});
 				// BaseList normally does this in refresh() and via cur_list. Product Pages
 				// use scoped APIs, so retain its sizing on refresh, resize and return navigation.
-				const layout = () => this.resize_list();
-				$(window).on("resize", frappe.utils.debounce(layout, 300));
-				this.page.wrapper.on("show", layout);
+				this.layout_handler = frappe.utils.debounce(() => this.resize_list(), 300);
+				$(window).on("resize", this.layout_handler);
+				this.page.wrapper.on("show", this.layout_handler);
 				return this.refresh();
 			});
 		}
@@ -133,7 +137,7 @@
 			return actions.outerHTML;
 		}
 		resize_list() {
-			if (!this.page.main.is(":visible")) return;
+			if (this.destroyed || !this.page.main.is(":visible")) return;
 			if (this.compact_columns) this.apply_column_widths();
 			const actions = this.$result.find(".pearnly-row-actions").get();
 			if (actions.length) {
@@ -153,7 +157,19 @@
 					width: "100%", minWidth: frappe.is_mobile() ? "100%" : minWidth,
 				});
 			}
-			this.set_result_height();
+			if (this.container) {
+				// Embedded home ledger shares native rendering/paging, but is not the
+				// full-page list whose height Frappe derives from the viewport top.
+				this.$frappe_list.find(".result-container").css({height: "auto", maxHeight: "60vh"});
+			} else this.set_result_height();
+		}
+		destroy() {
+			this.destroyed = true;
+			++this.sequence;
+			$(window).off("resize", this.layout_handler);
+			this.page.wrapper.off("show", this.layout_handler);
+			this.$result?.find("[data-original-title]").tooltip("dispose");
+			this.$frappe_list?.remove();
 		}
 		async reload() {
 			this.start = 0;
@@ -161,6 +177,7 @@
 			return this.refresh();
 		}
 		async refresh() {
+			if (this.destroyed) return;
 			const request = ++this.sequence;
 			const start = this.start, length = this.page_length;
 			this.freeze(true);

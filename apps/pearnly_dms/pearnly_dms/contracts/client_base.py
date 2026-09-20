@@ -38,3 +38,12 @@ def excel_serial(d: date) -> int:
 def to_be_date(d: date) -> str:
     """公历 → 佛历 dd/mm/yyyy（年份 + 543）。"""
     return f"{d.day:02d}/{d.month:02d}/{d.year + 543}"
+
+
+def parse_be_date(value: str) -> date:
+    """Validate Buddhist-calendar input using the corresponding Gregorian year."""
+    day, month, year = (int(part) for part in str(value).split("/"))
+    result = date(year - 543, month, day)
+    if to_be_date(result) != value:
+        raise ValueError("Expected dd/mm/yyyy in the Buddhist calendar")
+    return result

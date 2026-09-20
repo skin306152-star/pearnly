@@ -23,6 +23,8 @@ Balance After,変動後の残高
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",月額を支払う残高が足りません（必要 ฿{0}、残高 ฿{1}）
 Basic Info,基本情報
 Bench Group,実行グループ
+Billing Mode,課金方式
+Billing Month,課金対象月
 Billing Units,課金単位
 Billing service unavailable; please retry,課金サービスを利用できません。もう一度お試しください
 Build the workspace,ワークスペースを作成

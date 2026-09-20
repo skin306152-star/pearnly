@@ -22,6 +22,8 @@ Balance After,Balance After
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})","Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})"
 Basic Info,Basic Info
 Bench Group,Bench Group
+Billing Mode,Billing Mode
+Billing Month,Billing Month
 Billing Units,Billing Units
 Build the workspace,Build the workspace
 "Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"

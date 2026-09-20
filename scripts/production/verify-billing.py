@@ -63,7 +63,7 @@ with ThreadPoolExecutor(4) as pool:
 frappe.db.rollback()
 assert all(r.get("ok") for r in results), results
 assert sum(bool(r.get("duplicate")) for r in results) == 3, results
-assert billing.balance_of(tenant) == Decimal("495.50")
+assert billing.balance_of(tenant) == Decimal("498.50")
 assert frappe.db.count(billing.TXN, {"tenant": tenant, "reference": ref}) == 1
 print("PASS concurrent OCR retries charge once")
 
@@ -73,12 +73,12 @@ with ThreadPoolExecutor(4) as pool:
         tenant, product="dms", kind="pdf", units=1, tier="A", reference=f"{prefix}:scan-{n+2}")), range(4)))
 frappe.db.rollback()
 assert all(r.get("ok") for r in results), results
-assert billing.balance_of(tenant) == Decimal("477.50")
+assert billing.balance_of(tenant) == Decimal("492.50")
 assert frappe.db.count(billing.TXN, {"tenant": tenant, "type": "usage"}) == 5
 print("PASS distinct concurrent scans keep all five deductions")
 
 assert billing.subscribe(tenant, "S")["ok"]
-assert billing.balance_of(tenant) == Decimal("327.50")
+assert billing.balance_of(tenant) == Decimal("342.50")
 sub_result = billing.charge(tenant, product="dms", kind="pdf", units=1, reference=prefix+":plan")
 assert sub_result["charged_thb"] == 0
 assert billing.subscription_view(tenant)["pages_used_this_cycle"] == 1
@@ -92,7 +92,7 @@ with ThreadPoolExecutor(4) as pool:
 frappe.db.rollback()
 assert all(r.get("ok") for r in results), results
 assert billing.subscription_view(tenant)["pages_used_this_cycle"] == 5
-assert billing.balance_of(tenant) == Decimal("327.50")
+assert billing.balance_of(tenant) == Decimal("342.50")
 print("PASS concurrent plan scans retain all quota usage")
 for value in ["NaN", "Infinity", "invalid"]:
     try:

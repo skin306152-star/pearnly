@@ -35,7 +35,7 @@ PREFIX = "pearnly:dms:browser-ticket:"
 # 30 分钟：够打开页面、改一遍、保存；和 `booking_review` 的会话 TTL 同量级。
 TTL_SECONDS = 30 * 60
 
-MODES = ("booking", "customer")
+MODES = ("booking", "customer", "account")
 
 
 def _key(ticket: str) -> str:
@@ -44,7 +44,13 @@ def _key(ticket: str) -> str:
 
 def normalize_mode(mode: str) -> str:
     """编辑模式归一：只认订车与客户档，别的值一律当订车（老产品 `_editor(mode)` 同款判据）。"""
-    return "customer" if str(mode or "").strip() == "customer" else "booking"
+    value = str(mode or "").strip()
+    return value if value in MODES else "booking"
+
+
+def _binding_identity(line_user_id: str):
+    from pearnly_dms.line.identity import current
+    return current(line_user_id)
 
 
 def issue(line_user_id: str, mode: str) -> str:
@@ -53,10 +59,13 @@ def issue(line_user_id: str, mode: str) -> str:
 
     if not line_user_id:
         raise ValueError("ticket requires a line_user_id")
+    identity = _binding_identity(line_user_id)
+    if not identity:
+        frappe.throw("dms_booking.not_bound", frappe.PermissionError)
     ticket = secrets.token_urlsafe(32)
     frappe.cache().set_value(
         _key(ticket),
-        {"line_user_id": str(line_user_id), "mode": normalize_mode(mode)},
+        {"line_user_id": str(line_user_id), "mode": normalize_mode(mode), **identity},
         expires_in_sec=TTL_SECONDS,
     )
     return ticket
@@ -79,7 +88,10 @@ def resolve(ticket: str) -> Optional[Dict[str, Any]]:
     line_user_id = str(blob.get("line_user_id") or "")
     if not line_user_id:
         return None
-    return {"line_user_id": line_user_id, "mode": normalize_mode(blob.get("mode"))}
+    identity = _binding_identity(line_user_id)
+    if not identity or any(blob.get(key) != value for key, value in identity.items()):
+        return None
+    return {"line_user_id": line_user_id, "mode": normalize_mode(blob.get("mode")), **identity}
 
 
 def revoke(ticket: str) -> None:

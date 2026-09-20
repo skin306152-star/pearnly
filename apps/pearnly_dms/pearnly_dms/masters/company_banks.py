@@ -215,6 +215,9 @@ def _fetch_banks(adapter: Any, elemname: str, *, client: Any = None) -> List[lis
             reader = client or adapter.client()
             rows = reader._bshsd_all(elemname, page_size=200)
             if rows is not None:
+                if elemname == 'txtbanknametfmon':
+                    from pearnly_dms.client.master_status import active_company_banks
+                    rows = active_company_banks(reader, rows)
                 return normalize_company_bank_rows(rows)
             failure = RuntimeError("DMS bank typeahead returned no result")
         except Exception as exc:

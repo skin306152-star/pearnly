@@ -5,13 +5,8 @@
 POST 上去的**（真机取证："填谁存谁"，与登录账号无关；三个键留空则整单被拒收）。
 老实现恒填顾问主档第一行 → **全公司的单都记到同一个人头上**。
 
-匹配分两层，精确优先：
-
-1. **精确层**（`dms_employees.py`）：登录名 ↔ 员工表 `login` 列 → 员工 id 回顾问下拉校验。
-   员工表是唯一带登录名的表 —— 顾问下拉的 `code` 列其实是员工**编号**（测试站两者相等
-   只是录入习惯，真机取证过）。
-2. **启发层**（`match_advisor`）：只在员工表拿不到（权限/接口变更）时才用，拿登录名去猜
-   顾问下拉的 code/name 列。
+自动匹配只使用员工表 login → 员工 ID → 有效顾问 ID。员工编号和姓名不是登录身份，
+取数失败、零命中或重复登录名都不能借它们猜测归属。管理员明确指定的顾问 ID 仍可使用。
 
 账号不在顾问名册（老板借号、代录员）时，可以在端点上**钉死归属**，钉死优先于一切匹配。
 钉死只认那个 **id**：文字（name）每次按 id 从**实时**名册重解，存下来的名字不作数 ——
@@ -77,19 +72,13 @@ def match_advisor(advisors: List[list], dms_username: str) -> Optional[Dict[str,
 
 
 def match_in_masters(masters: Optional[Dict[str, Any]], username: str) -> Optional[Dict[str, str]]:
-    """主档快照 + 登录名 → 顾问；认不准弃权。**精确层优先，员工表缺料才回落启发层。**
-
-    精确层认出人就地定论：该员工在顾问下拉里 → 归属他；不在 → None（拦截）。
-    "不在下拉" = 职位/团队不够当顾问，是**合法状态、不是取数失败**；此时再让启发层去比
-    code/name，只会把单记到别人头上 —— 在"编号 ≠ 登录名"的车行里，
-    A 的编号完全可能正是 B 的登录名。
-    """
+    """只有登录名唯一匹配、且同一 ID 在顾问名册中，才允许自动归属。"""
     advisors = (masters or {}).get("advisors") or []
     employee = dms_employees.match_by_login((masters or {}).get("employees") or [], username)
     if employee is not None:
         row = row_by_id(advisors, employee.get("id"))
         return _ref(row) if row is not None else None
-    return match_advisor(advisors, username)
+    return None
 
 
 def resolve_operator_advisor(

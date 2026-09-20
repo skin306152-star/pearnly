@@ -6,3 +6,4 @@
 # Patches added in this section will be executed after doctypes are migrated
 pearnly_core.patches.v0_0_1_rename_cjk_roles
 pearnly_core.patches.v0_0_2_product_desk_permissions
+pearnly_core.patches.v0_0_3_bind_code_index

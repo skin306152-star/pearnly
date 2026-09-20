@@ -222,72 +222,9 @@ class DmsClientOpsMixin:
         }
 
     def attach_booking_files(self, *, booking_id: str, files: list) -> dict:
-        """给已存在的订车单挂附件 —— 逐文件独立一轮 `edit.php` POST，失败不中断。
-
-        DMS 的上传契约（老产品真机抓包确认）：上传 = POST `drfcbc/edit.php` 提交
-        **完整编辑表单**的 FormData，不是独立小接口。**只发新文件字段会把订车单既有
-        字段冲空**。所以先载入编辑表单解析全部现值，再逐件追加 `fulnew[]`/`fulnewname[]`；
-        全部跑完回读校验（HTTP 200 不算数）。
-
-        `files` 元素：`{"display_name", "filename", "content_type", "content"}`。
-        返回 `{"ok", "attached", "failed": [{"display_name", "error"}]}`。
-        """
-        if not files:
-            return {"ok": True, "attached": 0, "failed": []}
-
-        # 编辑表单的加载参数名以真机抓包为准。
-        form_html = self._post_text("drfcbc/form.php", {"status": "e", "id": str(booking_id)})
-        base = self._parse_form_defaults(form_html)
-        if base.get("stsel") != "e" or base.get("idsel") != str(booking_id):
-            raise DmsClientError(
-                f"booking attach form mismatch: stsel={base.get('stsel')!r} "
-                f"idsel={base.get('idsel')!r} vs booking_id={booking_id!r}",
-                "ERR_DMS_IMPORT",
-            )
-        docno_before = base.get("txtdocno")
-
-        attached = 0
-        failed: List[Dict[str, str]] = []
-        uploaded: List[str] = []  # POST 判绿的件，留待回读校验
-        for item in files:
-            display = str(item.get("display_name") or "")[:150]
-            data = dict(base)
-            data["fulnewname[]"] = display
-            resp = self.transport.post(
-                self._url("drfcbc/edit.php"),
-                data=data,
-                files={"fulnew[]": (item["filename"], item["content"], item["content_type"])},
-                timeout_ms=120000,
-            )
-            body = (resp.text or "").strip()
-            if resp.status_code == 200 and not body.startswith("err::"):
-                uploaded.append(display)
-            else:
-                failed.append(
-                    {
-                        "display_name": display,
-                        "error": f"edit.php http={resp.status_code} {body[:200]}",
-                    }
-                )
-
-        # 回读校验：HTTP 200 不算数，附件必须真渲染在表单上、且没把单据冲坏。
-        if uploaded:
-            verify = self._parse_form_defaults(
-                self._post_text("drfcbc/form.php", {"status": "e", "id": str(booking_id)})
-            )
-            current_names = {v for k, v in verify.items() if k.startswith("fulcurrname")}
-            docno_ok = verify.get("txtdocno") == docno_before
-            for display in uploaded:
-                if not docno_ok:
-                    failed.append({"display_name": display, "error": "readback docno changed"})
-                elif display not in current_names:
-                    failed.append(
-                        {"display_name": display, "error": "readback missing display name"}
-                    )
-                else:
-                    attached += 1
-
-        return {"ok": not failed, "attached": attached, "failed": failed}
+        """Append idempotently from a fresh native form and verify each file."""
+        from pearnly_dms.client.attachments import attach
+        return attach(self, booking_id=booking_id, files=files)
 
     def fetch_masters(self, *, strict: bool = False) -> Dict[str, List[List[Any]]]:
         """拉连接向导要的下拉列表。尽力而为：读不到/不可解析的列表回 `[]`。
@@ -338,9 +275,9 @@ class DmsClientOpsMixin:
             out["prefixes"] = self.list_prefixes() or []
         except Exception:
             out["prefixes"] = []
-        # 员工表带登录名，是顾问归属的**精确层**（顾问下拉的 code 列只是员工编号）。
-        # 销售账号未必有员工页权限 → 取不到就落 []，调用方回落启发式匹配。
-        out["employees"] = dms_employees.fetch_employees(self) or []
+        # Preserve unavailable vs authoritative empty. Automatic assignment never
+        # guesses identity from an employee code or display name.
+        out["employees"] = dms_employees.fetch_employees(self)
         return out
 
     def resolve_booking_payload(
@@ -516,5 +453,10 @@ class DmsClientOpsMixin:
             logger.warning(
                 "[dms] 主档 %s 在第 %d 页被截断 / 已取 %d 行", elemname, max_pages, len(rows)
             )
+            return None  # Never return a partial catalogue as complete.
+        if elemname == "txtcar":
+            from pearnly_dms.client.master_status import active_models
+
+            rows = active_models(self, rows, page_size=page_size, max_pages=max_pages)
         memo[key] = rows
         return rows

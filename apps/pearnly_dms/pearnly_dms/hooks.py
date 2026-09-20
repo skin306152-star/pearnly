@@ -10,6 +10,24 @@ app_license = "mit"
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # ERP / Cowork 将来各自加一行即可，传输层不用改。
 pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
+pearnly_line_binding_changed = ["pearnly_dms.line.identity.binding_changed", "pearnly_dms.menu.rich_menu.request_sync"]
+
+doc_events = {
+    "DMS Operator": {
+        "on_update": "pearnly_dms.menu.rich_menu.operator_changed",
+        "on_trash": "pearnly_dms.menu.rich_menu.operator_changed",
+    },
+    "Pearnly ERP Endpoint": {
+        "on_update": "pearnly_dms.operators.endpoints.sync_shared_connection",
+    },
+}
+schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
+scheduler_events = {"cron": {
+    "*/10 * * * *": [schedule_menu_reconciliation],
+    "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
+                      "pearnly_dms.booking.delivery.schedule_due",
+                      "pearnly_dms.booking.claim_recovery.schedule_due"],
+}}
 
 # Apps
 # ------------------
@@ -269,3 +287,7 @@ pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
 # ignore_translatable_strings_from = []
 
 app_include_js = [versioned_asset("pearnly_dms", "desk/connect.js"), versioned_asset("pearnly_dms", "desk/roster.js"), versioned_asset("pearnly_dms", "desk/records.js")]
+
+# Only OCR is resumable here; external order writers retain their own ledger.
+pearnly_ocr_handlers = {"dms.id_card": "pearnly_dms.line.out.run_image"}
+pearnly_ocr_failure_handlers = {"dms.id_card": "pearnly_dms.line.out.ocr_failed"}

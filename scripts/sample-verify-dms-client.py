@@ -135,7 +135,7 @@ def main():
     check("员工行解析",
           parsed == [{"id": "337", "code": "WKC99", "login": "wkuser99", "name": "สมชาย"}],
           parsed)
-    check("空 body → 空列表（员工表真的没人）", dms_employees.parse_employee_rows("") == [])
+    check("空 body → 读取失败（不是空名册）", dms_employees.parse_employee_rows("") is None)
     check("ndt:: 无行 → 空列表", dms_employees.parse_employee_rows("ndt::no rows") == [])
     check("有内容却解不出 → None（取数挂了，不是没人）",
           dms_employees.parse_employee_rows("<html>login page</html>") is None,
@@ -196,6 +196,7 @@ def main():
 
     # ══ 5. 主档：钉了 id 就不许回落（这条最贵） ══════════════════════════
     masters = FakeTransport(routes={
+        "car/component/showdata.php": lambda data: '<div onclick="ctllistdata(this);" data-val="7"><p>-</p></div>',
         "drfcbc/component/bshsd.php": lambda data: json.dumps(
             [["7", "CAMRY", "Camry", "0", "Toyota"]] if data.get("elemname") == "txtcar"
             else [["3", "ADV1", "Sales One", "0812345678"]] if data.get("elemname") == "txtusers"
@@ -219,7 +220,14 @@ def main():
         stop = min(1 + page * amt, 251)
         return json.dumps([["%d" % i, "C%d" % i, "N%d" % i] for i in range(start, stop)])
 
-    paged = FakeTransport(routes={"drfcbc/component/bshsd.php": paged_rows})
+    def native_models(data):
+        start = 1 + (int(data["sdtpage"]) - 1) * int(data["sdtamt"])
+        stop = min(start + int(data["sdtamt"]), 251)
+        return "".join('<div onclick="ctllistdata(this);" data-val="%s"><p>-</p></div>' % i
+                       for i in range(start, stop))
+
+    paged = FakeTransport(routes={"drfcbc/component/bshsd.php": paged_rows,
+                                  "car/component/showdata.php": native_models})
     cl3 = DmsClient(paged, "https://example.test/dms/")
     allrows = cl3._bshsd_all("txtcar", page_size=200)
     check("主档翻页取全（250 行要翻两页）",

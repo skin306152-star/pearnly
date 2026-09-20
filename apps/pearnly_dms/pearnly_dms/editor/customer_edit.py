@@ -55,7 +55,8 @@ def load(line_user_id: str, nonce: str) -> dict:
     _, payload, endpoint = _review(line_user_id, nonce)
     customer = dict(payload.get("draft") or {})
     snapshot = editor._snapshot(
-        endpoint, customer=customer, customer_id=payload.get("customer_id", "")
+        endpoint, customer=customer,
+        customer_id="" if payload.get("customer_edited") else payload.get("customer_id", "")
     )
     # 先把 OCR 的称谓在主档里解出 id（解不出就留空，交给用户在下拉里选）。
     title = customer.get("prefix_name") or (payload.get("id_card") or {}).get("prefix_name")
@@ -119,6 +120,7 @@ def _card(
         }
     }
     new.update(
+        customer_edited=True,
         draft=customer,
         summary=summary,
         id_card=incoming,

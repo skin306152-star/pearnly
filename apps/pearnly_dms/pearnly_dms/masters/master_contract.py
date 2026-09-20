@@ -39,8 +39,9 @@ _ANSWER_SPECS = (
     ("term", "term_sales", "term", "name", row_name),
     ("regis", "regis_behalfs", "regis", "name", row_name),
 )
-# 回退重问时，从这个顺序起把后面的答案全清掉（因为后面的依赖前面的）
-_ANSWER_ORDER = ("place", "car", "paint", "delivery_date_be", "term", "regis", "regis_name")
+# Only model -> color is dependent. Dates, payments and customer input survive.
+_REPAIR_STEPS = {"place": "place", "car": "car_search", "paint": "paint",
+                 "term": "term", "regis": "regis"}
 
 
 class MasterSyncError(RuntimeError):
@@ -155,18 +156,13 @@ def _missing_result(qa: dict, field: str, snapshot: dict, paints: List[list]) ->
             "code": "ERR_DMS_MASTER_UNMATCHED",
         }
 
-    start = _ANSWER_ORDER.index(field)
-    for answer_key in _ANSWER_ORDER[start:]:
+    repair_fields = ["car", "paint"] if field == "car" else [field]
+    for answer_key in repair_fields:
         answers.pop(answer_key, None)
-    updated["payments"] = []
-    updated["pending_channel"] = {}
-    updated["step"] = {
-        "place": "place",
-        "car": "car_search",
-        "paint": "paint",
-        "term": "term",
-        "regis": "regis",
-    }[field]
+    updated["repair_fields"] = repair_fields
+    updated.pop("car_search", None)
+    updated.pop("pages", None)
+    updated["step"] = _REPAIR_STEPS[field]
     if field == "paint" and paints:
         updated["paint_snapshots"] = {
             str((answers.get("car") or {}).get("id") or ""): build_paint_snapshot(

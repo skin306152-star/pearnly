@@ -22,6 +22,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional
 
 from pearnly_core.session_lock import account_lock, dms_booking_key
+from pearnly_dms.contracts.endpoint import endpoint_name
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +35,13 @@ def booking_lock(endpoint: Any, timeout_sec: float = 180.0):
     """
     import frappe
 
-    name = endpoint if isinstance(endpoint, str) else str(
-        getattr(endpoint, "name", "") or (endpoint or {}).get("name") or ""
-    )
-    system_url = ""
-    try:
-        system_url = str(
-            frappe.db.get_value("Pearnly ERP Endpoint", name, "system_url") or ""
-        )
-    except Exception:
-        logger.warning("[dms booking] 读 system_url 失败，锁键会退化成空地址", exc_info=True)
-    with account_lock(dms_booking_key(system_url)) as got:
+    name = endpoint_name(endpoint)
+    if not name:
+        raise ValueError("DMS endpoint is required")
+    system_url = str(frappe.db.get_value("Pearnly ERP Endpoint", name, "system_url") or "").strip()
+    if not system_url:
+        raise ValueError("DMS endpoint system URL is required")
+    with account_lock(dms_booking_key(system_url), timeout_sec=timeout_sec) as got:
         yield got
 
 
@@ -108,76 +105,80 @@ def book_in_session(
     只有这一个门进建单，半路丢了回调等于登记永远不生效 —— 而症状只在超时/重发时出现。
     真正的"登记先于写"判据在 `dms_booking_submit.submit_booking`（脚本 5.2 钉住）。
     """
-    from pearnly_dms.booking.booking_customer import card_from_customer
-    from pearnly_dms.contracts.client_base import DmsClientError
-    from pearnly_dms.masters.company_banks import fetch_company_banks, validate_company_bank_payments
-    from pearnly_dms.intake.service import run_logged_in
-    from pearnly_dms.masters.master_contract import reconcile
-    from pearnly_dms.masters.masters_cache import refresh_from_client
-    from pearnly_dms.contracts.models import BookingDefaults
+    from pearnly_dms.adapter.admin_read import authoritative_read_session
     from pearnly_dms.adapter.push import booking_defaults_from_endpoint
-    from pearnly_dms.booking.conversation.qa_util import find_row
+    from pearnly_dms.booking.booking_customer import card_from_customer
+    from pearnly_dms.booking.booking_org import resolve_booking_org
+    from pearnly_dms.booking.booking_payload import build_booking_payload
+    from pearnly_dms.booking.booking_preflight import readonly_preflight
+    from pearnly_dms.contracts.payments import validate_payment_completeness
+    from pearnly_dms.intake.service import err, run_logged_in
+    from pearnly_dms.masters.company_banks import fetch_payment_bank_masters, validate_company_bank_payments
+    from pearnly_dms.masters.masters_cache import write_authoritative_snapshot
 
+    # Resolver returns a mapping; Frappe treats mappings as SQL filters, not document names.
+    endpoint = endpoint_name(endpoint)
+    if not endpoint:
+        return err("ERR_NO_CREDS")
     qa = payload.get("qa") or {}
-    answers = qa.get("answers") or {}
-    adv = qa.get("advisor") or {}
-    defaults = dataclasses.replace(
-        booking_defaults_from_endpoint(endpoint),
-        advisor_id=str(adv.get("id") or ""),
-        # 主档列表抖动时建单层按名字降级落顾问，所以名字也要一路带到 defaults
-        advisor_name=str(adv.get("name") or ""),
-        car_id=str((answers.get("car") or {}).get("id") or ""),
-        paint_id=str((answers.get("paint") or {}).get("id") or ""),
-        place_book_id=str((answers.get("place") or {}).get("id") or ""),
-        term_sale_id=str((answers.get("term") or {}).get("id") or ""),
-        regis_behalf_id=str((answers.get("regis") or {}).get("id") or ""),
-    )
-    card = card_payload(payload)
-    delivery_be = str(answers.get("delivery_date_be") or "")
-    customer_id = str((qa.get("customer") or {}).get("id") or "")
 
     def _do(cl, adapter):
-        live_masters = {
-            **cl.fetch_masters(strict=True),
-            "company_banks": fetch_company_banks(adapter),
-        }
-        selected_car_id = str((answers.get("car") or {}).get("id") or "")
-        selected_car = find_row(live_masters.get("cars"), selected_car_id)
-        live_paints: List[list] = []
-        if selected_car is not None:
-            live_paints = cl._bshsd_all("txtcarpaint", idcar=selected_car_id)
-            if live_paints is None:
-                raise DmsClientError(
-                    f"DMS paint master unavailable for car {selected_car_id!r}",
-                    "ERR_DMS_MASTER_UNAVAILABLE",
-                )
-        preflight = reconcile(qa, live_masters, live_paints)
-        if preflight["status"] != "ok":
-            return {
-                "ok": False,
-                "preflight": preflight["status"],
-                "field": preflight.get("field", ""),
-                "error_code": preflight.get("code", "ERR_DMS_MASTER_CHANGED"),
-                "qa": preflight["qa"],
-            }
-        payload["qa"] = preflight["qa"]
-
-        if qa.get("customer_dirty"):
-            draft = dict(qa.get("draft") or {})
-            draft["name"] = str((qa.get("customer") or {}).get("name") or "")
-            cl.save_customer(fields=draft, mode="overwrite", customer_id=customer_id)
-        master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
-        booking = cl.resolve_booking_payload(defaults, master_card)
-        if delivery_be:
-            payments = validate_company_bank_payments(adapter, qa.get("payments") or [])
-            booking = dataclasses.replace(
-                booking,
-                delivery_date_be=delivery_be,
-                regis_name=str(answers.get("regis_name") or ""),
-                payments=tuple(payments),
+        nonlocal qa
+        validate_payment_completeness(qa.get("payments") or [])
+        with authoritative_read_session(cl):
+            preflight = readonly_preflight(
+                cl, adapter, qa,
+                fetch_masters=lambda client: client.fetch_masters(strict=True),
+                fetch_payment_banks=lambda source: fetch_payment_bank_masters(source, client=cl),
             )
-        # 账套级互斥只护「取号 → 提交」：同账套不同销售账号并发时别撞单号。
-        # 客户写入 / 附件挂载 / 主档刷新这些慢步骤不进共享锁。
+            if preflight["status"] != "ok":
+                return {
+                    "ok": False,
+                    "preflight": preflight["status"],
+                    "field": preflight.get("field", ""),
+                    "error_code": preflight.get("code", "ERR_DMS_MASTER_CHANGED"),
+                    "qa": preflight["qa"],
+                }
+            qa = payload["qa"] = preflight["qa"]
+            answers = qa.get("answers") or {}
+            adv = qa.get("advisor") or {}
+            defaults = dataclasses.replace(
+                booking_defaults_from_endpoint(endpoint),
+                advisor_id=str(adv.get("id") or ""),
+                advisor_name=str(adv.get("name") or ""),
+                car_id=str((answers.get("car") or {}).get("id") or ""),
+                paint_id=str((answers.get("paint") or {}).get("id") or ""),
+                place_book_id=str((answers.get("place") or {}).get("id") or ""),
+                term_sale_id=str((answers.get("term") or {}).get("id") or ""),
+                regis_behalf_id=str((answers.get("regis") or {}).get("id") or ""),
+            )
+            card = card_payload(payload)
+            customer_id = str((qa.get("customer") or {}).get("id") or "")
+            # Master/identity reads can be slow. A reset or a rebind must revoke
+            # both the customer update and the later order submission.
+            guard = getattr(on_attempt, "assert_current", None)
+            if callable(guard):
+                import frappe
+                frappe.db.commit()
+                guard()
+            if qa.get("customer_dirty"):
+                draft = dict(qa.get("draft") or {})
+                draft["name"] = str((qa.get("customer") or {}).get("name") or "")
+                # DmsClient.save_customer restores the original sales writer transport.
+                cl.save_customer(fields=draft, mode="overwrite", customer_id=customer_id)
+            master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
+            org = resolve_booking_org(cl, defaults.advisor_id, defaults)
+            booking = build_booking_payload(
+                defaults, masters=preflight["masters"], paints=preflight["paints"], org=org,
+            )
+            payments = validate_company_bank_payments(adapter, qa.get("payments") or [], client=cl)
+        # Only submit on the original sales writer, using the single validated snapshot.
+        booking = dataclasses.replace(
+            booking,
+            delivery_date_be=str(answers.get("delivery_date_be") or booking.delivery_date_be),
+            regis_name=str(answers.get("regis_name") or ""),
+            payments=tuple(payments),
+        )
         with booking_lock(endpoint):
             booking_id, booking_no = cl.create_booking_via_form(
                 customer_id=customer_id, booking=booking, card=master_card,
@@ -186,10 +187,22 @@ def book_in_session(
         attached = 0
         failed = list(attach_failed or [])
         if attach_files:
-            res = cl.attach_booking_files(booking_id=booking_id, files=attach_files)
-            attached = int(res.get("attached") or 0)
-            failed += list(res.get("failed") or [])
-        refresh_from_client(endpoint, cl)
+            try:
+                res = cl.attach_booking_files(booking_id=booking_id, files=attach_files)
+                attached = int(res.get("attached") or 0)
+                failed += list(res.get("failed") or [])
+            except Exception:
+                logger.warning("[dms booking] attachment failed after booking commit", exc_info=True)
+                failed.append({"error_code": "ERR_DMS_ATTACHMENT"})
+        cache_updated = True
+        try:
+            write_authoritative_snapshot(
+                endpoint, preflight["masters"],
+                car_id=str((answers.get("car") or {}).get("id") or ""), paints=preflight["paints"],
+            )
+        except Exception:
+            cache_updated = False
+            logger.warning("[dms booking] cache failed after booking commit", exc_info=True)
         return {
             "ok": True,
             "booking_id": booking_id,
@@ -197,6 +210,7 @@ def book_in_session(
             "attach_ok": not failed,
             "attached": attached,
             "attach_failed": failed,
+            "cache_updated": cache_updated,
         }
 
     return run_logged_in(endpoint, _do)

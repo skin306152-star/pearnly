@@ -175,7 +175,7 @@ def create_operator(
     if dms_role not in VALID_ROLES:
         frappe.throw(_("Role must be sales or admin"))
 
-    if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1}):
+    if not frappe.db.exists("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1, "owner_user": ["is", "not set"]}):
         frappe.throw(_("roster.error.noConnection"))
 
     pinned = advisors.resolve(advisor_id)
@@ -300,7 +300,9 @@ def delete_operator(name: str) -> dict:
 
     frappe.delete_doc(OPERATOR, name, ignore_permissions=True, force=True)
     if frappe.db.exists("User", user):
-        frappe.delete_doc("User", user, ignore_permissions=True, force=True)
+        # Keep the audit identity and endpoint links; a removed operator cannot log in.
+        frappe.db.set_value("User", user, "enabled", 0)
+        frappe.clear_cache(user=user)
     frappe.db.commit()
     return {"deleted": name, "user": user}
 

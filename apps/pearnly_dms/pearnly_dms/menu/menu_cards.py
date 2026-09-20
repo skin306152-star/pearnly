@@ -10,15 +10,14 @@
 所以改成**本站点自己的地址**（`frappe.utils.get_url()` + `/assets/pearnly_dms/...`），
 图片随 app 走（`public/images/menu/`）。
 
-⚠️ **两行"网页入口"（第 3 项 进入 DMS / 第 4 项 改密码）这里不画**。它们指向门户页与
-凭证页，而那两页在新平台还没做（前端那批）；按本项目既定规矩 —— **点不动的按钮比没有
-更糟** —— 宁可不显示。页面到位后照老产品的 `menu_item(..., {"type": "uri", ...})`
-补回第 3/4 项即可（老产品那两行还有 `altUri.desktop` 的分支，一并照搬）。
+第 3/4 项与底部菜单共用 links.account_action，指向本站的身份验证、门户交接及
+本人 DMS 凭据维护入口。未配置 LIFF 时不显示无法使用的入口。
 """
 
 from __future__ import annotations
 
 from typing import Any, Dict
+from pearnly_dms.menu.links import account_action
 
 from pearnly_dms.line.cards import (
     ACT_MENU_BOOKING,
@@ -201,6 +200,13 @@ def menu_card(
             {"type": "postback", "data": _data(ACT_MENU_BOOKING)},
         ),
     ]
+    for num, kind, theme, title, desc in (
+        ("3", "portal", THEME_PURPLE, TXT_MENU_ITEM3, TXT_MENU_D3),
+        ("4", "credentials", THEME_GREEN, TXT_MENU_ITEM4, TXT_MENU_D4),
+    ):
+        action = account_action(kind, title)
+        if action:
+            contents.append(menu_item(num, "menu-" + num, theme, title, desc, action))
     if can_query:
         contents.append(
             menu_item(

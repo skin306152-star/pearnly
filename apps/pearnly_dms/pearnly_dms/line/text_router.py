@@ -106,7 +106,7 @@ def capture_phone(
         binding,
         line_user_id,
         {"phone": text},
-        keep=("id_card", "id_card_mid", "endpoint_id", "mode"),
+        keep=("id_card", "id_card_mid", "endpoint_id", "mode", "pending_image"),
         sess=sess,
     )
     if not payload.get("id_card"):

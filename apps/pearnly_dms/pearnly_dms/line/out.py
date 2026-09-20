@@ -87,10 +87,59 @@ def enqueue(job: str, fn, *args) -> None:
                 fn.__name__, len(names), len(args)
             )
         )
+    from pearnly_dms.line.identity import current
+
+    arguments = dict(zip(names, args))
+    identity = current(arguments.get("line_user_id"))
+    if not identity or identity["user"] != (arguments.get("binding") or {}).get("user_id"):
+        frappe.throw("dms_booking.not_bound", frappe.PermissionError)
+    arguments["binding"] = {**arguments["binding"], "binding_revision": identity["binding_revision"]}
+    # Show activity while the job is waiting, then the worker renews it on start.
+    start_loading(arguments["line_user_id"], 60)
+    if job == "image":
+        from pearnly_core.execution.work import submit
+        from pearnly_core.execution.errors import QueueFull, Deferred
+        try:
+            return submit("dms.id_card", str(arguments["message_id"]), arguments, identity["user"])
+        except (QueueFull, Deferred):
+            push_text(arguments["line_user_id"], _("The recognition queue is busy. Please send the image again shortly."))
+            raise
     frappe.enqueue(
-        f"{fn.__module__}.{fn.__name__}",
+        "pearnly_dms.line.out.run_guarded",
         queue="long",
         timeout=600,
         job_id=f"dms-{job}-{secrets.token_hex(4)}",
-        **dict(zip(names, args)),
+        target=f"{fn.__module__}.{fn.__name__}", arguments=arguments,
     )
+
+
+def run_guarded(target, arguments):
+    """Persisted queue entry: a rebind/revocation while waiting cancels stale work."""
+    import frappe
+    from pearnly_dms.line.identity import matches
+
+    if not str(target).startswith("pearnly_dms."):
+        raise ValueError("Invalid DMS job target")
+    if not matches(arguments.get("binding") or {}, arguments.get("line_user_id")):
+        return {"cancelled": "binding_changed"}
+    return frappe.get_attr(target)(**arguments)
+
+
+def run_image(binding, line_user_id, message_id):
+    """Registered resumable OCR entry; order writers are deliberately excluded."""
+    return run_guarded("pearnly_dms.intake.flow.process_image", {
+        "binding": binding, "line_user_id": line_user_id, "message_id": message_id})
+
+
+def ocr_failed(arguments, code):
+    from pearnly_dms.line.identity import matches
+    from pearnly_core import line_session
+
+    user = arguments.get("line_user_id")
+    payload = (line_session.get_session(user) or {}).get("payload") or {}
+    if (matches(arguments.get("binding") or {}, user)
+            and payload.get("pending_image") == arguments.get("message_id")):
+        text = (_("The recognition result needs checking. Please do not resend this image yet.")
+                if code == "provider_outcome_unknown"
+                else _("Recognition could not finish. Please try again shortly."))
+        push_text(user, text)

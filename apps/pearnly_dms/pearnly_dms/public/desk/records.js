@@ -54,7 +54,7 @@
 				// Microseconds from the ledger are noise here; the old page showed the minute.
 				{fieldname: "creation", label: t("connect.records.time"),
 					format: value => frappe.datetime.str_to_user(String(value ?? "").split(".")[0]).slice(0, 16)},
-				{fieldname: "actor", label: __("Operator")},
+				{fieldname: "actor_name", label: __("Operator")},
 				{fieldname: "business_key", label: t("connect.records.businessNumber")},
 				{fieldname: "error_code", label: t("connect.records.result"), format: (value, row) => value || (row.has_error_detail ? t("connect.records.contactSupport") : "—")},
 				{fieldname: "status", label: __("Status"), format: statusLabel},

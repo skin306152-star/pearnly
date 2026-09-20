@@ -83,7 +83,7 @@ services:
     image: redis:6.2-alpine@sha256:ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0
     restart: unless-stopped
     mem_limit: 256m
-    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec]
+    command: [redis-server, --appendonly, 'yes', --appendfsync, everysec, --maxmemory, 160mb, --maxmemory-policy, noeviction]
     volumes: [queue:/data]
     networks: [runtime]
     logging: *logging
@@ -134,10 +134,26 @@ services:
     profiles: [dms]
     <<: *worker
     mem_limit: 1g
+    command: [bench, worker-pool, --queue, 'short,default,long', --num-workers, '2']
     volumes: *dms-volumes
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  dms-ocr-worker:
+    profiles: [dms]
+    <<: *worker
+    mem_limit: 512m
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    volumes: *dms-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  dms-ocr-dispatch:
+    profiles: [dms]
+    <<: *runtime
+    mem_limit: 128m
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
   dms-scheduler:
     profiles: [dms]
     <<: *scheduler
@@ -170,6 +186,21 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  erp-ocr-worker:
+    profiles: [erp]
+    <<: *worker
+    mem_limit: 512m
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    volumes: *erp-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  erp-ocr-dispatch:
+    profiles: [erp]
+    <<: *runtime
+    mem_limit: 128m
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
   erp-scheduler:
     profiles: [erp]
     <<: *scheduler
@@ -202,6 +233,21 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  cowork-ocr-worker:
+    profiles: [cowork]
+    <<: *worker
+    mem_limit: 512m
+    command: [bench, worker-pool, --queue, 'ocr', --num-workers, '2']
+    volumes: *cowork-volumes
+    environment:
+      <<: *frappe-env
+      GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  cowork-ocr-dispatch:
+    profiles: [cowork]
+    <<: *runtime
+    mem_limit: 128m
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
   cowork-scheduler:
     profiles: [cowork]
     <<: *scheduler

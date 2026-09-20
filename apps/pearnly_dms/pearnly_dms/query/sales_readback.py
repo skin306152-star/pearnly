@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """从操作员的 DMS 会话里**现读**销售/订车数据（列表 + 畅销看板）。
 
-照搬老产品 `services/erp/mrerp_dms_sales_readback.py`（线上基准 `501589f0`，逻辑未改）。
+来源为旧线上 `services/erp/mrerp_dms_sales_readback.py`；当前修正原生列表初始化、
+指定字段筛选与登录账户的看板能力，实测记录见 DMS LINE 工作记录。
 它是"查资料"那一族的底座：解析 DMS **原生网页**返回的 HTML/JSON，不改状态语义。
 
 两条要紧的性质：
@@ -35,7 +36,8 @@ logger = logging.getLogger(__name__)
 LIST_PATH = "drfcbc/component/showdata.php"
 TOP_SALES_PATH = "home/component/carmaxsellchart.php"
 
-# 搜索列（DMS 的 selcolsort）：值与 DMS 的表头顺序一一对应，**不能改**
+# DMS selcolsort controls ordering, not search scope. sd searches every column;
+# named-field queries are filtered before our own pagination below.
 SEARCH_COLUMNS = {
     "booking_no": "1",
     "booking_date": "2",
@@ -86,7 +88,7 @@ def parse_sales_rows(body: str) -> List[Dict[str, str]]:
     """解析 DMS 原生的订车/销售进度列表，**不改状态语义**。
 
     一行 = 一个 `data-val` 标记到下一个标记之间的一段；每段里的 `<p>` 是各列。
-    认不出（列数不足、单号为空）就跳过这一行 —— 列表里出现半条比少一条更糟。
+    认不出（列数不足、单号为空）则拒绝整次响应，不返回悄悄缺行的结果。
     """
     source = body or ""
     marks = list(_ROW_RE.finditer(source))
@@ -95,7 +97,7 @@ def parse_sales_rows(body: str) -> List[Dict[str, str]]:
         end = marks[index + 1].start() if index + 1 < len(marks) else len(source)
         cells = [_text(value) for value in _CELL_RE.findall(source[mark.end() : end])]
         if len(cells) < 13 or not cells[2]:
-            continue
+            raise DmsClientError("DMS sales row shape changed", "ERR_DMS_TECHNICAL")
         rows.append(
             {
                 "id": mark.group(1),
@@ -115,6 +117,35 @@ def parse_sales_rows(body: str) -> List[Dict[str, str]]:
             }
         )
     return rows
+
+
+def _sales_page(client, column, filter_code, query, size, page):
+    body = client._post_text(LIST_PATH, {
+        "sdtamt": str(size), "sdtpage": str(page), "sd": query, "ftd": filter_code,
+        "selcolsort": column, "selcolsorttype": "2",
+    })
+    if (body or "").lstrip().startswith("err::"):
+        raise DmsClientError("DMS rejected the sales query", "ERR_DMS_TECHNICAL")
+    rows = parse_sales_rows(body)
+    if not rows and not str(body or "").lstrip().startswith("ndt::"):
+        raise DmsClientError("DMS sales response shape changed", "ERR_DMS_TECHNICAL")
+    return rows
+
+
+def _field_page(client, field, column, filter_code, query, size, page):
+    """Read the user's native results; filter before slicing, never truncate."""
+    matches, seen = [], set()
+    end = page * size
+    for source_page in range(1, 21):
+        rows = _sales_page(client, column, filter_code, query, 200, source_page)
+        ids = {row["id"] for row in rows}
+        if ids & seen or len(ids) != len(rows):
+            raise DmsClientError("DMS sales pages repeat", "ERR_DMS_TECHNICAL")
+        seen.update(ids)
+        matches.extend(row for row in rows if query.casefold() in row[field].casefold())
+        if len(matches) > end or len(rows) < 200:
+            return matches[(page - 1) * size:end], len(matches) > end
+    raise DmsClientError("DMS sales search exceeds the bounded scan", "ERR_DMS_TECHNICAL")
 
 
 def _enabled_endpoint(user_id: str) -> Optional[dict]:
@@ -145,20 +176,17 @@ def fetch_sales_records(
     page_no = max(int(page or 1), 1)
 
     def _read(client, _adapter):
-        body = client._post_text(
-            LIST_PATH,
-            {
-                "sdtamt": str(size),
-                "sdtpage": str(page_no),
-                "sd": str(query or "").strip(),
-                "ftd": filter_code,
-                "selcolsort": column,
-                "selcolsorttype": "2",
-            },
-        )
-        if (body or "").lstrip().startswith("err::"):
-            raise DmsClientError(body[:200], "ERR_DMS_TECHNICAL")
-        rows = parse_sales_rows(body)
+        # DMS sets the session's list visibility/filter context in the native
+        # view. A fresh login queried directly at showdata returns an empty
+        # body even when this salesperson has records (verified in the lab).
+        client._post_text("drfcbc/view.php", {"idmenu": "25", "menulv": "2"})
+        needle = str(query or "").strip()
+        if needle:
+            rows, has_more = _field_page(client, field if field in SEARCH_COLUMNS else "booking_no",
+                                        column, filter_code, needle, size, page_no)
+        else:
+            rows = _sales_page(client, column, filter_code, "", size, page_no)
+            has_more = len(rows) == size
         return {
             "ok": True,
             "kind": "sales_records",
@@ -169,7 +197,7 @@ def fetch_sales_records(
             "page": page_no,
             "limit": size,
             # 拿满一页就当还有下一页（下一页可能为空，由调用方按空结果收尾）
-            "has_more": len(rows) == size,
+            "has_more": has_more,
             "rows": rows,
         }
 
@@ -218,6 +246,29 @@ def _concrete_ids(rows: Iterable[Dict[str, str]]) -> str:
     return ",".join(dict.fromkeys(values))
 
 
+def _dashboard_scope(home):
+    user = _input_value(home, "idusers")
+    if not user:
+        raise DmsClientError("DMS dashboard session is unavailable", "ERR_DMS_AUTH")
+    branches, teams = _options(home, "carmaxsellbranch"), _options(home, "carmaxsellteam")
+    return user, branches, teams
+
+
+def query_capabilities(user_id):
+    """Only advertise dashboards that this external login actually receives."""
+    try:
+        endpoint = _enabled_endpoint(user_id)
+    except Exception:
+        logger.exception("DMS query capability endpoint lookup failed")
+        return {"ok": False, "error_code": "ERR_UNEXPECTED"}
+    if not endpoint:
+        return {"ok": False, "error_code": "ERR_NO_CREDS"}
+    def read(client, adapter):
+        _, branches, teams = _dashboard_scope(adapter.transport().get(adapter.base_url + "home/home.php").text)
+        return {"ok": True, "top_sales": bool(_concrete_ids(branches) and _concrete_ids(teams))}
+    return run_logged_in(endpoint, read)
+
+
 def _period_default() -> tuple:
     """默认期间：本月 1 号 → 今天，**佛历**（与 DMS 界面同一口径）。"""
     today = date.today()
@@ -252,13 +303,11 @@ def fetch_top_sales(
     def _read(client, adapter):
         # 看板的筛选条件（用户 id、分店、team）只能从首页那份 HTML 里读回来
         home = adapter.transport().get(adapter.base_url + "home/home.php").text
-        user_id_value = _input_value(home, "idusers")
-        branches = _options(home, "carmaxsellbranch")
-        teams = _options(home, "carmaxsellteam")
+        user_id_value, branches, teams = _dashboard_scope(home)
         branch_ids = _concrete_ids(branches)
         team_ids = _concrete_ids(teams)
         if not user_id_value or not branch_ids or not team_ids:
-            raise DmsClientError("highest-sales dashboard filters unavailable")
+            raise DmsClientError("This DMS login has no sales dashboard", "ERR_DMS_QUERY_SCOPE")
         payload = {
             "idusers": user_id_value,
             "carmaxselltypedata": group_code,
@@ -276,10 +325,14 @@ def fetch_top_sales(
             raise DmsClientError(count_body[:200])
         page_body = client._post_text(TOP_SALES_PATH, {**payload, "status": "page"})
         try:
-            labels, _ids, values = json.loads(page_body)
+            labels, ids, values = json.loads(page_body)
+            if not all(isinstance(items, list) for items in (labels, ids, values)) or not len(labels) == len(ids) == len(values):
+                raise ValueError("dashboard arrays differ")
+            total = int(str(count_body).strip() or 0)
+            if total < 0:
+                raise ValueError("negative count")
         except (TypeError, ValueError) as exc:
             raise DmsClientError("highest-sales response is not valid JSON") from exc
-        total = int(str(count_body).strip() or 0)
         rows = [
             {"label": str(label), "value": value}
             for label, value in zip(labels or [], values or [])

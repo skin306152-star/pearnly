@@ -31,6 +31,8 @@ import re
 from datetime import date
 from typing import Optional
 
+import frappe
+
 from pearnly_core import line_session as store
 from pearnly_dms.line import cards as cards
 from pearnly_dms.query import query_access as query_access
@@ -41,6 +43,7 @@ from pearnly_dms.line.out import push_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.line.out import start_loading as _start_loading
+from pearnly_dms.line.identity import matches as current_binding
 
 logger = logging.getLogger(__name__)
 
@@ -161,12 +164,26 @@ def handle_text(
 
 # ── 一步步选条件 ─────────────────────────────────────────────────────────────
 def _pick_type(binding: dict, line_user_id: str, reply_token: str, kind: str) -> None:
-    """类别：目前只有"销售记录"能用（另两类是占位，回"这一版还没开"）。"""
+    """只承接已实现的销售记录；历史库存/其他占位卡点击仍明确拒绝。"""
     if kind != "sales":
         _reply(reply_token, query_cards.TXT_COMING_SOON)
         return
     store.set_session(line_user_id, "query_sales", {})
-    _send(line_user_id, query_cards.sales_dimension_message(), reply_token)
+    _start_loading(line_user_id)
+    _enqueue("query-capabilities", _run_dimensions, binding, line_user_id)
+
+
+def _run_dimensions(binding, line_user_id):
+    result = sales_readback.query_capabilities(binding["user_id"])
+    frappe.db.commit()
+    if not current_binding(binding, line_user_id) or not _can_query(binding):
+        return
+    if (store.get_session(line_user_id) or {}).get("state") != "query_sales":
+        return
+    if not result.get("ok"):
+        _push(line_user_id, _failure_text(result))
+        return
+    _send(line_user_id, query_cards.sales_dimension_message(top_sales=result["top_sales"]))
 
 
 def _pick_dimension(binding: dict, line_user_id: str, reply_token: str, dimension: str) -> None:
@@ -273,6 +290,9 @@ def _run_records(binding: dict, line_user_id: str, params: dict) -> None:
         limit=params["limit"],
         page=params["page"],
     )
+    frappe.db.commit()  # Discard the snapshot held during the external read.
+    if not current_binding(binding, line_user_id):
+        return
     if not _can_query(binding):
         _push(line_user_id, query_cards.TXT_DENIED)
         return
@@ -321,6 +341,9 @@ def _run_top(binding: dict, line_user_id: str, params: dict) -> None:
         limit=params["limit"],
         page=params["page"],
     )
+    frappe.db.commit()
+    if not current_binding(binding, line_user_id):
+        return
     if not _can_query(binding):
         _push(line_user_id, query_cards.TXT_DENIED)
         return

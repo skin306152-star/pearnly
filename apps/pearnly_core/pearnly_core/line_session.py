@@ -39,13 +39,36 @@ def _expires_at(ttl_minutes: int) -> str:
     return frappe.utils.add_to_date(frappe.utils.now(), minutes=int(ttl_minutes))
 
 
-def _row(line_user_id: str) -> Optional[dict]:
-    """读一行，**过期视为不存在**。"""
+def _row(line_user_id: str, *, for_update=False) -> Optional[dict]:
+    """Expired drafts disappear; an unresolved external write must remain durable."""
     if not line_user_id:
         return None
     try:
-        name = frappe.db.get_value(DT, {"line_user_id": line_user_id, "expires_at": (">", frappe.utils.now())}, "name")
+        if for_update:
+            rows = frappe.db.sql(
+                "select state, payload, expires_at from `tabPearnly LINE Session` "
+                "where line_user_id=%s for update",
+                (line_user_id,), as_dict=True,
+            )
+            if not rows:
+                return None
+            row = rows[0]
+            payload = json.loads(row.payload or "{}") if isinstance(row.payload, str) else row.payload
+            payload = payload if isinstance(payload, dict) else {}
+            if not payload.get("booking_attempt") and frappe.utils.get_datetime(row.expires_at) <= frappe.utils.get_datetime():
+                return None
+            return {"state": row.state, "payload": payload}
+        name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
+    except frappe.QueryDeadlockError:
+        # MariaDB can report 1020 when this transaction observed an older snapshot
+        # before the locking read. This contender lost; never authorize or replay it.
+        frappe.db.rollback()
+        if for_update:
+            raise  # Losing the lock cannot authorize replacing a pending booking.
+        return None
     except Exception:
+        if for_update:
+            raise  # A failed locking read must never authorize a write.
         logger.warning("[line_session] 读会话失败，按无会话处理", exc_info=True)
         return None
     if not name:
@@ -57,7 +80,10 @@ def _row(line_user_id: str) -> Optional[dict]:
             payload = json.loads(payload or "{}")
         except ValueError:
             payload = {}
-    return {"state": doc.state, "payload": payload if isinstance(payload, dict) else {}}
+    payload = payload if isinstance(payload, dict) else {}
+    if not payload.get("booking_attempt") and frappe.utils.get_datetime(doc.expires_at) <= frappe.utils.get_datetime():
+        return None
+    return {"state": doc.state, "payload": payload}
 
 
 def set_session(
@@ -75,6 +101,18 @@ def set_session(
         return
     ttl = state_ttl_minutes(state) if ttl_minutes is None else int(ttl_minutes)
     try:
+        # Insert before a missing-row FOR UPDATE. Concurrent users otherwise take
+        # overlapping InnoDB gap locks, then deadlock when both insert their rows.
+        # The unique native name/LINE id resolves same-user races; no state is
+        # overwritten until the existing row and pending-write guard are locked.
+        if not frappe.db.exists(DT, line_user_id):
+            frappe.get_doc({"doctype": DT, "line_user_id": line_user_id,
+                            "state": "", "payload": "{}", "expires_at": _expires_at(ttl)}).insert(
+                                ignore_permissions=True, ignore_if_duplicate=True)
+        current = _row(line_user_id, for_update=True)
+        marker = ((current or {}).get("payload") or {}).get("booking_attempt")
+        if marker and marker != (payload or {}).get("booking_attempt"):
+            raise RuntimeError("A submitted booking must be reconciled before replacing its session")
         name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
         if name:
             doc = frappe.get_doc(DT, name)
@@ -89,6 +127,7 @@ def set_session(
         frappe.db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[line_session] 写会话失败: %s", exc)
+        raise
 
 
 def get_session(line_user_id: str) -> Optional[dict]:
@@ -96,15 +135,39 @@ def get_session(line_user_id: str) -> Optional[dict]:
     return _row(line_user_id)
 
 
-def clear_session(line_user_id: str) -> None:
+def _comparison_row(line_user_id):
+    """A losing CAS contender is rejected; it never proceeds to a write."""
+    try:
+        return _row(line_user_id, for_update=True)
+    except frappe.QueryDeadlockError:
+        return None  # _row already rolled back the stale MariaDB snapshot.
+
+
+def replace_session_snapshot(line_user_id: str, expected: dict, state: str, payload: dict) -> bool:
+    """Commit a slow read only if its source draft is still current (locking CAS)."""
+    current = _comparison_row(line_user_id)
+    if not expected or current != expected:
+        return False
+    if ((current or {}).get("payload") or {}).get("booking_attempt"):
+        return False
+    set_session(line_user_id, state, payload)
+    return True
+
+
+def clear_session(line_user_id: str, *, completed_booking_nonce: str = "") -> None:
     """删会话（会话结束 / 取消）。"""
     if not line_user_id:
         return
     try:
+        current = _row(line_user_id, for_update=True)
+        marker = ((current or {}).get("payload") or {}).get("booking_attempt") or {}
+        if marker and (not completed_booking_nonce or marker.get("nonce") != completed_booking_nonce):
+            raise RuntimeError("A submitted booking cannot be discarded before reconciliation")
         frappe.db.delete(DT, {"line_user_id": line_user_id})
         frappe.db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.warning("[line_session] 删会话失败: %s", exc)
+        raise
 
 
 def verify_nonce(
@@ -121,6 +184,20 @@ def verify_nonce(
     )
 
 
+def cancel_review(line_user_id: str, expect_state: str, nonce: str) -> bool:
+    """Cancel only the clicked, unclaimed review; old cards cannot erase new work."""
+    if expect_state not in {"reviewing", "booking_review"} or not nonce:
+        return False
+    sess = _comparison_row(line_user_id)
+    if not verify_nonce(sess, nonce, expect_state):
+        return False
+    payload = sess.get("payload") or {}
+    if payload.get("booking_claim") or payload.get("booking_attempt"):
+        return False
+    clear_session(line_user_id)
+    return True
+
+
 def consume_nonce(
     line_user_id: str, expect_state: str, nonce: str
 ) -> Optional[dict]:
@@ -134,7 +211,7 @@ def consume_nonce(
     "订车草稿被谁认领提交过"必须能从会话里读出来，否则防重复建单那一层无从判断
     （老产品叫 `_booking_claim`，语义逐字相同）。其它态不留 —— 建档那条链不需要。
     """
-    sess = get_session(line_user_id)
+    sess = _comparison_row(line_user_id)
     payload = (sess or {}).get("payload") or {}
     if not sess or sess.get("state") != expect_state:
         return None
@@ -143,6 +220,7 @@ def consume_nonce(
     claimed = {**payload, "nonce": None}
     if expect_state == "booking_review":
         claimed["booking_claim"] = nonce
+        claimed["booking_claimed_at"] = frappe.utils.now()
     set_session(line_user_id, expect_state, claimed)
     return payload
 
@@ -162,7 +240,7 @@ def replace_review_payload(
         return False
     if not expected_nonce or not payload.get("nonce"):
         return False
-    sess = get_session(line_user_id)
+    sess = _comparison_row(line_user_id)
     if not sess or sess.get("state") != state:
         return False
     if (sess.get("payload") or {}).get("nonce") != expected_nonce:
@@ -193,8 +271,9 @@ def _lock_scope(line_user_id: str):
 
     owner = uuid.uuid4().hex
     try:
-        ok = frappe.cache().set(
-            _LOCK_PREFIX + str(line_user_id), owner,
+        cache = frappe.cache()
+        ok = cache.set(
+            cache.make_key(_LOCK_PREFIX + str(line_user_id)), owner,
             nx=True, px=ATTEMPT_LOCK_SECONDS * 1000,
         )
     except Exception:  # noqa: BLE001
@@ -207,19 +286,21 @@ def _unlock_scope(line_user_id: str, owner: str) -> None:
     import frappe
 
     try:
-        current = frappe.cache().get(_LOCK_PREFIX + str(line_user_id))
-        if isinstance(current, (bytes, bytearray)):
-            current = current.decode("utf-8", "ignore")
-        if current is not None and str(current) != str(owner):
-            return  # 别人的锁不能删
-        frappe.cache().delete(_LOCK_PREFIX + str(line_user_id))
+        cache = frappe.cache()
+        # A GET/DELETE pair can delete a new owner's lock after the old TTL
+        # expires. Keep comparison and deletion atomic, with a Site-scoped key.
+        cache.eval(
+            "if redis.call('get', KEYS[1]) == ARGV[1] then "
+            "return redis.call('del', KEYS[1]) else return 0 end",
+            1, cache.make_key(_LOCK_PREFIX + str(line_user_id)), owner,
+        )
     except Exception:  # noqa: BLE001
         logger.warning("[line_session] 释放会话锁失败（到点会自己过期）", exc_info=True)
 
 
 def record_booking_attempt(
     line_user_id: str, nonce: str, booking_no: str, owner: str,
-    previous_no: Optional[str] = None,
+    previous_no: Optional[str] = None, *, context: Optional[dict] = None,
 ) -> bool:
     """把"我要提交这张草稿"登记进会话。**只有满足全部判据才写**，否则回 False。
 
@@ -242,7 +323,7 @@ def record_booking_attempt(
         logger.warning("[line_session] 会话被占用，拒绝登记订车提交")
         return False
     try:
-        sess = get_session(line_user_id)
+        sess = _row(line_user_id, for_update=True)
         payload = (sess or {}).get("payload") or {}
         if not sess or sess.get("state") != "booking_review":
             return False
@@ -261,24 +342,48 @@ def record_booking_attempt(
             )
             if not same_execution:
                 return False  # 别的执行体 / 别的号，不许顶掉
-        set_session(
-            line_user_id,
-            "booking_review",
-            {
+        updated = {
                 **payload,
                 "booking_attempt": {
                     "nonce": str(nonce),
                     "booking_no": str(booking_no),
                     "owner": str(owner),
+                    "recorded_at": frappe.utils.now(),
+                    "context": context or {},
                 },
-            },
-        )
+            }
+        # This CAS alone may advance a confirmed duplicate document number.
+        # General set_session must continue refusing replacement of any attempt.
+        name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
+        frappe.db.set_value(DT, name, "payload", json.dumps(updated, ensure_ascii=False))
+        frappe.db.commit()
         return True
     except Exception:  # noqa: BLE001
         logger.warning("[line_session] 订车提交登记失败；写 DMS 被拦下", exc_info=True)
         return False
     finally:
         _unlock_scope(line_user_id, lock)
+
+
+def update_booking_attempt(line_user_id: str, nonce: str, changes: dict) -> bool:
+    """Persist reconciliation metadata without replacing the submitted draft/claim.
+
+    Only result and delivery metadata may change; original identity and submitted
+    fields stay immutable. The row lock excludes confirmation, rebind and cleanup.
+    """
+    if not nonce or not changes or set(changes) - {"result", "receipt", "checked_at"}:
+        return False
+    sess = _comparison_row(line_user_id)
+    payload = (sess or {}).get("payload") or {}
+    marker = payload.get("booking_attempt") or {}
+    if (not sess or sess.get("state") != "booking_review" or payload.get("nonce") is not None
+            or payload.get("booking_claim") != nonce or marker.get("nonce") != nonce):
+        return False
+    payload["booking_attempt"] = {**marker, **changes}
+    name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
+    frappe.db.set_value(DT, name, "payload", json.dumps(payload, ensure_ascii=False))
+    frappe.db.commit()
+    return True
 
 
 def replace_claimed_booking_payload(
@@ -310,7 +415,7 @@ def replace_claimed_booking_payload(
         logger.warning("[line_session] 会话被占用，跳过草稿改写")
         return False
     try:
-        sess = get_session(line_user_id)
+        sess = _row(line_user_id, for_update=True)
         current = (sess or {}).get("payload") or {}
         if not sess or sess.get("state") != "booking_review":
             return False
@@ -326,7 +431,7 @@ def replace_claimed_booking_payload(
         clean = {
             key: value
             for key, value in (payload or {}).items()
-            if key not in {"booking_claim", "booking_attempt"}
+            if key not in {"booking_claim", "booking_claimed_at", "booking_attempt"}
         }
         set_session(line_user_id, state, clean, ttl_minutes=ttl_minutes)
         return True
@@ -350,7 +455,7 @@ def clear_booking_attempt(line_user_id: str, nonce: str) -> bool:
         logger.warning("[line_session] 会话被占用，跳过草稿清理")
         return False
     try:
-        sess = get_session(line_user_id)
+        sess = _row(line_user_id, for_update=True)
         payload = (sess or {}).get("payload") or {}
         if not sess or sess.get("state") != "booking_review":
             return False
@@ -360,7 +465,7 @@ def clear_booking_attempt(line_user_id: str, nonce: str) -> bool:
             return False
         if str((payload.get("booking_attempt") or {}).get("nonce") or "") != str(nonce):
             return False
-        clear_session(line_user_id)
+        clear_session(line_user_id, completed_booking_nonce=nonce)
         return True
     except Exception:  # noqa: BLE001
         logger.warning("[line_session] 订车草稿清理失败", exc_info=True)

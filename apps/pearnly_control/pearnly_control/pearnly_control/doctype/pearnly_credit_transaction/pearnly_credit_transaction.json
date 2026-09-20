@@ -18,7 +18,9 @@
   "column_break_detail",
   "description",
   "reference",
-  "request_hash"
+  "request_hash",
+  "billing_mode",
+  "billing_month"
  ],
  "fields": [
   {"fieldname": "tenant", "fieldtype": "Link", "in_list_view": 1, "label": "Tenant", "options": "Pearnly Tenant", "reqd": 1},
@@ -33,7 +35,9 @@
   {"fieldname": "column_break_detail", "fieldtype": "Column Break"},
   {"fieldname": "description", "fieldtype": "Small Text", "label": "Description"},
   {"fieldname": "reference", "fieldtype": "Data", "label": "Reference"},
-  {"fieldname": "request_hash", "fieldtype": "Data", "hidden": 1, "read_only": 1}
+  {"fieldname": "request_hash", "fieldtype": "Data", "hidden": 1, "read_only": 1},
+  {"fieldname": "billing_mode", "fieldtype": "Select", "label": "Billing Mode", "options": "\npayg\nsubscription\nsubscription_fee", "hidden": 1, "read_only": 1},
+  {"fieldname": "billing_month", "fieldtype": "Data", "label": "Billing Month", "hidden": 1, "read_only": 1}
  ],
  "index_web_pages_for_search": 1,
  "links": [],

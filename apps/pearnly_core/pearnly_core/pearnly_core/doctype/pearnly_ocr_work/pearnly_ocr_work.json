@@ -1,0 +1,111 @@
+{
+ "doctype": "DocType",
+ "name": "Pearnly OCR Work",
+ "module": "Pearnly Core",
+ "engine": "InnoDB",
+ "autoname": "prompt",
+ "field_order": [
+  "product",
+  "kind",
+  "reference",
+  "user",
+  "status",
+  "next_run",
+  "lease_until",
+  "expires_at",
+  "attempts",
+  "last_code",
+  "admission_key",
+  "arguments",
+  "checkpoints"
+ ],
+ "fields": [
+  {
+   "fieldname": "product",
+   "fieldtype": "Select",
+   "label": "Product",
+   "options": "dms\nerp\ncowork",
+   "reqd": 1
+  },
+  {
+   "fieldname": "kind",
+   "fieldtype": "Data",
+   "label": "Kind",
+   "reqd": 1
+  },
+  {
+   "fieldname": "reference",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "queued\nrunning\ndeferred\nsucceeded\ncancelled\nfailed\nuncertain",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "next_run",
+   "fieldtype": "Datetime",
+   "label": "Next Run",
+   "search_index": 1
+  },
+  {
+   "fieldname": "lease_until",
+   "fieldtype": "Datetime",
+   "label": "Lease Until",
+   "search_index": 1
+  },
+  {
+   "fieldname": "expires_at",
+   "fieldtype": "Datetime",
+   "label": "Expires At",
+   "search_index": 1
+  },
+  {
+   "fieldname": "attempts",
+   "fieldtype": "Int",
+   "label": "Attempts",
+   "default": "0"
+  },
+  {
+   "fieldname": "last_code",
+   "fieldtype": "Data",
+   "label": "Last Code"
+  },
+  {
+   "fieldname": "admission_key",
+   "fieldtype": "Data",
+   "label": "Admission Key"
+  },
+  {
+   "fieldname": "arguments",
+   "fieldtype": "Long Text",
+   "label": "Arguments"
+  },
+  {
+   "fieldname": "checkpoints",
+   "fieldtype": "Long Text",
+   "label": "Checkpoints"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "track_changes": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

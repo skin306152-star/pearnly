@@ -25,6 +25,10 @@ jobs:
         run: python3 scripts/check-dms-offline.py
       - name: Verify forced SSH provisioning entry and contracts
         run: python3 scripts/production/test-provision-agent.py
+      - name: Verify production memory admission budgets
+        run: python3 scripts/check-production-capacity.py
+      - name: Verify drained product activation and failure boundary
+        run: python3 scripts/production/test-activate-product.py
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
         with:
           node-version: '22.14.0'

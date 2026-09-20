@@ -466,7 +466,7 @@ def preview_card(qa: Dict[str, Any], nonce: str) -> Dict[str, Any]:
     footer = [
         _btn(BTN_CONFIRM, _data(ACT_CONFIRM_BOOKING, nonce=nonce), "primary"),
         *([_uri_btn(BTN_EDIT, edit_url)] if edit_url else []),
-        _btn(BTN_DISCARD, _data(ACT_CANCEL_BOOKING), "secondary"),
+        _btn(BTN_DISCARD, _data(ACT_CANCEL_BOOKING, nonce=nonce), "secondary"),
     ]
     return _bubble(TXT_PREVIEW_TITLE, rows, footer, TXT_PREVIEW_TITLE)
 
@@ -480,6 +480,6 @@ def booking_retry_card(message: str, nonce: str) -> Dict[str, Any]:
     ]
     footer = [
         _btn(BTN_RETRY_BOOKING, _data(ACT_RETRY_BOOKING, nonce=nonce), "primary"),
-        _btn(BTN_DISCARD, _data(ACT_CANCEL_BOOKING), "secondary"),
+        _btn(BTN_DISCARD, _data(ACT_CANCEL_BOOKING, nonce=nonce), "secondary"),
     ]
     return _bubble(failed, rows, footer, qat("retry.alt"))

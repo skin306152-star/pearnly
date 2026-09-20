@@ -63,6 +63,11 @@ def compose(group, *args):
                 str(ROOT / "infrastructure/production/compose.yml"), "--profile", group, *args])
 
 
+def check_capacity(group, transient_mib=0):
+    return run([sys.executable, str(ROOT / "infrastructure/production/capacity.py"),
+                "--product", group, "--transient-mib", str(transient_mib)], timeout=30)
+
+
 def restart_group(group):
     """Restart one product's app processes.
 
@@ -80,12 +85,14 @@ def restart_group(group):
     # and the new configuration unread. `restart` is the operation that actually gives
     # the product fresh processes.
     compose(group, "restart", "-t", "30", *[group + "-" + suffix for suffix in
-            ("web", "worker", "scheduler", "socketio", "frontend")])
+            ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
 
 
 def site_step(job):
     group = job["payload"]["group"]
-    return run(["docker", "run", "--rm", "-i", "--user", "0", "--network", "pearnly-production_runtime",
+    if job["action"] != "drop_site":
+        check_capacity(group, transient_mib=1024)
+    return run(["docker", "run", "--rm", "-i", "--user", "0", "--memory", "1g", "--memory-swap", "1g", "--network", "pearnly-production_runtime",
         "-v", f"pearnly-production_sites-{group}:/home/frappe/frappe-bench/sites",
         "-v", f"{ROOT}/infrastructure/production/site-step.py:/run/site-step.py:ro",
         "-v", "/opt/pearnly/secrets/runtime.env:/run/secrets/runtime.env:ro",
@@ -162,6 +169,9 @@ def main():
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     with Path("/opt/pearnly/state/provision.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
+        image()
+        if action in ("new_site", "restart_web"):
+            check_capacity(p["group"], transient_mib=1024 if action == "new_site" else 0)
         manifest = STATE / (p["site"] + ".json")
         owner = {key: p[key] for key in ("site", "group", "tenant", "deployment")}
         if manifest.exists():
@@ -179,14 +189,13 @@ def main():
             # Reserve before creation; retry may only resume the same deployment.
             manifest.write_text(json.dumps(owner))
             manifest.chmod(0o600)
-        image()
         if action == "restart_web":
             # 新站点**不需要重启**：Frappe 是"按站点"读 `site_config.json` 的，而这个站点
             # 从未被 web 进程加载过，不存在读到旧副本的问题。这里只要保证产品组在跑即可。
             # 曾经这里放的是真重启 —— 那会把**该产品下所有已有租户**一起踢下线，开一个新
             # 租户的代价变成"别人抖一下"（用户 2026-09-19 指出）。
             compose(p["group"], "up", "-d", *[p["group"] + "-" + suffix for suffix in
-                    ("web", "worker", "scheduler", "socketio", "frontend")])
+                    ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
         elif action == "drop_site":
             path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")
             path.unlink(missing_ok=True)
@@ -194,11 +203,11 @@ def main():
             run(["systemctl", "reload", "nginx"])
             # Pause this product's queue while its exact Site/database is removed.
             # Other product queues use independent Redis databases.
-            compose(p["group"], "stop", "-t", "120", p["group"] + "-scheduler", p["group"] + "-worker")
+            compose(p["group"], "stop", "-t", "120", *[p["group"] + "-" + suffix for suffix in ("scheduler", "worker", "ocr-worker", "ocr-dispatch")])
             try:
                 site_step(job)
             finally:
-                compose(p["group"], "start", p["group"] + "-worker", p["group"] + "-scheduler")
+                compose(p["group"], "start", *[p["group"] + "-" + suffix for suffix in ("worker", "ocr-worker", "ocr-dispatch", "scheduler")])
             if Path(f"/etc/letsencrypt/live/{p['site']}").exists():
                 run(["certbot", "delete", "--non-interactive", "--cert-name", p["site"]])
             manifest.write_text(json.dumps({**owner, "deleted": True}))

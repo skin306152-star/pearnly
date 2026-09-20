@@ -41,6 +41,7 @@ from pearnly_dms.intake import service as dms_intake
 from pearnly_dms.ocr import ocr_review as ocr_review
 from pearnly_dms.ocr import ocr_service as _id_ocr
 from pearnly_dms.line import out as out
+from pearnly_dms.line.identity import matches as current_binding
 
 logger = logging.getLogger(__name__)
 
@@ -100,6 +101,7 @@ def handle_image(binding: dict, line_user_id: str, message_id: str) -> None:
     """绑定用户发图片 → 后台走识别。"""
     if not message_id:
         return
+    merge_session(binding, line_user_id, {"pending_image": message_id}, keep=("phone", "mode"))
     _enqueue("image", process_image, binding, line_user_id, message_id)
 
 
@@ -253,45 +255,74 @@ def _open_browser_editor(
 # ── collecting：识别 ───────────────────────────────────────────────────────
 def process_image(binding: dict, line_user_id: str, message_id: str) -> None:
     """下载 + 识别身份证。成功存 id_card；材料齐了自动查重。"""
+    if not _image_draft(binding, line_user_id, message_id):
+        return {"cancelled": "draft_changed"}
+    out.start_loading(line_user_id)
     user_id = binding["user_id"]
-    content = line.download_message_content(message_id)
+    try:
+        from pearnly_core.execution import inputs
+        maximum = _id_ocr.MAX_ID_CARD_MB * 1024 * 1024
+        content = inputs.read(message_id,
+            lambda: line.download_message_content(message_id, max_bytes=maximum), maximum)
+    except line.MediaTooLarge:
+        _push(line_user_id, ocr_error_text(_id_ocr.DmsOcrError(
+            "ocr.file_too_large", 400, {"mb": _id_ocr.MAX_ID_CARD_MB})))
+        return {"failed": "image_too_large", "notified": True}
     if not content:
-        _push(line_user_id, cards.TXT_BLURRY)
-        return
+        if _image_draft(binding, line_user_id, message_id):
+            _push(line_user_id, cards.TXT_BLURRY)
+        return {"failed": "image_unavailable", "notified": True}
     try:
         ep, ocr, _ = _id_ocr.recognize_id_card(
             user_id, content, f"line_{message_id}.jpg", "", None,
             billing_reference=f"idcard:line:{message_id}",
         )
     except _id_ocr.DmsOcrError as exc:
-        _push(line_user_id, ocr_error_text(exc))
-        return
+        frappe.db.commit()
+        if _image_draft(binding, line_user_id, message_id):
+            _push(line_user_id, ocr_error_text(exc))
+        return {"failed": exc.code, "notified": True}
 
+    frappe.db.commit()  # Re-read current binding after a potentially slow OCR request.
+    expected = _image_draft(binding, line_user_id, message_id)
+    if not expected:
+        return {"cancelled": "draft_changed"}
     if ocr.get("needs_review"):
         # 读不清 / 校验位对不上 → 打回，按**真实原因**说话；不查重
         _push(line_user_id, ocr_review.review_text(ocr.get("missing_fields") or []))
-        return
+        return {"cancelled": "review_required"}
 
     id_card = _id_ocr.editable_id_card(ocr["id_card"])
-    payload = merge_session(
-        binding,
-        line_user_id,
-        {"id_card": id_card, "endpoint_id": str(ep.get("id") or ""), "id_card_mid": message_id},
-        keep=("phone", "mode"),
-    )
+    old = expected.get("payload") or {}
+    payload = {k: old[k] for k in ("phone", "mode") if old.get(k)}
+    payload.update(id_card=id_card, endpoint_id=str(ep.get("id") or ""), id_card_mid=message_id)
+    if not store.replace_session_snapshot(line_user_id, expected, "collecting", payload):
+        return {"cancelled": "draft_changed"}
     if payload.get("phone"):
         run_dedup(binding, line_user_id, id_card, payload["phone"], str(ep.get("id") or ""))
     else:
         _push(line_user_id, cards.TXT_ASK_PHONE)
 
 
+def _image_draft(binding, line_user_id, message_id):
+    sess = store.get_session(line_user_id)
+    if (current_binding(binding, line_user_id) and (sess or {}).get("state") == "collecting"
+            and ((sess or {}).get("payload") or {}).get("pending_image") == message_id):
+        return sess
+    return None
+
+
 # ── collecting → reviewing：查重四分支 ─────────────────────────────────────
 def run_dedup(
     binding: dict, line_user_id: str, id_card: dict, phone: str, endpoint_id: Optional[str]
 ) -> None:
+    out.start_loading(line_user_id)
     user_id = binding["user_id"]
     sess = store.get_session(line_user_id)
     sess_payload = (sess or {}).get("payload") or {}
+    if ((sess or {}).get("state") != "collecting" or sess_payload.get("id_card") != id_card
+            or sess_payload.get("phone") != phone):
+        return
     mode = str(sess_payload.get("mode") or "")
     id_card_mid = sess_payload.get("id_card_mid")
 
@@ -313,6 +344,9 @@ def run_dedup(
         phone=phone,
         fallback_customer_ids=cands,
     )
+    frappe.db.commit()
+    if not current_binding(binding, line_user_id) or store.get_session(line_user_id) != sess:
+        return
     if not res.get("ok"):
         fr = res.get("error_friendly") or {}
         _push(line_user_id, fr.get("th") or cards.TXT_LOOKUP_FAIL)
@@ -378,7 +412,8 @@ def run_dedup(
         payload = {**base, "scenario": "similar", "candidates": cands2}
         card = cards.candidates_card(cands2, nonce)
 
-    store.set_session(line_user_id, "reviewing", payload)
+    if not store.replace_session_snapshot(line_user_id, sess, "reviewing", payload):
+        return
     _send(line_user_id, card)
 
 
@@ -431,11 +466,15 @@ def execute(
     addresses: Optional[Dict[str, Dict[str, Any]]],
     field_diffs: List[dict],
 ) -> None:
+    out.start_loading(line_user_id)
     user_id = binding["user_id"]
     name = str(fields.get("name") or "")
     people_id = str(fields.get("people_id") or "")
 
-    ep_name = payload.get("endpoint_id") or None
+    if not current_binding(binding, line_user_id):
+        return
+    resolved = _id_ocr.resolve_dms_endpoint(user_id, payload.get("endpoint_id"))
+    ep_name = (resolved or {}).get("name")
     if not ep_name:
         _push(line_user_id, cards.TXT_NO_ENDPOINT)
         return

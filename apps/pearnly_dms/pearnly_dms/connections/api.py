@@ -38,7 +38,7 @@ def _require_admin() -> str:
 
 
 def _endpoint_name() -> str | None:
-    return frappe.db.get_value(ENDPOINT, {"adapter": ADAPTER}, "name")
+    return frappe.db.get_value(ENDPOINT, {"adapter": ADAPTER, "owner_user": ["is", "not set"]}, "name")
 
 
 def _row(doc) -> dict:

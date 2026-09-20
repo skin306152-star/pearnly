@@ -21,7 +21,9 @@ def main():
     queue_db = {"dms": 1, "erp": 2, "cowork": 3}[group]
     values.update(db_host="mariadb", db_port=3306, redis_cache="redis://redis-cache:6379",
                   redis_queue=f"redis://redis-queue:6379/{queue_db}", redis_socketio=f"redis://redis-queue:6379/{queue_db}",
-                  socketio_port=9000, serve_default_site=False)
+                  socketio_port=9000, serve_default_site=False,
+                  pearnly_ocr_budget_redis="redis://redis-queue:6379/6",
+                  workers={**values.get("workers", {}), "ocr": {"timeout": 600}})
     common.write_text(json.dumps(values))
     Path("apps.txt").write_text("\n".join(["frappe", "erpnext", "pearnly_core", "pearnly_dms",
                                         "pearnly_cowork", "pearnly_erp_portal"]) + "\n")
@@ -104,6 +106,10 @@ def main():
     elif action == "finalize_site":
         from pearnly_core.provisioning import finalize_site
         finalize_site()
+        # site_config.enable_scheduler is not the native scheduler switch.
+        # Finalization is an explicit activation step, after apps are installed.
+        from frappe.utils.scheduler import enable_scheduler
+        enable_scheduler()
     elif action == "bind_user":
         from pearnly_core.provisioning import ensure_local_user
         ensure_local_user(p["email"], p["full_name"], p["subject"], p["deployment"])
@@ -119,6 +125,8 @@ def main():
         assert frappe.conf.pearnly_native_account
         assert not frappe.conf.get("pearnly_oidc_admin_client_secret")
         assert frappe.db.get_single_value("System Settings", "disable_user_pass_login")
+        from frappe.utils.scheduler import is_scheduler_inactive
+        assert not is_scheduler_inactive(verbose=False)
         assert frappe.db.count("Pearnly Identity", {"status": "active"}) > 0
         from pearnly_core.billing_client import wallet
         wallet()

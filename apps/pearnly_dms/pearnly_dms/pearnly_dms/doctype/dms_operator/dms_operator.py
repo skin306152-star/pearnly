@@ -9,4 +9,10 @@ from frappe.model.document import Document
 
 
 class DMSOperator(Document):
-    pass
+    def on_update(self):
+        from pearnly_dms.operators.endpoints import sync_operator
+        sync_operator(self)
+
+    def on_trash(self):
+        from pearnly_dms.operators.endpoints import disable_operator
+        disable_operator(self)

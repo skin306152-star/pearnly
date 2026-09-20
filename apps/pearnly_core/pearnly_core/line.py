@@ -65,16 +65,11 @@ def verify_id_token(id_token: str) -> "dict | None":
     渠道注册表、还要处理"这个 OA 没有自己的 LIFF 就借共享 Provider 的"。新平台
     一站一渠道，渠道 id 只有一个来源：本站点配置。
 
-    用哪个 client_id 验：优先 `channel_id`；没单独配就用 LIFF ID 的**前缀**
-    （`2006123456-AbCdEf` 里 `-` 前面那段就是 LINE Login 渠道号，这是 LINE 自己的格式）。
-    两者都取不到 → **直接 None，不发这次请求**（fail closed：宁可不认，也不去认一个
-    别的渠道签出来的 token）。
+    client_id 来自本站 LIFF 所属的 LINE Login 频道；Messaging API 频道只用于 OA，
+    不能拿来验证 LIFF 身份。缺失/无效 LIFF 配置时拒绝，不借用其他频道。
     """
-    channel = channel_id()
-    if not channel:
-        liff = liff_id()
-        channel = liff.split("-")[0] if liff else ""
-    if not id_token or not channel:
+    channel, separator, app_id = liff_id().partition("-")
+    if not id_token or not separator or not app_id or not channel.isdigit():
         return None
     try:
         response = requests.post(
@@ -91,7 +86,9 @@ def verify_id_token(id_token: str) -> "dict | None":
         claims = response.json()
     except ValueError:
         return None
-    return claims if isinstance(claims, dict) else None
+    if not isinstance(claims, dict) or str(claims.get("aud") or "") != channel:
+        return None
+    return claims if claims.get("sub") and claims.get("iss") == "https://access.line.me" else None
 
 
 # ── 验签 ────────────────────────────────────────────────────────────────────
@@ -187,18 +184,23 @@ def reply(reply_token: str, messages: list) -> bool:
     return True
 
 
-def push(to: str, messages: list) -> bool:
+def push(to: str, messages: list, *, retry_key: str = "") -> bool:
     """主动推送（计费）。用于没有 reply token 的场合，例如定时提醒。"""
     if not to:
         return False
     if mirroring():
         return _mirror("push", to, messages)
+    headers = _headers()
+    if retry_key:
+        headers["X-Line-Retry-Key"] = retry_key
     resp = requests.post(
         "https://api.line.me/v2/bot/message/push",
-        headers=_headers(),
+        headers=headers,
         json={"to": to, "messages": messages},
         timeout=TIMEOUT,
     )
+    if retry_key and resp.status_code == 409 and resp.headers.get("x-line-accepted-request-id"):
+        return True
     if resp.status_code != 200:
         frappe.log_error(
             title="LINE push 失败",
@@ -209,23 +211,27 @@ def push(to: str, messages: list) -> bool:
 
 
 def start_loading(user_id: str, seconds: int = 30) -> bool:
-    """给对方看"正在输入"动画。**阻塞 HTTP**，调用方自己负责别占着 webhook。
+    """给对方看"正在输入"动画。短超时且失败不影响业务入队。
 
     重活（识别身份证、建单）开始之前叫一次，用户才知道系统在动 —— 老产品同一处也这么做。
     ⚠️ LINE 只接受 5~60 秒、且以 5 秒为步长的值；别的会被接口拒。这里先夹再对齐步长。
     """
-    if not user_id:
+    if not user_id or not _conf("channel_access_token"):
         return False
     step = int(seconds or 0) or 30
     step = max(5, min(60, step))
     step = min(60, max(5, (step // 5) * 5))
-    resp = requests.post(
-        "https://api.line.me/v2/bot/chat/loading/start",
-        headers=_headers(),
-        json={"chatId": user_id, "loadingSeconds": step},
-        timeout=TIMEOUT,
-    )
-    if resp.status_code != 200:
+    try:
+        resp = requests.post(
+            "https://api.line.me/v2/bot/chat/loading/start",
+            headers=_headers(),
+            json={"chatId": user_id, "loadingSeconds": step},
+            timeout=(1, 1),
+        )
+    except requests.RequestException:
+        logger.warning("[line] loading animation unavailable", exc_info=True)
+        return False
+    if resp.status_code not in (200, 202):
         frappe.log_error(
             title="LINE loading 动画失败",
             message=f"{resp.status_code} {resp.text[:300]}",
@@ -242,27 +248,30 @@ def get_profile(user_id: str) -> dict:
     return resp.json() if resp.status_code == 200 else {}
 
 
-def download_message_content(message_id: str) -> bytes:
-    """下载用户发来的**图片/文件**内容。
+class MediaTooLarge(ValueError):
+    """The LINE media exceeds the caller's bounded download size."""
 
-    ⚠️ 媒体内容不在 `api.line.me` 而在 `api-data.line.me` —— 用错域名会 404，
-    这是 LINE 的一个常见坑。
 
-    拿不到就返回 `b""`：调用方按"读不出"回话，而不是抛异常把整条流程打断。
-    """
+def download_message_content(message_id: str, *, max_bytes=20 * 1024 * 1024) -> bytes:
+    """Stream media with a hard byte bound before buffering or decoding it."""
     if not message_id:
         return b""
-    resp = requests.get(
+    with requests.get(
         f"https://api-data.line.me/v2/bot/message/{message_id}/content",
-        headers=_headers(), timeout=DOWNLOAD_TIMEOUT,
-    )
-    if resp.status_code != 200:
-        frappe.log_error(
-            title="LINE 取媒体失败",
-            message=f"{message_id}: {resp.status_code} {resp.text[:200]}",
-        )
-        return b""
-    return resp.content or b""
+        headers=_headers(), timeout=DOWNLOAD_TIMEOUT, stream=True,
+    ) as resp:
+        if resp.status_code != 200:
+            frappe.logger("pearnly.line").warning("LINE media unavailable: HTTP %s", resp.status_code)
+            return b""
+        declared = resp.headers.get("Content-Length", "")
+        if declared.isdigit() and int(declared) > max_bytes:
+            raise MediaTooLarge("LINE media size limit exceeded")
+        data = bytearray()
+        for chunk in resp.iter_content(65536):
+            if len(data) + len(chunk) > max_bytes:
+                raise MediaTooLarge("LINE media size limit exceeded")
+            data.extend(chunk)
+        return bytes(data)
 
 
 # ── 事件幂等 ────────────────────────────────────────────────────────────────
@@ -359,4 +368,5 @@ def _dispatch(event: dict) -> bool:
                 return True
         except Exception as e:
             frappe.log_error(title="LINE 处理器执行失败", message=f"{path}: {e}"[:600])
+            raise  # The event receipt must record failure, never an ignored success.
     return False

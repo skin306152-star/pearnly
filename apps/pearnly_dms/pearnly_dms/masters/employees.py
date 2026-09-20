@@ -6,8 +6,8 @@
 code 列，在"编号 ≠ 登录名"的车行一律落空；**更坏的是** A 的编号恰好等于 B 的登录名时，
 会把提成算到 B 头上。员工表是唯一带登录名的表，精确匹配只能走这里。
 
-权限退化：员工列表页未必对销售账号开放（可能 500 / 弹回登录页）。取不到就返回 `None`
-让调用方回落启发式 —— **"拿不到名册"不等于"这个人不存在"**。
+员工列表页未必对销售账号开放（可能 500 / 弹回登录页）。取不到就返回 `None`，
+不得据此猜测员工身份；自动归属拒绝，明确指定且实时有效的顾问归属仍可使用。
 配了 admin 凭据组时先借它重试一次（与客户档写操作用同一个懒切会话入口）。
 
 照搬老产品 `services/erp/dms_employees.py`。
@@ -22,8 +22,7 @@ from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 
-# 员工列表接口（与 cus / drfcbc 同一套 showdata listing 范式）。sd="" 即不过滤取全量；
-# 单页 500 行覆盖单店全部员工 —— 员工表比顾问名册还小，不值得为它再写一套翻页。
+# Read every page; missing or repeated pages cannot become a partial identity map.
 _LIST_PATH = "users/component/showdata.php"
 _LIST_BODY = {"sdtamt": "500", "sdtpage": "1", "sd": "", "selcolsort": "1", "selcolsorttype": "1"}
 
@@ -49,7 +48,7 @@ def parse_employee_rows(body: str) -> Optional[List[Dict[str, str]]]:
 
     三种结果必须分得开：
 
-    · 空 body、或结果体（`dt::`/`ndt::`）里没有行 → `[]`（员工表真的没人 / 搜索无结果）；
+    · 明确 `ndt::` → `[]`（员工表真的没人 / 搜索无结果）；
     · 有内容却一行都解不出 → `None`（错误页、被踢回登录页、或 DMS 换了模板）；
     · 正常解析 → 行列表。
 
@@ -57,7 +56,7 @@ def parse_employee_rows(body: str) -> Optional[List[Dict[str, str]]]:
     """
     text = (body or "").strip()
     if not text:
-        return []
+        return None
     marks = list(_ROW_RE.finditer(text))
     rows: List[Dict[str, str]] = []
     for i, mark in enumerate(marks):
@@ -65,11 +64,12 @@ def parse_employee_rows(body: str) -> Optional[List[Dict[str, str]]]:
         cells = [_text(c) for c in _CELL_RE.findall(text[mark.end() : end])]
         if not any(cells):
             continue
-        cells += [""] * (len(_FIELDS) - len(cells))
+        if len(cells) < len(_FIELDS) or not cells[1]:
+            return None
         rows.append({"id": mark.group(1), **dict(zip(_FIELDS, cells))})
     if rows:
         return rows
-    return [] if text.startswith(_LIST_MARKERS) else None
+    return [] if text.startswith('ndt::') else None
 
 
 def fetch_employees(cl: Any) -> Optional[List[Dict[str, str]]]:
@@ -82,14 +82,26 @@ def fetch_employees(cl: Any) -> Optional[List[Dict[str, str]]]:
     if rows is None:
         rows = _fetch_via_admin(cl)
     if rows is None:
-        logger.warning("[dms employees] 员工表取不到；顾问匹配退到启发层")
+        logger.warning("[dms employees] 员工表取不到；自动顾问归属不可用")
     return rows
 
 
 def _fetch_once(cl: Any) -> Optional[List[Dict[str, str]]]:
     """当前会话拉一次。HTTP 非 200（`_post_text` 会抛）与格式异常同等对待。"""
     try:
-        return parse_employee_rows(cl._post_text(_LIST_PATH, dict(_LIST_BODY)))
+        rows, seen = [], set()
+        for page in range(1, 21):
+            batch = parse_employee_rows(cl._post_text(_LIST_PATH, {**_LIST_BODY, 'sdtpage': str(page)}))
+            if batch is None or any(row['id'] in seen for row in batch):
+                return None
+            ids = {row['id'] for row in batch}
+            if len(ids) != len(batch):
+                return None
+            seen.update(ids)
+            rows.extend(batch)
+            if len(batch) < int(_LIST_BODY['sdtamt']):
+                return rows
+        return None
     except Exception:
         logger.debug("[dms employees] 当前会话取数失败", exc_info=True)
         return None

@@ -19,6 +19,7 @@ from frappe import _
 from frappe.utils import now
 
 from pearnly_control import billing
+from pearnly_control.payments.transactions import retry_service
 
 TOKEN_KEY = "pearnly_billing_token"
 
@@ -74,6 +75,7 @@ def _tenant_or_throw(tenant: str) -> str:
 
 
 @frappe.whitelist(allow_guest=True)
+@retry_service
 def service_status(tenant: str, kind: str, units: int = 0, tier: str = "B") -> dict:
     """开工前的余额闸。`error_code` 三种：空 / insufficient_balance / lookup_error。"""
     _require_service(tenant)
@@ -81,6 +83,7 @@ def service_status(tenant: str, kind: str, units: int = 0, tier: str = "B") -> d
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@retry_service
 def service_charge(tenant: str, product: str, kind: str, units: int, tier: str = "B",
                    reference: str = "", description: str = "") -> dict:
     """干完活后扣费。调用方必须是"确实识别成功了"的那一刻。"""
@@ -92,6 +95,7 @@ def service_charge(tenant: str, product: str, kind: str, units: int, tier: str =
 
 
 @frappe.whitelist(allow_guest=True)
+@retry_service
 def service_wallet(tenant: str) -> dict:
     """产品站点上的「套餐与余额」页读这个。"""
     _require_service(tenant)
@@ -143,6 +147,7 @@ def service_topup_status(tenant: str) -> dict:
 
 
 @frappe.whitelist(allow_guest=True)
+@retry_service
 def service_home(tenant: str) -> dict:
     """产品首页（订阅与计费）要的全部东西，一次取完。
 
@@ -152,7 +157,9 @@ def service_home(tenant: str) -> dict:
     tenant = _tenant_or_throw(tenant)
     summary = billing.wallet_summary(tenant)
     from pearnly_control.payments.topup import account
+    from pearnly_control.payments.pricing import public_rates
     return {
+        "pricing": public_rates(),
         "collection_account": account(),
         **summary,
         "subscription": billing.subscription_view(tenant),
@@ -166,6 +173,7 @@ def service_home(tenant: str) -> dict:
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
+@retry_service
 def service_subscribe(tenant: str, plan_code: str) -> dict:
     """订阅套餐：从余额扣月费。余额不够就返回 insufficient_balance（界面引导充值）。"""
     _require_service(tenant)
@@ -174,12 +182,15 @@ def service_subscribe(tenant: str, plan_code: str) -> dict:
 
 @frappe.whitelist(allow_guest=True)
 def service_records(tenant: str, tab: str = "usage", start: str = "", end: str = "",
-                    limit: int = 500) -> dict:
+                    limit: int = 500, offset: int = 0) -> dict:
     """记录明细按区间取数。`tab` 只有 usage / topup 两种 ——
     识别记录在产品站点本地（`Pearnly OCR Record`），不在这儿取。"""
     _require_service(tenant)
     tenant = _tenant_or_throw(tenant)
     limit = max(1, min(int(limit or 500), 5000))
+    offset = max(0, int(offset or 0))
+    if tab not in ("usage", "topup"):
+        frappe.throw(_("Invalid value"))
     filters = {"tenant": tenant}
     if tab == "topup":
         filters["creation"] = ("between", [start or "1970-01-01", end or "2999-12-31"])
@@ -187,7 +198,7 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
             billing.TOPUP, filters=filters,
             fields=["name", "creation", "status", "requested_thb", "approved_thb",
                     "payer_name", "note", "review_note", "reviewed_at"],
-            order_by="creation desc", limit_page_length=limit,
+            order_by="creation desc, name desc", limit_page_length=limit, limit_start=offset,
         )
     else:
         filters["type"] = "usage"
@@ -196,9 +207,10 @@ def service_records(tenant: str, tab: str = "usage", start: str = "", end: str =
             billing.TXN, filters=filters,
             fields=["name", "creation", "product", "units", "pages", "amount_thb",
                     "balance_after", "description", "reference"],
-            order_by="creation desc", limit_page_length=limit,
+            order_by="creation desc, name desc", limit_page_length=limit, limit_start=offset,
         )
-    return {"tab": tab, "rows": rows, "total": len(rows)}
+    total = frappe.db.count(billing.TOPUP if tab == "topup" else billing.TXN, filters)
+    return {"tab": tab, "rows": rows, "total": total}
 
 
 # ── 控制面界面调用（Desk 会话）──────────────────────────────────────────────

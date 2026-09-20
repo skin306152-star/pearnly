@@ -43,8 +43,12 @@ def list_records(status="", from_date=None, to_date=None, start=0, page_length=2
     total = frappe.db.sql(f"SELECT COUNT(*) {LOG_SOURCE} WHERE {where}", values)[0][0]
     values.update(limit=page_length, offset=start)
     rows = frappe.db.sql(f"""SELECT l.name, l.creation, l.status, l.business_key,
-        l.actor, l.attempt, l.error_msg
-        {LOG_SOURCE} WHERE {where}
+        l.actor, COALESCE(NULLIF(op.display_name, ''), NULLIF(u.full_name, ''), '') AS actor_name,
+        l.attempt, l.error_msg
+        {LOG_SOURCE}
+        LEFT JOIN `tabDMS Operator` op ON op.user = l.actor
+        LEFT JOIN `tabUser` u ON u.name = l.actor
+        WHERE {where}
         ORDER BY l.creation DESC, l.name DESC LIMIT %(limit)s OFFSET %(offset)s""",
         values, as_dict=True)
     for row in rows:

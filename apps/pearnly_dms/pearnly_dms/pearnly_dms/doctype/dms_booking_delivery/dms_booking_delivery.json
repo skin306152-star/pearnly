@@ -1,0 +1,83 @@
+{
+ "doctype": "DocType",
+ "name": "DMS Booking Delivery",
+ "module": "Pearnly DMS",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "allow_rename": 0,
+ "field_order": [
+  "line_user_id",
+  "nonce",
+  "booking_no",
+  "booking_id",
+  "status",
+  "attempt",
+  "next_attempt_at",
+  "last_error"
+ ],
+ "fields": [
+  {
+   "fieldname": "line_user_id",
+   "fieldtype": "Data",
+   "label": "LINE User ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "nonce",
+   "fieldtype": "Data",
+   "label": "Submission Nonce",
+   "read_only": 1
+  },
+  {
+   "fieldname": "booking_no",
+   "fieldtype": "Data",
+   "label": "Booking Number",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "booking_id",
+   "fieldtype": "Data",
+   "label": "Booking ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "Pending\nDelivered\nReview",
+   "default": "Pending",
+   "in_list_view": 1,
+   "in_standard_filter": 1
+  },
+  {
+   "fieldname": "attempt",
+   "fieldtype": "Long Text",
+   "label": "Submission Evidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "next_attempt_at",
+   "fieldtype": "Datetime",
+   "label": "Next Attempt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_error",
+   "fieldtype": "Data",
+   "label": "Last Error",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "track_changes": 0,
+ "index_web_pages_for_search": 0
+}

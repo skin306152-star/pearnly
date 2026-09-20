@@ -153,6 +153,7 @@
       "line"
     ],
     "operators": [
+      "contracts",
       "masters"
     ],
     "query": [
@@ -162,6 +163,10 @@
       "ocr",
       "records"
     ],
-    "records": []
+    "records": [],
+    "account": [
+      "editor",
+      "ocr"
+    ]
   }
 }

@@ -148,7 +148,8 @@ def access_token() -> str:
         raise OcrError(_("No service account configured (site config pearnly_ocr_credentials)"))
 
     cached = _token_cache.get(path)
-    now = frappe.utils.now_datetime()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if cached and cached["expiry"] > now:
         return cached["token"]
 
@@ -229,9 +230,8 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
                      max_tokens: int = 16384) -> dict | None:
     """图片（或 PDF）+ 提示词 → JSON dict。失败返回 None，由调用方决定是否升档。
 
-    与老产品一致的三点：temperature=0、要求模型直接吐 JSON
-    （`responseMimeType: application/json`）、一次调用不做内部重试
-    （重试交给上层的"升档再读一次"）。
+    temperature=0，要求模型直接吐 JSON。限流/临时不可用在同一模型上
+    有限退避；内容不合格的升档由上层负责，不把基础设施限流当成识别失败。
     """
     if backend() == "vertex":
         url = vertex_url(model)
@@ -267,7 +267,7 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
     }
 
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=timeout_s)
+        resp = _post_with_backoff(url, headers, payload, timeout_s, model)
     except requests.RequestException as exc:
         frappe.logger("pearnly.ocr").warning(f"ocr request failed model={model}: {exc}")
         raise OcrUnavailable(_("Cannot reach the OCR service: {0}").format(str(exc)[:200])) from exc
@@ -314,6 +314,14 @@ def try_with_fallback(call, *, ok, label: str = "ocr"):
     return data
 
 
+def _post_with_backoff(url, headers, payload, timeout_s, model):
+    """Shared cross-App admission; deferred work resumes outside the worker."""
+    from pearnly_core.execution import budget, provider
+
+    bucket = budget.scope(backend(), project(), location_for_model(model), model)
+    return provider.post(url, headers, payload, timeout_s, model, bucket)
+
+
 @frappe.whitelist()
 def api_status():
     """OCR 现在到底能不能用。界面据此显示"可用/没配密钥"，不猜。"""
@@ -338,6 +346,7 @@ def api_selftest():
     （实际踩到：`gemini-2.5-flash` 对新建用户已经不可用，返回 404），
     只看"有没有配"会给出一个错误的"可用"。
     """
+    frappe.only_for("System Manager")
     model = model_for("flash_lite")
     if backend() == "vertex":
         if not is_configured():
@@ -358,7 +367,7 @@ def api_selftest():
 
     payload = {"contents": [{"role": "user", "parts": [{"text": "reply with the single word: ok"}]}]}
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=30)
+        resp = _post_with_backoff(url, headers, payload, 30, model)
     except requests.RequestException as exc:
         return {"ok": False, "reason": "network", "detail": str(exc)[:200], "model": model}
 

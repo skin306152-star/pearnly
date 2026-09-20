@@ -1032,3 +1032,16 @@ pearnly_core	Delete {0} selected operators? Their LINE bindings and DMS connecti
 pearnly_core	Deleted {0} operators	已删除 {0} 名操作员	ลบผู้ปฏิบัติงานแล้ว {0} คน	{0}名の操作員を削除しました	roster.notice.deletedCount
 pearnly_core	Delete {0} selected push records from this list? Sent business documents will not be affected.	删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。	ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ	選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。	connect.records.confirmDelete
 pearnly_core	Deleted {0} push records	已删除 {0} 条推送记录	ลบบันทึกการส่งแล้ว {0} รายการ	{0}件の送信記録を削除しました	connect.records.deletedCount
+pearnly_control	Billing Mode	计费方式	รูปแบบการคิดค่าบริการ	課金方式
+pearnly_control	Billing Month	计费月份	เดือนที่คิดค่าบริการ	課金対象月
+pearnly_core	Username must contain 3–30 letters, digits, dots, underscores or hyphens.	用户名须为 3–30 位字母、数字、点、下划线或短横线。	ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง	ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。	account.usernameFormat
+pearnly_core	This username is already in use.	该用户名已被使用。	ชื่อผู้ใช้นี้ถูกใช้งานแล้ว	このユーザー名は使用されています。	account.usernameTaken
+pearnly_core	Your account was updated elsewhere. Sign in again to load the current username.	账户已在其它地方更新，请重新登录以读取当前用户名。	บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน	別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。	account.profileChanged
+pearnly_core	Sign in again before changing your username.	请重新登录后再更改用户名。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้	ユーザー名を変更する前に再ログインしてください。	account.signInToRename
+pearnly_core	Could not update your account. Please reload and try again.	无法更新账户，请刷新后重试。	อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง	アカウントを更新できませんでした。再読み込みしてお試しください。	account.profileUpdateFailed
+pearnly_core	Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
+pearnly_dms	The recognition queue is busy. Please send the image again shortly.	识别队列繁忙，请稍后重新发送图片。	คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่	認識キューが混雑しています。しばらくしてから画像を再送してください。
+pearnly_dms	The recognition result needs checking. Please do not resend this image yet.	识别结果待核实，请先不要重复发送这张图片。	กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ	認識結果を確認中です。この画像を再送しないでください。
+pearnly_dms	Recognition could not finish. Please try again shortly.	识别未完成，请稍后重试。	อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่	認識を完了できませんでした。しばらくしてから再試行してください。
+pearnly_core	Pay as you go: first {0} pages per Bangkok calendar month {1}/page; thereafter {2}/page.	按量计费：每个曼谷自然月前 {0} 页 {1}/页，之后 {2}/页。	คิดตามใช้จริง: {0} หน้าแรกต่อเดือนปฏิทินกรุงเทพฯ {1}/หน้า จากนั้น {2}/หน้า	従量課金：バンコク暦月ごとに最初の{0}ページは{1}/ページ、以降は{2}/ページ。	home.pricing.pages
+pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars

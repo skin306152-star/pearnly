@@ -46,6 +46,7 @@ def sync_profile_language(doc, method=None):
     if (not frappe.conf.get("pearnly_product") or not frappe.conf.get("pearnly_native_account")
             or frappe.session.user != doc.name or doc.is_new()
             or not doc.has_value_changed("language")
+            or getattr(doc.flags, "pearnly_profile_locale_synced", False)
             or getattr(frappe.flags, "pearnly_locale_synced", False)):
         return
     if doc.language not in LANGUAGES:

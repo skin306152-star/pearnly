@@ -39,6 +39,20 @@ def handle(event: dict) -> bool:
     if not user_id:
         return False
 
+    unbinding = etype == "message" and _is_unbind((event.get("message") or {}).get("text") or "")
+    if etype in {"message", "postback"} and not unbinding and line_binding.user_of(user_id):
+        from pearnly_core import line_session
+        from pearnly_dms.booking import booking_attempt
+
+        marker = ((line_session.get_session(user_id) or {}).get("payload") or {}).get("booking_attempt")
+        if marker:
+            from pearnly_dms.booking import recovery
+            recovery.request(user_id, marker)
+            # The pending order may belong to the previous employee after rebind.
+            # Keep it durable, but don't expose its number to the new identity.
+            line.reply(reply_token, [{"type": "text", "text": booking_attempt.message({})}])
+            return True
+
     if etype == "follow":
         line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_GREETING}])
         return True
@@ -116,14 +130,16 @@ def _handle_text(user_id: str, text: str, reply_token: str) -> None:
 
     # 未绑定：把这条文本当绑定码试一次
     if not bound:
-        consumed = line_binding.consume_bind_code(text)
+        consumed = line_binding.consume_bind_code(text, line_user_id=user_id)
         if not consumed:
             line.reply(reply_token, [{"type": "text", "text": cards.MSG_BIND_BAD_CODE}])
             return
         profile = line.get_profile(user_id) or {}
         line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
+        display_name = frappe.db.get_value("DMS Operator", {"user": consumed["user"]}, "display_name")
+        display_name = display_name or frappe.db.get_value("User", consumed["user"], "full_name") or ""
         line.reply(reply_token, [
-            {"type": "text", "text": cards.MSG_BIND_OK.format(consumed["user"])}
+            {"type": "text", "text": cards.MSG_BIND_OK.format(display_name)}
         ])
         return
 
@@ -149,5 +165,7 @@ def _binding(line_user_id: str, user: str) -> dict:
 
 def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:
     bound = line_binding.user_of(user_id)
-    text = cards.MSG_BIND_HELP.format(bound, UNBIND_WORDS[0]) if bound else cards.MSG_BIND_NEED
+    name = (frappe.db.get_value("DMS Operator", {"user": bound}, "display_name")
+            or frappe.db.get_value("User", bound, "full_name")) if bound else ""
+    text = cards.MSG_BIND_HELP.format(name or "", UNBIND_WORDS[0]) if bound else cards.MSG_BIND_NEED
     line.reply(reply_token, [{"type": "text", "text": text}])

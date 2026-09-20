@@ -76,7 +76,9 @@ def _guard(call):
 
 def _editor(mode: str):
     """按模式选实现（与老产品 `_editor(mode)` 同款）。"""
-    return dms_customer_edit if tickets.normalize_mode(mode) == "customer" else dms_booking_edit
+    if mode not in ("customer", "booking"):
+        _fail("dms_booking.line_auth_required", 403)
+    return dms_customer_edit if mode == "customer" else dms_booking_edit
 
 
 def _line_user_from_request(id_token: str = "") -> str:

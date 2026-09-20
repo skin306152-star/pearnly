@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """计费底座：三套产品共用的一套规则（余额 · 台账 · 定价 · 余额闸）。
 
-搬自老产品 `services/billing/{pricing,charge,account_status}.py`，规则一条不改，
+搬自老产品 `services/billing/{pricing,charge,account_status}.py`，沿用既有单价与额度，
 只把"放在哪"改了：老产品所有租户住同一个库，所以钱表在库里；
 新平台每个租户是一个独立站点，只有**控制面**是所有租户、所有产品都认识的地方，
 所以余额与台账记在这里（表归属见 `docs/p0/05-table-ownership.md`）。
@@ -25,9 +25,8 @@
 档位是**按任务**分的，不是按租户卖的：银行流水 / 总账 / VAT 报表 / 身份证走
 A 档（高精），发票走 B 档（经济）。两档是两种业务，不是同一功能的好坏两档。
 
-老产品这里有个缺陷：A 档成本约为 B 档的 3 到 5 倍，扣费却走同一套页价，
-等于高精档白送。这里按用户给的区间取低端，收 `TIER_A_MULTIPLIER` 倍 ——
-这是个生意决定，要改就改这一个常量。
+档位只选择识别模型，不改变客户定价。按旧线上正式定价收取，不将模型成本
+倍数直接叠加给客户；展示、余额预检和扣费共用下面的单价。
 
 不做影子双跑（用户已确认）：同一份文件只会被收一次费。
 """
@@ -58,9 +57,6 @@ EXCEL_SATANG_PRICE = Decimal("0.01")
 ROWS_PER_PAGE_BILLING = 40
 DOC_QUOTA_REF_PRICE = Decimal("1.50")
 
-# A 档单价倍数。用户说"约为 B 档的 3 到 5 倍"，这里取低端 3 倍。
-TIER_A_MULTIPLIER = Decimal("3")
-
 TIERS = ("B", "A")
 _PRODUCTS = ("cowork", "erp", "dms")
 
@@ -86,10 +82,6 @@ def _money(x) -> Decimal:
         frappe.throw(_("Invalid amount"))
 
 
-def price_multiplier(tier: str) -> Decimal:
-    return TIER_A_MULTIPLIER if (tier or "B").upper() == "A" else Decimal("1")
-
-
 def pdf_cost_thb(used_this_month: int, pages: int, tier: str = "B") -> Decimal:
     """PDF N 页的总价，跨界自动拆段（前 200 页一个价、超出另一个价）。"""
     n = max(0, int(pages or 0))
@@ -98,7 +90,7 @@ def pdf_cost_thb(used_this_month: int, pages: int, tier: str = "B") -> Decimal:
     used = max(0, int(used_this_month or 0))
     tier1 = min(n, max(0, PDF_TIER1_LIMIT - used))
     tier2 = n - tier1
-    return _money((PDF_TIER1_PRICE * tier1 + PDF_TIER2_PRICE * tier2) * price_multiplier(tier))
+    return _money(PDF_TIER1_PRICE * tier1 + PDF_TIER2_PRICE * tier2)
 
 
 def excel_cost_thb(chars: int, tier: str = "B") -> Decimal:
@@ -107,7 +99,7 @@ def excel_cost_thb(chars: int, tier: str = "B") -> Decimal:
     if n == 0:
         return Decimal("0.00")
     satang = math.ceil(n / EXCEL_CHARS_PER_SATANG)
-    return _money(EXCEL_SATANG_PRICE * satang * price_multiplier(tier))
+    return _money(EXCEL_SATANG_PRICE * satang)
 
 
 def doc_quota_pages(chars: int) -> int:
@@ -242,7 +234,7 @@ def charge(tenant: str, *, product: str, kind: str, units: int, tier: str = "B",
         tenant, "usage", -cost, new_balance,
         description or f"{product} OCR {kind} units={units} tier={(tier or 'B').upper()}",
         reference, product=product, units=units, pages=units if kind == "pdf" else 0,
-        request_hash=fingerprint,
+        request_hash=fingerprint, billing_mode="payg",
     )
     frappe.db.commit()
     return {
@@ -278,13 +270,15 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
         _write_txn(tenant, "usage", -cost, new_balance,
                    description or _("{0} out-of-plan scan ({1} over quota)").format(product, billable),
                    reference, product=product, units=units,
-                   pages=units if kind == "pdf" else 0, request_hash=request_hash)
+                   pages=units if kind == "pdf" else 0, request_hash=request_hash,
+                   billing_mode="subscription")
     elif consumed > 0:
         # 额度内：金额为 0，但**要留一行**，否则这个周期用了多少张在台账里看不到
         _write_txn(tenant, "usage", Decimal("0.00"), new_balance,
                    description or _("{0} in-plan scan ({1} pages, within quota)").format(product, consumed),
                    reference, product=product, units=units,
-                   pages=units if kind == "pdf" else 0, request_hash=request_hash)
+                   pages=units if kind == "pdf" else 0, request_hash=request_hash,
+                   billing_mode="subscription")
     frappe.db.commit()
     return {
         "ok": True,
@@ -300,8 +294,10 @@ def _charge_with_subscription(tenant, wallet, sub, *, product, kind, units, tier
 
 
 def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
-               *, product=None, units=0, pages=0, request_hash="") -> None:
+               *, product=None, units=0, pages=0, request_hash="", billing_mode="") -> None:
     """落一行台账。**只由本模块调** —— 别处写台账等于绕过钱的一致性。"""
+    from pearnly_control.payments.usage import billing_month
+
     frappe.get_doc({
         "doctype": TXN,
         "tenant": tenant,
@@ -314,6 +310,8 @@ def _write_txn(tenant, txn_type, amount, balance_after, description, reference,
         "description": (description or "")[:500],
         "reference": (reference or "")[:140],
         "request_hash": request_hash,
+        "billing_mode": billing_mode,
+        "billing_month": billing_month(now()) if billing_mode else "",
     }).insert(ignore_permissions=True)
 
 
@@ -350,23 +348,10 @@ def _bkk_year_month() -> str:
 
 
 def _pages_used_this_month(tenant: str, ym: str) -> int:
-    """本月已用页数 = 台账里这个月的 usage 行之和。
+    """Only payg pages advance the Bangkok calendar-month price threshold."""
+    from pearnly_control.payments.usage import pages_used
 
-    老产品另存了一张 monthly_page_usage；这里不重复存 —— 同一件事存两处迟早
-    对不上，而台账本来就是权威来源。
-    """
-    rows = frappe.db.sql(
-        """
-        select coalesce(sum(pages), 0) as p
-        from `tabPearnly Credit Transaction`
-        where tenant = %(tenant)s and type = 'usage'
-          and left(creation, 7) = %(ym)s
-        for update
-        """,
-        {"tenant": tenant, "ym": ym},
-        as_dict=True,
-    )
-    return int((rows[0]["p"] if rows else 0) or 0)
+    return pages_used(tenant, ym)
 
 
 # ── 余额闸（产品站点用）─────────────────────────────────────────────────────
@@ -389,6 +374,8 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
         ym = _bkk_year_month()
         used = _pages_used_this_month(tenant, ym) if kind == "pdf" else 0
         est = estimate_cost_thb(used, kind, units, tier)
+    except frappe.QueryDeadlockError:
+        raise  # The complete DB-only service transaction owns bounded retries.
     except Exception as exc:  # noqa: BLE001
         frappe.log_error(str(exc)[:400], "billing.gate 查余额失败")
         return {"allowed": False, "error_code": "lookup_error",
@@ -421,12 +408,13 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
 
 def wallet_summary(tenant: str) -> dict:
     """给界面看的：余额 + 本月用量 + 最近几笔。"""
-    wallet = wallet_of(tenant)
+    wallet = wallet_of(tenant, create=False)
     ym = _bkk_year_month()
+    from pearnly_control.payments.usage import pages_used
     return {
         "tenant": tenant,
-        "balance_thb": float(_money(wallet.balance_thb or 0)),
-        "pages_used_this_month": _pages_used_this_month(tenant, ym),
+        "balance_thb": float(_money(wallet.balance_thb if wallet else 0)),
+        "pages_used_this_month": pages_used(tenant, ym, lock=False),
         "year_month": ym,
         "transactions": frappe.get_all(
             TXN, filters={"tenant": tenant},
@@ -528,7 +516,7 @@ def subscribe(tenant: str, plan_code: str) -> dict:
                _("Plan {0} ({1} days · {2} pages)").format(
                    code, SUBSCRIPTION_CYCLE_DAYS, spec["quota"]
                ),
-               sub.name, units=0)
+               sub.name, units=0, billing_mode="subscription_fee")
     frappe.db.commit()
     return {"ok": True, "plan_code": code, "charged_thb": float(fee),
             "balance_after": float(new_balance), "cycle_end": str(end),

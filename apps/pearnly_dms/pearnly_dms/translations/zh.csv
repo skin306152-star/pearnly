@@ -1,113 +1,136 @@
-dms.err.ERR_UNEXPECTED,"服务器内部错误,请联系管理员"
-dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"
-dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
-dms.err.ERR_NO_CREDS,请输入用户名和密码
-dms.err.ERR_CRED_DECRYPT,凭据解密失败 · 请重新输入用户名和密码
-dms.err.ERR_DMS_AUTH,DMS 登录失败 · 请检查用户名和密码
-dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
-dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
-dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理员凭据登录失败 · 请检查管理员用户名和密码
-dms.err.ERR_DMS_CUSTOMER_SAVE,保存客户到 DMS 失败 · 请检查字段后重试
-dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。
-dms.err.ERR_DMS_IMPORT,建订车单失败 · 请稍后重试
-dms.err.ERR_DMS_IMPORT_REPORT,订车单导入被 DMS 拒绝 · 请检查订车资料
-dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
-dms.err.ERR_DMS_ADVISOR_REQUIRED,这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单
-dms.err.ERR_DMS_ADVISOR_UNMATCHED,"在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属"
-dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
-dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重试
-dms.err.ERR_DMS_MASTER_EMPTY,DMS 尚未配置这个主档选项 · 请让管理员在 DMS 添加后重试
-dms.err.ERR_DMS_MASTER_CHANGED,DMS 主档刚刚发生变化 · 系统已更新摘要 · 请重新核对并再次确认
-dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
-dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。
-dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。
-dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
-dms.edit.customerTitle,修改客户资料
-dms.edit.customerSub,保存后会发送新版客户卡到 LINE；请核对后点击“更新资料”，才会写入 DMS。
-dms.edit.title,编辑订车单
-dms.edit.sub,保存修改后，系统会先把新版预览发回 LINE，确认后才真正录入。
-dms.edit.customer,客户资料
-dms.edit.booking,订车资料
-dms.edit.payment,订金支付方式
-dms.edit.files,附件
-dms.edit.save,保存并发送新版预览
-dms.edit.cancel,返回 LINE
-dms.edit.loading,正在加载订车资料…
-dms.edit.saved,草稿已保存，新版预览已发送到 LINE。
-dms.edit.failed,保存失败，请检查字段后重试。
-dms.edit.expired,此草稿已过期或已被修改，请使用 LINE 中最新的预览卡。
-dms.edit.liffUnavailable,此入口尚未为这个 LINE OA 开通，请从 LINE 重新打开 DMS 菜单。
-dms.edit.masterChanged,可选项目已更新，请使用 LINE 中的最新预览卡后重试。
-dms.edit.masterUnavailable,暂时无法读取 DMS 最新选项，请稍后重试。
-dms.edit.postcodeMissing,请从列表中选择邮编。
-dms.edit.geoUnavailable,地址数据暂时不可用，请稍后重试。
-dms.edit.previewSendFailed,新版预览发送到 LINE 失败，请重试。
-dms.edit.slipConflict,已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。
-dms.edit.paymentDetailRequired,请填写完整的必填付款信息。
-dms.edit.duplicatePayment,每种付款方式只能添加一次。
-dms.edit.advisor,销售顾问（系统指定）
-dms.edit.total,订金合计
+Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
+The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
+dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
+dms.account.failed,操作未完成，请重试或重新打开菜单。
+dms.account.hint,更新 Pearnly 保存的 DMS 登录凭据，不会修改 DMS 系统的密码。
+dms.account.invalid,请填写有效的 DMS 用户名和密码。
+dms.account.open,打开 DMS
+dms.account.password,DMS 密码
+dms.account.portal,进入 DMS
+dms.account.portalHint,使用本人的账号进入 DMS
+dms.account.save,保存
+dms.account.saved,已保存，下次连接 DMS 时使用这些凭据。
+dms.account.title,我的 DMS 账号
+dms.account.username,DMS 用户名
+dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
+dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
+dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。
+dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码发给我。
+dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
+dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
+dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
 dms.edit.addPayment,添加支付方式
-dms.edit.attached,保留此附件
-dms.edit.fileHint,取消勾选后，此文件不会附到订车单。
-dms.edit.idCard,身份证复印件
-dms.edit.slip,订金转账凭证
-dms.edit.idWarn,修改客户资料后，最终确认时会同步更新 DMS 客户主档。
-dms.edit.confirmId,身份证号
-dms.edit.prefix,称谓
-dms.edit.name,客户姓名
-dms.edit.birth,出生日期（DD/MM/佛历）
-dms.edit.phone,电话
-dms.edit.house,门牌号
-dms.edit.building,大楼
-dms.edit.floor,楼层
-dms.edit.room,房间
-dms.edit.village,村/小区
-dms.edit.moo,村组
-dms.edit.soi,巷
-dms.edit.road,道路
-dms.edit.province,府
-dms.edit.district,县/区
-dms.edit.subdistrict,镇/街道
-dms.edit.postcode,邮编
-dms.edit.place,接收订车地点
-dms.edit.car,车型
-dms.edit.paint,车色
-dms.edit.delivery,预计交车日期
-dms.edit.term,销售条件
-dms.edit.regis,登记名义
-dms.edit.regisName,登记人姓名
-dms.edit.channel,方式
+dms.edit.advisor,销售顾问（系统指定）
 dms.edit.amount,金额
-dms.edit.source,付款账户
-dms.edit.sourceBank,付款银行
-dms.edit.sourceAccount,付款账号
-dms.edit.sourceAccountName,付款账户名
-dms.edit.sourceBranch,付款分行
-dms.edit.chooseOption,请选择
+dms.edit.attached,保留此附件
+dms.edit.bankName,银行
+dms.edit.birth,出生日期（DD/MM/佛历）
+dms.edit.booking,订车资料
+dms.edit.building,大楼
+dms.edit.cancel,返回 LINE
+dms.edit.car,车型
+dms.edit.card,信用卡/借记卡
+dms.edit.cardType,卡类型
+dms.edit.cash,现金
+dms.edit.cashierBookNo,银行本票簿号
+dms.edit.cashierNo,银行本票号码
+dms.edit.cashier_cheque,银行本票
+dms.edit.channel,方式
+dms.edit.cheque,支票
+dms.edit.chequeBookNo,支票簿号
+dms.edit.chequeNo,支票号码
 dms.edit.chooseBank,请选择银行
+dms.edit.chooseOption,请选择
+dms.edit.confirmId,身份证号
+dms.edit.customer,客户资料
+dms.edit.customerSub,保存后会发送新版客户卡到 LINE；请核对后点击“更新资料”，才会写入 DMS。
+dms.edit.customerTitle,修改客户资料
+dms.edit.delivery,预计交车日期
 dms.edit.destination,收款银行
-dms.edit.destinationName,公司收款户名
 dms.edit.destinationAccount,实际收款账号
 dms.edit.destinationBranch,收款银行分行
-dms.edit.chequeNo,支票号码
-dms.edit.chequeBookNo,支票簿号
-dms.edit.cashierNo,银行本票号码
-dms.edit.cashierBookNo,银行本票簿号
-dms.edit.bankName,银行
-dms.edit.cardType,卡类型
+dms.edit.destinationName,公司收款户名
 dms.edit.detail,详情
-dms.edit.remove,删除
-dms.edit.cash,现金
-dms.edit.transfer,转账
-dms.edit.cheque,支票
-dms.edit.cashier_cheque,银行本票
-dms.edit.card,信用卡/借记卡
+dms.edit.district,县/区
+dms.edit.duplicatePayment,每种付款方式只能添加一次。
+dms.edit.expired,此草稿已过期或已被修改，请使用 LINE 中最新的预览卡。
+dms.edit.failed,保存失败，请检查字段后重试。
+dms.edit.fileHint,取消勾选后，此文件不会附到订车单。
+dms.edit.files,附件
+dms.edit.floor,楼层
+dms.edit.geoUnavailable,地址数据暂时不可用，请稍后重试。
+dms.edit.house,门牌号
+dms.edit.idCard,身份证复印件
+dms.edit.idWarn,修改客户资料后，最终确认时会同步更新 DMS 客户主档。
+dms.edit.invalidAmount,请填写有效的正数付款金额。
+dms.edit.invalidField,请检查“{0}”的填写内容。
+dms.edit.invalidPayment,请选择有效的付款方式。
+dms.edit.liffUnavailable,此入口尚未为这个 LINE OA 开通，请从 LINE 重新打开 DMS 菜单。
+dms.edit.loading,正在加载订车资料…
+dms.edit.masterChanged,可选项目已更新，请使用 LINE 中的最新预览卡后重试。
+dms.edit.masterUnavailable,暂时无法读取 DMS 最新选项，请稍后重试。
+dms.edit.moo,村组
+dms.edit.name,客户姓名
+dms.edit.noOptions,暂无可选项
+dms.edit.notAttached,未附文件
 dms.edit.other,其他
-dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
-dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
-dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
-dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
-dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
-dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码发给我。
-dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。
+dms.edit.paint,车色
+dms.edit.payment,订金支付方式
+dms.edit.paymentDetailRequired,请填写完整的必填付款信息。
+dms.edit.paymentRequired,请至少填写一种付款方式。
+dms.edit.phone,电话
+dms.edit.place,接收订车地点
+dms.edit.postcode,邮编
+dms.edit.postcodeMissing,请从列表中选择邮编。
+dms.edit.prefix,称谓
+dms.edit.previewSendFailed,新版预览发送到 LINE 失败，请重试。
+dms.edit.province,府
+dms.edit.regis,登记名义
+dms.edit.regisName,登记人姓名
+dms.edit.remove,删除
+dms.edit.road,道路
+dms.edit.room,房间
+dms.edit.save,保存并发送新版预览
+dms.edit.saved,草稿已保存，新版预览已发送到 LINE。
+dms.edit.slip,订金转账凭证
+dms.edit.slipConflict,已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。
+dms.edit.slipRequired,转账付款需要附上转账凭证。当前草稿没有凭证，请先移除此付款方式，或返回 LINE 重新录入并上传凭证。
+dms.edit.soi,巷
+dms.edit.source,付款账户
+dms.edit.sourceAccount,付款账号
+dms.edit.sourceAccountName,付款账户名
+dms.edit.sourceBank,付款银行
+dms.edit.sourceBranch,付款分行
+dms.edit.sub,保存修改后，系统会先把新版预览发回 LINE，确认后才真正录入。
+dms.edit.subdistrict,镇/街道
+dms.edit.term,销售条件
+dms.edit.title,编辑订车单
+dms.edit.total,订金合计
+dms.edit.transfer,转账
+dms.edit.village,村/小区
+dms.err.ERR_CRED_DECRYPT,凭据解密失败 · 请重新输入用户名和密码
+dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理员凭据登录失败 · 请检查管理员用户名和密码
+dms.err.ERR_DMS_ADVISOR_REQUIRED,这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,"在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属"
+dms.err.ERR_DMS_AUTH,DMS 登录失败 · 请检查用户名和密码
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。
+dms.err.ERR_DMS_BOOKING_PATCH,回填订车单资料失败 · 请稍后重试
+dms.err.ERR_DMS_CONCURRENT_LOGIN,DMS 账号正在其他地方使用 · 请退出其他登录后重试
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。
+dms.err.ERR_DMS_CUSTOMER_SAVE,保存客户到 DMS 失败 · 请检查字段后重试
+dms.err.ERR_DMS_IMPORT,建订车单失败 · 请稍后重试
+dms.err.ERR_DMS_IMPORT_REPORT,订车单导入被 DMS 拒绝 · 请检查订车资料
+dms.err.ERR_DMS_MASTER_CHANGED,DMS 主档刚刚发生变化 · 系统已更新摘要 · 请重新核对并再次确认
+dms.err.ERR_DMS_MASTER_EMPTY,DMS 尚未配置这个主档选项 · 请让管理员在 DMS 添加后重试
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重试
+dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
+dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
+dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
+dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
+dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
+dms.err.ERR_NO_CREDS,请输入用户名和密码
+dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"
+dms.err.ERR_UNEXPECTED,"服务器内部错误,请联系管理员"

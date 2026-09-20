@@ -408,6 +408,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Workspace,พื้นที่ทำงาน
+Your access domain,โดเมนสำหรับเข้าใช้งาน
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก"
 account.cancel,ยกเลิก
 account.changePassword,เปลี่ยนรหัสผ่าน
@@ -416,6 +417,8 @@ account.error.languageFailed,ไม่สามารถเปลี่ยนภ
 account.error.reloginLanguage,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 account.identityPasswordOnly,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว
 account.language,ภาษา
+account.profileChanged,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน
+account.profileUpdateFailed,อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง
 account.pwd.confirm,ยืนยันรหัสผ่านใหม่
 account.pwd.current,รหัสผ่านปัจจุบัน
 account.pwd.done,อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่
@@ -425,10 +428,13 @@ account.save,บันทึก
 account.saving,กำลังบันทึก…
 account.sidebarOrder,จัดลำดับแถบด้านข้าง
 account.signInAgain,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
+account.signInToRename,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้
 account.signOut,ออกจากระบบ
 account.signOutConfirm,คุณต้องการออกจากระบบหรือไม่?
 account.themeDark,Pearnly โหมดมืด
 account.themeLight,Pearnly โหมดสว่าง
+account.usernameFormat,ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง
+account.usernameTaken,ชื่อผู้ใช้นี้ถูกใช้งานแล้ว
 common.backHome,กลับหน้าหลัก
 common.cancel,ยกเลิก
 common.col.date,วันที่
@@ -551,6 +557,8 @@ home.plans.over,ส่วนเกิน {0}/หน้า
 home.plans.perCycle,/ {0} วัน
 home.plans.quota,โควตาต่อรอบ {0} หน้า
 home.plans.title,เลือกแพ็กเกจ
+home.pricing.chars,ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม
+home.pricing.pages,คิดตามใช้จริง: {0} หน้าแรกต่อเดือนปฏิทินกรุงเทพฯ {1}/หน้า จากนั้น {2}/หน้า
 home.refresh,รีเฟรช
 home.status.credited,เข้าบัญชีแล้ว
 home.status.failed,ล้มเหลว

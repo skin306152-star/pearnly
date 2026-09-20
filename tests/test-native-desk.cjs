@@ -21,11 +21,11 @@ console.log('PASS native constructor-time logout extension and no duplicate acco
 const header = new frappe.ui.SidebarHeader();
 header.dropdown_items = [{name:'desktop'},{name:'website'},{name:'help'},{name:'display'},{name:'logout'}];
 header.add_navbar_items();
-assert.deepEqual(Array.from(header.dropdown_items,item=>item.name),['reorder-sidebar','display','reload','logout']);
+assert.deepEqual(Array.from(header.dropdown_items,item=>item.name),['reorder-sidebar','reload','logout']);
 
 assert.equal(frappe.boot.desk_settings.search_bar,0);
 assert.equal(frappe.boot.desk_settings.notifications,0);
 assert.equal(frappe.boot.desk_settings.form_navigation_buttons,0);
-console.log('PASS product initializes no global search/notifications/document navigation; native display/logout retained');
+console.log('PASS product hides unsupported display/search/notifications/navigation; reorder/reload/logout retained');
 
 assert.equal(frappe.re_route[""],"/desk/pearnly-home");

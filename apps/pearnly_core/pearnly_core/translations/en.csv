@@ -406,6 +406,7 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
 Workspace,Workspace
+Your access domain,Your access domain
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session."
 account.cancel,Cancel
 account.changePassword,Change password
@@ -414,6 +415,8 @@ account.error.languageFailed,Could not update the account language.
 account.error.reloginLanguage,Please sign in again before changing your language.
 account.identityPasswordOnly,Change your password from your account profile using Change Password.
 account.language,Language
+account.profileChanged,Your account was updated elsewhere. Sign in again to load the current username.
+account.profileUpdateFailed,Could not update your account. Please reload and try again.
 account.pwd.confirm,Confirm new password
 account.pwd.current,Current password
 account.pwd.done,Password updated. Use the new password next time you sign in.
@@ -423,10 +426,13 @@ account.save,Save
 account.saving,Saving…
 account.sidebarOrder,Reorder sidebar
 account.signInAgain,Sign out and sign in again
+account.signInToRename,Sign in again before changing your username.
 account.signOut,Sign out
 account.signOutConfirm,Are you sure you want to sign out?
 account.themeDark,Pearnly Dark
 account.themeLight,Pearnly Light
+account.usernameFormat,"Username must contain 3–30 letters, digits, dots, underscores or hyphens."
+account.usernameTaken,This username is already in use.
 common.backHome,Back to home
 common.cancel,Cancel
 common.col.date,Date
@@ -549,6 +555,8 @@ home.plans.over,Over-rate {0}/page
 home.plans.perCycle,/ {0} days
 home.plans.quota,Quota per cycle {0} pages
 home.plans.title,Choose a plan
+home.pricing.chars,"Text files: {1} per {0} characters, rounded up."
+home.pricing.pages,Pay as you go: first {0} pages per Bangkok calendar month {1}/page; thereafter {2}/page.
 home.refresh,Refresh
 home.status.credited,Credited
 home.status.failed,Failed

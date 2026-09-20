@@ -1,113 +1,136 @@
-dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください
-dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
-dms.err.ERR_KMS_MISSING,サーバーの暗号化キーが設定されていません。運用担当者にお問い合わせください
-dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してください
-dms.err.ERR_CRED_DECRYPT,認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください
-dms.err.ERR_DMS_AUTH,DMS へのログインに失敗しました · ユーザー名とパスワードをご確認ください
-dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
-dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
-dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください
-dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
-dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
-dms.err.ERR_DMS_IMPORT,予約の作成に失敗しました · 再試行してください
-dms.err.ERR_DMS_IMPORT_REPORT,DMS が予約取込を拒否しました · 予約内容をご確認ください
-dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
-dms.err.ERR_DMS_ADVISOR_REQUIRED,この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください
-dms.err.ERR_DMS_ADVISOR_UNMATCHED,このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください
-dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
-dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に読み取れません · しばらくしてから再試行してください
-dms.err.ERR_DMS_MASTER_EMPTY,この DMS マスター項目は未設定です。管理者が DMS に追加してから再試行してください
-dms.err.ERR_DMS_MASTER_CHANGED,DMS マスターデータが変更されました。更新後の概要を確認し、もう一度確定してください
-dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
-dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。
-dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
-dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
-dms.edit.customerTitle,顧客情報を編集
-dms.edit.customerSub,保存すると新しい確認カードを LINE に送信します。確認後に情報更新を押すと DMS に登録されます。
-dms.edit.title,予約票を編集
-dms.edit.sub,変更を保存すると、確定前に新しいプレビューが LINE に送信されます。
-dms.edit.customer,顧客情報
-dms.edit.booking,予約情報
-dms.edit.payment,支払方法
-dms.edit.files,添付ファイル
-dms.edit.save,保存して新しいプレビューを送信
-dms.edit.cancel,LINE に戻る
-dms.edit.loading,予約情報を読み込み中…
-dms.edit.saved,下書きを保存し、新しいプレビューを LINE に送信しました。
-dms.edit.failed,保存できませんでした。入力内容を確認して再試行してください。
-dms.edit.expired,この下書きは期限切れ、または変更済みです。LINE の最新プレビューを使用してください。
-dms.edit.liffUnavailable,この画面はこのLINE OAでは利用できません。LINEからDMSメニューを開き直してください。
-dms.edit.masterChanged,選択肢が更新されました。LINE の最新プレビューで再試行してください。
-dms.edit.masterUnavailable,DMS の最新選択肢を取得できません。しばらくして再試行してください。
-dms.edit.postcodeMissing,リストから郵便番号を選択してください。
-dms.edit.geoUnavailable,住所データを取得できませんでした。しばらくして再試行してください。
-dms.edit.previewSendFailed,新しいプレビューを LINE に送信できませんでした。再試行してください。
-dms.edit.slipConflict,振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。
-dms.edit.paymentDetailRequired,必須の支払情報を入力してください。
-dms.edit.duplicatePayment,各支払方法は1回のみ追加できます。
-dms.edit.advisor,販売担当者（システム指定）
-dms.edit.total,予約金合計
+Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
+The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
+The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
+dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
+dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
+dms.account.hint,Pearnly に保存する DMS のログイン情報を更新します。DMS 側のパスワードは変更しません。
+dms.account.invalid,有効な DMS ユーザー名とパスワードを入力してください。
+dms.account.open,DMS を開く
+dms.account.password,DMS パスワード
+dms.account.portal,DMS を開く
+dms.account.portalHint,自分のアカウントで DMS を開きます
+dms.account.save,保存
+dms.account.saved,保存しました。次回の DMS ログインに使用します。
+dms.account.title,自分の DMS アカウント
+dms.account.username,DMS ユーザー名
+dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
+dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
+dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。
+dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。
+dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
+dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
+dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
 dms.edit.addPayment,支払方法を追加
-dms.edit.attached,この添付を保持
-dms.edit.fileHint,オフにすると予約票に添付されません。
-dms.edit.idCard,身分証明書の写し
-dms.edit.slip,振込票
-dms.edit.idWarn,顧客情報を変更すると、確定時に DMS の顧客台帳が更新されます。
-dms.edit.confirmId,国民ID
-dms.edit.prefix,敬称
-dms.edit.name,氏名
-dms.edit.birth,生年月日（DD/MM/仏暦）
-dms.edit.phone,電話番号
-dms.edit.house,番地
-dms.edit.building,建物
-dms.edit.floor,階
-dms.edit.room,部屋
-dms.edit.village,村・住宅地
-dms.edit.moo,ムー
-dms.edit.soi,ソイ
-dms.edit.road,道路
-dms.edit.province,県
-dms.edit.district,郡・区
-dms.edit.subdistrict,町・地区
-dms.edit.postcode,郵便番号
-dms.edit.place,予約受付場所
-dms.edit.car,車種
-dms.edit.paint,色
-dms.edit.delivery,納車予定日
-dms.edit.term,販売条件
-dms.edit.regis,登録名義
-dms.edit.regisName,登録者名
-dms.edit.channel,方法
+dms.edit.advisor,販売担当者（システム指定）
 dms.edit.amount,金額
-dms.edit.source,振込元口座
-dms.edit.sourceBank,振込元銀行
-dms.edit.sourceAccount,振込元口座番号
-dms.edit.sourceAccountName,振込元口座名義
-dms.edit.sourceBranch,振込元支店
-dms.edit.chooseOption,選択してください
+dms.edit.attached,この添付を保持
+dms.edit.bankName,銀行
+dms.edit.birth,生年月日（DD/MM/仏暦）
+dms.edit.booking,予約情報
+dms.edit.building,建物
+dms.edit.cancel,LINE に戻る
+dms.edit.car,車種
+dms.edit.card,クレジット/デビットカード
+dms.edit.cardType,カード種別
+dms.edit.cash,現金
+dms.edit.cashierBookNo,銀行小切手帳番号
+dms.edit.cashierNo,銀行小切手番号
+dms.edit.cashier_cheque,銀行小切手
+dms.edit.channel,方法
+dms.edit.cheque,小切手
+dms.edit.chequeBookNo,小切手帳番号
+dms.edit.chequeNo,小切手番号
 dms.edit.chooseBank,銀行を選択
+dms.edit.chooseOption,選択してください
+dms.edit.confirmId,国民ID
+dms.edit.customer,顧客情報
+dms.edit.customerSub,保存すると新しい確認カードを LINE に送信します。確認後に情報更新を押すと DMS に登録されます。
+dms.edit.customerTitle,顧客情報を編集
+dms.edit.delivery,納車予定日
 dms.edit.destination,受取銀行
-dms.edit.destinationName,会社の受取口座名義
 dms.edit.destinationAccount,受取口座番号
 dms.edit.destinationBranch,受取銀行支店
-dms.edit.chequeNo,小切手番号
-dms.edit.chequeBookNo,小切手帳番号
-dms.edit.cashierNo,銀行小切手番号
-dms.edit.cashierBookNo,銀行小切手帳番号
-dms.edit.bankName,銀行
-dms.edit.cardType,カード種別
+dms.edit.destinationName,会社の受取口座名義
 dms.edit.detail,詳細
-dms.edit.remove,削除
-dms.edit.cash,現金
-dms.edit.transfer,振込
-dms.edit.cheque,小切手
-dms.edit.cashier_cheque,銀行小切手
-dms.edit.card,クレジット/デビットカード
+dms.edit.district,郡・区
+dms.edit.duplicatePayment,各支払方法は1回のみ追加できます。
+dms.edit.expired,この下書きは期限切れ、または変更済みです。LINE の最新プレビューを使用してください。
+dms.edit.failed,保存できませんでした。入力内容を確認して再試行してください。
+dms.edit.fileHint,オフにすると予約票に添付されません。
+dms.edit.files,添付ファイル
+dms.edit.floor,階
+dms.edit.geoUnavailable,住所データを取得できませんでした。しばらくして再試行してください。
+dms.edit.house,番地
+dms.edit.idCard,身分証明書の写し
+dms.edit.idWarn,顧客情報を変更すると、確定時に DMS の顧客台帳が更新されます。
+dms.edit.invalidAmount,支払金額はゼロより大きい有効な数値を入力してください。
+dms.edit.invalidField,「{0}」の入力内容を確認してください。
+dms.edit.invalidPayment,有効な支払方法を選択してください。
+dms.edit.liffUnavailable,この画面はこのLINE OAでは利用できません。LINEからDMSメニューを開き直してください。
+dms.edit.loading,予約情報を読み込み中…
+dms.edit.masterChanged,選択肢が更新されました。LINE の最新プレビューで再試行してください。
+dms.edit.masterUnavailable,DMS の最新選択肢を取得できません。しばらくして再試行してください。
+dms.edit.moo,ムー
+dms.edit.name,氏名
+dms.edit.noOptions,選択肢がありません
+dms.edit.notAttached,未添付
 dms.edit.other,その他
-dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
-dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
-dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
-dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
-dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
-dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。
-dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。
+dms.edit.paint,色
+dms.edit.payment,支払方法
+dms.edit.paymentDetailRequired,必須の支払情報を入力してください。
+dms.edit.paymentRequired,支払方法を一つ以上入力してください。
+dms.edit.phone,電話番号
+dms.edit.place,予約受付場所
+dms.edit.postcode,郵便番号
+dms.edit.postcodeMissing,リストから郵便番号を選択してください。
+dms.edit.prefix,敬称
+dms.edit.previewSendFailed,新しいプレビューを LINE に送信できませんでした。再試行してください。
+dms.edit.province,県
+dms.edit.regis,登録名義
+dms.edit.regisName,登録者名
+dms.edit.remove,削除
+dms.edit.road,道路
+dms.edit.room,部屋
+dms.edit.save,保存して新しいプレビューを送信
+dms.edit.saved,下書きを保存し、新しいプレビューを LINE に送信しました。
+dms.edit.slip,振込票
+dms.edit.slipConflict,振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。
+dms.edit.slipRequired,振込には振込票が必要です。この下書きには添付されていません。振込を削除するか、LINE で予約を入力し直して振込票を添付してください。
+dms.edit.soi,ソイ
+dms.edit.source,振込元口座
+dms.edit.sourceAccount,振込元口座番号
+dms.edit.sourceAccountName,振込元口座名義
+dms.edit.sourceBank,振込元銀行
+dms.edit.sourceBranch,振込元支店
+dms.edit.sub,変更を保存すると、確定前に新しいプレビューが LINE に送信されます。
+dms.edit.subdistrict,町・地区
+dms.edit.term,販売条件
+dms.edit.title,予約票を編集
+dms.edit.total,予約金合計
+dms.edit.transfer,振込
+dms.edit.village,村・住宅地
+dms.err.ERR_CRED_DECRYPT,認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください
+dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください
+dms.err.ERR_DMS_ADVISOR_REQUIRED,この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください
+dms.err.ERR_DMS_ADVISOR_UNMATCHED,このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください
+dms.err.ERR_DMS_AUTH,DMS へのログインに失敗しました · ユーザー名とパスワードをご確認ください
+dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。
+dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
+dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
+dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
+dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
+dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
+dms.err.ERR_DMS_IMPORT,予約の作成に失敗しました · 再試行してください
+dms.err.ERR_DMS_IMPORT_REPORT,DMS が予約取込を拒否しました · 予約内容をご確認ください
+dms.err.ERR_DMS_MASTER_CHANGED,DMS マスターデータが変更されました。更新後の概要を確認し、もう一度確定してください
+dms.err.ERR_DMS_MASTER_EMPTY,この DMS マスター項目は未設定です。管理者が DMS に追加してから再試行してください
+dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に読み取れません · しばらくしてから再試行してください
+dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
+dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
+dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
+dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
+dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
+dms.err.ERR_KMS_MISSING,サーバーの暗号化キーが設定されていません。運用担当者にお問い合わせください
+dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してください
+dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
+dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください

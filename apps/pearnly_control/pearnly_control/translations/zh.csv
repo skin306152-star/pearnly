@@ -23,6 +23,8 @@ Balance After,变动后余额
 "Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})",余额不够付月费（需要 ฿{0}，只有 ฿{1}）
 Basic Info,基础信息
 Bench Group,运行组
+Billing Mode,计费方式
+Billing Month,计费月份
 Billing Units,计费单位
 Billing service unavailable; please retry,计费服务暂时不可用，请重试
 Build the workspace,建工作台

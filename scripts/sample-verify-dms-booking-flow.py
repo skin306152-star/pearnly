@@ -15,6 +15,13 @@ def main():
     from pearnly_core import line_session as store
     from pearnly_dms.booking.conversation import booking_flow as flow
     from pearnly_dms.line import cards as cards
+    from pearnly_dms.line import identity
+
+    # Pure transport/business fixtures; session CAS and recovery persistence run
+    # against the real disposable Site. No LINE or DMS network request is made.
+    identity.matches = lambda binding, uid: True
+    flow.recovery.matches = identity.matches
+    flow.recovery.endpoint_fingerprint = lambda endpoint: "local-test-identity"
 
     ok = []
 
@@ -30,16 +37,22 @@ def main():
     flow._enqueue = lambda job, fn, *args: queued.append((job, fn.__name__, args))
     flow.resolve_dms_endpoint = lambda user, endpoint_id: {"id": "EP1", "name": "EP1"}
     flow._out.start_loading = lambda line_user_id, seconds=30: True
+    flow._out.download_content = lambda mid: b"\xff\xd8local-fixture"
+    flow.recovery.delivery.matches = identity.matches
+    flow.recovery.delivery._repair_files = lambda doc, marker: False
+    flow.recovery.delivery.line.push = lambda uid, messages, **kwargs: (pushed.append(messages[0]["text"]), True)[1]
 
     ledger_calls = []
     flow.booking_ledger.log_booking = lambda **kw: ledger_calls.append(kw)
 
     book_calls = []
     book_result = {"ok": True, "booking_no": "BK001", "booking_id": "R1", "attach_ok": True}
-    flow.book_in_session = lambda endpoint, payload, files, failed, on_attempt=None: (
-        book_calls.append({"files": files, "failed": failed, "on_attempt": on_attempt}),
-        book_result,
-    )[1]
+    def book(endpoint, payload, files, failed, on_attempt=None):
+        book_calls.append({"files": files, "failed": failed, "on_attempt": on_attempt})
+        if book_result.get("ok") or book_result.get("error_code") == flow.booking_attempt.UNKNOWN:
+            on_attempt.capture_submission(book_result["booking_no"], {"txtdocno": book_result["booking_no"]})
+        return book_result
+    flow.book_in_session = book
 
     QA = {
         "endpoint_id": "EP1",
@@ -62,7 +75,7 @@ def main():
                                 cards.ACT_RETRY_BOOKING}, sorted(flow.BOOKING_ACTIONS))
     ck("重试用的草稿 TTL 是 30 分钟", flow._RETRY_TTL_MINUTES == 30)
     ck("附件两类：身份证 + 转账凭证",
-       [k for k, _, _ in flow._ATTACH_KINDS] == ["id_card", "slip"], flow._ATTACH_KINDS)
+       [k for k, _, _ in __import__("pearnly_dms.booking.attachments", fromlist=["KINDS"]).KINDS] == ["id_card", "slip"], __import__("pearnly_dms.booking.attachments", fromlist=["KINDS"]).KINDS)
 
     # ── 2. 确认：一次性 nonce + 丢后台 ────────────────────────────────
     queued.clear()
@@ -80,6 +93,20 @@ def main():
        ((store.get_session(uid) or {}).get("payload") or {}).get("nonce") is None
        and store.consume_nonce(uid, "booking_review", n1) is None)
 
+    from unittest.mock import patch
+    uid_queue = "verify-flow-" + secrets.token_hex(4)
+    nq = secrets.token_hex(8)
+    store.set_session(uid_queue, "booking_review", {"nonce": nq, "qa": QA})
+    with patch.object(flow, "_enqueue", side_effect=RuntimeError("local queue unavailable")):
+        flow.handle_postback(binding, uid_queue, "tok", cards.ACT_CONFIRM_BOOKING, {"nonce": nq})
+    restored = store.get_session(uid_queue)["payload"]
+    ck("入队失败保留草稿并发出可重新确认的卡", bool(restored.get("nonce")) and restored["nonce"] != nq
+       and not restored.get("booking_claim") and restored["qa"] == QA)
+    with patch.object(flow, "book_in_session") as late:
+        flow._execute_booking(binding, uid_queue, {"nonce": nq, "qa": QA})
+    ck("模糊入队后迟到的旧任务不能写外部客户或订单", not late.called)
+    store.clear_session(uid_queue)
+
     # ── 3. 取消：登记过就不许说"已取消" ───────────────────────────────
     pushed.clear()
     replied.clear()
@@ -87,7 +114,7 @@ def main():
     store.clear_session(uid2)
     n2 = secrets.token_hex(8)
     store.set_session(uid2, "booking_review", {"nonce": n2})
-    flow.handle_postback(binding, uid2, "tok", cards.ACT_CANCEL_BOOKING, {})
+    flow.handle_postback(binding, uid2, "tok", cards.ACT_CANCEL_BOOKING, {"nonce": n2})
     ck("没登记过 → 真的取消：清会话 + 说已取消",
        store.get_session(uid2) is None and replied[-1] == cards.TXT_BOOKING_CANCELLED,
        replied[-1:])
@@ -137,6 +164,7 @@ def main():
     store.clear_session(uid6)
     n6 = secrets.token_hex(8)
     store.set_session(uid6, "booking_review", {"nonce": n6, "qa": QA})
+    store.consume_nonce(uid6, "booking_review", n6)
     flow._execute_booking(binding, uid6, {"nonce": n6, "qa": QA})
     ck("建单调用带上了提交登记回调（on_attempt 必须传下去）",
        book_calls and callable(book_calls[0]["on_attempt"]), bool(book_calls and book_calls[0]["on_attempt"]))
@@ -153,9 +181,14 @@ def main():
     store.clear_session(uid7)
     n7 = secrets.token_hex(8)
     store.set_session(uid7, "booking_review", {"nonce": n7, "qa": QA})
+    store.consume_nonce(uid7, "booking_review", n7)
     flow._execute_booking(binding, uid7, {"nonce": n7, "qa": QA})
-    ck("附件没挂全 → 回执如实补一句（不谎报）",
-       pushed and "แนบไฟล์ไม่ครบ" in pushed[-1], pushed[-1][-40:])
+    import frappe
+    delivery = flow.recovery.delivery
+    pending_delivery = frappe.get_doc(delivery.DT, delivery.name_for(uid7, n7))
+    ck("附件没挂全 → 保留待补任务，不谎报完成也不卡下一张草稿",
+       not pushed and pending_delivery.status == "Pending" and
+       pending_delivery.last_error == "attachments_pending" and store.get_session(uid7) is None)
 
     # ── 8. 执行体：结果未知 / 可重试 / 钱不够 ────────────────────────
     pushed.clear()
@@ -166,6 +199,7 @@ def main():
     store.clear_session(uid8)
     n8 = secrets.token_hex(8)
     store.set_session(uid8, "booking_review", {"nonce": n8, "qa": QA})
+    store.consume_nonce(uid8, "booking_review", n8)
     flow._execute_booking(binding, uid8, {"nonce": n8, "qa": QA})
     ck("结果未知 → 只说结果未知（**不给重试卡**，重放未知写入是双单）",
        pushed and not sent_structured and "BK900" in pushed[-1], (pushed[-1:], len(sent_structured)))
@@ -280,12 +314,17 @@ def main():
        (store.get_session(uid13) or {}).get("state"), )
 
     for leftover in (uid, uid2, uid3, uid4, uid5, uid6, uid7, uid8, uid9, uid10, uid11, uid12, uid13):
-        store.clear_session(leftover)
+        marker = ((store.get_session(leftover) or {}).get("payload") or {}).get("booking_attempt") or {}
+        store.clear_session(leftover, completed_booking_nonce=marker.get("nonce", ""))
+        for delivery_name in frappe.get_all(flow.recovery.delivery.DT, filters={"line_user_id": leftover}, pluck="name"):
+            frappe.delete_doc(flow.recovery.delivery.DT, delivery_name, ignore_permissions=True)
+    frappe.db.commit()
 
     failed = [x for x in ok if not x]
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(ok) - len(failed), len(failed)))
     print("RESULT: %s" % ("ALL PASS" if not failed else "FAIL"))
+    assert not failed
 
 
 if __name__ == "__main__":

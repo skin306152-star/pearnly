@@ -19,7 +19,7 @@ def read_options():
     Raising here would turn "the master list is momentarily unreadable" into a failed
     dialog; the caller keeps the operator's stored assignment and skips the field.
     """
-    endpoint = frappe.db.get_value("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1}, "name")
+    endpoint = frappe.db.get_value("Pearnly ERP Endpoint", {"adapter": "mrerp_dms", "enabled": 1, "owner_user": ["is", "not set"]}, "name")
     if not endpoint:
         # Field-level wording: the create form separately refuses a missing connection.
         return [], "roster.advisor.noConnection"

@@ -64,7 +64,7 @@ class _ReadOnlyTransport:
             # 附件挂载是写操作，永不属于权威只读块。
             self._refuse(str(url))
         path = str(url).split("?", 1)[0].split("#", 1)[0].rstrip("/")
-        if any(read in path for read in _READ_ONLY_POST_PATHS):
+        if any(read in path for read in _READ_ONLY_POST_PATHS) or path.endswith(("/car/view.php", "/bank/view.php")):
             return self._transport.post(url, data=data, timeout_ms=timeout_ms)
         self._refuse(str(url))
 

@@ -173,8 +173,9 @@ doc_events = {
     # 开通时会给已存在的账号设一遍默认工作区；这个钩子管**之后新增**的员工账号，
     # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。
     "User": {
-        "before_validate": "pearnly_core.account.profile.reject_local_password",
-        "before_save": "pearnly_core.account.preferences.sync_profile_language",
+        "before_validate": "pearnly_core.account.profile.prepare_profile",
+        "before_save": ["pearnly_core.account.profile.sync_username", "pearnly_core.account.preferences.sync_profile_language"],
+        "onload": "pearnly_core.account.profile.load_details",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
     },
 }
@@ -296,6 +297,7 @@ app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_
 after_migrate = [
     "pearnly_core.desk.navigation.ensure_navigation",
     "pearnly_core.desk.branding.ensure_site_favicon",
+    "pearnly_core.account.layout.ensure_profile_fields",
 ]
 
 # Keep the native user form; do not add a second account settings page.
@@ -307,3 +309,7 @@ permission_query_conditions = {"User": "pearnly_core.desk.permissions.user_query
 
 # Native clear-cache must not discard still-active identity sessions/state.
 persistent_cache_keys = ["pearnly_oidc_session:*", "pearnly_oidc_state:*"]
+
+# Durable OCR backlog repair; second-level ETA delivery uses execution.dispatch.
+scheduler_events = {"cron": {"* * * * *": ["pearnly_core.execution.work.sweep"]},
+                    "daily": ["pearnly_core.execution.work.prune_checkpoints"]}

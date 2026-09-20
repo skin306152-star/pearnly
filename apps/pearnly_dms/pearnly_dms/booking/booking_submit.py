@@ -28,6 +28,7 @@ from pearnly_dms.booking.booking_readback import (
     STAGE_SEARCH_EMPTY,
     STAGE_VERIFIED,
     evaluate_candidate,
+    field_spec,
     merge_stage,
     page_is_last,
     parse_row_ids,
@@ -323,12 +324,17 @@ def submit_booking(
     for _ in range(dms_docno.BOOKING_DOCNO_MAX_TRIES):
         docno = state.docno
         data = build_write(state)
+        readback_input = build_readback(state)
         status = None
         if on_attempt is not None:
             # **跨过写边界之前**先把这次尝试落盘。POST 之后崩溃，
             # 不能让下一个 worker 的投递变成第二张业务单据。
-            on_attempt(docno)
-        readback_input = build_readback(state)
+            capture = getattr(on_attempt, "capture_submission", None)
+            if callable(capture):
+                capture(docno, {key: value for key, value in readback_input.items()
+                                if field_spec(key) is not None})
+            else:
+                on_attempt(docno)
         try:
             resp = client.transport.post(
                 client._url("drfcbc/new.php"), data=data, timeout_ms=120000

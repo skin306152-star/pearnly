@@ -31,21 +31,13 @@ from typing import Any, Dict, List, Optional
 from pearnly_dms.intake.customer_diff import diff_customer_fields
 from pearnly_dms.line.errors import friendly
 from pearnly_dms.contracts.id_validate import normalize_thai_id
+from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.push import build_adapter
 
 logger = logging.getLogger(__name__)
 
 
-def endpoint_name(endpoint: Any) -> str:
-    """端点标识：收字符串（文档名）/ dict / Frappe 文档。"""
-    if isinstance(endpoint, str):
-        return endpoint
-    if isinstance(endpoint, dict):
-        return str(endpoint.get("name") or endpoint.get("id") or "")
-    return str(getattr(endpoint, "name", "") or "")
-
-
-def err(code: str, raw: str = "") -> Dict[str, Any]:
+def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[str, Any]:
     """失败结果。带 `response_body` 是有意的：**光有 error_code 分不清**
     "DMS 拒了"还是"我们复核没查到"，这两件事的处理方式完全不同。"""
     return {
@@ -53,7 +45,7 @@ def err(code: str, raw: str = "") -> Dict[str, Any]:
         "error_code": code,
         "error_friendly": friendly(code),
         "raw_error": (raw or "")[:300],
-        "response_body": {"raw_error": (raw or "")[:300]},
+        "response_body": {**(response_body or {}), "raw_error": (raw or "")[:300]},
     }
 
 
@@ -99,7 +91,8 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
                         exc, "response_body", {}
                     ).get("submitted"):
                         return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                    return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc))
+                    return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
+                               getattr(exc, "response_body", None))
                 # 收尾再查一次：中途被别人顶下线，结果不能算数。
                 # 但**已经拿到单号**的结果算数 —— 单确实建出来了。
                 if adapter.concurrent_login_detected and not (
@@ -115,7 +108,8 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
         except DmsTechnicalError as exc:
             return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
         except DmsClientError as exc:
-            return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc))
+            return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
+                       getattr(exc, "response_body", None))
     except Exception as exc:  # noqa: BLE001
         logger.exception("DMS 操作意外失败")
         return err("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")
