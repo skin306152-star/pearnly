@@ -1,0 +1,74 @@
+A client cannot be moved to another company.,ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้
+A completed record cannot become a draft.,ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้
+A name is required.,กรุณาระบุชื่อ
+A positive record revision is required.,รุ่นของรายการต้องเป็นจำนวนเต็มบวก
+A request key of 1 to 128 characters is required.,รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ
+Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
+At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
+Buyer Client,ลูกค้าผู้ซื้อ
+Company,บริษัท
+Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
+Completed By,ผู้ทำรายการเสร็จสิ้น
+Cowork Client,Cowork ลูกค้าผู้ซื้อ
+Cowork Master Data,Cowork ข้อมูลหลัก
+Cowork OCR History,Cowork ประวัติการอ่านเอกสาร
+Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
+Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
+Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
+Draft,ฉบับร่าง
+Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
+Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
+Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
+Edit Count,จำนวนครั้งที่แก้ไข
+File Hash,ค่าแฮชของไฟล์
+First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
+Invoice Count,จำนวนใบแจ้งหนี้
+Invoice Date,วันที่ใบแจ้งหนี้
+Invoice Index,ลำดับใบแจ้งหนี้
+Invoice Number,เลขที่ใบแจ้งหนี้
+Invoice Pages,หน้าใบแจ้งหนี้
+Invoice Total,ยอดรวมใบแจ้งหนี้
+Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
+New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
+Not Permitted,ไม่ได้รับอนุญาต
+Original Filename,ชื่อไฟล์ต้นฉบับ
+Original evidence and ownership cannot be changed.,ไม่สามารถแก้ไขหลักฐานต้นฉบับและข้อมูลเจ้าของได้
+Page Count,จำนวนหน้า
+Pearnly Cowork,Pearnly Cowork
+Posting Kind,ประเภทการผ่านรายการ
+Recognition Confidence,ระดับความมั่นใจในการอ่าน
+Recognition Quality,คุณภาพการอ่าน
+Record Revision,รุ่นของรายการ
+Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
+Request Fingerprint,ลายนิ้วมือข้อมูลคำขอ
+Request Key,รหัสคำขอ
+Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
+Seller Name,ชื่อผู้ขาย
+Source PDF ID,รหัส PDF ต้นฉบับ
+Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบับ
+Tax ID,เลขประจำตัวผู้เสียภาษี
+The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
+This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
+Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
+confirmed,ยืนยันแล้ว
+cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
+cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
+cowork.quality.pending,รอตรวจสอบ
+cowork_line,Cowork LINE
+failed,ล้มเหลว
+history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
+history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
+history.date_unreadable,ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร
+history.erp_source_forbidden,ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้
+history.fields_invalid,รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง
+history.json_invalid,ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง
+history.metadata_invalid,รูปแบบข้อมูลประกอบรายการไม่ถูกต้อง
+history.page_index_invalid,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
+history.pages_invalid,รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง
+history.source_invalid,ไม่รองรับแหล่งที่มาของรายการนี้
+history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
+manual,กรอกเอง
+pending,รอดำเนินการ
+service,บริการ
+stock,สต็อก
+summary_table_batch,นำเข้าตารางสรุป

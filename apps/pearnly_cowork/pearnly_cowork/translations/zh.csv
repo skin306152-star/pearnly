@@ -1,0 +1,74 @@
+A client cannot be moved to another company.,客户不能转移到另一家公司。
+A completed record cannot become a draft.,已完成的记录不能改回草稿。
+A name is required.,请填写名称。
+A positive record revision is required.,记录版本必须是正整数。
+A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 个字符。
+Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
+At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
+Buyer Client,买方客户
+Company,公司
+Completed At (UTC),完成时间（UTC）
+Completed By,完成人
+Cowork Client,Cowork 买方客户
+Cowork Master Data,Cowork 主数据
+Cowork OCR History,Cowork 识别记录
+Cowork Workspace,Cowork 公司账套
+Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
+Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
+Draft,草稿
+Duplicate records are not allowed.,不能重复选择同一条记录。
+Each record must have a name and revision.,每条记录都必须提供标识和版本。
+Each record must have a valid name.,每条记录都必须提供有效标识。
+Edit Count,修改次数
+File Hash,文件哈希值
+First Recognition Snapshot,首次识别快照
+Invoice Count,发票数量
+Invoice Date,发票日期
+Invoice Index,发票序号
+Invoice Number,发票号码
+Invoice Pages,发票页面
+Invoice Total,发票总额
+Last Fields Edit (UTC),最近字段修改时间（UTC）
+New records must start as drafts.,新记录必须先保存为草稿。
+Not Permitted,没有权限
+Original Filename,原始文件名
+Original evidence and ownership cannot be changed.,原始凭据及归属不能修改。
+Page Count,页数
+Pearnly Cowork,Pearnly Cowork
+Posting Kind,过账类型
+Recognition Confidence,识别置信度
+Recognition Quality,识别质量
+Record Revision,记录版本
+Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
+Request Fingerprint,请求内容指纹
+Request Key,请求标识
+Select between 1 and 500 records.,请选择 1 至 500 条记录。
+Seller Name,卖方名称
+Source PDF ID,来源 PDF 标识
+Source Page Indices,源文件页码
+Tax ID,纳税人识别号
+The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
+This request key has already been used for different content.,此请求标识已用于其他内容。
+Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
+confirmed,已确认
+cowork.quality.confirmed,高置信识别
+cowork.quality.failed,未识别到摘要
+cowork.quality.pending,待复核
+cowork_line,Cowork LINE
+failed,失败
+history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
+history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
+history.date_unreadable,无法识别票面日期，请核对单据上的日期。
+history.erp_source_forbidden,ERP 记录不能保存到 Cowork。
+history.fields_invalid,发票字段格式不正确。
+history.json_invalid,记录数据不是有效的 JSON。
+history.metadata_invalid,记录附加信息格式不正确。
+history.page_index_invalid,源文件页码必须是正整数。
+history.pages_invalid,发票页面数据格式不正确。
+history.source_invalid,不支持此记录来源。
+history.source_not_public,此入口只能创建手工录入记录。
+manual,手工
+pending,待处理
+service,服务
+stock,库存
+summary_table_batch,汇总表导入

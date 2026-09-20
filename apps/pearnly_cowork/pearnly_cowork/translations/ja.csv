@@ -1,0 +1,74 @@
+A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
+A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
+A name is required.,名前を入力してください。
+A positive record revision is required.,レコードの版には正の整数が必要です。
+A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
+Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
+At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
+Buyer Client,買い手顧客
+Company,会社
+Completed At (UTC),完了日時（UTC）
+Completed By,完了者
+Cowork Client,Cowork 買い手顧客
+Cowork Master Data,Cowork マスタデータ
+Cowork OCR History,Cowork 認識履歴
+Cowork Workspace,Cowork 会計対象会社
+Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
+Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+Draft,下書き
+Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
+Each record must have a name and revision.,各レコードには識別子と版が必要です。
+Each record must have a valid name.,各レコードには有効な識別子が必要です。
+Edit Count,編集回数
+File Hash,ファイルのハッシュ値
+First Recognition Snapshot,初回認識結果のスナップショット
+Invoice Count,請求書の件数
+Invoice Date,請求書の日付
+Invoice Index,請求書の順番
+Invoice Number,請求書番号
+Invoice Pages,請求書のページ
+Invoice Total,請求書合計
+Last Fields Edit (UTC),項目の最終編集日時（UTC）
+New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
+Not Permitted,適切な権限がありません
+Original Filename,元のファイル名
+Original evidence and ownership cannot be changed.,元の証跡と所属情報は変更できません。
+Page Count,ページ数
+Pearnly Cowork,Pearnly Cowork
+Posting Kind,記帳区分
+Recognition Confidence,認識の信頼度
+Recognition Quality,認識品質
+Record Revision,レコードの版
+Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+Request Fingerprint,リクエスト内容のフィンガープリント
+Request Key,リクエストキー
+Select between 1 and 500 records.,1～500件のレコードを選択してください。
+Seller Name,売り手名
+Source PDF ID,元のPDFのID
+Source Page Indices,元ファイルのページ番号
+Tax ID,納税者番号
+The record changed. Reload it before saving.,レコードが変更されました。再読み込みしてから保存してください。
+This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
+Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
+confirmed,確認済み
+cowork.quality.confirmed,高い信頼度で認識
+cowork.quality.failed,請求書の概要情報なし
+cowork.quality.pending,要確認
+cowork_line,Cowork LINE
+failed,失敗
+history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
+history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
+history.date_unreadable,請求書に記載された日付を読み取れません。書類の日付を確認してください。
+history.erp_source_forbidden,ERPのレコードはCoworkに保存できません。
+history.fields_invalid,請求書の項目データの形式が正しくありません。
+history.json_invalid,レコードデータが有効なJSONではありません。
+history.metadata_invalid,レコードの付加情報の形式が正しくありません。
+history.page_index_invalid,元ファイルのページ番号には正の整数が必要です。
+history.pages_invalid,請求書のページデータの形式が正しくありません。
+history.source_invalid,このレコードの取得元には対応していません。
+history.source_not_public,この画面からは手入力のレコードのみ作成できます。
+manual,手入力
+pending,処理待ち
+service,サービス
+stock,在庫
+summary_table_batch,集計表の取り込み

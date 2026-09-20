@@ -266,3 +266,16 @@ app_license = "mit"
 
 
 app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
+
+# Native resource APIs and Desk lists share the same backend scope.
+permission_query_conditions = {
+    "Cowork Workspace": "pearnly_cowork.access.scope.workspace_query",
+    "Cowork Client": "pearnly_cowork.access.scope.client_query",
+    "Cowork OCR History": "pearnly_cowork.access.scope.history_query",
+}
+has_permission = {
+    "Cowork Workspace": "pearnly_cowork.access.scope.workspace_permission",
+    "Cowork Client": "pearnly_cowork.access.scope.client_permission",
+    "Cowork OCR History": "pearnly_cowork.access.scope.history_permission",
+}
+doc_events = {"DocShare": {"validate": "pearnly_cowork.access.scope.reject_share"}}

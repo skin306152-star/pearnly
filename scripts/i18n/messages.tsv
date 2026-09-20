@@ -1047,3 +1047,77 @@ pearnly_core	Pay as you go: first {0} pages each calendar month at {1}/page; sub
 pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
 pearnly_core	Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
 pearnly_core	{0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
+pearnly_cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork
+pearnly_cowork	Cowork Workspace	Cowork 公司账套	Cowork บริษัทที่จัดทำบัญชี	Cowork 会計対象会社
+pearnly_cowork	Cowork Client	Cowork 买方客户	Cowork ลูกค้าผู้ซื้อ	Cowork 買い手顧客
+pearnly_cowork	Cowork OCR History	Cowork 识别记录	Cowork ประวัติการอ่านเอกสาร	Cowork 認識履歴
+pearnly_cowork	Cowork Master Data	Cowork 主数据	Cowork ข้อมูลหลัก	Cowork マスタデータ
+pearnly_cowork	Company	公司	บริษัท	会社
+pearnly_cowork	Buyer Client	买方客户	ลูกค้าผู้ซื้อ	買い手顧客
+pearnly_cowork	Tax ID	纳税人识别号	เลขประจำตัวผู้เสียภาษี	納税者番号
+pearnly_cowork	Draft	草稿	ฉบับร่าง	下書き
+pearnly_cowork	Invoice Pages	发票页面	หน้าใบแจ้งหนี้	請求書のページ
+pearnly_cowork	First Recognition Snapshot	首次识别快照	สำเนาผลการอ่านครั้งแรก	初回認識結果のスナップショット
+pearnly_cowork	Recognition Confidence	识别置信度	ระดับความมั่นใจในการอ่าน	認識の信頼度
+pearnly_cowork	Recognition Quality	识别质量	คุณภาพการอ่าน	認識品質
+pearnly_cowork	Posting Kind	过账类型	ประเภทการผ่านรายการ	記帳区分
+pearnly_cowork	Invoice Number	发票号码	เลขที่ใบแจ้งหนี้	請求書番号
+pearnly_cowork	Invoice Date	发票日期	วันที่ใบแจ้งหนี้	請求書の日付
+pearnly_cowork	Seller Name	卖方名称	ชื่อผู้ขาย	売り手名
+pearnly_cowork	Invoice Total	发票总额	ยอดรวมใบแจ้งหนี้	請求書合計
+pearnly_cowork	Decimal summary; pages retain the original amount.	摘要金额使用精确十进制数；页面保留原始金额。	ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้	概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+pearnly_cowork	Record Revision	记录版本	รุ่นของรายการ	レコードの版
+pearnly_cowork	Edit Count	修改次数	จำนวนครั้งที่แก้ไข	編集回数
+pearnly_cowork	Last Fields Edit (UTC)	最近字段修改时间（UTC）	แก้ไขข้อมูลล่าสุดเมื่อ (UTC)	項目の最終編集日時（UTC）
+pearnly_cowork	Completed By	完成人	ผู้ทำรายการเสร็จสิ้น	完了者
+pearnly_cowork	Completed At (UTC)	完成时间（UTC）	เสร็จสิ้นเมื่อ (UTC)	完了日時（UTC）
+pearnly_cowork	Request Key	请求标识	รหัสคำขอ	リクエストキー
+pearnly_cowork	Request Fingerprint	请求内容指纹	ลายนิ้วมือข้อมูลคำขอ	リクエスト内容のフィンガープリント
+pearnly_cowork	Source PDF ID	来源 PDF 标识	รหัส PDF ต้นฉบับ	元のPDFのID
+pearnly_cowork	Source Page Indices	源文件页码	หมายเลขหน้าไฟล์ต้นฉบับ	元ファイルのページ番号
+pearnly_cowork	Invoice Index	发票序号	ลำดับใบแจ้งหนี้	請求書の順番
+pearnly_cowork	Invoice Count	发票数量	จำนวนใบแจ้งหนี้	請求書の件数
+pearnly_cowork	Original Filename	原始文件名	ชื่อไฟล์ต้นฉบับ	元のファイル名
+pearnly_cowork	File Hash	文件哈希值	ค่าแฮชของไฟล์	ファイルのハッシュ値
+pearnly_cowork	Page Count	页数	จำนวนหน้า	ページ数
+pearnly_cowork	A name is required.	请填写名称。	กรุณาระบุชื่อ	名前を入力してください。
+pearnly_cowork	A client cannot be moved to another company.	客户不能转移到另一家公司。	ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้	顧客を別の会社に移動することはできません。
+pearnly_cowork	A positive record revision is required.	记录版本必须是正整数。	รุ่นของรายการต้องเป็นจำนวนเต็มบวก	レコードの版には正の整数が必要です。
+pearnly_cowork	The record changed. Reload it before saving.	记录已被修改，请重新加载后再保存。	รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก	レコードが変更されました。再読み込みしてから保存してください。
+pearnly_cowork	Update invoice records through the Cowork review service.	请通过 Cowork 复核功能更新发票记录。	กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork	Coworkの確認機能から請求書の記録を更新してください。
+pearnly_cowork	Original evidence and ownership cannot be changed.	原始凭据及归属不能修改。	ไม่สามารถแก้ไขหลักฐานต้นฉบับและข้อมูลเจ้าของได้	元の証跡と所属情報は変更できません。
+pearnly_cowork	A completed record cannot become a draft.	已完成的记录不能改回草稿。	ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้	完了したレコードを下書きに戻すことはできません。
+pearnly_cowork	Create invoice records through the Cowork intake service.	请通过 Cowork 录入功能创建发票记录。	กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork	Coworkの取り込み機能から請求書の記録を作成してください。
+pearnly_cowork	New records must start as drafts.	新记录必须先保存为草稿。	รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง	新しいレコードは下書きとして作成する必要があります。
+pearnly_cowork	A request key of 1 to 128 characters is required.	请求标识须为 1 至 128 个字符。	รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ	リクエストキーは1～128文字で指定してください。
+pearnly_cowork	This request key has already been used for different content.	此请求标识已用于其他内容。	รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว	このリクエストキーは別の内容ですでに使用されています。
+pearnly_cowork	At least one invoice page is required when editing.	编辑时必须保留至少一页发票。	เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า	編集時には請求書のページが少なくとも1ページ必要です。
+pearnly_cowork	Select between 1 and 500 records.	请选择 1 至 500 条记录。	กรุณาเลือก 1 ถึง 500 รายการ	1～500件のレコードを選択してください。
+pearnly_cowork	Each record must have a name and revision.	每条记录都必须提供标识和版本。	แต่ละรายการต้องมีรหัสและรุ่นของรายการ	各レコードには識別子と版が必要です。
+pearnly_cowork	Each record must have a valid name.	每条记录都必须提供有效标识。	แต่ละรายการต้องมีรหัสที่ถูกต้อง	各レコードには有効な識別子が必要です。
+pearnly_cowork	Duplicate records are not allowed.	不能重复选择同一条记录。	ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้	同じレコードを重複して選択することはできません。
+pearnly_cowork	Assign Cowork access through company and client permissions.	请通过公司和客户权限分配 Cowork 访问范围。	กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า	会社と顧客の権限からCoworkのアクセス範囲を設定してください。
+pearnly_cowork	Remove legacy document shares before accessing Cowork records.	请先移除旧的文档共享授权，再访问 Cowork 记录。	กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork	旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+pearnly_cowork	Manual	手工	กรอกเอง	手入力	manual
+pearnly_cowork	Cowork LINE	Cowork LINE	Cowork LINE	Cowork LINE	cowork_line
+pearnly_cowork	Summary table import	汇总表导入	นำเข้าตารางสรุป	集計表の取り込み	summary_table_batch
+pearnly_cowork	Failed	失败	ล้มเหลว	失敗	failed
+pearnly_cowork	Pending	待处理	รอดำเนินการ	処理待ち	pending
+pearnly_cowork	Confirmed	已确认	ยืนยันแล้ว	確認済み	confirmed
+pearnly_cowork	No invoice summary found	未识别到摘要	ไม่พบข้อมูลสรุปใบแจ้งหนี้	請求書の概要情報なし	cowork.quality.failed
+pearnly_cowork	Needs review	待复核	รอตรวจสอบ	要確認	cowork.quality.pending
+pearnly_cowork	Recognized with high confidence	高置信识别	อ่านข้อมูลด้วยความมั่นใจสูง	高い信頼度で認識	cowork.quality.confirmed
+pearnly_cowork	Service	服务	บริการ	サービス	service
+pearnly_cowork	Stock	库存	สต็อก	在庫	stock
+pearnly_cowork	The record data is not valid JSON.	记录数据不是有效的 JSON。	ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง	レコードデータが有効なJSONではありません。	history.json_invalid
+pearnly_cowork	ERP records cannot be saved in Cowork.	ERP 记录不能保存到 Cowork。	ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้	ERPのレコードはCoworkに保存できません。	history.erp_source_forbidden
+pearnly_cowork	The record source is not supported.	不支持此记录来源。	ไม่รองรับแหล่งที่มาของรายการนี้	このレコードの取得元には対応していません。	history.source_invalid
+pearnly_cowork	Only manual records can be created through this entry.	此入口只能创建手工录入记录。	ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง	この画面からは手入力のレコードのみ作成できます。	history.source_not_public
+pearnly_cowork	The invoice page data has an invalid format.	发票页面数据格式不正确。	รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง	請求書のページデータの形式が正しくありません。	history.pages_invalid
+pearnly_cowork	The invoice fields have an invalid format.	发票字段格式不正确。	รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง	請求書の項目データの形式が正しくありません。	history.fields_invalid
+pearnly_cowork	The record metadata has an invalid format.	记录附加信息格式不正确。	รูปแบบข้อมูลประกอบรายการไม่ถูกต้อง	レコードの付加情報の形式が正しくありません。	history.metadata_invalid
+pearnly_cowork	The printed invoice date cannot be read. Check the date shown on the document.	无法识别票面日期，请核对单据上的日期。	ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร	請求書に記載された日付を読み取れません。書類の日付を確認してください。	history.date_unreadable
+pearnly_cowork	The source page number must be a positive integer.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。	history.page_index_invalid
+pearnly_cowork	The date reference year is missing. Reload and try again.	缺少日期参考年份，请重新加载后重试。	ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年がありません。再読み込みしてから再試行してください。	history.date_anchor_required
+pearnly_cowork	The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
+pearnly_cowork	Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません

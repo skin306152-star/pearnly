@@ -1,0 +1,74 @@
+A client cannot be moved to another company.,A client cannot be moved to another company.
+A completed record cannot become a draft.,A completed record cannot become a draft.
+A name is required.,A name is required.
+A positive record revision is required.,A positive record revision is required.
+A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
+Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
+At least one invoice page is required when editing.,At least one invoice page is required when editing.
+Buyer Client,Buyer Client
+Company,Company
+Completed At (UTC),Completed At (UTC)
+Completed By,Completed By
+Cowork Client,Cowork Client
+Cowork Master Data,Cowork Master Data
+Cowork OCR History,Cowork OCR History
+Cowork Workspace,Cowork Workspace
+Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
+Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
+Draft,Draft
+Duplicate records are not allowed.,Duplicate records are not allowed.
+Each record must have a name and revision.,Each record must have a name and revision.
+Each record must have a valid name.,Each record must have a valid name.
+Edit Count,Edit Count
+File Hash,File Hash
+First Recognition Snapshot,First Recognition Snapshot
+Invoice Count,Invoice Count
+Invoice Date,Invoice Date
+Invoice Index,Invoice Index
+Invoice Number,Invoice Number
+Invoice Pages,Invoice Pages
+Invoice Total,Invoice Total
+Last Fields Edit (UTC),Last Fields Edit (UTC)
+New records must start as drafts.,New records must start as drafts.
+Not Permitted,Not Permitted
+Original Filename,Original Filename
+Original evidence and ownership cannot be changed.,Original evidence and ownership cannot be changed.
+Page Count,Page Count
+Pearnly Cowork,Pearnly Cowork
+Posting Kind,Posting Kind
+Recognition Confidence,Recognition Confidence
+Recognition Quality,Recognition Quality
+Record Revision,Record Revision
+Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
+Request Fingerprint,Request Fingerprint
+Request Key,Request Key
+Select between 1 and 500 records.,Select between 1 and 500 records.
+Seller Name,Seller Name
+Source PDF ID,Source PDF ID
+Source Page Indices,Source Page Indices
+Tax ID,Tax ID
+The record changed. Reload it before saving.,The record changed. Reload it before saving.
+This request key has already been used for different content.,This request key has already been used for different content.
+Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
+confirmed,Confirmed
+cowork.quality.confirmed,Recognized with high confidence
+cowork.quality.failed,No invoice summary found
+cowork.quality.pending,Needs review
+cowork_line,Cowork LINE
+failed,Failed
+history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
+history.date_anchor_required,The date reference year is missing. Reload and try again.
+history.date_unreadable,The printed invoice date cannot be read. Check the date shown on the document.
+history.erp_source_forbidden,ERP records cannot be saved in Cowork.
+history.fields_invalid,The invoice fields have an invalid format.
+history.json_invalid,The record data is not valid JSON.
+history.metadata_invalid,The record metadata has an invalid format.
+history.page_index_invalid,The source page number must be a positive integer.
+history.pages_invalid,The invoice page data has an invalid format.
+history.source_invalid,The record source is not supported.
+history.source_not_public,Only manual records can be created through this entry.
+manual,Manual
+pending,Pending
+service,Service
+stock,Stock
+summary_table_batch,Summary table import

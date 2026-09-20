@@ -1,0 +1,103 @@
+# Cowork 后端迁移（前端接入前）
+
+## 目标与授权边界
+
+用户 2026-09-20 要求按已讨论方案开始迁移，做到需要接前端时再讨论。旧前端只用于提取业务行为；新界面以已调整的新 DMS / 原生 Desk 为参考，当前不改页面、不构建前端。只在本地实现与隔离验证；不上线、不部署、不写真实 LINE / ERP / WeKan，不执行付费 OCR。
+
+状态：进行中。功能清单、实现、本地验证、外部业务结果和用户验收分别登记；代码骨架或状态字段不计作完成。Cowork 范围包括录入、识别历史、推送、主数据、对账、盘点、LINE、Companion 和 WeKan。每项达到可接前端之前均须有来源与行为证据；尚未迁入的模块明确保留。
+
+## 工作树与并行边界
+
+- 新仓基线：`1d7832e6c5c767b310542b9022750992ec9957b0`，集成目标 `main`。
+- 本任务分支：`codex/cowork-backend-migration`。
+- 本任务工作树：`/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`。
+- 其他窗口 `codex/ssdnodes-migration` 及现有 DMS / auth 工作树保持不动。主目录被控制面绑定挂载，当前不合回、不更新主目录、不推送。
+- 现有 Docker context `colima-pearnly`，12.5 GB VM 内存；DMS、auth、control 实例在运行。测试必须使用本任务专有 project / 网络 / Site / DB / Redis / 卷，不调用共享 `stack.sh` 或 `dev-reload.sh`。不重启 Colima，不变更其它容器。
+- 公共 Core / 登录 / 语言 / 控制面修改尽量避免，必要变更独立列明并回归，不能覆盖 DMS 窗口的修复。
+
+## 旧线上来源（开工只读回查）
+
+核验日期：2026-09-20（精确 UTC 时间及首尾结构化证据由本任务基准采集器记录）。
+
+| 组件 | 实际回读 |
+| --- | --- |
+| Cloud Run Web | project `pearnly`，region `asia-southeast1`，`pearnly-web-ec2e5c957e6b-s3`，100% 流量 |
+| Cloud Run Worker | 同项目区域，`pearnly-worker-ec2e5c957e6b-s3`，100% 流量 |
+| 不可变镜像 | 两组件均 `asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226` |
+| 源码映射 | GitHub Manual CD `35321281376`，`conclusion=success`，完整 `head_sha=ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；固定部署账本给出相同 digest / SHA |
+| 挂载 | storage / uploads / var / companion 安装包 / runtime secret；未见 App 业务源码目录覆盖挂载 |
+| 运行配置引用 | `pearnly-web-env:3` / `pearnly-worker-env:3`；秘密值不写入证据 |
+| WeKan VM | `pearnly-work` 当前 `TERMINATED`；不能据历史记录或占位镜像声称当前 WeKan 运行源码已验证 |
+
+旧日常仓库 `master@e4505459` 落后且存在他人脏文件，保持只读。迁移使用 `git archive ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188` 的独立快照：`/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`。该路径可由完整 SHA 重建，不是源码权威副本。旧 `origin/master` 比此线上 SHA 仅多部署账本文档，业务来源仍固定为实际线上 SHA。
+
+## 结构与交付顺序
+
+1. 来源核验工具、覆盖映射、Cowork 业务域和权限合同。
+2. 真实 Frappe Site 内的公司 / 账套范围、录入 / 历史 / 确认 / 推送事实与失败恢复；使用固定识别输入与假外部出口验证。
+3. 识别接入、外部适配、Companion / LINE 协议、对账与盘点，按实际来源依赖拆包；缺少真实版本证据的 WeKan 移植不猜版本。
+4. 当后端接口可以承接实际页面时，整理接口、样例和剩余缺口，与用户讨论前端；不自行搬旧 UI。
+
+业务实现进入 Cowork 域包；纯计算不依赖 Frappe / IO。共享身份、购买功能、识别执行和 `Pearnly Push Log` 复用 Core。每 Site 的推送记录是本站权威，不跨库访问 ERP。列表、详情、导出、附件均需相同范围权限；并发去重不能依赖先查再插入。
+
+## 验证与状态
+
+| 层 | 当前状态 |
+| --- | --- |
+| 开工来源版本 | Web / Worker 已现场核对；WeKan / Companion 的独立运行来源待补 |
+| 实现 | 第一批录入/复核/完成/历史原生后端闭环已实现；其余模块见缺口表 |
+| 架构 / 离线 / 真实 Site | 架构0违规；90个离线测试；21个真实Site用例；原生WSGI API通过 |
+| 前端接入 / 浏览器验收 | 按用户要求暂不实施 |
+| CI / 合并 / 推送 | 未执行 |
+| 部署 / 外部写入 / 真机 / 用户验收 | 未执行，不在本次默认授权中 |
+
+交付前重新读取旧线上身份。若相关源码或配置变化，补齐增量并重验。新仓 SHA、候选源码挂载、安装升级及重复迁移结果、未覆盖项随本记录更新；不把模拟出口当真实外部成功。
+
+## 第一批后端检查点（2026-09-20）
+
+实现与前端承接边界见 [接口与未迁清单](cowork-backend/backend-api.md)。固定来源字段、路由及附件风险见 [录入来源映射](cowork-backend/intake-source-map.md)；对账/盘点与浮点差异见 [对账和盘点](cowork-backend/reconciliation-stocktake.md)；推送当前仅有 [纯预检合同](cowork-backend/push-contract.md)。
+
+新原生数据为 Cowork Workspace、Cowork Client、Cowork OCR History。公司与买方分开授权，完整票面与首次识别快照分开存储。保存使用行锁和版本，完成使用整批范围核对与保存点，重复完成不重复写。手工录入请求幂等由唯一键保护；MariaDB 1020 冲突在单条创建 RPC 的事务边界最多重试两次，内部持久化函数不隐式重试调用方的整个事务。
+
+测试发现并修正的具体问题：
+
+- 原生 PUT 没带客户端 revision 时会从数据库补当前值，不能仅靠 validate 比较版本；现在原生写入拒绝，专用保存 RPC 强制传版本。
+- Frappe DocShare 可以回退绕过自定义权限及列表条件；现在详情明确拒绝，列表阻断遗留分享回退，新增 Cowork 分享拒绝。
+- User Permission 的其它 DocType 局部授权不能被当成全局公司成员；停用客户从原生列表排除；主档可分页到第201条。
+- 两个事务使用同一请求键会遇 MariaDB snapshot conflict；现已实测两进程建立旧快照后同时提交，返回同名且只落一行。
+- 批量第一条保存成功、第二条保存失败时，真实数据库回读两条均仍草稿；保存点异常分支覆盖，数据库死锁走整事务回滚。
+
+### 本地验证证据
+
+- 环境：专有 project `pearnly-cowork-backend-lab`，内网 `Internal=true`，无发布端口、无真实凭据、无 worker/scheduler。
+- Frappe `16.33.0` / Python `3.14.7`，与锁定矩阵一致；镜像 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`，Core/Cowork 只读绑定本任务工作树。
+- Site A/B 证明数据库隔离；后加 `cowork-backend-fresh.localhost` 证明新增 DocType 的全新安装；A/B 已有站点升级与重复 migrate 通过。
+- 升级前后合成数据/权限/用户设置摘要一致：`b2eac3fd2c980f8f3f176d3b8f5cdd8a986ac8b0412ae34852f5eb3920cab2e9`（16条历史、8家公司、4买方、16条范围授权、16用户、20角色分配）。后续测试另增的合成记录不在此摘要内。
+- 21项真实Site用例覆盖成功、越权、Guest、角色、功能、跨Site、即时撤权、原生分享、版本、首存原件、幂等、并发、晚失败回滚和分页。测试只写专有本地卷。
+- WSGI 原生 API 实测创建→详情→完成：成功；PUT不带版本=417且旧票号不变；匿名详情=403；GET写方法=403。未启动浏览器，不代表页面或真机验收。
+- 90项纯离线测试通过（来源闸门24、history20、push19、reconciliation10、stocktake17）。
+- Cowork 语言包沿既有术语表生成。实际 Site 验证 en/zh/th/ja 可加载日期错误与OCR质量文案；通用状态不改成OCR专属含义。日语框架权限文案缺失另由本App补齐。界面显示与泰/日人工用词尚未验收。全仓缺漏检查有其它模块既有缺项，未在本批扩大修复或声称全仓通过。
+- 固定源码差分：数量4020、第一轮配对1000、推送纯预检6361组；history来源与直接差分边界见对应记录。
+- `python3 scripts/check-architecture.py`、Compose config、差异空白检查通过。本机/镜像无 Ruff，未称 Ruff 已通过；新文件另做 AST 语法检查。未改DMS业务或共享Core，不执行外部DMS回归。
+
+### 线上再次核验
+
+结构化来源凭据保存在 `cowork-backend/evidence/`，采集和离线验证方法见 [基准工具](cowork-backend/baseline-tool.md)。
+
+- 开工凭据内容摘要：`6092bc4e235dc7adb2096db97664881b9101342d9b4f61a729af567281a879a9`。
+- 检查点凭据摘要：`6ec3b0fbf990ee5949d57f3d453dbd8dbebb0fbc1681ae9630ef9f774ea9990c`。
+- compare 通过：Web/Worker 的实际流量 revision、digest、固定源码、配置引用在本次记录范围内未变。仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。凭据不含 Secret 内容；来源一致不等同全部业务迁移完成。
+
+前端讨论检查点：目前可讨论录入/复核页面如何承接；整产品迁移尚未完成。保持独立分支，不合回正被其它窗口和本地控制面使用的主线，不推送，不部署。
+
+重跑命令限本工作树：
+
+```sh
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml up -d
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-init.py
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-verify.py
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-verify.py --http-smoke
+python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/evidence/baseline-first.json docs/work/cowork-backend/evidence/baseline-checkpoint.json
+```
+
+这些测试在本地专有卷创建合成记录，不能对真实租户执行；HTTP测试是进程内WSGI请求，不访问外网。验证结束停止本任务三个容器以释放内存，保留工作树、证据和本任务数据卷，便于继续；未停止其它窗口的任何容器。
