@@ -1,0 +1,220 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork OCR Batch",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "track_changes": 0,
+ "allow_rename": 0,
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ],
+ "fields": [
+  {
+   "fieldname": "source_file",
+   "fieldtype": "Link",
+   "label": "Source File",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "Cowork Source File",
+   "unique": 1
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "label": "Client",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "Actor",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "work_name",
+   "fieldtype": "Data",
+   "label": "Work Name",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "request_fingerprint",
+   "fieldtype": "Data",
+   "label": "Request Fingerprint",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "source_sha256",
+   "fieldtype": "Data",
+   "label": "Source Sha256",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "billing_reference",
+   "fieldtype": "Data",
+   "label": "Billing Reference",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Data",
+   "label": "Direction",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "posting_kind",
+   "fieldtype": "Data",
+   "label": "Posting Kind",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "billing_code",
+   "fieldtype": "Data",
+   "label": "Billing Code",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "page_count",
+   "fieldtype": "Int",
+   "label": "Page Count",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "anchor_date",
+   "fieldtype": "Date",
+   "label": "Anchor Date",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "requires_review",
+   "fieldtype": "Check",
+   "label": "Requires Review",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "phase",
+   "fieldtype": "Select",
+   "label": "Phase",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "admitted\nrecognizing\nrecognized\nsaved\nnot_invoice"
+  },
+  {
+   "fieldname": "billing_state",
+   "fieldtype": "Select",
+   "label": "Billing State",
+   "read_only": 1,
+   "hidden": 1,
+   "options": "not_due\npending\ncharged\nnot_billable"
+  },
+  {
+   "fieldname": "settings_json",
+   "fieldtype": "Long Text",
+   "label": "Settings Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "examples_json",
+   "fieldtype": "Long Text",
+   "label": "Examples Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "result_json",
+   "fieldtype": "Long Text",
+   "label": "Result Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "history_records",
+   "fieldtype": "Long Text",
+   "label": "History Records",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "provider_evidence",
+   "fieldtype": "Long Text",
+   "label": "Provider Evidence",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "billing_receipt",
+   "fieldtype": "Long Text",
+   "label": "Billing Receipt",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "field_order": [
+  "source_file",
+  "workspace",
+  "client",
+  "actor",
+  "work_name",
+  "request_key",
+  "request_fingerprint",
+  "source_sha256",
+  "billing_reference",
+  "direction",
+  "posting_kind",
+  "billing_code",
+  "page_count",
+  "anchor_date",
+  "requires_review",
+  "phase",
+  "billing_state",
+  "settings_json",
+  "examples_json",
+  "result_json",
+  "history_records",
+  "provider_evidence",
+  "billing_receipt"
+ ]
+}

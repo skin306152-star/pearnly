@@ -16,6 +16,7 @@
 | WeKan | `v11.58.0` | `~/wekan/package.json` |
 | Meteor | `3.5.2-rc.0` | `~/wekan/.meteor/release` |
 | MongoDB | `7` | `~/wekan/docker-compose-mongodb-v7.yml` |
+| Cowork PDF文本提取 pypdf | `6.15.0` | 2026-09-21 独立lab锁定镜像实查，与固定旧来源requirements.lock同版；frappe.Dockerfile显式锁定 |
 
 ## 尚未锁定（不能凭记忆写）
 

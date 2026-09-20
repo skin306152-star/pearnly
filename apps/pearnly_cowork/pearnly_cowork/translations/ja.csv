@@ -7,23 +7,36 @@ A request key of 1 to 128 characters is required.,リクエストキーは1～12
 Actor,実行者
 Actual Qty,実棚数量
 An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
+Anchor Date,基準日
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
 Barcode,バーコード
+Billing Code,課金コード
+Billing Receipt,課金処理結果
+Billing Reference,課金参照番号
+Billing State,課金状態
 Book Qty,帳簿数量
 Bound Invoice Records,関連付け済みの請求書記録
 Buyer Client,買い手顧客
+Changed At (UTC),変更日時（UTC）
+Changed By,変更者
+Client,顧客
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
 Company,会社
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
+Corrected Value,修正値
 Count Mode,棚卸方式
 Counted At,棚卸日時
 Counted By,棚卸担当者
 Cowork Client,Cowork 買い手顧客
 Cowork Master Data,Cowork マスタデータ
+Cowork OCR Batch,Cowork 認識バッチ
+Cowork OCR Correction,Cowork 認識修正例
 Cowork OCR History,Cowork 認識履歴
+Cowork OCR requires a configured provider credential reference.,Cowork 認識サービスの認証情報参照を設定してください。
+Cowork OCR requires an explicit invoice configuration.,Cowork の請求書認識設定を指定してください。
 Cowork Source File,Cowork 元ファイル
 Cowork Stocktake,Cowork 棚卸
 Cowork Stocktake Entry,Cowork 棚卸記録
@@ -35,14 +48,22 @@ Create invoice records through the Cowork intake service.,Coworkの取り込み�
 Created By,作成者
 Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+Direction,取引方向
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
 Edit Count,編集回数
 Entry,エントリー
+Event Key,イベント識別子
+Evidence Fingerprint,証跡フィンガープリント
+Examples Json,修正例データ（JSON）
+Field,項目
 File Hash,ファイルのハッシュ値
 First Recognition Snapshot,初回認識結果のスナップショット
+First Recognition Value,初回認識値
+History Records,認識記録
+Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid original filename.,元ファイル名が無効です。
 Invalid recognized invoice group.,認識した請求書グループが無効です。
 Invoice Count,請求書の件数
@@ -75,56 +96,85 @@ Page Count,ページ数
 Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
 Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
 Pearnly Cowork,Pearnly Cowork
+Phase,処理段階
 Posting Kind,記帳区分
 Previous Json,変更前のデータ（JSON）
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
 Product Code,商品コード
 Product Name,商品名
+Provider Evidence,プロバイダー呼び出し証跡
 Quantity,数量
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
+Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
+Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
+Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Record Id,レコード ID
 Record Revision,レコードの版
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Request Fingerprint,リクエスト内容のフィンガープリント
 Request Json,リクエストデータ（JSON）
 Request Key,リクエストキー
+Requires Review,確認が必要
+Result Json,認識結果（JSON）
 Row {0}: {1},{0} 行目：{1}
+Sample Key,修正例識別子
+Scope Key,権限範囲識別子
 Select a file to upload.,アップロードするファイルを選択してください。
 Select between 1 and 500 records.,1～500件のレコードを選択してください。
 Select valid files to download.,ダウンロードする有効なファイルを選択してください。
 Seller Name,売り手名
+Seller Tax ID,売り手の納税者番号
+Settings Json,設定データ（JSON）
+Site,サイト
 Source Digest,元データのダイジェスト
+Source File,元ファイル
 Source Format,元データの形式
+Source History,元の認識記録
 Source PDF ID,元のPDFのID
 Source Page Indices,元ファイルのページ番号
+Source Sha256,元ファイルの SHA-256
 Task,タスク
 Tax ID,納税者番号
+The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
 The PDF file cannot be read.,この PDF ファイルを読み取れません。
+The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
+The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The image file cannot be read.,この画像ファイルを読み取れません。
+The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
 The original file already has a completed invoice manifest.,この元ファイルの請求書関連付けは既に完了しています。
 The original file checksum does not match.,元ファイルのチェックサムが一致しません。
 The original file is not ready for page preview.,元ファイルのページプレビューはまだ準備できていません。
 The original file reference has changed.,元ファイルの参照が変更されています。
 The original invoice manifest is incomplete.,元ファイルの請求書関連付け一覧が不完全です。
+The recognized invoice manifest cannot be replaced.,認識済みの請求書関連付け一覧は置き換えられません。
 The record changed. Reload it before saving.,レコードが変更されました。再読み込みしてから保存してください。
 The requested page is not part of this invoice.,指定したページはこの請求書に含まれていません。
 The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
 The uploaded file is empty.,アップロードしたファイルは空です。
+This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
 This file type is not supported.,このファイル形式には対応していません。
+This original already has a recognition task with different parameters.,この元ファイルには、異なるパラメーターの認識タスクが既にあります。
 This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
+This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
 Title,タイトル
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
 Uploaded By,アップロードしたユーザー
+Use the Cowork OCR service to access recognition tasks.,認識タスクへのアクセスには Cowork 認識サービスを使用してください。
+Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
 Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
 Version,バージョン
 Voided,無効化済み
 Warehouse,倉庫
+Work Name,バックグラウンドタスク識別子
+Workspace,会社帳簿
 active,有効
+admitted,受け付け済み
+charged,課金済み
 closed,クローズ済み
 confirmed,確認済み
 cowork.quality.confirmed,高い信頼度で認識
@@ -147,6 +197,9 @@ history.source_not_public,この画面からは手入力のレコードのみ作
 image,画像
 legacy,旧形式
 manual,手入力
+not_billable,課金対象外
+not_due,課金処理前
+not_invoice,請求書以外
 ocr.empty_file,アップロードしたファイルは空です。
 ocr.file_too_large,ファイルサイズが上限を超えています。
 ocr.invalid_input_metadata,ファイルサイズまたはページ情報が無効です。
@@ -155,6 +208,9 @@ ocr.too_many_pages,PDF のページ数が上限を超えています。
 ocr.unsupported_format,このファイル形式には対応していません。
 pdf,PDF
 pending,処理待ち
+recognized,認識済み
+recognizing,認識中
+saved,保存済み
 scan,スキャン
 service,サービス
 stock,在庫

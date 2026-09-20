@@ -145,6 +145,29 @@ class InvoiceResultPreparation(unittest.TestCase):
         with self.assertRaises(OcrResultError):
             prepare(batch(page(1, invoice(), layer_chain=["L1", "L2", "L3_failed"], error="L3 error")))
 
+    def test_schema_valid_empty_pages_cannot_seal_or_be_billable(self):
+        for chain in (["text", "L2"], ["text", "L2", "L3"], ["L1", "L2", "L3"], ["ID"]):
+            for empty in (invoice(), invoice(invoice_number=" ", total_amount=" ", seller_name=" "),
+                          invoice(additional_invoices=[{"is_not_invoice": True}])):
+                result = batch(page(1, empty, layer_chain=chain, confidence_band="yellow_confirm"))
+                with self.subTest(chain=chain), self.assertRaises(OcrResultError) as caught:
+                    prepare(result)
+                self.assertEqual(caught.exception.code, "ocr.result_incomplete")
+                self.assertEqual(caught.exception.details["failed_pages"], [1])
+
+    def test_one_unrecognized_page_rejects_whole_batch_before_manifest_or_charge(self):
+        result = batch(page(1), page(2, invoice(), layer_chain=["text", "L2", "L3"]))
+        with self.assertRaises(OcrResultError) as caught:
+            prepare(result)
+        self.assertEqual(caught.exception.details["failed_pages"], [2])
+
+    def test_empty_parent_with_retained_invoice_sibling_is_not_lost(self):
+        result = batch(page(1, invoice(additional_invoices=[{"invoice_number": "B", "total_amount": "107"}])))
+        plan = prepare(result)
+        self.assertTrue(plan["has_billable_result"])
+        self.assertEqual(plan["physical_page_count"], 1)
+        self.assertEqual(plan["groups"][0]["pages"][0]["fields"]["invoice_number"], "B")
+
     def test_retained_l2_fallback_is_a_reviewable_draft_not_automatic_completion(self):
         for stage in ("L3_failed", "L3_quota", "L3_transient", "L3_skipped_budget", "L3_totals_rescue", "IF_failed"):
             result = batch(page(1, layer_chain=["L1", "L2", stage], error="recoverable error"))

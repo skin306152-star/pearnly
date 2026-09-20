@@ -13,7 +13,7 @@ from pearnly_cowork.files import access, guard, service as files
 from pearnly_cowork.history import storage
 
 
-def persist_batch(source_file, groups, request_key):
+def persist_batch(source_file, groups, request_key, *, anchor_year=None):
     scope.require("intake")
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
         frappe.throw(_("A request key of 1 to 128 characters is required."))
@@ -36,7 +36,7 @@ def persist_batch(source_file, groups, request_key):
             frappe.throw(_("The requested page is not part of this invoice."))
         body = storage.contract(initial_history, group.get("pages"), source=group.get("source"),
             confidence=group.get("confidence"), ai_raw=group.get("ai_raw"),
-            posting_kind=group.get("posting_kind"), anchor_year=storage.anchor_year())
+            posting_kind=group.get("posting_kind"), anchor_year=anchor_year or storage.anchor_year())
         if set(body["source_page_indices"]) != set(indices):
             frappe.throw(_("Invoice pages do not match the original page references."))
         prepared.append({"workspace": group["workspace"], "client": group.get("client"),

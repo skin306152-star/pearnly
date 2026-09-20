@@ -7,23 +7,36 @@ A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 �
 Actor,操作人
 Actual Qty,实盘数量
 An original file is already stored for this source.,此来源已保存原始文件。
+Anchor Date,参考日期
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
 Barcode,条形码
+Billing Code,计费代码
+Billing Receipt,计费回执
+Billing Reference,计费关联号
+Billing State,计费状态
 Book Qty,账面数量
 Bound Invoice Records,已关联发票记录
 Buyer Client,买方客户
+Changed At (UTC),修改时间（UTC）
+Changed By,修改人
+Client,客户
 Closed At,关闭时间
 Closed By,关闭人
 Company,公司
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
+Corrected Value,修正值
 Count Mode,盘点方式
 Counted At,盘点时间
 Counted By,盘点人
 Cowork Client,Cowork 买方客户
 Cowork Master Data,Cowork 主数据
+Cowork OCR Batch,Cowork 识别批次
+Cowork OCR Correction,Cowork 识别修正例
 Cowork OCR History,Cowork 识别记录
+Cowork OCR requires a configured provider credential reference.,请先配置 Cowork 识别服务的凭据引用。
+Cowork OCR requires an explicit invoice configuration.,请先配置 Cowork 发票识别参数。
 Cowork Source File,Cowork 原始文件
 Cowork Stocktake,Cowork 库存盘点
 Cowork Stocktake Entry,Cowork 盘点记录
@@ -35,14 +48,22 @@ Create invoice records through the Cowork intake service.,请通过 Cowork 录�
 Created By,创建人
 Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
+Direction,业务方向
 Draft,草稿
 Duplicate records are not allowed.,不能重复选择同一条记录。
 Each record must have a name and revision.,每条记录都必须提供标识和版本。
 Each record must have a valid name.,每条记录都必须提供有效标识。
 Edit Count,修改次数
 Entry,记录
+Event Key,事件标识
+Evidence Fingerprint,证据指纹
+Examples Json,修正例数据（JSON）
+Field,字段
 File Hash,文件哈希值
 First Recognition Snapshot,首次识别快照
+First Recognition Value,首次识别值
+History Records,识别记录
+Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid original filename.,原始文件名无效。
 Invalid recognized invoice group.,识别出的发票分组无效。
 Invoice Count,发票数量
@@ -75,56 +96,85 @@ Page Count,页数
 Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
 Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
 Pearnly Cowork,Pearnly Cowork
+Phase,处理阶段
 Posting Kind,过账类型
 Previous Json,更改前数据（JSON）
 Private File,私有文件
 Private Storage URL,私有存储地址
 Product Code,产品编码
 Product Name,产品名称
+Provider Evidence,服务商调用证据
 Quantity,数量
 Recognition Confidence,识别置信度
 Recognition Quality,识别质量
+Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
+Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
+Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
 Record Id,记录 ID
 Record Revision,记录版本
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
 Request Fingerprint,请求内容指纹
 Request Json,请求数据（JSON）
 Request Key,请求标识
+Requires Review,需要人工核对
+Result Json,识别结果（JSON）
 Row {0}: {1},第 {0} 行：{1}
+Sample Key,修正例标识
+Scope Key,权限范围标识
 Select a file to upload.,请选择要上传的文件。
 Select between 1 and 500 records.,请选择 1 至 500 条记录。
 Select valid files to download.,请选择有效文件进行下载。
 Seller Name,卖方名称
+Seller Tax ID,卖方税号
+Settings Json,配置数据（JSON）
+Site,站点
 Source Digest,来源摘要
+Source File,原始文件
 Source Format,来源格式
+Source History,来源识别记录
 Source PDF ID,来源 PDF 标识
 Source Page Indices,源文件页码
+Source Sha256,原始文件 SHA-256
 Task,任务
 Tax ID,纳税人识别号
+The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
 The PDF file cannot be read.,无法读取该 PDF 文件。
+The billing receipt cannot be reverted.,计费回执不能撤回。
+The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
 The image file cannot be read.,无法读取该图像文件。
+The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
 The original file already has a completed invoice manifest.,此原始文件已完成发票关联。
 The original file checksum does not match.,原始文件校验值不匹配。
 The original file is not ready for page preview.,原始文件尚未准备好，暂时无法预览页面。
 The original file reference has changed.,原始文件关联已改变。
 The original invoice manifest is incomplete.,原始文件的发票关联清单不完整。
+The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
 The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
 The requested page is not part of this invoice.,请求的页面不属于这张发票。
 The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
 The uploaded file is empty.,上传文件为空。
+This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
 This file type is not supported.,不支持此文件类型。
+This original already has a recognition task with different parameters.,此原始文件已有参数不同的识别任务。
 This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
+This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
 This request key has already been used for different content.,此请求标识已用于其他内容。
 Title,标题
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Updated At,更新时间
 Updated By,更新人
 Uploaded By,上传人
+Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
+Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
 Version,版本
 Voided,已作废
 Warehouse,仓库
+Work Name,后台任务标识
+Workspace,公司账套
 active,有效
+admitted,已受理
+charged,已计费
 closed,已关闭
 confirmed,已确认
 cowork.quality.confirmed,高置信识别
@@ -147,6 +197,9 @@ history.source_not_public,此入口只能创建手工录入记录。
 image,图像
 legacy,旧版
 manual,手工
+not_billable,无需计费
+not_due,尚无需计费
+not_invoice,非发票
 ocr.empty_file,上传文件为空。
 ocr.file_too_large,文件超过允许的大小上限。
 ocr.invalid_input_metadata,文件大小或页数信息无效。
@@ -155,6 +208,9 @@ ocr.too_many_pages,PDF 超过允许的页数上限。
 ocr.unsupported_format,不支持此文件类型。
 pdf,PDF
 pending,待处理
+recognized,已识别
+recognizing,识别中
+saved,已保存
 scan,扫描
 service,服务
 stock,库存

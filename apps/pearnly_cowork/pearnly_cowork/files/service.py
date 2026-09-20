@@ -72,7 +72,7 @@ def create(workspace, filename, content, request_key, client=None):
         if doc.request_fingerprint != fingerprint:
             frappe.throw(_("This request key has already been used for different content."))
         return project(doc)
-    doc = frappe.get_doc({"doctype": access.SOURCE, "name": name, "workspace": workspace, "client": client,
+    doc = frappe.get_doc({"doctype": access.SOURCE, "name": name, "workspace": workspace, "client": client or "",
         "uploaded_by": frappe.session.user, "request_key": key, "request_fingerprint": fingerprint,
         **{key: value for key, value in meta.items() if key != "suffix"}})
     doc.flags.cowork_original_write = guard.WRITE_CAPABILITY

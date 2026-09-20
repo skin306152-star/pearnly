@@ -93,7 +93,9 @@
 
 ### 三产品共享识别执行
 
-Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。当前只有 DMS 已接入真实识别流程，另外两产品预留同一基础能力，不能据此宣称它们的 OCR 迁移已经完成。
+Core 的 `execution` 域负责持久工作单、容量准入、供应商并发/速率、输入与模型检查点、原生 RQ 投递及有界修复。产品通过 `pearnly_ocr_handlers` 和失败通知 hook 登记自己的幂等工作流；Core 不导入 DMS/ERP/Cowork 的业务模块。DMS 已接入；Cowork 现在登记 `cowork.invoice`，PDF/图片识别到原生草稿和稳定账单回执已在隔离Site以假外部出口验证，未部署、未做付费模型验收；ERP仍预留。不能据此宣称整产品 OCR 迁移或线上验收完成。
+
+Cowork `ocr.execution`单向依赖engine/inputs_runtime/providers、files/history/feedback与Core；history保存单向调用feedback，feedback通过本Site原生记录检查来源，不反向导入history流程。Batch固定actor/公司/原件/日期/策略/纠错快照，Core Work只存Batch引用。新controller与Work mixin阻断原生更新/分享绕开付费检查点，不给共享Work增加客户read权限。`ocr.engine`、schema、validation及纠错model保持纯计算。细节见[执行合同](../work/cowork-backend/invoice-execution.md)。
 
 MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。各产品 bench 的原生队列保持隔离，容量使用同一个非淘汰 Redis DB6，按租户统一核算、按供应商项目/区域/模型调速。等待不占 OCR worker，网络结果未知不自动重做付费识别。此队列不得接入外部订单写入；DMS 写者锁与订单恢复仍由 booking/adapter 负责。
 

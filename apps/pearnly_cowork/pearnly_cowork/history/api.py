@@ -26,7 +26,13 @@ def detail(name):
 
 @frappe.whitelist(methods=["POST"])
 def save(name, pages, expected_version):
-    return storage.update_pages(name, pages, expected_version)
+    for attempt in range(3):
+        try:
+            return storage.update_pages(name, pages, expected_version)
+        except frappe.QueryDeadlockError:
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
 
 
 @frappe.whitelist(methods=["POST"])

@@ -37,7 +37,8 @@ def _has_retained_result(invoice):
     return bool(invoice.is_not_invoice or str(invoice.invoice_number or "").strip()
                 or (invoice.total_amount is not None and str(invoice.total_amount).strip())
                 or str(invoice.seller_name or "").strip()
-                or any(_has_retained_result(child) for child in invoice.additional_invoices or []))
+                or any(not child.is_not_invoice and _has_retained_result(child)
+                       for child in invoice.additional_invoices or []))
 
 
 def _require_complete(result, expected_page_count):
@@ -56,7 +57,9 @@ def _require_complete(result, expected_page_count):
         hard_failure = any(stage == "FAILED" or (stage.endswith("_FAILED") and stage not in _L2_REVIEW_FALLBACKS)
                            for stage in chain)
         fallback = bool(chain & _L2_REVIEW_FALLBACKS)
-        if hard_failure or ((page.error or fallback) and
+        # A schema-valid empty object is still an unrecognized physical page.
+        # Do not seal an empty History or charge it merely because L3 returned 200.
+        if not _has_retained_result(page.invoice) or hard_failure or ((page.error or fallback) and
                             ("L2" not in chain or not _has_retained_result(page.invoice))):
             failed.append(page.page_number)
         elif page.error or fallback or page.needs_manual_review or page.confidence_band == "needs_review":

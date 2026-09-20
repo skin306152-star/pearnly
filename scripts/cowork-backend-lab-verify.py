@@ -17,7 +17,7 @@ from unittest.mock import patch
 import frappe
 
 SITE = os.environ.get("PEARNLY_COWORK_TEST_SITE", "cowork-backend-a.localhost")
-ALLOWED_SITES = {"cowork-backend-a.localhost", "cowork-backend-b.localhost",
+ALLOWED_SITES = {"cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
                  "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
 OTHER_SITE = "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
@@ -57,7 +57,8 @@ def grant(user_name, doctype, name):
 def snapshot():
     tables = ("Cowork Workspace", "Cowork Client", "Cowork OCR History", "User Permission",
               "Cowork Source File", "Cowork Stocktake Task", "Cowork Stocktake Item",
-              "Cowork Stocktake Entry", "Cowork Stocktake Operation")
+              "Cowork Stocktake Entry", "Cowork Stocktake Operation", "Cowork OCR Batch",
+              "Cowork OCR Correction", "Pearnly OCR Work")
     state = {table: frappe.get_all(table, fields=["*"], order_by="name", limit_page_length=0)
              for table in tables}
     state["users"] = frappe.get_all("User", filters={"name": ["like", "cw-%@example.invalid"]},

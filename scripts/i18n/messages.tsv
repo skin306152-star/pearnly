@@ -1228,3 +1228,59 @@ pearnly_cowork	The original file already has a completed invoice manifest.	此�
 pearnly_cowork	The original invoice manifest is incomplete.	原始文件的发票关联清单不完整。	รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน	元ファイルの請求書関連付け一覧が不完全です。
 pearnly_cowork	Stock count photos are not yet supported. Remove the photos before saving.	盘点照片尚未接入，请先移除照片后保存。	ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก	棚卸写真にはまだ対応していません。写真を削除してから保存してください。	stocktake.photos_not_supported
 pearnly_cowork	Select valid files to download.	请选择有效文件进行下载。	กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด	ダウンロードする有効なファイルを選択してください。
+pearnly_cowork	Anchor Date	参考日期	วันที่อ้างอิง	基準日
+pearnly_cowork	Billing Code	计费代码	รหัสค่าบริการ	課金コード
+pearnly_cowork	Billing Receipt	计费回执	ผลยืนยันการเรียกเก็บเงิน	課金処理結果
+pearnly_cowork	Billing Reference	计费关联号	เลขที่อ้างอิงการเรียกเก็บเงิน	課金参照番号
+pearnly_cowork	Billing State	计费状态	สถานะการเรียกเก็บเงิน	課金状態
+pearnly_cowork	Changed At (UTC)	修改时间（UTC）	เวลาที่แก้ไข (UTC)	変更日時（UTC）
+pearnly_cowork	Changed By	修改人	ผู้แก้ไข	変更者
+pearnly_cowork	Client	客户	ลูกค้า	顧客
+pearnly_cowork	Corrected Value	修正值	ค่าที่แก้ไข	修正値
+pearnly_cowork	Cowork OCR Batch	Cowork 识别批次	Cowork ชุดงานอ่านเอกสาร	Cowork 認識バッチ
+pearnly_cowork	Cowork OCR Correction	Cowork 识别修正例	Cowork ตัวอย่างการแก้ไขผลอ่านเอกสาร	Cowork 認識修正例
+pearnly_cowork	Cowork OCR requires a configured provider credential reference.	请先配置 Cowork 识别服务的凭据引用。	กรุณากำหนดการอ้างอิงข้อมูลรับรองของผู้ให้บริการอ่านเอกสาร Cowork ก่อน	Cowork 認識サービスの認証情報参照を設定してください。
+pearnly_cowork	Cowork OCR requires an explicit invoice configuration.	请先配置 Cowork 发票识别参数。	กรุณากำหนดค่าการอ่านใบแจ้งหนี้ Cowork ก่อน	Cowork の請求書認識設定を指定してください。
+pearnly_cowork	Direction	业务方向	ทิศทางรายการ	取引方向
+pearnly_cowork	Event Key	事件标识	รหัสเหตุการณ์	イベント識別子
+pearnly_cowork	Evidence Fingerprint	证据指纹	ลายนิ้วมือหลักฐาน	証跡フィンガープリント
+pearnly_cowork	Examples Json	修正例数据（JSON）	ข้อมูลตัวอย่างการแก้ไข (JSON)	修正例データ（JSON）
+pearnly_cowork	Field	字段	ฟิลด์	項目
+pearnly_cowork	First Recognition Value	首次识别值	ค่าที่อ่านได้ครั้งแรก	初回認識値
+pearnly_cowork	History Records	识别记录	บันทึกการอ่านเอกสาร	認識記録
+pearnly_cowork	Invalid Cowork OCR configuration.	Cowork 识别配置无效。	การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง	Cowork の認識設定が無効です。
+pearnly_cowork	Phase	处理阶段	ขั้นตอนการประมวลผล	処理段階
+pearnly_cowork	Provider Evidence	服务商调用证据	หลักฐานการเรียกใช้ผู้ให้บริการ	プロバイダー呼び出し証跡
+pearnly_cowork	Recognition input and ownership cannot be changed.	识别输入和归属不能修改。	ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้	認識入力と所有情報は変更できません。
+pearnly_cowork	Recognition tasks cannot be deleted through the document API.	识别任务不能通过通用文档接口删除。	ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้	認識タスクは汎用ドキュメント API から削除できません。
+pearnly_cowork	Recognition tasks cannot be shared separately from their originals.	识别任务不能脱离原始文件单独共享。	ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้	認識タスクは元ファイルと切り離して共有できません。
+pearnly_cowork	Requires Review	需要人工核对	ต้องตรวจสอบโดยผู้ใช้	確認が必要
+pearnly_cowork	Result Json	识别结果（JSON）	ผลการอ่านเอกสาร (JSON)	認識結果（JSON）
+pearnly_cowork	Sample Key	修正例标识	รหัสตัวอย่างการแก้ไข	修正例識別子
+pearnly_cowork	Scope Key	权限范围标识	รหัสขอบเขตสิทธิ์	権限範囲識別子
+pearnly_cowork	Seller Tax ID	卖方税号	เลขประจำตัวผู้เสียภาษีของผู้ขาย	売り手の納税者番号
+pearnly_cowork	Settings Json	配置数据（JSON）	ข้อมูลการตั้งค่า (JSON)	設定データ（JSON）
+pearnly_cowork	Site	站点	เว็บไซต์	サイト
+pearnly_cowork	Source File	原始文件	ไฟล์ต้นฉบับ	元ファイル
+pearnly_cowork	Source History	来源识别记录	บันทึกการอ่านเอกสารต้นทาง	元の認識記録
+pearnly_cowork	Source Sha256	原始文件 SHA-256	SHA-256 ของไฟล์ต้นฉบับ	元ファイルの SHA-256
+pearnly_cowork	The OCR connection changed after this task was accepted.	任务受理后识别服务连接已变更。	การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้	このタスクの受け付け後に認識サービスの接続設定が変更されました。
+pearnly_cowork	The billing receipt cannot be reverted.	计费回执不能撤回。	ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้	課金処理結果は元に戻せません。
+pearnly_cowork	The completed recognition result cannot be replaced.	已完成的识别结果不能替换。	ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้	完了済みの認識結果は置き換えられません。
+pearnly_cowork	The invoice configuration does not match the OCR connection.	发票识别配置与服务连接不一致。	การตั้งค่าการอ่านใบแจ้งหนี้ไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร	請求書の認識設定とサービスの接続設定が一致しません。
+pearnly_cowork	The recognized invoice manifest cannot be replaced.	已识别的发票关联清单不能替换。	ไม่สามารถแทนที่รายการเชื่อมโยงใบแจ้งหนี้ที่อ่านแล้วได้	認識済みの請求書関連付け一覧は置き換えられません。
+pearnly_cowork	This Cowork OCR mode is not available on the new platform yet.	新平台暂不支持此 Cowork 识别模式。	แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้	新プラットフォームは、この Cowork 認識モードにまだ対応していません。
+pearnly_cowork	This original already has a recognition task with different parameters.	此原始文件已有参数不同的识别任务。	ไฟล์ต้นฉบับนี้มีงานอ่านเอกสารที่ใช้พารามิเตอร์ต่างกันอยู่แล้ว	この元ファイルには、異なるパラメーターの認識タスクが既にあります。
+pearnly_cowork	This recognition service currently accepts PDF and image originals.	此识别服务目前仅支持 PDF 和图片原件。	บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้	この認識サービスは現在、PDF と画像の元ファイルに対応しています。
+pearnly_cowork	Use the Cowork OCR service to access recognition tasks.	请通过 Cowork 识别服务访问识别任务。	กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクへのアクセスには Cowork 認識サービスを使用してください。
+pearnly_cowork	Use the Cowork OCR service to change recognition tasks.	请通过 Cowork 识别服务修改识别任务。	กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクの変更には Cowork 認識サービスを使用してください。
+pearnly_cowork	Work Name	后台任务标识	รหัสงานเบื้องหลัง	バックグラウンドタスク識別子
+pearnly_cowork	Workspace	公司账套	ชุดบัญชีบริษัท	会社帳簿
+pearnly_cowork	admitted	已受理	รับงานแล้ว	受け付け済み
+pearnly_cowork	charged	已计费	เรียกเก็บเงินแล้ว	課金済み
+pearnly_cowork	not_billable	无需计费	ไม่ต้องเรียกเก็บเงิน	課金対象外
+pearnly_cowork	not_due	尚无需计费	ยังไม่ถึงขั้นตอนเรียกเก็บเงิน	課金処理前
+pearnly_cowork	not_invoice	非发票	ไม่ใช่ใบแจ้งหนี้	請求書以外
+pearnly_cowork	recognized	已识别	อ่านเอกสารแล้ว	認識済み
+pearnly_cowork	recognizing	识别中	กำลังอ่านเอกสาร	認識中
+pearnly_cowork	saved	已保存	บันทึกแล้ว	保存済み

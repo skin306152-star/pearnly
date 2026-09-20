@@ -135,7 +135,7 @@ def _create(workspace, body, request_key, client=None, *, attachment=None):
     name = "CWH-" + key[:48]
     if frappe.db.exists(DOCTYPE, name):
         return _existing(name, fingerprint)
-    doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client,
+    doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
                           "source": body["source"], "pages": encode(body["pages"]),
                           "ai_raw": encode(body["ai_raw"]), "confidence": body["confidence"], "staged": 1,
                           "posting_kind": body["posting_kind"],
@@ -195,6 +195,8 @@ def update_pages(name, pages, expected_version):
     doc.pages = encode(pages)
     doc.flags.cowork_history_update = _UPDATE_TOKEN
     doc.save()
+    from pearnly_cowork.ocr.feedback.service import capture_saved_edit
+    capture_saved_edit(doc)
     return project(doc)
 
 

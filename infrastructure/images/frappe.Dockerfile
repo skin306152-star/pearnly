@@ -61,6 +61,11 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "google-auth==2
 #    这是版本跟随，不是换库：调用方式与渲染语义都没变。
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pymupdf==1.28.2"
 
+# Cowork electronic-PDF text path: freeze the source lock and current base
+# runtime version. Text extraction must not silently fall back to paid Vision
+# merely because a future base image changes its transitive dependencies.
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "pypdf==6.15.0"
+
 # ── 浏览器：DMS 是"真人在网页上操作"的系统，没有开放 API ─────────────────────
 #
 # 这不是测试工具，是**运行时依赖**：老产品的铁律是"无开放 API 的 ERP 一律走

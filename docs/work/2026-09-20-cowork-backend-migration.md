@@ -185,3 +185,54 @@ python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/ev
 下一段接真实执行链：服务端固定actor/锚定日期/策略及授权样例；PDF文本/200DPI渲染与图像路径；通过Core provider预算/持久检查点调用；同一work逐页串行避免whole-JSON检查点丢更新；结果未知不自动重付费；余额查询失败关闭、保存与稳定reference计费重试分离。缓存、原生纠错例库/保存hook、可搜索PDF、表格回导及原生历史导入需分别补齐。其余推送、对账、盘点缺项、LINE/Companion/WeKan保持第二批清单，不因这批纯层通过被划掉。
 
 主目录收尾观察为 `55d1df4b0a69024c3e7ac446ea98d2697409c13e`，相对上批主目录新增DMS rich-menu修复；未改动、回退或合入此窗口，尚未验证与此最新main的组合。主目录无未提交改动。本批只在独立任务分支本地提交，不合回、不推送、不部署。完成后停止本任务三个容器，保留卷及源码，供下次续接；不影响DMS窗口及其Site/容器。
+
+## 第四批执行链（进行中，2026-09-21）
+
+用户再次要求继续。起点 `ffdcd477632c8cb435d54ab855c721d4b67779cc`，独立任务树无未提交改动；主目录仍为55d1df4，不改DMS及其运行环境。开工来源身份与动态策略重新只读取证，固定源码仍ec2e5c，首尾与第三批比较通过。
+
+本批责任：Cowork `ocr.engine`负责纯发票编排/提示/响应解析；`ocr.inputs_runtime/providers`负责惰性原件渲染和Core provider适配；`ocr.feedback`负责原生授权纠错例库；`ocr.execution`负责服务端受理、actor/范围重验、不可变策略/日期/提示快照、原生Batch状态、Core work队列接线及稳定reference计费。公开入口只受理本站已有受控Source File，不接受客户端模型、actor、租户或原始识别结果；既有history保存服务承接完整结果，原生业务数据使用新DocType，不手改库。
+
+依赖为Cowork流程→纯engine/输入/供应商适配→Core共享执行/预算，以及流程→history/files/feedback。Core不反向导入Cowork；不改共享默认档，不搬旧线程池，不允许无work上下文的付费调用。模型结果未知不能自动切模型/重做；明确拒绝/限流交Core延后。同work逐页串行检查点，原件惰性取页，余额查询失败关闭；识别结果保存后计费失败只重报账，不重识别。Web/原生CRUD/分享/队列与撤权路径均纳入本地验证。
+
+只在专用内部网络/Site以合成票据和假供应商/假账单出口验证，不配置生产密钥、不发付费OCR、不部署、不接前端。供应商真实结果、旧历史回灌/真实纠错样例、浏览器和用户验收仍需另行证据。阶段实现及最终检查在此处续写，不把设计当完成。
+
+### 第四批实现与审查结果
+
+已接通[原生执行合同](cowork-backend/invoice-execution.md)。受控Source→不可变Batch→Core Work→PDF文本/图片/direct或Vision-L2-L3→完整结果冻结→同事务草稿/原件清单→稳定reference账单回执。公开submit/detail/retry_billing不接受actor/租户/模型/AI结果。只有PDF/image、显式economy/enterprise+Vertex；unsupported格式、auto模式和未配置连接在付费前明确拒绝。
+
+本轮审查修复了实际边界问题，未通过扩大忽略或删除断言解决：
+
+- 供应商已完成的非成功响应必须有终态回放；否则后页限流会让前页拒绝再次发请求。另覆盖Core rejected已提交而产品terminal尚未写的崩溃窗口，原raw缺失如实记为恢复拒绝。本地配置/凭据错误独立硬失败，不能误当L3业务失败降级。
+- 长任务不能只清数据库事务：Frappe本进程角色cache仍旧。每次调用和最终保存前重设actor，重新读取角色及范围。
+- 正常返回但字段全空的票据原本能漏进结果准备，现拒绝整件，不保存空票收费。这是登记的收费收紧，不称旧源所有边界行为不变。
+- `client=None`会被Frappe用当前用户唯一客户权限填默认值。History/Source/Batch显式保存空值，避免没有指定买方的单据被框架变更归属；现场覆盖原件、Batch、历史三层。
+- Correction与Batch进入原生query hook必须有All/Guest查询角色，再由hook最终拒绝；直接空permissions会让新Frappe query的旧DocShare路径提前返回。共享Core Work不增加这些权限，使用对象能力/原生生命周期保护和限定Cowork的分享权限升级，保留旧share行，不改DMS份额。
+- Core失败通知无hook时返回[]，原代码`.get`使失败/未知任务释放容量前报错。本批仅修这处兼容，8项回归验证真实DMS回调字典和参数仍保留。
+
+框架错误和内部元数据沿TSV生成Cowork中/泰/日/英四语：新增56条，本批70项核对完整覆盖；未接前端，也未获得用户翻译验收。模型提示和旧诊断字面量为来源合同，尚需前端消费时拆分展示翻译，不能直接当用户提示。
+
+### 第四批验证
+
+锁定镜像仍为`sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`，Frappe16.33.0/Python3.14.7，自己的Core/Cowork源码只读挂载。专用Redis6.2 DB6/数据库与内部网络无共享DMS挂载，无外网路由/端口/worker/scheduler/真实凭据。实查pypdf6.15.0已存在，本批Dockerfile显式固化同版本，没有重建或发布运行镜像。
+
+- 最终独立无网络容器完整`test_cowork_*.py`：**285项通过**。首次运行遗漏Core源码PYTHONPATH导致2项导入错误，修正测试命令同时加载本树Core/Cowork后全部通过，没有修改断言绕过。
+- 纯engine固定源码hash差分**1919项**；IO同源Vision/缩图/文本路径**540项**，由独立审查记录。不把假response的差分当真实模型质量证明。
+- `cowork-execution-lab-verify.py`：**22项真实Site场景通过**，包含两独立进程同时受理、真实Core检查点和Redis预算、原子保存中断/重试、未知结果不重付费、先存后账和丢回执、撤公司/角色、权限/WSGI原生接口、50物理页完整清单与一次按50页记账。所有provider/token/账单出口是假实现，未发真实调用；50页为小尺寸合成PDF，不是大扫描件或多租户峰值承诺。
+- `cowork-feedback-lab-verify.py`：**16项通过**；修正原生client默认填充、legacy share列表旁路，以及不符合真实已规范化AI页的fixture后复跑，不放宽断言。
+- 受影响既有History原生回归**21项通过**；File/整批绑定回归**20项通过**。盘点未受影响，不重复其旧全套。
+- 新建`cowork-backend-execution.localhost`完成空Site安装；原四Site完成结构升级，execution Site后续migrate与重复升级成功。涵盖原件字节、历史、Batch、Correction、Core Work、用户/权限/偏好的前后摘要均为`9bfd48b665f1a6a3de30aca20dd392720e2d5b35974816d9b63f6429f571b94f`（148原件、46历史、101Batch/Work、4Correction）。未做真实旧数据导入或生产恢复。
+- 架构检查0违规、空白/语法通过，DMS离线207断言通过。术语表检查通过；**全仓i18n严格检查仍失败**：既有与纯来源模型/诊断中文共147项检测，另其他App每语缺22个英文msgid。没有扩大忽略或改DMS语言包来造通过；本批英文服务器消息/元数据四语覆盖与全仓静态通过是不同结论。无前端改动，不跑前端构建。
+
+### 第四批首尾线上证据
+
+`evidence/baseline-fourth-start.json`/`baseline-fourth-delivery.json`和对应`ocr-runtime-fourth-*.json`均首尾compare通过；Cloud Run实际100%流量revision仍为`pearnly-web-ec2e5c957e6b-s3`及worker同源，源码、镜像和OCR策略未漂移。原代码/运行配置身份不等于新平台真实识别结果已一致。
+
+- 来源开工摘要`6675134220bf2349153b79aa1fa30bf87fcd0c8cab2e200fb9e41a8f4f0e3a4b`；交付`2cf98e0a529d219f5bbf71f4bffcc89137b9ee6219f2dea6d4124d2b1930a53a`。
+- 动态配置开工摘要`994be70bf797ff2b4d09f7dc2a4d783a03a1e4679cd1ebd892787de41a09bd15`；交付`d07e7c9f99342c130f0566649517cc28e4bed8b011a48b6004a4c05516d55fa3`。
+- Secret只在本机进程内读；数据库只读核对一行策略。未读取票据、客户或真实例库，未修旧线上Vision凭据配置。
+
+### 后续边界
+
+尚未到整个Cowork接前端的讨论门槛。后续优先补表格/虚拟页、可搜索PDF、历史导入和非staged缓存，再接外推连接/写者锁/完整日志回读、对账余项和盘点缺项；LINE/Companion/WeKan独立来源与接口仍需继续核验。真实OCR、账单、部署、浏览器/用户验收均未进行。
+
+主目录本次末读仍为`55d1df4b0a69024c3e7ac446ea98d2697409c13e`且干净，未改其它任务分支、Site或容器。本批留在`codex/cowork-backend-migration`独立树，本地提交，不合回main、不推送、不部署；未验证和最新main组合。收尾停止本任务三个容器，保留标记的合成数据与工作树供续接。

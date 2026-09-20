@@ -7,23 +7,36 @@ A request key of 1 to 128 characters is required.,A request key of 1 to 128 char
 Actor,Actor
 Actual Qty,Actual Qty
 An original file is already stored for this source.,An original file is already stored for this source.
+Anchor Date,Anchor Date
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
 Barcode,Barcode
+Billing Code,Billing Code
+Billing Receipt,Billing Receipt
+Billing Reference,Billing Reference
+Billing State,Billing State
 Book Qty,Book Qty
 Bound Invoice Records,Bound Invoice Records
 Buyer Client,Buyer Client
+Changed At (UTC),Changed At (UTC)
+Changed By,Changed By
+Client,Client
 Closed At,Closed At
 Closed By,Closed By
 Company,Company
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
+Corrected Value,Corrected Value
 Count Mode,Count Mode
 Counted At,Counted At
 Counted By,Counted By
 Cowork Client,Cowork Client
 Cowork Master Data,Cowork Master Data
+Cowork OCR Batch,Cowork OCR Batch
+Cowork OCR Correction,Cowork OCR Correction
 Cowork OCR History,Cowork OCR History
+Cowork OCR requires a configured provider credential reference.,Cowork OCR requires a configured provider credential reference.
+Cowork OCR requires an explicit invoice configuration.,Cowork OCR requires an explicit invoice configuration.
 Cowork Source File,Cowork Source File
 Cowork Stocktake,Cowork Stocktake
 Cowork Stocktake Entry,Cowork Stocktake Entry
@@ -35,14 +48,22 @@ Create invoice records through the Cowork intake service.,Create invoice records
 Created By,Created By
 Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
+Direction,Direction
 Draft,Draft
 Duplicate records are not allowed.,Duplicate records are not allowed.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Edit Count,Edit Count
 Entry,Entry
+Event Key,Event Key
+Evidence Fingerprint,Evidence Fingerprint
+Examples Json,Examples Json
+Field,Field
 File Hash,File Hash
 First Recognition Snapshot,First Recognition Snapshot
+First Recognition Value,First Recognition Value
+History Records,History Records
+Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid original filename.,Invalid original filename.
 Invalid recognized invoice group.,Invalid recognized invoice group.
 Invoice Count,Invoice Count
@@ -75,56 +96,85 @@ Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
 Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
 Pearnly Cowork,Pearnly Cowork
+Phase,Phase
 Posting Kind,Posting Kind
 Previous Json,Previous Json
 Private File,Private File
 Private Storage URL,Private Storage URL
 Product Code,Product Code
 Product Name,Product Name
+Provider Evidence,Provider Evidence
 Quantity,Quantity
 Recognition Confidence,Recognition Confidence
 Recognition Quality,Recognition Quality
+Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
+Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
+Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
 Record Id,Record Id
 Record Revision,Record Revision
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
 Request Fingerprint,Request Fingerprint
 Request Json,Request Json
 Request Key,Request Key
+Requires Review,Requires Review
+Result Json,Result Json
 Row {0}: {1},Row {0}: {1}
+Sample Key,Sample Key
+Scope Key,Scope Key
 Select a file to upload.,Select a file to upload.
 Select between 1 and 500 records.,Select between 1 and 500 records.
 Select valid files to download.,Select valid files to download.
 Seller Name,Seller Name
+Seller Tax ID,Seller Tax ID
+Settings Json,Settings Json
+Site,Site
 Source Digest,Source Digest
+Source File,Source File
 Source Format,Source Format
+Source History,Source History
 Source PDF ID,Source PDF ID
 Source Page Indices,Source Page Indices
+Source Sha256,Source Sha256
 Task,Task
 Tax ID,Tax ID
+The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
 The PDF file cannot be read.,The PDF file cannot be read.
+The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
+The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
 The image file cannot be read.,The image file cannot be read.
+The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
 The original file already has a completed invoice manifest.,The original file already has a completed invoice manifest.
 The original file checksum does not match.,The original file checksum does not match.
 The original file is not ready for page preview.,The original file is not ready for page preview.
 The original file reference has changed.,The original file reference has changed.
 The original invoice manifest is incomplete.,The original invoice manifest is incomplete.
+The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
 The record changed. Reload it before saving.,The record changed. Reload it before saving.
 The requested page is not part of this invoice.,The requested page is not part of this invoice.
 The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
 The uploaded file is empty.,The uploaded file is empty.
+This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
 This file type is not supported.,This file type is not supported.
+This original already has a recognition task with different parameters.,This original already has a recognition task with different parameters.
 This page is too large to preview safely.,This page is too large to preview safely.
+This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
 This request key has already been used for different content.,This request key has already been used for different content.
 Title,Title
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Updated At,Updated At
 Updated By,Updated By
 Uploaded By,Uploaded By
+Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
+Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
 Version,Version
 Voided,Voided
 Warehouse,Warehouse
+Work Name,Work Name
+Workspace,Workspace
 active,active
+admitted,admitted
+charged,charged
 closed,closed
 confirmed,Confirmed
 cowork.quality.confirmed,Recognized with high confidence
@@ -147,6 +197,9 @@ history.source_not_public,Only manual records can be created through this entry.
 image,image
 legacy,legacy
 manual,Manual
+not_billable,not_billable
+not_due,not_due
+not_invoice,not_invoice
 ocr.empty_file,The uploaded file is empty.
 ocr.file_too_large,The file exceeds the allowed size.
 ocr.invalid_input_metadata,The file size or page metadata is invalid.
@@ -155,6 +208,9 @@ ocr.too_many_pages,The PDF exceeds the allowed page count.
 ocr.unsupported_format,This file type is not supported.
 pdf,pdf
 pending,Pending
+recognized,recognized
+recognizing,recognizing
+saved,saved
 scan,scan
 service,Service
 stock,Stock

@@ -7,23 +7,36 @@ A request key of 1 to 128 characters is required.,รหัสคำขอต้
 Actor,ผู้ดำเนินการ
 Actual Qty,จำนวนที่ตรวจนับจริง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
+Anchor Date,วันที่อ้างอิง
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
 Barcode,บาร์โค้ด
+Billing Code,รหัสค่าบริการ
+Billing Receipt,ผลยืนยันการเรียกเก็บเงิน
+Billing Reference,เลขที่อ้างอิงการเรียกเก็บเงิน
+Billing State,สถานะการเรียกเก็บเงิน
 Book Qty,จำนวนตามบัญชี
 Bound Invoice Records,รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว
 Buyer Client,ลูกค้าผู้ซื้อ
+Changed At (UTC),เวลาที่แก้ไข (UTC)
+Changed By,ผู้แก้ไข
+Client,ลูกค้า
 Closed At,เวลาปิด
 Closed By,ผู้ปิด
 Company,บริษัท
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
+Corrected Value,ค่าที่แก้ไข
 Count Mode,วิธีตรวจนับ
 Counted At,เวลาตรวจนับ
 Counted By,ผู้ตรวจนับ
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Master Data,Cowork ข้อมูลหลัก
+Cowork OCR Batch,Cowork ชุดงานอ่านเอกสาร
+Cowork OCR Correction,Cowork ตัวอย่างการแก้ไขผลอ่านเอกสาร
 Cowork OCR History,Cowork ประวัติการอ่านเอกสาร
+Cowork OCR requires a configured provider credential reference.,กรุณากำหนดการอ้างอิงข้อมูลรับรองของผู้ให้บริการอ่านเอกสาร Cowork ก่อน
+Cowork OCR requires an explicit invoice configuration.,กรุณากำหนดค่าการอ่านใบแจ้งหนี้ Cowork ก่อน
 Cowork Source File,ไฟล์ต้นฉบับ Cowork
 Cowork Stocktake,ตรวจนับสต็อก Cowork
 Cowork Stocktake Entry,รายการตรวจนับสต็อก Cowork
@@ -35,14 +48,22 @@ Create invoice records through the Cowork intake service.,กรุณาสร�
 Created By,ผู้สร้าง
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
+Direction,ทิศทางรายการ
 Draft,ฉบับร่าง
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
 Edit Count,จำนวนครั้งที่แก้ไข
 Entry,รายการ
+Event Key,รหัสเหตุการณ์
+Evidence Fingerprint,ลายนิ้วมือหลักฐาน
+Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
+Field,ฟิลด์
 File Hash,ค่าแฮชของไฟล์
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
+First Recognition Value,ค่าที่อ่านได้ครั้งแรก
+History Records,บันทึกการอ่านเอกสาร
+Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
 Invalid original filename.,ชื่อไฟล์ต้นฉบับไม่ถูกต้อง
 Invalid recognized invoice group.,กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง
 Invoice Count,จำนวนใบแจ้งหนี้
@@ -75,56 +96,85 @@ Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
 Password-protected PDF files cannot be read.,ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้
 Pearnly Cowork,Pearnly Cowork
+Phase,ขั้นตอนการประมวลผล
 Posting Kind,ประเภทการผ่านรายการ
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
 Private File,ไฟล์ส่วนตัว
 Private Storage URL,URL ที่จัดเก็บส่วนตัว
 Product Code,รหัสสินค้า
 Product Name,ชื่อสินค้า
+Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Quantity,จำนวน
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
+Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
+Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
+Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Record Id,รหัสรายการ
 Record Revision,รุ่นของรายการ
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Request Fingerprint,ลายนิ้วมือข้อมูลคำขอ
 Request Json,ข้อมูลคำขอ (JSON)
 Request Key,รหัสคำขอ
+Requires Review,ต้องตรวจสอบโดยผู้ใช้
+Result Json,ผลการอ่านเอกสาร (JSON)
 Row {0}: {1},แถว {0}: {1}
+Sample Key,รหัสตัวอย่างการแก้ไข
+Scope Key,รหัสขอบเขตสิทธิ์
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
 Select between 1 and 500 records.,กรุณาเลือก 1 ถึง 500 รายการ
 Select valid files to download.,กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด
 Seller Name,ชื่อผู้ขาย
+Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
+Settings Json,ข้อมูลการตั้งค่า (JSON)
+Site,เว็บไซต์
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
+Source File,ไฟล์ต้นฉบับ
 Source Format,รูปแบบข้อมูลต้นทาง
+Source History,บันทึกการอ่านเอกสารต้นทาง
 Source PDF ID,รหัส PDF ต้นฉบับ
 Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบับ
+Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
 Task,งาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
+The OCR connection changed after this task was accepted.,การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้
 The PDF file cannot be read.,ไม่สามารถอ่านไฟล์ PDF นี้ได้
+The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
+The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
+The invoice configuration does not match the OCR connection.,การตั้งค่าการอ่านใบแจ้งหนี้ไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร
 The original file already has a completed invoice manifest.,ไฟล์ต้นฉบับนี้เชื่อมโยงใบแจ้งหนี้ครบแล้ว
 The original file checksum does not match.,ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน
 The original file is not ready for page preview.,ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า
 The original file reference has changed.,การเชื่อมโยงไฟล์ต้นฉบับเปลี่ยนไปแล้ว
 The original invoice manifest is incomplete.,รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน
+The recognized invoice manifest cannot be replaced.,ไม่สามารถแทนที่รายการเชื่อมโยงใบแจ้งหนี้ที่อ่านแล้วได้
 The record changed. Reload it before saving.,รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก
 The requested page is not part of this invoice.,หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้
 The uploaded file exceeds the 100 MiB limit.,ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB
 The uploaded file is empty.,ไฟล์ที่อัปโหลดว่างเปล่า
+This Cowork OCR mode is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
+This original already has a recognition task with different parameters.,ไฟล์ต้นฉบับนี้มีงานอ่านเอกสารที่ใช้พารามิเตอร์ต่างกันอยู่แล้ว
 This page is too large to preview safely.,หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย
+This recognition service currently accepts PDF and image originals.,บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้
 This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
 Title,ชื่อเรื่อง
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Uploaded By,ผู้อัปโหลด
+Use the Cowork OCR service to access recognition tasks.,กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
+Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
 Version,เวอร์ชัน
 Voided,ยกเลิกแล้ว
 Warehouse,คลังสินค้า
+Work Name,รหัสงานเบื้องหลัง
+Workspace,ชุดบัญชีบริษัท
 active,ใช้งานอยู่
+admitted,รับงานแล้ว
+charged,เรียกเก็บเงินแล้ว
 closed,ปิดแล้ว
 confirmed,ยืนยันแล้ว
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
@@ -147,6 +197,9 @@ history.source_not_public,ช่องทางนี้สร้างได้
 image,รูปภาพ
 legacy,ระบบเดิม
 manual,กรอกเอง
+not_billable,ไม่ต้องเรียกเก็บเงิน
+not_due,ยังไม่ถึงขั้นตอนเรียกเก็บเงิน
+not_invoice,ไม่ใช่ใบแจ้งหนี้
 ocr.empty_file,ไฟล์ที่อัปโหลดว่างเปล่า
 ocr.file_too_large,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
 ocr.invalid_input_metadata,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
@@ -155,6 +208,9 @@ ocr.too_many_pages,ไฟล์ PDF มีจำนวนหน้าเกิ�
 ocr.unsupported_format,ไม่รองรับไฟล์ประเภทนี้
 pdf,PDF
 pending,รอดำเนินการ
+recognized,อ่านเอกสารแล้ว
+recognizing,กำลังอ่านเอกสาร
+saved,บันทึกแล้ว
 scan,สแกน
 service,บริการ
 stock,สต็อก
