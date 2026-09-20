@@ -22,7 +22,7 @@
 | 组件 | 状态 |
 |---|---|
 | **Keycloak** | 已锁定 `26.7.4`（quay.io，digest `sha256:82a77884…`）。选法：查 registry 实际可用 tag 后取最新稳定版，**以启动成功且建表成功为准**，不猜。 |
-| 镜像架构 | 本机样板镜像是 **arm64**（本机开发用）；目标机 Contabo 是 **x86_64**。两者不可互换。 |
+| 镜像架构 | 本机样板镜像是 **arm64**（本机开发用）；目标机 SSD Nodes 是 **x86_64**。两者不可互换。 |
 | 基础镜像链 | 现有链是 `upstream/frappe_docker` → runtime → business-sample（见 `scripts/business-sample/Containerfile` 与 `manage.py`）。新仓库要决定沿用还是自建。 |
 
 补充锁定项：
