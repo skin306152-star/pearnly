@@ -1,0 +1,12 @@
+{
+  "target_name": "production-ssdnodes",
+  "provider": "SSD Nodes",
+  "region": "Singapore",
+  "ssh_host": "107.155.65.74",
+  "public_ipv4": "107.155.65.74",
+  "public_ipv6": "2602:ff16:5:115d::1",
+  "base_domain": "pearnly.com",
+  "os": "Ubuntu 24.04 LTS",
+  "architecture": "amd64",
+  "replaces_target": "production-contabo"
+}

@@ -108,6 +108,26 @@ class CloudOnly(unittest.TestCase):
             self.assertEqual(result[0]["action"], "new_site")
             self.assertEqual(result[0]["payload"], {"site": "example.test"})
 
+    def test_retired_host_teardown_cannot_escape_to_local_or_new_runner(self):
+        self.conf["pearnly_target_runtime"]["retired"] = {"executor": "retired"}
+        step = SimpleNamespace(name="STEP", step_key="old:drop_site", status="pending",
+                               action="drop_site", payload='{}', deployment=None)
+        req = SimpleNamespace(name="REQUEST", issue="ISSUE", idempotency_key="teardown:OLD", steps=[step])
+        self.db.get_value.side_effect = lambda dt, key, field: "retired" if field == "target" else None
+        with patch.object(frappe, "get_all", return_value=["REQUEST"]), patch.object(frappe, "get_doc", return_value=req):
+            for target in (None, "retired", "cloud"):
+                self.assertEqual(provisioning.next_steps(target=target), [])
+
+    def test_production_bridge_requires_matching_connected_target(self):
+        from pearnly_control import runner_bridge
+        with patch.object(provisioning, "next_steps", return_value=[{"job": "new"}]) as jobs:
+            self.assertEqual(runner_bridge.dispatch({"action": "next", "args": {"target": "cloud"}}), [])
+            self.conf["pearnly_production_target"] = "cloud"
+            self.assertEqual(runner_bridge.dispatch({"action": "next", "args": {"target": "retired"}}), [])
+            jobs.assert_not_called()
+            self.assertEqual(runner_bridge.dispatch({"action": "next", "args": {"target": "cloud"}}), [{"job": "new"}])
+            jobs.assert_called_once_with(limit=1, target="cloud")
+
     def test_native_document_validation_rejects_local_before_account_validation(self):
         from pearnly_control.pearnly_control.doctype.pearnly_issue.pearnly_issue import PearnlyIssue
         doc = SimpleNamespace(target="local", status="draft", is_new=lambda: True,

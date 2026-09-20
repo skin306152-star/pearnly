@@ -11,7 +11,8 @@ frappe.set_user("Administrator")
 from pearnly_control import domains, infra, provisioning
 from pearnly_core.keycloak_admin import client_for_target
 
-target = "production-contabo"
+target = frappe.conf.get("pearnly_production_target")
+assert target, "No verified production target is connected"
 assert infra.is_cloud(target)
 assert domains.base_domain(target) == "pearnly.com"
 assert not infra.is_cloud("本地样板")

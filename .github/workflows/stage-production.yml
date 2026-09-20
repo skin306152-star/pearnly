@@ -17,6 +17,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
       - name: Transfer pull credential to restricted image receiver
         env:
           DIGEST: ${{ inputs.digest }}
@@ -25,11 +28,12 @@ jobs:
           KNOWN_HOSTS: ${{ secrets.PRODUCTION_KNOWN_HOSTS }}
         run: |
           [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          target_host=$(python3 scripts/production/target.py)
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/image_receiver
           chmod 600 ~/.ssh/image_receiver
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           printf '%s\n%s\n' "ghcr.io/$GITHUB_REPOSITORY/frappe@$DIGEST" "$REGISTRY_TOKEN" |
             ssh -i ~/.ssh/image_receiver -o IdentitiesOnly=yes -o BatchMode=yes \
-              -o StrictHostKeyChecking=yes root@194.233.74.40
+              -o StrictHostKeyChecking=yes "root@$target_host"
           printf 'Staged (not started): `%s@%s`\n' "ghcr.io/$GITHUB_REPOSITORY/frappe" "$DIGEST" >> "$GITHUB_STEP_SUMMARY"

@@ -565,6 +565,9 @@ def next_steps(limit: int = 20, target: str | None = None) -> list[dict]:
                 and not str(req.idempotency_key).startswith("teardown:")):
             continue
         issue_target = frappe.db.get_value(ISSUE, req.issue, "target")
+        # A retired host's historical jobs, including teardown, must stay inert.
+        if infra.target_settings(issue_target).get("executor") == "retired":
+            continue
         # Historical local provisioning requests must never resume or be retargeted.
         # Explicit teardown remains a separate, previously authorized lifecycle.
         if not str(req.idempotency_key).startswith("teardown:") and not infra.is_cloud(issue_target):

@@ -3,16 +3,8 @@
 <plist version="1.0"><dict>
   <key>Label</key><string>com.pearnly.production-tunnel</string>
   <key>ProgramArguments</key><array>
-    <string>/usr/bin/ssh</string><string>-N</string><string>-T</string>
-    <string>-i</string><string>/Users/skin/.config/pearnly-production/tunnel</string>
-    <string>-o</string><string>IdentitiesOnly=yes</string>
-    <string>-o</string><string>BatchMode=yes</string>
-    <string>-o</string><string>ExitOnForwardFailure=yes</string>
-    <string>-o</string><string>ServerAliveInterval=30</string>
-    <string>-o</string><string>ServerAliveCountMax=3</string>
-    <string>-L</string><string>127.0.0.1:18184:127.0.0.1:8184</string>
-    <string>-L</string><string>127.0.0.1:18180:127.0.0.1:8180</string>
-    <string>root@194.233.74.40</string>
+    <string>/usr/bin/python3</string>
+    <string>/Users/skin/pearnly/scripts/production/tunnel.py</string>
   </array>
   <key>RunAtLoad</key><true/>
   <key>KeepAlive</key><true/>

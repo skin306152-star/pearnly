@@ -1,6 +1,8 @@
 # ADR-002 目标机与外部依赖保留范围
 
-状态：已选定（用户确认 2026-09-17）。
+状态：已更新（用户确认 2026-09-20）。
+
+当前目标为 SSD Nodes 新加坡 8 vCPU / 32 GB / 480 GB SSD、Ubuntu 24.04 LTS。用户选择空环境重新开户，不迁移旧数据；旧 Contabo 保留历史。目标地址以 `infrastructure/production/target.json` 为准，执行证据见 [新服务器切换](../work/2026-09-20-ssdnodes-migration.md)。以下 2026-09-17 选型和观测保留为历史，不能作为当前部署配置。
 
 ## 决策
 

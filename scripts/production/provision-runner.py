@@ -7,10 +7,10 @@ from pathlib import Path
 import subprocess
 import sys
 import time
+from target import load_target, ssh_command
 
 CONFIG = Path.home() / ".config/pearnly-production"
-SSH = ["ssh", "-i", str(CONFIG / "provisioner"), "-o", "IdentitiesOnly=yes",
-       "-o", "BatchMode=yes", "-o", "ConnectTimeout=10", "root@194.233.74.40", "provision"]
+SSH = ssh_command("provisioner") + ["provision"]
 
 
 def control(action, **args):
@@ -24,7 +24,7 @@ def control(action, **args):
 
 
 def once():
-    jobs = control("next")
+    jobs = control("next", target=load_target()["target_name"])
     if not jobs:
         return False
     job = jobs[0]

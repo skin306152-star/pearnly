@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Root-owned forced SSH command. Fixed operations; no remote shell or paths."""
 import fcntl
+import ipaddress
 import json
 import os
 from pathlib import Path
@@ -129,7 +130,9 @@ def nginx(site, group, tls=False):
 
 def publish(p):
     site, group = p["site"], p["group"]
-    if "194.233.74.40" not in {x[4][0] for x in socket.getaddrinfo(site, 443, socket.AF_INET)}:
+    target = json.loads((ROOT / "infrastructure/production/target.json").read_text())
+    address = str(ipaddress.IPv4Address(target["public_ipv4"]))
+    if address not in {x[4][0] for x in socket.getaddrinfo(site, 443, socket.AF_INET)}:
         raise ValueError("Tenant DNS does not point to this server")
     path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{site}.conf")
     cert = Path(f"/etc/letsencrypt/live/{site}/fullchain.pem")

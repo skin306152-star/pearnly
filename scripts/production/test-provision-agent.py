@@ -6,6 +6,7 @@ import os
 import subprocess
 from pathlib import Path
 import unittest
+from unittest.mock import patch
 
 path = Path(__file__).resolve().parents[2] / "infrastructure/production/provision-agent.py"
 spec = importlib.util.spec_from_file_location("provision_agent", path)
@@ -57,6 +58,14 @@ class Contracts(unittest.TestCase):
         self.assertIn("proxy_pass http://127.0.0.1:8183;", config)
         self.assertNotIn("proxy_set_header Host $host", config)
         self.assertNotIn("8180", config)
+
+    def test_publish_rejects_previous_server_dns_before_writing(self):
+        with patch.object(agent, "ROOT", path.parents[2]), \
+             patch.object(agent.socket, "getaddrinfo", return_value=[(None, None, None, None, ("194.233.74.40", 443))]), \
+             patch.object(Path, "write_text") as write:
+            with self.assertRaisesRegex(ValueError, "DNS"):
+                agent.publish({"site": "acme.pearnly.com", "group": "dms"})
+            write.assert_not_called()
 
 
 if __name__ == "__main__":

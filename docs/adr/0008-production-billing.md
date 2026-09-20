@@ -1,10 +1,10 @@
 # ADR-008 — 云端计费、本地控制面
 
-状态：用户于 2026-09-19 确认；基础服务已部署，租户生产开户与业务切换尚未完成。
+状态：架构继续采用；2026-09-20 切换 SSD Nodes 空环境，见 [切换记录](../work/2026-09-20-ssdnodes-migration.md)。
 
 ## 决定
 
-- 新平台部署到 Contabo 新加坡 194.233.74.40；旧 pearnly-app 的 Cloud Run 与主域名不切流。
+- 新平台目标以 `infrastructure/production/target.json` 为准（SSD Nodes 新加坡）。原 Contabo 停用；新身份库和账本从零开始，不搬迁旧租户或自动充值。
 - 管理后台、开户单和人工充值审核 UI 留在 Mac。
 - 目标：余额、套餐、充值申请与扣费流水由云端独立 `billing.internal` Site 唯一记账；完成租户切换后，电脑关闭不影响已有租户的余额查询、识别扣费或使用。当前本地租户尚未切换，不将此目标当作已完成的验收。
 - 复用 `pearnly_control.billing` 的规则与四张计费 DocType，不另写定价实现。云端安装该 App 是为了复用 schema 和规则，不提供管理后台。计费 HTTP 服务只在 Docker 内网与服务器 loopback 监听，且只放行精确的计费 API 白名单；无 Desk、开户、用户管理、任意 RPC 或 REST 文档入口。
