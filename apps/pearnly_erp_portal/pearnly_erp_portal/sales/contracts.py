@@ -12,7 +12,8 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal, ROUND_HALF_UP
 
-from pearnly_erp_portal.masters.contracts import missing_for_tax_invoice
+from pearnly_erp_portal.masters.contracts import (BRANCH_TYPES, PARTY_TYPES,
+                                                   missing_for_tax_invoice)
 
 _CENT = Decimal("0.01")
 _HUNDRED = Decimal("100")
@@ -428,3 +429,48 @@ def should_post_stock(doc_kind: str, status: str) -> bool:
     if status != ISSUED:
         return False
     return doc_kind in (TAX_INVOICE, TAX_INVOICE_SIMPLE, TAX_INVOICE_RECEIPT, RECEIPT)
+
+# ── 识别结果的归一化（纯函数）──────────────────────────────────────────────
+#
+# 上传发票 → 识别 → 归一成建单要的字段。**归一在这一层**：模型返回什么形状都能在离线
+# 断言里看见，不必花钱调模型。金额不在这里算 —— 识别结果只描述票面，不替我们算数。
+
+
+def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = "") -> dict:
+    """把识别结果归一成 `create_document` 的入参形状。缺什么就留空，不猜。"""
+    payload = payload or {}
+    lines = []
+    for row in payload.get("lines") or []:
+        description = str(row.get("description") or "").strip()
+        if not description:
+            continue
+        lines.append({
+            "description": description[:300],
+            "qty": row.get("qty") or 1,
+            "unit": (str(row.get("unit") or "").strip() or None),
+            "unit_price": row.get("unit_price") or 0,
+            "discount": row.get("discount") or 0,
+        })
+    buyer_type = str(payload.get("buyer_type") or "company").strip().lower()
+    if buyer_type not in PARTY_TYPES:
+        buyer_type = "company"
+    branch_type = str(payload.get("buyer_branch_type") or "").strip().lower() or None
+    if branch_type not in BRANCH_TYPES:
+        branch_type = None
+    return {
+        "doc_kind": TAX_INVOICE,
+        "doc_date": (str(payload.get("doc_date") or "").strip() or None),
+        "buyer_name": (str(payload.get("buyer_name") or "").strip()[:200]
+                       or str(payload.get("seller_name") or "").strip()[:200]),
+        "party_type": buyer_type,
+        "tax_id": (str(payload.get("buyer_tax_id") or "").strip()[:20] or None),
+        "branch_type": branch_type,
+        "branch_no": (str(payload.get("buyer_branch_no") or "").strip()[:20] or None),
+        "address": (str(payload.get("buyer_address") or "").strip() or None),
+        "has_vat": payload.get("has_vat") is not False,
+        "vat_rate": payload.get("vat_rate") if payload.get("vat_rate") is not None else 7,
+        "wht_rate": payload.get("wht_rate") or 0,
+        "lines": lines,
+        "source_file": source_file or None,
+        "image_sha256": image_sha256 or None,
+    }
