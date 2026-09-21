@@ -282,6 +282,24 @@ def main():
     results["image_outside_value"] = frappe.db.get_value(
         "ERP Product", (outside or {}).get("name"), "image_url") if ok else None
 
+    # 扫码当场查重：编码 / 条码 / 二维码内容 / 售卖单位条码都指向同一条，自己不算撞自己。
+    ok, _ = as_user(SHOP, service.update_product, product, qr_payload="PEARNLY-LAB-QR")
+    ok, by_barcode = as_user(SHOP, service.find_product, "8850000000001")
+    results["find_by_barcode"] = bool(ok and (by_barcode or {}).get("name") == product)
+    ok, by_code = as_user(SHOP, service.find_product, "LAB-P1")
+    results["find_by_code"] = bool(ok and (by_code or {}).get("matched_by") == "code")
+    ok, by_qr = as_user(SHOP, service.find_product, "PEARNLY-LAB-QR")
+    results["find_by_qr"] = bool(ok and (by_qr or {}).get("matched_by") == "qr_payload")
+    ok, by_unit = as_user(SHOP, service.find_product, "8850000000018")
+    results["find_by_unit_barcode"] = bool(ok and (by_unit or {}).get("matched_by") == "unit_barcode")
+    ok, self_hit = as_user(SHOP, service.find_product, "LAB-P1", product)
+    results["find_excludes_self"] = bool(ok and self_hit == {})
+    ok, missing = as_user(SHOP, service.find_product, "NO-SUCH-CODE")
+    results["find_missing_empty"] = bool(ok and missing == {})
+    # 查重与列表同一道权限：没有商品岗位的账号查不了。
+    ok, err = as_user(OUTSIDER, service.find_product, "LAB-P1")
+    results["outsider_can_find"] = ok
+
     # 字段对齐：与旧线上 products 的列一一对应（不多不少）。
     meta = frappe.get_meta("ERP Product")
     ours = {field.fieldname for field in meta.fields
@@ -291,7 +309,7 @@ def main():
                 "qr_payload", "unit", "base_unit", "category_id", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
                 "default_cost", "image_url", "track_batch", "track_expiry",
-                "is_weighed", "units"}
+                "units"}
     results["fields_missing"] = sorted(expected - ours)
     results["fields_extra"] = sorted(ours - expected)
 
@@ -335,7 +353,7 @@ def main():
         "import_raw_tokens_leaked": [],
         "import_auto_code": True,
         "template_download_ok": True,
-        "template_headers": 17,
+        "template_headers": 16,
         "template_keys_leaked": [],
         "template_import_ok": True,
         "template_created": 1,
@@ -347,6 +365,13 @@ def main():
         "image_attached_same_row": True,
         "image_outside_ok": True,
         "image_outside_value": "https://example.com/x.png",
+        "find_by_barcode": True,
+        "find_by_code": True,
+        "find_by_qr": True,
+        "find_by_unit_barcode": True,
+        "find_excludes_self": True,
+        "find_missing_empty": True,
+        "outsider_can_find": False,
         "fields_missing": [], "fields_extra": [],
         "other_site_product_rows": 0,
         "other_site_has_code": False,

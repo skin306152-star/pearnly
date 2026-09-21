@@ -47,6 +47,50 @@ frappe.provide("frappe.pearnly");
 	const CAMERA_MISSING = "product.scan.noCamera";
 	const UNSUPPORTED = "product.scan.unsupported";
 
+/* 扫描成功的提示音、闪一下、震动，以及相机手电（仓库暗的时候用）。 */
+	// 框架自带的声音只有这几个：email / submit / cancel / delete / click / error / alert
+	// （`chime` 在 frappe 的 hooks 里是注释掉的，选了等于没声音）。扫码成功用平台的成功音。
+	const DONE_SOUND = "submit";
+
+	function celebrate(dialog, t) {
+		// 声音用平台自带的那一个（`frappe.utils.play_sound`，跟着账户的静音开关走），
+		// 不再像旧项目那样自己合成一段 beep。
+		try {
+			frappe.utils.play_sound(DONE_SOUND);
+		} catch (error) {
+			// 浏览器不让放就不放，别挡住取到的码。
+		}
+		if (navigator.vibrate) navigator.vibrate(60);
+		const stage = dialog.$wrapper.find(".pearnly-scan-stage");
+		stage.addClass("pearnly-scan-done");
+		stage.find(".pearnly-scan-check").attr("title", t("product.scan.done"));
+	}
+
+	/** 有手电就放一个开关（没有的机器不放死按钮）。 */
+	function add_torch(dialog, track, t) {
+		if (!track || typeof track.getCapabilities !== "function") return;
+		let caps = {};
+		try {
+			caps = track.getCapabilities() || {};
+		} catch (error) {
+			return;
+		}
+		if (!caps.torch) return;
+		const button = $(`<button type="button" class="btn btn-default btn-sm">
+			${frappe.utils.icon("es-line-zap", "sm")} ${p.escape(t("product.scan.light"))}</button>`);
+		let on = false;
+		button.on("click", async () => {
+			on = !on;
+			try {
+				await track.applyConstraints({ advanced: [{ torch: on }] });
+				button.toggleClass("btn-primary", on);
+			} catch (error) {
+				on = false;
+			}
+		});
+		dialog.$wrapper.find(".modal-footer").prepend(button);
+	}
+
 	/** 打开扫码窗，拿到一串码就回调（弹窗自己关）。 */
 	p.scan = async ({ kind = "barcode", on_result } = {}) => {
 		const t = await p.texts("product.");
@@ -60,8 +104,12 @@ frappe.provide("frappe.pearnly");
 			title: t("product.scan.title"),
 			fields: [{
 				fieldtype: "HTML",
-				options: `<video class="pearnly-scan-video" playsinline muted
-					style="width:100%;max-height:60vh;border-radius:10px;background:#000"></video>
+				options: `<div class="pearnly-scan-stage">
+					<video class="pearnly-scan-video" playsinline muted autoplay></video>
+					<span class="pearnly-scan-flash" aria-hidden="true"></span>
+					<span class="pearnly-scan-check" aria-hidden="true">
+						${frappe.utils.icon("es-line-success", "md")}</span>
+					</div>
 					<p class="text-muted" style="margin-top:8px">${p.escape(t("product.scan.hint"))}</p>`,
 			}],
 		});
@@ -106,6 +154,7 @@ frappe.provide("frappe.pearnly");
 		video.muted = true;
 		video.playsInline = true;
 		await ensure_playing();
+		add_torch(dialog, stream.getVideoTracks()[0], t);
 
 		const reader = new window.BarcodeDetector({ formats });
 		const clean = (value) => String(value || "").trim().replace(/\s+/g, "");
@@ -118,6 +167,9 @@ frappe.provide("frappe.pearnly");
 				const found = await reader.detect(video);
 				const code = found.length ? clean(found[0].rawValue) : "";
 				if (code) {
+					celebrate(dialog, t);
+					// 让人看见闪的那一下、听见那一声，再收窗交码。
+					await new Promise((resolve) => setTimeout(resolve, 420));
 					stop();
 					dialog.hide();
 					on_result(code);

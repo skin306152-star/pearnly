@@ -75,8 +75,13 @@ product.notice.saved,{0} を保存しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
 product.scan.denied,カメラの許可が拒否されました。許可してから再試行してください
+product.scan.done,読み取りました
 product.scan.hint,カメラをバーコード・QR コードに向けてください
+product.scan.light,ライト
 product.scan.noCamera,この端末にはスキャンに使えるカメラがありません
+product.scan.open,その商品を開く
+product.scan.taken,このコードは既に使われています
+product.scan.takenBody,既に「{0}」(コード {1}) で使われています
 product.scan.title,コードをスキャン
 product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 purchase,仕入

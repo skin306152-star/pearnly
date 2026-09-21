@@ -271,6 +271,10 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
 ]
 
+app_include_css = [
+    versioned_asset("pearnly_erp_portal", "desk/scan.css"),
+]
+
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]

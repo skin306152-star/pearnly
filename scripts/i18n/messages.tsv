@@ -1113,7 +1113,6 @@ pearnly_erp_portal	Base unit	库存单位	หน่วยฐาน	基準単位	
 pearnly_erp_portal	Category	分类	หมวดหมู่	カテゴリ	product.field.category
 pearnly_erp_portal	Track batches	批次管理	ติดตามล็อต	ロット管理	product.field.trackBatch
 pearnly_erp_portal	Track expiry	有效期管理	ติดตามวันหมดอายุ	有効期限管理	product.field.trackExpiry
-pearnly_erp_portal	Sold by weight	称重商品	ขายตามน้ำหนัก	量り売り	product.field.weighed
 pearnly_erp_portal	Import from Excel	Excel 导入	นำเข้าจาก Excel	Excel から取込	product.action.import
 pearnly_erp_portal	Reload	刷新	โหลดใหม่	再読み込み	product.action.reload
 pearnly_erp_portal	Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.importFile
@@ -1139,3 +1138,8 @@ pearnly_erp_portal	Point the camera at the barcode or QR code	把条码或二维
 pearnly_erp_portal	This browser cannot scan with the camera; use a scanner or type the code	这个浏览器不支持摄像头扫码，请用扫码枪或手输	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง	このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください	product.scan.unsupported
 pearnly_erp_portal	Camera permission was refused; allow it and try again	摄像头权限被拒绝，允许之后再试一次	ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่	カメラの許可が拒否されました。許可してから再試行してください	product.scan.denied
 pearnly_erp_portal	This device has no camera to scan with	这台设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องให้สแกน	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera
+pearnly_erp_portal	This code is already taken	这个码已经被占用	รหัสนี้ถูกใช้ไปแล้ว	このコードは既に使われています	product.scan.taken
+pearnly_erp_portal	Already used by {0} (code {1})	已经是「{0}」（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
+pearnly_erp_portal	Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
+pearnly_erp_portal	Light	灯光	ไฟ	ライト	product.scan.light
+pearnly_erp_portal	Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done

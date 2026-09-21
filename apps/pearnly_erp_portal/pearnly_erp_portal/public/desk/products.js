@@ -153,8 +153,6 @@
 					default: value("track_batch", 0) },
 				{ fieldtype: "Check", fieldname: "track_expiry",
 					label: t("product.field.trackExpiry"), default: value("track_expiry", 0) },
-				{ fieldtype: "Check", fieldname: "is_weighed", label: t("product.field.weighed"),
-					default: value("is_weighed", 0) },
 				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
 					default: value("vat_applicable", 1) },
 				// 图片走原生附件控件（它自带上传按钮、只收图片、带缩略图预览），
@@ -166,9 +164,30 @@
 			];
 		}
 
+		// 扫到的码已经是别人的：**当场**说，并给一条"去改那一条"的出路。
+		// 旧线上也是当场拦（撞码拖到保存才报，会让人白填一整张表）。
+		async function flag_taken(dialog, code, self_name) {
+			const taken = await p.call(api + "api_find_product",
+				{ value: code, exclude: self_name || "" });
+			if (!taken || !taken.name) return false;
+			frappe.msgprint({
+				title: t("product.scan.taken"),
+				indicator: "orange",
+				message: t("product.scan.takenBody", taken.product_name, taken.code || "—"),
+				primary_action: {
+					label: t("product.scan.open"),
+					action: () => {
+						dialog.hide();
+						void open_form(taken);
+					},
+				},
+			});
+			return true;
+		}
+
 		// 条码/二维码两格旁边加一个扫码按钮：原生输入框 + 原生按钮，解码在 desk/scan.js。
 		// 扫码枪不用按钮（它就是个键盘，打进输入框），但打完补的那个回车不能顺手把表单存了。
-		async function add_scan_buttons(dialog) {
+		async function add_scan_buttons(dialog, self_name) {
 			await p.scan_ready();
 			for (const [fieldname, kind] of [["barcode", "barcode"], ["qr_payload", "qr"]]) {
 				const field = dialog.get_field(fieldname);
@@ -181,7 +200,10 @@
 				row.append(field.$input).append(button);
 				button.on("click", () => p.scan({
 					kind,
-					on_result: (code) => field.set_value(code),
+					on_result: async (code) => {
+						field.set_value(code);
+						await flag_taken(dialog, code, self_name);
+					},
 				}));
 			}
 			const barcode = dialog.get_field("barcode");
@@ -215,7 +237,7 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-			await add_scan_buttons(dialog);
+			await add_scan_buttons(dialog, null);
 		}
 
 		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
@@ -294,7 +316,7 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
-			await add_scan_buttons(dialog);
+			await add_scan_buttons(dialog, existing.name);
 		}
 
 		// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。

@@ -32,7 +32,6 @@ FIELD_LABELS = (
     ("vat_applicable", "product.field.vat"),
     ("track_batch", "product.field.trackBatch"),
     ("track_expiry", "product.field.trackExpiry"),
-    ("is_weighed", "product.field.weighed"),
     ("image_url", "product.field.image"),
 )
 
@@ -86,8 +85,6 @@ LEGACY_ALIASES = {
     "批次": "track_batch",
     "track_expiry": "track_expiry",
     "效期": "track_expiry",
-    "is_weighed": "is_weighed",
-    "称重": "is_weighed",
     "image_url": "image_url",
     "图片": "image_url",
 }
@@ -113,7 +110,7 @@ def template_headers(label_of) -> list:
 TEXT_FIELDS = ("product_name", "name_en", "name_zh", "code", "barcode", "qr_payload",
                "unit", "base_unit", "image_url")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
-FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry", "is_weighed")
+FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")
 
 _TRUTHY = {"1", "true", "yes", "y", "ใช่", "是"}
 

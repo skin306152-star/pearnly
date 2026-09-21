@@ -46,8 +46,11 @@ LIST_FIELDS = (
     "name", "product_name", "name_en", "name_zh", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "is_weighed",
+    "track_batch", "track_expiry",
 )
+
+# 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
+LOOKUP_FIELDS = ("code", "barcode", "qr_payload")
 
 
 def _mask(rows):
@@ -151,8 +154,7 @@ def _allocate_code() -> str:
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, name_en=None, name_zh=None, base_unit=None,
-                   category_id=None, track_batch=None, track_expiry=None,
-                   is_weighed=None):
+                   category_id=None, track_batch=None, track_expiry=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -181,7 +183,6 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "category_id": int(category_id) if str(category_id or "").strip() else None,
         "track_batch": _flag(track_batch),
         "track_expiry": _flag(track_expiry),
-        "is_weighed": _flag(is_weighed),
         "is_active": 1,
     })
     doc.insert()
@@ -211,6 +212,35 @@ def list_products(*, search=None, include_inactive=False, limit=50, start=0):
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
         order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
+
+
+def find_product(value, exclude=None):
+    """扫到一个码，先看它已经属于谁 —— 撞码**当场**说，别等填完表保存才报错。
+
+    查四处：编码、条码、二维码内容，以及售卖单位上的条码（箱码/瓶码常挂在单位上）。
+    只认在架商品（停用品的码可以用，与旧线上"先下架再占码"一个意思）。查不到回空字典。
+    """
+    guard.require("products.view")
+    wanted = str(value or "").strip()
+    if not wanted:
+        return {}
+    fields = ["name", "product_name", "code", "barcode"]
+    base = [["is_active", "=", 1]]
+    if exclude:
+        base.append(["name", "!=", exclude])
+    for field in LOOKUP_FIELDS:
+        rows = frappe.get_list(DOCTYPE, filters=base + [[field, "=", wanted]], fields=fields,
+                               limit_page_length=1)
+        if rows:
+            return {**rows[0], "matched_by": field}
+    # 售卖单位上的条码：先按条码拿到子表行，再把父商品过一遍权限与在架闸。
+    parent = frappe.db.get_value(UNIT_DOCTYPE, {"barcode": wanted}, "parent")
+    if parent:
+        rows = frappe.get_list(DOCTYPE, filters=base + [["name", "=", parent]], fields=fields,
+                               limit_page_length=1)
+        if rows:
+            return {**rows[0], "matched_by": "unit_barcode"}
+    return {}
 
 
 def count_products(*, search=None, include_inactive=False) -> int:
@@ -260,7 +290,7 @@ def update_product(name: str, **changes):
     if "category_id" in changes:
         doc.category_id = (int(changes["category_id"])
                            if str(changes["category_id"] or "").strip() else None)
-    for field in ("track_batch", "track_expiry", "is_weighed"):
+    for field in ("track_batch", "track_expiry"):
         if field in changes:
             doc.set(field, _flag(changes[field]))
     if "product_name" in changes:
@@ -331,6 +361,12 @@ def add_unit(name: str, *, unit_name, factor_to_base, barcode=None, price=None,
 def api_list_products(**kwargs):
     kwargs.pop("cmd", None)
     return list_products(**kwargs)
+
+
+@frappe.whitelist()
+def api_find_product(value=None, exclude=None, **kwargs):
+    kwargs.pop("cmd", None)
+    return find_product(value, exclude=exclude)
 
 
 @frappe.whitelist()

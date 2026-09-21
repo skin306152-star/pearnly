@@ -75,8 +75,13 @@ product.notice.saved,Saved {0}
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
 product.scan.denied,Camera permission was refused; allow it and try again
+product.scan.done,Scanned
 product.scan.hint,Point the camera at the barcode or QR code
+product.scan.light,Light
 product.scan.noCamera,This device has no camera to scan with
+product.scan.open,Open that product
+product.scan.taken,This code is already taken
+product.scan.takenBody,Already used by {0} (code {1})
 product.scan.title,Scan a code
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 purchase,purchase

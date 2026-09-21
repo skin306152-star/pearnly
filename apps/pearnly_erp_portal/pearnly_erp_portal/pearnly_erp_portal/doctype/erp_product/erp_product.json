@@ -24,7 +24,6 @@
   "min_stock",
   "track_batch",
   "track_expiry",
-  "is_weighed",
   "default_cost",
   "column_break_stock",
   "is_active",
@@ -146,12 +145,6 @@
    "fieldname": "track_expiry",
    "fieldtype": "Check",
    "label": "Track expiry",
-   "default": "0"
-  },
-  {
-   "fieldname": "is_weighed",
-   "fieldtype": "Check",
-   "label": "Sold by weight",
    "default": "0"
   },
   {
