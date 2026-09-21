@@ -615,5 +615,48 @@ class SalesDocuments(unittest.TestCase):
         self.assertEqual(complete, [])
 
 
+class SalesDocumentActions(unittest.TestCase):
+    """状态 × 动作、红冲/补开、报价转票：都是"什么能做什么"的判据。"""
+
+    def test_draft_can_be_edited_submitted_issued_but_not_voided(self):
+        actions = sales_contracts.allowed_actions(sales_contracts.DRAFT)
+        for action in ("edit", "delete", "submit", "issue"):
+            self.assertIn(action, actions)
+        self.assertNotIn("void", actions)
+        self.assertNotIn("credit_note", actions)
+
+    def test_an_issued_document_can_only_be_voided_or_noted(self):
+        actions = sales_contracts.allowed_actions(sales_contracts.ISSUED)
+        self.assertNotIn("edit", actions)
+        self.assertNotIn("delete", actions)
+        self.assertIn("void", actions)
+        self.assertIn("credit_note", actions)
+        self.assertIn("debit_note", actions)
+
+    def test_an_unknown_status_allows_nothing(self):
+        self.assertEqual(sales_contracts.allowed_actions("nonsense"), ())
+        self.assertFalse(sales_contracts.can("nonsense", "issue"))
+
+    def test_only_an_issued_document_can_be_noted(self):
+        self.assertEqual(sales_contracts.note_gate(None), "original_not_found")
+        self.assertEqual(sales_contracts.note_gate({"status": sales_contracts.DRAFT}),
+                         "original_not_issued")
+        self.assertEqual(sales_contracts.note_gate({"status": sales_contracts.VOID}),
+                         "original_not_issued")
+        self.assertIsNone(sales_contracts.note_gate({"status": sales_contracts.ISSUED}))
+        self.assertEqual(sales_contracts.note_prefix(sales_contracts.CREDIT_NOTE), "CN")
+        self.assertEqual(sales_contracts.note_prefix(sales_contracts.DEBIT_NOTE), "DN")
+
+    def test_only_a_quotation_converts_and_only_into_an_invoice_kind(self):
+        quote = {"doc_kind": sales_contracts.QUOTATION}
+        self.assertIsNone(sales_contracts.convert_gate(quote, sales_contracts.TAX_INVOICE))
+        self.assertEqual(sales_contracts.convert_gate(quote, "quotation"), "bad_target_type")
+        self.assertEqual(sales_contracts.convert_gate({"doc_kind": sales_contracts.RECEIPT},
+                                                      sales_contracts.TAX_INVOICE),
+                         "not_a_quotation")
+        self.assertEqual(sales_contracts.convert_gate(None, sales_contracts.TAX_INVOICE),
+                         "original_not_found")
+
+
 if __name__ == "__main__":
     unittest.main()

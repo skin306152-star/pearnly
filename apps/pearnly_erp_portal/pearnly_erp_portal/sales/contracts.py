@@ -337,3 +337,73 @@ def issue_gates(row: dict) -> list[str]:
         if reason:
             reasons.append(reason)
     return reasons
+
+# ── 状态 × 动作 ─────────────────────────────────────────────────────────────
+#
+# 这张表就是"什么状态能做什么"，服务端按它拒绝，前端按它显示按钮（前端不自己算）。
+# 开出（issued）是分水岭：进了销项就不能改票面，只能作废或红冲。
+
+EDIT = "edit"
+DELETE = "delete"
+SUBMIT = "submit"
+APPROVE = "approve"
+REJECT = "reject"
+ISSUE = "issue"
+VOID_ACTION = "void"
+CREDIT = "credit_note"
+DEBIT = "debit_note"
+CONVERT = "convert"
+PDF = "pdf"
+
+ACTIONS_BY_STATUS = {
+    DRAFT: (EDIT, DELETE, SUBMIT, ISSUE, PDF, CONVERT),
+    PENDING: (EDIT, APPROVE, REJECT, ISSUE, PDF),
+    ISSUED: (VOID_ACTION, CREDIT, DEBIT, PDF),
+    VOID: (PDF,),
+}
+
+
+def allowed_actions(status: str) -> tuple:
+    """该状态允许的动作。未知状态一律空（fail-closed，不靠前端记）。"""
+    return ACTIONS_BY_STATUS.get(status, ())
+
+
+def can(status: str, action: str) -> bool:
+    return action in allowed_actions(status)
+
+
+# ── 红冲 / 补开 ─────────────────────────────────────────────────────────────
+
+# 调减（退货/折让/开错调低）→ 贷项（红冲）；调增（补收/开错调高）→ 借项（补开）。
+# 两者都引用一张**已开出**的原单，自身也是正式单据、走独立连号。
+NOTE_TYPES = (CREDIT_NOTE, DEBIT_NOTE)
+NOTE_PREFIXES = {CREDIT_NOTE: "CN", DEBIT_NOTE: "DN"}
+
+
+def note_gate(original: dict) -> str | None:
+    """能不能对这张原单出冲正单。原单不存在 / 不是已开出，都不行。"""
+    if not original:
+        return "original_not_found"
+    if original.get("status") != ISSUED:
+        return "original_not_issued"
+    return None
+
+
+def note_prefix(note_kind: str) -> str:
+    return NOTE_PREFIXES.get(note_kind, "")
+
+
+# ── 报价 → 开票 ─────────────────────────────────────────────────────────────
+
+CONVERT_TARGETS = (TAX_INVOICE, TAX_INVOICE_RECEIPT, RECEIPT)
+
+
+def convert_gate(original: dict, target_doc_kind: str) -> str | None:
+    """能不能把这张单转成目标类型。报价不占发票号：转出的新单是草稿，开出时才取号。"""
+    if target_doc_kind not in CONVERT_TARGETS:
+        return "bad_target_type"
+    if not original:
+        return "original_not_found"
+    if original.get("doc_kind") != QUOTATION:
+        return "not_a_quotation"
+    return None
