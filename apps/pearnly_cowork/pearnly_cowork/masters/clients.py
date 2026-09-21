@@ -31,12 +31,15 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.access import scope
-from pearnly_cowork.masters import buyer_resolve, client_records
+from pearnly_cowork.masters import buyer_resolve, client_import, client_records
 
 CLIENT = "Cowork Client"
 MEMORY = "Cowork Buyer Memory"
 HISTORY = "Cowork OCR History"
 MANAGER_FEATURE = "master_data"
+# 名录导入的三态（旧侧 client_import_routes.py 的 reason 机器码）与"税号已占用"。
+DUPLICATE_TAX = "workspace.tax_id_duplicate"
+GENERIC_IMPORT_ERROR = "client_import.err_generic"
 # 名册投影：旧侧 `SELECT c.*` 的字段（display_name 对应旧侧 name）。
 CLIENT_FIELDS = ("name", "workspace", "display_name", "short_name", "tax_id", "party_type",
     "branch", "promptpay_id", "address", "contact_person", "contact_phone", "contact_email",
@@ -117,6 +120,8 @@ def create_client(workspace, values):
     cleaned = client_records.create_values(_scalar(values))
     if cleaned is None:
         frappe.throw(_("A client needs a name."))
+    if tax_id_taken(workspace, cleaned.get("tax_id")):
+        frappe.throw(_("This tax id is already used by another client."), frappe.ValidationError)
     doc = frappe.get_doc({"doctype": CLIENT, "workspace": workspace,
         "display_name": cleaned["name"], "enabled": 1, **{
             field: cleaned[field] for field in cleaned if field != "name"}})
@@ -134,6 +139,8 @@ def update_client(workspace, name, values):
     cleaned = client_records.update_values(_native_names(_scalar(values)))
     if cleaned is None:
         return {"name": doc.name, "updated": False}
+    if cleaned.get("tax_id") and tax_id_taken(workspace, cleaned["tax_id"], exclude=doc.name):
+        frappe.throw(_("This tax id is already used by another client."), frappe.ValidationError)
     for field, value in cleaned.items():
         if field == "name":
             doc.display_name = value
@@ -218,6 +225,38 @@ def _scoped_clients(workspace):
         "short_name": row.get("short_name"), "tax_id": row.get("tax_id")} for row in rows]
 
 
+def _normalized_tax(value):
+    """税号比较用的规范形：只留数字。
+
+    旧侧那一闸是拿**原样字符串**比（`tax_id = %s`），所以同一家客户写成
+    ``0-1055-61000-13-3`` 与 ``0105561000013`` 时旧侧会放过去两条档案；本仓按数字比，
+    因为客户身份就靠这 13 位（前端查税号也是先剥非数字），留下同号两条会让买家匹配与
+    ERP 对账都指错人。这是有意差异，记在批次记录里。
+    """
+    return "".join(ch for ch in str(value or "") if ch.isdigit())
+
+
+def normalized_tax_ids(workspace):
+    """本公司在用客户的税号集合（一次查询；名录导入按行判重要用它）。"""
+    rows = frappe.db.sql("""SELECT REGEXP_REPLACE(COALESCE(tax_id, ''), '[^0-9]', '')
+        FROM `tabCowork Client` WHERE workspace = %s AND enabled = 1""", (workspace,))
+    return {row[0] for row in rows if row[0]}
+
+
+def tax_id_taken(workspace, tax_id, exclude=None):
+    """同公司已有在用客户占了这个税号？（旧侧 tax_id_in_use：空税号永不算重复）"""
+    normalized = _normalized_tax(tax_id)
+    if not normalized:
+        return False
+    conditions = "workspace = %s AND enabled = 1 AND REGEXP_REPLACE(COALESCE(tax_id, ''), '[^0-9]', '') = %s"
+    values = [workspace, normalized]
+    if exclude:
+        conditions += " AND name <> %s"
+        values.append(exclude)
+    return bool(frappe.db.sql(f"SELECT 1 FROM `tab{CLIENT}` WHERE {conditions} LIMIT 1",
+        tuple(values)))
+
+
 def find_or_create_client_by_tax_id(workspace, tax_clean, buyer_name):
     """按税号查或建（去重）：命中同税号的启用客户就返回它，否则按税号建一张新档案。"""
     if not tax_clean:
@@ -274,3 +313,78 @@ def _scalar(values):
     if not isinstance(values, dict):
         raise frappe.ValidationError(_("The client fields are invalid."))
     return values
+
+
+def _row_list(rows):
+    """名录导入的行参数：JSON 字符串或列表，统一成列表；超上限按旧侧口径报错。"""
+    if isinstance(rows, str):
+        try:
+            rows = json.loads(rows or "[]")
+        except ValueError as error:
+            raise frappe.ValidationError(_("The import rows are invalid.")) from error
+    if not isinstance(rows, (list, tuple)):
+        raise frappe.ValidationError(_("The import rows are invalid."))
+    if len(rows) > client_import.MAX_ROWS:
+        frappe.throw(_("Too many rows to import."), frappe.ValidationError)
+    if any(not isinstance(row, dict) for row in rows):
+        raise frappe.ValidationError(_("The import rows are invalid."))
+    return list(rows)
+
+
+def _import_row(workspace, row, *, dry_run, taken):
+    """单行判定：结构校验 → 税号查重 → （预览只判）/ 建档。
+
+    三态与旧侧同码：``error``（缺名/税号格式错）、``skip``（税号已被占用）、
+    ``valid``（预览会建）与 ``created``（已建）。结果始终回显 name/tax_id，报错行也能看出
+    是哪一行。字段映射照旧侧：行里的 ``phone`` 落到原生 ``contact_phone``。
+    """
+    name = str((row or {}).get("name") or "").strip()
+    tax = str((row or {}).get("tax_id") or "").strip()
+    base = {"row_index": (row or {}).get("row_index"), "name": name, "tax_id": tax}
+    error = client_import.structural_error(name, tax)
+    if error:
+        return {**base, "status": "error", "reason": error}
+    normalized = _normalized_tax(tax)
+    if normalized and normalized in taken:
+        return {**base, "status": "skip", "reason": DUPLICATE_TAX}
+    if dry_run:
+        return {**base, "status": "valid"}
+    try:
+        created = create_client(workspace, {"name": name, "tax_id": tax,
+            "branch": row.get("branch"), "contact_phone": row.get("phone"),
+            "address": row.get("address")})
+    except frappe.ValidationError:
+        return {**base, "status": "error", "reason": GENERIC_IMPORT_ERROR}
+    if normalized:
+        # 同一批里后面同样的税号要按 skip 走（旧侧是逐行走同一段校验，效果相同）。
+        taken.add(normalized)
+    return {**base, "status": "created", "id": created["name"]}
+
+
+def _import_rows(workspace, rows, *, dry_run):
+    taken = normalized_tax_ids(workspace)
+    results = [_import_row(workspace, row, dry_run=dry_run, taken=taken)
+        for row in _row_list(rows)]
+    if dry_run:
+        return {"preview": results, "total": len(results),
+            "valid_count": sum(1 for row in results if row["status"] == "valid"),
+            "skip_count": sum(1 for row in results if row["status"] == "skip"),
+            "error_count": sum(1 for row in results if row["status"] == "error")}
+    return {"results": results, "total": len(results),
+        "created": sum(1 for row in results if row["status"] == "created"),
+        "skipped": sum(1 for row in results if row["status"] == "skip"),
+        "errors": sum(1 for row in results if row["status"] == "error")}
+
+
+def preview_import(workspace, rows):
+    """名录导入预览：逐行三态，**不写库**（旧侧 parse 端点的 dry_run 一路）。"""
+    require_manager()
+    scope.require_scope(workspace)
+    return _import_rows(workspace, rows, dry_run=True)
+
+
+def commit_import(workspace, rows):
+    """确认后逐行落库；重导同一批时已建的行按税号全落 ``skip``（幂等）。"""
+    require_manager()
+    scope.require_scope(workspace)
+    return _import_rows(workspace, rows, dry_run=False)

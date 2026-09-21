@@ -8,6 +8,7 @@ from frappe.model.document import Document
 from pearnly_core.shell import entitlements
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.masters import supplier_posting as posting_rules
 
 TYPES = ('Cowork ERP Mapping', 'Cowork Supplier Posting Profile')
 _WRITE = object()
@@ -113,13 +114,19 @@ def save_mapping(kind, mapping_key, erp_code, *, expected_revision=0):
     return {'name': name, 'revision': doc.record_revision}
 
 
-def save_profile(workspace, seller_tax_id, *, default_payment=None, default_item_type=None, source='user_rule'):
+def save_profile(workspace, seller_tax_id, *, default_payment=None, default_item_type=None,
+        source='user_rule', allow_empty=True):
+    """Save a supplier's posting defaults; ``None`` on a field means "leave it alone".
+
+    The rules live in ``masters/supplier_posting.py`` (ported verbatim from the previous
+    product): the user-facing route refuses an empty string, the internal correction
+    learning may write one, and a learned correction never overwrites a user rule.
+    """
     _manager()
     _workspace(workspace)
-    tax = _text(seller_tax_id, 13)
-    if (not tax.isdigit() or len(tax) != 13 or source not in ('user_rule', 'correction')
-            or default_payment not in (None, '', 'cash', 'credit')
-            or default_item_type not in (None, '', 'goods', 'expense')):
+    tax = posting_rules.clean_seller_tax_id(seller_tax_id)
+    incoming = {'default_payment': default_payment, 'default_item_type': default_item_type}
+    if not tax or posting_rules.input_error(source, incoming, allow_empty=allow_empty):
         frappe.throw(_('connection.config_invalid'))
     frappe.db.get_value('Cowork Workspace', workspace, 'name', for_update=True)
     name = key(workspace, tax)
@@ -127,14 +134,58 @@ def save_profile(workspace, seller_tax_id, *, default_payment=None, default_item
     doc = frappe.get_doc(TYPES[1], name, for_update=True) if existing else frappe.get_doc({
         'doctype': TYPES[1], 'input_key': name, 'workspace': workspace, 'seller_tax_id': tax,
         'default_payment': '', 'default_item_type': ''})
-    if existing and doc.source == 'user_rule' and source != 'user_rule':
+    decision = posting_rules.merge({'source': doc.source} if existing else None, incoming, source)
+    if decision['preserved_user_rule']:
         return {'name': name, 'preserved_user_rule': True}
-    for field, value in (('default_payment', default_payment), ('default_item_type', default_item_type)):
-        if value is not None:
-            doc.set(field, value)
-    doc.source = source
+    for field, value in decision['fields'].items():
+        doc.set(field, value)
+    doc.source = decision['source']
     persist(doc)
     return {'name': name, 'preserved_user_rule': False}
+
+
+def list_profiles(workspace, limit=None):
+    """A company's effective posting profiles, newest first, with the deployed limit.
+
+    Native input rows are auditable and may not be removed, so "removed" is expressed by
+    clearing both defaults: such a row has no effect and is not part of this projection
+    (the deployed delete dropped the row outright).
+    """
+    if not any(scope.allowed(feature) for feature in (*scope.READ_FEATURES, 'master_data')):
+        deny()
+    _workspace(workspace)
+    scope.require_scope(workspace)
+    limit = posting_rules.MAX_LIMIT if limit in (None, '') else int(limit)
+    limit = max(1, min(limit, posting_rules.MAX_LIMIT))
+    rows = frappe.db.get_all(TYPES[1], filters={'workspace': workspace},
+        fields=['name', 'seller_tax_id', 'default_payment', 'default_item_type', 'source', 'modified'],
+        order_by='modified desc, name desc', limit_page_length=limit)
+    return [dict(row) for row in rows if posting_rules.has_effect(row)]
+
+
+def clear_profile(workspace, seller_tax_id):
+    """Remove a profile's effect; ``deleted`` says whether it had one.
+
+    Idempotent like the deployed delete: a tax id with no profile is a no-op answer, not
+    a failure. The row itself stays (native input rows are auditable and refuse ``on_trash``).
+    """
+    _manager()
+    _workspace(workspace)
+    scope.require_scope(workspace)
+    tax = posting_rules.clean_seller_tax_id(seller_tax_id)
+    if not tax:
+        return {'deleted': False}
+    frappe.db.get_value('Cowork Workspace', workspace, 'name', for_update=True)
+    name = key(workspace, tax)
+    if not frappe.db.exists(TYPES[1], name):
+        return {'deleted': False}
+    doc = frappe.get_doc(TYPES[1], name, for_update=True)
+    deleted = posting_rules.has_effect(doc)
+    if deleted:
+        for field, value in posting_rules.cleared().items():
+            doc.set(field, value)
+        persist(doc)
+    return {'deleted': deleted}
 
 
 def mappings(client):

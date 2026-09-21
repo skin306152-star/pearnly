@@ -2,8 +2,10 @@
 """客户名录导入的归一（纯逻辑）。
 
 来源：ec2e5c957e6b ``services/workspace/client_import.py``（160 行）与它用到的
-``services/purchase/field_clean.py`` 里两个清洗函数。旧侧的路由只做"上传 → 薄层编排"，
-真正决定"哪些列是客户名、哪些行要导、导出来的字段长什么样"的是这些纯函数 —— 本模块照搬。
+``services/purchase/field_clean.py`` 里两个清洗函数（税号/分店，已抽到同包的
+``masters/field_clean.py`` 共用 —— 供应商过账档案那边用的是同一份）。旧侧的路由只做
+"上传 → 薄层编排"，真正决定"哪些列是客户名、哪些行要导、导出来的字段长什么样"的是这些
+纯函数 —— 本模块照搬。
 
 **表格解析（xlsx/csv → 表头 + 行）由调用方给**：旧侧依赖 ``summary_import.parse_table``
 那个器件；这里接收 ``headers`` 与 ``rows``（每行 ``{index, cells, is_summary}``），因此可
@@ -23,8 +25,9 @@
   ``client_import.err_bad_tax_id``（税号可选，空值不算错）。
 """
 
-import re
 from typing import Any, Dict, List, Optional
+
+from pearnly_cowork.masters.field_clean import clean_branch_no, clean_tax_id
 
 # 与旧侧 summary_import 同口径的上限（异常输入判错，不吞内存）。
 MAX_BYTES = 8 * 1024 * 1024
@@ -45,20 +48,6 @@ HEADER_SYNONYMS: Dict[str, List[str]] = {
     "address": ["address", "ที่อยู่", "地址"],
 }
 IMPORT_FIELDS = ("name", "tax_id", "branch", "phone", "address")
-
-
-def clean_tax_id(raw: Any) -> str:
-    """泰国税号：剥掉所有非数字后**恰好 13 位**才算合法，否则空串。"""
-    digits = re.sub(r"\D", "", str(raw or ""))
-    return digits if len(digits) == 13 else ""
-
-
-def clean_branch_no(raw: Any) -> str:
-    """分店号：最多 5 位数字，左补零；空或超 5 位 → 空串（未提供不是总店）。"""
-    digits = re.sub(r"\D", "", str(raw or ""))
-    if not digits or len(digits) > 5:
-        return ""
-    return digits.zfill(5)
 
 
 def match_column(header_cell: Any) -> Optional[str]:

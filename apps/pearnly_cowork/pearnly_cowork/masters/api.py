@@ -111,5 +111,34 @@ def save_erp_mapping(kind, mapping_key, erp_code, expected_revision=0):
 
 @frappe.whitelist(methods=["POST"])
 def save_supplier_profile(workspace, seller_tax_id, default_payment=None, default_item_type=None):
+    """The supplier's posting defaults as the user-facing route saved them (source user_rule).
+
+    A field left out stays as it was; an empty string is refused here, because the deployed
+    route only accepted cash/credit, goods/expense, or nothing at all.
+    """
     return push_inputs.save_profile(workspace, seller_tax_id, default_payment=default_payment,
-        default_item_type=default_item_type, source='user_rule')
+        default_item_type=default_item_type, source='user_rule', allow_empty=False)
+
+
+@frappe.whitelist()
+def supplier_profiles(workspace, limit=None):
+    """The company's effective supplier posting profiles, newest first."""
+    return push_inputs.list_profiles(workspace, limit=limit)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_supplier_profile(workspace, seller_tax_id):
+    """Remove a profile's effect; an unknown tax id is an idempotent no-op, not a failure."""
+    return push_inputs.clear_profile(workspace, seller_tax_id)
+
+
+@frappe.whitelist(methods=["POST"])
+def preview_client_import(workspace, rows):
+    """Row-by-row import preview (valid/skip/error) — nothing is written."""
+    return clients_service.preview_import(workspace, rows)
+
+
+@frappe.whitelist(methods=["POST"])
+def commit_client_import(workspace, rows):
+    """Create the previewed rows; re-importing the same list lands every existing row in skip."""
+    return clients_service.commit_import(workspace, rows)
