@@ -2,6 +2,7 @@
 import frappe
 from frappe import _
 from pearnly_cowork.access import scope
+from pearnly_cowork.masters import clients as clients_service
 from . import push_inputs
 
 
@@ -45,6 +46,39 @@ def clients(workspace, start=0, limit=50):
     return frappe.get_list("Cowork Client", filters={"workspace": workspace, "enabled": 1},
                            fields=["name", "display_name", "tax_id"], order_by="display_name, name",
                            limit_start=max(0, int(start)), limit_page_length=max(1, min(int(limit), 200)))
+
+
+@frappe.whitelist()
+def roster(workspace, start=0, limit=50, include_inactive=0):
+    """The client roster with the deployed ordering and the three per-client totals."""
+    return clients_service.list_clients(workspace, start=start, limit=limit,
+        include_inactive=bool(int(include_inactive)))
+
+
+@frappe.whitelist()
+def client_detail(workspace, name):
+    return clients_service.get_client(workspace, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_client(workspace, values, name=None):
+    """Create a client, or update the named one. Fields are cleaned before writing."""
+    if name:
+        return clients_service.update_client(workspace, name, values)
+    return clients_service.create_client(workspace, values)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_client(workspace, name):
+    """Deleting a client that still has invoice records is refused (see the service)."""
+    return clients_service.delete_client(workspace, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def resolve_buyer(workspace, buyer_name, buyer_tax=None, buyer_candidates=None):
+    """Which client an invoice's buyer belongs to; the decision is the ported core."""
+    return clients_service.resolve_buyer(workspace, buyer_name, buyer_tax=buyer_tax,
+        buyer_candidates=buyer_candidates)
 
 
 @frappe.whitelist(methods=["POST"])

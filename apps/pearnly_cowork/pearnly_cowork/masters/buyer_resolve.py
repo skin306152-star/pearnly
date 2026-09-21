@@ -16,6 +16,8 @@
   只靠名字模糊匹配**不建**（防同名异主体错并）；
 · 多页买方候选**冲突**（互不包含的两个名字）→ 绝不自动建、转人工（qa_4 那种静默高信心错建）；
 · 阈值：≥0.95 自动绑 + 学习；0.80–0.95 标"建议归属"；<0.80 待归属；
+· **客户标识原样传过**（不转 int）：旧侧是自增 id，原生的客户标识是文档名（字符串），
+  所以这一层把 id 当不透明值传递，转换由存储层负责；
 · 匹配优先级与置信度（部署版逐条）：记忆完全匹配 1.0 → 税号精确 0.98（税号归一后 ≥10 位才比）
   → 名字精确 0.95 → 简称精确 0.90 → 名字子串 0.80 + 0.10×短/长比 → 简称子串 0.78 + 0.08×比；
   前三级**命中即返**，后两类取最优。
@@ -96,7 +98,7 @@ def match_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
 
     # Layer 1 · 学习记忆完全匹配
     if memory and memory.get("client_id"):
-        return {"client_id": int(memory["client_id"]),
+        return {"client_id": memory["client_id"],
                 "client_name": memory.get("client_name"),
                 "confidence": 1.0,
                 "match_source": "memory"}
@@ -105,7 +107,7 @@ def match_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
     if tax_clean and len(tax_clean) >= TAX_MATCH_MIN_DIGITS:
         for client in clients:
             if normalize_tax(client.get("tax_id")) == tax_clean:
-                return {"client_id": int(client["client_id"]),
+                return {"client_id": client["client_id"],
                         "client_name": client.get("name"),
                         "confidence": 0.98,
                         "match_source": "tax_id_exact"}
@@ -122,19 +124,19 @@ def match_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
         short_lower = short_name.lower() if short_name else ""
 
         if client_lower == name_lower:
-            return {"client_id": int(client["client_id"]), "client_name": client_name,
+            return {"client_id": client["client_id"], "client_name": client_name,
                     "confidence": 0.95, "match_source": "name_exact"}
         if short_lower and short_lower == name_lower:
-            return {"client_id": int(client["client_id"]), "client_name": client_name,
+            return {"client_id": client["client_id"], "client_name": client_name,
                     "confidence": 0.90, "match_source": "short_name_exact"}
         if client_lower in name_lower or name_lower in client_lower:
             confidence = _substring_confidence(client_lower, name_lower, 0.80, 0.10)
             if best is None or confidence > best[0]:
-                best = (confidence, int(client["client_id"]), client_name, "name_substring")
+                best = (confidence, client["client_id"], client_name, "name_substring")
         if short_lower and (short_lower in name_lower or name_lower in short_lower):
             confidence = _substring_confidence(short_lower, name_lower, 0.78, 0.08)
             if best is None or confidence > best[0]:
-                best = (confidence, int(client["client_id"]), client_name, "short_substring")
+                best = (confidence, client["client_id"], client_name, "short_substring")
 
     if best:
         return {"client_id": best[1], "client_name": best[2],
@@ -174,7 +176,7 @@ def resolve_buyer_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
     # 1) 已存在高置信客户（记忆 / 税号精确 / 名字精确）→ 用它
     if resolved and resolved.get("confidence", 0.0) >= AUTO_ASSIGN_CONFIDENCE \
             and resolved.get("client_id"):
-        client_id = int(resolved["client_id"])
+        client_id = resolved["client_id"]
         if learn is not None:
             learn(client_id)
         decision.update(action="assigned", client_id=client_id,
@@ -189,8 +191,8 @@ def resolve_buyer_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
         client_id = create_by_tax_id(tax_clean, buyer_name.strip()) if create_by_tax_id else None
         if client_id:
             if learn is not None:
-                learn(int(client_id))
-            decision.update(action="created", client_id=int(client_id),
+                learn(client_id)
+            decision.update(action="created", client_id=client_id,
                             client_name=buyer_name.strip(), confidence=0.98,
                             match_source="tax_id_create", reason="auto_created_by_tax_id")
             return decision
@@ -200,7 +202,7 @@ def resolve_buyer_client(buyer_name: Optional[str], buyer_tax: Optional[str], *,
     # 3) 名字近似但无税号 → 建议归属（不绑/不建），等用户确认
     if resolved and resolved.get("confidence", 0.0) >= SUGGEST_CONFIDENCE \
             and resolved.get("client_id"):
-        decision.update(action="suggest", client_id=int(resolved["client_id"]),
+        decision.update(action="suggest", client_id=resolved["client_id"],
                         client_name=resolved.get("client_name"),
                         confidence=float(resolved.get("confidence", 0.0)),
                         match_source=resolved.get("match_source", ""),

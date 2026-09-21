@@ -1,5 +1,35 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-22，第四十五批交付：主数据第三块——客户名册的存储与 RPC）
+
+前两块是"每张票算在谁头上"与"档案里存什么"，本批把**存储与接口**接上：档案 CRUD、买家记忆、以及把归属决策接到真实数据。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `ebef648`（第四十四批）。含本交接的本地提交以 `git log -1` 为准。
+- `Cowork Client` 字段补全到与旧侧档案一致（`short_name`/`party_type`/`branch`/`promptpay_id`/`address`/联系人/`notes`/`color`；`display_name` 对应旧侧 `name`），`Cowork Admin` 增删除权限；新增 DocType `Cowork Buyer Memory`（公司 + 小写买家名 + 税号 + 客户 + 次数 + 最近使用）。
+- 新增 `masters/clients.py`：名册（部署版排序 + `invoice_count`/`total_amount`/`last_invoice_at`）、详情、建档、更新、删除、买家记忆学/查、`find_or_create_client_by_tax_id`、`resolve_buyer`；判定一律复用前两批的纯模块。
+- `masters/api.py` 追加 `roster` / `client_detail` / `save_client` / `delete_client` / `resolve_buyer` 五个 RPC（原有不动）。
+- **三处结构性差异**（写清楚了）：作用域换成公司；买家记忆唯一键仍是那三段（小写名存字段里查）；**"改挂归属"与"删客户级联解绑"两条写路径没搬** —— 原生 history 域把记录的 `client` 定为不可变（只许复核服务带令牌改），绕过就是拆闸，所以删除改为**还有发票就拒绝并报数**，改挂归属登记为**跨域待决策**。
+
+### 验证与证据
+
+- **隔离 Site 端到端 7 条，两个 Site 各跑一遍**：建档清洗/截断/丢未知键/颜色默认 → 名册排序与三个聚合（2 张合计 200.5）→ 更新只动给了值的字段 → 空串清字段、无可写返回 `updated=False` → 停用隐藏 / 含停用可见 / 再启用恢复 → **有票客户删除被拒**且记录与归属未动、无票可删 → 新 RPC 匿名全 403 → 权限（只读能读不能建；非 Admin 无授权读写皆拒）→ 新税号建档、二次经记忆命中（`use_count` 1→2）→ 近似只建议（不写记忆不建档）、候选冲突只转人工。记录用受认可的 `history.api.create` 建立。
+- 前两批纯模块与文档档位一起 71 个用例通过（两份固定源差分重跑仍差异 0；为适配原生字符串标识去掉了 `int()` 强制转换，属有意差异）。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-fifth-delivery.json`（`838ced1d…`，18:07:39Z）与第四十四批交付快照 PASS；运行投影 `e626a05f…` 与上一批逐项相同。**仍未做开工采集**（已如实记录）。
+- 未执行：前端、部署、真实客户数据、导入归一、用户验收。
+
+### 下一批
+
+客户导入归一（`client_import_routes.py`）→ 商品与单位（`units.py` 244 行、`names.py`）→ 供应商与科目/税率档 → 设置与分类；另有一处**跨域待决策**：识别记录归属的改挂/解绑要不要在 history 复核契约开口（开了才能提供与旧侧一致的"删客户级联解绑"）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例、差分与两个 Site 的端到端，收尾已停止；卷、Site 保留给下包（两个 Site 已 migrate 到新 DocType）。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
 ## 换窗口交接（2026-09-22，第四十四批交付：主数据第二块——客户档案的字段规则）
 
 主数据族按"先交确定性规则、再交存储与路由"推进。上一批交的是**买家 → 客户**的归属决策，本批交**客户档案本身的字段规则**（决定档案里存进去的是什么）。不接前端、不部署、不改 DMS、不写旧库、不调模型。

@@ -17,7 +17,17 @@
  "field_order": [
   "workspace",
   "display_name",
+  "short_name",
   "tax_id",
+  "party_type",
+  "branch",
+  "promptpay_id",
+  "address",
+  "contact_person",
+  "contact_phone",
+  "contact_email",
+  "notes",
+  "color",
   "enabled"
  ],
  "fields": [
@@ -37,10 +47,70 @@
    "in_list_view": 1
   },
   {
+   "fieldname": "short_name",
+   "fieldtype": "Data",
+   "label": "Short Name",
+   "length": 80
+  },
+  {
    "fieldname": "tax_id",
    "fieldtype": "Data",
    "label": "Tax ID",
+   "length": 20,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Data",
+   "label": "Party Type",
+   "length": 20
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "length": 120
+  },
+  {
+   "fieldname": "promptpay_id",
+   "fieldtype": "Data",
+   "label": "PromptPay ID",
    "length": 40
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person",
+   "length": 100
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone",
+   "length": 50
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "length": 200
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Colour",
+   "length": 20,
+   "default": "#3b82f6"
   },
   {
    "fieldname": "enabled",
@@ -54,7 +124,8 @@
    "role": "Cowork Admin",
    "read": 1,
    "write": 1,
-   "create": 1
+   "create": 1,
+   "delete": 1
   },
   {
    "role": "Cowork Intake",
