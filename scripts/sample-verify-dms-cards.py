@@ -101,7 +101,13 @@ def main():
     # ── 4. 差异卡：主按钮由权限决定 ────────────────────────────────────
     diffs = [{"label": "เบอร์โทร", "old": "1", "new": "0812345678"}]
     upd = C.diff_card(diffs, "n3", primary="update", summary=summary)
-    check("有改写权 → 主按钮是更新", actions(upd) == ["update", "keep", "edit"], actions(upd))
+    # 第三个按钮是**编辑深链**（uri，没有 postback 的 data）—— 与老基准一致
+    # （`501589f0:services/line_dms/cards.py` 的 `diff_card` 收尾就是 `_edit_button(nonce)`），
+    # 所以动作名是空串，但类型必须是 uri：这一条挡的就是"点编辑又多弹一张卡"的回归。
+    check("有改写权 → 主按钮是更新",
+          actions(upd) == ["update", "keep", ""]
+          and [b["action"].get("type") for b in buttons(upd)] == ["postback", "postback", "uri"],
+          actions(upd))
     none = C.diff_card(diffs, "n4", primary="none", summary=summary)
     check("无改写权 → 不给主按钮", "update" not in actions(none), actions(none))
     check("无改写权 → 卡上写清要先配管理员",
@@ -110,7 +116,13 @@ def main():
     check("信用授权类 → 主按钮是提交审核",
           actions(appr)[0] == "approval_submit", actions(appr))
     check("差异卡始终保留用旧资料 / 修改两条退路",
-          actions(appr)[-2:] == ["keep", "edit"], actions(appr))
+          actions(appr)[-2:] == ["keep", ""]
+          and [b["action"].get("type") for b in buttons(appr)][-1] == "uri",
+          actions(appr))
+    check("差异卡的 [แก้ไข] 是深链，点一下直接进编辑页（不多弹卡）",
+          buttons(upd)[-1]["action"]["uri"].startswith("http")
+          and "editor=customer" in buttons(upd)[-1]["action"]["uri"],
+          buttons(upd)[-1]["action"].get("uri", ""))
     check("差异行空值渲染成 —",
           C.diff_rows([{"label": "x", "old": "", "new": ""}])[0]["contents"][1]["text"]
           == "—  →  —",
