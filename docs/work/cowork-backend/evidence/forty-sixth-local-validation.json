@@ -1,0 +1,86 @@
+{
+  "base_commit": "b90fd75",
+  "scope": "forty-sixth batch: the fourth master-data slice — the product name presentation rules and the product-unit field rules (exact numeric conversion, the writable whitelist, the create-versus-update treatment of an explicit None, and the single-default rule)",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-fifth batch delivery",
+    "delivery_sha256": "922740a8b51908048f4b940a0ad27899cde993fcb4b184c966e564b4cc0fbf3b",
+    "delivery_captured_at": "2026-09-21T18:22:31.084717+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-fifth-delivery.json baseline-forty-sixth-delivery.json (before pinned at 838ced1d, after pinned at 922740a8)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "3a9e688b01a62a1d6fb04d3dd7576114dcca866dddab6e9086ed24eaf1dff894",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/products/names.py": "c690b97f9c3760f7bb522a5de6d0c6b01220d151ad967ed64a17327e8c12c3ba",
+      "services/products/units.py": "b686a65bba251cd7be14cee8438ddbb03c37c3b6f0c7598bcceebd9e66f42bdc"
+    },
+    "source_note": "the ported rules are pure; the pinned unit functions run against a recording cursor in the differential"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_product_units",
+      "result": "PASS",
+      "tests": 15,
+      "new_tests": 15,
+      "covers": [
+        "the three languages in order, empty and duplicate names left out, the display string with its placeholder, and the name object keeping the raw values",
+        "exact Decimal conversion for strings, floats and integers, None staying None, and a non-number raising as the deployed conversion does",
+        "insert writes only the fields that have a value, the numbers are Decimals, and nothing given writes nothing",
+        "update clears a nullable column on an explicit None, an explicit None on a required column is not a write, only present keys are written, nothing to write returns nothing, and a False flag is a write",
+        "a truthy default flag asking the caller to clear the other defaults first"
+      ]
+    },
+    {
+      "command": "python test_cowork_product_units_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "rows": 7,
+        "names": 11,
+        "empty": 2,
+        "inserts": 122,
+        "updates": 117,
+        "nothing_to_write": 1,
+        "cleared_default": 47,
+        "decimal_values": 262,
+        "null_clears": 21,
+        "surprise": 64
+      },
+      "note": "names.py is pure and runs exactly as pinned (seven rows compared field by field). For units.py the cursor is the device replaced: it records every statement the pinned code issues and the test rebuilds the columns it would write from the statement text and its parameters, then compares the column set and each value (numbers through the pinned _num). The clear-default UPDATE is told apart from the product-active sync by its own SQL."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_product_units test_cowork_client_records test_cowork_buyer_resolve",
+      "result": "PASS",
+      "tests": 56,
+      "note": "the whole master-data family so far"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the deployed unit functions both decide and execute (clear the default, insert or update, then sync the product-active flag); this slice returns what should be written and whether the other defaults must be cleared first, leaving the table, the foreign keys and the row sync to the storage layer",
+    "the unit row's product_active synchronisation is not part of this slice",
+    "comments and docstrings were rewritten; every whitelist, the nullable set, the numeric set, the conversion and the single-default rule are the deployed ones"
+  ],
+  "not_run": [
+    "the product and unit storage layer, the buyer import normalisation, supplier and tax-profile master data, settings and categories, real product data, the frontend, deployment and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-product-rules.md"
+}
