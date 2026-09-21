@@ -9,9 +9,6 @@ from decimal import Decimal, InvalidOperation
 
 # 与旧线上相同的长度上限。
 MAX_NAME = 300
-# 英文/中文名与泰文名同长（旧线上三个名字都是 300）。
-MAX_NAME_EN = 300
-MAX_NAME_ZH = 300
 MAX_CODE = 100
 MAX_BARCODE = 100
 MAX_QR = 500

@@ -7,8 +7,6 @@
  "engine": "InnoDB",
  "field_order": [
   "product_name",
-  "name_en",
-  "name_zh",
   "code",
   "barcode",
   "qr_payload",
@@ -38,18 +36,6 @@
    "in_standard_filter": 1,
    "label": "Product Name",
    "reqd": 1,
-   "length": 300
-  },
-  {
-   "fieldname": "name_en",
-   "fieldtype": "Data",
-   "label": "English name",
-   "length": 300
-  },
-  {
-   "fieldname": "name_zh",
-   "fieldtype": "Data",
-   "label": "Chinese name",
    "length": 300
   },
   {

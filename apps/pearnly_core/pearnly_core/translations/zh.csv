@@ -250,7 +250,7 @@ Product,产品
 Product Ref,商品外部标识
 "Product home: current plan, usage and billing",产品首页，承载当前的订阅套餐、用量与账单
 Product master data,商品主数据
-Products,商品数据
+Products,商品
 Provide at least one line item,至少给一行明细
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
@@ -653,7 +653,7 @@ nav.intake,录入工作台
 nav.integrations,集成
 nav.inventory,库存
 nav.masterData,主数据
-nav.products,商品数据
+nav.products,商品
 nav.purchase,采购记录
 nav.purchaseSettings,采购设置
 nav.pushLogs,推送日志

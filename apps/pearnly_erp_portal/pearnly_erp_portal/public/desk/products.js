@@ -1,4 +1,4 @@
-/* 商品数据：**原生列表**（框架装的 ListView 渲染器），只用我们自己的取数接口。
+/* 商品：**原生列表**（框架装的 ListView 渲染器），只用我们自己的取数接口。
  *
  * 为什么走 `frappe.pearnly.list`：它继承的是框架装的 BaseList + ListView 渲染，
  * 于是复选框列、第 N 项/共 M 项、20/100/500/2500 分页、空状态、行高与移动端样式
@@ -121,10 +121,6 @@
 			return [
 				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
 					reqd: 1, default: value("product_name") },
-				{ fieldtype: "Data", fieldname: "name_en", label: t("product.field.nameEn"),
-					default: value("name_en") },
-				{ fieldtype: "Data", fieldname: "name_zh", label: t("product.field.nameZh"),
-					default: value("name_zh") },
 				// 编码由系统发（旧线上 ERP 门户里这一格也是只读的），留空即自动编号。
 				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
 					read_only: 1, description: t("product.field.codeAuto"),

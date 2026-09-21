@@ -250,7 +250,7 @@ Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้า
 "Product home: current plan, usage and billing",หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ
 Product master data,ข้อมูลหลักของสินค้า
-Products,ข้อมูลสินค้า
+Products,สินค้า
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งบรรทัด
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)
@@ -653,7 +653,7 @@ nav.intake,โต๊ะทำงานบันทึกข้อมูล
 nav.integrations,การเชื่อมต่อ
 nav.inventory,สต็อก
 nav.masterData,ข้อมูลหลัก
-nav.products,ข้อมูลสินค้า
+nav.products,สินค้า
 nav.purchase,บันทึกการจัดซื้อ
 nav.purchaseSettings,ตั้งค่าการจัดซื้อ
 nav.pushLogs,บันทึกการส่งข้อมูล

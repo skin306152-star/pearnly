@@ -43,7 +43,7 @@ INVALID_VALUE = "Invalid value"
 # Frappe 的 Currency 列存不下 NULL，旧线上靠可空列区分的"没设价 / 真的 ฿0"，
 # 在这里只能靠标记还原。
 LIST_FIELDS = (
-    "name", "product_name", "name_en", "name_zh", "code", "barcode", "qr_payload",
+    "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
     "track_batch", "track_expiry",
@@ -153,7 +153,7 @@ def _allocate_code() -> str:
 
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
-                   qr_payload=None, name_en=None, name_zh=None, base_unit=None,
+                   qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None):
     guard.require("products.manage")
     try:
@@ -168,8 +168,6 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
         "product_name": product_name,
-        "name_en": _text(name_en, contracts.MAX_NAME_EN),
-        "name_zh": _text(name_zh, contracts.MAX_NAME_ZH),
         "code": code,
         "barcode": barcode,
         "qr_payload": _text(qr_payload, contracts.MAX_QR),
@@ -277,14 +275,13 @@ def update_product(name: str, **changes):
                if "barcode" in changes else doc.barcode)
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
-    for field in ("barcode", "qr_payload", "unit", "image_url", "name_en", "name_zh",
+    for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):
         if field in changes:
             doc.set(field, _text(changes[field], {
                 "barcode": contracts.MAX_BARCODE, "qr_payload": contracts.MAX_QR,
                 "unit": contracts.MAX_UNIT,
                 "image_url": contracts.MAX_IMAGE_URL,
-                "name_en": contracts.MAX_NAME_EN, "name_zh": contracts.MAX_NAME_ZH,
                 "base_unit": contracts.MAX_BASE_UNIT,
             }[field]))
     if "category_id" in changes:

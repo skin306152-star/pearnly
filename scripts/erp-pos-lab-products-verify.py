@@ -305,7 +305,7 @@ def main():
     ours = {field.fieldname for field in meta.fields
             if field.fieldtype not in ("Section Break", "Column Break", "Tab Break")}
     # `name` 是框架隐式主键，不在 meta.fields 里，所以不列进来。
-    expected = {"product_name", "name_en", "name_zh", "code", "barcode",
+    expected = {"product_name", "code", "barcode",
                 "qr_payload", "unit", "base_unit", "category_id", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
                 "default_cost", "image_url", "track_batch", "track_expiry",
@@ -353,7 +353,7 @@ def main():
         "import_raw_tokens_leaked": [],
         "import_auto_code": True,
         "template_download_ok": True,
-        "template_headers": 16,
+        "template_headers": 14,
         "template_keys_leaked": [],
         "template_import_ok": True,
         "template_created": 1,

@@ -18,8 +18,6 @@ from decimal import Decimal, InvalidOperation
 # 字段 → 界面文案的键。模板的表头就取这几句（按站点语言），顺序也是这个顺序。
 FIELD_LABELS = (
     ("product_name", "product.field.name"),
-    ("name_en", "product.field.nameEn"),
-    ("name_zh", "product.field.nameZh"),
     ("code", "product.field.code"),
     ("barcode", "product.field.barcode"),
     ("qr_payload", "product.field.qr"),
@@ -44,11 +42,6 @@ LEGACY_ALIASES = {
     "ชื่อ": "product_name",
     "商品名称": "product_name",
     "名称": "product_name",
-    "name_en": "name_en",
-    "english": "name_en",
-    "英文名": "name_en",
-    "name_zh": "name_zh",
-    "中文名": "name_zh",
     "code": "code",
     "รหัส": "code",
     "รหัสสินค้า": "code",
@@ -107,7 +100,7 @@ def template_headers(label_of) -> list:
     """模板表头：界面上那几句，按站点语言给。"""
     return [label_of(key) for _field, key in FIELD_LABELS]
 
-TEXT_FIELDS = ("product_name", "name_en", "name_zh", "code", "barcode", "qr_payload",
+TEXT_FIELDS = ("product_name", "code", "barcode", "qr_payload",
                "unit", "base_unit", "image_url")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")

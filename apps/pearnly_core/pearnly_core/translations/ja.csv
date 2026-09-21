@@ -250,7 +250,7 @@ Product,製品
 Product Ref,商品の外部参照
 "Product home: current plan, usage and billing",製品ホーム。現在のプラン、利用量、請求を表示
 Product master data,商品マスタ
-Products,商品データ
+Products,商品
 Provide at least one line item,明細を1行以上入力してください
 "Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
 Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
@@ -653,7 +653,7 @@ nav.intake,取り込みワークベンチ
 nav.integrations,連携
 nav.inventory,在庫
 nav.masterData,マスタデータ
-nav.products,商品データ
+nav.products,商品
 nav.purchase,購買記録
 nav.purchaseSettings,購買設定
 nav.pushLogs,プッシュログ

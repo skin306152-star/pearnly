@@ -9,7 +9,7 @@ pearnly_core	Stock Count	库存盘点	ตรวจนับสต็อก	棚�
 pearnly_core	Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
 pearnly_core	Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
 pearnly_core	Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
-pearnly_core	Products	商品数据	ข้อมูลสินค้า	商品データ
+pearnly_core	Products	商品	สินค้า	商品
 pearnly_core	Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）
 pearnly_core	Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
 pearnly_core	Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）
@@ -672,7 +672,7 @@ pearnly_core	Team	团队管理	ทีมงาน	チーム	nav.team
 pearnly_core	Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
 pearnly_core	Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
 pearnly_core	Products & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
-pearnly_core	Products	商品数据	ข้อมูลสินค้า	商品データ	nav.products
+pearnly_core	Products	商品	สินค้า	商品	nav.products
 pearnly_core	Stock	库存	สต็อก	在庫	nav.inventory
 pearnly_core	Stock In	入库	รับเข้า	入庫	nav.stockIn
 pearnly_core	Stock Out	出库	จ่ายออก	出庫	nav.stockOut
@@ -1107,8 +1107,6 @@ pearnly_erp_portal	Unit	单位	หน่วย	単位	product.col.unit
 pearnly_erp_portal	Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
 pearnly_erp_portal	Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を有効化	product.action.bulkEnable
 pearnly_erp_portal	Updated {0} product(s)	已更新 {0} 个商品	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
-pearnly_erp_portal	English name	英文名	ชื่อภาษาอังกฤษ	英語名	product.field.nameEn
-pearnly_erp_portal	Chinese name	中文名	ชื่อภาษาจีน	中国語名	product.field.nameZh
 pearnly_erp_portal	Base unit	库存单位	หน่วยฐาน	基準単位	product.field.baseUnit
 pearnly_erp_portal	Category	分类	หมวดหมู่	カテゴリ	product.field.category
 pearnly_erp_portal	Track batches	批次管理	ติดตามล็อต	ロット管理	product.field.trackBatch

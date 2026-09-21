@@ -8,7 +8,7 @@ MANIFEST = {
     "entry_prefixes": ["/api/v1/erp/", "/api/v1/me/", "/pearnly-password"],
     "apps": ["pearnly_core", "pearnly_erp_portal"],
     "features": [
-        "products",        # 商品数据
+        "products",        # 商品
         "warehouses",      # 库存、入库、出库
         "stockcard",       # 收发存报表（权限码已从 accounting 改挂 inventory）
         "purchase",        # 采购记录、供应商、采购设置
