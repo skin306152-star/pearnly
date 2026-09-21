@@ -1,5 +1,37 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-22，第四十一批交付：文件入口接进原生银行任务）
+
+用户要的"把 ①②③ 层接进原生银行任务"在本批落地：**上传的原件 → 行 → 存储的银行对账任务**，并在隔离 Site 上真的跑通一次。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `41869ff`（第四十批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_intake.py`：`read_statement_file` / `read_ledger_file` —— 扩展名分发（工作簿/CSV 先直读，PDF 走文字层 + 文本行解析）→ 行数不足或余额链坏行 >30% 才轮到注入的模型路 → 定案序列 → 换眼重读 → 期初期末兜底 → 完整性交叉校验。部署版的 `_need_gemini` 判定、采纳比自洽度、直读路自带完整性这些口径都保留。
+- 新增 `reconciliation/bank_arbitration.py`：两法分歧守门（两法都出行而期初/期末显著分歧 → 标人工、completeness 置 not-ok，不静默选一个）。
+- `reconciliation/bank_recon_service.py` 追加 `create_from_documents`：字节 → 行 → 与 `create` 同一条校验存储路径，逐文件诊断按旧键写进 parse_info。
+- `doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` 追加 `create_from_sources`：用 **files 域**读原件（查权限、查校验和）再交给上面的服务入口。**落在这里的原因**：域依赖表里 `reconciliation` 不许依赖 `files`，两个域都不许依赖对方，能同时用两者的是模块编排层。
+- **有意差异**：部署版 PDF 先试模型管线（提示词+文档模型+校验器）再退本地链；原生先试免费文字层（因为文档档位还没接），顺序是显式一处可改。图片/Word/表格几何、模型客户端、缓存、渲染、并发、`needs_mapping`、企业版都未接，如实返回 `unsupported_format` / `model_unavailable`。
+
+### 验证与证据
+
+- **隔离 Site 端到端**：两个真工作簿经 files 域上传 → `create_from_sources` → 存储任务逐行核对（matched + 两侧各一条未配、文件名给银行码 bbl、期初 1000 期末 510、两侧 source 都是 workbook）；读不了的对账单被拒**且一张任务都没落库**；真 PDF 扫描件在假模型下走模型缝（两侧都有答案才落库）。整份 **18** 个用例通过；匿名 HTTP 复核 8 个端点全 403（含新 RPC）。
+- 离线（隔离 bench）：intake 新 **24** 个用例；银行族一起 **287** 个通过。
+- 固定源差分：`bank_arbitration_guard.py` 256 组金额对 + 720 批随机，**差异 0**（BBL2645 那一例固化）。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY（新增一条 `reconciliation.ledger_unparsed`）；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-first-delivery.json`（`789a3f66…`，17:41:34Z）与第四十批交付快照 `compare` PASS；运行投影 `aea23c1a…` 与上一批逐项相同。**本批也没做开工采集**（before 用上一批交付快照，同上一批做法，已如实记录）。
+- 未执行：模型调用、真实银行单、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ④ 层只剩一件）
+
+OCR 引擎的**文档档位**：给银行单/总账各自的提示词档位与准入（`run_invoice` 现在只准入发票类），并把"模型 JSON → 文档模型 → **列来源校验**（第 ② 层）→ entries → 行"接成 `bank_intake` 的 `model_rows` 实现 —— 这条路才是部署版 PDF 的默认路，也才用得上第三十七批的校验器。之后可选：多文件合并（`merge_statements`/`merge_gl_files` 未迁）、`needs_mapping` 的模板学习层、主数据（客户按 ERP 为准，商品/供应商/科目各产品自维护）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `aaf5184`（比我这条线多 11 个提交，我这条线多 52 个未合回），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例、差分与 Site 端到端，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
 ## 换窗口交接（2026-09-22，第四十批交付：银行单/GL 第四层前半——模型路径的判定逻辑）
 
 四层计划的第 ④ 层"读取器都读不出来时的那条路"，本批交付**提示词与判定逻辑**：模型返回的 JSON 能不能用、怎么归一成行、以及余额链断掉时要不要换一只眼重读。不接前端、不部署、不改 DMS、不写旧库、**不调模型**。

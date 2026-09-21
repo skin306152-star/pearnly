@@ -1,0 +1,683 @@
+{
+  "evidence": {
+    "captured_at": "2026-09-21T17:41:34.101401+00:00",
+    "components": {
+      "pearnly-web": {
+        "configuration": {
+          "environment_names": [
+            "GOOGLE_CLOUD_LOCATION",
+            "GOOGLE_CLOUD_PROJECT",
+            "LINE_DMS_A_CREDENTIALS",
+            "LINE_DMS_B_CREDENTIALS",
+            "PEARNLY_OCR_CACHE_DIR",
+            "PEARNLY_RUNTIME_ENV_FILE",
+            "PEARNLY_RUNTIME_ROLE",
+            "PEARNLY_WORKER_URL",
+            "RECON_AI_MAPPING_CACHE_DIR"
+          ],
+          "mounts": [
+            {
+              "mountPath": "/opt/mrpilot/storage",
+              "name": "files"
+            },
+            {
+              "mountPath": "/opt/mrpilot/uploads",
+              "name": "uploads"
+            },
+            {
+              "mountPath": "/opt/mrpilot/var",
+              "name": "temp"
+            },
+            {
+              "mountPath": "/app/static/companion",
+              "name": "installers"
+            },
+            {
+              "mountPath": "/secrets",
+              "name": "runtime"
+            }
+          ],
+          "secret_aliases": "",
+          "secret_references": [
+            {
+              "kind": "environment",
+              "name": "pearnly-line-dms-a",
+              "target": "LINE_DMS_A_CREDENTIALS",
+              "version": "1"
+            },
+            {
+              "kind": "environment",
+              "name": "pearnly-line-dms-b",
+              "target": "LINE_DMS_B_CREDENTIALS",
+              "version": "1"
+            },
+            {
+              "kind": "volume",
+              "name": "pearnly-web-env",
+              "target": "runtime/runtime.env",
+              "version": "3"
+            }
+          ],
+          "volumes": [
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-files-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "files"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-files-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001,only-dir=uploads"
+                }
+              },
+              "name": "uploads"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-temp-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "temp"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": true,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-installers-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "installers"
+            },
+            {
+              "name": "runtime",
+              "secret": {
+                "items": [
+                  {
+                    "key": "3",
+                    "path": "runtime.env"
+                  }
+                ],
+                "secretName": "pearnly-web-env"
+              }
+            }
+          ]
+        },
+        "revision": {
+          "metadata": {
+            "labels": {
+              "serving.knative.dev/service": "pearnly-web"
+            },
+            "name": "pearnly-web-ec2e5c957e6b-s3",
+            "namespace": "112074003592"
+          },
+          "spec": {
+            "containers": [
+              {
+                "env": [
+                  {
+                    "name": "PEARNLY_RUNTIME_ROLE"
+                  },
+                  {
+                    "name": "PEARNLY_RUNTIME_ENV_FILE"
+                  },
+                  {
+                    "name": "PEARNLY_OCR_CACHE_DIR"
+                  },
+                  {
+                    "name": "RECON_AI_MAPPING_CACHE_DIR"
+                  },
+                  {
+                    "name": "GOOGLE_CLOUD_PROJECT"
+                  },
+                  {
+                    "name": "GOOGLE_CLOUD_LOCATION"
+                  },
+                  {
+                    "name": "PEARNLY_WORKER_URL"
+                  },
+                  {
+                    "name": "LINE_DMS_A_CREDENTIALS",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "key": "1",
+                        "name": "pearnly-line-dms-a"
+                      }
+                    }
+                  },
+                  {
+                    "name": "LINE_DMS_B_CREDENTIALS",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "key": "1",
+                        "name": "pearnly-line-dms-b"
+                      }
+                    }
+                  }
+                ],
+                "image": "asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226",
+                "volumeMounts": [
+                  {
+                    "mountPath": "/opt/mrpilot/storage",
+                    "name": "files"
+                  },
+                  {
+                    "mountPath": "/opt/mrpilot/uploads",
+                    "name": "uploads"
+                  },
+                  {
+                    "mountPath": "/opt/mrpilot/var",
+                    "name": "temp"
+                  },
+                  {
+                    "mountPath": "/app/static/companion",
+                    "name": "installers"
+                  },
+                  {
+                    "mountPath": "/secrets",
+                    "name": "runtime"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-files-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "files"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-files-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001,only-dir=uploads"
+                  }
+                },
+                "name": "uploads"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-temp-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "temp"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": true,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-installers-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "installers"
+              },
+              {
+                "name": "runtime",
+                "secret": {
+                  "items": [
+                    {
+                      "key": "3",
+                      "path": "runtime.env"
+                    }
+                  ],
+                  "secretName": "pearnly-web-env"
+                }
+              }
+            ]
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-09-18T07:55:58.637359Z",
+                "message": "Deploying revision succeeded in 1m18.77s.",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:55:02.822091Z",
+                "severity": "Info",
+                "status": "True",
+                "type": "Active"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:55:02.698214Z",
+                "message": "Containers became healthy in 20.01s.",
+                "status": "True",
+                "type": "ContainerHealthy"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:54:40.737028Z",
+                "message": "Container image import completed.",
+                "status": "True",
+                "type": "ContainerReady"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:54:42.348950Z",
+                "message": "Provisioning imported containers completed in 1.61s. Checking container health. This will wait for up to 4m for the configured startup probe, including an initial delay of 0s.",
+                "status": "True",
+                "type": "ResourcesAvailable"
+              }
+            ],
+            "imageDigest": "asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226"
+          }
+        },
+        "service": {
+          "metadata": {
+            "generation": 91,
+            "name": "pearnly-web",
+            "namespace": "112074003592"
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-09-18T07:55:58.578351Z",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:55:02.814209Z",
+                "status": "True",
+                "type": "ConfigurationsReady"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:55:58.528491Z",
+                "status": "True",
+                "type": "RoutesReady"
+              }
+            ],
+            "observedGeneration": 91,
+            "traffic": [
+              {
+                "percent": 100,
+                "revisionName": "pearnly-web-ec2e5c957e6b-s3",
+                "tag": "candidate",
+                "url": "https://candidate---pearnly-web-h6qxkkwz4a-as.a.run.app"
+              }
+            ],
+            "url": "https://pearnly-web-h6qxkkwz4a-as.a.run.app"
+          }
+        }
+      },
+      "pearnly-worker": {
+        "configuration": {
+          "environment_names": [
+            "GOOGLE_CLOUD_LOCATION",
+            "GOOGLE_CLOUD_PROJECT",
+            "LINE_DMS_A_CREDENTIALS",
+            "LINE_DMS_B_CREDENTIALS",
+            "PEARNLY_OCR_CACHE_DIR",
+            "PEARNLY_RUNTIME_ENV_FILE",
+            "PEARNLY_RUNTIME_ROLE",
+            "PEARNLY_WORKER_URL",
+            "RECON_AI_MAPPING_CACHE_DIR"
+          ],
+          "mounts": [
+            {
+              "mountPath": "/opt/mrpilot/storage",
+              "name": "files"
+            },
+            {
+              "mountPath": "/opt/mrpilot/uploads",
+              "name": "uploads"
+            },
+            {
+              "mountPath": "/opt/mrpilot/var",
+              "name": "temp"
+            },
+            {
+              "mountPath": "/app/static/companion",
+              "name": "installers"
+            },
+            {
+              "mountPath": "/secrets",
+              "name": "runtime"
+            }
+          ],
+          "secret_aliases": "",
+          "secret_references": [
+            {
+              "kind": "environment",
+              "name": "pearnly-line-dms-a",
+              "target": "LINE_DMS_A_CREDENTIALS",
+              "version": "1"
+            },
+            {
+              "kind": "environment",
+              "name": "pearnly-line-dms-b",
+              "target": "LINE_DMS_B_CREDENTIALS",
+              "version": "1"
+            },
+            {
+              "kind": "volume",
+              "name": "pearnly-worker-env",
+              "target": "runtime/runtime.env",
+              "version": "3"
+            }
+          ],
+          "volumes": [
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-files-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "files"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-files-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001,only-dir=uploads"
+                }
+              },
+              "name": "uploads"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": false,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-temp-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "temp"
+            },
+            {
+              "csi": {
+                "driver": "gcsfuse.run.googleapis.com",
+                "readOnly": true,
+                "volumeAttributes": {
+                  "bucketName": "pearnly-app-installers-112074003592",
+                  "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                }
+              },
+              "name": "installers"
+            },
+            {
+              "name": "runtime",
+              "secret": {
+                "items": [
+                  {
+                    "key": "3",
+                    "path": "runtime.env"
+                  }
+                ],
+                "secretName": "pearnly-worker-env"
+              }
+            }
+          ]
+        },
+        "revision": {
+          "metadata": {
+            "labels": {
+              "serving.knative.dev/service": "pearnly-worker"
+            },
+            "name": "pearnly-worker-ec2e5c957e6b-s3",
+            "namespace": "112074003592"
+          },
+          "spec": {
+            "containers": [
+              {
+                "env": [
+                  {
+                    "name": "PEARNLY_RUNTIME_ROLE"
+                  },
+                  {
+                    "name": "PEARNLY_RUNTIME_ENV_FILE"
+                  },
+                  {
+                    "name": "PEARNLY_OCR_CACHE_DIR"
+                  },
+                  {
+                    "name": "RECON_AI_MAPPING_CACHE_DIR"
+                  },
+                  {
+                    "name": "GOOGLE_CLOUD_PROJECT"
+                  },
+                  {
+                    "name": "GOOGLE_CLOUD_LOCATION"
+                  },
+                  {
+                    "name": "PEARNLY_WORKER_URL"
+                  },
+                  {
+                    "name": "LINE_DMS_A_CREDENTIALS",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "key": "1",
+                        "name": "pearnly-line-dms-a"
+                      }
+                    }
+                  },
+                  {
+                    "name": "LINE_DMS_B_CREDENTIALS",
+                    "valueFrom": {
+                      "secretKeyRef": {
+                        "key": "1",
+                        "name": "pearnly-line-dms-b"
+                      }
+                    }
+                  }
+                ],
+                "image": "asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226",
+                "volumeMounts": [
+                  {
+                    "mountPath": "/opt/mrpilot/storage",
+                    "name": "files"
+                  },
+                  {
+                    "mountPath": "/opt/mrpilot/uploads",
+                    "name": "uploads"
+                  },
+                  {
+                    "mountPath": "/opt/mrpilot/var",
+                    "name": "temp"
+                  },
+                  {
+                    "mountPath": "/app/static/companion",
+                    "name": "installers"
+                  },
+                  {
+                    "mountPath": "/secrets",
+                    "name": "runtime"
+                  }
+                ]
+              }
+            ],
+            "volumes": [
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-files-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "files"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-files-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001,only-dir=uploads"
+                  }
+                },
+                "name": "uploads"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": false,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-temp-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "temp"
+              },
+              {
+                "csi": {
+                  "driver": "gcsfuse.run.googleapis.com",
+                  "readOnly": true,
+                  "volumeAttributes": {
+                    "bucketName": "pearnly-app-installers-112074003592",
+                    "mountOptions": "implicit-dirs,metadata-cache-ttl-secs=0,stat-cache-max-size-mb=0,type-cache-max-size-mb=0,uid=10001,gid=10001"
+                  }
+                },
+                "name": "installers"
+              },
+              {
+                "name": "runtime",
+                "secret": {
+                  "items": [
+                    {
+                      "key": "3",
+                      "path": "runtime.env"
+                    }
+                  ],
+                  "secretName": "pearnly-worker-env"
+                }
+              }
+            ]
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-09-18T07:55:35.177358Z",
+                "message": "Deploying revision succeeded in 1m58.57s.",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:54:02.812354Z",
+                "severity": "Info",
+                "status": "True",
+                "type": "Active"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:54:02.681234Z",
+                "message": "Containers became healthy in 20.02s.",
+                "status": "True",
+                "type": "ContainerHealthy"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:53:37.302284Z",
+                "message": "Container image import completed.",
+                "status": "True",
+                "type": "ContainerReady"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:53:42.311232Z",
+                "message": "Provisioning imported containers completed in 5.01s. Checking container health. This will wait for up to 4m for the configured startup probe, including an initial delay of 0s.",
+                "status": "True",
+                "type": "ResourcesAvailable"
+              }
+            ],
+            "imageDigest": "asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226"
+          }
+        },
+        "service": {
+          "metadata": {
+            "generation": 92,
+            "name": "pearnly-worker",
+            "namespace": "112074003592"
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-09-18T07:55:35.125299Z",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:53:37.447928Z",
+                "status": "True",
+                "type": "ConfigurationsReady"
+              },
+              {
+                "lastTransitionTime": "2026-09-18T07:55:35.062469Z",
+                "status": "True",
+                "type": "RoutesReady"
+              }
+            ],
+            "observedGeneration": 92,
+            "traffic": [
+              {
+                "percent": 100,
+                "revisionName": "pearnly-worker-ec2e5c957e6b-s3",
+                "tag": "candidate",
+                "url": "https://candidate---pearnly-worker-h6qxkkwz4a-as.a.run.app"
+              }
+            ],
+            "url": "https://pearnly-worker-h6qxkkwz4a-as.a.run.app"
+          }
+        }
+      }
+    },
+    "ledger": {
+      "commit": "9aa7a6b2cb7ea629868d5cbcb28cba5260c37a7d",
+      "excerpt": "- 完整 SHA：`ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。\n- 镜像：`asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。\n- Web `pearnly-web-ec2e5c957e6b-s3`、Worker `pearnly-worker-ec2e5c957e6b-s3`，Ready、各100%流量，同一不可变digest。\n- [Manual CD 35321281376](https://github.com/skin306152-star/pearnly-app/actions/runs/35321281376) success",
+      "excerpt_sha256": "594a321e42cb837728495d81ac5e494c011688817304fc363b90b9b4ca805a49",
+      "path": "docs/deployment/MIGRATION_STATUS.md"
+    },
+    "project": "pearnly",
+    "region": "asia-southeast1",
+    "required_services": [
+      "pearnly-web",
+      "pearnly-worker"
+    ],
+    "run": {
+      "conclusion": "success",
+      "head_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+      "html_url": "https://github.com/skin306152-star/pearnly-app/actions/runs/35321281376",
+      "id": 35321281376,
+      "repository": "skin306152-star/pearnly-app",
+      "status": "completed"
+    },
+    "schema": "pearnly-cowork-migration-baseline-v1",
+    "source": {
+      "access": "git-show-fixed-sha",
+      "repository": "skin306152-star/pearnly-app",
+      "sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+      "tree": "88ca6704c0a792e929a60b78d27790e221434e27"
+    }
+  },
+  "sha256": "789a3f66e5bde27a1d4a0513a3447dcdccfcfe8bc366bd887b3409a4399d0cbc"
+}

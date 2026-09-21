@@ -6,6 +6,7 @@ or external call happens here; the parsed admission path is fed decoded page
 dictionaries, not files.
 """
 
+import io
 import json
 import os
 from pathlib import Path
@@ -15,6 +16,8 @@ import unittest
 from uuid import uuid4
 
 import frappe
+import openpyxl
+import pymupdf
 from werkzeug.test import Client
 from werkzeug.wrappers import Response
 
@@ -368,11 +371,211 @@ class NativeBankReconciliation(unittest.TestCase):
 		self.assertEqual(rows["stmt_withdrawal_only"]["date_diff_days"], -1)
 		self.assertEqual(rows["matched"]["date_diff_days"], 0)
 
+STATEMENT_WORKBOOK_HEADER = ["วันที่", "รายการ", "ถอนเงิน", "ฝากเงิน", "ยอดคงเหลือ"]
+GL_WORKBOOK_HEADER = ["วันที่", "เลขที่เอกสาร", "คำอธิบาย", "เดบิต", "เครดิต", "คงเหลือ",
+	"รหัสบัญชี"]
+
+
+def workbook(sheets):
+	book = openpyxl.Workbook()
+	book.remove(book.active)
+	for name, rows in sheets:
+		sheet = book.create_sheet(title=name)
+		for row in rows:
+			sheet.append(list(row))
+	stream = io.BytesIO()
+	book.save(stream)
+	return stream.getvalue()
+
+
+def unreadable_pdf():
+	"""A real one-page PDF the readers cannot turn into statement rows."""
+	with pymupdf.open() as doc:
+		page = doc.new_page(width=200, height=200)
+		page.insert_text((10, 25), "SYNTHETIC SCAN")
+		return doc.tobytes()
+
+
+def statement_workbook():
+	# One statement workbook whose balance chain adds up: a brought-forward row,
+	# a withdrawal the GL paid, and a fee the GL never booked.
+	return workbook([("8258-1", [
+		STATEMENT_WORKBOOK_HEADER,
+		["01/06/2569", "ยกมา", "", "", 1000.0],
+		["02/06/2569", "SWD ACME INV-77", 400.0, "", 600.0],
+		["03/06/2569", "ค่าบริการ", 90.0, "", 510.0],
+	])])
+
+
+def gl_row(date, **overrides):
+	from pearnly_cowork.reconciliation import bank_parse
+	from pearnly_cowork.reconciliation.bank_matching import GlRow
+
+	fields = {"date": bank_parse.parse_date(date), "doc_no": "", "account_code": "",
+		"description": "", "debit": 0.0, "credit": 0.0}
+	fields.update(overrides)
+	return GlRow(**fields)
+
+
+GlRowForLab = gl_row
+
+
+def gl_workbook():
+	return workbook([("gl", [
+		GL_WORKBOOK_HEADER,
+		["01/06/2569", "GL-1", "payment", "", 400.0, 600.0, "1000"],
+		["30/06/2569", "GL-2", "unmatched", 75.0, "", 675.0, "1000"],
+	])])
+
+
+class BankReconciliationFromFiles(unittest.TestCase):
+	"""The file entry point: an uploaded original becomes a stored task.
+
+	The deterministic readers run for real here (the statement and the ledger are
+	real workbooks built in memory and uploaded through the files domain); the
+	model path is a fake, so nothing is paid for and nothing leaves the Site.
+	"""
+
+	@classmethod
+	def setUpClass(cls):
+		if not frappe.db.exists("Role", ROLE):
+			frappe.get_doc({"doctype": "Role", "role_name": ROLE}).insert()
+		suffix = uuid4().hex[:10]
+		cls.actor = f"cw-bank-file-actor-{suffix}@example.invalid"
+		# The file domain's upload entry asks for the intake feature, which needs
+		# its own role; the reconciliation entry needs the reconciliation role.
+		user(cls.actor, ["Cowork Intake", ROLE])
+		from pearnly_cowork.masters import api as masters
+		cls.workspace = masters.create_workspace("Bank recon files lab " + suffix)["name"]
+		grant(cls.actor, "Cowork Workspace", cls.workspace)
+		frappe.db.commit()
+
+	def setUp(self):
+		from pearnly_cowork.files import service as files_service
+		self.files = files_service
+		self.previous = dict(frappe.conf)
+		frappe.conf.pearnly_features = ["intake", "master_data", "push_log", "recon", "stocktake"]
+		frappe.set_user(self.actor)
+		self.request_id = "bank-recon-file-" + uuid4().hex
+
+	def tearDown(self):
+		frappe.db.rollback()
+		frappe.conf.clear()
+		frappe.conf.update(self.previous)
+		frappe.set_user("Administrator")
+		frappe.clear_cache()
+
+	def upload(self, filename, content):
+		return self.files.create(self.workspace, filename, content,
+			"upload-" + uuid4().hex)["name"]
+
+	def test_two_uploaded_workbooks_become_one_stored_task(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation \
+			import cowork_bank_reconciliation as controller
+		statement_source = self.upload("STM BBL 2569-06.xlsx", statement_workbook())
+		gl_source = self.upload("GL 2569-06.xlsx", gl_workbook())
+		result = controller.create_from_sources(self.workspace, "June 2569 from files",
+			self.request_id, statement_source, gl_source, gl_account_code="1000")
+		self.assertEqual(result["parsed"]["statement_source"], "workbook")
+		self.assertEqual(result["parsed"]["gl_source"], "workbook")
+		# The filename is the bank signal, the printed closing is the statement's.
+		self.assertEqual(result["parsed"]["bank_code"], "bbl")
+		self.assertEqual(result["parsed"]["opening"], 1000.0)
+		self.assertEqual(result["parsed"]["closing"], 510.0)
+		self.assertEqual(result["parsed"]["statement_rows"], 2)
+		self.assertEqual(result["parsed"]["gl_rows"], 2)
+		self.assertTrue(result["parsed"]["completeness_ok"])
+		self.assertFalse(result["parsed"]["escalations"])
+
+		from pearnly_cowork.reconciliation import bank_recon_api
+		detail = bank_recon_api.detail(result["name"])
+		# One matched pair plus one statement-only and one ledger-only row.
+		self.assertEqual(detail["total"], 3)
+		by_status = {row["match_status"]: row for row in detail["rows"]}
+		self.assertEqual(sorted(by_status), ["gl_debit_only", "matched", "stmt_withdrawal_only"])
+		matched = by_status["matched"]
+		self.assertEqual((str(matched["stmt_date"]), matched["stmt_withdrawal"], matched["gl_credit"]),
+			("2026-06-02", 400.0, 400.0))
+		self.assertEqual(by_status["stmt_withdrawal_only"]["stmt_balance"], 510.0)
+		self.assertEqual(by_status["gl_debit_only"]["gl_debit"], 75.0)
+
+	def test_an_unreadable_statement_is_refused_and_stores_nothing(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation \
+			import cowork_bank_reconciliation as controller
+		from pearnly_cowork.reconciliation import bank_recon_access
+		statement_source = self.upload("STM broken.xlsx", b"not a workbook at all")
+		gl_source = self.upload("GL 2569-06.xlsx", gl_workbook())
+		with self.assertRaises(frappe.ValidationError):
+			controller.create_from_sources(self.workspace, "Broken statement", self.request_id,
+				statement_source, gl_source)
+		self.assertEqual(frappe.db.count(bank_recon_access.TASK,
+			{"workspace": self.workspace}), 0)
+
+	def test_the_model_seam_carries_a_document_no_reader_can_decode(self):
+		from pearnly_cowork.reconciliation import bank_recon_service, bank_statement
+		calls = []
+
+		def model_rows(document_type, file_bytes, filename):
+			calls.append((document_type, filename))
+			if document_type == "bank_statement":
+				return {"ok": True, "opening": 0.0, "closing": 300.0, "rows": [
+					bank_statement.StatementRow(date=None, description="ค่าบริการ",
+						withdrawal=50.0, deposit=0.0, balance=100.0),
+					bank_statement.StatementRow(date=None, description="ค่าขนส่ง",
+						withdrawal=25.0, deposit=0.0, balance=75.0),
+					bank_statement.StatementRow(date=None, description="ค่าอาหาร",
+						withdrawal=25.0, deposit=0.0, balance=50.0),
+				]}
+			return None
+
+		scan = unreadable_pdf()
+		statement_source = self.upload("STM scan.pdf", scan)
+		gl_source = self.upload("GL scan.pdf", scan)
+		statement_name, statement_bytes = self.files.original(statement_source)
+		gl_name, gl_bytes = self.files.original(gl_source)
+		# The ledger side has no model result here, so the entry refuses instead of
+		# storing a run with an empty ledger.
+		with self.assertRaises(frappe.ValidationError):
+			bank_recon_service.create_from_documents(self.workspace, "Scanned pair",
+				self.request_id, statement_bytes, statement_name, gl_bytes, gl_name,
+				model_rows=model_rows)
+		self.assertEqual(calls, [("bank_statement", "STM scan.pdf"),
+			("general_ledger", "GL scan.pdf")])
+		# With both sides answered by the model the run is stored.
+		def both_sides(document_type, file_bytes, filename):
+			if document_type == "bank_statement":
+				return model_rows(document_type, file_bytes, filename)
+			return {"ok": True, "opening": 0.0, "closing": 100.0, "accounts": ["1000"],
+				"rows": [GlRowForLab(date=None, doc_no="GL-9", account_code="1000",
+					description="ค่าบริการ", debit=0.0, credit=100.0)]}
+
+		result = bank_recon_service.create_from_documents(self.workspace, "Scanned pair",
+			self.request_id, statement_bytes, statement_name, gl_bytes, gl_name,
+			model_rows=both_sides)
+		self.assertEqual(result["parsed"]["statement_source"], "model")
+		self.assertEqual(result["parsed"]["gl_source"], "model")
+		self.assertEqual(result["parsed"]["statement_rows"], 3)
+		self.assertEqual(result["parsed"]["gl_rows"], 1)
+
+	def test_an_unreadable_ledger_is_refused(self):
+		from pearnly_cowork.reconciliation import bank_recon_service
+		statement_name = "STM.xlsx"
+		gl_name = "GL broken.xlsx"
+		with self.assertRaises(frappe.ValidationError):
+			bank_recon_service.create_from_documents(self.workspace, "Broken ledger",
+				self.request_id, statement_workbook(), statement_name,
+				b"not a workbook at all", gl_name)
+
+
 if __name__ == "__main__":
 	connect(os.environ.get("PEARNLY_COWORK_TEST_SITE"))
 	try:
-		suite = (unittest.TestSuite(NativeBankReconciliation(name) for name in sys.argv[1:])
-			if len(sys.argv) > 1 else unittest.defaultTestLoader.loadTestsFromTestCase(NativeBankReconciliation))
+		if len(sys.argv) > 1:
+			suite = unittest.TestSuite(NativeBankReconciliation(name) for name in sys.argv[1:])
+		else:
+			suite = unittest.TestSuite(
+				unittest.defaultTestLoader.loadTestsFromTestCase(cls)
+				for cls in (NativeBankReconciliation, BankReconciliationFromFiles))
 		result = unittest.TextTestRunner(verbosity=2).run(suite)
 		frappe.db.rollback()
 		frappe.destroy()
@@ -398,6 +601,11 @@ if __name__ == "__main__":
 				json={"task_id": "x"}).status_code,
 			"delete_many": client.post(rpc + "delete_many", base_url=base,
 				json={"task_ids": []}).status_code,
+			"create_from_sources": client.post(
+				"/api/method/pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation"
+				".cowork_bank_reconciliation.create_from_sources", base_url=base, json={
+					"workspace": "x", "title": "t", "request_id": "x",
+					"statement_source": "x", "gl_source": "y"}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:

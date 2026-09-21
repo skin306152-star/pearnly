@@ -1,0 +1,104 @@
+{
+  "base_commit": "41869ff",
+  "scope": "forty-first batch: the file entry that wires the native readers into the native bank task — the intake dispatch for statements and ledgers, the two-method divergence guard, the service entry that reads bytes, and the orchestration entry that reads the uploaded original",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the fortieth batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "789a3f66e5bde27a1d4a0513a3447dcdccfcfe8bc366bd887b3409a4399d0cbc",
+    "delivery_captured_at": "2026-09-21T17:41:34.101401+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-fortieth-delivery.json baseline-forty-first-delivery.json (before pinned at 546d3f8a, after pinned at 789a3f66)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "aea23c1a391a7a50fcf98dc426d2e09d6a987a338221dca06e7bbb4ff13f4942",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/recon/bank_arbitration_guard.py": "5bb3eb437203b9229c57986c8ce34c342ea907535305fcb2bf3139150098eb64"
+    },
+    "source_note": "the intake composes already-verified pieces and the guard is pure; the delivery-time live-source capture is taken as the migration rule requires"
+  },
+  "checks": [
+    {
+      "command": "PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost python /workspace/scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "tests": 18,
+      "new_tests": 4,
+      "note": "isolated Site. Two real workbooks are built in memory, uploaded through the files domain (which checks source access and the stored checksum) and handed to the new service entry; the stored task is read back row by row. The four new cases: the uploaded pair becomes one stored task with the expected matched / statement-only / ledger-only rows (bank code taken from the filename, opening 1000, closing 510, both sources workbook); an unreadable statement is refused and stores no task at all; an unreadable ledger is refused; a real scanned PDF whose text layer carries no statement lines goes through the injected model path (both sides asked, refused when only one side answers, stored when both answer)."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_intake",
+      "result": "PASS",
+      "tests": 24,
+      "new_tests": 24,
+      "covers": [
+        "a workbook statement is read without asking the model, with the rows finalized, the fingerprint of each row set and source_file stamped",
+        "the filename bank code wins over content (STM TTB 2569-05.xlsx)",
+        "fewer rows than the deployed floor gives the model a turn, and a model that is no more trustworthy than the free read keeps the free rows while the disagreement on the closing is recorded and completeness is marked not ok",
+        "an unreadable file and a headerless file report their own codes, and the injected model takes over when the readers refuse",
+        "a CSV statement goes through the workbook reader",
+        "a PDF is read from its text layer without a model, a flattened KBank layout routes to the column reader through the real text-layer seam, and a PDF with no text says so",
+        "a broken chain is re-read when a page reader is supplied, stays as read when none is, and a workbook is never re-read",
+        "the opening is backfilled from an explicit brought-forward row or derived from the first movement; a failed model leaves the reader error in place",
+        "the ledger workbook is read without a model, the account filter reaches the reader, the model takes over when the ledger has no header, a PDF ledger needs the model, a model failure is reported, an unsupported format says so, and a headerless workbook reports its code"
+      ]
+    },
+    {
+      "command": "python test_cowork_bank_arbitration_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "pairs": 256,
+        "diverging_pairs": 218,
+        "batches": 720,
+        "reasons": 204,
+        "both_labels": 66,
+        "no_reason": 102,
+        "one_side_empty": 92,
+        "threshold_override": 480
+      },
+      "note": "the guard is pure, so it is executed exactly as pinned and compared on a grid of amount pairs plus randomised openings/closings/row counts with and without threshold overrides. The deployed BBL2645 example (opening agreeing, closing disagreeing in sign) is pinned as a fixed case, and the two thresholds are compared value by value."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_intake test_cowork_reconciliation_bank_model_path test_cowork_reconciliation_bank_reread test_cowork_bank_sheets test_cowork_reconciliation_gl_sheets test_cowork_reconciliation_bank_text test_cowork_reconciliation_bank_parse test_cowork_reconciliation_bank_statement test_cowork_bank_warnings test_cowork_bank_recon_contracts test_cowork_reconciliation_amounts test_cowork_reconciliation_contracts test_cowork_reconciliation_bank_matching",
+      "result": "PASS",
+      "tests": 287,
+      "note": "the whole bank family plus every reader and model-path piece from the three previous batches"
+    },
+    {
+      "command": "anonymous HTTP probe against the new RPC",
+      "result": "8 endpoints 403",
+      "note": "pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation.cowork_bank_reconciliation.create_from_sources is registered and refuses anonymous callers"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the deployed PDF path tries the OCR pipeline (prompt + document model + column validators) first and only then the local chain; this side tries the free text layer first because the document tier is not wired yet. The effect is that both-sides-readable PDFs take the free result here. The dispatch order is a single, explicit place to change when the document tier lands",
+    "images, Word files and coordinate/table geometry have no native device and are refused with unsupported_format or model_unavailable instead of pretending",
+    "the model client, its upgrade policy, caches, rendering, page splitting and concurrency are injected through model_rows(document_type, file_bytes, filename); whoever has the tier supplies it",
+    "the ADR-006 template-learning layer is still not ported, so an unknown header goes to the model path rather than to a column-confirmation dialog; the deployed code would have asked the user",
+    "the enterprise adapter branch is out of scope, as recorded in the OCR family audit",
+    "the orchestration entry lives on the doctype controller module because the reconciliation domain may not depend on the files domain; the pure logic stays in the reconciliation package",
+    "the intake normalises the per-path result shapes of the deployed orchestrator into one dictionary, keeping every field the deployed shapes carried and adding source/error_code for the caller"
+  ],
+  "not_run": [
+    "the OCR document tier (a real model call producing document JSON through the document model and the column validators), the engine document tier admission, real bank statements, the queue, frontend integration, deployment, external results and user acceptance",
+    "multi-file merge (the deployed merge_statements / merge_gl_files are still unmigrated)"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-intake-wiring.md"
+}

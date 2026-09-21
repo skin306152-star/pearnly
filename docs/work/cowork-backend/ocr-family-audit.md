@@ -45,6 +45,9 @@
 | `bank_stmt_gemini.py` 的对账单提示词 + `_STMT_PROMPT_VER`、`bank_gl_gemini.py` 的 `_PROMPT` + `_PAGES_PER_CHUNK` | `reconciliation/bank_prompts.py` | **第四十批** · [模型路径](ocr-model-path.md) |
 | 两个 gemini 模块里「拿到模型结果之后」的判定（读空闸、逐行归一、分块合并） | `reconciliation/bank_model_path.py` | **第四十批** · [模型路径](ocr-model-path.md) |
 | `bank_stmt_reread.py` 的换眼重读仲裁（断链计数、严格更少才采纳、一页失败整轮弃） | `reconciliation/bank_reread.py` | **第四十批** · [模型路径](ocr-model-path.md) |
+| `bank_recon_v2.py` 的分发 + `bank_recon_pipeline.py` 的选路（字节 → 行） | `reconciliation/bank_intake.py` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
+| `bank_arbitration_guard.py`（两法分歧守门） | `reconciliation/bank_arbitration.py` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
+| 文件 → 任务的编排（读原件那一段） | `doctype/cowork_bank_reconciliation` 的 `create_from_sources` + `bank_recon_service.create_from_documents` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
 
 ## 三、有意不迁（有理由，非遗漏）
 
@@ -100,7 +103,7 @@
 
 ## 六、建议的后续顺序
 
-1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（**第四十批已交付银行/GL 提示词、模型结果判定与换眼重读仲裁**；引擎文档档位、执行接线与接进原生银行任务待下一批）。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（**第四十批交付银行/GL 提示词、模型结果判定与换眼重读仲裁；第四十一批交付文件入口并把链接进原生银行任务**，见[文件入口](ocr-intake-wiring.md)；仍差 OCR 域的**文档档位**把模型调用接上，以及 `needs_mapping`、多文件合并、企业版）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 

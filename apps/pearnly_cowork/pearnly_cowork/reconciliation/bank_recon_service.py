@@ -12,6 +12,7 @@ from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
+	bank_intake,
 	bank_matching,
 	bank_parse,
 	bank_recon_access,
@@ -131,6 +132,64 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 		"amount_fixed_count": statement["amount_fixed_count"],
 		"parser_version": statement["parser_version"],
 		"needs_review": bool(statement["needs_review"] or gl["needs_review"]),
+	}}
+
+
+def create_from_documents(workspace, title, request_id, statement_bytes, statement_filename,
+		gl_bytes, gl_filename, header=None, gl_account_code="", reconciliation_type="bank",
+		model_rows=None, read_page=None, page_count=None, warnings=None, anchors=None, lang="th"):
+	"""Store one reconciliation from **files**, through the native readers.
+
+	The bytes are handed in by the caller (the file store stays with the caller's
+	domain); ``bank_intake`` reads them with the native deterministic readers first
+	and falls back to the injected ``model_rows`` only when they cannot decode the
+	file. Everything after the decode is the same validated path as ``create``. A
+	file the readers and the model both refuse is an error, not an empty run;
+	per-file diagnostics are stored so the workbook's File Info section shows the
+	same numbers the deployed run recorded.
+	"""
+	if not isinstance(statement_bytes, bytes) or not isinstance(gl_bytes, bytes):
+		frappe.throw(_("reconciliation.request_invalid"))
+	statement = bank_intake.read_statement_file(statement_bytes, statement_filename,
+		model_rows=model_rows, read_page=read_page, page_count=page_count)
+	if not statement.get("ok"):
+		frappe.throw(_("reconciliation.statement_unparsed"))
+	ledger = bank_intake.read_ledger_file(gl_bytes, gl_filename,
+		account_code=gl_account_code, model_rows=model_rows)
+	if not ledger.get("ok"):
+		frappe.throw(_("reconciliation.ledger_unparsed"))
+	overrides = {} if header in (None, "") else header
+	if not isinstance(overrides, dict):
+		frappe.throw(_("reconciliation.header_invalid"))
+	values = {"stmt_opening": statement["opening"], "stmt_closing": statement["closing"],
+		"bank_code": statement["bank_code"], "gl_opening": ledger["opening"],
+		"gl_closing": ledger["closing"], "gl_account_code": gl_account_code}
+	values.update(overrides)
+	result = create(workspace, title, request_id,
+		bank_parse.decoded_statement_rows(statement["rows"]),
+		bank_parse.decoded_gl_rows(ledger["rows"]), values, reconciliation_type,
+		source_format=bank_parse.SOURCE_FORMAT,
+		parse_info={
+			"stmt_files": [{"file": statement_filename, "rows": statement["row_count"],
+				"ok": True, "error": None, "error_code": None,
+				"bank_code": statement["bank_code"]}],
+			"gl_files": [{"file": gl_filename, "rows": ledger["row_count"], "ok": True,
+				"error": None, "error_code": None, "accounts": ledger["accounts"]}],
+		}, warnings=warnings, anchors=anchors, lang=lang)
+	return {**result, "parsed": {
+		"statement_rows": statement["row_count"],
+		"gl_rows": ledger["row_count"],
+		"opening": statement["opening"],
+		"closing": statement["closing"],
+		"bank_code": statement["bank_code"],
+		"statement_source": statement["source"],
+		"gl_source": ledger["source"],
+		"balance_warn_count": statement["balance_warn_count"],
+		"amount_fixed_count": statement["amount_fixed_count"],
+		"completeness_ok": statement["completeness"]["ok"],
+		"escalations": statement.get("escalations") or [],
+		"parser_version": statement["parser_version"],
+		"needs_review": bool(statement["needs_review"] or ledger["needs_review"]),
 	}}
 
 
