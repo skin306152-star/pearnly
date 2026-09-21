@@ -12,64 +12,54 @@
 金额一律用 Decimal 计算后写入；日期用 Date/Datetime，时间戳存 UTC。
 """
 
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import flt
 
-TWO = Decimal("0.01")
-
-
-def q2(value) -> Decimal:
-    return Decimal(str(value or 0)).quantize(TWO, rounding=ROUND_HALF_UP)
+from pearnly_erp_portal.purchasing import contracts
 
 
 class PurchaseDocument(Document):
     def validate(self):
-        self._validate_amounts()
+        if (self.fx_rate or 0) <= 0:
+            frappe.throw(_("The FX rate must be greater than 0"))
         self._recompute()
 
-    def _validate_amounts(self):
+    def _recompute(self):
+        """金额一律重算，不接受前端传进来的合计——避免对不上账。
+
+        规则本体在 `purchasing/contracts.py`（纯逻辑、可离线验证），这里只负责把它
+        接到单据上：这样网页、LINE、识别入库三条路径用的是同一份金额口径。
+        """
         if not self.lines:
             frappe.throw(_("A purchase document needs at least one line"))
-        if flt(self.fx_rate) <= 0:
-            frappe.throw(_("The FX rate must be greater than 0"))
+
+        try:
+            totals = contracts.compute_totals(
+                lines=[
+                    {"qty": line.qty, "unit_price": line.unit_price,
+                     "discount": line.discount, "vat_rate": line.vat_rate}
+                    for line in self.lines
+                ],
+                has_vat=bool(self.has_vat),
+                doc_kind=self.doc_kind,
+                discount_total=self.discount_total,
+                wht_amount=self.wht_amount,
+                rounding=self.rounding,
+            )
+        except ValueError as exc:
+            frappe.throw(str(exc))
+
+        # 行小计回填，明细与合计对得上。
         for line in self.lines:
-            if flt(line.qty) <= 0:
-                frappe.throw(_("Row {0}: quantity must be greater than 0").format(line.idx))
-            if flt(line.unit_price) < 0:
-                frappe.throw(_("Row {0}: unit price cannot be negative").format(line.idx))
+            line.line_total = contracts.q2(
+                Decimal(str(line.qty or 0)) * Decimal(str(line.unit_price or 0))
+            ) - contracts.q2(line.discount)
 
-    def _recompute(self):
-        """金额一律重算，不接受前端传进来的合计——避免对不上账。"""
-        subtotal = Decimal("0")
-        vat_total = Decimal("0")
-
-        for line in self.lines:
-            gross = Decimal(str(line.qty)) * Decimal(str(line.unit_price))
-            line_total = q2(gross) - q2(line.discount)
-            line.line_total = line_total
-            subtotal += line_total
-            if self.has_vat:
-                vat_total += q2(line_total * Decimal(str(line.vat_rate)) / Decimal("100"))
-
-        self.subtotal = q2(subtotal)
-        self.vat_amount = q2(vat_total) if self.has_vat else Decimal("0")
-        self.grand_total = q2(Decimal(str(self.subtotal)) + Decimal(str(self.vat_amount)))
-        self.net_payable = q2(
-            Decimal(str(self.grand_total))
-            - Decimal(str(self.wht_amount or 0))
-            - Decimal(str(self.discount_total or 0))
-            + Decimal(str(self.rounding or 0))
-        )
-
-        # 付款状态跟着实付金额走，不让人手填出一个矛盾的组合
-        paid = q2(self.paid_amount)
-        if paid <= 0:
-            self.payment_status = "unpaid"
-        elif paid < self.net_payable:
-            self.payment_status = "partial"
-        else:
-            self.payment_status = "paid"
+        self.subtotal = totals["subtotal"]
+        self.vat_amount = totals["vat_amount"]
+        self.grand_total = totals["grand_total"]
+        self.net_payable = totals["net_payable"]
+        self.payment_status = contracts.payment_status(self.paid_amount, self.net_payable)

@@ -104,7 +104,8 @@ FEATURE = "Pearnly Feature"
 # 目前没有可挡的东西，就不在这里假装有权限 —— 等产品界面做出来再补。
 ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
-    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line"]),
+    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line",
+                                           "ERP Supplier", "ERP Purchase Settings"]),
     ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit"]),
     # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，
     # 但商品主数据只读（权限覆盖见 READ_ONLY）。

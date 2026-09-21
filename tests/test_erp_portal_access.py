@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
 
 from pearnly_erp_portal.access import rules  # noqa: E402
 from pearnly_erp_portal.products import contracts  # noqa: E402
+from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -148,6 +149,70 @@ class ProductContracts(unittest.TestCase):
         stock = rules.FEATURE_ROLES["warehouses"]
         self.assertTrue(rules.can({stock}, "products.view"))
         self.assertFalse(rules.can({stock}, "products.manage"))
+
+
+class PurchaseAmounts(unittest.TestCase):
+    def test_totals_follow_the_legacy_shape(self):
+        # 旧线上实测过的一组：小计 100、VAT 7、WHT 5 → 净应付 102。
+        totals = purchase_contracts.compute_totals(
+            lines=[{"qty": 1, "unit_price": 100, "vat_rate": 7}],
+            has_vat=True, doc_kind="service", wht_amount=5,
+        )
+        self.assertEqual(str(totals["subtotal"]), "100.00")
+        self.assertEqual(str(totals["vat_amount"]), "7.00")
+        self.assertEqual(str(totals["grand_total"]), "107.00")
+        self.assertEqual(str(totals["net_payable"]), "102.00")
+
+    def test_wht_can_come_from_a_rate(self):
+        totals = purchase_contracts.compute_totals(
+            lines=[{"qty": 2, "unit_price": 50}], has_vat=False, doc_kind="service",
+            wht_rate=3,
+        )
+        self.assertEqual(str(totals["wht_amount"]), "3.00")
+        self.assertEqual(str(totals["net_payable"]), "97.00")
+
+    def test_line_discount_and_document_adjustments(self):
+        totals = purchase_contracts.compute_totals(
+            lines=[{"qty": 3, "unit_price": 10, "discount": 5}],
+            has_vat=False, doc_kind="goods", discount_total=2, rounding="0.5",
+        )
+        self.assertEqual(str(totals["subtotal"]), "25.00")
+        self.assertEqual(str(totals["net_payable"]), "23.50")
+
+    def test_bad_lines_are_rejected(self):
+        cases = [
+            ([], True, "lines"),
+            ([{"qty": 0, "unit_price": 10}], False, "greater than 0"),
+            ([{"qty": 1, "unit_price": -1}], False, "invalid"),
+            ([{"qty": 1, "unit_price": 10, "discount": 20}], False, "exceeds"),
+        ]
+        for lines, has_vat, message in cases:
+            with self.subTest(message=message), self.assertRaisesRegex(ValueError, message):
+                purchase_contracts.compute_totals(lines=lines, has_vat=has_vat, doc_kind="goods")
+
+    def test_payment_status_follows_the_amount(self):
+        status = purchase_contracts.payment_status
+        self.assertEqual(status(0, "102.00"), "unpaid")
+        self.assertEqual(status("50", "102.00"), "partial")
+        self.assertEqual(status("102", "102.00"), "paid")
+        self.assertEqual(status("150", "102.00"), "paid")
+
+    def test_only_allowed_status_transitions(self):
+        can = purchase_contracts.can_transition
+        self.assertTrue(can("draft", "submitted"))
+        self.assertTrue(can("draft", "void"))
+        self.assertTrue(can("submitted", "void"))
+        self.assertFalse(can("submitted", "draft"))
+        self.assertFalse(can("void", "draft"))
+        self.assertFalse(can("void", "submitted"))
+
+    def test_duplicate_key_needs_both_supplier_and_doc_no(self):
+        key = purchase_contracts.duplicate_key
+        self.assertEqual(key("ACME", "IV-1"), "acme:iv-1")
+        # 单据类型不进判据：同一家供应商的同一个单号就是同一张单。
+        self.assertEqual(key("ACME", "IV-1"), key("ACME", "iv-1"))
+        self.assertIsNone(key("ACME", ""))
+        self.assertIsNone(key("", "IV-1"))
 
 
 if __name__ == "__main__":
