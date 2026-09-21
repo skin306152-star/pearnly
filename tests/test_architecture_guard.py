@@ -102,5 +102,82 @@ class ArchitectureGuard(unittest.TestCase):
         self.assertTrue(any("compatibility entry" in x for x in guard.check(self.root)))
 
 
+class ProductDeclarations(unittest.TestCase):
+    """ADR-009: a product declares its own catalog, menu and glossary."""
+
+    APPS = {"pearnly_cowork": "cowork", "pearnly_erp_portal": "erp", "pearnly_dms": "dms"}
+
+    def setUp(self):
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.root = Path(temp.name)
+        (self.root / "scripts").mkdir()
+        self.write_tool_apps()
+        for app, product in self.APPS.items():
+            self.write_product(app, product)
+
+    def write_tool_apps(self):
+        for app in ("pearnly_core", "pearnly_control"):
+            package = self.root / "apps" / app / app
+            package.mkdir(parents=True)
+            (package.parent / "pyproject.toml").write_text("")
+            for name in ("__init__.py", "hooks.py", "modules.txt", "patches.txt"):
+                (package / name).write_text("")
+        desk = self.root / "apps/pearnly_core/pearnly_core/desk"
+        desk.mkdir()
+        (desk / "navigation.py").write_text('"""Shared menu assembly."""\n')
+        policy = self.root / "docs/development/architecture-policy.json"
+        policy.parent.mkdir(parents=True)
+        policy.write_text(json.dumps({"root_modules": {}}))
+        (policy.parent / "dms-module-map.json").write_text(
+            json.dumps({"modules": {}, "compatibility": {}}))
+
+    def write_product(self, app, product, catalog=True, glossary=True):
+        package = self.root / "apps" / app / app
+        package.mkdir(parents=True, exist_ok=True)
+        (package.parent / "pyproject.toml").write_text("")
+        for name in ("__init__.py", "modules.txt", "patches.txt"):
+            (package / name).write_text("")
+        (package / "hooks.py").write_text(
+            'pearnly_navigation = [{"product": "%s"}]\n' % product)
+        if catalog:
+            (package / "features.json").write_text(
+                json.dumps({"product": product, "features": []}))
+        if glossary:
+            (package / "i18n").mkdir(exist_ok=True)
+            (package / "i18n/messages.tsv").write_text("en\tzh\tth\tja\tkey\n")
+
+    def test_a_product_declares_its_own_catalog_menu_and_glossary(self):
+        self.assertEqual(guard.check(self.root), [])
+
+    def test_a_missing_catalog_is_reported(self):
+        (self.root / "apps/pearnly_cowork/pearnly_cowork/features.json").unlink()
+        self.assertTrue(any("feature catalog" in error for error in guard.check(self.root)))
+
+    def test_a_catalog_naming_another_product_is_reported(self):
+        path = self.root / "apps/pearnly_erp_portal/pearnly_erp_portal/features.json"
+        path.write_text(json.dumps({"product": "cowork", "features": []}))
+        self.assertTrue(any("must name product erp" in error for error in guard.check(self.root)))
+
+    def test_a_product_without_its_own_menu_is_reported(self):
+        package = self.root / "apps/pearnly_dms/pearnly_dms"
+        (package / "hooks.py").write_text("app_name = 'pearnly_dms'\n")
+        self.assertTrue(any("pearnly_navigation" in error for error in guard.check(self.root)))
+
+    def test_a_product_without_its_own_glossary_is_reported(self):
+        (self.root / "apps/pearnly_dms/pearnly_dms/i18n/messages.tsv").unlink()
+        self.assertTrue(any("own glossary" in error for error in guard.check(self.root)))
+
+    def test_the_retired_shared_glossary_is_reported(self):
+        (self.root / "scripts/i18n").mkdir(parents=True)
+        (self.root / "scripts/i18n/messages.tsv").write_text("app\ten\tzh\tth\tja\tkey\n")
+        self.assertTrue(any("glossary is per product" in error for error in guard.check(self.root)))
+
+    def test_product_menu_entries_in_the_shared_layer_are_reported(self):
+        desk = self.root / "apps/pearnly_core/pearnly_core/desk/navigation.py"
+        desk.write_text('PAGES = {"dms": [("nav.home", "pearnly-home", "home", None)]}\n')
+        self.assertTrue(any("product menu entries" in error for error in guard.check(self.root)))
+
+
 if __name__ == "__main__":
     unittest.main()

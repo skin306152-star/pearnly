@@ -12,6 +12,27 @@ app_license = "mit"
 pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
 pearnly_line_binding_changed = ["pearnly_dms.line.identity.binding_changed", "pearnly_dms.menu.rich_menu.request_sync"]
 
+# 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
+# DMS 的三个管理页只对产品管理员开放（判据 `any_role`），其余看的是表读权限。
+pearnly_navigation = [
+    {
+        "product": "dms",
+        "app": "pearnly_dms",
+        "pages": [
+            ("nav.home", "pearnly-home", "home", None),
+            ("nav.connect", "pearnly-connect", "plug", None),
+            ("nav.records", "pearnly-records", "list", "push_record"),
+            ("nav.roster", "pearnly-roster", "users", "roster"),
+        ],
+        "available": ["pearnly-home", "pearnly-connect", "pearnly-roster", "pearnly-records"],
+        "permissions": {
+            "pearnly-connect": {"any_role": ["DMS Admin", "System Manager"]},
+            "pearnly-roster": {"any_role": ["DMS Admin", "System Manager"]},
+            "pearnly-records": {"any_role": ["DMS Admin", "System Manager"]},
+        },
+    }
+]
+
 doc_events = {
     "DMS Operator": {
         "on_update": "pearnly_dms.menu.rich_menu.operator_changed",

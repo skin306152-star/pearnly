@@ -33,6 +33,11 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
       - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+      # 菜单与功能目录已经按产品各自维护：验证控制面汇总与租户菜单时要能读到
+      # 三个产品的当前源码，所以它们也挂进来（只读）。
+      - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
       - ../../scripts:/workspace/scripts:ro
       - ../../tests:/workspace/tests:ro
 networks:

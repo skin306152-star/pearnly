@@ -270,3 +270,30 @@ app_include_js = [versioned_asset("pearnly_erp_portal", "desk/purchase.js")]
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
+
+# 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
+# 只有真做出来的页面进 `available`，没做的留在目录里占位（功能归属不丢）。
+pearnly_navigation = [
+    {
+        "product": "erp",
+        "app": "pearnly_erp_portal",
+        "pages": [
+            ("nav.home", "pearnly-home", "home", None),
+            ("nav.products", "pearnly-products", "stock", "products"),
+            ("nav.inventory", "pearnly-inventory", "stock", "warehouses"),
+            ("nav.stockIn", "pearnly-stock-in", "arrow-down", "warehouses"),
+            ("nav.stockOut", "pearnly-stock-out", "arrow-up", "warehouses"),
+            ("nav.stockCard", "pearnly-stock-card", "list", "stockcard"),
+            ("nav.purchase", "pearnly-purchase", "cart", "purchase"),
+            ("nav.suppliers", "pearnly-suppliers", "users", "purchase"),
+            ("nav.purchaseSettings", "pearnly-buy-settings", "settings", "purchase"),
+            ("nav.sales", "pearnly-sales", "cart", "sales"),
+            ("nav.erpClients", "pearnly-clients", "users", "clients"),
+            ("nav.company", "pearnly-company", "organization", None),
+            ("nav.team", "pearnly-team", "users", None),
+            ("nav.integrations", "pearnly-integrations", "plug", None),
+        ],
+        "available": ["pearnly-home", "pearnly-purchase"],
+        "permissions": {"pearnly-purchase": {"doctype": "Purchase Document"}},
+    }
+]

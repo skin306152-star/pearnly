@@ -136,7 +136,7 @@ Local Port,Local Port
 Local URL,Local URL
 Manual adjustment · {0},Manual adjustment · {0}
 Mark provisioning done,Mark provisioning done
-Matches the feature keys in the product manifest (product_manifest.py).,Matches the feature keys in the product manifest (product_manifest.py).
+Matches the feature key in the product's own feature catalog (features.json).,Matches the feature key in the product's own feature catalog (features.json).
 Monthly Fee,Monthly Fee
 No provisioning request yet; click “Run provisioning” to start,No provisioning request yet; click “Run provisioning” to start
 No such deployment: {0},No such deployment: {0}

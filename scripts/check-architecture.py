@@ -7,6 +7,10 @@ reviewed baseline, not a pattern for new business features.
 Domain dependency directions are registered per App in the policy; DMS and Cowork
 both have one. The framework module directory of an App (its DocType controllers)
 is the orchestration layer and is not registered.
+
+Product content is declared by each product (ADR-009): its sellable feature
+catalog, its own menu and its own glossary live in its own directory, and the
+shared layer or the control plane only aggregate them.
 """
 import ast
 import json
@@ -15,6 +19,48 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY = ROOT / "docs/development/architecture-policy.json"
+
+# 产品内容的声明归产品自己（ADR-009）。只在"这一份仓库确实带全部产品"时检查，
+# 便于用最小目录树单测这条规则本身。
+PRODUCT_APPS = {"pearnly_cowork": "cowork", "pearnly_erp_portal": "erp",
+                "pearnly_dms": "dms"}
+
+
+def check_product_declarations(root):
+    """每个产品自己声明功能目录与菜单；共用层不许再存这些内容。"""
+    errors = []
+    if not (root / "apps/pearnly_control").is_dir():
+        return errors
+    for app, product in sorted(PRODUCT_APPS.items()):
+        package = root / "apps" / app / app
+        catalog = package / "features.json"
+        if not catalog.is_file():
+            errors.append(f"{catalog.relative_to(root)}: {product} must declare its sellable "
+                          "feature catalog next to the product")
+        else:
+            try:
+                declared = json.loads(catalog.read_text())
+            except ValueError as error:
+                errors.append(f"{catalog.relative_to(root)}: catalog is not valid JSON: {error}")
+                declared = {}
+            if declared.get("product") != product or not isinstance(declared.get("features"), list):
+                errors.append(f"{catalog.relative_to(root)}: catalog must name product "
+                              f"{product} and list its features")
+        hooks = package / "hooks.py"
+        if not re.search(r"^pearnly_navigation\s*=", hooks.read_text(), re.MULTILINE):
+            errors.append(f"{hooks.relative_to(root)}: declare this product's menu as "
+                          "pearnly_navigation")
+        glossary = package / "i18n/messages.tsv"
+        if not glossary.is_file():
+            errors.append(f"{glossary.relative_to(root)}: each product keeps its own glossary")
+    if (root / "scripts/i18n/messages.tsv").exists():
+        errors.append("scripts/i18n/messages.tsv: the glossary is per product now "
+                      "(apps/<app>/<app>/i18n/messages.tsv)")
+    navigation = root / "apps/pearnly_core/pearnly_core/desk/navigation.py"
+    if navigation.is_file() and re.search(r"pearnly-[a-z]", navigation.read_text()):
+        errors.append(f"{navigation.relative_to(root)}: the shared layer must not hold product "
+                      "menu entries; each product declares its own")
+    return errors
 
 
 def check(root=ROOT):
@@ -118,6 +164,7 @@ def check(root=ROOT):
             errors.append(f"{path.relative_to(root)}: use native frappe Dialog/confirm/msgprint")
         if re.search(r"<(?:input|select|textarea|table)\b", source):
             errors.append(f"{path.relative_to(root)}: use native Desk controls and Grid/DataTable")
+    errors.extend(check_product_declarations(root))
     return errors
 
 

@@ -9,6 +9,8 @@ MANIFEST = {
     "entry_prefixes": ["/api/v1/cowork/", "/api/v1/me/", "/pearnly-password"],
     "apps": ["pearnly_core", "pearnly_cowork"],
     # 功能（对应旧系统界面里的菜单）
+    # 可售卖的功能目录（角色、授权表、默认开关）在同目录的 features.json：
+    # 那张表由控制面读文件汇总，这里是产品的入口/依赖/禁止事项。
     "features": [
         "intake",          # 录入工作台
         "ocr_history",     # 识别记录

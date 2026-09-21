@@ -1,10 +1,12 @@
 """Offline checks for the ERP portal access rules.
 
 No Frappe, no Site, no network: `access.rules` must stay pure. The role names are
-compared against the control-plane catalogue that actually creates them, so a
-rename on either side fails here instead of silently granting nothing.
+compared against the product's own feature catalogue (`features.json`, ADR-009)
+that the control plane reads and turns into roles, so a rename on either side fails
+here instead of silently granting nothing.
 """
 import ast
+import json
 from datetime import date
 from pathlib import Path
 import sys
@@ -22,33 +24,34 @@ from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E4
 from pearnly_erp_portal.sales import contracts as sales_contracts  # noqa: E402
 from pearnly_erp_portal.sales import render as sales_render  # noqa: E402
 
-FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
+CATALOG = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/features.json"
+SHARED = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
 
-def _literal(name):
-    """Pull one module-level literal assignment out of the control-plane module."""
-    tree = ast.parse(FEATURES.read_text())
+def _catalog():
+    return json.loads(CATALOG.read_text())
+
+
+def _base_roles():
+    """The base roles are cross-product policy and stay in the control plane."""
+    tree = ast.parse(SHARED.read_text())
     for node in tree.body:
         if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == name for t in node.targets
+            isinstance(t, ast.Name) and t.id == "BASE_ROLES" for t in node.targets
         ):
             return ast.literal_eval(node.value)
-    raise AssertionError(f"{name} not found in {FEATURES}")
+    raise AssertionError(f"BASE_ROLES not found in {SHARED}")
 
 
 class RoleParity(unittest.TestCase):
     def test_admin_role_matches_control_plane(self):
-        self.assertEqual(rules.ADMIN_ROLE, _literal("PRODUCT_ADMIN_ROLE")["erp"])
+        self.assertEqual(rules.ADMIN_ROLE, _catalog()["admin_role"])
 
     def test_base_role_is_granted_by_control_plane(self):
-        self.assertIn(rules.BASE_ROLE, _literal("BASE_ROLES"))
+        self.assertIn(rules.BASE_ROLE, _base_roles())
 
     def test_feature_roles_match_control_plane(self):
-        enforcement = _literal("ENFORCEMENT")
-        expected = {
-            code: role for (product, code), (role, _doctypes) in enforcement.items()
-            if product == "erp"
-        }
+        expected = {item["code"]: item["role"] for item in _catalog()["features"] if item["role"]}
         self.assertTrue(expected, "control plane must enforce at least one ERP feature")
         for code, role in expected.items():
             with self.subTest(code=code):

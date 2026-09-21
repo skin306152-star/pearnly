@@ -364,3 +364,29 @@ override_whitelisted_methods = {
 }
 
 pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run"}
+
+# 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
+# 每项 = (标题 key, 页面路由, 图标, 需要的功能码或 None)。
+# `available` 只列**真的做出来了**的页面（做好的放开，没做的先占位不显示）；
+# `permissions` 给出每个路由的准入判据（`doctype` = 要有该表的读权限）。
+pearnly_navigation = [
+    {
+        "product": "cowork",
+        "app": "pearnly_cowork",
+        "pages": [
+            ("nav.home", "pearnly-home", "home", None),
+            ("nav.intake", "pearnly-intake", "scan", "intake"),
+            ("nav.history", "pearnly-history", "list", "ocr_history"),
+            ("nav.pushLogs", "pearnly-push-logs", "list", "push_log"),
+            ("nav.reconcile", "pearnly-reconcile", "check", "recon"),
+            ("nav.stocktake", "pearnly-stocktake", "stock", "stocktake"),
+            ("nav.clients", "pearnly-clients", "users", "master_data"),
+            ("nav.company", "pearnly-company", "organization", "master_data"),
+            ("nav.team", "pearnly-team", "users", "master_data"),
+            ("nav.integrations", "pearnly-integrations", "plug", "master_data"),
+            ("nav.guide", "pearnly-guide", "help", "express_guide"),
+        ],
+        "available": ["pearnly-home", "pearnly-intake"],
+        "permissions": {"pearnly-intake": {"doctype": "Intake Record"}},
+    }
+]

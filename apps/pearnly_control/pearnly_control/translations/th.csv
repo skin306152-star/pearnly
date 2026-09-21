@@ -140,7 +140,7 @@ Local Port,พอร์ตในเครื่อง
 Local URL,ที่อยู่ในเครื่อง
 Manual adjustment · {0},ปรับยอดด้วยคน · {0}
 Mark provisioning done,ทำเครื่องหมายว่าเปิดใช้งานเสร็จ
-Matches the feature keys in the product manifest (product_manifest.py).,ตรงกับคีย์ features ในรายการผลิตภัณฑ์ (product_manifest.py)
+Matches the feature key in the product's own feature catalog (features.json).,ตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกของผลิตภัณฑ์เอง (features.json)
 Monthly Fee,ค่าบริการรายเดือน
 No provisioning request yet; click “Run provisioning” to start,"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"
 No such deployment: {0},ไม่มีการติดตั้งนี้: {0}

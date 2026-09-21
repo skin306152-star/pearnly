@@ -2,8 +2,9 @@
 """从术语表生成各 App 的 Frappe 翻译包（`apps/<app>/<app>/translations/<lang>.csv`）。
 
 为什么要有这层生成：同一条文案在三个地方都要用到（服务端 `_()`、Desk `__()`、
-DocType JSON 的 label），各写一份必然对不上。所以**术语表是唯一来源**
-（`scripts/i18n/messages.tsv`：一条文案一行，四个语言并排），翻译包由它生成。
+DocType JSON 的 label），各写一份必然对不上。所以**术语表是唯一来源**，而术语表
+**按产品各自维护**在 `apps/<app>/<app>/i18n/messages.tsv`（一条文案一行，四个语言
+并排）；这里只负责把它们汇总成翻译包。
 
 生成的 CSV 是 Frappe 认的标准格式（`msgid,译文`），也是**要提交的产物** ——
 发布时读的是它，不是术语表。
@@ -15,7 +16,7 @@ DocType JSON 的 label），各写一份必然对不上。所以**术语表是�
 · **译文放在哪个 App 由"谁渲染"决定**，不是"谁定义"。例：功能目录写在
   `pearnly_control`，但工作台卡片渲染在**租户站点**上，而租户站点不装
   `pearnly_control` —— 所以那条译文必须落在 `pearnly_core`（每个站点都装）。
-  术语表的 `app` 列就是这个意思。
+  拆表之后，"放哪个 App"就是"把这一行写进谁的术语表"。
 · **不删已有的行**：CSV 里可能有脚本之外手工加的条目（例如沿用老产品的译文），
   生成时合并保留，只覆盖术语表里出现过的键。
 
@@ -33,53 +34,8 @@ import os
 import sys
 from collections import defaultdict
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-ROOT = os.path.dirname(HERE)
-SOURCE = os.path.join(HERE, "i18n", "messages.tsv")
+from i18n_glossary import EN, LANGS, ROOT, read_glossary
 
-LANGS = ("zh", "th", "ja")
-# 也要出一份 `en.csv`：Frappe 那套里"英文就是 msgid 本身"、不需要文件；
-# 但**业务前端**是按 key 取文案的（`nav.home` 这种），英语那一档没有文件
-# 就会把 key 直接显示出来。所以英文也要有包。
-EN = "en"
-# 最后一列 `key` 可选：填了就说明这条是**语义键**（CSV 第一列用 key，`en` 列当英文文案）；
-# 不填就是 Frappe 那套"英文原文当 msgid"。
-FIELDS = ("app", "en") + LANGS + ("key",)
-
-
-def read_glossary() -> tuple[list[dict], list[str]]:
-    problems: list[str] = []
-    rows: list[dict] = []
-    seen: dict[tuple[str, str], dict] = {}
-    with open(SOURCE, encoding="utf-8", newline="") as handle:
-        reader = csv.DictReader(handle, delimiter="\t")
-        if tuple(reader.fieldnames or ()) != FIELDS:
-            problems.append(
-                "表头必须是 %s，实际是 %s" % ("\\t".join(FIELDS), reader.fieldnames)
-            )
-            return [], problems
-        for index, row in enumerate(reader, start=2):
-            # `key` 可以留空（那表示用英文原文当 msgid），其余列必填
-            missing = [f for f in FIELDS if f != "key" and not str(row.get(f) or "").strip()]
-            if missing:
-                problems.append("第 %d 行缺列：%s" % (index, ", ".join(missing)))
-                continue
-            # `\n` 是转义写法（TSV 一行放不下真换行），出译文时要还原
-            item = {f: str(row.get(f) or "").replace("\\n", "\n").strip() for f in FIELDS}
-            item["msgid"] = item["key"] or item["en"]
-            key = (item["app"], item["msgid"])
-            if key in seen:
-                # 同一个英文 msgid 允许出现多行（两个中文说法对应同一个英文，
-                # 例如「明细」和「细节」都翻 Details）—— 但译文必须一致，
-                # 否则生成时谁覆盖谁全看顺序，那种不一致要挡下来。
-                if any(seen[key][lang] != item[lang] for lang in LANGS):
-                    problems.append(
-                        "第 %d 行与前面的 %s 同英文但译文不同：%s" % (index, key[1], seen[key]["zh"])
-                    )
-                continue
-            seen[key] = item
-            rows.append(item)
-    return rows, problems
 
 
 def translations_dir(app: str) -> str:

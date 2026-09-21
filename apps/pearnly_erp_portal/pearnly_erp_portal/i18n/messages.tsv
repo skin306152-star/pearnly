@@ -1,0 +1,23 @@
+en	zh	th	ja	key
+That code is not valid	验证码不正确	รหัสไม่ถูกต้อง	コードが正しくありません	
+Bound to {0}	已绑定到 {0}	เชื่อมต่อกับ {0} แล้ว	{0} に連携しました	
+Send the code from the ERP page to bind	请把 ERP 页面上的绑定码发过来	กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ	ERP 画面のコードを送信して連携してください	
+Bind this account first	请先绑定 ERP 账号	กรุณาผูกบัญชี ERP ก่อนใช้งาน	先に ERP アカウントを連携してください	
+LINE unbound	LINE 已解绑	ยกเลิกการเชื่อมต่อแล้ว	LINE の連携を解除しました	
+This channel is not open yet	这个通道还没开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません	
+Only purchase documents can be sent in for now	目前只收采购单据	ตอนนี้รับเฉพาะเอกสารจัดซื้อ	現時点では仕入書類のみ受け付けます	
+This account cannot send documents	这个账号不能传单据	บัญชีนี้ส่งเอกสารไม่ได้	このアカウントは書類を送信できません	
+Could not store this document	单据留底失败，请重发	บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を保存できませんでした。再送してください	
+Already received	这份文件已经收过了	ได้รับไฟล์นี้แล้ว	このファイルは受け取り済みです	
+Received; confirm it on the ERP page	已收到，请到 ERP 页面确认	ได้รับแล้ว กรุณายืนยันในหน้า ERP	受け取りました。ERP 画面で確認してください	
+Draft not found	找不到这条草稿	ไม่พบรายการร่าง	下書きが見つかりません	
+This draft was already confirmed or discarded	这条草稿已经确认或作废过了	รายการนี้ยืนยันหรือยกเลิกไปแล้ว	この下書きは確認済みか破棄済みです	
+This document has no content	这份文件是空的	ไฟล์นี้ไม่มีเนื้อหา	この書類は中身がありません	
+This document is too large	这份文件太大	ไฟล์นี้ใหญ่เกินไป	この書類は大きすぎます	
+A stored source file must carry its hash	留底文件必须带内容指纹	ไฟล์ที่เก็บต้องมีค่าแฮช	保存したファイルにはハッシュが必要です	
+A confirmed draft must point at the purchase record it created	已确认的草稿必须指向它建出的采购记录	รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น	確認済みの下書きは作成した仕入記録を指している必要があります	
+Now sending {0} documents	现在发送{0}单据	กำลังส่งเอกสาร{0}	{0}の書類を送信中	
+purchase	采购	จัดซื้อ	仕入	
+sales	销售	ขาย	売上	
+Unknown direction	未知的方向	ทิศทางไม่ถูกต้อง	不明な区分	
+Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手	

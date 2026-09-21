@@ -1,0 +1,90 @@
+{
+  "product": "cowork",
+  "label": "Cowork",
+  "icon": "clipboard-list",
+  "module": "Pearnly Cowork",
+  "admin_role": "Cowork Admin",
+  "admin_extra_doctypes": [],
+  "workspace_labels": {},
+  "notes": [
+    "这份清单是**可售卖的功能目录**，由控制面汇总（pearnly_control/features.py 读文件，不 import 产品代码）。产品手册与范围规则仍在同目录的 product_manifest.py，两者不是同一张表：这里是“卖什么”，那里是“产品的入口、依赖与禁止事项”。",
+    "只列有实际可挡对象的功能：role + doctypes 就是开通时要建的角色与授权；没有 DocType 的功能（识别记录、推送日志、对账、主数据、套餐余额）目前没有可挡的东西，不在这里假装有权限。",
+    "companion_pairing / companion_account_reporting / companion_outbound_pull 是小助手的内部子能力，不是可单独售卖的功能码，所以不在本目录里（它们记在 product_manifest.py）。"
+  ],
+  "features": [
+    {
+      "code": "intake",
+      "label": "Intake Workbench",
+      "default_on": true,
+      "description": "Upload receipts and sheets, extract fields, review each item, then push",
+      "role": "Cowork Intake",
+      "doctypes": [
+        "Intake Record"
+      ],
+      "read_only": []
+    },
+    {
+      "code": "ocr_history",
+      "label": "Recognition Records",
+      "default_on": true,
+      "description": "Batches and results of every recognition run",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "push_log",
+      "label": "Push Log",
+      "default_on": true,
+      "description": "How each push to the external ERP went",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "recon",
+      "label": "Reconciliation",
+      "default_on": true,
+      "description": "Reconcile documents against the ledger",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "master_data",
+      "label": "Master Data",
+      "default_on": true,
+      "description": "Customers, suppliers, accounts and other reference data",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "stocktake",
+      "label": "Stock Count",
+      "default_on": false,
+      "description": "Count tasks and variance records",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "companion",
+      "label": "Companion",
+      "default_on": false,
+      "description": "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "express_guide",
+      "label": "Express Push Guide",
+      "default_on": false,
+      "description": "Install, pair, upgrade and uninstall guide for Companion",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    }
+  ]
+}

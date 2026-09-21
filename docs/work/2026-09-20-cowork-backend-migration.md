@@ -1,5 +1,18 @@
 # Cowork 后端迁移（前端接入前）
 
+## 结构整理（2026-09-21）：按产品各自维护菜单、功能目录、术语表
+
+用户要求"除了 OCR、登录页、订阅、UI，其它各产品维护自己的源码"，并让另一窗口先停手，所以在本工作树里做了一次共用层整理。**这不是 Cowork 迁移批次，改的是共用层**，但对后续几批都有效。完整记录：[按产品各自维护](2026-09-21-shared-files-split.md)；决策：[ADR-009](../adr/0009-product-owned-declarations.md)。
+
+- **功能目录**：控制面那张三个产品合一的表 → 各产品自己的 `features.json`；控制面按 bench 路径读文件汇总，缺文件报错。控制面目录拆表前后**逐字段相同**（含三份 `roles_payload` 的岗位与只读覆盖）。
+- **菜单**：共用层的 `PAGES`/`AVAILABLE_PAGES` → 各产品 `hooks.py` 的 `pearnly_navigation`；共用层用 `frappe.get_hooks` 只取**已装产品**的声明（未装产品的页面因此不可能出现）。三个产品的项数/归属/可用页面契约不变（4/11/14），真实 Site 上 migrate 会按声明重建侧边栏。
+- **术语表**：`scripts/i18n/messages.tsv`（1568 行总表）→ `apps/<app>/<app>/i18n/messages.tsv` 各一份；旧总表删除，生成脚本发现它还在会直接报错。1561 条去重文案内容相同，20 个翻译包**逐字节未变**（唯一有意改动：`Pearnly Feature` 字段说明改成指向 `features.json`，4 份旧翻译行已清）。
+- **闸门**：`scripts/check-architecture.py` 新增三条规则（产品必须有 `features.json`、必须在 `hooks.py` 声明菜单、必须有自己那份术语表；共用层不许再出现产品路由；旧总表不许复活），并配 7 个守卫用例。
+
+验证：控制面目录等价、菜单契约、术语表等价、翻译包不变、两个隔离 Site migrate + `boot_session`、收入对账 Site 用例 19 个、架构 0 违规、`i18n-build --check` PASS、`git diff --check` 干净。未在控制面站点跑 `sync_features()`（控制面站点不在本任务可用环境里；该函数本身未改，等价性用行前/行后同一份 JSON 证明）。
+
+**合并时必看**：main 上 ERP 的菜单比本分支新（15 项、含商品页），合并后要落到 ERP 自己的 `pearnly_navigation` 里，否则 ERP 商品页会从侧栏消失 —— 具体对应表写在[工作包](2026-09-21-shared-files-split.md)末尾。
+
 ## 换窗口交接（2026-09-21，第三十六批交付：银行单/GL 文档级 OCR 第一层）
 
 **用户决定：银行单 / GL 的文档级 OCR 原生承接（"OCR 是产品的核心产物"）。** 整条链按依赖分四层，本批交付第一层——文档模型 + 余额链确定性修复；不接前端、不部署、不改 DMS、不写旧库、不调模型。
