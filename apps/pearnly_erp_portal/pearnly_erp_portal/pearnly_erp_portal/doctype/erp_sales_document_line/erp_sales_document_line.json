@@ -85,7 +85,7 @@
  "links": [],
  "modified": "2026-09-21 00:00:00.000000",
  "module": "Pearnly ERP Portal",
- "name": "erp_sales_document_line",
+ "name": "ERP Sales Document Line",
  "owner": "Administrator",
  "permissions": [
   {

@@ -4,3 +4,9 @@
 只由服务端在**已经开着事务**的连接上 FOR UPDATE 取号；不发任何岗位角色 ——
 员工不需要直接读它，读到的也改不了连号。草稿不占号、作废不回收号。
 """
+
+from frappe.model.document import Document
+
+
+class ERPDocSequence(Document):
+    pass

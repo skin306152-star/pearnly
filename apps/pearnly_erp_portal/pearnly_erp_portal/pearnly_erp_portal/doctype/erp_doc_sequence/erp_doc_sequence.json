@@ -48,7 +48,7 @@
  "links": [],
  "modified": "2026-09-21 00:00:00.000000",
  "module": "Pearnly ERP Portal",
- "name": "erp_doc_sequence",
+ "name": "ERP Doc Sequence",
  "owner": "Administrator",
  "permissions": [
   {

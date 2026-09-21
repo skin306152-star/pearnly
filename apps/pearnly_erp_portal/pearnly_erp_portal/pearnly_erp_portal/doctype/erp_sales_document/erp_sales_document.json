@@ -260,7 +260,7 @@
  "links": [],
  "modified": "2026-09-21 00:00:00.000000",
  "module": "Pearnly ERP Portal",
- "name": "erp_sales_document",
+ "name": "ERP Sales Document",
  "owner": "Administrator",
  "permissions": [
   {

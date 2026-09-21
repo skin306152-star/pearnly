@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import stock
+from pearnly_erp_portal.inventory import stock, warehouses
 from pearnly_erp_portal.masters import company
 from pearnly_erp_portal.sales import contracts
 
@@ -36,8 +36,11 @@ POINTLESS = "Only an issued document can be voided or noted"
 RESET = contracts.RESET_YEARLY
 
 LIST_FIELDS = ("name", "status", "doc_kind", "source", "doc_no", "doc_date", "customer",
-               "buyer_name", "party_type", "tax_id", "grand_total", "net_payable",
-               "vat_amount", "wht_amount", "stock_posted_at", "source_file", "note")
+               "buyer_name", "party_type", "tax_id", "branch_type", "branch_no", "address",
+               "has_vat", "vat_rate", "wht_rate", "header_discount", "subtotal",
+               "discount_total", "vat_amount", "wht_amount", "grand_total", "net_payable",
+               "payment_status", "payment_method", "payment_date", "stock_posted_at",
+               "source_file", "references_document", "note")
 
 
 def _get(name):
@@ -173,11 +176,13 @@ def _post_stock(doc) -> dict:
     if doc.stock_posted_at or not contracts.should_post_stock(doc.doc_kind, doc.status):
         return {"posted": False}
     lines = [{"product": line.product, "qty": line.qty, "unit": line.unit,
-              "unit_price": line.unit_price}
+              "unit_cost": line.unit_price}
              for line in doc.lines if line.product]
     if not lines:
         return {"posted": False}
-    stock.apply_lines(warehouse=None, movement_type="sale_out", lines=lines,
+    # 单据上没有仓库字段（多数租户只有一个仓库），落默认仓库。
+    stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="sale_out",
+                      lines=lines,
                       posting_date=doc.doc_date, ref_type="ERP Sales Document",
                       ref_id=doc.name, doc_no=doc.doc_no, internal=True,
                       client_uuid=f"sales-doc:{doc.name}")
@@ -223,12 +228,12 @@ def void_document(name, reason=None) -> dict:
 def _reverse_stock(doc, reason=None) -> None:
     if not doc.stock_posted_at:
         return
-    lines = [{"product": line.product, "qty": line.qty, "unit": line.unit,
-              "unit_price": line.unit_price}
+    lines = [{"product": line.product, "qty": line.qty, "unit": line.unit}
              for line in doc.lines if line.product]
     if lines:
         # 作废把货退回，方向与收银退货一致（入库）。
-        stock.apply_lines(warehouse=None, movement_type="stock_in", lines=lines,
+        stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="stock_in",
+                          lines=lines,
                           posting_date=doc.doc_date, ref_type="ERP Sales Document",
                           ref_id=doc.name, doc_no=doc.doc_no, reason=reason, internal=True,
                           client_uuid=f"sales-doc-void:{doc.name}")
