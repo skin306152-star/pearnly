@@ -15,7 +15,7 @@ def main():
     sites = Path("sites")
     sites.mkdir(exist_ok=True)
     marker = sites / ".cowork-backend-lab"
-    allowed = {"cowork-backend-preparation.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
+    allowed = {"cowork-backend-ack.localhost", "cowork-backend-preparation.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
                "cowork-backend-fresh.localhost", "cowork-backend-files.localhost",
                "cowork-backend-execution.localhost", "cowork-backend-table.localhost",
                "cowork-backend-roundtrip.localhost", "cowork-backend-push.localhost",

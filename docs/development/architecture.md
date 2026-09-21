@@ -129,3 +129,9 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 `companion.transport` 单向调用 `push.native` 账本，不包含 HTTP 或提交。私有 Delivery 把线协议 UUID 绑定到本 Site/Connection/历史 Credential/Attempt/fence；原始 attempt secret 使用原生 Password 密文，不编码进句柄。`receipt_auth` 的窄能力可在停闸、撤权或轮换后接收原历史任务结果，不能领取新任务或写报告，也不跳过原 issuer 的 IP 限制；它与当前派发能力互不通用。
 
 `queue_api` 为薄事务入口，显式提交成功才返回原生 Frappe `message` 封套；只对提交前本地死锁有限重试并重验权限，提交或回滚失败不重跑任务。错误堆栈、Recorder 和原生消息列表不得带出 Bearer 或 attempt secret。没有后台外部写者、真实 Windows 接线或 ERP 调用，prepared 不由 poll 激活；人工激活、准备事实、History/库存/通知副作用仍待独立承接。实际旧客户端路径及顶层 JSON 协议需要适配，不能据这些本地接口称为直接兼容。见[HTTP 边界](../work/cowork-backend/companion-queue-http-boundary.md)和[第十二来源审查](../work/cowork-backend/twelfth-source-review.md)。
+
+### Cowork 人工确认与 ACK 本地联动（第十三至十四批）
+
+第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
+
+唯一 `Cowork Push Notification` 为push域私有原生事件，继承通用CRUD/分享拒绝，仅LINE来源首次成功保存held素材；无发送消费者或接收人权限。失败回滚账本、投影、计数、事件和锁释放，重复ACK不重放副作用。复核表仅通过既有History范围读取服务器状态；单号和主档动作事实待后续接入。详见[第十四批合同](../work/cowork-backend/fourteenth-source-review.md)。以上替代前述旧批次中相应待办，不代表真实Windows接线、完整通知功能或独立ERP回读已验收。

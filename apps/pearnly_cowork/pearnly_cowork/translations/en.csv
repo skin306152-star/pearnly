@@ -43,6 +43,7 @@ Company,Company
 Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
+Completion Evidence,Completion Evidence
 Confirmation Request,Confirmation Request
 Confirmation Revision,Confirmation Revision
 Connection Configuration,Connection Configuration
@@ -68,6 +69,7 @@ Cowork OCR History,Cowork OCR History
 Cowork OCR requires a configured provider credential reference.,Cowork OCR requires a configured provider credential reference.
 Cowork OCR requires an explicit invoice configuration.,Cowork OCR requires an explicit invoice configuration.
 Cowork Push Attempt,Cowork Push Attempt
+Cowork Push Notification,Cowork Push Notification
 Cowork Push Record,Cowork Push Record
 Cowork Push Writer Lock,Cowork Push Writer Lock
 Cowork Source File,Cowork Source File
@@ -142,6 +144,9 @@ Issued By,Issued By
 Issued Request Digest,Issued Request Digest
 Item,Item
 Last Fields Edit (UTC),Last Fields Edit (UTC)
+Last Push Record,Last Push Record
+Last Push Status,Last Push Status
+Last Pushed At (UTC),Last Pushed At (UTC)
 Last Request Hash,Last Request Hash
 Last Request Key,Last Request Key
 Lease Expires At,Lease Expires At
@@ -372,6 +377,7 @@ erp.target_projection_value_required,The ERP data report is missing a required v
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
+held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.
 history.date_unreadable,The printed invoice date cannot be read. Check the date shown on the document.

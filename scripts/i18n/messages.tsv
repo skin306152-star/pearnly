@@ -1539,3 +1539,9 @@ pearnly_cowork	IN	入账	เงินเข้า	入金
 pearnly_cowork	OUT	出账	เงินออก	出金
 pearnly_cowork	account	科目	บัญชี	勘定科目
 pearnly_cowork	client	客户	ลูกค้า	顧客
+pearnly_cowork	Cowork Push Notification	Cowork 推送通知事件	เหตุการณ์แจ้งเตือนการส่ง Cowork	Cowork送信通知イベント
+pearnly_cowork	Last Push Status	最近推送状态	สถานะการส่งล่าสุด	最終送信状態
+pearnly_cowork	Last Pushed At (UTC)	最近推送时间（UTC）	เวลาส่งล่าสุด (UTC)	最終送信日時（UTC）
+pearnly_cowork	Last Push Record	最近推送记录	บันทึกการส่งล่าสุด	最終送信記録
+pearnly_cowork	Completion Evidence	完成凭据	หลักฐานการเสร็จสิ้น	完了証跡
+pearnly_cowork	held	待接入发送	รอเชื่อมต่อการส่ง	送信連携待ち

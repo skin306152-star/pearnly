@@ -1,47 +1,47 @@
 # Cowork 后端迁移（前端接入前）
 
-## 换窗口交接（2026-09-21，第十三批交付）
+## 换窗口交接（2026-09-21，第十四批交付）
 
-**第十三批已在本地完成准备资料采集和人工确认发送入口。** 下文旧批次的缺口、数量和提交只代表当时，不作为最新待办；本节是续接入口。当前用户要求保持旧功能、不改 DMS、不接前端、不部署、不扩大测试。本包没有执行前端、DMS 或全量离线回归。
+**第十四批已在本地接上 ACK 的 History 状态、同来源库存计数和唯一通知事件持久化。** 通知为 held，尚无发送消费者；没有实际 ERP/LINE 外写。本节是最新续接入口，后文旧批次只代表当时。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。
 
 ### 位置与授权
 
-- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`；本批开工 SHA `b94fe1c4527a012ced4b12cbae8e2bd7e41609f5`，本批实际提交以 `git log -1` 核对。
-- 本批未合回、未推送、未部署。主目录收尾只读为 `main@493da0b322e200e33f472c33a2a9f21cdc70b77b`，远端 main 同 SHA；本任务远端分支不存在。未组合验证当前主线，不改写它。
-- 仍只有本地实现与隔离合成验证授权；无真实 ERP/LINE/WeKan 写入、付费 OCR、真实 Windows 切换或旧数据迁入授权。
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。本批基线 `c1e57cf0a91f593cfc25637a2e3fcd4ade77f870`，包含本交接的实际提交以 `git log -1` 核对。
+- 未合回、未推送、未部署。主目录和远端 main 收尾只读均为 `b890691e8de7382302fefe561ea9f3f5294e769b`；任务远端分支不存在，未验证当前主线与任务组合，不改写主线。
+- 仍只有本地实现与隔离合成验证授权。没有真实 ERP/LINE/WeKan 写入、付费 OCR、旧数据迁入、Windows切换授权。
 
 ### 本批完成
 
-1. 三个最小原生数据模型：Cowork ERP Mapping（科目/客户）、Cowork Supplier Posting Profile、Cowork Bank Evidence；管理接口只接映射和明确供应商规则。银行表只有受控内部写入，未声称银行导入/完整对账已完成。
-2. `connections.preparation` 在服务器读取各数据域，绑定实际账号/目录和每类缓存的凭据来源。普通心跳/浏览器的 complete 标记不再作为准备授权。供应商仅进项消费，银行按连接凭据发行人和票面±7天取数；空结果、未适用和缺表/列有不同状态，未知 DB 故障不能假装空资料。客户映射取 History 的原生 Client，禁止票面字段替换。
-3. `companion.submission.confirm` 为人工 POST 入口，绑定原 actor、当前权限、版本、目标、资料摘要与凭据代次；持久化确认回执后 prepared→pending。poll 不激活；换代、撤权、资料变化/过期、待定目录拒绝旧准备，冻结载荷不重写；两个并发同键确认只推进一次。
-4. 原队列领取复查准备证据/凭据，历史 ACK 通道保持不变。**ACK 对 History/库存主档/唯一通知事件的联动仍未做。**
+1. `push.native` 的确认/激活同步 History pending；ACK success/manual、过期 unknown/manual及队列隔离同步终态。重试 pending 不重复更新时间，不改变审核版本/页内容/人工编辑审计。History最近推送由人工确认选择，旧连接晚回执不覆盖后选连接的状态。
+2. legacy 成功按旧 `stock_item + created` 规则计数，严格对应准备时账号/root/报告凭据与缓存来源；切换来源或无画像只记录未应用原因，不改其他账套。managed分支没有此计数。新扫描覆盖缓存，重复ACK不重复增加。
+3. Cowork LINE来源首次成功生成私有 `Cowork Push Notification`，push_record唯一，保留冻结金额/票号等发送素材；当前 held 无发送能力、无接收人绑定、无公开CRUD或分享权限。Web来源不生成LINE事件。
+4. 回执、History、计数、事件、写锁释放共用本地事务；故障全部回滚，两进程并发只产生一次结果。History detail/list及复核工作簿可读取服务器状态；完整ERP单号/逐行主档动作导出仍未接。
 
-合同、入口清单和限制见[第十三批来源与交付](cowork-backend/thirteenth-source-review.md)，候选哈希及日志见[本批验证清单](cowork-backend/evidence/thirteenth-local-validation.json)。17 新增 Site + 18 已有准备 + 18 收集器，共53个独立用例；8组固定源同输入预检/载荷相同；全新安装、升级、重复 migrate及数据/权限保持检查通过。后续定向复跑不累加数量。strict i18n仍失败于旧147项/43文件/135文案，新增0；没有前端/用户验收。
+详见[本批来源与合同](cowork-backend/fourteenth-source-review.md)及[验证清单](cowork-backend/evidence/fourteenth-local-validation.json)。13个新增Site用例逐项通过、6个既有ACK HTTP用例通过，共19个独立用例；八组旧源计数对比通过。新装/升级/重复迁移通过，复跑不累加数量；新装首轮导出失败与后续修复证据保留。strict i18n仍有旧147项/43文件/135文案，新增0。未跑全量离线、DMS、前端或用户验收。
 
-**补正旧交接**：供应商和银行是旧源可选佐证；不能把缺资料一律当拒绝。新采集不读取 Snapshot 中旧夹具的 complete=true；旧 install_snapshot/preparation_for_target 内部兼容代码保留，但产品 prepare 不依赖它。没有明确报告凭据可生成仅供审阅的 prepared，公开 confirm 必须有有效匹配的当前凭据；不要把 has_reported_credential 当当前连通状态。
+第十三批准备采集/人工确认能力继续保留：普通心跳/complete标记不能给准备授权；供应商/银行是可选佐证；无明确报告凭据的 prepared 只供审阅，公开confirm必须有匹配的当前凭据。ACK receipt权限仍不同于领取/报告权限，原Secret不得进入错误快照或Recorder。
 
-### 最新线上来源与下一批闸门
+### 最新线上来源与闸门
 
-本批开工/交付 source/runtime 均实采，与第十二交付及本批首尾比较通过。source 末采 `2026-09-21T08:34:31.715517+00:00`；Web/Worker各100%到 `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，完整 SHA `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。证据 `cowork-backend/evidence/*thirteenth-{start,delivery}.json`；下一批仍需新文件名重新采集，不能复用本次作为未来线上证明。
+本批开工/交付source/runtime均新采，与第十三交付及本批首尾比较通过，settings不变、observations不变。source末采 `2026-09-21T09:02:47.532193+00:00`；Web/Worker各100%为 `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，完整SHA `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。新证据为 `cowork-backend/evidence/*fourteenth-{start,delivery}.json`；下包需再次采集，不把本次当未来线上证明。
 
-**第八→九批全 config 摘要漂移 HOLD 仍未解除。** 不导入旧 owner/账套/路径/凭据/状态并宣称等价。固定旧源快照 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b` 可按已核验 SHA 用 git archive 重建，来源日常仓只读。实际 Windows EXE 身份、旧路径/顶层 JSON 适配、WeKan停止实例的来源身份仍未闭合。
+**第八→九批全config漂移HOLD仍未解除。** 不迁入旧owner/账套/路径/凭据/状态，不补造历史通知。只读旧源快照 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b` 可从固定Git SHA重建。Windows EXE运行身份、旧URL/JSON封套、WeKan停止实例来源仍未闭合。
 
 ### 下一包
 
-先按当前仓约定重读架构/基准并复采线上来源，再补 **ACK 的 History 终态、库存主档计数和唯一通知事件本地持久化**，不真正发送消息。不明结果继续保锁，不能靠客户端自报解除未知状态。验证只跑受影响链；schema变化才做必要安装/升级检查。
+按当前约定重读架构并复采线上来源，优先接 **复核表的 ERP 单号、逐行主档动作和回执事实读取**。从原账本取已授权事实，不能信票面自报成功/新建标记，不增加外部发送。仅跑受影响导出/权限/回执用例。
 
-仍有：Windows真实接线与运行身份、MRERP、外部独立回读；完整对账与盘点剩余路径；LINE/WeKan；文件/OCR其它出口；旧状态迁入。准备/确认完成不等于整套 Cowork 完成。前端接入前再与用户讨论；不自行合回、推送或部署。
+仍有：Windows真实接线与身份、managed公开运输、MRERP、独立ERP回读；完整对账/盘点剩余路径；LINE/WeKan；其他文件出口和旧状态迁入。后端未整体完成；到前端接入点再讨论，不自行合并、推送或部署。
 
 ### 本任务保留与清理
 
-状态为**交接保留**，不是全仓迁移收工。未合并的工作树/本地分支继续承接迁移，解除条件是后端到约定接入点并获准整合；下包开工复核。
+状态为**交接保留**。未合并任务工作树/本地分支保留承接迁移；解除条件是后端到约定接入点并获准整合，下包开工复核。本任务远端分支不存在。
 
-Docker context `colima-pearnly`，project `pearnly-cowork-backend-lab`，只读挂载本任务源码、内部网络、无发布端口、无外部凭据/worker/scheduler。锁定 bench 镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`（Python3.14.7/Frappe16.33）。本批结束停止专属 bench/db/redis，保留容器与 db/sites 命名卷及两个原有匿名日志/Redis卷，供下包继续本地验证；未操作其它容器。
+专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，原工作树只读挂载、内部网络、无发布端口、无外部凭据/worker/scheduler。bench/db/redis收尾停止；容器、db/sites命名卷、原有两个匿名日志/Redis卷保留供下包，不处理其他容器。
 
-新增 `cowork-backend-preparation.localhost` 仅为本任务新装验证；既有 push Site升级。容器、Site及合成数据在整个后端迁移结束后复核清理，不删业务数据或未知队列。日志目录 `/tmp/pearnly-cowork-migration-20260920/` 保留为迁移证据/固定源码缓存，下包复核；准确文件哈希已入仓。停止容器后只清理本任务工作树中可再生的 Python缓存，工作树/本地分支/数据卷不删；远端任务分支不存在。
+新增 `cowork-backend-ack.localhost` 仅供本任务新装与合成ACK验证；既有 `cowork-backend-preparation.localhost`升级。全部Site/合成记录/数据卷在迁移结束时复核归属后清理，禁止重建既有Site或删卷。日志和固定源缓存 `/tmp/pearnly-cowork-migration-20260920/` 保留为迁移证据，下包复核。只删除本任务可再生Python缓存和本批一次性编辑脚本，未删数据或未合并代码。
 
-复跑前逐项核对 context/project/mount/Site，再启动专属 Compose；不初始化既有 Site、不重建卷、不调用共享 stack/dev-reload。Site 配置修改/还原后调用 `frappe.config.clear_site_config_cache()`。共用 Site 配置的测试串行；合成建号可能触发节流/辅助任务积累，不 flush 队列。第十二批机器HTTP的Recorder与错误消息清理保护不得移除。
+复跑前核对context/project/mount/Site；不调用共享stack/dev-reload、不重启Colima、不flush队列。Site配置修改/还原后清Frappe配置缓存；共用Site配置的测试串行。保留原HTTP入口的凭据和Recorder清理保护。
 
 ## 目标与授权边界
 
@@ -605,3 +605,11 @@ App/域/依赖：`companion.queue_api` 是两个薄 Frappe RPC，按精确路径
 ## 第十三批后端检查点（2026-09-21）
 
 本批按顶部交接完成准备资料采集、原生消费所需模型和显式人工确认入口，保留准备/确认/领取分离；详细固定源合同与有意拒绝边界见[第十三批来源审查](cowork-backend/thirteenth-source-review.md)。53个不同Site用例、8组来源比较、架构与本地安装升级证据见[本批清单](cowork-backend/evidence/thirteenth-local-validation.json)。未改DMS/Core/前端，未部署、合回或推送；ACK业务联动为下一包，不把本包写成全部迁移完成。
+
+## 第十四批后端检查点（2026-09-21）
+
+开工 SHA `c1e57cf0a91f593cfc25637a2e3fcd4ade77f870`。只在原任务工作树推进，不合回、推送、部署。开工 source/runtime 新采文件为 `*fourteenth-start.json`，与第十三批交付比较通过，旧配置迁入 HOLD 保持。
+
+归属：Cowork `push.native.completion` 编排同事务成功副作用；`history.push_state` 只投影状态、不改审核版本；`connections.stock_effects` 仅更新同账套/目录/原凭据来源的库存指纹；新增私有 Cowork Push Notification 原生事件，无发送消费者。依赖 push→history/connections，无反向引用。沿现有 ACK RPC，无新产品入口；普通资源 API 和分享均拒绝事件访问。
+
+验证完成情况、失败修复与保留项以顶部交接、本批来源审查和验证清单为准。19个独立Site/HTTP用例、8组源计数对比通过；没有部署或外部业务验收。

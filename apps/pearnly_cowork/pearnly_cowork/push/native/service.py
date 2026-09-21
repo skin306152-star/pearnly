@@ -19,6 +19,8 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.access import scope
+from pearnly_cowork.history import push_state
+from . import completion
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import preparation as preparation_sources
@@ -153,11 +155,12 @@ def _record(name, context):
     return row
 
 
-def _save_record(row, timestamp):
+def _save_record(row, timestamp, *, select_history=False):
     row.revision = int(row.revision or 0) + 1
     row.updated_at = timestamp
     row.active_key = row.document_key if row.status in ACTIVE_STATUSES or row.result_unknown else None
     persist(row)
+    push_state.mirror(row, timestamp, select=select_history)
 
 
 def project(row):
@@ -427,7 +430,7 @@ def confirm(name, *, context, credential, expected_revision, request_key):
         _dispatch_target(context, loaded, target)
         row.confirmation_request, row.confirmation_revision = operation, expected_revision
         row.status, row.reason = 'pending', ''
-        _save_record(row, now_utc())
+        _save_record(row, now_utc(), select_history=True)
         return project(row)
 
 
@@ -450,7 +453,7 @@ def activate(name, *, context, adapter):
         if row.status != 'prepared' or row.result_unknown:
             fail('push.native_state_invalid')
         row.status, row.reason = 'pending', ''
-        _save_record(row, now_utc())
+        _save_record(row, now_utc(), select_history=True)
         return project(row)
 
 
@@ -623,6 +626,8 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         row.result_unknown, row.lease_expires_at = 0, None
         row.external_docnum = docnum if transition.status == 'success' else None
         row.completed_at = timestamp if transition.status in {'success', 'manual'} else None
+        if transition.status == 'success':
+            completion.success(row, timestamp)
         # Preserve owner/active_attempt for exact duplicate ACK verification;
         # they no longer confer a lease and the next claim has a higher fence.
         _save_record(row, timestamp)

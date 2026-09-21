@@ -43,6 +43,7 @@ Company,会社
 Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
+Completion Evidence,完了証跡
 Confirmation Request,確認リクエスト
 Confirmation Revision,確認リビジョン
 Connection Configuration,接続設定
@@ -68,6 +69,7 @@ Cowork OCR History,Cowork 認識履歴
 Cowork OCR requires a configured provider credential reference.,Cowork 認識サービスの認証情報参照を設定してください。
 Cowork OCR requires an explicit invoice configuration.,Cowork の請求書認識設定を指定してください。
 Cowork Push Attempt,Cowork送信試行
+Cowork Push Notification,Cowork送信通知イベント
 Cowork Push Record,Cowork送信記録
 Cowork Push Writer Lock,Cowork送信書き込みロック
 Cowork Source File,Cowork 元ファイル
@@ -142,6 +144,9 @@ Issued By,発行者
 Issued Request Digest,発行リクエストのダイジェスト
 Item,項目
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
+Last Push Record,最終送信記録
+Last Push Status,最終送信状態
+Last Pushed At (UTC),最終送信日時（UTC）
 Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
 Lease Expires At,リース有効期限
@@ -372,6 +377,7 @@ erp.target_projection_value_required,ERP データレポートに必須の値が
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
+held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
 history.date_unreadable,請求書に記載された日付を読み取れません。書類の日付を確認してください。

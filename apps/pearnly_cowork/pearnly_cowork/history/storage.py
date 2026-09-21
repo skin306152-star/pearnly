@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 import frappe
 from frappe import _
 from pearnly_cowork.access import scope
+from .push_state import FIELDS as PUSH_FIELDS
 from pearnly_cowork.contracts.history import HistoryContractError, initial_history, prepare_pages, extract_summary_fields, list_status, normalize_posting_kind
 
 DOCTYPE = "Cowork OCR History"
@@ -62,7 +63,7 @@ def validate_document(doc):
     if previous:
         if doc.flags.cowork_history_update is not _UPDATE_TOKEN:
             frappe.throw(_("Update invoice records through the Cowork review service."))
-        if any(doc.get(key) != previous.get(key) for key in IMMUTABLE):
+        if any(doc.get(key) != previous.get(key) for key in (*IMMUTABLE, *PUSH_FIELDS)):
             frappe.throw(_("Original evidence and ownership cannot be changed."))
         # Only dedicated APIs may mutate; native PUT omitting a client revision is rejected.
         if int(doc.record_version or 0) != int(previous.record_version or 0):
@@ -81,6 +82,8 @@ def validate_document(doc):
         # Native REST must not bypass the creation service to forge OCR/identity evidence.
         if doc.flags.cowork_history_create is not _CREATE_TOKEN:
             frappe.throw(_("Create invoice records through the Cowork intake service."))
+        if any(doc.get(key) for key in PUSH_FIELDS):
+            frappe.throw(_("Original evidence and ownership cannot be changed."))
         doc.record_version, doc.edit_count = 1, 0
         doc.fields_edited_at, doc.confirmed_by, doc.confirmed_at = None, None, None
         if not doc.staged:
@@ -174,7 +177,7 @@ def read(name, *, for_update=False):
 
 def project(doc):
     result = {key: doc.get(key) for key in (
-        "name", "workspace", "client", "source", "staged", "record_version",
+        "name", "workspace", "client", "source", "staged", "record_version", *PUSH_FIELDS,
         "confidence", "quality_status", "posting_kind", *SUMMARY_FIELDS,
         "edit_count", "fields_edited_at", "confirmed_by", "confirmed_at",
         "source_file", "source_pdf_id", "source_index", "source_total", "filename", "file_hash", "page_count")}

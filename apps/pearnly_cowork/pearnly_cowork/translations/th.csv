@@ -43,6 +43,7 @@ Company,บริษัท
 Completed At,เวลาที่เสร็จสิ้น
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
+Completion Evidence,หลักฐานการเสร็จสิ้น
 Confirmation Request,คำขอยืนยัน
 Confirmation Revision,รุ่นที่ยืนยัน
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
@@ -68,6 +69,7 @@ Cowork OCR History,Cowork ประวัติการอ่านเอกส
 Cowork OCR requires a configured provider credential reference.,กรุณากำหนดการอ้างอิงข้อมูลรับรองของผู้ให้บริการอ่านเอกสาร Cowork ก่อน
 Cowork OCR requires an explicit invoice configuration.,กรุณากำหนดค่าการอ่านใบแจ้งหนี้ Cowork ก่อน
 Cowork Push Attempt,ความพยายามส่งของ Cowork
+Cowork Push Notification,เหตุการณ์แจ้งเตือนการส่ง Cowork
 Cowork Push Record,รายการส่งของ Cowork
 Cowork Push Writer Lock,ล็อกการเขียนของ Cowork
 Cowork Source File,ไฟล์ต้นฉบับ Cowork
@@ -142,6 +144,9 @@ Issued By,ผู้ออก
 Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
 Item,รายการ
 Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
+Last Push Record,บันทึกการส่งล่าสุด
+Last Push Status,สถานะการส่งล่าสุด
+Last Pushed At (UTC),เวลาส่งล่าสุด (UTC)
 Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
@@ -372,6 +377,7 @@ erp.target_projection_value_required,รายงานข้อมูล ERP �
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
+held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_unreadable,ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร

@@ -40,7 +40,7 @@ def export(names):
             or any(not isinstance(n, str) or not n or len(n) > 140 for n in names)
             or len(names) != len(set(names))):
         frappe.throw(_("roundtrip.export_records_invalid"))
-    records, ownership = [], set()
+    records, ownership, push_facts = [], set(), {}
     for name in names:
         doc = storage.read(name)
         ownership.add((doc.workspace, doc.client or ""))
@@ -56,8 +56,10 @@ def export(names):
                 if value and not fields.get(key):
                     fields[key] = value
         records.append({"history_id": doc.name, "merged_fields": fields})
+        if doc.last_push_status:
+            push_facts[doc.name] = {"state": {"status": doc.last_push_status}}
     if len(ownership) != 1:
         frappe.throw(_("roundtrip.export_scope_mixed"), frappe.PermissionError)
-    # This explicit review-workbook API does not pretend a real ERP push has
-    # happened. Future adapters supply verified push facts, never client fields.
-    return build_review_workbook(records)
+    # Status comes only from the scoped ledger projection. Item/party creation
+    # and ERP numbers still require their separate authorized receipt adapter.
+    return build_review_workbook(records, push_facts=push_facts)

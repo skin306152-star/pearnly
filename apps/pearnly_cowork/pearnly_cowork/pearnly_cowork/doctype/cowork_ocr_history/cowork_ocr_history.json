@@ -41,7 +41,10 @@
   "filename",
   "file_hash",
   "page_count",
-  "source_file"
+  "source_file",
+  "last_push_status",
+  "last_pushed_at",
+  "last_push_record"
  ],
  "fields": [
   {
@@ -242,6 +245,26 @@
    "options": "Cowork Source File",
    "read_only": 1,
    "search_index": 1
+  },
+  {
+   "fieldname": "last_push_status",
+   "label": "Last Push Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "\npending\nsuccess\nmanual"
+  },
+  {
+   "fieldname": "last_pushed_at",
+   "label": "Last Pushed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_push_record",
+   "label": "Last Push Record",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "permissions": [

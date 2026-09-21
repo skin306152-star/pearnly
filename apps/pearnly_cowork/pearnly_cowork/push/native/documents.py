@@ -4,8 +4,10 @@ from frappe import _
 from frappe.model.document import Document
 
 TYPES = ('Cowork Push Record', 'Cowork Push Attempt', 'Cowork Push Writer Lock')
+NOTIFICATION = 'Cowork Push Notification'
 _CAPABILITY = object()
 _IDENTITY = {
+    NOTIFICATION: ('record_id', 'push_record', 'workspace', 'client', 'history', 'actor', 'connection', 'status', 'payload_json'),
     TYPES[0]: ('record_id', 'workspace', 'client', 'actor', 'history', 'connection', 'account_key',
                'request_digest', 'request_fingerprint', 'document_key', 'business_key', 'invoice_no', 'seller_name', 'history_version',
                'connection_revision', 'branch', 'binding_generation', 'target_json', 'payload_json', 'checks_json'),
@@ -33,7 +35,7 @@ def native_query(user=None):
 
 
 def reject_share(doc, method=None):
-    if doc.share_doctype in TYPES:
+    if doc.share_doctype in (*TYPES, NOTIFICATION):
         denied()
 
 

@@ -1,0 +1,112 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Push Notification",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "push_record",
+  "workspace",
+  "client",
+  "history",
+  "actor",
+  "connection",
+  "status",
+  "payload_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "push_record",
+   "label": "Push Record",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Push Record",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Buyer Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "history",
+   "label": "History",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork OCR History",
+   "reqd": 1
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "held",
+   "default": "held",
+   "reqd": 1
+  },
+  {
+   "fieldname": "payload_json",
+   "label": "Payload",
+   "fieldtype": "Code",
+   "read_only": 1,
+   "options": "JSON",
+   "reqd": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

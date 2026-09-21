@@ -269,6 +269,7 @@ app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
+    "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_query",
     "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
@@ -294,6 +295,7 @@ permission_query_conditions = {
     "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.operation_query",
 }
 has_permission = {
+    "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_permission",
     "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
     "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
     "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",

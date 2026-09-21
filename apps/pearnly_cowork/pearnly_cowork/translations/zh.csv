@@ -43,6 +43,7 @@ Company,公司
 Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
+Completion Evidence,完成凭据
 Confirmation Request,确认请求
 Confirmation Revision,确认版本
 Connection Configuration,连接配置
@@ -68,6 +69,7 @@ Cowork OCR History,Cowork 识别记录
 Cowork OCR requires a configured provider credential reference.,请先配置 Cowork 识别服务的凭据引用。
 Cowork OCR requires an explicit invoice configuration.,请先配置 Cowork 发票识别参数。
 Cowork Push Attempt,Cowork推送尝试
+Cowork Push Notification,Cowork 推送通知事件
 Cowork Push Record,Cowork推送记录
 Cowork Push Writer Lock,Cowork推送写入锁
 Cowork Source File,Cowork 原始文件
@@ -142,6 +144,9 @@ Issued By,签发人
 Issued Request Digest,签发请求摘要
 Item,项目
 Last Fields Edit (UTC),最近字段修改时间（UTC）
+Last Push Record,最近推送记录
+Last Push Status,最近推送状态
+Last Pushed At (UTC),最近推送时间（UTC）
 Last Request Hash,最近请求摘要
 Last Request Key,最近请求编号
 Lease Expires At,租约到期时间
@@ -372,6 +377,7 @@ erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
 excel,Excel
 failed,失败
+held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
 history.date_unreadable,无法识别票面日期，请核对单据上的日期。
