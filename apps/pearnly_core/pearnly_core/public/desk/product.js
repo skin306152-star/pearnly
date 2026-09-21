@@ -161,45 +161,6 @@ frappe.provide("frappe.pearnly");
 	$(document).on("app_ready", () => {
 		if (!frappe.boot.pearnly_product) return;
 		document.body.classList.add("pearnly-product-desk");
-
-		// 手机上的**导航菜单**不能"要点两下"（用户 2026-09-21 报障，本地 iPhone 视口复现）：
-		// 原生 `Sidebar.set_height()` 会给 body 加滚动锁（`overflow: hidden`）但**从不释放**，
-		// 而且手机上从菜单里选完页面后侧栏仍然盖在上面 —— 用户得再点一下（或点遮罩）才能
-		// 看到刚打开的页面，用起来就是"点了两下"。这里只做两处原生组合：
-		//   ① 关侧栏时释放那把滚动锁；② 手机点菜单项后自动收起侧栏。
-		const is_mobile = () => Boolean(frappe.is_mobile && frappe.is_mobile());
-		const native_sidebar = frappe.ui && frappe.ui.Sidebar;
-		if (native_sidebar && native_sidebar.prototype && !native_sidebar.prototype.pearnly_mobile_close) {
-			native_sidebar.prototype.pearnly_mobile_close = true;
-			const native_close = native_sidebar.prototype.close;
-			native_sidebar.prototype.close = function () {
-				native_close && native_close.call(this);
-				if (is_mobile() && document.body) {
-					document.body.style.overflow = "";
-				}
-			};
-		}
-		const close_mobile_sidebar = () => {
-			const sidebar = frappe.app && frappe.app.sidebar;
-			if (is_mobile() && sidebar && sidebar.sidebar_expanded) sidebar.close();
-		};
-		// 路由变了（含返回键、程序化跳转）就把菜单收起来。
-		frappe.router?.on?.("change", close_mobile_sidebar);
-		if (typeof document.addEventListener === "function") {
-			// 点菜单里的页面：**先让链接把路由走完**再收菜单，别抢在默认动作前面。
-			document.addEventListener(
-				"click",
-				(event) => {
-					if (!is_mobile()) return;
-					const target = event.target;
-					if (!target || typeof target.closest !== "function") return;
-					if (!target.closest(".body-sidebar")) return;
-					if (!target.closest(".standard-sidebar-item, .sidebar-item-container")) return;
-					window.setTimeout(close_mobile_sidebar, 0);
-				},
-				true,
-			);
-		}
 		// app_ready fires inside Application construction, before frappe.app is assigned.
 		frappe.Application.prototype.logout = async () => {
 			const t = await p.texts("account.");
