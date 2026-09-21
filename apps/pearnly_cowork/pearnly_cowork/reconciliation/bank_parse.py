@@ -174,6 +174,28 @@ def detect_bank(text: str) -> str:
 	return "generic"
 
 
+def bank_code_from_filename(filename: str) -> str:
+	"""Bank code read off the **filename**, or ``""`` when nothing matches.
+
+	Why the filename wins over the content: a statement full of interbank transfers
+	names the counterparty banks over and over (a TTB statement can say "KBANK" or
+	"SCB" hundreds of times while its own brand lives in a logo image). The name the
+	user gave the file ("STM TTB.pdf") is the high-precision signal a human reads,
+	so it overrides content detection whenever it matches. Only ASCII keywords are
+	considered (Thai brand names do not appear in filenames) and they are matched on
+	word boundaries so an incidental substring never decides the bank.
+	"""
+	name = (filename or "").lower()
+	for bank_code, keywords in BANK_SIGNATURES.items():
+		for keyword in keywords:
+			keyword = keyword.lower()
+			if not keyword.isascii():
+				continue  # Thai brand names do not appear in filenames
+			if re.search(rf"(?<![a-z]){re.escape(keyword)}(?![a-z])", name):
+				return bank_code
+	return ""
+
+
 def statement_rows_from_entries(entries: List[Dict[str, Any]], filename: str) -> List[StatementRow]:
 	"""Decoded statement entries → rows; the single deployed conversion of both paths.
 

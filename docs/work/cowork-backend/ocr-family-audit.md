@@ -35,6 +35,9 @@
 | `recognize/{persist,history_postprocess}.py` 的历史投影 | `history/`（原生 DocType + `contracts/history.py`） | 更早批次（`ocr_history` 功能码） |
 | `magnitude_baseline.py` | `ocr/validation/magnitude.py` | **第三十五批（本文）** |
 | `error_format.py` | `contracts/errors.py`（+ 解析落点 `error` 字段） | **第三十五批（本文）** |
+| `bank_stmt_xlsx.py` 的**确定性那一段**（表头词典、找表头、账户号、期初、逐行转 `StatementRow`、逐账户余额链、期末交叉校验） | `reconciliation/bank_sheets.py` | **第三十八批** · [读取器](ocr-reader-bank-sheets.md) |
+| `bank_table_io.py`（`_hit` 短词整词匹配、openpyxl→xlrd 读表、CSV 编码与分隔符嗅探） | `reconciliation/table_io.py`（同文件的 PDF 文字层随 PDF 路径下一批走） | **第三十八批** · [读取器](ocr-reader-bank-sheets.md) |
+| `bank_recon_utils._bank_from_filename` | `reconciliation/bank_parse.py` 的 `bank_code_from_filename` | **第三十八批** · [读取器](ocr-reader-bank-sheets.md) |
 
 ## 三、有意不迁（有理由，非遗漏）
 
@@ -57,7 +60,7 @@
 
 **（2）`error_format.py`（`short_error` / `_fmt_validation`，78 行）——已补。** 把 pydantic `ValidationError` 压成一行：去文档 URL、只留首行、>160 字符截断加省略号、空文案回落类名、字段去重后列前三个加溢出标记。部署版被银行/GL/VAT 的**文件级**解析入口用来填结果的 `error` 字段（`bank_recon_pipeline.py:133/232`、`gl_vat_parse_excel.py:254`、`vat_report_parser.py:86`、`enterprise_adapter.py:42`）。落点 `contracts/errors.py`：抽取侧持有 pydantic schema，对账侧持有 `error` 字段，放共享纯契约域让两侧都不依赖对方；原生 `income_parse` 的两个 `error` 落点已改回这个文案（`diag.exception` 保留原文便于诊断）。
 
-**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——用户已决定原生承接，第一层已在第三十六批交付。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。用户判断"OCR 是产品的核心产物" → 要，整条链按依赖分四层：**①文档模型 + 余额链修复（第三十六批已交付，见[批次记录](ocr-document-chains.md)）** → ②列来源校验 → ③确定性读取器 → ④模型路径（含整页升档重读 `reread_bank_page`）。下表是这层规则的逐条对应，随后两列说明现在归到哪一层：
+**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——用户已决定原生承接，第一层已在第三十六批交付。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。用户判断"OCR 是产品的核心产物" → 要，整条链按依赖分四层：**①文档模型 + 余额链修复（第三十六批已交付，见[批次记录](ocr-document-chains.md)）** → **②列来源校验（第三十七批已交付）** → **③确定性读取器（第三十八批交付前半：低级表格 IO + 银行流水 xlsx/csv 直读，见[读取器记录](ocr-reader-bank-sheets.md)）** → ④模型路径（含整页升档重读 `reread_bank_page`）。下表是这层规则的逐条对应，随后两列说明现在归到哪一层：
 
 | 旧规则 | 原生现状 | 归层 |
 | --- | --- | --- |
@@ -90,7 +93,7 @@
 
 ## 六、建议的后续顺序
 
-1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（Excel/CSV/文本直读、PDF 文字层重建）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批已交付前半：低级表格 IO + 银行流水 xlsx/csv 直读**；剩下 `bank_gl_excel.py`、`bank_stmt_text.py`、`_pdf_extract_text_safe`）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 
