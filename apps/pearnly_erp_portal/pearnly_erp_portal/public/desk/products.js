@@ -114,30 +114,70 @@
 
 		const can_create = frappe.model.can_create("ERP Product");
 
+		// 建与改共用一个表单：字段与旧线上 products 的列一一对应（不多不少）。
+		function product_fields(existing = {}) {
+			const value = (field, fallback = null) =>
+				existing[field] === undefined ? fallback : existing[field];
+			return [
+				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
+					reqd: 1, default: value("product_name") },
+				{ fieldtype: "Data", fieldname: "name_en", label: t("product.field.nameEn"),
+					default: value("name_en") },
+				{ fieldtype: "Data", fieldname: "name_zh", label: t("product.field.nameZh"),
+					default: value("name_zh") },
+				// 编码由系统发（旧线上 ERP 门户里这一格也是只读的），留空即自动编号。
+				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
+					read_only: 1, description: t("product.field.codeAuto"),
+					default: value("code") },
+				{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode"),
+					default: value("barcode") },
+				{ fieldtype: "Data", fieldname: "qr_payload", label: t("product.field.qr"),
+					default: value("qr_payload") },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
+					default: value("unit") },
+				{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
+					default: value("base_unit") },
+				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
+					default: value("category_id") },
+				// 空售价 = "从未设过"，与 ฿0 是两回事（服务端用 *_set 记这个区别）。
+				{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
+					options: "THB", default: value("price_set", existing.price_set)
+						? existing.unit_price : null },
+				{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
+					options: "THB", default: existing.cost_set ? existing.default_cost : null },
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
+					default: value("min_stock") },
+				{ fieldtype: "Check", fieldname: "track_batch", label: t("product.field.trackBatch"),
+					default: value("track_batch", 0) },
+				{ fieldtype: "Check", fieldname: "track_expiry",
+					label: t("product.field.trackExpiry"), default: value("track_expiry", 0) },
+				{ fieldtype: "Check", fieldname: "is_weighed", label: t("product.field.weighed"),
+					default: value("is_weighed", 0) },
+				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
+					default: value("vat_applicable", 1) },
+				{ fieldtype: "Data", fieldname: "image_url", label: t("product.field.image"),
+					default: value("image_url") },
+			];
+		}
+
+		// 空串要变 null：那是"从未设过"，让它落成 0 就把"没设价"和"真的 ฿0"混成一个值。
+		function normalize(values) {
+			const out = { ...values };
+			for (const field of ["unit_price", "default_cost"]) {
+				if (out[field] === "") out[field] = null;
+			}
+			return out;
+		}
+
 		function open_create() {
 			const dialog = p.dialog(
 				t("product.action.new"),
-				[
-					{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
-						reqd: 1 },
-					{ fieldtype: "Data", fieldname: "code", label: t("product.field.code") },
-					{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode") },
-					{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit") },
-					{ fieldtype: "Column Break" },
-					{ fieldtype: "Currency", fieldname: "unit_price",
-						label: t("product.field.price"), options: "THB" },
-					{ fieldtype: "Currency", fieldname: "default_cost",
-						label: t("product.field.cost"), options: "THB" },
-					{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock") },
-					{ fieldtype: "Check", fieldname: "vat_applicable",
-						label: t("product.field.vat"), default: 1 },
-				],
+				product_fields(),
 				t("product.action.save"),
 				async (values, d) => {
-					for (const field of ["unit_price", "default_cost"]) {
-						if (values[field] === "") values[field] = null;
-					}
-					await p.call(api + "api_create_product", values, "POST");
+					await p.call(api + "api_create_product", normalize(values), "POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name));
 					await list.reload();
@@ -146,47 +186,82 @@
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		}
 
+		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
+		// 传完拿 file_url 交给服务端解析入库。只收本机文件 —— 导入读的是客户手里那张表，
+		// 库里已有的文件、摄像头拍照都不是这条路的输入。
+		function open_import() {
+			let file_url = "";
+			const dialog = p.dialog(
+				t("product.action.import"),
+				[
+					{ fieldtype: "HTML",
+						options: `<p class="text-muted">${p.escape(t("product.import.hint"))}</p>` },
+					{ fieldtype: "Button", fieldname: "pick", label: t("product.import.pick"),
+						click: () => {
+							new frappe.ui.FileUploader({
+								allow_multiple: false,
+								allow_web_link: false,
+								allow_google_drive: false,
+								allow_take_photo: false,
+								disable_file_browser: true,
+								allow_toggle_private: false,
+								make_attachments_public: false,
+								restrictions: {
+									allowed_file_types: [".xlsx"],
+									max_file_size: 5 * 1024 * 1024,
+								},
+								on_success: (file) => {
+									file_url = file.file_url;
+									dialog.set_value("file_name", file.file_name);
+								},
+							});
+						} },
+					{ fieldtype: "Data", fieldname: "file_name",
+						label: t("product.field.importFile"), read_only: 1 },
+				],
+				t("product.action.import"),
+				async (_values, d) => {
+					const result = await p.call(api + "api_import_products", { file_url }, "POST");
+					d.hide();
+					p.success(t("product.notice.imported", result.created));
+					if (result.failed) {
+						frappe.msgprint({
+							title: t("product.action.import"),
+							indicator: "orange",
+							message: t("product.notice.importSkipped", result.failed) + "<br>"
+								+ result.errors.map((row) =>
+									`${p.escape(row.row)}: ${p.escape(row.error)}`).join("<br>"),
+						});
+					}
+					await list.reload();
+				},
+			);
+		}
+
 		async function open_form(row) {
 			const existing = await p.call(api + "api_get_product", { name: row.name });
 			const can_write = frappe.model.can_write("ERP Product");
 			const dialog = p.dialog(
 				existing.product_name,
-				[
-					{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
-						reqd: 1, default: existing.product_name },
-					{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
-						default: existing.code },
-					{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode"),
-						default: existing.barcode },
-					{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
-						default: existing.unit },
-					{ fieldtype: "Column Break" },
-					{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
-						options: "THB", default: existing.price_set ? existing.unit_price : null },
-					{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
-						options: "THB", default: existing.cost_set ? existing.default_cost : null },
-					{ fieldtype: "Float", fieldname: "min_stock",
-						label: t("product.field.minStock"), default: existing.min_stock },
-					{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
-						default: existing.vat_applicable },
-				],
+				product_fields(existing),
 				t("product.action.save"),
 				async (values, d) => {
-					// 空串 = "从未设过"，与 ฿0 是两回事；所以显式变 null，不让它落成 0。
-					for (const field of ["unit_price", "default_cost"]) {
-						if (values[field] === "") values[field] = null;
-					}
-					await p.call(api + "api_update_product", { name: existing.name, ...values },
-						"POST");
+					await p.call(api + "api_update_product",
+						{ name: existing.name, ...normalize(values) }, "POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name));
 					await list.reload();
 				},
 			);
+			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
 		}
 
-		p.add_refresh(page, () => list.reload());
+		// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。
+		page.add_inner_button(t("product.action.reload"), () => void list.reload());
+		if (frappe.model.can_create("ERP Product")) {
+			page.add_inner_button(t("product.action.import"), () => open_import());
+		}
 		await list.ready;
 		update_action([]);
 	};

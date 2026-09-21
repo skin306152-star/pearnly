@@ -23,7 +23,9 @@ product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
 product.action.edit,Edit
 product.action.enable,Enable
+product.action.import,Import from Excel
 product.action.new,New product
+product.action.reload,Reload
 product.action.save,Save
 product.action.toggleInactive,Show disabled
 product.cell.notSet,Not set
@@ -35,15 +37,38 @@ product.col.name,Product
 product.col.price,Price
 product.col.status,Status
 product.col.unit,Unit
+product.error.codeLocked,The product code cannot be changed
 product.field.barcode,Barcode
+product.field.baseUnit,Base unit
+product.field.category,Category
 product.field.code,Code
+product.field.codeAuto,Generated automatically
 product.field.cost,Reference cost
+product.field.image,Image URL
+product.field.importFile,Excel file
 product.field.minStock,Low stock alert
 product.field.name,Product name
+product.field.nameEn,English name
+product.field.nameZh,Chinese name
 product.field.price,Selling price
+product.field.qr,QR payload
 product.field.search,Search name or barcode
+product.field.trackBatch,Track batches
+product.field.trackExpiry,Track expiry
 product.field.unit,Unit
 product.field.vat,VAT applies
+product.field.weighed,Sold by weight
+product.import.badFile,That file could not be read; please use the template
+product.import.emptyFile,That file has no rows
+product.import.hint,The first row must be the column headings; the sheet needs at least a product name column
+product.import.missingName,The sheet needs a product name column
+product.import.negative,The value must be zero or more
+product.import.noFile,Choose a file to import
+product.import.notNumber,The value is not a number
+product.import.notWorkbook,That file is not an Excel workbook
+product.import.pick,Choose file
+product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
+product.notice.imported,Imported {0} product(s)
 product.notice.saved,Saved {0}
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)

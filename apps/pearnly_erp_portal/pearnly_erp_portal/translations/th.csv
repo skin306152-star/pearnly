@@ -23,7 +23,9 @@ product.action.bulkEnable,เปิดใช้งาน {0} รายการ�
 product.action.disable,เปิด / ปิดใช้งาน
 product.action.edit,แก้ไข
 product.action.enable,เปิดใช้งาน
+product.action.import,นำเข้าจาก Excel
 product.action.new,เพิ่มสินค้า
+product.action.reload,โหลดใหม่
 product.action.save,บันทึก
 product.action.toggleInactive,แสดงที่ปิดใช้งาน
 product.cell.notSet,ยังไม่ตั้ง
@@ -35,15 +37,38 @@ product.col.name,สินค้า
 product.col.price,ราคา
 product.col.status,สถานะ
 product.col.unit,หน่วย
+product.error.codeLocked,รหัสสินค้าแก้ไม่ได้
 product.field.barcode,บาร์โค้ด
+product.field.baseUnit,หน่วยฐาน
+product.field.category,หมวดหมู่
 product.field.code,รหัส
+product.field.codeAuto,สร้างอัตโนมัติ
 product.field.cost,ต้นทุนอ้างอิง
+product.field.image,URL รูปภาพ
+product.field.importFile,ไฟล์ Excel
 product.field.minStock,แจ้งเตือนสต็อกต่ำ
 product.field.name,ชื่อสินค้า
+product.field.nameEn,ชื่อภาษาอังกฤษ
+product.field.nameZh,ชื่อภาษาจีน
 product.field.price,ราคาขาย
+product.field.qr,ข้อมูล QR
 product.field.search,ค้นหาชื่อหรือบาร์โค้ด
+product.field.trackBatch,ติดตามล็อต
+product.field.trackExpiry,ติดตามวันหมดอายุ
 product.field.unit,หน่วย
 product.field.vat,คิด VAT
+product.field.weighed,ขายตามน้ำหนัก
+product.import.badFile,อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ
+product.import.emptyFile,ไฟล์นี้ไม่มีข้อมูล
+product.import.hint,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
+product.import.missingName,ต้องมีคอลัมน์ชื่อสินค้า
+product.import.negative,ค่านี้ต้องไม่ติดลบ
+product.import.noFile,กรุณาเลือกไฟล์ที่จะนำเข้า
+product.import.notNumber,ค่านี้ไม่ใช่ตัวเลข
+product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
+product.import.pick,เลือกไฟล์
+product.notice.importSkipped,ข้าม {0} แถว รายการแรกแสดงด้านบน
+product.notice.imported,นำเข้า {0} รายการแล้ว
 product.notice.saved,บันทึก {0} แล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
 product.notice.toggledCount,อัปเดต {0} รายการแล้ว

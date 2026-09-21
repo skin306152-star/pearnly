@@ -4,8 +4,8 @@
 停用（`is_active=0`）就是旧线上的"删除"：单据与库存记录继续指向它，所以这里
 不做物理删除，也不允许从界面删掉已引用过的商品。
 
-字段与旧线上 `routes/products_routes.py` 的 ProductCreate 对齐；`avg_cost` 由库存
-移动维护，此处只读。
+字段与旧线上 `services/sales/products.py` 的 products 列一一对应（不多不少）。
+编码由系统发（`P-000001` 起，与旧线上 ERP 门户同一条规则），表单里只读。
 """
 
 from frappe.model.document import Document

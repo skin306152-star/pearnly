@@ -1107,3 +1107,28 @@ pearnly_erp_portal	Unit	单位	หน่วย	単位	product.col.unit
 pearnly_erp_portal	Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
 pearnly_erp_portal	Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を有効化	product.action.bulkEnable
 pearnly_erp_portal	Updated {0} product(s)	已更新 {0} 个商品	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
+pearnly_erp_portal	English name	英文名	ชื่อภาษาอังกฤษ	英語名	product.field.nameEn
+pearnly_erp_portal	Chinese name	中文名	ชื่อภาษาจีน	中国語名	product.field.nameZh
+pearnly_erp_portal	Base unit	库存单位	หน่วยฐาน	基準単位	product.field.baseUnit
+pearnly_erp_portal	Category	分类	หมวดหมู่	カテゴリ	product.field.category
+pearnly_erp_portal	Track batches	批次管理	ติดตามล็อต	ロット管理	product.field.trackBatch
+pearnly_erp_portal	Track expiry	有效期管理	ติดตามวันหมดอายุ	有効期限管理	product.field.trackExpiry
+pearnly_erp_portal	Sold by weight	称重商品	ขายตามน้ำหนัก	量り売り	product.field.weighed
+pearnly_erp_portal	Import from Excel	Excel 导入	นำเข้าจาก Excel	Excel から取込	product.action.import
+pearnly_erp_portal	Reload	刷新	โหลดใหม่	再読み込み	product.action.reload
+pearnly_erp_portal	Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.importFile
+pearnly_erp_portal	Imported {0} product(s)	已导入 {0} 个商品	นำเข้า {0} รายการแล้ว	{0}件を取り込みました	product.notice.imported
+pearnly_erp_portal	Skipped {0} row(s); the first ones are listed above	跳过 {0} 行，前几行见上方	ข้าม {0} แถว รายการแรกแสดงด้านบน	{0}行をスキップしました（先頭のみ表示）	product.notice.importSkipped
+pearnly_erp_portal	Choose a file to import	请选择要导入的文件	กรุณาเลือกไฟล์ที่จะนำเข้า	取り込むファイルを選択してください	product.import.noFile
+pearnly_erp_portal	That file could not be read; please use the template	这个文件读不了，请用模板格式	อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ	このファイルは読み取れません。テンプレートをご利用ください	product.import.badFile
+pearnly_erp_portal	That file has no rows	这个文件没有数据行	ไฟล์นี้ไม่มีข้อมูล	このファイルには行がありません	product.import.emptyFile
+pearnly_erp_portal	That file is not an Excel workbook	这不是 Excel 工作簿	ไฟล์นี้ไม่ใช่ Excel	Excel ブックではありません	product.import.notWorkbook
+pearnly_erp_portal	The sheet needs a product name column	表里要有商品名称列	ต้องมีคอลัมน์ชื่อสินค้า	商品名の列が必要です	product.import.missingName
+pearnly_erp_portal	The first row must be the column headings; the sheet needs at least a product name column	第一行是表头；表里至少要有商品名称列	แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
+pearnly_erp_portal	QR payload	二维码内容	ข้อมูล QR	QR 内容	product.field.qr
+pearnly_erp_portal	Image URL	图片地址	URL รูปภาพ	画像 URL	product.field.image
+pearnly_erp_portal	The product code cannot be changed	商品编码不能改	รหัสสินค้าแก้ไม่ได้	商品コードは変更できません	product.error.codeLocked
+pearnly_erp_portal	Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	product.field.codeAuto
+pearnly_erp_portal	Choose file	选择文件	เลือกไฟล์	ファイルを選択	product.import.pick
+pearnly_erp_portal	The value is not a number	该值不是数字	ค่านี้ไม่ใช่ตัวเลข	数値ではありません	product.import.notNumber
+pearnly_erp_portal	The value must be zero or more	该值不能小于 0	ค่านี้ต้องไม่ติดลบ	0 以上で入力してください	product.import.negative

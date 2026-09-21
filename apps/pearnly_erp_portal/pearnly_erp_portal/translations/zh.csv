@@ -23,7 +23,9 @@ product.action.bulkEnable,启用选中的 {0} 个
 product.action.disable,启用 / 停用
 product.action.edit,编辑
 product.action.enable,启用
+product.action.import,Excel 导入
 product.action.new,新建商品
+product.action.reload,刷新
 product.action.save,保存
 product.action.toggleInactive,显示已停用
 product.cell.notSet,未设
@@ -35,15 +37,38 @@ product.col.name,商品
 product.col.price,售价
 product.col.status,状态
 product.col.unit,单位
+product.error.codeLocked,商品编码不能改
 product.field.barcode,条码
+product.field.baseUnit,库存单位
+product.field.category,分类
 product.field.code,编码
+product.field.codeAuto,自动生成
 product.field.cost,参考成本
+product.field.image,图片地址
+product.field.importFile,Excel 文件
 product.field.minStock,低库存提醒
 product.field.name,商品名称
+product.field.nameEn,英文名
+product.field.nameZh,中文名
 product.field.price,售价
+product.field.qr,二维码内容
 product.field.search,搜索名称或条码
+product.field.trackBatch,批次管理
+product.field.trackExpiry,有效期管理
 product.field.unit,单位
 product.field.vat,含 VAT
+product.field.weighed,称重商品
+product.import.badFile,这个文件读不了，请用模板格式
+product.import.emptyFile,这个文件没有数据行
+product.import.hint,第一行是表头；表里至少要有商品名称列
+product.import.missingName,表里要有商品名称列
+product.import.negative,该值不能小于 0
+product.import.noFile,请选择要导入的文件
+product.import.notNumber,该值不是数字
+product.import.notWorkbook,这不是 Excel 工作簿
+product.import.pick,选择文件
+product.notice.importSkipped,跳过 {0} 行，前几行见上方
+product.notice.imported,已导入 {0} 个商品
 product.notice.saved,已保存 {0}
 product.notice.toggled,已更新 {0}
 product.notice.toggledCount,已更新 {0} 个商品

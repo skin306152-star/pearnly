@@ -7,24 +7,29 @@
  "engine": "InnoDB",
  "field_order": [
   "product_name",
+  "name_en",
+  "name_zh",
   "code",
   "barcode",
   "qr_payload",
   "column_break_price",
   "unit",
+  "base_unit",
+  "category_id",
   "unit_price",
   "price_set",
   "cost_set",
   "vat_applicable",
   "section_break_stock",
   "min_stock",
+  "track_batch",
+  "track_expiry",
+  "is_weighed",
   "default_cost",
-  "avg_cost",
   "column_break_stock",
   "is_active",
   "image_url",
-  "units",
-  "note"
+  "units"
  ],
  "fields": [
   {
@@ -34,6 +39,18 @@
    "in_standard_filter": 1,
    "label": "Product Name",
    "reqd": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "name_en",
+   "fieldtype": "Data",
+   "label": "English name",
+   "length": 300
+  },
+  {
+   "fieldname": "name_zh",
+   "fieldtype": "Data",
+   "label": "Chinese name",
    "length": 300
   },
   {
@@ -68,6 +85,19 @@
    "fieldtype": "Data",
    "label": "Base Unit",
    "length": 50
+  },
+  {
+   "fieldname": "base_unit",
+   "fieldtype": "Data",
+   "label": "Base unit",
+   "length": 50,
+   "default": "ชิ้น",
+   "description": "Stock is counted in this unit; other units convert into it"
+  },
+  {
+   "fieldname": "category_id",
+   "fieldtype": "Int",
+   "label": "Category"
   },
   {
    "fieldname": "unit_price",
@@ -107,16 +137,27 @@
    "precision": "3"
   },
   {
+   "fieldname": "track_batch",
+   "fieldtype": "Check",
+   "label": "Track batches",
+   "default": "0"
+  },
+  {
+   "fieldname": "track_expiry",
+   "fieldtype": "Check",
+   "label": "Track expiry",
+   "default": "0"
+  },
+  {
+   "fieldname": "is_weighed",
+   "fieldtype": "Check",
+   "label": "Sold by weight",
+   "default": "0"
+  },
+  {
    "fieldname": "default_cost",
    "fieldtype": "Currency",
    "label": "Reference Cost"
-  },
-  {
-   "description": "Maintained by stock movements; read-only here",
-   "fieldname": "avg_cost",
-   "fieldtype": "Currency",
-   "label": "Average Cost",
-   "read_only": 1
   },
   {
    "fieldname": "column_break_stock",
@@ -141,11 +182,6 @@
    "fieldtype": "Table",
    "label": "Selling Units",
    "options": "ERP Product Unit"
-  },
-  {
-   "fieldname": "note",
-   "fieldtype": "Small Text",
-   "label": "Note"
   }
  ],
  "index_web_pages_for_search": 0,

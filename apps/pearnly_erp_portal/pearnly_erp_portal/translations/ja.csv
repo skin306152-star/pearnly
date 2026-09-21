@@ -23,7 +23,9 @@ product.action.bulkEnable,選択した{0}件を有効化
 product.action.disable,有効 / 無効
 product.action.edit,編集
 product.action.enable,有効化
+product.action.import,Excel から取込
 product.action.new,商品を追加
+product.action.reload,再読み込み
 product.action.save,保存
 product.action.toggleInactive,無効も表示
 product.cell.notSet,未設定
@@ -35,15 +37,38 @@ product.col.name,商品
 product.col.price,価格
 product.col.status,状態
 product.col.unit,単位
+product.error.codeLocked,商品コードは変更できません
 product.field.barcode,バーコード
+product.field.baseUnit,基準単位
+product.field.category,カテゴリ
 product.field.code,コード
+product.field.codeAuto,自動生成
 product.field.cost,参考原価
+product.field.image,画像 URL
+product.field.importFile,Excel ファイル
 product.field.minStock,低在庫アラート
 product.field.name,商品名
+product.field.nameEn,英語名
+product.field.nameZh,中国語名
 product.field.price,販売価格
+product.field.qr,QR 内容
 product.field.search,名前・バーコードで検索
+product.field.trackBatch,ロット管理
+product.field.trackExpiry,有効期限管理
 product.field.unit,単位
 product.field.vat,VAT 対象
+product.field.weighed,量り売り
+product.import.badFile,このファイルは読み取れません。テンプレートをご利用ください
+product.import.emptyFile,このファイルには行がありません
+product.import.hint,1行目は見出し行です。少なくとも商品名の列が必要です
+product.import.missingName,商品名の列が必要です
+product.import.negative,0 以上で入力してください
+product.import.noFile,取り込むファイルを選択してください
+product.import.notNumber,数値ではありません
+product.import.notWorkbook,Excel ブックではありません
+product.import.pick,ファイルを選択
+product.notice.importSkipped,{0}行をスキップしました（先頭のみ表示）
+product.notice.imported,{0}件を取り込みました
 product.notice.saved,{0} を保存しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
