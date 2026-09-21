@@ -633,12 +633,17 @@ intake.subtitle,Review and confirm documents before sending.
 intake.title,Intake Workbench
 nav.clients,Customers
 nav.company,Company Profile
+nav.companyMaster,Company Master
 nav.connect,Connect DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,Customers
 nav.erpPurchase,Purchasing
 nav.erpSales,Sales
 nav.erpStock,Products & Stock
+nav.group.goodsStock,Goods & Stock
+nav.group.master,Master Data
+nav.group.purchasing,Purchasing
+nav.group.sales,Sales
 nav.guide,Guide
 nav.history,Recognition Records
 nav.home,Home

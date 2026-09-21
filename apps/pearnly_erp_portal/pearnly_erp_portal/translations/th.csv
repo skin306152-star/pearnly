@@ -18,5 +18,31 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+product.action.disable,เปิด / ปิดใช้งาน
+product.action.edit,แก้ไข
+product.action.enable,เปิดใช้งาน
+product.action.new,เพิ่มสินค้า
+product.action.save,บันทึก
+product.action.toggleInactive,แสดงที่ปิดใช้งาน
+product.cell.notSet,ยังไม่ตั้ง
+product.col.avgCost,ต้นทุนเฉลี่ย
+product.col.barcode,บาร์โค้ด
+product.col.code,รหัส
+product.col.cost,ต้นทุนอ้างอิง
+product.col.name,สินค้า
+product.col.price,ราคา
+product.col.status,สถานะ
+product.col.unit,หน่วย
+product.field.barcode,บาร์โค้ด
+product.field.code,รหัส
+product.field.cost,ต้นทุนอ้างอิง
+product.field.minStock,แจ้งเตือนสต็อกต่ำ
+product.field.name,ชื่อสินค้า
+product.field.price,ราคาขาย
+product.field.search,ค้นหาชื่อหรือบาร์โค้ด
+product.field.unit,หน่วย
+product.field.vat,คิด VAT
+product.notice.saved,บันทึก {0} แล้ว
+product.notice.toggled,อัปเดต {0} แล้ว
 purchase,จัดซื้อ
 sales,ขาย

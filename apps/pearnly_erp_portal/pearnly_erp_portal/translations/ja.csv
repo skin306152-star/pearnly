@@ -18,5 +18,31 @@ This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
+product.action.disable,有効 / 無効
+product.action.edit,編集
+product.action.enable,有効化
+product.action.new,商品を追加
+product.action.save,保存
+product.action.toggleInactive,無効も表示
+product.cell.notSet,未設定
+product.col.avgCost,平均原価
+product.col.barcode,バーコード
+product.col.code,コード
+product.col.cost,参考原価
+product.col.name,商品
+product.col.price,価格
+product.col.status,状態
+product.col.unit,単位
+product.field.barcode,バーコード
+product.field.code,コード
+product.field.cost,参考原価
+product.field.minStock,低在庫アラート
+product.field.name,商品名
+product.field.price,販売価格
+product.field.search,名前・バーコードで検索
+product.field.unit,単位
+product.field.vat,VAT 対象
+product.notice.saved,{0} を保存しました
+product.notice.toggled,{0} を更新しました
 purchase,仕入
 sales,売上

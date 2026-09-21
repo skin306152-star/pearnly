@@ -18,5 +18,31 @@ This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+product.action.disable,启用 / 停用
+product.action.edit,编辑
+product.action.enable,启用
+product.action.new,新建商品
+product.action.save,保存
+product.action.toggleInactive,显示已停用
+product.cell.notSet,未设
+product.col.avgCost,均价
+product.col.barcode,条码
+product.col.code,编码
+product.col.cost,参考成本
+product.col.name,商品
+product.col.price,售价
+product.col.status,状态
+product.col.unit,单位
+product.field.barcode,条码
+product.field.code,编码
+product.field.cost,参考成本
+product.field.minStock,低库存提醒
+product.field.name,商品名称
+product.field.price,售价
+product.field.search,搜索名称或条码
+product.field.unit,单位
+product.field.vat,含 VAT
+product.notice.saved,已保存 {0}
+product.notice.toggled,已更新 {0}
 purchase,采购
 sales,销售

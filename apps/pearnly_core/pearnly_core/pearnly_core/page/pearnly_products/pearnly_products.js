@@ -1,1 +1,1 @@
-frappe.pearnly.register("pearnly-products", "shell.", "nav.products", frappe.pearnly.notBuilt);
+frappe.pearnly.register("pearnly-products", "product.", "nav.products", frappe.pearnly.products);

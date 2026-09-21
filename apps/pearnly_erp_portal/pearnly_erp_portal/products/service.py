@@ -21,7 +21,8 @@ INVALID_VALUE = "Invalid value"
 # 列表与详情一起用的字段。成本字段由 `_mask` 决定是否清空。
 LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "unit", "unit_price",
-    "price_set", "vat_applicable", "is_active", "min_stock", "default_cost", "avg_cost",
+    "price_set", "vat_applicable", "is_active", "min_stock", "default_cost", "cost_set",
+    "avg_cost",
     "image_url",
 )
 
@@ -38,6 +39,13 @@ def _optional(value):
         return contracts.decimal_or_none(value)
     except ValueError:
         frappe.throw(_(INVALID_VALUE))
+
+
+def _cost_fields(value) -> dict:
+    """参考成本与"是否设过"一起写。与 `_price_fields` 同一个理由：
+    Currency 列存不下 NULL，0 既是"真的免费"也是"没设过"，收银/毛利那边要能分辨。"""
+    cost = _optional(value)
+    return {"default_cost": cost or 0, "cost_set": 1 if cost is not None else 0}
 
 
 def _price_fields(value) -> dict:
@@ -102,7 +110,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "vat_applicable": 1 if vat_applicable in (True, 1, "1", "true") else 0,
         "image_url": _text(image_url, contracts.MAX_IMAGE_URL),
         "min_stock": _optional(min_stock),
-        "default_cost": _optional(default_cost),
+        **_cost_fields(default_cost),
         "note": note,
         "is_active": 1,
     })
@@ -161,7 +169,10 @@ def update_product(name: str, **changes):
     if "unit_price" in changes:
         for field, value in _price_fields(changes["unit_price"]).items():
             doc.set(field, value)
-    for field in ("min_stock", "default_cost"):
+    if "default_cost" in changes:
+        for field, value in _cost_fields(changes["default_cost"]).items():
+            doc.set(field, value)
+    for field in ("min_stock",):
         if field in changes:
             doc.set(field, _optional(changes[field]))
     if "vat_applicable" in changes:

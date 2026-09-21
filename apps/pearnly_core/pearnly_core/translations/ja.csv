@@ -635,12 +635,17 @@ intake.subtitle,内容を確認して確定後、送信してください。
 intake.title,取り込みワークベンチ
 nav.clients,顧客管理
 nav.company,会社情報
+nav.companyMaster,会社マスタ
 nav.connect,DMSに接続
 nav.cowork,Pearnly Cowork
 nav.erpClients,顧客
 nav.erpPurchase,購買
 nav.erpSales,販売
 nav.erpStock,商品と在庫
+nav.group.goodsStock,商品と在庫
+nav.group.master,マスタ
+nav.group.purchasing,購買システム
+nav.group.sales,販売システム
 nav.guide,使い方
 nav.history,認識記録
 nav.home,ホーム

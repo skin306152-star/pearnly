@@ -1073,3 +1073,34 @@ pearnly_erp_portal	purchase	采购	จัดซื้อ	仕入
 pearnly_erp_portal	sales	销售	ขาย	売上
 pearnly_erp_portal	Unknown direction	未知的方向	ทิศทางไม่ถูกต้อง	不明な区分
 pearnly_erp_portal	Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手
+pearnly_core	Goods & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
+pearnly_core	Purchasing	采购系统	ระบบจัดซื้อ	購買システム	nav.group.purchasing
+pearnly_core	Sales	销售系统	ระบบขาย	販売システム	nav.group.sales
+pearnly_core	Master Data	主数据	ข้อมูลหลัก	マスタ	nav.group.master
+pearnly_core	Company Master	公司主档	ทะเบียนบริษัท	会社マスタ	nav.companyMaster
+pearnly_erp_portal	Product name	商品名称	ชื่อสินค้า	商品名	product.field.name
+pearnly_erp_portal	Code	编码	รหัส	コード	product.field.code
+pearnly_erp_portal	Barcode	条码	บาร์โค้ด	バーコード	product.field.barcode
+pearnly_erp_portal	Unit	单位	หน่วย	単位	product.field.unit
+pearnly_erp_portal	Selling price	售价	ราคาขาย	販売価格	product.field.price
+pearnly_erp_portal	Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.field.cost
+pearnly_erp_portal	Low stock alert	低库存提醒	แจ้งเตือนสต็อกต่ำ	低在庫アラート	product.field.minStock
+pearnly_erp_portal	VAT applies	含 VAT	คิด VAT	VAT 対象	product.field.vat
+pearnly_erp_portal	Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	product.field.search
+pearnly_erp_portal	Product	商品	สินค้า	商品	product.col.name
+pearnly_erp_portal	Price	售价	ราคา	価格	product.col.price
+pearnly_erp_portal	Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.col.cost
+pearnly_erp_portal	Average cost	均价	ต้นทุนเฉลี่ย	平均原価	product.col.avgCost
+pearnly_erp_portal	Status	状态	สถานะ	状態	product.col.status
+pearnly_erp_portal	New product	新建商品	เพิ่มสินค้า	商品を追加	product.action.new
+pearnly_erp_portal	Edit	编辑	แก้ไข	編集	product.action.edit
+pearnly_erp_portal	Save	保存	บันทึก	保存	product.action.save
+pearnly_erp_portal	Enable / disable	启用 / 停用	เปิด / ปิดใช้งาน	有効 / 無効	product.action.disable
+pearnly_erp_portal	Show disabled	显示已停用	แสดงที่ปิดใช้งาน	無効も表示	product.action.toggleInactive
+pearnly_erp_portal	Not set	未设	ยังไม่ตั้ง	未設定	product.cell.notSet
+pearnly_erp_portal	Saved {0}	已保存 {0}	บันทึก {0} แล้ว	{0} を保存しました	product.notice.saved
+pearnly_erp_portal	Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新しました	product.notice.toggled
+pearnly_erp_portal	Enable	启用	เปิดใช้งาน	有効化	product.action.enable
+pearnly_erp_portal	Code	编码	รหัส	コード	product.col.code
+pearnly_erp_portal	Barcode	条码	บาร์โค้ด	バーコード	product.col.barcode
+pearnly_erp_portal	Unit	单位	หน่วย	単位	product.col.unit

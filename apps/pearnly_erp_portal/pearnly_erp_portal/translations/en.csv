@@ -18,5 +18,31 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+product.action.disable,Enable / disable
+product.action.edit,Edit
+product.action.enable,Enable
+product.action.new,New product
+product.action.save,Save
+product.action.toggleInactive,Show disabled
+product.cell.notSet,Not set
+product.col.avgCost,Average cost
+product.col.barcode,Barcode
+product.col.code,Code
+product.col.cost,Reference cost
+product.col.name,Product
+product.col.price,Price
+product.col.status,Status
+product.col.unit,Unit
+product.field.barcode,Barcode
+product.field.code,Code
+product.field.cost,Reference cost
+product.field.minStock,Low stock alert
+product.field.name,Product name
+product.field.price,Selling price
+product.field.search,Search name or barcode
+product.field.unit,Unit
+product.field.vat,VAT applies
+product.notice.saved,Saved {0}
+product.notice.toggled,Updated {0}
 purchase,purchase
 sales,sales

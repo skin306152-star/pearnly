@@ -635,12 +635,17 @@ intake.subtitle,ตรวจสอบและยืนยันเอกสา�
 intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
+nav.companyMaster,ทะเบียนบริษัท
 nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,ลูกค้า
 nav.erpPurchase,การจัดซื้อ
 nav.erpSales,ระบบขาย
 nav.erpStock,สินค้าและสต็อก
+nav.group.goodsStock,สินค้าและสต็อก
+nav.group.master,ข้อมูลหลัก
+nav.group.purchasing,ระบบจัดซื้อ
+nav.group.sales,ระบบขาย
 nav.guide,คู่มือใช้งาน
 nav.history,บันทึกการอ่านข้อมูล
 nav.home,หน้าหลัก

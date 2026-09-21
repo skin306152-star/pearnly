@@ -265,7 +265,10 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
-app_include_js = [versioned_asset("pearnly_erp_portal", "desk/purchase.js")]
+app_include_js = [
+    versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
+    versioned_asset("pearnly_erp_portal", "desk/products.js"),
+]
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。

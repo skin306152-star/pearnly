@@ -14,6 +14,7 @@
   "unit",
   "unit_price",
   "price_set",
+  "cost_set",
   "vat_applicable",
   "section_break_stock",
   "min_stock",
@@ -80,6 +81,13 @@
    "fieldname": "price_set",
    "fieldtype": "Check",
    "label": "Price Is Set"
+  },
+  {
+   "fieldname": "cost_set",
+   "fieldtype": "Check",
+   "label": "Cost Is Set",
+   "default": "0",
+   "description": "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and \"never set\". The counter needs to tell them apart (same reason as price_set)."
   },
   {
    "default": "1",

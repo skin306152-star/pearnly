@@ -14,8 +14,9 @@ MAX_QR = 500
 MAX_UNIT = 50
 MAX_IMAGE_URL = 1000
 
-# 有成本字段，取数时按岗位遮蔽。
-COST_FIELDS = ("default_cost", "avg_cost")
+# 有成本字段，取数时按岗位遮蔽。`cost_set` 是"参考成本是否真的设过"的标记，
+# 它跟着成本一起遮蔽 —— 否则看不到成本的人会读到一个"未设"的假答案。
+COST_FIELDS = ("default_cost", "avg_cost", "cost_set")
 
 # 条码/编码唯一性：同一租户内不能重复。旧线上是三条唯一索引，撞哪个报哪个。
 UNIQUE_FIELDS = ("code", "barcode")
