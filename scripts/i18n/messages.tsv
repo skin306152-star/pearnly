@@ -1002,6 +1002,7 @@ pearnly_core	Change your password from your account profile using Change Passwor
 pearnly_core	Reorder sidebar	侧栏排序	จัดลำดับแถบด้านข้าง	サイドバーの並べ替え	account.sidebarOrder
 pearnly_core	Pearnly Light	Pearnly 浅色	Pearnly โหมดสว่าง	Pearnly ライト	account.themeLight
 pearnly_core	Pearnly Dark	Pearnly 深色	Pearnly โหมดมืด	Pearnly ダーク	account.themeDark
+pearnly_core	Pearnly	Pearnly主题	Pearnly	Pearnly	Frappe Light
 pearnly_core	Pending	待处理	รอดำเนินการ	処理待ち	connect.records.pending
 pearnly_core	Retrying	重试中	กำลังลองใหม่	再試行中	connect.records.retrying
 pearnly_core	Succeeded	成功	สำเร็จ	成功	connect.records.success

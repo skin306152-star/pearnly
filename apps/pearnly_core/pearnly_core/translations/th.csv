@@ -156,6 +156,7 @@ File,ไฟล์
 Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง
+Frappe Light,Pearnly
 Full Name,ชื่อ-นามสกุล
 Gender,เพศ
 Grand Total,ยอดรวม

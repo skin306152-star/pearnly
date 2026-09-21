@@ -156,6 +156,7 @@ File,文件
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项的对方税号不能等于自己
+Frappe Light,Pearnly主题
 Full Name,姓名
 Gender,性别
 Grand Total,价税合计

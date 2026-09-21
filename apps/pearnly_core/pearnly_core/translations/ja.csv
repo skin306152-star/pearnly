@@ -156,6 +156,7 @@ File,ファイル
 Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
+Frappe Light,Pearnly
 Full Name,氏名
 Gender,性別
 Grand Total,税込合計

@@ -155,6 +155,7 @@ File,File
 Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
+Frappe Light,Pearnly
 Full Name,Full Name
 Gender,Gender
 Grand Total,Grand Total
