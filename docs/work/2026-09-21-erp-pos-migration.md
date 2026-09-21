@@ -62,7 +62,21 @@
 
 需要提醒的影响：装了 ERPNext 的租户站点会多出它自己的模块、工作区与桌面图标，与「产品导航只投影已实现且有权限的入口」的要求相冲突；后续还要跟着它的补丁与升级走。原来的用意应该是更早阶段「原生 ERPNext 打底 + Pearnly 外壳」的方向，方向改成「后端走 Pearnly」之后这行没被一起收掉。
 
-建议：去掉这一行并用同一条生产路径复验新建 Site（建站 → 装 Core + ERP → migrate → 收尾）。这属于改动生产开通行为，已单独登记，等用户确认后再动。
+### 去掉自动安装 ERPNext（用户 2026-09-21：不要它）
+
+改动：`infrastructure/production/site-step.py` 的 `install_app` 分支不再插入 `erpnext`，只装请求的那一个 App；注释里写明原因与用户决定。
+
+刻意**没有**动的两处，以及理由：
+
+- `apps.txt` 仍保留 `erpnext`。它只是 bench 的应用清单，不代表安装。已有 ERP 站点若装过 ERPNext，清单里留着才不会让它的 `bench migrate` 出问题；等确认没有任何站点装着它再清。
+- `pearnly_core/provisioning.py:122` 仍把 `erpnext` 写进 `is_setup_complete` 的更新语句。没有这个 App 时那条更新匹配 0 行，是空操作，属于同类遗留，改动面不值得扩大。
+
+复验（跑的是**改动后的真实脚本**，不是仿制逻辑）：
+
+- 新增 `infrastructure/compose/erp-pos-provision-lab.yml`：服务名与生产一致（`mariadb` / `redis-cache` / `redis-queue`），维护容器同样以 root 启动、由脚本自己降权到 uid 1000，并把生产脚本挂成 `/run/site-step.py`。
+- 新增 `scripts/erp-pos-provision-lab-verify.py`：按 provision-agent 的方式把 job JSON 从 stdin 送进去，依次执行 `new_site` → `install_app pearnly_core` → `install_app pearnly_erp_portal` → `finalize_site`，每步要求 `SITE_STEP_OK`，再读回站点并跑一次 `bench migrate`。
+- 结果：站点装出 `['frappe', 'pearnly_core', 'pearnly_erp_portal']`，**没有 erpnext**；`migrate` 退出码 0；`problems` 为空。
+- 对照：把改动前（`ac33e0c`）的同一脚本挂进去跑一遍，装出来的是 `['erpnext', 'frappe', 'pearnly_erp_portal']` —— 说明这个复验确实能发现 ERPNext，不是因为测试看不见。对照站点随后用 `drop_site` 删除，实验室只剩受验站点。
 3. 旧 ERP 的「集成」是 ERP LINE 绑定与录单相关入口（`erp_endpoints`、`erp_team` 等），与 Cowork 域的外部 ERP 推送不是同一件事，不得混为一谈。
 
 ## 变更与决定
@@ -112,6 +126,8 @@
 | 2026-09-21 18:3x +07 | 同上 | 实验室两站点，合成用户与单据 | `erp-pos-lab-permission-verify.py` | 期望 `problems` 为空 / 实际为空 / 0 | 见下：岗位与范围在服务端生效 |
 | 2026-09-21 18:3x +07 | 同上 | 本仓 | `python3 scripts/check-architecture.py` | PASS / 0 违规 / 0 | — |
 | 2026-09-21 18:3x +07 | 同上 | 本仓与 `ac33e0c` 只读对比树 | `check-i18n.py --strict`、`check-frontend-i18n.py --strict` | 增量应为 0 / 实际两处均为 95 条、前端 0 条 / 0 | 严格 i18n 存量为 95 条，本批零新增 |
+| 2026-09-21 18:5x +07 | 未提交（开通改动 + 实验室） | 本地 `pearnly-erp-pos-provision-lab`，服务名对齐生产 | `erp-pos-provision-lab-verify.py` | 装出 Core + ERP 且无 erpnext、`migrate` 成功 / 实际一致 / 0 | 生产开通路径本地复验通过 |
+| 2026-09-21 18:5x +07 | `ac33e0c` 的开通脚本（只读对照） | 同上 | 同一套 job 序列 | 预期出现 erpnext / 实际 `['erpnext','frappe','pearnly_erp_portal']` | 对照证明复验对 ERPNext 敏感；对照站点已 drop |
 
 探针实际输出（合成数据，非生产）：老板账号建单成功（`PUR-2026-00001`）；收银员账号角色仅 `All/Desk User/Guest`，`has_permission("Purchase Document","read")` 为 `false`，**但 `api_list_purchases` 仍返回 1 行完整采购单**。原因是接口只校验“已登录”，列表走 `frappe.get_all` 而不做权限过滤。另一站点 `erp-pos-b.localhost` 采购单行数为 0，看不到 A 站的单据，租户隔离在结构上成立。
 
@@ -137,5 +153,5 @@
 
 - 自审 / 独立审查：本批为只读核对与记录，未做独立审查。
 - 剩余问题 / 阻塞原因：仅 `purchase` 一个功能接入了能力判据，其余功能的表与接口尚未纳入；员工拿功能角色这一步目前只在实验室脚本里模拟，产品侧的团队管理未实现；收银台与交接班的岗位（`ERP Cashier`）未定义；旧线上运行开关与后台任务未核对。
-- 待用户确认的改动：去掉开通流程里自动安装 ERPNext 的遗留动作（会改变新建租户的开通行为，须走同一条生产路径复验）。
+- 开通改动：去掉自动安装 ERPNext 已完成并在本地复验；未部署，正式环境尚未执行。
 - 下一步：按批次表开第三批（团队管理 + 收银员账号与统一登录落地），其中包含主数据组的「公司主档」与销售组的「客户」两个独立页面，随后第四至第七批。
