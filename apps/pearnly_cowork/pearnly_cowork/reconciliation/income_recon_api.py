@@ -2,8 +2,8 @@
 
 No file reading, model call or job runner here: ``create`` takes the ledger and
 output-VAT rows already decoded by a caller, ``create_from_parsed`` the content a
-caller already extracted from a GL file, and the reads return what the dedicated
-store holds.
+caller already extracted from a ledger file and, optionally, from an output-VAT
+report, and the reads return what the dedicated store holds.
 """
 import frappe
 
@@ -30,10 +30,10 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def create_from_parsed(workspace, title, request_id, gl_source, vat_rows, header=None,
-		revenue_prefix="4"):
+def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
+		revenue_prefix="4", vat_source=None):
 	return _transaction(income_recon_service.create_from_parsed, workspace, title, request_id,
-		gl_source, vat_rows, header, revenue_prefix)
+		gl_source, vat_rows, header, revenue_prefix, vat_source)
 
 
 @frappe.whitelist()

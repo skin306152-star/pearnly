@@ -1,0 +1,83 @@
+{
+  "base_commit": "d8f7e3f",
+  "scope": "twenty-eighth batch: the migrated output-VAT report parsing of the income reconciliation family, wired into the same parsed admission entry",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "46d01fea816c98869f2f87c1ae0e02ad049f42e94c3bcc06347a19ee2838600e",
+    "delivery_captured_at": "2026-09-21T14:09:28.663737+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-twenty-seventh-delivery.json baseline-twenty-eighth-delivery.json (before pinned at db984f61)",
+    "note": "no separate start capture was taken for this batch: work began with the merge of main 21581e4, and the delivery capture was compared against the batch-27 delivery snapshot, reporting unchanged source identity",
+    "fixed_source_hashes": {
+      "services/vat/vat_parser_common.py": "ae435d57ef32f5c14b2cf43953e77d1a36b5f502cdf2c9539cf940b7aa46e2a1",
+      "services/vat/vat_parser_excel.py": "3c4733035f994773f4ff2acb27162ef972c731e8c300ad2e951903ec8d7c1aea",
+      "services/vat/vat_parser_pdf.py": "d3d2c71b1a890b497a0f86dcbc8aa8f3593538c5cc2c5274349c5fd94d19d60b",
+      "services/vat/vat_parser_csv.py": "183aa63e7a2b4fe545136608f6b2731e6a90755a295efefffee7324655719f5c",
+      "services/vat/vat_report_parser.py": "8ecf5e796268ce633b99d0a4894068eee126aad237190d7263a4cabf1e2ec296",
+      "services/recon/field_comparator.py": "109c0401587154d3f3860166b4f0c3812f568b03e2e452a880af866195eec037"
+    },
+    "runtime_projection_delivery_sha256": "56fb569e906b07381a286f6d00fec87111a0d0646acad79af46de8a3e75ba2dc",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest 1ed03962 -> 2227156b; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_vat_parse",
+      "result": "PASS",
+      "tests": 34,
+      "new_tests": 34
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_vat_parse_parity.py --source <fixed source>",
+      "result": "PASS",
+      "batches": 257,
+      "excel_rows": 519,
+      "table_rows": 276,
+      "text_rows": 339,
+      "csv_rows": 463,
+      "pipeline_rows": 410,
+      "helper_cases": {"to_float": 15, "map_columns": 6, "filter_garbage_rows": 9, "build_row": 3},
+      "branches": {"regex_fallback": 1, "scanned_pdf": 162, "erp_columns": 48, "skipped_rows": 46},
+      "reader_doubles": "the pinned code calls openpyxl, pdfplumber and the OCR pipeline modules; all three are replaced by in-memory doubles that hand over the same sheet rows, page text and tables, and normalized entries, because reading and running a model are not part of this migration; the CSV path is fed the same decoded text on both sides",
+      "differences": 0
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_income_parse tests.test_cowork_income_recon_contracts tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 63,
+      "note": "the earlier parsing and the two stored row contracts still pass"
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 15,
+      "covers": [
+        "the stored summary, result rows, counters and exact replay",
+        "an extracted ledger worksheet and an extracted output-VAT report admitted through the parsed entry",
+        "every pairing total identical to the decoded-row entry for the same content",
+        "a report that needs OCR, an unrecognised column set, an empty report, a missing report side and an unknown source kind refused before anything is stored",
+        "company scope and the recon feature, a revoked workspace permission, generic writes and shares, the immutable identity, pagination and deletion"
+      ],
+      "anonymous_http": {"create": 403, "create_from_parsed": 403, "records": 403, "detail": 403,
+        "delete": 403}
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS",
+      "note": "the new error keys are ASCII semantic keys, following the existing reconciliation.* convention"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the entry takes already-extracted content (sheet rows, per-page text and tables, printed lines, decoded delimited text, pipeline entries); opening the files, the encoding sniff, OCR and model calls stay in the legacy project, and the dispatch is by a named source kind instead of by file extension",
+    "a scanned report or an unrecognised column set returns None (the deployed signal to fall back to a model or the unified pipeline); the admission turns it into a refusal instead",
+    "the stored row keeps the six fields the pairing reads, so the report tax id, branch, VAT amount, gross amount and row number are not stored yet",
+    "MIN_DETERMINISTIC_ROWS is exported for callers but not used as a routing rule on this side: it decides whether the deployed run would switch to a model, which the store does not need",
+    "a malformed source shape raises ReconciliationContractError, consistent with the ledger parsing and the stored contract, where the deployed code returned an error dict or None"
+  ],
+  "not_run": [
+    "reading a real workbook, PDF or delimited file, and the Gemini or unified-pipeline OCR path with its billing and engine policy",
+    "file diagnostics and file names in storage, asynchronous jobs and polling, the review workbook export, batch delete",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-vat-report-parse.md"
+}

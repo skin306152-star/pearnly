@@ -63,6 +63,18 @@ PARSED_LINES = [
 	"01/06/2569 GL-1 ขายสินค้า 0.00 1,070.00 1,070.00",
 ]
 
+# The output-VAT report of the same three documents as VAT_ROWS, extracted from a
+# sheet: the ledger numbers travel on the invoice column and the dates arrive as
+# printed text, which the reader normalizes to ISO.
+VAT_SHEETS = [
+	["วันที่", "เลขที่ใบกำกับ", "ชื่อผู้ซื้อ", "เลขประจำตัวผู้เสียภาษี", "สาขา", "มูลค่า", "ภาษี",
+		"ยอดรวม"],
+	["01/06/2569", "GL-1", "ACME", "1234567890123", "00000", "1,100.00", "77.00", "1,177.00"],
+	["02/06/2569", "GL-2", "ACME", "1234567890123", "00000", "(107.00)", "(7.49)", "0.00"],
+	["05/06/2569", "INV-9", "BETA", "", "00000", "250.00", "17.50", "267.50"],
+	["รวมทั้งสิ้น", "", "", "", "", "1,243.00", "87.01", "1,444.50"],
+]
+
 
 class NativeIncomeReconciliation(unittest.TestCase):
 	@classmethod
@@ -167,6 +179,48 @@ class NativeIncomeReconciliation(unittest.TestCase):
 		self.create()
 		with self.assertRaises(frappe.ValidationError):
 			self.create(vat_rows=VAT_ROWS[:1])
+
+	def test_an_extracted_vat_report_is_admitted_with_the_deployed_conversion(self):
+		from_store = self.create(request_id="decoded-" + uuid4().hex)
+		result = self.create_from_parsed(vat_rows=None,
+			vat_source={"kind": "excel", "cells": VAT_SHEETS})
+		self.assertEqual(result["vat_parsed"], {"rows": 3, "method": "excel",
+			"parser_version": "1.1.0"})
+		# The report carries the same three documents, so every total is identical.
+		# The itemized dates differ only because the reader normalizes a printed date
+		# to ISO while the caller-provided rows keep it as printed.
+		scalars = lambda summary: {key: value for key, value in summary.items()
+			if not key.endswith("_items")}
+		self.assertEqual(scalars(result["summary"]), scalars(from_store["summary"]))
+		self.assertEqual(result["summary"]["vat_only_positive_items"],
+			[{"doc_no": "INV-9", "date": "2026-06-05", "name": "BETA", "amount": 250.0}])
+		self.assertEqual(result["row_count"], 3)
+		detail = self.api.detail(result["name"])
+		self.assertEqual([row["doc_no"] for row in detail["rows"]], ["GL-1", "GL-2", "INV-9"])
+		self.assertEqual([row["vat_amount"] for row in detail["rows"]], [1100.0, -107.0, 250.0])
+		replay = self.create_from_parsed(vat_rows=None,
+			vat_source={"kind": "excel", "cells": VAT_SHEETS})
+		self.assertTrue(replay["replayed"])
+		self.assertEqual(replay["summary"], result["summary"])
+
+	def test_a_report_that_needs_ocr_or_keeps_no_row_is_refused_before_storing(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(vat_rows=None,
+				vat_source={"kind": "pdf", "pages": [{"text": "scan", "tables": []}],
+					"lines": ["scan"]})
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(vat_rows=None,
+				vat_source={"kind": "csv", "text": "a,b,c\n1,2,3"})
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(vat_rows=None, vat_source={"kind": "text", "lines": []})
+		# Neither side of the report: nothing to reconcile against.
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(vat_rows=None)
+		from pearnly_cowork.reconciliation import income_recon_contracts
+		with self.assertRaises(income_recon_contracts.ReconciliationContractError):
+			self.create_from_parsed(vat_rows=None, vat_source={"kind": "scan"})
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 0)
+		self.assertEqual(frappe.db.count(ROW, {"workspace": self.workspace}), 0)
 
 	def test_an_extracted_gl_sheet_is_admitted_with_the_deployed_conversion(self):
 		from_store = self.create_parsed_for_comparison()

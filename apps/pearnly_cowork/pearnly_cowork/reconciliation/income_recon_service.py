@@ -22,6 +22,7 @@ from pearnly_cowork.reconciliation import (
 	income_parse,
 	income_vat,
 	recon_tasks,
+	vat_parse,
 )
 from pearnly_cowork.reconciliation.income_recon_access import ROW, TASK
 from pearnly_cowork.reconciliation.income_recon_documents import persist
@@ -73,19 +74,31 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results)}
 
 
-def create_from_parsed(workspace, title, request_id, gl_source, vat_rows, header=None,
-		revenue_prefix="4"):
-	"""Store one reconciliation from the extracted content of a GL file.
+def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
+		revenue_prefix="4", vat_source=None):
+	"""Store one reconciliation from the extracted content of the two report files.
 
-	Opening the GL workbook or PDF, running OCR and calling a model stay in the
-	legacy project; this entry converts what that path extracted with the migrated
-	conversions (``income_parse``) and then stores the rows through the same
-	validated path as ``create``. The output-VAT report is a parser family of its
-	own, so its rows arrive already decoded, exactly like the ledger rows ``create``
-	accepts, and a GL file that kept no revenue row is an error rather than an empty
+	Opening the ledger workbook or PDF, opening the output-VAT report, running OCR
+	and calling a model all stay in the legacy project; this entry converts what
+	that path extracted with the migrated conversions (``income_parse`` and
+	``vat_parse``) and then stores the rows through the same validated path as
+	``create``. Either side may also arrive already decoded: ``vat_rows`` are stored
+	as given, and a report that kept no row is an error rather than an empty
 	reconciliation.
 	"""
 	income_recon_access.require(workspace)
+	vat_parsed = None
+	if vat_source is not None:
+		report = vat_parse.decode(vat_source)
+		if not report or not report.get("ok"):
+			frappe.throw(_("reconciliation.vat_report_unparsed"))
+		vat_rows = vat_parse.decoded_rows(report["rows"])
+		if not vat_rows:
+			frappe.throw(_("reconciliation.vat_no_rows"))
+		vat_parsed = {"rows": report["row_count"], "method": report.get("method"),
+			"parser_version": report.get("parser_version")}
+	elif vat_rows is None:
+		frappe.throw(_("reconciliation.request_invalid"))
 	parsed = income_parse.decode(gl_source, revenue_prefix)
 	if not parsed["ok"]:
 		frappe.throw(_("reconciliation.gl_parse_failed"))
@@ -93,12 +106,15 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows, header
 		frappe.throw(_("reconciliation.gl_no_revenue_rows"))
 	result = create(workspace, title, request_id, income_parse.decoded_rows(parsed["rows"]),
 		vat_rows, header)
-	return {**result, "parsed": {
+	payload = {**result, "parsed": {
 		"rows": parsed["row_count"],
 		"method": parsed["diag"].get("method"),
 		"accounts_seen": parsed["diag"].get("accounts_seen") or [],
 		"parser_version": income_parse.PARSER_VERSION,
 	}}
+	if vat_parsed is not None:
+		payload["vat_parsed"] = vat_parsed
+	return payload
 
 
 def result_counts(results):

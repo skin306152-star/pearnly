@@ -1,5 +1,41 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十八批交付）
+
+**本批把收入对账的销项税报告解析迁进来，接到同一个受控入账入口。** 至此收入对账的两侧输入（总账 + 销项税报告）都能从"旧项目抽取出的内容"走到存储；剩下的是诊断入库、异步与导出。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。开工先并入 main `21581e4`（合并提交 `d8f7e3f`，含 `messages.tsv` 冲突解决，见下），本批基线 `d8f7e3f`；含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/vat_parse.py`：`decode(source)` 按 `kind`（`excel` 活动表单元格行 / `pdf` 每页文字+表格+文字行 / `text` 文字行 / `csv` 已解码文本+分隔符 / `pipeline` 管线条目）解码成部署版 `report_*` 行；`None` 沿用部署版语义表示"扫描件/列名认不出，交调用方兜底"；`decoded_rows(rows)` 转到入库六键契约。
+- `income_recon_service.create_from_parsed` 新增 `vat_source`（与 `vat_rows` 二选一）：先解码（`None`→`reconciliation.vat_report_unparsed`、0 行→`vat_no_rows`、都没给→`request_invalid`），返回新增 `vat_parsed`。RPC 同步扩参；**未改 DocType、hooks、共享底座**。
+- 保真的规则：金额读不出是 `None`（不是 0）、参考号列优先、四语列名、表头=日期+单据号或金额、合计行进 `meta`、PDF 三条通道（抽表→文字行 regex→判扫描件）、文字行的日期/税号/分支/名称清洗与粘连切分、CSV 的 MR.ERP 精确列名 + Decimal 金额 + 缺合计补算 + 无单据号告警、管线按发票号过滤（企业引擎例外）、出口统一过垃圾行过滤。
+- 有意差异：入参边界为"已抽取内容"；扫描件/认不出返回 `None` 由入账翻成拒绝；报告行的税号/分支/税额/合计暂不入库；`MIN_DETERMINISTIC_ROWS` 只导出不当路由；形状不合法抛 `ReconciliationContractError`。
+
+### 验证与证据
+
+- 离线：本批新 **34** 个用例通过；固定源差分 **257** 批 × 五条通道（Excel 519 / 抽表 276 / 文字行 339 / CSV 463 / 管线 410 行）+ 33 组 helper 用例，差异 **0**，分支覆盖含文字行回退 1、扫描件 162、MR.ERP 列名 48、无单据号丢弃 46，覆盖率下限不达即失败；既有解析与两份行契约 63 个继续通过。
+- 隔离 Site：两个 Site 各 **15** 个用例通过（上批 13 + 本批 2：已抽取销项税表入账后汇总与解码行入口一致、扫描件/认不出/空报告/缺报告/未知来源入库前被拒且无残留），五端点匿名全 **403**。
+- 架构 **0** 违规；`i18n-build --check` PASS；`git diff --check` 干净。
+- 未执行：真实文件读取与 Gemini/统一管线 OCR、计费与引擎档、诊断与文件名入库、异步任务与轮询、复核工作簿、批删、前端、部署、外部结果与用户验收。
+
+### 合并
+
+开工并入 main `21581e4`（ERP 三个提交：LINE 渠道接销售单据、打印页事实与报价转换、确认后指向销售单据），合并提交 `d8f7e3f`。`scripts/i18n/messages.tsv` 冲突一次：两边都在 ERP 行块尾部追加（main +5 条、本分支 498 条自有行），按"两边都保留、ERP 行块连续"解决后重跑 `i18n-build.py`（`pearnly_erp_portal` 17→22 条），`--check` PASS；`features.py` 自动合并。
+
+### 线上来源与配置限制
+
+交付 `baseline-twenty-eighth-delivery.json`（`46d01fea…`）与第 27 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`（本批未单独采开工快照，理由见[证据说明](cowork-backend/evidence/twenty-eighth-local-validation.json)）。运行投影 `push-runtime-twenty-eighth-delivery.json`（`56fb569e…`）：端点摘要 `1ed03962…` → `2227156b…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩：两端文件诊断与文件名入库 → 异步任务与轮询 → 复核工作簿导出 → 批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。第一代 `vat_recon_*`（报告入库 + 发票存档配对）不属本族。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`d8f7e3f`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十七批交付）
 
 **本批把收入对账的总账侧解析按部署版迁入，并给它一个受控入账入口。** 上一批只有"已解码行 → 存储"，本批补上"旧项目抽取出的内容 → 总账行"：Excel 两种版式、PDF 表格与文字行两条路径、OCR 管线归一化 JSON。销项税报告由另一个解析族负责，不在本批；读文件与 OCR 仍在旧项目。不接前端、不部署、不改 DMS、不写旧库。
