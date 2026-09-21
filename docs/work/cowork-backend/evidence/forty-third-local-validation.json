@@ -1,0 +1,93 @@
+{
+  "base_commit": "312c29b",
+  "scope": "forty-third batch: the first master-data slice — the buyer-to-client matching layers and the attribution decision ladder, with all data access injected so the core is fully offline-verifiable",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-second batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "2e21cbb08a65416b46a6cd4793278ebad8aae35b12c807da805bf232fb1d356f",
+    "delivery_captured_at": "2026-09-21T17:58:21.909617+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-second-delivery.json baseline-forty-third-delivery.json (before pinned at 7ea12219, after pinned at 2e21cbb0)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "b4980c93d3ee7d89d06cdbab9d58ca8dcf08ee38fbcd3aaa7868cd486683a933",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/clients/buyer_resolve.py": "eff506ba79ac781eb0412c58d8f3d06448dc29491e725d49ae2cdf40c461fa94"
+    },
+    "source_note": "the ported core is pure; the pinned code is executed against a fake database in the differential"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_buyer_resolve",
+      "result": "PASS",
+      "tests": 26,
+      "new_tests": 26,
+      "covers": [
+        "candidate conflict: one candidate, duplicates, an abbreviation of the same name, two unrelated buyers, empty strings",
+        "tax normalisation removes dashes and spaces, and only thirteen digits are valid",
+        "each of the six matching layers, including the tax layer being skipped below ten digits and the exact layers returning before any approximation",
+        "a substring keeping its length ratio as confidence, the best approximation winning, and nothing similar returning nothing",
+        "all five decisions: nothing to do, conflicting candidates to review without creating, a tax hit assigned and learned, a memory hit assigned, a new valid tax created and learned, a failed creation going to review, a near name only suggested (never bound, never learned), no tax and no match to review",
+        "a short tax number not being valid so no client is created, an exactly matching short name staying in the suggestion band rather than the auto-assign band, and the learner being optional"
+      ]
+    },
+    {
+      "command": "python test_cowork_buyer_resolve_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "batches": 260,
+        "matches": 260,
+        "conflict": 24,
+        "memory": 64,
+        "tax": 51,
+        "name_exact": 40,
+        "short_exact": 21,
+        "substring": 32,
+        "no_match": 52,
+        "assigned": 108,
+        "created": 6,
+        "suggest": 26,
+        "review": 95,
+        "none": 25,
+        "learned": 114
+      },
+      "note": "the pinned module talks to a database, so the database is the device replaced: a fake cursor answers exactly the three queries the pinned code issues (the learned memory row, the tax-id row, the active-client list) and the two write paths are recording stubs. Each batch compares the six decision fields, the learn calls (count and arguments) and the create-by-tax call arguments; the conflict rule is compared separately over 24 name pairs. Floors sit just under the measured coverage so a fixture that stops reaching a branch is caught."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_buyer_resolve test_cowork_document_tier test_cowork_reconciliation_bank_intake test_cowork_bank_sheets test_cowork_reconciliation_gl_sheets test_cowork_reconciliation_bank_model_path test_cowork_reconciliation_bank_reread",
+      "result": "PASS",
+      "tests": 174,
+      "note": "the new module is independent of the OCR work, so the previous batches' suites are run to confirm nothing regressed"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the pinned functions open their own cursors; this side takes the scoped memory hit, the active client list, a create-by-tax-id callback and a learn callback, which is what makes the core verifiable offline",
+    "update_history_client_id is not ported: writing the client id back onto a recognition record belongs to the history domain, which already carries the attribution field",
+    "the table bootstrap and the client/store CRUD (list, get, create, update, delete) and the supplier-category memory are the next master-data batch",
+    "the tax comparison normalises both sides the same way (stripping surrounding spaces as well), which differs from the pinned client-side comparison only for a stored tax id with surrounding spaces; the differential fixture has none and the difference is recorded",
+    "comments and docstrings were rewritten; every threshold, every layer order, every returned string and every reason code is the deployed one"
+  ],
+  "not_run": [
+    "any storage layer (this batch is the pure decision core), the client roster RPCs, the import normalisation, the product and supplier master data, real invoice data, the frontend, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-buyer-resolve.md"
+}
