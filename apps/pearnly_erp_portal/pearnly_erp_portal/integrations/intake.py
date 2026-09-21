@@ -23,6 +23,8 @@ from frappe import _
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import service as purchasing
+from pearnly_erp_portal.sales import contracts as sales_contracts
+from pearnly_erp_portal.sales import service as sales
 
 DOCTYPE = "ERP LINE Intake"
 STATUS_RECEIVED = "received"
@@ -30,6 +32,11 @@ STATUS_CONFIRMED = "confirmed"
 STATUS_DISCARDED = "discarded"
 
 MEDIA_TYPES = {"image": "image", "file": "pdf"}
+
+# 两个方向：收进来的可能是进项单据（采购）也可能是销项单据（销售）。
+# 各自要求对应岗位 —— 不能借"上传"把没有采购岗位的人变成能建采购单的人。
+DIRECTIONS = ("purchase", "sales")
+DIRECTION_CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
 MAX_BYTES = 20 * 1024 * 1024
 
 NOT_FOUND = "Draft not found"
@@ -39,7 +46,7 @@ TOO_LARGE = "This document is too large"
 
 LIST_FIELDS = ("name", "status", "direction", "sent_by", "line_user_id", "media_type",
                "file_hash", "source_file", "received_at", "decided_at", "purchase",
-               "discard_reason", "note")
+               "sales_document", "discard_reason", "note")
 
 
 def _get(name):
@@ -69,16 +76,16 @@ def _store_file(intake, content: bytes, filename: str) -> None:
 def receive(*, line_user_id, sent_by, media_type, content, filename,
             line_message_id="", direction="purchase") -> dict:
     """LINE 来了一件单据：留底并落草稿。重复内容返回已有草稿，不新建。"""
-    guard.require("purchase.write")
-    if direction != "purchase":
-        frappe.throw(_("Only purchase documents can be sent in for now"))
+    if direction not in DIRECTIONS:
+        frappe.throw(_("Unknown direction"))
+    guard.require(DIRECTION_CAPABILITY[direction])
     if not content:
         frappe.throw(_(EMPTY_FILE))
     if len(content) > MAX_BYTES:
         frappe.throw(_(TOO_LARGE))
     digest = hashlib.sha256(content).hexdigest()
     existing = frappe.db.get_value(DOCTYPE, {"line_user_id": line_user_id,
-                                             "file_hash": digest,
+                                             "file_hash": digest, "direction": direction,
                                              "status": STATUS_RECEIVED}, "name")
     if existing:
         return {"name": existing, "duplicate": True}
@@ -101,9 +108,12 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
     return {"name": intake.name, "duplicate": False}
 
 
-def list_intakes(*, status=STATUS_RECEIVED, limit=50) -> list[dict]:
+def list_intakes(*, status=STATUS_RECEIVED, direction=None, limit=50) -> list[dict]:
+    """列草稿。两个方向都会出现在这里，按岗位过滤由调用方决定看哪一边。"""
     guard.require("purchase.read")
     filters = {"status": status} if status else {}
+    if direction:
+        filters["direction"] = direction
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
                            order_by="received_at desc", limit_page_length=int(limit))
 
@@ -114,20 +124,32 @@ def get_intake(name) -> dict:
     return {field: doc.get(field) for field in LIST_FIELDS}
 
 
-def confirm(name, *, supplier_name, doc_date, lines, **fields) -> dict:
-    """确认草稿 → 建 ERP 采购草稿。重复确认返回同一张单。"""
-    guard.require("purchase.write")
+def confirm(name, *, lines, doc_date=None, **fields) -> dict:
+    """确认草稿：进项建采购记录、销项建销售单据。重复确认返回同一张单。"""
     doc = _get(name)
-    if doc.status == STATUS_CONFIRMED and doc.purchase:
-        return {"name": doc.purchase, "intake": doc.name, "duplicate": True}
+    direction = doc.direction or "purchase"
+    guard.require(DIRECTION_CAPABILITY[direction])
+    if doc.status == STATUS_CONFIRMED:
+        return {"name": doc.purchase or doc.sales_document, "intake": doc.name,
+                "duplicate": True}
     if doc.status != STATUS_RECEIVED:
         frappe.throw(_(ALREADY_SETTLED))
-    created = purchasing.create_purchase(
-        supplier_name=supplier_name, doc_date=doc_date, lines=lines,
-        dedupe_key=f"line-intake:{doc.name}", image_sha256=doc.file_hash,
-        source="line", **fields)
+    if direction == "purchase":
+        created = purchasing.create_purchase(
+            supplier_name=fields.pop("supplier_name", None) or doc.note or "",
+            doc_date=doc_date or str(frappe.utils.nowdate()), lines=lines,
+            dedupe_key=f"line-intake:{doc.name}", image_sha256=doc.file_hash,
+            source="line", **fields)
+        doc.purchase = created["name"]
+    else:
+        created = sales.create_document(
+            doc_kind=fields.pop("doc_kind", None) or sales_contracts.TAX_INVOICE,
+            doc_date=doc_date or str(frappe.utils.nowdate()),
+            buyer_name=fields.pop("buyer_name", None) or _("Unknown buyer"),
+            lines=lines, source=sales_contracts.SOURCE_OCR,
+            image_sha256=doc.file_hash, source_file=doc.source_file, **fields)
+        doc.sales_document = created["name"]
     doc.status = STATUS_CONFIRMED
-    doc.purchase = created["name"]
     doc.decided_at = frappe.utils.now()
     doc.save(ignore_permissions=True)
     frappe.db.commit()
@@ -136,8 +158,8 @@ def confirm(name, *, supplier_name, doc_date, lines, **fields) -> dict:
 
 def discard(name, reason=None) -> dict:
     """丢掉这条草稿。**不删文件** —— 事后还要能查"当时传的是什么"。"""
-    guard.require("purchase.write")
     doc = _get(name)
+    guard.require(DIRECTION_CAPABILITY[doc.direction or "purchase"])
     if doc.status != STATUS_RECEIVED:
         frappe.throw(_(ALREADY_SETTLED))
     doc.status = STATUS_DISCARDED

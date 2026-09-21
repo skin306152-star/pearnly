@@ -16,5 +16,8 @@ class ERPLINEIntake(Document):
     def validate(self):
         if self.source_file and not self.file_hash:
             frappe.throw(_("A stored source file must carry its hash"))
-        if self.status == "confirmed" and not self.purchase:
-            frappe.throw(_("A confirmed draft must point at the purchase record it created"))
+        if self.status == "confirmed":
+            # 方向不同，指向的单据不同：进项指向采购记录，销项指向销售单据。
+            linked = self.purchase if self.direction == "purchase" else self.sales_document
+            if not linked:
+                frappe.throw(_("A confirmed draft must point at the record it created"))

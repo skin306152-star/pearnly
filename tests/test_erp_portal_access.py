@@ -20,6 +20,7 @@ from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
 from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E402
 from pearnly_erp_portal.sales import contracts as sales_contracts  # noqa: E402
+from pearnly_erp_portal.sales import render as sales_render  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -717,6 +718,68 @@ class RecognisedInvoiceMapping(unittest.TestCase):
         self.assertNotIn("grand_total", mapped)
         totals = sales_contracts.compute_totals(mapped["lines"], vat_rate=7)
         self.assertEqual(str(totals["grand_total"]), "21.40")
+
+
+class PromptPayAndPrint(unittest.TestCase):
+    """票面：PromptPay 载荷（照旧线上断言逐条搬）与打印模型。"""
+
+    def test_static_payload_structure(self):
+        payload = sales_render.promptpay_payload("0899999999")
+        self.assertTrue(payload.startswith("000201010211"))
+        self.assertIn("0016A000000677010111", payload)
+        self.assertIn("5802TH", payload)
+        self.assertIn("5303764", payload)
+
+    def test_dynamic_payload_has_amount_and_poi_12(self):
+        payload = sales_render.promptpay_payload("0899999999", "100.00")
+        self.assertIn("010212", payload)
+        self.assertIn("5406100.00", payload)
+
+    def test_amount_is_two_decimals(self):
+        self.assertIn("540521.00", sales_render.promptpay_payload("0812345678", 21))
+
+    def test_crc_is_self_consistent(self):
+        payload = sales_render.promptpay_payload("0812345678", "42.50")
+        self.assertEqual(sales_render._crc16(payload[:-4]), payload[-4:])
+        self.assertEqual(len(payload[-4:]), 4)
+
+    def test_proxy_classes(self):
+        self.assertEqual(sales_render._proxy("0812345678"), ("01", "0066812345678"))
+        self.assertEqual(sales_render._proxy("081-234-5678"), ("01", "0066812345678"))
+        self.assertEqual(sales_render._proxy("0105551234567"), ("02", "0105551234567"))
+        tag, target = sales_render._proxy("012345678901234")
+        self.assertEqual(tag, "03")
+        self.assertEqual(len(target), 15)
+
+    def test_no_promptpay_id_means_no_payload(self):
+        self.assertEqual(sales_render.promptpay_payload("", 100), "")
+
+    def test_print_model_carries_the_thai_page_facts(self):
+        model = sales_render.print_model(
+            {"doc_kind": sales_contracts.TAX_INVOICE, "doc_no": "INV2026-00001",
+             "doc_date": "2026-09-21", "buyer_name": "ACME", "party_type": "company",
+             "tax_id": "0105550000001", "branch_type": "branch", "branch_no": "00002",
+             "grand_total": 107, "net_payable": 107, "wht_amount": 0,
+             "payment_status": "unpaid", "vat_amount": 7, "subtotal": 100,
+             "lines": [{"description": "item", "qty": 1, "unit_price": 107,
+                        "line_total": 107}]},
+            seller={"company_name": "Shop", "promptpay_id": "0899999999"})
+        self.assertIn("ใบกำกับภาษี", model["doc_label"])
+        self.assertEqual(model["amount_in_words"], "หนึ่งร้อยเจ็ดบาทถ้วน")
+        self.assertTrue(model["promptpay"].startswith("000201"))
+        self.assertEqual(model["buyer"]["tin_label"], "เลขประจำตัวผู้เสียภาษี / Tax ID")
+
+    def test_a_paid_document_prints_no_payment_code(self):
+        model = sales_render.print_model(
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107, "net_payable": 107,
+             "payment_status": "paid", "lines": []},
+            seller={"promptpay_id": "0899999999"})
+        self.assertEqual(model["promptpay"], "")
+
+    def test_person_buyer_gets_the_national_id_label(self):
+        model = sales_render.print_model({"doc_kind": sales_contracts.RECEIPT,
+                                          "party_type": "person", "lines": []})
+        self.assertIn("เลขบัตรประชาชน", model["buyer"]["tin_label"])
 
 
 if __name__ == "__main__":

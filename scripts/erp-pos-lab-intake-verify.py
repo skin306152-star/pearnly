@@ -25,6 +25,8 @@ BUYER = "erp-pos-line-buyer@example.com"
 CASHIER = "erp-pos-line-cashier@example.com"
 LINE_USER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb1"
 LINE_STRANGER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb9"
+LINE_SELLER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb2"
+SELLER = "erp-pos-line-seller@example.com"
 
 def _lab_image() -> bytes:
     """A real (tiny) JPEG: Frappe re-encodes image uploads, so fake bytes would fail
@@ -123,10 +125,14 @@ class FakeLine:
         self.replies = []
 
 
-def send(line_module, line_user_id, *, message_type="image", message_id="m1", filename=""):
+def send(line_module, line_user_id, text=None, *, message_type="image", message_id="m1",
+         filename=""):
     event = {"type": "message", "source": {"userId": line_user_id},
              "replyToken": "lab-reply"}
     message = {"type": message_type, "id": message_id}
+    if text is not None:
+        message["type"] = "text"
+        message["text"] = text
     if filename:
         message["fileName"] = filename
     event["message"] = message
@@ -150,6 +156,7 @@ def main():
     ensure_feature_roles(json.dumps(spec), admin_user=OWNER)
     ensure_member(BUYER, ["ERP Purchase"])
     ensure_member(CASHIER, ["ERP Cashier"])
+    ensure_member(SELLER, ["ERP Sales"])
 
     # 干净起点：本脚本的草稿与绑定。
     for name in frappe.get_all("ERP LINE Intake", filters={"line_user_id": LINE_USER},
@@ -164,9 +171,13 @@ def main():
         frappe.delete_doc("Purchase Document", name, force=True, ignore_permissions=True)
     frappe.db.commit()
     line_binding.bind(LINE_USER, BUYER, "Lab Buyer")
+    line_binding.bind(LINE_SELLER, SELLER, "Lab Seller")
+    # 方向存在 LINE 会话里（跨进程留存），每次跑都显式设成进项，不靠默认值。
+    from pearnly_core import line_session
+    line_session.set_session(LINE_USER, "erp_intake", {"direction": "purchase"})
 
     results = {}
-    fake = FakeLine(line, {"m1": IMAGE, "m2": PDF, "m3": IMAGE})
+    fake = FakeLine(line, {"m1": IMAGE, "m2": PDF, "m3": IMAGE, "m4": IMAGE})
     try:
         # 采购岗位的人传图：留底 + 落草稿。
         results["image_handled"] = send(line, LINE_USER, message_id="m1")
@@ -256,6 +267,40 @@ def main():
         results["cashier_can_list"] = ok
         ok, rows = as_user(BUYER, intake.list_intakes, status=None)
         results["buyer_sees_rows"] = ok and len(rows) >= 1
+
+        # 销售方向：只有拿到销售岗位的账号能发；切到"ขาย"后，确认建的是**销售单据**。
+        # 通道侧不是用户会话（webhook 走 Administrator），先还原会话再发。
+        frappe.set_user("Administrator")
+        fake.clear()
+        send(line, LINE_USER, "ขาย")
+        send(line, LINE_USER, message_id="m4")
+        results["purchase_only_refused_sales"] = fake.last_text()
+        fake.clear()
+        send(line, LINE_SELLER, "ขาย")
+        results["direction_reply"] = fake.last_text()
+        fake.clear()
+        send(line, LINE_SELLER, message_id="m4")
+        sales_row = frappe.db.get_value("ERP LINE Intake",
+                                        {"line_user_id": LINE_SELLER, "direction": "sales"},
+                                        ["name", "direction", "file_hash"], as_dict=True) or {}
+        results["sales_row_direction"] = sales_row.get("direction")
+        ok, made = as_user(OWNER, intake.confirm, sales_row.get("name"),
+                           lines=[{"product": None, "description": "LINE sale",
+                                   "qty": 1, "unit_price": "100"}],
+                           doc_date="2026-09-21", buyer_name="LINE Buyer",
+                           doc_kind="tax_invoice")
+        results["sales_confirm"] = ok
+        results["sales_confirm_error"] = None if ok else made
+        sales_doc = made.get("name") if ok else None
+        results["sales_source"] = frappe.db.get_value("ERP Sales Document", sales_doc,
+                                                      "source") if sales_doc else None
+        results["sales_hash_matches"] = (frappe.db.get_value("ERP Sales Document", sales_doc,
+                                                             "image_sha256")
+                                         == sales_row.get("file_hash")) if sales_doc else None
+        results["sales_intake_link"] = frappe.db.get_value(
+            "ERP LINE Intake", sales_row.get("name"), "sales_document")
+        results["purchase_row_untouched"] = frappe.db.get_value(
+            "ERP LINE Intake", row.get("name"), "sales_document")
 
         results["site_a_intakes"] = frappe.db.count("ERP LINE Intake")
     finally:

@@ -6,6 +6,7 @@ Bound to {0},{0} に連携しました
 Could not store this document,書類を保存できませんでした。再送してください
 Draft not found,下書きが見つかりません
 LINE unbound,LINE の連携を解除しました
+Now sending {0} documents,{0}の書類を送信中
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
@@ -15,3 +16,7 @@ This channel is not open yet,このチャンネルはまだ開放していませ
 This document has no content,この書類は中身がありません
 This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
+Unknown buyer,不明な買い手
+Unknown direction,不明な区分
+purchase,仕入
+sales,売上

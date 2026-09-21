@@ -198,6 +198,34 @@ def main():
     results["attach_recognition"] = ok
     results["reviewed_total"] = str(fixed.get("grand_total")) if ok else None
 
+    # 报价 → 开票：转出草稿、开出时才取号；票面模型带泰文金额大写与未收款付款码。
+    ok, conv = as_user(SELLER, service.convert_quotation, draft["name"],
+                       contracts.TAX_INVOICE)
+    results["convert"] = ok
+    results["convert_error"] = None if ok else conv
+    results["convert_has_no_number"] = frappe.db.get_value(
+        "ERP Sales Document", conv.get("name"), "doc_no") if ok else None
+    ok, conv_issued = as_user(SELLER, service.issue_document, conv.get("name"))
+    results["convert_issue"] = ok
+    results["convert_doc_no"] = conv_issued.get("doc_no") if ok else None
+    results["convert_refs_quote"] = frappe.db.get_value(
+        "ERP Sales Document", conv.get("name"), "references_document") if ok else None
+    from pearnly_erp_portal.masters import company as company_master
+    as_user(OWNER, company_master.update_profile, promptpay_id="0899999999")
+    paid = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
+                                   buyer_name="Walk-in", party_type="anonymous",
+                                   payment_status="paid", payment_method="cash",
+                                   payment_date="2026-09-21", lines=lines)
+    as_user(SELLER, service.issue_document, paid["name"])
+    ok, printed = as_user(SELLER, service.print_document, paid["name"])
+    results["print"] = ok
+    results["print_error"] = None if ok else printed
+    results["print_words"] = printed.get("amount_in_words") if ok else None
+    results["print_promptpay"] = printed.get("promptpay") if ok else None
+    ok, printed2 = as_user(SELLER, service.print_document, results.get("second_doc_no") and
+                           second["name"] or second["name"])
+    results["print_unpaid_has_promptpay"] = bool(printed2.get("promptpay")) if ok else None
+
     # 岗位与隔离。
     ok, err = as_user(CASHIER, service.create_document, doc_kind=contracts.TAX_INVOICE,
                       doc_date="2026-09-21", buyer_name="X", lines=lines)
@@ -223,6 +251,10 @@ def main():
         "upload": True, "upload_source": "ocr", "upload_total": "160.50",
         "upload_has_file": True, "upload_sha_set": True,
         "attach_recognition": True, "reviewed_total": "214.00",
+        "convert": True, "convert_has_no_number": None, "convert_issue": True,
+        "convert_refs_quote": draft["name"], "print": True,
+        "print_words": "สองร้อยสิบสี่บาทถ้วน", "print_promptpay": "",
+        "print_unpaid_has_promptpay": True,
         "seller_can_list": True, "other_site_documents": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
