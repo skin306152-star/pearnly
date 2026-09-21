@@ -77,5 +77,23 @@ class RecordScope(unittest.TestCase):
         self.assertEqual(rules.record_scope(set()), rules.OWN_RECORDS)
 
 
+class TeamRoles(unittest.TestCase):
+    def test_team_management_is_admin_only(self):
+        self.assertEqual(rules.required_roles("team.manage"), (rules.ADMIN_ROLE,))
+        self.assertTrue(rules.can({rules.ADMIN_ROLE}, "team.manage"))
+        self.assertFalse(rules.can({"ERP Purchase"}, "team.manage"))
+
+    def test_only_roles_present_on_the_site_are_assignable(self):
+        present = ["ERP Purchase", "Desk User", "System Manager"]
+        self.assertEqual(rules.assignable_roles(present), ("ERP Purchase",))
+        self.assertTrue(rules.is_assignable("ERP Purchase", present))
+        # 平台角色与产品管理员角色永不外发
+        self.assertFalse(rules.is_assignable("System Manager", present))
+        self.assertFalse(rules.is_assignable(rules.ADMIN_ROLE, [rules.ADMIN_ROLE]))
+
+    def test_nothing_is_assignable_without_purchased_roles(self):
+        self.assertEqual(rules.assignable_roles(["Desk User"]), ())
+
+
 if __name__ == "__main__":
     unittest.main()
