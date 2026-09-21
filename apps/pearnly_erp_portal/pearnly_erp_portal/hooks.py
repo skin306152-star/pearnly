@@ -268,6 +268,7 @@ app_license = "mit"
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
+    versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
 ]
 

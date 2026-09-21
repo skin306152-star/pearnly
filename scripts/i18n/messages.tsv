@@ -1141,3 +1141,30 @@ pearnly_erp_portal	Already used by {0} (code {1})	已经是「{0}」（编码 {1
 pearnly_erp_portal	Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
 pearnly_erp_portal	Light	灯光	ไฟ	ライト	product.scan.light
 pearnly_erp_portal	Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done
+pearnly_erp_portal	Product name	商品名称	ชื่อสินค้า	商品名	stock.col.name
+pearnly_erp_portal	Code	编码	รหัส	コード	stock.col.code
+pearnly_erp_portal	Barcode	条码	บาร์โค้ด	バーコード	stock.col.barcode
+pearnly_erp_portal	Unit	单位	หน่วย	単位	stock.col.unit
+pearnly_erp_portal	Status	状态	สถานะ	状態	stock.col.status
+pearnly_erp_portal	Warehouse	仓库	คลังสินค้า	倉庫	stock.col.warehouse
+pearnly_erp_portal	On hand	在库	คงเหลือ	在庫数	stock.col.onHand
+pearnly_erp_portal	Average cost	平均成本	ต้นทุนเฉลี่ย	平均原価	stock.col.cost
+pearnly_erp_portal	Value	金额	มูลค่า	金額	stock.col.value
+pearnly_erp_portal	Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	stock.field.search
+pearnly_erp_portal	Only low or out of stock	只看低库存或缺货	เฉพาะใกล้หมดหรือหมด	在庫少・在庫切れのみ	stock.action.onlyLow
+pearnly_erp_portal	Show zero stock	显示零库存	แสดงของที่ไม่มีสต็อก	在庫 0 も表示	stock.action.toggleZero
+pearnly_erp_portal	Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
+pearnly_erp_portal	Export	导出	ส่งออก	エクスポート	stock.action.export
+pearnly_erp_portal	Count	盘点	ตรวจนับ	棚卸	stock.action.count
+pearnly_erp_portal	In stock	正常	มีสินค้า	在庫あり	stock.status.ok
+pearnly_erp_portal	Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low
+pearnly_erp_portal	Out of stock	缺货	สินค้าหมด	在庫切れ	stock.status.out
+pearnly_erp_portal	Low (≤{0})	低库存（≤{0}）	ต่ำ (≤{0})	在庫少（≤{0}）	stock.status.lowWith
+pearnly_erp_portal	Not set	未设	ยังไม่ตั้ง	未設定	stock.cell.notSet
+pearnly_erp_portal	SKU {0} · Value {1} · Low {2} · Out {3}	SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}	SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}	SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}	stock.notice.totals
+pearnly_erp_portal	Stock count — {0}	盘点 — {0}	ตรวจนับ — {0}	棚卸 — {0}	stock.count.title
+pearnly_erp_portal	In {0}: system shows {1} {2}	{0}：系统数 {1} {2}	{0}: ในระบบมี {1} {2}	{0}：システム上 {1} {2}	stock.count.system
+pearnly_erp_portal	Counted quantity	实盘数量	จำนวนที่นับได้	実地数量	stock.count.counted
+pearnly_erp_portal	Reason	原因	เหตุผล	理由	stock.count.reason
+pearnly_erp_portal	Counted; difference {0} → {1}	已盘点：差异 {0} → {1}	นับแล้ว: ผลต่าง {0} → {1}	棚卸しました：差異 {0} → {1}	stock.notice.counted
+pearnly_erp_portal	Stock is counted in this unit; leave it empty to use the selling unit	库存按这个单位记数；留空就跟售卖单位一样	นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย	在庫はこの単位で数えます。空欄なら販売単位と同じ	product.field.baseUnitHint

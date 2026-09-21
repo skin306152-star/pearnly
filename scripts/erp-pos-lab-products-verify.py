@@ -202,6 +202,10 @@ def main():
     for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab image outside"},
                                 pluck="name"):
         frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product",
+                                filters={"product_name": ["like", "Lab base unit %"]},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
     frappe.db.commit()
 
     # Excel 导入：解析在纯层（bench 里有 openpyxl），入库走同一条 create_product。
@@ -281,6 +285,18 @@ def main():
     results["image_outside_ok"] = ok
     results["image_outside_value"] = frappe.db.get_value(
         "ERP Product", (outside or {}).get("name"), "image_url") if ok else None
+
+    # 库存单位（记数单位）：不填就跟售卖单位一样；填了以填的为准。
+    ok, derived = as_user(OWNER, service.create_product, product_name="Lab base unit derive",
+                          unit="โหล")
+    results["base_unit_follows_unit"] = (
+        frappe.db.get_value("ERP Product", (derived or {}).get("name"), "base_unit")
+        if ok else None)
+    ok, explicit = as_user(OWNER, service.create_product, product_name="Lab base unit explicit",
+                           unit="โหล", base_unit="ชิ้น")
+    results["base_unit_explicit"] = (
+        frappe.db.get_value("ERP Product", (explicit or {}).get("name"), "base_unit")
+        if ok else None)
 
     # 扫码当场查重：编码 / 条码 / 二维码内容 / 售卖单位条码都指向同一条，自己不算撞自己。
     ok, _ = as_user(SHOP, service.update_product, product, qr_payload="PEARNLY-LAB-QR")
@@ -365,6 +381,8 @@ def main():
         "image_attached_same_row": True,
         "image_outside_ok": True,
         "image_outside_value": "https://example.com/x.png",
+        "base_unit_follows_unit": "โหล",
+        "base_unit_explicit": "ชิ้น",
         "find_by_barcode": True,
         "find_by_code": True,
         "find_by_qr": True,

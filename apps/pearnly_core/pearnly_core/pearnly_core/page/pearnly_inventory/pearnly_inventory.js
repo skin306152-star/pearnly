@@ -1,1 +1,1 @@
-frappe.pearnly.register("pearnly-inventory", "shell.", "nav.inventory", frappe.pearnly.notBuilt);
+frappe.pearnly.register("pearnly-inventory", "stock.", "nav.inventory", frappe.pearnly.inventory);

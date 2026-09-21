@@ -75,6 +75,7 @@ def main():
     site = connect()
     frappe.set_user("Administrator")
     from pearnly_core.provisioning import ensure_feature_roles
+    from pearnly_erp_portal.inventory import api as inventory_api
     from pearnly_erp_portal.inventory import documents, openings, report, stock, warehouses
     from pearnly_erp_portal.purchasing import service as purchasing
 
@@ -100,13 +101,16 @@ def main():
 
     # 干净起点：本脚本的商品、流水、结存、期初。
     watched = [product("LAB-INV-A", "ผงซักฟอก A"), product("LAB-INV-B", "ผงซักฟอก B")]
+    fixtures = watched + [product("LAB-INV-BASE", "Lab stock unit"),
+                          product("LAB-INV-C", "Lab low stock"),
+                          product("LAB-INV-D", "Lab out of stock")]
     for do in ("ERP Stock Entry", "ERP Stock Movement", "ERP Stock Balance", "ERP Stock Opening"):
-        for name in frappe.get_all(do, filters={"product": ["in", watched]} if do != "ERP Stock Entry"
+        for name in frappe.get_all(do, filters={"product": ["in", fixtures]} if do != "ERP Stock Entry"
                                    else {"doc_no": ["like", "LAB-INV-%"]}, pluck="name"):
             frappe.delete_doc(do, name, force=True, ignore_permissions=True)
     frappe.db.commit()
     # 删流水后结存会留在旧值，因此按剩余流水重算，保证脚本可重复执行。
-    for product_id in watched:
+    for product_id in fixtures:
         stock.rebuild_balance(product_id, warehouse)
 
     # 期初：10 件 × 10 元 → 结存 10 / 均价 10。
@@ -236,6 +240,59 @@ def main():
     results["purchase_posted_at"] = bool(frappe.db.get_value(
         "Purchase Document", purchase2["name"], "stock_posted_at"))
 
+    # 库存单位才是记数单位：售卖单位与它不同时，数量按换算进库存单位，页面也显示库存单位。
+    base_item = product("LAB-INV-BASE", "Lab stock unit")
+    as_user(OWNER, products_service.update_product, base_item, unit="dozen", base_unit="pcs")
+    as_user(OWNER, products_service.add_unit, base_item, unit_name="dozen", factor_to_base=12)
+    ok, converted = as_user(STOCK, stock.apply_movement, product=base_item, warehouse=warehouse,
+                            movement_type="stock_in", qty=3, unit="dozen", unit_cost=2,
+                            client_uuid="lab-inv-in-base")
+    results["stock_unit_movement"] = converted
+    ok, overview = as_user(STOCK, stock.stock_overview, warehouse=warehouse)
+    base_row = next((r for r in overview if r["product"] == base_item), None) if ok else None
+    results["stock_unit_row"] = base_row
+    results["stock_unit_is_stock_unit"] = bool(base_row and base_row["unit"] == "pcs")
+    results["stock_unit_qty"] = None if base_row is None else base_row["qty_on_hand"]
+    results["stock_unit_has_code"] = bool(base_row and base_row["code"] == "LAB-INV-BASE")
+    results["stock_unit_warehouse_name"] = None if base_row is None else base_row["warehouse_name"]
+
+    # 低库存/缺货两档各造一行：一个低于低库存阈值，一个刚好清零（结存行还在）。
+    low_item = product("LAB-INV-C", "Lab low stock")
+    as_user(OWNER, products_service.update_product, low_item, min_stock=5)
+    as_user(STOCK, stock.apply_movement, product=low_item, warehouse=warehouse,
+            movement_type="stock_in", qty=3, unit_cost=1, client_uuid="lab-inv-low-1")
+    out_item = product("LAB-INV-D", "Lab out of stock")
+    as_user(STOCK, stock.apply_movement, product=out_item, warehouse=warehouse,
+            movement_type="stock_in", qty=2, unit_cost=1, client_uuid="lab-inv-out-a")
+    as_user(STOCK, stock.apply_movement, product=out_item, warehouse=warehouse,
+            movement_type="stock_out", qty=2, client_uuid="lab-inv-out-b")
+
+    # 只看低库存/缺货：正常行被筛掉，这两行留着。
+    ok, low_rows = as_user(STOCK, stock.stock_overview, warehouse=warehouse, only_low=True)
+    results["only_low_ok"] = ok
+    results["only_low_has_low"] = bool(ok and any(r["product"] == low_item for r in low_rows))
+    results["only_low_has_out"] = bool(ok and any(r["product"] == out_item for r in low_rows))
+    results["only_low_drops_ok"] = bool(ok and not any(r["status"] == "ok" for r in low_rows))
+
+    # 页脚计数与四个合计：合计始终按全量算（"缺货"不能被列表开关吃掉）。
+    ok, counted_rows = as_user(STOCK, stock.stock_count, warehouse=warehouse, include_zero=True)
+    results["stock_count_ok"] = ok
+    results["stock_count_positive"] = bool(ok and counted_rows and counted_rows > 0)
+    ok, totals = as_user(STOCK, stock.stock_totals)
+    results["totals_ok"] = ok
+    results["totals_out_positive"] = bool(ok and totals["out_count"] and totals["out_count"] > 0)
+    results["totals_value_known"] = bool(ok and totals["value"] is not None and totals["value"] > 0)
+    results["totals_low_positive"] = bool(ok and totals["low_count"] and totals["low_count"] > 0)
+    results["totals_sku_positive"] = bool(ok and totals["sku_count"] > 0)
+
+    # 导出 CSV：与列表同一套筛选，导全部命中行（表头走语言包）。
+    ok, _ = as_user(STOCK, inventory_api.api_stock_export)
+    csv_bytes = frappe.local.response.get("filecontent") or b""
+    csv_lines = csv_bytes.decode("utf-8-sig").strip().splitlines()
+    results["export_ok"] = bool(ok and csv_lines)
+    results["export_header"] = csv_lines[0].split(",")[0] if csv_lines else None
+    results["export_has_row"] = any("Lab stock unit" in line for line in csv_lines)
+
     # 岗位：库存岗位能看能改；商品岗位看得到库存但改不了；无岗位看不到。
     stock_ok, stock_view = as_user(STOCK, stock.stock_overview, include_zero=True)
     results["stock_can_view"] = stock_ok
@@ -250,6 +307,13 @@ def main():
     ok, err = as_user(OUTSIDER, stock.stock_overview)
     results["outsider_can_view"] = ok
 
+    # 侧栏也是同一道闸：库存页只对库存岗位出现（页面级判权用结存表的读权限）。
+    from pearnly_core.desk import navigation
+    frappe.set_user(STOCK)
+    results["stock_sees_inventory_page"] = "pearnly-inventory" in navigation.visible_pages("erp")
+    frappe.set_user(SHOP)
+    results["shop_sees_inventory_page"] = "pearnly-inventory" in navigation.visible_pages("erp")
+
     # 收尾把自动入库开关放回出厂默认，别把状态留给别的探针。
     as_user(OWNER, purchase_settings.update_settings, auto_stock_in=0)
     frappe.set_user("Administrator")
@@ -263,6 +327,23 @@ def main():
 
     expected = {
         "upsert_opening": True,
+        "stock_unit_is_stock_unit": True,
+        "stock_unit_qty": 36.0,
+        "stock_unit_has_code": True,
+        "stock_unit_warehouse_name": "Main",
+        "only_low_ok": True,
+        "only_low_has_low": True,
+        "only_low_has_out": True,
+        "only_low_drops_ok": True,
+        "stock_count_ok": True,
+        "stock_count_positive": True,
+        "totals_ok": True,
+        "totals_out_positive": True,
+        "totals_low_positive": True,
+        "totals_value_known": True,
+        "totals_sku_positive": True,
+        "export_ok": True,
+        "export_has_row": True,
         "receive_deduped": True,
         "unknown_unit_allowed": False,
         "edit_after_submit_allowed": False,
@@ -272,6 +353,8 @@ def main():
         "shop_can_view": False,
         "shop_can_write_stock": False,
         "outsider_can_view": False,
+        "stock_sees_inventory_page": True,
+        "shop_sees_inventory_page": False,
         "stock_in_off_keeps_qty": True,
         "stock_in_on_adds_qty": True,
         "purchase_posted_at": True,

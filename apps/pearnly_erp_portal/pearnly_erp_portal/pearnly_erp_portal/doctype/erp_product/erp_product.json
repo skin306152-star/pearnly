@@ -76,8 +76,8 @@
    "fieldtype": "Data",
    "label": "Base unit",
    "length": 50,
-   "default": "ชิ้น",
-   "description": "Stock is counted in this unit; other units convert into it"
+   "description": "Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.",
+   "default": "ชิ้น"
   },
   {
    "fieldname": "category_id",

@@ -69,13 +69,16 @@ GROUPS = {
 # Only working pages are offered. The catalog above preserves future feature ownership.
 # 每做完一页就把它加进来 —— 侧栏是用户唯一能点到页面的地方，没加就是"放出来了但点不开"。
 AVAILABLE_PAGES = {"pearnly-home", "pearnly-connect", "pearnly-roster", "pearnly-records",
-                   "pearnly-intake", "pearnly-purchase", "pearnly-products"}
+                   "pearnly-intake", "pearnly-purchase", "pearnly-products",
+                   "pearnly-inventory"}
 
 # 页面 → 判权用的 DocType。没有映射的页面由它自己的接口判权（页面加载后第一请求会拒）。
 PAGE_DOCTYPE = {
     "pearnly-intake": "Intake Record",
     "pearnly-purchase": "Purchase Document",
     "pearnly-products": "ERP Product",
+    # 在库一览属于库存岗位（旧线上商品岗位看不到），所以按结存表判权。
+    "pearnly-inventory": "ERP Stock Balance",
 }
 
 

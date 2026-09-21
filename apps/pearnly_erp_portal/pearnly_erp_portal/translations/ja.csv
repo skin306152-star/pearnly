@@ -41,6 +41,7 @@ product.col.unit,単位
 product.error.codeLocked,商品コードは変更できません
 product.field.barcode,バーコード
 product.field.baseUnit,基準単位
+product.field.baseUnitHint,在庫はこの単位で数えます。空欄なら販売単位と同じ
 product.field.category,カテゴリ
 product.field.code,コード
 product.field.codeAuto,自動生成
@@ -86,3 +87,29 @@ product.scan.title,コードをスキャン
 product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 purchase,仕入
 sales,売上
+stock.action.count,棚卸
+stock.action.export,エクスポート
+stock.action.onlyLow,在庫少・在庫切れのみ
+stock.action.reload,再読み込み
+stock.action.toggleZero,在庫 0 も表示
+stock.cell.notSet,未設定
+stock.col.barcode,バーコード
+stock.col.code,コード
+stock.col.cost,平均原価
+stock.col.name,商品名
+stock.col.onHand,在庫数
+stock.col.status,状態
+stock.col.unit,単位
+stock.col.value,金額
+stock.col.warehouse,倉庫
+stock.count.counted,実地数量
+stock.count.reason,理由
+stock.count.system,{0}：システム上 {1} {2}
+stock.count.title,棚卸 — {0}
+stock.field.search,名前・バーコードで検索
+stock.notice.counted,棚卸しました：差異 {0} → {1}
+stock.notice.totals,SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
+stock.status.low,在庫少
+stock.status.lowWith,在庫少（≤{0}）
+stock.status.ok,在庫あり
+stock.status.out,在庫切れ

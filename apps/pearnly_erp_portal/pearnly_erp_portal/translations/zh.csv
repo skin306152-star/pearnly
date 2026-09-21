@@ -41,6 +41,7 @@ product.col.unit,单位
 product.error.codeLocked,商品编码不能改
 product.field.barcode,条码
 product.field.baseUnit,库存单位
+product.field.baseUnitHint,库存按这个单位记数；留空就跟售卖单位一样
 product.field.category,分类
 product.field.code,编码
 product.field.codeAuto,自动生成
@@ -86,3 +87,29 @@ product.scan.title,扫码
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 purchase,采购
 sales,销售
+stock.action.count,盘点
+stock.action.export,导出
+stock.action.onlyLow,只看低库存或缺货
+stock.action.reload,刷新
+stock.action.toggleZero,显示零库存
+stock.cell.notSet,未设
+stock.col.barcode,条码
+stock.col.code,编码
+stock.col.cost,平均成本
+stock.col.name,商品名称
+stock.col.onHand,在库
+stock.col.status,状态
+stock.col.unit,单位
+stock.col.value,金额
+stock.col.warehouse,仓库
+stock.count.counted,实盘数量
+stock.count.reason,原因
+stock.count.system,{0}：系统数 {1} {2}
+stock.count.title,盘点 — {0}
+stock.field.search,搜索名称或条码
+stock.notice.counted,已盘点：差异 {0} → {1}
+stock.notice.totals,SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}
+stock.status.low,低库存
+stock.status.lowWith,低库存（≤{0}）
+stock.status.ok,正常
+stock.status.out,缺货

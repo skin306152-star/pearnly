@@ -41,6 +41,7 @@ product.col.unit,Unit
 product.error.codeLocked,The product code cannot be changed
 product.field.barcode,Barcode
 product.field.baseUnit,Base unit
+product.field.baseUnitHint,Stock is counted in this unit; leave it empty to use the selling unit
 product.field.category,Category
 product.field.code,Code
 product.field.codeAuto,Generated automatically
@@ -86,3 +87,29 @@ product.scan.title,Scan a code
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 purchase,purchase
 sales,sales
+stock.action.count,Count
+stock.action.export,Export
+stock.action.onlyLow,Only low or out of stock
+stock.action.reload,Reload
+stock.action.toggleZero,Show zero stock
+stock.cell.notSet,Not set
+stock.col.barcode,Barcode
+stock.col.code,Code
+stock.col.cost,Average cost
+stock.col.name,Product name
+stock.col.onHand,On hand
+stock.col.status,Status
+stock.col.unit,Unit
+stock.col.value,Value
+stock.col.warehouse,Warehouse
+stock.count.counted,Counted quantity
+stock.count.reason,Reason
+stock.count.system,In {0}: system shows {1} {2}
+stock.count.title,Stock count — {0}
+stock.field.search,Search name or barcode
+stock.notice.counted,Counted; difference {0} → {1}
+stock.notice.totals,SKU {0} · Value {1} · Low {2} · Out {3}
+stock.status.low,Low stock
+stock.status.lowWith,Low (≤{0})
+stock.status.ok,In stock
+stock.status.out,Out of stock

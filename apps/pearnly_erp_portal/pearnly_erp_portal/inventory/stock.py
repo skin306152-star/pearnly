@@ -39,8 +39,13 @@ def _product(product: str):
 
 def resolve_factor(product_doc, unit_name=None) -> tuple[str, object]:
     """返回 (基准单位, 系数)。没给单位或就是基准单位 → 1；给了别的单位必须在该商品
-    的单位表里，否则报错（旧线上同样口径，避免随手写个单位就把数量算错）。"""
-    base = (product_doc.unit or "").strip()
+    的单位表里，否则报错（旧线上同样口径，避免随手写个单位就把数量算错）。
+
+    基准单位是商品的**库存单位**（`base_unit`）—— 旧线上 `services/inventory/ledger.py`
+    折算成 `base_unit` 落账，`unit` 只是默认售卖单位。库存单位没填才退回售卖单位，
+    免得同一批数量被解释成另一个单位。
+    """
+    base = (product_doc.base_unit or product_doc.unit or "").strip()
     if not unit_name or unit_name == base:
         return base, contracts.factor(1)
     for row in product_doc.get("units") or []:
@@ -203,8 +208,12 @@ def count_lines(*, warehouse: str, lines, posting_date=None, reason="stocktake")
     return {"adjustments": adjustments}
 
 
-def stock_overview(*, warehouse=None, q=None, include_zero=False, limit=200) -> list[dict]:
-    """在库一览。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。"""
+def _overview_rows(*, warehouse=None, q=None, include_zero=False, only_low=False) -> list[dict]:
+    """在库一览的全部命中行。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。
+
+    `only_low` 只留低库存与缺货，并且**隐含带上零库存** —— 缺货就是结存 0，
+    否则"只看缺货"会一条都看不到。
+    """
     _require("stock.read")
     from pearnly_erp_portal.access import rules
 
@@ -212,20 +221,25 @@ def stock_overview(*, warehouse=None, q=None, include_zero=False, limit=200) -> 
     if warehouse:
         filters["warehouse"] = warehouse
     rows = frappe.get_list(BALANCE, filters=filters,
-                           fields=["product", "warehouse", "qty_on_hand", "unit_cost",
+                           fields=["name", "product", "warehouse", "qty_on_hand", "unit_cost",
                                    "value", "cost_known"],
-                           order_by="modified desc", limit_page_length=int(limit))
+                           order_by="modified desc", limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"name": ["in", [r["product"] for r in rows]] or [""]},
-        fields=["name", "product_name", "unit", "min_stock", "is_active"],
+        fields=["name", "product_name", "code", "barcode", "unit", "base_unit", "min_stock",
+                "is_active"],
         limit_page_length=0)}
+    names = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
+        "ERP Warehouse", filters={"name": ["in", [r["warehouse"] for r in rows] or [""]]},
+        fields=["name", "warehouse_name"], limit_page_length=0)}
     visible = rules.cost_visible(guard.current_roles())
     out = []
     for row in rows:
         product = products.get(row["product"]) or {}
         if q and q.lower() not in (product.get("product_name") or "").lower():
             continue
-        if not include_zero and not row["qty_on_hand"]:
+        # "只看低库存/缺货"时零库存行必须在（缺货就是 0），所以那个开关隐含带上零库存。
+        if not include_zero and not only_low and not row["qty_on_hand"]:
             continue
         min_stock = contracts.d(product.get("min_stock") or 0)
         qty_on_hand = contracts.d(row["qty_on_hand"])
@@ -235,15 +249,62 @@ def stock_overview(*, warehouse=None, q=None, include_zero=False, limit=200) -> 
             status = "low"
         else:
             status = "ok"
+        if only_low and status == "ok":
+            continue
         out.append({
+            # 一行的身份 = 结存行的名字（商品×仓库）。列表框架按 `name` 去重与认行，
+            # 同名在这里等于"只剩一行"，所以它必须唯一。
+            "name": row["name"],
             "product": row["product"], "product_name": product.get("product_name"),
-            "warehouse": row["warehouse"], "unit": product.get("unit"),
+            "code": product.get("code"), "barcode": product.get("barcode"),
+            "warehouse": row["warehouse"],
+            "warehouse_name": names.get(row["warehouse"]),
+            # 数量是基准（库存）单位，所以这里显示库存单位 —— 与落账口径同一处。
+            "unit": (product.get("base_unit") or product.get("unit") or "").strip() or None,
             "qty_on_hand": float(qty_on_hand), "min_stock": float(min_stock), "status": status,
             "cost_known": bool(row["cost_known"]),
             "unit_cost": float(row["unit_cost"]) if visible and row["cost_known"] else None,
             "value": float(row["value"]) if visible and row["cost_known"] else None,
         })
     return out
+
+
+def stock_overview(*, warehouse=None, q=None, include_zero=False, only_low=False,
+                   start=0, limit=200) -> list[dict]:
+    """在库一览（分页）。`limit=0` 表示不分页，整批给。"""
+    rows = _overview_rows(warehouse=warehouse, q=q, include_zero=include_zero,
+                          only_low=only_low)
+    start = int(start or 0)
+    if not limit:
+        return rows[start:]
+    return rows[start:start + int(limit)]
+
+
+def stock_count(*, warehouse=None, q=None, include_zero=False, only_low=False) -> int:
+    """与列表同一套筛选的命中行数（页脚"第 N 项/共 M 项"用）。"""
+    return len(_overview_rows(warehouse=warehouse, q=q, include_zero=include_zero,
+                              only_low=only_low))
+
+
+def stock_totals(*, warehouse=None, q=None) -> dict:
+    """在库合计：有货的 SKU 数、库存金额、低库存数、缺货数。
+
+    与旧线上库存页那四个数同一口径：缺货/低库存要能数出 0 库存的那些行，所以这里
+    **始终带零库存**统计（列表上的"显示零库存"只管列表本身）。金额按岗位遮蔽：
+    没有成本权限就回 None，不回 0 —— 0 会被当成"库存一文不值"。
+    """
+    from pearnly_erp_portal.access import rules
+
+    rows = _overview_rows(warehouse=warehouse, q=q, include_zero=True)
+    visible = rules.cost_visible(guard.current_roles())
+    valued = [row for row in rows if row.get("cost_known")]
+    return {
+        "sku_count": len([row for row in rows if row["qty_on_hand"]]),
+        "row_count": len(rows),
+        "value": float(sum(row["value"] or 0 for row in valued)) if visible else None,
+        "low_count": len([row for row in rows if row["status"] == "low"]),
+        "out_count": len([row for row in rows if row["status"] == "out"]),
+    }
 
 
 def rebuild_balance(product: str, warehouse: str) -> dict:

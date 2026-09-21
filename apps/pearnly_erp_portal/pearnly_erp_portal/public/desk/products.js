@@ -133,6 +133,7 @@
 				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 					default: value("unit") },
 				{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
+					description: t("product.field.baseUnitHint"),
 					default: value("base_unit") },
 				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
 					default: value("category_id") },

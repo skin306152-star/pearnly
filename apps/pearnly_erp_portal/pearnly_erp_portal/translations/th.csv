@@ -41,6 +41,7 @@ product.col.unit,หน่วย
 product.error.codeLocked,รหัสสินค้าแก้ไม่ได้
 product.field.barcode,บาร์โค้ด
 product.field.baseUnit,หน่วยฐาน
+product.field.baseUnitHint,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
 product.field.category,หมวดหมู่
 product.field.code,รหัส
 product.field.codeAuto,สร้างอัตโนมัติ
@@ -86,3 +87,29 @@ product.scan.title,สแกนโค้ด
 product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 purchase,จัดซื้อ
 sales,ขาย
+stock.action.count,ตรวจนับ
+stock.action.export,ส่งออก
+stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
+stock.action.reload,โหลดใหม่
+stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
+stock.cell.notSet,ยังไม่ตั้ง
+stock.col.barcode,บาร์โค้ด
+stock.col.code,รหัส
+stock.col.cost,ต้นทุนเฉลี่ย
+stock.col.name,ชื่อสินค้า
+stock.col.onHand,คงเหลือ
+stock.col.status,สถานะ
+stock.col.unit,หน่วย
+stock.col.value,มูลค่า
+stock.col.warehouse,คลังสินค้า
+stock.count.counted,จำนวนที่นับได้
+stock.count.reason,เหตุผล
+stock.count.system,{0}: ในระบบมี {1} {2}
+stock.count.title,ตรวจนับ — {0}
+stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
+stock.notice.counted,นับแล้ว: ผลต่าง {0} → {1}
+stock.notice.totals,SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
+stock.status.low,สต็อกต่ำ
+stock.status.lowWith,ต่ำ (≤{0})
+stock.status.ok,มีสินค้า
+stock.status.out,สินค้าหมด

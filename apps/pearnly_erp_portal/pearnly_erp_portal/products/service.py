@@ -177,7 +177,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "image_url": _text(image_url, contracts.MAX_IMAGE_URL),
         "min_stock": _optional(min_stock),
         **_cost_fields(default_cost),
-        "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or None,
+        # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
+        "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
         "category_id": int(category_id) if str(category_id or "").strip() else None,
         "track_batch": _flag(track_batch),
         "track_expiry": _flag(track_expiry),
@@ -275,6 +276,7 @@ def update_product(name: str, **changes):
                if "barcode" in changes else doc.barcode)
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
+    old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):
         if field in changes:
@@ -284,6 +286,10 @@ def update_product(name: str, **changes):
                 "image_url": contracts.MAX_IMAGE_URL,
                 "base_unit": contracts.MAX_BASE_UNIT,
             }[field]))
+    # 两者原本一致时，改售卖单位就把库存单位一起带走（别让它悄悄变成"另一个单位"）；
+    # 明确分过家的（库存单位与单位不同）不动 —— 那是商户自己的口径。
+    if "unit" in changes and "base_unit" not in changes and old_base == old_unit:
+        doc.base_unit = doc.unit
     if "category_id" in changes:
         doc.category_id = (int(changes["category_id"])
                            if str(changes["category_id"] or "").strip() else None)
