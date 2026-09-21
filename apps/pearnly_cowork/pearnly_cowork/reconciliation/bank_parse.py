@@ -196,6 +196,29 @@ def bank_code_from_filename(filename: str) -> str:
 	return ""
 
 
+# 总账的汇总/结转行关键词（旧 `bank_recon_utils._GL_SKIP_KW`）：不是交易，跳过。
+GL_SKIP_KEYWORDS = frozenset((
+	"ยอดยกมา",
+	"ยอดยกไป",
+	"ยอดรวม",
+	"balance forward",
+	"carried forward",
+	"brought forward",
+	"subtotal",
+	"opening balance",
+	"closing balance",
+	"รวมประจำเดือน",
+	"รวมทั้งสิ้น",
+	"รวมแต่ละหน้า",
+))
+
+
+def is_gl_skip_row(cells) -> bool:
+	"""总账里的汇总/结转行：只看该行**前四格**（旧口径，别的列里出现"subtotal"不算）。"""
+	joined = " ".join(str(cell or "").strip().lower() for cell in cells[:4])
+	return any(keyword in joined for keyword in GL_SKIP_KEYWORDS)
+
+
 def statement_rows_from_entries(entries: List[Dict[str, Any]], filename: str) -> List[StatementRow]:
 	"""Decoded statement entries → rows; the single deployed conversion of both paths.
 

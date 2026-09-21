@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""表格读取与表头命中（银行单/总账读取器共用）。
+"""表格与 PDF 文字层读取、表头命中（银行单/总账读取器共用）。
 
 来源：ec2e5c957e6b ``services/recon/bank_table_io.py``。旧文件里还有汇总行识别
 （``_is_summary_row``）——它早已随余额链一起迁到 ``bank_statement``（同一份关键词表），
 所以这里只剩下两件事：把文件读成单元格、判断表头命中。
 
-**同一旧文件里的 PDF 文字层（``_pdf_extract_text_safe``）不在本模块**：它随银行单/
-总账的 PDF 路径一起迁（下一批），现在搬过来就是一段没人用的代码。
+PDF 文字层（旧 ``_pdf_extract_text_safe``）在第三十九批随 GL/文本读取器一起搬进来：
+先 pdfminer（没有 pdfplumber 那个 ``KeyError('date')`` 崩溃），再 pypdf 兜底。
 
 只读传入的 bytes，不打数据库、不走网络、不调模型。读不出来一律返回空列表（旧行为），
 由调用方决定是报"读不了"还是走别的路。
@@ -105,3 +105,28 @@ def load_csv_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
 		return [("csv", rows)] if rows else []
 	except Exception:
 		return []
+
+
+def extract_pdf_text_pages(file_bytes: bytes) -> List[str]:
+	"""PDF 的文字层 → 每页一段文本；读不出来返回 ``[]``（调用方再决定是否走模型）。
+
+	先 pdfminer：它没有 pdfplumber 那个畸形元数据上的 ``KeyError('date')`` 崩溃，而且
+	一次给全文（旧实现就把它当"一页"返回）。pdfminer 拿不到可用文字时退回 pypdf 逐页
+	抽；两条都失败就是空列表。
+	"""
+	try:
+		from pdfminer.high_level import extract_text
+
+		text = extract_text(io.BytesIO(file_bytes)) or ""
+		if text.strip():
+			return [text]
+	except Exception:
+		pass
+	try:
+		import pypdf
+
+		reader = pypdf.PdfReader(io.BytesIO(file_bytes))
+		return [page.extract_text() or "" for page in reader.pages]
+	except Exception:
+		pass
+	return []

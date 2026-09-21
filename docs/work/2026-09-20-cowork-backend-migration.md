@@ -1,5 +1,36 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-22，第三十九批交付：银行单/GL 第三层收口——GL 直读、文本行、PDF 文字层）
+
+四层计划的第 ③ 层「确定性读取器」本批闭合：**总账 xlsx/csv 直读 + 银行单文本行（含 KBank 列压行）+ PDF 文字层**。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `8e92423`（第三十八批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/gl_sheets.py`（旧 `bank_gl_excel.py` 的确定性那一段 + 共用 `bank_gl_common.py`）：列名词典、`map_gl_columns`、`extract_account_code`、`attach_running_balance`、`find_gl_header`、`parse_gl_workbook`。保留：表头**必须**带日期列与钱列（单列净额 GL 不算表头，否则 0 行还一路跑到"完成"）、期初扫该行前四格且优先读余额列（没有才"贷−借"）、空日期沿用上一行、借贷全 0 不算交易、期末优先取表内余额（老公式对资产科目方向相反）、`closing_printed` 如实说明。
+- 新增 `reconciliation/bank_text.py`（旧 `bank_stmt_text.py`）：`parse_statement_text_lines`（方向靠余额差 → 描述动词 → 按存款；泰文句点千分位；取最右边"至少两个数"的连续数字组）与 `parse_kbank_text_columns`（列被压成行时按日期行抽交易头、金额/余额交替配对、首个无时间的交易头是期初行、渠道并入摘要）。
+- `reconciliation/table_io.py` 追加 `extract_pdf_text_pages`（旧 `_pdf_extract_text_safe`：pdfminer → pypdf）。
+- `reconciliation/bank_parse.py` 追加 `GL_SKIP_KEYWORDS` / `is_gl_skip_row`（旧 `_GL_SKIP_KW` / `_is_gl_skip_row`，只看前四格）。
+- **有意不迁**：`bank_gl_excel` 的 ADR-006 模板学习层（同上一批：要映射存储表与确认界面；后果是认不出表头时返回 `gl_headers_not_found`）；固定词典里没有单列净额键，所以"按符号拆借/贷"那段现今不可达（照旧保留并写明）；文本行解析的 `bank_code` 形参保留（旧代码收下从未读过）；pdfplumber 表格/坐标解析、`bank_gl_pdf*`、`bank_stmt_gemini`/`bank_gl_gemini`、`bank_stmt_reread`（整页升档）与 `bank_recon_v2` 的编排都不进这一层。
+
+### 验证与证据
+
+- 离线（隔离 bench）：本批新 **36** 个用例（总账 23 + 文本/PDF 13）；银行族与读取器一起 **228** 个通过。
+- 固定源差分（只执行被搬的纯定义；行类/数字日期解析/CSV 装载器从本侧注入，此前批次已迁并差分过）：**差异 0**。总账 225 批（出结果 187、行合计 166、非零期初 115、期末读自表内 61、无表头 37、读不了 1、CSV 固定样例 2、带科目过滤 19）；文本 187 批（一行一笔 182 批/284 行：存 216、取 68、有期初 136、有期末 159；KBank 列压行 5 批/4 行）；PDF 4 批（2 批读出文字、2 批返回空）。总账逐行九个字段（含去重指纹）与失败文案一起比；文本逐行五字段与期初/期末比；列名词典、科目号正则、期初关键词表、`_GL_SKIP_KW`、`AMOUNT_TOL` 另有等值比对。上一批的流水读取器差分因本批动了 `table_io` 而重跑：仍 **227 批差异 0**。
+- 架构 0 违规（两个新模块都在既有 `reconciliation` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：开工 `baseline-thirty-ninth-start.json`（`b9a7c2cc…`）与第三十八批交付 `compare` PASS；交付 `baseline-thirty-ninth-delivery.json`（`bfcf1183…`，17:18:00Z）再次 PASS。运行投影与上一批**逐项相同**。
+- 未执行：真实文件、模型调用、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ④ 层：模型路径与执行接线）
+
+银行/GL 提示词、引擎的文档档位、执行接线、整页升档重读 `reread_bank_page`，以及把 ①②③ 三层接进原生银行任务 —— 到那时这些读取器才真的被调用。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `a77371c`（比我这条线多 8 个提交，我这条线多 50 个未合回），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
 ## 换窗口交接（2026-09-22，第三十八批交付：银行单/GL 第三层前半——确定性读取器）
 
 四层计划的第 ③ 层「确定性读取器」交前半：**低级表格 IO + 银行流水 xlsx/csv 直读**。这一层是"不花钱的那条路"——文件本身就是电子表格时直接读列名与数字，不必送模型。不接前端、不部署、不改 DMS、不写旧库、不调模型。

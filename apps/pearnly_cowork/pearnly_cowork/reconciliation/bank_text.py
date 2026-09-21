@@ -1,0 +1,325 @@
+# -*- coding: utf-8 -*-
+"""银行单的**文本行**解析（没有表格结构时的那条路）。
+
+来源：ec2e5c957e6b ``services/recon/bank_stmt_text.py``（从 ``bank_recon_v2.py`` 拆出的
+原文）。PDF 抽出的文字层既没有单元格边界也没有坐标，只能按行猜；旧侧在"pdfplumber 表格
+拿到的行数不够"时才走这里，本平台把两个解析器原样交出来，由调用方（第 ④ 层的接线）
+决定取舍。
+
+两个解析器各治一种排版：
+
+· `parse_statement_text_lines` —— 一行一笔（日期开头，金额与余额在行尾连续两个数字）；
+  方向靠**余额差**判断（差 = +金额 → 存款，差 = −金额 → 取款），差额对不上才退回描述词，
+  再不行按"当存款"。还处理泰文用句点当千分位的写法（``115.586.50`` → ``115586.50``）。
+· `parse_kbank_text_columns` —— KBank 的 pdfminer 文字层是**列被压成行**的：日期、时间、
+  摘要各占一行，金额与余额在另一个块里交替出现。所以先按"日期行"抽交易头，再按
+  num / num+渠道 的交替模式配对，按位置把两者接起来。
+
+只读传入的文本：没有凭据、数据库、网络或模型调用。
+"""
+
+from __future__ import annotations
+
+import re
+from typing import List, Optional, Tuple
+
+from pearnly_cowork.reconciliation.bank_parse import parse_date, to_float
+from pearnly_cowork.reconciliation.bank_statement import AMOUNT_TOL, StatementRow
+
+_DATE_PREFIX = re.compile(r"^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$")
+
+
+def parse_statement_text_lines(text: str, bank_code: str = "generic") -> Tuple[List[StatementRow], float, float]:
+	"""一行一笔的文本行解析 → ``(rows, opening, closing)``。
+
+	``bank_code`` 保留在签名里：部署版收下这个参数后**从未读过它**，而调用方一直传，
+	所以形状照旧，免得接线时改两处。
+	"""
+	rows: List[StatementRow] = []
+	opening = 0.0
+	closing = 0.0
+	prev_balance: Optional[float] = None
+
+	def token_to_float(token: str) -> Optional[float]:
+		"""文本里的数字：去掉千分位逗号与空格，支持句点当千分位（泰文写法），支持前导负号。"""
+		raw = token.replace(",", "").replace(" ", "")
+		if not raw:
+			return None
+		negative = raw.startswith("-")
+		if negative:
+			raw = raw[1:]
+		if raw.count(".") > 1:
+			last_dot = raw.rfind(".")
+			raw = raw[:last_dot].replace(".", "") + raw[last_dot:]
+		try:
+			value = float(raw)
+			return -value if negative else value
+		except ValueError:
+			return None
+
+	for line in text.splitlines():
+		line = line.strip()
+		if not line:
+			continue
+
+		# 期初标记：取该行最后一个正数
+		if any(keyword in line for keyword in ["ยอดยกมา", "brought forward", "ยอดคงเหลือยกมา"]):
+			tokens = line.split()
+			for token in reversed(tokens):
+				value = token_to_float(token)
+				if value is not None and value > 0:
+					opening = value
+					prev_balance = opening
+					break
+			continue
+
+		# 期末标记：同样取该行最后一个正数（本行不入 rows）
+		if any(keyword in line for keyword in ["ยอดยกไป", "closing balance"]):
+			tokens = line.split()
+			for token in reversed(tokens):
+				value = token_to_float(token)
+				if value is not None and value > 0:
+					closing = value
+					break
+			continue
+
+		tokens = line.split()
+		if len(tokens) < 3:
+			continue
+
+		# 第一个 token 必须是日期（dd-mm-yy / dd/mm/yy）
+		if not _DATE_PREFIX.match(tokens[0]):
+			continue
+		tx_date = parse_date(tokens[0])
+		if tx_date is None:
+			continue
+
+		# 把连续的数字 token 分组，取**最右边**那个"至少两个数"的组：摘要里的数字
+		# （公司名、支票号）因此不会把真正的"金额+余额"对挤掉 —— 它们总是相邻的。
+		groups: List[List[Tuple[int, float]]] = []
+		current: List[Tuple[int, float]] = []
+		for index in range(1, len(tokens)):
+			value = token_to_float(tokens[index])
+			if value is not None:
+				current.append((index, value))
+			else:
+				if current:
+					groups.append(current)
+					current = []
+		if current:
+			groups.append(current)
+		number_values: List[Tuple[int, float]] = []
+		for group in reversed(groups):
+			if len(group) >= 2:
+				number_values = group
+				break
+
+		if len(number_values) < 2:
+			continue
+
+		balance = number_values[-1][1]
+		amount = abs(number_values[-2][1])
+		if amount == 0.0:
+			continue
+
+		description_end = number_values[-2][0]
+		description = " ".join(tokens[1:description_end]).strip()
+
+		# 方向：先看余额差，差额对不上再看描述里的动词，最后按存款
+		withdrawal = 0.0
+		deposit = 0.0
+		if prev_balance is not None:
+			diff = round(balance - prev_balance, 2)
+			if abs(diff - amount) <= AMOUNT_TOL:
+				deposit = amount
+			elif abs(diff + amount) <= AMOUNT_TOL:
+				withdrawal = amount
+			else:
+				lowered = description.lower()
+				if any(keyword in lowered
+						for keyword in ["จ่าย", "ถอน", "debit", "withdraw", "โอนออก", "ชำระ"]):
+					withdrawal = amount
+				else:
+					deposit = amount
+		else:
+			deposit = amount
+
+		prev_balance = balance
+		closing = balance
+
+		rows.append(
+			StatementRow(
+				date=tx_date,
+				description=description,
+				withdrawal=withdrawal,
+				deposit=deposit,
+				balance=balance,
+			)
+		)
+
+	# 没有期初标记：用首笔反推（余额 − 存 / 余额 + 取）
+	if not opening and rows:
+		first = rows[0]
+		if first.deposit > 0:
+			opening = round(first.balance - first.deposit, 2)
+		elif first.withdrawal > 0:
+			opening = round(first.balance + first.withdrawal, 2)
+
+	if not closing and rows:
+		closing = rows[-1].balance
+
+	return rows, opening, closing
+
+
+def parse_kbank_text_columns(text: str) -> Tuple[List[StatementRow], float, float]:
+	"""KBank 列被压成行的文字层 → ``(rows, opening, closing)``。
+
+	每笔交易的形状是：日期行 / 时间行 / 摘要行；金额与余额在后面的值块里交替出现
+	（值单独一行，余额那行右面带渠道文字）。所以按位置把交易头与 (金额, 余额) 配对。
+	"""
+	lines = [line.strip() for line in text.splitlines() if line.strip()]
+
+	date_re = re.compile(r"^\d{1,2}[-/]\d{1,2}[-/]\d{2,4}$")
+	time_re = re.compile(r"^\d{1,2}:\d{2}$")
+
+	# 表头从**第一行日期**开始；值块从最后一个"รายละเอียด"列头之后开始（好跳过开头那
+	# 三个汇总数：期末余额、取款合计、存款合计）
+	header_start = 0
+	for index, line in enumerate(lines):
+		if date_re.match(line):
+			header_start = index
+			break
+	value_start = header_start
+	for index, line in enumerate(lines):
+		if "รายละเอียด" in line and index > 0:
+			value_start = index + 1
+			break
+
+	data = lines[header_start:]
+	value_lines = lines[value_start:]
+
+	def is_number(line: str) -> bool:
+		raw = line.replace(",", "").replace(" ", "").lstrip("-")
+		if not raw:
+			return False
+		if raw.count(".") > 1:
+			last = raw.rfind(".")
+			raw = raw[:last].replace(".", "") + raw[last:]
+		try:
+			float(raw)
+			return True
+		except ValueError:
+			return False
+
+	# 第一阶段：按顺序抽交易头（日期 / 时间 / 摘要）
+	headers = []
+	index = 0
+	while index < len(data):
+		if date_re.match(data[index]):
+			header_date = parse_date(data[index])
+			if header_date is None:
+				index += 1
+				continue
+			time_text = ""
+			description = ""
+			following = index + 1
+			if following < len(data) and time_re.match(data[following]):
+				time_text = data[following]
+				following += 1
+			if following < len(data) and not date_re.match(data[following]):
+				first_token = data[following].split()[0] if data[following].split() else ""
+				if not is_number(first_token):
+					description = data[following]
+					following += 1
+			headers.append({"date": header_date, "time": time_text, "desc": description})
+			index = following
+		else:
+			index += 1
+
+	if not headers:
+		return [], 0.0, 0.0
+
+	# 第二阶段：把值块读成 "纯数字行" 与 "数字+渠道" 两种
+	values = []
+	for line in value_lines:
+		tokens = line.split()
+		if not tokens:
+			continue
+		value = to_float(tokens[0])
+		if value is None:
+			continue
+		if len(tokens) == 1:
+			values.append(("num", value, ""))
+		else:
+			values.append(("bal", value, " ".join(tokens[1:])))
+
+	# 第三阶段：先期初，再交替取"金额 / 余额"
+	opening = 0.0
+	pairs = []
+	state = "opening"
+	current_amount = None
+	for kind, value, rest in values:
+		if state == "opening":
+			if kind == "num":
+				opening = value
+				state = "amt"
+		elif state == "amt":
+			if kind == "num":
+				current_amount = value
+				state = "bal"
+		elif state == "bal":
+			if kind == "bal":
+				pairs.append((current_amount, value, rest))
+				current_amount = None
+				state = "amt"
+			elif kind == "num":
+				current_amount = value
+
+	# 第四阶段：第一个交易头没有时间 = 那是期初那行的日期，去掉
+	if headers and not headers[0]["time"]:
+		headers = headers[1:]
+
+	# 第五阶段：按位置把交易头与 (金额, 余额) 逐对合起来
+	rows: List[StatementRow] = []
+	prev_balance = opening
+	count = min(len(headers), len(pairs))
+	for index in range(count):
+		header = headers[index]
+		amount, balance, channel = pairs[index]
+		if amount is None or balance is None:
+			continue
+		diff = round(balance - prev_balance, 2)
+		withdrawal = 0.0
+		deposit = 0.0
+		if abs(diff - amount) <= AMOUNT_TOL:
+			deposit = amount
+		elif abs(diff + amount) <= AMOUNT_TOL:
+			withdrawal = amount
+		else:
+			# 差额对不上：先用描述与渠道的动词，再退回"余额涨就是存款"
+			text_blob = (header["desc"] + " " + channel).lower()
+			if ("รับโอน" in text_blob) or ("ฝาก" in text_blob and "ฝากด้วยเช็ค" not in text_blob):
+				deposit = amount
+			elif ("โอนเงิน" in text_blob) or ("ถอน" in text_blob) or ("จ่าย" in text_blob):
+				withdrawal = amount
+			else:
+				if diff > 0:
+					deposit = amount
+				else:
+					withdrawal = amount
+		prev_balance = balance
+		description = header["desc"]
+		if channel:
+			description = (description + " " + channel).strip()
+		rows.append(
+			StatementRow(
+				date=header["date"],
+				description=description,
+				withdrawal=withdrawal,
+				deposit=deposit,
+				balance=balance,
+			)
+		)
+
+	closing = rows[-1].balance if rows else 0.0
+	return rows, opening, closing
