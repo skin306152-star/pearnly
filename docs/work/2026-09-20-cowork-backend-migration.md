@@ -1,5 +1,13 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十三批：功能清单与剩余量，只读）
+
+用户问"还有多少功能没迁移"，做成一份可复用的清单：[功能清单与剩余量](cowork-backend/feature-status.md)。要点：
+
+- 要迁的 8 个功能码：**4 个已迁完**（`ocr_history`、`stocktake`、`companion`、`express_guide` 后端）、**3 个主体已迁且有明确收尾项**（`intake`、`push_log`、`recon`）、**1 个明显未完成**（`master_data`；新侧 `masters/` 只有 3 文件 214 行，且需先定形"自有一份"还是"读 ERP 成品"）。`boards` 按指示不迁（第二十二批已删）。
+- 剩余量集中在两处：银行对账的一处存储缺口（下一包）、主数据（先定形再开工）。
+- 不提供全仓完成百分比：旧 monolith 的大头（POS/工资/工单/管家/销售/库存/费用/会计…）不属新产品范围；`services/erp/`（200 文件）与 ERP 窗口共享、`services/billing|credits|usage|tenant|workspace` 属新产品控制面（`pearnly_control`/`pearnly_core`），都无法干净切分。
+
 ## 换窗口交接（2026-09-21，第三十二批：对账族缺口清点，只读）
 
 **本批不改代码，只把对账族的缺口清点清楚**（`services/recon/**` 56 个文件 + `services/recon_jobs/**` + 对账用到的 `services/vat/**`），结论进[缺口清点](cowork-backend/reconciliation-family-audit.md)。三条要点：
