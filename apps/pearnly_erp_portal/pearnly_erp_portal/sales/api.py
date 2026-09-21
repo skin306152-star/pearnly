@@ -107,3 +107,18 @@ def api_attach_recognition(**kwargs):
     _json_args(kwargs, "payload")
     kwargs = _clean(kwargs)
     return service.attach_recognition(kwargs.get("name"), payload=kwargs.get("payload") or {})
+
+
+@frappe.whitelist()
+def api_sale_document_print(**kwargs):
+    """票面模型（标签 / 明细 / 泰文金额大写 / 未收款时的 PromptPay 载荷）。"""
+    kwargs = _clean(kwargs)
+    return service.print_document(kwargs.get("name"), kwargs.get("lang") or "th_en")
+
+
+@frappe.whitelist(methods=["POST"])
+def api_convert_quotation(**kwargs):
+    """报价单转开票（转出的是草稿，开出时才取号）。"""
+    kwargs = _clean(kwargs)
+    return service.convert_quotation(kwargs.get("name"),
+                                     kwargs.get("target") or contracts.TAX_INVOICE)

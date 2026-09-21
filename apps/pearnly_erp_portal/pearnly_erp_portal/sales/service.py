@@ -21,7 +21,7 @@ from frappe import _
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import stock, warehouses
 from pearnly_erp_portal.masters import company
-from pearnly_erp_portal.sales import contracts, ocr
+from pearnly_erp_portal.sales import contracts, ocr, render
 
 DOCTYPE = "ERP Sales Document"
 SEQUENCE = "ERP Doc Sequence"
@@ -77,7 +77,8 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
                     customer=None, has_vat=True, vat_rate=7, wht_rate=0, header_discount=0,
                     tax_id=None, party_type=None, branch_type=None, branch_no=None,
                     address=None, note=None, source_file=None, image_sha256=None,
-                    references_document=None) -> dict:
+                    references_document=None, payment_status="unpaid", payment_method=None,
+                    payment_date=None) -> dict:
     guard.require("sales.write")
     if doc_kind not in contracts.DOC_KINDS:
         frappe.throw(_("Unknown document kind"))
@@ -102,6 +103,9 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
         "source_file": source_file,
         "image_sha256": image_sha256,
         "references_document": references_document,
+        "payment_status": payment_status,
+        "payment_method": payment_method,
+        "payment_date": payment_date,
         "lines": [dict(line) for line in lines],
     })
     doc.insert()
@@ -120,7 +124,8 @@ def update_document(name, *, lines=None, **changes) -> dict:
             doc.append("lines", dict(line))
     for field in ("doc_date", "buyer_name", "customer", "tax_id", "party_type",
                   "branch_type", "branch_no", "address", "has_vat", "vat_rate", "wht_rate",
-                  "header_discount", "note", "source_file", "image_sha256"):
+                  "header_discount", "note", "source_file", "image_sha256",
+                  "payment_status", "payment_method", "payment_date"):
         if field in changes:
             doc.set(field, changes[field])
     doc.save()
@@ -324,3 +329,29 @@ def _store_source(content: bytes, filename: str) -> str:
         frappe.log_error(title="Sales source file storage failed",
                          message=frappe.get_traceback()[-1200:])
         return ""
+
+def convert_quotation(name, target_doc_kind) -> dict:
+    """报价单转成目标类型的**草稿**。报价单本身不动，也不占发票号（开出时才取号）。"""
+    guard.require("sales.write")
+    source = get_document(name) if frappe.db.exists(DOCTYPE, name) else None
+    blocked = contracts.convert_gate(source, target_doc_kind)
+    if blocked:
+        frappe.throw(f"{_(BLOCKED)}: {blocked}")
+    return create_document(
+        doc_kind=target_doc_kind, doc_date=source["doc_date"],
+        buyer_name=source["buyer_name"], customer=source["customer"],
+        lines=[{"product": line["product"], "description": line["description"],
+                "qty": line["qty"], "unit": line["unit"], "unit_price": line["unit_price"],
+                "discount": line["discount"]} for line in source["lines"]],
+        tax_id=source["tax_id"], party_type=source["party_type"],
+        branch_type=source["branch_type"], branch_no=source["branch_no"],
+        address=source["address"], has_vat=source["has_vat"], vat_rate=source["vat_rate"],
+        wht_rate=source["wht_rate"], header_discount=source["header_discount"],
+        references_document=source["name"], note="converted_from_quotation")
+
+
+def print_document(name, lang="th_en") -> dict:
+    """票面模型：标签、明细、金额大写、付款码。不生成 PDF（排版与字体是另一件事）。"""
+    guard.require("sales.read")
+    doc = get_document(name)
+    return render.print_model(doc, seller=company.get_profile(), lang=lang)
