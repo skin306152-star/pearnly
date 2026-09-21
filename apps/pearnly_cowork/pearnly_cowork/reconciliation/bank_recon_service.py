@@ -7,8 +7,6 @@ first. Reading a file, running OCR and calling a model stay in the legacy
 project, as do model extraction, asynchronous job orchestration and the accountant
 review actions. The review workbook is rendered from what a task stored.
 """
-import hashlib
-
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
@@ -18,13 +16,12 @@ from pearnly_cowork.reconciliation import (
 	bank_parse,
 	bank_recon_access,
 	bank_recon_contracts,
+	recon_tasks,
 )
 from pearnly_cowork.reconciliation.bank_recon_access import ROW, TASK
 from pearnly_cowork.reconciliation.bank_recon_documents import persist
 from pearnly_cowork.reconciliation.export import workbook as export_workbook
 
-ROW_LIMIT = 200
-LIST_LIMIT = 100
 EXPORT_LANGUAGES = ("th", "en", "zh", "ja")
 ROW_EXPORT_FIELDS = ("match_status", "match_layer", "date_diff_days", "stmt_date", "stmt_desc",
 	"stmt_withdrawal", "stmt_deposit", "stmt_balance", "stmt_confidence", "stmt_balance_ok",
@@ -32,12 +29,11 @@ ROW_EXPORT_FIELDS = ("match_status", "match_layer", "date_diff_days", "stmt_date
 	"gl_credit", "gl_balance", "source_stmt_file", "source_gl_file")
 
 
-def _identity(request_id):
-	if (not isinstance(request_id, str) or not request_id.strip() or len(request_id) > 120):
-		frappe.throw(_("reconciliation.request_invalid"))
-	key = hashlib.sha256(
-		f"{frappe.local.site}|{frappe.session.user}|{request_id}".encode()).hexdigest()
-	return "CBR-" + key[:40], key
+LIST_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "status", "row_count",
+	"matched_count", "formula_diff", "created_at")
+DETAIL_FIELDS = ("name", "title", "reconciliation_type", "bank_code", "gl_account_code", "status",
+	"row_count", "source_format", "source_digest", "created_by", "created_at")
+TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS, DETAIL_FIELDS)
 
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
@@ -45,7 +41,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		parse_info=None):
 	"""Validate, match and store one reconciliation inside a single transaction."""
 	bank_recon_access.require(workspace)
-	name, request_key = _identity(request_id)
+	name, request_key = TASKS.identity(request_id)
 	title = bank_recon_contracts.title_text(title)
 	if reconciliation_type not in ("bank", "income"):
 		frappe.throw(_("reconciliation.type_invalid"))
@@ -53,12 +49,9 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 	header_values = bank_recon_contracts.header(header)
 	parse_values = bank_recon_contracts.parse_info(parse_info)
 	request_digest = bank_recon_contracts.digest(header_values, *rows)
-	existing = frappe.db.get_value(TASK, name, ["request_digest", "summary_json"], as_dict=True)
-	if existing:
-		if existing.request_digest != request_digest:
-			frappe.throw(_("reconciliation.request_conflict"))
-		return {"name": name, "replayed": True,
-			"summary": bank_recon_contracts.json_loads(existing.summary_json)}
+	replayed = TASKS.replay(name, request_digest)
+	if replayed:
+		return replayed
 	results, summary = bank_matching.reconcile(
 		bank_recon_contracts.matching_statement_rows(rows[0]),
 		bank_recon_contracts.matching_gl_rows(rows[1]),
@@ -220,38 +213,12 @@ def export(task_id, lang="th"):
 
 
 def records(workspace, start=0, limit=50):
-	bank_recon_access.require(workspace)
-	try:
-		start, limit = max(0, int(start)), max(1, min(int(limit), LIST_LIMIT))
-	except (TypeError, ValueError):
-		frappe.throw(_("reconciliation.request_invalid"))
-	rows = frappe.get_all(TASK, filters={"workspace": workspace},
-		fields=["name", "title", "reconciliation_type", "bank_code", "status", "row_count",
-			"matched_count", "formula_diff", "created_at"],
-		order_by="creation desc, name desc", limit_start=start, limit_page_length=limit)
-	return {"tasks": rows, "total": frappe.db.count(TASK, {"workspace": workspace})}
+	return TASKS.records(workspace, start, limit)
 
 
 def detail(task_id, start=0, limit=100):
-	doc = frappe.get_doc(TASK, task_id)
-	bank_recon_access.require(doc.workspace)
-	try:
-		start, limit = max(0, int(start)), max(1, min(int(limit), ROW_LIMIT))
-	except (TypeError, ValueError):
-		frappe.throw(_("reconciliation.request_invalid"))
-	rows = frappe.get_all(ROW, filters={"task": doc.name}, fields=["*"],
-		order_by="row_index asc", limit_start=start, limit_page_length=limit)
-	return {"task": {field: doc.get(field) for field in (
-			"name", "title", "reconciliation_type", "bank_code", "gl_account_code", "status",
-			"row_count", "source_format", "source_digest", "created_by", "created_at")},
-		"summary": bank_recon_contracts.json_loads(doc.summary_json),
-		"rows": rows, "total": frappe.db.count(ROW, {"task": doc.name})}
+	return TASKS.detail(task_id, start, limit)
 
 
 def delete(task_id):
-	doc = frappe.get_doc(TASK, task_id)
-	bank_recon_access.require(doc.workspace)
-	removed = frappe.db.count(ROW, {"task": doc.name})
-	frappe.db.delete(ROW, {"task": doc.name})
-	frappe.db.delete(TASK, {"name": doc.name})
-	return {"ok": True, "rows_deleted": removed}
+	return TASKS.delete(task_id)

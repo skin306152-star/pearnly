@@ -1,0 +1,84 @@
+{
+  "base_commit": "debf942",
+  "scope": "twenty-sixth batch: the native task and result-row store of income (general ledger versus output-VAT) reconciliation",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "e821c8bb3bef18d28b1464293c760c3d29cdfc374fb1d89d2a43380b482c0dfb",
+    "delivery_captured_at": "2026-09-21T12:59:26.360312+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-twenty-fifth-delivery.json baseline-twenty-sixth-delivery.json (before pinned at 1126ffbf)",
+    "note": "no separate start capture was taken for this batch: the batch started immediately after the twenty-fifth delivery capture (2026-09-21T12:35:47Z) and the delivery capture was compared against it, reporting unchanged source identity",
+    "runtime_projection_delivery_sha256": "1a48598fb5882c7ce7a998530a917b3d0223406ebb784756a15a54764da08500",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest fc713ee1 -> 307628d8; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "two further read-only captures 30 seconds apart returned bbb0fe7e and then bbb0fe7e, so the endpoint digest is a live-moving value written by the running legacy agent, not a migration signal; this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137,
+      "new_tests": 0,
+      "note": "the migrated decision core is untouched by this batch"
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts tests.test_cowork_income_recon_contracts",
+      "result": "PASS",
+      "tests": 32,
+      "new_tests": 17,
+      "note": "the bank row contract still passes after its primitives moved into recon_contracts"
+    },
+    {
+      "command": "bench --site cowork-backend-ack.localhost migrate / bench --site cowork-backend-preparation.localhost migrate",
+      "result": "PASS",
+      "exit_codes": [0, 0],
+      "note": "the two new DocTypes and their tables install on both lab Sites; the ack Site was migrated a second time, still exit 0"
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 10,
+      "covers": [
+        "stored summary, result rows and exact replay",
+        "the deployed three counters (matched / difference / unmatched) stored on the task",
+        "same request id with different content refused",
+        "header tolerance decides whether a small difference counts as matched",
+        "violations refused before anything is stored",
+        "company scope and the recon feature are enforced",
+        "a revoked workspace permission blocks read and write",
+        "generic write, delete and DocShare are refused",
+        "the stored record identity cannot be rewritten",
+        "reads are paginated"
+      ],
+      "anonymous_http": {"create": 403, "records": 403, "detail": 403, "delete": 403}
+    },
+    {
+      "command": "scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "tests": 10,
+      "note": "regression after the shared contracts, access, document gate and task mechanics were extracted"
+    },
+    {
+      "command": "scripts/cowork-bank-recon-export-lab-verify.py",
+      "result": "PASS",
+      "tests": 3
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed income store is one table holding detail_json and summary_json; this platform keeps a native task plus result-row pair, holding the decoded rows and the pairing verdict, exactly like the bank store",
+    "amounts are validated as Decimal at the entry and stored as the deployed binary floats",
+    "an absent ledger counterpart is a zero plus a has_gl_match Check, because a Float column cannot carry the deployed JSON null",
+    "the printed report date is stored as text under vat_date, as the deployed core sorted it as text",
+    "the store is idempotent per request id: the same content replays, different content conflicts, where the deployed run always inserted a new task row",
+    "no batch delete and no workbook export yet; both belong to later slices of this family"
+  ],
+  "not_run": [
+    "reading the ledger and output-VAT files (column heuristics and running balance) and storing their per-file diagnostics",
+    "asynchronous task submission and polling, the review workbook export, batch delete, and the wiring to reconciliation_type=income",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-income-native.md"
+}

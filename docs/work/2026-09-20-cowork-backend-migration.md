@@ -1,5 +1,37 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十六批交付）
+
+**本批给收入对账（总账对销项税）配上原生存储：新增一对 DocType（任务 + 结果行）、一个服务、一组专用 RPC 与权限门，并把银行那套的共享契约、权限门、控制器门、任务机制抽出来复用。** 上一批只迁了判定核心，本批让结果落进新平台自己的表；读文件、出工作簿、异步仍是后续批次。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `44fdd9a`（第二十五批交付）。交付前按协调顺序并入 main `42ed146`（ERP 销售单据 + 发票识别复核那批），合并提交 `debf942`；该合并只动 `apps/pearnly_erp_portal/**`、`scripts/erp-pos-lab-sales-verify.py`、`tests/test_erp_portal_access.py`，与本分支无重叠。含本交接的本地提交以 `git log -1` 为准。
+- 新增 DocType `Cowork Income Reconciliation`（`record_id`/`workspace`/`title`/`status`/`gl_account_code`/`source_format`/`source_digest`/`request_key`/`request_digest`/`row_count`/`gl_row_count`/`matched_count`/`diff_count`/`unmatched_count`/`amount_tolerance`/六个汇总标量/`summary_json`/`created_by`/`created_at`）与 `Cowork Income Reconciliation Row`（`record_id`/`workspace`/`task`/`row_index`/`doc_no`/`vat_date`/`customer_name`/`vat_amount`/`has_gl_match`/`gl_amount`/`diff`/`account_codes`）。任务名 `CIR-<40hex>` 由站点+用户+`request_id` 派生，同内容重放返回原结果、同 id 换内容报冲突。
+- 新增 `reconciliation/income_recon_contracts.py`（两侧行契约、表头、指纹、转匹配形状；金额先按 `Decimal` 校验再存部署版 float）、`income_recon_access.py`、`income_recon_documents.py`（服务专属写门，通用写入/删除/分享被拒）、`income_recon_service.py`（`create`/`records`/`detail`/`delete`，落库含部署版路由算的三个计数）、`income_recon_api.py`。
+- 共享抽取（本批从银行那套抽出，银行侧改薄别名）：`recon_contracts.py`（金额/文本/日期/未知字段、规范化 JSON、指纹）、`recon_access.py`（`ReconAccess` 工厂）、`recon_documents.py`（`WRITE_TOKEN` + `persist` + 身份不可改写）、`recon_tasks.py`（命名/重放/列表/明细/删除）。
+- `hooks.py` 增加两个新 DocType 的 `permission_query_conditions`、`has_permission` 与 `DocShare` 拒绝；权限沿用同一个 `Cowork Bank Reconciliation` 角色（部署版对账权限不区分类别）。**`features.py`、`pearnly_core/**`、`scripts/i18n/messages.tsv` 三处共享底座本批一律未动。**
+- 有意不照搬旧表：旧 `gl_vat_task` 是单表 `detail_json`+`summary_json`；本平台拆成任务 + 行两表（与银行同型）。无 GL 对手方时 `gl_amount`/`diff` 存 0，用 `has_gl_match` Check 区分（Float 列不能存旧 JSON 的 `null`）；`vat_date` 存印刷文本（部署版按文本排序）；旧 `vat_recon_*` 那代（发票存档 ↔ 报告行）不是这一族，未迁。批删与工作簿导出未做。
+
+### 验证与证据
+
+- 离线：对账族 **137** 个通过（未改判定核心）；银行行契约 **15** + 收入行契约 **17**（本批新增）通过；架构 **0** 违规；`i18n-build --check` PASS（本批无界面文案）；`git diff --check` 干净。
+- 隔离 Site（`cowork-backend-ack`、`cowork-backend-preparation`）：两个 Site `migrate` 退出码 0（ack 重复一次仍 0，两张表已进 `tabDocType`）；新收入用例各 **10** 个通过（幂等重放、同 id 换内容拒绝、容差档位、范围与功能授权、撤销授权、通用写入/分享被拒、身份不可改写、计数与明细、分页、删除），四个端点匿名 HTTP 全 **403**；既有银行 **10** 个与工作簿 **3** 个回归通过。
+- 未执行：GL/VAT 文件解析与列识别、文件诊断入库（`gl_filename`/`vat_filename`）、异步任务与轮询、复核工作簿导出、批删、接 `reconciliation_type="income"`、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付前重新采集交付快照 `baseline-twenty-sixth-delivery.json`（`e821c8bb…`），`source` 仍 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，与上一批交付快照 `compare` **PASS**（本批未单独采开工快照，理由见[证据说明](cowork-backend/evidence/twenty-sixth-local-validation.json)）。运行投影 `push-runtime-twenty-sixth-delivery.json`（`1a48598f…`）：`erp_endpoints.configuration_digest` 每次采集都在变（`fc713ee1…` → `307628d8…` → `bbb0fe7e…`，端点数 60、两个平台开关不变），是在跑的旧侧代理持续更新旧库，不是迁移信号。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族继续：GL/VAT 解析（Excel/PDF 列识别与余额链）→ 文件诊断与 `gl_filename`/`vat_filename` 入库 → 异步任务与轮询 → 复核工作簿导出（与银行那批同型）→ 批删 → 接 `reconciliation_type="income"`。银行侧剩余项（异步任务状态与轮询、批量删除、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `42ed146`（ERP 批次已合入），远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`debf942`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十五批交付）
 
 **本批开始收入对账（总账对销项税）这一族：先把纯判定核心迁进来。** 对账中心三种类型里，银行那代已经落地（行契约 → 匹配 → 原生存储 → 受控解析入账 → 复核工作簿），收入这代对应 `gl_vat_*` 家族；本批只迁类型、配对规则、容差、贷项单方向与汇总/调整项，读文件、落库、出工作簿仍是后续批次。不接前端、不部署、不改 DMS。

@@ -1,0 +1,234 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Income Reconciliation",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "title",
+  "status",
+  "gl_account_code",
+  "source_format",
+  "source_digest",
+  "request_key",
+  "request_digest",
+  "row_count",
+  "gl_row_count",
+  "matched_count",
+  "diff_count",
+  "unmatched_count",
+  "amount_tolerance",
+  "gl_total",
+  "gl_only_credit",
+  "gl_only_debit",
+  "vat_only_positive",
+  "vat_only_negative",
+  "vat_total",
+  "summary_json",
+  "created_by",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 140,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "completed",
+   "default": "completed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "gl_account_code",
+   "fieldtype": "Data",
+   "label": "GL Account Code",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "source_format",
+   "fieldtype": "Data",
+   "label": "Source Format",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "source_digest",
+   "fieldtype": "Data",
+   "label": "Source Digest",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "request_digest",
+   "fieldtype": "Data",
+   "label": "Request Digest",
+   "read_only": 1,
+   "reqd": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "row_count",
+   "fieldtype": "Int",
+   "label": "Row Count",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "gl_row_count",
+   "fieldtype": "Int",
+   "label": "GL Row Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "matched_count",
+   "fieldtype": "Int",
+   "label": "Matched Count",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "diff_count",
+   "fieldtype": "Int",
+   "label": "Difference Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unmatched_count",
+   "fieldtype": "Int",
+   "label": "Unmatched Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "amount_tolerance",
+   "fieldtype": "Float",
+   "label": "Amount Tolerance",
+   "read_only": 1,
+   "default": "0.01"
+  },
+  {
+   "fieldname": "gl_total",
+   "fieldtype": "Float",
+   "label": "GL Total",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "gl_only_credit",
+   "fieldtype": "Float",
+   "label": "GL Only Credit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_only_debit",
+   "fieldtype": "Float",
+   "label": "GL Only Debit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vat_only_positive",
+   "fieldtype": "Float",
+   "label": "VAT Only Positive",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vat_only_negative",
+   "fieldtype": "Float",
+   "label": "VAT Only Negative",
+   "read_only": 1
+  },
+  {
+   "fieldname": "vat_total",
+   "fieldtype": "Float",
+   "label": "VAT Total",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "summary_json",
+   "fieldtype": "Long Text",
+   "label": "Summary Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Bank Reconciliation",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

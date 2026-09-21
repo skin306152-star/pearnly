@@ -1,0 +1,137 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Income Reconciliation Row",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "task",
+  "row_index",
+  "doc_no",
+  "vat_date",
+  "customer_name",
+  "vat_amount",
+  "has_gl_match",
+  "gl_amount",
+  "diff",
+  "account_codes"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 80
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "read_only": 1,
+   "options": "Cowork Income Reconciliation",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "row_index",
+   "fieldtype": "Int",
+   "label": "Row Index",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "doc_no",
+   "fieldtype": "Data",
+   "label": "VAT Document No",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "vat_date",
+   "fieldtype": "Data",
+   "label": "VAT Date",
+   "read_only": 1,
+   "length": 40,
+   "description": "Kept as printed by the report; the deployed core sorted it as text"
+  },
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer Name",
+   "read_only": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "vat_amount",
+   "fieldtype": "Float",
+   "label": "VAT Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "has_gl_match",
+   "fieldtype": "Check",
+   "label": "Has GL Match",
+   "read_only": 1,
+   "default": "0",
+   "description": "1 means ledger rows were found for this document number"
+  },
+  {
+   "fieldname": "gl_amount",
+   "fieldtype": "Float",
+   "label": "GL Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "diff",
+   "fieldtype": "Float",
+   "label": "Difference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "account_codes",
+   "fieldtype": "Data",
+   "label": "Account Codes",
+   "read_only": 1,
+   "length": 300
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Bank Reconciliation",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

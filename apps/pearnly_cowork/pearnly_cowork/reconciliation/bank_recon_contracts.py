@@ -10,16 +10,25 @@ Pure contract: no Frappe, database, file, clock, HTTP or model access.
 """
 
 from datetime import date
-from decimal import Decimal, InvalidOperation
-import hashlib
-import json
-import math
+from decimal import Decimal
+
+from pearnly_cowork.reconciliation.recon_contracts import (
+	DECIMAL_PLACES,
+	MAX_DECIMAL_DIGITS,
+	MAX_ROWS,
+	MAX_TEXT,
+	ReconciliationContractError,
+	amount as _amount,
+	canonical_digest,
+	date_value as _date,
+	json_dumps,
+	json_loads,
+	only_keys as _exact_keys,
+	text as _text,
+	title_text,
+)
 
 SOURCE_FORMAT = "decoded_rows_v1"
-MAX_ROWS = 20000
-MAX_TEXT = 300
-MAX_DECIMAL_DIGITS = 24
-DECIMAL_PLACES = 6
 
 STATEMENT_KEYS = frozenset(("date", "description", "withdrawal", "deposit", "balance",
 	"confidence", "balance_ok", "autocorrected"))
@@ -37,58 +46,6 @@ PARSE_INFO_SECTIONS = {
 }
 CONFIDENCE_LEVELS = ("high", "medium", "low")
 BALANCE_STATES = ("ok", "mismatch")
-
-
-class ReconciliationContractError(ValueError):
-	"""Raised for a row or header the native entry point refuses."""
-
-
-def _amount(value, field, *, nonnegative=True):
-	if value is None or value == "":
-		return Decimal(0) if nonnegative else None
-	try:
-		number = Decimal(str(value).strip().replace(",", ""))
-	except (InvalidOperation, ArithmeticError):
-		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}") from None
-	if not number.is_finite() or len(number.as_tuple().digits) > MAX_DECIMAL_DIGITS:
-		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}")
-	# A Decimal keeps far larger exponents than the deployed float matcher can
-	# compare, so an amount outside the storable range is refused, not rounded.
-	if number and (number.adjusted() > MAX_DECIMAL_DIGITS or not math.isfinite(float(number))):
-		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}")
-	if nonnegative and number < 0:
-		raise ReconciliationContractError(f"reconciliation.amount_negative:{field}")
-	if -number.as_tuple().exponent > DECIMAL_PLACES:
-		raise ReconciliationContractError(f"reconciliation.amount_precision:{field}")
-	return number
-
-
-def _text(value, field, *, required=False, limit=MAX_TEXT):
-	text = "" if value is None else str(value).strip()
-	if required and not text:
-		raise ReconciliationContractError(f"reconciliation.text_required:{field}")
-	if len(text) > limit:
-		raise ReconciliationContractError(f"reconciliation.text_too_long:{field}")
-	return text
-
-
-def _date(value, field):
-	text = _text(value, field, limit=10)
-	if not text:
-		return None
-	try:
-		return date.fromisoformat(text)
-	except ValueError:
-		raise ReconciliationContractError(f"reconciliation.date_invalid:{field}") from None
-
-
-def _exact_keys(raw, allowed, field):
-	if not isinstance(raw, dict):
-		raise ReconciliationContractError(f"reconciliation.row_invalid:{field}")
-	extra = set(raw) - allowed
-	if extra:
-		raise ReconciliationContractError(f"reconciliation.row_unknown_field:{field}")
-	return raw
 
 
 def statement_row(raw):
@@ -203,22 +160,7 @@ def digest(header_value, statement_rows, gl_rows):
 						for key, value in row.items()} for row in statement_rows],
 		"gl": [{key: value.isoformat() if isinstance(value, date) else str(value)
 				for key, value in row.items()} for row in gl_rows]}
-	return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False,
-		separators=(",", ":")).encode()).hexdigest()
-
-
-def json_dumps(value):
-	"""Canonical JSON for stored summaries; keys sorted, no insignificant space."""
-	return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-
-
-def json_loads(text):
-	return json.loads(text or "{}")
-
-
-def title_text(value):
-	"""Validate a caller-supplied task title."""
-	return _text(value, "title", required=True, limit=140)
+	return canonical_digest(payload)
 
 
 def matching_statement_rows(rows):
