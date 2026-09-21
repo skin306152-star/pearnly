@@ -1,5 +1,41 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十五批交付：OCR 族两处真缺口 + 架构归位）
+
+**本批把 OCR 族清点认定的两处真缺口补上，并按要求把 Cowork 的架构方向登记进自动检查。** 不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `412d9fd`（第三十四批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `ocr/validation/magnitude.py`：`services/ocr/magnitude_baseline.py` 机械搬移——供应商历史量级基线（只揪不改值、`RATIO=20.0`、`MIN_HISTORY=5`、中位数、中文原因串、`True` 当正数的怪癖）。**部署版从未接线**（喂 history 的查询未提交），原生同样只留决策核心，历史来源由调用方给出。
+- 新增 `contracts/errors.py`：`services/ocr/error_format.py` 的 `short_error`/`_fmt_validation`——去 pydantic 文档 URL、只留首行、>160 截断、空文案回落类名、字段去重列前三 + 溢出。落点放在共享纯契约域，因为部署版的使用者是银行/GL/VAT 的解析入口，原生不让对账依赖抽取域。
+- 接回落点：`reconciliation/income_parse.py` 的两个 `error` 字段（`excel_rows`/`text_rows`）从 `str(error)` 改回部署版单行文案；诊断 `diag.exception` 保留原文（原生新增，给排障用）。
+- 架构归位（用户本批要求）：`architecture-policy.json` 新增 `cowork_domain_dependencies`（13 个域，按当前代码实测生成），`scripts/check-architecture.py` 增加 Cowork 分支——未登记的新跨域方向直接失败；`docs/development/architecture.md` 新增"Cowork 的实际职责"（域职责表 + 3 组既有环债务 + 框架模块目录不进表的原因）。新增登记方向只有一条：`reconciliation → contracts`。
+- 一并交付只读清点 [OCR 族缺口清点](cowork-backend/ocr-family-audit.md)：98 文件/16,929 行的旧包哪些已迁、哪些有意不迁、真缺口在哪；`bank_chain_gate.py`/`gl_balance_chain.py` 逐条对应后判定**不属本切片**（它们读写旧侧银行单/GL 文档模型，而原生只承接 `invoice`/`auto`），缺口清单已登记等你给方向。
+
+### 验证与证据
+
+- 离线：`magnitude` 8 用例、`errors` 15 用例（含真实 pydantic `ValidationError`）通过；`income_parse`/`vat_parse`/契约 **95** 个继续通过（主机无 pydantic，2 个真实 pydantic 用例按设计跳过，bench 里全过）。
+- 固定源差分：`magnitude` **521** 批（差异 0）；`error_format` 普通 24 + 真实 pydantic 7 + 包装 14 + `_fmt_validation` 替身 14 + 两个常量，差异 **0**；`income_parse` **305** 批继续差异 0（其 `_short_err` 替身已改指真实迁移函数）。
+- 隔离 Site：两个 Site 收入对账存储 **19** 用例/Site 通过，匿名 RPC 全部 403。
+- 架构 0 违规；新增守卫用例证明未登记的 Cowork 跨域依赖会失败、登记后通过；`i18n-build --check` PASS，`check-i18n` REPORT-ONLY（新文案与既有 `sanity.py`/`vat_parse.py` 同类，未动 `messages.tsv`）；`git diff --check` 干净。
+- 未执行：真实文件与模型、异步队列、前端、部署、外部结果与用户验收。
+
+### 线上来源
+
+交付 `baseline-thirty-fifth-delivery.json`（`40ae6777…`，采集 15:22:42Z）与第三十四批快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-fifth-delivery.json`（`201bb3bf…`）与上一批**逐项相同**（端点摘要仍 `c5882f4b…`）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+两处缺口已补，OCR 族只剩一个待你决策的点：**是否原生承接银行单 / GL 的文档级 OCR**（要，则文档模型 + `bank_chain_gate`/`gl_balance_chain` 整批迁；不要，则表四缺口按"不存在"记录）。其余按族推进：M2 销项税 Excel 族、工单对账族各自清点；主数据仍等你定"自有一份 / 读 ERP 成品"。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `2b4cf18`（第三十四批交接写的 `21581e4` 已过期），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未做端到端验证。
+- **本批试过把 `main` 合入本分支，出现真实冲突后已中止合并**（工作树保持干净，没有任何一侧的文件被改动）。冲突文件两个：`apps/pearnly_core/pearnly_core/desk/navigation.py`（另一窗口的侧边栏重写 vs 本分支删除团队协作菜单）与 `scripts/i18n/messages.tsv`（两侧都在追加，main 本批 +498 行）；另有 4 个生成的四语 CSV 同属两侧改动。这些都在共享底座、不在本批范围，本批不动它们。
+- **合并时务必注意**：`main` 上的 `97e0409` 重写侧边栏后**仍保留 Cowork 的 `nav.work` → `boards`（团队协作）菜单项**，而本分支 `60b4602` 已按用户要求删除。将来合并要以"保留删除"为准，不能直接取 main 那一侧；`messages.tsv` 按既有做法"两边都保留 + 重跑 `i18n-build.py`"。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第三十四批交付：银行对账闭族）
 
 **本批补上银行 run 的业务警告与锚点快照/覆盖，银行对账这一族的真缺口归零。** 这是[缺口清点](cowork-backend/reconciliation-family-audit.md)认定的本族最后一处真缺口。不接前端、不部署、不改 DMS、不写旧库。

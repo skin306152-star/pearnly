@@ -169,5 +169,61 @@
       "editor",
       "ocr"
     ]
+  },
+  "cowork_domain_dependencies": {
+    "access": [],
+    "companion": [
+      "connections",
+      "push",
+      "targets"
+    ],
+    "connections": [
+      "masters",
+      "reconciliation",
+      "targets"
+    ],
+    "contracts": [],
+    "files": [
+      "access",
+      "ocr"
+    ],
+    "history": [
+      "access",
+      "contracts",
+      "files",
+      "ocr"
+    ],
+    "masters": [
+      "access"
+    ],
+    "ocr": [
+      "access",
+      "contracts",
+      "files",
+      "history",
+      "roundtrip"
+    ],
+    "push": [
+      "access",
+      "connections",
+      "contracts",
+      "history",
+      "targets"
+    ],
+    "reconciliation": [
+      "access",
+      "contracts",
+      "masters"
+    ],
+    "roundtrip": [
+      "access",
+      "history",
+      "ocr",
+      "push"
+    ],
+    "stocktake": [
+      "access"
+    ],
+    "targets": []
   }
 }

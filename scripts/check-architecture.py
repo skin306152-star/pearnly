@@ -3,6 +3,10 @@
 
 No Site, credentials, network or external writes. Existing root modules are a
 reviewed baseline, not a pattern for new business features.
+
+Domain dependency directions are registered per App in the policy; DMS and Cowork
+both have one. The framework module directory of an App (its DocType controllers)
+is the orchestration layer and is not registered.
 """
 import ast
 import json
@@ -30,6 +34,7 @@ def check(root=ROOT):
                 errors.append(f"{package.relative_to(root)}: missing Frappe file {required}")
     legacy = set(mapping["modules"])
     domains = policy.get("dms_domain_dependencies", {})
+    cowork = policy.get("cowork_domain_dependencies", {})
     compat = mapping["compatibility"]
     for path in (root / "apps").rglob("*.py"):
         if any(part in {"node_modules", "__pycache__"} for part in path.parts):
@@ -57,6 +62,8 @@ def check(root=ROOT):
                 imports = [n.module or ""]
                 if n.module == "pearnly_dms":
                     imports += [f"pearnly_dms.{a.name}" for a in n.names]
+                if n.module == "pearnly_cowork":
+                    imports += [f"pearnly_cowork.{a.name}" for a in n.names]
                 if "/contracts/" in relative and n.level:
                     errors.append(f"{relative}:{n.lineno}: contracts use explicit imports to expose boundaries")
             for dependency in imports:
@@ -67,6 +74,13 @@ def check(root=ROOT):
                             and source_domain != target_domain
                             and target_domain not in domains[source_domain]):
                         errors.append(f"{relative}:{n.lineno}: new domain dependency requires architecture review: {source_domain} -> {target_domain}")
+                if module.startswith("pearnly_cowork.") and dependency.startswith("pearnly_cowork."):
+                    source_domain = module.split(".")[1]
+                    target_domain = dependency.split(".")[1]
+                    if (source_domain in cowork and target_domain in cowork
+                            and source_domain != target_domain
+                            and target_domain not in cowork[source_domain]):
+                        errors.append(f"{relative}:{n.lineno}: new domain dependency requires architecture review: pearnly_cowork {source_domain} -> {target_domain}")
                 if dependency in legacy:
                     errors.append(f"{relative}:{n.lineno}: internal code must use domain API, not {dependency}")
                 if "/pearnly_dms/contracts/" in relative:

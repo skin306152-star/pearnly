@@ -38,6 +38,26 @@
 
 这次是保持行为的模块归位，已把纯契约与运行依赖分开。既有 `client` 到 `booking`、`intake` 的业务协议协作，以及会话流程间的延迟导入仍存在；不能据此宣称已完成严格无环分层。下一次改动相关链时，要围绕真实职责调整并补对应回归，不能再整批搬回根目录。
 
+## Cowork 的实际职责
+
+包根：`apps/pearnly_cowork/pearnly_cowork/`。域依赖方向登记在 `architecture-policy.json` 的 `cowork_domain_dependencies`，自动检查拦截未登记的新方向；新增方向必须同时说明契约、归属与理由。
+
+| 域 | 负责什么 | 关键入口 / 约束 |
+| --- | --- | --- |
+| `contracts` | 与框架无关的数据与呈现契约（推送方向、历史摘要、错误单行文案） | 无框架、IO、模型依赖；唯一的全域共享纯契约 |
+| `access` | 作用域与共享权限判据 | 只给判据，不承载业务流程 |
+| `masters` | 主档输入、工作区与主档契约 | `masters.api` / `push_inputs`；写入口在服务端 |
+| `ocr` | 抽取：引擎、表引擎、校验闸、执行批次与计费、反馈 | `engine.runner`（本切片只承接 `invoice`/`auto`）、`execution.service`；依赖 `contracts` 与 `pearnly_core` 的计量 |
+| `reconciliation` | 银行与收入对账：解码、配对、原生落库、导出 | `bank_recon_service` / `income_recon_service`；收调用方已解码的内容，子进程不读文件、不调模型 |
+| `roundtrip` | 往返单契约与解析 | `service` / `parser` |
+| `push` | 推送装配、试算、幂等与写者锁 | `application.service` / `native`；外部写只在目标域 |
+| `connections`、`targets` | 外部连接配置、刷新、快照与推送目标 | 连接校验在服务端；本地目标不参与开户 |
+| `companion` | 伴生端采集、投递与心跳 | 只消费上述域的公开入口，不直连数据库表 |
+| `history`、`files`、`stocktake` | 历史、源文件守卫、盘点 | 各自 `service` / `api` |
+| `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
+
+已登记的既有环（债务，本次不扩围）：`ocr ↔ roundtrip`、`files ↔ ocr`、`history ↔ ocr`（后两组各有一条是函数内延迟导入）。它们来自旧项目同一批抽取与往返流程的相互调用，搬迁时按原职责落位；下次改到这些链时，要按真实职责把方向拆开并补回归，不能用新的延迟导入扩大环。`ocr` 与 `reconciliation` 之间没有也不应有依赖：两侧只通过 `contracts` 共享纯契约，抽取产物由调用方以数据形式交出。
+
 ## 本地控制面与云端开户
 
 管理后台继续运行在本机。正式开户只面向 `pearnly_target_runtime` 中明确配置 `executor=production`、且存在对应 Target 记录的云端目标。SSH 隧道的回环地址不等于本地租户。
@@ -49,7 +69,7 @@
 
 ## 自动执行与人工审查
 
-运行 `python3 scripts/check-architecture.py`：检查全部 App 的根模块基线、Frappe 必备文件、DMS 薄兼容入口、内部旧路径引用、纯契约依赖和新增跨域依赖。已存在的依赖方向登记在 `architecture-policy.json`，新增方向必须说明契约并审查，不能自动扩充。增加领域、例外或改变基线必须同时说明责任边界与理由，不能只改基线让检查变绿。
+运行 `python3 scripts/check-architecture.py`：检查全部 App 的根模块基线、Frappe 必备文件、DMS 薄兼容入口、内部旧路径引用、纯契约依赖和新增跨域依赖。DMS 与 Cowork 已存在的域依赖方向分别登记在 `architecture-policy.json` 的 `dms_domain_dependencies` 与 `cowork_domain_dependencies`，新增方向必须说明契约并审查，不能自动扩充。增加领域、例外或改变基线必须同时说明责任边界与理由，不能只改基线让检查变绿。
 
 `python3 scripts/check-dms-offline.py` 只执行已审过的四组零 IO 检查，检查失败标记和退出码。完整业务 / Site / 真机验收另按影响选择。
 

@@ -24,6 +24,10 @@ The output rows reach native storage through ``income_recon_contracts``, so a ro
 the decoded-row contract refuses (a value with more than six decimals, a text over
 the stored limit, an oversized batch) is an error here instead of a silent drop.
 
+The ``error`` field of a refused source carries the deployed one-line wording
+(``services/ocr/error_format.short_error``), not the raw exception text: the field
+is what the accountant reads, and a pydantic dump is not a sentence.
+
 Pure logic: no Frappe, database, file, clock, HTTP, model or export access.
 """
 
@@ -31,6 +35,7 @@ from datetime import date, datetime
 import re
 from typing import Any, Dict, List, Optional, Sequence
 
+from pearnly_cowork.contracts.errors import short_error
 from pearnly_cowork.reconciliation.income_vat import GlRow, normalize_doc_no
 from pearnly_cowork.reconciliation.recon_contracts import ReconciliationContractError
 
@@ -258,7 +263,7 @@ def excel_rows(sheets, revenue_prefix: str = "4") -> Dict[str, Any]:
 	except ReconciliationContractError:
 		raise
 	except Exception as error:
-		return {"ok": False, "rows": [], "row_count": 0, "error": str(error),
+		return {"ok": False, "rows": [], "row_count": 0, "error": short_error(error),
 			"diag": {"method": "excel", "exception": str(error)}}
 	return {"ok": True, "rows": rows, "row_count": len(rows), "error": "",
 		"diag": {"method": "excel", "rows_kept": len(rows), "sheets_seen": len(sheets)}}
@@ -459,7 +464,7 @@ def text_rows(lines, revenue_prefix: str = "4") -> Dict[str, Any]:
 	except ReconciliationContractError:
 		raise
 	except Exception as error:
-		return {"ok": False, "rows": [], "row_count": 0, "error": str(error),
+		return {"ok": False, "rows": [], "row_count": 0, "error": short_error(error),
 			"diag": {"method": "text_lines", "exception": str(error)}}
 	return {"ok": True, "rows": rows, "row_count": len(rows), "error": "",
 		"diag": {"method": "text_lines", "accounts_seen": accounts_seen[:10],

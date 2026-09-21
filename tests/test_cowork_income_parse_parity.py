@@ -19,6 +19,7 @@ import sys
 import types
 from typing import Any, Dict, List, Optional
 
+from pearnly_cowork.contracts.errors import short_error
 from pearnly_cowork.reconciliation import income_parse as parse
 
 SOURCE_SHA = "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188"
@@ -130,7 +131,10 @@ def load_legacy(root):
 		"date": __import__("datetime").date, "datetime": __import__("datetime").datetime,
 		"Any": Any}
 	excel = dict(shared)
-	excel.update({"List": List, "Dict": Dict, "Optional": Optional, "_short_err": _short_error})
+	# The deployed ``_short_err`` is migrated now, so the pinned source calls the
+	# same helper the native parser does; the two are compared verbatim against
+	# the fixed source in tests/test_cowork_ocr_error_format_source_parity.py.
+	excel.update({"List": List, "Dict": Dict, "Optional": Optional, "_short_err": short_error})
 	extract(root, "services/recon/gl_vat_parse_excel.py",
 		{"parse_gl_excel", "_gl_rows_from_pipeline_legacy"}, excel)
 	pdf = dict(shared)
@@ -138,10 +142,6 @@ def load_legacy(root):
 	extract(root, "services/recon/gl_vat_parse_pdf.py", {"_parse_gl_text_lines", "parse_gl_pdf"},
 		pdf, assignments={"_DATE_RE", "_TAIL_NUMS", "_TAIL_NUMS_2", "_DOCNO_RE"})
 	return excel, pdf
-
-
-def _short_error(error):
-	return str(error)
 
 
 def _logger():

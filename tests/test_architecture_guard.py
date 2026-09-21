@@ -75,6 +75,24 @@ class ArchitectureGuard(unittest.TestCase):
         (self.package / "contracts/models.py").write_text("from pearnly_dms.editor.api import create\n")
         self.assertTrue(any("domain dependency" in x for x in guard.check(self.root)))
 
+    def test_new_cowork_cross_domain_dependency_requires_review(self):
+        cowork = self.root / "apps/pearnly_cowork/pearnly_cowork"
+        (cowork / "ocr").mkdir(parents=True)
+        (cowork / "reconciliation").mkdir()
+        (cowork.parent / "pyproject.toml").write_text("")
+        for name in ("__init__.py", "hooks.py", "modules.txt", "patches.txt"):
+            (cowork / name).write_text("")
+        policy = self.root / "docs/development/architecture-policy.json"
+        data = json.loads(policy.read_text())
+        data["cowork_domain_dependencies"] = {"ocr": [], "reconciliation": []}
+        policy.write_text(json.dumps(data))
+        (cowork / "ocr/runner.py").write_text("from pearnly_cowork.reconciliation import income_parse\n")
+        failures = guard.check(self.root)
+        self.assertTrue(any("pearnly_cowork ocr -> reconciliation" in x for x in failures), failures)
+        data["cowork_domain_dependencies"] = {"ocr": ["reconciliation"], "reconciliation": []}
+        policy.write_text(json.dumps(data))
+        self.assertEqual(guard.check(self.root), [])
+
     def test_compatibility_module_cannot_accumulate_business_logic(self):
         mapping = self.root / "docs/development/dms-module-map.json"
         data = json.loads(mapping.read_text())
