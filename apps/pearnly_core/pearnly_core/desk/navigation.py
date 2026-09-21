@@ -181,12 +181,26 @@ def _sidebar_items(product, features) -> list:
         if not children:
             # 整组一个页面都没有就不要出空标题 —— 空组比没有更让人以为"坏了"。
             continue
-        items.append({"type": "Section Break", "label": label, "indent": 0,
-                      "collapsible": 1, "keep_closed": 0})
-        for route, (child_label, _route, child_icon, _feature) in children:
+        items.append(_group_item(label, icon))
+        for route, (child_label, _route, _child_icon, _feature) in children:
             items.append({"type": "Link", "label": child_label, "link_type": "Page",
-                          "link_to": route, "icon": child_icon, "child": 1, "indent": 1})
+                          "link_to": route, "icon": "", "child": 1, "indent": 1})
     return items
+
+
+def _group_item(label: str, icon: str) -> dict:
+    """分组标题：**一个总图标 + 标题 + 折叠箭头**，子项不再带图标。
+
+    为什么父项写 `indent=1`（原生里这个字段本来是"缩进"）：
+      · Section Break 只有在 `indent != 1` 时才渲染成那条细分隔线；`indent == 1` 会走
+        「普通条目」分支，于是标题前面能有一个图标（`sidebar_item.html` 的分支判断）。
+      · 同时 `sidebar_item.js` 给**没有图标的子项**补一个 `list` 图标的条件是
+        `!(item.child && item.parent.indent)` —— 父项 indent=1 正好把补图标这条关掉，
+        子项于是真的没有图标，跟参考图一致。
+    折叠仍然由原生的 `collapsible` + 右侧 drop-icon 负责，不自建控件。
+    """
+    return {"type": "Section Break", "label": label, "icon": icon, "indent": 1,
+            "collapsible": 1, "keep_closed": 0}
 
 
 def extend_boot(boot):
@@ -236,8 +250,7 @@ def extend_boot(boot):
             # 原生给条目做的是 `_(item.label)`（frappe/boot.py:get_sidebar_items）。
             # 这里的 Section Break 是**我们新造的**，不经过那一步，所以要自己翻 ——
             # 否则标题会原样显示 `nav.group.*` 这种键（实测过）。
-            projected.append({"type": "Section Break", "label": frappe._(label), "indent": 0,
-                              "collapsible": 1, "keep_closed": 0})
+            projected.append({**_group_item(frappe._(label), icon)})
             for member in members:
-                projected.append({**member, "child": 1, "indent": 1})
+                projected.append({**member, "icon": "", "child": 1, "indent": 1})
         sidebar["items"] = projected

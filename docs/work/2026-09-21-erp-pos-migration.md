@@ -756,6 +756,13 @@ LINE 发来图片/PDF → 校验绑定与岗位 → 下载媒体 → **留底**�
   "最后一个 Section Break + `item.child`"嵌套的，所以父项写 Section Break、子项写
   `child=1, indent=1`，不需要自建折叠控件。分组定义在 `GROUPS`（商品与库存 / 采购系统 /
   销售系统 / 主数据），与截图一致。
+- **父栏一个总图标、子栏不带图标**（用户 2026-09-21 指定，参照 Desk 原生的权限/审计分组）：
+  父项写 `indent=1` 有两个效果，都是原生的分支行为 ——
+  ① `sidebar_item.html` 里 Section Break 只有 `indent != 1` 才画成那条细分隔线，`indent == 1`
+  走「普通条目」分支，于是标题前面能放图标；
+  ② `sidebar_item.js` 给**没有图标的子项**补 `list` 图标的条件是
+  `!(item.child && item.parent.indent)`，父项 `indent=1` 正好关掉这条，子项于是真的没有图标。
+  折叠仍走原生的 `collapsible` + 右侧 drop-icon。实测：箭头能收起/展开，子项无图标、缩进正确。
 - **没做好的页面不进侧栏**：`AVAILABLE_PAGES` 是唯一开关，`_offered()` 同时看"做好了"
   "买了功能""有权限"三者。空组不显示标题（空标题会被当成坏了）。
 - 分组标题要**自己翻**：原生给条目做的是 `_(item.label)`（`frappe/boot.py`），而我们在
