@@ -1,9 +1,9 @@
 # Cowork 后端迁移：OCR 族缺口清点（2026-09-21）
 
-只读清点 `services/ocr/**`（**98 个文件 / 16,929 行**，含 `feedback/`、`handlers/`、`jobs/`、`recognize/`、`enterprise_local/` 五个子包），回答一个问题：**这一族还剩什么真缺口。** 结论先写：
+只读清点 `services/ocr/**`（**98 个文件 / 16,929 行**，含 `feedback/`、`handlers/`、`jobs/`、`recognize/`、`enterprise_local/` 五个子包），回答一个问题：**这一族还剩什么真缺口。**（第三十六批更新：用户已决定原生承接银行单/GL 文档级 OCR，第三节因此从"候选缺口"转为"已开工"，逐条对照与分层见第四节与[批次记录](ocr-document-chains.md)。）结论先写：
 
 - 真缺口两处已在[本批](ocr-validation-and-error-text.md)补上——供应商历史量级基线（`magnitude_baseline.py`）与单行错误文案（`error_format.py`）。
-- 第三处候选（`bank_chain_gate.py`、`gl_balance_chain.py`）**不是本切片的缺口**：它们跑在旧侧银行单 / GL 文档的 pydantic 模型上，而原生抽取切片只承接 `invoice`/`auto`；逐条对应见表四。
+- 第三处（`bank_chain_gate.py`、`gl_balance_chain.py`）当初按"跑在旧侧银行单 / GL 文档模型上、而本切片只承接 `invoice`/`auto`"登记为待决策；用户判断 OCR 是产品核心产物 → **要**，现按四层推进，第一层已交付。逐条对应见第四节。
 - 其余 45 个文件不是"丢了"，是**有意不迁**（表三）：文件/PDF/图像读取、模型与成本策略、路由与队列编排、企业版抽表、动态运行策略读取——各由新平台别的承担者接手。
 
 原生 `apps/pearnly_cowork/pearnly_cowork/ocr/` 现在 **53 个文件 / 5,214 行**，按 12 个包组织。本文不改代码、不写库；固定来源为只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`，线上来源在本批交付时重新采集（见[证据](evidence/thirty-fifth-local-validation.json)）。
@@ -56,21 +56,21 @@
 
 **（2）`error_format.py`（`short_error` / `_fmt_validation`，78 行）——已补。** 把 pydantic `ValidationError` 压成一行：去文档 URL、只留首行、>160 字符截断加省略号、空文案回落类名、字段去重后列前三个加溢出标记。部署版被银行/GL/VAT 的**文件级**解析入口用来填结果的 `error` 字段（`bank_recon_pipeline.py:133/232`、`gl_vat_parse_excel.py:254`、`vat_report_parser.py:86`、`enterprise_adapter.py:42`）。落点 `contracts/errors.py`：抽取侧持有 pydantic schema，对账侧持有 `error` 字段，放共享纯契约域让两侧都不依赖对方；原生 `income_parse` 的两个 `error` 落点已改回这个文案（`diag.exception` 保留原文便于诊断）。
 
-**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——本批不补，登记为决策项。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。原生抽取切片只承接 `invoice`/`auto`，银行单与 GL 由调用方交已解码内容，所以这两个文件的落点随"是否原生承接银行单/GL 的文档级 OCR"一起决定。逐条对应如下：
+**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——用户已决定原生承接，第一层已在第三十六批交付。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。用户判断"OCR 是产品的核心产物" → 要，整条链按依赖分四层：**①文档模型 + 余额链修复（第三十六批已交付，见[批次记录](ocr-document-chains.md)）** → ②列来源校验 → ③确定性读取器 → ④模型路径（含整页升档重读 `reread_bank_page`）。下表是这层规则的逐条对应，随后两列说明现在归到哪一层：
 
-| 旧规则 | 原生现状 | 判定 |
+| 旧规则 | 原生现状 | 归层 |
 | --- | --- | --- |
-| `repair_bank_chain` a：空/承转行放行、余额跳变即拒 | `bank_statement.verify_row_balances` 对无发生额行置 `balance_ok=None` 并推进 prev | 放行语义等价；"跳变即拒→整页升级"在新侧不存在（新侧把不可核实的行标给人看，不重读） |
-| b：正常向核验 | 同上（容差 `min(max(0.02, 0.5%), 1.0)`） | 已在。容差与旧侧的固定 `0.01` 不同：这是对账侧部署版既有规则，不同层不强行对齐 |
-| c：翻转向 | `bank_statement.correct_direction_from_balance` | 已在（条件表述不同、效果一致：仅当上一余额可知、方向与涨跌矛盾、金额与涨跌吻合时翻正并打标） |
-| d：链推定覆写（`implied=bal−prev`，锚=模型对该侧发生额的读数，带 20%） | `bank_statement.repair_amount_from_balance`（锚=上下行余额互证，带 30%，且要求下一行自身核验通过） | 同一意图的两代规则。原生收的是对账侧部署版口径；旧侧 OCR 侧口径更宽/更窄处（锚来源、带宽）**没有**对应实现 |
-| e：断一处即停，交调用方升级重读 | 逐行 `balance_ok=False` + `audit_completeness` 页脚核对，交人工 | 新侧没有"整页升级"这一层动作 |
-| `repair_gl_document` 1：方向纠正并打 `direction_autocorrected` | `income_parse.text_rows` 在**解析时**按运行余额定方向（不是事后翻正） | 部分覆盖：解析即定向；没有 GL 行的"事后翻正 + 标记" |
-| 2：期初反推（期初未印时 = 首行余额 − 首行净变动） | 无对应 | **缺口**（仅在原生承接 GL 文档时有落点） |
-| 3：印刷合计对首行消歧（翻首行就两项全平则翻） | 无对应（`audit_completeness` 是银行页脚完整性提示，不做修复） | **缺口**（同上） |
-| 4：断链标记顶人工复核 | `income_parse` 无警告输出；银行侧 `balance_ok`/`audit_completeness` 只覆盖银行行 | **部分缺口**（GL 断链警告无落点） |
+`repair_bank_chain` a：空/承转行放行、余额跳变即拒 | ①`validation/chains.py`（文档层）+ 对账层 `bank_statement.verify_row_balances` | 文档层按旧口径完整迁入；对账层那套是另一层的既有规则 |
+| b：正常向核验 | ①同上（容差 `0.01`） | 已在文档层 |
+| c：翻转向 | ①`chains.repair_bank_chain` + 对账层 `correct_direction_from_balance` | 两层各有自己的实现，互不替代 |
+| d：链推定覆写（锚=模型读数，带 20%） | ①`chains._impute_chain_amount`；对账层另有带宽 30% 的一代 | 文档层按旧口径迁入；两层不混用 |
+| e：断一处即停，交调用方升级重读 | ①返回首处断点；**整页升档读**归第 ④ 层（`reread_bank_page` 未迁） | 断点判定已迁；升级动作待第 ④ 层 |
+| `repair_gl_document` 1：方向纠正并打 `direction_autocorrected` | ①`chains.repair_gl_document` | 已迁 |
+| 2：期初反推（期初未印时 = 首行余额 − 首行净变动） | ①`chains._derive_opening` | 已迁 |
+| 3：印刷合计对首行消歧（翻首行就两项全平则翻） | ①`chains._reconcile_printed_totals` | 已迁 |
+| 4：断链标记顶人工复核 | ①`chains.repair_gl_document` 返回的警告 + `bank_chain_warnings` | 已迁 |
 
-不补的理由是范围而不是忽略：这三条 GL 子规则与 d 级旧口径都要读写 GL/银行**文档**模型，而原生没有这个模型；把它们塞进对账行层只会得到一份既不是旧行为、也没有真实数据来源的实现。
+这些规则都必须读写 GL/银行**文档**模型，所以它们随文档层整体迁：塞进对账行层只会得到一份既不是旧行为、也没有真实数据来源的实现。第三十六批已把这层的地基（文档模型 + 两个修复器）按旧口径迁入，逐条对照见[批次记录](ocr-document-chains.md)。
 
 ## 五、架构归位：本批做了什么、还剩什么债
 
@@ -89,7 +89,7 @@
 
 ## 六、建议的后续顺序
 
-1. 由用户决定**是否原生承接银行单 / GL 的文档级 OCR**：要，则银行单/GL 文档模型 + `bank_chain_gate`/`gl_balance_chain` 作为一批整体迁；不要，则表四的缺口按其"不存在"记录，不再列为待办。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列）→ ③确定性读取器（Excel/CSV/文本直读、PDF 文字层重建）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 

@@ -1,0 +1,96 @@
+{
+  "base_commit": "3325881",
+  "scope": "thirty-sixth batch: the first layer of native bank-statement and GL document OCR — the document shapes and the deterministic balance-chain repairs",
+  "decision": {
+    "asked": "whether to host bank-statement and GL document-level OCR natively",
+    "answer": "yes, OCR is the core product artifact",
+    "plan": [
+      "this batch: document shapes + balance-chain repairs (pure)",
+      "next: the column-source validators (amounts may only come from amount columns)",
+      "then: the deterministic readers (Excel/CSV/text, PDF text layer) into decoded pages",
+      "then: the model path (bank/GL prompts, engine document tiers, execution wiring, whole-page escalation)"
+    ]
+  },
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_capture_sha256": "2a8fd2204c73e866ec6c96b3d595a3102582a3e3846fa9da28cee4f79942d615",
+    "delivery_sha256": "a235691dc32c7e757617721e6b5b3032aaef52840425548aee361dd02242a592",
+    "delivery_captured_at": "2026-09-21T15:35:46.770596+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirty-fifth-delivery.json baseline-thirty-sixth-delivery.json (before pinned at 40ae6777)",
+    "fixed_source_hashes": {
+      "services/ocr/schemas_documents.py": "c85994ea5fc9618890b6baa54e9df4b7878ef0025bddc016d9ff8ab24fe3dbfe",
+      "services/ocr/bank_chain_gate.py": "2324467689249c1dcb6562fac3df03b2be2e2d8e03a43af14c0dff16d8e0408e",
+      "services/ocr/gl_balance_chain.py": "e59f82bd0785114aa52f3c60c5ea5c4c8565f3225737634dddae1a2f523481dd"
+    },
+    "runtime_projection_delivery_sha256": "810eb6c06dcff9996d4b9efcf914344616031cc08b4f4385d185db3c57c2192c",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false; the endpoint configuration digest stays c5882f4b, 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_chain_repair",
+      "result": "PASS",
+      "tests": 29,
+      "new_tests": 29,
+      "covers": [
+        "a consistent chain and a carried-forward row are released untouched",
+        "a swapped pair is flipped and marked, and its direction follows the swap",
+        "an amount read short or on the wrong side is inferred inside the band and marked for review",
+        "an out-of-band misread, two filled sides, equal sides, a jumping carried-forward row, a missing opening and an unparsable value are refused instead of guessed",
+        "only the first break is reported, and the warnings name the page and every inferred row",
+        "the GL side corrects a wrong side, warns on a break, hides a movement behind a balance-less row, settles the first row from the printed footer, derives the opening balance and back-fills the closing balance"
+      ]
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_document_schema",
+      "result": "PASS",
+      "tests": 11,
+      "new_tests": 11,
+      "covers": [
+        "the deployed coercions: None to empty string, numbers and booleans to their printed text, an unknown direction cleared",
+        "the audit markers start clear and the document type literals are fixed",
+        "a null page and null entries still build, and provenance plus raw_row_data survive"
+      ]
+    },
+    {
+      "command": "python test_cowork_ocr_chain_repair_source_parity.py --source-stdin (both pinned sources piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "bank": {"batches": 272, "breaks": 98, "flips": 24, "imputed": 32, "reviewed": 32, "warnings": 130},
+      "gl": {"batches": 266, "warnings": 133, "autocorrected": 94, "opening_derived": 107, "closing_backfilled": 146},
+      "note": "every field the repair may touch is compared on both sides, not only the returned reasons and warnings"
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_magnitude test_cowork_ocr_error_format",
+      "result": "PASS",
+      "tests": 23,
+      "note": "the previous batch's checks still pass after their indentation was aligned with the package"
+    },
+    {
+      "command": "python test_cowork_ocr_magnitude_source_parity.py --source-stdin (fixed source piped in)",
+      "result": "PASS",
+      "batches": 521,
+      "differences": 0
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "python3 scripts/check-i18n.py", "result": "REPORT-ONLY",
+      "note": "the chain warnings are the same class as the existing sanity/parse wording and are not registered, matching the current tree"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the two repairers share one module because the deployed sources state they share one parse rule; the tolerances are renamed BANK_TOL/GL_TOL now that they sit together",
+    "the deployed audit-warning helper is public as bank_chain_warnings because a caller now produces the page warnings; behaviour is unchanged",
+    "the deployed GL diagnostics went to a logger; a pure module holds none, and the automatic correction stays visible through the row marker and the returned warnings",
+    "the deployed environment switch and the whole-page escalation belong to the model path and are not part of this layer",
+    "VatReportDocument and GenericTableDocument are not declared yet because nothing on this side accepts them",
+    "the previous batch's magnitude module and its regression file were re-indented to the package convention (whitespace only)"
+  ],
+  "not_run": [
+    "real files, model calls, the queue, cost or quota paths",
+    "the column-source validators, the deterministic readers and the model path, which are the next layers",
+    "DMS, frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-document-chains.md"
+}

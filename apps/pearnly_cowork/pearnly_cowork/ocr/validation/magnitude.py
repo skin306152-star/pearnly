@@ -29,23 +29,23 @@ MIN_HISTORY = 5
 
 
 def magnitude_anomaly_reason(
-	new_total: Optional[float],
-	history_totals: List,
-	*,
-	min_history: int = MIN_HISTORY,
-	ratio: float = RATIO,
+    new_total: Optional[float],
+    history_totals: List,
+    *,
+    min_history: int = MIN_HISTORY,
+    ratio: float = RATIO,
 ) -> Optional[str]:
-	"""新票总额相对供应商历史中位数偏离 ratio 倍 → 返回原因串;否则 None。"""
-	if not isinstance(new_total, (int, float)) or new_total <= 0:
-		return None
-	valid = [float(t) for t in (history_totals or []) if isinstance(t, (int, float)) and t > 0]
-	if len(valid) < min_history:
-		return None
-	med = median(valid)
-	if med <= 0:
-		return None
-	if new_total * ratio < med:
-		return f"总额 {new_total} 比该供应商历史中位数 {med:.2f} 低 >{ratio:g}× — 疑选错列/读错位"
-	if new_total > med * ratio:
-		return f"总额 {new_total} 比该供应商历史中位数 {med:.2f} 高 >{ratio:g}× — 疑多读位/串列"
-	return None
+    """新票总额相对供应商历史中位数偏离 ratio 倍 → 返回原因串;否则 None。"""
+    if not isinstance(new_total, (int, float)) or new_total <= 0:
+        return None
+    valid = [float(t) for t in (history_totals or []) if isinstance(t, (int, float)) and t > 0]
+    if len(valid) < min_history:
+        return None
+    med = median(valid)
+    if med <= 0:
+        return None
+    if new_total * ratio < med:
+        return f"总额 {new_total} 比该供应商历史中位数 {med:.2f} 低 >{ratio:g}× — 疑选错列/读错位"
+    if new_total > med * ratio:
+        return f"总额 {new_total} 比该供应商历史中位数 {med:.2f} 高 >{ratio:g}× — 疑多读位/串列"
+    return None

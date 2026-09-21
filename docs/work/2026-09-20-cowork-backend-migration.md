@@ -1,5 +1,38 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十六批交付：银行单/GL 文档级 OCR 第一层）
+
+**用户决定：银行单 / GL 的文档级 OCR 原生承接（"OCR 是产品的核心产物"）。** 整条链按依赖分四层，本批交付第一层——文档模型 + 余额链确定性修复；不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `3325881`（第三十五批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `ocr/schema/documents.py`：`services/ocr/schemas_documents.py` 的 `GLEntry`/`GeneralLedgerDocument`/`BankStatementEntry`/`BankStatementDocument` 四个模型，含全部 `mode="before"` 兜底（None→""、数字/bool→字符串、`direction` 白名单）、`FieldRef` 溯源，以及 `chain_repaired`/`chain_amount_imputed`/`review_required` 三个钱路审计标记。`VatReportDocument`/`GenericTableDocument` 不声明（各自的读取路径迁时再落）。
+- 新增 `ocr/validation/chains.py`：`bank_chain_gate.repair_bank_chain` + `gl_balance_chain.repair_gl_document` 与各自助手合到一处（旧侧自己写着"两链同口径"）。判定顺序原样保留（**先保真再纠偏**：承转行放行 → 正常向 → 翻转向唯一解 → 链推定覆写（20% 安全带，锚=模型读数）→ 报首处断点），容差 `0.01`/`0.05` 不变，自动改数一律落标记。
+- 有意差异：`_audit_warnings` → 公开 `bank_chain_warnings`（调用方要产页级警告）；两个 `_TOL` → `BANK_TOL`/`GL_TOL`；GL 的 `_set_side` → `_set_gl_side`；部署版的 `logger.info` 诊断、`OCR_BANK_CHAIN_GATE` 环境开关、`reread_bank_page`（整页升档重读）都不进纯模块，后者留到第 ④ 层。
+- 顺手：上一批 `ocr/validation/magnitude.py` 与其单测缩进由 tab 改成 4 空格（纯空白），与本包一致。
+
+### 验证与证据
+
+- 离线（隔离 bench）：余额链 **29** 用例、文档模型 **11** 用例；上一批 magnitude **8** + error_format **15** 继续通过。
+- 固定源差分：银行链 **272** 批（断点 98、翻正 24、链推定覆写 32 且全部置复核标记、警告 130），GL 链 **266** 批（方向纠正 94、警告 133、期初反推 107、期末回填 146），**差异 0**；两侧逐字段比对，不只看返回值。magnitude 差分重跑 521 批差异 0。
+- 架构 0 违规（两个新模块都在既有 `ocr` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 未执行：真实文件、模型调用、队列、前端、部署、外部结果与用户验收。
+
+### 线上来源
+
+开工 `baseline-thirty-sixth-start.json`（`2a8fd220…`）与第三十五批交付 `compare` **PASS**；交付 `baseline-thirty-sixth-delivery.json`（`a235691d…`，采集 15:35:46Z）再次 PASS。运行投影 `push-runtime-thirty-sixth-delivery.json`（`810eb6c0…`）与上一批**逐项相同**（端点摘要仍 `c5882f4b…`）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包（第 ② 层）
+
+列来源校验：`validators.py` 的 `validate_gl_document` / `validate_bank_document` 与列名关键字表（`_DESCRIPTION_COLUMN_KEYWORDS`、`_is_allowed_*_amount_source`、`_value_appears_in_description`、`_clear_*_amount_field`）——拦"6091 这类说明里的数字被当金额"的确定性防线，纯逻辑、可离线差分。之后第 ③ 层确定性读取器、第 ④ 层模型路径。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为 `2b4cf18`（另一窗口的 ERP 产品页），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；本分支领先 `main` 45 个提交，组合版本未做端到端验证。
+- **合并债仍在**（第三十五批发现，本批未解）：把 `main` 合入本分支会在 `apps/pearnly_core/pearnly_core/desk/navigation.py` 与 `scripts/i18n/messages.tsv` 冲突，且 `main` 那次侧边栏重写仍保留 Cowork 的 `boards` 团队协作菜单项，本分支已按要求删除——将来合并必须以"保留删除"为准。
+- lab 容器本批启动用于 bench 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第三十五批交付：OCR 族两处真缺口 + 架构归位）
 
 **本批把 OCR 族清点认定的两处真缺口补上，并按要求把 Cowork 的架构方向登记进自动检查。** 不接前端、不部署、不改 DMS、不写旧库。
