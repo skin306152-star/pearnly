@@ -62,3 +62,8 @@ def export(task_id, lang="th"):
 @frappe.whitelist(methods=["POST"])
 def delete(task_id):
 	return _transaction(income_recon_service.delete, task_id)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_many(task_ids):
+	return _transaction(income_recon_service.delete_many, task_ids)

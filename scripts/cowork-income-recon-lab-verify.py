@@ -437,6 +437,42 @@ class NativeIncomeReconciliation(unittest.TestCase):
 		second = self.api.detail(result["name"], start=2, limit=2)
 		self.assertEqual([row["row_index"] for row in second["rows"]], [3])
 
+	def test_batch_delete_removes_every_named_task_of_the_caller(self):
+		first = self.create()
+		second = self.create(request_id="second-" + uuid4().hex)
+		self.assertEqual(self.api.delete_many([]), {"deleted": 0, "rows_deleted": 0, "ids": []})
+		removed = self.api.delete_many([first["name"], second["name"], first["name"]])
+		self.assertEqual(removed["deleted"], 2)
+		self.assertEqual(removed["rows_deleted"], 6)
+		self.assertEqual(removed["ids"], [first["name"], second["name"]])
+		self.assertEqual(self.api.records(self.workspace)["tasks"], [])
+		self.assertEqual(frappe.db.count(ROW, {"workspace": self.workspace}), 0)
+
+	def test_a_batch_that_names_a_task_outside_the_callers_scope_removes_nothing(self):
+		first = self.create()
+		second = self.create(request_id="second-" + uuid4().hex)
+		frappe.set_user(self.outsider)
+		with self.assertRaises(frappe.PermissionError):
+			self.api.delete_many([first["name"], second["name"]])
+		frappe.set_user(self.actor)
+		# The refused batch removed nothing at all: no partial delete.
+		self.assertTrue(frappe.db.exists(TASK, first["name"]))
+		self.assertTrue(frappe.db.exists(TASK, second["name"]))
+		self.assertEqual(frappe.db.count(ROW, {"task": first["name"]}), 3)
+		self.assertEqual(frappe.db.count(ROW, {"task": second["name"]}), 3)
+
+	def test_a_batch_naming_an_unknown_task_or_a_bad_shape_is_refused(self):
+		own = self.create()
+		with self.assertRaises(frappe.DoesNotExistError):
+			self.api.delete_many(["CIR-missing"])
+		for payload in ("CIR-1", [""], [42], ["x" * 141], ["CIR-" + "a" * 200]):
+			with self.subTest(payload=payload):
+				with self.assertRaises(frappe.ValidationError):
+					self.api.delete_many(payload)
+		with self.assertRaises(frappe.ValidationError):
+			self.api.delete_many(["CIR-{:040d}".format(index) for index in range(201)])
+		self.assertTrue(frappe.db.exists(TASK, own["name"]))
+
 
 if __name__ == "__main__":
 	connect(os.environ.get("PEARNLY_COWORK_TEST_SITE"))
@@ -463,6 +499,8 @@ if __name__ == "__main__":
 			"detail": client.get(rpc + "detail", base_url=base,
 				query_string={"task_id": "x"}).status_code,
 			"delete": client.post(rpc + "delete", base_url=base, json={"task_id": "x"}).status_code,
+			"delete_many": client.post(rpc + "delete_many", base_url=base,
+				json={"task_ids": []}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:

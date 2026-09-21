@@ -13,6 +13,7 @@ from pearnly_cowork.reconciliation.recon_contracts import json_loads
 
 ROW_LIMIT = 200
 LIST_LIMIT = 100
+MAX_BATCH_DELETE = 200
 
 
 def _window(start, limit, cap):
@@ -21,6 +22,27 @@ def _window(start, limit, cap):
 		return max(0, int(start)), max(1, min(int(limit), cap))
 	except (TypeError, ValueError):
 		frappe.throw(_("reconciliation.request_invalid"))
+
+
+def _batch_names(task_ids):
+	"""Validate one batch delete into the exact list of task names to remove.
+
+	A name the caller repeated is removed once; an entry that is not a name, an
+	empty batch and a batch over the cap are refused rather than silently dropped.
+	"""
+	if task_ids in (None, ""):
+		return []
+	if not isinstance(task_ids, (list, tuple)):
+		frappe.throw(_("reconciliation.request_invalid"))
+	if len(task_ids) > MAX_BATCH_DELETE:
+		frappe.throw(_("reconciliation.request_invalid"))
+	names = []
+	for value in task_ids:
+		if not isinstance(value, str) or not value.strip() or len(value) > 140:
+			frappe.throw(_("reconciliation.request_invalid"))
+		if value not in names:
+			names.append(value)
+	return names
 
 
 class ReconTasks:
@@ -74,6 +96,32 @@ class ReconTasks:
 	def delete(self, task_id):
 		doc = frappe.get_doc(self.task, task_id)
 		self.access.require(doc.workspace)
+		return self._remove(doc)
+
+	def delete_many(self, task_ids):
+		"""Remove a batch of tasks of the caller's own scope, or none of them.
+
+		Every task is checked before anything is deleted, so a batch that names a
+		task outside the caller's scope removes nothing instead of leaving a partial
+		delete behind.
+		"""
+		names = _batch_names(task_ids)
+		if not names:
+			return {"deleted": 0, "rows_deleted": 0, "ids": []}
+		documents = []
+		for name in names:
+			if not frappe.db.exists(self.task, name):
+				frappe.throw(_("reconciliation.task_not_found"), frappe.DoesNotExistError)
+			doc = frappe.get_doc(self.task, name)
+			self.access.require(doc.workspace)
+			documents.append(doc)
+		rows_deleted = 0
+		for doc in documents:
+			rows_deleted += self._remove(doc)["rows_deleted"]
+		return {"deleted": len(documents), "rows_deleted": rows_deleted,
+			"ids": [doc.name for doc in documents]}
+
+	def _remove(self, doc):
 		removed = frappe.db.count(self.row, {"task": doc.name})
 		frappe.db.delete(self.row, {"task": doc.name})
 		frappe.db.delete(self.task, {"name": doc.name})

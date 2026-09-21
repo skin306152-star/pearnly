@@ -278,6 +278,31 @@ class NativeBankReconciliation(unittest.TestCase):
 		self.assertEqual(frappe.db.count(ROW, {"task": result["name"]}), 0)
 		self.assertEqual(self.api.records(self.workspace)["tasks"], [])
 
+	def test_batch_delete_removes_every_named_task_of_the_caller(self):
+		first = self.create()
+		second = self.create(request_id="second-" + uuid4().hex)
+		self.assertEqual(self.api.delete_many([]), {"deleted": 0, "rows_deleted": 0, "ids": []})
+		removed = self.api.delete_many([first["name"], second["name"], first["name"]])
+		self.assertEqual((removed["deleted"], removed["rows_deleted"]), (2, 8))
+		self.assertEqual(removed["ids"], [first["name"], second["name"]])
+		self.assertEqual(self.api.records(self.workspace)["tasks"], [])
+		self.assertEqual(frappe.db.count(ROW, {"workspace": self.workspace}), 0)
+
+	def test_a_bank_batch_for_another_scope_or_an_unknown_task_removes_nothing(self):
+		first = self.create()
+		second = self.create(request_id="second-" + uuid4().hex)
+		frappe.set_user(self.outsider)
+		with self.assertRaises(frappe.PermissionError):
+			self.api.delete_many([first["name"], second["name"]])
+		frappe.set_user(self.actor)
+		with self.assertRaises(frappe.DoesNotExistError):
+			self.api.delete_many(["CBR-missing"])
+		# Neither a refused batch nor an unknown name removed anything.
+		self.assertTrue(frappe.db.exists(TASK, first["name"]))
+		self.assertTrue(frappe.db.exists(TASK, second["name"]))
+		self.assertEqual(frappe.db.count(ROW, {"task": first["name"]}), 4)
+		self.assertEqual(frappe.db.count(ROW, {"task": second["name"]}), 4)
+
 	def test_row_values_cover_absent_layer_and_day_distance(self):
 		result = self.create()
 		rows = {row["match_status"]: row for row in self.api.detail(result["name"])["rows"]}
@@ -311,6 +336,10 @@ if __name__ == "__main__":
 				"statement_pages": {}, "gl_pages": {}}).status_code,
 			"export": client.get(rpc + "export", base_url=base,
 				query_string={"task_id": "x"}).status_code,
+			"delete": client.post(rpc + "delete", base_url=base,
+				json={"task_id": "x"}).status_code,
+			"delete_many": client.post(rpc + "delete_many", base_url=base,
+				json={"task_ids": []}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:

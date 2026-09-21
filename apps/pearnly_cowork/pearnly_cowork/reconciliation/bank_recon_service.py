@@ -222,3 +222,7 @@ def detail(task_id, start=0, limit=100):
 
 def delete(task_id):
 	return TASKS.delete(task_id)
+
+
+def delete_many(task_ids):
+	return TASKS.delete_many(task_ids)

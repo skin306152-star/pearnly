@@ -1,5 +1,35 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十一批交付）
+
+**本批补齐两家对账都缺的批量删除入口：机制进共享 `ReconTasks`，收入与银行各接一个 POST RPC。** 部署版两家都有这个入口（`/gl-vat/tasks/batch_delete`、`/bank-v2/tasks/batch_delete`），所以是同一个共享实现的两次接线。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `68ee91f`（第 30 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- `recon_tasks.py` 新增 `MAX_BATCH_DELETE = 200`、`_batch_names(task_ids)` 校验与 `ReconTasks.delete_many(task_ids)`；`delete`/`delete_many` 共用 `_remove(doc)`（先删结果行再删任务）。收入与银行的服务/API 各加 `delete_many`。
+- 与部署版对照：空批次返回零不报错；重复名只删一次；非字符串/空名/超长名/非列表/超 200 条在删除前拒绝；权限沿用任务 API 口径（`recon` 功能 + 角色 + 范围，对应部署版 `recon.create` 权限位）；原生有结果行表所以额外删行并回报行数。
+- 有意差异：部署版对"不存在/不属于本人"的 id **静默跳过**只回计数，原生**整批先检后删**——任何一条不合格整批拒绝，不留部分删除（用例固定）；未知名字报 `reconciliation.task_not_found`；上限 200；返回 `{deleted, rows_deleted, ids}`；入参是 `CIR-`/`CBR-` 名字而不是整数 id。
+
+### 验证与证据
+
+- 隔离 Site：收入 **19** 个（上批 16 + 本批 3）、银行 **12** 个（第 24 批 10 + 本批 2）通过；两侧匿名探针新增 `delete`/`delete_many` 均 **403**；两个工作簿导出脚本各 **3** 个继续通过。
+- 主机侧：对账 **137** 个用例、架构 **0** 违规、`i18n-build --check` PASS、`git diff --check` 干净（本批无界面文案）。
+- 未执行：真实文件读取、异步任务与轮询、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirty-first-delivery.json`（`4f1b28f2…`，采集 14:50:09Z）与第 30 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-first-delivery.json`（`0139ae60…`）：端点摘要 `bf041a45…` → `6d327c98…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩**异步任务与轮询**（`/gl-vat/submit` 那条链）。银行侧剩余项：异步状态与轮询、手动覆盖痕迹/运行警告落库。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第三十批交付）
 
 **本批把收入对账的复核工作簿按部署版逐格迁入，并给它一个受权下载入口。** 会计拿到的产物现在能由原生任务生成；至此收入族只剩异步与批删。不接前端、不部署、不改 DMS、不写旧库。

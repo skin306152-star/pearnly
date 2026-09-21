@@ -62,3 +62,8 @@ def detail(task_id, start=0, limit=100):
 @frappe.whitelist(methods=["POST"])
 def delete(task_id):
 	return _transaction(bank_recon_service.delete, task_id)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_many(task_ids):
+	return _transaction(bank_recon_service.delete_many, task_ids)
