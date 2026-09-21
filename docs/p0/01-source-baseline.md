@@ -17,7 +17,7 @@
 ## 漂移
 
 - **pearnly-app**：远端 `refs/heads/master` = `ecdacdba`，与本地 `origin/master` 和调查树 HEAD 相同，**远端没有移动**。日常目录 master `e4505459` 是它的祖先，落后 117 提交，且有其他任务的改动，不在其上施工。
-- **WeKan**：远端 `refs/heads/main` 已到 `d23e666a`，本地 pinned 仍是 `6722a11d`，本地 remote-tracking ref 是旧的（`rev-list HEAD...origin/main` 显示 0/0，说明未 fetch）。上游前进属于预期，计划本就固定版本，**维持 pin，不跟随上游**。
+- **WeKan**：远端 `refs/heads/main` 已到 `d23e666a`，本地 pinned 仍是 `6722a11d`，本地 remote-tracking ref 是旧的（`rev-list HEAD...origin/main` 显示 0/0，说明未 fetch）。上游前进属于预期，计划本就固定版本，**维持 pin，不跟随上游**。**2026-09-21 更新**：团队协作看板已决定不迁移，此来源仓库不再是迁移对象，上面的测量只作历史记录。
 - **pearnly-erp**：远端 `067596c2`，一致。
 - **Companion**：远端 `ca7f2679`，一致。
 

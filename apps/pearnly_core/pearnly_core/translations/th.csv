@@ -1,6 +1,5 @@
 A DMS customer reference is required before confirming or pushing,ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง
 A DMS customer reference is required; otherwise this link means nothing,ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย
-A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
 A disabled operator cannot issue a bind code; enable them first,ผู้ปฏิบัติงานที่ปิดอยู่ ออกรหัสผูกไม่ได้ ต้องเปิดใช้งานก่อน
 "A human-readable name, e.g. MR.ERP DMS",ชื่อที่อ่านง่าย เช่น MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ
@@ -46,7 +45,6 @@ Charges,ค่าบริการ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Client ID is required,ต้องระบุ Client ID
-Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Companion,ผู้ช่วย (Companion)
 Company Tax ID,เลขผู้เสียภาษีของบริษัท
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้
@@ -659,7 +657,6 @@ nav.stockOut,จ่ายออก
 nav.stocktake,ตรวจนับสต็อก
 nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
-nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
 purchase.action.addLine,เพิ่มรายการ
 purchase.action.new,สร้างใบซื้อใหม่

@@ -3,7 +3,7 @@ name = "pearnly_cowork"
 authors = [
     { name = "Pearnly", email = "skin@pearnly.local"}
 ]
-description = "Cowork 产品：录入工作台、识别记录、推送日志、对账中心、库存盘点、协作看板"
+description = "Cowork 产品：录入工作台、识别记录、推送日志、对账中心、库存盘点"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]

@@ -262,7 +262,7 @@ This removes everything about this tenant. It cannot be undone.,This removes eve
 This request has already been handled (currently: {0}),This request has already been handled (currently: {0})
 This tenant no longer exists.,This tenant no longer exists.
 This top-up request was already reviewed; it cannot be handled twice,This top-up request was already reviewed; it cannot be handled twice
-"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).","Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion)."
+Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).
 Top-up Review,Top-up Review
 Top-up approved · request {0},Top-up approved · request {0}
 Transfer Slip,Transfer Slip

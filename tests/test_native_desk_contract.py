@@ -18,7 +18,7 @@ PAGES = next(ast.literal_eval(node.value) for node in ast.parse(MODULE.read_text
 class NativeDeskContract(unittest.TestCase):
     def test_existing_menu_inventory_is_preserved(self):
         # Fixed product contract, independent of the new navigation implementation.
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,12,14])
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,14])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')

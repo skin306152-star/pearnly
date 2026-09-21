@@ -46,8 +46,6 @@ CATALOG = {
          "description": "Customers, suppliers, accounts and other reference data"},
         {"code": "stocktake", "label": "Stock Count", "default_on": False,
          "description": "Count tasks and variance records"},
-        {"code": "boards", "label": "Collaboration Boards (WeKan)", "default_on": False,
-         "description": "A board instance is created only when this is on"},
         {"code": "companion", "label": "Companion", "default_on": False,
          "description": "Windows app on the merchant's accounting PC: installer, pairing, outbound pull"},
         {"code": "express_guide", "label": "Express Push Guide", "default_on": False,

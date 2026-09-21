@@ -21,7 +21,7 @@
   {"fieldname": "feature_code", "fieldtype": "Data", "in_list_view": 1, "label": "Feature Code", "reqd": 1, "columns": 3, "description": "Matches the feature keys in the product manifest (product_manifest.py)."},
   {"fieldname": "feature_label", "fieldtype": "Data", "in_list_view": 1, "label": "Feature Name", "reqd": 1, "columns": 3},
   {"fieldname": "column_break_main", "fieldtype": "Column Break"},
-  {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "Default On", "columns": 2, "description": "Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion)."},
+  {"default": "0", "fieldname": "default_on", "fieldtype": "Check", "in_list_view": 1, "label": "Default On", "columns": 2, "description": "Ticked means this feature is on by default; unticked ones are add-ons (for example Companion)."},
   {"fieldname": "section_enforce", "fieldtype": "Section Break", "label": "Enforcement"},
   {"fieldname": "role_name", "fieldtype": "Data", "in_list_view": 1, "label": "Role", "columns": 3, "description": "At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page)."},
   {"fieldname": "grant_doctypes", "fieldtype": "Small Text", "label": "Granted DocTypes", "description": "Comma separated. The role gets read/write on these DocTypes."},

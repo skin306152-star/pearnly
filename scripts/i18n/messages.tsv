@@ -6,7 +6,6 @@ pearnly_core	Push Log	推送日志	บันทึกการส่งข้อ
 pearnly_core	Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター
 pearnly_core	Master Data	主数据	ข้อมูลหลัก	マスタデータ
 pearnly_core	Stock Count	库存盘点	ตรวจนับสต็อก	棚卸
-pearnly_core	Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
 pearnly_core	Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
 pearnly_core	Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
 pearnly_core	Products	商品数据	ข้อมูลสินค้า	商品データ
@@ -59,7 +58,6 @@ pearnly_core	How each push to the external ERP went	推送到外部 ERP 的过�
 pearnly_core	Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับบัญชี	伝票と帳簿の照合
 pearnly_core	Customers, suppliers, accounts and other reference data	客户、供应商、科目等基础资料	ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี	顧客、仕入先、勘定科目などの基礎データ
 pearnly_core	Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録
-pearnly_core	A board instance is created only when this is on	启用才创建看板实例，不启用不占资源	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
 pearnly_core	Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 pearnly_core	Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
 pearnly_core	Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ
@@ -144,7 +142,7 @@ pearnly_control	Feature Code	功能代码	รหัสฟีเจอร์	機�
 pearnly_control	Matches the feature keys in the product manifest (product_manifest.py).	与产品清单 product_manifest.py 里的 features 键一致	ตรงกับคีย์ features ในรายการผลิตภัณฑ์ (product_manifest.py)	製品マニフェスト product_manifest.py の features キーと一致します。
 pearnly_control	Feature Name	功能名称	ชื่อฟีเจอร์	機能名
 pearnly_control	Default On	常规开通	เปิดตามปกติ	既定で有効
-pearnly_control	Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如协作看板、小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น กระดานทำงานร่วม, ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コラボボード、コンパニオンなど）。
+pearnly_control	Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。
 pearnly_control	Enforcement	权限落地	การบังคับสิทธิ์	権限の適用
 pearnly_control	Role	对应角色	บทบาท	対応ロール
 pearnly_control	At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）	ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
@@ -658,7 +656,6 @@ pearnly_core	Could not call the model: {0}	调不动模型：{0}	เรียก
 pearnly_core	Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 pearnly_core	{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
 pearnly_core	Home	首页	หน้าหลัก	ホーム	nav.home
-pearnly_core	Work together	工作协作	ทำงานร่วมกัน	コラボレーション	nav.work
 pearnly_core	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	nav.cowork
 pearnly_core	Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	nav.intake
 pearnly_core	Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録	nav.history

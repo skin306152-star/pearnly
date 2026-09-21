@@ -30,7 +30,6 @@ const HOME: NavItem = { key: "nav.home", route: "/home" };
 const NAV: Record<string, NavEntry[]> = {
   cowork: [
     HOME,
-    { key: "nav.work", route: "/work", feature: "boards" },
     {
       key: "nav.cowork",
       items: [

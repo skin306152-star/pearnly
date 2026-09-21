@@ -16,7 +16,6 @@ MANIFEST = {
         "recon",           # 对账中心
         "stocktake",       # 库存盘点
         "master_data",     # 主数据
-        "boards",          # WeKan 协作看板（启用才创建实例）
         # 小助手（Companion）：装在商家会计电脑上的 Windows 程序。
         # 用户 2026-09-17 专门提醒不要漏迁。它做的事：
         #   安装包下载、配对、心跳上报套账与科目、出站拉取任务、

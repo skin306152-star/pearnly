@@ -1,6 +1,6 @@
 ### Pearnly Cowork
 
-Cowork 产品：录入工作台、识别记录、推送日志、对账中心、库存盘点、协作看板
+Cowork 产品：录入工作台、识别记录、推送日志、对账中心、库存盘点
 
 ### Installation
 

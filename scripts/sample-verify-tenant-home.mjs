@@ -163,7 +163,6 @@ function runRealOcr() {
 			"-f", "/Users/skin/pearnly/infrastructure/compose/00-base.yml",
 			"-f", "/Users/skin/pearnly/infrastructure/compose/01-bench.yml",
 			"-f", "/Users/skin/pearnly/infrastructure/compose/02-keycloak.yml",
-			"-f", "/Users/skin/pearnly/infrastructure/compose/03-wekan.yml",
 			"-f", "/Users/skin/pearnly/infrastructure/compose/04-dev-mounts.yml",
 			"exec", "-T", `${group}-bench`, "bash", "-lc",
 			"mkdir -p /tmp/ocr-real/images && rm -f /tmp/ocr-real/images/*",

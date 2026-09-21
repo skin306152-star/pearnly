@@ -1,6 +1,5 @@
 A DMS customer reference is required before confirming or pushing,确认或推送前必须有 DMS 客户引用
 A DMS customer reference is required; otherwise this link means nothing,必须有 DMS 客户引用，否则这条对照没有意义
-A board instance is created only when this is on,启用才创建看板实例，不启用不占资源
 A disabled operator cannot issue a bind code; enable them first,停用的操作员不能发绑定码，先启用
 "A human-readable name, e.g. MR.ERP DMS",给人看的名字，例如：MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**
@@ -46,7 +45,6 @@ Charges,扣费
 Claimed By,认领人
 Claiming a push job requires a connection,抢推送任务必须指定连接
 Client ID is required,客户端 ID 不能为空
-Collaboration Boards (WeKan),协作看板（WeKan）
 Companion,小助手（Companion）
 Company Tax ID,本方税号
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通
@@ -659,7 +657,6 @@ nav.stockOut,出库
 nav.stocktake,库存盘点
 nav.suppliers,供应商
 nav.team,团队管理
-nav.work,工作协作
 nonce mismatch,nonce 不匹配
 purchase.action.addLine,添加明细
 purchase.action.new,新建采购单

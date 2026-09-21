@@ -9,7 +9,7 @@
 - 站点 7 个：`cowork-a`、`cowork-b`、`erp-a`、`erp-b`、`dms-a`、`dms-b`（6 个业务，三产品各两租户）+ `control.localhost`
 - 基础镜像：`pearnly/frappe-sample:16.34.1`（自建，digest 锁定官方 `frappe/erpnext:v16.34.1`）
 - 身份：Keycloak `26.7.4`（`infrastructure/compose/02-keycloak.yml`），独立 MariaDB 库与账号
-- 协作：两个租户各一套 WeKan + 独立 MongoDB（`infrastructure/compose/03-wekan.yml`）
+- 协作：**已按用户 2026-09-21 决定移除**（原先两个租户各一套 WeKan + 独立 MongoDB，样板 `infrastructure/compose/03-wekan.yml` 已删除）。本节记录的是移除前的实测，容器数按此说明扣减自看板那部分。
 - 容器总数 **26**，**全部 Up**；管理脚本 `scripts/sample-init-group.sh`（幂等，可重复执行）
 
 ## 端点实测

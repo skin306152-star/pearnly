@@ -14,7 +14,7 @@
 ## 边界
 
 - 本仓是新平台代码的唯一权威位置。其他任务的分支、工作树、暂存内容和数据一律不动。
-- 来源仓库（`pearnly-app`、`pearnly-erp`、`wekan`、`pearnly-companion`）默认只读参考。确需在其中改动时单独说明归属，不改与本次无关的内容。
+- 来源仓库（`pearnly-app`、`pearnly-erp`、`pearnly-companion`）默认只读参考。确需在其中改动时单独说明归属，不改与本次无关的内容。
 - 采购、生产切换、数据删除、外部系统写入都不由本仓自主发起，需要用户明确授权。
 - 已有明确授权不重复询问；缺少授权时，先完成不依赖它的实现、检查与具体操作方案。
 - 不执行全局清理、卷清理或覆盖他人改动；只提交、清理本任务明确拥有的路径和资源。
@@ -35,7 +35,7 @@
 
 ## 开发方式
 
-- Frappe、Keycloak、MariaDB、Redis、WeKan、Python/Node 版本以锁定的兼容矩阵为准，不凭记忆选版本，不靠转述的版本号施工。
+- Frappe、Keycloak、MariaDB、Redis、Python/Node 版本以锁定的兼容矩阵为准，不凭记忆选版本，不靠转述的版本号施工。
 - 版本入口是 [兼容矩阵](docs/p1/01-version-matrix.md)、构建定义和锁文件；发现不一致先记录并核实，不擅自升级底座。
 - 金额用 `Decimal`，时间存 UTC，SQL 参数化，写操作保持幂等和必要审计。
 - 业务代码进 `apps/`，运行定义进 `infrastructure/`，幂等脚本进 `scripts/`。

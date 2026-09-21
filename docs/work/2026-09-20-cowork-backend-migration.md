@@ -1,5 +1,37 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十二批：移除团队协作功能）
+
+**按用户 2026-09-21 指示：团队协作（WeKan 看板）不再迁移，已迁部分全部删除；该功能后期自行开发。** 2026-09-17 那次"协作页 `/work` 留"的确认由本次覆盖。其余待迁项继续按计划推进。
+
+### 删了什么（先审计再动手）
+
+审计口径四组关键字（`wekan`、`\bboards?\b`、`nav.work`、`pearnly-work`）覆盖 `apps/`、`frontend/src`、`infrastructure/`、`scripts/`、`tests/`、`docs/`：
+
+- 产品功能键 `boards`（`product_manifest.py`）、控制台功能目录条目（`features.py`）、Cowork 侧边栏入口（`navigation.py`）、前端导航项与 `/work` 图标映射、`pearnly-work` 原生占位页、旧壳页表里的 work 映射。
+- 样板基础设施 `infrastructure/compose/03-wekan.yml`（两租户各一套 WeKan + MongoDB）及 **46 个脚本/文档**里的引用（45 处整行删除，2 处同行里只摘该文件）。
+- 三条术语与四个语言包（`nav.work`、`Collaboration Boards (WeKan)`、`A board instance is created only when this is on`）以及把"协作看板"当例子的控件说明；重新生成语言包后 `i18n-build.py --check` PASS。
+- 描述性提及（根 `README.md`、`apps/README.md`、`apps/pearnly_cowork/{README.md,hooks.py,pyproject.toml}`、`docs/adr/*`、`docs/frontend/*`、`docs/p1/*`、`docs/p0/01`、根 `AGENTS.md`）与两处验证断言（原生导航契约的页数 12→11；前端切片脚本里专验未购买看板的断言随功能移除，其余按功能过滤的断言保留）。
+- **保留不动**：`docs/p0/02-live-inventory.md` 与 `docs/adr/0002-deployment-target.md` 里旧 VM/旧盘的运行与退役记录，以及 `docs/p0/03|05|06` 里对旧系统的路由/表/流程记录——那是旧系统证据，不是本仓实现；三处"保留判定"已加日期覆盖说明。
+
+### 验证
+
+- `python3 scripts/i18n-build.py && i18n-build.py --check` PASS；`check-i18n.py --list` 中**本次改动文件 0 条**发现（`--strict` 仍按既有基线失败，本批未增减该口径：177 条 / 47 文件 / 161 文案）。
+- `python3 scripts/check-architecture.py` **0 违规**；`tests.test_native_desk_contract` **15** 个用例通过（Cowork 页数断言已更新为 11）。
+- 被改的 **44** 个 shell 脚本 `bash -n` 全部通过；`node --check` 通过；`bash scripts/stack.sh config --quiet` 退出码 0，合并后的样板配置里 WeKan 出现 **0** 次。
+
+### 没做与影响
+
+- 旧系统（`pearnly-app` 与线上 WeKan VM）**未动**；本仓不发起对旧系统的删除或退役。
+- 已安装 Site 上的旧 `Workspace Sidebar` 文档与标准 Page 记录需要一次 `bench migrate`／重跑 `ensure_navigation` 才会消失；**本批没有在 Site 上执行**，也没删历史 DocShare。
+- 前端依赖未安装（`frontend/node_modules` 不存在），**未运行 `npm run build`**；本次前端只删一条导航项与一条图标映射。
+
+详见[协作功能移除记录](cowork-backend/collaboration-removal.md)与[范围确认的覆盖说明](p0/04-scope-and-drop-list.md)。
+
+### 下一步
+
+按第二十一批的交接继续：银行对账的受控解析适配（把旧 XLSX/PDF 解析结果落成同样的解码行）、异步任务状态与轮询、导出复核工作簿、人工复核动作；收入对账复用 `reconciliation_type=income`。**团队协作不再出现在任何待迁清单里。**
+
 ## 换窗口交接（2026-09-21，第二十一批交付）
 
 **本批落地第一个原生持久化切片：银行对账任务与结果行的原生 DocType、权限、服务与 RPC。** 不接前端、不部署、不调用模型、不写 ERP；本节为最新入口，后文按各批当时事实读取。
