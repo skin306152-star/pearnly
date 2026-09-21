@@ -37,8 +37,8 @@
 | 供应商 | `purchase-suppliers` | `routes/purchase_config_routes.py`（13 个端点） | `pearnly-suppliers` | 待迁移 |
 | 采购设置 | `purchase-settings` | `routes/purchase_config_routes.py`（13 个端点） | `pearnly-buy-settings` | 待迁移 |
 | 销售记录 | `sales-records` | `routes/sales_routes.py`（15 个端点），另有导出 2、设置 2 | `pearnly-sales` | 待迁移 |
-| 客户 | `buyer-clients` | `routes/clients_routes.py`（6 个端点），归属待核对 | `pearnly-clients` | 与「公司主档」须区分 |
-| 公司主档 | `clients`（ERP 入口下改标签为「公司主档」） | `routes/clients_routes.py`（6 个端点），归属待核对 | 新目录缺此项 | 待定落点 |
+| 客户 | `buyer-clients` | `routes/clients_routes.py`（6 个端点），归属待核对 | `pearnly-clients` | 用户已确认需要，与「公司主档」分列 |
+| 公司主档 | `clients`（ERP 入口下改标签为「公司主档」） | `routes/clients_routes.py`（6 个端点），归属待核对 | 新目录缺此项，需新建独立页面 | 用户已确认需要 |
 | 公司资料 | `company` | 待核对（`company-profile.ts` 对应服务端） | `pearnly-company` | 待迁移 |
 | 团队管理 | `erp-team` | `routes/erp_team_routes.py`（7 个端点，`/api/erp/team`） | `pearnly-team` | 待迁移 |
 | 集成 | `integrations` | `routes/erp_endpoints_routes.py`（8 个端点）等 | `pearnly-integrations` | 待迁移 |
@@ -46,7 +46,23 @@
 ### 本批核对到的三项关键差异
 
 1. 新平台 ERP 目录同样是 14 项，但内容是旧截图 14 项去掉「公司主档」再加上「首页」（见 `apps/pearnly_core/pearnly_core/desk/navigation.py` 的 `PAGES['erp']`）。**项目数相同不等于范围一致**，不能按名称对齐。
-2. 旧 ERP 里「客户」与「公司主档」是两个不同页面：`clients-navigation.ts` 在 erp/pos 入口下把 `clients` 路由整体改标签为「公司主档」，并额外显示 `buyer-clients` 作为「客户」。新目录只有一页 `pearnly-clients`（标签为「客户」），落点需要拆开或明确取舍。
+2. 旧 ERP 里「客户」与「公司主档」是两个不同页面：`clients-navigation.ts` 在 erp/pos 入口下把 `clients` 路由整体改标签为「公司主档」（去掉原页的页签栏），并额外显示 `buyer-clients` 作为「客户」（销售买方名录）。新目录只有一页 `pearnly-clients`。**用户 2026-09-21 确认两者都要**，因此新平台必须在主数据组有独立的「公司主档」，销售组有「客户」，不能合并成一页。
+
+### 开通流程为什么会装 ERPNext（2026-09-21 只读核对）
+
+结论：这是开通服务端的**遗留默认动作，没有任何代码依赖在支撑它**，而且与本产品自己的清单互相矛盾。
+
+证据：
+
+- `infrastructure/production/site-step.py:87`：`install_app` 分支里，只要请求安装 `pearnly_erp_portal`，就自动在前面插入 `erpnext`；同文件还会把它写进 `apps.txt`。该行由提交 `c6f7bc6`（2026-09-19，接通本地控制面与生产 Site）引入。
+- `infrastructure/production/provision-agent.py` 的 `validate()` 只允许安装 `pearnly_core` 或该产品自己的 App；`erpnext` 会被直接拒绝，`scripts/production/test-provision-agent.py:139` 正是这样断言的。也就是说控制面从来没有请求过 ERPNext，是服务端步骤自己加上的。
+- `apps/` 全目录只有 `pearnly_core/pearnly_core/provisioning.py:122` 提到 `erpnext`，且只是把 `Installed Application.is_setup_complete` 里的 frappe/erpnext 标记为完成（没有它这一句就是空更新）。没有任何模块 import ERPNext，`hooks.py` 的 `required_apps` 也全部为空。
+- 与本产品合同冲突：`apps/pearnly_erp_portal/pearnly_erp_portal/product_manifest.py` 的 `must_not` 第一条就是「默认安装 ERPNext 全套业务」。
+- 实测：`pearnly-erp-pos-lab` 只装 `pearnly_core` + `pearnly_erp_portal`，安装与 `migrate` 均正常，两租户站点 `list-apps` 不含 erpnext。
+
+需要提醒的影响：装了 ERPNext 的租户站点会多出它自己的模块、工作区与桌面图标，与「产品导航只投影已实现且有权限的入口」的要求相冲突；后续还要跟着它的补丁与升级走。原来的用意应该是更早阶段「原生 ERPNext 打底 + Pearnly 外壳」的方向，方向改成「后端走 Pearnly」之后这行没被一起收掉。
+
+建议：去掉这一行并用同一条生产路径复验新建 Site（建站 → 装 Core + ERP → migrate → 收尾）。这属于改动生产开通行为，已单独登记，等用户确认后再动。
 3. 旧 ERP 的「集成」是 ERP LINE 绑定与录单相关入口（`erp_endpoints`、`erp_team` 等），与 Cowork 域的外部 ERP 推送不是同一件事，不得混为一谈。
 
 ## 变更与决定
@@ -120,5 +136,6 @@
 ## 审查与交接
 
 - 自审 / 独立审查：本批为只读核对与记录，未做独立审查。
-- 剩余问题 / 阻塞原因：仅 `purchase` 一个功能接入了能力判据，其余功能的表与接口尚未纳入；员工拿功能角色这一步目前只在实验室脚本里模拟，产品侧的团队管理未实现；收银台与交接班的岗位（`ERP Cashier`）未定义；旧线上运行开关与后台任务未核对；公司主档落点待定。
-- 下一步：按批次表开第三批（团队管理 + 收银员账号与统一登录落地），随后第四至第七批。
+- 剩余问题 / 阻塞原因：仅 `purchase` 一个功能接入了能力判据，其余功能的表与接口尚未纳入；员工拿功能角色这一步目前只在实验室脚本里模拟，产品侧的团队管理未实现；收银台与交接班的岗位（`ERP Cashier`）未定义；旧线上运行开关与后台任务未核对。
+- 待用户确认的改动：去掉开通流程里自动安装 ERPNext 的遗留动作（会改变新建租户的开通行为，须走同一条生产路径复验）。
+- 下一步：按批次表开第三批（团队管理 + 收银员账号与统一登录落地），其中包含主数据组的「公司主档」与销售组的「客户」两个独立页面，随后第四至第七批。
