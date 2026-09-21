@@ -106,7 +106,7 @@ ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
     ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line",
                                            "ERP Supplier", "ERP Purchase Settings",
-                                           "ERP Company"]),
+                                           "ERP Company", "ERP LINE Intake"]),
     ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit",
                                            "ERP Company"]),
     # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，

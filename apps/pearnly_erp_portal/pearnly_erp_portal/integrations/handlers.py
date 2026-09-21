@@ -13,6 +13,9 @@ from frappe import _
 
 from pearnly_core import line, line_binding
 
+from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.integrations import intake
+
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。
 UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
@@ -39,6 +42,35 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
         _display_name(consumed["user"]))}])
 
 
+def _receive_document(user_id: str, bound: str, message: dict, reply_token: str) -> None:
+    """收到图片/PDF：留底并落草稿。没有采购岗位的人不能往账上放单据。"""
+    if not guard.has("purchase.write", user=bound):
+        line.reply(reply_token, [{"type": "text",
+                                  "text": _("This account cannot send documents")}])
+        return
+    media_type = message.get("type") or ""
+    content = line.download_message_content(message.get("id") or "")
+    filename = message.get("fileName") or ""
+    if not filename:
+        filename = f"line-{message.get('id') or 'document'}.jpg" if media_type == "image" \
+            else f"line-{message.get('id') or 'document'}.pdf"
+    try:
+        saved = intake.receive(line_user_id=user_id, sent_by=bound, media_type=media_type,
+                               content=content, filename=filename,
+                               line_message_id=message.get("id") or "")
+    except Exception:
+        # 日志标题也走英文：`check-i18n` 的存量清单已经够长，新代码不再往里加中文。
+        frappe.log_error(title="ERP LINE document storage failed",
+                         message=frappe.get_traceback()[-1500:])
+        line.reply(reply_token, [{"type": "text",
+                                  "text": _("Could not store this document")}])
+        return
+    if saved.get("duplicate"):
+        line.reply(reply_token, [{"type": "text", "text": _("Already received")}])
+        return
+    line.reply(reply_token, [{"type": "text", "text": _("Received; confirm it on the ERP page")}])
+
+
 def handle(event: dict) -> bool:
     """ERP 处理入口。返回 True 表示这个事件由 ERP 处理了。"""
     etype = event.get("type")
@@ -59,13 +91,21 @@ def handle(event: dict) -> bool:
     if etype != "message":
         return False
     message = event.get("message") or {}
-    if message.get("type") != "text":
-        # 图片/文件是录单要用的：还没做，就不能装作收下了。
-        line.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])
-        return True
 
     text = (message.get("text") or "").strip()
     bound = line_binding.user_of(user_id)
+
+    if message.get("type") in ("image", "file"):
+        if not bound:
+            line.reply(reply_token, [{"type": "text",
+                                      "text": _("Bind this account first")}])
+            return True
+        _receive_document(user_id, bound, message, reply_token)
+        return True
+
+    if message.get("type") != "text":
+        line.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])
+        return True
 
     if _is_unbind(text):
         if bound:

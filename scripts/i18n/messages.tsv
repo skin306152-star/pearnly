@@ -1057,3 +1057,14 @@ pearnly_erp_portal	LINE unbound	LINE 已解绑	ยกเลิกการเช
 pearnly_erp_portal	This channel is not open yet	这个通道还没开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
 pearnly_core	The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
 pearnly_core	LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください
+pearnly_erp_portal	Only purchase documents can be sent in for now	目前只收采购单据	ตอนนี้รับเฉพาะเอกสารจัดซื้อ	現時点では仕入書類のみ受け付けます
+pearnly_erp_portal	This account cannot send documents	这个账号不能传单据	บัญชีนี้ส่งเอกสารไม่ได้	このアカウントは書類を送信できません
+pearnly_erp_portal	Could not store this document	单据留底失败，请重发	บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を保存できませんでした。再送してください
+pearnly_erp_portal	Already received	这份文件已经收过了	ได้รับไฟล์นี้แล้ว	このファイルは受け取り済みです
+pearnly_erp_portal	Received; confirm it on the ERP page	已收到，请到 ERP 页面确认	ได้รับแล้ว กรุณายืนยันในหน้า ERP	受け取りました。ERP 画面で確認してください
+pearnly_erp_portal	Draft not found	找不到这条草稿	ไม่พบรายการร่าง	下書きが見つかりません
+pearnly_erp_portal	This draft was already confirmed or discarded	这条草稿已经确认或作废过了	รายการนี้ยืนยันหรือยกเลิกไปแล้ว	この下書きは確認済みか破棄済みです
+pearnly_erp_portal	This document has no content	这份文件是空的	ไฟล์นี้ไม่มีเนื้อหา	この書類は中身がありません
+pearnly_erp_portal	This document is too large	这份文件太大	ไฟล์นี้ใหญ่เกินไป	この書類は大きすぎます
+pearnly_erp_portal	A stored source file must carry its hash	留底文件必须带内容指纹	ไฟล์ที่เก็บต้องมีค่าแฮช	保存したファイルにはハッシュが必要です
+pearnly_erp_portal	A confirmed draft must point at the purchase record it created	已确认的草稿必须指向它建出的采购记录	รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น	確認済みの下書きは作成した仕入記録を指している必要があります

@@ -1,0 +1,147 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "status",
+  "direction",
+  "sent_by",
+  "line_user_id",
+  "column_break_media",
+  "media_type",
+  "line_message_id",
+  "file_hash",
+  "source_file",
+  "section_decision",
+  "received_at",
+  "decided_at",
+  "purchase",
+  "discard_reason",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "received\nconfirmed\ndiscarded",
+   "default": "received",
+   "reqd": 1,
+   "in_list_view": 1,
+   "description": "Received from LINE, then confirmed into a purchase record or discarded"
+  },
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "purchase\nsales",
+   "default": "purchase",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "sent_by",
+   "fieldtype": "Link",
+   "label": "Sent By",
+   "options": "User",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "line_user_id",
+   "fieldtype": "Data",
+   "label": "LINE User",
+   "length": 100,
+   "description": "The LINE account that sent the document"
+  },
+  {
+   "fieldname": "column_break_media",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "media_type",
+   "fieldtype": "Data",
+   "label": "Media Type",
+   "length": 20,
+   "description": "image or pdf, as LINE reported it"
+  },
+  {
+   "fieldname": "line_message_id",
+   "fieldtype": "Data",
+   "label": "LINE Message",
+   "length": 100
+  },
+  {
+   "fieldname": "file_hash",
+   "fieldtype": "Data",
+   "label": "File SHA-256",
+   "length": 64,
+   "description": "Sending the same file twice must not create two drafts"
+  },
+  {
+   "fieldname": "source_file",
+   "fieldtype": "Attach",
+   "label": "Source File"
+  },
+  {
+   "fieldname": "section_decision",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "received_at",
+   "fieldtype": "Datetime",
+   "label": "Received At"
+  },
+  {
+   "fieldname": "decided_at",
+   "fieldtype": "Datetime",
+   "label": "Decided At"
+  },
+  {
+   "fieldname": "purchase",
+   "fieldtype": "Link",
+   "label": "Purchase Record",
+   "options": "Purchase Document",
+   "read_only": 1,
+   "description": "Created when the draft is confirmed"
+  },
+  {
+   "fieldname": "discard_reason",
+   "fieldtype": "Small Text",
+   "label": "Discard Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP LINE Intake",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:LI-{#####}",
+ "naming_rule": "Expression",
+ "allow_rename": 0
+}
