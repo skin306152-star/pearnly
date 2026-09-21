@@ -1,0 +1,102 @@
+{
+  "base_commit": "b1bffd9",
+  "scope": "forty-second batch: the OCR document tier that fills the file intake's model seam — the two document prompts, the document schema mapping, the deployed post-model validation order, the bank balance-chain gate with its single escalation, and the orchestration entry that composes the tier into model_rows",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-first batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "7ea12219ba88c36d1ad34d5e858f2b71a17cdbd9774ac7d0080c3f95f5d0e176",
+    "delivery_captured_at": "2026-09-21T17:53:39.619354+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-first-delivery.json baseline-forty-second-delivery.json (before pinned at 789a3f66, after pinned at 7ea12219)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "c88b6c7384e3cec771be5cf81e1d38c5d22e6f532acaad65cfe00c9411b0a6d4",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/ocr/layer2_prompts.py": "7087750fd5eede4dd0a36d7a4a5bbc4e32d4869c56bbf03b074ebcffaac0bfa6",
+      "services/ocr/bank_chain_gate.py": "2324467689249c1dcb6562fac3df03b2be2e2d8e03a43af14c0dff16d8e0408e"
+    },
+    "source_note": "no model was called in this batch; the tier takes the model call as an injected dependency and every check uses a fake"
+  },
+  "checks": [
+    {
+      "command": "PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost python /workspace/scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "tests": 20,
+      "new_tests": 2,
+      "note": "isolated Site, no paid call. (1) A real scanned PDF is uploaded through the files domain and handed to the controller's document_model_rows with a fake model call: two document-stage requests, schema decode, both validator layers, legacy shape, row conversion, store — then the stored task is read back (matched pair plus one row each side, opening 1000, both sources model, no review flag). (2) With no OCR configuration on the site the entry refuses with frappe.ValidationError before any model is contacted and stores nothing."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_document_tier",
+      "result": "PASS",
+      "tests": 30,
+      "new_tests": 30,
+      "covers": [
+        "only bank_statement and general_ledger are admitted, and the prompt of another type is refused",
+        "the prompts demand the provenance refs the validators read, and the two prompt families are not interchangeable",
+        "the PDF text layer is read page by page; bytes that are not a PDF give nothing",
+        "the request carries the document prompt plus the page text, temperature 0 and JSON mime",
+        "model JSON becomes the document model; a schema failure, a truncated reply and a non-mapping payload are content failures",
+        "a retry re-sends the same request with a moved attempt index, and a fenced reply still parses",
+        "the ledger runs the source validators and then the repair (the 6091 case is rejected and cleared, then the chain is rebuilt)",
+        "a clean ledger produces no warnings, and the bank side uses its own validator",
+        "only non-invoice types route to manual review",
+        "a swapped pair is repaired without escalating, and an unresolvable break escalates exactly once",
+        "the escalated reading is audited but never escalated again; an unanswerable, non-mapping, raising or schema-invalid escalation falls back",
+        "a clean chain never asks for a re-read",
+        "the escalated reader reuses the document prompt and the stronger model name",
+        "read_document returns the legacy shape, folds a validator warning into the review flag, and refuses an unsupported type before the model"
+      ]
+    },
+    {
+      "command": "python test_cowork_document_tier_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "batches": 120,
+        "clean": 62,
+        "repaired": 10,
+        "imputed": 5,
+        "escalated": 55,
+        "fallback": 58,
+        "audit_warnings": 16
+      },
+      "note": "the pinned gate is executed with the provider call, the escalation tier and the fallback exception replaced by fakes. Each batch compares whether it fell back (and the reason text), the entries field by field after the escalation (including the three audit markers), and the audit warning list. The balance-chain repair and its helpers come from this side because the thirty-sixth batch already ported and differentially verified them, which isolates this batch's escalation logic. Both document prompts are compared byte for byte against the pinned literals."
+    },
+    {
+      "command": "docker exec ... python -m unittest (document family + bank family, 19 modules)",
+      "result": "PASS",
+      "tests": 439,
+      "note": "the new tier runs alongside every piece it composes: the document schema, both validator layers, the chain repair, the readers, the model-result handling and the store contracts"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the deployed single-page escalation re-reads the page IMAGE on the stronger tier; this side re-reads the same page TEXT with the same document prompt and the stronger model, because the platform has no image-to-document rendering device yet",
+    "the model client, the provider outcome type, the tier selection, the OCR_BANK_CHAIN_GATE switch and every log line are injected or not ported; the client comes from the site's own frozen OCR configuration, the same snapshot the invoice engine uses",
+    "document_to_legacy carries the essentials the reconciliation side consumes rather than the whole deployed legacy dict, whose remaining keys were forwarding fields of the old orchestrator",
+    "vat_report and generic_table are refused by admission: there is no native document model for them yet, so admitting them would only produce a shape nobody reads",
+    "where the deployed code falls back to another model path, the orchestration entry catches content and provider failures and answers 'no model reading', so the intake reports what the deterministic readers said instead of storing an empty task; a site with no OCR configuration is an explicit configuration error, never a silent empty run",
+    "the two prompt families (document tier and the older gemini path) are both kept and are asserted to differ, so a later change cannot silently swap one for the other"
+  ],
+  "not_run": [
+    "a real paid model call (the tier takes the call as a dependency; every check here uses a fake), real bank statements, image rendering for documents, pdfplumber table and coordinate parsing, multi-file merge, the needs_mapping template-learning layer, the queue, frontend integration, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-document-tier.md"
+}

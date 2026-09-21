@@ -48,6 +48,9 @@
 | `bank_recon_v2.py` 的分发 + `bank_recon_pipeline.py` 的选路（字节 → 行） | `reconciliation/bank_intake.py` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
 | `bank_arbitration_guard.py`（两法分歧守门） | `reconciliation/bank_arbitration.py` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
 | 文件 → 任务的编排（读原件那一段） | `doctype/cowork_bank_reconciliation` 的 `create_from_sources` + `bank_recon_service.create_from_documents` | **第四十一批** · [文件入口](ocr-intake-wiring.md) |
+| `layer2_prompts.py` 的 `_BANK_STATEMENT_SYSTEM_PROMPT` / `_GL_SYSTEM_PROMPT`（文档档位提示词） | `ocr/engine/document_prompts.py` | **第四十二批** · [文档档位](ocr-document-tier.md) |
+| `page_runner.py` 的校验顺序 + `direct_read.py` 的银行闸接线 + `bank_chain_gate.reread_bank_page` | `ocr/engine/document_tier.py` | **第四十二批** · [文档档位](ocr-document-tier.md) |
+| 把文档档位接成文件入口的 `model_rows` | 控制器 `document_model_rows` / `configured_model_call` | **第四十二批** · [文档档位](ocr-document-tier.md) |
 
 ## 三、有意不迁（有理由，非遗漏）
 
@@ -103,7 +106,7 @@
 
 ## 六、建议的后续顺序
 
-1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（**第四十批交付银行/GL 提示词、模型结果判定与换眼重读仲裁；第四十一批交付文件入口并把链接进原生银行任务**，见[文件入口](ocr-intake-wiring.md)；仍差 OCR 域的**文档档位**把模型调用接上，以及 `needs_mapping`、多文件合并、企业版）。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（**第四十批交付银行/GL 提示词、模型结果判定与换眼重读仲裁；第四十一批交付文件入口并把链接进原生银行任务**，见[文件入口](ocr-intake-wiring.md)；**第四十二批交付 OCR 域的文档档位（文档提示词 + 文档模型 + 列来源校验 + 换眼重读 + 编排接线），四层计划闭合**，见[文档档位](ocr-document-tier.md)；未做项：一次真实付费模型调用、图片渲染直读、`needs_mapping`、多文件合并、企业版）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 

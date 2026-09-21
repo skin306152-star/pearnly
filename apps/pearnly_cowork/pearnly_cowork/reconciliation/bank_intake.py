@@ -15,11 +15,13 @@
 总账：xlsx/xls/xlsm/csv/tsv 先直读，读不出才轮到模型；PDF 与其它格式只能走模型。
 
 模型这一层是**注入**的：``model_rows(document_type, file_bytes, filename)`` 只要交出
-``{ok, rows, opening, closing, ...}``。谁来填由编排层决定 —— 可以用 OCR 域的文档档位
-（文档模型 + 列来源校验 + entries → 行），也可以用本包已迁的 ``bank_model_path``（旧 gemini
-路的 JSON → 行）。本模块只要求"给我行"，因此可以完全离线验证（用一个假模型）。
+``{ok, rows, opening, closing, ...}``。谁来填由编排层决定 —— 现在的实现是 OCR 域的
+**文档档位**（`ocr.engine.document_tier`：提示词 → 文档模型 → 列来源校验 → 换眼重读 →
+legacy 形状 → 本包的 `statement_from_pipeline`/`gl_from_pipeline` 出行），见 DocType 控制器
+的 `document_model_rows`；本包已迁的 ``bank_model_path``（旧 gemini 路的 JSON → 行）是另一
+个可选实现。本模块只要求"给我行"，因此可以完全离线验证（用一个假模型）。
 
-**没有器件的部分如实留空**：pdfplumber 表格与坐标解析、图片/Word 的直读、模型客户端与渲染。
+**没有器件的部分如实留空**：pdfplumber 表格与坐标解析、图片/Word 的直读、图片渲染。
 ``read_page`` / ``page_count`` 没给就不做换眼重读（结果与"没有断链"同形，不带 escalations 键）。
 
 只吃传进来的字节与行：不读文件、不打数据库、不调模型。

@@ -557,6 +557,110 @@ class BankReconciliationFromFiles(unittest.TestCase):
 		self.assertEqual(result["parsed"]["statement_rows"], 3)
 		self.assertEqual(result["parsed"]["gl_rows"], 1)
 
+	def statement_document_json(self):
+		"""What the document tier's prompt asks the model for, with its refs filled."""
+		return {
+			"document_type": "bank_statement",
+			"bank_name": "Bangkok Bank",
+			"opening_balance": "1000.00",
+			"closing_balance": "510.00",
+			"entries": [
+				{"transaction_date": "2026-06-02", "description": "SWD ACME INV-77",
+					"withdrawal": "400.00", "balance": "600.00",
+					"withdrawal_ref": {"value": "400.00", "source_text": "400.00",
+						"source_column": "Withdrawal"}},
+				{"transaction_date": "2026-06-03", "description": "ค่าบริการ",
+					"withdrawal": "90.00", "balance": "510.00",
+					"withdrawal_ref": {"value": "90.00", "source_text": "90.00",
+						"source_column": "Withdrawal"}},
+			],
+		}
+
+	def ledger_document_json(self):
+		return {
+			"document_type": "general_ledger",
+			"opening_balance": "1000.00",
+			"closing_balance": "675.00",
+			"entries": [
+				{"transaction_date": "2026-06-02", "voucher_no": "GL-1",
+					"account_code": "1000", "description": "payment", "credit": "400.00",
+					"balance": "600.00",
+					"credit_ref": {"value": "400.00", "source_text": "400.00",
+						"source_column": "Credit"}},
+				{"transaction_date": "2026-06-30", "voucher_no": "GL-2",
+					"account_code": "1000", "description": "unmatched", "debit": "75.00",
+					"balance": "675.00",
+					"debit_ref": {"value": "75.00", "source_text": "75.00",
+						"source_column": "Debit"}},
+			],
+		}
+
+	def test_the_document_tier_carries_a_scan_end_to_end(self):
+		"""A scanned PDF with no readable rows goes through the OCR document tier.
+
+		The model call is a fake that answers with the deployed document schema, so
+		the whole chain runs here — tier, document model, the two validator layers,
+		the row conversion, the store — without contacting a provider.
+		"""
+		from pearnly_cowork.ocr.engine.contracts import ModelResponse
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation \
+			import cowork_bank_reconciliation as controller
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		statement_json = self.statement_document_json()
+		ledger_json = self.ledger_document_json()
+		requests = []
+
+		def model_call(request):
+			requests.append(request)
+			payload = ledger_json if "General Ledger" in request.prompt else statement_json
+			return ModelResponse(text=json.dumps(payload), raw={"fake": True}, input_tokens=1,
+				output_tokens=1, model=request.model or "fake")
+
+		scan = unreadable_pdf()
+		statement_source = self.upload("STM scan.pdf", scan)
+		gl_source = self.upload("GL scan.pdf", scan)
+		statement_name, statement_bytes = self.files.original(statement_source)
+		gl_name, gl_bytes = self.files.original(gl_source)
+		rows = controller.document_model_rows("1000", model_call=model_call, model="gemini-fake")
+		result = bank_recon_service.create_from_documents(self.workspace, "Scanned pair",
+			self.request_id, statement_bytes, statement_name, gl_bytes, gl_name,
+			gl_account_code="1000", model_rows=rows)
+		self.assertEqual(result["parsed"]["statement_source"], "model")
+		self.assertEqual(result["parsed"]["gl_source"], "model")
+		self.assertEqual((result["parsed"]["statement_rows"], result["parsed"]["gl_rows"]), (2, 2))
+		self.assertEqual(result["parsed"]["opening"], 1000.0)
+		self.assertFalse(result["parsed"]["needs_review"])
+		# One request per side, both on the document prompt the tier owns.
+		self.assertEqual([request.stage for request in requests], ["document", "document"])
+		self.assertEqual(len(requests), 2)
+
+		from pearnly_cowork.reconciliation import bank_recon_api
+		detail = bank_recon_api.detail(result["name"])
+		self.assertEqual(detail["total"], 3)
+		self.assertEqual(sorted({row["match_status"] for row in detail["rows"]}),
+			["gl_debit_only", "matched", "stmt_withdrawal_only"])
+
+	def test_an_unconfigured_site_refuses_before_any_model_call(self):
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation \
+			import cowork_bank_reconciliation as controller
+		from pearnly_cowork.reconciliation import bank_recon_service
+
+		# The tier is not built at all without an explicit OCR configuration, so a
+		# document no reader can decode is refused with that message instead of a
+		# stored empty task.
+		frappe.conf.pearnly_cowork_ocr_environment = None
+		frappe.conf.pearnly_cowork_ocr_policy = None
+		scan = unreadable_pdf()
+		statement_source = self.upload("STM scan.pdf", scan)
+		gl_source = self.upload("GL scan.pdf", scan)
+		statement_name, statement_bytes = self.files.original(statement_source)
+		gl_name, gl_bytes = self.files.original(gl_source)
+		with self.assertRaises(frappe.ValidationError):
+			bank_recon_service.create_from_documents(self.workspace, "Unconfigured",
+				self.request_id, statement_bytes, statement_name, gl_bytes, gl_name,
+				model_rows=controller.document_model_rows("1000"))
+
 	def test_an_unreadable_ledger_is_refused(self):
 		from pearnly_cowork.reconciliation import bank_recon_service
 		statement_name = "STM.xlsx"
