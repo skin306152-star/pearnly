@@ -1,5 +1,36 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十九批交付）
+
+**本批给收入任务补上"从哪些文件、用哪个读取器读出来的"：任务表新增两个文件名与一段受校验的解析诊断，入账入口接受并落库。** 这是部署版 `gl_vat_task` 两列文件名的现代替身，也是后续复核工作簿 File Info 段要读的数据。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `d6abf26`（第 28 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- DocType `Cowork Income Reconciliation` 新增 `gl_filename`/`vat_filename`（Data 140）、`parse_info_json`（Long Text，隐藏），`detail` 字段表加入两个文件名；**hooks、权限、共享底座未动**。
+- `income_recon_contracts.parse_info(value)`：只认 `gl`/`vat` 两段，每段 ≤20 条记录，每条只认部署版出现过的键（`file`/`method`/`rows`/`parser_version` + 总账侧 `accounts_seen`/`candidate_data_lines`/`tables_seen`/`header_found`/`sheets_seen`/`rows_kept` + 报告侧 `warnings`）；`rows` 0..20000、计数非负、列表长度与类型受控、文件名去空格 ≤140；未知段/未知键/类型不符入库前拒绝。另有 `file_name(...)` helper。
+- `income_recon_service`：`create(...)` 接受 `parse_info`/`gl_filename`/`vat_filename` 并落库、回传 `parse_info`；`create_from_parsed(...)` 接受两个文件名并用 `gl_diagnostic(...)` + 报告侧读数拼诊断。两个 RPC 同步扩参。
+- 有意差异：部署版是单表 JSONB 里的一段，这里拆两列 + 一段受校验 JSON；指纹仍只覆盖表头与两侧行，所以**诊断属于首次入库**（同 id 重放不改写，Site 用例固定）；多送的键拒绝而非静默忽略；允许调用方自带诊断（部署版只能服务端拼装）。
+
+### 验证与证据
+
+- 离线：本批新 **7** 个契约用例通过；既有解析/行契约等 **102** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS；`git diff --check` 干净。
+- 隔离 Site：两个 Site `migrate` 退出码 0，`tabCowork Income Reconciliation` 已出现 `gl_filename`/`vat_filename`（varchar(140)）与 `parse_info_json`（longtext）；两个 Site 各 **16** 个用例通过（上批 15 + 本批 1：文件名去空格、两段诊断键与读数、`create` 自带诊断、replay 不改写首次诊断、未知键拒绝），五端点匿名 **403**；银行 10 个与工作簿 3 个回归通过。
+- 未执行：真实文件读取、异步任务与轮询、复核工作簿渲染、批删、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-twenty-ninth-delivery.json`（`272a1fb5…`，采集 14:33:30Z）与第 28 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-twenty-ninth-delivery.json`（`2f8cd82a…`）：端点摘要 `2227156b…` → `ff8e39f4…`（端点数 60、平台开关不变），仍是旧侧代理在写旧库。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族还剩：异步任务与轮询、复核工作簿导出（现在 File Info 段有数据可读）、批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`（本地领先 26 个提交，即两边都还没推）；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十八批交付）
 
 **本批把收入对账的销项税报告解析迁进来，接到同一个受控入账入口。** 至此收入对账的两侧输入（总账 + 销项税报告）都能从"旧项目抽取出的内容"走到存储；剩下的是诊断入库、异步与导出。不接前端、不部署、不改 DMS、不写旧库。

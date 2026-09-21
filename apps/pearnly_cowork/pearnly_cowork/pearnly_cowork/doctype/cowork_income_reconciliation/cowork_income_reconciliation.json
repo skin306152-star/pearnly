@@ -19,6 +19,8 @@
   "title",
   "status",
   "gl_account_code",
+  "gl_filename",
+  "vat_filename",
   "source_format",
   "source_digest",
   "request_key",
@@ -35,6 +37,7 @@
   "vat_only_positive",
   "vat_only_negative",
   "vat_total",
+  "parse_info_json",
   "summary_json",
   "created_by",
   "created_at"
@@ -83,6 +86,22 @@
    "label": "GL Account Code",
    "read_only": 1,
    "length": 40
+  },
+  {
+   "fieldname": "gl_filename",
+   "fieldtype": "Data",
+   "label": "GL File Name",
+   "read_only": 1,
+   "length": 140,
+   "description": "The ledger file the rows were read from; the deployed run showed both file names of a task"
+  },
+  {
+   "fieldname": "vat_filename",
+   "fieldtype": "Data",
+   "label": "VAT File Name",
+   "read_only": 1,
+   "length": 140,
+   "description": "The output-VAT report file the rows were read from"
   },
   {
    "fieldname": "source_format",
@@ -200,6 +219,13 @@
    "fieldname": "summary_json",
    "fieldtype": "Long Text",
    "label": "Summary Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "parse_info_json",
+   "fieldtype": "Long Text",
+   "label": "Parse Info Json",
    "read_only": 1,
    "hidden": 1
   },

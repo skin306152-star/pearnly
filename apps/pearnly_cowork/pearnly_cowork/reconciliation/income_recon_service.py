@@ -30,21 +30,24 @@ from pearnly_cowork.reconciliation.income_recon_documents import persist
 LIST_FIELDS = ("name", "title", "status", "row_count", "gl_row_count", "matched_count",
 	"diff_count", "unmatched_count", "gl_total", "vat_total", "created_at")
 DETAIL_FIELDS = ("name", "title", "status", "gl_account_code", "amount_tolerance", "row_count",
-	"gl_row_count", "matched_count", "diff_count", "unmatched_count", "gl_total", "gl_only_credit",
-	"gl_only_debit", "vat_only_positive", "vat_only_negative", "vat_total", "source_format",
-	"source_digest", "created_by", "created_at")
+	"gl_filename", "vat_filename", "gl_row_count", "matched_count", "diff_count",
+	"unmatched_count", "gl_total", "gl_only_credit", "gl_only_debit", "vat_only_positive",
+	"vat_only_negative", "vat_total", "source_format", "source_digest", "created_by",
+	"created_at")
 TASK_SUMMARY_FIELDS = ("gl_total", "gl_only_credit", "gl_only_debit", "vat_only_positive",
 	"vat_only_negative", "vat_total")
 TASKS = recon_tasks.ReconTasks(TASK, ROW, income_recon_access, "CIR", LIST_FIELDS, DETAIL_FIELDS)
 
 
-def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
+def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_info=None,
+		gl_filename="", vat_filename=""):
 	"""Validate, pair and store one reconciliation inside a single transaction."""
 	income_recon_access.require(workspace)
 	name, request_key = TASKS.identity(request_id)
 	title = income_recon_contracts.title_text(title)
 	rows = income_recon_contracts.decode_rows(gl_rows, vat_rows)
 	header_values = income_recon_contracts.header(header)
+	parse_values = income_recon_contracts.parse_info(parse_info)
 	request_digest = income_recon_contracts.digest(header_values, *rows)
 	replayed = TASKS.replay(name, request_digest)
 	if replayed:
@@ -58,12 +61,15 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 	task = frappe.get_doc({"doctype": TASK, "record_id": name, "workspace": workspace,
 		"title": title, "status": "completed",
 		"gl_account_code": header_values["gl_account_code"],
+		"gl_filename": income_recon_contracts.file_name(gl_filename, "gl_filename"),
+		"vat_filename": income_recon_contracts.file_name(vat_filename, "vat_filename"),
 		"source_format": income_recon_contracts.SOURCE_FORMAT, "source_digest": request_digest,
 		"request_key": request_key, "request_digest": request_digest,
 		"row_count": len(results), "gl_row_count": len(rows[0]),
 		"matched_count": matched, "diff_count": findings, "unmatched_count": unmatched,
 		"amount_tolerance": float(header_values["amount_tolerance"]),
 		"summary_json": income_recon_contracts.json_dumps(summary_value),
+		"parse_info_json": income_recon_contracts.json_dumps(parse_values),
 		"created_by": frappe.session.user, "created_at": now_datetime(), **{
 			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(task)
@@ -71,11 +77,25 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{name}-{index + 1}",
 			"workspace": workspace, "task": name, "row_index": index + 1,
 			**row_values(result)}))
-	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results)}
+	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
+		"parse_info": parse_values}
+
+
+def gl_diagnostic(diagnostics, rows, filename):
+	"""Keep the reader's own counters under the stored diagnostic keys."""
+	record = {"file": filename, "method": diagnostics.get("method") or "", "rows": rows,
+		"parser_version": income_parse.PARSER_VERSION,
+		"accounts_seen": diagnostics.get("accounts_seen") or []}
+	for key in ("candidate_data_lines", "tables_seen", "sheets_seen", "rows_kept"):
+		if isinstance(diagnostics.get(key), int) and not isinstance(diagnostics.get(key), bool):
+			record[key] = diagnostics[key]
+	if "header_found" in diagnostics:
+		record["header_found"] = bool(diagnostics["header_found"])
+	return record
 
 
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
-		revenue_prefix="4", vat_source=None):
+		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename=""):
 	"""Store one reconciliation from the extracted content of the two report files.
 
 	Opening the ledger workbook or PDF, opening the output-VAT report, running OCR
@@ -88,6 +108,7 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 	"""
 	income_recon_access.require(workspace)
 	vat_parsed = None
+	report_method, report_rows, report_version, report_warnings = "", 0, "", []
 	if vat_source is not None:
 		report = vat_parse.decode(vat_source)
 		if not report or not report.get("ok"):
@@ -97,6 +118,10 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 			frappe.throw(_("reconciliation.vat_no_rows"))
 		vat_parsed = {"rows": report["row_count"], "method": report.get("method"),
 			"parser_version": report.get("parser_version")}
+		report_method = report.get("method") or ""
+		report_rows = report["row_count"]
+		report_version = report.get("parser_version") or ""
+		report_warnings = report.get("warnings") or []
 	elif vat_rows is None:
 		frappe.throw(_("reconciliation.request_invalid"))
 	parsed = income_parse.decode(gl_source, revenue_prefix)
@@ -104,8 +129,13 @@ def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, h
 		frappe.throw(_("reconciliation.gl_parse_failed"))
 	if not parsed["rows"]:
 		frappe.throw(_("reconciliation.gl_no_revenue_rows"))
+	# The stored diagnostics keep the file each side came from and the reader that
+	# served it, so a later export or review can say what a task was read from.
+	parse_values = {"gl": [gl_diagnostic(parsed["diag"], parsed["row_count"], gl_filename)],
+		"vat": [{"file": vat_filename, "method": report_method, "rows": report_rows,
+			"parser_version": report_version, "warnings": report_warnings}]}
 	result = create(workspace, title, request_id, income_parse.decoded_rows(parsed["rows"]),
-		vat_rows, header)
+		vat_rows, header, parse_values, gl_filename, vat_filename)
 	payload = {**result, "parsed": {
 		"rows": parsed["row_count"],
 		"method": parsed["diag"].get("method"),

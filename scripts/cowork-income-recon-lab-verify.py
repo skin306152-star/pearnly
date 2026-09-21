@@ -203,6 +203,43 @@ class NativeIncomeReconciliation(unittest.TestCase):
 		self.assertTrue(replay["replayed"])
 		self.assertEqual(replay["summary"], result["summary"])
 
+	def test_the_file_names_and_the_reader_diagnostics_are_stored(self):
+		result = self.create_from_parsed(vat_rows=None,
+			vat_source={"kind": "excel", "cells": VAT_SHEETS}, gl_filename=" GL June.xlsx ",
+			vat_filename="VAT June.xlsx")
+		detail = self.api.detail(result["name"])
+		self.assertEqual((detail["task"]["gl_filename"], detail["task"]["vat_filename"]),
+			("GL June.xlsx", "VAT June.xlsx"))
+		stored = frappe.parse_json(frappe.db.get_value(TASK, result["name"], "parse_info_json"))
+		self.assertEqual([record["method"] for record in stored["gl"]], ["excel"])
+		self.assertEqual([record["method"] for record in stored["vat"]], ["excel"])
+		self.assertEqual((stored["gl"][0]["file"], stored["gl"][0]["rows"],
+			stored["gl"][0]["sheets_seen"], stored["gl"][0]["rows_kept"]),
+			("GL June.xlsx", 4, 1, 4))
+		self.assertEqual((stored["vat"][0]["file"], stored["vat"][0]["rows"],
+			stored["vat"][0]["parser_version"]), ("VAT June.xlsx", 3, "1.1.0"))
+		# A decoded-row task stores the same shape with an empty report record, and a
+		# caller-supplied diagnostic set is validated and kept as given.
+		plain = self.create(request_id="plain-" + uuid4().hex, parse_info={"gl": [{"file": "g.xlsx",
+			"method": "excel", "rows": 4, "parser_version": "1.0.0", "accounts_seen": ["4110-01"]}]})
+		self.assertEqual(sorted(plain["parse_info"]), ["gl", "vat"])
+		self.assertEqual(plain["parse_info"]["vat"], [])
+		stored = frappe.parse_json(frappe.db.get_value(TASK, plain["name"], "parse_info_json"))
+		self.assertEqual(stored["gl"][0]["accounts_seen"], ["4110-01"])
+		# The diagnostics are not part of the replay fingerprint: the same rows replay
+		# and the stored task keeps the diagnostics of the first admission.
+		replay = self.create_from_parsed(vat_rows=None,
+			vat_source={"kind": "excel", "cells": VAT_SHEETS}, gl_filename="other.xlsx",
+			vat_filename="other-vat.xlsx")
+		self.assertTrue(replay["replayed"])
+		self.assertEqual(frappe.db.get_value(TASK, result["name"], "gl_filename"),
+			"GL June.xlsx")
+		from pearnly_cowork.reconciliation import income_recon_contracts
+		with self.assertRaises(income_recon_contracts.ReconciliationContractError) as caught:
+			self.create(request_id="bad-" + uuid4().hex,
+				parse_info={"gl": [{"file": "g.xlsx", "mystery": 1}]})
+		self.assertEqual(str(caught.exception), "reconciliation.parse_info_invalid:gl")
+
 	def test_a_report_that_needs_ocr_or_keeps_no_row_is_refused_before_storing(self):
 		with self.assertRaises(frappe.ValidationError):
 			self.create_from_parsed(vat_rows=None,

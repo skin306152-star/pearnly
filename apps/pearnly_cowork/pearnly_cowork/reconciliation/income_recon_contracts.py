@@ -39,6 +39,19 @@ VAT_KEYS = frozenset(("report_ref_no", "report_reference_no", "report_invoice_no
 	"report_buyer_name", "report_amount_pre_vat"))
 HEADER_KEYS = ("amount_tolerance", "gl_account_code")
 
+# The per-file diagnostics stored beside a task: which file each side came from,
+# which reader served it and what it kept. The deployed run kept one file name per
+# side and showed the reader's own counters, so the same names are stored here.
+MAX_PARSE_FILES = 20
+MAX_ACCOUNTS = 100
+MAX_WARNINGS = 50
+MAX_FILE_NAME = 140
+PARSE_INFO_SECTIONS = {
+	"gl": ("file", "method", "rows", "parser_version", "accounts_seen", "candidate_data_lines",
+		"tables_seen", "header_found", "sheets_seen", "rows_kept"),
+	"vat": ("file", "method", "rows", "parser_version", "warnings"),
+}
+
 
 def gl_row(raw):
 	"""Validate one decoded ledger row into its exact stored representation."""
@@ -87,6 +100,76 @@ def header(value):
 		raise ReconciliationContractError("reconciliation.amount_tolerance_invalid")
 	gl_account_code = _text(value.get("gl_account_code"), "header.gl_account_code", limit=40)
 	return {"amount_tolerance": tolerance, "gl_account_code": gl_account_code}
+
+
+def file_name(value, field):
+	"""Validate one stored file name; the deployed run kept the printed names."""
+	return _text(value, field, limit=MAX_FILE_NAME)
+
+
+def parse_info(value):
+	"""Validate the optional per-file diagnostics stored with one task.
+
+	Only the two deployed sections with their deployed record keys are kept: which
+	file each side came from, which reader served it, how many rows it kept and the
+	counters that reader reported. An unknown section or record key is refused
+	instead of stored and silently ignored.
+	"""
+	if value in (None, ""):
+		return {}
+	if not isinstance(value, dict) or set(value) - set(PARSE_INFO_SECTIONS):
+		raise ReconciliationContractError("reconciliation.parse_info_invalid")
+	result = {}
+	for section, keys in PARSE_INFO_SECTIONS.items():
+		records = value.get(section)
+		if records in (None, ""):
+			result[section] = []
+			continue
+		if not isinstance(records, list) or len(records) > MAX_PARSE_FILES:
+			raise ReconciliationContractError(f"reconciliation.parse_info_too_many:{section}")
+		parsed = []
+		for record in records:
+			if not isinstance(record, dict) or set(record) - set(keys):
+				raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+			rows = record.get("rows") or 0
+			if isinstance(rows, bool) or not isinstance(rows, int) or not 0 <= rows <= MAX_ROWS:
+				raise ReconciliationContractError(f"reconciliation.parse_info_rows:{section}")
+			item = {
+				"file": _text(record.get("file"), f"{section}.file"),
+				"method": _text(record.get("method"), f"{section}.method", limit=40),
+				"rows": rows,
+				"parser_version": _text(record.get("parser_version"),
+					f"{section}.parser_version", limit=40),
+			}
+			if section == "gl":
+				names = record.get("accounts_seen") or []
+				if (not isinstance(names, list) or len(names) > MAX_ACCOUNTS
+						or any(not isinstance(name, str) for name in names)):
+					raise ReconciliationContractError(
+						f"reconciliation.parse_info_invalid:{section}")
+				item["accounts_seen"] = [_text(name, f"{section}.accounts_seen")
+					for name in names]
+				for key in ("candidate_data_lines", "tables_seen", "sheets_seen", "rows_kept"):
+					if key not in record:
+						continue
+					count = record.get(key)
+					if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+						raise ReconciliationContractError(
+							f"reconciliation.parse_info_invalid:{section}")
+					item[key] = count
+				if "header_found" in record:
+					item["header_found"] = bool(record.get("header_found"))
+			else:
+				warnings = record.get("warnings") or []
+				if (not isinstance(warnings, list) or len(warnings) > MAX_WARNINGS
+						or any(not isinstance(warning, str) for warning in warnings)):
+					raise ReconciliationContractError(
+						f"reconciliation.parse_info_invalid:{section}")
+				item["warnings"] = [_text(warning, f"{section}.warnings")
+					for warning in warnings]
+			parsed.append(item)
+		result[section] = parsed
+	return result
 
 
 def decode_rows(gl_rows, vat_rows):

@@ -24,16 +24,17 @@ def _transaction(function, *args, **kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
-def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
+def create(workspace, title, request_id, gl_rows, vat_rows, header=None, parse_info=None,
+		gl_filename="", vat_filename=""):
 	return _transaction(income_recon_service.create, workspace, title, request_id, gl_rows,
-		vat_rows, header)
+		vat_rows, header, parse_info, gl_filename, vat_filename)
 
 
 @frappe.whitelist(methods=["POST"])
 def create_from_parsed(workspace, title, request_id, gl_source, vat_rows=None, header=None,
-		revenue_prefix="4", vat_source=None):
+		revenue_prefix="4", vat_source=None, gl_filename="", vat_filename=""):
 	return _transaction(income_recon_service.create_from_parsed, workspace, title, request_id,
-		gl_source, vat_rows, header, revenue_prefix, vat_source)
+		gl_source, vat_rows, header, revenue_prefix, vat_source, gl_filename, vat_filename)
 
 
 @frappe.whitelist()
