@@ -407,3 +407,25 @@ def convert_gate(original: dict, target_doc_kind: str) -> str | None:
     if original.get("doc_kind") != QUOTATION:
         return "not_a_quotation"
     return None
+
+# ── 销售单的来源与下游 ──────────────────────────────────────────────────────
+#
+# 用户 2026-09-21 对齐：销售记录的进出只有两条 —— **进**：POS 收银、上传发票识别、
+# 手工录入；**出**：商品/库存/收发存报表。没有会计凭证、没有报税、没有对外推送、
+# 没有账套。
+#
+# 所以一张销售单落定后**唯一的自动下游是出库**：开了票就是货出门。报价单与草稿
+# 都不动货。
+
+SOURCE_POS = "pos"
+SOURCE_OCR = "ocr"
+SOURCE_MANUAL = "manual"
+SOURCES = (SOURCE_POS, SOURCE_OCR, SOURCE_MANUAL)
+
+
+def should_post_stock(doc_kind: str, status: str) -> bool:
+    """这张单要不要过账成出库。只有**已开出**的销售凭证动货。"""
+    if status != ISSUED:
+        return False
+    return doc_kind in (TAX_INVOICE, TAX_INVOICE_SIMPLE, TAX_INVOICE_RECEIPT, RECEIPT)
+

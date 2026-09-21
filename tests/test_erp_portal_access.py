@@ -658,5 +658,26 @@ class SalesDocumentActions(unittest.TestCase):
                          "original_not_found")
 
 
+class SalesDocumentDownstream(unittest.TestCase):
+    """销售单的来源与唯一自动下游（出库）。"""
+
+    def test_only_an_issued_sales_voucher_moves_stock(self):
+        kinds = (sales_contracts.TAX_INVOICE, sales_contracts.TAX_INVOICE_SIMPLE,
+                 sales_contracts.TAX_INVOICE_RECEIPT, sales_contracts.RECEIPT)
+        for kind in kinds:
+            with self.subTest(kind=kind):
+                self.assertTrue(sales_contracts.should_post_stock(kind, sales_contracts.ISSUED))
+                self.assertFalse(sales_contracts.should_post_stock(kind, sales_contracts.DRAFT))
+                self.assertFalse(sales_contracts.should_post_stock(kind, sales_contracts.VOID))
+
+    def test_a_quotation_never_moves_stock(self):
+        self.assertFalse(sales_contracts.should_post_stock(sales_contracts.QUOTATION,
+                                                           sales_contracts.ISSUED))
+
+    def test_the_three_sources_are_named(self):
+        self.assertEqual(sales_contracts.SOURCES,
+                         ("pos", "ocr", "manual"))
+
+
 if __name__ == "__main__":
     unittest.main()
