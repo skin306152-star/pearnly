@@ -6,8 +6,10 @@
 
 - 数据访问走 Site 内的 DocType，不再持有全局连接池；
 - 金额在 DocType 的 validate 里统一重算，接口不接受前端传来的合计；
-- 权限先按"登录 + 角色"收口，正式权限码等角色模型落地后接入
-  （清单里已经写明 ERP 产品**不得**使用 accounting / tax / pos / workorder 的码）。
+- 权限走 `access.guard`：能力由功能角色决定（开通才有角色），取数范围由岗位决定
+  （管理员看全部、员工只看本人）。列表用 `frappe.get_list`，跟随框架的角色与用户权限，
+  不再用会绕过权限的 `get_all`。
+  （清单里已经写明 ERP 产品**不得**使用 accounting / tax / pos / workorder 的码。）
 
 金额一律 Decimal；时间由框架按 UTC 存储。
 """
@@ -18,14 +20,9 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from pearnly_erp_portal.access import guard
+
 DOCTYPE = "Purchase Document"
-
-
-def _require_user() -> str:
-    user = frappe.session.user
-    if not user or user == "Guest":
-        frappe.throw(_("Not signed in"), frappe.AuthenticationError)
-    return user
 
 
 def _q2(value) -> Decimal:
@@ -54,7 +51,7 @@ def create_purchase(
     status: str = "draft",
 ) -> str:
     """建一张采购单。金额由 DocType 重算，这里只管组装与校验。"""
-    _require_user()
+    guard.require("purchase.write")
 
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
@@ -103,7 +100,7 @@ def create_purchase(
 
 
 def list_purchases(*, supplier_name=None, status=None, from_date=None, to_date=None, limit=50) -> list[dict]:
-    _require_user()
+    guard.require("purchase.read")
     filters: dict = {}
     if supplier_name:
         filters["supplier_name"] = supplier_name
@@ -111,9 +108,10 @@ def list_purchases(*, supplier_name=None, status=None, from_date=None, to_date=N
         filters["status"] = status
     if from_date and to_date:
         filters["doc_date"] = ("between", [from_date, to_date])
-    return frappe.get_all(
+    # get_list 跟随角色权限与用户权限；scope_filters 再按岗位收窄到本人。
+    return frappe.get_list(
         DOCTYPE,
-        filters=filters,
+        filters={**filters, **guard.scope_filters()},
         fields=[
             "name", "doc_kind", "supplier_name", "doc_no", "doc_date", "due_date",
             "status", "currency", "grand_total", "net_payable", "payment_status",
@@ -125,20 +123,24 @@ def list_purchases(*, supplier_name=None, status=None, from_date=None, to_date=N
 
 def summary(*, from_date=None, to_date=None) -> dict:
     """期间汇总。金额求和用 Decimal，避免浮点误差累积。"""
-    _require_user()
-    filters: dict = {"status": ("!=", "void")}
+    guard.require("purchase.read")
+    filters: dict = {"status": ("!=", "void"), **guard.scope_filters()}
     if from_date and to_date:
         filters["doc_date"] = ("between", [from_date, to_date])
 
-    rows = frappe.get_all(
+    rows = frappe.get_list(
         DOCTYPE, filters=filters,
         fields=["grand_total", "vat_amount", "net_payable", "paid_amount"],
         limit_page_length=0,
     )
-    total = sum((_q2(r.grand_total) for r in rows), Decimal("0"))
-    vat = sum((_q2(r.vat_amount) for r in rows), Decimal("0"))
-    payable = sum((_q2(r.net_payable) for r in rows), Decimal("0"))
-    paid = sum((_q2(r.paid_amount) for r in rows), Decimal("0"))
+
+    def field(row, key):
+        return row.get(key) if isinstance(row, dict) else getattr(row, key, None)
+
+    total = sum((_q2(field(r, "grand_total")) for r in rows), Decimal("0"))
+    vat = sum((_q2(field(r, "vat_amount")) for r in rows), Decimal("0"))
+    payable = sum((_q2(field(r, "net_payable")) for r in rows), Decimal("0"))
+    paid = sum((_q2(field(r, "paid_amount")) for r in rows), Decimal("0"))
     return {
         "count": len(rows),
         "grand_total": str(total),

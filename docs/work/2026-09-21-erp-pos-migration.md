@@ -51,6 +51,20 @@
 
 ## 变更与决定
 
+### 批次计划
+
+按批次施工，每批自带验证与提交，做完一批再开下一批。
+
+| 批次 | 内容 | 状态 |
+| --- | --- | --- |
+| 第一批 | 线上基准、14 项范围与入口对照、隔离实验室、权限缺口复现 | 已交付 `37d96a7` |
+| 第二批 | ERP 服务端权限基线：岗位 / 能力 / 取数范围，采购接口按权限取数 | 本批 |
+| 第三批 | 团队管理与收银员：新增员工、发功能角色、收银台分配、同一登录口落地 | 待开 |
+| 第四批 | 商品、库存、入库、出库、收发存统一口径 | 待开 |
+| 第五批 | 采购记录、供应商、采购设置、销售记录（金额与库存联动） | 待开 |
+| 第六批 | POS 收银台与交接班（借 ERPNext 前端体验，后端走 Pearnly） | 待开 |
+| 第七批 | 语言包补齐、浏览器与真机验收、历史数据演练、整合验证 | 待开 |
+
 - 最终变化：新增本记录、ERP/POS 本地实验室定义（`infrastructure/compose/erp-pos-lab.yml`、`scripts/erp-pos-lab-init.py`）与权限探针（`scripts/erp-pos-lab-permission-probe.py`）。无产品业务代码变更。
 - 重要决定：POS 借 ERPNext 的前端体验与交互，但业务后端仍走 Pearnly 的商品、库存、收发存与销售；收银员与老板共用 ERP 登录口，登录后按岗位只看到收银台、交接班与本人销售。此边界待写入 ADR 时另开记录，本轮仅在工作包登记。
 - 依赖与回退影响：无代码变更，无回退面。
@@ -61,6 +75,16 @@
 
 刻意**不安装 erpnext**，只装 `pearnly_core` 与 `pearnly_erp_portal`；这样一旦某条链暗中依赖 ERPNext 业务 DocType，安装或运行会直接失败而不被掩盖。两个站点 `erp-pos-a.localhost` / `erp-pos-b.localhost` 即两租户隔离夹具。
 
+## 第二批：ERP 服务端权限基线
+
+落点：`apps/pearnly_erp_portal/pearnly_erp_portal/access/`。
+
+- `rules.py`：**纯逻辑**（不导入 Frappe / IO / 上层流程）。功能 → 角色、能力 → 功能、`all` / `own` 取数范围。角色名与开通侧 `features.py` 的 `PRODUCT_ADMIN_ROLE` / `ENFORCEMENT` 完全一致，改名会在离线测试里直接失败而不是静默失权。
+- `guard.py`：服务端判据。`require(capability)` 区分未登录（`AuthenticationError`）与无权限（`PermissionError`）；`scope_filters()` 返回取数范围（管理员空过滤、员工限本人 `owner`）。框架超管 `Administrator` 单独处理，产品界面不会发给客户。
+- `purchase.py`：`_require_user()`（只校验登录）换成 `guard.require(...)`；列表与汇总从会绕过权限的 `frappe.get_all` 改成跟随角色与用户权限的 `frappe.get_list`，并叠加岗位范围。汇总的取值改成对 dict/对象都成立，顺带消掉一处潜在属性访问问题。
+
+设计口径来自旧线上既有约定：功能角色只在功能开通时发放（没开通就没有角色），员工只看本人录入的记录、数据仍落老板账套。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
@@ -68,13 +92,26 @@
 | 2026-09-21 17:30 +07 | 只读，无代码变更 | GCP `pearnly`（只读） | `gcloud run services/revisions describe pearnly-web`、`pearnly-worker` | 预期 100% 流量与既有 digest 不变 / 实际一致 / 0 | 旧线上身份与上一轮一致，可继续作为迁移基准 |
 | 2026-09-21 17:4x +07 | `ac33e0c` + 未提交实验定义 | 本地 `pearnly-erp-pos-lab`（自有卷） | `docker compose up -d` + `erp-pos-lab-init.py` | 预期两站点安装成功且不含 erpnext / 实际一致 / 0 | 两租户 Site 建成；`list-apps` 仅 frappe+pearnly_core+pearnly_erp_portal，可安装可迁移，未依赖 ERPNext 业务应用 |
 | 2026-09-21 17:4x +07 | 同上 | 站点 `erp-pos-a.localhost` 合成数据 | `erp-pos-lab-permission-probe.py` | 见下 | **权限缺口已复现** |
+| 2026-09-21 18:2x +07 | 未提交（第二批改动） | 主机 Python，无 Site | `python3 tests/test_erp_portal_access.py -v` | 9 项通过 / 实际 9 项通过 / 0 | 规则纯逻辑与角色名一致性 |
+| 2026-09-21 18:3x +07 | 同上 | 实验室两站点，合成用户与单据 | `erp-pos-lab-permission-verify.py` | 期望 `problems` 为空 / 实际为空 / 0 | 见下：岗位与范围在服务端生效 |
+| 2026-09-21 18:3x +07 | 同上 | 本仓 | `python3 scripts/check-architecture.py` | PASS / 0 违规 / 0 | — |
+| 2026-09-21 18:3x +07 | 同上 | 本仓与 `ac33e0c` 只读对比树 | `check-i18n.py --strict`、`check-frontend-i18n.py --strict` | 增量应为 0 / 实际两处均为 95 条、前端 0 条 / 0 | 严格 i18n 存量为 95 条，本批零新增 |
 
 探针实际输出（合成数据，非生产）：老板账号建单成功（`PUR-2026-00001`）；收银员账号角色仅 `All/Desk User/Guest`，`has_permission("Purchase Document","read")` 为 `false`，**但 `api_list_purchases` 仍返回 1 行完整采购单**。原因是接口只校验“已登录”，列表走 `frappe.get_all` 而不做权限过滤。另一站点 `erp-pos-b.localhost` 采购单行数为 0，看不到 A 站的单据，租户隔离在结构上成立。
+
+第二批验证结果（`problems` 为空，退出码 0）：
+
+- 老板（`ERP Admin` + `ERP Purchase`，开通后系统已收回其 `System Manager`）：可建单、列表看到本店全部采购单、汇总正常。
+- 员工（仅 `ERP Purchase` + `Desk User`）：可建单，**列表只看到本人 1 条**，看不到老板那 1 条。
+- 无关账号（仅 `Desk User`）：列表与建单都被拒（`PermissionError`），不再返回数据。
+- 未登录（`Guest`）：`AuthenticationError`。
+- 重跑第一批探针，同一路径从「返回 1 行」变成 `PermissionError: Not permitted` —— 旧缺口已关闭。
+- 跨租户：站点 B 采购单行数仍为 0。
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
 | 实现 | 未执行 | 尚无产品代码 |
-| 本地验证 | 部分执行 | 已验：实验室可起、两租户 Site 可安装迁移、无 ERPNext 依赖、跨租户不可见、权限缺口已复现（见上表）。未验：任何业务功能、POS 流程、语言包、浏览器与真机 |
+| 本地验证 | 部分通过 | 已验（第二批）：权限规则离线 9 项、实验室岗位与范围行为、旧缺口已关、跨租户不可见、架构 0 违规、i18n 零新增。未验：其余 13 项业务功能、POS 流程、团队管理界面、语言包新词条、浏览器与真机 |
 | CI | 未执行 | 未推送 |
 | 部署 | 未执行 | 未获授权 |
 | 外部业务结果 | 不适用 | 本批不产生外部写入 |
@@ -83,5 +120,5 @@
 ## 审查与交接
 
 - 自审 / 独立审查：本批为只读核对与记录，未做独立审查。
-- 剩余问题 / 阻塞原因：14 项中的字段、校验、权限、数据表与失败路径尚未逐项展开；旧线上运行开关与后台任务未核对；公司主档落点待定；**已证实 ERP 接口只校验登录、列表不过滤权限**，在补齐服务端权限前不得新增收银员账号。
-- 下一步：① 补服务端权限基线（岗位、收银台范围、本人可见），让探针从“能读到全部”变为“按岗位拒绝”；② 逐项补全 14 项的字段、校验、权限与数据归属；③ 浏览器验收所需的 site/socketio 服务后续再加，不在本批。
+- 剩余问题 / 阻塞原因：仅 `purchase` 一个功能接入了能力判据，其余功能的表与接口尚未纳入；员工拿功能角色这一步目前只在实验室脚本里模拟，产品侧的团队管理未实现；收银台与交接班的岗位（`ERP Cashier`）未定义；旧线上运行开关与后台任务未核对；公司主档落点待定。
+- 下一步：按批次表开第三批（团队管理 + 收银员账号与统一登录落地），随后第四至第七批。
