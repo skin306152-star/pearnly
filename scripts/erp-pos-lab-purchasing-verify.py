@@ -99,6 +99,9 @@ def main():
                                                      as_dict=True) if supplier_name else None
 
     # 采购设置：默认值来自旧线上 SettingsIn。
+    #
+    # 自动入库开关会被库存探针改动，所以先归位到出厂值再断言，脚本之间不互相干扰。
+    as_user(OWNER, settings.update_settings, auto_stock_in=0)
     defaults = settings.read_settings()
     results["settings_defaults"] = {k: defaults[k] for k in
                                     ("default_vat_rate", "default_wht_service_rate",

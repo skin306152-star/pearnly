@@ -109,8 +109,10 @@ ENFORCEMENT = {
     ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit"]),
     # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，
     # 但商品主数据只读（权限覆盖见 READ_ONLY）。
-    ("erp", "warehouses"): ("ERP Stock", ["ERP Product"]),
-    ("erp", "stockcard"): ("ERP Stock", []),
+    ("erp", "warehouses"): ("ERP Stock", ["ERP Product", "ERP Warehouse", "ERP Stock Entry",
+                                          "ERP Stock Entry Line", "ERP Stock Movement",
+                                          "ERP Stock Balance"]),
+    ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening"]),
     ("erp", "sales"): ("ERP Sales", []),
     ("erp", "clients"): ("ERP Sales", []),
     # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，

@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
 from pearnly_erp_portal.access import rules  # noqa: E402
 from pearnly_erp_portal.products import contracts  # noqa: E402
 from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
+from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -213,6 +214,116 @@ class PurchaseAmounts(unittest.TestCase):
         self.assertEqual(key("ACME", "IV-1"), key("ACME", "iv-1"))
         self.assertIsNone(key("ACME", ""))
         self.assertIsNone(key("", "IV-1"))
+
+
+class StockRollingCost(unittest.TestCase):
+    """滚动加权成本：口径照旧线上 rolling.py，重点是"成本未知不变成零"。"""
+
+    def test_opening_with_zero_qty_has_no_cost(self):
+        bal = stock_contracts.opening_balance(0, 100)
+        self.assertEqual(bal.qty, 0)
+        self.assertIsNone(bal.unit)
+        self.assertIsNone(bal.value)
+
+    def test_opening_establishes_cost(self):
+        bal = stock_contracts.opening_balance(10, "12.50")
+        self.assertEqual(str(bal.qty), "10")
+        self.assertEqual(str(bal.value), "125.00")
+        self.assertEqual(str(bal.unit), "12.50")
+
+    def test_purchase_averages_the_cost(self):
+        bal = stock_contracts.opening_balance(10, 10)          # 100
+        bal, detail = stock_contracts.receive_priced(bal, 10, 20)  # +200
+        self.assertEqual(str(bal.qty), "20")
+        self.assertEqual(str(bal.value), "300.00")
+        self.assertEqual(str(bal.unit), "15.00")
+        self.assertEqual(str(detail["amount"]), "200.00")
+
+    def test_issue_uses_the_current_unit_cost_without_repricing(self):
+        bal = stock_contracts.opening_balance(20, 15)              # 300
+        bal, detail = stock_contracts.issue(bal, 5)
+        self.assertEqual(str(bal.qty), "15")
+        self.assertEqual(str(detail["unit_price"]), "15.00")
+        self.assertEqual(str(detail["amount"]), "75.00")
+        self.assertEqual(str(bal.value), "225.00")
+        self.assertEqual(str(bal.unit), "15.00")
+
+    def test_unknown_cost_never_becomes_zero(self):
+        # 从未确立成本：出库只减数量，金额与单价必须留空。
+        bal, detail = stock_contracts.issue(stock_contracts.ZERO_BALANCE, 3)
+        self.assertEqual(str(bal.qty), "-3")
+        self.assertIsNone(bal.unit)
+        self.assertIsNone(bal.value)
+        self.assertIsNone(detail["amount"])
+        self.assertIsNone(detail["unit_price"])
+
+    def test_return_in_uses_current_cost_and_keeps_the_average(self):
+        bal = stock_contracts.opening_balance(10, 10)
+        bal, _ = stock_contracts.issue(bal, 4)          # 60
+        bal, _ = stock_contracts.receive_at_cost(bal, 4)  # +40 → 100
+        self.assertEqual(str(bal.qty), "10")
+        self.assertEqual(str(bal.value), "100.00")
+        self.assertEqual(str(bal.unit), "10.00")
+
+    def test_count_movement_settles_to_the_counted_quantity(self):
+        bal = stock_contracts.opening_balance(10, 5)
+        bal, _ = stock_contracts.apply_move(bal, -4)
+        self.assertEqual(str(bal.qty), "6")
+        bal, _ = stock_contracts.apply_move(bal, 4)
+        self.assertEqual(str(bal.qty), "10")
+
+    def test_signed_qty_follows_the_movement_type(self):
+        signed = stock_contracts.signed_qty
+        self.assertEqual(str(signed("purchase_in", 5)), "5")
+        self.assertEqual(str(signed("stock_out", 5)), "-5")
+        self.assertEqual(str(signed("adjust", -2)), "-2")
+        with self.assertRaises(ValueError):
+            signed("nonsense", 1)
+
+    def test_negative_quantity_is_rejected_for_directional_types(self):
+        with self.assertRaises(ValueError):
+            stock_contracts.signed_qty("purchase_in", -1)
+
+    def test_signed_base_is_the_only_quantity_carried(self):
+        # 方向只由符号表达：落库的数量直接就是滚存用的数量。
+        self.assertEqual(str(stock_contracts.signed_base("stock_out", 3, 2)), "-6")
+        self.assertEqual(str(stock_contracts.signed_base("purchase_in", 3, 12)), "36")
+        self.assertEqual(str(stock_contracts.signed_base("adjust", -4, 1)), "-4")
+
+    def test_replaying_stored_movements_is_stable(self):
+        # 同一份流水实时记一次、事后重算一次，结果必须一致（这是"结存可由流水重建"的前提）。
+        movements = [
+            {"movement_type": "opening", "qty_base": 10, "cost_known": True, "unit_cost": 10},
+            {"movement_type": "stock_in", "qty_base": 5, "cost_known": True, "unit_cost": 20},
+            {"movement_type": "stock_out", "qty_base": -3, "cost_known": True, "unit_cost": 20},
+            {"movement_type": "count", "qty_base": 4, "cost_known": True, "unit_cost": 1},
+        ]
+        final, rows = stock_contracts.roll(stock_contracts.ZERO_BALANCE, movements)
+        self.assertEqual(str(final.qty), "16")
+        # 出库按当时均价 13.33 计价后，入库 4 件 @1 元把均价拉低。
+        self.assertEqual(str(rows[1]["bal_qty"]), "15")
+        self.assertEqual(str(rows[2]["bal_qty"]), "12")
+        self.assertAlmostEqual(float(rows[2]["bal_unit_cost"]), 13.33, places=2)
+
+    def test_unit_conversion_uses_the_factor(self):
+        self.assertEqual(str(stock_contracts.to_base(2, 12)), "24")
+        for bad in (0, -1, None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                stock_contracts.to_base(1, bad)
+
+    def test_opening_date_splits_movements(self):
+        movements = [
+            {"posting_date": "2026-08-31", "movement_type": "opening", "qty_base": 5,
+             "cost_known": True, "unit_cost": 10},
+            {"posting_date": "2026-09-01", "movement_type": "stock_in", "qty_base": 3,
+             "cost_known": True, "unit_cost": 10},
+            {"posting_date": "2026-09-10", "movement_type": "stock_out", "qty_base": -1,
+             "cost_known": True, "unit_cost": 10},
+        ]
+        before, period = stock_contracts.movements_before(movements, "2026-09-01")
+        # 期内从 date_from 当天算起，期初是它之前的结转。
+        self.assertEqual([m["qty_base"] for m in before], [5])
+        self.assertEqual([m["qty_base"] for m in period], [3, -1])
 
 
 if __name__ == "__main__":

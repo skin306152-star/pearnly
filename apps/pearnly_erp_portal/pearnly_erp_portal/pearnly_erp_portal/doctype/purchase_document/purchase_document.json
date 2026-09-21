@@ -38,6 +38,7 @@
   "section_void",
   "void_reason",
   "voided_at",
+  "stock_posted_at",
   "section_refs",
   "external_ref",
   "dedupe_key",
@@ -46,44 +47,250 @@
   "notes"
  ],
  "fields": [
-  {"default": "goods", "fieldname": "doc_kind", "fieldtype": "Select", "in_list_view": 1, "label": "Document Type", "options": "goods\nservice\nexpense", "reqd": 1},
-  {"fieldname": "supplier", "fieldtype": "Link", "in_list_view": 1, "label": "Supplier Link", "options": "ERP Supplier"},
-  {"fieldname": "supplier_name", "fieldtype": "Data", "in_list_view": 1, "label": "Supplier", "reqd": 1},
-  {"fieldname": "supplier_tax_id", "fieldtype": "Data", "label": "Supplier Tax ID"},
-  {"fieldname": "column_break_head", "fieldtype": "Column Break"},
-  {"fieldname": "doc_no", "fieldtype": "Data", "in_list_view": 1, "label": "External Doc No", "description": "The document number the supplier issued; it must be kept as-is"},
-  {"fieldname": "doc_date", "fieldtype": "Date", "in_list_view": 1, "label": "Doc Date", "reqd": 1},
-  {"fieldname": "due_date", "fieldtype": "Date", "label": "Due Date"},
-  {"default": "draft", "fieldname": "status", "fieldtype": "Select", "in_list_view": 1, "label": "Status", "options": "draft\nsubmitted\nvoid", "reqd": 1},
-  {"fieldname": "section_amounts", "fieldtype": "Section Break", "label": "Amount"},
-  {"default": "THB", "fieldname": "currency", "fieldtype": "Link", "label": "Currency", "options": "Currency", "reqd": 1},
-  {"default": "1", "fieldname": "fx_rate", "fieldtype": "Float", "label": "FX Rate", "precision": "6", "reqd": 1},
-  {"default": "1", "fieldname": "has_vat", "fieldtype": "Check", "label": "VAT Included"},
-  {"fieldname": "column_break_amounts", "fieldtype": "Column Break"},
-  {"default": "0", "fieldname": "subtotal", "fieldtype": "Currency", "label": "Subtotal", "read_only": 1},
-  {"default": "0", "fieldname": "discount_total", "fieldtype": "Currency", "label": "Order Discount"},
-  {"default": "0", "fieldname": "vat_amount", "fieldtype": "Currency", "label": "VAT", "read_only": 1},
-  {"default": "0", "fieldname": "wht_amount", "fieldtype": "Currency", "label": "Withholding Tax"},
-  {"default": "0", "fieldname": "rounding", "fieldtype": "Currency", "label": "Rounding"},
-  {"default": "0", "fieldname": "grand_total", "fieldtype": "Currency", "label": "Grand Total", "read_only": 1, "in_list_view": 1},
-  {"default": "0", "fieldname": "net_payable", "fieldtype": "Currency", "label": "Net Payable", "read_only": 1},
-  {"fieldname": "section_lines", "fieldtype": "Section Break", "label": "Details"},
-  {"fieldname": "lines", "fieldtype": "Table", "label": "Details", "options": "Purchase Line", "reqd": 1},
-  {"fieldname": "section_state", "fieldtype": "Section Break", "label": "Flow Status"},
- {"default": "none", "fieldname": "approval_status", "fieldtype": "Select", "label": "Approval", "options": "none\npending\napproved\nrejected"},
-  {"fieldname": "source", "fieldtype": "Data", "label": "Source", "description": "Where the document came from: web, LINE or recognition"},
-  {"default": "unpaid", "fieldname": "payment_status", "fieldtype": "Select", "label": "Payment Status", "options": "unpaid\npartial\npaid", "read_only": 1, "in_list_view": 1},
- {"default": "0", "fieldname": "paid_amount", "fieldtype": "Currency", "label": "Paid Amount"},
-  {"fieldname": "payments", "fieldtype": "Table", "label": "Payments", "options": "ERP Purchase Payment"},
-  {"fieldname": "section_void", "fieldtype": "Section Break", "label": "Void"},
-  {"fieldname": "void_reason", "fieldtype": "Small Text", "label": "Void Reason"},
-  {"fieldname": "voided_at", "fieldtype": "Datetime", "label": "Voided At", "read_only": 1},
-  {"fieldname": "section_refs", "fieldtype": "Section Break", "label": "External IDs & Dedupe"},
-  {"fieldname": "external_ref", "fieldtype": "Data", "label": "External System Reference"},
-  {"fieldname": "dedupe_key", "fieldtype": "Data", "label": "Dedupe Key", "description": "The test for a duplicate upload of the same document"},
-  {"fieldname": "dedupe_ref", "fieldtype": "Data", "label": "Supplier Doc Reference", "description": "Normalized supplier + document number; the label that catches the same bill entered twice. Kept apart from Dedupe Key because they answer different questions: one is an external idempotency key, the other is 'this supplier already has this document number'"},
-  {"fieldname": "image_sha256", "fieldtype": "Data", "label": "Image Fingerprint"},
-  {"fieldname": "notes", "fieldtype": "Small Text", "label": "Notes"}
+  {
+   "default": "goods",
+   "fieldname": "doc_kind",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Document Type",
+   "options": "goods\nservice\nexpense",
+   "reqd": 1
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Supplier Link",
+   "options": "ERP Supplier"
+  },
+  {
+   "fieldname": "supplier_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "supplier_tax_id",
+   "fieldtype": "Data",
+   "label": "Supplier Tax ID"
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "doc_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "External Doc No",
+   "description": "The document number the supplier issued; it must be kept as-is"
+  },
+  {
+   "fieldname": "doc_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Doc Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Date",
+   "label": "Due Date"
+  },
+  {
+   "default": "draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Status",
+   "options": "draft\nsubmitted\nvoid",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_amounts",
+   "fieldtype": "Section Break",
+   "label": "Amount"
+  },
+  {
+   "default": "THB",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "fx_rate",
+   "fieldtype": "Float",
+   "label": "FX Rate",
+   "precision": "6",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "has_vat",
+   "fieldtype": "Check",
+   "label": "VAT Included"
+  },
+  {
+   "fieldname": "column_break_amounts",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "subtotal",
+   "fieldtype": "Currency",
+   "label": "Subtotal",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "discount_total",
+   "fieldtype": "Currency",
+   "label": "Order Discount"
+  },
+  {
+   "default": "0",
+   "fieldname": "vat_amount",
+   "fieldtype": "Currency",
+   "label": "VAT",
+   "read_only": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "wht_amount",
+   "fieldtype": "Currency",
+   "label": "Withholding Tax"
+  },
+  {
+   "default": "0",
+   "fieldname": "rounding",
+   "fieldtype": "Currency",
+   "label": "Rounding"
+  },
+  {
+   "default": "0",
+   "fieldname": "grand_total",
+   "fieldtype": "Currency",
+   "label": "Grand Total",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "net_payable",
+   "fieldtype": "Currency",
+   "label": "Net Payable",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_lines",
+   "fieldtype": "Section Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Details",
+   "options": "Purchase Line",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_state",
+   "fieldtype": "Section Break",
+   "label": "Flow Status"
+  },
+  {
+   "default": "none",
+   "fieldname": "approval_status",
+   "fieldtype": "Select",
+   "label": "Approval",
+   "options": "none\npending\napproved\nrejected"
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Data",
+   "label": "Source",
+   "description": "Where the document came from: web, LINE or recognition"
+  },
+  {
+   "default": "unpaid",
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "label": "Payment Status",
+   "options": "unpaid\npartial\npaid",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "paid_amount",
+   "fieldtype": "Currency",
+   "label": "Paid Amount"
+  },
+  {
+   "fieldname": "payments",
+   "fieldtype": "Table",
+   "label": "Payments",
+   "options": "ERP Purchase Payment"
+  },
+  {
+   "fieldname": "section_void",
+   "fieldtype": "Section Break",
+   "label": "Void"
+  },
+  {
+   "fieldname": "void_reason",
+   "fieldtype": "Small Text",
+   "label": "Void Reason"
+  },
+  {
+   "fieldname": "voided_at",
+   "fieldtype": "Datetime",
+   "label": "Voided At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_refs",
+   "fieldtype": "Section Break",
+   "label": "External IDs & Dedupe"
+  },
+  {
+   "fieldname": "external_ref",
+   "fieldtype": "Data",
+   "label": "External System Reference"
+  },
+  {
+   "fieldname": "dedupe_key",
+   "fieldtype": "Data",
+   "label": "Dedupe Key",
+   "description": "The test for a duplicate upload of the same document"
+  },
+  {
+   "fieldname": "dedupe_ref",
+   "fieldtype": "Data",
+   "label": "Supplier Doc Reference",
+   "description": "Normalized supplier + document number; the label that catches the same bill entered twice. Kept apart from Dedupe Key because they answer different questions: one is an external idempotency key, the other is 'this supplier already has this document number'"
+  },
+  {
+   "fieldname": "image_sha256",
+   "fieldtype": "Data",
+   "label": "Image Fingerprint"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "stock_posted_at",
+   "fieldtype": "Datetime",
+   "label": "Stock Posted At",
+   "read_only": 1,
+   "description": "When the confirmed document posted its goods into stock; empty means nothing was posted"
+  }
  ],
  "index_web_pages_for_search": 1,
  "links": [],
@@ -93,7 +300,18 @@
  "name": "Purchase Document",
  "owner": "Administrator",
  "permissions": [
-  {"create": 1, "delete": 1, "email": 1, "export": 1, "print": 1, "read": 1, "report": 1, "role": "System Manager", "share": 1, "write": 1}
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",

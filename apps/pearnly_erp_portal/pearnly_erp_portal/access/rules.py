@@ -40,6 +40,9 @@ CAPABILITY_FEATURES = {
     "purchase.write": ("purchase",),
     "products.view": ("products", "warehouses"),
     "products.manage": ("products",),
+    "stock.read": ("warehouses", "stockcard"),
+    "stock.write": ("warehouses",),
+    "stock.manage": ("warehouses",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。

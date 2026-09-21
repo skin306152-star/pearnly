@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product",
+  "warehouse",
+  "qty_on_hand",
+  "column_break_cost",
+  "cost_known",
+  "unit_cost",
+  "value",
+  "last_movement_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "qty_on_hand",
+   "fieldtype": "Float",
+   "label": "On Hand",
+   "precision": "6",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_cost",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cost_known",
+   "fieldtype": "Check",
+   "label": "Cost Known",
+   "default": "0",
+   "description": "Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero"
+  },
+  {
+   "fieldname": "unit_cost",
+   "fieldtype": "Currency",
+   "label": "Average Unit Cost"
+  },
+  {
+   "fieldname": "value",
+   "fieldtype": "Currency",
+   "label": "Stock Value"
+  },
+  {
+   "fieldname": "last_movement_at",
+   "fieldtype": "Datetime",
+   "label": "Last Movement",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Stock Balance",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:BAL-{product}-{warehouse}",
+ "naming_rule": "Expression",
+ "allow_rename": 0
+}

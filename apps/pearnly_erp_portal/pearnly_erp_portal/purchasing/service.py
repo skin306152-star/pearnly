@@ -131,6 +131,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
                 "line_no": index,
                 "item_type": "service" if doc_kind == "service" else line.get("item_type", "goods"),
                 "description": line["description"],
+                "product": line.get("product"),
                 "product_ref": line.get("product_ref"),
                 "qty": line.get("qty", 1),
                 "unit": line.get("unit"),
@@ -258,7 +259,54 @@ def set_status(name, target, reason=None):
         doc.voided_at = now()
     doc.save()
     frappe.db.commit()
+
+    if target == contracts.SUBMITTED:
+        _post_stock(doc)
     return {"name": doc.name, "status": doc.status}
+
+
+def _post_stock(doc) -> dict | None:
+    """确认后按设置把货物过账到库存。
+
+    - 只有采购设置里打开 `auto_stock_in` 才动库存；关着就是"只记账不动货"（旧线上
+      也是这个开关），并且**不会假装扣过**。
+    - 只对带商品链接、且是货物类别的行过账：服务类与没关联商品的行没有库存可言。
+    - 幂等锚是单据名，所以重复确认不会重复入库。
+    """
+    from pearnly_erp_portal.inventory import stock, warehouses
+
+    if not settings.read_settings()["auto_stock_in"]:
+        return None
+    lines = [
+        {"product": row.product, "qty": row.qty, "unit": row.unit,
+         "unit_cost": _line_net_cost(row)}
+        for row in doc.get("lines") or []
+        if row.get("product") and (row.item_type or "goods") == "goods"
+    ]
+    if not lines:
+        return None
+    result = stock.apply_lines(
+        warehouse=warehouses.ensure_default(), movement_type="purchase_in", lines=lines,
+        posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
+        doc_no=doc.doc_no, client_uuid=f"purchase-in:{doc.name}",
+    )
+    doc.db_set("stock_posted_at", now(), update_modified=False)
+    return result
+
+
+def _line_net_cost(row):
+    """入库单位成本 = 行净额 / 数量（不含 VAT，折扣已扣）。成本未知时返回 None，
+    让库存那边按"成本未确立"处理，而不是当成 0。"""
+    try:
+        qty = Decimal(str(row.qty or 0))
+        if qty <= 0:
+            return None
+        base = row.line_total if row.line_total is not None else row.unit_price
+        if base in (None, ""):
+            return None
+        return str(contracts.q2(Decimal(str(base)) / qty))
+    except (ArithmeticError, TypeError):
+        return None
 
 
 def pay(name, *, amount, method=None, date=None, note=None):
