@@ -26,7 +26,11 @@ from pearnly_cowork.reconciliation import (
 )
 from pearnly_cowork.reconciliation.income_recon_access import ROW, TASK
 from pearnly_cowork.reconciliation.income_recon_documents import persist
+from pearnly_cowork.reconciliation.export import income_workbook
 
+EXPORT_LANGUAGES = ("th", "en", "zh", "ja")
+ROW_EXPORT_FIELDS = ("doc_no", "vat_date", "customer_name", "vat_amount", "has_gl_match",
+	"gl_amount", "diff", "account_codes")
 LIST_FIELDS = ("name", "title", "status", "row_count", "gl_row_count", "matched_count",
 	"diff_count", "unmatched_count", "gl_total", "vat_total", "created_at")
 DETAIL_FIELDS = ("name", "title", "status", "gl_account_code", "amount_tolerance", "row_count",
@@ -172,6 +176,62 @@ def row_values(result):
 		"diff": 0.0 if result.diff is None else result.diff,
 		"account_codes": result.account_codes or "",
 	}
+
+
+def _stored_summary(doc):
+	"""Rebuild the summary dataclass from the stored JSON, like the deployed reader."""
+	value = income_recon_contracts.json_loads(doc.summary_json)
+	if not isinstance(value, dict):
+		return income_vat.GlVatSummary(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+	try:
+		return income_vat.GlVatSummary(**{
+			key: item for key, item in value.items()
+			if key in income_vat.GlVatSummary.__dataclass_fields__})
+	except (TypeError, ValueError):
+		return income_vat.GlVatSummary(0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+
+def _export_row(row):
+	"""Invert one stored result row into the deployed detail-row shape.
+
+	The store keeps a zero where the deployed run kept the absent side, so the
+	Check decides whether a difference is stored at all.
+	"""
+	matched = bool(row.has_gl_match)
+	return income_vat.ReconRow(
+		doc_no=row.doc_no or "", date=row.vat_date or "", customer_name=row.customer_name or "",
+		vat_amount=row.vat_amount or 0.0,
+		gl_amount=row.gl_amount if matched else None,
+		diff=row.diff if matched else None,
+		account_codes=row.account_codes or "")
+
+
+def export(task_id, lang="th"):
+	"""Render the review workbook of one stored task; no ERP, model or file access.
+
+	The workbook sees exactly what the task stored: its result rows and its summary,
+	including the itemized adjustment rows. The two stored file names and the reader
+	diagnostics are not shown by the deployed layout, so they stay out of the sheet
+	until a later slice reads them.
+	"""
+	doc = frappe.get_doc(TASK, task_id)
+	income_recon_access.require(doc.workspace)
+	if lang not in EXPORT_LANGUAGES:
+		lang = "th"
+	rows = frappe.get_all(ROW, filters={"task": doc.name}, fields=list(ROW_EXPORT_FIELDS),
+		order_by="row_index asc", limit_page_length=0)
+	content = income_workbook.export_gl_vat_excel([_export_row(row) for row in rows],
+		_stored_summary(doc), lang=lang)
+	return {"filename": f"GL_VAT_recon_{doc.name}_{file_stem(doc.vat_filename)}.xlsx",
+		"content": content}
+
+
+def file_stem(name):
+	"""ASCII-safe base of a stored report file name; the deployed name builder."""
+	base = str(name or "vat").rsplit(".", 1)[0]
+	safe = "".join(character if character.isascii() and (character.isalnum()
+		or character in "._-") else "_" for character in base)[:40].strip("_")
+	return safe or "vat"
 
 
 def records(workspace, start=0, limit=50):

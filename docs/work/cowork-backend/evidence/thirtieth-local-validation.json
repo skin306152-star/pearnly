@@ -1,0 +1,79 @@
+{
+  "base_commit": "b5c3e66",
+  "scope": "thirtieth batch: the income reconciliation review workbook and its authorized download entry",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "3833e228df811b4228824f8c5de74798172c509efa0697c75a875b35c0805de4",
+    "delivery_captured_at": "2026-09-21T14:40:11.146615+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-twenty-ninth-delivery.json baseline-thirtieth-delivery.json (before pinned at 272a1fb5)",
+    "note": "no separate start capture was taken for this batch: the batch began immediately after the batch-29 delivery capture (2026-09-21T14:33:30Z), and the delivery capture was compared against that snapshot",
+    "fixed_source_hashes": {
+      "services/recon/gl_vat_excel.py": "8527af0e5ec1cb7115a1cc8af284903f8ebb156bdf72bfc6700f577ef799fd20",
+      "services/recon/gl_vat_types.py": "ee24b7dd0a7a24e67ac338f7c7deae73c71c36aca5b731ddc18b6e6af27a300d"
+    },
+    "runtime_projection_delivery_sha256": "af1a0b00e960026cba81f1b6982b335f66e61e50c5c00556b76c0df0be3717a8",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest ff8e39f4 -> bf041a45; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "cd /workspace/tests && ../env/bin/python test_cowork_income_recon_export.py",
+      "result": "PASS",
+      "tests": 14,
+      "new_tests": 14
+    },
+    {
+      "command": "python3 - <<'PY' | ../env/bin/python test_cowork_income_recon_export_source_parity.py --source-stdin",
+      "result": "PASS",
+      "workbooks": 192,
+      "cells": 23268,
+      "label_cases": 180,
+      "coverage": "four languages x 32 workbooks each plus 64 fallback-language books; every sheet compared on value, data type, font, fill, border, alignment, number format, protection, merged cells, column widths, row heights, freeze panes and the archive layout",
+      "differences": 0,
+      "caught_a_real_defect": "the first run failed on one Japanese instruction line where the migrated copy had dropped a space (GL未検出 instead of GL 未検出); the migrated text was corrected to the deployed wording and the differential then reported zero differences"
+    },
+    {
+      "command": "scripts/cowork-income-recon-export-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 3,
+      "covers": [
+        "the stored rows and summary reach the workbook: three report rows with the deployed status wording, the KPI band and the six-row reconciliation ladder with its itemized adjustment rows",
+        "the download name is built from the stored report file name",
+        "an unknown language falls back to Thai",
+        "the export is scoped and entitled like the task API",
+        "a real WSGI request returns a private attachment (no-store, nosniff, spreadsheet content type), refuses an anonymous caller and a non-GET method, and queues an Access Log row"
+      ]
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py",
+      "result": "PASS",
+      "tests_per_site": 16,
+      "note": "the stored-task suite still passes next to the new export entry"
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "python3 scripts/check-i18n.py", "result": "REPORT-ONLY",
+      "note": "the workbook's four-language label table and its reference card are registered in scripts/i18n/keep-cjk.tsv as intentional, like the bank workbook's tables"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed builder is one module carrying its own four-language table; it is moved into the existing export package next to the bank workbook, with only its type import and indentation changed",
+    "the deployed store kept detail and summary as JSONB and revived them with *_from_json; the native store reads its row table and summary column and rebuilds the same two data types, inverting the has_gl_match Check back to an absent ledger side",
+    "the deployed download sent an ASCII-safe name plus an RFC 5987 UTF-8 name; the native entry sends one ASCII-safe name, as the bank export does",
+    "authorization uses the recon feature with the operator role and workspace scope instead of the deployed recon.export permission bit, as registered for the bank workbook",
+    "the file names and reader diagnostics stored in batch 29 have no place in the deployed layout and stay off the sheet"
+  ],
+  "not_run": [
+    "reading a real workbook, PDF or delimited file, and the OCR paths",
+    "asynchronous jobs and polling, batch delete, the shared reconciliation_type=income entry",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-income-export.md"
+}

@@ -6,8 +6,10 @@ caller already extracted from a ledger file and, optionally, from an output-VAT
 report, and the reads return what the dedicated store holds.
 """
 import frappe
+from frappe.core.doctype.access_log.access_log import make_access_log
 
 from pearnly_cowork.reconciliation import income_recon_service
+from pearnly_cowork.reconciliation.income_recon_access import TASK
 
 
 def _transaction(function, *args, **kwargs):
@@ -45,6 +47,16 @@ def records(workspace, start=0, limit=50):
 @frappe.whitelist()
 def detail(task_id, start=0, limit=100):
 	return _transaction(income_recon_service.detail, task_id, start, limit)
+
+
+@frappe.whitelist(methods=["GET"])
+def export(task_id, lang="th"):
+	result = _transaction(income_recon_service.export, task_id, lang)
+	make_access_log(doctype=TASK, document=task_id, file_type="income_recon_workbook")
+	frappe.local.response.update(type="download", filename=result["filename"],
+		filecontent=result["content"], display_content_as="attachment",
+		content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	frappe.local.cowork_private_response = True
 
 
 @frappe.whitelist(methods=["POST"])

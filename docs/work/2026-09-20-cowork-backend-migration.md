@@ -1,5 +1,36 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十批交付）
+
+**本批把收入对账的复核工作簿按部署版逐格迁入，并给它一个受权下载入口。** 会计拿到的产物现在能由原生任务生成；至此收入族只剩异步与批删。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `b5c3e66`（第 29 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/export/income_workbook.py`：`services/recon/gl_vat_excel.py` 机械搬移（只改类型导入与缩进），保留四语 `_I18N`/`_t` 与三个 sheet：明细 + KPI 带、对账汇总（六行梯子 + 逐项调整明细，信用侧取负、名称超 55 字符截断）、四语使用说明。
+- 原生入口 `income_recon_service.export(task_id, lang)`（`_export_row` 把 `has_gl_match` 还原成缺失侧、`_stored_summary` 从 `summary_json` 重建数据类）+ GET RPC `income_recon_api.export`（私有附件 + Access Log）。下载名 `GL_VAT_recon_<任务>_<销项税文件名 ASCII 基名>.xlsx`。
+- 有意差异：存储形态（行表+汇总列 vs 旧 JSONB）、单个下载名（部署版发 ASCII + RFC 5987 两个）、权限用 `recon` 功能+角色+范围（部署版 `recon.export` 权限位，与银行同批登记）、第 29 批存的文件名/诊断在部署版版式里没有位置故不上表。
+
+### 验证与证据
+
+- 离线：新 **14** 个 XLSX 用例通过；固定源差分 **192** 个工作簿、**23268** 个单元格、**180** 组标签全部一致（含值/类型/字体/填充/边框/对齐/数字格式/保护/合并/列宽/行高/冻结/归档），四语各 32 本 + 未知语言 64 本，下限不达即失败。**差分抓到一处真实笔误**（日文说明第 2 行 `GL未検出` 少了空格），已按部署版改正。
+- 隔离 Site：导出脚本两个 Site 各 **3** 个用例通过（内容与三行状态、权限与功能位拒绝、WSGI 真请求私有附件 + 匿名/非 GET 403 + Access Log 入队）；收入存储脚本各 **16** 个继续通过；两次 Site 迁移非部署。
+- 主机侧：对账 **137** 个用例、架构 **0** 违规、`i18n-build --check` PASS、`check-i18n` REPORT-ONLY（本批四语表按[登记豁免](../../scripts/i18n/keep-cjk.tsv)）、`git diff --check` 干净。
+- 未执行：真实文件读取、异步任务与轮询、批删、统一 `reconciliation_type=income` 入口、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirtieth-delivery.json`（`3833e228…`，采集 14:40:11Z）与第 29 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirtieth-delivery.json`（`af1a0b00…`）：端点摘要 `ff8e39f4…` → `bf041a45…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩：异步任务与轮询、批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十九批交付）
 
 **本批给收入任务补上"从哪些文件、用哪个读取器读出来的"：任务表新增两个文件名与一段受校验的解析诊断，入账入口接受并落库。** 这是部署版 `gl_vat_task` 两列文件名的现代替身，也是后续复核工作簿 File Info 段要读的数据。不接前端、不部署、不改 DMS、不写旧库。
