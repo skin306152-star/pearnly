@@ -1,5 +1,15 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十二批：对账族缺口清点，只读）
+
+**本批不改代码，只把对账族的缺口清点清楚**（`services/recon/**` 56 个文件 + `services/recon_jobs/**` + 对账用到的 `services/vat/**`），结论进[缺口清点](cowork-backend/reconciliation-family-audit.md)。三条要点：
+
+- **异步任务与轮询不需要原生副本**：旧 `submit` + `jobs/{id}` 存在的理由是解析慢（worker 里跑 OCR/Gemini）与两种人工暂停态（`needs_review` 核对 OCR 行、`needs_mapping` 确认列对应）。新平台把抽取放进已迁的 OCR 执行族（队列 + 轮询 + 重试 + 计费），对账本身本地同步一次事务完成，`needs_review`/`needs_mapping` 属抽取侧状态。再建一套 job 表/队列/轮询会复制既有机制。
+- **旧侧的"计费"是按解析量扣额度**（`precheck_upload_billing` 402/503 + `schedule_parse_charges` 按页/字符事后扣费），属旧 monolith 的 billing；新平台已有对应实现（`pearnly_core.billing_client` + Cowork `ocr/execution` 的冻结/扣费/回执/重试 + `pearnly_control` 控制面），订阅/套餐/登录/OCR 订阅都在新产品侧且已具备——**迁移不用搬旧 billing**。
+- **本族真缺口只剩一处**：银行 run 的业务警告与锚点快照/覆盖（`summary_json._brv2_warnings`/`_anchor_ocr`/`_anchor_overrides`）没有原生存储，所以银行工作簿那三段不显示（工作簿侧渲染在第二十四批已就绪）。`field_overrides` 不算缺口：部署版只有 M2 发票侧在写，M3/M4 的同名列没有写入点，收入工作簿也不渲染覆盖痕迹。
+
+下一包：给原生银行任务补这三项的存储与写入形状，并让 `bank_recon_service.export` 传给工作簿——银行族收尾。之后按族推进（OCR/抽取族、M2 销项税 Excel 族、工单对账族）各自清点。
+
 ## 换窗口交接（2026-09-21，第三十一批交付）
 
 **本批补齐两家对账都缺的批量删除入口：机制进共享 `ReconTasks`，收入与银行各接一个 POST RPC。** 部署版两家都有这个入口（`/gl-vat/tasks/batch_delete`、`/bank-v2/tasks/batch_delete`），所以是同一个共享实现的两次接线。不接前端、不部署、不改 DMS、不写旧库。
