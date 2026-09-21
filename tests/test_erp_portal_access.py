@@ -5,6 +5,7 @@ compared against the control-plane catalogue that actually creates them, so a
 rename on either side fails here instead of silently granting nothing.
 """
 import ast
+from datetime import date
 from pathlib import Path
 import sys
 import unittest
@@ -18,6 +19,7 @@ from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noq
 from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
 from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E402
+from pearnly_erp_portal.sales import contracts as sales_contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -496,6 +498,121 @@ class IntegrationBinding(unittest.TestCase):
         # 与 DMS 通道收同一批词：老用户按旧话术打字也必须能解绑。
         for word in ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind"):
             self.assertIn(word, words)
+
+
+class SalesDocuments(unittest.TestCase):
+    """销项单据契约：金额、连号、开出前的闸、泰文大写（照旧线上口径）。"""
+
+    def test_vat_is_added_on_top_of_the_net_and_wht_comes_off_the_result(self):
+        totals = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "1000"}], vat_rate=7, wht_rate=3)
+        self.assertEqual(str(totals["subtotal"]), "1000.00")
+        self.assertEqual(str(totals["vat_amount"]), "70.00")
+        self.assertEqual(str(totals["grand_total"]), "1070.00")
+        self.assertEqual(str(totals["net_payable"]), "1040.00")
+
+    def test_vat_inclusive_price_is_unwound(self):
+        totals = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "107"}], vat_rate=7,
+            price_includes_vat=True)
+        self.assertEqual(str(totals["vat_amount"]), "7.00")
+        self.assertEqual(str(totals["net_after_vat"]), "100.00")
+        self.assertEqual(str(totals["grand_total"]), "107.00")
+
+    def test_line_percentage_discount(self):
+        totals = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 2, "unit_price": "100", "discount_pct": 10}],
+            vat_rate=0)
+        self.assertEqual(str(totals["lines"][0]["discount"]), "20.00")
+        self.assertEqual(str(totals["lines"][0]["line_total"]), "180.00")
+
+    def test_header_discount_is_spread_over_the_taxable_base(self):
+        totals = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "100"},
+             {"description": "B", "qty": 1, "unit_price": "100"}],
+            vat_rate=7, header_discount_amount=20)
+        self.assertEqual(str(totals["header_discount"]), "20.00")
+        self.assertEqual(str(totals["vat_base"]), "180.00")
+        self.assertEqual(str(totals["grand_total"]), "192.60")
+
+    def test_discounts_never_push_a_line_or_the_document_below_zero(self):
+        line = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "200", "discount": 500}], vat_rate=0)
+        self.assertEqual(str(line["lines"][0]["line_total"]), "0.00")
+        head = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "200"}], vat_rate=0,
+            header_discount_pct=200)
+        self.assertEqual(str(head["header_discount"]), "200.00")
+
+    def test_amount_in_thai_words(self):
+        cases = {
+            "0": "ศูนย์บาทถ้วน",
+            "1": "หนึ่งบาทถ้วน",
+            "11": "สิบเอ็ดบาทถ้วน",
+            "21": "ยี่สิบเอ็ดบาทถ้วน",
+            "100": "หนึ่งร้อยบาทถ้วน",
+            "1000000": "หนึ่งล้านบาทถ้วน",
+            "12.34": "สิบสองบาทสามสิบสี่สตางค์",
+            "0.25": "ศูนย์บาทยี่สิบห้าสตางค์",
+        }
+        for amount, expected in cases.items():
+            with self.subTest(amount=amount):
+                self.assertEqual(sales_contracts.baht_text(amount), expected)
+
+    def test_wht_label_carries_the_rate_and_the_second_language(self):
+        self.assertEqual(sales_contracts.wht_label(3), "หัก ณ ที่จ่าย 3% / WHT")
+        self.assertEqual(sales_contracts.wht_label("3.00", "th_en"), "หัก ณ ที่จ่าย 3% / WHT")
+        self.assertEqual(sales_contracts.wht_label(1.5, "th"), "หัก ณ ที่จ่าย 1.5%")
+
+    def test_number_format_follows_the_reset_policy(self):
+        on = date(2026, 9, 21)
+        self.assertEqual(sales_contracts.format_number("INV", "yearly", on, 1),
+                         "INV2026-00001")
+        self.assertEqual(sales_contracts.format_number("INV", "monthly", on, 7),
+                         "INV202609-00007")
+        self.assertEqual(sales_contracts.format_number("INV", "never", on, 12), "INV-00012")
+        self.assertEqual(sales_contracts.period_key("monthly", on), "2026-09")
+        self.assertEqual(sales_contracts.period_key("never", on), "ALL")
+
+    def test_prefix_priority_is_request_then_company_then_kind_default(self):
+        default = sales_contracts.DEFAULT_PREFIXES[sales_contracts.TAX_INVOICE]
+        self.assertEqual(sales_contracts.resolve_prefix("", "", default), "INV")
+        self.assertEqual(sales_contracts.resolve_prefix("", "LAB", default), "LAB")
+        self.assertEqual(sales_contracts.resolve_prefix("X", "LAB", default), "X")
+
+    def test_issue_gates_block_a_zero_tax_invoice_and_an_unpaid_receipt(self):
+        # 拒因顺序固定：先买方、再金额、最后收款 —— 调用方按第一个拒因回话就行。
+        zero = sales_contracts.issue_gates({"doc_kind": sales_contracts.TAX_INVOICE,
+                                            "grand_total": 0})
+        self.assertEqual(zero, ["buyer_incomplete:customer_name,address", "zero_amount"])
+        zero_with_buyer = sales_contracts.issue_gates({
+            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 0,
+            "buyer": {"party_type": "company", "customer_name": "ACME", "address": "BKK",
+                      "tax_id": "0105550000001", "branch_type": "hq"}})
+        self.assertEqual(zero_with_buyer, ["zero_amount"])
+        unpaid = sales_contracts.issue_gates({"doc_kind": sales_contracts.RECEIPT,
+                                              "grand_total": 107, "payment_status": "unpaid"})
+        self.assertEqual(unpaid, ["payment_required"])
+        paid = sales_contracts.issue_gates({"doc_kind": sales_contracts.RECEIPT,
+                                           "grand_total": 107, "payment_status": "paid",
+                                           "payment_method": "cash",
+                                           "payment_date": "2026-09-21"})
+        self.assertEqual(paid, [])
+
+    def test_a_quotation_is_not_a_tax_document(self):
+        self.assertEqual(sales_contracts.issue_gates(
+            {"doc_kind": sales_contracts.QUOTATION, "grand_total": 0}), [])
+
+    def test_a_tax_invoice_needs_a_complete_buyer(self):
+        reasons = sales_contracts.issue_gates({
+            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 107,
+            "buyer": {"party_type": "anonymous"}})
+        self.assertEqual(reasons, ["buyer_incomplete:party_type"])
+        complete = sales_contracts.issue_gates({
+            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 107,
+            "buyer": {"party_type": "company", "customer_name": "ACME", "address": "BKK",
+                      "tax_id": "0105550000001", "branch_type": "hq"}})
+        self.assertEqual(complete, [])
 
 
 if __name__ == "__main__":
