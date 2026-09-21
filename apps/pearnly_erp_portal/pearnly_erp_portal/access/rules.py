@@ -13,28 +13,44 @@ SYSTEM_ADMIN_ROLE = "System Manager"
 # 租户管理员进 Desk 的基础角色。
 BASE_ROLE = "Desk User"
 
-# 功能 → 角色。名字必须与开通侧 ENFORCEMENT 完全一致，否则开通发了角色、
+# 功能码 → 岗位角色。键是**控制面目录里的功能码**（`pearnly_control/features.py`
+# 的 CATALOG["erp"]），名字必须与开通侧 ENFORCEMENT 完全一致，否则开通发了角色、
 # 这里认不出来，等于静默失效。
 #
-# 这里同时是新平台的**岗位目录**：员工能拿到的就是这些功能角色。
+# 多个功能码可以共用一个岗位（库存与收发存报表同属库存岗位），这里同时就是
+# 新平台的**岗位目录**：员工能拿到的就是这些功能角色。
 # 平台角色（System Manager）与产品管理员角色（ERP Admin）永不外发，见 assignable_roles。
 FEATURE_ROLES = {
+    "products": "ERP Products",
+    "warehouses": "ERP Stock",
+    "stockcard": "ERP Stock",
     "purchase": "ERP Purchase",
     "sales": "ERP Sales",
-    "stock": "ERP Stock",
-    "products": "ERP Products",
+    "clients": "ERP Sales",
     "cashier": "ERP Cashier",
 }
 
-# 能力 → 所需功能。能力码属于 ERP 自己，不复用旧平台的 pos.* / accounting.* /
-# workorder.* 码（`product_manifest.py` 的 must_not 仍禁止那些）。
+# 能力 → 允许的功能码（可多个）。能力码属于 ERP 自己，不复用旧平台的
+# pos.* / accounting.* / workorder.* 码（`product_manifest.py` 的 must_not 仍禁止那些）。
+#
+# 为什么是"多个功能码"：库存岗位做入库/出库必须先看得到商品，所以 `products.view`
+# 同时认商品岗位与库存岗位；但**管**商品主数据仍只给商品岗位（库存岗位只读）。
 CAPABILITY_FEATURES = {
-    "purchase.read": "purchase",
-    "purchase.write": "purchase",
+    "purchase.read": ("purchase",),
+    "purchase.write": ("purchase",),
+    "products.view": ("products", "warehouses"),
+    "products.manage": ("products",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。
 ADMIN_CAPABILITIES = ("team.manage",)
+
+# 成本可见的岗位。
+#
+# 旧线上成本是单独一个字段级权限（`field.cost.view`），不在默认角色里 —— 员工
+# 看不到进货价。新平台沿用同一口径：默认只有老板（管理员）与库存岗位能看到
+# 参考成本/均价，其余岗位取到的成本字段一律为空，不靠前端隐藏。
+COST_ROLES = (ADMIN_ROLE, FEATURE_ROLES["warehouses"])
 
 # 能看全部记录的角色：产品管理员与平台管理员。
 # 其余（也就是被授予功能角色的员工）只看本人录入的记录 —— 这是旧线上团队成员的
@@ -49,9 +65,8 @@ def required_roles(capability: str) -> tuple[str, ...]:
     """某能力需要的角色。未知能力返回空元组，调用方据此一律拒绝（fail-closed）。"""
     if capability in ADMIN_CAPABILITIES:
         return (ADMIN_ROLE,)
-    feature = CAPABILITY_FEATURES.get(capability)
-    role = FEATURE_ROLES.get(feature) if feature else None
-    return (role,) if role else ()
+    roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
+    return tuple(role for role in roles if role)
 
 
 def can(roles, capability: str) -> bool:
@@ -63,6 +78,10 @@ def record_scope(roles) -> str:
     return ALL_RECORDS if set(ALL_RECORDS_ROLES) & set(roles) else OWN_RECORDS
 
 
+def cost_visible(roles) -> bool:
+    return bool(set(COST_ROLES) & set(roles))
+
+
 def assignable_roles(available) -> tuple[str, ...]:
     """可以发给员工的岗位角色 = 本站点上真实存在的那些功能角色。
 
@@ -70,7 +89,9 @@ def assignable_roles(available) -> tuple[str, ...]:
     反过来，不能把站点上不存在的角色发给员工（那等于发了一把空钥匙）。
     """
     present = set(available)
-    return tuple(role for role in FEATURE_ROLES.values() if role in present)
+    # 去重但保持目录顺序：库存与收发存报表是同一个岗位，只该出现一次。
+    ordered = dict.fromkeys(FEATURE_ROLES.values())
+    return tuple(role for role in ordered if role in present)
 
 
 def is_assignable(role: str, available) -> bool:

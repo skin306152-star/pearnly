@@ -45,6 +45,13 @@ def as_user(user, func, *args, **kwargs):
         return False, type(exc).__name__
 
 
+def drop_user(email):
+    """清掉上一次运行留下的探针账号，让脚本可重复执行。"""
+    if frappe.db.exists("User", email):
+        frappe.delete_doc("User", email, force=True, ignore_permissions=True)
+        frappe.db.commit()
+
+
 def main():
     connect()
     frappe.set_user("Administrator")
@@ -68,9 +75,7 @@ def main():
     results["owner_roles"] = sorted(frappe.get_roles(OWNER))
 
     # 老板新增一名采购员工 —— 与老板共用同一套站点账号体系。
-    if frappe.db.exists("User", EMPLOYEE):
-        frappe.delete_doc("User", EMPLOYEE, force=True, ignore_permissions=True)
-        frappe.db.commit()
+    drop_user(EMPLOYEE)
     ok, created = as_user(OWNER, service.add_member, email=EMPLOYEE,
                           full_name="Lab Member", roles=["ERP Purchase"])
     results["owner_add_member"] = ok
@@ -81,9 +86,7 @@ def main():
     results["member_roles"] = next((m["roles"] for m in members if m["email"] == EMPLOYEE), None) if ok else None
 
     # 收银含在 ERP：老板能直接把「收银员」发给员工，不需要另买功能。
-    if frappe.db.exists("User", CASHIER):
-        frappe.delete_doc("User", CASHIER, force=True, ignore_permissions=True)
-        frappe.db.commit()
+    drop_user(CASHIER)
     ok, cashier = as_user(OWNER, service.add_member, email=CASHIER,
                           full_name="Lab Cashier", roles=["ERP Cashier"])
     results["add_cashier_allowed"] = ok
@@ -95,13 +98,17 @@ def main():
     results["employee_rows"] = len(rows) if ok else rows
 
     # 不能发平台角色，也不能发本站点没有的角色。
+    for leftover in ("erp-pos-nope@example.com", "erp-pos-nope2@example.com"):
+        drop_user(leftover)
     ok, err = as_user(OWNER, service.add_member, email="erp-pos-nope@example.com",
                       full_name="Nope", roles=["System Manager"])
     results["grant_system_manager_allowed"] = ok
     results["grant_system_manager_error"] = None if ok else err
 
+    # 不存在的岗位（不是本站点建出来的角色）同样不能发；用真岗位名会随目录变化而失效，
+    # 所以这里刻意用一个永远不会被建出来的名字。
     ok, err = as_user(OWNER, service.add_member, email="erp-pos-nope2@example.com",
-                      full_name="Nope", roles=["ERP Sales"])
+                      full_name="Nope", roles=["ERP Not A Job"])
     results["grant_unpurchased_role_allowed"] = ok
     results["grant_unpurchased_role_error"] = None if ok else err
 

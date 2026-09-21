@@ -117,6 +117,8 @@ def set_member_roles(email: str, roles=None) -> dict:
     user.roles = kept + [{"role": role} for role in wanted]
     user.save(ignore_permissions=True)
     frappe.db.commit()
+    # 角色刚变，清掉该账号的会话缓存；否则它当前会话里仍按旧岗位判权限。
+    frappe.clear_cache(user=user.name)
     return {"email": user.name, "roles": sorted(wanted)}
 
 
@@ -127,4 +129,5 @@ def set_member_active(email: str, enabled) -> dict:
     user.enabled = 1 if enabled in (True, 1, "1", "true", "True") else 0
     user.save(ignore_permissions=True)
     frappe.db.commit()
+    frappe.clear_cache(user=user.name)
     return {"email": user.name, "enabled": bool(user.enabled)}

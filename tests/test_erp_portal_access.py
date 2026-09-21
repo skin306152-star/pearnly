@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
 
 from pearnly_erp_portal.access import rules  # noqa: E402
+from pearnly_erp_portal.products import contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -47,9 +48,11 @@ class RoleParity(unittest.TestCase):
                 self.assertEqual(rules.FEATURE_ROLES.get(code), role)
 
     def test_every_capability_points_at_a_real_feature(self):
-        for capability, feature in rules.CAPABILITY_FEATURES.items():
+        for capability, features in rules.CAPABILITY_FEATURES.items():
             with self.subTest(capability=capability):
-                self.assertIn(feature, rules.FEATURE_ROLES)
+                self.assertTrue(features, "a capability must name at least one feature")
+                for feature in features:
+                    self.assertIn(feature, rules.FEATURE_ROLES)
 
 
 class Capabilities(unittest.TestCase):
@@ -93,6 +96,58 @@ class TeamRoles(unittest.TestCase):
 
     def test_nothing_is_assignable_without_purchased_roles(self):
         self.assertEqual(rules.assignable_roles(["Desk User"]), ())
+
+
+class ProductContracts(unittest.TestCase):
+    def test_blank_price_stays_blank(self):
+        # 旧线上强调过：0 当默认值会让"没设价"与"真的 ฿0"在库里变成同一个值。
+        self.assertIsNone(contracts.decimal_or_none(None))
+        self.assertIsNone(contracts.decimal_or_none(""))
+        self.assertEqual(str(contracts.decimal_or_none("0")), "0")
+
+    def test_negative_or_junk_price_is_rejected(self):
+        for value in ("-1", "abc", "nan", "inf"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                contracts.decimal_or_none(value)
+
+    def test_unit_factor_must_be_positive(self):
+        self.assertEqual(str(contracts.unit_factor(12)), "12")
+        for value in (0, -3, None, "x"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                contracts.unit_factor(value)
+
+    def test_name_is_required_and_bounded(self):
+        self.assertEqual(contracts.require_name("  สินค้า  "), "สินค้า")
+        with self.assertRaises(ValueError):
+            contracts.require_name("   ")
+        with self.assertRaises(ValueError):
+            contracts.require_name("x" * (contracts.MAX_NAME + 1))
+
+    def test_costs_are_masked_without_the_role(self):
+        row = {"name": "PRD-1", "default_cost": "12", "avg_cost": "13"}
+        masked = contracts.mask_costs(dict(row), False)
+        self.assertIsNone(masked["default_cost"])
+        self.assertIsNone(masked["avg_cost"])
+        self.assertEqual(masked["name"], "PRD-1")
+        self.assertEqual(contracts.mask_costs(dict(row), True), row)
+
+    def test_stock_role_sees_cost_but_a_shop_role_does_not(self):
+        self.assertTrue(rules.cost_visible({rules.FEATURE_ROLES["warehouses"]}))
+        self.assertTrue(rules.cost_visible({rules.ADMIN_ROLE}))
+        self.assertFalse(rules.cost_visible({rules.FEATURE_ROLES["products"]}))
+        self.assertFalse(rules.cost_visible(set()))
+
+    def test_product_capabilities_follow_the_products_feature(self):
+        role = rules.FEATURE_ROLES["products"]
+        self.assertTrue(rules.can({role}, "products.view"))
+        self.assertTrue(rules.can({role}, "products.manage"))
+        self.assertFalse(rules.can({rules.FEATURE_ROLES["cashier"]}, "products.manage"))
+
+    def test_stock_role_may_view_products_but_not_manage_them(self):
+        # 库存岗位做入库/出库要先看得到商品，但商品主数据仍归商品岗位。
+        stock = rules.FEATURE_ROLES["warehouses"]
+        self.assertTrue(rules.can({stock}, "products.view"))
+        self.assertFalse(rules.can({stock}, "products.manage"))
 
 
 if __name__ == "__main__":

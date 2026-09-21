@@ -1,0 +1,168 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "format:PRD-{#####}",
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "product_name",
+  "code",
+  "barcode",
+  "qr_payload",
+  "column_break_price",
+  "unit",
+  "unit_price",
+  "price_set",
+  "vat_applicable",
+  "section_break_stock",
+  "min_stock",
+  "default_cost",
+  "avg_cost",
+  "column_break_stock",
+  "is_active",
+  "image_url",
+  "units",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Product Name",
+   "reqd": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Code",
+   "length": 100,
+   "unique": 1
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Barcode",
+   "length": 100,
+   "unique": 1
+  },
+  {
+   "fieldname": "qr_payload",
+   "fieldtype": "Data",
+   "label": "QR Payload",
+   "length": 500
+  },
+  {
+   "fieldname": "column_break_price",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "unit",
+   "fieldtype": "Data",
+   "label": "Base Unit",
+   "length": 50
+  },
+  {
+   "fieldname": "unit_price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Sale Price"
+  },
+  {
+   "default": "0",
+   "description": "0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",
+   "fieldname": "price_set",
+   "fieldtype": "Check",
+   "label": "Price Is Set"
+  },
+  {
+   "default": "1",
+   "fieldname": "vat_applicable",
+   "fieldtype": "Check",
+   "label": "VAT Applicable"
+  },
+  {
+   "fieldname": "section_break_stock",
+   "fieldtype": "Section Break",
+   "label": "Stock"
+  },
+  {
+   "fieldname": "min_stock",
+   "fieldtype": "Float",
+   "label": "Low Stock Threshold",
+   "precision": "3"
+  },
+  {
+   "fieldname": "default_cost",
+   "fieldtype": "Currency",
+   "label": "Reference Cost"
+  },
+  {
+   "description": "Maintained by stock movements; read-only here",
+   "fieldname": "avg_cost",
+   "fieldtype": "Currency",
+   "label": "Average Cost",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_stock",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Active"
+  },
+  {
+   "fieldname": "image_url",
+   "fieldtype": "Data",
+   "label": "Image URL",
+   "length": 1000
+  },
+  {
+   "fieldname": "units",
+   "fieldtype": "Table",
+   "label": "Selling Units",
+   "options": "ERP Product Unit"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Product",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

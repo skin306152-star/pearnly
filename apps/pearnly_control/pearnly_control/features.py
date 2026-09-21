@@ -105,9 +105,15 @@ FEATURE = "Pearnly Feature"
 ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
     ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line"]),
-    # 收银的 POS 表还没落地（第六批），但岗位角色要现在就存在，否则团队管理里
-    # 勾不到「收银员」。空 DocType 列表 = 只建角色、暂不授权；表到位后按同一份
-    # 目录补 DocType 即可。
+    ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit"]),
+    # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，
+    # 但商品主数据只读（权限覆盖见 READ_ONLY）。
+    ("erp", "warehouses"): ("ERP Stock", ["ERP Product"]),
+    ("erp", "stockcard"): ("ERP Stock", []),
+    ("erp", "sales"): ("ERP Sales", []),
+    ("erp", "clients"): ("ERP Sales", []),
+    # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
+    # 否则团队管理里勾不到这个岗位。
     ("erp", "cashier"): ("ERP Cashier", []),
     ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
     ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
@@ -161,7 +167,7 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
     return role, list(doctypes)
 
 
-# 网页端**只读**的表。
+# 按岗位**只读**的表。
 #
 # 为什么需要：DMS 的身份证录入作业在 LINE 上完成（用户 2026-09-17 定："DMS 身份证
 # 录入网页端不要了……网页只负责绑定第三方 dms，只取消网页前端的录入入口"）。
@@ -170,13 +176,20 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
 #
 # 这**不影响将来的 LINE 录入**：webhook 是 `allow_guest` 的独立通道，走的不是这个
 # 角色（今天 LINE 侧还只做绑定，没有录入分支）。
-READ_ONLY_ON_WEB: set[tuple[str, str]] = {("dms", "DMS ID Card Intake")}
+#
+# ERP 同样用得上：库存岗位做入库/出库要**看得到**商品，但商品主数据归商品岗位，
+# 所以 ERP Stock 在 ERP Product 上只读。键带上角色，避免把同一个 DocType 上
+# 别的岗位（ERP Products）也一起降成只读。
+READ_ONLY: set[tuple[str, str, str]] = {
+    ("dms", "DMS ID Card Intake", "DMS ID Card Intake"),
+    ("erp", "ERP Product", "ERP Stock"),
+}
 READ_ONLY_PERMS = {"read": 1, "report": 1}
 
 
-def perms_override(product: str, doctype: str) -> dict | None:
+def perms_override(product: str, doctype: str, role: str = "") -> dict | None:
     """该表是否要用"只读"覆盖默认的功能权限；None = 用默认（可读可写可建）。"""
-    if (product, doctype) in READ_ONLY_ON_WEB:
+    if (product, doctype, role) in READ_ONLY:
         return dict(READ_ONLY_PERMS)
     return None
 
@@ -188,14 +201,23 @@ def roles_payload(product: str, codes: list[str]) -> dict:
     （那是框架超管，能改系统设置、装应用），只给"产品管理员 + 买了的功能角色"。
     """
     roles = []
+    seen_roles: set[str] = set()
     for code in codes or []:
         role, doctypes = enforcement_of(product, code)
         # 有角色就进 payload：即使暂时没有可挡的表，角色也要建出来（岗位先于表存在）。
         if role:
+            # 多个功能码可以共用一个岗位（库存与收发存报表都是 ERP Stock）。
+            # 合并成一条，权限表取并集，避免清单里出现重复岗位。
+            if role in seen_roles:
+                for entry in roles:
+                    if entry["role"] == role:
+                        entry["doctypes"] = sorted(set(entry["doctypes"]) | set(doctypes))
+                continue
+            seen_roles.add(role)
             entry = {"role": role, "doctypes": doctypes, "feature": code}
             overrides = {}
             for doctype in doctypes:
-                perms = perms_override(product, doctype)
+                perms = perms_override(product, doctype, role)
                 if perms is not None:
                     overrides[doctype] = perms
             if overrides:
