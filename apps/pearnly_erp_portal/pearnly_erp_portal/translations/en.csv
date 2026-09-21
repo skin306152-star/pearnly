@@ -27,6 +27,7 @@ product.action.import,Import from Excel
 product.action.new,New product
 product.action.reload,Reload
 product.action.save,Save
+product.action.scan,Scan
 product.action.toggleInactive,Show disabled
 product.cell.notSet,Not set
 product.col.avgCost,Average cost
@@ -67,10 +68,16 @@ product.import.noFile,Choose a file to import
 product.import.notNumber,The value is not a number
 product.import.notWorkbook,That file is not an Excel workbook
 product.import.pick,Choose file
+product.import.template,Download template
 product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
 product.notice.imported,Imported {0} product(s)
 product.notice.saved,Saved {0}
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
+product.scan.denied,Camera permission was refused; allow it and try again
+product.scan.hint,Point the camera at the barcode or QR code
+product.scan.noCamera,This device has no camera to scan with
+product.scan.title,Scan a code
+product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 purchase,purchase
 sales,sales

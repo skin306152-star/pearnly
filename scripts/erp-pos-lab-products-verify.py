@@ -190,6 +190,18 @@ def main():
     for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab auto code"},
                                 pluck="name"):
         frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab template row"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab image row"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("File", filters={"file_name": "lab-product-image.png"},
+                                pluck="name"):
+        frappe.delete_doc("File", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab image outside"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
     frappe.db.commit()
 
     # Excel 导入：解析在纯层（bench 里有 openpyxl），入库走同一条 create_product。
@@ -224,6 +236,51 @@ def main():
     # 表里没带码的行同样由系统发号（旧线上 ERP 导入也走这条 `prepare()`）。
     results["import_auto_code"] = bool(frappe.db.exists(
         "ERP Product", {"product_name": "Lab import C", "code": ["like", "P-%"]}))
+
+    # 模板下载：表头按站点语言现生成。下载 → 填一行 → 传回来必须能认（闭环）。
+    ok, _ = as_user(OWNER, service.api_import_template)
+    downloaded = frappe.local.response.get("filecontent") or b""
+    results["template_download_ok"] = bool(ok and downloaded)
+    book = openpyxl.load_workbook(io.BytesIO(downloaded), data_only=True)
+    sheet = book.active
+    headers = [cell.value for cell in next(sheet.iter_rows(max_row=1))]
+    results["template_headers"] = len(headers)
+    # 语言包里缺哪条，模板上就会露出键名 —— 露出来就是漏翻。
+    results["template_keys_leaked"] = [header for header in headers
+                                       if str(header).startswith("product.")]
+    sheet.append(["Lab template row"])
+    buffer = io.BytesIO()
+    book.save(buffer)
+    ok, templated = as_user(OWNER, service.import_products, buffer.getvalue())
+    results["template_import_ok"] = ok
+    results["template_created"] = templated.get("created") if ok else None
+    results["template_failed"] = templated.get("failed") if ok else None
+    # 空模板（一行数据都没有）要明确报"没有数据行"，不能默默什么都不做。
+    ok, empty = as_user(OWNER, service.import_products, downloaded)
+    results["template_empty_allowed"] = ok
+    results["template_empty_error"] = None if ok else empty
+
+    # 商品图：私有文件挂在商品上，读权限才跟着商品走。
+    from frappe.utils.file_manager import save_file
+
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000a49444154789c6360000002000154a24f5f0000000049454e44ae426082")
+    lab_file = save_file("lab-product-image.png", png, None, None, is_private=1)
+    ok, with_image = as_user(OWNER, service.create_product, product_name="Lab image row",
+                             image_url=lab_file.file_url)
+    results["image_product_ok"] = ok
+    attached = frappe.db.get_value("File", lab_file.name,
+                                   ["attached_to_doctype", "attached_to_name"], as_dict=True)
+    results["image_attached_doctype"] = (attached or {}).get("attached_to_doctype")
+    results["image_attached_same_row"] = bool(
+        attached and with_image and attached.attached_to_name == with_image.get("name"))
+    # 外链不碰：不是本站 File 的地址照原样存。
+    ok, outside = as_user(OWNER, service.create_product, product_name="Lab image outside",
+                          image_url="https://example.com/x.png")
+    results["image_outside_ok"] = ok
+    results["image_outside_value"] = frappe.db.get_value(
+        "ERP Product", (outside or {}).get("name"), "image_url") if ok else None
 
     # 字段对齐：与旧线上 products 的列一一对应（不多不少）。
     meta = frappe.get_meta("ERP Product")
@@ -277,6 +334,19 @@ def main():
         "import_ok": True, "import_created": 2, "import_failed": 1, "import_error_rows": [4],
         "import_raw_tokens_leaked": [],
         "import_auto_code": True,
+        "template_download_ok": True,
+        "template_headers": 17,
+        "template_keys_leaked": [],
+        "template_import_ok": True,
+        "template_created": 1,
+        "template_failed": 0,
+        "template_empty_allowed": False,
+        "template_empty_error": "ValidationError",
+        "image_product_ok": True,
+        "image_attached_doctype": "ERP Product",
+        "image_attached_same_row": True,
+        "image_outside_ok": True,
+        "image_outside_value": "https://example.com/x.png",
         "fields_missing": [], "fields_extra": [],
         "other_site_product_rows": 0,
         "other_site_has_code": False,

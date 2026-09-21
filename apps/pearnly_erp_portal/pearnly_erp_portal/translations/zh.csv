@@ -27,6 +27,7 @@ product.action.import,Excel 导入
 product.action.new,新建商品
 product.action.reload,刷新
 product.action.save,保存
+product.action.scan,扫码
 product.action.toggleInactive,显示已停用
 product.cell.notSet,未设
 product.col.avgCost,均价
@@ -67,10 +68,16 @@ product.import.noFile,请选择要导入的文件
 product.import.notNumber,该值不是数字
 product.import.notWorkbook,这不是 Excel 工作簿
 product.import.pick,选择文件
+product.import.template,下载模板
 product.notice.importSkipped,跳过 {0} 行，前几行见上方
 product.notice.imported,已导入 {0} 个商品
 product.notice.saved,已保存 {0}
 product.notice.toggled,已更新 {0}
 product.notice.toggledCount,已更新 {0} 个商品
+product.scan.denied,摄像头权限被拒绝，允许之后再试一次
+product.scan.hint,把条码或二维码对准摄像头
+product.scan.noCamera,这台设备没有可用的摄像头
+product.scan.title,扫码
+product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 purchase,采购
 sales,销售

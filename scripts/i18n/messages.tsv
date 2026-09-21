@@ -1132,3 +1132,10 @@ pearnly_erp_portal	Generated automatically	自动生成	สร้างอัต
 pearnly_erp_portal	Choose file	选择文件	เลือกไฟล์	ファイルを選択	product.import.pick
 pearnly_erp_portal	The value is not a number	该值不是数字	ค่านี้ไม่ใช่ตัวเลข	数値ではありません	product.import.notNumber
 pearnly_erp_portal	The value must be zero or more	该值不能小于 0	ค่านี้ต้องไม่ติดลบ	0 以上で入力してください	product.import.negative
+pearnly_erp_portal	Download template	下载模板	ดาวน์โหลดแบบฟอร์ม	テンプレートをダウンロード	product.import.template
+pearnly_erp_portal	Scan	扫码	สแกน	スキャン	product.action.scan
+pearnly_erp_portal	Scan a code	扫码	สแกนโค้ด	コードをスキャン	product.scan.title
+pearnly_erp_portal	Point the camera at the barcode or QR code	把条码或二维码对准摄像头	เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์	カメラをバーコード・QR コードに向けてください	product.scan.hint
+pearnly_erp_portal	This browser cannot scan with the camera; use a scanner or type the code	这个浏览器不支持摄像头扫码，请用扫码枪或手输	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง	このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください	product.scan.unsupported
+pearnly_erp_portal	Camera permission was refused; allow it and try again	摄像头权限被拒绝，允许之后再试一次	ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่	カメラの許可が拒否されました。許可してから再試行してください	product.scan.denied
+pearnly_erp_portal	This device has no camera to scan with	这台设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องให้สแกน	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera

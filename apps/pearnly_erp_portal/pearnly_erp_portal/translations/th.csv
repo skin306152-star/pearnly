@@ -27,6 +27,7 @@ product.action.import,นำเข้าจาก Excel
 product.action.new,เพิ่มสินค้า
 product.action.reload,โหลดใหม่
 product.action.save,บันทึก
+product.action.scan,สแกน
 product.action.toggleInactive,แสดงที่ปิดใช้งาน
 product.cell.notSet,ยังไม่ตั้ง
 product.col.avgCost,ต้นทุนเฉลี่ย
@@ -67,10 +68,16 @@ product.import.noFile,กรุณาเลือกไฟล์ที่จะ�
 product.import.notNumber,ค่านี้ไม่ใช่ตัวเลข
 product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
 product.import.pick,เลือกไฟล์
+product.import.template,ดาวน์โหลดแบบฟอร์ม
 product.notice.importSkipped,ข้าม {0} แถว รายการแรกแสดงด้านบน
 product.notice.imported,นำเข้า {0} รายการแล้ว
 product.notice.saved,บันทึก {0} แล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
 product.notice.toggledCount,อัปเดต {0} รายการแล้ว
+product.scan.denied,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
+product.scan.hint,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
+product.scan.noCamera,อุปกรณ์นี้ไม่มีกล้องให้สแกน
+product.scan.title,สแกนโค้ด
+product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 purchase,จัดซื้อ
 sales,ขาย

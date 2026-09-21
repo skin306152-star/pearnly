@@ -6,6 +6,7 @@
 import frappe
 from frappe import _
 
+from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.products import contracts, workbook
 
@@ -23,6 +24,8 @@ IMPORT_ERRORS = {
     "not_a_workbook": "That file is not an Excel workbook",
     "missing_name_column": "The sheet needs a product name column",
 }
+# 模板文件名用户会看到（下载存盘时）。
+TEMPLATE_FILE = "products-import-template.xlsx"
 # 逐行校验的 token → 用户看得懂的提示（解析层是纯规则层，不翻文案，只报 token）。
 ROW_ERRORS = {
     "not_a_number": IMPORT_NOT_NUMBER,
@@ -112,6 +115,29 @@ def _get(name: str):
     return frappe.get_doc(DOCTYPE, name)
 
 
+def _attach_image(image_url, product: str):
+    """把商品图挂到这条商品上 —— 读权限因此跟着商品走。
+
+    不挂的话它是"私有且无归属"的 File：框架的 `file.has_permission` 对这种文件只认上传者
+    本人，别的员工在商品页看到的是裂图（老板传的图，店员看不着）。用 `db.set_value` 而不是
+    `file.save()`：后者会走一遍 File 的命名字段逻辑，可能把磁盘上的文件改名，落库的 URL 就
+    对不上了。外链（不是本站 URL）不碰。
+    """
+    url = str(image_url or "")
+    if not url.startswith("/"):
+        return
+    # 同一个 URL 理论上只有一条，但传过失败/重传时可能留下同名多条 —— 取最新那条。
+    name = frappe.db.get_value("File", {"file_url": url}, "name", order_by="creation desc")
+    if not name:
+        return
+    current = frappe.db.get_value("File", name, ["attached_to_doctype", "attached_to_name"],
+                                  as_dict=True) or {}
+    if current.get("attached_to_doctype") == DOCTYPE and current.get("attached_to_name") == product:
+        return
+    frappe.db.set_value("File", name,
+                        {"attached_to_doctype": DOCTYPE, "attached_to_name": product})
+
+
 def _allocate_code() -> str:
     """发下一个商品编码（旧线上 ERP 门户里编码是只读的，新平台同样不让手输）。
 
@@ -159,6 +185,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "is_active": 1,
     })
     doc.insert()
+    _attach_image(doc.image_url, doc.name)
     frappe.db.commit()
     return {"name": doc.name}
 
@@ -255,6 +282,8 @@ def update_product(name: str, **changes):
     if "is_active" in changes:
         doc.is_active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
     doc.save()
+    if "image_url" in changes:
+        _attach_image(doc.image_url, doc.name)
     frappe.db.commit()
     return {"name": doc.name}
 
@@ -348,6 +377,44 @@ def _row_error(token) -> str:
     return _(ROW_ERRORS[token]) if token in ROW_ERRORS else token[:200]
 
 
+def _label_texts() -> dict:
+    """界面标签 → 字段：四种语言都给（模板可能是在另一种语言的站点上下载的）。
+
+    键名本身也收 —— 语言包缺这条时页面与模板都会露出键名，露出来也得认得。
+    """
+    labels: dict = {}
+    for field, key in workbook.FIELD_LABELS:
+        labels[key] = field
+        for text in browser_text.all_languages(key).values():
+            if text:
+                labels[text] = field
+    return labels
+
+
+def _template_headers() -> list:
+    """模板表头按**站点语言**给（租户是泰文就给泰文表头）。"""
+    lang = (frappe.local.lang or browser_text.FALLBACK_LANG)[:2]
+
+    def label_of(key):
+        texts = browser_text.all_languages(key)
+        return texts.get(lang) or texts.get("en") or key
+
+    return workbook.template_headers(label_of)
+
+
+@frappe.whitelist()
+def api_import_template():
+    """下载导入模板：表头就是商品页那几句界面文案，别的什么都没有。
+
+    走 `binary` 直接回文件内容，不在租户里留 `File` 记录 —— 模板是产品自带的，
+    不该在每位客户的库里各存一份。
+    """
+    guard.require("products.manage")
+    frappe.local.response.filename = TEMPLATE_FILE
+    frappe.local.response.filecontent = workbook.template_bytes(_template_headers())
+    frappe.local.response.type = "binary"
+
+
 def import_products(data: bytes) -> dict:
     """把上传的表逐行入库。**逐行报错、不整批回滚** —— 一行错不该让 200 行白导。
 
@@ -356,7 +423,7 @@ def import_products(data: bytes) -> dict:
     """
     guard.require("products.manage")
     try:
-        rows, errors = workbook.parse_workbook(data)
+        rows, errors = workbook.parse_workbook(data, workbook.header_aliases(_label_texts()))
     except ValueError as exc:
         frappe.throw(_(IMPORT_ERRORS.get(str(exc), IMPORT_BAD_FILE)))
     # 解析层只报 token，文案在这里翻（纯层不连 Frappe、也不该管界面话术）。

@@ -157,9 +157,40 @@
 					default: value("is_weighed", 0) },
 				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
 					default: value("vat_applicable", 1) },
-				{ fieldtype: "Data", fieldname: "image_url", label: t("product.field.image"),
+				// 图片走原生附件控件（它自带上传按钮、只收图片、带缩略图预览），
+				// 落库的还是那个 URL —— 与旧线上同一个字段。文件保持私有（框架默认，
+				// 也符合租户隔离）：读权限靠服务端把它挂到这条商品上，见
+				// `service._attach_image`（私有且无归属的文件只有上传者读得到）。
+				{ fieldtype: "Attach Image", fieldname: "image_url", label: t("product.field.image"),
 					default: value("image_url") },
 			];
+		}
+
+		// 条码/二维码两格旁边加一个扫码按钮：原生输入框 + 原生按钮，解码在 desk/scan.js。
+		// 扫码枪不用按钮（它就是个键盘，打进输入框），但打完补的那个回车不能顺手把表单存了。
+		async function add_scan_buttons(dialog) {
+			await p.scan_ready();
+			for (const [fieldname, kind] of [["barcode", "barcode"], ["qr_payload", "qr"]]) {
+				const field = dialog.get_field(fieldname);
+				if (!field || !p.scan_supported(kind)) continue;
+				const button = $(`<button type="button" class="btn btn-default btn-sm"
+					title="${p.escape(t("product.action.scan"))}">
+					${frappe.utils.icon("es-line-camera", "sm")}</button>`);
+				const row = $('<div class="flex align-center" style="gap:6px"></div>');
+				field.$input.before(row);
+				row.append(field.$input).append(button);
+				button.on("click", () => p.scan({
+					kind,
+					on_result: (code) => field.set_value(code),
+				}));
+			}
+			const barcode = dialog.get_field("barcode");
+			barcode.$input.on("keydown", (event) => {
+				if (event.key === "Enter") {
+					event.preventDefault();
+					event.stopPropagation();
+				}
+			});
 		}
 
 		// 空串要变 null：那是"从未设过"，让它落成 0 就把"没设价"和"真的 ฿0"混成一个值。
@@ -171,7 +202,7 @@
 			return out;
 		}
 
-		function open_create() {
+		async function open_create() {
 			const dialog = p.dialog(
 				t("product.action.new"),
 				product_fields(),
@@ -184,6 +215,7 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+			await add_scan_buttons(dialog);
 		}
 
 		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
@@ -218,6 +250,13 @@
 						} },
 					{ fieldtype: "Data", fieldname: "file_name",
 						label: t("product.field.importFile"), read_only: 1 },
+					{ fieldtype: "Button", fieldname: "template",
+						label: t("product.import.template"), click: () => {
+							// 模板是服务端现生成的（表头跟着站点语言走），走下载口拿，
+							// 不在租户里留 File 记录。
+							window.open(frappe.utils.get_url(
+								"/api/method/pearnly_erp_portal.products.service.api_import_template"));
+						} },
 				],
 				t("product.action.import"),
 				async (_values, d) => {
@@ -255,6 +294,7 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
+			await add_scan_buttons(dialog);
 		}
 
 		// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。

@@ -147,6 +147,33 @@ class ProductContracts(unittest.TestCase):
             contracts.next_code(["P-000001", "P-000010", "手工码", "", "P-ABC"]), "P-000011")
         self.assertEqual(contracts.next_code([None, "P-000999"]), "P-001000")
 
+    def test_import_headers_cover_field_names_legacy_words_and_labels(self):
+        """表头认三套：字段名、旧表格里的写法、界面标签（四语）。"""
+        aliases = product_workbook.header_aliases({"ชื่อสินค้า": "product_name",
+                                                  "售價": "unit_price"})
+        self.assertEqual(aliases["product_name"], "product_name")
+        self.assertEqual(aliases["name_th"], "product_name")
+        self.assertEqual(aliases["ชื่อสินค้า"], "product_name")
+        self.assertEqual(aliases["售價"], "unit_price")
+        self.assertEqual(aliases["track_expiry"], "track_expiry")
+
+    def test_the_downloaded_template_parses_back_to_its_own_columns(self):
+        """模板闭环：表头就是界面那几句，认回来必须还是同一批字段、同一个顺序。"""
+        labels = {key: field for field, key in product_workbook.FIELD_LABELS}
+        aliases = product_workbook.header_aliases(labels)
+        headers = product_workbook.template_headers(lambda key: key)
+        self.assertEqual(headers, [key for _field, key in product_workbook.FIELD_LABELS])
+        for (field, _key), header in zip(product_workbook.FIELD_LABELS, headers):
+            self.assertEqual(aliases[header.strip().lower()], field)
+        self.assertEqual(len(set(product_workbook.FIELD_LABELS)), len(product_workbook.FIELD_LABELS))
+
+    def test_every_template_label_exists_in_the_language_pack(self):
+        """模板表头取自语言包：包里缺哪一条，模板上就会露出键名。"""
+        table = (ROOT / "scripts/i18n/messages.tsv").read_text(encoding="utf-8")
+        keys = {line.split("\t")[-1].strip() for line in table.splitlines() if "\t" in line}
+        for _field, key in product_workbook.FIELD_LABELS:
+            self.assertIn(key, keys)
+
     def test_stock_role_sees_cost_but_a_shop_role_does_not(self):
         self.assertTrue(rules.cost_visible({rules.FEATURE_ROLES["warehouses"]}))
         self.assertTrue(rules.cost_visible({rules.ADMIN_ROLE}))

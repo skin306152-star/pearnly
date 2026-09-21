@@ -4,7 +4,9 @@
 这些**都可以在没有 Site 的地方断言**。入库由 `service.import_products` 逐行调用同一个
 `create_product`，所以导入与手工录入走的是同一条校验路径，不会有两套规则。
 
-表头按**别名**认（泰文/中文/英文都收）：客户手里那张表是旧的，改表头不现实。
+表头认三套：**字段名**、**历史写法**（客户手里那张表是旧的，改表头不现实）、
+以及**界面上的那一句**（走语言包，中/泰/英/日都收）—— 下载的模板用的就是第三套，
+所以"下载得到的模板"与"能认的表头"永远同一张表，不会各造一套。
 字段名与旧线上 `services/sales/products.py` 的列一致 —— 一个不多一个不少。
 """
 
@@ -13,8 +15,29 @@ from __future__ import annotations
 import io
 from decimal import Decimal, InvalidOperation
 
-# 表头别名（去空白、转小写后比对）→ 我们的字段名。
-HEADER_ALIASES = {
+# 字段 → 界面文案的键。模板的表头就取这几句（按站点语言），顺序也是这个顺序。
+FIELD_LABELS = (
+    ("product_name", "product.field.name"),
+    ("name_en", "product.field.nameEn"),
+    ("name_zh", "product.field.nameZh"),
+    ("code", "product.field.code"),
+    ("barcode", "product.field.barcode"),
+    ("qr_payload", "product.field.qr"),
+    ("unit", "product.field.unit"),
+    ("base_unit", "product.field.baseUnit"),
+    ("category_id", "product.field.category"),
+    ("unit_price", "product.field.price"),
+    ("default_cost", "product.field.cost"),
+    ("min_stock", "product.field.minStock"),
+    ("vat_applicable", "product.field.vat"),
+    ("track_batch", "product.field.trackBatch"),
+    ("track_expiry", "product.field.trackExpiry"),
+    ("is_weighed", "product.field.weighed"),
+    ("image_url", "product.field.image"),
+)
+
+# 历史写法（去空白、转小写后比对）→ 我们的字段名。旧表格、导出件里长这样，照认。
+LEGACY_ALIASES = {
     "product_name": "product_name",
     "name": "product_name",
     "name_th": "product_name",
@@ -68,6 +91,24 @@ HEADER_ALIASES = {
     "image_url": "image_url",
     "图片": "image_url",
 }
+
+
+def header_aliases(labels=None) -> dict:
+    """表头 → 字段：字段名、历史写法、界面标签三套并集。
+
+    `labels` 是"文案 → 字段"（调用方从语言包取四语），本层不碰 Frappe 与语言包。
+    """
+    aliases = {_norm_header(field): field for field, _key in FIELD_LABELS}
+    aliases.update({_norm_header(word): field for word, field in LEGACY_ALIASES.items()})
+    for text, field in (labels or {}).items():
+        if str(text or "").strip():
+            aliases[_norm_header(text)] = field
+    return aliases
+
+
+def template_headers(label_of) -> list:
+    """模板表头：界面上那几句，按站点语言给。"""
+    return [label_of(key) for _field, key in FIELD_LABELS]
 
 TEXT_FIELDS = ("product_name", "name_en", "name_zh", "code", "barcode", "qr_payload",
                "unit", "base_unit", "image_url")
@@ -125,13 +166,30 @@ def _record(row, columns: dict) -> dict:
     return record
 
 
-def parse_workbook(data: bytes) -> tuple[list[dict], list[dict]]:
+def template_bytes(headers) -> bytes:
+    """模板文件：只有一行表头，**不留示例行** —— 示例行会被当真数据导进来。"""
+    import openpyxl
+
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append([str(header) for header in headers])
+    for index, header in enumerate(headers, start=1):
+        sheet.column_dimensions[openpyxl.utils.get_column_letter(index)].width = max(
+            14, len(str(header)) + 4)
+    buffer = io.BytesIO()
+    book.save(buffer)
+    book.close()
+    return buffer.getvalue()
+
+
+def parse_workbook(data: bytes, aliases: dict | None = None) -> tuple[list[dict], list[dict]]:
     """xlsx 字节 → (可入库的行, 行级错误)。错误每条 `{row, error}`（行号从 2 起，表头是第 1 行）。
 
     认不出表头或整张表空时抛 `ValueError`，由调用方翻译成给用户看的提示。
     """
     if not data:
         raise ValueError("empty_file")
+    lookup = header_aliases() if aliases is None else aliases
     # 延迟导入：本模块要能在**没有 openpyxl** 的宿主上被导入（解析逻辑的断言在
     # bench 环境里跑，见 tests 的跳过守卫）。
     import openpyxl
@@ -147,9 +205,9 @@ def parse_workbook(data: bytes) -> tuple[list[dict], list[dict]]:
             header = next(rows)
         except StopIteration:
             raise ValueError("empty_file") from None
-        columns = {index: HEADER_ALIASES[_norm_header(cell)]
+        columns = {index: lookup[_norm_header(cell)]
                    for index, cell in enumerate(header)
-                   if _norm_header(cell) in HEADER_ALIASES}
+                   if _norm_header(cell) in lookup}
         if "product_name" not in columns.values():
             raise ValueError("missing_name_column")
 

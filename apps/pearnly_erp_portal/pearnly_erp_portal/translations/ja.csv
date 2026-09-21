@@ -27,6 +27,7 @@ product.action.import,Excel から取込
 product.action.new,商品を追加
 product.action.reload,再読み込み
 product.action.save,保存
+product.action.scan,スキャン
 product.action.toggleInactive,無効も表示
 product.cell.notSet,未設定
 product.col.avgCost,平均原価
@@ -67,10 +68,16 @@ product.import.noFile,取り込むファイルを選択してください
 product.import.notNumber,数値ではありません
 product.import.notWorkbook,Excel ブックではありません
 product.import.pick,ファイルを選択
+product.import.template,テンプレートをダウンロード
 product.notice.importSkipped,{0}行をスキップしました（先頭のみ表示）
 product.notice.imported,{0}件を取り込みました
 product.notice.saved,{0} を保存しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
+product.scan.denied,カメラの許可が拒否されました。許可してから再試行してください
+product.scan.hint,カメラをバーコード・QR コードに向けてください
+product.scan.noCamera,この端末にはスキャンに使えるカメラがありません
+product.scan.title,コードをスキャン
+product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 purchase,仕入
 sales,売上
