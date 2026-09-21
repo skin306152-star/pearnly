@@ -70,6 +70,12 @@
    "reqd": 1
   },
   {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "in_list_view": 0
+  },
+  {
    "fieldname": "column_break_qty",
    "fieldtype": "Column Break"
   },

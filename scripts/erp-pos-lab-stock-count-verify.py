@@ -74,6 +74,9 @@ def product(code, name, unit="pcs"):
     return service.create_product(product_name=name, code=code, unit=unit)["name"]
 
 
+REPORT = "ERP Stock Count Variance"
+
+
 def _upload(data: bytes, name: str) -> str:
     """把生成好的表落成一条 `File`，拿回 file_url —— 与页面上传那条路同一个入口。"""
     from frappe.utils.file_manager import save_file
@@ -287,6 +290,8 @@ def main():
     sheet = count_workbook.build_bytes(fields, [
         {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
          "unit": "pcs", "book_qty": 10, "counted_qty": 8, "warehouse": "", "location": "A1"},
+        {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
+         "unit": "pcs", "book_qty": 2, "counted_qty": 2, "warehouse": "", "location": "B2"},
         {"product_code": "LAB-SC-B", "product_name": "Lab count B", "barcode": "",
          "unit": "pcs", "book_qty": None, "counted_qty": None, "warehouse": "", "location": ""},
     ])
@@ -297,11 +302,19 @@ def main():
     results["import_rows"] = (imported or {}).get("rows")
     results["import_counted"] = (imported or {}).get("counted")
     results["import_problems"] = len((imported or {}).get("problems") or [])
-    row_a2 = counts.item_of_product(count=import_task, product=watched[0]) or {}
+    # 同一个商品在两个货架上 = 两行，各有各的账面与差异
+    rows_a = counts.rows_of_product(count=import_task, product=watched[0])
+    results["import_rows_per_place"] = len(rows_a)
+    results["import_places"] = [(row["location"], float(row["book_qty"]))
+                                for row in sorted(rows_a, key=lambda r: r["location"])]
+    row_a2 = counts.item_of_product(count=import_task, product=watched[0], location="A1") or {}
     results["import_book_from_sheet"] = float(row_a2.get("book_qty") or 0)
     results["import_counted_qty"] = float(row_a2.get("counted_qty") or 0)
     results["import_entry_source"] = frappe.db.get_value(
         "ERP Stock Count Entry", {"count": import_task, "item": row_a2.get("name")}, "source")
+    # 记录上的库位是**那一行的**库位（行是仓位，不是记录上的自由文本）
+    results["import_entry_place"] = frappe.db.get_value(
+        "ERP Stock Count Entry", {"count": import_task, "item": row_a2.get("name")}, "location")
 
     # 同一份表再传一次是**覆盖**，不是又记一笔；改成 9 也一样只有一条
     ok, again_import = as_user(STOCK, inventory_api.api_stock_count_import,
@@ -311,7 +324,7 @@ def main():
         "ERP Stock Count Entry", {"count": import_task, "voided": 0})
     changed = count_workbook.build_bytes(fields, [
         {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
-         "unit": "pcs", "book_qty": 10, "counted_qty": 9, "warehouse": "", "location": ""},
+         "unit": "pcs", "book_qty": 10, "counted_qty": 9, "warehouse": "", "location": "A1"},
     ])
     ok, _ = as_user(STOCK, inventory_api.api_stock_count_import,
                     name=import_task, file_url=_upload(changed, "lab-stock-count-2.xlsx"))
@@ -349,17 +362,32 @@ def main():
     blank_rows = len(count_workbook.parse_workbook(blank, count_workbook.header_aliases())[0])
     results["template_blank_matches_balances"] = bool(blank and blank_rows == balances)
 
-    # 看板：条形取差异最大那几行，合计按整份算
-    ok, chart = as_user(STOCK, inventory_api.api_stock_count_chart, name=import_task)
-    results["chart_ok"] = ok
-    results["chart_labels"] = len((chart or {}).get("labels") or [])
-    results["chart_series_match"] = bool(
-        len((chart or {}).get("book") or []) == len((chart or {}).get("labels") or [])
-        and len((chart or {}).get("counted") or []) == len((chart or {}).get("labels") or []))
-    results["chart_counted_total"] = (chart or {}).get("totals", {}).get("counted")
-    results["chart_difference_total"] = (chart or {}).get("totals", {}).get("difference")
-    ok, _ = as_user(SHOP, inventory_api.api_stock_count_chart, name=import_task)
-    results["chart_shop_allowed"] = ok
+    # 差异看板 = **原生报表**：走框架自己的 run 入口（与页面上点开是同一条路）
+    from frappe.desk import query_report
+
+    ok, report = as_user(STOCK, query_report.run, report_name=REPORT,
+                         filters={"count": task, "only": "differences"})
+    results["report_ok"] = ok
+    results["report_columns"] = len((report or {}).get("columns") or [])
+    report_rows = (report or {}).get("result") or []
+    results["report_rows"] = len(report_rows)
+    results["report_first_place"] = report_rows[0].get("location") if report_rows else None
+    results["report_first_difference"] = (
+        float(report_rows[0].get("difference") or 0) if report_rows else None)
+    results["report_has_value_column"] = any(
+        column["fieldname"] == "difference_value"
+        for column in (report or {}).get("columns") or [])
+    ok, shop_report = as_user(SHOP, query_report.run, report_name=REPORT,
+                              filters={"count": task})
+    results["report_shop_allowed"] = ok
+    results["report_shop_has_value_column"] = (
+        any(column["fieldname"] == "difference_value"
+            for column in (shop_report or {}).get("columns") or []) if ok else None)
+    ok, all_rows = as_user(STOCK, query_report.run, report_name=REPORT,
+                           filters={"count": task})
+    results["report_all_rows_match"] = bool(
+        ok and len((all_rows or {}).get("result") or [])
+        == int(frappe.db.get_value("ERP Stock Count", task, "item_total") or 0))
 
     # 结束盘点：锁记录；没数过的行仍为空
     ok, closed = as_user(STOCK, counts.close_count, task)
@@ -452,29 +480,34 @@ def main():
         "import_task_ok": True,
         "import_task_rows": 0,
         "import_ok": True,
-        "import_rows": 2,
-        "import_counted": 1,
+        "import_rows": 3,
+        "import_counted": 2,
+        "import_rows_per_place": 2,
+        "import_places": [("A1", 10.0), ("B2", 2.0)],
+        "import_entry_place": "A1",
         "import_problems": 0,
         "import_book_from_sheet": 10.0,
         "import_counted_qty": 8.0,
         "import_entry_source": "Import",
-        "import_again_rows": 2,
-        "import_entries_total": 1,
+        "import_again_rows": 3,
+        "import_entries_total": 2,
         "import_after_change": 9.0,
         "import_mixed_rows": 1,
         "import_mixed_problems": ["code_not_found"],
         "template_ok": True,
-        "template_round_trip": 2,
+        "template_round_trip": 3,
         "template_parse_problems": 0,
         "template_book_kept": 10.0,
         "template_blank_ok": True,
         "template_blank_matches_balances": True,
-        "chart_ok": True,
-        "chart_labels": 2,
-        "chart_series_match": True,
-        "chart_counted_total": 2,
-        "chart_difference_total": -2.0,
-        "chart_shop_allowed": False,
+        "report_ok": True,
+        "report_columns": 13,
+        "report_rows": 2,
+        "report_first_place": "",
+        "report_first_difference": -6.0,
+        "report_has_value_column": True,
+        "report_shop_allowed": False,
+        "report_all_rows_match": True,
         "close_ok": True,
         "status_after_close": "Closed",
         "entry_after_close_allowed": False,

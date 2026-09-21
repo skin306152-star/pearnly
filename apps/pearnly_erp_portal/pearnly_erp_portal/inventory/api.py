@@ -381,12 +381,6 @@ def api_stock_count_import(**kwargs):
     imported = counts.apply_import(count=name, rows=rows)
     return {**imported, "problems": imported["problems"] + problems}
 
-
-@frappe.whitelist()
-def api_stock_count_chart(**kwargs):
-    return counts.count_chart(name=_clean(kwargs).get("name"))
-
-
 def _stock_rows(file_url) -> tuple:
     """上传的原生文件（`File` 记录）按 URL 读回内容，再交给纯解析层。"""
     url = str(file_url or "").strip()

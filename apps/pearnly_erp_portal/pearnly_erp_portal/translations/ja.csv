@@ -5,6 +5,7 @@ Bind this account first,先に ERP アカウントを連携してください
 Bound to {0},{0} に連携しました
 Could not store this document,書類を保存できませんでした。再送してください
 Draft not found,下書きが見つかりません
+ERP Stock Count Variance,棚卸差異ボード
 LINE unbound,LINE の連携を解除しました
 Now sending {0} documents,{0}の書類を送信中
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
@@ -93,6 +94,10 @@ stock.action.export,エクスポート
 stock.action.onlyLow,在庫少・在庫切れのみ
 stock.action.reload,再読み込み
 stock.action.toggleZero,在庫 0 も表示
+stock.board.by,グラフの軸
+stock.board.only,表示のみ
+stock.board.shelf,棚番
+stock.board.title,棚卸差異ボード
 stock.cell.notSet,未設定
 stock.col.barcode,バーコード
 stock.col.code,コード
@@ -125,6 +130,7 @@ stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
+stock.count.differenceValue,差異金額
 stock.count.entries,記録
 stock.count.entriesTitle,記録 — {0}
 stock.count.entryLive,合計に含む

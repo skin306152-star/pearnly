@@ -13,7 +13,6 @@
 		const api = "pearnly_erp_portal.inventory.api.";
 		const item_filters = ["all", "uncounted", "differences"];
 		let list;
-		let chart;
 		let count = null; // 打开的是哪一份盘点（null = 列表态）
 		let item_filter = "all";
 		let mode = "list";
@@ -34,9 +33,6 @@
 		function clear() {
 			list?.destroy();
 			list = null;
-			chart?.destroy();
-			chart = null;
-			page.main.find(".pearnly-stock-chart").remove();
 			page.clear_inner_toolbar();
 			page.clear_primary_action();
 		}
@@ -248,12 +244,16 @@
 				window.open(frappe.utils.get_url(
 					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
 			});
+			// 差异看板是**原生报表**（`/desk/query-report/...`）：筛选、图表、导出都用
+			// 框架自带的那一套，不用在页面里自绘一块。按这份盘点预筛好再打开。
+			page.add_inner_button(t("stock.board.title"), () => {
+				frappe.set_route("query-report", "ERP Stock Count Variance", { count: name });
+			});
 			if (editable) {
 				page.add_inner_button(t("stock.count.import"), () => open_import(name));
 				page.add_inner_button(t("stock.count.close"), () => close_count(task));
 				page.add_inner_button(t("stock.count.post"), () => post_count(task));
 			}
-			void draw_chart(name);
 			const search = page.add_field({
 				fieldtype: "Data",
 				fieldname: "search",
@@ -312,6 +312,9 @@
 						width: 120, min_width: 90 },
 					{ fieldname: "warehouse", label: t("stock.col.warehouse"),
 						width: 100, min_width: 80 },
+					{ fieldname: "location", label: t("stock.count.location"),
+						width: 80, min_width: 60,
+						format: (value) => value || t("stock.count.blank") },
 					{ fieldname: "unit", label: t("stock.col.unit"),
 						width: 70, min_width: 55 },
 					{ fieldname: "book_qty", label: t("stock.count.book"),
@@ -334,38 +337,6 @@
 			);
 			set_breadcrumb(task);
 			void list.ready;
-		}
-
-		// 差异看板：这份盘点里"账面 vs 实盘"的条形，取差异最大的那几行（全量数拉不开看）。
-		// 图表用框架自带的 frappe-charts，配色取产品自己的强调色令牌，不自绘。
-		async function draw_chart(name) {
-			const data = await p.call(api + "api_stock_count_chart", { name });
-			if (mode !== "detail" || count !== name) return;
-			const totals = data.totals || {};
-			const card = $('<div class="pearnly-stock-chart"></div>').prependTo(page.main);
-			card.append($("<div class='text-muted'></div>").text(
-				t("stock.count.chartTotals", qty(totals.book), qty(totals.counted_qty),
-					qty(totals.difference))));
-			const holder = $('<div class="pearnly-stock-chart-body"></div>').appendTo(card);
-			if (!data.labels.length) {
-				holder.append($("<div class='text-muted'></div>").text(t("stock.count.chartEmpty")));
-				return;
-			}
-			const accent = getComputedStyle(document.documentElement)
-				.getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
-			chart = new frappe.Chart(holder[0], {
-				type: "bar",
-				height: 200,
-				colors: ["#a3a3a3", accent],
-				data: {
-					labels: data.labels,
-					datasets: [
-						{ name: t("stock.count.book"), values: data.book },
-						{ name: t("stock.count.counted"), values: data.counted },
-					],
-				},
-				axisOptions: { shortenYAxisNumbers: 1 },
-			});
 		}
 
 		// 往这份盘点里传表：同一份表重复上传是覆盖那一行，不是又记一笔。
@@ -423,11 +394,11 @@
 				t("stock.count.addEntryTitle", row.product_name),
 				[
 					{ fieldtype: "HTML",
-						options: `<p class="text-muted">${p.escape(t("stock.count.addEntryHint",
-							qty(row.book_qty), row.unit || ""))}</p>` },
+						options: `<p class="text-muted">${p.escape(
+							t("stock.count.addEntryHint", p.number(row.book_qty), row.unit || "")
+							+ (row.location ? " · " + row.location : ""))}</p>` },
 					{ fieldtype: "Float", fieldname: "qty", label: t("stock.count.qty"), reqd: 1,
 						precision: 3 },
-					{ fieldtype: "Data", fieldname: "location", label: t("stock.count.location") },
 					{ fieldtype: "Small Text", fieldname: "note", label: t("stock.count.note") },
 				],
 				t("stock.count.addEntry"),
@@ -436,7 +407,6 @@
 						count: count,
 						item: row.name,
 						qty: values.qty,
-						location: values.location || undefined,
 						note: values.note || undefined,
 					}, "POST");
 					d.hide();

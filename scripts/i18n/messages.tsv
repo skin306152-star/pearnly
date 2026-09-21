@@ -1248,3 +1248,9 @@ pearnly_erp_portal	Nothing counted yet	还没有盘点记录	ยังไม่�
 pearnly_erp_portal	Delete selected ({0})	删除所选（{0}）	ลบที่เลือก ({0})	選択を削除（{0}）	stock.count.deleteSelected
 pearnly_erp_portal	Delete {0} stock counts? Posted ones cannot be deleted.	删除选中的 {0} 份盘点？已过账的删不掉。	ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้	選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。	stock.count.deleteConfirm
 pearnly_erp_portal	Deleted {0} stock counts	已删除 {0} 份盘点	ลบการตรวจนับแล้ว {0} รายการ	棚卸を {0} 件削除しました	stock.count.deleted
+pearnly_erp_portal	Difference value	差异金额	มูลค่าผลต่าง	差異金額	stock.count.differenceValue
+pearnly_erp_portal	Show only	只看	แสดงเฉพาะ	表示のみ	stock.board.only
+pearnly_erp_portal	Chart by	看板按	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
+pearnly_erp_portal	Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
+pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	stock.board.title
+pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	

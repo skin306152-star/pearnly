@@ -66,15 +66,3 @@
 		transform: none;
 	}
 }
-
-/* 盘点差异看板：放在明细列表上方的一条，图表本身由 frappe-charts 画。
-   只给间距，不改任何原生控件的外观。 */
-.pearnly-stock-chart {
-	padding: 10px 15px 4px;
-	background: var(--card-bg, #fff);
-	border-bottom: 1px solid var(--border-color, #e5e5e5);
-}
-
-.pearnly-stock-chart-body {
-	margin-top: 8px;
-}

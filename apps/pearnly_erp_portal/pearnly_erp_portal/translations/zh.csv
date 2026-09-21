@@ -5,6 +5,7 @@ Bind this account first,请先绑定 ERP 账号
 Bound to {0},已绑定到 {0}
 Could not store this document,单据留底失败，请重发
 Draft not found,找不到这条草稿
+ERP Stock Count Variance,盘点差异看板
 LINE unbound,LINE 已解绑
 Now sending {0} documents,现在发送{0}单据
 Only purchase documents can be sent in for now,目前只收采购单据
@@ -93,6 +94,10 @@ stock.action.export,导出
 stock.action.onlyLow,只看低库存或缺货
 stock.action.reload,刷新
 stock.action.toggleZero,显示零库存
+stock.board.by,看板按
+stock.board.only,只看
+stock.board.shelf,库位
+stock.board.title,盘点差异看板
 stock.cell.notSet,未设
 stock.col.barcode,条码
 stock.col.code,编码
@@ -125,6 +130,7 @@ stock.count.deleteSelected,删除所选（{0}）
 stock.count.deleted,已删除 {0} 份盘点
 stock.count.difference,差异
 stock.count.differenceRows,有差异
+stock.count.differenceValue,差异金额
 stock.count.entries,记录
 stock.count.entriesTitle,记录 — {0}
 stock.count.entryLive,计入合计

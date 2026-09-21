@@ -5,6 +5,7 @@ Bind this account first,กรุณาผูกบัญชี ERP ก่อน
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Draft not found,ไม่พบรายการร่าง
+ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
 Now sending {0} documents,กำลังส่งเอกสาร{0}
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
@@ -93,6 +94,10 @@ stock.action.export,ส่งออก
 stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
 stock.action.reload,โหลดใหม่
 stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
+stock.board.by,แผนภูมิแบ่งตาม
+stock.board.only,แสดงเฉพาะ
+stock.board.shelf,ตำแหน่ง
+stock.board.title,กระดานผลต่างการตรวจนับ
 stock.cell.notSet,ยังไม่ตั้ง
 stock.col.barcode,บาร์โค้ด
 stock.col.code,รหัส
@@ -125,6 +130,7 @@ stock.count.deleteSelected,ลบที่เลือก ({0})
 stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
 stock.count.difference,ผลต่าง
 stock.count.differenceRows,มีผลต่าง
+stock.count.differenceValue,มูลค่าผลต่าง
 stock.count.entries,รายการ
 stock.count.entriesTitle,รายการ — {0}
 stock.count.entryLive,นับรวมแล้ว

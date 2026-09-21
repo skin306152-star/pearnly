@@ -59,7 +59,7 @@
           const text = texts[key] || key;
           return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
         };
-        let csrf = '', ticket = '', task = null, camera = null;
+        let csrf = '', ticket = '', task = null, camera = null, last = null;
 
         function say(message, bad) {
           toast.textContent = message;
@@ -200,6 +200,7 @@
 
         function render(result) {
           const item = result && result.item;
+          const rows = (result && result.rows) || (item ? [item] : []);
           const entries = (result && result.entries) || [];
           app.innerHTML = ''
             + '<div class="card"><div class="row" style="justify-content:space-between">'
@@ -213,7 +214,7 @@
             + esc(t('stock.mobile.codePlaceholder')) + '">'
             + '<button id="find">' + esc(t('stock.mobile.find')) + '</button></div>'
             + '<div id="error" class="error"></div></div>'
-            + (item ? entryForm(item) : '')
+            + (item ? entryForm(item, rows) : '')
             + (entries.length ? entriesCard(entries) : '');
           document.getElementById('back').onclick = () => { task = null; boot(); };
           document.getElementById('scan').onclick = () => startCamera((code) => lookup(code));
@@ -221,7 +222,7 @@
             const code = document.getElementById('code').value.trim();
             if (code) lookup(code);
           };
-          if (item) bindForm(item);
+          if (item) bindForm(item, rows);
           app.querySelectorAll('[data-undo]').forEach((button) => {
             button.onclick = async () => {
               await call('api_line_stocktake_undo', { entry: button.dataset.undo }, true);
@@ -231,18 +232,27 @@
           });
         }
 
-        function entryForm(item) {
+        function entryForm(item, rows) {
+          // 行是「商品 × 仓库 × 库位」：分几个货架就有几行，员工挑一行来数（库位跟着行走）。
+          const picker = rows.length > 1
+            ? '<div class="row"><div style="flex:1"><label>'
+              + esc(t('stock.count.location')) + '</label><select id="place">'
+              + rows.map((row, index) => '<option value="' + index + '"'
+                + (row.name === item.name ? ' selected' : '') + '>'
+                + esc((row.location || '—') + ' · ' + number(row.book_qty)) + '</option>').join('')
+              + '</select></div></div>'
+            : '';
           return '<div class="card"><div class="row" style="justify-content:space-between">'
             + '<b>' + esc(item.product_name) + '</b><span class="muted">'
-            + esc((item.code || '') + ' · ' + (item.unit || '')) + '</span></div>'
+            + esc((item.code || '') + ' · ' + (item.unit || '')
+              + (item.location ? ' · ' + item.location : '')) + '</span></div>'
+            + picker
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.book')) + '</label>'
             + '<div class="big">' + esc(number(item.book_qty)) + '</div></div>'
             + '<div style="flex:1"><label>' + esc(t('stock.count.counted')) + '</label>'
             + '<div class="big">' + esc(item.counted ? number(item.counted_qty) : '—') + '</div></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.qty'))
-            + '</label><input id="qty" inputmode="decimal"></div>'
-            + '<div style="flex:1"><label>' + esc(t('stock.count.location')) + '</label>'
-            + '<input id="location"></div></div>'
+            + '</label><input id="qty" inputmode="decimal"></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.note'))
             + '</label><input id="note"></div></div>'
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.photos'))
@@ -270,6 +280,7 @@
           try {
             const result = await call('api_line_stocktake_lookup', { name: task.name, code: code });
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
+            last = result;
             render(result);
             const code_input = document.getElementById('code');
             if (code_input) code_input.value = code;
@@ -278,7 +289,12 @@
           }
         }
 
-        function bindForm(item) {
+        function bindForm(item, rows) {
+          const place = document.getElementById('place');
+          if (place) place.onchange = () => {
+            last = Object.assign({}, last, {item: rows[Number(place.value)], rows: rows});
+            render(last);
+          };
           document.getElementById('save').onclick = async () => {
             const qty = document.getElementById('qty').value.trim();
             if (!qty) { say(t('stock.count.qty'), true); return; }
@@ -292,7 +308,6 @@
                 name: task.name,
                 item: item.name,
                 qty: qty,
-                location: document.getElementById('location').value.trim() || undefined,
                 note: document.getElementById('note').value.trim() || undefined,
                 request_id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
                 photos: photos,

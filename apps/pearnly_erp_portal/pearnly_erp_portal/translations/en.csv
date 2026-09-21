@@ -5,6 +5,7 @@ Bind this account first,Bind this account first
 Bound to {0},Bound to {0}
 Could not store this document,Could not store this document
 Draft not found,Draft not found
+ERP Stock Count Variance,ERP Stock Count Variance
 LINE unbound,LINE unbound
 Now sending {0} documents,Now sending {0} documents
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
@@ -93,6 +94,10 @@ stock.action.export,Export
 stock.action.onlyLow,Only low or out of stock
 stock.action.reload,Reload
 stock.action.toggleZero,Show zero stock
+stock.board.by,Chart by
+stock.board.only,Show only
+stock.board.shelf,Shelf
+stock.board.title,ERP Stock Count Variance
 stock.cell.notSet,Not set
 stock.col.barcode,Barcode
 stock.col.code,Code
@@ -125,6 +130,7 @@ stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
+stock.count.differenceValue,Difference value
 stock.count.entries,Entries
 stock.count.entriesTitle,Entries — {0}
 stock.count.entryLive,Counted in total

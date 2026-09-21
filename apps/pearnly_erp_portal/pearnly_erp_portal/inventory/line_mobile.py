@@ -128,21 +128,34 @@ def api_line_stocktake_task(ticket=None, name=None, **kwargs):
 
 @frappe.whitelist(allow_guest=True)
 def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
-    """扫到的码 → 这个商品在这一份盘点里的行（含实盘合计与最近几条记录）。"""
+    """扫到的码 → 这个商品在这一份盘点里的**所有行**（一个货架一行）。
+
+    手机端要拿这份清单让员工挑仓位：挑哪一行，那一发就记在那一行上。
+    快照里完全没有这个商品时才登记一行（账面取当前结存，库位留空）——
+    只是登记，不写实盘（写 0 会被当成"数出来是 0"）。
+    """
     as_ticket_user(ticket)
     found = counts.product_of_code(code)
     if not found:
         return {}
-    # 快照里没有就把这一行登记进来（只是登记，不写实盘；写 0 会被当成"数出来是 0"）。
-    row = counts.item_of_product(count=name, product=found["name"]) or counts.ensure_item(
-        count=name, code=code)
-    return {"item": row, "entries": counts.list_entries(count=name, item=row["name"], limit=5)}
+    rows = counts.rows_of_product(count=name, product=found["name"])
+    if not rows:
+        registered = counts.ensure_item(count=name, code=code)
+        rows = counts.rows_of_product(count=name, product=found["name"]) or [registered]
+    if not rows:
+        return {}
+    chosen = rows[0]
+    return {"item": chosen, "rows": rows,
+            "entries": counts.list_entries(count=name, item=chosen["name"], limit=5)}
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=None, location=None,
                            note=None, request_id=None, photos=None, **kwargs):
-    """记一笔。手机端每一发都带 `request_id`：重试不会记两笔。"""
+    """记一笔。手机端每一发都带 `request_id`：重试不会记两笔。
+
+    `item` 是员工挑的那一行（商品 × 仓库 × 库位）；只给码时按 `location` 找行。
+    """
     as_ticket_user(ticket)
     if isinstance(photos, str):
         photos = frappe.parse_json(photos)
