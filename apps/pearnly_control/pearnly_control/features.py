@@ -68,6 +68,11 @@ CATALOG = {
          "description": "Sales documents and customer dealings"},
         {"code": "clients", "label": "Customers", "default_on": True,
          "description": "Customer master data"},
+        # 用户 2026-09-21 定：收银含在 ERP 里，不作为单独购买的功能。
+        # 开通不分功能模版（选了产品就把该产品功能全开），所以列进目录即等于送给
+        # 每个 ERP 租户；租户管理员会拿到这个角色，团队管理里也就勾得到「收银员」。
+        {"code": "cashier", "label": "Cashier (POS)", "default_on": True,
+         "description": "Cashier counter, shifts and the cashier's own sales"},
         {"code": "erp_push", "label": "External ERP Push", "default_on": False,
          "description": "Push to the external ERP; the push log is the only source of status"},
     ],
@@ -100,6 +105,10 @@ FEATURE = "Pearnly Feature"
 ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
     ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line"]),
+    # 收银的 POS 表还没落地（第六批），但岗位角色要现在就存在，否则团队管理里
+    # 勾不到「收银员」。空 DocType 列表 = 只建角色、暂不授权；表到位后按同一份
+    # 目录补 DocType 即可。
+    ("erp", "cashier"): ("ERP Cashier", []),
     ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
     ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
     ("dms", "roster"): ("DMS Operator", ["DMS Operator"]),
@@ -181,7 +190,8 @@ def roles_payload(product: str, codes: list[str]) -> dict:
     roles = []
     for code in codes or []:
         role, doctypes = enforcement_of(product, code)
-        if role and doctypes:
+        # 有角色就进 payload：即使暂时没有可挡的表，角色也要建出来（岗位先于表存在）。
+        if role:
             entry = {"role": role, "doctypes": doctypes, "feature": code}
             overrides = {}
             for doctype in doctypes:

@@ -14,6 +14,7 @@ MANIFEST = {
         "purchase",        # 采购记录、供应商、采购设置
         "sales",           # 销售系统
         "clients",         # 客户名录
+        "cashier",         # 收银台与交接班（用户 2026-09-21 定：含在 ERP，不单独购买）
         "erp_push",        # 对外 ERP 推送（状态以 erp_push_logs 为唯一来源）
     ],
     "modules": ["sales", "expense", "inventory", "receivable"],

@@ -147,6 +147,20 @@ User 访问面，而且另一个窗口正在改 Cowork，改动面太大且需�
 - 导航投影（`pearnly_core.desk.navigation.visible_pages("erp")`）：老板与员工都能看到 `pearnly-purchase`，无岗位账号只有 `pearnly-home` —— 「按权限分配、进去只看得到的入口」在导航层成立。
 - 未验（明确留白）：停用后的**会话级**拦截属于框架登录闸，进程内 `set_user` 不走登录检查，本批不用它冒充已验证，留到有 HTTP 服务的批次。收银台与交接班的页面本身在第六批。
 
+### 收银含在 ERP（用户 2026-09-21 定）
+
+结论：收银不作为单独购买的功能，含在 ERP 里。依据是控制面既有约定「开通不分功能模版，选了产品就把该产品功能全开」（`features.codes_of`），所以列进 ERP 目录即等于送给每个 ERP 租户。
+
+改动：
+
+- `pearnly_control/features.py`：ERP 目录加 `cashier`（`default_on: True`）；`ENFORCEMENT` 加 `("erp","cashier"): ("ERP Cashier", [])`；`roles_payload` 改为**有角色就进 payload**（原来要求 `doctypes` 非空，会把"岗位先于表存在"的情况整条丢掉）。
+- `pearnly_core/provisioning.py`：`ensure_feature_roles` 也创建没有可挡表的岗位角色，否则团队管理勾不到「收银员」。
+- `pearnly_erp_portal/product_manifest.py`：features 补 `cashier`，与目录互为镜像。
+
+刻意保留的边界：收银角色现在**只有岗位、没有可挡的表**（POS 表在第六批）。它不会因此多给任何数据访问权限——角色本身不授权，等 POS 表落地再按同一份目录补 DocType。
+
+验证（实验室直接用控制面自己发布的清单开通，脚本里不另抄角色表）：控制面发出的角色为 `[ERP Cashier, ERP Purchase]`；站点上 `ERP Cashier` 角色已建；可发放岗位为 `[ERP Purchase, ERP Cashier]`；老板开通后自动带上 `ERP Cashier`（这是"老板自己也能收银"的依据）；老板能把「收银员」发给员工且成功落岗位。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
@@ -163,6 +177,7 @@ User 访问面，而且另一个窗口正在改 Cowork，改动面太大且需�
 | 2026-09-21 19:2x +07 | 未提交（第三批改动） | 主机 Python，无 Site | `python3 tests/test_erp_portal_access.py` | 12 项通过 / 实际 12 项通过 / 0 | 岗位目录与团队能力规则 |
 | 2026-09-21 19:2x +07 | 同上 | 实验室站点 A，合成账号 | `erp-pos-lab-team-verify.py` | 期望 `problems` 为空 / 实际为空 / 0 | 见「第三批验证」 |
 | 2026-09-21 19:2x +07 | 同上 | 本仓 | 架构检查、`check-i18n --strict`、前端 i18n | 架构 0 违规、i18n 不新增 / 实际 0 违规、仍 95 条、前端 0 条 / 0 | — |
+| 2026-09-21 19:5x +07 | 未提交（收银含 ERP） | 实验室站点 A，用控制面发布的清单开通 | `erp-pos-lab-team-verify.py` | 期望 `problems` 为空、可发放岗位含收银员 / 实际为空、`[ERP Purchase, ERP Cashier]` / 0 | 岗位先于表存在也建得出来 |
 
 探针实际输出（合成数据，非生产）：老板账号建单成功（`PUR-2026-00001`）；收银员账号角色仅 `All/Desk User/Guest`，`has_permission("Purchase Document","read")` 为 `false`，**但 `api_list_purchases` 仍返回 1 行完整采购单**。原因是接口只校验“已登录”，列表走 `frappe.get_all` 而不做权限过滤。另一站点 `erp-pos-b.localhost` 采购单行数为 0，看不到 A 站的单据，租户隔离在结构上成立。
 
@@ -189,5 +204,5 @@ User 访问面，而且另一个窗口正在改 Cowork，改动面太大且需�
 - 自审 / 独立审查：本批为只读核对与记录，未做独立审查。
 - 剩余问题 / 阻塞原因：仅 `purchase` 一个功能接入了能力判据，其余功能的表与接口尚未纳入；团队管理目前只有服务端，页面待第三批 B；收银台与交接班的页面在第六批；停用账号的会话级拦截未验；旧线上运行开关与后台任务未核对。
 - 开通改动：去掉自动安装 ERPNext 已完成并在本地复验；未部署，正式环境尚未执行。
-- 待确认：`ERP Cashier` 算 ERP 已含岗位还是单独购买的功能码。这决定开通时会不会建这个角色，也决定团队管理页面上能否勾到"收银员"。建议单独购买，避免把没买的收银能力顺带发出去。
+- 已定（用户 2026-09-21）：收银含在 ERP，不作为单独购买的功能；见上「收银含在 ERP」。
 - 下一步：第三批 B（团队管理页面 + 公司主档与客户两个独立页面），随后第四至第七批。

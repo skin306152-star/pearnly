@@ -239,6 +239,13 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
         if frappe.db.exists("DocType", doctype):
             _grant(doctype, role_name, perms)
 
+    # 岗位可以先于"可挡的表"存在：收银的 POS 表还没落地，但角色要在开通时就建出来，
+    # 否则团队管理里勾不到这个岗位。等表到位，按同一份目录补 DocType 授权即可。
+    for row in feature_roles:
+        if row.get("role") and not (row.get("doctypes") or []):
+            _ensure_role(row["role"])
+            created_roles.append(row["role"])
+
     from pearnly_core.desk.permissions import restrict_platform_permissions
     restrict_platform_permissions()
 
