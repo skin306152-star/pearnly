@@ -7,6 +7,7 @@ database, network client, startup code, or runtime adapter.
 
 import argparse
 import ast
+import dataclasses
 import hashlib
 import json
 import random
@@ -20,6 +21,8 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_cowork.reconciliation import fields
 from pearnly_cowork.reconciliation import bank_statement as statement
+from pearnly_cowork.reconciliation import bank_matching as matching
+from pearnly_cowork.reconciliation import bank_scoring as scoring
 from pearnly_cowork.reconciliation.amounts import invoice_total, report_total, within_tolerance
 from pearnly_cowork.reconciliation.matching import match_rows, pair_by_invoice_number
 from pearnly_cowork.stocktake import contracts
@@ -33,6 +36,8 @@ HASHES = {
 	"services/recon/bank_recon_types.py": "df0508cccb9891a5ea628cbce104ee09001b976ade15afd4d599c5d766de149e",
 	"services/recon/bank_table_io.py": "19b9161eb5a96f8244efba97b215b50710365ba97f1bd93f8ce04ccd302f190e",
 	"services/recon/bank_recon_utils.py": "35b143f7cfc115fc497397902026c463cdc7a589da70ea690d85f35b4f016745",
+	"services/recon/bank_recon_reconcile.py": "8b1da4e4c5879bdcd79ef8225787b3b05bb3ec758535696f1b3c1c1c2349f153",
+	"services/recon/bank_recon_scoring.py": "9738f080c874b59c7d3739db4fa9048b8742295a605f9875b38d23a36424133b",
 }
 
 
@@ -214,6 +219,141 @@ def verify_balance_chain(root, namespace):
 	return counts
 
 
+def describe_dataclass(value):
+	"""Every declared field in declaration order, so a new column cannot hide."""
+	return tuple((field.name, getattr(value, field.name)) for field in dataclasses.fields(value))
+
+
+def verify_bank_matching(root, namespace):
+	"""Differential check of the migrated matching core and candidate scoring."""
+	definitions(root, "services/recon/bank_recon_types.py", set(), namespace,
+		classes={"StatementRow", "GlRow", "BankReconRow", "BankReconSummary"})
+	definitions(root, "services/recon/bank_recon_utils.py", {"_day_diff", "_amount_matches"},
+		namespace, assignments={"AMOUNT_TOL", "DATE_TOL_DAYS"})
+	definitions(root, "services/recon/bank_recon_reconcile.py", {"reconcile"}, namespace)
+	definitions(root, "services/recon/bank_recon_scoring.py", {
+		"score_amount", "score_date", "score_direction", "score_keyword", "match_one_tx",
+	}, namespace, assignments={"_W_AMOUNT", "_W_DATE", "_W_DIRECTION", "_W_KEYWORD",
+		"THRESH_AUTO", "THRESH_SUGGEST", "AMOUNT_TOL_EQUAL", "AMOUNT_TOL_SMALL",
+		"AMOUNT_TOL_MEDIUM"})
+	constants = {
+		"DATE_TOL_DAYS": (namespace["DATE_TOL_DAYS"], matching.DATE_TOL_DAYS),
+		"AMOUNT_TOL": (namespace["AMOUNT_TOL"], statement.AMOUNT_TOL),
+		"_W_AMOUNT": (namespace["_W_AMOUNT"], scoring.WEIGHT_AMOUNT),
+		"_W_DATE": (namespace["_W_DATE"], scoring.WEIGHT_DATE),
+		"_W_DIRECTION": (namespace["_W_DIRECTION"], scoring.WEIGHT_DIRECTION),
+		"_W_KEYWORD": (namespace["_W_KEYWORD"], scoring.WEIGHT_KEYWORD),
+		"THRESH_AUTO": (namespace["THRESH_AUTO"], scoring.THRESHOLD_AUTO),
+		"THRESH_SUGGEST": (namespace["THRESH_SUGGEST"], scoring.THRESHOLD_SUGGEST),
+		"AMOUNT_TOL_EQUAL": (namespace["AMOUNT_TOL_EQUAL"], scoring.AMOUNT_TOL_EQUAL),
+		"AMOUNT_TOL_SMALL": (namespace["AMOUNT_TOL_SMALL"], scoring.AMOUNT_TOL_SMALL),
+		"AMOUNT_TOL_MEDIUM": (namespace["AMOUNT_TOL_MEDIUM"], scoring.AMOUNT_TOL_MEDIUM),
+	}
+	for name, (source_value, new_value) in constants.items():
+		if source_value != new_value:
+			raise AssertionError((f"{name} drifted", source_value, new_value))
+
+	dates = [None, date(2026, 6, 1), date(2026, 6, 2), date(2026, 6, 5), date(2026, 6, 9),
+		date(2026, 7, 1)]
+	amounts = [0.0, 50.0, 100.0, 100.01, 250.5, 1000.0]
+	local_rng = random.Random(20260925)
+	counts = {"matching_batches": 0, "layer1": 0, "layer2": 0, "layer3": 0,
+		"one_sided": 0, "scoring_batches": 0, "scored_candidates": 0}
+	for _ in range(1200):
+		stmt_specs = []
+		for index in range(local_rng.randint(0, 6)):
+			amount = local_rng.choice(amounts)
+			withdrawal = amount if local_rng.random() < 0.5 else 0.0
+			deposit = 0.0 if withdrawal else amount
+			stmt_specs.append({"withdrawal": withdrawal, "deposit": deposit,
+				"when": local_rng.choice(dates), "description": f"s{index}",
+				"confidence": local_rng.choice(["high", "medium", "low"]),
+				"balance_ok": local_rng.choice([True, False, None]),
+				"amount_autocorrected": local_rng.random() < 0.2,
+				"direction_autocorrected": local_rng.random() < 0.2,
+				"source_file": f"stmt{index}.pdf"})
+		gl_specs = []
+		for index in range(local_rng.randint(0, 6)):
+			amount = local_rng.choice(amounts)
+			debit = amount if local_rng.random() < 0.5 else 0.0
+			credit = 0.0 if debit else amount
+			gl_specs.append({"debit": debit, "credit": credit, "when": local_rng.choice(dates),
+				"doc_no": f"GL{index}", "description": f"g{index}", "source_file": f"gl{index}.xlsx"})
+		openings = {}
+		for name in ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing"):
+			openings[name] = local_rng.choice([0.0, 1000.0, 50000.5])
+
+		def build_statement_rows(cls):
+			rows = []
+			for index, spec in enumerate(stmt_specs):
+				item = cls(spec["when"], spec["description"], spec["withdrawal"], spec["deposit"],
+					round(spec["deposit"] - spec["withdrawal"], 2))
+				item.confidence = spec["confidence"]
+				item.balance_ok = spec["balance_ok"]
+				item.amount_autocorrected = spec["amount_autocorrected"]
+				item.direction_autocorrected = spec["direction_autocorrected"]
+				item.source_file = spec["source_file"]
+				rows.append(item)
+			return rows
+
+		def build_gl_rows(cls):
+			return [cls(spec["when"], spec["doc_no"], "1000", spec["description"], spec["debit"],
+				spec["credit"], spec["source_file"], round(spec["debit"] - spec["credit"], 2))
+				for spec in gl_specs]
+
+		old_rows, old_summary = namespace["reconcile"](build_statement_rows(namespace["StatementRow"]),
+			build_gl_rows(namespace["GlRow"]), **openings, bank_code="BBL", gl_account_code="1000")
+		new_rows, new_summary = matching.reconcile(build_statement_rows(statement.StatementRow),
+			build_gl_rows(matching.GlRow), **openings, bank_code="BBL", gl_account_code="1000")
+		if [describe_dataclass(item) for item in old_rows] != [describe_dataclass(item)
+				for item in new_rows]:
+			raise AssertionError(("reconcile rows drifted", stmt_specs, gl_specs))
+		if describe_dataclass(old_summary) != describe_dataclass(new_summary):
+			raise AssertionError(("reconcile summary drifted", stmt_specs, gl_specs, openings))
+		counts["matching_batches"] += 1
+		for item in new_rows:
+			if item.match_layer == 1:
+				counts["layer1"] += 1
+			elif item.match_layer == 2:
+				counts["layer2"] += 1
+			elif item.match_layer == 3:
+				counts["layer3"] += 1
+			else:
+				counts["one_sided"] += 1
+
+		bank_tx = {"amount": local_rng.choice(amounts), "tx_date": local_rng.choice(["2026-06-01", "bad", None]),
+			"direction": local_rng.choice(["IN", "OUT", "", None]),
+			"description": local_rng.choice(["payment ACME INV-77", "", "โอนให้ บริษัท ไทย"])}
+		candidates = [{"id": f"c{index}", "amount_total": local_rng.choice(amounts),
+			"total": local_rng.choice(amounts),
+			"invoice_date": local_rng.choice(["2026-06-01", "2026-06-02", "2026-06-09", None, "bad"]),
+			"category_tag": local_rng.choice(["sale", "purchase", "ค่าใช้จ่าย", None, "费用"]),
+			"vendor": local_rng.choice(["ACME Trading", "AC", "บริษัท ไทย", None]),
+			"invoice_no": local_rng.choice(["INV-77", "inv-1", None])}
+			for index in range(local_rng.randint(0, 8))]
+		old_ranked = namespace["match_one_tx"](bank_tx, candidates)
+		new_ranked = scoring.match_one_tx(bank_tx, candidates)
+		if json.dumps(old_ranked, sort_keys=True) != json.dumps(new_ranked, sort_keys=True):
+			raise AssertionError(("match_one_tx drifted", bank_tx, candidates, old_ranked, new_ranked))
+		counts["scoring_batches"] += 1
+		counts["scored_candidates"] += len(new_ranked)
+		for name, arguments in (
+				("score_amount", (bank_tx["amount"], candidates[0]["amount_total"] if candidates else 0)),
+				("score_date", (bank_tx["tx_date"], candidates[0]["invoice_date"]) if candidates else (None, None)),
+				("score_direction", (bank_tx["direction"] or "", candidates[0] if candidates else {})),
+				("score_keyword", (bank_tx["description"] or "", candidates[0] if candidates else {}))):
+			old_value = namespace[name](*arguments)
+			new_value = getattr(scoring, name)(*arguments)
+			if repr(old_value) != repr(new_value):
+				raise AssertionError((f"{name} drifted", arguments, old_value, new_value))
+	for name, minimum, message in (("layer1", 100, "layer-one match"), ("layer2", 40, "layer-two match"),
+			("layer3", 10, "layer-three match"), ("one_sided", 300, "one-sided finding"),
+			("scored_candidates", 300, "scored candidate")):
+		if counts[name] < minimum:
+			raise AssertionError((f"{message} barely exercised", counts[name]))
+	return counts
+
+
 class self_expect:
 	"""Minimal context manager mirroring assertRaises for this script."""
 
@@ -356,6 +496,7 @@ def verify(root):
 	if pass_two_cases < 100:
 		raise AssertionError(("second pass barely exercised", pass_two_cases))
 	balance = verify_balance_chain(root, namespace)
+	bank = verify_bank_matching(root, namespace)
 	# Investigation only: no Decimal amount matcher is installed in product code.
 	decimal_investigations = [
 		("2.675", "2.68", False, True), ("-2.675", "-2.68", False, True),
@@ -378,14 +519,17 @@ def verify(root):
 		print(json.dumps({"input": [left, right], "source_match": old_match, "decimal_match": decimal_match}))
 	print(json.dumps({"amount_cases": amount_cases, "field_cases": field_cases,
 		"all_field_cases": all_field_cases, "match_cases": match_cases,
-		"source_pass2_pairs": pass_two_cases, **balance}))
+		"source_pass2_pairs": pass_two_cases, **balance, **bank}))
 	print("PASS: 4020 source quantity cases; 1000 source first-pass batches; "
 		f"{amount_cases} amount contract cases; {field_cases} compare_field cases; "
 		f"{all_field_cases} compare_all_fields cases; {match_cases} full matcher batches "
 		f"({pass_two_cases} second-pass pairs); {balance['balance_batches']} balance-chain batches "
 		f"({balance['summary_rows_filtered']} footer rows, {balance['direction_corrections']} direction "
 		f"corrections, {balance['amount_repairs']} amount repairs, {balance['audit_issues']} audit "
-		f"issues); 8 amount investigations")
+		f"issues); {bank['matching_batches']} matching batches "
+		f"({bank['layer1']} L1, {bank['layer2']} L2, {bank['layer3']} L3, {bank['one_sided']} one-sided) "
+		f"and {bank['scoring_batches']} scoring batches ({bank['scored_candidates']} candidates); "
+		f"8 amount investigations")
 
 
 if __name__ == "__main__":

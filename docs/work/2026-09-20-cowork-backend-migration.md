@@ -1,5 +1,40 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十批交付）
+
+**本批迁入银行对账的“打分与配对”纯逻辑：流水对 GL 的三层匹配与汇总，以及流水对发票候选的逐字段评分与排名。** 不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `f461b82`（第十九批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_matching.py`（`GlRow`/`BankReconRow`/`BankReconSummary`、`day_diff`/`amount_matches`/`DATE_TOL_DAYS`、三层 `reconcile`）与 `reconciliation/bank_scoring.py`（权重 50/30/15/5、阈值 85/60、四个评分函数与 `match_one_tx`）。
+- **`bank_recon_match.py` 没有迁**：它是发票候选检索与结果落库的 SQL DAL（`db.get_cursor_rls`、`ocr_history` 查询、`save_match_result`），属持久化层；`run_matching_for_session` 同样因直接读写旧库而未迁。这样将来新平台的候选来源与落库方式可以独立设计，不继承旧 DAL。
+- 两处“注释与实现不一致”按部署行为保留：`bank_recon_reconcile` 的 docstring 写 “±3-day”，实际 `DATE_TOL_DAYS` 是 7。差分脚本核对常量而非注释。
+
+### 验证与证据
+
+- 对账用例 **102** 个通过（本批新增 **36** 个）。固定源差分：**1,200** 批随机配对（逐字段比对全部结果行与汇总），实际产生 146 次 L1、235 次 L2、401 次 L3、5,731 条单侧行；**1,200** 批评分（1,046 条入选候选）与四个评分函数逐值比对；11 个常量核对相等。上一批余额链 1,500 批、第十八批 119,037 组金额契约等差分继续通过。架构 **0 违规**，`git diff --check` 通过。
+- 未执行：Site 安装/升级与真实事务、公司与角色权限、真实候选检索与落库、会话编排、真实 XLSX/PDF 解析与模型抽取、导出模板、业务 API、队列、浏览器、LINE 真机、部署、外部结果与用户验收。本机缺 `openpyxl`，未改动模块的盘点导出用例仍未运行。
+
+详见[来源清点、映射与有意保留](cowork-backend/reconciliation-bank-matching.md)和[验证清单](cowork-backend/evidence/twentieth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工 `5bfedbe9344748d66d8c35a68d1b7e1acfece46fbf9744c34e52b1a66f8cd874`（`2026-09-21T11:30:15Z`），交付 `4673e667007971b510d7bbdb5d4f914fee9aa0a7c401b4006be7c326814a3ea3`（`2026-09-21T11:32:33Z`），source 比较 PASS，源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。证据在 `cowork-backend/evidence/baseline-twentieth-{start,delivery}.json`。
+
+**运行投影漂移本批没有复现**：同一批两分钟内首尾比较为 `settings_unchanged: true, observations_changed: false`；但跨批比较（第十九批交付 → 本批开工）仍报 `push_runtime_identity_changed`。这说明端点配置摘要在几分钟量级上间歇变化，本批未把它归因到具体字段，也没有降低采集器校验；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+银行与 GL/VAT 侧的纯计算基本到位，剩下的是受控解析与持久化：XLSX/PDF/文本/模型抽取解析、`bank_stmt_reread` 换眼重读、模型结果缓存、两代任务存储与轮询、`bank_recon_match` 的候选检索与落库、导出与人工复核动作，以及 GL/VAT 汇总。下一包建议先挑不依赖付费模型的持久化切片（新平台原生任务与候选来源），解析器放最后并保持显式授权。仍不接前端、不部署。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批只做只读线上采集与本地离线测试：未启动容器、未建外部资源、未改 Windows、未新增凭据或临时进程，只清理本任务可再生的 `__pycache__`。上一批的 TEST 单据与原生审计数据继续保留。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 仍为停止状态，容器、命名卷与既有 Site 保留供下包；下包开工前核对 context/project/mount/Site 归属。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码与脱敏证据继续作为本任务复核材料；迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第十九批交付）
 
 **本批按“先清点来源、再迁最小共享切片”的顺序，迁入银行流水行契约与余额链纯函数。** 不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
