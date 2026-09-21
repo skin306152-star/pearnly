@@ -71,7 +71,7 @@ def sweep() -> Dict[str, Any]:
             continue
         try:
             frappe.enqueue(
-                "pearnly_dms.masters.warm.refresh",
+                "pearnly_dms.adapter.warm.refresh",
                 endpoint=endpoint,
                 queue="long",
                 timeout=900,
