@@ -699,7 +699,10 @@ zh=`Pearnly主题`、th/en/ja=`Pearnly`。
 （`product.css` 末尾，选择器权重 (0,4,1)/(0,3,1) 均高于原生的 (0,4,0)/(0,3,0)）。
 **不碰任何事件、监听或原生控件行为** —— 上一版就是错在这一层。提交 `7128a1e`；
 镜像 digest `sha256:19486fd586d464da54789b399b17137b9cf17b9b2ece1fbdc06bea0086ab3cd6`
-已构建并 stage 到服务器，**尚未激活**（激活会进维护模式，等用户确认回滚有效再发）。
+已按用户指示（2026-09-21 16:47）激活：`activate-product.sh` 走完备份 + migrate，
+`active-image.json` 与 7 个 dms 容器均为该镜像，`maintenance_mode=0`，
+线上 `/assets/pearnly_core/desk/product.css` 回读到 `@media (hover: none)` 那三条规则。
+**真机验收仍待用户确认**：触摸设备上第一次点击就应生效，且不再出现"第一下只出灰底"。
 
 若触摸设备上第一下仍被吃掉，下一个嫌疑是侧栏项自带的 hover 提示气泡（tooltip，
 Bootstrap 在 `mouseover` 时插入 DOM 元素，同样属于"hover 才出现内容"）——
