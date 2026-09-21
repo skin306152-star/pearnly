@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""推送日志的服务层（共用层）。
+"""推送台账的服务层（DMS 自己的）。
+
+来源：原先放在共用层的 `pearnly_core/push_log.py`。2026-09-21 按 ADR-009 搬回 DMS ——
+这张表实际只有 DMS 在写和读（身份证录入、订车、审批、推送记录页），共用的只有"本机
+样例站点把本该发去 LINE 的消息记一条"这一步，那一步现在由共用层发钩子、这里接（见下面
+的 `line_mirror`）。落点从共用层变成了产品的 records 域，字段与行为一字未改。
 
 **这张表是推送状态的唯一来源。** 计划里写死的两条判据，这里就是落点：
 
@@ -213,3 +218,35 @@ def api_list(**kwargs):
 @frappe.whitelist()
 def api_status(reference_doctype: str, reference_name: str):
     return status_of(reference_doctype, reference_name)
+
+
+def line_mirror(*, kind: str, target: str, messages: list) -> str:
+    """共用层的 LINE 发送在"本机镜像"模式下把消息交给这里记账。
+
+    为什么在 DMS：本机样例站点没有 LINE 通道，可编辑器的保存那一步**必须确认卡片送达**
+    才算成功（`dms_booking_edit.save`）—— 没有镜像的话，本机点一次保存永远是
+    `preview_send_failed`，没法在本机验收任何一条涉及 LINE 的闭环。台账因此归 DMS。
+
+    共用层只知道"这条消息本该发出去"，不知道谁记账：它按 `pearnly_line_mirror` 钩子把
+    这件事交给产品（见 `pearnly_core/line._mirror`）。所以没装 DMS 的站点不会写台账，但
+    发送结果仍是"已投递"（镜像的语义）。
+
+    记的账目是诚实的：`trigger="line_mirror"` 与真实推送一眼可分，正文里写明"本机镜像，
+    未发往 LINE"，卡片原文在 `response_body` 里，能逐字核对。
+    """
+    return record(
+        "success",
+        trigger="line_mirror",
+        reference_doctype="Pearnly LINE Binding",
+        business_key=str(target or ""),
+        response_body=json.dumps(
+            {
+                "mirrored": True,
+                "note": _("Local sample site: not sent to LINE, the raw text is only recorded"),
+                "kind": kind,
+                "to": target or "",
+                "messages": messages,
+            },
+            ensure_ascii=False,
+        ),
+    )

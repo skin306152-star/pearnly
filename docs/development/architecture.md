@@ -31,13 +31,19 @@
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
 | `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
-| `records` | 推送历史的列表移除与审计 | `manage.delete_records`；只改展示标记，保留权威推送凭据 |
+| `records` | 推送台账本身（状态、租约、重试、收口）与推送历史的列表移除、审计 | `push_log`（`record` / `claim_for_push` / `status_of`）、`manage.delete_records`；只改展示标记，保留权威推送凭据 |
 | `query` | 查询权限、记录/排行及结果卡片 | `query_flow`；只读路径不承担写入 |
 | `menu`、`line` | 菜单、事件路由、公共卡片与消息输出 | `line.handlers.handle`，共享输出 `line.out` |
 | `ocr` | OCR 调用与身份证归一化 | `ocr_service` / `ocr_id_card` |
 | `operators` | 操作员、销售身份与绑定 | `roster`；保留管理员权限 |
 
 这次是保持行为的模块归位，已把纯契约与运行依赖分开。既有 `client` 到 `booking`、`intake` 的业务协议协作，以及会话流程间的延迟导入仍存在；不能据此宣称已完成严格无环分层。下一次改动相关链时，要围绕真实职责调整并补对应回归，不能再整批搬回根目录。
+
+### 推送台账归 DMS（2026-09-21）
+
+`Pearnly Push Log` 原先在 `pearnly_core`（表与 `push_log.py` 服务层）。核对全部调用方后按 [ADR-009](../adr/0009-product-owned-declarations.md) 搬进 DMS：表与控制器进 DMS 的模块目录，服务层进 `records` 域（`records/push_log.py`）。判据是"谁在用"：只有 DMS 写和读它（身份证录入、订车、审批、推送记录页），共用层唯一的用处是"本机样例站点把本该发去 LINE 的消息记一条"。
+
+那一步改成**共用层发钩子、产品记账**：`pearnly_core.line._mirror` 按 `pearnly_line_mirror` 派发，DMS 在 `hooks.py` 注册 `pearnly_dms.records.push_log.line_mirror`。共用层因此不再引用任何产品表，也没装 DMS 的站点仍按镜像语义"当作已发送"，只是不记账。表名与字段一字未改（`tabPearnly Push Log` 不变），所以既有数据在迁移后原样保留——这一点在隔离 DMS 站点上用"迁移前写入、迁移后回读"验证过。
 
 ## Cowork 的实际职责
 

@@ -10,7 +10,7 @@ frappe.connect()
 assert frappe.local.site == 'auth-preview.localhost'
 from pearnly_dms.query import records
 from pearnly_dms.records import access, manage
-from pearnly_core import push_log
+from pearnly_dms.records import push_log
 frappe.set_user('preview@example.test')
 original_product = frappe.conf.get('pearnly_product')
 try:

@@ -23,7 +23,8 @@
 def main():
     import frappe
 
-    from pearnly_core import endpoints, push_log
+    from pearnly_core import endpoints
+    from pearnly_dms.records import push_log
 
     results = []
     # 造出来的东西都登记下来，**无论中间哪一步炸了都要清干净**。
@@ -84,9 +85,17 @@ def main():
 
         # 测试连接必须是**诚实**的：不谎报"连上了"
         probe = endpoints.api_test_connection(ep.name)
+        # 说明文案是**翻译过**的（msgid 是英文，见 docs/i18n.md），所以这里比的是
+        # 「同一个 msgid 在本站点语言下的译文」，不是写死的中文 —— 写死中文的检查
+        # 在英文站点上必然失败（服务端文案改英文 msgid 之后就一直是 FAIL）。
+        honest = frappe._(
+            "Config is complete. Nothing was really connected — the adapter has not been ported"
+            " yet, and this does not pretend otherwise"
+        )
         check(
             "测试连接说明了它只检查配置、没有真连",
-            probe.get("checked") == "config" and "没有真的连" in (probe.get("note") or ""),
+            probe.get("checked") == "config" and probe.get("note") == honest,
+            probe.get("note"),
         )
 
         # ── 2. 推送日志：租约保证"同一条只被推一次" ────────────────────────

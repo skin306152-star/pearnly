@@ -12,6 +12,10 @@ app_license = "mit"
 pearnly_line_handlers = ["pearnly_dms.line.handlers.handle"]
 pearnly_line_binding_changed = ["pearnly_dms.line.identity.binding_changed", "pearnly_dms.menu.rich_menu.request_sync"]
 
+# 本机样例站点没有 LINE 通道时，共用层把"本该发出去"的消息交给这里记账
+# （推送台账归本产品，见 ADR-009 与 records/push_log.py）。
+pearnly_line_mirror = ["pearnly_dms.records.push_log.line_mirror"]
+
 # 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
 # DMS 的三个管理页只对产品管理员开放（判据 `any_role`），其余看的是表读权限。
 pearnly_navigation = [

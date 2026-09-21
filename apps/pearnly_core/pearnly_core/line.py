@@ -127,40 +127,23 @@ def mirroring() -> bool:
 
 
 def _mirror(kind: str, target: str, messages: list) -> bool:
-    """把"本该发到 LINE"的消息记进 `Pearnly Push Log`，返回**已投递**。
+    """把"本该发到 LINE"的消息交给产品记账，返回**已投递**。
 
     为什么要有它：本机样例站点没有 LINE 通道，可编辑器的保存那一步**必须确认卡片送达**
     才算成功（`dms_booking_edit.save`）—— 没有镜像的话，本机点一次保存永远是
     `preview_send_failed`，用户没法在本机验收任何一条涉及 LINE 的闭环。
 
-    记的账目是诚实的：`trigger="line_mirror"` 与真实推送一眼可分，正文里写明
-    "本机镜像，未发往 LINE"，卡片原文在 `response_body` 里，能逐字核对。
+    共用层不知道谁记账：推送台账归产品（ADR-009，今天是 DMS 的 records 域），所以这里
+    只按 `pearnly_line_mirror` 派发，产品自己决定记到哪。没装那个产品的站点不记账，
+    但发送结果仍是"已投递"—— 镜像的语义就是"当作发出去了"，与谁留痕无关。
     """
-    import json
-
-    from pearnly_core import push_log
-
     logger.info("[line] 本地镜像 %s → %s（未发往 LINE）", kind, target or "-")
-    try:
-        push_log.record(
-            "success",
-            trigger="line_mirror",
-            reference_doctype="Pearnly LINE Binding",
-            business_key=str(target or ""),
-            response_body=json.dumps(
-                {
-                    "mirrored": True,
-                    "note": _("Local sample site: not sent to LINE, the raw text is only recorded"),
-                    "kind": kind,
-                    "to": target or "",
-                    "messages": messages,
-                },
-                ensure_ascii=False,
-            ),
-        )
-    except Exception:
-        # 记账失败不能把发送结果翻成失败：卡片该"发"还是发了（镜像里）。
-        logger.warning("[line] 本地镜像记账失败", exc_info=True)
+    for path in frappe.get_hooks("pearnly_line_mirror") or []:
+        try:
+            frappe.get_attr(path)(kind=kind, target=target, messages=messages)
+        except Exception:
+            # 记账失败不能把发送结果翻成失败：卡片该"发"还是发了（镜像里）。
+            logger.warning("[line] 本地镜像记账失败", exc_info=True)
     return True
 
 

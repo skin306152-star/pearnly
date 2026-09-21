@@ -19,7 +19,6 @@
       "ocr_record.py",
       "password.py",
       "provisioning.py",
-      "push_log.py",
       "session_lock.py",
       "sessions.py",
       "shell.py",

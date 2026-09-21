@@ -67,7 +67,7 @@
    "label": "Trigger",
    "options": "manual\nline\nline_mirror\nauto",
    "reqd": 1,
-   "description": "The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype."
+   "description": "The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; pearnly_core.line hands those to this product's handler); the business line itself lives on reference_doctype."
   },
   {
    "default": "1",
@@ -207,7 +207,7 @@
  "links": [],
  "modified": "2026-09-18 00:00:00.000000",
  "modified_by": "Administrator",
- "module": "Pearnly Core",
+ "module": "Pearnly DMS",
  "name": "Pearnly Push Log",
  "owner": "Administrator",
  "permissions": [
