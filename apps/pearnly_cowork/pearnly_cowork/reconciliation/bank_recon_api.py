@@ -1,4 +1,8 @@
-"""Dedicated native reconciliation RPCs. No parsing, job runner or export here."""
+"""Dedicated native reconciliation RPCs.
+
+No file reading, model call, job runner or export here: ``create`` takes decoded rows
+and ``create_from_parsed`` the already-decoded pages of the legacy parser.
+"""
 import frappe
 
 from pearnly_cowork.reconciliation import bank_recon_service
@@ -22,6 +26,13 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		reconciliation_type="bank"):
 	return _transaction(bank_recon_service.create, workspace, title, request_id,
 		statement_rows, gl_rows, header, reconciliation_type)
+
+
+@frappe.whitelist(methods=["POST"])
+def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
+		filename="", gl_account_code="", reconciliation_type="bank"):
+	return _transaction(bank_recon_service.create_from_parsed, workspace, title, request_id,
+		statement_pages, gl_pages, header, filename, gl_account_code, reconciliation_type)
 
 
 @frappe.whitelist()

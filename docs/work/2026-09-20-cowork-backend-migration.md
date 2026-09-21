@@ -1,5 +1,42 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十三批交付）
+
+**本批把旧项目"已经解码的银行对账页面"按部署版转换规则落成同样的流水行/总账行，并给原生任务存储加了一个受控解析入口。** 文件读取、OCR 调用与模型抽取仍在旧项目；不接前端、不部署、不改 DMS。本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧侧银行对账的"解析"分两段：文件格式分派 + OCR/模型（`_parse_bank_stmt_via_pipeline`/`_parse_gl_via_pipeline` 的前半段），和拿管道输出组装行的纯转换（后半段 + `statement_rows_from_entries`/`gl_rows_from_pipeline_legacy`）。原生存储只收"已解码的行"，所以缺的正是这层纯转换。本批只迁这一段，解析器与模型仍留在旧项目、仍走显式授权；`statement_rows_from_entries` 同时是旧仓"断链换眼重读"共用的单一转换事实源，将来重读结果可以走同一入账口径。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `a76c742`（第二十二批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增纯模块 `reconciliation/bank_parse.py`：`to_float`、`parse_date`、`BANK_SIGNATURES`、`detect_bank`、`statement_rows_from_entries`、`statement_from_pipeline`、`gl_rows_from_pages`、`gl_from_pipeline`，以及把行写成原生解码行契约的 `decoded_statement_rows`/`decoded_gl_rows`；月份名取部署版 `core/thai_date` 的三张表与装配顺序。
+- 原生入口 `bank_recon_service.create_from_parsed` + RPC `bank_recon_api.create_from_parsed`：解析结果落成解码行后走既有 `create`（权限、请求键、幂等、匹配持久化不变），`source_format` 记 `pipeline_pages_v1`；调用方 `header` 覆盖从对账单读出的期初/期末/银行码，`gl_opening`/`gl_closing` 仍由调用方给。
+- 顺带补齐第二十批漏掉的 `GlRow.row_hash` 指纹；差分现在逐字段比对全部声明字段，这条链不会再静默漂移。
+- 登记的有意差异（详见[本批记录](cowork-backend/reconciliation-bank-parse.md)）：解析行没有描述、movement 为负或整批超行数时被原生契约**拒绝**而不是照旧匹配；未读余额在解析路落到原生存储是"已知 0"；`create_from_parsed` 新增入参守卫；契约错误仍是 `ReconciliationContractError`；两处部署怪癖（去时分秒截断使带空格的印刷日期解析失败、月份键区分大小写）按原样保留。
+
+### 验证与证据
+
+- 对账用例 **123** 个通过（本批新增 **21** 个，含一个新模块 20 个纯用例）；`test_cowork_bank_recon_contracts` **15** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS 且本批改动文件 `check-i18n.py --list` **0** 条。
+- 固定源差分新增金额 **439**、日期 **1642**、银行文本 **419**、entries→行 **800** 批（2728 行）、GL 页→行 **800** 批（3836 行）、整段银行适配器 **600** 批、整段 GL 适配器 **400** 批；整段适配器用部署版转换函数与 `finalize_rows` 现算期望逐项比对，不重写实现。
+- 两个隔离 Site 各 **10** 个用例通过（各新增 **2** 个：解析入账全链 + 拒绝路径），`migrate` 后重复 `migrate` 均通过，四个入口匿名调用全部 **403**。顺带核对上一批遗留：`migrate` 后两个 Site 已无旧 `pearnly-work` 页。
+- 未执行：真实 XLSX/PDF 与模型解析、多文件合并与换眼重读、异步任务与轮询、导出与人工复核、收入对账、前端、部署、外部结果与用户验收；宽范围 `test_cowork_*.py` 仍有既有模块因本机缺 `frappe`/`openpyxl` 无法导入。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`709693c7…` → `8b56503f…`）。交付前采运行投影 `push-runtime-twenty-third-delivery.json`（`2964173f…`），与第二十一批交付比较为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`5fa7110d…` → `c012939c…`，端点数仍 60、两个平台开关不变）。本批没有开工投影，故这不是本批窗口内的前后一致证明；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：异步任务状态与轮询、导出复核工作簿、人工复核动作（解析路的 `needs_review`/`balance_warn_count`/`amount_fixed_count` 已经由本批入口返回，可直接消费）、收入对账复用 `reconciliation_type=income`；真实解析器与模型抽取仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批启动了专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows 与旧仓，未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十二批：移除团队协作功能）
 
 **按用户 2026-09-21 指示：团队协作（WeKan 看板）不再迁移，已迁部分全部删除；该功能后期自行开发。** 2026-09-17 那次"协作页 `/work` 留"的确认由本次覆盖。其余待迁项继续按计划推进。

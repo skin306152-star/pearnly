@@ -1,8 +1,10 @@
 """Native bank reconciliation: store decoded rows and the deployed matching result.
 
-Runs the already-migrated pure matching core over validated decoded rows and
-persists one task with its result rows. Not migrated here: statement/GL file
-parsing, model extraction, asynchronous job orchestration, exports and the
+Two entry points persist one task with its result rows: ``create`` takes rows
+already decoded by a caller, ``create_from_parsed`` takes the decoded page
+dictionary of the legacy parser and converts it with the migrated conversions
+first. Reading a file, running OCR and calling a model stay in the legacy
+project, as do model extraction, asynchronous job orchestration, exports and the
 accountant review actions.
 """
 import hashlib
@@ -11,7 +13,12 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_cowork.reconciliation import bank_matching, bank_recon_access, bank_recon_contracts
+from pearnly_cowork.reconciliation import (
+	bank_matching,
+	bank_parse,
+	bank_recon_access,
+	bank_recon_contracts,
+)
 from pearnly_cowork.reconciliation.bank_recon_access import ROW, TASK
 from pearnly_cowork.reconciliation.bank_recon_documents import persist
 
@@ -27,7 +34,8 @@ def _identity(request_id):
 	return "CBR-" + key[:40], key
 
 
-def create(workspace, title, request_id, statement_rows, gl_rows, header=None, reconciliation_type="bank"):
+def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
+		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT):
 	"""Validate, match and store one reconciliation inside a single transaction."""
 	bank_recon_access.require(workspace)
 	name, request_key = _identity(request_id)
@@ -54,7 +62,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None, r
 		"title": title, "reconciliation_type": reconciliation_type,
 		"status": "completed",
 		"bank_code": header_values["bank_code"], "gl_account_code": header_values["gl_account_code"],
-		"source_format": bank_recon_contracts.SOURCE_FORMAT, "source_digest": request_digest,
+		"source_format": source_format, "source_digest": request_digest,
 		"request_key": request_key, "request_digest": request_digest,
 		"row_count": len(results),
 		"summary_json": bank_recon_contracts.json_dumps(summary_value),
@@ -66,6 +74,48 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None, r
 			"workspace": workspace, "task": name, "row_index": index + 1,
 			**row_values(result)}))
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results)}
+
+
+def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
+		filename="", gl_account_code="", reconciliation_type="bank"):
+	"""Store one reconciliation from the decoded pages of the legacy parser.
+
+	The file readers, the OCR call and model extraction stay in the legacy
+	project; this entry converts their decoded pages with the migrated
+	conversions (``bank_parse``) and then stores the rows through the same
+	validated path as ``create``. A caller header overrides the opening,
+	closing and bank code read from the statement document. The stored archive
+	keeps the deployed 2-decimal amounts, and a parsed row that the decoded-row
+	contract refuses is an error, not a silent drop.
+	"""
+	if not isinstance(statement_pages, (dict, type(None))) or not isinstance(
+			gl_pages, (dict, type(None))):
+		frappe.throw(_("reconciliation.request_invalid"))
+	statement = bank_parse.statement_from_pipeline(statement_pages, filename)
+	if not statement.get("ok"):
+		frappe.throw(_("reconciliation.statement_unparsed"))
+	gl = bank_parse.gl_from_pipeline(gl_pages, gl_account_code)
+	overrides = {} if header in (None, "") else header
+	if not isinstance(overrides, dict):
+		frappe.throw(_("reconciliation.header_invalid"))
+	values = {"stmt_opening": statement["opening"], "stmt_closing": statement["closing"],
+		"bank_code": statement["bank_code"]}
+	values.update(overrides)
+	result = create(workspace, title, request_id,
+		bank_parse.decoded_statement_rows(statement["rows"]),
+		bank_parse.decoded_gl_rows(gl["rows"]), values, reconciliation_type,
+		source_format=bank_parse.SOURCE_FORMAT)
+	return {**result, "parsed": {
+		"statement_rows": statement["row_count"],
+		"gl_rows": gl["row_count"],
+		"opening": statement["opening"],
+		"closing": statement["closing"],
+		"bank_code": statement["bank_code"],
+		"balance_warn_count": statement["balance_warn_count"],
+		"amount_fixed_count": statement["amount_fixed_count"],
+		"parser_version": statement["parser_version"],
+		"needs_review": bool(statement["needs_review"] or gl["needs_review"]),
+	}}
 
 
 TASK_SUMMARY_FIELDS = ("matched_count", "gl_debit_only_count", "gl_credit_only_count",

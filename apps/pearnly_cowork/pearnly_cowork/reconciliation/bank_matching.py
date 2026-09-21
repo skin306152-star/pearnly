@@ -4,6 +4,8 @@ Source: ec2e5c957e6b ``services/recon/bank_recon_reconcile.py`` (documented ther
 as a pure function), with the GL/result/summary dataclasses from
 ``services/recon/bank_recon_types.py`` and the ``_day_diff``/``_amount_matches``
 helpers plus ``DATE_TOL_DAYS`` from ``services/recon/bank_recon_utils.py``.
+``GlRow`` also restores the deployed row fingerprint, the same key the legacy
+merge step deduplicates on.
 
 Three layers consume each statement row at most once and each GL row at most
 once: L1 needs the same date, L2 accepts a gap up to ``DATE_TOL_DAYS`` and keeps
@@ -21,6 +23,7 @@ Pure contract: no Frappe, database, file, clock, HTTP or model access.
 
 from dataclasses import dataclass
 from datetime import date
+import hashlib
 from typing import Optional
 
 from pearnly_cowork.reconciliation.bank_statement import AMOUNT_TOL, StatementRow
@@ -53,6 +56,13 @@ class GlRow:
 	source_file: str = ""
 	balance: float = 0.0
 	row_hash: str = ""
+
+	def __post_init__(self):
+		if not self.row_hash:
+			key = f"{self.date}|{self.doc_no}|{self.account_code}|{self.debit:.2f}|{self.credit:.2f}"
+			# Deduplication fingerprint of the deployed merge step, never a
+			# security primitive.
+			self.row_hash = hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()[:12]
 
 
 @dataclass

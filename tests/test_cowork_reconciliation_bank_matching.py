@@ -40,6 +40,14 @@ class HelperContract(unittest.TestCase):
 	def test_shipped_layer_two_tolerance_is_seven_days(self):
 		self.assertEqual(DATE_TOL_DAYS, 7)
 
+	def test_gl_row_keeps_the_deployed_deduplication_fingerprint(self):
+		first = gl(credit=100.0)
+		self.assertEqual(len(first.row_hash), 12)
+		self.assertEqual(first.row_hash, gl(credit=100.0).row_hash)
+		self.assertNotEqual(first.row_hash, gl(credit=100.01).row_hash)
+		self.assertNotEqual(first.row_hash, gl(credit=100.0, doc_no="GL2").row_hash)
+		self.assertEqual(GlRow(DAY, "GL1", "1000", "gl", 0.0, 100.0, row_hash="kept").row_hash, "kept")
+
 
 class LayerContract(unittest.TestCase):
 	def test_layer_one_needs_the_same_date(self):

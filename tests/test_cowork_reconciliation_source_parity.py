@@ -23,6 +23,7 @@ from pearnly_cowork.reconciliation import fields
 from pearnly_cowork.reconciliation import bank_statement as statement
 from pearnly_cowork.reconciliation import bank_matching as matching
 from pearnly_cowork.reconciliation import bank_scoring as scoring
+from pearnly_cowork.reconciliation import bank_parse as parsing
 from pearnly_cowork.reconciliation.amounts import invoice_total, report_total, within_tolerance
 from pearnly_cowork.reconciliation.matching import match_rows, pair_by_invoice_number
 from pearnly_cowork.stocktake import contracts
@@ -38,6 +39,9 @@ HASHES = {
 	"services/recon/bank_recon_utils.py": "35b143f7cfc115fc497397902026c463cdc7a589da70ea690d85f35b4f016745",
 	"services/recon/bank_recon_reconcile.py": "8b1da4e4c5879bdcd79ef8225787b3b05bb3ec758535696f1b3c1c1c2349f153",
 	"services/recon/bank_recon_scoring.py": "9738f080c874b59c7d3739db4fa9048b8742295a605f9875b38d23a36424133b",
+	"services/recon/bank_recon_pipeline.py": "c838888c6b9c7a107a1631ffdbf73a569ffc6288f20f71988480d35c484a5716",
+	"services/recon/bank_stmt_legacy.py": "7af6c4130f2ddb4cf5bfa38658d8d9f2b1941d9256f684a874c4317e6b788c7e",
+	"core/thai_date.py": "0e76c92f63f88a02cc82d223ea3ca56f4a7c999b616a00f1eae768e555fed987",
 }
 
 
@@ -354,6 +358,194 @@ def verify_bank_matching(root, namespace):
 	return counts
 
 
+def verify_bank_parse(root, namespace):
+	"""Differential check of the migrated decoded-page conversion."""
+	month_namespace = {}
+	definitions(root, "core/thai_date.py", {"printed_month_map"}, month_namespace,
+		assignments={"MONTHS_TH_FULL", "MONTHS_TH_ABBR_DOTTED", "MONTHS_EN_FULL",
+			"MONTHS_EN_ABBR3"})
+	deployed_months = month_namespace["printed_month_map"](th_abbr="dotted_trailing", en_abbr=True)
+	if tuple(deployed_months) != tuple(parsing.PRINTED_MONTHS):
+		raise AssertionError(("printed month order drifted", tuple(deployed_months),
+			tuple(parsing.PRINTED_MONTHS)))
+	if dict(deployed_months) != dict(parsing.PRINTED_MONTHS):
+		raise AssertionError(("printed month table drifted", deployed_months, parsing.PRINTED_MONTHS))
+	for source_name, new_table, label in (
+			("MONTHS_TH_FULL", parsing.THAI_MONTHS_FULL, "full Thai month names"),
+			("MONTHS_TH_ABBR_DOTTED", parsing.THAI_MONTHS_ABBR_DOTTED, "dotted Thai month names"),
+			("MONTHS_EN_ABBR3", parsing.ENGLISH_MONTHS_ABBR3, "English month names")):
+		if list(month_namespace[source_name]) != list(new_table):
+			raise AssertionError((f"{label} drifted", month_namespace[source_name], new_table))
+	signature_namespace = {}
+	definitions(root, "services/recon/bank_recon_utils.py", set(), signature_namespace,
+		assignments={"_BANK_SIGNATURES"})
+	deployed_signatures = signature_namespace["_BANK_SIGNATURES"]
+	if (tuple(deployed_signatures) != tuple(parsing.BANK_SIGNATURES)
+			or {code: tuple(words) for code, words in deployed_signatures.items()}
+			!= {code: tuple(words) for code, words in parsing.BANK_SIGNATURES.items()}):
+		raise AssertionError(("bank signatures drifted", deployed_signatures, parsing.BANK_SIGNATURES))
+
+	namespace.setdefault("dataclass", dataclass)
+	namespace.setdefault("Optional", Optional)
+	namespace["date"] = date
+	namespace["datetime"] = datetime
+	namespace["re"] = re
+	namespace["List"] = List
+	namespace["Dict"] = Dict
+	namespace["Any"] = Any
+	definitions(root, "services/recon/bank_recon_types.py", set(), namespace,
+		classes={"StatementRow", "GlRow"})
+	definitions(root, "services/recon/bank_recon_utils.py", {"_to_float", "_parse_date",
+		"_detect_bank"}, namespace)
+	namespace["_TH_MONTHS"] = deployed_months
+	namespace["_BANK_SIGNATURES"] = deployed_signatures
+	definitions(root, "services/recon/bank_recon_pipeline.py", {"statement_rows_from_entries"},
+		namespace)
+	definitions(root, "services/recon/bank_stmt_legacy.py", {"gl_rows_from_pipeline_legacy"},
+		namespace)
+
+	counts = {"amount_values": 0, "date_values": 0, "bank_texts": 0, "statement_batches": 0,
+		"statement_rows": 0, "gl_batches": 0, "gl_rows": 0, "statement_adapter_batches": 0,
+		"gl_adapter_batches": 0}
+	amount_values = [None, "", " ", "\t", "\xa0", "-", "–", "—", "0", "0.00", "0.5", "1,234.50",
+		"(1,234.50)", "-1,234.50", " 12 ", "\xa012\xa0", "115.586.50", "1.005", "2.675", "abc",
+		"1e3", "NaN", "inf", "-inf", "(", ")", "(1", "1)", "--", ".", "1.", ".5", True, False, 0,
+		12.345, -7.5, [1], {"a": 1}]
+	amount_rng = random.Random(20260926)
+	amount_values += [format(Decimal(amount_rng.randint(-10 ** 9, 10 ** 9)).scaleb(-2), "f")
+		for _ in range(400)]
+	for value in amount_values:
+		# repr keeps a NaN result equal to itself without hiding a real difference.
+		if repr(result(namespace["_to_float"], value)) != repr(result(parsing.to_float, value)):
+			raise AssertionError(("to_float drifted", value))
+		counts["amount_values"] += 1
+
+	date_values = [None, "", " ", "15/06/2026", "15-06-2026", "2026-06-01", "2026/06/01",
+		"2568-12-01", "2568-12-01 00:00:00", "2568-12-01T00:00:00", "15/06/69", "15/06/2569",
+		"15มกราคม2567", "15ม.ค.67", "15jan2026", "15Jan2026", "1มกราคม2568", "31ก.พ.2568",
+		"15 มกราคม 2567", "31/02/2026", "15.06.2026", "15 06 2026", "15/6/26", "69", "43", "15/",
+		"/06/2026", "2026-6-1", "1/2/3", "12345/67/89", "15ม.ค.43", "15ม.ค.42", date(2026, 6, 1),
+		date(2569, 6, 1), date(9999, 12, 31), datetime(2569, 6, 1, 12, 30), datetime(2026, 6, 1),
+		20260601, ["2026-06-01"], {"a": 1}, True, False]
+	date_rng = random.Random(20260927)
+	for _ in range(400):
+		day = date_rng.randint(1, 31)
+		month = date_rng.choice(list(parsing.PRINTED_MONTHS))
+		year = date_rng.randint(1, 2600)
+		date_values += [f"{day}{month}{year}", f"{day} {month} {year}",
+			f"{day}/{date_rng.randint(1, 12)}/{year}", f"{year}-{date_rng.randint(1, 12)}-{day}"]
+	for value in date_values:
+		if repr(result(namespace["_parse_date"], value)) != repr(result(parsing.parse_date, value)):
+			raise AssertionError(("parse_date drifted", value))
+		counts["date_values"] += 1
+
+	bank_texts = ["", "Kasikornbank statement", "TMBThanachart ttb", "ธนาคารกรุงเทพ", "กสิกรไทย",
+		"SCB", "k-bank", "k biz", "ธนชาต", "กรุงศรี", "kiatnakin", "bangkok bank",
+		"siam commercial", "krungthai", "Krungsri", "KBANK", "no bank here", "bay area",
+		"ธนาคารไทยพาณิชย์"]
+	bank_rng = random.Random(20260928)
+	pieces = [" ", "kbank", "SCB", "กสิกรไทย", "bbl", "x", "กรุงเทพ", "ttb", "0", "k biz"]
+	for _ in range(400):
+		bank_texts.append("".join(bank_rng.choice(pieces) for _ in range(bank_rng.randint(0, 5))))
+	for text in bank_texts:
+		# The deployed statement adapter infers the code from the printed bank name
+		# with the same table, order, lower-case comparison and fallback.
+		if result(namespace["_detect_bank"], text) != result(parsing.detect_bank, text):
+			raise AssertionError(("detect_bank drifted", text))
+		counts["bank_texts"] += 1
+
+	amount_pool = ["", "-", "0", "0.00", "0.01", "1,234.50", "(500)", "-75.25", "115.586.50",
+		"abc", None, 12.5, "9.999", "1000000", "2.675"]
+	date_pool = ["2026-06-01", "2569-06-01", "bad", "", None, "2026-6-1", "2026-06-01 00:00:00"]
+	raw_pool = ["", "01/06/2569", "junk", None, "2026-06-01", "15ม.ค.67"]
+	text_pool = ["SWD ACME", "", "ค่าบริการ", "Total Credit", "ยอดยกมา", "0", "รวมรายการ"]
+	bank_pool = ["Kasikornbank", "", None, "ธนาคารกรุงเทพ", "ttb"]
+	entry_rng = random.Random(20260929)
+
+	def random_entries(count):
+		return [{"deposit": entry_rng.choice(amount_pool), "withdrawal": entry_rng.choice(amount_pool),
+			"balance": entry_rng.choice(amount_pool), "description": entry_rng.choice(text_pool),
+			"transaction_date": entry_rng.choice(date_pool),
+			"transaction_date_raw": entry_rng.choice(raw_pool)} for _ in range(count)]
+
+	def random_gl_entries(count):
+		return [{"debit": entry_rng.choice(amount_pool), "credit": entry_rng.choice(amount_pool),
+			"voucher_no": entry_rng.choice(["GL-1", "", None]),
+			"account_code": entry_rng.choice(["1000", "", "1100"]),
+			"description": entry_rng.choice(text_pool),
+			"transaction_date": entry_rng.choice(date_pool),
+			"transaction_date_raw": entry_rng.choice(raw_pool)} for _ in range(count)]
+
+	for _ in range(800):
+		entries = random_entries(entry_rng.randint(0, 8))
+		old_rows = namespace["statement_rows_from_entries"](entries, "stmt.pdf")
+		new_rows = parsing.statement_rows_from_entries(entries, "stmt.pdf")
+		if [describe_dataclass(item) for item in old_rows] != [describe_dataclass(item)
+				for item in new_rows]:
+			raise AssertionError(("statement rows drifted", entries))
+		counts["statement_batches"] += 1
+		counts["statement_rows"] += len(new_rows)
+
+	for _ in range(800):
+		legacy = {"pages": [{"document": {"entries": random_gl_entries(entry_rng.randint(0, 8))}}
+			for _ in range(entry_rng.randint(0, 3))] if entry_rng.random() < 0.9 else None}
+		old_rows = namespace["gl_rows_from_pipeline_legacy"](legacy)
+		new_rows = parsing.gl_rows_from_pages(legacy)
+		if [describe_dataclass(item) for item in old_rows] != [describe_dataclass(item)
+				for item in new_rows]:
+			raise AssertionError(("gl rows drifted", legacy))
+		counts["gl_batches"] += 1
+		counts["gl_rows"] += len(new_rows)
+
+	for _ in range(600):
+		entries = random_entries(entry_rng.randint(0, 6))
+		document = {"bank_name": entry_rng.choice(bank_pool),
+			"opening_balance": entry_rng.choice(amount_pool),
+			"closing_balance": entry_rng.choice(amount_pool), "entries": entries}
+		legacy = {"pages": [{"document": document}], "_needs_review": entry_rng.random() < 0.2}
+		adapter = parsing.statement_from_pipeline(legacy, "stmt.pdf")
+		opening = namespace["_to_float"](document.get("opening_balance"))
+		expected_rows = namespace["finalize_rows"](
+			namespace["statement_rows_from_entries"](entries, "stmt.pdf"), opening)
+		if [describe_dataclass(item) for item in expected_rows] != [describe_dataclass(item)
+				for item in adapter["rows"]]:
+			raise AssertionError(("statement adapter rows drifted", legacy))
+		warned = sum(1 for item in expected_rows if item.balance_ok is False)
+		repaired = sum(1 for item in expected_rows if getattr(item, "amount_autocorrected", False))
+		closing = namespace["_to_float"](document.get("closing_balance"))
+		if not closing:
+			closing = next((item.balance for item in reversed(expected_rows) if item.balance), 0.0)
+		expected = {"row_count": len(expected_rows), "opening": opening, "closing": closing,
+			"bank_code": namespace["_detect_bank"](document.get("bank_name") or ""),
+			"balance_warn_count": warned, "amount_fixed_count": repaired,
+			"needs_review": bool(legacy["_needs_review"] or warned or repaired)}
+		for key, value in expected.items():
+			if adapter[key] != value:
+				raise AssertionError((f"statement adapter {key} drifted", legacy, adapter[key], value))
+		counts["statement_adapter_batches"] += 1
+
+	for _ in range(400):
+		legacy = {"pages": [{"document": {"entries": random_gl_entries(entry_rng.randint(0, 6))}}
+			for _ in range(entry_rng.randint(0, 3))]}
+		if entry_rng.random() < 0.3:
+			legacy["_needs_review"] = True
+		account_code = entry_rng.choice(["", "1000", "9999", "1100"])
+		adapter = parsing.gl_from_pipeline(legacy, account_code)
+		expected_rows = namespace["gl_rows_from_pipeline_legacy"](legacy)
+		if account_code:
+			expected_rows = [item for item in expected_rows if item.account_code == account_code]
+		if [describe_dataclass(item) for item in expected_rows] != [describe_dataclass(item)
+				for item in adapter["rows"]]:
+			raise AssertionError(("gl adapter rows drifted", legacy, account_code))
+		if (adapter["row_count"] != len(expected_rows)
+				or adapter["accounts"] != sorted({item.account_code for item in expected_rows
+					if item.account_code})
+				or adapter["needs_review"] != legacy.get("_needs_review", False)):
+			raise AssertionError(("gl adapter fields drifted", legacy, account_code, adapter))
+		counts["gl_adapter_batches"] += 1
+	return counts
+
+
 class self_expect:
 	"""Minimal context manager mirroring assertRaises for this script."""
 
@@ -497,6 +689,7 @@ def verify(root):
 		raise AssertionError(("second pass barely exercised", pass_two_cases))
 	balance = verify_balance_chain(root, namespace)
 	bank = verify_bank_matching(root, namespace)
+	parse = verify_bank_parse(root, namespace)
 	# Investigation only: no Decimal amount matcher is installed in product code.
 	decimal_investigations = [
 		("2.675", "2.68", False, True), ("-2.675", "-2.68", False, True),
@@ -519,7 +712,7 @@ def verify(root):
 		print(json.dumps({"input": [left, right], "source_match": old_match, "decimal_match": decimal_match}))
 	print(json.dumps({"amount_cases": amount_cases, "field_cases": field_cases,
 		"all_field_cases": all_field_cases, "match_cases": match_cases,
-		"source_pass2_pairs": pass_two_cases, **balance, **bank}))
+		"source_pass2_pairs": pass_two_cases, **balance, **bank, **parse}))
 	print("PASS: 4020 source quantity cases; 1000 source first-pass batches; "
 		f"{amount_cases} amount contract cases; {field_cases} compare_field cases; "
 		f"{all_field_cases} compare_all_fields cases; {match_cases} full matcher batches "
@@ -529,7 +722,12 @@ def verify(root):
 		f"issues); {bank['matching_batches']} matching batches "
 		f"({bank['layer1']} L1, {bank['layer2']} L2, {bank['layer3']} L3, {bank['one_sided']} one-sided) "
 		f"and {bank['scoring_batches']} scoring batches ({bank['scored_candidates']} candidates); "
-		f"8 amount investigations")
+		f"8 amount investigations; {parse['amount_values']} amount values, "
+		f"{parse['date_values']} date values, {parse['bank_texts']} bank texts; "
+		f"{parse['statement_batches']} statement-entry batches ({parse['statement_rows']} rows), "
+		f"{parse['gl_batches']} GL-page batches ({parse['gl_rows']} rows), "
+		f"{parse['statement_adapter_batches']} statement-adapter batches, "
+		f"{parse['gl_adapter_batches']} GL-adapter batches")
 
 
 if __name__ == "__main__":

@@ -1,8 +1,9 @@
 """Isolated Site verification for the native bank reconciliation store.
 
 Only the dedicated lab bench is accepted, synthetic users/workspaces are created
-inside it, and everything rolls back. No parsing, model, ERP, queue, export or
-external call happens here.
+inside it, and everything rolls back. No file reading, model, ERP, queue, export
+or external call happens here; the parsed admission path is fed decoded page
+dictionaries, not files.
 """
 
 import json
@@ -37,6 +38,33 @@ GL_ROWS = [
 ]
 HEADER = {"bank_code": "BBL", "gl_account_code": "1000", "stmt_opening": "1000.00",
 	"gl_opening": "990.00", "stmt_closing": "510.00", "gl_closing": "500.00"}
+
+# Decoded pipeline output of the legacy parser, for the parsed admission path: a
+# no-movement opening row and a printed footer, one column pair the balance
+# contradicts, and one GL row with no statement counterpart.
+STATEMENT_PAGES = {"pages": [{"document": {
+	"bank_name": "Kasikornbank",
+	"opening_balance": "1,000.00",
+	"closing_balance": "560.00",
+	"entries": [
+		{"description": "ยอดยกมา", "deposit": "0", "withdrawal": "0", "balance": "1,000.00"},
+		{"description": "SWD ACME INV-77", "deposit": "0", "withdrawal": "400.00",
+			"balance": "600.00", "transaction_date_raw": "01/06/2569"},
+		{"description": "SWD flipped", "deposit": "0", "withdrawal": "50.00",
+			"balance": "650.00", "transaction_date_raw": "02/06/2569"},
+		{"description": "ค่าบริการ", "deposit": "0", "withdrawal": "90.00", "balance": "560.00",
+			"transaction_date_raw": "03/06/2569"},
+		{"description": "Total Credit", "deposit": "500.00"},
+	]}}], "_needs_review": False}
+
+GL_PAGES = {"pages": [{"document": {"entries": [
+	{"voucher_no": "GL-1", "account_code": "1000", "description": "payment", "credit": "400.00",
+		"transaction_date": "2026-06-01"},
+	{"voucher_no": "GL-2", "account_code": "1000", "description": "unmatched", "debit": "75.00",
+		"transaction_date": "2026-06-30"},
+]}}]}
+
+PARSED_HEADER = {"gl_opening": "990.00", "gl_closing": "500.00"}
 
 
 class NativeBankReconciliation(unittest.TestCase):
@@ -135,6 +163,68 @@ class NativeBankReconciliation(unittest.TestCase):
 		self.assertEqual((row["stmt_balance_known"], row["stmt_balance"]), (0, 0.0))
 		self.assertEqual(row["match_status"], "stmt_deposit_only")
 
+	def test_decoded_pages_are_admitted_with_the_deployed_conversion(self):
+		result = self.api.create_from_parsed(workspace=self.workspace, title="June 2569 parsed",
+			request_id=self.request_id, statement_pages=STATEMENT_PAGES, gl_pages=GL_PAGES,
+			header=PARSED_HEADER, filename="STM KBANK.pdf")
+		self.assertFalse(result["replayed"])
+		# The no-movement opening row and the printed footer never reach storage,
+		# so four result rows remain: one match and three one-sided findings.
+		self.assertEqual(result["row_count"], 4)
+		self.assertEqual(result["parsed"], {"statement_rows": 3, "gl_rows": 2, "opening": 1000.0,
+			"closing": 560.0, "bank_code": "kbank", "balance_warn_count": 0,
+			"amount_fixed_count": 0, "parser_version": "bank_recon_v2+pipeline_v1",
+			"needs_review": False})
+		summary = result["summary"]
+		self.assertEqual((summary["matched_count"], summary["stmt_deposit_only_count"],
+			summary["stmt_withdrawal_only_count"], summary["gl_debit_only_count"],
+			summary["opening_diff"]), (1, 1, 1, 1, 10.0))
+		self.assertEqual((summary["stmt_total_deposit"], summary["stmt_total_withdrawal"]),
+			(50.0, 490.0))
+		detail = self.api.detail(result["name"])
+		self.assertEqual(detail["task"]["source_format"], "pipeline_pages_v1")
+		self.assertEqual(detail["task"]["bank_code"], "kbank")
+		self.assertEqual([row["match_status"] for row in detail["rows"]],
+			["matched", "stmt_deposit_only", "stmt_withdrawal_only", "gl_debit_only"])
+		flipped = detail["rows"][1]
+		self.assertEqual((flipped["stmt_deposit"], flipped["stmt_withdrawal"],
+			flipped["stmt_autocorrected"], flipped["stmt_balance_ok"]), (50.0, 0.0, 1, "ok"))
+		self.assertEqual((detail["rows"][0]["gl_doc_no"], detail["rows"][0]["gl_credit"]),
+			("GL-1", 400.0))
+		replay = self.api.create_from_parsed(workspace=self.workspace, title="June 2569 parsed",
+			request_id=self.request_id, statement_pages=STATEMENT_PAGES, gl_pages=GL_PAGES,
+			header=PARSED_HEADER, filename="STM KBANK.pdf")
+		self.assertTrue(replay["replayed"])
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 1)
+
+	def test_parsed_inputs_are_refused_before_anything_is_stored(self):
+		from pearnly_cowork.reconciliation import bank_recon_contracts
+		with self.assertRaises(frappe.ValidationError):
+			self.api.create_from_parsed(workspace=self.workspace, title="empty",
+				request_id=self.request_id, statement_pages={"pages": []}, gl_pages=GL_PAGES)
+		with self.assertRaises(frappe.ValidationError):
+			self.api.create_from_parsed(workspace=self.workspace, title="bad document",
+				request_id=self.request_id, statement_pages=["not", "a", "document"],
+				gl_pages=GL_PAGES)
+		with self.assertRaises(frappe.ValidationError):
+			self.api.create_from_parsed(workspace=self.workspace, title="bad header",
+				request_id=self.request_id, statement_pages=STATEMENT_PAGES, gl_pages=GL_PAGES,
+				header=["not", "a", "header"])
+		# The decoded-row contract raises its own error, as it does for ``create``.
+		with self.assertRaises(bank_recon_contracts.ReconciliationContractError) as caught:
+			self.api.create_from_parsed(workspace=self.workspace, title="unknown header key",
+				request_id=self.request_id, statement_pages=STATEMENT_PAGES, gl_pages=GL_PAGES,
+				header={"gl_opening": "1", "surprise": "1"})
+		self.assertEqual(str(caught.exception), "reconciliation.header_invalid")
+		# A parsed row the decoded-row contract refuses is an error, not a drop.
+		described = {"pages": [{"document": {"entries": [
+			{"description": "", "deposit": "10.00", "balance": "1,010.00"}]}}]}
+		with self.assertRaises(bank_recon_contracts.ReconciliationContractError) as caught:
+			self.api.create_from_parsed(workspace=self.workspace, title="no description",
+				request_id=self.request_id, statement_pages=described, gl_pages={})
+		self.assertEqual(str(caught.exception), "reconciliation.text_required:statement.description")
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 0)
+
 	def test_scope_and_entitlement_are_enforced(self):
 		frappe.set_user(self.outsider)
 		with self.assertRaises(frappe.PermissionError):
@@ -216,6 +306,9 @@ if __name__ == "__main__":
 				query_string={"workspace": "x"}).status_code,
 			"detail": client.get(rpc + "detail", base_url=base,
 				query_string={"task_id": "x"}).status_code,
+			"create_from_parsed": client.post(rpc + "create_from_parsed", base_url=base, json={
+				"workspace": "x", "title": "t", "request_id": "x",
+				"statement_pages": {}, "gl_pages": {}}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:
