@@ -37,6 +37,7 @@ Checks Json,检查结果JSON
 Client,客户
 Closed At,关闭时间
 Closed By,关闭人
+Companion Report,伴侣端上报
 Company,公司
 Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
@@ -179,9 +180,18 @@ Record ID,记录 ID
 Record Id,记录 ID
 Record Key,记录键
 Record Revision,记录版本
+Refresh Error Code,刷新错误码
+Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
+Refresh Lease Generation,刷新租约版本
+Refresh Lease Handle,刷新租约标识
+Refresh Lease Owner,刷新租约持有者
 Refresh Request Aliases,刷新请求幂等索引
+Refresh Started At (UTC),刷新开始时间（UTC）
 Refresh Status,刷新状态
 Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
+Report Credential,上报凭证
+Report Credential Generation,上报凭证版本
+Report Received At (UTC),上报接收时间（UTC）
 Request Digest,请求摘要
 Request Fingerprint,请求内容指纹
 Request Hash,请求内容摘要
@@ -278,6 +288,8 @@ companion.context_invalid,助手身份已失效，请重新认证。
 companion.credential_not_found,此连接尚未签发助手凭据。
 companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
 companion.receipt_limit,凭据请求回执数量已达到上限。
+companion.report_busy,伴侣端服务暂时不可用，请稍后重试。
+companion.report_invalid,伴侣端上报内容无效。
 companion.request_conflict,此请求键已用于其他凭据操作。
 companion.request_invalid,凭据请求无效。
 companion.unauthorized,助手认证失败。
@@ -307,6 +319,29 @@ erp.account_set_unavailable,此账套不可用。
 erp.endpoint_disabled,此ERP连接已停用。
 erp.target_access_denied,无权访问此ERP目标。
 erp.target_context_invalid,ERP目标上下文不一致。
+erp.target_projection_adapter_invalid,ERP 报告使用了不支持的适配器。
+erp.target_projection_collector_invalid,ERP 报告的采集器信息无效。
+erp.target_projection_collector_not_connected,此 ERP 数据类型尚未接入采集。
+erp.target_projection_duplicate_action,ERP 报告包含重复的操作标识。
+erp.target_projection_duplicate_field,ERP 报告包含重复的字段标识。
+erp.target_projection_duplicate_source_id,ERP 数据报告包含重复的选项标识。
+erp.target_projection_invalid,ERP 数据报告无效。
+erp.target_projection_invalid_action,上报的 ERP 操作无效。
+erp.target_projection_invalid_capabilities,上报的 ERP 功能信息无效。
+erp.target_projection_invalid_field,上报的 ERP 字段无效。
+erp.target_projection_invalid_form_schema,上报的 ERP 字段定义无效。
+erp.target_projection_invalid_json,ERP 数据报告包含不支持的值。
+erp.target_projection_invalid_masters,ERP 主数据报告无效。
+erp.target_projection_invalid_number,ERP 数据报告包含无效数值。
+erp.target_projection_invalid_option,ERP 数据报告中的选项无效。
+erp.target_projection_observed_at_invalid,ERP 报告的采集时间无效。
+erp.target_projection_refresh_status_invalid,ERP 报告的刷新状态无效。
+erp.target_projection_sensitive_field,ERP 数据报告包含受限制的字段。
+erp.target_projection_too_large,ERP 数据报告超过支持的大小限制。
+erp.target_projection_unknown_entity,ERP 报告包含不支持的主数据类型。
+erp.target_projection_unknown_field_type,ERP 报告包含不支持的字段类型。
+erp.target_projection_value_required,ERP 数据报告缺少必填值。
+erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
 excel,Excel
 failed,失败
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
@@ -321,6 +356,7 @@ history.pages_invalid,发票页面数据格式不正确。
 history.source_invalid,不支持此记录来源。
 history.source_not_public,此入口只能创建手工录入记录。
 image,图像
+leased,已领取
 legacy,旧版
 logical_section,文档逻辑单元
 manual,手工

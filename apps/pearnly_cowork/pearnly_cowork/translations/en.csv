@@ -37,6 +37,7 @@ Checks Json,Checks Json
 Client,Client
 Closed At,Closed At
 Closed By,Closed By
+Companion Report,Companion Report
 Company,Company
 Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
@@ -179,9 +180,18 @@ Record ID,Record ID
 Record Id,Record Id
 Record Key,Record Key
 Record Revision,Record Revision
+Refresh Error Code,Refresh Error Code
+Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
+Refresh Lease Generation,Refresh Lease Generation
+Refresh Lease Handle,Refresh Lease Handle
+Refresh Lease Owner,Refresh Lease Owner
 Refresh Request Aliases,Refresh Request Aliases
+Refresh Started At (UTC),Refresh Started At (UTC)
 Refresh Status,Refresh Status
 Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
+Report Credential,Report Credential
+Report Credential Generation,Report Credential Generation
+Report Received At (UTC),Report Received At (UTC)
 Request Digest,Request Digest
 Request Fingerprint,Request Fingerprint
 Request Hash,Request Hash
@@ -278,6 +288,8 @@ companion.context_invalid,The Companion identity is no longer valid. Authenticat
 companion.credential_not_found,No Companion credential has been issued for this connection.
 companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
 companion.receipt_limit,The credential request receipt limit has been reached.
+companion.report_busy,The Companion service is temporarily unavailable. Try again shortly.
+companion.report_invalid,The Companion report is invalid.
 companion.request_conflict,This request key was used for another credential operation.
 companion.request_invalid,The credential request is invalid.
 companion.unauthorized,Companion authentication failed.
@@ -307,6 +319,29 @@ erp.account_set_unavailable,This account set is unavailable.
 erp.endpoint_disabled,This ERP connection is disabled.
 erp.target_access_denied,You do not have access to this ERP target.
 erp.target_context_invalid,The ERP target context is inconsistent.
+erp.target_projection_adapter_invalid,The ERP report uses an unsupported adapter.
+erp.target_projection_collector_invalid,The ERP report collector information is invalid.
+erp.target_projection_collector_not_connected,Collection is not connected for this ERP data type.
+erp.target_projection_duplicate_action,The ERP report contains duplicate action identifiers.
+erp.target_projection_duplicate_field,The ERP report contains duplicate field identifiers.
+erp.target_projection_duplicate_source_id,The ERP data report contains duplicate option identifiers.
+erp.target_projection_invalid,The ERP data report is invalid.
+erp.target_projection_invalid_action,A reported ERP action is invalid.
+erp.target_projection_invalid_capabilities,The reported ERP capabilities are invalid.
+erp.target_projection_invalid_field,A reported ERP field is invalid.
+erp.target_projection_invalid_form_schema,The reported ERP field definitions are invalid.
+erp.target_projection_invalid_json,The ERP data report contains an unsupported value.
+erp.target_projection_invalid_masters,The ERP master data report is invalid.
+erp.target_projection_invalid_number,The ERP data report contains an invalid number.
+erp.target_projection_invalid_option,An option in the ERP data report is invalid.
+erp.target_projection_observed_at_invalid,The ERP report observation time is invalid.
+erp.target_projection_refresh_status_invalid,The ERP report refresh status is invalid.
+erp.target_projection_sensitive_field,The ERP data report contains a restricted field.
+erp.target_projection_too_large,The ERP data report exceeds the supported size limit.
+erp.target_projection_unknown_entity,The ERP report contains an unsupported master data type.
+erp.target_projection_unknown_field_type,The ERP report contains an unsupported field type.
+erp.target_projection_value_required,The ERP data report is missing a required value.
+erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
@@ -321,6 +356,7 @@ history.pages_invalid,The invoice page data has an invalid format.
 history.source_invalid,The record source is not supported.
 history.source_not_public,Only manual records can be created through this entry.
 image,image
+leased,leased
 legacy,legacy
 logical_section,logical_section
 manual,Manual

@@ -10,7 +10,7 @@ CONFIG_KEYS = frozenset((
     "system_url", "comidyear", "seldb", "account_set", "account_dir", "express_root",
     "account_company", "account_set_row", "revenue_acc", "ar_acc", "vat_output_acc",
     "fallback_acc", "ap_acc", "vat_input_acc", "directions", "autonomy", "default_doctype",
-    "posting_profile", "stock_acccod", "seed_customer_code", "seed_product_code", "generic_product_code",
+    "method", "posting_profile", "stock_acccod", "seed_customer_code", "seed_product_code", "generic_product_code",
 ))
 REPORTED_KEYS = frozenset(("reported_accounts", "reported_products", "reported_customers",
     "reported_stock_acc_groups", "catalog_fingerprint", "max_payload_version", "companion_version"))

@@ -37,6 +37,7 @@ Checks Json,検証結果JSON
 Client,顧客
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
+Companion Report,Companion レポート
 Company,会社
 Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
@@ -179,9 +180,18 @@ Record ID,レコード ID
 Record Id,レコード ID
 Record Key,記録キー
 Record Revision,レコードの版
+Refresh Error Code,更新エラーコード
+Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
+Refresh Lease Generation,更新リースの世代
+Refresh Lease Handle,更新リース識別子
+Refresh Lease Owner,更新リースの所有者
 Refresh Request Aliases,更新要求の冪等索引
+Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+Report Credential,レポート認証情報
+Report Credential Generation,レポート認証情報の世代
+Report Received At (UTC),レポート受信日時（UTC）
 Request Digest,要求ダイジェスト
 Request Fingerprint,リクエスト内容のフィンガープリント
 Request Hash,要求内容ハッシュ
@@ -278,6 +288,8 @@ companion.context_invalid,アシスタントの認証が無効になりました
 companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。
 companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
 companion.receipt_limit,認証情報リクエストの受領記録が上限に達しました。
+companion.report_busy,Companion サービスは一時的に利用できません。しばらくしてから再試行してください。
+companion.report_invalid,Companion レポートが無効です。
 companion.request_conflict,このリクエストキーは別の認証情報操作に使用されています。
 companion.request_invalid,認証情報のリクエストが無効です。
 companion.unauthorized,アシスタント認証に失敗しました。
@@ -307,6 +319,29 @@ erp.account_set_unavailable,この会計データは利用できません。
 erp.endpoint_disabled,このERP接続は無効です。
 erp.target_access_denied,このERP送信先にアクセスする権限がありません。
 erp.target_context_invalid,ERP送信先の情報が一致しません。
+erp.target_projection_adapter_invalid,ERP レポートに対応していないアダプターが指定されています。
+erp.target_projection_collector_invalid,ERP レポートの収集元情報が無効です。
+erp.target_projection_collector_not_connected,この ERP データの種類には収集機能が接続されていません。
+erp.target_projection_duplicate_action,ERP レポートに操作の識別子が重複しています。
+erp.target_projection_duplicate_field,ERP レポートにフィールドの識別子が重複しています。
+erp.target_projection_duplicate_source_id,ERP データレポートに選択肢の識別子が重複しています。
+erp.target_projection_invalid,ERP データレポートが無効です。
+erp.target_projection_invalid_action,報告された ERP の操作が無効です。
+erp.target_projection_invalid_capabilities,報告された ERP の機能情報が無効です。
+erp.target_projection_invalid_field,報告された ERP フィールドが無効です。
+erp.target_projection_invalid_form_schema,報告された ERP フィールド定義が無効です。
+erp.target_projection_invalid_json,ERP データレポートに対応していない値が含まれています。
+erp.target_projection_invalid_masters,ERP マスターデータレポートが無効です。
+erp.target_projection_invalid_number,ERP データレポートに無効な数値が含まれています。
+erp.target_projection_invalid_option,ERP データレポート内の選択肢が無効です。
+erp.target_projection_observed_at_invalid,ERP レポートの収集日時が無効です。
+erp.target_projection_refresh_status_invalid,ERP レポートの更新状態が無効です。
+erp.target_projection_sensitive_field,ERP データレポートに制限対象のフィールドが含まれています。
+erp.target_projection_too_large,ERP データレポートが対応するサイズの上限を超えています。
+erp.target_projection_unknown_entity,ERP レポートに対応していないマスターデータの種類が含まれています。
+erp.target_projection_unknown_field_type,ERP レポートに対応していないフィールド型が含まれています。
+erp.target_projection_value_required,ERP データレポートに必須の値がありません。
+erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
@@ -321,6 +356,7 @@ history.pages_invalid,請求書のページデータの形式が正しくあり�
 history.source_invalid,このレコードの取得元には対応していません。
 history.source_not_public,この画面からは手入力のレコードのみ作成できます。
 image,画像
+leased,取得済み
 legacy,旧形式
 logical_section,文書の論理単位
 manual,手入力

@@ -441,3 +441,49 @@ App为pearnly_cowork；新增roundtrip业务域，复用OCR纯schema、表格有
 本轮仅本地实现/测试通过，CI、部署、外部业务结果、Windows/Excel真机及用户验收均未执行。未合回主线、未推送、未部署；另一个窗口的主目录继续前进且末次核对干净，HEAD为 `12176e9e09d579e71935ef456900870e5c85d1f1`。它新增DMS预热队列修复/记录，未引入本批架构或底座要求变化；本任务没有修改、合并或重启它。独立工作树保留用于后续迁移，不能将两分支称为已统一。
 
 第九批收尾：所有测试结束，本任务bench/db/redis三个容器已停止，隔离Site/DB卷及合成数据保留。架构检查0违规、变更Python语法与diff检查通过。通过共享暂存快照钩子保存独立本地提交；不清理或接管其它任务资源。
+
+## 第十批：新原生连接的 Companion 心跳与目录（2026-09-21，实施中）
+
+承接 `70383cdf5e8f45129997c8e773e0bcf3772422a9`；独立工作树开工干净，main为干净 `12176e9e09d579e71935ef456900870e5c85d1f1`，不合并、不部署、不改DMS/前端。重新读取开发入口、迁移基准、架构和第九记录。当前 source 与 runtime 对比第九 delivery均PASS；源码仍ec2e5c957e6b，源码checksum `61b2cb4e24163c8b531be211db8c892a8945d5310fe2d2d18ec7efdb5ad9aa9d`，runtime checksum `970d8f75f0894e0c8fb1c578b7d9f4ca2f01e326eb8aa74a4b2960097ca9bf9a`。
+
+范围按当前实际来源重新界定：迁移新原生Connection/新token/新授权范围下的报告协议及本地目录刷新，不导入旧owner、路径、目录或凭据，不切换真实旧客户端。第八到第九的历史全量配置差异保留HOLD，不能由当前稳定反推当时改动原因；它继续阻止旧业务状态迁入的等价声称。报告规约对正常、缺席、空值和异常输入矩阵做固定源差分，不依赖搬入某一客户旧目录。决策及证据见[第十来源审查](cowork-backend/tenth-source-review.md)。
+
+归属/依赖：`companion.http_auth/heartbeat` 持机器路径限制及认证编排，单向依赖credentials、connections.reports/collector；connections的state/snapshots/refresh只持本Site配置/报告/目录与刷新事务，不反向导入Companion。reports为无IO纯规约。公开只有精确POST heartbeat RPC；现有人工连接/刷新查询仍走原角色/范围；无菜单、页面、外部网络或订单消费者。
+
+保存点覆盖整次本地报告：先Connection→Credential验证，再更新报告与不可变目录，刷新租约绑定当前凭据代数、连接版本及900秒期限。每次领取使用新随机UUID回显句柄放在旧wire的request_id字段，人工查询保留原请求ID；不用增加客户端必填字段，也不假称真实Windows已兼容。普通报告不伪造供应商/银行等服务端资料已收集，preparation仍缺失。配置实质改变将使旧准备与旧租约失效；设备在线和目录刷新不等于可外推。
+
+### 原生收集器与报告差分
+
+[原生收集器说明](cowork-backend/companion-native-collector.md)登记了原始缓存与规范目录分离、配置失效、普通心跳与刷新完成分离，以及租约句柄的有意适配。保留旧 raw 与 projection 两套净化：catalog 缺席/空、账户列表空值、name-only/path-only、选择与科目组、离线哨兵、协议版本均不混并。
+
+- 候选隔离无网容器完整离线 **721项通过**（此前689＋13 HTTP规约＋19报告）；无skip。固定旧源5文件完整hash约束后真实函数执行，**1,262组报告 raw patch/投影/完成请求/response/本次领取选择零差异**。另4个畸形mapping把旧AttributeError改为稳定companion.report_invalid，明确登记，不混入零差异。source-stdin也已验证，未执行旧应用或旧SQL。
+- 真实Connection/Snapshot/Refresh **18项通过**：空目录保留有效快照、空与缺席不同、普通报告不完成请求、错误完成仍可发布独立目录、重复快照去重、offline、不授preparation、配置版本变化、轮换/过期/重取、requested合并/leased替换、旧句柄及范围拒绝、人端错误回读。两个独立数据库进程先建立旧RR快照再调用真实WSGI，仅一个取得租约。
+- 原有连接21、推送账本24、推送应用18及本批挂钩后的凭据20项回归通过。前述纯规则和合成数据库结果不等于真实ERP、Windows或用户验收。
+- 实测并修复鉴权前MariaDB1020：框架的既有查询可先建立RR视图，使机器鉴权当前读在handler重试之前冲突。机器鉴权本地只读段最多3次rollback后完整重验，权限拒绝不重试；后续写入段同样有限重试并重验当前授权。此处没有外部副作用，不增加外部发送自动重试。
+- 独立审查指出并修复领取账套错误：展示response.account_set可以回落配置，但实际领取必须只使用本次body.account_set/account_dir；已加入空报告/仅目录两组差分及原生反例。collector_available统一使用实际显式开关True/1、Express且legacy generation，不将开关状态当作设备在线或采集已成功。
+
+### 本地安装及数据保留边界
+
+本轮开工实查：旧专有lab容器、命名Site/DB卷已不在，仅其他任务的pearnly-sample正在运行；本任务没有清理或接管该环境。重新核对锁定镜像/compose/internal网络/只读挂载，用本任务独立新卷从上批SHA `70383cdf5e8f45129997c8e773e0bcf3772422a9` 归档代码安装旧schema并构建合成fixture；先运行旧凭据20项建立旧状态，再切回本任务源码升级。旧20项只是重建基准，不累加到候选通过总数。
+
+新 `cowork-backend-heartbeat.localhost` 安装通过；重建的 `cowork-backend-companion.localhost` 升级和重复migrate通过。专用升级脚本保存14表的原列集合并逐表比较计数/哈希，18条原记录（包括5连接、5凭据、1目录、1刷新）全字段原值保持；空表按空表说明，不称原439条旧卷记录延续。新增字段由原生schema迁移生成，无手工业务改库，合成报告均在本地独立Site。
+
+### 语言及安全异常边界
+
+本批新增36个术语，仅生成Cowork四语包，每语463条。报告和公开投影错误使用稳定语义键，Core+Cowork可解析；真实Site对新增36×4=144次翻译解析通过。旧projection metadata的Product/Account等标签保持源协议，未来前端应按会计语义映射，不能覆盖全站通用Account词条。全仓strict仍是旧147项/43文件/135文案，去行号新增/删除0；未扩大忽略，不称全仓语言过闸。
+
+机器请求局部退出原生Recorder，保留全局录制及普通请求阳性对照。另实际发现原生Error Log带局部变量的诊断可能记录validate_auth中的Bearer明文；使用本地合成token验证，仅输出是否泄露，不归档原文。最终HTTP安全边界和验证结果见[HTTP桥记录](cowork-backend/companion-http-auth.md)，此项闭环后才提交本批。
+
+### 第十批交付结论
+
+HTTP最终 **26项真实WSGI通过**，包含机器token在before_request完成精确验证后转本请求不可伪造私有envelope，移除本请求Authorization，auth_hooks消费后销毁；原生OAuth/API-key解析不接触机器token，原生issuer IP限制仍执行。IP故障保留诊断且不含token；developer_mode下总闸拒绝保持403并排除含秘密快照；初次鉴权冲突/绑定故障及实际550层合法JSON交接异常以固定503+异常类型诊断返回，不打印令牌或原异常上下文。普通请求的录制、授权和诊断不全局关闭。最后源码只读复审关闭这几处实际发现的残口，详见[来源与限定审查](cowork-backend/tenth-source-review.md)。
+
+本批候选共 **127项原生测试通过**（18收集/租约＋26HTTP＋21连接＋24推送账本＋18推送应用＋20凭据），升级基准重建20项及重复/定向回归不累加。721离线、1,262来源报告差分及144真实翻译查询按各自层级记证据。验证清单、候选源文件哈希及日志哈希已存 `cowork-backend/evidence/tenth-local-validation.json`；升级三份计数/原列摘要也已归档。首次原生装配暴露新helper从targets包根导入非导出符号，已改为直接使用identity/projection域入口；真实Site重新通过，未扩大包根导出或放宽断言。
+
+交付来源复核仍为ec2e5c957e6b：source checksum `f5cfda4cf3682cd7ef83d9a8bc69a572113c502f3e3b75f853f7f49d2038b0bc`，runtime checksum `3008ff7f52604b42f5b0cd873ad53c186a35544fd7661bd2dc47636f099e2e36`；第十首尾与第九delivery均源码/配置一致，settings_unchanged=true、observations_changed=false。第八到第九全量配置差异仍HOLD，未因此迁入旧owner/目标/目录，也未称差异已解释。
+
+下一段仍是带新账本attempt凭据的Companion订单运输/ACK、实际Windows协议兼容与MRERP采集/运输，之后还有不明结果回读恢复、History状态和通知、LINE/WeKan、对账及剩余盘点照片/legacy/导入删除/导出归档等。当前是后端分段迁移，不是Cowork整体完成；尚未到前端接入讨论点。真实设备、外部ERP效果、生产部署与用户验收均未执行。
+
+本批不合并、不推送、不部署。主目录只读末次核验为干净 `1a0585e6d53a995aa59a6045fe027246d18471f9`，较开工仅增加DMS清理与内存调整记录，本任务未改动它或其运行环境。独立工作树继续保留，旧基准只读归档在 `/Users/skin/.codex/cowork-tenth-lab-baseline`，新专有数据卷保留用于后续升级复验；不能称主线代码已统一。
+
+第十批收尾：本任务bench/redis/db三个容器已停止，专有卷和合成数据保留；没有停其它项目。架构检查0违规、全部变更Python语法/候选源文件哈希/diff检查通过。仅暂存本任务38个路径，通过共享暂存快照钩子保存独立本地提交，未禁用钩子。

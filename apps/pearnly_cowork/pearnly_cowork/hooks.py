@@ -331,7 +331,10 @@ extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
     "Pearnly OCR Work": ["pearnly_cowork.ocr.execution.work_guard.CoworkWorkGuard"],
 }
-after_request = ["pearnly_cowork.files.api.protect_response"]
+before_login = ["pearnly_cowork.companion.http_auth.before_login"]
+before_request = ["pearnly_cowork.companion.http_auth.before_request"]
+auth_hooks = ["pearnly_cowork.companion.http_auth.authenticate_request"]
+after_request = ["pearnly_cowork.files.api.protect_response", "pearnly_cowork.companion.http_auth.after_request"]
 override_whitelisted_methods = {
     "frappe.core.api.file.zip_files": "pearnly_cowork.files.api.guarded_zip_files",
 }

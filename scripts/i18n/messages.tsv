@@ -1475,3 +1475,39 @@ pearnly_cowork	The Companion identity is no longer valid. Authenticate again.	�
 pearnly_cowork	This connection does not support an Express Companion credential.	此连接不支持 Express 助手凭据。	การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express	この接続は Express アシスタント認証情報に対応していません。	companion.unsupported_connection
 pearnly_cowork	The credential request receipt limit has been reached.	凭据请求回执数量已达到上限。	จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว	認証情報リクエストの受領記録が上限に達しました。	companion.receipt_limit
 pearnly_cowork	The stocktake export snapshot is incomplete. Reload and try again.	盘点导出数据不完整，请刷新后重试。	ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง	棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。	stocktake.export_incomplete
+pearnly_cowork	Companion Report	伴侣端上报	รายงานจาก Companion	Companion レポート
+pearnly_cowork	Report Received At (UTC)	上报接收时间（UTC）	เวลารับรายงาน (UTC)	レポート受信日時（UTC）
+pearnly_cowork	Report Credential	上报凭证	ข้อมูลรับรองของรายงาน	レポート認証情報
+pearnly_cowork	Report Credential Generation	上报凭证版本	รุ่นข้อมูลรับรองของรายงาน	レポート認証情報の世代
+pearnly_cowork	Refresh Started At (UTC)	刷新开始时间（UTC）	เวลาเริ่มรีเฟรช (UTC)	更新開始日時（UTC）
+pearnly_cowork	Refresh Lease Owner	刷新租约持有者	ผู้ถือสิทธิ์การรีเฟรช	更新リースの所有者
+pearnly_cowork	Refresh Lease Generation	刷新租约版本	รุ่นสิทธิ์การรีเฟรช	更新リースの世代
+pearnly_cowork	Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子
+pearnly_cowork	Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）
+pearnly_cowork	Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード
+pearnly_cowork	The Companion report is invalid.	伴侣端上报内容无效。	รายงานจาก Companion ไม่ถูกต้อง	Companion レポートが無効です。	companion.report_invalid
+pearnly_cowork	leased	已领取	รับงานแล้ว	取得済み	leased
+pearnly_cowork	The ERP data report is missing a required value.	ERP 数据报告缺少必填值。	รายงานข้อมูล ERP ขาดค่าที่จำเป็น	ERP データレポートに必須の値がありません。	erp.target_projection_value_required
+pearnly_cowork	A value in the ERP data report exceeds the allowed length.	ERP 数据报告中的值超过允许长度。	ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด	ERP データレポート内の値が許容される長さを超えています。	erp.target_projection_value_too_long
+pearnly_cowork	The ERP data report contains a restricted field.	ERP 数据报告包含受限制的字段。	รายงานข้อมูล ERP มีฟิลด์ที่ไม่อนุญาต	ERP データレポートに制限対象のフィールドが含まれています。	erp.target_projection_sensitive_field
+pearnly_cowork	The ERP data report contains an invalid number.	ERP 数据报告包含无效数值。	รายงานข้อมูล ERP มีตัวเลขที่ไม่ถูกต้อง	ERP データレポートに無効な数値が含まれています。	erp.target_projection_invalid_number
+pearnly_cowork	The ERP data report contains an unsupported value.	ERP 数据报告包含不支持的值。	รายงานข้อมูล ERP มีค่าที่ไม่รองรับ	ERP データレポートに対応していない値が含まれています。	erp.target_projection_invalid_json
+pearnly_cowork	The ERP data report exceeds the supported size limit.	ERP 数据报告超过支持的大小限制。	รายงานข้อมูล ERP มีขนาดเกินขีดจำกัดที่รองรับ	ERP データレポートが対応するサイズの上限を超えています。	erp.target_projection_too_large
+pearnly_cowork	An option in the ERP data report is invalid.	ERP 数据报告中的选项无效。	ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง	ERP データレポート内の選択肢が無効です。	erp.target_projection_invalid_option
+pearnly_cowork	The ERP data report contains duplicate option identifiers.	ERP 数据报告包含重复的选项标识。	รายงานข้อมูล ERP มีรหัสตัวเลือกซ้ำกัน	ERP データレポートに選択肢の識別子が重複しています。	erp.target_projection_duplicate_source_id
+pearnly_cowork	The ERP master data report is invalid.	ERP 主数据报告无效。	รายงานข้อมูลหลัก ERP ไม่ถูกต้อง	ERP マスターデータレポートが無効です。	erp.target_projection_invalid_masters
+pearnly_cowork	The ERP report contains an unsupported master data type.	ERP 报告包含不支持的主数据类型。	รายงาน ERP มีประเภทข้อมูลหลักที่ไม่รองรับ	ERP レポートに対応していないマスターデータの種類が含まれています。	erp.target_projection_unknown_entity
+pearnly_cowork	The reported ERP field definitions are invalid.	上报的 ERP 字段定义无效。	ข้อกำหนดฟิลด์ ERP ที่รายงานไม่ถูกต้อง	報告された ERP フィールド定義が無効です。	erp.target_projection_invalid_form_schema
+pearnly_cowork	A reported ERP field is invalid.	上报的 ERP 字段无效。	ฟิลด์ ERP ที่รายงานไม่ถูกต้อง	報告された ERP フィールドが無効です。	erp.target_projection_invalid_field
+pearnly_cowork	The ERP report contains duplicate field identifiers.	ERP 报告包含重复的字段标识。	รายงาน ERP มีรหัสฟิลด์ซ้ำกัน	ERP レポートにフィールドの識別子が重複しています。	erp.target_projection_duplicate_field
+pearnly_cowork	The ERP report contains an unsupported field type.	ERP 报告包含不支持的字段类型。	รายงาน ERP มีประเภทฟิลด์ที่ไม่รองรับ	ERP レポートに対応していないフィールド型が含まれています。	erp.target_projection_unknown_field_type
+pearnly_cowork	The reported ERP capabilities are invalid.	上报的 ERP 功能信息无效。	ข้อมูลความสามารถของ ERP ที่รายงานไม่ถูกต้อง	報告された ERP の機能情報が無効です。	erp.target_projection_invalid_capabilities
+pearnly_cowork	A reported ERP action is invalid.	上报的 ERP 操作无效。	การดำเนินการ ERP ที่รายงานไม่ถูกต้อง	報告された ERP の操作が無効です。	erp.target_projection_invalid_action
+pearnly_cowork	The ERP report contains duplicate action identifiers.	ERP 报告包含重复的操作标识。	รายงาน ERP มีรหัสการดำเนินการซ้ำกัน	ERP レポートに操作の識別子が重複しています。	erp.target_projection_duplicate_action
+pearnly_cowork	The ERP report observation time is invalid.	ERP 报告的采集时间无效。	เวลาเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集日時が無効です。	erp.target_projection_observed_at_invalid
+pearnly_cowork	The ERP report collector information is invalid.	ERP 报告的采集器信息无效。	ข้อมูลตัวเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集元情報が無効です。	erp.target_projection_collector_invalid
+pearnly_cowork	The ERP data report is invalid.	ERP 数据报告无效。	รายงานข้อมูล ERP ไม่ถูกต้อง	ERP データレポートが無効です。	erp.target_projection_invalid
+pearnly_cowork	The ERP report uses an unsupported adapter.	ERP 报告使用了不支持的适配器。	รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ	ERP レポートに対応していないアダプターが指定されています。	erp.target_projection_adapter_invalid
+pearnly_cowork	The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
+pearnly_cowork	Collection is not connected for this ERP data type.	此 ERP 数据类型尚未接入采集。	ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
+pearnly_cowork	The Companion service is temporarily unavailable. Try again shortly.	伴侣端服务暂时不可用，请稍后重试。	บริการ Companion ไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่	Companion サービスは一時的に利用できません。しばらくしてから再試行してください。	companion.report_busy

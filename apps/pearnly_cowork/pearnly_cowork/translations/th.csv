@@ -37,6 +37,7 @@ Checks Json,ผลตรวจสอบ JSON
 Client,ลูกค้า
 Closed At,เวลาปิด
 Closed By,ผู้ปิด
+Companion Report,รายงานจาก Companion
 Company,บริษัท
 Completed At,เวลาที่เสร็จสิ้น
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
@@ -179,9 +180,18 @@ Record ID,รหัสรายการ
 Record Id,รหัสรายการ
 Record Key,คีย์รายการ
 Record Revision,รุ่นของรายการ
+Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
+Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
+Refresh Lease Generation,รุ่นสิทธิ์การรีเฟรช
+Refresh Lease Handle,รหัสสิทธิ์การรีเฟรช
+Refresh Lease Owner,ผู้ถือสิทธิ์การรีเฟรช
 Refresh Request Aliases,ดัชนีคำขอรีเฟรช
+Refresh Started At (UTC),เวลาเริ่มรีเฟรช (UTC)
 Refresh Status,สถานะการรีเฟรช
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
+Report Credential,ข้อมูลรับรองของรายงาน
+Report Credential Generation,รุ่นข้อมูลรับรองของรายงาน
+Report Received At (UTC),เวลารับรายงาน (UTC)
 Request Digest,แฮชคำขอ
 Request Fingerprint,ลายนิ้วมือข้อมูลคำขอ
 Request Hash,แฮชเนื้อหาคำขอ
@@ -278,6 +288,8 @@ companion.context_invalid,ตัวตนผู้ช่วยใช้ไม่
 companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 companion.generation_conflict,ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก
 companion.receipt_limit,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
+companion.report_busy,บริการ Companion ไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่
+companion.report_invalid,รายงานจาก Companion ไม่ถูกต้อง
 companion.request_conflict,คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว
 companion.request_invalid,คำขอข้อมูลรับรองไม่ถูกต้อง
 companion.unauthorized,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
@@ -307,6 +319,29 @@ erp.account_set_unavailable,ชุดบัญชีนี้ไม่พร้�
 erp.endpoint_disabled,การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน
 erp.target_access_denied,คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้
 erp.target_context_invalid,บริบทของปลายทาง ERP ไม่สอดคล้องกัน
+erp.target_projection_adapter_invalid,รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ
+erp.target_projection_collector_invalid,ข้อมูลตัวเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง
+erp.target_projection_collector_not_connected,ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
+erp.target_projection_duplicate_action,รายงาน ERP มีรหัสการดำเนินการซ้ำกัน
+erp.target_projection_duplicate_field,รายงาน ERP มีรหัสฟิลด์ซ้ำกัน
+erp.target_projection_duplicate_source_id,รายงานข้อมูล ERP มีรหัสตัวเลือกซ้ำกัน
+erp.target_projection_invalid,รายงานข้อมูล ERP ไม่ถูกต้อง
+erp.target_projection_invalid_action,การดำเนินการ ERP ที่รายงานไม่ถูกต้อง
+erp.target_projection_invalid_capabilities,ข้อมูลความสามารถของ ERP ที่รายงานไม่ถูกต้อง
+erp.target_projection_invalid_field,ฟิลด์ ERP ที่รายงานไม่ถูกต้อง
+erp.target_projection_invalid_form_schema,ข้อกำหนดฟิลด์ ERP ที่รายงานไม่ถูกต้อง
+erp.target_projection_invalid_json,รายงานข้อมูล ERP มีค่าที่ไม่รองรับ
+erp.target_projection_invalid_masters,รายงานข้อมูลหลัก ERP ไม่ถูกต้อง
+erp.target_projection_invalid_number,รายงานข้อมูล ERP มีตัวเลขที่ไม่ถูกต้อง
+erp.target_projection_invalid_option,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
+erp.target_projection_observed_at_invalid,เวลาเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง
+erp.target_projection_refresh_status_invalid,สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง
+erp.target_projection_sensitive_field,รายงานข้อมูล ERP มีฟิลด์ที่ไม่อนุญาต
+erp.target_projection_too_large,รายงานข้อมูล ERP มีขนาดเกินขีดจำกัดที่รองรับ
+erp.target_projection_unknown_entity,รายงาน ERP มีประเภทข้อมูลหลักที่ไม่รองรับ
+erp.target_projection_unknown_field_type,รายงาน ERP มีประเภทฟิลด์ที่ไม่รองรับ
+erp.target_projection_value_required,รายงานข้อมูล ERP ขาดค่าที่จำเป็น
+erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -321,6 +356,7 @@ history.pages_invalid,รูปแบบข้อมูลหน้าใบแ�
 history.source_invalid,ไม่รองรับแหล่งที่มาของรายการนี้
 history.source_not_public,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
 image,รูปภาพ
+leased,รับงานแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร
 manual,กรอกเอง

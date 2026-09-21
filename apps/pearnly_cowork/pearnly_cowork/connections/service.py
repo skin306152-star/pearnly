@@ -16,7 +16,8 @@ from pearnly_core.shell import entitlements
 from pearnly_cowork.targets import TargetAccess, TargetEvidence
 from pearnly_cowork.targets.identity import normalize_express_account_key
 from pearnly_cowork.targets.projection import normalize_projection, normalize_scope
-from . import access, model
+from . import access, model, snapshots, refresh as refresh_leases
+from .state import read as _read, heads as _heads, scope as _scope
 
 CONNECTION, SNAPSHOT, REFRESH = access.TYPES
 
@@ -38,36 +39,12 @@ def _error(code):
     frappe.throw(_(code))
 
 
-def _name(value):
-    if not isinstance(value, str) or not value or len(value) > 140:
-        _error("connection.not_found")
-    return value
-
-
-def _read(doctype, name, *, lock=True):
-    # get_doc(for_update=True) is a current InnoDB read, never an RR snapshot.
-    if not frappe.db.get_value(doctype, _name(name), "name", for_update=lock):
-        _error("connection.not_found")
-    return frappe.get_doc(doctype, name, for_update=lock)
-
-
-def _heads(doc):
-    return model.parse(doc.projection_heads, {})
-
-
-def _scope(account, adapter=None):
-    if adapter == "express" and account not in (None, "", "@endpoint"):
-        account = normalize_express_account_key(account)
-    kind, key = normalize_scope(None if account in (None, "", "@endpoint") else account)
-    return kind, key, model.fingerprint([kind, key])
-
-
 def _dto(doc):
     return {"name": doc.name, "label": doc.label, "adapter": doc.adapter, "workspace": doc.workspace,
             "client": doc.client or None, "enabled": bool(doc.enabled), "revision": int(doc.record_revision),
             "config": model.parse(doc.config_json, {}), "users": model.parse(doc.allowed_users, []),
             "has_username": bool(doc.get("credential_username")), "has_password": bool(doc.get("credential_password")),
-            "has_token": bool(doc.get("credential_token")), "collector_available": False}
+            "has_token": bool(doc.get("credential_token")), "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
 
 
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,
@@ -151,7 +128,7 @@ def targets(name):
     head = _heads(doc).get(key, {})
     result = {"connection": doc.name, "connection_revision": doc.record_revision,
               "status": head.get("status") or "missing", "refresh_request_id": head.get("request_id"),
-              "revision": head.get("revision"), "account_sets": [], "collector_available": False}
+              "revision": head.get("revision"), "error_code": head.get("error_code"), "account_sets": [], "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
     if head.get("request_id"):
         refresh = _read(REFRESH, head["request_id"])
         if refresh.connection != doc.name or refresh.connection_revision != doc.record_revision:
@@ -199,6 +176,7 @@ def request_refresh(name, request_key, account_set_key=None):
     doc = _read(CONNECTION, name)
     actor = access.require_connection(doc)
     kind, key, head_key = _scope(account_set_key, doc.adapter)
+    refresh_leases.expire(doc, _now())
     identity = model.request_identity(frappe.local.site, actor, "refresh:" + name, request_key)
     signature = model.fingerprint([name, int(doc.record_revision), kind, key])
     aliases = model.parse(doc.get("refresh_request_aliases"), {})
@@ -234,6 +212,7 @@ def request_refresh(name, request_key, account_set_key=None):
             doc.refresh_request_aliases = model.dumps(aliases)
             access.write(doc)
             return _refresh_dto(old)
+        refresh_leases.supersede(doc, old, _now())
     refresh = frappe.get_doc({"doctype": REFRESH, "record_key": identity, "connection": name,
         "workspace": doc.workspace, "client": doc.client or "", "actor": actor,
         "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
@@ -241,7 +220,7 @@ def request_refresh(name, request_key, account_set_key=None):
         "account_set_key": "@endpoint" if kind == "endpoint" else key,
         "request_hash": signature, "status": "requested", "requested_at": _now(), "result_revision": 0})
     access.write(refresh)
-    heads[head_key] = {**previous, "request_id": identity, "status": "pending"}
+    heads[head_key] = {**previous, "request_id": identity, "status": "pending", "error_code": None}
     doc.projection_heads = model.dumps(heads)
     aliases[identity] = {"request_id": refresh.name, "request_hash": signature}
     doc.refresh_request_aliases = model.dumps(aliases)
@@ -252,7 +231,8 @@ def request_refresh(name, request_key, account_set_key=None):
 def _refresh_dto(doc):
     return {"request_id": doc.name, "connection": doc.connection, "status": doc.status,
             "account_set_key": doc.account_set_key, "result_revision": doc.result_revision or None,
-            "collector_available": False}
+            "error_code": doc.get("error_code") or None,
+            "collector_available": bool(doc.adapter == "express" and not doc.binding_generation and frappe.conf.get("pearnly_cowork_erp_push_enabled") in (True, 1))}
 
 
 def refresh_status(name, request_id):
@@ -286,43 +266,16 @@ def install_snapshot(name, observation, request_id, expected_revision, preparati
             or (refresh.scope_kind, refresh.scope_key) != (kind, key) or head.get("request_id") != request_id
             or refresh.status not in {"requested", "succeeded"}):
         _error("connection.refresh_stale")
-    body = {"adapter": normalized.adapter, "scope_kind": kind, "scope_key": key,
-            "account_sets": normalized.account_sets, "masters": normalized.masters,
-            "form_schema": normalized.form_schema, "capabilities": normalized.capabilities,
-            "entity_counts": normalized.entity_counts, "component_hashes": normalized.component_hashes,
-            "collector": normalized.collector, "observed_at": normalized.observed_at.isoformat()}
-    if len(model.dumps(body).encode()) > 16 * 1024 * 1024:
-        _error("connection.snapshot_too_large")
-    if prepared is not None and kind == "account_set":
-        identity = normalize_express_account_key if doc.adapter == "express" else lambda v: str(v or "").strip()
-        if identity(prepared["account_set"]) != identity(key):
-            _error("connection.preparation_invalid")
     content_hash = model.fingerprint([normalized.source_hash, prepared])
     current = _read(SNAPSHOT, head["snapshot_id"]) if head.get("snapshot_id") else None
-    same = bool(current and current.content_hash == content_hash)
-    if refresh.status == "succeeded" and not same:
+    if refresh.status == "succeeded" and not (current and current.content_hash == content_hash):
         _error("connection.refresh_stale")
-    if same:
-        snapshot = current
-    else:
-        revision = int(head.get("revision") or 0) + 1
-        snapshot = frappe.get_doc({"doctype": SNAPSHOT, "record_key": "CWES-" + uuid.uuid4().hex,
-            "connection": name, "workspace": doc.workspace, "client": doc.client or "",
-            "connection_revision": doc.record_revision, "binding_generation": doc.binding_generation,
-            "scope_kind": kind, "scope_key": key, "projection_revision": revision,
-            "adapter": doc.adapter, "source_hash": normalized.source_hash, "content_hash": content_hash,
-            "body": model.dumps(body), "preparation": model.dumps(prepared), "observed_at": normalized.observed_at.replace(tzinfo=None),
-            "installed_at": _now()})
-        access.write(snapshot)
-    heads[head_key] = {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision,
-                       "request_id": request_id, "status": "fresh"}
-    doc.projection_heads = model.dumps(heads)
-    access.write(doc)
+    result = snapshots.publish(doc, normalized, preparation=prepared, request_id=request_id)
     refresh.status = "succeeded"
-    refresh.result_revision = snapshot.projection_revision
+    refresh.result_revision = result["revision"]
     refresh.completed_at = _now()
     access.write(refresh)
-    return {"snapshot_id": snapshot.name, "revision": snapshot.projection_revision, "published": not same}
+    return result
 
 
 def read_for_push(connection_id, workspace, client=None, actor=None, lock=True):

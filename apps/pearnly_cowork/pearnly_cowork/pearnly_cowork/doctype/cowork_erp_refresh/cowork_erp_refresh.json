@@ -32,7 +32,13 @@
   "status",
   "requested_at",
   "completed_at",
-  "result_revision"
+  "result_revision",
+  "started_at",
+  "lease_owner",
+  "lease_generation",
+  "lease_handle",
+  "lease_expires_at",
+  "error_code"
  ],
  "fields": [
   {
@@ -140,7 +146,7 @@
    "fieldtype": "Select",
    "read_only": 1,
    "no_copy": 1,
-   "options": "requested\nsuperseded\nsucceeded\nfailed"
+   "options": "requested\nleased\nsuperseded\nsucceeded\nfailed"
   },
   {
    "fieldname": "requested_at",
@@ -162,6 +168,58 @@
    "fieldtype": "Int",
    "read_only": 1,
    "no_copy": 1
+  },
+  {
+   "fieldname": "started_at",
+   "label": "Refresh Started At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "lease_owner",
+   "label": "Refresh Lease Owner",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "lease_generation",
+   "label": "Refresh Lease Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "lease_handle",
+   "label": "Refresh Lease Handle",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1,
+   "length": 140,
+   "unique": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "label": "Refresh Lease Expires At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "error_code",
+   "label": "Refresh Error Code",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1,
+   "length": 200
   }
  ],
  "permissions": [

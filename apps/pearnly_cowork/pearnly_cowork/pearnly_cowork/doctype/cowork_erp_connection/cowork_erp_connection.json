@@ -36,7 +36,11 @@
   "refresh_request_aliases",
   "create_request_hash",
   "last_request_key",
-  "last_request_hash"
+  "last_request_hash",
+  "report_json",
+  "report_received_at",
+  "report_credential",
+  "report_generation"
  ],
  "fields": [
   {
@@ -198,6 +202,39 @@
    "read_only": 1,
    "no_copy": 1,
    "length": 255
+  },
+  {
+   "fieldname": "report_json",
+   "label": "Companion Report",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "report_received_at",
+   "label": "Report Received At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "report_credential",
+   "label": "Report Credential",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "report_generation",
+   "label": "Report Credential Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
   }
  ],
  "permissions": [
