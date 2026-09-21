@@ -1,5 +1,37 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十七批交付）
+
+**本批把收入对账的总账侧解析按部署版迁入，并给它一个受控入账入口。** 上一批只有"已解码行 → 存储"，本批补上"旧项目抽取出的内容 → 总账行"：Excel 两种版式、PDF 表格与文字行两条路径、OCR 管线归一化 JSON。销项税报告由另一个解析族负责，不在本批；读文件与 OCR 仍在旧项目。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `2e33245`（第二十六批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/income_parse.py`：`decode(source, revenue_prefix)` 按 `kind`（`excel` 每表单元格行 / `pdf` 每页文字+表格+文字行 / `text` 文字行 / `pipeline` 管线条目）解码成 `GlRow`，返回部署版形状 `{"ok","rows","row_count","error","diag"}`；`decoded_rows(rows)` 转到入库行契约。叶子 helper（`to_float`/`extract_account_code`/`is_skip_row`/`map_gl_columns`/`row_has_amount`/`is_debit_line`/`is_revenue_account`）与常量、正则逐条对齐部署版。
+- 新入口 `income_recon_service.create_from_parsed` + POST RPC `income_recon_api.create_from_parsed`：先解码（0 行报 `reconciliation.gl_no_revenue_rows`、读不出报 `gl_parse_failed`），再走与 `create` 完全相同的校验与存储，返回 `parsed`（方法、行数、科目、解析器版本）。**未改任何 DocType、hooks、共享底座。**
+- 保真的怪癖（差分逐条确认）：款项 `round(2)`、括号负数、`419.57` 不当科目；表头判定"借方词且贷方词"；Excel 日期单元格转 ISO 并做佛历回退（≥2500 减 543）、表格路径不转日期；文字行的两种数字尾、余额判借贷、退货词优先判借、无日期继承上一行、`รวม` 行跳过、描述取到第一个尾数字最后一次出现（余额同尾时会被拉长）。
+- 有意差异：入参边界改为"已抽取内容"、按 `kind` 分发；管线路径 >6 位小数的金额被入库契约拒绝（部署版直接存 float）；两条本地路径都 0 行时不再回退 OCR 管线；诊断只回传不入库；Excel/表格两条路径多一个 `diag` 块。
+
+### 验证与证据
+
+- 离线：本批新 **29** 个解析用例通过；固定源差分 **305** 批 × 四条路径（Excel 161 / 表格 172 / 文字行 156 / 管线 70 行；佛历日期单元格 96、贷方 113、借方 100、三数字尾 57）+ 96 组 helper 用例，差异 **0**；对账族 137 个与两份行契约 32 个继续通过。
+- 隔离 Site：两个 Site 各 **13** 个用例通过（上一批 10 个 + 本批 3 个：已抽取工作表入账后汇总与解码行入口逐字段相同、文字行/表格经同一入口、无收入行/读不出/未知来源/精度越界入库前被拒且无残留），五端点匿名全 **403**。顺带把 `cowork-backend-preparation` 的 Site 结构补到当前（上一批新增的三列计数）。
+- 架构 **0** 违规；`i18n-build --check` PASS（新错误键是 ASCII 语义键，未登记文案）；`git diff --check` 干净。
+- 未执行：真实文件读取（openpyxl/pdfplumber 不属本批）、销项税报告解析、诊断与文件名入库、异步任务与轮询、复核工作簿、批删、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工 `baseline-twenty-seventh-start.json`（`295f2aad…`）与交付 `baseline-twenty-seventh-delivery.json`（`db984f61…`）均 `source=ec2e5c957e6b…`，`compare` **PASS**。运行投影 `push-runtime-twenty-seventh-delivery.json`（`13a445a5…`）：端点 `configuration_digest` `bbb0fe7e…` → `1ed03962…`（端点数 60、平台开关不变）——该摘要每轮都在动，是在跑的旧侧代理写旧库。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族：销项税报告解析（`services/vat/**`）→ 文件诊断与文件名入库 → 异步任务与轮询 → 复核工作簿导出（与银行那批同型）→ 批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为 `42ed146`，远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`debf942`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十六批交付）
 
 **本批给收入对账（总账对销项税）配上原生存储：新增一对 DocType（任务 + 结果行）、一个服务、一组专用 RPC 与权限门，并把银行那套的共享契约、权限门、控制器门、任务机制抽出来复用。** 上一批只迁了判定核心，本批让结果落进新平台自己的表；读文件、出工作簿、异步仍是后续批次。不接前端、不部署、不改 DMS、不写旧库。

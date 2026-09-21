@@ -46,6 +46,23 @@ VAT_ROWS = [
 ]
 HEADER = {"gl_account_code": "4110-01"}
 
+# The same ledger content as GL_ROWS, written the way an extracted Excel sheet
+# prints it: one reversed column shape, one non-revenue row the decode drops.
+PARSED_SHEETS = [[
+	["วันที่", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต", "รหัสบัญชี"],
+	["01/06/2569", "GL-1", "sale", "0.00", "1,070.00", "4110-01"],
+	["01/06/2569", "GL-1", "sale 2", "0.00", "30.00", "4110-01"],
+	["02/06/2569", "GL-2", "credit note", "107.00", "0.00", "4110-01"],
+	["03/06/2569", "GL-3", "no vat row", "0.00", "500.00", "4110-02"],
+	["04/06/2569", "GL-9", "not revenue", "0.00", "250.00", "5010-01"],
+]]
+# The printed text lines of one ledger page, with the section heading the reader
+# needs before it keeps any row.
+PARSED_LINES = [
+	"4110-01 รายได้จากการขาย",
+	"01/06/2569 GL-1 ขายสินค้า 0.00 1,070.00 1,070.00",
+]
+
 
 class NativeIncomeReconciliation(unittest.TestCase):
 	@classmethod
@@ -90,6 +107,13 @@ class NativeIncomeReconciliation(unittest.TestCase):
 			"header": HEADER}
 		arguments.update(changes)
 		return self.api.create(**arguments)
+
+	def create_from_parsed(self, **changes):
+		arguments = {"workspace": self.workspace, "title": "June 2569 output VAT",
+			"request_id": self.request_id, "gl_source": {"kind": "excel",
+				"sheets": PARSED_SHEETS}, "vat_rows": VAT_ROWS, "header": HEADER}
+		arguments.update(changes)
+		return self.api.create_from_parsed(**arguments)
 
 	def test_store_summary_rows_and_replay(self):
 		result = self.create()
@@ -143,6 +167,76 @@ class NativeIncomeReconciliation(unittest.TestCase):
 		self.create()
 		with self.assertRaises(frappe.ValidationError):
 			self.create(vat_rows=VAT_ROWS[:1])
+
+	def test_an_extracted_gl_sheet_is_admitted_with_the_deployed_conversion(self):
+		from_store = self.create_parsed_for_comparison()
+		before = frappe.db.count(TASK, {"workspace": self.workspace})
+		result = self.create_from_parsed()
+		self.assertFalse(result["replayed"])
+		# The decode drops the non-revenue row, so four ledger rows reach the store.
+		self.assertEqual(result["parsed"], {"rows": 4, "method": "excel", "accounts_seen": [],
+			"parser_version": "1.0.0"})
+		self.assertEqual(result["row_count"], 3)
+		self.assertEqual(result["summary"], from_store["summary"])
+		detail = self.api.detail(result["name"])
+		self.assertEqual((detail["task"]["gl_row_count"], detail["task"]["matched_count"],
+			detail["task"]["unmatched_count"]), (4, 2, 1))
+		self.assertEqual([row["gl_amount"] for row in detail["rows"]], [1100.0, -107.0, 0.0])
+		replay = self.create_from_parsed()
+		self.assertTrue(replay["replayed"])
+		self.assertEqual(replay["summary"], result["summary"])
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), before + 1)
+		self.assertEqual(frappe.db.count(ROW, {"task": result["name"]}), 3)
+
+	def create_parsed_for_comparison(self):
+		"""The same content through the decoded-row entry point, in its own task."""
+		return self.create(request_id="decoded-" + uuid4().hex)
+
+	def test_printed_text_lines_and_tables_are_admitted_through_the_same_entry(self):
+		rows = self.create_from_parsed(gl_source={"kind": "text", "lines": PARSED_LINES})
+		self.assertEqual(rows["parsed"]["method"], "text_lines")
+		detail = self.api.detail(rows["name"])
+		# One ledger row of 1,070 against the 1,100 report amount is a difference,
+		# and the two report rows the ledger never saw stay unmatched.
+		self.assertEqual((detail["task"]["gl_row_count"], detail["task"]["matched_count"],
+			detail["task"]["diff_count"], detail["task"]["unmatched_count"]), (1, 0, 1, 2))
+		self.assertEqual(detail["rows"][0]["diff"], 30.0)
+		framed = self.create_from_parsed(request_id="framed-" + uuid4().hex,
+			gl_source={"kind": "pdf", "pages": [{"text": "4110-01 รายได้จากการขาย",
+				"tables": [[["วันที่", "ใบสำคัญ", "คำอธิบาย", "เดบิต", "เครดิต"],
+					["01/06/2569", "GL-1", "ขายสินค้า", "0.00", "1,070.00"]]]}],
+				"lines": PARSED_LINES})
+		self.assertEqual(framed["parsed"]["method"], "tables")
+		self.assertEqual(framed["parsed"]["accounts_seen"], ["4110-01"])
+		self.assertEqual(framed["row_count"], 3)
+
+	def test_gl_sources_without_a_revenue_row_are_refused_before_storing(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(gl_source={"kind": "text", "lines": []})
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(gl_source={"kind": "text", "lines": [
+				"4110-01 รายได้จากการขาย", "01/06/2569 GL-1 ขายสินค้า 0.00 0.00 0.00"]})
+		# A source the decode itself cannot read is a parse failure.
+		with self.assertRaises(frappe.ValidationError):
+			self.create_from_parsed(gl_source={"kind": "excel", "sheets": [42]})
+		from pearnly_cowork.reconciliation import income_recon_contracts
+		with self.assertRaises(income_recon_contracts.ReconciliationContractError) as caught:
+			self.create_from_parsed(gl_source={"kind": "scan"})
+		self.assertEqual(str(caught.exception), "reconciliation.gl_source_invalid")
+		with self.assertRaises(income_recon_contracts.ReconciliationContractError):
+			self.create_from_parsed(gl_source={"kind": "pdf", "pages": []})
+		# A decoded row the stored contract refuses is an error, not a silent drop:
+		# the pipeline path carries the extracted float without the two-decimal
+		# rounding the printed readers apply.
+		with self.assertRaises(income_recon_contracts.ReconciliationContractError) as caught:
+			self.create_from_parsed(gl_source={"kind": "pipeline", "decoded": {"pages": [
+				{"document": {"entries": [{"voucher_no": "GL-1", "account_code": "4110-01",
+					"description": "sale", "debit": 0, "credit": 1070.1234567,
+					"transaction_date": "2026-06-01"}]}}]}})
+		self.assertEqual(str(caught.exception),
+			"reconciliation.amount_precision:income_gl.credit")
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 0)
+		self.assertEqual(frappe.db.count(ROW, {"workspace": self.workspace}), 0)
 
 	def test_header_tolerance_decides_whether_a_small_difference_matches(self):
 		rows = [{"doc_no": "GL-1", "account_code": "4110-01", "credit": "1070.00"}]
@@ -270,6 +364,9 @@ if __name__ == "__main__":
 			"create": client.post(rpc + "create", base_url=base, json={
 				"workspace": "x", "title": "t", "request_id": "x",
 				"gl_rows": [], "vat_rows": []}).status_code,
+			"create_from_parsed": client.post(rpc + "create_from_parsed", base_url=base, json={
+				"workspace": "x", "title": "t", "request_id": "x",
+				"gl_source": {"kind": "text", "lines": []}, "vat_rows": []}).status_code,
 			"records": client.get(rpc + "records", base_url=base,
 				query_string={"workspace": "x"}).status_code,
 			"detail": client.get(rpc + "detail", base_url=base,

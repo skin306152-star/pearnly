@@ -1,8 +1,9 @@
 """Dedicated native income reconciliation RPCs.
 
 No file reading, model call or job runner here: ``create`` takes the ledger and
-output-VAT rows already decoded by a caller, and the reads return what the
-dedicated store holds.
+output-VAT rows already decoded by a caller, ``create_from_parsed`` the content a
+caller already extracted from a GL file, and the reads return what the dedicated
+store holds.
 """
 import frappe
 
@@ -26,6 +27,13 @@ def _transaction(function, *args, **kwargs):
 def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 	return _transaction(income_recon_service.create, workspace, title, request_id, gl_rows,
 		vat_rows, header)
+
+
+@frappe.whitelist(methods=["POST"])
+def create_from_parsed(workspace, title, request_id, gl_source, vat_rows, header=None,
+		revenue_prefix="4"):
+	return _transaction(income_recon_service.create_from_parsed, workspace, title, request_id,
+		gl_source, vat_rows, header, revenue_prefix)
 
 
 @frappe.whitelist()

@@ -13,11 +13,13 @@ the VAT report, so ``row_count`` counts them and ``gl_row_count`` records how ma
 ledger rows went in; an absent ledger side is a zero flagged by ``has_gl_match``.
 """
 import frappe
+from frappe import _
 from frappe.utils import now_datetime
 
 from pearnly_cowork.reconciliation import (
 	income_recon_access,
 	income_recon_contracts,
+	income_parse,
 	income_vat,
 	recon_tasks,
 )
@@ -69,6 +71,34 @@ def create(workspace, title, request_id, gl_rows, vat_rows, header=None):
 			"workspace": workspace, "task": name, "row_index": index + 1,
 			**row_values(result)}))
 	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results)}
+
+
+def create_from_parsed(workspace, title, request_id, gl_source, vat_rows, header=None,
+		revenue_prefix="4"):
+	"""Store one reconciliation from the extracted content of a GL file.
+
+	Opening the GL workbook or PDF, running OCR and calling a model stay in the
+	legacy project; this entry converts what that path extracted with the migrated
+	conversions (``income_parse``) and then stores the rows through the same
+	validated path as ``create``. The output-VAT report is a parser family of its
+	own, so its rows arrive already decoded, exactly like the ledger rows ``create``
+	accepts, and a GL file that kept no revenue row is an error rather than an empty
+	reconciliation.
+	"""
+	income_recon_access.require(workspace)
+	parsed = income_parse.decode(gl_source, revenue_prefix)
+	if not parsed["ok"]:
+		frappe.throw(_("reconciliation.gl_parse_failed"))
+	if not parsed["rows"]:
+		frappe.throw(_("reconciliation.gl_no_revenue_rows"))
+	result = create(workspace, title, request_id, income_parse.decoded_rows(parsed["rows"]),
+		vat_rows, header)
+	return {**result, "parsed": {
+		"rows": parsed["row_count"],
+		"method": parsed["diag"].get("method"),
+		"accounts_seen": parsed["diag"].get("accounts_seen") or [],
+		"parser_version": income_parse.PARSER_VERSION,
+	}}
 
 
 def result_counts(results):
