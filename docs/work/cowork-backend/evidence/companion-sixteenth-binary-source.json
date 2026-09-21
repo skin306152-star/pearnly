@@ -1,0 +1,431 @@
+{
+  "captured_at": "2026-09-21T10:05:55.071404+00:00",
+  "exe_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+  "source_commit": "33af0fd5e381e87802c95655dc35e7709eb2a233",
+  "python_version": 311,
+  "python_library": "python311.dll",
+  "auditor_python": "3.11.16",
+  "embedded_version_constants": [
+    "小助手版本号(单一真相源)。\n\n自动更新比对、打包(installer.iss AppVersion)、release 脚本都读这里。\n升级=只改这一处,跑 packaging/release.ps1 一键发布。\n",
+    "1.1.77",
+    "v",
+    "str",
+    "return",
+    "tuple"
+  ],
+  "normalization": "Only co_filename excluded recursively; all other listed code fields and typed constants retained",
+  "code_fields": [
+    "co_argcount",
+    "co_posonlyargcount",
+    "co_kwonlyargcount",
+    "co_nlocals",
+    "co_stacksize",
+    "co_flags",
+    "co_code",
+    "co_consts",
+    "co_names",
+    "co_varnames",
+    "co_freevars",
+    "co_cellvars",
+    "co_firstlineno",
+    "co_name",
+    "co_qualname",
+    "co_linetable",
+    "co_exceptiontable"
+  ],
+  "modules": [
+    {
+      "module": "__launcher__",
+      "path": "packaging/launcher_companion.py",
+      "source_sha256": "7b3aad6042c969a402904e840154696cd236a0ce59d9527700700da237bf32ac",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion",
+      "path": "src/companion/__init__.py",
+      "source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.account_lock",
+      "path": "src/companion/account_lock.py",
+      "source_sha256": "afa93a3a08d8ea2b2c3c6c172bc01f7cfeee987cc7b77f79a9015978b6a0ac20",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.account_probe",
+      "path": "src/companion/account_probe.py",
+      "source_sha256": "ba426a66d2351bfc63577b93a37e10b5f4a761aa38a3be269fd72ca7c5b69ae3",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.autostart",
+      "path": "src/companion/autostart.py",
+      "source_sha256": "1d4c2352fda4fd09b3dd3efc78bebf986c4ffbd78601b51f59aba71c24cdb3dc",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.catalog_probe",
+      "path": "src/companion/catalog_probe.py",
+      "source_sha256": "4b09bca082d9b67694378cf514622aeb57e638fa126549e619c8009ecb8dce1d",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.catalog_refresh",
+      "path": "src/companion/catalog_refresh.py",
+      "source_sha256": "dbfae5d9556ba84d2059dbae2e696dd2566665c3f89d3a1127694e9f70a48d10",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.cdx_reindex",
+      "path": "src/companion/cdx_reindex.py",
+      "source_sha256": "f7ab28950118b79f96c4e0659c40de68fe383d6bed6e484c8fc75859e8015e93",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.config",
+      "path": "src/companion/config.py",
+      "source_sha256": "0c7606e3836a6b7267fe83c928c737fccfefb1e01b69ecdf713b80bab68e8382",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.consistency",
+      "path": "src/companion/consistency.py",
+      "source_sha256": "69147d546f86232a89abd8cd65c6187e205e0517300617a0b2daf6f163887437",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_detail",
+      "path": "src/companion/dbf_detail.py",
+      "source_sha256": "9c154242f6a9de6b3940d7e7daa0fa82dccff5c5523a1dd565835e6129c8e87e",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_fields",
+      "path": "src/companion/dbf_fields.py",
+      "source_sha256": "d2924d1d07e63f60080fcd3b31f787f94561e600ca7c0b7dca118f6bfcb2d3cc",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_meta",
+      "path": "src/companion/dbf_meta.py",
+      "source_sha256": "fb8871a1c5a13c5774926b7985c8da6782db4244a450288b40ac3cadc87322cb",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_sales",
+      "path": "src/companion/dbf_sales.py",
+      "source_sha256": "2401aa544029da7b078b33e37435064c300cbd51459a7ad219f0550cc4267a6b",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_schema",
+      "path": "src/companion/dbf_schema.py",
+      "source_sha256": "3c7a0f72ce3056ac53460c12c0b82888637382ebb3f916a75078d236a4343043",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.dbf_writer",
+      "path": "src/companion/dbf_writer.py",
+      "source_sha256": "b1cfdacad5a4158b1f0847ea3d2918f1f88ceabbcd036bc15abd41aa013eff23",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.duplicate_gate",
+      "path": "src/companion/duplicate_gate.py",
+      "source_sha256": "ca0df79356c02a4686bc73ca10129d8e0017a6c690ac53c6a999453603d87e88",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.express_locate",
+      "path": "src/companion/express_locate.py",
+      "source_sha256": "9b6440a21578160f0132862184ed3c93dde19ecba40ff8ca34e342c3440980b8",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.fiscal_period",
+      "path": "src/companion/fiscal_period.py",
+      "source_sha256": "d8f62b4e3b0bc12a5f56212187dea09392969b6978bc52083d0b00d3f9b877d5",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.gui_pairing",
+      "path": "src/companion/gui_pairing.py",
+      "source_sha256": "073ec2db17b17138295e154fb4df5142ca8f9700f260a53ed8ad04d2f0abc767",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.gui_pairing_support",
+      "path": "src/companion/gui_pairing_support.py",
+      "source_sha256": "2ea59e043b29099cdf2726d6af59c075e9903b114b450e9ce6a3a290f0715364",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.gui_profiles",
+      "path": "src/companion/gui_profiles.py",
+      "source_sha256": "8aeaceeb556ff23a9e69cb9b87fe1f79463ed534e7dc07496211d772bdda7a1b",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.gui_tray",
+      "path": "src/companion/gui_tray.py",
+      "source_sha256": "dc61e1aa14caabd3fa928cc1d7bac6ae6a8ef5b8657e6210459328c4e54f6486",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.gui_tray_workers",
+      "path": "src/companion/gui_tray_workers.py",
+      "source_sha256": "9a0fc530acad3bcbcff9d0ed553a8f23b2d2bb761d0188315242aa5ae4771492",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.i18n",
+      "path": "src/companion/i18n.py",
+      "source_sha256": "4bffa78fbde28b7a9b314140aff0d7402894eebc7a2494619f2bf484de69f8f3",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.logger",
+      "path": "src/companion/logger.py",
+      "source_sha256": "5434b7ceb0b9588487dc1899a8f37d4ca15691f3180d8caf15d4d60e4aea3ab3",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.main",
+      "path": "src/companion/main.py",
+      "source_sha256": "438ccfc1046bcf5433829e9e10b28ce58481bc23eea96ceb198f82d09f3d2b9a",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.master_create",
+      "path": "src/companion/master_create.py",
+      "source_sha256": "b0607d37014a5f53d767b3d90848a8cbf208d0255834c1f179a011c81a28508a",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.master_refresh",
+      "path": "src/companion/master_refresh.py",
+      "source_sha256": "6fca1cc3031dbea760f58408e5dc83a220b85c165c90ca65c565806a1aa67461",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.multi_profile_worker",
+      "path": "src/companion/multi_profile_worker.py",
+      "source_sha256": "8dd9645f028a41752754ddfbdba1bf442f15f03bc355d1567aab479d6fae8291",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.pairing",
+      "path": "src/companion/pairing.py",
+      "source_sha256": "23457b69ae2a0811943e7264eb9c57af6832f14e142e94bfabb8b6429fdf4d47",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.payload_contract",
+      "path": "src/companion/payload_contract.py",
+      "source_sha256": "731a017e091a99bffb91719c20846ab465a291c6d4dbdda231023c343469e112",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.product_master",
+      "path": "src/companion/product_master.py",
+      "source_sha256": "8be927d03ff6c7ead08d57b32982bca2dee85ef0d755f82aa69dec8499fc3c43",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.profile_store",
+      "path": "src/companion/profile_store.py",
+      "source_sha256": "e0ad86df7314b5d62717edf0806fb753b3e0f790e81921f54cb1ead108ddfa18",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.projection_refresh",
+      "path": "src/companion/projection_refresh.py",
+      "source_sha256": "9bb05760e8a58627c30f6481888d60e6783fabf394339d3ffe719da0510fc90b",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.purchase_adapter",
+      "path": "src/companion/purchase_adapter.py",
+      "source_sha256": "17080e1ae24e1bf98dcaa72f18473980a743c1bbf258e9634e88cfd4c12e5c10",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.purchase_lines",
+      "path": "src/companion/purchase_lines.py",
+      "source_sha256": "0effe2ac6310b8253d826481d5c99dfa298c5ba2ff5335cf52cfc06c6468f102",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.queue_client",
+      "path": "src/companion/queue_client.py",
+      "source_sha256": "6ee2a943fbe8b847ec3c7db34b53ddd41d30fccdde20cd088823d5c3be5572f4",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.sales_adapter",
+      "path": "src/companion/sales_adapter.py",
+      "source_sha256": "70bfa2dedefec21aada077433b71f71dfc21e4e23b0886d4c12ada9a09c24152",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.secret_store",
+      "path": "src/companion/secret_store.py",
+      "source_sha256": "71d7986a99bfeb1ef0a111b79554075b252c981206d3c109f76c6aedbc25ef5a",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.single_instance",
+      "path": "src/companion/single_instance.py",
+      "source_sha256": "0487e0cee01df0848c1d95d760c195378abdd0f70440edb82e545a59ad32d52a",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.stock_defaults",
+      "path": "src/companion/stock_defaults.py",
+      "source_sha256": "aa839916cbcb347e8426d7a61a18ce3c0706a26eb68a1d3d153912f97becca89",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.stock_lookup",
+      "path": "src/companion/stock_lookup.py",
+      "source_sha256": "0b6896741a73c7341a7217c2e488f6769a65e2e5a25c04177c0f6de5511c238b",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.stock_purchase",
+      "path": "src/companion/stock_purchase.py",
+      "source_sha256": "27ddc7021ebce015acab797b86b048751906441dd6a9fb34016cdf2b6b09bbc1",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.stock_sale",
+      "path": "src/companion/stock_sale.py",
+      "source_sha256": "da95d37be15ca842ff6049fb77ca11ea53c7d0f1bacb51eff4b8774d8c9fe04c",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.stock_template",
+      "path": "src/companion/stock_template.py",
+      "source_sha256": "c829d8915d50df516e1d6aa3ae70213f298dac7230c99eb885c3c0c7611692c2",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.table_specs",
+      "path": "src/companion/table_specs.py",
+      "source_sha256": "adc3fd3e2925f73b4cb2e925a89a772fe9ded4089a72688a2e54464de51a9ac6",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.token_protector",
+      "path": "src/companion/token_protector.py",
+      "source_sha256": "d7a33f0ac668167cc77a2bfa126d58a3a01e57eff346e087d8409167c9d2b5e9",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.unit_code",
+      "path": "src/companion/unit_code.py",
+      "source_sha256": "3bf6c6d5aafad02f32e49c66e91a8d8244c330c745b229e22c52aca73123e2ad",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.updater",
+      "path": "src/companion/updater.py",
+      "source_sha256": "3ae0e24c7b65076602b03918604ebd5eddbd02b365978fc5c03ec026748c0f6c",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.version",
+      "path": "src/companion/version.py",
+      "source_sha256": "ad9872fe0590e2f1a71e102788fb5c98ec1b306f1d86ced74d2897587115b93b",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.watchdog",
+      "path": "src/companion/watchdog.py",
+      "source_sha256": "bcc03b2eec56507d22c748c2b8f8a781b906c1ea05afb49b07596bc25dfbd26e",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.worker",
+      "path": "src/companion/worker.py",
+      "source_sha256": "aca7bbbbb5f13c1cad92fdfdbbc8d0ad0dd96b06cc0ed38069a4f0ec3f642597",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.write_gates",
+      "path": "src/companion/write_gates.py",
+      "source_sha256": "74682679c6051b16211b4ddabe8e12985771bbf0633e22140ccb0159306157a9",
+      "match": true,
+      "different_keys": []
+    },
+    {
+      "module": "src.companion.write_result",
+      "path": "src/companion/write_result.py",
+      "source_sha256": "3ae0cd5f34db104b7675abcfabff08b89cd64e08e335b4b509fcef2ae0fdc3b0",
+      "match": true,
+      "different_keys": []
+    }
+  ],
+  "matched": 55,
+  "total": 55,
+  "executed_packaged_code": false,
+  "limitations": [
+    "No signed build provenance",
+    "Native helpers and dependencies not compared",
+    "No ERP business result"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "captured_at": "2026-09-21T10:08:56.9834621Z",
+  "hostname": "DESKTOP-MN2BRKR",
+  "ssh_user": "macadmin",
+  "probe": {
+    "user": "skin3",
+    "state": "failed",
+    "target": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+    "read_only": true,
+    "accessible": true,
+    "files": [
+      {
+        "modified_utc": "2026-06-25T04:28:35.9149693Z",
+        "name": "ISINFO.DBF",
+        "length": 10526
+      },
+      {
+        "modified_utc": "2026-09-01T10:52:17.5735474Z",
+        "name": "ARTRN.DBF",
+        "length": 23139
+      },
+      {
+        "modified_utc": "2026-07-23T06:15:47.3312755Z",
+        "name": "APTRN.DBF",
+        "length": 4606
+      },
+      {
+        "modified_utc": "2026-09-01T10:52:23.0423674Z",
+        "name": "GLJNL.DBF",
+        "length": 11175
+      },
+      {
+        "modified_utc": "2026-09-01T10:52:26.3236594Z",
+        "name": "STMAS.DBF",
+        "length": 179972
+      },
+      {
+        "modified_utc": "2026-09-01T10:52:22.9798666Z",
+        "name": "ISVAT.DBF",
+        "length": 13916
+      }
+    ],
+    "error_type": "System.Management.Automation.RuntimeException",
+    "error_id": "identity_fields_missing",
+    "hresult": -2146233087
+  },
+  "executable_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+  "profiles": [
+    {
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "paused": false,
+      "method": "dbf",
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "express_root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP"
+    },
+    {
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "paused": false,
+      "method": "dbf",
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "express_root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP"
+    }
+  ],
+  "processes": [
+    {
+      "ProcessId": 15244,
+      "ParentProcessId": 10144
+    },
+    {
+      "ProcessId": 9056,
+      "ParentProcessId": 15244
+    }
+  ],
+  "probe_files": [
+    {
+      "Name": "probe.ps1",
+      "Length": 3610
+    },
+    {
+      "Name": "result.json",
+      "Length": 1545
+    }
+  ],
+  "probe_task": "PearnlyCoworkReadOnly-20260921-16",
+  "task_settings": {
+    "stop_on_battery": false,
+    "allow_on_battery": true
+  },
+  "profile_writes": 0,
+  "erp_writes": 0,
+  "cleanup": {
+    "folder_absent": true,
+    "other_restore_task_untouched": true,
+    "task_absent": true
+  }
+}

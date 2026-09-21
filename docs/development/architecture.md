@@ -141,3 +141,9 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 `roundtrip.service` 单向调用 `push.export_facts`，后者只读取本站原生 Push Record 并通过 `connections.service.read_for_log` 检查当前日志功能、角色、公司/客户和连接授予；按原 actor / History 选最新成功。History 的最新推送状态与最后成功回执分开，不用失败回执覆盖原成功单号。`push.export_actions` 为纯解析，复用既有库存科目组合同，不依赖 Frappe 或 IO；没有新的反向依赖。
 
 追加的库存组显示名称由 connections 域按回执的账号/root/报告凭据来源提供，不读取密码。票据版本变化后保留 ERP 引用，但不把旧行新建标记、方向和主档清单套入新票面。通用账本 CRUD/分享限制保持；无新 DocType、API、菜单或外部出口。详见[第十五批合同](../work/cowork-backend/fifteenth-source-review.md)。
+
+### Cowork 可选旧客户端运输入口（第十六批）
+
+`companion.wsgi:application` 显式包装原生 `frappe.app.application`；同域 `legacy_wire` 只把三个精确旧 POST URL 映射到既有心跳/lease/ACK RPC，并将成功的 `message` 字典解包为旧客户端顶层 JSON。其它请求原样交给原生应用；不注册新的 hook、角色或身份，也不复制业务校验/事务/重试。原生应用完成提交和清理后才输出适配响应，异常成功封套返回稳定502，不当空队列或成功回执处理。
+
+默认基础设施仍使用原生入口，本包没有启用监听或切换 Windows。固定旧 QueueClient 经真实 httpx WSGI 运输在隔离 Site 验证，Windows EXE 的54个业务模块及 launcher 与固定源码编译结果一致；实际机器连新平台、物理写者互斥和独立ERP回读未验收。详见[第十六批合同](../work/cowork-backend/sixteenth-source-review.md)。

@@ -1,5 +1,7 @@
 # 原生后端接口与前端讨论边界
 
+最新补充（第十六批）：旧 Companion 的可选运输入口已实现并在隔离 Site 验证，见本文末尾和[来源合同](sixteenth-source-review.md)。默认部署未启用，Windows现用配置未改；旧章节中的待办按后续批次修订读取。
+
 本批完成的是“公司/客户授权 → 保存完整票面草稿 → 复核保存 → 幂等完成 → 历史回读”的后端闭环。已可据此讨论第一屏录入/复核的交互，但**不是整个 Cowork 迁移完成**。未编写页面或修改现有导航；现有 `Intake Record` 页面仍是早期样板，不是这些接口的前端。
 
 2026-09-21 第四批继续接通PDF/图片识别的原生任务、检查点、授权纠错例库、整批草稿及账单回执；验证为隔离Site+假外部出口。仍按用户要求先补后端，不自行启动前端施工。[识别执行接口](invoice-execution.md)是新增RPC和状态的权威清单。
@@ -114,3 +116,19 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 - POST `cancel_prepared(name,expected_revision)`：只允许原提交者撤销本人明确从未发送的 prepared；不删除证据，不解除未知结果或已领取锁。原授权失效/票据配置过期的从未发送预留如何安全替换，见[账本合同](push-native.md)。
 
 上述API没有页面按钮或导航。原生演练使用合成数据和内部运输替身；实际 Windows EXE 的构建来源与新平台接线、外部创建/回读/重试、MRERP运输、旧ERP成功记录导入仍缺，不能将本地准备与合成ACK计作完整外推验收。回导原键现在能查本Site同公司/买方/连接/账套成功记录；第十五批导出的ERP显示列已接本站授权账本，旧平台数据尚未导入，不能声称旧业务记录已可重推。Windows 已现场只读确认有两个 TEST 配置及加密 token，未改现用配置、未做实际 ERP 写入。
+
+## 第十六批：可选旧 Companion 运输入口
+
+显式 WSGI 应用 `pearnly_cowork.companion.wsgi:application` 只适配以下旧 POST 路径；默认 `frappe.app.application` 和本仓基础设施未改。本包没有新增监听端口、前端入口或安装动作。
+
+| 旧客户端路径 | 原生承接入口 | 输出 |
+| --- | --- | --- |
+| `/api/erp/agent/heartbeat` | `companion.heartbeat.report` | 原生成功 `message` 解包为顶层对象 |
+| `/api/erp/agent/lease` | `companion.queue_api.lease` | 顶层 `ok/jobs/lease_seconds`，保留刷新指令 |
+| `/api/erp/agent/ack` | `companion.queue_api.acknowledge` | 顶层原回执，保留幂等状态 |
+
+仅精确POST映射；URL尾斜线、别名、其它方法不获机器能力。使用原生新连接/新凭据及现有推送总闸、当前公司/角色/授予/issuer IP、历史回执窄授权，body不决定actor。准备仍需既有人工确认，poll不激活prepared。旧token/owner/路径/状态均未导入。原生RPC仍返回 `message`。
+
+适配器不重试请求，原生完成提交和清理后才解包响应。200但封套不合法返回私有502；原生非200错误保持原状态和内容，映射路径所有响应均无Set-Cookie、no-store。既有业务和异常状态约定不变。
+
+验证：EXE内嵌业务代码对应固定 `33af0fd`；其 QueueClient 在真实 httpx WSGI 运输中通过心跳、prepared空轮询、领取、重复ACK和撤销后历史ACK。共4个真实Site用例、3个无Site边界用例；没有新schema、菜单或框架hook。Windows到新平台的实际接线和ERP建单/独立回读仍未执行，不能把合成ACK称作入账成功。

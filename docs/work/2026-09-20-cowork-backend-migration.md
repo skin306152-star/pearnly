@@ -1,5 +1,43 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第十六批交付）
+
+**第十六批已在本地接通旧 Companion 三个URL及顶层JSON协议，并核实Windows现用TEST可读、账套税号符合旧测试记录。** 7个定向用例通过。实际Windows尚未连新平台，没有ERP写入；继续不改DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文历史按当时证据读取。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始HEAD `c9bee02d35c4e025e75c1ac0ed2d51f212d2b47c`。含交接的提交以 `git log -1` 为准。
+- 可选入口 `pearnly_cowork.companion.wsgi:application` 只适配精确旧heartbeat/lease/ack POST，沿原生鉴权、事务、权限和账本。默认基础设施仍为原生应用，无新监听、hook、角色、DocType或发送消费者；原生RPC仍保留message。
+- 固定旧QueueClient经真实httpx WSGI验证心跳、prepared不自动发、领取、重复ACK、撤销后历史ACK及失败不重复派发。4个Site用例和3个无Site用例均一次通过；架构0违规。无schema/术语修改，不重跑安装/migrate、i18n、DMS或全量测试。
+- 未合回、未推送、未部署。收尾只读主线/远端main为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在。主线继续由其它任务推进，本包未验证组合版本。
+
+详见[本批来源/合同/限制](cowork-backend/sixteenth-source-review.md)和[验证清单](cowork-backend/evidence/sixteenth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工/交付均重新取线上revision、digest、源码SHA与相关配置。source首尾PASS：Web/Worker各100% `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，源码 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，镜像 `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。交付采集 `2026-09-21T10:06:46.366275+00:00`；证据 `cowork-backend/evidence/*sixteenth-{start,delivery}.json`。
+
+**完整config迁入HOLD仍在。** 第十五交付→开工和本批首尾均仅在已采投影的Web/Worker端点configuration_digest有差异；不能由hash还原键或归因心跳，不迁旧owner/路径/凭据/状态。其它投影相等不等于全配置稳定。本包只承接固定源码协议；下包继续开工/交付复采。
+
+### Windows已确认与下一步
+
+- 实际EXE SHA256 `0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a`，内嵌1.1.77/Python311；54个业务模块及launcher共55个与固定Companion源码 `33af0fd5e381e87802c95655dc35e7709eb2a233` 编译结果一致。只排除构建路径，不执行内嵌代码。可复跑脚本 `scripts/cowork-companion-binary-source.py`；尚不证明签名构建链、原生CDX助手和第三方依赖。
+- 实机 `DESKTOP-MN2BRKR`；两个Companion进程是父子关系，不能当双写证据。两个现用profile均为 `\\Accserver\d$\ACCOUNT\70EXP\TEST`、dbf、未暂停。配置未改，也未停止现用进程。
+- **skin3交互身份已确认可读TEST**。六张表元信息可读，ISINFO公司名非空、13位税号与历史TEST值相符（证据只记末四位0289及匹配结果）。初始任务无输出和首轮DBF只读解析失败保留，最终按字段终止标记修正后成功；不是ERP写入验收。SSH环境用户名macadmin与旧交接codexops称呼不同，当前身份以本批Windows证据为准。
+- 用户对必要Windows/ERP测试凭据及测试账套写入的授权继续有效，不重复询问。没有扩大为正式账套、生产切换、部署、LINE/WeKan或付费OCR。
+
+**下一包优先**：实际连接新平台与Windows的独立测试入口，使用新原生测试连接/凭据与明确TEST目标，先证明不会领取旧生产队列和引入第二写者，再做一个测试单据及独立ERP回读。旧URL/JSON缺口已在本地补齐；当前不需要再从头比对这55个模块，但EXE或线上源变化时须复核。原生CDX辅助程序/写入依赖仍需核验。
+
+其它待迁仍有managed公开运输、MRERP、完整对账/盘点、LINE/WeKan、其它文件出口及旧状态迁入。第十三批准备/人工确认、第十四批ACK本地联动、第十五批导出事实保持；通知仍held无发送消费者，后端未整体完成。
+
+### 交接保留与清理
+
+状态为**交接保留**。本地提交后保留未合并任务工作树/分支继续迁移；解除条件为到约定后端接入点并获准整合，不为清理擅自合并/推送。任务远端分支不存在。
+
+专属context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`；本树只读源码挂载、Internal网络、无发布端口/外部凭据/worker/scheduler。使用既有 `cowork-backend-ack.localhost`，未建Site/改schema；bench/db/redis收尾已停止。容器、db/sites命名卷、原有匿名卷和合成数据保留供下包，迁移结束再核归属清理。
+
+测试临时安装的四个httpx相关包已卸载，复制到bench的wheel/client已删除；本批可再生Python缓存和重复审计中间件清理。Windows临时任务 `PearnlyCoworkReadOnly-20260921-16` 和同名Public目录最终均回读不存在，旧Restore任务未动。固定源码、EXE、只读探测脚本和日志 `/tmp/pearnly-cowork-migration-20260920/` 保留为证据，下包复核；不存明文测试凭据，不删业务数据。复跑前仍核context/project/mount/Site，不调用共享stack/dev-reload或flush队列。
+
 ## 换窗口交接（2026-09-21，第十五批交付）
 
 **第十五批已在本地把 ERP 单号、逐行主档动作、主档清单及授权失败原因接入复核工作簿。** Windows 已连接并只读核对现用 TEST 配置，未发生实际 ERP 写入。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文按批次保留历史证据。
