@@ -1,0 +1,74 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "doc_kind",
+  "prefix",
+  "bucket",
+  "next_number"
+ ],
+ "fields": [
+  {
+   "fieldname": "doc_kind",
+   "fieldtype": "Data",
+   "label": "Document Kind",
+   "reqd": 1,
+   "in_list_view": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "prefix",
+   "fieldtype": "Data",
+   "label": "Prefix",
+   "reqd": 1,
+   "in_list_view": 1,
+   "length": 20
+  },
+  {
+   "fieldname": "bucket",
+   "fieldtype": "Data",
+   "label": "Bucket",
+   "reqd": 1,
+   "in_list_view": 1,
+   "length": 20,
+   "description": "Year, year-month or ALL, depending on the reset policy"
+  },
+  {
+   "fieldname": "next_number",
+   "fieldtype": "Int",
+   "label": "Next Number",
+   "reqd": 1,
+   "default": "1",
+   "in_list_view": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "erp_doc_sequence",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:{doc_kind}-{prefix}-{bucket}",
+ "naming_rule": "Expression",
+ "allow_rename": 0
+}
