@@ -463,5 +463,40 @@ class BuyerNormalisation(unittest.TestCase):
         self.assertFalse(master_contracts.fiscal_month_ok("jan"))
 
 
+class IntegrationBinding(unittest.TestCase):
+    """集成（LINE 绑定）：任何业务岗位都能绑**自己**的账号，没岗位的账号不能。"""
+
+    def test_any_business_job_can_bind(self):
+        for feature, role in rules.FEATURE_ROLES.items():
+            with self.subTest(feature=feature):
+                self.assertTrue(rules.can({role}, "integration.read"))
+                self.assertTrue(rules.can({role}, "integration.manage"))
+
+    def test_without_a_business_job_there_is_nothing_to_bind(self):
+        self.assertFalse(rules.can({"Desk User"}, "integration.read"))
+        self.assertFalse(rules.can({"Desk User"}, "integration.manage"))
+        self.assertEqual(rules.required_roles("integration.read"),
+                         rules.required_roles("integration.manage"))
+
+    def test_the_admin_role_alone_does_not_open_it(self):
+        self.assertFalse(rules.can({rules.ADMIN_ROLE}, "integration.manage"))
+
+    def test_unbind_word_list_keeps_the_words_the_user_types(self):
+        """解绑是**用户手打的词**，翻了就等于这个功能不存在（登记在 keep-cjk）。"""
+        source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/integrations"
+                  / "handlers.py").read_text()
+        tree = ast.parse(source)
+        words = None
+        for node in tree.body:
+            if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "UNBIND_WORDS" for t in node.targets
+            ):
+                words = ast.literal_eval(node.value)
+        self.assertIsNotNone(words, "UNBIND_WORDS must stay a literal list of words")
+        # 与 DMS 通道收同一批词：老用户按旧话术打字也必须能解绑。
+        for word in ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind"):
+            self.assertIn(word, words)
+
+
 if __name__ == "__main__":
     unittest.main()

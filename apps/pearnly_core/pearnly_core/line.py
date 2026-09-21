@@ -21,6 +21,7 @@ import hashlib
 import hmac
 import json
 import logging
+from urllib.parse import quote
 
 import frappe
 import requests
@@ -246,6 +247,39 @@ def get_profile(user_id: str) -> dict:
         headers=_headers(), timeout=TIMEOUT,
     )
     return resp.json() if resp.status_code == 200 else {}
+
+
+def public_account() -> dict:
+    """本站点这个官方号对外的身份：名字、Basic ID、加好友链接。
+
+    为什么要问 LINE 而不是写进配置：Basic ID 是 LINE 那边的东西，抄进配置就会
+    与真实账号漂移（换了官方号、改了 ID，页面还显示旧的，用户扫码加错人）。
+
+    未配置渠道或问不到时**直接抛错**，不返回空壳 —— 一个 basic_id 为空的二维码
+    比没有更糟：用户会以为是自己扫错了。
+
+    注意：`pearnly_dms/operators/line_account.py` 里有一份面向花名册的同类实现
+    （多一个本地生成的二维码，错误话术按 DMS 的键）。那份属于 DMS 的窗口，
+    本次不动它；下次动 DMS 时把它改成调用本函数 + 自己补二维码。
+    """
+    token = _conf("channel_access_token")
+    if not token or not _conf("channel_secret"):
+        frappe.throw(_("The LINE channel is not configured for this account"))
+    try:
+        resp = requests.get("https://api.line.me/v2/bot/info",
+                            headers=_headers(), timeout=TIMEOUT)
+        resp.raise_for_status()
+        info = resp.json()
+    except (requests.RequestException, ValueError):
+        frappe.throw(_("LINE could not be reached; please try again"))
+    basic_id = str((info or {}).get("basicId") or "").strip()
+    if not basic_id.startswith("@"):
+        frappe.throw(_("LINE could not be reached; please try again"))
+    return {
+        "name": str(info.get("displayName") or basic_id),
+        "basic_id": basic_id,
+        "url": "https://line.me/R/ti/p/" + quote(basic_id, safe=""),
+    }
 
 
 class MediaTooLarge(ValueError):

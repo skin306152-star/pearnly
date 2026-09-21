@@ -1049,3 +1049,11 @@ pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 
 pearnly_core	Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
 pearnly_core	{0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
 pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+pearnly_erp_portal	That code is not valid	验证码不正确	รหัสไม่ถูกต้อง	コードが正しくありません
+pearnly_erp_portal	Bound to {0}	已绑定到 {0}	เชื่อมต่อกับ {0} แล้ว	{0} に連携しました
+pearnly_erp_portal	Send the code from the ERP page to bind	请把 ERP 页面上的绑定码发过来	กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ	ERP 画面のコードを送信して連携してください
+pearnly_erp_portal	Bind this account first	请先绑定 ERP 账号	กรุณาผูกบัญชี ERP ก่อนใช้งาน	先に ERP アカウントを連携してください
+pearnly_erp_portal	LINE unbound	LINE 已解绑	ยกเลิกการเชื่อมต่อแล้ว	LINE の連携を解除しました
+pearnly_erp_portal	This channel is not open yet	这个通道还没开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
+pearnly_core	The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
+pearnly_core	LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください

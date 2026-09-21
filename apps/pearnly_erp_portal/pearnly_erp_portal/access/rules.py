@@ -54,6 +54,14 @@ CAPABILITY_FEATURES = {
                      "cashier"),
     "customers.read": ("sales", "cashier"),
     "customers.manage": ("clients", "sales"),
+    # 集成（本租户自己的 LINE 官方号绑定）。绑定是**自己绑自己**：页面只给当前登录
+    # 账号发码，服务层也不收"绑哪个账号"的参数（见 integrations/binding.py）。
+    # 所以这里不放宽也不收紧：任何拿到业务岗位的员工都能绑自己的账号 —— 旧线上
+    # 就是"有 ERP 入口的员工都能绑"，而没岗位的账号连集成页都进不去。
+    "integration.read": ("products", "warehouses", "stockcard", "purchase", "sales",
+                         "clients", "cashier"),
+    "integration.manage": ("products", "warehouses", "stockcard", "purchase", "sales",
+                           "clients", "cashier"),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。

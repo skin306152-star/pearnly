@@ -184,6 +184,7 @@ Item / Description,品名・説明
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
 LINE Display Name,LINE表示名
 LINE User ID,LINEユーザーID
+LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
 Last Login At,最終ログイン
 Last Result,最新の結果
 Last Seen At,最終アクセス
@@ -319,6 +320,7 @@ The DMS account is not approved to use the system,DMSアカウントはシステ
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
+The LINE channel is not configured for this account,このアカウントには LINE チャンネルが設定されていません
 The OCR service returned HTTP {0}: {1},OCRサービスが HTTP {0} を返しました: {1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
 The account is disabled,アカウントは無効化されています
