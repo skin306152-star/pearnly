@@ -102,7 +102,7 @@ def main():
     results["profile_is_default"] = profile.get("name") == default if ok else profile
 
     # 资料字段：前缀、财年起始月，越界要拒。
-    ok, saved = as_user(OWNER, company.update_profile, doc_prefix="LAB", 
+    ok, saved = as_user(OWNER, company.update_profile, doc_prefix="LAB",
                         fiscal_year_start_month=1, tax_id="0105550000000",
                         company_name="Lab Company A")
     results["update_profile"] = ok

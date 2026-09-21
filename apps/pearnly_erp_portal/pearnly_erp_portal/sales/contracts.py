@@ -428,4 +428,3 @@ def should_post_stock(doc_kind: str, status: str) -> bool:
     if status != ISSUED:
         return False
     return doc_kind in (TAX_INVOICE, TAX_INVOICE_SIMPLE, TAX_INVOICE_RECEIPT, RECEIPT)
-
