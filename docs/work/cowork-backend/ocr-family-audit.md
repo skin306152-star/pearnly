@@ -42,6 +42,9 @@
 | `bank_stmt_text.py`（一行一笔的文本行、KBank 列压行） | `reconciliation/bank_text.py` | **第三十九批** · [读取器](ocr-reader-gl-and-text.md) |
 | `bank_table_io.py` 的 `_pdf_extract_text_safe`（PDF 文字层） | `reconciliation/table_io.py` 的 `extract_pdf_text_pages` | **第三十九批** · [读取器](ocr-reader-gl-and-text.md) |
 | `bank_recon_utils._GL_SKIP_KW` / `_is_gl_skip_row` | `reconciliation/bank_parse.py` | **第三十九批** · [读取器](ocr-reader-gl-and-text.md) |
+| `bank_stmt_gemini.py` 的对账单提示词 + `_STMT_PROMPT_VER`、`bank_gl_gemini.py` 的 `_PROMPT` + `_PAGES_PER_CHUNK` | `reconciliation/bank_prompts.py` | **第四十批** · [模型路径](ocr-model-path.md) |
+| 两个 gemini 模块里「拿到模型结果之后」的判定（读空闸、逐行归一、分块合并） | `reconciliation/bank_model_path.py` | **第四十批** · [模型路径](ocr-model-path.md) |
+| `bank_stmt_reread.py` 的换眼重读仲裁（断链计数、严格更少才采纳、一页失败整轮弃） | `reconciliation/bank_reread.py` | **第四十批** · [模型路径](ocr-model-path.md) |
 
 ## 三、有意不迁（有理由，非遗漏）
 
@@ -64,7 +67,7 @@
 
 **（2）`error_format.py`（`short_error` / `_fmt_validation`，78 行）——已补。** 把 pydantic `ValidationError` 压成一行：去文档 URL、只留首行、>160 字符截断加省略号、空文案回落类名、字段去重后列前三个加溢出标记。部署版被银行/GL/VAT 的**文件级**解析入口用来填结果的 `error` 字段（`bank_recon_pipeline.py:133/232`、`gl_vat_parse_excel.py:254`、`vat_report_parser.py:86`、`enterprise_adapter.py:42`）。落点 `contracts/errors.py`：抽取侧持有 pydantic schema，对账侧持有 `error` 字段，放共享纯契约域让两侧都不依赖对方；原生 `income_parse` 的两个 `error` 落点已改回这个文案（`diag.exception` 保留原文便于诊断）。
 
-**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——用户已决定原生承接，第一层已在第三十六批交付。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。用户判断"OCR 是产品的核心产物" → 要，整条链按依赖分四层：**①文档模型 + 余额链修复（第三十六批已交付，见[批次记录](ocr-document-chains.md)）** → **②列来源校验（第三十七批已交付）** → **③确定性读取器（第三十八批：低级表格 IO + 银行流水 xlsx/csv 直读，见[记录](ocr-reader-bank-sheets.md)；第三十九批：总账 xlsx/csv、银行单文本行、KBank 列压行、PDF 文字层，见[记录](ocr-reader-gl-and-text.md)，本层已闭合）** → ④模型路径（含整页升档重读 `reread_bank_page`）。下表是这层规则的逐条对应，随后两列说明现在归到哪一层：
+**（3）`bank_chain_gate.py`（276 行）+ `gl_balance_chain.py`（135 行）——用户已决定原生承接，第一层已在第三十六批交付。** 它们是**文档级**余额链修复器，读写的是旧侧 pydantic 文档模型（`StatementRow.chain_repaired`/`chain_amount_imputed`/`review_required`、`GeneralLedgerDocument.opening_balance`/`total_debit`/`total_credit`、`raw_row_data`），并且它们存在的理由是给旧引擎**省升级成本**（翻正一行胜过整页升 max 重读）。用户判断"OCR 是产品的核心产物" → 要，整条链按依赖分四层：**①文档模型 + 余额链修复（第三十六批已交付，见[批次记录](ocr-document-chains.md)）** → **②列来源校验（第三十七批已交付）** → **③确定性读取器（第三十八批：低级表格 IO + 银行流水 xlsx/csv 直读，见[记录](ocr-reader-bank-sheets.md)；第三十九批：总账 xlsx/csv、银行单文本行、KBank 列压行、PDF 文字层，见[记录](ocr-reader-gl-and-text.md)，本层已闭合）** → ④模型路径（**第四十批交付提示词、模型结果判定与换眼重读仲裁**，见[记录](ocr-model-path.md)；引擎文档档位与执行接线待下一批）。下表是这层规则的逐条对应，随后两列说明现在归到哪一层：
 
 | 旧规则 | 原生现状 | 归层 |
 | --- | --- | --- |
@@ -97,7 +100,7 @@
 
 ## 六、建议的后续顺序
 
-1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（**第三十八批交付低级表格 IO + 银行流水 xlsx/csv 直读，第三十九批交付总账 xlsx/csv、银行单文本行、KBank 列压行与 PDF 文字层，本层已闭合**；pdfplumber 表格/坐标解析、模型路径与整页升档仍归第 ④ 层或器件层）→ ④模型路径（**第四十批已交付银行/GL 提示词、模型结果判定与换眼重读仲裁**；引擎文档档位、执行接线与接进原生银行任务待下一批）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 

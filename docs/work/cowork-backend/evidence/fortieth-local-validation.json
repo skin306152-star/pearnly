@@ -1,0 +1,121 @@
+{
+  "base_commit": "2e8a6ac",
+  "scope": "fortieth batch: the first half of the fourth layer (the model path) of native bank-statement and GL document OCR — the prompts, the model-result handling and the re-read arbitration; the model client, caches, PDF rendering and concurrency stay with the engine wiring",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the thirty-ninth batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "546d3f8ad805e34980b496b36f322f42363dc8c6fa8df62cea1eb23f3106c580",
+    "delivery_captured_at": "2026-09-21T17:27:36.550399+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-thirty-ninth-delivery.json baseline-fortieth-delivery.json (before pinned at bfcf1183, after pinned at 546d3f8a)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "3d3dbf49584ed9e08d0ed68ca63d5cc4724329a94104510a04d2e4ee9b4fb8ef",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/recon/bank_stmt_gemini.py": "9d0d277b4a03eb12ac02bbc1d6968cf44dccedc502d30d60ef2706569cd38170",
+      "services/recon/bank_gl_gemini.py": "6e2c61111e075052f16d961cb49b4083d41b2280f4d0aab032553d21810c99a0",
+      "services/recon/bank_stmt_reread.py": "1e15ee4fc4c15880551e09702fdb82f9195922130b51ddde48a58700a27e0f64"
+    },
+    "source_note": "the ported code is pure and calls no model, but the delivery-time live-source capture is taken as the migration rule requires"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_model_path",
+      "result": "PASS",
+      "tests": 24,
+      "new_tests": 24,
+      "covers": [
+        "the blank-read gate: rows make a result usable, a zero-transaction statement is usable when a balance came back, a blank read is not usable, and a non-mapping is not usable",
+        "the model opening winning over its own opening row, and an opening row filling in when the model omitted the opening",
+        "a blank date inheriting the previous one, a row with money but no date kept, and a pure noise row dropped",
+        "confidence downgraded when both sides are missing or when the balance is missing, and an unknown confidence word becoming high",
+        "the printed footer totals kept as numbers or nulled",
+        "ledger rows merged across chunks, a failed chunk not sinking the others, the opening only coming from the first chunk, rows without a date dropped, and the account filter applied",
+        "no usable ledger rows being a failure, and an unreadable account code not being listed",
+        "the statement prompt version and the ledger prompt hint"
+      ]
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_reread",
+      "result": "PASS",
+      "tests": 11,
+      "new_tests": 11,
+      "covers": [
+        "only rows the chain refused being counted as breaks",
+        "a non-PDF never triggering a reread, and no breaks meaning no rendering and no pages read",
+        "an implausible page count being skipped, and the page limit being the caller's choice",
+        "a reread with fewer breaks adopted, with the escalation record checked field by field",
+        "a reread that is not better thrown away, including two pages that each look fine but break the chain once joined",
+        "an empty reread thrown away",
+        "one failing page discarding the whole round (a half reread loses rows)",
+        "the pages being read in order over the given range"
+      ]
+    },
+    {
+      "command": "python test_cowork_document_model_path_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "statement": {
+        "batches": 204,
+        "usable": 187,
+        "blank": 17,
+        "rows": 435,
+        "low_confidence_rows": 163
+      },
+      "ledger": {
+        "batches": 143,
+        "ok": 47,
+        "failed": 96,
+        "failed_chunks": 73,
+        "filtered": 28,
+        "rows": 73
+      },
+      "reread": {
+        "scenarios": 80,
+        "adopted": 7,
+        "discarded": 10,
+        "page_read_raised": 11,
+        "not_triggered": 63,
+        "pages_read": 86
+      },
+      "note": "the pinned functions are executed with the devices replaced by fakes (model client, upgrade policy, caches, page splitter, renderer, page reader, thread-pool wrapper) because those are the parts this batch does not port. Statement rows are compared field by field including confidence and the deduplication fingerprint, plus the opening, closing, bank code and printed totals, and the failure text when the read is blank. The reread comparison covers the adopted rows by fingerprint and the whole escalation record. The prompt texts are compared byte for byte: the statement prompt is pulled out of the pinned function body by AST, the ledger template is compared directly, and gl_prompt is compared with the deployed .format call for three account codes."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_model_path test_cowork_reconciliation_bank_reread test_cowork_bank_sheets test_cowork_reconciliation_gl_sheets test_cowork_reconciliation_bank_text test_cowork_reconciliation_bank_parse test_cowork_reconciliation_bank_statement test_cowork_bank_warnings test_cowork_bank_recon_contracts test_cowork_reconciliation_amounts test_cowork_reconciliation_contracts test_cowork_reconciliation_bank_matching",
+      "result": "PASS",
+      "tests": 263,
+      "note": "the whole bank family plus the readers ported in the previous two batches"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the model client and its upgrade policy (json_from_pdf, try_with_fallback, flash_lite) are not ported: the model call is injected by the caller, which is how this platform's engine already takes it. The statement gate is therefore applied by the caller, exactly where the deployed policy applied it",
+    "the in-memory LRU and the on-disk cache are not ported, but the prompt version string (v63-totals) is kept because it is part of what the prompt means: changing the prompt must invalidate old results",
+    "the PDF devices (page count probing, page splitting, page rendering) are not ported; page_count and read_page(page_number) are injected instead",
+    "the thread pool, the cost-attribution wrapper, the environment switches and every log line are not ported: the ported arbitration reads the pages in order and the size cap is a parameter defaulting to the deployed 50",
+    "the private helper names became public entries because the engine wiring in the next batch consumes them; every judgement and every returned string is the deployed one",
+    "the exceptions the deployed module swallows (returning ok=False with the exception text) are left to the caller: a pure module does not decide how a failure is reported"
+  ],
+  "not_run": [
+    "wiring the prompts, the model-result handling or the reread into any caller — the engine document tier and the execution wiring are the next batch",
+    "model calls, PDF rendering, real files, the queue, frontend integration, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-model-path.md"
+}
