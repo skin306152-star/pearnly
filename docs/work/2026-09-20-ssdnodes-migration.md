@@ -678,3 +678,29 @@ zh=`Pearnly主题`、th/en/ja=`Pearnly`。
   Chromium 的触摸模拟不还原 iOS 的 hover/合成 click 时序，这次就是被它骗过去的。
 · 真要收紧"菜单不自动收起"，只保留**路由变化时收起**这一条（打开侧栏不产生路由变化，
   不会被同一次触摸误伤）。
+
+### "要点两下"的根因（2026-09-21，只读排查）
+
+回滚之后重查用户最初那条报障（"侧栏里所有按钮都要点两下，第一下只出现灰底"），
+证据在**用户 16:22 的截图**上：侧栏是关着的，但页面头部那个按钮显示的是 `>>`
+—— 那是原生 **hover 态**才显示的图标（静止态是 ☰ 汉堡）。也就是那次点击只让按钮
+进了 hover，click 没有派发。iOS 的规则是：**某个元素只有在 hover 时才把内容显示出来，
+第一次点击就被当成 hover 用掉**，要再点一次才算数。
+
+原生在同一处有两条"靠 hover 才显示"的规则（`desk.bundle` 编译后）：
+
+· `.page-title .sidebar-toggle-btn:hover .sidebar-toggle-icon{display:block}` /
+  `..:hover .sidebar-toggle-placeholder{display:none}` —— ☰ 换成 `>>`；
+· `.body-sidebar:hover .sidebar-toggle-btn{opacity:1;visibility:visible}` —— 侧栏右缘
+  那个圆形折叠按钮平时是 `visibility:hidden`。手指落在侧栏里任何位置都会让 `.body-sidebar`
+  进入 hover，于是侧栏 4 项、顶部公司名、左下角个人区**一起**变成"要点两下"。
+
+修法只用 CSS：在 `@media (hover: none)` 下让这两样东西一直显示、不再随 hover 变化
+（`product.css` 末尾，选择器权重 (0,4,1)/(0,3,1) 均高于原生的 (0,4,0)/(0,3,0)）。
+**不碰任何事件、监听或原生控件行为** —— 上一版就是错在这一层。提交 `7128a1e`；
+镜像 digest `sha256:19486fd586d464da54789b399b17137b9cf17b9b2ece1fbdc06bea0086ab3cd6`
+已构建并 stage 到服务器，**尚未激活**（激活会进维护模式，等用户确认回滚有效再发）。
+
+若触摸设备上第一下仍被吃掉，下一个嫌疑是侧栏项自带的 hover 提示气泡（tooltip，
+Bootstrap 在 `mouseover` 时插入 DOM 元素，同样属于"hover 才出现内容"）——
+那要动原生 tooltip 行为，需先与用户确认再改。
