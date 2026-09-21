@@ -703,6 +703,8 @@ zh=`Pearnly主题`、th/en/ja=`Pearnly`。
 `active-image.json` 与 7 个 dms 容器均为该镜像，`maintenance_mode=0`，
 线上 `/assets/pearnly_core/desk/product.css` 回读到 `@media (hover: none)` 那三条规则。
 **真机验收仍待用户确认**：触摸设备上第一次点击就应生效，且不再出现"第一下只出灰底"。
+用户随后在真机上确认可用（"可以了，收工吧"，2026-09-21）——侧栏第一下即开合、
+侧栏项第一下即跳转。本条只记用户确认的事实，未额外补测其它机型或浏览器。
 
 若触摸设备上第一下仍被吃掉，下一个嫌疑是侧栏项自带的 hover 提示气泡（tooltip，
 Bootstrap 在 `mouseover` 时插入 DOM 元素，同样属于"hover 才出现内容"）——
