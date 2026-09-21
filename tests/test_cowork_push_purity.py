@@ -5,7 +5,10 @@ from pathlib import Path
 import unittest
 
 
-PURE_ROOT = {"__init__.py", "lifecycle.py", "receipts.py", "retry.py"}
+PURE_ROOT = {"__init__.py", "export_actions.py", "lifecycle.py", "receipts.py", "retry.py"}
+# Root modules with explicit framework/IO duties are acknowledged, not scanned
+# for purity. export_facts reads the native ledger through Frappe.
+NON_PURE_ROOT = {"export_facts.py"}
 
 
 def pure_paths(root):
@@ -13,8 +16,8 @@ def pure_paths(root):
     # Every seventh-batch pure file remains covered, including future modules
     # added inside express/targets. New root modules must be classified here.
     actual = {path.name for path in (root / "push").glob("*.py")}
-    if actual != PURE_ROOT:
-        raise AssertionError(f"Unclassified push root modules: {actual ^ PURE_ROOT}")
+    if actual - NON_PURE_ROOT != PURE_ROOT:
+        raise AssertionError(f"Unclassified push root modules: {actual - NON_PURE_ROOT - PURE_ROOT}")
     return [*(root / "targets").rglob("*.py"), *(root / "push/express").rglob("*.py"),
             *(root / "push" / name for name in sorted(PURE_ROOT))]
 
