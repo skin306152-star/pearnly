@@ -1104,3 +1104,6 @@ pearnly_erp_portal	Enable	启用	เปิดใช้งาน	有効化	produc
 pearnly_erp_portal	Code	编码	รหัส	コード	product.col.code
 pearnly_erp_portal	Barcode	条码	บาร์โค้ด	バーコード	product.col.barcode
 pearnly_erp_portal	Unit	单位	หน่วย	単位	product.col.unit
+pearnly_erp_portal	Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
+pearnly_erp_portal	Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を有効化	product.action.bulkEnable
+pearnly_erp_portal	Updated {0} product(s)	已更新 {0} 个商品	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount

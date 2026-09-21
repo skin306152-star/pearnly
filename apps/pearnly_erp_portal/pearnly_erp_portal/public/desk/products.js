@@ -1,103 +1,156 @@
-/* 商品数据。只用官方组件：FieldGroup 排版、Dialog 建改、DataTable 列表。
+/* 商品数据：**原生列表**（框架装的 ListView 渲染器），只用我们自己的取数接口。
  *
- * 为什么不用原生 ListView（DocType 驱动的那套）：这一页要的是服务端**已经裁好的投影**
- * —— 成本按岗位遮蔽、单位换算、`price_set` 区分"未设价 / 真 ฿0"。走 ListView 等于把
- * 这些规则在前端再实现一遍，两处必然漂移。所以列表用 DataTable，行点击进 Dialog。
+ * 为什么走 `frappe.pearnly.list`：它继承的是框架装的 BaseList + ListView 渲染，
+ * 于是复选框列、第 N 项/共 M 项、20/100/500/2500 分页、空状态、行高与移动端样式
+ * 全部是原生那套；而"列表视图切换 / 已保存的筛选器 / 过滤器 / 排序"属于 ListView 的
+ * 另外几条装配路径（`setup_view_menu` / `setup_standard_filters` / `setup_filter_area`），
+ * 产品列表按用户 2026-09-21 的口径**不放这些**，走 BaseList 正好天然没有。
  *
- * 文案全部来自 `scripts/i18n/messages.tsv` 的 `product.*` 键，代码里不留中文/泰文。
+ * 复选框列留着的理由：它后面挂着**真有的功能** —— 批量启用/停用选中的商品。
+ * 没有去处的话就不该放出来。
+ *
+ * 文案全部来自 `scripts/i18n/messages.tsv` 的 `product.*` 键。
  */
 (() => {
 	const p = frappe.pearnly;
 
 	p.products = async (page, t) => {
 		const api = "pearnly_erp_portal.products.service.";
-		let table;
-		let search = "";
-		let includeInactive = false;
+		let list;
+		let busy = false;
 
-		// 售价与参考成本都要看"设过没有"的标记：Currency 列存不下 NULL，
-		// 库里 0 与"从未设过"是同一个数字。没设过就说"未设"，不显示 ฿0.00 ——
-		// 那会让人以为价格/成本真的是零。
+		// "设过没有"要跟值一起看：Currency 列存不下 NULL，库里 0 与"从未设过"是同一个数字。
 		// 没有成本权限的岗位，服务端把值与标记一起清空，于是这里自然显示"未设"。
 		const marked = (row, flag, value) =>
 			row[flag] ? format_currency(value, "THB") : t("product.cell.notSet");
 
-		async function refresh() {
-			const rows = await p.call(api + "api_list_products", {
-				search: search || undefined,
-				include_inactive: includeInactive ? 1 : undefined,
-				limit: 100,
-			});
-			table?.destroy();
-			page.main.empty();
-			page.clear_inner_toolbar();
-			if (frappe.model.can_create("ERP Product")) {
-				page.set_primary_action(t("product.action.new"), () => open_form(null));
+		const filters = {};
+		filters.search = page.add_field({
+			fieldtype: "Data",
+			fieldname: "search",
+			label: t("product.field.search"),
+			change: () => void list?.reload(),
+		});
+		filters.include_inactive = page.add_field({
+			fieldtype: "Check",
+			fieldname: "include_inactive",
+			label: t("product.action.toggleInactive"),
+			change: () => void list?.reload(),
+		});
+		const query = () => ({
+			search: filters.search.get_value() || undefined,
+			include_inactive: filters.include_inactive.get_value() ? 1 : undefined,
+		});
+
+		// 右上角那一颗主按钮：没选中任何行时是"新建商品"（与参考图一致），
+		// 选中若干行时切换成批量启用/停用 —— 这是产品真有的动作，复选框列因此有实际去处。
+		function update_action(rows) {
+			if (busy) {
+				page.btn_primary?.prop("disabled", true);
+				return;
 			}
-
-			const form = p.layout(page.main, [
-				{
-					fieldtype: "Data",
-					fieldname: "search",
-					label: t("product.field.search"),
-					default: search,
-				},
-				{ fieldtype: "Column Break" },
-				{
-					fieldtype: "Check",
-					fieldname: "include_inactive",
-					label: t("product.action.toggleInactive"),
-					default: includeInactive ? 1 : 0,
-				},
-				{ fieldtype: "Section Break" },
-				{ fieldtype: "HTML", fieldname: "rows" },
-			]);
-			const apply_filters = async () => {
-				search = form.get_value("search") || "";
-				includeInactive = Boolean(form.get_value("include_inactive"));
-				await refresh();
-			};
-			form.fields_dict.search.$input.on("change", () => void apply_filters());
-			form.fields_dict.include_inactive.$input.on("change", () => void apply_filters());
-
-			const target = form.fields_dict.rows.$wrapper;
-			table = await p.table(
-				target,
-				[
-					t("product.col.name"),
-					t("product.col.code"),
-					t("product.col.barcode"),
-					t("product.col.unit"),
-					t("product.col.price"),
-					t("product.col.cost"),
-					t("product.col.status"),
-				],
-				rows.map((row) => [
-					row.product_name,
-					row.code || "",
-					row.barcode || "",
-					row.unit || "",
-					marked(row, "price_set", row.unit_price),
-					marked(row, "cost_set", row.default_cost),
-					row.is_active ? __("Active") : __("Disabled"),
-				]),
+			if (!rows.length) {
+				if (can_create) page.set_primary_action(t("product.action.new"), () => open_create());
+				else page.clear_primary_action();
+				return;
+			}
+			const enabling = rows.every((row) => !row.is_active);
+			page.set_primary_action(
+				enabling
+					? t("product.action.bulkEnable", rows.length)
+					: t("product.action.bulkDisable", rows.length),
+				() => void toggle_selected(rows, enabling),
 			);
-			// 行点击进编辑：DataTable 的行带 data-row-index，映射回这一份数据即可，
-			// 不需要给每行塞按钮（那会多出一堆和表格不同步的控件）。
-			target.on("click", ".dt-row", (event) => {
-				const index = Number($(event.currentTarget).attr("data-row-index"));
-				const row = rows[index];
-				if (row) open_form(row);
-			});
+		}
+
+		async function toggle_selected(rows, enabling) {
+			if (busy) return;
+			busy = true;
+			update_action(rows);
+			try {
+				for (const row of rows) {
+					await p.call(api + "api_set_active",
+						{ name: row.name, active: enabling ? 1 : 0 }, "POST");
+				}
+				p.success(t("product.notice.toggledCount", rows.length));
+				list.clear_checked_items();
+				await list.reload();
+			} catch (error) {
+				if (!error?._server_messages && !error?.responseJSON) console.error(error);
+			} finally {
+				busy = false;
+				update_action(list.get_checked_items());
+			}
+		}
+
+		list = p.list({
+			page,
+			doctype: "ERP Product",
+			selectable: true,
+			on_selection: update_action,
+			on_open: (row) => open_form(row),
+			load: async ({ start, page_length }) => {
+				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
+				const [items, total] = await Promise.all([
+					p.call(api + "api_list_products",
+						{ start, limit: page_length, ...query() }),
+					p.call(api + "api_count_products", query()),
+				]);
+				return { items, total };
+			},
+			columns: [
+				{ fieldname: "product_name", label: t("product.col.name") },
+				{ fieldname: "code", label: t("product.col.code") },
+				{ fieldname: "barcode", label: t("product.col.barcode") },
+				{ fieldname: "unit", label: t("product.col.unit") },
+				{ fieldname: "unit_price", label: t("product.col.price"),
+					format: (_value, row) => marked(row, "price_set", row.unit_price) },
+				{ fieldname: "default_cost", label: t("product.col.cost"),
+					format: (_value, row) => marked(row, "cost_set", row.default_cost) },
+				{ fieldname: "is_active", label: t("product.col.status"),
+					format: (value) => (value ? __("Active") : __("Disabled")) },
+			],
+		});
+
+		const can_create = frappe.model.can_create("ERP Product");
+
+		function open_create() {
+			const dialog = p.dialog(
+				t("product.action.new"),
+				[
+					{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
+						reqd: 1 },
+					{ fieldtype: "Data", fieldname: "code", label: t("product.field.code") },
+					{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode") },
+					{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit") },
+					{ fieldtype: "Column Break" },
+					{ fieldtype: "Currency", fieldname: "unit_price",
+						label: t("product.field.price"), options: "THB" },
+					{ fieldtype: "Currency", fieldname: "default_cost",
+						label: t("product.field.cost"), options: "THB" },
+					{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock") },
+					{ fieldtype: "Check", fieldname: "vat_applicable",
+						label: t("product.field.vat"), default: 1 },
+				],
+				t("product.action.save"),
+				async (values, d) => {
+					for (const field of ["unit_price", "default_cost"]) {
+						if (values[field] === "") values[field] = null;
+					}
+					await p.call(api + "api_create_product", values, "POST");
+					d.hide();
+					p.success(t("product.notice.saved", values.product_name));
+					await list.reload();
+				},
+			);
+			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		}
 
 		async function open_form(row) {
-			const existing = row
-				? await p.call(api + "api_get_product", { name: row.name })
-				: {};
-			const editable = !existing.name || frappe.model.can_write("ERP Product");
+			const existing = await p.call(api + "api_get_product", { name: row.name });
+			const can_write = frappe.model.can_write("ERP Product");
 			const dialog = p.dialog(
-				existing.name ? existing.product_name : t("product.action.new"),
+				existing.product_name,
 				[
 					{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
 						reqd: 1, default: existing.product_name },
@@ -111,45 +164,30 @@
 					{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
 						options: "THB", default: existing.price_set ? existing.unit_price : null },
 					{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
-						options: "THB", default: existing.default_cost },
+						options: "THB", default: existing.cost_set ? existing.default_cost : null },
 					{ fieldtype: "Float", fieldname: "min_stock",
 						label: t("product.field.minStock"), default: existing.min_stock },
 					{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
-						default: existing.vat_applicable ?? 1 },
+						default: existing.vat_applicable },
 				],
 				t("product.action.save"),
 				async (values, d) => {
-					// 空售价 = "从未设价"，与 ฿0 是两回事（服务端用 price_set 记这个区别）；
-					// 所以空串要显式变 null，不能让它落成 0。
-					if (values.unit_price === "") values.unit_price = null;
-					if (values.default_cost === "") values.default_cost = null;
-					if (existing.name) {
-						await p.call(api + "api_update_product",
-							{ name: existing.name, ...values }, "POST");
-					} else {
-						await p.call(api + "api_create_product", values, "POST");
+					// 空串 = "从未设过"，与 ฿0 是两回事；所以显式变 null，不让它落成 0。
+					for (const field of ["unit_price", "default_cost"]) {
+						if (values[field] === "") values[field] = null;
 					}
+					await p.call(api + "api_update_product", { name: existing.name, ...values },
+						"POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name));
-					await refresh();
+					await list.reload();
 				},
 			);
-			if (!editable) dialog.get_primary_btn().prop("disabled", true);
-			if (existing.name && frappe.model.can_write("ERP Product")) {
-				dialog.add_custom_action(
-					existing.is_active ? t("product.action.disable") : t("product.action.enable"),
-					async () => {
-						await p.call(api + "api_set_active",
-							{ name: existing.name, active: existing.is_active ? 0 : 1 }, "POST");
-						dialog.hide();
-						p.success(t("product.notice.toggled", existing.product_name));
-						await refresh();
-					},
-				);
-			}
+			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
 		}
 
-		p.add_refresh(page, refresh);
-		await refresh();
+		p.add_refresh(page, () => list.reload());
+		await list.ready;
+		update_action([]);
 	};
 })();

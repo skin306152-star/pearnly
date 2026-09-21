@@ -18,6 +18,8 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+product.action.bulkDisable,Disable {0} selected
+product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
 product.action.edit,Edit
 product.action.enable,Enable
@@ -44,5 +46,6 @@ product.field.unit,Unit
 product.field.vat,VAT applies
 product.notice.saved,Saved {0}
 product.notice.toggled,Updated {0}
+product.notice.toggledCount,Updated {0} product(s)
 purchase,purchase
 sales,sales

@@ -18,6 +18,8 @@ This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+product.action.bulkDisable,停用选中的 {0} 个
+product.action.bulkEnable,启用选中的 {0} 个
 product.action.disable,启用 / 停用
 product.action.edit,编辑
 product.action.enable,启用
@@ -44,5 +46,6 @@ product.field.unit,单位
 product.field.vat,含 VAT
 product.notice.saved,已保存 {0}
 product.notice.toggled,已更新 {0}
+product.notice.toggledCount,已更新 {0} 个商品
 purchase,采购
 sales,销售

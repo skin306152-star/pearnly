@@ -119,19 +119,39 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     return {"name": doc.name}
 
 
-def list_products(*, search=None, include_inactive=False, limit=50):
-    guard.require("products.view")
+def _filters(search=None, include_inactive=False):
+    """列表与计数共用的一份筛选，避免两处各写一遍导致"总数与实际不符"。
+
+    名称与条码都要能搜到：扫码后就地找品是收银台的主路径，所以条码走 or。
+    """
     filters: list = []
     if not include_inactive:
         filters.append(["is_active", "=", 1])
     if search:
-        # 名称与条码都要能搜到：扫码后就地找品是收银台的主路径。
         filters.append(["product_name", "like", f"%{search}%"])
+    or_filters = [["barcode", "like", f"%{search}%"]] if search else None
+    return filters, or_filters
+
+
+def list_products(*, search=None, include_inactive=False, limit=50, start=0):
+    guard.require("products.view")
+    filters, or_filters = _filters(search, include_inactive)
     return _mask(frappe.get_list(
-        DOCTYPE, filters=filters, or_filters=(
-            [["barcode", "like", f"%{search}%"]] if search else None),
-        fields=list(LIST_FIELDS), order_by="modified desc", limit_page_length=int(limit),
+        DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
+        order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
+
+
+def count_products(*, search=None, include_inactive=False) -> int:
+    """列表总数（页脚"第 N 项/共 M 项"与"加载更多"用）。
+
+    为什么不用 `frappe.db.count`：那条路**绕过 DocType 权限**，而本站点商品表是按岗位授权的；
+    `frappe.get_list` 跟着权限走。商品是主数据、量级不大，用列表长度换权限正确性。
+    """
+    guard.require("products.view")
+    filters, or_filters = _filters(search, include_inactive)
+    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters,
+                               pluck="name", limit_page_length=0))
 
 
 def get_product(name: str):
@@ -227,6 +247,12 @@ def add_unit(name: str, *, unit_name, factor_to_base, barcode=None, price=None,
 def api_list_products(**kwargs):
     kwargs.pop("cmd", None)
     return list_products(**kwargs)
+
+
+@frappe.whitelist()
+def api_count_products(**kwargs):
+    kwargs.pop("cmd", None)
+    return count_products(**kwargs)
 
 
 @frappe.whitelist()

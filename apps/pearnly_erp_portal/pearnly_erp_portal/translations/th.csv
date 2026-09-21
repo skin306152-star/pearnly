@@ -18,6 +18,8 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+product.action.bulkDisable,ปิดใช้งาน {0} รายการที่เลือก
+product.action.bulkEnable,เปิดใช้งาน {0} รายการที่เลือก
 product.action.disable,เปิด / ปิดใช้งาน
 product.action.edit,แก้ไข
 product.action.enable,เปิดใช้งาน
@@ -44,5 +46,6 @@ product.field.unit,หน่วย
 product.field.vat,คิด VAT
 product.notice.saved,บันทึก {0} แล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
+product.notice.toggledCount,อัปเดต {0} รายการแล้ว
 purchase,จัดซื้อ
 sales,ขาย
