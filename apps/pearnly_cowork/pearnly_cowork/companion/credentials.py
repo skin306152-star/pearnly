@@ -217,6 +217,18 @@ def status(connection):
     return _dto(doc, _active(doc) or _latest(doc))
 
 
+def for_confirmation(connection):
+    """Internal human submission proof; no token disclosure or machine login."""
+    _enabled()
+    doc = _connection(connection)
+    access.require_connection(doc)
+    row = _active(doc)
+    if row is None:
+        _error('companion.credential_not_found')
+    _issuer(doc, row)
+    return {'credential_id': row.name, 'generation': int(row.token_generation), 'issuer': row.issuer}
+
+
 def _issuer(doc, row):
     _row_scope(row, doc)
     if (row.revoked_at or row.active_key != contracts.active_identity(_site(), doc.name)

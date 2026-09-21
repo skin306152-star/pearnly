@@ -9,11 +9,14 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.contracts.push import clean_tax_id
+from pearnly_cowork.connections import preparation as preparation_sources
+from pearnly_cowork.contracts.push import clean_tax_id, explicit_direction, detect_by_tax
 from pearnly_cowork.history import storage
 from pearnly_cowork.push.application.provenance import original_history
 from pearnly_cowork.push.express.prepare import prepare_express
 from pearnly_cowork.push.express.preflight import ExpressContext
+from pearnly_cowork.push.express.history import flatten_history_for_mrerp
+from pearnly_cowork.push.express.common import parse_invoice_date
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.receipts import derive_external_ref, express_prior_number
 from pearnly_cowork.targets.choice import endpoint_with_account_choice
@@ -37,6 +40,9 @@ def _view(row):
         "name", "status", "revision", "history", "connection", "history_version",
         "connection_revision", "reason", "result_unknown", "replayed", "blocked_by", "blocked_reason")}
     result["checks"] = deepcopy(row.get("checks") or [])
+    evidence = (row.get('frozen_target') or {}).get('preparation_evidence') or {}
+    result['preparation_states'] = deepcopy(evidence.get('states') or {})
+    result['has_reported_credential'] = bool(evidence.get('credential'))
     result["external_reference"] = derive_external_ref(
         (row.get("frozen_target") or {}).get("adapter"), row.get("response_body"), row.get("status"))
     return result
@@ -81,13 +87,10 @@ def prepare(history, connection, request_key, expected_history_version, expected
     except TargetSelectionError as error:
         frappe.throw(_(error.code), frappe.PermissionError if error.status_code == 403 else frappe.ValidationError)
     selected = endpoint_with_account_choice(deepcopy(loaded.endpoint), choice)
-    preparation = connections.preparation_for_target(loaded, target)
-    # Per-account observations must replace old caches only after the choice
-    # cleared the previous account's mappings and catalogues.
-    selected["config"].update(deepcopy(preparation.get("reported_config") or {}))
     own_tax = frappe.db.get_value("Cowork Workspace", doc.workspace, "tax_id", for_update=True) or ""
     history_value = storage.project(doc)
-    history_value.update(id=doc.name, tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
+    history_value.update(id=doc.name, client_id=doc.client or None,
+        tenant_id=loaded.access.tenant_id, workspace_client_id=doc.workspace)
     prior = original_history(doc)
     context = _context(doc, loaded, target.account_set)
     receipt = ledger.read_success(context=context, history=prior)
@@ -100,6 +103,14 @@ def prepare(history, connection, request_key, expected_history_version, expected
     primary = next((p for p in pages if not p.get("is_duplicate") and not p.get("is_copy")), pages[0] if pages else {})
     fields = primary.get("fields") or {}
     seller_tax = clean_tax_id(fields.get("seller_tax") or fields.get("seller_tax_id"))
+    flat = flatten_history_for_mrerp(history_value)
+    invoice_date = parse_invoice_date(flat.get('invoice_date') or (flat.get('fields') or {}).get('date'))
+    direction = explicit_direction(flat, history_value) or detect_by_tax(flat, own_tax)
+    preparation, evidence = preparation_sources.collect(loaded, target,
+        seller_tax=seller_tax if direction == 'purchase' else '',
+        invoice_date=invoice_date.isoformat() if invoice_date else None)
+    # Choice clears other-account caches before applying attributed observations.
+    selected['config'].update(deepcopy(preparation['reported_config']))
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
     prepared = prepare_express(selected, history_value, posting_kind=posting_kind,
         context=ExpressContext(enabled=True, today=today, own_tax_id=own_tax,
@@ -108,7 +119,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
             bank_index=preparation["bank_index"], prior_docnum=prior_docnum))
     frozen = asdict(target)
     frozen.update(request_intent=intent, connection_revision=loaded.revision,
-        original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax)
+        original_history=prior, preparation_date=today.isoformat(), own_tax_id=own_tax,
+        preparation_evidence=evidence)
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=prepared.payload or {},
         disposition="prepared" if prepared.disposition == "ready" else "manual",
@@ -142,6 +154,22 @@ def cancel_prepared(name, expected_revision):
     context = _context(history, loaded, doc.account_key)
     return _view(ledger.cancel_prepared(name, context=context,
         expected_revision=storage.revision(expected_revision)))
+
+
+def confirm(name, expected_revision, request_key, *, credential):
+    """Called by authenticated Companion submission orchestration, never RPC."""
+    scope.require('intake')
+    row = frappe.db.get_value('Cowork Push Record', name,
+        ['connection', 'workspace', 'client', 'history'], as_dict=True)
+    if not row:
+        frappe.throw(_('push.record_not_found'), frappe.DoesNotExistError)
+    loaded = connections.read_for_push(row.connection, row.workspace, row.client)
+    history = storage.read(row.history, for_update=True)
+    original_history(history)
+    doc = frappe.get_doc('Cowork Push Record', name, for_update=True)
+    context = _context(history, loaded, doc.account_key)
+    return _view(ledger.confirm(name, context=context, credential=credential,
+        expected_revision=storage.revision(expected_revision), request_key=request_key))
 
 
 def records(connection, start=0, limit=50):

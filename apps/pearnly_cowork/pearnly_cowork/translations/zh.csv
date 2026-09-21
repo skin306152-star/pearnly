@@ -43,6 +43,8 @@ Company,公司
 Completed At,完成时间
 Completed At (UTC),完成时间（UTC）
 Completed By,完成人
+Confirmation Request,确认请求
+Confirmation Revision,确认版本
 Connection Configuration,连接配置
 Connection Name,连接名称
 Connection Revision,连接版本
@@ -51,9 +53,11 @@ Corrected Value,修正值
 Count Mode,盘点方式
 Counted At,盘点时间
 Counted By,盘点人
+Cowork Bank Evidence,Cowork 银行佐证
 Cowork Client,Cowork 买方客户
 Cowork Companion Delivery,Cowork 助手任务领取记录
 Cowork ERP Connection,Cowork ERP连接
+Cowork ERP Mapping,Cowork ERP 映射
 Cowork ERP Refresh,Cowork ERP目录刷新
 Cowork ERP Snapshot,Cowork ERP目录快照
 Cowork Express Agent Credential,Cowork Express 助手凭据
@@ -72,6 +76,7 @@ Cowork Stocktake Entry,Cowork 盘点记录
 Cowork Stocktake Item,Cowork 盘点品项
 Cowork Stocktake Operation,Cowork 盘点操作记录
 Cowork Stocktake Task,Cowork 盘点任务
+Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Workspace,Cowork 公司账套
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created By,创建人
@@ -80,6 +85,8 @@ Credential ID,凭据 ID
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
+Default Item Type,默认项目类型
+Default Payment,默认付款方式
 Direction,业务方向
 Directory Revision,目录版本
 Directory Scope Key,目录范围键
@@ -88,6 +95,7 @@ Directory Snapshot,目录快照
 Document Key,单据防重键
 Draft,草稿
 Duplicate records are not allowed.,不能重复选择同一条记录。
+ERP Code,ERP 编码
 ERP Connection,ERP连接
 ERP Password,ERP密码
 ERP Token,ERP令牌
@@ -98,6 +106,7 @@ Edit Count,修改次数
 Entry,记录
 Event Key,事件标识
 Evidence Fingerprint,证据指纹
+Evidence Owner,佐证所属人
 Examples Json,修正例数据（JSON）
 External Docnum,ERP凭证号
 Failure Count,失败次数
@@ -112,6 +121,7 @@ History Records,识别记录
 History Version,票据历史版本
 Holder,锁持有者
 Holder Fence,持锁尝试序号
+IN,入账
 Installed At (UTC),安装时间（UTC）
 Invalid Cowork OCR configuration.,Cowork 识别配置无效。
 Invalid original document manifest.,原件内容索引无效。
@@ -138,9 +148,12 @@ Lease Expires At,租约到期时间
 Location,位置
 Lock Key,锁键
 Lock Kind,锁类型
+Mapping Key,映射键
+Mapping Kind,映射类型
 Native Content Hash,原生文件内容哈希
 New records must start as drafts.,新记录必须先保存为草稿。
 Not Permitted,没有权限
+OUT,出账
 Observed At (UTC),观测时间（UTC）
 Original Content Coverage Complete,原件内容已完整覆盖
 Original Document Manifest,原件内容索引
@@ -267,6 +280,7 @@ Title,标题
 Token Digest,令牌摘要
 Token Generation,令牌版本
 Token Tail,令牌末四位
+Transaction Date,交易日期
 Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
 Updated At,更新时间
 Updated By,更新人
@@ -282,6 +296,7 @@ Warehouse,仓库
 Wire Attempt,发送尝试次数
 Work Name,后台任务标识
 Workspace,公司账套
+account,科目
 active,有效
 admitted,已受理
 catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
@@ -289,6 +304,7 @@ catalog_refresh_pending,目录正在等待刷新。
 catalog_refresh_required,请先刷新账套目录。
 catalog_refresh_stale,账套目录已过期，请重新刷新。
 charged,已计费
+client,客户
 closed,已关闭
 companion.context_invalid,助手身份已失效，请重新认证。
 companion.credential_not_found,此连接尚未签发助手凭据。

@@ -1523,3 +1523,19 @@ pearnly_cowork	The Companion delivery record is invalid.	助手任务领取记�
 pearnly_cowork	The Companion delivery record was not found.	未找到助手任务领取记录。	ไม่พบบันทึกการรับงานของผู้ช่วย	アシスタントのタスク受領記録が見つかりません。	companion.delivery_not_found
 pearnly_cowork	Access to the Companion queue has been revoked.	助手队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว	アシスタントのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
 pearnly_cowork	This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
+pearnly_cowork	Cowork ERP Mapping	Cowork ERP 映射	การจับคู่ ERP ของ Cowork	Cowork ERP マッピング
+pearnly_cowork	Cowork Supplier Posting Profile	Cowork 供应商过账档案	โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork	Cowork 仕入先転記プロファイル
+pearnly_cowork	Cowork Bank Evidence	Cowork 银行佐证	หลักฐานธนาคารของ Cowork	Cowork 銀行取引の根拠
+pearnly_cowork	Mapping Kind	映射类型	ประเภทการจับคู่	マッピング種類
+pearnly_cowork	Mapping Key	映射键	คีย์การจับคู่	マッピングキー
+pearnly_cowork	ERP Code	ERP 编码	รหัส ERP	ERP コード
+pearnly_cowork	Default Payment	默认付款方式	วิธีชำระเงินเริ่มต้น	既定の支払方法
+pearnly_cowork	Default Item Type	默认项目类型	ประเภทสินค้าเริ่มต้น	既定の明細種類
+pearnly_cowork	Evidence Owner	佐证所属人	เจ้าของหลักฐาน	根拠データの所有者
+pearnly_cowork	Transaction Date	交易日期	วันที่ทำรายการ	取引日
+pearnly_cowork	Confirmation Request	确认请求	คำขอยืนยัน	確認リクエスト
+pearnly_cowork	Confirmation Revision	确认版本	รุ่นที่ยืนยัน	確認リビジョン
+pearnly_cowork	IN	入账	เงินเข้า	入金
+pearnly_cowork	OUT	出账	เงินออก	出金
+pearnly_cowork	account	科目	บัญชี	勘定科目
+pearnly_cowork	client	客户	ลูกค้า	顧客

@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import frappe
 from frappe import _
 from pearnly_cowork.targets.projection import normalize_projection
-from . import access, model, refresh, snapshots, state
+from . import access, model, preparation, refresh, snapshots, state
 from .reports import CACHE_KEYS, MAPPING_KEYS, SELECTED_KEYS
 
 
@@ -30,6 +30,7 @@ def ingest(doc, plan, *, credential_id, token_generation, issuer, now=None):
         doc.projection_heads = '{}'
     report = {**model.parse(doc.get('report_json'), {}),
               **{key: value for key, value in plan.patch.items() if key in CACHE_KEYS}}
+    preparation.attribute_report(doc, report, plan, credential_id, token_generation, issuer)
     if len(model.dumps(report).encode()) > 16 * 1024 * 1024:
         frappe.throw(_('connection.snapshot_too_large'))
     doc.report_json = model.dumps(report)

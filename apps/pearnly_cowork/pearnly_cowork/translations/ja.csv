@@ -43,6 +43,8 @@ Company,会社
 Completed At,完了日時
 Completed At (UTC),完了日時（UTC）
 Completed By,完了者
+Confirmation Request,確認リクエスト
+Confirmation Revision,確認リビジョン
 Connection Configuration,接続設定
 Connection Name,接続名
 Connection Revision,接続リビジョン
@@ -51,9 +53,11 @@ Corrected Value,修正値
 Count Mode,棚卸方式
 Counted At,棚卸日時
 Counted By,棚卸担当者
+Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork Client,Cowork 買い手顧客
 Cowork Companion Delivery,Cowork アシスタントのタスク受領記録
 Cowork ERP Connection,Cowork ERP接続
+Cowork ERP Mapping,Cowork ERP マッピング
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
 Cowork Express Agent Credential,Cowork Express アシスタント認証情報
@@ -72,6 +76,7 @@ Cowork Stocktake Entry,Cowork 棚卸記録
 Cowork Stocktake Item,Cowork 棚卸品目
 Cowork Stocktake Operation,Cowork 棚卸操作記録
 Cowork Stocktake Task,Cowork 棚卸タスク
+Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
 Cowork Workspace,Cowork 会計対象会社
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
 Created By,作成者
@@ -80,6 +85,8 @@ Credential ID,認証情報 ID
 Current Directory Heads,現在のディレクトリ索引
 Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+Default Item Type,既定の明細種類
+Default Payment,既定の支払方法
 Direction,取引方向
 Directory Revision,ディレクトリリビジョン
 Directory Scope Key,ディレクトリ範囲キー
@@ -88,6 +95,7 @@ Directory Snapshot,ディレクトリスナップショット
 Document Key,伝票重複防止キー
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
+ERP Code,ERP コード
 ERP Connection,ERP接続
 ERP Password,ERPパスワード
 ERP Token,ERPトークン
@@ -98,6 +106,7 @@ Edit Count,編集回数
 Entry,エントリー
 Event Key,イベント識別子
 Evidence Fingerprint,証跡フィンガープリント
+Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
 External Docnum,ERP伝票番号
 Failure Count,失敗回数
@@ -112,6 +121,7 @@ History Records,認識記録
 History Version,伝票履歴バージョン
 Holder,ロック保持者
 Holder Fence,ロック保持試行番号
+IN,入金
 Installed At (UTC),インストール日時（UTC）
 Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
 Invalid original document manifest.,元文書の内容索引が無効です。
@@ -138,9 +148,12 @@ Lease Expires At,リース有効期限
 Location,場所
 Lock Key,ロックキー
 Lock Kind,ロック種別
+Mapping Key,マッピングキー
+Mapping Kind,マッピング種類
 Native Content Hash,標準ファイルの内容ハッシュ
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
 Not Permitted,適切な権限がありません
+OUT,出金
 Observed At (UTC),観測日時（UTC）
 Original Content Coverage Complete,元ファイルの内容をすべて網羅
 Original Document Manifest,元文書の内容索引
@@ -267,6 +280,7 @@ Title,タイトル
 Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
+Transaction Date,取引日
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
@@ -282,6 +296,7 @@ Warehouse,倉庫
 Wire Attempt,送信試行回数
 Work Name,バックグラウンドタスク識別子
 Workspace,会社帳簿
+account,勘定科目
 active,有効
 admitted,受け付け済み
 catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
@@ -289,6 +304,7 @@ catalog_refresh_pending,ディレクトリの更新を待機しています。
 catalog_refresh_required,先に会計データのディレクトリを更新してください。
 catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
 charged,課金済み
+client,顧客
 closed,クローズ済み
 companion.context_invalid,アシスタントの認証が無効になりました。再認証してください。
 companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。

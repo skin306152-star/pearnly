@@ -43,6 +43,8 @@ Company,Company
 Completed At,Completed At
 Completed At (UTC),Completed At (UTC)
 Completed By,Completed By
+Confirmation Request,Confirmation Request
+Confirmation Revision,Confirmation Revision
 Connection Configuration,Connection Configuration
 Connection Name,Connection Name
 Connection Revision,Connection Revision
@@ -51,9 +53,11 @@ Corrected Value,Corrected Value
 Count Mode,Count Mode
 Counted At,Counted At
 Counted By,Counted By
+Cowork Bank Evidence,Cowork Bank Evidence
 Cowork Client,Cowork Client
 Cowork Companion Delivery,Cowork Companion Delivery
 Cowork ERP Connection,Cowork ERP Connection
+Cowork ERP Mapping,Cowork ERP Mapping
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
 Cowork Express Agent Credential,Cowork Express Agent Credential
@@ -72,6 +76,7 @@ Cowork Stocktake Entry,Cowork Stocktake Entry
 Cowork Stocktake Item,Cowork Stocktake Item
 Cowork Stocktake Operation,Cowork Stocktake Operation
 Cowork Stocktake Task,Cowork Stocktake Task
+Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
 Cowork Workspace,Cowork Workspace
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created By,Created By
@@ -80,6 +85,8 @@ Credential ID,Credential ID
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
+Default Item Type,Default Item Type
+Default Payment,Default Payment
 Direction,Direction
 Directory Revision,Directory Revision
 Directory Scope Key,Directory Scope Key
@@ -88,6 +95,7 @@ Directory Snapshot,Directory Snapshot
 Document Key,Document Key
 Draft,Draft
 Duplicate records are not allowed.,Duplicate records are not allowed.
+ERP Code,ERP Code
 ERP Connection,ERP Connection
 ERP Password,ERP Password
 ERP Token,ERP Token
@@ -98,6 +106,7 @@ Edit Count,Edit Count
 Entry,Entry
 Event Key,Event Key
 Evidence Fingerprint,Evidence Fingerprint
+Evidence Owner,Evidence Owner
 Examples Json,Examples Json
 External Docnum,External Docnum
 Failure Count,Failure Count
@@ -112,6 +121,7 @@ History Records,History Records
 History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
+IN,IN
 Installed At (UTC),Installed At (UTC)
 Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
 Invalid original document manifest.,Invalid original document manifest.
@@ -138,9 +148,12 @@ Lease Expires At,Lease Expires At
 Location,Location
 Lock Key,Lock Key
 Lock Kind,Lock Kind
+Mapping Key,Mapping Key
+Mapping Kind,Mapping Kind
 Native Content Hash,Native Content Hash
 New records must start as drafts.,New records must start as drafts.
 Not Permitted,Not Permitted
+OUT,OUT
 Observed At (UTC),Observed At (UTC)
 Original Content Coverage Complete,Original Content Coverage Complete
 Original Document Manifest,Original Document Manifest
@@ -267,6 +280,7 @@ Title,Title
 Token Digest,Token Digest
 Token Generation,Token Generation
 Token Tail,Token Tail
+Transaction Date,Transaction Date
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Updated At,Updated At
 Updated By,Updated By
@@ -282,6 +296,7 @@ Warehouse,Warehouse
 Wire Attempt,Wire Attempt
 Work Name,Work Name
 Workspace,Workspace
+account,account
 active,active
 admitted,admitted
 catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
@@ -289,6 +304,7 @@ catalog_refresh_pending,The directory refresh is still pending.
 catalog_refresh_required,Refresh the account directory before continuing.
 catalog_refresh_stale,The account directory is out of date. Refresh it again.
 charged,charged
+client,client
 closed,closed
 companion.context_invalid,The Companion identity is no longer valid. Authenticate again.
 companion.credential_not_found,No Companion credential has been issued for this connection.

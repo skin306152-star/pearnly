@@ -88,6 +88,10 @@ def lease(context, body):
             row = frappe.get_doc(ledger.RECORD, candidate[0])
             reservation = _context(row, credential)
             try:
+                bound = (ledger.project(row)['frozen_target'].get('preparation_evidence') or {}).get('credential')
+                if bound and bound != {'credential_id': credential.credential_id,
+                        'generation': credential.token_generation, 'issuer': credential.issuer}:
+                    raise ledger.DispatchRejected('push.native_target_changed')
                 claim = ledger.lease(row.name, context=reservation, adapter=adapter, now=now)
             except ledger.LeaseUnavailable:
                 # A pre-existing RR snapshot can select an already-taken row;

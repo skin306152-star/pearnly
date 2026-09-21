@@ -21,6 +21,7 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import access as connection_access
+from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_cowork.contracts.push import PushContractError, require_external_history
 from pearnly_cowork.push.express import common
 from pearnly_cowork.push.lifecycle import acknowledgement, LEASE_SECONDS
@@ -212,6 +213,7 @@ def _validate_target(context, loaded, frozen, *, reject=fail):
     # remain frozen, while every actual target field must match server evidence.
     if any(frozen.get(key) != value for key, value in asdict(target).items()):
         reject('push.native_target_mismatch')
+    return target
 
 
 def reserve(*, context, request_key, frozen_target, frozen_payload,
@@ -370,9 +372,17 @@ def _dispatch_target(context, loaded, target):
     # the original proof identity and reject an expired/superseded proof; never
     # silently choose a new target or regenerate the frozen payload.
     try:
-        _validate_target(context, loaded, target, reject=_dispatch_rejected)
+        current = _validate_target(context, loaded, target, reject=_dispatch_rejected)
     except TargetSelectionError:
         raise DispatchRejected('push.native_target_changed') from None
+    if target.get('preparation_evidence'):
+        try:
+            preparation_sources.revalidate(loaded, current, target['preparation_evidence'])
+        except frappe.ValidationError:
+            raise DispatchRejected('push.native_target_changed') from None
+        own_tax = frappe.db.get_value('Cowork Workspace', context.workspace, 'tax_id', for_update=True) or ''
+        if target.get('own_tax_id') != own_tax:
+            raise DispatchRejected('push.native_target_changed')
     snapshot = loaded.evidence.snapshot or {}
     accounts = snapshot.get('account_sets') or []
     if isinstance(accounts, str):
@@ -383,6 +393,42 @@ def _dispatch_target(context, loaded, target):
         attributes = account.get('attributes') or {}
         if account.get('active', True) is False or attributes.get('writable', True) is False:
             raise DispatchRejected('push.native_target_changed')
+
+
+def confirm(name, *, context, credential, expected_revision, request_key):
+    """Human prepared -> pending CAS with a durable confirmation receipt."""
+    _context(context, account=True)
+    operation = call(request_identity, context, 'confirm:' + call(text, request_key, length=180))
+    call(integer, expected_revision, minimum=1)
+    with atomic():
+        loaded = _authorize(context)
+        history = _history(context)
+        raw = frappe.db.get_value(RECORD, name, 'target_json')
+        if not raw:
+            fail('push.native_record_not_found')
+        target = json.loads(raw)
+        _locks(context, target)
+        row = _record(name, context)
+        if row.actor != context.actor:
+            frappe.throw(_('Not Permitted'), frappe.PermissionError)
+        if row.confirmation_request:
+            if row.confirmation_request != operation or int(row.confirmation_revision) != expected_revision:
+                fail('push.request_conflict')
+            return {**project(row), 'replayed': True}
+        if (row.status != 'prepared' or row.result_unknown or row.revision != expected_revision
+                or int(history.record_version) != context.history_version):
+            fail('push.native_state_invalid')
+        if frappe.conf.get('pearnly_cowork_erp_push_enabled') not in (True, 1):
+            fail('ERR_EXPRESS_DISABLED')
+        _dispatch_record(row, context)
+        evidence = target.get('preparation_evidence') or {}
+        if not evidence.get('credential') or evidence['credential'] != credential:
+            fail('push.native_target_changed')
+        _dispatch_target(context, loaded, target)
+        row.confirmation_request, row.confirmation_revision = operation, expected_revision
+        row.status, row.reason = 'pending', ''
+        _save_record(row, now_utc())
+        return project(row)
 
 
 def activate(name, *, context, adapter):

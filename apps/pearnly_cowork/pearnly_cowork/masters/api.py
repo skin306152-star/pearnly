@@ -2,6 +2,7 @@
 import frappe
 from frappe import _
 from pearnly_cowork.access import scope
+from . import push_inputs
 
 
 def require_manager():
@@ -44,3 +45,14 @@ def clients(workspace, start=0, limit=50):
     return frappe.get_list("Cowork Client", filters={"workspace": workspace, "enabled": 1},
                            fields=["name", "display_name", "tax_id"], order_by="display_name, name",
                            limit_start=max(0, int(start)), limit_page_length=max(1, min(int(limit), 200)))
+
+
+@frappe.whitelist(methods=["POST"])
+def save_erp_mapping(kind, mapping_key, erp_code, expected_revision=0):
+    return push_inputs.save_mapping(kind, mapping_key, erp_code, expected_revision=expected_revision)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_supplier_profile(workspace, seller_tax_id, default_payment=None, default_item_type=None):
+    return push_inputs.save_profile(workspace, seller_tax_id, default_payment=default_payment,
+        default_item_type=default_item_type, source='user_rule')

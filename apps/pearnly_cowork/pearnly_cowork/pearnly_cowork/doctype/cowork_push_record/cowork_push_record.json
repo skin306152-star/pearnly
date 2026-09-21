@@ -50,7 +50,9 @@
   "business_key",
   "invoice_no",
   "seller_name",
-  "blocked_by"
+  "blocked_by",
+  "confirmation_request",
+  "confirmation_revision"
  ],
  "fields": [
   {
@@ -320,6 +322,19 @@
    "label": "Blocked By",
    "fieldtype": "Link",
    "options": "Cowork Push Record",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmation_request",
+   "label": "Confirmation Request",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "confirmation_revision",
+   "label": "Confirmation Revision",
+   "fieldtype": "Int",
    "read_only": 1
   }
  ],

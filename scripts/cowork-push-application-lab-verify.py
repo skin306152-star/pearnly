@@ -134,10 +134,11 @@ class NativePreparation(unittest.TestCase):
                 self.prepare(**values)
         self.assertEqual(frappe.db.count('Cowork Push Record', {'history': self.history['name']}), 0)
 
-    def test_missing_or_incomplete_master_collection_is_not_an_empty_success(self):
-        frappe.set_user(self.manager); self.install(complete=False); frappe.set_user(self.actor)
-        with self.assertRaises(frappe.ValidationError):
-            self.prepare()
+    def test_failed_native_collection_cannot_be_masked_by_legacy_complete_flag(self):
+        from pearnly_cowork.masters import push_inputs
+        frappe.set_user(self.manager); self.install(complete=True); frappe.set_user(self.actor)
+        with patch.object(push_inputs, 'mappings', side_effect=RuntimeError('synthetic unavailable')):
+            with self.assertRaises(RuntimeError): self.prepare()
         self.assertEqual(frappe.db.count('Cowork Push Record', {'history': self.history['name']}), 0)
 
     def test_declared_disabled_is_not_prepared(self):

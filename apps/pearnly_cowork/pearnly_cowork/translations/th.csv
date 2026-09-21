@@ -43,6 +43,8 @@ Company,บริษัท
 Completed At,เวลาที่เสร็จสิ้น
 Completed At (UTC),เสร็จสิ้นเมื่อ (UTC)
 Completed By,ผู้ทำรายการเสร็จสิ้น
+Confirmation Request,คำขอยืนยัน
+Confirmation Revision,รุ่นที่ยืนยัน
 Connection Configuration,การตั้งค่าการเชื่อมต่อ
 Connection Name,ชื่อการเชื่อมต่อ
 Connection Revision,รุ่นการเชื่อมต่อ
@@ -51,9 +53,11 @@ Corrected Value,ค่าที่แก้ไข
 Count Mode,วิธีตรวจนับ
 Counted At,เวลาตรวจนับ
 Counted By,ผู้ตรวจนับ
+Cowork Bank Evidence,หลักฐานธนาคารของ Cowork
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork Companion Delivery,บันทึกการรับงานของผู้ช่วย Cowork
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
+Cowork ERP Mapping,การจับคู่ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
 Cowork ERP Snapshot,ภาพข้อมูลไดเรกทอรี ERP ของ Cowork
 Cowork Express Agent Credential,ข้อมูลรับรองผู้ช่วย Express ของ Cowork
@@ -72,6 +76,7 @@ Cowork Stocktake Entry,รายการตรวจนับสต็อก Co
 Cowork Stocktake Item,รายการสินค้าสำหรับตรวจนับ Cowork
 Cowork Stocktake Operation,บันทึกการดำเนินการตรวจนับ Cowork
 Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
+Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created By,ผู้สร้าง
@@ -80,6 +85,8 @@ Credential ID,รหัสข้อมูลรับรอง
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
+Default Item Type,ประเภทสินค้าเริ่มต้น
+Default Payment,วิธีชำระเงินเริ่มต้น
 Direction,ทิศทางรายการ
 Directory Revision,รุ่นไดเรกทอรี
 Directory Scope Key,คีย์ขอบเขตไดเรกทอรี
@@ -88,6 +95,7 @@ Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Draft,ฉบับร่าง
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
+ERP Code,รหัส ERP
 ERP Connection,การเชื่อมต่อ ERP
 ERP Password,รหัสผ่าน ERP
 ERP Token,โทเค็น ERP
@@ -98,6 +106,7 @@ Edit Count,จำนวนครั้งที่แก้ไข
 Entry,รายการ
 Event Key,รหัสเหตุการณ์
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
+Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
 External Docnum,เลขที่เอกสาร ERP
 Failure Count,จำนวนครั้งที่ล้มเหลว
@@ -112,6 +121,7 @@ History Records,บันทึกการอ่านเอกสาร
 History Version,รุ่นประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับผู้ถือล็อก
+IN,เงินเข้า
 Installed At (UTC),เวลาติดตั้ง (UTC)
 Invalid Cowork OCR configuration.,การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง
 Invalid original document manifest.,ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง
@@ -138,9 +148,12 @@ Lease Expires At,เวลาที่สิทธิ์ถือครองห
 Location,ตำแหน่ง
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
+Mapping Key,คีย์การจับคู่
+Mapping Kind,ประเภทการจับคู่
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 Not Permitted,ไม่ได้รับอนุญาต
+OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Original Content Coverage Complete,ครอบคลุมเนื้อหาต้นฉบับครบถ้วน
 Original Document Manifest,ดัชนีเนื้อหาเอกสารต้นฉบับ
@@ -267,6 +280,7 @@ Title,ชื่อเรื่อง
 Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
+Transaction Date,วันที่ทำรายการ
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
@@ -282,6 +296,7 @@ Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 Work Name,รหัสงานเบื้องหลัง
 Workspace,ชุดบัญชีบริษัท
+account,บัญชี
 active,ใช้งานอยู่
 admitted,รับงานแล้ว
 catalog_refresh_invalid,หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่
@@ -289,6 +304,7 @@ catalog_refresh_pending,กำลังรอการรีเฟรชได�
 catalog_refresh_required,โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 catalog_refresh_stale,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 charged,เรียกเก็บเงินแล้ว
+client,ลูกค้า
 closed,ปิดแล้ว
 companion.context_invalid,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
 companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
