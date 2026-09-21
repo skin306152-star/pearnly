@@ -16,6 +16,7 @@ An original file is already stored for this source.,An original file is already 
 Anchor Date,Anchor Date
 Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
 At least one invoice page is required when editing.,At least one invoice page is required when editing.
+Attempt Secret,Attempt Secret
 Barcode,Barcode
 Billing Code,Billing Code
 Billing Kind,Billing Kind
@@ -51,6 +52,7 @@ Count Mode,Count Mode
 Counted At,Counted At
 Counted By,Counted By
 Cowork Client,Cowork Client
+Cowork Companion Delivery,Cowork Companion Delivery
 Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
@@ -74,6 +76,7 @@ Cowork Workspace,Cowork Workspace
 Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
 Created By,Created By
 Creation Request Hash,Creation Request Hash
+Credential ID,Credential ID
 Current Directory Heads,Current Directory Heads
 Current Json,Current Json
 Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
@@ -152,6 +155,7 @@ Original files cannot be changed.,Original files cannot be changed.
 Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
 Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
 Outcome,Outcome
+Owner ID,Owner ID
 Owner Id,Owner Id
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
 Page Count,Page Count
@@ -168,6 +172,7 @@ Private Storage URL,Private Storage URL
 Product Code,Product Code
 Product Name,Product Name
 Provider Evidence,Provider Evidence
+Push Attempt,Push Attempt
 Push Record,Push Record
 Quantity,Quantity
 Reason,Reason
@@ -267,6 +272,7 @@ Updated At,Updated At
 Updated By,Updated By
 Uploaded By,Uploaded By
 Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
+Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
 Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
 Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
@@ -286,7 +292,12 @@ charged,charged
 closed,closed
 companion.context_invalid,The Companion identity is no longer valid. Authenticate again.
 companion.credential_not_found,No Companion credential has been issued for this connection.
+companion.delivery_invalid,The Companion delivery record is invalid.
+companion.delivery_not_found,The Companion delivery record was not found.
 companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
+companion.queue_access_revoked,Access to the Companion queue has been revoked.
+companion.queue_request_invalid,The Companion queue request is invalid.
+companion.queue_response_invalid,The Companion queue response is invalid.
 companion.receipt_limit,The credential request receipt limit has been reached.
 companion.report_busy,The Companion service is temporarily unavailable. Try again shortly.
 companion.report_invalid,The Companion report is invalid.

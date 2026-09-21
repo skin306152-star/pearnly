@@ -1,0 +1,25 @@
+{
+  "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+  "source_hashes": {
+    "routes/erp_agent.py": "bf253777feb90eeb2c3d9f0bccdc5715a49ac8026a8a9710105b77a8106044bb",
+    "services/erp/express_push/agent_store.py": "03d86de7de82761f33f386913d3d32a93874953a237a8151e02c4e5e3000c9bb",
+    "services/erp/express_push/common.py": "e00c6410c711208cf2bcbf20579d9d67e365b2957aa9d90a3cd9f68e4fe09f58"
+  },
+  "pydantic_runtime": "2.12.5",
+  "parity": {
+    "lease_request": 201,
+    "ack_request": 500,
+    "lease_response": 16,
+    "ack_response": 180,
+    "both_reject": 13
+  },
+  "parity_total": 910,
+  "intentional_differences": {
+    "strict_integer": 4,
+    "uuid_mapping": 6,
+    "line_mode_objects": 3,
+    "finite_json": 4
+  },
+  "difference_total": 17,
+  "boundary": "Source models/functions on candidate runtime; synthetic authorized rows, no DB/network or old-client acceptance."
+}

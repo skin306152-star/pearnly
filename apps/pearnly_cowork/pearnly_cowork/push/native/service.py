@@ -1,8 +1,8 @@
 """One native Site ledger, atomic reservation, fenced attempts and durable locks.
 
-No methods are whitelisted and no scheduler/worker consumer is registered. The
-trusted adapter context is an internal object capability, NOT authentication of
-an installed Companion. Current tests use a synthetic trusted adapter only.
+No methods are whitelisted and no scheduler/worker consumer is registered here.
+The internal Companion adapter authenticates before constructing the trusted
+adapter context; this object capability is not itself machine authentication.
 All helpers participate in the caller's transaction; none commits.
 """
 from contextlib import contextmanager
@@ -38,8 +38,28 @@ RECORD, ATTEMPT, WRITER_LOCK = TYPES
 _ADAPTER_CAPABILITY = object()
 
 
+class DispatchRejected(frappe.ValidationError):
+    """A definite frozen-history/target rejection, safe for queue isolation."""
+
+    def __init__(self, code):
+        self.code = code
+        super().__init__(_(code))
+
+
+class LeaseUnavailable(frappe.ValidationError):
+    """The current record is no longer a claimable pending queue candidate."""
+
+    def __init__(self):
+        self.code = 'push.native_state_invalid'
+        super().__init__(_(self.code))
+
+
 def fail(code):
     frappe.throw(_(code))
+
+
+def _dispatch_rejected(code):
+    raise DispatchRejected(code)
 
 
 def call(function, *args, **kwargs):
@@ -181,17 +201,17 @@ def _locks(context, target):
     return result
 
 
-def _validate_target(context, loaded, frozen):
+def _validate_target(context, loaded, frozen, *, reject=fail):
     if (context.connection_revision != loaded.revision
             or context.binding_generation != int(loaded.endpoint.get('binding_generation') or 0)):
-        fail('push.native_target_changed')
+        reject('push.native_target_changed')
     target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
         account_set_key=context.account_key, request_id=frozen.get('catalog_refresh_request_id'),
         revision=frozen.get('catalog_projection_revision'))
     # Additional application fields (intent, prior provenance, preparation date)
     # remain frozen, while every actual target field must match server evidence.
     if any(frozen.get(key) != value for key, value in asdict(target).items()):
-        fail('push.native_target_mismatch')
+        reject('push.native_target_mismatch')
 
 
 def reserve(*, context, request_key, frozen_target, frozen_payload,
@@ -305,8 +325,8 @@ class AdapterContext:
 def trusted_adapter_context(connection, owner, binding_generation=0):
     """Internal injection seam, not identity verification or a public credential API.
 
-    A future transport must authenticate its installed writer before calling.
-    This batch has no such caller; native tests inject a synthetic adapter.
+    The internal Companion transport must authenticate its credential before
+    calling; native tests can inject a synthetic adapter through the same seam.
     """
     return AdapterContext(call(text, connection), call(text, owner),
                           call(integer, binding_generation), _ADAPTER_CAPABILITY)
@@ -327,10 +347,10 @@ def _dispatch_context(context, adapter):
     loaded = _authorize(context)
     history = _history(context)
     if int(history.record_version) != context.history_version:
-        fail('push.native_history_changed')
+        raise DispatchRejected('push.native_history_changed')
     if (loaded.revision != context.connection_revision
             or int(loaded.endpoint.get('binding_generation') or 0) != context.binding_generation):
-        fail('push.native_target_changed')
+        raise DispatchRejected('push.native_target_changed')
     return loaded
 
 
@@ -342,7 +362,7 @@ def _dispatch_record(row, context):
             row.branch, int(row.binding_generation)) != (
             context.actor, context.history_version, context.connection_revision,
             context.branch, context.binding_generation):
-        fail('push.native_target_changed')
+        raise DispatchRejected('push.native_target_changed')
 
 
 def _dispatch_target(context, loaded, target):
@@ -350,9 +370,9 @@ def _dispatch_target(context, loaded, target):
     # the original proof identity and reject an expired/superseded proof; never
     # silently choose a new target or regenerate the frozen payload.
     try:
-        _validate_target(context, loaded, target)
+        _validate_target(context, loaded, target, reject=_dispatch_rejected)
     except TargetSelectionError:
-        fail('push.native_target_changed')
+        raise DispatchRejected('push.native_target_changed') from None
     snapshot = loaded.evidence.snapshot or {}
     accounts = snapshot.get('account_sets') or []
     if isinstance(accounts, str):
@@ -362,11 +382,11 @@ def _dispatch_target(context, loaded, target):
             continue
         attributes = account.get('attributes') or {}
         if account.get('active', True) is False or attributes.get('writable', True) is False:
-            fail('push.native_target_changed')
+            raise DispatchRejected('push.native_target_changed')
 
 
 def activate(name, *, context, adapter):
-    """Internal prepared -> pending only; no native/public caller dispatches it."""
+    """Internal prepared -> pending transition, without external dispatch."""
     with atomic():
         loaded = _dispatch_context(context, adapter)
         # Target is immutable. Read after connection/history lock before taking
@@ -401,7 +421,7 @@ def lease(name, *, context, adapter, now=None):
         row = _record(name, context)
         _dispatch_record(row, context)
         if row.status != 'pending' or row.result_unknown:
-            fail('push.native_state_invalid')
+            raise LeaseUnavailable()
         duplicate = _business_success(row.business_key, row.name)
         if duplicate:
             row.status, row.reason, row.blocked_by = 'manual', 'already_success', duplicate.name
@@ -438,6 +458,45 @@ def _receipt_scope(context, adapter):
     history = _current('Cowork OCR History', context.history)
     if (history.workspace, history.client or '') != (context.workspace, context.client or ''):
         frappe.throw(_('Not Permitted'), frappe.PermissionError)
+
+
+def quarantine_pending(name, *, context, adapter, reason):
+    """Isolate a definitely rejected queue head without releasing writer locks.
+
+    The internal adapter must first establish a definite authorization or frozen
+    target rejection. This path grants no dispatch authority and preserves every
+    previous attempt and receipt, including a finished failed attempt's fence.
+    """
+    reasons = {'push.native_history_changed', 'push.native_target_changed',
+               'push.native_target_mismatch', 'companion.queue_access_revoked'}
+    if not isinstance(reason, str) or reason not in reasons:
+        fail('push.native_request_invalid')
+    with atomic():
+        _receipt_scope(context, adapter)
+        raw = frappe.db.get_value(RECORD, name, 'target_json')
+        if not raw:
+            fail('push.native_record_not_found')
+        locks = _locks(context, json.loads(raw))
+        row = _record(name, context)
+        if row.status != 'pending' or row.result_unknown:
+            fail('push.native_state_invalid')
+        # Another record may own a shared endpoint/account writer. Its lock is
+        # irrelevant to this non-dispatching transition and must remain intact.
+        if any(lock.holder == row.name for lock in locks):
+            fail('push.native_lock_conflict')
+        if row.active_attempt:
+            attempt = _current(ATTEMPT, row.active_attempt)
+            if (attempt.push_record != row.name or int(attempt.fence) != int(row.fence)
+                    or attempt.status != 'finished'):
+                fail('push.native_stale_attempt')
+        elif row.fence or frappe.db.sql(
+                'SELECT name FROM `tabCowork Push Attempt` WHERE push_record=%s LIMIT 1 FOR UPDATE',
+                (row.name,)):
+            # A missing pointer must not erase evidence that dispatch occurred.
+            fail('push.native_stale_attempt')
+        row.status, row.reason = 'manual', reason
+        _save_record(row, now_utc())
+        return project(row)
 
 
 def _attempt(row, adapter, token, fence):

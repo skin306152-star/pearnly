@@ -1511,3 +1511,14 @@ pearnly_cowork	The ERP report uses an unsupported adapter.	ERP 报告使用了�
 pearnly_cowork	The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
 pearnly_cowork	Collection is not connected for this ERP data type.	此 ERP 数据类型尚未接入采集。	ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
 pearnly_cowork	The Companion service is temporarily unavailable. Try again shortly.	伴侣端服务暂时不可用，请稍后重试。	บริการ Companion ไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่	Companion サービスは一時的に利用できません。しばらくしてから再試行してください。	companion.report_busy
+pearnly_cowork	Cowork Companion Delivery	Cowork 助手任务领取记录	บันทึกการรับงานของผู้ช่วย Cowork	Cowork アシスタントのタスク受領記録	Cowork Companion Delivery
+pearnly_cowork	Credential ID	凭据 ID	รหัสข้อมูลรับรอง	認証情報 ID	Credential ID
+pearnly_cowork	Owner ID	所有者 ID	รหัสเจ้าของ	所有者 ID	Owner ID
+pearnly_cowork	Push Attempt	推送尝试	ความพยายามส่ง	送信試行	Push Attempt
+pearnly_cowork	Attempt Secret	尝试密钥	ข้อมูลลับของการพยายาม	試行用シークレット	Attempt Secret
+pearnly_cowork	Use the Cowork Companion service to access deliveries.	请通过 Cowork 助手服务访问任务领取记录。	โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน	タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。	Use the Cowork Companion service to access deliveries.
+pearnly_cowork	The Companion queue request is invalid.	助手队列请求无效。	คำขอคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューリクエストが無効です。	companion.queue_request_invalid
+pearnly_cowork	The Companion queue response is invalid.	助手队列响应无效。	การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューレスポンスが無効です。	companion.queue_response_invalid
+pearnly_cowork	The Companion delivery record is invalid.	助手任务领取记录无效。	บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง	アシスタントのタスク受領記録が無効です。	companion.delivery_invalid
+pearnly_cowork	The Companion delivery record was not found.	未找到助手任务领取记录。	ไม่พบบันทึกการรับงานของผู้ช่วย	アシスタントのタスク受領記録が見つかりません。	companion.delivery_not_found
+pearnly_cowork	Access to the Companion queue has been revoked.	助手队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว	アシスタントのキューへのアクセス権が取り消されました。	companion.queue_access_revoked

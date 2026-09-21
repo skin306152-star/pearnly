@@ -487,3 +487,36 @@ HTTP最终 **26项真实WSGI通过**，包含机器token在before_request完成�
 本批不合并、不推送、不部署。主目录只读末次核验为干净 `1a0585e6d53a995aa59a6045fe027246d18471f9`，较开工仅增加DMS清理与内存调整记录，本任务未改动它或其运行环境。独立工作树继续保留，旧基准只读归档在 `/Users/skin/.codex/cowork-tenth-lab-baseline`，新专有数据卷保留用于后续升级复验；不能称主线代码已统一。
 
 第十批收尾：本任务bench/redis/db三个容器已停止，专有卷和合成数据保留；没有停其它项目。架构检查0违规、全部变更Python语法/候选源文件哈希/diff检查通过。仅暂存本任务38个路径，通过共享暂存快照钩子保存独立本地提交，未禁用钩子。
+
+## 第十一批：Companion 原生领取与回执适配（2026-09-21）
+
+承接本地 `addf40ae4c6ef04df58962225c5c7f1d29e658e7`；只读核对 main 为干净 `1a0585e6d53a995aa59a6045fe027246d18471f9`。开工来源及运行配置相对第十交付 PASS，固定旧源码仍 ec2e5c957e6b；canonical source `c090eac42643a2a84858f1511f144a30bb58cb696fa52ebe03df3b8984b0ef6d`、runtime `97c1306458dee2997458e9a58ef8f104a8118134cb2b3eb9ead9ce296b6fa56b`。八→九旧状态差异 HOLD 保留，仍不导入旧 owner/目录/凭据。详见第十一来源审查与运输审计。
+
+App/域为 pearnly_cowork的 companion：纯 queue_contracts 解析旧 lease/ACK wire；transport 单向调用 push.native 账本与 connections.refresh；receipt_auth 只验证已发放 Delivery 的历史凭据；delivery_store/原生 DocType 保存一次领取映射。push/connections 不反向依赖 companion；无新公开 RPC/导航/消费者、HTTP桥和 Windows客户端不改。当前仅完成内部本地服务切片，下一批再接精确机器HTTP入口与原生响应封装，不能声称现有EXE已兼容。
+
+客户端会记录 log_id，因此 UUID log_id 只作非秘密索引；不可把 native attempt_token 编码进句柄。新不可变 Cowork Companion Delivery 绑定 Site/连接/凭据代次/记录/尝试/fence/owner，原生 Password 将 attempt_token 加密存入 __Auth。领取与映射同一保存点，故障全部回滚。原授权领取后，即使撤权、停闸或轮换，旧凭据也只可报告它已绑定尝试的结果；不能新增领取或覆盖新尝试。接收回执仍核当前 Site/业务范围、原生 token/fence/owner；不借机恢复账号权限。
+
+poll 只消费显式 pending，绝不把 prepared 自动激活。原生 endpoint 写者锁只允许一个未决作业；max仍解析旧1–50合同，实际至多一条。每轮最多检查50条FIFO候选，确定撤权或冻结证据失效时隔离为manual并保留原因，继续后续合法任务；不能换目标、重建载荷或把数据库故障当作业务失效；发送超时转结果未知并保留锁，晚到的正确ACK可收尾。只有已回执 failed/waiting_lock 等原有可重试状态按旧生命周期再排队；不把客户端报告当作服务器独立ERP回读。History状态镜像、库存主档计数、LINE通知、人工激活RPC及真实客户端适配仍分别待办，旧brg_桥不混入本切片。
+
+### 本批验证与已修问题
+
+- 固定源三文件完整SHA256核验后提取实际 Pydantic models、legacy lease/ACK/metadata 函数，在无网候选镜像执行 **910项同值/同拒绝**（201 lease输入、500 ACK输入、16 lease输出、180 ACK输出、13双拒绝）；另 **17项明确收紧**（严格整数4、UUID映射6、line_modes对象3、有限JSON4）。数据库、通知、目录IO为合成替身，没有执行旧线上SQL或发送LINE。候选 Pydantic 2.12.5 与来源 requirements 的2.13.2不同，这只证明固定函数在候选运行时的比较，不冒称完整旧运行时重现。
+- 最終隔离状态增加一个来源没有的明确扩展：finished waiting_lock/failed/rolled_back 同值ACK到来时，若该 pending 已因四类确定原因落manual，只回最小 `{ok:true,status:manual,idempotent:true}`；不重新排队，也不返回冻结载荷。未知结果仍拒绝伪造重放。这不计入910旧源一致项或17输入收紧项。已有原生 docnum 文本仍有140字符/去首尾空白边界，不能把纯wire不截断说成整条ACK对任意字符串均无差异。
+- **739项离线测试通过**，其中新增队列18项；新增分支后重跑，未更改既有断言或扩大忽略。真实Site新测试 **40项**（36主组、3增补、1隔离重放）通过；包含真实两个数据库进程旧RR快照竞争、只生成一个Attempt/Delivery/密文、加密与插入及响应失败整体回滚、唯一Attempt、Frappe原生列表/HTTP资源与内部RPC拒绝、不同身份撤权/轮换/关闭后仅允许原回执、旧fence拒绝、超时未知保锁与迟到ACK释放。
+- 同批受影响回归：native账本24、准备应用18、凭据20全过；合计 **102项原生测试**，不累计重复执行。此处ACK均为合成客户端声明，绝不等同真实ERP入账或独立回读。精确HTTP运输入口尚未注册，现有心跳入口没有扩大白名单。
+- 初次装配真实暴露 UTC转换边界：transport把已供DB保存的naive时间再次传入账本aware入口，导致正常领取拒绝；已改为适配层持aware UTC，只有查询/refresh持久边界转naive，并完整复验。新测试首次加密故障注入指向错误Frappe模块，按实际base_document局部import改为password模块后验证异常确实触发及回滚。新鲜Site测试缺少此前connections套件显式创建的Cowork Push Log合成Role，当前测试自建同一fixture；不将此作正式租户开户验证。
+- 独立审查发现初版失效FIFO头永久卡队列，已增加限定隔离路径并以“A修改后失效→B合法”的真实场景关闭。后续审查补齐隔离后旧回执最小响应，测试失败/等待锁两种情形均通过。候选扫描保持普通RR一致性读：已被别的事务领取的旧候选由当前锁内状态拒绝；旧快照之后新增任务可能要下一独立poll事务才发现。真实竞争通过不等于所有候选查询已变成current read。内部服务不commit、不自动重跑整事务；未来HTTP边界必须在回复前提交、只对确定本地死锁有限回滚并重验，不得重发外部写入。
+
+### 安装、语言与交付边界
+
+复核本任务Docker context、Compose project、只读挂载、无发布端口、internal网络、专属Site/DB卷后启动本任务三个容器。`cowork-backend-push.localhost`新装通过；原`cowork-backend-companion.localhost`增量升级后，14业务表加__Auth共 **115行** 的原列哈希与计数保持。测试后在新Site重复migrate，新增Delivery也纳入16表/ **79行** 比较，包含1条已提交Delivery和其密文，全部原值保持。两Site数据各自统计，不能相加当作同一库的记录延续；证据都是合成数据。
+
+新增11术语，仅Cowork四语包，每语474条；44次实际Frappe翻译查询通过。术语表与前端键检查通过（338键、0问题），没有修改前端。全仓strict仍旧147项/43文件/135文案，与HEAD去行号比较新增/删除0；保留失败现状，未放宽基线。
+
+交付来源仍ec2e5c957e6b；source canonical `cd4daa95eddaf628161dfc180565fa392cbb877fb1c2f0bba99c4472d1619494`，runtime canonical `a497892eebaa3184418ee52af637a34fd1f508ddd1f275eeeb4cdeef78f01505`。对本批开工和第十交付两组均PASS，settings_unchanged=true、observations_changed=false；八→九旧配置HOLD、旧数据映射和Windows实际EXE来源缺口仍在。
+
+下步是：沿第十精确机器桥新增poll/receipt路由和各自授权、原生HTTP封套与客户端接线；准备事实采集和人工激活入口；ACK对应History终态、库存主档计数和唯一通知事件。当前旧客户端硬编码 `/api/erp/agent/*` 且读top-level jobs/ok，本地源码把log_id原样回显也不能证明已运行EXE可直接适配新RPC。本批未开真实客户端、未进行DBF写盘或外部ERP回读。MRERP采集/运输、不明结果回读恢复、LINE/WeKan、对账和剩余盘点照片/legacy/导入删除/导出归档等整体余项保留，尚未到前端接入点。
+
+实现/本地检查通过，CI、部署、外部业务结果、Windows真机和用户验收均未执行。仅保存本任务独立本地提交；未合回集成主线、未推送、未部署。主目录末次只读核验仍干净1a0585e，DMS源码/运行环境没有改动。源码、测试与日志摘要清单见 `cowork-backend/evidence/eleventh-local-validation.json`。专用工作树和数据卷保留以续接，不将本地分支与主线称为统一。
+
+第十一批收尾：本任务bench/redis/db均已停止，命名Site/DB卷与合成数据保留；未停其它项目。架构0违规、变更Python语法、候选文件哈希、diff均通过。通过共享暂存快照钩子保存本任务独立本地提交，无跳过钩子；下次从本记录的待接线范围续接。

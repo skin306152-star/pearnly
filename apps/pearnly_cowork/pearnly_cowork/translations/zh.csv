@@ -16,6 +16,7 @@ An original file is already stored for this source.,此来源已保存原始文�
 Anchor Date,参考日期
 Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
 At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
+Attempt Secret,尝试密钥
 Barcode,条形码
 Billing Code,计费代码
 Billing Kind,计费类型
@@ -51,6 +52,7 @@ Count Mode,盘点方式
 Counted At,盘点时间
 Counted By,盘点人
 Cowork Client,Cowork 买方客户
+Cowork Companion Delivery,Cowork 助手任务领取记录
 Cowork ERP Connection,Cowork ERP连接
 Cowork ERP Refresh,Cowork ERP目录刷新
 Cowork ERP Snapshot,Cowork ERP目录快照
@@ -74,6 +76,7 @@ Cowork Workspace,Cowork 公司账套
 Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
 Created By,创建人
 Creation Request Hash,创建请求摘要
+Credential ID,凭据 ID
 Current Directory Heads,当前目录版本索引
 Current Json,当前数据（JSON）
 Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
@@ -152,6 +155,7 @@ Original files cannot be changed.,原始文件不可更改。
 Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
 Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
 Outcome,执行结果
+Owner ID,所有者 ID
 Owner Id,执行者编号
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
 Page Count,页数
@@ -168,6 +172,7 @@ Private Storage URL,私有存储地址
 Product Code,产品编码
 Product Name,产品名称
 Provider Evidence,服务商调用证据
+Push Attempt,推送尝试
 Push Record,推送记录
 Quantity,数量
 Reason,原因
@@ -267,6 +272,7 @@ Updated At,更新时间
 Updated By,更新人
 Uploaded By,上传人
 Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
+Use the Cowork Companion service to access deliveries.,请通过 Cowork 助手服务访问任务领取记录。
 Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
 Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
 Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
@@ -286,7 +292,12 @@ charged,已计费
 closed,已关闭
 companion.context_invalid,助手身份已失效，请重新认证。
 companion.credential_not_found,此连接尚未签发助手凭据。
+companion.delivery_invalid,助手任务领取记录无效。
+companion.delivery_not_found,未找到助手任务领取记录。
 companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
+companion.queue_access_revoked,助手队列的访问权限已撤销。
+companion.queue_request_invalid,助手队列请求无效。
+companion.queue_response_invalid,助手队列响应无效。
 companion.receipt_limit,凭据请求回执数量已达到上限。
 companion.report_busy,伴侣端服务暂时不可用，请稍后重试。
 companion.report_invalid,伴侣端上报内容无效。

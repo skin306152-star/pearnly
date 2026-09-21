@@ -16,6 +16,7 @@ An original file is already stored for this source.,ข้อมูลต้น�
 Anchor Date,วันที่อ้างอิง
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
+Attempt Secret,ข้อมูลลับของการพยายาม
 Barcode,บาร์โค้ด
 Billing Code,รหัสค่าบริการ
 Billing Kind,ประเภทการคิดค่าบริการ
@@ -51,6 +52,7 @@ Count Mode,วิธีตรวจนับ
 Counted At,เวลาตรวจนับ
 Counted By,ผู้ตรวจนับ
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
+Cowork Companion Delivery,บันทึกการรับงานของผู้ช่วย Cowork
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
 Cowork ERP Snapshot,ภาพข้อมูลไดเรกทอรี ERP ของ Cowork
@@ -74,6 +76,7 @@ Cowork Workspace,Cowork บริษัทที่จัดทำบัญช�
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
 Created By,ผู้สร้าง
 Creation Request Hash,แฮชคำขอสร้าง
+Credential ID,รหัสข้อมูลรับรอง
 Current Directory Heads,ดัชนีรุ่นไดเรกทอรีปัจจุบัน
 Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
@@ -152,6 +155,7 @@ Original files cannot be changed.,ไม่สามารถเปลี่ย�
 Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
 Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
 Outcome,ผลการดำเนินการ
+Owner ID,รหัสเจ้าของ
 Owner Id,รหัสผู้ดำเนินการ
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
 Page Count,จำนวนหน้า
@@ -168,6 +172,7 @@ Private Storage URL,URL ที่จัดเก็บส่วนตัว
 Product Code,รหัสสินค้า
 Product Name,ชื่อสินค้า
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
+Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Quantity,จำนวน
 Reason,เหตุผล
@@ -267,6 +272,7 @@ Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Uploaded By,ผู้อัปโหลด
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
+Use the Cowork Companion service to access deliveries.,โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน
 Use the Cowork OCR service to access recognition tasks.,กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
@@ -286,7 +292,12 @@ charged,เรียกเก็บเงินแล้ว
 closed,ปิดแล้ว
 companion.context_invalid,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
 companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
+companion.delivery_invalid,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
+companion.delivery_not_found,ไม่พบบันทึกการรับงานของผู้ช่วย
 companion.generation_conflict,ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก
+companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
+companion.queue_request_invalid,คำขอคิวงานของผู้ช่วยไม่ถูกต้อง
+companion.queue_response_invalid,การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง
 companion.receipt_limit,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
 companion.report_busy,บริการ Companion ไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่
 companion.report_invalid,รายงานจาก Companion ไม่ถูกต้อง

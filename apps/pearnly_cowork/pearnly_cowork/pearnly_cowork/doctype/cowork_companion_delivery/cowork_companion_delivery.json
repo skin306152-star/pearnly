@@ -1,0 +1,166 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Companion Delivery",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "issued_at",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "site_name",
+  "connection",
+  "workspace",
+  "client",
+  "credential_id",
+  "token_generation",
+  "push_record",
+  "push_attempt",
+  "fence",
+  "owner_id",
+  "issued_at",
+  "attempt_secret"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "length": 64,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "site_name",
+   "label": "Site Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "connection",
+   "label": "ERP Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork ERP Connection",
+   "search_index": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "label": "Buyer Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 0,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "credential_id",
+   "label": "Credential ID",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Express Agent Credential",
+   "search_index": 1
+  },
+  {
+   "fieldname": "token_generation",
+   "label": "Token Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "push_record",
+   "label": "Push Record",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Push Record",
+   "search_index": 1
+  },
+  {
+   "fieldname": "push_attempt",
+   "label": "Push Attempt",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Push Attempt",
+   "unique": 1
+  },
+  {
+   "fieldname": "fence",
+   "label": "Fence",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "owner_id",
+   "label": "Owner ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "issued_at",
+   "label": "Issued At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "attempt_secret",
+   "label": "Attempt Secret",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

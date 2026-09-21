@@ -269,6 +269,7 @@ app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
+    "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_query",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_query",
     "Cowork ERP Connection": "pearnly_cowork.connections.access.native_query",
     "Cowork ERP Snapshot": "pearnly_cowork.connections.access.native_query",
@@ -290,6 +291,7 @@ permission_query_conditions = {
     "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.operation_query",
 }
 has_permission = {
+    "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_permission",
     "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_permission",
     "Cowork ERP Connection": "pearnly_cowork.connections.access.native_permission",
     "Cowork ERP Snapshot": "pearnly_cowork.connections.access.native_permission",
@@ -317,11 +319,13 @@ doc_events = {"Pearnly OCR Work": {
     "on_trash": "pearnly_cowork.ocr.execution.work_guard.deny_delete",
 }, "DocShare": {
     "before_validate": ["pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share"],
     "validate": ["pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
