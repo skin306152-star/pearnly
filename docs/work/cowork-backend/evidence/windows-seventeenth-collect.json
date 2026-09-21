@@ -1,0 +1,35 @@
+{
+  "collect": {
+    "captured_at": "2026-09-21T10:35:07.259685+00:00",
+    "action": "collect",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "result": {
+      "target": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "company_present": true,
+      "tax_matches": true,
+      "registered": true,
+      "chart_accounts": 225,
+      "mapping_count": 6,
+      "products": 276,
+      "customers": 552,
+      "fiscal_date_covered": true,
+      "singleton_already_held": true,
+      "account_busy": false
+    },
+    "status": "ok"
+  },
+  "state": 3,
+  "report": {
+    "captured_at": "2026-09-21T10:36:16.432454+00:00",
+    "action": "report",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "result": {
+      "ok": true,
+      "endpoint_matches": true,
+      "top_level_contract": true
+    },
+    "status": "ok"
+  }
+}

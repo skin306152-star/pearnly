@@ -1,0 +1,381 @@
+{
+  "schema": "cowork-windows-test-integration-v1",
+  "date": "2026-09-21",
+  "baseline_commit": "d4102dcb8b5562e6f6ce71157979742a28e94002",
+  "scope": {
+    "site": "cowork-backend-ack.localhost",
+    "target": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+    "invoice": "CW17-2ebbb740df",
+    "synthetic_ocr_fixture": true,
+    "paid_ocr": false,
+    "frontend_connected": false,
+    "deployed": false
+  },
+  "source": {
+    "backend": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "companion": "33af0fd5e381e87802c95655dc35e7709eb2a233",
+    "installed_exe_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+    "native_helper_sha256": "b9358ef8785b02447e9f42254128afcc38b96e498e72df99831e24202f36509b"
+  },
+  "transport": {
+    "kind": "temporary_fixed_peer_TLS_relay_to_native_WSGI",
+    "listen": "192.168.0.93:43917",
+    "peer": "192.168.0.94",
+    "certificate_verification": true,
+    "docker_ports_published": false,
+    "old_profile_token_used": false,
+    "new_credential_revoked": true,
+    "windows_identity": "skin3",
+    "windows_session": 1
+  },
+  "negative_evidence": [
+    {
+      "scenario": "public manual draft",
+      "result": "manual",
+      "reason": "low_confidence:low_confidence_band",
+      "ERP_writer_invoked": false
+    },
+    {
+      "scenario": "prepared without confirmation",
+      "windows_poll_jobs": 0
+    },
+    {
+      "scenario": "report version corrected from 3 to actual 1 after preparation",
+      "confirmation_HTTP": 417,
+      "reason": "push.native_target_changed",
+      "writer_invoked": false,
+      "record_cancelled_through_public_API": true
+    },
+    {
+      "scenario": "first leased invoice uses normalized lowercase account_set",
+      "error": "PAYLOAD_INVALID / ACCOUNT_SET_NOT_ALLOWED",
+      "source_gate": "purchase_adapter.validate_purchase_payload before DBF access",
+      "ack_written": false,
+      "independent_ERP_headers": 0,
+      "old_record_quarantined_after_public_history_review": true
+    }
+  ],
+  "first_empty_handoff": {
+    "captured_at": "2026-09-21T10:52:06.678950+00:00",
+    "action": "write-once",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "status": "failed",
+    "error_type": "RuntimeError",
+    "reason": "Confirmed TEST task not available",
+    "writer_invoked": false,
+    "quit_requested": true,
+    "profile_before": "96336c13b45bac266d87d5072ca30e4d8fb03148139721156b0bc70fd4ca7d71",
+    "singleton_owned": true,
+    "installed_singleton_restored": true,
+    "profile_unchanged": true
+  },
+  "case_rejected_handoff": {
+    "captured_at": "2026-09-21T10:55:04.599892+00:00",
+    "action": "write-once",
+    "erp_writes": "unknown",
+    "profile_changes": 0,
+    "result": {
+      "wire_task": "be2d070a-0e3a-49cb-96a9-9aa0aaf41cb2",
+      "route_returned": true
+    },
+    "status": "ok",
+    "writer_invoked": true,
+    "quit_requested": true,
+    "profile_before": "96336c13b45bac266d87d5072ca30e4d8fb03148139721156b0bc70fd4ca7d71",
+    "singleton_owned": true,
+    "wire_task": "be2d070a-0e3a-49cb-96a9-9aa0aaf41cb2",
+    "route_returned": true,
+    "installed_singleton_restored": true,
+    "profile_unchanged": true
+  },
+  "case_rejected_readback": {
+    "captured_at": "2026-09-21T10:55:41.716585+00:00",
+    "action": "readback",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "result": {
+      "invoice": "CW17-2ebbb740df",
+      "matching_live_headers": 0,
+      "verified_erp_writes": 0
+    },
+    "status": "ok"
+  },
+  "final_handoff": {
+    "captured_at": "2026-09-21T11:01:00.830701+00:00",
+    "action": "write-once",
+    "erp_writes": "unknown",
+    "profile_changes": 0,
+    "result": {
+      "wire_task": "832b2f39-02b7-49f9-9711-bca3eb98bd4d",
+      "route_returned": true
+    },
+    "status": "ok",
+    "writer_invoked": true,
+    "quit_requested": true,
+    "profile_before": "96336c13b45bac266d87d5072ca30e4d8fb03148139721156b0bc70fd4ca7d71",
+    "singleton_owned": true,
+    "wire_task": "832b2f39-02b7-49f9-9711-bca3eb98bd4d",
+    "route_returned": true,
+    "installed_singleton_restored": true,
+    "profile_unchanged": true
+  },
+  "final_native": {
+    "run_id": "2ebbb740df",
+    "connection_revision": 2,
+    "reported": true,
+    "report_keys": [
+      "_preparation_binding",
+      "_preparation_origins",
+      "account_sets_seen_at",
+      "accounts_seen_at",
+      "agent_device_name",
+      "agent_last_seen_at",
+      "catalog_fingerprint",
+      "catalog_seen_at",
+      "companion_version",
+      "max_payload_version",
+      "reported_account_sets",
+      "reported_accounts",
+      "reported_customers",
+      "reported_products",
+      "reported_stock_acc_groups",
+      "stock_acc_groups_seen_at"
+    ],
+    "has_preparation_binding": true,
+    "prepared": {
+      "name": "CWP-e8b04880f110e5237597e482994115648d7f76ff5f7e6b93",
+      "status": "prepared",
+      "revision": 1,
+      "history": "CWH-d100736499662e75524892aefe6bec05bb65c1917bf9be11",
+      "connection": "CWEC-12825538-2480-55b9-9e72-21d4c1f8da6d",
+      "history_version": 2,
+      "connection_revision": 2,
+      "reason": "",
+      "result_unknown": false,
+      "replayed": false,
+      "blocked_by": null,
+      "blocked_reason": null,
+      "checks": [
+        {
+          "key": "feature",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "account_set",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "payload_version",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "direction",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "direction_enabled",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "document",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "mapping",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "chart",
+          "reason": "",
+          "status": "ok"
+        },
+        {
+          "key": "confidence",
+          "reason": "",
+          "status": "ok"
+        }
+      ],
+      "preparation_states": {
+        "bank_index": "empty",
+        "mappings": "empty",
+        "reported_config": "present",
+        "supplier_profiles": "empty"
+      },
+      "has_reported_credential": true,
+      "external_reference": {
+        "external_doc_no": "",
+        "external_doc_id": "",
+        "external_url": "",
+        "external_doc_hint": ""
+      }
+    },
+    "record": {
+      "name": "CWP-e8b04880f110e5237597e482994115648d7f76ff5f7e6b93",
+      "status": "success",
+      "external_docnum": "RR690921-001",
+      "failure_count": 0,
+      "fence": 1,
+      "wire_attempt": 1
+    },
+    "attempt_count": 1,
+    "writer_locks": 0,
+    "receipt": {
+      "express_docnum": "RR690921-001",
+      "line_modes": [
+        {
+          "created": true,
+          "mode": "non_stock_item",
+          "name": "Cowork migration TEST service",
+          "reason": "",
+          "seq": 1,
+          "stkcod": "PN00060",
+          "unit_code": "",
+          "unit_guessed": false
+        }
+      ],
+      "meta": {
+        "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+        "companion_version": "1.1.77",
+        "created_masters": [
+          "PN00060"
+        ],
+        "created_supplier": false,
+        "doc_type": "purchase",
+        "docnum": "RR690921-001",
+        "duplicate_skipped": false,
+        "index_requery": true,
+        "stage": "success",
+        "written": true
+      },
+      "ok": true
+    }
+  },
+  "independent_ERP_readback": {
+    "captured_at": "2026-09-21T11:04:00.047376+00:00",
+    "action": "readback",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "result": {
+      "invoice": "CW17-2ebbb740df",
+      "matching_live_headers": 1,
+      "verified_erp_writes": 1,
+      "erp_docnum": "RR690921-001",
+      "net": "107.0",
+      "vat": "7.0",
+      "journal_rows": 3,
+      "debit": "107.0",
+      "credit": "107.0",
+      "vat_rows": 1,
+      "indexed_seek": true,
+      "detail_rows": 1,
+      "no_stock_movement": true,
+      "service_master": "PN00060",
+      "service_master_type": "3"
+    },
+    "status": "ok"
+  },
+  "cleanup": {
+    "windows": {
+      "task_exists": false,
+      "directory_exists": false,
+      "profile_sha256": "96336c13b45bac266d87d5072ca30e4d8fb03148139721156b0bc70fd4ca7d71",
+      "exe_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+      "companion": [
+        {
+          "ProcessId": 12732,
+          "ParentProcessId": 14508,
+          "SessionId": 1,
+          "ExecutablePath": "C:\\Program Files\\Pearnly Companion\\companion.exe"
+        },
+        {
+          "ProcessId": 8256,
+          "ParentProcessId": 12732,
+          "SessionId": 1,
+          "ExecutablePath": "C:\\Program Files\\Pearnly Companion\\companion.exe"
+        }
+      ]
+    },
+    "mac": {
+      "listener_closed": true,
+      "removed": [
+        "seventeenth-bootstrap.private.json",
+        "seventeenth-connection.private.json",
+        "seventeenth-facts.private.json",
+        "seventeenth-invoice.private.json",
+        "seventeenth-server.private.key",
+        "seventeenth-server.pem",
+        "seventeenth-windows-bundle.zip",
+        "seventeenth-run.ps1",
+        "seventeenth-ui-probe.py",
+        "seventeenth-menu-probe.py"
+      ],
+      "secret_files_absent": true
+    },
+    "native": {
+      "credentials_revoked": true,
+      "users_disabled": true,
+      "human_api_keys_absent": true,
+      "human_api_secrets_absent": true,
+      "private_state_absent": true,
+      "site_config_sha256": "9ce263084eef305de537e1fc8cc9a7d58fd0f554183ac621da329575b36330bb",
+      "records": [
+        {
+          "name": "CWP-6879e681c7978a2df905ba7834c63b9a92ae5428effeda41",
+          "status": "manual",
+          "reason": "low_confidence:low_confidence_band",
+          "result_unknown": 0,
+          "fence": 0,
+          "external_docnum": null,
+          "history_version": 1
+        },
+        {
+          "name": "CWP-828d224dafc5cd33a023486d711e9a279690faa8e86c68ca",
+          "status": "cancelled",
+          "reason": "push.preparation_cancelled",
+          "result_unknown": 0,
+          "fence": 0,
+          "external_docnum": null,
+          "history_version": 1
+        },
+        {
+          "name": "CWP-aa0fd7f8375adfb5f8aab817eb267905f14c9c20357dddbe",
+          "status": "manual",
+          "reason": "push.native_history_changed",
+          "result_unknown": 0,
+          "fence": 1,
+          "external_docnum": null,
+          "history_version": 1
+        },
+        {
+          "name": "CWP-e8b04880f110e5237597e482994115648d7f76ff5f7e6b93",
+          "status": "success",
+          "reason": "",
+          "result_unknown": 0,
+          "fence": 1,
+          "external_docnum": "RR690921-001",
+          "history_version": 2
+        }
+      ]
+    },
+    "site_config_restored_exact_bytes": true,
+    "lab_containers_stopped": true,
+    "lab_volumes_retained": true
+  },
+  "not_verified": [
+    "paid OCR recognition",
+    "installed EXE configured directly to new production service",
+    "Express desktop report GUI / user acceptance",
+    "sales or stock write on real ERP",
+    "all ERP tables against complete accounting reports",
+    "managed transport / MRERP / LINE / WeKan",
+    "full legacy configuration and business-state import"
+  ]
+}

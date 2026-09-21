@@ -10,7 +10,7 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 from pearnly_cowork.contracts import push as direction_mod
 from pearnly_cowork.contracts.push import clean_tax_id
-from pearnly_cowork.push.express.account_rules import account_set_allowed, chart_codes
+from pearnly_cowork.push.express.account_rules import account_set_allowed, chart_codes, wire_account_set
 from pearnly_cowork.push.express.common import PAYLOAD_VERSION
 from pearnly_cowork.push.express.doc_sanity import check_document
 from pearnly_cowork.push.express.mapper import build_express_payload
@@ -302,6 +302,7 @@ def preflight_express(
                 "account_set_row": int(config.get("account_set_row") or 0),
             }
         )
+        payload['account_set'] = wire_account_set(payload.get('account_set'), payload['account_dir'])
         # 补期初:会计在「补期初卡」填的期初(name/qty/unit_cost/date)由端点写进 history.merged_fields
         # (一次性·不落库),mapper 从 flat 构造 payload 时不读 merged_fields,故在此显式透传给小助手 —
         # 否则期初永远到不了小助手,补期初卡空转。小助手据此先写期初再过账(仅销项·库存卖需要垫库存)。

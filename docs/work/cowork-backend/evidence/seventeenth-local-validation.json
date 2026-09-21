@@ -1,0 +1,59 @@
+{
+  "base_commit": "d4102dcb8b5562e6f6ce71157979742a28e94002",
+  "scope": "seventeenth local TEST integration",
+  "checks": [
+    {
+      "command": "docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench ./env/bin/python -m unittest discover -s /workspace/tests -p test_cowork_express_preflight.py -v",
+      "passed": 23,
+      "new_tests": 2,
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "check": "both integration scripts AST parse; Windows client rejects Mac; relay rejects unrestricted listener",
+      "result": "PASS"
+    },
+    {
+      "check": "real Windows report -> public preparation / confirmation -> single-instance handoff -> TEST write -> ACK -> independent DBF / CDX readback",
+      "result": "PASS",
+      "invoice": "RR690921-001",
+      "scope": "synthetic recognition fixture; no paid OCR"
+    }
+  ],
+  "runtime_config_import": "HOLD: only endpoint configuration_digest differs in both components; hashes do not identify changed keys",
+  "not_run": [
+    "full business suite",
+    "DMS checks",
+    "frontend checks",
+    "schema migrate / reinstall",
+    "CI",
+    "production deployment",
+    "user acceptance"
+  ],
+  "evidence": "windows-seventeenth-integration.json",
+  "live_source": {
+    "start_sha256": "73346cc94e1e5be80fc31a715d079249eacf405293f40638b01099a26a7e135d",
+    "delivery_sha256": "bd30d100b20481ae19a82fd2dd6671a846b8f4054857d52c577a9d8e7084a507",
+    "source_compare": "PASS",
+    "runtime_start_sha256": "afd6c0fdcfeadae097717541ff8400eec7dd504da25d874293caddcf047e22eb",
+    "runtime_delivery_sha256": "678df390929e1759674739fc1068367b26ab0ee5a8b2dfcaf7008f170cb5bc90",
+    "runtime_compare": "HOLD / push_runtime_identity_changed",
+    "changed_runtime_paths": [
+      "components.pearnly-web.database.identity.endpoints.configuration_digest",
+      "components.pearnly-worker.database.identity.endpoints.configuration_digest"
+    ]
+  },
+  "cleanup": {
+    "result": "PASS",
+    "windows_task_and_directory_absent": true,
+    "original_companion_and_profile_restored": true,
+    "credential_revoked_and_human_keys_removed": true,
+    "TLS_listener_closed_and_private_files_removed": true,
+    "lab_stopped": true,
+    "business_and_audit_records_retained": true
+  }
+}

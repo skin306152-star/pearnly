@@ -45,6 +45,25 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(pf.reason, 'account_set_not_allowed:none')
         self.assertEqual([c.status for c in pf.checks], ['ok', 'blocked'] + ['pending'] * 7)
 
+    def test_legacy_wire_preserves_selected_directory_case_for_both_directions(self):
+        for directory in (r'\\Accserver\d$\ACCOUNT\70EXP\TEST', r'D:\EXP\Test'):
+            for direction in ('purchase', 'sales'):
+                with self.subTest(directory=directory, direction=direction):
+                    self.endpoint['config'].update(account_set=directory.lower(), account_dir=directory)
+                    self.history['direction'] = direction
+                    before = deepcopy(self.endpoint)
+                    result = self.pf()
+                    self.assertTrue(result.ready, result.reason)
+                    self.assertEqual(result.payload['account_set'], directory)
+                    self.assertEqual(result.payload['account_dir'], directory)
+                    self.assertEqual(self.endpoint, before)
+
+    def test_wire_directory_cannot_replace_another_account_identity(self):
+        self.endpoint['config'].update(account_set=r'D:\EXP\TEST', account_dir=r'D:\EXP\OTHER')
+        result = self.pf()
+        self.assertEqual(result.payload['account_set'], r'D:\EXP\TEST')
+        self.assertFalse(account_set_allowed(r'D:\EXP\OTHER', self.endpoint))
+
     def test_disabled_still_guards_internal_source(self):
         for source in ['erp_web', 'line_erp']:
             self.history['source'] = source

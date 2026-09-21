@@ -9,6 +9,16 @@ def _path(value: object) -> str:
     return ntpath.normcase(ntpath.normpath(raw)) if raw else ""
 
 
+def wire_account_set(account_set: object, account_dir: object) -> str:
+    """Keep the server-selected directory spelling for the legacy exact whitelist.
+
+    Normalized identities still authorize and lock the account. This changes
+    only its wire spelling, and never substitutes a different directory.
+    """
+    selected, directory = str(account_set or '').strip(), str(account_dir or '').strip()
+    return directory if directory and _path(directory) == _path(selected) else selected
+
+
 def authorized_account_sets(endpoint: Dict[str, Any]) -> list[str]:
     """Return the endpoint default plus writable account sets reported by its agent."""
     config = (endpoint or {}).get("config") or {}

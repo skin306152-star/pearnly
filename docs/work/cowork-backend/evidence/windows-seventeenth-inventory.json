@@ -1,0 +1,22 @@
+{
+  "inventory": {
+    "captured_at": "2026-09-21T10:32:21.202166+00:00",
+    "action": "inventory",
+    "erp_writes": 0,
+    "profile_changes": 0,
+    "result": {
+      "python": "3.11.9",
+      "modules": {
+        "dbf": "0.99.11",
+        "httpx": "0.28.1",
+        "pydantic": "2.12.5",
+        "pywinauto": "0.6.9",
+        "pywin32": "312",
+        "PySide6": "6.11.1"
+      }
+    },
+    "status": "ok"
+  },
+  "collect_started": true,
+  "ssh_forwarding_disabled": true
+}

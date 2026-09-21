@@ -1,5 +1,36 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第十七批交付）
+
+**已完成真实 Windows 采集 → 新后端准备/人工确认 → TEST 单笔写入 → 独立 ERP 回读。** 修复了账套路径小写导致旧 Companion 精确白名单拒绝的问题。仅在本地工作树施工，不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
+
+### 本批结果与证据
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `d4102dcb8b5562e6f6ce71157979742a28e94002`。含本交接的本地提交以 `git log -1` 为准。
+- TEST `\\Accserver\d$\ACCOUNT\70EXP\TEST` 已写入 **`RR690921-001`**，发票引用 `CW17-2ebbb740df`，含税 **107 THB** / VAT **7**。新进程独立回读：1 张有效单据、3 行分录借贷各 107、1 行税记录、APTRN1 索引命中；1 条非库存服务明细，主档 `PN00060`（类型 3），无库存移动。
+- 原生成功记录 `CWP-e8b04880f110e5237597e482994115648d7f76ff5f7e6b93`，history version=2、一次 attempt/fence=1、writer holder=0。公司/现有供应商/科目/目录来自真实 TEST；初始 OCR 结果为明确标记的合成夹具，没有付费 OCR。公开手工草稿仍被低置信度拦截，没有改规则。
+- Windows 使用固定旧源码 `33af0fd5e381e87802c95655dc35e7709eb2a233` 的临时单笔进程，原已安装 EXE/profile 没有切换到新平台。EXE、原生 CDX helper 已核 hash；原托盘合作退出并释放同会话 mutex 后才领取，拒绝 fail-open；每次 finally 恢复原 EXE。首尾 profile hash 一致，未解密或复用生产 token。
+- `push.express` 仅修正发送载荷的 account_set 拼写：归一身份相等才使用服务端选定目录原始拼写。旧目标选择、归一身份、白名单、权限、写者锁和账本不改。首轮拒绝发生在 DBF 写入前，独立回读为零；旧失败任务隔离后重新准备、人工确认，未重试未知结果。
+- **23 个定向 preflight 用例通过**（新增 2 个）；脚本语法、错误平台/不受限监听拒绝通过；架构 0 违规。没有扩展到全量、DMS、前端、CI、schema 安装/迁移或用户验收。
+
+详见[来源、失败恢复与有意差异](cowork-backend/seventeenth-source-review.md)、[真实 Windows/ERP 证据](cowork-backend/evidence/windows-seventeenth-integration.json)和[检查清单](cowork-backend/evidence/seventeenth-local-validation.json)。
+
+### 来源与仍未完成的部分
+
+开工和最终交付 source 一致，后端 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；Web/Worker 各 100% 对应 `pearnly-*-ec2e5c957e6b-s3`，镜像 digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。最终线上采集 `2026-09-21T11:06:43.880484+00:00`。source 首尾 PASS，运行投影首尾除采集元数据外仍只见两个端点 configuration_digest 变化，**完整配置/旧状态迁入继续 HOLD**，不能据 hash 判定变化键或归因心跳。
+
+单笔采购服务单的实际链路通过，不等于整产品迁移完成、所有 ERP 场景或用户验收。真实销售/库存及 Express 桌面报表验收未做；原安装 EXE直接改连新服务未做。仍待 managed 公开运输、MRERP、完整对账/盘点、LINE/WeKan、其它文件出口和旧状态迁入。通知依然 held，无发送消费者。
+
+**下一批**：从上述未迁后端中选择一个有明确旧线上入口的工作包继续，先复核线上源；无需重跑本批全部联调。若触及新的 Windows 写入路径，继续沿新测试连接/凭据、实际 TEST 和同会话唯一写者交接，绝不把本批样例当销售/库存验收。用户对必要测试凭据/测试套帐写入授权继续有效；不扩展为正式套帐、生产切换、LINE/WeKan消息或付费 OCR。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留，供继续迁移；到约定接入点并获准整合后再复核删除。
+- Windows `PearnlyCoworkLab-20260921-17` 任务和同名 Public 文件夹已删除并回读不存在；原 Companion 已恢复，profile/EXE hash 不变，其它用户任务和测试凭据文件未动。TEST 业务单据、服务主档及原生审计记录保留，不能因收工删业务数据。
+- 新机器凭据已撤销，两个联调用户已停用，API key/secret 已清除并独立查库确认；Site config 原字节恢复，bench 私有状态删除。Mac `192.168.0.93:43917` 监听已关闭，私有 JSON、TLS 私钥/证书和临时 Windows bundle 已删，没有保留明文 token。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 的 bench/db/redis 已停止；既有 `cowork-backend-ack.localhost`、本任务容器/命名卷/匿名卷/合成及 TEST 回报审计数据保留供下包。固定镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，源码只读挂载、Internal 网络、无发布端口/后台 worker；下包重新核归属，不接管共享 stack。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码、EXE 及脱敏证据继续作为本任务复核材料，下包/迁移结束复核保留用途；只删本批可再生缓存、临时执行脚本和秘密，不全局清理。
+
 ## 换窗口交接（2026-09-21，第十六批交付）
 
 **第十六批已在本地接通旧 Companion 三个URL及顶层JSON协议，并核实Windows现用TEST可读、账套税号符合旧测试记录。** 7个定向用例通过。实际Windows尚未连新平台，没有ERP写入；继续不改DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文历史按当时证据读取。
