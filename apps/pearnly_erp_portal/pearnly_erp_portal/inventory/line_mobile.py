@@ -60,9 +60,21 @@ def resolve(ticket: str) -> dict:
     return frappe.cache.get_value(_key(ticket)) or {}
 
 
-def as_ticket_user(kwargs) -> str:
-    """把这次请求认成票据上那个人。认不出来就拒（不返回空）。"""
-    ticket = str(kwargs.get("ticket") or frappe.get_request_header("X-Stocktake-Line") or "")
+def _header(name: str) -> str:
+    """请求头里的票据（浏览器用 header 带，脚本/队列里没有 request 对象）。"""
+    try:
+        return frappe.get_request_header(name) or ""
+    except RuntimeError:
+        return ""
+
+
+def as_ticket_user(ticket=None) -> str:
+    """把这次请求认成票据上那个人。认不出来就拒（不返回空）。
+
+    票据首选接口参数；只在参数没给时才看请求头（`ticket` 是签名里的具名参数，
+    进了函数就从 `**kwargs` 里消失了 —— 只看 `kwargs` 会永远拿不到它）。
+    """
+    ticket = str(ticket or _header("X-Stocktake-Line") or "")
     payload = resolve(ticket)
     user = payload.get("user") or ""
     if not user or not frappe.db.exists("User", {"name": user, "enabled": 1}):
@@ -101,14 +113,14 @@ def api_line_stocktake_auth(id_token=None, **kwargs):
 @frappe.whitelist(allow_guest=True)
 def api_line_stocktake_tasks(ticket=None, **kwargs):
     """还能数的那些盘点（进行中）。"""
-    as_ticket_user(kwargs)
+    as_ticket_user(ticket)
     return counts.list_counts(status="Active", limit=20)
 
 
 @frappe.whitelist(allow_guest=True)
 def api_line_stocktake_task(ticket=None, name=None, **kwargs):
     """这一份盘点的头部 + 前几条记录（手机上看进度用）。"""
-    as_ticket_user(kwargs)
+    as_ticket_user(ticket)
     task = counts.get_count(name)
     task["entries"] = counts.list_entries(count=name, limit=10)
     return task
@@ -117,19 +129,13 @@ def api_line_stocktake_task(ticket=None, name=None, **kwargs):
 @frappe.whitelist(allow_guest=True)
 def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     """扫到的码 → 这个商品在这一份盘点里的行（含实盘合计与最近几条记录）。"""
-    as_ticket_user(kwargs)
+    as_ticket_user(ticket)
     found = counts.product_of_code(code)
     if not found:
         return {}
-    items = counts.list_items(count=name, q=found["name"], limit=0)
-    row = next((item for item in items if item["product"] == found["name"]), None)
-    if not row:
-        # 快照里没有：先建行（加记录时也会补，这里只是让手机端能立刻显示账面数）
-        counts.add_entry(count=name, code=code, qty=0, source="LINE")
-        items = counts.list_items(count=name, q=found["name"], limit=0)
-        row = next((item for item in items if item["product"] == found["name"]), None)
-    if not row:
-        return {}
+    # 快照里没有就把这一行登记进来（只是登记，不写实盘；写 0 会被当成"数出来是 0"）。
+    row = counts.item_of_product(count=name, product=found["name"]) or counts.ensure_item(
+        count=name, code=code)
     return {"item": row, "entries": counts.list_entries(count=name, item=row["name"], limit=5)}
 
 
@@ -137,8 +143,7 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
 def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=None, location=None,
                            note=None, request_id=None, photos=None, **kwargs):
     """记一笔。手机端每一发都带 `request_id`：重试不会记两笔。"""
-    as_ticket_user(kwargs)
-    kwargs.pop("ticket", None)
+    as_ticket_user(ticket)
     if isinstance(photos, str):
         photos = frappe.parse_json(photos)
     return counts.add_entry(count=name, code=code, item=item, qty=qty, location=location,
@@ -148,5 +153,5 @@ def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=Non
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def api_line_stocktake_undo(ticket=None, entry=None, **kwargs):
     """撤销一笔（撤销不进合计）。"""
-    as_ticket_user(kwargs)
+    as_ticket_user(ticket)
     return counts.edit_entry(entry=entry, voided=1)

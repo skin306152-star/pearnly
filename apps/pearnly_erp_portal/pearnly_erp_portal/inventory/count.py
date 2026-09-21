@@ -129,6 +129,36 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty) -> str:
     return doc.name
 
 
+def item_of_product(*, count: str, product: str) -> dict | None:
+    """这份盘点里某个商品那一行。按**商品**找，不是按名称字串搜。"""
+    guard.require("stock.read")
+    return frappe.db.get_value(ITEM, {"count": count, "product": product}, "*", as_dict=True)
+
+
+def ensure_item(*, count, code=None, product=None) -> dict:
+    """把扫到的货**登记**进这份盘点（没有就补一行，账面取当前结存）。
+
+    与加记录分开：手机端扫一下只是"看看这是哪件、账面多少"，不该在那一下
+    就写进一条实盘（写 0 会被当成"数出来是 0"，比不写更糟）。
+    """
+    guard.require("stock.write")
+    task = _get(count)
+    if task.status != "Active":
+        frappe.throw(_(CLOSED))
+    found = product_of_code(code) if code else None
+    if not found and product:
+        found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+    if not found:
+        frappe.throw(_(CODE_NOT_FOUND))
+    warehouse = task.warehouse or warehouses.ensure_default()
+    book_qty = frappe.db.get_value(BALANCE, f"BAL-{found['name']}-{warehouse}",
+                                   "qty_on_hand") or 0
+    name = _insert_item(task.name, found, warehouse, book_qty)
+    _refresh_totals(task.name)
+    frappe.db.commit()
+    return frappe.db.get_value(ITEM, name, "*", as_dict=True)
+
+
 def _refresh_totals(count: str) -> None:
     """任务上的三个数（行数 / 已盘点 / 有差异）与行上的差异一起更新。"""
     rows = frappe.get_list(ITEM, filters={"count": count},

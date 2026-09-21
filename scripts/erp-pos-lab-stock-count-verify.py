@@ -174,6 +174,99 @@ def main():
     results["counted_after_void"] = float(
         frappe.db.get_value("ERP Stock Count Item", item_a, "counted_qty") or 0)
 
+    # ── 手机端（LINE 里那一页）：一次性票据，权限与桌面端同一条路 ────────────
+    # 票据**不放宽任何权限**：它只是把请求认成票据上那个人，之后照走岗位与盘点口径。
+    from pearnly_erp_portal.inventory import line_mobile
+
+    def bind(user, line_user_id):
+        existing = frappe.db.get_value("Pearnly LINE Binding", {"user": user}, "name")
+        if existing:
+            doc = frappe.get_doc("Pearnly LINE Binding", existing)
+            doc.line_user_id, doc.status = line_user_id, "active"
+            doc.save(ignore_permissions=True)
+        else:
+            frappe.get_doc({"doctype": "Pearnly LINE Binding", "user": user,
+                            "line_user_id": line_user_id, "status": "active"}
+                           ).insert(ignore_permissions=True)
+        frappe.db.commit()
+
+    bind(STOCK, "Ulab-sc-stock")
+    frappe.set_user(STOCK)
+    ok, auth = as_user(STOCK, line_mobile.api_line_stocktake_auth)
+    results["mobile_auth_ok"] = ok
+    ticket = (auth or {}).get("ticket") or ""
+    results["mobile_ticket_user"] = (auth or {}).get("user")
+
+    ok, tasks = as_user(STOCK, line_mobile.api_line_stocktake_tasks, ticket=ticket)
+    results["mobile_lists_task"] = bool(ok and any(t["name"] == task for t in tasks or []))
+    entries_before = frappe.db.count("ERP Stock Count Entry", {"count": task})
+
+    ok, found = as_user(STOCK, line_mobile.api_line_stocktake_lookup, ticket=ticket,
+                        name=task, code="LAB-SC-A")
+    results["mobile_lookup_ok"] = ok
+    results["mobile_lookup_error"] = "" if ok else str(found)
+    results["mobile_lookup_item"] = bool(
+        ok and ((found or {}).get("item") or {}).get("product") == watched[0])
+    # 扫一下只是"看看是哪件、账面多少"：不该在那一下写进一条实盘
+    results["mobile_lookup_writes_nothing"] = (
+        frappe.db.count("ERP Stock Count Entry", {"count": task}) == entries_before)
+    results["mobile_lookup_book"] = float(((found or {}).get("item") or {}).get("book_qty") or 0)
+    ok, missing = as_user(STOCK, line_mobile.api_line_stocktake_lookup, ticket=ticket,
+                          name=task, code="LAB-SC-NOPE")
+    results["mobile_lookup_unknown_empty"] = bool(ok and not missing)
+
+    ok, mobile_entry = as_user(STOCK, line_mobile.api_line_stocktake_add, ticket=ticket,
+                               name=task, item=item_b, qty=2, request_id="lab-sc-m1")
+    results["mobile_add_ok"] = ok
+    results["mobile_add_error"] = "" if ok else str(mobile_entry)
+    mobile_name = (mobile_entry or {}).get("entry") if isinstance(mobile_entry, dict) else None
+    entry_row = frappe.db.get_value("ERP Stock Count Entry", mobile_name,
+                                    ["source", "counted_by", "qty"], as_dict=True)
+    results["mobile_entry_source"] = (entry_row or {}).get("source")
+    results["mobile_entry_by"] = (entry_row or {}).get("counted_by")
+    ok, mobile_replay = as_user(STOCK, line_mobile.api_line_stocktake_add, ticket=ticket,
+                                name=task, item=item_b, qty=2, request_id="lab-sc-m1")
+    results["mobile_replay_deduped"] = bool(
+        ok and isinstance(mobile_replay, dict) and mobile_replay.get("deduped"))
+    results["mobile_counted"] = float(
+        frappe.db.get_value("ERP Stock Count Item", item_b, "counted_qty") or 0)
+    ok, undone = as_user(STOCK, line_mobile.api_line_stocktake_undo, ticket=ticket,
+                         entry=mobile_name)
+    results["mobile_undo_ok"] = ok
+    results["mobile_counted_after_undo"] = float(
+        frappe.db.get_value("ERP Stock Count Item", item_b, "counted_qty") or 0)
+    results["mobile_untouched_row_after_undo"] = bool(
+        not frappe.db.get_value("ERP Stock Count Item", item_b, "counted"))
+
+    # 没有票据 / 假票据：一律拒
+    ok, _ = as_user(STOCK, line_mobile.api_line_stocktake_tasks)
+    results["mobile_without_ticket_allowed"] = ok
+    ok, _ = as_user(STOCK, line_mobile.api_line_stocktake_tasks, ticket="not-a-ticket")
+    results["mobile_bad_ticket_allowed"] = ok
+
+    # 解绑之后这张票据立刻失效（票据不缓存权限）
+    binding = frappe.get_doc("Pearnly LINE Binding", {"user": STOCK})
+    binding.status = "unbound"
+    binding.save(ignore_permissions=True)
+    frappe.db.commit()
+    ok, _ = as_user(STOCK, line_mobile.api_line_stocktake_tasks, ticket=ticket)
+    results["mobile_after_unbind_allowed"] = ok
+    bind(STOCK, "Ulab-sc-stock")
+    ok, _ = as_user(STOCK, line_mobile.api_line_stocktake_tasks, ticket=ticket)
+    results["mobile_after_rebind_allowed"] = ok
+
+    # 有票据但**没有库存岗位**的人：照样走不动（票据不是权限）
+    bind(SHOP, "Ulab-sc-shop")
+    frappe.set_user(SHOP)
+    ok, shop_auth = as_user(SHOP, line_mobile.api_line_stocktake_auth)
+    shop_ticket = (shop_auth or {}).get("ticket") or ""
+    results["mobile_shop_auth_ok"] = ok
+    ok, _ = as_user(SHOP, line_mobile.api_line_stocktake_add, ticket=shop_ticket,
+                    name=task, item=item_b, qty=1, request_id="lab-sc-m2")
+    results["mobile_shop_add_allowed"] = ok
+    ok, _ = as_user(SHOP, line_mobile.api_line_stocktake_tasks, ticket=shop_ticket)
+    results["mobile_shop_list_allowed"] = ok
+
     # 结束盘点：锁记录；没数过的行仍为空
     ok, closed = as_user(STOCK, counts.close_count, task)
     results["close_ok"] = ok
@@ -239,6 +332,29 @@ def main():
         "stale_version_allowed": False,
         "void_ok": True,
         "counted_after_void": 4.0,
+        "mobile_auth_ok": True,
+        "mobile_ticket_user": STOCK,
+        "mobile_lists_task": True,
+        "mobile_lookup_ok": True,
+        "mobile_lookup_item": True,
+        "mobile_lookup_book": 10.0,
+        "mobile_lookup_writes_nothing": True,
+        "mobile_lookup_unknown_empty": True,
+        "mobile_add_ok": True,
+        "mobile_entry_source": "LINE",
+        "mobile_entry_by": STOCK,
+        "mobile_replay_deduped": True,
+        "mobile_counted": 2.0,
+        "mobile_undo_ok": True,
+        "mobile_counted_after_undo": 0.0,
+        "mobile_untouched_row_after_undo": True,
+        "mobile_without_ticket_allowed": False,
+        "mobile_bad_ticket_allowed": False,
+        "mobile_after_unbind_allowed": False,
+        "mobile_after_rebind_allowed": True,
+        "mobile_shop_auth_ok": True,
+        "mobile_shop_add_allowed": False,
+        "mobile_shop_list_allowed": False,
         "close_ok": True,
         "status_after_close": "Closed",
         "entry_after_close_allowed": False,

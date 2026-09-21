@@ -81,11 +81,25 @@
           });
           const data = await response.json().catch(() => ({}));
           if (!response.ok) {
-            const message = (data._server_messages && JSON.parse(data._server_messages)[0]) ||
-              data.exception || data.message || '';
-            throw new Error(typeof message === 'string' ? message : JSON.stringify(message));
+            throw new Error(error_text(data));
           }
           return data.message;
+        }
+        // 服务端的 `_server_messages` 是一条 JSON 字符串，里面那层才是 {message, title, ...}。
+        // 直接把外层对象字符串化，页面上就会看到一整串转义后的 JSON（实测踩过）。
+        function error_text(data) {
+          let raw = '';
+          try {
+            const list = JSON.parse(data._server_messages || '[]');
+            raw = list.length ? list[0] : '';
+          } catch (error) { raw = ''; }
+          if (raw) {
+            try {
+              const inner = JSON.parse(raw);
+              raw = typeof inner === 'string' ? inner : (inner.message || raw);
+            } catch (error) { /* 不是 JSON 就按原样用 */ }
+          }
+          return String(raw || data.exception || data.message || '');
         }
         async function loadTexts() {
           const response = await fetch(CORE + '?prefix=' + encodeURIComponent('stock.'));
