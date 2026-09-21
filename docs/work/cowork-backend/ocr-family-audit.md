@@ -19,7 +19,8 @@
 | 旧来源（组） | 新落点 | 批次 / 记录 |
 | --- | --- | --- |
 | `schemas_invoice.py`、`schemas_layer1.py`、`schemas_results.py`、`schemas.py` 的发票与证据部分 | `ocr/schema/{invoice,evidence,results}.py` | 第三批 · [invoice-contracts](invoice-contracts.md) |
-| `validators.py`、`sanity.py`、`sanity_multi.py`、`triggers.py`、`money.py`、`date_sanity.py`、`confidence.py` | `ocr/validation/{sanity,math,sources,dates,gates,confidence}.py`、`ocr/money.py` | 第三批 · [invoice-contracts](invoice-contracts.md) |
+| `validators.py`（**发票**那一半）、`sanity.py`、`sanity_multi.py`、`triggers.py`、`money.py`、`date_sanity.py`、`confidence.py` | `ocr/validation/{sanity,math,sources,dates,gates,confidence}.py`、`ocr/money.py` | 第三批 · [invoice-contracts](invoice-contracts.md) |
+| `validators.py`（**总账 + 银行对账单**那一半：列名表、`validate_gl_document`、`validate_bank_document`、拒绝即清值） | `ocr/validation/sources.py` | **第三十七批** · [列来源校验](ocr-document-validation.md) |
 | `layer2_prompts.py`、`qwen_prompts.py`、`legacy_adapter.py`、`layer1_base.py`、`layer2_structure.py`、`layer3_fallback.py` | `ocr/engine/{prompts,parsing,patterns,runner}.py` | 第三/四批 · [invoice-engine](invoice-engine.md) |
 | `policy.py`、`engine_policy.py` 的**静态**档位判据 | `ocr/policy.py`、`ocr/engine/config.py` | 第三批 · [ocr-runtime-policy](ocr-runtime-policy.md) |
 | `invoice_grouper.py`、`invoice_no.py` | `ocr/grouping.py`、`ocr/engine/patterns.py` | 第三批 · [invoice-grouping](invoice-grouping.md) |
@@ -89,7 +90,7 @@
 
 ## 六、建议的后续顺序
 
-1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列）→ ③确定性读取器（Excel/CSV/文本直读、PDF 文字层重建）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
+1. **银行单 / GL 文档级 OCR（用户已定：要）**，按依赖分四层推进：①文档模型 + 余额链修复（**第三十六批已交付**）→ ②列来源校验（金额只能来自金额列，**第三十七批已交付**）→ ③确定性读取器（Excel/CSV/文本直读、PDF 文字层重建）→ ④模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
 2. 其余按族推进：M2 销项税 Excel 族、工单对账族各自清点。
 3. 主数据（`master_data`）方向由用户定：Cowork 自有一份，还是读 ERP 成品投影。
 

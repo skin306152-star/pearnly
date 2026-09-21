@@ -1,5 +1,34 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-22，第三十七批交付：银行单/GL 第二层——列来源校验）
+
+四层计划的第 ② 层交付：拦掉"印在说明/凭证号/科目列里的数字被当成金额"的误读（旧侧自己写的理由就是 GL 里 6091 那起事故）。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `625c3d0`（第三十六批）。含本交接的本地提交以 `git log -1` 为准。
+- `ocr/validation/sources.py` 补齐总账与银行对账单那一半：多语言列名表（借贷/余额、存取/余额）、`_is_allowed_gl_amount_source` / `_is_allowed_bank_amount_source`、`_value_appears_in_description`（独立数字匹配 + 去尾零重试）、`validate_gl_document`（R1–R5b）+ `_clear_amount_field`、`validate_bank_document` + `_clear_bank_amount_field`。发票那一半此前已在同文件里。
+- **拒绝即清值**是这一层的要点：来源列是说明/凭证号/科目代码时，除了报出来，还把那个值（以及方向、推导金额）清掉，下游不可能再用错数——这是旧行为，照搬。
+- 有意差异两处：旧侧定义了但**从未被任何代码使用**的 `_AMOUNT_TOKEN_RE` 不迁（没有规则要保留）；`page` 形参保留但文档写明"今天的规则只读行内溯源"（静态检查确认部署版三个校验器都用不到它，保留形状是为了第 ④ 层接线不改签名）。
+- 未接线：第 ③/④ 层还没落，本批只交纯规则，不造没人调的壳。
+
+### 验证与证据
+
+- 离线（隔离 bench）：新 **31** 个用例（含 6091 复现、拒绝清值、三种关键字表的多语言列名、独立数字不误伤长数字、去尾零、干净文档零告警、银行侧与 GL 的两处不同）；文档侧同族 **122** 个用例一起通过。
+- 固定源差分（只执行被搬的纯定义）：**GL 413 批 + 银行 407 批，差异 0**；除返回值还逐字段比对**行状态**（清值、ref 置空）；列名表/关键字表/三个助手另有逐一等值比对。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：`baseline-thirty-seventh-delivery.json`（`0c854389…`，17:02:57Z）与第三十六批快照 `compare` **PASS**；运行投影与上一批逐项相同。纯规则批次也照样复核。
+
+### 下一包（第 ③ 层）
+
+确定性读取器：Excel/CSV/文本直读与 PDF 文字层重建 → 已解码页（旧侧 `bank_stmt_xlsx.py` 498 行、`bank_stmt_text.py` 334、`bank_gl_excel.py` 365、共用 `bank_table_io.py` 151，PDF 文字层另一支）。之后第 ④ 层模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为另一窗口的 ERP 线（现在比我这条线多 7 个提交），远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单要以他们那版为准、推送台账归 DMS + `line.py` 改发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site（含新增的 `cowork-backend-ledger.localhost` DMS 站点）保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
 ## 结构整理（2026-09-21）：按产品各自维护菜单、功能目录、术语表
 
 用户要求"除了 OCR、登录页、订阅、UI，其它各产品维护自己的源码"，并让另一窗口先停手，所以在本工作树里做了一次共用层整理。**这不是 Cowork 迁移批次，改的是共用层**，但对后续几批都有效。完整记录：[按产品各自维护](2026-09-21-shared-files-split.md)；决策：[ADR-009](../adr/0009-product-owned-declarations.md)。

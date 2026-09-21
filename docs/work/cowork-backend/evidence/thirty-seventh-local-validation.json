@@ -1,0 +1,70 @@
+{
+  "base_commit": "625c3d0",
+  "scope": "thirty-seventh batch: the second layer of native bank-statement and GL document OCR — the source-column validators",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "0c854389c144ec87ba7fdee9e610ef00dd763b746a30e076f5fbdceabd5580bc",
+    "delivery_captured_at": "2026-09-21T17:02:57.215192+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirty-sixth-delivery.json baseline-thirty-seventh-delivery.json (before pinned at a235691d)",
+    "runtime_projection_delivery_sha256": "a202b10d8015a0eb069884477ea8eaecc6e46fdb7b39445979276091d916f9f9",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false; the endpoint configuration digest stays c5882f4b, 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/ocr/validators.py": "0c2e1d93c23a8a9a4ecfa7597a97b0599deecf655a5bfa5defc58a39ac0ba821"
+    },
+    "source_note": "the rules are pure, but the delivery-time live-source capture is taken anyway, as the migration rule requires"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_document_validation",
+      "result": "PASS",
+      "tests": 31,
+      "new_tests": 31,
+      "covers": [
+        "the deployed 6091 case: a debit repeating a standalone number printed in the description",
+        "a number that is also the voucher number is left alone",
+        "a forbidden reference is rejected and its value, direction and derived amount are cleared",
+        "a rejected balance reference leaves the direction alone",
+        "the wrong amount column is reported without clearing",
+        "both sides non-zero, a non-numeric side, direction mismatch and a mismatched derived amount",
+        "the row id falls back to its position, and a clean document says nothing",
+        "the bank side, including its difference from the GL side: a non-numeric side is swallowed",
+        "the keyword tables accept Thai and Chinese column names and trailing punctuation",
+        "a comma-separated value is matched only after stripping the value's commas (the deployed quirk)"
+      ]
+    },
+    {
+      "command": "python test_cowork_ocr_document_validation_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "gl": {"batches": 413, "warnings": 1407, "rejected": 403, "column_mismatch": 489,
+        "description_leak": 61, "both_sides": 59, "direction": 102, "amount_mismatch": 85,
+        "non_numeric": 208, "rows_cleared": 291},
+      "bank": {"batches": 407, "warnings": 992, "rejected": 384, "column_mismatch": 483,
+        "description_leak": 57, "both_sides": 68, "rows_cleared": 279},
+      "note": "each batch compares the returned warnings and the resulting row state (which values were cleared, which references were dropped); the keyword tables, the column sets and every helper are compared value by value as well"
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_document_validation test_cowork_ocr_document_schema test_cowork_ocr_chain_repair test_cowork_ocr_magnitude test_cowork_ocr_error_format test_cowork_invoice_validation test_cowork_invoice_schema",
+      "result": "PASS",
+      "tests": 122,
+      "note": "the whole document-side family still passes together"
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "python3 scripts/check-i18n.py", "result": "REPORT-ONLY"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed _AMOUNT_TOKEN_RE pattern is not carried over: nothing in the deployed project ever used it, so there is no rule to preserve",
+    "the page parameter stays in the signatures because the deployed call sites pass it, but every rule reads only the row's own provenance and text; the page-level containment rule already exists in confidence",
+    "the deployed invoice variant calls the date check with a runtime clock; this platform's invoice variant takes the date explicitly, which is the existing rule here",
+    "only the comments were rewritten; every judgement and every returned string is the deployed one"
+  ],
+  "not_run": [
+    "wiring the validators to any caller — the reader layer and the model path do not exist yet, and a shell nobody calls would be worse than none",
+    "real files, model calls, the queue, frontend integration, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-document-validation.md"
+}
