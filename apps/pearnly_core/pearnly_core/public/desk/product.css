@@ -108,3 +108,22 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 .pearnly-product-desk .pearnly-sidebar-order [data-name="add-sidebar-item"] {
 	display: none !important;
 }
+
+/* 触摸设备上没有真正的 hover，但 iOS 会把"第一次点击当成 hover 用掉、要再点一下才算数"。
+   侧栏里点哪儿都要两下的根因就在这层 hover 上：原生只在 hover 时才把两样东西显示出来 ——
+   页面头部那个 ☰（hover 时把图标换成 ">>"）和侧栏右缘那个圆形折叠按钮（靠 visibility 才出现）。
+   触摸设备上让它们一直显示、不随 hover 变化即可；事件与原生行为一概不动（用户 2026-09-21 报障）。 */
+@media (hover: none) {
+	body.pearnly-product-desk .body-sidebar .sidebar-toggle-btn {
+		opacity: 1;
+		visibility: visible;
+	}
+
+	body.pearnly-product-desk .page-title .sidebar-toggle-btn .sidebar-toggle-icon {
+		display: none;
+	}
+
+	body.pearnly-product-desk .page-title .sidebar-toggle-btn .sidebar-toggle-placeholder {
+		display: block;
+	}
+}
