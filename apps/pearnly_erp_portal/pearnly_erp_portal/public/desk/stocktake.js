@@ -20,7 +20,7 @@
 
 		const qty = (value) => (value === null || value === undefined
 			? t("stock.count.blank")
-			: format_number(value, null, 3));
+			: p.number(value));
 		const status_text = (row) => t({
 			Active: "stock.count.statusActive",
 			Closed: "stock.count.statusClosed",

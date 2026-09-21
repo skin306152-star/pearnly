@@ -7,6 +7,7 @@ purchase confirmation posting into stock, per-job access and tenant isolation.
 """
 import json
 import os
+import re
 from pathlib import Path
 import sys
 
@@ -292,6 +293,12 @@ def main():
     results["export_ok"] = bool(ok and csv_lines)
     results["export_header"] = csv_lines[0].split(",")[0] if csv_lines else None
     results["export_has_row"] = any("Lab stock unit" in line for line in csv_lines)
+    # 数量与金额按**实际值**写：不留固定的尾随 0（8.000 → 8）—— 用户 2026-09-22 定。
+    base_row = next((line for line in csv_lines if "Lab stock unit" in line), "")
+    numbers = base_row.split(",")[5:8] if base_row else []
+    # 只允许"整数"或"小数点后最后一位不是 0"
+    results["export_numbers_trimmed"] = len(numbers) == 3 and all(
+        re.fullmatch(r"-?\d+(\.\d*[1-9])?", number or "") for number in numbers)
 
     # 岗位：库存岗位能看能改；商品岗位看得到库存但改不了；无岗位看不到。
     stock_ok, stock_view = as_user(STOCK, stock.stock_overview, include_zero=True)
@@ -344,6 +351,7 @@ def main():
         "totals_sku_positive": True,
         "export_ok": True,
         "export_has_row": True,
+        "export_numbers_trimmed": True,
         "receive_deduped": True,
         "unknown_unit_allowed": False,
         "edit_after_submit_allowed": False,

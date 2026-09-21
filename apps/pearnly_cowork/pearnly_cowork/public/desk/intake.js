@@ -39,7 +39,7 @@
 					fieldname: "purchase",
 					label: t("intake.dir.purchase"),
 					read_only: 1,
-					default: format_currency(sum.purchase_confirmed, "THB"),
+					default: p.money(sum.purchase_confirmed),
 				},
 				{ fieldtype: "Column Break" },
 				{
@@ -47,7 +47,7 @@
 					fieldname: "sales",
 					label: t("intake.dir.sales"),
 					read_only: 1,
-					default: format_currency(sum.sales_confirmed, "THB"),
+					default: p.money(sum.sales_confirmed),
 				},
 				{ fieldtype: "Section Break" },
 				{
@@ -106,7 +106,7 @@
 					r.doc_no,
 					r.doc_date,
 					t("intake.status." + r.status),
-					format_currency(r.grand_total, r.currency),
+					p.money(r.grand_total, r.currency),
 				]),
 			);
 			parent.on("click", "[data-intake]", (event) => {

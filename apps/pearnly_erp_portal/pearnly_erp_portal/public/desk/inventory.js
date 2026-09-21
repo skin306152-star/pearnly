@@ -20,7 +20,7 @@
 
 		const money = (value) => (value === null || value === undefined
 			? t("stock.cell.notSet")
-			: format_currency(value, "THB"));
+			: p.money(value));
 
 		// 原生筛选字段：搜索 + 两个开关（与商品页同一种装配方式）。
 		const filters = {};
@@ -62,7 +62,7 @@
 		}
 
 		const status_label = (row) => (row.status === "low"
-			? t("stock.status.lowWith", format_number(row.min_stock, null, 3))
+			? t("stock.status.lowWith", p.number(row.min_stock))
 			: t(`stock.status.${row.status}`));
 
 		list = p.list({
@@ -83,7 +83,7 @@
 				{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
 				{ fieldname: "unit", label: t("stock.col.unit") },
 				{ fieldname: "qty_on_hand", label: t("stock.col.onHand"),
-					format: (value) => format_number(value, null, 3) },
+					format: (value) => p.number(value) },
 				{ fieldname: "unit_cost", label: t("stock.col.cost"),
 					format: (_value, row) => money(row.cost_known ? row.unit_cost : null) },
 				{ fieldname: "value", label: t("stock.col.value"),

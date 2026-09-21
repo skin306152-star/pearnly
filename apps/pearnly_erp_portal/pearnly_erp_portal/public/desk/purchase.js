@@ -23,7 +23,7 @@
 					fieldname: name,
 					label: t(key),
 					read_only: 1,
-					default: name === "count" ? sum[name] : format_currency(sum[name], "THB"),
+					default: name === "count" ? sum[name] : p.money(sum[name]),
 				});
 			}
 			fields.push({ fieldtype: "Section Break" }, { fieldtype: "HTML", fieldname: "rows" });
@@ -45,8 +45,8 @@
 					r.doc_no,
 					r.doc_date,
 					__(r.status),
-					format_currency(r.grand_total, r.currency),
-					format_currency(r.net_payable, r.currency),
+					p.money(r.grand_total, r.currency),
+					p.money(r.net_payable, r.currency),
 				]),
 			);
 		}

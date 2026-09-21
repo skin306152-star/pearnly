@@ -1,6 +1,7 @@
 """库存域接口层。业务与权限在 services，这里只做参数解析。"""
 
 import frappe
+from frappe.utils import flt
 
 from pearnly_erp_portal.inventory import (
     count as counts,
@@ -162,6 +163,22 @@ EXPORT_COLUMNS = (
 )
 STATUS_LABELS = {"ok": "stock.status.ok", "low": "stock.status.low", "out": "stock.status.out"}
 
+# 导出里的数字列 → 最多几位（按实际值写，不留固定的尾随 0）。
+# 与页面同一条规矩：用户 2026-09-22 定"全站涉及到数量、金额的地方都按实际显示"。
+EXPORT_NUMBERS = {"qty_on_hand": 3, "unit_cost": 2, "value": 2}
+
+
+def _num(value, decimals=3) -> str:
+    """数字按实际值写成文本：8.000 → 8，3.500 → 3.5。空值仍然是空（不是 0）。"""
+    if value is None or value == "":
+        return ""
+    try:
+        number = flt(value, decimals)
+    except (TypeError, ValueError):
+        return str(value)
+    text = f"{number:.{decimals}f}".rstrip("0").rstrip(".")
+    return text if text not in ("", "-0") else "0"
+
 
 def _label(key) -> str:
     """取本站语言的那一句。**不走 `_()`**：短词（Code/Value/Status）会被框架自带的译文
@@ -188,6 +205,8 @@ def _csv(rows) -> bytes:
             if field == "status":
                 key = STATUS_LABELS.get(row.get(field))
                 line.append(_label(key) if key else (row.get(field) or ""))
+            elif field in EXPORT_NUMBERS:
+                line.append(_num(row.get(field), EXPORT_NUMBERS[field]))
             else:
                 value = row.get(field)
                 line.append("" if value is None else value)

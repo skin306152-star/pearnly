@@ -5,6 +5,26 @@ frappe.provide("frappe.pearnly");
 	p.call = async (method, args = {}, type = "GET") =>
 		(await frappe.call({ method, args, type })).message;
 	p.escape = (value) => frappe.utils.escape_html(String(value ?? ""));
+	// 数量与金额**按实际值**显示：不留固定的尾随 0（8.000 → 8，3.500 → 3.5，฿190.00 → ฿190）。
+	// 用户 2026-09-22 定："那个数量后面留两个 0 就好了或者不要固定，自动填……按实际显示"。
+	// 上限仍然守着（数量 3 位、金额 2 位），免得浮点尾巴漏到界面上。
+	// 分组与小数分隔符交给框架自己的 `format_number` / `format_currency`，这里只算"要几位"。
+	const decimals_of = (value, max) => {
+		const number = Number(value);
+		if (!isFinite(number)) return null;
+		const fraction = Math.abs(number).toFixed(max).split(".")[1] || "";
+		return fraction.replace(/0+$/, "").length;
+	};
+	p.number = (value, max = 3) => {
+		if (value === null || value === undefined || value === "") return "";
+		const decimals = decimals_of(value, max);
+		return decimals === null ? String(value) : format_number(value, null, decimals);
+	};
+	p.money = (value, currency = "THB", max = 2) => {
+		if (value === null || value === undefined || value === "") return "";
+		const decimals = decimals_of(value, max);
+		return decimals === null ? String(value) : format_currency(value, currency, decimals);
+	};
 	p.add_refresh = (page, refresh, label = __("Reload")) =>
 		page.add_action_icon("es-line-reload", refresh, "", label)
 			.removeClass("btn-default")

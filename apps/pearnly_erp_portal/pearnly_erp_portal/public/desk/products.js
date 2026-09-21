@@ -22,7 +22,7 @@
 		// "设过没有"要跟值一起看：Currency 列存不下 NULL，库里 0 与"从未设过"是同一个数字。
 		// 没有成本权限的岗位，服务端把值与标记一起清空，于是这里自然显示"未设"。
 		const marked = (row, flag, value) =>
-			row[flag] ? format_currency(value, "THB") : t("product.cell.notSet");
+			row[flag] ? p.money(value) : t("product.cell.notSet");
 
 		const filters = {};
 		filters.search = page.add_field({
