@@ -2,7 +2,14 @@
 
 import frappe
 
-from pearnly_erp_portal.inventory import documents, openings, report, stock, warehouses
+from pearnly_erp_portal.inventory import (
+    count as counts,
+    documents,
+    openings,
+    report,
+    stock,
+    warehouses,
+)
 
 
 def _clean(kwargs):
@@ -195,6 +202,185 @@ def api_stock_export(**kwargs):
 @frappe.whitelist()
 def api_stock_card(**kwargs):
     return report.card(**_clean(kwargs))
+
+
+# ── 盘点（任务 / 记录 / 结束 / 过账 / 导出）──────────────────────────────────
+
+# 导出用的列：字段 → 语言包里的键（与页面同一批键）。
+COUNT_COLUMNS = (
+    ("code", "stock.col.code"),
+    ("product_name", "stock.col.name"),
+    ("barcode", "stock.col.barcode"),
+    ("unit", "stock.col.unit"),
+    ("warehouse_name", "stock.col.warehouse"),
+    ("book_qty", "stock.count.book"),
+    ("counted_qty", "stock.count.counted"),
+    ("difference", "stock.count.difference"),
+    ("status", "stock.col.status"),
+)
+COUNT_DETAIL_COLUMNS = (
+    ("code", "stock.col.code"),
+    ("product_name", "stock.col.name"),
+    ("warehouse_name", "stock.col.warehouse"),
+    ("location", "stock.count.location"),
+    ("unit", "stock.col.unit"),
+    ("qty", "stock.count.qty"),
+    ("counted_by", "stock.count.countedBy"),
+    ("counted_at", "stock.count.countedAt"),
+    ("state", "stock.count.entryState"),
+    ("photo_total", "stock.count.photos"),
+)
+
+
+def _count_status_key(row) -> str:
+    if not row.get("counted"):
+        return "stock.count.rowUncounted"
+    return "stock.count.rowDifference" if row.get("difference") else "stock.count.rowMatch"
+
+
+def _count_workbook(task, items, entries) -> bytes:
+    """两张表：汇总（每行账面/实盘/差异）+ 明细（每条记录、谁、何时、几张照片）。"""
+    import io
+
+    from openpyxl import Workbook
+    from openpyxl.styles import Alignment, Font
+    from openpyxl.utils import get_column_letter
+
+    warehouses = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
+        "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
+
+    book = Workbook()
+    summary = book.active
+    summary.title = "Summary"
+    summary.append([_label(key) for _field, key in COUNT_COLUMNS])
+    for cell in summary[1]:
+        cell.font = Font(bold=True)
+    placeholders = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
+        "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
+    for row in items:
+        line = []
+        for field, _key in COUNT_COLUMNS:
+            if field == "status":
+                line.append(_label(_count_status_key(row)))
+            elif field == "warehouse_name":
+                line.append(warehouses.get(row.get("warehouse"), row.get("warehouse")))
+            else:
+                value = row.get(field)
+                line.append("" if value is None else value)
+        summary.append(line)
+    detail = book.create_sheet("Entries")
+    detail.append([_label(key) for _field, key in COUNT_DETAIL_COLUMNS])
+    for cell in detail[1]:
+        cell.font = Font(bold=True)
+    for row in entries:
+        line = []
+        for field, _key in COUNT_DETAIL_COLUMNS:
+            if field == "state":
+                line.append(_label("stock.count.entryVoided" if row.get("voided")
+                                   else "stock.count.entryLive"))
+            elif field == "warehouse_name":
+                line.append(warehouses.get(row.get("warehouse"), row.get("warehouse")))
+            else:
+                value = row.get(field)
+                line.append("" if value is None else value)
+        detail.append(line)
+    for sheet in (summary, detail):
+        for index, _key in enumerate(sheet is summary and COUNT_COLUMNS or COUNT_DETAIL_COLUMNS,
+                                     start=1):
+            sheet.column_dimensions[get_column_letter(index)].width = 18
+        for row in sheet.iter_rows(min_row=2):
+            for cell in row:
+                cell.alignment = Alignment(vertical="center")
+    buffer = io.BytesIO()
+    book.save(buffer)
+    book.close()
+    return buffer.getvalue()
+
+
+@frappe.whitelist()
+def api_list_stock_counts(**kwargs):
+    return counts.list_counts(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_stock_count_total(**kwargs):
+    return counts.count_total(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_get_stock_count(**kwargs):
+    kwargs = _clean(kwargs)
+    return counts.get_count(kwargs.get("name"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_create_stock_count(**kwargs):
+    return counts.create_count(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_stock_count_items(**kwargs):
+    return counts.list_items(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_stock_count_item_total(**kwargs):
+    return counts.items_total(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_stock_count_entries(**kwargs):
+    return counts.list_entries(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_stock_count_photos(**kwargs):
+    kwargs = _clean(kwargs)
+    return counts.entry_photos(kwargs.get("entry"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_add_entry(**kwargs):
+    _json_args(kwargs, "photos")
+    return counts.add_entry(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_edit_entry(**kwargs):
+    _json_args(kwargs, "photos")
+    return counts.edit_entry(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_close(**kwargs):
+    kwargs = _clean(kwargs)
+    return counts.close_count(kwargs.get("name"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_post(**kwargs):
+    kwargs = _clean(kwargs)
+    return counts.post_count(kwargs.get("name"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_delete(**kwargs):
+    kwargs = _clean(kwargs)
+    return counts.delete_count(kwargs.get("name"))
+
+
+@frappe.whitelist()
+def api_stock_count_export(**kwargs):
+    """导出盘点：汇总 + 明细两张表（明细里每条记录都带谁、何时、几张照片）。"""
+    kwargs = _clean(kwargs)
+    name = kwargs.get("name")
+    task = counts.get_count(name)
+    items = counts.list_items(count=name, limit=0)
+    entries = counts.list_entries(count=name, limit=0)
+    frappe.local.response.filename = f"{name}.xlsx"
+    frappe.local.response.filecontent = _count_workbook(task, items, entries)
+    frappe.local.response.type = "binary"
+
 
 
 @frappe.whitelist()

@@ -1168,3 +1168,67 @@ pearnly_erp_portal	Counted quantity	实盘数量	จำนวนที่นั�
 pearnly_erp_portal	Reason	原因	เหตุผล	理由	stock.count.reason
 pearnly_erp_portal	Counted; difference {0} → {1}	已盘点：差异 {0} → {1}	นับแล้ว: ผลต่าง {0} → {1}	棚卸しました：差異 {0} → {1}	stock.notice.counted
 pearnly_erp_portal	Stock is counted in this unit; leave it empty to use the selling unit	库存按这个单位记数；留空就跟售卖单位一样	นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย	在庫はこの単位で数えます。空欄なら販売単位と同じ	product.field.baseUnitHint
+pearnly_erp_portal	Stock count	盘点	ตรวจนับสต็อก	棚卸	nav.stockCount
+pearnly_erp_portal	Name	名称	ชื่อ	名前	stock.count.name
+pearnly_erp_portal	New stock count	新建盘点	สร้างการตรวจนับ	棚卸を作成	stock.count.new
+pearnly_erp_portal	Import the book quantities and freeze them; staff count, you review and post the differences	把当前账面数量冻结成快照；员工去数，回来对差异并过账	ตรึงจำนวนตามบัญชีไว้ ให้พนักงานไปนับ แล้วกลับมาตรวจผลต่างและลงบัญชี	現在の帳簿数量を凍結し、担当者が数えて、差異を確認して転記します	stock.count.newHint
+pearnly_erp_portal	Leave empty to use the default warehouse	留空就用默认仓库	เว้นว่างไว้จะใช้คลังเริ่มต้น	空欄なら既定の倉庫を使います	stock.count.warehouseHint
+pearnly_erp_portal	Notes	备注	หมายเหตุ	備考	stock.count.notes
+pearnly_erp_portal	Stock count opened with {0} rows	盘点已开始，{0} 行	เริ่มตรวจนับแล้ว {0} แถว	棚卸を開始しました（{0} 行）	stock.count.created
+pearnly_erp_portal	Rows	行数	จำนวนแถว	行数	stock.count.rows
+pearnly_erp_portal	Counted	已盘点	นับแล้ว	棚卸済み	stock.count.countedRows
+pearnly_erp_portal	With differences	有差异	มีผลต่าง	差異あり	stock.count.differenceRows
+pearnly_erp_portal	Created	创建时间	สร้างเมื่อ	作成日時	stock.count.createdAt
+pearnly_erp_portal	In progress	进行中	กำลังดำเนินการ	進行中	stock.count.statusActive
+pearnly_erp_portal	Closed	已结束	ปิดแล้ว	終了	stock.count.statusClosed
+pearnly_erp_portal	Posted	已过账	ลงบัญชีแล้ว	転記済み	stock.count.statusPosted
+pearnly_erp_portal	Not counted	未盘点	ยังไม่นับ	未棚卸	stock.count.rowUncounted
+pearnly_erp_portal	Counts	对得上	ตรงกัน	一致	stock.count.rowMatch
+pearnly_erp_portal	Difference	有差异	ผลต่าง	差異あり	stock.count.rowDifference
+pearnly_erp_portal	All	全部	ทั้งหมด	すべて	stock.count.filter.all
+pearnly_erp_portal	Not counted	未盘点	ยังไม่นับ	未棚卸	stock.count.filter.uncounted
+pearnly_erp_portal	With differences	有差异	มีผลต่าง	差異あり	stock.count.filter.differences
+pearnly_erp_portal	Filter	筛选	ตัวกรอง	絞り込み	stock.count.filter
+pearnly_erp_portal	Back	返回	กลับ	戻る	stock.count.back
+pearnly_erp_portal	Book quantity	账面数量	จำนวนตามบัญชี	帳簿数量	stock.count.book
+pearnly_erp_portal	Difference	差异	ผลต่าง	差異	stock.count.difference
+pearnly_erp_portal	Not set	未填	ยังไม่กรอก	未入力	stock.count.blank
+pearnly_erp_portal	Add a count	记一笔	บันทึกการนับ	カウントを記録	stock.count.addEntry
+pearnly_erp_portal	Add a count — {0}	记一笔 — {0}	บันทึกการนับ — {0}	カウントを記録 — {0}	stock.count.addEntryTitle
+pearnly_erp_portal	Book shows {0} {1}; add what you counted	账面 {0} {1}；把这次数到的填进来	ตามบัญชี {0} {1} กรอกจำนวนที่นับได้	帳簿は {0} {1}。数えた分を入力してください	stock.count.addEntryHint
+pearnly_erp_portal	Quantity	数量	จำนวน	数量	stock.count.qty
+pearnly_erp_portal	Location	库位	ตำแหน่ง	棚番	stock.count.location
+pearnly_erp_portal	Note	说明	หมายเหตุ	メモ	stock.count.note
+pearnly_erp_portal	Count saved	已记一笔	บันทึกแล้ว	記録しました	stock.count.entrySaved
+pearnly_erp_portal	Entries	记录	รายการ	記録	stock.count.entries
+pearnly_erp_portal	Entries — {0}	记录 — {0}	รายการ — {0}	記録 — {0}	stock.count.entriesTitle
+pearnly_erp_portal	No entries yet	还没有记录	ยังไม่มีรายการ	まだ記録がありません	stock.count.noEntries
+pearnly_erp_portal	Counted by	盘点人	ผู้ตรวจนับ	担当者	stock.count.countedBy
+pearnly_erp_portal	Counted at	盘点时间	เวลาที่นับ	日時	stock.count.countedAt
+pearnly_erp_portal	Counted in total	计入合计	นับรวมแล้ว	合計に含む	stock.count.entryLive
+pearnly_erp_portal	Voided, not in the total	已撤销，不计入合计	ยกเลิกแล้ว ไม่รวมในยอด	取消済み（合計に含まない）	stock.count.entryVoided
+pearnly_erp_portal	Void	撤销	ยกเลิก	取消	stock.count.void
+pearnly_erp_portal	Voided	已撤销	ยกเลิกแล้ว	取消しました	stock.count.entryVoidedNotice
+pearnly_erp_portal	Photos	照片	รูปภาพ	写真	stock.count.photos
+pearnly_erp_portal	Close count	结束盘点	ปิดการตรวจนับ	棚卸を終了	stock.count.close
+pearnly_erp_portal	Closing locks every entry; rows never counted stay empty. Continue?	结束后记录全部锁定，未盘点的行保持为空。继续？	เมื่อปิดแล้วรายการจะถูกล็อก แถวที่ยังไม่นับจะว่างไว้ ดำเนินการต่อ?	終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？	stock.count.closeConfirm
+pearnly_erp_portal	Count closed	盘点已结束	ปิดการตรวจนับแล้ว	棚卸を終了しました	stock.count.closed
+pearnly_erp_portal	Post differences	过账差异	ลงบัญชีผลต่าง	差異を転記	stock.count.post
+pearnly_erp_portal	Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?	过账会把结存收敛到实盘数并落流水；没数过的行不动。继续？	การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?	転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？	stock.count.postConfirm
+pearnly_erp_portal	Posted {0} differences	已过账 {0} 处差异	ลงบัญชีผลต่าง {0} รายการ	差異 {0} 件を転記しました	stock.count.posted
+pearnly_erp_portal	{0} · counted {1} / {2} · differences {3}	{0} · 已盘点 {1} / {2} · 差异 {3}	{0} · นับแล้ว {1} / {2} · ผลต่าง {3}	{0} · 棚卸済み {1} / {2} · 差異 {3}	stock.count.headline
+pearnly_erp_portal	Pick an entry to void	选一条要撤销的记录	เลือกรายการที่จะยกเลิก	取消する記録を選択	stock.count.voidPick
+pearnly_erp_portal	{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	stock.count.entryOption
+pearnly_erp_portal	Stock count	盘点	ตรวจนับสต็อก	棚卸	stock.mobile.title
+pearnly_erp_portal	Pick a stock count	选一份盘点	เลือกการตรวจนับ	棚卸を選ぶ	stock.mobile.pickTask
+pearnly_erp_portal	No stock count is running	现在没有进行中的盘点	ไม่มีการตรวจนับที่เปิดอยู่	進行中の棚卸はありません	stock.mobile.noTask
+pearnly_erp_portal	Open	打开	เปิด	開く	stock.mobile.open
+pearnly_erp_portal	Scan	扫码	สแกน	スキャン	stock.mobile.scan
+pearnly_erp_portal	Code or barcode	编号或条码	รหัสหรือบาร์โค้ด	コード・バーコード	stock.mobile.codePlaceholder
+pearnly_erp_portal	Find	查一下	ค้นหา	検索	stock.mobile.find
+pearnly_erp_portal	Save	保存	บันทึก	保存	stock.mobile.save
+pearnly_erp_portal	Saved — scan the next one	已记一笔，接着扫下一件	บันทึกแล้ว สแกนชิ้นถัดไป	記録しました。次の商品をスキャン	stock.mobile.saved
+pearnly_erp_portal	No product matches that code	这个码找不到商品	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.mobile.notFound
+pearnly_erp_portal	This browser cannot scan with the camera	这个浏览器不支持摄像头扫码	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
+pearnly_erp_portal	Close camera	关闭相机	ปิดกล้อง	カメラを閉じる	stock.mobile.cameraOff
+pearnly_erp_portal	This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.	这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。	บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน	この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。	stock.mobile.notBound

@@ -18,6 +18,7 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+nav.stockCount,ตรวจนับสต็อก
 product.action.bulkDisable,ปิดใช้งาน {0} รายการที่เลือก
 product.action.bulkEnable,เปิดใช้งาน {0} รายการที่เลือก
 product.action.disable,เปิด / ปิดใช้งาน
@@ -102,11 +103,74 @@ stock.col.status,สถานะ
 stock.col.unit,หน่วย
 stock.col.value,มูลค่า
 stock.col.warehouse,คลังสินค้า
+stock.count.addEntry,บันทึกการนับ
+stock.count.addEntryHint,ตามบัญชี {0} {1} กรอกจำนวนที่นับได้
+stock.count.addEntryTitle,บันทึกการนับ — {0}
+stock.count.back,กลับ
+stock.count.blank,ยังไม่กรอก
+stock.count.book,จำนวนตามบัญชี
+stock.count.close,ปิดการตรวจนับ
+stock.count.closeConfirm,เมื่อปิดแล้วรายการจะถูกล็อก แถวที่ยังไม่นับจะว่างไว้ ดำเนินการต่อ?
+stock.count.closed,ปิดการตรวจนับแล้ว
 stock.count.counted,จำนวนที่นับได้
+stock.count.countedAt,เวลาที่นับ
+stock.count.countedBy,ผู้ตรวจนับ
+stock.count.countedRows,นับแล้ว
+stock.count.created,เริ่มตรวจนับแล้ว {0} แถว
+stock.count.createdAt,สร้างเมื่อ
+stock.count.difference,ผลต่าง
+stock.count.differenceRows,มีผลต่าง
+stock.count.entries,รายการ
+stock.count.entriesTitle,รายการ — {0}
+stock.count.entryLive,นับรวมแล้ว
+stock.count.entryOption,{0} · {1} · {2}
+stock.count.entrySaved,บันทึกแล้ว
+stock.count.entryVoided,ยกเลิกแล้ว ไม่รวมในยอด
+stock.count.entryVoidedNotice,ยกเลิกแล้ว
+stock.count.filter,ตัวกรอง
+stock.count.filter.all,ทั้งหมด
+stock.count.filter.differences,มีผลต่าง
+stock.count.filter.uncounted,ยังไม่นับ
+stock.count.headline,{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
+stock.count.location,ตำแหน่ง
+stock.count.name,ชื่อ
+stock.count.new,สร้างการตรวจนับ
+stock.count.newHint,ตรึงจำนวนตามบัญชีไว้ ให้พนักงานไปนับ แล้วกลับมาตรวจผลต่างและลงบัญชี
+stock.count.noEntries,ยังไม่มีรายการ
+stock.count.note,หมายเหตุ
+stock.count.notes,หมายเหตุ
+stock.count.photos,รูปภาพ
+stock.count.post,ลงบัญชีผลต่าง
+stock.count.postConfirm,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?
+stock.count.posted,ลงบัญชีผลต่าง {0} รายการ
+stock.count.qty,จำนวน
 stock.count.reason,เหตุผล
+stock.count.rowDifference,ผลต่าง
+stock.count.rowMatch,ตรงกัน
+stock.count.rowUncounted,ยังไม่นับ
+stock.count.rows,จำนวนแถว
+stock.count.statusActive,กำลังดำเนินการ
+stock.count.statusClosed,ปิดแล้ว
+stock.count.statusPosted,ลงบัญชีแล้ว
 stock.count.system,{0}: ในระบบมี {1} {2}
 stock.count.title,ตรวจนับ — {0}
+stock.count.void,ยกเลิก
+stock.count.voidPick,เลือกรายการที่จะยกเลิก
+stock.count.warehouseHint,เว้นว่างไว้จะใช้คลังเริ่มต้น
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
+stock.mobile.cameraOff,ปิดกล้อง
+stock.mobile.codePlaceholder,รหัสหรือบาร์โค้ด
+stock.mobile.find,ค้นหา
+stock.mobile.noCamera,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้
+stock.mobile.noTask,ไม่มีการตรวจนับที่เปิดอยู่
+stock.mobile.notBound,บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
+stock.mobile.notFound,ไม่พบสินค้าที่ตรงกับรหัสนี้
+stock.mobile.open,เปิด
+stock.mobile.pickTask,เลือกการตรวจนับ
+stock.mobile.save,บันทึก
+stock.mobile.saved,บันทึกแล้ว สแกนชิ้นถัดไป
+stock.mobile.scan,สแกน
+stock.mobile.title,ตรวจนับสต็อก
 stock.notice.counted,นับแล้ว: ผลต่าง {0} → {1}
 stock.notice.totals,SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
 stock.status.low,สต็อกต่ำ

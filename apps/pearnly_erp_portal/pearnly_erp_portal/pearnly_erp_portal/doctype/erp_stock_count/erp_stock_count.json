@@ -1,0 +1,115 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Stock Count",
+ "module": "Pearnly ERP Portal",
+ "autoname": "format:STC-{#####}",
+ "engine": "InnoDB",
+ "track_changes": 1,
+ "field_order": [
+  "title",
+  "status",
+  "warehouse",
+  "column_break_top",
+  "item_total",
+  "counted_total",
+  "difference_total",
+  "notes",
+  "column_break_time",
+  "closed_at",
+  "closed_by",
+  "posted_at",
+  "posted_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "reqd": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "Active\nClosed\nPosted",
+   "default": "Active",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse"
+  },
+  {
+   "fieldname": "column_break_top",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_total",
+   "fieldtype": "Int",
+   "label": "Rows",
+   "read_only": 1
+  },
+  {
+   "fieldname": "counted_total",
+   "fieldtype": "Int",
+   "label": "Counted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "difference_total",
+   "fieldtype": "Int",
+   "label": "Differences",
+   "read_only": 1
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "column_break_time",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "closed_at",
+   "fieldtype": "Datetime",
+   "label": "Closed at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "closed_by",
+   "fieldtype": "Link",
+   "label": "Closed by",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "posted_at",
+   "fieldtype": "Datetime",
+   "label": "Posted at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "posted_by",
+   "fieldtype": "Link",
+   "label": "Posted by",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ]
+}

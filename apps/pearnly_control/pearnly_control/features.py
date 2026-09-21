@@ -62,6 +62,10 @@ CATALOG = {
          "description": "Warehouses, stock-in and stock-out documents"},
         {"code": "stockcard", "label": "Stock Card Report", "default_on": True,
          "description": "Stock in/out summary (kept item, see the ERP manifest)"},
+        # 盘点：快照 + 员工扫码记录（手机走 LINE）+ 差异过账。旧项目里它在 Cowork，
+        # 但账在 ERP，所以产品归属跟着账走（用户 2026-09-22 定）。
+        {"code": "stocktake", "label": "Stock Count", "default_on": True,
+         "description": "Stock count tasks, staff entries and variance posting"},
         {"code": "purchase", "label": "Purchasing (Records / Suppliers / Settings)", "default_on": True,
          "description": "Purchase records, suppliers and purchasing settings"},
         {"code": "sales", "label": "Sales", "default_on": True,
@@ -115,6 +119,8 @@ ENFORCEMENT = {
                                           "ERP Stock Entry Line", "ERP Stock Movement",
                                           "ERP Stock Balance", "ERP Company"]),
     ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening", "ERP Company"]),
+    ("erp", "stocktake"): ("ERP Stock", ["ERP Stock Count", "ERP Stock Count Item",
+                                         "ERP Stock Count Entry"]),
     # 客户表归销售岗位：销售要能被开单侧选中，也能建/改买方（客户名录与销售单据
     # 是同一个岗位，两个功能码在这里合成一个人看）。
     ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line",

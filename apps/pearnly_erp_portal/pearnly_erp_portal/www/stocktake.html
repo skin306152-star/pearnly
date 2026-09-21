@@ -1,0 +1,339 @@
+<!--
+  手机上的盘点页（LINE 里打开）。与桌面盘点走同一批接口，只是换了个壳。
+
+  身份：LINE 内用 LIFF 的 id_token 换票据；不在 LINE 里（本机验收）就回落到
+  "本站点已登录账号自己的绑定"。两种都不成立时只显示一句提示，不假装能用。
+
+  这一页没有配套 .py 控制器（与 DMS 那页同一个理由）：Frappe 找同名控制器时会
+  把文件名里的 `-` 换成 `_`，少一个静默不生效的环节。文案全部从语言包取。
+-->
+<!-- no-cache -->
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="white" />
+    <title>Pearnly · Stock count</title>
+    <style>
+      :root { --ink: #171717; --ink-2: #525252; --ink-3: #a3a3a3; --line: #e5e5e5; --accent: #6d28d9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Noto Sans Thai", "Segoe UI", sans-serif;
+        color: var(--ink); background: #fafafa; padding: 16px 16px 96px; }
+      h1 { font-size: 18px; margin: 0 0 12px; }
+      .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+      .muted { color: var(--ink-3); font-size: 13px; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row + .row { margin-top: 10px; }
+      label { display: block; font-size: 12px; color: var(--ink-2); margin-bottom: 4px; }
+      input { width: 100%; font-size: 16px; padding: 10px; border: 1px solid var(--line); border-radius: 8px; }
+      button { font-size: 15px; padding: 11px 14px; border-radius: 8px; border: 1px solid var(--line);
+        background: #fff; color: var(--ink); }
+      button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+      button.wide { width: 100%; }
+      .task { display: flex; justify-content: space-between; gap: 8px; }
+      .task b { font-weight: 600; }
+      video { width: 100%; border-radius: 10px; background: #000; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+      .toast { position: fixed; left: 16px; right: 16px; bottom: 16px; background: #14532d; color: #fff;
+        padding: 12px 14px; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .2s; }
+      .toast.show { opacity: 1; }
+      .error { color: #b91c1c; font-size: 13px; }
+      .big { font-size: 22px; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <h1 id="title">Pearnly</h1>
+    <div id="app"></div>
+    <div class="toast" id="toast"></div>
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+      (function () {
+        'use strict';
+        const API = '/api/method/pearnly_erp_portal.inventory.line_mobile.';
+        const CORE = '/api/method/pearnly_core.browser_text.browser_text';
+        const app = document.getElementById('app');
+        const toast = document.getElementById('toast');
+        let texts = {}, t = (key, ...args) => {
+          const text = texts[key] || key;
+          return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
+        };
+        let csrf = '', ticket = '', task = null, camera = null;
+
+        function say(message, bad) {
+          toast.textContent = message;
+          toast.style.background = bad ? '#7f1d1d' : '#14532d';
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 2600);
+        }
+        function esc(value) {
+          return String(value == null ? '' : value).replace(/[&<>"']/g,
+            (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function hide(element) { if (element && element.parentNode) element.parentNode.removeChild(element); }
+        async function call(method, args, post) {
+          const response = await fetch(API + method, {
+            method: post ? 'POST' : 'GET',
+            headers: Object.assign({ 'X-Frappe-CSRF-Token': csrf, 'X-Stocktake-Line': ticket },
+              post ? { 'Content-Type': 'application/json' } : {}),
+            body: post ? JSON.stringify(Object.assign({ ticket: ticket }, args || {})) : undefined,
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            const message = (data._server_messages && JSON.parse(data._server_messages)[0]) ||
+              data.exception || data.message || '';
+            throw new Error(typeof message === 'string' ? message : JSON.stringify(message));
+          }
+          return data.message;
+        }
+        async function loadTexts() {
+          const response = await fetch(CORE + '?prefix=' + encodeURIComponent('stock.'));
+          const pack = await response.json();
+          texts = {};
+          for (const key of Object.keys(pack.message || {})) {
+            const row = pack.message[key] || {};
+            texts[key] = row.th || row.en || key;
+            if (row.en) texts[key + '__en'] = row.en;
+          }
+          // 页面语言：LINE 里跟随手机（泰文优先），本机验收看浏览器语言
+          const lang = (navigator.language || 'th').slice(0, 2);
+          const response2 = await fetch(CORE + '?prefix=' + encodeURIComponent('stock.'));
+          const pack2 = await response2.json();
+          for (const key of Object.keys(pack2.message || {})) {
+            const row = pack2.message[key] || {};
+            texts[key] = row[lang] || row.en || row.th || key;
+          }
+          document.getElementById('title').textContent = t('stock.mobile.title');
+        }
+
+        // ── 相机扫码（与桌面同一个做法：浏览器自带的解码器）────────────────
+        async function stopCamera() {
+          if (!camera) return;
+          if (camera.stream) camera.stream.getTracks().forEach((track) => track.stop());
+          clearInterval(camera.timer);
+          hide(camera.node);
+          camera = null;
+        }
+        async function startCamera(onCode) {
+          const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf',
+            'codabar', 'qr_code'];
+          if (typeof window.BarcodeDetector !== 'function' || !navigator.mediaDevices) {
+            say(t('stock.mobile.noCamera'), true);
+            return;
+          }
+          const supported = await window.BarcodeDetector.getSupportedFormats();
+          const use = formats.filter((f) => supported.includes(f));
+          if (!use.length) { say(t('stock.mobile.noCamera'), true); return; }
+          const node = document.createElement('div');
+          node.className = 'card';
+          node.innerHTML = '<video playsinline muted></video><div class="row" style="margin-top:8px">'
+            + '<button id="stop" class="wide">' + esc(t('stock.mobile.cameraOff')) + '</button></div>';
+          app.prepend(node);
+          const video = node.querySelector('video');
+          node.querySelector('#stop').onclick = () => stopCamera();
+          let stream;
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          } catch (error) {
+            hide(node);
+            say(t('stock.scan.denied'), true);
+            return;
+          }
+          video.srcObject = stream;
+          const play = () => video.play().catch(() => {});
+          await play();
+          const reader = new window.BarcodeDetector({ formats: use });
+          let busy = false;
+          camera = { node: node, stream: stream, timer: setInterval(async () => {
+            if (busy) return;
+            busy = true;
+            try {
+              if (video.paused) await play();
+              if (video.readyState < 2) return;
+              const found = await reader.detect(video);
+              const code = found.length ? String(found[0].rawValue || '').trim() : '';
+              if (code) { await stopCamera(); onCode(code); }
+            } catch (error) {
+              // 单帧解不出来是常态
+            } finally { busy = false; }
+          }, 250) };
+        }
+
+        // ── 界面 ────────────────────────────────────────────────────────────
+        function renderTasks(tasks) {
+          if (!tasks.length) {
+            app.innerHTML = '<div class="card muted">' + esc(t('stock.mobile.noTask')) + '</div>';
+            return;
+          }
+          app.innerHTML = '<div class="card"><div class="muted">' + esc(t('stock.mobile.pickTask'))
+            + '</div>' + tasks.map((row) => '<div class="row task">'
+              + '<div><b>' + esc(row.title) + '</b><div class="muted">'
+              + esc(t('stock.count.headline', row.status, row.counted_total, row.item_total,
+                row.difference_total)) + '</div></div>'
+              + '<button data-task="' + esc(row.name) + '">' + esc(t('stock.mobile.open'))
+              + '</button></div>').join('') + '</div>';
+          app.querySelectorAll('[data-task]').forEach((button) => {
+            button.onclick = () => openTask(button.dataset.task);
+          });
+        }
+
+        async function openTask(name) {
+          task = await call('api_line_stocktake_task', { name: name });
+          task.name = name;
+          render();
+        }
+
+        function render(result) {
+          const item = result && result.item;
+          const entries = (result && result.entries) || [];
+          app.innerHTML = ''
+            + '<div class="card"><div class="row" style="justify-content:space-between">'
+            + '<b>' + esc(task.title || task.name) + '</b>'
+            + '<button id="back">' + esc(t('stock.count.back')) + '</button></div>'
+            + '<div class="muted">' + esc(t('stock.count.headline', task.status, task.counted_total,
+                task.item_total, task.difference_total)) + '</div></div>'
+            + '<div class="card"><div class="row">'
+            + '<button id="scan" class="primary wide">' + esc(t('stock.mobile.scan')) + '</button></div>'
+            + '<div class="row"><input id="code" placeholder="'
+            + esc(t('stock.mobile.codePlaceholder')) + '">'
+            + '<button id="find">' + esc(t('stock.mobile.find')) + '</button></div>'
+            + '<div id="error" class="error"></div></div>'
+            + (item ? entryForm(item) : '')
+            + (entries.length ? entriesCard(entries) : '');
+          document.getElementById('back').onclick = () => { task = null; boot(); };
+          document.getElementById('scan').onclick = () => startCamera((code) => lookup(code));
+          document.getElementById('find').onclick = () => {
+            const code = document.getElementById('code').value.trim();
+            if (code) lookup(code);
+          };
+          if (item) bindForm(item);
+          app.querySelectorAll('[data-undo]').forEach((button) => {
+            button.onclick = async () => {
+              await call('api_line_stocktake_undo', { entry: button.dataset.undo }, true);
+              say(t('stock.count.entryVoidedNotice'));
+              lookup(item ? item.code : document.getElementById('code').value.trim());
+            };
+          });
+        }
+
+        function entryForm(item) {
+          return '<div class="card"><div class="row" style="justify-content:space-between">'
+            + '<b>' + esc(item.product_name) + '</b><span class="muted">'
+            + esc((item.code || '') + ' · ' + (item.unit || '')) + '</span></div>'
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.book')) + '</label>'
+            + '<div class="big">' + esc(number(item.book_qty)) + '</div></div>'
+            + '<div style="flex:1"><label>' + esc(t('stock.count.counted')) + '</label>'
+            + '<div class="big">' + esc(item.counted ? number(item.counted_qty) : '—') + '</div></div></div>'
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.qty'))
+            + '</label><input id="qty" inputmode="decimal"></div>'
+            + '<div style="flex:1"><label>' + esc(t('stock.count.location')) + '</label>'
+            + '<input id="location"></div></div>'
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.note'))
+            + '</label><input id="note"></div></div>'
+            + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.count.photos'))
+            + '</label><input id="photo" type="file" accept="image/*" capture="environment"></div></div>'
+            + '<div class="row"><button id="save" class="primary wide">'
+            + esc(t('stock.mobile.save')) + '</button></div></div>';
+        }
+
+        function entriesCard(entries) {
+          return '<div class="card"><div class="muted">' + esc(t('stock.count.entries')) + '</div>'
+            + '<table>' + entries.map((entry) => '<tr><td>' + esc(number(entry.qty)) + '</td>'
+              + '<td>' + esc(entry.counted_at || '') + '</td>'
+              + '<td>' + esc(entry.voided ? t('stock.count.entryVoided') : '')
+              + (entry.voided ? '' : ' <button data-undo="' + esc(entry.name) + '">'
+                + esc(t('stock.count.void')) + '</button>') + '</td></tr>').join('')
+            + '</table></div>';
+        }
+
+        function number(value) {
+          const parsed = Number(value || 0);
+          return (Math.round(parsed * 1000) / 1000).toString();
+        }
+
+        async function lookup(code) {
+          try {
+            const result = await call('api_line_stocktake_lookup', { name: task.name, code: code });
+            if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
+            render(result);
+            const code_input = document.getElementById('code');
+            if (code_input) code_input.value = code;
+          } catch (error) {
+            say(error.message, true);
+          }
+        }
+
+        function bindForm(item) {
+          document.getElementById('save').onclick = async () => {
+            const qty = document.getElementById('qty').value.trim();
+            if (!qty) { say(t('stock.count.qty'), true); return; }
+            const photo_input = document.getElementById('photo');
+            const photos = [];
+            if (photo_input.files && photo_input.files[0]) {
+              photos.push(await toBase64(photo_input.files[0]));
+            }
+            try {
+              await call('api_line_stocktake_add', {
+                name: task.name,
+                item: item.name,
+                qty: qty,
+                location: document.getElementById('location').value.trim() || undefined,
+                note: document.getElementById('note').value.trim() || undefined,
+                request_id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+                photos: photos,
+              }, true);
+              if (navigator.vibrate) navigator.vibrate(60);
+              say(t('stock.mobile.saved'));
+              await lookup(item.code || '');
+            } catch (error) {
+              say(error.message, true);
+            }
+          };
+        }
+
+        function toBase64(file) {
+          return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
+            reader.readAsDataURL(file);
+          });
+        }
+
+        async function boot() {
+          try {
+            const tasks = await call('api_line_stocktake_tasks', {});
+            if (tasks.length === 1) { await openTask(tasks[0].name); return; }
+            renderTasks(tasks);
+          } catch (error) {
+            app.innerHTML = '<div class="card error">' + esc(error.message) + '</div>';
+          }
+        }
+
+        async function start() {
+          await loadTexts();
+          try {
+            const config = await (await fetch(API + 'api_line_stocktake_config')).json();
+            csrf = (config.message || {}).csrf_token || '';
+            const liff_id = (config.message || {}).liff_id || '';
+            let id_token = '';
+            if (liff_id && window.liff) {
+              try {
+                await window.liff.init({ liffId: liff_id });
+                if (window.liff.isLoggedIn()) id_token = window.liff.getIDToken() || '';
+              } catch (error) { id_token = ''; }
+            }
+            const auth = await call('api_line_stocktake_auth', { id_token: id_token }, true);
+            ticket = auth.ticket;
+            await boot();
+          } catch (error) {
+            app.innerHTML = '<div class="card error">' + esc(error.message)
+              + '<div class="muted">' + esc(t('stock.mobile.notBound')) + '</div></div>';
+          }
+        }
+
+        start();
+      })();
+    </script>
+  </body>
+</html>

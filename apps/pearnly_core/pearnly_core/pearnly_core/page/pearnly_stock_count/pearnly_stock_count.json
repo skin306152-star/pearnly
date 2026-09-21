@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-stock-count",
+ "page_name": "pearnly-stock-count",
+ "title": "nav.stockCount",
+ "module": "Pearnly Core",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

@@ -18,6 +18,7 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+nav.stockCount,Stock count
 product.action.bulkDisable,Disable {0} selected
 product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
@@ -102,11 +103,74 @@ stock.col.status,Status
 stock.col.unit,Unit
 stock.col.value,Value
 stock.col.warehouse,Warehouse
+stock.count.addEntry,Add a count
+stock.count.addEntryHint,Book shows {0} {1}; add what you counted
+stock.count.addEntryTitle,Add a count — {0}
+stock.count.back,Back
+stock.count.blank,Not set
+stock.count.book,Book quantity
+stock.count.close,Close count
+stock.count.closeConfirm,Closing locks every entry; rows never counted stay empty. Continue?
+stock.count.closed,Count closed
 stock.count.counted,Counted quantity
+stock.count.countedAt,Counted at
+stock.count.countedBy,Counted by
+stock.count.countedRows,Counted
+stock.count.created,Stock count opened with {0} rows
+stock.count.createdAt,Created
+stock.count.difference,Difference
+stock.count.differenceRows,With differences
+stock.count.entries,Entries
+stock.count.entriesTitle,Entries — {0}
+stock.count.entryLive,Counted in total
+stock.count.entryOption,{0} · {1} · {2}
+stock.count.entrySaved,Count saved
+stock.count.entryVoided,"Voided, not in the total"
+stock.count.entryVoidedNotice,Voided
+stock.count.filter,Filter
+stock.count.filter.all,All
+stock.count.filter.differences,With differences
+stock.count.filter.uncounted,Not counted
+stock.count.headline,{0} · counted {1} / {2} · differences {3}
+stock.count.location,Location
+stock.count.name,Name
+stock.count.new,New stock count
+stock.count.newHint,"Import the book quantities and freeze them; staff count, you review and post the differences"
+stock.count.noEntries,No entries yet
+stock.count.note,Note
+stock.count.notes,Notes
+stock.count.photos,Photos
+stock.count.post,Post differences
+stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
+stock.count.posted,Posted {0} differences
+stock.count.qty,Quantity
 stock.count.reason,Reason
+stock.count.rowDifference,Difference
+stock.count.rowMatch,Counts
+stock.count.rowUncounted,Not counted
+stock.count.rows,Rows
+stock.count.statusActive,In progress
+stock.count.statusClosed,Closed
+stock.count.statusPosted,Posted
 stock.count.system,In {0}: system shows {1} {2}
 stock.count.title,Stock count — {0}
+stock.count.void,Void
+stock.count.voidPick,Pick an entry to void
+stock.count.warehouseHint,Leave empty to use the default warehouse
 stock.field.search,Search name or barcode
+stock.mobile.cameraOff,Close camera
+stock.mobile.codePlaceholder,Code or barcode
+stock.mobile.find,Find
+stock.mobile.noCamera,This browser cannot scan with the camera
+stock.mobile.noTask,No stock count is running
+stock.mobile.notBound,"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
+stock.mobile.notFound,No product matches that code
+stock.mobile.open,Open
+stock.mobile.pickTask,Pick a stock count
+stock.mobile.save,Save
+stock.mobile.saved,Saved — scan the next one
+stock.mobile.scan,Scan
+stock.mobile.title,Stock count
 stock.notice.counted,Counted; difference {0} → {1}
 stock.notice.totals,SKU {0} · Value {1} · Low {2} · Out {3}
 stock.status.low,Low stock
