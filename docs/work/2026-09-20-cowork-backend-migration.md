@@ -1,6 +1,197 @@
 # Cowork 后端迁移（前端接入前）
 
-## 换窗口总交接（2026-09-22，第四十八批之后 · 新窗口从这里开始）
+## 换窗口总交接（2026-09-22，第四十九批之后 · 新窗口从这里开始）
+
+本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，
+下面各批记录（含上一版总交接）只在需要细节时查。
+
+### 一、现在的状态（一句话）
+
+Cowork 后端八个功能码里 **七个已迁完或主体已迁**，主数据从"进行中"变成**主体已迁**：
+七块已交付，剩下四项**都已出归属结论、只等用户点头定方向**，另有一处跨域待决策。
+所有工作都在本地提交、**未合回 main、未推送、未部署**。
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，
+  本批 HEAD 以 `git log -1` 为准（第四十九批起点 `22b18d7`）。
+- 本分支领先本地 `main` 约 62 个提交；本地 `main` 是**另一窗口的 ERP 线**，远端 `refs/heads/main`
+  实测仍是 `ac33e0c`（谁都没推）。
+- **另一窗口正在做 ERP 前端**：他们那条线在主工作树 `/Users/skin/pearnly` 上有未提交的
+  `apps/pearnly_erp_portal/**`（含翻译包与 `scripts/i18n/messages.tsv`）改动。本窗口
+  **只碰 Cowork 的文件**，不整理、不提交、不回滚他们的东西。
+- 证据：`docs/work/cowork-backend/*.md` 批次记录、`docs/work/cowork-backend/evidence/*.json` 证据、
+  `tests/test_cowork_*.py`、`scripts/cowork-*.py`。
+- 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`
+  （固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批开工与交付都重新采集**。
+
+### 二、硬边界（用户反复强调，继续有效）
+
+1. **不改 DMS 业务、不接前端、不部署**；只在本地隔离环境验证（lab 容器 + lab Site）。
+2. **不合并进 main、不推送、不部署**。合并、推送、部署是三个独立动作，都要用户明确授权。
+3. 每批**开工与交付都要重新采集线上来源**；采集不到就不算交付。
+4. 提交用真实作者（`zihaopi <skin@zihaopideMacBook-Pro.local>`），前缀 `feat:/fix:/docs:/refactor:/test:/ci:/chore:`；
+   **不用 `--no-verify`**（共享 pre-commit 钩子会跑架构检查）。
+5. **不动另一窗口的东西**：`main`、`apps/pearnly_erp_portal/**`、`scripts/i18n/messages.tsv`
+   与共享底座里他们正在写的文件（见第四节的合并债）。
+6. 团队协作（WeKan/`boards`）**不迁**，第二十二批已删（合并时必须保留删除）。
+7. 主数据边界（用户已定）：**客户以 ERP 为准**；**商品/供应商/科目各产品自己维护一份**。
+
+### 三、已迁完 / 主体已迁（按功能码）
+
+| 功能码 | 状态 | 备注 |
+| --- | --- | --- |
+| `ocr_history` 识别记录 | 已迁 | 记录里无已知缺口；**新发现**："入库前重复检测"（见第四节 P1-1）当年没进清单 |
+| `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
+| `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
+| `express_guide` | 后端已迁 | 指引文案属前端 |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；**新发现**："供应商→费用分类记忆"的读侧回填属这条线（见 P1-2） |
+| `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
+| `recon` 对账中心 | 银行 + 收入两族闭合 | 见 `reconciliation-family-audit.md` |
+| `master_data` 主数据 | **主体已迁（第四十九批完成第七块）** | 七块：买家决策、客户字段规则、客户名册、商品规则、商品存储、导入归一、**供应商过账档案 + 导入端点**（见 `masters-supplier-posting.md`）。剩四项等用户定（第四节 P1） |
+| `boards` | 不迁 | 用户指示 |
+
+导出/工作簿一并交付：`reconciliation/export/**`、`stocktake` 导出、roundtrip 导出。
+
+### 四、剩下的活（按**块**给，别再一次只做一点点）
+
+#### P1 四项待用户定方向（归属已核对完，见 `masters-attribution.md`）
+
+1. **重复发票检测**（旧侧 `settings_routes.py` 的 2 个端点 + `users.dup_check_enabled` + 识别落库前查库记警告）：
+   属 Cowork 的识别线。本仓缺**偏好存储**与**记录上的警告位**，要迁就得扩 history 的写入契约。
+2. **费用科目树 + 供应商→分类记忆**（旧侧 `routes/categories_routes.py` + `services/purchase/categories.py`
+   的树 + `supplier_categories` 记忆表）：属 Cowork 的识别线，但净化依赖采购域的树。
+   按"科目各产品自己维护一份"，Cowork 需要自己的两级费用科目树（含泰国预设）。
+3. **供应商主档**：本仓没有；旧侧供应商过账档案的列表读侧富化借采购域 `suppliers`。
+4. **M1 泰文注册名闸**：旧侧建/改账套主体时要求名称含泰文字符（税号读花时的方向锚兜底）。
+
+#### P2 一处跨域待决策（要用户点头才能动）
+
+**识别记录归属的改挂/解绑**：原生 history 域把记录的 `client` 定为不可变（`history/storage.py` 的
+`IMMUTABLE`，只许复核服务带令牌改）。因此第四十五批没搬旧侧两条写路径：`assign_invoice`（改挂归属）
+现在没有受认可的入口；`delete_client(cascade_unlink=True)` 现在**还有发票就拒绝并报数**。
+要恢复与旧侧一致，需在 history 复核契约上开口（属跨域决定）。
+
+#### P3 OCR 侧可选项（都不挡迁移，用户没点名可不动）
+
+一次真实付费模型调用冒烟、图片/Word 直读与 pdfplumber 器件、多文件合并（`merge_statements`/`merge_gl_files`）、
+`needs_mapping` 模板学习层、银行任务的文档态流程件（确认列对应/重跑/复核动作）。
+
+#### P4 合并债与最终上线顺序（等用户授权）
+
+四处合并债（清单与对应表在 `docs/work/2026-09-21-shared-files-split.md` 末尾）：
+① 共用菜单表 → 已拆到各产品 `hooks.py` 的 `pearnly_navigation`，**ERP 菜单要以 main 那版为准**；
+② 共用词库 + 四份翻译包 → 合并后**重跑 `scripts/i18n-build.py`**；③ 推送台账归 DMS + `line.py` 改发钩子；
+④ `main` 上仍带 Cowork 的 `boards` 菜单项 → 合并**必须保留删除**。
+顺序（用户已定）：另一窗口可以先部署；**最后一次部署必须在合并之后**；生产镜像从本仓那次提交构建。
+
+#### P5 词库欠账（本批新登记）
+
+第四十五/四十七/四十九批新增的服务层英文 `_()` 文案还没进 `pearnly_cowork/i18n/messages.tsv`
+（`i18n-build --check` 只证明术语表自身一致）。建议合并前做一次四语补录；**注意 `messages.tsv` 是
+另一窗口正在写的文件**，要动先跟他们错开。
+
+### 五、新窗口的开工程序（照抄即可，`<第 N 批>` 自己填）
+
+```sh
+cd /Users/skin/.codex/worktrees/cowork-backend-migration/pearnly
+git log -1 --format=%H            # 记下开始 SHA
+git status --short                # 应当干净；有残留先弄清归属
+
+# 1) 开工采集线上来源（必须；采集不到就不算交付）
+python3 scripts/cowork-migration-baseline.py collect-readonly \
+  --project pearnly --region asia-southeast1 --services pearnly-web pearnly-worker \
+  --source-repo /Users/skin/Developer/Pearnly/pearnly-app --ledger-ref origin/master \
+  --github-repo skin306152-star/pearnly-app --run-id 35321281376 \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-start.json
+
+# 2) 起隔离 lab（Docker context colima-pearnly；不要动别的 compose project）
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml up -d
+
+# 3) bench 用例（改到哪个族就跑到哪个族；不要全跑）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python -m unittest test_cowork_<族>"
+
+# 4) 固定源差分（容器看不到主机 /tmp，必须用 --source-stdin + JSON 管道）
+python3 - <<'PY' | docker --context colima-pearnly exec -i -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python test_cowork_<族>_source_parity.py --source-stdin"
+import json, pathlib
+root = pathlib.Path("/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b")
+paths = ["services/<固定源文件>.py"]
+print(json.dumps({p: (root / p).read_text() for p in paths}))
+PY
+
+# 5) 静态检查（每个交付都要跑）
+python3 scripts/check-architecture.py
+python3 scripts/i18n-build.py --check
+python3 scripts/check-i18n.py
+git diff --check
+
+# 6) 隔离 Site 端到端（改到存储/RPC 时必须跑；Site 名在脚本常量里）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  -e PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench/sites && /home/frappe/frappe-bench/env/bin/python /workspace/scripts/<验证脚本>"
+# 新增 DocType 后先 migrate：
+docker --context colima-pearnly exec pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench && bench --site cowork-backend-ack.localhost migrate"
+
+# 7) 交付采集 + 比较（before 用上一批交付快照，绑 SHA256）
+python3 scripts/cowork-migration-baseline.py collect-readonly ... \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-delivery.json
+python3 scripts/cowork-migration-baseline.py compare <上一批>-delivery.json <本批>-delivery.json
+/Users/skin/Developer/Pearnly/pearnly-app/venv/bin/python scripts/cowork-push-runtime-baseline.py \
+  collect-readonly --baseline <本批>-delivery.json --output push-runtime-<第 N 批>-delivery.json
+python3 scripts/cowork-push-runtime-baseline.py compare <上一批>-runtime.json <本批>-runtime.json
+
+# 8) 收尾：写批次记录 + 证据 JSON + 本文档顶部一节 → 提交 → 停 lab
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml stop
+```
+
+**每批必须产出**（缺一项就不算交付）：`docs/work/cowork-backend/<族>-<主题>.md`
+（来源/落点/有意差异/验证表/未做）+ `docs/work/cowork-backend/evidence/<第 N 批>-local-validation.json`
++ 本文档顶部一节 + 更新 `feature-status.md` 的对应行。
+
+**lab 的两个坑**：① 容器看不到主机 `/tmp`，固定源必须用 `--source-stdin` 管道；
+② 多轮脚本会把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`，清理方式是删 lab Redis 的 `rq:*`。
+
+### 六、用户的沟通偏好（影响交付节奏）
+
+- 中文，**先说结果**；"说人话"、不要技术门槛堆砌。
+- **不喜欢一批只做一点点**：能在一个窗口内连着做完的大块就一次做完。
+- 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
+- 不确定就说不确定；不要用"看起来接上了"糊过去。
+- 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+## 换窗口交接（2026-09-22，第四十九批交付：主数据第七块——供应商过账档案 + 导入端点 + 归属核对）
+
+第四十九批从 `22b18d7` 开工，先把主数据最后两条旧路由的**归属**逐条核对完（只读），再把确属 Cowork
+的部分补上。详细批次记录见 [masters-supplier-posting](cowork-backend/masters-supplier-posting.md) 与
+[masters-attribution](cowork-backend/masters-attribution.md)。
+
+### 本批结果
+
+- 新增 `masters/field_clean.py`（旧侧两个共用清洗函数只留一份）、`masters/supplier_posting.py`
+  （值域、税号、部分更新、`user_rule` 不被纠错覆盖、幂等清效果）；`masters/push_inputs.py` 改走纯模块
+  并新增列表/清效果；`masters/clients.py` 加同公司税号查重与导入三态编排；`masters/api.py` 加 5 个 RPC。
+- 归属结论：供应商过账档案 = Cowork（本批补完）；`/api/categories` 与重复检测开关 = Cowork 的**识别线**
+  （本仓缺件，等用户定）；归档设置 3 端点、税务画像族 = **登记不迁**。
+- 验证：开工/交付线上来源采集均 PASS 且与上一批一致；主数据族离线 **79** 个通过；供应商档案固定源差分
+  **0** 差异（旧 SQL 捕获后在 SQLite 真跑，80 例）；隔离 Site **22** 条通过；新老 RPC 匿名 HTTP **14/14 = 403**；
+  架构 0 违规、`i18n-build --check` PASS、`git diff --check` 干净。
+- 未做：供应商主档、设置与分类（等决定）、前端、部署、推送、合并、用户验收。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**；lab 容器本批启动用于 bench/差分/隔离 Site 验证，收尾已停止；
+  卷与 Site 保留给下包；`/tmp/pearnly-cowork-migration-20260920/` 的固定副本迁移结束前不删。
+- 另一窗口的 ERP 前端改动（主工作树 `/Users/skin/pearnly`）本批**一行未碰**。
+
+## 换窗口总交接（2026-09-22，第四十八批版 · 已被上一节取代）
 
 本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，下面各批记录只在需要细节时查。
 

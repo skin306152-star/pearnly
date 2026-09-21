@@ -1,0 +1,116 @@
+{
+ "base_commit": "22b18d7",
+ "scope": "forty-ninth batch: the seventh master-data slice — the supplier posting profile rules with their read/list/clear RPCs, the client-roster import endpoint (three states over the roster service), and the read-only attribution review of the four remaining legacy routes",
+ "live_source": {
+  "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+  "start_sha256": "5d830313cc408b4f2e654cde0a5d59048e513c4b38e5571f796ff8746092426f",
+  "start_capture_note": "a real start capture this batch: source identity collected before any edit and equal to the fixed read-only copy",
+  "delivery_sha256": "093788980de356e004255141175e8d41dc0aea112ca57b858ae24a816c46b922",
+  "delivery_captured_at": "2026-09-21T18:45:18.245786+00:00",
+  "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-eighth-delivery.json baseline-forty-ninth-delivery.json (before pinned at 8e9bec08, after pinned at 09378898)",
+  "source_compare": "PASS",
+  "runtime_projection_delivery_sha256": "49783bcf1ea56629ebbe8dcc5a2ef7338968f9022e40ee24de4601911556b8cb",
+  "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+  "runtime_config_import": "HOLD",
+  "fixed_source_hashes": {
+   "services/purchase/field_clean.py": "43912e65fcce3afa53fa4f7cdfd2d57afc02ff5556c5e17a6d76c2d030bdbed8",
+   "services/ocr_history/posting_manual.py": "35883a492ca1f9dd14d69a47f5456ae5ea8e8f2bbf2ac4d346a86b8e392e27c5",
+   "services/purchase/supplier_posting.py": "a121f3cacbacaaf1c043ff7b8bd464ec6f0e1e4e7bf333d916b7d3c066bd4b58",
+   "routes/supplier_posting_routes.py": "210dfe2733015e9f6bd63551532c8dc1523c6d3bed86c643b9ae20a5ec84ebde",
+   "services/workspace/store.py (tax_id_in_use, read-only)": "pinned through the source tree, not re-hashed here"
+  },
+  "source_note": "field_clean.clean_tax_id/clean_branch_no were sharded into masters/field_clean.py and the two consumers import the shard; the batch-48 differential was re-run against the same pinned file to prove the shard did not drift"
+ },
+ "checks": [
+  {
+   "command": "docker exec ... python -m unittest test_cowork_supplier_posting",
+   "result": "PASS",
+   "tests": 14,
+   "new_tests": 14,
+   "covers": [
+    "the two value domains accept only cash/credit and goods/expense, treat None as 'leave it alone', and tell the user-facing entry (which refuses an empty string) from the internal correction route (which may write one)",
+    "the profile anchor is the deployed Thai tax id: exactly thirteen digits after stripping anything that is not a digit, otherwise empty",
+    "merge: a first profile takes the given values and blanks for the rest, a given field is written while a missing one is left alone, a user_rule is never overwritten by a correction (the whole row, source included, stays), and a user_rule may overwrite anything",
+    "only a non-empty default has an effect, and clearing writes both fields empty"
+   ]
+  },
+  {
+   "command": "python test_cowork_supplier_posting_source_parity.py --source-stdin (pinned sources piped in)",
+   "result": "PASS",
+   "differences": 0,
+   "counts": {
+    "domains": 20,
+    "tax": 10,
+    "cases": 80,
+    "preserved": 16,
+    "created": 16,
+    "empty_tax": 3
+   },
+   "note": "the two value domains are read from the pinned posting_manual.py and compared value by value; the anchor is compared against the pinned field_clean.clean_tax_id; and the pinned upsert_profile statement is captured from a stub cursor, translated (%s to ?, now() to CURRENT_TIMESTAMP) and executed in SQLite over 80 (existing, incoming, source) cases, each compared field by field against the ported merge rule. An empty anchor issues no statement on the deployed side and cleans to empty here."
+  },
+  {
+   "command": "docker exec ... python test_cowork_client_import_source_parity.py / test_cowork_client_records_source_parity.py / test_cowork_buyer_resolve_source_parity.py --source-stdin",
+   "result": "PASS",
+   "differences": 0,
+   "note": "the three earlier master-data differentials re-run against the same pinned sources after the field_clean shard: 0 differences each"
+  },
+  {
+   "command": "docker exec ... python -m unittest test_cowork_client_import test_cowork_client_records test_cowork_buyer_resolve test_cowork_supplier_posting test_cowork_product_units",
+   "result": "PASS",
+   "tests": 79,
+   "note": "the master-data family's pure modules together"
+  },
+  {
+   "command": "docker exec -e PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost python /workspace/scripts/cowork-masters-lab-verify.py",
+   "result": "PASS",
+   "tests": 22,
+   "new_tests": 9,
+   "covers": [
+    "a supplier profile saved in two parts: the field that was given changes, the one left out keeps its value, and the anchor comes back cleaned",
+    "the user entry refuses an empty value, an unknown value and a malformed tax id, and writes nothing",
+    "a learned correction cannot overwrite a user rule (and can still fill a tax id it owns)",
+    "removing a profile clears its effect, keeps the auditable row, and is an idempotent no-op afterwards (unknown tax id and blank tax id included)",
+    "supplier profiles follow the feature, the role (read-only may list, may not write) and the company",
+    "the import preview reports valid/error/error/valid/skip and writes nothing",
+    "the import commit creates, skips the duplicate inside the same batch, maps phone to contact_phone, and re-running it lands every existing row in skip",
+    "a duplicate tax id is refused by the single create and by the update (exclude-self still allowed), and clearing a tax id stays allowed",
+    "import permissions follow the feature and the company"
+   ],
+   "anonymous_http": {
+    "endpoints": 14,
+    "non_403": 0
+   }
+  },
+  {
+   "command": "python3 scripts/check-architecture.py",
+   "result": "PASS",
+   "violations": 0
+  },
+  {
+   "command": "python3 scripts/i18n-build.py --check",
+   "result": "PASS",
+   "note": "the terminology table is self-consistent; it does not prove the new service-layer strings have translations (recorded as a cross-batch glossary debt)"
+  },
+  {
+   "command": "python3 scripts/check-i18n.py",
+   "result": "REPORT-ONLY"
+  },
+  {
+   "command": "git diff --check",
+   "result": "PASS"
+  }
+ ],
+ "intentional_differences": [
+  "removing a supplier profile clears its two defaults and keeps the auditable native row (the deployed delete dropped the row): native push inputs are auditable and refuse on_trash, and the read side ends up identical because a row with no effect leaves the profile list and the push verdict without a profile",
+  "the profile list does not carry supplier_name: the deployed read-side enrichment joins the purchase domain's suppliers master, which this repository does not have",
+  "tax-id uniqueness compares digit-normalised values on both sides (the deployed check compared the stored string): the thirteen digits are the client's identity for buyer matching and ERP reconciliation, so the same number written differently must not create a second client. This also applies to the single create and update, as it did in the deployed subject create/update",
+  "the import rows map phone to the native contact_phone, branch/address/tax_id keep their names",
+  "the import parse endpoint (xlsx/csv to headers and rows) is still not ported: parsing is a device, and the endpoint only takes rows",
+  "the deployed preview reports a duplicate inside the same batch as valid (the first row is not in the database yet) and the commit lands it in skip: the native preview keeps that behaviour",
+  "comments and docstrings were rewritten; every value domain, the thirteen-digit rule, the partial-update semantics, the source precedence and the three import error codes are the deployed ones"
+ ],
+ "not_run": [
+  "the supplier master (the deployed read-side name enrichment has no native source yet), duplicate-invoice detection, the expense category tree and the supplier-to-category memory, the M1 Thai-name gate (all four have an attribution conclusion and await a product decision), the frontend, deployment, push, merge and user acceptance"
+ ],
+ "evidence": "docs/work/cowork-backend/masters-supplier-posting.md and docs/work/cowork-backend/masters-attribution.md"
+}
