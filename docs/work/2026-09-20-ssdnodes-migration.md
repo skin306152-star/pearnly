@@ -550,3 +550,23 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 下一步若还要更快，只有两条路（需用户拍板，未做）：
 （a）在一次编辑会话内**复用**一个已登录的 DMS 会话（会触碰"退出即登出"的铁律，要有租约与上限）；
 （b）把 `run_logged_in` 里多出来的约 2s 收掉（先定位是哪一段）。
+
+## 2026-09-21 本机收尾（DMS 残留清理）
+
+用户要求把 DMS 残留、工作树、本机容器（除管理后台）全部释放。实际执行：
+
+- **删除（DMS 残留）**：`pearnly-dms-line-lab-*` 12 个容器 + 19 个卷 + `pearnly-dms-line-lab_default` 网络 +
+  `~/.config/pearnly-dms-line-lab` + 悬空 keycloak 镜像（756MB）。
+  **注意**：lab 用的镜像与管理后台是同一张（`pearnly/frappe-sample:16.34.1` = `90c1d545d215`），已核对引用后保留。
+- **工作树**：`codex/dms-line-diagnosis`（323M）与 `codex/ssdnodes-migration`（18M）**先确认已并入 main** 再 `git worktree remove`；
+  `codex/cowork-backend-migration`（未并入、有未提交改动）与 `codex/auth-flow-fixes`（另一窗口）保留。
+- **停掉+删掉的其它 lab**：`pearnly-auth-preview-*` 7 个、`pearnly-cowork-backend-lab-*` 3 个（含数据卷）。
+- **备份**：`~/.config/pearnly-migration` 14GB（9-05 的 mirror/legacy tar/venv + 9-18 的 sql）按用户要求删除并清空废纸篓。
+  `~/.config/pearnly/backups`（2.8M，控制面自己写的备份）保留。
+- **Colima VM**：内存 12GiB → **6GiB**（`colima stop && colima start --memory 6`）。管理后台在其中，
+  重启后需手动起 `pearnly-sample-mariadb-1` 与两个 redis（三个都是 `restart: no`；其余 6 个是 `unless-stopped` 会自启）。
+  实测：VM 常驻内存 **21.7GB → 3.0GB**，VM 内用量 0.9GB/6GiB；控制面真查库通过；`runner_bridge` 探针返回 `[]`（开户链路正常）。
+- **保留运行**：管理后台 9 个容器、`com.pearnly.production-provisioner` / `provision-runner`（开户要用）、
+  `com.pearnly.production-tunnel`（KeepAlive，现监听 127.0.0.1:18180/18184；日志里的连接失败/退出码 255 都是主机迁移与本次重启窗口内的旧记录）。
+- 顺带发现：本机 **没有** 残留的 Playwright/Chrome 僵尸进程；`~/.Trash` 受 macOS TCC 保护，
+  只能通过 Finder 清空（已用 `osascript` 清空，Finder 回报 0 项）。
