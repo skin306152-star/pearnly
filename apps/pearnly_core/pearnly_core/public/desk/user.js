@@ -58,6 +58,8 @@ frappe.ui.form.on("User", {
         frm.$wrapper.addClass("pearnly-account-profile");
         frm.page.clear_menu();
         frm.page.sidebar.hide();
+        // 修剪完了才让这一屏显示（product.css 先把它藏着，避免闪出未剪裁的原生界面）。
+        frappe.pearnly.mark_profile_ready?.();
         frm.dashboard.hide();
         frm.page.clear_icons();
         frappe.pearnly.add_refresh(frm.page, () => frm.reload_doc());

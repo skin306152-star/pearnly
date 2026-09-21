@@ -199,7 +199,46 @@ frappe.provide("frappe.pearnly");
 				},
 				true,
 			);
+			// iOS 会把第一次点击当成 hover 用掉（先出现灰底、第二下才跳），侧栏项因此
+			// "要点两下"。触摸设备上让**第一下就跳**：自己拿走这一次触摸并阻止随后那次
+			// 合成 click，避免跳两次。
+			document.addEventListener(
+				"touchend",
+				(event) => {
+					if (!is_mobile() || !window.matchMedia?.("(hover: none)")?.matches) return;
+					const target = event.target;
+					if (!target || typeof target.closest !== "function") return;
+					const item = target.closest(".body-sidebar .standard-sidebar-item");
+					const link = item && item.querySelector("a[href]");
+					if (!link) return;
+					const path = link.pathname || "";
+					if (!path) return;
+					event.preventDefault();
+					close_mobile_sidebar();
+					frappe.set_route(path);
+				},
+				{ passive: false },
+			);
 		}
+		// 个人资料页的"先隐藏、修剪完再显示"（见 product.css）：路由进到 User 表单时
+		// 重新上闸，`user.js` 修剪完会调 `mark_profile_ready`；JS 没跑就由看门狗兜底。
+		let profile_guard = null;
+		frappe.pearnly.mark_profile_ready = () => {
+			if (profile_guard) {
+				window.clearTimeout(profile_guard);
+				profile_guard = null;
+			}
+			document.body.classList.add("pearnly-profile-ready");
+		};
+		const arm_profile_guard = () => {
+			document.body.classList.remove("pearnly-profile-ready");
+			if (profile_guard) window.clearTimeout(profile_guard);
+			profile_guard = window.setTimeout(frappe.pearnly.mark_profile_ready, 5000);
+		};
+		frappe.router?.on?.("change", () => {
+			if (frappe.get_route_str?.() === "user") arm_profile_guard();
+		});
+		if (frappe.get_route_str?.() === "user") arm_profile_guard();
 		// app_ready fires inside Application construction, before frappe.app is assigned.
 		frappe.Application.prototype.logout = async () => {
 			const t = await p.texts("account.");

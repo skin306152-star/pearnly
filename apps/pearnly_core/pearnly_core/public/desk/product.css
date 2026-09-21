@@ -108,3 +108,33 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 .pearnly-product-desk .pearnly-sidebar-order [data-name="add-sidebar-item"] {
 	display: none !important;
 }
+
+/* 触摸设备上 iOS 会把"第一次点击"当成 hover 用掉（先出现灰底、再点一次才触发）——
+   侧栏项、左上角公司名都是这样（用户 2026-09-21 报障）。
+   这里只做两件事：关掉双击缩放对点击的介入，并在触摸设备上中和掉那层 hover 底色
+   （行为仍归原生控件，样式只覆盖颜色）。 */
+body.pearnly-product-desk .body-sidebar .standard-sidebar-item,
+body.pearnly-product-desk .sidebar-header,
+body.pearnly-product-desk .dropdown-navbar-user,
+body.pearnly-product-desk .page-title .sidebar-toggle-btn {
+	touch-action: manipulation;
+}
+
+@media (hover: none) {
+	body.pearnly-product-desk .body-sidebar .standard-sidebar-item:hover,
+	body.pearnly-product-desk .body-sidebar .standard-sidebar-item.hover,
+	body.pearnly-product-desk .sidebar-header:hover,
+	body.pearnly-product-desk .sidebar-header.hover {
+		background-color: transparent;
+	}
+}
+
+/* 个人资料页：原生那一屏先不画，等 `user.js` 修剪完再显示 —— 否则会先闪出
+   未剪裁的官方界面（用户 2026-09-21 报障）。JS 没跑到时有看门狗兜底显示。 */
+body.pearnly-product-desk[data-route="user"] .layout-main-section {
+	visibility: hidden;
+}
+
+body.pearnly-product-desk[data-route="user"].pearnly-profile-ready .layout-main-section {
+	visibility: visible;
+}
