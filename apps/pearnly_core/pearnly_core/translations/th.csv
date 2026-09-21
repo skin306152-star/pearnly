@@ -690,6 +690,7 @@ purchase.field.supplier,ผู้ขาย
 purchase.hint.serverTotal,ระบบคำนวณยอดรวมอัตโนมัติ
 purchase.loading,กำลังโหลด…
 purchase.notice.created,สร้างใบซื้อแล้ว: {0}
+purchase.notice.totals,{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}
 purchase.placeholder.description,ชื่อสินค้า / คำอธิบาย
 purchase.placeholder.docNo,เว้นว่างได้
 purchase.placeholder.qty,จำนวน

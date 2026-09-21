@@ -182,6 +182,7 @@ stock.count.system,{0}: ในระบบมี {1} {2}
 stock.count.template,เทมเพลตตรวจนับ
 stock.count.title,ตรวจนับ — {0}
 stock.count.void,ยกเลิก
+stock.count.voidConfirm,ยกเลิกรายการนับ {0} นี้?
 stock.count.voidPick,เลือกรายการที่จะยกเลิก
 stock.count.warehouseHint,เว้นว่างไว้จะใช้คลังเริ่มต้น
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด

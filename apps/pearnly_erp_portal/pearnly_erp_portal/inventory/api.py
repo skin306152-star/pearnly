@@ -437,6 +437,11 @@ def api_stock_count_entries(**kwargs):
 
 
 @frappe.whitelist()
+def api_stock_count_entry_total(**kwargs):
+    return counts.entries_total(**_clean(kwargs))
+
+
+@frappe.whitelist()
 def api_stock_count_photos(**kwargs):
     kwargs = _clean(kwargs)
     return counts.entry_photos(kwargs.get("entry"))

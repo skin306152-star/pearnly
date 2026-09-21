@@ -633,6 +633,15 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
     )
 
 
+def entries_total(*, count, item=None) -> int:
+    """记录的条数（列表分页要用）。"""
+    guard.require("stock.read")
+    filters = {"count": count}
+    if item:
+        filters["item"] = item
+    return frappe.db.count(ENTRY, filters)
+
+
 def entry_photos(entry: str) -> list[dict]:
     guard.require("stock.read")
     return frappe.get_list("File", filters={"attached_to_doctype": ENTRY,

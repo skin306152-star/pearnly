@@ -690,6 +690,7 @@ purchase.field.supplier,仕入先
 purchase.hint.serverTotal,合計金額は自動計算されます。
 purchase.loading,読み込み中…
 purchase.notice.created,伝票を作成しました：{0}
+purchase.notice.totals,{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}
 purchase.placeholder.description,品名・摘要
 purchase.placeholder.docNo,空欄可
 purchase.placeholder.qty,数量

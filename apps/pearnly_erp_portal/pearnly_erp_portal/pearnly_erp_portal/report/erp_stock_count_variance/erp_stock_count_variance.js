@@ -87,8 +87,17 @@ frappe.query_reports["ERP Stock Count Variance"] = {
 
 	// 报表页默认把产品侧栏换成框架那条图标轨，这里**强制**换回我们的侧栏
 	// （`restore_sidebar` 同名时会短路，这里就是那种情况），免得点进来像换了个产品。
-	onload() {
+	// 顺手把框架给"平台管理员"的那几项摘掉（改报表定义、打印/PDF、自动邮件、
+	// 报表生成器加列、用户权限）—— 产品里没有这些位置，租户不该看到按钮。
+	onload(report) {
 		const title = frappe.boot.pearnly_sidebar;
 		if (title) frappe.app.sidebar.setup(title);
+		const drop = [__("Edit"), __("Print"), __("PDF"), __("Setup Auto Email"),
+			__("Add Column"), __("User Permission")];
+		(report?.page?.wrapper || $(".page-query-report"))
+			.find(".menu-btn-group li").each(function () {
+				const label = $(this).find(".menu-item-label").text().trim();
+				if (drop.includes(label)) $(this).remove();
+			});
 	},
 };

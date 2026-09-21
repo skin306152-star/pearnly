@@ -1,55 +1,45 @@
 (() => {
 	const p = frappe.pearnly;
+	// 采购记录是**一列单据**：用原生列表（与商品/库存/盘点同一个渲染器、同一套分页），
+	// 四个汇总数放页面指示器，不再自绘"卡片 + 表格"。
 	p.purchase = async (page, t) => {
 		const api = "pearnly_erp_portal.purchase.";
-		let table;
+		let list;
+
 		async function refresh() {
-			const [rows, sum] = await Promise.all([
-				p.call(api + "api_list_purchases", { limit: 50 }),
-				p.call(api + "api_summary"),
-			]);
-			table?.destroy();
-			page.main.empty();
-			const fields = [];
-			for (const [name, key] of [
-				["count", "purchase.card.count"],
-				["grand_total", "purchase.col.grandTotal"],
-				["net_payable", "purchase.card.netPayable"],
-				["outstanding", "purchase.card.outstanding"],
-			]) {
-				if (fields.length) fields.push({ fieldtype: "Column Break" });
-				fields.push({
-					fieldtype: "Data",
-					fieldname: name,
-					label: t(key),
-					read_only: 1,
-					default: name === "count" ? sum[name] : p.money(sum[name]),
-				});
-			}
-			fields.push({ fieldtype: "Section Break" }, { fieldtype: "HTML", fieldname: "rows" });
-			const form = p.layout(page.main, fields);
-			table = await p.table(
-				form.fields_dict.rows.$wrapper,
-				[
-					t("purchase.col.name"),
-					t("purchase.field.supplier"),
-					t("purchase.field.docNo"),
-					t("purchase.col.date"),
-					t("purchase.col.status"),
-					t("purchase.col.grandTotal"),
-					t("purchase.card.netPayable"),
-				],
-				rows.map((r) => [
-					r.name,
-					r.supplier_name,
-					r.doc_no,
-					r.doc_date,
-					__(r.status),
-					p.money(r.grand_total, r.currency),
-					p.money(r.net_payable, r.currency),
-				]),
+			await list?.reload();
+			const sum = await p.call(api + "api_summary");
+			// 服务端的金额是字符串（Decimal 转出来的），判断要用 Number，别拿字符串当布尔。
+			page.set_indicator(
+				t("purchase.notice.totals", sum.count, p.money(sum.grand_total),
+					p.money(sum.net_payable), p.money(sum.outstanding)),
+				Number(sum.outstanding) ? "orange" : "green",
 			);
 		}
+
+		list = p.list({
+			page,
+			doctype: "Purchase Document",
+			load: async ({ start, page_length }) => {
+				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
+				const [items, total] = await Promise.all([
+					p.call(api + "api_list_purchases", { start, limit: page_length }),
+					p.call(api + "api_purchase_total", {}),
+				]);
+				return { items, total };
+			},
+			columns: [
+				{ fieldname: "supplier_name", label: t("purchase.field.supplier") },
+				{ fieldname: "doc_no", label: t("purchase.field.docNo") },
+				{ fieldname: "doc_date", label: t("purchase.col.date") },
+				{ fieldname: "status", label: t("purchase.col.status"),
+					format: (value) => __(value) },
+				{ fieldname: "grand_total", label: t("purchase.col.grandTotal"),
+					format: (value, row) => p.money(value, row.currency) },
+				{ fieldname: "net_payable", label: t("purchase.card.netPayable"),
+					format: (value, row) => p.money(value, row.currency) },
+			],
+		});
 		if (frappe.model.can_create("Purchase Document")) page.set_primary_action(t("purchase.action.new"), () => {
 			const d = p.dialog(
 				t("purchase.action.new"),
@@ -137,6 +127,7 @@
 			d.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		});
 		p.add_refresh(page, refresh);
+		await list.ready;
 		await refresh();
 	};
 })();

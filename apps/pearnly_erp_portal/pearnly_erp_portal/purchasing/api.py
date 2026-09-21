@@ -32,6 +32,11 @@ def api_list_purchases(**kwargs):
 
 
 @frappe.whitelist()
+def api_purchase_total(**kwargs):
+    return service.purchase_total(**_clean(kwargs))
+
+
+@frappe.whitelist()
 def api_get_purchase(**kwargs):
     kwargs = _clean(kwargs)
     return service.get_purchase(kwargs.get("name"))

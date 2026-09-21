@@ -182,6 +182,7 @@ stock.count.system,{0}：システム上 {1} {2}
 stock.count.template,棚卸テンプレート
 stock.count.title,棚卸 — {0}
 stock.count.void,取消
+stock.count.voidConfirm,この {0} の記録を取り消しますか？
 stock.count.voidPick,取消する記録を選択
 stock.count.warehouseHint,空欄なら既定の倉庫を使います
 stock.field.search,名前・バーコードで検索

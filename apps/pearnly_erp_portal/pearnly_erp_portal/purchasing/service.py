@@ -147,9 +147,9 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     return {"name": doc.name}
 
 
-def list_purchases(*, supplier=None, supplier_name=None, status=None, kind=None,
-                   unpaid=False, q=None, date_from=None, date_to=None, limit=50):
-    guard.require("purchase.read")
+def _purchase_query(*, supplier=None, supplier_name=None, status=None, kind=None,
+                    unpaid=False, q=None, date_from=None, date_to=None):
+    """筛选条件只写一处：列表、合计、导出都从这里来，免得三处各写一套。"""
     filters: dict = dict(guard.scope_filters())
     if supplier:
         filters["supplier"] = supplier
@@ -170,10 +170,42 @@ def list_purchases(*, supplier=None, supplier_name=None, status=None, kind=None,
     or_filters = None
     if q:
         or_filters = [["doc_no", "like", f"%{q}%"], ["supplier_name", "like", f"%{q}%"]]
+    return filters, or_filters
+
+
+def list_purchases(*, supplier=None, supplier_name=None, status=None, kind=None, unpaid=False,
+                   q=None, date_from=None, date_to=None, limit=50, start=0):
+    """采购记录一页。`limit=0` 是"全部"（导出用），不是"五十条"。
+
+    `list_purchases` 原来只有 `limit`，页面又是自绘表格 —— 换成原生列表后要分页，
+    所以补上 `start`；总数由 `purchase_total` 给。
+    """
+    guard.require("purchase.read")
+    filters, or_filters = _purchase_query(
+        supplier=supplier, supplier_name=supplier_name, status=status, kind=kind,
+        unpaid=unpaid, q=q, date_from=date_from, date_to=date_to)
     return frappe.get_list(
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
-        order_by="doc_date desc, creation desc", limit_page_length=int(limit),
+        order_by="doc_date desc, creation desc",
+        limit_start=int(start or 0), limit_page_length=_size(limit),
     )
+
+
+def purchase_total(*, supplier=None, supplier_name=None, status=None, kind=None, unpaid=False,
+                   q=None, date_from=None, date_to=None) -> int:
+    guard.require("purchase.read")
+    filters, or_filters = _purchase_query(
+        supplier=supplier, supplier_name=supplier_name, status=status, kind=kind,
+        unpaid=unpaid, q=q, date_from=date_from, date_to=date_to)
+    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters, pluck="name",
+                               limit_page_length=0))
+
+
+def _size(limit):
+    """与盘点那边同一条：`0` / 空 = 不截断（分页只管第一页）。"""
+    if limit in (None, "", 0, "0"):
+        return None
+    return max(0, int(limit))
 
 
 def get_purchase(name):

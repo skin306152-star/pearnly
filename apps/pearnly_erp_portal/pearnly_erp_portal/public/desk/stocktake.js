@@ -33,26 +33,37 @@
 		function clear() {
 			list?.destroy();
 			list = null;
+			// 页面上的筛选字段是"加进去就一直留着"的：换一态要自己撤掉，
+			// 否则上一态的字段跟着走（状态/搜索/筛选会叠在一起）。
+			page.clear_fields();
+			page.fields_dict = {};
 			page.clear_inner_toolbar();
 			page.clear_primary_action();
 		}
 
 		// 二级界面用**原生面包屑**（首页 / 盘点 / 任务名），不再放"返回"按钮。
 		// 形状与框架自己给 Page 加的那条一致（`views/pageview.js`），只是多一层。
-		function set_breadcrumb(task) {
+		function set_breadcrumb(trail) {
 			frappe.breadcrumbs.add({
 				type: "Custom",
 				label: __("nav.stockCount"),
 				route: frappe.get_route_str(),
 			});
-			if (!task) return;
-			frappe.breadcrumbs.$breadcrumbs.find("li a").last()
-				.attr("href", "#")
-				.on("click", (event) => {
-					event.preventDefault();
-					open_list();
-				});
-			frappe.breadcrumbs.append_breadcrumb_element("", p.escape(task.title));
+			const first = frappe.breadcrumbs.$breadcrumbs.find("li a").last();
+			first.attr("href", "#").on("click", (event) => {
+				event.preventDefault();
+				open_list();
+			});
+			for (const step of trail || []) {
+				frappe.breadcrumbs.append_breadcrumb_element("", p.escape(step.label));
+				if (!step.on_click) continue;
+				frappe.breadcrumbs.$breadcrumbs.find("li a").last()
+					.attr("href", "#")
+					.on("click", (event) => {
+						event.preventDefault();
+						step.on_click();
+					});
+			}
 		}
 
 		// ── 列表态 ────────────────────────────────────────────────────────────
@@ -60,7 +71,7 @@
 			mode = "list";
 			count = null;
 			clear();
-			set_breadcrumb(null);
+			set_breadcrumb([]);
 			const status = page.add_field({
 				fieldtype: "Select",
 				fieldname: "status",
@@ -335,7 +346,7 @@
 					task.difference_total),
 				task.status === "Posted" ? "green" : (task.status === "Closed" ? "blue" : "orange"),
 			);
-			set_breadcrumb(task);
+			set_breadcrumb([{ label: task.title }]);
 			void list.ready;
 		}
 
@@ -417,61 +428,69 @@
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		}
 
+		// 一份盘点的记录：**第三级页面 + 原生列表**。
+		// 为什么不做成对话框：框架自己写了 `.modal .hidden-xs { display: none !important }`
+		// （对话框在它眼里就是"小屏"），列表塞进去只剩第一列。记录是清单，用列表。
 		async function open_entries(row) {
-			const entries = await p.call(api + "api_stock_count_entries",
-				{ count, item: row.name, limit: 100 });
-			const live = entries.filter((entry) => !Number(entry.voided));
-			const labels = live.map((entry) => t("stock.count.entryOption",
-				qty(entry.qty), entry.counted_by || "", entry.counted_at || ""));
-			const dialog = p.dialog(
-				t("stock.count.entriesTitle", row.product_name),
-				[
-					{ fieldtype: "HTML", fieldname: "entries" },
-					...(live.length ? [
-						{ fieldtype: "Select", fieldname: "entry",
-							label: t("stock.count.voidPick"), options: labels.join("\n") },
-						{ fieldtype: "Button", fieldname: "void", label: t("stock.count.void"),
-							click: () => void_entry() },
-					] : []),
+			mode = "entries";
+			clear();
+			const task = await p.call(api + "api_get_stock_count", { name: count });
+			set_breadcrumb([
+				{ label: task.title, on_click: () => open_detail(count) },
+				{ label: t("stock.count.entries") },
+			]);
+			page.set_indicator(t("stock.count.entriesTitle", row.product_name), "blue");
+			list = p.list({
+				page,
+				doctype: "ERP Stock Count Entry",
+				compact_columns: true,
+				row_actions: (entry) => (Number(entry.voided) ? [] : [{
+					id: "void",
+					label: t("stock.count.void"),
+					action: () => void_entry(entry),
+				}]),
+				load: async ({ start, page_length }) => {
+					const query = { count, item: row.name };
+					const [items, total] = await Promise.all([
+						p.call(api + "api_stock_count_entries",
+							{ ...query, start, limit: page_length }),
+						p.call(api + "api_stock_count_entry_total", query),
+					]);
+					return { items, total };
+				},
+				columns: [
+					{ fieldname: "qty", label: t("stock.count.qty"),
+						width: 100, min_width: 80, format: (value) => qty(value) },
+					{ fieldname: "location", label: t("stock.count.location"),
+						width: 100, min_width: 80,
+						format: (value) => value || t("stock.count.blank") },
+					{ fieldname: "note", label: t("stock.count.note"),
+						width: 200, min_width: 120,
+						format: (value) => value || "" },
+					{ fieldname: "counted_by", label: t("stock.count.countedBy"),
+						width: 180, min_width: 120 },
+					{ fieldname: "counted_at", label: t("stock.count.countedAt"),
+						width: 170, min_width: 120 },
+					{ fieldname: "voided", label: t("stock.col.status"),
+						width: 110, min_width: 80,
+						format: (value) => (value ? t("stock.count.entryVoided")
+							: t("stock.count.entryLive")) },
+					{ fieldname: "photo_total", label: t("stock.count.photos"),
+						width: 80, min_width: 60,
+						format: (value) => (value ? String(value) : "") },
 				],
-				__("Close"),
-				(_values, d) => d.hide(),
-			);
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-			const holder = dialog.get_field("entries").$wrapper;
-			if (!entries.length) {
-				holder.html(`<p class="text-muted">${p.escape(t("stock.count.noEntries"))}</p>`);
-				return;
-			}
-			// 原生 DataTable（与采购列表同一个渲染器），不自绘表格
-			void p.table(
-				holder,
-				[
-					t("stock.count.qty"),
-					t("stock.count.location"),
-					t("stock.count.countedBy"),
-					t("stock.count.countedAt"),
-					t("stock.col.status"),
-					t("stock.count.photos"),
-				],
-				entries.map((entry) => [
-					qty(entry.qty),
-					entry.location || "",
-					entry.counted_by || "",
-					entry.counted_at || "",
-					entry.voided ? t("stock.count.entryVoided") : t("stock.count.entryLive"),
-					entry.photo_total ? String(entry.photo_total) : "",
-				]),
-			);
+			});
+			page.add_inner_button(t("stock.action.reload"), () => void list?.reload());
+			void list.ready;
 
-			async function void_entry() {
-				const picked = live[labels.indexOf(dialog.get_value("entry"))];
-				if (!picked) return;
-				await p.call(api + "api_stock_count_edit_entry",
-					{ entry: picked.name, voided: 1 }, "POST");
-				dialog.hide();
-				p.success(t("stock.count.entryVoidedNotice"));
-				await list.reload();
+			function void_entry(entry) {
+				frappe.confirm(t("stock.count.voidConfirm", qty(entry.qty)),
+					async () => {
+						await p.call(api + "api_stock_count_edit_entry",
+							{ entry: entry.name, voided: 1 }, "POST");
+						p.success(t("stock.count.entryVoidedNotice"));
+						await list.reload();
+					});
 			}
 		}
 

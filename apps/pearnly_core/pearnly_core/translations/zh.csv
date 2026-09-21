@@ -690,6 +690,7 @@ purchase.field.supplier,供应商
 purchase.hint.serverTotal,合计金额自动计算。
 purchase.loading,加载中…
 purchase.notice.created,已建单：{0}
+purchase.notice.totals,{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
 purchase.placeholder.description,品名 / 说明
 purchase.placeholder.docNo,可留空
 purchase.placeholder.qty,数量

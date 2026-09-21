@@ -943,6 +943,7 @@ pearnly_core	Total incl. VAT	价税合计	รวมภาษี	税込合計	pur
 pearnly_core	External document no.	外部单据号	เลขที่เอกสารภายนอก	外部伝票番号	purchase.field.docNo
 pearnly_core	Document date	单据日期	วันที่เอกสาร	伝票日付	purchase.field.docDate
 pearnly_core	Optional	可留空	เว้นว่างได้	空欄可	purchase.placeholder.docNo
+pearnly_core	{0} records · grand total {1} · payable {2} · outstanding {3}	{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}	{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}	{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}	purchase.notice.totals
 pearnly_core	Cancel	取消	ยกเลิก	キャンセル	connect.cancel
 pearnly_core	Processing…	处理中…	กำลังดำเนินการ…	処理中…	connect.processing
 pearnly_core	Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	connect.error.http
@@ -1197,7 +1198,6 @@ pearnly_erp_portal	Note	说明	หมายเหตุ	メモ	stock.count.note
 pearnly_erp_portal	Count saved	已保存	บันทึกแล้ว	保存しました	stock.count.entrySaved
 pearnly_erp_portal	Entries	记录	รายการ	記録	stock.count.entries
 pearnly_erp_portal	Entries — {0}	记录 — {0}	รายการ — {0}	記録 — {0}	stock.count.entriesTitle
-pearnly_erp_portal	No entries	无记录	ไม่มีรายการ	記録なし	stock.count.noEntries
 pearnly_erp_portal	Counted by	盘点人	ผู้ตรวจนับ	担当者	stock.count.countedBy
 pearnly_erp_portal	Counted at	盘点时间	เวลาที่นับ	日時	stock.count.countedAt
 pearnly_erp_portal	Counted in total	计入合计	นับรวมแล้ว	合計に含む	stock.count.entryLive
@@ -1212,8 +1212,6 @@ pearnly_erp_portal	Post differences	过账差异	ลงบัญชีผลต�
 pearnly_erp_portal	Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?	过账把结存收敛到实盘并落流水；未盘点的行不动。继续？	การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?	転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？	stock.count.postConfirm
 pearnly_erp_portal	Posted {0} differences	已过账 {0} 处差异	ลงบัญชีผลต่าง {0} รายการ	差異 {0} 件を転記しました	stock.count.posted
 pearnly_erp_portal	{0} · counted {1} / {2} · differences {3}	{0} · 已盘点 {1} / {2} · 差异 {3}	{0} · นับแล้ว {1} / {2} · ผลต่าง {3}	{0} · 棚卸済み {1} / {2} · 差異 {3}	stock.count.headline
-pearnly_erp_portal	Select an entry to void	选择要撤销的记录	เลือกรายการที่จะยกเลิก	取消する記録を選択	stock.count.voidPick
-pearnly_erp_portal	{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	stock.count.entryOption
 pearnly_erp_portal	Stock count	盘点	ตรวจนับสต็อก	棚卸	stock.mobile.title
 pearnly_erp_portal	Select a stock count	选择盘点	เลือกการตรวจนับ	棚卸を選択	stock.mobile.pickTask
 pearnly_erp_portal	No stock count in progress	无进行中的盘点	ไม่มีการตรวจนับที่เปิดอยู่	進行中の棚卸はありません	stock.mobile.noTask
@@ -1253,4 +1251,5 @@ pearnly_erp_portal	Show only	只看	แสดงเฉพาะ	表示のみ	sto
 pearnly_erp_portal	Chart by	看板按	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
 pearnly_erp_portal	Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	stock.board.title
+pearnly_erp_portal	Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
 pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	

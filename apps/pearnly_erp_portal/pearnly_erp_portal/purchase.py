@@ -14,6 +14,7 @@ from pearnly_erp_portal.purchasing.api import (
     api_list_purchases,
     api_list_suppliers,
     api_pay_purchase,
+    api_purchase_total,
     api_set_payment_status,
     api_submit_purchase,
     api_summary,

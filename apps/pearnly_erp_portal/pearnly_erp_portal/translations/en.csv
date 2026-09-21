@@ -182,6 +182,7 @@ stock.count.system,In {0}: system shows {1} {2}
 stock.count.template,Stock count template
 stock.count.title,Stock count — {0}
 stock.count.void,Void
+stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
 stock.count.warehouseHint,Leave empty to use the default warehouse
 stock.field.search,Search name or barcode

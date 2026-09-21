@@ -688,6 +688,7 @@ purchase.field.supplier,Supplier
 purchase.hint.serverTotal,The total is calculated automatically.
 purchase.loading,Loading…
 purchase.notice.created,Purchase order created: {0}
+purchase.notice.totals,{0} records · grand total {1} · payable {2} · outstanding {3}
 purchase.placeholder.description,Item / description
 purchase.placeholder.docNo,Optional
 purchase.placeholder.qty,Qty
