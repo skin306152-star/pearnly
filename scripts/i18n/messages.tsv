@@ -1068,3 +1068,8 @@ pearnly_erp_portal	This document has no content	这份文件是空的	ไฟล�
 pearnly_erp_portal	This document is too large	这份文件太大	ไฟล์นี้ใหญ่เกินไป	この書類は大きすぎます
 pearnly_erp_portal	A stored source file must carry its hash	留底文件必须带内容指纹	ไฟล์ที่เก็บต้องมีค่าแฮช	保存したファイルにはハッシュが必要です
 pearnly_erp_portal	A confirmed draft must point at the purchase record it created	已确认的草稿必须指向它建出的采购记录	รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น	確認済みの下書きは作成した仕入記録を指している必要があります
+pearnly_erp_portal	Now sending {0} documents	现在发送{0}单据	กำลังส่งเอกสาร{0}	{0}の書類を送信中
+pearnly_erp_portal	purchase	采购	จัดซื้อ	仕入
+pearnly_erp_portal	sales	销售	ขาย	売上
+pearnly_erp_portal	Unknown direction	未知的方向	ทิศทางไม่ถูกต้อง	不明な区分
+pearnly_erp_portal	Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手

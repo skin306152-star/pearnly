@@ -6,6 +6,7 @@ Bound to {0},已绑定到 {0}
 Could not store this document,单据留底失败，请重发
 Draft not found,找不到这条草稿
 LINE unbound,LINE 已解绑
+Now sending {0} documents,现在发送{0}单据
 Only purchase documents can be sent in for now,目前只收采购单据
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
@@ -15,3 +16,7 @@ This channel is not open yet,这个通道还没开放
 This document has no content,这份文件是空的
 This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
+Unknown buyer,未知买家
+Unknown direction,未知的方向
+purchase,采购
+sales,销售

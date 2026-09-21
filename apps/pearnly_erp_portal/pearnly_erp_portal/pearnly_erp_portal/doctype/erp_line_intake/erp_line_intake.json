@@ -17,6 +17,7 @@
   "received_at",
   "decided_at",
   "purchase",
+  "sales_document",
   "discard_reason",
   "note"
  ],
@@ -115,6 +116,14 @@
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "fieldname": "sales_document",
+   "fieldtype": "Link",
+   "label": "Sales Document",
+   "options": "ERP Sales Document",
+   "read_only": 1,
+   "description": "Created when a sales draft is confirmed"
   }
  ],
  "index_web_pages_for_search": 0,

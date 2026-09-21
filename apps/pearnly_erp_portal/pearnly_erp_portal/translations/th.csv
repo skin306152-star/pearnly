@@ -6,6 +6,7 @@ Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Draft not found,ไม่พบรายการร่าง
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
+Now sending {0} documents,กำลังส่งเอกสาร{0}
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
@@ -15,3 +16,7 @@ This channel is not open yet,ช่องทางนี้ยังไม่เ
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
+Unknown buyer,ไม่ทราบผู้ซื้อ
+Unknown direction,ทิศทางไม่ถูกต้อง
+purchase,จัดซื้อ
+sales,ขาย

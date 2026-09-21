@@ -11,7 +11,7 @@ LINE 录单（发单据 → 识别 → 入账）才有对象。
 import frappe
 from frappe import _
 
-from pearnly_core import line, line_binding
+from pearnly_core import line, line_binding, line_session
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import intake
@@ -19,6 +19,22 @@ from pearnly_erp_portal.integrations import intake
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。
 UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
+
+# 方向词：用户手打的词，翻了就等于这个功能不存在（与解绑词同理）。
+# 旧线上是在菜单里选"买/卖"再发单据；菜单卡片还没做，先用一句话切。
+DIRECTION_WORDS = {
+    "ซื้อ": "purchase", "purchase": "purchase",
+    "ขาย": "sales", "sell": "sales", "sales": "sales",
+}
+
+SESSION_STATE = "erp_intake"
+
+
+def _direction_of(line_user_id: str) -> str:
+    """这位 LINE 用户当前在录哪个方向；没说过就是进项（与旧线上默认一致）。"""
+    payload = ((line_session.get_session(line_user_id) or {}).get("payload") or {})
+    direction = payload.get("direction")
+    return direction if direction in ("purchase", "sales") else "purchase"
 
 
 def _is_unbind(text: str) -> bool:
@@ -42,9 +58,11 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
         _display_name(consumed["user"]))}])
 
 
-def _receive_document(user_id: str, bound: str, message: dict, reply_token: str) -> None:
-    """收到图片/PDF：留底并落草稿。没有采购岗位的人不能往账上放单据。"""
-    if not guard.has("purchase.write", user=bound):
+def _receive_document(user_id: str, bound: str, message: dict, reply_token: str,
+                      direction: str = "purchase") -> None:
+    """收到图片/PDF：留底并落草稿。没有对应岗位的人不能往账上放单据。"""
+    capability = intake.DIRECTION_CAPABILITY.get(direction) or "purchase.write"
+    if not guard.has(capability, user=bound):
         line.reply(reply_token, [{"type": "text",
                                   "text": _("This account cannot send documents")}])
         return
@@ -56,7 +74,7 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
             else f"line-{message.get('id') or 'document'}.pdf"
     try:
         saved = intake.receive(line_user_id=user_id, sent_by=bound, media_type=media_type,
-                               content=content, filename=filename,
+                               content=content, filename=filename, direction=direction,
                                line_message_id=message.get("id") or "")
     except Exception:
         # 日志标题也走英文：`check-i18n` 的存量清单已经够长，新代码不再往里加中文。
@@ -100,7 +118,7 @@ def handle(event: dict) -> bool:
             line.reply(reply_token, [{"type": "text",
                                       "text": _("Bind this account first")}])
             return True
-        _receive_document(user_id, bound, message, reply_token)
+        _receive_document(user_id, bound, message, reply_token, _direction_of(user_id))
         return True
 
     if message.get("type") != "text":
@@ -117,6 +135,13 @@ def handle(event: dict) -> bool:
 
     if not bound:
         _bind_with_code(user_id, text, reply_token)
+        return True
+
+    direction = DIRECTION_WORDS.get(text.casefold()) or DIRECTION_WORDS.get(text.strip())
+    if direction:
+        line_session.set_session(user_id, SESSION_STATE, {"direction": direction})
+        line.reply(reply_token, [{"type": "text", "text": _("Now sending {0} documents").format(
+            _("purchase") if direction == "purchase" else _("sales"))}])
         return True
 
     line.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])

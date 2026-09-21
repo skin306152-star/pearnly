@@ -118,7 +118,7 @@ ENFORCEMENT = {
     # 客户表归销售岗位：销售要能被开单侧选中，也能建/改买方（客户名录与销售单据
     # 是同一个岗位，两个功能码在这里合成一个人看）。
     ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line",
-                                     "ERP Company"]),
+                                     "ERP Company", "ERP LINE Intake"]),
     ("erp", "clients"): ("ERP Sales", ["ERP Customer", "ERP Company"]),
     # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
     # 否则团队管理里勾不到这个岗位。
