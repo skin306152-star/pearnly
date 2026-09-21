@@ -1,0 +1,100 @@
+{
+  "base_commit": "41c3578",
+  "scope": "thirty-fourth batch: the bank reconciliation run warnings and anchor records are stored natively and rendered by the workbook",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "e81f4908d5d59858e52f1435c57d272e64b6d2866fc1f01b3e4fb28de8adfddc",
+    "delivery_captured_at": "2026-09-21T15:10:33.042258+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirty-third-inventory.json baseline-thirty-fourth-delivery.json (before pinned at 55f1ed16)",
+    "fixed_source_hashes": {
+      "services/recon/bank_recon_warnings.py": "73a84874c21a351c32b7dc8fe5e125a3e3f25a0adc8c714e6f8df9c81888c3bf"
+    },
+    "runtime_projection_delivery_sha256": "5b784b84307a261dc8fc94613b40489263b2b6ff02fae74bba1a8012f018b2f8",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest 6d327c98 -> c5882f4b; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_warnings",
+      "result": "PASS",
+      "tests": 18,
+      "new_tests": 18
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_bank_warnings_source_parity.py --source <fixed source>",
+      "result": "PASS",
+      "label_cases": 66,
+      "detail_cases": 75,
+      "mismatch_batches": 418,
+      "mismatch_rows": {"statement": 5767, "gl": 5744},
+      "mismatch_hits": {"period": 93, "too_few": 26, "no_match": 190},
+      "anchor_cases": 6480,
+      "anchor_with_overrides": 5184,
+      "differences": 0,
+      "note": "the detection result is also compared against the three documented rules restated from the inputs, so this is not only an equality check between the two implementations"
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_income_parse tests.test_cowork_vat_parse tests.test_cowork_income_recon_contracts tests.test_cowork_income_recon_parse_info tests.test_cowork_bank_recon_contracts tests.test_cowork_bank_warnings",
+      "result": "PASS",
+      "tests": 120
+    },
+    {
+      "command": "bench --site cowork-backend-ack.localhost migrate and bench --site cowork-backend-preparation.localhost migrate",
+      "result": "PASS",
+      "exit_codes": [0, 0],
+      "readback": "tabCowork Bank Reconciliation now carries run_info_json longtext"
+    },
+    {
+      "command": "scripts/cowork-bank-recon-lab-verify.py (both lab Sites)",
+      "result": "PASS",
+      "tests_per_site": 14,
+      "new_tests": 4,
+      "covers": [
+        "the mismatch warnings, the anchor snapshot and the override record are stored and returned",
+        "the override actually reached the matching: the same admission without it differs by exactly the overridden amount",
+        "a caller-supplied run warning rides along after the detected ones",
+        "an unknown run-record key or a non-numeric amount is refused before anything is stored",
+        "the earlier store, pairing, permission, per-file diagnostics, batch delete and replay cases"
+      ],
+      "anonymous_http": {"create": 403, "records": 403, "detail": 403, "create_from_parsed": 403,
+        "export": 403, "delete": 403, "delete_many": 403}
+    },
+    {
+      "command": "scripts/cowork-bank-recon-export-lab-verify.py (both lab Sites)",
+      "result": "PASS",
+      "tests_per_site": 4,
+      "new_tests": 1,
+      "covers": [
+        "the workbook carries the stored warning text, the manual-entry banner and the trace section",
+        "the trace row states the user value and its cell comment states the reader value and the difference",
+        "a task with no run record renders neither section"
+      ]
+    },
+    {"command": "scripts/cowork-income-recon-lab-verify.py", "result": "PASS", "tests_per_site": 19},
+    {"command": "scripts/cowork-income-recon-export-lab-verify.py", "result": "PASS", "tests_per_site": 3},
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "python3 scripts/check-i18n.py", "result": "REPORT-ONLY",
+      "note": "the four-language warning table is registered in scripts/i18n/keep-cjk.tsv as intentional, like the workbook label tables"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed run detected the mismatch warnings while orchestrating a run; the native store applies the same rule at admission over the rows it stores and the matched count, in the caller's language",
+    "the anchor reader values come from the caller instead of a parser; a missing anchor key falls back to the header amount the caller also sent, and an override may be the replacement amount alone (the stored record still names the reader value)",
+    "the three deployed keys live inside the task payload; natively they are one task column whose keys keep the deployed names, read back by the export",
+    "a task admitted without anchors stores no snapshot, where the deployed run always wrote one; there is no run orchestration on this side to invent reader values from",
+    "the four anchor amounts beside the summary are now stored as columns, which the native bank store had left at zero"
+  ],
+  "not_run": [
+    "reading a real statement or ledger file, and the OCR paths",
+    "asynchronous run orchestration, frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-run-record.md"
+}

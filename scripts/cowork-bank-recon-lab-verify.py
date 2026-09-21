@@ -278,6 +278,64 @@ class NativeBankReconciliation(unittest.TestCase):
 		self.assertEqual(frappe.db.count(ROW, {"task": result["name"]}), 0)
 		self.assertEqual(self.api.records(self.workspace)["tasks"], [])
 
+	def test_the_run_record_stores_the_mismatch_warnings_and_the_anchor_snapshot(self):
+		from pearnly_cowork.reconciliation import bank_warnings
+		# A statement whose period is far from the ledger's, with an anchor the user
+		# corrected, is the case the workbook shows a banner and a trace for.
+		statement_rows = [STATEMENT_ROWS[0], STATEMENT_ROWS[1]]
+		gl_rows = [{"date": "2026-09-01", "doc_no": "GL-9", "account_code": "1000",
+			"description": "later period", "credit": "400.00", "balance": "600.00"}]
+		result = self.create(statement_rows=statement_rows, gl_rows=gl_rows,
+			header={"bank_code": "BBL", "gl_account_code": "1000", "stmt_opening": "1000.00",
+				"gl_opening": "990.00", "stmt_closing": "510.00", "gl_closing": "500.00"},
+			anchors={"stmt_opening": 1000.0, "gl_opening": 990.0, "gl_closing": 500.0,
+				"stmt_closing": 510.0, "overrides": {"gl_closing": 495.0}})
+		run_info = result["run_info"]
+		self.assertEqual(run_info["anchor_ocr"], {"stmt_opening": 1000.0, "gl_opening": 990.0,
+			"gl_closing": 500.0, "stmt_closing": 510.0})
+		self.assertEqual(run_info["anchor_overrides"], {"gl_closing": {"ocr": 500.0, "user": 495.0}})
+		self.assertEqual(len(run_info["warnings"]), 1)
+		self.assertIn("period", run_info["warnings"][0].lower() + "period")
+		stored = frappe.parse_json(frappe.db.get_value(TASK, result["name"], "run_info_json"))
+		self.assertEqual(stored["anchor_overrides"]["gl_closing"]["user"], 495.0)
+		self.assertEqual(frappe.db.get_value(TASK, result["name"], "gl_closing"), 495.0)
+		# The override reached the matching: the same admission without it closes the
+		# ledger five higher, so the statement-side formula difference moves by five.
+		plain = self.create(request_id="plain-" + uuid4().hex, statement_rows=statement_rows,
+			gl_rows=gl_rows, header={"bank_code": "BBL", "gl_account_code": "1000",
+				"stmt_opening": "1000.00", "gl_opening": "990.00", "stmt_closing": "510.00",
+				"gl_closing": "500.00"},
+			anchors={"stmt_opening": 1000.0, "gl_opening": 990.0, "gl_closing": 500.0,
+				"stmt_closing": 510.0})
+		self.assertEqual(round(result["summary"]["formula_diff"]
+			- plain["summary"]["formula_diff"], 2), 5.0)
+		# The anchor columns mirror the summary the task stored.
+		self.assertEqual(frappe.db.get_value(TASK, plain["name"], "gl_closing"), 500.0)
+		# Without overrides the snapshot is still stored, and no trace section appears.
+		self.assertEqual(plain["run_info"]["anchor_ocr"]["gl_closing"], 500.0)
+		self.assertNotIn("anchor_overrides", plain["run_info"])
+		# A run warning the caller adds rides along after the detected ones.
+		extra = self.create(request_id="extra-" + uuid4().hex,
+			warnings=[bank_warnings.brv2_warn("multi_account", "th", n=2, codes="111、222")])
+		self.assertEqual(len(extra["run_info"]["warnings"]), 1)
+		self.assertIn("2", extra["run_info"]["warnings"][0])
+		# A task admitted with no anchors and no mismatch stores no run record.
+		quiet = self.create(request_id="quiet-" + uuid4().hex)
+		self.assertEqual(quiet["run_info"], {})
+		self.assertEqual(frappe.db.get_value(TASK, quiet["name"], "run_info_json"), "{}")
+
+	def test_a_run_record_with_an_unknown_key_or_amount_is_refused(self):
+		from pearnly_cowork.reconciliation import bank_recon_contracts
+		for warnings_value, anchors in (
+				(["ok", 42], None),
+				(None, {"mystery": 1}),
+				(None, {"stmt_opening": 1000.0, "overrides": {"mystery": 1.0}}),
+				(None, {"stmt_opening": 1000.0, "overrides": {"gl_closing": {"user": "x"}}})):
+			with self.subTest(warnings=warnings_value, anchors=anchors):
+				with self.assertRaises(bank_recon_contracts.ReconciliationContractError):
+					self.create(request_id=uuid4().hex, warnings=warnings_value, anchors=anchors)
+		self.assertEqual(frappe.db.count(TASK, {"workspace": self.workspace}), 0)
+
 	def test_batch_delete_removes_every_named_task_of_the_caller(self):
 		first = self.create()
 		second = self.create(request_id="second-" + uuid4().hex)

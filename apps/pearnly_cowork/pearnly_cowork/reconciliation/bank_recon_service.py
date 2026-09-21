@@ -16,6 +16,7 @@ from pearnly_cowork.reconciliation import (
 	bank_parse,
 	bank_recon_access,
 	bank_recon_contracts,
+	bank_warnings,
 	recon_tasks,
 )
 from pearnly_cowork.reconciliation.bank_recon_access import ROW, TASK
@@ -38,7 +39,7 @@ TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS,
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT,
-		parse_info=None):
+		parse_info=None, warnings=None, anchors=None, lang="th"):
 	"""Validate, match and store one reconciliation inside a single transaction."""
 	bank_recon_access.require(workspace)
 	name, request_key = TASKS.identity(request_id)
@@ -47,6 +48,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		frappe.throw(_("reconciliation.type_invalid"))
 	rows = bank_recon_contracts.decode_rows(statement_rows, gl_rows)
 	header_values = bank_recon_contracts.header(header)
+	header_values, anchor_record = anchor_plan(header_values, anchors)
 	parse_values = bank_recon_contracts.parse_info(parse_info)
 	request_digest = bank_recon_contracts.digest(header_values, *rows)
 	replayed = TASKS.replay(name, request_digest)
@@ -59,6 +61,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		stmt_closing=float(header_values["stmt_closing"]), gl_closing=float(header_values["gl_closing"]),
 		bank_code=header_values["bank_code"], gl_account_code=header_values["gl_account_code"])
 	summary_value = {field: getattr(summary, field) for field in summary.__dataclass_fields__}
+	run_values = run_info(rows, summary_value["matched_count"], warnings, anchor_record, lang)
 	task = frappe.get_doc({"doctype": TASK, "record_id": name, "workspace": workspace,
 		"title": title, "reconciliation_type": reconciliation_type,
 		"status": "completed",
@@ -68,6 +71,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		"row_count": len(results),
 		"summary_json": bank_recon_contracts.json_dumps(summary_value),
 		"parse_info_json": bank_recon_contracts.json_dumps(parse_values),
+		"run_info_json": bank_recon_contracts.json_dumps(run_values),
 		"created_by": frappe.session.user, "created_at": now_datetime(), **{
 			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(task)
@@ -75,11 +79,13 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{name}-{index + 1}",
 			"workspace": workspace, "task": name, "row_index": index + 1,
 			**row_values(result)}))
-	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results)}
+	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
+		"run_info": run_values}
 
 
 def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
-		filename="", gl_account_code="", reconciliation_type="bank", gl_filename=""):
+		filename="", gl_account_code="", reconciliation_type="bank", gl_filename="",
+		warnings=None, anchors=None, lang="th"):
 	"""Store one reconciliation from the decoded pages of the legacy parser.
 
 	The file readers, the OCR call and model extraction stay in the legacy
@@ -114,7 +120,7 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 				"error": None, "error_code": None, "bank_code": statement["bank_code"]}],
 			"gl_files": [{"file": gl_filename, "rows": gl["row_count"], "ok": True,
 				"error": None, "error_code": None, "accounts": gl["accounts"]}],
-		})
+		}, warnings=warnings, anchors=anchors, lang=lang)
 	return {**result, "parsed": {
 		"statement_rows": statement["row_count"],
 		"gl_rows": gl["row_count"],
@@ -128,11 +134,74 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 	}}
 
 
-TASK_SUMMARY_FIELDS = ("matched_count", "gl_debit_only_count", "gl_credit_only_count",
+TASK_SUMMARY_FIELDS = ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing",
+	"matched_count", "gl_debit_only_count", "gl_credit_only_count",
 	"stmt_withdrawal_only_count", "stmt_deposit_only_count", "stmt_total_deposit",
 	"stmt_total_withdrawal", "gl_total_credit", "gl_total_debit", "gl_debit_only_amount",
 	"gl_credit_only_amount", "stmt_withdrawal_only_amount", "stmt_deposit_only_amount",
 	"opening_diff", "formula_stmt_closing", "formula_diff")
+
+
+def anchor_plan(header_values, anchors):
+	"""Apply the caller's anchor overrides and describe them for storage.
+
+	The deployed run replaced the amounts the reader saw with the user's values
+	before matching, and stored both sides so the workbook can show OCR against
+	user. A caller that supplies ``anchors`` gets the same: the snapshot comes from
+	the values it passes (falling back to the header amount it also sent), the
+	overrides win for matching, and both records are stored. An override may be the
+	replacement amount alone; the stored record then states the reader's value too.
+	"""
+	if anchors in (None, ""):
+		return header_values, {}
+	if not isinstance(anchors, dict) or set(anchors) - (set(bank_recon_contracts.ANCHOR_KEYS)
+			| {"overrides"}):
+		raise bank_recon_contracts.ReconciliationContractError("reconciliation.run_info_invalid")
+	raw = anchors.get("overrides") or {}
+	if not isinstance(raw, dict):
+		raise bank_recon_contracts.ReconciliationContractError("reconciliation.run_info_invalid")
+	read = {key: anchors.get(key, header_values[key])
+		for key in bank_recon_contracts.ANCHOR_KEYS}
+	# A caller may name the replacement amount alone; its reader value then comes
+	# from the snapshot, so the stored record keeps the deployed two-sided shape.
+	normalized = {key: (value if isinstance(value, dict)
+		else {"ocr": read.get(key), "user": value}) for key, value in raw.items()}
+	# The stored record is validated before it is applied, so an unknown anchor or a
+	# value that is not a number is refused instead of reaching the arithmetic.
+	checked = bank_recon_contracts.run_info({"anchor_ocr": read,
+		"anchor_overrides": normalized})
+	read = [checked["anchor_ocr"].get(key) for key in bank_recon_contracts.ANCHOR_KEYS]
+	overrides = checked.get("anchor_overrides") or {}
+	effective = bank_warnings.apply_anchor_overrides(*read,
+		*(overrides.get(key, {}).get("user") for key in bank_recon_contracts.ANCHOR_KEYS))
+	values = dict(header_values)
+	for key, amount in zip(bank_recon_contracts.ANCHOR_KEYS, effective[:4]):
+		values[key] = amount
+	record = {"anchor_ocr": checked["anchor_ocr"]}
+	if overrides:
+		record["anchor_overrides"] = overrides
+	return values, record
+
+
+def run_info(rows, matched_count, warnings, anchors, lang):
+	"""Build the stored run record: the mismatch warnings and the anchor records.
+
+	The mismatch warnings are the deployed rule applied to the rows this admission
+	stored, in the language the caller runs in; a caller may add the run-level ones
+	(a statement covering several accounts, a completeness finding) through
+	``warnings``. ``anchors`` is the record the anchor plan already produced.
+	"""
+	values = dict(anchors or {})
+	detected = bank_warnings.detect_recon_mismatch(
+		bank_recon_contracts.matching_statement_rows(rows[0]),
+		bank_recon_contracts.matching_gl_rows(rows[1]), matched_count, lang)
+	extra = [] if warnings in (None, "") else warnings
+	if not isinstance(extra, list):
+		raise bank_recon_contracts.ReconciliationContractError("reconciliation.run_info_invalid")
+	combined = detected + list(extra)
+	if combined:
+		values["warnings"] = combined
+	return bank_recon_contracts.run_info(values)
 
 
 def row_values(result):
@@ -197,8 +266,9 @@ def export(task_id, lang="th"):
 	"""Render the review workbook of one stored task; no ERP, model or file access.
 
 	The workbook sees exactly what the task stored: its result rows, its summary and
-	the per-file diagnostics recorded at admission. Manual-override traces and run
-	warnings are not stored natively yet, so those workbook sections stay absent.
+	the per-file diagnostics and the run records recorded at admission. The run
+	warnings and the anchor snapshot/overrides render only when the task carries
+	them, exactly like the deployed workbook.
 	"""
 	doc = frappe.get_doc(TASK, task_id)
 	bank_recon_access.require(doc.workspace)
@@ -207,9 +277,20 @@ def export(task_id, lang="th"):
 	rows = frappe.get_all(ROW, filters={"task": doc.name}, fields=list(ROW_EXPORT_FIELDS),
 		order_by="row_index asc", limit_page_length=0)
 	content = export_workbook([_export_row(row) for row in rows], _stored_summary(doc), lang=lang,
-		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None)
+		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None,
+		**_stored_run_records(doc))
 	return {"filename": f"BankRecon_v2_{doc.name}_{(doc.bank_code or 'bank').upper()}.xlsx",
 		"content": content}
+
+
+def _stored_run_records(doc):
+	"""The workbook's warning banner and manual-trace sections read these three keys."""
+	stored = bank_recon_contracts.json_loads(doc.run_info_json)
+	if not isinstance(stored, dict):
+		return {}
+	return {"warnings": stored.get("warnings"),
+		"anchor_ocr": stored.get("anchor_ocr"),
+		"anchor_overrides": stored.get("anchor_overrides")}
 
 
 def records(workspace, start=0, limit=50):

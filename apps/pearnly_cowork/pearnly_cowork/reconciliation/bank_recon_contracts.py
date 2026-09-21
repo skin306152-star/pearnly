@@ -38,6 +38,12 @@ HEADER_AMOUNTS = ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing")
 MAX_PARSE_FILES = 200
 MAX_ACCOUNTS = 100
 MAX_DIAGNOSTIC = 1000
+MAX_WARNINGS = 20
+MAX_WARNING_TEXT = 500
+
+# The four anchor amounts the deployed run snapshots and lets a user override; the
+# workbook shows the OCR value beside the one actually used.
+ANCHOR_KEYS = ("stmt_opening", "gl_opening", "gl_closing", "stmt_closing")
 # The deployed run saved `_parse_info` with these two sections and record keys so
 # the workbook's File Info section could show real per-file numbers.
 PARSE_INFO_SECTIONS = {
@@ -150,6 +156,75 @@ def decode_rows(statement_rows, gl_rows):
 	if len(statement_rows) + len(gl_rows) > MAX_ROWS:
 		raise ReconciliationContractError("reconciliation.rows_too_many")
 	return ([statement_row(row) for row in statement_rows], [gl_row(row) for row in gl_rows])
+
+
+def run_info(value):
+	"""Validate the optional run warnings and anchor records stored with one task.
+
+	The three names are the deployed ones: ``warnings`` holds the strings the run
+	would have shown, ``anchor_ocr`` the four amounts the reader saw and
+	``anchor_overrides`` those the user replaced, each as ``{"ocr": …, "user": …}``.
+	An unknown key, a non-string warning, an unknown anchor or a non-numeric amount
+	is refused instead of stored and silently ignored.
+	"""
+	if value in (None, ""):
+		return {}
+	if not isinstance(value, dict) or set(value) - {"warnings", "anchor_ocr", "anchor_overrides"}:
+		raise ReconciliationContractError("reconciliation.run_info_invalid")
+	result = {}
+	warnings = value.get("warnings")
+	if warnings not in (None, ""):
+		if (not isinstance(warnings, list) or len(warnings) > MAX_WARNINGS
+				or any(not isinstance(warning, str) or len(warning) > MAX_WARNING_TEXT
+					for warning in warnings)):
+			raise ReconciliationContractError("reconciliation.run_info_invalid:warnings")
+		# A run with nothing to warn about stores no section at all.
+		if warnings:
+			result["warnings"] = list(warnings)
+	ocr = value.get("anchor_ocr")
+	if ocr not in (None, ""):
+		if not isinstance(ocr, dict) or set(ocr) - set(ANCHOR_KEYS):
+			raise ReconciliationContractError("reconciliation.run_info_invalid:anchor_ocr")
+		stored = {}
+		for key in ANCHOR_KEYS:
+			if key not in ocr:
+				continue
+			amount = ocr.get(key)
+			if amount is None:
+				stored[key] = None
+				continue
+			try:
+				stored[key] = float(str(amount).replace(",", "").strip())
+			except (TypeError, ValueError):
+				raise ReconciliationContractError(
+					f"reconciliation.run_info_invalid:anchor_ocr.{key}") from None
+		if stored:
+			result["anchor_ocr"] = stored
+	overrides = value.get("anchor_overrides")
+	if overrides not in (None, ""):
+		if not isinstance(overrides, dict) or set(overrides) - set(ANCHOR_KEYS):
+			raise ReconciliationContractError("reconciliation.run_info_invalid:anchor_overrides")
+		stored = {}
+		for key, record in overrides.items():
+			if not isinstance(record, dict) or set(record) - {"ocr", "user"} or "user" not in record:
+				raise ReconciliationContractError(
+					f"reconciliation.run_info_invalid:anchor_overrides.{key}")
+			try:
+				user = float(str(record["user"]).replace(",", "").strip())
+			except (TypeError, ValueError):
+				raise ReconciliationContractError(
+					f"reconciliation.run_info_invalid:anchor_overrides.{key}") from None
+			original = record.get("ocr")
+			if original is not None:
+				try:
+					original = float(str(original).replace(",", "").strip())
+				except (TypeError, ValueError):
+					raise ReconciliationContractError(
+						f"reconciliation.run_info_invalid:anchor_overrides.{key}") from None
+			stored[key] = {"ocr": original, "user": user}
+		if stored:
+			result["anchor_overrides"] = stored
+	return result
 
 
 def digest(header_value, statement_rows, gl_rows):

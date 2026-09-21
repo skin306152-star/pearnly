@@ -21,6 +21,7 @@ FIXTURE = runpy.run_path(str(Path(__file__).with_name("cowork-bank-recon-lab-ver
 BASE = FIXTURE["NativeBankReconciliation"]
 connect = FIXTURE["connect"]
 TASK = FIXTURE["TASK"]
+STATEMENT_ROWS = FIXTURE["STATEMENT_ROWS"]
 
 
 class NativeBankReconExport(unittest.TestCase):
@@ -65,6 +66,47 @@ class NativeBankReconExport(unittest.TestCase):
         # An unknown language falls back to Thai, exactly like the service contract.
         fallback = self.service.export(task["name"], "de")
         self.assertEqual(load_workbook(BytesIO(fallback["content"])).sheetnames, book.sheetnames)
+
+    def test_the_workbook_shows_the_run_warnings_and_the_manual_trace(self):
+        # A statement from another period with one corrected anchor: the task stores a
+        # mismatch warning and an override, and the workbook renders both.
+        statement_rows = [STATEMENT_ROWS[0], STATEMENT_ROWS[1]]
+        gl_rows = [{"date": "2026-09-01", "doc_no": "GL-9", "account_code": "1000",
+            "description": "later period", "credit": "400.00", "balance": "600.00"}]
+        task = self.api.create(workspace=self.workspace, title="Another period",
+            request_id=self.request_id, statement_rows=statement_rows, gl_rows=gl_rows,
+            header={"bank_code": "BBL", "gl_account_code": "1000", "stmt_opening": "1000.00",
+                "gl_opening": "990.00", "stmt_closing": "510.00", "gl_closing": "500.00"},
+            anchors={"stmt_opening": 1000.0, "gl_opening": 990.0, "gl_closing": 500.0,
+                "stmt_closing": 510.0, "overrides": {"gl_closing": 495.0}})
+        exported = self.service.export(task["name"], "th")
+        summary = load_workbook(BytesIO(exported["content"])).worksheets[0]
+        texts = [str(cell.value) for cell in summary["A"] if cell.value is not None]
+        # The warning banner carries the string the run stored, unchanged.
+        self.assertIn(task["run_info"]["warnings"][0], texts)
+        # The banner announcing a manual entry, and its trace section, both appear.
+        self.assertTrue(any(labels.t("lbl_manual_warn", "th") in text for text in texts),
+            texts[:8])
+        self.assertTrue(any(labels.t("sec_manual_entry", "th") in text for text in texts), texts)
+        self.assertTrue(any(labels.t("lbl_anchor_gl_close", "th") in text for text in texts),
+            texts)
+        # The overridden anchor's row carries the user value, and the cell comment
+        # states the reader's value and the difference (the deployed way to show both).
+        label_row = next(cell.row for cell in summary["A"] if isinstance(cell.value, str)
+            and labels.t("lbl_anchor_gl_close", "th") in cell.value)
+        override_cell = summary.cell(label_row, 2)
+        self.assertEqual(override_cell.value, 495.0)
+        comment = override_cell.comment.text if override_cell.comment else ""
+        self.assertIn("OCR: 500.00", comment)
+        self.assertIn("User: 495.00", comment)
+        self.assertIn("Diff: -5.00", comment)
+        # A task without a run record renders none of these sections.
+        self.request_id = "plain-" + uuid4().hex
+        plain = self.parsed_task()
+        plain_summary = load_workbook(BytesIO(
+            self.service.export(plain["name"], "th")["content"])).worksheets[0]
+        plain_texts = [str(cell.value) for cell in plain_summary["A"] if cell.value is not None]
+        self.assertFalse(any(labels.t("sec_manual_entry", "th") in text for text in plain_texts))
 
     def test_export_is_scoped_and_entitled_like_the_task_api(self):
         task = self.parsed_task()

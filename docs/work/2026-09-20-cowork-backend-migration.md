@@ -1,5 +1,38 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第三十四批交付：银行对账闭族）
+
+**本批补上银行 run 的业务警告与锚点快照/覆盖，银行对账这一族的真缺口归零。** 这是[缺口清点](cowork-backend/reconciliation-family-audit.md)认定的本族最后一处真缺口。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `41c3578`（第三十三批清点）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_warnings.py`：`services/recon/bank_recon_warnings.py` 机械搬移——四语 `_BRV2_WARN`（期间不重叠 / GL 行数过少 / 无匹配 / 完整性 / 多账户）、`brv2_warn`、`completeness_details`（含"疑似缺页"与余额链片段）、`detect_recon_mismatch`、`apply_anchor_overrides`。
+- `bank_recon_contracts.run_info(value)` 契约（三个部署键：`warnings`/`anchor_ocr`/`anchor_overrides`，未知键/非数字/超上限入库前拒绝）；`bank_recon_service` 新增 `anchor_plan`（覆盖生效并记双边）与 `run_info`（**入账时按部署规则自产不匹配警告**，语言取调用方 `lang`，调用方可追加 run 级警告）；`create`/`create_from_parsed` 新增 `warnings`/`anchors`/`lang`；`export` 把三样传给工作簿（渲染侧第 24 批已就绪）。
+- DocType 新增 `run_info_json`（Long Text 隐藏）；顺带修掉一个既有缺口：四个锚点金额列此前一直是 0（`TASK_SUMMARY_FIELDS` 漏了它们），现在与摘要一致。
+- 有意差异：警告由入账侧产生（部署版在 run 里产生）；锚点读取值由调用方给出、覆盖可只写替换金额（存储仍补双边）；三个键合成一列而非塞进 summary_json；没有锚点的任务不写快照（这边没有 run 编排可凭空造值）。
+
+### 验证与证据
+
+- 离线：新 **18** 个警告/锚点/契约用例通过；对账 **137** 个、解析与契约 **120** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY（四语警告表按登记豁免）；`git diff --check` 干净。
+- 固定源差分：标签 66 组、完整性片段 75 组、不匹配检测 **418** 批（5767/5744 行，期间 93、规模 26、无匹配 190 次命中）、锚点 **6480** 组（含 5184 组带覆盖）全部一致，差异 0；检测结果还与"按输入重述的三条规则"逐条比对。
+- 隔离 Site：两个 Site `migrate` 退出码 0 并新增 `run_info_json`；银行存储 **14** 个（新增 4：警告/快照/覆盖入库、覆盖真的进了匹配（同内容无覆盖时公式差正好差 5）、调用方追加警告、坏形状拒绝且无残留）、银行工作簿 **4** 个（新增 1：警告条文案来自存储、手动录入警示与痕迹段出现、痕迹行的批注带 OCR 与差额、无 run 记录的任务不出现这两段）；收入两侧 19+3 继续通过。
+- 顺带清了一次 lab 环境问题：今天多轮脚本把隔离 Site 的 Redis 队列顶到上限（`QueueOverloaded ... (750)`），只清 lab Redis 的 `rq:*`（隔离环境、只含测试产生的延迟写入）后恢复；不是产品行为。
+- 未执行：真实文件与模型解析、异步编排、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirty-fourth-delivery.json`（`e81f4908…`，采集 15:10:33Z）与第三十三批快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-fourth-delivery.json`（`5b784b84…`）：端点摘要 `6d327c98…` → `c5882f4b…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+银行与收入两族的后端已闭合（[清点表](cowork-backend/reconciliation-family-audit.md)里真缺口为零）。下一批起按族推进：OCR/抽取族清点 → M2 销项税 Excel 族 → 工单对账族；主数据等用户给方向（自有一份 / 读 ERP 成品）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第三十三批：功能清单与剩余量，只读）
 
 用户问"还有多少功能没迁移"，做成一份可复用的清单：[功能清单与剩余量](cowork-backend/feature-status.md)。要点：
