@@ -1,5 +1,37 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十五批交付）
+
+**本批开始收入对账（总账对销项税）这一族：先把纯判定核心迁进来。** 对账中心三种类型里，银行那代已经落地（行契约 → 匹配 → 原生存储 → 受控解析入账 → 复核工作簿），收入这代对应 `gl_vat_*` 家族；本批只迁类型、配对规则、容差、贷项单方向与汇总/调整项，读文件、落库、出工作簿仍是后续批次。不接前端、不部署、不改 DMS。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `abcd1d6`（并入 main `2294a10` 后的合并提交）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/income_vat.py`：`GlRow`/`ReconRow`/`GlVatSummary`（字段名、顺序、默认值与 `__post_init__` 全保持）、`normalize_doc_no`（委托已迁的发票号归一化）、`vat_doc_no`（`report_ref_no` → `report_reference_no` → `report_invoice_no`）、`reconcile_gl_vat`（容差常量 `AMOUNT_TOLERANCE = 0.01`）。
+- 保持的判定：VAT 正数与 GL 贷方合计比、负数（贷项单）与借方合计的相反数比；容差内差额显式记 `0.0`；明细以 VAT 为主表、按 `(date, doc_no)` 排序、收入科目去重排序后逗号拼接；汇总四桶（GL 单边借/贷、VAT 单边正/负）各带明细行。
+- 原样保留的两处细节：明细里不可读的 VAT 金额按 0 处理，但汇总 `vat_total` 是裸 `float()`，非空不可读值会整体抛错；`gl_only` 用「VAT 归一化单号集合」判定而 `vat_only` 用「GL 索引」判定，两者口径不同。
+
+### 验证与证据
+
+- 对账用例 **137** 个通过（本批新增 **14** 个收入用例）；`test_cowork_bank_recon_contracts` 15 个继续通过；既有固定源差分继续通过。
+- 新增固定源差分：**1205** 批输入逐字段比对明细与汇总（含四个调整项列表），1105 行明细、253 行命中、29 行贷项单、28 行容差归零、四桶 424/399/432/103 行、759 批与部署版抛同样异常、15 例单号归一化，差异 0；覆盖率下限不达即失败。
+- 架构 0 违规；`i18n-build --check` PASS；`git diff --check` 干净。本批未跑隔离 Site：只加纯逻辑，Site 层没有新增行为可验。
+- 未执行：GL/VAT 的解析与列识别、原生任务/行存储、任务 API 与轮询、工作簿导出、接到 `reconciliation_type="income"`、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`d52f3576…` → `1126ffbf…`）。交付前采运行投影 `push-runtime-twenty-fifth-delivery.json`（`20b121af…`），与第二十四批交付比较仍为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`1bdf7bd2…` → `fc713ee1…`，端点数 60、两个平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入这一族继续：GL/VAT 解析（Excel/PDF 列识别与余额链）→ 原生任务与行存储（在 `vat_recon_*`/`gl_vat_store` 两代里定形）→ 任务 API 与轮询 → 复核工作簿（与银行那批同型）→ 接 `reconciliation_type="income"`。银行侧剩余项（异步任务状态与轮询、批量删除、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `2294a10`（ERP 批次 + 空白清理已合入），远端 `origin/main` 收尾只读仍为 `ac33e0c`；本分支已并入本地 main（`abcd1d6`），任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批没有启动 lab 容器（纯逻辑批次）；上一批的容器保持停止、命名卷与 Site 保留供下包。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十四批交付）
 
 **本批把旧项目银行对账的四表 XLSX 复核工作簿按部署版逐格迁入，并给原生任务加了一个受权下载入口。** 会计拿到手复核的那份产物现在能由新平台从已存任务生成；不接前端、不部署、不改 DMS、不写 ERP。本节为最新入口，后文按各批当时事实读取。

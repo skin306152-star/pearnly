@@ -1,0 +1,64 @@
+{
+  "base_commit": "abcd1d6",
+  "scope": "twenty-fifth batch: the pure income (general ledger versus output-VAT) reconciliation core",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "d52f357639741fc85b6c2a3b6012075fc37670e1f18db1891835cb6b9ddf7872",
+    "start_captured_at": "2026-09-21T12:35:26.435632+00:00",
+    "delivery_sha256": "1126ffbf9f20c6c4d4aff55dd46ef5a93f203edb25a6dbd5b53a85fcb6e60b33",
+    "delivery_captured_at": "2026-09-21T12:35:47.368272+00:00",
+    "source_compare": "PASS",
+    "fixed_source_hashes": {
+      "services/recon/gl_vat_types.py": "ee24b7dd0a7a24e67ac338f7c7deae73c71c36aca5b731ddc18b6e6af27a300d",
+      "services/recon/gl_vat_reconcile.py": "05a5751d27c730819c53a94f13ccab5606677571f41839a056154d50647c13b8",
+      "services/recon/gl_vat_parse_common.py": "ca59a5d1b313806e4358ad5a29b8abfa8b906b1dcc1d2f26128aee932eac5403",
+      "services/recon/field_comparator.py": "109c0401587154d3f3860166b4f0c3812f568b03e2e452a880af866195eec037"
+    },
+    "runtime_projection_delivery_sha256": "20b121af0a298440f790c9fd52a47da5c21a4214fbcc781920340a4022953ccd",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest 1bdf7bd2 -> fc713ee1; 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137,
+      "new_tests": 14
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 15
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_income_vat_parity.py --source /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+      "result": "PASS",
+      "batches": 1205,
+      "detail_rows": 1105,
+      "matched_rows": 253,
+      "credit_notes": 29,
+      "tolerance_suppressed": 28,
+      "adjustment_items": {"gl_only_credit": 424, "gl_only_debit": 399, "vat_only_positive": 432, "vat_only_negative": 103},
+      "raised_cases_matching_the_deployed_float_behaviour": 759,
+      "doc_no_cases": 15,
+      "differences": 0
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_source_parity.py --source <fixed source>",
+      "result": "PASS",
+      "note": "the earlier bank/stocktake differentials still pass on the merged tree"
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "none: this batch only moves the deployed decision logic and keeps the deployed quirks, including the unguarded summary total that raises on a non-empty unreadable VAT amount while the detail row reads it as zero"
+  ],
+  "not_run": [
+    "isolated Site: the batch adds pure logic only, with no DocType, permission, RPC or storage change",
+    "GL/VAT parsing (column heuristics and running balance), the native task and row storage, the task API and polling, the workbook export and the wiring to reconciliation_type=income",
+    "frontend integration, deployment and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-income-vat.md"
+}
