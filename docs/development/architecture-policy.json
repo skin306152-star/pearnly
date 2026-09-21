@@ -109,6 +109,7 @@
     ],
     "contracts": [],
     "editor": [
+      "adapter",
       "approval",
       "booking",
       "contracts",

@@ -92,7 +92,7 @@ dms.edit.regisName,登録者名
 dms.edit.remove,削除
 dms.edit.road,道路
 dms.edit.room,部屋
-dms.edit.save,保存して新しいプレビューを送信
+dms.edit.save,保存
 dms.edit.saved,下書きを保存し、新しいプレビューを LINE に送信しました。
 dms.edit.slip,振込票
 dms.edit.slipConflict,振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。

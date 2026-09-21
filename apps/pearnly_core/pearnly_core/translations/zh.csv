@@ -154,6 +154,7 @@ File,文件
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项的对方税号不能等于自己
+Frappe Light,Pearnly主题
 Full Name,姓名
 Gender,性别
 Grand Total,价税合计
@@ -181,6 +182,7 @@ Item / Description,品名/说明
 "Kept as evidence, not a business field; only the confirmed fields are.",留证用，不是业务字段；确认后的字段才是
 LINE Display Name,LINE 昵称
 LINE User ID,LINE 用户 ID
+LINE could not be reached; please try again,连不上 LINE，请稍后再试
 Last Login At,最近登录
 Last Result,最近结果
 Last Seen At,最近活跃
@@ -316,6 +318,7 @@ The DMS account is not approved to use the system,DMS 账号未被批准使用�
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
+The LINE channel is not configured for this account,这个账号还没配置 LINE 通道
 The OCR service returned HTTP {0}: {1},OCR 服务返回 HTTP {0}：{1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。
 The account is disabled,账号已停用

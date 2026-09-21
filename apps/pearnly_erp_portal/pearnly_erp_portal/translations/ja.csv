@@ -1,0 +1,17 @@
+A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
+A stored source file must carry its hash,保存したファイルにはハッシュが必要です
+Already received,このファイルは受け取り済みです
+Bind this account first,先に ERP アカウントを連携してください
+Bound to {0},{0} に連携しました
+Could not store this document,書類を保存できませんでした。再送してください
+Draft not found,下書きが見つかりません
+LINE unbound,LINE の連携を解除しました
+Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
+Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
+Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+That code is not valid,コードが正しくありません
+This account cannot send documents,このアカウントは書類を送信できません
+This channel is not open yet,このチャンネルはまだ開放していません
+This document has no content,この書類は中身がありません
+This document is too large,この書類は大きすぎます
+This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです

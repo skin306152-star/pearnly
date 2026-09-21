@@ -1,0 +1,139 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "direction",
+  "posting_date",
+  "warehouse",
+  "column_break_head",
+  "supplier",
+  "doc_no",
+  "status",
+  "lines",
+  "reason",
+  "section_ref",
+  "ref_type",
+  "ref_id",
+  "dedupe_key",
+  "submitted_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "direction",
+   "fieldtype": "Select",
+   "label": "Direction",
+   "options": "in\nout",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_head",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "label": "Supplier",
+   "options": "ERP Supplier"
+  },
+  {
+   "fieldname": "doc_no",
+   "fieldtype": "Data",
+   "label": "External Doc No",
+   "length": 100
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "options": "draft\nsubmitted\nvoid",
+   "default": "draft",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "lines",
+   "fieldtype": "Table",
+   "label": "Lines",
+   "options": "ERP Stock Entry Line"
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason"
+  },
+  {
+   "fieldname": "section_ref",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "fieldname": "ref_type",
+   "fieldtype": "Data",
+   "label": "Reference Type",
+   "length": 50
+  },
+  {
+   "fieldname": "ref_id",
+   "fieldtype": "Data",
+   "label": "Reference",
+   "length": 200
+  },
+  {
+   "fieldname": "dedupe_key",
+   "fieldtype": "Data",
+   "label": "Dedupe Key",
+   "length": 200,
+   "unique": 1
+  },
+  {
+   "fieldname": "submitted_at",
+   "fieldtype": "Datetime",
+   "label": "Submitted At",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Stock Entry",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:STE-{YYYY}-{#####}",
+ "naming_rule": "Expression"
+}

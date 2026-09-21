@@ -1,0 +1,149 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "customer_name",
+  "short_name",
+  "party_type",
+  "tax_id",
+  "branch_type",
+  "branch_no",
+  "column_break_main",
+  "contact_person",
+  "contact_phone",
+  "contact_email",
+  "promptpay_id",
+  "color",
+  "is_active",
+  "address",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "customer_name",
+   "fieldtype": "Data",
+   "label": "Customer",
+   "reqd": 1,
+   "in_list_view": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "short_name",
+   "fieldtype": "Data",
+   "label": "Short Name",
+   "in_list_view": 1,
+   "length": 80
+  },
+  {
+   "fieldname": "party_type",
+   "fieldtype": "Select",
+   "label": "Buyer Type",
+   "options": "company\nperson\nforeign\nanonymous",
+   "default": "company",
+   "in_list_view": 1,
+   "description": "Anonymous buyers get no tax id; only companies have branches"
+  },
+  {
+   "fieldname": "tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID",
+   "in_list_view": 1,
+   "length": 20
+  },
+  {
+   "fieldname": "branch_type",
+   "fieldtype": "Select",
+   "label": "Branch Type",
+   "options": "hq\nbranch",
+   "depends_on": "eval:doc.party_type=='company'"
+  },
+  {
+   "fieldname": "branch_no",
+   "fieldtype": "Data",
+   "label": "Branch No",
+   "length": 20,
+   "depends_on": "eval:doc.party_type=='company' && doc.branch_type=='branch'"
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person",
+   "length": 100
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone",
+   "length": 50
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "options": "Email",
+   "length": 200
+  },
+  {
+   "fieldname": "promptpay_id",
+   "fieldtype": "Data",
+   "label": "PromptPay ID",
+   "length": 50
+  },
+  {
+   "fieldname": "color",
+   "fieldtype": "Data",
+   "label": "Colour Tag",
+   "length": 20
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Customer",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:CUS-{#####}",
+ "naming_rule": "Expression",
+ "allow_rename": 1
+}

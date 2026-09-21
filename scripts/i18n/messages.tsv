@@ -142,7 +142,6 @@ pearnly_control	Feature Code	功能代码	รหัสฟีเจอร์	機�
 pearnly_control	Matches the feature keys in the product manifest (product_manifest.py).	与产品清单 product_manifest.py 里的 features 键一致	ตรงกับคีย์ features ในรายการผลิตภัณฑ์ (product_manifest.py)	製品マニフェスト product_manifest.py の features キーと一致します。
 pearnly_control	Feature Name	功能名称	ชื่อฟีเจอร์	機能名
 pearnly_control	Default On	常规开通	เปิดตามปกติ	既定で有効
-pearnly_control	Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。
 pearnly_control	Enforcement	权限落地	การบังคับสิทธิ์	権限の適用
 pearnly_control	Role	对应角色	บทบาท	対応ロール
 pearnly_control	At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）	ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
@@ -999,6 +998,7 @@ pearnly_core	Change your password from your account profile using Change Passwor
 pearnly_core	Reorder sidebar	侧栏排序	จัดลำดับแถบด้านข้าง	サイドバーの並べ替え	account.sidebarOrder
 pearnly_core	Pearnly Light	Pearnly 浅色	Pearnly โหมดสว่าง	Pearnly ライト	account.themeLight
 pearnly_core	Pearnly Dark	Pearnly 深色	Pearnly โหมดมืด	Pearnly ダーク	account.themeDark
+pearnly_core	Pearnly	Pearnly主题	Pearnly	Pearnly	Frappe Light
 pearnly_core	Pending	待处理	รอดำเนินการ	処理待ち	connect.records.pending
 pearnly_core	Retrying	重试中	กำลังลองใหม่	再試行中	connect.records.retrying
 pearnly_core	Succeeded	成功	สำเร็จ	成功	connect.records.success
@@ -1044,6 +1044,27 @@ pearnly_core	Pay as you go: first {0} pages each calendar month at {1}/page; sub
 pearnly_core	Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
 pearnly_core	Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
 pearnly_core	{0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
+pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+pearnly_erp_portal	That code is not valid	验证码不正确	รหัสไม่ถูกต้อง	コードが正しくありません
+pearnly_erp_portal	Bound to {0}	已绑定到 {0}	เชื่อมต่อกับ {0} แล้ว	{0} に連携しました
+pearnly_erp_portal	Send the code from the ERP page to bind	请把 ERP 页面上的绑定码发过来	กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ	ERP 画面のコードを送信して連携してください
+pearnly_erp_portal	Bind this account first	请先绑定 ERP 账号	กรุณาผูกบัญชี ERP ก่อนใช้งาน	先に ERP アカウントを連携してください
+pearnly_erp_portal	LINE unbound	LINE 已解绑	ยกเลิกการเชื่อมต่อแล้ว	LINE の連携を解除しました
+pearnly_erp_portal	This channel is not open yet	这个通道还没开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
+pearnly_core	The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
+pearnly_core	LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください
+pearnly_erp_portal	Only purchase documents can be sent in for now	目前只收采购单据	ตอนนี้รับเฉพาะเอกสารจัดซื้อ	現時点では仕入書類のみ受け付けます
+pearnly_erp_portal	This account cannot send documents	这个账号不能传单据	บัญชีนี้ส่งเอกสารไม่ได้	このアカウントは書類を送信できません
+pearnly_erp_portal	Could not store this document	单据留底失败，请重发	บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を保存できませんでした。再送してください
+pearnly_erp_portal	Already received	这份文件已经收过了	ได้รับไฟล์นี้แล้ว	このファイルは受け取り済みです
+pearnly_erp_portal	Received; confirm it on the ERP page	已收到，请到 ERP 页面确认	ได้รับแล้ว กรุณายืนยันในหน้า ERP	受け取りました。ERP 画面で確認してください
+pearnly_erp_portal	Draft not found	找不到这条草稿	ไม่พบรายการร่าง	下書きが見つかりません
+pearnly_erp_portal	This draft was already confirmed or discarded	这条草稿已经确认或作废过了	รายการนี้ยืนยันหรือยกเลิกไปแล้ว	この下書きは確認済みか破棄済みです
+pearnly_erp_portal	This document has no content	这份文件是空的	ไฟล์นี้ไม่มีเนื้อหา	この書類は中身がありません
+pearnly_erp_portal	This document is too large	这份文件太大	ไฟล์นี้ใหญ่เกินไป	この書類は大きすぎます
+pearnly_erp_portal	A stored source file must carry its hash	留底文件必须带内容指纹	ไฟล์ที่เก็บต้องมีค่าแฮช	保存したファイルにはハッシュが必要です
+pearnly_erp_portal	A confirmed draft must point at the purchase record it created	已确认的草稿必须指向它建出的采购记录	รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น	確認済みの下書きは作成した仕入記録を指している必要があります
+pearnly_control	Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。
 pearnly_cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork
 pearnly_cowork	Cowork Workspace	Cowork 公司账套	Cowork บริษัทที่จัดทำบัญชี	Cowork 会計対象会社
 pearnly_cowork	Cowork Client	Cowork 买方客户	Cowork ลูกค้าผู้ซื้อ	Cowork 買い手顧客
@@ -1118,7 +1139,6 @@ pearnly_cowork	The source page number must be a positive integer.	源文件页�
 pearnly_cowork	The date reference year is missing. Reload and try again.	缺少日期参考年份，请重新加载后重试。	ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年がありません。再読み込みしてから再試行してください。	history.date_anchor_required
 pearnly_cowork	The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
 pearnly_cowork	Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません
-pearnly_dms	The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
 pearnly_cowork	A positive source page number is required.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。
 pearnly_cowork	Actor	操作人	ผู้ดำเนินการ	実行者
 pearnly_cowork	Actual Qty	实盘数量	จำนวนที่ตรวจนับจริง	実棚数量

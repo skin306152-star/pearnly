@@ -1,0 +1,154 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "company_name",
+  "short_name",
+  "tax_id",
+  "branch",
+  "column_break_main",
+  "phone",
+  "contact_person",
+  "contact_email",
+  "promptpay_id",
+  "section_docs",
+  "doc_prefix",
+  "fiscal_year_start_month",
+  "is_default",
+  "is_active",
+  "address",
+  "note"
+ ],
+ "fields": [
+  {
+   "fieldname": "company_name",
+   "fieldtype": "Data",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "length": 200
+  },
+  {
+   "fieldname": "short_name",
+   "fieldtype": "Data",
+   "label": "Short Name",
+   "in_list_view": 1,
+   "length": 80
+  },
+  {
+   "fieldname": "tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID",
+   "in_list_view": 1,
+   "length": 20
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "label": "Branch",
+   "length": 100
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "length": 50
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person",
+   "length": 100
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email",
+   "options": "Email",
+   "length": 200
+  },
+  {
+   "fieldname": "promptpay_id",
+   "fieldtype": "Data",
+   "label": "PromptPay ID",
+   "length": 50
+  },
+  {
+   "fieldname": "section_docs",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "doc_prefix",
+   "fieldtype": "Data",
+   "label": "Document Prefix",
+   "length": 20,
+   "description": "Prefix for this company's document numbers"
+  },
+  {
+   "fieldname": "fiscal_year_start_month",
+   "fieldtype": "Int",
+   "label": "Fiscal Year Starts In",
+   "default": "1",
+   "description": "1-12; Thai companies commonly start in January"
+  },
+  {
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "label": "Default Company",
+   "default": "0",
+   "in_list_view": 1,
+   "description": "The company used for new documents and for the company profile page"
+  },
+  {
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "label": "Active",
+   "default": "1",
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Company",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 0,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1,
+ "autoname": "format:CO-{#####}",
+ "naming_rule": "Expression",
+ "allow_rename": 1
+}

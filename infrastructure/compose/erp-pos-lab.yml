@@ -1,0 +1,56 @@
+# ERP / POS 本地实验室。只用于本地开发与验证，不是开户目标，也不发布端口。
+#
+# 与 pearnly-sample、pearnly-cowork-backend-lab 相互独立：自有 Compose project、
+# 自有数据库/Site 卷、内网无外联。禁止从这里接管其它任务的容器或数据。
+#
+# 关键差别：本实验室只安装 pearnly_core + pearnly_erp_portal，刻意**不安装 erpnext**，
+# 用来证明收银/POS 流程没有暗中依赖 ERPNext 业务 DocType。若某条链实际需要它，
+# 安装或运行会直接失败，而不是被静默掩盖。
+name: pearnly-erp-pos-lab
+
+services:
+  db:
+    image: mariadb:11.8@sha256:8b5f33ebd85d1775657e974ed10434128bb493c80e826ceaa54074fd1a92a112
+    mem_limit: 768m
+    cpus: 1
+    environment:
+      MARIADB_ROOT_PASSWORD: erp-pos-lab-only
+    command: [--innodb-buffer-pool-size=192M, --max-connections=60]
+    volumes: [db:/var/lib/mysql]
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:6.2-alpine@sha256:d0c875bdacfb5c4d2c2d9124de3f53cee1dc9ceff8936bd459fabc135cb33015
+    mem_limit: 160m
+    cpus: 0.5
+    command: [redis-server, --maxmemory, 128mb, --maxmemory-policy, noeviction]
+  bench:
+    image: sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3
+    mem_limit: 1g
+    cpus: 1.5
+    command: [sleep, infinity]
+    environment:
+      PEARNLY_ERP_POS_LAB: "1"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      # 只读挂控制面源码，便于实验室直接读它发布的「功能 → 角色」清单，
+      # 不必在本脚本里另抄一份（抄一份就会与控制面漂移）。
+      - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ../../scripts:/workspace/scripts:ro
+      - ../../tests:/workspace/tests:ro
+
+networks:
+  default:
+    internal: true
+
+volumes:
+  db:
+  sites:

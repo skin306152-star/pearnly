@@ -239,20 +239,25 @@ function adopt(draft: Draft): void {
 /**
  * 四级地址：首屏先用服务端**同一次登录**带回来的那份，缺哪级才单独去拉。
  * 老产品就是这么做的（移动端不该为一个地址登四次 DMS）。
+ *
+ * **府那一级也要自己兜底拉**（老页面写的是 `bundled.provinces || await geo('provinces','')`）。
+ * 少了这一步，服务端没带回府列表时页面会停在"值在、选项没到"的空白态 ——
+ * 下拉框找不到选项就显示空白，用户点一下级联把选项补上才冒出来。
  */
 async function hydrateGeo(): Promise<void> {
   const levels: Array<[string, string, string]> = [
+    ["provinces", "", ""],
     ["districts", "province_id", "districtId"],
     ["subdistricts", "district_id", "subdistrictId"],
     ["zipcodes", "subdistrict_id", "zipcodeId"],
   ];
   for (const [level, parentField, current] of levels) {
-    const parent = customer[parentField] || "";
+    const parent = parentField ? customer[parentField] || "" : "";
     if (geo[level]?.length) {
-      if (customer[current]) customer[current] = String(customer[current]);
+      if (current && customer[current]) customer[current] = String(customer[current]);
       continue;
     }
-    if (!parent) {
+    if (parentField && !parent) {
       geo[level] = [];
       continue;
     }
@@ -857,6 +862,7 @@ function changeLocale(value: Locale): void {
   position: sticky;
   bottom: 0;
   display: flex;
+  justify-content: flex-end;
   gap: 10px;
   padding: 10px 0 16px;
   background: var(--bg);

@@ -85,12 +85,14 @@ def main():
         config(host_name="https://" + site, developer_mode=0, maintenance_mode=0,
                pause_scheduler=0, enable_scheduler=True)
     elif action == "install_app":
-        apps = [p["app"]]
-        if p["app"] == "pearnly_erp_portal":
-            apps.insert(0, "erpnext")
-        for app in apps:
-            if app not in frappe.get_installed_apps():
-                install_app(app)
+        # 只装该产品自己的 App。这里曾经在安装 pearnly_erp_portal 之前自动插入
+        # erpnext，是更早「原生 ERPNext 打底、Pearnly 套壳」方向的遗留：产品合同
+        # （`pearnly_erp_portal/product_manifest.py` 的 must_not 第一条）明确禁止默认
+        # 安装 ERPNext 全套业务，控制面也从不请求它（provision-agent 只放行
+        # pearnly_core 与该产品自己的 App），实测只装 Core + ERP 门户即可安装与迁移。
+        # 用户 2026-09-21 明确要求不要它。
+        if p["app"] not in frappe.get_installed_apps():
+            install_app(p["app"])
     elif action == "set_oidc":
         assert p["issuer"] == "https://auth.pearnly.com/realms/pearnly-business"
         assert p["client_id"] == site and p["native_account"] is True

@@ -153,6 +153,7 @@ File,File
 Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
+Frappe Light,Pearnly
 Full Name,Full Name
 Gender,Gender
 Grand Total,Grand Total
@@ -180,6 +181,7 @@ Item / Description,Item / Description
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
 LINE Display Name,LINE Display Name
 LINE User ID,LINE User ID
+LINE could not be reached; please try again,LINE could not be reached; please try again
 Last Login At,Last Login At
 Last Result,Last Result
 Last Seen At,Last Seen At
@@ -314,6 +316,7 @@ The DMS account is not approved to use the system,The DMS account is not approve
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
+The LINE channel is not configured for this account,The LINE channel is not configured for this account
 The OCR service returned HTTP {0}: {1},The OCR service returned HTTP {0}: {1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.
 The account is disabled,The account is disabled

@@ -1,0 +1,54 @@
+# 开通路径本地实验室：服务名与生产一致（mariadb / redis-cache / redis-queue），
+# 因此 `infrastructure/production/site-step.py` 可以**原样**在这里跑，
+# 用来复验「新建租户站点」这条链，而不是另写一份仿制逻辑。
+#
+# 只用于本地验证：自有 Compose project、自有卷、内网无外联、不发布端口，
+# 不接触生产数据库、密钥或域名。站点名用 .localhost，不是 pearnly.com。
+name: pearnly-erp-pos-provision-lab
+
+services:
+  mariadb:
+    image: mariadb:11.8@sha256:8b5f33ebd85d1775657e974ed10434128bb493c80e826ceaa54074fd1a92a112
+    mem_limit: 768m
+    cpus: 1
+    environment:
+      MARIADB_ROOT_PASSWORD: erp-pos-provision-lab-only
+    command: [--innodb-buffer-pool-size=192M, --max-connections=60]
+    volumes: [db:/var/lib/mysql]
+    healthcheck:
+      test: [CMD, healthcheck.sh, --connect, --innodb_initialized]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis-cache:
+    image: redis:6.2-alpine@sha256:d0c875bdacfb5c4d2c2d9124de3f53cee1dc9ceff8936bd459fabc135cb33015
+    mem_limit: 128m
+  redis-queue:
+    image: redis:6.2-alpine@sha256:d0c875bdacfb5c4d2c2d9124de3f53cee1dc9ceff8936bd459fabc135cb33015
+    mem_limit: 128m
+  maintenance:
+    image: sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3
+    # 与生产一致：维护容器以 root 启动，site-step 自己在开头降权到 uid 1000。
+    user: root
+    mem_limit: 1g
+    cpus: 1.5
+    command: [sleep, infinity]
+    environment:
+      PEARNLY_ERP_POS_PROVISION_LAB: "1"
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis-cache: {condition: service_started}
+      redis-queue: {condition: service_started}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      - ../../infrastructure/production/site-step.py:/run/site-step.py:ro
+
+networks:
+  default:
+    internal: true
+
+volumes:
+  db:
+  sites:

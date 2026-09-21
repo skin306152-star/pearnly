@@ -1,0 +1,241 @@
+{
+  "baseline_repo": "pearnly-app",
+  "baseline_sha": "501589f0",
+  "modules": {
+    "_out.py": {
+      "diff_lines": 88,
+      "digest": "f87509b747f39fd8adffa88540de36492c4e4e65bae4f08dd49a65c36e4f4b3f",
+      "new": "apps/pearnly_dms/pearnly_dms/line/out.py"
+    },
+    "account_channel.py": {
+      "diff_lines": 172,
+      "digest": "6d77f3f5fb3d9571bce2717f69164b55761deba66e9016ee3c4e02e412a4123c",
+      "new": "apps/pearnly_control/pearnly_control/line_admin.py"
+    },
+    "approval_cards.py": {
+      "diff_lines": 49,
+      "digest": "1e0f8865578e6b75ec7e37417361a68f9002e0f897152190bceaaaee78505a52",
+      "new": "apps/pearnly_dms/pearnly_dms/approval/approval_cards.py"
+    },
+    "approval_flow.py": {
+      "diff_lines": 181,
+      "digest": "8467b4220ecf70a5fdf98ebe5244ac92250a04a0ad573ff06b2a3dd90cb53eb3",
+      "new": "apps/pearnly_dms/pearnly_dms/approval/approval_flow.py"
+    },
+    "approval_store.py": {
+      "diff_lines": 218,
+      "digest": "4452fbe304062d18d79f341bc978eae1529eec218c7012cd41cc24e919fa5dc4",
+      "new": "apps/pearnly_dms/pearnly_dms/approval/approval_store.py"
+    },
+    "binding_guard.py": {
+      "diff_lines": 107,
+      "digest": "0eee6e14bcb3e783c1c5beb343113d3d98575d41fb74b9aeec77ac3e1264c2c2",
+      "new": "apps/pearnly_dms/pearnly_dms/line/identity.py"
+    },
+    "binding_state.py": {
+      "diff_lines": 43,
+      "digest": "0bbf2d5192d3bbdc2a4ee1551d105dce6cacad1de6881d602ae6b398d62ecea6",
+      "new": "apps/pearnly_dms/pearnly_dms/line/identity.py"
+    },
+    "booking_attempt.py": {
+      "diff_lines": 43,
+      "digest": "1fc78f7f19f589b2d9dc0dd1f320dbc53c98b4ffe76dd3849ea815705991db6b",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/booking_attempt.py"
+    },
+    "booking_car_details.py": {
+      "diff_lines": 6,
+      "digest": "907944e5d5ed28de915ea11059a5a38b92eefefa6b996de8129480a9f9e90ddd",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/booking_car_details.py"
+    },
+    "booking_edit.py": {
+      "diff_lines": 128,
+      "digest": "4653ef8acb10502014dee8ff9691faae98f107ae5befac9e771719a068688605",
+      "new": "apps/pearnly_dms/pearnly_dms/editor/booking_edit.py"
+    },
+    "booking_flow.py": {
+      "diff_lines": 187,
+      "digest": "530430a4ad8c7e3030f4bb0f0682a6f8d8449691de7e4d58c2172514272ef307",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py"
+    },
+    "booking_ledger.py": {
+      "diff_lines": 55,
+      "digest": "065c1d8ebbd5d381380fb514b0c7875d7df36993a012a06a7b2b51198aee0588",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/booking_ledger.py"
+    },
+    "booking_payments.py": {
+      "diff_lines": 0,
+      "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/booking_payments.py"
+    },
+    "booking_preflight.py": {
+      "diff_lines": 4,
+      "digest": "0f1e80ef23db85ffb0902d2da6f5b136d10c2ae789a02ce37393bca365db44bb",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/booking_preflight.py"
+    },
+    "booking_qa.py": {
+      "diff_lines": 188,
+      "digest": "e7273541512234f07622207ff79b9241c6828c135ffaeebdbf3bdb26a4fd7f98",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa.py"
+    },
+    "booking_qa_pages.py": {
+      "diff_lines": 26,
+      "digest": "ecef0bddf5a2d993a1f01605ca4aaf157525c70f3583868046cbb63397bd4d6a",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_pages.py"
+    },
+    "booking_qa_payment.py": {
+      "diff_lines": 54,
+      "digest": "e3304d29a239b0d070136708d3985557e8b0de4eff3e3f71faaf02550c2187bf",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_payment.py"
+    },
+    "booking_qa_start.py": {
+      "diff_lines": 16,
+      "digest": "8200c01bb016240b72901cdd815b111283978d009e28e575c8ad4132d6f13a20",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_start.py"
+    },
+    "booking_qa_sync.py": {
+      "diff_lines": 31,
+      "digest": "53b408874135923f6d13aea86b940c10dd3168f97cc7153584917bf3c86db655",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_sync.py"
+    },
+    "booking_qa_transfer.py": {
+      "diff_lines": 56,
+      "digest": "622b4be13cb5a74c4a3425067504054e535a8b2b2bc6c8c5bc402d3a76f42de0",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/booking_qa_transfer.py"
+    },
+    "cards.py": {
+      "diff_lines": 116,
+      "digest": "dcd797cfc7ae80f4a671917b6f3a8cea6ddb2ae53faab41f400f441863167d7e",
+      "new": "apps/pearnly_dms/pearnly_dms/line/cards.py"
+    },
+    "commands.py": {
+      "diff_lines": 0,
+      "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "new": "apps/pearnly_dms/pearnly_dms/line/commands.py"
+    },
+    "customer_edit.py": {
+      "diff_lines": 63,
+      "digest": "9dc9d0452d0a93337c83163bcc918e93f0ae0ca773be5926ab04c8382894fba4",
+      "new": "apps/pearnly_dms/pearnly_dms/editor/customer_edit.py"
+    },
+    "customer_edit_entry.py": {
+      "diff_lines": 282,
+      "digest": "abd94fc7fd7b8ce14ad961119682e0319df9e43c79bc2fd3b88bdd21706c40e1",
+      "new": "apps/pearnly_dms/pearnly_dms/intake/flow.py"
+    },
+    "draft.py": {
+      "diff_lines": 25,
+      "digest": "0fbb354278d3fb460f991c43d88c5b19d67e9097918f7060cf38c2b5a7f95e2e",
+      "new": "apps/pearnly_dms/pearnly_dms/intake/draft.py"
+    },
+    "edit_link.py": {
+      "diff_lines": 21,
+      "digest": "0c0111c569de2c09016dc5b8d877c5eb3ff00a666716f6d8270059aeb5557ee3",
+      "new": "apps/pearnly_dms/pearnly_dms/editor/edit_link.py"
+    },
+    "flow.py": {
+      "diff_lines": 291,
+      "digest": "8a9e4273fead9aabaa521112617882db69ab55215912b2381e50dc07db36eb88",
+      "new": "apps/pearnly_dms/pearnly_dms/intake/flow.py"
+    },
+    "login_tickets.py": {
+      "diff_lines": 333,
+      "digest": "e257e009119790af48f3539dcebee226b304f011c8148f96e5f4c9ad91fdad92",
+      "new": "apps/pearnly_core/pearnly_core/line_session.py"
+    },
+    "master_contract.py": {
+      "diff_lines": 54,
+      "digest": "07e8f52fb72df5011e8f176239c77199460a2d27765ec43b818166b02c0cccd5",
+      "new": "apps/pearnly_dms/pearnly_dms/masters/master_contract.py"
+    },
+    "masters_cache.py": {
+      "diff_lines": 222,
+      "digest": "01c4397d360088f410f76b184c86d2c92b0bca7c13b42aac8d20609f1398c41b",
+      "new": "apps/pearnly_dms/pearnly_dms/masters/masters_cache.py"
+    },
+    "menu_cards.py": {
+      "diff_lines": 19,
+      "digest": "30c61406f1eceadca8f6bc2c701f5b6a35d372f6b137318d9a36bab08b97e586",
+      "new": "apps/pearnly_dms/pearnly_dms/menu/menu_cards.py"
+    },
+    "menu_flow.py": {
+      "diff_lines": 71,
+      "digest": "7e0dcb8ade2301f74644918d4c1c103f8c70b800e6eabe21856ffaedcb5625cd",
+      "new": "apps/pearnly_dms/pearnly_dms/menu/menu_flow.py"
+    },
+    "menu_sync.py": {
+      "diff_lines": 151,
+      "digest": "ba6f18aa64e655f91d6b430519e4631588ba999262deb66d4bdec2bf62558367",
+      "new": "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py"
+    },
+    "mrerp_portal.py": {
+      "diff_lines": 42,
+      "digest": "6aa5d14120a2c20262c47ac91e99bc84606df62e1ef0f678d5a60a33bb0ea4d1",
+      "new": "apps/pearnly_dms/pearnly_dms/account/portal.py"
+    },
+    "ocr_review.py": {
+      "diff_lines": 0,
+      "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "new": "apps/pearnly_dms/pearnly_dms/ocr/ocr_review.py"
+    },
+    "qa_cards.py": {
+      "diff_lines": 162,
+      "digest": "2d2bd41c9cdeb21df7fa17cd5b140014038b194b4a86a0a2ce8f42cbbe035f67",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/qa_cards.py"
+    },
+    "qa_payment_cards.py": {
+      "diff_lines": 16,
+      "digest": "d778d716dc03b8a38cff23b503cb3bef77c3ce782334c1203767355e4ab84944",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/qa_payment_cards.py"
+    },
+    "qa_util.py": {
+      "diff_lines": 5,
+      "digest": "dbe46f3fc736e9ee7c632d62ebc208056b430bd68be154f18d2f4e87f1ff9759",
+      "new": "apps/pearnly_dms/pearnly_dms/booking/conversation/qa_util.py"
+    },
+    "query_access.py": {
+      "diff_lines": 11,
+      "digest": "d0f21ef8eaecb02310700979e16f1e23ae90bc63562c3d1e18e12819715b9cdc",
+      "new": "apps/pearnly_dms/pearnly_dms/query/query_access.py"
+    },
+    "query_cards.py": {
+      "diff_lines": 68,
+      "digest": "336f39ca73284d25c3578c0c7e6a385c58c77e350ff12af8f3f86598a3ac99f1",
+      "new": "apps/pearnly_dms/pearnly_dms/query/query_cards.py"
+    },
+    "query_flow.py": {
+      "diff_lines": 151,
+      "digest": "94d41f0980103cb5ff294a765a35541f3be446e3f5e3a732ddcb3021cd6447cd",
+      "new": "apps/pearnly_dms/pearnly_dms/query/query_flow.py"
+    },
+    "rich_menu.py": {
+      "diff_lines": 194,
+      "digest": "1fa36d4bc51cb78aad40e092d0de9e0563c3e3852e7ae8a6cf2941c84877c91f",
+      "new": "apps/pearnly_dms/pearnly_dms/menu/rich_menu.py"
+    },
+    "schema.py": {
+      "diff_lines": 30,
+      "digest": "643f0f87426d64dba44981c89eed30643297d98ab24a7a00a0aad60ca23b7a4d",
+      "new": "apps/pearnly_core/pearnly_core/pearnly_core/doctype/pearnly_line_session/pearnly_line_session.json"
+    },
+    "session_store.py": {
+      "diff_lines": 403,
+      "digest": "883d16b0c90683da0cc32ebbef88e73add7aa7cb292c7eeb1e920ee7f72ca242",
+      "new": "apps/pearnly_core/pearnly_core/line_session.py"
+    },
+    "store.py": {
+      "diff_lines": 456,
+      "digest": "0be6ca2ca449d63d192e85ee7af5b5d940d97b063b31feeb8b67978ab83132c2",
+      "new": "apps/pearnly_core/pearnly_core/line_session.py"
+    },
+    "text_fields.py": {
+      "diff_lines": 0,
+      "digest": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "new": "apps/pearnly_dms/pearnly_dms/contracts/text_fields.py"
+    },
+    "text_router.py": {
+      "diff_lines": 50,
+      "digest": "fd721ac582940fedc145615726105d32f5b70450cf35eda1582ca14a95c404b9",
+      "new": "apps/pearnly_dms/pearnly_dms/line/text_router.py"
+    }
+  }
+}

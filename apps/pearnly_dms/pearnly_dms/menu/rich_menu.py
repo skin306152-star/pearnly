@@ -32,8 +32,27 @@ def _request(method, path, *, body=None, image=None, missing_ok=False):
     if response.status_code == 404 and missing_ok:
         return {}
     if response.status_code != 200:
-        raise RuntimeError(f"LINE rich menu HTTP {response.status_code}")
+        # LINE 把原因放在响应体里（例如 "An image has already been uploaded to the richmenu"）。
+        # 只报状态码会让排查从"看一句话"变成"猜半天"，所以带上正文（截断）。
+        raise RuntimeError(f"LINE rich menu HTTP {response.status_code}: {response.text[:200]}")
     return response.json() if response.content else {}
+
+
+def _has_image(menu_id):
+    """这个菜单现在有没有图片。LINE 没有"是否已上传"的字段，只能读一次内容：200 = 有。
+
+    为什么必须问一次：LINE 拒绝对**已经有图片**的菜单再次上传
+    （400 "An image has already been uploaded to the richmenu"）。而 `publish()` 是幂等的，
+    同一套菜单会被重复发布（开户重跑、改渠道、换租户用同域名同 LIFF 时内容散列都一样），
+    每次都盲传就会在第二次直接失败 —— 2026-09-20 线上就是这么卡住开户的。
+    """
+    token = frappe.conf.get("pearnly_line_channel_access_token")
+    if not token:
+        raise RuntimeError("LINE channel unavailable")
+    response = requests.get("https://api-data.line.me/v2/bot/richmenu/"
+                            + quote(menu_id, safe="") + "/content",
+                            headers={"Authorization": "Bearer " + token}, timeout=20)
+    return response.status_code == 200
 
 
 def payload(query=False):
@@ -77,8 +96,9 @@ def publish():
             menu_id = existing.get(body["name"])
             if not menu_id:
                 menu_id = _request("POST", "richmenu", body=body)["richMenuId"]
-            # Also repairs a run interrupted between create and image upload.
-            _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image)
+            # 只有确实没有图才传（新菜单，或上一次跑到一半的补传）；已经有图就直接跳过。
+            if not _has_image(menu_id):
+                _request("POST", f"richmenu/{quote(menu_id, safe='')}/content", image=image)
             result[key] = menu_id
         _request("POST", "user/all/richmenu/" + result["basic"])
         update_site_config(CONFIG, result)

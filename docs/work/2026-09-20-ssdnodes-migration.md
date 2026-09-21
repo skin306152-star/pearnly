@@ -4,6 +4,8 @@
 
 > 追加：用户随后要求「开户慢的问题一起处理」，接手窗口在新机上做了只读诊断 + 一次性计时，确认**一半是我们自己每步重复加的开销（已改掉），一半是这台机器的磁盘写延迟（代码改不了）**，见文末「H14 开户慢：自己排查的结果」。
 
+> 再追加：用户要求「DMS 容器对齐到最新版（含本轮改动）并拉起来」。已把 main 推到 `8f1851f`、构建并通过投递把 DMS 产品组切到新镜像，工具副本与本机 runner 也已对齐，见文末「DMS 对齐到 8f1851f（已上线）」。
+
 基线：`7415c1e`；工作树 `ssdnodes-migration/pearnly`，分支 `codex/ssdnodes-migration`。
 
 ## 用户决策
@@ -363,3 +365,347 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
 - `provision-agent.py`、`provision-runner.py` 只影响宿主机与本机，可以独立先上；runner 是 launchd 常驻进程，跑的是**主检出** `/Users/skin/pearnly/scripts/production/provision-runner.py`，所以要合回 `main` 才生效。
 - `site-step.py` 这边的改动（H07/H13/H15）**依赖新镜像**：它调用 `pearnly_dms.menu.rich_menu.published_state` 与新的 `finalize_site` 账户布局初始化，镜像里没有这两个东西时 `set_line` 会直接失败。所以工具同步必须和"构镜像→投递→激活"同一次做。
 - 真实收益要到下一次开户才有端到端数字（需要你触发一次开户）；本文件里的数字是同一台机器上的分步实测与彩排，不是整轮验收。
+
+## DMS 对齐到 8f1851f（已上线，2026-09-20）
+
+用户要求「dms 这边的容器对齐到最新版，包括你的改动，拉起来我看看，等下再做开新租户测试」。执行过程与回读如下（全部有命令回读，不是"应该没问题"）。
+
+### 发布链
+
+- main 快进到 `8f1851f`（= 本任务分支的 3 个提交：H01/H02/H04/H05/H07/H08/H09/H13/H15 + 菜单保留 + H14 执行链），已推送。
+- 构建 [run 35523469754](https://github.com/skin306152-star/pearnly/actions/runs/35523469754) 成功（含架构检查、前端构建、镜像内 `test_cloud_onboarding.py` / `test_dms_entrypoints.py` 与运行期自检）。
+- 镜像：`ghcr.io/skin306152-star/pearnly/frappe@sha256:5346ad0b737827bc3d1c408ca61851d29a94e4bbba870bf83a7f006be4bda271`，镜像内 revision 标签回读为 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a`。
+- 投递 [run 35523736225](https://github.com/skin306152-star/pearnly/actions/runs/35523736225) 成功（受限镜像接收器只拉取、不启动）。
+- 激活：`bash scripts/production/activate-product.sh <image> dms`，3 分 37 秒，输出 `Product dms activated with verified image.`（含维护模式开关、旧镜像整站备份、`bench migrate`、7 个容器重建）。激活前先逐字比对过服务器上的 `activate-product.sh` 与 `compose.yml`，与仓库 SHA-256 一致。
+
+### 发布后必须补的两件事（都做了）
+
+- **`active-image.json` 指向新 digest**：`activate-product.sh` 不写这个文件，只有 `activate-foundation.sh` 写。不补的话，下一次任何 `compose up -d`（例如开户里的 `restart_web`）会用旧的 `PEARNLY_IMAGE` 重建容器，把这次改动**悄悄回退**。
+- **宿主机工具副本同步**：`infrastructure/production/provision-agent.py`、`site-step.py` 已覆盖到 `/opt/pearnly/deploy/...`，与本地 SHA-256 逐文件一致（`31d1da5d…` / `17818b7d…`），`provision-agent.py` 的执行位保留（755）。
+- 本机生产 runner（launchd `com.pearnly.production-provisioner`，跑的是**主检出**的 `scripts/production/provision-runner.py`）已重启：pid 42526 → 75791，新的"步间不空转"逻辑生效。
+
+### 回读
+
+- 7 个 DMS 容器全部为 `5346ad0b7378`：frontend / web / worker / ocr-worker / ocr-dispatch / socketio / scheduler。`billing-web` 仍是 `f67d0b72e961`（基础层这次没有激活，属于有意保持）。
+- `https://testdms.pearnly.com/api/method/ping` → `{"message":"pong"}`；`/desk` 与 `/login` 302 到统一身份；`/liff/dms-booking` 200；`/assets/pearnly_core/desk/home.js` 200。
+- 浏览器会加载到的 `assets/pearnly_core/desk/product.js` 已含 `reorder-sidebar` / `https://pearnly.com` / `/desk/pearnly-home`，`user.js` 已含 `pearnlyProfileScope`。
+- 站点状态：`maintenance_mode=0`、调度器 active、`encryption_key` 存在、LINE LIFF 已配。
+- **账户布局也已补到既有租户**：激活时的 `bench migrate` 触发了 `after_migrate`，User 的三个 Custom Field 与 `first_name` 标签 Property Setter、field_order 现在都存在 —— H02 的修复对"新开户"和"升级"两条路径都落地了。
+- 仍为空的是 `pearnly_dms_rich_menus`：LINE 持久菜单还没发布（H10/H13 的**线上动作**，属于对 LINE 的外部写入，未做）。
+- DMS 各容器发布后 8 分钟内没有 traceback/异常。
+
+### 一个观察（不影响使用，值得盯一次）
+
+`dms-ocr-dispatch` 在发布窗口内（16:54–16:57）重启了 7 次，之后自 16:57:27 起稳定运行至今（进程在跑、CPU 时间在涨、OCR 队列为空、日志无报错）。窗口内正是维护模式开着、容器被重建的时段，而 `execution/dispatch.py` 本身在 `maintenance_mode` 下不派发、启动早期连 Redis 失败会在循环外退出——这解释了重启的形状，但本次没有更细的证据，属于**下次发布时再核对一次**的观察项，不是本轮的代码改动引入的。
+
+### 本轮未做（保持边界）
+
+- 基础层（billing / keycloak / mariadb）没有重新激活，仍跑旧镜像。
+- LINE 菜单发布、H06 存量密文处理、真机与业务验收、新租户开户测试：都还没做；开新租户测试用当前这套（新镜像 + 新工具 + 新 runner）即可。
+
+## 2026-09-21 用户报障三例 + 新旧差异清单（第 1 批修复：本地完成，**未部署**）
+
+用户明确：`6/7/9/10/11` 不做，其余做；**改完先停、不部署**，等 SSD Nodes 主机迁移结果。
+
+### 基准与对账卡口（新增）
+
+- **唯一老基准是 `origin/master` 上的 `501589f0`**（2026-09-18，当时真在服务线上流量的那版）。
+  本地老仓库的 `master` 落后 12 天、`services/line_dms` 少 15 个文件，**拿它当基准会误报一大堆差异**
+  （本轮排查先踩过这个坑）。
+- 新增 `scripts/check-dms-parity.py` + `scripts/dms-parity-expectations.json`：以 `501589f0` 为基准，
+  对老 `services/line_dms`（含登记的重命名落点）逐个模块做 **AST 级**对比（去注释/文档字符串/import），
+  把"已复核过的差异"冻成指纹；差异一变即失败退出。基准不在本机（CI）时跳过、不阻断。
+
+### 三个报障的定论（2026-09-21 生产只读排查，均有现场证据）
+
+1. **有档案的客户被判成"新客户"，看不到资料差异对比** —— 查重这条读没借管理员账号。
+   证据：客户 `115` 在 DMS 真实存在（证号 `1103702587460`，直读 `cus/form.php` 读到）；
+   用 `sale02` 搜证号/姓名/手机号/客户号**全部** 返回 DMS 的"无数据"（`ndt::`），
+   用 `dmstest` 搜同一证号**命中 115**。老基准里 `recognize_lookup` / `customer_fields` /
+   `geo_mrerp_dms` 三处都是 `authoritative_read=True`，新仓这三处丢了（自 2026-09-18 首版起就没带）。
+2. **编辑页地址首屏空白、点一下才显示** —— 值在、选项表没到。服务端只返回"有父级的层级"的表
+   （实测：只给府 → 府+县；什么都没有 → 一张表都没有）；前端 `hydrateGeo()` 只兜底县/镇/邮编，
+   **府那一级不兜底**（老页面是 `bundled.provinces || await geo('provinces','')`），
+   而下拉框找不到选项就显示空白，用户一交互级联把选项补上才"映射出来"。
+3. **登录 DMS 要点两次** —— 菜单3 的 SPA 页多留了一个按钮：第一次点击只跳到中转页，
+   中转页还有第二个按钮才真打开。老页面在 LIFF 侧自动换链接，只在中转页点一次。
+4. **网络断连被兜成"服务器内部错误"**（2026-09-20 01:50 那次 `socket hang up`）——
+   读请求断连没有归类成 `ERR_DMS_TECHNICAL`（"DMS 连接超时 — 请重试"），一路冒到最外层变
+   `ERR_UNEXPECTED`，也不重试。老项目同样代码、同样会这样（近 30 天云端日志 0 次同类，属低频）。
+
+### 本轮改动
+
+| 文件 | 改动 | 为什么 |
+| --- | --- | --- |
+| `apps/pearnly_dms/pearnly_dms/intake/service.py` | `recognize_lookup` / `customer_fields` / `geo_options` 三处读加回 `authoritative_read=True`（写路径 `push_idcard_fields` 不动） | 报障 1；与老基准的三处对齐 |
+| `apps/pearnly_dms/pearnly_dms/client/transport.py` | 传输层断连：**读**路径（`component/`、`/form.php`）重试一次后归类 `ERR_DMS_TECHNICAL`；**写**路径绝不重试（连接断了不代表没落库）；非传输类异常原样抛出 | 报障 4 |
+| `frontend/src/pages/dms/EditorPage.vue` | `hydrateGeo()` 补上"府"、四级都兜底；操作条 `justify-content: flex-end`（按钮移到右下角） | 报障 2 + 用户要求 |
+| `frontend/src/pages/dms/AccountPage.vue` | 门户模式改为**挂载即自动换取链接并跳转**（不再留第二个按钮、不再显示账号框）；账号维护页保留账号/密码表单 | 报障 3 |
+| `translations/{th,en,zh,ja}.csv` | 保存按钮文案 → 保存 / Save / บันทึก / 保存（原为"保存并发送新版预览"） | 用户要求 |
+| `apps/pearnly_dms/pearnly_dms/line/handlers.py` | 解绑词补回老 DMS 通道的泰文 `ยกเลิกการเชื่อมต่อ`；改正"老产品只认一个中文词"的错误注释 | 老用户按旧话术打字必须能解绑 |
+| `intake/flow.py` / `line/text_router.py` | 改正"菜单层/审批流/查询未搬"的过期注释（实际都已接线，并写明落点） | 注释与代码不符会误导后续维护 |
+| `scripts/sample-verify-dms-edit.py`、`scripts/sample-verify-dms-edit-page.mjs` | 断言与选择器跟着新文案改（`text="Save"` / `text="保存"`） | 保持检查有效 |
+
+### 用户明确不做（本轮不碰）
+
+`6` 按租户 LINE 灰度闸（新架构一站一租户，站点级/开通功能级已天然隔离）；
+`7` 车型/银行目录"已取消"项过滤（已实测：DMS 里 `byd/f3` 状态就是 `ยกเลิก`，被 `active_models` 静默滤掉）；
+`9` 订车逐问中图片消息的判断位置；`10` postback 分发顺序；`11` 新站点台账为空（数据属性，不是 bug）。
+
+### 本地验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS（0 违规） |
+| `python3 scripts/check-dms-offline.py` | 全 PASS（client 77、booking-foundation 45、booking-payments 42、booking-readback 43 …） |
+| `python3 tests/test_architecture_guard.py` / `test_native_desk_contract.py` | 9 OK / 15 OK |
+| `python3 scripts/check-i18n.py` / `check-frontend-i18n.py` | 0 问题 / 0 问题 |
+| 前端 `vue-tsc --noEmit` / `vite build` | 0 错 / 构建通过 |
+| `python3 scripts/check-dms-parity.py` | 与老产品差异**没有漂移**（47 个模块登记在案） |
+
+**未做**：镜像构建、部署、真机与业务验收 —— 用户 2026-09-21 要求"改完先停、不部署"。
+下次部署后要真机验的四条：①有档案的客户出"差异对比卡"；②编辑页地址首屏就有值；
+③登录 DMS 一次点击；④断连提示为"DMS 连接超时 — 请重试"且自动重试过一次。
+
+## 2026-09-21 第二批：真机报障四条 + 主档新鲜度方案（本地完成，未部署）
+
+用户 2026-09-21 真机验收第一批后报障四条并确认方案：
+**批 1（本次全做）** 图一编辑入口、差异卡地址显示、图三门户外站、后台预热；
+**批 2（本次一起做）** 编辑页改走"读走有界新鲜共享快照 + 写前权威复核"。
+
+### 报障与定论
+
+1. **点 [แก้ไข] 多弹一张卡**（图一）——**回归**：`diff_card` 的编辑按钮写成了裸 postback，
+   没走 `_edit_button()`；而老基准（`501589f0:services/line_dms/cards.py` 的 `diff_card`）
+   用的是 `_edit_button(nonce)`（能拿深链就用 `uri` 动作）。其它卡（新客户/资料一致/订车预览）
+   本来就是一次点击直开编辑页，所以只有差异卡犯这个毛病。
+2. **差异卡"旧值"印出裸 id**（用户要求拿结果对原件）——卡上 `อำเภอ 151 / ตำบล 1082 /
+   รหัสไปรษณีย์ 1084`，原件是 `ขลุง / ขลุง / 22110`（已在生产只读查证：DMS 主档 115 的
+   省表属 จันทบุรี，级联查得 151=ขลุง、1082=ขลุง、1084=22110）。
+   原因：`display_diffs`/`geo_name` 只在**新地址那一支**的选项表里反查（省表是全量所以省没露馅）。
+3. **登录 DMS 报"这个 OA 还没启用"**（图三）——服务器访问日志：`20:48:53` 打开
+   `?action=portal&openExternalBrowser=1`，UA 是 Chrome(CriOS)，随后
+   `account.api.authenticate` → **401** → 页面显示 `dms.edit.liffUnavailable`。
+   原因：入口把 `openExternalBrowser=1` 加在**LIFF 页本身**上，LINE 于是把我们的 LIFF 页丢进
+   系统浏览器 —— 那里没有 LIFF、拿不到 id_token。老产品是"先在 LINE 内换票、再带票出站"。
+4. **编辑页首屏 12.3 秒、且不复用**（实测：紧接着再读一次仍 12.8 秒）；订车主档快照热时 0.0 秒。
+   老产品口径（`docs/deployment/MIGRATION_STATUS.md:202`）：会话 90 秒、后台 45 秒预热、
+   12 小时兜底 + 写前权威复核。
+5. **后台预热没搬**：`adapter/master_shared.py` 的 `needs_refresh()`/`warm_cached_paints()`
+   都在，但**全仓无调用**，scheduler 也没有这一项 —— 冷启动的直接原因。
+
+### 改动
+
+| 文件 | 改动 |
+| --- | --- |
+| `line/cards.py` | `diff_card` 的 [แก้ไข] 改回 `_edit_button(nonce)`（深链，一次点击进编辑页） |
+| `intake/service.py` | 差异卡额外并进**主档那一支**的县/镇/邮编级联（`_merge_geo_rows`，按 id 去重，同支不重复取） |
+| `menu/links.py` | 门户入口改走 LIFF（去掉 `openExternalBrowser=1`），"出站"交给页面 |
+| `adapter/warm.py`（新） | 主档后台预热：每分钟只查新鲜度，超过 45 秒才派发刷新 + 颜色预热（口径照老产品 `dms_master_refresh.sweep`），只刷**共享范围** |
+| `hooks.py` | 注册 `* * * * *` → `pearnly_dms.adapter.warm.sweep` |
+| `editor/edit_snapshot.py` | 主档与预热颜色改从**共享热快照**取（拿不到才退回现场抓全量）；客户现值与地址级联仍实时读；写前复核不变 |
+| `frontend/src/lib/liff.ts`（新） | LIFF SDK 装载/初始化/带票出站，编辑页与账号页共用 |
+| `frontend/src/pages/dms/AccountPage.vue` | 门户改"LINE 内验身份 → 换票 → `openWindow({external:true})` 带票出站" |
+| `docs/development/architecture-policy.json` | `editor` 允许依赖 `adapter`（编辑页读共享主档快照；架构检查先拦下、复核后登记） |
+
+### 本地验证
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS（0 违规；`masters→adapter` 的反向依赖已按规则改到 `adapter/warm.py`） |
+| `python3 tests/test_architecture_guard.py` | 9 OK |
+| `python3 scripts/check-dms-offline.py` | 全 PASS（booking-foundation 45 / payments 42 / readback 43 …） |
+| 前端 `vue-tsc --noEmit` / `vite build` | 0 错 / 构建通过（AccountPage 产物 hash 已变） |
+| `python3 scripts/check-dms-parity.py` | 复核 `cards.py` 差异（118→116 行）后 `--update`，现"没有漂移" |
+
+**未做**：镜像构建、部署、真机验收。部署后要真机验：①差异卡的 [แก้ไข] 一次点击进编辑页；
+②差异卡旧值显示 ขลุง/ขลุง/22110 而不是 151/1082/1084；③菜单3 在 LINE 内一次点击后跳到系统浏览器；
+④编辑页首屏时间（预期从 12.3 秒降到数秒级，且后台预热生效后更稳）。
+
+### 已部署（2026-09-21，用户要求合并部署）
+
+- `main` = `75ac5b2`；镜像 `sha256:ab5ea30091d3…`；7 个 DMS 容器已切到该镜像，维护模式已关、调度已开。
+- **部署中发现并修掉我自己的一个 bug**：`warm.py` 从 `masters/` 挪到 `adapter/` 后，
+  排队字符串仍写 `pearnly_dms.masters.warm.refresh` —— scheduler 按新路径注册成功、所以
+  看起来正常，但每次刷新都在 worker 里 `ModuleNotFoundError`（只有运行到那一步才发现）。
+  已修，并新增 `tests/test_queue_targets.py`：**所有交给 enqueue/get_attr/run_guarded 的
+  点分路径字符串必须在仓库里有文件、且定义了该属性**（故意不 import，dev CI 没有 frappe；
+  先反向验证过"塞回旧路径必 FAIL"），已接进 Development checks。
+- 另有一条构建失败也在这轮修掉：卡片契约守卫仍按"编辑按钮是 postback"断言，
+  已改成断言它是**深链**（uri + `editor=customer`），正好把这次的回归钉住。
+
+### 部署后实测（生产只读）
+
+| 项 | 迁移前 | 第一次部署后 | 本次部署后 |
+| --- | --- | --- | --- |
+| 编辑页首屏权威读 | 12.3s / 12.8s（不复用） | 12.3s | **10.0s / 8.8s** |
+| 共享主档快照 | 冷启动需现场全量 | 12.3s | **0.01s（预热命中）** |
+| 后台预热任务 | 无（`needs_refresh` 无调用） | 无 | **每分钟检查、过期才刷新；两个连接 Job OK** |
+
+逐段拆解（同一次登录内实测）：起浏览器 2.1s + 登录 1.5s + 读客户 0.6s + 登出关浏览器 0.4s = **4.6s**；
+`run_logged_in` 空跑仍要 **6.5s**（比裸流程多约 2s，在锁/客户端构造/收尾检查里）。
+**结论：编辑页剩下的时间主要是"每个请求一次真实 DMS 登录（含登出）"这个既有架构**，
+不是映射问题 —— 老产品同一端点实测 5.2s，也是同一取舍。主档那部分已经不再是瓶颈。
+
+下一步若还要更快，只有两条路（需用户拍板，未做）：
+（a）在一次编辑会话内**复用**一个已登录的 DMS 会话（会触碰"退出即登出"的铁律，要有租约与上限）；
+（b）把 `run_logged_in` 里多出来的约 2s 收掉（先定位是哪一段）。
+
+## 2026-09-21 本机收尾（DMS 残留清理）
+
+用户要求把 DMS 残留、工作树、本机容器（除管理后台）全部释放。实际执行：
+
+- **删除（DMS 残留）**：`pearnly-dms-line-lab-*` 12 个容器 + 19 个卷 + `pearnly-dms-line-lab_default` 网络 +
+  `~/.config/pearnly-dms-line-lab` + 悬空 keycloak 镜像（756MB）。
+  **注意**：lab 用的镜像与管理后台是同一张（`pearnly/frappe-sample:16.34.1` = `90c1d545d215`），已核对引用后保留。
+- **工作树**：`codex/dms-line-diagnosis`（323M）与 `codex/ssdnodes-migration`（18M）**先确认已并入 main** 再 `git worktree remove`；
+  `codex/cowork-backend-migration`（未并入、有未提交改动）与 `codex/auth-flow-fixes`（另一窗口）保留。
+- **停掉+删掉的其它 lab**：`pearnly-auth-preview-*` 7 个、`pearnly-cowork-backend-lab-*` 3 个（含数据卷）。
+- **备份**：`~/.config/pearnly-migration` 14GB（9-05 的 mirror/legacy tar/venv + 9-18 的 sql）按用户要求删除并清空废纸篓。
+  `~/.config/pearnly/backups`（2.8M，控制面自己写的备份）保留。
+- **Colima VM**：内存 12GiB → **6GiB**（`colima stop && colima start --memory 6`）。管理后台在其中，
+  重启后需手动起 `pearnly-sample-mariadb-1` 与两个 redis（三个都是 `restart: no`；其余 6 个是 `unless-stopped` 会自启）。
+  实测：VM 常驻内存 **21.7GB → 3.0GB**，VM 内用量 0.9GB/6GiB；控制面真查库通过；`runner_bridge` 探针返回 `[]`（开户链路正常）。
+- **保留运行**：管理后台 9 个容器、`com.pearnly.production-provisioner` / `provision-runner`（开户要用）、
+  `com.pearnly.production-tunnel`（KeepAlive，现监听 127.0.0.1:18180/18184；日志里的连接失败/退出码 255 都是主机迁移与本次重启窗口内的旧记录）。
+- 顺带发现：本机 **没有** 残留的 Playwright/Chrome 僵尸进程；`~/.Trash` 受 macOS TCC 保护，
+  只能通过 Finder 清空（已用 `osascript` 清空，Finder 回报 0 项）。
+
+## 2026-09-21 手机导航菜单"要点两下"（已修并部署）
+
+用户报障：手机上点**导航菜单**要点两下。下拉统一的事用户明确说"不管了"，本轮只修这一条。
+
+### 根因（本地用真实触摸事件复现，非猜测）
+
+在管理后台 Desk（同一套 Frappe 原生代码）用 iPhone 13 视口 + `page.tap()` 实测：
+
+| 动作 | 结果 |
+| --- | --- |
+| 点 ☰ 打开侧栏 | **一次就开**（加载后 0/300/1000/3000ms 四种时机均是第一下就开） |
+| 点菜单项导航 | **一次就跳**（`/desk/user` → `/desk/users`） |
+| 跳完之后 | **侧栏不收起**，仍盖在新页面上；且 `document.body.style.overflow` 被原生
+  `Sidebar.set_height()` 设成 `hidden` 后**从不释放** → 页面既被遮挡又滚不动 |
+| 侧栏打开时 | 它盖住了 ☰ 按钮（Playwright 明确报"被 `.body-sidebar-container.expanded` 子树拦截指针事件"） |
+
+所以"要点两下"= 点 ☰ → 点菜单项 → 还要再点一下（点遮罩）才看得到页面/才能滚动。
+产品侧栏是**扁平列表**（`desk/navigation.py` 生成的 `type: Link` 项，无可折叠分组），
+所以"第一下只展开分组"这条不成立；也不是我们自定义的标题菜单造成的。
+
+### 改动（只做原生组合，不复制控件）
+
+`apps/pearnly_core/pearnly_core/public/desk/product.js`（产品 Desk 作用域内）：
+
+1. 包 `frappe.ui.Sidebar.prototype.close`：关闭时**释放** body 的滚动锁（原生只加不解）；
+2. 手机上**点菜单项 / 路由变化后自动收起侧栏**（捕获阶段监听 `.body-sidebar` 内的菜单项点击，
+   用 `setTimeout(0)` 让链接先把路由走完，不抢默认动作）。
+
+### 验证
+
+- 把同一段逻辑注入控制面页面用真实触摸重跑：点菜单项 → 路由切换成功、**侧栏自动关闭**、
+  `body.overflow` 恢复为空；单独测"点 ☰ 打开"**不注入/注入修复都是一次打开**（无回归）。
+- `node --check`、`node tests/test-native-desk.cjs`（3 项 PASS）、`check-architecture.py` PASS。
+- 部署回读：`main` = `cd3e8e3`，镜像 `sha256:e180940be8a5…`，7 个 DMS 容器已切换；
+  **线上 `https://testdms.pearnly.com/assets/pearnly_core/desk/product.js` 取到含修复的版本**
+  （版本哈希 `58e7fc6f93af787d`，随内容变化所以浏览器一定会取新文件）；站点 `ping` 200。
+
+真机待确认：手机上从导航菜单选页面后，菜单应自动收起、页面可正常滚动，不再需要第二次点击。
+
+## 2026-09-21 主题名改名 + 手机"第一下只出灰底、第二下才触发"（已修并部署）
+
+### 主题名：Frappe Light → Pearnly
+
+Desk 的主题名来自 Frappe 自带 `__("Frappe Light")`，而 Frappe 自己的 `locale/zh.po`
+把它译成"Frappe Light主题"（泰文是"ฟรัปเป้ไลท์"）。**不动原生 JS**，只在我们的术语表
+`scripts/i18n/messages.tsv` 覆盖这一条（`key` 列填 `Frappe Light`），由 `i18n-build.py`
+生成四语 CSV。实测（本地产品站 + 线上）：`get_all_translations()` 读出
+zh=`Pearnly主题`、th/en/ja=`Pearnly`。
+
+### 手机导航"点两下"：根因与修法
+
+用户补充的关键现象：**第一次点击只出现灰底（hover 态），第二次才触发**；受影响的是
+侧栏 4 项、顶部公司名、左下角个人区。这正是 **iOS Safari "第一下当 hover"** 的行为
+（Chromium 不模拟它，所以之前在本机控制面怎么点都是"一下"）。另外左下角点开后**会先闪出
+未剪裁的原生个人页**再变成我们的版本 —— 那是 `user.js` 在页面渲染后才做修剪造成的。
+
+改动（`apps/pearnly_core/pearnly_core/public/desk/product.css` / `product.js` / `user.js`）：
+
+1. 侧栏项、公司名、左下角用户区加 `touch-action: manipulation`；`@media (hover: none)`
+   下中和那层 hover 底色（只改颜色，行为仍归原生控件）。
+2. 侧栏项：触摸设备上**自己接住第一下** —— `touchend` 时阻止随后那次合成 click
+   （避免跳两次），按链接自身的 path 走 `frappe.set_route()`，并收起侧栏。
+3. 个人资料页：CSS 先在 `data-route="user"` 时隐藏 `.layout-main-section`，
+   `user.js` 修剪完调 `mark_profile_ready()` 再显示；有 5 秒看门狗兜底，
+   避免 JS 出错时留下空白页。
+
+### 验证
+
+- 真实浏览器 + 触摸模拟（iPhone 13 视口、`(hover: none)` 为真）：在侧栏项上派发一次
+  `touchend`（**没有 click**）→ `defaultPrevented = true`、路由按该链接的 path 设置、
+  侧栏收起。即"第一下就跳"，且不会跳两次。
+- `node --check`、`node tests/test-native-desk.cjs`、`check-architecture.py` 全通过；
+  i18n 生成与检查 `RESULT: PASS`。
+- 部署回读：`main` = `f902a98`（主题名那条是 `b890691`），镜像 `sha256:32f5e29f9b2c…`；
+  线上 `assets/pearnly_core/desk/product.js` 含 `touchend` 处理、`product.css` 含
+  `hover: none` 与 `pearnly-profile-ready`、`user.js` 含 `mark_profile_ready`；站点 200。
+
+**本地复现环境的说明**：为了找一个"产品站才有的行为"，在本地控制面 bench 里临时建了
+产品站点 `dmsprobe.localhost`（该站点登录走统一身份，最终没能用它跑通全流程）。
+用完已 `drop-site` 并复原 `sites/apps.txt`，本机没有留下这个站点。
+
+真机待确认：手机上一指点击侧栏项/公司名/左下角个人区是否**一次即触发**，且个人资料页
+不再闪出未剪裁的原生界面。iOS 的 hover 行为无法在本地完全还原，最终以真机为准。
+
+### 事故与回滚（2026-09-21 当天）
+
+用户现场回报**侧栏完全打不开**（原话："我侧栏都打不开了不要制造出无限的bug好不好"）。
+
+**判定的原因**：上一版里那条"点侧栏项就收起菜单"的监听是加在 `click` 的**捕获阶段**、
+挂在 `.body-sidebar` 里的菜单项上。iOS 的触摸会在我接住 `touchend` 之后再补发一次合成
+`click`，而这一次 click 的坐标正是刚才按 ☰ 的位置 —— 那时侧栏已经打开，于是它落在
+侧栏里的某个菜单项上，触发监听 → **刚打开就被收起**，表现就是"点不开"。
+
+**处置**：`git revert` 掉这两次改动（`f902a98` 触摸修复、`cd3e8e3` 菜单收起），
+不复用任何我的侧栏逻辑 —— `027f040`（回滚菜单收起）、`a1fe87d`（回滚触摸修复）。
+镜像 `sha256:fc05b7a42402bcd3fb4e7bf5cdfe9f683a4df2a58f2e847c0d3fedaf099a7a19`，
+线上回读：`product.js` 的 `touchend`/`pearnly_mobile_close` 与 `product.css` 的
+`hover: none`/`pearnly-profile-ready` **全部为 0**，站点 200 —— 侧栏回到 Frappe 原生行为。
+
+**教训（写下来避免再犯）**：
+
+· 不能在 `click` 捕获阶段对原生控件的交互做"顺手收拾"，尤其不能对**同一次触摸补发的
+  合成 click** 做动作 —— 它会作用在与手指同一坐标、但已经变了的新界面上。
+· 触摸相关改动**必须能在真机（或能还原 iOS 行为的设备）上验证**再发布；
+  Chromium 的触摸模拟不还原 iOS 的 hover/合成 click 时序，这次就是被它骗过去的。
+· 真要收紧"菜单不自动收起"，只保留**路由变化时收起**这一条（打开侧栏不产生路由变化，
+  不会被同一次触摸误伤）。
+
+### "要点两下"的根因（2026-09-21，只读排查）
+
+回滚之后重查用户最初那条报障（"侧栏里所有按钮都要点两下，第一下只出现灰底"），
+证据在**用户 16:22 的截图**上：侧栏是关着的，但页面头部那个按钮显示的是 `>>`
+—— 那是原生 **hover 态**才显示的图标（静止态是 ☰ 汉堡）。也就是那次点击只让按钮
+进了 hover，click 没有派发。iOS 的规则是：**某个元素只有在 hover 时才把内容显示出来，
+第一次点击就被当成 hover 用掉**，要再点一次才算数。
+
+原生在同一处有两条"靠 hover 才显示"的规则（`desk.bundle` 编译后）：
+
+· `.page-title .sidebar-toggle-btn:hover .sidebar-toggle-icon{display:block}` /
+  `..:hover .sidebar-toggle-placeholder{display:none}` —— ☰ 换成 `>>`；
+· `.body-sidebar:hover .sidebar-toggle-btn{opacity:1;visibility:visible}` —— 侧栏右缘
+  那个圆形折叠按钮平时是 `visibility:hidden`。手指落在侧栏里任何位置都会让 `.body-sidebar`
+  进入 hover，于是侧栏 4 项、顶部公司名、左下角个人区**一起**变成"要点两下"。
+
+修法只用 CSS：在 `@media (hover: none)` 下让这两样东西一直显示、不再随 hover 变化
+（`product.css` 末尾，选择器权重 (0,4,1)/(0,3,1) 均高于原生的 (0,4,0)/(0,3,0)）。
+**不碰任何事件、监听或原生控件行为** —— 上一版就是错在这一层。提交 `7128a1e`；
+镜像 digest `sha256:19486fd586d464da54789b399b17137b9cf17b9b2ece1fbdc06bea0086ab3cd6`
+已按用户指示（2026-09-21 16:47）激活：`activate-product.sh` 走完备份 + migrate，
+`active-image.json` 与 7 个 dms 容器均为该镜像，`maintenance_mode=0`，
+线上 `/assets/pearnly_core/desk/product.css` 回读到 `@media (hover: none)` 那三条规则。
+**真机验收仍待用户确认**：触摸设备上第一次点击就应生效，且不再出现"第一下只出灰底"。
+用户随后在真机上确认可用（"可以了，收工吧"，2026-09-21）——侧栏第一下即开合、
+侧栏项第一下即跳转。本条只记用户确认的事实，未额外补测其它机型或浏览器。
+
+若触摸设备上第一下仍被吃掉，下一个嫌疑是侧栏项自带的 hover 提示气泡（tooltip，
+Bootstrap 在 `mouseover` 时插入 DOM 元素，同样属于"hover 才出现内容"）——
+那要动原生 tooltip 行为，需先与用户确认再改。

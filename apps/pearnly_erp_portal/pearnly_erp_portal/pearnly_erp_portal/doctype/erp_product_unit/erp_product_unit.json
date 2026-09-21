@@ -1,0 +1,62 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "unit_name",
+  "factor_to_base",
+  "barcode",
+  "price",
+  "is_default_sell"
+ ],
+ "fields": [
+  {
+   "fieldname": "unit_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Unit",
+   "length": 50,
+   "reqd": 1
+  },
+  {
+   "fieldname": "factor_to_base",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Factor to Base Unit",
+   "precision": "6",
+   "reqd": 1
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Barcode",
+   "length": 100
+  },
+  {
+   "fieldname": "price",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Price"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_default_sell",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Default Selling Unit"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Product Unit",
+ "owner": "Administrator",
+ "permissions": [],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

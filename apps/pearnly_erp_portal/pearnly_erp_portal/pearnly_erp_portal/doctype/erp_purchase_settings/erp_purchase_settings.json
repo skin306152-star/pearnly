@@ -1,0 +1,95 @@
+{
+ "actions": [],
+ "creation": "2026-09-21 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "default_vat_rate",
+  "default_wht_service_rate",
+  "base_currency",
+  "column_break_rates",
+  "default_due_days",
+  "dedupe_block",
+  "pay_needs_approval",
+  "auto_stock_in"
+ ],
+ "fields": [
+  {
+   "default": "7",
+   "description": "Used when a new purchase line does not say otherwise",
+   "fieldname": "default_vat_rate",
+   "fieldtype": "Float",
+   "label": "Default VAT Rate (%)",
+   "precision": "2"
+  },
+  {
+   "default": "3",
+   "description": "Default withholding for service documents",
+   "fieldname": "default_wht_service_rate",
+   "fieldtype": "Float",
+   "label": "Default WHT Rate for Services (%)",
+   "precision": "2"
+  },
+  {
+   "default": "THB",
+   "fieldname": "base_currency",
+   "fieldtype": "Data",
+   "label": "Base Currency",
+   "length": 10
+  },
+  {
+   "fieldname": "column_break_rates",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "default_due_days",
+   "fieldtype": "Int",
+   "label": "Default Due Days"
+  },
+  {
+   "default": "1",
+   "description": "Refuse a second document with the same supplier and document number",
+   "fieldname": "dedupe_block",
+   "fieldtype": "Check",
+   "label": "Block Duplicate Documents"
+  },
+  {
+   "default": "0",
+   "description": "A payment has to be approved before it counts as paid",
+   "fieldname": "pay_needs_approval",
+   "fieldtype": "Check",
+   "label": "Payment Needs Approval"
+  },
+  {
+   "default": "0",
+   "description": "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",
+   "fieldname": "auto_stock_in",
+   "fieldtype": "Check",
+   "label": "Post Stock On Confirm"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-09-21 00:00:00.000000",
+ "module": "Pearnly ERP Portal",
+ "name": "ERP Purchase Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

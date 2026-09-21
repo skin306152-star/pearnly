@@ -66,5 +66,83 @@ class EntryPoints(unittest.TestCase):
                             self.assertIn(func, frappe.whitelisted)
 
 
+class RichMenuPublish(unittest.TestCase):
+    """Re-publishing the same menus must not re-upload an image LINE already has.
+
+    Regression for the 2026-09-20 failure: LINE answers 400 "An image has already been
+    uploaded to the richmenu", which aborted the tenant's `set_line` step.
+    """
+
+    def publish_twice(self):
+        from pearnly_dms.menu import rich_menu
+
+        calls = []
+        state = {"menus": {}, "images": set(), "next_id": 0}
+
+        class Response:
+            def __init__(self, status, payload=None, content=b""):
+                self.status_code, self.content = status, content or b"{}"
+                self._payload = payload or {}
+                self.text = json.dumps(self._payload)
+
+            def json(self):
+                return self._payload
+
+        class Lock:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class Cache:
+            def make_key(self, key):
+                return key
+
+            def lock(self, *a, **kw):
+                return Lock()
+
+        def request(method, url, **kwargs):
+            path = url.rsplit("/v2/bot/", 1)[-1]
+            calls.append(("image" if kwargs.get("data") else method, path))
+            if method == "GET" and path == "richmenu/list":
+                return Response(200, {"richmenus": [{"name": name, "richMenuId": menu_id}
+                                                    for name, menu_id in state["menus"].items()]})
+            if method == "POST" and path.endswith("/content"):
+                state["images"].add(path.split("/")[1])
+                return Response(200)
+            if method == "POST" and path == "richmenu":
+                state["next_id"] += 1
+                menu_id = "richmenu-created-%d" % state["next_id"]
+                state["menus"][kwargs["json"]["name"]] = menu_id
+                return Response(200, {"richMenuId": menu_id})
+            return Response(200)
+
+        def get(url, **kwargs):
+            path = url.rsplit("/v2/bot/", 1)[-1]
+            calls.append(("read-image", path))
+            return Response(200 if path.split("/")[1] in state["images"] else 404, {}, b"png")
+
+        conf = frappe._dict(pearnly_line_channel_access_token="token",
+                            pearnly_line_liff_id="1234-abcd", host_name="https://sample.test")
+        with patch.object(frappe, "conf", conf), \
+             patch.object(frappe, "cache", lambda *a, **kw: Cache()), \
+             patch.object(rich_menu, "reconcile"), \
+             patch.object(rich_menu.requests, "request", side_effect=request), \
+             patch.object(rich_menu.requests, "get", side_effect=get), \
+             patch("frappe.installer.update_site_config"):
+            rich_menu.publish()
+            first = len([call for call in calls if call[0] == "image"])
+            rich_menu.publish()
+        return first, len([call for call in calls if call[0] == "image"]) - first, calls
+
+    def test_re_publishing_the_same_menus_does_not_upload_the_image_again(self):
+        first, second, calls = self.publish_twice()
+        self.assertEqual(first, 2, "the first publish uploads one image per menu")
+        self.assertEqual(second, 0, "the second publish must not re-upload an existing image")
+        self.assertTrue([call for call in calls if call[0] == "POST" and call[1] == "user/all/richmenu/richmenu-created-1"],
+                        "the OA default menu is still set on every publish")
+
+
 if __name__ == "__main__":
     unittest.main()

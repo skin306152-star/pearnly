@@ -154,6 +154,7 @@ File,ไฟล์
 Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง
+Frappe Light,Pearnly
 Full Name,ชื่อ-นามสกุล
 Gender,เพศ
 Grand Total,ยอดรวม
@@ -181,6 +182,7 @@ Item / Description,ชื่อสินค้า/คำอธิบาย
 "Kept as evidence, not a business field; only the confirmed fields are.",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น
 LINE Display Name,ชื่อที่แสดงบน LINE
 LINE User ID,LINE User ID
+LINE could not be reached; please try again,เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง
 Last Login At,เข้าสู่ระบบล่าสุด
 Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
@@ -316,6 +318,7 @@ The DMS account is not approved to use the system,บัญชี DMS ยัง�
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้
+The LINE channel is not configured for this account,บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE
 The OCR service returned HTTP {0}: {1},บริการ OCR ตอบกลับ HTTP {0}: {1}
 The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.,บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน
 The account is disabled,บัญชีถูกปิดใช้งาน

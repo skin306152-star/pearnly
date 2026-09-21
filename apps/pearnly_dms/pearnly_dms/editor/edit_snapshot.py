@@ -61,6 +61,26 @@ def _plain_car_ids(car_ids: Iterable[Any]) -> Tuple[str, ...]:
     return tuple(out)
 
 
+def _shared_masters(endpoint: Any) -> Dict[str, Any]:
+    """共享热快照里的**完整主档**（车型/颜色/银行/顾问/前缀…）；拿不到回 `{}`。
+
+    失败**不抛**：主档还有"在同一次登录里现场抓全量"这条退路（`_fetch`），
+    没必要因为快照不可用把整页判成打不开。
+    """
+    from pearnly_dms.adapter import master_shared
+
+    try:
+        masters = master_shared.get_session_masters(
+            endpoint,
+            max_age_seconds=master_shared.SESSION_MAX_AGE_SECONDS,
+            require_complete=True,
+        )
+    except Exception:
+        logger.warning("[dms editor] 共享主档快照不可用，退回现场读取", exc_info=True)
+        return {}
+    return dict(masters or {})
+
+
 def _merge_customer_defaults(
     draft: Optional[Dict[str, Any]], live: Optional[Dict[str, Any]]
 ) -> Dict[str, str]:
@@ -81,16 +101,31 @@ def _read(
 ):
     """一次登录读主档、客户现值、颜色和地址级联；任何权威读取失败都 fail closed。"""
 
+    # **主档走共享热快照**：它由后台预热维持（见 `masters.warm`），命中时 0 秒；
+    # 没命中时它会用租约合并成一次刷新，不会让"编辑页 + 订车会话"各登一次。
+    # 为什么可以：选项类数据（车型/颜色/银行/顾问/地址）晚 45–90 秒的代价是
+    # "名字旧了/提交被拒 → 重选"，而**写之前仍有一次权威复核**；客户现值那部分
+    # 依旧实时读，不在这里省。老产品就是"读走快照、写前复核"这个取舍。
+    shared = _shared_masters(endpoint)
+
     def _fetch(client, adapter):
         from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
 
-        masters = {
-            **client.fetch_masters(strict=True),
-            **fetch_payment_bank_masters(adapter, client=client),
-        }
+        if shared:
+            masters = dict(shared)
+        else:
+            # 快照拿不到（没被告知/读失败）→ 保持原样：在同一次登录里现场抓全量。
+            masters = {
+                **client.fetch_masters(strict=True),
+                **fetch_payment_bank_masters(adapter, client=client),
+            }
+        warmed_paints = dict((shared or {}).get("paints_by_car") or {})
         paints: Dict[str, Optional[List[list]]] = {}
         for car_id in cars:
-            rows = client._bshsd_all("txtcarpaint", idcar=car_id)
+            # 快照里预热过的颜色直接用；没有才现场读（读失败留 None 交调用方 fail closed）。
+            rows = warmed_paints.get(str(car_id))
+            if rows is None:
+                rows = client._bshsd_all("txtcarpaint", idcar=car_id)
             # None = 这一车型的颜色这次没读到（读失败 ≠ 空表）。留 None 交给调用方 fail
             # closed：别因为一个不该出现的车型 id 把整次请求判成主档不可用，也别把
             # 「没读到」当成「这车没颜色」。

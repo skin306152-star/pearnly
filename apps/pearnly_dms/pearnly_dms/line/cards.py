@@ -308,7 +308,10 @@ def diff_card(
             }
         )
     footer.append(_btn(_t("BTN_KEEP"), _data(ACT_KEEP, nonce=nonce), "secondary"))
-    footer.append(_btn(_t("BTN_EDIT"), _data(ACT_EDIT, nonce=nonce), "secondary"))
+    # 用 `_edit_button`（能拿深链就是 uri 动作）—— 老基准这张卡也是这么写的。
+    # 早先这里写成裸 postback，于是**只有差异卡**点 [แก้ไข] 会多弹一张"请再点一次"的卡，
+    # 其它卡（新客户/资料一致/订车预览）都是一次点击直开编辑页（2026-09-21 用户报障）。
+    footer.append(_edit_button(nonce))
     return _bubble(_t("TXT_DIFF_HEAD"), rows, footer, _t("TXT_DIFF_ALT"))
 
 
