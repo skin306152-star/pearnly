@@ -182,10 +182,131 @@ class NativeClientRoster(unittest.TestCase):
 		self.assertEqual(frappe.db.count("Cowork Client", {"workspace": self.workspace}), 1)
 
 
+class NativeProductRoster(unittest.TestCase):
+	"""The product store: one default sell unit, unique unit names, exact numbers."""
+
+	@classmethod
+	def setUpClass(cls):
+		suffix = uuid4().hex[:10]
+		cls.manager = f"cw-product-manager-{suffix}@example.invalid"
+		cls.reader = f"cw-product-reader-{suffix}@example.invalid"
+		user(cls.manager, ["Cowork Master Data", "Cowork Admin"])
+		user(cls.reader, ["Cowork OCR History"])
+		from pearnly_cowork.masters import api as masters
+		cls.workspace = masters.create_workspace("Product lab " + suffix)["name"]
+		cls.other_workspace = masters.create_workspace("Product lab other " + suffix)["name"]
+		grant(cls.manager, "Cowork Workspace", cls.workspace)
+		grant(cls.reader, "Cowork Workspace", cls.workspace)
+		# A product of another company, created while the session is still Administrator.
+		cls.foreign = masters.save_product(cls.other_workspace, {"display_name": "Foreign"})
+		frappe.db.commit()
+
+	def setUp(self):
+		from pearnly_cowork.masters import api as masters
+		self.api = masters
+		self.previous = dict(frappe.conf)
+		frappe.conf.pearnly_features = ["intake", "ocr_history", "master_data", "push_log",
+			"stocktake", "recon"]
+		frappe.conf.pearnly_product = "cowork"
+		frappe.set_user(self.manager)
+		frappe.clear_cache()
+
+	def tearDown(self):
+		frappe.db.rollback()
+		frappe.conf.clear()
+		frappe.conf.update(self.previous)
+		frappe.set_user("Administrator")
+		frappe.clear_cache()
+
+	def test_a_product_is_saved_with_its_units_and_one_default(self):
+		product = self.api.save_product(self.workspace, {
+			"display_name": "  น้ำปลา  ",
+			"name_th": "น้ำปลา", "name_en": "Fish Sauce", "name_zh": "鱼露",
+			"sku": "FS-001", "min_stock": "6", "default_cost": "12.50",
+			"track_batch": True,
+			"units": [
+				{"unit_name": "ขวด", "factor_to_base": "1", "barcode": "8850000000001",
+					"price": "20.00", "is_default_sell": True},
+				{"unit_name": "โหล", "factor_to_base": "12", "price": "220.00"},
+			]})
+		self.assertEqual(product["display_name"], "น้ำปลา")
+		self.assertEqual(product["base_unit"], "ชิ้น")           # deployed default
+		self.assertTrue(product["track_batch"])
+		self.assertEqual(product["min_stock"], 6.0)
+		self.assertEqual(product["default_cost"], 12.5)
+		self.assertEqual(product["names"]["display"], "น้ำปลา / Fish Sauce / 鱼露")
+		self.assertEqual([unit["unit_name"] for unit in product["units"]], ["ขวด", "โหล"])
+		self.assertEqual(product["units"][0]["factor_to_base"], 1.0)
+		self.assertEqual(product["units"][1]["factor_to_base"], 12.0)
+		self.assertEqual(product["units"][0]["is_default_sell"], 1)
+		self.assertEqual(product["units"][1]["is_default_sell"], 0)
+
+		listed = self.api.products(self.workspace)
+		self.assertEqual([row["display_name"] for row in listed], ["น้ำปลา"])
+		self.assertEqual(self.api.product_detail(self.workspace, product["name"])["sku"], "FS-001")
+
+	def test_the_default_sell_unit_is_switched_rather_than_doubled(self):
+		product = self.api.save_product(self.workspace, {"display_name": "น้ำตาล", "units": [
+			{"unit_name": "ถุง", "factor_to_base": "1", "is_default_sell": True},
+			{"unit_name": "ลัง", "factor_to_base": "24"}]})
+		updated = self.api.save_product(self.workspace, {"units": [
+			{"unit_name": "ถุง", "factor_to_base": "1"},
+			{"unit_name": "ลัง", "factor_to_base": "24", "is_default_sell": True}]},
+			name=product["name"])
+		self.assertEqual(sum(unit["is_default_sell"] for unit in updated["units"]), 1)
+		self.assertEqual([unit["is_default_sell"] for unit in updated["units"]], [0, 1])
+
+	def test_two_defaults_or_a_repeated_unit_name_are_refused(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.api.save_product(self.workspace, {"display_name": "Bad", "units": [
+				{"unit_name": "ถุง", "factor_to_base": "1", "is_default_sell": True},
+				{"unit_name": "ลัง", "factor_to_base": "24", "is_default_sell": True}]})
+		with self.assertRaises(frappe.ValidationError):
+			self.api.save_product(self.workspace, {"display_name": "Bad", "units": [
+				{"unit_name": "ถุง", "factor_to_base": "1"},
+				{"unit_name": " ถุง ", "factor_to_base": "2"}]})
+		with self.assertRaises(frappe.ValidationError):
+			self.api.save_product(self.workspace, {"display_name": "Bad", "units": [
+				{"unit_name": "ถุง"}]})
+		self.assertEqual(self.api.products(self.workspace), [])
+
+	def test_an_exact_factor_survives_the_round_trip(self):
+		product = self.api.save_product(self.workspace, {"display_name": "นม",
+			"name_th": "นมสด", "units": [
+				{"unit_name": "กล่อง", "factor_to_base": "0.1", "price": "12.50"}]})
+		self.assertEqual(product["units"][0]["factor_to_base"], 0.1)
+		self.assertEqual(product["units"][0]["price"], 12.5)
+		# The display name is its own field; the three-language rule reads the name_* triple.
+		self.assertEqual(product["names"]["display"], "นมสด")
+		self.assertEqual(product["display_name"], "นม")
+
+	def test_deactivating_hiding_and_deleting_a_product(self):
+		product = self.api.save_product(self.workspace, {"display_name": "ชา"})
+		self.api.save_product(self.workspace, {"is_active": 0}, name=product["name"])
+		self.assertEqual(self.api.products(self.workspace), [])
+		self.assertEqual([row["name"] for row in self.api.products(self.workspace,
+			include_inactive=1)], [product["name"]])
+		self.assertTrue(self.api.delete_product(self.workspace, product["name"])["deleted"])
+		self.assertFalse(frappe.db.exists("Cowork Product", product["name"]))
+		self.assertEqual(frappe.db.count("Cowork Product Unit",
+			{"parent": product["name"]}), 0)
+
+	def test_permissions_and_a_foreign_company(self):
+		frappe.set_user(self.reader)
+		self.assertEqual(self.api.products(self.workspace), [])
+		with self.assertRaises(frappe.PermissionError):
+			self.api.save_product(self.workspace, {"display_name": "Reader cannot write"})
+		frappe.set_user(self.manager)
+		with self.assertRaises(frappe.PermissionError):
+			self.api.product_detail(self.workspace, self.foreign["name"])
+
+
 if __name__ == "__main__":
 	connect(os.environ.get("PEARNLY_COWORK_TEST_SITE"))
 	try:
-		suite = unittest.defaultTestLoader.loadTestsFromTestCase(NativeClientRoster)
+		suite = unittest.TestSuite(
+			unittest.defaultTestLoader.loadTestsFromTestCase(cls)
+			for cls in (NativeClientRoster, NativeProductRoster))
 		result = unittest.TextTestRunner(verbosity=2).run(suite)
 		frappe.db.rollback()
 		frappe.destroy()
@@ -205,6 +326,14 @@ if __name__ == "__main__":
 				json={"workspace": "x", "name": "y"}).status_code,
 			"resolve_buyer": client.post(rpc + "resolve_buyer", base_url=base,
 				json={"workspace": "x", "buyer_name": "y"}).status_code,
+			"products": client.get(rpc + "products", base_url=base,
+				query_string={"workspace": "x"}).status_code,
+			"product_detail": client.get(rpc + "product_detail", base_url=base,
+				query_string={"workspace": "x", "name": "y"}).status_code,
+			"save_product": client.post(rpc + "save_product", base_url=base,
+				json={"workspace": "x", "values": {}}).status_code,
+			"delete_product": client.post(rpc + "delete_product", base_url=base,
+				json={"workspace": "x", "name": "y"}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:

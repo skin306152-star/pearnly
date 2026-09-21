@@ -3,6 +3,7 @@ import frappe
 from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.masters import clients as clients_service
+from pearnly_cowork.masters import products as products_service
 from . import push_inputs
 
 
@@ -79,6 +80,28 @@ def resolve_buyer(workspace, buyer_name, buyer_tax=None, buyer_candidates=None):
     """Which client an invoice's buyer belongs to; the decision is the ported core."""
     return clients_service.resolve_buyer(workspace, buyer_name, buyer_tax=buyer_tax,
         buyer_candidates=buyer_candidates)
+
+
+@frappe.whitelist()
+def products(workspace, start=0, limit=50, include_inactive=0):
+    return products_service.list_products(workspace, start=start, limit=limit,
+        include_inactive=bool(int(include_inactive)))
+
+
+@frappe.whitelist()
+def product_detail(workspace, name):
+    return products_service.get_product(workspace, name)
+
+
+@frappe.whitelist(methods=["POST"])
+def save_product(workspace, values, name=None):
+    """Create a product with its sell units, or update the named one."""
+    return products_service.save_product(workspace, values, name=name)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_product(workspace, name):
+    return products_service.delete_product(workspace, name)
 
 
 @frappe.whitelist(methods=["POST"])
