@@ -1,0 +1,120 @@
+{
+  "base_commit": "a65cdd4",
+  "scope": "twenty-fourth batch: the four-sheet bank-reconciliation review workbook and its authorized download entry",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "f614cfb1f4cbbd5d893b3de17cd3d2376c4ea37c5ff5a477f3d7d7a771b108be",
+    "start_captured_at": "2026-09-21T12:07:36.827378+00:00",
+    "delivery_sha256": "5fbafea89cbc738cf3d6005e0cf4074e86b70f60a1334604071bec537df7db1c",
+    "delivery_captured_at": "2026-09-21T12:14:37.345684+00:00",
+    "source_compare": "PASS",
+    "fixed_source_hashes": {
+      "services/recon/bank_recon_excel.py": "2735766f0b1f59e8fd9b81854f9f0997f7d3987897b137ac64b33fed3a63a807",
+      "services/recon/bank_recon_excel_i18n.py": "d4a0071b860c201ec05c7ede48b24f403c96337a865e051dba1e621d381f4fde",
+      "services/recon/bank_recon_excel_styles.py": "038c2d4eb2590918f3988d61c943b76ab2b9f95f6732343713a2ff2fbe1d7011",
+      "services/recon/bank_recon_excel_summary.py": "cd818cd8ed2f573ab299ee6d0a55ade95fb655dc7ed08e0de6b3e409916495a7",
+      "services/recon/bank_recon_excel_usage.py": "aeb4705687f5b96f6fbf51079f5fcbb423962e06db177b845e28ca0397664497",
+      "services/recon/bank_recon_types.py": "df0508cccb9891a5ea628cbce104ee09001b976ade15afd4d599c5d766de149e"
+    },
+    "runtime_projection_delivery_sha256": "3c340208b20f3171b0de854b6c46482ea856bdcf59b7f4df495475de563afd84",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest c012939c -> 1bdf7bd2; 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "bench --site <site> migrate (two lab Sites)",
+      "result": "PASS",
+      "sites": [
+        "cowork-backend-ack.localhost",
+        "cowork-backend-preparation.localhost"
+      ],
+      "applied": "new Cowork Bank Reconciliation field parse_info_json plus its DocField"
+    },
+    {
+      "command": "../env/bin/python -m unittest discover -s /workspace/tests -p 'test_cowork_bank_recon_export*.py'",
+      "result": "PASS",
+      "tests": 22,
+      "host": "isolated bench, openpyxl available"
+    },
+    {
+      "command": "../env/bin/python tests/test_cowork_bank_recon_export_source_parity.py --source-stdin",
+      "result": "PASS",
+      "workbooks": 41,
+      "cells": 11728,
+      "label_cases": 714,
+      "rows_exercised": 186,
+      "coverage_floors": "5 statuses, layers 1/2/3/none, four languages, parse_info/task_info/overrides/warnings each >= 8 workbooks"
+    },
+    {
+      "command": "PEARNLY_COWORK_BACKEND_LAB=1 ../env/bin/python /workspace/scripts/cowork-bank-recon-export-lab-verify.py",
+      "result": "PASS",
+      "sites": [
+        "cowork-backend-ack.localhost",
+        "cowork-backend-preparation.localhost"
+      ],
+      "tests_per_site": 3,
+      "covers": "workbook content and stored file diagnostics, scope and feature refusal, WSGI download headers, cross-user/anonymous/non-GET 403, Access Log queue entry"
+    },
+    {
+      "command": "PEARNLY_COWORK_BACKEND_LAB=1 ../env/bin/python /workspace/scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "tests_per_site": 10,
+      "anonymous_http": {
+        "create": 403,
+        "records": 403,
+        "detail": 403,
+        "create_from_parsed": 403,
+        "export": 403
+      }
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 123
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 15
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py --list",
+      "result": "PASS for this batch",
+      "detail": "0 real findings in the files this batch added or changed; the four-language tables are registered in scripts/i18n/keep-cjk.tsv with a reason"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "manual-override traces and run warnings are not stored on a native task yet, so those workbook sections stay absent; the builder and the differential cover them when supplied",
+    "failed-file diagnostics cannot be stored: one native admission is one successful parsed document per side, so File Info lists only ok=true rows",
+    "an unknown stored balance renders as 0.00 because the deployed result row type has no unknown state",
+    "the download RPC is GET-only, matching the deployed export route and the migrated stocktake download; other methods are refused",
+    "permissions use the native recon feature plus role and workspace scope instead of the legacy recon.view/create/export permission bits"
+  ],
+  "not_run": [
+    "real XLSX/PDF reading, OCR, engine policy and model extraction",
+    "GL/VAT workbook, asynchronous job status and polling, statement eye-swap re-read",
+    "income reconciliation reuse (reconciliation_type=income) and batch delete",
+    "frontend integration, deployment and user acceptance",
+    "wide test_cowork_*.py run on the host: modules needing frappe/openpyxl still cannot import there"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-export.md",
+  "side_fix": {
+    "file": "scripts/cowork-backend-lab-verify.py",
+    "issue": "the long-lived lab Sites accumulate synthetic users, so a later verification run hit Frappe's User-creation throttle (Throttled, default 60 per hour)",
+    "fix": "the shared lab connect() raises throttle_user_limit to 1000 in-process for marker-verified lab Sites only; no Site configuration is written and no product behaviour changes",
+    "result": "PASS (both lab Sites re-ran the reconciliation and export scripts)"
+  }
+}

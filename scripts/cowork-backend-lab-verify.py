@@ -33,6 +33,11 @@ def connect(site=SITE):
     frappe.connect()
     if not frappe.conf.get("pearnly_backend_lab") or frappe.conf.get("db_host") != "db":
         raise SystemExit("Refusing a non-lab Site")
+    # Every verification run creates synthetic users and the lab Site is
+    # long-lived, so Frappe's per-Site User-creation throttle would reject a
+    # later run. The raised limit is process-local and only inside the marked
+    # lab bench; nothing is written to the Site configuration.
+    frappe.conf.throttle_user_limit = 1000
     frappe.set_user("Administrator")
     frappe.flags.mute_emails = True
 

@@ -309,6 +309,8 @@ if __name__ == "__main__":
 			"create_from_parsed": client.post(rpc + "create_from_parsed", base_url=base, json={
 				"workspace": "x", "title": "t", "request_id": "x",
 				"statement_pages": {}, "gl_pages": {}}).status_code,
+			"export": client.get(rpc + "export", base_url=base,
+				query_string={"task_id": "x"}).status_code,
 		}
 		print(json.dumps({"anonymous_http": anonymous}))
 		if set(anonymous.values()) != {403}:

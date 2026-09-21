@@ -1,11 +1,11 @@
-"""Native bank reconciliation: store decoded rows and the deployed matching result.
+"""Native bank reconciliation: store decoded rows, the matching result and the workbook.
 
 Two entry points persist one task with its result rows: ``create`` takes rows
 already decoded by a caller, ``create_from_parsed`` takes the decoded page
 dictionary of the legacy parser and converts it with the migrated conversions
 first. Reading a file, running OCR and calling a model stay in the legacy
-project, as do model extraction, asynchronous job orchestration, exports and the
-accountant review actions.
+project, as do model extraction, asynchronous job orchestration and the accountant
+review actions. The review workbook is rendered from what a task stored.
 """
 import hashlib
 
@@ -21,9 +21,15 @@ from pearnly_cowork.reconciliation import (
 )
 from pearnly_cowork.reconciliation.bank_recon_access import ROW, TASK
 from pearnly_cowork.reconciliation.bank_recon_documents import persist
+from pearnly_cowork.reconciliation.export import workbook as export_workbook
 
 ROW_LIMIT = 200
 LIST_LIMIT = 100
+EXPORT_LANGUAGES = ("th", "en", "zh", "ja")
+ROW_EXPORT_FIELDS = ("match_status", "match_layer", "date_diff_days", "stmt_date", "stmt_desc",
+	"stmt_withdrawal", "stmt_deposit", "stmt_balance", "stmt_confidence", "stmt_balance_ok",
+	"stmt_autocorrected", "gl_date", "gl_doc_no", "gl_account_code", "gl_desc", "gl_debit",
+	"gl_credit", "gl_balance", "source_stmt_file", "source_gl_file")
 
 
 def _identity(request_id):
@@ -35,7 +41,8 @@ def _identity(request_id):
 
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
-		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT):
+		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT,
+		parse_info=None):
 	"""Validate, match and store one reconciliation inside a single transaction."""
 	bank_recon_access.require(workspace)
 	name, request_key = _identity(request_id)
@@ -44,6 +51,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		frappe.throw(_("reconciliation.type_invalid"))
 	rows = bank_recon_contracts.decode_rows(statement_rows, gl_rows)
 	header_values = bank_recon_contracts.header(header)
+	parse_values = bank_recon_contracts.parse_info(parse_info)
 	request_digest = bank_recon_contracts.digest(header_values, *rows)
 	existing = frappe.db.get_value(TASK, name, ["request_digest", "summary_json"], as_dict=True)
 	if existing:
@@ -66,6 +74,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		"request_key": request_key, "request_digest": request_digest,
 		"row_count": len(results),
 		"summary_json": bank_recon_contracts.json_dumps(summary_value),
+		"parse_info_json": bank_recon_contracts.json_dumps(parse_values),
 		"created_by": frappe.session.user, "created_at": now_datetime(), **{
 			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
 	persist(task)
@@ -77,7 +86,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 
 
 def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
-		filename="", gl_account_code="", reconciliation_type="bank"):
+		filename="", gl_account_code="", reconciliation_type="bank", gl_filename=""):
 	"""Store one reconciliation from the decoded pages of the legacy parser.
 
 	The file readers, the OCR call and model extraction stay in the legacy
@@ -104,7 +113,15 @@ def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, 
 	result = create(workspace, title, request_id,
 		bank_parse.decoded_statement_rows(statement["rows"]),
 		bank_parse.decoded_gl_rows(gl["rows"]), values, reconciliation_type,
-		source_format=bank_parse.SOURCE_FORMAT)
+		source_format=bank_parse.SOURCE_FORMAT,
+		# The deployed run saved this per-file section so the workbook's File Info
+		# shows real numbers; one admission is one successful file per side.
+		parse_info={
+			"stmt_files": [{"file": filename, "rows": statement["row_count"], "ok": True,
+				"error": None, "error_code": None, "bank_code": statement["bank_code"]}],
+			"gl_files": [{"file": gl_filename, "rows": gl["row_count"], "ok": True,
+				"error": None, "error_code": None, "accounts": gl["accounts"]}],
+		})
 	return {**result, "parsed": {
 		"statement_rows": statement["row_count"],
 		"gl_rows": gl["row_count"],
@@ -150,6 +167,56 @@ def row_values(result):
 		"source_stmt_file": result.source_stmt_file or "",
 		"source_gl_file": result.source_gl_file or "",
 	}
+
+
+def _stored_summary(doc):
+	"""Rebuild the summary dataclass from the stored JSON, like the deployed reader."""
+	value = bank_recon_contracts.json_loads(doc.summary_json)
+	if not isinstance(value, dict):
+		return bank_matching.BankReconSummary()
+	try:
+		return bank_matching.BankReconSummary(**{
+			key: item for key, item in value.items()
+			if key in bank_matching.BankReconSummary.__dataclass_fields__})
+	except (TypeError, ValueError):
+		return bank_matching.BankReconSummary()
+
+
+def _export_row(row):
+	"""Invert one stored result row into the deployed workbook row shape."""
+	return bank_matching.BankReconRow(
+		match_status=row.match_status,
+		match_layer=None if row.match_layer == 0 else row.match_layer,
+		stmt_date=row.stmt_date or None, stmt_desc=row.stmt_desc or "",
+		stmt_withdrawal=row.stmt_withdrawal or 0.0, stmt_deposit=row.stmt_deposit or 0.0,
+		stmt_balance=row.stmt_balance or 0.0, gl_date=row.gl_date or None,
+		gl_doc_no=row.gl_doc_no or "", gl_account_code=row.gl_account_code or "",
+		gl_desc=row.gl_desc or "", gl_debit=row.gl_debit or 0.0, gl_credit=row.gl_credit or 0.0,
+		gl_balance=row.gl_balance or 0.0,
+		date_diff_days=None if row.date_diff_days == -1 else row.date_diff_days,
+		source_stmt_file=row.source_stmt_file or "", source_gl_file=row.source_gl_file or "",
+		stmt_confidence=row.stmt_confidence or "high",
+		stmt_balance_ok=None if not row.stmt_balance_ok else row.stmt_balance_ok == "ok",
+		stmt_autocorrected=bool(row.stmt_autocorrected))
+
+
+def export(task_id, lang="th"):
+	"""Render the review workbook of one stored task; no ERP, model or file access.
+
+	The workbook sees exactly what the task stored: its result rows, its summary and
+	the per-file diagnostics recorded at admission. Manual-override traces and run
+	warnings are not stored natively yet, so those workbook sections stay absent.
+	"""
+	doc = frappe.get_doc(TASK, task_id)
+	bank_recon_access.require(doc.workspace)
+	if lang not in EXPORT_LANGUAGES:
+		lang = "th"
+	rows = frappe.get_all(ROW, filters={"task": doc.name}, fields=list(ROW_EXPORT_FIELDS),
+		order_by="row_index asc", limit_page_length=0)
+	content = export_workbook([_export_row(row) for row in rows], _stored_summary(doc), lang=lang,
+		parse_info=bank_recon_contracts.json_loads(doc.parse_info_json) or None)
+	return {"filename": f"BankRecon_v2_{doc.name}_{(doc.bank_code or 'bank').upper()}.xlsx",
+		"content": content}
 
 
 def records(workspace, start=0, limit=50):

@@ -1,5 +1,43 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十四批交付）
+
+**本批把旧项目银行对账的四表 XLSX 复核工作簿按部署版逐格迁入，并给原生任务加了一个受权下载入口。** 会计拿到手复核的那份产物现在能由新平台从已存任务生成；不接前端、不部署、不改 DMS、不写 ERP。本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧侧导出是 `/bank-v2/{task_id}/export`（GET，`recon.export` 权限）→ `export_bank_recon_excel(...)`，生成链 5 个文件自述"纯表现层：i18n 标签 + openpyxl 组表，无匹配/判定逻辑"。所以本批把它们机械搬移到 `reconciliation/export/`（只改模块头、导入路径与私有名公开），再用原生服务与 RPC 消费：工作簿只读任务已存的行、汇总与解析诊断，不重算匹配、不写库、不读文件。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `a65cdd4`（第二十三批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/export/`：`workbook.py`（入口与三个 sheet builder）、`summary.py`（Sheet 1）、`labels.py`（四语 103 条标签 + helper）、`usage.py`（使用说明 4 语）、`styles.py`（调色板与表头/边框/日期 helper）。入口 `workbook(rows, summary, lang=..., task_info, parse_info, anchor_overrides, anchor_ocr, warnings)` 签名与部署版一致。
+- 原生入口 `bank_recon_service.export(task_id, lang)` + GET RPC `bank_recon_api.export`：权限沿用任务 API 的 `recon` 功能 + 角色 + 工作区范围，按私有附件返回（`no-store`/`nosniff`）并写 Access Log，下载名仍是 `BankRecon_v2_<任务>_<银行码>.xlsx`。
+- 新增任务字段 `parse_info_json` 与契约 `bank_recon_contracts.parse_info`（只接受部署版两段与记录键）；`create`/`create_from_parsed` 接受并落库每文件诊断，`create_from_parsed` 另加 `gl_filename`。重放判定仍只看表头与行，文件诊断不参与摘要。
+- 登记的有意差异与缺口（详见[本批记录](cowork-backend/reconciliation-bank-export.md)）：手动覆盖痕迹与运行警告暂不出现（其来源仍在未迁的运行编排）；失败文件诊断不落库；未知余额渲染 0.00；权限用功能+角色+范围而非旧 `recon.export` 权限位；下载只接受 GET；四语表按[有意保留登记](../../scripts/i18n/keep-cjk.tsv)豁免 `check-i18n`。
+
+### 验证与证据
+
+- 新模块离线 XLSX 用例 **22** 个通过（四语 sheet 名、冻结窗格、状态/层文案、金额格式、置信度与余额列、零匹配横幅、OCR 小节、文件信息优先 `parse_info`、手动痕迹条件出现、空任务、标签完整性与 helper 回落）。
+- 固定源差分 **41** 个工作簿、**11728** 个单元格、**714** 组标签比对全部一致（值/类型/字体/填充/边框/对齐/数字格式/保护/合并/列宽/行高/冻结/筛选）；覆盖 186 行结果、5 种状态与全部层、四语各 ≥5 本，并设了覆盖率下限。
+- 两个隔离 Site：`migrate` 通过并新增 `parse_info_json` 列；导出脚本各 **3** 个用例通过（内容与诊断、权限拒绝、WSGI 真请求的私有附件响应 + 匿名/跨用户/非 GET 403 + Access Log 入队）；既有对账脚本各 **10** 个继续通过，五个入口匿名全部 403。
+- 主机侧：对账 **123**、契约 **15**、既有固定源差分继续通过；架构 **0** 违规；`i18n-build --check` PASS；本批文件 `check-i18n` 真实发现 **0** 条。
+- 未执行：真实文件与模型解析、GL/VAT 工作簿、异步任务与轮询、换眼重读、收入对账、批量删除、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`f614cfb1…` → `5fbafea8…`）。交付前采运行投影 `push-runtime-twenty-fourth-delivery.json`（`3c340208…`），与第二十三批交付比较仍为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`c012939c…` → `1bdf7bd2…`，端点数 60、两个平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：GL/VAT 工作簿（`gl_vat_excel`，同为纯表现层）、异步任务状态与轮询、收入对账复用 `reconciliation_type=income`、批量删除；手动覆盖痕迹/运行警告要出现在工作簿里，需要先迁它们的来源（运行编排 + OCR 锚点）并落库。真实解析器与模型抽取仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批用专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows 与旧仓，未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十三批交付）
 
 **本批把旧项目"已经解码的银行对账页面"按部署版转换规则落成同样的流水行/总账行，并给原生任务存储加了一个受控解析入口。** 文件读取、OCR 调用与模型抽取仍在旧项目；不接前端、不部署、不改 DMS。本节为最新入口，后文按各批当时事实读取。

@@ -47,6 +47,7 @@
   "formula_stmt_closing",
   "formula_diff",
   "summary_json",
+  "parse_info_json",
   "created_by",
   "created_at"
  ],
@@ -280,6 +281,13 @@
    "label": "Summary Json",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "parse_info_json",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Parse Info Json",
+   "read_only": 1
   },
   {
    "fieldname": "created_by",

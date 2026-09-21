@@ -26,6 +26,15 @@ STATEMENT_KEYS = frozenset(("date", "description", "withdrawal", "deposit", "bal
 GL_KEYS = frozenset(("date", "doc_no", "account_code", "description", "debit", "credit",
 	"balance"))
 HEADER_AMOUNTS = ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing")
+MAX_PARSE_FILES = 200
+MAX_ACCOUNTS = 100
+MAX_DIAGNOSTIC = 1000
+# The deployed run saved `_parse_info` with these two sections and record keys so
+# the workbook's File Info section could show real per-file numbers.
+PARSE_INFO_SECTIONS = {
+	"stmt_files": ("file", "rows", "ok", "error", "error_code", "bank_code"),
+	"gl_files": ("file", "rows", "ok", "error", "error_code", "accounts"),
+}
 CONFIDENCE_LEVELS = ("high", "medium", "low")
 BALANCE_STATES = ("ok", "mismatch")
 
@@ -128,6 +137,52 @@ def header(value):
 		for key in HEADER_AMOUNTS}
 	result["bank_code"] = _text(value.get("bank_code"), "header.bank_code", limit=40)
 	result["gl_account_code"] = _text(value.get("gl_account_code"), "header.gl_account_code", limit=40)
+	return result
+
+
+def parse_info(value):
+	"""Validate the optional per-file parse diagnostics stored with one task.
+
+	Only the two deployed sections with their deployed record keys are kept; the
+	workbook's File Info section reads these names, so an unknown section or record
+	key is refused instead of stored and silently ignored.
+	"""
+	if value in (None, ""):
+		return {}
+	if not isinstance(value, dict) or set(value) - set(PARSE_INFO_SECTIONS):
+		raise ReconciliationContractError("reconciliation.parse_info_invalid")
+	result = {}
+	for section, keys in PARSE_INFO_SECTIONS.items():
+		records = value.get(section)
+		if records in (None, ""):
+			result[section] = []
+			continue
+		if not isinstance(records, list) or len(records) > MAX_PARSE_FILES:
+			raise ReconciliationContractError(f"reconciliation.parse_info_too_many:{section}")
+		parsed = []
+		for record in records:
+			if not isinstance(record, dict) or set(record) - set(keys):
+				raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+			count = record.get("rows") or 0
+			if isinstance(count, bool) or not isinstance(count, int) or not 0 <= count <= MAX_ROWS:
+				raise ReconciliationContractError(f"reconciliation.parse_info_rows:{section}")
+			accounts = record.get("accounts") or []
+			if (not isinstance(accounts, list) or len(accounts) > MAX_ACCOUNTS
+					or any(not isinstance(account, str) for account in accounts)):
+				raise ReconciliationContractError(f"reconciliation.parse_info_invalid:{section}")
+			item = {
+				"file": _text(record.get("file"), f"{section}.file"),
+				"rows": count,
+				"ok": bool(record.get("ok")),
+				"error": _text(record.get("error"), f"{section}.error", limit=MAX_DIAGNOSTIC) or None,
+				"error_code": _text(record.get("error_code"), f"{section}.error_code") or None,
+			}
+			if section == "stmt_files":
+				item["bank_code"] = _text(record.get("bank_code"), f"{section}.bank_code", limit=40)
+			else:
+				item["accounts"] = [_text(account, f"{section}.accounts") for account in accounts]
+			parsed.append(item)
+		result[section] = parsed
 	return result
 
 
