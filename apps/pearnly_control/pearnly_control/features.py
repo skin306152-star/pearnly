@@ -105,20 +105,26 @@ FEATURE = "Pearnly Feature"
 ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
     ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line",
-                                           "ERP Supplier", "ERP Purchase Settings"]),
-    ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit"]),
+                                           "ERP Supplier", "ERP Purchase Settings",
+                                           "ERP Company"]),
+    ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit",
+                                           "ERP Company"]),
     # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，
     # 但商品主数据只读（权限覆盖见 READ_ONLY）。
     ("erp", "warehouses"): ("ERP Stock", ["ERP Product", "ERP Warehouse", "ERP Stock Entry",
                                           "ERP Stock Entry Line", "ERP Stock Movement",
-                                          "ERP Stock Balance"]),
-    ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening"]),
-    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line"]),
-    ("erp", "clients"): ("ERP Sales", []),
+                                          "ERP Stock Balance", "ERP Company"]),
+    ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening", "ERP Company"]),
+    # 客户表归销售岗位：销售要能被开单侧选中，也能建/改买方（客户名录与销售单据
+    # 是同一个岗位，两个功能码在这里合成一个人看）。
+    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line",
+                                     "ERP Company"]),
+    ("erp", "clients"): ("ERP Sales", ["ERP Customer", "ERP Company"]),
     # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
     # 否则团队管理里勾不到这个岗位。
     ("erp", "cashier"): ("ERP Cashier", ["ERP POS Terminal", "ERP Shift", "ERP Sale",
-                                         "ERP Sale Line", "ERP Sale Payment"]),
+                                         "ERP Sale Line", "ERP Sale Payment",
+                                         "ERP Customer", "ERP Company"]),
     ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
     ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
     ("dms", "roster"): ("DMS Operator", ["DMS Operator"]),
@@ -136,6 +142,16 @@ PRODUCT_ADMIN_ROLE = {
     "cowork": "Cowork Admin",
     "erp": "ERP Admin",
     "dms": "DMS Admin",
+}
+
+# 产品管理员（租户管理员）在这张**标准表清单之外**还要能管的表。
+#
+# 为什么需要单独一份：标准表清单（站点侧的 `User` / `Contact`）是"管本产品员工账号"，
+# 与产品业务无关，所以写在站点侧；而公司资料不是买来的功能，也不该发给岗位 ——
+# 它是租户自己的主体资料，第一次打开资料页就要能填、能存，否则页面只能看不能改。
+# 站点侧把这份清单**追加**在自己的默认清单后面（`ensure_feature_roles`）。
+ADMIN_EXTRA_DOCTYPES = {
+    "erp": ["ERP Company"],
 }
 
 # 租户管理员必须有的基础角色（否则连 Desk 都进不去）
@@ -187,6 +203,13 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
 READ_ONLY: set[tuple[str, str, str]] = {
     ("dms", "DMS ID Card Intake", "DMS ID Card Intake"),
     ("erp", "ERP Product", "ERP Stock"),
+    # 收银要能选客户开单，但客户名录归销售岗位 —— 收银在客户表上只读。
+    ("erp", "ERP Customer", "ERP Cashier"),
+    # ERP Company（公司主档 + 公司资料）不是买来的功能，是**租户自己的主体资料**：
+    # 每个业务岗位都要读到（开单要抬头与税号），但只有产品管理员能改。所以每个业务
+    # 岗位在这张表上一律只读，写权限只从 ADMIN_EXTRA_DOCTYPES 走（见下）。
+    *{("erp", "ERP Company", role) for role in (
+        "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier")},
 }
 READ_ONLY_PERMS = {"read": 1, "report": 1}
 
@@ -231,6 +254,7 @@ def roles_payload(product: str, codes: list[str]) -> dict:
         "product": product,
         "admin_role": PRODUCT_ADMIN_ROLE.get(product, ""),
         "base_roles": BASE_ROLES,
+        "admin_extra_doctypes": list(ADMIN_EXTRA_DOCTYPES.get(product, [])),
         "roles": roles,
     }
 

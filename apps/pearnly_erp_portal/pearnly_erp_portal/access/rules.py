@@ -48,6 +48,12 @@ CAPABILITY_FEATURES = {
     "cashier.manage": ("cashier",),
     "sales.read": ("sales",),
     "sales.write": ("sales",),
+    # 公司资料（抬头、税号、开票前缀）是所有业务都要读的东西，所以认所有业务岗位；
+    # 改它只给管理员与公司岗位。它不是买来的功能，是本租户自己的主体资料。
+    "company.read": ("products", "warehouses", "stockcard", "purchase", "sales", "clients",
+                     "cashier"),
+    "customers.read": ("sales", "cashier"),
+    "customers.manage": ("clients", "sales"),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。
@@ -65,6 +71,9 @@ COST_ROLES = (ADMIN_ROLE, FEATURE_ROLES["warehouses"])
 # 既有口径（`erp-team-copy.ts`：成员只看到自己录入的记录，数据仍落老板的账套）。
 ALL_RECORDS_ROLES = (ADMIN_ROLE, SYSTEM_ADMIN_ROLE)
 
+# 公司资料的写入方：产品管理员。这不是"功能角色"，所以不放进 FEATURE_ROLES。
+COMPANY_MANAGE_ROLES = (ADMIN_ROLE,)
+
 ALL_RECORDS = "all"
 OWN_RECORDS = "own"
 
@@ -73,6 +82,8 @@ def required_roles(capability: str) -> tuple[str, ...]:
     """某能力需要的角色。未知能力返回空元组，调用方据此一律拒绝（fail-closed）。"""
     if capability in ADMIN_CAPABILITIES:
         return (ADMIN_ROLE,)
+    if capability == "company.manage":
+        return COMPANY_MANAGE_ROLES
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
     return tuple(role for role in roles if role)
 

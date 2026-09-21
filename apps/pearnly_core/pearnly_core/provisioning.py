@@ -204,6 +204,8 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
     `spec_json` 形状见控制面的 `pearnly_control.features.roles_payload`。
     其中每个功能角色可以带 `perms_by_doctype`，给某张表单独换个权限档
     （DMS 的身份证录入表在网页端是**只读**的 —— 录入在 LINE 上做）。
+    `admin_extra_doctypes` 则给产品管理员追加几张表（ERP 的公司资料：所有岗位可读、
+    只有管理员可写，见控制面 `ADMIN_EXTRA_DOCTYPES`）。
 
     为什么收 JSON **字符串**而不是 dict：调用方是 `bench execute`，它对
     `--kwargs` 做的是 Python `eval`（`frappe/commands/utils.py:286`），
@@ -219,12 +221,16 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
     admin_role = spec.get("admin_role") or ""
     base_roles = list(spec.get("base_roles") or [])
     feature_roles = spec.get("roles") or []
+    # 控制面还可以给这个产品的管理员追加几张"不是买来的功能、但只有管理员能改"的表
+    # （ERP 的公司资料就是这样一张：所有岗位可读，只有管理员可写）。
+    admin_doctypes = list(ADMIN_DOCTYPES) + [
+        d for d in (spec.get("admin_extra_doctypes") or []) if d]
 
     # 把"角色 → 表 → 权限"摊平。功能角色默认拿 FEATURE_PERMS，但每张表都可以被
     # `perms_by_doctype` 覆盖（例如 DMS 那张表在网页端只读，见控制面的 features.py）。
     grants: list[tuple[str, str, dict]] = []
     if admin_role:
-        grants += [(admin_role, doctype, ADMIN_PERMS) for doctype in ADMIN_DOCTYPES]
+        grants += [(admin_role, doctype, ADMIN_PERMS) for doctype in admin_doctypes]
     for row in feature_roles:
         overrides = row.get("perms_by_doctype") or {}
         for doctype in row.get("doctypes") or []:

@@ -17,6 +17,7 @@ from pearnly_erp_portal.products import contracts  # noqa: E402
 from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
 from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
+from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -408,6 +409,58 @@ class CashierSettlement(unittest.TestCase):
         self.assertEqual(str(expected), "1440.00")
         self.assertEqual(str(cashier_contracts.shift_difference(1400, expected)), "-40.00")
         self.assertEqual(str(cashier_contracts.shift_difference(1500, expected)), "60.00")
+
+
+class BuyerNormalisation(unittest.TestCase):
+    """买方归一化：类型决定哪些字段有意义，不该有的值一律清掉。"""
+
+    def test_company_keeps_tax_id_and_branch(self):
+        clean = master_contracts.normalize_buyer({
+            "customer_name": "ACME", "party_type": "company", "tax_id": "0105",
+            "branch_type": "branch", "branch_no": "00001"})
+        self.assertEqual(clean["tax_id"], "0105")
+        self.assertEqual((clean["branch_type"], clean["branch_no"]), ("branch", "00001"))
+
+    def test_company_head_office_drops_the_branch_number(self):
+        clean = master_contracts.normalize_buyer({
+            "customer_name": "ACME", "party_type": "company", "branch_type": "hq",
+            "branch_no": "00001"})
+        self.assertIsNone(clean["branch_no"])
+
+    def test_person_and_anonymous_drop_tax_id_and_branch(self):
+        for party in ("person", "foreign", "anonymous"):
+            with self.subTest(party=party):
+                clean = master_contracts.normalize_buyer({
+                    "customer_name": "Walk-in", "party_type": party, "tax_id": "0105",
+                    "branch_type": "branch", "branch_no": "1"})
+                self.assertIsNone(clean["tax_id"])
+                self.assertIsNone(clean["branch_type"])
+                self.assertIsNone(clean["branch_no"])
+
+    def test_unknown_party_type_falls_back_to_company(self):
+        clean = master_contracts.normalize_buyer({"customer_name": "X", "party_type": "nonsense"})
+        self.assertEqual(clean["party_type"], "company")
+
+    def test_overlong_values_are_rejected(self):
+        with self.assertRaises(ValueError):
+            master_contracts.normalize_buyer({"customer_name": "x" * 300})
+
+    def test_tax_invoice_requirements_per_buyer_type(self):
+        missing = master_contracts.missing_for_tax_invoice
+        self.assertEqual(missing({"party_type": "anonymous"}), ["party_type"])
+        self.assertEqual(sorted(missing({"party_type": "company", "customer_name": "A"})),
+                         ["address", "tax_id"])
+        self.assertEqual(missing({"party_type": "person", "customer_name": "A",
+                                 "address": "B"}), [])
+        self.assertEqual(missing({"party_type": "company", "customer_name": "A", "address": "B",
+                                  "tax_id": "1", "branch_type": "branch"}), ["branch_no"])
+
+    def test_fiscal_month_bounds(self):
+        self.assertTrue(master_contracts.fiscal_month_ok(1))
+        self.assertTrue(master_contracts.fiscal_month_ok("12"))
+        self.assertFalse(master_contracts.fiscal_month_ok(0))
+        self.assertFalse(master_contracts.fiscal_month_ok(13))
+        self.assertFalse(master_contracts.fiscal_month_ok("jan"))
 
 
 if __name__ == "__main__":
