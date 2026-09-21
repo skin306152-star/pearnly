@@ -679,5 +679,45 @@ class SalesDocumentDownstream(unittest.TestCase):
                          ("pos", "ocr", "manual"))
 
 
+class RecognisedInvoiceMapping(unittest.TestCase):
+    """识别结果 → 建单字段（纯函数）。模型返回什么形状都在这里看得见。"""
+
+    def test_a_printed_invoice_maps_through(self):
+        mapped = sales_contracts.map_recognised({
+            "doc_no": "INV-1", "doc_date": "2026-09-21", "buyer_name": "ACME",
+            "buyer_type": "company", "buyer_tax_id": "0105550000001",
+            "buyer_branch_type": "branch", "buyer_branch_no": "00002",
+            "buyer_address": "Bangkok", "has_vat": True, "vat_rate": 7,
+            "lines": [{"description": "item", "qty": 2, "unit_price": "100"}]})
+        self.assertEqual(mapped["party_type"], "company")
+        self.assertEqual((mapped["branch_type"], mapped["branch_no"]), ("branch", "00002"))
+        self.assertEqual(len(mapped["lines"]), 1)
+        self.assertEqual(mapped["vat_rate"], 7)
+
+    def test_unknown_values_fall_back_instead_of_leaking_in(self):
+        mapped = sales_contracts.map_recognised(
+            {"buyer_type": "nonsense", "buyer_branch_type": "weird"})
+        self.assertEqual(mapped["party_type"], "company")
+        self.assertIsNone(mapped["branch_type"])
+
+    def test_empty_and_description_less_lines_are_dropped(self):
+        mapped = sales_contracts.map_recognised(
+            {"lines": [{"description": "  "}, {"qty": 2}, {"description": "ok"}]})
+        self.assertEqual([line["description"] for line in mapped["lines"]], ["ok"])
+
+    def test_the_seller_name_stands_in_when_no_buyer_is_printed(self):
+        mapped = sales_contracts.map_recognised({"seller_name": "Shop Co"})
+        self.assertEqual(mapped["buyer_name"], "Shop Co")
+
+    def test_totals_are_never_taken_from_the_model(self):
+        """金额一律我们自己算：识别结果里带 total 也必须被忽略。"""
+        mapped = sales_contracts.map_recognised(
+            {"lines": [{"description": "x", "qty": 2, "unit_price": "10"}],
+             "grand_total": 999, "vat_amount": 999})
+        self.assertNotIn("grand_total", mapped)
+        totals = sales_contracts.compute_totals(mapped["lines"], vat_rate=7)
+        self.assertEqual(str(totals["grand_total"]), "21.40")
+
+
 if __name__ == "__main__":
     unittest.main()

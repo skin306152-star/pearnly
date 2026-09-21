@@ -160,6 +160,44 @@ def main():
     results["note_on_draft_blocked"] = ok
     results["note_on_draft_error"] = None if ok else err
 
+    # 上传发票：识别被替换成固定结果（不花钱），落 source=ocr 草稿并留底。
+    import io
+
+    from PIL import Image
+
+    from pearnly_erp_portal.sales import ocr as sales_ocr
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8), (10, 120, 200)).save(buffer, "JPEG")
+    jpeg = buffer.getvalue()
+    original_recognise = sales_ocr.recognise
+    sales_ocr.recognise = lambda content, content_type: {
+        "doc_no": "INV-LAB-1", "doc_date": "2026-09-21", "buyer_name": "Lab OCR Buyer",
+        "buyer_type": "company", "buyer_tax_id": "0105550000002",
+        "buyer_branch_type": "hq", "buyer_address": "Chiang Mai", "has_vat": True,
+        "vat_rate": 7, "lines": [{"description": "ocr line", "qty": 3, "unit_price": "50"}]}
+    try:
+        ok, up = as_user(SELLER, service.create_from_upload, content=jpeg,
+                         content_type="image/jpeg", filename="lab-invoice.jpg")
+    finally:
+        sales_ocr.recognise = original_recognise
+    results["upload"] = ok
+    results["upload_error"] = None if ok else up
+    results["upload_source"] = frappe.db.get_value("ERP Sales Document", up.get("name"),
+                                                   "source") if ok else None
+    results["upload_total"] = str(up.get("grand_total")) if ok else None
+    results["upload_has_file"] = bool(frappe.db.get_value(
+        "ERP Sales Document", up.get("name"), "source_file")) if ok else None
+    results["upload_sha_set"] = bool(frappe.db.get_value(
+        "ERP Sales Document", up.get("name"), "image_sha256")) if ok else None
+    ok, fixed = as_user(SELLER, service.attach_recognition, up.get("name"),
+                        payload={"buyer_name": "Lab OCR Buyer (reviewed)", "has_vat": True,
+                                 "vat_rate": 7,
+                                 "lines": [{"description": "reviewed line", "qty": 2,
+                                            "unit_price": "100"}]})
+    results["attach_recognition"] = ok
+    results["reviewed_total"] = str(fixed.get("grand_total")) if ok else None
+
     # 岗位与隔离。
     ok, err = as_user(CASHIER, service.create_document, doc_kind=contracts.TAX_INVOICE,
                       doc_date="2026-09-21", buyer_name="X", lines=lines)
@@ -182,6 +220,9 @@ def main():
         "numbers_differ": True, "credit_note": True,
         "credit_note_kind": "credit_note", "credit_note_ref": second.get("name"),
         "note_on_draft_blocked": False, "cashier_can_create": False,
+        "upload": True, "upload_source": "ocr", "upload_total": "160.50",
+        "upload_has_file": True, "upload_sha_set": True,
+        "attach_recognition": True, "reviewed_total": "214.00",
         "seller_can_list": True, "other_site_documents": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()

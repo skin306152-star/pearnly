@@ -21,7 +21,7 @@ from frappe import _
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import stock, warehouses
 from pearnly_erp_portal.masters import company
-from pearnly_erp_portal.sales import contracts
+from pearnly_erp_portal.sales import contracts, ocr
 
 DOCTYPE = "ERP Sales Document"
 SEQUENCE = "ERP Doc Sequence"
@@ -259,3 +259,68 @@ def create_note(original, note_kind, *, lines=None, reason=None, doc_date=None) 
         branch_type=source["branch_type"], branch_no=source["branch_no"],
         address=source["address"], references_document=source["name"], note=reason)
     return issue_document(created["name"])
+
+# ── 上传发票：识别 → 填进草稿 ───────────────────────────────────────────────
+#
+# 三条来源都落在同一张表上：手工录入直接调 `create_document`；上传发票走这里；
+# POS 收银走收银域（已交付）。下游只有商品/库存/收发存 —— 开出即出库。
+
+
+def create_from_upload(*, content, content_type, filename, doc_date=None, manual=False) -> dict:
+    """上传一张发票：先识别，再把归一后的字段填进一张 `source=ocr` 的草稿。
+
+    `manual=True` 表示人不想（或不能）识别：那就只留底、开一张空草稿，
+    字段自己填 —— 上传不等于必须花钱识别。
+    """
+    guard.require("sales.write")
+    payload = {} if manual else ocr.recognise(content, content_type)
+    mapped = contracts.map_recognised(payload)
+    mapped["doc_date"] = mapped.get("doc_date") or doc_date or str(frappe.utils.nowdate())
+    if not mapped["lines"]:
+        frappe.throw(_("Nothing was recognised; enter the lines by hand"))
+    mapped["source_file"] = _store_source(content, filename) or None
+    mapped["image_sha256"] = _sha256(content)
+    created = create_document(**mapped, source=contracts.SOURCE_OCR)
+    return {**created, "recognised": not manual, "source_file": mapped["source_file"]}
+
+
+def attach_recognition(name, *, payload) -> dict:
+    """人复核识别结果：把（可能改过的）识别字段填回草稿。只有草稿能改。"""
+    guard.require("sales.write")
+    doc = _get(name)
+    if doc.status not in contracts.EDITABLE_STATUSES:
+        frappe.throw(_(NOT_EDITABLE))
+    mapped = contracts.map_recognised(payload)
+    for field in ("doc_date", "buyer_name", "party_type", "tax_id", "branch_type",
+                  "branch_no", "address", "has_vat", "vat_rate", "wht_rate"):
+        if mapped.get(field) is not None:
+            doc.set(field, mapped[field])
+    doc.set("lines", [])
+    for line in mapped["lines"]:
+        doc.append("lines", line)
+    doc.save()
+    frappe.db.commit()
+    return {"name": doc.name, "grand_total": str(doc.grand_total)}
+
+
+def _sha256(content: bytes) -> str:
+    import hashlib
+
+    return hashlib.sha256(content).hexdigest()
+
+
+def _store_source(content: bytes, filename: str) -> str:
+    """给单据留底（私有 File）。留底失败不拦业务，但要留痕。"""
+    if not content:
+        return ""
+    try:
+        file_doc = frappe.get_doc({
+            "doctype": "File", "file_name": filename or "sales-source.bin",
+            "is_private": 1, "content": content,
+        })
+        file_doc.insert(ignore_permissions=True)
+        return file_doc.file_url
+    except Exception:
+        frappe.log_error(title="Sales source file storage failed",
+                         message=frappe.get_traceback()[-1200:])
+        return ""
