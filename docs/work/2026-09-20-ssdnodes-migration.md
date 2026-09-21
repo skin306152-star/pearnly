@@ -570,3 +570,42 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
   `com.pearnly.production-tunnel`（KeepAlive，现监听 127.0.0.1:18180/18184；日志里的连接失败/退出码 255 都是主机迁移与本次重启窗口内的旧记录）。
 - 顺带发现：本机 **没有** 残留的 Playwright/Chrome 僵尸进程；`~/.Trash` 受 macOS TCC 保护，
   只能通过 Finder 清空（已用 `osascript` 清空，Finder 回报 0 项）。
+
+## 2026-09-21 手机导航菜单"要点两下"（已修并部署）
+
+用户报障：手机上点**导航菜单**要点两下。下拉统一的事用户明确说"不管了"，本轮只修这一条。
+
+### 根因（本地用真实触摸事件复现，非猜测）
+
+在管理后台 Desk（同一套 Frappe 原生代码）用 iPhone 13 视口 + `page.tap()` 实测：
+
+| 动作 | 结果 |
+| --- | --- |
+| 点 ☰ 打开侧栏 | **一次就开**（加载后 0/300/1000/3000ms 四种时机均是第一下就开） |
+| 点菜单项导航 | **一次就跳**（`/desk/user` → `/desk/users`） |
+| 跳完之后 | **侧栏不收起**，仍盖在新页面上；且 `document.body.style.overflow` 被原生
+  `Sidebar.set_height()` 设成 `hidden` 后**从不释放** → 页面既被遮挡又滚不动 |
+| 侧栏打开时 | 它盖住了 ☰ 按钮（Playwright 明确报"被 `.body-sidebar-container.expanded` 子树拦截指针事件"） |
+
+所以"要点两下"= 点 ☰ → 点菜单项 → 还要再点一下（点遮罩）才看得到页面/才能滚动。
+产品侧栏是**扁平列表**（`desk/navigation.py` 生成的 `type: Link` 项，无可折叠分组），
+所以"第一下只展开分组"这条不成立；也不是我们自定义的标题菜单造成的。
+
+### 改动（只做原生组合，不复制控件）
+
+`apps/pearnly_core/pearnly_core/public/desk/product.js`（产品 Desk 作用域内）：
+
+1. 包 `frappe.ui.Sidebar.prototype.close`：关闭时**释放** body 的滚动锁（原生只加不解）；
+2. 手机上**点菜单项 / 路由变化后自动收起侧栏**（捕获阶段监听 `.body-sidebar` 内的菜单项点击，
+   用 `setTimeout(0)` 让链接先把路由走完，不抢默认动作）。
+
+### 验证
+
+- 把同一段逻辑注入控制面页面用真实触摸重跑：点菜单项 → 路由切换成功、**侧栏自动关闭**、
+  `body.overflow` 恢复为空；单独测"点 ☰ 打开"**不注入/注入修复都是一次打开**（无回归）。
+- `node --check`、`node tests/test-native-desk.cjs`（3 项 PASS）、`check-architecture.py` PASS。
+- 部署回读：`main` = `cd3e8e3`，镜像 `sha256:e180940be8a5…`，7 个 DMS 容器已切换；
+  **线上 `https://testdms.pearnly.com/assets/pearnly_core/desk/product.js` 取到含修复的版本**
+  （版本哈希 `58e7fc6f93af787d`，随内容变化所以浏览器一定会取新文件）；站点 `ping` 200。
+
+真机待确认：手机上从导航菜单选页面后，菜单应自动收起、页面可正常滚动，不再需要第二次点击。
