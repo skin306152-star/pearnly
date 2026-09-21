@@ -1,0 +1,12 @@
+{
+  "recorded_at": "2026-09-21T09:38:18.041543+00:00",
+  "operation": "cowork-push-runtime-drift-audit.py collect-readonly",
+  "source_baseline": "baseline-fifteenth-delivery.json",
+  "previous_runtime": "push-runtime-fifteenth-start.json",
+  "legacy_v1": "push-runtime-seventh-start.json",
+  "exit_code": 1,
+  "error": "component_database_identity_changed",
+  "output_evidence_created": false,
+  "full_configuration_import": "HOLD",
+  "authentication_subset_delivery": "NOT_ESTABLISHED_BY_THIS_FAILED_CAPTURE"
+}

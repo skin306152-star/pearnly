@@ -1,5 +1,51 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第十五批交付）
+
+**第十五批已在本地把 ERP 单号、逐行主档动作、主档清单及授权失败原因接入复核工作簿。** Windows 已连接并只读核对现用 TEST 配置，未发生实际 ERP 写入。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文按批次保留历史证据。
+
+### 位置与授权
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`；本批开始 HEAD `95bdaf96ad32b567a25ed3b70a95ee968eaf73f0`。包含交接的实际提交以 `git log -1` 核对。
+- 未合回、未推送、未部署。提交后收尾只读主线/远端 main 为 `7128a1e5decf9b79ee19e995c0bf9ead938e5a50`，任务远端分支不存在；主线由其他任务继续推进，本包未验证组合版本，不更新其代码。
+- 用户本轮明确：Windows 已开机，本机可直接访问；需要第三方 ERP 写入时使用旧项目的测试凭据和测试账套。**必要的测试 ERP 联调已获授权**，不再因旧交接重复询问。不扩大为正式账套写入、生产切换、部署、LINE/WeKan外写或付费OCR。
+
+### 本批完成与验证
+
+1. 原生账本按当前 actor / History 取创建时间最新的成功回执；ERP实际单号、逐行新建/复用与商品码、对手方码、库存组及主档清单进入既有四表。最新失败状态/原因与前次成功引用分开，prepared不覆盖成功。
+2. 附加事实需当前 push_log 功能、日志角色、公司/客户和连接授予；授权撤销时仍可导出获准读取的票据，但不带 ERP 明细或错误原因。停用连接可查已授权历史，Admin 不继承别人的 actor 事实。
+3. 票据版本改变后保留原单号，省略可能错位的旧逐行动作/方向和主档清单；库存组描述只取原账号/root/报告凭据来源。票面自报状态/ERP码继续被清除，不输出原响应、运输载荷、token或未知meta。
+4. 无新 DocType/API/菜单/发送消费者，未修改既有工作簿模板/金额计算、准备/确认和ACK状态机。
+
+[本批合同](cowork-backend/fifteenth-source-review.md)和[验证清单](cowork-backend/evidence/fifteenth-local-validation.json)：8个真实Site定向用例最终整次通过，3个新纯解析、3个既有导出用例通过，共14个独立用例；另10组固定源码同输入对比通过。首两轮夹具字段不合旧推送格式的失败及修复记录保留。架构0违规，无schema变化，不重复建Site/migrate/全量测试；无翻译改动，未重跑strict i18n、DMS、前端或CI。
+
+### 线上来源与尚未解除的限制
+
+本批开工/交付源码均重新读取，source比较通过。交付采集 `2026-09-21T09:31:16.309049+00:00`；Web/Worker各100%为 `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，完整源码SHA `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。证据在 `cowork-backend/evidence/*fifteenth-*.json`。
+
+**完整config漂移HOLD继续。** 第十四交付→本批开工与本批首尾均只见端点全config摘要变化，不能用旧hash还原变化键或归因为心跳。开工补采v1身份与第七批一致；交付v1补采因 `component_database_identity_changed` 拒绝生成证据，失败已留档，未降低采集器校验。其余已采环境/开关/observations投影首尾相等，但不证明整个config未变。本包为固定源码的纯解析和新平台原生账本读取，不迁入旧owner/配置/路径/凭据/状态。
+
+只读固定源缓存仍为 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`，下包继续开工/交付复采，不把当前证据当未来生产证明。
+
+### Windows 现场结果及下一包
+
+- `ssh lenovo-office-lan` 可达 `DESKTOP-MN2BRKR`。运行用户 skin3，SSH 用户 codexops。活动配置是 `C:\Users\skin3\AppData\Roaming\Pearnly\companion.json`；codexops自己的空配置不是现用配置。
+- 安装注册表1.1.77，实测 EXE SHA256 `0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a`；**EXE→构建源码SHA尚未闭合**，不能用本地Companion HEAD或同版本安装包替代。两个进程可能为打包父子进程，本包未将其判作两个写者。
+- 两个活动 profile 都指向 `\\Accserver\d$\ACCOUNT\70EXP\TEST`，backend=pearnly.com、dbf、未暂停、加密token存在。没有读取/输出明文token、解密或复制凭据。只读证据见 `cowork-backend/evidence/windows-fifteenth-readonly.json`。
+- codexops 上下文的共享目录 Test-Path 为false；这不能判断 skin3 桌面身份的访问能力。旧文档69EXP/test不可作为当前测试目标。尚无TEST内部账套标识、独立ERP回读或实际写入结果。
+
+**下一包优先**：在保留现用profile的前提下补齐EXE来源及正确Windows身份下70EXP/TEST访问/账套确认，再承接旧URL/顶层JSON封套与新原生机器入口的独立接线。测试ERP写入授权有效；先确保新平台测试任务不误领旧生产队列、不出现第二写者。仍不部署、不接前端。
+
+其他待迁：managed公开运输、MRERP、完整对账/盘点剩余路径、LINE/WeKan、其它文件出口和旧状态迁入。第十四批通知仍为held，无发送消费者；后端未整体完成。
+
+### 交接保留与清理
+
+状态为**交接保留**，本批本地提交后保留未合并工作树/分支继续迁移；解除条件为后端到约定接入点并获准整合。任务远端分支不存在，不为清理擅自合并或推送。
+
+专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`；本树只读源码挂载、Internal网络、无发布端口、外部凭据或worker/scheduler。本批使用既有 `cowork-backend-ack.localhost`，未建Site或改schema；bench/db/redis收尾停止。
+
+保留上述容器、db/sites命名卷、原有两个匿名日志/Redis卷、所有本任务Site及合成记录，供下一包继续；迁移完成后再核归属清理。来源缓存与各批验证日志 `/tmp/pearnly-cowork-migration-20260920/` 保留为证据，下包复核。只清理本任务可再生Python缓存，无数据删除或其他资源清理。Windows无文件/进程/profile变更。复跑前核对context/mount/Site，不接管共享stack，不重启Colima，不flush队列。
+
 ## 换窗口交接（2026-09-21，第十四批交付）
 
 **第十四批已在本地接上 ACK 的 History 状态、同来源库存计数和唯一通知事件持久化。** 通知为 held，尚无发送消费者；没有实际 ERP/LINE 外写。本节是最新续接入口，后文旧批次只代表当时。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。
@@ -45,7 +91,7 @@
 
 ## 目标与授权边界
 
-用户 2026-09-20 要求按已讨论方案开始迁移，做到需要接前端时再讨论。旧前端只用于提取业务行为；新界面以已调整的新 DMS / 原生 Desk 为参考，当前不改页面、不构建前端。只在本地实现与隔离验证；不上线、不部署、不写真实 LINE / ERP / WeKan，不执行付费 OCR。
+用户 2026-09-20 要求按已讨论方案开始迁移，做到需要接前端时再讨论。旧前端只用于提取业务行为；新界面以已调整的新 DMS / 原生 Desk 为参考，当前不改页面、不构建前端。在本地实现与隔离验证，不上线、不部署。2026-09-21用户补充授权Windows及测试凭据/测试账套ERP联调；不写正式ERP账套、LINE / WeKan，不执行付费OCR。
 
 状态：进行中。功能清单、实现、本地验证、外部业务结果和用户验收分别登记；代码骨架或状态字段不计作完成。Cowork 范围包括录入、识别历史、推送、主数据、对账、盘点、LINE、Companion 和 WeKan。每项达到可接前端之前均须有来源与行为证据；尚未迁入的模块明确保留。
 

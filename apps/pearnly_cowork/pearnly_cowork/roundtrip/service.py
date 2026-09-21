@@ -6,6 +6,7 @@ from frappe import _
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.history import storage
+from pearnly_cowork.push import export_facts
 from pearnly_cowork.roundtrip.export import ExportError, build_review_workbook
 
 
@@ -40,9 +41,10 @@ def export(names):
             or any(not isinstance(n, str) or not n or len(n) > 140 for n in names)
             or len(names) != len(set(names))):
         frappe.throw(_("roundtrip.export_records_invalid"))
-    records, ownership, push_facts = [], set(), {}
+    records, histories, ownership, push_facts = [], [], set(), {}
     for name in names:
         doc = storage.read(name)
+        histories.append(doc)
         ownership.add((doc.workspace, doc.client or ""))
         canonical = bool(doc.source_file)
         if canonical:
@@ -60,6 +62,6 @@ def export(names):
             push_facts[doc.name] = {"state": {"status": doc.last_push_status}}
     if len(ownership) != 1:
         frappe.throw(_("roundtrip.export_scope_mixed"), frappe.PermissionError)
-    # Status comes only from the scoped ledger projection. Item/party creation
-    # and ERP numbers still require their separate authorized receipt adapter.
+    for name, facts in export_facts.for_histories(histories).items():
+        push_facts.setdefault(name, {}).update(facts)
     return build_review_workbook(records, push_facts=push_facts)

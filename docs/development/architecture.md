@@ -135,3 +135,9 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 第十三批 `connections.preparation` 从原生数据域采集准备资料并逐类绑定机器缓存来源，`companion.submission` 以原actor/current权限及凭据实现人工确认；poll不自动激活。第十四批 `push.native.completion` 在同一ACK事务中单向调用 `history.push_state` 和 `connections.stock_effects`，没有反向依赖。History是原账本的窄状态投影，不改变人工审核版本；库存增量只影响匹配账号/root/原报告凭据的画像。
 
 唯一 `Cowork Push Notification` 为push域私有原生事件，继承通用CRUD/分享拒绝，仅LINE来源首次成功保存held素材；无发送消费者或接收人权限。失败回滚账本、投影、计数、事件和锁释放，重复ACK不重放副作用。复核表仅通过既有History范围读取服务器状态；单号和主档动作事实待后续接入。详见[第十四批合同](../work/cowork-backend/fourteenth-source-review.md)。以上替代前述旧批次中相应待办，不代表真实Windows接线、完整通知功能或独立ERP回读已验收。
+
+### Cowork 复核表的回执事实（第十五批）
+
+`roundtrip.service` 单向调用 `push.export_facts`，后者只读取本站原生 Push Record 并通过 `connections.service.read_for_log` 检查当前日志功能、角色、公司/客户和连接授予；按原 actor / History 选最新成功。History 的最新推送状态与最后成功回执分开，不用失败回执覆盖原成功单号。`push.export_actions` 为纯解析，复用既有库存科目组合同，不依赖 Frappe 或 IO；没有新的反向依赖。
+
+追加的库存组显示名称由 connections 域按回执的账号/root/报告凭据来源提供，不读取密码。票据版本变化后保留 ERP 引用，但不把旧行新建标记、方向和主档清单套入新票面。通用账本 CRUD/分享限制保持；无新 DocType、API、菜单或外部出口。详见[第十五批合同](../work/cowork-backend/fifteenth-source-review.md)。

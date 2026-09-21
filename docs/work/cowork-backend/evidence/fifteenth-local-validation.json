@@ -1,0 +1,172 @@
+{
+  "recorded_at": "2026-09-21T09:39:37.852452+00:00",
+  "base_sha": "95bdaf96ad32b567a25ed3b70a95ee968eaf73f0",
+  "branch": "codex/cowork-backend-migration",
+  "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+  "source_evidence": {
+    "baseline-fifteenth-delivery.json": {
+      "file_sha256": "152bf0f914fa847f1eecb90dc60f20d463a8246854118e6c093691e8736f71f5",
+      "canonical_sha256": "cea325164f2b8e1af9df9706bfdae22e18f1f9efdb3944a06dd24652b0fd9a3c",
+      "captured_at": "2026-09-21T09:31:16.309049+00:00"
+    },
+    "baseline-fifteenth-start.json": {
+      "file_sha256": "ebd3d2e1a3d1763b93a3732444061f0a94c2c2f22b1d3b26565c0597df964940",
+      "canonical_sha256": "bff547827a7c3c8f304f27a147354fecacfe7ad28184073fa8862d56484648c5",
+      "captured_at": "2026-09-21T09:11:15.954010+00:00"
+    },
+    "push-runtime-fifteenth-delivery.json": {
+      "file_sha256": "6a1dde9f6a55eb1a2f02d450a9dd064e46902c048233e28dceef6e9356557f70",
+      "canonical_sha256": "5fb986f0b17c04977f959d3858a819ba9284fbc46a3f96dc9cc6ffa87db5c264",
+      "captured_at": "2026-09-21T09:31:48.507650+00:00"
+    },
+    "push-runtime-fifteenth-drift-delivery-failure.json": {
+      "file_sha256": "9f8dab08af4d9a043aeb3778c96ec2545222fc205097aa9972830cd936af0fd4"
+    },
+    "push-runtime-fifteenth-drift-start.json": {
+      "file_sha256": "6dc6982391f52f6a8cab080e8b77bc5b52b9d52e7ef29735f4194bfc5b8c7193",
+      "canonical_sha256": "d7465c454cd5dd7e865114a95e28f0a7e8e236f6a00e8aeb137a378833c88d2f",
+      "captured_at": "2026-09-21T09:17:26.437040+00:00"
+    },
+    "push-runtime-fifteenth-start.json": {
+      "file_sha256": "fbe23a0f3e189ead93d493825ec59ead91bec45ea009fb9c7a921cbd30b66b50",
+      "canonical_sha256": "ca84bde30f50bf610c900f00d45dc1a7755dff41b3085cf91a6ba723c19d6d37",
+      "captured_at": "2026-09-21T09:11:57.624048+00:00"
+    },
+    "windows-fifteenth-readonly.json": {
+      "file_sha256": "90d8574c3831ca8aa8a42160f0823a16792ce0acbfe98b3ab53b6ae7ae20ef0b"
+    }
+  },
+  "source_unchanged": true,
+  "runtime_unchanged": false,
+  "runtime_changed_paths": [
+    "/pearnly-web/database/identity/endpoints/configuration_digest",
+    "/pearnly-worker/database/identity/endpoints/configuration_digest"
+  ],
+  "v1_start_unchanged": true,
+  "v1_delivery_capture": "FAILED_component_database_identity_changed",
+  "full_configuration_import": "HOLD",
+  "native_tests": {
+    "unique_new": 8,
+    "final_run": "PASS_8_OF_8",
+    "initial_runs": "FAIL_8_OF_8_twice_before_fixture_field_fix",
+    "failure_cause": "test invoice aliases description/amount did not satisfy fixed source push contract name/subtotal; no production validation weakened",
+    "later_change": "authorized selected-state reason plus creation-vs-completion ordering; final eight rerun because code changed"
+  },
+  "pure_tests": {
+    "new": 3,
+    "existing_export_selected": 3,
+    "status": "PASS"
+  },
+  "unique_tests_total": 14,
+  "fixed_source_receipt_comparisons": {
+    "count": 10,
+    "status": "PASS",
+    "scope": "hash bound AST receipt parser with previously migrated pure coercion and stock-group helpers; no legacy DAL import"
+  },
+  "source_blob_hashes": {
+    "services/erp/export_actions.py": "fcb995d4f03658ad72c8dd8472b8dc878e46f2275fa9481d2d055dc1282a5ec0",
+    "services/erp/express_push/stock_acc_group.py": "f037c43c15e57fc339e9a5fa54420fd5bf0b49e161340ebba8e1493a1c662a85",
+    "routes/ocr_export_routes.py": "b84f890bf77223be076985bcf29a4de473cf6aa621d7770ec180642677c16f79",
+    "services/excel/erp_workbook.py": "a388fd3366a71b969a7618e877302505fe243de7d5ed75846b58fdcf8383f062",
+    "services/excel/excel_template_th.py": "ba63d2ab4270483e2d611e9955d6a1c01fda35b701f42f4540fbd677847b8af3"
+  },
+  "candidate_file_hashes": {
+    "apps/pearnly_cowork/pearnly_cowork/connections/service.py": "e16cc2338008d65c7761b121953b30ce1c2450030b5ff6bc7c688fb875590afa",
+    "apps/pearnly_cowork/pearnly_cowork/roundtrip/service.py": "c34a984f4eac84ae4579752a3f233f2835c8c83641777a366e79e34f55403ffc",
+    "apps/pearnly_cowork/pearnly_cowork/push/export_actions.py": "9d7334d5c5ad28afc8b862248c5ab7fa3f573b869f439fed828de0b82c2e6658",
+    "apps/pearnly_cowork/pearnly_cowork/push/export_facts.py": "42ed776ec6ea98b1544be5771cea989f22eed8456c59228ae415e63b0820ffc0",
+    "scripts/cowork-export-facts-lab-verify.py": "fa9a034ffb2deeab4ef8fcfb985580ad7889c2a3328c9e052a977261fb2dd45c",
+    "tests/test_cowork_export_actions.py": "b4be8903580c07d311e199b7153f5103f0ba7d95cc4aa8885cab5ec1d18beb6c",
+    "tests/test_cowork_export_actions_source_parity.py": "a0fcd399aef9102dd5282a17d476f28602b0a9b05191477f4d431e77170f4bbd"
+  },
+  "architecture": "PASS_0_VIOLATIONS",
+  "syntax_json_diff": "PASS",
+  "i18n": "NOT_RUN_no_terms_changed",
+  "schema": "NO_SCHEMA_CHANGES_no_install_or_migrate",
+  "lab": {
+    "context": "colima-pearnly",
+    "project": "pearnly-cowork-backend-lab",
+    "site": "cowork-backend-ack.localhost",
+    "image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "frappe": "16.33.0",
+    "python": "3.14.7",
+    "internal_network": true,
+    "ports": [],
+    "source_mounts": "task worktree read-only",
+    "external_credentials": false
+  },
+  "windows": {
+    "authorization": "necessary test ERP credentials and test account writes authorized in current user message",
+    "inspection": "read_only",
+    "actual_erp_writes": 0,
+    "profile_changes": 0,
+    "share_access_as_interactive_user": "NOT_VERIFIED",
+    "installed_executable_source_sha": "NOT_VERIFIED"
+  },
+  "logs": {
+    "fifteenth-architecture.log": {
+      "file_sha256": "0b3265722558043d9a9b8ff03ebf2ba10ed8359a7a90292911cb2da3c90b243b",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-architecture.log"
+    },
+    "fifteenth-existing-export.log": {
+      "file_sha256": "96d216f8ec82140e5fb89b820bf7b35b599e5eeeabf2a57deb329b9813a72433",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-existing-export.log"
+    },
+    "fifteenth-pure-actions.log": {
+      "file_sha256": "0233f1ab7e5e97cfe9804812f9bdba3afb509e2ed81f228d15bce566180f73ea",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-pure-actions.log"
+    },
+    "fifteenth-site-export-retry.log": {
+      "file_sha256": "cd53dd68d7ef85023d0445f1416e7168ef7a835c373b2e999a30c7f6ea42927e",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-site-export-retry.log"
+    },
+    "fifteenth-site-export.log": {
+      "file_sha256": "8ad74f64b6f29cc93d17a34d82bc3a7d9d173df666c960ccacaca619d3552f43",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-site-export.log"
+    },
+    "fifteenth-site-final.log": {
+      "file_sha256": "9818a147a1e52a3131f1269daf98a36c25540c12a84719926b8d37f49f2f062b",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-site-final.log"
+    },
+    "fifteenth-site-fixture-fix.log": {
+      "file_sha256": "7e0ed93cf9b19681cf63ab9fc25f52e607bdae5fe9d83bbc0dbd69a11a3f8a69",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-site-fixture-fix.log"
+    },
+    "fifteenth-site-remaining.log": {
+      "file_sha256": "ff1ed700b061b73d3b01845899e6ab1a8a6552e3e030755c2c6045ebcbf72cec",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-site-remaining.log"
+    },
+    "fifteenth-source-actions.log": {
+      "file_sha256": "ec124d4d0076f64ca2ed25e5fad49ff6951fe228cfd8b3d4c510574602298283",
+      "path": "/tmp/pearnly-cowork-migration-20260920/fifteenth-source-actions.log"
+    }
+  },
+  "integration": {
+    "main_readonly_sha": "7128a1e5decf9b79ee19e995c0bf9ead938e5a50",
+    "remote_main_readonly_sha": "7128a1e5decf9b79ee19e995c0bf9ead938e5a50",
+    "task_remote_branch": "ABSENT",
+    "merged": false,
+    "pushed": false,
+    "deployed": false,
+    "user_acceptance": false,
+    "independent_review": false,
+    "review": "implementer source and diff review",
+    "previous_main_readonly_sha": "027f040cffa80198569a8fc2a2a93d20a659db59",
+    "closeout_recorded_at": "2026-09-21T09:42:10.398563+00:00",
+    "unique_task_commits_at_read": 18
+  },
+  "closeout": {
+    "status": "HANDOFF_RETAINED",
+    "removed": [
+      "scripts/__pycache__/cowork-migration-baseline.cpython-311.pyc",
+      "scripts/__pycache__/cowork-push-runtime-baseline.cpython-311.pyc"
+    ],
+    "lab_containers": "STOPPED",
+    "task_worktree_and_branch": "RETAINED_unmerged_backend_migration",
+    "task_remote_branch": "ABSENT",
+    "volumes_sites_logs": "RETAINED_for_next_package_recheck_then_cleanup_after_migration",
+    "windows_changes": false,
+    "staged_snapshot_hook": "PASS_0_VIOLATIONS",
+    "business_test_processes_remaining": false
+  }
+}

@@ -365,3 +365,23 @@ def credentials_for_use(loaded):
         _error("connection.revision_conflict")
     return {key.removeprefix("credential_"): get_decrypted_password(CONNECTION, current.doc.name, key, raise_exception=False) or ""
             for key in model.SECRET_FIELDS}
+
+
+def stock_groups_for_log(connection_id, target):
+    """Current reported labels only when attributed to the receipt's account.
+
+    A later account/credential switch must not rename the original stock group.
+    Empty candidates retain the code from the frozen request, without a label.
+    """
+    read_for_log(connection_id)
+    doc = _read(CONNECTION, connection_id)
+    report = model.parse(doc.report_json, {})
+    credential = (target.get('preparation_evidence') or {}).get('credential')
+    if not credential or target.get('endpoint_id') != connection_id:
+        return []
+    expected = {**credential, 'account_set': normalize_express_account_key(target.get('account_set')),
+                'root_key': normalize_express_account_key(target.get('root_key'))}
+    if (report.get('_preparation_origins') or {}).get('reported_stock_acc_groups') != expected:
+        return []
+    groups = report.get('reported_stock_acc_groups')
+    return deepcopy(groups) if isinstance(groups, list) else []
