@@ -1,0 +1,59 @@
+{
+  "base_commit": "14a40dd4f0722c1c84d8ea7d55ee5e3567f79870",
+  "scope": "eighteenth batch: offline reconciliation amount rule, field comparison and second matching pass",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "fb28b661c4f7382e98210d7372c5e59465bd3514aff6ce4ebce2249d495c5c5b",
+    "start_captured_at": "2026-09-21T11:18:49.738631+00:00",
+    "delivery_sha256": "cd83c8e3456af885cd22512e113a64ce4f412d2182ecee59500c79c1b88c9da5",
+    "delivery_captured_at": "2026-09-21T11:22:50.922128+00:00",
+    "source_compare": "PASS",
+    "runtime_projection_start_sha256": "e0b475a5fc391e4295cdae6e8ca3821d42311b2ed8057f8e9aa3d559fe24fd61",
+    "runtime_projection_delivery": "REFUSED: component_database_identity_changed; no evidence generated and the collector was not weakened",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py' -v",
+      "result": "PASS",
+      "tests": 31,
+      "new_tests": 21
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_source_parity.py --source /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+      "result": "PASS",
+      "amount_contract_cases": 119037,
+      "compare_field_cases": 6000,
+      "compare_all_fields_cases": 3000,
+      "full_matcher_batches": 2000,
+      "source_second_pass_pairs": 232,
+      "retained_previous_cases": {"stocktake_quantity": 4020, "first_pass_batches": 1000},
+      "decimal_investigations": 8
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "registered_deviation": {
+    "topic": "binary-float amount rule instead of the platform Decimal policy",
+    "reason": "the deployed matcher pairs on round(float(...), 2) and abs(left-right) <= 0.01; Decimal changes 6 of the 8 recorded investigation rows",
+    "scope": "imported invoice/report amounts only; new native records keep using Decimal",
+    "observed": "the deployed band is magnitude dependent: 1000.00 vs 1000.01 matches while 100.00 vs 100.01 and 1.00 vs 1.01 do not",
+    "documented_in": "docs/work/cowork-backend/reconciliation-amounts.md"
+  },
+  "not_run": [
+    "Site install/upgrade and real transactions",
+    "company and role authorization",
+    "real file parsing, exports and templates",
+    "business API, queue, browser and LINE device acceptance",
+    "deployment, external business result and user acceptance",
+    "tests/test_cowork_stocktake*.py export cases (local python3.14 lacks openpyxl; untouched module)"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-amounts.md"
+}
