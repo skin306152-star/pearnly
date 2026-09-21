@@ -74,6 +74,13 @@ def product(code, name, unit="pcs"):
     return service.create_product(product_name=name, code=code, unit=unit)["name"]
 
 
+def _upload(data: bytes, name: str) -> str:
+    """把生成好的表落成一条 `File`，拿回 file_url —— 与页面上传那条路同一个入口。"""
+    from frappe.utils.file_manager import save_file
+
+    return save_file(name, data, None, None, is_private=1, df="File").file_url
+
+
 def main():
     site = connect()
     frappe.set_user("Administrator")
@@ -267,6 +274,93 @@ def main():
     ok, _ = as_user(SHOP, line_mobile.api_line_stocktake_tasks, ticket=shop_ticket)
     results["mobile_shop_list_allowed"] = ok
 
+    # ── 上传导入：模版 → 填数 → 传回 ────────────────────────────────────────
+    # 单开一份任务，免得把上面那套"两笔相加/撤销"的数搅乱。
+    from pearnly_erp_portal.inventory import workbook as count_workbook
+    ok, second_task = as_user(STOCK, counts.create_count, title="Lab count import",
+                              snapshot=False)
+    results["import_task_ok"] = ok
+    import_task = (second_task or {}).get("name")
+    results["import_task_rows"] = (second_task or {}).get("rows")
+
+    fields = [field for field, _key in count_workbook.FIELD_LABELS]
+    sheet = count_workbook.build_bytes(fields, [
+        {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
+         "unit": "pcs", "book_qty": 10, "counted_qty": 8, "warehouse": "", "location": "A1"},
+        {"product_code": "LAB-SC-B", "product_name": "Lab count B", "barcode": "",
+         "unit": "pcs", "book_qty": None, "counted_qty": None, "warehouse": "", "location": ""},
+    ])
+    file_url = _upload(sheet, "lab-stock-count.xlsx")
+    ok, imported = as_user(STOCK, inventory_api.api_stock_count_import,
+                           name=import_task, file_url=file_url)
+    results["import_ok"] = ok
+    results["import_rows"] = (imported or {}).get("rows")
+    results["import_counted"] = (imported or {}).get("counted")
+    results["import_problems"] = len((imported or {}).get("problems") or [])
+    row_a2 = counts.item_of_product(count=import_task, product=watched[0]) or {}
+    results["import_book_from_sheet"] = float(row_a2.get("book_qty") or 0)
+    results["import_counted_qty"] = float(row_a2.get("counted_qty") or 0)
+    results["import_entry_source"] = frappe.db.get_value(
+        "ERP Stock Count Entry", {"count": import_task, "item": row_a2.get("name")}, "source")
+
+    # 同一份表再传一次是**覆盖**，不是又记一笔；改成 9 也一样只有一条
+    ok, again_import = as_user(STOCK, inventory_api.api_stock_count_import,
+                               name=import_task, file_url=file_url)
+    results["import_again_rows"] = (again_import or {}).get("rows")
+    results["import_entries_total"] = frappe.db.count(
+        "ERP Stock Count Entry", {"count": import_task, "voided": 0})
+    changed = count_workbook.build_bytes(fields, [
+        {"product_code": "LAB-SC-A", "product_name": "Lab count A", "barcode": "",
+         "unit": "pcs", "book_qty": 10, "counted_qty": 9, "warehouse": "", "location": ""},
+    ])
+    ok, _ = as_user(STOCK, inventory_api.api_stock_count_import,
+                    name=import_task, file_url=_upload(changed, "lab-stock-count-2.xlsx"))
+    results["import_after_change"] = float(
+        frappe.db.get_value("ERP Stock Count Item", row_a2.get("name"), "counted_qty") or 0)
+
+    # 表里认不出的编号：只跳过那一行，别的照进
+    mixed = count_workbook.build_bytes(fields, [
+        {"product_code": "LAB-NOPE", "product_name": "", "barcode": "", "unit": "",
+         "book_qty": None, "counted_qty": 1, "warehouse": "", "location": ""},
+        {"product_code": "LAB-SC-B", "product_name": "Lab count B", "barcode": "",
+         "unit": "pcs", "book_qty": None, "counted_qty": 2, "warehouse": "", "location": ""},
+    ])
+    ok, mixed_result = as_user(STOCK, inventory_api.api_stock_count_import,
+                               name=import_task, file_url=_upload(mixed, "lab-mixed.xlsx"))
+    results["import_mixed_rows"] = (mixed_result or {}).get("rows")
+    results["import_mixed_problems"] = [p["reason"] for p in
+                                        (mixed_result or {}).get("problems") or []]
+
+    # 模版：真 xlsx，且表头能被自己认回来
+    ok, _ = as_user(STOCK, inventory_api.api_stock_count_template, name=import_task)
+    template = frappe.local.response.get("filecontent") or b""
+    results["template_ok"] = bool(ok and template[:2] == b"PK")
+    parsed, parse_problems = count_workbook.parse_workbook(
+        template, count_workbook.header_aliases())
+    results["template_round_trip"] = len(parsed)
+    results["template_parse_problems"] = len(parse_problems)
+    results["template_book_kept"] = float(
+        next((row["book_qty"] for row in parsed if row["product_code"] == "LAB-SC-A"), 0) or 0)
+    # 不带 name = 列表上那个"模版"按钮：按当前结存现拉一份
+    ok, _ = as_user(STOCK, inventory_api.api_stock_count_template)
+    blank = frappe.local.response.get("filecontent") or b""
+    balances = frappe.db.count("ERP Stock Balance", {"warehouse": warehouse})
+    results["template_blank_ok"] = bool(ok and blank[:2] == b"PK")
+    blank_rows = len(count_workbook.parse_workbook(blank, count_workbook.header_aliases())[0])
+    results["template_blank_matches_balances"] = bool(blank and blank_rows == balances)
+
+    # 看板：条形取差异最大那几行，合计按整份算
+    ok, chart = as_user(STOCK, inventory_api.api_stock_count_chart, name=import_task)
+    results["chart_ok"] = ok
+    results["chart_labels"] = len((chart or {}).get("labels") or [])
+    results["chart_series_match"] = bool(
+        len((chart or {}).get("book") or []) == len((chart or {}).get("labels") or [])
+        and len((chart or {}).get("counted") or []) == len((chart or {}).get("labels") or []))
+    results["chart_counted_total"] = (chart or {}).get("totals", {}).get("counted")
+    results["chart_difference_total"] = (chart or {}).get("totals", {}).get("difference")
+    ok, _ = as_user(SHOP, inventory_api.api_stock_count_chart, name=import_task)
+    results["chart_shop_allowed"] = ok
+
     # 结束盘点：锁记录；没数过的行仍为空
     ok, closed = as_user(STOCK, counts.close_count, task)
     results["close_ok"] = ok
@@ -355,6 +449,32 @@ def main():
         "mobile_shop_auth_ok": True,
         "mobile_shop_add_allowed": False,
         "mobile_shop_list_allowed": False,
+        "import_task_ok": True,
+        "import_task_rows": 0,
+        "import_ok": True,
+        "import_rows": 2,
+        "import_counted": 1,
+        "import_problems": 0,
+        "import_book_from_sheet": 10.0,
+        "import_counted_qty": 8.0,
+        "import_entry_source": "Import",
+        "import_again_rows": 2,
+        "import_entries_total": 1,
+        "import_after_change": 9.0,
+        "import_mixed_rows": 1,
+        "import_mixed_problems": ["code_not_found"],
+        "template_ok": True,
+        "template_round_trip": 2,
+        "template_parse_problems": 0,
+        "template_book_kept": 10.0,
+        "template_blank_ok": True,
+        "template_blank_matches_balances": True,
+        "chart_ok": True,
+        "chart_labels": 2,
+        "chart_series_match": True,
+        "chart_counted_total": 2,
+        "chart_difference_total": -2.0,
+        "chart_shop_allowed": False,
         "close_ok": True,
         "status_after_close": "Closed",
         "entry_after_close_allowed": False,
@@ -370,6 +490,7 @@ def main():
         "shop_sees_count_page": False,
         "export_ok": True,
         "other_site_counts": 0,
+        "site_a_counts": 2,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
                 if results.get(k) != v}

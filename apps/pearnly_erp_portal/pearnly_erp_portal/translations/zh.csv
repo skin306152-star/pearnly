@@ -104,27 +104,32 @@ stock.col.unit,单位
 stock.col.value,金额
 stock.col.warehouse,仓库
 stock.count.addEntry,记一笔
-stock.count.addEntryHint,账面 {0} {1}；把这次数到的填进来
+stock.count.addEntryHint,账面数量 {0} {1}
 stock.count.addEntryTitle,记一笔 — {0}
 stock.count.back,返回
 stock.count.blank,未填
 stock.count.book,账面数量
+stock.count.chartEmpty,还没有盘点记录
+stock.count.chartTotals,账面 {0} · 实盘 {1} · 差异 {2}
 stock.count.close,结束盘点
-stock.count.closeConfirm,结束后记录全部锁定，未盘点的行保持为空。继续？
+stock.count.closeConfirm,结束后记录锁定，未盘点的行保持为空。继续？
 stock.count.closed,盘点已结束
 stock.count.counted,实盘数量
 stock.count.countedAt,盘点时间
 stock.count.countedBy,盘点人
 stock.count.countedRows,已盘点
-stock.count.created,盘点已开始，{0} 行
+stock.count.created,盘点已创建，{0} 行
 stock.count.createdAt,创建时间
+stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉。
+stock.count.deleteSelected,删除所选（{0}）
+stock.count.deleted,已删除 {0} 份盘点
 stock.count.difference,差异
 stock.count.differenceRows,有差异
 stock.count.entries,记录
 stock.count.entriesTitle,记录 — {0}
 stock.count.entryLive,计入合计
 stock.count.entryOption,{0} · {1} · {2}
-stock.count.entrySaved,已记一笔
+stock.count.entrySaved,已保存
 stock.count.entryVoided,已撤销，不计入合计
 stock.count.entryVoidedNotice,已撤销
 stock.count.filter,筛选
@@ -132,43 +137,59 @@ stock.count.filter.all,全部
 stock.count.filter.differences,有差异
 stock.count.filter.uncounted,未盘点
 stock.count.headline,{0} · 已盘点 {1} / {2} · 差异 {3}
+stock.count.import,导入盘点表
+stock.count.importFile,表格文件
+stock.count.importHint,行按商品编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
+stock.count.importMissing,请先选择要导入的表格
+stock.count.importPick,选择文件
+stock.count.importSkipped,{0} 行没有导入
+stock.count.importTitle,导入结果
+stock.count.imported,已导入 {0} 行，其中 {1} 行带实盘数量
 stock.count.location,库位
+stock.count.mode,盘点方式
+stock.count.modeImport,上传导入
+stock.count.modeStock,盘点在库
 stock.count.name,名称
 stock.count.new,新建盘点
-stock.count.newHint,把当前账面数量冻结成快照；员工去数，回来对差异并过账
-stock.count.noEntries,还没有记录
+stock.count.newHint,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
+stock.count.noEntries,无记录
 stock.count.note,说明
 stock.count.notes,备注
 stock.count.photos,照片
 stock.count.post,过账差异
-stock.count.postConfirm,过账会把结存收敛到实盘数并落流水；没数过的行不动。继续？
+stock.count.postConfirm,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
 stock.count.posted,已过账 {0} 处差异
+stock.count.problemCode,该编号找不到商品
+stock.count.problemIdentifier,这一行没有商品编号或条码
+stock.count.problemNumber,数量不是有效数字
+stock.count.problemWarehouse,该仓库名不存在
 stock.count.qty,数量
 stock.count.reason,原因
 stock.count.rowDifference,有差异
-stock.count.rowMatch,对得上
+stock.count.rowMatch,一致
 stock.count.rowUncounted,未盘点
 stock.count.rows,行数
 stock.count.statusActive,进行中
 stock.count.statusClosed,已结束
 stock.count.statusPosted,已过账
 stock.count.system,{0}：系统数 {1} {2}
+stock.count.template,盘点表模版
 stock.count.title,盘点 — {0}
 stock.count.void,撤销
-stock.count.voidPick,选一条要撤销的记录
+stock.count.voidPick,选择要撤销的记录
 stock.count.warehouseHint,留空就用默认仓库
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编号或条码
-stock.mobile.find,查一下
+stock.mobile.find,查询
 stock.mobile.noCamera,这个浏览器不支持摄像头扫码
-stock.mobile.noTask,现在没有进行中的盘点
+stock.mobile.noTask,无进行中的盘点
 stock.mobile.notBound,这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。
 stock.mobile.notFound,这个码找不到商品
 stock.mobile.open,打开
-stock.mobile.pickTask,选一份盘点
+stock.mobile.pickTask,选择盘点
 stock.mobile.save,保存
-stock.mobile.saved,已记一笔，接着扫下一件
+stock.mobile.saved,已保存
 stock.mobile.scan,扫码
 stock.mobile.title,盘点
 stock.notice.counted,已盘点：差异 {0} → {1}

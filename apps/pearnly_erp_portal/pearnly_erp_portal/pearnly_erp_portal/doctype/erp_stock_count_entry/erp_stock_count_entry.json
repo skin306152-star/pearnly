@@ -119,7 +119,7 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "Desk\nLINE",
+   "options": "Desk\nLINE\nImport",
    "default": "Desk",
    "read_only": 1
   }

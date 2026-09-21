@@ -104,11 +104,13 @@ stock.col.unit,หน่วย
 stock.col.value,มูลค่า
 stock.col.warehouse,คลังสินค้า
 stock.count.addEntry,บันทึกการนับ
-stock.count.addEntryHint,ตามบัญชี {0} {1} กรอกจำนวนที่นับได้
+stock.count.addEntryHint,จำนวนตามบัญชี {0} {1}
 stock.count.addEntryTitle,บันทึกการนับ — {0}
 stock.count.back,กลับ
 stock.count.blank,ยังไม่กรอก
 stock.count.book,จำนวนตามบัญชี
+stock.count.chartEmpty,ยังไม่มีการนับ
+stock.count.chartTotals,ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
 stock.count.close,ปิดการตรวจนับ
 stock.count.closeConfirm,เมื่อปิดแล้วรายการจะถูกล็อก แถวที่ยังไม่นับจะว่างไว้ ดำเนินการต่อ?
 stock.count.closed,ปิดการตรวจนับแล้ว
@@ -116,8 +118,11 @@ stock.count.counted,จำนวนที่นับได้
 stock.count.countedAt,เวลาที่นับ
 stock.count.countedBy,ผู้ตรวจนับ
 stock.count.countedRows,นับแล้ว
-stock.count.created,เริ่มตรวจนับแล้ว {0} แถว
+stock.count.created,สร้างการตรวจนับแล้ว {0} แถว
 stock.count.createdAt,สร้างเมื่อ
+stock.count.deleteConfirm,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
+stock.count.deleteSelected,ลบที่เลือก ({0})
+stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
 stock.count.difference,ผลต่าง
 stock.count.differenceRows,มีผลต่าง
 stock.count.entries,รายการ
@@ -132,20 +137,35 @@ stock.count.filter.all,ทั้งหมด
 stock.count.filter.differences,มีผลต่าง
 stock.count.filter.uncounted,ยังไม่นับ
 stock.count.headline,{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
+stock.count.import,นำเข้าไฟล์ตรวจนับ
+stock.count.importFile,ไฟล์
+stock.count.importHint,แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
+stock.count.importMissing,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+stock.count.importPick,เลือกไฟล์
+stock.count.importSkipped,นำเข้าไม่ได้ {0} แถว
+stock.count.importTitle,ผลการนำเข้า
+stock.count.imported,นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้
 stock.count.location,ตำแหน่ง
+stock.count.mode,วิธีตรวจนับ
+stock.count.modeImport,อัปโหลดไฟล์
+stock.count.modeStock,ตรวจนับในคลัง
 stock.count.name,ชื่อ
 stock.count.new,สร้างการตรวจนับ
-stock.count.newHint,ตรึงจำนวนตามบัญชีไว้ ให้พนักงานไปนับ แล้วกลับมาตรวจผลต่างและลงบัญชี
-stock.count.noEntries,ยังไม่มีรายการ
+stock.count.newHint,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
+stock.count.noEntries,ไม่มีรายการ
 stock.count.note,หมายเหตุ
 stock.count.notes,หมายเหตุ
 stock.count.photos,รูปภาพ
 stock.count.post,ลงบัญชีผลต่าง
 stock.count.postConfirm,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?
 stock.count.posted,ลงบัญชีผลต่าง {0} รายการ
+stock.count.problemCode,ไม่พบสินค้าที่ตรงกับรหัสนี้
+stock.count.problemIdentifier,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
+stock.count.problemNumber,จำนวนไม่ถูกต้อง
+stock.count.problemWarehouse,ไม่พบคลังสินค้าชื่อนี้
 stock.count.qty,จำนวน
 stock.count.reason,เหตุผล
-stock.count.rowDifference,ผลต่าง
+stock.count.rowDifference,มีผลต่าง
 stock.count.rowMatch,ตรงกัน
 stock.count.rowUncounted,ยังไม่นับ
 stock.count.rows,จำนวนแถว
@@ -153,6 +173,7 @@ stock.count.statusActive,กำลังดำเนินการ
 stock.count.statusClosed,ปิดแล้ว
 stock.count.statusPosted,ลงบัญชีแล้ว
 stock.count.system,{0}: ในระบบมี {1} {2}
+stock.count.template,เทมเพลตตรวจนับ
 stock.count.title,ตรวจนับ — {0}
 stock.count.void,ยกเลิก
 stock.count.voidPick,เลือกรายการที่จะยกเลิก
@@ -168,7 +189,7 @@ stock.mobile.notFound,ไม่พบสินค้าที่ตรงกั�
 stock.mobile.open,เปิด
 stock.mobile.pickTask,เลือกการตรวจนับ
 stock.mobile.save,บันทึก
-stock.mobile.saved,บันทึกแล้ว สแกนชิ้นถัดไป
+stock.mobile.saved,บันทึกแล้ว
 stock.mobile.scan,สแกน
 stock.mobile.title,ตรวจนับสต็อก
 stock.notice.counted,นับแล้ว: ผลต่าง {0} → {1}

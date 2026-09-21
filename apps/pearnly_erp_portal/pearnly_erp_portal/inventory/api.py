@@ -8,8 +8,17 @@ from pearnly_erp_portal.inventory import (
     openings,
     report,
     stock,
+    workbook,
     warehouses,
 )
+
+# 盘点表读不动时的提示（用户可见，走语言包）。解析层只报 token，文案在这一层翻。
+STOCK_FILE_ERRORS = {
+    "file_invalid": "That file could not be read; please use the template",
+    "headers_invalid": "The sheet needs a product code or barcode column",
+    "empty": "That file has no rows",
+    "too_many_rows": "That file has too many rows",
+}
 
 
 def _clean(kwargs):
@@ -315,7 +324,88 @@ def api_get_stock_count(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_create_stock_count(**kwargs):
-    return counts.create_count(**_clean(kwargs))
+    """开一份盘点。带 `file_url` 就是"上传导入"：先建空任务，再把表里的行并进去。"""
+    kwargs = _clean(kwargs)
+    file_url = str(kwargs.pop("file_url", "") or "").strip()
+    task = counts.create_count(**{**kwargs, "snapshot": not file_url})
+    if not file_url:
+        return task
+    rows, problems = _stock_rows(file_url)
+    imported = counts.apply_import(count=task["name"], rows=rows)
+    return {**task, "rows": imported["rows"], "counted": imported["counted"],
+            "problems": imported["problems"] + problems}
+
+
+@frappe.whitelist()
+def api_stock_count_template(**kwargs):
+    """下载盘点表。
+
+    - 带 `name`：按那份盘点的快照给（把这次数到的填进"实盘数量"再传回来）；
+    - 不带：按当前结存给（先导表、离线填、再开"上传导入"）。
+
+    走 `binary` 直接回文件内容，不在租户里留 `File` 记录。
+    """
+    kwargs = _clean(kwargs)
+    name = kwargs.get("name")
+    rows = counts.template_rows(name=name, warehouse=kwargs.get("warehouse"))
+    frappe.local.response.filename = f"{name or 'stock-count'}-template.xlsx"
+    frappe.local.response.filecontent = workbook.build_bytes(_stock_headers(), rows)
+    frappe.local.response.type = "binary"
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_import(**kwargs):
+    """往一份已开的盘点里传表（同一份表重复上传是**覆盖**那一行，不是又记一笔）。"""
+    kwargs = _clean(kwargs)
+    name = kwargs.get("name")
+    rows, problems = _stock_rows(kwargs.get("file_url"))
+    imported = counts.apply_import(count=name, rows=rows)
+    return {**imported, "problems": imported["problems"] + problems}
+
+
+@frappe.whitelist()
+def api_stock_count_chart(**kwargs):
+    return counts.count_chart(name=_clean(kwargs).get("name"))
+
+
+def _stock_rows(file_url) -> tuple:
+    """上传的原生文件（`File` 记录）按 URL 读回内容，再交给纯解析层。"""
+    url = str(file_url or "").strip()
+    name = frappe.db.get_value("File", {"file_url": url}, "name", order_by="creation desc") \
+        if url else None
+    if not name:
+        frappe.throw(_("Choose a file to import"))
+    try:
+        return workbook.parse_workbook(frappe.get_doc("File", name).get_content(),
+                                       workbook.header_aliases(_stock_label_texts()))
+    except ValueError as error:
+        frappe.throw(_(STOCK_FILE_ERRORS.get(str(error), "That file could not be read; "
+                                                       "please use the template")))
+
+
+def _stock_label_texts() -> dict:
+    """界面标签 → 字段：四种语言都给（表可能是在另一种语言的站点上下载的）。"""
+    from pearnly_core import browser_text
+
+    labels: dict = {}
+    for field, key in workbook.FIELD_LABELS:
+        labels[key] = field
+        for text in browser_text.all_languages(key).values():
+            if text:
+                labels[text] = field
+    return labels
+
+
+def _stock_headers() -> list:
+    from pearnly_core import browser_text
+
+    lang = (frappe.local.lang or browser_text.FALLBACK_LANG)[:2]
+
+    def label_of(key):
+        texts = browser_text.all_languages(key)
+        return texts.get(lang) or texts.get("en") or key
+
+    return workbook.template_headers(label_of)
 
 
 @frappe.whitelist()

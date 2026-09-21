@@ -104,20 +104,25 @@ stock.col.unit,Unit
 stock.col.value,Value
 stock.col.warehouse,Warehouse
 stock.count.addEntry,Add a count
-stock.count.addEntryHint,Book shows {0} {1}; add what you counted
+stock.count.addEntryHint,Book quantity {0} {1}
 stock.count.addEntryTitle,Add a count — {0}
 stock.count.back,Back
 stock.count.blank,Not set
 stock.count.book,Book quantity
+stock.count.chartEmpty,Nothing counted yet
+stock.count.chartTotals,Book {0} · counted {1} · difference {2}
 stock.count.close,Close count
-stock.count.closeConfirm,Closing locks every entry; rows never counted stay empty. Continue?
+stock.count.closeConfirm,Closing locks every entry. Rows never counted stay empty. Continue?
 stock.count.closed,Count closed
 stock.count.counted,Counted quantity
 stock.count.countedAt,Counted at
 stock.count.countedBy,Counted by
 stock.count.countedRows,Counted
-stock.count.created,Stock count opened with {0} rows
+stock.count.created,"Stock count created, {0} rows"
 stock.count.createdAt,Created
+stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted.
+stock.count.deleteSelected,Delete selected ({0})
+stock.count.deleted,Deleted {0} stock counts
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
 stock.count.entries,Entries
@@ -132,43 +137,59 @@ stock.count.filter.all,All
 stock.count.filter.differences,With differences
 stock.count.filter.uncounted,Not counted
 stock.count.headline,{0} · counted {1} / {2} · differences {3}
+stock.count.import,Import a sheet
+stock.count.importFile,Sheet
+stock.count.importHint,"Rows are matched by product code, then barcode. Rows already imported are replaced."
+stock.count.importMissing,Choose the sheet to import
+stock.count.importPick,Choose a file
+stock.count.importSkipped,{0} rows were not imported
+stock.count.importTitle,Import result
+stock.count.imported,"Imported {0} rows, {1} with a counted quantity"
 stock.count.location,Location
+stock.count.mode,Count by
+stock.count.modeImport,Upload a sheet
+stock.count.modeStock,In-stock
 stock.count.name,Name
 stock.count.new,New stock count
-stock.count.newHint,"Import the book quantities and freeze them; staff count, you review and post the differences"
-stock.count.noEntries,No entries yet
+stock.count.newHint,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
+stock.count.noEntries,No entries
 stock.count.note,Note
 stock.count.notes,Notes
 stock.count.photos,Photos
 stock.count.post,Post differences
 stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
 stock.count.posted,Posted {0} differences
+stock.count.problemCode,No product matches that code
+stock.count.problemIdentifier,The row has no product code or barcode
+stock.count.problemNumber,The quantity is not a valid number
+stock.count.problemWarehouse,No warehouse matches that name
 stock.count.qty,Quantity
 stock.count.reason,Reason
 stock.count.rowDifference,Difference
-stock.count.rowMatch,Counts
+stock.count.rowMatch,Matches
 stock.count.rowUncounted,Not counted
 stock.count.rows,Rows
 stock.count.statusActive,In progress
 stock.count.statusClosed,Closed
 stock.count.statusPosted,Posted
 stock.count.system,In {0}: system shows {1} {2}
+stock.count.template,Stock count template
 stock.count.title,Stock count — {0}
 stock.count.void,Void
-stock.count.voidPick,Pick an entry to void
+stock.count.voidPick,Select an entry to void
 stock.count.warehouseHint,Leave empty to use the default warehouse
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
 stock.mobile.find,Find
 stock.mobile.noCamera,This browser cannot scan with the camera
-stock.mobile.noTask,No stock count is running
+stock.mobile.noTask,No stock count in progress
 stock.mobile.notBound,"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
 stock.mobile.notFound,No product matches that code
 stock.mobile.open,Open
-stock.mobile.pickTask,Pick a stock count
+stock.mobile.pickTask,Select a stock count
 stock.mobile.save,Save
-stock.mobile.saved,Saved — scan the next one
+stock.mobile.saved,Saved
 stock.mobile.scan,Scan
 stock.mobile.title,Stock count
 stock.notice.counted,Counted; difference {0} → {1}

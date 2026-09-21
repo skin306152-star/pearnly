@@ -13,6 +13,7 @@
 		const api = "pearnly_erp_portal.inventory.api.";
 		const item_filters = ["all", "uncounted", "differences"];
 		let list;
+		let chart;
 		let count = null; // 打开的是哪一份盘点（null = 列表态）
 		let item_filter = "all";
 		let mode = "list";
@@ -33,8 +34,29 @@
 		function clear() {
 			list?.destroy();
 			list = null;
+			chart?.destroy();
+			chart = null;
+			page.main.find(".pearnly-stock-chart").remove();
 			page.clear_inner_toolbar();
 			page.clear_primary_action();
+		}
+
+		// 二级界面用**原生面包屑**（首页 / 盘点 / 任务名），不再放"返回"按钮。
+		// 形状与框架自己给 Page 加的那条一致（`views/pageview.js`），只是多一层。
+		function set_breadcrumb(task) {
+			frappe.breadcrumbs.add({
+				type: "Custom",
+				label: __("nav.stockCount"),
+				route: frappe.get_route_str(),
+			});
+			if (!task) return;
+			frappe.breadcrumbs.$breadcrumbs.find("li a").last()
+				.attr("href", "#")
+				.on("click", (event) => {
+					event.preventDefault();
+					open_list();
+				});
+			frappe.breadcrumbs.append_breadcrumb_element("", p.escape(task.title));
 		}
 
 		// ── 列表态 ────────────────────────────────────────────────────────────
@@ -42,6 +64,7 @@
 			mode = "list";
 			count = null;
 			clear();
+			set_breadcrumb(null);
 			const status = page.add_field({
 				fieldtype: "Select",
 				fieldname: "status",
@@ -52,6 +75,8 @@
 			list = p.list({
 				page,
 				doctype: "ERP Stock Count",
+				selectable: true,
+				on_selection: update_action,
 				on_open: (row) => open_detail(row.name),
 				load: async ({ start, page_length }) => {
 					const query = { status: status.get_value() || undefined };
@@ -73,37 +98,142 @@
 					{ fieldname: "creation", label: t("stock.count.createdAt") },
 				],
 			});
-			page.set_primary_action(t("stock.count.new"), () => open_new());
+			update_action([]);
 			page.add_inner_button(t("stock.action.reload"), () => void list?.reload());
+			// 模版按**当前结存**给：先导表、离线填实盘数，再走"上传导入"开一份盘点。
+			page.add_inner_button(t("stock.count.template"), () => {
+				window.open(frappe.utils.get_url(
+					`/api/method/${api}api_stock_count_template`));
+			});
 			void list.ready;
 		}
 
+		// 勾选后主按钮换成"删除所选"；已过账的在服务端也会被拒（只能留档）。
+		function update_action(rows) {
+			if (!rows.length) {
+				page.set_primary_action(t("stock.count.new"), () => open_new());
+				return;
+			}
+			page.set_primary_action(t("stock.count.deleteSelected", rows.length),
+				() => void remove_selected(rows));
+		}
+
+		async function remove_selected(rows) {
+			frappe.confirm(t("stock.count.deleteConfirm", rows.length), async () => {
+				for (const row of rows) {
+					await p.call(api + "api_stock_count_delete", { name: row.name }, "POST");
+				}
+				p.success(t("stock.count.deleted", rows.length));
+				list.clear_checked_items();
+				await list.reload();
+			});
+		}
+
 		function open_new() {
-			const dialog = p.dialog(
+			let file_url = "";
+			let dialog;
+			const pick = (field) => () => {
+				new frappe.ui.FileUploader({
+					allow_multiple: false,
+					allow_web_link: false,
+					allow_google_drive: false,
+					allow_take_photo: false,
+					disable_file_browser: true,
+					allow_toggle_private: false,
+					make_attachments_public: false,
+					restrictions: {
+						allowed_file_types: [".xlsx"],
+						max_file_size: 5 * 1024 * 1024,
+					},
+					on_success: (file) => {
+						file_url = file.file_url;
+						dialog.set_value(field, file.file_name);
+					},
+				});
+			};
+			dialog = p.dialog(
 				t("stock.count.new"),
 				[
 					{ fieldtype: "Data", fieldname: "title", label: t("stock.count.name"), reqd: 1 },
+					{ fieldtype: "Select", fieldname: "mode", label: t("stock.count.mode"),
+						options: [t("stock.count.modeStock"),
+							t("stock.count.modeImport")].join("\n"),
+						default: t("stock.count.modeStock"),
+						change: () => toggle_import() },
 					{ fieldtype: "Link", fieldname: "warehouse", label: t("stock.col.warehouse"),
 						options: "ERP Warehouse",
 						description: t("stock.count.warehouseHint") },
 					{ fieldtype: "Small Text", fieldname: "notes", label: t("stock.count.notes") },
+					{ fieldtype: "Button", fieldname: "pick", label: t("stock.count.importPick"),
+						hidden: 1, click: pick("file_name") },
+					{ fieldtype: "Data", fieldname: "file_name", label: t("stock.count.importFile"),
+						read_only: 1, hidden: 1 },
+					{ fieldtype: "Button", fieldname: "template",
+						label: t("stock.count.template"), hidden: 1, click: () => {
+							window.open(frappe.utils.get_url(
+								`/api/method/${api}api_stock_count_template`));
+						} },
 					{ fieldtype: "HTML",
 						options: `<p class="text-muted">${p.escape(t("stock.count.newHint"))}</p>` },
 				],
 				t("stock.count.new"),
 				async (values, d) => {
+					const importing = values.mode === t("stock.count.modeImport");
+					if (importing && !file_url) {
+						frappe.msgprint({
+							title: t("stock.count.modeImport"),
+							indicator: "orange",
+							message: t("stock.count.importMissing"),
+						});
+						return;
+					}
 					const created = await p.call(api + "api_create_stock_count", {
 						title: values.title,
 						warehouse: values.warehouse || undefined,
 						notes: values.notes || undefined,
+						file_url: importing ? file_url : undefined,
 					}, "POST");
 					d.hide();
 					p.success(t("stock.count.created", created.rows));
+					report_problems(created.problems);
 					await list.reload();
 					open_detail(created.name);
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+
+			// 只有"上传导入"才需要文件与模版两件事，选"盘点在库"时收起来。
+			function toggle_import() {
+				const importing = dialog.get_value("mode") === t("stock.count.modeImport");
+				for (const name of ["pick", "file_name", "template"]) {
+					const field = dialog.get_field(name);
+					field.df.hidden = importing ? 0 : 1;
+					field.refresh();
+				}
+			}
+			toggle_import();
+		}
+
+		// 表里认不出的行逐条列出来（坏行只跳过自己，别的照进）—— 不悄悄吞掉。
+		function report_problems(problems) {
+			if (!problems || !problems.length) return;
+			const reasons = {
+				code_not_found: t("stock.count.problemCode"),
+				no_identifier: t("stock.count.problemIdentifier"),
+				warehouse_not_found: t("stock.count.problemWarehouse"),
+				"book_qty:not_a_number": t("stock.count.problemNumber"),
+				"book_qty:invalid": t("stock.count.problemNumber"),
+				"counted_qty:not_a_number": t("stock.count.problemNumber"),
+				"counted_qty:invalid": t("stock.count.problemNumber"),
+			};
+			frappe.msgprint({
+				title: t("stock.count.importTitle"),
+				indicator: "orange",
+				message: t("stock.count.importSkipped", problems.length) + "<br>"
+					+ problems.slice(0, 20).map((row) =>
+						`${p.escape(row.row)}: ${p.escape(reasons[row.reason] || row.reason)}`
+					).join("<br>"),
+			});
 		}
 
 		// ── 明细态 ────────────────────────────────────────────────────────────
@@ -114,15 +244,16 @@
 			clear();
 			const task = await p.call(api + "api_get_stock_count", { name });
 			const editable = task.status === "Active";
-			page.add_inner_button(t("stock.count.back"), () => open_list());
 			page.add_inner_button(t("stock.action.export"), () => {
 				window.open(frappe.utils.get_url(
 					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
 			});
 			if (editable) {
+				page.add_inner_button(t("stock.count.import"), () => open_import(name));
 				page.add_inner_button(t("stock.count.close"), () => close_count(task));
 				page.add_inner_button(t("stock.count.post"), () => post_count(task));
 			}
+			void draw_chart(name);
 			const search = page.add_field({
 				fieldtype: "Data",
 				fieldname: "search",
@@ -149,6 +280,9 @@
 			list = p.list({
 				page,
 				doctype: "ERP Stock Count Item",
+				// 九列还要留出行上的动作按钮，按列给宽度让渲染器自己挤（原生机制），
+				// 不给的话最后几列会被挤出去看不见。
+				compact_columns: true,
 				row_actions: (row) => [
 					...(editable ? [{
 						id: "add",
@@ -170,18 +304,26 @@
 					return { items, total };
 				},
 				columns: [
-					{ fieldname: "product_name", label: t("stock.col.name") },
-					{ fieldname: "code", label: t("stock.col.code") },
-					{ fieldname: "barcode", label: t("stock.col.barcode") },
-					{ fieldname: "warehouse", label: t("stock.col.warehouse") },
-					{ fieldname: "unit", label: t("stock.col.unit") },
+					{ fieldname: "product_name", label: t("stock.col.name"),
+						width: 220, min_width: 140 },
+					{ fieldname: "code", label: t("stock.col.code"),
+						width: 100, min_width: 80 },
+					{ fieldname: "barcode", label: t("stock.col.barcode"),
+						width: 120, min_width: 90 },
+					{ fieldname: "warehouse", label: t("stock.col.warehouse"),
+						width: 100, min_width: 80 },
+					{ fieldname: "unit", label: t("stock.col.unit"),
+						width: 70, min_width: 55 },
 					{ fieldname: "book_qty", label: t("stock.count.book"),
-						format: (value) => qty(value) },
+						width: 90, min_width: 75, format: (value) => qty(value) },
 					{ fieldname: "counted_qty", label: t("stock.count.counted"),
+						width: 90, min_width: 75,
 						format: (value, row) => (row.counted ? qty(value) : t("stock.count.blank")) },
 					{ fieldname: "difference", label: t("stock.count.difference"),
+						width: 80, min_width: 65,
 						format: (value, row) => (row.counted ? qty(value) : "—") },
 					{ fieldname: "status", label: t("stock.col.status"),
+						width: 100, min_width: 80,
 						format: (_value, row) => row_state(row) },
 				],
 			});
@@ -190,7 +332,89 @@
 					task.difference_total),
 				task.status === "Posted" ? "green" : (task.status === "Closed" ? "blue" : "orange"),
 			);
+			set_breadcrumb(task);
 			void list.ready;
+		}
+
+		// 差异看板：这份盘点里"账面 vs 实盘"的条形，取差异最大的那几行（全量数拉不开看）。
+		// 图表用框架自带的 frappe-charts，配色取产品自己的强调色令牌，不自绘。
+		async function draw_chart(name) {
+			const data = await p.call(api + "api_stock_count_chart", { name });
+			if (mode !== "detail" || count !== name) return;
+			const totals = data.totals || {};
+			const card = $('<div class="pearnly-stock-chart"></div>').prependTo(page.main);
+			card.append($("<div class='text-muted'></div>").text(
+				t("stock.count.chartTotals", qty(totals.book), qty(totals.counted_qty),
+					qty(totals.difference))));
+			const holder = $('<div class="pearnly-stock-chart-body"></div>').appendTo(card);
+			if (!data.labels.length) {
+				holder.append($("<div class='text-muted'></div>").text(t("stock.count.chartEmpty")));
+				return;
+			}
+			const accent = getComputedStyle(document.documentElement)
+				.getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
+			chart = new frappe.Chart(holder[0], {
+				type: "bar",
+				height: 200,
+				colors: ["#a3a3a3", accent],
+				data: {
+					labels: data.labels,
+					datasets: [
+						{ name: t("stock.count.book"), values: data.book },
+						{ name: t("stock.count.counted"), values: data.counted },
+					],
+				},
+				axisOptions: { shortenYAxisNumbers: 1 },
+			});
+		}
+
+		// 往这份盘点里传表：同一份表重复上传是覆盖那一行，不是又记一笔。
+		function open_import(name) {
+			let file_url = "";
+			const dialog = p.dialog(
+				t("stock.count.import"),
+				[
+					{ fieldtype: "HTML",
+						options: `<p class="text-muted">${p.escape(t("stock.count.importHint"))}</p>` },
+					{ fieldtype: "Button", fieldname: "pick", label: t("stock.count.importPick"),
+						click: () => {
+							new frappe.ui.FileUploader({
+								allow_multiple: false,
+								allow_web_link: false,
+								allow_google_drive: false,
+								allow_take_photo: false,
+								disable_file_browser: true,
+								allow_toggle_private: false,
+								make_attachments_public: false,
+								restrictions: {
+									allowed_file_types: [".xlsx"],
+									max_file_size: 5 * 1024 * 1024,
+								},
+								on_success: (file) => {
+									file_url = file.file_url;
+									dialog.set_value("file_name", file.file_name);
+								},
+							});
+						} },
+					{ fieldtype: "Data", fieldname: "file_name", label: t("stock.count.importFile"),
+						read_only: 1 },
+					{ fieldtype: "Button", fieldname: "template",
+						label: t("stock.count.template"), click: () => {
+							window.open(frappe.utils.get_url(
+								`/api/method/${api}api_stock_count_template?name=${encodeURIComponent(name)}`));
+						} },
+				],
+				t("stock.count.import"),
+				async (_values, d) => {
+					const result = await p.call(api + "api_stock_count_import",
+						{ name, file_url }, "POST");
+					d.hide();
+					p.success(t("stock.count.imported", result.rows, result.counted));
+					report_problems(result.problems);
+					open_detail(name);
+				},
+			);
+			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		}
 
 		// 一条盘点记录 = 一次扫码/一次点数；同一商品可以记很多条，合计才是实盘数。
@@ -240,7 +464,7 @@
 							click: () => void_entry() },
 					] : []),
 				],
-				t("stock.count.back"),
+				__("Close"),
 				(_values, d) => d.hide(),
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");

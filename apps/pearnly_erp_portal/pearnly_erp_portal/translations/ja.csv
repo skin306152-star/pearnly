@@ -104,11 +104,13 @@ stock.col.unit,単位
 stock.col.value,金額
 stock.col.warehouse,倉庫
 stock.count.addEntry,カウントを記録
-stock.count.addEntryHint,帳簿は {0} {1}。数えた分を入力してください
+stock.count.addEntryHint,帳簿数量 {0} {1}
 stock.count.addEntryTitle,カウントを記録 — {0}
 stock.count.back,戻る
 stock.count.blank,未入力
 stock.count.book,帳簿数量
+stock.count.chartEmpty,まだ棚卸記録がありません
+stock.count.chartTotals,帳簿 {0} · 実地 {1} · 差異 {2}
 stock.count.close,棚卸を終了
 stock.count.closeConfirm,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
 stock.count.closed,棚卸を終了しました
@@ -116,15 +118,18 @@ stock.count.counted,実地数量
 stock.count.countedAt,日時
 stock.count.countedBy,担当者
 stock.count.countedRows,棚卸済み
-stock.count.created,棚卸を開始しました（{0} 行）
+stock.count.created,棚卸を作成しました（{0} 行）
 stock.count.createdAt,作成日時
+stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
+stock.count.deleteSelected,選択を削除（{0}）
+stock.count.deleted,棚卸を {0} 件削除しました
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
 stock.count.entries,記録
 stock.count.entriesTitle,記録 — {0}
 stock.count.entryLive,合計に含む
 stock.count.entryOption,{0} · {1} · {2}
-stock.count.entrySaved,記録しました
+stock.count.entrySaved,保存しました
 stock.count.entryVoided,取消済み（合計に含まない）
 stock.count.entryVoidedNotice,取消しました
 stock.count.filter,絞り込み
@@ -132,17 +137,32 @@ stock.count.filter.all,すべて
 stock.count.filter.differences,差異あり
 stock.count.filter.uncounted,未棚卸
 stock.count.headline,{0} · 棚卸済み {1} / {2} · 差異 {3}
+stock.count.import,棚卸シートを取り込む
+stock.count.importFile,シート
+stock.count.importHint,行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
+stock.count.importMissing,取り込むシートを選択してください
+stock.count.importPick,ファイルを選択
+stock.count.importSkipped,{0} 行は取り込めませんでした
+stock.count.importTitle,取り込み結果
+stock.count.imported,{0} 行を取り込みました（うち {1} 行に実地数量）
 stock.count.location,棚番
+stock.count.mode,棚卸方法
+stock.count.modeImport,取り込み
+stock.count.modeStock,在庫棚卸
 stock.count.name,名前
 stock.count.new,棚卸を作成
-stock.count.newHint,現在の帳簿数量を凍結し、担当者が数えて、差異を確認して転記します
-stock.count.noEntries,まだ記録がありません
+stock.count.newHint,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
+stock.count.noEntries,記録なし
 stock.count.note,メモ
 stock.count.notes,備考
 stock.count.photos,写真
 stock.count.post,差異を転記
 stock.count.postConfirm,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
 stock.count.posted,差異 {0} 件を転記しました
+stock.count.problemCode,そのコードの商品が見つかりません
+stock.count.problemIdentifier,この行に商品コードもバーコードもありません
+stock.count.problemNumber,数量が正しい数値ではありません
+stock.count.problemWarehouse,その倉庫名は存在しません
 stock.count.qty,数量
 stock.count.reason,理由
 stock.count.rowDifference,差異あり
@@ -153,6 +173,7 @@ stock.count.statusActive,進行中
 stock.count.statusClosed,終了
 stock.count.statusPosted,転記済み
 stock.count.system,{0}：システム上 {1} {2}
+stock.count.template,棚卸テンプレート
 stock.count.title,棚卸 — {0}
 stock.count.void,取消
 stock.count.voidPick,取消する記録を選択
@@ -166,9 +187,9 @@ stock.mobile.noTask,進行中の棚卸はありません
 stock.mobile.notBound,この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
 stock.mobile.notFound,そのコードの商品が見つかりません
 stock.mobile.open,開く
-stock.mobile.pickTask,棚卸を選ぶ
+stock.mobile.pickTask,棚卸を選択
 stock.mobile.save,保存
-stock.mobile.saved,記録しました。次の商品をスキャン
+stock.mobile.saved,保存しました
 stock.mobile.scan,スキャン
 stock.mobile.title,棚卸
 stock.notice.counted,棚卸しました：差異 {0} → {1}
