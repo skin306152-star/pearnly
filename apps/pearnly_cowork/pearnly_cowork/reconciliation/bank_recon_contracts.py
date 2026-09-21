@@ -1,0 +1,195 @@
+"""Decoded bank-reconciliation rows and their native storage contract.
+
+The new Cowork entry point accepts rows that were already decoded by a caller;
+file parsing and model extraction stay in the legacy project. Numbers arrive as
+decimal strings and are validated here with ``Decimal`` so a stored row keeps an
+exact value, while matching still runs on the deployed binary-float contract
+(``bank_matching``), because that is what decides historical results.
+
+Pure contract: no Frappe, database, file, clock, HTTP or model access.
+"""
+
+from datetime import date
+from decimal import Decimal, InvalidOperation
+import hashlib
+import json
+import math
+
+SOURCE_FORMAT = "decoded_rows_v1"
+MAX_ROWS = 20000
+MAX_TEXT = 300
+MAX_DECIMAL_DIGITS = 24
+DECIMAL_PLACES = 6
+
+STATEMENT_KEYS = frozenset(("date", "description", "withdrawal", "deposit", "balance",
+	"confidence", "balance_ok", "autocorrected"))
+GL_KEYS = frozenset(("date", "doc_no", "account_code", "description", "debit", "credit",
+	"balance"))
+HEADER_AMOUNTS = ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing")
+CONFIDENCE_LEVELS = ("high", "medium", "low")
+BALANCE_STATES = ("ok", "mismatch")
+
+
+class ReconciliationContractError(ValueError):
+	"""Raised for a row or header the native entry point refuses."""
+
+
+def _amount(value, field, *, nonnegative=True):
+	if value is None or value == "":
+		return Decimal(0) if nonnegative else None
+	try:
+		number = Decimal(str(value).strip().replace(",", ""))
+	except (InvalidOperation, ArithmeticError):
+		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}") from None
+	if not number.is_finite() or len(number.as_tuple().digits) > MAX_DECIMAL_DIGITS:
+		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}")
+	# A Decimal keeps far larger exponents than the deployed float matcher can
+	# compare, so an amount outside the storable range is refused, not rounded.
+	if number and (number.adjusted() > MAX_DECIMAL_DIGITS or not math.isfinite(float(number))):
+		raise ReconciliationContractError(f"reconciliation.amount_invalid:{field}")
+	if nonnegative and number < 0:
+		raise ReconciliationContractError(f"reconciliation.amount_negative:{field}")
+	if -number.as_tuple().exponent > DECIMAL_PLACES:
+		raise ReconciliationContractError(f"reconciliation.amount_precision:{field}")
+	return number
+
+
+def _text(value, field, *, required=False, limit=MAX_TEXT):
+	text = "" if value is None else str(value).strip()
+	if required and not text:
+		raise ReconciliationContractError(f"reconciliation.text_required:{field}")
+	if len(text) > limit:
+		raise ReconciliationContractError(f"reconciliation.text_too_long:{field}")
+	return text
+
+
+def _date(value, field):
+	text = _text(value, field, limit=10)
+	if not text:
+		return None
+	try:
+		return date.fromisoformat(text)
+	except ValueError:
+		raise ReconciliationContractError(f"reconciliation.date_invalid:{field}") from None
+
+
+def _exact_keys(raw, allowed, field):
+	if not isinstance(raw, dict):
+		raise ReconciliationContractError(f"reconciliation.row_invalid:{field}")
+	extra = set(raw) - allowed
+	if extra:
+		raise ReconciliationContractError(f"reconciliation.row_unknown_field:{field}")
+	return raw
+
+
+def statement_row(raw):
+	"""Validate one decoded statement row into an exact stored representation."""
+	raw = _exact_keys(raw, STATEMENT_KEYS, "statement")
+	confidence = _text(raw.get("confidence"), "statement.confidence", limit=10) or "high"
+	if confidence not in CONFIDENCE_LEVELS:
+		raise ReconciliationContractError("reconciliation.confidence_invalid")
+	balancestate = _text(raw.get("balance_ok"), "statement.balance_ok", limit=10)
+	if balancestate and balancestate not in BALANCE_STATES:
+		raise ReconciliationContractError("reconciliation.balance_state_invalid")
+	balance = _amount(raw.get("balance"), "statement.balance", nonnegative=False)
+	return {
+		"date": _date(raw.get("date"), "statement.date"),
+		"description": _text(raw.get("description"), "statement.description", required=True),
+		"withdrawal": _amount(raw.get("withdrawal"), "statement.withdrawal"),
+		"deposit": _amount(raw.get("deposit"), "statement.deposit"),
+		"balance": balance,
+		"confidence": confidence,
+		"balance_ok": balancestate,
+		"autocorrected": bool(raw.get("autocorrected")),
+	}
+
+
+def gl_row(raw):
+	"""Validate one decoded general-ledger row into an exact stored representation."""
+	raw = _exact_keys(raw, GL_KEYS, "gl")
+	return {
+		"date": _date(raw.get("date"), "gl.date"),
+		"doc_no": _text(raw.get("doc_no"), "gl.doc_no"),
+		"account_code": _text(raw.get("account_code"), "gl.account_code"),
+		"description": _text(raw.get("description"), "gl.description"),
+		"debit": _amount(raw.get("debit"), "gl.debit"),
+		"credit": _amount(raw.get("credit"), "gl.credit"),
+		"balance": _amount(raw.get("balance"), "gl.balance", nonnegative=False),
+	}
+
+
+def header(value):
+	"""Validate the optional header amounts; unknown keys are refused, not stored."""
+	if value in (None, ""):
+		value = {}
+	if not isinstance(value, dict) or set(value) - set(HEADER_AMOUNTS) - {"bank_code", "gl_account_code"}:
+		raise ReconciliationContractError("reconciliation.header_invalid")
+	result = {key: _amount(value.get(key), f"header.{key}", nonnegative=False) or Decimal(0)
+		for key in HEADER_AMOUNTS}
+	result["bank_code"] = _text(value.get("bank_code"), "header.bank_code", limit=40)
+	result["gl_account_code"] = _text(value.get("gl_account_code"), "header.gl_account_code", limit=40)
+	return result
+
+
+def decode_rows(statement_rows, gl_rows):
+	"""Validate both sides and refuse an empty or oversized batch."""
+	if not isinstance(statement_rows, list) or not isinstance(gl_rows, list):
+		raise ReconciliationContractError("reconciliation.rows_invalid")
+	if len(statement_rows) + len(gl_rows) > MAX_ROWS:
+		raise ReconciliationContractError("reconciliation.rows_too_many")
+	return ([statement_row(row) for row in statement_rows], [gl_row(row) for row in gl_rows])
+
+
+def digest(header_value, statement_rows, gl_rows):
+	"""Canonical fingerprint of one request, used for exact replay detection."""
+	payload = {"header": {key: str(value) if isinstance(value, Decimal) else value
+						for key, value in header_value.items()},
+		"statement": [{key: value.isoformat() if isinstance(value, date) else str(value)
+						for key, value in row.items()} for row in statement_rows],
+		"gl": [{key: value.isoformat() if isinstance(value, date) else str(value)
+				for key, value in row.items()} for row in gl_rows]}
+	return hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False,
+		separators=(",", ":")).encode()).hexdigest()
+
+
+def json_dumps(value):
+	"""Canonical JSON for stored summaries; keys sorted, no insignificant space."""
+	return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def json_loads(text):
+	return json.loads(text or "{}")
+
+
+def title_text(value):
+	"""Validate a caller-supplied task title."""
+	return _text(value, "title", required=True, limit=140)
+
+
+def matching_statement_rows(rows):
+	"""Convert stored rows to the deployed matching contract.
+
+	Storage keeps exact decimals; the deployed matcher compares binary floats,
+	so this is the one place the documented float contract is re-entered.
+	"""
+	from pearnly_cowork.reconciliation.bank_statement import StatementRow
+	result = []
+	for row in rows:
+		# The deployed row formats its balance into the fingerprint, so an unread
+		# balance column is assigned after construction.
+		item = StatementRow(row["date"], row["description"], float(row["withdrawal"]),
+			float(row["deposit"]), 0.0 if row["balance"] is None else float(row["balance"]),
+			confidence=row["confidence"],
+			balance_ok=None if not row["balance_ok"] else row["balance_ok"] == "ok",
+			amount_autocorrected=row["autocorrected"], direction_autocorrected=row["autocorrected"])
+		if row["balance"] is None:
+			item.balance = None
+		result.append(item)
+	return result
+
+
+def matching_gl_rows(rows):
+	from pearnly_cowork.reconciliation.bank_matching import GlRow
+	return [GlRow(row["date"], row["doc_no"], row["account_code"], row["description"],
+		float(row["debit"]), float(row["credit"]),
+		balance=0.0 if row["balance"] is None else float(row["balance"])) for row in rows]

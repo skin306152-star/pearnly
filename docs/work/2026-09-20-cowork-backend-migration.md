@@ -1,5 +1,42 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-21，第二十一批交付）
+
+**本批落地第一个原生持久化切片：银行对账任务与结果行的原生 DocType、权限、服务与 RPC。** 不接前端、不部署、不调用模型、不写 ERP；本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧项目银行对账两代并存，本批用消费点证据决定只承接哪一代：当前对账中心是 2026-06-14 重设计的三类型外壳（银行=流水对总账，收入=总账对 VAT，税务=已划掉的 Excel 内测）；老会话加发票候选那一代（`/api/bank-recon/*` 加 `bank_reconcile.py`）界面已被重设计覆盖，旧仓自己 2026-05-18 也把它定性为“老体系”，2026-06 想迁到 v2 但未拍板；会计侧 `/api/accounting/bank/*` 会过账出凭证，属已确认不迁的会计模块。因此新平台只承接银行对账这一代，`reconciliation_type` 预留 `income`，老 v1 不建原生表。若你要保留发票候选流程，那是另加一对 DocType，不是重做本批。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `abea988`（第二十批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 DocType `Cowork Bank Reconciliation`（任务、汇总、请求键/指纹，`request_key` 唯一）与 `Cowork Bank Reconciliation Row`（两侧结果行，`task` 建索引），以及纯契约 `bank_recon_contracts.py`、控制器基类 `bank_recon_documents.py`、权限 `bank_recon_access.py`、服务 `bank_recon_service.py`、RPC `bank_recon_api.py`。
+- 入口只收**已解码的行**：金额用 `Decimal` 精确校验（非负、≤6 位小数、量级上限）后再进入已登记的二进制浮点匹配契约；日期 ISO、描述必填、未知字段拒绝。解析、异步任务、导出、人工复核动作都未迁。
+- 幂等：任务名由 site 加 user 加 request_id 派生；同键同内容返回原任务（`replayed`），同键不同内容抛冲突。权限保持 `recon` 功能、角色、工作区公司范围，并拒绝通用删除、通用写入、DocShare 与撤销后的读写。
+
+### 验证与证据
+
+- 隔离 Site 的 **8** 个用例在**两个既有 Site** 各自通过；两个 Site `migrate` 通过并重复迁移一次通过；匿名 WSGI 三入口均 403。离线新增 **15** 个契约用例通过，既有对账 102 个用例继续通过，架构 0 违规。
+- 顺带修掉同任务遗留红灯：`push` 域纯洁性检查未登记第十五批新增的 `export_actions.py`（纯）与 `export_facts.py`（依赖 frappe），现分类登记、两个用例转绿，未放宽断言。
+- 未执行：全新 Site 安装、异步任务编排、真实 XLSX/PDF 解析与模型抽取、导出与人工复核、前端、部署、外部结果与用户验收；宽范围 `test_cowork_*.py` 仍有 24 个模块因本机缺 `frappe`/`openpyxl` 无法导入（既有环境限制）。
+
+详见[来源清点与落地说明](cowork-backend/reconciliation-bank-native.md)和[验证清单](cowork-backend/evidence/twenty-first-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，证据 sha256 首尾相同（`3b6efeadebd6d4e32c58075ed97ee0678f2cdebc4c1ced3564b516a788e67839`），比较 PASS。本批窗口内运行投影 `settings_unchanged: true`，跨批仍变化；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：受控解析适配（旧 XLSX/PDF 解析结果落成同样的解码行）、异步任务状态与轮询、导出复核工作簿、人工复核动作；收入对账复用 `reconciliation_type=income`。解析器仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批启动了专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows、未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
 ## 换窗口交接（2026-09-21，第二十批交付）
 
 **本批迁入银行对账的“打分与配对”纯逻辑：流水对 GL 的三层匹配与汇总，以及流水对发票候选的逐字段评分与排名。** 不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。

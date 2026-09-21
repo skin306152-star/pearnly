@@ -1,0 +1,66 @@
+{
+  "base_commit": "abea988",
+  "scope": "twenty-first batch: native bank reconciliation task store and matching persistence",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "3b6efeadebd6d4e32c58075ed97ee0678f2cdebc4c1ced3564b516a788e67839",
+    "delivery_sha256": "3b6efeadebd6d4e32c58075ed97ee0678f2cdebc4c1ced3564b516a788e67839",
+    "source_compare": "PASS",
+    "runtime_projection_start_sha256": "ec2fa5c0fe1f7cbe704d99f987a89ef036f178a61e497268039b4b66e87ac854",
+    "runtime_projection_delivery_sha256": "9db395fe17e487859fa870f97e83deb9e4e89ee9f5df366dcaa1b53bcf4673c6",
+    "runtime_projection_compare_within_batch": "settings_unchanged true / observations_changed false",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "bench --site <site> migrate (two lab Sites, then repeated once)",
+      "result": "PASS",
+      "sites": ["cowork-backend-ack.localhost", "cowork-backend-preparation.localhost"]
+    },
+    {
+      "command": "PEARNLY_COWORK_BACKEND_LAB=1 ../env/bin/python /workspace/scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "tests_per_site": 8,
+      "anonymous_http": {"create": 403, "records": 403, "detail": 403}
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 15
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 102
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "side_fix": {
+    "file": "tests/test_cowork_push_purity.py",
+    "issue": "the fifteenth batch added two push root modules that the purity check never classified",
+    "fix": "export_actions.py registered as pure, export_facts.py registered as an acknowledged Frappe/IO module",
+    "result": "PASS (2 tests)"
+  },
+  "scope_evidence": {
+    "current_reconciliation_center": "src/home/recon-center-x.ts (2026-06-14 redesign that overrides the old page loader) drives bank-v2, gl-vat and the dropped vat_excel type",
+    "legacy_v1_family": "/api/bank-recon/* plus services/recon/bank_reconcile.py, labelled the old system by the legacy 2026-05-18 investigation and never migrated to v2",
+    "accounting_side": "/api/accounting/bank/* posts vouchers and belongs to the accounting module confirmed out of scope"
+  },
+  "not_run": [
+    "fresh Site installation (only existing lab Sites were migrated)",
+    "asynchronous job orchestration, progress polling and cancellation",
+    "real XLSX/PDF/text parsing and model extraction",
+    "exports, review workbook and accountant review actions",
+    "frontend integration, deployment and user acceptance",
+    "wide test_cowork_*.py run: 24 modules still cannot import without frappe/openpyxl on this host"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-native.md"
+}

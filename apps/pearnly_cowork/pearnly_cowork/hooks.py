@@ -293,6 +293,8 @@ permission_query_conditions = {
     "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.item_query",
     "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.entry_query",
     "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.operation_query",
+    "Cowork Bank Reconciliation": "pearnly_cowork.reconciliation.bank_recon_access.task_query",
+    "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.row_query",
 }
 has_permission = {
     "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_permission",
@@ -319,6 +321,8 @@ has_permission = {
     "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.has_permission",
     "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.has_permission",
     "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Bank Reconciliation": "pearnly_cowork.reconciliation.bank_recon_access.has_permission",
+    "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.has_permission",
 }
 doc_events = {"Pearnly OCR Work": {
     "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
@@ -331,13 +335,15 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
-        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share"],
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
+        "pearnly_cowork.reconciliation.bank_recon_access.reject_share"],
     "validate": ["pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
         "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
-        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share"],
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
+        "pearnly_cowork.reconciliation.bank_recon_access.reject_share"],
 }}
 extend_doctype_class = {
     "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
