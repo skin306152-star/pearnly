@@ -11,6 +11,7 @@
 ### 位置与本批结果
 
 - 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `a65cdd4`（第二十三批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 交付后按协调顺序把当时的 `main`（`22eb94f`，ERP 销售单据那批）并进本分支（合并提交 `11ed367`，`f409bce` 以来第二次平台并入）：唯一冲突是术语表 `scripts/i18n/messages.tsv` —— main 带 24 条 ERP 新键、本分支 498 条自有键，两边共有键的译文完全相同，所以合并结果是 main 的行 + 本分支新增键 − 第 22 批删掉的 4 条协作文案，再跑 `i18n-build.py` 重生成语言包，除那 4 条删除外没有其它变化；`features.py`、`pearnly_core` 语言包、`AGENTS.md`、镜像 Dockerfile、`keep-cjk.tsv` 都自动合并。合并树上架构 0 违规、i18n 检查 PASS、对账用例与固定源差分通过、`stack.sh config` 仍解析通过。main 上两处空白问题（`pearnly_erp_portal/sales/contracts.py:431` 末尾空行、`scripts/erp-pos-lab-masters-verify.py:105` 行尾空格）属 ERP 批次，本批未改，留给其所有者。
 - 新增 `reconciliation/export/`：`workbook.py`（入口与三个 sheet builder）、`summary.py`（Sheet 1）、`labels.py`（四语 103 条标签 + helper）、`usage.py`（使用说明 4 语）、`styles.py`（调色板与表头/边框/日期 helper）。入口 `workbook(rows, summary, lang=..., task_info, parse_info, anchor_overrides, anchor_ocr, warnings)` 签名与部署版一致。
 - 原生入口 `bank_recon_service.export(task_id, lang)` + GET RPC `bank_recon_api.export`：权限沿用任务 API 的 `recon` 功能 + 角色 + 工作区范围，按私有附件返回（`no-store`/`nosniff`）并写 Access Log，下载名仍是 `BankRecon_v2_<任务>_<银行码>.xlsx`。
 - 新增任务字段 `parse_info_json` 与契约 `bank_recon_contracts.parse_info`（只接受部署版两段与记录键）；`create`/`create_from_parsed` 接受并落库每文件诊断，`create_from_parsed` 另加 `gl_filename`。重放判定仍只看表头与行，文件诊断不参与摘要。
@@ -34,7 +35,7 @@
 
 ### 交接保留与清理
 
-- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `22eb94f890a1c0763bf41ebda0c73d05eaf03d62`（ERP 批次已合入），远端 `origin/main` 收尾只读仍为 `ac33e0c7362915ae314295cb26f7748cb5589de0`；本分支已把本地 main 并入，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
 - 本批用专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows 与旧仓，未新增凭据，只清理本任务可再生的缓存与临时文件。
 - 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
 
