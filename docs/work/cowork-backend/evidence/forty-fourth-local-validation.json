@@ -1,0 +1,85 @@
+{
+  "base_commit": "05192c1",
+  "scope": "forty-fourth batch: the second master-data slice — the client-record field rules the store applies (length limits, empty means unset, the writable field whitelists, the colour default, and the create-versus-update cleaning difference)",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-third batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "ca98ef87a73f08110accbfce23a2efd24a5754b33a82e3a37a7ef1df95d31397",
+    "delivery_captured_at": "2026-09-21T18:02:04.780903+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-third-delivery.json baseline-forty-fourth-delivery.json (before pinned at 2e21cbb0, after pinned at ca98ef87)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "1040c20fe85c7ad0f0b9f2edf2d50a7aff3830611120468221f33fa938365d39",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/clients/store.py": "24407c4e501bbc950c4e9489e02f583682d6e1efbf91ac05cf33834951f646e7"
+    },
+    "source_note": "the ported rules are pure; the pinned functions are executed against a recording cursor in the differential"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_client_records",
+      "result": "PASS",
+      "tests": 15,
+      "new_tests": 15,
+      "covers": [
+        "surrounding space goes and an empty value becomes unset; a value is cut to its deployed limit while one under the limit is untouched; non-text is stringified",
+        "a client without a name is not created, the fields are cleaned, empty stays unset, the colour defaults, an explicit colour is kept, and the create path takes a truthy colour as given (the deployed quirk) while the update path cleans and cuts it",
+        "the buyer catalogue fields are accepted and unknown fields are dropped; create does not accept is_active, as deployed",
+        "update writes only the fields that were given, None means leave it alone, nothing to write returns nothing, an emptied text becomes unset, is_active stays a flag, and the whitelist excludes the scope fields"
+      ]
+    },
+    {
+      "command": "python test_cowork_client_records_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "creates": 200,
+        "created": 149,
+        "refused_create": 51,
+        "updates": 149,
+        "wrote": 134,
+        "nothing_to_write": 15,
+        "defaulted_colour": 74,
+        "truncated": 122,
+        "unset": 862,
+        "active_written": 33
+      },
+      "note": "the pinned create/update write through a cursor, so the cursor is the device replaced: it records the statement and its parameters and the test rebuilds the columns the pinned code would have written in deployed column order. Non-string text values are deliberately outside the comparison because the pinned code calls .strip() on them and swallows the error (no client is created at all), while this side stringifies; that difference is recorded in the intentional differences rather than hidden by the fixture."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_client_records test_cowork_buyer_resolve test_cowork_document_tier test_cowork_reconciliation_bank_intake",
+      "result": "PASS",
+      "tests": 95,
+      "note": "the new module is independent of the OCR work; the previous batches' suites are run to confirm nothing regressed"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "for a non-string text value the pinned code raises inside .strip() and swallows it, so the whole create silently does nothing; this side stringifies instead. The port is strictly more permissive and never silently drops a create, and the differential fixture therefore only carries strings",
+    "this slice returns cleaned field values only; the deployed return values (a new row id, or whether the update matched a row) belong to the store, which is the next batch",
+    "the create path keeps a truthy colour exactly as given (no strip, no length cut) because that is what the deployed create does; only the update path cleans and cuts it. The first draft of this port cleaned both and the differential caught it",
+    "comments and docstrings were rewritten; every limit, every whitelist, the default colour, the empty-means-unset rule and the blank-name refusal are the deployed ones"
+  ],
+  "not_run": [
+    "any storage layer or DocType change, the roster RPCs, the import normalisation, supplier and product master data, real client data, the frontend, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-client-records.md"
+}
