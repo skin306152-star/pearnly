@@ -1452,3 +1452,26 @@ pearnly_cowork	Target Json	冻结目标JSON	ปลายทางที่ตร
 pearnly_cowork	Token Digest	令牌摘要	แฮชโทเค็น	トークンダイジェスト	Token Digest
 pearnly_cowork	Wire Attempt	发送尝试次数	จำนวนครั้งที่พยายามส่ง	送信試行回数	Wire Attempt
 pearnly_cowork	Started At	开始时间	เริ่มเมื่อ	開始日時	Started At
+pearnly_cowork	Cowork Express Agent Credential	Cowork Express 助手凭据	ข้อมูลรับรองผู้ช่วย Express ของ Cowork	Cowork Express アシスタント認証情報	Cowork Express Agent Credential
+pearnly_cowork	Record ID	记录 ID	รหัสรายการ	レコード ID	Record ID
+pearnly_cowork	Site Name	站点名称	ชื่อไซต์	サイト名	Site Name
+pearnly_cowork	Issued By	签发人	ผู้ออก	発行者	Issued By
+pearnly_cowork	Token Generation	令牌版本	รุ่นโทเคน	トークン世代	Token Generation
+pearnly_cowork	Token Tail	令牌末四位	อักขระท้ายโทเคน	トークン末尾	Token Tail
+pearnly_cowork	Generation Key	凭据版本键	คีย์รุ่นข้อมูลรับรอง	認証情報世代キー	Generation Key
+pearnly_cowork	Issued Request Digest	签发请求摘要	แฮชคำขอออกข้อมูลรับรอง	発行リクエストのダイジェスト	Issued Request Digest
+pearnly_cowork	Request Receipts	请求回执	ผลรับคำขอ	リクエストの受領記録	Request Receipts
+pearnly_cowork	Issued At (UTC)	签发时间（UTC）	เวลาออก (UTC)	発行日時 (UTC)	Issued At (UTC)
+pearnly_cowork	Revoked At (UTC)	撤销时间（UTC）	เวลายกเลิก (UTC)	失効日時 (UTC)	Revoked At (UTC)
+pearnly_cowork	Revoked By	撤销人	ผู้ยกเลิก	失効者	Revoked By
+pearnly_cowork	Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失効理由	Revocation Reason
+pearnly_cowork	Use the Cowork Companion credential service to access credentials.	请通过 Cowork 助手凭据服务访问凭据。	โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง	認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。	Use the Cowork Companion credential service to access credentials.
+pearnly_cowork	The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
+pearnly_cowork	This request key was used for another credential operation.	此请求键已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict
+pearnly_cowork	The credential changed. Reload before resetting or revoking it.	凭据已变更，请刷新后再重置或撤销。	ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก	認証情報が変更されました。再読み込みしてからリセットまたは失効してください。	companion.generation_conflict
+pearnly_cowork	No Companion credential has been issued for this connection.	此连接尚未签发助手凭据。	ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้	この接続にはアシスタント認証情報が発行されていません。	companion.credential_not_found
+pearnly_cowork	Companion authentication failed.	助手认证失败。	การยืนยันตัวตนผู้ช่วยไม่สำเร็จ	アシスタント認証に失敗しました。	companion.unauthorized
+pearnly_cowork	The Companion identity is no longer valid. Authenticate again.	助手身份已失效，请重新认证。	ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่	アシスタントの認証が無効になりました。再認証してください。	companion.context_invalid
+pearnly_cowork	This connection does not support an Express Companion credential.	此连接不支持 Express 助手凭据。	การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express	この接続は Express アシスタント認証情報に対応していません。	companion.unsupported_connection
+pearnly_cowork	The credential request receipt limit has been reached.	凭据请求回执数量已达到上限。	จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว	認証情報リクエストの受領記録が上限に達しました。	companion.receipt_limit
+pearnly_cowork	The stocktake export snapshot is incomplete. Reload and try again.	盘点导出数据不完整，请刷新后重试。	ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง	棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。	stocktake.export_incomplete

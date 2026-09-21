@@ -1,0 +1,144 @@
+{
+  "evidence": {
+    "schema": "pearnly-cowork-push-drift-v1",
+    "captured_at": "2026-09-21T05:06:20.853401+00:00",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "source_baseline_sha256": "15e7fd1ed39cb0c597f6de5431ac02e2e2bddd2b02a30e1434647718f5228e3b",
+    "legacy_v1_sha256": "111119d806e9daed01724baeec825453432078020717e21d484a4a7fe723573a",
+    "previous_runtime_sha256": "1e3089d071dd49a9973651cb376dbe71e1d66ce690335568109e57da95aa5dc7",
+    "updated_since": "2026-09-21T04:38:57.788778+00:00",
+    "v1_keys": [
+      "agent_token_hash",
+      "method",
+      "account_set",
+      "account_dir",
+      "account_root",
+      "system_url",
+      "comidyear",
+      "seldb",
+      "max_payload_version",
+      "companion_version",
+      "mapping"
+    ],
+    "v1_sql_sha256": "9c215511d04f442259f459c926ec3ed8047521318d3774683a53373ccd0c82c7",
+    "components": {
+      "pearnly-web": {
+        "v1_identity": {
+          "count": 60,
+          "configuration_digest": "67c022c7edb856033715c51bacf02b22"
+        },
+        "v2_identity": {
+          "count": 60,
+          "configuration_digest": "5ee9e6604b3c6dee19ab3227d8484fad"
+        },
+        "adapters": [
+          {
+            "adapter": "express",
+            "count": 7
+          },
+          {
+            "adapter": "flowaccount",
+            "count": 1
+          },
+          {
+            "adapter": "mrerp",
+            "count": 7
+          },
+          {
+            "adapter": "mrerp_dms",
+            "count": 45
+          }
+        ],
+        "updated_at_present": true,
+        "updated_at_type": "timestamp with time zone",
+        "updates_since_cutoff": [
+          {
+            "adapter": "express",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "flowaccount",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp_dms",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          }
+        ],
+        "updated_at_authoritative": false,
+        "legacy_v1_unchanged": true
+      },
+      "pearnly-worker": {
+        "v1_identity": {
+          "count": 60,
+          "configuration_digest": "67c022c7edb856033715c51bacf02b22"
+        },
+        "v2_identity": {
+          "count": 60,
+          "configuration_digest": "5ee9e6604b3c6dee19ab3227d8484fad"
+        },
+        "adapters": [
+          {
+            "adapter": "express",
+            "count": 7
+          },
+          {
+            "adapter": "flowaccount",
+            "count": 1
+          },
+          {
+            "adapter": "mrerp",
+            "count": 7
+          },
+          {
+            "adapter": "mrerp_dms",
+            "count": 45
+          }
+        ],
+        "updated_at_present": true,
+        "updated_at_type": "timestamp with time zone",
+        "updates_since_cutoff": [
+          {
+            "adapter": "express",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "flowaccount",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp_dms",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          }
+        ],
+        "updated_at_authoritative": false,
+        "legacy_v1_unchanged": true
+      }
+    }
+  },
+  "sha256": "a2239ae9c66d6c05ef32d02b7b057d1c856a63a3a6ef4981b05f514092c90802"
+}

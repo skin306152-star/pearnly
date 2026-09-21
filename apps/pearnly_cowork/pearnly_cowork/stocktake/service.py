@@ -15,6 +15,7 @@ from pearnly_cowork.stocktake import access
 from pearnly_cowork.stocktake.calculations import active_quantity, summarize_item
 from pearnly_cowork.stocktake.contracts import StocktakeValidationError, entry_request
 from pearnly_cowork.stocktake.documents import persist
+from pearnly_cowork.stocktake.export import workbook
 from pearnly_cowork.stocktake.native_contract import decoded_import, encode, identifier, revision, void_flag
 
 TASK, ITEM, ENTRY, OPERATION = access.TYPES
@@ -320,3 +321,8 @@ def report(task_id):
         snapshot["summary"].append({key: format(value, ".6f") if isinstance(value, Decimal) else value
                                     for key, value in summary.items()})
     return snapshot
+
+
+def export(task_id):
+    """Use the full authorized locked snapshot, never the paginated preview."""
+    return contract(workbook, report(task_id))

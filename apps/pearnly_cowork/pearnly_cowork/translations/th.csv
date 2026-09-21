@@ -53,6 +53,7 @@ Cowork Client,Cowork ลูกค้าผู้ซื้อ
 Cowork ERP Connection,การเชื่อมต่อ ERP ของ Cowork
 Cowork ERP Refresh,การรีเฟรชไดเรกทอรี ERP ของ Cowork
 Cowork ERP Snapshot,ภาพข้อมูลไดเรกทอรี ERP ของ Cowork
+Cowork Express Agent Credential,ข้อมูลรับรองผู้ช่วย Express ของ Cowork
 Cowork Master Data,Cowork ข้อมูลหลัก
 Cowork OCR Batch,Cowork ชุดงานอ่านเอกสาร
 Cowork OCR Correction,Cowork ตัวอย่างการแก้ไขผลอ่านเอกสาร
@@ -101,6 +102,7 @@ Field,ฟิลด์
 File Hash,ค่าแฮชของไฟล์
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
+Generation Key,คีย์รุ่นข้อมูลรับรอง
 History,ประวัติเอกสาร
 History Records,บันทึกการอ่านเอกสาร
 History Version,รุ่นประวัติเอกสาร
@@ -121,6 +123,9 @@ Invoice References Complete,เชื่อมโยงใบแจ้งหน�
 Invoice References Fingerprint,ลายนิ้วมือการเชื่อมโยงใบแจ้งหนี้
 Invoice Total,ยอดรวมใบแจ้งหนี้
 Invoice pages do not match the original page references.,หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง
+Issued At (UTC),เวลาออก (UTC)
+Issued By,ผู้ออก
+Issued Request Digest,แฮชคำขอออกข้อมูลรับรอง
 Item,รายการ
 Last Fields Edit (UTC),แก้ไขข้อมูลล่าสุดเมื่อ (UTC)
 Last Request Hash,แฮชคำขอล่าสุด
@@ -170,6 +175,7 @@ Recognition Quality,คุณภาพการอ่าน
 Recognition input and ownership cannot be changed.,ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
+Record ID,รหัสรายการ
 Record Id,รหัสรายการ
 Record Key,คีย์รายการ
 Record Revision,รุ่นของรายการ
@@ -181,6 +187,7 @@ Request Fingerprint,ลายนิ้วมือข้อมูลคำขอ
 Request Hash,แฮชเนื้อหาคำขอ
 Request Json,ข้อมูลคำขอ (JSON)
 Request Key,รหัสคำขอ
+Request Receipts,ผลรับคำขอ
 Requested At (UTC),เวลาร้องขอ (UTC)
 Requires Review,ต้องตรวจสอบโดยผู้ใช้
 Response Json,ผลตอบรับ JSON
@@ -188,6 +195,9 @@ Result Directory Revision,รุ่นไดเรกทอรีผลลัพ
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
 Revision,รุ่น
+Revocation Reason,เหตุผลที่ยกเลิก
+Revoked At (UTC),เวลายกเลิก (UTC)
+Revoked By,ผู้ยกเลิก
 Row {0}: {1},แถว {0}: {1}
 Sample Key,รหัสตัวอย่างการแก้ไข
 Scope Key,รหัสขอบเขตสิทธิ์
@@ -198,6 +208,7 @@ Seller Name,ชื่อผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
 Settings Json,ข้อมูลการตั้งค่า (JSON)
 Site,เว็บไซต์
+Site Name,ชื่อไซต์
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
 Source File,ไฟล์ต้นฉบับ
 Source Format,รูปแบบข้อมูลต้นทาง
@@ -239,10 +250,13 @@ This recognition service currently accepts PDF and image originals.,บริก
 This request key has already been used for different content.,รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว
 Title,ชื่อเรื่อง
 Token Digest,แฮชโทเค็น
+Token Generation,รุ่นโทเคน
+Token Tail,อักขระท้ายโทเคน
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Uploaded By,ผู้อัปโหลด
+Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
 Use the Cowork OCR service to access recognition tasks.,กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork OCR service to change recognition tasks.,กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork
 Use the Cowork original-file service to access this file.,กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork
@@ -260,6 +274,14 @@ catalog_refresh_required,โปรดรีเฟรชไดเรกทอร�
 catalog_refresh_stale,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 charged,เรียกเก็บเงินแล้ว
 closed,ปิดแล้ว
+companion.context_invalid,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
+companion.credential_not_found,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
+companion.generation_conflict,ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก
+companion.receipt_limit,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว
+companion.request_conflict,คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว
+companion.request_invalid,คำขอข้อมูลรับรองไม่ถูกต้อง
+companion.unauthorized,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
+companion.unsupported_connection,การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express
 confirmed,ยืนยันแล้ว
 connection.adapter_invalid,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 connection.config_invalid,โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP
@@ -389,6 +411,7 @@ stocktake.conflict,รายการตรวจนับนี้เปลี�
 stocktake.dedicated_api_required,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
 stocktake.duplicate,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
 stocktake.empty,ข้อมูลนำเข้าไม่มีรายการสินค้า
+stocktake.export_incomplete,ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง
 stocktake.headers_invalid,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
 stocktake.import_conflict,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 stocktake.legacy_task,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้

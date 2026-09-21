@@ -1,5 +1,6 @@
-"""Dedicated native stocktake RPCs; no files, photos, LINE or external posting."""
+"""Dedicated native stocktake RPCs and private scan workbook download."""
 import frappe
+from frappe.core.doctype.access_log.access_log import make_access_log
 from pearnly_cowork.stocktake import service
 
 
@@ -60,3 +61,12 @@ def close(task_id):
 @frappe.whitelist()
 def report(task_id):
     return _transaction(service.report, task_id)
+
+
+@frappe.whitelist(methods=["GET"])
+def export(task_id):
+    content = _transaction(service.export, task_id)
+    make_access_log(doctype="Cowork Stocktake Task", document=task_id, file_type="stocktake_workbook")
+    frappe.local.response.update(type="download", filename="cowork-stocktake.xlsx", filecontent=content,
+        display_content_as="attachment", content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    frappe.local.cowork_private_response = True

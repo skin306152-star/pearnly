@@ -115,3 +115,9 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 `push.native` 单向依赖 connections、history/access 和纯 targets/lifecycle/receipts；以三个原生 DocType 持久化 Record、Attempt、Writer Lock。记录及载荷不可变、当前版本放行、端点与公司/账套互斥、随机尝试令牌摘要及递增序号共同防重；旧派发结果未知时保留写锁，不自动重领。过时准备仅在从未派发的证据完整时可撤销替换；真实旧尝试的迟到回执仍可记录。所有框架 CRUD、分享入口拒绝绕过专用域服务。
 
 本批没有公开 activate/lease/ACK、队列消费者、scheduler、Companion或MRERP运输入口。内部 AdapterContext 只是服务端装配约束，不是客户机身份认证，不能宣称跨Site/物理设备写者锁已验收。新Record的 prepared 只代表本地准备，不是排队、发送或入账成功。未添加菜单、页面或其它产品能力入口；依赖及剩余外推边界见[原生连接](../work/cowork-backend/connections-native.md)和[原生推送](../work/cowork-backend/push-native.md)。
+
+### Cowork 凭据与盘点导出（2026-09-21）
+
+`companion` 单向依赖 `connections.access` 的当前授权；contracts 保持纯计算。原生 Express Agent Credential 每次发行一行，摘要与末四位代替明文，Connection→Credential 顺序锁保护轮换、撤销、请求回执和代际唯一性。机器上下文必须来自内部认证的对象能力，写前重新核对当前身份与授权；本批只有人工管理RPC及内部认证，没有auth_hooks、心跳、目录采集或运输入口，不创建平台User。推送总闸同样限制发行和内部认证，关闭后仍可管理撤销。旧客户端实际运行文件来源与全量配置差异尚未闭合，不因为本地凭据完成而放行后续机器接口。
+
+`stocktake.export` 只消费同域service.report提供的已授权全量锁定快照，依赖既有Decimal数量与比较合同，输出固定泰语复核工作簿协议；不读取ERP目录或文件，不重新实现权限。专用GET下载沿原生私有响应和Access Log，照片和legacy模式尚未承接。两项均不增加菜单/页面。详见[身份合同](../work/cowork-backend/companion-identity-contract.md)和[盘点导出](../work/cowork-backend/stocktake-export.md)。

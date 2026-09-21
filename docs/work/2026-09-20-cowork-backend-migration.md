@@ -399,3 +399,45 @@ App为pearnly_cowork；新增roundtrip业务域，复用OCR纯schema、表格有
 
 
 第八批收尾：本任务bench/db/redis三个容器已停止（sleep bench退出137，DB/Redis退出0）；全部测试已结束，独立Sites/DB/日志卷及合成数据保留，未清理其它工作树或容器。提交使用共享钩子检查实际暂存快照，本地保存本批检查点；未合回主线、未推送或部署。
+
+
+## 第九批：Companion 凭据与盘点导出（2026-09-21）
+
+用户继续本地迁移；承接 `e23b17afa0e881d2c89de7fe930c17d26358c3f5`，独立工作树开工干净。主目录已经前进到 `2efa0ac027ca068a6e998a87d2029f30019f2365`，未将其部署工具等增量混入本树；没有修改DMS/主线或启动其它运行组。框架矩阵和本任务镜像不升级。
+
+第九来源只读回查 source仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，canonical checksum `1bf8b32e0d4e84128a3b8641450e40923b5bfc1470c1d76fda5a5d11607506c7`，与第八source比较通过。但运行配置摘要 compare **拒绝**：两个服务的60端点集合摘要都由 `461d6540e21d14f3a41443ad720d5605` 变为 `5ee9e6604b3c6dee19ab3227d8484fad`；其它identity、flags和observations逐字段相同。新运行evidence checksum `1e3089d071dd49a9973651cb376dbe71e1d66ce690335568109e57da95aa5dc7`。旧全量hash不能反推哪个配置键变了，未把差异认作心跳或自动忽略；先做最小只读归因，影响边界未确认前不开始业务移植。
+
+拟定的下段职责：`companion` 域持有连接密钥发行/轮换/撤销、当前权限约束的机器鉴权及报告协议，单向调用connections；`connections` 继续持有目录Snapshot/Refresh。纯报告规范化不引用框架，原生存储参与同一连接事务；不将客户端报告的complete值当作供应商/银行/映射已读取的证据。真实Windows二进制来源尚未核验。
+
+旧legacy发送只带裸log_id，ACK缺少新账本的attempt凭据，不能直接接入而关闭第八批fencing。计划先迁身份/心跳/目录，不注册发送或ACK消费者，不造一套放宽保护的兼容入口；真实发送必须先证明客户端可支持新凭据或可信兼容句柄。旧普通requested刷新合并同ID，但leased时再次请求实际是旧行failed/ERR_REFRESH_SUPERSEDED、新ID；完成/到期另保留requested_at>started_at的防御性重取规则，不能只看其中一段逻辑迁移。
+
+### 基准缩小与本批范围
+
+恢复第七批最初 v1 SQL 的精确文本后，只读重取同一投影：Web/Worker 各60条、摘要均为 `67c022c7edb856033715c51bacf02b22`，与原v1相同。调查证据checksum `d313d78c34621288ae9e6d31dad2006ca4ac2a7615a495e8eed51c216840b28f`。它覆盖token摘要及所列固定配置键，但没有user_id/express_root，不可推断所有归属/目录不变；updated_at也不是完整更新轨迹。因此仅放行无旧数据迁入的原生凭据生命周期、内部token认证，以及独立于ERP配置的无照片scan导出。全量v2差异仍HOLD，未将其覆盖或重命名为通过；心跳与目录采集仅保留设计。详见[第九来源审查](cowork-backend/ninth-source-review.md)。
+
+所属App均为pearnly_cowork。companion持有新的原生凭据数据，公开仅issue/revoke/status管理RPC；内部authenticate/revalidate不是机器HTTP入口，不设置session user。stocktake.export持有纯字节导出逻辑，公开GET只读下载使用既有stocktake角色、购买功能与公司范围；无新导航、前端、外部网络或ERP写入。旧盘点route完整路径还含照片SQL读取，本批明确不包含照片，不能将无照片切片说成全导出迁移。
+
+### 本地候选与目前验证证据
+
+仍使用第八批候选镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，Python3.14.7/Frappe16.33.0/openpyxl3.1.5。测试前复核本任务专有compose/context、源码挂载、Site与数据卷、internal网络；无端口、无外部凭据、无worker/scheduler。没有切换共享DMS样板。
+
+- 新 `cowork-backend-companion.localhost` 安装/迁移通过；既有push Site升级和重复迁移通过。快照新增纳入第八批6张连接/推送表，21数据组（20组表/用户字段与56份原件字节摘要），439条原有记录保持一致：`a06c5fda8066f462bbe6d182020119887042b096cfb986182c06c7050f6b9c0c`。脚本只输出数量与hash，不输出密码或凭据；新空表不是旧数据迁入。
+- 候选无网容器完整 `test_cowork_*.py` **689项通过**（652旧项+16身份合同+11基准调查+10导出），无skip。日志 `/tmp/pearnly-cowork-migration-20260920/ninth-unit.txt`。没有因为新增功能重复旧ERP外推差分或付费模型测试。
+- 固定源码真实函数差分：盘点84份工作簿/17,524单元格值、类型和样式差异0；身份244组hash/生成token/端点查询判定一致，查询依赖为合成端点，不假称真实旧库鉴权。源码完整hash在执行前核验，容器无网。最初直接绑定host `/tmp` 在Colima VM中不可见，FileNotFound后改stdin完整源码传入并核hash；未改业务逻辑或删除断言。
+- 盘点原生14项回归、新导出3项通过；真实WSGI完整101条、作废/关闭、跨公司/权益/用户禁用/legacy拒绝、公式样式用户串、响应no-store/nosniff与附件格式、实际Frappe每Site deferred Access Log队列均验证。初次把原生deferred日志误当立即落库，修正为读取真实队列断言并补记录task ID；不为了测试启动scheduler。原有连接21项回归通过。
+- 新增23条术语，仅Cowork四语包更新；32个所需msgid由Core+Cowork可解析，无依赖Control。实际新Site执行en/zh/th/ja共92次新增译文查询，均与TSV一致。术语表校验通过；strict全仓仍旧147项/43文件/135条，HEAD/候选归一行号差异0，未扩大忽略，不称全仓语言过闸。
+
+- Companion最终**20项真实Site测试通过**（5.662s）；加连接21、盘点14、导出3，本批合计**58项原生测试**，重复运行不叠加。包含两数据库进程在旧RR快照后竞争同/不同key签发、并发CAS reset、当前授权撤销、公司/客户停用、总闸、native CRUD/DocShare、重放无token、无Version、回执接近1MiB后仍可撤销、WSGI真实API及exp_无法充当普通RPC身份。没有把假context校验当作真实Windows或跨Site物理设备验收。
+- 初轮身份原生18过2失败：测试错误要求额外private头（实际共享保护是更严格的no-store并带no-cache/nosniff）；故障注入按dict新文档is_new判断未触发原生insert。修正为检查实际三个响应头；在第二代Credential.before_insert确认旧代已撤销后注入异常，并断言注入确实执行、回滚后旧token可用且没有新代。没有删除回滚或保密行为断言、没有修改共享File逻辑。最终结果见 `ninth-credentials-native-final.txt`。
+- 测试后对新身份Site重复原生migrate，10条Credential全字段摘要保持 `d06c107b35228893c960143ff64c65e202c1b6626cf72e15a2ee31c18bf2d462`，Version记录0。原生迁移没有转换线上密钥、用户或旧ID。
+- 独立审查指出并修复两处实现差异：旧推送总闸遗漏；凭据请求回执占满容量后撤销会被回滚。当前发行/认证/复验遵守总闸，首次撤销保留1KiB回执空间，两者纯合同和真实Site验证通过；未以关掉幂等或删除审计方式回避。见[审查记录](cowork-backend/ninth-source-review.md)。
+
+### 交付复核与余项
+
+最终旧来源checksum `15e7fd1ed39cb0c597f6de5431ac02e2e2bddd2b02a30e1434647718f5228e3b`，第九start/delivery源码与镜像一致；runtime checksum `29c1276b7f64d97963fc916d0fd0aab2d803041cecc561d532f9a59e56523678`，本批首尾settings_unchanged=true/observations_changed=false。精确v1 delivery checksum `a2239ae9c66d6c05ef32d02b7b057d1c856a63a3a6ef4981b05f514092c90802`，与第七v1及第九补采一致；完整v2相对第八的差异仍HOLD。六份脱敏原证据归档在evidence；此处是canonical内容校验值，不是JSON文件字节hash。不能用本批首尾稳定抹掉跨批配置差异。
+
+目前可继续的下一步先解决目录配置来源范围，随后实现受限机器身份桥、心跳/目录报告和有代际凭据的运输/ACK。旧数据和owner映射、实际Windows来源/客户端兼容、MRERP、未知回读恢复、History投影与通知、LINE/WeKan、盘点照片及legacy/导入删除、对账和剩余导出/归档仍未完成。前端未开始，尚未到接前端讨论点。照片与legacy导出明确拒绝，不把缺失藏在空页面或完整导出声称里。
+
+本轮仅本地实现/测试通过，CI、部署、外部业务结果、Windows/Excel真机及用户验收均未执行。未合回主线、未推送、未部署；另一个窗口的主目录继续前进且末次核对干净，HEAD为 `12176e9e09d579e71935ef456900870e5c85d1f1`。它新增DMS预热队列修复/记录，未引入本批架构或底座要求变化；本任务没有修改、合并或重启它。独立工作树保留用于后续迁移，不能将两分支称为已统一。
+
+第九批收尾：所有测试结束，本任务bench/db/redis三个容器已停止，隔离Site/DB卷及合成数据保留。架构检查0违规、变更Python语法与diff检查通过。通过共享暂存快照钩子保存独立本地提交；不清理或接管其它任务资源。

@@ -53,6 +53,7 @@ Cowork Client,Cowork Client
 Cowork ERP Connection,Cowork ERP Connection
 Cowork ERP Refresh,Cowork ERP Refresh
 Cowork ERP Snapshot,Cowork ERP Snapshot
+Cowork Express Agent Credential,Cowork Express Agent Credential
 Cowork Master Data,Cowork Master Data
 Cowork OCR Batch,Cowork OCR Batch
 Cowork OCR Correction,Cowork OCR Correction
@@ -101,6 +102,7 @@ Field,Field
 File Hash,File Hash
 First Recognition Snapshot,First Recognition Snapshot
 First Recognition Value,First Recognition Value
+Generation Key,Generation Key
 History,History
 History Records,History Records
 History Version,History Version
@@ -121,6 +123,9 @@ Invoice References Complete,Invoice References Complete
 Invoice References Fingerprint,Invoice References Fingerprint
 Invoice Total,Invoice Total
 Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
+Issued At (UTC),Issued At (UTC)
+Issued By,Issued By
+Issued Request Digest,Issued Request Digest
 Item,Item
 Last Fields Edit (UTC),Last Fields Edit (UTC)
 Last Request Hash,Last Request Hash
@@ -170,6 +175,7 @@ Recognition Quality,Recognition Quality
 Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
 Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
 Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
+Record ID,Record ID
 Record Id,Record Id
 Record Key,Record Key
 Record Revision,Record Revision
@@ -181,6 +187,7 @@ Request Fingerprint,Request Fingerprint
 Request Hash,Request Hash
 Request Json,Request Json
 Request Key,Request Key
+Request Receipts,Request Receipts
 Requested At (UTC),Requested At (UTC)
 Requires Review,Requires Review
 Response Json,Response Json
@@ -188,6 +195,9 @@ Result Directory Revision,Result Directory Revision
 Result Json,Result Json
 Result Unknown,Result Unknown
 Revision,Revision
+Revocation Reason,Revocation Reason
+Revoked At (UTC),Revoked At (UTC)
+Revoked By,Revoked By
 Row {0}: {1},Row {0}: {1}
 Sample Key,Sample Key
 Scope Key,Scope Key
@@ -198,6 +208,7 @@ Seller Name,Seller Name
 Seller Tax ID,Seller Tax ID
 Settings Json,Settings Json
 Site,Site
+Site Name,Site Name
 Source Digest,Source Digest
 Source File,Source File
 Source Format,Source Format
@@ -239,10 +250,13 @@ This recognition service currently accepts PDF and image originals.,This recogni
 This request key has already been used for different content.,This request key has already been used for different content.
 Title,Title
 Token Digest,Token Digest
+Token Generation,Token Generation
+Token Tail,Token Tail
 Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
 Updated At,Updated At
 Updated By,Updated By
 Uploaded By,Uploaded By
+Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
 Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
 Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
 Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
@@ -260,6 +274,14 @@ catalog_refresh_required,Refresh the account directory before continuing.
 catalog_refresh_stale,The account directory is out of date. Refresh it again.
 charged,charged
 closed,closed
+companion.context_invalid,The Companion identity is no longer valid. Authenticate again.
+companion.credential_not_found,No Companion credential has been issued for this connection.
+companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
+companion.receipt_limit,The credential request receipt limit has been reached.
+companion.request_conflict,This request key was used for another credential operation.
+companion.request_invalid,The credential request is invalid.
+companion.unauthorized,Companion authentication failed.
+companion.unsupported_connection,This connection does not support an Express Companion credential.
 confirmed,Confirmed
 connection.adapter_invalid,Unsupported ERP connection type.
 connection.config_invalid,Check the ERP connection settings.
@@ -389,6 +411,7 @@ stocktake.conflict,This count entry has changed. Refresh it and try again.
 stocktake.dedicated_api_required,Use the stock count workflow to change these records.
 stocktake.duplicate,The import contains a repeated product code.
 stocktake.empty,The import contains no product rows.
+stocktake.export_incomplete,The stocktake export snapshot is incomplete. Reload and try again.
 stocktake.headers_invalid,The import columns do not match the stock count template.
 stocktake.import_conflict,This import request ID has already been used for different content.
 stocktake.legacy_task,This task uses the previous count format and cannot accept scan entries.

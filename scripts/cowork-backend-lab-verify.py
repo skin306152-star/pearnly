@@ -17,7 +17,7 @@ from unittest.mock import patch
 import frappe
 
 SITE = os.environ.get("PEARNLY_COWORK_TEST_SITE", "cowork-backend-a.localhost")
-ALLOWED_SITES = {"cowork-backend-push.localhost", "cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
+ALLOWED_SITES = {"cowork-backend-companion.localhost", "cowork-backend-push.localhost", "cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
                  "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
 OTHER_SITE = "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
@@ -61,6 +61,12 @@ def snapshot():
               "Cowork OCR Correction", "Pearnly OCR Work")
     state = {table: frappe.get_all(table, fields=["*"], order_by="name", limit_page_length=0)
              for table in tables}
+    # Include the eighth-batch ledger when rehearsing later upgrades. Older
+    # guarded Sites may not have installed these DocTypes yet.
+    for table in ("Cowork ERP Connection", "Cowork ERP Snapshot", "Cowork ERP Refresh",
+                  "Cowork Push Record", "Cowork Push Attempt", "Cowork Push Writer Lock"):
+        if frappe.db.exists("DocType", table):
+            state[table] = frappe.get_all(table, fields=["*"], order_by="name", limit_page_length=0)
     state["users"] = frappe.get_all("User", filters={"name": ["like", "cw-%@example.invalid"]},
         fields=["name", "language", "time_zone", "enabled", "user_type"], order_by="name",
         limit_page_length=0)

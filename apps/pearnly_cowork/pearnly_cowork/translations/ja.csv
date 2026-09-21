@@ -53,6 +53,7 @@ Cowork Client,Cowork 買い手顧客
 Cowork ERP Connection,Cowork ERP接続
 Cowork ERP Refresh,Cowork ERPディレクトリ更新
 Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
+Cowork Express Agent Credential,Cowork Express アシスタント認証情報
 Cowork Master Data,Cowork マスタデータ
 Cowork OCR Batch,Cowork 認識バッチ
 Cowork OCR Correction,Cowork 認識修正例
@@ -101,6 +102,7 @@ Field,項目
 File Hash,ファイルのハッシュ値
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
+Generation Key,認証情報世代キー
 History,伝票履歴
 History Records,認識記録
 History Version,伝票履歴バージョン
@@ -121,6 +123,9 @@ Invoice References Complete,請求書の関連付け完了
 Invoice References Fingerprint,請求書関連付けのフィンガープリント
 Invoice Total,請求書合計
 Invoice pages do not match the original page references.,請求書のページが元ファイルの参照ページと一致しません。
+Issued At (UTC),発行日時 (UTC)
+Issued By,発行者
+Issued Request Digest,発行リクエストのダイジェスト
 Item,項目
 Last Fields Edit (UTC),項目の最終編集日時（UTC）
 Last Request Hash,最終要求ハッシュ
@@ -170,6 +175,7 @@ Recognition Quality,認識品質
 Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
+Record ID,レコード ID
 Record Id,レコード ID
 Record Key,記録キー
 Record Revision,レコードの版
@@ -181,6 +187,7 @@ Request Fingerprint,リクエスト内容のフィンガープリント
 Request Hash,要求内容ハッシュ
 Request Json,リクエストデータ（JSON）
 Request Key,リクエストキー
+Request Receipts,リクエストの受領記録
 Requested At (UTC),要求日時（UTC）
 Requires Review,確認が必要
 Response Json,確認応答JSON
@@ -188,6 +195,9 @@ Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
 Revision,リビジョン
+Revocation Reason,失効理由
+Revoked At (UTC),失効日時 (UTC)
+Revoked By,失効者
 Row {0}: {1},{0} 行目：{1}
 Sample Key,修正例識別子
 Scope Key,権限範囲識別子
@@ -198,6 +208,7 @@ Seller Name,売り手名
 Seller Tax ID,売り手の納税者番号
 Settings Json,設定データ（JSON）
 Site,サイト
+Site Name,サイト名
 Source Digest,元データのダイジェスト
 Source File,元ファイル
 Source Format,元データの形式
@@ -239,10 +250,13 @@ This recognition service currently accepts PDF and image originals.,この認識
 This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
 Title,タイトル
 Token Digest,トークンダイジェスト
+Token Generation,トークン世代
+Token Tail,トークン末尾
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
 Uploaded By,アップロードしたユーザー
+Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
 Use the Cowork OCR service to access recognition tasks.,認識タスクへのアクセスには Cowork 認識サービスを使用してください。
 Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
 Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
@@ -260,6 +274,14 @@ catalog_refresh_required,先に会計データのディレクトリを更新し�
 catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
 charged,課金済み
 closed,クローズ済み
+companion.context_invalid,アシスタントの認証が無効になりました。再認証してください。
+companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。
+companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
+companion.receipt_limit,認証情報リクエストの受領記録が上限に達しました。
+companion.request_conflict,このリクエストキーは別の認証情報操作に使用されています。
+companion.request_invalid,認証情報のリクエストが無効です。
+companion.unauthorized,アシスタント認証に失敗しました。
+companion.unsupported_connection,この接続は Express アシスタント認証情報に対応していません。
 confirmed,確認済み
 connection.adapter_invalid,このERP接続タイプはサポートされていません。
 connection.config_invalid,ERP接続設定を確認してください。
@@ -389,6 +411,7 @@ stocktake.conflict,この棚卸記録は変更されています。再読み込�
 stocktake.dedicated_api_required,これらの記録は棚卸の操作から変更してください。
 stocktake.duplicate,インポートデータに重複する商品コードがあります。
 stocktake.empty,インポートデータに商品行がありません。
+stocktake.export_incomplete,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
 stocktake.headers_invalid,インポートする列が棚卸テンプレートと一致しません。
 stocktake.import_conflict,このインポートリクエスト ID は異なる内容で使用されています。
 stocktake.legacy_task,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
