@@ -1,5 +1,32 @@
 # Cowork 后端迁移（前端接入前）
 
+## 换窗口交接（2026-09-22，第四十八批交付：主数据第六块——客户名录导入的归一）
+
+主数据只剩导入与供应商/设置两块。本批交**客户名录导入**里决定"哪些列是客户名、哪些行要导、导出来长什么样"的那一段；表格解析由调用方给，所以这一层完全离线可验。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `ca8d800`（第四十七批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `masters/client_import.py`（旧 `workspace/client_import.py` + `purchase/field_clean.py` 的两个清洗函数）：三语表头同义词与子串匹配（同字段取靠前列）、`cell_at`、`clean_tax_id`（**恰好 13 位**）、`clean_branch_no`（≤5 位左补零，**空/超长留空** —— 归一成 `00000` 会把分店票配到总店头上）、`structural_error`（缺名/税号非法两个错误码）、`import_rows`（客户名列认不出就不导、汇总行跳过、超 500 行截断）。
+- **有意差异**：解析器与导入端点不迁（建档校验复用第四十五批的客户名册服务）；`clean_seller` 不属本家（它服务识别字段呈现，归 OCR）。
+
+### 验证与证据
+
+- 离线 **14** 个用例；固定源差分（解析换桩、两侧同喂）：**差异 0** —— 表头格 30、表头组 7、单元格 600、结构校验 200、税号/分店清洗各 30、导入预览 120（行 273、缺客户名列 37、截断 1 组超大文件）。
+- 主数据族一起 70 个通过；架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-eighth-delivery.json`（`8e9bec08…`）与第四十七批交付快照 PASS；运行投影 `25f77f47…` 与上一批逐项相同。**仍未做开工采集**。
+- 未执行：导入端点与存储、前端、部署、用户验收。
+
+### 下一批（先核对归属再动手）
+
+**供应商与科目/税率档**：旧侧 `supplier_posting_routes.py` 走采购域权限（`services/purchase/**`）、`tax_profile_routes.py` 是税务申报档（`tax.filing.view`），而功能清单里 `purchase`/`tax`/`accounting` 属**不在 Cowork 范围**的产品线。所以下一批第一步是**只读归属核对**：确属 Cowork（供应商过账档案本仓已有 `Cowork Supplier Posting Profile` 与 `push_inputs.save_profile`）就接着补；属 ERP/申报侧就按"不迁"登记。之后是设置与分类。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线（比我这条线多 15 个提交），远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
 ## 换窗口交接（2026-09-22，第四十七批交付：主数据第五块——商品与多单位的存储层）
 
 上一批交的是商品名称与单位的**规则**，本批把**表与接口**接上。不接前端、不部署、不改 DMS、不写旧库、不调模型。
