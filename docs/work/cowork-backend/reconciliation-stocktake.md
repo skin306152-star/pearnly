@@ -56,6 +56,8 @@
 
 **2026-09-21 更新**：数值策略已在独立工作包中确定为“保留已部署的二进制浮点判据”，第二轮配对与逐字段金额比较随之迁入 `reconciliation/amounts.py`、`reconciliation/fields.py` 和 `reconciliation/matching.py`；GL/VAT 汇总与银行金额算法仍未迁移。见[对账数值规则](reconciliation-amounts.md)。
 
+**2026-09-21 再次更新**：银行侧的“余额链校验”已迁入 `reconciliation/bank_statement.py`（行契约、方向纠正、逐行核对、金额反推修复、定案序列、完整性审计）；同一批同时确认该段是 `bank_stmt_xlsx/extract/reread`、`bank_recon_pipeline`、`bank_recon_v2` 的共享实现。流水/GL 解析、匹配评分、任务存储与导出仍未迁移。见[银行流水行契约与余额链](reconciliation-bank-statement.md)。
+
 ## 来源业务面盘点与下一步
 
 固定来源的路由盘点是定位索引，不是这些路由全部迁移完成或自动进入保留范围。应继续以当前 Cowork 消费者、功能清单和已确定的删除边界核对。

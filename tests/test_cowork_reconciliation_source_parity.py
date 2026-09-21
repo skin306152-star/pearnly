@@ -12,12 +12,14 @@ import json
 import random
 import re
 import unicodedata
+from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation, ROUND_HALF_EVEN
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pearnly_cowork.reconciliation import fields
+from pearnly_cowork.reconciliation import bank_statement as statement
 from pearnly_cowork.reconciliation.amounts import invoice_total, report_total, within_tolerance
 from pearnly_cowork.reconciliation.matching import match_rows, pair_by_invoice_number
 from pearnly_cowork.stocktake import contracts
@@ -27,6 +29,10 @@ HASHES = {
 	"services/stocktake/excel.py": "c8027111a6f4c77fdb6fa329df6f9cf798c36440211e44bb2d2673939917f13d",
 	"services/recon/field_comparator.py": "109c0401587154d3f3860166b4f0c3812f568b03e2e452a880af866195eec037",
 	"services/recon/reconciliation_matcher.py": "bc62255e03f1898a4eb6eb83e088d2af08f0cc93ab1d07d9dde2ee359cdeb4e6",
+	"services/recon/bank_stmt_balance.py": "36cb82f137502c65a069dae61cb468e1def6bfeab8169471430fdcdb6ffa7013",
+	"services/recon/bank_recon_types.py": "df0508cccb9891a5ea628cbce104ee09001b976ade15afd4d599c5d766de149e",
+	"services/recon/bank_table_io.py": "19b9161eb5a96f8244efba97b215b50710365ba97f1bd93f8ce04ccd302f190e",
+	"services/recon/bank_recon_utils.py": "35b143f7cfc115fc497397902026c463cdc7a589da70ea690d85f35b4f016745",
 }
 
 
@@ -36,18 +42,22 @@ class SourceError(Exception):
 		self.detail = detail
 
 
-def definitions(root, path, names, namespace, assignments=()):
+def definitions(root, path, names, namespace, assignments=(), classes=()):
 	assignments = set(assignments)
+	classes = set(classes)
 	data = (root / path).read_bytes()
 	if hashlib.sha256(data).hexdigest() != HASHES[path]:
 		raise ValueError(f"Source does not match {SOURCE_SHA}: {path}")
 	tree = ast.parse(data)
 	nodes = [node for node in tree.body
 		if (isinstance(node, ast.FunctionDef) and node.name in names)
+		or (isinstance(node, ast.ClassDef) and node.name in classes)
 		or (isinstance(node, ast.Assign) and len(node.targets) == 1
 			and isinstance(node.targets[0], ast.Name) and node.targets[0].id in assignments)]
 	if {node.name for node in nodes if isinstance(node, ast.FunctionDef)} != set(names):
 		raise ValueError(f"Missing source definitions: {path}")
+	if {node.name for node in nodes if isinstance(node, ast.ClassDef)} != classes:
+		raise ValueError(f"Missing source classes: {path}")
 	if not assignments <= {node.targets[0].id for node in nodes if isinstance(node, ast.Assign)}:
 		raise ValueError(f"Missing source assignments: {path}")
 	exec(compile(ast.Module(body=nodes, type_ignores=[]), str(root / path), "exec"), namespace)
@@ -68,6 +78,158 @@ def outcome(function, value, nonnegative):
 		return "error", error.detail
 	except contracts.StocktakeValidationError as error:
 		return "error", str(error)
+
+
+def describe_rows(rows):
+	"""Every field the balance chain can read or write, plus the row fingerprint."""
+	return [(item.account_no, item.description, repr(item.withdrawal), repr(item.deposit),
+		repr(item.balance), item.balance_ok, item.direction_autocorrected,
+		item.amount_autocorrected, item.row_hash) for item in rows]
+
+
+def verify_balance_chain(root, namespace):
+	"""Differential check of the migrated statement balance chain against fixed source."""
+	namespace.setdefault("dataclass", dataclass)
+	namespace.setdefault("hashlib", hashlib)
+	definitions(root, "services/recon/bank_recon_types.py", set(), namespace, classes={"StatementRow"})
+	definitions(root, "services/recon/bank_table_io.py", {"_is_summary_row"}, namespace,
+		assignments={"_SUMMARY_ROW_KW"})
+	tolerance_namespace = {}
+	definitions(root, "services/recon/bank_recon_utils.py", set(), tolerance_namespace,
+		assignments={"AMOUNT_TOL"})
+	namespace["AMOUNT_TOL"] = tolerance_namespace["AMOUNT_TOL"]
+	if namespace["AMOUNT_TOL"] != statement.AMOUNT_TOL:
+		raise AssertionError(("tolerance constant drifted", namespace["AMOUNT_TOL"]))
+	definitions(root, "services/recon/bank_stmt_balance.py", {
+		"_stmt_bad_ratio", "_correct_direction_from_balance", "_verify_row_balances",
+		"_repair_amount_from_balance", "finalize_rows", "_audit_completeness",
+	}, namespace, assignments={"_REPAIR_RATIO"})
+	if namespace["_REPAIR_RATIO"] != statement.REPAIR_RATIO:
+		raise AssertionError(("repair ratio drifted", namespace["_REPAIR_RATIO"]))
+	if tuple(namespace["_SUMMARY_ROW_KW"]) != statement.SUMMARY_ROW_KEYWORDS:
+		raise AssertionError(("summary keyword list drifted", namespace["_SUMMARY_ROW_KW"]))
+
+	descriptions = ["SWD 65,573.75", "TRF to KKP", "ค่าสินค้า", "Total Deposit", "ยอดยกมา",
+		"Total Credit", "Opening Balance", "ค่าบริการ", "CHEQUE", "รวมรายการ", "", "  ", "合计",
+		"Grand Total", "B/F"]
+	for description in descriptions:
+		if namespace["_is_summary_row"](description) != statement.is_summary_row(description):
+			raise AssertionError(("summary row decision drifted", description))
+	# The deployed dataclass formats the balance inside its fingerprint, so an
+	# unread balance column must be assigned after construction in both classes.
+	for cls in (namespace["StatementRow"], statement.StatementRow):
+		with self_expect(TypeError):
+			cls(date(2026, 6, 1), "tx", 0.0, 0.0, None)
+
+	def materialize(cls, specs):
+		rows = []
+		for spec in specs:
+			item = cls(date(2026, 6, 1), spec["description"], spec["withdrawal"], spec["deposit"],
+				spec["balance"])
+			item.account_no = spec["account_no"]
+			if spec["unknown_balance"]:
+				item.balance = None
+			rows.append(item)
+		return rows
+
+	amounts = [0.5, 100.0, 250.5, 1000.0, 15000.0]
+	spec_rng = random.Random(20260924)
+	counts = {"balance_batches": 0, "summary_rows_filtered": 0, "direction_corrections": 0,
+		"amount_repairs": 0, "audit_issues": 0}
+	for _ in range(1500):
+		opening = spec_rng.choice([0.0, 1000.0, 100000.0])
+		running = opening if opening else 1000.0
+		specs = []
+		for index in range(spec_rng.randint(0, 12)):
+			kind = spec_rng.choice(["none", "deposit", "deposit", "withdrawal", "withdrawal"])
+			amount = round(spec_rng.choice(amounts) * spec_rng.choice([1, 1, 2]), 2)
+			deposit = amount if kind == "deposit" else 0.0
+			withdrawal = amount if kind == "withdrawal" else 0.0
+			running = round(running + deposit - withdrawal, 2)
+			balance = running
+			style = spec_rng.random()
+			if style < 0.08:
+				balance = round(balance + spec_rng.choice([0.01, 0.05, 0.5, 1.5, 25.0]), 2)
+			elif style > 0.92:
+				balance = 0.0
+			if spec_rng.random() < 0.10:
+				deposit, withdrawal = withdrawal, deposit
+			if spec_rng.random() < 0.10:
+				deposit = round(deposit * 1.1, 2) if deposit else deposit
+				withdrawal = round(withdrawal * 0.9, 2) if withdrawal else withdrawal
+			specs.append({"description": spec_rng.choice(descriptions), "deposit": deposit,
+				"withdrawal": withdrawal, "balance": balance,
+				"unknown_balance": spec_rng.random() < 0.07, "account_no": f"a{index}"})
+		old_ratio = namespace["_stmt_bad_ratio"](materialize(namespace["StatementRow"], specs), opening)
+		new_ratio = statement.statement_row_bad_ratio(materialize(statement.StatementRow, specs), opening)
+		if repr(old_ratio) != repr(new_ratio):
+			raise AssertionError(("bad ratio drifted", batch, old_ratio, new_ratio))
+		for source_name, new_function in (
+				("_correct_direction_from_balance", statement.correct_direction_from_balance),
+				("_verify_row_balances", statement.verify_row_balances),
+				("_repair_amount_from_balance", statement.repair_amount_from_balance)):
+			old_rows = materialize(namespace["StatementRow"], specs)
+			new_rows = materialize(statement.StatementRow, specs)
+			namespace[source_name](old_rows, opening)
+			new_function(new_rows, opening)
+			if describe_rows(old_rows) != describe_rows(new_rows):
+				raise AssertionError((source_name, specs))
+		old_rows = materialize(namespace["StatementRow"], specs)
+		new_rows = materialize(statement.StatementRow, specs)
+		old_kept = namespace["finalize_rows"](old_rows, opening)
+		new_kept = statement.finalize_rows(new_rows, opening)
+		if describe_rows(old_kept) != describe_rows(new_kept):
+			raise AssertionError(("finalize_rows drifted", specs))
+		counts["summary_rows_filtered"] += len(specs) - len(new_kept)
+		counts["direction_corrections"] += sum(1 for item in new_kept if item.direction_autocorrected)
+		counts["amount_repairs"] += sum(1 for item in new_kept if item.amount_autocorrected)
+		closing = (round(opening + round(sum(item["deposit"] for item in specs), 2)
+			- round(sum(item["withdrawal"] for item in specs), 2), 2)
+			if spec_rng.random() < 0.5 else round(running + spec_rng.choice([0.0, 1.5, 250.0]), 2))
+		printed = None
+		if spec_rng.random() < 0.7:
+			printed = {"total_credit": round(sum(item["deposit"] for item in specs), 2),
+				"total_debit": round(sum(item["withdrawal"] for item in specs), 2),
+				"credit_count": sum(1 for item in specs if item["deposit"] > 0),
+				"debit_count": sum(1 for item in specs if item["withdrawal"] > 0)}
+			if spec_rng.random() < 0.15:  # a balance mis-filed into both totals
+				printed["total_credit"] = printed["total_debit"] = closing
+			if spec_rng.random() < 0.15:  # a missed or misread row
+				printed["credit_count"] += spec_rng.choice([-1, 1])
+			if spec_rng.random() < 0.15:
+				printed["total_credit"] = round(printed["total_credit"] + spec_rng.choice([1.0, 500.0]), 2)
+		old_audit = namespace["_audit_completeness"](materialize(namespace["StatementRow"], specs),
+			opening, closing, printed)
+		new_audit = statement.audit_completeness(materialize(statement.StatementRow, specs),
+			opening, closing, printed)
+		if old_audit != new_audit:
+			raise AssertionError(("audit_completeness drifted", specs, closing, printed))
+		counts["audit_issues"] += len(new_audit["issues"])
+		counts["balance_batches"] += 1
+	for name, minimum, message in (("summary_rows_filtered", 100, "footer filter"),
+			("direction_corrections", 40, "direction correction"),
+			("amount_repairs", 10, "amount repair"), ("audit_issues", 200, "audit issue")):
+		if counts[name] < minimum:
+			raise AssertionError((f"{message} barely exercised", counts[name]))
+	return counts
+
+
+class self_expect:
+	"""Minimal context manager mirroring assertRaises for this script."""
+
+	def __init__(self, error):
+		self.error = error
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, kind, value, traceback):
+		if kind is None:
+			raise AssertionError(f"{self.error.__name__} was not raised")
+		if not issubclass(kind, self.error):
+			return False
+		self.value = value
+		return True
 
 
 def verify(root):
@@ -193,6 +355,7 @@ def verify(root):
 		pass_two_cases += old["stats"]["pass2_count"]
 	if pass_two_cases < 100:
 		raise AssertionError(("second pass barely exercised", pass_two_cases))
+	balance = verify_balance_chain(root, namespace)
 	# Investigation only: no Decimal amount matcher is installed in product code.
 	decimal_investigations = [
 		("2.675", "2.68", False, True), ("-2.675", "-2.68", False, True),
@@ -215,11 +378,14 @@ def verify(root):
 		print(json.dumps({"input": [left, right], "source_match": old_match, "decimal_match": decimal_match}))
 	print(json.dumps({"amount_cases": amount_cases, "field_cases": field_cases,
 		"all_field_cases": all_field_cases, "match_cases": match_cases,
-		"source_pass2_pairs": pass_two_cases}))
+		"source_pass2_pairs": pass_two_cases, **balance}))
 	print("PASS: 4020 source quantity cases; 1000 source first-pass batches; "
 		f"{amount_cases} amount contract cases; {field_cases} compare_field cases; "
 		f"{all_field_cases} compare_all_fields cases; {match_cases} full matcher batches "
-		f"({pass_two_cases} second-pass pairs); 8 amount investigations")
+		f"({pass_two_cases} second-pass pairs); {balance['balance_batches']} balance-chain batches "
+		f"({balance['summary_rows_filtered']} footer rows, {balance['direction_corrections']} direction "
+		f"corrections, {balance['amount_repairs']} amount repairs, {balance['audit_issues']} audit "
+		f"issues); 8 amount investigations")
 
 
 if __name__ == "__main__":
