@@ -296,6 +296,7 @@ companion.delivery_invalid,助手任务领取记录无效。
 companion.delivery_not_found,未找到助手任务领取记录。
 companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
 companion.queue_access_revoked,助手队列的访问权限已撤销。
+companion.queue_conflict,此回执与任务当前状态冲突。
 companion.queue_request_invalid,助手队列请求无效。
 companion.queue_response_invalid,助手队列响应无效。
 companion.receipt_limit,凭据请求回执数量已达到上限。

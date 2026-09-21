@@ -14,6 +14,7 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import frappe
+from frappe.config import clear_site_config_cache
 from werkzeug.test import Client, EnvironBuilder
 from werkzeug.wrappers import Request, Response
 
@@ -44,6 +45,7 @@ class NativeHeartbeat(unittest.TestCase):
         config['pearnly_cowork_erp_push_enabled'] = True
         config['pearnly_features'] = ['intake', 'master_data', 'push_log']
         self.config_path.write_text(json.dumps(config))
+        clear_site_config_cache()
         frappe.conf.pearnly_cowork_erp_push_enabled = True
         frappe.conf.pearnly_features = config['pearnly_features']
         frappe.set_user(self.manager)
@@ -62,6 +64,7 @@ class NativeHeartbeat(unittest.TestCase):
 
     def tearDown(self):
         self.config_path.write_text(self.original_config)
+        clear_site_config_cache()
         if getattr(frappe.local, 'db', None): frappe.db.rollback(); frappe.destroy()
         connect(self.site)
         frappe.conf.clear(); frappe.conf.update(self.old_conf)
@@ -351,6 +354,7 @@ class NativeHeartbeat(unittest.TestCase):
         config['developer_mode'] = True
         config['pearnly_cowork_erp_push_enabled'] = False
         self.config_path.write_text(json.dumps(config))
+        clear_site_config_cache()
         with patch.object(error, 'log_error', wraps=error.log_error) as snapshot:
             with patch.object(self.credentials, 'authenticate', wraps=self.credentials.authenticate) as auth:
                 with patch.object(self.collector, 'ingest', wraps=self.collector.ingest) as ingest:

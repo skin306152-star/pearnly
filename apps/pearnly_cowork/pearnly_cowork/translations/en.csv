@@ -296,6 +296,7 @@ companion.delivery_invalid,The Companion delivery record is invalid.
 companion.delivery_not_found,The Companion delivery record was not found.
 companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
 companion.queue_access_revoked,Access to the Companion queue has been revoked.
+companion.queue_conflict,This delivery conflicts with the current task state.
 companion.queue_request_invalid,The Companion queue request is invalid.
 companion.queue_response_invalid,The Companion queue response is invalid.
 companion.receipt_limit,The credential request receipt limit has been reached.

@@ -296,6 +296,7 @@ companion.delivery_invalid,บันทึกการรับงานขอ�
 companion.delivery_not_found,ไม่พบบันทึกการรับงานของผู้ช่วย
 companion.generation_conflict,ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก
 companion.queue_access_revoked,สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว
+companion.queue_conflict,ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน
 companion.queue_request_invalid,คำขอคิวงานของผู้ช่วยไม่ถูกต้อง
 companion.queue_response_invalid,การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง
 companion.receipt_limit,จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว

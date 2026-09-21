@@ -28,6 +28,7 @@ class ReceiptContext:
     push_attempt: str
     fence: int
     owner: str
+    issuer: str
     _capability: object = field(default=None, repr=False, compare=False)
 
 
@@ -65,10 +66,10 @@ def _load(handle):
     return delivery, credential
 
 
-def _context(row):
+def _context(row, credential):
     return ReceiptContext(row.site_name, row.name, row.connection, row.workspace, row.client or '',
         row.credential_id, int(row.token_generation), row.push_record, row.push_attempt,
-        int(row.fence), row.owner_id, _AUTHORITY)
+        int(row.fence), row.owner_id, credential.issuer, _AUTHORITY)
 
 
 def authenticate(token, delivery):
@@ -79,14 +80,14 @@ def authenticate(token, delivery):
     row, credential = _load(delivery)
     if parsed.connection != row.connection or not contracts.token_matches(credential.token_digest, parsed.digest):
         _deny()
-    return _context(row)
+    return _context(row, credential)
 
 
 def revalidate(context):
     if (not isinstance(context, ReceiptContext) or context._capability is not _AUTHORITY
             or context.site != _site()):
         _deny()
-    row, _ = _load(context.delivery)
-    if context != _context(row):
+    row, credential = _load(context.delivery)
+    if context != _context(row, credential):
         _deny()
     return row

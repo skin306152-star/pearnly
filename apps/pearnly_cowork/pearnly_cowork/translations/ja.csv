@@ -296,6 +296,7 @@ companion.delivery_invalid,アシスタントのタスク受領記録が無効�
 companion.delivery_not_found,アシスタントのタスク受領記録が見つかりません。
 companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
 companion.queue_access_revoked,アシスタントのキューへのアクセス権が取り消されました。
+companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
 companion.queue_request_invalid,アシスタントのキューリクエストが無効です。
 companion.queue_response_invalid,アシスタントのキューレスポンスが無効です。
 companion.receipt_limit,認証情報リクエストの受領記録が上限に達しました。

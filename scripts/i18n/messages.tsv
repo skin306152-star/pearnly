@@ -1522,3 +1522,4 @@ pearnly_cowork	The Companion queue response is invalid.	助手队列响应无效
 pearnly_cowork	The Companion delivery record is invalid.	助手任务领取记录无效。	บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง	アシスタントのタスク受領記録が無効です。	companion.delivery_invalid
 pearnly_cowork	The Companion delivery record was not found.	未找到助手任务领取记录。	ไม่พบบันทึกการรับงานของผู้ช่วย	アシスタントのタスク受領記録が見つかりません。	companion.delivery_not_found
 pearnly_cowork	Access to the Companion queue has been revoked.	助手队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว	アシスタントのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
+pearnly_cowork	This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict

@@ -15,7 +15,7 @@ SOURCE = Path(__file__).resolve().parents[1] / 'apps/pearnly_cowork/pearnly_cowo
 
 def pure_contract():
     tree = ast.parse(SOURCE.read_text())
-    names = {'METHOD', 'PATH', '_HEADER'}
+    names = {'METHOD', 'PATH', 'METHODS', 'PATHS', '_HEADER'}
     selected = [node for node in tree.body if
         isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in
             {'RequestContractError', '_machine_candidate', '_envelope'}

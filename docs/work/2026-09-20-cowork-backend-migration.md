@@ -520,3 +520,40 @@ poll 只消费显式 pending，绝不把 prepared 自动激活。原生 endpoint
 实现/本地检查通过，CI、部署、外部业务结果、Windows真机和用户验收均未执行。仅保存本任务独立本地提交；未合回集成主线、未推送、未部署。主目录末次只读核验仍干净1a0585e，DMS源码/运行环境没有改动。源码、测试与日志摘要清单见 `cowork-backend/evidence/eleventh-local-validation.json`。专用工作树和数据卷保留以续接，不将本地分支与主线称为统一。
 
 第十一批收尾：本任务bench/redis/db均已停止，命名Site/DB卷与合成数据保留；未停其它项目。架构0违规、变更Python语法、候选文件哈希、diff均通过。通过共享暂存快照钩子保存本任务独立本地提交，无跳过钩子；下次从本记录的待接线范围续接。
+
+## 第十二批：领取与历史回执的精确 HTTP 接线（2026-09-21，本地完成）
+
+承接独立工作树 `8abf444b6ee953d485cee9e5f7691e6a47244965`，主目录只读 `1a0585e6d53a995aa59a6045fe027246d18471f9`。重新核对开发入口、架构、迁移线上基准和任务余项。本批不改 DMS、前端、部署或实际 Windows 客户端，不对 ERP/LINE 发请求。复核后仅启动同一专属实验 Compose 的 bench/db/redis；internal 网络、无发布端口、专属 Site/DB 卷及本工作树只读源码挂载保持。
+
+开工 live source 与 runtime 相对第十一交付 PASS：仍为固定 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，source canonical `07a3b0e7118fb60002618fc0f7fa28d849765f916bdea28366a07aad8a1b939d`，runtime canonical `8fbb2f8d7491572a2ba057e343d2cb3f4658ffca5c7b646d2843424950392e6f`；settings_unchanged=true、observations_changed=false。旧八→九配置 HOLD 与 Windows EXE 身份缺口不变，仅继续新原生 Connection / 新凭据 / 合成本地作业范围。证据与合同差异见[第十二来源审查](cowork-backend/twelfth-source-review.md)。
+
+App/域/依赖：`companion.queue_api` 是两个薄 Frappe RPC，按精确路径的私有 HTTP 能力单向调用 `companion.transport`；`http_auth` 有限方法表区分 heartbeat、lease、ack。派发仍由当前凭据和原 actor 权限验证；receipt_auth 的历史能力加入不可伪造的原 issuer，保留框架原生 IP 限制，同时不重新授予其普通用户或派发权限。没有新 DocType/持久路径移动、通用路由、菜单或前端。
+
+合同：原生 Frappe `message` 封套保留，旧 `/api/erp/agent/*` 和顶层 JSON 读取方式不冒称已兼容。handler 只对提交前确定的本地死锁最多三次回滚重验；显式 commit 成功才返回领取或回执结果。commit / after_commit 的异常不重跑领取，不能据 HTTP 失败推断数据库一定未提交。框架外层仍可能再次提交，相关失败要以真实 WSGI 故障注入确认，不能用 mock 响应替代。ACK 的错误保护须覆盖已解密 attempt secret、Bearer、Recorder 和 Error Log，详见[框架边界审查](cowork-backend/companion-queue-http-boundary.md)。
+
+### 实现与真实请求验证
+
+两个薄 RPC 已完成。输入不合法给稳定 400，凭据或范围不符拒绝，回执与当前 Attempt/fence 冲突给 409，本地可用性故障给 503；不能用空队列掩盖数据库故障。轮换、撤销、禁用发行人/公司/连接、关闭总闸后不再派发，但原历史凭据仍只可回传自己已领任务；原生 IP 检查继续执行。原生 `message` 封套有意保留，没有将裸 Record 名或原始发送令牌作为客户端句柄。
+
+- 新增真实 WSGI **40 项**：领取/共通入口 16、回执 24。正常、畸形参数、别名、其它动词、人工 API key、cookie/cmd/sid、override/server script、不同操作能力混用、写前撤权均验证；两个独立 HTTP 进程先建立旧 RR 快照，再同时领取，只生成一个 Attempt/Delivery 和对应写锁。
+- 提交前故障不会返回任务或成功回执；after_commit 故障不重跑，已持久的领取不再发，已持久 ACK 可幂等回放。外层 Frappe 第二次 commit 故障会逃出框架原 try/except，真实 WSGI 测试确认没有成功 payload，但不将它描述成固定 503 JSON 响应；此时首个 commit 已持久，HTTP 失败不能推断业务未发生。
+- 发现并关闭两类秘密泄漏：ACK 解密后死锁再遇 rollback 失败，异常原链可逃出保护；`frappe.throw` 则先排入 message_log，即使隐藏 traceback 仍能从 `_server_messages` 返回。前者单独转换安全 503 且停止重试；后者同时清原生消息及 error_message，在错误、认证/写入重试之后和成功 commit 返回前处理。真实 developer mode + Recorder 正对照验证 Bearer/解密 attempt secret 不进入错误快照、提示或机器记录；普通 ping 仍正常记录，没有全局关闭 Recorder。
+- 受影响旧回归：心跳 HTTP **26**、内部运输 **40**、凭据 **20**、目录收集 **18**，与新增合计 **144 项原生测试**通过，无 skip，不累计复跑。锁定镜像无网完整离线 **755 项**通过（原 739 加新增 16）；旧 13 个纯 HTTP 断言未改，仅增加方法表依赖提取。
+
+保留真实验证过程：初次 commit 故障替身遗漏 Frappe 的 chain 参数，修正签名后通过；新夹具每项独立用户触发建号节流，限定仅建合成数据的 import flag，不用于 HTTP；两个旧/新 HTTP 夹具修改 Site 文件却未清 Frappe 60 秒进程配置缓存，现通过官方 clear_site_config_cache 使开关/developer mode 测试确定生效，没有改弱断言。旧心跳原 26 组在修正后完整通过。
+
+多轮合成建号的 create_contact 辅助队列累积到 650，造成某次 ACK 组四项 setup 错误，未记为业务通过。先只读逐项核对任务种类/Site/合成用户，再仅删除本任务 push Site 的 454 个 create_contact、`cw-*@example.invalid` 辅助任务；保留其它 196 个队列项，不清空 Redis/全队列/数据库。删除 ID 集合 SHA256 `56b078bc884312116cb0f6c1938fed11f69037d8346b0101126cd242d0162bb1`。新夹具只在合成建用户及改 API secret 时使用 install flag 同步建 Contact，HTTP 前恢复并销毁夹具上下文；完整 ACK 24 项复验通过。后续旧组在独立 companion Site 运行，避免新合成建号的每分钟限流；两 Site 均属同一专有实验环境。
+
+### 语言、来源与余项
+
+新增一条 companion.queue_conflict，TSV 与 Cowork 四语 CSV 同步，每语 475；4 次真实 Frappe 翻译查找通过。术语表检查和前端键检查通过（338 键、0 问题），没有改前端。全仓 strict 仍是旧 **147 项/43 文件/135 文案**失败，与本批基线按 file/kind/text（仅去行号）逐项比较新增/减少均 0，未修改检查器或忽略表。
+
+本批无 schema/DocType/hook 路径变化，复用上批已迁移的两个专属 Site，不重复安装/迁移并冒称新安装证据。实际镜像仍 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`。固定来源线协议纯契约和内部 transport 未改；上批 910 组源函数差分和 17 组明确适配保留为当时证据，本次不重复执行或累加到新测试总数。
+
+交付 source canonical `f0ce597a73ab5a0f2e31a959e1ed9f7ed9c820589632fe5e6594340f59487e0a`，runtime canonical `7e3cde2853d973f80469b25c043af2c63739c7df6a058f99b71ee2d2e3e997c3`；对本批开工和第十一交付均 PASS，源码仍 ec2e5c957e6b，settings_unchanged=true、observations_changed=false。四份源证据只读归档；第八→第九旧数据 HOLD 不解除，实际 Windows EXE 来源与新协议适配也未完成。
+
+下一步仍是准备事实采集和人工激活入口，再补 ACK 对应 History 终态、库存主档计数和唯一通知事件。HTTP 收到合成成功回执只证明本地账本流程，不能称为实际 ERP 成功或独立回读。MRERP、未知结果恢复、LINE/WeKan、对账、盘点照片/legacy、导入删除/导出归档及旧状态迁入等余项仍在，尚未到前端接入点。
+
+实现和本地检查通过；全仓 strict i18n 保留既有失败。CI、部署、外部业务结果、Windows 真机和用户验收未执行。仅保存独立本地提交，未合回主线、未推送、未部署；主目录末次只读核验仍干净 `1a0585e`，未改 DMS 或接管其它运行环境。候选文件哈希、准确日志与边界见 `cowork-backend/evidence/twelfth-local-validation.json`。本任务工作树及 Site/DB 卷保留用于续接。
+
+第十二批收尾：候选文件哈希与语法、架构 0 违规、diff 检查通过。本任务 bench/db/redis 三容器已停止，两个命名数据卷保留；没有停止其它项目。使用共享暂存快照钩子保存本地提交，不跳过检查。下一批从上述后端余项续接，不将此批 HTTP 完成写成 Cowork 整体迁移完成。

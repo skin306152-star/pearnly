@@ -114,10 +114,18 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 `push.native` 单向依赖 connections、history/access 和纯 targets/lifecycle/receipts；以三个原生 DocType 持久化 Record、Attempt、Writer Lock。记录及载荷不可变、当前版本放行、端点与公司/账套互斥、随机尝试令牌摘要及递增序号共同防重；旧派发结果未知时保留写锁，不自动重领。过时准备仅在从未派发的证据完整时可撤销替换；真实旧尝试的迟到回执仍可记录。所有框架 CRUD、分享入口拒绝绕过专用域服务。
 
-本批没有公开 activate/lease/ACK、队列消费者、scheduler、Companion或MRERP运输入口。内部 AdapterContext 只是服务端装配约束，不是客户机身份认证，不能宣称跨Site/物理设备写者锁已验收。新Record的 prepared 只代表本地准备，不是排队、发送或入账成功。未添加菜单、页面或其它产品能力入口；依赖及剩余外推边界见[原生连接](../work/cowork-backend/connections-native.md)和[原生推送](../work/cowork-backend/push-native.md)。
+截至第八批没有公开 activate/lease/ACK、队列消费者、scheduler、Companion或MRERP运输入口；第十至十二批的后续入口见下节。内部 AdapterContext 只是服务端装配约束，不是客户机身份认证，不能宣称跨Site/物理设备写者锁已验收。新Record的 prepared 只代表本地准备，不是排队、发送或入账成功。未添加菜单、页面或其它产品能力入口；依赖及剩余外推边界见[原生连接](../work/cowork-backend/connections-native.md)和[原生推送](../work/cowork-backend/push-native.md)。
 
 ### Cowork 凭据与盘点导出（2026-09-21）
 
-`companion` 单向依赖 `connections.access` 的当前授权；contracts 保持纯计算。原生 Express Agent Credential 每次发行一行，摘要与末四位代替明文，Connection→Credential 顺序锁保护轮换、撤销、请求回执和代际唯一性。机器上下文必须来自内部认证的对象能力，写前重新核对当前身份与授权；本批只有人工管理RPC及内部认证，没有auth_hooks、心跳、目录采集或运输入口，不创建平台User。推送总闸同样限制发行和内部认证，关闭后仍可管理撤销。旧客户端实际运行文件来源与全量配置差异尚未闭合，不因为本地凭据完成而放行后续机器接口。
+`companion` 单向依赖 `connections.access` 的当前授权；contracts 保持纯计算。原生 Express Agent Credential 每次发行一行，摘要与末四位代替明文，Connection→Credential 顺序锁保护轮换、撤销、请求回执和代际唯一性。机器上下文必须来自内部认证的对象能力，写前重新核对当前身份与授权；截至第九批只有人工管理RPC及内部认证，没有auth_hooks、心跳、目录采集或运输入口，不创建平台User。推送总闸同样限制发行和派发认证，关闭后仍可管理撤销。旧客户端实际运行文件来源与全量配置差异尚未闭合，不能据本地凭据完成而切换真实旧客户端或迁入旧业务状态。
 
 `stocktake.export` 只消费同域service.report提供的已授权全量锁定快照，依赖既有Decimal数量与比较合同，输出固定泰语复核工作簿协议；不读取ERP目录或文件，不重新实现权限。专用GET下载沿原生私有响应和Access Log，照片和legacy模式尚未承接。两项均不增加菜单/页面。详见[身份合同](../work/cowork-backend/companion-identity-contract.md)和[盘点导出](../work/cowork-backend/stocktake-export.md)。
+
+### Cowork 机器心跳及回执接口（第十至十二批）
+
+`companion.http_auth` 只接受三个精确 POST RPC：`heartbeat.report`、`queue_api.lease`、`queue_api.acknowledge`。每个请求绑定独立操作类型和请求对象，机器身份不能继承到通用 RPC、资源 CRUD、别名或浏览器会话；保留原生 issuer IP 限制。新原生 Connection / 新凭据的报告单向调用 `connections.collector`，目录刷新不自动授予推送准备资料。
+
+`companion.transport` 单向调用 `push.native` 账本，不包含 HTTP 或提交。私有 Delivery 把线协议 UUID 绑定到本 Site/Connection/历史 Credential/Attempt/fence；原始 attempt secret 使用原生 Password 密文，不编码进句柄。`receipt_auth` 的窄能力可在停闸、撤权或轮换后接收原历史任务结果，不能领取新任务或写报告，也不跳过原 issuer 的 IP 限制；它与当前派发能力互不通用。
+
+`queue_api` 为薄事务入口，显式提交成功才返回原生 Frappe `message` 封套；只对提交前本地死锁有限重试并重验权限，提交或回滚失败不重跑任务。错误堆栈、Recorder 和原生消息列表不得带出 Bearer 或 attempt secret。没有后台外部写者、真实 Windows 接线或 ERP 调用，prepared 不由 poll 激活；人工激活、准备事实、History/库存/通知副作用仍待独立承接。实际旧客户端路径及顶层 JSON 协议需要适配，不能据这些本地接口称为直接兼容。见[HTTP 边界](../work/cowork-backend/companion-queue-http-boundary.md)和[第十二来源审查](../work/cowork-backend/twelfth-source-review.md)。
