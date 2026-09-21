@@ -1,0 +1,99 @@
+"""收银域接口层。业务与权限在 services，这里只做参数解析。"""
+
+import frappe
+
+from pearnly_erp_portal.cashier import sales, shifts, terminals
+
+
+def _clean(kwargs):
+    kwargs.pop("cmd", None)
+    return kwargs
+
+
+def _json_args(kwargs, *names):
+    for name in names:
+        if isinstance(kwargs.get(name), str):
+            kwargs[name] = frappe.parse_json(kwargs[name])
+    return kwargs
+
+
+# ── 收银台 ──────────────────────────────────────────────────────────────────
+
+
+@frappe.whitelist()
+def api_list_terminals(**kwargs):
+    return terminals.list_terminals(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_create_terminal(**kwargs):
+    return terminals.create_terminal(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_update_terminal(**kwargs):
+    kwargs = _clean(kwargs)
+    return terminals.update_terminal(kwargs.pop("name", None), **kwargs)
+
+
+# ── 班次 ────────────────────────────────────────────────────────────────────
+
+
+@frappe.whitelist(methods=["POST"])
+def api_open_shift(**kwargs):
+    return shifts.open_shift(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_current_shift(**kwargs):
+    return shifts.current_shift(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_shift_summary(**kwargs):
+    kwargs = _clean(kwargs)
+    return shifts.summary(kwargs.get("name"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_close_shift(**kwargs):
+    kwargs = _clean(kwargs)
+    return shifts.close_shift(kwargs.pop("name", None), **kwargs)
+
+
+@frappe.whitelist()
+def api_list_shifts(**kwargs):
+    return shifts.list_shifts(**_clean(kwargs))
+
+
+# ── 销售 ────────────────────────────────────────────────────────────────────
+
+
+@frappe.whitelist(methods=["POST"])
+def api_create_sale(**kwargs):
+    _json_args(kwargs, "lines", "payments")
+    return sales.create_sale(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_list_sales(**kwargs):
+    return sales.list_sales(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_get_sale(**kwargs):
+    kwargs = _clean(kwargs)
+    return sales.get_sale(kwargs.get("name"))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_refund_sale(**kwargs):
+    _json_args(kwargs, "lines", "payments")
+    kwargs = _clean(kwargs)
+    return sales.refund(kwargs.pop("name", None), **kwargs)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_void_sale(**kwargs):
+    kwargs = _clean(kwargs)
+    return sales.void_sale(kwargs.pop("name", None), **kwargs)

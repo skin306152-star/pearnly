@@ -113,11 +113,12 @@ ENFORCEMENT = {
                                           "ERP Stock Entry Line", "ERP Stock Movement",
                                           "ERP Stock Balance"]),
     ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening"]),
-    ("erp", "sales"): ("ERP Sales", []),
+    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line"]),
     ("erp", "clients"): ("ERP Sales", []),
     # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
     # 否则团队管理里勾不到这个岗位。
-    ("erp", "cashier"): ("ERP Cashier", []),
+    ("erp", "cashier"): ("ERP Cashier", ["ERP POS Terminal", "ERP Shift", "ERP Sale",
+                                         "ERP Sale Line", "ERP Sale Payment"]),
     ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
     ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
     ("dms", "roster"): ("DMS Operator", ["DMS Operator"]),

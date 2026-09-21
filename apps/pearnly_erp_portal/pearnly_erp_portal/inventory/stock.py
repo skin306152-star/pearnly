@@ -85,12 +85,17 @@ def _save_balance(product: str, warehouse: str, balance: contracts.Balance) -> N
 def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, unit=None,
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                   allow_negative=True) -> dict:
+                   allow_negative=True, internal=False) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
+
+    `internal=True` 表示这是**另一个域**授权后触发的库存动作（目前是销售与退货）：
+    收银员卖货要出货，但那不是在"管理库存"，所以不该要求库存岗位。调用方必须自己已经
+    做过权限判断，这里不再重复要 `stock.write` —— 一个用户动作只过一道闸。
     """
-    _require()
+    if not internal:
+        _require()
     product_doc = _product(product)
 
     if client_uuid:
@@ -149,11 +154,13 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
 
 def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
                 ref_type=None, ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                allow_negative=True) -> dict:
+                allow_negative=True, internal=False) -> dict:
     """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。"""
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
 
+    if not internal:
+        _require()
     if client_uuid and frappe.db.exists(MOVEMENT, {"client_uuid": client_uuid}):
         return {"movements": [], "updated": [], "deduped": True}
 
@@ -164,7 +171,7 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
             qty=line["qty"], unit=line.get("unit"), unit_cost=line.get("unit_cost"),
             posting_date=posting_date, ref_type=ref_type, ref_id=ref_id, doc_no=doc_no,
             reason=reason, client_uuid=client_uuid if index == 0 else None,
-            allow_negative=allow_negative,
+            allow_negative=allow_negative, internal=True,
         )
         movements.append(result["movement"])
         updated.append({"product": line["product"], "qty_on_hand": result["qty_on_hand"]})

@@ -44,6 +44,11 @@ def main():
         redis_cache="redis://redis:6379/0",
         redis_queue="redis://redis:6379/1",
         redis_socketio="redis://redis:6379/2",
+        # 这个实验室**没有 worker**，迁移时排的搜索索引任务不会被消费，堆到 500 条就把
+        # 之后的写入全挡住（`Too many queued background jobs`）。生产有 worker，不受影响；
+        # 实验室把上限调高，并在需要时清一次队列：
+        #   docker compose -f infrastructure/compose/erp-pos-lab.yml exec -T redis redis-cli -n 1 flushdb
+        max_queued_jobs=100000,
         developer_mode=1,
         pause_scheduler=1,
         disable_scheduler=1,

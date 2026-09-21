@@ -43,6 +43,11 @@ CAPABILITY_FEATURES = {
     "stock.read": ("warehouses", "stockcard"),
     "stock.write": ("warehouses",),
     "stock.manage": ("warehouses",),
+    "cashier.read": ("cashier",),
+    "cashier.write": ("cashier",),
+    "cashier.manage": ("cashier",),
+    "sales.read": ("sales",),
+    "sales.write": ("sales",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。

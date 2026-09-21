@@ -16,6 +16,7 @@ from pearnly_erp_portal.access import rules  # noqa: E402
 from pearnly_erp_portal.products import contracts  # noqa: E402
 from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
 from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
+from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
 
 FEATURES = ROOT / "apps/pearnly_control/pearnly_control/features.py"
 
@@ -324,6 +325,89 @@ class StockRollingCost(unittest.TestCase):
         # 期内从 date_from 当天算起，期初是它之前的结转。
         self.assertEqual([m["qty_base"] for m in before], [5])
         self.assertEqual([m["qty_base"] for m in period], [3, -1])
+
+
+
+
+class CashierSettlement(unittest.TestCase):
+    """付款结算与找零：口径照旧线上 payment_settlement.py，一条都不放宽。"""
+
+    def test_cash_payment_with_change(self):
+        payments, paid, change = cashier_contracts.settle(
+            [{"method": "cash", "amount": 100}], 87)
+        self.assertEqual(str(paid), "100.00")
+        self.assertEqual(str(change), "13.00")
+        self.assertEqual(payments[0]["method"], "cash")
+
+    def test_qr_is_normalised_to_promptpay(self):
+        payments, _, _ = cashier_contracts.settle([{"method": "qr", "amount": 50}], 50)
+        self.assertEqual(payments[0]["method"], "promptpay")
+
+    def test_exact_non_cash_payment_is_fine(self):
+        _, paid, change = cashier_contracts.settle([{"method": "card", "amount": 50}], 50)
+        self.assertEqual((str(paid), str(change)), ("50.00", "0.00"))
+
+    def test_non_cash_overpay_is_rejected(self):
+        # 非现金多付不给找零：要么是错，要么得改单。
+        with self.assertRaises(cashier_contracts.SettlementError) as ctx:
+            cashier_contracts.settle([{"method": "card", "amount": 60}], 50)
+        self.assertEqual(ctx.exception.detail, "noncash_overpay")
+
+    def test_underpayment_is_rejected(self):
+        with self.assertRaises(cashier_contracts.SettlementError) as ctx:
+            cashier_contracts.settle([{"method": "cash", "amount": 40}], 50)
+        self.assertEqual(ctx.exception.detail, "underpaid")
+
+    def test_split_payment_may_change_from_the_cash_part(self):
+        _, paid, change = cashier_contracts.settle(
+            [{"method": "card", "amount": 50}, {"method": "cash", "amount": 60}], 100)
+        self.assertEqual((str(paid), str(change)), ("110.00", "10.00"))
+
+    def test_zero_total_takes_no_payment(self):
+        self.assertEqual(cashier_contracts.settle([], 0), ([], 0, 0))
+        with self.assertRaises(cashier_contracts.SettlementError) as ctx:
+            cashier_contracts.settle([{"method": "cash", "amount": 10}], 0)
+        self.assertEqual(ctx.exception.detail, "zero_total")
+
+    def test_bad_payment_rows_are_rejected(self):
+        cases = [
+            ([{"method": "crypto", "amount": 10}], "method"),
+            ([{"method": "cash", "amount": 0}], "amount"),
+            ([{"method": "cash", "amount": -5}], "amount"),
+            ([{"method": "cash", "amount": "10.555"}], "amount"),
+            (["cash"], "payment"),
+        ]
+        for payments, detail in cases:
+            with self.subTest(detail=detail), self.assertRaises(
+                    cashier_contracts.SettlementError) as ctx:
+                cashier_contracts.settle(payments, 10)
+            self.assertEqual(ctx.exception.detail, detail)
+
+    def test_sale_totals_apply_discount_and_vat(self):
+        # 行净额 2×50−10 = 90；单据折扣 5 → 应税 85；VAT 7% = 5.95；合计 90.95。
+        totals = cashier_contracts.sale_totals(
+            [{"qty": 2, "unit_price": 50, "discount": 10}], discount_total=5, vat_rate=7)
+        self.assertEqual(str(totals["subtotal"]), "90.00")
+        self.assertEqual(str(totals["discount_total"]), "5.00")
+        self.assertEqual(str(totals["vat_amount"]), "5.95")
+        self.assertEqual(str(totals["grand_total"]), "90.95")
+
+    def test_sale_totals_reject_non_positive_qty_and_big_discounts(self):
+        with self.assertRaises(cashier_contracts.SettlementError):
+            cashier_contracts.sale_totals([{"qty": 0, "unit_price": 10}])
+        with self.assertRaises(cashier_contracts.SettlementError):
+            cashier_contracts.sale_totals([], )
+        with self.assertRaises(cashier_contracts.SettlementError):
+            cashier_contracts.sale_totals([{"qty": 1, "unit_price": 10, "discount": 20}])
+        with self.assertRaises(cashier_contracts.SettlementError):
+            cashier_contracts.sale_totals([{"qty": 1, "unit_price": 10}], discount_total=20)
+
+    def test_shift_cash_expectation_and_difference(self):
+        # 备用金 500 + 现金实收 1000 − 找零 60 = 1440
+        expected = cashier_contracts.shift_expected(500, 1000, 60)
+        self.assertEqual(str(expected), "1440.00")
+        self.assertEqual(str(cashier_contracts.shift_difference(1400, expected)), "-40.00")
+        self.assertEqual(str(cashier_contracts.shift_difference(1500, expected)), "60.00")
 
 
 if __name__ == "__main__":
