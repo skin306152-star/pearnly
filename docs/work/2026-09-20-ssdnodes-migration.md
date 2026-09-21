@@ -609,3 +609,48 @@ H11 表中的旧公共路径即 `pearnly.com`；它不是新租户编辑器地�
   （版本哈希 `58e7fc6f93af787d`，随内容变化所以浏览器一定会取新文件）；站点 `ping` 200。
 
 真机待确认：手机上从导航菜单选页面后，菜单应自动收起、页面可正常滚动，不再需要第二次点击。
+
+## 2026-09-21 主题名改名 + 手机"第一下只出灰底、第二下才触发"（已修并部署）
+
+### 主题名：Frappe Light → Pearnly
+
+Desk 的主题名来自 Frappe 自带 `__("Frappe Light")`，而 Frappe 自己的 `locale/zh.po`
+把它译成"Frappe Light主题"（泰文是"ฟรัปเป้ไลท์"）。**不动原生 JS**，只在我们的术语表
+`scripts/i18n/messages.tsv` 覆盖这一条（`key` 列填 `Frappe Light`），由 `i18n-build.py`
+生成四语 CSV。实测（本地产品站 + 线上）：`get_all_translations()` 读出
+zh=`Pearnly主题`、th/en/ja=`Pearnly`。
+
+### 手机导航"点两下"：根因与修法
+
+用户补充的关键现象：**第一次点击只出现灰底（hover 态），第二次才触发**；受影响的是
+侧栏 4 项、顶部公司名、左下角个人区。这正是 **iOS Safari "第一下当 hover"** 的行为
+（Chromium 不模拟它，所以之前在本机控制面怎么点都是"一下"）。另外左下角点开后**会先闪出
+未剪裁的原生个人页**再变成我们的版本 —— 那是 `user.js` 在页面渲染后才做修剪造成的。
+
+改动（`apps/pearnly_core/pearnly_core/public/desk/product.css` / `product.js` / `user.js`）：
+
+1. 侧栏项、公司名、左下角用户区加 `touch-action: manipulation`；`@media (hover: none)`
+   下中和那层 hover 底色（只改颜色，行为仍归原生控件）。
+2. 侧栏项：触摸设备上**自己接住第一下** —— `touchend` 时阻止随后那次合成 click
+   （避免跳两次），按链接自身的 path 走 `frappe.set_route()`，并收起侧栏。
+3. 个人资料页：CSS 先在 `data-route="user"` 时隐藏 `.layout-main-section`，
+   `user.js` 修剪完调 `mark_profile_ready()` 再显示；有 5 秒看门狗兜底，
+   避免 JS 出错时留下空白页。
+
+### 验证
+
+- 真实浏览器 + 触摸模拟（iPhone 13 视口、`(hover: none)` 为真）：在侧栏项上派发一次
+  `touchend`（**没有 click**）→ `defaultPrevented = true`、路由按该链接的 path 设置、
+  侧栏收起。即"第一下就跳"，且不会跳两次。
+- `node --check`、`node tests/test-native-desk.cjs`、`check-architecture.py` 全通过；
+  i18n 生成与检查 `RESULT: PASS`。
+- 部署回读：`main` = `f902a98`（主题名那条是 `b890691`），镜像 `sha256:32f5e29f9b2c…`；
+  线上 `assets/pearnly_core/desk/product.js` 含 `touchend` 处理、`product.css` 含
+  `hover: none` 与 `pearnly-profile-ready`、`user.js` 含 `mark_profile_ready`；站点 200。
+
+**本地复现环境的说明**：为了找一个"产品站才有的行为"，在本地控制面 bench 里临时建了
+产品站点 `dmsprobe.localhost`（该站点登录走统一身份，最终没能用它跑通全流程）。
+用完已 `drop-site` 并复原 `sites/apps.txt`，本机没有留下这个站点。
+
+真机待确认：手机上一指点击侧栏项/公司名/左下角个人区是否**一次即触发**，且个人资料页
+不再闪出未剪裁的原生界面。iOS 的 hover 行为无法在本地完全还原，最终以真机为准。
