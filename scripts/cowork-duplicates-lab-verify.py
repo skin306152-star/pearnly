@@ -23,18 +23,20 @@ connect, user, grant, PAGES = (BASE[key] for key in ("connect", "user", "grant",
 FRESH_SITE = "cowork-backend-duplicates.localhost"
 
 
-def install_fresh():
+def install_fresh(site=FRESH_SITE):
     """Called only after connect() proves the existing bench is our marked lab."""
     root = Path("/home/frappe/frappe-bench")
-    if (root / "sites" / FRESH_SITE).exists():
+    if site not in {FRESH_SITE, "cowork-backend-classification.localhost"}:
+        raise SystemExit("Unrecognized fresh test Site")
+    if (root / "sites" / site).exists():
         raise SystemExit("Fresh test Site already exists; refusing to overwrite it")
     frappe.destroy()
-    subprocess.run(["bench", "new-site", FRESH_SITE, "--db-host", "db",
+    subprocess.run(["bench", "new-site", site, "--db-host", "db",
         "--db-root-password", "cowork-backend-lab-only", "--admin-password", "cowork-backend-lab-only",
         "--mariadb-user-host-login-scope", "%"], cwd=root, check=True)
-    subprocess.run(["bench", "--site", FRESH_SITE, "install-app", "pearnly_core", "pearnly_cowork"], cwd=root, check=True)
+    subprocess.run(["bench", "--site", site, "install-app", "pearnly_core", "pearnly_cowork"], cwd=root, check=True)
     # Frappe's own site-config writer; the exact new lab Site is task-owned.
-    frappe.init(site=FRESH_SITE, sites_path=str(root / "sites"))
+    frappe.init(site=site, sites_path=str(root / "sites"))
     from frappe.installer import update_site_config
     config = {"pearnly_product": "cowork", "pearnly_backend_lab": True,
         "pearnly_features": ["intake", "ocr_history", "master_data", "push_log", "stocktake", "recon"],
@@ -42,7 +44,7 @@ def install_fresh():
     for key, value in config.items():
         update_site_config(key, value)
     frappe.destroy()
-    print(json.dumps({"fresh_site": FRESH_SITE, "installation": "PASS"}))
+    print(json.dumps({"fresh_site": site, "installation": "PASS"}))
 
 
 def snapshot():

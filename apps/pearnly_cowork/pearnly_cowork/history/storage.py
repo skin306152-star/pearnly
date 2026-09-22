@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
-from . import duplicates
+from . import categories, duplicates
 from pearnly_cowork.contracts.history import HistoryContractError, initial_history, prepare_pages, extract_summary_fields, list_status, normalize_posting_kind
 
 DOCTYPE = "Cowork OCR History"
@@ -143,8 +143,9 @@ def _create(workspace, body, request_key, client=None, *, attachment=None, check
     name = "CWH-" + key[:48]
     if frappe.db.exists(DOCTYPE, name):
         return _existing(name, fingerprint)
+    pages = categories.prepare(workspace, client, body["pages"]) if check_duplicates else body["pages"]
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "workspace": workspace, "client": client or "",
-                          "source": body["source"], "pages": encode(body["pages"]),
+                          "source": body["source"], "pages": encode(pages),
                           "ai_raw": encode(body["ai_raw"]), "confidence": body["confidence"], "staged": 1,
                           "posting_kind": body["posting_kind"],
                           "request_key": key, "request_fingerprint": fingerprint,
@@ -213,11 +214,14 @@ def update_pages(name, pages, expected_version):
     pages = contract(prepare_pages, parse(pages), anchor_year=anchor_year())
     if not pages:
         frappe.throw(_("At least one invoice page is required when editing."))
+    changed = doc.pages != encode(pages)
     doc.pages = encode(pages)
     doc.flags.cowork_history_update = _UPDATE_TOKEN
     doc.save()
     from pearnly_cowork.ocr.feedback.service import capture_saved_edit
     capture_saved_edit(doc)
+    if changed:
+        categories.learn(doc.workspace, doc.client, pages)
     return project(doc)
 
 
