@@ -273,8 +273,8 @@
 						label: t("product.import.template"), click: () => {
 							// 模板是服务端现生成的（表头跟着站点语言走），走下载口拿，
 							// 不在租户里留 File 记录。
-							window.open(frappe.utils.get_url(
-								"/api/method/pearnly_erp_portal.products.service.api_import_template"));
+							window.location.assign(
+								"/api/method/pearnly_erp_portal.products.service.api_import_template");
 						} },
 				],
 				t("product.action.import"),

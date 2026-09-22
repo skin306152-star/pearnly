@@ -147,11 +147,6 @@
 			});
 			update_action([]);
 			page.add_inner_button(t("stock.action.reload"), () => void list?.reload());
-			// 模版按**当前结存**给：先导表、离线填实盘数，再走"上传导入"开一份盘点。
-			page.add_inner_button(t("stock.count.template"), () => {
-				window.open(frappe.utils.get_url(
-					`/api/method/${api}api_stock_count_template`));
-			});
 			void list.ready;
 		}
 
@@ -217,8 +212,8 @@
 						read_only: 1, hidden: 1 },
 					{ fieldtype: "Button", fieldname: "template",
 						label: t("stock.count.template"), hidden: 1, click: () => {
-							window.open(frappe.utils.get_url(
-								`/api/method/${api}api_stock_count_template`));
+							window.location.assign(
+								`/api/method/${api}api_stock_count_template`);
 						} },
 					{ fieldtype: "HTML",
 						options: `<p class="text-muted">${p.escape(t("stock.count.newHint"))}</p>` },
@@ -290,8 +285,8 @@
 			if (!current()) return;
 			const editable = task.status === "Active";
 			page.add_inner_button(t("stock.action.export"), () => {
-				window.open(frappe.utils.get_url(
-					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
+				window.location.assign(
+					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`);
 			});
 			// 差异看板是**原生报表**（`/desk/query-report/...`）：筛选、图表、导出都用
 			// 框架自带的那一套，不用在页面里自绘一块。按这份盘点预筛好再打开。
@@ -420,8 +415,8 @@
 						read_only: 1 },
 					{ fieldtype: "Button", fieldname: "template",
 						label: t("stock.count.template"), click: () => {
-							window.open(frappe.utils.get_url(
-								`/api/method/${api}api_stock_count_template?name=${encodeURIComponent(name)}`));
+							window.location.assign(
+								`/api/method/${api}api_stock_count_template?name=${encodeURIComponent(name)}`);
 						} },
 				],
 				t("stock.count.import"),

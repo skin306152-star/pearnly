@@ -103,8 +103,8 @@
 			for (const [key, value] of Object.entries(query())) {
 				if (value !== undefined) params.set(key, value);
 			}
-			window.open(frappe.utils.get_url(
-				`/api/method/${api}api_stock_export?${params.toString()}`));
+			window.location.assign(
+				`/api/method/${api}api_stock_export?${params.toString()}`);
 		});
 
 		await list.ready;
