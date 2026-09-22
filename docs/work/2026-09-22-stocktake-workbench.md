@@ -557,3 +557,30 @@
 - 没做 / 待确认：导出沿用现有两张表（汇总 + 明细）的版式，只加了红；旧项目那份导出还带冻结首行、
   自动筛选、边框与图片页，本仓现状没有，用户没提，先不动 —— 要就按旧项目补齐。
   另外"账面数量 / 实盘数量"那一对**没**标红（差异列已经点名了），如果希望连这一对一起标，说一声再加。
+
+### 更正：列表里那格红不该塞 HTML（2026-09-22 续，用户报障"这里显示乱码"）
+
+用户口径："这里显示乱码"（截图是盘点列表，`有差异` 那格显示成 `<span style="color: var(...)` 一串标记）。
+
+- 真因：共享列表 `apps/pearnly_core/pearnly_core/public/desk/list.js` 的单元格 formatter **只出转义文本**
+  （框架用 `$(column_html)` 量宽，纯文本会被当选择器解析，所以这层故意 `p.escape` 后包在
+  `<span class="ellipsis">` 里）。我上一版给 `difference_total` 列写了返回 HTML 的 `format`，
+  于是标记被原样显示出来 —— 工作台/记录弹窗是 DataTable（接受 HTML）所以没问题，列表这条不成立。
+- 修法：给列表列加一个 `cell_class`（字符串或 `(value, row) => string`），类名挂在**我们自己那个
+  wrapper** 上，文本照样转义；颜色在皮肤里定义：
+
+  ```js
+  // list.js：只有声明了 cell_class 的列才会多一个类，其它列的输出与以前逐字相同
+  const extra = typeof column.cell_class === "function" ? column.cell_class(value, row) : column.cell_class;
+  ```
+
+  ```css
+  /* product.css */
+  body.pearnly-product-desk .pearnly-difference { color: var(--red-600); }
+  ```
+
+  盘点列表那列改成 `cell_class: value => Number(value) ? "pearnly-difference" : ""`。
+- 验证：列表 `有差异 1` 那格现在是纯文本 `1`，wrapper 类 `ellipsis pearnly-difference`，
+  `getComputedStyle().color == rgb(204, 41, 41)`；进行中的任务那格仍为空值。
+  顺带抽查商品列表（4 行）与库存列表（2 行）：列头与单元格文本与改动前一致，`cell_class` 没声明就不加类。
+- 检查：架构 0 违规、前端词条 0 问题、十个 `tests/*.cjs` 全绿。

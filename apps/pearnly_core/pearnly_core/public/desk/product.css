@@ -144,3 +144,9 @@ body.pearnly-product-desk .datatable .dt-header .dt-row-header {
 body.pearnly-product-desk .datatable .dt-header .dt-cell--header:last-child {
 	border-top-right-radius: var(--border-radius);
 }
+
+/* 有差异的格标红。列表单元格只出转义文本（见 `desk/list.js`），颜色由列上的 `cell_class`
+   挂到 wrapper 上；色值与差异看板、工作台表格、导出表同一个红（框架 `--red-600`）。 */
+body.pearnly-product-desk .pearnly-difference {
+	color: var(--red-600);
+}

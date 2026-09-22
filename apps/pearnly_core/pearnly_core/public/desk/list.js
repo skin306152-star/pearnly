@@ -20,7 +20,13 @@
 				// selector and throws. Escape the value, then wrap it.
 				this.settings.formatters[column.fieldname] = (value, df, row) => {
 					const text = column.format ? column.format(value, row) : value;
-					return `<span class="ellipsis" title="${p.escape(text ?? "")}">${p.escape(text ?? "")}</span>`;
+					// 这一层只出**转义后的文本**，所以列不能从 `format` 里塞 HTML（会被显示成一串标记）。
+					// 要按格上样式就交给 `cell_class`：类名挂在我们自己这个 wrapper 上，颜色在皮肤里定义。
+					const extra = typeof column.cell_class === "function"
+						? column.cell_class(value, row) : column.cell_class;
+					const klass = String(extra ?? "").split(/\s+/).filter(Boolean)
+						.map(name => p.escape(name)).join(" ");
+					return `<span class="ellipsis${klass ? ` ${klass}` : ""}" title="${p.escape(text ?? "")}">${p.escape(text ?? "")}</span>`;
 				};
 				return {type: i === 0 ? "Subject" : "Field", df: {fieldtype: "Data", ...column}};
 			});

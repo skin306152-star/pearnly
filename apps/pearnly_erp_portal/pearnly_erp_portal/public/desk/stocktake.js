@@ -126,8 +126,9 @@
 					{ fieldname: "item_total", width: 80, min_width: 64, label: t("stock.count.rows") },
 					{ fieldname: "counted_total", width: 90, min_width: 72, label: t("stock.count.countedRows") },
 					// 有差异的任务把这格标红（同一处红：差异看板 / 工作台 / 导出表）。
+					// 列表这一层只出转义文本（塞 HTML 会被显示成标记），颜色走 `cell_class`。
 					{ fieldname: "difference_total", width: 90, min_width: 72, label: t("stock.count.differenceRows"),
-						format: value => Number(value) ? danger(p.escape(p.number(value))) : p.escape(p.number(value)) },
+						cell_class: value => Number(value) ? "pearnly-difference" : "" },
 					// 创建时间是库里的 datetime（带秒与微秒），直接显示会被截成一串省略号 ——
 					// 按"日期 时:分"显示（用户 2026-09-22 口径："那个时间格式不对"）。
 					{ fieldname: "creation", width: 160, min_width: 148, label: t("stock.count.createdAt"),
