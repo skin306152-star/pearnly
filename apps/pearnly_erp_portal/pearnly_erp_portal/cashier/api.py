@@ -2,7 +2,7 @@
 
 import frappe
 
-from pearnly_erp_portal.cashier import sales, shifts, terminals
+from pearnly_erp_portal.cashier import counter, sales, shifts, terminals
 
 
 def _clean(kwargs):
@@ -34,6 +34,23 @@ def api_create_terminal(**kwargs):
 def api_update_terminal(**kwargs):
     kwargs = _clean(kwargs)
     return terminals.update_terminal(kwargs.pop("name", None), **kwargs)
+
+
+# ── 班次 ────────────────────────────────────────────────────────────────────
+
+
+# ── 收银台（商品区）─────────────────────────────────────────────────────────
+
+
+@frappe.whitelist()
+def api_counter_products(**kwargs):
+    return counter.products_page(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_counter_lookup(**kwargs):
+    kwargs = _clean(kwargs)
+    return counter.lookup(kwargs.pop("value", None), **kwargs)
 
 
 # ── 班次 ────────────────────────────────────────────────────────────────────

@@ -303,6 +303,7 @@ app_include_js = [
 app_include_css = [
     versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
     versioned_asset("pearnly_erp_portal", "desk/sales.css"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
     versioned_asset("pearnly_erp_portal", "desk/scan.css"),
 ]
 

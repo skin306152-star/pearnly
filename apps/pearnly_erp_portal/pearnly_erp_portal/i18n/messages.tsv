@@ -729,3 +729,18 @@ Completed	已完成	เสร็จสิ้น	完了	trade.state.completed
 Voided	已作废	ยกเลิกแล้ว	取消済み	trade.state.void
 Open	开班中	เปิดกะอยู่	営業中	trade.state.open
 Closed	已交班	ปิดกะแล้ว	終了	trade.state.closed
+Products	商品	สินค้า	商品	trade.counterProducts
+Search name, code or barcode	搜索名称、编码或条码	ค้นหาชื่อ รหัส หรือบาร์โค้ด	名前・コード・バーコードで検索	trade.searchProducts
+Cart	购物车	ตะกร้า	カート	trade.cart
+Lines in this shift	当班小票	บิลในกะนี้	このシフトのレシート	trade.shiftReceipts
+Code	编码	รหัส	コード	trade.code
+On hand	库存	คงเหลือ	在庫	trade.onHand
+Clear cart	清空购物车	ล้างตะกร้า	カートを空にする	trade.cartClear
+Clear the cart?	要清空购物车吗？	ล้างตะกร้าใช่ไหม	カートを空にしますか	trade.cartClearConfirm
+The cart is empty	购物车是空的	ตะกร้าว่างเปล่า	カートは空です	trade.cartEmpty
+Added: {0}	已加入：{0}	เพิ่มแล้ว: {0}	追加しました: {0}	trade.addedToCart
+No product for this code: {0}	没找到这个码对应的商品：{0}	ไม่พบสินค้าสำหรับรหัสนี้: {0}	このコードの商品が見つかりません: {0}	trade.scanNotFound
+This device cannot scan	这台设备不能扫码	อุปกรณ์นี้สแกนไม่ได้	この端末ではスキャンできません	trade.scanUnsupported
+Change	找零	เงินทอน	お釣り	trade.change
+Pay	收款	รับชำระ	会計	trade.action.pay
+Scan	扫码	สแกน	スキャン	trade.scan

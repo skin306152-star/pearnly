@@ -1,0 +1,32 @@
+/* 收银台：一屏两栏（左商品、右购物车），照框架 POS 那个骨架的 8:4 比例
+   （`erpnext/public/scss/point-of-sale.scss` 的 `> .items-container` 与
+   `> .customer-cart-container`），窄屏堆成一栏。
+   只摆位置与边框，颜色/控件一律用原生的，不另造皮肤。 */
+body.pearnly-product-desk .pearnly-counter {
+	display: grid;
+	grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
+	gap: var(--padding-md, 15px);
+	align-items: start;
+}
+
+body.pearnly-product-desk .pearnly-counter-pane {
+	min-width: 0;
+}
+
+body.pearnly-product-desk .pearnly-counter-cart {
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+	padding: var(--padding-sm, 8px);
+}
+
+/* 购物车那一栏顶上那行合计：与主按钮同一个数，让人不用来回看。 */
+body.pearnly-product-desk .pearnly-counter-total {
+	font-weight: 600;
+	padding: 0 var(--padding-sm, 8px) var(--padding-xs, 4px);
+}
+
+@media (max-width: 991px) {
+	body.pearnly-product-desk .pearnly-counter {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

@@ -644,8 +644,10 @@ tax_invoice_simple,tax_invoice_simple
 trade.action.fullPage,Edit in Full Page
 trade.action.ledger,Stock ledger
 trade.action.ledgerSingle,Select one row to open its ledger
+trade.action.pay,Pay
 trade.action.submit,Submit
 trade.action.voidCount,Void {0} selected
+trade.addedToCart,Added: {0}
 trade.address,Address
 trade.amount,Amount
 trade.balance,Position Balance
@@ -654,16 +656,23 @@ trade.branchType,Branch Type
 trade.buyer,Customer
 trade.buyerType,Customer Type
 trade.byMethod,By Payment Method
+trade.cart,Cart
+trade.cartClear,Clear cart
+trade.cartClearConfirm,Clear the cart?
+trade.cartEmpty,The cart is empty
 trade.cashier,Cashier
+trade.change,Change
 trade.changeTotal,Change Total
 trade.checkout,New Sale
 trade.close,Close
 trade.closeShift,Close Shift
 trade.closedAt,Closed At
 trade.closing,Closing Quantity
+trade.code,Code
 trade.cost,Unit Cost
 trade.countCash,Cash Check
 trade.countedCash,Counted Cash
+trade.counterProducts,Products
 trade.date,Date
 trade.description,Description
 trade.diff,Difference
@@ -700,6 +709,7 @@ trade.newSale,New Sales Document
 trade.noShift,No Open Shift
 trade.note,Note
 trade.notice.submitted,Submitted {0}
+trade.onHand,On hand
 trade.openShift,Open Shift
 trade.openedAt,Opened At
 trade.opening,Opening Quantity
@@ -722,11 +732,16 @@ trade.refundSingle,Select one receipt to refund
 trade.rowOpening,Opening
 trade.salesCount,Sales Count
 trade.save,Save Draft
+trade.scan,Scan
+trade.scanNotFound,No product for this code: {0}
+trade.scanUnsupported,This device cannot scan
+trade.searchProducts,"Search name, code or barcode"
 trade.shiftClosed,Shift closed · Cash difference {0}
 trade.shiftHistory,Shift History
 trade.shiftNo,Shift No
 trade.shiftOpen,Shift {0} · Expected cash {1}
 trade.shiftOpened,Shift {0} opened
+trade.shiftReceipts,Lines in this shift
 trade.state.closed,Closed
 trade.state.completed,Completed
 trade.state.open,Open

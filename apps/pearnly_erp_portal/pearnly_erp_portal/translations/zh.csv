@@ -644,8 +644,10 @@ tax_invoice_simple,简易税务发票
 trade.action.fullPage,全屏编辑
 trade.action.ledger,查看流水
 trade.action.ledgerSingle,一次只能看一条流水
+trade.action.pay,收款
 trade.action.submit,提交
 trade.action.voidCount,作废选中的 {0} 张
+trade.addedToCart,已加入：{0}
 trade.address,地址
 trade.amount,金额
 trade.balance,该仓位结存
@@ -654,16 +656,23 @@ trade.branchType,分店类型
 trade.buyer,客户名称
 trade.buyerType,客户类型
 trade.byMethod,按收款方式
+trade.cart,购物车
+trade.cartClear,清空购物车
+trade.cartClearConfirm,要清空购物车吗？
+trade.cartEmpty,购物车是空的
 trade.cashier,收银员
+trade.change,找零
 trade.changeTotal,找零合计
 trade.checkout,收银开单
 trade.close,关闭
 trade.closeShift,交班
 trade.closedAt,交班时间
 trade.closing,期末数量
+trade.code,编码
 trade.cost,单位成本
 trade.countCash,现金核对
 trade.countedCash,实点现金
+trade.counterProducts,商品
 trade.date,日期
 trade.description,名称或说明
 trade.diff,差额
@@ -700,6 +709,7 @@ trade.newSale,新建销售单
 trade.noShift,尚未开班
 trade.note,备注
 trade.notice.submitted,已提交 {0}
+trade.onHand,库存
 trade.openShift,开班
 trade.openedAt,开班时间
 trade.opening,期初数量
@@ -722,11 +732,16 @@ trade.refundSingle,一次只能退一条小票
 trade.rowOpening,期初
 trade.salesCount,笔数
 trade.save,保存草稿
+trade.scan,扫码
+trade.scanNotFound,没找到这个码对应的商品：{0}
+trade.scanUnsupported,这台设备不能扫码
+trade.searchProducts,搜索名称、编码或条码
 trade.shiftClosed,已交班 · 差额 {0}
 trade.shiftHistory,班次记录
 trade.shiftNo,班次编号
 trade.shiftOpen,班次 {0} · 应有现金 {1}
 trade.shiftOpened,已开班 · 班次 {0}
+trade.shiftReceipts,当班小票
 trade.state.closed,已交班
 trade.state.completed,已完成
 trade.state.open,开班中

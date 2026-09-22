@@ -644,8 +644,10 @@ tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า
 trade.action.ledger,ดูบัญชีสต็อก
 trade.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
+trade.action.pay,รับชำระ
 trade.action.submit,ยืนยัน
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
+trade.addedToCart,เพิ่มแล้ว: {0}
 trade.address,ที่อยู่
 trade.amount,จำนวนเงิน
 trade.balance,คงเหลือในตำแหน่ง
@@ -654,16 +656,23 @@ trade.branchType,ประเภทสาขา
 trade.buyer,ชื่อลูกค้า
 trade.buyerType,ประเภทลูกค้า
 trade.byMethod,แยกตามวิธีรับเงิน
+trade.cart,ตะกร้า
+trade.cartClear,ล้างตะกร้า
+trade.cartClearConfirm,ล้างตะกร้าใช่ไหม
+trade.cartEmpty,ตะกร้าว่างเปล่า
 trade.cashier,พนักงานเก็บเงิน
+trade.change,เงินทอน
 trade.changeTotal,เงินทอนรวม
 trade.checkout,ขายสินค้า
 trade.close,ปิด
 trade.closeShift,ปิดกะ
 trade.closedAt,เวลาปิดกะ
 trade.closing,ยอดคงเหลือ
+trade.code,รหัส
 trade.cost,ต้นทุนต่อหน่วย
 trade.countCash,ตรวจเงินสด
 trade.countedCash,เงินสดที่นับได้
+trade.counterProducts,สินค้า
 trade.date,วันที่
 trade.description,ชื่อหรือรายละเอียด
 trade.diff,ผลต่าง
@@ -700,6 +709,7 @@ trade.newSale,สร้างเอกสารขาย
 trade.noShift,ยังไม่เปิดกะ
 trade.note,หมายเหตุ
 trade.notice.submitted,ยืนยันแล้ว {0}
+trade.onHand,คงเหลือ
 trade.openShift,เปิดกะ
 trade.openedAt,เวลาเปิดกะ
 trade.opening,ยอดยกมา
@@ -722,11 +732,16 @@ trade.refundSingle,เลือกได้ครั้งละหนึ่ง�
 trade.rowOpening,ยกมา
 trade.salesCount,จำนวนบิล
 trade.save,บันทึกฉบับร่าง
+trade.scan,สแกน
+trade.scanNotFound,ไม่พบสินค้าสำหรับรหัสนี้: {0}
+trade.scanUnsupported,อุปกรณ์นี้สแกนไม่ได้
+trade.searchProducts,ค้นหาชื่อ รหัส หรือบาร์โค้ด
 trade.shiftClosed,ปิดกะแล้ว · ผลต่างเงินสด {0}
 trade.shiftHistory,ประวัติกะ
 trade.shiftNo,เลขที่กะ
 trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
 trade.shiftOpened,เปิดกะแล้ว · กะ {0}
+trade.shiftReceipts,บิลในกะนี้
 trade.state.closed,ปิดกะแล้ว
 trade.state.completed,เสร็จสิ้น
 trade.state.open,เปิดกะอยู่

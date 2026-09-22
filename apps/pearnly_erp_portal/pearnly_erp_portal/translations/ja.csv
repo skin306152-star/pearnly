@@ -644,8 +644,10 @@ tax_invoice_simple,簡易税務請求書
 trade.action.fullPage,全画面で編集
 trade.action.ledger,在庫の受け払いを開く
 trade.action.ledgerSingle,明細は1行ずつ開きます
+trade.action.pay,会計
 trade.action.submit,確定
 trade.action.voidCount,選択した{0}件を取り消す
+trade.addedToCart,追加しました: {0}
 trade.address,住所
 trade.amount,金額
 trade.balance,保管場所の残高
@@ -654,16 +656,23 @@ trade.branchType,支店種類
 trade.buyer,顧客名
 trade.buyerType,顧客種類
 trade.byMethod,支払方法別
+trade.cart,カート
+trade.cartClear,カートを空にする
+trade.cartClearConfirm,カートを空にしますか
+trade.cartEmpty,カートは空です
 trade.cashier,レジ担当
+trade.change,お釣り
 trade.changeTotal,お釣り合計
 trade.checkout,会計
 trade.close,閉じる
 trade.closeShift,シフト終了
 trade.closedAt,終了時刻
 trade.closing,期末数量
+trade.code,コード
 trade.cost,単位原価
 trade.countCash,現金確認
 trade.countedCash,実際の現金
+trade.counterProducts,商品
 trade.date,日付
 trade.description,名称または説明
 trade.diff,差異
@@ -700,6 +709,7 @@ trade.newSale,販売伝票を作成
 trade.noShift,未開店
 trade.note,備考
 trade.notice.submitted,{0} を提出しました
+trade.onHand,在庫
 trade.openShift,シフト開始
 trade.openedAt,開始時刻
 trade.opening,期首数量
@@ -722,11 +732,16 @@ trade.refundSingle,返品できるレシートは1件ずつです
 trade.rowOpening,期首
 trade.salesCount,件数
 trade.save,下書きを保存
+trade.scan,スキャン
+trade.scanNotFound,このコードの商品が見つかりません: {0}
+trade.scanUnsupported,この端末ではスキャンできません
+trade.searchProducts,名前・コード・バーコードで検索
 trade.shiftClosed,シフト終了 · 現金差異 {0}
 trade.shiftHistory,シフト履歴
 trade.shiftNo,シフト番号
 trade.shiftOpen,シフト {0} · 現金予定額 {1}
 trade.shiftOpened,シフト {0} を開始しました
+trade.shiftReceipts,このシフトのレシート
 trade.state.closed,終了
 trade.state.completed,完了
 trade.state.open,営業中
