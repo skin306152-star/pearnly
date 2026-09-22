@@ -20,6 +20,15 @@
 		for (const step of crumb.pearnly_stock_count_trail || []) {
 			this.append_breadcrumb_element(step.route, p.escape(step.label));
 		}
+		if (crumb.pearnly_stock_count_trail && crumb.menu_items?.length) {
+			// 窄屏的原生样式只展示最后一级；用框架已有的 menu_items 提供全部父级。
+			// 菜单点击不能再冒泡给 Desk 路由器，否则它会重开当前页并关掉菜单。
+			this.$breadcrumbs.children("li:last-child").on("click", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			}).find("a").attr("aria-haspopup", "menu")
+				.append(frappe.utils.icon("chevron-down", "xs"));
+		}
 	};
 	p.stockCountBreadcrumbs = ({ name, title, entries = false, report = false } = {}) => {
 		const trail = [];
@@ -32,6 +41,13 @@
 		frappe.breadcrumbs.add({
 			type: "Custom", label: __("nav.stockCount"), route: url(),
 			pearnly_stock_count_trail: trail,
+			menu_items: trail.length ? [
+				{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") },
+				{ label: __("nav.stockCount"), onClick: () => frappe.set_route(root) },
+				...trail.filter((step) => step.route).map((step) => ({
+					label: p.escape(step.label), onClick: () => frappe.set_route(step.route),
+				})),
+			] : [],
 		});
 	};
 
