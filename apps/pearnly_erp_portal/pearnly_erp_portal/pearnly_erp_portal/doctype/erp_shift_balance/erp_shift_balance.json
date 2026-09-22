@@ -15,7 +15,7 @@
   {
    "fieldname": "method",
    "fieldtype": "Select",
-   "label": "Method",
+   "label": "Payment Method",
    "options": "cash\npromptpay\ncard\ntransfer",
    "reqd": 1,
    "in_list_view": 1

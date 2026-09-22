@@ -590,13 +590,9 @@ def _stock_label_texts() -> dict:
 def _stock_headers() -> list:
     from pearnly_core import browser_text
 
-    lang = (frappe.local.lang or browser_text.FALLBACK_LANG)[:2]
-
-    def label_of(key):
-        texts = browser_text.all_languages(key)
-        return texts.get(lang) or texts.get("en") or key
-
-    return workbook.template_headers(label_of)
+    # 取词就走共享那一份（`pearnly_core.browser_text.label`），别在页面层再写一遍 ——
+    # 导出件、模板、界面必须是同一句话。
+    return workbook.template_headers(browser_text.label)
 
 
 @frappe.whitelist()

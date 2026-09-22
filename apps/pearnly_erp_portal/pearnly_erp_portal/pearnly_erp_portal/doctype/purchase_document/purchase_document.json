@@ -114,7 +114,7 @@
    "in_list_view": 1,
    "read_only": 1,
    "no_copy": 1,
-   "label": "ID"
+   "label": "System number"
   },
   {
    "fieldname": "doc_date",

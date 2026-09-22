@@ -53,6 +53,8 @@ APP_BY_PREFIX = {
     # 供应商 / 客户主档页的文案也在 ERP（采购与销售共用的主数据域）。
     "supplier.": "pearnly_erp_portal",
     "client.": "pearnly_erp_portal",
+    # 团队（员工账号与岗位）是 ERP 的功能，页面渲染也在 ERP。
+    "team.": "pearnly_erp_portal",
     "connect.": "pearnly_core",
     "account.": "pearnly_core",
     "shell.": "pearnly_core",
@@ -111,6 +113,23 @@ def all_languages(key: str) -> Dict[str, str]:
 def clear_cache() -> None:
     """换语言包之后清一次（开发/发布用；正常读走上面的缓存）。"""
     _cache.clear()
+
+
+def label(key: str, lang: str = "") -> str:
+    """**服务端**按键取一条文案（导出件、模板表头、凭证抬头都用它）。
+
+    为什么服务端也要这条路：界面是按 key 取词的（`t("trade.shiftNo")` → 班次编号），
+    而服务端的 `_()` 认的是**英文原文**。同一句话只落 key 那一行时，界面是中文、
+    导出件里却是英文 —— 用户 2026-09-23 口径："导出的报表术语表口径要统一"。
+
+    取词的顺序：当前语言 → 英文 → key 本身（认不出的 key 直接回显，不返回空串）。
+    语言取 `frappe.local.lang`（也就是当前会话界面语言），与页面显示的是同一种。
+    """
+    texts = all_languages(key)
+    if not texts:
+        return key
+    want = (lang or frappe.local.lang or FALLBACK_LANG)[:2]
+    return texts.get(want) or texts.get("en") or key
 
 
 def _as_keys(wanted: Any) -> List[str]:

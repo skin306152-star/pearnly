@@ -29,7 +29,7 @@
 			list = p.list({page, doctype: "Purchase Document", selectable: true, compact_columns: true,
 				on_open: row => go(row.name),
 				columns: [
-					{fieldname: "system_no", width: 154, min_width: 145, label: __("ID"), format: (value, row) => value || row.name},
+					{fieldname: "system_no", width: 154, min_width: 145, label: __("System number"), format: (value, row) => value || row.name},
 					{fieldname: "doc_date", width: 106, min_width: 98, label: __("Posting Date")},
 					{fieldname: "supplier_name", width: 160, min_width: 112, label: __("Supplier")},
 					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},

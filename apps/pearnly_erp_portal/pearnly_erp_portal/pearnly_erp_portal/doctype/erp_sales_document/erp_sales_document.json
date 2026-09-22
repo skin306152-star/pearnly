@@ -56,7 +56,7 @@
   {
    "fieldname": "doc_kind",
    "fieldtype": "Select",
-   "label": "Document Kind",
+   "label": "Document Type",
    "options": "receipt\nquotation",
    "default": "receipt",
    "reqd": 1,

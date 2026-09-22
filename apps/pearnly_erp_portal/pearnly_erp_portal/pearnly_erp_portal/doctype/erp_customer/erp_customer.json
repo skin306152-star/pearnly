@@ -24,7 +24,7 @@
   {
    "fieldname": "customer_name",
    "fieldtype": "Data",
-   "label": "Customer",
+   "label": "Customer Name",
    "reqd": 1,
    "in_list_view": 1,
    "length": 200

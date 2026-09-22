@@ -39,7 +39,7 @@
 					await p.trade.receipt_view(row.pos_name || row.name, trade_texts, {});
 				},
 				columns: [
-					{fieldname: "system_no", width: 154, min_width: 145, label: __("ID"), format: (value, row) => value || row.name},
+					{fieldname: "system_no", width: 154, min_width: 145, label: __("System number"), format: (value, row) => value || row.name},
 					{fieldname: "doc_date", width: 106, min_width: 98, label: __("Date")},
 					{fieldname: "buyer_name", width: 160, min_width: 112, label: __("Customer Name")},
 					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},

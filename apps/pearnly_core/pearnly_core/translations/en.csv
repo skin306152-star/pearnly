@@ -1,3 +1,7 @@
+(none),(none)
+/ {0} days,/ {0} days
+1. Add your company’s LINE official account as a friend,1. Add your company’s LINE official account as a friend
+2. Send this bind code in the LINE chat to connect,2. Send this bind code in the LINE chat to connect
 A DMS customer reference is required before confirming or pushing,A DMS customer reference is required before confirming or pushing
 A DMS customer reference is required; otherwise this link means nothing,A DMS customer reference is required; otherwise this link means nothing
 A board instance is created only when this is on,A board instance is created only when this is on
@@ -11,52 +15,100 @@ A purchase document needs at least one line,A purchase document needs at least o
 Account,Account
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first","Account ""{0}"" already has a default connection ({1}); clear that one's default first"
 Account With Write Access,Account With Write Access
+Account balance,Account balance
+Account name,Account name
+Account number,Account number
+Account with admin rights,Account with admin rights
+Actions,Actions
 Adapter,Adapter
+Add official account,Add official account
+Add operator,Add operator
+Add row,Add row
 Address,Address
 Admin Account,Admin Account
 Admin Password,Admin Password
+Administrator,Administrator
+Advisors {0},Advisors {0}
+All,All
+All directions,All directions
+All statuses,All statuses
 All three fields are required,All three fields are required
 Allow DMS queries from LINE,Allow DMS queries from LINE
+Allowed,Allowed
 Amount,Amount
 An admin session was requested but no admin credentials are configured,An admin session was requested but no admin credentials are configured
 Approval,Approval
+Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
+Are you sure you want to sign out?,Are you sure you want to sign out?
 Assign To,Assign To
 Attempt,Attempt
 Auto Push,Auto Push
+Automatic (by DMS account),Automatic (by DMS account)
+Back to home,Back to home
 Balance,Balance
+Balance after,Balance after
+Bank,Bank
 Batches and results of every recognition run,Batches and results of every recognition run
 Billing,Billing
 Billing is not configured on this site (pearnly_billing_*),Billing is unavailable. Please contact support.
 "Billing is not wired up on this site, please contact the platform",Billing is unavailable. Please contact support.
+Billing is unavailable. Please contact support.,Billing is unavailable. Please contact support.
 Bind Code,Bind Code
+Bind LINE,Bind LINE
+Bind code,Bind code
 Binding needs a LINE user and a local account,Binding needs a LINE user and a local account
 Birth Date,Birth Date
 Booking Defaults,Booking Defaults
 Both account and password are required,Both account and password are required
 Both issuer and subject are required,Both issuer and subject are required
 Bound At,Bound At
+Branches {0},Branches {0}
 Business Key,Business Key
+Business number,Business number
+Cancel,Cancel
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
 Cannot reach the OCR service: {0},Cannot reach the OCR service: {0}
 Cannot reach the billing service: {0},Cannot reach the billing service: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},Cannot reach the identity service of the target environment ({0}): {1} {2}
 Cannot read the remaining time,Cannot read the remaining time
+Car models {0},Car models {0}
+Change account,Change account
+Change password,Change password
+Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
+Choose a plan,Choose a plan
 Claimed By,Claimed By
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Client ID is required,Client ID is required
+Close,Close
 Collaboration Boards (WeKan),Collaboration Boards (WeKan)
+Collapse,Collapse
 Companion,Companion
+Company Master,Company Master
+Company Profile,Company Profile
 Company Tax ID,Company Tax ID
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise","Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise"
+Confirm,Confirm
+Confirm new password,Confirm new password
+Confirmed,Confirmed
 Confirmed At,Confirmed At
 Confirmed By,Confirmed By
+Confirmed · ready to push,Confirmed · ready to push
+Connect DMS before adding an operator.,Connect DMS before adding an operator.
+Connect DMS to load the advisor list.,Connect DMS to load the advisor list.
+Connect and save,Connect and save
+Connected,Connected
+Connected · {0},Connected · {0}
+Connecting…,Connecting…
 Connection,Connection
 "Connection ""{0}"" has no account with write access configured, so writes are not possible","Connection ""{0}"" has no account with write access configured, so writes are not possible"
 "Connection ""{0}"" has no sign-in credentials yet","Connection ""{0}"" has no sign-in credentials yet"
 "Connection ""{0}"" is disabled and cannot be used","Connection ""{0}"" is disabled and cannot be used"
+Connection OK · {0},Connection OK · {0}
+Connection failed,Connection failed
 Console,Console
+Contact support with the record ID,Contact support with the record ID
 Could not call the model: {0},Could not call the model: {0}
 Could not create the OIDC client: {0} {1},Could not create the OIDC client: {0} {1}
 Could not create the account in the target environment: {0} {1},Could not create the account in the target environment: {0} {1}
@@ -74,14 +126,21 @@ Could not set the password: {0} {1},Could not set the password: {0} {1}
 Could not take the lock (Redis down?): {0},Could not take the lock (Redis down?): {0}
 Could not update the OIDC client: {0} {1},Could not update the OIDC client: {0} {1}
 Could not update the account language.,Could not update the account language.
+Could not update your account. Please reload and try again.,Could not update your account. Please reload and try again.
 Count tasks and variance records,Count tasks and variance records
 Counterparty,Counterparty
 Counterparty Tax ID,Counterparty Tax ID
 Cowork Admin,Cowork Admin
 Cowork Intake,Cowork Intake
 Created At,Created At
+Created: {0},Created: {0}
+Credited,Credited
 Currency,Currency
 Current State,Current State
+Current account,Current account
+Current billing: pay as you go.,Current billing: pay as you go.
+Current password,Current password
+Current plan,Current plan
 Customer Match,Customer Match
 Customer Name,Customer Name
 Customer Snapshot,Customer Snapshot
@@ -108,29 +167,56 @@ DMS admin credentials failed to sign in: {0},DMS admin credentials failed to sig
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.
 
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match."
+DMS login account,DMS login account
+DMS login password,DMS login password
+DMS password,DMS password
 DMS refused the sign-in: {0},DMS refused the sign-in: {0}
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
 DMS usage and balance,DMS usage and balance
+DMS username,DMS username
+Date,Date
 Dedupe Key,Dedupe Key
 Default Connection,Default Connection
+Delete,Delete
+Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.
+Delete {0} selected push records from this list? Sent business documents will not be affected.,Delete {0} selected push records from this list? Sent business documents will not be affected.
+Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
+Deleted,Deleted
+Deleted {0} operators,Deleted {0} operators
+Deleted {0} push records,Deleted {0} push records
 Deleting the OIDC client failed: {0} {1},Deleting the OIDC client failed: {0} {1}
 Deleting the account failed: {0} {1},Deleting the account failed: {0} {1}
 Deployment,Deployment
 Description,Description
 Direction,Direction
 Direction must be inbound or outbound,Direction must be inbound or outbound
+Disable,Disable
+"Disable ""{0}""? Its DMS pushes stop and the LINE link is released.","Disable ""{0}""? Its DMS pushes stop and the LINE link is released."
+Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.,Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.
 Display Name,Display Name
+Display name,Display name
 Doc Date,Doc Date
 Doc No,Doc No
 Document Type,Document Type
+Document date,Document date
+Document no.,Document no.
+Documents,Documents
+Draft,Draft
 Due Date,Due Date
+Duplicate skipped,Duplicate skipped
 ERP Admin,ERP Admin
 ERP Purchase,ERP Purchase
+Edit,Edit
+Edit operator,Edit operator
 Elapsed (ms),Elapsed (ms)
+Email,Email
 Email is required,Email is required
 Empty = matched automatically from the DMS account (the legacy product's default).,Empty = matched automatically from the DMS account (the legacy product's default).
 Empty = sent to all admins (whoever sees it first approves).,Empty = sent to all admins (whoever sees it first approves).
+Enable,Enable
+"Enable ""{0}""? A new bind code is needed to link LINE again.","Enable ""{0}""? A new bind code is needed to link LINE again."
 Enabled,Enabled
+Enabled features,Enabled features
 Endpoint,Endpoint
 Endpoint {0} has no password configured,Endpoint {0} has no password configured
 Endpoint {0} is disabled,Endpoint {0} is disabled
@@ -139,18 +225,26 @@ Error Message,Error Message
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).
 Expense / Item Category,Expense / Item Category
+Expired,Expired
 Expires At,Expires At
+Export details,Export details
+Exporting…,Exporting…
 Express Push Guide,Express Push Guide
 External Doc No,External Doc No
 External ERP Push,External ERP Push
 External IDs & Dedupe,External IDs & Dedupe
 External Reference,External Reference
 External System Reference,External System Reference
+External document no.,External document no.
 FX Rate,FX Rate
+Failed,Failed
+Failed to start (HTTP {0}): {1},Failed to start (HTTP {0}): {1}
+Failed to start: {0},Failed to start: {0}
 Failure Reason,Failure Reason
 Failures,Failures
 Field Diffs,Field Diffs
 File,File
+Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
 Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
 Flow Status,Flow Status
@@ -158,15 +252,19 @@ For an inbound document the counterparty tax ID cannot be your own,For an inboun
 Frappe Light,Pearnly
 Full Name,Full Name
 Gender,Gender
+Goods & Stock,Goods & Stock
 Grand Total,Grand Total
+Guide,Guide
 HTTP Status,HTTP Status
 Handled At,Handled At
+Home,Home
 Home (Subscription & Billing),Home (Subscription & Billing)
 How each push to the external ERP went,How each push to the external ERP went
 ID Card Intake,ID Card Intake
 ID Details,ID Details
 ID Image,ID Image
 ID Number,ID Number
+ID card recognition,ID card recognition
 ID card recognition (tier A),ID card recognition
 ID number is required,ID number is required
 IP,IP
@@ -175,29 +273,45 @@ Image Fingerprint,Image Fingerprint
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
 "Install, pair, upgrade and uninstall guide for Companion","Install, pair, upgrade and uninstall guide for Companion"
 Intake Workbench,Intake Workbench
+Integrations,Integrations
 Invalid push channel,Invalid push channel
 Invited By,Invited By
+Issue bind code,Issue bind code
 Issuer,Issuer
 Item / Description,Item / Description
+Item / description,Item / description
+"JPG, PNG or PDF, up to 10 MB","JPG, PNG or PDF, up to 10 MB"
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
 LINE Display Name,LINE Display Name
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,LINE could not be reached; please try again
+LINE status,LINE status
+Language,Language
 Last Login At,Last Login At
 Last Result,Last Result
 Last Seen At,Last Seen At
 Last Used,Last Used
 Last Verified At,Last Verified At
+Last result,Last result
 Lease Expires,Lease Expires
 Lease Owner,Lease Owner
+Leave blank to keep the current password.,Leave blank to keep the current password.
+Leave blank to keep unchanged,Leave blank to keep unchanged
 Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
+Lines,Lines
+Linked,Linked
+Loading advisors…,Loading advisors…
+Loading…,Loading…
 Local Account,Local Account
 Local Session,Local Session
 "Local sample site: not sent to LINE, the raw text is only recorded","Local sample site: not sent to LINE, the raw text is only recorded"
 Looking up the OIDC client failed: {0} {1},Looking up the OIDC client failed: {0} {1}
+Manage purchase orders and payment details.,Manage purchase orders and payment details.
+Manual,Manual
+Manual handling,Manual handling
 Master Data,Master Data
 Match result must be unmatched / existing customer / new customer,Match result must be unmatched / existing customer / new customer
 Max Retries,Max Retries
@@ -206,21 +320,40 @@ Name,Name
 "Neither tier produced a result (network, key or model name could all be the cause)","Neither tier produced a result (network, key or model name could all be the cause)"
 Net Amount,Net Amount
 Net Payable,Net Payable
+Net amount,Net amount
+Net payable,Net payable
 New Customer,New Customer
+New DMS password,New DMS password
+New entry,New entry
+New password,New password
+New purchase order,New purchase order
 Next Retry At,Next Retry At
+No,No
 No DMS connection has been configured yet,No DMS connection has been configured yet
 No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (site config pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
+No operators yet — add one above,No operators yet — add one above
 No provisioning target is available; configure one under “Provisioning Target” first,No provisioning target is available; configure one under “Provisioning Target” first
+No purchase orders yet. Use “New purchase order” in the top right to add the first one.,No purchase orders yet. Use “New purchase order” in the top right to add the first one.
+No records,No records
+No records yet. Use “New entry” in the top right to add the first one.,No records yet. Use “New entry” in the top right to add the first one.
 No service account configured (site config pearnly_ocr_credentials),No service account configured (site config pearnly_ocr_credentials)
 No sign-in credentials configured,No sign-in credentials configured
 No such local account: {0},No such local account: {0}
+No.,No.
+Not allowed,Not allowed
+Not connected,Not connected
+Not linked,Not linked
 Not signed in,Not signed in
+Not subscribed,Not subscribed
 Notes,Notes
+Nothing to save,Nothing to save
+OK,OK
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).","Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place)."
 Once disabled its DMS pushes stop and the LINE binding is released,Once disabled its DMS pushes stop and the LINE binding is released
+One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code,One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code
 Only a company admin can top up or change the subscription,Only a company admin can top up or change the subscription
 Only a company admin can view top-up records,Only a company admin can view top-up records
 Only an admin can configure DMS connections,Only an admin can configure DMS connections
@@ -231,66 +364,128 @@ Only the config was checked; a real connectivity test waits for the adapter,Only
 Only the owner can manage it,Only the owner can manage it
 Operator,Operator
 Operator Roster,Operator Roster
+Operator added,Operator added
+Operator list,Operator list
+Operators,Operators
+Optional,Optional
 Order Discount,Order Discount
+Outstanding,Outstanding
+Overage: {0}/page,Overage: {0}/page
+Overage: {0}/page · Expires: {1},Overage: {0}/page · Expires: {1}
 Owner Account,Owner Account
+POS,POS
+Page unavailable,Page unavailable
+Page {0} of {1} · {2} records,Page {0} of {1} · {2} records
 Pages,Pages
 Paid Amount,Paid Amount
 Password,Password
+Password updated. Use the new password next time you sign in.,Password updated. Use the new password next time you sign in.
+Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.
 Payer,Payer
+Payer name on the bank transfer,Payer name on the bank transfer
 Payload,Payload
 Payment Status,Payment Status
+Pearnly,Pearnly
+Pearnly Cowork,Pearnly Cowork
+Pearnly Dark,Pearnly Dark
+Pearnly Light,Pearnly Light
+Pending,Pending
+Pending review,Pending review
 Personal data: not shown in lists and never written to logs,Personal data: not shown in lists and never written to logs
+Plan,Plan
 Plan & Balance,Plan & Balance
+Plans do not renew automatically. Subscribe again after expiry.,Plans do not renew automatically. Subscribe again after expiry.
+Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Processing Started At,Processing Started At
+Processing…,Processing…
 Product,Product
 Product Ref,Product Ref
 "Product home: current plan, usage and billing","Product home: current plan, usage and billing"
 Product master data,Product master data
 Products,Products
+Products & Stock,Products & Stock
 Provide at least one line item,Provide at least one line item
+Purchase,Purchase
+Purchase (bills received),Purchase (bills received)
+Purchase / Sale,Purchase / Sale
+Purchase order created: {0},Purchase order created: {0}
 "Purchase records, suppliers and purchasing settings","Purchase records, suppliers and purchasing settings"
+Purchases (confirmed and above),Purchases (confirmed and above)
 Purchasing (Records / Suppliers / Settings),Purchasing (Records / Suppliers / Settings)
+Purchasing Settings,Purchasing Settings
 Push,Push
 Push Channel,Push Channel
 Push Log,Push Log
 Push Log Reference,Push Log Reference
 Push Records,Push Records
 Push Status,Push Status
+Push failed,Push failed
 Push status must be one of {0},Push status must be one of {0}
 Push to the external ERP; the push log is the only source of status,Push to the external ERP; the push log is the only source of status
+Pushed,Pushed
 Qty,Qty
+Query access,Query access
+Queued to push,Queued to push
 "Read the ID card, match it against the DMS customer base, then confirm","Read the ID card, match it against the DMS customer base, then confirm"
 Received,Received
 Recognition Raw,Recognition Raw
 Recognition Records,Recognition Records
+Recognition records,Recognition records
+Recognized,Recognized
 Reconcile documents against the ledger,Reconcile documents against the ledger
 Reconciliation,Reconciliation
+Records,Records
 Reference,Reference
 Reference DocType,Reference DocType
 Reference Name,Reference Name
+Refresh,Refresh
+Regenerate,Regenerate
+Rejected,Rejected
+Reload advisors,Reload advisors
 Remote Address,Remote Address
+Reorder sidebar,Reorder sidebar
 Request & Response,Request & Response
 Request Body,Request Body
 Request Snapshot,Request Snapshot
+Request failed (HTTP {0}),Request failed (HTTP {0})
 Requested,Requested
 Requested By,Requested By
 Response Body,Response Body
 Result,Result
+Result details,Result details
 Retry & Lease,Retry & Lease
 Retry Count,Retry Count
+Retrying,Retrying
+Return to the home page to continue.,Return to the home page to continue.
+Returned,Returned
+Review and confirm documents before sending.,Review and confirm documents before sending.
 Revoked At,Revoked At
 Role,Role
 Role must be sales or admin,Role must be sales or admin
 Rounding,Rounding
 Row {0}: quantity must be greater than 0,Row {0}: quantity must be greater than 0
 Row {0}: unit price cannot be negative,Row {0}: unit price cannot be negative
+Sale,Sale
+Sale (bills we issue),Sale (bills we issue)
 Sales,Sales
+Sales (confirmed and above),Sales (confirmed and above)
 Sales Commission Owner,Sales Commission Owner
+Sales Records,Sales Records
+Sales commission owner,Sales commission owner
 Sales documents and customer dealings,Sales documents and customer dealings
+Salesperson,Salesperson
 Same ID number means the same customer; avoids duplicate records,Same ID number means the same customer; avoids duplicate records
+Save,Save
+Save purchase order,Save purchase order
+Saved,Saved
+Saved as a draft; confirm it before it can be pushed,Saved as a draft; confirm it before it can be pushed
+"Scan to add this account, then send the bind code in LINE.","Scan to add this account, then send the bind code in LINE."
 Session Payload,Session Payload
+Sign in again before changing your username.,Sign in again before changing your username.
+Sign out,Sign out
+Sign out and sign in again,Sign out and sign in again
 Sign-in Credentials,Sign-in Credentials
 Site config is missing {0},Site config is missing {0}
 Site config is missing {0}_admin_client_id / _secret,Site config is missing {0}_admin_client_id / _secret
@@ -301,20 +496,39 @@ Source Attachment,Source Attachment
 Status,Status
 Status cannot go backwards: {0} → {1},Status cannot go backwards: {0} → {1}
 Status must be active or inactive,Status must be active or inactive
+Stock,Stock
 Stock Card Report,Stock Card Report
 Stock Count,Stock Count
+Stock In,Stock In
 Stock In / Out,Stock In / Out
+Stock Out,Stock Out
 "Stock in/out summary (kept item, see the ERP manifest)","Stock in/out summary (kept item, see the ERP manifest)"
 Subject,Subject
+Submit request,Submit request
+Submitting…,Submitting…
+Subscribe to this plan,Subscribe to this plan
+Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.
+Subscribing…,Subscribing…
 Subtotal,Subtotal
+Succeeded,Succeeded
+Success / failure,Success / failure
 Successes,Successes
 Summary,Summary
 Supplier,Supplier
+Supplier / customer,Supplier / customer
 Supplier Tax ID,Supplier Tax ID
+Supplier name,Supplier name
+Suppliers,Suppliers
 System URL,System URL
 System URL is not filled in,System URL is not filled in
+Team,Team
+Tenant boot data,Tenant boot data
+Test connection,Test connection
+Testing…,Testing…
+"Text files: {1} per {0} characters, rounded up.","Text files: {1} per {0} characters, rounded up."
 The DMS account is marked as resigned,The DMS account is marked as resigned
 The DMS account is not approved to use the system,The DMS account is not approved to use the system
+The DMS advisor list is empty.,The DMS advisor list is empty.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
@@ -325,7 +539,9 @@ The account is disabled,The account is disabled
 The account was created but no id came back,The account was created but no id came back
 The admin session must be requested inside a `with` block,The admin session must be requested inside a `with` block
 The balance could not be read,The balance could not be read
+The balance grows once the platform confirms the transfer.,The balance grows once the platform confirms the transfer.
 The billing service returned HTTP {0},The billing service returned HTTP {0}
+The bind code has expired — please regenerate,The bind code has expired — please regenerate
 The control plane is not affected,The control plane is not affected
 The current password is wrong,The current password is wrong
 The customer snapshot used to refill the form when approval executes.,The customer snapshot used to refill the form when approval executes.
@@ -349,53 +565,87 @@ The name is resolved server-side when pinning; the client's value is not trusted
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).","The name the owner uses to tell people apart on this table, e.g. Ming (sales)."
 The new password cannot be the same as the current one,The new password cannot be the same as the current one
 The new password is required,The new password is required
+"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available","The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).
+The plan quota is used first; anything over is charged per plan rate from the balance,The plan quota is used first; anything over is charged per plan rate from the balance
 The push channel must be companion or cloud,The push channel must be companion or cloud
 The result of each push,The result of each push
 The service account could not exchange its token: {0},The service account could not exchange its token: {0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.","The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change."
+The subscription could not be activated,The subscription could not be activated
 "The target environment is incomplete: URL, realm, client ID and secret are all required","The target environment is incomplete: URL, realm, client ID and secret are all required"
 The test for a duplicate upload of the same document,The test for a duplicate upload of the same document
+The total is calculated automatically.,The total is calculated automatically.
 "The truth is in erp_push_logs, trigger=id_card","The truth is in erp_push_logs, trigger=id_card"
 The truth is in erp_push_logs; this is only a display reference,The truth is in erp_push_logs; this is only a display reference
 The two new passwords do not match,The two new passwords do not match
+The two passwords do not match,The two passwords do not match
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.
 "There is no DMS customer reference, so it cannot be pushed","There is no DMS customer reference, so it cannot be pushed"
 This Operator's Own DMS Credentials,This Operator's Own DMS Credentials
 "This account has no identity binding, so it cannot change its own password; contact an admin","This account has no identity binding, so it cannot change its own password; contact an admin"
+This advisor is no longer in the current DMS list. Please select again.,This advisor is no longer in the current DMS list. Please select again.
+This company’s LINE official account is not configured yet.,This company’s LINE official account is not configured yet.
 This document has already been recorded: {0},This document has already been recorded: {0}
 This identity is already bound to account {0} (record {1}),This identity is already bound to account {0} (record {1})
 This identity is already bound to {0},This identity is already bound to {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)
 This invoice has already been recorded: {0},This invoice has already been recorded: {0}
+This month,This month
+This operator's DMS account,This operator's DMS account
+This operator's DMS password,This operator's DMS password
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,This site has more than one product manifest installed: {0}. One deployment can host only one product.
 "This site has no LINE access token configured, so it cannot send messages","This site has no LINE access token configured, so it cannot send messages"
 This site has no product manifest installed; it cannot run as a business site.,This site has no product manifest installed; it cannot run as a business site.
 This site has no product workspace yet,This site has no product workspace yet
+"This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?","This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?"
+This username is already in use.,This username is already in use.
+This year,This year
 Time,Time
+Titles {0},Titles {0}
+To confirm,To confirm
+To verify,To verify
+Today,Today
+Top up,Top up
+Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.,Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.
 Top-ups,Top-ups
+Total incl. VAT,Total incl. VAT
+Transfer slip attached,Transfer slip attached
+"Transfer to the account below, then upload your slip for review.","Transfer to the account below, then upload your slip for review."
 Transport Result,Transport Result
 Trigger,Trigger
 Type,Type
+UI language,UI language
+Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
+Unable to verify this company’s LINE official account. Please try again.,Unable to verify this company’s LINE official account. Please try again.
+Unbind LINE,Unbind LINE
 Unbound At,Unbound At
 Unconfirmed documents cannot be pushed,Unconfirmed documents cannot be pushed
 Unit,Unit
 Unit Price,Unit Price
+Unit price,Unit price
 Unknown product: {0},Unknown product: {0}
+Upload,Upload
 Upload a transfer slip before submitting,Upload a transfer slip before submitting
 Upload a transfer slip up to 10 MB,Upload a transfer slip up to 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push","Upload receipts and sheets, extract fields, review each item, then push"
+Upload transfer slip,Upload transfer slip
 Usage,Usage
 "Use a JPG, PNG or PDF transfer slip","Use a JPG, PNG or PDF transfer slip"
 Used,Used
 Used At,Used At
+Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-you-go
+"Used {0} pages this month · plan {1}, {2} left this cycle","Used {0} pages this month · plan {1}, {2} left this cycle"
 User,User
 User Agent,User Agent
+"Username must contain 3–30 letters, digits, dots, underscores or hyphens.","Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 VAT,VAT
+VAT %,VAT %
 VAT Amount,VAT Amount
 VAT Included,VAT Included
 VAT Rate %,VAT Rate %
+Valid for {0},Valid for {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
 What Was Pushed,What Was Pushed
@@ -408,8 +658,12 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.","Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template."
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull","Windows app on the merchant's accounting PC: installer, pairing, outbound pull"
 Withholding Tax,Withholding Tax
+Work together,Work together
 Workspace,Workspace
+Yes,Yes
+You need to sign in to the site before opening this page. Enter through the site domain and sign in.,You need to sign in to the site before opening this page. Enter through the site domain and sign in.
 Your access domain,Your access domain
+Your account was updated elsewhere. Sign in again to load the current username.,Your account was updated elsewhere. Sign in again to load the current username.
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session."
 account.cancel,Cancel
 account.changePassword,Change password
@@ -502,6 +756,7 @@ connect.state.enabled,Enabled
 connect.state.notConnected,Not connected
 connect.title,Connect DMS
 connect.yes,Yes
+e.g. Ming (sales),e.g. Ming (sales)
 endpoint is missing (which connection to test),endpoint is missing (which connection to test)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 home.balance.title,Account balance
@@ -795,7 +1050,13 @@ shell.notBuilt.title,Page unavailable
 state is invalid or has expired,state is invalid or has expired
 system_url is required,system_url is required
 username / password are required,username / password are required
+{0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
+{0} pages per cycle,{0} pages per cycle
+{0} record(s) deleted.,{0} record(s) deleted.
+{0} records · grand total {1} · payable {2} · outstanding {3},{0} records · grand total {1} · payable {2} · outstanding {3}
 "{0} takes {1} arguments, but {2} were passed to the queue","{0} takes {1} arguments, but {2} were passed to the queue"
+{0} top-up request(s) pending review.,{0} top-up request(s) pending review.
+{0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}: entry prefixes must start with /: {1}
 {0}: missing field {1},{0}: missing field {1}
 "{0}: the manifest requires {1}, but this site does not have it","{0}: the manifest requires {1}, but this site does not have it"

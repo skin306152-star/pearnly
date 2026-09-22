@@ -19,6 +19,14 @@ DocType JSON 的 label），各写一份必然对不上。所以**术语表是�
   拆表之后，"放哪个 App"就是"把这一行写进谁的术语表"。
 · **不删已有的行**：CSV 里可能有脚本之外手工加的条目（例如沿用老产品的译文），
   生成时合并保留，只覆盖术语表里出现过的键。
+· **带 key 的词条同时按英文原文再落一行**：界面按 key 取词（`t("trade.shiftNo")`），
+  而服务端 `_()` 和 DocType 字段标签认的是**英文原文**。只落 key 那一行的话，同一句话
+  在界面上是中文、在导出件/Desk 表单里却是英文 —— 2026-09-23 用户口径：
+  "导出的报表术语表口径要统一"。所以下面 `_aliases()` 会把"没有同英文的无 key 行、
+  且同英文的几条译文一致"的带 key 词条，按英文原文再补一行。
+  两种情况**不补**：已经有了同英文的无 key 行（那行才是准的，例如 `Items` 既有无 key
+  的「物料」又有 `trade.lines` 的「物料明细」）；同英文的几条带 key 词条译文不一致
+  （谁覆盖谁说不清，例如 `Not set` 有「未设」也有「未填」）。
 
 用法：
 
@@ -61,6 +69,30 @@ def write(app: str, lang: str, table: dict) -> str:
     return os.path.relpath(path, ROOT)
 
 
+def _aliases(items: list[dict]) -> list[dict]:
+    """带 key 的词条里，能安全按英文原文再补一行的那些。
+
+    返回 `[{en, zh, th, ja, ...}]`（就是术语表那种行，只是 mdgid 用英文原文）。
+    规则见文件头：无同英文的无 key 行、且同英文的带 key 行译文一致。
+    """
+    plain = {item[EN] for item in items if not item["key"]}
+    msgids = {item["msgid"] for item in items}
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for item in items:
+        if item["key"]:
+            grouped[item[EN]].append(item)
+    out = []
+    for en, group in grouped.items():
+        if en in plain or en in msgids:
+            continue
+        if len({tuple(g[lang] for lang in LANGS) for g in group}) > 1:
+            continue
+        row = dict(group[0])
+        row["alias"] = True
+        out.append(row)
+    return out
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="只校验术语表，不写文件")
@@ -84,10 +116,14 @@ def main() -> int:
 
     written = []
     for app, items in sorted(by_app.items()):
+        extra = _aliases(items)
         for lang in (EN,) + LANGS:
             table = existing(app, lang)
-            for item in items:
+            for item in items + extra:
                 msgid = item["msgid"]
+                # 别名单行：msgid 用英文原文（`key` 为空的那种写法）
+                if item.get("alias"):
+                    msgid = item[EN]
                 # 英文档：语义键的值是英文文案，英文原文当 msgid 的那种值就是它自己
                 table[msgid] = item["en"] if lang == EN else item[lang]
             written.append(write(app, lang, table))

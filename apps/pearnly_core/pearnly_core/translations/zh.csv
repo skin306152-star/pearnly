@@ -1,3 +1,7 @@
+(none),（无）
+/ {0} days,/ {0} 天
+1. Add your company’s LINE official account as a friend,1. 添加本公司配置的 LINE 官方账号为好友
+2. Send this bind code in the LINE chat to connect,2. 在 LINE 对话中发送此绑定码完成连接
 A DMS customer reference is required before confirming or pushing,确认或推送前必须有 DMS 客户引用
 A DMS customer reference is required; otherwise this link means nothing,必须有 DMS 客户引用，否则这条对照没有意义
 A board instance is created only when this is on,启用才创建看板实例，不启用不占资源
@@ -11,52 +15,100 @@ A purchase document needs at least one line,采购单至少要有一行
 Account,账号
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first",同一账号下「{0}」已经有一条默认连接（{1}），请先取消它的默认
 Account With Write Access,有修改权限的账号
+Account balance,账户余额
+Account name,收款户名
+Account number,收款账号
+Account with admin rights,有权限账号
+Actions,操作
 Adapter,适配器
+Add official account,添加官方账号为好友
+Add operator,新增操作员
+Add row,添加明细
 Address,地址
 Admin Account,管理员账号
 Admin Password,管理员密码
+Administrator,管理员
+Advisors {0},顾问 {0}
+All,全部
+All directions,全部方向
+All statuses,全部状态
 All three fields are required,三项都要填
 Allow DMS queries from LINE,允许在 LINE 使用查询功能
+Allowed,允许
 Amount,金额
 An admin session was requested but no admin credentials are configured,没配 admin 凭据却要求 admin 会话
 Approval,审批
+Approved amounts are credited to your balance.,审核通过后计入账户余额。
+Are you sure you want to sign out?,确定要退出登录吗？
 Assign To,指定审批人
 Attempt,第几次尝试
 Auto Push,自动推送
+Automatic (by DMS account),自动匹配（按 DMS 账号）
+Back to home,回到首页
 Balance,余额
+Balance after,变动后余额
+Bank,收款银行
 Batches and results of every recognition run,每次识别批次的记录与结果
 Billing,计费
 Billing is not configured on this site (pearnly_billing_*),计费服务暂不可用，请联系客服。
 "Billing is not wired up on this site, please contact the platform",计费服务暂不可用，请联系客服。
+Billing is unavailable. Please contact support.,计费服务暂不可用，请联系客服。
 Bind Code,绑定码
+Bind LINE,绑定 LINE
+Bind code,绑定码
 Binding needs a LINE user and a local account,绑定需要 LINE 用户与本地账号
 Birth Date,出生日期
 Booking Defaults,建单默认值
 Both account and password are required,账号和密码都要填
 Both issuer and subject are required,issuer 与 subject 都是必填
 Bound At,绑定时间
+Branches {0},分店 {0}
 Business Key,业务键
+Business number,业务编号
+Cancel,取消
 Cannot confirm while the status is {0},当前状态 {0} 不能确认
 Cannot match while the status is {0},当前状态 {0} 不能做匹配
 Cannot reach the OCR service: {0},连不上 OCR 服务：{0}
 Cannot reach the billing service: {0},连不上计费底座：{0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},连不上目标环境的身份服务（{0}）：{1} {2}
 Cannot read the remaining time,拿不到剩余时间
+Car models {0},车型 {0}
+Change account,修改账号
+Change password,更改密码
+Change your password from your account profile using Change Password.,请在个人资料中使用“更改密码”修改登录密码。
 Charges,扣费
+Choose a plan,选择套餐
 Claimed By,认领人
 Claiming a push job requires a connection,抢推送任务必须指定连接
 Client ID is required,客户端 ID 不能为空
+Close,关闭
 Collaboration Boards (WeKan),协作看板（WeKan）
+Collapse,收起
 Companion,小助手（Companion）
+Company Master,公司主档
+Company Profile,公司资料
 Company Tax ID,本方税号
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通
+Confirm,确认
+Confirm new password,确认新密码
+Confirmed,已确认
 Confirmed At,确认时间
 Confirmed By,确认人
+Confirmed · ready to push,已确认 · 可推送
+Connect DMS before adding an operator.,请先连接 DMS，再添加操作员。
+Connect DMS to load the advisor list.,连接 DMS 后才能读取顾问名册。
+Connect and save,连接并保存
+Connected,已连接
+Connected · {0},已连接 · {0}
+Connecting…,连接中…
 Connection,连接
 "Connection ""{0}"" has no account with write access configured, so writes are not possible",连接「{0}」没有配「有修改权限的账号」，无法做写入操作
 "Connection ""{0}"" has no sign-in credentials yet",连接「{0}」还没有配登录凭据
 "Connection ""{0}"" is disabled and cannot be used",连接「{0}」已停用，不能使用
+Connection OK · {0},连接正常 · {0}
+Connection failed,连接失败
 Console,控制台
+Contact support with the record ID,请提供记录编号联系支持
 Could not call the model: {0},调不动模型：{0}
 Could not create the OIDC client: {0} {1},创建 OIDC 客户端失败：{0} {1}
 Could not create the account in the target environment: {0} {1},在目标环境建账号失败：{0} {1}
@@ -74,14 +126,21 @@ Could not set the password: {0} {1},设置密码失败：{0} {1}
 Could not take the lock (Redis down?): {0},取锁失败（Redis 不通？）：{0}
 Could not update the OIDC client: {0} {1},更新 OIDC 客户端失败：{0} {1}
 Could not update the account language.,无法更新账户语言，请稍后重试。
+Could not update your account. Please reload and try again.,无法更新账户，请刷新后重试。
 Count tasks and variance records,盘点任务与差异记录
 Counterparty,对方名称
 Counterparty Tax ID,对方税号
 Cowork Admin,Cowork 管理员
 Cowork Intake,Cowork 录入
 Created At,创建时间
+Created: {0},已录入：{0}
+Credited,已到账
 Currency,币种
 Current State,当前状态
+Current account,当前账号
+Current billing: pay as you go.,当前按量计费。
+Current password,当前密码
+Current plan,当前套餐
 Customer Match,客户匹配
 Customer Name,客户名
 Customer Snapshot,客户档快照
@@ -108,29 +167,56 @@ DMS admin credentials failed to sign in: {0},DMS 管理员凭据登录失败：{
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。
 
 顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。"
+DMS login account,DMS 登录账号
+DMS login password,DMS 登录密码
+DMS password,DMS 密码
 DMS refused the sign-in: {0},DMS 拒绝了登录：{0}
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · 可能页面加载太慢或被拦了）
 DMS usage and balance,DMS 侧的用量与余额
+DMS username,DMS 用户名
+Date,日期
 Dedupe Key,去重键
 Default Connection,默认连接
+Delete,删除
+Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,确定删除选中的 {0} 名操作员？将解除 LINE 绑定并移除 DMS 连接，推送记录保留。
+Delete {0} selected push records from this list? Sent business documents will not be affected.,删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。
+Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。
+Deleted,已删除
+Deleted {0} operators,已删除 {0} 名操作员
+Deleted {0} push records,已删除 {0} 条推送记录
 Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
 Deployment,部署
 Description,说明
 Direction,方向
 Direction must be inbound or outbound,方向只能是进项或销项
+Disable,停用
+"Disable ""{0}""? Its DMS pushes stop and the LINE link is released.",确定停用「{0}」？停用后其 DMS 推送停止并解除 LINE 绑定。
+Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.,确定解绑 {0} 的 LINE？未使用的绑定码也将作废，操作员和 DMS 凭据保留。
 Display Name,显示名
+Display name,显示名
 Doc Date,单据日期
 Doc No,单据号
 Document Type,单据类型
+Document date,单据日期
+Document no.,单据号
+Documents,单据数
+Draft,草稿
 Due Date,到期日
+Duplicate skipped,重复已跳过
 ERP Admin,ERP 管理员
 ERP Purchase,ERP 采购
+Edit,编辑
+Edit operator,编辑操作员
 Elapsed (ms),耗时(ms)
+Email,邮件
 Email is required,邮箱不能为空
 Empty = matched automatically from the DMS account (the legacy product's default).,留空 = 按 DMS 账号自动匹配（老产品的默认行为）
 Empty = sent to all admins (whoever sees it first approves).,留空 = 发给所有管理员（谁先看到谁批）。
+Enable,启用
+"Enable ""{0}""? A new bind code is needed to link LINE again.",确定启用「{0}」？启用后需重新发绑定码连接 LINE。
 Enabled,启用
+Enabled features,已开通功能
 Endpoint,连接端点
 Endpoint {0} has no password configured,端点 {0} 没配密码
 Endpoint {0} is disabled,端点 {0} 已停用
@@ -139,19 +225,27 @@ Error Message,错误信息
 Event ID,事件 ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
 Expense / Item Category,费用/物料类别
+Expired,已过期
 Expires At,过期时间
+Export details,导出明细
+Exporting…,导出中…
 Express Push Guide,Express 推送手册
 External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
 External IDs & Dedupe,外部标识与去重
 External Reference,外部单号
 External System Reference,外部系统引用
+External document no.,外部单据号
 FX Rate,汇率
+Failed,失败
+Failed to start (HTTP {0}): {1},启动失败（HTTP {0}）：{1}
+Failed to start: {0},启动失败：{0}
 Failure Reason,失败原因
 Failure reason,失败原因
 Failures,失败次数
 Field Diffs,逐字段差异
 File,文件
+Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
 Flow Status,流程状态
@@ -159,15 +253,19 @@ For an inbound document the counterparty tax ID cannot be your own,进项的对�
 Frappe Light,Pearnly主题
 Full Name,姓名
 Gender,性别
+Goods & Stock,物料与库存
 Grand Total,价税合计
+Guide,使用教程
 HTTP Status,HTTP 状态
 Handled At,处理时间
+Home,首页
 Home (Subscription & Billing),首页（订阅与计费）
 How each push to the external ERP went,推送到外部 ERP 的过程与结果
 ID Card Intake,身份证录入
 ID Details,证件资料
 ID Image,证件影像
 ID Number,证件号
+ID card recognition,身份证识别
 ID card recognition (tier A),身份证识别
 ID number is required,证件号必填
 IP,IP
@@ -176,29 +274,45 @@ Image Fingerprint,影像指纹
 Inbound = invoices received; outbound = invoices issued,进项=收到的票；销项=开出的票
 "Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
+Integrations,集成
 Invalid push channel,推送渠道不合法
 Invited By,邀请人
+Issue bind code,发绑定码
 Issuer,签发方
 Item / Description,品名/说明
+Item / description,品名 / 说明
+"JPG, PNG or PDF, up to 10 MB",JPG、PNG 或 PDF，最大 10 MB
 "Kept as evidence, not a business field",留证用，不是业务字段
 "Kept as evidence, not a business field; only the confirmed fields are.",留证用，不是业务字段；确认后的字段才是
 LINE Display Name,LINE 昵称
 LINE User ID,LINE 用户 ID
 LINE could not be reached; please try again,连不上 LINE，请稍后再试
+LINE status,LINE 状态
+Language,语言
 Last Login At,最近登录
 Last Result,最近结果
 Last Seen At,最近活跃
 Last Used,最近使用
 Last Verified At,最后核对时间
+Last result,最近结果
 Lease Expires,租约到期
 Lease Owner,租约持有者
+Leave blank to keep the current password.,留空则不修改当前密码。
+Leave blank to keep unchanged,留空则不修改
 Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
+Lines,明细
+Linked,已绑
+Loading advisors…,正在读取顾问名册…
+Loading…,加载中…
 Local Account,本地账号
 Local Session,本地会话
 "Local sample site: not sent to LINE, the raw text is only recorded",本机样例站点：未发往 LINE，仅记录原文
 Looking up the OIDC client failed: {0} {1},查询 OIDC 客户端失败：{0} {1}
+Manage purchase orders and payment details.,管理采购单据及付款明细。
+Manual,手工
+Manual handling,人工处理
 Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果只能是 未匹配/已有客户/新建客户
 Max Retries,最多重试
@@ -207,22 +321,41 @@ Name,名称
 "Neither tier produced a result (network, key or model name could all be the cause)",两档都没读出结果（网络/密钥/模型名都可能）
 Net Amount,不含税金额
 Net Payable,应付净额
+Net amount,未税金额
+Net payable,应付净额
 New Customer,本次新建
+New DMS password,新 DMS 密码
+New entry,新建录入
+New password,新密码
+New purchase order,新建采购单
 Next Retry At,下次重试时间
+No,否
 No DMS connection has been configured yet,还没有配过 DMS 连接
 No OCR key configured (site config pearnly_ocr_api_key),没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）
 "No client ID for invitation links is configured, so the invitation email cannot be sent",没有配「邀请链接用的客户端 ID」，发不出邀请邮件
 No existing customer matched and no DMS customer reference was given: confirm manually first,匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认
+No operators yet — add one above,还没有操作员，先在上方新增
 No provisioning target is available; configure one under “Provisioning Target” first,没有可用的开户目标，请先在“开户目标”里配一个
+No purchase orders yet. Use “New purchase order” in the top right to add the first one.,还没有采购单。点右上角「新建采购单」录第一张。
+No records,暂无记录
+No records yet. Use “New entry” in the top right to add the first one.,还没有记录。点右上角「新建录入」录第一张。
 No service account configured (site config pearnly_ocr_credentials),没有配服务账号（站点配置 pearnly_ocr_credentials）
 No sign-in credentials configured,没配登录凭据
 No such local account: {0},本地账号不存在：{0}
+No.,单号
+Not allowed,未允许
+Not connected,未连接
+Not linked,未绑
 Not signed in,未登录
+Not subscribed,未订阅
 Note,备注
 Notes,备注
+Nothing to save,没有要保存的改动
+OK,确定
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",停用后不再参与推送（老产品：停用是「同批不误投」的闸）
 Once disabled its DMS pushes stop and the LINE binding is released,停用后其 DMS 推送停止并解除 LINE 绑定
+One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code,每行一位销售/管理员：各自 DMS 账密，逐行发 LINE 绑定码
 Only a company admin can top up or change the subscription,充值与订阅只有公司管理员能操作
 Only a company admin can view top-up records,充值记录只有公司管理员能看
 Only an admin can configure DMS connections,只有管理员能配置 DMS 连接
@@ -233,66 +366,128 @@ Only the config was checked; a real connectivity test waits for the adapter,只�
 Only the owner can manage it,仅责任人可管理
 Operator,操作人
 Operator Roster,操作员花名册
+Operator added,操作员已新增
+Operator list,操作员名单
+Operators,操作员
+Optional,可留空
 Order Discount,整单折扣
+Outstanding,未付
+Overage: {0}/page,超额单价：{0}/页
+Overage: {0}/page · Expires: {1},超额单价：{0}/页 · 到期时间：{1}
 Owner Account,归属账号
+POS,收银 POS
+Page unavailable,页面暂不可用
+Page {0} of {1} · {2} records,第 {0} / {1} 页 · 共 {2} 条
 Pages,张数
 Paid Amount,已付金额
 Password,密码
+Password updated. Use the new password next time you sign in.,密码已更新。下次登录请用新密码。
+Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。
 Payer,付款人
+Payer name on the bank transfer,银行转账时的付款方
 Payload,载荷
 Payment Status,付款状态
+Pearnly,Pearnly主题
+Pearnly Cowork,Pearnly Cowork
+Pearnly Dark,Pearnly 深色
+Pearnly Light,Pearnly 浅色
+Pending,待处理
+Pending review,待审核
 Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
+Plan,套餐
 Plan & Balance,套餐与余额
+Plans do not renew automatically. Subscribe again after expiry.,套餐不自动续订，到期后可重新订阅。
+Please confirm,请确认
 Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
 Processing Started At,开始执行时间
+Processing…,处理中…
 Product,产品
 Product Ref,物料外部标识
 "Product home: current plan, usage and billing",产品首页，承载当前的订阅套餐、用量与账单
 Product master data,物料主数据
 Products,物料
+Products & Stock,物料与库存
 Provide at least one line item,至少给一行明细
+Purchase,进项
+Purchase (bills received),进项（收到的票）
+Purchase / Sale,进项 / 销项
+Purchase order created: {0},已建单：{0}
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
+Purchases (confirmed and above),进项合计（已确认及以上）
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
+Purchasing Settings,采购设置
 Push,推送
 Push Channel,推送渠道
 Push Log,推送日志
 Push Log Reference,推送日志引用
 Push Records,推送记录
 Push Status,推送状态
+Push failed,推送失败
 Push status must be one of {0},推送状态只能是 {0}
 Push to the external ERP; the push log is the only source of status,推送到外部 ERP；状态以推送日志为唯一来源
+Pushed,已推送
 Qty,数量
+Query access,查询权限
+Queued to push,待推送
 "Read the ID card, match it against the DMS customer base, then confirm",读身份证、与 DMS 客户库比对后确认资料
 Received,实收金额
 Recognition Raw,识别原始输出
 Recognition Records,识别记录
+Recognition records,识别记录
+Recognized,已识别
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
+Records,记录明细
 Reference,单号
 Reference DocType,业务单据类型
 Reference Name,业务单据
+Refresh,刷新
+Regenerate,重新生成
+Rejected,已拒绝
+Reload advisors,重新读取顾问名册
 Remote Address,对端地址
+Reorder sidebar,侧栏排序
 Request & Response,请求与响应
 Request Body,请求内容
 Request Snapshot,申请内容快照
+Request failed (HTTP {0}),请求失败（HTTP {0}）
 Requested,申请金额
 Requested By,申请人
 Response Body,响应内容
 Result,结果
+Result details,结果说明
 Retry & Lease,重试与租约
 Retry Count,已重试次数
+Retrying,重试中
+Return to the home page to continue.,请返回首页继续操作。
+Returned,已退回
+Review and confirm documents before sending.,核对并确认单据后即可推送。
 Revoked At,吊销时间
 Role,角色
 Role must be sales or admin,角色只能是 sales（销售）或 admin（管理员）
 Rounding,尾差
 Row {0}: quantity must be greater than 0,第 {0} 行数量必须大于 0
 Row {0}: unit price cannot be negative,第 {0} 行单价不能为负
+Sale,销项
+Sale (bills we issue),销项（自己开的票）
 Sales,销售系统
+Sales (confirmed and above),销项合计（已确认及以上）
 Sales Commission Owner,销售提成归属
+Sales Records,销售记录
+Sales commission owner,销售提成归属
 Sales documents and customer dealings,销售单据与客户往来
+Salesperson,销售
 Same ID number means the same customer; avoids duplicate records,证件号相同视为同一客户，避免重复建档
+Save,保存
+Save purchase order,保存采购单
+Saved,已保存
+Saved as a draft; confirm it before it can be pushed,保存后是「草稿」，确认之后才能推送
+"Scan to add this account, then send the bind code in LINE.",扫码添加好友，再发送此绑定码。
 Session Payload,会话载荷
+Sign in again before changing your username.,请重新登录后再更改用户名。
+Sign out,退出登录
+Sign out and sign in again,退出并重新登录
 Sign-in Credentials,登录凭据
 Site config is missing {0},站点配置缺少 {0}
 Site config is missing {0}_admin_client_id / _secret,站点配置缺少 {0}_admin_client_id / _secret
@@ -303,20 +498,39 @@ Source Attachment,原始附件
 Status,状态
 Status cannot go backwards: {0} → {1},状态不能回退：{0} → {1}
 Status must be active or inactive,状态只能是 active 或 inactive
+Stock,库存
 Stock Card Report,收发存报表
 Stock Count,库存盘点
+Stock In,入库
 Stock In / Out,库存（入库/出库）
+Stock Out,出库
 "Stock in/out summary (kept item, see the ERP manifest)",库存收发存汇总（保留项，见 ERP 清单）
 Subject,主体
+Submit request,提交申请
+Submitting…,提交中…
+Subscribe to this plan,订阅此套餐
+Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,已订阅套餐 {0}，月费从余额扣除，当前余额 {1}。
+Subscribing…,订阅中…
 Subtotal,小计
+Succeeded,成功
+Success / failure,成功 / 失败
 Successes,成功次数
 Summary,摘要
 Supplier,供应商
+Supplier / customer,供应商 / 客户
 Supplier Tax ID,供应商税号
+Supplier name,供应商名称
+Suppliers,供应商
 System URL,系统地址
 System URL is not filled in,没填系统地址
+Team,团队管理
+Tenant boot data,本站点启动数据
+Test connection,测试连接
+Testing…,测试中…
+"Text files: {1} per {0} characters, rounded up.",文本文件：每 {0} 个字符 {1}，不足一组按一组计费。
 The DMS account is marked as resigned,DMS 账号已标记为离职
 The DMS account is not approved to use the system,DMS 账号未被批准使用系统
+The DMS advisor list is empty.,DMS 顾问名册为空。
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
@@ -327,7 +541,9 @@ The account is disabled,账号已停用
 The account was created but no id came back,账号已建但取不到 id
 The admin session must be requested inside a `with` block,admin 会话必须在 `with` 块里请求
 The balance could not be read,余额查不出来
+The balance grows once the platform confirms the transfer.,提交后平台确认到账，余额才会增加。
 The billing service returned HTTP {0},计费底座返回 HTTP {0}
+The bind code has expired — please regenerate,绑定码已过期，请重新生成
 The control plane is not affected,控制面不受影响
 The current password is wrong,当前密码不正确
 The customer snapshot used to refill the form when approval executes.,批准执行时回填表单用的客户资料快照。
@@ -351,53 +567,87 @@ The name is resolved server-side when pinning; the client's value is not trusted
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",老板在这张表里认人用的名字，例如：阿明（销售）
 The new password cannot be the same as the current one,新密码不能与当前密码相同
 The new password is required,新密码不能为空
+"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,点批准的那个人（认领时刻写下；写失败回炉时会清掉）。
+The plan quota is used first; anything over is charged per plan rate from the balance,订阅后先用套餐额度，超额按套餐单价从余额扣
 The push channel must be companion or cloud,推送渠道只能是 companion 或 cloud
 The result of each push,每次推送的结果
 The service account could not exchange its token: {0},服务账号换令牌失败：{0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码
+The subscription could not be activated,套餐未能开通
 "The target environment is incomplete: URL, realm, client ID and secret are all required",目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填
 The test for a duplicate upload of the same document,同一张票重复上传时的判据
+The total is calculated automatically.,合计金额自动计算。
 "The truth is in erp_push_logs, trigger=id_card",真值在 erp_push_logs，trigger=id_card
 The truth is in erp_push_logs; this is only a display reference,以 erp_push_logs 为准，这里只做展示引用
 The two new passwords do not match,两次输入的新密码不一致
+The two passwords do not match,两次输入不一致
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.",取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理
 "There is no DMS customer reference, so it cannot be pushed",没有 DMS 客户引用，不能推送
 This Operator's Own DMS Credentials,该操作员自己的 DMS 账密
 "This account has no identity binding, so it cannot change its own password; contact an admin",当前账号没有登记身份绑定，无法自助改密，请联系管理员
+This advisor is no longer in the current DMS list. Please select again.,该顾问已不在当前 DMS 名册中，请重新选择。
+This company’s LINE official account is not configured yet.,本公司尚未配置 LINE 官方账号。
 This document has already been recorded: {0},这张单已经录过：{0}
 This identity is already bound to account {0} (record {1}),该身份已绑定到账号 {0}（记录 {1}）
 This identity is already bound to {0},该身份已绑定到 {0}
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）
 This invoice has already been recorded: {0},这张票已经录过：{0}
+This month,本月
+This operator's DMS account,该操作员的 DMS 账号
+This operator's DMS password,该操作员的 DMS 密码
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品
 "This site has no LINE access token configured, so it cannot send messages",本站点没有配 LINE access token，发不出消息
 This site has no product manifest installed; it cannot run as a business site.,本站点没有安装任何产品清单，不能作为业务站点运行
 This site has no product workspace yet,本站点还没有产品工作区
+"This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?",将解绑「{0}」的 LINE、移除 DMS 连接；推送记录将保留。确定删除？
+This username is already in use.,该用户名已被使用。
+This year,今年
 Time,时间
+Titles {0},称谓 {0}
+To confirm,待确认
+To verify,待复核
+Today,今天
+Top up,充值
+Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.,充值申请已提交（{0} · {1}），等平台确认到账后余额才会增加。
 Top-ups,充值
+Total incl. VAT,价税合计
+Transfer slip attached,已附上转账凭证
+"Transfer to the account below, then upload your slip for review.",请向以下账户转账，然后上传转账凭证提交审核。
 Transport Result,传输结果
 Trigger,触发方式
 Type,类型
+UI language,界面语言
+Unable to read the current advisor list. Retry before changing the assignment.,无法读取当前顾问名册。请重试后再修改归属。
+Unable to verify this company’s LINE official account. Please try again.,无法核实本公司的 LINE 官方账号，请重试。
+Unbind LINE,解绑 LINE
 Unbound At,解绑时间
 Unconfirmed documents cannot be pushed,还没确认的单据不能推送
 Unit,单位
 Unit Price,单价
+Unit price,单价
 Unknown product: {0},未知产品：{0}
+Upload,上传
 Upload a transfer slip before submitting,请先上传转账凭证再提交
 Upload a transfer slip up to 10 MB,请上传不超过 10 MB 的转账凭证
 "Upload receipts and sheets, extract fields, review each item, then push",上传票据与表格、识别字段、逐项核对与推送
+Upload transfer slip,上传转账凭证
 Usage,使用情况
 "Use a JPG, PNG or PDF transfer slip",转账凭证须为 JPG、PNG 或 PDF
 Used,已使用
 Used At,使用时间
+Used {0} pages this month · pay-as-you-go,本月已用 {0} 张 · 未订阅按量计费
+"Used {0} pages this month · plan {1}, {2} left this cycle",本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张
 User,用户
 User Agent,浏览器标识
+"Username must contain 3–30 letters, digits, dots, underscores or hyphens.",用户名须为 3–30 位字母、数字、点、下划线或短横线。
 VAT,增值税
+VAT %,税率%
 VAT Amount,税额
 VAT Included,含增值税
 VAT Rate %,税率%
+Valid for {0},剩余有效期 {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推的是哪一单
@@ -410,8 +660,12 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务
 Withholding Tax,预扣税
+Work together,工作协作
 Workspace,工作区
+Yes,是
+You need to sign in to the site before opening this page. Enter through the site domain and sign in.,这一页需要登录站点之后才能打开。请从站点域名进入并完成登录。
 Your access domain,您的访问域名
+Your account was updated elsewhere. Sign in again to load the current username.,账户已在其它地方更新，请重新登录以读取当前用户名。
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。"
 account.cancel,取消
 account.changePassword,更改密码
@@ -504,6 +758,7 @@ connect.state.enabled,已启用
 connect.state.notConnected,未连接
 connect.title,连接DMS
 connect.yes,是
+e.g. Ming (sales),如：阿明（销售）
 endpoint is missing (which connection to test),缺 endpoint（要测哪条连接）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 home.balance.title,账户余额
@@ -797,7 +1052,13 @@ shell.notBuilt.title,页面暂不可用
 state is invalid or has expired,state 无效或已过期
 system_url is required,system_url 必填
 username / password are required,username / password 必填
+{0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
+{0} pages per cycle,每周期 {0} 页
+{0} record(s) deleted.,已删除 {0} 条记录。
+{0} records · grand total {1} · payable {2} · outstanding {3},{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，但入队传了 {2} 个
+{0} top-up request(s) pending review.,{0} 笔充值申请待审核。
+{0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}: 入口前缀必须以 / 开头：{1}
 {0}: missing field {1},{0}: 缺少字段 {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}: 清单要求安装 {1}，但本站点没装
