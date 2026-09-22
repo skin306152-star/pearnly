@@ -52,6 +52,7 @@ Confirm,確認
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
 Could not store this document,書類を保存できませんでした。再送してください
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
+Create,作成
 Create New Item,新規品目作成
 Creation,作成日時
 Currency,通貨
@@ -138,7 +139,9 @@ More Filters,追加フィルタ
 Net Total,正味合計
 New,新規
 New Category,カテゴリ作成
+New Customer,顧客を追加
 New Purchase Invoice,仕入請求書作成
+New Supplier,仕入先を追加
 Next,次へ
 No attachments,添付ファイルなし
 None,なし
@@ -167,6 +170,7 @@ Payment Status,支払状況
 Payments,支払履歴
 Period,期間
 Person,個人
+Phone,電話
 Please select an Item,品目を選択してください
 Posting Date,転記日
 Preview,プレビュー
@@ -285,6 +289,29 @@ adjust,調整
 branch,支店
 card,カード
 cash,現金
+client.close,閉じる
+client.col.address,住所
+client.col.name,顧客名
+client.col.phone,電話
+client.col.status,状態
+client.col.taxId,納税者番号
+client.col.type,顧客種類
+client.create,作成
+client.field.active,有効
+client.field.address,住所
+client.field.name,顧客名
+client.field.note,備考
+client.field.phone,電話
+client.field.taxId,納税者番号
+client.field.type,顧客種類
+client.inactive,無効
+client.new,顧客を追加
+client.party.anonymous,匿名
+client.party.company,法人
+client.party.foreign,外国人
+client.party.person,個人
+client.save,保存
+client.title,顧客
 company,会社
 completed,完了
 count,棚卸
@@ -552,6 +579,28 @@ stock.workbench.title,棚卸作業台
 stock_in,入庫
 stock_out,出庫
 submitted,確定済み
+supplier.branch,支店
+supplier.close,閉じる
+supplier.col.address,住所
+supplier.col.branch,支店
+supplier.col.name,仕入先
+supplier.col.phone,電話
+supplier.col.status,状態
+supplier.col.taxId,納税者番号
+supplier.create,作成
+supplier.field.active,有効
+supplier.field.address,住所
+supplier.field.branch,支店種別
+supplier.field.branchNo,支店番号
+supplier.field.name,仕入先名
+supplier.field.note,備考
+supplier.field.phone,電話
+supplier.field.taxId,納税者番号
+supplier.head,本店
+supplier.inactive,無効
+supplier.new,仕入先を追加
+supplier.save,保存
+supplier.title,仕入先
 tax_invoice,税務請求書
 tax_invoice_receipt,税務請求書兼領収書
 tax_invoice_simple,簡易税務請求書

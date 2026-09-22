@@ -52,6 +52,7 @@ Confirm,ยืนยัน
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Count at least one item before finishing,โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ
+Create,สร้าง
 Create New Item,สร้างสินค้าใหม่
 Creation,การสร้าง
 Currency,สกุลเงิน
@@ -138,7 +139,9 @@ More Filters,ตัวกรองเพิ่มเติม
 Net Total,ยอดรวมสุทธิ
 New,ใหม่
 New Category,สร้างหมวดหมู่
+New Customer,เพิ่มลูกค้า
 New Purchase Invoice,ใบแจ้งหนี้ซื้อใหม่
+New Supplier,เพิ่มผู้จัดจำหน่าย
 Next,ถัดไป
 No attachments,ไม่มีไฟล์แนบ
 None,ไม่มี
@@ -167,6 +170,7 @@ Payment Status,สถานะการชำระ
 Payments,การชำระเงิน
 Period,ช่วงเวลา
 Person,บุคคล
+Phone,โทรศัพท์
 Please select an Item,กรุณาเลือกสินค้า
 Posting Date,วันที่โพสต์
 Preview,ตัวอย่าง
@@ -285,6 +289,29 @@ adjust,ปรับปรุง
 branch,สาขา
 card,บัตร
 cash,เงินสด
+client.close,ปิด
+client.col.address,ที่อยู่
+client.col.name,ชื่อลูกค้า
+client.col.phone,โทรศัพท์
+client.col.status,สถานะ
+client.col.taxId,เลขประจำตัวผู้เสียภาษี
+client.col.type,ประเภทลูกค้า
+client.create,สร้าง
+client.field.active,ใช้งาน
+client.field.address,ที่อยู่
+client.field.name,ชื่อลูกค้า
+client.field.note,หมายเหตุ
+client.field.phone,โทรศัพท์
+client.field.taxId,เลขประจำตัวผู้เสียภาษี
+client.field.type,ประเภทลูกค้า
+client.inactive,ปิดใช้งาน
+client.new,เพิ่มลูกค้า
+client.party.anonymous,ไม่ระบุชื่อ
+client.party.company,บริษัท
+client.party.foreign,ชาวต่างชาติ
+client.party.person,บุคคล
+client.save,บันทึก
+client.title,ลูกค้า
 company,บริษัท
 completed,เสร็จสิ้น
 count,ตรวจนับ
@@ -552,6 +579,28 @@ stock.workbench.title,หน้าปฏิบัติงานตรวจน�
 stock_in,รับเข้า
 stock_out,จ่ายออก
 submitted,ยืนยันแล้ว
+supplier.branch,สาขา
+supplier.close,ปิด
+supplier.col.address,ที่อยู่
+supplier.col.branch,สาขา
+supplier.col.name,ผู้ขาย
+supplier.col.phone,โทรศัพท์
+supplier.col.status,สถานะ
+supplier.col.taxId,เลขประจำตัวผู้เสียภาษี
+supplier.create,สร้าง
+supplier.field.active,ใช้งาน
+supplier.field.address,ที่อยู่
+supplier.field.branch,ประเภทสาขา
+supplier.field.branchNo,เลขที่สาขา
+supplier.field.name,ชื่อผู้ขาย
+supplier.field.note,หมายเหตุ
+supplier.field.phone,โทรศัพท์
+supplier.field.taxId,เลขประจำตัวผู้เสียภาษี
+supplier.head,สำนักงานใหญ่
+supplier.inactive,ปิดใช้งาน
+supplier.new,เพิ่มผู้ขาย
+supplier.save,บันทึก
+supplier.title,ผู้ขาย
 tax_invoice,ใบกำกับภาษีเต็มรูป
 tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
 tax_invoice_simple,ใบกำกับภาษีอย่างย่อ

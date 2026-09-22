@@ -52,6 +52,7 @@ Confirm,Confirm
 Confirm the document before recording a payment,Confirm the document before recording a payment
 Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
+Create,Create
 Create New Item,Create New Item
 Creation,Creation
 Currency,Currency
@@ -138,7 +139,9 @@ More Filters,More Filters
 Net Total,Net Total
 New,New
 New Category,New Category
+New Customer,New Customer
 New Purchase Invoice,New Purchase Invoice
+New Supplier,New Supplier
 Next,Next
 No attachments,No attachments
 None,None
@@ -167,6 +170,7 @@ Payment Status,Payment Status
 Payments,Payments
 Period,Period
 Person,Person
+Phone,Phone
 Please select an Item,Please select an Item
 Posting Date,Posting Date
 Preview,Preview
@@ -285,6 +289,29 @@ adjust,adjust
 branch,branch
 card,card
 cash,cash
+client.close,Close
+client.col.address,Address
+client.col.name,Customer Name
+client.col.phone,Phone
+client.col.status,Status
+client.col.taxId,Tax ID
+client.col.type,Customer Type
+client.create,Create
+client.field.active,Active
+client.field.address,Address
+client.field.name,Customer Name
+client.field.note,Remarks
+client.field.phone,Phone
+client.field.taxId,Tax ID
+client.field.type,Customer Type
+client.inactive,Disabled
+client.new,New Customer
+client.party.anonymous,Anonymous
+client.party.company,Company
+client.party.foreign,Foreigner
+client.party.person,Person
+client.save,Save
+client.title,Customers
 company,company
 completed,completed
 count,count
@@ -552,6 +579,28 @@ stock.workbench.title,Stock count workbench
 stock_in,stock_in
 stock_out,stock_out
 submitted,submitted
+supplier.branch,Branch Office
+supplier.close,Close
+supplier.col.address,Address
+supplier.col.branch,Branch
+supplier.col.name,Supplier
+supplier.col.phone,Phone
+supplier.col.status,Status
+supplier.col.taxId,Tax ID
+supplier.create,Create
+supplier.field.active,Active
+supplier.field.address,Address
+supplier.field.branch,Branch Type
+supplier.field.branchNo,Branch No
+supplier.field.name,Supplier Name
+supplier.field.note,Remarks
+supplier.field.phone,Phone
+supplier.field.taxId,Tax ID
+supplier.head,Head Office
+supplier.inactive,Disabled
+supplier.new,New Supplier
+supplier.save,Save
+supplier.title,Suppliers
 tax_invoice,tax_invoice
 tax_invoice_receipt,tax_invoice_receipt
 tax_invoice_simple,tax_invoice_simple

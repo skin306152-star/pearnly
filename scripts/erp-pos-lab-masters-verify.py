@@ -196,8 +196,13 @@ def main():
 
     frappe.destroy()
     connect(OTHER_SITE)
-    results["other_site_customers"] = frappe.db.count("ERP Customer")
-    results["other_site_companies"] = frappe.db.count("ERP Company")
+    # 隔离要验的是"**本轮的夹具**没有漏到另一个站点"，不是"另一个站点必须是空的"：
+    # 演示站上留着给用户看的样本（客户/公司），空站断言会被那些样本误伤。
+    # 本轮的夹具是唯一命名的（Lab Buyer Co / Lab Company A/B），照名字查就行。
+    results["other_site_leaked_customers"] = frappe.db.count(
+        "ERP Customer", {"customer_name": ["like", "Lab Buyer%"]})
+    results["other_site_leaked_companies"] = frappe.db.count(
+        "ERP Company", {"company_name": ["like", "Lab Company%"]})
 
     expected = {
         "default_company": True,
@@ -221,8 +226,9 @@ def main():
         "cashier_can_write_profile": False,
         "outsider_can_read_customers": False,
         "outsider_can_read_profile": False,
-        "other_site_customers": 0,
-        "other_site_companies": 0,
+        # 另一站点不许出现本轮的夹具（不要求它是空站：演示站留着用户看的样本）。
+        "other_site_leaked_customers": 0,
+        "other_site_leaked_companies": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
                 if results.get(k) != v}

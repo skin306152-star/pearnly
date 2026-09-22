@@ -52,6 +52,7 @@ Confirm,确认
 Confirm the document before recording a payment,记录付款前请先提交单据
 Could not store this document,单据留底失败，请重发
 Count at least one item before finishing,请至少盘点一项后再结束
+Create,创建
 Create New Item,创建新物料
 Creation,创建日期
 Currency,货币
@@ -138,7 +139,9 @@ More Filters,更多筛选条件
 Net Total,净总计
 New,新建
 New Category,新建分类
+New Customer,新建客户
 New Purchase Invoice,新供应商发票
+New Supplier,新建供应商
 Next,下一个
 No attachments,无附件
 None,无
@@ -167,6 +170,7 @@ Payment Status,付款状态
 Payments,付款
 Period,期间
 Person,个人
+Phone,电话
 Please select an Item,请选择物料
 Posting Date,记账日期
 Preview,预览
@@ -285,6 +289,29 @@ adjust,调整
 branch,分店
 card,银行卡
 cash,现金
+client.close,关闭
+client.col.address,地址
+client.col.name,客户名称
+client.col.phone,电话
+client.col.status,状态
+client.col.taxId,税号
+client.col.type,客户类型
+client.create,创建
+client.field.active,启用
+client.field.address,地址
+client.field.name,客户名称
+client.field.note,备注
+client.field.phone,电话
+client.field.taxId,税号
+client.field.type,客户类型
+client.inactive,已停用
+client.new,新建客户
+client.party.anonymous,匿名
+client.party.company,公司
+client.party.foreign,外国人
+client.party.person,个人
+client.save,保存
+client.title,客户
 company,公司
 completed,已完成
 count,盘点
@@ -552,6 +579,28 @@ stock.workbench.title,盘点工作台
 stock_in,入库
 stock_out,出库
 submitted,已提交
+supplier.branch,分支机构
+supplier.close,关闭
+supplier.col.address,地址
+supplier.col.branch,分支
+supplier.col.name,供应商
+supplier.col.phone,电话
+supplier.col.status,状态
+supplier.col.taxId,税号
+supplier.create,创建
+supplier.field.active,启用
+supplier.field.address,地址
+supplier.field.branch,分支类型
+supplier.field.branchNo,分支编号
+supplier.field.name,供应商名称
+supplier.field.note,备注
+supplier.field.phone,电话
+supplier.field.taxId,税号
+supplier.head,总店
+supplier.inactive,已停用
+supplier.new,新建供应商
+supplier.save,保存
+supplier.title,供应商
 tax_invoice,完整税务发票
 tax_invoice_receipt,税务发票兼收据
 tax_invoice_simple,简易税务发票

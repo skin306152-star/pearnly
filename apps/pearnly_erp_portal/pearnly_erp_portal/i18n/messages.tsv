@@ -619,3 +619,48 @@ Item is disabled	物料已停用	สินค้าถูกปิดใช้�
 Document already exists	单据已存在	มีเอกสารนี้อยู่แล้ว	伝票は既に存在します
 Only a submitted document can be cancelled	只有已提交的单据能作废	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます
 Only a receipt records a collection	只有收据能记收款	บันทึกการรับเงินได้เฉพาะใบเสร็จ	入金を記録できるのは領収書のみです
+Suppliers	供应商	ผู้ขาย	仕入先	supplier.title
+New Supplier	新建供应商	เพิ่มผู้ขาย	仕入先を追加	supplier.new
+Save	保存	บันทึก	保存	supplier.save
+Create	创建	สร้าง	作成	supplier.create
+Close	关闭	ปิด	閉じる	supplier.close
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	supplier.col.taxId
+Branch	分支	สาขา	支店	supplier.col.branch
+Phone	电话	โทรศัพท์	電話	supplier.col.phone
+Address	地址	ที่อยู่	住所	supplier.col.address
+Status	状态	สถานะ	状態	supplier.col.status
+Head Office	总店	สำนักงานใหญ่	本店	supplier.head
+Branch Office	分支机构	สาขา	支店	supplier.branch
+Disabled	已停用	ปิดใช้งาน	無効	supplier.inactive
+Supplier Name	供应商名称	ชื่อผู้ขาย	仕入先名	supplier.field.name
+Phone	电话	โทรศัพท์	電話	supplier.field.phone
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	supplier.field.taxId
+Branch Type	分支类型	ประเภทสาขา	支店種別	supplier.field.branch
+Branch No	分支编号	เลขที่สาขา	支店番号	supplier.field.branchNo
+Address	地址	ที่อยู่	住所	supplier.field.address
+Remarks	备注	หมายเหตุ	備考	supplier.field.note
+Active	启用	ใช้งาน	有効	supplier.field.active
+Customers	客户	ลูกค้า	顧客	client.title
+New Customer	新建客户	เพิ่มลูกค้า	顧客を追加	client.new
+Save	保存	บันทึก	保存	client.save
+Create	创建	สร้าง	作成	client.create
+Close	关闭	ปิด	閉じる	client.close
+Company	公司	บริษัท	法人	client.party.company
+Person	个人	บุคคล	個人	client.party.person
+Foreigner	外国人	ชาวต่างชาติ	外国人	client.party.foreign
+Anonymous	匿名	ไม่ระบุชื่อ	匿名	client.party.anonymous
+Customer Name	客户名称	ชื่อลูกค้า	顧客名	client.col.name
+Customer Type	客户类型	ประเภทลูกค้า	顧客種類	client.col.type
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	client.col.taxId
+Phone	电话	โทรศัพท์	電話	client.col.phone
+Address	地址	ที่อยู่	住所	client.col.address
+Status	状态	สถานะ	状態	client.col.status
+Disabled	已停用	ปิดใช้งาน	無効	client.inactive
+Customer Name	客户名称	ชื่อลูกค้า	顧客名	client.field.name
+Customer Type	客户类型	ประเภทลูกค้า	顧客種類	client.field.type
+Phone	电话	โทรศัพท์	電話	client.field.phone
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	client.field.taxId
+Address	地址	ที่อยู่	住所	client.field.address
+Remarks	备注	หมายเหตุ	備考	client.field.note
+Active	启用	ใช้งาน	有効	client.field.active
+Supplier	供应商	ผู้ขาย	仕入先	supplier.col.name

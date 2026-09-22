@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-suppliers",
+ "page_name": "pearnly-suppliers",
+ "title": "nav.suppliers",
+ "module": "Pearnly ERP Portal",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}
