@@ -191,7 +191,8 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
-			page.set_primary_action(__("Payment"), () => u.payment(doc, reload));
+			// 付清之后不再给付款入口（用户 2026-09-23：「已付不可更改」）。
+			if (doc.payment_status !== "paid") page.set_primary_action(__("Payment"), () => u.payment(doc, reload));
 			page.add_menu_item(__("Amend"), () => go("amend", doc.name));
 			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {await u.call("api_cancel_purchase", {name: doc.name, ...values}, true); dialog.hide(); await reload();}));
@@ -210,14 +211,16 @@
 		return () => {state.disposed = true; cleanup_entry(); preview.destroy(); layout.destroy(); attachment_list?.destroy();};
 	};
 	u.payment = (doc, reload) => {
+		// 与销售同一套弹窗（用户 2026-09-23）：只问这次付多少、什么方式、哪天（+备注）。
+		// 不再给「未付 / 已付款」下拉 —— 那个下拉会挡在「提交」上面、也可能静默改状态。
+		// 采购这边金额是**这次付出去的钱**（会累加进付款流水），默认值给还欠的数。
 		const f = u.field, due = Number(doc.net_payable) - Number(doc.paid_amount), request_id = frappe.utils.get_random(32);
 		p.dialog(__("Payment"), [
-			f("paid", "Payment Status", "Select", {options: [{value: "amount", label: __("Payment")}, {value: "0", label: __("Unpaid")}, {value: "1", label: __("Paid")}], default: due > 0 ? "amount" : "0"}),
-			f("amount", "Paid Amount", "Currency", {default: due, depends_on: "eval:doc.paid === 'amount'"}),
+			f("amount", "Paid Amount", "Currency", {reqd: 1, default: due,
+				description: `${__("Outstanding Amount")} ${p.money(due, doc.currency)}`}),
 			f("method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), default: "cash"}),
 			f("date", "Posting Date", "Date", {default: frappe.datetime.get_today(), reqd: 1}), f("note", "Remarks", "Small Text"),
 		], __("Submit"), async (values, dialog) => {
-			if (values.paid === "amount") delete values.paid;
 			await u.call("api_purchase_payment", {name: doc.name, payload: {...values, request_id}}, true);
 			dialog.hide(); await reload();
 		});

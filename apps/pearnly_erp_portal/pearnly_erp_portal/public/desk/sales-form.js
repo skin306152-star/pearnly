@@ -172,7 +172,9 @@
 				changes();
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
-			if (doc.doc_kind === "receipt") page.set_primary_action(__("Collection"), () => u.payment(doc, reload));
+			// 收满之后不再给收款入口（用户 2026-09-23：「已收不可更改」）。
+			if (doc.doc_kind === "receipt" && doc.payment_status !== "paid")
+				page.set_primary_action(__("Collection"), () => u.payment(doc, reload));
 			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {await u.call("api_cancel_sale", {name: doc.name, ...values}, true); dialog.hide(); await reload();}));
 		}
@@ -182,16 +184,17 @@
 		return () => {state.disposed = true; cleanup_entry(); preview.destroy(); layout.destroy(); attachment_list?.destroy();};
 	};
 	u.payment = (doc, reload) => {
-		const f = u.field, due = Number(doc.grand_total) - Number(doc.paid_amount);
+		// 表头口径：钱记在这张单上（`paid_amount` 是**累计已收**，不是这次追加）。
+		// 所以弹窗只问三件事，不再给「未付 / 已付款」那种下拉 —— 那个下拉既会让人把
+		// 已经收到的钱静默清零，又会挡在「提交」上面（见 docs/work 的 F3）。
+		const f = u.field;
 		p.dialog(__("Collection"), [
-			f("paid", "Collection Status", "Select", {options: [{value: "amount", label: __("Collection")},
-				{value: "0", label: __("Unpaid")}, {value: "1", label: __("Paid")}], default: due > 0 ? "amount" : "0"}),
-			f("amount", "Received Amount", "Currency", {default: due, depends_on: "eval:doc.paid === 'amount'"}),
+			f("amount", "Received Amount", "Currency", {reqd: 1, default: doc.grand_total,
+				description: `${__("Grand Total")} ${p.money(doc.grand_total)}`}),
 			f("method", "Collection Method", "Select", {options: u.options(["cash", "transfer", "promptpay", "other"]),
-				default: doc.payment_method || "cash", depends_on: "eval:doc.paid !== '0'"}),
-			f("date", "Collection Date", "Date", {default: frappe.datetime.get_today(), reqd: 1, depends_on: "eval:doc.paid !== '0'"}),
+				default: doc.payment_method || "cash"}),
+			f("date", "Collection Date", "Date", {default: doc.payment_date || frappe.datetime.get_today(), reqd: 1}),
 		], __("Submit"), async (values, dialog) => {
-			if (values.paid === "amount") delete values.paid;
 			await u.call("api_sale_payment", {name: doc.name, payload: values}, true);
 			dialog.hide(); await reload();
 		});

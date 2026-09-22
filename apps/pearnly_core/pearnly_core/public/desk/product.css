@@ -151,6 +151,19 @@ body.pearnly-product-desk .pearnly-difference {
 	color: var(--red-600);
 }
 
+/* 还没收到 / 还没付出去的状态也标红：钱没到位是"要找的东西"，用同一个红（用户 2026-09-23）。 */
+body.pearnly-product-desk .pearnly-payment-due {
+	color: var(--red-600);
+}
+
+/* 弹窗里的下拉浮层会盖住 footer：框架给 `awesomplete ul` 的 z-index 是 2、给
+   `.modal-footer` 的是 1，字段少的弹窗里最后一行选项正好压在「提交」上，
+   点「提交」其实点在选项上（销售/采购的收款付款弹窗实测如此）。
+   把 footer 抬到浮层之上，按钮永远点得到；浮层该露的选项仍在它上面。 */
+body.pearnly-product-desk .pearnly-dialog .modal-footer {
+	z-index: 3;
+}
+
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {
 	display: flex;

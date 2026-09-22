@@ -99,6 +99,10 @@ frappe.provide("frappe.pearnly");
 				}
 			},
 		});
+		// 标记是我们自己的弹窗：框架给下拉浮层的 z-index（2）比 footer（1）高，
+		// 短弹窗里最后一行选项正好压在「提交」上 —— 点提交其实点在选项上。
+		// 皮肤里把 footer 抬到浮层之上（见 product.css），所以这里只要挂个类。
+		d.$wrapper.addClass("pearnly-dialog");
 		d.show();
 		return d;
 	};

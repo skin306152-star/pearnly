@@ -33,13 +33,17 @@
 					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},
 					{fieldname: "grand_total", width: 108, min_width: 86, label: __("Grand Total"), format: (value, row) => p.money(value, row.currency)},
 					{fieldname: "doc_kind", width: 90, min_width: 72, label: __("Type"), format: u.label},
-					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Payment Status"), format: u.label},
+					// 还没付出去的钱标红（颜色走 `cell_class`，列表这一层只出转义文本）。
+					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Payment Status"), format: u.label,
+						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 56, label: __("Status"), format: u.label},
 				],
 				load: ({start, page_length}) => u.call("api_purchase_records", {params: parameters(), start, limit: page_length}),
 				on_selection: rows => {selected = rows; primary();},
-				row_actions: can_write ? row => row.status !== "submitted" ? [] : [{id: "payment", label: u.label(row.payment_status === "paid" ? "unpaid" : "paid"),
-					action: async () => {await u.call("api_purchase_payment", {name: row.name, payload: {paid: row.payment_status === "paid" ? 0 : 1}}, true); await refresh();}}] : null,
+				// 行内付款和销售同一套：开弹窗、能看到金额、能改方式与日期（用户 2026-09-23）。
+				// 已经付清的单据不再提供入口（用户 2026-09-23 口径「已付不可更改」）。
+				row_actions: can_write ? row => row.status !== "submitted" || row.payment_status === "paid" ? []
+					: [{id: "payment", label: __("Payment"), action: () => u.payment(row, refresh)}] : null,
 				empty_action: can_write ? {label: __("New"), action: () => go("new")} : null,
 			});
 			async function refresh() {await list.reload(); primary();}

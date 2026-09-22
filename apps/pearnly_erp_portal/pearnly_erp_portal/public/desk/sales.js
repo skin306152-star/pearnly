@@ -34,14 +34,18 @@
 					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},
 					{fieldname: "grand_total", width: 108, min_width: 86, label: __("Grand Total"), format: value => p.money(value)},
 					{fieldname: "doc_kind", width: 90, min_width: 72, label: __("Document Type"), format: u.label},
-					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Collection Status"), format: u.label},
+					// 还没收到的钱标红（颜色走 `cell_class`，列表这一层只出转义文本）。
+					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Collection Status"), format: u.label,
+						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 56, label: __("Status"), format: u.label},
 				],
 				load: ({start, page_length}) => u.call("api_sales_records", {params: parameters(), start, limit: page_length}),
 				on_selection: rows => {selected = rows; primary();},
-				row_actions: can_write ? row => row.status !== "submitted" || row.doc_kind !== "receipt" ? []
-					: [{id: "payment", label: u.label(row.payment_status === "paid" ? "unpaid" : "paid"),
-						action: () => u.payment(row, refresh)}] : null,
+				// 收款只在**还欠钱**时给动作：已经收满的单据不再提供入口（用户 2026-09-23
+				// 口径「已收不可更改」）。按钮说的是动作（收款），不是状态。
+				row_actions: can_write ? row => row.status !== "submitted" || row.doc_kind !== "receipt"
+					|| row.payment_status === "paid" ? []
+					: [{id: "payment", label: __("Collection"), action: () => u.payment(row, refresh)}] : null,
 				empty_action: can_write ? {label: __("New"), action: () => go("new")} : null,
 			});
 			page.add_inner_button(__("purchase.action.filter"), () => {
