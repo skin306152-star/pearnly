@@ -3,13 +3,14 @@
 ## ⚠️ 最新交接（2026-09-22 收工，stocktake-workbench 批）—— 换窗口先读这一节
 
 - 工作树 `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly`，分支 `codex/stocktake-workbench`，
-  HEAD `db2d6f9`，工作区**干净**；已包含本机 `main` 的 `717d202`（`HEAD..main` 为空，合 main 可快进）。
+  HEAD `1fd06f3`（本交接提交；代码状态与 `db2d6f9` 相同，之后只多了这份文档），工作区**干净**；
+  已包含本机 `main` 的 `717d202`（`HEAD..main` 为空，合 main 可快进）。
   **未推送、未上线**：`origin/main` 仍停在 `ac33e0c`。
 - 逐批来龙去脉、每个决定与验证证据都在 [盘点工作台记录](2026-09-22-stocktake-workbench.md)
   （本轮全部批次都在那一个文件里，续写它，别另开新的）。
 - **用户要求"原地交接、不关停任何东西"**：两条 lane 都还在跑 ——
   预览 `http://stocktake.localhost:8136`（挂当前源码、秒级生效）、
-  验收 `http://stocktake.localhost:8126`（按 HEAD 构建的正式 amd64 镜像，当前 `sha256:1edf7208…`）。
+  验收 `http://stocktake.localhost:8126`（按 HEAD 构建的正式 amd64 镜像，当前 `sha256:051c4752…`）。
   站点 `stocktake.localhost` 两条 lane 共用，数据/样式一致。
 - 本节以下的所有内容是**更早窗口的快照**（那时候跑的是 `qerp.localhost:8102` 那套 stack 与
   `codex/erp-pos-migration` 分支）——只当背景读；跑命令、看端口一律以本节为准。
@@ -92,7 +93,7 @@ cd /Users/skin/.codex/worktrees/stocktake-workbench/pearnly
 | --- | --- | --- | --- |
 | 工作树 + 分支 | `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly` / `codex/stocktake-workbench` @ `db2d6f9`（干净） | 成果未合未推 | 合并并推送后按本仓收尾流程删除 |
 | 预览 lane | 容器 `pearnly-stocktake-acceptance-erp-web-preview-1`，`http://stocktake.localhost:8136` | 下个窗口改完要立刻看 | 任务收尾时再 `down` |
-| 验收 lane | 容器 `pearnly-stocktake-acceptance-erp-web-1` 等，`http://stocktake.localhost:8126`，镜像 `sha256:1edf7208…` | 用户验收环境（= 上线形状） | 同上 |
+| 验收 lane | 容器 `pearnly-stocktake-acceptance-erp-web-1` 等，`http://stocktake.localhost:8126`，镜像 `sha256:051c4752…`（= 当前 HEAD `1fd06f3`） | 用户验收环境（= 上线形状） | 同上 |
 | 站点数据 | `stocktake.localhost`：`STC-00017`（进行中，1 条记录 7 个、5 张测试图）、`STC-00005`（已过账）等 | 业务数据，也是验收样本 | 用户自己决定要不要删 |
 | 别的窗口 | `codex/cowork-backend-migration` 等分支与工作树 | 不属本任务 | 不动 |
 
