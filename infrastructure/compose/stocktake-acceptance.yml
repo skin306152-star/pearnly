@@ -1,0 +1,80 @@
+# Overlay on ../production/compose.yml (all relative paths resolve from that file).
+# Own project/volumes, immutable amd64 application image, no production credentials.
+# Local differences: loopback HTTP/ports, synthetic identity, no paid/external services.
+# Infrastructure uses the locked multi-arch images' native arm64 variants on this Mac;
+# all application services run the exact linux/amd64 release candidate. This is UI/
+# business acceptance, not production hardware/performance acceptance.
+# Run on the task-owned colima-pearnly-stocktake context, not the shared sample VM.
+services:
+  mariadb:
+    platform: linux/arm64
+  redis-cache:
+    platform: linux/arm64
+  redis-queue:
+    platform: linux/arm64
+  keycloak:
+    platform: linux/arm64
+    environment:
+      KC_HOSTNAME: http://stocktake-auth.localhost:8127
+      KC_HTTP_PORT: '8127'
+    ports: !override ['127.0.0.1:8127:8127']
+    networks:
+      runtime:
+        aliases: [stocktake-auth.localhost]
+      preview: {}
+  erp-web:
+    platform: linux/amd64
+    volumes: !override [sites-erp:/home/frappe/frappe-bench/sites]
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: null}
+  erp-worker:
+    platform: linux/amd64
+    volumes: !override [sites-erp:/home/frappe/frappe-bench/sites]
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: null}
+  erp-ocr-worker:
+    platform: linux/amd64
+    volumes: !override [sites-erp:/home/frappe/frappe-bench/sites]
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: null}
+  erp-ocr-dispatch:
+    platform: linux/amd64
+    # Interpreter emulation overhead only; command and code match production.
+    mem_limit: 384m
+  erp-scheduler:
+    platform: linux/amd64
+  erp-socketio:
+    platform: linux/amd64
+  erp-frontend:
+    platform: linux/amd64
+    networks: [runtime, preview]
+    ports: !override ['127.0.0.1:8126:8080']
+  acceptance-init:
+    profiles: [acceptance-init]
+    image: ${PEARNLY_IMAGE:?}
+    platform: linux/amd64
+    init: true
+    networks: [runtime]
+    command: [/home/frappe/frappe-bench/env/bin/python, /workspace/stocktake-acceptance-init.py]
+    volumes:
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ../../scripts/stocktake-acceptance-init.py:/workspace/stocktake-acceptance-init.py:ro
+    environment:
+      PEARNLY_STOCKTAKE_ACCEPTANCE: '1'
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      STOCKTAKE_LAB_PASSWORD: ${STOCKTAKE_LAB_PASSWORD:?}
+volumes:
+  sites-erp:
+    external: false
+    name: ${COMPOSE_PROJECT_NAME:?}_sites-erp
+  sites-billing:
+    external: false
+    name: ${COMPOSE_PROJECT_NAME:?}_sites-billing
+  sites-dms:
+    external: false
+    name: ${COMPOSE_PROJECT_NAME:?}_sites-dms
+  sites-cowork:
+    external: false
+    name: ${COMPOSE_PROJECT_NAME:?}_sites-cowork
+networks:
+  runtime:
+    internal: true
+  preview: {}

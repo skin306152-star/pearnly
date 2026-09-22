@@ -56,6 +56,10 @@
 		d.fields_dict.code.$input.on("keydown", event => {
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); void match(d.get_value("code")); }
 		});
+		// A scanner's Enter finds the product; it must not submit the observation.
+		d.fields_dict.code.$input.off("keypress").on("keypress", event => {
+			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
+		});
 		function message(text) { d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text)); }
 		function editor(show) {
 			d.set_df_property("scan_section", "hidden", show);

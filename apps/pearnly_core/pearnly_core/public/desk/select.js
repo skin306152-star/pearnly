@@ -2,6 +2,16 @@
 (() => {
 	if (!frappe.boot.pearnly_product) return;
 	class ProductSelect extends frappe.ui.form.ControlAutocomplete {
+		set_formatted_input(value) {
+			// Dialogs can replace options after lookup. Refresh the native autocomplete
+			// data before formatting, otherwise IDs appear and choices stay stale.
+			const options = JSON.stringify(this.df.options);
+			if (this.pearnly_options !== options) {
+				this.set_options();
+				this.pearnly_options = options;
+			}
+			super.set_formatted_input(value);
+		}
 		get_awesomplete_settings() {
 			const settings = super.get_awesomplete_settings();
 			const filter = settings.filter;

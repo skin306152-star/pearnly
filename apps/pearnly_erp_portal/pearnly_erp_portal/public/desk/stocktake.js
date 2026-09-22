@@ -69,8 +69,11 @@
 		function clear() {
 			list?.destroy(); table?.destroy(); chart?.parent?.remove?.();
 			list = table = chart = null;
-			page.main.empty().removeClass("layout-main-list list-view");
+			// Page owns the native filter row inside main; retain it across routes.
+			page.page_form.detach();
+			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
+			page.hide_form();
 			page.clear_primary_action(); page.clear_indicator();
 		}
 		async function show_route() {

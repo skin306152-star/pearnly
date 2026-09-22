@@ -18,24 +18,6 @@ LABEL org.pearnly.image.role="frappe-sample-base" \
       org.pearnly.image.upstream.digest="sha256:eee240a179ff494cb82ad067d853c8db3f87171d86324f4b326892654e342144" \
       org.pearnly.image.note="构建目标须显式指定 linux/amd64，与生产目标机一致"
 
-# 自有 App。基础镜像里的 frappe/erpnext 都是 editable 安装（指向 apps/<name>），
-# 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
-# 构建上下文必须是仓库根目录，例如：
-#   docker build -f infrastructure/images/frappe.Dockerfile -t pearnly/frappe-sample:16.34.1 .
-# /assets/<app>/... 由 assets 目录里的软链提供；上游只为 frappe 和 erpnext 建了
-# 软链，自有 App 必须自己补，否则前端资源 404（踩过）。
-COPY --chown=frappe:frappe apps/pearnly_core       /home/frappe/frappe-bench/apps/pearnly_core
-COPY --chown=frappe:frappe apps/pearnly_cowork     /home/frappe/frappe-bench/apps/pearnly_cowork
-COPY --chown=frappe:frappe apps/pearnly_erp_portal /home/frappe/frappe-bench/apps/pearnly_erp_portal
-COPY --chown=frappe:frappe apps/pearnly_dms        /home/frappe/frappe-bench/apps/pearnly_dms
-COPY --chown=frappe:frappe apps/pearnly_control    /home/frappe/frappe-bench/apps/pearnly_control
-
-RUN cd /home/frappe/frappe-bench && \
-    for app in pearnly_core pearnly_cowork pearnly_erp_portal pearnly_dms pearnly_control; do \
-      env/bin/pip install --no-deps -e "apps/$app" && \
-      ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
-    done
-
 # OCR 走 Vertex 时要的认证库（服务账号 JSON → access token）。
 #
 # 为什么不自己签 JWT：那要再拖一个 `cryptography`（编译依赖、镜像更大），
@@ -82,6 +64,25 @@ RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir "playwright==${
  && /home/frappe/frappe-bench/env/bin/playwright install --with-deps chromium \
  && chmod -R a+rX /opt/ms-playwright
 USER frappe
+
+# Stable runtime dependencies precede source COPY so UI changes reuse these layers.
+# 自有 App。基础镜像里的 frappe/erpnext 都是 editable 安装（指向 apps/<name>），
+# 这里保持一致：拷进 apps/ 并做 editable 安装，否则模块不可导入。
+# 构建上下文必须是仓库根目录，例如：
+#   docker build -f infrastructure/images/frappe.Dockerfile -t pearnly/frappe-sample:16.34.1 .
+# /assets/<app>/... 由 assets 目录里的软链提供；上游只为 frappe 和 erpnext 建了
+# 软链，自有 App 必须自己补，否则前端资源 404（踩过）。
+COPY --chown=frappe:frappe apps/pearnly_core       /home/frappe/frappe-bench/apps/pearnly_core
+COPY --chown=frappe:frappe apps/pearnly_cowork     /home/frappe/frappe-bench/apps/pearnly_cowork
+COPY --chown=frappe:frappe apps/pearnly_erp_portal /home/frappe/frappe-bench/apps/pearnly_erp_portal
+COPY --chown=frappe:frappe apps/pearnly_dms        /home/frappe/frappe-bench/apps/pearnly_dms
+COPY --chown=frappe:frappe apps/pearnly_control    /home/frappe/frappe-bench/apps/pearnly_control
+
+RUN cd /home/frappe/frappe-bench && \
+    for app in pearnly_core pearnly_cowork pearnly_erp_portal pearnly_dms pearnly_control; do \
+      env/bin/pip install --no-deps -e "apps/$app" && \
+      ln -s "/home/frappe/frappe-bench/apps/$app/$app/public" "/home/frappe/frappe-bench/assets/$app"; \
+    done
 
 # ── 宿主侧部署工具的副本（激活时用来核对服务器上那份是不是同一版） ─────────────
 #
