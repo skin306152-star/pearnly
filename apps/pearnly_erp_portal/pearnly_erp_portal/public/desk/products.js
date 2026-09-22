@@ -9,7 +9,7 @@
  * 复选框列留着的理由：它后面挂着**真有的功能** —— 批量启用/停用选中的商品。
  * 没有去处的话就不该放出来。
  *
- * 文案全部来自 `scripts/i18n/messages.tsv` 的 `product.*` 键。
+ * 文案全部来自 `pearnly_erp_portal/i18n/messages.tsv` 的 `product.*` 键。
  */
 (() => {
 	const p = frappe.pearnly;

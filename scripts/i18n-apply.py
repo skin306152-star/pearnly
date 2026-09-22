@@ -26,17 +26,15 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import os
 import re
 import sys
 
+from i18n_glossary import APPS, read_glossary as _read_glossary
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
-SOURCE = os.path.join(HERE, "i18n", "messages.tsv")
-
-APPS = ("pearnly_core", "pearnly_control", "pearnly_cowork", "pearnly_dms", "pearnly_erp_portal")
 CJK = re.compile(r"[\u4e00-\u9fff]")
 
 # 同一个中文在不同字段要翻成不同英文时在这里点名，键 = (fieldname, key)。
@@ -62,30 +60,28 @@ def read_glossary():
     （`备注` 在 core 是 Notes、`发号单` 在 control 是 Issue）。不分 App 就会
     挑到别家的英文，而且改完看不出来 —— 这种错只能靠这条规则挡（踩过）。
 
+    术语表按产品各存一份（`apps/<app>/<app>/i18n/messages.tsv`），行里带的 `app`
+    由文件位置决定，所以"挂错 App"这件事本身不可能再发生。
+
     同一个 App 内、同一个中文对应多个英文 = 术语表自己有问题，报出来让人点名
     （点名的方式是 OVERRIDES）。
     """
-    by_app: dict = {}
-    anywhere: dict = {}
-    ambiguous = {}
-    with open(SOURCE, encoding="utf-8", newline="") as handle:
-        for row in csv.DictReader(handle, delimiter="\t"):
-            app = (row.get("app") or "").strip()
-            # 术语表用 `\n` 写换行（DocType 的说明里有真的多行文本，
-            # TSV 一行放不下真换行）。这里还原成真换行再比对。
-            en = (row.get("en") or "").replace("\\n", "\n").strip()
-            zh = (row.get("zh") or "").replace("\\n", "\n").strip()
-            if not app or not en or not zh:
-                continue
-            key = (app, zh)
-            if key in by_app and by_app[key] != en:
-                ambiguous.setdefault(key, [by_app[key]]).append(en)
-            else:
-                by_app[key] = en
-            anywhere.setdefault(zh, en)
-    for (app, zh), others in ambiguous.items():
-        print("  [术语表] %s 里同一个中文对应多个英文：%s → %s（字段名不同的用 OVERRIDES 点名；"
-              "只用于出译文的行可以不管）" % (app, zh, " / ".join(others)))
+    rows, problems = _read_glossary()
+    for problem in problems:
+        print("  [术语表] %s" % problem)
+    by_app = {}
+    anywhere = {}
+    for row in rows:
+        app, zh, en = row["app"], row["zh"], row["en"]
+        if not app or not en or not zh:
+            continue
+        key = (app, zh)
+        if key in by_app and by_app[key] != en:
+            print("  [术语表] %s 里同一个中文对应多个英文：%s → %s / %s（字段名不同的用 "
+                  "OVERRIDES 点名；只用于出译文的行可以不管）"
+                  % (app, zh, by_app[key], en))
+        by_app.setdefault(key, en)
+        anywhere.setdefault(zh, en)
     return by_app, anywhere
 
 

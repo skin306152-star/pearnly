@@ -9,6 +9,8 @@ MANIFEST = {
     "entry_prefixes": ["/api/v1/cowork/", "/api/v1/me/", "/pearnly-password"],
     "apps": ["pearnly_core", "pearnly_cowork"],
     # 功能（对应旧系统界面里的菜单）
+    # 可售卖的功能目录（角色、授权表、默认开关）在同目录的 features.json：
+    # 那张表由控制面读文件汇总，这里是产品的入口/依赖/禁止事项。
     "features": [
         "intake",          # 录入工作台
         "ocr_history",     # 识别记录
@@ -16,7 +18,6 @@ MANIFEST = {
         "recon",           # 对账中心
         "stocktake",       # 库存盘点
         "master_data",     # 主数据
-        "boards",          # WeKan 协作看板（启用才创建实例）
         # 小助手（Companion）：装在商家会计电脑上的 Windows 程序。
         # 用户 2026-09-17 专门提醒不要漏迁。它做的事：
         #   安装包下载、配对、心跳上报套账与科目、出站拉取任务、

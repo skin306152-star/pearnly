@@ -41,6 +41,9 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
       - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      # ADR-009: control reads all product catalogs even on an ERP-only Site.
+      - ../../apps/pearnly_cowork/pearnly_cowork/features.json:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork/features.json:ro
+      - ../../apps/pearnly_dms/pearnly_dms/features.json:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms/features.json:ro
       # 只读挂控制面源码，便于实验室直接读它发布的「功能 → 角色」清单，
       # 不必在本脚本里另抄一份（抄一份就会与控制面漂移）。
       - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro

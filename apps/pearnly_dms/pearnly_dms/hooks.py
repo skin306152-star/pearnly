@@ -294,3 +294,15 @@ app_include_js = [versioned_asset("pearnly_dms", "desk/connect.js"), versioned_a
 # Only OCR is resumable here; external order writers retain their own ledger.
 pearnly_ocr_handlers = {"dms.id_card": "pearnly_dms.line.out.run_image"}
 pearnly_ocr_failure_handlers = {"dms.id_card": "pearnly_dms.line.out.ocr_failed"}
+
+# Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
+pearnly_navigation = [{'product': 'dms',
+  'app': 'pearnly_dms',
+  'pages': [('nav.home', 'pearnly-home', 'house', None),
+            ('nav.connect', 'pearnly-connect', 'plug', None),
+            ('nav.records', 'pearnly-records', 'list', 'push_record'),
+            ('nav.roster', 'pearnly-roster', 'users', 'roster')],
+  'available': ['pearnly-home', 'pearnly-connect', 'pearnly-records', 'pearnly-roster'],
+  'permissions': {'pearnly-connect': {'any_role': ['DMS Admin', 'System Manager']},
+                  'pearnly-records': {'any_role': ['DMS Admin', 'System Manager']},
+                  'pearnly-roster': {'any_role': ['DMS Admin', 'System Manager']}}}]

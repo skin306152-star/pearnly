@@ -140,7 +140,7 @@ Local Port,本机端口
 Local URL,本机访问地址
 Manual adjustment · {0},人工调账 · {0}
 Mark provisioning done,标记开通完成
-Matches the feature keys in the product manifest (product_manifest.py).,与产品清单 product_manifest.py 里的 features 键一致
+Matches the feature key in the product's own feature catalog (features.json).,与产品自己的功能目录 features.json 里的功能键一致
 Monthly Fee,月费
 No provisioning request yet; click “Run provisioning” to start,还没有开通请求，点「执行开通」开始
 No such deployment: {0},部署不存在：{0}

@@ -1,0 +1,71 @@
+{
+  "product": "dms",
+  "label": "DMS",
+  "icon": "id-card",
+  "module": "Pearnly DMS",
+  "admin_role": "DMS Admin",
+  "admin_extra_doctypes": [],
+  "workspace_labels": {
+    "DMS ID Card Intake": "Push Records"
+  },
+  "notes": [
+    "身份证录入作业在 LINE 上完成（用户 2026-09-17 定：网页端不要录入入口）。所以 DMS ID Card Intake 在网页端只读 —— Frappe 按 create 权限显示“新增”按钮，禁掉它等于取消网页端录入，不改前端、不另造开关。",
+    "这不影响将来的 LINE 录入：webhook 是 allow_guest 的独立通道，走的不是这个角色（今天 LINE 侧只做绑定）。",
+    "DMS ID Card Intake 在工作区里叫「推送记录」而不是「身份证录入」：名字本身在告诉租户“这里不是录入的地方”。"
+  ],
+  "features": [
+    {
+      "code": "id_card_ocr",
+      "label": "ID Card Intake",
+      "default_on": true,
+      "description": "Read the ID card, match it against the DMS customer base, then confirm",
+      "role": "DMS ID Card Intake",
+      "doctypes": [
+        "DMS ID Card Intake"
+      ],
+      "read_only": [
+        "DMS ID Card Intake"
+      ]
+    },
+    {
+      "code": "customer_match",
+      "label": "Customer Match",
+      "default_on": true,
+      "description": "Same ID number means the same customer; avoids duplicate records",
+      "role": "DMS Customer Match",
+      "doctypes": [
+        "DMS Customer Link"
+      ],
+      "read_only": []
+    },
+    {
+      "code": "push_record",
+      "label": "Push Records",
+      "default_on": true,
+      "description": "The result of each push",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    },
+    {
+      "code": "roster",
+      "label": "Operator Roster",
+      "default_on": true,
+      "description": "Only the owner can manage it",
+      "role": "DMS Operator",
+      "doctypes": [
+        "DMS Operator"
+      ],
+      "read_only": []
+    },
+    {
+      "code": "quota",
+      "label": "Plan & Balance",
+      "default_on": true,
+      "description": "DMS usage and balance",
+      "role": "",
+      "doctypes": [],
+      "read_only": []
+    }
+  ]
+}
