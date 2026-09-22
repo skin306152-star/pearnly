@@ -300,6 +300,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
+    versioned_asset("pearnly_erp_portal", "desk/team.js"),
 ]
 
 app_include_css = [
@@ -348,7 +349,8 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-clients',
                 'pearnly-cashier',
                 'pearnly-pos-receipts',
-                'pearnly-pos-shifts'],
+                'pearnly-pos-shifts',
+                'pearnly-team'],
   'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
                   'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
                   'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
@@ -361,7 +363,10 @@ pearnly_navigation = [{'product': 'erp',
                   'pearnly-clients': {'doctype': 'ERP Customer'},
                   'pearnly-cashier': {'doctype': 'ERP Sale'},
                   'pearnly-pos-receipts': {'doctype': 'ERP Sale'},
-                  'pearnly-pos-shifts': {'doctype': 'ERP Shift'}},
+                  'pearnly-pos-shifts': {'doctype': 'ERP Shift'},
+                  # 员工账号与岗位：能管本产品员工的是产品管理员（ERP Admin）。
+                  # 用角色判，不新增权限码 —— Frappe 的用户与权限体系就是判据。
+                  'pearnly-team': {'any_role': ['ERP Admin']}},
   'groups': [('nav.group.goodsStock',
               'boxes',
               ['pearnly-products',
