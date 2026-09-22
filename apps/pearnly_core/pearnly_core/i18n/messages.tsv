@@ -9,7 +9,7 @@ Stock Count	库存盘点	ตรวจนับสต็อก	棚卸
 Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
 Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
 Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
-Products	商品	สินค้า	商品
+Products	物料	สินค้า	商品
 Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）
 Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
 Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）
@@ -62,7 +62,7 @@ Count tasks and variance records	盘点任务与差异记录	งานตรว�
 A board instance is created only when this is on	启用才创建看板实例，不启用不占资源	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
 Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
-Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ
+Product master data	物料主数据	ข้อมูลหลักของสินค้า	商品マスタ
 Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
 Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总（保留项，见 ERP 清单）	สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)	受払在庫の集計（維持項目。ERPマニフェスト参照）
 Purchase records, suppliers and purchasing settings	采购记录、供应商与采购设置	บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ	購買記録、仕入先、購買設定
@@ -195,7 +195,7 @@ Net Amount	不含税金额	ยอดก่อนภาษี	税抜金額
 VAT Amount	税额	ภาษีมูลค่าเพิ่ม	税額
 Grand Total	价税合计	ยอดรวม	税込合計
 Currency	币种	สกุลเงิน	通貨
-Expense / Item Category	费用/商品类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
+Expense / Item Category	费用/物料类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
 Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル
 Push Channel	推送渠道	ช่องทางส่ง	送信チャネル
 companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机出站拉取后落库	companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み
@@ -274,8 +274,8 @@ The test for a duplicate upload of the same document	同一张票重复上传时
 Line No	行号	ลำดับบรรทัด	行番号
 Type	类型	ประเภท	種別
 Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
-Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
-The legacy system's product identifier; it becomes a link once product master data lands	旧系统的商品标识；商品主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+Product Ref	物料外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+The legacy system's product identifier; it becomes a link once product master data lands	旧系统的物料标识；物料主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
 Qty	数量	จำนวน	数量
 Unit	单位	หน่วย	単位
 Unit Price	单价	ราคาต่อหน่วย	単価
@@ -429,8 +429,8 @@ Company Profile	公司资料	ข้อมูลบริษัท	会社情報	n
 Team	团队管理	ทีมงาน	チーム	nav.team
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
 Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
-Products & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
-Products	商品	สินค้า	商品	nav.products
+Products & Stock	物料与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
+Products	物料	สินค้า	商品	nav.products
 Stock	库存	สต็อก	在庫	nav.inventory
 Stock In	入库	รับเข้า	入庫	nav.stockIn
 Stock Out	出库	จ่ายออก	出庫	nav.stockOut
@@ -774,7 +774,7 @@ Delete {0} selected record(s)? This does not change your balance or cancel top-u
 {0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
 The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
 LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください
-Goods & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
+Goods & Stock	物料与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
 Purchasing	采购系统	ระบบจัดซื้อ	購買システム	nav.group.purchasing
 Sales	销售系统	ระบบขาย	販売システム	nav.group.sales
 Master Data	主数据	ข้อมูลหลัก	マスタ	nav.group.master

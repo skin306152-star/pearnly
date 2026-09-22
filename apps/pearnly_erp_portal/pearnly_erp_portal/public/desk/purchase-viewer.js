@@ -9,24 +9,27 @@
 		const image = $('<img draggable="false">').appendTo(viewport);
 		const status = $('<div class="text-muted text-center purchase-document-status" role="status">').appendTo(viewport);
 		const toolbar = $('<div class="purchase-document-tools">').appendTo(host);
+		const paging = $('<div class="purchase-document-tool-group">').appendTo(toolbar);
+		const sizing = $('<div class="purchase-document-tool-group">').appendTo(toolbar);
+		const actions = $('<div class="purchase-document-tool-group">').appendTo(toolbar);
 		let scale = 1, tx = 0, ty = 0, rotation = 0, dragging = false, sx = 0, sy = 0;
 		let alive = true, revision = 0, current, page = 1, pages = 1, loaded = false, dialog;
 		const clamp = value => Math.max(0.4, Math.min(6, value));
-		const zoom = $('<span class="text-muted small">');
-		const page_number = $('<span class="text-muted small">');
+		const zoom = $('<span class="text-muted small purchase-document-value">');
+		const page_number = $('<span class="text-muted small purchase-document-value">');
 		const controls = [];
-		const button = (label, icon, click) => {
-			const control = frappe.ui.form.make_control({parent: toolbar, df: {fieldname: `viewer_${controls.length}`, fieldtype: "Button", label, click}, render_input: true});
+		const button = (label, icon, click, parent = actions) => {
+			const control = frappe.ui.form.make_control({parent, only_input: true, df: {fieldname: `viewer_${controls.length}`, fieldtype: "Button", label, click}, render_input: true});
 			control.$wrapper.addClass("mb-0");
 			control.$input.attr({title: label, "aria-label": label}).html(frappe.utils.icon(icon, "sm"));
 			controls.push(control); return control;
 		};
-		const previous = button(__("Previous"), "left", () => show(current, page - 1));
-		page_number.appendTo(toolbar);
-		const next = button(__("Next"), "right", () => show(current, page + 1));
-		button(__("Zoom Out"), "minus", () => {scale = clamp(scale / 1.2); apply();});
-		zoom.appendTo(toolbar);
-		button(__("Zoom In"), "add", () => {scale = clamp(scale * 1.2); apply();});
+		const previous = button(__("Previous"), "left", () => show(current, page - 1), paging);
+		page_number.appendTo(paging);
+		const next = button(__("Next"), "right", () => show(current, page + 1), paging);
+		button(__("Zoom Out"), "minus", () => {scale = clamp(scale / 1.2); apply();}, sizing);
+		zoom.appendTo(sizing);
+		button(__("Zoom In"), "add", () => {scale = clamp(scale * 1.2); apply();}, sizing);
 		button(__("Rotate"), "rotate-cw", () => {rotation += 90; apply();});
 		button(__("Reset"), "refresh", () => {reset();});
 		button(__("Full Screen"), "expand", () => {
@@ -44,7 +47,7 @@
 		const reset = () => {scale = 1; tx = ty = rotation = 0; apply();};
 		const update = () => {
 			controls.forEach(control => control.$input.prop("disabled", !loaded));
-			previous.$wrapper.toggle(pages > 1); next.$wrapper.toggle(pages > 1); page_number.toggle(pages > 1).text(`${page} / ${pages}`);
+			paging.toggle(pages > 1); page_number.text(`${page} / ${pages}`);
 			previous.$input.prop("disabled", !loaded || page <= 1); next.$input.prop("disabled", !loaded || page >= pages);
 		};
 		const show = async (row, number = 1) => {

@@ -138,7 +138,7 @@ Endpoint {0} is disabled,端点 {0} 已停用
 Error Message,错误信息
 Event ID,事件 ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。
-Expense / Item Category,费用/商品类别
+Expense / Item Category,费用/物料类别
 Expires At,过期时间
 Express Push Guide,Express 推送手册
 External Doc No,外部单据号
@@ -247,10 +247,10 @@ Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
 Processing Started At,开始执行时间
 Product,产品
-Product Ref,商品外部标识
+Product Ref,物料外部标识
 "Product home: current plan, usage and billing",产品首页，承载当前的订阅套餐、用量与账单
-Product master data,商品主数据
-Products,商品
+Product master data,物料主数据
+Products,物料
 Provide at least one line item,至少给一行明细
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
@@ -345,7 +345,7 @@ The identity service returned an error: {0},身份服务返回错误：{0}
 The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).,老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）
 The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.,老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上
 "The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.",老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据
-The legacy system's product identifier; it becomes a link once product master data lands,旧系统的商品标识；商品主数据落地后再换成链接
+The legacy system's product identifier; it becomes a link once product master data lands,旧系统的物料标识；物料主数据落地后再换成链接
 "The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)",锁还剩 {0}s（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）
 The name is resolved server-side when pinning; the client's value is not trusted,名字在钉的时候由服务端解出，不信客户端传来的值
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",老板在这张表里认人用的名字，例如：阿明（销售）
@@ -642,8 +642,8 @@ nav.cowork,Pearnly Cowork
 nav.erpClients,客户
 nav.erpPurchase,采购系统
 nav.erpSales,销售系统
-nav.erpStock,商品与库存
-nav.group.goodsStock,商品与库存
+nav.erpStock,物料与库存
+nav.group.goodsStock,物料与库存
 nav.group.master,主数据
 nav.group.purchasing,采购系统
 nav.group.sales,销售系统
@@ -654,7 +654,7 @@ nav.intake,录入工作台
 nav.integrations,集成
 nav.inventory,库存
 nav.masterData,主数据
-nav.products,商品
+nav.products,物料
 nav.purchase,采购记录
 nav.purchaseSettings,采购设置
 nav.pushLogs,推送日志

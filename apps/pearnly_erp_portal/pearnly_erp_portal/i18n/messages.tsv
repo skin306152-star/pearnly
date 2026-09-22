@@ -21,7 +21,7 @@ purchase	采购	จัดซื้อ	仕入
 sales	销售	ขาย	売上
 Unknown direction	未知的方向	ทิศทางไม่ถูกต้อง	不明な区分
 Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な買い手
-Product name	商品名称	ชื่อสินค้า	商品名	product.field.name
+Product name	物料名称	ชื่อสินค้า	商品名	product.field.name
 Code	编码	รหัส	コード	product.field.code
 Barcode	条码	บาร์โค้ด	バーコード	product.field.barcode
 Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.field.codeValue
@@ -31,12 +31,12 @@ Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価
 Low stock alert	低库存提醒	แจ้งเตือนสต็อกต่ำ	低在庫アラート	product.field.minStock
 VAT applies	含 VAT	คิด VAT	VAT 対象	product.field.vat
 Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	product.field.search
-Product	商品	สินค้า	商品	product.col.name
+Product	物料	สินค้า	商品	product.col.name
 Price	售价	ราคา	価格	product.col.price
 Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.col.cost
 Average cost	均价	ต้นทุนเฉลี่ย	平均原価	product.col.avgCost
 Status	状态	สถานะ	状態	product.col.status
-New product	新建商品	เพิ่มสินค้า	商品を追加	product.action.new
+New product	新建物料	เพิ่มสินค้า	商品を追加	product.action.new
 Edit	编辑	แก้ไข	編集	product.action.edit
 Save	保存	บันทึก	保存	product.action.save
 Enable / disable	启用 / 停用	เปิด / ปิดใช้งาน	有効 / 無効	product.action.disable
@@ -50,7 +50,7 @@ Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร
 Unit	单位	หน่วย	単位	product.col.unit
 Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
 Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を有効化	product.action.bulkEnable
-Updated {0} product(s)	已更新 {0} 个商品	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
+Updated {0} product(s)	已更新 {0} 个物料	อัปเดต {0} รายการแล้ว	{0}件を更新しました	product.notice.toggledCount
 Base unit	库存单位	หน่วยฐาน	基準単位	product.field.baseUnit
 Category	分类	หมวดหมู่	カテゴリ	product.field.category
 Track batches	批次管理	ติดตามล็อต	ロット管理	product.field.trackBatch
@@ -58,17 +58,17 @@ Track expiry	有效期管理	ติดตามวันหมดอายุ	�
 Import from Excel	Excel 导入	นำเข้าจาก Excel	Excel から取込	product.action.import
 Reload	刷新	โหลดใหม่	再読み込み	product.action.reload
 Excel file	Excel 文件	ไฟล์ Excel	Excel ファイル	product.field.importFile
-Imported {0} product(s)	已导入 {0} 个商品	นำเข้า {0} รายการแล้ว	{0}件を取り込みました	product.notice.imported
+Imported {0} product(s)	已导入 {0} 个物料	นำเข้า {0} รายการแล้ว	{0}件を取り込みました	product.notice.imported
 Skipped {0} row(s); the first ones are listed above	跳过 {0} 行，前几行见上方	ข้าม {0} แถว รายการแรกแสดงด้านบน	{0}行をスキップしました（先頭のみ表示）	product.notice.importSkipped
 Choose a file to import	请选择要导入的文件	กรุณาเลือกไฟล์ที่จะนำเข้า	取り込むファイルを選択してください	product.import.noFile
 That file could not be read; please use the template	这个文件读不了，请用模板格式	อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ	このファイルは読み取れません。テンプレートをご利用ください	product.import.badFile
 That file has no rows	这个文件没有数据行	ไฟล์นี้ไม่มีข้อมูล	このファイルには行がありません	product.import.emptyFile
 That file is not an Excel workbook	这不是 Excel 工作簿	ไฟล์นี้ไม่ใช่ Excel	Excel ブックではありません	product.import.notWorkbook
-The sheet needs a product name column	表里要有商品名称列	ต้องมีคอลัมน์ชื่อสินค้า	商品名の列が必要です	product.import.missingName
-The first row must be the column headings; the sheet needs at least a product name column	第一行是表头；表里至少要有商品名称列	แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
+The sheet needs a product name column	表里要有物料名称列	ต้องมีคอลัมน์ชื่อสินค้า	商品名の列が必要です	product.import.missingName
+The first row must be the column headings; the sheet needs at least a product name column	第一行是表头；表里至少要有物料名称列	แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย	1行目は見出し行です。少なくとも商品名の列が必要です	product.import.hint
 QR payload	二维码内容	ข้อมูล QR	QR 内容	product.field.qr
 Image URL	图片地址	URL รูปภาพ	画像 URL	product.field.image
-The product code cannot be changed	商品编码不能改	รหัสสินค้าแก้ไม่ได้	商品コードは変更できません	product.error.codeLocked
+The product code cannot be changed	物料编码不能改	รหัสสินค้าแก้ไม่ได้	商品コードは変更できません	product.error.codeLocked
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	product.field.codeAuto
 Choose file	选择文件	เลือกไฟล์	ファイルを選択	product.import.pick
 The value is not a number	该值不是数字	ค่านี้ไม่ใช่ตัวเลข	数値ではありません	product.import.notNumber
@@ -85,7 +85,7 @@ Already used by {0} (code {1})	已经是「{0}」（编码 {1}）	ถูกใ�
 Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
 Light	灯光	ไฟ	ライト	product.scan.light
 Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done
-Product name	商品名称	ชื่อสินค้า	商品名	stock.col.name
+Product name	物料名称	ชื่อสินค้า	商品名	stock.col.name
 Code	编码	รหัส	コード	stock.col.code
 Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	stock.col.barcode
 Unit	单位	หน่วย	単位	stock.col.unit
@@ -170,7 +170,7 @@ Code or barcode	编号或条码	รหัสหรือบาร์โค้ด
 Find	查询	ค้นหา	検索	stock.mobile.find
 Save	保存	บันทึก	保存	stock.mobile.save
 Saved	已保存	บันทึกแล้ว	保存しました	stock.mobile.saved
-No product matches that code	这个码找不到商品	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.mobile.notFound
+No product matches that code	这个码找不到物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.mobile.notFound
 This browser cannot scan with the camera	这个浏览器不支持摄像头扫码	เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
 Close camera	关闭相机	ปิดกล้อง	カメラを閉じる	stock.mobile.cameraOff
 This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.	这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。	บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน	この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。	stock.mobile.notBound
@@ -181,13 +181,13 @@ Upload a sheet	上传导入	อัปโหลดไฟล์	取り込み	stock
 Import a sheet	导入盘点表	นำเข้าไฟล์ตรวจนับ	棚卸シートを取り込む	stock.count.import
 Sheet	表格文件	ไฟล์	シート	stock.count.importFile
 Choose a file	选择文件	เลือกไฟล์	ファイルを選択	stock.count.importPick
-Rows are matched by product code, then barcode. Rows already imported are replaced.	行按商品编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。	แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ	行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。	stock.count.importHint
+Rows are matched by product code, then barcode. Rows already imported are replaced.	行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。	แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ	行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。	stock.count.importHint
 Choose the sheet to import	请先选择要导入的表格	กรุณาเลือกไฟล์ที่ต้องการนำเข้า	取り込むシートを選択してください	stock.count.importMissing
 Import result	导入结果	ผลการนำเข้า	取り込み結果	stock.count.importTitle
 {0} rows were not imported	{0} 行没有导入	นำเข้าไม่ได้ {0} แถว	{0} 行は取り込めませんでした	stock.count.importSkipped
 Imported {0} rows, {1} with a counted quantity	已导入 {0} 行，其中 {1} 行带实盘数量	นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้	{0} 行を取り込みました（うち {1} 行に実地数量）	stock.count.imported
-No product matches that code	该编号找不到商品	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.count.problemCode
-The row has no product code or barcode	这一行没有商品编号或条码	แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด	この行に商品コードもバーコードもありません	stock.count.problemIdentifier
+No product matches that code	该编号找不到物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	そのコードの商品が見つかりません	stock.count.problemCode
+The row has no product code or barcode	这一行没有物料编号或条码	แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด	この行に商品コードもバーコードもありません	stock.count.problemIdentifier
 No warehouse matches that name	该仓库名不存在	ไม่พบคลังสินค้าชื่อนี้	その倉庫名は存在しません	stock.count.problemWarehouse
 The quantity is not a valid number	数量不是有效数字	จำนวนไม่ถูกต้อง	数量が正しい数値ではありません	stock.count.problemNumber
 Book {0} · counted {1} · difference {2}	账面 {0} · 实盘 {1} · 差异 {2}	ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}	帳簿 {0} · 実地 {1} · 差異 {2}	stock.count.chartTotals
@@ -202,8 +202,8 @@ Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.board.title
 Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
 ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード
-Items	商品明细	รายการสินค้า	商品明細	trade.lines
-Product	商品	สินค้า	商品	trade.product
+Items	物料明细	รายการสินค้า	商品明細	trade.lines
+Product	物料	สินค้า	商品	trade.product
 Warehouse	仓库	คลัง	倉庫	trade.warehouse
 Location	仓位	ตำแหน่ง	保管場所	trade.location
 Quantity	数量	จำนวน	数量	trade.qty
@@ -269,15 +269,15 @@ Amount Received	实收金额	รับชำระ	受取額	trade.paid
 Complete Payment	收款完成	รับชำระเงิน	支払完了	trade.pay
 Receipt {0} · Change {1}	小票 {0} · 找零 {1}	ใบเสร็จ {0} · เงินทอน {1}	レシート {0} · お釣り {1}	trade.paidNotice
 Refund	退货退款	คืนสินค้า	返品・返金	trade.refund
-Original Item and Location	原单商品与仓位	สินค้าและตำแหน่งในบิลเดิม	元伝票の商品と保管場所	trade.originalLine
+Original Item and Location	原单物料与仓位	สินค้าและตำแหน่งในบิลเดิม	元伝票の商品と保管場所	trade.originalLine
 Refund Amount	退款金额	ยอดคืนเงิน	返金額	trade.refundAmount
 Close Shift	交班	ปิดกะ	シフト終了	trade.closeShift
 Counted Cash	实点现金	เงินสดที่นับได้	実際の現金	trade.countedCash
 Default Warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	product.field.defaultWarehouse
 Default Location	默认仓位	ตำแหน่งเริ่มต้น	既定の保管場所	product.field.defaultLocation
 Used for new documents only. Each location keeps its own stock.	只用于新单据的默认填写，各仓位库存独立计算。	ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก	新しい伝票の初期値です。各保管場所の在庫は個別に管理します。	product.field.locationHint
-Select the original sale line	请选择原单中的商品行	เลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
-Select a product for each stock item	请为每条货物明细选择商品	เลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
+Select the original sale line	请选择原单中的物料行	เลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
+Select a product for each stock item	请为每条货物明细选择物料	เลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
 draft	草稿	ฉบับร่าง	下書き
 submitted	已提交	ยืนยันแล้ว	確定済み
 void	已作废	ยกเลิกแล้ว	取消済み
@@ -312,9 +312,9 @@ adjust	调整	ปรับปรุง	調整
 count	盘点	ตรวจนับ	棚卸
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.workbench.title
 Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	stock.workbench.continuous
-Barcode, QR code or product code	条形码、二维码或商品编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
+Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
-Find product	查找商品	ค้นหาสินค้า	商品を検索	stock.workbench.find
+Find product	查找物料	ค้นหาสินค้า	商品を検索	stock.workbench.find
 Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
 Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	stock.workbench.bookPosition
 Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	stock.workbench.actualWarehouse
@@ -325,24 +325,24 @@ Correct entry	修改记录	แก้ไขรายการ	記録を修正	sto
 Record a count	录入盘点	บันทึกการตรวจนับ	棚卸を入力	stock.workbench.record
 Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	stock.workbench.saveNext
 Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
-Product not found. Check the code and try again.	未找到商品，请核对编码后重试。	ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
+Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
 Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。	เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว สแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
 Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
 Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
-Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分商品在盘点期间发生了库存变动。请打开标记的行，重新盘点该商品后再结束。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
 Stock changed; recount	库存有变，需重盘	สต็อกเปลี่ยน ต้องนับใหม่	在庫変動・再棚卸	stock.workbench.needsRecount
-Recount this product	重新盘点该商品	นับสินค้านี้ใหม่	この商品を再棚卸	stock.workbench.recount
-Void all current observations for this product and recount it? Previous records remain in the history.	将撤销该商品在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？	ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	stock.workbench.recountConfirm
+Recount this product	重新盘点该物料	นับสินค้านี้ใหม่	この商品を再棚卸	stock.workbench.recount
+Void all current observations for this product and recount it? Previous records remain in the history.	将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？	ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	stock.workbench.recountConfirm
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.	确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。	จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว	差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。	stock.workbench.finishConfirm
 Use the stock count workbench	请通过盘点工作台操作	โปรดใช้หน้าปฏิบัติงานตรวจนับ	棚卸作業台から操作してください
 The stock count changed. Review the differences again.	盘点数据已变化，请重新查看并确认差异。	ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง	棚卸内容が変更されました。差異を再確認してください。
-Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的商品。	สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
+Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的物料。	สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
 Count at least one item before finishing	请至少盘点一项后再结束	โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ	終了する前に少なくとも1件を棚卸してください
 Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	product.action.fullPage
-Products	商品行	รายการสินค้า	商品行	product.new.lines
+Products	物料行	รายการสินค้า	商品行	product.new.lines
 Fill in as many rows as you need; leave the code empty and the system assigns one	一次可以填多行；编码留空由系统生成	กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้	複数行をまとめて入力できます。コードは空欄なら自動採番されます。	product.new.hint
-Created {0} product(s)	已新建 {0} 个商品	สร้างสินค้า {0} รายการแล้ว	{0}件の商品を作成しました	product.notice.savedCount
+Created {0} product(s)	已新建 {0} 个物料	สร้างสินค้า {0} รายการแล้ว	{0}件の商品を作成しました	product.notice.savedCount
 There is nothing to save	没有要保存的行	ไม่มีข้อมูลที่จะบันทึก	保存する行がありません	product.notice.nothingToSave
 Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个；{1} 行没保存成功，修正后再存	สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
 Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	trade.action.fullPage
@@ -365,7 +365,7 @@ Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	stock.
 Remove	移除	ลบ	削除	stock.workbench.removePhoto
 At most 5 photos per entry	每条记录最多 5 张照片	บันทึกได้ไม่เกิน 5 รูปต่อรายการ	1記録につき写真は5枚までです	stock.workbench.photoLimit
 Finish	完成	เสร็จสิ้น	完了	stock.workbench.done
-Product / position / counted by / time	商品 / 位置 / 盘点人 / 时间	สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา	商品・位置・担当者・日時	stock.count.photoInfo
+Product / position / counted by / time	物料 / 位置 / 盘点人 / 时间	สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา	商品・位置・担当者・日時	stock.count.photoInfo
 Back to summary	返回汇总	กลับไปสรุป	集計へ戻る	stock.count.linkSummary
 Back to entries	返回记录	กลับไปรายการ	記録へ戻る	stock.count.linkEntries
 Abbreviated Tax Invoice	简式税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書
@@ -406,7 +406,7 @@ Cheque	支票	เช็ค	小切手
 Columns	列	คอลัมน์	列
 Confirm	确认	ยืนยัน	確認
 Confirm the document before recording a payment	记录付款前请先提交单据	กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน	支払を記録する前に伝票を提出してください
-Create New Item	创建新商品	สร้างสินค้าใหม่	新規品目作成
+Create New Item	创建新物料	สร้างสินค้าใหม่	新規品目作成
 Creation	创建日期	การสร้าง	作成日時
 Currency	货币	สกุลเงิน	通貨
 Custom	自定义	กำหนดเอง	カスタム
@@ -456,10 +456,10 @@ Item / Description	品名/说明	ชื่อสินค้า/คำอธิ�
 Item Code	物料号	รหัสรายการ	品目コード
 Item Group	物料组	กลุ่มรายการ	品目グループ
 Item Name	物料名称	ชื่อรายการ	品目名
-Item Name is required	商品名称不能为空	กรุณาระบุชื่อสินค้า	品目名を入力してください
+Item Name is required	物料名称不能为空	กรุณาระบุชื่อสินค้า	品目名を入力してください
 Item Type	项目类型	ประเภทของรายการ	品目区分
 Items	物料	รายการ	品目
-Items are required	商品明细不能为空	กรุณาระบุรายการสินค้า	品目を入力してください
+Items are required	物料明细不能为空	กรุณาระบุรายการสินค้า	品目を入力してください
 LINE	LINE	LINE	LINE
 Last Month	上个月	เดือนที่แล้ว	先月
 Line Amount	行金额	จำนวนเงินบรรทัด	行金額
@@ -495,12 +495,12 @@ Payment Receipt	付款凭证	หลักฐานการชำระเงิ
 Payment Status	付款状态	สถานะการชำระ	支払状況
 Payments	付款	การชำระเงิน	支払履歴
 Period	期间	ช่วงเวลา	期間
-Please select an Item	请选择商品	กรุณาเลือกสินค้า	品目を選択してください
+Please select an Item	请选择物料	กรุณาเลือกสินค้า	品目を選択してください
 Posting Date	记账日期	วันที่โพสต์	転記日
 Prices Include Tax	价格含税	ราคารวมภาษี	税込価格
 Print	打印	พิมพ์	印刷
 Product	产品	สินค้า	製品
-Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+Product Ref	物料外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
 PromptPay	PromptPay	พร้อมเพย์	PromptPay
 Purchase	采购	การซื้อ	仕入
 Purchase Amount	采购金额	จำนวนเงินซื้อ	仕入金額
@@ -590,3 +590,5 @@ Zoom In	放大	ขยาย	拡大
 Zoom Out	缩小	ย่อ	縮小
 Full Screen	全屏	เต็มหน้าจอ	全画面
 Invalid file	无效文件	ไฟล์ไม่ถูกต้อง	無効なファイル
+Upload an invoice, then review the recognized details.	上传发票，识别后复核并修改。	อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้	請求書をアップロードし、読み取り結果を確認・修正します。
+Enter purchase details. Files are added as attachments only.	手动填写采购信息，文件仅作为附件。	กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น	仕入情報を手入力します。ファイルは添付のみです。

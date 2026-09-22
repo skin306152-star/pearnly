@@ -62,6 +62,7 @@ Draft not found,ไม่พบรายการร่าง
 Due Date,วันที่ครบกำหนด
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 Enabled,เปิดใช้งานแล้ว
+Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Entry Method,วิธีการบันทึก
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
@@ -232,6 +233,7 @@ Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
 Unpaid,ยังไม่ได้ชำระ
 Update Stock,อัปเดตสต็อก
+"Upload an invoice, then review the recognized details.",อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload and Recognize,อัปโหลดเพื่ออ่านข้อความ
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 User,ผู้ใช้

@@ -43,7 +43,7 @@ Confirm,确认
 Confirm the document before recording a payment,记录付款前请先提交单据
 Could not store this document,单据留底失败，请重发
 Count at least one item before finishing,请至少盘点一项后再结束
-Create New Item,创建新商品
+Create New Item,创建新物料
 Creation,创建日期
 Currency,货币
 Custom,自定义
@@ -62,6 +62,7 @@ Draft not found,找不到这条草稿
 Due Date,到期日
 ERP Stock Count Variance,盘点差异看板
 Enabled,已启用
+Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Entry Method,录入方式
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
@@ -98,10 +99,10 @@ Item / Description,品名/说明
 Item Code,物料号
 Item Group,物料组
 Item Name,物料名称
-Item Name is required,商品名称不能为空
+Item Name is required,物料名称不能为空
 Item Type,项目类型
 Items,物料
-Items are required,商品明细不能为空
+Items are required,物料明细不能为空
 LINE,LINE
 LINE unbound,LINE 已解绑
 Last Month,上个月
@@ -142,12 +143,12 @@ Payment Receipt,付款凭证
 Payment Status,付款状态
 Payments,付款
 Period,期间
-Please select an Item,请选择商品
+Please select an Item,请选择物料
 Posting Date,记账日期
 Prices Include Tax,价格含税
 Print,打印
 Product,产品
-Product Ref,商品外部标识
+Product Ref,物料外部标识
 PromptPay,PromptPay
 Purchase,采购
 Purchase Amount,采购金额
@@ -176,8 +177,8 @@ Rotate,旋转
 Rounding Adjustment,小数精度尾差调整
 Save,保存
 Search,搜索
-Select a product for each stock item,请为每条货物明细选择商品
-Select the original sale line,请选择原单中的商品行
+Select a product for each stock item,请为每条货物明细选择物料
+Select the original sale line,请选择原单中的物料行
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
 Service,服务
 Sort Order,排序
@@ -185,7 +186,7 @@ Source,来源
 Split,分拆
 Status,状态
 Stock Posted At,库存过账时间
-Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的商品。
+Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的物料。
 Subcategory,子分类
 Submit,提交
 Submitted,已提交
@@ -232,6 +233,7 @@ Unknown buyer,未知买家
 Unknown direction,未知的方向
 Unpaid,未付
 Update Stock,更新库存
+"Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
 Upload and Recognize,上传识别
 Use the stock count workbench,请通过盘点工作台操作
 User,用户
@@ -269,7 +271,7 @@ product.action.edit,编辑
 product.action.enable,启用
 product.action.fullPage,全屏编辑
 product.action.import,Excel 导入
-product.action.new,新建商品
+product.action.new,新建物料
 product.action.reload,刷新
 product.action.save,保存
 product.action.scan,扫码
@@ -281,11 +283,11 @@ product.col.barcode,条码
 product.col.code,编码
 product.col.codeValue,条码/二维码
 product.col.cost,参考成本
-product.col.name,商品
+product.col.name,物料
 product.col.price,售价
 product.col.status,状态
 product.col.unit,单位
-product.error.codeLocked,商品编码不能改
+product.error.codeLocked,物料编码不能改
 product.field.barcode,条码
 product.field.baseUnit,库存单位
 product.field.baseUnitHint,库存按这个单位记数；留空就跟售卖单位一样
@@ -300,7 +302,7 @@ product.field.image,图片地址
 product.field.importFile,Excel 文件
 product.field.locationHint,只用于新单据的默认填写，各仓位库存独立计算。
 product.field.minStock,低库存提醒
-product.field.name,商品名称
+product.field.name,物料名称
 product.field.nameEn,英文名
 product.field.nameZh,中文名
 product.field.price,售价
@@ -310,11 +312,11 @@ product.field.trackBatch,批次管理
 product.field.trackExpiry,有效期管理
 product.field.unit,单位
 product.field.vat,含 VAT
-product.field.weighed,称重商品
+product.field.weighed,称重物料
 product.import.badFile,这个文件读不了，请用模板格式
 product.import.emptyFile,这个文件没有数据行
-product.import.hint,第一行是表头；表里至少要有商品名称列
-product.import.missingName,表里要有商品名称列
+product.import.hint,第一行是表头；表里至少要有物料名称列
+product.import.missingName,表里要有物料名称列
 product.import.negative,该值不能小于 0
 product.import.noFile,请选择要导入的文件
 product.import.notNumber,该值不是数字
@@ -323,15 +325,15 @@ product.import.pick,选择文件
 product.import.template,下载模板
 product.new.hint,一次可以填多行；编码留空由系统生成
 product.new.hintCode,本次从 {0} 开始发
-product.new.lines,商品行
+product.new.lines,物料行
 product.notice.importSkipped,跳过 {0} 行，前几行见上方
-product.notice.imported,已导入 {0} 个商品
+product.notice.imported,已导入 {0} 个物料
 product.notice.nothingToSave,没有要保存的行
 product.notice.partial,已新建 {0} 个；{1} 行没保存成功，修正后再存
 product.notice.saved,已保存 {0}
-product.notice.savedCount,已新建 {0} 个商品
+product.notice.savedCount,已新建 {0} 个物料
 product.notice.toggled,已更新 {0}
-product.notice.toggledCount,已更新 {0} 个商品
+product.notice.toggledCount,已更新 {0} 个物料
 product.scan.auto,扫码识别
 product.scan.denied,摄像头权限被拒绝，允许之后再试一次
 product.scan.done,扫到了
@@ -372,7 +374,7 @@ stock.cell.notSet,未设
 stock.col.barcode,条码/二维码
 stock.col.code,编码
 stock.col.cost,平均成本
-stock.col.name,商品名称
+stock.col.name,物料名称
 stock.col.onHand,在库
 stock.col.status,状态
 stock.col.unit,单位
@@ -418,7 +420,7 @@ stock.count.filter.uncounted,未盘点
 stock.count.headline,{0} · 已盘点 {1} / {2} · 差异 {3}
 stock.count.import,导入盘点表
 stock.count.importFile,表格文件
-stock.count.importHint,行按商品编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
+stock.count.importHint,行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
 stock.count.importMissing,请先选择要导入的表格
 stock.count.importPick,选择文件
 stock.count.importSkipped,{0} 行没有导入
@@ -436,13 +438,13 @@ stock.count.newHint,盘点在库：按当前库存生成快照。上传导入：
 stock.count.noEntries,无记录
 stock.count.note,说明
 stock.count.notes,备注
-stock.count.photoInfo,商品 / 位置 / 盘点人 / 时间
+stock.count.photoInfo,物料 / 位置 / 盘点人 / 时间
 stock.count.photos,照片
 stock.count.post,过账差异
 stock.count.postConfirm,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
 stock.count.posted,已过账 {0} 处差异
-stock.count.problemCode,该编号找不到商品
-stock.count.problemIdentifier,这一行没有商品编号或条码
+stock.count.problemCode,该编号找不到物料
+stock.count.problemIdentifier,这一行没有物料编号或条码
 stock.count.problemNumber,数量不是有效数字
 stock.count.problemWarehouse,该仓库名不存在
 stock.count.qty,数量
@@ -470,7 +472,7 @@ stock.mobile.find,查询
 stock.mobile.noCamera,这个浏览器不支持摄像头扫码
 stock.mobile.noTask,无进行中的盘点
 stock.mobile.notBound,这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。
-stock.mobile.notFound,这个码找不到商品
+stock.mobile.notFound,这个码找不到物料
 stock.mobile.open,打开
 stock.mobile.pickTask,选择盘点
 stock.mobile.save,保存
@@ -490,15 +492,15 @@ stock.workbench.addPhoto,添加照片
 stock.workbench.bookPosition,账面仓库／仓位
 stock.workbench.camera,扫描条形码或二维码
 stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
-stock.workbench.code,条形码、二维码或商品编码
+stock.workbench.code,条形码、二维码或物料编码
 stock.workbench.continuous,连续盘点
 stock.workbench.done,完成
 stock.workbench.editEntry,修改记录
 stock.workbench.entryQty,本次实盘数量
-stock.workbench.find,查找商品
+stock.workbench.find,查找物料
 stock.workbench.finishConfirm,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
 stock.workbench.locationDiff,仓位差异
-stock.workbench.lookupFailed,未找到商品，请核对编码后重试。
+stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
 stock.workbench.needsRecount,库存有变，需重盘
 stock.workbench.nextReady,已保存，请扫描下一项。
 stock.workbench.photoHint,每条记录最多 5 张照片，可以拍照或从相册选择。
@@ -506,13 +508,13 @@ stock.workbench.photoLimit,每条记录最多 5 张照片
 stock.workbench.photos,照片
 stock.workbench.quantityDiff,数量差异
 stock.workbench.record,录入盘点
-stock.workbench.recount,重新盘点该商品
-stock.workbench.recountConfirm,将撤销该商品在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+stock.workbench.recount,重新盘点该物料
+stock.workbench.recountConfirm,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
 stock.workbench.removePhoto,移除
 stock.workbench.review,查看差异
 stock.workbench.saveNext,保存并下一项
 stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。
-stock.workbench.stockChanged,部分商品在盘点期间发生了库存变动。请打开标记的行，重新盘点该商品后再结束。
+stock.workbench.stockChanged,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
 stock.workbench.title,盘点工作台
 stock_in,入库
 stock_out,出库
@@ -552,7 +554,7 @@ trade.hasVat,计算增值税
 trade.in,入库数量
 trade.issue,开出单据
 trade.kind,单据类型
-trade.lines,商品明细
+trade.lines,物料明细
 trade.location,仓位
 trade.method,付款方式
 trade.newIn,新建入库单
@@ -563,7 +565,7 @@ trade.note,备注
 trade.notice.submitted,已提交 {0}
 trade.openShift,开班
 trade.opening,期初数量
-trade.originalLine,原单商品与仓位
+trade.originalLine,原单物料与仓位
 trade.out,出库数量
 trade.paid,实收金额
 trade.paidNotice,小票 {0} · 找零 {1}
@@ -571,7 +573,7 @@ trade.pay,收款完成
 trade.paymentDate,付款日期
 trade.paymentState,付款状态
 trade.price,单价
-trade.product,商品
+trade.product,物料
 trade.qty,数量
 trade.reference,关联单据
 trade.refund,退货退款

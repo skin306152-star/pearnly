@@ -62,6 +62,7 @@ Draft not found,下書きが見つかりません
 Due Date,支払期日
 ERP Stock Count Variance,棚卸差異ボード
 Enabled,有効
+Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Entry Method,入力方法
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
@@ -232,6 +233,7 @@ Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払
 Update Stock,在庫更新
+"Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
 Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 User,ユーザー

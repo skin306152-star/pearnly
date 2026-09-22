@@ -4,14 +4,17 @@
 	const p = frappe.pearnly, u = p.purchase_ui;
 	u.entry_method = (state, layout) => {
 		const choose = state.editable && !state.doc.name && !state.intake && !state.amended_from;
-		state.entry_mode = choose ? "" : "manual";
-		let selector;
+		state.entry_mode = choose ? "ocr" : "manual";
+		const choices = [];
 		const show_fields = () => !choose || state.entry_mode === "manual" || (state.entry_mode === "ocr" && Boolean(state.ocr_complete));
 		state.can_submit = () => !state.busy && !state.uploading && show_fields();
 		state.sync_entry = () => {
 			layout.set_data_visible(show_fields());
 			state.page.btn_primary.prop("disabled", !state.can_submit());
-			selector?.fields_dict.entry_method.$input?.prop("disabled", state.busy || state.uploading);
+			for (const {mode, control} of choices) {
+				control.set_input(state.entry_mode === mode ? 1 : 0);
+				control.$input.prop("disabled", state.busy || state.uploading);
+			}
 			u.set(state.form, "upload", {hidden: state.doc.status === "void" || !state.can_write || (choose && !state.entry_mode)});
 			u.set(state.form, "attachment_kind", {hidden: state.doc.status === "void" || !state.can_write || (choose && (!state.entry_mode || (state.entry_mode === "ocr" && !state.ocr_complete)))});
 			u.set(state.form, "recognise", {hidden: !state.editable || !state.defaults.capabilities.ocr || (choose && !(state.entry_mode === "ocr" && state.ocr_failed)),
@@ -19,24 +22,39 @@
 			state.form.fields_dict.recognise.$input?.prop("disabled", state.busy || state.uploading);
 		};
 		if (choose) {
-			selector = p.layout(layout.entry, [u.section(""), u.field("entry_method", "Entry Method", "Select", {
-				options: [{value: "", label: ""}, {value: "ocr", label: __("Upload and Recognize")}, {value: "manual", label: __("Manual Entry")}],
-				onchange() {
-					if (this.get_value() === "ocr" && !state.defaults.capabilities.ocr) {
-						void this.set_value("");
-						frappe.msgprint(__("Recognition is not configured for this account"));
-						return;
-					}
-					state.entry_mode = this.get_value();
-					// A mode change never runs paid OCR or discards already entered values.
-					state.sync_entry();
-				},
-			})]);
+			const select = mode => {
+				if (state.busy || state.uploading) {state.sync_entry(); return;}
+				// A mode change never runs paid OCR or discards already entered values.
+				state.entry_mode = mode;
+				state.sync_entry();
+			};
+			const modes = [
+				{mode: "ocr", label: __("Upload and Recognize"), description: __("Upload an invoice, then review the recognized details.")},
+				{mode: "manual", label: __("Manual Entry"), description: __("Enter purchase details. Files are added as attachments only.")},
+			];
+			const fields = [u.section("Entry Method")];
+			for (const [index, option] of modes.entries()) {
+				if (index) fields.push(u.column());
+				fields.push(u.field(`entry_${option.mode}`, option.label, "Check", {onchange: () => select(option.mode)}));
+			}
+			const selector = p.layout(layout.entry, fields);
+			for (const option of modes) {
+				const control = selector.fields_dict[`entry_${option.mode}`];
+				control.$wrapper.addClass("purchase-entry-choice");
+				control.$wrapper.find(".checkbox > label").addClass("px-3 py-2");
+				$(control.label_area).empty().append($('<span class="d-block font-weight-bold">').text(option.label))
+					.append($('<small class="d-block mt-1 text-muted font-weight-normal">').text(option.description));
+				choices.push({mode: option.mode, control});
+			}
 		} else layout.entry.hide();
 		return () => state.upload_cleanup?.();
 	};
 	u.upload_evidence = (state, refresh_files) => {
 		if (state.uploading || state.busy) return;
+		if (state.entry_mode === "ocr" && !state.defaults.capabilities.ocr) {
+			frappe.msgprint(__("Recognition is not configured for this account"));
+			return;
+		}
 		const kind = state.entry_mode === "ocr" && !state.ocr_complete ? "bill" : state.form.get_value("attachment_kind") || "bill";
 		state.uploading = true; state.sync_entry();
 		const pending = [];

@@ -24,11 +24,7 @@
 					await refresh();
 				}));
 			};
-			// Selection serves historical draft deletion only; new records post immediately.
-			const initial = await u.call("api_purchase_records", {params: parameters(), limit: 1});
-			if (!still_current()) return;
-			const drafts = initial.months.some(month => month.draft_count > 0);
-			list = p.list({page, doctype: "Purchase Document", selectable: can_write && drafts, compact_columns: true,
+			list = p.list({page, doctype: "Purchase Document", selectable: true, compact_columns: true,
 				on_open: row => go(row.name),
 				columns: [
 					{fieldname: "system_no", width: 154, min_width: 145, label: __("ID"), format: (value, row) => value || row.name},
