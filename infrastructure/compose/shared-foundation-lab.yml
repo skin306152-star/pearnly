@@ -1,0 +1,9 @@
+# Use only with erp-pos-lab.yml and project pearnly-shared-foundation-lab.
+# Local schema/role/navigation checks, no browser acceptance and no external credentials.
+services:
+  bench:
+    environment:
+      PEARNLY_SHARED_FOUNDATION_LAB: '1'
+    volumes:
+      - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro

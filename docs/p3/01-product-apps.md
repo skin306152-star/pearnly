@@ -19,6 +19,13 @@
 每个产品 App 里有 `product_manifest.py`，给出 `MANIFEST`：产品 id、入口前缀、依赖的
 App、功能、模块开关、以及**明确不允许做的事**。
 
+同一个目录里还有产品**自己维护**的三份东西（2026-09-21 起，见
+[按产品各自维护](../work/2026-09-21-shared-files-split.md) 与
+[ADR-009](../adr/0009-product-owned-declarations.md)）：可售卖功能目录
+`features.json`（角色、授权表、只读理由）、侧边栏菜单
+（`hooks.py` 里的 `pearnly_navigation`）、术语表 `i18n/messages.tsv`。控制面与共用层
+只汇总它们，不再各存一份镜像。
+
 `pearnly_core/manifest.py` 负责加载与自检：
 
 - `load_all()`：扫已安装 App，收集清单。

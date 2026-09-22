@@ -140,7 +140,7 @@ Local Port,ローカルポート
 Local URL,ローカルURL
 Manual adjustment · {0},手動調整 · {0}
 Mark provisioning done,開通完了にする
-Matches the feature keys in the product manifest (product_manifest.py).,製品マニフェスト product_manifest.py の features キーと一致します。
+Matches the feature key in the product's own feature catalog (features.json).,製品自身の機能カタログ (features.json) の機能キーと一致します。
 Monthly Fee,月額
 No provisioning request yet; click “Run provisioning” to start,開通リクエストはまだありません。「開通を実行」を押してください。
 No such deployment: {0},そのデプロイはありません: {0}

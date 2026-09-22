@@ -11,16 +11,29 @@ import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE = ROOT / 'apps/pearnly_core/pearnly_core/desk/navigation.py'
-AVAILABLE = next(ast.literal_eval(node.value) for node in ast.parse(MODULE.read_text()).body
-             if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_PAGES' for t in node.targets))
-PAGES = next(ast.literal_eval(node.value) for node in ast.parse(MODULE.read_text()).body
-             if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'PAGES' for t in node.targets))
+
+
+def declaration(app):
+    """Each product declares its own menu in its own hooks; read it as data."""
+    source = (ROOT / f'apps/{app}/{app}/hooks.py').read_text()
+    assigned = next(node for node in ast.parse(source).body
+                    if isinstance(node, ast.Assign)
+                    and any(isinstance(t, ast.Name) and t.id == 'pearnly_navigation'
+                            for t in node.targets))
+    entries = ast.literal_eval(assigned.value)
+    assert len(entries) == 1, entries
+    return entries[0]
+
+
+DECLARATIONS = [declaration(app) for app in ('pearnly_dms', 'pearnly_cowork', 'pearnly_erp_portal')]
+PAGES = {item['product']: [tuple(page) for page in item['pages']] for item in DECLARATIONS}
+AVAILABLE = {route for item in DECLARATIONS for route in item['available']}
 
 
 class NativeDeskContract(unittest.TestCase):
     def test_existing_menu_inventory_is_preserved(self):
         # Fixed product contract, independent of the new navigation implementation.
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,12,17])
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,17])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -41,8 +54,13 @@ class NativeDeskContract(unittest.TestCase):
                     self.assertEqual(metadata[name]['roles'], [{'role':'Desk User'}])
 
     def test_native_semantic_translation_keys_exist_in_all_languages(self):
-        with (ROOT/'scripts/i18n/messages.tsv').open() as handle:
-            rows = {r['key']: r for r in csv.DictReader(handle, delimiter='\t') if r.get('key')}
+        # The glossary is kept per product now (apps/<app>/<app>/i18n/messages.tsv).
+        rows = {}
+        for glossary in (ROOT/'apps').glob('*/*/i18n/messages.tsv'):
+            with glossary.open() as handle:
+                rows.update({r['key']: r for r in csv.DictReader(handle, delimiter='\t')
+                             if r.get('key')})
+        self.assertTrue(rows, 'no semantic keys found in any product glossary')
         for p in (ROOT/'apps').glob('*/*/public/desk/*.js'):
             for key in re.findall(r'''["']((?:home|roster|connect|intake|purchase|shell|account|product|stock|trade)\.[\w.]+)["']''', p.read_text()):
                 if key.endswith('.'):
@@ -53,12 +71,13 @@ class NativeDeskContract(unittest.TestCase):
 
     def test_only_working_pages_are_offered(self):
         source = MODULE.read_text()
-        available = next(ast.literal_eval(node.value) for node in ast.parse(source).body
-            if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'AVAILABLE_PAGES' for t in node.targets))
+        available = {route for item in DECLARATIONS for route in item['available']}
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
             'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier'})
-        self.assertTrue(available <= {route for items in PAGES.values() for _, route, _, _ in items})
+        # The visible list, the saved sidebar and the personal order all filter
+        # on the product's own list instead of one shared route set.
+        self.assertNotIn('pearnly-', source.split('"""', 2)[-1])
 
     def test_only_ticket_based_line_editor_and_account_keep_standalone_routes(self):
         source = (ROOT/'frontend/src/router.ts').read_text()
@@ -80,6 +99,8 @@ class ProductNavigationAccess(unittest.TestCase):
         self.frappe.throw = Mock(side_effect=ValueError)
         self.frappe.get_roles = Mock(return_value=["DMS Operator"])
         self.frappe.has_permission = Mock(return_value=False)
+        # A DMS site installs core + DMS, so only that product's menu is declared.
+        self.frappe.get_hooks = Mock(return_value=[declaration('pearnly_dms')])
         self.shell = types.ModuleType("pearnly_core.shell")
         self.shell.entitlements = Mock(return_value=["roster", "push_record"])
         self.shell.PRODUCT_LABELS = {"dms": "DMS", "cowork": "Cowork", "erp": "ERP"}
@@ -96,6 +117,26 @@ class ProductNavigationAccess(unittest.TestCase):
         return Boot(workspace_sidebar_item={"pearnly dms": {"items": [
             {"link_to": name} for name in ("pearnly-home", "pearnly-connect", "pearnly-roster", "pearnly-records")
         ]}})
+
+    def test_erp_grouping_and_count_permissions_survive_product_split(self):
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.frappe.conf['pearnly_product'] = 'erp'
+        self.shell.entitlements.return_value = ['products', 'warehouses', 'stocktake', 'purchase']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype in {'ERP Product', 'ERP Stock Count'}
+        self.assertEqual(self.namespace['visible_pages']('erp'),
+                         ['pearnly-home', 'pearnly-products', 'pearnly-stock-count'])
+        self.assertEqual(self.namespace['available_pages']('cowork'), set())
+        groups = self.namespace['navigation_groups']('erp')
+        self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
+                                                 'nav.group.sales', 'nav.group.master'])
+        boot = self.boot()
+        boot.workspace_sidebar_item = {'pearnly erp': {'items': [
+            {'link_to': route} for route in self.namespace['available_pages']('erp')]}}
+        self.namespace['extend_boot'](boot)
+        links = [r['link_to'] for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('link_to')]
+        self.assertEqual(links, ['pearnly-home', 'pearnly-products', 'pearnly-stock-count'])
+        headings = [r for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('type') == 'Section Break']
+        self.assertEqual([r['label'] for r in headings], ['nav.group.goodsStock'])
 
     def test_operator_does_not_see_admin_pages_even_when_site_bought_them(self):
         boot = self.boot()
@@ -128,11 +169,19 @@ class ProductNavigationAccess(unittest.TestCase):
         self.assertEqual(len(boot.workspace_sidebar_item["pearnly dms"]["items"]), 4)
 
     def test_document_page_requires_native_read_permission(self):
-        self.assertFalse(self.namespace["_can_open_page"]("pearnly-intake"))
+        self.frappe.conf["pearnly_product"] = "cowork"
+        self.frappe.get_hooks.return_value = [declaration('pearnly_cowork'),
+                                              declaration('pearnly_erp_portal')]
+        self.assertFalse(self.namespace["_can_open_page"]("cowork", "pearnly-intake"))
         self.frappe.has_permission.assert_called_with("Intake Record", "read")
         self.frappe.has_permission.return_value = True
-        self.assertTrue(self.namespace["_can_open_page"]("pearnly-purchase"))
+        self.assertTrue(self.namespace["_can_open_page"]("erp", "pearnly-purchase"))
         self.frappe.has_permission.assert_called_with("Purchase Document", "read")
+
+    def test_an_installed_product_only_offers_its_own_pages(self):
+        # The hook is read from installed apps: a DMS site cannot render Cowork pages.
+        self.assertEqual(self.namespace["products"](), ["dms"])
+        self.assertEqual(self.namespace["available_pages"]("cowork"), set())
 
     def test_personal_order_filters_old_routes_and_appends_newly_available_pages(self):
         self.frappe.get_roles.return_value = ["DMS Admin"]

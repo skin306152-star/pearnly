@@ -7,6 +7,8 @@ MANIFEST = {
     "bench_group": "dms",
     "entry_prefixes": ["/api/v1/dms/", "/api/v1/me/", "/pearnly-password"],
     "apps": ["pearnly_core", "pearnly_dms"],
+    # 可售卖的功能目录（角色、授权表、默认开关）在同目录的 features.json：
+    # 那张表由控制面读文件汇总，这里是产品的入口/依赖/禁止事项。
     "features": [
         "id_card_ocr",      # 身份证录入
         "customer_match",   # 客户匹配（相同证件号视为同一客户）

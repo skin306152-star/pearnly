@@ -9,7 +9,7 @@
  * 数量永远是**库存单位**（商品上的"库存单位"）—— 与落账口径同一处，不是售卖单位。
  * 成本按岗位遮蔽：服务端没给就是"未设"，不是 0。
  *
- * 文案全部来自 `scripts/i18n/messages.tsv` 的 `stock.*` 键。
+ * 文案全部来自 `pearnly_erp_portal/i18n/messages.tsv` 的 `stock.*` 键。
  */
 (() => {
 	const p = frappe.pearnly;

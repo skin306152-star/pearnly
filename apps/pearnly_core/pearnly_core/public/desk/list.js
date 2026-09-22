@@ -125,10 +125,10 @@
 			}
 		}
 		get_no_result_message() {
-			// Use the installed ListView empty state, without inventing a create-log action.
+			// Keep upstream SVG/layout; expose only a caller-provided working action.
 			return frappe.views.ListView.prototype.get_no_result_message.call({
 				doctype: this.doctype, meta: {description: __("Nothing to show")},
-				can_create: false, get_documentation_link: () => "",
+				can_create: Boolean(this.empty_action), get_documentation_link: () => "",
 			});
 		}
 		get_right_html(doc) {
@@ -222,6 +222,8 @@
 				this.toggle_result_area();
 				this.$paging_area.find(".btn-more").toggle(this.data.length < this.total);
 				this.$no_result.html(this.get_no_result_message());
+				if (this.empty_action) this.$no_result.find(".btn-new-doc")
+					.text(this.empty_action.label).on("click", this.empty_action.action);
 				this.resize_list();
 				this.reset_defaults();
 			} catch (error) {

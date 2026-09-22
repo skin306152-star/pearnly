@@ -266,3 +266,20 @@ app_license = "mit"
 
 
 app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
+
+# Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
+pearnly_navigation = [{'product': 'cowork',
+  'app': 'pearnly_cowork',
+  'pages': [('nav.home', 'pearnly-home', 'house', None),
+            ('nav.intake', 'pearnly-intake', 'scan', 'intake'),
+            ('nav.history', 'pearnly-history', 'list', 'ocr_history'),
+            ('nav.pushLogs', 'pearnly-push-logs', 'list', 'push_log'),
+            ('nav.reconcile', 'pearnly-reconcile', 'check', 'recon'),
+            ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
+            ('nav.clients', 'pearnly-clients', 'users', 'master_data'),
+            ('nav.company', 'pearnly-company', 'building-2', 'master_data'),
+            ('nav.team', 'pearnly-team', 'users', 'master_data'),
+            ('nav.integrations', 'pearnly-integrations', 'plug', 'master_data'),
+            ('nav.guide', 'pearnly-guide', 'circle-help', 'express_guide')],
+  'available': ['pearnly-home', 'pearnly-intake'],
+  'permissions': {'pearnly-intake': {'doctype': 'Intake Record'}}}]

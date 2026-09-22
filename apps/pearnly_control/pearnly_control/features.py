@@ -1,24 +1,37 @@
 # -*- coding: utf-8 -*-
-"""功能模版目录：控制面按产品可勾选的功能清单。
+"""功能模版目录：控制面把各产品**自己声明**的功能清单汇总起来。
 
-为什么目录写在控制面、而不是直接读各产品的 `product_manifest.py`：
-控制面站点**只装了 frappe + pearnly_core + pearnly_control**，三个产品的 App
-并不装在它上面，所以 import 不到它们的清单。控制面必须自己知道"在卖什么"。
+每个产品把自己卖什么写在自己的目录里（`apps/<app>/<app>/features.json`：功能码、
+标签、默认开关、对应岗位、可挡的 DocType、只读表）。控制面只做汇总和跨产品策略，
+不再各留一份镜像 —— 产品加功能只改自己的文件，两边不会因为同一张表打架。
 
-这份目录是各产品清单的**镜像**，对应关系写在下面每条注释里；产品清单改了，
-这里要跟着改。`sync_features()` 在每次 migrate 后把目录同步进
-`Pearnly Feature` 表，作为勾选时的候选项。
+为什么是**读文件**而不是 import 各产品：控制面站点只装了 frappe + pearnly_core +
+pearnly_control，三个产品的 App 并不装在它上面，import 不到。文件在同一个 bench 里
+（生产镜像与开发挂载都带全部 App），所以读文件是稳的；文件缺失会**明确报错**，
+不会静默变成"没有功能可卖"。
+
+`sync_features()` 在每次 migrate 后把目录同步进 `Pearnly Feature` 表，作为勾选时的
+候选项。
 
 用户 2026-09-17 的要求：每个产品都要有**首页**，首页就是现在的订阅与计费系统，
-所以三个产品都带 `home_subscription`。
+所以三个产品都带 `home_subscription`（这一条是跨产品的，写在控制面）。
 """
 
+import json
+import os
+
 import frappe
+from frappe.utils import get_bench_path
 
 # 顺序就是这个顺序在表单里出现的顺序
 PRODUCTS = ("cowork", "erp", "dms")
 
-PRODUCT_LABELS = {"cowork": "Cowork", "erp": "ERP", "dms": "DMS"}
+# 产品 → 它的 App 名（目录名与包名一致）
+PRODUCT_APPS = {
+    "cowork": "pearnly_cowork",
+    "erp": "pearnly_erp_portal",
+    "dms": "pearnly_dms",
+}
 
 # 三个产品共有的首页（= 订阅与计费）
 # 文案一律写**英文**：渲染时会走 __()，中文/泰文/日文由翻译包给（见
@@ -30,73 +43,41 @@ _HOME = {
     "description": "Product home: current plan, usage and billing",
 }
 
-CATALOG = {
-    "cowork": [
-        _HOME,
-        # 以下逐条对应 apps/pearnly_cowork/pearnly_cowork/product_manifest.py 的 features
-        {"code": "intake", "label": "Intake Workbench", "default_on": True,
-         "description": "Upload receipts and sheets, extract fields, review each item, then push"},
-        {"code": "ocr_history", "label": "Recognition Records", "default_on": True,
-         "description": "Batches and results of every recognition run"},
-        {"code": "push_log", "label": "Push Log", "default_on": True,
-         "description": "How each push to the external ERP went"},
-        {"code": "recon", "label": "Reconciliation", "default_on": True,
-         "description": "Reconcile documents against the ledger"},
-        {"code": "master_data", "label": "Master Data", "default_on": True,
-         "description": "Customers, suppliers, accounts and other reference data"},
-        {"code": "stocktake", "label": "Stock Count", "default_on": False,
-         "description": "Count tasks and variance records"},
-        {"code": "boards", "label": "Collaboration Boards (WeKan)", "default_on": False,
-         "description": "A board instance is created only when this is on"},
-        {"code": "companion", "label": "Companion", "default_on": False,
-         "description": "Windows app on the merchant's accounting PC: installer, pairing, outbound pull"},
-        {"code": "express_guide", "label": "Express Push Guide", "default_on": False,
-         "description": "Install, pair, upgrade and uninstall guide for Companion"},
-    ],
-    "erp": [
-        _HOME,
-        # 对应 apps/pearnly_erp_portal/pearnly_erp_portal/product_manifest.py
-        {"code": "products", "label": "Products", "default_on": True,
-         "description": "Product master data"},
-        {"code": "warehouses", "label": "Stock In / Out", "default_on": True,
-         "description": "Warehouses, stock-in and stock-out documents"},
-        {"code": "stockcard", "label": "Stock Card Report", "default_on": True,
-         "description": "Stock in/out summary (kept item, see the ERP manifest)"},
-        # 盘点：快照 + 员工扫码记录（手机走 LINE）+ 差异过账。旧项目里它在 Cowork，
-        # 但账在 ERP，所以产品归属跟着账走（用户 2026-09-22 定）。
-        {"code": "stocktake", "label": "Stock Count", "default_on": True,
-         "description": "Stock count tasks, staff entries and variance posting"},
-        {"code": "purchase", "label": "Purchasing (Records / Suppliers / Settings)", "default_on": True,
-         "description": "Purchase records, suppliers and purchasing settings"},
-        {"code": "sales", "label": "Sales", "default_on": True,
-         "description": "Sales documents and customer dealings"},
-        {"code": "clients", "label": "Customers", "default_on": True,
-         "description": "Customer master data"},
-        # 用户 2026-09-21 定：收银含在 ERP 里，不作为单独购买的功能。
-        # 开通不分功能模版（选了产品就把该产品功能全开），所以列进目录即等于送给
-        # 每个 ERP 租户；租户管理员会拿到这个角色，团队管理里也就勾得到「收银员」。
-        {"code": "cashier", "label": "Cashier (POS)", "default_on": True,
-         "description": "Cashier counter, shifts and the cashier's own sales"},
-        {"code": "erp_push", "label": "External ERP Push", "default_on": False,
-         "description": "Push to the external ERP; the push log is the only source of status"},
-    ],
-    "dms": [
-        _HOME,
-        # 对应 apps/pearnly_dms/pearnly_dms/product_manifest.py
-        {"code": "id_card_ocr", "label": "ID Card Intake", "default_on": True,
-         "description": "Read the ID card, match it against the DMS customer base, then confirm"},
-        {"code": "customer_match", "label": "Customer Match", "default_on": True,
-         "description": "Same ID number means the same customer; avoids duplicate records"},
-        {"code": "push_record", "label": "Push Records", "default_on": True,
-         "description": "The result of each push"},
-        {"code": "roster", "label": "Operator Roster", "default_on": True,
-         "description": "Only the owner can manage it"},
-        {"code": "quota", "label": "Plan & Balance", "default_on": True,
-         "description": "DMS usage and balance"},
-    ],
-}
-
 FEATURE = "Pearnly Feature"
+
+
+def catalog_path(product: str, bench: str = "") -> str:
+    """该产品自己那份功能清单的绝对路径。"""
+    app = PRODUCT_APPS[product]
+    return os.path.join(bench or get_bench_path(), "apps", app, app, "features.json")
+
+
+def read_catalog(product: str, bench: str = "") -> dict:
+    """读一份产品清单。缺文件或形状不对就报错，不静默降级成空目录。"""
+    path = catalog_path(product, bench)
+    try:
+        with open(path, encoding="utf-8") as handle:
+            data = json.load(handle)
+    except FileNotFoundError:
+        raise RuntimeError(
+            f"Missing {product} feature catalog at {path}; product apps must be present in the control bench"
+        ) from None
+    if not isinstance(data, dict) or data.get("product") != product \
+            or not isinstance(data.get("features"), list):
+        raise RuntimeError(f"{path}: invalid catalog shape (product and features required)")
+    return data
+
+
+DECLARATIONS = {product: read_catalog(product) for product in PRODUCTS}
+
+PRODUCT_LABELS = {product: str(DECLARATIONS[product].get("label") or product)
+                  for product in PRODUCTS}
+
+CATALOG = {product: [_HOME] + [
+    {"code": item["code"], "label": item["label"], "default_on": bool(item.get("default_on")),
+     "description": item.get("description") or ""}
+    for item in DECLARATIONS[product]["features"]
+] for product in PRODUCTS}
 
 # ── 权限落地：功能 → 角色 → DocType ────────────────────────────────────────
 #
@@ -104,36 +85,12 @@ FEATURE = "Pearnly Feature"
 # 做法：每个功能对应一个角色，角色拿到它那个 DocType 的读写权限；开通时按勾选
 # 把角色发给租户管理员。没勾的功能 → 角色没发 → 那个 DocType 访问不了。
 #
-# 只列**有实际可挡对象**的功能。没有 DocType 的功能（例如首页、套餐与余额）
-# 目前没有可挡的东西，就不在这里假装有权限 —— 等产品界面做出来再补。
+# 只列**有实际可挡对象**的功能（产品清单里 `role` 为空的就是这种）。没有 DocType 的
+# 功能（例如首页、套餐与余额）目前没有可挡的东西，就不在这里假装有权限。
 ENFORCEMENT = {
-    ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
-    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line", "ERP Product",
-                                           "ERP Supplier", "ERP Purchase Settings",
-                                           "ERP Company", "ERP LINE Intake"]),
-    ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit",
-                                           "ERP Company"]),
-    # 库存与收发存报表是同一个岗位（ERP Stock）。它要看得见商品才能做入库/出库，
-    # 但商品主数据只读（权限覆盖见 READ_ONLY）。
-    ("erp", "warehouses"): ("ERP Stock", ["ERP Product", "ERP Warehouse", "ERP Stock Entry",
-                                          "ERP Stock Entry Line", "ERP Stock Movement",
-                                          "ERP Stock Balance", "ERP Company"]),
-    ("erp", "stockcard"): ("ERP Stock", ["ERP Stock Opening", "ERP Company"]),
-    ("erp", "stocktake"): ("ERP Stock", ["ERP Stock Count", "ERP Stock Count Item",
-                                         "ERP Stock Count Entry"]),
-    # 客户表归销售岗位：销售要能被开单侧选中，也能建/改买方（客户名录与销售单据
-    # 是同一个岗位，两个功能码在这里合成一个人看）。
-    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line", "ERP Product",
-                                     "ERP Company", "ERP LINE Intake"]),
-    ("erp", "clients"): ("ERP Sales", ["ERP Customer", "ERP Company"]),
-    # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
-    # 否则团队管理里勾不到这个岗位。
-    ("erp", "cashier"): ("ERP Cashier", ["ERP POS Terminal", "ERP Shift", "ERP Sale", "ERP Product",
-                                         "ERP Sale Line", "ERP Sale Payment",
-                                         "ERP Customer", "ERP Company"]),
-    ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
-    ("dms", "customer_match"): ("DMS Customer Match", ["DMS Customer Link"]),
-    ("dms", "roster"): ("DMS Operator", ["DMS Operator"]),
+    (product, item["code"]): (item.get("role") or "", list(item.get("doctypes") or []))
+    for product in PRODUCTS for item in DECLARATIONS[product]["features"]
+    if item.get("role")
 }
 
 # 产品管理员角色：能管本产品的员工账号，但**不含功能权限** ——
@@ -141,14 +98,11 @@ ENFORCEMENT = {
 #
 # 角色名是**库里的记录**，按 Frappe 惯例用英文（框架自己的角色也是英文），
 # 界面上由 `__(role)` 翻（`frappe/public/js/frappe/roles_editor.js:45` 实测会翻）。
-# 改这里的名字必须同时改：
+# 改产品清单里的名字必须同时改：
 #   · apps/pearnly_core/pearnly_core/billing_www.py 的 ADMIN_ROLES（按名字判权限）
 #   · apps/pearnly_core/pearnly_core/patches/ 里把老站点已有角色改名的那个补丁
-PRODUCT_ADMIN_ROLE = {
-    "cowork": "Cowork Admin",
-    "erp": "ERP Admin",
-    "dms": "DMS Admin",
-}
+PRODUCT_ADMIN_ROLE = {product: str(DECLARATIONS[product].get("admin_role") or "")
+                      for product in PRODUCTS}
 
 # 产品管理员（租户管理员）在这张**标准表清单之外**还要能管的表。
 #
@@ -156,9 +110,8 @@ PRODUCT_ADMIN_ROLE = {
 # 与产品业务无关，所以写在站点侧；而公司资料不是买来的功能，也不该发给岗位 ——
 # 它是租户自己的主体资料，第一次打开资料页就要能填、能存，否则页面只能看不能改。
 # 站点侧把这份清单**追加**在自己的默认清单后面（`ensure_feature_roles`）。
-ADMIN_EXTRA_DOCTYPES = {
-    "erp": ["ERP Company"],
-}
+ADMIN_EXTRA_DOCTYPES = {product: list(DECLARATIONS[product].get("admin_extra_doctypes") or [])
+                        for product in PRODUCTS}
 
 # 租户管理员必须有的基础角色（否则连 Desk 都进不去）
 BASE_ROLES = ["Desk User"]
@@ -193,30 +146,16 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
     return role, list(doctypes)
 
 
-# 按岗位**只读**的表。
+# 按岗位**只读**的表（键带上角色，避免把同一个 DocType 上别的岗位一起降成只读）。
 #
-# 为什么需要：DMS 的身份证录入作业在 LINE 上完成（用户 2026-09-17 定："DMS 身份证
-# 录入网页端不要了……网页只负责绑定第三方 dms，只取消网页前端的录入入口"）。
-# 所以这张表在网页端只能看、不能新建 —— Frappe 原生就是按 `create` 权限显示"新增"
-# 按钮的，禁掉它就等于取消了网页端的录入入口，不需要改前端、也不需要另造开关。
-#
-# 这**不影响将来的 LINE 录入**：webhook 是 `allow_guest` 的独立通道，走的不是这个
-# 角色（今天 LINE 侧还只做绑定，没有录入分支）。
-#
-# ERP 同样用得上：库存岗位做入库/出库要**看得到**商品，但商品主数据归商品岗位，
-# 所以 ERP Stock 在 ERP Product 上只读。键带上角色，避免把同一个 DocType 上
-# 别的岗位（ERP Products）也一起降成只读。
+# "每一处在挡什么"写在产品清单那一条里（`read_only` + `notes`）：例如 DMS 的身份证
+# 录入作业在 LINE 上完成，网页端只能看不能新建；ERP 的库存岗位要看得见商品，但商品
+# 主数据归商品岗位；公司资料是租户自己的主体资料，所有业务岗位只读，写权限只从
+# ADMIN_EXTRA_DOCTYPES 走。
 READ_ONLY: set[tuple[str, str, str]] = {
-    ("dms", "DMS ID Card Intake", "DMS ID Card Intake"),
-    ("erp", "ERP Product", "ERP Stock"),
-    *{("erp", "ERP Product", role) for role in ("ERP Purchase", "ERP Sales", "ERP Cashier")},
-    # 收银要能选客户开单，但客户名录归销售岗位 —— 收银在客户表上只读。
-    ("erp", "ERP Customer", "ERP Cashier"),
-    # ERP Company（公司主档 + 公司资料）不是买来的功能，是**租户自己的主体资料**：
-    # 每个业务岗位都要读到（开单要抬头与税号），但只有产品管理员能改。所以每个业务
-    # 岗位在这张表上一律只读，写权限只从 ADMIN_EXTRA_DOCTYPES 走（见下）。
-    *{("erp", "ERP Company", role) for role in (
-        "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier")},
+    (product, doctype, item["role"])
+    for product in PRODUCTS for item in DECLARATIONS[product]["features"]
+    for doctype in item.get("read_only") or []
 }
 READ_ONLY_PERMS = {"read": 1, "report": 1}
 
@@ -263,11 +202,9 @@ def roles_payload(product: str, codes: list[str]) -> dict:
         "base_roles": BASE_ROLES,
         "admin_extra_doctypes": list(ADMIN_EXTRA_DOCTYPES.get(product, [])),
         "roles": roles,
-        # Native field permissions protect cost through generic DocType APIs too.
-        "field_permissions": ([{"doctype": "ERP Product", "role": role,
-                                "permlevel": 1, "perms": {"read": 1, "write": int(role == "ERP Admin")}}
-                               for role in ["ERP Admin", *(["ERP Stock"] if "ERP Stock" in seen_roles else [])]]
-                              if product == "erp" else []),
+        # Field-level grants belong to the product, just like DocType grants.
+        "field_permissions": [dict(rule) for rule in DECLARATIONS[product].get("field_permissions", [])
+                              if rule["role"] in seen_roles | {PRODUCT_ADMIN_ROLE.get(product)}],
     }
 
 
@@ -304,13 +241,16 @@ def workspace_payload(product: str, codes: list[str], title: str = "") -> dict:
 
 
 # 工作区图标（lucide 短名，与桌面图标同一套）
-ICON_BY_PRODUCT = {"cowork": "clipboard-list", "erp": "store", "dms": "id-card"}
+ICON_BY_PRODUCT = {product: str(DECLARATIONS[product].get("icon") or "folder")
+                   for product in PRODUCTS}
 
 # 工作区入口标题的覆盖表（键 = (产品, DocType)）。没配就用功能自己的名字。
 # 这张表写进工作区的内容块（是**数据**），渲染时走 `__(title)`
 # （`frappe/public/js/frappe/widgets/base_widget.js:set_title`），所以同样必须是英文。
 WORKSPACE_LABEL: dict[tuple[str, str], str] = {
-    ("dms", "DMS ID Card Intake"): "Push Records",
+    (product, doctype): label
+    for product in PRODUCTS
+    for doctype, label in (DECLARATIONS[product].get("workspace_labels") or {}).items()
 }
 
 # 工作区所属模块 = 该产品 App 的模块名（各产品 modules.txt 里的值）。
@@ -319,11 +259,8 @@ WORKSPACE_LABEL: dict[tuple[str, str], str] = {
 # `workspace.module in user.allowed_modules`，而租户用户被允许的模块是他所用
 # 产品 App 的那几个（实测该用户有 "Pearnly DMS"，没有 "Pearnly Core"）。
 # 用核心层模块会被直接判无权限丢掉 —— 表现为"数据都建好了，桌面还是空的"。
-MODULE_BY_PRODUCT = {
-    "cowork": "Pearnly Cowork",
-    "erp": "Pearnly ERP Portal",
-    "dms": "Pearnly DMS",
-}
+MODULE_BY_PRODUCT = {product: str(DECLARATIONS[product].get("module") or "")
+                     for product in PRODUCTS}
 
 
 def sync_features() -> dict:
