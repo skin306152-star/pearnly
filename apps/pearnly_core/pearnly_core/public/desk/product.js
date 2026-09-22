@@ -20,6 +20,38 @@ frappe.provide("frappe.pearnly");
 		const decimals = decimals_of(value, max);
 		return decimals === null ? String(value) : format_number(value, null, decimals);
 	};
+	// 数量/百分数按**实际位数**显示：2.5 就是 "2.5"、2 就是 "2"，不留 `precision` 那些尾零。
+	//
+	// 为什么这么做：框架的 Float 控件用 `format_for_input` = `format_number(value, null, precision)`
+	// 渲染输入框，precision 是字段定的（明细数量给 6），所以 2.5 会显示成 2.500000。
+	// 这里只改**显示**这一层（包一层 format_for_input 去尾零），值不动 —— 输入解析
+	// （`parse` → `flt(value, precision)`）走的是另一条路，所以"2.5"照样能输入、不会被四舍五入。
+	// 金额（Currency）不在这里改：钱固定两位。
+	p.tidy_number = (field) => {
+		const type = field?.df?.fieldtype;
+		if (!field || !["Float", "Percent"].includes(type) || field.pearnly_tidy) return field;
+		field.pearnly_tidy = true;
+		const tidy = text => (typeof text === "string" && text.includes(".")
+			? text.replace(/(\.\d*?)0+$/, "$1").replace(/\.$/, "") : text);
+		const format = field.format_for_input?.bind(field);
+		if (format) field.format_for_input = value => tidy(format(value));
+		// 只读时框架走的不是 `format_for_input`，而是 `frappe.format(value, df)`；它的
+		// Float 分支把 precision 0 当"没设"退回系统默认（2 → 2.000、2.5 → 2.500）。
+		// 数量按**实际位数**显示，所以只读的 Float 直接出我们自己那份文本。
+		const display = field.set_disp_area?.bind(field);
+		if (display) field.set_disp_area = value => {
+			const shown = value ?? field.get_value?.();
+			if (field.df.read_only && type === "Float" && field.disp_area
+					&& shown !== null && shown !== undefined && shown !== "") {
+				$(field.disp_area).html(p.escape(p.number(shown)));
+				return;
+			}
+			return display(value);
+		};
+		// 已经渲染过的控件（默认值先画了一遍）按新口径重画一次显示。
+		if (field.$input?.length) field.set_formatted_input(field.get_value?.());
+		return field;
+	};
 	p.money = (value, currency = "THB", max = 2) => {
 		if (value === null || value === undefined || value === "") return "";
 		const decimals = decimals_of(value, max);
@@ -103,12 +135,15 @@ frappe.provide("frappe.pearnly");
 		// 短弹窗里最后一行选项正好压在「提交」上 —— 点提交其实点在选项上。
 		// 皮肤里把 footer 抬到浮层之上（见 product.css），所以这里只要挂个类。
 		d.$wrapper.addClass("pearnly-dialog");
+		// 先给控件挂上"数量不留尾零"的显示口径，再 show —— 否则第一遍画出来还是 2.500000。
+		Object.values(d.fields_dict || {}).forEach(field => p.tidy_number(field));
 		d.show();
 		return d;
 	};
 	p.layout = (parent, fields) => {
 		const form = new frappe.ui.FieldGroup({ body: parent, fields });
 		form.make();
+		Object.values(form.fields_dict).forEach(field => p.tidy_number(field));
 		return form;
 	};
 	p.table = async (parent, columns, data, options = {}) => {
