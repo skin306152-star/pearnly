@@ -62,6 +62,7 @@ Draft not found,找不到这条草稿
 Due Date,到期日
 ERP Stock Count Variance,盘点差异看板
 Enabled,已启用
+Entry Method,录入方式
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
 Exchange Rate must be greater than zero,汇率必须大于零
@@ -76,6 +77,7 @@ File Name,文件名
 File not found,文件不存在
 Filters,过滤条件
 From Date,开始日期
+Full Screen,全屏
 Generated,已生成
 Goods,货物
 Grand Total,总计
@@ -84,6 +86,7 @@ ID,编号
 Image Fingerprint,影像指纹
 Input Tax,进项税额
 Invalid Currency,币种无效
+Invalid file,无效文件
 Invalid payment amount,付款金额无效
 Invalid value,值无效
 Invoice,发票
@@ -107,6 +110,7 @@ Line Discount,行折扣
 Line No,行号
 Location,地点
 Manual,手动
+Manual Entry,手动录入
 Manually Set Amounts,手动设置金额
 Merge Items,合并明细
 Mode of Payment,付款方式
@@ -160,6 +164,7 @@ Received By,收款人
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Recognition is not configured for this account,尚未配置文字识别
 Recognition returned nothing,未识别到内容
+Recognizing...,识别中…
 Reference,参考
 References,参考
 Remarks,备注
@@ -220,12 +225,14 @@ Total Amount,总金额
 Total Taxes and Charges,总税费
 Type,类型
 UOM,单位
+Unable to load preview,无法加载预览
 Unit,单位
 Unit Price,单价
 Unknown buyer,未知买家
 Unknown direction,未知的方向
 Unpaid,未付
 Update Stock,更新库存
+Upload and Recognize,上传识别
 Use the stock count workbench,请通过盘点工作台操作
 User,用户
 VAT,增值税
@@ -237,6 +244,8 @@ Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
+Zoom In,放大
+Zoom Out,缩小
 adjust,调整
 branch,分店
 card,银行卡

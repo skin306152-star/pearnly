@@ -62,6 +62,7 @@ Draft not found,Draft not found
 Due Date,Due Date
 ERP Stock Count Variance,ERP Stock Count Variance
 Enabled,Enabled
+Entry Method,Entry Method
 Exchange Rate,Exchange Rate
 Exchange Rate is required,Exchange Rate is required
 Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
@@ -76,6 +77,7 @@ File Name,File Name
 File not found,File not found
 Filters,Filters
 From Date,From Date
+Full Screen,Full Screen
 Generated,Generated
 Goods,Goods
 Grand Total,Grand Total
@@ -84,6 +86,7 @@ ID,ID
 Image Fingerprint,Image Fingerprint
 Input Tax,Input Tax
 Invalid Currency,Invalid Currency
+Invalid file,Invalid file
 Invalid payment amount,Invalid payment amount
 Invalid value,Invalid value
 Invoice,Invoice
@@ -107,6 +110,7 @@ Line Discount,Line Discount
 Line No,Line No
 Location,Location
 Manual,Manual
+Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
 Merge Items,Merge Items
 Mode of Payment,Mode of Payment
@@ -160,6 +164,7 @@ Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recognition is not configured for this account,Recognition is not configured for this account
 Recognition returned nothing,Recognition returned nothing
+Recognizing...,Recognizing...
 Reference,Reference
 References,References
 Remarks,Remarks
@@ -220,12 +225,14 @@ Total Amount,Total Amount
 Total Taxes and Charges,Total Taxes and Charges
 Type,Type
 UOM,UOM
+Unable to load preview,Unable to load preview
 Unit,Unit
 Unit Price,Unit Price
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid
 Update Stock,Update Stock
+Upload and Recognize,Upload and Recognize
 Use the stock count workbench,Use the stock count workbench
 User,User
 VAT,VAT
@@ -237,6 +244,8 @@ Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+Zoom In,Zoom In
+Zoom Out,Zoom Out
 adjust,adjust
 branch,branch
 card,card

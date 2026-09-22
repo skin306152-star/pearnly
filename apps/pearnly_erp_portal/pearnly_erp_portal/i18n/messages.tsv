@@ -581,3 +581,12 @@ Withholding Tax must be greater than zero	预扣税额必须大于零	ยอด�
 No attachments	无附件	ไม่มีไฟล์แนบ	添付ファイルなし
 Filter	筛选	ตัวกรอง	絞り込み	purchase.action.filter
 Split	分拆	แยก	分割
+Entry Method	录入方式	วิธีการบันทึก	入力方法
+Upload and Recognize	上传识别	อัปโหลดเพื่ออ่านข้อความ	アップロードして読み取る
+Manual Entry	手动录入	กรอกข้อมูลเอง	手動入力
+Recognizing...	识别中…	กำลังอ่านข้อความ…	読み取り中…
+Unable to load preview	无法加载预览	ไม่สามารถโหลดตัวอย่างได้	プレビューを読み込めません
+Zoom In	放大	ขยาย	拡大
+Zoom Out	缩小	ย่อ	縮小
+Full Screen	全屏	เต็มหน้าจอ	全画面
+Invalid file	无效文件	ไฟล์ไม่ถูกต้อง	無効なファイル

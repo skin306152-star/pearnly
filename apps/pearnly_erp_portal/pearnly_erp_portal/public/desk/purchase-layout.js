@@ -8,6 +8,7 @@
 		const nav = $('<nav class="form-tabs-list purchase-section-nav">').attr("aria-label", __("Purchase Invoice")).prependTo(form.page);
 		const links = $('<ul class="nav form-tabs">').appendTo(nav);
 		const body = $('<div class="purchase-body">').appendTo(form.page);
+		const entry = $('<div class="purchase-entry">').appendTo(body);
 		const documents = $('<section class="purchase-evidence">').appendTo(body);
 		const data = $('<div class="purchase-data">').appendTo(body);
 		const information = $('<section>').appendTo(data);
@@ -65,7 +66,11 @@
 		observer.observe(body[0]);
 		if (head) observer.observe(head);
 		schedule();
-		return {navigate, destroy: () => {
+		return {navigate, entry, set_data_visible: visible => {
+			data.toggle(visible);
+			nav.toggleClass("hide", !visible);
+			schedule();
+		}, destroy: () => {
 			destroyed = true;
 			cancelAnimationFrame(frame); observer.disconnect();
 			scroller.removeEventListener("scroll", schedule);

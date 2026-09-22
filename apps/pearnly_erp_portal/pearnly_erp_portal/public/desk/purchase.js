@@ -17,7 +17,7 @@
 			const primary = () => {
 				if (!live || !still_current()) return;
 				if (!can_write) {page.clear_primary_action(); return;}
-				if (!selected.length) {page.set_primary_action(__("New"), () => go("new")); return;}
+				if (!selected.length) {page.set_primary_action(__("New"), () => {void go("new");}); return;}
 				if (selected.some(row => row.status !== "draft")) {page.clear_primary_action(); return;}
 				page.set_primary_action(`${__("Delete")} (${selected.length})`, () => frappe.confirm(__("Are you sure you want to delete?"), async () => {
 					await u.call("api_delete_purchase_drafts", {names: selected.map(row => row.name)}, true);

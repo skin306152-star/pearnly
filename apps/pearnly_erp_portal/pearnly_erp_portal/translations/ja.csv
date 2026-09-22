@@ -62,6 +62,7 @@ Draft not found,下書きが見つかりません
 Due Date,支払期日
 ERP Stock Count Variance,棚卸差異ボード
 Enabled,有効
+Entry Method,入力方法
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
 Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
@@ -76,6 +77,7 @@ File Name,ファイル名
 File not found,ファイルが見つかりません
 Filters,フィルタ
 From Date,開始日
+Full Screen,全画面
 Generated,生成済み
 Goods,商品
 Grand Total,税込合計
@@ -84,6 +86,7 @@ ID,ID
 Image Fingerprint,画像フィンガープリント
 Input Tax,仕入税額
 Invalid Currency,通貨が無効です
+Invalid file,無効なファイル
 Invalid payment amount,支払金額が無効です
 Invalid value,値が無効です
 Invoice,請求書
@@ -107,6 +110,7 @@ Line Discount,行値引
 Line No,行番号
 Location,保管場所
 Manual,手動入力
+Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
 Merge Items,明細統合
 Mode of Payment,支払方法
@@ -160,6 +164,7 @@ Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recognition is not configured for this account,文字認識が設定されていません
 Recognition returned nothing,内容を認識できませんでした
+Recognizing...,読み取り中…
 Reference,参照番号
 References,参照情報
 Remarks,備考
@@ -220,12 +225,14 @@ Total Amount,合計金額
 Total Taxes and Charges,税金および諸費用合計
 Type,種別
 UOM,単位
+Unable to load preview,プレビューを読み込めません
 Unit,単位
 Unit Price,単価
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払
 Update Stock,在庫更新
+Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 User,ユーザー
 VAT,消費税
@@ -237,6 +244,8 @@ Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+Zoom In,拡大
+Zoom Out,縮小
 adjust,調整
 branch,支店
 card,カード

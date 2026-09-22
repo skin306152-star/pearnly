@@ -5,9 +5,10 @@
 - **后续用户纠偏已实施**：提供的 Paypers 收入截图仅作桌面/手机布局参考，不授权收入、AI 提示、客户管理或其他产品能力。官方原生组件用于组合采购自己的页面，不照搬 ERPNext 采购发票表单。
 - 采购首屏与已验收商品/库存共用原生 page-level List：搜索、筛选按钮、新建；导出收在菜单。删除展开的“过滤条件 / 更多筛选 / 概要”、统计区和列配置入口；后台查询/汇总与导出合同仍保留。
 - **最新纠偏：连续页面，取消 Tab Break 分页。** 电脑左侧是连续的详细信息、供应商、物料与金额字段，右侧约 30% 宽的紧凑附件区；手机按附件、详细信息、物料连续排列，顶部固定导航点击只滚动定位，下划线随滚动同步。电脑不显示该导航。原生可折叠 Section + FieldGroup 保留全部业务字段；自动建商品/入库仍是新单默认行为。
+- **录入方式与查看器已按最新要求调整**：新单先选“上传识别 / 手动录入”。上传识别在识别成功前隐藏业务字段，识别中使用原生冻结层并禁止提交，成功后在原页复核；手动录入立即显示字段，上传仅留作附件。票图沿用旧采购查看器的缩放、拖动、旋转、复位与多页 PDF 行为，通用按钮和全屏弹窗使用 Desk 原生组件。详见末尾最新验证。
 - 此前两版（整张未整理长表单、切换页签）的浏览器通过只证明当时操作可用，**用户已分别纠偏**；本节及末尾连续页面证据描述当前实现。当前布局仍待用户验收。
 
-- 用户进一步明确：不扩建产品没有的功能和入口；框架自带按钮也必须有真实产品功能、权限及配置承接。OCR 仅在已配置时展示；LINE 仅在有本人可处理单据时展示；Link 禁止跳出到通用新建/高级搜索入口。
+- 用户进一步明确：不扩建产品没有的功能和入口；框架自带按钮也必须有真实产品功能、权限及配置承接。识别执行受真实 OCR 配置控制，未配置时选择上传识别会原生提示并回到未选择状态；LINE 仅在有本人可处理单据时展示；Link 禁止跳出到通用新建/高级搜索入口。
 - 其余范围已确认，开始实施。字段名称采用 Frappe/ERPNext 官方术语；不照搬旧文案，不增加无业务用途的说明。
 - 新采购录入不要求保存草稿；填写后直接提交并过账。默认已付款、自动创建未匹配商品、自动入库；在一个事务内完成，失败不留下半成品。
 - 原有草稿/历史单据保留兼容，不删除业务数据；“无草稿步骤”约束新录入流程。
@@ -60,7 +61,7 @@
 | P13 | 商品搜索带回名称/条码/单位/默认成本/税率；匹配已有商品或新建；逐项录入/合并一条/切回恢复；增删行 | 同上、`purchase-modals.ts` | products.purchase 事务内匹配/自动建商品；合并/恢复行与原生字段按钮增删明细；有两条有效明细才显示合并，合并后可分拆恢复 |
 | P14 | 行大类/子类与级联；停用分类仍保留历史选中值；历史 batch_no/expiry_date 等接口/存储字段 | 共用 `purchase-form-lines.ts`、`services/purchase/docs.py`、`correct.py` | 原生分类 DocType / Link；子类级联，历史停用值保留；批次/到期元数据保留 |
 | P15 | 价内/价外；小计、折扣、VAT、WHT、凑整、含税合计、净应付；手动按票面改小计/折扣/VAT/合计及一致性校验 | `purchase-form-lines.ts`、`purchase-form-totals.ts`、`DocIn.amount_override` | purchasing.amounts 的 Decimal HALF_EVEN；价内/外、逐行 VAT/WHT、折扣/凑整/票面覆盖 |
-| P16 | 原图/附件上传和查看；多张/多页切换、缩略图、放大、缩放、旋转、复位；PDF/图片；票图/付款凭证/替代收据/WHT 凭证分类、受权访问 | `purchase-form-bill.ts`、`purchase_routes.py` | 原生 FileUploader / Attachment Gallery / PhotoSwipe；私有文件范围随单据；原生预览工具栏扩展旋转/复位，源文件不改写 |
+| P16 | 原图/附件上传和查看；多张/多页切换、缩略图、放大、缩放、旋转、复位；PDF/图片；票图/付款凭证/替代收据/WHT 凭证分类、受权访问 | `purchase-form-bill.ts`、`purchase_routes.py` | 原生 FileUploader / Attachment Gallery，用户指定沿用旧采购查看器交互；原生 Button / Dialog，私有 PDF 分页只读渲染，源文件不改写 |
 | P17 | 列表快捷已付/未付；付款金额、方式、日期、备注、多次付款、未付余额、部分付款；方式含 cash/transfer/promptpay | `purchase-list.ts`、`purchase-modals.ts`、`PayIn` | 列表付款快捷操作、原生付款弹窗；付款流水追加冲销，重复请求不重复付款 |
 | P18 | 历史草稿编辑、过账只读、作废冲销、更正关联与附件保留 | `purchase-detail.ts`、`services/purchase/correct.py`、`posting.py` | 用户有意改变：更正录完直接提交；原单冲销与替代单付款/入库原子完成，使用 corrected_from 避开框架保留字段 |
 | P19 | 自动/明确入库条件、商品关联、库存单位/数量/成本、同单只入一次、作废只回冲一次、回读库存状态 | `services/purchase/posting.py`、ERP 录单链 | 复用已验收 inventory.stock / positions / warehouses；无新增入库模块、菜单或独立入库动作 |
@@ -79,10 +80,10 @@
 | 附件 | 原生私有上传/预览；已取消只读；跨单据/跨用户不能绑定或读取 |
 | 替代收据 / WHT 凭证 | 已过账且有写权限；WHT 还须大于 0；原生 PDF、私有附件、重复生成复用 |
 | 明细分类 | 原生 Link 与 ERP Purchase Category；最多两级，作为既有明细字段依赖；已移除页面“新建分类”按钮 |
-| OCR | 只有已配置共享 OCR 且有采购写权限才显示；本地只验证 provider 边界替身，未进行付费调用 |
+| 录入方式 / OCR | 新单 purchase.write，选择上传识别或手动录入；识别必须已配置共享 OCR。未配置时原生提示，失败后才显示重试；本地只验证响应替身，未进行付费调用 |
 | LINE | 只有可见的采购待处理单据才显示；确认走同一个采购事务，原生 File 权限随 Intake 范围 |
 
-Link 不跳转到通用 DocType 新建/高级搜索/后台管理。菜单没有新增采购以外模块。原生上传器自带的上传/相机/图片裁切为真实框架能力；禁用 Google Drive、外链与公共文件切换。PhotoSwipe 仅用官方 ui.registerElement 扩展原有票图旋转/复位，无自制图库。
+Link 不跳转到通用 DocType 新建/高级搜索/后台管理。菜单没有新增采购以外模块。原生上传器自带的上传/相机/图片裁切为真实框架能力；禁用 Google Drive、外链与公共文件切换。查看器是用户本轮明确指定沿用的旧项目业务交互；通用控件仍用原生 Button / Dialog，旧图库壳、鉴权全局变量和上传控件不迁入。
 
 ## 文案与字段
 
@@ -154,3 +155,44 @@ docker --context colima-pearnly exec pearnly-purchase-lab-bench-1 ./env/bin/pyth
 - 证据及代码哈希见 [verification-continuous-layout.json](erp-purchase-records/verification-continuous-layout.json)。无生产部署、CI、付费 OCR、实际 LINE 或真机验收；用户视觉验收尚未完成。
 - 交接保留：同一采购工作树/分支、6 个自有容器及 sites/db/log 卷、原样本和本轮 00198 样本供验收。解除条件仍为用户验收且按授权集成后核对占用再清理。关闭本轮 PDF 临时浏览器页、移除响应替身、恢复临时视口；没有新建候选镜像、临时文件或长期测试服务。
 - 本地主线回读 `717d202af3cfcd06815e215ef088e07f4251e00e`，实际远端 main `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端采购分支不存在。本轮未合并、推送或上线；保留采购工作树供继续验收。
+
+
+## 录入方式与旧采购查看器（2026-09-22 最新实施）
+
+### 当前行为与实现范围
+
+- 本轮基线 `6c602dc18ea73ca97e3b7a9a13477697d050d16e`。以上连续页面节的 PhotoSwipe、PDF 原文件入口和手动 OCR 按钮描述是上一版证据，当前以本节为准；采购列表、连续布局、手机滚动导航和原有业务字段不变。
+- 新建先选录入方式，使用原生 FieldGroup / Select（本产品现有原生 Autocomplete 适配）。未选择时业务字段隐藏、提交禁用。选择上传识别后上传整批附件，等待每个 File 成功响应再只调用一次识别；识别前/识别中不显示业务字段，原生 `frappe.dom.freeze` 显示“识别中…”，提交与方式选择禁用。识别成功才显示回填字段，原页修改后提交。失败保留附件、原生错误提示、解除加载并提供“重试”，不自动重试付费调用。
+- 手动录入立即显示字段；附件上传不会调用识别。取消上传会恢复提交状态。切换方式不会自动识别或丢弃已经填写的值。历史单据、更正和 LINE Intake 保持原入口合同，不强制重新选择方式。
+- 源码 `purchase-entry.js` 专门等待原生上传器的 File 响应状态，不能把字节传输结束当作上传完成；路由切换清理其轮询。修复 Page 新建路由返回 Promise 导致框架重新启用“提交”的问题。
+- 用户明确要求采用旧查看器，因此只将已生产的 `src/home/purchase-form-bill.ts`、`src/home/image-viewer.ts` 的变换与交互合同适配到 ERP App 的 `purchase-viewer.js`：缩放 0.4–6 倍、拖动、滚轮、双指缩放、旋转 90°、复位、缩略图选图、PDF 翻页。全屏使用原生 Frappe Dialog；关闭返回原附件区，保持表单值。原生 Button 提供控件样式和禁用态，无新增第三方前端框架或通用控件。
+- PDF 通过 `purchasing.preview.page_image` 只读渲染为 PNG，使用底座已有锁定的 PyMuPDF 1.28.2；不新增依赖、File 记录或外部服务。校验 purchase.read、原生 File 权限、采购/Intake 可读范围与文件绑定、私有文件所有权、PDF 签名、20MB 上限及页码；单页渲染长边最多 1800 像素。旧鉴权 token/全局对象不迁入，采用当前 Site 会话。
+- 已有替代收据/WHT 凭证生成后直接进入同一查看器；没有新增凭证功能或业务入口。右侧上传区保持紧凑；查看器有文件后才占用预览高度。
+
+### 入口能力核对
+
+| 控件 | 用途 / 配置与权限 / 点击去向 / 当前证据 |
+| --- | --- |
+| 录入方式 | 新建且有 purchase.write；选上传识别或手动录入，原生字段显隐；从列表新建与直接地址均通过 |
+| 添加文件 | 现有私有 FileUploader；手动仅附加，识别模式整批成功后识别；真实两文件上传、手动零 OCR 请求通过 |
+| 重试 | 仅配置有效且本次识别失败；调用原识别 API，无隐式重试；浏览器错误响应及重试替身通过 |
+| 前后页 | 仅多页 PDF；受权限保护的当前文件页，按钮在边界禁用；两页真实 PDF 通过 |
+| 放大/缩小/旋转/重置 | 当前已加载票图变换；原生 Button；浏览器样式与图像显示验证通过 |
+| 全屏 | 原生 Dialog 展开同一查看器，关闭原位恢复并移除空 Dialog；桌面及 390px 通过 |
+
+### 验证证据及限制
+
+- 开工与交付前只读回采证据分别为 [production-baseline-viewer-start.json](erp-purchase-records/production-baseline-viewer-start.json)、[production-baseline-viewer-delivery.json](erp-purchase-records/production-baseline-viewer-delivery.json)，信封校验和分别 `16638765d2aaf5c6b53c4c7c258b94119ea578e5e68d9b9c1117bd03acc5d5cb`、`292996195131aa1fe4bb1393eea54290a55024114db1e5b69565a932e7d59cb8`。collector compare 通过，生产仍是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188` 和镜像 `178af2ed…`，没有来源漂移。
+- 实际运行仍是 `colima-pearnly` / `pearnly-purchase-lab` / 8147，6 个容器使用原有共享底座 `90c1d545…` 加本任务只读 App 挂载。仅清缓存和重启自己的 web；原盘点 8136 / 8126 未动。
+- `scripts/erp-purchase-viewer-verify.py` 通过：实际私有凭证 PDF 渲染、内存两页 PDF、非法页码/内容/大小拒绝、其他用户及 Guest 拒绝。无业务写入或外部调用；生成的本地合成 PDF/PNG 仅供上传验证。
+- 浏览器实际上传 PDF + PNG：手动方式无 `api_recognise_purchase` 请求。识别方式用浏览器 XHR 替身确认整批上传仅一次识别；等待时字段隐藏、提交禁用且显示“识别中…”；模拟 417 错误后附件保留、无字段、重试可用；重试成功再回填。当前 Site 没有 OCR 凭据，选择上传识别的真实结果是“尚未配置文字识别”，**不能把替身通过写成真实识别通过**。
+- 回填合成数量 2 后实际键入改为 3，金额自动更新 321 并真实提交本任务隔离 Site：`UI-ENTRY-20260922-04` → `PUR-2026-00202` / `PE2569-000073`。数据库回读 submitted、source=ocr、is_paid=1、paid_amount=grand_total=321、auto_create_product=update_stock=1、stock_posted_at=`2026-09-22 23:40:10.389846`；商品 PRD-00201、3 盒×100。私有 PDF/PNG 两附件保留，随后原入口生成替代收据并原位显示，当前共 3 个附件。
+- PDF 两页、缩放 120%、旋转 90°、复位、拖动位移 55×42px、滚轮缩放 112%、全屏与关闭后原位恢复通过。390×844 无横向溢出，原手机连续滚动导航可用，全屏 Dialog 宽 390px。双指手势已沿用旧实现，但当前内置浏览器不支持触摸事件模拟，**真机触摸验收未做**。
+- 原生控件语法、架构 0 违规、前端词条与生成翻译、diff 检查通过。全仓 strict-i18n 仍是已有库存 workbook 的 18 处问题；不改基线/忽略。未重复金额/库存全套检查，受影响只读 PDF 路径已做定向测试，真实复核提交已回读。
+- 本轮没有构建发布候选、CI、真实付费 OCR、实际 LINE、生产部署或用户验收；详细文件哈希与证据见 [verification-entry-viewer.json](erp-purchase-records/verification-entry-viewer.json)。
+
+### 收尾：交接保留
+
+- 保留采购工作树 `/Users/skin/.codex/worktrees/erp-purchase-records/pearnly`、分支 `codex/erp-purchase-records`、6 个容器及自有 sites/db/log 卷和合成单据，用途是本次采购验收；当前尚未合并且源码仍被挂载。解除条件：用户验收、按授权集成后核验独有提交及占用再清理。
+- 清除浏览器响应拦截，恢复临时视口，预览停留在干净新建页面；本轮生成的 `/tmp/erp-purchase-viewer/` PDF/PNG 夹具在主机及 bench 容器中逐项移除，Site 附件和业务样本保留。
+- 本地主线 `717d202af3cfcd06815e215ef088e07f4251e00e`，实际远端 main `ac33e0c7362915ae314295cb26f7748cb5589de0`；远端采购分支不存在。本轮未合并、未推送、未上线。没有删除未集成的任务工作树/分支或共享资源，状态为交接保留。

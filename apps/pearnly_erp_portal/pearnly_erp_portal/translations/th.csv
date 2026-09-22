@@ -62,6 +62,7 @@ Draft not found,ไม่พบรายการร่าง
 Due Date,วันที่ครบกำหนด
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 Enabled,เปิดใช้งานแล้ว
+Entry Method,วิธีการบันทึก
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
 Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
@@ -76,6 +77,7 @@ File Name,ชื่อไฟล์
 File not found,ไฟล์ไม่พบ
 Filters,ตัวกรอง
 From Date,จากวันที่
+Full Screen,เต็มหน้าจอ
 Generated,สร้างขึ้น
 Goods,สินค้า
 Grand Total,ยอดรวมทั้งหมด
@@ -84,6 +86,7 @@ ID,รหัส
 Image Fingerprint,ลายนิ้วมือภาพ
 Input Tax,ภาษีซื้อ
 Invalid Currency,สกุลเงินไม่ถูกต้อง
+Invalid file,ไฟล์ไม่ถูกต้อง
 Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
 Invalid value,ค่าไม่ถูกต้อง
 Invoice,ใบแจ้งหนี้
@@ -107,6 +110,7 @@ Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
 Location,ที่ตั้ง
 Manual,คู่มือ
+Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
 Merge Items,รวมรายการ
 Mode of Payment,วิธีการชำระเงิน
@@ -160,6 +164,7 @@ Received By,ผู้รับเงิน
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
 Recognition returned nothing,ไม่พบข้อมูลจากการรู้จำ
+Recognizing...,กำลังอ่านข้อความ…
 Reference,อ้างอิง
 References,การอ้างอิง
 Remarks,ข้อสังเกต
@@ -220,12 +225,14 @@ Total Amount,จำนวนเงินรวม
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
 Type,ประเภท
 UOM,หน่วยวัด
+Unable to load preview,ไม่สามารถโหลดตัวอย่างได้
 Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
 Unpaid,ยังไม่ได้ชำระ
 Update Stock,อัปเดตสต็อก
+Upload and Recognize,อัปโหลดเพื่ออ่านข้อความ
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 User,ผู้ใช้
 VAT,ภาษีมูลค่าเพิ่ม
@@ -237,6 +244,8 @@ Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
+Zoom In,ขยาย
+Zoom Out,ย่อ
 adjust,ปรับปรุง
 branch,สาขา
 card,บัตร

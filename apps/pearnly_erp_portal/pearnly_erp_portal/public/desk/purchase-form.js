@@ -14,7 +14,7 @@
 				row.wht_rate = cents / Number(row.line_total); remaining -= cents;
 			});
 		}
-		const state = {page, doc, defaults, editable, can_write: frappe.model.can_write("Purchase Document"),
+		const state = {page, doc, defaults, editable, intake, amended_from, can_write: frappe.model.can_write("Purchase Document"),
 			attachments: (doc.attachments || []).map(row => ({...row})), request_id: frappe.utils.get_random(32),
 			form: null, lines: [], ready: false, busy: false, disposed: false, revision: 0};
 		const changes = frappe.utils.debounce(async () => {
@@ -40,6 +40,8 @@
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
 		const layout = u.continuous_layout(form, page);
+		const cleanup_entry = u.entry_method(state, layout);
+		state.sync_entry();
 		// Internal provenance and automatic posting options remain in the contract,
 		// not as merchant-facing switches or framework fields.
 		state.values = (ignore_errors = false) => {
@@ -104,61 +106,26 @@
 		// evidence collection. The gallery itself remains upstream, including thumbnails.
 		gallery.frm = {doc: {__islocal: false}, get_files: () => state.attachments.map(row => ({...row, name: row.file})),
 			attachments: {get_file_url: row => row.file_url, can_delete_attachment: () => false}, has_perm: () => false};
-		const open_lightbox = async (images, index) => {
-			await gallery.load_photoswipe();
-			const viewer = new frappe.PhotoSwipe({index, closeTitle: __("Close"), zoomTitle: __("Zoom"),
-				arrowPrevTitle: __("Previous"), arrowNextTitle: __("Next"), dataSource: images.map(row => ({src: row.file_url,
-				width: row.thumbnail?.naturalWidth || 1600, height: row.thumbnail?.naturalHeight || 1200,
-				thumbEl: row.thumbnail, alt: row.file_name}))});
-			// Official PhotoSwipe toolbar extension: viewing only, source files unchanged.
-			viewer.on("uiRegister", () => {
-				viewer.ui.registerElement({name: "rotate", order: 7, isButton: true, title: __("Rotate"),
-					html: `<span class="text-white">${p.escape(__("Rotate"))}</span>`, onClick: () => {
-						const slide = viewer.currSlide; if (!slide?.content?.element) return;
-						slide.data.rotation = (slide.data.rotation || 0) + 90;
-						slide.content.element.style.rotate = `${slide.data.rotation}deg`;
-					}});
-				viewer.ui.registerElement({name: "reset", order: 8, isButton: true, title: __("Reset"),
-					html: `<span class="text-white">${p.escape(__("Reset"))}</span>`, onClick: () => {
-						const slide = viewer.currSlide; if (!slide) return;
-						slide.data.rotation = 0;
-						if (slide.content.element) slide.content.element.style.rotate = "0deg";
-						slide.zoomAndPanToInitial(); slide.applyCurrentZoomPan();
-					}});
-			});
-			viewer.init();
-		};
-		const preview = form.fields_dict.document_preview.$wrapper;
+		const preview = u.document_viewer(form.fields_dict.document_preview.$wrapper);
 		const show_preview = row => {
 			state.preview_file = row?.file;
-			preview.empty();
-			if (!row) return;
-			if (frappe.utils.is_image_file(row.file_url)) {
-				// Business evidence content; zoom/rotate remains the native gallery viewer.
-				const link = $("<a>").attr({href: row.file_url, "aria-label": row.file_name}).appendTo(preview);
-				$("<img>").attr({src: row.file_url, alt: row.file_name}).appendTo(link);
-				link.on("click", event => {
-					event.preventDefault();
-					const images = gallery.get_image_attachments();
-					const index = images.findIndex(image => image.name === row.file);
-					if (index >= 0) void open_lightbox(images, index);
-				});
-			}
+			void preview.show(row);
 		};
 		gallery.open_lightbox = (images, index) => show_preview(state.attachments.find(row => row.file === images[index]?.name));
 		const refresh_files = async () => {
 			if (state.disposed) return;
 			await gallery.refresh_input();
+			gallery.$gallery.find("a.attachment-gallery-file").on("click.purchase", event => {
+				event.preventDefault();
+				show_preview(state.attachments.find(row => row.file_url === event.currentTarget.getAttribute("href")));
+			});
 			show_preview(state.attachments.find(row => row.file === state.preview_file) || state.attachments[0]);
 			gallery.$wrapper.toggle(state.attachments.length > 1 || state.attachments.some(row => !frappe.utils.is_image_file(row.file_url)));
 			attachment_list?.destroy();
 			if (!state.attachments.length) {form.fields_dict.attachment_list.$wrapper.empty(); return;}
 			attachment_list = p.list({page, container: form.fields_dict.attachment_list.$wrapper, compact_columns: true,
 				doctype: "File", load: async () => ({items: state.attachments.map(row => ({...row, name: row.file})), total: state.attachments.length}),
-				on_open: row => {
-					if (frappe.utils.is_image_file(row.file_url)) show_preview(row);
-					else window.open(row.file_url, "_blank", "noopener,noreferrer");
-				},
+				on_open: row => show_preview(row),
 				columns: [{fieldname: "file_name", label: __("File Name"), width: 150, min_width: 100},
 					{fieldname: "kind", label: __("Attachment Type"), width: 80, min_width: 56, format: u.label}],
 				row_actions: row => !state.can_write || doc.status === "void" || row.generated || row.intake || amended_from ? [] : [{id: "delete", label: __("Delete"),
@@ -173,27 +140,14 @@
 			// The evidence collection is already loaded in full; no page-size chooser.
 			attachment_list.$paging_area.hide();
 		};
-		state.upload = () => {
-			const kind = form.get_value("attachment_kind") || "bill";
-			new frappe.ui.FileUploader({allow_multiple: true, allow_web_link: false, allow_google_drive: false,
-				disable_file_browser: true, allow_take_photo: true, allow_toggle_private: false,
-				make_attachments_public: false, allow_toggle_optimize: true,
-				restrictions: {allowed_file_types: ["image/*", ".pdf"], max_file_size: 20 * 1024 * 1024},
-				on_success: async file => {
-					const row = {file: file.name, file_url: file.file_url, file_name: file.file_name, kind};
-					if (doc.name && !amended_from) await u.call("api_purchase_attachments", {name: doc.name, attachments: [row]}, true);
-					state.attachments.push(row); await refresh_files();
-				},
-			});
-		};
+		state.upload = () => u.upload_evidence(state, refresh_files);
 		const act = async callback => {
 			if (state.busy) return;
-			state.busy = true; page.btn_primary.prop("disabled", true);
-			form.fields_dict.recognise.$input?.prop("disabled", true);
-			try { await callback(); } finally { state.busy = false; page.btn_primary.prop("disabled", false); form.fields_dict.recognise.$input?.prop("disabled", false); }
+			state.busy = true; state.sync_entry();
+			try { await callback(); } finally { state.busy = false; if (!state.disposed) state.sync_entry(); }
 		};
 		if (editable) {
-			page.set_primary_action(__("Submit"), () => act(async () => {
+			page.set_primary_action(__("Submit"), () => state.can_submit() && act(async () => {
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
@@ -204,16 +158,26 @@
 				p.success(__("Submitted")); await go(result.name);
 			}));
 			state.recognise = () => act(async () => {
-				const result = await u.call("api_recognise_purchase", {attachments: state.attachments.filter(row => !row.generated), intake_name: intake?.name, document_name: doc.name}, true);
-				if (!still_current() || state.disposed) return;
-				const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
-					&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break"].includes(form.fields_dict[key].df.fieldtype));
-				await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
-				state.source = result.source;
-				state.ocr_hash = result.image_sha256;
-				if (result.lines) await state.set_lines(result.lines);
-				changes();
-				layout.navigate("information");
+				state.ocr_failed = false;
+				frappe.dom.freeze(__("Recognizing..."));
+				try {
+					const result = await u.call("api_recognise_purchase", {attachments: state.attachments.filter(row => !row.generated), intake_name: intake?.name, document_name: doc.name}, true);
+					if (!still_current() || state.disposed) return;
+					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
+						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break"].includes(form.fields_dict[key].df.fieldtype));
+					await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
+					state.source = result.source;
+					state.ocr_hash = result.image_sha256;
+					if (result.lines) await state.set_lines(result.lines);
+					state.ocr_complete = true;
+					changes(); state.sync_entry();
+					layout.navigate("information");
+				} catch (error) {
+					state.ocr_failed = true;
+					// frappe.call already presents server failures in the native message dialog.
+					if (!error?._server_messages && !error?.responseJSON) console.error(error);
+				}
+				finally {frappe.dom.unfreeze();}
 			});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;
@@ -234,14 +198,16 @@
 			for (const kind of ["substitute_receipt", ...(Number(doc.wht_amount) > 0 ? ["wht_cert"] : [])]) {
 				page.add_menu_item(u.label(kind), () => act(async () => {
 					const file = await u.call("api_purchase_voucher", {name: doc.name, kind}, true);
-					window.open(file.file_url, "_blank", "noopener,noreferrer"); await reload();
+					if (!state.attachments.some(row => row.file === file.file)) state.attachments.push({...file, kind, generated: 1,
+						file_name: decodeURIComponent(file.file_url.split("/").pop())});
+					state.preview_file = file.file; await refresh_files();
 				}));
 			}
 		}
 		await refresh_files();
-		state.ready = true;
+		state.ready = true; state.sync_entry();
 		if (editable) changes();
-		return () => {state.disposed = true; layout.destroy(); attachment_list?.destroy();};
+		return () => {state.disposed = true; cleanup_entry(); preview.destroy(); layout.destroy(); attachment_list?.destroy();};
 	};
 	u.payment = (doc, reload) => {
 		const f = u.field, due = Number(doc.net_payable) - Number(doc.paid_amount), request_id = frappe.utils.get_random(32);

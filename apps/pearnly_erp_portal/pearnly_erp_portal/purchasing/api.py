@@ -118,6 +118,13 @@ def api_recognise_purchase(attachments=None, intake_name=None, document_name=Non
     return recognition.recognise(frappe.parse_json(attachments), intake_name, document_name)
 
 
+@frappe.whitelist()
+def api_purchase_file_page(file, page=1):
+    from pearnly_erp_portal.purchasing import preview
+
+    return preview.page_image(file, page)
+
+
 def _clean(kwargs):
     kwargs.pop("cmd", None)
     return kwargs
