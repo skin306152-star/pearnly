@@ -67,10 +67,27 @@
 
 		page.set_title(__("nav.posReceipts"));
 		p.breadcrumbs({ label: __("nav.posReceipts"), route: p.subroute("pearnly-pos-receipts") });
+		// 勾选若干张小票 → 右上角「作废选中的 N 张」：走的就是单张那条服务路径
+		// （`api_void_sale`，作废会把库存还回去、单据留痕），所以批量与单张结果一致。
+		// 只有"已完成"的小票能作废 —— 已作废的点不动，按钮会禁用并把原因写在 title 上。
+		const selection = p.selection_action({
+			page, list: () => list,
+			label: rows => t("trade.action.voidCount", rows.length),
+			when: row => row.status === "completed",
+			reason: () => t("trade.voidBlocked"),
+			confirm: rows => t("trade.voidConfirmCount", rows.length),
+			run: async rows => {
+				for (const row of rows) {
+					await p.call(api + "api_void_sale", { name: row.name }, "POST");
+				}
+			},
+			success: rows => t("trade.voidNotice", rows.length),
+		});
 		const search = page.add_field({ fieldname: "q", label: __("Search"), fieldtype: "Data",
 			change: () => void list?.reload() });
 		const query = () => ({ ...filters, q: search.get_value() || undefined });
 		list = p.list({ page, doctype: "ERP Sale", compact_columns: true,
+			on_selection: can_write ? selection : undefined,
 			on_open: row => void open_receipt(row),
 			load: p.trade.load(api, "api_list_sales", "api_sale_total", query),
 			columns: [

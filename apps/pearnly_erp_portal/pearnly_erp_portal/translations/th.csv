@@ -34,9 +34,11 @@ Branch No is required,กรุณาระบุเลขที่สาขา
 Branch Type,ประเภทสาขา
 Branch {0},สาขา {0}
 Cancel,ยกเลิก
+Cancel {0},ยกเลิก {0} รายการ
 Cancellation,การยกเลิก
 Cancelled,ยกเลิก
 Cancelled On,วันที่ยกเลิก
+Cancelled {0},ยกเลิก {0} รายการแล้ว
 Cash,เงินสด
 Cashier,เก็บเงิน
 Category,หมวดหมู่
@@ -643,6 +645,7 @@ supplier.title,ผู้ขาย
 tax_invoice,ใบกำกับภาษีเต็มรูป
 tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
 tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
+trade.action.exportCount,ส่งออก {0} กะ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า
 trade.action.ledger,ดูบัญชีสต็อก
 trade.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
@@ -684,6 +687,7 @@ trade.diffShort,ขาดไป {0}
 trade.discount,ส่วนลด
 trade.docNo,เลขที่เอกสาร
 trade.expectedCash,เงินสดที่ควรมี
+trade.exportNotice,ส่งออก {0} กะแล้ว
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่
 trade.gross,ยอดขายรวม

@@ -34,9 +34,11 @@ Branch No is required,支店番号を入力してください
 Branch Type,支店区分
 Branch {0},支店 {0}
 Cancel,キャンセル
+Cancel {0},{0}件をキャンセル
 Cancellation,取消
 Cancelled,取消済み
 Cancelled On,取消日時
+Cancelled {0},{0}件をキャンセルしました
 Cash,現金
 Cashier,レジ
 Category,カテゴリ
@@ -643,6 +645,7 @@ supplier.title,仕入先
 tax_invoice,税務請求書
 tax_invoice_receipt,税務請求書兼領収書
 tax_invoice_simple,簡易税務請求書
+trade.action.exportCount,{0}件をエクスポート
 trade.action.fullPage,全画面で編集
 trade.action.ledger,在庫の受け払いを開く
 trade.action.ledgerSingle,明細は1行ずつ開きます
@@ -684,6 +687,7 @@ trade.diffShort,{0} 不足
 trade.discount,割引額
 trade.docNo,伝票番号
 trade.expectedCash,現金予定額
+trade.exportNotice,{0}件のシフトを出力しました
 trade.float,釣銭準備金
 trade.from,開始日
 trade.gross,売上総額

@@ -227,6 +227,10 @@ Void {0} document(s) and reverse their stock movements?	作废选中的 {0} 张�
 Voided {0}	已作废 {0} 张	ยกเลิก {0} รายการแล้ว	{0}件を取り消しました	trade.voidNotice
 Only a submitted document can be voided	只有已提交（还没作废）的单据能作废	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます	trade.voidBlocked
 Void the payments before voiding the document	先冲掉付款再作废这张单据	ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร	先に入金を取り消してから伝票を取り消してください	trade.voidPaid
+Export {0}	导出选中的 {0} 个班次	ส่งออก {0} กะ	{0}件をエクスポート	trade.action.exportCount
+Exported {0} shifts	已导出 {0} 个班次	ส่งออก {0} กะแล้ว	{0}件のシフトを出力しました	trade.exportNotice
+Cancel {0}	取消选中的 {0} 条	ยกเลิก {0} รายการ	{0}件をキャンセル
+Cancelled {0}	已取消 {0} 条	ยกเลิก {0} รายการแล้ว	{0}件をキャンセルしました
 Select one receipt to refund	一次只能退一条小票	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
 Only a completed sale receipt can be refunded	只有已完成的小票能退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger

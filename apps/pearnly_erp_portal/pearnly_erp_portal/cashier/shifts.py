@@ -137,14 +137,17 @@ def close_shift(name, *, counted_cash) -> dict:
 
 
 def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None,
-                limit=50) -> list[dict]:
-    """班次列表。非管理员只能看自己的班。"""
+                names=None, limit=50) -> list[dict]:
+    """班次列表。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
     guard.require("cashier.read")
     filters: dict = {}
     if not rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:
         filters["cashier"] = frappe.session.user
     elif cashier:
         filters["cashier"] = cashier
+    if names:
+        # 权限过滤在上一步已经写进 filters，这里再按名字收窄 —— 越权传别人的班次号只会取到空。
+        filters["name"] = ["in", list(names)]
     if terminal:
         filters["terminal"] = terminal
     if status:

@@ -34,9 +34,11 @@ Branch No is required,Branch No is required
 Branch Type,Branch Type
 Branch {0},Branch {0}
 Cancel,Cancel
+Cancel {0},Cancel {0}
 Cancellation,Cancellation
 Cancelled,Cancelled
 Cancelled On,Cancelled On
+Cancelled {0},Cancelled {0}
 Cash,Cash
 Cashier,Cashier
 Category,Category
@@ -643,6 +645,7 @@ supplier.title,Suppliers
 tax_invoice,tax_invoice
 tax_invoice_receipt,tax_invoice_receipt
 tax_invoice_simple,tax_invoice_simple
+trade.action.exportCount,Export {0}
 trade.action.fullPage,Edit in Full Page
 trade.action.ledger,Stock ledger
 trade.action.ledgerSingle,Select one row to open its ledger
@@ -684,6 +687,7 @@ trade.diffShort,Short by {0}
 trade.discount,Discount
 trade.docNo,Document Number
 trade.expectedCash,Expected Cash
+trade.exportNotice,Exported {0} shifts
 trade.float,Opening Cash
 trade.from,From Date
 trade.gross,Gross

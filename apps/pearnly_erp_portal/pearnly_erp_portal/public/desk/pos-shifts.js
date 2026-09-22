@@ -18,6 +18,20 @@
 			formatter: money, fieldname, label, read_only: 1, default: value });
 		let list;
 
+		// 勾选班次 → 右上角「导出选中的 N 个班次」：对账用。官方的列表把「导出」放在操作菜单里
+		// （导整张列表）；我们按勾选的那几个导。取数由服务端 `shifts.list_shifts` 兜着，
+		// 勾了别人的班次也只导出自己看得到的那几行。
+		const export_shifts = names => {
+			const query = new URLSearchParams({names: JSON.stringify(names)});
+			window.open(`/api/method/${api}api_shifts_export?${query}`, "_blank", "noopener,noreferrer");
+		};
+		const selection = p.selection_action({
+			page, list: () => list,
+			label: rows => t("trade.action.exportCount", rows.length),
+			run: rows => export_shifts(rows.map(row => row.name)),
+			success: rows => t("trade.exportNotice", rows.length),
+		});
+
 		// 一个班的汇总（只读）：与收银页交班弹窗读的是同一个接口，所以两处数字一定一致。
 		async function summary_of(row) {
 			const data = await p.call(api + "api_shift_summary", { name: row.name });
@@ -56,6 +70,7 @@
 		page.set_title(__("nav.posShifts"));
 		p.breadcrumbs({ label: __("nav.posShifts"), route: p.subroute("pearnly-pos-shifts") });
 		list = p.list({ page, doctype: "ERP Shift", compact_columns: true,
+			on_selection: selection,
 			on_open: row => void summary_of(row),
 			load: async ({ start, page_length }) => {
 				const rows = await p.call(api + "api_list_shifts", { limit: 0 });

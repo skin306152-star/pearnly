@@ -34,9 +34,11 @@ Branch No is required,分支编号不能为空
 Branch Type,分支类型
 Branch {0},分支机构 {0}
 Cancel,取消
+Cancel {0},取消选中的 {0} 条
 Cancellation,取消
 Cancelled,已取消
 Cancelled On,取消时间
+Cancelled {0},已取消 {0} 条
 Cash,现金
 Cashier,收银
 Category,类别
@@ -643,6 +645,7 @@ supplier.title,供应商
 tax_invoice,完整税务发票
 tax_invoice_receipt,税务发票兼收据
 tax_invoice_simple,简易税务发票
+trade.action.exportCount,导出选中的 {0} 个班次
 trade.action.fullPage,全屏编辑
 trade.action.ledger,查看流水
 trade.action.ledgerSingle,一次只能看一条流水
@@ -684,6 +687,7 @@ trade.diffShort,短钱 {0}
 trade.discount,折扣金额
 trade.docNo,单据编号
 trade.expectedCash,应有现金
+trade.exportNotice,已导出 {0} 个班次
 trade.float,备用现金
 trade.from,开始日期
 trade.gross,毛额

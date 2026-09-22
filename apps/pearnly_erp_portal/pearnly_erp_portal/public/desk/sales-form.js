@@ -106,6 +106,8 @@
 			attachment_list?.destroy();
 			if (!state.attachments.length) {form.fields_dict.attachment_list.$wrapper.empty(); return;}
 			attachment_list = p.list({page, container: form.fields_dict.attachment_list.$wrapper, compact_columns: true,
+				// 这是表单里的附件行（每行自带预览/删除），不是可以批量操作的集合列表 —— 明确关掉勾选框。
+				selectable: false,
 				doctype: "File", load: async () => ({items: state.attachments.map(row => ({...row, name: row.file})), total: state.attachments.length}),
 				on_open: row => show_preview(row),
 				columns: [{fieldname: "file_name", label: __("File Name"), width: 150, min_width: 100},

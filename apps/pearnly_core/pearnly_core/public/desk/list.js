@@ -8,7 +8,12 @@
 			super(options);
 			if (options.container) this.page = Object.assign(Object.create(this.page), {main: $(options.container)});
 			this.parent = {page: this.page};
-			Object.assign(this, {view: "List", start: 0, page_length: options.page_length || 20,
+			// 勾选框**默认就有**：官方 Desk 列表每行天生带一个 —— `frappe/public/js/frappe/list/list_view.js`
+			// 的 `get_subject_element()` 无条件 append 复选框，表头 `get_header_html()` 也无条件给全选框，
+			// 整份框架里没有"是否可选"的开关。产品列表照官方，所以默认开；只有明确不要选择的列表
+			// （表单里的附件行那种，见 `sales-form.js` / `purchase-form.js`）才传 `selectable: false`。
+			Object.assign(this, {view: "List", selectable: options.selectable !== false,
+				start: 0, page_length: options.page_length || 20,
 				selected_page_count: options.page_length || 20, data: [], total: 0, sequence: 0,
 				hide_filters: true, hide_sort_selector: true, column_max_widths: {},
 				link_field_title_fields: {}, list_view_settings: {}});
@@ -101,11 +106,12 @@
 			wrapper.appendChild(element);
 			return wrapper;
 		}
-		render_header() {
-			const header = $(this.get_header_html());
-			// Only opt-in product lists expose selection; likes and generic sort stay absent.
-			header.find(".list-liked-by-me").remove();
-			if (!this.selectable) header.find(".select-like, .checkbox-actions").remove();
+			render_header() {
+				const header = $(this.get_header_html());
+				// 勾选框默认保留（官方列表就是这样）；只有 `selectable: false` 的列表才摘掉。
+				// "点赞"和通用排序仍然不开放。
+				header.find(".list-liked-by-me").remove();
+				if (!this.selectable) header.find(".select-like, .checkbox-actions").remove();
 			header.find("[data-sort-by]").each((_, el) => {
 				el.title = el.textContent.trim();
 				el.removeAttribute("data-sort-by");
