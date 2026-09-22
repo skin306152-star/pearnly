@@ -1,7 +1,17 @@
 """Desk-ready backend RPCs. No frontend or external recognition/push is installed here."""
 import frappe
 from pearnly_cowork.access import scope
-from pearnly_cowork.history import storage
+from pearnly_cowork.history import duplicates, storage
+
+
+@frappe.whitelist()
+def duplicate_setting():
+    return duplicates.get_setting()
+
+
+@frappe.whitelist(methods=["POST"])
+def save_duplicate_setting(enabled):
+    return duplicates.save_setting(enabled)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -47,5 +57,6 @@ def records(workspace, staged=0, start=0, limit=50):
     limit, start = max(1, min(int(limit), 100)), max(0, int(start))
     return frappe.get_list(storage.DOCTYPE, filters={"workspace": workspace, "staged": int(staged) != 0},
         fields=["name", "client", "source", "staged", "record_version", "invoice_no", "invoice_date",
-                "seller_name", "total_amount", "quality_status", "confidence", "modified", *storage.PUSH_FIELDS],
+                "seller_name", "total_amount", "quality_status", "confidence", "modified",
+                "duplicate_check_status", "duplicate_level", *storage.PUSH_FIELDS],
         order_by="creation desc, name desc", limit_start=start, limit_page_length=limit)

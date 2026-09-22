@@ -76,7 +76,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None):
                 "filename": source.filename}
             group_key = hashlib.sha256(storage.encode([source.name, request_key, index]).encode()).hexdigest()
             rows.append(storage._create(group["workspace"], group["body"], group_key,
-                                         group["client"], attachment=attachment))
+                                         group["client"], attachment=attachment, check_duplicates=True))
         if not source.binding_complete:
             source.binding_complete = 1
             source.binding_fingerprint = fingerprint

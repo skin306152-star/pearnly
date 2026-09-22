@@ -17,9 +17,10 @@ from unittest.mock import patch
 import frappe
 
 SITE = os.environ.get("PEARNLY_COWORK_TEST_SITE", "cowork-backend-a.localhost")
-ALLOWED_SITES = {"cowork-backend-ack.localhost", "cowork-backend-preparation.localhost", "cowork-backend-heartbeat.localhost", "cowork-backend-companion.localhost", "cowork-backend-push.localhost", "cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
+ALLOWED_SITES = {"cowork-backend-duplicates.localhost", "cowork-backend-ack.localhost", "cowork-backend-preparation.localhost", "cowork-backend-heartbeat.localhost", "cowork-backend-companion.localhost", "cowork-backend-push.localhost", "cowork-backend-roundtrip.localhost", "cowork-backend-table.localhost", "cowork-backend-execution.localhost", "cowork-backend-a.localhost", "cowork-backend-b.localhost",
                  "cowork-backend-fresh.localhost", "cowork-backend-files.localhost"}
-OTHER_SITE = "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost"
+OTHER_SITE = os.environ.get("PEARNLY_COWORK_OTHER_TEST_SITE") or (
+    "cowork-backend-b.localhost" if SITE != "cowork-backend-b.localhost" else "cowork-backend-a.localhost")
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
 
 
@@ -396,6 +397,7 @@ class NativeBackend(unittest.TestCase):
                 self.api.complete([{"name": name, "record_version": 1}])
 
     def test_two_sites_have_independent_databases(self):
+        self.assertNotEqual(SITE, OTHER_SITE)
         frappe.db.rollback()
         frappe.destroy()
         try:

@@ -44,9 +44,36 @@
   "source_file",
   "last_push_status",
   "last_pushed_at",
-  "last_push_record"
+  "last_push_record",
+  "duplicate_check_status",
+  "duplicate_level",
+  "duplicate_match"
  ],
  "fields": [
+  {
+   "fieldname": "duplicate_check_status",
+   "fieldtype": "Select",
+   "label": "Duplicate Check Status",
+   "options": "\nnot_checked\ndisabled\nclear\nmatched\nunavailable",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "duplicate_level",
+   "fieldtype": "Select",
+   "label": "Duplicate Match Level",
+   "options": "\nexact\nlikely",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "duplicate_match",
+   "fieldtype": "Data",
+   "label": "Duplicate Record Reference",
+   "read_only": 1,
+   "hidden": 1,
+   "permlevel": 1
+  },
   {
    "fieldname": "workspace",
    "fieldtype": "Link",

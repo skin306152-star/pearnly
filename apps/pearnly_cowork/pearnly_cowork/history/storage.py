@@ -9,6 +9,7 @@ import frappe
 from frappe import _
 from pearnly_cowork.access import scope
 from .push_state import FIELDS as PUSH_FIELDS
+from . import duplicates
 from pearnly_cowork.contracts.history import HistoryContractError, initial_history, prepare_pages, extract_summary_fields, list_status, normalize_posting_kind
 
 DOCTYPE = "Cowork OCR History"
@@ -63,7 +64,7 @@ def validate_document(doc):
     if previous:
         if doc.flags.cowork_history_update is not _UPDATE_TOKEN:
             frappe.throw(_("Update invoice records through the Cowork review service."))
-        if any(doc.get(key) != previous.get(key) for key in (*IMMUTABLE, *PUSH_FIELDS)):
+        if any(doc.get(key) != previous.get(key) for key in (*IMMUTABLE, *PUSH_FIELDS, *duplicates.FIELDS)):
             frappe.throw(_("Original evidence and ownership cannot be changed."))
         # Only dedicated APIs may mutate; native PUT omitting a client revision is rejected.
         if int(doc.record_version or 0) != int(previous.record_version or 0):
@@ -82,6 +83,10 @@ def validate_document(doc):
         # Native REST must not bypass the creation service to forge OCR/identity evidence.
         if doc.flags.cowork_history_create is not _CREATE_TOKEN:
             frappe.throw(_("Create invoice records through the Cowork intake service."))
+        # Frappe clears fields above the actor's permlevel before validation.
+        # Restore only this service-computed private reference after checking
+        # the creation capability; keep every other native permission intact.
+        doc.duplicate_match = doc.flags.cowork_duplicate_match
         if any(doc.get(key) for key in PUSH_FIELDS):
             frappe.throw(_("Original evidence and ownership cannot be changed."))
         doc.record_version, doc.edit_count = 1, 0
@@ -122,10 +127,10 @@ def create_recognized(workspace, pages, request_key, *, source, confidence, ai_r
     """
     body = contract(initial_history, pages, source=source, confidence=confidence, ai_raw=ai_raw,
                            posting_kind=posting_kind, anchor_year=anchor_year())
-    return _create(workspace, body, request_key, client)
+    return _create(workspace, body, request_key, client, check_duplicates=True)
 
 
-def _create(workspace, body, request_key, client=None, *, attachment=None):
+def _create(workspace, body, request_key, client=None, *, attachment=None, check_duplicates=False):
     scope.require("intake")
     scope.require_scope(workspace, client)
     if not isinstance(request_key, str) or not request_key.strip() or len(request_key) > 128:
@@ -147,6 +152,11 @@ def _create(workspace, body, request_key, client=None, *, attachment=None):
                           "source_page_indices": encode(body["source_page_indices"])})
     if attachment:
         doc.update(attachment)
+    if check_duplicates:
+        doc.update(duplicates.check(workspace, client, body))
+        doc.flags.cowork_duplicate_match = doc.duplicate_match
+    else:
+        doc.duplicate_check_status = "not_checked"
     doc.flags.cowork_history_create = _CREATE_TOKEN
     frappe.db.savepoint("cowork_create")
     try:
@@ -184,6 +194,8 @@ def project(doc):
     for key in ("pages", "ai_raw", "source_page_indices"):
         result[key] = parse(doc.get(key) or "null")
     result["posting_kind"] = normalize_posting_kind(doc.posting_kind)
+    result["duplicate_check_status"] = doc.duplicate_check_status or "not_checked"
+    result["duplicate_warning"] = duplicates.warning(doc)
     if doc.source_file:
         from pearnly_cowork.files.access import reference_kind
         original = frappe.get_doc("Cowork Source File", doc.source_file)
