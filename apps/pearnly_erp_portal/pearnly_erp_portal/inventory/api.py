@@ -255,7 +255,7 @@ COUNT_DETAIL_COLUMNS = (
     ("qty", "stock.count.qty"),
     ("counted_by", "stock.count.countedBy"),
     ("counted_at", "stock.count.countedAt"),
-    ("state", "stock.count.entryState"),
+    ("state", "stock.col.status"),
     ("photo_total", "stock.count.photos"),
 )
 
