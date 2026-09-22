@@ -195,7 +195,10 @@
 			if (doc.payment_status !== "paid") page.set_primary_action(__("Payment"), () => u.payment(doc, reload));
 			page.add_menu_item(__("Amend"), () => go("amend", doc.name));
 			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
-				__("Confirm"), async (values, dialog) => {await u.call("api_cancel_purchase", {name: doc.name, ...values}, true); dialog.hide(); await reload();}));
+				__("Confirm"), async (values, dialog) => {
+					await u.call("api_cancel_purchase", {name: doc.name, ...values}, true);
+					dialog.hide(); p.success(__("Cancelled")); await reload();
+				}));
 			for (const kind of ["substitute_receipt", ...(Number(doc.wht_amount) > 0 ? ["wht_cert"] : [])]) {
 				page.add_menu_item(u.label(kind), () => act(async () => {
 					const file = await u.call("api_purchase_voucher", {name: doc.name, kind}, true);
@@ -222,7 +225,11 @@
 			f("date", "Posting Date", "Date", {default: frappe.datetime.get_today(), reqd: 1}), f("note", "Remarks", "Small Text"),
 		], __("Submit"), async (values, dialog) => {
 			await u.call("api_purchase_payment", {name: doc.name, payload: {...values, request_id}}, true);
-			dialog.hide(); await reload();
+			dialog.hide();
+			// 主按动作要有回音：提示 + 提示音（与其他页面同一套 `p.success`）。
+			// 采购这边金额是**这次付出去的钱**（会累加进付款流水），与销售那边口径不同。
+			p.success(__("Paid {0}", [p.money(values.amount)]));
+			await reload();
 		});
 	};
 })();

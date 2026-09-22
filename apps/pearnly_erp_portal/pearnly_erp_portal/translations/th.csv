@@ -42,6 +42,7 @@ Cashier,เก็บเงิน
 Category,หมวดหมู่
 Category Name,ชื่อหมวดหมู่
 Cheque,เช็ค
+Collected {0},รับชำระแล้ว {0}
 Collection,การรับเงิน
 Collection Date,วันที่รับเงิน
 Collection Method,วิธีรับเงิน
@@ -63,8 +64,10 @@ Customer is required,กรุณาระบุลูกค้า
 Date,วันที่
 Dedupe Key,คีย์กันซ้ำ
 Delete,ลบ
+Deleted {0},ลบแล้ว {0}
 Description,คำอธิบาย
 Details,รายละเอียด
+Disabled,ปิดใช้งาน
 Discount Amount,จำนวนส่วนลด
 Discount Total,ยอดส่วนลดรวม
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
@@ -146,6 +149,7 @@ New Supplier,เพิ่มผู้จัดจำหน่าย
 Next,ถัดไป
 No attachments,ไม่มีไฟล์แนบ
 None,ไม่มี
+Normal,ปกติ
 Not permitted,ไม่ได้รับอนุญาต
 Note,หมายเหตุ
 Now sending {0} documents,กำลังส่งเอกสาร{0}
@@ -161,6 +165,7 @@ Outstanding Amount,จำนวนเงินค้างชำระ
 Paid,ชำระแล้ว
 Paid Amount,จำนวนเงินที่ชำระแล้ว
 Paid amount cannot exceed the total,ยอดรับเงินต้องไม่เกินยอดรวม
+Paid {0},ชำระแล้ว {0}
 Parent Category,หมวดหมู่หลัก
 Parent Item Group,กลุ่มรายการผู้ปกครอง
 Partly Paid,ชำระบางส่วน
@@ -211,6 +216,7 @@ Reversal,กลับรายการ
 Rotate,หมุน
 Rounding Adjustment,การปรับปัดเศษ
 Save,บันทึก
+Saved,บันทึกแล้ว
 Search,ค้นหา
 Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
@@ -292,6 +298,7 @@ card,บัตร
 cash,เงินสด
 client.action.bulkDisable,ปิดใช้งาน {0}
 client.action.bulkEnable,เปิดใช้งาน {0}
+client.active,ปกติ
 client.close,ปิด
 client.col.address,ที่อยู่
 client.col.name,ชื่อลูกค้า
@@ -351,6 +358,7 @@ product.action.save,บันทึก
 product.action.scan,สแกน
 product.action.submit,ยืนยัน
 product.action.toggleInactive,แสดงที่ปิดใช้งาน
+product.active,ปกติ
 product.cell.notSet,ยังไม่ตั้ง
 product.col.avgCost,ต้นทุนเฉลี่ย
 product.col.barcode,บาร์โค้ด
@@ -397,6 +405,7 @@ product.import.notNumber,ค่านี้ไม่ใช่ตัวเลข
 product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
 product.import.pick,เลือกไฟล์
 product.import.template,ดาวน์โหลดแบบฟอร์ม
+product.inactive,ปิดใช้งาน
 product.new.hint,กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้
 product.new.hintCode,เริ่มที่ {0}
 product.new.lines,รายการสินค้า
@@ -595,6 +604,7 @@ stock_out,จ่ายออก
 submitted,ยืนยันแล้ว
 supplier.action.bulkDisable,ปิดใช้งาน {0}
 supplier.action.bulkEnable,เปิดใช้งาน {0}
+supplier.active,ปกติ
 supplier.branch,สาขา
 supplier.close,ปิด
 supplier.col.address,ที่อยู่

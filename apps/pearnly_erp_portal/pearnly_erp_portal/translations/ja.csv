@@ -42,6 +42,7 @@ Cashier,レジ
 Category,カテゴリ
 Category Name,カテゴリ名
 Cheque,小切手
+Collected {0},入金しました {0}
 Collection,入金
 Collection Date,入金日
 Collection Method,入金方法
@@ -63,8 +64,10 @@ Customer is required,顧客は必須です
 Date,日付
 Dedupe Key,重複防止キー
 Delete,削除
+Deleted {0},{0} 件を削除しました
 Description,説明
 Details,詳細
+Disabled,無効
 Discount Amount,割引額
 Discount Total,割引合計
 Discount cannot exceed the amount,割引は金額を超えられません
@@ -146,6 +149,7 @@ New Supplier,仕入先を追加
 Next,次へ
 No attachments,添付ファイルなし
 None,なし
+Normal,正常
 Not permitted,権限がありません
 Note,備考
 Now sending {0} documents,{0}の書類を送信中
@@ -161,6 +165,7 @@ Outstanding Amount,未払金額
 Paid,支払済み
 Paid Amount,支払済金額
 Paid amount cannot exceed the total,入金額は合計を超えられません
+Paid {0},{0} を支払いました
 Parent Category,親カテゴリ
 Parent Item Group,親品目グループ
 Partly Paid,一部支払済み
@@ -211,6 +216,7 @@ Reversal,取消仕訳
 Rotate,回転
 Rounding Adjustment,丸め調整
 Save,保存
+Saved,保存しました
 Search,検索
 Select a product for each stock item,各在庫明細の商品を選択してください
 Select the original sale line,元の販売明細を選択してください
@@ -292,6 +298,7 @@ card,カード
 cash,現金
 client.action.bulkDisable,{0}件を無効化
 client.action.bulkEnable,{0}件を有効化
+client.active,正常
 client.close,閉じる
 client.col.address,住所
 client.col.name,顧客名
@@ -351,6 +358,7 @@ product.action.save,保存
 product.action.scan,スキャン
 product.action.submit,確定
 product.action.toggleInactive,無効も表示
+product.active,正常
 product.cell.notSet,未設定
 product.col.avgCost,平均原価
 product.col.barcode,バーコード
@@ -397,6 +405,7 @@ product.import.notNumber,数値ではありません
 product.import.notWorkbook,Excel ブックではありません
 product.import.pick,ファイルを選択
 product.import.template,テンプレートをダウンロード
+product.inactive,無効
 product.new.hint,複数行をまとめて入力できます。コードは空欄なら自動採番されます。
 product.new.hintCode,{0} から採番します
 product.new.lines,商品行
@@ -595,6 +604,7 @@ stock_out,出庫
 submitted,確定済み
 supplier.action.bulkDisable,{0}件を無効化
 supplier.action.bulkEnable,{0}件を有効化
+supplier.active,正常
 supplier.branch,支店
 supplier.close,閉じる
 supplier.col.address,住所

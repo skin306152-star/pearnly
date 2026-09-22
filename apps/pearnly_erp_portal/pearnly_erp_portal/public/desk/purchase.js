@@ -21,6 +21,8 @@
 				if (selected.some(row => row.status !== "draft")) {page.clear_primary_action(); return;}
 				page.set_primary_action(`${__("Delete")} (${selected.length})`, () => frappe.confirm(__("Are you sure you want to delete?"), async () => {
 					await u.call("api_delete_purchase_drafts", {names: selected.map(row => row.name)}, true);
+					// 主按动作要有回音：提示 + 提示音。
+					p.success(__("Deleted {0}", [selected.length]));
 					await refresh();
 				}));
 			};

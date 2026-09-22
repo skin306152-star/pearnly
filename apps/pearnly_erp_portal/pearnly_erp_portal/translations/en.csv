@@ -42,6 +42,7 @@ Cashier,Cashier
 Category,Category
 Category Name,Category Name
 Cheque,Cheque
+Collected {0},Collected {0}
 Collection,Collection
 Collection Date,Collection Date
 Collection Method,Collection Method
@@ -63,8 +64,10 @@ Customer is required,Customer is required
 Date,Date
 Dedupe Key,Dedupe Key
 Delete,Delete
+Deleted {0},Deleted {0}
 Description,Description
 Details,Details
+Disabled,Disabled
 Discount Amount,Discount Amount
 Discount Total,Discount Total
 Discount cannot exceed the amount,Discount cannot exceed the amount
@@ -146,6 +149,7 @@ New Supplier,New Supplier
 Next,Next
 No attachments,No attachments
 None,None
+Normal,Normal
 Not permitted,Not permitted
 Note,Note
 Now sending {0} documents,Now sending {0} documents
@@ -161,6 +165,7 @@ Outstanding Amount,Outstanding Amount
 Paid,Paid
 Paid Amount,Paid Amount
 Paid amount cannot exceed the total,Paid amount cannot exceed the total
+Paid {0},Paid {0}
 Parent Category,Parent Category
 Parent Item Group,Parent Item Group
 Partly Paid,Partly Paid
@@ -211,6 +216,7 @@ Reversal,Reversal
 Rotate,Rotate
 Rounding Adjustment,Rounding Adjustment
 Save,Save
+Saved,Saved
 Search,Search
 Select a product for each stock item,Select a product for each stock item
 Select the original sale line,Select the original sale line
@@ -292,6 +298,7 @@ card,card
 cash,cash
 client.action.bulkDisable,Disable {0}
 client.action.bulkEnable,Enable {0}
+client.active,Active
 client.close,Close
 client.col.address,Address
 client.col.name,Customer Name
@@ -351,6 +358,7 @@ product.action.save,Save
 product.action.scan,Scan
 product.action.submit,Submit
 product.action.toggleInactive,Show disabled
+product.active,Active
 product.cell.notSet,Not set
 product.col.avgCost,Average cost
 product.col.barcode,Barcode
@@ -397,6 +405,7 @@ product.import.notNumber,The value is not a number
 product.import.notWorkbook,That file is not an Excel workbook
 product.import.pick,Choose file
 product.import.template,Download template
+product.inactive,Disabled
 product.new.hint,Fill in as many rows as you need; leave the code empty and the system assigns one
 product.new.hintCode,Codes start at {0}
 product.new.lines,Products
@@ -595,6 +604,7 @@ stock_out,stock_out
 submitted,submitted
 supplier.action.bulkDisable,Disable {0}
 supplier.action.bulkEnable,Enable {0}
+supplier.active,Active
 supplier.branch,Branch Office
 supplier.close,Close
 supplier.col.address,Address

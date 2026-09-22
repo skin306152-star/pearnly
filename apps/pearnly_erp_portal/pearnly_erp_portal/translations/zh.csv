@@ -42,6 +42,7 @@ Cashier,收银
 Category,类别
 Category Name,分类名称
 Cheque,支票
+Collected {0},已收款 {0}
 Collection,收款
 Collection Date,收款日期
 Collection Method,收款方式
@@ -63,8 +64,10 @@ Customer is required,必须填写客户
 Date,日期
 Dedupe Key,去重键
 Delete,删除
+Deleted {0},已删除 {0}
 Description,描述
 Details,详细信息
+Disabled,已停用
 Discount Amount,折扣金额
 Discount Total,折扣总额
 Discount cannot exceed the amount,折扣不能超过金额
@@ -146,6 +149,7 @@ New Supplier,新建供应商
 Next,下一个
 No attachments,无附件
 None,无
+Normal,正常
 Not permitted,没有权限
 Note,备注
 Now sending {0} documents,现在发送{0}单据
@@ -161,6 +165,7 @@ Outstanding Amount,未付金额
 Paid,已付款
 Paid Amount,付款金额
 Paid amount cannot exceed the total,收款金额不能超过合计
+Paid {0},已付款 {0}
 Parent Category,上级分类
 Parent Item Group,父物料组
 Partly Paid,部分付款
@@ -211,6 +216,7 @@ Reversal,冲销
 Rotate,旋转
 Rounding Adjustment,小数精度尾差调整
 Save,保存
+Saved,已保存
 Search,搜索
 Select a product for each stock item,请为每条货物明细选择物料
 Select the original sale line,请选择原单中的物料行
@@ -292,6 +298,7 @@ card,银行卡
 cash,现金
 client.action.bulkDisable,停用 {0}
 client.action.bulkEnable,启用 {0}
+client.active,正常
 client.close,关闭
 client.col.address,地址
 client.col.name,客户名称
@@ -351,6 +358,7 @@ product.action.save,保存
 product.action.scan,扫码
 product.action.submit,提交
 product.action.toggleInactive,显示已停用
+product.active,正常
 product.cell.notSet,未设
 product.col.avgCost,均价
 product.col.barcode,条码
@@ -397,6 +405,7 @@ product.import.notNumber,该值不是数字
 product.import.notWorkbook,这不是 Excel 工作簿
 product.import.pick,选择文件
 product.import.template,下载模板
+product.inactive,已停用
 product.new.hint,一次可以填多行；编码留空由系统生成
 product.new.hintCode,本次从 {0} 开始发
 product.new.lines,物料行
@@ -595,6 +604,7 @@ stock_out,出库
 submitted,已提交
 supplier.action.bulkDisable,停用 {0}
 supplier.action.bulkEnable,启用 {0}
+supplier.active,正常
 supplier.branch,分支机构
 supplier.close,关闭
 supplier.col.address,地址

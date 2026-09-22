@@ -263,7 +263,9 @@
 					{ fieldname: "default_cost", label: t("product.col.cost"),
 						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
 					{ fieldname: "is_active", label: t("product.col.status"),
-						format: (value) => (value ? __("Active") : __("Disabled")) },
+						// 与供应商/客户两页同一口径：正常 / 已停用。原来用的是框架自己的
+						// "Active"，中文界面里会译成「激活」，三张列表同一个概念三种说法。
+						format: (value) => t(Number(value) ? "product.active" : "product.inactive") },
 				],
 			});
 

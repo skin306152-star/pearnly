@@ -691,3 +691,11 @@ Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	client
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	client.action.bulkEnable
 Updated {0} customer(s)	已更新 {0} 位客户	อัปเดตลูกค้า {0} ราย	顧客 {0}件を更新しました	client.notice.toggled
 Branch {0}	分支机构 {0}	สาขา {0}	支店 {0}
+Active	正常	ปกติ	正常	product.active
+Disabled	已停用	ปิดใช้งาน	無効	product.inactive
+Active	正常	ปกติ	正常	supplier.active
+Active	正常	ปกติ	正常	client.active
+Saved	已保存	บันทึกแล้ว	保存しました
+Collected {0}	已收款 {0}	รับชำระแล้ว {0}	入金しました {0}
+Paid {0}	已付款 {0}	ชำระแล้ว {0}	{0} を支払いました
+Deleted {0}	已删除 {0}	ลบแล้ว {0}	{0} 件を削除しました

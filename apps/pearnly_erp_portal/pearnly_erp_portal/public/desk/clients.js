@@ -29,7 +29,9 @@
 			{ fieldname: "contact_phone", label: t("client.col.phone") },
 			{ fieldname: "address", label: t("client.col.address") },
 			{ fieldname: "is_active", label: t("client.col.status"),
-				format: value => (Number(value) ? "" : t("client.inactive")) },
+				// 两态都要看得见（原来"正常"那格是空的）；与供应商页、物料页同一口径。
+				// 走本页术语键：框架词典会把 "Normal"/"Disabled" 译成「普通 / 禁用」。
+				format: value => t(Number(value) ? "client.active" : "client.inactive") },
 		];
 
 		// 按税号查泰国税务局（RD）的官方登记（与供应商页同一件事）：公司买方填税号 → 点查询
@@ -85,6 +87,8 @@
 				const method = row.name ? "api_update_customer" : "api_create_customer";
 				await p.call(api + method, row.name ? {name: row.name, ...values} : values, "POST");
 				dialog.hide();
+				// 主按动作要有回音：提示 + 提示音（与其他页面同一套 `p.success`）。
+				p.success(__("Saved"));
 				await list?.reload();
 			});
 			return d;

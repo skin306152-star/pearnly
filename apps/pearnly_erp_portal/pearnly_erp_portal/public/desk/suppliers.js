@@ -30,7 +30,11 @@
 			{ fieldname: "phone", label: t("supplier.col.phone") },
 			{ fieldname: "address", label: t("supplier.col.address") },
 			{ fieldname: "is_active", label: t("supplier.col.status"),
-				format: value => (Number(value) ? "" : t("supplier.inactive")) },
+				// 两态都要看得见：原来"正常"那格是空的，看起来像这列没数据
+				// （用户 2026-09-23）。措辞与物料页同一口径（正常 / 已停用），
+				// 用本页自己的术语键取 —— 框架自带的词典把 "Normal" 译成「普通」、
+				// "Disabled" 译成「禁用」，走 `__()` 会被它盖掉。
+				format: value => t(Number(value) ? "supplier.active" : "supplier.inactive") },
 		];
 
 		// 按税号查泰国税务局（RD）的官方登记：填税号 → 点按钮 → 抬头/地址/分支带出来。
@@ -86,6 +90,8 @@
 				const method = row.name ? "api_update_supplier" : "api_create_supplier";
 				await p.call(api + method, row.name ? {name: row.name, ...values} : values, "POST");
 				dialog.hide();
+				// 主按动作要有回音：提示 + 提示音（与其他页面同一套 `p.success`）。
+				p.success(__("Saved"));
 				await list?.reload();
 			});
 			return d;
