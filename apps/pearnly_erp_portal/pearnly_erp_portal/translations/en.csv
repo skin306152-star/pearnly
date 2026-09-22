@@ -52,6 +52,7 @@ product.action.new,New product
 product.action.reload,Reload
 product.action.save,Save
 product.action.scan,Scan
+product.action.submit,Submit
 product.action.toggleInactive,Show disabled
 product.cell.notSet,Not set
 product.col.avgCost,Average cost
@@ -100,6 +101,7 @@ product.import.notWorkbook,That file is not an Excel workbook
 product.import.pick,Choose file
 product.import.template,Download template
 product.new.hint,Fill in as many rows as you need; leave the code empty and the system assigns one
+product.new.hintCode,Codes start at {0}
 product.new.lines,Products
 product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
 product.notice.imported,Imported {0} product(s)
@@ -289,6 +291,7 @@ tax_invoice_simple,tax_invoice_simple
 trade.action.fullPage,Edit in Full Page
 trade.action.ledger,Stock ledger
 trade.action.ledgerSingle,Select one row to open its ledger
+trade.action.submit,Submit
 trade.action.voidCount,Void {0} selected
 trade.address,Address
 trade.balance,Position Balance
@@ -320,6 +323,7 @@ trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
 trade.noShift,No Open Shift
 trade.note,Note
+trade.notice.submitted,Submitted {0}
 trade.openShift,Open Shift
 trade.opening,Opening Quantity
 trade.originalLine,Original Item and Location
@@ -360,6 +364,7 @@ trade.voidConfirmCount,Void {0} document(s) and reverse their stock movements?
 trade.voidNotice,Voided {0}
 trade.voidPaid,Void the payments before voiding the document
 trade.warehouse,Warehouse
+trade.warehouseHint,Type any warehouse name; a new warehouse is created if that name is new
 transfer,transfer
 unpaid,unpaid
 void,void

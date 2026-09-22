@@ -25,6 +25,12 @@ def _get(name):
     return frappe.get_doc(DOCTYPE, name)
 
 
+def _posting_now(value) -> bool:
+    """`submit=1`：建单/改单的同时直接过账（用户 2026-09-22 口径：入库/出库不再留草稿，
+    界面上只有一颗"提交"）。同一事务里过账，失败就整笔不留（不留下孤立的草稿单）。"""
+    return value in (True, 1, "1", "true", "True")
+
+
 def _business_lines(lines) -> list:
     """只留**真有商品**的明细行，然后要求至少一行。
 
@@ -42,7 +48,7 @@ def _business_lines(lines) -> list:
 
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
-                 reason=None, ref_type=None, ref_id=None, dedupe_key=None):
+                 reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False):
     guard.require("stock.write")
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
@@ -64,8 +70,11 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
         } for line in lines],
     })
     doc.insert()
+    # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
+    if _posting_now(submit):
+        _post(doc)
     frappe.db.commit()
-    return {"name": doc.name, "doc_no": doc.doc_no}
+    return {"name": doc.name, "doc_no": doc.doc_no, "status": doc.status}
 
 
 def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
@@ -99,6 +108,7 @@ def get_entry(name):
 
 def update_entry(name, **changes):
     guard.require("stock.write")
+    submit = changes.pop("submit", None)
     doc = _get(name)
     if doc.status != "draft":
         frappe.throw(_(LOCKED))
@@ -118,8 +128,10 @@ def update_entry(name, **changes):
                 "warehouse": line["warehouse"], "location": line["location"],
             })
     doc.save()
+    if _posting_now(submit):
+        _post(doc)
     frappe.db.commit()
-    return {"name": doc.name}
+    return {"name": doc.name, "status": doc.status}
 
 
 def _movement_type(doc) -> str:
@@ -129,13 +141,12 @@ def _movement_type(doc) -> str:
     return contracts.STOCK_OUT
 
 
-def submit_entry(name):
-    """提交：把每一行落成流水。流水幂等锚是单据名，所以重复提交不会记两次。"""
-    guard.require("stock.write")
-    frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
-    doc = _get(name)
-    if doc.status != "draft":
-        frappe.throw(_(BAD_TRANSITION))
+def _post(doc) -> dict:
+    """把单据的每一行落成流水，并把单据置为"已提交"。**不提交事务** —— 调用方决定
+    是"建单 + 过账"一笔提交，还是单独提交一张草稿。
+
+    流水幂等锚是单据名，所以重复提交不会记两次。
+    """
     movement_type = _movement_type(doc)
     result = stock.apply_lines(
         warehouse=doc.warehouse, movement_type=movement_type,
@@ -148,6 +159,17 @@ def submit_entry(name):
     doc.status = "submitted"
     doc.submitted_at = now()
     doc.save(ignore_permissions=True)
+    return result
+
+
+def submit_entry(name):
+    """提交一张**已存在的草稿**（老数据、或列表里留下的草稿）。"""
+    guard.require("stock.write")
+    frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
+    doc = _get(name)
+    if doc.status != "draft":
+        frappe.throw(_(BAD_TRANSITION))
+    result = _post(doc)
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status, **result}
 

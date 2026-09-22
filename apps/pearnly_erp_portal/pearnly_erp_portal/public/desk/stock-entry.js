@@ -1,11 +1,17 @@
 /* 入库 / 出库（同一份代码，方向不同）。
  *
- * 两条路（用户 2026-09-22 口径："弹窗只是快捷添加方式……左下角是全屏编辑，点进去才是
- * 二级面包屑"）：
- *   /desk/pearnly-stock-in        列表；点行 = 原生弹窗查看/编辑/过账（查看是弹窗）
+ * 两条路（用户 2026-09-22 口径）：
+ *   /desk/pearnly-stock-in        列表；点行 = 弹窗查看（已提交的只读）/ 提交（草稿）
  *   「新建入库单」= 弹窗：单据编号（只读，显示当前要发的号）、日期、仓库、明细、备注
  *   弹窗左下角「全屏编辑」= 官方 `QuickEntryForm` 同一颗 custom action → 二级页面
  *   /desk/pearnly-stock-in/new    二级页面：同样的字段摊成整页，明细表用原生 Grid
+ *
+ * **没有"保存草稿"这一步**：两级都只有一颗「提交」，提交即过账（服务端 `submit=1`，
+ * 建单与过账同一事务），提交后直接回列表 —— 不停在弹窗、也不停在编辑页。
+ * 老数据里留下的草稿仍然可以打开，弹窗那颗按钮同样会把它提交掉。
+ *
+ * 仓库是**自由填写**（Data，不再是官方的 ERP Warehouse 选择器）：服务端按名字找，
+ * 找不到就建一个（`warehouses.resolve`），与"仓位"同一个口径。
  *
  * 单据号由服务端发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），界面上只读 ——
  * 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
@@ -21,16 +27,15 @@
 		const canWrite = frappe.model.can_write("ERP Stock Entry");
 		const url = (...parts) => p.subroute(root, ...parts);
 		const title_new = () => t(direction === "in" ? "trade.newIn" : "trade.newOut");
-		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`apply_issue_costs`），
+		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`contracts.issue()`），
 		// 单价那一格在界面上只读、由服务端在过账时算，所以这里不给人填 —— 但**只锁那一格**，
-		// 商品行本身要能加能改（早先整张表都锁了，出库单连商品都加不进去）。
+		// 商品行本身要能加能改。
 		const priced = direction === "in";
 		// 弹窗点「全屏编辑」时把已填的值带进二级页面（两边在同一个闭包里，不必写进 URL）。
 		let carry = null;
-		let list, form;
-		let refresh_icon = null;
+		let list, form, refresh_icon = null;
 
-		// 刷新那颗图标只在列表那一级出现：二级页面里有没保存的输入，一颗刷新把它清掉不合适。
+		// 刷新那颗图标只在列表那一级出现：二级页面里有没提交的输入，一颗刷新把它清掉不合适。
 		function set_refresh(on) {
 			if (on && !refresh_icon) refresh_icon = p.add_refresh(page, () => void list?.reload());
 			if (!on && refresh_icon) { refresh_icon.remove(); refresh_icon = null; }
@@ -51,8 +56,9 @@
 				default: doc_no, description: doc.doc_no ? "" : t("stock.field.docNoAuto") },
 			{ fieldtype: "Date", fieldname: "posting_date", label: t("trade.date"),
 				default: doc.posting_date || frappe.datetime.get_today(), reqd: 1 },
-			{ fieldtype: "Link", fieldname: "warehouse", label: t("trade.warehouse"),
-				options: "ERP Warehouse", default: doc.warehouse, reqd: 1 },
+			// 仓库自由填写（用户口径"不要用官方的仓库"）：不是 Link，服务端按名字找或新建。
+			{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
+				default: doc.warehouse, reqd: 1, description: t("trade.warehouseHint") },
 			p.trade.lines(t, { stock: true, cost: true, readonly: !editable, locked_price: !priced,
 				data: data || doc.lines || [{ qty: 1 }] }),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
@@ -62,7 +68,7 @@
 			.map(field => (field.fieldname === "doc_no" ? { ...field, read_only: 1 } : field));
 
 		const clean = values => ({ posting_date: values.posting_date,
-			reason: values.reason, lines: p.trade.clean(values.lines) });
+			warehouse: values.warehouse, reason: values.reason, lines: p.trade.clean(values.lines) });
 
 		function entry_values() {
 			const values = form.get_values();
@@ -113,44 +119,41 @@
 			set_refresh(true);
 		}
 
-		// ── 弹窗（查看/编辑/过账；新建也是它）──────────────────────────────────
+		// ── 弹窗：新建 / 查看 / 提交 ─────────────────────────────────────────────
 
 		async function editor(name) {
 			const doc = name ? await p.call(api + "api_get_stock_entry", { name }) : {};
+			// 草稿（含老数据留下的）可以提交；已提交/已作废只能看。
 			const editable = canWrite && (!name || doc.status === "draft");
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
 			const fields = entry_fields({ doc, doc_no, editable });
-			if (name && editable) fields.push({ fieldtype: "Button", fieldname: "submit",
-				label: t("trade.submit"), click: () => p.trade.act(d, async () => {
-					const values = d.get_values(); if (!values) return;
-					await p.call(api + "api_update_stock_entry", { name, ...clean(values) }, "POST");
-					await p.call(api + "api_submit_stock_entry", { name }, "POST");
-					d.hide(); await list.reload(); await editor(name);
-				}) });
 			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button",
 				fieldname: "void", label: t("trade.void"),
 				click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
 					await p.call(api + "api_void_stock_entry", { name }, "POST");
 					d.hide(); await list.reload(); await editor(name);
 				})) });
-			d = p.dialog(name || title_new(), fields, editable ? t("trade.save") : t("trade.close"),
+			d = p.dialog(name || title_new(), fields, editable ? t("trade.action.submit") : t("trade.close"),
 				async (values, dialog) => {
 					if (!editable) { dialog.hide(); return; }
+					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。
 					const result = await p.call(api + (name ? "api_update_stock_entry" : "api_create_stock_entry"), {
-						...(name ? { name } : { direction }), ...clean(values),
+						...(name ? { name } : { direction }), submit: 1, ...clean(values),
 					}, "POST");
-					dialog.hide(); await list.reload(); await editor(result.name);
+					dialog.hide();
+					p.success(t("trade.notice.submitted", result.doc_no || ""));
+					await list?.reload();
 				});
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
-			// 新建那一支才有"全屏编辑"（查看/编辑已经有单据了，再摊成整页没有意义）。
-			if (!name && editable) {
+			// 只有新建（或还没提交的草稿）才摊成整页；已提交的单据点开就是看。
+			if (editable) {
 				p.edit_all(d, t("trade.action.fullPage"), url(SECOND), values => { carry = values; });
 			}
 		}
 
-		// ── 二级页面：同一套字段摊成整页 ────────────────────────────────────────
+		// ── 二级页面：同一套字段摊成整页，提交即过账 ──────────────────────────────
 
 		async function open_new() {
 			set_refresh(false);
@@ -158,23 +161,24 @@
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
-			// 带过来的明细行（弹窗里已经勾好的那些）原样铺进 Grid。
+			// 带过来的明细行（弹窗里已经填好的那些）原样铺进 Grid。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default({}, posting_date);
 			if (frappe.get_route()[0] !== root) return;
 			form = p.layout(page.main, entry_fields({ doc: values, doc_no, editable: true, data }));
-			page.set_primary_action(t("trade.save"), () => void save_new());
+			page.set_primary_action(t("trade.action.submit"), () => void submit_new());
 		}
 
-		async function save_new() {
+		async function submit_new() {
 			const values = entry_values();
 			if (!values) return;
 			const result = await p.call(api + "api_create_stock_entry",
-				{ direction, ...values }, "POST");
+				{ direction, submit: 1, ...values }, "POST");
 			await list?.reload();
+			p.success(t("trade.notice.submitted", result.doc_no || ""));
+			// 提交完回列表，不在编辑页停留。
 			p.redirect_up(root);
-			await editor(result.name);
 		}
 
 		// ── 路由 ────────────────────────────────────────────────────────────────
@@ -182,6 +186,7 @@
 		async function render(rest) {
 			p.clear_page(page);
 			list = null; form = null;
+			set_refresh(false);
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }
 			await open_new();

@@ -78,7 +78,9 @@
 			return code_payload(text, state.scanned);
 		}
 
-		function product_fields(existing = {}) {
+		// `preview_code`：新建时把**系统将要发的编码**显示在只读那一格（用户 2026-09-22 口径：
+		// 编码不给手输，但要看得见，跟入库/出库表单显示当前单据号同一个道理）。
+		function product_fields(existing = {}, preview_code = "") {
 			const value = (field, fallback = null) =>
 				existing[field] === undefined ? fallback : existing[field];
 			const original = String(existing.barcode || existing.qr_payload || "").trim();
@@ -93,7 +95,8 @@
 				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
 					reqd: 1, default: value("product_name") },
 				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
-					read_only: 1, description: t("product.field.codeAuto"), default: value("code") },
+					read_only: 1, description: t("product.field.codeAuto"),
+					default: value("code") || preview_code },
 				{ fieldtype: "Data", fieldname: "code_value", label: t("product.field.codeValue"),
 					// 上限跟服务端二维码那一列（500）对齐：合并后这一格是录入二维码的唯一入口，
 					// 用 Data 的默认 140 会让长二维码内容粘贴不进来。
@@ -269,12 +272,14 @@
 
 		// ── 新建弹窗（快捷）────────────────────────────────────────────────────
 
-		function open_quick() {
-			const { fields, state } = product_fields();
+		// 快捷新建：编码由服务端发，这里先取一个**预览**填进只读那一格（不占号）。
+		async function open_quick() {
+			const preview_code = (await p.call(api + "api_next_product_code")).code;
+			const { fields, state } = product_fields({}, preview_code);
 			const dialog = p.dialog(
 				t("product.action.new"),
 				fields,
-				t("product.action.save"),
+				t("product.action.submit"),
 				async (values, d) => {
 					await p.call(api + "api_create_product",
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
@@ -296,22 +301,28 @@
 		// 与弹窗**同一套字段**（用户 2026-09-22 口径"字段不变"）：列表里露出来的那几列先
 		// 横着排，其余字段在原生 Grid 的行展开里 —— 点行左边那个箭头就是完整字段。
 		// Grid 自带的「添加行」和勾选列原样保留（那是框架的，勾选是"选中行→批量删除"）。
-		// `code` 不放进来：编码由服务端发（弹窗里那格也只是只读显示"自动生成"）。
+		// `code` 不放进来：编码由服务端发（弹窗里那格是只读预览；这一页把"本次从哪个号
+		// 开始发"写在下面那行提示里）。
+		//
+		// **露出来的列加起来不能超过 10**：框架的 Grid 一旦 `total_colsize > 10` 就切成
+		// "列超限"模式（横向滚动），右侧的列会被切在可视区外 —— 用户看到的就是"后面的字段
+		// 都看不到了"。所以只留最常用的四列，其余（单位/库存单位/默认仓库/默认仓位/参考成本/
+		// 分类/低库存/批次/有效期/VAT/图片）都在行展开里。
 		const grid_fields = () => [
 			{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
 				reqd: 1, in_list_view: 1, columns: 3 },
 			{ fieldtype: "Data", fieldname: "code_value", label: t("product.field.codeValue"),
 				length: 500, in_list_view: 1, columns: 3, description: t("product.field.codeAuto") },
+			{ fieldtype: "Currency", fieldname: "unit_price", options: "THB",
+				label: t("product.field.price"), in_list_view: 1, columns: 2 },
 			{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 				in_list_view: 1, columns: 1 },
 			{ fieldtype: "Data", fieldname: "default_warehouse",
-				label: t("product.field.defaultWarehouse"), in_list_view: 1, columns: 2 },
+				label: t("product.field.defaultWarehouse"), in_list_view: 1, columns: 1 },
 			{ fieldtype: "Data", fieldname: "default_location",
-				label: t("product.field.defaultLocation"), in_list_view: 1, columns: 2 },
-			{ fieldtype: "Currency", fieldname: "unit_price", options: "THB",
-				label: t("product.field.price"), in_list_view: 1, columns: 2 },
+				label: t("product.field.defaultLocation"), columns: 2 },
 			{ fieldtype: "Currency", fieldname: "default_cost", options: "THB",
-				label: t("product.field.cost"), in_list_view: 1, columns: 2 },
+				label: t("product.field.cost"), columns: 2 },
 			{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
 				columns: 2 },
 			{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
@@ -328,17 +339,20 @@
 				columns: 2 },
 		];
 
-		function open_new() {
+		async function open_new() {
 			p.breadcrumbs({ label: __("nav.products"), route: url(),
 				trail: [{ label: t("product.action.new"), route: "" }] });
 			const rows = carry ? [carry] : [{}];
 			carry = null;
+			// 编码由服务端在入库那一刻发；这里只是把"本次从哪个号开始"写进提示给人看。
+			const start_code = (await p.call(api + "api_next_product_code")).code;
 			form = p.layout(page.main, [
 				{ fieldtype: "Section Break" },
 				{ fieldtype: "Table", fieldname: "products", label: t("product.new.lines"),
 					in_place_edit: true, data: rows, fields: grid_fields() },
 				{ fieldtype: "HTML", fieldname: "hint",
-					options: `<p class="text-muted">${p.escape(t("product.new.hint"))}</p>` },
+					options: `<p class="text-muted">${p.escape(t("product.new.hint"))}${
+						start_code ? " " + p.escape(t("product.new.hintCode", start_code)) : ""}</p>` },
 			]);
 			const grid = form.fields_dict.products.grid;
 
@@ -382,7 +396,7 @@
 				...code_payload(row.code_value, row.__scanned),
 			});
 
-			async function save_all() {
+			async function submit_all() {
 				const rows = (form.get_value("products") || []).filter(row =>
 					String(row.product_name || "").trim() || String(row.code_value || "").trim());
 				if (!rows.length) {
@@ -401,7 +415,7 @@
 						failed.push(row);
 					}
 				}
-				// 建成功的从表里去掉，免得再点一次保存重复建。
+				// 建成功的从表里去掉，免得再点一次提交重复建。
 				grid.df.data = failed;
 				grid.refresh();
 				if (!failed.length) {
@@ -414,7 +428,7 @@
 					message: t("product.notice.partial", done, failed.length) });
 			}
 
-			page.set_primary_action(t("product.action.save"), () => void save_all());
+			page.set_primary_action(t("product.action.submit"), () => void submit_all());
 		}
 
 		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
@@ -484,7 +498,7 @@
 			const dialog = p.dialog(
 				existing.product_name,
 				fields,
-				t("product.action.save"),
+				t("product.action.submit"),
 				async (values, d) => {
 					await p.call(api + "api_update_product",
 						{ name: existing.name, ...normalize({ ...values, ...code_changes(state, values) }) },
@@ -506,7 +520,7 @@
 			list = null; form = null;
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !can_create) { p.redirect_up(root); return; }
-			open_new();
+			await open_new();
 		}
 
 		const show = p.routed_page({ wrapper, root, render });

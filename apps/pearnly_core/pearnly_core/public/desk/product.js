@@ -25,6 +25,16 @@ frappe.provide("frappe.pearnly");
 		const decimals = decimals_of(value, max);
 		return decimals === null ? String(value) : format_currency(value, currency, decimals);
 	};
+	// 服务端时间（`2026-09-22 15:07:55.568491`）→ 给人看的"日期 时:分"。
+	// 秒与微秒是库里的事，列表里显示完整值只会被截断成一串省略号（用户 2026-09-22 口径：
+	// "那个时间格式不对"）。日期部分仍交给框架按站点语言格式化。
+	p.datetime_text = (value) => {
+		if (!value) return "";
+		const text = String(value).replace("T", " ").replace(/\.\d+$/, "");
+		// `str_to_user` 按站点时间格式输出，默认是 `HH:mm:ss`；列表里看到分钟就够了，
+		// 把尾巴上的 ":ss" 去掉（`2026-09-22 14:12:00` → `2026-09-22 14:12`）。
+		return String(frappe.datetime.str_to_user(text)).replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
+	};
 	p.add_refresh = (page, refresh, label = __("Reload")) =>
 		page.add_action_icon("es-line-reload", refresh, "", label)
 			.removeClass("btn-default")
@@ -113,25 +123,32 @@ frappe.provide("frappe.pearnly");
 		if (columns) columns.stickDropdownIndex = columns.unstickDropdownIndex = -1;
 		return table;
 	};
-	// 弹窗里一排摆几个字段：默认两个。字段少就一排，多了自动换到第二排 —— 一列到底的
-	// 竖排会把"上面那几行"拉得又长又空（用户 2026-09-22 口径）。整行控件（HTML/Table/
-	// Button、Section）自己占一行，不参与并排。
+	// 表单分几栏：默认两栏。**Frappe 的"栏"是竖着堆字段的**（Column Break 换到下一栏），
+	// 所以 `columns=2` 的含义是"两栏、每栏从上往下排"，视觉上就是每排两个字段。
+	//
+	// 整行控件（HTML / Table / Button / Section）必须落在**新的一节**里，不能只换栏：
+	// 只换栏的话它会跟字段并排挤在右边（实测：流水弹窗、收发存二级页的表格都被挤成一条），
+	// 所以这里用 Section Break 收口，并且**看下一个字段**决定用哪种换行 ——
+	// 恰好填满一栏时如果后面跟着整行控件，就用 Section Break 而不是 Column Break。
 	p.field_rows = (fields, columns = 2) => {
 		const rows = [];
 		let filled = 0;
-		// 并排的字段用 Column Break 分栏；整行控件（HTML/Table/Button、Section）必须先
-		// **结束当前栏**再落到下一行 —— 只推一个 Column Break 的话它会掉进右边那一栏
-		// （实测：流水弹窗的表格被挤到字段右边，这是排版 bug，不是"设计"）。
-		const close_row = kind => { if (filled) { rows.push({ fieldtype: kind }); filled = 0; } };
-		for (const field of fields) {
+		const full_width = (field) => ["Section Break", "HTML", "Table", "Button"]
+			.includes(field?.fieldtype);
+		fields.forEach((field, index) => {
 			const type = field.fieldtype;
-			if (type === "Section Break" || type === "HTML" || type === "Table" || type === "Button") {
-				close_row("Section Break"); rows.push(field); continue;
+			if (full_width(field)) {
+				if (filled) { rows.push({ fieldtype: "Section Break" }); filled = 0; }
+				rows.push(field);
+				return;
 			}
-			if (type === "Column Break") { rows.push(field); filled = 0; continue; }
+			if (type === "Column Break") { rows.push(field); filled = 0; return; }
 			rows.push(field); filled += 1;
-			if (filled === columns) close_row("Column Break");
-		}
+			if (filled === columns) {
+				rows.push({ fieldtype: full_width(fields[index + 1]) ? "Section Break" : "Column Break" });
+				filled = 0;
+			}
+		});
 		return rows;
 	};
 	p.restore_sidebar = () => {

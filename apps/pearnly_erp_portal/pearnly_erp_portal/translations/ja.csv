@@ -52,6 +52,7 @@ product.action.new,商品を追加
 product.action.reload,再読み込み
 product.action.save,保存
 product.action.scan,スキャン
+product.action.submit,確定
 product.action.toggleInactive,無効も表示
 product.cell.notSet,未設定
 product.col.avgCost,平均原価
@@ -100,6 +101,7 @@ product.import.notWorkbook,Excel ブックではありません
 product.import.pick,ファイルを選択
 product.import.template,テンプレートをダウンロード
 product.new.hint,複数行をまとめて入力できます。コードは空欄なら自動採番されます。
+product.new.hintCode,{0} から採番します
 product.new.lines,商品行
 product.notice.importSkipped,{0}行をスキップしました（先頭のみ表示）
 product.notice.imported,{0}件を取り込みました
@@ -289,6 +291,7 @@ tax_invoice_simple,簡易税務請求書
 trade.action.fullPage,全画面で編集
 trade.action.ledger,在庫の受け払いを開く
 trade.action.ledgerSingle,明細は1行ずつ開きます
+trade.action.submit,確定
 trade.action.voidCount,選択した{0}件を取り消す
 trade.address,住所
 trade.balance,保管場所の残高
@@ -320,6 +323,7 @@ trade.newOut,出庫伝票を作成
 trade.newSale,販売伝票を作成
 trade.noShift,未開店
 trade.note,備考
+trade.notice.submitted,{0} を提出しました
 trade.openShift,シフト開始
 trade.opening,期首数量
 trade.originalLine,元伝票の商品と保管場所
@@ -360,6 +364,7 @@ trade.voidConfirmCount,選択した{0}件の伝票を取り消して在庫移動
 trade.voidNotice,{0}件を取り消しました
 trade.voidPaid,先に入金を取り消してから伝票を取り消してください
 trade.warehouse,倉庫
+trade.warehouseHint,倉庫名は自由入力です。新しい名前なら自動作成します
 transfer,振込
 unpaid,未払い
 void,取消済み

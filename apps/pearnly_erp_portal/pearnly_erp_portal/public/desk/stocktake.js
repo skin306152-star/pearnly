@@ -112,7 +112,10 @@
 					{ fieldname: "item_total", label: t("stock.count.rows") },
 					{ fieldname: "counted_total", label: t("stock.count.countedRows") },
 					{ fieldname: "difference_total", label: t("stock.count.differenceRows") },
-					{ fieldname: "creation", label: t("stock.count.createdAt") },
+					// 创建时间是库里的 datetime（带秒与微秒），直接显示会被截成一串省略号 ——
+					// 按"日期 时:分"显示（用户 2026-09-22 口径："那个时间格式不对"）。
+					{ fieldname: "creation", label: t("stock.count.createdAt"),
+						format: value => p.datetime_text(value) },
 				] });
 			page.set_primary_action(t("stock.count.new"), open_new);
 			page.add_inner_button(t("stock.action.reload"), () => list.reload());

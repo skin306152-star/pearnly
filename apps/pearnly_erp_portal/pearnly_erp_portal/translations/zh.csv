@@ -52,6 +52,7 @@ product.action.new,新建商品
 product.action.reload,刷新
 product.action.save,保存
 product.action.scan,扫码
+product.action.submit,提交
 product.action.toggleInactive,显示已停用
 product.cell.notSet,未设
 product.col.avgCost,均价
@@ -100,6 +101,7 @@ product.import.notWorkbook,这不是 Excel 工作簿
 product.import.pick,选择文件
 product.import.template,下载模板
 product.new.hint,一次可以填多行；编码留空由系统生成
+product.new.hintCode,本次从 {0} 开始发
 product.new.lines,商品行
 product.notice.importSkipped,跳过 {0} 行，前几行见上方
 product.notice.imported,已导入 {0} 个商品
@@ -289,6 +291,7 @@ tax_invoice_simple,简易税务发票
 trade.action.fullPage,全屏编辑
 trade.action.ledger,查看流水
 trade.action.ledgerSingle,一次只能看一条流水
+trade.action.submit,提交
 trade.action.voidCount,作废选中的 {0} 张
 trade.address,地址
 trade.balance,该仓位结存
@@ -320,6 +323,7 @@ trade.newOut,新建出库单
 trade.newSale,新建销售单
 trade.noShift,尚未开班
 trade.note,备注
+trade.notice.submitted,已提交 {0}
 trade.openShift,开班
 trade.opening,期初数量
 trade.originalLine,原单商品与仓位
@@ -360,6 +364,7 @@ trade.voidConfirmCount,作废选中的 {0} 张单据并冲销对应库存变动�
 trade.voidNotice,已作废 {0} 张
 trade.voidPaid,先冲掉付款再作废这张单据
 trade.warehouse,仓库
+trade.warehouseHint,仓库可以自由填写，名字没见过的会自动新建一个
 transfer,转账
 unpaid,未付款
 void,已作废

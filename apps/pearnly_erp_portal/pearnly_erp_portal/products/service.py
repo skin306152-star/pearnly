@@ -156,6 +156,17 @@ def _allocate_code() -> str:
     return contracts.next_code(codes)
 
 
+def next_code_preview() -> dict:
+    """下一个商品编码的**只读预览**（不占号）。
+
+    用户 2026-09-22 口径：编码由系统发、不给手输，但填表时要看得见 —— 与入库/出库表单
+    显示"当前要发的单据号"同一个道理（旧系统也是把号填进只读输入框）。真正的编码在
+    入库那一刻才定，所以这里只是预览、不写任何东西。
+    """
+    guard.require("products.view")
+    return {"code": _allocate_code()}
+
+
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
@@ -384,6 +395,12 @@ def api_list_products(**kwargs):
 def api_find_product(value=None, exclude=None, **kwargs):
     kwargs.pop("cmd", None)
     return find_product(value, exclude=exclude)
+
+
+@frappe.whitelist()
+def api_next_product_code(**kwargs):
+    kwargs.pop("cmd", None)
+    return next_code_preview()
 
 
 @frappe.whitelist()

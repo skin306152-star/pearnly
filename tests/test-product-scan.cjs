@@ -20,6 +20,8 @@ function element() {
   return node;
 }
 
+// 新建弹窗会先向服务端要一个**编码预览**（`api_next_product_code`，只读不占号）。
+const PREVIEW_CODE = 'P-000042';
 const NEW_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', 'category_id',
   'default_warehouse', 'default_location', 'unit_price', 'default_cost', 'min_stock',
   'track_batch', 'track_expiry', 'vat_applicable', 'image_url'];
@@ -33,7 +35,11 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     money: value => String(value),
     escape: value => String(value),
     success() {},
-    call: async (method, args) => { calls.push({ method, args }); return product; },
+    call: async (method, args) => {
+      calls.push({ method, args });
+      if (String(method).endsWith('api_next_product_code')) return { code: PREVIEW_CODE };
+      return product;
+    },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => supported,
     // 弹窗左下角那颗"全屏编辑"由共享层的 `p.edit_all` 提供（核心实现用官方的
@@ -140,6 +146,14 @@ const plain = value => JSON.parse(JSON.stringify(value));
   assert.equal(env.editAll[0].label, 'product.action.fullPage');
   assert.equal(env.editAll[0].route, '/desk/pearnly-products/new');
   console.log('PASS the quick dialog offers full-page editing on the second-level route');
+
+  // 1c) 编码是只读的，但要让填表的人**看得见**系统将要发的号；底部那颗动作按用户口径
+  //     叫「提交」（不是「保存」）。
+  const code_preview = dialog.fields.find(field => field.fieldname === 'code');
+  assert.equal(code_preview.default, PREVIEW_CODE, '编码那一格显示预览号');
+  assert.equal(code_preview.read_only, 1, '编码仍然不给手输');
+  assert.equal(dialog.label, 'product.action.submit');
+  console.log('PASS the create dialog shows the code preview and submits instead of saving');
 
   // 2) 扫码入口是那一格里的 SVG 图标按钮。
   const control = env.controls.code_value;

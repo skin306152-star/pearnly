@@ -38,7 +38,12 @@ function boot({ create = async () => ({ name: 'P-1' }) } = {}) {
     escape: value => String(value ?? ''),
     money: value => String(value),
     success: message => successes.push(message),
-    call: async (method, args) => { calls.push({ method, args }); return create(method, args); },
+    // 二级页面进来先要一次**编码预览**（服务端不占号），再谈建。
+    call: async (method, args) => {
+      calls.push({ method, args });
+      if (String(method).endsWith('api_next_product_code')) return { code: 'P-000042' };
+      return create(method, args);
+    },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => true,
     selection_action: () => () => {},

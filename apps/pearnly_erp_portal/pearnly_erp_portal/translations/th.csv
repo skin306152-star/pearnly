@@ -52,6 +52,7 @@ product.action.new,เพิ่มสินค้า
 product.action.reload,โหลดใหม่
 product.action.save,บันทึก
 product.action.scan,สแกน
+product.action.submit,ยืนยัน
 product.action.toggleInactive,แสดงที่ปิดใช้งาน
 product.cell.notSet,ยังไม่ตั้ง
 product.col.avgCost,ต้นทุนเฉลี่ย
@@ -100,6 +101,7 @@ product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
 product.import.pick,เลือกไฟล์
 product.import.template,ดาวน์โหลดแบบฟอร์ม
 product.new.hint,กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้
+product.new.hintCode,เริ่มที่ {0}
 product.new.lines,รายการสินค้า
 product.notice.importSkipped,ข้าม {0} แถว รายการแรกแสดงด้านบน
 product.notice.imported,นำเข้า {0} รายการแล้ว
@@ -289,6 +291,7 @@ tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า
 trade.action.ledger,ดูบัญชีสต็อก
 trade.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
+trade.action.submit,ยืนยัน
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
 trade.address,ที่อยู่
 trade.balance,คงเหลือในตำแหน่ง
@@ -320,6 +323,7 @@ trade.newOut,จ่ายสินค้าออก
 trade.newSale,สร้างเอกสารขาย
 trade.noShift,ยังไม่เปิดกะ
 trade.note,หมายเหตุ
+trade.notice.submitted,ยืนยันแล้ว {0}
 trade.openShift,เปิดกะ
 trade.opening,ยอดยกมา
 trade.originalLine,สินค้าและตำแหน่งในบิลเดิม
@@ -360,6 +364,7 @@ trade.voidConfirmCount,ยกเลิก {0} เอกสารและย้�
 trade.voidNotice,ยกเลิก {0} รายการแล้ว
 trade.voidPaid,ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร
 trade.warehouse,คลัง
+trade.warehouseHint,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว

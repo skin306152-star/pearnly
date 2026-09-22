@@ -346,3 +346,8 @@ Created {0} product(s)	已新建 {0} 个商品	สร้างสินค้า
 There is nothing to save	没有要保存的行	ไม่มีข้อมูลที่จะบันทึก	保存する行がありません	product.notice.nothingToSave
 Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个；{1} 行没保存成功，修正后再存	สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
 Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	trade.action.fullPage
+Submit	提交	ยืนยัน	確定	trade.action.submit
+Type any warehouse name; a new warehouse is created if that name is new	仓库可以自由填写，名字没见过的会自动新建一个	พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้	倉庫名は自由入力です。新しい名前なら自動作成します	trade.warehouseHint
+Submitted {0}	已提交 {0}	ยืนยันแล้ว {0}	{0} を提出しました	trade.notice.submitted
+Submit	提交	ยืนยัน	確定	product.action.submit
+Codes start at {0}	本次从 {0} 开始发	เริ่มที่ {0}	{0} から採番します	product.new.hintCode

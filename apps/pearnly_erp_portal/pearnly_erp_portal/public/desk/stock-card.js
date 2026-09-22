@@ -34,13 +34,16 @@
 		await frappe.require("report.bundle.js");
 		const card = await fetch_card(row, dates);
 		const d = p.dialog(card.product_name || row.product, [
+			// 四个只读字段两栏，**表格作为整行控件一起交给 `field_rows`** —— 这样它落在
+			// 新的一节里、占满整宽；只把字段交给它、表格自己 concat 在后面的话，表格会
+			// 掉进"当前栏"、被挤成窄窄一条（实测）。
 			...p.field_rows([
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1, default: row.warehouse_name || row.warehouse },
 				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), read_only: 1, default: row.location || "" },
 				{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"), read_only: 1, default: p.number(card.opening.qty) },
 				{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"), read_only: 1, default: p.number(card.closing.qty) },
+				{ fieldtype: "HTML", fieldname: "movements" },
 			]),
-			{ fieldtype: "HTML", fieldname: "movements" },
 		], t("trade.close"), async (_values, dialog) => dialog.hide());
 		d.$wrapper.find(".modal-dialog").addClass("modal-xl");
 		let table;
@@ -113,6 +116,8 @@
 			if (frappe.get_route()[0] !== root) return;
 			p.breadcrumbs({ label: __("nav.stockCard"), route: url(),
 				trail: [{ label: card.product_name || product, route: "" }] });
+			// 四栏（每栏两行）把宽度用满，表格另起一节占满整宽 —— 用户 2026-09-22 口径：
+			// "后面不要留那么多"，字段别占半边、把表挤走。
 			form = p.layout(page.main, p.field_rows([
 				{ fieldtype: "Date", fieldname: "date_from", label: t("trade.from"),
 					default: dates.date_from, change: () => void reload() },
@@ -128,7 +133,8 @@
 					read_only: 1, default: p.number(card.opening.qty) },
 				{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"),
 					read_only: 1, default: p.number(card.closing.qty) },
-			]).concat([{ fieldtype: "HTML", fieldname: "movements" }]));
+				{ fieldtype: "HTML", fieldname: "movements" },
+			], 4));
 			const host = form.fields_dict.movements.$wrapper;
 			let current = card;
 			async function paint() {
