@@ -266,9 +266,14 @@ app_license = "mit"
 
 
 app_include_js = [
+    versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.js"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
 ]

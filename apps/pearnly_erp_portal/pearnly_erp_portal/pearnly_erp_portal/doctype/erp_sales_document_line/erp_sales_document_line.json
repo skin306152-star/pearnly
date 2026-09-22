@@ -13,7 +13,9 @@
   "discount",
   "discount_pct",
   "line_total",
-  "vat_applicable"
+  "vat_applicable",
+  "warehouse",
+  "location"
  ],
  "fields": [
   {
@@ -79,6 +81,18 @@
    "fieldtype": "Check",
    "label": "VAT Applies",
    "default": "1"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "options": "ERP Warehouse",
+   "label": "Warehouse"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,

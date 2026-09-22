@@ -357,7 +357,9 @@ def main():
     # 不带 name = 列表上那个"模版"按钮：按当前结存现拉一份
     ok, _ = as_user(STOCK, inventory_api.api_stock_count_template)
     blank = frappe.local.response.get("filecontent") or b""
-    balances = frappe.db.count("ERP Stock Balance", {"warehouse": warehouse})
+    balances = frappe.db.sql("""select count(*) from `tabERP Stock Balance` b
+        join `tabERP Product` p on p.name=b.product
+        where b.warehouse=%s and p.is_active=1""", (warehouse,))[0][0]
     results["template_blank_ok"] = bool(ok and blank[:2] == b"PK")
     blank_rows = len(count_workbook.parse_workbook(blank, count_workbook.header_aliases())[0])
     results["template_blank_matches_balances"] = bool(blank and blank_rows == balances)
@@ -430,7 +432,7 @@ def main():
     results["export_bytes"] = len(payload)
 
     frappe.set_user("Administrator")
-    results["site_a_counts"] = frappe.db.count("ERP Stock Count")
+    results["site_a_counts"] = frappe.db.count("ERP Stock Count", {"title": ["like", "Lab count %"]})
     frappe.destroy()
     connect(OTHER_SITE)
     results["other_site_counts"] = frappe.db.count("ERP Stock Count")

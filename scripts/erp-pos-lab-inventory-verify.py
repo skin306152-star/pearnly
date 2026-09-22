@@ -295,7 +295,7 @@ def main():
     results["export_has_row"] = any("Lab stock unit" in line for line in csv_lines)
     # 数量与金额按**实际值**写：不留固定的尾随 0（8.000 → 8）—— 用户 2026-09-22 定。
     base_row = next((line for line in csv_lines if "Lab stock unit" in line), "")
-    numbers = base_row.split(",")[5:8] if base_row else []
+    numbers = base_row.split(",")[6:9] if base_row else []
     # 只允许"整数"或"小数点后最后一位不是 0"
     results["export_numbers_trimmed"] = len(numbers) == 3 and all(
         re.fullmatch(r"-?\d+(\.\d*[1-9])?", number or "") for number in numbers)
@@ -327,6 +327,7 @@ def main():
     results["site_a_movements"] = frappe.db.count("ERP Stock Movement")
     results["site_a_balances"] = frappe.db.count("ERP Stock Balance")
 
+    warehouse_label = frappe.db.get_value("ERP Warehouse", warehouse, "warehouse_name")
     frappe.destroy()
     connect(OTHER_SITE)
     results["other_site_movements"] = frappe.db.count("ERP Stock Movement")
@@ -337,7 +338,7 @@ def main():
         "stock_unit_is_stock_unit": True,
         "stock_unit_qty": 36.0,
         "stock_unit_has_code": True,
-        "stock_unit_warehouse_name": "Main",
+        "stock_unit_warehouse_name": warehouse_label,
         "only_low_ok": True,
         "only_low_has_low": True,
         "only_low_has_out": True,

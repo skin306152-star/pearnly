@@ -11,7 +11,8 @@
   "cost_known",
   "unit_cost",
   "value",
-  "last_movement_at"
+  "last_movement_at",
+  "location"
  ],
  "fields": [
   {
@@ -63,6 +64,12 @@
    "fieldtype": "Datetime",
    "label": "Last Movement",
    "read_only": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,
@@ -89,7 +96,5 @@
  "sort_order": "DESC",
  "states": [],
  "track_changes": 1,
- "autoname": "format:BAL-{product}-{warehouse}",
- "naming_rule": "Expression",
  "allow_rename": 0
 }

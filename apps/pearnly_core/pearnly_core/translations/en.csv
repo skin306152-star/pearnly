@@ -631,6 +631,7 @@ intake.status.recognized,Recognized
 intake.status.rejected,Returned
 intake.subtitle,Review and confirm documents before sending.
 intake.title,Intake Workbench
+nav.cashier,POS
 nav.clients,Customers
 nav.company,Company Profile
 nav.companyMaster,Company Master

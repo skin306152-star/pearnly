@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-cashier",
+  "page_name": "pearnly-cashier",
+  "title": "nav.cashier",
+  "module": "Pearnly Core",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

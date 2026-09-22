@@ -53,7 +53,8 @@ def api_update_purchase(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_submit_purchase(**kwargs):
     kwargs = _clean(kwargs)
-    return service.set_status(kwargs.pop("name", None), "submitted")
+    return service.set_status(kwargs.pop("name", None), "submitted",
+                              receive_stock=kwargs.get("receive_stock"))
 
 
 @frappe.whitelist(methods=["POST"])

@@ -108,7 +108,7 @@ FEATURE = "Pearnly Feature"
 # 目前没有可挡的东西，就不在这里假装有权限 —— 等产品界面做出来再补。
 ENFORCEMENT = {
     ("cowork", "intake"): ("Cowork Intake", ["Intake Record"]),
-    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line",
+    ("erp", "purchase"): ("ERP Purchase", ["Purchase Document", "Purchase Line", "ERP Product",
                                            "ERP Supplier", "ERP Purchase Settings",
                                            "ERP Company", "ERP LINE Intake"]),
     ("erp", "products"): ("ERP Products", ["ERP Product", "ERP Product Unit",
@@ -123,12 +123,12 @@ ENFORCEMENT = {
                                          "ERP Stock Count Entry"]),
     # 客户表归销售岗位：销售要能被开单侧选中，也能建/改买方（客户名录与销售单据
     # 是同一个岗位，两个功能码在这里合成一个人看）。
-    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line",
+    ("erp", "sales"): ("ERP Sales", ["ERP Sales Document", "ERP Sales Document Line", "ERP Product",
                                      "ERP Company", "ERP LINE Intake"]),
     ("erp", "clients"): ("ERP Sales", ["ERP Customer", "ERP Company"]),
     # 空 DocType 列表 = 只建角色、暂不授权（表在后续批次落地）。岗位要先于表存在，
     # 否则团队管理里勾不到这个岗位。
-    ("erp", "cashier"): ("ERP Cashier", ["ERP POS Terminal", "ERP Shift", "ERP Sale",
+    ("erp", "cashier"): ("ERP Cashier", ["ERP POS Terminal", "ERP Shift", "ERP Sale", "ERP Product",
                                          "ERP Sale Line", "ERP Sale Payment",
                                          "ERP Customer", "ERP Company"]),
     ("dms", "id_card_ocr"): ("DMS ID Card Intake", ["DMS ID Card Intake"]),
@@ -209,6 +209,7 @@ def enforcement_of(product: str, code: str) -> tuple[str, list[str]]:
 READ_ONLY: set[tuple[str, str, str]] = {
     ("dms", "DMS ID Card Intake", "DMS ID Card Intake"),
     ("erp", "ERP Product", "ERP Stock"),
+    *{("erp", "ERP Product", role) for role in ("ERP Purchase", "ERP Sales", "ERP Cashier")},
     # 收银要能选客户开单，但客户名录归销售岗位 —— 收银在客户表上只读。
     ("erp", "ERP Customer", "ERP Cashier"),
     # ERP Company（公司主档 + 公司资料）不是买来的功能，是**租户自己的主体资料**：
@@ -262,6 +263,11 @@ def roles_payload(product: str, codes: list[str]) -> dict:
         "base_roles": BASE_ROLES,
         "admin_extra_doctypes": list(ADMIN_EXTRA_DOCTYPES.get(product, [])),
         "roles": roles,
+        # Native field permissions protect cost through generic DocType APIs too.
+        "field_permissions": ([{"doctype": "ERP Product", "role": role,
+                                "permlevel": 1, "perms": {"read": 1, "write": int(role == "ERP Admin")}}
+                               for role in ["ERP Admin", *(["ERP Stock"] if "ERP Stock" in seen_roles else [])]]
+                              if product == "erp" else []),
     }
 
 

@@ -201,7 +201,7 @@ def main():
     results["cashier_sees_own_refund"] = ok and any(
         r["sale_type"] == "refund" and r["return_against"] == first for r in mine)
     ok, owner_rows = as_user(OWNER, sales.list_sales, limit=50)
-    results["owner_sales_count"] = len(owner_rows) if ok else owner_rows
+    results["owner_sales_count"] = len([r for r in owner_rows if r["name"] in {m["name"] for m in mine}]) if ok else owner_rows
 
     # 交班：实点与应有之差。
     ok, closed = as_user(CASHIER, shifts.close_shift, shift_name, counted_cash=1500)

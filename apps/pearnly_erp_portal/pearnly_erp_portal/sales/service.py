@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import stock, warehouses
+from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company
 from pearnly_erp_portal.sales import contracts, ocr, render
 
@@ -95,7 +95,7 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
         "branch_type": branch_type,
         "branch_no": branch_no,
         "address": address,
-        "has_vat": 1 if has_vat else 0,
+        "has_vat": 1 if has_vat in (True, 1, "1", "true") else 0,
         "vat_rate": vat_rate,
         "wht_rate": wht_rate,
         "header_discount": header_discount,
@@ -106,7 +106,7 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
         "payment_status": payment_status,
         "payment_method": payment_method,
         "payment_date": payment_date,
-        "lines": [dict(line) for line in lines],
+        "lines": [positions.prepare(line) for line in lines],
     })
     doc.insert()
     frappe.db.commit()
@@ -121,7 +121,7 @@ def update_document(name, *, lines=None, **changes) -> dict:
     if lines is not None:
         doc.set("lines", [])
         for line in lines:
-            doc.append("lines", dict(line))
+            doc.append("lines", positions.prepare(line))
     for field in ("doc_date", "buyer_name", "customer", "tax_id", "party_type",
                   "branch_type", "branch_no", "address", "has_vat", "vat_rate", "wht_rate",
                   "header_discount", "note", "source_file", "image_sha256",
@@ -133,7 +133,7 @@ def update_document(name, *, lines=None, **changes) -> dict:
     return {"name": doc.name, "grand_total": str(doc.grand_total)}
 
 
-def list_documents(*, status=None, doc_kind=None, limit=50) -> list[dict]:
+def list_documents(*, status=None, doc_kind=None, limit=50, start=0) -> list[dict]:
     guard.require("sales.read")
     filters = {}
     if status:
@@ -142,7 +142,7 @@ def list_documents(*, status=None, doc_kind=None, limit=50) -> list[dict]:
         filters["doc_kind"] = doc_kind
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
                            order_by="doc_date desc, creation desc",
-                           limit_page_length=int(limit))
+                           limit_start=int(start), limit_page_length=int(limit))
 
 
 def get_document(name) -> dict:
@@ -152,7 +152,7 @@ def get_document(name) -> dict:
     row["lines"] = [{"line_no": line.line_no, "product": line.product,
                      "description": line.description, "qty": line.qty, "unit": line.unit,
                      "unit_price": line.unit_price, "discount": line.discount,
-                     "line_total": line.line_total,
+                     "line_total": line.line_total, **positions.public(line),
                      "vat_applicable": line.vat_applicable} for line in doc.lines]
     return row
 
@@ -181,7 +181,7 @@ def _post_stock(doc) -> dict:
     if doc.stock_posted_at or not contracts.should_post_stock(doc.doc_kind, doc.status):
         return {"posted": False}
     lines = [{"product": line.product, "qty": line.qty, "unit": line.unit,
-              "unit_cost": line.unit_price}
+              **positions.saved(line)}
              for line in doc.lines if line.product]
     if not lines:
         return {"posted": False}
@@ -202,6 +202,7 @@ def _post_stock(doc) -> dict:
 def issue_document(name) -> dict:
     """开出：闸 → 取号 → 过账出库。闸不过就不占号。"""
     guard.require("sales.write")
+    frappe.db.sql("select name from `tabERP Sales Document` where name=%s for update", (name,))
     doc = _get(name)
     if doc.status == contracts.ISSUED:
         frappe.throw(_(ALREADY_ISSUED))
@@ -219,6 +220,7 @@ def issue_document(name) -> dict:
 def void_document(name, reason=None) -> dict:
     """作废：把出库退回来（反向流水），号码不回收。"""
     guard.require("sales.write")
+    frappe.db.sql("select name from `tabERP Sales Document` where name=%s for update", (name,))
     doc = _get(name)
     if doc.status != contracts.ISSUED:
         frappe.throw(_(POINTLESS))
@@ -233,15 +235,8 @@ def void_document(name, reason=None) -> dict:
 def _reverse_stock(doc, reason=None) -> None:
     if not doc.stock_posted_at:
         return
-    lines = [{"product": line.product, "qty": line.qty, "unit": line.unit}
-             for line in doc.lines if line.product]
-    if lines:
-        # 作废把货退回，方向与收银退货一致（入库）。
-        stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="stock_in",
-                          lines=lines,
-                          posting_date=doc.doc_date, ref_type="ERP Sales Document",
-                          ref_id=doc.name, doc_no=doc.doc_no, reason=reason, internal=True,
-                          client_uuid=f"sales-doc-void:{doc.name}")
+    stock.reverse_movements(ref_type="ERP Sales Document", ref_id=doc.name,
+                            client_uuid=f"sales-doc-void:{doc.name}", reason=reason)
     frappe.db.set_value(DOCTYPE, doc.name, "stock_posted_at", None, update_modified=False)
 
 
@@ -259,7 +254,8 @@ def create_note(original, note_kind, *, lines=None, reason=None, doc_date=None) 
         buyer_name=source["buyer_name"], customer=source["customer"],
         lines=lines or [{"product": line["product"], "description": line["description"],
                          "qty": line["qty"], "unit": line["unit"],
-                         "unit_price": line["unit_price"]} for line in source["lines"]],
+                         "unit_price": line["unit_price"], "warehouse": line["warehouse"],
+                         "location": line["location"]} for line in source["lines"]],
         tax_id=source["tax_id"], party_type=source["party_type"],
         branch_type=source["branch_type"], branch_no=source["branch_no"],
         address=source["address"], references_document=source["name"], note=reason)
@@ -342,7 +338,8 @@ def convert_quotation(name, target_doc_kind) -> dict:
         buyer_name=source["buyer_name"], customer=source["customer"],
         lines=[{"product": line["product"], "description": line["description"],
                 "qty": line["qty"], "unit": line["unit"], "unit_price": line["unit_price"],
-                "discount": line["discount"]} for line in source["lines"]],
+                "discount": line["discount"], "warehouse": line["warehouse"],
+                "location": line["location"]} for line in source["lines"]],
         tax_id=source["tax_id"], party_type=source["party_type"],
         branch_type=source["branch_type"], branch_no=source["branch_no"],
         address=source["address"], has_vat=source["has_vat"], vat_rate=source["vat_rate"],

@@ -1,1 +1,1 @@
-frappe.pearnly.register("pearnly-stock-card", "shell.", "nav.stockCard", frappe.pearnly.notBuilt);
+frappe.pearnly.register("pearnly-stock-card", "trade.", "nav.stockCard", frappe.pearnly.stockCard);

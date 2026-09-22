@@ -15,7 +15,9 @@
   "unit_price",
   "discount",
   "vat_rate",
-  "line_total"
+  "line_total",
+  "warehouse",
+  "location"
  ],
  "fields": [
   {
@@ -95,6 +97,18 @@
    "label": "Line Amount",
    "in_list_view": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "options": "ERP Warehouse",
+   "label": "Warehouse"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,

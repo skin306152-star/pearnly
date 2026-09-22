@@ -138,7 +138,7 @@
 					{ fieldname: "title", label: t("stock.count.name") },
 					{ fieldname: "status", label: t("stock.col.status"),
 						format: (_value, row) => status_text(row) },
-					{ fieldname: "warehouse", label: t("stock.col.warehouse") },
+					{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
 					{ fieldname: "item_total", label: t("stock.count.rows") },
 					{ fieldname: "counted_total", label: t("stock.count.countedRows") },
 					{ fieldname: "difference_total", label: t("stock.count.differenceRows") },
@@ -202,8 +202,7 @@
 							t("stock.count.modeImport")].join("\n"),
 						default: t("stock.count.modeStock"),
 						change: () => toggle_import() },
-					{ fieldtype: "Link", fieldname: "warehouse", label: t("stock.col.warehouse"),
-						options: "ERP Warehouse",
+					{ fieldtype: "Data", fieldname: "warehouse", label: t("stock.col.warehouse"),
 						description: t("stock.count.warehouseHint") },
 					{ fieldtype: "Small Text", fieldname: "notes", label: t("stock.count.notes") },
 					{ fieldtype: "Button", fieldname: "pick", label: t("stock.count.importPick"),
@@ -213,7 +212,7 @@
 					{ fieldtype: "Button", fieldname: "template",
 						label: t("stock.count.template"), hidden: 1, click: () => {
 							window.location.assign(
-								`/api/method/${api}api_stock_count_template`);
+								`/api/method/${api}api_stock_count_template?warehouse=${encodeURIComponent(dialog.get_value("warehouse") || "")}`);
 						} },
 					{ fieldtype: "HTML",
 						options: `<p class="text-muted">${p.escape(t("stock.count.newHint"))}</p>` },
@@ -324,6 +323,7 @@
 			list = p.list({
 				page,
 				doctype: "ERP Stock Count Item",
+				on_open: (row) => open_entries(row),
 				// 九列还要留出行上的动作按钮，按列给宽度让渲染器自己挤（原生机制），
 				// 不给的话最后几列会被挤出去看不见。
 				compact_columns: true,
@@ -354,7 +354,7 @@
 						width: 100, min_width: 80 },
 					{ fieldname: "barcode", label: t("stock.col.barcode"),
 						width: 120, min_width: 90 },
-					{ fieldname: "warehouse", label: t("stock.col.warehouse"),
+					{ fieldname: "warehouse_name", label: t("stock.col.warehouse"),
 						width: 100, min_width: 80 },
 					{ fieldname: "location", label: t("stock.count.location"),
 						width: 80, min_width: 60,

@@ -31,6 +31,8 @@ FIELD_LABELS = (
     ("track_batch", "product.field.trackBatch"),
     ("track_expiry", "product.field.trackExpiry"),
     ("image_url", "product.field.image"),
+    ("default_warehouse", "product.field.defaultWarehouse"),
+    ("default_location", "product.field.defaultLocation"),
 )
 
 # 历史写法（去空白、转小写后比对）→ 我们的字段名。旧表格、导出件里长这样，照认。
@@ -101,7 +103,7 @@ def template_headers(label_of) -> list:
     return [label_of(key) for _field, key in FIELD_LABELS]
 
 TEXT_FIELDS = ("product_name", "code", "barcode", "qr_payload",
-               "unit", "base_unit", "image_url")
+               "unit", "base_unit", "image_url", "default_warehouse", "default_location")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")
 

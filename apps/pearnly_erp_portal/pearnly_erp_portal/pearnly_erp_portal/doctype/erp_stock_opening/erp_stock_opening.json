@@ -10,7 +10,8 @@
   "qty",
   "unit_cost",
   "posted_qty",
-  "note"
+  "note",
+  "location"
  ],
  "fields": [
   {
@@ -60,6 +61,12 @@
    "precision": "6",
    "read_only": 1,
    "description": "How much of this opening was already pushed into the stock ledger; a revision only posts the difference"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,
@@ -86,7 +93,5 @@
  "sort_order": "DESC",
  "states": [],
  "track_changes": 1,
- "autoname": "format:OPN-{product}-{warehouse}",
- "naming_rule": "Expression",
  "allow_rename": 0
 }

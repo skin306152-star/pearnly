@@ -90,6 +90,10 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     if not isinstance(lines, list) or not lines:
         frappe.throw(_(LINES_REQUIRED))
 
+    from pearnly_erp_portal.inventory import positions
+
+    lines = [positions.prepare(line) for line in lines]
+    has_vat = has_vat in (True, 1, "1", "true")
     config = settings.read_settings()
     supplier, supplier_name = _resolve_supplier(supplier, supplier_name)
     dedupe_ref = contracts.duplicate_key(supplier or supplier_name, doc_no)
@@ -132,6 +136,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
                 "item_type": "service" if doc_kind == "service" else line.get("item_type", "goods"),
                 "description": line["description"],
                 "product": line.get("product"),
+                "warehouse": line.get("warehouse"), "location": line.get("location", ""),
                 "product_ref": line.get("product_ref"),
                 "qty": line.get("qty", 1),
                 "unit": line.get("unit"),
@@ -213,11 +218,14 @@ def get_purchase(name):
     doc = _get(name)
     data = {field: doc.get(field) for field in LIST_FIELDS}
     for field in ("subtotal", "vat_amount", "wht_amount", "discount_total", "rounding",
-                  "void_reason", "voided_at", "external_ref", "notes"):
+                  "void_reason", "voided_at", "external_ref", "notes", "stock_posted_at", "has_vat"):
         data[field] = doc.get(field)
+    from pearnly_erp_portal.inventory import positions
+
     data["lines"] = [
         {"line_no": row.line_no, "item_type": row.item_type, "description": row.description,
-         "product_ref": row.product_ref, "qty": row.qty, "unit": row.unit,
+         "product_ref": row.product_ref, "product": row.product,
+         **(positions.public(row) if row.product else {}), "qty": row.qty, "unit": row.unit,
          "unit_price": row.unit_price, "discount": row.discount,
          "vat_rate": row.vat_rate, "line_total": row.line_total}
         for row in doc.get("lines") or []
@@ -252,12 +260,17 @@ def update_purchase(name, **changes):
         if not isinstance(lines, list) or not lines:
             frappe.throw(_(LINES_REQUIRED))
         doc.lines = []
+        from pearnly_erp_portal.inventory import positions
+
         for index, line in enumerate(lines, start=1):
+            line = positions.prepare(line)
             doc.append("lines", {
                 "line_no": index,
-                "item_type": line.get("item_type", "goods"),
+                "item_type": "service" if doc.doc_kind == "service" else line.get("item_type", "goods"),
                 "description": line["description"],
                 "product_ref": line.get("product_ref"),
+                "product": line.get("product"),
+                "warehouse": line.get("warehouse"), "location": line.get("location", ""),
                 "qty": line.get("qty", 1),
                 "unit": line.get("unit"),
                 "unit_price": line.get("unit_price", 0),
@@ -276,9 +289,10 @@ def update_purchase(name, **changes):
     return {"name": doc.name}
 
 
-def set_status(name, target, reason=None):
+def set_status(name, target, reason=None, receive_stock=None):
     """流转：草稿→提交、草稿/提交→作废。非法流转一律拒绝。"""
     guard.require("purchase.write")
+    frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
     doc = _get(name)
     if not contracts.can_transition(doc.status, target):
         frappe.throw(_(BAD_TRANSITION))
@@ -290,14 +304,18 @@ def set_status(name, target, reason=None):
         doc.void_reason = reason
         doc.voided_at = now()
     doc.save()
-    frappe.db.commit()
-
     if target == contracts.SUBMITTED:
-        _post_stock(doc)
+        _post_stock(doc, receive_stock=receive_stock)
+    elif target == contracts.VOID and doc.stock_posted_at:
+        from pearnly_erp_portal.inventory import stock
+
+        stock.reverse_movements(ref_type="purchase", ref_id=doc.name,
+                                client_uuid=f"purchase-void:{doc.name}", reason=reason)
+    frappe.db.commit()
     return {"name": doc.name, "status": doc.status}
 
 
-def _post_stock(doc) -> dict | None:
+def _post_stock(doc, receive_stock=None) -> dict | None:
     """确认后按设置把货物过账到库存。
 
     - 只有采购设置里打开 `auto_stock_in` 才动库存；关着就是"只记账不动货"（旧线上
@@ -305,13 +323,18 @@ def _post_stock(doc) -> dict | None:
     - 只对带商品链接、且是货物类别的行过账：服务类与没关联商品的行没有库存可言。
     - 幂等锚是单据名，所以重复确认不会重复入库。
     """
-    from pearnly_erp_portal.inventory import stock, warehouses
+    from pearnly_erp_portal.inventory import positions, stock, warehouses
 
-    if not settings.read_settings()["auto_stock_in"]:
+    enabled = settings.read_settings()["auto_stock_in"] if receive_stock is None else (
+        receive_stock in (True, 1, "1", "true"))
+    if not enabled:
         return None
+    if receive_stock in (True, 1, "1", "true") and any(
+            not row.product and (row.item_type or "goods") == "goods" for row in doc.lines):
+        frappe.throw(_("Select a product for each stock item"))
     lines = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": _line_net_cost(row)}
+         "unit_cost": _line_net_cost(row), **positions.saved(row)}
         for row in doc.get("lines") or []
         if row.get("product") and (row.item_type or "goods") == "goods"
     ]
@@ -320,7 +343,7 @@ def _post_stock(doc) -> dict | None:
     result = stock.apply_lines(
         warehouse=warehouses.ensure_default(), movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
-        doc_no=doc.doc_no, client_uuid=f"purchase-in:{doc.name}",
+        doc_no=doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
     )
     doc.db_set("stock_posted_at", now(), update_modified=False)
     return result

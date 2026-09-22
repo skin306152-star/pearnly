@@ -24,6 +24,8 @@ STOCK_FILE_ERRORS = {
 
 def _clean(kwargs):
     kwargs.pop("cmd", None)
+    kwargs.pop("internal", None)
+    kwargs.pop("allow_inactive", None)
     return kwargs
 
 
@@ -101,7 +103,7 @@ def api_receive(**kwargs):
     """入库。不带仓库时落默认仓库。"""
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
-    warehouse = kwargs.pop("warehouse", None) or warehouses.ensure_default()
+    warehouse = kwargs.pop("warehouse", None)
     return stock.apply_lines(warehouse=warehouse, movement_type="stock_in",
                              lines=kwargs.pop("lines"), **kwargs)
 
@@ -111,7 +113,7 @@ def api_issue(**kwargs):
     """出库。"""
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
-    warehouse = kwargs.pop("warehouse", None) or warehouses.ensure_default()
+    warehouse = kwargs.pop("warehouse", None)
     return stock.apply_lines(warehouse=warehouse, movement_type="stock_out",
                              lines=kwargs.pop("lines"), **kwargs)
 
@@ -120,14 +122,14 @@ def api_issue(**kwargs):
 def api_count(**kwargs):
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
-    warehouse = kwargs.pop("warehouse", None) or warehouses.ensure_default()
+    warehouse = kwargs.pop("warehouse", None)
     return stock.count_lines(warehouse=warehouse, **kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
 def api_adjust(**kwargs):
     kwargs = _clean(kwargs)
-    warehouse = kwargs.pop("warehouse", None) or warehouses.ensure_default()
+    warehouse = kwargs.pop("warehouse", None)
     return stock.apply_movement(warehouse=warehouse, movement_type="adjust", **kwargs)
 
 
@@ -155,6 +157,7 @@ EXPORT_COLUMNS = (
     ("code", "stock.col.code"),
     ("barcode", "stock.col.barcode"),
     ("warehouse_name", "stock.col.warehouse"),
+    ("location", "stock.count.location"),
     ("unit", "stock.col.unit"),
     ("qty_on_hand", "stock.col.onHand"),
     ("unit_cost", "stock.col.cost"),
@@ -241,6 +244,7 @@ COUNT_COLUMNS = (
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
+    ("location", "stock.count.location"),
     ("book_qty", "stock.count.book"),
     ("counted_qty", "stock.count.counted"),
     ("difference", "stock.count.difference"),
@@ -510,4 +514,12 @@ def api_upsert_opening(**kwargs):
 def api_rebuild_balance(**kwargs):
     """按流水重算结存。用于验证"结存确实能由流水重建"，也可用于修复。"""
     kwargs = _clean(kwargs)
-    return stock.rebuild_balance(kwargs.get("product"), kwargs.get("warehouse"))
+    return stock.rebuild_balance(kwargs.get("product"), kwargs.get("warehouse"), kwargs.get("location", ""))
+
+
+@frappe.whitelist()
+def api_stock_entry_total(**kwargs):
+    kwargs = _clean(kwargs)
+    kwargs.pop("start", None)
+    kwargs.pop("limit", None)
+    return len(documents.list_entries(**kwargs, limit=0))

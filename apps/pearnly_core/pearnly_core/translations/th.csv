@@ -633,6 +633,7 @@ intake.status.recognized,อ่านแล้ว
 intake.status.rejected,ตีกลับ
 intake.subtitle,ตรวจสอบและยืนยันเอกสารก่อนส่ง
 intake.title,โต๊ะทำงานบันทึกข้อมูล
+nav.cashier,ขายหน้าร้าน POS
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
 nav.companyMaster,ทะเบียนบริษัท

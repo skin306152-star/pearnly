@@ -12,8 +12,18 @@
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from typing import Optional
+import hashlib
 
 CENT = Decimal("0.01")
+
+
+def position_name(prefix, product, warehouse, location=""):
+    """Keep the historical unnamed-position key; named positions get a stable unique key."""
+    location = str(location or "").strip()
+    if not location:
+        return f"{prefix}-{product}-{warehouse}"
+    identity = "\0".join((product, warehouse, location))
+    return f"{prefix}-{hashlib.sha256(identity.encode()).hexdigest()}"
 
 # 流水类型（与旧线上 txn_type 对齐）。
 OPENING = "opening"

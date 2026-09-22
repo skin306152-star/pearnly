@@ -1,12 +1,11 @@
-      # -*- coding: utf-8 -*-
-"""物化结存：每（商品, 仓库）一行。
-
-命名由商品与仓库决定，所以同一个组合不可能出现两行 —— 并发下也不会。数量与加权平均
-成本都从流水滚出来，因此可以直接重建。
-"""
+"""One record per product, warehouse and free-text location."""
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.inventory.contracts import position_name
+
 
 class ERPStockBalance(Document):
-    pass
+    def autoname(self):
+        self.location = str(self.location or "").strip()
+        self.name = position_name("BAL", self.product, self.warehouse, self.location)

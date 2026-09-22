@@ -39,7 +39,7 @@ FEATURE_ROLES = {
 CAPABILITY_FEATURES = {
     "purchase.read": ("purchase",),
     "purchase.write": ("purchase",),
-    "products.view": ("products", "warehouses"),
+    "products.view": ("products", "warehouses", "purchase", "sales", "cashier"),
     "products.manage": ("products",),
     "stock.read": ("warehouses", "stockcard", "stocktake"),
     "stock.write": ("warehouses", "stocktake"),

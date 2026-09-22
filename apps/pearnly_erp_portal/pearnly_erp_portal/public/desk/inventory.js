@@ -68,6 +68,7 @@
 		list = p.list({
 			page,
 			doctype: "ERP Stock Balance",
+			on_open: row => p.stockLedger(row),
 			load: async ({ start, page_length }) => {
 				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 				const [items, total] = await Promise.all([
@@ -81,6 +82,7 @@
 				{ fieldname: "code", label: t("stock.col.code") },
 				{ fieldname: "barcode", label: t("stock.col.barcode") },
 				{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
+				{ fieldname: "location", label: t("stock.count.location") },
 				{ fieldname: "unit", label: t("stock.col.unit") },
 				{ fieldname: "qty_on_hand", label: t("stock.col.onHand"),
 					format: (value) => p.number(value) },

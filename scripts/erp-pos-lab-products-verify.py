@@ -325,6 +325,7 @@ def main():
                 "qr_payload", "unit", "base_unit", "category_id", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
                 "default_cost", "image_url", "track_batch", "track_expiry",
+                "default_warehouse", "default_location",
                 "units"}
     results["fields_missing"] = sorted(expected - ours)
     results["fields_extra"] = sorted(ours - expected)
@@ -369,7 +370,7 @@ def main():
         "import_raw_tokens_leaked": [],
         "import_auto_code": True,
         "template_download_ok": True,
-        "template_headers": 14,
+        "template_headers": 16,
         "template_keys_leaked": [],
         "template_import_ok": True,
         "template_created": 1,

@@ -106,14 +106,14 @@ def _norm(value) -> str:
 
 
 def _quantity(value, field):
-    """空 = 没填（不是 0）；填了就必须是非负数字。"""
+    """空 = 没填（不是 0）；账面可为负，实盘必须非负。"""
     if value is None or str(value).strip() == "":
         return None
     try:
         number = Decimal(str(value).replace(",", "").strip())
     except (InvalidOperation, ValueError):
         raise ValueError(f"{field}:not_a_number") from None
-    if not number.is_finite() or number < 0:
+    if not number.is_finite() or (field == "counted_qty" and number < 0):
         raise ValueError(f"{field}:invalid")
     return number
 

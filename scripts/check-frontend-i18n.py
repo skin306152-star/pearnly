@@ -45,9 +45,9 @@ USED = re.compile(r"""\b(?:t|tf)\(\s*(['"])(?P<key>[A-Za-z][\w.]*\.[\w.]+)\1""")
 
 
 def packs() -> dict:
-    """各语言包（我们现在只用 pearnly_core 的两个命名空间 + dms 的语义键）。"""
+    """Read every product translation pack that can be served to Desk."""
     out: dict = {}
-    for app in ("pearnly_core", "pearnly_dms", "pearnly_control"):
+    for app in ("pearnly_core", "pearnly_dms", "pearnly_control", "pearnly_cowork", "pearnly_erp_portal"):
         for lang in LANGS:
             path = os.path.join(ROOT, "apps", app, app, "translations", lang + ".csv")
             if not os.path.exists(path):

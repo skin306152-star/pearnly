@@ -24,7 +24,8 @@
   "doc_no",
   "reason",
   "client_uuid",
-  "created_by"
+  "created_by",
+  "location"
  ],
  "fields": [
   {
@@ -154,6 +155,12 @@
    "label": "Created By",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,

@@ -633,6 +633,7 @@ intake.status.recognized,読み取り済み
 intake.status.rejected,差戻し
 intake.subtitle,内容を確認して確定後、送信してください。
 intake.title,取り込みワークベンチ
+nav.cashier,POS レジ
 nav.clients,顧客管理
 nav.company,会社情報
 nav.companyMaster,会社マスタ

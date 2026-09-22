@@ -633,6 +633,7 @@ intake.status.recognized,已识别
 intake.status.rejected,已退回
 intake.subtitle,核对并确认单据后即可推送。
 intake.title,录入工作台
+nav.cashier,收银 POS
 nav.clients,客户管理
 nav.company,公司资料
 nav.companyMaster,公司主档

@@ -26,7 +26,9 @@
   "column_break_stock",
   "is_active",
   "image_url",
-  "units"
+  "units",
+  "default_warehouse",
+  "default_location"
  ],
  "fields": [
   {
@@ -102,7 +104,8 @@
    "fieldtype": "Check",
    "label": "Cost Is Set",
    "default": "0",
-   "description": "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and \"never set\". The counter needs to tell them apart (same reason as price_set)."
+   "description": "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and \"never set\". The counter needs to tell them apart (same reason as price_set).",
+   "permlevel": 1
   },
   {
    "default": "1",
@@ -136,7 +139,8 @@
   {
    "fieldname": "default_cost",
    "fieldtype": "Currency",
-   "label": "Reference Cost"
+   "label": "Reference Cost",
+   "permlevel": 1
   },
   {
    "fieldname": "column_break_stock",
@@ -161,6 +165,16 @@
    "fieldtype": "Table",
    "label": "Selling Units",
    "options": "ERP Product Unit"
+  },
+  {
+   "fieldname": "default_warehouse",
+   "fieldtype": "Data",
+   "label": "Default Warehouse"
+  },
+  {
+   "fieldname": "default_location",
+   "fieldtype": "Data",
+   "label": "Default Location"
   }
  ],
  "index_web_pages_for_search": 0,
@@ -182,10 +196,19 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "role": "System Manager",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "track_changes": 1
+ "track_changes": 1,
+ "title_field": "product_name",
+ "search_fields": "product_name,code,barcode,qr_payload",
+ "show_title_field_in_link": 1
 }

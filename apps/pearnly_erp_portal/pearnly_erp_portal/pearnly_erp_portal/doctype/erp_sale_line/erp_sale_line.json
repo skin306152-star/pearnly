@@ -10,7 +10,10 @@
   "unit",
   "unit_price",
   "discount",
-  "line_total"
+  "line_total",
+  "warehouse",
+  "location",
+  "original_line"
  ],
  "fields": [
   {
@@ -59,6 +62,24 @@
    "label": "Line Total",
    "read_only": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "options": "ERP Warehouse",
+   "label": "Warehouse"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
+  },
+  {
+   "fieldname": "original_line",
+   "fieldtype": "Data",
+   "label": "Original Line",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,

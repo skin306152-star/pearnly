@@ -10,6 +10,8 @@ LINE unbound,LINE unbound
 Now sending {0} documents,Now sending {0} documents
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
+Select a product for each stock item,Select a product for each stock item
+Select the original sale line,Select the original sale line
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 That code is not valid,That code is not valid
 This account cannot send documents,This account cannot send documents
@@ -19,7 +21,22 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+adjust,adjust
+branch,branch
+card,card
+cash,cash
+company,company
+completed,completed
+count,count
+draft,draft
+goods,goods
+hq,hq
+issued,issued
 nav.stockCount,Stock count
+opening,opening
+paid,paid
+pending_approval,pending_approval
+person,person
 product.action.bulkDisable,Disable {0} selected
 product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
@@ -48,8 +65,11 @@ product.field.category,Category
 product.field.code,Code
 product.field.codeAuto,Generated automatically
 product.field.cost,Reference cost
+product.field.defaultLocation,Default Location
+product.field.defaultWarehouse,Default Warehouse
 product.field.image,Image URL
 product.field.importFile,Excel file
+product.field.locationHint,Used for new documents only. Each location keeps its own stock.
 product.field.minStock,Low stock alert
 product.field.name,Product name
 product.field.nameEn,English name
@@ -87,8 +107,16 @@ product.scan.taken,This code is already taken
 product.scan.takenBody,Already used by {0} (code {1})
 product.scan.title,Scan a code
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
+promptpay,promptpay
 purchase,purchase
+purchase_in,purchase_in
+quotation,quotation
+receipt,receipt
+refund,refund
+sale,sale
+sale_out,sale_out
 sales,sales
+service,service
 stock.action.count,Count
 stock.action.export,Export
 stock.action.onlyLow,Only low or out of stock
@@ -207,3 +235,74 @@ stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock
 stock.status.out,Out of stock
+stock_in,stock_in
+stock_out,stock_out
+submitted,submitted
+tax_invoice,tax_invoice
+tax_invoice_receipt,tax_invoice_receipt
+tax_invoice_simple,tax_invoice_simple
+trade.address,Address
+trade.balance,Position Balance
+trade.branchNo,Branch Number
+trade.branchType,Branch Type
+trade.buyer,Customer
+trade.buyerType,Customer Type
+trade.checkout,New Sale
+trade.close,Close
+trade.closeShift,Close Shift
+trade.closing,Closing Quantity
+trade.cost,Unit Cost
+trade.countedCash,Counted Cash
+trade.date,Date
+trade.description,Description
+trade.discount,Discount
+trade.docNo,Document Number
+trade.float,Opening Cash
+trade.from,From Date
+trade.hasVat,Add VAT
+trade.in,Received
+trade.issue,Issue Document
+trade.kind,Document Type
+trade.lines,Items
+trade.location,Location
+trade.method,Payment Method
+trade.newIn,New Stock Receipt
+trade.newOut,New Stock Issue
+trade.newSale,New Sales Document
+trade.noShift,No Open Shift
+trade.note,Note
+trade.openShift,Open Shift
+trade.opening,Opening Quantity
+trade.originalLine,Original Item and Location
+trade.out,Issued
+trade.paid,Amount Received
+trade.paidNotice,Receipt {0} · Change {1}
+trade.pay,Complete Payment
+trade.paymentDate,Payment Date
+trade.paymentState,Payment Status
+trade.price,Unit Price
+trade.product,Product
+trade.qty,Quantity
+trade.reference,Reference
+trade.refund,Refund
+trade.refundAmount,Refund Amount
+trade.save,Save Draft
+trade.shiftOpen,Shift {0} · Expected cash {1}
+trade.status,Status
+trade.stockPending,Not Posted
+trade.stockPosted,Posted to Stock
+trade.stockState,Stock Posting
+trade.submit,Submit
+trade.submitReceive,Submit and Receive Stock
+trade.taxId,Tax ID
+trade.terminal,Terminal
+trade.to,To Date
+trade.total,Total Due
+trade.unit,Unit
+trade.vat,VAT Rate
+trade.void,Void
+trade.voidConfirm,Void this document and reverse its stock movements?
+trade.warehouse,Warehouse
+transfer,transfer
+unpaid,unpaid
+void,void

@@ -1254,4 +1254,104 @@ pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดา�
 pearnly_erp_portal	Freeze column	冻结列	ตรึงคอลัมน์	列を固定	stock.board.freezeColumn
 pearnly_erp_portal	Unfreeze column	取消冻结列	ยกเลิกการตรึงคอลัมน์	列の固定を解除	stock.board.unfreezeColumn
 pearnly_erp_portal	Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
-pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	
+pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード
+pearnly_erp_portal	Items	商品明细	รายการสินค้า	商品明細	trade.lines
+pearnly_erp_portal	Product	商品	สินค้า	商品	trade.product
+pearnly_erp_portal	Warehouse	仓库	คลัง	倉庫	trade.warehouse
+pearnly_erp_portal	Location	仓位	ตำแหน่ง	保管場所	trade.location
+pearnly_erp_portal	Quantity	数量	จำนวน	数量	trade.qty
+pearnly_erp_portal	Unit Cost	单位成本	ต้นทุนต่อหน่วย	単位原価	trade.cost
+pearnly_erp_portal	Unit Price	单价	ราคาต่อหน่วย	単価	trade.price
+pearnly_erp_portal	Description	名称或说明	ชื่อหรือรายละเอียด	名称または説明	trade.description
+pearnly_erp_portal	Unit	单位	หน่วย	単位	trade.unit
+pearnly_erp_portal	Discount	折扣金额	ส่วนลด	割引額	trade.discount
+pearnly_erp_portal	VAT Rate	增值税率	อัตรา VAT	付加価値税率	trade.vat
+pearnly_erp_portal	Note	备注	หมายเหตุ	備考	trade.note
+pearnly_erp_portal	Document Type	单据类型	ประเภทเอกสาร	伝票種類	trade.kind
+pearnly_erp_portal	Add VAT	计算增值税	คำนวณ VAT	付加価値税を計算	trade.hasVat
+pearnly_erp_portal	Stock Posting	库存过账	การบันทึกสต็อก	在庫計上	trade.stockState
+pearnly_erp_portal	Posted to Stock	已记入库存	บันทึกสต็อกแล้ว	在庫計上済み	trade.stockPosted
+pearnly_erp_portal	Not Posted	未记入库存	ยังไม่บันทึกสต็อก	未計上	trade.stockPending
+pearnly_erp_portal	Submit and Receive Stock	提交并入库	ยืนยันและรับเข้าสต็อก	確定して入庫	trade.submitReceive
+pearnly_erp_portal	Submit	提交过账	ยืนยัน	確定	trade.submit
+pearnly_erp_portal	Void	作废	ยกเลิก	取消	trade.void
+pearnly_erp_portal	Void this document and reverse its stock movements?	作废这张单据并冲销对应库存变动？	ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?	この伝票を取り消して在庫移動を戻しますか？	trade.voidConfirm
+pearnly_erp_portal	Save Draft	保存草稿	บันทึกฉบับร่าง	下書きを保存	trade.save
+pearnly_erp_portal	Close	关闭	ปิด	閉じる	trade.close
+pearnly_erp_portal	Date	日期	วันที่	日付	trade.date
+pearnly_erp_portal	Document Number	单据编号	เลขที่เอกสาร	伝票番号	trade.docNo
+pearnly_erp_portal	Reference	关联单据	เอกสารอ้างอิง	参照伝票	trade.reference
+pearnly_erp_portal	Status	状态	สถานะ	状態	trade.status
+pearnly_erp_portal	New Stock Receipt	新建入库单	รับสินค้าเข้า	入庫伝票を作成	trade.newIn
+pearnly_erp_portal	New Stock Issue	新建出库单	จ่ายสินค้าออก	出庫伝票を作成	trade.newOut
+pearnly_erp_portal	Opening Quantity	期初数量	ยอดยกมา	期首数量	trade.opening
+pearnly_erp_portal	Closing Quantity	期末数量	ยอดคงเหลือ	期末数量	trade.closing
+pearnly_erp_portal	Received	入库数量	รับเข้า	入庫数量	trade.in
+pearnly_erp_portal	Issued	出库数量	จ่ายออก	出庫数量	trade.out
+pearnly_erp_portal	From Date	开始日期	ตั้งแต่วันที่	開始日	trade.from
+pearnly_erp_portal	To Date	结束日期	ถึงวันที่	終了日	trade.to
+pearnly_erp_portal	Position Balance	该仓位结存	คงเหลือในตำแหน่ง	保管場所の残高	trade.balance
+pearnly_erp_portal	Customer	客户名称	ชื่อลูกค้า	顧客名	trade.buyer
+pearnly_erp_portal	Customer Type	客户类型	ประเภทลูกค้า	顧客種類	trade.buyerType
+pearnly_erp_portal	Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	trade.taxId
+pearnly_erp_portal	Address	地址	ที่อยู่	住所	trade.address
+pearnly_erp_portal	Branch Type	分店类型	ประเภทสาขา	支店種類	trade.branchType
+pearnly_erp_portal	Branch Number	分店编号	เลขที่สาขา	支店番号	trade.branchNo
+pearnly_erp_portal	Payment Status	付款状态	สถานะชำระเงิน	支払状態	trade.paymentState
+pearnly_erp_portal	Payment Method	付款方式	วิธีชำระเงิน	支払方法	trade.method
+pearnly_erp_portal	Payment Date	付款日期	วันที่ชำระเงิน	支払日	trade.paymentDate
+pearnly_erp_portal	Issue Document	开出单据	ออกเอกสาร	伝票発行	trade.issue
+pearnly_erp_portal	New Sales Document	新建销售单	สร้างเอกสารขาย	販売伝票を作成	trade.newSale
+pearnly_erp_portal	Total Due	应收金额	ยอดชำระ	請求額	trade.total
+pearnly_erp_portal	Shift {0} · Expected cash {1}	班次 {0} · 应有现金 {1}	กะ {0} · เงินสดที่ควรมี {1}	シフト {0} · 現金予定額 {1}	trade.shiftOpen
+pearnly_erp_portal	No Open Shift	尚未开班	ยังไม่เปิดกะ	未開店	trade.noShift
+pearnly_erp_portal	New Sale	收银开单	ขายสินค้า	会計	trade.checkout
+pearnly_erp_portal	Open Shift	开班	เปิดกะ	シフト開始	trade.openShift
+pearnly_erp_portal	Terminal	收银台	จุดขาย	レジ	trade.terminal
+pearnly_erp_portal	Opening Cash	备用现金	เงินสดเริ่มต้น	釣銭準備金	trade.float
+pearnly_erp_portal	Amount Received	实收金额	รับชำระ	受取額	trade.paid
+pearnly_erp_portal	Complete Payment	收款完成	รับชำระเงิน	支払完了	trade.pay
+pearnly_erp_portal	Receipt {0} · Change {1}	小票 {0} · 找零 {1}	ใบเสร็จ {0} · เงินทอน {1}	レシート {0} · お釣り {1}	trade.paidNotice
+pearnly_erp_portal	Refund	退货退款	คืนสินค้า	返品・返金	trade.refund
+pearnly_erp_portal	Original Item and Location	原单商品与仓位	สินค้าและตำแหน่งในบิลเดิม	元伝票の商品と保管場所	trade.originalLine
+pearnly_erp_portal	Refund Amount	退款金额	ยอดคืนเงิน	返金額	trade.refundAmount
+pearnly_erp_portal	Close Shift	交班	ปิดกะ	シフト終了	trade.closeShift
+pearnly_erp_portal	Counted Cash	实点现金	เงินสดที่นับได้	実際の現金	trade.countedCash
+pearnly_erp_portal	Default Warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	product.field.defaultWarehouse
+pearnly_erp_portal	Default Location	默认仓位	ตำแหน่งเริ่มต้น	既定の保管場所	product.field.defaultLocation
+pearnly_erp_portal	Used for new documents only. Each location keeps its own stock.	只用于新单据的默认填写，各仓位库存独立计算。	ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก	新しい伝票の初期値です。各保管場所の在庫は個別に管理します。	product.field.locationHint
+pearnly_core	POS	收银 POS	ขายหน้าร้าน POS	POS レジ	nav.cashier
+pearnly_erp_portal	Select the original sale line	请选择原单中的商品行	เลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
+pearnly_erp_portal	Select a product for each stock item	请为每条货物明细选择商品	เลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
+pearnly_erp_portal	draft	草稿	ฉบับร่าง	下書き
+pearnly_erp_portal	submitted	已提交	ยืนยันแล้ว	確定済み
+pearnly_erp_portal	void	已作废	ยกเลิกแล้ว	取消済み
+pearnly_erp_portal	issued	已开出	ออกเอกสารแล้ว	発行済み
+pearnly_erp_portal	completed	已完成	เสร็จสิ้น	完了
+pearnly_erp_portal	pending_approval	待审批	รออนุมัติ	承認待ち
+pearnly_erp_portal	goods	货物	สินค้า	物品
+pearnly_erp_portal	service	服务	บริการ	サービス
+pearnly_erp_portal	quotation	报价单	ใบเสนอราคา	見積書
+pearnly_erp_portal	tax_invoice	完整税务发票	ใบกำกับภาษีเต็มรูป	税務請求書
+pearnly_erp_portal	tax_invoice_simple	简易税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書
+pearnly_erp_portal	tax_invoice_receipt	税务发票兼收据	ใบกำกับภาษีและใบเสร็จ	税務請求書兼領収書
+pearnly_erp_portal	receipt	收据	ใบเสร็จ	領収書
+pearnly_erp_portal	person	个人	บุคคล	個人
+pearnly_erp_portal	company	公司	บริษัท	会社
+pearnly_erp_portal	hq	总店	สำนักงานใหญ่	本店
+pearnly_erp_portal	branch	分店	สาขา	支店
+pearnly_erp_portal	unpaid	未付款	ยังไม่ชำระ	未払い
+pearnly_erp_portal	paid	已付款	ชำระแล้ว	支払済み
+pearnly_erp_portal	cash	现金	เงินสด	現金
+pearnly_erp_portal	card	银行卡	บัตร	カード
+pearnly_erp_portal	promptpay	PromptPay	พร้อมเพย์	PromptPay
+pearnly_erp_portal	transfer	转账	โอนเงิน	振込
+pearnly_erp_portal	sale	销售	ขาย	販売
+pearnly_erp_portal	refund	退货	คืนสินค้า	返品
+pearnly_erp_portal	opening	期初	ยอดยกมา	期首
+pearnly_erp_portal	purchase_in	采购入库	รับจากการซื้อ	仕入入庫
+pearnly_erp_portal	sale_out	销售出库	จ่ายจากการขาย	販売出庫
+pearnly_erp_portal	stock_in	入库	รับเข้า	入庫
+pearnly_erp_portal	stock_out	出库	จ่ายออก	出庫
+pearnly_erp_portal	adjust	调整	ปรับปรุง	調整
+pearnly_erp_portal	count	盘点	ตรวจนับ	棚卸

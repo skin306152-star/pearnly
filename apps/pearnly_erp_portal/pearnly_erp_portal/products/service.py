@@ -46,7 +46,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry",
+    "track_batch", "track_expiry", "default_warehouse", "default_location",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
@@ -55,9 +55,14 @@ LOOKUP_FIELDS = ("code", "barcode", "qr_payload")
 
 def _mask(rows):
     visible = rules.cost_visible(guard.current_roles())
+    def masked(row):
+        # Native field permissions omit restricted fields; keep the product API's null contract.
+        data = {field: None for field in contracts.COST_FIELDS}
+        data.update(row)
+        return contracts.mask_costs(data, visible)
     if isinstance(rows, dict):
-        return contracts.mask_costs(rows, visible)
-    return [contracts.mask_costs(dict(row), visible) for row in rows]
+        return masked(rows)
+    return [masked(row) for row in rows]
 
 
 def _optional(value):
@@ -154,7 +159,8 @@ def _allocate_code() -> str:
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
-                   category_id=None, track_batch=None, track_expiry=None):
+                   category_id=None, track_batch=None, track_expiry=None,
+                   default_warehouse=None, default_location=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -183,6 +189,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "track_batch": _flag(track_batch),
         "track_expiry": _flag(track_expiry),
         "is_active": 1,
+        "default_warehouse": _text(default_warehouse, 140),
+        "default_location": _text(default_location, 140),
     })
     doc.insert()
     _attach_image(doc.image_url, doc.name)
@@ -276,6 +284,9 @@ def update_product(name: str, **changes):
                if "barcode" in changes else doc.barcode)
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
+    for field in ("default_warehouse", "default_location"):
+        if field in changes:
+            doc.set(field, _text(changes[field], 140))
     old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):

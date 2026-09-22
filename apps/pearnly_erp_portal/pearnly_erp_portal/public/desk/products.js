@@ -135,6 +135,10 @@
 				{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
 					description: t("product.field.baseUnitHint"),
 					default: value("base_unit") },
+				{ fieldtype: "Data", fieldname: "default_warehouse", label: t("product.field.defaultWarehouse"),
+					default: value("default_warehouse") },
+				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
+					description: t("product.field.locationHint"), default: value("default_location") },
 				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
 					default: value("category_id") },
 				// 空售价 = "从未设过"，与 ฿0 是两回事（服务端用 *_set 记这个区别）。

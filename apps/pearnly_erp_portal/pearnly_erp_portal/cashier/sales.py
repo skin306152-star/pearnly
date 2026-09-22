@@ -16,6 +16,7 @@ from frappe.utils import now, nowdate
 
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals
+from pearnly_erp_portal.inventory import positions, stock, warehouses
 
 DT = "ERP Sale"
 PRODUCT = "ERP Product"
@@ -73,7 +74,8 @@ def _stock_lines(lines) -> list[dict]:
         if not product:
             frappe.throw(_("Product not found"), frappe.DoesNotExistError)
         out.append({"product": product["name"], "qty": line["qty"],
-                    "unit": line.get("unit") or product["unit"]})
+                    "unit": line.get("unit") or product["unit"],
+                    "warehouse": line.get("warehouse"), "location": line.get("location", "")})
     return out
 
 
@@ -96,15 +98,13 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
 
     shift_doc = _resolve_shift(shift, terminal)
     terminal_doc = frappe.get_doc("ERP POS Terminal", terminals.resolve(terminal or shift_doc.terminal))
-    warehouse_id = warehouse or terminal_doc.warehouse
-    if not warehouse_id:
-        from pearnly_erp_portal.inventory import warehouses
-
-        warehouse_id = warehouses.ensure_default()
+    # Explicit terminal location wins; otherwise each product supplies its own default.
+    lines = [positions.prepare(line, warehouse or terminal_doc.warehouse) for line in lines]
+    warehouse_id = warehouses.resolve(warehouse or terminal_doc.warehouse)
 
     try:
         totals = contracts.sale_totals(lines, discount_total=discount_total,
-                                       has_vat=bool(has_vat), vat_rate=vat_rate)
+                                       has_vat=has_vat in (True, 1, "1", "true"), vat_rate=vat_rate)
         normalized, paid_total, change = contracts.settle(payments, totals["grand_total"])
     except contracts.SettlementError as exc:
         frappe.throw(f"{_(INVALID)}: {exc.detail}")
@@ -129,6 +129,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
         "lines": [
             {"product": line.get("product"), "description": line.get("description"),
              "qty": line["qty"], "unit": line.get("unit"),
+             "warehouse": line.get("warehouse"), "location": line.get("location", ""),
              "unit_price": line["unit_price"], "discount": line.get("discount", 0),
              "line_total": contracts.line_total(line["qty"], line["unit_price"],
                                                 line.get("discount", 0))}
@@ -148,7 +149,8 @@ def _move_stock(doc, *, direction: str) -> dict | None:
     """动库存。销售出库、退货入库；幂等锚是单据名，重复调用不会扣两次。"""
     from pearnly_erp_portal.inventory import stock
 
-    lines = _stock_lines([{"product": row.product, "qty": row.qty, "unit": row.unit}
+    lines = _stock_lines([{"product": row.product, "qty": row.qty, "unit": row.unit,
+                          **positions.saved(row, doc.warehouse)}
                           for row in doc.get("lines") or []])
     if not lines:
         return None
@@ -165,7 +167,7 @@ def _move_stock(doc, *, direction: str) -> dict | None:
 
 
 def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
-               status=None, q=None, limit=50) -> list[dict]:
+               status=None, q=None, limit=50, start=0) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
     guard.require("cashier.read")
     filters: dict = {}
@@ -185,7 +187,7 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
     if q:
         or_filters = [["receipt_no", "like", f"%{q}%"], ["name", "like", f"%{q}%"]]
     return frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
-                           order_by="sold_at desc", limit_page_length=int(limit))
+                           order_by="sold_at desc", limit_start=int(start), limit_page_length=int(limit))
 
 
 def get_sale(name) -> dict:
@@ -196,7 +198,8 @@ def get_sale(name) -> dict:
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     data = {field: doc.get(field) for field in LIST_FIELDS}
     data["lines"] = [
-        {"product": row.product, "description": row.description, "qty": row.qty,
+        {"name": row.name, "product": row.product, "description": row.description, "qty": row.qty,
+         "original_line": row.original_line, **positions.public(row, doc.warehouse),
          "unit": row.unit, "unit_price": row.unit_price, "discount": row.discount,
          "line_total": row.line_total}
         for row in doc.get("lines") or []]
@@ -212,7 +215,15 @@ def get_sale(name) -> dict:
 def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) -> dict:
     """退货：按原单退，数量不得超过已售；库存按原样加回。"""
     guard.require("cashier.write")
+    frappe.db.sql("select name from `tabERP Sale` where name=%s for update", (name,))
+    if client_uuid:
+        existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
+        if existing:
+            return {"name": existing, "deduped": True}
     original = _get(name)
+    if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
+            and original.cashier != frappe.session.user):
+        frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     if original.status != "completed":
         frappe.throw(_(ALREADY_VOID))
     if original.sale_type != contracts.SALE:
@@ -220,26 +231,50 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
 
     already = frappe.get_all(DT, filters={"return_against": original.name, "status": "completed"},
                              pluck="name")
-    refunded: dict = {}
+    remaining = {row.name: contracts.d(row.qty) for row in original.lines}
+    # Pre-upgrade refunds had no source-line key. Allocate those to matching positions only.
     for refund_name in already:
-        for row in frappe.get_all("ERP Sale Line", filters={"parent": refund_name},
-                                  fields=["product", "qty"], limit_page_length=0):
-            refunded[row["product"]] = refunded.get(row["product"], 0) + float(row["qty"])
+        rows = frappe.get_all("ERP Sale Line", filters={"parent": refund_name},
+                              fields=["original_line", "product", "warehouse", "location", "qty", "unit"],
+                              limit_page_length=0)
+        for row in rows:
+            quantity = contracts.d(row.qty)
+            for source in original.lines:
+                if row.original_line:
+                    matches = source.name == row.original_line
+                else:
+                    matches = (source.product == row.product and source.unit == row.unit
+                               and positions.saved(source, original.warehouse)
+                               == positions.saved(row, original.warehouse))
+                if matches:
+                    used = min(remaining[source.name], quantity)
+                    remaining[source.name] -= used
+                    quantity -= used
+                if quantity <= 0:
+                    break
 
-    if lines:
-        wanted = [{"product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
-                   "unit_price": line.get("unit_price"), "description": line.get("description"),
-                   "discount": line.get("discount", 0)} for line in lines]
-    else:
-        wanted = [{"product": row.product, "qty": row.qty, "unit": row.unit,
-                   "unit_price": row.unit_price, "description": row.description,
-                   "discount": row.discount} for row in original.lines]
-
-    sold = {row.product: float(row.qty) for row in original.lines if row.product}
-    for line in wanted:
-        if line["product"] and float(line["qty"]) > sold.get(line["product"], 0) - refunded.get(
-                line["product"], 0):
+    requested = lines or [{"original_line": row.name, "qty": remaining[row.name]}
+                          for row in original.lines if remaining[row.name] > 0]
+    wanted = []
+    for line in requested:
+        candidates = [row for row in original.lines if (
+            row.name == line.get("original_line") if line.get("original_line") else
+            row.product == line.get("product")
+            and ("location" not in line or (row.location or "") == line["location"])
+            and (not line.get("warehouse") or (row.warehouse or original.warehouse) == line["warehouse"]))]
+        if len(candidates) != 1:
+            frappe.throw(_("Select the original sale line"))
+        source = candidates[0]
+        quantity = contracts.d(line.get("qty"))
+        if quantity <= 0 or quantity > remaining[source.name]:
             frappe.throw(_(REFUND_TOO_MUCH))
+        remaining[source.name] -= quantity
+        wanted.append({"product": source.product, "qty": quantity, "unit": source.unit,
+                       "unit_price": source.unit_price, "description": source.description,
+                       "discount": contracts.d(source.discount) * quantity / contracts.d(source.qty),
+                       "original_line": source.name, **positions.saved(source, original.warehouse)})
+    if not wanted:
+        frappe.throw(_(REFUND_TOO_MUCH))
 
     try:
         totals = contracts.sale_totals(wanted, has_vat=False, vat_rate=0)
@@ -256,6 +291,8 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         "client_uuid": client_uuid, "note": reason,
         "lines": [{"product": line["product"], "description": line.get("description"),
                    "qty": line["qty"], "unit": line.get("unit"),
+                   "original_line": line["original_line"],
+                   "warehouse": line["warehouse"], "location": line["location"],
                    "unit_price": line["unit_price"], "discount": line.get("discount", 0),
                    "line_total": contracts.line_total(line["qty"], line["unit_price"],
                                                       line.get("discount", 0))}
@@ -273,12 +310,17 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
 def void_sale(name, *, reason=None) -> dict:
     """作废：把库存还回去，单据留痕。已退过的单不允许作废。"""
     guard.require("cashier.write")
+    frappe.db.sql("select name from `tabERP Sale` where name=%s for update", (name,))
     doc = _get(name)
+    if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
+            and doc.cashier != frappe.session.user):
+        frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     if doc.status != "completed":
         frappe.throw(_(ALREADY_VOID))
     if frappe.db.exists(DT, {"return_against": doc.name, "status": "completed"}):
         frappe.throw(_("Void the refunds first"))
-    _move_stock(doc, direction="in")
+    stock.reverse_movements(ref_type="sale" if doc.sale_type == contracts.SALE else "refund",
+                            ref_id=doc.name, client_uuid=f"sale-void:{doc.name}", reason=reason)
     doc.status = "void"
     doc.void_reason = reason
     doc.save(ignore_permissions=True)

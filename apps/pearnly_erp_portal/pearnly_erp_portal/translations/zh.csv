@@ -10,6 +10,8 @@ LINE unbound,LINE 已解绑
 Now sending {0} documents,现在发送{0}单据
 Only purchase documents can be sent in for now,目前只收采购单据
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
+Select a product for each stock item,请为每条货物明细选择商品
+Select the original sale line,请选择原单中的商品行
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
 That code is not valid,验证码不正确
 This account cannot send documents,这个账号不能传单据
@@ -19,7 +21,22 @@ This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+adjust,调整
+branch,分店
+card,银行卡
+cash,现金
+company,公司
+completed,已完成
+count,盘点
+draft,草稿
+goods,货物
+hq,总店
+issued,已开出
 nav.stockCount,盘点
+opening,期初
+paid,已付款
+pending_approval,待审批
+person,个人
 product.action.bulkDisable,停用选中的 {0} 个
 product.action.bulkEnable,启用选中的 {0} 个
 product.action.disable,启用 / 停用
@@ -48,8 +65,11 @@ product.field.category,分类
 product.field.code,编码
 product.field.codeAuto,自动生成
 product.field.cost,参考成本
+product.field.defaultLocation,默认仓位
+product.field.defaultWarehouse,默认仓库
 product.field.image,图片地址
 product.field.importFile,Excel 文件
+product.field.locationHint,只用于新单据的默认填写，各仓位库存独立计算。
 product.field.minStock,低库存提醒
 product.field.name,商品名称
 product.field.nameEn,英文名
@@ -87,8 +107,16 @@ product.scan.taken,这个码已经被占用
 product.scan.takenBody,已经是「{0}」（编码 {1}）
 product.scan.title,扫码
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
+promptpay,PromptPay
 purchase,采购
+purchase_in,采购入库
+quotation,报价单
+receipt,收据
+refund,退货
+sale,销售
+sale_out,销售出库
 sales,销售
+service,服务
 stock.action.count,盘点
 stock.action.export,导出
 stock.action.onlyLow,只看低库存或缺货
@@ -207,3 +235,74 @@ stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常
 stock.status.out,缺货
+stock_in,入库
+stock_out,出库
+submitted,已提交
+tax_invoice,完整税务发票
+tax_invoice_receipt,税务发票兼收据
+tax_invoice_simple,简易税务发票
+trade.address,地址
+trade.balance,该仓位结存
+trade.branchNo,分店编号
+trade.branchType,分店类型
+trade.buyer,客户名称
+trade.buyerType,客户类型
+trade.checkout,收银开单
+trade.close,关闭
+trade.closeShift,交班
+trade.closing,期末数量
+trade.cost,单位成本
+trade.countedCash,实点现金
+trade.date,日期
+trade.description,名称或说明
+trade.discount,折扣金额
+trade.docNo,单据编号
+trade.float,备用现金
+trade.from,开始日期
+trade.hasVat,计算增值税
+trade.in,入库数量
+trade.issue,开出单据
+trade.kind,单据类型
+trade.lines,商品明细
+trade.location,仓位
+trade.method,付款方式
+trade.newIn,新建入库单
+trade.newOut,新建出库单
+trade.newSale,新建销售单
+trade.noShift,尚未开班
+trade.note,备注
+trade.openShift,开班
+trade.opening,期初数量
+trade.originalLine,原单商品与仓位
+trade.out,出库数量
+trade.paid,实收金额
+trade.paidNotice,小票 {0} · 找零 {1}
+trade.pay,收款完成
+trade.paymentDate,付款日期
+trade.paymentState,付款状态
+trade.price,单价
+trade.product,商品
+trade.qty,数量
+trade.reference,关联单据
+trade.refund,退货退款
+trade.refundAmount,退款金额
+trade.save,保存草稿
+trade.shiftOpen,班次 {0} · 应有现金 {1}
+trade.status,状态
+trade.stockPending,未记入库存
+trade.stockPosted,已记入库存
+trade.stockState,库存过账
+trade.submit,提交过账
+trade.submitReceive,提交并入库
+trade.taxId,税号
+trade.terminal,收银台
+trade.to,结束日期
+trade.total,应收金额
+trade.unit,单位
+trade.vat,增值税率
+trade.void,作废
+trade.voidConfirm,作废这张单据并冲销对应库存变动？
+trade.warehouse,仓库
+transfer,转账
+unpaid,未付款
+void,已作废
