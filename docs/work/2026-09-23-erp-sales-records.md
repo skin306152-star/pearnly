@@ -320,6 +320,28 @@
 
 **行为差异（有意）**：盘点过账现在走和出入库同一道门，所以**停用商品不能过账**（原先 `allow_inactive=True` 放行过）；流水类型由 `count` 变为 `stock_in/stock_out`，收发存里按"入库/出库"显示（旧线上盘点差异是 in/out 单据，同形）。这两点如需保留旧行为再定。
 
+### F8：「容器里看不到盘点」的根因（2026-09-23，已修实验室环境）
+
+用户问"你们的容器怎么都没盘点功能，代码没对齐吗"。核对结论：**代码是对齐的，是实验室站点少了"买到盘点"这一步。**
+
+| 检查项 | 事实 |
+| --- | --- |
+| 菜单声明 | `pearnly_erp_portal/hooks.py` 的 `pearnly_navigation` 里有 `('nav.stockCount', 'pearnly-stock-count', 'boxes', 'stocktake')`，且 `available` 含它 |
+| 页面 | `pearnly_core/.../page/pearnly_stock_count/`（`Page` 记录 `pearnly-stock-count` 已在库里） |
+| 服务与验收 | `inventory/count.py` 在（本窗口刚改过过账）；`stocktake-workbench-lab-verify.py` 跑出 `{"ok": true}` |
+| **站点"已购功能"** | `pearnly_features = ["products","warehouses","stockcard","purchase","sales","clients"]` —— **没有 `stocktake`，也没有 `cashier`** |
+| 侧栏 | 侧栏是原生 `Workspace Sidebar`（`Pearnly ERP`）文档，按当时的已购功能生成并留存；`visible_pages()` 只按"已购 + 有权限 + 已实现"过滤，所以盘点被藏 |
+
+成因：`scripts/erp-pos-lab-init.py` 把功能清单**手抄**在脚本里（漏了后来加的 `stocktake` 与 `cashier`），盘点那条功能码就成了"没买的功能"。盘点那包当时是在自己的探针里临时补站点配置绕过（`erp-pos-lab-stock-count-verify.py:107-110` 注释"样板站点在开通时写死一份，实验室自己补"）。
+
+**已做**：
+
+1. `scripts/erp-pos-lab-init.py` 不再手抄清单，改为读产品自己的目录 `apps/pearnly_erp_portal/pearnly_erp_portal/features.json`（加控制面的 `home_subscription`）——下次建实验室不会再漏。
+2. 两个实验室站点的 `pearnly_features` 按产品目录补全（6 → 10 个功能码：加 `home_subscription/stocktake/cashier/erp_push`）。
+3. 重跑 `pearnly_core.desk.navigation.ensure_navigation` 重建侧栏（幂等）。侧栏文档现在是 `…stockCard, stockCount, …sales, cashier`。
+
+**验证**：侧栏出现「盘点」与「收银 POS」；打开 `/desk/pearnly-stock-count` 正常（标题「盘点」、按钮「新建盘点」「筛选」，列表 5/5，含本次的 `盘点联动检查`）。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
