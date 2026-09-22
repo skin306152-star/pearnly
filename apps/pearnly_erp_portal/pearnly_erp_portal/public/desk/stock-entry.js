@@ -37,7 +37,30 @@
 				});
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
 		}
-		list = p.list({ page, doctype: "ERP Stock Entry", on_open: row => editor(row.name),
+		// 没选中行时右上角还是原来那颗"新建入库/出库"。
+		function restore_new() {
+			if (canWrite) {
+				page.set_primary_action(t(direction === "in" ? "trade.newIn" : "trade.newOut"),
+					() => editor());
+			} else page.clear_primary_action();
+		}
+		// 选中若干张**已过账**的单据 → 右上角出现"作废选中"。库存流水不改不删，作废是追加
+		// 反向流水（服务端 `api_void_stock_entry` 同一条路径），所以这里给的不是删除。
+		const selection = p.selection_action({
+			page, list: () => list, empty: restore_new,
+			label: rows => t("trade.action.voidCount", rows.length),
+			when: row => row.status === "submitted",
+			reason: () => t("trade.voidBlocked"),
+			confirm: rows => t("trade.voidConfirmCount", rows.length),
+			run: async rows => {
+				for (const row of rows) {
+					await p.call(api + "api_void_stock_entry", { name: row.name }, "POST");
+				}
+			},
+			success: rows => t("trade.voidNotice", rows.length),
+		});
+		list = p.list({ page, doctype: "ERP Stock Entry", selectable: true, on_selection: selection,
+			on_open: row => editor(row.name),
 			load: p.trade.load(api, "api_list_stock_entries", "api_stock_entry_total", () => ({ direction })),
 			columns: [
 				{ fieldname: "name", label: t("trade.docNo") },
@@ -47,7 +70,7 @@
 				{ fieldname: "reason", label: t("trade.note") },
 			],
 		});
-		if (canWrite) page.set_primary_action(t(direction === "in" ? "trade.newIn" : "trade.newOut"), () => editor());
+		restore_new();
 		p.add_refresh(page, () => list.reload());
 		await list.ready;
 	};

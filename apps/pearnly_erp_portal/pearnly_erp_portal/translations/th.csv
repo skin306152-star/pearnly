@@ -127,6 +127,8 @@ sales,ขาย
 service,บริการ
 stock.action.count,ตรวจนับ
 stock.action.export,ส่งออก
+stock.action.ledger,ดูบัญชีสต็อก
+stock.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
 stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
 stock.action.reload,โหลดใหม่
 stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
@@ -146,6 +148,7 @@ stock.col.status,สถานะ
 stock.col.unit,หน่วย
 stock.col.value,มูลค่า
 stock.col.warehouse,คลังสินค้า
+stock.count.action.delete,ลบ {0} รายการที่เลือก
 stock.count.addEntry,บันทึกการนับ
 stock.count.addEntryHint,จำนวนตามบัญชี {0} {1}
 stock.count.addEntryTitle,บันทึกการนับ — {0}
@@ -163,7 +166,9 @@ stock.count.countedBy,ผู้ตรวจนับ
 stock.count.countedRows,นับแล้ว
 stock.count.created,สร้างการตรวจนับแล้ว {0} แถว
 stock.count.createdAt,สร้างเมื่อ
+stock.count.deleteBlocked,ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่
 stock.count.deleteConfirm,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
+stock.count.deleteNotice,ลบ {0} รายการแล้ว
 stock.count.deleteSelected,ลบที่เลือก ({0})
 stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
 stock.count.difference,ผลต่าง
@@ -274,6 +279,9 @@ submitted,ยืนยันแล้ว
 tax_invoice,ใบกำกับภาษีเต็มรูป
 tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
 tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
+trade.action.ledger,ดูบัญชีสต็อก
+trade.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
+trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
 trade.address,ที่อยู่
 trade.balance,คงเหลือในตำแหน่ง
 trade.branchNo,เลขที่สาขา
@@ -319,6 +327,8 @@ trade.qty,จำนวน
 trade.reference,เอกสารอ้างอิง
 trade.refund,คืนสินค้า
 trade.refundAmount,ยอดคืนเงิน
+trade.refundBlocked,คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
+trade.refundSingle,เลือกได้ครั้งละหนึ่งใบเสร็จ
 trade.save,บันทึกฉบับร่าง
 trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
 trade.status,สถานะ
@@ -334,7 +344,11 @@ trade.total,ยอดชำระ
 trade.unit,หน่วย
 trade.vat,อัตรา VAT
 trade.void,ยกเลิก
+trade.voidBlocked,ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว
 trade.voidConfirm,ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?
+trade.voidConfirmCount,ยกเลิก {0} เอกสารและย้อนรายการสต็อกหรือไม่?
+trade.voidNotice,ยกเลิก {0} รายการแล้ว
+trade.voidPaid,ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร
 trade.warehouse,คลัง
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ

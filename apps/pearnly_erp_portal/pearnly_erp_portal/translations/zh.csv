@@ -127,6 +127,8 @@ sales,销售
 service,服务
 stock.action.count,盘点
 stock.action.export,导出
+stock.action.ledger,查看流水
+stock.action.ledgerSingle,一次只能看一条流水
 stock.action.onlyLow,只看低库存或缺货
 stock.action.reload,刷新
 stock.action.toggleZero,显示零库存
@@ -146,6 +148,7 @@ stock.col.status,状态
 stock.col.unit,单位
 stock.col.value,金额
 stock.col.warehouse,仓库
+stock.count.action.delete,删除选中的 {0} 个
 stock.count.addEntry,记一笔
 stock.count.addEntryHint,账面数量 {0} {1}
 stock.count.addEntryTitle,记一笔 — {0}
@@ -163,7 +166,9 @@ stock.count.countedBy,盘点人
 stock.count.countedRows,已盘点
 stock.count.created,盘点已创建，{0} 行
 stock.count.createdAt,创建时间
+stock.count.deleteBlocked,只有进行中的盘点能删除
 stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉。
+stock.count.deleteNotice,已删除 {0} 个
 stock.count.deleteSelected,删除所选（{0}）
 stock.count.deleted,已删除 {0} 份盘点
 stock.count.difference,差异
@@ -274,6 +279,9 @@ submitted,已提交
 tax_invoice,完整税务发票
 tax_invoice_receipt,税务发票兼收据
 tax_invoice_simple,简易税务发票
+trade.action.ledger,查看流水
+trade.action.ledgerSingle,一次只能看一条流水
+trade.action.voidCount,作废选中的 {0} 张
 trade.address,地址
 trade.balance,该仓位结存
 trade.branchNo,分店编号
@@ -319,6 +327,8 @@ trade.qty,数量
 trade.reference,关联单据
 trade.refund,退货退款
 trade.refundAmount,退款金额
+trade.refundBlocked,只有已完成的小票能退货退款
+trade.refundSingle,一次只能退一条小票
 trade.save,保存草稿
 trade.shiftOpen,班次 {0} · 应有现金 {1}
 trade.status,状态
@@ -334,7 +344,11 @@ trade.total,应收金额
 trade.unit,单位
 trade.vat,增值税率
 trade.void,作废
+trade.voidBlocked,只有已提交（还没作废）的单据能作废
 trade.voidConfirm,作废这张单据并冲销对应库存变动？
+trade.voidConfirmCount,作废选中的 {0} 张单据并冲销对应库存变动？
+trade.voidNotice,已作废 {0} 张
+trade.voidPaid,先冲掉付款再作废这张单据
 trade.warehouse,仓库
 transfer,转账
 unpaid,未付款

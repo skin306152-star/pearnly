@@ -65,9 +65,20 @@
 			? t("stock.status.lowWith", p.number(row.min_stock))
 			: t(`stock.status.${row.status}`));
 
+		// 库存行是流水推出来的结存，没有"删除"这一说（删掉就等于改账）。选中一行时给的是
+		// **对应的那一步**：打开这条商品×仓库×仓位的收发流水（跟点行进去是同一个视图）。
+		const selection = p.selection_action({
+			page, list: () => list,
+			label: () => t("stock.action.ledger"),
+			when: (_row, rows) => rows.length === 1,
+			reason: () => t("stock.action.ledgerSingle"),
+			run: async rows => { void p.stockLedger(rows[0]); },
+		});
 		list = p.list({
 			page,
 			doctype: "ERP Stock Balance",
+			selectable: true,
+			on_selection: selection,
 			on_open: row => p.stockLedger(row),
 			load: async ({ start, page_length }) => {
 				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。

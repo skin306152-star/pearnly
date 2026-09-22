@@ -36,6 +36,8 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     call: async (method, args) => { calls.push({ method, args }); return product; },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => supported,
+    // 选中操作那套由共享层提供（tests/test-selection-action.cjs 单独验）；这里只要它存在。
+    selection_action: () => () => {},
     list: config => {
       list_options = config;
       return { ready: Promise.resolve(), reload: async () => {}, get_checked_items: () => [],

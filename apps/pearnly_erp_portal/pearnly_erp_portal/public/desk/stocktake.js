@@ -107,7 +107,24 @@
 			await refresh();
 		}
 		function open_list() {
-			list = p.list({ page, doctype: "ERP Stock Count", on_open: row => open_detail(row.name),
+			// 选中若干个**进行中**的盘点 → 右上角出现"删除选中"。已结束/已过账的盘点只能查看
+			// （服务端 `delete_count` 也只在 Active 时放行），所以那几行会让按钮禁用并说明原因。
+			const selection = p.selection_action({
+				page, list: () => list,
+				empty: () => page.set_primary_action(t("stock.count.new"), open_new),
+				label: rows => t("stock.count.deleteSelected", rows.length),
+				when: row => row.status === "Active",
+				reason: () => t("stock.count.deleteBlocked"),
+				confirm: rows => t("stock.count.deleteConfirm", rows.length),
+				run: async rows => {
+					for (const row of rows) {
+						await p.call(api + "api_stock_count_delete", { name: row.name }, "POST");
+					}
+				},
+				success: rows => t("stock.count.deleted", rows.length),
+			});
+			list = p.list({ page, doctype: "ERP Stock Count", selectable: true, on_selection: selection,
+				on_open: row => open_detail(row.name),
 				empty_action: { label: t("stock.count.new"), action: open_new },
 				load: async ({ start, page_length }) => {
 					const [items, total] = await Promise.all([

@@ -99,6 +99,9 @@ Only low or out of stock	只看低库存或缺货	เฉพาะใกล้ห
 Show zero stock	显示零库存	แสดงของที่ไม่มีสต็อก	在庫 0 も表示	stock.action.toggleZero
 Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
 Export	导出	ส่งออก	エクスポート	stock.action.export
+Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	stock.action.ledger
+Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	stock.action.ledgerSingle
+Only an active count can be deleted	只有进行中的盘点能删除	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	stock.count.deleteBlocked
 In stock	正常	มีสินค้า	在庫あり	stock.status.ok
 Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low
 Out of stock	缺货	สินค้าหมด	在庫切れ	stock.status.out
@@ -219,6 +222,15 @@ Submit and Receive Stock	提交并入库	ยืนยันและรับเ
 Submit	提交过账	ยืนยัน	確定	trade.submit
 Void	作废	ยกเลิก	取消	trade.void
 Void this document and reverse its stock movements?	作废这张单据并冲销对应库存变动？	ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?	この伝票を取り消して在庫移動を戻しますか？	trade.voidConfirm
+Void {0} selected	作废选中的 {0} 张	ยกเลิก {0} รายการที่เลือก	選択した{0}件を取り消す	trade.action.voidCount
+Void {0} document(s) and reverse their stock movements?	作废选中的 {0} 张单据并冲销对应库存变动？	ยกเลิก {0} เอกสารและย้อนรายการสต็อกหรือไม่?	選択した{0}件の伝票を取り消して在庫移動を戻しますか？	trade.voidConfirmCount
+Voided {0}	已作废 {0} 张	ยกเลิก {0} รายการแล้ว	{0}件を取り消しました	trade.voidNotice
+Only a submitted document can be voided	只有已提交（还没作废）的单据能作废	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます	trade.voidBlocked
+Void the payments before voiding the document	先冲掉付款再作废这张单据	ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร	先に入金を取り消してから伝票を取り消してください	trade.voidPaid
+Select one receipt to refund	一次只能退一条小票	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
+Only a completed sale receipt can be refunded	只有已完成的小票能退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
+Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger
+Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	trade.action.ledgerSingle
 Save Draft	保存草稿	บันทึกฉบับร่าง	下書きを保存	trade.save
 Close	关闭	ปิด	閉じる	trade.close
 Date	日期	วันที่	日付	trade.date

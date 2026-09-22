@@ -49,7 +49,28 @@
 			});
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
 		}
-		list = p.list({ page, doctype: "ERP Sales Document", on_open: row => editor(row.name),
+		// 没选中行时右上角还是原来那颗"新建销售"。
+		function restore_new() {
+			if (canWrite) page.set_primary_action(t("trade.newSale"), () => editor());
+			else page.clear_primary_action();
+		}
+		// 选中若干张**已开单**的销售单 → 右上角出现"作废选中"（服务端 `api_void_sale_document`：
+		// 把出库退回来，号码不回收）。已作废/草稿的单据不满足，按钮禁用并在 title 说明原因。
+		const selection = p.selection_action({
+			page, list: () => list, empty: restore_new,
+			label: rows => t("trade.action.voidCount", rows.length),
+			when: row => row.status === "issued",
+			reason: () => t("trade.voidBlocked"),
+			confirm: rows => t("trade.voidConfirmCount", rows.length),
+			run: async rows => {
+				for (const row of rows) {
+					await p.call(api + "api_void_sale_document", { name: row.name }, "POST");
+				}
+			},
+			success: rows => t("trade.voidNotice", rows.length),
+		});
+		list = p.list({ page, doctype: "ERP Sales Document", selectable: true, on_selection: selection,
+			on_open: row => editor(row.name),
 			load: p.trade.load(api, "api_list_sales", "api_sale_document_total"),
 			columns: [
 				{ fieldname: "buyer_name", label: t("trade.buyer") },
@@ -60,7 +81,7 @@
 				{ fieldname: "grand_total", label: t("trade.total"), format: value => p.money(value) },
 			],
 		});
-		if (canWrite) page.set_primary_action(t("trade.newSale"), () => editor());
+		restore_new();
 		p.add_refresh(page, () => list.reload()); await list.ready;
 	};
 })();

@@ -32,7 +32,18 @@
 			["warehouse", "Data", "trade.warehouse", ""],
 		]) fields[name] = page.add_field({ fieldname: name, fieldtype: type, label: t(label), default: value, change: () => list?.reload() });
 		const query = () => Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.get_value() || undefined]));
-		list = p.list({ page, doctype: "ERP Stock Movement", on_open: row => p.stockLedger(row, query()),
+		// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
+		// 对应的那一步 —— 打开这条汇总背后的流水明细（查询条件跟着报表走）。
+		// 沿用这一页自己的 `trade.` 词表（`t` 就是这个命名空间；写 stock.* 会露出键名）。
+		const selection = p.selection_action({
+			page, list: () => list,
+			label: () => t("trade.action.ledger"),
+			when: (_row, rows) => rows.length === 1,
+			reason: () => t("trade.action.ledgerSingle"),
+			run: async rows => { void p.stockLedger(rows[0], query()); },
+		});
+		list = p.list({ page, doctype: "ERP Stock Movement", selectable: true, on_selection: selection,
+			on_open: row => p.stockLedger(row, query()),
 			load: async ({ start, page_length }) => {
 				const rows = await p.call(api + "api_stock_summary", query());
 				return { items: rows.slice(start, start + page_length), total: rows.length };

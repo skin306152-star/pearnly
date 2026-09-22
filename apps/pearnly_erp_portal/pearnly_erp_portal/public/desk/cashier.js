@@ -86,7 +86,22 @@
 			});
 			calculate();
 		}
-		list = p.list({ page, doctype: "ERP Sale", on_open: row => receipt(row.name),
+		// 小票不允许删除（退货要留痕），所以选中一条已完成的小票时给的是**对应那一步**：
+		// 打开退货退款弹窗（与从小票弹窗里点"退货退款"是同一条路径）。
+		const selection = p.selection_action({
+			page, list: () => list,
+			label: () => t("trade.refund"),
+			when: (row, rows) => rows.length === 1 && row.status === "completed"
+				&& row.sale_type === "sale",
+			reason: (_row, rows) => (rows.length === 1 ? t("trade.refundBlocked")
+				: t("trade.refundSingle")),
+			run: async rows => {
+				const doc = await p.call(api + "api_get_sale", { name: rows[0].name });
+				refund(doc, { hide() {} });
+			},
+		});
+		list = p.list({ page, doctype: "ERP Sale", selectable: true, on_selection: selection,
+			on_open: row => receipt(row.name),
 			load: p.trade.load(api, "api_list_sales", "api_sale_total"),
 			columns: [
 				{ fieldname: "receipt_no", label: t("trade.docNo") },

@@ -247,4 +247,60 @@
 		ProductList.prototype[method] = frappe.views.ListView.prototype[method];
 	}
 	p.list = options => new ProductList(options);
+
+	// 选中若干行 → 右上角出现那颗动作按钮。每个列表页都要同一套行为，所以放在共享列表层：
+	// 选择状态、忙碌时禁用、确认、失败保留选择、做完刷新并清空 —— 各页自己写一份必然走样。
+	//
+	// `when(row)` 决定这一行能不能做（服务端也有同样的闸，这里只是别让人白点一次）：
+	// 选中里只要有一行不满足，按钮就禁用，原因写在按钮 title 上。
+	//
+	// 返回的就是 `p.list({ on_selection })` 要的那个回调。
+	// `empty` 给"没选中时右上角本来就有主按钮"的页面用（商品页的"新建商品"、盘点页的"新建盘点"）：
+	// 不传就按惯例清掉那颗按钮。
+	// 注意：确认文案那个参数收下来就改名成 confirm_text —— 架构检查拦的是裸的浏览器
+	// confirm 调用，参数也叫 confirm 的话会被它的正则误伤（连注释里的字面量都算）。
+	p.selection_action = ({ page, list, label, when, reason, confirm: confirm_text, run, success,
+		empty }) => {
+		const rows_now = () => (list()?.get_checked_items?.() || []);
+		const eligible = (row, rows) => (when ? Boolean(when(row, rows)) : true);
+		let busy = false, confirming = false;
+
+		function paint() {
+			const rows = rows_now();
+			if (!rows.length) return empty ? empty() : page.clear_primary_action();
+			page.set_primary_action(label(rows), () => void execute());
+			if (!page.btn_primary) return;
+			const blocked = rows.filter(row => !eligible(row, rows));
+			page.btn_primary.prop("disabled", busy || confirming || blocked.length > 0);
+			page.btn_primary.attr("title", blocked.length && reason ? reason(blocked[0]) : "");
+		}
+
+		async function perform(rows) {
+			busy = true; paint();
+			try {
+				await run(rows);
+				if (success) p.success(success(rows));
+				list()?.clear_checked_items?.();
+				await list()?.reload?.();
+			} catch (error) {
+				// 服务端已经用 msgprint 说明了原因；这里只负责把选择留着，让人能改完再试。
+				if (!error?._server_messages && !error?.responseJSON) console.error(error);
+			} finally {
+				busy = false; confirming = false; paint();
+			}
+		}
+
+		async function execute() {
+			if (busy || confirming) return;
+			const rows = rows_now();
+			if (!rows.length || rows.some(row => !eligible(row, rows))) return;
+			if (!confirm_text) return void perform(rows);
+			confirming = true; paint();
+			// 确认框关掉而没确认时要恢复可点状态；确认后按钮保持禁用（busy），避免重复提交。
+			const dialog = frappe.confirm(p.escape(confirm_text(rows)), () => void perform(rows));
+			if (dialog) dialog.onhide = () => { if (!confirming) return; confirming = false; paint(); };
+		}
+
+		return () => paint();
+	};
 })();

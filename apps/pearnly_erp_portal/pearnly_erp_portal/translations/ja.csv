@@ -127,6 +127,8 @@ sales,売上
 service,サービス
 stock.action.count,棚卸
 stock.action.export,エクスポート
+stock.action.ledger,在庫の受け払いを開く
+stock.action.ledgerSingle,明細は1行ずつ開きます
 stock.action.onlyLow,在庫少・在庫切れのみ
 stock.action.reload,再読み込み
 stock.action.toggleZero,在庫 0 も表示
@@ -146,6 +148,7 @@ stock.col.status,状態
 stock.col.unit,単位
 stock.col.value,金額
 stock.col.warehouse,倉庫
+stock.count.action.delete,選択した{0}件を削除
 stock.count.addEntry,カウントを記録
 stock.count.addEntryHint,帳簿数量 {0} {1}
 stock.count.addEntryTitle,カウントを記録 — {0}
@@ -163,7 +166,9 @@ stock.count.countedBy,担当者
 stock.count.countedRows,棚卸済み
 stock.count.created,棚卸を作成しました（{0} 行）
 stock.count.createdAt,作成日時
+stock.count.deleteBlocked,進行中の棚卸のみ削除できます
 stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
+stock.count.deleteNotice,{0}件を削除しました
 stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
 stock.count.difference,差異
@@ -274,6 +279,9 @@ submitted,確定済み
 tax_invoice,税務請求書
 tax_invoice_receipt,税務請求書兼領収書
 tax_invoice_simple,簡易税務請求書
+trade.action.ledger,在庫の受け払いを開く
+trade.action.ledgerSingle,明細は1行ずつ開きます
+trade.action.voidCount,選択した{0}件を取り消す
 trade.address,住所
 trade.balance,保管場所の残高
 trade.branchNo,支店番号
@@ -319,6 +327,8 @@ trade.qty,数量
 trade.reference,参照伝票
 trade.refund,返品・返金
 trade.refundAmount,返金額
+trade.refundBlocked,完了した売上レシートのみ返品できます
+trade.refundSingle,返品できるレシートは1件ずつです
 trade.save,下書きを保存
 trade.shiftOpen,シフト {0} · 現金予定額 {1}
 trade.status,状態
@@ -334,7 +344,11 @@ trade.total,請求額
 trade.unit,単位
 trade.vat,付加価値税率
 trade.void,取消
+trade.voidBlocked,確定済みの伝票のみ取消できます
 trade.voidConfirm,この伝票を取り消して在庫移動を戻しますか？
+trade.voidConfirmCount,選択した{0}件の伝票を取り消して在庫移動を戻しますか？
+trade.voidNotice,{0}件を取り消しました
+trade.voidPaid,先に入金を取り消してから伝票を取り消してください
 trade.warehouse,倉庫
 transfer,振込
 unpaid,未払い

@@ -127,6 +127,8 @@ sales,sales
 service,service
 stock.action.count,Count
 stock.action.export,Export
+stock.action.ledger,Stock ledger
+stock.action.ledgerSingle,Select one row to open its ledger
 stock.action.onlyLow,Only low or out of stock
 stock.action.reload,Reload
 stock.action.toggleZero,Show zero stock
@@ -146,6 +148,7 @@ stock.col.status,Status
 stock.col.unit,Unit
 stock.col.value,Value
 stock.col.warehouse,Warehouse
+stock.count.action.delete,Delete {0} selected
 stock.count.addEntry,Add a count
 stock.count.addEntryHint,Book quantity {0} {1}
 stock.count.addEntryTitle,Add a count — {0}
@@ -163,7 +166,9 @@ stock.count.countedBy,Counted by
 stock.count.countedRows,Counted
 stock.count.created,"Stock count created, {0} rows"
 stock.count.createdAt,Created
+stock.count.deleteBlocked,Only an active count can be deleted
 stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted.
+stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
 stock.count.difference,Difference
@@ -274,6 +279,9 @@ submitted,submitted
 tax_invoice,tax_invoice
 tax_invoice_receipt,tax_invoice_receipt
 tax_invoice_simple,tax_invoice_simple
+trade.action.ledger,Stock ledger
+trade.action.ledgerSingle,Select one row to open its ledger
+trade.action.voidCount,Void {0} selected
 trade.address,Address
 trade.balance,Position Balance
 trade.branchNo,Branch Number
@@ -319,6 +327,8 @@ trade.qty,Quantity
 trade.reference,Reference
 trade.refund,Refund
 trade.refundAmount,Refund Amount
+trade.refundBlocked,Only a completed sale receipt can be refunded
+trade.refundSingle,Select one receipt to refund
 trade.save,Save Draft
 trade.shiftOpen,Shift {0} · Expected cash {1}
 trade.status,Status
@@ -334,7 +344,11 @@ trade.total,Total Due
 trade.unit,Unit
 trade.vat,VAT Rate
 trade.void,Void
+trade.voidBlocked,Only a submitted document can be voided
 trade.voidConfirm,Void this document and reverse its stock movements?
+trade.voidConfirmCount,Void {0} document(s) and reverse their stock movements?
+trade.voidNotice,Voided {0}
+trade.voidPaid,Void the payments before voiding the document
 trade.warehouse,Warehouse
 transfer,transfer
 unpaid,unpaid

@@ -17,7 +17,6 @@
 	p.products = async (page, t) => {
 		const api = "pearnly_erp_portal.products.service.";
 		let list;
-		let busy = false;
 
 		// "设过没有"要跟值一起看：Currency 列存不下 NULL，库里 0 与"从未设过"是同一个数字。
 		// 没有成本权限的岗位，服务端把值与标记一起清空，于是这里自然显示"未设"。
@@ -42,52 +41,33 @@
 			include_inactive: filters.include_inactive.get_value() ? 1 : undefined,
 		});
 
-		// 右上角那一颗主按钮：没选中任何行时是"新建商品"（与参考图一致），
-		// 选中若干行时切换成批量启用/停用 —— 这是产品真有的动作，复选框列因此有实际去处。
-		function update_action(rows) {
-			if (busy) {
-				page.btn_primary?.prop("disabled", true);
-				return;
-			}
-			if (!rows.length) {
-				if (can_create) page.set_primary_action(t("product.action.new"), () => open_create());
-				else page.clear_primary_action();
-				return;
-			}
-			const enabling = rows.every((row) => !row.is_active);
-			page.set_primary_action(
-				enabling
-					? t("product.action.bulkEnable", rows.length)
-					: t("product.action.bulkDisable", rows.length),
-				() => void toggle_selected(rows, enabling),
-			);
+		// 右上角那一颗主按钮：没选中任何行时是"新建商品"（与参考图一致），选中若干行时
+		// 切换成批量启用/停用 —— 商品真有的动作。选中即出现操作这套行为由共享层的
+		// `p.selection_action` 提供，其余列表页用的是同一套（确认、忙碌禁用、失败保留选择）。
+		function restore_primary() {
+			if (can_create) page.set_primary_action(t("product.action.new"), () => open_create());
+			else page.clear_primary_action();
 		}
-
-		async function toggle_selected(rows, enabling) {
-			if (busy) return;
-			busy = true;
-			update_action(rows);
-			try {
+		const selection = p.selection_action({
+			page, list: () => list, empty: restore_primary,
+			label: rows => (rows.every(row => !row.is_active)
+				? t("product.action.bulkEnable", rows.length)
+				: t("product.action.bulkDisable", rows.length)),
+			run: async rows => {
+				const enabling = rows.every(row => !row.is_active);
 				for (const row of rows) {
 					await p.call(api + "api_set_active",
 						{ name: row.name, active: enabling ? 1 : 0 }, "POST");
 				}
-				p.success(t("product.notice.toggledCount", rows.length));
-				list.clear_checked_items();
-				await list.reload();
-			} catch (error) {
-				if (!error?._server_messages && !error?.responseJSON) console.error(error);
-			} finally {
-				busy = false;
-				update_action(list.get_checked_items());
-			}
-		}
+			},
+			success: rows => t("product.notice.toggledCount", rows.length),
+		});
 
 		list = p.list({
 			page,
 			doctype: "ERP Product",
 			selectable: true,
-			on_selection: update_action,
+			on_selection: selection,
 			on_open: (row) => open_form(row),
 			load: async ({ start, page_length }) => {
 				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
@@ -361,6 +341,6 @@
 			page.add_inner_button(t("product.action.import"), () => open_import());
 		}
 		await list.ready;
-		update_action([]);
+		restore_primary();
 	};
 })();

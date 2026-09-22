@@ -54,7 +54,33 @@
 				if (doc[field] !== undefined) d.set_value(field, doc[field]);
 			}
 		}
-		list = p.list({ page, doctype: "Purchase Document", on_open: row => editor(row.name),
+		// 没选中行时右上角还是原来那颗"新建采购"。
+		function restore_new() {
+			if (frappe.model.can_create("Purchase Document")) {
+				page.set_primary_action(t("purchase.action.new"), () => editor());
+			} else page.clear_primary_action();
+		}
+		// 选中若干张**已提交**的采购单 → 右上角出现"作废选中"（服务端 `api_void_purchase`）。
+		// 草稿状态直接用单据里的删除；这里是已过账那一档的撤销。
+		const selection = p.selection_action({
+			page, list: () => list, empty: restore_new,
+			// 这一页的 `t` 是 purchase.* 命名空间，`tr` 才是 trade.*（作废那几句在 trade 里）。
+			label: rows => tr("trade.action.voidCount", rows.length),
+			// 已收付款的单据服务端不让直接作废（先冲掉付款），这里同样不让点，并说明原因。
+			when: row => row.status === "submitted" && !(Number(row.paid_amount) > 0),
+			reason: row => (row.status === "submitted"
+				? tr("trade.voidPaid")
+				: tr("trade.voidBlocked")),
+			confirm: rows => tr("trade.voidConfirmCount", rows.length),
+			run: async rows => {
+				for (const row of rows) {
+					await p.call(api + "api_void_purchase", { name: row.name }, "POST");
+				}
+			},
+			success: rows => tr("trade.voidNotice", rows.length),
+		});
+		list = p.list({ page, doctype: "Purchase Document", selectable: true, on_selection: selection,
+			on_open: row => editor(row.name),
 			load: async ({ start, page_length }) => {
 				const [items, total] = await Promise.all([
 					p.call(api + "api_list_purchases", { start, limit: page_length }), p.call(api + "api_purchase_total"),
@@ -69,7 +95,7 @@
 				{ fieldname: "net_payable", label: t("purchase.card.netPayable"), format: value => p.money(value) },
 			],
 		});
-		if (frappe.model.can_create("Purchase Document")) page.set_primary_action(t("purchase.action.new"), () => editor());
+		restore_new();
 		p.add_refresh(page, refresh);
 		await list.ready; await refresh();
 	};
