@@ -704,6 +704,7 @@ trade.methodPromptpay,PromptPay
 trade.methodTransfer,振込
 trade.net,純額
 trade.newIn,入庫伝票を作成
+trade.newInvoice,新規会計
 trade.newOut,出庫伝票を作成
 trade.newSale,販売伝票を作成
 trade.noShift,未開店
@@ -712,6 +713,7 @@ trade.notice.submitted,{0} を提出しました
 trade.onHand,在庫
 trade.openShift,シフト開始
 trade.openedAt,開始時刻
+trade.openedAtSub,開始 {0}
 trade.opening,期首数量
 trade.originalLine,元伝票の商品と保管場所
 trade.out,出庫数量
@@ -720,6 +722,7 @@ trade.paidNotice,レシート {0} · お釣り {1}
 trade.pay,支払完了
 trade.paymentDate,支払日
 trade.paymentState,支払状態
+trade.pickLine,先に行を選んでください
 trade.price,単価
 trade.product,商品
 trade.qty,数量
@@ -729,6 +732,7 @@ trade.refundAmount,返金額
 trade.refundBlocked,完了した売上レシートのみ返品できます
 trade.refundCount,返品件数
 trade.refundSingle,返品できるレシートは1件ずつです
+trade.remove,削除
 trade.rowOpening,期首
 trade.salesCount,件数
 trade.save,下書きを保存
@@ -741,6 +745,7 @@ trade.shiftHistory,シフト履歴
 trade.shiftNo,シフト番号
 trade.shiftOpen,シフト {0} · 現金予定額 {1}
 trade.shiftOpened,シフト {0} を開始しました
+trade.shiftOpenedAt,シフト {0} · 開始 {1} · 現金予定額 {2}
 trade.shiftReceipts,このシフトのレシート
 trade.state.closed,終了
 trade.state.completed,完了
@@ -759,6 +764,7 @@ trade.terminal,レジ
 trade.terminalHint,空欄なら既定のレジを使います
 trade.to,終了日
 trade.total,請求額
+trade.totalItems,合計点数
 trade.totalRows,合計 · {0} 明細
 trade.unit,単位
 trade.vat,付加価値税率

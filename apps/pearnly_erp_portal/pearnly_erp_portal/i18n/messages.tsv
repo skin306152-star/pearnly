@@ -744,3 +744,9 @@ This device cannot scan	这台设备不能扫码	อุปกรณ์นี้�
 Change	找零	เงินทอน	お釣り	trade.change
 Pay	收款	รับชำระ	会計	trade.action.pay
 Scan	扫码	สแกน	スキャン	trade.scan
+Total items	总件数	จำนวนชิ้น	合計点数	trade.totalItems
+Remove	移除	นำออก	削除	trade.remove
+Pick a line first	先选一行	เลือกบรรทัดก่อน	先に行を選んでください	trade.pickLine
+New Invoice	新单	บิลใหม่	新規会計	trade.newInvoice
+Opened at {0}	开班时间 {0}	เปิดกะเมื่อ {0}	開始 {0}	trade.openedAtSub
+Shift {0} · opened {1} · expected cash {2}	班次 {0} · 开班 {1} · 应有现金 {2}	กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}	シフト {0} · 開始 {1} · 現金予定額 {2}	trade.shiftOpenedAt

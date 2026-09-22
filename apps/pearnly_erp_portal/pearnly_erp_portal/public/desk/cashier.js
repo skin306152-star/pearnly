@@ -1,15 +1,22 @@
-/* 收银 POS：开班 / 收银台（商品 → 购物车 → 收款）/ 当班小票 / 交班 / 班次记录。
+/* 收银 POS：开班 / 收银台 / 当班小票 / 交班 / 班次记录。
  *
- * 用户 2026-09-23 口径："收银台也要做，用官方原生的，数据关联商品，库存，收发存"、
- * "扫码可以用官方的"。所以这里三件事都按官方那条路走：
+ * 收银台照 **ERPNext POS 那套交互**做（本仓 2026-09-21 的决定："POS 借 ERPNext 的前端
+ * 体验与交互，但业务后端仍走 Pearnly 的商品、库存、收发存与销售"；用户 2026-09-23 又
+ * 明确按 ERPNext 对）。骨架对着框架那份实现摆：
  *
- * · 扫码用框架自带的 `frappe.ui.Scanner`（走 html5-qrcode，一维码与二维码都认）；
- * · 商品与库存读我们自己的域（`cashier/counter.py`：在架商品 + 售价 + **这个收银台仓库**
- *   的结存，结存就是收发存那张 `ERP Stock Balance`）；
- * · 收款走 `cashier.sales.create_sale` —— 一笔收银落一张单、扣一次库存、进一次收发存，
- *   单号与销售记录同一个序列（见 `cashier/sales.py` 的 `_receipt_no`）。
+ * · 商品区是**卡片网格**，不是列表 —— 卡上：库存色点（>10 绿 / ≤0 红 / 其余橙，
+ *   与 `pos_item_selector.js` 同一条规则）、商品图或缩写（`frappe.get_abbr`）、
+ *   名称、`售价 / 单位`；
+ * · 购物车带**合计区**：总件数 / 净额 / 合计；
+ * · 购物车下面挂**常驻数字键盘**：`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 ⌫ 移除`
+ *   + 底部「收款」；收款弹窗里另有一副 3 列键盘（照官方收款面板）。
  *
- * 全部界面构件都是官方的：Page / 原生列表 / Dialog / Button，没有自造控件。
+ * 后端仍然是我们自己的：商品/售价/结存读 `cashier/counter.py`（结存就是收发存那张
+ * `ERP Stock Balance`），落单走 `cashier.sales.create_sale` —— 一笔收银落一张单、
+ * 扣一次库存、进一次收发存，单号与销售记录同一个序列。
+ *
+ * 数字键盘在官方也是个自造件（Frappe 没有这个控件，ERPNext 自己写了
+ * `pos_number_pad.js`），所以这里同样自造，交互照它；其余控件一律官方原生。
  */
 (() => {
 	const p = frappe.pearnly;
@@ -32,49 +39,89 @@
 		const field = (fieldname, label, fieldtype = "Data", options = {}) =>
 			({fieldname, label: __(label), fieldtype, ...options});
 
-		let shift, form, products_list, cart_list, receipts_list;
+		let shift, form, receipts_list, active = null, active_field = "qty", buffer = "";
+		// 当班小票那一节默认收起、按钮切换（官方 POS 的 "Recent Orders" 就是这样一个切换项）。
+		let receipts_shown = false;
 		// 购物车只是这一屏的状态，不落库：收款那一下才由服务端成单（与旧线上一致）。
 		let cart = [];
-		// 收银台那一屏的骨架：左商品、右购物车，照框架 POS 的两栏比例（见 cashier.css）。
-		// 用 HTML 字段当容器，原生列表挂进去 —— 控件本身还是官方的，没有自造。
-		const COUNTER_HTML = `<div class="pearnly-counter">
-			<div class="pearnly-counter-pane">
-				<div class="pearnly-counter-filter"></div>
-				<div class="pearnly-counter-items"></div>
+		// 商品区是"分页 + 加载更多"（官方 POS 也是先给一页）。
+		let items = { rows: [], total: 0, start: 0 };
+		const PAGE_SIZE = 24;
+
+		const COUNTER_HTML = `<div class="pearnly-pos">
+			<div class="pearnly-pos-left">
+				<div class="pearnly-pos-filter"></div>
+				<div class="pearnly-pos-grid"></div>
+				<button type="button" class="btn btn-default btn-sm pearnly-pos-more"></button>
 			</div>
-			<div class="pearnly-counter-pane pearnly-counter-cart">
-				<div class="pearnly-counter-total"></div>
-				<div class="pearnly-counter-lines"></div>
+			<div class="pearnly-pos-right">
+				<div class="pearnly-pos-lines"></div>
+				<div class="pearnly-pos-totals"></div>
+				<div class="pearnly-pos-pad"></div>
 			</div>
 		</div>`;
 
+		// 官方那条色点规则：>10 绿、≤0 红、其余橙（`pos_item_selector.js`）。
+		const pill_class = qty => (qty > 10 ? "green" : qty <= 0 ? "red" : "orange");
+		const clip = (text, count) => {
+			const value = String(text ?? "");
+			return value.length > count ? value.slice(0, count) + "…" : value;
+		};
 		const cart_total = () => round2(cart.reduce(
 			(sum, row) => sum + num(row.qty) * num(row.unit_price) - num(row.discount), 0));
+		const pane = selector => form?.fields_dict?.counter?.$wrapper.find(selector);
 
-		// ── 右上角那颗主按钮 ────────────────────────────────────────────────────
-		// 没班 → 「开班」；有班 → 「收款 ฿X」（购物车空着就禁用）。
-		// 为什么单独一个函数：列表的选中状态一刷新就会去清主按钮（"没选中就没有列表动作"
-		// 是共享层的规矩），不把"班次/收款"这个动作交回去，按钮会被列表刷掉、页面上点不到
-		// （商品页当初踩的同一个坑）。
+		// ── 页面动作 ────────────────────────────────────────────────────────────
+		// 右上角照官方那三处摆：主按钮「新单」、次按钮「当班小票」（切换列表显隐）、
+		// 菜单里放「交班 / 班次记录 / 清空购物车」（官方是 Open Form View / Close the POS）。
+		// 收款不在这里 —— 它在购物车面板的键盘下面（官方也是把 Checkout 放那儿）。
+		// 没开班时主按钮换成「开班」（对应官方那句 "Create POS Opening Entry"）。
+		//
+		// 为什么要一个函数：列表的选中状态一刷新就会去清主按钮，不把页面动作交回去，
+		// 「开班 / 新单」会被列表刷掉（商品页当初踩的同一个坑）。
 		function restore_primary() {
 			if (!canWrite) { page.clear_primary_action(); return; }
-			if (!shift) { page.set_primary_action(t("trade.openShift"), () => void open_shift()); return; }
-			page.set_primary_action(`${t("trade.action.pay")} ${money(cart_total())}`, () => checkout());
-			page.btn_primary?.prop("disabled", !cart.length);
+			if (!shift) page.set_primary_action(t("trade.openShift"), () => void open_shift());
+			else page.set_primary_action(t("trade.newInvoice"), new_invoice);
+		}
+
+		// 「新单」= 把这一单清干净重新开始（官方 primary_action "New Invoice"）。
+		function new_invoice() {
+			cart = []; active = null; buffer = ""; active_field = "qty";
+			paint_cart();
+		}
+
+		// 「当班小票」= 那一节的显隐开关（官方 secondary_action "Recent Orders"）。
+		function toggle_receipts() {
+			const wrapper = form?.fields_dict?.receipts?.$wrapper;
+			if (!wrapper?.length) return;
+			receipts_shown = !receipts_shown;
+			wrapper.closest(".form-section").toggle(receipts_shown);
 		}
 
 		async function refresh() {
 			shift = await p.call(api + "api_current_shift");
-			page.set_indicator(shift
-				? t("trade.shiftOpen", shift.shift.shift_seq, p.money(shift.expected_cash))
-				: t("trade.noShift"), shift ? "green" : "orange");
+			paint_shift_indicator();
 			restore_primary();
-			await Promise.all([products_list?.reload(), cart_list?.reload(), receipts_list?.reload()]);
+			if (shift) await load_items(true);
+			paint_cart();
+			await receipts_list?.reload();
+		}
+
+		// 开班信息摆在标题旁那颗原生指示器里：班次号、开班时间、应有现金。
+		//
+		// 官方 ERPNext 用的是 `page.set_title_sub("Opened at …")`，但**我们这套页面壳里没有
+		// 那个副标题位** —— 框架的 `Page.$sub_title_area` 取的是 `wrapper.find("h6")`，
+		// 而产品页面里 h6 数量是 0（实测），那句调用是空的。这里不往 DOM 里塞补丁，
+		// 改用同样原生、且一定渲染得出来的指示器，信息一样（三个事实都在）。
+		function paint_shift_indicator() {
+			page.set_indicator(shift
+				? t("trade.shiftOpenedAt", shift.shift.shift_seq,
+					p.datetime_text(shift.shift.opened_at), p.money(shift.expected_cash))
+				: t("trade.noShift"), shift ? "green" : "orange");
 		}
 
 		// ── 开班 ────────────────────────────────────────────────────────────────
-		// 收银台默认带出本店那个默认台（与服务端 `terminals.resolve` 同一口径），
-		// 备用金默认 0。留空就用服务端的默认台 —— 新店还没建收银台时也不会卡住。
 		async function open_shift() {
 			const terminals = await p.call(api + "api_list_terminals");
 			const preferred = terminals.find(row => Number(row.is_default)) || terminals[0];
@@ -93,9 +140,41 @@
 			});
 		}
 
-		// ── 收银台：商品区 ──────────────────────────────────────────────────────
-		// 商品区一次给全"商品 + 售价 + 该收银台的结存"（服务端 `counter.products_page`），
-		// 点一行就是加一件；扫码/手输走同一个落点。
+		// ── 商品卡网格 ──────────────────────────────────────────────────────────
+		function item_card(row) {
+			const qty = num(row.qty_on_hand);
+			const name = p.escape(row.product_name || row.name);
+			const image = row.image_url
+				? `<img class="pearnly-pos-img" src="${p.escape(row.image_url)}" alt="">`
+				: p.escape(frappe.get_abbr(row.product_name || ""));
+			return `<div class="pearnly-pos-card" data-product="${p.escape(row.name)}" title="${name}">
+				<div class="pearnly-pos-pill"><span class="indicator-pill whitespace-nowrap ${pill_class(qty)}">${p.escape(p.number(qty))}</span></div>
+				<div class="pearnly-pos-display${row.image_url ? "" : " abbr"}">${image}</div>
+				<div class="pearnly-pos-detail">
+					<div class="pearnly-pos-name">${p.escape(clip(row.product_name, 18))}</div>
+					<div class="pearnly-pos-rate">${p.escape(money(row.unit_price))} / ${p.escape(row.unit || "")}</div>
+				</div>
+			</div>`;
+		}
+
+		async function load_items(reset) {
+			if (!shift) return;
+			if (reset) items = { rows: [], total: 0, start: 0 };
+			const result = await p.call(api + "api_counter_products", {
+				terminal: shift.shift.terminal, search: form?.get_value("q") || undefined,
+				start: items.start, limit: PAGE_SIZE });
+			const rows = result?.items || [];
+			items = { rows: reset ? rows : items.rows.concat(rows),
+				total: num(result?.total), start: items.start + rows.length };
+			const grid = pane(".pearnly-pos-grid");
+			grid.html(items.rows.length ? items.rows.map(item_card).join("")
+				: `<div class="text-muted pearnly-pos-empty">${p.escape(__("No Data"))}</div>`);
+			const more = pane(".pearnly-pos-more");
+			more.text(`${__("Load More")} (${items.rows.length} / ${items.total})`);
+			more.toggle(items.rows.length < items.total);
+		}
+
+		// ── 购物车（行 + 合计区 + 键盘）─────────────────────────────────────────
 		function add_to_cart(row, qty = 1) {
 			if (!row?.name) return;
 			const line = cart.find(item => item.product === row.name);
@@ -105,19 +184,71 @@
 				code: row.code, unit: row.unit, warehouse: row.warehouse, location: row.location || "",
 				unit_price: num(row.unit_price), qty, discount: 0, qty_on_hand: num(row.qty_on_hand),
 			});
+			active = row.name;
+			buffer = "";
 			paint_cart();
 		}
 
-		// 购物车一变就同步三处：主按钮上的金额、右栏顶上那行合计、明细列表。
-		function paint_cart() {
-			const text = `${t("trade.total")} ${money(cart_total())}`;
-			form?.fields_dict?.counter?.$wrapper.find(".pearnly-counter-total").text(text);
-			restore_primary();
-			void cart_list?.reload();
+		function line_html(row) {
+			const line_total = money(num(row.qty) * num(row.unit_price) - num(row.discount));
+			return `<div class="pearnly-pos-line${active === row.product ? " active" : ""}" data-product="${p.escape(row.product)}">
+				<div class="pearnly-pos-cell name">${p.escape(clip(row.product_name, 16))}</div>
+				<div class="pearnly-pos-cell">${p.escape(p.number(row.qty))}</div>
+				<div class="pearnly-pos-cell">${p.escape(money(row.unit_price))}</div>
+				<div class="pearnly-pos-cell">${p.escape(line_total)}</div>
+			</div>`;
 		}
 
-		// 扫码：走框架自带的 `frappe.ui.Scanner`（官方那条），扫到再落到 `api_counter_lookup`
-		// 找品 —— 查四处（编码/条码/二维码/售卖单位条码）的规则在商品域里，收银台不另写一套。
+		function pad_html() {
+			const rows = [["1", "2", "3", t("trade.qty"), "qty"],
+				["4", "5", "6", t("trade.discount"), "discount"],
+				["7", "8", "9", t("trade.price"), "unit_price"],
+				["decimal", "0", "backspace", t("trade.remove"), "remove"]];
+			const key_html = key => `<button type="button" class="btn btn-default pearnly-pos-key" data-key="${key}">${
+				key === "decimal" ? "." : key === "backspace" ? "⌫" : key}</button>`;
+			return rows.map(row => {
+				const [a, b, c, label, action] = row;
+				return `<div class="pearnly-pos-pad-row">${[a, b, c].map(key_html).join("")}
+					<button type="button" class="btn btn-default pearnly-pos-key pearnly-pos-target${active_field === action ? " active" : ""}" data-target="${action}">${p.escape(label)}</button>
+				</div>`;
+			}).join("")
+				+ `<button type="button" class="btn btn-primary pearnly-pos-pay">${p.escape(t("trade.action.pay"))}</button>`;
+		}
+
+		function paint_cart() {
+			const lines = pane(".pearnly-pos-lines");
+			if (!lines.length) return;
+			const count = cart.reduce((sum, row) => sum + num(row.qty), 0);
+			const subtotal = round2(cart.reduce((sum, row) => sum + num(row.qty) * num(row.unit_price), 0));
+			lines.html(`<div class="pearnly-pos-line head">
+					<div class="pearnly-pos-cell name">${p.escape(t("trade.product"))}</div>
+					<div class="pearnly-pos-cell">${p.escape(t("trade.qty"))}</div>
+					<div class="pearnly-pos-cell">${p.escape(t("trade.price"))}</div>
+					<div class="pearnly-pos-cell">${p.escape(t("trade.amount"))}</div>
+				</div>`
+				+ (cart.length ? cart.map(line_html).join("")
+					: `<div class="text-muted pearnly-pos-empty">${p.escape(t("trade.cartEmpty"))}</div>`));
+			pane(".pearnly-pos-totals").html(
+				`<div class="pearnly-pos-total-row"><span>${p.escape(t("trade.totalItems"))}</span><span>${p.escape(p.number(count))}</span></div>
+				 <div class="pearnly-pos-total-row"><span>${p.escape(t("trade.net"))}</span><span>${p.escape(money(subtotal))}</span></div>
+				 <div class="pearnly-pos-total-row grand"><span>${p.escape(t("trade.total"))}</span><span>${p.escape(money(cart_total()))}</span></div>`);
+			pane(".pearnly-pos-pad").html(pad_html());
+		}
+
+		// 键盘：点数字就写进"当前选中行"的"当前字段"（官方就是这套：先选行、再选
+		// 数量/折扣/单价，然后敲数字）。`buffer` 是这一串输入，第一次敲数字会替换原值。
+		function pad_key(key) {
+			const line = cart.find(row => row.product === active);
+			if (!line) { frappe.msgprint(t("trade.pickLine")); return; }
+			if (key === "backspace") buffer = "";
+			else if (key === "decimal") { if (!buffer.includes(".")) buffer += buffer ? "." : "0."; }
+			else buffer = (buffer + key).replace(/^0(?=\d)/, "");
+			const value = buffer === "" ? 0 : Math.max(0, num(buffer));
+			line[active_field] = round2(value);
+			paint_cart();
+		}
+
+		// ── 扫码（框架自带的 `frappe.ui.Scanner`）───────────────────────────────
 		function start_scan() {
 			if (typeof frappe.ui.Scanner !== "function") {
 				frappe.msgprint(t("trade.scanUnsupported"));
@@ -137,37 +268,16 @@
 			p.success(t("trade.addedToCart", found.product_name));
 		}
 
-		function edit_line(row) {
-			const line = cart.find(item => item.product === row.product);
-			if (!line) return;
-			p.dialog(line.product_name, [
-				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
-				{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: line.qty },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "unit_price",
-					label: t("trade.price"), reqd: 1, default: line.unit_price },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "discount",
-					label: t("trade.discount"), default: line.discount },
-			], t("trade.save"), async (values, dialog) => {
-				line.qty = round2(values.qty); line.unit_price = num(values.unit_price);
-				line.discount = num(values.discount);
-				dialog.hide();
-				paint_cart();
-				await cart_list?.reload();
-			});
+		function pay_pad_html() {
+			const rows = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["sign", "0", "backspace"]];
+			return `<div class="pearnly-pos-paypad">` + rows.map(row =>
+				`<div class="pearnly-pos-pad-row">${row.map(key =>
+					`<button type="button" class="btn btn-default pearnly-pos-key" data-pay-key="${key}">${
+						key === "backspace" ? "⌫" : key === "sign" ? "±" : key}</button>`).join("")}</div>`).join("")
+				+ `</div>`;
 		}
 
-		function clear_cart() {
-			if (!cart.length) return;
-			frappe.confirm(t("trade.cartClearConfirm"), async () => {
-				cart = [];
-				paint_cart();
-				await cart_list?.reload();
-			});
-		}
-
-		// ── 收款 ────────────────────────────────────────────────────────────────
-		// 一笔收银 = 一次 `api_create_sale`：单据、收款、出库三处一起成，幂等锚在请求号上。
-		// 收银价是货架标价，所以 `has_vat: 0`（不在标价上再加 7%）。
+		// ── 收款（弹窗里也带一副 3 列键盘，照官方收款面板）──────────────────────
 		function checkout() {
 			if (!cart.length) { frappe.msgprint(t("trade.cartEmpty")); return; }
 			const total = cart_total();
@@ -182,13 +292,14 @@
 				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
 				amount("total", t("trade.total"), total),
 				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"),
-					options: u_methods(), default: "cash", reqd: 1 },
+					options: "cash\ncard\npromptpay\ntransfer", default: "cash", reqd: 1 },
 				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "amount",
 					label: t("trade.paid"), reqd: 1, default: total, change: paint_change },
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "change",
 					label: t("trade.change"), read_only: 1, default: 0 },
 				{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },
+				{ fieldtype: "HTML", fieldname: "pad", options: pay_pad_html() },
 			], t("trade.pay"), async (values, d) => {
 				const result = await p.call(api + "api_create_sale", {
 					shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
@@ -202,17 +313,29 @@
 				d.hide();
 				p.success(t("trade.paidNotice", result.receipt_no || result.name,
 					p.money(result.change_amount)));
-				cart = [];
-				paint_cart();
-				// 卖出去就少货：商品区的结存要跟着变，所以两边都重取。
+				cart = []; active = null; buffer = "";
+				// 卖出去就少货：商品卡的结存要跟着变，所以商品区也重取。
 				await refresh();
 				await receipt(result.name);
 			});
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			// 键盘直接写"实收"那一格；找零跟着变。
+			let pay_buffer = "";
+			const write_amount = () => {
+				const value = pay_buffer === "" ? 0 : Math.max(0, num(pay_buffer));
+				dialog.set_value("amount", round2(value));
+				paint_change();
+			};
+			dialog.fields_dict.pad.$wrapper.on("click", "[data-pay-key]", event => {
+				const key = event.currentTarget.dataset.payKey;
+				if (key === "backspace") pay_buffer = "";
+				else if (key === "sign") pay_buffer = pay_buffer.startsWith("-")
+					? pay_buffer.slice(1) : "-" + pay_buffer;
+				else if (key === "decimal") { if (!pay_buffer.includes(".")) pay_buffer += pay_buffer ? "." : "0."; }
+				else pay_buffer = (pay_buffer + key).replace(/^0(?=\d)/, "");
+				write_amount();
+			});
 		}
-
-		// 付款方式照服务端认的那四种（`cashier/contracts.PAYMENT_METHODS`）。
-		const u_methods = () => "cash\ncard\npromptpay\ntransfer";
 
 		// ── 小票、退货、班次 ────────────────────────────────────────────────────
 		async function receipt(name) {
@@ -233,6 +356,7 @@
 			d = p.dialog(doc.receipt_no, fields, t("trade.close"), async (_values, dialog) => dialog.hide());
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
 		}
+
 		function refund(doc, parent) {
 			const request = crypto.randomUUID();
 			const fields = [
@@ -240,7 +364,7 @@
 				{ fieldtype: "Select", fieldname: "original_line", label: t("trade.originalLine"), reqd: 1,
 					options: doc.lines.map(row => ({ value: row.name, label: `${row.description || row.product} · ${row.warehouse_name || ""} · ${row.location || ""} · ${p.number(row.qty)}` })) },
 				{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1 },
-				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"), options: u_methods(), default: "cash", reqd: 1 },
+				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"), options: "cash\ncard\npromptpay\ntransfer", default: "cash", reqd: 1 },
 				{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value), fieldname: "amount", label: t("trade.refundAmount"), reqd: 1 },
 			];
 			let d;
@@ -249,8 +373,8 @@
 				const line = doc.lines.find(row => row.name === d.get_value("original_line"));
 				if (line) d.set_value("amount", Math.round(Number(line.line_total) * Number(d.get_value("qty") || 0) / Number(line.qty) * 100) / 100);
 			};
-			fields.find(field => field.fieldname === "original_line").change = calculate;
-			fields.find(field => field.fieldname === "qty").change = calculate;
+			fields.find(item => item.fieldname === "original_line").change = calculate;
+			fields.find(item => item.fieldname === "qty").change = calculate;
 			d = p.dialog(t("trade.refund"), fields, t("trade.refund"), async (values, dialog) => {
 				await p.call(api + "api_refund_sale", { name: doc.name, lines: [{ original_line: values.original_line, qty: values.qty }],
 					payments: [{ method: values.method, amount: values.amount }], client_uuid: request }, "POST");
@@ -309,7 +433,6 @@
 			paint();
 		}
 
-		// 班次记录：近 200 个班，谁开的、什么时候交的、备用金/应有/实点/差额各是多少。
 		async function shift_history() {
 			const dialog = p.dialog(t("trade.shiftHistory"), [
 				{ fieldtype: "HTML", fieldname: "history" },
@@ -355,6 +478,14 @@
 			};
 		}
 
+		function clear_cart() {
+			if (!cart.length) return;
+			frappe.confirm(t("trade.cartClearConfirm"), () => {
+				cart = []; active = null; buffer = "";
+				paint_cart();
+			});
+		}
+
 		// ── 页面 ────────────────────────────────────────────────────────────────
 		// 小票不允许删除（退货要留痕），所以选中一条已完成的小票时给的是**对应那一步**：
 		// 打开退货退款弹窗（与从小票弹窗里点"退货退款"是同一条路径）。
@@ -373,81 +504,70 @@
 
 		async function render() {
 			p.clear_page(page);
-			form = null; products_list = null; cart_list = null; receipts_list = null;
+			// `p.clear_page` 不清菜单与次按钮，而这个函数每次开班/交班都会重跑一遍 ——
+			// 不自己清，「交班 / 班次记录 / 清空购物车」会一轮一轮往上叠。
+			page.clear_menu?.(); page.clear_secondary_action?.();
+			form = null; receipts_list = null; active = null; buffer = "";
 			shift = await p.call(api + "api_current_shift");
 			// 标题沿用侧栏那一项（`nav.cashier`，在 core 的语言包里），不另起一个名字。
 			page.set_title(__("nav.cashier"));
 			p.breadcrumbs({ label: __("nav.cashier"), route: p.subroute("pearnly-cashier") });
-			page.set_indicator(shift
-				? t("trade.shiftOpen", shift.shift.shift_seq, p.money(shift.expected_cash))
-				: t("trade.noShift"), shift ? "green" : "orange");
-			if (canWrite) page.add_inner_button(t("trade.closeShift"), hand_over);
-			page.add_inner_button(t("trade.shiftHistory"), () => void shift_history());
-			page.add_inner_button(t("trade.cartClear"), clear_cart);
+			paint_shift_indicator();
+			// 页面动作：主按钮「新单/开班」、次按钮「当班小票」、菜单里三件（照官方那三处）。
+			if (canWrite) page.set_secondary_action(t("trade.shiftReceipts"), toggle_receipts);
+			if (canWrite) page.add_menu_item(t("trade.closeShift"), hand_over);
+			page.add_menu_item(t("trade.shiftHistory"), () => void shift_history());
+			page.add_menu_item(t("trade.cartClear"), clear_cart);
 			p.add_refresh(page, refresh);
 
 			const counter = Boolean(shift) && canWrite;
 			form = p.layout(page.main, [
-				...(counter ? [
-					{ fieldtype: "HTML", fieldname: "counter", options: COUNTER_HTML },
-				] : []),
+				...(counter ? [{ fieldtype: "HTML", fieldname: "counter", options: COUNTER_HTML }] : []),
 				{ fieldtype: "Section Break", label: t("trade.shiftReceipts") },
 				{ fieldtype: "HTML", fieldname: "receipts" },
 			]);
+			// 当班小票默认收起，按钮切换（与官方 "Recent Orders" 一个用法）。
+			receipts_shown = false;
+			form.fields_dict.receipts.$wrapper.closest(".form-section").hide();
 
 			if (counter) {
-				const host = form.fields_dict.counter.$wrapper;
-				const items_pane = host.find(".pearnly-counter-items");
-				const lines_pane = host.find(".pearnly-counter-lines");
-				// 搜索与扫码放在商品那一栏顶上（官方 POS 也是把筛选/search 放在商品区里）。
-				// 两格并排一行：`p.field_rows` 就是官方那套 Column Break 排版。
-				const filters = p.layout(host.find(".pearnly-counter-filter"), p.field_rows([
+				// 搜索与扫码放在商品区顶上（官方 POS 也把筛选放在商品区里）。
+				const filters = p.layout(pane(".pearnly-pos-filter"), p.field_rows([
 					field("q", "trade.searchProducts", "Data"),
 					{ fieldtype: "Button", fieldname: "scan", label: t("trade.scan"),
 						click: () => start_scan() },
 				], 2));
-				products_list = p.list({ page, container: items_pane,
-					doctype: "ERP Product", compact_columns: true,
-					on_open: row => add_to_cart(row),
-					load: ({start, page_length}) => p.call(api + "api_counter_products", {
-						terminal: shift.shift.terminal, search: filters.get_value("q") || undefined,
-						start, limit: page_length }),
-					columns: [
-						// 五列要挤进左栏（约 576px）：宽度按"能缩但不挤掉最后一列"给，
-						// 之前 240/130/70/100/90 加起来超过栏宽，库存那一列被顶出去了。
-						{ fieldname: "product_name", width: 170, min_width: 110, label: t("trade.product") },
-						{ fieldname: "code", width: 100, min_width: 72, label: t("trade.code") },
-						{ fieldname: "unit", width: 56, min_width: 44, label: t("trade.unit") },
-						{ fieldname: "unit_price", width: 84, min_width: 64, label: t("trade.price"),
-							format: value => money(value) },
-						// 库存不为正就不给"还能卖"的错觉：0 与负数标红（与列表里欠钱同一个红）。
-						{ fieldname: "qty_on_hand", width: 70, min_width: 56, label: t("trade.onHand"),
-							format: value => p.number(value),
-							cell_class: value => Number(value) > 0 ? "" : "pearnly-payment-due" },
-					],
-				});
-				cart_list = p.list({ page, container: lines_pane,
-					doctype: "ERP Sale Line", compact_columns: true,
-					on_open: row => edit_line(row),
-					load: async () => ({ items: cart, total: cart.length }),
-					columns: [
-						{ fieldname: "product_name", width: 150, min_width: 96, label: t("trade.product") },
-						{ fieldname: "qty", width: 62, min_width: 48, label: t("trade.qty"),
-							format: value => p.number(value) },
-						{ fieldname: "unit_price", width: 84, min_width: 64, label: t("trade.price"),
-							format: value => money(value) },
-						{ fieldname: "line_total", width: 90, min_width: 70, label: t("trade.amount"),
-							format: (_value, row) => money(num(row.qty) * num(row.unit_price) - num(row.discount)) },
-					],
-					row_actions: row => [{ id: "remove", label: __("Delete"), action: async () => {
-						cart = cart.filter(item => item.product !== row.product);
-						paint_cart(); await cart_list.reload();
-					}}],
-				});
-				// 商品区那颗搜索框：打完就重取商品（收银台的主路径是"搜/扫 → 加购物车"）。
+				// 搜索框那一格同时也是"商品区取数"的口径（`load_items` 读它）。
+				form.fields_dict.q = filters.fields_dict.q;
 				filters.fields_dict.q.$input?.on("keydown", event => {
-					if (event.key === "Enter") { event.preventDefault(); void products_list.reload(); }
+					if (event.key === "Enter") { event.preventDefault(); void load_items(true); }
 				});
+				await load_items(true);
+				paint_cart();
+				// 商品卡 / 购物车行 / 键盘：一块代理接住（卡片会随搜索重画）。
+				const counter_host = pane(".pearnly-pos");
+				counter_host.on("click", ".pearnly-pos-card", event => {
+					const name = event.currentTarget.dataset.product;
+					const row = items.rows.find(item => item.name === name);
+					if (row) add_to_cart(row);
+				});
+				pane(".pearnly-pos-more").on("click", () => void load_items(false));
+				counter_host.on("click", ".pearnly-pos-line:not(.head)", event => {
+					active = event.currentTarget.dataset.product;
+					buffer = ""; paint_cart();
+				});
+				counter_host.on("click", ".pearnly-pos-key", event => {
+					const target = event.currentTarget.dataset.target;
+					if (target === "remove") {
+						cart = cart.filter(row => row.product !== active);
+						active = cart.length ? cart[cart.length - 1].product : null;
+						buffer = ""; paint_cart();
+						return;
+					}
+					if (target) { active_field = target; buffer = ""; paint_cart(); return; }
+					pad_key(event.currentTarget.dataset.key);
+				});
+				counter_host.on("click", ".pearnly-pos-pay", checkout);
 			}
 
 			receipts_list = p.list({ page, container: form.fields_dict.receipts.$wrapper,
@@ -464,9 +584,9 @@
 					{ fieldname: "grand_total", label: t("trade.total"), format: value => p.money(value) },
 				],
 			});
-			await Promise.all([products_list?.ready, cart_list?.ready, receipts_list.ready]);
+			await receipts_list.ready;
 			paint_cart();
-			if (counter && !cart.length) await cart_list.reload();
+			restore_primary();
 		}
 
 		await render();

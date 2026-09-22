@@ -634,7 +634,43 @@
 | 点「收款」 | 原生弹窗「收银开单」：应收金额 THB 45 / 方式 现金 / 实收 45.00 / 找零 THB 0 |
 | 实收改 100 | 找零**实时**变 `THB 55` |
 | 提交 | 提示条「**小票 SI2569-000025 · 找零 THB 55**」+ 音效（0→882ms）；小票弹窗标题 `SI2569-000025`；购物车清空、合计回 THB 0、主按钮回禁用；「当班小票」变 `3 / 3` 且新单在最上 |
-| 服务端回读 | `ERP Sale`：`SI2569-000025 · sale · completed · 总计 45 · 实收 100 · 找零 55 · 收银员 purchase-preview · 班次 SHIFT-2026-00492`；流水：`STM-2026-00498 · PRD-00220 · -1 · sale_out · doc_no SI2569-000025`；结存 PRD-00220 **62 → 61** | 
+| 服务端回读 | `ERP Sale`：`SI2569-000025 · sale · completed · 总计 45 · 实收 100 · 找零 55 · 收银员 purchase-preview · 班次 SHIFT-2026-00492`；流水：`STM-2026-00498 · PRD-00220 · -1 · sale_out · doc_no SI2569-000025`；结存 PRD-00220 **62 → 61** |
+
+#### 四、被用户当场否掉的两处（第一版仍然不对，F19 重做）
+
+用户看完界面说："你这不是官方的收银台啊 ERPNext 是这样的收银台吗？POS 的记录我也是让你看 ERPNext 的"。两条都成立：
+
+1. **收银台版式还是不对**：我做成了"两栏的原生列表"。ERPNext 的收银台是**商品卡片网格**（`pos_item_selector.js:150-200`：`.item-wrapper` = 库存色点 `indicator-pill`（>10 绿 / ≤0 红 / 其余橙）+ 商品图或缩写 `frappe.get_abbr` + 名称 + `售价 / 单位`），**购物车带合计区**（`总件数 / 净额 / 合计`，`pos_item_cart.js:88-105`）和**常驻数字键盘**（`pos_number_pad.js`；购物车那份是 5 列：`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 删除 移除` + 底部「收款」，`pos_item_cart.js:120-150`；收款面板那份是 3 列 `1 2 3 / 4 5 6 / 7 8 9 / ± 0 删除`，`pos_payment.js:121-135`）。
+2. **"POS 记录放哪"我答错了方向**：我先按本仓自己那份声明（`sales/contracts.py` 的 `SOURCE_POS`）回答"应该进销售记录"。用户要的是 **ERPNext 的答案**，而 ERPNext 是**单独记**：
+   - `POS Invoice` 是一张**独立单据**（`accounts/doctype/pos_invoice`，`is_submittable: 1`，**有自己的 `naming_series`** —— 独立编号序列、独立列表），**不进 Sales Invoice 列表**；
+   - 开班 / 交班各是一张独立单据：`POS Opening Entry`（`autoname: POS-OPE-.YYYY.-.#####`）与 `POS Closing Entry`；
+   - **只有交班时并账**：`POS Closing Entry` 校验当班 POS Invoice（同一 profile、未合并、已提交）后，由 `POS Invoice Merge Log` 生成一张 `Sales Invoice`（`sales_invoice.is_pos = 1`），并把 `consolidated_invoice` **回写到每张 POS Invoice** 上（`pos_invoice_merge_log.py:158/364/379`）。
+   - 也就是说：**POS 记录是单独的一本（POS Invoice），交班时才合并进销售一侧**；不是"直接写进销售记录"。
+
+**这条对我们意味着**：现状（POS 落 `ERP Sale`、与销售记录分开）在"分开记"这一点上与 ERPNext 一致 —— 不需要把 POS 并进销售记录列表。差的可能是**交班时该不该生成一张汇总的销售单据**（ERPNext 是生成 Sales Invoice；我们没有会计侧）。这条留给用户定，不擅自加。
+
+### F19：收银台照 ERPNext 重做（卡片网格 + 键盘），入口与页面动作对齐（2026-09-23，未部署）
+
+用户连问三次"官方的收银台/进入方式是这样吗"，要求一律按 **ERPNext 本身**对，不是按我们的列表凑。查完的结论与改动：
+
+| 项 | ERPNext（证据） | 改前（我的） | 现在 |
+| --- | --- | --- | --- |
+| **进入方式** | **侧栏一项**：`workspace_sidebar/selling.json` 里 `label: "POS"`、`link_to: "point-of-sale"`、`link_type: "Page"` | 侧栏「收银 POS」→ 独立 Desk Page | **本来就是对的**（同一机制：独立页面 + 侧栏入口） |
+| 进门第一步 | `pos_controller.check_opening_entry()`：拉不到开账单就弹 **Create POS Opening Entry**（POS Profile + 各支付方式期初） | 没开班就弹「开班」（选收银台 + 备用金） | 一致（我们一个"收银台"承担官方 POS Profile 的角色） |
+| **商品区** | **卡片网格** `pos_item_selector.js`：库存色点（>10 绿 / ≤0 红 / 其余橙）+ 图片或 `frappe.get_abbr` 缩写 + 名称 + `售价 / 单位` | 原生列表（五行） | **卡片网格**（色点规则照抄，缩写用 `frappe.get_abbr`） |
+| **购物车** | `pos_item_cart.js`：行列表 + **合计区**（总件数 / 净额 / 合计）+ **常驻数字键盘**（`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 ⌫ 移除`）+ 键盘下「Checkout」 | 原生列表（点行开弹窗改数量） | 行列表 + 合计区 + 同布局键盘 + 键盘下「收款」 |
+| 收款 | `pos_payment.js`：收款面板另带一副 3 列键盘（`1 2 3 / 4 5 6 / 7 8 9 / ± 0 ⌫`） | 纯原生弹窗输入 | 弹窗里加了同一副 3 列键盘，直接写"实收"，找零实时算 |
+| 页面动作 | `prepare_btns/prepare_menu`：主按钮 **New Invoice**、次按钮 **Recent Orders**（切换"最近的单"显隐）、菜单 **Open Form View** / **Close the POS** | 头部三颗按钮：交班 / 班次记录 / 清空购物车 | 主按钮**「新单」**、次按钮**「当班小票」**（切换那一节显隐）、菜单里放 交班 / 班次记录 / 清空购物车 |
+| 关店 | `close_pos()` → 新建 **POS Closing Entry** 并跳到它的表单页 | 自定义「交班」弹窗（汇总 + 实点 + 差额） | 保留我们的弹窗（我们没有那张 DocType），内容与官方同：汇总 + 实点 + 差额标红 |
+
+**没有照搬的两处**（写清楚，不是漏）：官方的 **Open Form View**（把当前单开到 DocType 表单页）—— 产品把 Desk DocType 表单关掉了，没有对应物；官方的**历史单面板**——我们用「当班小票」那一节代替。
+
+**顺带修掉两个真问题**：
+
+1. **`page.set_title_sub()` 在我们页面壳里是空调用**：框架 `Page.$sub_title_area = wrapper.find("h6")`，而产品页面的 h6 数量是 **0**（实测），那句写进去什么都不显示。所以"开班时间"不往 h6 塞补丁，改放进**原生指示器**：`班次 2 · 开班 2026-09-23 03:42 · 应有现金 THB 1,309`。
+2. **`p.clear_page` 不清菜单与次按钮**：而 `render()` 每次开班/交班都重跑一遍，不自己清就会一轮一轮往上叠（交班/班次记录/清空购物车越堆越多）。在 `render()` 里补 `page.clear_menu()` + `page.clear_secondary_action()`。
+
+**界面验过**（桌面视口）：头部 = 标题 + 指示器（班次·开班时间·应有现金）+ ⋯菜单 + 当班小票 + 新单；商品区 24 张卡（色点 0 红 / 53、58、79、101、102、126 绿）；点卡片 → 购物车 1 行、合计 THB 45→78 跟着变；键盘 ⌫ 后按 3 → 数量 3、合计 THB 135、总件数 3；点「新单」→ 购物车清空、合计回 0；点「当班小票」→ 那一节展开显示 5 张小票；收款弹窗键盘点 1/5/0 → 实收 150.00、找零 THB 15（应收 135）。
 
 ## 验证
 

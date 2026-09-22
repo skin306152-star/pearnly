@@ -704,6 +704,7 @@ trade.methodPromptpay,พร้อมเพย์
 trade.methodTransfer,โอนเงิน
 trade.net,ยอดสุทธิ
 trade.newIn,รับสินค้าเข้า
+trade.newInvoice,บิลใหม่
 trade.newOut,จ่ายสินค้าออก
 trade.newSale,สร้างเอกสารขาย
 trade.noShift,ยังไม่เปิดกะ
@@ -712,6 +713,7 @@ trade.notice.submitted,ยืนยันแล้ว {0}
 trade.onHand,คงเหลือ
 trade.openShift,เปิดกะ
 trade.openedAt,เวลาเปิดกะ
+trade.openedAtSub,เปิดกะเมื่อ {0}
 trade.opening,ยอดยกมา
 trade.originalLine,สินค้าและตำแหน่งในบิลเดิม
 trade.out,จ่ายออก
@@ -720,6 +722,7 @@ trade.paidNotice,ใบเสร็จ {0} · เงินทอน {1}
 trade.pay,รับชำระเงิน
 trade.paymentDate,วันที่ชำระเงิน
 trade.paymentState,สถานะชำระเงิน
+trade.pickLine,เลือกบรรทัดก่อน
 trade.price,ราคาต่อหน่วย
 trade.product,สินค้า
 trade.qty,จำนวน
@@ -729,6 +732,7 @@ trade.refundAmount,ยอดคืนเงิน
 trade.refundBlocked,คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
 trade.refundCount,จำนวนการคืนเงิน
 trade.refundSingle,เลือกได้ครั้งละหนึ่งใบเสร็จ
+trade.remove,นำออก
 trade.rowOpening,ยกมา
 trade.salesCount,จำนวนบิล
 trade.save,บันทึกฉบับร่าง
@@ -741,6 +745,7 @@ trade.shiftHistory,ประวัติกะ
 trade.shiftNo,เลขที่กะ
 trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
 trade.shiftOpened,เปิดกะแล้ว · กะ {0}
+trade.shiftOpenedAt,กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}
 trade.shiftReceipts,บิลในกะนี้
 trade.state.closed,ปิดกะแล้ว
 trade.state.completed,เสร็จสิ้น
@@ -759,6 +764,7 @@ trade.terminal,จุดขาย
 trade.terminalHint,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
 trade.to,ถึงวันที่
 trade.total,ยอดชำระ
+trade.totalItems,จำนวนชิ้น
 trade.totalRows,รวม · {0} รายการ
 trade.unit,หน่วย
 trade.vat,อัตรา VAT

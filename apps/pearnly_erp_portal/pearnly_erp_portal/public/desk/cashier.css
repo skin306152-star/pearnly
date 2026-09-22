@@ -1,32 +1,159 @@
-/* 收银台：一屏两栏（左商品、右购物车），照框架 POS 那个骨架的 8:4 比例
-   （`erpnext/public/scss/point-of-sale.scss` 的 `> .items-container` 与
-   `> .customer-cart-container`），窄屏堆成一栏。
-   只摆位置与边框，颜色/控件一律用原生的，不另造皮肤。 */
-body.pearnly-product-desk .pearnly-counter {
+/* 收银台版式：照 ERPNext POS 那套骨架摆位置（左商品卡网格 8 : 右购物车 4，
+   购物车下面是合计区与常驻键盘），窄屏堆成一栏。
+   官方那份在 `erpnext/public/scss/point-of-sale.scss`；我们只借**版式**，
+   颜色、按钮、色点一律用原生类（`.indicator-pill`、`.btn`…），不另造皮肤。 */
+body.pearnly-product-desk .pearnly-pos {
 	display: grid;
 	grid-template-columns: minmax(0, 8fr) minmax(0, 4fr);
 	gap: var(--padding-md, 15px);
 	align-items: start;
 }
 
-body.pearnly-product-desk .pearnly-counter-pane {
-	min-width: 0;
+/* ── 左：商品卡网格 ─────────────────────────────────────────────────────── */
+body.pearnly-product-desk .pearnly-pos-grid {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--padding-sm, 8px);
+	margin-top: var(--padding-sm, 8px);
 }
 
-body.pearnly-product-desk .pearnly-counter-cart {
+body.pearnly-product-desk .pearnly-pos-card {
+	position: relative;
+	width: 132px;
+	padding: var(--padding-xs, 4px);
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+	cursor: pointer;
+	background: var(--card-bg, var(--fg-color));
+}
+
+body.pearnly-product-desk .pearnly-pos-card:hover {
+	border-color: var(--primary);
+}
+
+body.pearnly-product-desk .pearnly-pos-pill {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	z-index: 1;
+}
+
+body.pearnly-product-desk .pearnly-pos-display {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	height: 56px;
+	color: var(--text-muted);
+	font-size: 20px;
+	font-weight: 600;
+}
+
+body.pearnly-product-desk .pearnly-pos-img {
+	max-width: 100%;
+	max-height: 56px;
+}
+
+body.pearnly-product-desk .pearnly-pos-name {
+	font-size: var(--text-sm, 12px);
+	line-height: 1.25;
+	overflow: hidden;
+}
+
+body.pearnly-product-desk .pearnly-pos-rate {
+	font-size: var(--text-xs, 11px);
+	color: var(--text-muted);
+}
+
+body.pearnly-product-desk .pearnly-pos-empty {
+	padding: var(--padding-md, 15px);
+}
+
+/* ── 右：购物车 + 合计 + 键盘 ─────────────────────────────────────────────── */
+body.pearnly-product-desk .pearnly-pos-right {
 	border: 1px solid var(--border-color);
 	border-radius: var(--border-radius);
 	padding: var(--padding-sm, 8px);
 }
 
-/* 购物车那一栏顶上那行合计：与主按钮同一个数，让人不用来回看。 */
-body.pearnly-product-desk .pearnly-counter-total {
+body.pearnly-product-desk .pearnly-pos-lines {
+	min-height: 120px;
+	max-height: 46vh;
+	overflow-y: auto;
+}
+
+body.pearnly-product-desk .pearnly-pos-line {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 44px 76px 84px;
+	gap: var(--padding-xs, 4px);
+	padding: 4px var(--padding-xs, 4px);
+	border-bottom: 1px solid var(--border-color);
+	cursor: pointer;
+	font-size: var(--text-sm, 12px);
+}
+
+body.pearnly-product-desk .pearnly-pos-line.head {
+	color: var(--text-muted);
+	font-size: var(--text-xs, 11px);
+	cursor: default;
+}
+
+body.pearnly-product-desk .pearnly-pos-line.active {
+	background: var(--subtle-fg);
+}
+
+body.pearnly-product-desk .pearnly-pos-cell {
+	text-align: right;
+	overflow: hidden;
+	white-space: nowrap;
+}
+
+body.pearnly-product-desk .pearnly-pos-cell.name {
+	text-align: left;
+}
+
+body.pearnly-product-desk .pearnly-pos-totals {
+	margin-top: var(--padding-sm, 8px);
+	border-top: 1px solid var(--border-color);
+	padding-top: var(--padding-xs, 4px);
+}
+
+body.pearnly-product-desk .pearnly-pos-total-row {
+	display: flex;
+	justify-content: space-between;
+	font-size: var(--text-sm, 12px);
+}
+
+body.pearnly-product-desk .pearnly-pos-total-row.grand {
 	font-weight: 600;
-	padding: 0 var(--padding-sm, 8px) var(--padding-xs, 4px);
+}
+
+body.pearnly-product-desk .pearnly-pos-pad-row {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr) 1.7fr;
+	gap: var(--padding-xs, 4px);
+	margin-top: var(--padding-xs, 4px);
+}
+
+body.pearnly-product-desk .pearnly-pos-key {
+	width: 100%;
+}
+
+body.pearnly-product-desk .pearnly-pos-target.active {
+	border-color: var(--primary);
+	color: var(--primary);
+}
+
+body.pearnly-product-desk .pearnly-pos-pay {
+	width: 100%;
+	margin-top: var(--padding-xs, 4px);
+}
+
+body.pearnly-product-desk .pearnly-pos-paypad {
+	max-width: 240px;
 }
 
 @media (max-width: 991px) {
-	body.pearnly-product-desk .pearnly-counter {
+	body.pearnly-product-desk .pearnly-pos {
 		grid-template-columns: minmax(0, 1fr);
 	}
 }

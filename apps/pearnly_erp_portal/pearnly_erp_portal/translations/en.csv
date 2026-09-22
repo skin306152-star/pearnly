@@ -704,6 +704,7 @@ trade.methodPromptpay,PromptPay Amount
 trade.methodTransfer,Transfer
 trade.net,Net
 trade.newIn,New Stock Receipt
+trade.newInvoice,New Invoice
 trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
 trade.noShift,No Open Shift
@@ -712,6 +713,7 @@ trade.notice.submitted,Submitted {0}
 trade.onHand,On hand
 trade.openShift,Open Shift
 trade.openedAt,Opened At
+trade.openedAtSub,Opened at {0}
 trade.opening,Opening Quantity
 trade.originalLine,Original Item and Location
 trade.out,Issued
@@ -720,6 +722,7 @@ trade.paidNotice,Receipt {0} · Change {1}
 trade.pay,Complete Payment
 trade.paymentDate,Payment Date
 trade.paymentState,Payment Status
+trade.pickLine,Pick a line first
 trade.price,Unit Price
 trade.product,Product
 trade.qty,Quantity
@@ -729,6 +732,7 @@ trade.refundAmount,Refund Amount
 trade.refundBlocked,Only a completed sale receipt can be refunded
 trade.refundCount,Refund Count
 trade.refundSingle,Select one receipt to refund
+trade.remove,Remove
 trade.rowOpening,Opening
 trade.salesCount,Sales Count
 trade.save,Save Draft
@@ -741,6 +745,7 @@ trade.shiftHistory,Shift History
 trade.shiftNo,Shift No
 trade.shiftOpen,Shift {0} · Expected cash {1}
 trade.shiftOpened,Shift {0} opened
+trade.shiftOpenedAt,Shift {0} · opened {1} · expected cash {2}
 trade.shiftReceipts,Lines in this shift
 trade.state.closed,Closed
 trade.state.completed,Completed
@@ -759,6 +764,7 @@ trade.terminal,Terminal
 trade.terminalHint,Leave blank to use the default terminal
 trade.to,To Date
 trade.total,Total Due
+trade.totalItems,Total items
 trade.totalRows,Total · {0} row(s)
 trade.unit,Unit
 trade.vat,VAT Rate
