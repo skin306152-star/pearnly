@@ -1,0 +1,99 @@
+{
+  "recorded_at": "2026-09-22T15:22:52.874955+00:00",
+  "base_sha": "9f6cf3a08b807a568955b7599078b0c8c770dc78",
+  "source_hashes": {
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js": "b00e1fb1d9535d6255eba85442f7b66c0a28f0df5abe3b288d2b888b301970ad",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js": "118f62fa122353a126511fcdf11d16d1f201759d0e4eb5c682e10ba7c587697e",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js": "2209037dc1fdd177f89062070159034ce8036863d588918fdfc99013f25e04d3"
+  },
+  "runtime": {
+    "context": "colima-pearnly",
+    "project": "pearnly-purchase-lab",
+    "site": "erp-pos-a.localhost",
+    "image": "sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3",
+    "app_source_mount": "/Users/skin/.codex/worktrees/erp-purchase-records/pearnly/apps",
+    "socketio_connected": true
+  },
+  "backend": {
+    "result": "PASS",
+    "checks": [
+      "atomic posting",
+      "repeated submit",
+      "search",
+      "rollback item supplier stock numbering",
+      "duplicate invoice refusal",
+      "request key payload binding",
+      "payment reversal partial excess settlement",
+      "atomic amendment evidence copy and idempotent cancellation",
+      "owner scope native File access and scoped formula-safe Excel",
+      "OCR boundary mapping no external calls",
+      "LINE intake native scope, repeat media and confirmed-file deduplication",
+      "category monthly filters count and summary agreement",
+      "native PDF private voucher and idempotent regeneration",
+      "legacy API callers route through new settlement contract",
+      "unconfigured OCR entry unavailable",
+      "mixed invoice all business fields preserved through reload and Excel",
+      "manual uploaded evidence deduplicated by server content hash",
+      "version-one amounts submit and payment remain compatible",
+      "two concurrent processes post once with one item and one stock receipt",
+      "tenant isolation"
+    ],
+    "name": "PUR-2026-00178",
+    "prefix": "Purchase check 4bb0f9fc"
+  },
+  "browser": {
+    "viewports": [
+      [
+        1272,
+        776
+      ],
+      [
+        390,
+        844
+      ]
+    ],
+    "tested": [
+      "eight visible desktop business columns",
+      "search invoice number",
+      "native date filter and apply",
+      "native three tabs",
+      "phone item inputs without horizontal overflow",
+      "add and remove empty item preserving filled row",
+      "invalid quantity rejected and input retained",
+      "corrected submit posts and pays 214 with new item and stock",
+      "merge two lines and split restores originals",
+      "existing private attachment tab",
+      "read-only item and supplier internal selectors and edit-only switches hidden"
+    ],
+    "sample": {
+      "name": "PUR-2026-00194",
+      "system_no": "PE2569-000071",
+      "doc_no": "UI-MOBILE-20260922-02",
+      "qty": 2,
+      "unit_price": 100,
+      "vat": 14,
+      "grand_total": 214,
+      "paid_amount": 214,
+      "product": "PRD-00193",
+      "status": "submitted",
+      "auto_create_product": 1,
+      "update_stock": 1
+    }
+  },
+  "checks": {
+    "architecture": "PASS, 0 violations",
+    "frontend_i18n": "PASS",
+    "i18n_glossary": "PASS",
+    "js_syntax": "PASS",
+    "diff_check": "PASS",
+    "strict_i18n": "existing baseline failure: inventory/workbook.py 18 bare CJK, unchanged"
+  },
+  "not_performed": [
+    "new immutable release candidate for revised layout",
+    "real mobile device",
+    "paid OCR",
+    "external LINE",
+    "production deployment",
+    "user acceptance"
+  ]
+}

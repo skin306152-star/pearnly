@@ -579,3 +579,5 @@ Withholding Tax Certificate	预扣税凭证	หนังสือรับรอ
 Withholding Tax Rate	预扣税率	อัตราภาษีหัก ณ ที่จ่าย	源泉徴収税率
 Withholding Tax must be greater than zero	预扣税额必须大于零	ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์	源泉徴収税額はゼロより大きい値にしてください
 No attachments	无附件	ไม่มีไฟล์แนบ	添付ファイルなし
+Filter	筛选	ตัวกรอง	絞り込み	purchase.action.filter
+Split	分拆	แยก	分割

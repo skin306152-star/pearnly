@@ -177,6 +177,7 @@ Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过�
 Service,服务
 Sort Order,排序
 Source,来源
+Split,分拆
 Status,状态
 Stock Posted At,库存过账时间
 Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的商品。
@@ -336,6 +337,7 @@ product.scan.unknownType,无法识别码类型，请填入条码或二维码对�
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 promptpay,PromptPay
 purchase,采购
+purchase.action.filter,筛选
 purchase_in,采购入库
 quotation,报价单
 receipt,收据

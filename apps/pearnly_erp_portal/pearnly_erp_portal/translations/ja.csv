@@ -177,6 +177,7 @@ Send the code from the ERP page to bind,ERP 画面のコードを送信して連
 Service,サービス
 Sort Order,並び順
 Source,ソース
+Split,分割
 Status,ステータス
 Stock Posted At,在庫転記日時
 Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
@@ -336,6 +337,7 @@ product.scan.unknownType,コードの種類を判別できません。バーコ�
 product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 promptpay,PromptPay
 purchase,仕入
+purchase.action.filter,絞り込み
 purchase_in,仕入入庫
 quotation,見積書
 receipt,領収書

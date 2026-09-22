@@ -177,6 +177,7 @@ Send the code from the ERP page to bind,กรุณาส่งรหัสจ�
 Service,บริการ
 Sort Order,ลำดับการจัดเรียง
 Source,แหล่งที่มา
+Split,แยก
 Status,สถานะ
 Stock Posted At,วันที่ลงบัญชีสต็อก
 Stock changed during counting. Recount the affected products.,สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่
@@ -336,6 +337,7 @@ product.scan.unknownType,ไม่สามารถระบุชนิดโ�
 product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 promptpay,พร้อมเพย์
 purchase,จัดซื้อ
+purchase.action.filter,ตัวกรอง
 purchase_in,รับจากการซื้อ
 quotation,ใบเสนอราคา
 receipt,ใบเสร็จ
