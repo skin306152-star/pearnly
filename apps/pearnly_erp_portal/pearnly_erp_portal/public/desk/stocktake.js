@@ -4,18 +4,46 @@
  * （可改可撤销，实盘合计 = 未撤销之和），结束盘点锁住记录，最后过账把差异落成流水。
  * 手机那一侧（LINE）走 `/stocktake` 那个页面，提交进的是同一批接口。
  *
- * 一页两态：先看任务列表，点进去看这份盘点的行；工具栏跟着换（返回 / 导出 / 结束 / 过账）。
+ * 列表、任务和记录各有 Desk 路由，刷新、面包屑与浏览器前进后退使用同一份状态。
  */
 (() => {
 	const p = frappe.pearnly;
+	const root = "pearnly-stock-count";
+	const url = (name) => "/desk/" + [root, name]
+		.filter(Boolean).map(encodeURIComponent).join("/");
 
-	p.stockCount = async (page, t) => {
+	// 原生 Custom 面包屑只支持一个节点。仅扩展盘点的多级数据，节点仍由原生 API 渲染；
+	// 保存到 breadcrumbs.all，让框架重绘时保留整条路径，而不是临时追加 DOM 和点击闭包。
+	const native_custom = frappe.breadcrumbs.set_custom_breadcrumbs;
+	frappe.breadcrumbs.set_custom_breadcrumbs = function (crumb) {
+		native_custom.call(this, crumb);
+		for (const step of crumb.pearnly_stock_count_trail || []) {
+			this.append_breadcrumb_element(step.route, p.escape(step.label));
+		}
+	};
+	p.stockCountBreadcrumbs = ({ name, title, entries = false, report = false } = {}) => {
+		const trail = [];
+		if (name) trail.push({
+			label: title || name,
+			route: entries || report ? url(name) : "",
+		});
+		if (entries) trail.push({ label: __("stock.count.entries"), route: "" });
+		if (report) trail.push({ label: __("stock.board.title"), route: "" });
+		frappe.breadcrumbs.add({
+			type: "Custom", label: __("nav.stockCount"), route: url(),
+			pearnly_stock_count_trail: trail,
+		});
+	};
+
+	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const item_filters = ["all", "uncounted", "differences"];
 		let list;
 		let count = null; // 打开的是哪一份盘点（null = 列表态）
 		let item_filter = "all";
-		let mode = "list";
+		let view_sequence = 0;
+		const open_detail = (name) => frappe.set_route(root, name);
+		const open_entries = (row) => frappe.set_route(root, count, "records", row.name);
 
 		const qty = (value) => (value === null || value === undefined
 			? t("stock.count.blank")
@@ -33,45 +61,41 @@
 		function clear() {
 			list?.destroy();
 			list = null;
+			page.main.empty();
 			// 页面上的筛选字段是"加进去就一直留着"的：换一态要自己撤掉，
 			// 否则上一态的字段跟着走（状态/搜索/筛选会叠在一起）。
 			page.clear_fields();
 			page.fields_dict = {};
 			page.clear_inner_toolbar();
 			page.clear_primary_action();
+			page.clear_indicator();
 		}
 
-		// 二级界面用**原生面包屑**（首页 / 盘点 / 任务名），不再放"返回"按钮。
-		// 形状与框架自己给 Page 加的那条一致（`views/pageview.js`），只是多一层。
-		function set_breadcrumb(trail) {
-			frappe.breadcrumbs.add({
-				type: "Custom",
-				label: __("nav.stockCount"),
-				route: frappe.get_route_str(),
-			});
-			const first = frappe.breadcrumbs.$breadcrumbs.find("li a").last();
-			first.attr("href", "#").on("click", (event) => {
-				event.preventDefault();
-				open_list();
-			});
-			for (const step of trail || []) {
-				frappe.breadcrumbs.append_breadcrumb_element("", p.escape(step.label));
-				if (!step.on_click) continue;
-				frappe.breadcrumbs.$breadcrumbs.find("li a").last()
-					.attr("href", "#")
-					.on("click", (event) => {
-						event.preventDefault();
-						step.on_click();
-					});
+		async function show_route() {
+			const route = frappe.get_route();
+			if (route[0] !== root) return;
+			const request = ++view_sequence;
+			const route_key = frappe.get_route_str();
+			const current = () => request === view_sequence && route_key === frappe.get_route_str();
+			count = route[1] || null;
+			clear();
+			// 先给出可返回的路径；空数据、请求失败都不能把用户困在子页。
+			p.stockCountBreadcrumbs({ name: count, entries: route[2] === "records" });
+			try {
+				if (!count) open_list();
+				else if (route[2] === "records" && route[3]) {
+					await render_entries(count, route[3], current);
+				} else await render_detail(count, current);
+			} catch (error) {
+				if (!current()) return;
+				page.main.empty().append($("<p class='text-muted'>")
+					.text(__("Unable to load this page. Please reload.")));
+				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 			}
 		}
 
 		// ── 列表态 ────────────────────────────────────────────────────────────
 		function open_list() {
-			mode = "list";
-			count = null;
-			clear();
-			set_breadcrumb([]);
 			const status = page.add_field({
 				fieldtype: "Select",
 				fieldname: "status",
@@ -244,12 +268,10 @@
 		}
 
 		// ── 明细态 ────────────────────────────────────────────────────────────
-		async function open_detail(name) {
-			count = name;
+		async function render_detail(name, current) {
 			item_filter = "all";
-			mode = "detail";
-			clear();
 			const task = await p.call(api + "api_get_stock_count", { name });
+			if (!current()) return;
 			const editable = task.status === "Active";
 			page.add_inner_button(t("stock.action.export"), () => {
 				window.open(frappe.utils.get_url(
@@ -346,7 +368,7 @@
 					task.difference_total),
 				task.status === "Posted" ? "green" : (task.status === "Closed" ? "blue" : "orange"),
 			);
-			set_breadcrumb([{ label: task.title }]);
+			p.stockCountBreadcrumbs({ name, title: task.title });
 			void list.ready;
 		}
 
@@ -393,7 +415,7 @@
 					d.hide();
 					p.success(t("stock.count.imported", result.rows, result.counted));
 					report_problems(result.problems);
-					open_detail(name);
+					void show_route();
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
@@ -431,14 +453,15 @@
 		// 一份盘点的记录：**第三级页面 + 原生列表**。
 		// 为什么不做成对话框：框架自己写了 `.modal .hidden-xs { display: none !important }`
 		// （对话框在它眼里就是"小屏"），列表塞进去只剩第一列。记录是清单，用列表。
-		async function open_entries(row) {
-			mode = "entries";
-			clear();
-			const task = await p.call(api + "api_get_stock_count", { name: count });
-			set_breadcrumb([
-				{ label: task.title, on_click: () => open_detail(count) },
-				{ label: t("stock.count.entries") },
+		async function render_entries(name, item, current) {
+			const [task, items] = await Promise.all([
+				p.call(api + "api_get_stock_count", { name }),
+				p.call(api + "api_stock_count_items", { count: name, limit: 0 }),
 			]);
+			if (!current()) return;
+			p.stockCountBreadcrumbs({ name, title: task.title, entries: true });
+			const row = items.find((candidate) => candidate.name === item);
+			if (!row) frappe.throw(__("Not Found"));
 			page.set_indicator(t("stock.count.entriesTitle", row.product_name), "blue");
 			list = p.list({
 				page,
@@ -450,7 +473,7 @@
 					action: () => void_entry(entry),
 				}]),
 				load: async ({ start, page_length }) => {
-					const query = { count, item: row.name };
+					const query = { count: name, item: row.name };
 					const [items, total] = await Promise.all([
 						p.call(api + "api_stock_count_entries",
 							{ ...query, start, limit: page_length }),
@@ -499,7 +522,7 @@
 				async () => {
 					await p.call(api + "api_stock_count_close", { name: task.name }, "POST");
 					p.success(t("stock.count.closed"));
-					open_detail(task.name);
+					void show_route();
 				});
 		}
 
@@ -509,10 +532,15 @@
 					const result = await p.call(api + "api_stock_count_post", { name: task.name },
 						"POST");
 					p.success(t("stock.count.posted", result.adjustments.length));
-					open_detail(task.name);
+					void show_route();
 				});
 		}
 
-		open_list();
+		wrapper.on_page_show = () => {
+			p.restore_sidebar();
+			void show_route();
+		};
+		$(wrapper).on("hide", () => { ++view_sequence; });
+		await show_route();
 	};
 })();

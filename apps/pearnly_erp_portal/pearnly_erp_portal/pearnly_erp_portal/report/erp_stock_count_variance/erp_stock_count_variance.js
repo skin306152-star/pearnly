@@ -7,7 +7,31 @@
  * 术语表里带 `key` 的行，生成的翻译包第一列就是那个键（见 `scripts/i18n-build.py`），
  * 所以 Desk 这边认的是键，不是英文原句 —— 写成英文反而会被框架自带的译文抢走。
  */
-frappe.query_reports["ERP Stock Count Variance"] = {
+(() => {
+	const report_name = "ERP Stock Count Variance";
+	let breadcrumb_request = 0;
+	async function sync_breadcrumbs(report) {
+		const request = ++breadcrumb_request;
+		const name = report.get_filter_value("count");
+		const current = () => request === breadcrumb_request
+			&& frappe.get_route()[0] === "query-report"
+			&& frappe.get_route()[1] === report_name
+			&& report.get_filter_value("count") === name;
+		if (!current()) return;
+		frappe.pearnly.stockCountBreadcrumbs({ name, report: true });
+		if (!name) return;
+		try {
+			const task = await frappe.pearnly.call(
+				"pearnly_erp_portal.inventory.api.api_get_stock_count", { name });
+			if (current()) {
+				frappe.pearnly.stockCountBreadcrumbs({ name, title: task.title, report: true });
+			}
+		} catch (_error) {
+			// 服务端照常报告无权/不存在；保留按编号返回上级的路径。
+		}
+	}
+
+frappe.query_reports[report_name] = {
 	filters: [
 		{
 			fieldname: "count",
@@ -15,6 +39,11 @@ frappe.query_reports["ERP Stock Count Variance"] = {
 			fieldtype: "Link",
 			options: "ERP Stock Count",
 			reqd: 1,
+			on_change(report) {
+				if (report._no_refresh) return;
+				void sync_breadcrumbs(report);
+				return report.refresh(true);
+			},
 		},
 		{
 			fieldname: "only",
@@ -89,7 +118,7 @@ frappe.query_reports["ERP Stock Count Variance"] = {
 	// （`restore_sidebar` 同名时会短路，这里就是那种情况），免得点进来像换了个产品。
 	// 顺手把框架给"平台管理员"的那几项摘掉（改报表定义、打印/PDF、自动邮件、
 	// 报表生成器加列、用户权限）—— 产品里没有这些位置，租户不该看到按钮。
-	onload(report) {
+	async onload(report) {
 		const title = frappe.boot.pearnly_sidebar;
 		if (title) frappe.app.sidebar.setup(title);
 		const drop = [__("Edit"), __("Print"), __("PDF"), __("Setup Auto Email"),
@@ -99,5 +128,7 @@ frappe.query_reports["ERP Stock Count Variance"] = {
 				const label = $(this).find(".menu-item-label").text().trim();
 				if (drop.includes(label)) $(this).remove();
 			});
+		await sync_breadcrumbs(report);
 	},
 };
+})();
