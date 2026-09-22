@@ -62,6 +62,21 @@ def detail(task_id, start=0, limit=100):
 
 
 @frappe.whitelist(methods=["POST"])
+def confirm_review(task_id, rows, expected_revision):
+	return _transaction(bank_recon_service.confirm_review, task_id, rows, expected_revision)
+
+
+@frappe.whitelist(methods=["POST"])
+def check_review(task_id, rows):
+	return bank_recon_service.check_review(task_id, rows)
+
+
+@frappe.whitelist(methods=["GET"])
+def review(task_id):
+	return bank_recon_service.review(task_id)
+
+
+@frappe.whitelist(methods=["POST"])
 def delete(task_id):
 	return _transaction(bank_recon_service.delete, task_id)
 

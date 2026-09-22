@@ -49,6 +49,7 @@
   "summary_json",
   "parse_info_json",
   "run_info_json",
+  "review_json",
   "created_by",
   "created_at"
  ],
@@ -95,7 +96,7 @@
    "fieldtype": "Select",
    "label": "Status",
    "read_only": 1,
-   "options": "completed",
+   "options": "completed\nneeds_review",
    "default": "completed",
    "reqd": 1
   },
@@ -297,6 +298,13 @@
    "label": "Run Info Json",
    "read_only": 1,
    "description": "Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones"
+  },
+  {
+   "fieldname": "review_json",
+   "fieldtype": "Long Text",
+   "label": "Review JSON",
+   "read_only": 1,
+   "hidden": 1
   },
   {
    "fieldname": "created_by",

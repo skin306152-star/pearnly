@@ -1,12 +1,4 @@
-"""Native bank reconciliation: store decoded rows, the matching result and the workbook.
-
-Two entry points persist one task with its result rows: ``create`` takes rows
-already decoded by a caller, ``create_from_parsed`` takes the decoded page
-dictionary of the legacy parser and converts it with the migrated conversions
-first. Reading a file, running OCR and calling a model stay in the legacy
-project, as do model extraction, asynchronous job orchestration and the accountant
-review actions. The review workbook is rendered from what a task stored.
-"""
+"""Native bank reconciliation, PDF row review and stored-result export."""
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
@@ -17,6 +9,7 @@ from pearnly_cowork.reconciliation import (
 	bank_parse,
 	bank_recon_access,
 	bank_recon_contracts,
+	bank_review,
 	bank_warnings,
 	recon_tasks,
 )
@@ -40,7 +33,7 @@ TASKS = recon_tasks.ReconTasks(TASK, ROW, bank_recon_access, "CBR", LIST_FIELDS,
 
 def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 		reconciliation_type="bank", source_format=bank_recon_contracts.SOURCE_FORMAT,
-		parse_info=None, warnings=None, anchors=None, lang="th"):
+		parse_info=None, warnings=None, anchors=None, lang="th", *, _review=None):
 	"""Validate, match and store one reconciliation inside a single transaction."""
 	bank_recon_access.require(workspace)
 	name, request_key = TASKS.identity(request_id)
@@ -54,34 +47,51 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 	request_digest = bank_recon_contracts.digest(header_values, *rows)
 	replayed = TASKS.replay(name, request_digest)
 	if replayed:
-		return replayed
+		existing = frappe.get_doc(TASK, name)
+		bank_recon_access.require(existing.workspace)
+		if existing.workspace != workspace:
+			frappe.throw(_("reconciliation.request_conflict"))
+		return {**replayed, "status": existing.status}
+	results, summary_value = ([], {}) if _review is not None else _match(rows, header_values)
+	run_values = run_info(rows, summary_value.get("matched_count", 0), warnings, anchor_record, lang)
+	review_value = {} if _review is None else bank_review.serializable({
+		"revision": 1, "statement_rows": rows[0], "gl_rows": rows[1], "header": header_values,
+		"diagnostics": _review, "lang": lang, "anchor_record": anchor_record,
+		"warnings": warnings})
+	task = frappe.get_doc({"doctype": TASK, "record_id": name, "workspace": workspace,
+		"title": title, "reconciliation_type": reconciliation_type,
+		"status": "needs_review" if _review is not None else "completed",
+		"bank_code": header_values["bank_code"], "gl_account_code": header_values["gl_account_code"],
+		"source_format": source_format, "source_digest": request_digest,
+		"request_key": request_key, "request_digest": request_digest,
+		"review_json": bank_recon_contracts.json_dumps(review_value),
+		"row_count": len(results),
+		"summary_json": bank_recon_contracts.json_dumps(summary_value),
+		"parse_info_json": bank_recon_contracts.json_dumps(parse_values),
+		"run_info_json": bank_recon_contracts.json_dumps(run_values),
+		"created_by": frappe.session.user, "created_at": now_datetime(), **{
+			field: summary_value.get(field, 0) for field in TASK_SUMMARY_FIELDS}})
+	persist(task)
+	_persist_rows(task, results)
+	return {"name": name, "replayed": False, "status": task.status, "summary": summary_value,
+		"row_count": len(results), "run_info": run_values}
+
+
+def _match(rows, header_values):
 	results, summary = bank_matching.reconcile(
 		bank_recon_contracts.matching_statement_rows(rows[0]),
 		bank_recon_contracts.matching_gl_rows(rows[1]),
 		stmt_opening=float(header_values["stmt_opening"]), gl_opening=float(header_values["gl_opening"]),
 		stmt_closing=float(header_values["stmt_closing"]), gl_closing=float(header_values["gl_closing"]),
 		bank_code=header_values["bank_code"], gl_account_code=header_values["gl_account_code"])
-	summary_value = {field: getattr(summary, field) for field in summary.__dataclass_fields__}
-	run_values = run_info(rows, summary_value["matched_count"], warnings, anchor_record, lang)
-	task = frappe.get_doc({"doctype": TASK, "record_id": name, "workspace": workspace,
-		"title": title, "reconciliation_type": reconciliation_type,
-		"status": "completed",
-		"bank_code": header_values["bank_code"], "gl_account_code": header_values["gl_account_code"],
-		"source_format": source_format, "source_digest": request_digest,
-		"request_key": request_key, "request_digest": request_digest,
-		"row_count": len(results),
-		"summary_json": bank_recon_contracts.json_dumps(summary_value),
-		"parse_info_json": bank_recon_contracts.json_dumps(parse_values),
-		"run_info_json": bank_recon_contracts.json_dumps(run_values),
-		"created_by": frappe.session.user, "created_at": now_datetime(), **{
-			field: summary_value[field] for field in TASK_SUMMARY_FIELDS}})
-	persist(task)
+	return results, {field: getattr(summary, field) for field in summary.__dataclass_fields__}
+
+
+def _persist_rows(task, results):
 	for index, result in enumerate(results):
-		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{name}-{index + 1}",
-			"workspace": workspace, "task": name, "row_index": index + 1,
+		persist(frappe.get_doc({"doctype": ROW, "record_id": f"{task.name}-{index + 1}",
+			"workspace": task.workspace, "task": task.name, "row_index": index + 1,
 			**row_values(result)}))
-	return {"name": name, "replayed": False, "summary": summary_value, "row_count": len(results),
-		"run_info": run_values}
 
 
 def create_from_parsed(workspace, title, request_id, statement_pages, gl_pages, header=None,
@@ -148,6 +158,7 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 	per-file diagnostics are stored so the workbook's File Info section shows the
 	same numbers the deployed run recorded.
 	"""
+	bank_recon_access.require(workspace)
 	if not isinstance(statement_bytes, bytes) or not isinstance(gl_bytes, bytes):
 		frappe.throw(_("reconciliation.request_invalid"))
 	statement = bank_intake.read_statement_file(statement_bytes, statement_filename,
@@ -175,7 +186,8 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 				"bank_code": statement["bank_code"]}],
 			"gl_files": [{"file": gl_filename, "rows": ledger["row_count"], "ok": True,
 				"error": None, "error_code": None, "accounts": ledger["accounts"]}],
-		}, warnings=warnings, anchors=anchors, lang=lang)
+		}, warnings=warnings, anchors=anchors, lang=lang,
+		_review=_review_diagnostics(statement, statement_filename))
 	return {**result, "parsed": {
 		"statement_rows": statement["row_count"],
 		"gl_rows": ledger["row_count"],
@@ -189,8 +201,99 @@ def create_from_documents(workspace, title, request_id, statement_bytes, stateme
 		"completeness_ok": statement["completeness"]["ok"],
 		"escalations": statement.get("escalations") or [],
 		"parser_version": statement["parser_version"],
+		# Parse-quality warning is the existing diagnostic, not task state. Only
+		# top-level status says whether confirmation is blocking this task.
 		"needs_review": bool(statement["needs_review"] or ledger["needs_review"]),
 	}}
+
+
+def _review_diagnostics(statement, filename):
+	if not filename.lower().endswith(".pdf") or not bank_review.needs_review(statement):
+		return None
+	return {"file": filename, "low_conf_count": statement.get("low_conf_count", 0),
+		"amount_fixed_count": statement.get("amount_fixed_count", 0),
+		"completeness": statement.get("completeness") or {},
+		"row_metadata": [{"confidence": row.confidence, "balance_ok": row.balance_ok,
+			"direction_autocorrected": bool(row.direction_autocorrected),
+			"amount_autocorrected": bool(row.amount_autocorrected),
+			"account_no": row.account_no} for row in statement["rows"]]}
+
+
+def review(task_id):
+	doc = frappe.get_doc(TASK, task_id)
+	bank_recon_access.require(doc.workspace)
+	value = _review_state(doc)
+	return {"name": doc.name, "status": doc.status, "revision": value["revision"],
+		"rows": bank_review.editable_rows(value["statement_rows"]),
+		"opening": value["header"]["stmt_opening"], "diagnostics": value["diagnostics"],
+		"confirmation": value.get("confirmation")}
+
+
+def _review_state(doc):
+	value = bank_recon_contracts.json_loads(doc.review_json)
+	if not value:
+		frappe.throw(_("reconciliation.review_unavailable"))
+	return value
+
+
+def _check_review(value, rows):
+	try:
+		validated, canonical = bank_review.validate_rows(rows, value["statement_rows"], value["gl_rows"])
+	except bank_recon_contracts.ReconciliationContractError as error:
+		frappe.throw(_(str(error)))
+	header = bank_recon_contracts.header(value["header"])
+	checks = bank_review.balance_chain(validated, header["stmt_opening"])
+	return validated, canonical, header, checks
+
+
+def check_review(task_id, rows):
+	doc = frappe.get_doc(TASK, task_id)
+	bank_recon_access.require(doc.workspace)
+	value = _review_state(doc)
+	_, _, _, checks = _check_review(value, rows)
+	return {"revision": value["revision"], "checks": checks, "ok": all(row["ok"] for row in checks)}
+
+
+def confirm_review(task_id, rows, expected_revision):
+	# Lock the same task that deletion locks. No parser, file store, queue or OCR
+	# is consulted: both sides of the original parse are frozen in review_json.
+	bank_recon_access.require(frappe.get_doc(TASK, task_id).workspace)
+	doc = frappe.get_doc(TASK, task_id, for_update=True)
+	bank_recon_access.require(doc.workspace)
+	value = _review_state(doc)
+	if type(expected_revision) is not int or expected_revision != 1:
+		frappe.throw(_("reconciliation.request_conflict"))
+	validated, canonical, header, checks = _check_review(value, rows)
+	fingerprint = bank_recon_contracts.canonical_digest(canonical)
+	if doc.status == "completed":
+		if (value.get("confirmation") or {}).get("digest") != fingerprint:
+			frappe.throw(_("reconciliation.request_conflict"))
+		return {"name": doc.name, "status": doc.status, "revision": value["revision"],
+			"replayed": True, "summary": bank_recon_contracts.json_loads(doc.summary_json)}
+	if doc.status != "needs_review" or value["revision"] != expected_revision:
+		frappe.throw(_("reconciliation.request_conflict"))
+	if not all(row["ok"] for row in checks):
+		frappe.throw(_("reconciliation.review_balance_mismatch"))
+	for row in validated:
+		row["balance_ok"] = "ok"
+	if "stmt_closing" not in (value["anchor_record"].get("anchor_overrides") or {}):
+		header["stmt_closing"] = validated[-1]["balance"]
+	decoded = (validated, [bank_recon_contracts.gl_row(row) for row in value["gl_rows"]])
+	results, summary = _match(decoded, header)
+	run_values = run_info(decoded, summary["matched_count"], value["warnings"],
+		value["anchor_record"], value["lang"])
+	value.update(revision=2, confirmation={"digest": fingerprint, "rows": canonical,
+		"by": frappe.session.user, "at": str(now_datetime()), "checks": checks})
+	doc.update({"status": "completed", "row_count": len(results),
+		"summary_json": bank_recon_contracts.json_dumps(summary),
+		"run_info_json": bank_recon_contracts.json_dumps(run_values),
+		"review_json": bank_recon_contracts.json_dumps(value),
+		"source_digest": bank_recon_contracts.digest(header, *decoded),
+		**{field: summary[field] for field in TASK_SUMMARY_FIELDS}})
+	persist(doc)
+	_persist_rows(doc, results)
+	return {"name": doc.name, "status": doc.status, "revision": 2, "replayed": False,
+		"row_count": len(results), "summary": summary}
 
 
 TASK_SUMMARY_FIELDS = ("stmt_opening", "gl_opening", "stmt_closing", "gl_closing",
@@ -331,6 +434,8 @@ def export(task_id, lang="th"):
 	"""
 	doc = frappe.get_doc(TASK, task_id)
 	bank_recon_access.require(doc.workspace)
+	if doc.status != "completed":
+		frappe.throw(_("reconciliation.review_required"))
 	if lang not in EXPORT_LANGUAGES:
 		lang = "th"
 	rows = frappe.get_all(ROW, filters={"task": doc.name}, fields=list(ROW_EXPORT_FIELDS),
@@ -361,8 +466,13 @@ def detail(task_id, start=0, limit=100):
 
 
 def delete(task_id):
+	bank_recon_access.require(frappe.get_doc(TASK, task_id).workspace)
+	frappe.get_doc(TASK, task_id, for_update=True)
 	return TASKS.delete(task_id)
 
 
 def delete_many(task_ids):
+	for name in sorted(recon_tasks._batch_names(task_ids)):
+		bank_recon_access.require(frappe.get_doc(TASK, name).workspace)
+		frappe.get_doc(TASK, name, for_update=True)
 	return TASKS.delete_many(task_ids)

@@ -26,7 +26,7 @@ FRESH_SITE = "cowork-backend-duplicates.localhost"
 def install_fresh(site=FRESH_SITE):
     """Called only after connect() proves the existing bench is our marked lab."""
     root = Path("/home/frappe/frappe-bench")
-    if site not in {FRESH_SITE, "cowork-backend-classification.localhost", "cowork-backend-workspace.localhost"}:
+    if site not in {FRESH_SITE, "cowork-backend-classification.localhost", "cowork-backend-workspace.localhost", "cowork-backend-bank-review.localhost"}:
         raise SystemExit("Unrecognized fresh test Site")
     if (root / "sites" / site).exists():
         raise SystemExit("Fresh test Site already exists; refusing to overwrite it")

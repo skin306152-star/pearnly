@@ -496,3 +496,9 @@ Last Pushed At (UTC)	最近推送时间（UTC）	เวลาส่งล่า�
 Last Push Record	最近推送记录	บันทึกการส่งล่าสุด	最終送信記録	
 Completion Evidence	完成凭据	หลักฐานการเสร็จสิ้น	完了証跡	
 held	待接入发送	รอเชื่อมต่อการส่ง	送信連携待ち	
+Statement review is not available for this task.	此任务没有逐行复核记录。	งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี	このタスクには明細確認記録がありません。	reconciliation.review_unavailable
+Check the statement balance differences before confirming.	请先修正账单余额差异，再确认。	กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน	明細の残高差異を修正してから確定してください。	reconciliation.review_balance_mismatch
+Complete statement review before exporting the result.	请先完成账单复核，再导出对账结果。	กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล	明細確認を完了してから照合結果を出力してください。	reconciliation.review_required
+Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid
+Reviewed amounts need a balance and at most two decimal places.	复核行必须填写余额，金额最多保留两位小数。	รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม	確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。	reconciliation.review_amount_invalid
+Review JSON	复核记录 JSON	ข้อมูลการตรวจทาน JSON	確認記録 JSON	Review JSON

@@ -20,7 +20,7 @@ from pearnly_cowork.files import service as files_service
 from pearnly_cowork.ocr.engine import document_tier
 from pearnly_cowork.ocr.engine.errors import ContentError
 from pearnly_cowork.ocr.providers.client import ProviderFailure
-from pearnly_cowork.reconciliation import bank_parse, bank_recon_service
+from pearnly_cowork.reconciliation import bank_parse, bank_recon_access, bank_recon_service
 from pearnly_cowork.reconciliation.bank_recon_documents import BankReconciliationDocument
 
 OCR_IDENTITY_KEYS = ("backend", "project", "location", "credentials_path")
@@ -97,6 +97,7 @@ def create_from_sources(workspace, title, request_id, statement_source, gl_sourc
     Both sources are read through the files domain, which checks the actor's
     source access and the stored checksum before any byte is returned.
     """
+    bank_recon_access.require(workspace)
     statement_filename, statement_bytes = files_service.original(statement_source)
     gl_filename, gl_bytes = files_service.original(gl_source)
     return bank_recon_service.create_from_documents(

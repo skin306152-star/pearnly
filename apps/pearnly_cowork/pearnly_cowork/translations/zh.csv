@@ -227,6 +227,7 @@ Response Json,回执JSON
 Result Directory Revision,结果目录版本
 Result Json,识别结果（JSON）
 Result Unknown,结果未知
+Review JSON,复核记录 JSON
 Revision,版本
 Revocation Reason,撤销原因
 Revoked At (UTC),撤销时间（UTC）
@@ -454,6 +455,11 @@ push.request_invalid,推送请求无效。
 push.utc_required,必须提供带时区的UTC时间。
 recognized,已识别
 recognizing,识别中
+reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
+reconciliation.review_balance_mismatch,请先修正账单余额差异，再确认。
+reconciliation.review_required,请先完成账单复核，再导出对账结果。
+reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
+reconciliation.review_unavailable,此任务没有逐行复核记录。
 roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。
 roundtrip.export_amount_missing,发票缺少必要金额，请补全后再导出。
 roundtrip.export_amount_not_roundtrippable,此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。

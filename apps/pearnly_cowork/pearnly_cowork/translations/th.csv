@@ -227,6 +227,7 @@ Response Json,ผลตอบรับ JSON
 Result Directory Revision,รุ่นไดเรกทอรีผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
+Review JSON,ข้อมูลการตรวจทาน JSON
 Revision,รุ่น
 Revocation Reason,เหตุผลที่ยกเลิก
 Revoked At (UTC),เวลายกเลิก (UTC)
@@ -454,6 +455,11 @@ push.request_invalid,คำขอส่งไม่ถูกต้อง
 push.utc_required,ต้องระบุเวลา UTC พร้อมเขตเวลา
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
+reconciliation.review_amount_invalid,รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม
+reconciliation.review_balance_mismatch,กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน
+reconciliation.review_required,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
+reconciliation.review_rows_invalid,ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง
+reconciliation.review_unavailable,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
 roundtrip.document_limit,สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ
 roundtrip.export_amount_missing,ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก
 roundtrip.export_amount_not_roundtrippable,การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม

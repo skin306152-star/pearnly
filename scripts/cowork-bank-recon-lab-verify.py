@@ -670,6 +670,30 @@ class BankReconciliationFromFiles(unittest.TestCase):
 				self.request_id, statement_workbook(), statement_name,
 				b"not a workbook at all", gl_name)
 
+	def test_low_confidence_pdf_source_enters_review_and_confirm_uses_snapshot(self):
+		from unittest.mock import patch
+		from pearnly_cowork.reconciliation import bank_recon_api, bank_statement
+		from pearnly_cowork.pearnly_cowork.doctype.cowork_bank_reconciliation \
+			import cowork_bank_reconciliation as controller
+		statement = self.upload("STM review.pdf", unreadable_pdf())
+		ledger = self.upload("GL review.xlsx", gl_workbook())
+		calls = []
+		def model_rows(document_type, file_bytes, filename):
+			calls.append(document_type)
+			return {"ok": True, "opening": 1000.0, "closing": 600.0, "rows": [
+				bank_statement.StatementRow(None, "payment", 400.0, 0.0, 600.0, confidence="low")]}
+		with patch.object(controller, "document_model_rows", return_value=model_rows):
+			result = controller.create_from_sources(self.workspace, "Review PDF", self.request_id,
+				statement, ledger)
+		self.assertEqual(calls, ["bank_statement"])
+		self.assertEqual(result["status"], "needs_review")
+		self.assertEqual(bank_recon_api.detail(result["name"])["total"], 0)
+		rows = bank_recon_api.review(result["name"])["rows"]
+		with patch.object(controller.files_service, "original", side_effect=AssertionError):
+			confirmed = bank_recon_api.confirm_review(result["name"], rows, 1)
+		self.assertEqual(confirmed["status"], "completed")
+		self.assertEqual(confirmed["summary"]["matched_count"], 1)
+
 
 if __name__ == "__main__":
 	connect(os.environ.get("PEARNLY_COWORK_TEST_SITE"))

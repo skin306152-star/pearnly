@@ -227,6 +227,7 @@ Response Json,Response Json
 Result Directory Revision,Result Directory Revision
 Result Json,Result Json
 Result Unknown,Result Unknown
+Review JSON,Review JSON
 Revision,Revision
 Revocation Reason,Revocation Reason
 Revoked At (UTC),Revoked At (UTC)
@@ -454,6 +455,11 @@ push.request_invalid,Invalid push request.
 push.utc_required,A timezone-aware UTC timestamp is required.
 recognized,recognized
 recognizing,recognizing
+reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
+reconciliation.review_balance_mismatch,Check the statement balance differences before confirming.
+reconciliation.review_required,Complete statement review before exporting the result.
+reconciliation.review_rows_invalid,Invalid statement review rows or row references.
+reconciliation.review_unavailable,Statement review is not available for this task.
 roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
 roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
 roundtrip.export_amount_not_roundtrippable,"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."

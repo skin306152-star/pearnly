@@ -227,6 +227,7 @@ Response Json,確認応答JSON
 Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
+Review JSON,確認記録 JSON
 Revision,リビジョン
 Revocation Reason,失効理由
 Revoked At (UTC),失効日時 (UTC)
@@ -454,6 +455,11 @@ push.request_invalid,送信要求が無効です。
 push.utc_required,タイムゾーン付きのUTC時刻が必要です。
 recognized,認識済み
 recognizing,認識中
+reconciliation.review_amount_invalid,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
+reconciliation.review_balance_mismatch,明細の残高差異を修正してから確定してください。
+reconciliation.review_required,明細確認を完了してから照合結果を出力してください。
+reconciliation.review_rows_invalid,確認明細または元の行番号が無効です。
+reconciliation.review_unavailable,このタスクには明細確認記録がありません。
 roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
 roundtrip.export_amount_missing,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
 roundtrip.export_amount_not_roundtrippable,この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
