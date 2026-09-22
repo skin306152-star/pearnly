@@ -194,8 +194,9 @@
 				doctype: "Pearnly OCR Record", selectable: home.can_manage,
 				on_selection: updateAction,
 				columns: columns.map(([fieldname, label, format]) => ({fieldname,
+					// 与产品里其它时间一致：`p.datetime_text` 去掉微秒与秒（`str_to_user` 会带上 `:ss`）。
 					label: t("home.col." + label), format: fieldname === "creation"
-						? value => frappe.datetime.str_to_user(value) : format})),
+						? value => p.datetime_text(value) : format})),
 				load: async ({start, page_length}) => {
 					const result = await p.call("pearnly_core.billing_www.records", {
 						tab: activeTab, period: activePeriod, offset: start, limit: page_length});

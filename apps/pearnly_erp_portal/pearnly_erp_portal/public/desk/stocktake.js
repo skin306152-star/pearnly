@@ -245,6 +245,9 @@
 			const d = new frappe.ui.Dialog({ title: t("stock.count.entriesTitle", row.product_name), size: "extra-large", fields: [
 				{ fieldtype: "HTML", fieldname: "hint", options: `<p class="text-muted">${p.escape(w("bookPosition"))}: ${p.escape(row.warehouse_name)} / ${p.escape(row.location || "—")} · ${qty(row.book_qty)} ${p.escape(row.unit || "")}</p>` },
 				{ fieldtype: "HTML", fieldname: "entries" },
+				// 表格下面单独一片看照片：结束盘点之后也在这里看（用户 2026-09-22 口径：
+				// "除了导出能看图片，盘点结束的有没有什么办法查看图片"）。
+				{ fieldtype: "HTML", fieldname: "photos" },
 			] });
 			let detail;
 			d.onhide = () => detail?.destroy();
@@ -271,12 +274,37 @@
 					const position = (different, text) => different ? danger(text) : text;
 					return [position(e.warehouse_name !== row.warehouse_name, p.escape(e.warehouse_name)),
 						position((e.location || "") !== (row.location || ""), p.escape(e.location || "—")),
-						qty(e.qty), e.note || "", e.counted_by, e.counted_at,
+					// 时间一律走 `p.datetime_text`（库里带微秒，界面上只看到分钟）：
+					// 产品里所有时间显示都用这一个入口，别再一处一处报。
+					qty(e.qty), e.note || "", e.counted_by, p.datetime_text(e.counted_at),
 					e.voided ? p.escape(t("stock.count.entryVoided")) : active()
 						? `<button class="btn btn-default btn-xs" data-edit-count-entry="${p.escape(e.name)}">${p.escape(w("editEntry"))}</button> <button class="btn btn-default btn-xs" data-void-count-entry="${p.escape(e.name)}">${p.escape(t("stock.count.void"))}</button>`
 						: p.escape(t("stock.count.entryLive"))];
 				}), table_options());
+				await render_photos();
 			};
+			// 该商品在本任务里的照片：点开看原图（私有文件，按当前登陆身份取）。
+			async function render_photos() {
+				const host = d.fields_dict.photos?.$wrapper;
+				if (!host) return;
+				const photos = await p.call(api + "api_stock_count_item_photos", { count, item: row.name });
+				if (!host[0]?.isConnected) return;
+				host.empty();
+				if (!photos.length) return;
+				$("<p class='text-muted'>").text(`${w("photos")} ${photos.length}`).appendTo(host);
+				const strip = $("<div class='pearnly-count-photos'>").appendTo(host);
+				for (const photo of photos) {
+					const cell = $("<div class='pearnly-count-photo'>").appendTo(strip);
+					$("<a>").attr({ href: photo.file_url, target: "_blank", rel: "noopener" })
+						.append($("<img>").attr({ src: photo.file_url, alt: photo.file_name || "" }))
+						.appendTo(cell);
+					$("<span class='text-muted'>").text([
+						`${photo.warehouse_name || ""} / ${photo.location || t("stock.count.blank")}`,
+						qty(photo.qty), p.datetime_text(photo.counted_at),
+						photo.voided ? t("stock.count.entryVoided") : "",
+					].filter(Boolean).join(" · ")).appendTo(cell);
+				}
+			}
 			d.fields_dict.entries.$wrapper.on("click", "[data-edit-count-entry]", event => {
 				const entry = entries.find(e=>e.name===event.currentTarget.dataset.editCountEntry);
 				later(()=>entry_form(row, false, entry));

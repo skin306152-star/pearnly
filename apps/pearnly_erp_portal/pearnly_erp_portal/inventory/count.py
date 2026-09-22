@@ -763,3 +763,26 @@ def entry_photos(entry: str) -> list[dict]:
                                             "attached_to_name": entry},
                            fields=["name", "file_url", "file_name"], order_by="creation asc",
                            limit_page_length=PHOTO_LIMIT)
+
+
+def item_photos(*, count, item) -> list[dict]:
+    """该商品在**本任务里所有记录**的照片（记录弹窗表格下面那一片，含作废记录）。
+    带上记录自己的位置与时间，看图片时知道是哪一次、在哪儿拍的。"""
+    guard.require("stock.read")
+    _get(count)
+    entries = list_entries(count=count, item=item, limit=0)
+    if not entries:
+        return []
+    by_entry = {row["name"]: row for row in entries}
+    photos = frappe.get_list(
+        "File", filters={"attached_to_doctype": ENTRY,
+                         "attached_to_name": ("in", list(by_entry))},
+        fields=["name", "file_url", "file_name", "attached_to_name"],
+        order_by="creation asc", limit_page_length=0)
+    return [dict(photo, entry=photo["attached_to_name"],
+                 qty=by_entry[photo["attached_to_name"]].get("qty"),
+                 warehouse_name=by_entry[photo["attached_to_name"]].get("warehouse_name"),
+                 location=by_entry[photo["attached_to_name"]].get("location"),
+                 voided=by_entry[photo["attached_to_name"]].get("voided"),
+                 counted_at=by_entry[photo["attached_to_name"]].get("counted_at"))
+            for photo in photos]

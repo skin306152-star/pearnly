@@ -285,6 +285,17 @@ def _count_status_key(row) -> str:
     return "stock.count.rowDifference" if row.get("difference") or row.get("location_difference") else "stock.count.rowMatch"
 
 
+def _count_datetime(value):
+    """导出里的时间按界面同一条规矩：`2026-09-22 20:10`（库里的微秒不上表）。
+    导出与页面看到同一个形状，省得又是一处一处报（用户 2026-09-22 口径）。"""
+    if value in (None, ""):
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d %H:%M")
+    text = str(value).replace("T", " ").split(".")[0]
+    return text[:16]
+
+
 # 有差异的格子标红。色值与网页、差异看板同一个红（框架的 `--red-600`），
 # 这样导出来的表和工作台上看到的是同一处红（用户 2026-09-22 口径）。
 COUNT_DANGER_COLOR = "CC2929"
@@ -391,7 +402,7 @@ def _count_photo_sheet(book, entries, summary_rows, detail_rows) -> None:
             continue
         caption = " / ".join(str(value) for value in (
             entry.get("product_name"), entry.get("warehouse_name"), entry.get("location"),
-            entry.get("counted_by"), entry.get("counted_at")) if value not in (None, ""))
+            entry.get("counted_by"), _count_datetime(entry.get("counted_at"))) if value not in (None, ""))
         if entry.get("voided"):
             caption = f"{caption} ({_label('stock.count.entryVoided')})"
         for photo in group:
@@ -459,6 +470,8 @@ def _count_workbook(task, items, entries) -> bytes:
                                    else "stock.count.entryLive"))
             elif field == "warehouse_name":
                 line.append(warehouses.get(row.get("warehouse"), row.get("warehouse")))
+            elif field == "counted_at":
+                line.append(_count_datetime(row.get(field)))
             else:
                 value = row.get(field)
                 line.append("" if value is None else value)
@@ -610,6 +623,13 @@ def api_stock_count_entry_total(**kwargs):
 def api_stock_count_photos(**kwargs):
     kwargs = _clean(kwargs)
     return counts.entry_photos(kwargs.get("entry"))
+
+
+@frappe.whitelist()
+def api_stock_count_item_photos(**kwargs):
+    """该商品在本任务里的全部照片（记录弹窗表格下面那一片）。"""
+    kwargs = _clean(kwargs)
+    return counts.item_photos(count=kwargs.get("count"), item=kwargs.get("item"))
 
 
 @frappe.whitelist(methods=["POST"])

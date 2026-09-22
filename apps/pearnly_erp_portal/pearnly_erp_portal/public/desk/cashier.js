@@ -105,7 +105,8 @@
 			load: p.trade.load(api, "api_list_sales", "api_sale_total"),
 			columns: [
 				{ fieldname: "receipt_no", label: t("trade.docNo") },
-				{ fieldname: "sold_at", label: t("trade.date") },
+				// 收银单据时间是 Datetime（库里带微秒），跟产品里其它时间一样显示到分钟。
+				{ fieldname: "sold_at", label: t("trade.date"), format: value => p.datetime_text(value) },
 				{ fieldname: "sale_type", label: t("trade.kind"), format: value => __(value) },
 				{ fieldname: "status", label: t("trade.status"), format: value => __(value) },
 				{ fieldname: "grand_total", label: t("trade.total"), format: value => p.money(value) },

@@ -25,15 +25,18 @@ frappe.provide("frappe.pearnly");
 		const decimals = decimals_of(value, max);
 		return decimals === null ? String(value) : format_currency(value, currency, decimals);
 	};
-	// 服务端时间（`2026-09-22 15:07:55.568491`）→ 给人看的"日期 时:分"。
-	// 秒与微秒是库里的事，列表里显示完整值只会被截断成一串省略号（用户 2026-09-22 口径：
-	// "那个时间格式不对"）。日期部分仍交给框架按站点语言格式化。
+	// 产品里的时间一律这么显示：`2026-09-22 20:10`（到分钟）。所有界面（列表、弹窗、明细）
+	// 都走这一个入口 —— 用户 2026-09-22 口径："我真的不希望说一处就该一处"。
+	//
+	// 为什么这里**不做** `str_to_user` 的时区换算：业务时间在库里就是**站点时区的裸时间**
+	// （盘点记录 `counted_at`、收银单据 `sold_at` 都是站点时区的 now() 写进去的），再按
+	// "UTC → 观看者时区"换算只会整体偏 —— 本机实测偏 1.5 小时（站点默认时区残留成
+	// Frappe 装的 Asia/Kolkata）。旧项目同样按业务时区（UTC+7）直接显示。
+	// 所以只做三件事：去掉 `T`、去掉微秒尾巴、秒收到分钟。
 	p.datetime_text = (value) => {
 		if (!value) return "";
-		const text = String(value).replace("T", " ").replace(/\.\d+$/, "");
-		// `str_to_user` 按站点时间格式输出，默认是 `HH:mm:ss`；列表里看到分钟就够了，
-		// 把尾巴上的 ":ss" 去掉（`2026-09-22 14:12:00` → `2026-09-22 14:12`）。
-		return String(frappe.datetime.str_to_user(text)).replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
+		return String(value).replace("T", " ").replace(/\.\d+$/, "")
+			.replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
 	};
 	// 纯数字金额（不带货币符号、固定两位小数）：收发存那种"整列同一个币种"的表用 ——
 	// 旧项目那张表的金额列就是 `20,000.00` 这个形状（`fmtMoney`），不带 THB。
