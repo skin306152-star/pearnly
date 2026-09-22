@@ -16,15 +16,24 @@ def lock_task(name, *, active=True):
     return rows[0]
 
 
-def stock_token(product):
+def stock_token(product, *, for_update=False):
     # Count + maximum creation detect even an issue followed by an equal receipt.
-    movement = frappe.db.sql(
-        "select count(*), max(creation), max(name) from `tabERP Stock Movement` where product=%s",
-        (product,))
-    balances = frappe.db.sql(
-        "select name, qty_on_hand, value, unit_cost, cost_known from `tabERP Stock Balance` where product=%s order by name",
-        (product,))
-    units = frappe.db.get_value("ERP Product", product, ["base_unit", "unit"])
+    # MariaDB repeatable-read can retain a pre-lock snapshot. Writers need current
+    # locking reads after the product lock; ordinary lookup/review stays read-only.
+    suffix = " for update" if for_update else ""
+    try:
+        movement = frappe.db.sql(
+            "select count(*), max(creation), max(name) from `tabERP Stock Movement` where product=%s" + suffix,
+            (product,))
+        balances = frappe.db.sql(
+            "select name, qty_on_hand, value, unit_cost, cost_known from `tabERP Stock Balance` where product=%s order by name" + suffix,
+            (product,))
+        units = frappe.db.sql("select base_unit, unit from `tabERP Product` where name=%s" + suffix,
+                              (product,))
+    except frappe.QueryDeadlockError:
+        # Snapshot isolation may reject the changed row instead of returning it.
+        # The request rolls back, preserving both the observation and the receipt.
+        frappe.throw(_("Stock changed during counting. Recount the affected products."))
     return hashlib.sha256(json.dumps([movement, balances, units], default=str).encode()).hexdigest()
 
 

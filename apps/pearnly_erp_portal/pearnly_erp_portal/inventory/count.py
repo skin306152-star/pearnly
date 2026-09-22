@@ -357,7 +357,7 @@ def _warehouse_of(value, fallback) -> str:
     return warehouses.resolve(value or fallback)
 
 
-def list_items(*, count: str, q=None, filter="all", limit=50, start=0) -> list[dict]:
+def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False) -> list[dict]:
     """快照行。`filter`: all / uncounted / counted / differences（旧线上那三个筛选项）。"""
     guard.require("stock.read")
     task = _get(count)
@@ -386,7 +386,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0) -> list[d
             (e['warehouse'], e.get('location') or '') != (row.warehouse, row.location or '')
             for e in entries)
         if row.product not in tokens:
-            tokens[row.product] = count_state.stock_token(row.product)
+            tokens[row.product] = count_state.stock_token(row.product, for_update=_locked)
         row.stock_changed = bool(task.status == "Active" and row.counted and (not row.stock_token or row.stock_token != tokens[row.product]))
         if wanted and wanted not in " ".join(
                 str(row.get(key) or "").lower()
@@ -417,10 +417,10 @@ def close_count(name: str, review_token=None) -> dict:
     return post_count(name, review_token=review_token)
 
 
-def review_count(name):
+def review_count(name, *, _locked=False):
     guard.require("stock.read")
     task = get_count(name)
-    items = list_items(count=name, limit=0)
+    items = list_items(count=name, limit=0, _locked=_locked)
     entries = list_entries(count=name, limit=0)
     state = [task, items, entries]
     token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
@@ -440,7 +440,7 @@ def post_count(name: str, review_token=None) -> dict:
         frappe.throw(_(CLOSED))
     rows = list_items(count=name, limit=0)
     stock_service.lock_products([r["product"] for r in rows])
-    review = review_count(name)
+    review = review_count(name, _locked=True)
     if review_token and review_token != review["review_token"]:
         frappe.throw(_("The stock count changed. Review the differences again."))
     if review["conflicts"]:
@@ -583,7 +583,7 @@ def _save_photos(entry: str, values) -> int:
 
 def _record_revision(task, product, token=None):
     stock_service.lock_products([product])
-    current = count_state.stock_token(product)
+    current = count_state.stock_token(product, for_update=True)
     if token and token != current:
         frappe.throw(_("Stock changed during counting. Recount the affected products."))
     previous = frappe.get_all(ITEM, filters={"count": task, "product": product, "counted": 1},
