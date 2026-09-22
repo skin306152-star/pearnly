@@ -285,6 +285,35 @@ def _count_status_key(row) -> str:
     return "stock.count.rowDifference" if row.get("difference") or row.get("location_difference") else "stock.count.rowMatch"
 
 
+# 有差异的格子标红。色值与网页、差异看板同一个红（框架的 `--red-600`），
+# 这样导出来的表和工作台上看到的是同一处红（用户 2026-09-22 口径）。
+COUNT_DANGER_COLOR = "CC2929"
+
+
+def _count_summary_marks(row, columns) -> set:
+    """汇总行里"在讲差异"的那几格：差异数量 / 差异金额 / 状态，以及实际仓位对不上时那一格。"""
+    fields = set()
+    if row.get("counted") and flt(row.get("difference") or 0):
+        fields |= {"difference", "status"}
+        if row.get("difference_value") is not None:
+            fields.add("difference_value")
+    if row.get("location_difference"):
+        fields.add("actual_positions")
+    return {field for field in fields if field in columns}
+
+
+def _count_detail_marks(entry, book, columns) -> set:
+    """明细行里实盘仓库 / 仓位与账面不同的那几格；不计入合计的作废记录不标。"""
+    if entry.get("voided") or not book:
+        return set()
+    fields = set()
+    if entry.get("warehouse") != book.get("warehouse"):
+        fields.add("warehouse_name")
+    if (entry.get("location") or "") != (book.get("location") or ""):
+        fields.add("location")
+    return {field for field in fields if field in columns}
+
+
 def _count_workbook(task, items, entries) -> bytes:
     """两张表：汇总（每行账面/实盘/差异）+ 明细（每条记录、谁、何时、几张照片）。"""
     import io
@@ -300,6 +329,10 @@ def _count_workbook(task, items, entries) -> bytes:
     columns = list(COUNT_COLUMNS)
     if any("difference_value" in row for row in items):
         columns.insert(-1, ("difference_value", "stock.count.differenceValue"))
+    danger = Font(color=COUNT_DANGER_COLOR)
+    summary_columns = {field: index for index, (field, _key) in enumerate(columns, start=1)}
+    detail_columns = {field: index for index, (field, _key) in enumerate(COUNT_DETAIL_COLUMNS, start=1)}
+    book_items = {row["name"]: row for row in items}
     summary = book.active
     summary.title = "Summary"
     summary.append([_label(key) for _field, key in columns])
@@ -316,6 +349,8 @@ def _count_workbook(task, items, entries) -> bytes:
                 value = row.get(field)
                 line.append("" if value is None else value)
         summary.append(line)
+        for field in _count_summary_marks(row, summary_columns):
+            summary.cell(summary.max_row, summary_columns[field]).font = danger
     detail = book.create_sheet("Entries")
     detail.append([_label(key) for _field, key in COUNT_DETAIL_COLUMNS])
     for cell in detail[1]:
@@ -332,6 +367,8 @@ def _count_workbook(task, items, entries) -> bytes:
                 value = row.get(field)
                 line.append("" if value is None else value)
         detail.append(line)
+        for field in _count_detail_marks(row, book_items.get(row.get("item")) or {}, detail_columns):
+            detail.cell(detail.max_row, detail_columns[field]).font = danger
     for sheet in (summary, detail):
         for index, _key in enumerate(sheet is summary and columns or COUNT_DETAIL_COLUMNS,
                                      start=1):

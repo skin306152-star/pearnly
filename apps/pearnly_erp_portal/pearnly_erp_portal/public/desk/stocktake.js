@@ -33,6 +33,9 @@
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
+		// 有差异的地方标红：色值与差异看板、导出表同一个红（框架的 `--red-600`），
+		// 桌面表格与 Excel 因此看到的是同一处红（用户 2026-09-22 口径）。
+		const danger = value => `<span style="color: var(--red-600)">${value}</span>`;
 		// 表格选项：列头菜单只留排序（"移除栏 / 冻结"由 core `p.table_menu` 去掉），
 		// 所以这里不再需要给 Freeze/Unfreeze 补译文。
 		const table_options = () => ({
@@ -122,7 +125,9 @@
 					{ fieldname: "warehouse_name", width: 130, min_width: 100, label: t("stock.col.warehouse") },
 					{ fieldname: "item_total", width: 80, min_width: 64, label: t("stock.count.rows") },
 					{ fieldname: "counted_total", width: 90, min_width: 72, label: t("stock.count.countedRows") },
-					{ fieldname: "difference_total", width: 90, min_width: 72, label: t("stock.count.differenceRows") },
+					// 有差异的任务把这格标红（同一处红：差异看板 / 工作台 / 导出表）。
+					{ fieldname: "difference_total", width: 90, min_width: 72, label: t("stock.count.differenceRows"),
+						format: value => Number(value) ? danger(p.escape(p.number(value))) : p.escape(p.number(value)) },
 					// 创建时间是库里的 datetime（带秒与微秒），直接显示会被截成一串省略号 ——
 					// 按"日期 时:分"显示（用户 2026-09-22 口径："那个时间格式不对"）。
 					{ fieldname: "creation", width: 160, min_width: 148, label: t("stock.count.createdAt"),
@@ -205,20 +210,34 @@
 			const columns = [
 				{ name: t("stock.col.name"), width: 210, format: value => value },
 				{ name: t("stock.col.code"), width: 100 }, { name: t("stock.col.barcode"), width: 140 },
-				{ name: w("bookPosition"), width: 160 }, { name: w("actualPositions"), width: 230 },
+				{ name: w("bookPosition"), width: 160 },
+				// 这几列会自己拼红字（差异那几格），所以不走默认的 `p.escape`。
+				{ name: w("actualPositions"), width: 230, format: value => value },
 				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: 90 },
-				{ name: t("stock.count.counted"), width: 90 }, { name: w("quantityDiff"), width: 90 },
-				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), width: 110 }] : []),
-				{ name: t("stock.col.status"), width: 140 },
+				{ name: t("stock.count.counted"), width: 90 },
+				{ name: w("quantityDiff"), width: 90, format: value => value },
+				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), width: 110, format: value => value }] : []),
+				{ name: t("stock.col.status"), width: 140, format: value => value },
 			];
-			table = await p.table(table_host, columns.map(c=>({ ...c, format: c.format || p.escape })), rows.map(r=>[
-				`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
-				`${r.warehouse_name} / ${r.location || t("stock.count.blank")}`, r.actual_positions || "—", r.unit || "",
-				qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—", r.counted ? qty(r.difference) : "—",
-				...(state.can_view_costs ? [qty(r.difference_value)] : []),
-				r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted") : r.location_difference ? w("locationDiff")
-					: Number(r.difference) ? t("stock.count.rowDifference") : t("stock.count.rowMatch"),
-			]), table_options());
+			table = await p.table(table_host, columns.map(c=>({ ...c, format: c.format || p.escape })), rows.map(r=>{
+				// 有差异的三处：数量差异、差异金额、以及仓位对不上时的实际仓位 —— 标红；
+				// 状态列在这一行有问题时一起标红（"未盘点"不算差异，保持原色）。
+				const quantity_diff = Boolean(r.counted) && Number(r.difference) !== 0;
+				const value_diff = quantity_diff && Boolean(Number(r.difference_value));
+				const moved = Boolean(r.location_difference);
+				const status = r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted")
+					: moved ? w("locationDiff") : quantity_diff ? t("stock.count.rowDifference") : t("stock.count.rowMatch");
+				return [
+					`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
+					`${p.escape(r.warehouse_name)} / ${p.escape(r.location || t("stock.count.blank"))}`,
+					moved ? danger(p.escape(r.actual_positions || "—")) : p.escape(r.actual_positions || "—"),
+					r.unit || "",
+					qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—",
+					r.counted ? (quantity_diff ? danger(qty(r.difference)) : qty(r.difference)) : "—",
+					...(state.can_view_costs ? [value_diff ? danger(qty(r.difference_value)) : qty(r.difference_value)] : []),
+					quantity_diff || moved || r.stock_changed ? danger(p.escape(status)) : p.escape(status),
+				];
+			}), table_options());
 		}
 		async function records(row) {
 			const entries = state.entries.filter(e=>e.item===row.name);
@@ -240,13 +259,22 @@
 			d.on_page_show = async () => {
 				if (detail) return;
 				detail = await p.table(d.fields_dict.entries.$wrapper, [
-					w("actualWarehouse"), w("actualLocation"), t("stock.count.qty"), t("stock.count.note"),
+					// 实盘仓库 / 仓位与账面不同的那几格标红（与工作台、导出表同一条规矩）。
+					{ name: w("actualWarehouse"), format: value => value },
+					{ name: w("actualLocation"), format: value => value },
+					t("stock.count.qty"), t("stock.count.note"),
 					t("stock.count.countedBy"), t("stock.count.countedAt"),
 					{ name: t("stock.col.status"), format: value=>value },
-				], entries.map(e=>[e.warehouse_name, e.location || "—", qty(e.qty), e.note || "", e.counted_by, e.counted_at,
+				], entries.map(e=>{
+					// 哪一格对不上就标哪一格：仓库不同标仓库，仓位不同标仓位（和导出明细同一条规矩）。
+					const position = (different, text) => different ? danger(text) : text;
+					return [position(e.warehouse_name !== row.warehouse_name, p.escape(e.warehouse_name)),
+						position((e.location || "") !== (row.location || ""), p.escape(e.location || "—")),
+						qty(e.qty), e.note || "", e.counted_by, e.counted_at,
 					e.voided ? p.escape(t("stock.count.entryVoided")) : active()
 						? `<button class="btn btn-default btn-xs" data-edit-count-entry="${p.escape(e.name)}">${p.escape(w("editEntry"))}</button> <button class="btn btn-default btn-xs" data-void-count-entry="${p.escape(e.name)}">${p.escape(t("stock.count.void"))}</button>`
-						: p.escape(t("stock.count.entryLive"))]), table_options());
+						: p.escape(t("stock.count.entryLive"))];
+				}), table_options());
 			};
 			d.fields_dict.entries.$wrapper.on("click", "[data-edit-count-entry]", event => {
 				const entry = entries.find(e=>e.name===event.currentTarget.dataset.editCountEntry);
