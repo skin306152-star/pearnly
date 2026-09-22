@@ -8,14 +8,14 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import access, amounts
 
 FIELDS = ("name", "system_no", "doc_no", "doc_date", "creation", "supplier", "supplier_name",
-          "summary", "doc_kind", "doc_type", "source", "status", "payment_status", "currency",
+          "summary", "doc_kind", "source", "status", "payment_status", "currency",
           "fx_rate", "grand_total", "vat_amount", "wht_amount", "net_payable", "paid_amount", "stock_posted_at")
 
 
 def query(params=None):
     params = params or {}
     filters = [[key, "=", value] for key, value in guard.scope_filters().items()]
-    for key in ("status", "supplier", "payment_status", "doc_kind", "doc_type"):
+    for key in ("status", "supplier", "payment_status", "doc_kind"):
         value = params.get(key)
         if value:
             filters.append([key, "in" if isinstance(value, list) else "=", value])

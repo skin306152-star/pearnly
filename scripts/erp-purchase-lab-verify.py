@@ -199,7 +199,7 @@ def main():
     # A mixed invoice exercises every imported business field through native persistence and export.
     detailed=deepcopy(payload)
     detailed.update(supplier_name=prefix+' complete',supplier_tax_id='TEST-TAX',doc_no=prefix+' complete',
-        doc_kind='purchase_order',doc_type='simple_tax_receipt',currency='USD',fx_rate='34.25',
+        doc_kind='purchase_order',currency='USD',fx_rate='34.25',
         price_mode='inclusive',due_date='2026-10-22',requester='Requester',requester_user=buyer,
         notes='Remarks preserved',external_ref=prefix+' ref',source='manual',is_paid=0,update_stock=0)
     detailed['lines']=[{'description':prefix+' complete item','item_type':'goods','qty':'2',
@@ -210,7 +210,7 @@ def main():
     complete=entry.post(detailed,request_id=uuid4().hex)
     reloaded=records.get(complete['name'])
     for field in ('supplier_name','supplier_tax_id','supplier_branch_type','supplier_branch_no',
-                  'supplier_branch_name','supplier_address','doc_no','doc_kind','doc_type','currency',
+                  'supplier_branch_name','supplier_address','doc_no','doc_kind','currency',
                   'price_mode','requester','requester_user','notes','external_ref','source'):
         assert reloaded[field]==detailed[field],field
     for field in ('code','barcode','batch_no','category','unit'):

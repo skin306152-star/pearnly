@@ -11,7 +11,6 @@ from pearnly_erp_portal.purchasing import files
 
 PROMPT = '''Read this purchase document. Return only a JSON object containing fields actually printed:
 doc_no, doc_date (YYYY-MM-DD), due_date, doc_kind (purchase_invoice|purchase_order|expense),
-doc_type (tax_invoice|simple_tax_receipt|receipt|purchase_order|substitute_receipt|other),
 supplier_name, supplier_tax_id, supplier_branch_type (head_office|branch|none), supplier_branch_no,
 supplier_branch_name, supplier_address, currency, has_vat, price_mode (inclusive|exclusive),
 requester, notes, discount_total, rounding, lines [{item_type (goods|service), description, code,

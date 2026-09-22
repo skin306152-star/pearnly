@@ -74,6 +74,10 @@ def main():
     assert sum(stock.current_balance(product,wh,p).value for p in ['A','B','C','D'])==96
     movement_count=frappe.db.count('ERP Stock Movement')
     assert movement_count>before
+    # 盘点差异走**自己的编号定义**（AD 段），不借入库 IR / 出库 IS：
+    # 与 MR.ERP 的 stktranmod（调整是第三个模块、有自己的定义）同形。
+    posted_entries=frappe.get_all('ERP Stock Entry',{'ref_type':'count','ref_id':task},pluck='doc_no')
+    assert posted_entries and all(str(n or '').startswith('AD') for n in posted_entries),posted_entries
     assert count.close_count(task,review_token=review['review_token'])['deduped']
     assert frappe.db.count('ERP Stock Movement')==movement_count
     for call in [lambda:count.add_entry(count=task,item=rows['A']['name'],qty=1),

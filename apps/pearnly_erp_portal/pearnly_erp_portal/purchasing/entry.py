@@ -16,7 +16,7 @@ KINDS = {"purchase_invoice", "purchase_order", "expense", "goods", "service"}
 METHODS = {"cash", "transfer", "promptpay", "bank", "cheque", "other"}
 HEAD_FIELDS = ("doc_no", "due_date", "currency", "fx_rate", "supplier_tax_id", "supplier_branch_type",
                "supplier_branch_no", "supplier_branch_name", "supplier_address", "requester",
-               "requester_user", "notes", "source", "external_ref", "image_sha256", "doc_type")
+               "requester_user", "notes", "source", "external_ref", "image_sha256")
 LINE_FIELDS = ("item_type", "product", "product_ref", "description", "code", "barcode", "qty", "unit",
                "unit_price", "discount", "vat_rate", "wht_rate", "category", "subcategory", "batch_no",
                "expiry_date", "warehouse", "location")
@@ -178,7 +178,6 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
     doc.update({"doc_kind": kind, "doc_date": day, "supplier": supplier, "supplier_name": supplier_name,
         "currency": payload.get("currency") or "THB", "fx_rate": rate,
-        "doc_type": payload.get("doc_type") or ("tax_invoice" if has_vat else "receipt"),
         "system_no": doc.get("system_no") or numbering.allocate(direction="purchase", on=day,
               exists=lambda value: bool(frappe.db.exists("Purchase Document", {"system_no": value}))),
         "calculation_version": 2, "status": "submitted", "has_vat": int(has_vat),

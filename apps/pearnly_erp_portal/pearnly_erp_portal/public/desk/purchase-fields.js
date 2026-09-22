@@ -89,7 +89,7 @@
 			f("system_no", "trade.systemNo", "Data", {read_only: 1}),
 			f("doc_date", "Posting Date", "Date", {reqd: 1}),
 			f("doc_no", "Supplier Invoice No"),
-			f("doc_type", "Document Type", "Select", {options: u.options(["tax_invoice", "simple_tax_receipt", "receipt", "purchase_order", "substitute_receipt", "other"])}), col(),
+			col(),
 			f("doc_kind", "Type", "Select", {options: u.options(["purchase_invoice", "purchase_order", "expense", ...(doc.doc_kind === "goods" || doc.doc_kind === "service" ? [doc.doc_kind] : [])]), reqd: 1}),
 			f("is_paid", "Is Paid", "Check", {hidden: !editable}),
 			f("payment_status", "Payment Status", "Select", {hidden: editable, read_only: 1, options: u.options(["unpaid", "partial", "paid"])}),

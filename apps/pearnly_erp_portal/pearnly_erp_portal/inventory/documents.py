@@ -49,11 +49,15 @@ def _business_lines(lines) -> list:
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
-                 commit=True):
+                 commit=True, numbering_direction=None):
     """建一张入库/出库单据；`submit=True` 时同一事务里过账。
 
     `commit=True`（默认）在建单/过账后提交事务。**盘点过账**要"整批一个事务"，
     所以它传 `commit=False` 自己决定何时提交（与 `_post` 的"调用方决定"同一口径）。
+
+    `numbering_direction` 覆盖取号方向：入库/出库默认各用自己的定义（IR/IS），
+    **盘点差异传 `stocktake`**，走它自己的 `AD` 定义 —— 单据还是 in/out（决定货的
+    方向），但号是盘点那一段，与 MR.ERP"调整是第三个模块、有自己的编号定义"一致。
     """
     guard.require("stock.write")
     if direction not in ("in", "out"):
@@ -63,7 +67,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
-    doc_no = numbering.allocate(direction=direction, on=posting_date,
+    doc_no = numbering.allocate(direction=numbering_direction or direction, on=posting_date,
                                 exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"doc_no": value})))
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,

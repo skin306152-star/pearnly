@@ -513,7 +513,9 @@ def post_count(name: str, review_token=None) -> dict:
             lines=[{"product": key[0], "qty": abs(delta), "location": key[2],
                     "unit_cost": unit_cost}],
             reason=f"stocktake:{name}", ref_type="count", ref_id=name,
-            dedupe_key=f"count:{name}:{index}", submit=True, commit=False)
+            dedupe_key=f"count:{name}:{index}", submit=True, commit=False,
+            # 盘点走自己的编号定义（AD 段），与入库 IR / 出库 IS 分开。
+            numbering_direction="stocktake")
         applied.append({"product": key[0], "warehouse": key[1], "location": key[2],
                         "delta": float(delta), "entry": created["name"], "doc_no": created["doc_no"]})
     frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),

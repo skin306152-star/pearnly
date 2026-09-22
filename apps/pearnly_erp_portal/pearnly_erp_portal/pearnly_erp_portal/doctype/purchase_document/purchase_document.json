@@ -49,7 +49,6 @@
   "calculation_version",
   "request_id",
   "request_hash",
-  "doc_type",
   "supplier_branch_type",
   "supplier_branch_no",
   "supplier_branch_name",
@@ -345,12 +344,6 @@
    "label": "Request Hash",
    "fieldtype": "Data",
    "hidden": 1
-  },
-  {
-   "fieldname": "doc_type",
-   "label": "Document Type",
-   "fieldtype": "Select",
-   "options": "tax_invoice\nsimple_tax_receipt\nreceipt\npurchase_order\nsubstitute_receipt\nother"
   },
   {
    "fieldname": "supplier_branch_type",

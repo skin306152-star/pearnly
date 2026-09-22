@@ -91,7 +91,7 @@
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
 		const today = frappe.datetime.get_today();
-		await form.set_values({system_no: defaults.system_no, doc_kind: "purchase_invoice", doc_type: "tax_invoice",
+		await form.set_values({system_no: defaults.system_no, doc_kind: "purchase_invoice",
 			doc_date: today, due_date: frappe.datetime.add_days(today, defaults.settings.default_due_days || 0),
 			supplier_branch_type: "none", currency: defaults.settings.base_currency || "THB", fx_rate: 1,
 			has_vat: 1, price_mode: "exclusive", is_paid: 1, update_stock: 1, auto_create_product: 1,

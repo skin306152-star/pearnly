@@ -23,10 +23,15 @@ PURCHASE = "PE"
 SALES = "SI"
 STOCK_IN = "IR"
 STOCK_OUT = "IS"
+# 盘点/调整：**第三个库存单据定义**（用户 2026-09-23 口径，对齐 MR.ERP 的
+# `stktranmod` —— 那边的收货 / 发货 / 调整是三个菜单，各自一行编号定义）。
+# 盘点差异不再借用入库/出库的号，自己一段流水，报表上"这笔是盘出来的"一眼看得出。
+STOCK_ADJUST = "AD"
 
 # 业务方向 → 前缀。方向名与旧线上 `direction` 一致（purchase / sales / in / out）。
-BY_DIRECTION = {"purchase": PURCHASE, "sales": SALES, "in": STOCK_IN, "out": STOCK_OUT}
-PREFIXES = (PURCHASE, SALES, STOCK_IN, STOCK_OUT)
+BY_DIRECTION = {"purchase": PURCHASE, "sales": SALES, "in": STOCK_IN, "out": STOCK_OUT,
+                "stocktake": STOCK_ADJUST}
+PREFIXES = (PURCHASE, SALES, STOCK_IN, STOCK_OUT, STOCK_ADJUST)
 
 BUDDHIST_OFFSET = 543
 SERIAL_WIDTH = 6

@@ -67,7 +67,6 @@
 						}}),
 					f("date_basis", "Date", "Select", {options: [{value: "document", label: __("Posting Date")}, {value: "upload", label: __("Creation")}]}),
 					f("date_from", "From Date", "Date"), f("date_to", "To Date", "Date"),
-					multi("doc_type", "Document Type", u.options(["tax_invoice", "simple_tax_receipt", "receipt", "purchase_order", "substitute_receipt", "other"])),
 					multi("payment_status", "Payment Status", u.options(["unpaid", "partial", "paid"])),
 					multi("category", "Category", defaults.categories.filter(row => !row.parent_category).map(row => ({value: row.name, label: row.category_name}))),
 				], __("Apply"), async (values, d) => {filter_values = {...values, q: search.get_value()}; d.hide(); await refresh();});

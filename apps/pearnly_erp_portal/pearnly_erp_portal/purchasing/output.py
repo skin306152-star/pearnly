@@ -8,7 +8,7 @@ from pearnly_erp_portal.purchasing import access, amounts, records
 
 
 # Stored enum codes stay stable; workbook cells use the same official business terms as Desk.
-ENUM_FIELDS = {"doc_kind", "doc_type", "status", "payment_status", "supplier_branch_type",
+ENUM_FIELDS = {"doc_kind", "status", "payment_status", "supplier_branch_type",
                "price_mode", "payment_method", "method", "source", "item_type", "kind", "approval_status"}
 ENUM_LABELS = {
     "purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order", "expense": "Expense",
