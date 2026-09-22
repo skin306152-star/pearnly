@@ -83,6 +83,8 @@ This code is already taken	这个码已经被占用	รหัสนี้ถู�
 Already used by {0} (code {1})	已经是「{0}」（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
 Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
 Light	灯光	ไฟ	ライト	product.scan.light
+Identify barcode or QR code	扫码识别	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRを読み取る	product.scan.auto
+The code type could not be identified. Enter it in the barcode or QR field.	无法识别码类型，请填入条码或二维码对应字段。	ไม่สามารถระบุชนิดโค้ดได้ กรุณากรอกในช่องบาร์โค้ดหรือคิวอาร์โค้ด	コードの種類を判別できません。バーコードまたはQR欄に入力してください。	product.scan.unknownType
 Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done
 Product name	商品名称	ชื่อสินค้า	商品名	stock.col.name
 Code	编码	รหัส	コード	stock.col.code

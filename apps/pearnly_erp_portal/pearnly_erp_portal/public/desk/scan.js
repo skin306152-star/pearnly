@@ -9,6 +9,9 @@ frappe.provide("frappe.pearnly");
 		qr: ["qr_code"],
 	};
 	WANTED.all = [...WANTED.barcode, ...WANTED.qr];
+	// Classify by the decoder's symbology, never by the contents (QR may be numeric).
+	p.scan_kind = format => format === "qr_code" ? "qr"
+		: WANTED.barcode.includes(format) ? "barcode" : null;
 	let fallback;
 	async function decoder(kind) {
 		const formats = WANTED[kind] || WANTED.all;
@@ -47,7 +50,7 @@ frappe.provide("frappe.pearnly");
 	p.scan_reader = ({ host, kind = "all", on_result, on_error }) => {
 		const video = $(host).find("video").get(0);
 		let stream, reader, timer, stopped = false, paused = false, detecting = false;
-		let candidate = "", hits = 0;
+		let candidate = "", candidate_format = "", hits = 0;
 		const stop = () => {
 			stopped = true; clearTimeout(timer);
 			stream?.getTracks().forEach(track => track.stop()); stream = null;
@@ -62,12 +65,13 @@ frappe.provide("frappe.pearnly");
 					if (stopped || paused) return;
 					// QR content is exact text: internal whitespace must not be stripped.
 					const code = String(result[0]?.rawValue || "").trim();
-					hits = code && code === candidate ? hits + 1 : (code ? 1 : 0);
-					candidate = code;
+					const format = result[0]?.format || "";
+					hits = code && code === candidate && format === candidate_format ? hits + 1 : (code ? 1 : 0);
+					candidate = code; candidate_format = format;
 					if (code && hits >= 2) {
 						paused = true;
 						p.scan_feedback(host);
-						await on_result(code);
+						await on_result(code, { format, kind: p.scan_kind(format) });
 					}
 				}
 			} catch (error) { if (!stopped) on_error?.(error); }
@@ -91,7 +95,7 @@ frappe.provide("frappe.pearnly");
 			pause() { paused = true; },
 			has_torch() { return Boolean(stream?.getVideoTracks()[0]?.getCapabilities?.().torch); },
 			resume() {
-				candidate = ""; hits = 0; paused = false;
+				candidate = ""; candidate_format = ""; hits = 0; paused = false;
 				$(host).find(".pearnly-scan-stage").removeClass("pearnly-scan-done");
 			},
 			async torch(on) {
@@ -112,7 +116,7 @@ frappe.provide("frappe.pearnly");
 		d.onhide = () => scanner?.stop();
 		d.show();
 		scanner = p.scan_reader({ host: d.fields_dict.reader.$wrapper, kind,
-			on_result: async code => { scanner.stop(); d.hide(); on_result(code); },
+			on_result: async (code, details) => { scanner.stop(); d.hide(); await on_result(code, details); },
 			on_error: () => { d.hide(); frappe.msgprint(t("product.scan.denied")); },
 		});
 		await scanner.start();

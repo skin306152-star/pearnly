@@ -101,6 +101,7 @@ product.notice.imported,นำเข้า {0} รายการแล้ว
 product.notice.saved,บันทึก {0} แล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
 product.notice.toggledCount,อัปเดต {0} รายการแล้ว
+product.scan.auto,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 product.scan.denied,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
 product.scan.done,สแกนแล้ว
 product.scan.hint,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
@@ -110,6 +111,7 @@ product.scan.open,ไปแก้รายการนั้น
 product.scan.taken,รหัสนี้ถูกใช้ไปแล้ว
 product.scan.takenBody,ถูกใช้กับ {0} (รหัส {1}) แล้ว
 product.scan.title,สแกนโค้ด
+product.scan.unknownType,ไม่สามารถระบุชนิดโค้ดได้ กรุณากรอกในช่องบาร์โค้ดหรือคิวอาร์โค้ด
 product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 promptpay,พร้อมเพย์
 purchase,จัดซื้อ

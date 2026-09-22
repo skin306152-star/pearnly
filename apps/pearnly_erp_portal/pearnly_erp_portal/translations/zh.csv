@@ -101,6 +101,7 @@ product.notice.imported,已导入 {0} 个商品
 product.notice.saved,已保存 {0}
 product.notice.toggled,已更新 {0}
 product.notice.toggledCount,已更新 {0} 个商品
+product.scan.auto,扫码识别
 product.scan.denied,摄像头权限被拒绝，允许之后再试一次
 product.scan.done,扫到了
 product.scan.hint,把条码或二维码对准摄像头
@@ -110,6 +111,7 @@ product.scan.open,去改那一条
 product.scan.taken,这个码已经被占用
 product.scan.takenBody,已经是「{0}」（编码 {1}）
 product.scan.title,扫码
+product.scan.unknownType,无法识别码类型，请填入条码或二维码对应字段。
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 promptpay,PromptPay
 purchase,采购

@@ -118,48 +118,51 @@
 		function product_fields(existing = {}) {
 			const value = (field, fallback = null) =>
 				existing[field] === undefined ? fallback : existing[field];
+			// Each native Section is one row: help text can grow without shifting the next pair.
+			const row = (left, right) => [
+				{ fieldtype: "Section Break", hide_border: 1 }, left,
+				{ fieldtype: "Column Break" }, right,
+			];
 			return [
-				{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
-					reqd: 1, default: value("product_name") },
-				// 编码由系统发（旧线上 ERP 门户里这一格也是只读的），留空即自动编号。
-				{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
-					read_only: 1, description: t("product.field.codeAuto"),
-					default: value("code") },
-				{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode"),
-					default: value("barcode") },
-				{ fieldtype: "Data", fieldname: "qr_payload", label: t("product.field.qr"),
-					default: value("qr_payload") },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
-					default: value("unit") },
-				{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
-					description: t("product.field.baseUnitHint"),
-					default: value("base_unit") },
-				{ fieldtype: "Data", fieldname: "default_warehouse", label: t("product.field.defaultWarehouse"),
-					default: value("default_warehouse") },
-				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
-					description: t("product.field.locationHint"), default: value("default_location") },
-				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
-					default: value("category_id") },
-				// 空售价 = "从未设过"，与 ฿0 是两回事（服务端用 *_set 记这个区别）。
-				{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
-					options: "THB", default: value("price_set", existing.price_set)
-						? existing.unit_price : null },
-				{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
-					options: "THB", default: existing.cost_set ? existing.default_cost : null },
+				...row(
+					{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
+						reqd: 1, default: value("product_name") },
+					{ fieldtype: "Data", fieldname: "code", label: t("product.field.code"),
+						read_only: 1, description: t("product.field.codeAuto"), default: value("code") }),
+				...row(
+					{ fieldtype: "Data", fieldname: "barcode", label: t("product.field.barcode"),
+						default: value("barcode") },
+					{ fieldtype: "Data", fieldname: "qr_payload", label: t("product.field.qr"),
+						default: value("qr_payload") }),
+				...row(
+					{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"), default: value("unit") },
+					{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
+						description: t("product.field.baseUnitHint"), default: value("base_unit") }),
+				...row(
+					{ fieldtype: "Data", fieldname: "default_warehouse", label: t("product.field.defaultWarehouse"),
+						default: value("default_warehouse") },
+					{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
+						description: t("product.field.locationHint"), default: value("default_location") }),
+				// Empty prices remain distinct from an intentional zero.
+				...row(
+					{ fieldtype: "Currency", fieldname: "unit_price", label: t("product.field.price"),
+						options: "THB", default: existing.price_set ? existing.unit_price : null },
+					{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
+						options: "THB", default: existing.cost_set ? existing.default_cost : null }),
+				...row(
+					{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
+						default: value("category_id") },
+					{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
+						default: value("min_stock") }),
 				{ fieldtype: "Section Break" },
-				{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
-					default: value("min_stock") },
 				{ fieldtype: "Check", fieldname: "track_batch", label: t("product.field.trackBatch"),
 					default: value("track_batch", 0) },
 				{ fieldtype: "Check", fieldname: "track_expiry",
 					label: t("product.field.trackExpiry"), default: value("track_expiry", 0) },
 				{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
 					default: value("vat_applicable", 1) },
-				// 图片走原生附件控件（它自带上传按钮、只收图片、带缩略图预览），
-				// 落库的还是那个 URL —— 与旧线上同一个字段。文件保持私有（框架默认，
-				// 也符合租户隔离）：读权限靠服务端把它挂到这条商品上，见
-				// `service._attach_image`（私有且无归属的文件只有上传者读得到）。
+				{ fieldtype: "Column Break" },
+				// Native upload keeps the private file attached to this product on save.
 				{ fieldtype: "Attach Image", fieldname: "image_url", label: t("product.field.image"),
 					default: value("image_url") },
 			];
@@ -186,34 +189,25 @@
 			return true;
 		}
 
-		// 条码/二维码两格旁边加一个扫码按钮：原生输入框 + 原生按钮，解码在 desk/scan.js。
-		// 扫码枪不用按钮（它就是个键盘，打进输入框），但打完补的那个回车不能顺手把表单存了。
-		async function add_scan_buttons(dialog, self_name) {
-			await p.scan_ready();
-			for (const [fieldname, kind] of [["barcode", "barcode"], ["qr_payload", "qr"]]) {
-				const field = dialog.get_field(fieldname);
-				if (!field || !p.scan_supported(kind)) continue;
-				const button = $(`<button type="button" class="btn btn-default btn-sm"
-					title="${p.escape(t("product.action.scan"))}">
-					${frappe.utils.icon("es-line-camera", "sm")}</button>`);
-				const row = $('<div class="flex align-center" style="gap:6px"></div>');
-				field.$input.before(row);
-				row.append(field.$input).append(button);
-				button.on("click", () => p.scan({
-					kind,
-					on_result: async (code) => {
-						field.set_value(code);
-						await flag_taken(dialog, code, self_name);
-					},
-				}));
-			}
-			const barcode = dialog.get_field("barcode");
-			barcode.$input.on("keydown", (event) => {
-				if (event.key === "Enter") {
-					event.preventDefault();
-					event.stopPropagation();
-				}
+		function add_scan_action(dialog, self_name) {
+			dialog.set_secondary_action_label(t("product.scan.auto"));
+			dialog.set_secondary_action(() => {
+				if (!p.scan_supported()) return frappe.msgprint(t("product.scan.unsupported"));
+				return p.scan({ kind: "all", on_result: async (code, details) => {
+					const fieldname = details?.kind === "qr" ? "qr_payload"
+						: details?.kind === "barcode" ? "barcode" : null;
+					if (!fieldname) return frappe.msgprint(t("product.scan.unknownType"));
+					await dialog.set_value(fieldname, code);
+					await flag_taken(dialog, code, self_name);
+				} });
 			});
+			// Keyboard scanners provide text only. Both explicit fields remain usable;
+			// their trailing Enter must never trigger the Dialog's Save action.
+			for (const fieldname of ["barcode", "qr_payload"]) {
+				dialog.get_field(fieldname).$input.off("keypress").on("keydown keypress", event => {
+					if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
+				});
+			}
 		}
 
 		// 空串要变 null：那是"从未设过"，让它落成 0 就把"没设价"和"真的 ฿0"混成一个值。
@@ -238,7 +232,7 @@
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-			await add_scan_buttons(dialog, null);
+			add_scan_action(dialog, null);
 		}
 
 		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
@@ -317,7 +311,7 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
-			await add_scan_buttons(dialog, existing.name);
+			if (can_write) add_scan_action(dialog, existing.name);
 		}
 
 		// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。

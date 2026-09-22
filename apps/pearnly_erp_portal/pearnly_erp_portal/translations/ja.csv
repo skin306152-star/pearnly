@@ -101,6 +101,7 @@ product.notice.imported,{0}件を取り込みました
 product.notice.saved,{0} を保存しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
+product.scan.auto,バーコード・QRを読み取る
 product.scan.denied,カメラの許可が拒否されました。許可してから再試行してください
 product.scan.done,読み取りました
 product.scan.hint,カメラをバーコード・QR コードに向けてください
@@ -110,6 +111,7 @@ product.scan.open,その商品を開く
 product.scan.taken,このコードは既に使われています
 product.scan.takenBody,既に「{0}」(コード {1}) で使われています
 product.scan.title,コードをスキャン
+product.scan.unknownType,コードの種類を判別できません。バーコードまたはQR欄に入力してください。
 product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 promptpay,PromptPay
 purchase,仕入

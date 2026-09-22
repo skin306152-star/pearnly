@@ -101,6 +101,7 @@ product.notice.imported,Imported {0} product(s)
 product.notice.saved,Saved {0}
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
+product.scan.auto,Identify barcode or QR code
 product.scan.denied,Camera permission was refused; allow it and try again
 product.scan.done,Scanned
 product.scan.hint,Point the camera at the barcode or QR code
@@ -110,6 +111,7 @@ product.scan.open,Open that product
 product.scan.taken,This code is already taken
 product.scan.takenBody,Already used by {0} (code {1})
 product.scan.title,Scan a code
+product.scan.unknownType,The code type could not be identified. Enter it in the barcode or QR field.
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 promptpay,promptpay
 purchase,purchase
