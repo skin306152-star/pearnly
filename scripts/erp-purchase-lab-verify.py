@@ -151,9 +151,10 @@ def main():
     image=frappe.get_doc({'doctype':'File','file_name':prefix+'.png','is_private':1,
         'content':b'\x89PNG\r\n\x1a\nsynthetic-test'}).insert(ignore_permissions=True)
     frappe.db.commit()
-    with patch('pearnly_core.ocr.is_configured',return_value=True), patch('pearnly_core.ocr.json_from_images',return_value=json.dumps(personal)) as provider:
+    with patch('pearnly_core.ocr.is_configured',return_value=True), patch('pearnly_core.ocr.json_from_images',autospec=True,return_value=personal) as provider:
         result=recognition.recognise([{'file':image.name}])
         assert result['source']=='ocr' and len(result['image_sha256'])==64 and provider.call_count==1
+        assert provider.call_args.kwargs['model']
     checks.append('OCR boundary mapping no external calls')
     received=intake.receive(line_user_id='lab-'+prefix,sent_by=buyer,media_type='image',
         content=b'line-file-'+prefix.encode(),filename=prefix+'-line.png')

@@ -54,7 +54,10 @@ def recognise(attachments, intake_name=None, document_name=None):
         hashes.append(hashlib.sha256(content).hexdigest())
     if not images:
         frappe.throw(_("File not found"))
-    raw = ocr.json_from_images(PROMPT, images)
+    raw = ocr.try_with_fallback(
+        lambda model: ocr.json_from_images(PROMPT, images, model=model),
+        ok=lambda result: isinstance(result, dict) and isinstance(result.get("lines"), list),
+        label="purchase")
     try:
         result = raw if isinstance(raw, dict) else json.loads(raw)
     except (ValueError, TypeError):
