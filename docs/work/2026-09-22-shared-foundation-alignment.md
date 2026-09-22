@@ -44,4 +44,18 @@
 
 ## 同步和资源回读
 
-待本批本地提交、主线集成、任务分支同步后追加实际 SHA 与清理结果。盘点未验收代码、原任务实验数据及 Cowork 后端都必须保留；仅删除本批集成实验室的可再生资源。
+- 共享代码提交 `db4c7dc3b8d01d19d5aac8395125b6ca1f9059bd` 已 fast-forward 到本地主线。
+- ERP 盘点未完成快照 `e510bf3` 单独保留；同步提交 `fc134cd` 已包含该共享基线。31 条新增/修改词条按 App/msgid 迁入 ERP 表；Core、Control 和翻译工具相对 main 无差异，工作树干净。该快照不代表盘点业务已验收。
+- Cowork 同步提交 `db8aa9177e5912ff72dc745d881616e969d69665` 已包含共享代码基线；工作树干净。回读 ERP App 全目录及 Core 导航/分组/Desk JS/provisioning、Control features.py 与该基线逐字节一致。Cowork 503 条业务词条及后端、DMS 台账下沉、Core execution 增量与域检查按原分支保留，不称全仓业务已合并。取消 boards 后的默认说明和 App 描述也统一回主线，避免留下纯文案分歧。
+- 远端只读回查：`refs/heads/main=ac33e0c7362915ae314295cb26f7748cb5589de0`；本批集成、盘点、Cowork 任务远端分支均不存在。未推送、未部署，不称本地与远端代码一致。
+- 本批 `pearnly-shared-foundation-lab` 的 3 个容器、网络、DB/Site 卷及已登记的匿名日志卷已删除，并回读无工作树容器引用。只含本次合成验证数据，无用户业务数据。
+- 盘点工作树 `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly` 与分支保留；3 个隔离实验容器已停止，数据卷保留。负责人为 ERP UI 任务，待用户恢复后复核，业务完成并合入主线后清理。
+- Cowork 工作树/分支保留，归 Cowork 后端任务，等待下一步前端开发及最终集成；本批不删除其代码、实验环境或记录。
+- 旧 `codex/erp-pos-migration` 已是 main 祖先，但 `/Users/skin/.codex/worktrees/erp-pos-migration/pearnly` 仍被 `pearnly-erp-pos-provision-lab-maintenance-1` 挂载，归原 ERP 迁移任务，本批保留；原任务解除挂载并核对独有/忽略内容后再清理，不作为新开发基线。
+- 共享 `pearnly-sample` / qerp、已有 `pearnly-erp-pos-lab` 与控制面运行状态均未调整；后续实验室重新启用须按已更新的 Compose 重建缺少声明挂载的旧 bench，不能继续使用旧运行配置。
+
+本批集成工作树及本地分支在本提交合入 main 后删除；任务远端分支不存在。整体盘点/Cowork 工作状态为交接保留，不宣布全仓任务清理完成。
+
+### 收尾同步要求
+
+共享功能基线为 `db4c7dc`；本记录所在的后续提交只统一取消看板的描述并记录收尾。ERP/Cowork 各再合入本收尾提交，保持共享源码与最新本地主线一致。旧总词库不存在，只有产品词库。继续开发前读本记录与当前 AGENTS/ADR-009；盘点和 Cowork 前端仍保持暂停。

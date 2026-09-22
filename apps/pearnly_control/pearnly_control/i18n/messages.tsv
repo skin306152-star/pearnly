@@ -49,7 +49,7 @@ Feature Code	功能代码	รหัสฟีเจอร์	機能コード
 Matches the feature key in the product's own feature catalog (features.json).	与产品自己的功能目录 features.json 里的功能键一致	ตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกของผลิตภัณฑ์เอง (features.json)	製品自身の機能カタログ (features.json) の機能キーと一致します。
 Feature Name	功能名称	ชื่อฟีเจอร์	機能名
 Default On	常规开通	เปิดตามปกติ	既定で有効
-Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。	
+Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。
 Enforcement	权限落地	การบังคับสิทธิ์	権限の適用
 Role	对应角色	บทบาท	対応ロール
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）	ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
