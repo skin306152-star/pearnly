@@ -269,6 +269,7 @@ app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
 
 # Native resource APIs and Desk lists share the same backend scope.
 permission_query_conditions = {
+    "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
     "Cowork Invoice Category": "pearnly_cowork.history.categories.native_query",
     "Cowork Supplier Category Memory": "pearnly_cowork.history.categories.native_query",
     "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_query",
@@ -301,6 +302,7 @@ permission_query_conditions = {
     "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.row_query",
 }
 has_permission = {
+    "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
     "Cowork Invoice Category": "pearnly_cowork.history.categories.deny",
     "Cowork Supplier Category Memory": "pearnly_cowork.history.categories.deny",
     "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_permission",
@@ -338,7 +340,7 @@ doc_events = {"Pearnly OCR Work": {
     "validate": "pearnly_cowork.ocr.execution.work_guard.mutation",
     "on_trash": "pearnly_cowork.ocr.execution.work_guard.deny_delete",
 }, "DocShare": {
-    "before_validate": ["pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
+    "before_validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
@@ -346,7 +348,7 @@ doc_events = {"Pearnly OCR Work": {
         "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
         "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
         "pearnly_cowork.reconciliation.income_recon_access.reject_share"],
-    "validate": ["pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
+    "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
         "pearnly_cowork.companion.delivery_documents.reject_share",
         "pearnly_cowork.companion.documents.reject_share",
         "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",

@@ -17,6 +17,9 @@
  "field_order": [
   "display_name",
   "tax_id",
+  "address",
+  "branch",
+  "phone",
   "enabled"
  ],
  "fields": [
@@ -33,6 +36,23 @@
    "fieldtype": "Data",
    "label": "Tax ID",
    "length": 40
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "length": 120,
+   "label": "Branch"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "length": 50,
+   "label": "Phone"
   },
   {
    "fieldname": "enabled",

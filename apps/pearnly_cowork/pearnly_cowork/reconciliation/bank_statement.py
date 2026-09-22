@@ -33,25 +33,7 @@ AMOUNT_TOL = 0.02
 
 # Deployed v118.35.0.60 list: footer totals such as "Total Credit" or
 # "จำนวนเงินฝาก" were once parsed as transactions and broke the balance chain.
-SUMMARY_ROW_KEYWORDS = (
-    "total credit",
-    "total debit",
-    "total deposit",
-    "total withdrawal",
-    "total transaction",
-    "grand total",
-    "subtotal",
-    "sub total",
-    "รวมรายการ",
-    "ยอดรวม",
-    "รวมยอด",
-    "รวมเงิน",
-    "总计",
-    "合计",
-    "小计",
-    "本期合计",
-    "累计",
-)
+from pearnly_cowork.tabular.summary import SUMMARY_ROW_KEYWORDS, is_summary_row
 
 # Deployed v118.33.13.1 list: rows that carry a balance but no movement.
 OPENING_BALANCE_KEYWORDS = (
@@ -98,12 +80,6 @@ class StatementRow:
 			self.row_hash = hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()[:12]
 
 
-def is_summary_row(description: str) -> bool:
-	"""Deployed footer-total detection; an empty description is not a summary row."""
-	value = (description or "").strip().lower()
-	if not value:
-		return False
-	return any(keyword in value for keyword in SUMMARY_ROW_KEYWORDS)
 
 
 def statement_row_bad_ratio(rows: list[StatementRow], opening: float) -> float:

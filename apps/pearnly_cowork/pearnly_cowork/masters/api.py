@@ -4,7 +4,7 @@ from frappe import _
 from pearnly_cowork.access import scope
 from pearnly_cowork.masters import clients as clients_service
 from pearnly_cowork.masters import products as products_service
-from . import push_inputs
+from . import push_inputs, workspaces as workspace_service
 
 
 def require_manager():
@@ -14,11 +14,8 @@ def require_manager():
 
 
 @frappe.whitelist(methods=["POST"])
-def create_workspace(display_name, tax_id=None):
-    require_manager()
-    doc = frappe.get_doc({"doctype": "Cowork Workspace", "display_name": display_name,
-                          "tax_id": tax_id, "enabled": 1}).insert()
-    return {"name": doc.name, "display_name": doc.display_name}
+def create_workspace(display_name, tax_id=None, address=None, branch=None, phone=None):
+    return workspace_service.create(display_name, tax_id, address, branch, phone)
 
 
 @frappe.whitelist(methods=["POST"])

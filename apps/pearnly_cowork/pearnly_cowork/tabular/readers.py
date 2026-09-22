@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""表格与 PDF 文字层读取、表头命中（银行单/总账读取器共用）。
+"""表格与 PDF 文字层读取、表头命中（银行单、总账与账套导入共用）。
 
 来源：ec2e5c957e6b ``services/recon/bank_table_io.py``。旧文件里还有汇总行识别
-（``_is_summary_row``）——它早已随余额链一起迁到 ``bank_statement``（同一份关键词表），
+（``_is_summary_row``）——现在由同域 ``summary`` 维护，``bank_statement`` 兼容导出，
 所以这里只剩下两件事：把文件读成单元格、判断表头命中。
 
 PDF 文字层（旧 ``_pdf_extract_text_safe``）在第三十九批随 GL/文本读取器一起搬进来：
@@ -41,7 +41,7 @@ def header_hit(header: str, hints: set) -> bool:
 	return False
 
 
-def load_workbook_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
+def load_workbook_sheets(file_bytes: bytes, *, max_cells=None) -> List[Tuple[str, list]]:
 	"""读出所有工作表：``[(sheet_name, [row, ...]), ...]``；读不出来返回 ``[]``。
 
 	先 openpyxl（.xlsx），再退回 xlrd（旧 .xls）；两条都走不通就是空列表。一个文件
@@ -51,12 +51,18 @@ def load_workbook_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
 		import openpyxl
 
 		workbook = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True, read_only=True)
-		out = [(sheet.title, [list(row) for row in sheet.iter_rows(values_only=True)])
-			for sheet in workbook.worksheets]
 		try:
-			workbook.close()
-		except Exception:
-			pass
+			remaining = [max_cells]
+			out = []
+			for sheet in workbook.worksheets:
+				if max_cells is not None and ((sheet.max_column or 0) > 256 or (sheet.max_row or 0) > 100_000):
+					raise ValueError("table dimensions exceed import limit")
+				out.append((sheet.title, _limited_rows(sheet.iter_rows(values_only=True), remaining)))
+		finally:
+			try:
+				workbook.close()
+			except Exception:
+				pass  # Preserve deployed successful reads even if close fails.
 		return out
 	except Exception:
 		pass
@@ -65,15 +71,29 @@ def load_workbook_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
 
 		workbook = xlrd.open_workbook(file_contents=file_bytes)
 		out = []
+		remaining = [max_cells]
 		for index in range(workbook.nsheets):
 			sheet = workbook.sheet_by_index(index)
-			out.append((sheet.name, [sheet.row_values(number) for number in range(sheet.nrows)]))
+			if max_cells is not None and (sheet.ncols > 256 or sheet.nrows > 100_000):
+				raise ValueError("table dimensions exceed import limit")
+			out.append((sheet.name, _limited_rows((sheet.row_values(number) for number in range(sheet.nrows)), remaining)))
 		return out
 	except Exception:
 		return []
 
 
-def load_csv_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
+def _limited_rows(rows, remaining):
+	result = []
+	for row in rows:
+		if remaining[0] is not None:
+			remaining[0] -= len(row)
+			if remaining[0] < 0 or len(row) > 256 or len(result) >= 100_000:
+				raise ValueError("table cells exceed import limit")
+		result.append(list(row))
+	return result
+
+
+def load_csv_sheets(file_bytes: bytes, *, max_cells=None) -> List[Tuple[str, list]]:
 	"""CSV/TSV → ``[("csv", rows)]``；读不出来返回 ``[]``。
 
 	编码按 UTF-8 BOM / UTF-8 / 泰文 cp874 / 中文 gbk / latin-1 依次尝试，分隔符先嗅探
@@ -101,7 +121,7 @@ def load_csv_sheets(file_bytes: bytes) -> List[Tuple[str, list]]:
 				delimiter = candidate
 				break
 	try:
-		rows = [row for row in _csv.reader(io.StringIO(text), delimiter=delimiter)]
+		rows = _limited_rows(_csv.reader(io.StringIO(text), delimiter=delimiter), [max_cells])
 		return [("csv", rows)] if rows else []
 	except Exception:
 		return []
