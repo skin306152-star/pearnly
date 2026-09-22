@@ -293,6 +293,33 @@
 
 **一处呈现不一致（未改）**：收发存的**列表**只有物料名称、没有"编码"列，而同一个报表的**导出**与库存页都有编码。
 
+### F7：按 MR.ERP 对齐"盘点差异也开单带号"（2026-09-23，未部署）
+
+用户口径：业务联动逻辑对齐 MR.ERP，全部。
+
+**MR.ERP 那边"谁写库存"是清楚的**（`rg "INSERT INTO tbl_stkcard" src/`）：
+
+| MR.ERP 模块 | 写库存卡 |
+| --- | --- |
+| 收货 `stktranrec`、发货 `stktraniss` | ✓ |
+| **调整 / 盘点 `stktranmod`** | ✓（`trandocno = 自己菜单定义的前缀 + 流水`） |
+| 采购 `aptran`（另有 `appe/appd/appc`）、销售 `artran`（另有 `arse/arsd/arsc`） | ✓（`tbl_stktran.trandocno = 单据类型 + 单据号`，`transowner` 记来源模块） |
+
+也就是：**每一种会动库存的单据，都把自己的号写进库存卡**，没有"无号的库存流水"。我们这边原先只有一处例外：盘点过账直接写 `count` 流水、不带号（收发存只能显示 `STC-00379` 这种内部名），而旧线上盘点差异本来是**发 IR/IS 号并落一张出入库单据**的（`services/erp/inventory.py` 的 `document_numbers.allocate` + `insert erp_stock_documents ... source: inventory_count`）。
+
+**改法**：`inventory/count.py::post_count` 不再直接写 count 流水，改为对每笔差异用 `documents.create_entry` 开一张入库/出库单据（系统发的 IR/IS 号、`ref_type=count`、`ref_id=盘点单`、`reason=stocktake:<盘点单>`），流水带着这个号；`create_entry` 新增 `commit=False`（盘点整批一个事务，默认行为不变），所以**过账的原子性没破**。
+
+**验证**：
+
+| 场景 | 结果 |
+| --- | --- |
+| 演示站盘点（`STC-00379`，差异 +3） | 生成 `IR2569-000020`；流水 `doc_no=IR2569-000020`、`ref_type=count`；库存明细该行显示 `入库 IR2569-000020` |
+| 出入库页 | 列表出现这些单据（`IR2569-000020 ... stocktake:STC-00379`），可按号打开 |
+| 作废该单据 | 隔离站实测：数量退回原值（`IR2569-000002` 作废后 2 → 0），说明这类单据的冲销链路是通的 |
+| 盘点验收脚本 | `stocktake-workbench-lab-verify.py` 仍 `{"ok": true}`（含"atomic posting rollback""finished variance valuation is frozen"）；回滚断言按新落点改为"没有 `ref_type=count` 的单据、也没有 `stocktake:<盘点>` 的流水" |
+
+**行为差异（有意）**：盘点过账现在走和出入库同一道门，所以**停用商品不能过账**（原先 `allow_inactive=True` 放行过）；流水类型由 `count` 变为 `stock_in/stock_out`，收发存里按"入库/出库"显示（旧线上盘点差异是 in/out 单据，同形）。这两点如需保留旧行为再定。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |

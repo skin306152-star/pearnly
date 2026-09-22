@@ -48,7 +48,13 @@ def _business_lines(lines) -> list:
 
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
-                 reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False):
+                 reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
+                 commit=True):
+    """建一张入库/出库单据；`submit=True` 时同一事务里过账。
+
+    `commit=True`（默认）在建单/过账后提交事务。**盘点过账**要"整批一个事务"，
+    所以它传 `commit=False` 自己决定何时提交（与 `_post` 的"调用方决定"同一口径）。
+    """
     guard.require("stock.write")
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
@@ -73,7 +79,8 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
     if _posting_now(submit):
         _post(doc)
-    frappe.db.commit()
+    if commit:
+        frappe.db.commit()
     return {"name": doc.name, "doc_no": doc.doc_no, "status": doc.status}
 
 

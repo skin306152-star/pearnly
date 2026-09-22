@@ -24,7 +24,7 @@ from frappe.utils import flt, now
 
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.inventory import stock as stock_service
-from pearnly_erp_portal.inventory import positions, warehouses, count_state
+from pearnly_erp_portal.inventory import count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
 # 决定"表上那一列显示条码还是二维码内容"。这是单向依赖，products 不认识 inventory。
 from pearnly_erp_portal.products import contracts as product_contracts
@@ -495,17 +495,27 @@ def post_count(name: str, review_token=None) -> dict:
             operations.append((key, quantity, cost))
     for key, delta in sorted(changes.items()):
         operations.append((key, delta, stock_service.current_balance(*key).unit))
+    # **盘点差异也开入库/出库单据**（用户 2026-09-23：这些编号要和商品库存、出入库、
+    # 收发存每一笔记录联动；MR.ERP 的调整/盘点模块 `stktranmod` 同样是把带有自己编号的
+    # 单据写进库存卡，旧线上盘点差异也发 IR/IS 号并落一张出入库单）。
+    #
+    # 因此这里不再直接写"没有单据号的 count 流水"，而是走 `create_entry`：
+    # 单据拿系统发的 IR/IS 号，流水带着这个号（收发存/库存明细都显示得出），
+    # 单据本身在出入库页能按号查到，`ref_type/ref_id` 指回这份盘点。
+    # `commit=False`：整批盘点一个事务，失败不留半截（与过账前的行为一致）。
     applied = []
     for index, (key, delta, unit_cost) in enumerate(operations):
         if not delta:
             continue
-        result = stock_service.apply_movement(
-            product=key[0], warehouse=key[1], location=key[2], movement_type="count",
-            qty=delta, unit_cost=unit_cost, ref_type="count", ref_id=name,
-            reason=f"stocktake:{name}", client_uuid=f"count:{name}:{index}",
-            internal=True, allow_inactive=True)
+        created = stock_documents.create_entry(
+            direction="in" if delta > 0 else "out", posting_date=str(frappe.utils.nowdate()),
+            warehouse=key[1],
+            lines=[{"product": key[0], "qty": abs(delta), "location": key[2],
+                    "unit_cost": unit_cost}],
+            reason=f"stocktake:{name}", ref_type="count", ref_id=name,
+            dedupe_key=f"count:{name}:{index}", submit=True, commit=False)
         applied.append({"product": key[0], "warehouse": key[1], "location": key[2],
-                        "delta": float(delta), **result})
+                        "delta": float(delta), "entry": created["name"], "doc_no": created["doc_no"]})
     frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
                         "closed_by": frappe.session.user, "posted_at": now(),
                         "posted_by": frappe.session.user}, update_modified=False)
