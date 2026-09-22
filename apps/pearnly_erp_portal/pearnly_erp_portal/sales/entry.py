@@ -273,7 +273,7 @@ def cancel(name, reason=None):
     return {"name": doc.name, "status": doc.status}
 
 
-def payment(name, *, paid=None, amount=None, method=None, date=None):
+def payment(name, *, paid=None, amount=None, method=None, date=None, note=None):
     """记收款：表头口径，金额是**绝对值**（不是追加），所以重复调用不会重复收钱。"""
     doc = access.get_document(name, write=True, lock=True)
     if doc.status != contracts.SUBMITTED:
@@ -297,6 +297,8 @@ def payment(name, *, paid=None, amount=None, method=None, date=None):
     doc.payment_status = contracts.payment_status_for(value, total)
     doc.payment_method = chosen if value > 0 else None
     doc.payment_date = (date or doc.payment_date or nowdate()) if value > 0 else None
+    # 收款备注跟钱一起记（与采购付款单上的备注同一件事）；撤销收款就把备注一起清掉。
+    doc.payment_note = (note or "").strip()[:500] or None if value > 0 else None
     doc.flags.sales_action = True
     doc.save()
     return {"name": doc.name, "payment_status": doc.payment_status, "paid_amount": str(doc.paid_amount)}

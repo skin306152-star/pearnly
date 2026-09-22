@@ -194,6 +194,8 @@
 			f("method", "Collection Method", "Select", {options: u.options(["cash", "transfer", "promptpay", "other"]),
 				default: doc.payment_method || "cash"}),
 			f("date", "Collection Date", "Date", {default: doc.payment_date || frappe.datetime.get_today(), reqd: 1}),
+			// 与采购付款弹窗同一套字段（金额/方式/日期/备注），用户 2026-09-23 口径。
+			f("note", "Remarks", "Small Text", {default: doc.payment_note || ""}),
 		], __("Submit"), async (values, dialog) => {
 			await u.call("api_sale_payment", {name: doc.name, payload: values}, true);
 			dialog.hide(); await reload();

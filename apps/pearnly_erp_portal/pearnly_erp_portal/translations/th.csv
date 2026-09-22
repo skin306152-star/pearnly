@@ -44,6 +44,7 @@ Cheque,เช็ค
 Collection,การรับเงิน
 Collection Date,วันที่รับเงิน
 Collection Method,วิธีรับเงิน
+Collection Remarks,หมายเหตุการรับเงิน
 Collection Status,สถานะการรับเงิน
 Columns,คอลัมน์
 Company,บริษัท

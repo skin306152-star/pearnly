@@ -196,6 +196,12 @@
    "label": "Collection Date"
   },
   {
+   "description": "Free note kept with the collection record (who took the money, reference).",
+   "fieldname": "payment_note",
+   "fieldtype": "Small Text",
+   "label": "Collection Remarks"
+  },
+  {
    "fieldname": "section_links",
    "fieldtype": "Section Break",
    "label": "Record"

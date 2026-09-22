@@ -175,6 +175,10 @@ def main():
     ok, back = as_user(SELLER, entry.payment, doc, paid=0)
     results["reverted_status"] = back.get("payment_status") if ok else None
     results["reverted_amount"] = float(frappe.db.get_value("ERP Sales Document", doc, "paid_amount"))
+    # 收款备注与钱一起记：与采购付款弹窗同一套字段（金额/方式/日期/备注）。
+    ok, noted = as_user(SELLER, entry.payment, doc, amount=100, method="cash", date="2026-09-21",
+                        note="lab collection note")
+    results["payment_note"] = frappe.db.get_value("ERP Sales Document", doc, "payment_note")
     ok, again = as_user(SELLER, entry.payment, doc, paid=1, method="cash")
     results["paid_again"] = ok and again.get("payment_status") == "paid"
 
@@ -315,6 +319,7 @@ def main():
         "quotation_unpaid": "unpaid",
         "partial_status": "partial", "paid_status": "paid", "paid_method": "transfer",
         "reverted_status": "unpaid", "reverted_amount": 0.0, "paid_again": True,
+        "payment_note": "lab collection note",
         "list_ok": True, "list_has_own_rows": True, "search_hits": 1,
         "kind_filter_only_quotes": True, "unpaid_group_excludes_paid": True,
         "attach": True, "preview_png_rejected": False, "preview_pdf": True,

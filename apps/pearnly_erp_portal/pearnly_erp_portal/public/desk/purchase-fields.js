@@ -84,6 +84,9 @@
 			f("gallery", "Attachments", "Attachment Gallery", {read_only: 1}),
 			f("attachment_list", "Attachments", "HTML"),
 			u.section("Details", {fieldname: "information_section"}),
+			// 我方单据编号（系统发的 PE 号，只读）——与销售那边同一个位置、同一个字段口径。
+			// 用户 2026-09-23："采购这边缺销售一样的单据编号"。
+			f("system_no", "trade.systemNo", "Data", {read_only: 1}),
 			f("doc_date", "Posting Date", "Date", {reqd: 1}),
 			f("doc_no", "Supplier Invoice No"),
 			f("doc_type", "Document Type", "Select", {options: u.options(["tax_invoice", "simple_tax_receipt", "receipt", "purchase_order", "substitute_receipt", "other"])}), col(),

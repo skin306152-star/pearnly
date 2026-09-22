@@ -78,6 +78,7 @@
 			f("is_paid", "Is Paid", "Check", {hidden: !editable || doc.doc_kind === "quotation"}),
 			f("payment_status", "Collection Status", "Select", {hidden: editable, read_only: 1, options: u.options(["unpaid", "partial", "paid"])}),
 			f("paid_amount", "Received Amount", "Currency", {hidden: editable, read_only: 1}),
+			f("payment_note", "Collection Remarks", "Small Text", {hidden: editable, read_only: 1}),
 			f("payment_method", "Collection Method", "Select", {options: u.options(["cash", "transfer", "promptpay", "other"]),
 				depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
 			f("payment_date", "Collection Date", "Date", {depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
