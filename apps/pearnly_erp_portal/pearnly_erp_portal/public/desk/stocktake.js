@@ -59,6 +59,12 @@
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
+		const table_options = () => {
+			const language = frappe.boot.lang, translations = frappe.utils.datatable.get_translations();
+			return { language, translations: { ...translations, [language]: {
+				...translations[language], Freeze: __("stock.board.freezeColumn"), Unfreeze: __("stock.board.unfreezeColumn"),
+			} } };
+		};
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
 			list?.destroy(); table?.destroy(); chart?.parent?.remove?.();
@@ -200,7 +206,7 @@
 				qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—", r.counted ? qty(r.difference) : "—",
 				r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted") : r.location_difference ? w("locationDiff")
 					: Number(r.difference) ? t("stock.count.rowDifference") : t("stock.count.rowMatch"),
-			]));
+			]), table_options());
 		}
 		async function records(row) {
 			const entries = state.entries.filter(e=>e.item===row.name);
@@ -228,7 +234,7 @@
 				], entries.map(e=>[e.warehouse_name, e.location || "—", qty(e.qty), e.note || "", e.counted_by, e.counted_at,
 					e.voided ? p.escape(t("stock.count.entryVoided")) : active()
 						? `<button class="btn btn-default btn-xs" data-edit-count-entry="${p.escape(e.name)}">${p.escape(w("editEntry"))}</button> <button class="btn btn-default btn-xs" data-void-count-entry="${p.escape(e.name)}">${p.escape(t("stock.count.void"))}</button>`
-						: p.escape(t("stock.count.entryLive"))]));
+						: p.escape(t("stock.count.entryLive"))]), table_options());
 			};
 			d.fields_dict.entries.$wrapper.on("click", "[data-edit-count-entry]", event => {
 				const entry = entries.find(e=>e.name===event.currentTarget.dataset.editCountEntry);

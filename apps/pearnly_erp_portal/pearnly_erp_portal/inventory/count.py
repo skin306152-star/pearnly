@@ -201,8 +201,7 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
         "warehouse": warehouse, "location": location,
         "book_qty": flt(book_qty, 3), "counted": 0,
     })
-    doc.flags.stock_count_service = True
-    doc.insert(ignore_permissions=True)
+    count_state.write_document(doc, "insert")
     return doc.name
 
 
@@ -505,8 +504,7 @@ def delete_count(name: str) -> dict:
         frappe.throw(_(CLOSED))
     frappe.db.delete(ENTRY, {"count": doc.name})
     frappe.db.delete(ITEM, {"count": doc.name})
-    doc.flags.stock_count_service = True
-    doc.delete(ignore_permissions=True)
+    count_state.write_document(doc, "delete")
     return {"ok": True}
 
 
@@ -538,8 +536,7 @@ def _recount_item(item_name: str, count_name: str) -> None:
     if not rows:
         doc.basis_set = 0
         doc.stock_token = ""
-    doc.flags.stock_count_service = True
-    doc.save(ignore_permissions=True)
+    count_state.write_document(doc, "save")
 
     _refresh_totals(count_name)
 
@@ -655,8 +652,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         "warehouse": actual_warehouse, "location": actual_location, "qty": flt(quantity, 3),
         "request_id": request_id, "note": note, "source": source,
         "counted_by": frappe.session.user, "counted_at": now(), "version": 1})
-    entry.flags.stock_count_service = True
-    entry.insert(ignore_permissions=True)
+    count_state.write_document(entry, "insert")
     _save_photos(entry.name, photos)
     _recount_item(item, count)
     return {"entry": entry.name, "item": item, "qty": flt(quantity, 3), "deduped": False}
@@ -688,8 +684,7 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
     doc.version = int(doc.version) + 1
     doc.counted_by = frappe.session.user
     doc.counted_at = now()
-    doc.flags.stock_count_service = True
-    doc.save(ignore_permissions=True)
+    count_state.write_document(doc, "save")
     if photos:
         _save_photos(doc.name, photos)
     _recount_item(doc.item, parent)
@@ -724,7 +719,15 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
         order_by="counted_at desc, name desc",
         limit_start=int(start or 0), limit_page_length=_size(limit),
     )
-    return [dict(row, warehouse_name=_warehouse_label(row.warehouse)) for row in result]
+    # Export the frozen item labels, not today's possibly renamed product master.
+    items = {row.name: row for row in frappe.get_list(
+        ITEM, filters={"count": count}, fields=["name", "product_name", "code", "unit",
+                                               "warehouse", "location"], limit_page_length=0)}
+    return [dict(row, warehouse_name=_warehouse_label(row.warehouse),
+                 product_name=items[row.item].product_name, code=items[row.item].code,
+                 unit=items[row.item].unit,
+                 book_warehouse_name=_warehouse_label(items[row.item].warehouse),
+                 book_location=items[row.item].location) for row in result]
 
 
 def entries_total(*, count, item=None) -> int:

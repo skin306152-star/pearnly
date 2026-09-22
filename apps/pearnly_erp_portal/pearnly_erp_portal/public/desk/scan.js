@@ -89,6 +89,7 @@ frappe.provide("frappe.pearnly");
 				} catch (error) { stop(); on_error?.(error); }
 			},
 			pause() { paused = true; },
+			has_torch() { return Boolean(stream?.getVideoTracks()[0]?.getCapabilities?.().torch); },
 			resume() {
 				candidate = ""; hits = 0; paused = false;
 				$(host).find(".pearnly-scan-stage").removeClass("pearnly-scan-done");
@@ -104,6 +105,8 @@ frappe.provide("frappe.pearnly");
 		const t = await p.texts("product.");
 		const d = new frappe.ui.Dialog({ title: t("product.scan.title"), fields: [
 			{ fieldtype: "HTML", fieldname: "reader", options: p.scan_stage() },
+			{ fieldtype: "Check", fieldname: "torch", label: t("product.scan.light"), hidden: 1,
+				change: () => scanner?.torch(Boolean(d.get_value("torch"))) },
 		] });
 		let scanner;
 		d.onhide = () => scanner?.stop();
@@ -113,5 +116,6 @@ frappe.provide("frappe.pearnly");
 			on_error: () => { d.hide(); frappe.msgprint(t("product.scan.denied")); },
 		});
 		await scanner.start();
+		d.set_df_property("torch", "hidden", !scanner.has_torch());
 	};
 })();

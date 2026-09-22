@@ -6,6 +6,9 @@ import json
 from pathlib import Path
 import sys
 import uuid
+from io import BytesIO
+from unittest.mock import patch
+from openpyxl import load_workbook
 import frappe
 
 spec = importlib.util.spec_from_file_location('fixtures', Path(__file__).with_name('erp-pos-lab-products-verify.py'))
@@ -54,6 +57,10 @@ def main():
     assert 'C' in arow['actual_positions']
     report=api._count_workbook(review['task'],review['items'],review['entries'])
     assert report[:2]==b'PK'
+    exported=load_workbook(BytesIO(report),read_only=True)
+    detail=list(exported['Entries'].values)
+    assert all(r[0] and r[1]==run and r[6]=='件' for r in detail[1:]), detail
+    exported.close()
     before=frappe.db.count('ERP Stock Movement')
     result=count.close_count(task,review_token=review['review_token'])
     assert result['status']=='Posted'
@@ -100,6 +107,38 @@ def main():
     assert stock.current_balance(product,wh,'A').qty==4
     assert stock.current_balance(product,wh,'B').qty==2
     assert stock.current_balance(product,wh,'D').qty==0
+    # Distinct source costs and a corrected warehouse must survive relocation.
+    valued=products.create_product(product_name=run+' valued',unit='件')['name']
+    other_wh=warehouses.resolve(run+' 实际仓库')
+    for loc,qty,cost in [('A',2,3),('B',4,11)]:
+        stock.apply_movement(product=valued,warehouse=wh,location=loc,
+                             movement_type='stock_in',qty=qty,unit_cost=cost)
+    valuation=count.create_count(title=run+' valuation',warehouse=wh)['name']
+    vr={r['location']:r for r in count.list_items(count=valuation,limit=0) if r['product']==valued}
+    va=count.add_entry(count=valuation,item=vr['A']['name'],qty=2,warehouse=other_wh,location='B')
+    count.add_entry(count=valuation,item=vr['B']['name'],qty=4,location='A')
+    # Serialized flags cannot enable raw document writes that bypass the service.
+    raw=frappe.get_doc('ERP Stock Count Entry',va['entry'])
+    raw.flags.stock_count_service=True
+    raw.qty=999
+    denied(lambda:raw.save(ignore_permissions=True))
+    frappe.db.commit()
+    original=stock.apply_movement
+    calls=[]
+    def fail_second(**args):
+        calls.append(args)
+        if len(calls)==2: raise RuntimeError('simulated posting failure')
+        return original(**args)
+    with patch.object(stock,'apply_movement',side_effect=fail_second):
+        denied(lambda:count.close_count(valuation),RuntimeError)
+    frappe.db.rollback()
+    assert frappe.db.get_value('ERP Stock Count',valuation,'status')=='Active'
+    assert not frappe.db.count('ERP Stock Movement',{'ref_type':'count','ref_id':valuation})
+    assert stock.current_balance(valued,wh,'A').qty==2
+    count.close_count(valuation)
+    assert stock.current_balance(valued,wh,'A').value==44
+    assert stock.current_balance(valued,wh,'B').qty==0
+    assert stock.current_balance(valued,other_wh,'B').value==6
     # Unknown QR does not create rows; internal whitespace is significant.
     assert count.lookup_count(count=swap,code=run+' QR text')['product']['name']==product
     denied(lambda:count.lookup_count(count=swap,code=run+'QRtext'))
@@ -112,7 +151,8 @@ def main():
         'split positions','quantity and location differences','idempotent save/finish','request conflict',
         'stale edit','non-finite rejection','export','untouched uncounted','closed native/API write guards',
         'movement before save','movement after count incl net zero','stale review','audited recount',
-        'position swap','zero count','exact QR','outsider/guest']},ensure_ascii=False))
+        'position swap','zero count','exact QR','outsider/guest','exported labels',
+        'different source costs','actual warehouse','native flag spoof rejected','atomic posting rollback']},ensure_ascii=False))
     frappe.destroy()
 
 if __name__=='__main__': main()

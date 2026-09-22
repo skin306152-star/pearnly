@@ -27,6 +27,12 @@
 		const d = p.dialog(entry ? w("editEntry") : (continuous ? w("continuous") : w("record")), fields,
 			continuous ? w("saveNext") : __("Save"), async values => {
 				if (!selected || busy) return;
+				// Native Float normalizes an empty input to 0; an observation must be explicit.
+				if (!String(d.fields_dict.qty.$input.val()).trim()) {
+					frappe.msgprint(__("Enter a quantity"));
+					d.fields_dict.qty.$input.trigger("focus");
+					return;
+				}
 				busy = true;
 				try {
 					const payload = { qty: values.qty, warehouse: values.warehouse,
@@ -80,10 +86,12 @@
 				await choose_source();
 				if (last_place) { await d.set_value("warehouse", last_place.warehouse); await d.set_value("location", last_place.location); }
 				await d.set_value("qty", entry ? entry.qty : "");
+				if (!entry) d.fields_dict.qty.$input.val("");
 				await d.set_value("note", entry?.note || "");
 				editor(true);
 				d.fields_dict.qty.$input.trigger("focus");
 			} catch (error) {
+				selected = null;
 				message(w("lookupFailed"));
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				scanner?.resume();
@@ -93,12 +101,12 @@
 			if (scanner || closed) return;
 			camera = true;
 			d.set_df_property("video", "hidden", false);
-			d.set_df_property("torch", "hidden", false);
 			scanner = p.scan_reader({ host: d.fields_dict.video.$wrapper, kind: "all",
 				on_result: code => match(code),
 				on_error: () => { scanner?.stop(); scanner = null; camera = false; message(w("cameraFailed")); },
 			});
 			await scanner.start();
+			d.set_df_property("torch", "hidden", !scanner?.has_torch());
 		}
 		async function next() {
 			selected = null; lookup = null; row = null; entry = null;

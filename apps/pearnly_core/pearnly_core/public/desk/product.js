@@ -68,7 +68,7 @@ frappe.provide("frappe.pearnly");
 		form.make();
 		return form;
 	};
-	p.table = async (parent, columns, data) => {
+	p.table = async (parent, columns, data, options = {}) => {
 		await frappe.require("report.bundle.js");
 		parent.empty();
 		if (!data.length) {
@@ -86,6 +86,9 @@ frappe.provide("frappe.pearnly");
 			noDataMessage: __("No Data"),
 			serialNoColumn: false,
 			checkboxColumn: false,
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+			...options,
 		});
 	};
 	p.restore_sidebar = () => {

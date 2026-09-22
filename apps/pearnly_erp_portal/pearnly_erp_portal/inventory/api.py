@@ -255,10 +255,13 @@ COUNT_COLUMNS = (
 COUNT_DETAIL_COLUMNS = (
     ("code", "stock.col.code"),
     ("product_name", "stock.col.name"),
-    ("warehouse_name", "stock.col.warehouse"),
-    ("location", "stock.count.location"),
+    ("book_warehouse_name", "stock.col.warehouse"),
+    ("book_location", "stock.count.location"),
+    ("warehouse_name", "stock.workbench.actualWarehouse"),
+    ("location", "stock.workbench.actualLocation"),
     ("unit", "stock.col.unit"),
     ("qty", "stock.count.qty"),
+    ("note", "stock.count.note"),
     ("counted_by", "stock.count.countedBy"),
     ("counted_at", "stock.count.countedAt"),
     ("state", "stock.col.status"),
@@ -289,8 +292,6 @@ def _count_workbook(task, items, entries) -> bytes:
     summary.append([_label(key) for _field, key in COUNT_COLUMNS])
     for cell in summary[1]:
         cell.font = Font(bold=True)
-    placeholders = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
-        "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
     for row in items:
         line = []
         for field, _key in COUNT_COLUMNS:
