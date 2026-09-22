@@ -63,6 +63,7 @@ Delete,删除
 Description,描述
 Details,详细信息
 Discount Amount,折扣金额
+Discount Total,折扣总额
 Discount cannot exceed the amount,折扣不能超过金额
 Document Type,单据类型
 Document already exists,单据已存在

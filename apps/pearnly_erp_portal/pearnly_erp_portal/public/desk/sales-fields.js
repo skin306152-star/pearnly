@@ -81,7 +81,7 @@
 			f("payment_method", "Collection Method", "Select", {options: u.options(["cash", "transfer", "promptpay", "other"]),
 				depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
 			f("payment_date", "Collection Date", "Date", {depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
-			u.section("Customer"),
+			u.section("trade.buyer"),
 			f("customer", "trade.buyer", "Link", {options: "ERP Customer", hidden: !editable, get_query: () => ({filters: {is_active: 1}}),
 				async onchange() {
 					const name = state.form?.get_value("customer"); if (!name || !editable || !state.ready) return;

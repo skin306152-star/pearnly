@@ -63,6 +63,7 @@ Delete,ลบ
 Description,คำอธิบาย
 Details,รายละเอียด
 Discount Amount,จำนวนส่วนลด
+Discount Total,ยอดส่วนลดรวม
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Document Type,ประเภทเอกสาร
 Document already exists,มีเอกสารนี้อยู่แล้ว

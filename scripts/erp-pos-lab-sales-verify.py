@@ -235,6 +235,30 @@ def main():
     ok, err = as_user(SELLER, entry.cancel, doc, "again")
     results["recancel_blocked"] = ok
 
+    # 删草稿：草稿能动、已落定/已作废的只能作废；要写岗位也要本人范围。
+    # 框架那一位仍然关着（共享口径不给功能角色 delete），放行的是产品自己的动作。
+    draft = frappe.get_doc({"doctype": "ERP Sales Document", "status": "draft",
+                            "doc_kind": "quotation", "doc_date": "2026-09-21",
+                            "buyer_name": f"{run} draft", "has_vat": 0,
+                            "lines": [{"description": "Lab draft line", "qty": 1, "unit": "pcs",
+                                       "unit_price": "10", "vat_applicable": 0}]})
+    frappe.set_user(SELLER)
+    draft.flags.ignore_permissions = True
+    draft.insert()
+    frappe.db.commit()
+    results["draft_owner"] = frappe.db.get_value("ERP Sales Document", draft.name, "owner")
+    results["framework_delete_denied"] = not frappe.has_permission("ERP Sales Document", "delete")
+    results["draft_delete_by_outsider_blocked"] = not as_user(OUTSIDER, entry.delete_drafts,
+                                                              [draft.name])[0]
+    results["draft_delete_by_cashier_blocked"] = not as_user(CASHIER, entry.delete_drafts,
+                                                             [draft.name])[0]
+    results["submitted_delete_blocked"] = not as_user(SELLER, entry.delete_drafts, [doc])[0]
+    ok, deleted = as_user(SELLER, entry.delete_drafts, [draft.name])
+    results["delete_drafts"] = ok
+    results["delete_drafts_error"] = None if ok else deleted
+    results["draft_gone"] = not frappe.db.exists("ERP Sales Document", draft.name)
+    results["void_still_present"] = bool(frappe.db.exists("ERP Sales Document", doc))
+
     # 识别：模型调用被替换（不花钱），归一化后落到建单字段。
     from pearnly_core import ocr as core_ocr
 
@@ -290,6 +314,10 @@ def main():
         "cashier_can_post": False, "outsider_blocked": True, "owner_sees_record": True,
         "cancel": True, "cancel_status": "void", "cancel_reason": "lab void",
         "recancel_blocked": False,
+        "draft_owner": SELLER, "framework_delete_denied": True,
+        "draft_delete_by_outsider_blocked": True, "draft_delete_by_cashier_blocked": True,
+        "submitted_delete_blocked": True, "delete_drafts": True, "draft_gone": True,
+        "void_still_present": True,
         "recognise": True, "recognise_kind": "receipt", "recognise_buyer": "Lab OCR Buyer",
         "recognise_lines": 1, "recognise_source": "ocr", "recognise_hash_set": True,
     }

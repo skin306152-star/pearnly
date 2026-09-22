@@ -63,6 +63,7 @@ Delete,Delete
 Description,Description
 Details,Details
 Discount Amount,Discount Amount
+Discount Total,Discount Total
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Document Type,Document Type
 Document already exists,Document already exists

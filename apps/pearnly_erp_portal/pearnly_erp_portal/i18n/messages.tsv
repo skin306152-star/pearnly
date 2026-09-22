@@ -409,6 +409,7 @@ Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー
 Delete	删除	ลบ	削除
 Description	描述	คำอธิบาย	説明
 Discount Amount	折扣金额	จำนวนส่วนลด	割引額
+Discount Total	折扣总额	ยอดส่วนลดรวม	割引合計
 Document Type	单据类型	ประเภทเอกสาร	伝票種別
 Document has already been cancelled	单据已取消	เอกสารถูกยกเลิกแล้ว	伝票は取消済みです
 Document has already been submitted	单据已提交	ส่งเอกสารแล้ว	伝票は提出済みです

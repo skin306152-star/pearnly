@@ -138,6 +138,32 @@
 - 本次仅接手：创建销售工作树、切换 8147 源码挂载、重做线上只读核验、建立本记录。无代码变更。
 - 复用共享层（Core 原生列表/路由/布局、共享 OCR、登录、外壳）不重写；销售自有声明仍写在 ERP App。
 
+### F1：删草稿的授权口径与两处英文残留（2026-09-23，未部署）
+
+**问题**：列表选中草稿点「删除 (1)」→ 弹「没有权限 / 角色权限管理中未授权用户 purchase-preview@example.test 访问 ERP Sales Document」。
+
+**根因（只读证据）**：失败点不是销售自己的闸，而是框架 `frappe.model.delete_doc.check_permission_and_not_submitted` → `doc.check_permission("delete")`。实验室站点回读：
+
+| 事实 | 证据 |
+| --- | --- |
+| 功能角色在业务表上一律没有 `delete` | `Custom DocPerm`：`ERP Sales`(read/write/create=1, delete=0)、`ERP Purchase`(同上)；全站 `delete=1` 的行只有 `System Manager` 与 Frappe 自带的 `Contact/All` |
+| 这不是销售特有 | `frappe.has_permission("Purchase Document","delete", user=…)` 与 `ERP Sales Document` **同为 False** —— 采购页的「删草稿」在租户角色下同样是坏的（本次未改采购，见下） |
+| 平台为什么这么给 | `pearnly_core/provisioning.py` 的 `FEATURE_PERMS`：功能角色拿读写建，**不给删除**，理由是"业务单据只能作废不能抹掉"。这是跨产品口径，本次不动 |
+| 但旧线上录入员**是能删草稿的** | 生产 SHA `ec2e5c957e6b` 的 `docs/permissions/02-roles-permissions.md`：`*.create / edit / delete（草稿层）` 给 owner/admin/accountant/clerk；销售路由 `routes/sales_routes.py` 的 `api_delete_draft` 用权限码 `sales.doc.delete` 放行，采购 `routes/purchase_routes.py` 用 `purchase.doc.delete` |
+
+**做法**：框架那一位继续关着（通用/桌面端删除仍然拒绝，共享策略没动），放行的是**产品自己的动作** —— `sales/entry.py::delete_drafts` 在过完三道闸后以 `ignore_permissions` 删除。三道闸：`access.get_document(..., write=True, lock=True)`（`sales.write` 岗位 + 本人范围 + 行锁）、整批核验 `status == draft`、已落定/已作废一律拒绝。这与本 App 既有的 `sales/files.py::remove` 用同一写法（先自己判权限，再 `ignore_permissions` 删 File）。
+
+**两处英文残留**（用户看到的「System number / Add VAT / Customer」）：实际核对后词条键都是好的（`trade.systemNo` / `trade.hasVat` 渲染为「单据编号 / 计算增值税」），真正漏的是**没走词条的英文原文**：
+
+| 位置 | 原因 | 处理 |
+| --- | --- | --- |
+| 客户分组标题 | `u.section("Customer")` 用的是英文原文，而术语表里 `Customer` 那行填了 key（msgid 变成 `trade.buyer`），英文原文没有 msgid | 改成 `u.section("trade.buyer")`（与采购的 `u.section("Supplier")` 同一写法） |
+| 税费区 `discount_total` | 标签 `__("Discount Total")` 在术语表里没有这一条 | 术语表新增 `Discount Total / 折扣总额 / ยอดส่วนลดรวม / 割引合計`，重生成四个语言的翻译包 |
+
+**明确没做**：不清理草稿自带私有附件（采购的删除也不清；本 App 的 `intake.discard` 有意保留留底）。要清的话是另一个决定。
+
+**留给采购任务的发现**：`ERP Purchase` 角色在 `Purchase Document` 上同样没有 `delete`，采购页的「删草稿」会撞同一个错。采购工作树与结论归采购任务，本次只记录证据、不改它。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
@@ -162,11 +188,19 @@
 | 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表（8 列 + 搜索 + 过滤 + 导出菜单 + 选择删草稿 + 收款行内动作）→ 新建（上传识别/手动录入卡片、默认隐藏字段）→ 手动录入 → 提交 | 记录 `SD-00204`：`submitted`、`system_no SI2569-000001`、`summary` 有值、明细 2 盒 × 100、含税 214、已收款 214/现金、`stock_posted_at` 有值、库存 3→1；列表与详情按新交互显示 | 浏览器层通过（默认 919px 桌面视口） |
 | 2026-09-23 | 同上 | 同上 | 详情页真实上传私有 PNG → 查看器与附件清单；收款弹窗改「已付款」并提交；过滤「未收款」→ 0 条、重置 → 1 条；390×844 视口 | 附件为私有且挂在 `SD-00204`；预览画布可见并加载图片（600px 宽）；收款回到「已付款 / THB 214 / 现金」；过滤与重置符合预期；手机单列、滚动定位导航（附件/详细信息/物料）高亮跟随、无横向溢出 | 浏览器层通过；上传与查看器走真实私有文件；真机未测 |
 | 2026-09-23 | 同上 | 内嵌浏览器 / 采购页 | 打开 `/desk/pearnly-purchase` | 标题「采购记录」、20 / 73 行、按钮齐全、无报错 | 未破坏采购交互（本次只动 core 的命名空间白名单与销售页登记位置） |
+| 2026-09-23 | F1 改动（未提交时） | 宿主 | `tests/test_erp_portal_access.py` / `check-architecture.py` / `i18n-build.py --check` / `node --check sales-fields.js` | 102 条（96 通过 / 6 跳过）、`PASS (0 violations)`、`RESULT: PASS`（erp 619 条）、JS OK | 契约与边界未被本次改动破坏；术语表 +1 条已同步生成包 |
+| 2026-09-23 | 同上 | 宿主 | `python3 scripts/check-i18n.py --strict` | `FAIL`：bare CJK 18 处，全在 `inventory/workbook.py`（另有 95 处内部日志用中文，与基线同类） | 与基线一致；本次只在 `sales-fields.js` 去掉一个英文字面量，没有新增 bare CJK，未改忽略规则 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `./env/bin/python /workspace/scripts/erp-pos-lab-sales-verify.py`（`PEARNLY_ERP_POS_LAB=1`） | `problems: {}` / 0 | 新增断言全过：草稿本人可删、删除后记录不存在；员工（无销售岗位）与其他岗位删不动；已作废与已落定的删除被拒；`frappe.has_permission(...,"delete")` 对销售角色仍为 False（框架那一位没放开） |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表选中合成草稿 `SD-00206` → 主按钮「删除 (1)」→ 确认「是」 | 不再报权限错；行消失，列表只剩 `SI2569-000001`（`SD-00204`） | 服务端回读：`ERP Sales Document` 只剩 `SD-00204`；无权限弹窗；`SD-00206` 是上一窗口为这次检查建的合成草稿 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 新建页（手动录入）与 `SD-00204` 详情页逐项扫「System number / Add VAT / Customer / Discount Total / Attachment Gallery」 | 两页**都没有**上述英文原文；分组标题为「客户名称」、税费区为「折扣总额」，列表 8 列与其他标签全中文 | 界面文案已收干净；`Attachment Gallery` 是字段类型标签，页面上不渲染 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表行内动作「未付」→ 收款弹窗 | 弹窗原生「收款」，字段 收款状态/已收金额/收款方式/收款日期 全中文；因应收 214，默认值为 收款 / 214.00 / 现金 / 当天 | 行内动作按状态给标签（已付款的行显示「未付」，反之显示「已付款」） |
+| 2026-09-23 | 同上 | 同上 | 同一弹窗上误按回车触发提交 | 记录变成「未付」、行内动作翻成「已付款」 | 顺带证明弹窗提交这条路真的会写库；随后用 `entry.payment('SD-00204', amount=214, method='cash', date='2026-09-22')` 恢复，回读 `paid_amount 214 / payment_status paid / payment_method cash / payment_date 2026-09-22 / status submitted`，与原样一致 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147，视口 390×844 | 新建页（手动录入）单列与滚动定位 | `scrollWidth == innerWidth == 390`（无横向溢出），滚动定位导航为「附件 / 详细信息 / 物料」，标签全中文，折扣总额正常显示 | 手机宽度回归本次未破；随后已把视口复位；真机仍未测 |
 
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
-| 实现 | 已完成（去开票侧 + 销售前端与一次提交） | 旧销售页残留的「收款状态/备注」等字段面与采购一致；未做修订（见上） |
-| 本地验证 | 通过（离线 + 真实 Site + 桌面/390px 浏览器 + 真实私有附件） | 未覆盖：真机、真实付费识别（本环境无 OCR 凭据，识别走响应替身）、真实 LINE 发送、生产部署、用户验收 |
+| 实现 | 已完成（去开票侧 + 销售前端与一次提交 + 删草稿授权与文案收尾） | 旧销售页残留的「收款状态/备注」等字段面与采购一致；未做修订（见上）；删草稿不带私有附件清理（见 F1） |
+| 本地验证 | 通过（离线 + 真实 Site + 桌面/390px 浏览器 + 真实私有附件 + 界面删草稿实删） | 未覆盖：真机、真实付费识别（本环境无 OCR 凭据，识别走响应替身）、真实 LINE 发送、生产部署、用户验收；收款行内动作只验到「弹窗打开 + 提交会写库」，部分/全额/撤销的服务端口径由隔离站探针断言 |
 | 部署 | 未执行 | 本任务未获部署授权 |
 | 外部业务结果 | 未执行 | 不调用旧生产、不付费识别、不发 LINE |
 | 用户验收 | 未执行 | 采购与销售都未由用户验收，本记录不代签 |
@@ -174,5 +208,6 @@
 ## 收尾：交接保留
 
 - 保留：采购工作树 `/Users/skin/.codex/worktrees/erp-purchase-records/pearnly` 及分支 `codex/erp-purchase-records`（含采购成果与本次交接，未合并主线，作为销售基线与回退挂载来源）；销售工作树与本任务分支；`pearnly-purchase-lab` 六个容器、`sites`/`db` 卷、合成样本与私有附件（继续用于演示与验收）。解除条件为销售成果按授权集成、采购完成用户验收、且核验无挂载与独有提交。
+- 本次在演示站**删掉**了上一窗口为「删草稿」检查建的合成草稿 `SD-00206`（它没有附件，站内也不再有它的私有文件）；`SD-00204`（含私有附件）保留供用户与下一窗口看，状态已回读确认与原样一致（已收款 214 / 现金 / 2026-09-22）。
 - 原 stocktake / erp-pos / Cowork 工作树与容器归各自任务，本任务只读查看，未取得清理授权。
 - 本任务未创建远端分支；未创建临时夹具或额外服务。

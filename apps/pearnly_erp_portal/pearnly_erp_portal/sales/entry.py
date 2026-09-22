@@ -303,10 +303,20 @@ def payment(name, *, paid=None, amount=None, method=None, date=None):
 
 
 def delete_drafts(names):
-    """只删草稿：草稿没动库存也没收钱，删掉不留后果。已落定的只能作废。"""
+    """只删草稿：草稿没动库存也没收钱，删掉不留后果。已落定的只能作废。
+
+    为什么这里不看框架的 DocType `delete` 权限位：共享口径
+    （`pearnly_core.provisioning.FEATURE_PERMS`）**故意不给功能角色 delete** ——
+    "业务单据只能作废不能抹掉"，桌面端与通用删除路径都按这条挡。而"删掉自己刚录、
+    还没落定也没动库存的草稿"是旧产品本来就有、且录入员角色就有的业务动作
+    （旧仓 `docs/permissions/02-roles-permissions.md`：`*.create / edit / delete`
+    属草稿层，owner/admin/accountant/clerk 都有）。所以按产品自己的口径在这里放行，
+    但前面三道闸一个都不能少：write 岗位 + 本人范围（`access.get_document`）、
+    整批行锁、全部是草稿。三道都过了才绕过框架那一位。
+    """
     docs = [access.get_document(name, write=True, lock=True) for name in sorted(set(names))]
     if any(doc.status != contracts.DRAFT for doc in docs):
         frappe.throw(_("Only Draft documents can be deleted"))
     for doc in docs:
-        frappe.delete_doc(DOCTYPE, doc.name)
+        frappe.delete_doc(DOCTYPE, doc.name, ignore_permissions=True)
     return {"deleted": len(docs)}

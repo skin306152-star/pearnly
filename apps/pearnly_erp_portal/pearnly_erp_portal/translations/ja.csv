@@ -63,6 +63,7 @@ Delete,削除
 Description,説明
 Details,詳細
 Discount Amount,割引額
+Discount Total,割引合計
 Discount cannot exceed the amount,割引は金額を超えられません
 Document Type,伝票種別
 Document already exists,伝票は既に存在します
