@@ -300,7 +300,9 @@
 						.appendTo(cell);
 					$("<span class='text-muted'>").text([
 						`${photo.warehouse_name || ""} / ${photo.location || t("stock.count.blank")}`,
-						qty(photo.qty), p.datetime_text(photo.counted_at),
+						// 说明行只留"哪里、多少"，时间不放了（用户 2026-09-22：底部那排字太占位置、
+						// 不雅观）。时间在弹窗上面的记录表里已经有。
+						qty(photo.qty),
 						photo.voided ? t("stock.count.entryVoided") : "",
 					].filter(Boolean).join(" · ")).appendTo(cell);
 				}
