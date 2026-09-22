@@ -202,6 +202,8 @@ stock.count.importPick,เลือกไฟล์
 stock.count.importSkipped,นำเข้าไม่ได้ {0} แถว
 stock.count.importTitle,ผลการนำเข้า
 stock.count.imported,นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้
+stock.count.linkEntries,กลับไปรายการ
+stock.count.linkSummary,กลับไปสรุป
 stock.count.location,ตำแหน่ง
 stock.count.mode,วิธีตรวจนับ
 stock.count.modeImport,อัปโหลดไฟล์
@@ -212,6 +214,7 @@ stock.count.newHint,ตรวจนับในคลัง: ตรึงยอ�
 stock.count.noEntries,ไม่มีรายการ
 stock.count.note,หมายเหตุ
 stock.count.notes,หมายเหตุ
+stock.count.photoInfo,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 stock.count.photos,รูปภาพ
 stock.count.post,ลงบัญชีผลต่าง
 stock.count.postConfirm,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?
@@ -261,11 +264,13 @@ stock.status.out,สินค้าหมด
 stock.workbench.actualLocation,ตำแหน่งที่พบจริง
 stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
 stock.workbench.actualWarehouse,คลังที่พบจริง
+stock.workbench.addPhoto,เพิ่มรูปภาพ
 stock.workbench.bookPosition,คลัง / ตำแหน่งตามบัญชี
 stock.workbench.camera,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 stock.workbench.cameraFailed,เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
 stock.workbench.code,บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
 stock.workbench.continuous,ตรวจนับต่อเนื่อง
+stock.workbench.done,เสร็จสิ้น
 stock.workbench.editEntry,แก้ไขรายการ
 stock.workbench.entryQty,จำนวนที่นับครั้งนี้
 stock.workbench.find,ค้นหาสินค้า
@@ -274,10 +279,14 @@ stock.workbench.locationDiff,ผลต่างตำแหน่ง
 stock.workbench.lookupFailed,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 stock.workbench.needsRecount,สต็อกเปลี่ยน ต้องนับใหม่
 stock.workbench.nextReady,บันทึกแล้ว สแกนรายการถัดไป
+stock.workbench.photoHint,บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้
+stock.workbench.photoLimit,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
+stock.workbench.photos,รูปภาพ
 stock.workbench.quantityDiff,ผลต่างจำนวน
 stock.workbench.record,บันทึกการตรวจนับ
 stock.workbench.recount,นับสินค้านี้ใหม่
 stock.workbench.recountConfirm,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
+stock.workbench.removePhoto,ลบ
 stock.workbench.review,ตรวจสอบผลต่าง
 stock.workbench.saveNext,บันทึกและรายการถัดไป
 stock.workbench.scanHint,สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ

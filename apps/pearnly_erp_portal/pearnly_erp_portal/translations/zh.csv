@@ -202,6 +202,8 @@ stock.count.importPick,选择文件
 stock.count.importSkipped,{0} 行没有导入
 stock.count.importTitle,导入结果
 stock.count.imported,已导入 {0} 行，其中 {1} 行带实盘数量
+stock.count.linkEntries,返回记录
+stock.count.linkSummary,返回汇总
 stock.count.location,仓位
 stock.count.mode,盘点方式
 stock.count.modeImport,上传导入
@@ -212,6 +214,7 @@ stock.count.newHint,盘点在库：按当前库存生成快照。上传导入：
 stock.count.noEntries,无记录
 stock.count.note,说明
 stock.count.notes,备注
+stock.count.photoInfo,商品 / 位置 / 盘点人 / 时间
 stock.count.photos,照片
 stock.count.post,过账差异
 stock.count.postConfirm,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
@@ -261,11 +264,13 @@ stock.status.out,缺货
 stock.workbench.actualLocation,实际仓位
 stock.workbench.actualPositions,实际仓位及数量
 stock.workbench.actualWarehouse,实际仓库
+stock.workbench.addPhoto,添加照片
 stock.workbench.bookPosition,账面仓库／仓位
 stock.workbench.camera,扫描条形码或二维码
 stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
 stock.workbench.code,条形码、二维码或商品编码
 stock.workbench.continuous,连续盘点
+stock.workbench.done,完成
 stock.workbench.editEntry,修改记录
 stock.workbench.entryQty,本次实盘数量
 stock.workbench.find,查找商品
@@ -274,10 +279,14 @@ stock.workbench.locationDiff,仓位差异
 stock.workbench.lookupFailed,未找到商品，请核对编码后重试。
 stock.workbench.needsRecount,库存有变，需重盘
 stock.workbench.nextReady,已保存，请扫描下一项。
+stock.workbench.photoHint,每条记录最多 5 张照片，可以拍照或从相册选择。
+stock.workbench.photoLimit,每条记录最多 5 张照片
+stock.workbench.photos,照片
 stock.workbench.quantityDiff,数量差异
 stock.workbench.record,录入盘点
 stock.workbench.recount,重新盘点该商品
 stock.workbench.recountConfirm,将撤销该商品在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+stock.workbench.removePhoto,移除
 stock.workbench.review,查看差异
 stock.workbench.saveNext,保存并下一项
 stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。

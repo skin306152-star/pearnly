@@ -314,12 +314,108 @@ def _count_detail_marks(entry, book, columns) -> set:
     return {field for field in fields if field in columns}
 
 
+# 照片页里每张图的落脚尺寸（像素）。行高按它设，图不会溢到下一行。
+COUNT_PHOTO_WIDTH = 200
+COUNT_PHOTO_HEIGHT = 140
+
+
+def _count_photo_files(entries) -> dict:
+    """每条记录挂着的照片（私有 File），按记录名分组。读的权限跟记录本身同一档。"""
+    names = [row["name"] for row in entries]
+    if not names:
+        return {}
+    grouped = {}
+    for row in frappe.get_list(
+            "File", filters={"attached_to_doctype": counts.ENTRY, "attached_to_name": ("in", names)},
+            fields=["name", "file_url", "file_name", "attached_to_name"],
+            order_by="creation asc", limit_page_length=0):
+        grouped.setdefault(row["attached_to_name"], []).append(row)
+    return grouped
+
+
+def _count_picture(photo_name: str):
+    """把照片缩到表格放得下的尺寸，返回 (字节, 宽, 高)；读不动就返回空，别毁掉整份导出。"""
+    import io
+
+    try:
+        content = frappe.get_doc("File", photo_name).get_content()
+    except Exception:
+        return None, 0, 0
+    if not content:
+        return None, 0, 0
+    try:
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(content)) as source:
+            image = source.convert("RGB")
+            scale = min(COUNT_PHOTO_WIDTH / image.width, COUNT_PHOTO_HEIGHT / image.height, 1)
+            if scale < 1:
+                image = image.resize((max(1, int(image.width * scale)),
+                                      max(1, int(image.height * scale))))
+            buffer = io.BytesIO()
+            image.save(buffer, "JPEG", quality=85, optimize=True)
+            return buffer.getvalue(), image.width, image.height
+    except Exception:
+        return content, 0, 0
+
+
+def _count_photo_sheet(book, entries, summary_rows, detail_rows) -> None:
+    """照片页（旧项目那份导出也有这一页）：一张图一行，带"返回汇总 / 返回记录"的跳转。"""
+    grouped = _count_photo_files(entries)
+    if not grouped:
+        return
+
+    import io
+
+    from openpyxl.drawing.image import Image as SheetImage
+    from openpyxl.styles import Font
+    from openpyxl.worksheet.hyperlink import Hyperlink
+
+    def link(cell, sheet_name, row, label):
+        cell.value = label
+        cell.hyperlink = Hyperlink(ref=cell.coordinate, location=f"'{sheet_name}'!A{row}",
+                                   display=label)
+        cell.font = Font(color="0563C1", underline="single")
+
+    sheet = book.create_sheet(_label("stock.count.photos"))
+    sheet.append([_label("stock.count.photos"), _label("stock.count.photoInfo"),
+                  _label("stock.count.linkSummary"), _label("stock.count.linkEntries")])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    for column, width in zip("ABCD", (26, 46, 16, 16)):
+        sheet.column_dimensions[column].width = width
+    row_number = 2
+    for entry in entries:
+        group = grouped.get(entry["name"]) or []
+        if not group:
+            continue
+        caption = " / ".join(str(value) for value in (
+            entry.get("product_name"), entry.get("warehouse_name"), entry.get("location"),
+            entry.get("counted_by"), entry.get("counted_at")) if value not in (None, ""))
+        if entry.get("voided"):
+            caption = f"{caption} ({_label('stock.count.entryVoided')})"
+        for photo in group:
+            sheet.cell(row_number, 2, caption)
+            link(sheet.cell(row_number, 3), "Summary",
+                 summary_rows.get(entry.get("item"), 2), _label("stock.count.linkSummary"))
+            link(sheet.cell(row_number, 4), "Entries",
+                 detail_rows.get(entry["name"], 2), _label("stock.count.linkEntries"))
+            content, width, height = _count_picture(photo["name"])
+            if content:
+                picture = SheetImage(io.BytesIO(content))
+                if width and height:
+                    picture.width, picture.height = width, height
+                sheet.add_image(picture, f"A{row_number}")
+            sheet.row_dimensions[row_number].height = 108
+            row_number += 1
+
+
 def _count_workbook(task, items, entries) -> bytes:
     """两张表：汇总（每行账面/实盘/差异）+ 明细（每条记录、谁、何时、几张照片）。"""
     import io
 
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font
+    from openpyxl.styles import Alignment, Border, Font, Side
     from openpyxl.utils import get_column_letter
 
     warehouses = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
@@ -373,9 +469,21 @@ def _count_workbook(task, items, entries) -> bytes:
         for index, _key in enumerate(sheet is summary and columns or COUNT_DETAIL_COLUMNS,
                                      start=1):
             sheet.column_dimensions[get_column_letter(index)].width = 18
-        for row in sheet.iter_rows(min_row=2):
-            for cell in row:
+    # 照片页只在真有人传过图时才建（旧项目也是这么做的）。
+    _count_photo_sheet(book, entries,
+                       {row["name"]: index for index, row in enumerate(items, start=2)},
+                       {row["name"]: index for index, row in enumerate(entries, start=2)})
+    # 冻结首行 + 自动筛选 + 细边框：旧项目那份导出就是这样，读表的人不用自己再拉一遍。
+    edge = Side(style="thin", color="A6ACB3")
+    border = Border(left=edge, right=edge, top=edge, bottom=edge)
+    for sheet in book:
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        sheet.row_dimensions[1].height = 26
+        for cells in sheet.iter_rows():
+            for cell in cells:
                 cell.alignment = Alignment(vertical="center")
+                cell.border = border
     buffer = io.BytesIO()
     book.save(buffer)
     book.close()

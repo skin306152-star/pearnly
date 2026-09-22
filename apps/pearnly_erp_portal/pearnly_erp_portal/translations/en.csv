@@ -202,6 +202,8 @@ stock.count.importPick,Choose a file
 stock.count.importSkipped,{0} rows were not imported
 stock.count.importTitle,Import result
 stock.count.imported,"Imported {0} rows, {1} with a counted quantity"
+stock.count.linkEntries,Back to entries
+stock.count.linkSummary,Back to summary
 stock.count.location,Location
 stock.count.mode,Count by
 stock.count.modeImport,Upload a sheet
@@ -212,6 +214,7 @@ stock.count.newHint,In-stock: freeze the current balances. Import: take the rows
 stock.count.noEntries,No entries
 stock.count.note,Note
 stock.count.notes,Notes
+stock.count.photoInfo,Product / position / counted by / time
 stock.count.photos,Photos
 stock.count.post,Post differences
 stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
@@ -261,11 +264,13 @@ stock.status.out,Out of stock
 stock.workbench.actualLocation,Actual position
 stock.workbench.actualPositions,Actual positions and quantities
 stock.workbench.actualWarehouse,Actual warehouse
+stock.workbench.addPhoto,Add photos
 stock.workbench.bookPosition,Book position
 stock.workbench.camera,Scan barcode or QR code
 stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 stock.workbench.code,"Barcode, QR code or product code"
 stock.workbench.continuous,Continuous counting
+stock.workbench.done,Finish
 stock.workbench.editEntry,Correct entry
 stock.workbench.entryQty,Quantity counted this time
 stock.workbench.find,Find product
@@ -274,10 +279,14 @@ stock.workbench.locationDiff,Position differences
 stock.workbench.lookupFailed,Product not found. Check the code and try again.
 stock.workbench.needsRecount,Stock changed; recount
 stock.workbench.nextReady,Saved. Scan the next item.
+stock.workbench.photoHint,Up to 5 photos per entry; take a photo or choose from the gallery.
+stock.workbench.photoLimit,At most 5 photos per entry
+stock.workbench.photos,Photos
 stock.workbench.quantityDiff,Quantity differences
 stock.workbench.record,Record a count
 stock.workbench.recount,Recount this product
 stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
+stock.workbench.removePhoto,Remove
 stock.workbench.review,Review differences
 stock.workbench.saveNext,Save and next
 stock.workbench.scanHint,"Scan, enter the actual position and quantity, then save to continue."

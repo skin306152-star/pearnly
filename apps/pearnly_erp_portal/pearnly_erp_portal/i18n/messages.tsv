@@ -359,3 +359,12 @@ Opening	期初	ยกมา	期首	trade.rowOpening
 Total · {0} row(s)	合计 · {0} 条明细	รวม · {0} รายการ	合計 · {0} 明細	trade.totalRows
 Document	单据	เอกสาร	伝票	trade.groupDoc
 Start counting	开始盘点	เริ่มตรวจนับ	棚卸を開始	stock.count.start
+Photos	照片	รูปภาพ	写真	stock.workbench.photos
+Up to 5 photos per entry; take a photo or choose from the gallery.	每条记录最多 5 张照片，可以拍照或从相册选择。	บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้	1記録につき写真は5枚まで。撮影またはアルバムから選択できます。	stock.workbench.photoHint
+Add photos	添加照片	เพิ่มรูปภาพ	写真を追加	stock.workbench.addPhoto
+Remove	移除	ลบ	削除	stock.workbench.removePhoto
+At most 5 photos per entry	每条记录最多 5 张照片	บันทึกได้ไม่เกิน 5 รูปต่อรายการ	1記録につき写真は5枚までです	stock.workbench.photoLimit
+Finish	完成	เสร็จสิ้น	完了	stock.workbench.done
+Product / position / counted by / time	商品 / 位置 / 盘点人 / 时间	สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา	商品・位置・担当者・日時	stock.count.photoInfo
+Back to summary	返回汇总	กลับไปสรุป	集計へ戻る	stock.count.linkSummary
+Back to entries	返回记录	กลับไปรายการ	記録へ戻る	stock.count.linkEntries

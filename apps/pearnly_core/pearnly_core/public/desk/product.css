@@ -150,3 +150,24 @@ body.pearnly-product-desk .datatable .dt-header .dt-cell--header:last-child {
 body.pearnly-product-desk .pearnly-difference {
 	color: var(--red-600);
 }
+
+/* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
+body.pearnly-product-desk .pearnly-count-photos {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--padding-sm);
+	margin-top: var(--padding-xs);
+}
+body.pearnly-product-desk .pearnly-count-photo {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--padding-xs);
+}
+body.pearnly-product-desk .pearnly-count-photo img {
+	width: 88px;
+	height: 88px;
+	object-fit: cover;
+	border-radius: var(--border-radius);
+	border: 1px solid var(--border-color);
+}

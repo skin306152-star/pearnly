@@ -202,6 +202,8 @@ stock.count.importPick,ファイルを選択
 stock.count.importSkipped,{0} 行は取り込めませんでした
 stock.count.importTitle,取り込み結果
 stock.count.imported,{0} 行を取り込みました（うち {1} 行に実地数量）
+stock.count.linkEntries,記録へ戻る
+stock.count.linkSummary,集計へ戻る
 stock.count.location,棚番
 stock.count.mode,棚卸方法
 stock.count.modeImport,取り込み
@@ -212,6 +214,7 @@ stock.count.newHint,在庫棚卸：現在の在庫を凍結。取り込み：シ
 stock.count.noEntries,記録なし
 stock.count.note,メモ
 stock.count.notes,備考
+stock.count.photoInfo,商品・位置・担当者・日時
 stock.count.photos,写真
 stock.count.post,差異を転記
 stock.count.postConfirm,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
@@ -261,11 +264,13 @@ stock.status.out,在庫切れ
 stock.workbench.actualLocation,実際の棚番
 stock.workbench.actualPositions,実際の棚番と数量
 stock.workbench.actualWarehouse,実際の倉庫
+stock.workbench.addPhoto,写真を追加
 stock.workbench.bookPosition,帳簿上の倉庫・棚番
 stock.workbench.camera,バーコード・QRコードを読む
 stock.workbench.cameraFailed,カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 stock.workbench.code,バーコード・QRコード・商品コード
 stock.workbench.continuous,連続棚卸
+stock.workbench.done,完了
 stock.workbench.editEntry,記録を修正
 stock.workbench.entryQty,今回の実地数量
 stock.workbench.find,商品を検索
@@ -274,10 +279,14 @@ stock.workbench.locationDiff,棚番の差異
 stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
 stock.workbench.needsRecount,在庫変動・再棚卸
 stock.workbench.nextReady,保存しました。次の商品を読み取ってください。
+stock.workbench.photoHint,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
+stock.workbench.photoLimit,1記録につき写真は5枚までです
+stock.workbench.photos,写真
 stock.workbench.quantityDiff,数量差異
 stock.workbench.record,棚卸を入力
 stock.workbench.recount,この商品を再棚卸
 stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
+stock.workbench.removePhoto,削除
 stock.workbench.review,差異を確認
 stock.workbench.saveNext,保存して次へ
 stock.workbench.scanHint,読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
