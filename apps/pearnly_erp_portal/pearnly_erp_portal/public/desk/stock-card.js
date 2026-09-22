@@ -268,13 +268,26 @@
 			if (frappe.get_route()[0] !== root) return;
 			p.breadcrumbs({ label: __("nav.stockCard"), route: url(),
 				trail: [{ label: card.product_name || product, route: "" }] });
+			// 二级页面的重新取数：日期一改就按新区间重取这张卡（期初/期末/明细一起换）。
+			// 日期那两格的 `change` 之前调的是一个**不存在的** `reload`
+			// （实测 `ReferenceError: reload is not defined`），于是改了日期整页没反应、
+			// 控制台还报错。先定义再挂给 `change` 和右上角那颗刷新，两处同一个函数。
+			async function refresh_card() {
+				const values = form.get_values() || {};
+				const current = await fetch_card({ product, warehouse, location },
+					{ date_from: values.date_from, date_to: values.date_to });
+				if (frappe.get_route()[0] !== root) return;
+				form.set_value("opening", p.number(current.opening.qty));
+				form.set_value("closing", p.number(current.closing.qty));
+				form.fields_dict.movements.$wrapper.empty().append(p.ledger_table(t, current));
+			}
 			// 四栏（每栏两行）把宽度用满，明细表另起一节占满整宽 —— 用户 2026-09-22 口径：
 			// "后面不要留那么多"，字段别占半边、把表挤走。
 			form = p.layout(page.main, p.field_rows([
 				{ fieldtype: "Date", fieldname: "date_from", label: t("trade.from"),
-					default: dates.date_from, change: () => void reload() },
+					default: dates.date_from, change: () => void refresh_card() },
 				{ fieldtype: "Date", fieldname: "date_to", label: t("trade.to"),
-					default: dates.date_to, change: () => void reload() },
+					default: dates.date_to, change: () => void refresh_card() },
 				{ fieldtype: "Data", fieldname: "product", label: t("trade.product"),
 					read_only: 1, default: card.product_name || product },
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
@@ -289,14 +302,7 @@
 			], 4));
 			const host = form.fields_dict.movements.$wrapper;
 			host.empty().append(p.ledger_table(t, card));
-			set_refresh(async () => {
-				const values = form.get_values() || {};
-				const current = await fetch_card({ product, warehouse, location },
-					{ date_from: values.date_from, date_to: values.date_to });
-				form.set_value("opening", p.number(current.opening.qty));
-				form.set_value("closing", p.number(current.closing.qty));
-				host.empty().append(p.ledger_table(t, current));
-			});
+			set_refresh(refresh_card);
 		}
 
 		async function render(rest) {

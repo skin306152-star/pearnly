@@ -17,6 +17,7 @@ from frappe.utils import now, nowdate
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals
 from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.numbering import service as numbering
 
 DT = "ERP Sale"
 PRODUCT = "ERP Product"
@@ -42,13 +43,21 @@ def _get(name):
 
 
 def _receipt_no(doc) -> str:
-    """小票号按天递增，与内部编号分开：客人手里的是小票号。"""
+    """收银单号：与销售记录**同一套编号定义**，从同一个计数器续号。
+
+    用户 2026-09-23 口径："收银这边的每一笔订单编号，要和销售记录的订单编号同步，
+    业务逻辑自动延续"。所以这里不再自己按天发 `R20260923-0001`（那样是**另一套**号，
+    两边各发各的、还会撞），改成走共享取号 `numbering.allocate(direction="sales")`：
+    与销售记录共用 `sales-SI-{佛历年}` 那一行计数器与同一把行锁，两个入口开的单落在
+    **同一个序列**里连续（谁先开谁拿前一个号）。
+
+    历史数据里的 `R…` 号按原样留着：它不是本系统的号
+    （`numbering.contracts.split` 认不出这种形状），不改写已经给出去的号码。
+    """
     day = str(doc.sold_at or nowdate())[:10]
-    prefix = "R" + day.replace("-", "")
-    last = frappe.db.get_value(DT, {"receipt_no": ["like", f"{prefix}-%"]}, "receipt_no",
-                               order_by="receipt_no desc")
-    seq = int(last.split("-")[-1]) + 1 if last else 1
-    return f"{prefix}-{seq:04d}"
+    return numbering.allocate(
+        direction="sales", on=day,
+        exists=lambda value: bool(frappe.db.exists(DT, {"receipt_no": value})))
 
 
 def _resolve_shift(shift, terminal):
