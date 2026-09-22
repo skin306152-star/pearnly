@@ -3,8 +3,9 @@
 ## ⚠️ 最新交接（2026-09-22 收工，stocktake-workbench 批）—— 换窗口先读这一节
 
 - 工作树 `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly`，分支 `codex/stocktake-workbench`，
-  HEAD `1fd06f3`（本交接提交；代码状态与 `db2d6f9` 相同，之后只多了这份文档），工作区**干净**；
-  已包含本机 `main` 的 `717d202`（`HEAD..main` 为空，合 main 可快进）。
+  **代码提交止于 `db2d6f9`**（8126 的验收镜像就是这个状态），其后是本轮交接的文档提交；
+  取当前 tip 用 `git log --oneline -1`，工作区**干净**。
+  已包含本机 `main` 的 `717d202`（`git rev-list --count HEAD..main` = 0，合 main 可快进）。
   **未推送、未上线**：`origin/main` 仍停在 `ac33e0c`。
 - 逐批来龙去脉、每个决定与验证证据都在 [盘点工作台记录](2026-09-22-stocktake-workbench.md)
   （本轮全部批次都在那一个文件里，续写它，别另开新的）。
@@ -93,7 +94,7 @@ cd /Users/skin/.codex/worktrees/stocktake-workbench/pearnly
 | --- | --- | --- | --- |
 | 工作树 + 分支 | `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly` / `codex/stocktake-workbench` @ `db2d6f9`（干净） | 成果未合未推 | 合并并推送后按本仓收尾流程删除 |
 | 预览 lane | 容器 `pearnly-stocktake-acceptance-erp-web-preview-1`，`http://stocktake.localhost:8136` | 下个窗口改完要立刻看 | 任务收尾时再 `down` |
-| 验收 lane | 容器 `pearnly-stocktake-acceptance-erp-web-1` 等，`http://stocktake.localhost:8126`，镜像 `sha256:051c4752…`（= 当前 HEAD `1fd06f3`） | 用户验收环境（= 上线形状） | 同上 |
+| 验收 lane | 容器 `pearnly-stocktake-acceptance-erp-web-1` 等，`http://stocktake.localhost:8126`，镜像 `sha256:051c4752…`（= 代码提交 `db2d6f9`） | 用户验收环境（= 上线形状） | 同上 |
 | 站点数据 | `stocktake.localhost`：`STC-00017`（进行中，1 条记录 7 个、5 张测试图）、`STC-00005`（已过账）等 | 业务数据，也是验收样本 | 用户自己决定要不要删 |
 | 别的窗口 | `codex/cowork-backend-migration` 等分支与工作树 | 不属本任务 | 不动 |
 
