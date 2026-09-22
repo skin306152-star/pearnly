@@ -1,6 +1,7 @@
 """库存域接口层。业务与权限在 services，这里只做参数解析。"""
 
 import frappe
+from frappe import _
 from frappe.utils import flt
 
 from pearnly_erp_portal.inventory import (
@@ -245,6 +246,7 @@ COUNT_COLUMNS = (
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
     ("location", "stock.count.location"),
+    ("actual_positions", "stock.workbench.actualPositions"),
     ("book_qty", "stock.count.book"),
     ("counted_qty", "stock.count.counted"),
     ("difference", "stock.count.difference"),
@@ -267,7 +269,7 @@ COUNT_DETAIL_COLUMNS = (
 def _count_status_key(row) -> str:
     if not row.get("counted"):
         return "stock.count.rowUncounted"
-    return "stock.count.rowDifference" if row.get("difference") else "stock.count.rowMatch"
+    return "stock.count.rowDifference" if row.get("difference") or row.get("location_difference") else "stock.count.rowMatch"
 
 
 def _count_workbook(task, items, entries) -> bytes:
@@ -466,13 +468,28 @@ def api_stock_count_edit_entry(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_close(**kwargs):
     kwargs = _clean(kwargs)
-    return counts.close_count(kwargs.get("name"))
+    return counts.close_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_post(**kwargs):
     kwargs = _clean(kwargs)
-    return counts.post_count(kwargs.get("name"))
+    return counts.post_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
+
+
+@frappe.whitelist()
+def api_stock_count_review(name):
+    return counts.review_count(name)
+
+
+@frappe.whitelist()
+def api_stock_count_lookup(**kwargs):
+    return counts.lookup_count(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_recount(**kwargs):
+    return counts.recount_product(**_clean(kwargs))
 
 
 @frappe.whitelist(methods=["POST"])

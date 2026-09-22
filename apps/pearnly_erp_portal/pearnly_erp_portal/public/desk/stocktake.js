@@ -4,7 +4,7 @@
  * （可改可撤销，实盘合计 = 未撤销之和），结束盘点锁住记录，最后过账把差异落成流水。
  * 手机那一侧（LINE）走 `/stocktake` 那个页面，提交进的是同一批接口。
  *
- * 列表、任务和记录各有 Desk 路由，刷新、面包屑与浏览器前进后退使用同一份状态。
+ * 仅任务列表/盘点工作台两级路由；记录用原生弹窗。结束与库存调整在同一事务完成。
  */
 (() => {
 	const p = frappe.pearnly;
@@ -53,124 +53,205 @@
 
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
-		const item_filters = ["all", "uncounted", "differences"];
-		let list;
-		let count = null; // 打开的是哪一份盘点（null = 列表态）
-		let item_filter = "all";
-		let view_sequence = 0;
-		const open_detail = (name) => frappe.set_route(root, name);
-		const open_entries = (row) => frappe.set_route(root, count, "records", row.name);
-
-		const qty = (value) => (value === null || value === undefined
-			? t("stock.count.blank")
-			: p.number(value));
-		const status_text = (row) => t({
-			Active: "stock.count.statusActive",
-			Closed: "stock.count.statusClosed",
-			Posted: "stock.count.statusPosted",
-		}[row.status] || "stock.count.statusActive");
-		const row_state = (row) => {
-			if (!row.counted) return t("stock.count.rowUncounted");
-			return row.difference ? t("stock.count.rowDifference") : t("stock.count.rowMatch");
-		};
-
+		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
+		let list, table, chart, count, state, table_host, chart_host, summary;
+		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
+		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
+		const open_detail = name => frappe.set_route(root, name);
+		const qty = value => value == null ? "—" : p.number(value);
+		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
-			list?.destroy();
-			list = null;
-			page.main.empty();
-			// 页面上的筛选字段是"加进去就一直留着"的：换一态要自己撤掉，
-			// 否则上一态的字段跟着走（状态/搜索/筛选会叠在一起）。
-			page.clear_fields();
-			page.fields_dict = {};
-			page.clear_inner_toolbar();
-			page.clear_primary_action();
-			page.clear_indicator();
+			list?.destroy(); table?.destroy(); chart?.parent?.remove?.();
+			list = table = chart = null;
+			page.main.empty().removeClass("layout-main-list list-view");
+			page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
+			page.clear_primary_action(); page.clear_indicator();
 		}
-
 		async function show_route() {
 			const route = frappe.get_route();
 			if (route[0] !== root) return;
-			const request = ++view_sequence;
-			const route_key = frappe.get_route_str();
-			const current = () => request === view_sequence && route_key === frappe.get_route_str();
+			if (route.length > 2) { frappe.set_route(root, route[1]); return; }
+			const request = ++sequence; ++refresh_sequence;
 			count = route[1] || null;
-			clear();
-			// 先给出可返回的路径；空数据、请求失败都不能把用户困在子页。
-			p.stockCountBreadcrumbs({ name: count, entries: route[2] === "records" });
-			try {
-				if (!count) open_list();
-				else if (route[2] === "records" && route[3]) {
-					await render_entries(count, route[3], current);
-				} else await render_detail(count, current);
-			} catch (error) {
-				if (!current()) return;
-				page.main.empty().append($("<p class='text-muted'>")
-					.text(__("Unable to load this page. Please reload.")));
-				if (!error?._server_messages && !error?.responseJSON) console.error(error);
-			}
-		}
-
-		// ── 列表态 ────────────────────────────────────────────────────────────
-		function open_list() {
-			const status = page.add_field({
-				fieldtype: "Select",
-				fieldname: "status",
-				label: t("stock.col.status"),
-				options: ["", "Active", "Closed", "Posted"].join("\n"),
-				change: () => void list?.reload(),
+			state = null; item_filter = "all";
+			clear(); p.stockCountBreadcrumbs({ name: count });
+			if (!count) { open_list(); return; }
+			await frappe.require("report.bundle.js");
+			if (request !== sequence) return;
+			search = page.add_field({ fieldtype: "Data", fieldname: "search", label: t("stock.field.search"),
+				change: () => render_data() });
+			filter = page.add_field({ fieldtype: "Select", fieldname: "only", label: t("stock.count.filter"),
+				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
+					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
+				change: () => { item_filter = filter.get_value(); render_data(); } });
+			summary = $("<div class='report-summary'>").appendTo(page.main);
+			chart_host = $("<div class='chart-wrapper'>").appendTo(page.main);
+			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
+			table_host.on("click", ".dt-row", event => {
+				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
+				const name = $(event.currentTarget).find("[data-count-row]").attr("data-count-row");
+				if (!name) return;
+				event.preventDefault();
+				const row = state.items.find(r => r.name === name);
+				if (row) void records(row);
 			});
-			list = p.list({
-				page,
-				doctype: "ERP Stock Count",
-				selectable: true,
-				on_selection: update_action,
-				on_open: (row) => open_detail(row.name),
+			await refresh();
+		}
+		function open_list() {
+			list = p.list({ page, doctype: "ERP Stock Count", on_open: row => open_detail(row.name),
+				empty_action: { label: t("stock.count.new"), action: open_new },
 				load: async ({ start, page_length }) => {
-					const query = { status: status.get_value() || undefined };
 					const [items, total] = await Promise.all([
-						p.call(api + "api_list_stock_counts",
-							{ start, limit: page_length, ...query }),
-						p.call(api + "api_stock_count_total", query),
-					]);
-					return { items, total };
-				},
-				columns: [
+						p.call(api + "api_list_stock_counts", { start, limit: page_length }),
+						p.call(api + "api_stock_count_total"),
+					]); return { items, total };
+				}, columns: [
 					{ fieldname: "title", label: t("stock.count.name") },
-					{ fieldname: "status", label: t("stock.col.status"),
-						format: (_value, row) => status_text(row) },
+					{ fieldname: "status", label: t("stock.col.status"), format: (_v, row) => status_text(row) },
 					{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
 					{ fieldname: "item_total", label: t("stock.count.rows") },
 					{ fieldname: "counted_total", label: t("stock.count.countedRows") },
 					{ fieldname: "difference_total", label: t("stock.count.differenceRows") },
 					{ fieldname: "creation", label: t("stock.count.createdAt") },
-				],
-			});
-			update_action([]);
-			page.add_inner_button(t("stock.action.reload"), () => void list?.reload());
-			void list.ready;
+				] });
+			page.set_primary_action(t("stock.count.new"), open_new);
+			page.add_inner_button(t("stock.action.reload"), () => list.reload());
 		}
-
-		// 勾选后主按钮换成"删除所选"；已过账的在服务端也会被拒（只能留档）。
-		function update_action(rows) {
-			if (!rows.length) {
-				page.set_primary_action(t("stock.count.new"), () => open_new());
-				return;
+		async function refresh() {
+			const request = ++refresh_sequence, name = count;
+			const result = await p.call(api + "api_stock_count_review", { name });
+			if (request !== refresh_sequence || count !== name || frappe.get_route()[0] !== root) return;
+			state = result;
+			p.stockCountBreadcrumbs({ name, title: state.task.title });
+			page.clear_inner_toolbar(); page.clear_primary_action();
+			page.set_indicator(t("stock.count.headline", status_text(state.task), state.task.counted_total,
+				state.task.item_total, state.task.difference_total), active() ? "orange" : "green");
+			page.add_inner_button(t("stock.action.export"), () => window.location.assign(
+				`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
+			page.add_inner_button(t("stock.action.reload"), refresh);
+			if (active()) {
+				page.set_primary_action(w("continuous"), () => entry_form(null, true));
+				page.add_inner_button(w("record"), () => entry_form());
+				page.add_inner_button(t("stock.count.import"), () => open_import(name));
+				page.add_inner_button(w("review"), () => filter.set_value("differences"));
+				page.add_inner_button(t("stock.count.close"), finish);
 			}
-			page.set_primary_action(t("stock.count.deleteSelected", rows.length),
-				() => void remove_selected(rows));
+			await render_data();
 		}
-
-		async function remove_selected(rows) {
-			frappe.confirm(t("stock.count.deleteConfirm", rows.length), async () => {
-				for (const row of rows) {
-					await p.call(api + "api_stock_count_delete", { name: row.name }, "POST");
+		function entry_form(row = null, continuous = false, entry = null) {
+			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: refresh,
+				on_done: () => filter?.set_value("differences") });
+		}
+		async function render_data() {
+			if (!state || !table_host || !table_host[0].isConnected) return;
+			summary.empty();
+			for (const [label, value] of [[t("stock.count.countedRows"), state.task.counted_total],
+				[t("stock.count.rowUncounted"), state.task.item_total - state.task.counted_total],
+				[w("quantityDiff"), state.items.filter(r => r.counted && Number(r.difference)).length],
+				[w("locationDiff"), state.location_total]]) {
+				const item = $("<div class='summary-item'>").appendTo(summary);
+				$("<div class='summary-label'>").text(label).appendTo(item);
+				$("<div class='summary-value'>").text(value).appendTo(item);
+			}
+			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
+			chart_host.empty();
+			const groups = new Map();
+			const group = (warehouse, location, unit) => {
+				const key = `${warehouse} / ${location || t("stock.count.blank")} · ${unit || ""}`;
+				if (!groups.has(key)) groups.set(key, { book: 0, actual: 0 });
+				return groups.get(key);
+			};
+			for (const row of state.items) if (row.counted) {
+				group(row.warehouse_name, row.location, row.unit).book += Number(row.book_qty);
+				for (const e of state.entries.filter(e => e.item === row.name && !e.voided)) {
+					group(e.warehouse_name, e.location, row.unit).actual += Number(e.qty);
 				}
-				p.success(t("stock.count.deleted", rows.length));
-				list.clear_checked_items();
-				await list.reload();
+			}
+			const ranked = [...groups].sort((a,b) => Math.abs(b[1].actual-b[1].book)-Math.abs(a[1].actual-a[1].book)).slice(0,12);
+			if (ranked.length) chart = new frappe.Chart(chart_host[0], { type: "bar", height: 260,
+				colors: ["#a3a3a3", getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff"],
+				data: { labels: ranked.map(([key])=>key), datasets: [
+					{ name: t("stock.count.book"), values: ranked.map(([,v])=>v.book) },
+					{ name: t("stock.count.counted"), values: ranked.map(([,v])=>v.actual) },
+				] } });
+			const q = (search?.get_value() || "").trim().toLowerCase();
+			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
+				&& (item_filter !== "uncounted" || !r.counted)
+				&& (item_filter !== "differences" || r.counted && (Number(r.difference) || r.location_difference))
+				&& (item_filter !== "locations" || r.location_difference));
+			table?.destroy(); table = null;
+			if (!rows.length) {
+				const empty = $(frappe.views.ListView.prototype.get_no_result_message.call({ doctype: "ERP Stock Count Item",
+					meta: { description: __("Nothing to show") }, can_create: active(), get_documentation_link: () => "" }));
+				empty.find(".btn-new-doc").text(w("record")).on("click", () => entry_form());
+				table_host.empty().append(empty); return;
+			}
+			const columns = [
+				{ name: t("stock.col.name"), width: 210, format: value => value },
+				{ name: t("stock.col.code"), width: 100 }, { name: t("stock.col.barcode"), width: 140 },
+				{ name: w("bookPosition"), width: 160 }, { name: w("actualPositions"), width: 230 },
+				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: 90 },
+				{ name: t("stock.count.counted"), width: 90 }, { name: w("quantityDiff"), width: 90 },
+				{ name: t("stock.col.status"), width: 140 },
+			];
+			table = await p.table(table_host, columns.map(c=>({ ...c, format: c.format || p.escape })), rows.map(r=>[
+				`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
+				`${r.warehouse_name} / ${r.location || t("stock.count.blank")}`, r.actual_positions || "—", r.unit || "",
+				qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—", r.counted ? qty(r.difference) : "—",
+				r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted") : r.location_difference ? w("locationDiff")
+					: Number(r.difference) ? t("stock.count.rowDifference") : t("stock.count.rowMatch"),
+			]));
+		}
+		async function records(row) {
+			const entries = state.entries.filter(e=>e.item===row.name);
+			const d = new frappe.ui.Dialog({ title: t("stock.count.entriesTitle", row.product_name), size: "extra-large", fields: [
+				{ fieldtype: "HTML", fieldname: "hint", options: `<p class="text-muted">${p.escape(w("bookPosition"))}: ${p.escape(row.warehouse_name)} / ${p.escape(row.location || "—")} · ${qty(row.book_qty)} ${p.escape(row.unit || "")}</p>` },
+				{ fieldtype: "HTML", fieldname: "entries" },
+			] });
+			let detail;
+			d.onhide = () => detail?.destroy();
+			const later = action => { d.$wrapper.one("hidden.bs.modal", action); d.hide(); };
+			if (active()) {
+				d.set_primary_action(w("record"), () => later(()=>entry_form(row)));
+				d.set_secondary_action_label(w("recount"));
+				d.set_secondary_action(() => frappe.confirm(w("recountConfirm"), async () => {
+					await p.call(api + "api_stock_count_recount", { count, product: row.product }, "POST");
+					await refresh(); later(()=>entry_form(row));
+				}));
+			}
+			d.on_page_show = async () => {
+				if (detail) return;
+				detail = await p.table(d.fields_dict.entries.$wrapper, [
+					w("actualWarehouse"), w("actualLocation"), t("stock.count.qty"), t("stock.count.note"),
+					t("stock.count.countedBy"), t("stock.count.countedAt"),
+					{ name: t("stock.col.status"), format: value=>value },
+				], entries.map(e=>[e.warehouse_name, e.location || "—", qty(e.qty), e.note || "", e.counted_by, e.counted_at,
+					e.voided ? p.escape(t("stock.count.entryVoided")) : active()
+						? `<button class="btn btn-default btn-xs" data-edit-count-entry="${p.escape(e.name)}">${p.escape(w("editEntry"))}</button> <button class="btn btn-default btn-xs" data-void-count-entry="${p.escape(e.name)}">${p.escape(t("stock.count.void"))}</button>`
+						: p.escape(t("stock.count.entryLive"))]));
+			};
+			d.fields_dict.entries.$wrapper.on("click", "[data-edit-count-entry]", event => {
+				const entry = entries.find(e=>e.name===event.currentTarget.dataset.editCountEntry);
+				later(()=>entry_form(row, false, entry));
+			}).on("click", "[data-void-count-entry]", event => {
+				const entry = entries.find(e=>e.name===event.currentTarget.dataset.voidCountEntry);
+				frappe.confirm(t("stock.count.voidConfirm", qty(entry.qty)), async () => {
+					await p.call(api + "api_stock_count_edit_entry", { entry: entry.name, version: entry.version, voided: 1 }, "POST");
+					d.hide(); await refresh();
+				});
+			});
+			d.show();
+		}
+		async function finish() {
+			await refresh();
+			if (!active()) return;
+			if (state.conflicts.length) { frappe.msgprint(w("stockChanged")); return; }
+			const reviewed = state.review_token;
+			frappe.confirm(w("finishConfirm", state.task.counted_total, state.task.item_total-state.task.counted_total), async () => {
+				await p.call(api + "api_stock_count_close", { name: count, review_token: reviewed }, "POST");
+				p.success(t("stock.count.closed")); await refresh();
 			});
 		}
-
 		function open_new() {
 			let file_url = "";
 			let dialog;
@@ -277,113 +358,6 @@
 			});
 		}
 
-		// ── 明细态 ────────────────────────────────────────────────────────────
-		async function render_detail(name, current) {
-			item_filter = "all";
-			const task = await p.call(api + "api_get_stock_count", { name });
-			if (!current()) return;
-			const editable = task.status === "Active";
-			page.add_inner_button(t("stock.action.export"), () => {
-				window.location.assign(
-					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`);
-			});
-			// 差异看板是**原生报表**（`/desk/query-report/...`）：筛选、图表、导出都用
-			// 框架自带的那一套，不用在页面里自绘一块。按这份盘点预筛好再打开。
-			page.add_inner_button(t("stock.board.title"), () => {
-				frappe.set_route("query-report", "ERP Stock Count Variance", { count: name });
-			});
-			if (editable) {
-				page.add_inner_button(t("stock.count.import"), () => open_import(name));
-				page.add_inner_button(t("stock.count.close"), () => close_count(task));
-				page.add_inner_button(t("stock.count.post"), () => post_count(task));
-			}
-			const search = page.add_field({
-				fieldtype: "Data",
-				fieldname: "search",
-				label: t("stock.field.search"),
-				change: () => void list?.reload(),
-			});
-			const filter = page.add_field({
-				fieldtype: "Select",
-				fieldname: "item_filter",
-				label: t("stock.count.filter"),
-				options: item_filters.map((key) => t(`stock.count.filter.${key}`)).join("\n"),
-				change: () => {
-					const labels = item_filters.map((key) => t(`stock.count.filter.${key}`));
-					const index = labels.indexOf(filter.get_value());
-					item_filter = item_filters[index < 0 ? 0 : index];
-					void list?.reload();
-				},
-			});
-			const query = () => ({
-				count: name,
-				q: search.get_value() || undefined,
-				filter: item_filter,
-			});
-			list = p.list({
-				page,
-				doctype: "ERP Stock Count Item",
-				on_open: (row) => open_entries(row),
-				// 九列还要留出行上的动作按钮，按列给宽度让渲染器自己挤（原生机制），
-				// 不给的话最后几列会被挤出去看不见。
-				compact_columns: true,
-				row_actions: (row) => [
-					...(editable ? [{
-						id: "add",
-						label: t("stock.count.addEntry"),
-						action: () => open_entry(row),
-					}] : []),
-					{
-						id: "entries",
-						label: t("stock.count.entries"),
-						action: () => open_entries(row),
-					},
-				],
-				load: async ({ start, page_length }) => {
-					const [items, total] = await Promise.all([
-						p.call(api + "api_stock_count_items",
-							{ start, limit: page_length, ...query() }),
-						p.call(api + "api_stock_count_item_total", query()),
-					]);
-					return { items, total };
-				},
-				columns: [
-					{ fieldname: "product_name", label: t("stock.col.name"),
-						width: 220, min_width: 140 },
-					{ fieldname: "code", label: t("stock.col.code"),
-						width: 100, min_width: 80 },
-					{ fieldname: "barcode", label: t("stock.col.barcode"),
-						width: 120, min_width: 90 },
-					{ fieldname: "warehouse_name", label: t("stock.col.warehouse"),
-						width: 100, min_width: 80 },
-					{ fieldname: "location", label: t("stock.count.location"),
-						width: 80, min_width: 60,
-						format: (value) => value || t("stock.count.blank") },
-					{ fieldname: "unit", label: t("stock.col.unit"),
-						width: 70, min_width: 55 },
-					{ fieldname: "book_qty", label: t("stock.count.book"),
-						width: 90, min_width: 75, format: (value) => qty(value) },
-					{ fieldname: "counted_qty", label: t("stock.count.counted"),
-						width: 90, min_width: 75,
-						format: (value, row) => (row.counted ? qty(value) : t("stock.count.blank")) },
-					{ fieldname: "difference", label: t("stock.count.difference"),
-						width: 80, min_width: 65,
-						format: (value, row) => (row.counted ? qty(value) : "—") },
-					{ fieldname: "status", label: t("stock.col.status"),
-						width: 100, min_width: 80,
-						format: (_value, row) => row_state(row) },
-				],
-			});
-			page.set_indicator(
-				t("stock.count.headline", status_text(task), task.counted_total, task.item_total,
-					task.difference_total),
-				task.status === "Posted" ? "green" : (task.status === "Closed" ? "blue" : "orange"),
-			);
-			p.stockCountBreadcrumbs({ name, title: task.title });
-			void list.ready;
-		}
-
-		// 往这份盘点里传表：同一份表重复上传是覆盖那一行，不是又记一笔。
 		function open_import(name) {
 			let file_url = "";
 			const dialog = p.dialog(
@@ -431,127 +405,8 @@
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 		}
-
-		// 一条盘点记录 = 一次扫码/一次点数；同一商品可以记很多条，合计才是实盘数。
-		function open_entry(row) {
-			const dialog = p.dialog(
-				t("stock.count.addEntryTitle", row.product_name),
-				[
-					{ fieldtype: "HTML",
-						options: `<p class="text-muted">${p.escape(
-							t("stock.count.addEntryHint", p.number(row.book_qty), row.unit || "")
-							+ (row.location ? " · " + row.location : ""))}</p>` },
-					{ fieldtype: "Float", fieldname: "qty", label: t("stock.count.qty"), reqd: 1,
-						precision: 3 },
-					{ fieldtype: "Small Text", fieldname: "note", label: t("stock.count.note") },
-				],
-				t("stock.count.addEntry"),
-				async (values, d) => {
-					await p.call(api + "api_stock_count_add_entry", {
-						count: count,
-						item: row.name,
-						qty: values.qty,
-						note: values.note || undefined,
-					}, "POST");
-					d.hide();
-					p.success(t("stock.count.entrySaved"));
-					await list.reload();
-				},
-			);
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-		}
-
-		// 一份盘点的记录：**第三级页面 + 原生列表**。
-		// 为什么不做成对话框：框架自己写了 `.modal .hidden-xs { display: none !important }`
-		// （对话框在它眼里就是"小屏"），列表塞进去只剩第一列。记录是清单，用列表。
-		async function render_entries(name, item, current) {
-			const [task, items] = await Promise.all([
-				p.call(api + "api_get_stock_count", { name }),
-				p.call(api + "api_stock_count_items", { count: name, limit: 0 }),
-			]);
-			if (!current()) return;
-			p.stockCountBreadcrumbs({ name, title: task.title, entries: true });
-			const row = items.find((candidate) => candidate.name === item);
-			if (!row) frappe.throw(__("Not Found"));
-			page.set_indicator(t("stock.count.entriesTitle", row.product_name), "blue");
-			list = p.list({
-				page,
-				doctype: "ERP Stock Count Entry",
-				compact_columns: true,
-				row_actions: (entry) => (Number(entry.voided) ? [] : [{
-					id: "void",
-					label: t("stock.count.void"),
-					action: () => void_entry(entry),
-				}]),
-				load: async ({ start, page_length }) => {
-					const query = { count: name, item: row.name };
-					const [items, total] = await Promise.all([
-						p.call(api + "api_stock_count_entries",
-							{ ...query, start, limit: page_length }),
-						p.call(api + "api_stock_count_entry_total", query),
-					]);
-					return { items, total };
-				},
-				columns: [
-					{ fieldname: "qty", label: t("stock.count.qty"),
-						width: 100, min_width: 80, format: (value) => qty(value) },
-					{ fieldname: "location", label: t("stock.count.location"),
-						width: 100, min_width: 80,
-						format: (value) => value || t("stock.count.blank") },
-					{ fieldname: "note", label: t("stock.count.note"),
-						width: 200, min_width: 120,
-						format: (value) => value || "" },
-					{ fieldname: "counted_by", label: t("stock.count.countedBy"),
-						width: 180, min_width: 120 },
-					{ fieldname: "counted_at", label: t("stock.count.countedAt"),
-						width: 170, min_width: 120 },
-					{ fieldname: "voided", label: t("stock.col.status"),
-						width: 110, min_width: 80,
-						format: (value) => (value ? t("stock.count.entryVoided")
-							: t("stock.count.entryLive")) },
-					{ fieldname: "photo_total", label: t("stock.count.photos"),
-						width: 80, min_width: 60,
-						format: (value) => (value ? String(value) : "") },
-				],
-			});
-			page.add_inner_button(t("stock.action.reload"), () => void list?.reload());
-			void list.ready;
-
-			function void_entry(entry) {
-				frappe.confirm(t("stock.count.voidConfirm", qty(entry.qty)),
-					async () => {
-						await p.call(api + "api_stock_count_edit_entry",
-							{ entry: entry.name, voided: 1 }, "POST");
-						p.success(t("stock.count.entryVoidedNotice"));
-						await list.reload();
-					});
-			}
-		}
-
-		function close_count(task) {
-			frappe.confirm(t("stock.count.closeConfirm"),
-				async () => {
-					await p.call(api + "api_stock_count_close", { name: task.name }, "POST");
-					p.success(t("stock.count.closed"));
-					void show_route();
-				});
-		}
-
-		function post_count(task) {
-			frappe.confirm(t("stock.count.postConfirm"),
-				async () => {
-					const result = await p.call(api + "api_stock_count_post", { name: task.name },
-						"POST");
-					p.success(t("stock.count.posted", result.adjustments.length));
-					void show_route();
-				});
-		}
-
-		wrapper.on_page_show = () => {
-			p.restore_sidebar();
-			void show_route();
-		};
-		$(wrapper).on("hide", () => { ++view_sequence; });
+		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
+		$(wrapper).on("hide", () => { ++sequence; ++refresh_sequence; table?.destroy(); table = null; });
 		await show_route();
 	};
 })();

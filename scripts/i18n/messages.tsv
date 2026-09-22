@@ -1193,7 +1193,7 @@ pearnly_erp_portal	Add a count	记一笔	บันทึกการนับ	�
 pearnly_erp_portal	Add a count — {0}	记一笔 — {0}	บันทึกการนับ — {0}	カウントを記録 — {0}	stock.count.addEntryTitle
 pearnly_erp_portal	Book quantity {0} {1}	账面数量 {0} {1}	จำนวนตามบัญชี {0} {1}	帳簿数量 {0} {1}	stock.count.addEntryHint
 pearnly_erp_portal	Quantity	数量	จำนวน	数量	stock.count.qty
-pearnly_erp_portal	Location	库位	ตำแหน่ง	棚番	stock.count.location
+pearnly_erp_portal	Location	仓位	ตำแหน่ง	棚番	stock.count.location
 pearnly_erp_portal	Note	说明	หมายเหตุ	メモ	stock.count.note
 pearnly_erp_portal	Count saved	已保存	บันทึกแล้ว	保存しました	stock.count.entrySaved
 pearnly_erp_portal	Entries	记录	รายการ	記録	stock.count.entries
@@ -1250,7 +1250,7 @@ pearnly_erp_portal	Difference value	差异金额	มูลค่าผลต่�
 pearnly_erp_portal	Show only	只看	แสดงเฉพาะ	表示のみ	stock.board.only
 pearnly_erp_portal	Chart by	看板按	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
 pearnly_erp_portal	Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
-pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	stock.board.title
+pearnly_erp_portal	Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.board.title
 pearnly_erp_portal	Freeze column	冻结列	ตรึงคอลัมน์	列を固定	stock.board.freezeColumn
 pearnly_erp_portal	Unfreeze column	取消冻结列	ยกเลิกการตรึงคอลัมน์	列の固定を解除	stock.board.unfreezeColumn
 pearnly_erp_portal	Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
@@ -1355,3 +1355,32 @@ pearnly_erp_portal	stock_in	入库	รับเข้า	入庫
 pearnly_erp_portal	stock_out	出库	จ่ายออก	出庫
 pearnly_erp_portal	adjust	调整	ปรับปรุง	調整
 pearnly_erp_portal	count	盘点	ตรวจนับ	棚卸
+pearnly_erp_portal	Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.workbench.title
+pearnly_erp_portal	Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	stock.workbench.continuous
+pearnly_erp_portal	Barcode, QR code or product code	条形码、二维码或商品编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
+pearnly_erp_portal	Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
+pearnly_erp_portal	Find product	查找商品	ค้นหาสินค้า	商品を検索	stock.workbench.find
+pearnly_erp_portal	Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
+pearnly_erp_portal	Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	stock.workbench.bookPosition
+pearnly_erp_portal	Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	stock.workbench.actualWarehouse
+pearnly_erp_portal	Actual position	实际仓位	ตำแหน่งที่พบจริง	実際の棚番	stock.workbench.actualLocation
+pearnly_erp_portal	Actual positions and quantities	实际仓位及数量	ตำแหน่งจริงและจำนวน	実際の棚番と数量	stock.workbench.actualPositions
+pearnly_erp_portal	Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	stock.workbench.entryQty
+pearnly_erp_portal	Correct entry	修改记录	แก้ไขรายการ	記録を修正	stock.workbench.editEntry
+pearnly_erp_portal	Record a count	录入盘点	บันทึกการตรวจนับ	棚卸を入力	stock.workbench.record
+pearnly_erp_portal	Save and next	保存并下一项	บันทึกและรายการถัดไป	保存して次へ	stock.workbench.saveNext
+pearnly_erp_portal	Review differences	查看差异	ตรวจสอบผลต่าง	差異を確認	stock.workbench.review
+pearnly_erp_portal	Product not found. Check the code and try again.	未找到商品，请核对编码后重试。	ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
+pearnly_erp_portal	Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。	เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
+pearnly_erp_portal	Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว สแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
+pearnly_erp_portal	Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
+pearnly_erp_portal	Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
+pearnly_erp_portal	Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分商品在盘点期间发生了库存变动。请打开标记的行，重新盘点该商品后再结束。	สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
+pearnly_erp_portal	Stock changed; recount	库存有变，需重盘	สต็อกเปลี่ยน ต้องนับใหม่	在庫変動・再棚卸	stock.workbench.needsRecount
+pearnly_erp_portal	Recount this product	重新盘点该商品	นับสินค้านี้ใหม่	この商品を再棚卸	stock.workbench.recount
+pearnly_erp_portal	Void all current observations for this product and recount it? Previous records remain in the history.	将撤销该商品在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？	ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ	この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。	stock.workbench.recountConfirm
+pearnly_erp_portal	Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.	确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。	จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว	差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。	stock.workbench.finishConfirm
+pearnly_erp_portal	Use the stock count workbench	请通过盘点工作台操作	โปรดใช้หน้าปฏิบัติงานตรวจนับ	棚卸作業台から操作してください
+pearnly_erp_portal	The stock count changed. Review the differences again.	盘点数据已变化，请重新查看并确认差异。	ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง	棚卸内容が変更されました。差異を再確認してください。
+pearnly_erp_portal	Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的商品。	สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
+pearnly_erp_portal	Count at least one item before finishing	请至少盘点一项后再结束	โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ	終了する前に少なくとも1件を棚卸してください

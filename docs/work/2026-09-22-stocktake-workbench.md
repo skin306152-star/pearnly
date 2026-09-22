@@ -1,0 +1,16 @@
+# 盘点工作台与连续实盘
+
+- 当前授权：仅本地实现、验证和预览；任务列表 → 单任务工作台两级，原生空态、图表/表格同页；连续扫码后填写实际仓库、仓位、数量，保存后下一项；复核数量及位置差异，确认结束后只读并更新同一库存。
+- 基线 main `4cd39e035e141b53e6b723c70b5d92184ccffadc`；分支 `codex/stocktake-workbench`；工作树 `/Users/skin/.codex/worktrees/stocktake-workbench/pearnly`。不动 Cowork/ERP 迁移工作树。
+- 归属 ERP inventory 域、原生 Desk Page/Dialog/DataTable/Chart；Core 共用 ListView 空态仅增加调用方明确提供的创建动作。数据在 ERP Site，库存唯一写入路径仍是 inventory.stock，无外部业务写入。浏览器验收改用本机浏览器。
+- 开工线上只读回查：2026-09-22，旧 Web 100% 流量 `pearnly-web-ec2e5c957e6b-s3`，镜像 `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。固定源 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，映射见旧仓 docs/deployment/MIGRATION_STATUS.md；读取 static/stocktake/counter.js 与 services/stocktake/entries.py。保留逐次录入、幂等、可更正和审计；框架 UI 重写、结束同时调整库存是当前用户要求。
+- 数据设计：快照行保留账面商品/仓库/仓位；记录保存实际位置，同一来源可分散多个位置。未盘点不视作 0。首次实盘取当前库存作为本轮核对基准，库存修订标识贯穿查码、保存、复核、结束；有后续业务流水时要求重盘受影响商品，不能覆盖新业务。结束在任务锁及商品锁内原子写入位置差异与结束状态，重复确认幂等。
+- 待完成：实现、隔离真实 Site/权限/并发/迁移验证、本机浏览器交互、共享 qerp 备份与本地升级、收尾。手机摄像头真机尚未验收。
+
+## 2026-09-22 用户要求暂停与基线纠正
+
+盘点与容器工作暂停。当前未完成实现先单独保存，不合 main、不当成验收通过。先同步 [共享底座对齐](2026-09-22-shared-foundation-alignment.md) 的 main `db4c7dc`：通用列表空态动作已经进入共享基线；盘点词条迁至 ERP 自己的 i18n/messages.tsv，之后不再写旧总表。
+
+暂停前已有：独立规则 Site 上拆仓位、数量/位置差异、保存/结束幂等、过期版本/库存修订拒绝、结束后原生/API 只读、导出等17类回归通过；正式拓扑/候选镜像/本机浏览器及手机真实扫码尚未通过，仍需按用户工作流继续验证。当前开发服务器的测试页不算未来上线一致性验收。
+
+保留：本任务分支及工作树、pearnly-stocktake-workbench-lab 的隔离 DB/Site/Redis 和测试记录；用于恢复未完成任务，待用户恢复盘点任务后复核，完成集成及本地验收再清理。严禁将这些实验账号/配置复制到生产。

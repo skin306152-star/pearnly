@@ -158,14 +158,9 @@ frappe.query_reports[report_name] = {
 	// 顺手把框架给"平台管理员"的那几项摘掉（改报表定义、打印/PDF、自动邮件、
 	// 报表生成器加列、用户权限）—— 产品里没有这些位置，租户不该看到按钮。
 	async onload(report) {
-		const title = frappe.boot.pearnly_sidebar;
-		if (title) frappe.app.sidebar.setup(title);
-		$(window).off("resize.pearnlyVarianceMenu")
-			.on("resize.pearnlyVarianceMenu", () => trim_menu(report));
-		report.page.wrapper.off("show.pearnlyVarianceMenu")
-			.on("show.pearnlyVarianceMenu", () => trim_menu(report));
-		trim_menu(report);
-		await sync_breadcrumbs(report);
+		// Historical bookmarks enter the same two-level workbench.
+		const name = report.get_filter_value("count");
+		frappe.set_route("pearnly-stock-count", ...(name ? [name] : []));
 	},
 };
 })();

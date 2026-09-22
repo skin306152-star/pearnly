@@ -18,7 +18,10 @@
   "counted_qty",
   "difference",
   "last_counted_at",
-  "last_counted_by"
+  "last_counted_by",
+  "basis_qty",
+  "basis_set",
+  "stock_token"
  ],
  "fields": [
   {
@@ -122,6 +125,28 @@
    "label": "Last counted by",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "basis_qty",
+   "fieldtype": "Float",
+   "label": "Basis Qty",
+   "read_only": 1,
+   "hidden": 1,
+   "precision": "3"
+  },
+  {
+   "fieldname": "basis_set",
+   "fieldtype": "Check",
+   "label": "Basis Set",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "stock_token",
+   "fieldtype": "Data",
+   "label": "Stock Token",
+   "read_only": 1,
+   "hidden": 1
   }
  ],
  "permissions": [

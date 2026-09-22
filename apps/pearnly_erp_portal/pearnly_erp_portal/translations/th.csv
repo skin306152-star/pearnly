@@ -4,6 +4,7 @@ Already received,ได้รับไฟล์นี้แล้ว
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
+Count at least one item before finishing,โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ
 Draft not found,ไม่พบรายการร่าง
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
@@ -13,7 +14,9 @@ Received; confirm it on the ERP page,ได้รับแล้ว กรุณ
 Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
+Stock changed during counting. Recount the affected products.,สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่
 That code is not valid,รหัสไม่ถูกต้อง
+The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
@@ -21,6 +24,7 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 adjust,ปรับปรุง
 branch,สาขา
 card,บัตร
@@ -126,7 +130,7 @@ stock.board.by,แผนภูมิแบ่งตาม
 stock.board.freezeColumn,ตรึงคอลัมน์
 stock.board.only,แสดงเฉพาะ
 stock.board.shelf,ตำแหน่ง
-stock.board.title,กระดานผลต่างการตรวจนับ
+stock.board.title,หน้าปฏิบัติงานตรวจนับ
 stock.board.unfreezeColumn,ยกเลิกการตรึงคอลัมน์
 stock.cell.notSet,ยังไม่ตั้ง
 stock.col.barcode,บาร์โค้ด
@@ -235,6 +239,31 @@ stock.status.low,สต็อกต่ำ
 stock.status.lowWith,ต่ำ (≤{0})
 stock.status.ok,มีสินค้า
 stock.status.out,สินค้าหมด
+stock.workbench.actualLocation,ตำแหน่งที่พบจริง
+stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
+stock.workbench.actualWarehouse,คลังที่พบจริง
+stock.workbench.bookPosition,คลัง / ตำแหน่งตามบัญชี
+stock.workbench.camera,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
+stock.workbench.cameraFailed,เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
+stock.workbench.code,บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
+stock.workbench.continuous,ตรวจนับต่อเนื่อง
+stock.workbench.editEntry,แก้ไขรายการ
+stock.workbench.entryQty,จำนวนที่นับครั้งนี้
+stock.workbench.find,ค้นหาสินค้า
+stock.workbench.finishConfirm,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
+stock.workbench.locationDiff,ผลต่างตำแหน่ง
+stock.workbench.lookupFailed,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
+stock.workbench.needsRecount,สต็อกเปลี่ยน ต้องนับใหม่
+stock.workbench.nextReady,บันทึกแล้ว สแกนรายการถัดไป
+stock.workbench.quantityDiff,ผลต่างจำนวน
+stock.workbench.record,บันทึกการตรวจนับ
+stock.workbench.recount,นับสินค้านี้ใหม่
+stock.workbench.recountConfirm,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
+stock.workbench.review,ตรวจสอบผลต่าง
+stock.workbench.saveNext,บันทึกและรายการถัดไป
+stock.workbench.scanHint,สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
+stock.workbench.stockChanged,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
+stock.workbench.title,หน้าปฏิบัติงานตรวจนับ
 stock_in,รับเข้า
 stock_out,จ่ายออก
 submitted,ยืนยันแล้ว

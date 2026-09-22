@@ -4,6 +4,7 @@ Already received,このファイルは受け取り済みです
 Bind this account first,先に ERP アカウントを連携してください
 Bound to {0},{0} に連携しました
 Could not store this document,書類を保存できませんでした。再送してください
+Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
 Draft not found,下書きが見つかりません
 ERP Stock Count Variance,棚卸差異ボード
 LINE unbound,LINE の連携を解除しました
@@ -13,7 +14,9 @@ Received; confirm it on the ERP page,受け取りました。ERP 画面で確認
 Select a product for each stock item,各在庫明細の商品を選択してください
 Select the original sale line,元の販売明細を選択してください
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
 That code is not valid,コードが正しくありません
+The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
 This account cannot send documents,このアカウントは書類を送信できません
 This channel is not open yet,このチャンネルはまだ開放していません
 This document has no content,この書類は中身がありません
@@ -21,6 +24,7 @@ This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
+Use the stock count workbench,棚卸作業台から操作してください
 adjust,調整
 branch,支店
 card,カード
@@ -126,7 +130,7 @@ stock.board.by,グラフの軸
 stock.board.freezeColumn,列を固定
 stock.board.only,表示のみ
 stock.board.shelf,棚番
-stock.board.title,棚卸差異ボード
+stock.board.title,棚卸作業台
 stock.board.unfreezeColumn,列の固定を解除
 stock.cell.notSet,未設定
 stock.col.barcode,バーコード
@@ -235,6 +239,31 @@ stock.status.low,在庫少
 stock.status.lowWith,在庫少（≤{0}）
 stock.status.ok,在庫あり
 stock.status.out,在庫切れ
+stock.workbench.actualLocation,実際の棚番
+stock.workbench.actualPositions,実際の棚番と数量
+stock.workbench.actualWarehouse,実際の倉庫
+stock.workbench.bookPosition,帳簿上の倉庫・棚番
+stock.workbench.camera,バーコード・QRコードを読む
+stock.workbench.cameraFailed,カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
+stock.workbench.code,バーコード・QRコード・商品コード
+stock.workbench.continuous,連続棚卸
+stock.workbench.editEntry,記録を修正
+stock.workbench.entryQty,今回の実地数量
+stock.workbench.find,商品を検索
+stock.workbench.finishConfirm,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
+stock.workbench.locationDiff,棚番の差異
+stock.workbench.lookupFailed,商品が見つかりません。コードを確認してください。
+stock.workbench.needsRecount,在庫変動・再棚卸
+stock.workbench.nextReady,保存しました。次の商品を読み取ってください。
+stock.workbench.quantityDiff,数量差異
+stock.workbench.record,棚卸を入力
+stock.workbench.recount,この商品を再棚卸
+stock.workbench.recountConfirm,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
+stock.workbench.review,差異を確認
+stock.workbench.saveNext,保存して次へ
+stock.workbench.scanHint,読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
+stock.workbench.stockChanged,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
+stock.workbench.title,棚卸作業台
 stock_in,入庫
 stock_out,出庫
 submitted,確定済み

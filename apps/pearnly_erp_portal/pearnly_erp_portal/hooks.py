@@ -274,6 +274,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
 ]

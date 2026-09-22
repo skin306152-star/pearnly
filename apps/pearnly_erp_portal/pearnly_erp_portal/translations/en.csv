@@ -4,6 +4,7 @@ Already received,Already received
 Bind this account first,Bind this account first
 Bound to {0},Bound to {0}
 Could not store this document,Could not store this document
+Count at least one item before finishing,Count at least one item before finishing
 Draft not found,Draft not found
 ERP Stock Count Variance,ERP Stock Count Variance
 LINE unbound,LINE unbound
@@ -13,7 +14,9 @@ Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Select a product for each stock item,Select a product for each stock item
 Select the original sale line,Select the original sale line
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
+Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
 That code is not valid,That code is not valid
+The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
 This account cannot send documents,This account cannot send documents
 This channel is not open yet,This channel is not open yet
 This document has no content,This document has no content
@@ -21,6 +24,7 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+Use the stock count workbench,Use the stock count workbench
 adjust,adjust
 branch,branch
 card,card
@@ -126,7 +130,7 @@ stock.board.by,Chart by
 stock.board.freezeColumn,Freeze column
 stock.board.only,Show only
 stock.board.shelf,Shelf
-stock.board.title,ERP Stock Count Variance
+stock.board.title,Stock count workbench
 stock.board.unfreezeColumn,Unfreeze column
 stock.cell.notSet,Not set
 stock.col.barcode,Barcode
@@ -235,6 +239,31 @@ stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock
 stock.status.out,Out of stock
+stock.workbench.actualLocation,Actual position
+stock.workbench.actualPositions,Actual positions and quantities
+stock.workbench.actualWarehouse,Actual warehouse
+stock.workbench.bookPosition,Book position
+stock.workbench.camera,Scan barcode or QR code
+stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
+stock.workbench.code,"Barcode, QR code or product code"
+stock.workbench.continuous,Continuous counting
+stock.workbench.editEntry,Correct entry
+stock.workbench.entryQty,Quantity counted this time
+stock.workbench.find,Find product
+stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+stock.workbench.locationDiff,Position differences
+stock.workbench.lookupFailed,Product not found. Check the code and try again.
+stock.workbench.needsRecount,Stock changed; recount
+stock.workbench.nextReady,Saved. Scan the next item.
+stock.workbench.quantityDiff,Quantity differences
+stock.workbench.record,Record a count
+stock.workbench.recount,Recount this product
+stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
+stock.workbench.review,Review differences
+stock.workbench.saveNext,Save and next
+stock.workbench.scanHint,"Scan, enter the actual position and quantity, then save to continue."
+stock.workbench.stockChanged,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
+stock.workbench.title,Stock count workbench
 stock_in,stock_in
 stock_out,stock_out
 submitted,submitted

@@ -15,6 +15,8 @@
 """
 
 from decimal import Decimal
+import hashlib
+import json
 
 import frappe
 from frappe import _
@@ -22,7 +24,7 @@ from frappe.utils import flt, now
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import stock as stock_service
-from pearnly_erp_portal.inventory import positions, warehouses
+from pearnly_erp_portal.inventory import positions, warehouses, count_state
 
 COUNT = "ERP Stock Count"
 ITEM = "ERP Stock Count Item"
@@ -62,7 +64,10 @@ def _item(name: str) -> dict:
 
 def _qty(value, *, field="Quantity") -> Decimal:
     try:
-        return Decimal(str(value).strip())
+        number = Decimal(str(value).strip())
+        if not number.is_finite():
+            raise ValueError("non-finite quantity")
+        return number
     except Exception:
         frappe.throw(_("Invalid value: {0}").format(field))
 
@@ -97,8 +102,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
                           "notes": notes, "status": "Active"})
     doc.insert()
     if not snapshot:
-        frappe.db.commit()
-        return {"name": doc.name, "rows": 0}
+            return {"name": doc.name, "rows": 0}
     rows = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
                            fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
@@ -114,7 +118,6 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
         _insert_item(doc.name, product, warehouse, qty, row.get("location"))
         created += 1
     _refresh_totals(doc.name)
-    frappe.db.commit()
     return {"name": doc.name, "rows": created}
 
 
@@ -128,6 +131,7 @@ def apply_import(*, count, rows) -> dict:
     再传一次是改那一条，不是又记一笔（用户改完数重传是常态）。
     """
     guard.require("stock.write")
+    count_state.lock_task(count)
     task = _get(count)
     if task.status != "Active":
         frappe.throw(_(CLOSED))
@@ -155,7 +159,6 @@ def apply_import(*, count, rows) -> dict:
             _upsert_import_entry(task.name, item_name, row)
             counted += 1
     _refresh_totals(task.name)
-    frappe.db.commit()
     return {"rows": applied, "counted": counted, "problems": problems}
 
 
@@ -198,6 +201,7 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
         "warehouse": warehouse, "location": location,
         "book_qty": flt(book_qty, 3), "counted": 0,
     })
+    doc.flags.stock_count_service = True
     doc.insert(ignore_permissions=True)
     return doc.name
 
@@ -228,6 +232,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
     就写进一条实盘（写 0 会被当成"数出来是 0"，比不写更糟）。
     """
     guard.require("stock.write")
+    count_state.lock_task(count)
     task = _get(count)
     if task.status != "Active":
         frappe.throw(_(CLOSED))
@@ -240,23 +245,26 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
     book_qty = stock_service.current_balance(found["name"], warehouse, location).qty
     name = _insert_item(task.name, found, warehouse, book_qty, location)
     _refresh_totals(task.name)
-    frappe.db.commit()
     return frappe.db.get_value(ITEM, name, "*", as_dict=True)
 
 
 def _refresh_totals(count: str) -> None:
     """任务上的三个数（行数 / 已盘点 / 有差异）与行上的差异一起更新。"""
     rows = frappe.get_list(ITEM, filters={"count": count},
-                           fields=["name", "book_qty", "counted", "counted_qty"],
+                           fields=["name", "book_qty", "basis_qty", "basis_set", "counted", "counted_qty"],
                            limit_page_length=0)
     counted = differences = 0
     for row in rows:
-        difference = (flt(row["counted_qty"], 3) - flt(row["book_qty"], 3)) if row["counted"] else 0
+        difference = (flt(row["counted_qty"], 3) - flt(row["basis_qty"] if row["basis_set"] else row["book_qty"], 3)) if row["counted"] else 0
         frappe.db.set_value(ITEM, row["name"], "difference", difference,
                             update_modified=False)
         if row["counted"]:
             counted += 1
-            if difference:
+            original = _item(row["name"])
+            moved = any((e.warehouse, e.location or "") != (original.warehouse, original.location or "")
+                        for e in frappe.get_all(ENTRY, filters={"item": row["name"], "voided": 0},
+                                                fields=["warehouse", "location"]))
+            if difference or moved:
                 differences += 1
     frappe.db.set_value(COUNT, count, {"item_total": len(rows), "counted_total": counted,
                                        "difference_total": differences}, update_modified=False)
@@ -353,17 +361,34 @@ def _warehouse_of(value, fallback) -> str:
 def list_items(*, count: str, q=None, filter="all", limit=50, start=0) -> list[dict]:
     """快照行。`filter`: all / uncounted / counted / differences（旧线上那三个筛选项）。"""
     guard.require("stock.read")
-    _get(count)
+    task = _get(count)
     rows = frappe.get_list(
         ITEM, filters={"count": count},
         fields=["name", "product", "product_name", "code", "barcode", "unit", "warehouse",
                 "location", "book_qty", "counted", "counted_qty", "difference",
-                "last_counted_at", "last_counted_by"],
+                "last_counted_at", "last_counted_by", "basis_qty", "basis_set", "stock_token"],
         order_by="product_name asc, name asc", limit_page_length=0,
     )
+    all_entries = list_entries(count=count, limit=0)
+    by_item = {}
+    for entry in all_entries:
+        if not entry["voided"]:
+            by_item.setdefault(entry["item"], []).append(entry)
     wanted = (q or "").strip().lower()
     out = []
+    tokens = {}
     for row in rows:
+        row.book_qty = row.basis_qty if row.basis_set else row.book_qty
+        entries = by_item.get(row.name, [])
+        row.actual_positions = " / ".join(
+            f"{_warehouse_label(e['warehouse'])} · {e.get('location') or '—'} ({e['qty']:g})"
+            for e in entries)
+        row.location_difference = any(
+            (e['warehouse'], e.get('location') or '') != (row.warehouse, row.location or '')
+            for e in entries)
+        if row.product not in tokens:
+            tokens[row.product] = count_state.stock_token(row.product)
+        row.stock_changed = bool(task.status == "Active" and row.counted and (not row.stock_token or row.stock_token != tokens[row.product]))
         if wanted and wanted not in " ".join(
                 str(row.get(key) or "").lower()
                 for key in ("product_name", "code", "barcode")).lower():
@@ -373,7 +398,9 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0) -> list[d
             continue
         if filter == "counted" and not counted:
             continue
-        if filter == "differences" and (not counted or not row["difference"]):
+        if filter == "differences" and (not counted or not (row["difference"] or row.location_difference)):
+            continue
+        if filter == "locations" and not row.location_difference:
             continue
         out.append(dict(row, warehouse_name=_warehouse_label(row.warehouse)))
     start = int(start or 0)
@@ -386,51 +413,100 @@ def items_total(*, count: str, q=None, filter="all") -> int:
     return len(list_items(count=count, q=q, filter=filter, limit=0))
 
 
-def close_count(name: str) -> dict:
-    """结束盘点：锁住记录，未盘点项仍为空。"""
+def close_count(name: str, review_token=None) -> dict:
+    """The single finish action applies reviewed differences and closes atomically."""
+    return post_count(name, review_token=review_token)
+
+
+def review_count(name):
+    guard.require("stock.read")
+    task = get_count(name)
+    items = list_items(count=name, limit=0)
+    entries = list_entries(count=name, limit=0)
+    state = [task, items, entries]
+    token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
+    return {"task": task, "items": items, "entries": entries, "review_token": token,
+            "can_write": guard.has("stock.write"),
+            "conflicts": [r["name"] for r in items if r["stock_changed"]],
+            "location_total": sum(bool(r["location_difference"]) for r in items)}
+
+
+def post_count(name: str, review_token=None) -> dict:
     guard.require("stock.write")
-    frappe.db.sql("select name from `tabERP Stock Count` where name=%s for update", (name,))
+    count_state.lock_task(name, active=False)
     doc = _get(name)
     if doc.status == "Posted":
-        frappe.throw(_(POSTED))
-    _refresh_totals(doc.name)
-    frappe.db.set_value(COUNT, doc.name, {"status": "Closed", "closed_at": now(),
-                                          "closed_by": frappe.session.user},
-                        update_modified=False)
-    frappe.db.commit()
-    return {"name": doc.name, "status": "Closed"}
-
-
-def post_count(name: str) -> dict:
-    """过账差异：只动**数过的**行，未盘点的一律不碰；差异落 `count` 流水。"""
-    guard.require("stock.manage")
-    frappe.db.sql("select name from `tabERP Stock Count` where name=%s for update", (name,))
-    doc = _get(name)
-    if doc.status == "Posted":
-        frappe.throw(_(POSTED))
-    rows = frappe.get_list(ITEM, filters={"count": doc.name, "counted": 1},
-                           fields=["product", "warehouse", "location", "counted_qty"],
-                           limit_page_length=0)
-    # Each counted position converges independently. Uncounted positions stay untouched.
-    applied = stock_service.count_lines(warehouse=doc.warehouse, lines=rows,
-                                       reason=f"stocktake:{doc.name}")["adjustments"]
-    frappe.db.set_value(COUNT, doc.name, {"status": "Posted", "posted_at": now(),
-                                          "posted_by": frappe.session.user},
-                        update_modified=False)
-    frappe.db.commit()
-    return {"name": doc.name, "status": "Posted", "adjustments": applied}
+        return {"name": name, "status": "Posted", "adjustments": [], "deduped": True}
+    if doc.status != "Active":
+        frappe.throw(_(CLOSED))
+    rows = list_items(count=name, limit=0)
+    stock_service.lock_products([r["product"] for r in rows])
+    review = review_count(name)
+    if review_token and review_token != review["review_token"]:
+        frappe.throw(_("The stock count changed. Review the differences again."))
+    if review["conflicts"]:
+        frappe.throw(_("Stock changed during counting. Recount the affected products."))
+    rows = [r for r in review["items"] if r["counted"]]
+    if not rows:
+        frappe.throw(_("Count at least one item before finishing"))
+    # Remove the checked book quantity at its source, add observations at their actual
+    # positions. Aggregate first so A -> B and B -> A cannot overwrite one another.
+    changes, incoming, costs = {}, {}, {}
+    by_name = {r["name"]: r for r in rows}
+    moved_products = {r["product"] for r in rows if r["location_difference"]}
+    operations = []
+    for row in rows:
+        key = (row["product"], row["warehouse"], row["location"] or "")
+        cost = stock_service.current_balance(*key).unit
+        costs[row["name"]] = cost
+        if row["product"] in moved_products:
+            # Remove all observed source quantities before adding destinations, carrying
+            # their costs. Netting quantities alone would lose valuation on equal swaps.
+            operations.append((key, -_qty(row["book_qty"]), cost))
+        else:
+            changes[key] = changes.get(key, Decimal(0)) - _qty(row["book_qty"])
+    for entry in review["entries"]:
+        if entry["voided"] or entry["item"] not in by_name:
+            continue
+        key = (entry["product"], entry["warehouse"], entry["location"] or "")
+        amount, cost = _qty(entry["qty"]), costs[entry["item"]]
+        if entry["product"] in moved_products:
+            incoming.setdefault(key, []).append((amount, cost))
+        else:
+            changes[key] = changes.get(key, Decimal(0)) + amount
+    # Position transfers keep separate source-cost receipts, including mixed/unknown costs.
+    for key in sorted(incoming):
+        for quantity, cost in incoming[key]:
+            operations.append((key, quantity, cost))
+    for key, delta in sorted(changes.items()):
+        operations.append((key, delta, stock_service.current_balance(*key).unit))
+    applied = []
+    for index, (key, delta, unit_cost) in enumerate(operations):
+        if not delta:
+            continue
+        result = stock_service.apply_movement(
+            product=key[0], warehouse=key[1], location=key[2], movement_type="count",
+            qty=delta, unit_cost=unit_cost, ref_type="count", ref_id=name,
+            reason=f"stocktake:{name}", client_uuid=f"count:{name}:{index}",
+            internal=True, allow_inactive=True)
+        applied.append({"product": key[0], "warehouse": key[1], "location": key[2],
+                        "delta": float(delta), **result})
+    frappe.db.set_value(COUNT, name, {"status": "Posted", "closed_at": now(),
+                        "closed_by": frappe.session.user, "posted_at": now(),
+                        "posted_by": frappe.session.user}, update_modified=False)
+    return {"name": name, "status": "Posted", "adjustments": applied, "deduped": False}
 
 
 def delete_count(name: str) -> dict:
     guard.require("stock.write")
     frappe.db.sql("select name from `tabERP Stock Count` where name=%s for update", (name,))
     doc = _get(name)
-    if doc.status == "Posted":
-        frappe.throw(_(POSTED))
+    if doc.status != "Active":
+        frappe.throw(_(CLOSED))
     frappe.db.delete(ENTRY, {"count": doc.name})
     frappe.db.delete(ITEM, {"count": doc.name})
-    frappe.delete_doc(COUNT, doc.name, force=True, ignore_permissions=True)
-    frappe.db.commit()
+    doc.flags.stock_count_service = True
+    doc.delete(ignore_permissions=True)
     return {"ok": True}
 
 
@@ -458,21 +534,14 @@ def _recount_item(item_name: str, count_name: str) -> None:
         doc.counted_qty = 0
         doc.last_counted_at = None
         doc.last_counted_by = None
-    doc.difference = (flt(doc.counted_qty, 3) - flt(doc.book_qty, 3)) if doc.counted else 0
+    doc.difference = (flt(doc.counted_qty, 3) - flt(doc.basis_qty if doc.basis_set else doc.book_qty, 3)) if doc.counted else 0
+    if not rows:
+        doc.basis_set = 0
+        doc.stock_token = ""
+    doc.flags.stock_count_service = True
     doc.save(ignore_permissions=True)
 
-    totals = frappe.db.sql(
-        """SELECT COUNT(*) AS rows_total,
-                  SUM(counted = 1) AS counted,
-                  SUM(counted = 1 AND counted_qty <> book_qty) AS differences
-           FROM `tabERP Stock Count Item` WHERE `count`=%s""",
-        count_name, as_dict=True,
-    )[0]
-    frappe.db.set_value(COUNT, count_name,
-                        {"item_total": int(totals["rows_total"] or 0),
-                         "counted_total": int(totals["counted"] or 0),
-                         "difference_total": int(totals["differences"] or 0)},
-                        update_modified=False)
+    _refresh_totals(count_name)
 
 
 def _save_photos(entry: str, values) -> int:
@@ -515,75 +584,94 @@ def _save_photos(entry: str, values) -> int:
     return saved
 
 
-def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None, location=None,
-              note=None, request_id=None, photos=None, source="Desk") -> dict:
-    """加一条盘点记录。
+def _record_revision(task, product, token=None):
+    stock_service.lock_products([product])
+    current = count_state.stock_token(product)
+    if token and token != current:
+        frappe.throw(_("Stock changed during counting. Recount the affected products."))
+    previous = frappe.get_all(ITEM, filters={"count": task, "product": product, "counted": 1},
+                              fields=["stock_token"])
+    if any(row.stock_token and row.stock_token != current for row in previous):
+        frappe.throw(_("Stock changed during counting. Recount the affected products."))
+    return current
 
-    行是「商品 × 仓库 × 库位」：给了 `item` 就是数**那一行**（库位跟着行，不另填）；
-    只给码不给行时，按 `location` 找那一行，找不到就补一行（账面取当前结存）。
 
-    `request_id` 是这一发的幂等锚：手机会重试，重复发不会记两笔。
-    """
-    guard.require("stock.write")
+def lookup_count(*, count, code=None, product=None):
+    guard.require("stock.read")
     task = _get(count)
-    if task.status != "Active":
-        frappe.throw(_(CLOSED))
-    if request_id:
-        seen = frappe.db.get_value(ENTRY, {"request_id": request_id},
-                                   ["name", "item", "qty"], as_dict=True)
-        if seen:
-            return {"entry": seen["name"], "item": seen["item"], "qty": flt(seen["qty"], 3),
-                    "deduped": True}
+    found = product_of_code(code) if code else frappe.db.get_value(
+        PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+    if not found:
+        frappe.throw(_(CODE_NOT_FOUND))
+    return {"product": {key: found.get(key) for key in
+                        ("name", "product_name", "code", "barcode", "base_unit", "unit")},
+            "rows": [r for r in list_items(count=count, limit=0) if r['product'] == found['name']],
+            "stock_token": count_state.stock_token(found['name']),
+            "warehouse_name": _warehouse_label(task.warehouse)}
 
-    if item:
-        row = _item(item)
-        if row["count"] != task.name:
-            frappe.throw(_(ITEM_NOT_FOUND))
-        item_name, product_id = row["name"], row["product"]
-        warehouse, location = row["warehouse"], row["location"] or None
-    else:
-        found = None
-        if code:
-            found = product_of_code(code)
-        elif product:
-            found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*",
-                                        as_dict=True)
-        if not found:
-            frappe.throw(_(CODE_NOT_FOUND))
-        warehouse = warehouses.resolve(warehouse or task.warehouse)
-        location = positions.clean_location(location)
-        book_qty = stock_service.current_balance(found["name"], warehouse, location).qty
-        item_name = _insert_item(task.name, found, warehouse, book_qty, location)
-        product_id = found["name"]
 
+def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None, location=None,
+              note=None, request_id=None, photos=None, source="Desk", stock_token=None) -> dict:
+    """A record belongs to a book row; warehouse/location describe where it was found."""
+    guard.require("stock.write")
+    count_state.lock_task(count)
+    task = _get(count)
     quantity = _qty(qty)
     if quantity < 0:
         frappe.throw(_(QUANTITY_REQUIRED))
-    entry = frappe.get_doc({
-        "doctype": ENTRY, "count": task.name, "item": item_name, "product": product_id,
-        "warehouse": warehouse, "location": location, "qty": flt(quantity, 3),
+    if item:
+        row = _item(item)
+        if row['count'] != count:
+            frappe.throw(_(ITEM_NOT_FOUND))
+        product_id = row['product']
+        actual_warehouse = warehouses.resolve(warehouse if warehouse is not None else row['warehouse'])
+        actual_location = positions.clean_location(location if location is not None else row['location'])
+    else:
+        found = product_of_code(code) if code else frappe.db.get_value(
+            PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
+        if not found:
+            frappe.throw(_(CODE_NOT_FOUND))
+        product_id = found['name']
+        actual_warehouse = warehouses.resolve(warehouse or task.warehouse)
+        actual_location = positions.clean_location(location)
+        item = _insert_item(count, found, actual_warehouse,
+                            stock_service.current_balance(product_id, actual_warehouse, actual_location).qty,
+                            actual_location)
+        row = _item(item)
+    if request_id:
+        seen = frappe.db.get_value(ENTRY, {"request_id": request_id}, "*", as_dict=True)
+        if seen:
+            if (seen['count'], seen['item'], seen['warehouse'], seen['location'] or '',
+                flt(seen['qty'], 3), seen['note'] or '') != (
+                    count, item, actual_warehouse, actual_location, flt(quantity, 3), note or ''):
+                frappe.throw(_(REQUEST_CONFLICT))
+            return {"entry": seen['name'], "item": item, "qty": seen['qty'], "deduped": True}
+    token = _record_revision(count, product_id, stock_token)
+    if not row['counted']:
+        basis = stock_service.current_balance(product_id, row['warehouse'], row['location']).qty
+        frappe.db.set_value(ITEM, item, {"basis_qty": basis, "basis_set": 1,
+                                        "stock_token": token}, update_modified=False)
+    entry = frappe.get_doc({"doctype": ENTRY, "count": count, "item": item, "product": product_id,
+        "warehouse": actual_warehouse, "location": actual_location, "qty": flt(quantity, 3),
         "request_id": request_id, "note": note, "source": source,
-        "counted_by": frappe.session.user, "counted_at": now(), "version": 1,
-    })
+        "counted_by": frappe.session.user, "counted_at": now(), "version": 1})
+    entry.flags.stock_count_service = True
     entry.insert(ignore_permissions=True)
     _save_photos(entry.name, photos)
-    _recount_item(item_name, task.name)
-    frappe.db.commit()
-    return {"entry": entry.name, "item": item_name, "qty": flt(quantity, 3), "deduped": False}
+    _recount_item(item, count)
+    return {"entry": entry.name, "item": item, "qty": flt(quantity, 3), "deduped": False}
 
 
-def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, location=None) -> dict:
-    """改一笔或撤销一笔（撤销不进合计）。改/撤销天然幂等，所以不用另做幂等锚。"""
+def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, location=None,
+               warehouse=None, note=None, stock_token=None) -> dict:
     guard.require("stock.write")
-    row = frappe.db.get_value(ENTRY, entry, "*", as_dict=True)
-    if not row:
-        frappe.throw(_(ITEM_NOT_FOUND), frappe.DoesNotExistError)
-    task = _get(row["count"])
-    if task.status != "Active":
-        frappe.throw(_(CLOSED))
-    if version is not None and int(version) != int(row["version"]):
-        frappe.throw(_(VERSION_STALE))
+    parent = frappe.db.get_value(ENTRY, entry, "count")
+    count_state.lock_task(parent)
     doc = frappe.get_doc(ENTRY, entry)
+    if version is not None and int(version) != int(doc.version):
+        frappe.throw(_(VERSION_STALE))
+    if voided is None or voided not in (True, 1, "1", "true"):
+        _record_revision(parent, doc.product, stock_token)
     if qty is not None:
         quantity = _qty(qty)
         if quantity < 0:
@@ -591,24 +679,36 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
         doc.qty = flt(quantity, 3)
     if voided is not None:
         doc.voided = 1 if voided in (True, 1, "1", "true") else 0
-    old_item = doc.item
-    if location is not None and positions.clean_location(location) != (doc.location or ""):
+    if location is not None:
         doc.location = positions.clean_location(location)
-        product = frappe.db.get_value(PRODUCT, doc.product, "*", as_dict=True)
-        book = stock_service.current_balance(doc.product, doc.warehouse, doc.location).qty
-        doc.item = _insert_item(task.name, product, doc.warehouse, book, doc.location)
-    doc.version = int(row["version"]) + 1
+    if warehouse is not None:
+        doc.warehouse = warehouses.resolve(warehouse)
+    if note is not None:
+        doc.note = note
+    doc.version = int(doc.version) + 1
     doc.counted_by = frappe.session.user
     doc.counted_at = now()
+    doc.flags.stock_count_service = True
     doc.save(ignore_permissions=True)
     if photos:
         _save_photos(doc.name, photos)
-    _recount_item(doc.item, task.name)
-    if old_item != doc.item:
-        _recount_item(old_item, task.name)
-    frappe.db.commit()
-    return {"entry": doc.name, "item": doc.item, "voided": bool(doc.voided), "qty": flt(doc.qty, 3),
-            "version": doc.version}
+    _recount_item(doc.item, parent)
+    return {"entry": doc.name, "item": doc.item, "voided": bool(doc.voided),
+            "qty": flt(doc.qty, 3), "version": doc.version}
+
+
+def recount_product(*, count, product):
+    """Explicit recount preserves old observations as voided audit rows."""
+    guard.require("stock.write")
+    count_state.lock_task(count)
+    stock_service.lock_products([product])
+    items = frappe.get_all(ITEM, filters={"count": count, "product": product}, pluck="name")
+    for row in frappe.get_all(ENTRY, filters={"count": count, "product": product, "voided": 0},
+                              fields=["name", "version"]):
+        edit_entry(entry=row.name, voided=1, version=row.version)
+    for item in items:
+        _recount_item(item, count)
+    return {"ok": True}
 
 
 def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
@@ -617,13 +717,14 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
     filters = {"count": count}
     if item:
         filters["item"] = item
-    return frappe.get_list(
+    result = frappe.get_list(
         ENTRY, filters=filters,
         fields=["name", "item", "product", "warehouse", "location", "qty", "voided", "version",
                 "photo_total", "note", "counted_by", "counted_at", "source"],
         order_by="counted_at desc, name desc",
         limit_start=int(start or 0), limit_page_length=_size(limit),
     )
+    return [dict(row, warehouse_name=_warehouse_label(row.warehouse)) for row in result]
 
 
 def entries_total(*, count, item=None) -> int:

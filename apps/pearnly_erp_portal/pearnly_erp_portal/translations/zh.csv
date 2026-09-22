@@ -4,6 +4,7 @@ Already received,这份文件已经收过了
 Bind this account first,请先绑定 ERP 账号
 Bound to {0},已绑定到 {0}
 Could not store this document,单据留底失败，请重发
+Count at least one item before finishing,请至少盘点一项后再结束
 Draft not found,找不到这条草稿
 ERP Stock Count Variance,盘点差异看板
 LINE unbound,LINE 已解绑
@@ -13,7 +14,9 @@ Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Select a product for each stock item,请为每条货物明细选择商品
 Select the original sale line,请选择原单中的商品行
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
+Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的商品。
 That code is not valid,验证码不正确
+The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
 This account cannot send documents,这个账号不能传单据
 This channel is not open yet,这个通道还没开放
 This document has no content,这份文件是空的
@@ -21,6 +24,7 @@ This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+Use the stock count workbench,请通过盘点工作台操作
 adjust,调整
 branch,分店
 card,银行卡
@@ -126,7 +130,7 @@ stock.board.by,看板按
 stock.board.freezeColumn,冻结列
 stock.board.only,只看
 stock.board.shelf,库位
-stock.board.title,盘点差异看板
+stock.board.title,盘点工作台
 stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设
 stock.col.barcode,条码
@@ -181,7 +185,7 @@ stock.count.importPick,选择文件
 stock.count.importSkipped,{0} 行没有导入
 stock.count.importTitle,导入结果
 stock.count.imported,已导入 {0} 行，其中 {1} 行带实盘数量
-stock.count.location,库位
+stock.count.location,仓位
 stock.count.mode,盘点方式
 stock.count.modeImport,上传导入
 stock.count.modeStock,盘点在库
@@ -235,6 +239,31 @@ stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常
 stock.status.out,缺货
+stock.workbench.actualLocation,实际仓位
+stock.workbench.actualPositions,实际仓位及数量
+stock.workbench.actualWarehouse,实际仓库
+stock.workbench.bookPosition,账面仓库／仓位
+stock.workbench.camera,扫描条形码或二维码
+stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
+stock.workbench.code,条形码、二维码或商品编码
+stock.workbench.continuous,连续盘点
+stock.workbench.editEntry,修改记录
+stock.workbench.entryQty,本次实盘数量
+stock.workbench.find,查找商品
+stock.workbench.finishConfirm,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+stock.workbench.locationDiff,仓位差异
+stock.workbench.lookupFailed,未找到商品，请核对编码后重试。
+stock.workbench.needsRecount,库存有变，需重盘
+stock.workbench.nextReady,已保存，请扫描下一项。
+stock.workbench.quantityDiff,数量差异
+stock.workbench.record,录入盘点
+stock.workbench.recount,重新盘点该商品
+stock.workbench.recountConfirm,将撤销该商品在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+stock.workbench.review,查看差异
+stock.workbench.saveNext,保存并下一项
+stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。
+stock.workbench.stockChanged,部分商品在盘点期间发生了库存变动。请打开标记的行，重新盘点该商品后再结束。
+stock.workbench.title,盘点工作台
 stock_in,入库
 stock_out,出库
 submitted,已提交
