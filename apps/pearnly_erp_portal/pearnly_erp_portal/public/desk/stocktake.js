@@ -201,12 +201,14 @@
 				{ name: w("bookPosition"), width: 160 }, { name: w("actualPositions"), width: 230 },
 				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: 90 },
 				{ name: t("stock.count.counted"), width: 90 }, { name: w("quantityDiff"), width: 90 },
+				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), width: 110 }] : []),
 				{ name: t("stock.col.status"), width: 140 },
 			];
 			table = await p.table(table_host, columns.map(c=>({ ...c, format: c.format || p.escape })), rows.map(r=>[
 				`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
 				`${r.warehouse_name} / ${r.location || t("stock.count.blank")}`, r.actual_positions || "—", r.unit || "",
 				qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—", r.counted ? qty(r.difference) : "—",
+				...(state.can_view_costs ? [qty(r.difference_value)] : []),
 				r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted") : r.location_difference ? w("locationDiff")
 					: Number(r.difference) ? t("stock.count.rowDifference") : t("stock.count.rowMatch"),
 			]), table_options());

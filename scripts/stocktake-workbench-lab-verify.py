@@ -55,11 +55,17 @@ def main():
     arow=next(r for r in review['items'] if r['name']==rows['A']['name'])
     assert arow['book_qty']==10 and arow['counted_qty']==10 and arow['difference']==0 and arow['location_difference']
     assert 'C' in arow['actual_positions']
+    uncounted=next(r for r in review['items'] if r['location']=='D')
+    assert uncounted['counted_qty'] is None and uncounted['difference'] is None
+    assert uncounted['difference_value'] is None
+    assert next(r for r in review['items'] if r['location']=='B')['difference_value']==-6
     report=api._count_workbook(review['task'],review['items'],review['entries'])
     assert report[:2]==b'PK'
     exported=load_workbook(BytesIO(report),read_only=True)
     detail=list(exported['Entries'].values)
     assert all(r[0] and r[1]==run and r[6]=='件' for r in detail[1:]), detail
+    summary=list(exported['Summary'].values)
+    assert next(r for r in summary[1:] if r[5]=='D')[8:11]==(None,None,None)
     exported.close()
     before=frappe.db.count('ERP Stock Movement')
     result=count.close_count(task,review_token=review['review_token'])
@@ -139,6 +145,8 @@ def main():
     assert stock.current_balance(valued,wh,'A').value==44
     assert stock.current_balance(valued,wh,'B').qty==0
     assert stock.current_balance(valued,other_wh,'B').value==6
+    stock.apply_movement(product=product,warehouse=wh,location='B',movement_type='stock_in',qty=1,unit_cost=99)
+    assert next(r for r in count.review_count(task)['items'] if r['location']=='B')['difference_value']==-6
     # Unknown QR does not create rows; internal whitespace is significant.
     assert count.lookup_count(count=swap,code=run+' QR text')['product']['name']==product
     denied(lambda:count.lookup_count(count=swap,code=run+'QRtext'))
@@ -152,7 +160,8 @@ def main():
         'stale edit','non-finite rejection','export','untouched uncounted','closed native/API write guards',
         'movement before save','movement after count incl net zero','stale review','audited recount',
         'position swap','zero count','exact QR','outsider/guest','exported labels',
-        'different source costs','actual warehouse','native flag spoof rejected','atomic posting rollback']},ensure_ascii=False))
+        'different source costs','actual warehouse','native flag spoof rejected','atomic posting rollback',
+        'uncounted export stays blank','finished variance valuation is frozen']},ensure_ascii=False))
     frappe.destroy()
 
 if __name__=='__main__': main()

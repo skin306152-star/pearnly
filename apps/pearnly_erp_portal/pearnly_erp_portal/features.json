@@ -180,6 +180,24 @@
         "read": 1,
         "write": 0
       }
+    },
+    {
+      "doctype": "ERP Stock Count Item",
+      "role": "ERP Admin",
+      "permlevel": 1,
+      "perms": {
+        "read": 1,
+        "write": 0
+      }
+    },
+    {
+      "doctype": "ERP Stock Count Item",
+      "role": "ERP Stock",
+      "permlevel": 1,
+      "perms": {
+        "read": 1,
+        "write": 0
+      }
     }
   ]
 }

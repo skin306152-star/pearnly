@@ -287,14 +287,17 @@ def _count_workbook(task, items, entries) -> bytes:
         "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
 
     book = Workbook()
+    columns = list(COUNT_COLUMNS)
+    if any("difference_value" in row for row in items):
+        columns.insert(-1, ("difference_value", "stock.count.differenceValue"))
     summary = book.active
     summary.title = "Summary"
-    summary.append([_label(key) for _field, key in COUNT_COLUMNS])
+    summary.append([_label(key) for _field, key in columns])
     for cell in summary[1]:
         cell.font = Font(bold=True)
     for row in items:
         line = []
-        for field, _key in COUNT_COLUMNS:
+        for field, _key in columns:
             if field == "status":
                 line.append(_label(_count_status_key(row)))
             elif field == "warehouse_name":
@@ -320,7 +323,7 @@ def _count_workbook(task, items, entries) -> bytes:
                 line.append("" if value is None else value)
         detail.append(line)
     for sheet in (summary, detail):
-        for index, _key in enumerate(sheet is summary and COUNT_COLUMNS or COUNT_DETAIL_COLUMNS,
+        for index, _key in enumerate(sheet is summary and columns or COUNT_DETAIL_COLUMNS,
                                      start=1):
             sheet.column_dimensions[get_column_letter(index)].width = 18
         for row in sheet.iter_rows(min_row=2):

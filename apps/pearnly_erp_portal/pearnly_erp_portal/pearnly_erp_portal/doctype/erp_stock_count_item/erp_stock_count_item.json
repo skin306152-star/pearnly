@@ -21,7 +21,9 @@
   "last_counted_by",
   "basis_qty",
   "basis_set",
-  "stock_token"
+  "stock_token",
+  "basis_unit_cost",
+  "basis_cost_known"
  ],
  "fields": [
   {
@@ -147,6 +149,22 @@
    "label": "Stock Token",
    "read_only": 1,
    "hidden": 1
+  },
+  {
+   "fieldname": "basis_unit_cost",
+   "fieldtype": "Currency",
+   "label": "Average Unit Cost",
+   "read_only": 1,
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "basis_cost_known",
+   "fieldtype": "Check",
+   "label": "Cost Known",
+   "read_only": 1,
+   "hidden": 1,
+   "permlevel": 1
   }
  ],
  "permissions": [

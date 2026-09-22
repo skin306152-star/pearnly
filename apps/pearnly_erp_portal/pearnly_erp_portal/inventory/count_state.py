@@ -42,7 +42,7 @@ def validate_document(doc):
     if doc.doctype == "ERP Stock Count":
         if not doc.is_new():
             lock_task(doc.name)
-        if doc.status != "Active":
+        if doc.status != "Active" or not getattr(frappe.local, "stock_count_service_write", False):
             frappe.throw(_("Use the stock count workbench"))
         return
     lock_task(doc.get("count"))

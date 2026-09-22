@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import positions, warehouses, count_state
 
@@ -100,7 +100,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     warehouse = warehouses.resolve(warehouse)
     doc = frappe.get_doc({"doctype": COUNT, "title": name, "warehouse": warehouse,
                           "notes": notes, "status": "Active"})
-    doc.insert()
+    count_state.write_document(doc, "insert")
     if not snapshot:
             return {"name": doc.name, "rows": 0}
     rows = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
@@ -376,6 +376,9 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
+    can_view_costs = rules.cost_visible(guard.current_roles())
+    costs = {r.name: r for r in frappe.get_all(ITEM, filters={"count": count},
+             fields=["name", "basis_unit_cost", "basis_cost_known"])} if can_view_costs else {}
     for row in rows:
         row.book_qty = row.basis_qty if row.basis_set else row.book_qty
         entries = by_item.get(row.name, [])
@@ -393,6 +396,12 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
                 for key in ("product_name", "code", "barcode")).lower():
             continue
         counted = bool(row["counted"])
+        if not counted:
+            row.counted_qty = row.difference = None
+        if can_view_costs:
+            cost = costs.get(row.name)
+            row.difference_value = (flt(_qty(row.difference) * _qty(cost.basis_unit_cost), 2)
+                                    if counted and cost and cost.basis_cost_known else None)
         if filter == "uncounted" and counted:
             continue
         if filter == "counted" and not counted:
@@ -426,6 +435,7 @@ def review_count(name, *, _locked=False):
     token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
     return {"task": task, "items": items, "entries": entries, "review_token": token,
             "can_write": guard.has("stock.write"),
+            "can_view_costs": rules.cost_visible(guard.current_roles()),
             "conflicts": [r["name"] for r in items if r["stock_changed"]],
             "location_total": sum(bool(r["location_difference"]) for r in items)}
 
@@ -645,8 +655,10 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
             return {"entry": seen['name'], "item": item, "qty": seen['qty'], "deduped": True}
     token = _record_revision(count, product_id, stock_token)
     if not row['counted']:
-        basis = stock_service.current_balance(product_id, row['warehouse'], row['location']).qty
-        frappe.db.set_value(ITEM, item, {"basis_qty": basis, "basis_set": 1,
+        basis = stock_service.current_balance(product_id, row['warehouse'], row['location'])
+        frappe.db.set_value(ITEM, item, {"basis_qty": basis.qty, "basis_set": 1,
+                                        "basis_unit_cost": basis.unit or 0,
+                                        "basis_cost_known": int(basis.unit is not None),
                                         "stock_token": token}, update_modified=False)
     entry = frappe.get_doc({"doctype": ENTRY, "count": count, "item": item, "product": product_id,
         "warehouse": actual_warehouse, "location": actual_location, "qty": flt(quantity, 3),
