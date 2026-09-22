@@ -1,27 +1,32 @@
 # Cowork 后端迁移（前端接入前）
 
-## 换窗口总交接（2026-09-22，第四十九批之后 · 新窗口从这里开始）
+## 换窗口总交接（2026-09-22，第五十批之后 · 新窗口从这里开始）
 
 本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，
 下面各批记录（含上一版总交接）只在需要细节时查。
 
 ### 一、现在的状态（一句话）
 
-Cowork 后端八个功能码里 **七个已迁完或主体已迁**，主数据从"进行中"变成**主体已迁**：
-七块已交付，剩下四项**都已出归属结论、只等用户点头定方向**，另有一处跨域待决策。
+Cowork 后端主数据七块已交付；第五十批补上**重复发票提醒与个人开关**。
+用户最新指示是**“只用于展示的就不要了”**：分类展示标签、补全与统计不迁；
+有业务用途的票面分类、Express 科目映射保留；自动分类树与供应商记忆暂缓建设。
+供应商主档、M1 泰文注册名闸和跨域改挂/解绑仍待处理，不能算作本批已完成。
 所有工作都在本地提交、**未合回 main、未推送、未部署**。
 
 - 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，
-  本批 HEAD 以 `git log -1` 为准（第四十九批起点 `22b18d7`）。
-- 本分支领先本地 `main` 约 62 个提交；本地 `main` 是**另一窗口的 ERP 线**，远端 `refs/heads/main`
-  实测仍是 `ac33e0c`（谁都没推）。
-- **另一窗口正在做 ERP 前端**：他们那条线在主工作树 `/Users/skin/pearnly` 上有未提交的
-  `apps/pearnly_erp_portal/**`（含翻译包与 `scripts/i18n/messages.tsv`）改动。本窗口
-  **只碰 Cowork 的文件**，不整理、不提交、不回滚他们的东西。
+  本批代码 `1ada03d7aced7f70baa0d612dbee82f54e16fea7`；含文档的 HEAD 以 `git log -1` 为准；开工 `3acb28e`。
+- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批收尾回读为 `f6390dea9a972d998a0527e9fffe9bb53a5f91e5`；远端 `refs/heads/main`
+  实测仍是 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端任务分支不存在。
+- **另一窗口在做 ERP**：主工作树 `/Users/skin/pearnly` 与 `erp-pos-migration` 不归本任务。
+  本窗口只改 Cowork 业务、Cowork lab 脚本与本迁移记录，不操作其他工作树的内容。
 - 证据：`docs/work/cowork-backend/*.md` 批次记录、`docs/work/cowork-backend/evidence/*.json` 证据、
   `tests/test_cowork_*.py`、`scripts/cowork-*.py`。
 - 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`
   （固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批开工与交付都重新采集**。
+- 第五十批来源身份首尾一致；**推送运行投影与第四十九批比较失败**：两组件的
+  `database.identity.endpoints.configuration_digest` 改变。没有定位具体配置字段；本批
+  重复检测仅依赖用户偏好与历史表，不读推送配置，因此不影响本批规则迁移。
+  **下一批若改推送链路，必须核对该变化，不能引用“运行配置仍逐项相同”**。
 
 ### 二、硬边界（用户反复强调，继续有效）
 
@@ -39,29 +44,29 @@ Cowork 后端八个功能码里 **七个已迁完或主体已迁**，主数据�
 
 | 功能码 | 状态 | 备注 |
 | --- | --- | --- |
-| `ocr_history` 识别记录 | 已迁 | 记录里无已知缺口；**新发现**："入库前重复检测"（见第四节 P1-1）当年没进清单 |
+| `ocr_history` 识别记录 | 已迁 | 第五十批补齐识别入库前重复提醒与用户开关；见 `recognition-duplicate-check.md` |
 | `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
 | `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
 | `express_guide` | 后端已迁 | 指引文案属前端 |
-| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；**新发现**："供应商→费用分类记忆"的读侧回填属这条线（见 P1-2） |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；分类展示不迁，自动分类树/记忆暂缓（见 P1） |
 | `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
 | `recon` 对账中心 | 银行 + 收入两族闭合 | 见 `reconciliation-family-audit.md` |
-| `master_data` 主数据 | **主体已迁（第四十九批完成第七块）** | 七块：买家决策、客户字段规则、客户名册、商品规则、商品存储、导入归一、**供应商过账档案 + 导入端点**（见 `masters-supplier-posting.md`）。剩四项等用户定（第四节 P1） |
+| `master_data` 主数据 | **主体已迁（第四十九批完成第七块）** | 七块：买家决策、客户字段规则、客户名册、商品规则、商品存储、导入归一、**供应商过账档案 + 导入端点**（见 `masters-supplier-posting.md`）。剩余范围见第四节 P1 |
 | `boards` | 不迁 | 用户指示 |
 
 导出/工作簿一并交付：`reconciliation/export/**`、`stocktake` 导出、roundtrip 导出。
 
 ### 四、剩下的活（按**块**给，别再一次只做一点点）
 
-#### P1 四项待用户定方向（归属已核对完，见 `masters-attribution.md`）
+#### P1 余项与明确裁剪（第五十批更新）
 
-1. **重复发票检测**（旧侧 `settings_routes.py` 的 2 个端点 + `users.dup_check_enabled` + 识别落库前查库记警告）：
-   属 Cowork 的识别线。本仓缺**偏好存储**与**记录上的警告位**，要迁就得扩 history 的写入契约。
-2. **费用科目树 + 供应商→分类记忆**（旧侧 `routes/categories_routes.py` + `services/purchase/categories.py`
-   的树 + `supplier_categories` 记忆表）：属 Cowork 的识别线，但净化依赖采购域的树。
-   按"科目各产品自己维护一份"，Cowork 需要自己的两级费用科目树（含泰国预设）。
-3. **供应商主档**：本仓没有；旧侧供应商过账档案的列表读侧富化借采购域 `suppliers`。
-4. **M1 泰文注册名闸**：旧侧建/改账套主体时要求名称含泰文字符（税号读花时的方向锚兜底）。
+1. **重复发票检测已补完后端**：用户默认开；票号优先，未命中再比日期/卖家/金额；
+   命中只提醒、不阻断保存；权限回读、幂等、失败状态均有本地验证。未接前端。
+2. **纯展示分类不迁**：`category_tag`、分类补全、供应商映射数与分类分布统计。
+   **票面分类与 Express 科目映射保留**。自动分类树与记忆会间接影响 Express 选科目，
+   并非纯展示；本批暂缓，不能写成用户要求全删。细节见 `recognition-duplicate-check.md`。
+3. **供应商主档**：本仓没有；现有供应商过账档案仍可按税号使用。不为单纯显示名称自动扩建主档。
+4. **M1 泰文注册名闸**：旧侧建/改账套主体时要求名称含泰文字符，仍待处理。
 
 #### P2 一处跨域待决策（要用户点头才能动）
 
@@ -159,6 +164,12 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 **lab 的两个坑**：① 容器看不到主机 `/tmp`，固定源必须用 `--source-stdin` 管道；
 ② 多轮脚本会把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`，清理方式是删 lab Redis 的 `rq:*`。
 
+第五十批另建的 `cowork-backend-duplicates.localhost` 是同一 lab 卷内的隔离新装 Site。
+跑跨 Site 回归时用 `PEARNLY_COWORK_OTHER_TEST_SITE=cowork-backend-duplicates.localhost`；
+旧脚本默认的 `cowork-backend-b.localhost` 已不在本卷，不能把缺 Site 当产品回归。
+本批校验脚本为 `scripts/cowork-duplicates-lab-verify.py`，`--http` 跑原生 HTTP，
+`--snapshot` 核对原票和偏好；`--install-fresh` 只允许首次建立上述 Site，存在即拒绝覆盖。
+
 ### 六、用户的沟通偏好（影响交付节奏）
 
 - 中文，**先说结果**；"说人话"、不要技术门槛堆砌。
@@ -166,6 +177,15 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 - 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
 - 不确定就说不确定；不要用"看起来接上了"糊过去。
 - 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+## 第五十批交付（2026-09-22）：重复提醒与分类范围裁剪
+
+代码 `1ada03d`；范围、验证和保留项见 [recognition-duplicate-check](cowork-backend/recognition-duplicate-check.md)。
+纯规则 6 + 原 history 合同 20 通过；固定源差分 1,120 组无差异；新旧 Site 各 13 条新业务验证
+及 HTTP 通过；原后端 21、识别集成 6、执行重试定向 3 通过。原票与用户偏好跨两轮升级保持一致。
+推送运行配置摘要发生变化已单独登记，不冒充全链配置无变化。未合并、未推送、未部署、未接前端。
+收尾已停止专属 lab 的 bench/db/redis，回读均为 exited；未删除任何分支、工作树或数据。
+工作树、分支、lab 卷和固定来源按“交接保留”留给后续迁移，具体解除条件见本批记录。
 
 ## 换窗口交接（2026-09-22，第四十九批交付：主数据第七块——供应商过账档案 + 导入端点 + 归属核对）
 

@@ -1,5 +1,15 @@
 # 原生后端接口与前端讨论边界
 
+最新补充（第五十批）：`pearnly_cowork.history.api.duplicate_setting()` 读取当前用户重复提醒
+开关（默认开）；`save_duplicate_setting(enabled)` 仅 POST，保存本人偏好，不接受 user 参数。
+二者需要 Cowork Site、有效用户以及 intake/ocr_history 的功能和角色。
+`detail` 返回 `duplicate_check_status` 与 `duplicate_warning`；`records` 返回状态与级别。
+状态为 `not_checked/disabled/clear/matched/unavailable`（旧记录原始列表字段可为空，表示未检测）。
+警告含 `level=exact|likely`、`matched_fields`、`at_creation=true` 与当前有权读取的 `match` 摘要；
+权限已撤回时 `match=null`。私有匹配引用不在通用原生读取中暴露。命中仍允许保存和复核完成，
+不表示可重复入账，也不自动推送或删记录。只用于展示的分类端点不新增；
+见 [重复提醒与分类边界](recognition-duplicate-check.md)。下方第四/十六批接口说明仍是历史部分清单。
+
 最新补充（第十六批）：旧 Companion 的可选运输入口已实现并在隔离 Site 验证，见本文末尾和[来源合同](sixteenth-source-review.md)。默认部署未启用，Windows现用配置未改；旧章节中的待办按后续批次修订读取。
 
 本批完成的是“公司/客户授权 → 保存完整票面草稿 → 复核保存 → 幂等完成 → 历史回读”的后端闭环。已可据此讨论第一屏录入/复核的交互，但**不是整个 Cowork 迁移完成**。未编写页面或修改现有导航；现有 `Intake Record` 页面仍是早期样板，不是这些接口的前端。

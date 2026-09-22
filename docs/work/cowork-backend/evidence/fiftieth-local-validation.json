@@ -1,0 +1,86 @@
+{
+  "date": "2026-09-22",
+  "base_commit": "3acb28e9e5f6176fbb47603c7564a08c23dc5fd5",
+  "code_commit": "1ada03d7aced7f70baa0d612dbee82f54e16fea7",
+  "scope": "Cowork duplicate invoice advisory checks and per-user preferences; exclude display-only category features from migration",
+  "user_scope_decision": {
+    "not_migrating": ["category_tag display labels", "category autocomplete and supplier mapping counts", "display-only category distribution statistics"],
+    "retain": ["invoice fields.category", "review workbook category roundtrip", "Express category to GL account mapping", "supplier posting profile"],
+    "deferred_not_deleted": ["automatic expense category tree", "supplier classification memory"]
+  },
+  "live_source": {
+    "hash_convention": "source/runtime envelope sha256 values hash the canonical evidence body, not the formatted JSON file bytes",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "76b148917310ee5a576e6e87e903d413a3d17bd9fdc4ebac500d76cc4ee5b2db",
+    "delivery_sha256": "cee5d2fc16a59a39508631d483c1c4d9ef3d79cd854378664a97e4c019b6719d",
+    "source_compare_start_to_delivery": "PASS",
+    "source_compare_previous_delivery_to_delivery": "PASS",
+    "fixed_duplicate_queries_sha256": "8dc590392f5b2898136a226ac48f3e86bc10e14eaa2d34ec4f110ddd32ebc085",
+    "runtime_projection_delivery_sha256": "de5749329c79a4d4cbdedf9fe4105981a3ec99fc22a66dbecfe786db00b48dd7",
+    "runtime_projection_captured_at": "2026-09-22T04:39:22.769752+00:00",
+    "runtime_projection_compare_previous_delivery_to_delivery": "FAIL: push_runtime_identity_changed",
+    "runtime_change": {
+      "components": ["pearnly-web", "pearnly-worker"],
+      "path": "database.identity.endpoints.configuration_digest",
+      "before": "c5882f4b8d2c4baed118699cf5869e68",
+      "after": "d23570c1332deff1a646c69e9a18b921",
+      "other_identity_fields": "unchanged",
+      "observations": "other adapter recent success count 10 to 9; total 101 unchanged",
+      "scope_assessment": "duplicate checks only depend on user preference and OCR history, not endpoint configuration; exact changed configuration fields remain uninvestigated; next push-related batch must investigate",
+      "configuration_import_or_update": false
+    }
+  },
+  "checks": [
+    {"suite": "tests/test_cowork_duplicates.py", "result": "PASS", "tests": 6},
+    {"suite": "existing history contracts", "result": "PASS", "tests": 20, "interpreter": "python3.14"},
+    {"suite": "tests/test_cowork_duplicates_source_parity.py", "result": "PASS", "comparisons": 1120, "differences": 0},
+    {"suite": "scripts/cowork-duplicates-lab-verify.py", "site": "cowork-backend-ack.localhost", "result": "PASS", "tests": 13},
+    {"suite": "scripts/cowork-duplicates-lab-verify.py --http", "site": "cowork-backend-ack.localhost", "result": "PASS", "requests": 10, "anonymous": [403, 403], "get_write": 403, "native_write": 417, "private_reference_hidden": true},
+    {"suite": "native fresh Site installation", "site": "cowork-backend-duplicates.localhost", "result": "PASS", "apps": ["frappe", "pearnly_core", "pearnly_cowork"]},
+    {"suite": "scripts/cowork-duplicates-lab-verify.py", "site": "cowork-backend-duplicates.localhost", "result": "PASS", "tests": 13},
+    {"suite": "scripts/cowork-duplicates-lab-verify.py --http", "site": "cowork-backend-duplicates.localhost", "result": "PASS", "requests": 10, "anonymous": [403, 403], "get_write": 403, "native_write": 417, "private_reference_hidden": true},
+    {"suite": "scripts/cowork-backend-lab-verify.py", "result": "PASS after missing fixture correction", "tests": 21, "first_run_pass": 20, "first_run_failure": "cross-Site test: cowork-backend-b.localhost no longer exists", "targeted_rerun": "the single failing test passed with PEARNLY_COWORK_OTHER_TEST_SITE=cowork-backend-duplicates.localhost"},
+    {"suite": "scripts/cowork-invoice-lab-verify.py", "result": "PASS", "tests": 6},
+    {"suite": "invoice execution retry regressions", "result": "PASS", "tests": ["test_success_seals_history_and_stable_billing_once", "test_lost_billing_receipt_retries_only_accounting", "test_history_transaction_interruption_resumes_frozen_result"], "external_provider_and_billing": "fake local adapters"},
+    {"suite": "scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"suite": "scripts/i18n-build.py --check", "result": "PASS", "messages": 1561, "apps": 5},
+    {"suite": "scripts/check-i18n.py", "result": "REPORT-ONLY", "findings": 377, "note": "not proof of complete translation coverage; existing glossary debt remains"},
+    {"suite": "git diff --check", "result": "PASS"}
+  ],
+  "upgrade_preservation": [
+    {"stage": "first migrate", "result": "before equals after", "history_count": 8, "preference_count": 1, "sha256": "bed7792bffe68d56a3198af164825c3fefe247dfe6e8e71ab2f5609a60ed9b6c"},
+    {"stage": "repeat migrate after HTTP fixtures", "result": "before equals after", "history_count": 10, "preference_count": 2, "sha256": "828a992150dbf8d356920e1b2e702eebdb8034312497c7a8b44fe7e0fcd1bad5"}
+  ],
+  "issues_encountered_and_resolved": [
+    "Frappe removes private permlevel fields before validation; restore only duplicate_match after the existing internal creation capability is validated; malicious native flags still fail",
+    "host Python 3.9 cannot parse existing history type unions; used Python 3.14 for that existing suite",
+    "old second lab Site missing; made the guarded alternate test Site configurable and reran the failed test"
+  ],
+  "limitations": [
+    "advisory at creation, not a financial uniqueness constraint",
+    "concurrent independent uncommitted uploads may not see each other",
+    "no historical backfill and no recheck on review",
+    "no frontend or user acceptance",
+    "no paid OCR, LINE, or external ERP write",
+    "runtime endpoint configuration drift remains for a future push scope"
+  ],
+  "handoff_retention": {
+    "merged": false,
+    "pushed": false,
+    "deployed": false,
+    "local_main_observed": "f6390dea9a972d998a0527e9fffe9bb53a5f91e5",
+    "remote_main_observed": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent",
+    "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly",
+    "branch": "codex/cowork-backend-migration",
+    "reason": "continuing local-only migration with unique unmerged commits; reassess on next batch and final authorized integration",
+    "lab_project": "pearnly-cowork-backend-lab",
+    "docker_context": "colima-pearnly",
+    "bench_image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "containers": "bench, db, redis stopped; inspect confirmed all exited; retained for the next batch",
+    "volumes": ["pearnly-cowork-backend-lab_db", "pearnly-cowork-backend-lab_sites", "71640b5a012f8c99c84b49a27f154d78252b355a87ff8dadfa2e41fc3f3db492", "cf5ad7fbfd49e29c178da9c101cbb13b78e3bc64649569a08352fb6d2e9fd269"],
+    "new_synthetic_site": "cowork-backend-duplicates.localhost",
+    "fixed_source": "/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+    "deleted_resources": []
+  }
+}
