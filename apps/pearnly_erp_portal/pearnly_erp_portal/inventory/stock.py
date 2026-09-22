@@ -230,15 +230,22 @@ def count_lines(*, warehouse: str, lines, posting_date=None, reason="stocktake")
 
 
 def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None):
-    """Internal only: caller authorizes reversal; original ledger fixes the storage position."""
+    """Internal only: caller authorizes reversal; original ledger fixes the storage position.
+
+    反向流水**带上原单的单据号**：收发存与库存明细的"关联单据"列显示的是 `doc_no`
+    （入库 IR / 出库 IS / 采购 PE / 销售 SI 那种系统号），没有号才退回显示内部单据名。
+    原先这里不传 `doc_no`，于是作废产生的那一行显示成 `SD-00286` 这种内部名 ——
+    用户 2026-09-23 报"单号在收发存显示得不对"就是这一处：**同一个单据的冲销行，
+    号要和原单一样**，否则报表上那笔冲销认不出是谁。
+    """
     rows = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id},
-                          fields=["name", "product", "warehouse", "location", "qty_base"],
+                          fields=["name", "product", "warehouse", "location", "qty_base", "doc_no"],
                           order_by="creation asc", limit_page_length=0)
     lock_products([row.product for row in rows])
     for row in rows:
         apply_movement(product=row.product, warehouse=row.warehouse, location=row.location,
                        movement_type=contracts.ADJUST, qty=-contracts.d(row.qty_base),
-                       ref_type="void", ref_id=ref_id, reason=reason,
+                       ref_type="void", ref_id=ref_id, doc_no=row.doc_no, reason=reason,
                        client_uuid=f"{client_uuid}:{row.name}", internal=True, allow_inactive=True)
 
 

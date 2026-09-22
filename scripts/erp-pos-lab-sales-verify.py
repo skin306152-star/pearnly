@@ -234,6 +234,14 @@ def main():
     results["stock_after_cancel"] = float(balance(product, warehouse))
     ok, err = as_user(SELLER, entry.cancel, doc, "again")
     results["recancel_blocked"] = ok
+    # 作废产生的反向流水要带**本单的单据号**：收发存的"关联单据"列显示的是它，
+    # 不带的话报表上那笔冲销会显示成内部单据名（用户 2026-09-23 报的就是这条）。
+    reversal = frappe.db.get_value("ERP Stock Movement", {"ref_type": "void", "ref_id": doc},
+                                  ["doc_no", "movement_type"], as_dict=True) or {}
+    results["void_movement_doc_no"] = reversal.get("doc_no")
+    results["void_movement_matches_number"] = bool(
+        reversal.get("doc_no") and reversal.get("doc_no") == frappe.db.get_value(
+            "ERP Sales Document", doc, "system_no"))
 
     # 删草稿：草稿能动、已落定/已作废的只能作废；要写岗位也要本人范围。
     # 框架那一位仍然关着（共享口径不给功能角色 delete），放行的是产品自己的动作。
@@ -314,6 +322,8 @@ def main():
         "cashier_can_post": False, "outsider_blocked": True, "owner_sees_record": True,
         "cancel": True, "cancel_status": "void", "cancel_reason": "lab void",
         "recancel_blocked": False,
+        # 号码本身随站点计数器变，所以只断言"冲销行带的就是本单的号"。
+        "void_movement_matches_number": True,
         "draft_owner": SELLER, "framework_delete_denied": True,
         "draft_delete_by_outsider_blocked": True, "draft_delete_by_cashier_blocked": True,
         "submitted_delete_blocked": True, "delete_drafts": True, "draft_gone": True,
