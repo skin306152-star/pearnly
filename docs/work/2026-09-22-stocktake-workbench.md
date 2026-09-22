@@ -486,3 +486,43 @@
   拿着旧 URL 里的旧内容，看起来就像"改了没生效"。跑 `reload`（重启预览 web）后立刻正确。
 - 检查：架构 0 违规、i18n 构建与前端词条 0 问题、`check-i18n --strict` 与主目录一致的 113 条基线、
   十个 JS 测试全绿。
+
+### 更正：缺口不是"圆角切掉通栏灰条"，直角那条改法作废（2026-09-22 续，用户指出）
+
+用户口径："**不要改成直角吧，其它这些都没这个问题啊**"（附原生 Grid 表格截图：圆角平滑、没有缺口），
+随后又直接问："**为什么要去硬画啊？这个不是官方组件吗？**"。两条都成立，上一版判断与改法都不对：
+
+- 那张表本来就是官方组件：`frappe-datatable` 渲染在官方 `.report-wrapper` 壳里，灰底、边框、
+  上方圆角全部来自框架 CSS（`report.scss` / `frappe_datatable.scss`），**不是**自绘表格。
+- 上一版那个"直角"改法（`border-radius: 0`）已被用户否掉：其它官方表格都是圆角，只有这张有缺口，
+  说明缺口不是圆角本身造成的。诊断期间我还在 `product.js` 里手改过列宽去凑（`p.fit_table`），
+  那就是用户说的"硬画"，**已整段删除，`product.js` 回到 `dc2e3d7` 之前与 HEAD 一致的状态**。
+- 真因（量出来的）：官方 fluid 布局会跑 `distributeRemainingWidth()`，给**每个**可伸缩列都减 2px
+  （`finalWidth = Math.floor(width + deltaWidth) - 2`），于是**列宽合计比容器窄 2×列数**；而表头那一行
+  是 flex 行、被拉满整个容器宽度，多出来的那 11–22px 灰底就铺在最后一列右边。上一版只看到"灰条被
+  圆角切了"，实际看到的是这块**本该没有的灰**：官方表格的灰条止于最后一列，右边是留白
+  （原生报表、原生 Grid 都一样，已按像素核对）。
+- 修法（只动自有皮肤 `product.css`，不碰框架、不写 JS 像素）：把表头行收回到它自己的列宽，
+  灰底改由表头单元格自己画，最后一格带上和框架同一个 `--border-radius`：
+
+  ```css
+  body.pearnly-product-desk .datatable .dt-header .dt-row-header {
+      width: max-content;
+      background-color: transparent;
+  }
+  body.pearnly-product-desk .datatable .dt-header .dt-cell--header:last-child {
+      border-top-right-radius: var(--border-radius);
+  }
+  ```
+
+  列宽、排序、冻结/滚动同步仍是官方组件的既有行为，我一个字没改。
+- 验证（逐格量，1440 视口、`deviceScaleFactor 2/3` + 放大截图）：
+  - 盘点工作台表：`dt-row-header` 1172 = 数据行 1172；表头最后一格右端 1406 = 表体最后一格右端 1406
+    （两者都还差容器右缘 19px，那 19px 就是官方的 2×列数余量，现在是留白）；11 列宽表头/表体逐列相等，
+    无横向滚动（`scrollWidth == clientWidth`）。
+  - 记录弹窗里的表：表头 1101 = 表体 1101，右端 1266 = 1266。
+  - 库存页"查看"（`p.stockLedger`）六列表：表头 1102 = 表体 1102，右端 1267 = 1267。
+  - 圆角仍是官方的 `8px 8px 0 0`（容器）与末格 `8px`；右上角放大截图为"灰条止于最后一列 + 圆角"，
+    与原生 Grid 同一种画法。诊断用的 CDP 视口覆盖已清除。
+- 检查：`check-architecture.py` PASS（0 违规）。本次只改一条 CSS，`product.js` 未变，故未重跑 Python / JS 测试
+  （上一版之后没有任何非 CSS 改动）。

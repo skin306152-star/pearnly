@@ -128,9 +128,19 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 	}
 }
 
-/* 原生表格（DataTable）在报表壳里被框架套了 `border-radius` + `overflow: hidden`：灰色表头
-   右上角会被圆角切掉一块，看上去就是灰条上缺了一个口子（用户 2026-09-22 在盘点那几个表上
-   报障）。表头是通栏的灰条，两端就该是直角 —— 把这层圆角去掉，表头铺满整条。 */
-body.pearnly-product-desk .datatable {
-	border-radius: 0;
+/* 原生表格（DataTable）的表头那一行是 flex 行，默认被拉满整个容器宽度：列比容器窄时，
+   灰底会在最后一列右边多铺出一截，再被框架 `.report-wrapper .datatable` 的圆角 + 裁剪切掉，
+   右上角看上去就是灰条缺了个口子（用户 2026-09-22 在盘点那几个表上报障）。
+   官方自己的表格没这个现象：表头灰条止于最后一列，右边留白（原生报表、原生 Grid 都一样）。
+   这里把表头行收回到它的列宽，表头与表体右端对齐；圆角落在留白上，灰条不再被切。
+   只改这一行的宽度，列宽、排序、滚动同步都还是官方组件的既有行为。 */
+body.pearnly-product-desk .datatable .dt-header .dt-row-header {
+	width: max-content;
+	/* 灰底改由表头单元格自己画（颜色与原来同一变量），这样最后一格的圆角就是灰条自己的圆角，
+	   不会在它后面露出一块方的灰。 */
+	background-color: transparent;
+}
+
+body.pearnly-product-desk .datatable .dt-header .dt-cell--header:last-child {
+	border-top-right-radius: var(--border-radius);
 }
