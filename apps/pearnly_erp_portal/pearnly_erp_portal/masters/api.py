@@ -63,6 +63,20 @@ def api_create_customer(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_lookup_tax(tax_id, branch=0):
+    """按税号查泰国税务局（RD）的官方登记信息（旧项目同一条路，落点在本仓）。
+
+    建供应商/客户时用：填税号 → 点查询 → 抬头/地址/分支/邮编自动带出来。
+    **失败不抛异常**（外部接口连不上不该拦住建档），由界面按 `error` 出提示。
+    """
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.masters import rd
+
+    guard.require("tax.lookup")
+    return rd.lookup(tax_id, branch)
+
+
+@frappe.whitelist(methods=["POST"])
 def api_update_customer(**kwargs):
     kwargs = _clean(kwargs)
     return customers.update_customer(kwargs.pop("name", None), **kwargs)
@@ -72,4 +86,3 @@ def api_update_customer(**kwargs):
 def api_set_customer_active(**kwargs):
     kwargs = _clean(kwargs)
     return customers.set_active(kwargs.pop("name", None), kwargs.pop("is_active", 1))
-

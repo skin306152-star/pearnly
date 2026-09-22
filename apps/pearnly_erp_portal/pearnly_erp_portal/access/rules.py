@@ -55,6 +55,9 @@ CAPABILITY_FEATURES = {
                      "cashier"),
     "customers.read": ("sales", "cashier"),
     "customers.manage": ("clients", "sales"),
+    # 按税号查泰国税务局的官方登记信息（建供应商/客户时带出抬头与地址）。
+    # 采购与销售两侧都要用，所以两个岗位都给；收银不开票、不需要。
+    "tax.lookup": ("purchase", "clients", "sales"),
     # 集成（本租户自己的 LINE 官方号绑定）。绑定是**自己绑自己**：页面只给当前登录
     # 账号发码，服务层也不收"绑哪个账号"的参数（见 integrations/binding.py）。
     # 所以这里不放宽也不收紧：任何拿到业务岗位的员工都能绑自己的账号 —— 旧线上

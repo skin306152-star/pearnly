@@ -15,6 +15,7 @@
 
 	p.suppliers = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.purchasing.api.";
+		const api_lookup = "pearnly_erp_portal.masters.api.api_lookup_tax";
 		const can_write = frappe.model.can_write("ERP Supplier");
 		// 字段就这几样，给个本地简写（与销售页的 `u.field` 同一形状）。
 		const f = (fieldname, label, fieldtype = "Data", options = {}) =>
@@ -32,6 +33,37 @@
 				format: value => (Number(value) ? "" : t("supplier.inactive")) },
 		];
 
+		// 按税号查泰国税务局（RD）的官方登记：填税号 → 点按钮 → 抬头/地址/分支带出来。
+		// 与旧项目同一件事（`services/rd/rd_api.py`），落点在本仓 `masters/rd.py`；
+		// 查不到或外部接口连不上，服务端只回原因、不抛错，录入照常能存。
+		async function lookup_tax(dialog) {
+			const tax_id = dialog.get_value("tax_id");
+			if (!String(tax_id || "").replace(/\D/g, "").length) {
+				frappe.msgprint(t("supplier.lookup.needTaxId"));
+				return;
+			}
+			frappe.dom.freeze(t("supplier.lookup.querying"));
+			try {
+				const branch = Number(dialog.get_value("branch_no") || 0);
+				const result = await p.call(api_lookup, {tax_id, branch}, "POST");
+				if (!result?.ok) {
+					frappe.msgprint(t(`supplier.lookup.${result?.error || "failed"}`) || t("supplier.lookup.failed"));
+					return;
+				}
+				const data = result.data || {};
+				await dialog.set_values({
+					tax_id: data.tax_id || tax_id,
+					supplier_name: data.name || dialog.get_value("supplier_name") || "",
+					address: data.address || dialog.get_value("address") || "",
+					branch_type: Number(data.branch_no) ? "branch" : "head",
+					branch_no: Number(data.branch_no) ? data.branch_no : dialog.get_value("branch_no") || "",
+				});
+				p.success(t("supplier.lookup.found", data.name || data.tax_id || ""));
+			} finally {
+				frappe.dom.unfreeze();
+			}
+		}
+
 		// 一个弹窗干两件事：新建、改（`name` 不为空就是改）。
 		function editor(row = {}) {
 			const editable = can_write;
@@ -39,6 +71,7 @@
 				f("supplier_name", "supplier.field.name", "Data", {reqd: 1, default: row.supplier_name || ""}),
 				f("phone", "supplier.field.phone", "Data", {default: row.phone || ""}),
 				f("tax_id", "supplier.field.taxId", "Data", {default: row.tax_id || ""}),
+				f("lookup", "supplier.lookup.action", "Button", {click: () => lookup_tax(d)}),
 				f("branch_type", "supplier.field.branch", "Select", {
 					options: [{value: "head", label: t("supplier.head")}, {value: "branch", label: t("supplier.branch")}],
 					default: row.branch_type || "head"}),
@@ -62,7 +95,27 @@
 		p.breadcrumbs({label: t("supplier.title"), route: p.subroute("pearnly-suppliers")});
 		const search = page.add_field({fieldname: "q", label: __("Search"), fieldtype: "Data",
 			change: () => void list?.reload()});
-		list = p.list({page, doctype: "ERP Supplier",
+		// 行勾选 + 表头全选（与商品/采购/销售那几个列表同一个原生实现），
+		// 选中之后主按钮变"批量启用/停用" —— 主数据本来就有启用态，选择要有个去处。
+		const selection = p.selection_action({
+			page, list: () => list, empty: restore_new,
+			label: rows => (rows.every(row => !Number(row.is_active))
+				? t("supplier.action.bulkEnable", rows.length)
+				: t("supplier.action.bulkDisable", rows.length)),
+			run: async rows => {
+				const enabling = rows.every(row => !Number(row.is_active));
+				for (const row of rows) {
+					await p.call(api + "api_update_supplier",
+						{name: row.name, is_active: enabling ? 1 : 0}, "POST");
+				}
+			},
+			success: rows => t("supplier.notice.toggled", rows.length),
+		});
+		function restore_new() {
+			if (can_write) page.set_primary_action(t("supplier.new"), () => editor());
+			else page.clear_primary_action();
+		}
+		list = p.list({page, doctype: "ERP Supplier", selectable: true, on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
 			load: async () => {
@@ -72,7 +125,7 @@
 			},
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
-		if (can_write) page.add_inner_button(t("supplier.new"), () => editor());
+		restore_new();
 		p.add_refresh(page, () => void list.reload());
 		await list.ready;
 	};

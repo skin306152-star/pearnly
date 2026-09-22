@@ -32,6 +32,7 @@ Branch Name,Branch Name
 Branch No,Branch No
 Branch No is required,Branch No is required
 Branch Type,Branch Type
+Branch {0},Branch {0}
 Cancel,Cancel
 Cancellation,Cancellation
 Cancelled,Cancelled
@@ -289,6 +290,8 @@ adjust,adjust
 branch,branch
 card,card
 cash,cash
+client.action.bulkDisable,Disable {0}
+client.action.bulkEnable,Enable {0}
 client.close,Close
 client.col.address,Address
 client.col.name,Customer Name
@@ -305,7 +308,18 @@ client.field.phone,Phone
 client.field.taxId,Tax ID
 client.field.type,Customer Type
 client.inactive,Disabled
+client.lookup.action,Query
+client.lookup.failed,"Lookup failed, please fill in manually"
+client.lookup.found,Found: {0}
+client.lookup.invalid_format,Tax ID must be 13 digits
+client.lookup.needTaxId,Enter a tax ID first
+client.lookup.not_found,Not found in the Revenue Department records
+client.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+client.lookup.parse_error,The Revenue Department replied in an unreadable format
+client.lookup.querying,Querying the Revenue Department...
+client.lookup.rd_unreachable,Cannot reach the Revenue Department right now
 client.new,New Customer
+client.notice.toggled,Updated {0} customer(s)
 client.party.anonymous,Anonymous
 client.party.company,Company
 client.party.foreign,Foreigner
@@ -579,6 +593,8 @@ stock.workbench.title,Stock count workbench
 stock_in,stock_in
 stock_out,stock_out
 submitted,submitted
+supplier.action.bulkDisable,Disable {0}
+supplier.action.bulkEnable,Enable {0}
 supplier.branch,Branch Office
 supplier.close,Close
 supplier.col.address,Address
@@ -598,7 +614,18 @@ supplier.field.phone,Phone
 supplier.field.taxId,Tax ID
 supplier.head,Head Office
 supplier.inactive,Disabled
+supplier.lookup.action,Query
+supplier.lookup.failed,"Lookup failed, please fill in manually"
+supplier.lookup.found,Found: {0}
+supplier.lookup.invalid_format,Tax ID must be 13 digits
+supplier.lookup.needTaxId,Enter a tax ID first
+supplier.lookup.not_found,Not found in the Revenue Department records
+supplier.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+supplier.lookup.parse_error,The Revenue Department replied in an unreadable format
+supplier.lookup.querying,Querying the Revenue Department...
+supplier.lookup.rd_unreachable,Cannot reach the Revenue Department right now
 supplier.new,New Supplier
+supplier.notice.toggled,Updated {0} supplier(s)
 supplier.save,Save
 supplier.title,Suppliers
 tax_invoice,tax_invoice

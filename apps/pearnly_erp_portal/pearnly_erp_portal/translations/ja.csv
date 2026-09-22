@@ -32,6 +32,7 @@ Branch Name,支店名
 Branch No,支店番号
 Branch No is required,支店番号を入力してください
 Branch Type,支店区分
+Branch {0},支店 {0}
 Cancel,キャンセル
 Cancellation,取消
 Cancelled,取消済み
@@ -289,6 +290,8 @@ adjust,調整
 branch,支店
 card,カード
 cash,現金
+client.action.bulkDisable,{0}件を無効化
+client.action.bulkEnable,{0}件を有効化
 client.close,閉じる
 client.col.address,住所
 client.col.name,顧客名
@@ -305,7 +308,18 @@ client.field.phone,電話
 client.field.taxId,納税者番号
 client.field.type,顧客種類
 client.inactive,無効
+client.lookup.action,照会
+client.lookup.failed,照会に失敗しました。手入力してください
+client.lookup.found,取得: {0}
+client.lookup.invalid_format,納税者番号は13桁です
+client.lookup.needTaxId,先に納税者番号を入力してください
+client.lookup.not_found,税務局に登録がありません
+client.lookup.not_vat_registered,番号は存在しますがVAT登録がありません
+client.lookup.parse_error,税務局の応答形式を解釈できません
+client.lookup.querying,税務局に照会中…
+client.lookup.rd_unreachable,現在、税務局に接続できません
 client.new,顧客を追加
+client.notice.toggled,顧客 {0}件を更新しました
 client.party.anonymous,匿名
 client.party.company,法人
 client.party.foreign,外国人
@@ -579,6 +593,8 @@ stock.workbench.title,棚卸作業台
 stock_in,入庫
 stock_out,出庫
 submitted,確定済み
+supplier.action.bulkDisable,{0}件を無効化
+supplier.action.bulkEnable,{0}件を有効化
 supplier.branch,支店
 supplier.close,閉じる
 supplier.col.address,住所
@@ -598,7 +614,18 @@ supplier.field.phone,電話
 supplier.field.taxId,納税者番号
 supplier.head,本店
 supplier.inactive,無効
+supplier.lookup.action,照会
+supplier.lookup.failed,照会に失敗しました。手入力してください
+supplier.lookup.found,取得: {0}
+supplier.lookup.invalid_format,納税者番号は13桁です
+supplier.lookup.needTaxId,先に納税者番号を入力してください
+supplier.lookup.not_found,税務局に登録がありません
+supplier.lookup.not_vat_registered,番号は存在しますがVAT登録がありません
+supplier.lookup.parse_error,税務局の応答形式を解釈できません
+supplier.lookup.querying,税務局に照会中…
+supplier.lookup.rd_unreachable,現在、税務局に接続できません
 supplier.new,仕入先を追加
+supplier.notice.toggled,仕入先 {0}件を更新しました
 supplier.save,保存
 supplier.title,仕入先
 tax_invoice,税務請求書

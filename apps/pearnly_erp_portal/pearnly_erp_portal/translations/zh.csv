@@ -32,6 +32,7 @@ Branch Name,分支名称
 Branch No,分支编号
 Branch No is required,分支编号不能为空
 Branch Type,分支类型
+Branch {0},分支机构 {0}
 Cancel,取消
 Cancellation,取消
 Cancelled,已取消
@@ -289,6 +290,8 @@ adjust,调整
 branch,分店
 card,银行卡
 cash,现金
+client.action.bulkDisable,停用 {0}
+client.action.bulkEnable,启用 {0}
 client.close,关闭
 client.col.address,地址
 client.col.name,客户名称
@@ -305,7 +308,18 @@ client.field.phone,电话
 client.field.taxId,税号
 client.field.type,客户类型
 client.inactive,已停用
+client.lookup.action,查询
+client.lookup.failed,查询失败，请手工填写
+client.lookup.found,已查到：{0}
+client.lookup.invalid_format,税号必须是 13 位数字
+client.lookup.needTaxId,请先填税号
+client.lookup.not_found,税务局没有这家登记
+client.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+client.lookup.parse_error,税务局的回复格式看不懂
+client.lookup.querying,正在向税务局查询…
+client.lookup.rd_unreachable,现在连不上税务局
 client.new,新建客户
+client.notice.toggled,已更新 {0} 位客户
 client.party.anonymous,匿名
 client.party.company,公司
 client.party.foreign,外国人
@@ -579,6 +593,8 @@ stock.workbench.title,盘点工作台
 stock_in,入库
 stock_out,出库
 submitted,已提交
+supplier.action.bulkDisable,停用 {0}
+supplier.action.bulkEnable,启用 {0}
 supplier.branch,分支机构
 supplier.close,关闭
 supplier.col.address,地址
@@ -598,7 +614,18 @@ supplier.field.phone,电话
 supplier.field.taxId,税号
 supplier.head,总店
 supplier.inactive,已停用
+supplier.lookup.action,查询
+supplier.lookup.failed,查询失败，请手工填写
+supplier.lookup.found,已查到：{0}
+supplier.lookup.invalid_format,税号必须是 13 位数字
+supplier.lookup.needTaxId,请先填税号
+supplier.lookup.not_found,税务局没有这家登记
+supplier.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+supplier.lookup.parse_error,税务局的回复格式看不懂
+supplier.lookup.querying,正在向税务局查询…
+supplier.lookup.rd_unreachable,现在连不上税务局
 supplier.new,新建供应商
+supplier.notice.toggled,已更新 {0} 家供应商
 supplier.save,保存
 supplier.title,供应商
 tax_invoice,完整税务发票

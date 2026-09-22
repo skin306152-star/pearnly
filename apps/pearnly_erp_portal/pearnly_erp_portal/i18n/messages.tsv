@@ -664,3 +664,30 @@ Address	地址	ที่อยู่	住所	client.field.address
 Remarks	备注	หมายเหตุ	備考	client.field.note
 Active	启用	ใช้งาน	有効	client.field.active
 Supplier	供应商	ผู้ขาย	仕入先	supplier.col.name
+Query	查询	ค้นหา	照会	supplier.lookup.action
+Enter a tax ID first	请先填税号	กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน	先に納税者番号を入力してください	supplier.lookup.needTaxId
+Querying the Revenue Department...	正在向税务局查询…	กำลังค้นหาจากกรมสรรพากร…	税務局に照会中…	supplier.lookup.querying
+Found: {0}	已查到：{0}	พบ: {0}	取得: {0}	supplier.lookup.found
+Lookup failed, please fill in manually	查询失败，请手工填写	ค้นหาไม่สำเร็จ กรุณากรอกเอง	照会に失敗しました。手入力してください	supplier.lookup.failed
+Tax ID must be 13 digits	税号必须是 13 位数字	เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก	納税者番号は13桁です	supplier.lookup.invalid_format
+Not found in the Revenue Department records	税务局没有这家登记	ไม่พบข้อมูลในกรมสรรพากร	税務局に登録がありません	supplier.lookup.not_found
+Tax ID exists but is not VAT registered	税号存在，但没有 VAT 登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	supplier.lookup.not_vat_registered
+Cannot reach the Revenue Department right now	现在连不上税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	supplier.lookup.rd_unreachable
+The Revenue Department replied in an unreadable format	税务局的回复格式看不懂	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	supplier.lookup.parse_error
+Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	supplier.action.bulkDisable
+Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	supplier.action.bulkEnable
+Updated {0} supplier(s)	已更新 {0} 家供应商	อัปเดตผู้ขาย {0} ราย	仕入先 {0}件を更新しました	supplier.notice.toggled
+Query	查询	ค้นหา	照会	client.lookup.action
+Enter a tax ID first	请先填税号	กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน	先に納税者番号を入力してください	client.lookup.needTaxId
+Querying the Revenue Department...	正在向税务局查询…	กำลังค้นหาจากกรมสรรพากร…	税務局に照会中…	client.lookup.querying
+Found: {0}	已查到：{0}	พบ: {0}	取得: {0}	client.lookup.found
+Lookup failed, please fill in manually	查询失败，请手工填写	ค้นหาไม่สำเร็จ กรุณากรอกเอง	照会に失敗しました。手入力してください	client.lookup.failed
+Tax ID must be 13 digits	税号必须是 13 位数字	เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก	納税者番号は13桁です	client.lookup.invalid_format
+Not found in the Revenue Department records	税务局没有这家登记	ไม่พบข้อมูลในกรมสรรพากร	税務局に登録がありません	client.lookup.not_found
+Tax ID exists but is not VAT registered	税号存在，但没有 VAT 登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	client.lookup.not_vat_registered
+Cannot reach the Revenue Department right now	现在连不上税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	client.lookup.rd_unreachable
+The Revenue Department replied in an unreadable format	税务局的回复格式看不懂	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	client.lookup.parse_error
+Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	client.action.bulkDisable
+Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	client.action.bulkEnable
+Updated {0} customer(s)	已更新 {0} 位客户	อัปเดตลูกค้า {0} ราย	顧客 {0}件を更新しました	client.notice.toggled
+Branch {0}	分支机构 {0}	สาขา {0}	支店 {0}

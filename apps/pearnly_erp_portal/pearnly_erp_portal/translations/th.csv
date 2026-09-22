@@ -32,6 +32,7 @@ Branch Name,ชื่อสาขา
 Branch No,เลขที่สาขา
 Branch No is required,กรุณาระบุเลขที่สาขา
 Branch Type,ประเภทสาขา
+Branch {0},สาขา {0}
 Cancel,ยกเลิก
 Cancellation,การยกเลิก
 Cancelled,ยกเลิก
@@ -289,6 +290,8 @@ adjust,ปรับปรุง
 branch,สาขา
 card,บัตร
 cash,เงินสด
+client.action.bulkDisable,ปิดใช้งาน {0}
+client.action.bulkEnable,เปิดใช้งาน {0}
 client.close,ปิด
 client.col.address,ที่อยู่
 client.col.name,ชื่อลูกค้า
@@ -305,7 +308,18 @@ client.field.phone,โทรศัพท์
 client.field.taxId,เลขประจำตัวผู้เสียภาษี
 client.field.type,ประเภทลูกค้า
 client.inactive,ปิดใช้งาน
+client.lookup.action,ค้นหา
+client.lookup.failed,ค้นหาไม่สำเร็จ กรุณากรอกเอง
+client.lookup.found,พบ: {0}
+client.lookup.invalid_format,เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก
+client.lookup.needTaxId,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
+client.lookup.not_found,ไม่พบข้อมูลในกรมสรรพากร
+client.lookup.not_vat_registered,มีเลขนี้แต่ไม่ได้จดทะเบียน VAT
+client.lookup.parse_error,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
+client.lookup.querying,กำลังค้นหาจากกรมสรรพากร…
+client.lookup.rd_unreachable,เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้
 client.new,เพิ่มลูกค้า
+client.notice.toggled,อัปเดตลูกค้า {0} ราย
 client.party.anonymous,ไม่ระบุชื่อ
 client.party.company,บริษัท
 client.party.foreign,ชาวต่างชาติ
@@ -579,6 +593,8 @@ stock.workbench.title,หน้าปฏิบัติงานตรวจน�
 stock_in,รับเข้า
 stock_out,จ่ายออก
 submitted,ยืนยันแล้ว
+supplier.action.bulkDisable,ปิดใช้งาน {0}
+supplier.action.bulkEnable,เปิดใช้งาน {0}
 supplier.branch,สาขา
 supplier.close,ปิด
 supplier.col.address,ที่อยู่
@@ -598,7 +614,18 @@ supplier.field.phone,โทรศัพท์
 supplier.field.taxId,เลขประจำตัวผู้เสียภาษี
 supplier.head,สำนักงานใหญ่
 supplier.inactive,ปิดใช้งาน
+supplier.lookup.action,ค้นหา
+supplier.lookup.failed,ค้นหาไม่สำเร็จ กรุณากรอกเอง
+supplier.lookup.found,พบ: {0}
+supplier.lookup.invalid_format,เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก
+supplier.lookup.needTaxId,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
+supplier.lookup.not_found,ไม่พบข้อมูลในกรมสรรพากร
+supplier.lookup.not_vat_registered,มีเลขนี้แต่ไม่ได้จดทะเบียน VAT
+supplier.lookup.parse_error,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
+supplier.lookup.querying,กำลังค้นหาจากกรมสรรพากร…
+supplier.lookup.rd_unreachable,เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้
 supplier.new,เพิ่มผู้ขาย
+supplier.notice.toggled,อัปเดตผู้ขาย {0} ราย
 supplier.save,บันทึก
 supplier.title,ผู้ขาย
 tax_invoice,ใบกำกับภาษีเต็มรูป
