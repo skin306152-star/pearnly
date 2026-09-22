@@ -1,5 +1,9 @@
 # 主数据第六块：客户名录导入的归一（第四十八批）
 
+> 第五十一批更正：纯表头/字段归一规则仍可复用，但旧来源中的“客户”是账套主体，
+> 第四十九批新 RPC 落到的却是买方；规则差分通过不代表目标实体迁移正确。
+> 现有买方适配保留，账套主体导入仍待独立承接，见 [最新归属与证据](invoice-classification.md)。
+
 第四十八批从新平台 `ca8d800` 开工，工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。线上来源仍是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。不接前端、不部署、不改 DMS、不写旧库、不调模型。
 
 主数据只剩导入与供应商/设置两块。本批交**客户名录导入**里决定"哪些列是客户名、哪些行要导、导出来长什么样"的那一段（旧侧 `services/workspace/client_import.py` 与它用到的两个清洗函数）。**表格解析（xlsx/csv → 表头+行）由调用方给**，所以这一层可以完全离线差分。

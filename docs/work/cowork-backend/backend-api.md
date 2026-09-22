@@ -1,5 +1,17 @@
 # 原生后端接口与前端讨论边界
 
+最新补充（第五十一批）：业务分类接口前缀 `pearnly_cowork.history.category_api`：
+`category_tree(workspace)` 只读零写入；POST `initialize_categories(workspace)`、
+`save_category(workspace,label,parent?,name?,request_key?,expected_revision=0,sort=0)`、
+`disable_category(workspace,name,expected_revision)`、
+`set_category_enabled(workspace,name,enabled,expected_revision)`。
+读取要求 Cowork Site、intake/ocr_history/master_data 至少一项及公司范围；管理要求 master_data + Cowork Admin。
+新增按 request_key 幂等，修改按 revision，父级不可搬迁；停用级联，恢复父级不暗自恢复子级。
+这些是分类规则输入，不是 ERP 总账科目，也没有新增页面/菜单。两种私有 DocType 通用 CRUD/分享拒绝。
+识别首次入库执行确定性规则，再用同 Site/公司/买方的卖家记忆覆盖；复核改票面才学习，原始 ai_raw 不变，
+已有请求重放不重新分类。没有新增展示标签、补全、记忆数量或分布统计 API。
+范围、失败回落、验证及导入主体差异见 [分类业务链](invoice-classification.md)。
+
 最新补充（第五十批）：`pearnly_cowork.history.api.duplicate_setting()` 读取当前用户重复提醒
 开关（默认开）；`save_duplicate_setting(enabled)` 仅 POST，保存本人偏好，不接受 user 参数。
 二者需要 Cowork Site、有效用户以及 intake/ocr_history 的功能和角色。

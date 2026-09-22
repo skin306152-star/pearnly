@@ -1,5 +1,9 @@
 # 主数据第七块：供应商过账档案的 Cowork 半 + 客户名录导入端点（第四十九批）
 
+> 第五十一批更正：本批导入 RPC 创建的是买方 `Cowork Client`，旧来源路由却创建账套主体。
+> 因而只算“买方导入适配”，不能证明账套导入已迁；旧 RPC 保持含义，账套导入另补。
+> 供应商过账档案本体不受该更正影响。详见 [最新归属与证据](invoice-classification.md)。
+
 第四十九批从新平台 `22b18d7`（第四十八批交接提交）开工，工作树
 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支
 `codex/cowork-backend-migration`。开工采集线上来源 PASS：`ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`

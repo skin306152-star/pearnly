@@ -1,31 +1,34 @@
 # Cowork 后端迁移（前端接入前）
 
-## 换窗口总交接（2026-09-22，第五十批之后 · 新窗口从这里开始）
+## 换窗口总交接（2026-09-22，第五十一批之后 · 新窗口从这里开始）
 
 本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，
 下面各批记录（含上一版总交接）只在需要细节时查。
 
 ### 一、现在的状态（一句话）
 
-Cowork 后端主数据七块已交付；第五十批补上**重复发票提醒与个人开关**。
+Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒与个人开关**，第五十一批补上
+**识别分类规则、公司科目树和按公司/买方隔离的供应商分类记忆**，会实际影响票面分类与 Express 科目映射。
 用户最新指示是**“只用于展示的就不要了”**：分类展示标签、补全与统计不迁；
-有业务用途的票面分类、Express 科目映射保留；自动分类树与供应商记忆暂缓建设。
-供应商主档、M1 泰文注册名闸和跨域改挂/解绑仍待处理，不能算作本批已完成。
+不为供应商列表名称新建主档；M1 泰文名闸属于账套主体/工单分拣，不给买方强加。
+**本批纠正旧交接：第四十九批导入落到买方，而旧来源导入的是账套主体。现有买方适配保留，账套导入仍有缺口。**
+识别记录跨域改挂/解绑也仍待决定，不能写成全部迁完。
 所有工作都在本地提交、**未合回 main、未推送、未部署**。
 
 - 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，
-  本批代码 `1ada03d7aced7f70baa0d612dbee82f54e16fea7`；含文档的 HEAD 以 `git log -1` 为准；开工 `3acb28e`。
-- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批收尾回读为 `f6390dea9a972d998a0527e9fffe9bb53a5f91e5`；远端 `refs/heads/main`
+  本批代码 `10a67cf558b09b753eff361916f952bf40272d01`；含文档的 HEAD 以 `git log -1` 为准；开工 `de0db45e`。
+- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批收尾回读为 `466beae046b580bb7eab303893cf20bb9498cc4b`；远端 `refs/heads/main`
   实测仍是 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端任务分支不存在。
 - **另一窗口在做 ERP**：主工作树 `/Users/skin/pearnly` 与 `erp-pos-migration` 不归本任务。
-  本窗口只改 Cowork 业务、Cowork lab 脚本与本迁移记录，不操作其他工作树的内容。
+  新出现的 `erp-data-flow` 也不归本任务。本窗口只改 Cowork 业务、Cowork lab 脚本与本迁移记录，不操作其他工作树的内容。
 - 证据：`docs/work/cowork-backend/*.md` 批次记录、`docs/work/cowork-backend/evidence/*.json` 证据、
   `tests/test_cowork_*.py`、`scripts/cowork-*.py`。
 - 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`
   （固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批开工与交付都重新采集**。
-- 第五十批来源身份首尾一致；**推送运行投影与第四十九批比较失败**：两组件的
-  `database.identity.endpoints.configuration_digest` 改变。没有定位具体配置字段；本批
-  重复检测仅依赖用户偏好与历史表，不读推送配置，因此不影响本批规则迁移。
+- 第五十一批来源身份首尾及与第五十批一致；**推送运行投影与第五十批比较失败**：两组件的
+  `database.identity.endpoints.configuration_digest` 从 `d23570c1332deff1a646c69e9a18b921`
+  变为 `ce9d2473b7d79e9088a40661c0f4bbf4`。摘要包含心跳/目录等整个配置 JSON，具体变化字段未定位。
+  本批分类服务只读本地科目/记忆，不读这些端点配置；只验证纯 Express 分类映射，不声称外部推送通过。
   **下一批若改推送链路，必须核对该变化，不能引用“运行配置仍逐项相同”**。
 
 ### 二、硬边界（用户反复强调，继续有效）
@@ -44,29 +47,32 @@ Cowork 后端主数据七块已交付；第五十批补上**重复发票提醒�
 
 | 功能码 | 状态 | 备注 |
 | --- | --- | --- |
-| `ocr_history` 识别记录 | 已迁 | 第五十批补齐识别入库前重复提醒与用户开关；见 `recognition-duplicate-check.md` |
+| `ocr_history` 识别记录 | 已迁 | 第五十批重复提醒；第五十一批识别归类与复核学习，见 `invoice-classification.md` |
 | `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
 | `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
 | `express_guide` | 后端已迁 | 指引文案属前端 |
-| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；分类展示不迁，自动分类树/记忆暂缓（见 P1） |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；分类业务链已补，纯展示不迁 |
 | `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
 | `recon` 对账中心 | 银行 + 收入两族闭合 | 见 `reconciliation-family-audit.md` |
-| `master_data` 主数据 | **主体已迁（第四十九批完成第七块）** | 七块：买家决策、客户字段规则、客户名册、商品规则、商品存储、导入归一、**供应商过账档案 + 导入端点**（见 `masters-supplier-posting.md`）。剩余范围见第四节 P1 |
+| `master_data` 主数据 | **主体已迁，导入归属有缺口** | 七块交付记录保留；第五十一批纠正“导入端点已完全迁移”：现有 RPC 是买方适配，旧账套主体导入未承接。详见 P1 与 `invoice-classification.md` |
 | `boards` | 不迁 | 用户指示 |
 
 导出/工作簿一并交付：`reconciliation/export/**`、`stocktake` 导出、roundtrip 导出。
 
 ### 四、剩下的活（按**块**给，别再一次只做一点点）
 
-#### P1 余项与明确裁剪（第五十批更新）
+#### P1 余项与明确裁剪（第五十一批更新）
 
 1. **重复发票检测已补完后端**：用户默认开；票号优先，未命中再比日期/卖家/金额；
    命中只提醒、不阻断保存；权限回读、幂等、失败状态均有本地验证。未接前端。
 2. **纯展示分类不迁**：`category_tag`、分类补全、供应商映射数与分类分布统计。
-   **票面分类与 Express 科目映射保留**。自动分类树与记忆会间接影响 Express 选科目，
-   并非纯展示；本批暂缓，不能写成用户要求全删。细节见 `recognition-duplicate-check.md`。
-3. **供应商主档**：本仓没有；现有供应商过账档案仍可按税号使用。不为单纯显示名称自动扩建主档。
-4. **M1 泰文注册名闸**：旧侧建/改账套主体时要求名称含泰文字符，仍待处理。
+   **票面分类与 Express 科目映射保留**。自动分类树与记忆已有本地后端：16 个父类共 89 个预设节点，
+   人工复核后同范围卖家记忆优先；停用不再推荐，重放不重分类。见 `invoice-classification.md`。
+3. **供应商主档不扩建**：本次确认 LEFT JOIN 仅补列表名称；过账按税号仍可用。
+4. **M1 泰文名闸不作为买方欠账**：来源是账套主体，消费者是本次不迁的工单分拣；不能给 Cowork Client 强加。
+5. **下一块：账套主体导入归属修正**。先核对来源 `/api/workspace/clients/import/*` 的主体/字段/权限，
+   按 `Cowork Workspace` 设计独立承接；不得静默把现有 `preview_client_import/commit_client_import`
+   从买方改投公司。现有实现只证明买方导入适配，不证明账套导入已迁。
 
 #### P2 一处跨域待决策（要用户点头才能动）
 
@@ -88,11 +94,12 @@ Cowork 后端主数据七块已交付；第五十批补上**重复发票提醒�
 ④ `main` 上仍带 Cowork 的 `boards` 菜单项 → 合并**必须保留删除**。
 顺序（用户已定）：另一窗口可以先部署；**最后一次部署必须在合并之后**；生产镜像从本仓那次提交构建。
 
-#### P5 词库欠账（本批新登记）
+#### P5 词库欠账
 
 第四十五/四十七/四十九批新增的服务层英文 `_()` 文案还没进 `pearnly_cowork/i18n/messages.tsv`
 （`i18n-build --check` 只证明术语表自身一致）。建议合并前做一次四语补录；**注意 `messages.tsv` 是
-另一窗口正在写的文件**，要动先跟他们错开。
+另一窗口正在写的文件**，要动先跟他们错开。第五十一批 `check-i18n` 报告 425 项，其中较上批
+新增的 48 项是分类规则的中文匹配别名，不是界面文案，不得为消警告改写规则或扩大忽略基线。
 
 ### 五、新窗口的开工程序（照抄即可，`<第 N 批>` 自己填）
 
@@ -162,13 +169,18 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 + 本文档顶部一节 + 更新 `feature-status.md` 的对应行。
 
 **lab 的两个坑**：① 容器看不到主机 `/tmp`，固定源必须用 `--source-stdin` 管道；
-② 多轮脚本会把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`，清理方式是删 lab Redis 的 `rq:*`。
+② 多轮脚本可能把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`；先定位本次合成任务，
+只清理证实归本次且已结束的精确 key/成员，不批量删 `rq:*` 或 flush Redis。
 
 第五十批另建的 `cowork-backend-duplicates.localhost` 是同一 lab 卷内的隔离新装 Site。
 跑跨 Site 回归时用 `PEARNLY_COWORK_OTHER_TEST_SITE=cowork-backend-duplicates.localhost`；
 旧脚本默认的 `cowork-backend-b.localhost` 已不在本卷，不能把缺 Site 当产品回归。
 本批校验脚本为 `scripts/cowork-duplicates-lab-verify.py`，`--http` 跑原生 HTTP，
 `--snapshot` 核对原票和偏好；`--install-fresh` 只允许首次建立上述 Site，存在即拒绝覆盖。
+
+第五十一批另建 `cowork-backend-classification.localhost`，已装 Core/Cowork；
+`scripts/cowork-classification-lab-verify.py` 支持业务验证、`--http`、`--snapshot`、`--concurrency`。
+其 `--install-fresh` 也只建精确新 Site，已存在即拒绝。收尾三容器已停止，卷保留，不接共享样板。
 
 ### 六、用户的沟通偏好（影响交付节奏）
 
@@ -177,6 +189,16 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 - 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
 - 不确定就说不确定；不要用"看起来接上了"糊过去。
 - 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+## 第五十一批交付（2026-09-22）：业务分类链与主数据归属纠正
+
+代码 `10a67cf`；完整来源、API、差异、验证与保留项见 [invoice-classification](cowork-backend/invoice-classification.md)。
+纯规则 7、固定源差分 3,608 组零差异；升级 Site 17、新装 Site 16 条业务检查通过，两 Site 各 15 次 HTTP 通过；
+真实两进程首次初始化仅生成 89 节点。发现并修复 MariaDB 1020 冲突，RPC 最多重试 3 次，识别内部交给原工作流重试。
+重复提醒 13、识别集成 6、执行恢复 3 通过；两轮原生升级的数据摘要不变。
+线上源码身份一致，但端点配置摘要变化仍未定位；没有外部推送或付费识别验收。
+未合并、未推送、未部署、未接前端；专属 lab 已停止。工作树/分支/卷/固定来源交接保留，
+下一步为账套导入归属修正；另一窗口 ERP 不动。
 
 ## 第五十批交付（2026-09-22）：重复提醒与分类范围裁剪
 
