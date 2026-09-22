@@ -88,7 +88,11 @@ def overview(params=None):
 def get(name):
     doc = access.get_document(name)
     data = doc.as_dict()
-    # Keep scalar identities, never return framework credentials or linked documents.
+    # These three controls did not exist on version-one records. Derive historical
+    # facts instead of displaying the new-document defaults added by the schema.
+    if doc.calculation_version == 1:
+        data.update(is_paid=int(doc.payment_status == "paid"),
+                    update_stock=int(bool(doc.stock_posted_at)), auto_create_product=0)
     return data
 
 

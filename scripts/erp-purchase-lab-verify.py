@@ -239,6 +239,8 @@ def main():
     service.set_status(legacy_doc.name,'submitted',receive_stock=False)
     service.pay(legacy_doc.name,amount=20,method='cash')
     assert access.get_document(legacy_doc.name).payment_status=='partial'
+    historical=records.get(legacy_doc.name)
+    assert historical['is_paid']==0 and historical['update_stock']==0 and historical['auto_create_product']==0
     checks.append('version-one amounts submit and payment remain compatible')
     frappe.db.commit()
     concurrent=deepcopy(payload);concurrent['doc_no']=prefix+' concurrent';concurrent['lines'][0]['description']=prefix+' concurrent item'

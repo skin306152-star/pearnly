@@ -65,7 +65,7 @@ def workbook(params=None):
         sheet.freeze_panes = "B2" if child else "A2"
         sheets.append((sheet, columns, child))
     for row in selected:
-        doc = access.get_document(row.name)
+        doc = frappe._dict(records.get(row.name))
         for sheet, columns, child in sheets:
             for record in doc.get(child, []) if child else [doc]:
                 sheet.append(([doc.name] if child else []) + [_cell(record, key) for key, label in columns])
