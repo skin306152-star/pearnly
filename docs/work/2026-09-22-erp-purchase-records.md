@@ -1,14 +1,16 @@
 # ERP 采购记录实施与验收记录
 
+> **2026-09-23 换窗口入口**：用户要求下一包做销售记录，前端交互与采购一致，仅替换销售业务字段与契约。先读本文末尾 [销售记录接续交接](#销售记录接续交接2026-09-23)，其中包含交互定稿、代码入口、8147 容器与源码挂载、即时预览命令和验证边界。当前代码定稿为 `a4b95398cc332b46f8b2595dc06da81e15be3a63`；本次只补交接文档，销售尚未施工。
+
 ## 已对齐的实施要求（本轮最新用户指示，优先于下方调查稿）
 
 - **后续用户纠偏已实施**：提供的 Paypers 收入截图仅作桌面/手机布局参考，不授权收入、AI 提示、客户管理或其他产品能力。官方原生组件用于组合采购自己的页面，不照搬 ERPNext 采购发票表单。
 - 采购首屏与已验收商品/库存共用原生 page-level List：搜索、筛选按钮、新建；导出收在菜单。删除展开的“过滤条件 / 更多筛选 / 概要”、统计区和列配置入口；后台查询/汇总与导出合同仍保留。
-- **最新纠偏：连续页面，取消 Tab Break 分页。** 电脑左侧是连续的详细信息、供应商、物料与金额字段，右侧约 30% 宽的紧凑附件区；手机按附件、详细信息、物料连续排列，顶部固定导航点击只滚动定位，下划线随滚动同步。电脑不显示该导航。原生可折叠 Section + FieldGroup 保留全部业务字段；自动建商品/入库仍是新单默认行为。
-- **录入方式与查看器已按最新要求调整**：新单先选“上传识别 / 手动录入”。上传识别在识别成功前隐藏业务字段，识别中使用原生冻结层并禁止提交，成功后在原页复核；手动录入立即显示字段，上传仅留作附件。票图沿用旧采购查看器的缩放、拖动、旋转、复位与多页 PDF 行为，通用按钮和全屏弹窗使用 Desk 原生组件。详见末尾最新验证。
+- **最新纠偏：连续页面，取消 Tab Break 分页。** 电脑左侧约 60% 是连续的详细信息、供应商、物料与金额字段，右侧约 40% 为附件区，最小宽度 320px；手机按附件、详细信息、物料连续排列，顶部固定导航点击只滚动定位，下划线随滚动同步。电脑不显示该导航。原生可折叠 Section + FieldGroup 保留全部业务字段；自动建物料/入库仍是新单默认行为。
+- **录入方式与查看器已按最新要求调整**：新单默认选中“上传识别”，可切换“手动录入”；两张互斥选择卡片使用原生黑底白勾方框、白底、标题与短说明，只占左侧。上传识别在识别成功前隐藏业务字段，识别中使用原生冻结层并禁止提交，成功后在原页复核；手动录入立即显示字段，上传仅留作附件。票图沿用旧采购查看器的缩放、拖动、旋转、复位与多页 PDF 行为，通用按钮和全屏弹窗使用 Desk 原生组件。详见末尾最新验证。
 - 此前两版（整张未整理长表单、切换页签）的浏览器通过只证明当时操作可用，**用户已分别纠偏**；本节及末尾连续页面证据描述当前实现。当前布局仍待用户验收。
 
-- 用户进一步明确：不扩建产品没有的功能和入口；框架自带按钮也必须有真实产品功能、权限及配置承接。识别执行受真实 OCR 配置控制，未配置时选择上传识别会原生提示并回到未选择状态；LINE 仅在有本人可处理单据时展示；Link 禁止跳出到通用新建/高级搜索入口。
+- 用户进一步明确：不扩建产品没有的功能和入口；框架自带按钮也必须有真实产品功能、权限及配置承接。识别执行受真实 OCR 配置控制；未配置时仍默认选中上传识别，真正点击添加文件才原生提示尚未配置；LINE 仅在有本人可处理单据时展示；Link 禁止跳出到通用新建/高级搜索入口。
 - 其余范围已确认，开始实施。字段名称采用 Frappe/ERPNext 官方术语；不照搬旧文案，不增加无业务用途的说明。
 - 新采购录入不要求保存草稿；填写后直接提交并过账。默认已付款、自动创建未匹配商品、自动入库；在一个事务内完成，失败不留下半成品。
 - 原有草稿/历史单据保留兼容，不删除业务数据；“无草稿步骤”约束新录入流程。
@@ -50,7 +52,7 @@
 | P02 | 全部/进货/费用/未付；关键词搜索；票种、付款状态、分类多选筛选 | `purchase-list.ts`、`purchase-list-filters.ts` | 统一查询 `records.query`；列表、汇总、导出共享条件 |
 | P03 | 票面日期/上传日期口径；本月、上月、本季度、自定义起止日期；按月分组、折叠、月合计/条数 | 同上 | 票面/创建日期与期间筛选留在筛选按钮内；月分组/计数/合计数据合同保留，按最新用户指示不占首屏 |
 | P04 | 本月花费、进货额/笔数、费用额/笔数、可抵进项税、未付额/供应商数；未付快捷查看 | `purchase-list.ts`、`services/purchase/reports.py` | 按最新用户纠偏移除首屏概要；统一汇总仍供既有导出与后端合同使用，使用单据汇率折成本币 |
-| P05 | 单行/按月多选；仅草稿可批量删除；已确认记录不得当草稿删除 | `purchase-list.ts:bulkDelete`、`purchase_routes.py` | 查询有历史草稿时才提供选择；混选已过账单不显示删除操作；服务端整批拒绝 |
+| P05 | 单行/按月多选；仅草稿可批量删除；已确认记录不得当草稿删除 | `purchase-list.ts:bulkDelete`、`purchase_routes.py` | 按最新要求始终提供原生行勾选与本页全选；仅全部选中项为草稿且有权限时提供删除；混选已过账单不显示删除操作，服务端整批拒绝 |
 | P06 | 新建录入、上传识别、历史草稿继续编辑、提交、失败保留输入、来源追溯 | `erp-intake.ts`、`src/erp/record-form.ts`、`purchase-form.ts`、录入路由 | 用户有意改变：新建仅提交即过账，无草稿保存；原生上传/相机、已配置时 OCR、现有 LINE 待处理单。失败保留输入 |
 | P07 | 我方自动编号 PE 与供应商单号/税票号分开；日期、账期/到期日 | `pos-form-adapter.ts`、`purchase-form-info.ts`、`DocIn` | 已过账标题显示 PE 编号；对方单号、记账日期、未付时到期日为原生字段；事务内取号、回滚不占号 |
 | P08 | 单据业务类型：`purchase_invoice` / `purchase_order` / `expense` | `purchase-common.ts`、`purchase-form-info.ts` | 三个旧业务类型齐全；兼容原型的 goods/service 值；不新增订单履约模块 |
@@ -76,7 +78,7 @@
 | 新建、提交 | purchase.write；原生 Page / FieldGroup / Section；entry.post 在一个事务中落采购、商品、付款与库存 |
 | 搜索、筛选、导出 | purchase.read；同一 records.query；首屏为原生列表。筛选走原生 Dialog，不显示概要/列配置；Excel 实际四张表，有冻结、筛选、文本公式转义 |
 | 付款、修订、取消 | 本人范围或 ERP Admin，且已过账；真实付款流水、原单冲销/新单关联、库存幂等回冲 |
-| 历史草稿删除 | 仅 draft；整批锁定后校验；查询中无草稿时不提供选择删除入口 |
+| 列表选择 / 历史草稿删除 | 始终提供单行、多行、本页全选；选择不产生业务写入。删除仅全部选中项为 draft 且有写权限时出现，服务端整批锁定后校验 |
 | 附件 | 原生私有上传/预览；已取消只读；跨单据/跨用户不能绑定或读取 |
 | 替代收据 / WHT 凭证 | 已过账且有写权限；WHT 还须大于 0；原生 PDF、私有附件、重复生成复用 |
 | 明细分类 | 原生 Link 与 ERP Purchase Category；最多两级，作为既有明细字段依赖；已移除页面“新建分类”按钮 |
@@ -224,3 +226,165 @@ docker --context colima-pearnly exec pearnly-purchase-lab-bench-1 ./env/bin/pyth
 - 实际运行沿用 `colima-pearnly` / `pearnly-purchase-lab` 六个容器 / 8147，镜像 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`，App 只读挂载回读指向本采购工作树。原盘点环境未动。
 - 保留工作树 `/Users/skin/.codex/worktrees/erp-purchase-records/pearnly`、本地分支 `codex/erp-purchase-records`、该项目容器/自有卷及合成数据，归本采购任务，原因是未集成且仍用于验收/源码挂载。用户验收、按授权集成且解除占用后复核清理。
 - 本地主线仍为 `717d202af3cfcd06815e215ef088e07f4251e00e`；实际远端 main 回读 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端采购分支不存在。本轮未合并、未推送。没有满足清理条件的任务分支/工作树可删除；没有新建临时夹具或进程。临时手机视口恢复，预览停在默认上传识别的新建页。
+
+## 销售记录接续交接（2026-09-23）
+
+### 本次目标、基线和下一步
+
+用户本次只要求写交接，下一窗口才开发销售记录：**销售的前端交互与采购一模一样，只替换业务字段及其服务端契约**。采购已经反复纠偏定稿，不再重新设计录入方式、电脑/手机布局、文件查看器或列表。用户发来的 Paypers 图片是布局参考，不是增加其功能、字段或文案的指令。
+
+- 采购代码定稿：`a4b95398cc332b46f8b2595dc06da81e15be3a63`；包含本机 main `717d202`、盘点 `8a67e7b` 和共享 ADR-009 `db4c7dc`。本次随后提交只保存交接文档，最终含文档的版本取 `git log -1`。
+- 当前工作树 `/Users/skin/.codex/worktrees/erp-purchase-records/pearnly`，分支 `codex/erp-purchase-records`。本次开工时工作区、暂存区干净；不得在 `/Users/skin/pearnly` 的旧 main 上继续写销售而遗漏采购成果。
+- 销售归 ERP App 的 `sales` 域；前端进该 App 的 `public/desk/`，数据为 `ERP Sales Document` / `ERP Sales Document Line`，菜单、功能、词条仍由 ERP 自己声明。复用现有 Core 原生外壳和列表，不为这次接续重写跨产品组件。
+- 先读 [开发入口](../../CONTRIBUTING.md)、[架构](../development/architecture.md)、[共享基线对齐](2026-09-22-shared-foundation-alignment.md)，核验实际 Git 状态，再按下面的步骤创建销售工作树并接手预览。本次没有替下一窗口创建分支、修改销售代码、重建镜像或切换挂载。
+- 销售字段必须对照旧项目实际生产版本，不能只照当前 `sales.js` 的少量字段做。按 [迁移基准](../development/migration-baseline.md) 在开工和交付前重新只读采集；上文采购的 `ec2e5c957e6b…` 是当时证据，不冒充销售开工时的最新线上版本。旧仓 `/Users/skin/Developer/Pearnly/pearnly-app` 只读，已有功能和字段不漏，确认过的产品边界不扩展。
+
+### 必须沿用的采购交互
+
+| 区域 / 状态 | 当前定稿；销售按此实现 |
+| --- | --- |
+| 首屏列表 | 原生 page-level List 按列显示记录；简洁搜索框、筛选按钮、新建、刷新。筛选在原生 Dialog 内；已有导出收进菜单。不要把统计概要、展开的过滤条件、列配置或官方发票整套入口放出来。销售是否提供导出等动作要有自己的实现和权限承接，不能复制一个空按钮。 |
+| 选择记录 | 原生方框：单行勾选、多行勾选、本页全选/清空；点击方框不打开详情。选择只是本地状态；批量动作另按真实能力、角色和单据状态判断。采购的“全部为草稿才可删除”是采购规则，不直接套到销售。 |
+| 新建 / 详情 | 列表进入独立路由的连续页面；返回列表、浏览器前后退、直接访问都能还原。新建不使用整个表单塞进大 Dialog 的方式。切页清理 Page 字段、列表、滚动监听、观察器和上传轮询，不能遗留旧按钮或让迟到响应写入新页面。 |
+| 默认录入方式 | 每次进入新建页默认“上传识别”已勾选。两张互斥卡片为原生 FieldGroup / Check：左侧中间是黑底白勾方框，白底无选中底色，标题加一行短说明，无装饰 SVG；整张 label 可点。不能改回圆圈、下拉选择、默认空选或手动。 |
+| 卡片尺寸与位置 | 仅占左侧表单列，不跨到附件列；当前最小高度 80px，原生列以 250px 为换行依据，左侧不足时纵排。保留足够点击面积，避免首屏大段留白。短说明仅解释“上传后识别并复核 / 手填且文件仅作为附件”，销售替换业务称谓。 |
+| 电脑布局 | 左侧连续业务字段约 60%，右侧附件约 40%、至少 320px，从顶部开始并随滚动停靠。电脑没有顶部区域导航/分页 Tab。附件空态紧凑，有文件才显示预览画布；当前画布 `min(360px, 48vh)`。 |
+| 手机布局 | 767px 以下单列，录入选择后按附件、详细信息、物料连续排列；固定横向导航点击滚动到区域，手动上下滑动也更新下划线。它是滚动定位栏，不能切换/隐藏其他区域或拆成分页。原生 Section 折叠不等于分页。 |
+| 上传识别前 | 显示录入方式和上传区；所有业务字段先隐藏，提交不可点。当前 Site 无识别配置时仍选中上传识别，真正点添加文件才由原生提示阻止识别上传；不退回空选。 |
+| 上传 / 识别中 | 上传期间禁用两种选择及提交；等所有文件的服务端成功响应后，整批仅触发一次 OCR。上传字节结束不是 File 保存成功，取消或部分失败不能识别半批文件。识别使用原生 `frappe.dom.freeze` 的“识别中…”提示；提交在所有入口均不可执行。 |
+| 识别完成 / 失败 | 成功后在同页展开并回填字段，直接对照右侧票图复核、修改、提交，不跳第二个复核页面。失败保留附件，原生错误提示，解除加载但保持字段隐藏；有配置且本次失败才出现重试，不隐式重试付费调用。 |
+| 手动录入 | 选择后立即显示业务字段；上传仅附加文件，绝不触发 OCR。切换方式本身不触发识别、不丢已有输入；识别完成标记按当前实现保留。上传器取消后应恢复可操作状态。 |
+| 字段与提交 | 原生 FieldGroup / 可折叠 Section / 数据形态对应的官方组件；字段完整，使用官方规范术语。新采购是一次提交即过账，默认已付款、自动建未匹配物料、自动入库且不暴露三个额外开关。销售保持一次录入、复核、确认的交互，付款/收款与出入库方向必须接销售自己的契约，不能调用采购事务或机械复制入库默认值。 |
+| 文件查看器 | 沿用旧项目已适配的图片/PDF 缩放、拖动、旋转、复位、缩略图、多页翻页、滚轮/双指缩放。原生 Button + 全屏 Dialog，关闭回到原附件位置并保留表单；`1 / 2`、`100%` 与按钮垂直居中，按钮组整体换行。不要另换成只能打开新标签的查看器。 |
+| 附件下拉菜单 | 外层附件列不能用 `overflow:hidden/auto` 或过小的 `max-height` 截断菜单。最后一张用户截图的问题已修复：只裁切票图画布，附件类型下拉完整显示且已实际选择“付款凭证”。 |
+| 产品范围与文案 | 中文界面已全局统一“物料”；不改用户业务数据或旧导入兼容别名。官方组件只提供控件，不授权官方所有业务功能。无用开关、帮助长文、概要、审批、Google Drive / Sheets 同步均不追加；旧截图中的 AI 标记、分支管理等不照搬。 |
+
+现有采购只读详情、付款、更正、作废、凭证按钮均依照自己的权限与状态。销售应核对自身已有能力再映射，不通过改一个 API 前缀把采购付款、凭证或库存逻辑套过去。
+
+### 代码阅读顺序
+
+以下前端路径均相对 `apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/`：
+
+| 文件 | 可直接参考的实现 |
+| --- | --- |
+| `purchase.js` | `p.routed_page` 路由、列表列定义、搜索/筛选、原生选择、动作恢复、销毁和返回 |
+| `purchase-entry.js` | 默认 OCR、原生 Check 卡片互斥、字段显隐、`can_submit`、上传成功状态、整批一次识别、清理 |
+| `purchase-layout.js` | 连续 DOM、电脑左右布局、手机滚动定位与下划线、标题高度变化、ResizeObserver/滚动监听清理 |
+| `purchase-fields.js` | 原生 Section / FieldGroup、逐项明细字段、金额区及附件区；字段名和采购规则不能原封不动复制 |
+| `purchase-form.js` | 同页回填、金额更新、原生冻结层、提交状态、已存单与更正单生命周期 |
+| `purchase-viewer.js` | 原生 Button 的 `only_input`、工具栏分组、页码/缩放居中、图片变换与全屏还原 |
+| `purchase.css` | 60/40 与 320px、卡片只占左侧、767px 手机断点、紧凑预览和附件菜单防裁切 |
+| `purchase-intake.js` | 已有 LINE 待处理能力的条件展示；只是参考，不为销售凭空增加 LINE 入口 |
+| `sales.js` | 当前销售入口；仍是列表进入大弹窗、先保存草稿再开单，尚未适配采购交互 |
+
+其他落点：
+
+- ERP `hooks.py` 登记脚本依赖顺序与 CSS；资源通过 `versioned_asset` 带版本参数。新拆脚本必须登记，不能只写文件但不加载。
+- Core `public/desk/list.js`、`public/desk/product.js` 提供原生列表/选择/路由/布局；沿用其接口。列表 formatter 返回转义文字，需要标色用 `cell_class`，不要返回自制 HTML。
+- 采购 PDF 后端 `purchasing/preview.py` 是只读、鉴权后分页渲染，包含采购/Intake 绑定校验。销售复用查看器时需接自己的文件归属权限，不能绕过鉴权或直接把销售文件送入采购归属校验。
+- 销售已有 `sales/api.py`、`service.py`、`contracts.py`、`ocr.py`、`render.py`；DocType 在 ERP 模块的 `doctype/erp_sales_document` 与 `doctype/erp_sales_document_line`。原有创建/更新、开单、作废、OCR、打印等接口已存在；接口存在不代表应全部展示按钮。
+- 当前销售编辑字段包括 `buyer_name`、`doc_date`、`doc_kind`、`party_type`、`tax_id`、`address`、`branch_type/no`、`has_vat`、`vat_rate`、`payment_status/method/date`、`note`、`lines`；仅为查代码入口，不是完整迁移字段清单。现有 `draft/pending_approval/issued/void` 与分步开单要在服务端协调为目标交互，不再给用户增加不需要的草稿/审批步骤。
+- 词条写 ERP `i18n/messages.tsv` 后生成 CSV；保持现有中/泰/英/日翻译入口。采购卡片的两条说明是用户明确要求的例外，不因此给全部字段新增 description。
+
+### 当前演示环境：原样保留，可继续在右侧看
+
+本次交接已只读回查镜像、Compose 标签、挂载和容器状态；六个容器仍运行，db healthy：
+
+| 项目 | 实际值 |
+| --- | --- |
+| Docker context / Compose project | `colima-pearnly` / `pearnly-purchase-lab` |
+| Compose 文件 | `infrastructure/compose/erp-pos-lab.yml` + `infrastructure/compose/erp-purchase-preview.yml`，来自当前采购工作树 |
+| App 底座镜像 | 四个 App 服务均为 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`；源码挂载预览，不代表代码已烘焙进候选镜像 |
+| `pearnly-purchase-lab-bench-1` | 常驻 bench / Python 检查入口 |
+| `pearnly-purchase-lab-web-1` | Gunicorn，实际响应 Desk/API；日常代码修改后重启这个 |
+| `pearnly-purchase-lab-socketio-1` | Socket.IO |
+| `pearnly-purchase-lab-frontend-1` | nginx；`127.0.0.1:8147 → 8080` |
+| `pearnly-purchase-lab-db-1` / `redis-1` | MariaDB / Redis；继续沿用，不重建数据或清卷 |
+| Site / 数据 | `erp-pos-a.localhost` 演示；`erp-pos-b.localhost` 隔离检查。均为有 lab 标记的合成数据；没有外部 OCR 凭据与调度器 |
+| 持久卷 | `pearnly-purchase-lab_sites`、`pearnly-purchase-lab_db` 及容器日志卷，均保留 |
+| 源码挂载 | 当前采购树下 Core / ERP / Control App 包只读；Cowork / DMS 只挂 features.json；scripts → `/workspace/scripts`，tests → `/workspace/tests`，均只读 |
+| 登录 | 本地隔离测试账号 `purchase-preview@example.test`，现有浏览器会话可继续用；如过期，从 `scripts/erp-purchase-preview-init.py` 读取本地夹具登录信息，不重跑初始化重置设置。本环境不是 Keycloak SSO 验收 |
+
+预览入口：
+
+- [采购列表](http://erp-pos-a.localhost:8147/desk/pearnly-purchase) / [默认上传识别新建页](http://erp-pos-a.localhost:8147/desk/pearnly-purchase/new)。
+- [PUR-2026-00202 查看器样本](http://erp-pos-a.localhost:8147/desk/pearnly-purchase/PUR-2026-00202)：既有合成单 `PE2569-000073`，此前回读 3 盒 × 100、含税 321、已付及入库，PDF/PNG/替代收据共三个附件。识别回填当时用响应替身，实际提交和附件为本地真实操作；不要当作真实 OCR 成功记录。
+- [销售现有入口](http://erp-pos-a.localhost:8147/desk/pearnly-sales)。这是现状页，未完成目标改造；`/new` 等销售子路由要施工后再验，不冒称已经可用。
+
+原盘点的 `colima-pearnly-stocktake` / `pearnly-stocktake-acceptance` / 8136、8126 属于已交接环境。本销售包不要调用 `stocktake-preview.sh` 或接管它们。
+
+### 修改后立即看到：日常最短命令
+
+当前容器还挂采购树时，在该树改代码。交接销售树并切换挂载后，在销售树改代码。路径必须与实际挂载一致；仅换 shell 当前目录不会让容器换源码。
+
+```bash
+cd /Users/skin/.codex/worktrees/erp-purchase-records/pearnly
+docker --context colima-pearnly exec pearnly-purchase-lab-bench-1 bench --site erp-pos-a.localhost clear-cache
+docker --context colima-pearnly restart pearnly-purchase-lab-web-1
+```
+
+随后刷新右侧内置浏览器自己的预览标签即可。**这是源码挂载 + 手动重载，不是 HMR 自动刷新。** JS、CSS、Python、hooks 都走这条短路；CSS 也要重启 web，因为 `?v=` 资源版本在进程中缓存。无需为了 Desk 原始 JS/CSS 每次构建 Vue 或 Docker 镜像。翻译修改先在宿主工作树执行 `python3 scripts/i18n-build.py`，再做上述重载。只有 DocType / patch 等结构变更才按影响做原生 migrate，不能每次 CSS 调整都迁移或重新灌数据。
+
+右侧用同一 8147 地址。下一窗口重新获取可用浏览器和标签，使用自己的预览标签；旧 browser/tab ID 不作为固定配置，不改用户正在编辑的页面。桌面验证后如设置 390×844 临时视口，离开前恢复。
+
+### 下一窗口创建销售工作树并沿用这套容器
+
+以下是**接手后的操作步骤，本次文档交接没有执行**。先确认采购树干净、没有另一个窗口继续改同一预览；这是同一演示环境的交接，不是两个窗口同时使用不同源码。项目名仍沿用 `pearnly-purchase-lab`，保留 URL、镜像和 Site 数据。
+
+1. 读取采购分支最新 tip（应包含代码定稿和本次交接），核验主线/共享基线。销售路径与分支若已存在，先查归属，不覆盖。尚不存在时执行：
+
+```bash
+git -C /Users/skin/.codex/worktrees/erp-purchase-records/pearnly status --short --branch
+git -C /Users/skin/.codex/worktrees/erp-purchase-records/pearnly log -1 --format='%H %s'
+git -C /Users/skin/.codex/worktrees/erp-purchase-records/pearnly worktree add \
+  -b codex/erp-sales-records /Users/skin/.codex/worktrees/erp-sales-records/pearnly \
+  codex/erp-purchase-records
+```
+
+2. 从销售树解析相同 Compose，再只重建四个 App 服务以切换只读源码挂载；不运行 down，不删卷，不重新初始化 Site：
+
+```bash
+cd /Users/skin/.codex/worktrees/erp-sales-records/pearnly
+docker --context colima-pearnly compose -p pearnly-purchase-lab \
+  -f infrastructure/compose/erp-pos-lab.yml -f infrastructure/compose/erp-purchase-preview.yml config --quiet
+docker --context colima-pearnly compose -p pearnly-purchase-lab \
+  -f infrastructure/compose/erp-pos-lab.yml -f infrastructure/compose/erp-purchase-preview.yml \
+  up -d --no-deps --force-recreate bench web socketio frontend
+```
+
+这里的 `-p pearnly-purchase-lab` 不能省略；基础 Compose 的默认项目名不同。四个服务需一起切，避免 web、bench 和 nginx 各读不同工作树；db/redis 保持原样。若配置失败先解决原因，不能继续运行下一条。回退挂载时从保留的采购树执行同一组命令，不能靠删 Site 恢复。
+
+3. 回读四个 App 容器的镜像与挂载：App / scripts / tests 应全部指向销售树，sites 卷仍为原卷。然后清缓存、重启 web、刷新右侧页面。
+
+```bash
+docker --context colima-pearnly inspect \
+  pearnly-purchase-lab-bench-1 pearnly-purchase-lab-web-1 \
+  pearnly-purchase-lab-socketio-1 pearnly-purchase-lab-frontend-1 \
+  --format '{{.Name}} {{.Image}}{{range .Mounts}}{{println}}{{.Source}} -> {{.Destination}} RW={{.RW}}{{end}}'
+docker --context colima-pearnly exec pearnly-purchase-lab-bench-1 bench --site erp-pos-a.localhost clear-cache
+docker --context colima-pearnly restart pearnly-purchase-lab-web-1
+docker --context colima-pearnly compose -p pearnly-purchase-lab \
+  -f infrastructure/compose/erp-pos-lab.yml -f infrastructure/compose/erp-purchase-preview.yml ps
+```
+
+### 销售接续验证重点与已知限制
+
+- 本次只是文档交接：检查文档链接/路径、命令语法、Compose 解析、Git 差异及运行信息；不重跑业务探针或为文档重载 web。此前采购结果绑定上面的代码及各批证据，不自动算销售通过。
+- 销售修改后按影响执行架构、JS 语法、前端词条/翻译一致性及定向业务检查。仅改 Desk JS/CSS 不默认构建与该页无关的 Vue。全仓 strict-i18n 已有库存 workbook 的 18 处 bare CJK，历史总输出另含内部日志诊断；不扩大忽略或把已知失败写成全绿。
+- 浏览器至少覆盖：列展示/搜索/筛选；单行、两行、本页全选与清空；方框不跳详情；默认 OCR 隐藏字段/禁提交；手动附件零识别；上传取消/部分失败；识别等待/失败/成功原位复核；重复提交、回退、直接路由；390px 连续滚动与下划线；附件菜单不裁切；多页 PDF 页边界、缩放居中、全屏返回；提交后的服务端字段、金额、库存/收款状态回读。
+- **不要直接在保留的演示 Site 运行 `scripts/erp-pos-lab-sales-verify.py`。** 本次只读检查发现其第 71–72 行会遍历删除 Site 内全部 `ERP Sales Document`，还会重建夹具用户、追加 100 单位库存。下一窗口先改为限定本次样本/非破坏性验证，或另用全新隔离测试环境；不能为测试通过清掉用户演示记录。采购探针也不是 CSS 修改的默认刷新命令。
+- 当前 8147 没有 OCR 凭据。可以核验配置拒绝和使用明确标记的响应替身验证交互；真实付费识别、真实 LINE、生产环境、手机触摸/真机及用户最终验收都不能据此写“已通过”。销售真实文件识别需要后续真实配置与对应授权，不为演示偷偷连生产。
+- 用户已确认物料/库存六页，采购尚无最终验收声明。本窗口不代签采购验收；下个窗口保留其可访问样本，销售开发不得破坏采购交互。
+
+### 本次收尾：交接保留
+
+本次实际远端回读 main 为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端 `codex/erp-purchase-records` 不存在；本地主线仍为 `717d202af3cfcd06815e215ef088e07f4251e00e`，没有包含采购新增提交。本次仅在采购任务分支提交两份交接文档，未合并、未推送、未部署。
+
+| 保留项 | 归属、用途和解除条件 |
+| --- | --- |
+| 采购工作树及本地分支 | 本采购任务成果和销售基线；未合入主线且当前仍被源码挂载。下一窗口接手时复核；按授权集成、无独有未保存成果且解除挂载后才清理 |
+| 六个 `pearnly-purchase-lab` 容器、db/sites/日志卷 | 本采购演示环境，交接给销售继续演示；本次原样运行。下一窗口完成挂载切换后在销售任务记录登记接手；待演示不再需要且数据已获妥善保留后再清理 |
+| 合成采购单和私有附件 | 给用户与下一窗口对照交互/查看器，包含 PUR-2026-00202；保留，不作为临时文件删除；后续明确清理样本时按编号处理 |
+| 原 stocktake / ERP-pos / Cowork 工作树和环境 | 归各自任务，本次只读查看状态，没有修改或获得清理授权 |
+
+本次没有创建临时夹具、额外服务或销售工作树，没有可删除的本任务新增临时资源；运行环境不关停。交接完成后下一步是销售来源/字段核对、创建销售工作树、接手 8147 挂载，再按上述定稿施工。
