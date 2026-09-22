@@ -95,9 +95,11 @@ stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
 stock.action.reload,โหลดใหม่
 stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
 stock.board.by,แผนภูมิแบ่งตาม
+stock.board.freezeColumn,ตรึงคอลัมน์
 stock.board.only,แสดงเฉพาะ
 stock.board.shelf,ตำแหน่ง
 stock.board.title,กระดานผลต่างการตรวจนับ
+stock.board.unfreezeColumn,ยกเลิกการตรึงคอลัมน์
 stock.cell.notSet,ยังไม่ตั้ง
 stock.col.barcode,บาร์โค้ด
 stock.col.code,รหัส

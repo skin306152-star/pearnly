@@ -1251,5 +1251,7 @@ pearnly_erp_portal	Show only	只看	แสดงเฉพาะ	表示のみ	sto
 pearnly_erp_portal	Chart by	看板按	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
 pearnly_erp_portal	Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	stock.board.title
+pearnly_erp_portal	Freeze column	冻结列	ตรึงคอลัมน์	列を固定	stock.board.freezeColumn
+pearnly_erp_portal	Unfreeze column	取消冻结列	ยกเลิกการตรึงคอลัมน์	列の固定を解除	stock.board.unfreezeColumn
 pearnly_erp_portal	Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
 pearnly_erp_portal	ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード	

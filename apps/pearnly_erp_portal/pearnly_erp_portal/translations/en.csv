@@ -95,9 +95,11 @@ stock.action.onlyLow,Only low or out of stock
 stock.action.reload,Reload
 stock.action.toggleZero,Show zero stock
 stock.board.by,Chart by
+stock.board.freezeColumn,Freeze column
 stock.board.only,Show only
 stock.board.shelf,Shelf
 stock.board.title,ERP Stock Count Variance
+stock.board.unfreezeColumn,Unfreeze column
 stock.cell.notSet,Not set
 stock.col.barcode,Barcode
 stock.col.code,Code

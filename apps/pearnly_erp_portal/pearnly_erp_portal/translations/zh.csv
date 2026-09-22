@@ -95,9 +95,11 @@ stock.action.onlyLow,只看低库存或缺货
 stock.action.reload,刷新
 stock.action.toggleZero,显示零库存
 stock.board.by,看板按
+stock.board.freezeColumn,冻结列
 stock.board.only,只看
 stock.board.shelf,库位
 stock.board.title,盘点差异看板
+stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设
 stock.col.barcode,条码
 stock.col.code,编码

@@ -95,9 +95,11 @@ stock.action.onlyLow,在庫少・在庫切れのみ
 stock.action.reload,再読み込み
 stock.action.toggleZero,在庫 0 も表示
 stock.board.by,グラフの軸
+stock.board.freezeColumn,列を固定
 stock.board.only,表示のみ
 stock.board.shelf,棚番
 stock.board.title,棚卸差異ボード
+stock.board.unfreezeColumn,列の固定を解除
 stock.cell.notSet,未設定
 stock.col.barcode,バーコード
 stock.col.code,コード

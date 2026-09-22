@@ -31,7 +31,46 @@
 		}
 	}
 
+	function trim_menu(report) {
+		if (frappe.get_route()[0] !== "query-report"
+			|| frappe.get_route()[1] !== report_name || report.report_name !== report_name) return;
+		const page = report.page;
+		const drop = [__("Edit"), __("Print"), __("PDF"), __("Setup Auto Email"),
+			__("Add Column"), __("User Permission")];
+		page.menu.find("li").each(function () {
+			const label = $(this).find(".menu-item-label").text().trim();
+			if (drop.includes(label)) $(this).remove();
+		});
+		const actions = page.menu.find("a.dropdown-item");
+		// Refresh 是原生 visible-xs 项；桌面已有刷新图标，不能留下空的三个点。
+		// 菜单关闭时父容器不可见，不能用 :visible；读取操作自身的原生断点样式。
+		// show_menu/hide_menu 不留下会影响其他报表的响应式 class。
+		if (actions.toArray().some((action) => getComputedStyle(action).display !== "none")) {
+			page.show_menu();
+		}
+		else page.hide_menu();
+	}
+
 frappe.query_reports[report_name] = {
+	get_datatable_options(options) {
+		const language = options.language || frappe.boot.lang;
+		return {
+			...options,
+			translations: {
+				...options.translations,
+				[language]: {
+					...options.translations?.[language],
+					Freeze: __("stock.board.freezeColumn"),
+					Unfreeze: __("stock.board.unfreezeColumn"),
+				},
+			},
+		};
+	},
+
+	after_refresh(report) {
+		trim_menu(report);
+	},
+
 	filters: [
 		{
 			fieldname: "count",
@@ -121,13 +160,11 @@ frappe.query_reports[report_name] = {
 	async onload(report) {
 		const title = frappe.boot.pearnly_sidebar;
 		if (title) frappe.app.sidebar.setup(title);
-		const drop = [__("Edit"), __("Print"), __("PDF"), __("Setup Auto Email"),
-			__("Add Column"), __("User Permission")];
-		(report?.page?.wrapper || $(".page-query-report"))
-			.find(".menu-btn-group li").each(function () {
-				const label = $(this).find(".menu-item-label").text().trim();
-				if (drop.includes(label)) $(this).remove();
-			});
+		$(window).off("resize.pearnlyVarianceMenu")
+			.on("resize.pearnlyVarianceMenu", () => trim_menu(report));
+		report.page.wrapper.off("show.pearnlyVarianceMenu")
+			.on("show.pearnlyVarianceMenu", () => trim_menu(report));
+		trim_menu(report);
 		await sync_breadcrumbs(report);
 	},
 };
