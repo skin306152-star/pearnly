@@ -88,6 +88,9 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     set_primary_action: (_label, action) => { open_create = action; },
   };
   const frappe = { pearnly: p, model: { can_create: () => true, can_write: () => can_write },
+    // 列表那一级的路由：`restore_primary` 只在列表页（长度 1）挂"新建商品"这颗主按钮 ——
+    // 列表的异步刷新可能晚到，不能让它盖掉二级页面的按钮。
+    get_route: () => ['pearnly-products'],
     msgprint: message => messages.push(message) };
   // $ 只用来建那颗图标按钮：把 HTML 留下来给断言看。
   vm.runInNewContext(source, { frappe,

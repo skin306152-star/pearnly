@@ -85,7 +85,12 @@
 			// （服务端 `delete_count` 也只在 Active 时放行），所以那几行会让按钮禁用并说明原因。
 			const selection = p.selection_action({
 				page, list: () => list,
-				empty: () => page.set_primary_action(t("stock.count.new"), open_new),
+				// 只在**列表那一级**挂这颗主按钮：列表的异步刷新有可能在我们已经切进任务页之后
+				// 才落地，那一笔 paint 会把"新建盘点"挂到只读的任务页右上角（实测抓到过）。
+				empty: () => {
+					if (frappe.get_route().length !== 1) return;
+					page.set_primary_action(t("stock.count.new"), open_new);
+				},
 				label: rows => t("stock.count.deleteSelected", rows.length),
 				when: row => row.status === "Active",
 				reason: () => t("stock.count.deleteBlocked"),
@@ -98,6 +103,7 @@
 				success: rows => t("stock.count.deleted", rows.length),
 			});
 			list = p.list({ page, doctype: "ERP Stock Count", selectable: true, on_selection: selection,
+				compact_columns: true,
 				on_open: row => open_detail(row.name),
 				empty_action: { label: t("stock.count.new"), action: open_new },
 				load: async ({ start, page_length }) => {
@@ -106,15 +112,20 @@
 						p.call(api + "api_stock_count_total"),
 					]); return { items, total };
 				}, columns: [
-					{ fieldname: "title", label: t("stock.count.name") },
-					{ fieldname: "status", label: t("stock.col.status"), format: (_v, row) => status_text(row) },
-					{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
-					{ fieldname: "item_total", label: t("stock.count.rows") },
-					{ fieldname: "counted_total", label: t("stock.count.countedRows") },
-					{ fieldname: "difference_total", label: t("stock.count.differenceRows") },
+					// `compact_columns` + 每列 width/min_width：框架默认给每列 `min-width: 150px`
+					// 且不收缩，七列就要 1050px —— 窗口窄一点，最右边那列（创建时间）就被挤出
+					// 可视区、只剩一串省略号（用户 2026-09-22："那个时间被截断了"）。这里的写法
+					// 与花名册那份列表一致：给出宽度与下限，让列能收缩到都看得见。
+					{ fieldname: "title", width: 220, min_width: 160, label: t("stock.count.name") },
+					{ fieldname: "status", width: 100, min_width: 80, label: t("stock.col.status"),
+						format: (_v, row) => status_text(row) },
+					{ fieldname: "warehouse_name", width: 130, min_width: 100, label: t("stock.col.warehouse") },
+					{ fieldname: "item_total", width: 80, min_width: 64, label: t("stock.count.rows") },
+					{ fieldname: "counted_total", width: 90, min_width: 72, label: t("stock.count.countedRows") },
+					{ fieldname: "difference_total", width: 90, min_width: 72, label: t("stock.count.differenceRows") },
 					// 创建时间是库里的 datetime（带秒与微秒），直接显示会被截成一串省略号 ——
 					// 按"日期 时:分"显示（用户 2026-09-22 口径："那个时间格式不对"）。
-					{ fieldname: "creation", label: t("stock.count.createdAt"),
+					{ fieldname: "creation", width: 160, min_width: 148, label: t("stock.count.createdAt"),
 						format: value => p.datetime_text(value) },
 				] });
 			page.set_primary_action(t("stock.count.new"), open_new);
@@ -129,15 +140,17 @@
 			page.clear_inner_toolbar(); page.clear_primary_action();
 			page.set_indicator(t("stock.count.headline", status_text(state.task), state.task.counted_total,
 				state.task.item_total, state.task.difference_total), active() ? "orange" : "green");
-			page.add_inner_button(t("stock.action.export"), () => window.location.assign(
-				`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
-			page.add_inner_button(t("stock.action.reload"), refresh);
+			// 进行中的任务**只留三颗**（用户 2026-09-22 口径："只有刷新、结束盘点、开始盘点按钮，
+			// 其它全部不要"）：刷新、结束盘点，加右边那颗开始盘点。
+			// 已结束的是只读态 —— 之前定过"结束后只可查看和导出"，所以那一档保留导出 + 刷新。
 			if (active()) {
-				page.set_primary_action(w("continuous"), () => entry_form(null, true));
-				page.add_inner_button(w("record"), () => entry_form());
-				page.add_inner_button(t("stock.count.import"), () => open_import(name));
-				page.add_inner_button(w("review"), () => filter.set_value("differences"));
+				page.set_primary_action(t("stock.count.start"), () => entry_form(null, true));
+				page.add_inner_button(t("stock.action.reload"), refresh);
 				page.add_inner_button(t("stock.count.close"), finish);
+			} else {
+				page.add_inner_button(t("stock.action.export"), () => window.location.assign(
+					`/api/method/${api}api_stock_count_export?name=${encodeURIComponent(name)}`));
+				page.add_inner_button(t("stock.action.reload"), refresh);
 			}
 			await render_data();
 		}
@@ -363,53 +376,6 @@
 			});
 		}
 
-		function open_import(name) {
-			let file_url = "";
-			const dialog = p.dialog(
-				t("stock.count.import"),
-				[
-					{ fieldtype: "HTML",
-						options: `<p class="text-muted">${p.escape(t("stock.count.importHint"))}</p>` },
-					{ fieldtype: "Button", fieldname: "pick", label: t("stock.count.importPick"),
-						click: () => {
-							new frappe.ui.FileUploader({
-								allow_multiple: false,
-								allow_web_link: false,
-								allow_google_drive: false,
-								allow_take_photo: false,
-								disable_file_browser: true,
-								allow_toggle_private: false,
-								make_attachments_public: false,
-								restrictions: {
-									allowed_file_types: [".xlsx"],
-									max_file_size: 5 * 1024 * 1024,
-								},
-								on_success: (file) => {
-									file_url = file.file_url;
-									dialog.set_value("file_name", file.file_name);
-								},
-							});
-						} },
-					{ fieldtype: "Data", fieldname: "file_name", label: t("stock.count.importFile"),
-						read_only: 1 },
-					{ fieldtype: "Button", fieldname: "template",
-						label: t("stock.count.template"), click: () => {
-							window.location.assign(
-								`/api/method/${api}api_stock_count_template?name=${encodeURIComponent(name)}`);
-						} },
-				],
-				t("stock.count.import"),
-				async (_values, d) => {
-					const result = await p.call(api + "api_stock_count_import",
-						{ name, file_url }, "POST");
-					d.hide();
-					p.success(t("stock.count.imported", result.rows, result.counted));
-					report_problems(result.problems);
-					void show_route();
-				},
-			);
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
-		}
 		wrapper.on_page_show = () => { p.restore_sidebar(); void show_route(); };
 		$(wrapper).on("hide", () => { ++sequence; ++refresh_sequence; table?.destroy(); table = null; });
 		await show_route();

@@ -80,7 +80,10 @@
 
 		function open_list() {
 			// 没选中行时右上角还是原来那颗"新建入库/出库"（打开快捷弹窗）。
+			// 只在**列表那一级**挂这颗主按钮：列表的异步刷新可能在我们已经切进二级页面（新建）
+			// 之后才落地，那一笔 paint 会把"新建入库/出库单"盖到二级页面右上角（同盘点那个坑）。
 			function restore_new() {
+				if (frappe.get_route().length !== 1) return;
 				if (canWrite) page.set_primary_action(title_new(), () => editor());
 				else page.clear_primary_action();
 			}

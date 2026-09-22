@@ -226,6 +226,7 @@ stock.count.rowDifference,差異あり
 stock.count.rowMatch,一致
 stock.count.rowUncounted,未棚卸
 stock.count.rows,行数
+stock.count.start,棚卸を開始
 stock.count.statusActive,進行中
 stock.count.statusClosed,終了
 stock.count.statusPosted,転記済み

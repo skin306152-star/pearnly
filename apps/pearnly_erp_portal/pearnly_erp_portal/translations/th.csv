@@ -226,6 +226,7 @@ stock.count.rowDifference,มีผลต่าง
 stock.count.rowMatch,ตรงกัน
 stock.count.rowUncounted,ยังไม่นับ
 stock.count.rows,จำนวนแถว
+stock.count.start,เริ่มตรวจนับ
 stock.count.statusActive,กำลังดำเนินการ
 stock.count.statusClosed,ปิดแล้ว
 stock.count.statusPosted,ลงบัญชีแล้ว

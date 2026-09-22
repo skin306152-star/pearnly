@@ -226,6 +226,7 @@ stock.count.rowDifference,Difference
 stock.count.rowMatch,Matches
 stock.count.rowUncounted,Not counted
 stock.count.rows,Rows
+stock.count.start,Start counting
 stock.count.statusActive,In progress
 stock.count.statusClosed,Closed
 stock.count.statusPosted,Posted

@@ -226,6 +226,7 @@ stock.count.rowDifference,有差异
 stock.count.rowMatch,一致
 stock.count.rowUncounted,未盘点
 stock.count.rows,行数
+stock.count.start,开始盘点
 stock.count.statusActive,进行中
 stock.count.statusClosed,已结束
 stock.count.statusPosted,已过账

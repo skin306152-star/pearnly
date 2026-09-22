@@ -194,7 +194,10 @@
 			// 右上角那一颗主按钮：没选中任何行时是"新建商品"（打开快捷弹窗），选中若干行时
 			// 切换成批量启用/停用 —— 商品真有的动作。选中即出现操作这套行为由共享层的
 			// `p.selection_action` 提供，其余列表页用的是同一套（确认、忙碌禁用、失败保留选择）。
+			// 只在**列表那一级**挂这颗主按钮：列表的异步刷新可能在我们已经切进二级页面（新建）
+			// 之后才落地，那一笔 paint 会把"新建商品"盖到二级页面右上角（同盘点工作台那个坑）。
 			function restore_primary() {
+				if (frappe.get_route().length !== 1) return;
 				if (can_create) page.set_primary_action(t("product.action.new"), () => open_quick());
 				else page.clear_primary_action();
 			}
