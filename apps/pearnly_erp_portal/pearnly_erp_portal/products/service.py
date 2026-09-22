@@ -201,14 +201,17 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
 def _filters(search=None, include_inactive=False):
     """列表与计数共用的一份筛选，避免两处各写一遍导致"总数与实际不符"。
 
-    名称与条码都要能搜到：扫码后就地找品是收银台的主路径，所以条码走 or。
+    名称与条码/二维码都要能搜到：扫码后就地找品是收银台的主路径。
+
+    三样必须一起进 `or_filters`：框架把 `filters` 与 `or_filters` 之间按 AND 组合，
+    只把条码放进 or 会让"搜名称"变成"名称与条码同时包含"，等于搜不到 —— 实测过。
     """
     filters: list = []
     if not include_inactive:
         filters.append(["is_active", "=", 1])
-    if search:
-        filters.append(["product_name", "like", f"%{search}%"])
-    or_filters = [["barcode", "like", f"%{search}%"]] if search else None
+    or_filters = ([[field, "like", f"%{search}%"]
+                   for field in ("product_name", "barcode", "qr_payload")]
+                  if search else None)
     return filters, or_filters
 
 
