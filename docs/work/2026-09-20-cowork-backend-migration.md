@@ -1,6 +1,6 @@
 # Cowork 后端迁移（前端接入前）
 
-## 换窗口总交接（2026-09-22，第五十二批之后 · 新窗口从这里开始）
+## 换窗口总交接（2026-09-22，第五十三批之后 · 新窗口从这里开始）
 
 本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，
 下面各批记录（含上一版总交接）只在需要细节时查。
@@ -12,13 +12,15 @@ Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒�
 用户最新指示是**“只用于展示的就不要了”**：分类展示标签、补全与统计不迁；
 不为供应商列表名称新建主档；M1 泰文名闸属于账套主体/工单分拣，不给买方强加。
 **第五十二批已补上账套主体批量导入：文件解析 → 零写预览 → 确认创建公司 → 持久请求防重。现有买方导入含义不变。**
-按当前清单，主要后端必搬缺口 **0 块**；识别记录跨域改挂/解绑 **1 块待决定**，可选器件、真实外部联调、合并和前端仍未完成。
-用户最新要求：后端先搬，之后前端一页一页接。本批未启动前端，不能写成全产品已上线。
+**第五十三批已补上银行 PDF 逐行复核：待复核 → 服务端余额检查 → 确认后重对账；冻结双侧解析结果，确认不再次读文件/调模型。**
+用户最新明确：此前清单 **1–4 不做**（票据改挂/解绑、额外银行/GL 读取器、多文件合并、列映射/确认列对应）。
+按这个范围，主要后端已确认必搬缺口 **0 块**，不再把上述项目挂为可选或待决定。
+**收尾、同步、真实外部验收与前端一起做**；后续前端按页接。本批未启动前端，不能写成全产品已上线。
 所有工作都在本地提交、**未合回 main、未推送、未部署**。
 
 - 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，
-  本批代码 `bfea28e1f3fec3b91b9f6e1a65d9a14cbb813328`，机械抽分 `d906f9a`；含文档的 HEAD 以 `git log -1` 为准；开工 `56365403`。
-- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批收尾回读为 `466beae046b580bb7eab303893cf20bb9498cc4b`；远端 `refs/heads/main`
+  本批代码 `f278ab9`；含文档的 HEAD 以 `git log -1` 为准；开工 `6191f29811ddf1d830beaffb6f664a65bf9805b5`。
+- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批回读为 `4cd39e035e141b53e6b723c70b5d92184ccffadc`；远端 `refs/heads/main`
   实测仍是 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端任务分支不存在。
 - **另一窗口在做 ERP**：主工作树 `/Users/skin/pearnly` 与 `erp-pos-migration` 不归本任务。
   新出现的 `erp-data-flow` 也不归本任务。本窗口只改 Cowork 业务、Cowork lab 脚本与本迁移记录，不操作其他工作树的内容。
@@ -26,10 +28,10 @@ Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒�
   `tests/test_cowork_*.py`、`scripts/cowork-*.py`。
 - 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`
   （固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批开工与交付都重新采集**。
-- 第五十二批来源身份首尾及与第五十一批一致，推送运行投影与第五十一批逐项一致；**第五十一批相对第五十批的旧变化仍未定位**：两组件的
+- 第五十三批来源身份首尾及与第五十二批一致。本批不改推送、不读取真实业务配置；推送运行投影最后一次采集仍为第五十二批，与第五十一批逐项一致。**第五十一批相对第五十批的旧变化仍未定位**：两组件的
   `database.identity.endpoints.configuration_digest` 从 `d23570c1332deff1a646c69e9a18b921`
   变为 `ce9d2473b7d79e9088a40661c0f4bbf4`。摘要包含心跳/目录等整个配置 JSON，具体变化字段未定位。
-  本批账套导入不读或创建端点配置，也不声称外部推送通过。
+  本批银行复核不读或创建端点配置，也不声称外部推送通过；用户要求随前端同步时处理运行配置和真实验收。
   **后续若改推送链路，必须核对这项历史变化，不能以本批相同抹去第五十一批发现的问题**。
 
 ### 二、硬边界（用户反复强调，继续有效）
@@ -52,9 +54,9 @@ Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒�
 | `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
 | `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
 | `express_guide` | 后端已迁 | 指引文案属前端 |
-| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping`；分类业务链已补，纯展示不迁 |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务及 PDF 复核；额外银行/GL 读取器、多文件合并、列映射明确不迁；真实付费调用验收随前端；分类业务链已补，纯展示不迁 |
 | `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
-| `recon` 对账中心 | 银行 + 收入两族闭合 | 见 `reconciliation-family-audit.md` |
+| `recon` 对账中心 | 银行 + 收入两族闭合 | 第五十三批补上 PDF 逐行复核、确认重对账和审计，见 `bank-review.md`；族边界见 `reconciliation-family-audit.md` |
 | `master_data` 主数据 | **主体已迁，账套导入缺口已补** | 七块旧记录保留；第五十二批独立 `masters.workspace_api` 承接账套导入，原买方 RPC 不改义。见 `workspace-import.md` |
 | `boards` | 不迁 | 用户指示 |
 
@@ -77,19 +79,22 @@ Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒�
    来源差分 432 组零差异；两 Site 各 17 条业务检查及 10 次 HTTP；两组真实并发与两轮升级保留通过。
    旧 `preview_client_import/commit_client_import` 仍是买方。按现有清单没有下一块已确认必搬主功能；不要自行扩建 P2/P3。
 
-#### P2 一处跨域待决策（要用户点头才能动）
+#### P2 用户已取消的 1–4（第五十三批，不再是待办）
 
-**识别记录归属的改挂/解绑**：原生 history 域把记录的 `client` 定为不可变（`history/storage.py` 的
-`IMMUTABLE`，只许复核服务带令牌改）。因此第四十五批没搬旧侧两条写路径：`assign_invoice`（改挂归属）
-现在没有受认可的入口；`delete_client(cascade_unlink=True)` 现在**还有发票就拒绝并报数**。
-要恢复与旧侧一致，需在 history 复核契约上开口（属跨域决定）。
+1. 识别记录改挂/解绑：保留原生归属不可变；仍有发票时拒绝删除买方。
+2. 额外银行/GL 图片、Word、pdfplumber/坐标读取器；普通发票图片 OCR 不在取消范围内。
+3. 多文件合并 `merge_statements` / `merge_gl_files`。
+4. 列映射记忆、`needs_mapping`、确认列对应。
 
-#### P3 OCR 侧可选项（都不挡迁移，用户没点名可不动）
+#### P3 第 5 项已补：银行 PDF 逐行复核与确认后重对账
 
-一次真实付费模型调用冒烟、图片/Word 直读与 pdfplumber 器件、多文件合并（`merge_statements`/`merge_gl_files`）、
-`needs_mapping` 模板学习层、银行任务的文档态流程件（确认列对应/重跑/复核动作）。
+`bank_recon_api.review/check_review/confirm_review`；同任务 `needs_review → completed`，
+revision `1 → 2`，保留原始解析快照及确认记录，不重调模型。无列映射，也没有另建通用审批/任意重跑系统。
+来源谓词 108 组、余额链 1,000 组差分通过；两个 Site 各 10 条复核检查、原银行 21 条回归、
+原生 HTTP、三组双进程并发及两轮升级保留已验证，详见 `bank-review.md` 和本批证据。
+后端范围已收齐；真实付费模型调用、外部配置/数据、Windows/ERP 业务验收与前端同步做，不现在扩建。
 
-#### P4 合并债与最终上线顺序（等用户授权）
+#### P4 合并债与最终上线顺序（用户要求随前端同步，暂不执行）
 
 四处合并债（清单与对应表在 `docs/work/2026-09-21-shared-files-split.md` 末尾）：
 ① 共用菜单表 → 已拆到各产品 `hooks.py` 的 `pearnly_navigation`，**ERP 菜单要以 main 那版为准**；
@@ -97,7 +102,7 @@ Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒�
 ④ `main` 上仍带 Cowork 的 `boards` 菜单项 → 合并**必须保留删除**。
 顺序（用户已定）：另一窗口可以先部署；**最后一次部署必须在合并之后**；生产镜像从本仓那次提交构建。
 
-#### P5 词库欠账
+#### P5 词库欠账（用户要求随前端收尾，暂不扩围）
 
 第四十五/四十七/四十九批新增的服务层英文 `_()` 文案还没进 `pearnly_cowork/i18n/messages.tsv`
 （`i18n-build --check` 只证明术语表自身一致）。建议合并前做一次四语补录；**注意 `messages.tsv` 是
@@ -188,7 +193,11 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 第五十二批另建 `cowork-backend-workspace.localhost`，已装 Core/Cowork；
 `scripts/cowork-workspace-import-lab-verify.py` 支持业务、`--http`、`--concurrency`、`--snapshot`、`--prepare-upgrade`。
 新装模式拒绝覆盖现有 Site；本批跨 Site 回归明确用它作 `PEARNLY_COWORK_OTHER_TEST_SITE`。
-本批只解析/创建本站公司，不接外部建账；源码/契约/保留资源见 `workspace-import.md`。
+第五十二批只解析/创建本站公司，不接外部建账；源码/契约/保留资源见 `workspace-import.md`。
+
+第五十三批另建 `cowork-backend-bank-review.localhost`；验证入口 `scripts/cowork-bank-review-lab-verify.py`，
+支持业务、`--http`、`--concurrency`、`--snapshot`、`--prepare-upgrade`；只建精确新 Site，存在拒绝覆盖。
+本次交接保留工作树/分支及 lab 数据，三个容器停止；解除条件是前端接入后用户明确执行整合收尾。
 
 ### 六、用户的沟通偏好（影响交付节奏）
 
@@ -197,6 +206,15 @@ docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
 - 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
 - 不确定就说不确定；不要用"看起来接上了"糊过去。
 - 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+## 第五十三批交付（2026-09-22）：银行逐行复核与范围收窄
+
+代码 `f278ab9`，固定源不变。PDF 命中低置信度/机器改金额/完整性问题时先待复核；
+确认执行服务端余额检查、用冻结 GL 重对账并存审计，同任务防重；待复核禁止导出完成报告。
+新增权限前置、确认/删除并发锁；列映射与其它取消项不引入。无前端、外部写入或付费模型调用。
+来源/契约/差异见 [银行复核](cowork-backend/bank-review.md)，验证见
+[本地证据](cowork-backend/evidence/fifty-third-local-validation.json)。
+用户取消此前 1–4；收尾/同步/验收留到前端。本批只有本地提交，未合 main、未推送、未部署。
 
 ## 第五十二批交付（2026-09-22）：账套主体批量导入
 

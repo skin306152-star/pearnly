@@ -1,5 +1,18 @@
 # 原生后端接口与前端讨论边界
 
+最新补充（第五十三批）：银行 PDF 逐行复核前缀 `pearnly_cowork.reconciliation.bank_recon_api`。
+GET `review(task_id)` 返回 revision、原始可编辑行、opening、诊断及已确认记录；
+POST `check_review(task_id,rows)` 零写余额检查；POST `confirm_review(task_id,rows,expected_revision)`
+校验并用冻结 GL 重对账，首次与相同请求重试都传 JSON 整数 `expected_revision=1`。
+成功后同一任务 `needs_review → completed` / revision `1 → 2`，不重复文件解析/模型调用。
+`rows` 为完整列表，每行仅 idx/date/description/withdrawal/deposit/balance；原始 idx 不可重复，
+新增用 null，省略表示删行；钱最多两位小数。原始行保留，修改后行在 `confirmation.rows`。
+权限沿用 Cowork Site + recon + Cowork Bank Reconciliation/Cowork Admin + 有效用户及公司范围。
+创建/列表/详情的 `status` 是工作流事实；既有 `parsed.needs_review` 只是解析质量诊断，含义不改。
+待复核不允许导出完成报告；通用原生写仍不能伪造确认；同内容重放，改内容/错版本冲突。
+只承接现有单 PDF 文件链，不新增列映射、多文件或额外图片/Word/pdfplumber 读取器。
+前端和真实验收仍按用户要求后续同步做；详见 [银行复核合同](bank-review.md)。
+
 最新补充（第五十二批）：账套主体批量导入前缀 `pearnly_cowork.masters.workspace_api`，三条均仅 POST：
 `parse_workspace_import()` 收 multipart `file`（CSV/XLSX，兼容解码器支持 XLS）；
 `preview_workspace_import(rows)` 收归一行；`commit_workspace_import(rows,request_key)` 创建 `Cowork Workspace`。

@@ -1,10 +1,10 @@
-# Cowork 后端迁移：功能清单与剩余量（2026-09-22，第五十二批更新）
+# Cowork 后端迁移：功能清单与剩余量（2026-09-22，第五十三批更新）
 
 回答"还有多少没迁"。**按功能码给结论、给落点、给剩余项**；行数是**规模参考**，不是进度百分比——旧 monolith 里同一个模块常被多个产品线共用，行数不能直接换算成"完成度"。
 
 口径：本表只覆盖 Cowork 后端（`product_manifest.py` 的 8 个功能码 + 已按用户要求移除的 `boards`）。DMS、ERP 是另外的 App/工作窗口；旧 monolith 里的 POS、工资、工单、管家、销售、库存、费用、会计等**不属于新产品范围**，见文末。
 
-文件/行数沿用早期规模快照，不当作第五十二批实时统计；功能状态以本次交接为准。
+文件/行数沿用早期规模快照，不当作第五十三批实时统计；功能状态以本次交接为准。
 实现与验证均为本地后端层，不代表已合并、部署、接前端或业务验收。
 
 ## 一、按功能码
@@ -12,11 +12,11 @@
 | 功能码 | 旧侧规模（参考） | 新侧落点（文件·行） | 状态 | 剩余项（有记录可查） |
 | --- | --- | --- | --- | --- |
 | `intake` 录入工作台 | `services/ocr` 98·16,929；`importer` 9·1,451；`summary_import` 8·987；`excel` 8·1,494；`fileconv` 17·2,364；`intake_bridge` 8·1,493 | `ocr/` 52·5,163（引擎/提供方/校验/表引擎/表输入/执行/回读）；`roundtrip/` 13·1,433；`files/` 5·797；`intake.py` | **主体已迁** | 真实模型/网络调用经 `pearnly_core` 提供方；按批记录仍未迁的个别引擎档与运行编排见 `ocr-pipeline.md`、`table-*.md`、`roundtrip-*.md` |
-| `ocr_history` 识别记录 | `services/ocr_history` 10·1,619 | `history/`、`contracts/duplicates.py`、`contracts/classification.py`；`ocr/execution/`（批次·工作·计费） | **后端已迁** | 第五十批重复提醒与个人开关；第五十一批分类规则、公司科目树与隔离的复核记忆已补齐，见 [分类业务链](invoice-classification.md)。未接前端；归属改挂/解绑仍为跨域待决策 |
+| `ocr_history` 识别记录 | `services/ocr_history` 10·1,619 | `history/`、`contracts/duplicates.py`、`contracts/classification.py`；`ocr/execution/`（批次·工作·计费） | **后端已迁** | 第五十批重复提醒与个人开关；第五十一批分类规则、公司科目树与隔离的复核记忆已补齐，见 [分类业务链](invoice-classification.md)。未接前端；归属改挂/解绑已由用户明确取消 |
 | `push_log` 推送日志 | `services/erp/express_push` 29·5,683；`services/erp/push_*.py`、`shared_express_*`；`routes/erp_push_log_routes.py` 350 | `push/` 39·4,936（`native/` 账本、`express/` 25 个载荷与映射、`application/` API）；`contracts/push.py`；`history/push_state.py` | **主体已迁** | MR.ERP 网络适配器本体与真实推送不迁（`mrerp_http/`）；重试/死信运行侧见 `push-lifecycle.md`、`express-payload.md` |
-| `recon` 对账中心 | `services/recon` 56·13,956；`recon_jobs` 6·1,551；`services/vat` 21·4,696；`routes/recon_*` 9·约 2,547 + `bank_recon_routes.py` 337 | `reconciliation/` 34·6,556 | **银行与收入两族闭合** | 银行 run、读取器、文件入口与文档档位已交付；剩余可选 OCR 流程件见总交接 P3，族边界见 `reconciliation-family-audit.md` |
+| `recon` 对账中心 | `services/recon` 56·13,956；`recon_jobs` 6·1,551；`services/vat` 21·4,696；`routes/recon_*` 9·约 2,547 + `bank_recon_routes.py` 337 | `reconciliation/` 34·6,556（早期快照） | **银行与收入两族闭合** | 银行 run、读取器、文件入口与文档档位已交付；第五十三批 [PDF 逐行复核与确认重对账](bank-review.md) 已补；用户取消额外读取器、多文件合并、列映射/确认列对应，族边界见 `reconciliation-family-audit.md` |
 | `stocktake` 库存盘点 | `services/stocktake` 11·1,223；`routes/stocktake_routes.py` 176 | `stocktake/` 9·951 | **已迁** | 记录明确不迁的项（照片、LINE、库存记账）见 `stocktake-native.md`、`stocktake-export.md` |
-| `master_data` 主数据 | `services/clients` 3·938；`services/products` 3·279；客户、商品、分类、税务画像、过账、导入与设置路由 | `masters/`、`access/`、`tabular/` 与原生主档/导入回执 DocType | **主体已迁，账套导入缺口已补** | 原七块记录保留。第五十二批 [账套主体导入](workspace-import.md) 实现文件解析、预览、逐行确认和持久防重；买方导入 RPC 不改义。纯展示分类/供应商名称不扩建，M1 属于未迁工单分拣。业务分类树/记忆已归 history；票据改挂/解绑仍待跨域决定。客户以 ERP 为准，商品/供应商/科目各产品维护，见 [归属核对](invoice-classification.md) |
+| `master_data` 主数据 | `services/clients` 3·938；`services/products` 3·279；客户、商品、分类、税务画像、过账、导入与设置路由 | `masters/`、`access/`、`tabular/` 与原生主档/导入回执 DocType | **主体已迁，账套导入缺口已补** | 原七块记录保留。第五十二批 [账套主体导入](workspace-import.md) 实现文件解析、预览、逐行确认和持久防重；买方导入 RPC 不改义。纯展示分类/供应商名称不扩建，M1 属于未迁工单分拣。业务分类树/记忆已归 history；票据改挂/解绑明确取消。客户以 ERP 为准，商品/供应商/科目各产品维护，见 [归属核对](invoice-classification.md) |
 | `companion` 小助手 | `routes/companion_installer_routes.py` 30；旧 `shared_express_*` 的机器侧 | `companion/` 16·1,664（凭据·心跳·目录·领取·回执·HTTP 鉴权·投递） | **服务端已迁** | Windows 程序本体不在本仓；客户端真机验收未做 |
 | `express_guide` Express 指引 | 同上（目标/载荷/生命周期） | `targets/` 9·1,207；`connections/` 13·1,693；`push/express/` 25 | **后端已迁** | 指引文案属前端；`connections-native.md` 记录未迁的 MRERP 网络采集器 |
 | `boards` 协作看板 | WeKan 集成 | — | **不迁**（用户指示） | 已迁部分在第二十二批删除，见 `collaboration-removal.md` |
@@ -37,12 +37,17 @@
 第五十一批已承接有业务依赖的自动分类树与供应商分类记忆，不新增上述展示能力。
 供应商主档名称富化不迁；M1 泰文名闸只在账套主体/工单分拣，不对买方补闸。
 
+第五十三批用户明确取消：①票据改挂/解绑；②额外银行/GL 图片、Word、pdfplumber/坐标读取器；
+③多文件合并；④列映射记忆、`needs_mapping`、确认列对应。不影响普通发票图片 OCR。
+这四项不再列为待决定或可选；银行 PDF 逐行复核与确认后重对账已补，详见 [范围及实现](bank-review.md)。
+
 ## 三、粗结论
 
 - 识别记录、盘点、小助手服务端和 Express 指引后端已迁；银行与收入对账两族已闭合。
   录入、推送与主数据主体已迁，但仍有上表和总交接中明确列出的剩余范围。`boards` 按指示不迁。
-- 按当前范围清单，已确认的主要后端必搬缺口为 **0 块**：第五十二批补上账套主体导入，原买方适配不变。
-  仍有 **1 块跨域待决策**（票据改挂/解绑）及明确列出的可选器件、真实运行验收、合并与前端接入；不等于全产品上线完成。
+- 按当前范围清单，已确认的主要后端必搬缺口为 **0 块**：第五十二批补上账套主体导入，
+  第五十三批补上银行逐行复核；上述 1–4 已取消。真实运行验收、数据/配置同步、词库欠账和最终收尾
+  按用户要求与前端一起做；未合并、未部署，不等于全产品上线完成。
 - 不提供全仓完成百分比：旧 monolith 的大头属于不在范围的产品线，共享树也无法干净切分，给一个总百分比只会误导。
 
 ## 依据

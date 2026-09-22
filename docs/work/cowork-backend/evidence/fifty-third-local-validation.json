@@ -1,0 +1,86 @@
+{
+  "batch": 53,
+  "date": "2026-09-22",
+  "scope": "Bank PDF statement review and confirmation-driven reconciliation only; items 1-4 cancelled by user",
+  "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly",
+  "branch": "codex/cowork-backend-migration",
+  "start_commit": "6191f29811ddf1d830beaffb6f664a65bf9805b5",
+  "implementation_commit": "f278ab97138f1e6932eedb4e851a0b87897a9493",
+  "source": {
+    "sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start": "baseline-fifty-third-start.json",
+    "start_evidence_sha256": "290798bc85ce911e09c8e8bb0d03b2f2deb6209b663ba2c23c47d8bdf3a23a31",
+    "delivery": "baseline-fifty-third-delivery.json",
+    "delivery_evidence_sha256": "dce8475d99db94ec4b95cdcf04017e3a3ad215e5e40c1d5bfa50387140db2b9d",
+    "comparison_with_start_and_batch52_delivery": "PASS unchanged within recorded Cloud Run scope",
+    "runtime_business_configuration": "Not read this batch; historical batch51 endpoint digest drift remains deferred, not resolved"
+  },
+  "environment": {
+    "docker_context": "colima-pearnly",
+    "compose_project": "pearnly-cowork-backend-lab",
+    "bench_image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "network_internal": true,
+    "published_ports": [],
+    "source_mounts": "This worktree only; read-only",
+    "workers_or_schedulers_started": false,
+    "new_site": "cowork-backend-bank-review.localhost",
+    "upgrade_site": "cowork-backend-ack.localhost",
+    "external_provider_calls": 0
+  },
+  "checks": {
+    "pure_review_final": {"tests": 6, "result": "PASS"},
+    "affected_offline_suite": {
+      "tests": 121,
+      "modules": ["test_cowork_bank_review", "test_cowork_bank_recon_contracts", "test_cowork_reconciliation_bank_matching", "test_cowork_bank_warnings", "test_cowork_bank_recon_export", "test_cowork_reconciliation_bank_intake"],
+      "result": "PASS; final money-format normalization subsequently covered by six pure review tests and both native Site suites"
+    },
+    "fixed_source_differential": {"predicate_cases": 108, "balance_chains": 1000, "differences": 0},
+    "fresh_install": "PASS native Core and Cowork install; existing Site overwrite refused by guard",
+    "native_review_final": {"ack_site_tests": 10, "fresh_site_tests": 10, "result": "PASS"},
+    "existing_bank_suite": {"tests": 21, "site": "cowork-backend-bank-review.localhost", "result": "PASS including uploaded PDF to review to confirmed result with fake model"},
+    "anonymous_http": {"review_endpoints_per_site": 3, "existing_bank_endpoints": 8, "all_statuses": 403},
+    "authenticated_http": {"requests": 10, "result": "PASS read, zero-write check, GET-write rejection, pending export rejection, bad confirmation, confirm, replay, audit read and completed export"},
+    "real_two_process_concurrency": {
+      "same_confirmation": "PASS one completion plus one replay, one result row",
+      "different_confirmation": "PASS one completion plus one ValidationError",
+      "confirmation_vs_delete": "PASS deletion serialized with confirmation; no task or orphan result rows",
+      "snapshot": "Both connections establish a repeatable-read snapshot before release"
+    },
+    "rollback": "PASS injected result persistence failure, transaction rollback, pending review retained, retry succeeds",
+    "permissions": "PASS role, company scope, revoked scope, disabled user, product and recon entitlement; native service-token forgery refused; source/file access rejected before IO for unauthorized actor",
+    "architecture": "PASS 0 violations, including actual staged commit hook",
+    "i18n_glossary": "PASS; six new Cowork-only entries, four translation packages regenerated only for Cowork",
+    "i18n_scan": "REPORT-ONLY 428 existing findings, unchanged; no baseline expansion",
+    "git_diff_check": "PASS"
+  },
+  "upgrade_preservation": {
+    "round1_before_equals_after": {
+      "bank_tasks": {"count": 22, "sha256": "20c01965dba746cc5d843ace4d9f1fec383eaac2091212aaad52a871129743d2"},
+      "bank_rows": {"count": 88, "sha256": "cd816d81565678288d7692590132795c0eff69e045c4d94844be87084a18ed78"},
+      "history_and_preference": {"history_count": 30, "preference_count": 2, "sha256": "369953e0109d164fd1b2b537154ffe332588f0ae6776cc447df601777260f2b9"},
+      "categories": {"count": 448, "sha256": "b7d73cfb14d480aa7b8c8899b5d26a869b3cfbed6177fba69da2a1257c0117b6"},
+      "category_memory": {"count": 1, "sha256": "7d064ed94bb28791b535f513912cf28ebddca4ac0118caa939cd0800778644f7"},
+      "workspace_receipts": {"count": 5, "sha256": "c5b62544773dd09ced48ed6791533d59e509e8e39bb44600bba0101c4ddbf947"},
+      "workspace_full": {"count": 283, "sha256": "188bfeef7b57ebfb9af890286c5eb2fdcde7899c2acd2ad21c5086c8eea6d714"}
+    },
+    "round2_before_equals_after_including_pending_and_confirmed_reviews": {
+      "bank_tasks": {"count": 25, "sha256": "700f1a93e727c898b32ef98a7de12fcf8641979d023a8b2261dfcc40df7b2f6f"},
+      "bank_rows": {"count": 90, "sha256": "b5d51fcb8778d981bc974f89bf6245ab89048269b35157e9fec0a38543a02f5c"}
+    },
+    "comparison_rule": "All stored columns hashed; only an empty newly added review_json column excluded on old rows"
+  },
+  "deferred_by_user": ["frontend page integration", "main synchronization and final cleanup", "historical data and runtime configuration import", "existing glossary debt", "paid OCR, Windows, ERP and real external business acceptance", "deployment"],
+  "cancelled": ["ticket reassignment and unlinking", "additional bank/GL image, Word and pdfplumber coordinate readers", "multiple-file merging", "column mapping memory, needs_mapping and confirm-columns"],
+  "handoff_retention": {
+    "local_main_observed": "4cd39e035e141b53e6b723c70b5d92184ccffadc",
+    "remote_main_observed": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent",
+    "merged": false,
+    "pushed": false,
+    "deployed": false,
+    "lab_containers": "all three stopped",
+    "retained": ["unmerged task worktree and branch", "fixed source reference /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b", "task lab containers and database/sites/logs/Redis volumes", "synthetic lab users and data including new review Site", "ignored bytecode caches in task worktree; not a claim of full cleanup"],
+    "retention_reason": "User explicitly deferred synchronization, cleanup and acceptance until frontend integration; preserve migration work and repeatable local evidence",
+    "recheck_when": "Frontend integration and user-authorized final synchronization/cleanup"
+  }
+}
