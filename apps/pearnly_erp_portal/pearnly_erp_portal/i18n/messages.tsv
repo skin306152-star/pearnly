@@ -102,6 +102,8 @@ Export	导出	ส่งออก	エクスポート	stock.action.export
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	stock.action.ledger
 Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	stock.action.ledgerSingle
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	stock.field.docNoAuto
+System number	单据编号	เลขที่ระบบ	システム番号	trade.systemNo
+Tax invoice number	税务发票号	เลขที่ใบกำกับภาษี	適格請求書番号	trade.taxNo
 Only an active count can be deleted	只有进行中的盘点能删除	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	stock.count.deleteBlocked
 In stock	正常	มีสินค้า	在庫あり	stock.status.ok
 Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low
@@ -337,3 +339,10 @@ Use the stock count workbench	请通过盘点工作台操作	โปรดใช�
 The stock count changed. Review the differences again.	盘点数据已变化，请重新查看并确认差异。	ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง	棚卸内容が変更されました。差異を再確認してください。
 Stock changed during counting. Recount the affected products.	盘点期间库存已变化，请重新盘点受影响的商品。	สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่	棚卸中に在庫が変動しました。対象商品を再棚卸してください。
 Count at least one item before finishing	请至少盘点一项后再结束	โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ	終了する前に少なくとも1件を棚卸してください
+Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	product.action.fullPage
+Products	商品行	รายการสินค้า	商品行	product.new.lines
+Fill in as many rows as you need; leave the code empty and the system assigns one	一次可以填多行；编码留空由系统生成	กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้	複数行をまとめて入力できます。コードは空欄なら自動採番されます。	product.new.hint
+Created {0} product(s)	已新建 {0} 个商品	สร้างสินค้า {0} รายการแล้ว	{0}件の商品を作成しました	product.notice.savedCount
+There is nothing to save	没有要保存的行	ไม่มีข้อมูลที่จะบันทึก	保存する行がありません	product.notice.nothingToSave
+Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个；{1} 行没保存成功，修正后再存	สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
+Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	trade.action.fullPage

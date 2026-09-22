@@ -6,6 +6,9 @@ let ready;
 const nativeLogout = () => 'native';
 const frappe = {
   provide() {}, re_route: {}, pearnly: {}, app: {}, set_route(route){frappe.route = route;},
+  // 共享层现在把多级面包屑挂到原生 `frappe.breadcrumbs` 上（商品/入库/出库/收发存/盘点
+  // 共用一份），所以这个假环境得给出那个对象。
+  breadcrumbs: { set_custom_breadcrumbs() {} },
   ui: {ThemeSwitcher: class {}, get_current_theme:()=>"light", SidebarHeader: class {
     get_display_siblings(){return [{name:'toggle-theme'},{name:'toggle-full-width'},{name:'toggle-sidebar'}];}
     populate_dropdown_menu(){this.rendered_items = this.dropdown_items.slice();}

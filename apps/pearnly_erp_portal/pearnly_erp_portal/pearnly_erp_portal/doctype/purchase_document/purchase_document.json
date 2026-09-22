@@ -87,6 +87,15 @@
    "description": "The document number the supplier issued; it must be kept as-is"
   },
   {
+   "fieldname": "system_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "label": "Document Number",
+   "description": "Issued by the system when the document is created (PE + Buddhist year + serial); never typed"
+  },
+  {
    "fieldname": "doc_date",
    "fieldtype": "Date",
    "in_list_view": 1,

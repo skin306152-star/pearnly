@@ -46,6 +46,7 @@ product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
 product.action.edit,Edit
 product.action.enable,Enable
+product.action.fullPage,Edit in Full Page
 product.action.import,Import from Excel
 product.action.new,New product
 product.action.reload,Reload
@@ -98,9 +99,14 @@ product.import.notNumber,The value is not a number
 product.import.notWorkbook,That file is not an Excel workbook
 product.import.pick,Choose file
 product.import.template,Download template
+product.new.hint,Fill in as many rows as you need; leave the code empty and the system assigns one
+product.new.lines,Products
 product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
 product.notice.imported,Imported {0} product(s)
+product.notice.nothingToSave,There is nothing to save
+product.notice.partial,Created {0}; {1} row(s) were not saved — fix them and save again
 product.notice.saved,Saved {0}
+product.notice.savedCount,Created {0} product(s)
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
 product.scan.auto,Identify barcode or QR code
@@ -280,6 +286,7 @@ submitted,submitted
 tax_invoice,tax_invoice
 tax_invoice_receipt,tax_invoice_receipt
 tax_invoice_simple,tax_invoice_simple
+trade.action.fullPage,Edit in Full Page
 trade.action.ledger,Stock ledger
 trade.action.ledgerSingle,Select one row to open its ledger
 trade.action.voidCount,Void {0} selected
@@ -338,7 +345,9 @@ trade.stockPosted,Posted to Stock
 trade.stockState,Stock Posting
 trade.submit,Submit
 trade.submitReceive,Submit and Receive Stock
+trade.systemNo,System number
 trade.taxId,Tax ID
+trade.taxNo,Tax invoice number
 trade.terminal,Terminal
 trade.to,To Date
 trade.total,Total Due

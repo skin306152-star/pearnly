@@ -46,6 +46,7 @@ product.action.bulkEnable,選択した{0}件を有効化
 product.action.disable,有効 / 無効
 product.action.edit,編集
 product.action.enable,有効化
+product.action.fullPage,全画面で編集
 product.action.import,Excel から取込
 product.action.new,商品を追加
 product.action.reload,再読み込み
@@ -98,9 +99,14 @@ product.import.notNumber,数値ではありません
 product.import.notWorkbook,Excel ブックではありません
 product.import.pick,ファイルを選択
 product.import.template,テンプレートをダウンロード
+product.new.hint,複数行をまとめて入力できます。コードは空欄なら自動採番されます。
+product.new.lines,商品行
 product.notice.importSkipped,{0}行をスキップしました（先頭のみ表示）
 product.notice.imported,{0}件を取り込みました
+product.notice.nothingToSave,保存する行がありません
+product.notice.partial,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
 product.notice.saved,{0} を保存しました
+product.notice.savedCount,{0}件の商品を作成しました
 product.notice.toggled,{0} を更新しました
 product.notice.toggledCount,{0}件を更新しました
 product.scan.auto,バーコード・QRを読み取る
@@ -280,6 +286,7 @@ submitted,確定済み
 tax_invoice,税務請求書
 tax_invoice_receipt,税務請求書兼領収書
 tax_invoice_simple,簡易税務請求書
+trade.action.fullPage,全画面で編集
 trade.action.ledger,在庫の受け払いを開く
 trade.action.ledgerSingle,明細は1行ずつ開きます
 trade.action.voidCount,選択した{0}件を取り消す
@@ -338,7 +345,9 @@ trade.stockPosted,在庫計上済み
 trade.stockState,在庫計上
 trade.submit,確定
 trade.submitReceive,確定して入庫
+trade.systemNo,システム番号
 trade.taxId,納税者番号
+trade.taxNo,適格請求書番号
 trade.terminal,レジ
 trade.to,終了日
 trade.total,請求額

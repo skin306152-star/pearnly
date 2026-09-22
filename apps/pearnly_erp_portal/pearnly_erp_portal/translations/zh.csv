@@ -46,6 +46,7 @@ product.action.bulkEnable,启用选中的 {0} 个
 product.action.disable,启用 / 停用
 product.action.edit,编辑
 product.action.enable,启用
+product.action.fullPage,全屏编辑
 product.action.import,Excel 导入
 product.action.new,新建商品
 product.action.reload,刷新
@@ -98,9 +99,14 @@ product.import.notNumber,该值不是数字
 product.import.notWorkbook,这不是 Excel 工作簿
 product.import.pick,选择文件
 product.import.template,下载模板
+product.new.hint,一次可以填多行；编码留空由系统生成
+product.new.lines,商品行
 product.notice.importSkipped,跳过 {0} 行，前几行见上方
 product.notice.imported,已导入 {0} 个商品
+product.notice.nothingToSave,没有要保存的行
+product.notice.partial,已新建 {0} 个；{1} 行没保存成功，修正后再存
 product.notice.saved,已保存 {0}
+product.notice.savedCount,已新建 {0} 个商品
 product.notice.toggled,已更新 {0}
 product.notice.toggledCount,已更新 {0} 个商品
 product.scan.auto,扫码识别
@@ -280,6 +286,7 @@ submitted,已提交
 tax_invoice,完整税务发票
 tax_invoice_receipt,税务发票兼收据
 tax_invoice_simple,简易税务发票
+trade.action.fullPage,全屏编辑
 trade.action.ledger,查看流水
 trade.action.ledgerSingle,一次只能看一条流水
 trade.action.voidCount,作废选中的 {0} 张
@@ -338,7 +345,9 @@ trade.stockPosted,已记入库存
 trade.stockState,库存过账
 trade.submit,提交过账
 trade.submitReceive,提交并入库
+trade.systemNo,单据编号
 trade.taxId,税号
+trade.taxNo,税务发票号
 trade.terminal,收银台
 trade.to,结束日期
 trade.total,应收金额

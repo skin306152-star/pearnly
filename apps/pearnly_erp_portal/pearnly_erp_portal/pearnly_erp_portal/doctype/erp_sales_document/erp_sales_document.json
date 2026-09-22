@@ -77,6 +77,16 @@
    "description": "Allocated when issued; a draft must not consume a number"
   },
   {
+   "fieldname": "system_no",
+   "fieldtype": "Data",
+   "label": "System Number",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 40,
+   "in_list_view": 1,
+   "description": "Issued by the system when the document is created (SI + Buddhist year + serial); never typed"
+  },
+  {
    "fieldname": "doc_date",
    "fieldtype": "Date",
    "label": "Document Date",

@@ -11,7 +11,10 @@
 			};
 		},
 		async texts() { return p.texts("trade."); },
-		lines(t, { cost = false, stock = false, readonly = false, data = [], onChange = () => {} } = {}) {
+		// `locked_price`：只锁单价那一格，其余照常能编 —— 出库就是这样（成本由服务端按
+		// 当前结存算，界面上看得到、改不了）；整表 `readonly` 是另一回事（只读查看）。
+		lines(t, { cost = false, stock = false, readonly = false, locked_price = false,
+			data = [], onChange = () => {} } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
 			return {
 				fieldtype: "Table", fieldname: "lines", label: t("trade.lines"),
@@ -44,7 +47,8 @@
 						{ fieldtype: "Currency", fieldname: "discount", options: "currency", label: t("trade.discount"), default: 0 },
 						{ fieldtype: "Percent", fieldname: "vat_rate", label: t("trade.vat"), default: 7 },
 					] : []),
-				 ].map(field => ({ ...field, read_only: readonly ? 1 : 0,
+				 ].map(field => ({ ...field,
+					read_only: readonly || (locked_price && field.fieldname === price) ? 1 : 0,
 					onchange: async function () {
 						await field.onchange?.call(this);
 						onChange();
@@ -53,7 +57,13 @@
 			};
 		},
 		clean(lines) {
-			return (lines || []).map(row => Object.fromEntries([
+			// 空白行不发：明细表是可编辑的空表，框架会给它带一行空的（数量默认 1、没有商品、
+			// 也没有文字说明）—— 那一行不是业务明细。以前它跟着请求发出去，入库/出库那边
+			// 收到没有商品的明细直接抛 KeyError，用户看到的是服务器错误。采购/销售的自由行
+			// （只有说明、没有商品）要留下，所以判空是"商品和说明都没有"。
+			const kept = (lines || []).filter(row => row
+				&& (String(row.product || "").trim() || String(row.description || "").trim()));
+			return kept.map(row => Object.fromEntries([
 				"product", "warehouse", "location", "description", "qty", "unit", "unit_price",
 				"unit_cost", "discount", "vat_rate", "original_line",
 			].filter(key => row[key] !== undefined).map(key => [key, row[key]])));

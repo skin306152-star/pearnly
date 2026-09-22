@@ -104,12 +104,25 @@
 				el.title = el.textContent.trim();
 				el.removeAttribute("data-sort-by");
 			});
+			// 框架那套"已选 N 项"条（`.checkbox-actions`）我们不用：产品的选中反馈是右上角那颗
+			// 按钮（`p.selection_action`），表头要一直看得见。这两个引用留着 null 也有个用途 ——
+			// 框架的 `update_checkbox()` 一见 `$checkbox_actions` 为空就直接返回。
 			this.$list_head_subject = this.$checkbox_actions = null;
 			header.find(".list-count").text(`${this.data.length} / ${this.total}`);
 			this.$result.prepend(header);
 		}
-		toggle_actions_menu_button() {
+		// 勾选状态变化时只做两件事：记下当前勾了哪些行、把结果交给页面自己的选中动作。
+		// **必须覆盖框架那一版**：它会把表头整行藏起来换成它自己的"已选 N 项"条，还会写
+		// `this.$list_head_subject.find(...)` —— 而产品列表的表头是我们自绘的、上面那两个
+		// 引用是 null，于是它在 `clear_checked_items()` 里抛 TypeError，把真正的失败原因
+		// 一起盖掉（实测踩到过）。
+		on_row_checked() {
+			this.$checks = this.$result.find(".list-row-checkbox:checked");
 			this.on_selection?.(this.get_checked_items());
+		}
+		toggle_actions_menu_button() {
+			// 选中动作由 `on_row_checked` 一个口子出去，这里什么都不做（框架会在
+			// `on_row_checked` 里再调它一次，重复触发会让按钮闪）。
 		}
 		toggle_workflow_actions() {
 			// Product selection only exposes its explicitly supplied action.
@@ -229,9 +242,14 @@
 			} catch (error) {
 				if (request === this.sequence) {
 					this.data = [];
-					if (this.selectable) this.clear_checked_items();
 					this.toggle_result_area();
 					this.$no_result.text(__("Unable to load this page. Please reload."));
+					// 清选择放在最后，而且自己兜住异常：这一步失败不该把真正的失败原因吞掉。
+					try {
+						if (this.selectable) this.clear_checked_items();
+					} catch (cleanup) {
+						console.error(cleanup);
+					}
 				}
 				throw error;
 			} finally {
@@ -243,7 +261,7 @@
 	for (const method of ["render_list", "get_header_html", "get_header_html_skeleton",
 		"get_list_row_html", "get_list_row_html_skeleton", "get_left_html", "get_column_html",
 		"generate_button_html", "generate_dropdown_html", "update_listview_classes",
-		"setup_check_events", "on_row_checked", "get_checked_items", "update_checkbox", "clear_checked_items"]) {
+		"setup_check_events", "get_checked_items", "update_checkbox", "clear_checked_items"]) {
 		ProductList.prototype[method] = frappe.views.ListView.prototype[method];
 	}
 	p.list = options => new ProductList(options);

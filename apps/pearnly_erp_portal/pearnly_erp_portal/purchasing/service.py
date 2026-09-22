@@ -29,7 +29,7 @@ BAD_TRANSITION = "This status change is not allowed"
 LINES_REQUIRED = "Provide at least one line item"
 
 LIST_FIELDS = (
-    "name", "doc_kind", "supplier", "supplier_name", "doc_no", "doc_date", "due_date",
+    "name", "doc_kind", "supplier", "supplier_name", "doc_no", "system_no", "doc_date", "due_date",
     "status", "approval_status", "source", "currency", "grand_total", "net_payable",
     "paid_amount", "payment_status",
 )
@@ -91,6 +91,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
         frappe.throw(_(LINES_REQUIRED))
 
     from pearnly_erp_portal.inventory import positions
+    from pearnly_erp_portal.numbering import service as numbering
 
     lines = [positions.prepare(line) for line in lines]
     has_vat = has_vat in (True, 1, "1", "true")
@@ -115,6 +116,11 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
         "supplier_name": supplier_name,
         "supplier_tax_id": supplier_tax_id,
         "doc_no": doc_no,
+        # 我方单据号：系统发（采购 PE），与"对方单号"（`doc_no`）并列 —— 旧线上也是两个
+        # （`bill_number` + `document_number`）。收发存报表显示的是这一个。
+        "system_no": numbering.allocate(
+            direction="purchase", on=doc_date,
+            exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"system_no": value}))),
         "doc_date": doc_date,
         "due_date": due_date,
         "status": contracts.DRAFT,
@@ -343,7 +349,8 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
     result = stock.apply_lines(
         warehouse=warehouses.ensure_default(), movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
-        doc_no=doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
+        # 流水上记的是**我方单据号**（采购 PE），对方单号留在采购单上。
+        doc_no=doc.system_no or doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
     )
     doc.db_set("stock_posted_at", now(), update_modified=False)
     return result

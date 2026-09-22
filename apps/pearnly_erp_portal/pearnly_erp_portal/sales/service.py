@@ -35,7 +35,7 @@ POINTLESS = "Only an issued document can be voided or noted"
 # 取号策略：按年归 1（泰国多数按年；换月/永不只改这一处与桶键）。
 RESET = contracts.RESET_YEARLY
 
-LIST_FIELDS = ("name", "status", "doc_kind", "source", "doc_no", "doc_date", "customer",
+LIST_FIELDS = ("name", "status", "doc_kind", "source", "doc_no", "system_no", "doc_date", "customer",
                "buyer_name", "party_type", "tax_id", "branch_type", "branch_no", "address",
                "has_vat", "vat_rate", "wht_rate", "header_discount", "subtotal",
                "discount_total", "vat_amount", "wht_amount", "grand_total", "net_payable",
@@ -82,11 +82,18 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
     guard.require("sales.write")
     if doc_kind not in contracts.DOC_KINDS:
         frappe.throw(_("Unknown document kind"))
+    from pearnly_erp_portal.numbering import service as numbering
+
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
         "status": contracts.DRAFT,
         "doc_kind": doc_kind,
         "source": source,
+        # 我方单据号：系统发（销售 SI），建单就占号 —— 与开出时才发的正式票号（`doc_no`）
+        # 是两个东西，旧线上也是两个（`bill_number` + `document_number`）。
+        "system_no": numbering.allocate(
+            direction="sales", on=doc_date,
+            exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"system_no": value}))),
         "doc_date": doc_date,
         "customer": customer,
         "buyer_name": buyer_name,
@@ -110,7 +117,7 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
     })
     doc.insert()
     frappe.db.commit()
-    return {"name": doc.name, "grand_total": str(doc.grand_total)}
+    return {"name": doc.name, "system_no": doc.system_no, "grand_total": str(doc.grand_total)}
 
 
 def update_document(name, *, lines=None, **changes) -> dict:
@@ -189,7 +196,7 @@ def _post_stock(doc) -> dict:
     stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="sale_out",
                       lines=lines,
                       posting_date=doc.doc_date, ref_type="ERP Sales Document",
-                      ref_id=doc.name, doc_no=doc.doc_no, internal=True,
+                      ref_id=doc.name, doc_no=doc.system_no or doc.doc_no, internal=True,
                       client_uuid=f"sales-doc:{doc.name}")
     frappe.db.set_value(DOCTYPE, doc.name, "stock_posted_at", frappe.utils.now(),
                         update_modified=False)

@@ -46,6 +46,7 @@ product.action.bulkEnable,เปิดใช้งาน {0} รายการ�
 product.action.disable,เปิด / ปิดใช้งาน
 product.action.edit,แก้ไข
 product.action.enable,เปิดใช้งาน
+product.action.fullPage,แก้ไขแบบเต็มหน้า
 product.action.import,นำเข้าจาก Excel
 product.action.new,เพิ่มสินค้า
 product.action.reload,โหลดใหม่
@@ -98,9 +99,14 @@ product.import.notNumber,ค่านี้ไม่ใช่ตัวเลข
 product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
 product.import.pick,เลือกไฟล์
 product.import.template,ดาวน์โหลดแบบฟอร์ม
+product.new.hint,กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้
+product.new.lines,รายการสินค้า
 product.notice.importSkipped,ข้าม {0} แถว รายการแรกแสดงด้านบน
 product.notice.imported,นำเข้า {0} รายการแล้ว
+product.notice.nothingToSave,ไม่มีข้อมูลที่จะบันทึก
+product.notice.partial,สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง
 product.notice.saved,บันทึก {0} แล้ว
+product.notice.savedCount,สร้างสินค้า {0} รายการแล้ว
 product.notice.toggled,อัปเดต {0} แล้ว
 product.notice.toggledCount,อัปเดต {0} รายการแล้ว
 product.scan.auto,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
@@ -280,6 +286,7 @@ submitted,ยืนยันแล้ว
 tax_invoice,ใบกำกับภาษีเต็มรูป
 tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
 tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
+trade.action.fullPage,แก้ไขแบบเต็มหน้า
 trade.action.ledger,ดูบัญชีสต็อก
 trade.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
@@ -338,7 +345,9 @@ trade.stockPosted,บันทึกสต็อกแล้ว
 trade.stockState,การบันทึกสต็อก
 trade.submit,ยืนยัน
 trade.submitReceive,ยืนยันและรับเข้าสต็อก
+trade.systemNo,เลขที่ระบบ
 trade.taxId,เลขประจำตัวผู้เสียภาษี
+trade.taxNo,เลขที่ใบกำกับภาษี
 trade.terminal,จุดขาย
 trade.to,ถึงวันที่
 trade.total,ยอดชำระ

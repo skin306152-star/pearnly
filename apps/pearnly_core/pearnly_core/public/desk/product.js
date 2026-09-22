@@ -119,15 +119,18 @@ frappe.provide("frappe.pearnly");
 	p.field_rows = (fields, columns = 2) => {
 		const rows = [];
 		let filled = 0;
-		const end_row = () => { if (filled) { rows.push({ fieldtype: "Column Break" }); filled = 0; } };
+		// 并排的字段用 Column Break 分栏；整行控件（HTML/Table/Button、Section）必须先
+		// **结束当前栏**再落到下一行 —— 只推一个 Column Break 的话它会掉进右边那一栏
+		// （实测：流水弹窗的表格被挤到字段右边，这是排版 bug，不是"设计"）。
+		const close_row = kind => { if (filled) { rows.push({ fieldtype: kind }); filled = 0; } };
 		for (const field of fields) {
 			const type = field.fieldtype;
 			if (type === "Section Break" || type === "HTML" || type === "Table" || type === "Button") {
-				end_row(); rows.push(field); continue;
+				close_row("Section Break"); rows.push(field); continue;
 			}
 			if (type === "Column Break") { rows.push(field); filled = 0; continue; }
 			rows.push(field); filled += 1;
-			if (filled === columns) end_row();
+			if (filled === columns) close_row("Column Break");
 		}
 		return rows;
 	};
@@ -156,6 +159,89 @@ frappe.provide("frappe.pearnly");
 				page.set_title_sub(__("Unable to load this page. Please reload."), "red");
 			}
 		};
+	};
+
+	// ── 二级页面（新建 / 明细）与多级面包屑 ────────────────────────────────────
+	// 用户 2026-09-22 口径：**新建是二级面包屑页面，查看是弹窗**；商品、入库、出库统一
+	// 这一套。做法与盘点工作台一致 —— 一个 Desk Page 下按路由分段切换内容（第一段是
+	// 列表，第二段是二级页面），页面只在首次进入时建一次，之后每次 `show` 按路由重绘。
+	p.subroute = (root, ...parts) =>
+		"/desk/" + [root, ...parts]
+			.filter(part => part !== null && part !== undefined && part !== "")
+			.map(encodeURIComponent).join("/");
+
+	// `render(rest, still_current)`：`rest` 是路由第一段之后的全部段（列表时是空数组），
+	// `still_current()` 在切走之后返回 false，用来丢掉慢请求的响应。
+	p.routed_page = ({ wrapper, root, render }) => {
+		let sequence = 0;
+		const show = async () => {
+			const route = frappe.get_route();
+			if (route[0] !== root) return;
+			const request = ++sequence;
+			await render(rest_of(route, root), () => request === sequence);
+		};
+		wrapper.on_page_show = () => { p.restore_sidebar(); void show(); };
+		$(wrapper).on("hide", () => { ++sequence; });
+		return show;
+	};
+	const rest_of = (route, root) => (route[0] === root ? route.slice(1) : []);
+	// 路由段超出这个页面认得的层级（手输的、旧书签）时收敛回上一级，别停在空白页。
+	p.redirect_up = (root, ...parts) => frappe.set_route(root, ...parts);
+
+	// 弹窗左下角那颗「全部编辑」：官方 `QuickEntryForm` 用的就是同一个插槽
+	// （`dialog.add_custom_action(__("Edit Full Form"), …)`）。用户 2026-09-22 口径：
+	// 新建默认走弹窗（快），字段多、要批量或要改细节时点它进二级页面。`carry` 是交给
+	// 二级页面的初值；两边在同一个闭包里，不走 `route_options`（不必把值写进 URL）。
+	p.edit_all = (dialog, label, route, carry) => {
+		dialog.add_custom_action(label, () => {
+			dialog.hide();
+			carry?.(dialog.get_values(true) || {});
+			frappe.set_route(route);
+		});
+	};
+	// 路由切走时把页面恢复成"只剩原生筛选区"的空壳：列表与二级页面共用 page.main，
+	// 上一态残留的字段、按钮、指示器都会跟过来（盘点工作台踩过同样的坑）。
+	p.clear_page = (page) => {
+		page.page_form.detach();
+		page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
+		page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
+		page.hide_form();
+		page.clear_primary_action(); page.clear_indicator();
+	};
+
+	// 多级面包屑：原生 Custom crumb 只画一个节点。这里把整条路径交给框架自己渲染
+	// （存在 `breadcrumbs.all` 里，重绘、返回、刷新都能复原），而不是临时插 DOM；窄屏
+	// 原生只显示最后一级，所以同时给出 `menu_items`。
+	const native_custom = frappe.breadcrumbs.set_custom_breadcrumbs;
+	frappe.breadcrumbs.set_custom_breadcrumbs = function (crumb) {
+		native_custom.call(this, crumb);
+		for (const step of crumb.pearnly_trail || []) {
+			this.append_breadcrumb_element(step.route, p.escape(step.label));
+		}
+		if (crumb.pearnly_trail?.length && crumb.menu_items?.length) {
+			// 菜单点击不能再冒泡给 Desk 路由器，否则它会重开当前页并关掉菜单。
+			this.$breadcrumbs.children("li:last-child").on("click", (event) => {
+				event.preventDefault();
+				event.stopPropagation();
+			}).find("a").attr("aria-haspopup", "menu")
+				.append(frappe.utils.icon("chevron-down", "xs"));
+		}
+	};
+	// `trail` 里带 `route` 的节点可点（父级），最后一个通常不带（就是当前页）。
+	p.breadcrumbs = ({ label, route = "", trail = [] }) => {
+		const parents = trail.filter(step => step.route);
+		frappe.breadcrumbs.add({
+			type: "Custom", label, route,
+			pearnly_trail: trail,
+			menu_items: trail.length ? [
+				// 语义键（`nav.home`）而不是英文原句 —— 传 "Home" 会被框架自带译文抢走。
+				{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") },
+				{ label, onClick: () => frappe.set_route(route || frappe.get_route_str()) },
+				...parents.map(step => ({
+					label: p.escape(step.label), onClick: () => frappe.set_route(step.route),
+				})),
+			] : [],
+		});
 	};
 	p.notBuilt = async (page, t) => {
 		page.set_title_sub(p.escape(t("shell.notBuilt")));

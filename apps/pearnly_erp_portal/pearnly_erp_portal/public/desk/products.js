@@ -9,92 +9,34 @@
  * 复选框列留着的理由：它后面挂着**真有的功能** —— 批量启用/停用选中的商品。
  * 没有去处的话就不该放出来。
  *
+ * 新建两条路（用户 2026-09-22 口径："弹窗只是快捷添加方式……左下角是全屏编辑，
+ * 点进去才是二级面包屑"）：
+ *   /desk/pearnly-products       列表；点行 = 原生弹窗查看/编辑（查看是弹窗）
+ *   「新建商品」= 弹窗，一次一个，那一格「条码/二维码」自带扫码图标
+ *   弹窗左下角「全屏编辑」= 官方 `QuickEntryForm` 用的同一颗 custom action
+ * （`add_custom_action(…, …)`，官方英文串是 "Edit Full Form"）
+ *   /desk/pearnly-products/new   二级页面：原生 Grid，一次填多行、一次建完
+ *
  * 文案全部来自 `pearnly_erp_portal/i18n/messages.tsv` 的 `product.*` 键。
  */
 (() => {
 	const p = frappe.pearnly;
 
-	p.products = async (page, t) => {
+	p.products = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.products.service.";
-		let list;
+		const root = "pearnly-products";
+		// 二级页面的路由段。`frappe.get_route()` 是第一段之后的分段，所以列表是空数组。
+		const SECOND = "new";
+		const can_create = frappe.model.can_create("ERP Product");
+		const url = (...parts) => p.subroute(root, ...parts);
+		// 弹窗点「全屏编辑」时把已填的值带进二级页面：两边在同一个闭包里，不必写进 URL。
+		let carry = null;
+		let list, form;
 
 		// "设过没有"要跟值一起看：Currency 列存不下 NULL，库里 0 与"从未设过"是同一个数字。
 		// 没有成本权限的岗位，服务端把值与标记一起清空，于是这里自然显示"未设"。
 		const marked = (row, flag, value) =>
 			row[flag] ? p.money(value) : t("product.cell.notSet");
-
-		const filters = {};
-		filters.search = page.add_field({
-			fieldtype: "Data",
-			fieldname: "search",
-			label: t("product.field.search"),
-			change: () => void list?.reload(),
-		});
-		filters.include_inactive = page.add_field({
-			fieldtype: "Check",
-			fieldname: "include_inactive",
-			label: t("product.action.toggleInactive"),
-			change: () => void list?.reload(),
-		});
-		const query = () => ({
-			search: filters.search.get_value() || undefined,
-			include_inactive: filters.include_inactive.get_value() ? 1 : undefined,
-		});
-
-		// 右上角那一颗主按钮：没选中任何行时是"新建商品"（与参考图一致），选中若干行时
-		// 切换成批量启用/停用 —— 商品真有的动作。选中即出现操作这套行为由共享层的
-		// `p.selection_action` 提供，其余列表页用的是同一套（确认、忙碌禁用、失败保留选择）。
-		function restore_primary() {
-			if (can_create) page.set_primary_action(t("product.action.new"), () => open_create());
-			else page.clear_primary_action();
-		}
-		const selection = p.selection_action({
-			page, list: () => list, empty: restore_primary,
-			label: rows => (rows.every(row => !row.is_active)
-				? t("product.action.bulkEnable", rows.length)
-				: t("product.action.bulkDisable", rows.length)),
-			run: async rows => {
-				const enabling = rows.every(row => !row.is_active);
-				for (const row of rows) {
-					await p.call(api + "api_set_active",
-						{ name: row.name, active: enabling ? 1 : 0 }, "POST");
-				}
-			},
-			success: rows => t("product.notice.toggledCount", rows.length),
-		});
-
-		list = p.list({
-			page,
-			doctype: "ERP Product",
-			selectable: true,
-			on_selection: selection,
-			on_open: (row) => open_form(row),
-			load: async ({ start, page_length }) => {
-				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
-				const [items, total] = await Promise.all([
-					p.call(api + "api_list_products",
-						{ start, limit: page_length, ...query() }),
-					p.call(api + "api_count_products", query()),
-				]);
-				return { items, total };
-			},
-			columns: [
-				{ fieldname: "product_name", label: t("product.col.name") },
-				{ fieldname: "code", label: t("product.col.code") },
-				// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
-				{ fieldname: "barcode", label: t("product.col.codeValue"),
-					format: (_value, row) => row.barcode || row.qr_payload || "" },
-				{ fieldname: "unit", label: t("product.col.unit") },
-				{ fieldname: "unit_price", label: t("product.col.price"),
-					format: (_value, row) => marked(row, "price_set", row.unit_price) },
-				{ fieldname: "default_cost", label: t("product.col.cost"),
-					format: (_value, row) => marked(row, "cost_set", row.default_cost) },
-				{ fieldname: "is_active", label: t("product.col.status"),
-					format: (value) => (value ? __("Active") : __("Disabled")) },
-			],
-		});
-
-		const can_create = frappe.model.can_create("ERP Product");
 
 		// 扫码图标：取景框 + 码线。一个图标同时指条码与二维码，跟合并后的那一格同名同义。
 		const SCAN_ICON = `<svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
@@ -119,14 +61,21 @@
 			return BARCODE_SHAPE.test(text) ? "barcode" : "qr";
 		}
 
-		// 回写哪一列：没动过这一格就写回原来那一列（另一列的历史值不因改价格被清掉），
+		// 新建（弹窗与二级页面同一条）：界面上只有一格，所以两列一起写，另一列显式清空。
+		function code_payload(value, scanned) {
+			const text = String(value ?? "").trim();
+			if (!text) return {};
+			const kind = code_kind(text, scanned);
+			return { [CODE_FIELD[kind]]: text,
+				[kind === "barcode" ? "qr_payload" : "barcode"]: "" };
+		}
+
+		// 编辑已有商品：没动过这一格就写回原来那一列（另一列的历史值不因改价格被清掉），
 		// 动过就按码型落一列、并把另一列清空 —— 界面上只有一格，留个看不见的旧值就是鬼数据。
 		function code_changes(state, values) {
 			const text = String(values.code_value ?? "").trim();
 			if (!text || text === state.original) return { [CODE_FIELD[state.kind]]: text };
-			const kind = code_kind(text, state.scanned);
-			return { [CODE_FIELD[kind]]: text,
-				[kind === "barcode" ? "qr_payload" : "barcode"]: "" };
+			return code_payload(text, state.scanned);
 		}
 
 		function product_fields(existing = {}) {
@@ -183,7 +132,7 @@
 
 		// 扫到的码已经是别人的：**当场**说，并给一条"去改那一条"的出路。
 		// 旧线上也是当场拦（撞码拖到保存才报，会让人白填一整张表）。
-		async function flag_taken(dialog, code, self_name) {
+		async function flag_taken(code, self_name, on_open) {
 			const taken = await p.call(api + "api_find_product",
 				{ value: code, exclude: self_name || "" });
 			if (!taken || !taken.name) return false;
@@ -194,8 +143,8 @@
 				primary_action: {
 					label: t("product.scan.open"),
 					action: () => {
-						dialog.hide();
-						void open_form(taken);
+						on_open?.();
+						void open_detail(taken);
 					},
 				},
 			});
@@ -215,7 +164,7 @@
 				return p.scan({ kind: "all", on_result: async (code, details) => {
 					state.scanned = details?.kind || null;
 					await dialog.set_value("code_value", code);
-					await flag_taken(dialog, code, self_name);
+					await flag_taken(code, self_name, () => dialog.hide());
 				} });
 			});
 			// 扫码枪就是个键盘（它打进来的是文字，没有码型）：打完补的那个回车不能顺手把表单存了。
@@ -236,7 +185,91 @@
 			return out;
 		}
 
-		async function open_create() {
+		// ── 列表 ────────────────────────────────────────────────────────────────
+
+		function open_list() {
+			// 右上角那一颗主按钮：没选中任何行时是"新建商品"（打开快捷弹窗），选中若干行时
+			// 切换成批量启用/停用 —— 商品真有的动作。选中即出现操作这套行为由共享层的
+			// `p.selection_action` 提供，其余列表页用的是同一套（确认、忙碌禁用、失败保留选择）。
+			function restore_primary() {
+				if (can_create) page.set_primary_action(t("product.action.new"), () => open_quick());
+				else page.clear_primary_action();
+			}
+			const selection = p.selection_action({
+				page, list: () => list, empty: restore_primary,
+				label: rows => (rows.every(row => !row.is_active)
+					? t("product.action.bulkEnable", rows.length)
+					: t("product.action.bulkDisable", rows.length)),
+				run: async rows => {
+					const enabling = rows.every(row => !row.is_active);
+					for (const row of rows) {
+						await p.call(api + "api_set_active",
+							{ name: row.name, active: enabling ? 1 : 0 }, "POST");
+					}
+				},
+				success: rows => t("product.notice.toggledCount", rows.length),
+			});
+
+			const filters = {};
+			filters.search = page.add_field({
+				fieldtype: "Data",
+				fieldname: "search",
+				label: t("product.field.search"),
+				change: () => void list?.reload(),
+			});
+			filters.include_inactive = page.add_field({
+				fieldtype: "Check",
+				fieldname: "include_inactive",
+				label: t("product.action.toggleInactive"),
+				change: () => void list?.reload(),
+			});
+			const query = () => ({
+				search: filters.search.get_value() || undefined,
+				include_inactive: filters.include_inactive.get_value() ? 1 : undefined,
+			});
+
+			list = p.list({
+				page,
+				doctype: "ERP Product",
+				selectable: true,
+				on_selection: selection,
+				on_open: (row) => open_detail(row),
+				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
+				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
+				load: async ({ start, page_length }) => {
+					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
+					const [items, total] = await Promise.all([
+						p.call(api + "api_list_products",
+							{ start, limit: page_length, ...query() }),
+						p.call(api + "api_count_products", query()),
+					]);
+					return { items, total };
+				},
+				columns: [
+					{ fieldname: "product_name", label: t("product.col.name") },
+					{ fieldname: "code", label: t("product.col.code") },
+					// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
+					{ fieldname: "barcode", label: t("product.col.codeValue"),
+						format: (_value, row) => row.barcode || row.qr_payload || "" },
+					{ fieldname: "unit", label: t("product.col.unit") },
+					{ fieldname: "unit_price", label: t("product.col.price"),
+						format: (_value, row) => marked(row, "price_set", row.unit_price) },
+					{ fieldname: "default_cost", label: t("product.col.cost"),
+						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
+					{ fieldname: "is_active", label: t("product.col.status"),
+						format: (value) => (value ? __("Active") : __("Disabled")) },
+				],
+			});
+
+			// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。
+			page.add_inner_button(t("product.action.reload"), () => void list.reload());
+			if (can_create) page.add_inner_button(t("product.action.import"), () => open_import());
+			restore_primary();
+		}
+
+		// ── 新建弹窗（快捷）────────────────────────────────────────────────────
+
+		function open_quick() {
 			const { fields, state } = product_fields();
 			const dialog = p.dialog(
 				t("product.action.new"),
@@ -247,11 +280,141 @@
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name));
-					await list.reload();
+					await list?.reload();
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			attach_scan_icon(dialog, state, null);
+			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
+			p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
+				carry = { ...values, __scanned: state.scanned };
+			});
+		}
+
+		// ── 二级页面：一次建多个商品 ─────────────────────────────────────────────
+
+		// 与弹窗**同一套字段**（用户 2026-09-22 口径"字段不变"）：列表里露出来的那几列先
+		// 横着排，其余字段在原生 Grid 的行展开里 —— 点行左边那个箭头就是完整字段。
+		// Grid 自带的「添加行」和勾选列原样保留（那是框架的，勾选是"选中行→批量删除"）。
+		// `code` 不放进来：编码由服务端发（弹窗里那格也只是只读显示"自动生成"）。
+		const grid_fields = () => [
+			{ fieldtype: "Data", fieldname: "product_name", label: t("product.field.name"),
+				reqd: 1, in_list_view: 1, columns: 3 },
+			{ fieldtype: "Data", fieldname: "code_value", label: t("product.field.codeValue"),
+				length: 500, in_list_view: 1, columns: 3, description: t("product.field.codeAuto") },
+			{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
+				in_list_view: 1, columns: 1 },
+			{ fieldtype: "Data", fieldname: "default_warehouse",
+				label: t("product.field.defaultWarehouse"), in_list_view: 1, columns: 2 },
+			{ fieldtype: "Data", fieldname: "default_location",
+				label: t("product.field.defaultLocation"), in_list_view: 1, columns: 2 },
+			{ fieldtype: "Currency", fieldname: "unit_price", options: "THB",
+				label: t("product.field.price"), in_list_view: 1, columns: 2 },
+			{ fieldtype: "Currency", fieldname: "default_cost", options: "THB",
+				label: t("product.field.cost"), in_list_view: 1, columns: 2 },
+			{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
+				columns: 2 },
+			{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
+				columns: 2 },
+			{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
+				columns: 2 },
+			{ fieldtype: "Check", fieldname: "vat_applicable", label: t("product.field.vat"),
+				default: 1, columns: 1 },
+			{ fieldtype: "Check", fieldname: "track_batch", label: t("product.field.trackBatch"),
+				columns: 1 },
+			{ fieldtype: "Check", fieldname: "track_expiry", label: t("product.field.trackExpiry"),
+				columns: 1 },
+			{ fieldtype: "Attach Image", fieldname: "image_url", label: t("product.field.image"),
+				columns: 2 },
+		];
+
+		function open_new() {
+			p.breadcrumbs({ label: __("nav.products"), route: url(),
+				trail: [{ label: t("product.action.new"), route: "" }] });
+			const rows = carry ? [carry] : [{}];
+			carry = null;
+			form = p.layout(page.main, [
+				{ fieldtype: "Section Break" },
+				{ fieldtype: "Table", fieldname: "products", label: t("product.new.lines"),
+					in_place_edit: true, data: rows, fields: grid_fields() },
+				{ fieldtype: "HTML", fieldname: "hint",
+					options: `<p class="text-muted">${p.escape(t("product.new.hint"))}</p>` },
+			]);
+			const grid = form.fields_dict.products.grid;
+
+			// 扫码入口：Grid 的单元格是框架按行即时建的（一行一控，`make_control` 在框架
+			// 内部），塞不进"每格一颗图标"而不改框架代码；这里用 Grid 自己的
+			// `.grid-custom-buttons` 官方插槽（DocType 的自定义按钮就挂这儿），
+			// 扫码 = 新加一行并把码填进那一行的「条码/二维码」。
+			const scan_label = p.escape(t("product.action.scan"));
+			const scan_button = $(`<button type="button" class="btn btn-default btn-xs pearnly-scan-icon"
+				title="${scan_label}" aria-label="${scan_label}">${SCAN_ICON}</button>`);
+			grid.wrapper.find(".grid-custom-buttons").append(scan_button);
+			scan_button.on("click", () => {
+				if (!p.scan_supported()) return frappe.msgprint(t("product.scan.unsupported"));
+				return p.scan({ kind: "all", on_result: async (code, details) => {
+					grid.add_new_row();
+					const row = grid.df.data[grid.df.data.length - 1];
+					row.code_value = code;
+					row.__scanned = details?.kind || null;
+					grid.refresh();
+					await flag_taken(code, "", null);
+				} });
+			});
+
+			// Grid 的数字格读不出"空"（原生 Float/Currency 控件空值就是 0），所以这里按
+			// "0 = 没设"处理：与弹窗里留空（null）落到同一个结果，免得快录出来的商品被记成
+			// "设过价为 ฿0"（收银台的零元闸读的就是这个标记）。要一个真的 ฿0 就用弹窗填。
+			const row_payload = row => ({
+				product_name: row.product_name,
+				unit: row.unit,
+				base_unit: row.base_unit,
+				category_id: row.category_id,
+				default_warehouse: row.default_warehouse,
+				default_location: row.default_location,
+				unit_price: Number(row.unit_price) > 0 ? row.unit_price : null,
+				default_cost: Number(row.default_cost) > 0 ? row.default_cost : null,
+				min_stock: row.min_stock,
+				track_batch: row.track_batch,
+				track_expiry: row.track_expiry,
+				vat_applicable: row.vat_applicable,
+				image_url: row.image_url,
+				...code_payload(row.code_value, row.__scanned),
+			});
+
+			async function save_all() {
+				const rows = (form.get_value("products") || []).filter(row =>
+					String(row.product_name || "").trim() || String(row.code_value || "").trim());
+				if (!rows.length) {
+					return frappe.msgprint({ title: t("product.action.new"), indicator: "orange",
+						message: t("product.notice.nothingToSave") });
+				}
+				let done = 0;
+				const failed = [];
+				for (const row of rows) {
+					try {
+						await p.call(api + "api_create_product", row_payload(row), "POST");
+						done += 1;
+					} catch (error) {
+						// 服务端已经用 msgprint 说了原因；这里只把这一行留在表里让人改。
+						if (!error?._server_messages && !error?.responseJSON) console.error(error);
+						failed.push(row);
+					}
+				}
+				// 建成功的从表里去掉，免得再点一次保存重复建。
+				grid.df.data = failed;
+				grid.refresh();
+				if (!failed.length) {
+					p.success(t("product.notice.savedCount", done));
+					await list?.reload();
+					p.redirect_up(root);
+					return;
+				}
+				frappe.msgprint({ title: t("product.action.new"), indicator: "orange",
+					message: t("product.notice.partial", done, failed.length) });
+			}
+
+			page.set_primary_action(t("product.action.save"), () => void save_all());
 		}
 
 		// Excel 导入：走原生上传组件（它负责落 File 记录、限制类型与大小），
@@ -308,12 +471,13 @@
 									`${p.escape(row.row)}: ${p.escape(row.error)}`).join("<br>"),
 						});
 					}
-					await list.reload();
+					await list?.reload();
 				},
 			);
 		}
 
-		async function open_form(row) {
+		// 查看/编辑：**原生弹窗**（用户 2026-09-22 口径：查看是弹窗）。
+		async function open_detail(row) {
 			const existing = await p.call(api + "api_get_product", { name: row.name });
 			const can_write = frappe.model.can_write("ERP Product");
 			const { fields, state } = product_fields(existing);
@@ -327,7 +491,7 @@
 						"POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name));
-					await list.reload();
+					await list?.reload();
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
@@ -335,12 +499,17 @@
 			if (can_write) attach_scan_icon(dialog, state, existing.name);
 		}
 
-		// 工具栏：刷新在导入左边，导入在新建左边（新建是页面主按钮，永远在最右）。
-		page.add_inner_button(t("product.action.reload"), () => void list.reload());
-		if (frappe.model.can_create("ERP Product")) {
-			page.add_inner_button(t("product.action.import"), () => open_import());
+		// ── 路由 ────────────────────────────────────────────────────────────────
+
+		async function render(rest) {
+			p.clear_page(page);
+			list = null; form = null;
+			if (!rest.length) { open_list(); return; }
+			if (rest[0] !== SECOND || !can_create) { p.redirect_up(root); return; }
+			open_new();
 		}
-		await list.ready;
-		restore_primary();
+
+		const show = p.routed_page({ wrapper, root, render });
+		await show();
 	};
 })();

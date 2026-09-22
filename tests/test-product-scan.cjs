@@ -25,7 +25,7 @@ const NEW_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', '
   'track_batch', 'track_expiry', 'vat_applicable', 'image_url'];
 
 function boot({ product = null, supported = true, can_write = true } = {}) {
-  const calls = [], messages = [], scans = [], dialogs = [];
+  const calls = [], messages = [], scans = [], dialogs = [], editAll = [];
   const inputs = {}, controls = {}, values = {};
   let open_create, open_form, list_options;
 
@@ -36,6 +36,17 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     call: async (method, args) => { calls.push({ method, args }); return product; },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => supported,
+    // 弹窗左下角那颗"全屏编辑"由共享层的 `p.edit_all` 提供（核心实现用官方的
+    // `dialog.add_custom_action`）。这里按同一份契约模拟：记下调用，并让测试能"点"它。
+    edit_all: (dialog, label, route, carry) => {
+      const entry = { label, route, values: dialog.values };
+      entry.click = () => { dialog.hide(); carry(entry.values); };
+      editAll.push(entry);
+    },
+    subroute: (root, ...parts) => "/desk/" + [root, ...parts].filter(Boolean).join("/"),
+    clear_page: () => {},
+    breadcrumbs: () => {},
+    routed_page: ({ render }) => async () => { await render([]); },
     // 选中操作那套由共享层提供（tests/test-selection-action.cjs 单独验）；这里只要它存在。
     selection_action: () => () => {},
     list: config => {
@@ -59,6 +70,7 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
         get_field: name => by_name[name],
         get_value: name => values[name],
         set_value: async (name, value) => { values[name] = value; },
+        add_custom_action: (label, action) => { dialog.custom = dialog.custom || []; dialog.custom.push({ label, action }); },
         get_primary_btn: () => primary };
       dialogs.push(dialog);
       return dialog;
@@ -75,6 +87,7 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
   vm.runInNewContext(source, { frappe,
     $: html => { const node = element(); node.html = html; return node; } });
   return { p, page, calls, messages, scans, dialogs, inputs, controls, values,
+    get editAll() { return editAll; },
     async ready() { await p.products(page, key => key); },
     get list_options() { return list_options; },
     get open_create() { return open_create; },
@@ -120,6 +133,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
   assert.equal(dialog.fields.filter(field => field.fieldtype === 'Column Break').length, 2);
   assert.equal(typeof dialog.set_secondary_action, 'undefined');
   console.log('PASS one merged code field, two native sections, no footer scan button');
+
+  // 1b) 新建弹窗左下角那颗"全屏编辑"：官方 QuickEntryForm 用的同一颗 custom action，
+  //     点它去二级页面（商品新建支持一次多行）。
+  assert.equal(env.editAll.length, 1, '新建弹窗要挂一颗全屏编辑');
+  assert.equal(env.editAll[0].label, 'product.action.fullPage');
+  assert.equal(env.editAll[0].route, '/desk/pearnly-products/new');
+  console.log('PASS the quick dialog offers full-page editing on the second-level route');
 
   // 2) 扫码入口是那一格里的 SVG 图标按钮。
   const control = env.controls.code_value;

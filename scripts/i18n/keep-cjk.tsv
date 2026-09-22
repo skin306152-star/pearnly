@@ -25,3 +25,5 @@ apps/pearnly_cowork/pearnly_cowork/hooks.py	*	元数据：同上
 apps/pearnly_dms/pearnly_dms/hooks.py	*	元数据：同上
 apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py	*	元数据：同上
 apps/pearnly_erp_portal/pearnly_erp_portal/products/workbook.py	*	输入词：客户旧表格的表头别名（中/泰/英），按原字面认表，翻了就认不出客户那张表；不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	条码/二维码	输入词：客户旧盘点表的表头别名，按原字面认表，翻了就认不出客户手里那张表；不进界面
+apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	条码 / 二维码	输入词：同上（客户表里有带空格的写法）

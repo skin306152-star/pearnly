@@ -12,24 +12,8 @@
 	const url = (name) => "/desk/" + [root, name]
 		.filter(Boolean).map(encodeURIComponent).join("/");
 
-	// 原生 Custom 面包屑只支持一个节点。仅扩展盘点的多级数据，节点仍由原生 API 渲染；
-	// 保存到 breadcrumbs.all，让框架重绘时保留整条路径，而不是临时追加 DOM 和点击闭包。
-	const native_custom = frappe.breadcrumbs.set_custom_breadcrumbs;
-	frappe.breadcrumbs.set_custom_breadcrumbs = function (crumb) {
-		native_custom.call(this, crumb);
-		for (const step of crumb.pearnly_stock_count_trail || []) {
-			this.append_breadcrumb_element(step.route, p.escape(step.label));
-		}
-		if (crumb.pearnly_stock_count_trail && crumb.menu_items?.length) {
-			// 窄屏的原生样式只展示最后一级；用框架已有的 menu_items 提供全部父级。
-			// 菜单点击不能再冒泡给 Desk 路由器，否则它会重开当前页并关掉菜单。
-			this.$breadcrumbs.children("li:last-child").on("click", (event) => {
-				event.preventDefault();
-				event.stopPropagation();
-			}).find("a").attr("aria-haspopup", "menu")
-				.append(frappe.utils.icon("chevron-down", "xs"));
-		}
-	};
+	// 多级面包屑那套（含窄屏 `menu_items`）在共享层 `p.breadcrumbs`，商品/出入库/收发存
+	// 用的是同一份；这里只把盘点自己的路径拼出来。
 	p.stockCountBreadcrumbs = ({ name, title, entries = false, report = false } = {}) => {
 		const trail = [];
 		if (name) trail.push({
@@ -38,17 +22,7 @@
 		});
 		if (entries) trail.push({ label: __("stock.count.entries"), route: "" });
 		if (report) trail.push({ label: __("stock.board.title"), route: "" });
-		frappe.breadcrumbs.add({
-			type: "Custom", label: __("nav.stockCount"), route: url(),
-			pearnly_stock_count_trail: trail,
-			menu_items: trail.length ? [
-				{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") },
-				{ label: __("nav.stockCount"), onClick: () => frappe.set_route(root) },
-				...trail.filter((step) => step.route).map((step) => ({
-					label: p.escape(step.label), onClick: () => frappe.set_route(step.route),
-				})),
-			] : [],
-		});
+		p.breadcrumbs({ label: __("nav.stockCount"), route: url(), trail });
 	};
 
 	p.stockCount = async (page, t, wrapper) => {

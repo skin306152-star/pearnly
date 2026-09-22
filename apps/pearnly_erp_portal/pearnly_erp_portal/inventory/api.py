@@ -13,6 +13,7 @@ from pearnly_erp_portal.inventory import (
     workbook,
     warehouses,
 )
+from pearnly_erp_portal.numbering import service as numbering
 
 # 盘点表读不动时的提示（用户可见，走语言包）。解析层只报 token，文案在这一层翻。
 STOCK_FILE_ERRORS = {
@@ -68,6 +69,15 @@ def api_create_stock_entry(**kwargs):
 @frappe.whitelist()
 def api_list_stock_entries(**kwargs):
     return documents.list_entries(**_clean(kwargs))
+
+
+@frappe.whitelist()
+def api_next_stock_entry_number(**kwargs):
+    """表单上显示"当前要发的单据号"（只读预览，不占号）—— MR.ERP 的表单也是这样把号
+    填进只读输入框给用户看的。"""
+    kwargs = _clean(kwargs)
+    return {"doc_no": numbering.preview(direction=kwargs.get("direction"),
+                                        on=kwargs.get("posting_date"))}
 
 
 @frappe.whitelist()

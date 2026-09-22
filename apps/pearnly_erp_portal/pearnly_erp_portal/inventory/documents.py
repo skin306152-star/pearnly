@@ -25,18 +25,34 @@ def _get(name):
     return frappe.get_doc(DOCTYPE, name)
 
 
+def _business_lines(lines) -> list:
+    """只留**真有商品**的明细行，然后要求至少一行。
+
+    界面上的明细表是可编辑的空表，框架会给它带一行空白的（数量是字段默认 1、没有商品）。
+    那种行不是业务明细：以前它一路走到建单那里，在 `line["product"]` 上抛 KeyError，
+    用户看到的是"服务器错误"而不是"至少要有一行明细"。所以在这里挡住 —— 顺便也挡住
+    第三方直接调接口时塞进来的空行。
+    """
+    if not isinstance(lines, list):
+        frappe.throw(_(LINES_REQUIRED))
+    kept = [line for line in lines if isinstance(line, dict) and str(line.get("product") or "").strip()]
+    if not kept:
+        frappe.throw(_(LINES_REQUIRED))
+    return kept
+
+
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None):
     guard.require("stock.write")
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
-    if not isinstance(lines, list) or not lines:
-        frappe.throw(_(LINES_REQUIRED))
-    lines = [positions.prepare(line, warehouse) for line in lines]
+    lines = [positions.prepare(line, warehouse) for line in _business_lines(lines)]
     warehouse = warehouses.resolve(warehouse)
-    # 单据号由系统发（入库 IR / 出库 IS，佛历日期 + 当日流水），不接受手输 —— 收发存报表
-    # "关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
-    doc_no = numbering.allocate(direction=direction, on=posting_date)
+    # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
+    # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
+    # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
+    doc_no = numbering.allocate(direction=direction, on=posting_date,
+                                exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"doc_no": value})))
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
         "warehouse": warehouse, "supplier": supplier, "doc_no": doc_no, "reason": reason,
@@ -92,9 +108,7 @@ def update_entry(name, **changes):
         if field in changes:
             doc.set(field, warehouses.resolve(changes[field]) if field == "warehouse" else changes[field])
     if "lines" in changes:
-        lines = changes["lines"]
-        if not isinstance(lines, list) or not lines:
-            frappe.throw(_(LINES_REQUIRED))
+        lines = _business_lines(changes["lines"])
         doc.lines = []
         for line in lines:
             line = positions.prepare(line, changes.get("warehouse"))
