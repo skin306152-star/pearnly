@@ -340,6 +340,8 @@ draft,ฉบับร่าง
 goods,สินค้า
 hq,สำนักงานใหญ่
 issued,ออกเอกสารแล้ว
+nav.posReceipts,บันทึกการรับเงิน
+nav.posShifts,บันทึกกะ
 nav.stockCount,ตรวจนับสต็อก
 opening,ยอดยกมา
 paid,ชำระแล้ว

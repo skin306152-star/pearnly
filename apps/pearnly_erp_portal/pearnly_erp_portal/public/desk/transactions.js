@@ -2,6 +2,36 @@
 (() => {
 	const p = frappe.pearnly;
 	p.trade = {
+		// 收银小票的只读查看器：销售记录里点到"来源=POS"的行，或收银页点小票，都开这一个。
+		// `actions` 由调用方给（收银页给「退货退款 / 作废」，销售记录只读打开时不给）。
+		async receipt_view(name, t, actions = {}) {
+			const api = "pearnly_erp_portal.cashier.api.";
+			const doc = await p.call(api + "api_get_sale", { name });
+			const fields = [
+				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
+				{ fieldtype: "Data", fieldname: "status", label: t("trade.status"), read_only: 1,
+					default: t(`trade.state.${doc.status}`) },
+				// 明细表整表只读：只给内层 `cannot_add_rows/cannot_delete_rows` 的话，弹窗里的
+				// 原生表格照样会画出"添加行 / 删除 / 上传 / 批量添加"那一排（实测），点开一张
+				// 已卖出的小票不该能改行，所以再加一层字段级 `read_only`。
+				{ ...p.trade.lines(t, { readonly: true, data: doc.lines }), read_only: 1 },
+				{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value),
+					fieldname: "total", label: t("trade.total"), read_only: 1, default: doc.grand_total },
+			];
+			let dialog;
+			if (doc.sale_type === "sale" && actions.refund) {
+				fields.push({ fieldtype: "Button", fieldname: "refund", label: t("trade.refund"),
+					click: () => actions.refund(doc, dialog) });
+			}
+			if (actions.void) {
+				fields.push({ fieldtype: "Button", fieldname: "void", label: t("trade.void"),
+					click: () => frappe.confirm(t("trade.voidConfirm"),
+						() => p.trade.act(dialog, () => actions.void(doc, dialog))) });
+			}
+			dialog = p.dialog(doc.receipt_no, fields, t("trade.close"), async (_values, d) => d.hide());
+			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			return doc;
+		},
 		load(api, method, totalMethod, query = () => ({})) {
 			return async ({ start, page_length }) => {
 				const [items, total] = await Promise.all([

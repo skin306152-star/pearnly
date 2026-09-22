@@ -340,6 +340,8 @@ draft,draft
 goods,goods
 hq,hq
 issued,issued
+nav.posReceipts,Cashier Records
+nav.posShifts,Shift Records
 nav.stockCount,Stock count
 opening,opening
 paid,paid

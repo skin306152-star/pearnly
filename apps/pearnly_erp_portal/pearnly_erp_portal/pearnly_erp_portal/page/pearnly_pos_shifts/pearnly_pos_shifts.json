@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-pos-shifts",
+ "page_name": "pearnly-pos-shifts",
+ "title": "nav.posShifts",
+ "module": "Pearnly ERP Portal",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

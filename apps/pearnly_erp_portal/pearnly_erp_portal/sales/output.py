@@ -48,6 +48,11 @@ def workbook(params=None):
     from pearnly_erp_portal.sales import access
 
     selected = records.rows(params, limit=0)
+    # 收银小票（来源=POS）不在 `ERP Sales Document` 里，不能按它的内部名去重读 —— 分开取数，
+    # 两张单都落到同一张「销售记录」表里（用户 2026-09-23：POS 记录也是销售记录的一种来源）。
+    from pearnly_erp_portal.cashier import sales as cashier_sales
+
+    pos_rows = [row for row in selected if row.get("source") == records.SOURCE_POS]
     book = Workbook()
     book.remove(book.active)
     specs = [("ERP Sales Document", _("Sales Records"), None),
@@ -63,10 +68,21 @@ def workbook(params=None):
         sheet.freeze_panes = "B2" if child else "A2"
         sheets.append((sheet, columns, child))
     for row in selected:
-        doc = frappe._dict(access.get_document(row.name).as_dict())
+        if row.get("source") == records.SOURCE_POS:
+            doc = frappe._dict(row)
+        else:
+            doc = frappe._dict(access.get_document(row.name).as_dict())
         for sheet, columns, child in sheets:
+            if child and row.get("source") == records.SOURCE_POS:
+                # 收银明细在 `ERP Sale Line` 上，字段名与销售明细基本同名，直接映射。
+                continue
             for record in doc.get(child, []) if child else [doc]:
                 sheet.append(([doc.name] if child else []) + [_cell(record, key) for key, label in columns])
+    if pos_rows:
+        # 收银小票的明细单独补进「Items」表（它挂在 `ERP Sale` 上，不在销售明细表里）。
+        items_sheet, items_columns, _child = sheets[1]
+        for record in cashier_sales.pos_export_lines([row["pos_name"] for row in pos_rows]):
+            items_sheet.append([record.get("parent")] + [_cell(record, key) for key, _label in items_columns])
     for sheet, columns, child in sheets:
         sheet.auto_filter.ref = sheet.dimensions
         for column in sheet.columns:

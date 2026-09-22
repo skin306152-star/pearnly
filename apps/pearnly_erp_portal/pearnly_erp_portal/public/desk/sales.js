@@ -5,6 +5,8 @@
 		const root = "pearnly-sales", can_write = frappe.model.can_write("ERP Sales Document");
 		const go = (...parts) => frappe.set_route(root, ...parts);
 		let cleanup = () => {}, list_cleanup = () => {}, filter_values = {};
+		// 收银小票查看器要 `trade.*` 那套文案（收银页的命名空间），第一次点开时取一次。
+		let trade_texts = null;
 		const title = () => __("nav.sales");
 		async function listing(still_current) {
 			page.set_title(title());
@@ -28,7 +30,14 @@
 			};
 			const refresh = async () => {await list.reload(); primary();};
 			list = p.list({page, doctype: "ERP Sales Document", selectable: true, compact_columns: true,
-				on_open: row => go(row.name),
+				// 收银小票（来源=POS）在收银那张单上，不能当销售单打开去看编辑页 ——
+				// 点它开小票查看器（与收银页同一个），其余照旧进详情页。
+				on_open: async row => {
+					if (row.source !== "pos") { go(row.name); return; }
+					// 收银小票的文案在 `trade.*`（收银页那套），懒取一次就留着。
+					trade_texts = trade_texts || await p.texts("trade.");
+					await p.trade.receipt_view(row.pos_name || row.name, trade_texts, {});
+				},
 				columns: [
 					{fieldname: "system_no", width: 154, min_width: 145, label: __("ID"), format: (value, row) => value || row.name},
 					{fieldname: "doc_date", width: 106, min_width: 98, label: __("Date")},
@@ -36,6 +45,9 @@
 					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},
 					{fieldname: "grand_total", width: 108, min_width: 86, label: __("Grand Total"), format: value => p.money(value)},
 					{fieldname: "doc_kind", width: 90, min_width: 72, label: __("Document Type"), format: u.label},
+					// 「来源」：手工录入 / 上传识别 / LINE / 收银。收银小票就靠这一列认出来
+					// （对齐 ERPNext 的 is_created_using_pos 标记）。
+					{fieldname: "source", width: 96, min_width: 76, label: __("Source"), format: u.label},
 					// 还没收到的钱标红（颜色走 `cell_class`，列表这一层只出转义文本）。
 					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Collection Status"), format: u.label,
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
@@ -72,6 +84,8 @@
 					f("date_from", "From Date", "Date"), f("date_to", "To Date", "Date"),
 					multi("doc_kind", "Document Type", u.options(["receipt", "quotation"])),
 					multi("payment_status", "Collection Status", u.options(["unpaid", "partial", "paid"])),
+					// 「来源」：手工录入 / 上传识别 / LINE / 收银（收银小票就靠这一档筛出来）。
+					multi("source", "Source", u.options(["manual", "ocr", "line", "pos"])),
 				], __("Apply"), async (values, d) => {filter_values = {...values, q: search.get_value()}; d.hide(); await refresh();});
 				void dialog.set_values({group: "", period: "all", date_basis: "document", ...filter_values});
 				dialog.set_secondary_action_label(__("Reset"));

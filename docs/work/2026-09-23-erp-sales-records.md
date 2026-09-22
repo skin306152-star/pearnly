@@ -672,6 +672,47 @@
 
 **界面验过**（桌面视口）：头部 = 标题 + 指示器（班次·开班时间·应有现金）+ ⋯菜单 + 当班小票 + 新单；商品区 24 张卡（色点 0 红 / 53、58、79、101、102、126 绿）；点卡片 → 购物车 1 行、合计 THB 45→78 跟着变；键盘 ⌫ 后按 3 → 数量 3、合计 THB 135、总件数 3；点「新单」→ 购物车清空、合计回 0；点「当班小票」→ 那一节展开显示 5 张小票；收款弹窗键盘点 1/5/0 → 实收 150.00、找零 THB 15（应收 135）。
 
+### F20：POS 记录并进销售记录 + 收银记录 / 交班记录两个入口（2026-09-23，未部署）
+
+用户给了 `/Users/skin/pearnly-erp`（ERPNext 那套产品的仓库）说"你读这个看看，真的是这样吗，我记得不是这样啊"，读完确认**我 F18 第四节那段是错的**，并照他的产品改。
+
+#### 一、读 `pearnly-erp` 得到的事实（我错在哪）
+
+| 事实 | 证据 |
+| --- | --- |
+| ERPNext 的 POS 单据由 `POS Settings.invoice_type` **两选一**：POS Invoice（独立单据）或 **Sales Invoice**（POS 单就是销售发票，用 `is_created_using_pos=1` 区分） | `upstream/erpnext/.../pos_controller.js:133` 读它；`apps/pearnly_business/sample_pos.py:9` 按它决定侧栏指向 |
+| **他的产品用的是 Sales Invoice 模式**，所以零售与批发**进同一套原生销售报表** | `scripts/business-sample/test-sales.py:51` 断言 `invoice_type == "Sales Invoice"`；`docs/business-sample.md:21` |
+| "收银记录"**跟随模式**：Sales Invoice 模式下按 `is_created_using_pos=1` 筛同一张表，避免混入普通销售表单开的单 | `docs/business-sample.md:23`、`sample_pos.py:15`（`route_options`） |
+| 侧栏 = 一个 POS 分组**三个入口**：`POS Counter`（页面 point-of-sale）、`POS Receipts`（跟随模式）、`POS Shift Records`（POS Closing Entry），旁边一个默认折叠的 `POS Management`（POS Profile / POS Settings / POS Opening Records） | `sample_pos.py:9-15、46-83` |
+| 收银台界面保持原生，只把原生商品搜索框接上**摄像头扫码**（改成 Barcode 控件），配合 `auto_add_item_to_cart` 扫完直接进车 | `hooks.py: page_js = {"point-of-sale": "public/js/pos_scanner.js"}`、`pos_scanner.js` |
+
+**我 F18 第四节说"ERPNext 是单独记、不进 Sales Invoice 列表"是拿默认模式当成了唯一答案** —— 对他的产品是错的。正确结论：**POS 记录就是销售记录的一种**（他们那种模式），并有独立的"收银记录"入口（同一张表加筛选）。
+
+#### 二、照这个改（本轮做的）
+
+| 改的东西 | 落点 |
+| --- | --- |
+| **收银小票进销售记录**：`rows()` 现在把 `ERP Sales Document` 与 `ERP Sale` 归并成一列形状（同一套列名、同一套筛选、同一套排序），`source=pos` | `sales/records.py`（新增 `_pos_rows/_pos_shape/_attach_pos_summaries/wanted_sources/_pos_applies`） |
+| 「来源」列 + 来源筛选（手工 / 识别 / LINE / 收银）——对齐他们的 `is_created_using_pos` 区分 | `public/desk/sales.js`（列 + 筛选弹窗的 `multi("source", …)`） |
+| 点"来源=收银"的行 → 开**小票查看器**（不是销售单详情页）；查看器抽成共享件，收银页 / 收银记录 / 销售记录三处同一个 | `public/desk/transactions.js` 的 `p.trade.receipt_view`；`cashier.js` 改用它 |
+| **收银记录**（所有班次的小票，按日期/类型/状态筛）与**交班记录**（各班次汇总 + 差额标红）两个**独立页面 + 侧栏入口**，放在销售系统分组里，顺序对齐他们的 POS Counter / POS Receipts / POS Shift Records | 新页面 `pearnly-pos-receipts`、`pearnly-pos-shifts`（page json + register）、`public/desk/pos-receipts.js`、`pos-shifts.js`、`hooks.py` 清单与导航 |
+| 导出跟着走：收银小票也写进「销售记录」表（明细取 `ERP Sale Line`），不再只导销售单 | `sales/output.py`、`cashier/sales.py` 的 `pos_export_lines` |
+
+**没并表**（按上一轮说好的）：收银小票仍在 `ERP Sale` 里单独存 —— 这一轮只是**读**的时候合成一份；真要像 ERPNext 那样只用一张单，是单独一步（要迁历史）。
+
+#### 三、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 服务端取数 | 全部 **29** 条（23 销售 + **6 收银**）；`source=["pos"]` → 6 条且全为 pos；`source=["manual"]` → 16 条且全为 manual；收银行带 `system_no=SI2569-000026 / receipt / submitted / paid / 135.0 / 摘要"ปลากระป๋อง ตราสามแม่ครัว ×3.0"` |
+| 销售记录页 | 表头多出「来源」列；首屏 6 行收银（`SI2569-000026 / 025 / 024 / R20260923-0003 / 0002 / 0001`）都显示「收银」，其余显示「手工」等；计数 **20 / 29** |
+| 筛选弹窗 | 字段里出现「来源」（类型 / 期间 / 日期 / 开始 / 结束 / 单据类型 / 收款状态 / **来源**） |
+| 点收银行的行 | 开小票查看器：标题 `SI2569-000026`、状态 已完成、明细 1 行 `ปลากระป๋อง ตราสามแม่ครัว … 3 … THB 45`、应收 THB 135（只读，没有列表里那排"添加行/删除/上传"） |
+| 「收银记录」页 | 6 / 6 条：单据编号 / 日期 / 类型 / 状态 / 应收 / 实收 / 班次编号；点行同样开小票查看器（有权限时带 退货退款 / 作废） |
+| 「交班记录」页 | 2 个班次；已交班那行 `应有 1,136 / 实点 1,130 / 差额 **THB -6**`（红）；点行弹汇总：收银台、收银员、笔数 2、退款 0、找零 4、各收款方式、应点/实点、差额 -6（红） |
+| 侧栏 | 销售系统下依次：销售记录 / 收银 POS / **收银记录** / **交班记录** / 客户 |
+| 离线检查 | 架构 0 违规、术语表 PASS（erp 753 条）、权限回归 102 条 OK、`check-i18n --strict` 与基线一致（18 / 113） |
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |

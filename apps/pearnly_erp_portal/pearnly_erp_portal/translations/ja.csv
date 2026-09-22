@@ -340,6 +340,8 @@ draft,下書き
 goods,物品
 hq,本店
 issued,発行済み
+nav.posReceipts,レジ記録
+nav.posShifts,シフト記録
 nav.stockCount,棚卸
 opening,期首
 paid,支払済み

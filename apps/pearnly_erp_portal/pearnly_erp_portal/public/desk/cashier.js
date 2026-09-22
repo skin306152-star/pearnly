@@ -339,22 +339,16 @@
 
 		// ── 小票、退货、班次 ────────────────────────────────────────────────────
 		async function receipt(name) {
-			const doc = await p.call(api + "api_get_sale", { name });
-			let d;
-			const fields = [
-				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
-				{ fieldtype: "Data", fieldname: "status", label: t("trade.status"), read_only: 1, default: state_label(doc.status) },
-				p.trade.lines(t, { readonly: true, data: doc.lines }),
-				{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value), fieldname: "total", label: t("trade.total"), read_only: 1, default: doc.grand_total },
-			];
-			if (doc.status === "completed" && canWrite) {
-				if (doc.sale_type === "sale") fields.push({ fieldtype: "Button", fieldname: "refund", label: t("trade.refund"), click: () => refund(doc, d) });
-				fields.push({ fieldtype: "Button", fieldname: "void", label: t("trade.void"), click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
-					await p.call(api + "api_void_sale", { name }, "POST"); d.hide(); await refresh(); await receipt(name);
-				})) });
-			}
-			d = p.dialog(doc.receipt_no, fields, t("trade.close"), async (_values, dialog) => dialog.hide());
-			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			// 小票查看器是共享的（`p.trade.receipt_view`）：收银页、销售记录点"来源=POS"的行、
+			// 收银记录页三处用同一个，避免各写一份以后走样。收银页多给两个动作。
+			await p.trade.receipt_view(name, t, canWrite ? {
+				refund: (doc, parent) => refund(doc, parent),
+				void: async (doc, parent) => {
+					await p.call(api + "api_void_sale", { name: doc.name }, "POST");
+					parent?.hide?.();
+					await refresh();
+				},
+			} : {});
 		}
 
 		function refund(doc, parent) {

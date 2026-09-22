@@ -175,6 +175,24 @@ def _move_stock(doc, *, direction: str) -> dict | None:
     )
 
 
+def pos_export_lines(names) -> list[dict]:
+    """收银小票的明细，按销售记录明细的字段名给出（导出把两者写进同一张表）。
+
+    两边明细字段基本同名（`ERP Sale Line` 少了 `line_no`/`vat_applicable`/`discount_pct`），
+    缺的那几列留空即可 —— 导出表头取自销售明细的 meta，所以这里只要给出能对上的键。
+    """
+    names = [name for name in (names or []) if name]
+    if not names:
+        return []
+    lines = frappe.get_all("ERP Sale Line", filters={"parent": ["in", names]},
+                           fields=["parent", "product", "description", "qty", "unit", "unit_price",
+                                   "discount", "line_total", "warehouse", "location", "idx"],
+                           order_by="parent asc, idx asc", limit_page_length=0)
+    for line in lines:
+        line["line_no"] = line.get("idx")
+    return lines
+
+
 def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
                status=None, q=None, limit=50, start=0) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""

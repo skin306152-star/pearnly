@@ -750,3 +750,5 @@ Pick a line first	先选一行	เลือกบรรทัดก่อน	先
 New Invoice	新单	บิลใหม่	新規会計	trade.newInvoice
 Opened at {0}	开班时间 {0}	เปิดกะเมื่อ {0}	開始 {0}	trade.openedAtSub
 Shift {0} · opened {1} · expected cash {2}	班次 {0} · 开班 {1} · 应有现金 {2}	กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}	シフト {0} · 開始 {1} · 現金予定額 {2}	trade.shiftOpenedAt
+Cashier Records	收银记录	บันทึกการรับเงิน	レジ記録	nav.posReceipts
+Shift Records	交班记录	บันทึกกะ	シフト記録	nav.posShifts

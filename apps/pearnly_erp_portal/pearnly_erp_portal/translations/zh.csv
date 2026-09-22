@@ -340,6 +340,8 @@ draft,草稿
 goods,货物
 hq,总店
 issued,已开出
+nav.posReceipts,收银记录
+nav.posShifts,交班记录
 nav.stockCount,盘点
 opening,期初
 paid,已付款
