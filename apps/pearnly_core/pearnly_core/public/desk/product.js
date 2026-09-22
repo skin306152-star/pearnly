@@ -75,7 +75,7 @@ frappe.provide("frappe.pearnly");
 			parent.append(frappe.views.QueryReport.prototype.get_no_result_message());
 			return { destroy: () => parent.empty() };
 		}
-		return new window.DataTable(parent[0], {
+		const table = new window.DataTable(parent[0], {
 			columns: columns.map((column) =>
 				typeof column === "string"
 					? { name: column, editable: false, format: p.escape }
@@ -90,6 +90,46 @@ frappe.provide("frappe.pearnly");
 			translations: frappe.utils.datatable.get_translations(),
 			...options,
 		});
+		return p.table_menu(table);
+	};
+	// 列头菜单只留排序三项。官方 datatable 默认还挂"移除栏"和"冻结/解冻"，本项目表格是
+	// **只读展示、列由代码定义**：少一列 / 冻一列都不是业务动作，留着只是误导（用户
+	// 2026-09-22 口径：没用就删）。做法是沿用官方自己的 `display` 通道 + 关掉粘性列开关，
+	// 不改插件源码、不动排序逻辑。
+	p.table_menu = table => {
+		const items = table?.options?.headerDropdown || [];
+		const nodes = table?.dropdownContainer?.firstElementChild?.children || [];
+		items.forEach((item, index) => {
+			const removable = item.stickyAction === "stick" || item.stickyAction === "unstick"
+				|| /\bremoveColumn\b/.test(String(item.action || ""));
+			if (!removable) return;
+			item.display = "hidden";
+			nodes[index]?.classList.add("dt-hidden");
+		});
+		// 冻结/解冻两项的显隐由列管理组件在"打开菜单"时按列状态切换（`updateStickyDropdownItems`），
+		// 所以要把**它**上面这两个索引置 -1（放在 DataTable 上没用：那里没有这两个字段，
+		// 实测会白写，菜单里 Freeze 照样冒出来）。
+		const columns = table.columnmanager;
+		if (columns) columns.stickDropdownIndex = columns.unstickDropdownIndex = -1;
+		return table;
+	};
+	// 弹窗里一排摆几个字段：默认两个。字段少就一排，多了自动换到第二排 —— 一列到底的
+	// 竖排会把"上面那几行"拉得又长又空（用户 2026-09-22 口径）。整行控件（HTML/Table/
+	// Button、Section）自己占一行，不参与并排。
+	p.field_rows = (fields, columns = 2) => {
+		const rows = [];
+		let filled = 0;
+		const end_row = () => { if (filled) { rows.push({ fieldtype: "Column Break" }); filled = 0; } };
+		for (const field of fields) {
+			const type = field.fieldtype;
+			if (type === "Section Break" || type === "HTML" || type === "Table" || type === "Button") {
+				end_row(); rows.push(field); continue;
+			}
+			if (type === "Column Break") { rows.push(field); filled = 0; continue; }
+			rows.push(field); filled += 1;
+			if (filled === columns) end_row();
+		}
+		return rows;
 	};
 	p.restore_sidebar = () => {
 		if (frappe.boot.pearnly_sidebar && frappe.app?.sidebar?.sidebar_title !== frappe.boot.pearnly_sidebar) {

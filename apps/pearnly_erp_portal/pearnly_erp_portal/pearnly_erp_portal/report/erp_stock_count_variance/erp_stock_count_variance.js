@@ -52,22 +52,9 @@
 	}
 
 frappe.query_reports[report_name] = {
-	get_datatable_options(options) {
-		const language = options.language || frappe.boot.lang;
-		return {
-			...options,
-			translations: {
-				...options.translations,
-				[language]: {
-					...options.translations?.[language],
-					Freeze: __("stock.board.freezeColumn"),
-					Unfreeze: __("stock.board.unfreezeColumn"),
-				},
-			},
-		};
-	},
-
 	after_refresh(report) {
+		// 列头菜单与产品里其它表格一致：只留排序（见 core `p.table_menu`）。
+		frappe.pearnly.table_menu(report.datatable);
 		trim_menu(report);
 	},
 

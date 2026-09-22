@@ -59,12 +59,12 @@
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
-		const table_options = () => {
-			const language = frappe.boot.lang, translations = frappe.utils.datatable.get_translations();
-			return { language, translations: { ...translations, [language]: {
-				...translations[language], Freeze: __("stock.board.freezeColumn"), Unfreeze: __("stock.board.unfreezeColumn"),
-			} } };
-		};
+		// 表格选项：列头菜单只留排序（"移除栏 / 冻结"由 core `p.table_menu` 去掉），
+		// 所以这里不再需要给 Freeze/Unfreeze 补译文。
+		const table_options = () => ({
+			language: frappe.boot.lang,
+			translations: frappe.utils.datatable.get_translations(),
+		});
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
 			list?.destroy(); table?.destroy(); chart?.parent?.remove?.();

@@ -197,8 +197,6 @@ Show only	只看	แสดงเฉพาะ	表示のみ	stock.board.only
 Chart by	看板按	แผนภูมิแบ่งตาม	グラフの軸	stock.board.by
 Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.board.title
-Freeze column	冻结列	ตรึงคอลัมน์	列を固定	stock.board.freezeColumn
-Unfreeze column	取消冻结列	ยกเลิกการตรึงคอลัมน์	列の固定を解除	stock.board.unfreezeColumn
 Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
 ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード
 Items	商品明细	รายการสินค้า	商品明細	trade.lines

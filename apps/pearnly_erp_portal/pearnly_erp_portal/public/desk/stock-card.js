@@ -6,10 +6,14 @@
 		const card = await p.call(api + "api_stock_card", { product: row.product, warehouse: row.warehouse,
 			location: row.location || "", date_from: dates.date_from || "1900-01-01", date_to: dates.date_to || frappe.datetime.get_today() });
 		const d = p.dialog(card.product_name || row.product, [
-			{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1, default: row.warehouse_name || row.warehouse },
-			{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), read_only: 1, default: row.location || "" },
-			{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"), read_only: 1, default: p.number(card.opening.qty) },
-			{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"), read_only: 1, default: p.number(card.closing.qty) },
+			// 四个只读字段一排两个（`p.field_rows`）：一列到底会把这几行拉得又长又空，
+			// 表格反而被推到看不见的地方。
+			...p.field_rows([
+				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1, default: row.warehouse_name || row.warehouse },
+				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), read_only: 1, default: row.location || "" },
+				{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"), read_only: 1, default: p.number(card.opening.qty) },
+				{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"), read_only: 1, default: p.number(card.closing.qty) },
+			]),
 			{ fieldtype: "HTML", fieldname: "movements" },
 		], t("trade.close"), async (_values, dialog) => dialog.hide());
 		d.$wrapper.find(".modal-dialog").addClass("modal-xl");
