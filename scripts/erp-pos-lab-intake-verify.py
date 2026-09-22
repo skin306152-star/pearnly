@@ -288,7 +288,9 @@ def main():
                            lines=[{"product": None, "description": "LINE sale",
                                    "qty": 1, "unit_price": "100"}],
                            doc_date="2026-09-21", buyer_name="LINE Buyer",
-                           doc_kind="tax_invoice")
+                           # 销售域已按用户 2026-09-23 的决定去掉税务发票，单据类型只剩
+                           # 报价单与收据（见 docs/work/2026-09-23-erp-sales-records.md 的 D1）。
+                           doc_kind="receipt")
         results["sales_confirm"] = ok
         results["sales_confirm_error"] = None if ok else made
         sales_doc = made.get("name") if ok else None
