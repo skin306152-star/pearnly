@@ -7,6 +7,30 @@ from frappe import _
 from pearnly_erp_portal.purchasing import access, amounts, records
 
 
+# Stored enum codes stay stable; workbook cells use the same official business terms as Desk.
+ENUM_FIELDS = {"doc_kind", "doc_type", "status", "payment_status", "supplier_branch_type",
+               "price_mode", "payment_method", "method", "source", "item_type", "kind", "approval_status"}
+ENUM_LABELS = {
+    "purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order", "expense": "Expense",
+    "goods": "Goods", "service": "Service", "tax_invoice": "Tax Invoice",
+    "simple_tax_receipt": "Abbreviated Tax Invoice", "receipt": "Receipt",
+    "substitute_receipt": "Substitute Receipt", "other": "Other", "head_office": "Head Office",
+    "head": "Head Office", "branch": "Branch", "none": "None", "exclusive": "Tax Exclusive",
+    "inclusive": "Tax Inclusive", "cash": "Cash", "transfer": "Bank Transfer", "promptpay": "PromptPay",
+    "bank": "Bank", "cheque": "Cheque", "draft": "Draft", "submitted": "Submitted", "void": "Cancelled",
+    "unpaid": "Unpaid", "partial": "Partly Paid", "paid": "Paid", "bill": "Invoice",
+    "payment_proof": "Payment Receipt", "wht_cert": "Withholding Tax Certificate",
+    "web": "Manual", "manual": "Manual", "ocr": "OCR", "line": "LINE",
+}
+
+
+def _cell(record, key):
+    value = record.get(key)
+    if key in ENUM_FIELDS and value in ENUM_LABELS:
+        value = _(ENUM_LABELS[value])
+    return _value(value)
+
+
 def _columns(doctype):
     return [("name", "ID"), *[(field.fieldname, field.label) for field in frappe.get_meta(doctype).fields
         if field.fieldtype not in ("Section Break", "Column Break", "Tab Break", "HTML", "Button", "Table")
@@ -44,7 +68,7 @@ def workbook(params=None):
         doc = access.get_document(row.name)
         for sheet, columns, child in sheets:
             for record in doc.get(child, []) if child else [doc]:
-                sheet.append(([doc.name] if child else []) + [_value(record.get(key)) for key, label in columns])
+                sheet.append(([doc.name] if child else []) + [_cell(record, key) for key, label in columns])
     for sheet, columns, child in sheets:
         sheet.auto_filter.ref = sheet.dimensions
         for column in sheet.columns:

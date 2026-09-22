@@ -219,6 +219,7 @@ def main():
     exported=load_workbook(BytesIO(output.workbook({'q':prefix+' complete'})))
     all_values=[cell.value for sheet in exported for row in sheet for cell in row]
     assert 'LOT-1' in all_values and detailed['external_ref'] in all_values and detailed['lines'][0]['barcode'] in all_values
+    assert frappe._('Purchase Order') in all_values and 'purchase_order' not in all_values
     checks.append('mixed invoice all business fields preserved through reload and Excel')
     copied_file=frappe.get_doc({'doctype':'File','file_name':prefix+' duplicate.txt','is_private':1,
         'content':('purchase test evidence '+prefix).encode()}).insert(ignore_permissions=True)
