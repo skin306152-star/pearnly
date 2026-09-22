@@ -1,30 +1,241 @@
 A confirmed draft must point at the purchase record it created,已确认的草稿必须指向它建出的采购记录
 A stored source file must carry its hash,留底文件必须带内容指纹
+Abbreviated Tax Invoice,简式税务发票
+Additional Information,附加信息
+Address,地址
+Against Payment,关联付款
+All,全部
 Already received,这份文件已经收过了
+Amend,修订
+Amended,已修订
+Amended From,修订自(上一版单据编号)
+Amount,金额
+Amount Payable,应付金额
+Apply,应用
+Approval Status,审批状态
+Are you sure you want to delete the attachment?,您确定要删除附件？
+Are you sure you want to delete?,确定删除？
+Attach,添加文件
+Attachment,附件
+Attachment Type,附件类型
+Attachments,附件
+Bank,银行
+Bank Transfer,银行转账
+Barcode,条码
+Batch No,批号
 Bind this account first,请先绑定 ERP 账号
 Bound to {0},已绑定到 {0}
+Branch,分支机构（分公司）
+Branch Name,分支名称
+Branch No,分支编号
+Branch No is required,分支编号不能为空
+Branch Type,分支类型
+Cancel,取消
+Cancellation,取消
+Cancelled,已取消
+Cancelled On,取消时间
+Cash,现金
+Category,类别
+Category Name,分类名称
+Cheque,支票
+Columns,列
+Confirm,确认
+Confirm the document before recording a payment,记录付款前请先提交单据
 Could not store this document,单据留底失败，请重发
 Count at least one item before finishing,请至少盘点一项后再结束
+Create New Item,创建新商品
+Creation,创建日期
+Currency,货币
+Custom,自定义
+Date,日期
+Dedupe Key,去重键
+Delete,删除
+Description,描述
+Discount Amount,折扣金额
+Document Type,单据类型
+Document has already been cancelled,单据已取消
+Document has already been submitted,单据已提交
+Document has been cancelled,文档已取消
+Document must be submitted,请先提交单据
+Draft,草稿
 Draft not found,找不到这条草稿
+Due Date,到期日
 ERP Stock Count Variance,盘点差异看板
+Enabled,已启用
+Exchange Rate,汇率
+Exchange Rate is required,汇率不能为空
+Exchange Rate must be greater than zero,汇率必须大于零
+Expense,费用
+Expense Amount,费用金额
+Expense Count,费用笔数
+Expiry Date,失效日期
+Export,导出
+External System Reference,外部系统引用
+File,文件
+File Name,文件名
+File not found,文件不存在
+Filters,过滤条件
+From Date,开始日期
+Generated,已生成
+Goods,货物
+Grand Total,总计
+Head Office,总部
+ID,编号
+Image Fingerprint,影像指纹
+Input Tax,进项税额
+Invalid Currency,币种无效
+Invalid payment amount,付款金额无效
+Invalid value,值无效
+Invoice,发票
+Invoice Amount,发票金额
+Is Paid,已付款
+Is Reversal,冲销
+Item,物料
+Item / Description,品名/说明
+Item Code,物料号
+Item Group,物料组
+Item Name,物料名称
+Item Name is required,商品名称不能为空
+Item Type,项目类型
+Items,物料
+Items are required,商品明细不能为空
+LINE,LINE
 LINE unbound,LINE 已解绑
+Last Month,上个月
+Line Amount,行金额
+Line Discount,行折扣
+Line No,行号
+Location,地点
+Manual,手动
+Manually Set Amounts,手动设置金额
+Merge Items,合并明细
+Mode of Payment,付款方式
+More Filters,更多筛选条件
+Net Total,净总计
+New,新建
+New Category,新建分类
+New Purchase Invoice,新供应商发票
+No attachments,无附件
+None,无
+Not permitted,没有权限
+Note,备注
 Now sending {0} documents,现在发送{0}单据
+OCR,文字识别
+Only Draft documents can be deleted,只能删除草稿单据
+Only an image or a PDF can be recognised,仅支持识别图片或 PDF
 Only purchase documents can be sent in for now,目前只收采购单据
+Opening Balance,期初余额
+Other,其它
+Outstanding Amount,未付金额
+Paid,已付款
+Paid Amount,付款金额
+Parent Category,上级分类
+Parent Item Group,父物料组
+Partly Paid,部分付款
+Payment,付款
+Payment Date,付款日期
+Payment Receipt,付款凭证
+Payment Status,付款状态
+Payments,付款
+Period,期间
+Please select an Item,请选择商品
+Posting Date,记账日期
+Prices Include Tax,价格含税
+Print,打印
+Product,产品
+Product Ref,商品外部标识
+PromptPay,PromptPay
+Purchase,采购
+Purchase Amount,采购金额
+Purchase Count,采购笔数
+Purchase Invoice,采购发票
+Purchase Order,采购订单
+Purchase Records,采购记录
+Qty,数量
+Quantity,数量
+Rate,单价
+Reason for Cancellation,取消原因
+Receipt,采购入库
+Received By,收款人
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
+Recognition is not configured for this account,尚未配置文字识别
+Recognition returned nothing,未识别到内容
+Reference,参考
+References,参考
+Remarks,备注
+Request ID already exists,请求编号已存在
+Requested By,申请人
+Reset,重置
+Reversal,冲销
+Rotate,旋转
+Rounding Adjustment,小数精度尾差调整
+Save,保存
+Search,搜索
 Select a product for each stock item,请为每条货物明细选择商品
 Select the original sale line,请选择原单中的商品行
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
+Service,服务
+Sort Order,排序
+Source,来源
+Status,状态
+Stock Posted At,库存过账时间
 Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的商品。
+Subcategory,子分类
+Submit,提交
+Submitted,已提交
+Substitute Receipt,替代收据
+Summary,概要
+Supplier,供应商
+Supplier Doc Reference,供应商单据参考号
+Supplier Invoice No,供应商发票号
+Supplier Invoice No already exists,供应商发票编号已存在
+Supplier Invoice No is required,供应商发票编号不能为空
+Supplier Name,供应商名称
+Supplier Tax ID,供应商税号
+Supplier is disabled,供应商已停用
+Supplier is required,供应商不能为空
+Supplier not found,供应商不存在
+Suppliers,供应商
+Tax Amount,税额
+Tax Exclusive,不含税
+Tax ID,纳税登记号
+Tax Inclusive,含税
+Tax Invoice,税务发票
+Tax Withholding Amount,预扣税额
+Tax Withholding Rate,代扣税款税率
+Taxes and Charges,税费
 That code is not valid,验证码不正确
+The payment is more than the net payable,付款金额超过应付金额
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
+This Month,本月
+This Quarter,本季度
 This account cannot send documents,这个账号不能传单据
 This channel is not open yet,这个通道还没开放
 This document has no content,这份文件是空的
 This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
+To Date,结束日期
+Total Amount,总金额
+Total Taxes and Charges,总税费
+Type,类型
+UOM,单位
+Unit,单位
+Unit Price,单价
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+Unpaid,未付
+Update Stock,更新库存
 Use the stock count workbench,请通过盘点工作台操作
+User,用户
+VAT,增值税
+VAT Rate,增值税率
+VAT Rate %,税率%
+Void the payments before voiding the document,取消单据前请先冲销付款
+Warehouse,仓库
+Withholding Tax,预扣税
+Withholding Tax Certificate,预扣税凭证
+Withholding Tax Rate,预扣税率
+Withholding Tax must be greater than zero,预扣税额必须大于零
 adjust,调整
 branch,分店
 card,银行卡

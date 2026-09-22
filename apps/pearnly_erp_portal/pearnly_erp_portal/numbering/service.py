@@ -27,8 +27,7 @@ def _sequence(direction: str, prefix: str, on) -> tuple[str, str]:
     key = f"{kind}-{prefix}-{bucket}"
     if not frappe.db.exists(SEQUENCE, key):
         frappe.get_doc({"doctype": SEQUENCE, "doc_kind": kind, "prefix": prefix, "bucket": bucket,
-                        "next_number": 1}).insert(ignore_permissions=True)
-        frappe.db.commit()
+                        "next_number": 1}).insert(ignore_permissions=True, ignore_if_duplicate=True)
     return key, bucket
 
 
@@ -43,7 +42,7 @@ def preview(direction: str = None, *, prefix: str = None, on=None) -> str:
     """**不占号**的预览：表单上显示"当前要发的那一个号"。"""
     prefix = _prefix(direction, prefix)
     day = frappe.utils.nowdate() if on in (None, "") else str(on)[:10]
-    key, _bucket = _sequence(direction, prefix, day)
+    key = f"{direction or prefix.lower()}-{prefix}-{contracts.year_bucket(day)}"
     rows = frappe.db.sql(f"select next_number from `tab{SEQUENCE}` where name=%s",
                          (key,), as_dict=True)
     return contracts.format_number(prefix, day, int(rows[0].next_number) if rows else 1)

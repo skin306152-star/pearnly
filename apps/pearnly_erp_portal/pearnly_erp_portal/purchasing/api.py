@@ -5,6 +5,119 @@ import frappe
 from pearnly_erp_portal.purchasing import service, settings, suppliers
 
 
+def _payload(value):
+    return frappe.parse_json(value) if isinstance(value, str) else (value or {})
+
+
+@frappe.whitelist(methods=["POST"])
+def api_post_purchase(payload, request_id, name=None, amended_from=None):
+    from pearnly_erp_portal.purchasing import entry
+
+    return entry.post(_payload(payload), request_id=request_id, name=name, amended_from=amended_from)
+
+
+@frappe.whitelist()
+def api_purchase_records(params=None, start=0, limit=20):
+    from pearnly_erp_portal.purchasing import records
+
+    return {"items": records.rows(_payload(params), start=start, limit=limit),
+            **records.overview(_payload(params))}
+
+
+@frappe.whitelist()
+def api_purchase_document(name):
+    from pearnly_erp_portal.purchasing import records
+
+    return records.get(name)
+
+
+@frappe.whitelist()
+def api_purchase_defaults(doc_date=None):
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.numbering import service as numbering
+    from pearnly_erp_portal.purchasing import records
+    from pearnly_core import ocr
+
+    guard.require("purchase.read")
+    return {"system_no": numbering.preview(direction="purchase", on=doc_date),
+            "is_paid": 1, "update_stock": 1, "auto_create_product": 1,
+            "categories": records.categories(), "settings": settings.read_settings(),
+            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("purchase.write")),
+                "line_intakes": bool(guard.has("purchase.write") and frappe.db.exists("ERP LINE Intake",
+                    {**guard.scope_filters(), "direction": "purchase", "status": "received"}))}}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_amounts(payload):
+    from pearnly_erp_portal.purchasing import entry
+
+    return entry.preview(_payload(payload))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_cancel_purchase(name, reason=None):
+    from pearnly_erp_portal.purchasing import entry
+
+    return entry.cancel(name, reason)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_payment(name, payload):
+    from pearnly_erp_portal.purchasing import entry
+
+    return entry.payment(name, **_payload(payload))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_delete_purchase_drafts(names):
+    from pearnly_erp_portal.purchasing import entry
+
+    return entry.delete_drafts(frappe.parse_json(names))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_attachments(name, attachments):
+    from pearnly_erp_portal.purchasing import files
+
+    return files.add(name, frappe.parse_json(attachments))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_remove_purchase_attachment(name, file):
+    from pearnly_erp_portal.purchasing import files
+
+    return files.remove(name, file)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_category(category_name, parent_category=None):
+    from pearnly_erp_portal.purchasing import records
+
+    return records.category(category_name, parent_category)
+
+
+@frappe.whitelist()
+def api_purchase_export(params=None):
+    from pearnly_erp_portal.purchasing import output
+
+    frappe.local.response.update(filename="purchase.xlsx", filecontent=output.workbook(_payload(params)),
+                                 type="download", display_content_as="attachment")
+
+
+@frappe.whitelist(methods=["POST"])
+def api_purchase_voucher(name, kind):
+    from pearnly_erp_portal.purchasing import output
+
+    return output.voucher(name, kind)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_recognise_purchase(attachments=None, intake_name=None, document_name=None):
+    from pearnly_erp_portal.purchasing import recognition
+
+    return recognition.recognise(frappe.parse_json(attachments), intake_name, document_name)
+
+
 def _clean(kwargs):
     kwargs.pop("cmd", None)
     return kwargs

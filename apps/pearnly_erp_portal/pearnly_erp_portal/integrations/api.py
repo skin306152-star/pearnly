@@ -55,7 +55,7 @@ def api_get_line_intake(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_confirm_line_intake(**kwargs):
-    _json_args(kwargs, "lines")
+    _json_args(kwargs, "lines", "attachments")
     kwargs = _clean(kwargs)
     return intake.confirm(kwargs.pop("name", None), **kwargs)
 

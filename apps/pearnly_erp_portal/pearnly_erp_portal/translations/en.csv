@@ -1,30 +1,241 @@
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A stored source file must carry its hash,A stored source file must carry its hash
+Abbreviated Tax Invoice,Abbreviated Tax Invoice
+Additional Information,Additional Information
+Address,Address
+Against Payment,Against Payment
+All,All
 Already received,Already received
+Amend,Amend
+Amended,Amended
+Amended From,Amended From
+Amount,Amount
+Amount Payable,Amount Payable
+Apply,Apply
+Approval Status,Approval Status
+Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
+Are you sure you want to delete?,Are you sure you want to delete?
+Attach,Attach
+Attachment,Attachment
+Attachment Type,Attachment Type
+Attachments,Attachments
+Bank,Bank
+Bank Transfer,Bank Transfer
+Barcode,Barcode
+Batch No,Batch No
 Bind this account first,Bind this account first
 Bound to {0},Bound to {0}
+Branch,Branch
+Branch Name,Branch Name
+Branch No,Branch No
+Branch No is required,Branch No is required
+Branch Type,Branch Type
+Cancel,Cancel
+Cancellation,Cancellation
+Cancelled,Cancelled
+Cancelled On,Cancelled On
+Cash,Cash
+Category,Category
+Category Name,Category Name
+Cheque,Cheque
+Columns,Columns
+Confirm,Confirm
+Confirm the document before recording a payment,Confirm the document before recording a payment
 Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
+Create New Item,Create New Item
+Creation,Creation
+Currency,Currency
+Custom,Custom
+Date,Date
+Dedupe Key,Dedupe Key
+Delete,Delete
+Description,Description
+Discount Amount,Discount Amount
+Document Type,Document Type
+Document has already been cancelled,Document has already been cancelled
+Document has already been submitted,Document has already been submitted
+Document has been cancelled,Document has been cancelled
+Document must be submitted,Document must be submitted
+Draft,Draft
 Draft not found,Draft not found
+Due Date,Due Date
 ERP Stock Count Variance,ERP Stock Count Variance
+Enabled,Enabled
+Exchange Rate,Exchange Rate
+Exchange Rate is required,Exchange Rate is required
+Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
+Expense,Expense
+Expense Amount,Expense Amount
+Expense Count,Expense Count
+Expiry Date,Expiry Date
+Export,Export
+External System Reference,External System Reference
+File,File
+File Name,File Name
+File not found,File not found
+Filters,Filters
+From Date,From Date
+Generated,Generated
+Goods,Goods
+Grand Total,Grand Total
+Head Office,Head Office
+ID,ID
+Image Fingerprint,Image Fingerprint
+Input Tax,Input Tax
+Invalid Currency,Invalid Currency
+Invalid payment amount,Invalid payment amount
+Invalid value,Invalid value
+Invoice,Invoice
+Invoice Amount,Invoice Amount
+Is Paid,Is Paid
+Is Reversal,Is Reversal
+Item,Item
+Item / Description,Item / Description
+Item Code,Item Code
+Item Group,Item Group
+Item Name,Item Name
+Item Name is required,Item Name is required
+Item Type,Item Type
+Items,Items
+Items are required,Items are required
+LINE,LINE
 LINE unbound,LINE unbound
+Last Month,Last Month
+Line Amount,Line Amount
+Line Discount,Line Discount
+Line No,Line No
+Location,Location
+Manual,Manual
+Manually Set Amounts,Manually Set Amounts
+Merge Items,Merge Items
+Mode of Payment,Mode of Payment
+More Filters,More Filters
+Net Total,Net Total
+New,New
+New Category,New Category
+New Purchase Invoice,New Purchase Invoice
+No attachments,No attachments
+None,None
+Not permitted,Not permitted
+Note,Note
 Now sending {0} documents,Now sending {0} documents
+OCR,OCR
+Only Draft documents can be deleted,Only Draft documents can be deleted
+Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
+Opening Balance,Opening Balance
+Other,Other
+Outstanding Amount,Outstanding Amount
+Paid,Paid
+Paid Amount,Paid Amount
+Parent Category,Parent Category
+Parent Item Group,Parent Item Group
+Partly Paid,Partly Paid
+Payment,Payment
+Payment Date,Payment Date
+Payment Receipt,Payment Receipt
+Payment Status,Payment Status
+Payments,Payments
+Period,Period
+Please select an Item,Please select an Item
+Posting Date,Posting Date
+Prices Include Tax,Prices Include Tax
+Print,Print
+Product,Product
+Product Ref,Product Ref
+PromptPay,PromptPay
+Purchase,Purchase
+Purchase Amount,Purchase Amount
+Purchase Count,Purchase Count
+Purchase Invoice,Purchase Invoice
+Purchase Order,Purchase Order
+Purchase Records,Purchase Records
+Qty,Qty
+Quantity,Quantity
+Rate,Rate
+Reason for Cancellation,Reason for Cancellation
+Receipt,Receipt
+Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
+Recognition is not configured for this account,Recognition is not configured for this account
+Recognition returned nothing,Recognition returned nothing
+Reference,Reference
+References,References
+Remarks,Remarks
+Request ID already exists,Request ID already exists
+Requested By,Requested By
+Reset,Reset
+Reversal,Reversal
+Rotate,Rotate
+Rounding Adjustment,Rounding Adjustment
+Save,Save
+Search,Search
 Select a product for each stock item,Select a product for each stock item
 Select the original sale line,Select the original sale line
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
+Service,Service
+Sort Order,Sort Order
+Source,Source
+Status,Status
+Stock Posted At,Stock Posted At
 Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
+Subcategory,Subcategory
+Submit,Submit
+Submitted,Submitted
+Substitute Receipt,Substitute Receipt
+Summary,Summary
+Supplier,Supplier
+Supplier Doc Reference,Supplier Doc Reference
+Supplier Invoice No,Supplier Invoice No
+Supplier Invoice No already exists,Supplier Invoice No already exists
+Supplier Invoice No is required,Supplier Invoice No is required
+Supplier Name,Supplier Name
+Supplier Tax ID,Supplier Tax ID
+Supplier is disabled,Supplier is disabled
+Supplier is required,Supplier is required
+Supplier not found,Supplier not found
+Suppliers,Suppliers
+Tax Amount,Tax Amount
+Tax Exclusive,Tax Exclusive
+Tax ID,Tax ID
+Tax Inclusive,Tax Inclusive
+Tax Invoice,Tax Invoice
+Tax Withholding Amount,Tax Withholding Amount
+Tax Withholding Rate,Tax Withholding Rate
+Taxes and Charges,Taxes and Charges
 That code is not valid,That code is not valid
+The payment is more than the net payable,The payment is more than the net payable
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
+This Month,This Month
+This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
 This channel is not open yet,This channel is not open yet
 This document has no content,This document has no content
 This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
+To Date,To Date
+Total Amount,Total Amount
+Total Taxes and Charges,Total Taxes and Charges
+Type,Type
+UOM,UOM
+Unit,Unit
+Unit Price,Unit Price
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+Unpaid,Unpaid
+Update Stock,Update Stock
 Use the stock count workbench,Use the stock count workbench
+User,User
+VAT,VAT
+VAT Rate,VAT Rate
+VAT Rate %,VAT Rate %
+Void the payments before voiding the document,Void the payments before voiding the document
+Warehouse,Warehouse
+Withholding Tax,Withholding Tax
+Withholding Tax Certificate,Withholding Tax Certificate
+Withholding Tax Rate,Withholding Tax Rate
+Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
 adjust,adjust
 branch,branch
 card,card

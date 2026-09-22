@@ -368,3 +368,214 @@ Finish	完成	เสร็จสิ้น	完了	stock.workbench.done
 Product / position / counted by / time	商品 / 位置 / 盘点人 / 时间	สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา	商品・位置・担当者・日時	stock.count.photoInfo
 Back to summary	返回汇总	กลับไปสรุป	集計へ戻る	stock.count.linkSummary
 Back to entries	返回记录	กลับไปรายการ	記録へ戻る	stock.count.linkEntries
+Abbreviated Tax Invoice	简式税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書
+Additional Information	附加信息	ข้อมูลเพิ่มเติม	追加情報
+Address	地址	ที่อยู่	住所
+Against Payment	关联付款	อ้างอิงการชำระเงิน	関連支払
+All	全部	ทั้งหมด	すべて
+Amend	修订	แก้ไข	修正
+Amended	已修订	แก้ไขแล้ว	修正済み
+Amended From	修订自(上一版单据编号)	แก้ไขจาก	修正元
+Amount	金额	จำนวนเงิน	金額
+Amount Payable	应付金额	ยอดที่ต้องชำระ	支払金額
+Apply	应用	สมัคร	適用
+Approval Status	审批状态	สถานะการอนุมัติ	承認状況
+Are you sure you want to delete the attachment?	您确定要删除附件？	คุณแน่ใจหรือไม่ว่าคุณต้องการลบไฟล์แนบ?	添付ファイルを削除しますか？
+Are you sure you want to delete?	确定删除？	ยืนยันการลบหรือไม่	削除しますか？
+Attach	添加文件	แนบ	添付
+Attachment	附件	เอกสารแนบ	添付ファイル
+Attachment Type	附件类型	ประเภทไฟล์แนบ	添付ファイルの種類
+Attachments	附件	ไฟล์แนบ	添付ファイル
+Bank	银行	ธนาคาร	銀行
+Bank Transfer	银行转账	โอนเงินผ่านธนาคาร	銀行振込
+Barcode	条码	บาร์โค้ด	バーコード
+Batch No	批号	หมายเลขล็อต	バッチ番号
+Branch	分支机构（分公司）	สาขา	支店
+Branch Name	分支名称	ชื่อสาขา	支店名
+Branch No	分支编号	เลขที่สาขา	支店番号
+Branch No is required	分支编号不能为空	กรุณาระบุเลขที่สาขา	支店番号を入力してください
+Branch Type	分支类型	ประเภทสาขา	支店区分
+Cancel	取消	ยกเลิก	キャンセル
+Cancellation	取消	การยกเลิก	取消
+Cancelled	已取消	ยกเลิก	取消済み
+Cancelled On	取消时间	วันที่ยกเลิก	取消日時
+Cash	现金	เงินสด	現金
+Category	类别	หมวดหมู่	カテゴリ
+Category Name	分类名称	ชื่อหมวดหมู่	カテゴリ名
+Cheque	支票	เช็ค	小切手
+Columns	列	คอลัมน์	列
+Confirm	确认	ยืนยัน	確認
+Confirm the document before recording a payment	记录付款前请先提交单据	กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน	支払を記録する前に伝票を提出してください
+Create New Item	创建新商品	สร้างสินค้าใหม่	新規品目作成
+Creation	创建日期	การสร้าง	作成日時
+Currency	货币	สกุลเงิน	通貨
+Custom	自定义	กำหนดเอง	カスタム
+Date	日期	วันที่	日付
+Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー
+Delete	删除	ลบ	削除
+Description	描述	คำอธิบาย	説明
+Discount Amount	折扣金额	จำนวนส่วนลด	割引額
+Document Type	单据类型	ประเภทเอกสาร	伝票種別
+Document has already been cancelled	单据已取消	เอกสารถูกยกเลิกแล้ว	伝票は取消済みです
+Document has already been submitted	单据已提交	ส่งเอกสารแล้ว	伝票は提出済みです
+Document has been cancelled	文档已取消	เอกสารถูกยกเลิกแล้ว	伝票は取消済みです
+Document must be submitted	请先提交单据	กรุณาส่งเอกสารก่อน	伝票を提出してください
+Draft	草稿	ร่าง	下書き
+Due Date	到期日	วันที่ครบกำหนด	支払期日
+Enabled	已启用	เปิดใช้งานแล้ว	有効
+Exchange Rate	汇率	อัตราแลกเปลี่ยน	為替レート
+Exchange Rate is required	汇率不能为空	กรุณาระบุอัตราแลกเปลี่ยน	為替レートを入力してください
+Exchange Rate must be greater than zero	汇率必须大于零	อัตราแลกเปลี่ยนต้องมากกว่าศูนย์	為替レートはゼロより大きい値にしてください
+Expense	费用	ค่าใช้จ่าย	経費
+Expense Amount	费用金额	ยอดค่าใช้จ่าย	経費金額
+Expense Count	费用笔数	จำนวนรายการค่าใช้จ่าย	経費件数
+Expiry Date	失效日期	วันหมดอายุ	有効期限
+Export	导出	ส่งออก	エクスポート
+External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照
+File	文件	ไฟล์	ファイル
+File Name	文件名	ชื่อไฟล์	ファイル名
+File not found	文件不存在	ไฟล์ไม่พบ	ファイルが見つかりません
+Filters	过滤条件	ตัวกรอง	フィルタ
+From Date	开始日期	จากวันที่	開始日
+Generated	已生成	สร้างขึ้น	生成済み
+Goods	货物	สินค้า	商品
+Grand Total	总计	ยอดรวมทั้งหมด	税込合計
+Head Office	总部	สำนักงานใหญ่	本店
+ID	编号	รหัส	ID
+Image Fingerprint	影像指纹	ลายนิ้วมือภาพ	画像フィンガープリント
+Input Tax	进项税额	ภาษีซื้อ	仕入税額
+Invalid Currency	币种无效	สกุลเงินไม่ถูกต้อง	通貨が無効です
+Invalid payment amount	付款金额无效	ยอดชำระเงินไม่ถูกต้อง	支払金額が無効です
+Invalid value	值无效	ค่าไม่ถูกต้อง	値が無効です
+Invoice	发票	ใบแจ้งหนี้	請求書
+Invoice Amount	发票金额	ยอดตามใบแจ้งหนี้	請求金額
+Is Paid	已付款	ชำระแล้ว	支払済み
+Is Reversal	冲销	รายการกลับบัญชี	取消仕訳
+Item	物料	รายการ	品目
+Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
+Item Code	物料号	รหัสรายการ	品目コード
+Item Group	物料组	กลุ่มรายการ	品目グループ
+Item Name	物料名称	ชื่อรายการ	品目名
+Item Name is required	商品名称不能为空	กรุณาระบุชื่อสินค้า	品目名を入力してください
+Item Type	项目类型	ประเภทของรายการ	品目区分
+Items	物料	รายการ	品目
+Items are required	商品明细不能为空	กรุณาระบุรายการสินค้า	品目を入力してください
+LINE	LINE	LINE	LINE
+Last Month	上个月	เดือนที่แล้ว	先月
+Line Amount	行金额	จำนวนเงินบรรทัด	行金額
+Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
+Line No	行号	ลำดับบรรทัด	行番号
+Location	地点	ที่ตั้ง	保管場所
+Manual	手动	คู่มือ	手動入力
+Manually Set Amounts	手动设置金额	กำหนดยอดเงินด้วยตนเอง	金額の手動設定
+Merge Items	合并明细	รวมรายการ	明細統合
+Mode of Payment	付款方式	วิธีการชำระเงิน	支払方法
+More Filters	更多筛选条件	ตัวกรองเพิ่มเติม	追加フィルタ
+Net Total	净总计	ยอดรวมสุทธิ	正味合計
+New	新建	ใหม่	新規
+New Category	新建分类	สร้างหมวดหมู่	カテゴリ作成
+New Purchase Invoice	新供应商发票	ใบแจ้งหนี้ซื้อใหม่	仕入請求書作成
+None	无	ไม่มี	なし
+Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません
+Note	备注	หมายเหตุ	備考
+OCR	文字识别	รู้จำข้อความ	文字認識
+Only Draft documents can be deleted	只能删除草稿单据	ลบได้เฉพาะเอกสารร่าง	下書きの伝票のみ削除できます
+Only an image or a PDF can be recognised	仅支持识别图片或 PDF	รองรับการรู้จำเฉพาะรูปภาพหรือ PDF	画像または PDF のみ認識できます
+Opening Balance	期初余额	ยอดคงเหลือต้นงวด	開始残高
+Other	其它	อื่นๆ	その他
+Outstanding Amount	未付金额	จำนวนเงินค้างชำระ	未払金額
+Paid	已付款	ชำระแล้ว	支払済み
+Paid Amount	付款金额	จำนวนเงินที่ชำระแล้ว	支払済金額
+Parent Category	上级分类	หมวดหมู่หลัก	親カテゴリ
+Parent Item Group	父物料组	กลุ่มรายการผู้ปกครอง	親品目グループ
+Partly Paid	部分付款	ชำระบางส่วน	一部支払済み
+Payment	付款	การชำระเงิน	支払
+Payment Date	付款日期	วันที่ชำระเงิน	支払日
+Payment Receipt	付款凭证	หลักฐานการชำระเงิน	支払証憑
+Payment Status	付款状态	สถานะการชำระ	支払状況
+Payments	付款	การชำระเงิน	支払履歴
+Period	期间	ช่วงเวลา	期間
+Please select an Item	请选择商品	กรุณาเลือกสินค้า	品目を選択してください
+Posting Date	记账日期	วันที่โพสต์	転記日
+Prices Include Tax	价格含税	ราคารวมภาษี	税込価格
+Print	打印	พิมพ์	印刷
+Product	产品	สินค้า	製品
+Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+PromptPay	PromptPay	พร้อมเพย์	PromptPay
+Purchase	采购	การซื้อ	仕入
+Purchase Amount	采购金额	จำนวนเงินซื้อ	仕入金額
+Purchase Count	采购笔数	จำนวนรายการซื้อ	仕入件数
+Purchase Invoice	采购发票	ใบแจ้งหนี้ซื้อ	仕入請求書
+Purchase Order	采购订单	คำสั่งซื้อ	発注書
+Purchase Records	采购记录	บันทึกการจัดซื้อ	仕入記録
+Qty	数量	ปริมาณ	数量
+Quantity	数量	ปริมาณ	数量
+Rate	单价	อัตรา	単価
+Reason for Cancellation	取消原因	เหตุผลในการยกเลิก	取消理由
+Receipt	采购入库	ใบเสร็จ	領収書
+Received By	收款人	ผู้รับเงิน	受領者
+Recognition is not configured for this account	尚未配置文字识别	ยังไม่ได้ตั้งค่าการรู้จำข้อความ	文字認識が設定されていません
+Recognition returned nothing	未识别到内容	ไม่พบข้อมูลจากการรู้จำ	内容を認識できませんでした
+Reference	参考	อ้างอิง	参照番号
+References	参考	การอ้างอิง	参照情報
+Remarks	备注	ข้อสังเกต	備考
+Request ID already exists	请求编号已存在	รหัสคำขอมีอยู่แล้ว	リクエスト ID は既に存在します
+Requested By	申请人	ผู้ขอ	申請者
+Reset	重置	เริ่มใหม่	リセット
+Reversal	冲销	กลับรายการ	取消仕訳
+Rotate	旋转	หมุน	回転
+Rounding Adjustment	小数精度尾差调整	การปรับปัดเศษ	丸め調整
+Save	保存	บันทึก	保存
+Search	搜索	ค้นหา	検索
+Service	服务	บริการ	サービス
+Sort Order	排序	ลำดับการจัดเรียง	並び順
+Source	来源	แหล่งที่มา	ソース
+Status	状态	สถานะ	ステータス
+Stock Posted At	库存过账时间	วันที่ลงบัญชีสต็อก	在庫転記日時
+Subcategory	子分类	หมวดหมู่ย่อย	サブカテゴリ
+Submit	提交	ส่ง	提出
+Submitted	已提交	ส่งแล้ว	提出済み
+Substitute Receipt	替代收据	ใบสำคัญรับเงิน	代替領収書
+Summary	概要	สรุป	摘要
+Supplier	供应商	ผู้จัดจำหน่าย	仕入先
+Supplier Doc Reference	供应商单据参考号	เลขอ้างอิงเอกสารผู้จำหน่าย	仕入先伝票参照番号
+Supplier Invoice No	供应商发票号	หมายเลขใบแจ้งหนี้ผู้จัดจำหน่าย	仕入先請求書番号
+Supplier Invoice No already exists	供应商发票编号已存在	เลขที่ใบแจ้งหนี้ผู้จำหน่ายมีอยู่แล้ว	仕入先請求書番号は既に存在します
+Supplier Invoice No is required	供应商发票编号不能为空	กรุณาระบุเลขที่ใบแจ้งหนี้ผู้จำหน่าย	仕入先請求書番号を入力してください
+Supplier Name	供应商名称	ชื่อผู้จัดจำหน่าย	仕入先名
+Supplier Tax ID	供应商税号	เลขผู้เสียภาษีผู้ขาย	仕入先の税番号
+Supplier is disabled	供应商已停用	ผู้จำหน่ายถูกปิดใช้งาน	仕入先は無効です
+Supplier is required	供应商不能为空	กรุณาระบุผู้จำหน่าย	仕入先を入力してください
+Supplier not found	供应商不存在	ไม่พบผู้จำหน่าย	仕入先が見つかりません
+Suppliers	供应商	ผู้จัดจำหน่าย	仕入先数
+Tax Amount	税额	จำนวนภาษี	税額
+Tax Exclusive	不含税	ไม่รวมภาษี	税抜
+Tax ID	纳税登记号	หมายเลขประจำตัวผู้เสียภาษี	納税者番号
+Tax Inclusive	含税	รวมภาษี	税込
+Tax Invoice	税务发票	ใบกำกับภาษี	税務請求書
+Tax Withholding Amount	预扣税额	ยอดภาษีหัก ณ ที่จ่าย	源泉徴収税額
+Tax Withholding Rate	代扣税款税率	อัตราภาษีหัก ณ ที่จ่าย	源泉徴収税率
+Taxes and Charges	税费	ภาษีและค่าธรรมเนียม	税金および諸費用
+The payment is more than the net payable	付款金额超过应付金额	ยอดชำระเกินยอดที่ต้องชำระ	支払金額が支払残高を超えています
+This Month	本月	เดือนนี้	今月
+This Quarter	本季度	ไตรมาสนี้	今四半期
+To Date	结束日期	ณ วันที่	終了日
+Total Amount	总金额	จำนวนเงินรวม	合計金額
+Total Taxes and Charges	总税费	รวมภาษีและค่าธรรมเนียม	税金および諸費用合計
+Type	类型	ประเภท	種別
+UOM	单位	หน่วยวัด	単位
+Unit	单位	หน่วย	単位
+Unit Price	单价	ราคาต่อหน่วย	単価
+Unpaid	未付	ยังไม่ได้ชำระ	未払
+Update Stock	更新库存	อัปเดตสต็อก	在庫更新
+User	用户	ผู้ใช้	ユーザー
+VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税
+VAT Rate	增值税率	อัตราภาษีมูลค่าเพิ่ม	付加価値税率
+VAT Rate %	税率%	อัตราภาษี %	税率%
+Void the payments before voiding the document	取消单据前请先冲销付款	กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร	伝票を取り消す前に支払を取り消してください
+Warehouse	仓库	คลังสินค้า	倉庫
+Withholding Tax	预扣税	ภาษีหัก ณ ที่จ่าย	源泉税
+Withholding Tax Certificate	预扣税凭证	หนังสือรับรองการหักภาษี ณ ที่จ่าย	源泉徴収証明書
+Withholding Tax Rate	预扣税率	อัตราภาษีหัก ณ ที่จ่าย	源泉徴収税率
+Withholding Tax must be greater than zero	预扣税额必须大于零	ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์	源泉徴収税額はゼロより大きい値にしてください
+No attachments	无附件	ไม่มีไฟล์แนบ	添付ファイルなし

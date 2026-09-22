@@ -265,8 +265,16 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
+has_permission = {"Purchase Document": "pearnly_erp_portal.purchasing.access.document_permission",
+                  "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.has_permission"}
+permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasing.access.query_conditions",
+                               "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.permission_query"}
+
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),

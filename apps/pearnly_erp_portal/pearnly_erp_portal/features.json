@@ -91,7 +91,10 @@
         "ERP Supplier",
         "ERP Purchase Settings",
         "ERP Company",
-        "ERP LINE Intake"
+        "ERP LINE Intake",
+        "ERP Purchase Category",
+        "ERP Purchase Attachment",
+        "ERP Purchase Payment"
       ],
       "read_only": [
         "ERP Product",

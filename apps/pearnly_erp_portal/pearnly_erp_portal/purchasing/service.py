@@ -3,9 +3,7 @@
 权限：能力判据在 `access.guard`；取数一律 `frappe.get_list`，并按岗位收窄到本人
 （老板看全店、员工只看自己录入的）。
 
-刻意**不在本批做**的：过账到库存（表在库存批次）与生成会计凭证（会计不迁移）。
-提交只把单据推进到 `submitted`；库存联动在库存批次接到这里，届时 `auto_stock_in`
-才有效。现在这个开关默认关、并且这里不会假装已经扣过库存。
+旧版单据沿用原金额合同；新版直接过账的单据由 purchasing.entry 承接付款与作废。
 """
 
 from decimal import Decimal
@@ -42,7 +40,9 @@ def _q2(value) -> Decimal:
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    from pearnly_erp_portal.purchasing.access import get_document
+
+    return get_document(name)
 
 
 def _dedupe_check(dedupe_key, dedupe_ref, exclude=None):
@@ -300,6 +300,12 @@ def set_status(name, target, reason=None, receive_stock=None):
     guard.require("purchase.write")
     frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
     doc = _get(name)
+    if doc.calculation_version == 2 and target == contracts.VOID:
+        from pearnly_erp_portal.purchasing import entry
+
+        result = entry.cancel(name, reason)
+        frappe.db.commit()
+        return result
     if not contracts.can_transition(doc.status, target):
         frappe.throw(_(BAD_TRANSITION))
     if target == contracts.VOID and doc.paid_amount and _q2(doc.paid_amount) > 0:
@@ -375,6 +381,12 @@ def pay(name, *, amount, method=None, date=None, note=None):
     """登记一笔付款。多笔累加；超过净应付的付款被拒。"""
     guard.require("purchase.write")
     doc = _get(name)
+    if doc.calculation_version == 2:
+        from pearnly_erp_portal.purchasing import entry
+
+        result = entry.payment(name, amount=amount, method=method or "cash", date=date, note=note)
+        frappe.db.commit()
+        return result
     if doc.status == contracts.VOID:
         frappe.throw(_(VOIDED))
     if doc.status != contracts.SUBMITTED:
@@ -404,6 +416,14 @@ def set_payment_status(name, status):
     """直接把单据标成未付/已付（旧线上有这条快捷路径，用于线下已结清的单据）。"""
     guard.require("purchase.write")
     doc = _get(name)
+    if doc.calculation_version == 2:
+        from pearnly_erp_portal.purchasing import entry
+
+        if status not in (contracts.UNPAID, contracts.PAID):
+            frappe.throw(_(INVALID))
+        result = entry.payment(name, paid=status == contracts.PAID)
+        frappe.db.commit()
+        return result
     if status not in (contracts.UNPAID, contracts.PARTIAL, contracts.PAID):
         frappe.throw(_(INVALID))
     if status == contracts.PAID:

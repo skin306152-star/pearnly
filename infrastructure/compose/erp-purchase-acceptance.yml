@@ -1,0 +1,14 @@
+# Immutable-image verification for this purchase task; no App source mounts.
+# Add after erp-pos-lab.yml and erp-purchase-preview.yml, same dedicated project.
+x-acceptance: &acceptance
+  image: ${PEARNLY_PURCHASE_IMAGE:?Set the locally built purchase candidate image}
+  platform: linux/amd64
+  volumes: !override
+    - sites:/home/frappe/frappe-bench/sites
+    - ../../scripts:/workspace/scripts:ro
+    - ../../tests:/workspace/tests:ro
+services:
+  bench: *acceptance
+  web: *acceptance
+  socketio: *acceptance
+  frontend: *acceptance

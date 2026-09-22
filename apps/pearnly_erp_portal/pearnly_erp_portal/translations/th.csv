@@ -1,30 +1,241 @@
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
+Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
+Additional Information,ข้อมูลเพิ่มเติม
+Address,ที่อยู่
+Against Payment,อ้างอิงการชำระเงิน
+All,ทั้งหมด
 Already received,ได้รับไฟล์นี้แล้ว
+Amend,แก้ไข
+Amended,แก้ไขแล้ว
+Amended From,แก้ไขจาก
+Amount,จำนวนเงิน
+Amount Payable,ยอดที่ต้องชำระ
+Apply,สมัคร
+Approval Status,สถานะการอนุมัติ
+Are you sure you want to delete the attachment?,คุณแน่ใจหรือไม่ว่าคุณต้องการลบไฟล์แนบ?
+Are you sure you want to delete?,ยืนยันการลบหรือไม่
+Attach,แนบ
+Attachment,เอกสารแนบ
+Attachment Type,ประเภทไฟล์แนบ
+Attachments,ไฟล์แนบ
+Bank,ธนาคาร
+Bank Transfer,โอนเงินผ่านธนาคาร
+Barcode,บาร์โค้ด
+Batch No,หมายเลขล็อต
 Bind this account first,กรุณาผูกบัญชี ERP ก่อนใช้งาน
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
+Branch,สาขา
+Branch Name,ชื่อสาขา
+Branch No,เลขที่สาขา
+Branch No is required,กรุณาระบุเลขที่สาขา
+Branch Type,ประเภทสาขา
+Cancel,ยกเลิก
+Cancellation,การยกเลิก
+Cancelled,ยกเลิก
+Cancelled On,วันที่ยกเลิก
+Cash,เงินสด
+Category,หมวดหมู่
+Category Name,ชื่อหมวดหมู่
+Cheque,เช็ค
+Columns,คอลัมน์
+Confirm,ยืนยัน
+Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Count at least one item before finishing,โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ
+Create New Item,สร้างสินค้าใหม่
+Creation,การสร้าง
+Currency,สกุลเงิน
+Custom,กำหนดเอง
+Date,วันที่
+Dedupe Key,คีย์กันซ้ำ
+Delete,ลบ
+Description,คำอธิบาย
+Discount Amount,จำนวนส่วนลด
+Document Type,ประเภทเอกสาร
+Document has already been cancelled,เอกสารถูกยกเลิกแล้ว
+Document has already been submitted,ส่งเอกสารแล้ว
+Document has been cancelled,เอกสารถูกยกเลิกแล้ว
+Document must be submitted,กรุณาส่งเอกสารก่อน
+Draft,ร่าง
 Draft not found,ไม่พบรายการร่าง
+Due Date,วันที่ครบกำหนด
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
+Enabled,เปิดใช้งานแล้ว
+Exchange Rate,อัตราแลกเปลี่ยน
+Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
+Exchange Rate must be greater than zero,อัตราแลกเปลี่ยนต้องมากกว่าศูนย์
+Expense,ค่าใช้จ่าย
+Expense Amount,ยอดค่าใช้จ่าย
+Expense Count,จำนวนรายการค่าใช้จ่าย
+Expiry Date,วันหมดอายุ
+Export,ส่งออก
+External System Reference,รหัสอ้างอิงระบบภายนอก
+File,ไฟล์
+File Name,ชื่อไฟล์
+File not found,ไฟล์ไม่พบ
+Filters,ตัวกรอง
+From Date,จากวันที่
+Generated,สร้างขึ้น
+Goods,สินค้า
+Grand Total,ยอดรวมทั้งหมด
+Head Office,สำนักงานใหญ่
+ID,รหัส
+Image Fingerprint,ลายนิ้วมือภาพ
+Input Tax,ภาษีซื้อ
+Invalid Currency,สกุลเงินไม่ถูกต้อง
+Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
+Invalid value,ค่าไม่ถูกต้อง
+Invoice,ใบแจ้งหนี้
+Invoice Amount,ยอดตามใบแจ้งหนี้
+Is Paid,ชำระแล้ว
+Is Reversal,รายการกลับบัญชี
+Item,รายการ
+Item / Description,ชื่อสินค้า/คำอธิบาย
+Item Code,รหัสรายการ
+Item Group,กลุ่มรายการ
+Item Name,ชื่อรายการ
+Item Name is required,กรุณาระบุชื่อสินค้า
+Item Type,ประเภทของรายการ
+Items,รายการ
+Items are required,กรุณาระบุรายการสินค้า
+LINE,LINE
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
+Last Month,เดือนที่แล้ว
+Line Amount,จำนวนเงินบรรทัด
+Line Discount,ส่วนลดรายบรรทัด
+Line No,ลำดับบรรทัด
+Location,ที่ตั้ง
+Manual,คู่มือ
+Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
+Merge Items,รวมรายการ
+Mode of Payment,วิธีการชำระเงิน
+More Filters,ตัวกรองเพิ่มเติม
+Net Total,ยอดรวมสุทธิ
+New,ใหม่
+New Category,สร้างหมวดหมู่
+New Purchase Invoice,ใบแจ้งหนี้ซื้อใหม่
+No attachments,ไม่มีไฟล์แนบ
+None,ไม่มี
+Not permitted,ไม่ได้รับอนุญาต
+Note,หมายเหตุ
 Now sending {0} documents,กำลังส่งเอกสาร{0}
+OCR,รู้จำข้อความ
+Only Draft documents can be deleted,ลบได้เฉพาะเอกสารร่าง
+Only an image or a PDF can be recognised,รองรับการรู้จำเฉพาะรูปภาพหรือ PDF
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
+Opening Balance,ยอดคงเหลือต้นงวด
+Other,อื่นๆ
+Outstanding Amount,จำนวนเงินค้างชำระ
+Paid,ชำระแล้ว
+Paid Amount,จำนวนเงินที่ชำระแล้ว
+Parent Category,หมวดหมู่หลัก
+Parent Item Group,กลุ่มรายการผู้ปกครอง
+Partly Paid,ชำระบางส่วน
+Payment,การชำระเงิน
+Payment Date,วันที่ชำระเงิน
+Payment Receipt,หลักฐานการชำระเงิน
+Payment Status,สถานะการชำระ
+Payments,การชำระเงิน
+Period,ช่วงเวลา
+Please select an Item,กรุณาเลือกสินค้า
+Posting Date,วันที่โพสต์
+Prices Include Tax,ราคารวมภาษี
+Print,พิมพ์
+Product,สินค้า
+Product Ref,รหัสอ้างอิงสินค้า
+PromptPay,พร้อมเพย์
+Purchase,การซื้อ
+Purchase Amount,จำนวนเงินซื้อ
+Purchase Count,จำนวนรายการซื้อ
+Purchase Invoice,ใบแจ้งหนี้ซื้อ
+Purchase Order,คำสั่งซื้อ
+Purchase Records,บันทึกการจัดซื้อ
+Qty,ปริมาณ
+Quantity,ปริมาณ
+Rate,อัตรา
+Reason for Cancellation,เหตุผลในการยกเลิก
+Receipt,ใบเสร็จ
+Received By,ผู้รับเงิน
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
+Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
+Recognition returned nothing,ไม่พบข้อมูลจากการรู้จำ
+Reference,อ้างอิง
+References,การอ้างอิง
+Remarks,ข้อสังเกต
+Request ID already exists,รหัสคำขอมีอยู่แล้ว
+Requested By,ผู้ขอ
+Reset,เริ่มใหม่
+Reversal,กลับรายการ
+Rotate,หมุน
+Rounding Adjustment,การปรับปัดเศษ
+Save,บันทึก
+Search,ค้นหา
 Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
+Service,บริการ
+Sort Order,ลำดับการจัดเรียง
+Source,แหล่งที่มา
+Status,สถานะ
+Stock Posted At,วันที่ลงบัญชีสต็อก
 Stock changed during counting. Recount the affected products.,สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่
+Subcategory,หมวดหมู่ย่อย
+Submit,ส่ง
+Submitted,ส่งแล้ว
+Substitute Receipt,ใบสำคัญรับเงิน
+Summary,สรุป
+Supplier,ผู้จัดจำหน่าย
+Supplier Doc Reference,เลขอ้างอิงเอกสารผู้จำหน่าย
+Supplier Invoice No,หมายเลขใบแจ้งหนี้ผู้จัดจำหน่าย
+Supplier Invoice No already exists,เลขที่ใบแจ้งหนี้ผู้จำหน่ายมีอยู่แล้ว
+Supplier Invoice No is required,กรุณาระบุเลขที่ใบแจ้งหนี้ผู้จำหน่าย
+Supplier Name,ชื่อผู้จัดจำหน่าย
+Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
+Supplier is disabled,ผู้จำหน่ายถูกปิดใช้งาน
+Supplier is required,กรุณาระบุผู้จำหน่าย
+Supplier not found,ไม่พบผู้จำหน่าย
+Suppliers,ผู้จัดจำหน่าย
+Tax Amount,จำนวนภาษี
+Tax Exclusive,ไม่รวมภาษี
+Tax ID,หมายเลขประจำตัวผู้เสียภาษี
+Tax Inclusive,รวมภาษี
+Tax Invoice,ใบกำกับภาษี
+Tax Withholding Amount,ยอดภาษีหัก ณ ที่จ่าย
+Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่าย
+Taxes and Charges,ภาษีและค่าธรรมเนียม
 That code is not valid,รหัสไม่ถูกต้อง
+The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง
+This Month,เดือนนี้
+This Quarter,ไตรมาสนี้
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
+To Date,ณ วันที่
+Total Amount,จำนวนเงินรวม
+Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
+Type,ประเภท
+UOM,หน่วยวัด
+Unit,หน่วย
+Unit Price,ราคาต่อหน่วย
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+Unpaid,ยังไม่ได้ชำระ
+Update Stock,อัปเดตสต็อก
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
+User,ผู้ใช้
+VAT,ภาษีมูลค่าเพิ่ม
+VAT Rate,อัตราภาษีมูลค่าเพิ่ม
+VAT Rate %,อัตราภาษี %
+Void the payments before voiding the document,กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร
+Warehouse,คลังสินค้า
+Withholding Tax,ภาษีหัก ณ ที่จ่าย
+Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
+Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
+Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
 adjust,ปรับปรุง
 branch,สาขา
 card,บัตร

@@ -1,30 +1,241 @@
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
+Abbreviated Tax Invoice,簡易税務請求書
+Additional Information,追加情報
+Address,住所
+Against Payment,関連支払
+All,すべて
 Already received,このファイルは受け取り済みです
+Amend,修正
+Amended,修正済み
+Amended From,修正元
+Amount,金額
+Amount Payable,支払金額
+Apply,適用
+Approval Status,承認状況
+Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
+Are you sure you want to delete?,削除しますか？
+Attach,添付
+Attachment,添付ファイル
+Attachment Type,添付ファイルの種類
+Attachments,添付ファイル
+Bank,銀行
+Bank Transfer,銀行振込
+Barcode,バーコード
+Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
 Bound to {0},{0} に連携しました
+Branch,支店
+Branch Name,支店名
+Branch No,支店番号
+Branch No is required,支店番号を入力してください
+Branch Type,支店区分
+Cancel,キャンセル
+Cancellation,取消
+Cancelled,取消済み
+Cancelled On,取消日時
+Cash,現金
+Category,カテゴリ
+Category Name,カテゴリ名
+Cheque,小切手
+Columns,列
+Confirm,確認
+Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
 Could not store this document,書類を保存できませんでした。再送してください
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
+Create New Item,新規品目作成
+Creation,作成日時
+Currency,通貨
+Custom,カスタム
+Date,日付
+Dedupe Key,重複防止キー
+Delete,削除
+Description,説明
+Discount Amount,割引額
+Document Type,伝票種別
+Document has already been cancelled,伝票は取消済みです
+Document has already been submitted,伝票は提出済みです
+Document has been cancelled,伝票は取消済みです
+Document must be submitted,伝票を提出してください
+Draft,下書き
 Draft not found,下書きが見つかりません
+Due Date,支払期日
 ERP Stock Count Variance,棚卸差異ボード
+Enabled,有効
+Exchange Rate,為替レート
+Exchange Rate is required,為替レートを入力してください
+Exchange Rate must be greater than zero,為替レートはゼロより大きい値にしてください
+Expense,経費
+Expense Amount,経費金額
+Expense Count,経費件数
+Expiry Date,有効期限
+Export,エクスポート
+External System Reference,外部システム参照
+File,ファイル
+File Name,ファイル名
+File not found,ファイルが見つかりません
+Filters,フィルタ
+From Date,開始日
+Generated,生成済み
+Goods,商品
+Grand Total,税込合計
+Head Office,本店
+ID,ID
+Image Fingerprint,画像フィンガープリント
+Input Tax,仕入税額
+Invalid Currency,通貨が無効です
+Invalid payment amount,支払金額が無効です
+Invalid value,値が無効です
+Invoice,請求書
+Invoice Amount,請求金額
+Is Paid,支払済み
+Is Reversal,取消仕訳
+Item,品目
+Item / Description,品名・説明
+Item Code,品目コード
+Item Group,品目グループ
+Item Name,品目名
+Item Name is required,品目名を入力してください
+Item Type,品目区分
+Items,品目
+Items are required,品目を入力してください
+LINE,LINE
 LINE unbound,LINE の連携を解除しました
+Last Month,先月
+Line Amount,行金額
+Line Discount,行値引
+Line No,行番号
+Location,保管場所
+Manual,手動入力
+Manually Set Amounts,金額の手動設定
+Merge Items,明細統合
+Mode of Payment,支払方法
+More Filters,追加フィルタ
+Net Total,正味合計
+New,新規
+New Category,カテゴリ作成
+New Purchase Invoice,仕入請求書作成
+No attachments,添付ファイルなし
+None,なし
+Not permitted,権限がありません
+Note,備考
 Now sending {0} documents,{0}の書類を送信中
+OCR,文字認識
+Only Draft documents can be deleted,下書きの伝票のみ削除できます
+Only an image or a PDF can be recognised,画像または PDF のみ認識できます
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
+Opening Balance,開始残高
+Other,その他
+Outstanding Amount,未払金額
+Paid,支払済み
+Paid Amount,支払済金額
+Parent Category,親カテゴリ
+Parent Item Group,親品目グループ
+Partly Paid,一部支払済み
+Payment,支払
+Payment Date,支払日
+Payment Receipt,支払証憑
+Payment Status,支払状況
+Payments,支払履歴
+Period,期間
+Please select an Item,品目を選択してください
+Posting Date,転記日
+Prices Include Tax,税込価格
+Print,印刷
+Product,製品
+Product Ref,商品の外部参照
+PromptPay,PromptPay
+Purchase,仕入
+Purchase Amount,仕入金額
+Purchase Count,仕入件数
+Purchase Invoice,仕入請求書
+Purchase Order,発注書
+Purchase Records,仕入記録
+Qty,数量
+Quantity,数量
+Rate,単価
+Reason for Cancellation,取消理由
+Receipt,領収書
+Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
+Recognition is not configured for this account,文字認識が設定されていません
+Recognition returned nothing,内容を認識できませんでした
+Reference,参照番号
+References,参照情報
+Remarks,備考
+Request ID already exists,リクエスト ID は既に存在します
+Requested By,申請者
+Reset,リセット
+Reversal,取消仕訳
+Rotate,回転
+Rounding Adjustment,丸め調整
+Save,保存
+Search,検索
 Select a product for each stock item,各在庫明細の商品を選択してください
 Select the original sale line,元の販売明細を選択してください
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+Service,サービス
+Sort Order,並び順
+Source,ソース
+Status,ステータス
+Stock Posted At,在庫転記日時
 Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
+Subcategory,サブカテゴリ
+Submit,提出
+Submitted,提出済み
+Substitute Receipt,代替領収書
+Summary,摘要
+Supplier,仕入先
+Supplier Doc Reference,仕入先伝票参照番号
+Supplier Invoice No,仕入先請求書番号
+Supplier Invoice No already exists,仕入先請求書番号は既に存在します
+Supplier Invoice No is required,仕入先請求書番号を入力してください
+Supplier Name,仕入先名
+Supplier Tax ID,仕入先の税番号
+Supplier is disabled,仕入先は無効です
+Supplier is required,仕入先を入力してください
+Supplier not found,仕入先が見つかりません
+Suppliers,仕入先数
+Tax Amount,税額
+Tax Exclusive,税抜
+Tax ID,納税者番号
+Tax Inclusive,税込
+Tax Invoice,税務請求書
+Tax Withholding Amount,源泉徴収税額
+Tax Withholding Rate,源泉徴収税率
+Taxes and Charges,税金および諸費用
 That code is not valid,コードが正しくありません
+The payment is more than the net payable,支払金額が支払残高を超えています
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
+This Month,今月
+This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
 This channel is not open yet,このチャンネルはまだ開放していません
 This document has no content,この書類は中身がありません
 This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
+To Date,終了日
+Total Amount,合計金額
+Total Taxes and Charges,税金および諸費用合計
+Type,種別
+UOM,単位
+Unit,単位
+Unit Price,単価
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
+Unpaid,未払
+Update Stock,在庫更新
 Use the stock count workbench,棚卸作業台から操作してください
+User,ユーザー
+VAT,消費税
+VAT Rate,付加価値税率
+VAT Rate %,税率%
+Void the payments before voiding the document,伝票を取り消す前に支払を取り消してください
+Warehouse,倉庫
+Withholding Tax,源泉税
+Withholding Tax Certificate,源泉徴収証明書
+Withholding Tax Rate,源泉徴収税率
+Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
 adjust,調整
 branch,支店
 card,カード

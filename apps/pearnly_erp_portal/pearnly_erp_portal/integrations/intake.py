@@ -12,8 +12,7 @@
 3. **谁可以发**：要有采购岗位（`purchase.write`）——收进来的就是采购单据。销售方向
    （旧线上 `direction=sales`）等销售单据流那一批，本批不假装支持。
 
-还没做：识别（OCR）与字段预填、以及供人确认的那个页面。**这里不假装有**：
-草稿落下时只有文件与来源，字段由确认时传入；页面在收尾批。
+识别与确认由采购记录页面承接；只有确认操作才在一个事务内落采购、付款与库存。
 """
 
 import hashlib
@@ -22,7 +21,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.purchasing import service as purchasing
+from pearnly_erp_portal.purchasing import entry as purchasing
 from pearnly_erp_portal.sales import contracts as sales_contracts
 from pearnly_erp_portal.sales import service as sales
 
@@ -49,10 +48,18 @@ LIST_FIELDS = ("name", "status", "direction", "sent_by", "line_user_id", "media_
                "sales_document", "discard_reason", "note")
 
 
-def _get(name):
+def _get(name, *, write=False, lock=False):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    if lock:
+        frappe.db.sql("select name from `tabERP LINE Intake` where name=%s for update", (name,))
+    doc = frappe.get_doc(DOCTYPE, name)
+    direction = doc.direction or "purchase"
+    guard.require(direction + (".write" if write else ".read"))
+    if guard.scope_filters() and doc.owner != frappe.session.user:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    doc.check_permission("write" if write else "read")
+    return doc
 
 
 def _store_file(intake, content: bytes, filename: str) -> None:
@@ -86,7 +93,7 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
     digest = hashlib.sha256(content).hexdigest()
     existing = frappe.db.get_value(DOCTYPE, {"line_user_id": line_user_id,
                                              "file_hash": digest, "direction": direction,
-                                             "status": STATUS_RECEIVED}, "name")
+                                             "status": ["in", [STATUS_RECEIVED, STATUS_CONFIRMED]]}, "name")
     if existing:
         return {"name": existing, "duplicate": True}
 
@@ -111,7 +118,7 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
 def list_intakes(*, status=STATUS_RECEIVED, direction=None, limit=50) -> list[dict]:
     """列草稿。两个方向都会出现在这里，按岗位过滤由调用方决定看哪一边。"""
     guard.require("purchase.read")
-    filters = {"status": status} if status else {}
+    filters = {**guard.scope_filters(), **({"status": status} if status else {})}
     if direction:
         filters["direction"] = direction
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
@@ -126,7 +133,7 @@ def get_intake(name) -> dict:
 
 def confirm(name, *, lines, doc_date=None, **fields) -> dict:
     """确认草稿：进项建采购记录、销项建销售单据。重复确认返回同一张单。"""
-    doc = _get(name)
+    doc = _get(name, write=True, lock=True)
     direction = doc.direction or "purchase"
     guard.require(DIRECTION_CAPABILITY[direction])
     if doc.status == STATUS_CONFIRMED:
@@ -135,12 +142,27 @@ def confirm(name, *, lines, doc_date=None, **fields) -> dict:
     if doc.status != STATUS_RECEIVED:
         frappe.throw(_(ALREADY_SETTLED))
     if direction == "purchase":
-        created = purchasing.create_purchase(
-            supplier_name=fields.pop("supplier_name", None) or doc.note or "",
-            doc_date=doc_date or str(frappe.utils.nowdate()), lines=lines,
-            dedupe_key=f"line-intake:{doc.name}", image_sha256=doc.file_hash,
-            source="line", **fields)
-        doc.purchase = created["name"]
+        def finish(created):
+            purchase = frappe.get_doc("Purchase Document", created["name"])
+            file_name = frappe.db.get_value("File", {"file_url": doc.source_file,
+                "attached_to_doctype": DOCTYPE, "attached_to_name": doc.name}, "name")
+            original = frappe.get_doc("File", file_name)
+            original.check_permission("read")
+            copied = frappe.get_doc({"doctype": "File", "file_name": original.file_name,
+                "content": original.get_content(), "is_private": 1,
+                "attached_to_doctype": purchase.doctype, "attached_to_name": purchase.name}).insert(ignore_permissions=True)
+            purchase.append("attachments", {"file": copied.name, "file_url": copied.file_url,
+                "file_name": copied.file_name, "kind": "bill"})
+            purchase.flags.purchase_action = True
+            purchase.save()
+            doc.purchase, doc.status, doc.decided_at = created["name"], STATUS_CONFIRMED, frappe.utils.now()
+            doc.save(ignore_permissions=True)
+
+        payload = {**fields, "supplier_name": fields.get("supplier_name") or doc.note or "",
+            "doc_date": doc_date or str(frappe.utils.nowdate()), "lines": lines,
+            "image_sha256": doc.file_hash, "source": "line"}
+        created = purchasing.post(payload, request_id=f"line-intake:{doc.name}", finalize=finish)
+        return {"name": created["name"], "intake": doc.name, "duplicate": created.get("duplicate", False)}
     else:
         created = sales.create_document(
             doc_kind=fields.pop("doc_kind", None) or sales_contracts.TAX_INVOICE,
@@ -158,7 +180,7 @@ def confirm(name, *, lines, doc_date=None, **fields) -> dict:
 
 def discard(name, reason=None) -> dict:
     """丢掉这条草稿。**不删文件** —— 事后还要能查"当时传的是什么"。"""
-    doc = _get(name)
+    doc = _get(name, write=True, lock=True)
     guard.require(DIRECTION_CAPABILITY[doc.direction or "purchase"])
     if doc.status != STATUS_RECEIVED:
         frappe.throw(_(ALREADY_SETTLED))
@@ -168,3 +190,22 @@ def discard(name, reason=None) -> dict:
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status}
+
+
+def has_permission(doc, user=None, permission_type=None):
+    user = user or frappe.session.user
+    if not guard.has((doc.direction or "purchase") + ".read", user):
+        return False
+    return not guard.scope_filters(user) or doc.owner == user
+
+
+def permission_query(user=None):
+    user = user or frappe.session.user
+    conditions = []
+    if guard.scope_filters(user):
+        conditions.append("`tabERP LINE Intake`.owner=" + frappe.db.escape(user))
+    directions = [direction for direction in DIRECTIONS if guard.has(direction + ".read", user)]
+    if not directions:
+        return "1=0"
+    conditions.append("`tabERP LINE Intake`.direction in (" + ",".join(frappe.db.escape(d) for d in directions) + ")")
+    return " and ".join(conditions)
