@@ -87,3 +87,27 @@
 - 验收期间新建的两条测试商品（`PRD-00021`、`PRD-00022`）在按名字断言后删除，Site 回到 1 条商品；容器与宿主临时探针文件已清。
 - 未验收：真机摄像头扫码（要真机与摄像头权限）。键盘扫码枪只有文字，做不到"自动分列"，已保证它打完的回车不会误提交，字段仍需用户自己选；这条限制写在这里，不当作已实现。
 - 集成状态不变：提交 `150e92a`（搜索）、`ecc59ff`（表单合并，HEAD），未合 main、未推送、未上线；远端 main 仍 `ac33e0c`。运行镜像 `ecc59ff`/`sha256:e266efb6…` 在本任务 Colima profile 内供用户继续验收，`439965f`、`c10ca70`、`8c4a62c` 三个旧镜像在验收期间留作回退，结束后一并复核移除。
+
+## 快速迭代两条 lane（2026-09-22 接续，用户要求重建测试环境）
+
+用户口径：昨天那套"边改边验收"很快，问怎么做到的、并且要本地样式与上线一致；现在这条回路太慢，重建测试环境。
+
+- **慢在哪（实测，不是感觉）**：之前只有一条 lane —— 正式 Dockerfile 构建的 linux/amd64 不可变镜像。一条前端改动要付：镜像重建约 2.5 分钟（QEMU 里跑 pip/源码 COPY）+ 镜像 save/load 约 1.5 分钟 + 容器重建与清缓存约 1.5 分钟 + amd64 进程启动 60–70 秒 ≈ **5 分钟以上**。
+- **快在哪**：同一份 `infrastructure/images/frappe.Dockerfile` 的**本机原生 arm64** 构建（版本标签与验收镜像逐项相同：Frappe 16.33.0 / ERPNext 16.34.1 / Python 3.14.7 / 同一个上游 digest），加上**挂载当前工作树源码**。于是：改完在服务器侧是**立刻**可见的（容器里读的就是工作树里的文件，实测 0.5 秒内服务出去的字节已含改动），剩下只等浏览器刷新。
+- **两条 lane（同一 Site、同一库、同一认证、同一拓扑：nginx 静态 + gunicorn 动态 + socketio）**：
+  - `127.0.0.1:8136` 预览 lane = 原生镜像 + 挂载源码（日常迭代）。`erp-web-preview` + `erp-frontend-preview`，见 `infrastructure/compose/stocktake-preview.yml`。
+  - `127.0.0.1:8126` 验收 lane = 正式构建的不可变镜像（"和上线一样"的检查）。
+  - 域名 `stocktake.localhost` 在内网仍只挂验收 frontend（网络别名原样不动），由它多听 8126/8136 两个端口，把两条 lane 的 socketio 鉴权回源各自接住，见 `stocktake-preview-ports.conf`。
+- **入口脚本**：`scripts/stocktake-preview.sh up|reload|assets|status|logs|faithful|down`。实测：`assets`（清站内资源缓存）0.57 秒；`reload`（清缓存 + 重启预览 web）1.5 秒；刷新到页面出现改动 0.3–0.6 秒 —— **一轮约 2 秒**，与旧的 5 分钟差两个数量级。Python 改动同样走 `reload`（几秒），静态改动只要 `assets` + 刷新。
+- **"本地和上线一模一样"怎么保证**：两条 lane 同 Site、同库、同认证、同 nginx/gunicorn/socketio 拓扑、同一份 Desk 静态文件；差别只有"源码挂进去还是打进镜像"和 CPU 架构（不影响 DOM/CSS/行为）。所以日常在预览 lane 看效果，**每次要交付/上线前跑 `faithful`**：按当前 HEAD 重建正式镜像、导入、升级 8126 那一条，再在 8126 上做一次同页确认。镜像 digest 与 env 文件（`~/.config/pearnly/stocktake-acceptance.env`，600 权限，含本地口令，**不进仓库**）由 `status` 打印。
+- **环境变量文件搬家**：原来放在 `/tmp/pearnly-stocktake-acceptance.env`（重启就没了），现在默认 `~/.config/pearnly/stocktake-acceptance.env`，脚本同时兼容旧路径；`COMPOSE_PROFILES=erp`、`PEARNLY_PREVIEW_IMAGE` 一并登记。
+
+### 同时把"字段改动要贯穿模板/表格"落实
+
+用户要求：前端涉及的字段改了，导出导入模板与表格要同步变更。上一轮把条码与二维码在界面上合并成一格后，模板与盘点表还没跟上，这次补齐：
+
+- `products/contracts.py` 新增共享的纯规则：`code_field(value)`（合并那一格按内容形状落条码/二维码，与前端 `BARCODE_SHAPE` 同一张表，两处一起改）、`shown_code(row)`（显示时条码优先、回退二维码内容）。
+- 商品导入模板从"条码 + 二维码内容"两列变成**一格**「条码/二维码」（`workbook.py` 的 `FIELD_LABELS`）；导入时合并列按形状落回两列，**老表的两列照旧认**（`LEGACY_ALIASES` 补了 `barcode / qr code`、`条码/二维码`、`qr payload`）。
+- 盘点表/盘点工作台那一列同样改叫「条码/二维码」（`stock.col.barcode` 文案更新，`inventory/workbook.py` 的别名同步），并且只有二维码的商品在快照行里也带得出那个码（否则盘点员拿着表扫不出来）。这是 `inventory → products.contracts` 的单向依赖，只复用纯规则，`check-architecture.py` 0 违规。
+- 现场核对（在预览容器里跑真实服务端代码，非仅单测）：模板表头 = `['Product name','Code','Barcode / QR code',…]`；用合并列导入一行二维码链接 → `qr_payload` 有值、`barcode` 空；只有二维码的商品进盘点表 → 快照行 `barcode` 带出 `QR-ONLY-STOCKTAKE-1`；盘点工作台列头显示「条码/二维码」。建的两条临时商品与盘点任务当场删掉（商品回到 1、任务回到 3）。
+- 这轮现场检查**抓到一个我自己引入的 bug**：补丁把 `count.py::_insert_item` 的 `doc = frappe.get_doc({...})` 缩进顶到了 `if existing: return existing` 里，离线单测与架构检查都不会发现（语法合法），是现场建盘点任务时报 `UnboundLocalError` 才暴露的；已修好并重跑通过。这条记下来是为了说明"静态检查全绿 ≠ 行为对"，也是保留现场验收这一步的理由。
