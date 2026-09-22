@@ -1,5 +1,15 @@
 # 原生后端接口与前端讨论边界
 
+最新补充（第五十二批）：账套主体批量导入前缀 `pearnly_cowork.masters.workspace_api`，三条均仅 POST：
+`parse_workspace_import()` 收 multipart `file`（CSV/XLSX，兼容解码器支持 XLS）；
+`preview_workspace_import(rows)` 收归一行；`commit_workspace_import(rows,request_key)` 创建 `Cowork Workspace`。
+字段 name/tax_id/address/branch/phone，最多 500 行、8 MiB；parse/preview 零写，confirm 重新检查。
+权限为 Cowork Site + master_data + Cowork Admin；行结果 created/skip/error，重复税号 skip，不覆盖原公司。
+同操作者同 request_key/内容返回原回执且 `replayed=true`，无税号也不重复创建；同 key 改内容拒绝。
+重放的 created/skipped/errors 是原批次计数，不代表本次又建了一遍；修正错误行应使用新 key。
+现有 `masters.api.preview_client_import/commit_client_import` 仍创建买方，不改目标实体。
+无菜单、页面、外部建账或 ERP 连接写入；详细边界与验证见 [账套主体导入](workspace-import.md)。
+
 最新补充（第五十一批）：业务分类接口前缀 `pearnly_cowork.history.category_api`：
 `category_tree(workspace)` 只读零写入；POST `initialize_categories(workspace)`、
 `save_category(workspace,label,parent?,name?,request_key?,expected_revision=0,sort=0)`、
@@ -49,7 +59,7 @@ DocType 控制器留在原生目录，hooks只登记入口。第四批Core仅修
 
 | 方法 | 参数与结果 | 配置/角色与验证 |
 | --- | --- | --- |
-| `masters.api.create_workspace` | display_name、可选 tax_id → 公司 name | master_data + Cowork Admin；真实 Site 原生保存 |
+| `masters.api.create_workspace` | display_name、可选 tax_id/address/branch/phone → 公司 name | master_data + Cowork Admin；单建/原生/批量共用字段与当前 Site 活跃税号防重 |
 | `masters.api.create_client` | workspace、display_name、可选 tax_id → 买方 name | 同上，验证公司属于当前 Site |
 | `masters.api.workspaces` | start、limit → 已授权公司；limit ≤ 200 | intake / ocr_history / master_data 中至少一项及对应角色或 Cowork Admin |
 | `masters.api.clients` | workspace、start、limit → 已授权买方 | 公司范围 + 独立买方范围；同名按 name 再排序，已验证第 201 条可达 |

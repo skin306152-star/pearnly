@@ -2,7 +2,7 @@
 
 > 第五十一批更正：纯表头/字段归一规则仍可复用，但旧来源中的“客户”是账套主体，
 > 第四十九批新 RPC 落到的却是买方；规则差分通过不代表目标实体迁移正确。
-> 现有买方适配保留，账套主体导入仍待独立承接，见 [最新归属与证据](invoice-classification.md)。
+> 第五十二批已独立承接账套主体导入，现有买方适配保留，见 [账套导入合同](workspace-import.md)。
 
 第四十八批从新平台 `ca8d800` 开工，工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。线上来源仍是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。不接前端、不部署、不改 DMS、不写旧库、不调模型。
 

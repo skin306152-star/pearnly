@@ -1,0 +1,253 @@
+{
+  "date": "2026-09-22",
+  "base_commit": "56365403a5e231296f3a29ea3f45bade535d1284",
+  "mechanical_commit": "d906f9a0cde70c6dd2a9ba2cd7e416e58f786e18",
+  "code_commit": "bfea28e1f3fec3b91b9f6e1a65d9a14cbb813328",
+  "scope": "Workspace subject bulk import, distinct from existing buyer-client import; backend only",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "hash_convention": "envelope sha256 of canonical evidence, not formatted file bytes",
+    "start_sha256": "86b16b306d61d18ae010665a4d0ea86d5c222301c18218296eea475d5ae45d58",
+    "delivery_sha256": "b0abb5a2e26cee12b1bdf5272fd740b37c796e164ee6e7bd65cace642cced6f8",
+    "compare_start_to_delivery": "PASS",
+    "compare_previous_delivery_to_delivery": "PASS",
+    "runtime_projection_sha256": "f178771bcfaa5d0641d2f4fede55ebf9cdee595e159fc07892c61e2566766a57",
+    "runtime_compare_previous_delivery": {
+      "settings_unchanged": true,
+      "observations_changed": false
+    },
+    "prior_runtime_drift": "Batch 51 vs 50 endpoint configuration_digest change remains uninvestigated. This importer neither reads nor creates external endpoints; present equality does not resolve the historical finding.",
+    "fixed_source_hashes": {
+      "routes/client_import_routes.py": "73c2613bd938a6751365e5253aaa811055c1859589d5d4d01819de2385d289ea",
+      "routes/workspace_routes.py": "df0a73c40fdfa3192765ec0cbcca621be5ff766b92ac1a9b28fcb744ae50f28c",
+      "services/workspace/store.py": "0b925a9d0e1cd81f03bc8201d538bc29da450d045615c8ebd0d11b9261b6ba21",
+      "services/summary_import/parse.py": "5679261e378fb2ab14358d71c233903a9097c6b512cc269cec9a8c579b8ccbe1",
+      "services/workspace/client_import.py": "b2b2da81a93f18a7cecf2b51534f5f1bcbfd1c31112d956699c042cbf97e05dc",
+      "services/recon/bank_table_io.py": "19b9161eb5a96f8244efba97b215b50710365ba97f1bd93f8ce04ccd302f190e"
+    }
+  },
+  "checks": [
+    {
+      "suite": "tests/test_cowork_workspace_import.py",
+      "result": "PASS",
+      "tests": 9
+    },
+    {
+      "suite": "tests/test_cowork_workspace_import_source_parity.py",
+      "result": "PASS",
+      "comparisons": 432,
+      "differences": 0
+    },
+    {
+      "suite": "tests/test_cowork_bank_sheets.py",
+      "result": "PASS",
+      "tests": 36
+    },
+    {
+      "suite": "tests/test_cowork_reconciliation_gl_sheets.py + tests/test_cowork_reconciliation_bank_intake.py",
+      "result": "PASS",
+      "tests": 47
+    },
+    {
+      "suite": "tests/test_cowork_bank_sheets_source_parity.py",
+      "result": "PASS",
+      "comparisons": 227,
+      "differences": 0
+    },
+    {
+      "suite": "tests/test_cowork_gl_text_source_parity.py",
+      "result": "PASS",
+      "gl": 225,
+      "text": 187,
+      "kbank": 5,
+      "pdf": 4,
+      "differences": 0
+    },
+    {
+      "suite": "scripts/cowork-workspace-import-lab-verify.py",
+      "sites": [
+        "cowork-backend-ack.localhost",
+        "cowork-backend-workspace.localhost"
+      ],
+      "result": "PASS",
+      "tests_each": 17
+    },
+    {
+      "suite": "scripts/cowork-workspace-import-lab-verify.py --http",
+      "sites": [
+        "cowork-backend-ack.localhost",
+        "cowork-backend-workspace.localhost"
+      ],
+      "result": "PASS",
+      "requests_each": 10,
+      "anonymous_each": "3 x 403",
+      "get_write_each": "3 x 403",
+      "multipart_commit_replay": "PASS",
+      "private_receipt_list": "403",
+      "note": "HTTP preceded final UTF-8 byte-count refinement, which was checked by updated native suite on both Sites; normal valid-request path unchanged"
+    },
+    {
+      "suite": "scripts/cowork-workspace-import-lab-verify.py --concurrency",
+      "result": "PASS",
+      "cases": 2,
+      "real_processes_each": 2,
+      "old_rr_snapshot": true,
+      "same_tax_different_keys": "1 created + 1 skip, one workspace",
+      "same_key_without_tax": "1 replay, one workspace"
+    },
+    {
+      "suite": "scripts/cowork-masters-lab-verify.py",
+      "result": "PASS",
+      "tests": 22,
+      "anonymous_http": "14 x 403"
+    },
+    {
+      "suite": "scripts/cowork-backend-lab-verify.py",
+      "result": "PASS",
+      "tests": 21,
+      "cross_site": "cowork-backend-workspace.localhost"
+    },
+    {
+      "suite": "fresh native installation",
+      "result": "PASS",
+      "site": "cowork-backend-workspace.localhost",
+      "apps": [
+        "frappe",
+        "pearnly_core",
+        "pearnly_cowork"
+      ]
+    },
+    {
+      "suite": "scripts/check-architecture.py and staged-snapshot hook",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "suite": "scripts/i18n-build.py --check",
+      "result": "PASS",
+      "messages": 1561,
+      "apps": 5
+    },
+    {
+      "suite": "scripts/check-i18n.py",
+      "result": "REPORT-ONLY",
+      "findings": 428,
+      "delta": 3,
+      "note": "Three additional Chinese summary-row matching strings, not UI text; no ignore expansion. Existing glossary debt remains."
+    },
+    {
+      "suite": "git diff --check and staged diff check",
+      "result": "PASS"
+    }
+  ],
+  "upgrade_preservation": [
+    {
+      "stage": "first native migrate",
+      "result": "before equals after for all preexisting selected data",
+      "workspaces": {
+        "count": 269,
+        "sha256": "f5017782026a9c7454d9cc7ffd176f0955901a855744cb4015a2262f8dd808b6",
+        "fields": [
+          "name",
+          "display_name",
+          "tax_id",
+          "enabled",
+          "owner",
+          "creation",
+          "modified",
+          "modified_by"
+        ]
+      },
+      "history": {
+        "history_count": 26,
+        "preference_count": 2,
+        "sha256": "e186a553668a39f3bd3dac0d27af90f81c071cce3091e99390003e65a754394c"
+      },
+      "categories": {
+        "count": 359,
+        "sha256": "62ab5c75c0ed56b4c6766bebeb9af1dd91ccb26a8a8a575beb560266b6159efc"
+      },
+      "memory": {
+        "count": 1,
+        "sha256": "7d064ed94bb28791b535f513912cf28ebddca4ac0118caa939cd0800778644f7"
+      }
+    },
+    {
+      "stage": "repeat native migrate after synthetic contact fields and durable receipts",
+      "result": "all before hashes equal after",
+      "workspace_full": {
+        "count": 283,
+        "sha256": "188bfeef7b57ebfb9af890286c5eb2fdcde7899c2acd2ad21c5086c8eea6d714"
+      },
+      "receipts": {
+        "count": 5,
+        "sha256": "c5b62544773dd09ced48ed6791533d59e509e8e39bb44600bba0101c4ddbf947"
+      },
+      "history": {
+        "history_count": 30,
+        "preference_count": 2,
+        "sha256": "369953e0109d164fd1b2b537154ffe332588f0ae6776cc447df601777260f2b9"
+      },
+      "categories": {
+        "count": 448,
+        "sha256": "b7d73cfb14d480aa7b8c8899b5d26a869b3cfbed6177fba69da2a1257c0117b6"
+      },
+      "memory": {
+        "count": 1,
+        "sha256": "7d064ed94bb28791b535f513912cf28ebddca4ac0118caa939cd0800778644f7"
+      }
+    }
+  ],
+  "issues_encountered_and_resolved": [
+    "Guessed GL/intake unit-test module names caused import failures; exact discovered test_cowork_reconciliation_* modules ran 47 tests successfully. No tests skipped or assertions removed.",
+    "Host Python lacks openpyxl; dependency-bearing tests executed in the pinned lab bench.",
+    "Review preserved legacy successful workbook reads when close raises, with a dedicated test.",
+    "Normalized JSON input limit now counts UTF-8 bytes; multibyte oversized payload refusal passed on both native Sites."
+  ],
+  "intentional_changes": [
+    "Keep buyer import RPC semantics; new workspace API creates Workspace, never buyer or external endpoint",
+    "Normalized active tax identity uniqueness across Site, rechecked under shared native metadata transaction lock",
+    "Strict field-length rejection instead of legacy truncation; retain native tax field max 40",
+    "Private immutable actor+request-key receipt makes no-tax retry safe; new key no-tax rows may intentionally create another workspace",
+    "Expected row validation error rolls back savepoint; permission/deadlock/unexpected errors propagate",
+    "Binary signature decoder selection fails closed; bounded workbook/CSV resources apply only to new importer",
+    "No unused period inference, workorder-only Thai gate, VAT or external workspace configuration"
+  ],
+  "limitations": [
+    "XLS fallback uses installed existing xlrd, but genuine XLS byte fixture not validated this batch",
+    "Legacy cp874-before-GBK decoding can misread some GBK names; unchanged intentionally",
+    "No historical workspace data backfill or automatic duplicate merge",
+    "No frontend, browser, real-device or user acceptance",
+    "No paid OCR, LINE or external ERP calls",
+    "History reassignment/unbinding remains a cross-domain decision, not implemented"
+  ],
+  "handoff_retention": {
+    "merged": false,
+    "pushed": false,
+    "deployed": false,
+    "local_main_observed": "466beae046b580bb7eab303893cf20bb9498cc4b",
+    "remote_main_observed": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent",
+    "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly",
+    "branch": "codex/cowork-backend-migration",
+    "unique_commits_at_code_commit": 69,
+    "reason": "Local-only Cowork migration remains unmerged; reassess next batch and authorized final integration",
+    "lab_project": "pearnly-cowork-backend-lab",
+    "docker_context": "colima-pearnly",
+    "bench_image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "containers": "bench/db/redis stopped; inspect confirmed exited and task-tree readonly mounts",
+    "volumes": [
+      "pearnly-cowork-backend-lab_db",
+      "pearnly-cowork-backend-lab_sites",
+      "71640b5a012f8c99c84b49a27f154d78252b355a87ff8dadfa2e41fc3f3db492",
+      "cf5ad7fbfd49e29c178da9c101cbb13b78e3bc64649569a08352fb6d2e9fd269"
+    ],
+    "new_synthetic_site": "cowork-backend-workspace.localhost",
+    "fixed_source": "/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+    "deleted_resources": [],
+    "other_ignored_content": "Existing apps/scripts/tests caches retained; no new workspace/tabular module bytecode found. Reassess exact ownership at whole-task closeout.",
+    "symlinks_in_task_tree": 0,
+    "active_task_host_verification_processes_at_closeout": 0,
+    "next": "Current mandatory major backend gap list empty. Decide history reassignment separately; keep optional engines/real external acceptance/authorized integration distinct; frontend page-by-page later."
+  }
+}
