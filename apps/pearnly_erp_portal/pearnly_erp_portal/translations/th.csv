@@ -313,6 +313,7 @@ trade.docNo,เลขที่เอกสาร
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่
 trade.groupBalance,คงเหลือ
+trade.groupDoc,เอกสาร
 trade.groupIn,รับเข้า
 trade.groupOut,จ่ายออก
 trade.hasVat,คำนวณ VAT

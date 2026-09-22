@@ -42,6 +42,19 @@ frappe.provide("frappe.pearnly");
 		const number = Number(value);
 		return isFinite(number) ? format_number(number, null, 2) : String(value);
 	};
+	// 数量**不加千分位**（`2000`，不是 `2,000`）：旧项目那张收发存表的数量列就是
+	// `fmtQty` 的 `String(n)`。站点的数字格式里分组符号可能是逗号也可能是点，所以从
+	// 框架的格式信息里取出来再去掉，不写死分隔符。
+	p.plain_number = (value, max = 3) => {
+		const text = p.number(value, max);
+		if (!text) return text;
+		const info = typeof get_number_format_info === "function" && typeof get_number_format === "function"
+			? get_number_format_info(get_number_format())
+			: { group_sep: ",", decimal_str: "." };
+		const parts = String(text).split(info.decimal_str);
+		const integer = parts[0].split(info.group_sep).join("");
+		return parts.length > 1 ? `${integer}${info.decimal_str}${parts[1]}` : integer;
+	};
 	// 佛历日期 `08/04/2569`：旧项目 `format-date.ts` 的 `DD/MM/YYYY`（年份 +543），
 	// 收发存那张报表按它显示（用户 2026-09-22 给的参考图就是这个形状）。
 	p.buddhist_date = (value) => {

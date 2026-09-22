@@ -313,6 +313,7 @@ trade.docNo,Document Number
 trade.float,Opening Cash
 trade.from,From Date
 trade.groupBalance,Balance
+trade.groupDoc,Document
 trade.groupIn,In
 trade.groupOut,Out
 trade.hasVat,Add VAT

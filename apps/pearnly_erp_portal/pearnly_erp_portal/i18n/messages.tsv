@@ -357,3 +357,4 @@ Balance	结存	คงเหลือ	残高	trade.groupBalance
 Amount	金额	จำนวนเงิน	金額	trade.amount
 Opening	期初	ยกมา	期首	trade.rowOpening
 Total · {0} row(s)	合计 · {0} 条明细	รวม · {0} รายการ	合計 · {0} 明細	trade.totalRows
+Document	单据	เอกสาร	伝票	trade.groupDoc

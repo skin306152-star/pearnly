@@ -313,6 +313,7 @@ trade.docNo,单据编号
 trade.float,备用现金
 trade.from,开始日期
 trade.groupBalance,结存
+trade.groupDoc,单据
 trade.groupIn,入库
 trade.groupOut,出库
 trade.hasVat,计算增值税

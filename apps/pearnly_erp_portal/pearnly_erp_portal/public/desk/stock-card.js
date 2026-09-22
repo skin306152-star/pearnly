@@ -38,7 +38,7 @@
 	// 出库行的 `qty` 在库里是负数（台账按符号记），列头已经写明"出库"，所以显示绝对值。
 	function side(movement, is_this_side) {
 		if (!is_this_side) return [blank, blank, blank];
-		return [p.number(Math.abs(Number(movement.qty) || 0)),
+		return [p.plain_number(Math.abs(Number(movement.qty) || 0)),
 			money(movement.unit_price), money(movement.amount)];
 	}
 
@@ -49,7 +49,7 @@
 			movement.doc_no || movement.desc || "—",
 			...side(movement, qty > 0),
 			...side(movement, qty < 0),
-			p.number(movement.bal_qty), money(movement.bal_unit_cost), money(movement.bal_value),
+			p.plain_number(movement.bal_qty), money(movement.bal_unit_cost), money(movement.bal_value),
 		];
 	}
 
@@ -60,7 +60,7 @@
 		return [
 			p.buddhist_date(card.date_from), t("trade.rowOpening"),
 			blank, blank, blank, blank, blank, blank,
-			p.number(opening.qty), money(opening.unit_cost), money(opening.value),
+			p.plain_number(opening.qty), money(opening.unit_cost), money(opening.value),
 		];
 	}
 
@@ -82,22 +82,28 @@
 			}
 		}
 		const closing = card.closing || {};
+		// **十个格子**：标签跨"日期 + 单据号"两列，后面九格对应九个数字列。
+		// 三个"单价"列在合计里**留空**（参考图就是这样：合计算的是数量与金额，没有单价）。
+		// 这里以前多推了一个占位格，整行于是比表头宽一列、所有数字都右移一格（实测过）。
 		return [
-			t("trade.totalRows", (card.rows || []).length), null,
-			p.number(sum.in_qty), blank, in_known ? p.amount(sum.in_amount) : "—",
-			p.number(sum.out_qty), blank, out_known ? p.amount(sum.out_amount) : "—",
-			p.number(closing.qty), money(closing.unit_cost), money(closing.value),
+			t("trade.totalRows", (card.rows || []).length),
+			p.plain_number(sum.in_qty), blank, in_known ? p.amount(sum.in_amount) : "—",
+			p.plain_number(sum.out_qty), blank, out_known ? p.amount(sum.out_amount) : "—",
+			p.plain_number(closing.qty), blank, money(closing.value),
 		];
 	}
 
 	// 表头 + 逐行 + 合计，全是**文本**：DOM 那一层只负责按官方类名摆。
+	// 形状照参考图：第一行 `单据(2) | 入库(3) | 出库(3) | 结存(3)`，第二行
+	// `日期 | 单据号 | 数量 单价 金额 ×3`。
 	p.ledger_grid = (t, card) => ({
-		fixed_head: [t("trade.date"), t("trade.docNo")],
-		group_head: [[t("trade.groupIn"), 3], [t("trade.groupOut"), 3], [t("trade.groupBalance"), 3]],
-		// 第二行表头：**每个组**都是「数量 / 单价 / 金额」，三个组各来一遍（照参考图）——
-		// 不是"三个数量、三个单价、三个金额"（那样列头跟数字对不上）。
-		num_head: Array.from({ length: 3 }, () =>
-			["trade.qty", "trade.price", "trade.amount"].map(key => t(key))).flat(),
+		// [文案, 跨几列]
+		group_head: [[t("trade.groupDoc"), 2], [t("trade.groupIn"), 3],
+			[t("trade.groupOut"), 3], [t("trade.groupBalance"), 3]],
+		// 第二行的 11 个格子；前两个左对齐，其余右对齐（数字列）。
+		head: [t("trade.date"), t("trade.docNo"),
+			...Array.from({ length: 3 }, () =>
+				["trade.qty", "trade.price", "trade.amount"].map(key => t(key))).flat()],
 		rows: [
 			...(opening_cells(t, card) ? [opening_cells(t, card)] : []),
 			...(card.rows || []).map(movement_cells),
@@ -117,18 +123,14 @@
 		const table = node("table", "table table-bordered");
 		const head = node("thead");
 		const first = node("tr");
-		for (const text of grid.fixed_head) {
-			const th = node("th", null, text);
-			th.rowSpan = 2;
-			first.appendChild(th);
-		}
 		for (const [text, span] of grid.group_head) {
 			const th = node("th", "text-center", text);
 			th.colSpan = span;
 			first.appendChild(th);
 		}
 		const second = node("tr");
-		for (const text of grid.num_head) second.appendChild(node("th", "text-right", text));
+		grid.head.forEach((text, index) =>
+			second.appendChild(node("th", index < 2 ? null : "text-right", text)));
 		head.appendChild(first); head.appendChild(second);
 		table.appendChild(head);
 
@@ -161,12 +163,27 @@
 
 	p.ledger_table = (t, card) => build_table(p.ledger_grid(t, card));
 
-	// ── 库存页用的弹窗明细（同一张表）────────────────────────────────────────
+	// ── 库存页用的那个**弹窗**明细（**不是**收发存那张表）─────────────────────
+	//
+	// 用户 2026-09-22：收发存那一页的表格按参考图做，但**库存页的"查看"没让动**。
+	// 所以这里保持它原来的样子：原生 DataTable、六列扁平行（日期/单据类型/关联单据/数量/
+	// 该仓位结存/单位成本），只有布局沿用"字段两栏 + 表格在下占满宽度"那一版。
+	// 与 `p.ledger_table`（分组表头 + 合计行）是两套东西，不要合并。
+	const movement_columns = t => ["trade.date", "trade.kind", "trade.reference", "trade.qty",
+		"trade.balance", "trade.cost"].map(key => t(key));
+	// "关联单据"优先显示**单据号**（入库 IR / 出库 IS / 采购 PE / 销售 SI 那种系统号，
+	// 旧线上报表显示的就是它）；没有号的来源（如盘点过账）才落回内部单据名。
+	const movement_rows = card => card.rows.map(m => [m.date, __(m.kind), m.doc_no || m.desc,
+		p.number(m.qty), p.number(m.bal_qty), p.money(m.bal_unit_cost)]);
 
 	p.stockLedger = async (row, dates = {}) => {
 		const t = await p.trade.texts();
+		await frappe.require("report.bundle.js");
 		const card = await fetch_card(row, dates);
 		const d = p.dialog(card.product_name || row.product, [
+			// 四个只读字段两栏，**表格作为整行控件一起交给 `field_rows`** —— 这样它落在
+			// 新的一节里、占满整宽；只把字段交给它、表格自己 concat 在后面的话，表格会
+			// 掉进"当前栏"、被挤成窄窄一条（实测）。
 			...p.field_rows([
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1, default: row.warehouse_name || row.warehouse },
 				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), read_only: 1, default: row.location || "" },
@@ -176,10 +193,13 @@
 			]),
 		], t("trade.close"), async (_values, dialog) => dialog.hide());
 		d.$wrapper.find(".modal-dialog").addClass("modal-xl");
-		d.on_page_show = () => {
-			d.fields_dict.movements.$wrapper.empty().append(p.ledger_table(t, card));
+		let table;
+		d.onhide = () => table?.destroy();
+		d.on_page_show = async () => {
+			if (table) return;
+			table = await p.table(d.fields_dict.movements.$wrapper, movement_columns(t), movement_rows(card));
 		};
-		if (d.display) d.on_page_show();
+		if (d.display) await d.on_page_show();
 	};
 
 	// ── 报表列表 + 二级明细页 ────────────────────────────────────────────────

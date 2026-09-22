@@ -313,6 +313,7 @@ trade.docNo,伝票番号
 trade.float,釣銭準備金
 trade.from,開始日
 trade.groupBalance,残高
+trade.groupDoc,伝票
 trade.groupIn,入库
 trade.groupOut,出庫
 trade.hasVat,付加価値税を計算

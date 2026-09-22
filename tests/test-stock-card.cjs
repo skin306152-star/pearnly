@@ -20,8 +20,17 @@ function boot() {
       ui: {}, breadcrumbs: { set_custom_breadcrumbs() {} },
       datetime: { str_to_user: value => value, get_today: () => '2026-09-22', month_start: () => '2026-09-01' },
     },
-    // product.js 的 p.number/p.amount 会调这两个框架函数：这里给出确定性的等价物。
-    format_number: (value, _format, decimals) => Number(value).toFixed(decimals ?? 0),
+    // product.js 的 p.number/p.amount 会调这两个框架函数。这里按**真实站点**的行为模拟：
+    // 框架的 `format_number` 带千分位（实测 `20000 → 20,000.00`、`2000 → 2,000`），
+    // `p.plain_number` 就是靠格式信息把千分位去掉的。
+    format_number: (value, _format, decimals) => {
+      const text = Number(value).toFixed(decimals ?? 0);
+      const [integer, fraction] = text.split(".");
+      const grouped = integer.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+      return fraction === undefined ? grouped : `${grouped}.${fraction}`;
+    },
+    get_number_format: () => "#,##,###.##",
+    get_number_format_info: () => ({ decimal_str: ".", group_sep: ",", precision: 2 }),
     format_currency: (value, _currency, decimals) => Number(value).toFixed(decimals ?? 2),
     window: {}, document: { body: { classList: { add() {} } }, createElement: () => ({}) },
     $: () => ({ on() {}, empty: () => ({ append() {} }), append() {}, find() { return this; } }),
@@ -47,14 +56,17 @@ const row = (over) => ({ date: '2026-09-22', doc_no: 'STE-1', qty: 1, unit_price
 (async () => {
   const p = boot();
 
-  // 1) 表头：日期/单据编号 + 三个组（入库/出库/结存），第二行是每组各一遍「数量/单价/金额」。
+  // 1) 表头：第一行「单据(2) | 入库(3) | 出库(3) | 结存(3)」，第二行
+  //    「日期 | 单据号 | 数量 单价 金额 ×3」—— 与参考图逐格一致。
   const head = p.ledger_grid(t, card());
-  assert.deepEqual([...head.fixed_head], ['trade.date', 'trade.docNo']);
   assert.deepEqual([...head.group_head].map(([label, span]) => [label, span]),
-    [['trade.groupIn', 3], ['trade.groupOut', 3], ['trade.groupBalance', 3]]);
-  assert.deepEqual([...head.num_head],
-    ['trade.qty', 'trade.price', 'trade.amount', 'trade.qty', 'trade.price', 'trade.amount',
+    [['trade.groupDoc', 2], ['trade.groupIn', 3], ['trade.groupOut', 3], ['trade.groupBalance', 3]]);
+  assert.deepEqual([...head.head],
+    ['trade.date', 'trade.docNo',
+      'trade.qty', 'trade.price', 'trade.amount', 'trade.qty', 'trade.price', 'trade.amount',
       'trade.qty', 'trade.price', 'trade.amount']);
+  assert.equal([...head.head].length, [...head.group_head].reduce((sum, [, span]) => sum + span, 0),
+    '两行表头的列数必须对得上');
   console.log('PASS the grouped header repeats quantity/price/amount per side');
 
   // 2) 入库行：正数进"入库"那三列，出库三列留空；结存照后端给的值。
@@ -78,22 +90,52 @@ const row = (over) => ({ date: '2026-09-22', doc_no: 'STE-1', qty: 1, unit_price
     '盘点 STC-1', '没有单据号时用说明兜底');
   console.log('PASS unknown cost reads as a dash while a blank cell means the other side');
 
-  // 5) 合计：两侧数量分别求和、金额各自求和、结存取期末；标签带明细条数。
+  // 4b) **列数不变量**：每行（含期初行与合计行）占的列数必须与表头一致 ——
+  //     合计行曾经多一个占位格，整行比表头宽一列、所有数字右移一格（实测抓到过）。
+  const shape = p.ledger_grid(t, card({
+    opening: { qty: 5, value: 35 }, rows: [row(), row({ qty: -1, doc_no: 'S-1' })],
+  }));
+  const columns = [...shape.group_head].reduce((sum, [, span]) => sum + span, 0);
+  assert.equal(columns, 11);
+  assert.equal([...shape.head].length, columns, '第二行表头');
+  for (const [index, line] of [...shape.rows].entries()) {
+    assert.equal([...line].length, columns, `第 ${index + 1} 行数据`);
+  }
+  // 合计行：标签跨两列，所以格子数比列数少一。
+  assert.equal([...shape.foot].length, columns - 1, '合计行');
+  console.log('PASS every row occupies exactly the header column count');
+
+  // 5) 合计：**十个格子**（标签跨两列 + 九格），两侧数量/金额分别求和、结存取期末，
+  //    三个"单价"列留空（参考图就是这样）。曾经多推了一个占位格 → 整行比表头宽一列，
+  //    所有数字右移一格（实测抓到过）。
   const totals = p.ledger_grid(t, card({
     rows: [row({ qty: 3, amount: 21 }), row({ qty: -2, amount: 14, doc_no: 'S-1' })],
     closing: { qty: 1, unit_cost: 7, value: 7 },
   })).foot;
   assert.deepEqual([...totals],
-    ['trade.totalRows', null, '3', '', '21.00', '2', '', '14.00', '1', '7.00', '7.00']);
+    ['trade.totalRows', '3', '', '21.00', '2', '', '14.00', '1', '', '7.00']);
+  assert.equal([...totals].length, 10, '合计行 = 跨两列的标签 + 九格，跟表头同宽');
   console.log('PASS the footer sums both sides and carries the row count');
 
   // 6) 合计的诚实口径：任一笔金额未知，整列显示 —（不拿已知部分的和冒充）。
   const partial = p.ledger_grid(t, card({
     rows: [row({ qty: 3, amount: 21 }), row({ qty: 1, unit_price: null, amount: null })],
   })).foot;
-  assert.equal(partial[4], '—');
-  assert.equal(partial[2], '4', '数量照常求和（数量与金额是两回事）');
+  assert.equal(partial[3], '—', '入库金额整列 —');
+  assert.equal(partial[1], '4', '数量照常求和（数量与金额是两回事）');
   console.log('PASS an unknown amount turns the whole money column into a dash');
+
+  // 8) 数字形状照参考图：**数量不加千分位**（`2000`），金额加（`20,000.00`）。
+  assert.equal(p.plain_number(2000), '2000');
+  assert.equal(p.amount(20000), '20,000.00');
+  assert.equal(p.plain_number(3.5), '3.5');
+  const big = p.ledger_grid(t, card({
+    rows: [row({ qty: 2000, unit_price: 10, amount: 20000, bal_qty: 2000,
+      bal_unit_cost: 10, bal_value: 20000 })],
+  })).rows[0];
+  assert.deepEqual([...big].slice(2, 11),
+    ['2000', '10.00', '20,000.00', '', '', '', '2000', '10.00', '20,000.00']);
+  console.log('PASS quantities stay ungrouped while amounts are grouped like the reference');
 
   // 7) 期初：没有余额（数量与金额都是 0）就不占一行；有余额才排在第一行。
   assert.equal(p.ledger_grid(t, card()).rows.length, 0);
