@@ -273,6 +273,7 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
@@ -288,6 +289,7 @@ app_include_js = [
 ]
 
 app_include_css = [
+    versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
     versioned_asset("pearnly_erp_portal", "desk/scan.css"),
 ]
 

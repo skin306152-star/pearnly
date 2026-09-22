@@ -32,7 +32,6 @@
 		"discount", "vat_rate", "wht_rate", "category", "subcategory", "batch_no", "expiry_date", "warehouse", "location"];
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
 		.map(row => Object.fromEntries(u.line_keys.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
-	u.tab = (fieldname, label) => ({fieldname, label: __(label), fieldtype: "Tab Break", parent: "Purchase Document", hidden: 0});
 	// Each item is a native collapsible section + FieldGroup. No generic Grid menus,
 	// column configuration, row import or framework document navigation is exposed.
 	u.line_fields = (state, line, change) => {
@@ -76,15 +75,15 @@
 	u.fields = (state, change) => {
 		const {doc, editable} = state, f = u.field, col = u.column;
 		return [
-			u.tab("documents_tab", "Attachments"),
-			u.section(""),
+			u.section("Attachments", {fieldname: "documents_section"}),
 			f("attachment_kind", "Attachment Type", "Select", {options: u.options(["bill", "payment_proof"]), default: "bill", read_only: 0,
 				hidden: state.doc.status === "void" || !state.can_write}),
 			f("upload", "Attach", "Button", {read_only: 0, hidden: state.doc.status === "void" || !state.can_write, click: () => state.upload?.()}),
+			f("recognise", "OCR", "Button", {hidden: !editable || !state.defaults.capabilities.ocr, click: () => state.recognise?.()}),
+			f("document_preview", "Preview", "HTML"),
 			f("gallery", "Attachments", "Attachment Gallery", {read_only: 1}),
 			f("attachment_list", "Attachments", "HTML"),
-			u.tab("information_tab", "Details"),
-			u.section(""),
+			u.section("Details", {fieldname: "information_section"}),
 			f("doc_date", "Posting Date", "Date", {reqd: 1}),
 			f("doc_no", "Supplier Invoice No"),
 			f("doc_type", "Document Type", "Select", {options: u.options(["tax_invoice", "simple_tax_receipt", "receipt", "purchase_order", "substitute_receipt", "other"])}), col(),
@@ -117,8 +116,7 @@
 						f("method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), in_list_view: 1, columns: 2}),
 						f("note", "Remarks", "Data", {in_list_view: 1, columns: 4}), f("is_reversal", "Reversal", "Check"), f("reference", "Reference")]}),
 			] : []),
-			u.tab("items_tab", "Items"),
-			u.section(""),
+			u.section("Items", {fieldname: "items_section"}),
 			f("currency", "Currency", "Select", {options: "THB\nUSD\nEUR\nCNY\nJPY\nSGD", reqd: 1}), col(),
 			f("fx_rate", "Exchange Rate", "Float", {reqd: 1, precision: 6, depends_on: `eval:doc.currency !== '${state.defaults.settings.base_currency}'`}),
 			f("price_mode", "Prices Include Tax", "Select", {options: u.options(["exclusive", "inclusive"])}),

@@ -39,6 +39,7 @@
 		}, 400);
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
+		const layout = u.continuous_layout(form, page);
 		// Internal provenance and automatic posting options remain in the contract,
 		// not as merchant-facing switches or framework fields.
 		state.values = (ignore_errors = false) => {
@@ -47,7 +48,7 @@
 			for (const line of state.lines) {
 				if (!line.form.get_value("description") && !line.form.get_value("product")) continue;
 				const row = line.form.get_values(ignore_errors, !ignore_errors);
-				if (!row) {line.section.collapse(false); form.tabs.find(tab => tab.df.fieldname === "items_tab").set_active(); return null;}
+				if (!row) {line.section.collapse(false); layout.navigate("items"); return null;}
 				lines.push(row);
 			}
 			return {...Object.fromEntries(["source", "requester", "requester_user", "external_ref", "image_sha256"]
@@ -97,14 +98,13 @@
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
-		form.tabs.find(tab => tab.df.fieldname === (state.attachments.length ? "documents_tab" : "information_tab")).set_active();
 		let attachment_list;
 		const gallery = form.fields_dict.gallery;
 		// Supply the native gallery's documented form context with the pending/posted
 		// evidence collection. The gallery itself remains upstream, including thumbnails.
 		gallery.frm = {doc: {__islocal: false}, get_files: () => state.attachments.map(row => ({...row, name: row.file})),
 			attachments: {get_file_url: row => row.file_url, can_delete_attachment: () => false}, has_perm: () => false};
-		gallery.open_lightbox = async (images, index) => {
+		const open_lightbox = async (images, index) => {
 			await gallery.load_photoswipe();
 			const viewer = new frappe.PhotoSwipe({index, closeTitle: __("Close"), zoomTitle: __("Zoom"),
 				arrowPrevTitle: __("Previous"), arrowNextTitle: __("Next"), dataSource: images.map(row => ({src: row.file_url,
@@ -128,16 +128,39 @@
 			});
 			viewer.init();
 		};
+		const preview = form.fields_dict.document_preview.$wrapper;
+		const show_preview = row => {
+			state.preview_file = row?.file;
+			preview.empty();
+			if (!row) return;
+			if (frappe.utils.is_image_file(row.file_url)) {
+				// Business evidence content; zoom/rotate remains the native gallery viewer.
+				const link = $("<a>").attr({href: row.file_url, "aria-label": row.file_name}).appendTo(preview);
+				$("<img>").attr({src: row.file_url, alt: row.file_name}).appendTo(link);
+				link.on("click", event => {
+					event.preventDefault();
+					const images = gallery.get_image_attachments();
+					const index = images.findIndex(image => image.name === row.file);
+					if (index >= 0) void open_lightbox(images, index);
+				});
+			}
+		};
+		gallery.open_lightbox = (images, index) => show_preview(state.attachments.find(row => row.file === images[index]?.name));
 		const refresh_files = async () => {
 			if (state.disposed) return;
 			await gallery.refresh_input();
+			show_preview(state.attachments.find(row => row.file === state.preview_file) || state.attachments[0]);
+			gallery.$wrapper.toggle(state.attachments.length > 1 || state.attachments.some(row => !frappe.utils.is_image_file(row.file_url)));
 			attachment_list?.destroy();
 			if (!state.attachments.length) {form.fields_dict.attachment_list.$wrapper.empty(); return;}
-			attachment_list = p.list({page, container: form.fields_dict.attachment_list.$wrapper,
+			attachment_list = p.list({page, container: form.fields_dict.attachment_list.$wrapper, compact_columns: true,
 				doctype: "File", load: async () => ({items: state.attachments.map(row => ({...row, name: row.file})), total: state.attachments.length}),
-				on_open: row => window.open(row.file_url, "_blank", "noopener,noreferrer"),
-				columns: [{fieldname: "file_name", label: __("File Name")},
-					{fieldname: "kind", label: __("Attachment Type"), format: u.label}],
+				on_open: row => {
+					if (frappe.utils.is_image_file(row.file_url)) show_preview(row);
+					else window.open(row.file_url, "_blank", "noopener,noreferrer");
+				},
+				columns: [{fieldname: "file_name", label: __("File Name"), width: 150, min_width: 100},
+					{fieldname: "kind", label: __("Attachment Type"), width: 80, min_width: 56, format: u.label}],
 				row_actions: row => !state.can_write || doc.status === "void" || row.generated || row.intake || amended_from ? [] : [{id: "delete", label: __("Delete"),
 					action: () => frappe.confirm(__("Are you sure you want to delete the attachment?"), async () => {
 						if (doc.name) await u.call("api_remove_purchase_attachment", {name: doc.name, file: row.file}, true);
@@ -147,6 +170,8 @@
 					})}],
 			});
 			await attachment_list.ready;
+			// The evidence collection is already loaded in full; no page-size chooser.
+			attachment_list.$paging_area.hide();
 		};
 		state.upload = () => {
 			const kind = form.get_value("attachment_kind") || "bill";
@@ -164,7 +189,8 @@
 		const act = async callback => {
 			if (state.busy) return;
 			state.busy = true; page.btn_primary.prop("disabled", true);
-			try { await callback(); } finally { state.busy = false; page.btn_primary.prop("disabled", false); }
+			form.fields_dict.recognise.$input?.prop("disabled", true);
+			try { await callback(); } finally { state.busy = false; page.btn_primary.prop("disabled", false); form.fields_dict.recognise.$input?.prop("disabled", false); }
 		};
 		if (editable) {
 			page.set_primary_action(__("Submit"), () => act(async () => {
@@ -177,8 +203,9 @@
 					name: amended_from ? undefined : doc.name, amended_from}, true);
 				p.success(__("Submitted")); await go(result.name);
 			}));
-			if (defaults.capabilities.ocr) page.add_inner_button(__("OCR"), () => act(async () => {
+			state.recognise = () => act(async () => {
 				const result = await u.call("api_recognise_purchase", {attachments: state.attachments.filter(row => !row.generated), intake_name: intake?.name, document_name: doc.name}, true);
+				if (!still_current() || state.disposed) return;
 				const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 					&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break"].includes(form.fields_dict[key].df.fieldtype));
 				await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
@@ -186,7 +213,8 @@
 				state.ocr_hash = result.image_sha256;
 				if (result.lines) await state.set_lines(result.lines);
 				changes();
-			}));
+				layout.navigate("information");
+			});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;
 				if (state.split_lines) {await state.set_lines(state.split_lines); state.split_lines = null;}
@@ -213,7 +241,7 @@
 		await refresh_files();
 		state.ready = true;
 		if (editable) changes();
-		return () => {state.disposed = true; attachment_list?.destroy();};
+		return () => {state.disposed = true; layout.destroy(); attachment_list?.destroy();};
 	};
 	u.payment = (doc, reload) => {
 		const f = u.field, due = Number(doc.net_payable) - Number(doc.paid_amount), request_id = frappe.utils.get_random(32);
