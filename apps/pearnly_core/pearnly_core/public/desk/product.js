@@ -35,6 +35,19 @@ frappe.provide("frappe.pearnly");
 		// 把尾巴上的 ":ss" 去掉（`2026-09-22 14:12:00` → `2026-09-22 14:12`）。
 		return String(frappe.datetime.str_to_user(text)).replace(/(\d{1,2}:\d{2}):\d{2}$/, "$1");
 	};
+	// 纯数字金额（不带货币符号、固定两位小数）：收发存那种"整列同一个币种"的表用 ——
+	// 旧项目那张表的金额列就是 `20,000.00` 这个形状（`fmtMoney`），不带 THB。
+	p.amount = (value) => {
+		if (value === null || value === undefined || value === "") return "";
+		const number = Number(value);
+		return isFinite(number) ? format_number(number, null, 2) : String(value);
+	};
+	// 佛历日期 `08/04/2569`：旧项目 `format-date.ts` 的 `DD/MM/YYYY`（年份 +543），
+	// 收发存那张报表按它显示（用户 2026-09-22 给的参考图就是这个形状）。
+	p.buddhist_date = (value) => {
+		const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""));
+		return parts ? `${parts[3]}/${parts[2]}/${Number(parts[1]) + 543}` : String(value || "");
+	};
 	p.add_refresh = (page, refresh, label = __("Reload")) =>
 		page.add_action_icon("es-line-reload", refresh, "", label)
 			.removeClass("btn-default")
@@ -222,6 +235,9 @@ frappe.provide("frappe.pearnly");
 		page.page_form.detach();
 		page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
 		page.clear_fields(); page.fields_dict = {}; page.clear_inner_toolbar();
+		// 右上角那排图标也要清：`add_refresh` 每进一次列表就加一颗，不清就会越堆越多
+		// （实测收发存页面进了几次之后右上角挂了一排刷新）。用原生 `clear_icons()`。
+		page.clear_icons?.();
 		page.hide_form();
 		page.clear_primary_action(); page.clear_indicator();
 	};

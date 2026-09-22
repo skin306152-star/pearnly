@@ -294,6 +294,7 @@ trade.action.ledgerSingle,เลือกได้ครั้งละหนึ
 trade.action.submit,ยืนยัน
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
 trade.address,ที่อยู่
+trade.amount,จำนวนเงิน
 trade.balance,คงเหลือในตำแหน่ง
 trade.branchNo,เลขที่สาขา
 trade.branchType,ประเภทสาขา
@@ -311,6 +312,9 @@ trade.discount,ส่วนลด
 trade.docNo,เลขที่เอกสาร
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่
+trade.groupBalance,คงเหลือ
+trade.groupIn,รับเข้า
+trade.groupOut,จ่ายออก
 trade.hasVat,คำนวณ VAT
 trade.in,รับเข้า
 trade.issue,ออกเอกสาร
@@ -341,6 +345,7 @@ trade.refund,คืนสินค้า
 trade.refundAmount,ยอดคืนเงิน
 trade.refundBlocked,คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
 trade.refundSingle,เลือกได้ครั้งละหนึ่งใบเสร็จ
+trade.rowOpening,ยกมา
 trade.save,บันทึกฉบับร่าง
 trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
 trade.status,สถานะ
@@ -355,6 +360,7 @@ trade.taxNo,เลขที่ใบกำกับภาษี
 trade.terminal,จุดขาย
 trade.to,ถึงวันที่
 trade.total,ยอดชำระ
+trade.totalRows,รวม · {0} รายการ
 trade.unit,หน่วย
 trade.vat,อัตรา VAT
 trade.void,ยกเลิก

@@ -294,6 +294,7 @@ trade.action.ledgerSingle,Select one row to open its ledger
 trade.action.submit,Submit
 trade.action.voidCount,Void {0} selected
 trade.address,Address
+trade.amount,Amount
 trade.balance,Position Balance
 trade.branchNo,Branch Number
 trade.branchType,Branch Type
@@ -311,6 +312,9 @@ trade.discount,Discount
 trade.docNo,Document Number
 trade.float,Opening Cash
 trade.from,From Date
+trade.groupBalance,Balance
+trade.groupIn,In
+trade.groupOut,Out
 trade.hasVat,Add VAT
 trade.in,Received
 trade.issue,Issue Document
@@ -341,6 +345,7 @@ trade.refund,Refund
 trade.refundAmount,Refund Amount
 trade.refundBlocked,Only a completed sale receipt can be refunded
 trade.refundSingle,Select one receipt to refund
+trade.rowOpening,Opening
 trade.save,Save Draft
 trade.shiftOpen,Shift {0} · Expected cash {1}
 trade.status,Status
@@ -355,6 +360,7 @@ trade.taxNo,Tax invoice number
 trade.terminal,Terminal
 trade.to,To Date
 trade.total,Total Due
+trade.totalRows,Total · {0} row(s)
 trade.unit,Unit
 trade.vat,VAT Rate
 trade.void,Void

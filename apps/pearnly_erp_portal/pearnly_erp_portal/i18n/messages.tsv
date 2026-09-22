@@ -351,3 +351,9 @@ Type any warehouse name; a new warehouse is created if that name is new	仓库�
 Submitted {0}	已提交 {0}	ยืนยันแล้ว {0}	{0} を提出しました	trade.notice.submitted
 Submit	提交	ยืนยัน	確定	product.action.submit
 Codes start at {0}	本次从 {0} 开始发	เริ่มที่ {0}	{0} から採番します	product.new.hintCode
+In	入库	รับเข้า	入库	trade.groupIn
+Out	出库	จ่ายออก	出庫	trade.groupOut
+Balance	结存	คงเหลือ	残高	trade.groupBalance
+Amount	金额	จำนวนเงิน	金額	trade.amount
+Opening	期初	ยกมา	期首	trade.rowOpening
+Total · {0} row(s)	合计 · {0} 条明细	รวม · {0} รายการ	合計 · {0} 明細	trade.totalRows
