@@ -228,6 +228,7 @@ stock.count.void,ยกเลิก
 stock.count.voidConfirm,ยกเลิกรายการนับ {0} นี้?
 stock.count.voidPick,เลือกรายการที่จะยกเลิก
 stock.count.warehouseHint,เว้นว่างไว้จะใช้คลังเริ่มต้น
+stock.field.docNoAuto,สร้างอัตโนมัติ
 stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 stock.mobile.cameraOff,ปิดกล้อง
 stock.mobile.codePlaceholder,รหัสหรือบาร์โค้ด

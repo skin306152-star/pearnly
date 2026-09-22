@@ -228,6 +228,7 @@ stock.count.void,取消
 stock.count.voidConfirm,この {0} の記録を取り消しますか？
 stock.count.voidPick,取消する記録を選択
 stock.count.warehouseHint,空欄なら既定の倉庫を使います
+stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.mobile.cameraOff,カメラを閉じる
 stock.mobile.codePlaceholder,コード・バーコード

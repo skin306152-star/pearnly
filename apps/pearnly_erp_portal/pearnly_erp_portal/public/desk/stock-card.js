@@ -23,7 +23,10 @@
 			if (table) return;
 			table = await p.table(d.fields_dict.movements.$wrapper,
 			["trade.date", "trade.kind", "trade.reference", "trade.qty", "trade.balance", "trade.cost"].map(key => t(key)),
-			card.rows.map(m => [m.date, __(m.kind), m.desc, p.number(m.qty), p.number(m.bal_qty), p.money(m.bal_unit_cost)]));
+			// "关联单据"优先显示**单据号**（入库 IR / 出库 IS / 采购 PE / 销售 SI 那种系统号，
+			// 旧线上报表显示的就是它）；没有号的来源（如盘点过账）才落回内部单据名。
+			card.rows.map(m => [m.date, __(m.kind), m.doc_no || m.desc, p.number(m.qty),
+				p.number(m.bal_qty), p.money(m.bal_unit_cost)]));
 		};
 		if (d.display) await d.on_page_show();
 	};

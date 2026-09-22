@@ -6,6 +6,7 @@ from frappe.utils import now
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import contracts, positions, stock, warehouses
+from pearnly_erp_portal.numbering import service as numbering
 
 DOCTYPE = "ERP Stock Entry"
 
@@ -25,7 +26,7 @@ def _get(name):
 
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
-                 doc_no=None, reason=None, ref_type=None, ref_id=None, dedupe_key=None):
+                 reason=None, ref_type=None, ref_id=None, dedupe_key=None):
     guard.require("stock.write")
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
@@ -33,6 +34,9 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
         frappe.throw(_(LINES_REQUIRED))
     lines = [positions.prepare(line, warehouse) for line in lines]
     warehouse = warehouses.resolve(warehouse)
+    # 单据号由系统发（入库 IR / 出库 IS，佛历日期 + 当日流水），不接受手输 —— 收发存报表
+    # "关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
+    doc_no = numbering.allocate(direction=direction, on=posting_date)
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
         "warehouse": warehouse, "supplier": supplier, "doc_no": doc_no, "reason": reason,
@@ -45,7 +49,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     })
     doc.insert()
     frappe.db.commit()
-    return {"name": doc.name}
+    return {"name": doc.name, "doc_no": doc.doc_no}
 
 
 def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
@@ -82,7 +86,8 @@ def update_entry(name, **changes):
     doc = _get(name)
     if doc.status != "draft":
         frappe.throw(_(LOCKED))
-    for field in ("posting_date", "warehouse", "supplier", "doc_no", "reason",
+    # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
+    for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:
             doc.set(field, warehouses.resolve(changes[field]) if field == "warehouse" else changes[field])

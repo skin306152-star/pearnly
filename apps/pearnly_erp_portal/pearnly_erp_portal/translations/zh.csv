@@ -228,6 +228,7 @@ stock.count.void,撤销
 stock.count.voidConfirm,撤销这条 {0} 的记录？
 stock.count.voidPick,选择要撤销的记录
 stock.count.warehouseHint,留空就用默认仓库
+stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编号或条码

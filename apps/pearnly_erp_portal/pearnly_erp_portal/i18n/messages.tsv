@@ -101,6 +101,7 @@ Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
 Export	导出	ส่งออก	エクスポート	stock.action.export
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	stock.action.ledger
 Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	stock.action.ledgerSingle
+Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	stock.field.docNoAuto
 Only an active count can be deleted	只有进行中的盘点能删除	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	stock.count.deleteBlocked
 In stock	正常	มีสินค้า	在庫あり	stock.status.ok
 Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low

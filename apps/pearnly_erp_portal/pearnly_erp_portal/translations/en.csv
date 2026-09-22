@@ -228,6 +228,7 @@ stock.count.void,Void
 stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
 stock.count.warehouseHint,Leave empty to use the default warehouse
+stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
