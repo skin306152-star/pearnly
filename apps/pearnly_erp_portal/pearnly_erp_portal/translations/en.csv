@@ -652,10 +652,13 @@ trade.action.ledgerSingle,Select one row to open its ledger
 trade.action.pay,Pay
 trade.action.submit,Submit
 trade.action.voidCount,Void {0} selected
+trade.actualQty,Quantity Available
 trade.addedToCart,Added: {0}
 trade.address,Address
+trade.allItems,All Items
 trade.amount,Amount
 trade.balance,Position Balance
+trade.balances,Payment Reconciliation
 trade.branchNo,Branch Number
 trade.branchType,Branch Type
 trade.buyer,Customer
@@ -674,8 +677,10 @@ trade.closeShift,Close Shift
 trade.closedAt,Closed At
 trade.closing,Closing Quantity
 trade.code,Code
+trade.completeOrder,Complete Order
 trade.cost,Unit Cost
 trade.countCash,Cash Check
+trade.countedAmount,Counted Amount
 trade.countedCash,Counted Cash
 trade.counterProducts,Products
 trade.date,Date
@@ -686,6 +691,9 @@ trade.diffOver,Over by {0}
 trade.diffShort,Short by {0}
 trade.discount,Discount
 trade.docNo,Document Number
+trade.editCart,Edit Cart
+trade.enterAmount,Enter {0} amount
+trade.expectedAmount,Expected Amount
 trade.expectedCash,Expected Cash
 trade.exportNotice,Exported {0} shifts
 trade.float,Opening Cash
@@ -696,12 +704,17 @@ trade.groupDoc,Document
 trade.groupIn,In
 trade.groupOut,Out
 trade.hasVat,Add VAT
+trade.hideRecentOrders,Hide Recent Orders
 trade.in,Received
+trade.invoiceStatus,Receipt Status
 trade.issue,Issue Document
+trade.itemDetails,Item Details
+trade.itemsNotFound,Items not found.
 trade.kind,Document Type
 trade.kind.refund,Refund
 trade.kind.sale,Sale
 trade.lines,Items
+trade.listPrice,List Price
 trade.location,Location
 trade.method,Payment Method
 trade.methodCard,Card
@@ -721,6 +734,7 @@ trade.openShift,Open Shift
 trade.openedAt,Opened At
 trade.openedAtSub,Opened at {0}
 trade.opening,Opening Quantity
+trade.openingAmount,Opening Amount
 trade.originalLine,Original Item and Location
 trade.out,Issued
 trade.paid,Amount Received
@@ -729,15 +743,18 @@ trade.pay,Complete Payment
 trade.paymentDate,Payment Date
 trade.paymentState,Payment Status
 trade.pickLine,Pick a line first
+trade.pickPadTarget,"Pick quantity, discount or price first"
 trade.price,Unit Price
 trade.product,Product
 trade.qty,Quantity
+trade.recentOrders,Recent Orders
 trade.reference,Reference
 trade.refund,Refund
 trade.refundAmount,Refund Amount
 trade.refundBlocked,Only a completed sale receipt can be refunded
 trade.refundCount,Refund Count
 trade.refundSingle,Select one receipt to refund
+trade.remaining,Remaining Amount
 trade.remove,Remove
 trade.rowOpening,Opening
 trade.salesCount,Sales Count
@@ -745,7 +762,9 @@ trade.save,Save Draft
 trade.scan,Scan
 trade.scanNotFound,No product for this code: {0}
 trade.scanUnsupported,This device cannot scan
+trade.searchOrders,Search by receipt number
 trade.searchProducts,"Search name, code or barcode"
+trade.selectOrderHint,Select a receipt to load its summary
 trade.shiftClosed,Shift closed · Cash difference {0}
 trade.shiftHistory,Shift History
 trade.shiftNo,Shift No
@@ -772,6 +791,7 @@ trade.to,To Date
 trade.total,Total Due
 trade.totalItems,Total items
 trade.totalRows,Total · {0} row(s)
+trade.underpaid,The amount received is less than the total
 trade.unit,Unit
 trade.vat,VAT Rate
 trade.void,Void

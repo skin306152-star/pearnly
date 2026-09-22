@@ -652,10 +652,13 @@ trade.action.ledgerSingle,เลือกได้ครั้งละหนึ
 trade.action.pay,รับชำระ
 trade.action.submit,ยืนยัน
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
+trade.actualQty,จำนวนคงเหลือ
 trade.addedToCart,เพิ่มแล้ว: {0}
 trade.address,ที่อยู่
+trade.allItems,รายการทั้งหมด
 trade.amount,จำนวนเงิน
 trade.balance,คงเหลือในตำแหน่ง
+trade.balances,กระทบยอดวิธีชำระ
 trade.branchNo,เลขที่สาขา
 trade.branchType,ประเภทสาขา
 trade.buyer,ชื่อลูกค้า
@@ -674,8 +677,10 @@ trade.closeShift,ปิดกะ
 trade.closedAt,เวลาปิดกะ
 trade.closing,ยอดคงเหลือ
 trade.code,รหัส
+trade.completeOrder,ปิดการขาย
 trade.cost,ต้นทุนต่อหน่วย
 trade.countCash,ตรวจเงินสด
+trade.countedAmount,ยอดนับได้
 trade.countedCash,เงินสดที่นับได้
 trade.counterProducts,สินค้า
 trade.date,วันที่
@@ -686,6 +691,9 @@ trade.diffOver,เกินมา {0}
 trade.diffShort,ขาดไป {0}
 trade.discount,ส่วนลด
 trade.docNo,เลขที่เอกสาร
+trade.editCart,กลับไปที่ตะกร้า
+trade.enterAmount,กรอกจำนวนเงิน {0}
+trade.expectedAmount,ยอดที่ควรมี
 trade.expectedCash,เงินสดที่ควรมี
 trade.exportNotice,ส่งออก {0} กะแล้ว
 trade.float,เงินสดเริ่มต้น
@@ -696,12 +704,17 @@ trade.groupDoc,เอกสาร
 trade.groupIn,รับเข้า
 trade.groupOut,จ่ายออก
 trade.hasVat,คำนวณ VAT
+trade.hideRecentOrders,ซ่อนออเดอร์ล่าสุด
 trade.in,รับเข้า
+trade.invoiceStatus,สถานะใบเสร็จ
 trade.issue,ออกเอกสาร
+trade.itemDetails,รายละเอียดสินค้า
+trade.itemsNotFound,ไม่พบสินค้า
 trade.kind,ประเภทเอกสาร
 trade.kind.refund,คืนสินค้า
 trade.kind.sale,ขาย
 trade.lines,รายการสินค้า
+trade.listPrice,ราคาป้าย
 trade.location,ตำแหน่ง
 trade.method,วิธีชำระเงิน
 trade.methodCard,บัตร
@@ -721,6 +734,7 @@ trade.openShift,เปิดกะ
 trade.openedAt,เวลาเปิดกะ
 trade.openedAtSub,เปิดกะเมื่อ {0}
 trade.opening,ยอดยกมา
+trade.openingAmount,ยอดยกมา
 trade.originalLine,สินค้าและตำแหน่งในบิลเดิม
 trade.out,จ่ายออก
 trade.paid,รับชำระ
@@ -729,15 +743,18 @@ trade.pay,รับชำระเงิน
 trade.paymentDate,วันที่ชำระเงิน
 trade.paymentState,สถานะชำระเงิน
 trade.pickLine,เลือกบรรทัดก่อน
+trade.pickPadTarget,เลือกจำนวน ส่วนลด หรือราคาก่อน
 trade.price,ราคาต่อหน่วย
 trade.product,สินค้า
 trade.qty,จำนวน
+trade.recentOrders,ออเดอร์ล่าสุด
 trade.reference,เอกสารอ้างอิง
 trade.refund,คืนสินค้า
 trade.refundAmount,ยอดคืนเงิน
 trade.refundBlocked,คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
 trade.refundCount,จำนวนการคืนเงิน
 trade.refundSingle,เลือกได้ครั้งละหนึ่งใบเสร็จ
+trade.remaining,ยอดคงเหลือ
 trade.remove,นำออก
 trade.rowOpening,ยกมา
 trade.salesCount,จำนวนบิล
@@ -745,7 +762,9 @@ trade.save,บันทึกฉบับร่าง
 trade.scan,สแกน
 trade.scanNotFound,ไม่พบสินค้าสำหรับรหัสนี้: {0}
 trade.scanUnsupported,อุปกรณ์นี้สแกนไม่ได้
+trade.searchOrders,ค้นหาด้วยเลขที่ใบเสร็จ
 trade.searchProducts,ค้นหาชื่อ รหัส หรือบาร์โค้ด
+trade.selectOrderHint,เลือกใบเสร็จเพื่อดูสรุป
 trade.shiftClosed,ปิดกะแล้ว · ผลต่างเงินสด {0}
 trade.shiftHistory,ประวัติกะ
 trade.shiftNo,เลขที่กะ
@@ -772,6 +791,7 @@ trade.to,ถึงวันที่
 trade.total,ยอดชำระ
 trade.totalItems,จำนวนชิ้น
 trade.totalRows,รวม · {0} รายการ
+trade.underpaid,รับเงินน้อยกว่ายอดที่ต้องชำระ
 trade.unit,หน่วย
 trade.vat,อัตรา VAT
 trade.void,ยกเลิก

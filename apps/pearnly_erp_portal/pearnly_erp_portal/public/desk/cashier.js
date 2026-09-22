@@ -1,28 +1,58 @@
-/* 收银 POS：开班 / 收银台 / 当班小票 / 交班 / 班次记录。
+/* 收银 POS：界面照 ERPNext 的收银台**1:1** 复刻（结构、尺寸、交互都照它），业务仍走我们
+ * 自己的商品 / 库存 / 收发存 / 销售域（本仓 2026-09-21 的决定＋用户 2026-09-23 的口径）。
  *
- * 收银台照 **ERPNext POS 那套交互**做（本仓 2026-09-21 的决定："POS 借 ERPNext 的前端
- * 体验与交互，但业务后端仍走 Pearnly 的商品、库存、收发存与销售"；用户 2026-09-23 又
- * 明确按 ERPNext 对）。骨架对着框架那份实现摆：
+ * 对着官方那份实现（`apps/erpnext/erpnext/selling/page/point_of_sale/*.js` 与
+ * `public/scss/point-of-sale.scss`，离线快照见工作记录 F22）逐块摆：
  *
- * · 商品区是**卡片网格**，不是列表 —— 卡上：库存色点（>10 绿 / ≤0 红 / 其余橙，
- *   与 `pos_item_selector.js` 同一条规则）、商品图或缩写（`frappe.get_abbr`）、
- *   名称、`售价 / 单位`；
- * · 购物车带**合计区**：总件数 / 净额 / 合计；
- * · 购物车下面挂**常驻数字键盘**：`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 ⌫ 移除`
- *   + 底部「收款」；收款弹窗里另有一副 3 列键盘（照官方收款面板）。
+ * · 一屏 = `.point-of-sale-app`（10 列网格、gap 15px、padding 1%）里六块，按 DOM 顺序自动排：
+ *   商品区(`.items-selector`，6 列) / 商品明细(`.item-details-container`，6 列) /
+ *   购物车(`.customer-cart-container`，4 列) / 收款(`.payment-container`，6 列) /
+ *   最近订单(`.past-order-list`，4 列) / 订单汇总(`.past-order-summary`，6 列)。
+ *   **哪两块显示就决定左右**：点收款时购物车留在最左边、收款面板占右边六列；开最近订单时
+ *   订单列表在左四列、汇总在右六列 —— 这是网格自动排列的结果，不是我们挪的。
+ * · 商品卡：库存色点（>10 绿 / ≤0 红 / 其余橙）＋图片或缩写＋名称＋`售价 / 单位`；4 列网格。
+ * · 点购物车某一行 → 左半边换成「商品明细」面板（数量/单位/单价/折扣/仓库/数量（仓库）/标价），
+ *   右半边**这时才出现**数字键盘（`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 删除 移除`）。
+ * · 键盘先选目标（数量/折扣/单价，选中的那颗高亮），再按数字；没选目标就按数字会提示。
+ * · 「结账」→ 收款面板：左边各支付方式（点一下才展开金额格、键盘写它）、右边 3 列键盘，
+ *   下面 总计 / 付款金额 / 剩余金额（多付变「找零」），最底一颗「完成订单」。
+ * · 收款完成：藏起收银台，右半边显示这张小票的汇总（官方 `submit_invoice` 同一动作）。
+ * · 页面动作：主按钮「新单」、次按钮「最近订单 / 隐藏最近订单」、菜单里「交班」。
  *
- * 后端仍然是我们自己的：商品/售价/结存读 `cashier/counter.py`（结存就是收发存那张
- * `ERP Stock Balance`），落单走 `cashier.sales.create_sale` —— 一笔收银落一张单、
- * 扣一次库存、进一次收发存，单号与销售记录同一个序列。
+ * 我们**关掉**的官方功能（产品没有对应数据，位置留着不画）：
+ * 客户选择、物料分组筛选、单位换算系数、行号/批次、忠诚度积分、发票附加信息、
+ * 打印/邮件小票、Open Form View（产品不开放 DocType 表单页）。
  *
- * 数字键盘在官方也是个自造件（Frappe 没有这个控件，ERPNext 自己写了
- * `pos_number_pad.js`），所以这里同样自造，交互照它；其余控件一律官方原生。
+ * 数据全都走我们自己的接口：商品/售价/结存 `cashier/counter.py`，落单
+ * `cashier.sales.create_sale`（一笔收银 = 一张单 + 一次出库 + 一条收发存），
+ * 开班/交班 `cashier/shifts.py`（对账表按支付方式，见 `ERP Shift Balance`）。
  */
 (() => {
 	const p = frappe.pearnly;
+	// 支付方式：与 `ERP Sale Payment.method` 同一个集合，顺序照官方收款面板。
+	const METHODS = ["cash", "card", "promptpay", "transfer"];
+	const METHOD_KEYS = {cash: "trade.methodCash", card: "trade.methodCard",
+		promptpay: "trade.methodPromptpay", transfer: "trade.methodTransfer"};
+	// 官方购物车键盘（`pos_item_cart.js` 的 keys / css_classes 原样）：目标键各占两格，
+	// 「移除」再挂 `.remove-btn`（红字），底部另有一颗占满行的「结账」。
+	const CART_PAD = [
+		[{v: "1"}, {v: "2"}, {v: "3"}, {v: "qty", key: "trade.qty", span: 2, hint: "⌘+Q"}],
+		[{v: "4"}, {v: "5"}, {v: "6"}, {v: "discount", key: "trade.discount", span: 2, hint: "⌘+D"}],
+		[{v: "7"}, {v: "8"}, {v: "9"}, {v: "unit_price", key: "trade.price", span: 2, hint: "⌘+R"}],
+		[{v: "."}, {v: "0"}, {v: "delete", en: "Delete"},
+			{v: "remove", key: "trade.remove", span: 2, cls: "remove-btn"}],
+	];
+	// 官方收款面板键盘（`pos_payment.js`）：3 列，最后一行 `+/- 0 删除`。
+	const PAY_PAD = [
+		[{v: "1"}, {v: "2"}, {v: "3"}],
+		[{v: "4"}, {v: "5"}, {v: "6"}],
+		[{v: "7"}, {v: "8"}, {v: "9"}],
+		[{v: "sign", label: "+/-"}, {v: "0"}, {v: "delete", en: "Delete"}],
+	];
+
 	p.cashier = async (page, t) => {
 		const api = "pearnly_erp_portal.cashier.api.";
-		const canWrite = frappe.model.can_write("ERP Sale");
+		const can_write = frappe.model.can_write("ERP Sale");
 		// 钱一律这么显示（两位小数、带币种）；读数时把千分位剥掉再转数字。
 		const money = value => p.money(value);
 		const num = value => {
@@ -30,151 +60,264 @@
 			return isFinite(parsed) ? parsed : 0;
 		};
 		const round2 = value => Math.round(num(value) * 100) / 100;
-		// 单据类型/状态用**本页自己的键**取词（`trade.kind.*` / `trade.state.*`）——
-		// 直接 `__("sale")` 这种会被框架自带词典先接走，或者干脆露出英文原文。
 		const kind_label = value => t(`trade.kind.${value}`);
 		const state_label = value => t(`trade.state.${value}`);
-		const amount = (fieldname, label, value) => ({ fieldtype: "Currency", options: "currency",
-			formatter: money, fieldname, label, read_only: 1, default: value });
-		const field = (fieldname, label, fieldtype = "Data", options = {}) =>
-			({fieldname, label: __(label), fieldtype, ...options});
-
-		let shift, form, receipts_list, active = null, active_field = "qty", buffer = "";
-		// 当班小票那一节默认收起、按钮切换（官方 POS 的 "Recent Orders" 就是这样一个切换项）。
-		let receipts_shown = false;
-		// 购物车只是这一屏的状态，不落库：收款那一下才由服务端成单（与旧线上一致）。
-		let cart = [];
-		// 商品区是"分页 + 加载更多"（官方 POS 也是先给一页）。
-		let items = { rows: [], total: 0, start: 0 };
-		const PAGE_SIZE = 24;
-
-		const COUNTER_HTML = `<div class="pearnly-pos">
-			<div class="pearnly-pos-left">
-				<div class="pearnly-pos-filter"></div>
-				<div class="pearnly-pos-grid"></div>
-				<button type="button" class="btn btn-default btn-sm pearnly-pos-more"></button>
-			</div>
-			<div class="pearnly-pos-right">
-				<div class="pearnly-pos-lines"></div>
-				<div class="pearnly-pos-totals"></div>
-				<div class="pearnly-pos-pad"></div>
-			</div>
-		</div>`;
-
+		const method_label = method => t(METHOD_KEYS[method] || method);
+		const state_pill = value => value === "completed" ? "green" : value === "void" ? "gray" : "orange";
 		// 官方那条色点规则：>10 绿、≤0 红、其余橙（`pos_item_selector.js`）。
 		const pill_class = qty => (qty > 10 ? "green" : qty <= 0 ? "red" : "orange");
 		const clip = (text, count) => {
 			const value = String(text ?? "");
 			return value.length > count ? value.slice(0, count) + "…" : value;
 		};
-		const cart_total = () => round2(cart.reduce(
-			(sum, row) => sum + num(row.qty) * num(row.unit_price) - num(row.discount), 0));
-		const pane = selector => form?.fields_dict?.counter?.$wrapper.find(selector);
 
-		// ── 页面动作 ────────────────────────────────────────────────────────────
-		// 右上角照官方那三处摆：主按钮「新单」、次按钮「当班小票」（切换列表显隐）、
-		// 菜单里放「交班 / 班次记录 / 清空购物车」（官方是 Open Form View / Close the POS）。
-		// 收款不在这里 —— 它在购物车面板的键盘下面（官方也是把 Checkout 放那儿）。
-		// 没开班时主按钮换成「开班」（对应官方那句 "Create POS Opening Entry"）。
-		//
-		// 为什么要一个函数：列表的选中状态一刷新就会去清主按钮，不把页面动作交回去，
-		// 「开班 / 新单」会被列表刷掉（商品页当初踩的同一个坑）。
-		function restore_primary() {
-			if (!canWrite) { page.clear_primary_action(); return; }
-			if (!shift) page.set_primary_action(t("trade.openShift"), () => void open_shift());
-			else page.set_primary_action(t("trade.newInvoice"), new_invoice);
+		let shift = null, items = [], items_total = 0, cart = [], selected = null,
+			pad_target = null, pad_value = "", paying = false, pay_target = null,
+			orders = [], active_order = null, orders_shown = false, view = "counter",
+			detail_controls = {};
+
+		// ── 骨架（类名与层级照官方那六块）────────────────────────────────────────
+		function pad_html(keys) {
+			return `<div class="numpad-container">` + keys.map(row => row.map(cell => {
+				const label = cell.key ? t(cell.key) : cell.en ? __(cell.en) : cell.label || cell.v;
+				const cls = ["numpad-btn", cell.span ? "col-span-2" : "", cell.cls || ""]
+					.filter(Boolean).join(" ");
+				return `<div class="${cls}" data-button-value="${p.escape(cell.v)}"${
+					cell.hint ? ` title="${cell.hint}"` : ""}>${p.escape(label)}</div>`;
+			}).join("")).join("") + `</div>`;
 		}
 
-		// 「新单」= 把这一单清干净重新开始（官方 primary_action "New Invoice"）。
-		function new_invoice() {
-			cart = []; active = null; buffer = ""; active_field = "qty";
-			paint_cart();
+		p.clear_page(page);
+		page.main.append(`<div class="point-of-sale-app">
+			<section class="items-selector">
+				<div class="filter-section">
+					<div class="label">${p.escape(t("trade.allItems"))}</div>
+					<div class="search-field"></div>
+					<div class="item-group-field"></div>
+				</div>
+				<div class="items-container show-item-image"></div>
+			</section>
+			<section class="item-details-container">
+				<div class="item-details-header">
+					<div class="label">${p.escape(t("trade.itemDetails"))}</div>
+					<div class="close-btn" title="Esc">
+						<svg width="32" height="32" viewBox="0 0 14 14" fill="none">
+							<path d="M4.93764 4.93759L7.00003 6.99998M9.06243 9.06238L7.00003 6.99998M7.00003 6.99998L4.93764 9.06238L9.06243 4.93759" stroke="#8D99A6"/>
+						</svg>
+					</div>
+				</div>
+				<div class="item-display">
+					<div class="item-name-desc-price">
+						<div class="item-name"></div><div class="item-desc"></div><div class="item-price"></div>
+					</div>
+					<div class="item-image"></div>
+				</div>
+				<div class="discount-section"></div>
+				<div class="form-container"></div>
+			</section>
+			<section class="customer-cart-container">
+				<div class="cart-container">
+					<div class="abs-cart-container">
+						<div class="cart-label">${p.escape(t("trade.cart"))}</div>
+						<div class="cart-header">
+							<div class="name-header">${p.escape(t("trade.product"))}</div>
+							<div class="qty-header">${p.escape(t("trade.qty"))}</div>
+							<div class="rate-amount-header">${p.escape(t("trade.amount"))}</div>
+						</div>
+						<div class="cart-items-section"></div>
+						<div class="cart-totals-section">
+							<div class="item-qty-total-container">
+								<div class="item-qty-total-label">${p.escape(t("trade.totalItems"))}</div>
+								<div class="item-qty-total-value">0.00</div>
+							</div>
+							<div class="net-total-container">
+								<div class="net-total-label">${p.escape(t("trade.net"))}</div>
+								<div class="net-total-value">0.00</div>
+							</div>
+							<div class="grand-total-container">
+								<div>${p.escape(t("trade.total"))}</div><div>0.00</div>
+							</div>
+							<div class="checkout-btn">${p.escape(t("trade.checkout"))}</div>
+							<div class="edit-cart-btn">${p.escape(t("trade.editCart"))}</div>
+						</div>
+						<div class="numpad-section">
+							<div class="numpad-totals">
+								<span class="numpad-item-qty-total"></span>
+								<span class="numpad-net-total"></span>
+								<span class="numpad-grand-total"></span>
+							</div>
+							${pad_html(CART_PAD)}
+							<div class="numpad-btn checkout-btn" data-button-value="checkout">${p.escape(t("trade.checkout"))}</div>
+						</div>
+					</div>
+				</div>
+			</section>
+			<section class="payment-container">
+				<div class="payment-split-container">
+					<div class="payment-container-left">
+						<div class="section-label payment-section">${p.escape(t("trade.method"))}</div>
+						<div class="payment-modes"></div>
+					</div>
+					<div class="payment-container-right">
+						<div class="fields-numpad-container">
+							<div class="fields-section"><div class="invoice-fields"></div></div>
+							<div class="number-pad">${pad_html(PAY_PAD)}</div>
+						</div>
+					</div>
+				</div>
+				<div class="totals-section"><div class="totals"></div></div>
+				<div class="submit-order-btn">${p.escape(t("trade.completeOrder"))}</div>
+			</section>
+			<section class="past-order-list">
+				<div class="filter-section">
+					<div class="label">${p.escape(t("trade.recentOrders"))}</div>
+					<div class="status-search-fields">
+						<div class="status-field"></div>
+						<div class="search-field"></div>
+					</div>
+				</div>
+				<div class="list-container"></div>
+			</section>
+			<section class="past-order-summary">
+				<div class="no-summary-placeholder">${p.escape(t("trade.selectOrderHint"))}</div>
+				<div class="invoice-summary-wrapper">
+					<div class="abs-container">
+						<div class="upper-section"></div>
+						<div class="label">${p.escape(t("trade.lines"))}</div>
+						<div class="items-container summary-container order-summary-container"></div>
+						<div class="label">${p.escape(t("trade.total"))}</div>
+						<div class="totals-container summary-container"></div>
+						<div class="label">${p.escape(t("trade.byMethod"))}</div>
+						<div class="payments-container summary-container"></div>
+						<div class="summary-btns"></div>
+					</div>
+				</div>
+			</section>
+		</div>`);
+		const $app = page.main.find(".point-of-sale-app");
+		const q = selector => $app.find(selector);
+
+		// 商品区顶上那两颗控件是官方原生控件（Data + placeholder 与 Clear 那颗小叉）。
+		const search_control = frappe.ui.form.make_control({
+			df: { fieldtype: "Data", placeholder: t("trade.searchProducts") },
+			parent: $app.find(".items-selector .search-field"), render_input: true,
+		});
+		search_control.$wrapper.find(".control-input").append(
+			`<span class="link-btn"><a class="btn-open no-decoration" title="${__("Clear")}">${
+				frappe.utils.icon("close", "sm")}</a></span>`);
+		search_control.$wrapper.on("click", ".link-btn a", () => {
+			search_control.set_value(""); void load_items(); search_control.set_focus();
+		});
+		search_control.$input.on("change", () => void load_items());
+		const order_status_control = frappe.ui.form.make_control({
+			df: { fieldtype: "Select", options: ["", "completed", "void", "refund"],
+				label: t("trade.invoiceStatus") },
+			parent: $app.find(".past-order-list .status-field"), render_input: true,
+		});
+		order_status_control.$input.on("change", () => paint_orders());
+		const order_search_control = frappe.ui.form.make_control({
+			df: { fieldtype: "Data", placeholder: t("trade.searchOrders") },
+			parent: $app.find(".past-order-list .search-field"), render_input: true,
+		});
+		order_search_control.$input.on("change keyup", () => paint_orders());
+
+		// ── 页面动作（照官方：主「新单」、次「最近订单」、菜单「交班」）───────────────
+		function paint_actions() {
+			if (!can_write) { page.clear_primary_action(); return; }
+			page.clear_menu();
+			page.add_menu_item(t("trade.closeShift"), () => void close_shift_dialog(), false);
+			if (!shift) {
+				page.set_indicator(t("trade.noShift"), "orange");
+				page.set_primary_action(t("trade.openShift"), () => void open_shift_dialog());
+				page.clear_secondary_action?.();
+				return;
+			}
+			page.set_primary_action(t("trade.newInvoice"), () => void new_invoice());
+			page.set_secondary_action(orders_shown ? t("trade.hideRecentOrders") : t("trade.recentOrders"),
+				() => void toggle_orders());
+			page.set_indicator(t("trade.shiftOpenedAt", shift.shift.shift_seq,
+				p.datetime_text(shift.shift.opened_at), p.money(shift.expected_cash)),
+				"green");
 		}
 
-		// 「当班小票」= 那一节的显隐开关（官方 secondary_action "Recent Orders"）。
-		function toggle_receipts() {
-			const wrapper = form?.fields_dict?.receipts?.$wrapper;
-			if (!wrapper?.length) return;
-			receipts_shown = !receipts_shown;
-			wrapper.closest(".form-section").toggle(receipts_shown);
+		// 「新单」= 这一单清干净重新开始（官方 primary_action "New Invoice"）。
+		async function new_invoice() {
+			cart = []; selected = null; pad_target = null; pad_value = "";
+			paying = false; pay_target = null; view = "counter";
+			if (orders_shown) { orders_shown = false; }
+			await paint();
 		}
 
-		async function refresh() {
-			shift = await p.call(api + "api_current_shift");
-			paint_shift_indicator();
-			restore_primary();
-			if (shift) await load_items(true);
-			paint_cart();
-			await receipts_list?.reload();
+		// 「最近订单」= 订单列表与汇总那一屏（官方 secondary_action "Recent Orders"）。
+		async function toggle_orders() {
+			orders_shown = !orders_shown;
+			view = orders_shown ? "orders" : "counter";
+			if (orders_shown) { active_order = null; await load_orders(); }
+			paint_actions(); paint_views();
 		}
 
-		// 开班信息摆在标题旁那颗原生指示器里：班次号、开班时间、应有现金。
-		//
-		// 官方 ERPNext 用的是 `page.set_title_sub("Opened at …")`，但**我们这套页面壳里没有
-		// 那个副标题位** —— 框架的 `Page.$sub_title_area` 取的是 `wrapper.find("h6")`，
-		// 而产品页面里 h6 数量是 0（实测），那句调用是空的。这里不往 DOM 里塞补丁，
-		// 改用同样原生、且一定渲染得出来的指示器，信息一样（三个事实都在）。
-		function paint_shift_indicator() {
-			page.set_indicator(shift
-				? t("trade.shiftOpenedAt", shift.shift.shift_seq,
-					p.datetime_text(shift.shift.opened_at), p.money(shift.expected_cash))
-				: t("trade.noShift"), shift ? "green" : "orange");
+		// ── 视图切换：显示哪两块，官方就是哪两块（网格自己排左右）──────────────────
+		function paint_views() {
+			// 关键：收款时**购物车留在最左边**，收款面板占右边六列 —— 官方的网格就是
+			// 这个排法（DOM 里购物车在收款面板之前），所以这里只切显示、不挪位置。
+			const counter = view === "counter";
+			q(".items-selector").toggle(counter && !paying && !selected);
+			q(".item-details-container").css("display",
+				counter && !paying && selected ? "flex" : "none");
+			q(".customer-cart-container").toggle(counter);
+			q(".payment-container").css("display", paying ? "flex" : "none");
+			q(".past-order-list").css("display", orders_shown ? "flex" : "none");
+			q(".past-order-summary").css("display",
+				view === "summary" || orders_shown ? "flex" : "none");
+			q(".cart-totals-section .checkout-btn").toggle(!paying && cart.length > 0 && !selected);
+			q(".cart-totals-section .edit-cart-btn").toggle(paying);
 		}
 
-		// ── 开班 ────────────────────────────────────────────────────────────────
-		async function open_shift() {
-			const terminals = await p.call(api + "api_list_terminals");
-			const preferred = terminals.find(row => Number(row.is_default)) || terminals[0];
-			p.dialog(t("trade.openShift"), [
-				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
-				{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal", label: t("trade.terminal"),
-					default: preferred?.name || "", description: t("trade.terminalHint") },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "opening_float",
-					label: t("trade.float"), default: 0 },
-			], t("trade.openShift"), async (values, d) => {
-				const result = await p.call(api + "api_open_shift",
-					{ terminal: values.terminal, opening_float: values.opening_float }, "POST");
-				d.hide();
-				p.success(t("trade.shiftOpened", result.shift_seq));
-				await render();
-			});
+		// ── 商品区 ──────────────────────────────────────────────────────────────
+		async function load_items() {
+			if (!shift) return;
+			const result = await p.call(api + "api_counter_products", {
+				terminal: shift.shift.terminal, search: search_control.get_value() || undefined,
+				start: 0, limit: 40 });
+			items = result?.items || [];
+			items_total = num(result?.total);
+			paint_items();
 		}
 
-		// ── 商品卡网格 ──────────────────────────────────────────────────────────
-		function item_card(row) {
+		function item_html(row) {
 			const qty = num(row.qty_on_hand);
-			const name = p.escape(row.product_name || row.name);
+			const name = row.product_name || row.name;
 			const image = row.image_url
-				? `<img class="pearnly-pos-img" src="${p.escape(row.image_url)}" alt="">`
-				: p.escape(frappe.get_abbr(row.product_name || ""));
-			return `<div class="pearnly-pos-card" data-product="${p.escape(row.name)}" title="${name}">
-				<div class="pearnly-pos-pill"><span class="indicator-pill whitespace-nowrap ${pill_class(qty)}">${p.escape(p.number(qty))}</span></div>
-				<div class="pearnly-pos-display${row.image_url ? "" : " abbr"}">${image}</div>
-				<div class="pearnly-pos-detail">
-					<div class="pearnly-pos-name">${p.escape(clip(row.product_name, 18))}</div>
-					<div class="pearnly-pos-rate">${p.escape(money(row.unit_price))} / ${p.escape(row.unit || "")}</div>
+				? `<div class="item-qty-pill"><span class="indicator-pill whitespace-nowrap ${pill_class(qty)}">${p.escape(p.number(qty))}</span></div>
+					<div class="item-display"><img class="item-img" src="${p.escape(row.image_url)}"
+						alt="${p.escape(name)}" onerror="this.replaceWith(Object.assign(document.createElement('div'), {className: 'item-display abbr', textContent: this.alt}))"></div>`
+				: `<div class="item-qty-pill"><span class="indicator-pill whitespace-nowrap ${pill_class(qty)}">${p.escape(p.number(qty))}</span></div>
+					<div class="item-display abbr">${p.escape(frappe.get_abbr(name))}</div>`;
+			return `<div class="item-wrapper" data-product="${p.escape(row.name)}" title="${p.escape(name)}">
+				${image}
+				<div class="item-detail">
+					<div class="item-name">${p.escape(clip(name, 18))}</div>
+					<div class="item-rate">${p.escape(money(row.unit_price))} / ${p.escape(row.unit || "")}</div>
 				</div>
 			</div>`;
 		}
 
-		async function load_items(reset) {
-			if (!shift) return;
-			if (reset) items = { rows: [], total: 0, start: 0 };
-			const result = await p.call(api + "api_counter_products", {
-				terminal: shift.shift.terminal, search: form?.get_value("q") || undefined,
-				start: items.start, limit: PAGE_SIZE });
-			const rows = result?.items || [];
-			items = { rows: reset ? rows : items.rows.concat(rows),
-				total: num(result?.total), start: items.start + rows.length };
-			const grid = pane(".pearnly-pos-grid");
-			grid.html(items.rows.length ? items.rows.map(item_card).join("")
-				: `<div class="text-muted pearnly-pos-empty">${p.escape(__("No Data"))}</div>`);
-			const more = pane(".pearnly-pos-more");
-			more.text(`${__("Load More")} (${items.rows.length} / ${items.total})`);
-			more.toggle(items.rows.length < items.total);
+		function paint_items() {
+			const $container = q(".items-container");
+			if (!items.length) {
+				$container.removeClass("show-item-image").addClass("items-not-found")
+					.text(t("trade.itemsNotFound"));
+				return;
+			}
+			$container.removeClass("items-not-found").addClass("show-item-image")
+				.html(items.map(item_html).join(""));
 		}
 
-		// ── 购物车（行 + 合计区 + 键盘）─────────────────────────────────────────
+		// ── 购物车 ──────────────────────────────────────────────────────────────
+		const line_total = row => round2(num(row.qty) * num(row.unit_price) - num(row.discount));
+		const cart_qty = () => round2(cart.reduce((sum, row) => sum + num(row.qty), 0));
+		const cart_net = () => round2(cart.reduce((sum, row) => sum + line_total(row), 0));
+
 		function add_to_cart(row, qty = 1) {
 			if (!row?.name) return;
 			const line = cart.find(item => item.product === row.name);
@@ -182,407 +325,634 @@
 			else cart.push({
 				product: row.name, product_name: row.product_name, description: row.product_name,
 				code: row.code, unit: row.unit, warehouse: row.warehouse, location: row.location || "",
-				unit_price: num(row.unit_price), qty, discount: 0, qty_on_hand: num(row.qty_on_hand),
+				unit_price: num(row.unit_price), list_price: num(row.unit_price),
+				qty, discount: 0, qty_on_hand: num(row.qty_on_hand),
 			});
-			active = row.name;
-			buffer = "";
-			paint_cart();
+			selected = null;
+			paint_cart(); paint_views();
 		}
 
-		function line_html(row) {
-			const line_total = money(num(row.qty) * num(row.unit_price) - num(row.discount));
-			return `<div class="pearnly-pos-line${active === row.product ? " active" : ""}" data-product="${p.escape(row.product)}">
-				<div class="pearnly-pos-cell name">${p.escape(clip(row.product_name, 16))}</div>
-				<div class="pearnly-pos-cell">${p.escape(p.number(row.qty))}</div>
-				<div class="pearnly-pos-cell">${p.escape(money(row.unit_price))}</div>
-				<div class="pearnly-pos-cell">${p.escape(line_total)}</div>
+		function cart_line_html(row) {
+			const abbr = row.image_url
+				? `<div class="item-image"><img src="${p.escape(row.image_url)}" alt=""></div>`
+				: `<div class="item-image item-abbr">${p.escape(frappe.get_abbr(row.product_name || ""))}</div>`;
+			return `<div class="cart-item-wrapper" data-product="${p.escape(row.product)}">
+				${abbr}
+				<div class="item-name-desc"><div class="item-name">${p.escape(row.product_name || "")}</div></div>
+				<div class="item-qty-rate">
+					<div class="item-qty"><span>${p.escape(p.number(row.qty))} ${p.escape(row.unit || "")}</span></div>
+					<div class="item-rate-amount">
+						<div class="item-rate">${p.escape(money(row.unit_price))}</div>
+						<div class="item-amount">${p.escape(money(line_total(row)))}</div>
+					</div>
+				</div>
 			</div>`;
 		}
 
-		function pad_html() {
-			const rows = [["1", "2", "3", t("trade.qty"), "qty"],
-				["4", "5", "6", t("trade.discount"), "discount"],
-				["7", "8", "9", t("trade.price"), "unit_price"],
-				["decimal", "0", "backspace", t("trade.remove"), "remove"]];
-			const key_html = key => `<button type="button" class="btn btn-default pearnly-pos-key" data-key="${key}">${
-				key === "decimal" ? "." : key === "backspace" ? "⌫" : key}</button>`;
-			return rows.map(row => {
-				const [a, b, c, label, action] = row;
-				return `<div class="pearnly-pos-pad-row">${[a, b, c].map(key_html).join("")}
-					<button type="button" class="btn btn-default pearnly-pos-key pearnly-pos-target${active_field === action ? " active" : ""}" data-target="${action}">${p.escape(label)}</button>
-				</div>`;
-			}).join("")
-				+ `<button type="button" class="btn btn-primary pearnly-pos-pay">${p.escape(t("trade.action.pay"))}</button>`;
-		}
-
 		function paint_cart() {
-			const lines = pane(".pearnly-pos-lines");
-			if (!lines.length) return;
-			const count = cart.reduce((sum, row) => sum + num(row.qty), 0);
-			const subtotal = round2(cart.reduce((sum, row) => sum + num(row.qty) * num(row.unit_price), 0));
-			lines.html(`<div class="pearnly-pos-line head">
-					<div class="pearnly-pos-cell name">${p.escape(t("trade.product"))}</div>
-					<div class="pearnly-pos-cell">${p.escape(t("trade.qty"))}</div>
-					<div class="pearnly-pos-cell">${p.escape(t("trade.price"))}</div>
-					<div class="pearnly-pos-cell">${p.escape(t("trade.amount"))}</div>
-				</div>`
-				+ (cart.length ? cart.map(line_html).join("")
-					: `<div class="text-muted pearnly-pos-empty">${p.escape(t("trade.cartEmpty"))}</div>`));
-			pane(".pearnly-pos-totals").html(
-				`<div class="pearnly-pos-total-row"><span>${p.escape(t("trade.totalItems"))}</span><span>${p.escape(p.number(count))}</span></div>
-				 <div class="pearnly-pos-total-row"><span>${p.escape(t("trade.net"))}</span><span>${p.escape(money(subtotal))}</span></div>
-				 <div class="pearnly-pos-total-row grand"><span>${p.escape(t("trade.total"))}</span><span>${p.escape(money(cart_total()))}</span></div>`);
-			pane(".pearnly-pos-pad").html(pad_html());
+			const $items = q(".cart-items-section");
+			const has = cart.length > 0;
+			q(".cart-header").css("display", has ? "flex" : "none");
+			$items.html(has
+				? cart.map(cart_line_html).join("")
+				: `<div class="no-item-wrapper">${p.escape(t("trade.cartEmpty"))}</div>`);
+			if (has) {
+				for (const row of cart) {
+					if (row.product !== selected) continue;
+					$items.find(`.cart-item-wrapper[data-product="${row.product}"]`)
+						.css("background-color", "var(--control-bg)");
+				}
+			}
+			// 金额列宽度对齐（官方 `set_columns_width` 同一做法：列头与行取同一个宽度）。
+			const max = Math.max(0, ...Array.from(q(".cart-items-section .item-rate-amount"))
+				.map(el => el.scrollWidth));
+			q(".rate-amount-header").css("width", max ? `${max}px` : "");
+			q(".cart-items-section .item-rate-amount").css("width", max ? `${max}px` : "");
+			const net = cart_net();
+			q(".cart-totals-section .item-qty-total-value").text(p.number(cart_qty()));
+			q(".cart-totals-section .net-total-value").text(money(net));
+			q(".cart-totals-section .grand-total-container > div:last-child").text(money(net));
+			q(".numpad-totals .numpad-item-qty-total").html(`${p.escape(t("trade.totalItems"))}: <span>${p.escape(p.number(cart_qty()))}</span>`);
+			q(".numpad-totals .numpad-net-total").html(`${p.escape(t("trade.net"))}: <span>${p.escape(money(net))}</span>`);
+			q(".numpad-totals .numpad-grand-total").html(`${p.escape(t("trade.total"))}: <span>${p.escape(money(net))}</span>`);
+			q(".cart-totals-section .checkout-btn").toggle(has && !selected);
+			q(".numpad-section").css("display", has && selected ? "flex" : "none");
+			q(".cart-totals-section").css("display", has && selected ? "none" : "flex");
 		}
 
-		// 键盘：点数字就写进"当前选中行"的"当前字段"（官方就是这套：先选行、再选
-		// 数量/折扣/单价，然后敲数字）。`buffer` 是这一串输入，第一次敲数字会替换原值。
-		function pad_key(key) {
-			const line = cart.find(row => row.product === active);
-			if (!line) { frappe.msgprint(t("trade.pickLine")); return; }
-			if (key === "backspace") buffer = "";
-			else if (key === "decimal") { if (!buffer.includes(".")) buffer += buffer ? "." : "0."; }
-			else buffer = (buffer + key).replace(/^0(?=\d)/, "");
-			const value = buffer === "" ? 0 : Math.max(0, num(buffer));
-			line[active_field] = round2(value);
+		// ── 商品明细面板（左半边，官方那一组字段）────────────────────────────────
+		function details_fields() {
+			return [
+				{ fieldname: "qty", label: t("trade.qty"), fieldtype: "Float" },
+				{ fieldname: "unit", label: t("trade.unit"), fieldtype: "Data", read_only: 1 },
+				{ fieldname: "unit_price", label: t("trade.price"), fieldtype: "Currency",
+					options: "currency", formatter: money },
+				{ fieldname: "discount", label: t("trade.discount"), fieldtype: "Currency",
+					options: "currency", formatter: money },
+				{ fieldname: "warehouse", label: t("trade.warehouse"), fieldtype: "Data", read_only: 1 },
+				{ fieldname: "qty_on_hand", label: t("trade.actualQty"), fieldtype: "Float", read_only: 1 },
+				{ fieldname: "list_price", label: t("trade.listPrice"), fieldtype: "Currency",
+					options: "currency", formatter: money, read_only: 1 },
+			];
+		}
+
+		function paint_details() {
+			const row = cart.find(item => item.product === selected);
+			if (!row) return;
+			q(".item-details-container .item-name").text(row.product_name || "");
+			q(".item-details-container .item-desc").text(row.description || "");
+			q(".item-details-container .item-price").text(money(row.unit_price));
+			q(".item-details-container .item-image").html(row.image_url
+				? `<img src="${p.escape(row.image_url)}" alt="">`
+				: `<div class="item-abbr">${p.escape(frappe.get_abbr(row.product_name || ""))}</div>`);
+			q(".item-details-container .discount-section").html(num(row.discount)
+				? `<div class="item-rate">${p.escape(money(row.list_price))}</div>
+					<div class="item-discount">−${p.escape(money(row.discount))}</div>`
+				: "");
+			const $form = q(".item-details-container .form-container").empty();
+			detail_controls = {};
+			for (const df of details_fields()) {
+				$form.append(`<div class="${df.fieldname}-control" data-fieldname="${df.fieldname}"></div>`);
+				const control = frappe.ui.form.make_control({
+					df: { ...df, onchange: () => apply_field(df.fieldname, control.get_value()) },
+					parent: $form.find(`.${df.fieldname}-control`), render_input: true,
+				});
+				control.set_value(row[df.fieldname]);
+				detail_controls[df.fieldname] = control;
+			}
+		}
+
+		function apply_field(fieldname, value) {
+			const row = cart.find(item => item.product === selected);
+			if (!row) return;
+			if (fieldname === "qty") row.qty = Math.max(0, round2(value));
+			else if (fieldname === "discount") row.discount = Math.max(0, round2(value));
+			else if (fieldname === "unit_price") row.unit_price = Math.max(0, round2(value));
 			paint_cart();
+			q(".item-details-container .item-price").text(money(row.unit_price));
+			q(".discount-section").html(num(row.discount)
+				? `<div class="item-rate">${p.escape(money(row.list_price))}</div>
+					<div class="item-discount">−${p.escape(money(row.discount))}</div>`
+				: "");
 		}
 
-		// ── 扫码（框架自带的 `frappe.ui.Scanner`）───────────────────────────────
-		function start_scan() {
-			if (typeof frappe.ui.Scanner !== "function") {
-				frappe.msgprint(t("trade.scanUnsupported"));
+		function select_line(product) {
+			selected = selected === product ? null : product;
+			pad_target = null; pad_value = "";
+			q(".numpad-container .numpad-btn").removeClass("highlighted-numpad-btn");
+			if (selected) paint_details();
+			paint_cart(); paint_views();
+			if (!selected) return;
+			// 选中行滚到看得见的位置（官方 `cart_item_clicked` 里同一手）。
+			const $row = q(`.cart-item-wrapper[data-product="${selected}"]`);
+			const $wrapper = q(".cart-items-section");
+			if ($row.length && $wrapper.length) {
+				$wrapper.animate({ scrollTop: $row.offset().top - $wrapper.offset().top }, 150);
+			}
+		}
+
+		// ── 购物车键盘（官方 `on_numpad_event` 一套：先选目标，再按数字）────────────
+		function cart_numpad(value) {
+			if (value === "checkout") { void checkout(); return; }
+			if (value === "remove") {
+				cart = cart.filter(item => item.product !== selected);
+				selected = null; pad_target = null; pad_value = "";
+				paint_cart(); paint_views();
 				return;
 			}
-			new frappe.ui.Scanner({ dialog: true, multiple: false,
-				on_scan: data => void on_scanned(data?.result?.text || data?.decodedText || "") });
+			if (["qty", "discount", "unit_price"].includes(value)) {
+				pad_target = pad_target === value ? null : value;
+				pad_value = "";
+				q(".numpad-container .numpad-btn").removeClass("highlighted-numpad-btn");
+				if (pad_target) q(`.numpad-section .numpad-btn[data-button-value="${pad_target}"]`)
+					.addClass("highlighted-numpad-btn");
+				return;
+			}
+			if (!pad_target) {
+				frappe.show_alert({ message: t("trade.pickPadTarget"), indicator: "red" });
+				frappe.utils.play_sound("error");
+				return;
+			}
+			if (value === "delete") pad_value = pad_value.slice(0, -1);
+			else if (value === ".") { if (!pad_value.includes(".")) pad_value = `${pad_value || "0"}.`; }
+			else pad_value = `${pad_value}${value}`.replace(/^0(?=\d)/, "");
+			const amount = pad_value === "" || pad_value === "." ? 0 : round2(pad_value);
+			paint_details_field(pad_target, amount);
+			apply_field(pad_target, amount);
+			frappe.utils.play_sound("numpad-touch");
 		}
 
-		async function on_scanned(code) {
-			const wanted = String(code || "").trim();
-			if (!wanted) return;
-			const found = await p.call(api + "api_counter_lookup",
-				{ value: wanted, terminal: shift?.shift?.terminal });
-			if (!found?.name) { frappe.msgprint(t("trade.scanNotFound", wanted)); return; }
-			add_to_cart(found);
-			p.success(t("trade.addedToCart", found.product_name));
+		// 键盘改的是明细面板里那一格：改完要把那一格上的值同步回去（不然面板还显示旧数）。
+		function paint_details_field(fieldname, value) {
+			detail_controls[fieldname]?.set_value(value);
 		}
 
-		function pay_pad_html() {
-			const rows = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["sign", "0", "backspace"]];
-			return `<div class="pearnly-pos-paypad">` + rows.map(row =>
-				`<div class="pearnly-pos-pad-row">${row.map(key =>
-					`<button type="button" class="btn btn-default pearnly-pos-key" data-pay-key="${key}">${
-						key === "backspace" ? "⌫" : key === "sign" ? "±" : key}</button>`).join("")}</div>`).join("")
-				+ `</div>`;
+		// ── 收款（官方那套：支付方式 + 3 列键盘 + 总计/付款金额/剩余金额 + 完成订单）──
+		function payments_now() {
+			const map = {};
+			for (const method of METHODS) {
+				const control = q(`.payment-modes .mode-of-payment[data-mode="${method}"]`).data("pearnly_control");
+				map[method] = round2(control?.get_value() || 0);
+			}
+			return map;
 		}
 
-		// ── 收款（弹窗里也带一副 3 列键盘，照官方收款面板）──────────────────────
-		function checkout() {
-			if (!cart.length) { frappe.msgprint(t("trade.cartEmpty")); return; }
-			const total = cart_total();
+		function paint_payment() {
+			const total = cart_net();
+			const amounts = payments_now();
+			const paid = round2(METHODS.reduce((sum, method) => sum + num(amounts[method]), 0));
+			const $modes = q(".payment-modes").empty();
+			for (const method of METHODS) {
+				$modes.append(`<div class="payment-mode-wrapper">
+					<div class="mode-of-payment" data-mode="${method}" data-payment-type="${method}">
+						${p.escape(method_label(method))}
+						<div class="${method}-amount pay-amount">${p.escape(amounts[method] ? money(amounts[method]) : "")}</div>
+						<div class="${method} mode-of-payment-control"></div>
+					</div>
+				</div>`);
+			}
+			for (const method of METHODS) {
+				const control = frappe.ui.form.make_control({
+					df: { fieldtype: "Currency", options: "currency", formatter: money,
+						label: method_label(method), placeholder: t("trade.enterAmount", method_label(method)),
+						onchange: () => { paint_payment_totals(); paint_payment_amounts(); } },
+					parent: $modes.find(`.${method}.mode-of-payment-control`), render_input: true,
+				});
+				control.toggle_label(false);
+				control.set_value(amounts[method] || 0);
+				// 控件挂两处：金额格自己（键盘写它）与方式那一行（读总额时按方式取）。
+				$modes.find(`.${method}.mode-of-payment-control`).data("pearnly_control", control);
+				$modes.find(`.mode-of-payment[data-mode="${method}"]`).data("pearnly_control", control);
+			}
+			// 只有被点中的那个方式展开金额格（官方 `on_payment_mode_click` 同一手）。
+			if (!pay_target) pay_target = METHODS[0];
+			show_pay_mode(pay_target);
+			paint_payment_amounts();
+			paint_payment_totals();
+		}
+
+		function show_pay_mode(method) {
+			q(".payment-modes .mode-of-payment").removeClass("border-primary")
+				.find(".mode-of-payment-control").css("display", "none");
+			const $mode = q(`.payment-modes .mode-of-payment[data-mode="${method}"]`);
+			$mode.addClass("border-primary").find(".mode-of-payment-control").css("display", "flex");
+		}
+
+		function paint_payment_amounts() {
+			for (const method of METHODS) {
+				const control = q(`.payment-modes .${method}.mode-of-payment-control`).data("pearnly_control");
+				const amount = round2(control?.get_value() || 0);
+				q(`.payment-modes .${method}-amount`).text(amount ? money(amount) : "");
+			}
+		}
+
+		function paint_payment_totals() {
+			const total = cart_net();
+			const amounts = payments_now();
+			const paid = round2(METHODS.reduce((sum, method) => sum + num(amounts[method]), 0));
+			const remaining = round2(total - paid);
+			const over = paid > total;
+			q(".payment-container .totals").html(`
+				<div class="col"><div class="total-label">${p.escape(t("trade.total"))}</div>
+					<div class="value">${p.escape(money(total))}</div></div>
+				<div class="seperator-y"></div>
+				<div class="col"><div class="total-label">${p.escape(t("trade.paid"))}</div>
+					<div class="value">${p.escape(money(paid))}</div></div>
+				<div class="seperator-y"></div>
+				<div class="col"><div class="total-label">${p.escape(over ? t("trade.change") : t("trade.remaining"))}</div>
+					<div class="value ${over ? "text-success" : remaining > 0 ? "text-danger" : ""}">${
+						p.escape(money(over ? Math.abs(remaining) : remaining))}</div></div>`);
+			q(".submit-order-btn").toggleClass("disabled", remaining > 0 || paid <= 0);
+		}
+
+		async function checkout() {
+			if (!cart.length) return;
+			paying = true;
+			view = "counter";
+			pay_target = METHODS[0];
+			paint_views();
+			// 现金那一格默认填满应收（官方也是第一个方式带出总额）。
+			paint_payment();
+			const total = cart_net();
+			const cash = q(`.payment-modes .${METHODS[0]}.mode-of-payment-control`).data("pearnly_control");
+			if (cash && !num(cash.get_value())) cash.set_value(total);
+			paint_payment_amounts(); paint_payment_totals();
+		}
+
+		function pay_numpad(value) {
+			const method = pay_target || METHODS[0];
+			const control = q(`.payment-modes .${method}.mode-of-payment-control`).data("pearnly_control");
+			if (!control) return;
+			let buffer = control.pearnly_buffer || "";
+			if (value === "delete") buffer = String(buffer).slice(0, -1);
+			else if (value === "sign") buffer = String(buffer).startsWith("-") ? String(buffer).slice(1) : `-${buffer}`;
+			else if (value === ".") { if (!String(buffer).includes(".")) buffer = `${buffer || "0"}.`; }
+			else buffer = `${buffer}${value}`.replace(/^0(?=\d)/, "");
+			control.pearnly_buffer = buffer;
+			control.set_value(buffer === "" || buffer === "." || buffer === "-" ? 0 : round2(buffer));
+			paint_payment_amounts(); paint_payment_totals();
+			frappe.utils.play_sound("numpad-touch");
+		}
+
+		async function submit_order() {
+			const total = cart_net();
+			const amounts = payments_now();
+			const payments = METHODS
+				.filter(method => num(amounts[method]) > 0)
+				.map(method => ({ method, amount: num(amounts[method]) }));
+			const paid = round2(payments.reduce((sum, row) => sum + row.amount, 0));
+			if (paid < total) {
+				frappe.show_alert({ message: t("trade.underpaid"), indicator: "red" });
+				frappe.utils.play_sound("error");
+				return;
+			}
 			const request = crypto.randomUUID();
+			const result = await p.call(api + "api_create_sale", {
+				shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
+				lines: cart.map(row => ({ product: row.product, qty: num(row.qty),
+					unit_price: num(row.unit_price), discount: num(row.discount),
+					unit: row.unit, description: row.description,
+					warehouse: row.warehouse, location: row.location })),
+				payments, client_uuid: request,
+			}, "POST");
+			cart = []; selected = null; pad_target = null; pad_value = "";
+			paying = false; pay_target = null;
+			p.success(t("trade.paidNotice", result.receipt_no || result.name,
+				p.money(result.change_amount)));
+			await refresh();
+			// 收款完成：藏起收银台，右半边显示这张小票的汇总（官方 `submit_invoice` 同一手）。
+			orders_shown = false;
+			view = "summary";
+			await show_summary(result.name);
+			await load_orders();
+			paint_views();
+		}
+
+		// ── 最近订单 + 订单汇总（官方 PastOrderList / PastOrderSummary）────────────
+		async function load_orders() {
+			orders = await p.call(api + "api_list_sales", {
+				shift: shift?.shift?.name, limit: 0 });
+			paint_orders();
+		}
+
+		function paint_orders() {
+			const status = order_status_control.get_value();
+			const term = String(order_search_control.get_value() || "").toLowerCase();
+			const rows = orders.filter(row => {
+				if (status === "refund" && row.sale_type !== "refund") return false;
+				if (status && status !== "refund" && row.status !== status) return false;
+				if (term && !String(row.receipt_no || row.name).toLowerCase().includes(term)) return false;
+				return true;
+			});
+			q(".past-order-list .list-container").html(rows.length ? rows.map(row => `
+				<div class="invoice-wrapper" data-order="${p.escape(row.name)}">
+					<div class="invoice-name-customer">
+						<div class="invoice-customer">${p.escape(kind_label(row.sale_type))}</div>
+						<div class="invoice-name">${p.escape(row.receipt_no || row.name)}</div>
+					</div>
+					<div class="invoice-name-date">
+						<div class="invoice-name">${p.escape(frappe.user_info(row.cashier).fullname || row.cashier || "")}</div>
+						<div class="invoice-date">${p.escape(p.datetime_text(row.sold_at))}</div>
+					</div>
+					<div class="invoice-total-date">
+						<div class="invoice-total">${p.escape(money(row.grand_total))}</div>
+						<div class="invoice-date">${p.escape(state_label(row.status))}</div>
+					</div>
+				</div>`).join("")
+				: `<div class="no-item-wrapper">${p.escape(__("No Data"))}</div>`);
+		}
+
+		async function show_summary(name) {
+			const doc = await p.call(api + "api_get_sale", { name });
+			active_order = doc;
+			q(".past-order-summary .no-summary-placeholder").css("display", "none");
+			q(".past-order-summary .invoice-summary-wrapper").css("display", "block");
+			q(".past-order-summary .upper-section").html(`
+				<div class="left-section">
+					<div class="customer-section">
+						<div class="customer-name">${p.escape(doc.receipt_no || doc.name)}</div>
+						<div class="customer-email">${p.escape(p.datetime_text(doc.sold_at))}</div>
+					</div>
+					<div class="cashier">${p.escape(t("trade.cashier"))}: ${
+						p.escape(frappe.user_info(doc.cashier).fullname || doc.cashier || "")}</div>
+				</div>
+				<div class="right-section">
+					<div class="paid-amount">${p.escape(money(doc.paid_total))}</div>
+					<div class="invoice-name">${p.escape(doc.receipt_no || doc.name)}</div>
+					<span class="indicator-pill whitespace-nowrap ${state_pill(doc.status)}"><span>${
+						p.escape(state_label(doc.status))}</span></span>
+				</div>`);
+			q(".past-order-summary .order-summary-container").html((doc.lines || []).map(row => `
+				<div class="item-row-wrapper">
+					<div class="item-row-data">
+						<div class="item-name">${p.escape(row.description || row.product)}</div>
+						<div class="item-qty">${p.escape(p.number(row.qty))} ${p.escape(row.unit || "")}</div>
+						<div class="item-rate-disc">
+							${num(row.discount) ? `<span class="item-disc">−${p.escape(money(row.discount))}</span>` : ""}
+							<div class="item-rate">${p.escape(money(row.unit_price))}</div>
+							<div class="item-amount">${p.escape(money(row.line_total))}</div>
+						</div>
+					</div>
+				</div>`).join(""));
+			q(".past-order-summary .totals-container").html(`
+				<div class="summary-row-wrapper"><span>${p.escape(t("trade.net"))}</span><span>${p.escape(money(doc.subtotal))}</span></div>
+				<div class="summary-row-wrapper"><span>${p.escape(t("trade.discount"))}</span><span>${p.escape(money(doc.discount_total))}</span></div>
+				<div class="summary-row-wrapper"><span>${p.escape(t("trade.vat"))}</span><span>${p.escape(money(doc.vat_amount))}</span></div>
+				<div class="summary-row-wrapper grand-total"><span>${p.escape(t("trade.total"))}</span><span>${p.escape(money(doc.grand_total))}</span></div>`);
+			q(".past-order-summary .payments-container").html((doc.payments || []).map(row => `
+				<div class="summary-row-wrapper"><span>${p.escape(method_label(row.method))}</span><span>${p.escape(money(row.amount))}</span></div>`)
+				.join("") + (num(doc.change_amount)
+					? `<div class="summary-row-wrapper"><span>${p.escape(t("trade.change"))}</span><span>${p.escape(money(doc.change_amount))}</span></div>` : ""));
+			// 官方这张汇总底下的按钮按单据状态给；我们有「退货退款」和「作废」两个真动作。
+			const done = doc.status === "completed";
+			q(".past-order-summary .summary-btns").html([
+				can_write && done && doc.sale_type === "sale"
+					? `<div class="btn btn-sm summary-btn return-btn">${p.escape(t("trade.refund"))}</div>` : "",
+				can_write && done
+					? `<div class="btn btn-sm summary-btn void-btn">${p.escape(t("trade.void"))}</div>` : "",
+			].filter(Boolean).join(" "));
+		}
+
+		function show_summary_placeholder() {
+			active_order = null;
+			q(".past-order-summary .no-summary-placeholder").css("display", "flex");
+			q(".past-order-summary .invoice-summary-wrapper").css("display", "none");
+		}
+
+		// ── 开班 / 交班（弹窗字段与对账表照官方的 Opening / Closing Entry）──────────
+		// 币种：弹窗顶上那一格给非表格字段用；子表每一行也要带（网格里的 `options: "currency"`
+		// 取的是**本行**的 currency，不带就按系统默认画成 `$`）。
+		const CURRENCY = frappe.boot.sysdefaults.currency || "THB";
+		const currency_field = () => ({ fieldtype: "Data", fieldname: "currency", hidden: 1,
+			default: CURRENCY });
+		// 官方那张对账表是整页表单，我们放在弹窗里 —— 给宽一点，五列才看得清。
+		const widen = dialog => dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+
+		function balance_table(fields_extra = [], rows = null) {
+			return [
+				{ fieldtype: "Table", fieldname: "balances", label: t("trade.balances"),
+					cannot_add_rows: 1, in_place_edit: 1, reqd: 1,
+					data: rows || METHODS.map(method => ({ method, opening_amount: 0,
+						counted_amount: 0, currency: CURRENCY })),
+					fields: [
+						{ fieldname: "method", fieldtype: "Select", options: METHODS.join("\n"),
+							label: t("trade.method"), in_list_view: 1, reqd: 1 },
+						{ fieldname: "opening_amount", fieldtype: "Currency", options: "currency",
+							label: t("trade.openingAmount"), in_list_view: 1 },
+						...fields_extra,
+					] },
+			];
+		}
+
+		async function open_shift_dialog() {
+			const terminals = await p.call(api + "api_list_terminals");
+			const preferred = terminals.find(row => Number(row.is_default)) || terminals[0];
 			let dialog;
-			const paint_change = () => {
-				if (!dialog) return;
-				const change = round2(num(dialog.get_value("amount")) - total);
-				dialog.set_value("change", change > 0 ? change : 0);
-			};
-			dialog = p.dialog(t("trade.checkout"), [
-				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
-				amount("total", t("trade.total"), total),
-				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"),
-					options: "cash\ncard\npromptpay\ntransfer", default: "cash", reqd: 1 },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "amount",
-					label: t("trade.paid"), reqd: 1, default: total, change: paint_change },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "change",
-					label: t("trade.change"), read_only: 1, default: 0 },
+			dialog = p.dialog(t("trade.openShift"), [
+				currency_field(),
+				{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal",
+					label: t("trade.terminal"), reqd: 1, default: preferred?.name || "",
+					description: t("trade.terminalHint") },
+				...balance_table(),
 				{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },
-				{ fieldtype: "HTML", fieldname: "pad", options: pay_pad_html() },
-			], t("trade.pay"), async (values, d) => {
-				const result = await p.call(api + "api_create_sale", {
-					shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
-					lines: cart.map(row => ({ product: row.product, qty: num(row.qty),
-						unit_price: num(row.unit_price), discount: num(row.discount),
-						unit: row.unit, description: row.description,
-						warehouse: row.warehouse, location: row.location })),
-					payments: [{ method: values.method, amount: num(values.amount) }],
-					note: values.note || undefined, client_uuid: request,
-				}, "POST");
+			], t("trade.openShift"), async (values, d) => {
+				const openings = Object.fromEntries((values.balances || [])
+					.filter(row => row.opening_amount)
+					.map(row => [row.method, num(row.opening_amount)]));
+				const result = await p.call(api + "api_open_shift",
+					{ terminal: values.terminal, balances: openings, note: values.note }, "POST");
 				d.hide();
-				p.success(t("trade.paidNotice", result.receipt_no || result.name,
-					p.money(result.change_amount)));
-				cart = []; active = null; buffer = "";
-				// 卖出去就少货：商品卡的结存要跟着变，所以商品区也重取。
+				p.success(t("trade.shiftOpened", result.shift_seq));
 				await refresh();
-				await receipt(result.name);
 			});
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
-			// 键盘直接写"实收"那一格；找零跟着变。
-			let pay_buffer = "";
-			const write_amount = () => {
-				const value = pay_buffer === "" ? 0 : Math.max(0, num(pay_buffer));
-				dialog.set_value("amount", round2(value));
-				paint_change();
+			widen(dialog);
+		}
+
+		async function close_shift_dialog() {
+			if (!shift) { frappe.msgprint(t("trade.noShift")); return; }
+			const data = shift;
+			const expected = Object.fromEntries((data.balances || [])
+				.map(row => [row.method, num(row.expected_amount)]));
+			const openings = Object.fromEntries((data.balances || [])
+				.map(row => [row.method, num(row.opening_amount)]));
+			let dialog;
+			const paint = () => {
+				const grid = dialog?.fields_dict?.balances?.grid;
+				let cash_diff = 0;
+				for (const row of grid?.data || []) {
+					row.expected_amount = expected[row.method] || 0;
+					row.difference = round2(num(row.counted_amount) - num(row.expected_amount));
+					// 只重画动过的那一行，别整表刷新（正输着数字时整表重画会把焦点甩掉）。
+					grid?.grid_rows_by_docname?.[row.name]?.refresh_row?.(row);
+					if (row.method === "cash") cash_diff = row.difference;
+				}
+				dialog?.set_value("cash_diff", cash_diff);
+				dialog?.fields_dict?.cash_diff?.$wrapper
+					?.find("input, .control-value, .like-disabled-input")
+					.toggleClass("pearnly-payment-due", Boolean(cash_diff));
 			};
-			dialog.fields_dict.pad.$wrapper.on("click", "[data-pay-key]", event => {
-				const key = event.currentTarget.dataset.payKey;
-				if (key === "backspace") pay_buffer = "";
-				else if (key === "sign") pay_buffer = pay_buffer.startsWith("-")
-					? pay_buffer.slice(1) : "-" + pay_buffer;
-				else if (key === "decimal") { if (!pay_buffer.includes(".")) pay_buffer += pay_buffer ? "." : "0."; }
-				else pay_buffer = (pay_buffer + key).replace(/^0(?=\d)/, "");
-				write_amount();
+			// 表里先把期初与应有填好、默认实点=应有（现金那一行就是抽屉里应有的数）。
+			const rows = METHODS.map(method => ({
+				method, currency: CURRENCY,
+				opening_amount: openings[method] || 0,
+				expected_amount: expected[method] || 0,
+				counted_amount: expected[method] || 0,
+				difference: 0,
+			}));
+			dialog = p.dialog(t("trade.closeShift"), [
+				currency_field(),
+				{ fieldtype: "Int", fieldname: "sales_count", label: t("trade.salesCount"),
+					read_only: 1, default: data.sales_count },
+				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "net",
+					label: t("trade.net"), read_only: 1, default: data.net },
+				{ fieldtype: "Column Break" },
+				{ fieldtype: "Int", fieldname: "refund_count", label: t("trade.refundCount"),
+					read_only: 1, default: data.refund_count },
+				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "change_total",
+					label: t("trade.changeTotal"), read_only: 1, default: data.change_total },
+				...balance_table([
+					{ fieldname: "expected_amount", fieldtype: "Currency", options: "currency",
+						label: t("trade.expectedAmount"), in_list_view: 1, read_only: 1 },
+					{ fieldname: "counted_amount", fieldtype: "Currency", options: "currency",
+						label: t("trade.countedAmount"), in_list_view: 1, reqd: 1 },
+					{ fieldname: "difference", fieldtype: "Currency", options: "currency",
+						label: t("trade.diff"), in_list_view: 1, read_only: 1 },
+				], rows),
+				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "cash_diff",
+					label: t("trade.diff"), read_only: 1, default: 0 },
+				{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },
+			], t("trade.closeShift"), async (values, d) => {
+				const counted = Object.fromEntries((values.balances || [])
+					.map(row => [row.method, num(row.counted_amount)]));
+				const result = await p.call(api + "api_close_shift",
+					{ name: shift.shift.name, counted, note: values.note }, "POST");
+				d.hide();
+				p.success(t("trade.shiftClosed", p.money(result.cash_diff)));
+				await refresh();
 			});
+			widen(dialog);
+			dialog.fields_dict.balances.grid.wrapper.on("change", "input", () => paint());
+			dialog.set_value("cash_diff", 0);
+			paint();
 		}
 
-		// ── 小票、退货、班次 ────────────────────────────────────────────────────
-		async function receipt(name) {
-			// 小票查看器是共享的（`p.trade.receipt_view`）：收银页、销售记录点"来源=POS"的行、
-			// 收银记录页三处用同一个，避免各写一份以后走样。收银页多给两个动作。
-			await p.trade.receipt_view(name, t, canWrite ? {
-				refund: (doc, parent) => refund(doc, parent),
-				void: async (doc, parent) => {
-					await p.call(api + "api_void_sale", { name: doc.name }, "POST");
-					parent?.hide?.();
-					await refresh();
-				},
-			} : {});
-		}
+		// ── 事件 ────────────────────────────────────────────────────────────────
+		$app.on("click", ".item-wrapper", event => {
+			const row = items.find(item => item.name === event.currentTarget.dataset.product);
+			if (row) add_to_cart(row);
+		});
+		$app.on("click", ".cart-item-wrapper", event => {
+			// 官方：收款面板开着时点购物车行 = 先退回购物车（Edit Cart）再看明细。
+			if (paying) { paying = false; pay_target = null; paint_views(); }
+			select_line(event.currentTarget.dataset.product);
+		});
+		$app.on("click", ".cart-totals-section .edit-cart-btn", () => {
+			paying = false; pay_target = null;
+			paint_views();
+		});
+		$app.on("click", ".item-details-container .close-btn", () => {
+			selected = null; pad_target = null;
+			paint_cart(); paint_views();
+		});
+		$app.on("click", ".numpad-section .numpad-btn", event => {
+			cart_numpad(event.currentTarget.dataset.buttonValue);
+		});
+		$app.on("click", ".cart-totals-section .checkout-btn", () => void checkout());
+		$app.on("click", ".payment-modes .mode-of-payment", event => {
+			const method = event.currentTarget.dataset.mode;
+			pay_target = method;
+			show_pay_mode(method);
+		});
+		$app.on("click", ".payment-container .numpad-btn", event => {
+			pay_numpad(event.currentTarget.dataset.buttonValue);
+		});
+		$app.on("click", ".submit-order-btn", () => {
+			if (q(".submit-order-btn").hasClass("disabled")) return;
+			void submit_order();
+		});
+		$app.on("click", ".past-order-list .invoice-wrapper", async event => {
+			await show_summary(event.currentTarget.dataset.order);
+		});
+		$app.on("click", ".past-order-summary .void-btn", async () => {
+			if (!active_order) return;
+			await p.call(api + "api_void_sale", { name: active_order.name }, "POST");
+			p.success(t("trade.voidNotice", 1));
+			await refresh(); await load_orders(); await show_summary(active_order.name);
+		});
+		$app.on("click", ".past-order-summary .refund-btn", () => {
+			if (active_order) refund(active_order);
+		});
 
-		function refund(doc, parent) {
+		function refund(doc) {
 			const request = crypto.randomUUID();
+			let d;
 			const fields = [
 				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
 				{ fieldtype: "Select", fieldname: "original_line", label: t("trade.originalLine"), reqd: 1,
-					options: doc.lines.map(row => ({ value: row.name, label: `${row.description || row.product} · ${row.warehouse_name || ""} · ${row.location || ""} · ${p.number(row.qty)}` })) },
+					options: (doc.lines || []).map(row => ({ value: row.name,
+						label: `${row.description || row.product} · ${row.warehouse_name || ""} · ${p.number(row.qty)}` })) },
 				{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1 },
-				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"), options: "cash\ncard\npromptpay\ntransfer", default: "cash", reqd: 1 },
-				{ fieldtype: "Currency", options: "currency", formatter: value => p.money(value), fieldname: "amount", label: t("trade.refundAmount"), reqd: 1 },
+				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"),
+					options: METHODS.join("\n"), default: METHODS[0], reqd: 1 },
+				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "amount",
+					label: t("trade.refundAmount"), reqd: 1 },
 			];
-			let d;
 			const calculate = () => {
 				if (!d) return;
-				const line = doc.lines.find(row => row.name === d.get_value("original_line"));
-				if (line) d.set_value("amount", Math.round(Number(line.line_total) * Number(d.get_value("qty") || 0) / Number(line.qty) * 100) / 100);
+				const line = (doc.lines || []).find(row => row.name === d.get_value("original_line"));
+				if (line) d.set_value("amount", round2(num(line.line_total) * num(d.get_value("qty") || 0) / num(line.qty)));
 			};
 			fields.find(item => item.fieldname === "original_line").change = calculate;
 			fields.find(item => item.fieldname === "qty").change = calculate;
 			d = p.dialog(t("trade.refund"), fields, t("trade.refund"), async (values, dialog) => {
-				await p.call(api + "api_refund_sale", { name: doc.name, lines: [{ original_line: values.original_line, qty: values.qty }],
-					payments: [{ method: values.method, amount: values.amount }], client_uuid: request }, "POST");
-				dialog.hide(); parent.hide(); await refresh(); await receipt(doc.name);
+				await p.call(api + "api_refund_sale", { name: doc.name,
+					lines: [{ original_line: values.original_line, qty: values.qty }],
+					payments: [{ method: values.method, amount: values.amount }],
+					client_uuid: request }, "POST");
+				dialog.hide();
+				p.success(t("trade.refund"));
+				await refresh(); await load_orders();
 			});
 			calculate();
 		}
 
-		// 交班：先把**当班汇总**摆出来（笔数、退款、各收款方式、找零、应有现金），再填实点
-		// 现金；差额 = 实点 − 应有，边填边算、不为 0 就标红。
-		function hand_over() {
-			if (!shift) { frappe.msgprint(t("trade.noShift")); return; }
-			const data = shift, by_method = data.by_method || {};
-			let dialog;
-			const paint = () => {
-				if (!dialog) return;
-				const diff = round2(num(dialog.get_value("counted_cash")) - num(data.expected_cash));
-				dialog.set_value("cash_diff", diff);
-				// 只读的金额格框架渲染成 `control-value` 而不是 `input`，所以按容器找。
-				dialog.fields_dict.cash_diff?.$wrapper
-					?.find("input, .control-value, .like-disabled-input")
-					.toggleClass("pearnly-payment-due", Boolean(diff));
-				dialog.set_df_property("cash_diff", "description",
-					diff === 0 ? t("trade.diffEven") : diff > 0 ? t("trade.diffOver") : t("trade.diffShort"));
-			};
-			dialog = p.dialog(t("trade.closeShift"), [
-				{ fieldtype: "Int", fieldname: "sales_count", label: t("trade.salesCount"), read_only: 1, default: data.sales_count },
-				amount("gross", t("trade.gross"), data.gross),
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Int", fieldname: "refund_count", label: t("trade.refundCount"), read_only: 1, default: data.refund_count },
-				amount("net", t("trade.net"), data.net),
-				{ fieldtype: "Section Break", label: t("trade.byMethod") },
-				amount("cash_total", t("trade.methodCash"), by_method.cash || 0),
-				amount("card_total", t("trade.methodCard"), by_method.card || 0),
-				{ fieldtype: "Column Break" },
-				amount("promptpay_total", t("trade.methodPromptpay"), by_method.promptpay || 0),
-				amount("transfer_total", t("trade.methodTransfer"), by_method.transfer || 0),
-				{ fieldtype: "Section Break", label: t("trade.countCash") },
-				amount("opening_float", t("trade.float"), data.shift.opening_float),
-				amount("change_total", t("trade.changeTotal"), data.change_total),
-				{ fieldtype: "Column Break" },
-				amount("expected_cash", t("trade.expectedCash"), data.expected_cash),
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "counted_cash",
-					label: t("trade.countedCash"), reqd: 1, default: data.expected_cash, change: paint },
-				{ fieldtype: "Column Break" },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "cash_diff",
-					label: t("trade.diff"), read_only: 1, default: 0 },
-			], t("trade.closeShift"), async (values, d) => {
-				const result = await p.call(api + "api_close_shift",
-					{ name: data.shift.name, counted_cash: values.counted_cash }, "POST");
-				d.hide();
-				p.success(t("trade.shiftClosed", p.money(result.cash_diff)));
-				await render();
-			});
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
-			paint();
-		}
-
-		async function shift_history() {
-			const dialog = p.dialog(t("trade.shiftHistory"), [
-				{ fieldtype: "HTML", fieldname: "history" },
-			], t("trade.close"), async (_values, d) => d.hide());
-			dialog.$wrapper.find(".modal-dialog").addClass("modal-xl");
-			const blank = "—";
-			const due = value => `<span class="pearnly-payment-due">${value}</span>`;
-			const columns = [
-				{ name: t("trade.shiftNo"), width: 140, format: p.escape },
-				{ name: t("trade.terminal"), width: 130, format: p.escape },
-				{ name: t("trade.cashier"), width: 150, format: p.escape },
-				{ name: t("trade.status"), width: 90, format: p.escape },
-				{ name: t("trade.openedAt"), width: 130, format: p.escape },
-				{ name: t("trade.closedAt"), width: 130, format: p.escape },
-				{ name: t("trade.float"), width: 90, format: p.escape },
-				{ name: t("trade.expectedCash"), width: 105, format: p.escape },
-				{ name: t("trade.countedCash"), width: 105, format: p.escape },
-				// 这一列自己拼红字，所以不走默认转义（与盘点工作台的差异列同一做法）。
-				{ name: t("trade.diff"), width: 100, format: value => value },
-			];
-			let table;
-			// 表格要等弹窗**真的显示出来**再画：原生表格构建时会往容器里插一个 `<style>`，
-			// 容器还没接上文档时拿不到 `sheet`，整张表就画不出来（盘点明细弹窗踩过同一个坑）。
-			dialog.on_page_show = async () => {
-				if (table) return;
-				const rows = await p.call(api + "api_list_shifts", { limit: 200 });
-				table = await p.table(dialog.fields_dict.history.$wrapper, columns, rows.map(row => {
-					const closed = row.status === "closed";
-					const diff = num(row.cash_diff);
-					const shown = value => p.escape(money(value));
-					return [
-						p.escape(row.name), p.escape(row.terminal || blank),
-						p.escape(frappe.user_info(row.cashier).fullname || row.cashier || blank),
-						p.escape(t(`trade.state.${row.status}`)),
-						p.escape(p.datetime_text(row.opened_at) || blank),
-						p.escape(closed ? p.datetime_text(row.closed_at) || blank : blank),
-						shown(row.opening_float),
-						closed ? shown(row.expected_cash) : blank,
-						closed ? shown(row.counted_cash) : blank,
-						closed ? (diff ? due(shown(diff)) : shown(diff)) : blank,
-					];
-				}));
-			};
-		}
-
-		function clear_cart() {
-			if (!cart.length) return;
-			frappe.confirm(t("trade.cartClearConfirm"), () => {
-				cart = []; active = null; buffer = "";
-				paint_cart();
-			});
-		}
-
-		// ── 页面 ────────────────────────────────────────────────────────────────
-		// 小票不允许删除（退货要留痕），所以选中一条已完成的小票时给的是**对应那一步**：
-		// 打开退货退款弹窗（与从小票弹窗里点"退货退款"是同一条路径）。
-		const selection = p.selection_action({
-			page, list: () => receipts_list, empty: restore_primary,
-			label: () => t("trade.refund"),
-			when: (row, rows) => rows.length === 1 && row.status === "completed"
-				&& row.sale_type === "sale",
-			reason: (_row, rows) => (rows.length === 1 ? t("trade.refundBlocked")
-				: t("trade.refundSingle")),
-			run: async rows => {
-				const doc = await p.call(api + "api_get_sale", { name: rows[0].name });
-				refund(doc, { hide() {} });
-			},
+		$(document).on("keydown.pearnly_pos", event => {
+			if (event.key !== "Escape") return;
+			if (!selected) return;
+			selected = null; pad_target = null;
+			paint_cart(); paint_views();
 		});
 
-		async function render() {
-			p.clear_page(page);
-			// `p.clear_page` 不清菜单与次按钮，而这个函数每次开班/交班都会重跑一遍 ——
-			// 不自己清，「交班 / 班次记录 / 清空购物车」会一轮一轮往上叠。
-			page.clear_menu?.(); page.clear_secondary_action?.();
-			form = null; receipts_list = null; active = null; buffer = "";
+		// ── 取数 ────────────────────────────────────────────────────────────────
+		async function refresh() {
 			shift = await p.call(api + "api_current_shift");
-			// 标题沿用侧栏那一项（`nav.cashier`，在 core 的语言包里），不另起一个名字。
-			page.set_title(__("nav.cashier"));
-			p.breadcrumbs({ label: __("nav.cashier"), route: p.subroute("pearnly-cashier") });
-			paint_shift_indicator();
-			// 页面动作：主按钮「新单/开班」、次按钮「当班小票」、菜单里三件（照官方那三处）。
-			if (canWrite) page.set_secondary_action(t("trade.shiftReceipts"), toggle_receipts);
-			if (canWrite) page.add_menu_item(t("trade.closeShift"), hand_over);
-			page.add_menu_item(t("trade.shiftHistory"), () => void shift_history());
-			page.add_menu_item(t("trade.cartClear"), clear_cart);
-			p.add_refresh(page, refresh);
-
-			const counter = Boolean(shift) && canWrite;
-			form = p.layout(page.main, [
-				...(counter ? [{ fieldtype: "HTML", fieldname: "counter", options: COUNTER_HTML }] : []),
-				{ fieldtype: "Section Break", label: t("trade.shiftReceipts") },
-				{ fieldtype: "HTML", fieldname: "receipts" },
-			]);
-			// 当班小票默认收起，按钮切换（与官方 "Recent Orders" 一个用法）。
-			receipts_shown = false;
-			form.fields_dict.receipts.$wrapper.closest(".form-section").hide();
-
-			if (counter) {
-				// 搜索与扫码放在商品区顶上（官方 POS 也把筛选放在商品区里）。
-				const filters = p.layout(pane(".pearnly-pos-filter"), p.field_rows([
-					field("q", "trade.searchProducts", "Data"),
-					{ fieldtype: "Button", fieldname: "scan", label: t("trade.scan"),
-						click: () => start_scan() },
-				], 2));
-				// 搜索框那一格同时也是"商品区取数"的口径（`load_items` 读它）。
-				form.fields_dict.q = filters.fields_dict.q;
-				filters.fields_dict.q.$input?.on("keydown", event => {
-					if (event.key === "Enter") { event.preventDefault(); void load_items(true); }
-				});
-				await load_items(true);
-				paint_cart();
-				// 商品卡 / 购物车行 / 键盘：一块代理接住（卡片会随搜索重画）。
-				const counter_host = pane(".pearnly-pos");
-				counter_host.on("click", ".pearnly-pos-card", event => {
-					const name = event.currentTarget.dataset.product;
-					const row = items.rows.find(item => item.name === name);
-					if (row) add_to_cart(row);
-				});
-				pane(".pearnly-pos-more").on("click", () => void load_items(false));
-				counter_host.on("click", ".pearnly-pos-line:not(.head)", event => {
-					active = event.currentTarget.dataset.product;
-					buffer = ""; paint_cart();
-				});
-				counter_host.on("click", ".pearnly-pos-key", event => {
-					const target = event.currentTarget.dataset.target;
-					if (target === "remove") {
-						cart = cart.filter(row => row.product !== active);
-						active = cart.length ? cart[cart.length - 1].product : null;
-						buffer = ""; paint_cart();
-						return;
-					}
-					if (target) { active_field = target; buffer = ""; paint_cart(); return; }
-					pad_key(event.currentTarget.dataset.key);
-				});
-				counter_host.on("click", ".pearnly-pos-pay", checkout);
+			paint_actions();
+			if (!shift) {
+				view = "counter"; paying = false; selected = null;
+				items = []; cart = []; orders = [];
+				paint_cart(); paint_views();
+				q(".items-selector .label").text(t("trade.noShift"));
+				return;
 			}
-
-			receipts_list = p.list({ page, container: form.fields_dict.receipts.$wrapper,
-				doctype: "ERP Sale", selectable: true, on_selection: selection,
-				on_open: row => receipt(row.name),
-				load: p.trade.load(api, "api_list_sales", "api_sale_total",
-					() => (shift ? { shift: shift.shift.name } : {})),
-				columns: [
-					{ fieldname: "receipt_no", label: t("trade.docNo") },
-					// 收银单据时间是 Datetime（库里带微秒），跟产品里其它时间一样显示到分钟。
-					{ fieldname: "sold_at", label: t("trade.date"), format: value => p.datetime_text(value) },
-					{ fieldname: "sale_type", label: t("trade.kind"), format: value => kind_label(value) },
-					{ fieldname: "status", label: t("trade.status"), format: value => state_label(value) },
-					{ fieldname: "grand_total", label: t("trade.total"), format: value => p.money(value) },
-				],
-			});
-			await receipts_list.ready;
-			paint_cart();
-			restore_primary();
+			await load_items();
+			await load_orders();
+			paint_cart(); paint_views();
 		}
 
-		await render();
+		async function paint() {
+			if (shift) q(".items-selector .label").text(t("trade.allItems"));
+			paint_actions(); paint_cart();
+			if (selected) paint_details();
+			if (paying) paint_payment();
+			paint_views();
+		}
+
+		p.add_refresh(page, () => void refresh());
+		await refresh();
+		if (!shift && can_write) await open_shift_dialog();
+		return () => {
+			$(document).off("keydown.pearnly_pos");
+			page.main.find(".point-of-sale-app").remove();
+		};
 	};
 })();

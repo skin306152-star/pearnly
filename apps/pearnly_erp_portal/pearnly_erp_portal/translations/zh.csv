@@ -652,10 +652,13 @@ trade.action.ledgerSingle,一次只能看一条流水
 trade.action.pay,收款
 trade.action.submit,提交
 trade.action.voidCount,作废选中的 {0} 张
+trade.actualQty,数量（仓库）
 trade.addedToCart,已加入：{0}
 trade.address,地址
+trade.allItems,所有物料
 trade.amount,金额
 trade.balance,该仓位结存
+trade.balances,支付方式对账
 trade.branchNo,分店编号
 trade.branchType,分店类型
 trade.buyer,客户名称
@@ -674,8 +677,10 @@ trade.closeShift,交班
 trade.closedAt,交班时间
 trade.closing,期末数量
 trade.code,编码
+trade.completeOrder,完成订单
 trade.cost,单位成本
 trade.countCash,现金核对
+trade.countedAmount,实点金额
 trade.countedCash,实点现金
 trade.counterProducts,商品
 trade.date,日期
@@ -686,6 +691,9 @@ trade.diffOver,多钱 {0}
 trade.diffShort,短钱 {0}
 trade.discount,折扣金额
 trade.docNo,单据编号
+trade.editCart,回到购物车
+trade.enterAmount,输入{0}金额
+trade.expectedAmount,应有金额
 trade.expectedCash,应有现金
 trade.exportNotice,已导出 {0} 个班次
 trade.float,备用现金
@@ -696,12 +704,17 @@ trade.groupDoc,单据
 trade.groupIn,入库
 trade.groupOut,出库
 trade.hasVat,计算增值税
+trade.hideRecentOrders,隐藏最近订单
 trade.in,入库数量
+trade.invoiceStatus,小票状态
 trade.issue,开出单据
+trade.itemDetails,物料详细信息
+trade.itemsNotFound,没找到物料
 trade.kind,单据类型
 trade.kind.refund,退货退款
 trade.kind.sale,销售
 trade.lines,物料明细
+trade.listPrice,标价
 trade.location,仓位
 trade.method,付款方式
 trade.methodCard,刷卡
@@ -721,6 +734,7 @@ trade.openShift,开班
 trade.openedAt,开班时间
 trade.openedAtSub,开班时间 {0}
 trade.opening,期初数量
+trade.openingAmount,期初金额
 trade.originalLine,原单物料与仓位
 trade.out,出库数量
 trade.paid,实收金额
@@ -729,15 +743,18 @@ trade.pay,收款完成
 trade.paymentDate,付款日期
 trade.paymentState,付款状态
 trade.pickLine,先选一行
+trade.pickPadTarget,先点数量、折扣或单价
 trade.price,单价
 trade.product,物料
 trade.qty,数量
+trade.recentOrders,最近订单
 trade.reference,关联单据
 trade.refund,退货退款
 trade.refundAmount,退款金额
 trade.refundBlocked,只有已完成的小票能退货退款
 trade.refundCount,退款笔数
 trade.refundSingle,一次只能退一条小票
+trade.remaining,剩余金额
 trade.remove,移除
 trade.rowOpening,期初
 trade.salesCount,笔数
@@ -745,7 +762,9 @@ trade.save,保存草稿
 trade.scan,扫码
 trade.scanNotFound,没找到这个码对应的商品：{0}
 trade.scanUnsupported,这台设备不能扫码
+trade.searchOrders,按小票编号搜索
 trade.searchProducts,搜索名称、编码或条码
+trade.selectOrderHint,选择小票以加载汇总
 trade.shiftClosed,已交班 · 差额 {0}
 trade.shiftHistory,班次记录
 trade.shiftNo,班次编号
@@ -772,6 +791,7 @@ trade.to,结束日期
 trade.total,应收金额
 trade.totalItems,总件数
 trade.totalRows,合计 · {0} 条明细
+trade.underpaid,实收不够应收
 trade.unit,单位
 trade.vat,增值税率
 trade.void,作废

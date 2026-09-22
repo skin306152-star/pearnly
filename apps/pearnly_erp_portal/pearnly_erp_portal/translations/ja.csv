@@ -652,10 +652,13 @@ trade.action.ledgerSingle,明細は1行ずつ開きます
 trade.action.pay,会計
 trade.action.submit,確定
 trade.action.voidCount,選択した{0}件を取り消す
+trade.actualQty,在庫数
 trade.addedToCart,追加しました: {0}
 trade.address,住所
+trade.allItems,すべての商品
 trade.amount,金額
 trade.balance,保管場所の残高
+trade.balances,支払方法の照合
 trade.branchNo,支店番号
 trade.branchType,支店種類
 trade.buyer,顧客名
@@ -674,8 +677,10 @@ trade.closeShift,シフト終了
 trade.closedAt,終了時刻
 trade.closing,期末数量
 trade.code,コード
+trade.completeOrder,会計を確定
 trade.cost,単位原価
 trade.countCash,現金確認
+trade.countedAmount,実地金額
 trade.countedCash,実際の現金
 trade.counterProducts,商品
 trade.date,日付
@@ -686,6 +691,9 @@ trade.diffOver,{0} 多い
 trade.diffShort,{0} 不足
 trade.discount,割引額
 trade.docNo,伝票番号
+trade.editCart,カートに戻る
+trade.enterAmount,{0}の金額を入力
+trade.expectedAmount,あるべき金額
 trade.expectedCash,現金予定額
 trade.exportNotice,{0}件のシフトを出力しました
 trade.float,釣銭準備金
@@ -696,12 +704,17 @@ trade.groupDoc,伝票
 trade.groupIn,入库
 trade.groupOut,出庫
 trade.hasVat,付加価値税を計算
+trade.hideRecentOrders,最近の会計を隠す
 trade.in,入庫数量
+trade.invoiceStatus,レシート状態
 trade.issue,伝票発行
+trade.itemDetails,商品の詳細
+trade.itemsNotFound,商品が見つかりません
 trade.kind,伝票種類
 trade.kind.refund,返品・返金
 trade.kind.sale,販売
 trade.lines,商品明細
+trade.listPrice,表示価格
 trade.location,保管場所
 trade.method,支払方法
 trade.methodCard,カード
@@ -721,6 +734,7 @@ trade.openShift,シフト開始
 trade.openedAt,開始時刻
 trade.openedAtSub,開始 {0}
 trade.opening,期首数量
+trade.openingAmount,開始金額
 trade.originalLine,元伝票の商品と保管場所
 trade.out,出庫数量
 trade.paid,受取額
@@ -729,15 +743,18 @@ trade.pay,支払完了
 trade.paymentDate,支払日
 trade.paymentState,支払状態
 trade.pickLine,先に行を選んでください
+trade.pickPadTarget,先に数量・割引・単価を選んでください
 trade.price,単価
 trade.product,商品
 trade.qty,数量
+trade.recentOrders,最近の会計
 trade.reference,参照伝票
 trade.refund,返品・返金
 trade.refundAmount,返金額
 trade.refundBlocked,完了した売上レシートのみ返品できます
 trade.refundCount,返品件数
 trade.refundSingle,返品できるレシートは1件ずつです
+trade.remaining,残り金額
 trade.remove,削除
 trade.rowOpening,期首
 trade.salesCount,件数
@@ -745,7 +762,9 @@ trade.save,下書きを保存
 trade.scan,スキャン
 trade.scanNotFound,このコードの商品が見つかりません: {0}
 trade.scanUnsupported,この端末ではスキャンできません
+trade.searchOrders,レシート番号で検索
 trade.searchProducts,名前・コード・バーコードで検索
+trade.selectOrderHint,レシートを選ぶと集計を表示
 trade.shiftClosed,シフト終了 · 現金差異 {0}
 trade.shiftHistory,シフト履歴
 trade.shiftNo,シフト番号
@@ -772,6 +791,7 @@ trade.to,終了日
 trade.total,請求額
 trade.totalItems,合計点数
 trade.totalRows,合計 · {0} 明細
+trade.underpaid,受取額が合計に足りません
 trade.unit,単位
 trade.vat,付加価値税率
 trade.void,取消

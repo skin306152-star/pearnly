@@ -231,6 +231,26 @@ Export {0}	导出选中的 {0} 个班次	ส่งออก {0} กะ	{0}件を
 Exported {0} shifts	已导出 {0} 个班次	ส่งออก {0} กะแล้ว	{0}件のシフトを出力しました	trade.exportNotice
 Cancel {0}	取消选中的 {0} 条	ยกเลิก {0} รายการ	{0}件をキャンセル
 Cancelled {0}	已取消 {0} 条	ยกเลิก {0} รายการแล้ว	{0}件をキャンセルしました
+All Items	所有物料	รายการทั้งหมด	すべての商品	trade.allItems
+Item Details	物料详细信息	รายละเอียดสินค้า	商品の詳細	trade.itemDetails
+Quantity Available	数量（仓库）	จำนวนคงเหลือ	在庫数	trade.actualQty
+List Price	标价	ราคาป้าย	表示価格	trade.listPrice
+Opening Amount	期初金额	ยอดยกมา	開始金額	trade.openingAmount
+Expected Amount	应有金额	ยอดที่ควรมี	あるべき金額	trade.expectedAmount
+Counted Amount	实点金额	ยอดนับได้	実地金額	trade.countedAmount
+Complete Order	完成订单	ปิดการขาย	会計を確定	trade.completeOrder
+Remaining Amount	剩余金额	ยอดคงเหลือ	残り金額	trade.remaining
+Recent Orders	最近订单	ออเดอร์ล่าสุด	最近の会計	trade.recentOrders
+Hide Recent Orders	隐藏最近订单	ซ่อนออเดอร์ล่าสุด	最近の会計を隠す	trade.hideRecentOrders
+Receipt Status	小票状态	สถานะใบเสร็จ	レシート状態	trade.invoiceStatus
+Search by receipt number	按小票编号搜索	ค้นหาด้วยเลขที่ใบเสร็จ	レシート番号で検索	trade.searchOrders
+Select a receipt to load its summary	选择小票以加载汇总	เลือกใบเสร็จเพื่อดูสรุป	レシートを選ぶと集計を表示	trade.selectOrderHint
+Items not found.	没找到物料	ไม่พบสินค้า	商品が見つかりません	trade.itemsNotFound
+Pick quantity, discount or price first	先点数量、折扣或单价	เลือกจำนวน ส่วนลด หรือราคาก่อน	先に数量・割引・単価を選んでください	trade.pickPadTarget
+The amount received is less than the total	实收不够应收	รับเงินน้อยกว่ายอดที่ต้องชำระ	受取額が合計に足りません	trade.underpaid
+Enter {0} amount	输入{0}金额	กรอกจำนวนเงิน {0}	{0}の金額を入力	trade.enterAmount
+Payment Reconciliation	支付方式对账	กระทบยอดวิธีชำระ	支払方法の照合	trade.balances
+Edit Cart	回到购物车	กลับไปที่ตะกร้า	カートに戻る	trade.editCart
 Select one receipt to refund	一次只能退一条小票	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
 Only a completed sale receipt can be refunded	只有已完成的小票能退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger

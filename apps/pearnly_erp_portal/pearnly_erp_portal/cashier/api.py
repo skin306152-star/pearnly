@@ -58,6 +58,7 @@ def api_counter_lookup(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_open_shift(**kwargs):
+    _json_args(kwargs, "balances")
     return shifts.open_shift(**_clean(kwargs))
 
 
@@ -74,6 +75,7 @@ def api_shift_summary(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_close_shift(**kwargs):
+    _json_args(kwargs, "counted")
     kwargs = _clean(kwargs)
     return shifts.close_shift(kwargs.pop("name", None), **kwargs)
 
