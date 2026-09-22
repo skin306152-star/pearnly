@@ -44,6 +44,8 @@ services:
     mem_limit: 384m
   erp-socketio:
     platform: linux/amd64
+    # Emulated Node needs headroom beyond the production native-process budget.
+    mem_limit: 512m
   erp-frontend:
     platform: linux/amd64
     networks:
