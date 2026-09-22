@@ -271,7 +271,7 @@ This removes everything about this tenant. It cannot be undone.,การดำ�
 This request has already been handled (currently: {0}),คำขอนี้ถูกดำเนินการแล้ว (ปัจจุบัน: {0})
 This tenant no longer exists.,ผู้เช่ารายนี้ไม่มีอยู่แล้ว
 This top-up request was already reviewed; it cannot be handled twice,คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้
-"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).","ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น กระดานทำงานร่วม, ผู้ช่วย)"
+Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)
 Top-up Review,ตรวจสอบการเติมเงิน
 Top-up approved · request {0},อนุมัติการเติมเงินแล้ว · คำขอ {0}
 Transfer Slip,สลิปโอนเงิน

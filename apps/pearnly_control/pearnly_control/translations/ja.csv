@@ -271,7 +271,7 @@ This removes everything about this tenant. It cannot be undone.,このテナン�
 This request has already been handled (currently: {0}),この申請はすでに処理済みです（現在: {0}）
 This tenant no longer exists.,このテナントは既に存在しません。
 This top-up request was already reviewed; it cannot be handled twice,この入金申請は審査済みです。二重処理はできません。
-"Ticked means this feature is on by default; unticked ones are add-ons (e.g. collaboration boards, Companion).",チェックは既定で有効、外したものは追加購入（コラボボード、コンパニオンなど）。
+Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).,チェックは既定で有効、外したものは追加購入（コンパニオンなど）。
 Top-up Review,チャージ承認
 Top-up approved · request {0},チャージ承認 · 申請 {0}
 Transfer Slip,振込明細
