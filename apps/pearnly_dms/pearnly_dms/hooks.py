@@ -16,27 +16,6 @@ pearnly_line_binding_changed = ["pearnly_dms.line.identity.binding_changed", "pe
 # （推送台账归本产品，见 ADR-009 与 records/push_log.py）。
 pearnly_line_mirror = ["pearnly_dms.records.push_log.line_mirror"]
 
-# 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
-# DMS 的三个管理页只对产品管理员开放（判据 `any_role`），其余看的是表读权限。
-pearnly_navigation = [
-    {
-        "product": "dms",
-        "app": "pearnly_dms",
-        "pages": [
-            ("nav.home", "pearnly-home", "home", None),
-            ("nav.connect", "pearnly-connect", "plug", None),
-            ("nav.records", "pearnly-records", "list", "push_record"),
-            ("nav.roster", "pearnly-roster", "users", "roster"),
-        ],
-        "available": ["pearnly-home", "pearnly-connect", "pearnly-roster", "pearnly-records"],
-        "permissions": {
-            "pearnly-connect": {"any_role": ["DMS Admin", "System Manager"]},
-            "pearnly-roster": {"any_role": ["DMS Admin", "System Manager"]},
-            "pearnly-records": {"any_role": ["DMS Admin", "System Manager"]},
-        },
-    }
-]
-
 doc_events = {
     "DMS Operator": {
         "on_update": "pearnly_dms.menu.rich_menu.operator_changed",
@@ -319,3 +298,15 @@ app_include_js = [versioned_asset("pearnly_dms", "desk/connect.js"), versioned_a
 # Only OCR is resumable here; external order writers retain their own ledger.
 pearnly_ocr_handlers = {"dms.id_card": "pearnly_dms.line.out.run_image"}
 pearnly_ocr_failure_handlers = {"dms.id_card": "pearnly_dms.line.out.ocr_failed"}
+
+# Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
+pearnly_navigation = [{'product': 'dms',
+  'app': 'pearnly_dms',
+  'pages': [('nav.home', 'pearnly-home', 'house', None),
+            ('nav.connect', 'pearnly-connect', 'plug', None),
+            ('nav.records', 'pearnly-records', 'list', 'push_record'),
+            ('nav.roster', 'pearnly-roster', 'users', 'roster')],
+  'available': ['pearnly-home', 'pearnly-connect', 'pearnly-records', 'pearnly-roster'],
+  'permissions': {'pearnly-connect': {'any_role': ['DMS Admin', 'System Manager']},
+                  'pearnly-records': {'any_role': ['DMS Admin', 'System Manager']},
+                  'pearnly-roster': {'any_role': ['DMS Admin', 'System Manager']}}}]

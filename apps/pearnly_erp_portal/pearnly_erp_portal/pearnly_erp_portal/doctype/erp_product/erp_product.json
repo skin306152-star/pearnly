@@ -12,18 +12,23 @@
   "qr_payload",
   "column_break_price",
   "unit",
+  "base_unit",
+  "category_id",
   "unit_price",
   "price_set",
+  "cost_set",
   "vat_applicable",
   "section_break_stock",
   "min_stock",
+  "track_batch",
+  "track_expiry",
   "default_cost",
-  "avg_cost",
   "column_break_stock",
   "is_active",
   "image_url",
   "units",
-  "note"
+  "default_warehouse",
+  "default_location"
  ],
  "fields": [
   {
@@ -69,6 +74,19 @@
    "length": 50
   },
   {
+   "fieldname": "base_unit",
+   "fieldtype": "Data",
+   "label": "Base unit",
+   "length": 50,
+   "description": "Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.",
+   "default": "ชิ้น"
+  },
+  {
+   "fieldname": "category_id",
+   "fieldtype": "Int",
+   "label": "Category"
+  },
+  {
    "fieldname": "unit_price",
    "fieldtype": "Currency",
    "in_list_view": 1,
@@ -80,6 +98,14 @@
    "fieldname": "price_set",
    "fieldtype": "Check",
    "label": "Price Is Set"
+  },
+  {
+   "fieldname": "cost_set",
+   "fieldtype": "Check",
+   "label": "Cost Is Set",
+   "default": "0",
+   "description": "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and \"never set\". The counter needs to tell them apart (same reason as price_set).",
+   "permlevel": 1
   },
   {
    "default": "1",
@@ -99,16 +125,22 @@
    "precision": "3"
   },
   {
-   "fieldname": "default_cost",
-   "fieldtype": "Currency",
-   "label": "Reference Cost"
+   "fieldname": "track_batch",
+   "fieldtype": "Check",
+   "label": "Track batches",
+   "default": "0"
   },
   {
-   "description": "Maintained by stock movements; read-only here",
-   "fieldname": "avg_cost",
+   "fieldname": "track_expiry",
+   "fieldtype": "Check",
+   "label": "Track expiry",
+   "default": "0"
+  },
+  {
+   "fieldname": "default_cost",
    "fieldtype": "Currency",
-   "label": "Average Cost",
-   "read_only": 1
+   "label": "Reference Cost",
+   "permlevel": 1
   },
   {
    "fieldname": "column_break_stock",
@@ -135,9 +167,14 @@
    "options": "ERP Product Unit"
   },
   {
-   "fieldname": "note",
-   "fieldtype": "Small Text",
-   "label": "Note"
+   "fieldname": "default_warehouse",
+   "fieldtype": "Data",
+   "label": "Default Warehouse"
+  },
+  {
+   "fieldname": "default_location",
+   "fieldtype": "Data",
+   "label": "Default Location"
   }
  ],
  "index_web_pages_for_search": 0,
@@ -159,10 +196,19 @@
    "role": "System Manager",
    "share": 1,
    "write": 1
+  },
+  {
+   "role": "System Manager",
+   "permlevel": 1,
+   "read": 1,
+   "write": 1
   }
  ],
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],
- "track_changes": 1
+ "track_changes": 1,
+ "title_field": "product_name",
+ "search_fields": "product_name,code,barcode,qr_payload",
+ "show_title_field_in_link": 1
 }

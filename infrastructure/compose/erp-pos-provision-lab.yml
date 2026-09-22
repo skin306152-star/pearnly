@@ -43,6 +43,9 @@ services:
       - sites:/home/frappe/frappe-bench/sites
       - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
       - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      # ADR-009: control reads all product catalogs even on an ERP-only Site.
+      - ../../apps/pearnly_cowork/pearnly_cowork/features.json:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork/features.json:ro
+      - ../../apps/pearnly_dms/pearnly_dms/features.json:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms/features.json:ro
       - ../../infrastructure/production/site-step.py:/run/site-step.py:ro
 
 networks:

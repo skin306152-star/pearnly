@@ -32,9 +32,20 @@
 				this.$frappe_list.toggleClass("pearnly-list-with-actions", Boolean(this.row_actions));
 				this.$frappe_list.toggleClass("pearnly-compact-list", Boolean(this.compact_columns));
 				if (this.selectable) this.setup_check_events();
-				this.$result.on("click", "a[data-product-row]", event => {
+				this.$result.on("click keydown", ".list-row-container", event => {
+					if (!this.on_open) return;
+					if (event.type === "keydown" &&
+						(event.key !== "Enter" || event.target !== event.currentTarget)) return;
+					if (event.type === "click" && (event.button > 0 || window.getSelection()?.toString())) return;
+					// Keep native selection and embedded controls independent from opening a row.
+					if ($(event.target).closest(
+						"button, input, select, textarea, label, .select-like, [contenteditable], a:not([data-product-row])"
+					).length) return;
+					const name = $(event.currentTarget).find("a[data-product-row]").attr("data-product-row");
+					const row = this.data.find(item => item.name === name);
+					if (!row) return;
 					event.preventDefault();
-					this.on_open?.(this.data.find(row => row.name === event.currentTarget.dataset.productRow));
+					this.on_open(row);
 				});
 				this.$result.on("click", ".btn-action", event => {
 					event.preventDefault();
@@ -114,10 +125,10 @@
 			}
 		}
 		get_no_result_message() {
-			// Use the installed ListView empty state, without inventing a create-log action.
+			// Keep upstream SVG/layout; expose only a caller-provided working action.
 			return frappe.views.ListView.prototype.get_no_result_message.call({
 				doctype: this.doctype, meta: {description: __("Nothing to show")},
-				can_create: false, get_documentation_link: () => "",
+				can_create: Boolean(this.empty_action), get_documentation_link: () => "",
 			});
 		}
 		get_right_html(doc) {
@@ -211,6 +222,8 @@
 				this.toggle_result_area();
 				this.$paging_area.find(".btn-more").toggle(this.data.length < this.total);
 				this.$no_result.html(this.get_no_result_message());
+				if (this.empty_action) this.$no_result.find(".btn-new-doc")
+					.text(this.empty_action.label).on("click", this.empty_action.action);
 				this.resize_list();
 				this.reset_defaults();
 			} catch (error) {

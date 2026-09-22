@@ -60,11 +60,11 @@ def read_catalog(product: str, bench: str = "") -> dict:
             data = json.load(handle)
     except FileNotFoundError:
         raise RuntimeError(
-            f"{product} 的功能清单不在 {path}：产品 App 必须与 pearnly_control 在同一个 bench 里"
+            f"Missing {product} feature catalog at {path}; product apps must be present in the control bench"
         ) from None
     if not isinstance(data, dict) or data.get("product") != product \
             or not isinstance(data.get("features"), list):
-        raise RuntimeError(f"{path}: 功能清单的形状不对（要有 product 与 features）")
+        raise RuntimeError(f"{path}: invalid catalog shape (product and features required)")
     return data
 
 
@@ -202,6 +202,9 @@ def roles_payload(product: str, codes: list[str]) -> dict:
         "base_roles": BASE_ROLES,
         "admin_extra_doctypes": list(ADMIN_EXTRA_DOCTYPES.get(product, [])),
         "roles": roles,
+        # Field-level grants belong to the product, just like DocType grants.
+        "field_permissions": [dict(rule) for rule in DECLARATIONS[product].get("field_permissions", [])
+                              if rule["role"] in seen_roles | {PRODUCT_ADMIN_ROLE.get(product)}],
     }
 
 

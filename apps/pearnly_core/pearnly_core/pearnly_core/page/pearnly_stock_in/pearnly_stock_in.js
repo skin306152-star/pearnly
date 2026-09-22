@@ -1,1 +1,1 @@
-frappe.pearnly.register("pearnly-stock-in", "shell.", "nav.stockIn", frappe.pearnly.notBuilt);
+frappe.pearnly.register("pearnly-stock-in", "trade.", "nav.stockIn", (page, t) => frappe.pearnly.stockEntry(page, t, "in"));

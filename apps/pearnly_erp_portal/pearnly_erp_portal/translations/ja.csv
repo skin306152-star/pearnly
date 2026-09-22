@@ -5,10 +5,13 @@ Bind this account first,先に ERP アカウントを連携してください
 Bound to {0},{0} に連携しました
 Could not store this document,書類を保存できませんでした。再送してください
 Draft not found,下書きが見つかりません
+ERP Stock Count Variance,棚卸差異ボード
 LINE unbound,LINE の連携を解除しました
 Now sending {0} documents,{0}の書類を送信中
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
+Select a product for each stock item,各在庫明細の商品を選択してください
+Select the original sale line,元の販売明細を選択してください
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
 That code is not valid,コードが正しくありません
 This account cannot send documents,このアカウントは書類を送信できません
@@ -18,5 +21,288 @@ This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
+adjust,調整
+branch,支店
+card,カード
+cash,現金
+company,会社
+completed,完了
+count,棚卸
+draft,下書き
+goods,物品
+hq,本店
+issued,発行済み
+nav.stockCount,棚卸
+opening,期首
+paid,支払済み
+pending_approval,承認待ち
+person,個人
+product.action.bulkDisable,選択した{0}件を無効化
+product.action.bulkEnable,選択した{0}件を有効化
+product.action.disable,有効 / 無効
+product.action.edit,編集
+product.action.enable,有効化
+product.action.import,Excel から取込
+product.action.new,商品を追加
+product.action.reload,再読み込み
+product.action.save,保存
+product.action.scan,スキャン
+product.action.toggleInactive,無効も表示
+product.cell.notSet,未設定
+product.col.avgCost,平均原価
+product.col.barcode,バーコード
+product.col.code,コード
+product.col.cost,参考原価
+product.col.name,商品
+product.col.price,価格
+product.col.status,状態
+product.col.unit,単位
+product.error.codeLocked,商品コードは変更できません
+product.field.barcode,バーコード
+product.field.baseUnit,基準単位
+product.field.baseUnitHint,在庫はこの単位で数えます。空欄なら販売単位と同じ
+product.field.category,カテゴリ
+product.field.code,コード
+product.field.codeAuto,自動生成
+product.field.cost,参考原価
+product.field.defaultLocation,既定の保管場所
+product.field.defaultWarehouse,既定の倉庫
+product.field.image,画像 URL
+product.field.importFile,Excel ファイル
+product.field.locationHint,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
+product.field.minStock,低在庫アラート
+product.field.name,商品名
+product.field.nameEn,英語名
+product.field.nameZh,中国語名
+product.field.price,販売価格
+product.field.qr,QR 内容
+product.field.search,名前・バーコードで検索
+product.field.trackBatch,ロット管理
+product.field.trackExpiry,有効期限管理
+product.field.unit,単位
+product.field.vat,VAT 対象
+product.field.weighed,量り売り
+product.import.badFile,このファイルは読み取れません。テンプレートをご利用ください
+product.import.emptyFile,このファイルには行がありません
+product.import.hint,1行目は見出し行です。少なくとも商品名の列が必要です
+product.import.missingName,商品名の列が必要です
+product.import.negative,0 以上で入力してください
+product.import.noFile,取り込むファイルを選択してください
+product.import.notNumber,数値ではありません
+product.import.notWorkbook,Excel ブックではありません
+product.import.pick,ファイルを選択
+product.import.template,テンプレートをダウンロード
+product.notice.importSkipped,{0}行をスキップしました（先頭のみ表示）
+product.notice.imported,{0}件を取り込みました
+product.notice.saved,{0} を保存しました
+product.notice.toggled,{0} を更新しました
+product.notice.toggledCount,{0}件を更新しました
+product.scan.denied,カメラの許可が拒否されました。許可してから再試行してください
+product.scan.done,読み取りました
+product.scan.hint,カメラをバーコード・QR コードに向けてください
+product.scan.light,ライト
+product.scan.noCamera,この端末にはスキャンに使えるカメラがありません
+product.scan.open,その商品を開く
+product.scan.taken,このコードは既に使われています
+product.scan.takenBody,既に「{0}」(コード {1}) で使われています
+product.scan.title,コードをスキャン
+product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
+promptpay,PromptPay
 purchase,仕入
+purchase_in,仕入入庫
+quotation,見積書
+receipt,領収書
+refund,返品
+sale,販売
+sale_out,販売出庫
 sales,売上
+service,サービス
+stock.action.count,棚卸
+stock.action.export,エクスポート
+stock.action.onlyLow,在庫少・在庫切れのみ
+stock.action.reload,再読み込み
+stock.action.toggleZero,在庫 0 も表示
+stock.board.by,グラフの軸
+stock.board.freezeColumn,列を固定
+stock.board.only,表示のみ
+stock.board.shelf,棚番
+stock.board.title,棚卸差異ボード
+stock.board.unfreezeColumn,列の固定を解除
+stock.cell.notSet,未設定
+stock.col.barcode,バーコード
+stock.col.code,コード
+stock.col.cost,平均原価
+stock.col.name,商品名
+stock.col.onHand,在庫数
+stock.col.status,状態
+stock.col.unit,単位
+stock.col.value,金額
+stock.col.warehouse,倉庫
+stock.count.addEntry,カウントを記録
+stock.count.addEntryHint,帳簿数量 {0} {1}
+stock.count.addEntryTitle,カウントを記録 — {0}
+stock.count.back,戻る
+stock.count.blank,未入力
+stock.count.book,帳簿数量
+stock.count.chartEmpty,まだ棚卸記録がありません
+stock.count.chartTotals,帳簿 {0} · 実地 {1} · 差異 {2}
+stock.count.close,棚卸を終了
+stock.count.closeConfirm,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
+stock.count.closed,棚卸を終了しました
+stock.count.counted,実地数量
+stock.count.countedAt,日時
+stock.count.countedBy,担当者
+stock.count.countedRows,棚卸済み
+stock.count.created,棚卸を作成しました（{0} 行）
+stock.count.createdAt,作成日時
+stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
+stock.count.deleteSelected,選択を削除（{0}）
+stock.count.deleted,棚卸を {0} 件削除しました
+stock.count.difference,差異
+stock.count.differenceRows,差異あり
+stock.count.differenceValue,差異金額
+stock.count.entries,記録
+stock.count.entriesTitle,記録 — {0}
+stock.count.entryLive,合計に含む
+stock.count.entryOption,{0} · {1} · {2}
+stock.count.entrySaved,保存しました
+stock.count.entryVoided,取消済み（合計に含まない）
+stock.count.entryVoidedNotice,取消しました
+stock.count.filter,絞り込み
+stock.count.filter.all,すべて
+stock.count.filter.differences,差異あり
+stock.count.filter.uncounted,未棚卸
+stock.count.headline,{0} · 棚卸済み {1} / {2} · 差異 {3}
+stock.count.import,棚卸シートを取り込む
+stock.count.importFile,シート
+stock.count.importHint,行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
+stock.count.importMissing,取り込むシートを選択してください
+stock.count.importPick,ファイルを選択
+stock.count.importSkipped,{0} 行は取り込めませんでした
+stock.count.importTitle,取り込み結果
+stock.count.imported,{0} 行を取り込みました（うち {1} 行に実地数量）
+stock.count.location,棚番
+stock.count.mode,棚卸方法
+stock.count.modeImport,取り込み
+stock.count.modeStock,在庫棚卸
+stock.count.name,名前
+stock.count.new,棚卸を作成
+stock.count.newHint,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
+stock.count.noEntries,記録なし
+stock.count.note,メモ
+stock.count.notes,備考
+stock.count.photos,写真
+stock.count.post,差異を転記
+stock.count.postConfirm,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
+stock.count.posted,差異 {0} 件を転記しました
+stock.count.problemCode,そのコードの商品が見つかりません
+stock.count.problemIdentifier,この行に商品コードもバーコードもありません
+stock.count.problemNumber,数量が正しい数値ではありません
+stock.count.problemWarehouse,その倉庫名は存在しません
+stock.count.qty,数量
+stock.count.reason,理由
+stock.count.rowDifference,差異あり
+stock.count.rowMatch,一致
+stock.count.rowUncounted,未棚卸
+stock.count.rows,行数
+stock.count.statusActive,進行中
+stock.count.statusClosed,終了
+stock.count.statusPosted,転記済み
+stock.count.system,{0}：システム上 {1} {2}
+stock.count.template,棚卸テンプレート
+stock.count.title,棚卸 — {0}
+stock.count.void,取消
+stock.count.voidConfirm,この {0} の記録を取り消しますか？
+stock.count.voidPick,取消する記録を選択
+stock.count.warehouseHint,空欄なら既定の倉庫を使います
+stock.field.search,名前・バーコードで検索
+stock.mobile.cameraOff,カメラを閉じる
+stock.mobile.codePlaceholder,コード・バーコード
+stock.mobile.find,検索
+stock.mobile.noCamera,このブラウザーはカメラでスキャンできません
+stock.mobile.noTask,進行中の棚卸はありません
+stock.mobile.notBound,この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
+stock.mobile.notFound,そのコードの商品が見つかりません
+stock.mobile.open,開く
+stock.mobile.pickTask,棚卸を選択
+stock.mobile.save,保存
+stock.mobile.saved,保存しました
+stock.mobile.scan,スキャン
+stock.mobile.title,棚卸
+stock.notice.counted,棚卸しました：差異 {0} → {1}
+stock.notice.totals,SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
+stock.status.low,在庫少
+stock.status.lowWith,在庫少（≤{0}）
+stock.status.ok,在庫あり
+stock.status.out,在庫切れ
+stock_in,入庫
+stock_out,出庫
+submitted,確定済み
+tax_invoice,税務請求書
+tax_invoice_receipt,税務請求書兼領収書
+tax_invoice_simple,簡易税務請求書
+trade.address,住所
+trade.balance,保管場所の残高
+trade.branchNo,支店番号
+trade.branchType,支店種類
+trade.buyer,顧客名
+trade.buyerType,顧客種類
+trade.checkout,会計
+trade.close,閉じる
+trade.closeShift,シフト終了
+trade.closing,期末数量
+trade.cost,単位原価
+trade.countedCash,実際の現金
+trade.date,日付
+trade.description,名称または説明
+trade.discount,割引額
+trade.docNo,伝票番号
+trade.float,釣銭準備金
+trade.from,開始日
+trade.hasVat,付加価値税を計算
+trade.in,入庫数量
+trade.issue,伝票発行
+trade.kind,伝票種類
+trade.lines,商品明細
+trade.location,保管場所
+trade.method,支払方法
+trade.newIn,入庫伝票を作成
+trade.newOut,出庫伝票を作成
+trade.newSale,販売伝票を作成
+trade.noShift,未開店
+trade.note,備考
+trade.openShift,シフト開始
+trade.opening,期首数量
+trade.originalLine,元伝票の商品と保管場所
+trade.out,出庫数量
+trade.paid,受取額
+trade.paidNotice,レシート {0} · お釣り {1}
+trade.pay,支払完了
+trade.paymentDate,支払日
+trade.paymentState,支払状態
+trade.price,単価
+trade.product,商品
+trade.qty,数量
+trade.reference,参照伝票
+trade.refund,返品・返金
+trade.refundAmount,返金額
+trade.save,下書きを保存
+trade.shiftOpen,シフト {0} · 現金予定額 {1}
+trade.status,状態
+trade.stockPending,未計上
+trade.stockPosted,在庫計上済み
+trade.stockState,在庫計上
+trade.submit,確定
+trade.submitReceive,確定して入庫
+trade.taxId,納税者番号
+trade.terminal,レジ
+trade.to,終了日
+trade.total,請求額
+trade.unit,単位
+trade.vat,付加価値税率
+trade.void,取消
+trade.voidConfirm,この伝票を取り消して在庫移動を戻しますか？
+trade.warehouse,倉庫
+transfer,振込
+unpaid,未払い
+void,取消済み

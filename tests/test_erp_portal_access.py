@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_erp_portal"))
 
 from pearnly_erp_portal.access import rules  # noqa: E402
 from pearnly_erp_portal.products import contracts  # noqa: E402
+from pearnly_erp_portal.products import workbook as product_workbook  # noqa: E402
 from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
 from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
@@ -134,12 +135,47 @@ class ProductContracts(unittest.TestCase):
             contracts.require_name("x" * (contracts.MAX_NAME + 1))
 
     def test_costs_are_masked_without_the_role(self):
-        row = {"name": "PRD-1", "default_cost": "12", "avg_cost": "13"}
+        """成本连同"设过没有"的标记一起清 —— 否则看不到成本的人会读到一个"未设"的假答案。"""
+        row = {"name": "PRD-1", "default_cost": "12", "cost_set": 1}
         masked = contracts.mask_costs(dict(row), False)
         self.assertIsNone(masked["default_cost"])
-        self.assertIsNone(masked["avg_cost"])
+        self.assertIsNone(masked["cost_set"])
         self.assertEqual(masked["name"], "PRD-1")
         self.assertEqual(contracts.mask_costs(dict(row), True), row)
+
+    def test_the_next_product_code_continues_the_series(self):
+        """编码由系统发：接着已有最大号往下排，认不出的编码（人手填的别家规则）不参与计数。"""
+        self.assertEqual(contracts.next_code([]), "P-000001")
+        self.assertEqual(
+            contracts.next_code(["P-000001", "P-000010", "手工码", "", "P-ABC"]), "P-000011")
+        self.assertEqual(contracts.next_code([None, "P-000999"]), "P-001000")
+
+    def test_import_headers_cover_field_names_legacy_words_and_labels(self):
+        """表头认三套：字段名、旧表格里的写法、界面标签（四语）。"""
+        aliases = product_workbook.header_aliases({"ชื่อสินค้า": "product_name",
+                                                  "售價": "unit_price"})
+        self.assertEqual(aliases["product_name"], "product_name")
+        self.assertEqual(aliases["name_th"], "product_name")
+        self.assertEqual(aliases["ชื่อสินค้า"], "product_name")
+        self.assertEqual(aliases["售價"], "unit_price")
+        self.assertEqual(aliases["track_expiry"], "track_expiry")
+
+    def test_the_downloaded_template_parses_back_to_its_own_columns(self):
+        """模板闭环：表头就是界面那几句，认回来必须还是同一批字段、同一个顺序。"""
+        labels = {key: field for field, key in product_workbook.FIELD_LABELS}
+        aliases = product_workbook.header_aliases(labels)
+        headers = product_workbook.template_headers(lambda key: key)
+        self.assertEqual(headers, [key for _field, key in product_workbook.FIELD_LABELS])
+        for (field, _key), header in zip(product_workbook.FIELD_LABELS, headers):
+            self.assertEqual(aliases[header.strip().lower()], field)
+        self.assertEqual(len(set(product_workbook.FIELD_LABELS)), len(product_workbook.FIELD_LABELS))
+
+    def test_every_template_label_exists_in_the_language_pack(self):
+        """模板表头取自语言包：包里缺哪一条，模板上就会露出键名。"""
+        table = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
+        keys = {line.split("\t")[-1].strip() for line in table.splitlines() if "\t" in line}
+        for _field, key in product_workbook.FIELD_LABELS:
+            self.assertIn(key, keys)
 
     def test_stock_role_sees_cost_but_a_shop_role_does_not(self):
         self.assertTrue(rules.cost_visible({rules.FEATURE_ROLES["warehouses"]}))
@@ -783,6 +819,77 @@ class PromptPayAndPrint(unittest.TestCase):
         model = sales_render.print_model({"doc_kind": sales_contracts.RECEIPT,
                                           "party_type": "person", "lines": []})
         self.assertIn("เลขบัตรประชาชน", model["buyer"]["tin_label"])
+
+
+def _has_openpyxl() -> bool:
+    try:
+        import openpyxl  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
+# 解析层本身不连库，但读 xlsx 要 openpyxl —— 它只在 bench 环境里装着（宿主没有），
+# 所以这份用例在宿主上明确跳过，真正的执行证据在实验室探针里（那边有这个库）。
+@unittest.skipUnless(_has_openpyxl(), "openpyxl is only installed in the bench environment")
+class ProductWorkbookImport(unittest.TestCase):
+    """Excel 导入的解析层（纯规则，不连库）：表头别名、逐行校验、空行跳过。"""
+
+    def _book(self, rows):
+        import io
+
+        import openpyxl
+
+        book = openpyxl.Workbook()
+        sheet = book.active
+        for row in rows:
+            sheet.append(list(row))
+        buffer = io.BytesIO()
+        book.save(buffer)
+        return buffer.getvalue()
+
+    def test_headers_are_matched_by_alias(self):
+        data = self._book([["商品名称", "รหัส", "单价", "条码"],
+                           ["ผงซักฟอก", "P-1", "25.5", "8850000000001"]])
+        rows, errors = product_workbook.parse_workbook(data)
+        self.assertEqual(errors, [])
+        self.assertEqual(rows[0]["product_name"], "ผงซักฟอก")
+        self.assertEqual(rows[0]["code"], "P-1")
+        self.assertEqual(str(rows[0]["unit_price"]), "25.5")
+        self.assertEqual(rows[0]["barcode"], "8850000000001")
+
+    def test_a_sheet_without_a_name_column_is_rejected(self):
+        data = self._book([["编码", "单价"], ["P-1", "25"]])
+        with self.assertRaises(ValueError):
+            product_workbook.parse_workbook(data)
+
+    def test_bad_numbers_and_missing_names_become_row_errors(self):
+        data = self._book([["名称", "单价"],
+                           ["ok", "10"],
+                           ["not-a-number", "abc"],
+                           ["", "5"]])
+        rows, errors = product_workbook.parse_workbook(data)
+        self.assertEqual([row["product_name"] for row in rows], ["ok"])
+        self.assertEqual([error["row"] for error in errors], [3, 4])
+
+    def test_blank_rows_are_skipped(self):
+        data = self._book([["名称"], ["a"], [None, None], ["b"]])
+        rows, errors = product_workbook.parse_workbook(data)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(errors, [])
+
+    def test_flags_accept_the_usual_truthy_words(self):
+        data = self._book([["名称", "vat", "批次"],
+                           ["a", "ใช่", "1"],
+                           ["b", "no", ""]])
+        rows, _errors = product_workbook.parse_workbook(data)
+        self.assertIs(rows[0]["vat_applicable"], True)
+        self.assertIs(rows[0]["track_batch"], True)
+        self.assertIs(rows[1]["vat_applicable"], False)
+
+    def test_a_non_workbook_is_rejected(self):
+        with self.assertRaises(ValueError):
+            product_workbook.parse_workbook(b"not an xlsx")
 
 
 if __name__ == "__main__":

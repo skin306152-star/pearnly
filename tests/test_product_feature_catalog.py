@@ -60,7 +60,7 @@ class CatalogContract(unittest.TestCase):
     def test_feature_counts_are_unchanged(self):
         self.assertEqual(
             {product: len(d["features"]) + 1 for product, d in DECLARATIONS.items()},
-            {"cowork": 9, "erp": 9, "dms": 6},
+            {"cowork": 9, "erp": 10, "dms": 6},
         )
 
     def test_cowork_codes_are_the_declared_set(self):
@@ -83,7 +83,7 @@ class CatalogContract(unittest.TestCase):
         self.assertEqual(enforcement[("erp", "clients")],
             ("ERP Sales", ["ERP Customer", "ERP Company"]))
         self.assertEqual(enforcement[("erp", "cashier")][0], "ERP Cashier")
-        self.assertEqual(len(enforcement), 11)
+        self.assertEqual(len(enforcement), 12)
 
     def test_a_feature_without_a_role_does_not_pretend_to_have_one(self):
         for product, declaration in DECLARATIONS.items():
@@ -130,6 +130,48 @@ class CatalogContract(unittest.TestCase):
         roles = [d["admin_role"] for d in DECLARATIONS.values()]
         self.assertEqual(len(set(roles)), len(roles))
         self.assertEqual(set(roles), {"Cowork Admin", "ERP Admin", "DMS Admin"})
+
+
+class AggregatedPermissions(unittest.TestCase):
+    """Exercise the shared reader without importing any installed product App."""
+
+    def setUp(self):
+        import types
+        import sys
+        from unittest.mock import patch
+        frappe = types.ModuleType('frappe')
+        utils = types.ModuleType('frappe.utils')
+        utils.get_bench_path = lambda: str(ROOT)
+        with patch.dict(sys.modules, {'frappe': frappe, 'frappe.utils': utils}):
+            self.catalog = {}
+            path = ROOT / 'apps/pearnly_control/pearnly_control/features.py'
+            exec(compile(path.read_text(), str(path), 'exec'), self.catalog)
+
+    def test_cost_access_follows_declared_roles(self):
+        roles = self.catalog['roles_payload']('erp', ['warehouses', 'stocktake'])
+        grants = {r['role']: r for r in roles['field_permissions']}
+        self.assertEqual(set(grants), {'ERP Admin', 'ERP Stock'})
+        self.assertEqual(grants['ERP Stock']['perms'], {'read': 1, 'write': 0})
+        self.assertEqual(grants['ERP Admin']['perms'], {'read': 1, 'write': 1})
+        for code in ['products', 'purchase', 'sales', 'cashier']:
+            payload = self.catalog['roles_payload']('erp', [code])
+            self.assertEqual([g['role'] for g in payload['field_permissions']], ['ERP Admin'])
+        for product in ['cowork', 'dms']:
+            self.assertEqual(self.catalog['roles_payload'](product, self.catalog['codes_of'](product))['field_permissions'], [])
+
+    def test_inventory_and_count_share_one_role_without_losing_product_read_only(self):
+        payload = self.catalog['roles_payload']('erp', ['warehouses', 'stockcard', 'stocktake'])
+        stock, = payload['roles']
+        self.assertEqual(stock['role'], 'ERP Stock')
+        self.assertTrue({'ERP Stock Count', 'ERP Stock Count Item', 'ERP Stock Count Entry',
+                         'ERP Stock Opening', 'ERP Product'} <= set(stock['doctypes']))
+        self.assertEqual(stock['perms_by_doctype']['ERP Product'], {'read': 1, 'report': 1})
+
+    def test_missing_product_catalog_fails_closed(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(RuntimeError):
+                self.catalog['read_catalog']('erp', directory)
 
 
 if __name__ == "__main__":

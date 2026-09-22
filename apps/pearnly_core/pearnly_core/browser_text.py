@@ -44,6 +44,10 @@ APP_BY_PREFIX = {
     "common.": "pearnly_core",
     "intake.": "pearnly_core",
     "purchase.": "pearnly_core",
+    # 商品页与库存页的文案在 ERP 那个 App（商品/库存域归它），不在 core。
+    "product.": "pearnly_erp_portal",
+    "stock.": "pearnly_erp_portal",
+    "trade.": "pearnly_erp_portal",
     "connect.": "pearnly_core",
     "account.": "pearnly_core",
     "shell.": "pearnly_core",

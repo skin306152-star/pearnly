@@ -1,5 +1,6 @@
 A DMS customer reference is required before confirming or pushing,A DMS customer reference is required before confirming or pushing
 A DMS customer reference is required; otherwise this link means nothing,A DMS customer reference is required; otherwise this link means nothing
+A board instance is created only when this is on,A board instance is created only when this is on
 A disabled operator cannot issue a bind code; enable them first,A disabled operator cannot issue a bind code; enable them first
 "A human-readable name, e.g. MR.ERP DMS","A human-readable name, e.g. MR.ERP DMS"
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.","A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back."
@@ -45,6 +46,7 @@ Charges,Charges
 Claimed By,Claimed By
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Client ID is required,Client ID is required
+Collaboration Boards (WeKan),Collaboration Boards (WeKan)
 Companion,Companion
 Company Tax ID,Company Tax ID
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise","Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise"
@@ -629,14 +631,20 @@ intake.status.recognized,Recognized
 intake.status.rejected,Returned
 intake.subtitle,Review and confirm documents before sending.
 intake.title,Intake Workbench
+nav.cashier,POS
 nav.clients,Customers
 nav.company,Company Profile
+nav.companyMaster,Company Master
 nav.connect,Connect DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,Customers
 nav.erpPurchase,Purchasing
 nav.erpSales,Sales
 nav.erpStock,Products & Stock
+nav.group.goodsStock,Goods & Stock
+nav.group.master,Master Data
+nav.group.purchasing,Purchasing
+nav.group.sales,Sales
 nav.guide,Guide
 nav.history,Recognition Records
 nav.home,Home
@@ -658,6 +666,7 @@ nav.stockOut,Stock Out
 nav.stocktake,Stock Count
 nav.suppliers,Suppliers
 nav.team,Team
+nav.work,Work together
 nonce mismatch,nonce mismatch
 purchase.action.addLine,Add row
 purchase.action.new,New purchase order
@@ -680,6 +689,7 @@ purchase.field.supplier,Supplier
 purchase.hint.serverTotal,The total is calculated automatically.
 purchase.loading,Loading…
 purchase.notice.created,Purchase order created: {0}
+purchase.notice.totals,{0} records · grand total {1} · payable {2} · outstanding {3}
 purchase.placeholder.description,Item / description
 purchase.placeholder.docNo,Optional
 purchase.placeholder.qty,Qty

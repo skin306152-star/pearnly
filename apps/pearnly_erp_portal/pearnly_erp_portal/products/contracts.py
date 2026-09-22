@@ -4,6 +4,7 @@
 这样迁移进来的数据不会被新平台莫名拒绝。
 """
 
+import re
 from decimal import Decimal, InvalidOperation
 
 # 与旧线上相同的长度上限。
@@ -12,13 +13,28 @@ MAX_CODE = 100
 MAX_BARCODE = 100
 MAX_QR = 500
 MAX_UNIT = 50
+MAX_BASE_UNIT = 50
 MAX_IMAGE_URL = 1000
 
-# 有成本字段，取数时按岗位遮蔽。
-COST_FIELDS = ("default_cost", "avg_cost")
+# 有成本字段，取数时按岗位遮蔽。`cost_set` 是"参考成本是否真的设过"的标记，
+# 它跟着成本一起遮蔽 —— 否则看不到成本的人会读到一个"未设"的假答案。
+COST_FIELDS = ("default_cost", "cost_set")
 
 # 条码/编码唯一性：同一租户内不能重复。旧线上是三条唯一索引，撞哪个报哪个。
 UNIQUE_FIELDS = ("code", "barcode")
+
+# ERP 门户的商品编码由系统发，不从表单收：旧线上（`services/erp/product_numbers.py`
+# 的 `P-` + 六位）就是这么发的，手输的编码会在单据行、扫码建品与导入之间对不上。
+CODE_PREFIX = "P-"
+CODE_DIGITS = 6
+_CODE_RE = re.compile(rf"^{CODE_PREFIX}(\d+)$")
+
+
+def next_code(existing) -> str:
+    """在已有编码里取最大序号 +1。认不出的编码（旧的别家规则、人肉填的）跳过不数。"""
+    used = [int(match.group(1))
+            for match in (_CODE_RE.match(str(code or "")) for code in existing) if match]
+    return f"{CODE_PREFIX}{max(used, default=0) + 1:0{CODE_DIGITS}d}"
 
 
 def decimal_or_none(value):

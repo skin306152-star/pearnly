@@ -12,6 +12,31 @@ NAME_REQUIRED = "A warehouse needs a name"
 FIELDS = ("name", "warehouse_name", "is_default", "is_active", "note")
 
 
+def resolve(value=None, *, create=True):
+    """Business forms accept a name; the internal catalog only provides stable identity."""
+    value = str(value or "").strip()
+    if not value:
+        return ensure_default() if create else None
+    if len(value) > 140:
+        frappe.throw(_("Invalid value"))
+    name = frappe.db.exists(DOCTYPE, value) or frappe.db.get_value(
+        DOCTYPE, {"warehouse_name": value}, "name")
+    if name:
+        if not frappe.db.get_value(DOCTYPE, name, "is_active"):
+            frappe.throw(_(NOT_FOUND))
+        return name
+    if not create:
+        return None
+    # Serialize catalog creation, then re-read after a competing transaction commits.
+    frappe.db.sql("select name from `tabDocType` where name=%s for update", (DOCTYPE,))
+    name = frappe.db.get_value(DOCTYPE, {"warehouse_name": value}, "name")
+    if name:
+        return name
+    doc = frappe.get_doc({"doctype": DOCTYPE, "warehouse_name": value, "is_active": 1})
+    doc.insert(ignore_permissions=True)
+    return doc.name
+
+
 def ensure_default() -> str:
     """默认仓库：没有就建一个（旧线上入库/出库不带仓库时落默认仓）。"""
     existing = frappe.db.get_value(DOCTYPE, {"is_default": 1}, "name")

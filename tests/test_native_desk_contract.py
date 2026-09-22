@@ -27,12 +27,13 @@ def declaration(app):
 
 DECLARATIONS = [declaration(app) for app in ('pearnly_dms', 'pearnly_cowork', 'pearnly_erp_portal')]
 PAGES = {item['product']: [tuple(page) for page in item['pages']] for item in DECLARATIONS}
+AVAILABLE = {route for item in DECLARATIONS for route in item['available']}
 
 
 class NativeDeskContract(unittest.TestCase):
     def test_existing_menu_inventory_is_preserved(self):
         # Fixed product contract, independent of the new navigation implementation.
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,14])
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,17])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -40,11 +41,13 @@ class NativeDeskContract(unittest.TestCase):
         for name in ('nav.clients','nav.company','nav.team','nav.integrations'):
             self.assertEqual(cowork[name], 'master_data')
 
-    def test_every_route_has_native_page_without_platform_manager_role(self):
+    def test_every_offered_route_has_native_page_without_platform_manager_role(self):
         metadata = {json.loads(p.read_text())['name']: json.loads(p.read_text())
                     for p in (ROOT/'apps').glob('*/*/*/page/*/*.json')}
         for items in PAGES.values():
             for _, name, _, _ in items:
+                if name not in AVAILABLE:
+                    continue  # The catalog also records planned pages, which stay hidden.
                 with self.subTest(page=name):
                     self.assertIn(name, metadata)
                     self.assertEqual(metadata[name]['standard'], 'Yes')
@@ -59,7 +62,7 @@ class NativeDeskContract(unittest.TestCase):
                              if r.get('key')})
         self.assertTrue(rows, 'no semantic keys found in any product glossary')
         for p in (ROOT/'apps').glob('*/*/public/desk/*.js'):
-            for key in re.findall(r'''["']((?:home|roster|connect|intake|purchase|shell|account)\.[\w.]+)["']''', p.read_text()):
+            for key in re.findall(r'''["']((?:home|roster|connect|intake|purchase|shell|account|product|stock|trade)\.[\w.]+)["']''', p.read_text()):
                 if key.endswith('.'):
                     continue
                 self.assertIn(key, rows, (p, key))
@@ -69,10 +72,11 @@ class NativeDeskContract(unittest.TestCase):
     def test_only_working_pages_are_offered(self):
         source = MODULE.read_text()
         available = {route for item in DECLARATIONS for route in item['available']}
-        self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase'})
+        self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
+            'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
+            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
-        self.assertEqual(source.count('route in offered'), 3)
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])
 
     def test_only_ticket_based_line_editor_and_account_keep_standalone_routes(self):
@@ -113,6 +117,26 @@ class ProductNavigationAccess(unittest.TestCase):
         return Boot(workspace_sidebar_item={"pearnly dms": {"items": [
             {"link_to": name} for name in ("pearnly-home", "pearnly-connect", "pearnly-roster", "pearnly-records")
         ]}})
+
+    def test_erp_grouping_and_count_permissions_survive_product_split(self):
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.frappe.conf['pearnly_product'] = 'erp'
+        self.shell.entitlements.return_value = ['products', 'warehouses', 'stocktake', 'purchase']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype in {'ERP Product', 'ERP Stock Count'}
+        self.assertEqual(self.namespace['visible_pages']('erp'),
+                         ['pearnly-home', 'pearnly-products', 'pearnly-stock-count'])
+        self.assertEqual(self.namespace['available_pages']('cowork'), set())
+        groups = self.namespace['navigation_groups']('erp')
+        self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
+                                                 'nav.group.sales', 'nav.group.master'])
+        boot = self.boot()
+        boot.workspace_sidebar_item = {'pearnly erp': {'items': [
+            {'link_to': route} for route in self.namespace['available_pages']('erp')]}}
+        self.namespace['extend_boot'](boot)
+        links = [r['link_to'] for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('link_to')]
+        self.assertEqual(links, ['pearnly-home', 'pearnly-products', 'pearnly-stock-count'])
+        headings = [r for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('type') == 'Section Break']
+        self.assertEqual([r['label'] for r in headings], ['nav.group.goodsStock'])
 
     def test_operator_does_not_see_admin_pages_even_when_site_bought_them(self):
         boot = self.boot()

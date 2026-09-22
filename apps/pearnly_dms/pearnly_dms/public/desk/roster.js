@@ -10,6 +10,7 @@
 		p.add_refresh(page, refresh, __("Reload List"));
 		page.set_title_sub(p.escape(t("roster.subtitle")));
 		list = p.list({page, doctype: "DMS Operator", selectable: true, compact_columns: true,
+			on_open: editor,
 			on_selection: rows => {
 				page.set_primary_action(rows.length ? t("roster.delete") : t("roster.add"),
 					rows.length ? () => removeRows(list.get_checked_items()) : create);

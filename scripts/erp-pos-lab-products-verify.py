@@ -7,6 +7,7 @@ isolation. Synthetic data and lab volume only.
 import json
 import os
 from pathlib import Path
+import re
 import sys
 
 import frappe
@@ -106,6 +107,18 @@ def main():
     results["duplicate_barcode_allowed"] = ok
     results["duplicate_barcode_error"] = None if ok else err
 
+    # 编码是系统发的（旧线上 ERP 门户里这一格只读）：留空建品拿到 P-000001 起的号。
+    ok, auto = as_user(OWNER, service.create_product, product_name="Lab auto code")
+    results["auto_code_ok"] = ok
+    auto_name = auto["name"] if ok else None
+    auto_code = frappe.db.get_value("ERP Product", auto_name, "code") if auto_name else None
+    results["auto_code_allocated"] = bool(re.fullmatch(r"P-\d{6}", auto_code or ""))
+    # 编码锁死：改成别的号要被挡下，否则历史单据行会指向另一个货。
+    ok, err = as_user(OWNER, service.update_product, product, code="LAB-P2")
+    results["code_change_allowed"] = ok
+    results["code_change_error"] = None if ok else err
+    results["code_after_change_attempt"] = frappe.db.get_value("ERP Product", product, "code")
+
     # 商品岗位能管商品，但成本对它遮蔽；库存岗位能看到成本。
     ok, shop_list = as_user(SHOP, service.list_products, limit=50)
     results["shop_can_list"] = ok
@@ -161,8 +174,162 @@ def main():
     ok, _ = as_user(SHOP, service.update_product, product, unit_price="0")
     results["price_set_after_real_zero"] = bool(
         frappe.db.get_value("ERP Product", product, "price_set"))
+    # 分类：Frappe 的 Int 列是 NOT NULL DEFAULT 0，"没填"在库里就是 0（存不下 NULL，
+    # 与 Currency 的"没设价"同一类事实）；填了号就存号。
+    ok, _ = as_user(SHOP, service.update_product, product, category_id="0")
+    results["category_zero_stored"] = frappe.db.get_value("ERP Product", product, "category_id")
+    ok, _ = as_user(SHOP, service.update_product, product, category_id="7")
+    results["category_seven_stored"] = frappe.db.get_value("ERP Product", product, "category_id")
 
     frappe.set_user("Administrator")
+
+    # 干净起点：上一轮导入留下的行（编码规则是本脚本自己的），否则第二次跑会撞唯一键。
+    for stale in frappe.get_all("ERP Product", filters={"code": ["like", "LAB-IMP-%"]},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab auto code"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab template row"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab image row"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("File", filters={"file_name": "lab-product-image.png"},
+                                pluck="name"):
+        frappe.delete_doc("File", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product", filters={"product_name": "Lab image outside"},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    for stale in frappe.get_all("ERP Product",
+                                filters={"product_name": ["like", "Lab base unit %"]},
+                                pluck="name"):
+        frappe.delete_doc("ERP Product", stale, force=True, ignore_permissions=True)
+    frappe.db.commit()
+
+    # Excel 导入：解析在纯层（bench 里有 openpyxl），入库走同一条 create_product。
+    import io
+
+    import openpyxl
+
+    book = openpyxl.Workbook()
+    sheet = book.active
+    sheet.append(["商品名称", "รหัส", "单价", "vat", "批次"])
+    sheet.append(["Lab import A", "LAB-IMP-1", "12.5", "ใช่", "1"])
+    sheet.append(["Lab import C", "", "7", "", ""])
+    sheet.append(["Lab import B", "", "ไม่ใช่ตัวเลข", "", ""])
+    sheet.append([None, None, None, None, None])
+    buffer = io.BytesIO()
+    book.save(buffer)
+    ok, imported = as_user(OWNER, service.import_products, buffer.getvalue())
+    results["import_ok"] = ok
+    results["import_error"] = None if ok else imported
+    results["import_created"] = imported.get("created") if ok else None
+    results["import_failed"] = imported.get("failed") if ok else None
+    results["import_error_rows"] = [row["row"] for row in imported.get("errors", [])] if ok else None
+    # 行级错误给用户看的是文案，不是解析层的 token。
+    results["import_raw_tokens_leaked"] = [row["error"] for row in imported.get("errors", [])
+                                           if row["error"] in ("not_a_number",
+                                                               "negative_or_invalid",
+                                                               "name_required")] if ok else None
+    imported_name = frappe.db.get_value("ERP Product", {"code": "LAB-IMP-1"}, "name")
+    results["import_flags"] = frappe.db.get_value(
+        "ERP Product", imported_name, ["vat_applicable", "track_batch", "base_unit"],
+        as_dict=True) if imported_name else None
+    # 表里没带码的行同样由系统发号（旧线上 ERP 导入也走这条 `prepare()`）。
+    results["import_auto_code"] = bool(frappe.db.exists(
+        "ERP Product", {"product_name": "Lab import C", "code": ["like", "P-%"]}))
+
+    # 模板下载：表头按站点语言现生成。下载 → 填一行 → 传回来必须能认（闭环）。
+    ok, _ = as_user(OWNER, service.api_import_template)
+    downloaded = frappe.local.response.get("filecontent") or b""
+    results["template_download_ok"] = bool(ok and downloaded)
+    book = openpyxl.load_workbook(io.BytesIO(downloaded), data_only=True)
+    sheet = book.active
+    headers = [cell.value for cell in next(sheet.iter_rows(max_row=1))]
+    results["template_headers"] = len(headers)
+    # 语言包里缺哪条，模板上就会露出键名 —— 露出来就是漏翻。
+    results["template_keys_leaked"] = [header for header in headers
+                                       if str(header).startswith("product.")]
+    sheet.append(["Lab template row"])
+    buffer = io.BytesIO()
+    book.save(buffer)
+    ok, templated = as_user(OWNER, service.import_products, buffer.getvalue())
+    results["template_import_ok"] = ok
+    results["template_created"] = templated.get("created") if ok else None
+    results["template_failed"] = templated.get("failed") if ok else None
+    # 空模板（一行数据都没有）要明确报"没有数据行"，不能默默什么都不做。
+    ok, empty = as_user(OWNER, service.import_products, downloaded)
+    results["template_empty_allowed"] = ok
+    results["template_empty_error"] = None if ok else empty
+
+    # 商品图：私有文件挂在商品上，读权限才跟着商品走。
+    from frappe.utils.file_manager import save_file
+
+    png = bytes.fromhex(
+        "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489"
+        "0000000a49444154789c6360000002000154a24f5f0000000049454e44ae426082")
+    lab_file = save_file("lab-product-image.png", png, None, None, is_private=1)
+    ok, with_image = as_user(OWNER, service.create_product, product_name="Lab image row",
+                             image_url=lab_file.file_url)
+    results["image_product_ok"] = ok
+    attached = frappe.db.get_value("File", lab_file.name,
+                                   ["attached_to_doctype", "attached_to_name"], as_dict=True)
+    results["image_attached_doctype"] = (attached or {}).get("attached_to_doctype")
+    results["image_attached_same_row"] = bool(
+        attached and with_image and attached.attached_to_name == with_image.get("name"))
+    # 外链不碰：不是本站 File 的地址照原样存。
+    ok, outside = as_user(OWNER, service.create_product, product_name="Lab image outside",
+                          image_url="https://example.com/x.png")
+    results["image_outside_ok"] = ok
+    results["image_outside_value"] = frappe.db.get_value(
+        "ERP Product", (outside or {}).get("name"), "image_url") if ok else None
+
+    # 库存单位（记数单位）：不填就跟售卖单位一样；填了以填的为准。
+    ok, derived = as_user(OWNER, service.create_product, product_name="Lab base unit derive",
+                          unit="โหล")
+    results["base_unit_follows_unit"] = (
+        frappe.db.get_value("ERP Product", (derived or {}).get("name"), "base_unit")
+        if ok else None)
+    ok, explicit = as_user(OWNER, service.create_product, product_name="Lab base unit explicit",
+                           unit="โหล", base_unit="ชิ้น")
+    results["base_unit_explicit"] = (
+        frappe.db.get_value("ERP Product", (explicit or {}).get("name"), "base_unit")
+        if ok else None)
+
+    # 扫码当场查重：编码 / 条码 / 二维码内容 / 售卖单位条码都指向同一条，自己不算撞自己。
+    ok, _ = as_user(SHOP, service.update_product, product, qr_payload="PEARNLY-LAB-QR")
+    ok, by_barcode = as_user(SHOP, service.find_product, "8850000000001")
+    results["find_by_barcode"] = bool(ok and (by_barcode or {}).get("name") == product)
+    ok, by_code = as_user(SHOP, service.find_product, "LAB-P1")
+    results["find_by_code"] = bool(ok and (by_code or {}).get("matched_by") == "code")
+    ok, by_qr = as_user(SHOP, service.find_product, "PEARNLY-LAB-QR")
+    results["find_by_qr"] = bool(ok and (by_qr or {}).get("matched_by") == "qr_payload")
+    ok, by_unit = as_user(SHOP, service.find_product, "8850000000018")
+    results["find_by_unit_barcode"] = bool(ok and (by_unit or {}).get("matched_by") == "unit_barcode")
+    ok, self_hit = as_user(SHOP, service.find_product, "LAB-P1", product)
+    results["find_excludes_self"] = bool(ok and self_hit == {})
+    ok, missing = as_user(SHOP, service.find_product, "NO-SUCH-CODE")
+    results["find_missing_empty"] = bool(ok and missing == {})
+    # 查重与列表同一道权限：没有商品岗位的账号查不了。
+    ok, err = as_user(OUTSIDER, service.find_product, "LAB-P1")
+    results["outsider_can_find"] = ok
+
+    # 字段对齐：与旧线上 products 的列一一对应（不多不少）。
+    meta = frappe.get_meta("ERP Product")
+    ours = {field.fieldname for field in meta.fields
+            if field.fieldtype not in ("Section Break", "Column Break", "Tab Break")}
+    # `name` 是框架隐式主键，不在 meta.fields 里，所以不列进来。
+    expected = {"product_name", "code", "barcode",
+                "qr_payload", "unit", "base_unit", "category_id", "unit_price",
+                "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
+                "default_cost", "image_url", "track_batch", "track_expiry",
+                "default_warehouse", "default_location",
+                "units"}
+    results["fields_missing"] = sorted(expected - ours)
+    results["fields_extra"] = sorted(ours - expected)
+
     results["row_count_site_a"] = frappe.db.count("ERP Product")
 
     frappe.destroy()
@@ -177,6 +344,11 @@ def main():
         "duplicate_code_error": "ValidationError",
         "duplicate_barcode_allowed": False,
         "duplicate_barcode_error": "ValidationError",
+        "auto_code_ok": True,
+        "auto_code_allocated": True,
+        "code_change_allowed": False,
+        "code_change_error": "ValidationError",
+        "code_after_change_attempt": "LAB-P1",
         "shop_can_list": True,
         "shop_sees_cost": None,
         "stock_sees_cost": 18.0,
@@ -192,6 +364,34 @@ def main():
         "price_after_blank": 0.0,
         "price_set_after_blank": False,
         "price_set_after_real_zero": True,
+        "category_zero_stored": 0,
+        "category_seven_stored": 7,
+        "import_ok": True, "import_created": 2, "import_failed": 1, "import_error_rows": [4],
+        "import_raw_tokens_leaked": [],
+        "import_auto_code": True,
+        "template_download_ok": True,
+        "template_headers": 16,
+        "template_keys_leaked": [],
+        "template_import_ok": True,
+        "template_created": 1,
+        "template_failed": 0,
+        "template_empty_allowed": False,
+        "template_empty_error": "ValidationError",
+        "image_product_ok": True,
+        "image_attached_doctype": "ERP Product",
+        "image_attached_same_row": True,
+        "image_outside_ok": True,
+        "image_outside_value": "https://example.com/x.png",
+        "base_unit_follows_unit": "โหล",
+        "base_unit_explicit": "ชิ้น",
+        "find_by_barcode": True,
+        "find_by_code": True,
+        "find_by_qr": True,
+        "find_by_unit_barcode": True,
+        "find_excludes_self": True,
+        "find_missing_empty": True,
+        "outsider_can_find": False,
+        "fields_missing": [], "fields_extra": [],
         "other_site_product_rows": 0,
         "other_site_has_code": False,
         "stock_can_list": True,

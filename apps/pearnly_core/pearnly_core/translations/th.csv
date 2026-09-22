@@ -1,5 +1,6 @@
 A DMS customer reference is required before confirming or pushing,ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง
 A DMS customer reference is required; otherwise this link means nothing,ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย
+A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
 A disabled operator cannot issue a bind code; enable them first,ผู้ปฏิบัติงานที่ปิดอยู่ ออกรหัสผูกไม่ได้ ต้องเปิดใช้งานก่อน
 "A human-readable name, e.g. MR.ERP DMS",ชื่อที่อ่านง่าย เช่น MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ
@@ -45,6 +46,7 @@ Charges,ค่าบริการ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Client ID is required,ต้องระบุ Client ID
+Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Companion,ผู้ช่วย (Companion)
 Company Tax ID,เลขผู้เสียภาษีของบริษัท
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้
@@ -248,7 +250,7 @@ Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้า
 "Product home: current plan, usage and billing",หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ
 Product master data,ข้อมูลหลักของสินค้า
-Products,ข้อมูลสินค้า
+Products,สินค้า
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งบรรทัด
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)
@@ -631,14 +633,20 @@ intake.status.recognized,อ่านแล้ว
 intake.status.rejected,ตีกลับ
 intake.subtitle,ตรวจสอบและยืนยันเอกสารก่อนส่ง
 intake.title,โต๊ะทำงานบันทึกข้อมูล
+nav.cashier,ขายหน้าร้าน POS
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
+nav.companyMaster,ทะเบียนบริษัท
 nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,ลูกค้า
 nav.erpPurchase,การจัดซื้อ
 nav.erpSales,ระบบขาย
 nav.erpStock,สินค้าและสต็อก
+nav.group.goodsStock,สินค้าและสต็อก
+nav.group.master,ข้อมูลหลัก
+nav.group.purchasing,ระบบจัดซื้อ
+nav.group.sales,ระบบขาย
 nav.guide,คู่มือใช้งาน
 nav.history,บันทึกการอ่านข้อมูล
 nav.home,หน้าหลัก
@@ -646,7 +654,7 @@ nav.intake,โต๊ะทำงานบันทึกข้อมูล
 nav.integrations,การเชื่อมต่อ
 nav.inventory,สต็อก
 nav.masterData,ข้อมูลหลัก
-nav.products,ข้อมูลสินค้า
+nav.products,สินค้า
 nav.purchase,บันทึกการจัดซื้อ
 nav.purchaseSettings,ตั้งค่าการจัดซื้อ
 nav.pushLogs,บันทึกการส่งข้อมูล
@@ -660,6 +668,7 @@ nav.stockOut,จ่ายออก
 nav.stocktake,ตรวจนับสต็อก
 nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
+nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
 purchase.action.addLine,เพิ่มรายการ
 purchase.action.new,สร้างใบซื้อใหม่
@@ -682,6 +691,7 @@ purchase.field.supplier,ผู้ขาย
 purchase.hint.serverTotal,ระบบคำนวณยอดรวมอัตโนมัติ
 purchase.loading,กำลังโหลด…
 purchase.notice.created,สร้างใบซื้อแล้ว: {0}
+purchase.notice.totals,{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}
 purchase.placeholder.description,ชื่อสินค้า / คำอธิบาย
 purchase.placeholder.docNo,เว้นว่างได้
 purchase.placeholder.qty,จำนวน

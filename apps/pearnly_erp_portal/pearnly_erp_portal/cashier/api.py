@@ -97,3 +97,11 @@ def api_refund_sale(**kwargs):
 def api_void_sale(**kwargs):
     kwargs = _clean(kwargs)
     return sales.void_sale(kwargs.pop("name", None), **kwargs)
+
+
+@frappe.whitelist()
+def api_sale_total(**kwargs):
+    kwargs = _clean(kwargs)
+    kwargs.pop("start", None)
+    kwargs.pop("limit", None)
+    return len(sales.list_sales(**kwargs, limit=0))

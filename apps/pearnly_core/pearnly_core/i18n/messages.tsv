@@ -1,419 +1,422 @@
 en	zh	th	ja	key
-Home (Subscription & Billing)	首页（订阅与计费）	หน้าหลัก (แพ็กเกจและค่าบริการ)	ホーム（プランと請求）	
-Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	
-Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録	
-Push Log	推送日志	บันทึกการส่งข้อมูล	プッシュログ	
-Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター	
-Master Data	主数据	ข้อมูลหลัก	マスタデータ	
-Stock Count	库存盘点	ตรวจนับสต็อก	棚卸	
-Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン	
-Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド	
-Products	商品数据	ข้อมูลสินค้า	商品データ	
-Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）	
-Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表	
-Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）	
-Sales	销售系统	ระบบขาย	販売	
-Customers	客户名录	ทะเบียนลูกค้า	顧客	
-External ERP Push	对外 ERP 推送	ส่งออกไป ERP ภายนอก	外部ERP連携	
-ID Card Intake	身份证录入	บันทึกบัตรประชาชน	身分証取り込み	
-Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合	
-Push Records	推送记录	บันทึกการส่ง	プッシュ記録	
-Operator Roster	操作员花名册	ทะเบียนพนักงาน	オペレーター名簿	
-Plan & Balance	套餐与余额	แพ็กเกจและยอดคงเหลือ	プランと残高	
-Cowork Intake	Cowork 录入	Cowork บันทึกข้อมูล	Cowork 取り込み	
-ERP Purchase	ERP 采购	ERP จัดซื้อ	ERP 購買	
-DMS ID Card Intake	DMS 身份证录入	DMS บันทึกบัตรประชาชน	DMS 身分証取り込み	
-DMS Customer Match	DMS 客户匹配	DMS จับคู่ลูกค้า	DMS 顧客照合	
-DMS Operator	DMS 操作员	DMS พนักงาน	DMS オペレーター	
-Cowork Admin	Cowork 管理员	Cowork ผู้ดูแล	Cowork 管理者	
-ERP Admin	ERP 管理员	ERP ผู้ดูแล	ERP 管理者	
-DMS Admin	DMS 管理员	DMS ผู้ดูแล	DMS 管理者	
-Console	控制台	คอนโซล	コンソール	
-Not signed in	未登录	ยังไม่ได้เข้าสู่ระบบ	未ログイン	
-Please sign in	请先登录	กรุณาเข้าสู่ระบบ	ログインしてください	
-Only a company admin can top up or change the subscription	充值与订阅只有公司管理员能操作	การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท	チャージとプラン変更は会社管理者のみ	
+Home (Subscription & Billing)	首页（订阅与计费）	หน้าหลัก (แพ็กเกจและค่าบริการ)	ホーム（プランと請求）
+Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ
+Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録
+Push Log	推送日志	บันทึกการส่งข้อมูล	プッシュログ
+Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター
+Master Data	主数据	ข้อมูลหลัก	マスタデータ
+Stock Count	库存盘点	ตรวจนับสต็อก	棚卸
+Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
+Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
+Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
+Products	商品	สินค้า	商品
+Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）
+Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
+Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）
+Sales	销售系统	ระบบขาย	販売
+Customers	客户名录	ทะเบียนลูกค้า	顧客
+External ERP Push	对外 ERP 推送	ส่งออกไป ERP ภายนอก	外部ERP連携
+ID Card Intake	身份证录入	บันทึกบัตรประชาชน	身分証取り込み
+Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合
+Push Records	推送记录	บันทึกการส่ง	プッシュ記録
+Operator Roster	操作员花名册	ทะเบียนพนักงาน	オペレーター名簿
+Plan & Balance	套餐与余额	แพ็กเกจและยอดคงเหลือ	プランと残高
+Cowork Intake	Cowork 录入	Cowork บันทึกข้อมูล	Cowork 取り込み
+ERP Purchase	ERP 采购	ERP จัดซื้อ	ERP 購買
+DMS ID Card Intake	DMS 身份证录入	DMS บันทึกบัตรประชาชน	DMS 身分証取り込み
+DMS Customer Match	DMS 客户匹配	DMS จับคู่ลูกค้า	DMS 顧客照合
+DMS Operator	DMS 操作员	DMS พนักงาน	DMS オペレーター
+Cowork Admin	Cowork 管理员	Cowork ผู้ดูแล	Cowork 管理者
+ERP Admin	ERP 管理员	ERP ผู้ดูแล	ERP 管理者
+DMS Admin	DMS 管理员	DMS ผู้ดูแล	DMS 管理者
+Console	控制台	คอนโซล	コンソール
+Not signed in	未登录	ยังไม่ได้เข้าสู่ระบบ	未ログイン
+Please sign in	请先登录	กรุณาเข้าสู่ระบบ	ログインしてください
+Only a company admin can top up or change the subscription	充值与订阅只有公司管理员能操作	การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท	チャージとプラン変更は会社管理者のみ
 Billing is unavailable. Please contact support.	计费服务暂不可用，请联系客服。	ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน	課金サービスを利用できません。サポートにお問い合わせください。	Billing is not wired up on this site, please contact the platform
-Only a company admin can view top-up records	充值记录只有公司管理员能看	บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท	チャージ記録は会社管理者のみ閲覧可	
-Charges	扣费	ค่าบริการ	課金	
-Time	时间	เวลา	日時	
-Product	产品	ผลิตภัณฑ์	製品	
-Pages	张数	จำนวนหน้า	枚数	
-Amount	金额	จำนวนเงิน	金額	
-Balance	余额	ยอดคงเหลือ	残高	
-Description	说明	คำอธิบาย	説明	
-Reference	单号	เลขที่อ้างอิง	参照番号	
-Top-ups	充值	การเติมเงิน	チャージ	
-Status	状态	สถานะ	ステータス	
-Requested	申请金额	จำนวนที่ขอ	申請額	
-Received	实收金额	จำนวนที่รับจริง	受領額	
-Payer	付款人	ผู้ชำระเงิน	支払者	
-Result	结果	ผลลัพธ์	結果	
-File	文件	ไฟล์	ファイル	
-Summary	摘要	สรุป	摘要	
-Failure Reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由	
-Product home: current plan, usage and billing	产品首页，承载当前的订阅套餐、用量与账单	หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ	製品ホーム。現在のプラン、利用量、請求を表示	
-Upload receipts and sheets, extract fields, review each item, then push	上传票据与表格、识别字段、逐项核对与推送	อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ	領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携	
-Batches and results of every recognition run	每次识别批次的记录与结果	บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ	各認識バッチの記録と結果	
-How each push to the external ERP went	推送到外部 ERP 的过程与结果	ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก	外部ERPへの連携過程と結果	
-Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับบัญชี	伝票と帳簿の照合	
-Customers, suppliers, accounts and other reference data	客户、供应商、科目等基础资料	ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี	顧客、仕入先、勘定科目などの基礎データ	
-Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録	
-Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得	
-Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順	
-Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ	
-Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票	
-Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总（保留项，见 ERP 清单）	สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)	受払在庫の集計（維持項目。ERPマニフェスト参照）	
-Purchase records, suppliers and purchasing settings	采购记录、供应商与采购设置	บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ	購買記録、仕入先、購買設定	
-Sales documents and customer dealings	销售单据与客户往来	เอกสารขายและความสัมพันธ์กับลูกค้า	販売伝票と顧客取引	
-Customer master data	客户基础资料	ข้อมูลหลักของลูกค้า	顧客マスタ	
-Push to the external ERP; the push log is the only source of status	推送到外部 ERP；状态以推送日志为唯一来源	ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น	外部ERPへ連携。状態は連携ログのみが根拠	
-Read the ID card, match it against the DMS customer base, then confirm	读身份证、与 DMS 客户库比对后确认资料	อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล	身分証を読み取り、DMS顧客と照合して確定	
-Same ID number means the same customer; avoids duplicate records	证件号相同视为同一客户，避免重复建档	เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ	同一の身分証番号は同一顧客とみなし、重複登録を防ぐ	
-The result of each push	每次推送的结果	ผลลัพธ์ของการส่งแต่ละครั้ง	各連携の結果	
-Only the owner can manage it	仅责任人可管理	เฉพาะเจ้าของเท่านั้นที่จัดการได้	責任者のみ管理可能	
-DMS usage and balance	DMS 侧的用量与余额	การใช้งานและยอดคงเหลือฝั่ง DMS	DMS側の利用量と残高	
-Workspace	工作区	พื้นที่ทำงาน	ワークスペース	
-Email is required	邮箱不能为空	กรุณากรอกอีเมล	メールアドレスは必須です	
-Finalize failed: desktop:home_page={0} is_setup_complete={1}	收尾没成功：desktop:home_page={0} is_setup_complete={1}	ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}	仕上げに失敗: desktop:home_page={0} is_setup_complete={1}	
-Deleting the OIDC client failed: {0} {1}	删除 OIDC 客户端失败：{0} {1}	ลบ OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの削除に失敗: {0} {1}	
-Looking up the OIDC client failed: {0} {1}	查询 OIDC 客户端失败：{0} {1}	ค้นหา OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの照会に失敗: {0} {1}	
-Deleting the account failed: {0} {1}	删除账号失败：{0} {1}	ลบบัญชีไม่สำเร็จ: {0} {1}	アカウントの削除に失敗: {0} {1}	
-Created At	创建时间	สร้างเมื่อ	作成日時	
-IP	IP	IP	IP	
-Identity Session	身份会话	เซสชันตัวตน	アイデンティティセッション	
-Last Login At	最近登录	เข้าสู่ระบบล่าสุด	最終ログイン	
-Last Seen At	最近活跃	ใช้งานล่าสุด	最終アクセス	
-Local Session	本地会话	เซสชันในเครื่อง	ローカルセッション	
-Revoked At	吊销时间	เพิกถอนเมื่อ	失効日時	
-Deployment	部署	การติดตั้ง	デプロイ	
-Invited By	邀请人	ผู้เชิญ	招待者	
-Issuer	签发方	ผู้ออก	発行者	
-Notes	备注	หมายเหตุ	備考	
-Subject	主体	Subject	サブジェクト	
-User	用户	ผู้ใช้	ユーザー	
-User Agent	浏览器标识	User Agent	ユーザーエージェント	
-Name	名称	ชื่อ	名称	
-A human-readable name, e.g. MR.ERP DMS	给人看的名字，例如：MR.ERP DMS	ชื่อที่อ่านง่าย เช่น MR.ERP DMS	人が読むための名前（例: MR.ERP DMS）	
-Adapter	适配器	อะแดปเตอร์	アダプタ	
-Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.	对端是什么系统。取值照老产品（webhook | xero | flowaccount | mrerp | mrerp_dms | express）；新平台目前只实现 mrerp_dms，其余列着是为了**不偷偷改契约**	ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ	接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。	
-Owner Account	归属账号	บัญชีเจ้าของ	所属アカウント	
-Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.	这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板	การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ	この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。	
-Enabled	启用	เปิดใช้งาน	有効	
-Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).	停用后不再参与推送（老产品：停用是「同批不误投」的闸）	เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)	無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。	
-Default Connection	默认连接	การเชื่อมต่อเริ่มต้น	既定の接続	
-Only one default per account + adapter (the legacy product's unique index).	同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）	บัญชี + อะแดปเตอร์เดียวกันมีค่าเริ่มต้นได้เพียงรายการเดียว (ดัชนีไม่ซ้ำของผลิตภัณฑ์เดิม)	同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。	
-Remote Address	对端地址	ที่อยู่ปลายทาง	接続先アドレス	
-System URL	系统地址	ที่อยู่ระบบ	システムURL	
-The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.	例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码	ที่อยู่เข้าสู่ระบบ เช่น ของ MR.ERP DMS ผลิตภัณฑ์เดิมเขียนตายและซ่อนไว้สำหรับ DMS (มีอินสแตนซ์เดียว) เราเปิดให้กรอกเพื่อเปลี่ยนอินสแตนซ์ภายหลังโดยไม่ต้องแก้โค้ด	ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。	
-Sign-in Credentials	登录凭据	ข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報	
-Account	账号	บัญชี	アカウント	
-Password	密码	รหัสผ่าน	パスワード	
-A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.	Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**	ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ	Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。	
-Account With Write Access	有修改权限的账号	บัญชีที่มีสิทธิ์แก้ไข	書き込み権限のあるアカウント	
-The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.	老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据	คำพูดของผลิตภัณฑ์เดิม: ข้อมูลรับรองชุดนี้ใช้ทั้งเชื่อมต่อ ตรวจซ้ำ สร้าง และแก้ไข พนักงานขายยังใช้บัญชีของตนเองจับคู่เจ้าของค่าคอม และเซิร์ฟเวอร์จะใช้ข้อมูลรับรองของเจ้าของเมื่อต้องแก้ข้อมูลลูกค้า ดังนั้นการเขียนข้อมูลธุรกิจใช้ชุดนี้ ไม่ใช่ของพนักงาน	旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。	
-Admin Account	管理员账号	บัญชีผู้ดูแล	管理者アカウント	
-Admin Password	管理员密码	รหัสผ่านผู้ดูแล	管理者パスワード	
-Usage	使用情况	การใช้งาน	利用状況	
-Auto Push	自动推送	ส่งอัตโนมัติ	自動送信	
-The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).	老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）	ผลิตภัณฑ์เดิมปิดตัวนี้สำหรับการเชื่อมต่อนี้ (ขั้นตอนทั้งหมดทำมือ: วิซาร์ด + กล่องยืนยัน)	旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。	
-Last Used	最近使用	ใช้ล่าสุด	最終使用	
-Last Result	最近结果	ผลล่าสุด	最新の結果	
-Successes	成功次数	จำนวนสำเร็จ	成功回数	
-Failures	失败次数	จำนวนล้มเหลว	失敗回数	
-Booking Defaults	建单默认值	ค่าเริ่มต้นการสร้างใบ	起票の既定値	
-DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.\n\nThe advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.	DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。\n\n顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。	ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**\n\nช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่	DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。\n\nアドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。	
-Bind Code	绑定码	รหัสผูก	連携コード	
-A one-time short code. The user sends it to this tenant's LINE official account to bind.	一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定	รหัสสั้นใช้ครั้งเดียว ผู้ใช้ส่งให้บัญชี LINE ทางการของผู้เช่ารายนี้เพื่อผูก	1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。	
-Local Account	本地账号	บัญชีในเครื่อง	ローカルアカウント	
-Used	已使用	ใช้แล้ว	使用済み	
-Expires At	过期时间	หมดอายุเมื่อ	有効期限	
-Used At	使用时间	ใช้เมื่อ	使用日時	
-LINE User ID	LINE 用户 ID	LINE User ID	LINEユーザーID	
-LINE Display Name	LINE 昵称	ชื่อที่แสดงบน LINE	LINE表示名	
-Time	时间	เวลา	日時	
-Bound At	绑定时间	ผูกเมื่อ	連携日時	
-Unbound At	解绑时间	ยกเลิกผูกเมื่อ	連携解除日時	
-Event ID	事件 ID	Event ID	イベントID	
-The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.	LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理	webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก	LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。	
-Source	来源	ที่มา	ソース	
-Current State	当前状态	สถานะปัจจุบัน	現在の状態	
-Session Payload	会话载荷	เพย์โหลดเซสชัน	セッションのペイロード	
-Payload	载荷	เพย์โหลด	ペイロード	
-The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.\n\n**One row per session** (a LINE user runs only one flow at a time inside one tenant).	多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。\n\n**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。	สถานะระหว่างทางของบทสนทนาหลายรอบ: ตอบถึงข้อไหน ตัวเลือกที่พักไว้ และ nonce กันกดซ้ำ\n\n**หนึ่งแถวต่อหนึ่งเซสชัน** (ผู้ใช้ LINE หนึ่งคนเดินได้ทีละขั้นตอนในหนึ่งผู้เช่า)	多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。\n\n**1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。	
-Result	结果	ผลลัพธ์	結果	
-File	文件	ไฟล์	ファイル	
-Pages	张数	จำนวนหน้า	枚数	
-Billing	计费	การคิดค่าบริการ	課金	
-Charges	扣费	ค่าบริการ	課金	
-External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号	
-Summary	摘要	สรุป	摘要	
-Connection	连接	การเชื่อมต่อ	接続	
-Which connection it went to. Empty = it failed before a connection was chosen.	推到哪条连接。留空 = 还没选到连接就失败了	ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ	どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。	
-Trigger	触发方式	รูปแบบการทริกเกอร์	トリガー	
-The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.	老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上	ผลิตภัณฑ์เดิมใช้ trigger แยกสายงาน (เช่น trigger='id_card' คือบัตรประชาชน→DMS) ที่นี่เก็บค่าทั่วไปไว้ไม่กี่ค่า (line_mirror = เว็บไซต์ตัวอย่างในเครื่องบันทึกข้อความที่ควรส่งไป LINE ดู pearnly_core.line._mirror) ส่วนสายงานจริงเก็บใน reference_doctype	旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。	
-Attempt	第几次尝试	ครั้งที่พยายาม	試行回数	
-What Was Pushed	推的是哪一单	ส่งอะไรไป	何を送ったか	
-Reference DocType	业务单据类型	DocType ของเอกสารธุรกิจ	業務伝票のDocType	
-Reference Name	业务单据	เอกสารธุรกิจ	業務伝票	
-Business Key	业务键	คีย์ธุรกิจ	業務キー	
-The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.	对端用来判重的键（例如 DMS 客户号、发票号）。老产品的 invoice_no / history_id 就是这一类	คีย์ที่ปลายทางใช้ตรวจข้อมูลซ้ำ (เช่น เลขลูกค้า DMS เลขใบกำกับ) invoice_no / history_id ของผลิตภัณฑ์เดิมคือประเภทนี้	相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。	
-Transport Result	传输结果	ผลการรับส่ง	転送結果	
-HTTP Status	HTTP 状态	สถานะ HTTP	HTTPステータス	
-Elapsed (ms)	耗时(ms)	ใช้เวลา (ms)	所要時間(ms)	
-Request & Response	请求与响应	คำขอและการตอบกลับ	リクエストと応答	
-Request Body	请求内容	เนื้อหาคำขอ	リクエスト内容	
-Response Body	响应内容	เนื้อหาการตอบกลับ	レスポンス内容	
-Error Message	错误信息	ข้อความข้อผิดพลาด	エラーメッセージ	
-Retry & Lease	重试与租约	ลองใหม่และสัญญาเช่า	再試行とリース	
-Retry Count	已重试次数	จำนวนครั้งที่ลองใหม่	再試行回数	
-Max Retries	最多重试	ลองใหม่สูงสุด	最大再試行	
-Next Retry At	下次重试时间	ลองใหม่ครั้งถัดไปเมื่อ	次回再試行日時	
-Lease Owner	租约持有者	ผู้ถือสัญญาเช่า	リース保有者	
-Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).	谁正在处理这一条。老产品用租约保证**同一条只被推一次**（pending 才有租约，过期可被抢）	ใครกำลังจัดการแถวนี้อยู่ ผลิตภัณฑ์เดิมใช้สัญญาเช่าเพื่อรับประกันว่า**แต่ละแถวถูกส่งเพียงครั้งเดียว** (เฉพาะ pending ที่มีสัญญาเช่า และตัวที่หมดอายุสามารถถูกยึดได้)	今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。	
-Lease Expires	租约到期	สัญญาเช่าหมดอายุ	リース期限	
-What Was Recognised	识别留证	สิ่งที่อ่านได้	認識の記録	
-Recognition Raw	识别原始输出	ผลการอ่านดิบ	認識の生データ	
-Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー	
-Image Fingerprint	影像指纹	ลายนิ้วมือภาพ	画像フィンガープリント	
-Confirmed By	确认人	ยืนยันโดย	確認者	
-Confirmed At	确认时间	ยืนยันเมื่อ	確認日時	
-Push	推送	การส่ง	送信	
-Push Log Reference	推送日志引用	อ้างอิงบันทึกการส่ง	送信ログ参照	
-"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."	取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里	"ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า ""ส่งสำเร็จหรือยัง"" ต้องดูที่นี่"	値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。	
-Kept as evidence, not a business field; only the confirmed fields are.	留证用，不是业务字段；确认后的字段才是	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น	証跡用で業務フィールドではありません。確定後の項目だけが業務値です。	
-Kept as evidence, not a business field	留证用，不是业务字段	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ	証跡用で業務フィールドではありません	
-Direction	方向	ทิศทาง	方向	
-Inbound = invoices received; outbound = invoices issued	进项=收到的票；销项=开出的票	ขาเข้า = ใบที่ได้รับ ขาออก = ใบที่ออกให้	仕入＝受け取った請求書、売上＝発行した請求書	
-Doc No	单据号	เลขที่เอกสาร	伝票番号	
-Doc Date	单据日期	วันที่เอกสาร	伝票日付	
-Counterparty	对方名称	ชื่อคู่ค้า	取引先名	
-Counterparty Tax ID	对方税号	เลขผู้เสียภาษีคู่ค้า	取引先の税番号	
-Company Tax ID	本方税号	เลขผู้เสียภาษีของบริษัท	自社の税番号	
-Net Amount	不含税金额	ยอดก่อนภาษี	税抜金額	
-VAT Amount	税额	ภาษีมูลค่าเพิ่ม	税額	
-Grand Total	价税合计	ยอดรวม	税込合計	
-Currency	币种	สกุลเงิน	通貨	
-Expense / Item Category	费用/商品类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ	
-Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル	
-Push Channel	推送渠道	ช่องทางส่ง	送信チャネル	
-companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机出站拉取后落库	companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み	
-Push Status	推送状态	สถานะการส่ง	送信ステータス	
-The truth is in erp_push_logs; this is only a display reference	以 erp_push_logs 为准，这里只做展示引用	ค่าจริงอยู่ที่ erp_push_logs ที่นี่เป็นเพียงการอ้างอิงเพื่อแสดง	真値は erp_push_logs。ここは表示用の参照のみ	
-The truth is in erp_push_logs, trigger=id_card	真值在 erp_push_logs，trigger=id_card	ค่าจริงอยู่ที่ erp_push_logs, trigger=id_card	真値は erp_push_logs、trigger=id_card	
-Operator	操作人	ผู้ใช้	ユーザー	
-ID Number	证件号	เลขบัตร	身分証番号	
-Personal data: not shown in lists and never written to logs	个人敏感信息：不在列表显示，不写日志	ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก	個人情報のため一覧に表示せず、ログにも書きません	
-Full Name	姓名	ชื่อ-นามสกุล	氏名	
-DMS Customer Ref	DMS 客户引用	รหัสอ้างอิงลูกค้า DMS	DMS顧客参照	
-Endpoint	连接端点	ปลายทางการเชื่อมต่อ	接続先	
-New Customer	本次新建	สร้างใหม่ครั้งนี้	今回新規作成	
-Last Verified At	最后核对时间	ตรวจสอบล่าสุดเมื่อ	最終確認日時	
-DMS Customer No	DMS 客户号	เลขลูกค้า DMS	DMS顧客番号	
-Which customer is being changed.	要改的是哪个客户。	จะแก้ลูกค้ารายใด	どの顧客を変更するか。	
-Customer Name	客户名	ชื่อลูกค้า	顧客名	
-DMS Connection	DMS 连接	การเชื่อมต่อ DMS	DMS接続	
-Assign To	指定审批人	มอบหมายให้	承認者の指定	
-Empty = sent to all admins (whoever sees it first approves).	留空 = 发给所有管理员（谁先看到谁批）。	เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)	空欄＝全管理者に送信（先に見た人が承認）。	
-Claimed By	认领人	ผู้รับเรื่อง	担当者	
-The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).	点批准的那个人（认领时刻写下；写失败回炉时会清掉）。	คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)	承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。	
-Handled At	处理时间	จัดการเมื่อ	処理日時	
-Processing Started At	开始执行时间	เริ่มดำเนินการเมื่อ	実行開始日時	
-Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).	执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。	สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)	実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。	
-Requested By	申请人	ผู้ขอ	申請者	
-Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.	谁提的这单（销售本人）。执行时用的是**批准人**自己的凭据，这里只记来源。	ใครเป็นผู้เสนอ (ตัวพนักงานขาย) ตอนดำเนินการใช้ข้อมูลรับรองของ**ผู้อนุมัติ**เอง ที่นี่บันทึกแค่ที่มา	誰が起案したか（営業本人）。実行時は**承認者自身**の資格情報を使い、ここは由来の記録だけです。	
-Request Snapshot	申请内容快照	สแนปช็อตคำขอ	申請内容のスナップショット	
-Field Diffs	逐字段差异	ส่วนต่างรายฟิลด์	項目ごとの差分	
-`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.	`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。	`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก	`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。	
-Customer Snapshot	客户档快照	สแนปช็อตข้อมูลลูกค้า	顧客情報のスナップショット	
-The customer snapshot used to refill the form when approval executes.	批准执行时回填表单用的客户资料快照。	สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ	承認実行時にフォームへ戻すための顧客情報スナップショット。	
-Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合	
-DMS Endpoint	DMS 端点	ปลายทาง DMS	DMSエンドポイント	
-ID Details	证件资料	ข้อมูลบัตร	身分証情報	
-Birth Date	出生日期	วันเกิด	生年月日	
-Address	地址	ที่อยู่	住所	
-Gender	性别	เพศ	性別	
-ID Image	证件影像	ภาพบัตร	身分証画像	
-Display Name	显示名	ชื่อที่แสดง	表示名	
-The name the owner uses to tell people apart on this table, e.g. Ming (sales).	老板在这张表里认人用的名字，例如：阿明（销售）	ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)	オーナーがこの表で人を見分けるための名前（例: ミン（営業））。	
-The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.	本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。	บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน	このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。	
-Role	角色	บทบาท	ロール	
-sales=salesperson, admin=administrator (the legacy product's two roles, no third one)	sales=销售，admin=管理员（老产品的两种角色，没有第三种）	sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)	sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）	
-Once disabled its DMS pushes stop and the LINE binding is released	停用后其 DMS 推送停止并解除 LINE 绑定	เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE	無効にするとDMSへの送信が止まり、LINE連携も解除されます	
-This Operator's Own DMS Credentials	该操作员自己的 DMS 账密	บัญชี DMS ของผู้ปฏิบัติงานรายนี้	このオペレーター自身のDMS資格情報	
-DMS Username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名	
-DMS Password	DMS 密码	รหัสผ่าน DMS	DMSパスワード	
-Sales Commission Owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属	
-Empty = matched automatically from the DMS account (the legacy product's default).	留空 = 按 DMS 账号自动匹配（老产品的默认行为）	เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)	空欄＝DMSアカウントから自動照合（旧製品の既定動作）。	
-DMS Advisor ID	DMS 顾问 ID	DMS Advisor ID	DMSアドバイザーID	
-DMS Advisor Name	DMS 顾问名称	ชื่อที่ปรึกษา DMS	DMSアドバイザー名	
-The name is resolved server-side when pinning; the client's value is not trusted	名字在钉的时候由服务端解出，不信客户端传来的值	ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา	名前は固定時にサーバー側で解決します。クライアントの値は信用しません	
-Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE	LINEでの照会機能を許可	
-Document Type	单据类型	ประเภทเอกสาร	伝票種別	
-Supplier	供应商	ผู้ขาย	仕入先	
-Supplier Tax ID	供应商税号	เลขผู้เสียภาษีผู้ขาย	仕入先の税番号	
-External Doc No	外部单据号	เลขเอกสารภายนอก	外部伝票番号	
-The document number the supplier issued; it must be kept as-is	供应商开的单据号，必须原样保留	เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ	仕入先が発行した伝票番号。そのまま保持する必要があります	
-Due Date	到期日	วันครบกำหนด	支払期日	
-FX Rate	汇率	อัตราแลกเปลี่ยน	為替レート	
-VAT Included	含增值税	รวมภาษีมูลค่าเพิ่ม	税込	
-Subtotal	小计	ยอดรวมย่อย	小計	
-Order Discount	整单折扣	ส่วนลดทั้งใบ	伝票全体の値引	
-VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税	
-Withholding Tax	预扣税	ภาษีหัก ณ ที่จ่าย	源泉税	
-Rounding	尾差	ส่วนต่างปัดเศษ	端数調整	
-Net Payable	应付净额	ยอดสุทธิที่ต้องจ่าย	支払純額	
-Approval	审批	การอนุมัติ	承認	
-Flow Status	流程状态	สถานะขั้นตอน	進行ステータス	
-Payment Status	付款状态	สถานะการชำระ	支払状況	
-Paid Amount	已付金额	จำนวนที่จ่ายแล้ว	支払済金額	
-External IDs & Dedupe	外部标识与去重	รหัสภายนอกและการกันซ้ำ	外部IDと重複排除	
-External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照	
-The test for a duplicate upload of the same document	同一张票重复上传时的判据	เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ	同じ伝票を二重アップロードしたときの判定基準	
-Line No	行号	ลำดับบรรทัด	行番号	
-Type	类型	ประเภท	種別	
-Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明	
-Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照	
-The legacy system's product identifier; it becomes a link once product master data lands	旧系统的商品标识；商品主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます	
-Qty	数量	จำนวน	数量	
-Unit	单位	หน่วย	単位	
-Unit Price	单价	ราคาต่อหน่วย	単価	
-Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引	
-VAT Rate %	税率%	อัตราภาษี %	税率%	
-Line Amount	行金额	จำนวนเงินบรรทัด	行金額	
-The ID token issuer is not the identity service configured for this site	ID token 的签发方不是本站点配置的身份服务	ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้	IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません	
-The ID token has no sub	ID token 缺少 sub	ID token ไม่มี sub	IDトークンに sub がありません	
-The OCR service returned HTTP {0}: {1}	OCR 服务返回 HTTP {0}：{1}	บริการ OCR ตอบกลับ HTTP {0}: {1}	OCRサービスが HTTP {0} を返しました: {1}	
-Both issuer and subject are required	issuer 与 subject 都是必填	ต้องระบุทั้ง issuer และ subject	issuer と subject はどちらも必須です	
-nonce mismatch	nonce 不匹配	nonce ไม่ตรงกัน	nonce が一致しません	
-state is invalid or has expired	state 无效或已过期	state ไม่ถูกต้องหรือหมดอายุ	state が無効か期限切れです	
-All three fields are required	三项都要填	ต้องกรอกทั้งสามช่อง	3項目とも入力が必要です	
-The two new passwords do not match	两次输入的新密码不一致	รหัสผ่านใหม่ที่กรอกสองครั้งไม่ตรงกัน	新しいパスワードが2回で一致しません	
-A disabled operator cannot issue a bind code; enable them first	停用的操作员不能发绑定码，先启用	ผู้ปฏิบัติงานที่ปิดอยู่ ออกรหัสผูกไม่ได้ ต้องเปิดใช้งานก่อน	無効化中のオペレーターは連携コードを発行できません。先に有効化してください	
-Could not create the OIDC client: {0} {1}	创建 OIDC 客户端失败：{0} {1}	สร้าง OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの作成に失敗: {0} {1}	
-No existing customer matched and no DMS customer reference was given: confirm manually first	匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认	ไม่พบลูกค้าที่มีอยู่และไม่ได้ระบุรหัสลูกค้า DMS: กรุณายืนยันด้วยคนก่อน	既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください	
-Match result must be unmatched / existing customer / new customer	匹配结果只能是 未匹配/已有客户/新建客户	ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่	照合結果は 不一致／既存顧客／新規顧客 のいずれかです	
-Could not read the client secret: {0} {1}	取客户端密钥失败：{0} {1}	อ่าน client secret ไม่สำเร็จ: {0} {1}	クライアントシークレットの取得に失敗: {0} {1}	
-Could not get the admin token	取管理令牌失败	ขอโทเคนผู้ดูแลไม่สำเร็จ	管理者トークンの取得に失敗しました	
-Could not get the admin token: {0}	取管理令牌失败：{0}	ขอโทเคนผู้ดูแลไม่สำเร็จ: {0}	管理者トークンの取得に失敗: {0}	
-Only confirmed documents can be queued for push	只有已确认的单据才能排队推送	เฉพาะเอกสารที่ยืนยันแล้วเท่านั้นที่เข้าคิวส่งได้	確定済みの伝票だけが送信キューに入れられます	
-Only an admin can manage the operator roster	只有管理员能管操作员花名册	เฉพาะผู้ดูแลเท่านั้นที่จัดการทะเบียนพนักงานได้	オペレーター名簿を管理できるのは管理者だけです	
-Only an admin can configure DMS connections	只有管理员能配置 DMS 连接	เฉพาะผู้ดูแลเท่านั้นที่ตั้งค่าการเชื่อมต่อ DMS ได้	DMS接続を設定できるのは管理者だけです	
-"Account ""{0}"" already has a default connection ({1}); clear that one's default first"	同一账号下「{0}」已经有一条默认连接（{1}），请先取消它的默认	"บัญชี ""{0}"" มีการเชื่อมต่อเริ่มต้นอยู่แล้ว ({1}) กรุณายกเลิกค่าเริ่มต้นของอันนั้นก่อน"	同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください	
-Could not create the account in the target environment: {0} {1}	在目标环境建账号失败：{0} {1}	สร้างบัญชีในสภาพแวดล้อมเป้าหมายไม่สำเร็จ: {0} {1}	対象環境でのアカウント作成に失敗: {0} {1}	
-Client ID is required	客户端 ID 不能为空	ต้องระบุ Client ID	クライアントIDは必須です	
-Could not create the account: {0} {1}	建账号失败：{0} {1}	สร้างบัญชีไม่สำเร็จ: {0} {1}	アカウントの作成に失敗: {0} {1}	
-The current password is wrong	当前密码不正确	รหัสผ่านปัจจุบันไม่ถูกต้อง	現在のパスワードが正しくありません	
-Cannot match while the status is {0}	当前状态 {0} 不能做匹配	จับคู่ไม่ได้ในสถานะ {0}	ステータス {0} では照合できません	
-Cannot confirm while the status is {0}	当前状态 {0} 不能确认	ยืนยันไม่ได้ในสถานะ {0}	ステータス {0} では確定できません	
-This account has no identity binding, so it cannot change its own password; contact an admin	当前账号没有登记身份绑定，无法自助改密，请联系管理员	บัญชีนี้ยังไม่ได้ผูกตัวตน จึงเปลี่ยนรหัสผ่านเองไม่ได้ กรุณาติดต่อผู้ดูแล	このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください	
-Customer matching must be done before confirming	必须先完成客户匹配才能确认	ต้องจับคู่ลูกค้าให้เสร็จก่อนจึงจะยืนยันได้	確定する前に顧客照合を完了してください	
-Customer matching is required before confirming	确认前必须完成客户匹配	ต้องจับคู่ลูกค้าก่อนยืนยัน	確定の前に顧客照合が必要です	
-A DMS customer reference is required; otherwise this link means nothing	必须有 DMS 客户引用，否则这条对照没有意义	ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย	DMS顧客参照が必要です。なければこの紐付けは意味を持ちません	
-Claiming a push job requires a connection	抢推送任务必须指定连接	การรับงานส่งต้องระบุการเชื่อมต่อ	送信ジョブの取得には接続の指定が必要です	
-Could not look the account up by email: {0}	按邮箱查账号失败：{0}	ค้นหาบัญชีด้วยอีเมลไม่สำเร็จ: {0}	メールでアカウントを照会できませんでした: {0}	
-Could not exchange the token: {0}	换取令牌失败：{0}	แลกโทเคนไม่สำเร็จ: {0}	トークンの交換に失敗: {0}	
-Invalid push channel	推送渠道不合法	ช่องทางส่งไม่ถูกต้อง	送信チャネルが不正です	
-The push channel must be companion or cloud	推送渠道只能是 companion 或 cloud	ช่องทางส่งต้องเป็น companion หรือ cloud	送信チャネルは companion または cloud のみです	
-Push status must be one of {0}	推送状态只能是 {0}	สถานะการส่งต้องเป็นหนึ่งใน {0}	送信ステータスは {0} のいずれかです	
-The new password cannot be the same as the current one	新密码不能与当前密码相同	รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน	新しいパスワードは現在のものと同じにできません	
-The new password is required	新密码不能为空	ต้องระบุรหัสผ่านใหม่	新しいパスワードは必須です	
-A new record can only start as draft or recognized	新记录只能从 draft 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก draft หรือ recognized เท่านั้น	新規レコードは draft または recognized からしか開始できません	
-A new record can only start as uploaded or recognized	新记录只能从 uploaded 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก uploaded หรือ recognized เท่านั้น	新規レコードは uploaded または recognized からしか開始できません	
-Direction must be inbound or outbound	方向只能是进项或销项	ทิศทางต้องเป็นขาเข้าหรือขาออก	方向は仕入または売上のみです	
-Could not update the OIDC client: {0} {1}	更新 OIDC 客户端失败：{0} {1}	อัปเดต OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの更新に失敗: {0} {1}	
-The service account could not exchange its token: {0}	服务账号换令牌失败：{0}	บัญชีบริการแลกโทเคนไม่สำเร็จ: {0}	サービスアカウントのトークン交換に失敗: {0}	
-No such local account: {0}	本地账号不存在：{0}	ไม่มีบัญชีในเครื่องนี้: {0}	ローカルアカウントがありません: {0}	
-This site has more than one product manifest installed: {0}. One deployment can host only one product.	本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品	เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว	このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。	
-This site has no product manifest installed; it cannot run as a business site.	本站点没有安装任何产品清单，不能作为业务站点运行	เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงรันเป็นเว็บไซต์ธุรกิจไม่ได้	このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。	
-This site has no LINE access token configured, so it cannot send messages	本站点没有配 LINE access token，发不出消息	เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้	このサイトはLINEアクセストークン未設定のため、メッセージを送信できません	
-Could not look up the account: {0} {1}	查账号失败：{0} {1}	ค้นหาบัญชีไม่สำเร็จ: {0} {1}	アカウントの照会に失敗: {0} {1}	
-The FX rate must be greater than 0	汇率必须大于 0	อัตราแลกเปลี่ยนต้องมากกว่า 0	為替レートは0より大きい必要があります	
-There is no DMS customer reference, so it cannot be pushed	没有 DMS 客户引用，不能推送	ไม่มีรหัสอ้างอิงลูกค้า DMS จึงส่งไม่ได้	DMS顧客参照がないため送信できません	
-No provisioning target is available; configure one under “Provisioning Target” first	没有可用的开户目标，请先在“开户目标”里配一个	"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"	利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください	
-No OCR key configured (site config pearnly_ocr_api_key)	没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）	ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)	OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）	
-No client ID for invitation links is configured, so the invitation email cannot be sent	没有配「邀请链接用的客户端 ID」，发不出邀请邮件	ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงส่งอีเมลเชิญไม่ได้	招待リンク用のクライアントIDが未設定のため、招待メールを送信できません	
-No service account configured (site config pearnly_ocr_credentials)	没有配服务账号（站点配置 pearnly_ocr_credentials）	ยังไม่ได้ตั้งค่าบัญชีบริการ (ค่าตั้งเว็บไซต์ pearnly_ocr_credentials)	サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）	
-Status cannot go backwards: {0} → {1}	状态不能回退：{0} → {1}	สถานะถอยกลับไม่ได้: {0} → {1}	ステータスを戻すことはできません: {0} → {1}	
-Status must be active or inactive	状态只能是 active 或 inactive	สถานะต้องเป็น active หรือ inactive	ステータスは active または inactive のみです	
-Could not generate a bind code; please try again	生成绑定码失败，请重试	สร้างรหัสผูกไม่สำเร็จ กรุณาลองใหม่	連携コードの生成に失敗しました。もう一度お試しください	
-The target environment is incomplete: URL, realm, client ID and secret are all required	目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填	การตั้งค่าสภาพแวดล้อมเป้าหมายไม่ครบ: ต้องกรอกที่อยู่, realm, Client ID และ Secret	対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です	
-A DMS customer reference is required before confirming or pushing	确认或推送前必须有 DMS 客户引用	ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง	DMS顧客参照は確定または送信の前に必要です	
-Site config is missing {0}	站点配置缺少 {0}	ค่าตั้งเว็บไซต์ขาด {0}	サイト設定に {0} がありません	
-Site config is missing {0}_admin_client_id / _secret	站点配置缺少 {0}_admin_client_id / _secret	ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret	サイト設定に {0}_admin_client_id / _secret がありません	
-Site config is missing {0}_issuer	站点配置缺少 {0}_issuer	ค่าตั้งเว็บไซต์ขาด {0}_issuer	サイト設定に {0}_issuer がありません	
-Row {0}: unit price cannot be negative	第 {0} 行单价不能为负	บรรทัด {0}: ราคาต่อหน่วยติดลบไม่ได้	{0} 行目: 単価はマイナスにできません	
-Row {0}: quantity must be greater than 0	第 {0} 行数量必须大于 0	บรรทัด {0}: จำนวนต้องมากกว่า 0	{0} 行目: 数量は0より大きい必要があります	
-Binding needs a LINE user and a local account	绑定需要 LINE 用户与本地账号	การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง	連携にはLINEユーザーとローカルアカウントが必要です	
-endpoint is missing (which connection to test)	缺 endpoint（要测哪条连接）	ขาด endpoint (จะทดสอบการเชื่อมต่อใด)	endpoint がありません（どの接続をテストするか）	
-Missing code or state	缺少 code 或 state	ขาด code หรือ state	code または state がありません	
-google-auth is missing (the image should have it): {0}	缺少 google-auth（镜像里应已安装）：{0}	ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}	google-auth がありません（イメージには入っているはず）: {0}	
-Provide at least one line item	至少给一行明细	ต้องมีรายการอย่างน้อยหนึ่งบรรทัด	明細を1行以上入力してください	
-Role must be sales or admin	角色只能是 sales（销售）或 admin（管理员）	บทบาทต้องเป็น sales หรือ admin	ロールは sales（営業）または admin（管理者）のみです	
-Could not set the password: {0} {1}	设置密码失败：{0} {1}	ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}	パスワードの設定に失敗: {0} {1}	
-ID number is required	证件号必填	ต้องระบุเลขบัตร	身分証番号は必須です	
-This identity is already bound to {0}	该身份已绑定到 {0}	ตัวตนนี้ผูกกับ {0} แล้ว	このアイデンティティは既に {0} に紐づいています	
-This identity is already bound to account {0} (record {1})	该身份已绑定到账号 {0}（记录 {1}）	ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})	このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています	
-This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)	该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）	ตัวตนนี้ยังไม่ลงทะเบียนบนเว็บไซต์นี้ กรุณาให้ผู้ดูแลเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่รับสมัครเอง)	このアイデンティティはこのサイトに未登録です。管理者に招待を依頼して再試行してください（自己登録は受け付けていません）	
-Fill in the display name, DMS username and password	请填写显示名、DMS 用户名和密码	กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน	表示名、DMSユーザー名、パスワードを入力してください	
-Could not read the account profile: {0}	读取账号资料失败：{0}	อ่านข้อมูลบัญชีไม่สำเร็จ: {0}	アカウント情報の読み取りに失敗: {0}	
-Both account and password are required	账号和密码都要填	ต้องกรอกทั้งบัญชีและรหัสผ่าน	アカウントとパスワードの両方が必要です	
-The account is disabled	账号已停用	บัญชีถูกปิดใช้งาน	アカウントは無効化されています	
-The account was created but no id came back	账号已建但取不到 id	สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา	アカウントは作成されましたがIDが返りませんでした	
-The details are not confirmed yet, so it cannot be pushed to DMS	资料还没确认，不能推送 DMS	ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้	情報が未確定のためDMSへ送信できません	
-The identity service refused the password change: {0} {1}	身份服务拒绝改密：{0} {1}	บริการตัวตนปฏิเสธการเปลี่ยนรหัสผ่าน: {0} {1}	アイデンティティサービスがパスワード変更を拒否しました: {0} {1}	
-The identity service did not return an id_token	身份服务未返回 id_token	บริการตัวตนไม่ได้ส่ง id_token กลับมา	アイデンティティサービスが id_token を返しませんでした	
-The identity service returned an error: {0}	身份服务返回错误：{0}	บริการตัวตนตอบกลับข้อผิดพลาด: {0}	アイデンティティサービスがエラーを返しました: {0}	
-No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)	还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）	ยังไม่ได้กรอกบัญชีใด ๆ การเชื่อมต่อนี้จึงใช้ไม่ได้ตอนนี้ (ตั้งค่าข้อมูลรับรองแล้วค่อยทดสอบการเชื่อมต่อ)	まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）	
-No DMS connection has been configured yet	还没有配过 DMS 连接	ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS	DMS接続はまだ設定されていません	
-Unconfirmed documents cannot be pushed	还没确认的单据不能推送	เอกสารที่ยังไม่ยืนยันส่งไม่ได้	未確定の伝票は送信できません	
-This document has already been recorded: {0}	这张单已经录过：{0}	เอกสารนี้ถูกบันทึกแล้ว: {0}	この伝票は既に登録済みです: {0}	
-This invoice has already been recorded: {0}	这张票已经录过：{0}	ใบนี้ถูกบันทึกแล้ว: {0}	この請求書は既に登録済みです: {0}	
-For an inbound document the counterparty tax ID cannot be your own	进项的对方税号不能等于自己	สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง	仕入伝票では取引先の税番号を自社と同じにできません	
-Cannot reach the OCR service: {0}	连不上 OCR 服务：{0}	เชื่อมต่อบริการ OCR ไม่ได้: {0}	OCRサービスに接続できません: {0}	
-Cannot reach the identity service of the target environment ({0}): {1} {2}	连不上目标环境的身份服务（{0}）：{1} {2}	เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}	対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}	
-"Connection ""{0}"" is disabled and cannot be used"	连接「{0}」已停用，不能使用	"การเชื่อมต่อ ""{0}"" ถูกปิดใช้งาน ใช้ไม่ได้"	接続「{0}」は無効化されており使えません	
-"Connection ""{0}"" has no account with write access configured, so writes are not possible"	连接「{0}」没有配「有修改权限的账号」，无法做写入操作	"การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าบัญชีที่มีสิทธิ์แก้ไข จึงเขียนข้อมูลไม่ได้"	接続「{0}」に書き込み権限のあるアカウントが未設定のため、書き込みできません	
-"Connection ""{0}"" has no sign-in credentials yet"	连接「{0}」还没有配登录凭据	"การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ"	接続「{0}」はログイン資格情報が未設定です	
-Could not send the invitation email: {0} {1}	邀请邮件发送失败：{0} {1}	ส่งอีเมลเชิญไม่สำเร็จ: {0} {1}	招待メールの送信に失敗: {0} {1}	
-A purchase document needs at least one line	采购单至少要有一行	ใบจัดซื้อต้องมีอย่างน้อยหนึ่งบรรทัด	購買伝票には1行以上の明細が必要です	
-System URL is not filled in	没填系统地址	ยังไม่ได้กรอกที่อยู่ระบบ	システムURLが未入力です	
-No sign-in credentials configured	没配登录凭据	ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報が未設定です	
-Only the config was checked; a real connectivity test waits for the adapter	只检查了配置；真实连通性测试要等适配器实现	ตรวจเฉพาะการตั้งค่า การทดสอบเชื่อมต่อจริงต้องรออะแดปเตอร์	設定のみ確認しました。実際の接続テストはアダプタ実装待ちです	
-Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise	配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通	ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้	設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません	
+Only a company admin can view top-up records	充值记录只有公司管理员能看	บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท	チャージ記録は会社管理者のみ閲覧可
+Charges	扣费	ค่าบริการ	課金
+Time	时间	เวลา	日時
+Product	产品	ผลิตภัณฑ์	製品
+Pages	张数	จำนวนหน้า	枚数
+Amount	金额	จำนวนเงิน	金額
+Balance	余额	ยอดคงเหลือ	残高
+Description	说明	คำอธิบาย	説明
+Reference	单号	เลขที่อ้างอิง	参照番号
+Top-ups	充值	การเติมเงิน	チャージ
+Status	状态	สถานะ	ステータス
+Requested	申请金额	จำนวนที่ขอ	申請額
+Received	实收金额	จำนวนที่รับจริง	受領額
+Payer	付款人	ผู้ชำระเงิน	支払者
+Result	结果	ผลลัพธ์	結果
+File	文件	ไฟล์	ファイル
+Summary	摘要	สรุป	摘要
+Failure Reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由
+Product home: current plan, usage and billing	产品首页，承载当前的订阅套餐、用量与账单	หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ	製品ホーム。現在のプラン、利用量、請求を表示
+Upload receipts and sheets, extract fields, review each item, then push	上传票据与表格、识别字段、逐项核对与推送	อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ	領収書と表をアップロードし、項目を抽出、1件ずつ確認して連携
+Batches and results of every recognition run	每次识别批次的记录与结果	บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ	各認識バッチの記録と結果
+How each push to the external ERP went	推送到外部 ERP 的过程与结果	ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก	外部ERPへの連携過程と結果
+Reconcile documents against the ledger	单据与账套的对账	กระทบยอดเอกสารกับบัญชี	伝票と帳簿の照合
+Customers, suppliers, accounts and other reference data	客户、供应商、科目等基础资料	ข้อมูลพื้นฐาน เช่น ลูกค้า ผู้ขาย ผังบัญชี	顧客、仕入先、勘定科目などの基礎データ
+Count tasks and variance records	盘点任务与差异记录	งานตรวจนับและบันทึกส่วนต่าง	棚卸タスクと差異記録
+A board instance is created only when this is on	启用才创建看板实例，不启用不占资源	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
+Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
+Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
+Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ
+Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
+Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总（保留项，见 ERP 清单）	สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)	受払在庫の集計（維持項目。ERPマニフェスト参照）
+Purchase records, suppliers and purchasing settings	采购记录、供应商与采购设置	บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ	購買記録、仕入先、購買設定
+Sales documents and customer dealings	销售单据与客户往来	เอกสารขายและความสัมพันธ์กับลูกค้า	販売伝票と顧客取引
+Customer master data	客户基础资料	ข้อมูลหลักของลูกค้า	顧客マスタ
+Push to the external ERP; the push log is the only source of status	推送到外部 ERP；状态以推送日志为唯一来源	ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น	外部ERPへ連携。状態は連携ログのみが根拠
+Read the ID card, match it against the DMS customer base, then confirm	读身份证、与 DMS 客户库比对后确认资料	อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล	身分証を読み取り、DMS顧客と照合して確定
+Same ID number means the same customer; avoids duplicate records	证件号相同视为同一客户，避免重复建档	เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ	同一の身分証番号は同一顧客とみなし、重複登録を防ぐ
+The result of each push	每次推送的结果	ผลลัพธ์ของการส่งแต่ละครั้ง	各連携の結果
+Only the owner can manage it	仅责任人可管理	เฉพาะเจ้าของเท่านั้นที่จัดการได้	責任者のみ管理可能
+DMS usage and balance	DMS 侧的用量与余额	การใช้งานและยอดคงเหลือฝั่ง DMS	DMS側の利用量と残高
+Workspace	工作区	พื้นที่ทำงาน	ワークスペース
+Email is required	邮箱不能为空	กรุณากรอกอีเมล	メールアドレスは必須です
+Finalize failed: desktop:home_page={0} is_setup_complete={1}	收尾没成功：desktop:home_page={0} is_setup_complete={1}	ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}	仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
+Deleting the OIDC client failed: {0} {1}	删除 OIDC 客户端失败：{0} {1}	ลบ OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの削除に失敗: {0} {1}
+Looking up the OIDC client failed: {0} {1}	查询 OIDC 客户端失败：{0} {1}	ค้นหา OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの照会に失敗: {0} {1}
+Deleting the account failed: {0} {1}	删除账号失败：{0} {1}	ลบบัญชีไม่สำเร็จ: {0} {1}	アカウントの削除に失敗: {0} {1}
+Created At	创建时间	สร้างเมื่อ	作成日時
+IP	IP	IP	IP
+Identity Session	身份会话	เซสชันตัวตน	アイデンティティセッション
+Last Login At	最近登录	เข้าสู่ระบบล่าสุด	最終ログイン
+Last Seen At	最近活跃	ใช้งานล่าสุด	最終アクセス
+Local Session	本地会话	เซสชันในเครื่อง	ローカルセッション
+Revoked At	吊销时间	เพิกถอนเมื่อ	失効日時
+Deployment	部署	การติดตั้ง	デプロイ
+Invited By	邀请人	ผู้เชิญ	招待者
+Issuer	签发方	ผู้ออก	発行者
+Notes	备注	หมายเหตุ	備考
+Subject	主体	Subject	サブジェクト
+User	用户	ผู้ใช้	ユーザー
+User Agent	浏览器标识	User Agent	ユーザーエージェント
+Name	名称	ชื่อ	名称
+A human-readable name, e.g. MR.ERP DMS	给人看的名字，例如：MR.ERP DMS	ชื่อที่อ่านง่าย เช่น MR.ERP DMS	人が読むための名前（例: MR.ERP DMS）
+Adapter	适配器	อะแดปเตอร์	アダプタ
+Which system is on the other side. Values follow the legacy product (webhook | xero | flowaccount | mrerp | mrerp_dms | express); the new platform only implements mrerp_dms for now — the rest are listed so the contract does not change silently.	对端是什么系统。取值照老产品（webhook | xero | flowaccount | mrerp | mrerp_dms | express）；新平台目前只实现 mrerp_dms，其余列着是为了**不偷偷改契约**	ปลายทางคือระบบใด ค่าอ้างตามผลิตภัณฑ์เดิม (webhook | xero | flowaccount | mrerp | mrerp_dms | express) แพลตฟอร์มใหม่ทำเฉพาะ mrerp_dms ส่วนที่เหลือลิสต์ไว้เพื่อไม่ให้สัญญาเปลี่ยนแบบเงียบ ๆ	接続先のシステム。値は旧製品準拠（webhook | xero | flowaccount | mrerp | mrerp_dms | express）。新プラットフォームは今のところ mrerp_dms のみ実装で、他は契約を黙って変えないために列挙しています。
+Owner Account	归属账号	บัญชีเจ้าของ	所属アカウント
+Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.	这条连接属于谁。**留空 = 本站点的共享连接**（老板配的那条，凭据是有权限的那个账号）；填了 = 某个操作员自己的连接。老产品里每个操作员各有一条自己的 DMS 连接，老板那条当模板	การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ	この接続の持ち主。**空欄＝サイト共有の接続**（権限のあるアカウントでオーナーが設定）、入力あり＝そのオペレーター専用。旧製品では各オペレーターが自分のDMS接続を持ち、オーナーのものが雛形でした。
+Enabled	启用	เปิดใช้งาน	有効
+Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).	停用后不再参与推送（老产品：停用是「同批不误投」的闸）	เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)	無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。
+Default Connection	默认连接	การเชื่อมต่อเริ่มต้น	既定の接続
+Only one default per account + adapter (the legacy product's unique index).	同一账号 + 同一适配器下只能有一条默认（老产品的唯一索引）	บัญชี + อะแดปเตอร์เดียวกันมีค่าเริ่มต้นได้เพียงรายการเดียว (ดัชนีไม่ซ้ำของผลิตภัณฑ์เดิม)	同一アカウント＋同一アダプタで既定は1件のみ（旧製品の一意インデックス）。
+Remote Address	对端地址	ที่อยู่ปลายทาง	接続先アドレス
+System URL	系统地址	ที่อยู่ระบบ	システムURL
+The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.	例如 MR.ERP DMS 的登录地址。老产品对 DMS 这一条是**写死隐藏**的（只有一个实例），我们留成可填，未来换实例不用改代码	ที่อยู่เข้าสู่ระบบ เช่น ของ MR.ERP DMS ผลิตภัณฑ์เดิมเขียนตายและซ่อนไว้สำหรับ DMS (มีอินสแตนซ์เดียว) เราเปิดให้กรอกเพื่อเปลี่ยนอินสแตนซ์ภายหลังโดยไม่ต้องแก้โค้ด	ログインURL（例: MR.ERP DMS）。旧製品はDMSでは固定・非表示でした（インスタンスが1つだけ）。後でインスタンスを替えてもコード変更が不要なよう入力可にしています。
+Sign-in Credentials	登录凭据	ข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報
+Account	账号	บัญชี	アカウント
+Password	密码	รหัสผ่าน	パスワード
+A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.	Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**	ฟิลด์ Password ของ Frappe เข้ารหัสตั้งแต่บันทึกลงฐาน (เทียบเท่า encrypt_str + KMS ของผลิตภัณฑ์เดิม) API ไม่ส่งค่ากลับ	Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
+Account With Write Access	有修改权限的账号	บัญชีที่มีสิทธิ์แก้ไข	書き込み権限のあるアカウント
+The legacy product's own words: this set of credentials is used to connect, look up, create and rewrite; sales people still use their own account to match the commission owner, and the server falls back to the owner's credentials when a customer record has to be rewritten. So business writes go through this set, not the operator's own credentials.	老产品原话：「这组凭据同时用于连接、查重、建档和改写；销售人员仍用自己的账号匹配提成归属，需要改写客户档时由服务端继承老板的这组凭据」。所以业务写入走这一组，不写入操作员自己的凭据	คำพูดของผลิตภัณฑ์เดิม: ข้อมูลรับรองชุดนี้ใช้ทั้งเชื่อมต่อ ตรวจซ้ำ สร้าง และแก้ไข พนักงานขายยังใช้บัญชีของตนเองจับคู่เจ้าของค่าคอม และเซิร์ฟเวอร์จะใช้ข้อมูลรับรองของเจ้าของเมื่อต้องแก้ข้อมูลลูกค้า ดังนั้นการเขียนข้อมูลธุรกิจใช้ชุดนี้ ไม่ใช่ของพนักงาน	旧製品の原文：この資格情報は接続・重複確認・作成・書き換えに使う。営業は自分のアカウントで手数料の帰属を照合し、顧客情報の書き換え時はサーバーがオーナーの資格情報を引き継ぐ。よって業務の書き込みはこのセットを使い、オペレーター自身の資格情報は使いません。
+Admin Account	管理员账号	บัญชีผู้ดูแล	管理者アカウント
+Admin Password	管理员密码	รหัสผ่านผู้ดูแล	管理者パスワード
+Usage	使用情况	การใช้งาน	利用状況
+Auto Push	自动推送	ส่งอัตโนมัติ	自動送信
+The legacy product keeps this off for this connection (the whole path is manual: wizard plus a confirmation dialog).	老产品对这条连接固定为关（这条路 100% 手动：向导 + 确认弹窗）	ผลิตภัณฑ์เดิมปิดตัวนี้สำหรับการเชื่อมต่อนี้ (ขั้นตอนทั้งหมดทำมือ: วิซาร์ด + กล่องยืนยัน)	旧製品ではこの接続では常にオフ（全手動：ウィザード＋確認ダイアログ）。
+Last Used	最近使用	ใช้ล่าสุด	最終使用
+Last Result	最近结果	ผลล่าสุด	最新の結果
+Successes	成功次数	จำนวนสำเร็จ	成功回数
+Failures	失败次数	จำนวนล้มเหลว	失敗回数
+Booking Defaults	建单默认值	ค่าเริ่มต้นการสร้างใบ	起票の既定値
+DMS booking defaults (JSON): model/colour/branch/team/delivery days, plus the **pinned advisor**.\n\nThe advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.	DMS 建单默认值（JSON）：车型/颜色/分店/团队/交车天数，以及**钉死的顾问归属**。\n\n顾问那一栏是销售提成归属，所以：账号能在 DMS 顾问名册里匹配上就自动归属；匹配不上（老板借号、代录员）才用这里的 advisor_id 钉死。钉死优先于一切匹配。	ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**\n\nช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่	DMSの起票既定値（JSON）：車種/色/店舗/チーム/納車日数、および**固定したアドバイザー**。\n\nアドバイザー欄は販売手数料の帰属先です。DMSのアドバイザー名簿に一致すれば自動帰属し、一致しない場合（オーナーの貸与アカウント、入力代行）だけここの advisor_id で固定します。固定はあらゆる照合より優先されます。
+Bind Code	绑定码	รหัสผูก	連携コード
+A one-time short code. The user sends it to this tenant's LINE official account to bind.	一次性短码。用户把它发给本租户的 LINE 官方号即可完成绑定	รหัสสั้นใช้ครั้งเดียว ผู้ใช้ส่งให้บัญชี LINE ทางการของผู้เช่ารายนี้เพื่อผูก	1回限りの短いコード。テナントのLINE公式アカウントに送ると連携が完了します。
+Local Account	本地账号	บัญชีในเครื่อง	ローカルアカウント
+Used	已使用	ใช้แล้ว	使用済み
+Expires At	过期时间	หมดอายุเมื่อ	有効期限
+Used At	使用时间	ใช้เมื่อ	使用日時
+LINE User ID	LINE 用户 ID	LINE User ID	LINEユーザーID
+LINE Display Name	LINE 昵称	ชื่อที่แสดงบน LINE	LINE表示名
+Time	时间	เวลา	日時
+Bound At	绑定时间	ผูกเมื่อ	連携日時
+Unbound At	解绑时间	ยกเลิกผูกเมื่อ	連携解除日時
+Event ID	事件 ID	Event ID	イベントID
+The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.	LINE 平台的 webhookEventId。唯一约束就是幂等：重投的旧事件不会再被处理	webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก	LINEの webhookEventId。一意制約が冪等性の根拠で、再配信された古いイベントは二度処理されません。
+Source	来源	ที่มา	ソース
+Current State	当前状态	สถานะปัจจุบัน	現在の状態
+Session Payload	会话载荷	เพย์โหลดเซสชัน	セッションのペイロード
+Payload	载荷	เพย์โหลด	ペイロード
+The in-flight state of a multi-turn conversation: which question it is on, the choices held so far, and a nonce that stops double taps.\n\n**One row per session** (a LINE user runs only one flow at a time inside one tenant).	多轮对话的中间状态：逐问答到哪了、暂存的选择、以及防重复点击的 nonce。\n\n**一份会话一行**（一个 LINE 用户在一个租户里同时只会走一条流程）。	สถานะระหว่างทางของบทสนทนาหลายรอบ: ตอบถึงข้อไหน ตัวเลือกที่พักไว้ และ nonce กันกดซ้ำ\n\n**หนึ่งแถวต่อหนึ่งเซสชัน** (ผู้ใช้ LINE หนึ่งคนเดินได้ทีละขั้นตอนในหนึ่งผู้เช่า)	多段対話の途中状態：どの質問まで進んだか、保留中の選択、二度押しを防ぐnonce。\n\n**1セッション1行**（1人のLINEユーザーは1テナント内で同時に1つのフローだけ進みます）。
+Result	结果	ผลลัพธ์	結果
+File	文件	ไฟล์	ファイル
+Pages	张数	จำนวนหน้า	枚数
+Billing	计费	การคิดค่าบริการ	課金
+Charges	扣费	ค่าบริการ	課金
+External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
+Summary	摘要	สรุป	摘要
+Connection	连接	การเชื่อมต่อ	接続
+Which connection it went to. Empty = it failed before a connection was chosen.	推到哪条连接。留空 = 还没选到连接就失败了	ส่งไปยังการเชื่อมต่อใด เว้นว่าง = ล้มเหลวก่อนเลือกการเชื่อมต่อ	どの接続へ送ったか。空欄＝接続を選ぶ前に失敗。
+Trigger	触发方式	รูปแบบการทริกเกอร์	トリガー
+The legacy product used trigger to tell business lines apart (e.g. trigger='id_card' for ID card → DMS). We keep a few generic values here (line_mirror = a local sample site records messages that would have gone to LINE; see pearnly_core.line._mirror); the business line itself lives on reference_doctype.	老产品用 trigger 区分业务线（例如 trigger='id_card' 表示身份证→DMS 那条）。这里保留几档通用值（line_mirror = 本机样例站点把本该发往 LINE 的消息记下来，见 pearnly_core.line._mirror），业务线本身记在 reference_doctype 上	ผลิตภัณฑ์เดิมใช้ trigger แยกสายงาน (เช่น trigger='id_card' คือบัตรประชาชน→DMS) ที่นี่เก็บค่าทั่วไปไว้ไม่กี่ค่า (line_mirror = เว็บไซต์ตัวอย่างในเครื่องบันทึกข้อความที่ควรส่งไป LINE ดู pearnly_core.line._mirror) ส่วนสายงานจริงเก็บใน reference_doctype	旧製品は trigger で業務ラインを区別していました（例: trigger='id_card' は身分証→DMS）。ここでは汎用の値をいくつか残し（line_mirror ＝ローカル見本サイトがLINE宛のメッセージを記録、pearnly_core.line._mirror 参照）、業務ライン自体は reference_doctype に持たせます。
+Attempt	第几次尝试	ครั้งที่พยายาม	試行回数
+What Was Pushed	推的是哪一单	ส่งอะไรไป	何を送ったか
+Reference DocType	业务单据类型	DocType ของเอกสารธุรกิจ	業務伝票のDocType
+Reference Name	业务单据	เอกสารธุรกิจ	業務伝票
+Business Key	业务键	คีย์ธุรกิจ	業務キー
+The key the other side uses to detect duplicates (e.g. the DMS customer number, an invoice number). The legacy product's invoice_no / history_id are this kind of thing.	对端用来判重的键（例如 DMS 客户号、发票号）。老产品的 invoice_no / history_id 就是这一类	คีย์ที่ปลายทางใช้ตรวจข้อมูลซ้ำ (เช่น เลขลูกค้า DMS เลขใบกำกับ) invoice_no / history_id ของผลิตภัณฑ์เดิมคือประเภทนี้	相手側が重複判定に使うキー（例: DMS顧客番号、請求書番号）。旧製品の invoice_no / history_id がこれにあたります。
+Transport Result	传输结果	ผลการรับส่ง	転送結果
+HTTP Status	HTTP 状态	สถานะ HTTP	HTTPステータス
+Elapsed (ms)	耗时(ms)	ใช้เวลา (ms)	所要時間(ms)
+Request & Response	请求与响应	คำขอและการตอบกลับ	リクエストと応答
+Request Body	请求内容	เนื้อหาคำขอ	リクエスト内容
+Response Body	响应内容	เนื้อหาการตอบกลับ	レスポンス内容
+Error Message	错误信息	ข้อความข้อผิดพลาด	エラーメッセージ
+Retry & Lease	重试与租约	ลองใหม่และสัญญาเช่า	再試行とリース
+Retry Count	已重试次数	จำนวนครั้งที่ลองใหม่	再試行回数
+Max Retries	最多重试	ลองใหม่สูงสุด	最大再試行
+Next Retry At	下次重试时间	ลองใหม่ครั้งถัดไปเมื่อ	次回再試行日時
+Lease Owner	租约持有者	ผู้ถือสัญญาเช่า	リース保有者
+Who is working on this row right now. The legacy product used a lease to guarantee **each row is pushed only once** (only pending rows hold a lease, and an expired one can be taken over).	谁正在处理这一条。老产品用租约保证**同一条只被推一次**（pending 才有租约，过期可被抢）	ใครกำลังจัดการแถวนี้อยู่ ผลิตภัณฑ์เดิมใช้สัญญาเช่าเพื่อรับประกันว่า**แต่ละแถวถูกส่งเพียงครั้งเดียว** (เฉพาะ pending ที่มีสัญญาเช่า และตัวที่หมดอายุสามารถถูกยึดได้)	今この行を処理している主体。旧製品はリースで**同じ行が1回だけ送られる**ことを保証していました（pendingのみリースを持ち、期限切れは奪取可能）。
+Lease Expires	租约到期	สัญญาเช่าหมดอายุ	リース期限
+What Was Recognised	识别留证	สิ่งที่อ่านได้	認識の記録
+Recognition Raw	识别原始输出	ผลการอ่านดิบ	認識の生データ
+Dedupe Key	去重键	คีย์กันซ้ำ	重複防止キー
+Image Fingerprint	影像指纹	ลายนิ้วมือภาพ	画像フィンガープリント
+Confirmed By	确认人	ยืนยันโดย	確認者
+Confirmed At	确认时间	ยืนยันเมื่อ	確認日時
+Push	推送	การส่ง	送信
+Push Log Reference	推送日志引用	อ้างอิงบันทึกการส่ง	送信ログ参照
+"The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here."	取值照老产品（success | failed | skipped_dup | pending | retrying | manual）。**这是推送状态的唯一来源**：业务表上的 push_status 只是引用位，任何『推成功没有』的判断都要看这里	"ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า ""ส่งสำเร็จหรือยัง"" ต้องดูที่นี่"	値は旧製品準拠（success | failed | skipped_dup | pending | retrying | manual）。**これが送信ステータスの唯一の正**で、業務テーブルの push_status は参照にすぎず、「送れたか」の判断は必ずここを見ます。
+Kept as evidence, not a business field; only the confirmed fields are.	留证用，不是业务字段；确认后的字段才是	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น	証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
+Kept as evidence, not a business field	留证用，不是业务字段	เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ	証跡用で業務フィールドではありません
+Direction	方向	ทิศทาง	方向
+Inbound = invoices received; outbound = invoices issued	进项=收到的票；销项=开出的票	ขาเข้า = ใบที่ได้รับ ขาออก = ใบที่ออกให้	仕入＝受け取った請求書、売上＝発行した請求書
+Doc No	单据号	เลขที่เอกสาร	伝票番号
+Doc Date	单据日期	วันที่เอกสาร	伝票日付
+Counterparty	对方名称	ชื่อคู่ค้า	取引先名
+Counterparty Tax ID	对方税号	เลขผู้เสียภาษีคู่ค้า	取引先の税番号
+Company Tax ID	本方税号	เลขผู้เสียภาษีของบริษัท	自社の税番号
+Net Amount	不含税金额	ยอดก่อนภาษี	税抜金額
+VAT Amount	税额	ภาษีมูลค่าเพิ่ม	税額
+Grand Total	价税合计	ยอดรวม	税込合計
+Currency	币种	สกุลเงิน	通貨
+Expense / Item Category	费用/商品类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
+Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル
+Push Channel	推送渠道	ช่องทางส่ง	送信チャネル
+companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机出站拉取后落库	companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み
+Push Status	推送状态	สถานะการส่ง	送信ステータス
+The truth is in erp_push_logs; this is only a display reference	以 erp_push_logs 为准，这里只做展示引用	ค่าจริงอยู่ที่ erp_push_logs ที่นี่เป็นเพียงการอ้างอิงเพื่อแสดง	真値は erp_push_logs。ここは表示用の参照のみ
+The truth is in erp_push_logs, trigger=id_card	真值在 erp_push_logs，trigger=id_card	ค่าจริงอยู่ที่ erp_push_logs, trigger=id_card	真値は erp_push_logs、trigger=id_card
+Operator	操作人	ผู้ใช้	ユーザー
+ID Number	证件号	เลขบัตร	身分証番号
+Personal data: not shown in lists and never written to logs	个人敏感信息：不在列表显示，不写日志	ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก	個人情報のため一覧に表示せず、ログにも書きません
+Full Name	姓名	ชื่อ-นามสกุล	氏名
+DMS Customer Ref	DMS 客户引用	รหัสอ้างอิงลูกค้า DMS	DMS顧客参照
+Endpoint	连接端点	ปลายทางการเชื่อมต่อ	接続先
+New Customer	本次新建	สร้างใหม่ครั้งนี้	今回新規作成
+Last Verified At	最后核对时间	ตรวจสอบล่าสุดเมื่อ	最終確認日時
+DMS Customer No	DMS 客户号	เลขลูกค้า DMS	DMS顧客番号
+Which customer is being changed.	要改的是哪个客户。	จะแก้ลูกค้ารายใด	どの顧客を変更するか。
+Customer Name	客户名	ชื่อลูกค้า	顧客名
+DMS Connection	DMS 连接	การเชื่อมต่อ DMS	DMS接続
+Assign To	指定审批人	มอบหมายให้	承認者の指定
+Empty = sent to all admins (whoever sees it first approves).	留空 = 发给所有管理员（谁先看到谁批）。	เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)	空欄＝全管理者に送信（先に見た人が承認）。
+Claimed By	认领人	ผู้รับเรื่อง	担当者
+The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).	点批准的那个人（认领时刻写下；写失败回炉时会清掉）。	คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)	承認を押した人（担当時に記録。書き込みに失敗して戻す場合はクリア）。
+Handled At	处理时间	จัดการเมื่อ	処理日時
+Processing Started At	开始执行时间	เริ่มดำเนินการเมื่อ	実行開始日時
+Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).	执行租约：超过租约时长没结果，视同回到待批（执行方崩溃自愈）。	สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)	実行リース：リース時間を過ぎても結果がなければ保留に戻ります（実行側のクラッシュから自動復帰）。
+Requested By	申请人	ผู้ขอ	申請者
+Who raised this (the salesperson). Execution uses the **approver's** own credentials; this only records the origin.	谁提的这单（销售本人）。执行时用的是**批准人**自己的凭据，这里只记来源。	ใครเป็นผู้เสนอ (ตัวพนักงานขาย) ตอนดำเนินการใช้ข้อมูลรับรองของ**ผู้อนุมัติ**เอง ที่นี่บันทึกแค่ที่มา	誰が起案したか（営業本人）。実行時は**承認者自身**の資格情報を使い、ここは由来の記録だけです。
+Request Snapshot	申请内容快照	สแนปช็อตคำขอ	申請内容のスナップショット
+Field Diffs	逐字段差异	ส่วนต่างรายฟิลด์	項目ごとの差分
+`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.	`[{field,label,old,new}]`：批准时照这个改，不再依赖会话。	`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก	`[{field,label,old,new}]`：承認時はこれに従って変更し、セッションに依存しません。
+Customer Snapshot	客户档快照	สแนปช็อตข้อมูลลูกค้า	顧客情報のスナップショット
+The customer snapshot used to refill the form when approval executes.	批准执行时回填表单用的客户资料快照。	สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ	承認実行時にフォームへ戻すための顧客情報スナップショット。
+Customer Match	客户匹配	จับคู่ลูกค้า	顧客照合
+DMS Endpoint	DMS 端点	ปลายทาง DMS	DMSエンドポイント
+ID Details	证件资料	ข้อมูลบัตร	身分証情報
+Birth Date	出生日期	วันเกิด	生年月日
+Address	地址	ที่อยู่	住所
+Gender	性别	เพศ	性別
+ID Image	证件影像	ภาพบัตร	身分証画像
+Display Name	显示名	ชื่อที่แสดง	表示名
+The name the owner uses to tell people apart on this table, e.g. Ming (sales).	老板在这张表里认人用的名字，例如：阿明（销售）	ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)	オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
+The account created for this operator on this site. **LINE only**: it is not used for web sign-in and needs no password.	本站点为该操作员建的账号。**只走 LINE**：它不用于网页登录，也不需要密码。	บัญชีที่สร้างให้ผู้ปฏิบัติงานรายนี้บนเว็บไซต์นี้ **ใช้เฉพาะ LINE**: ไม่ใช้เข้าสู่ระบบเว็บและไม่ต้องมีรหัสผ่าน	このサイトでこのオペレーター用に作るアカウント。**LINE専用**：Webログインには使わず、パスワードも不要です。
+Role	角色	บทบาท	ロール
+sales=salesperson, admin=administrator (the legacy product's two roles, no third one)	sales=销售，admin=管理员（老产品的两种角色，没有第三种）	sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)	sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
+Once disabled its DMS pushes stop and the LINE binding is released	停用后其 DMS 推送停止并解除 LINE 绑定	เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE	無効にするとDMSへの送信が止まり、LINE連携も解除されます
+This Operator's Own DMS Credentials	该操作员自己的 DMS 账密	บัญชี DMS ของผู้ปฏิบัติงานรายนี้	このオペレーター自身のDMS資格情報
+DMS Username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名
+DMS Password	DMS 密码	รหัสผ่าน DMS	DMSパスワード
+Sales Commission Owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属
+Empty = matched automatically from the DMS account (the legacy product's default).	留空 = 按 DMS 账号自动匹配（老产品的默认行为）	เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)	空欄＝DMSアカウントから自動照合（旧製品の既定動作）。
+DMS Advisor ID	DMS 顾问 ID	DMS Advisor ID	DMSアドバイザーID
+DMS Advisor Name	DMS 顾问名称	ชื่อที่ปรึกษา DMS	DMSアドバイザー名
+The name is resolved server-side when pinning; the client's value is not trusted	名字在钉的时候由服务端解出，不信客户端传来的值	ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา	名前は固定時にサーバー側で解決します。クライアントの値は信用しません
+Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE	LINEでの照会機能を許可
+Document Type	单据类型	ประเภทเอกสาร	伝票種別
+Supplier	供应商	ผู้ขาย	仕入先
+Supplier Tax ID	供应商税号	เลขผู้เสียภาษีผู้ขาย	仕入先の税番号
+External Doc No	外部单据号	เลขเอกสารภายนอก	外部伝票番号
+The document number the supplier issued; it must be kept as-is	供应商开的单据号，必须原样保留	เลขเอกสารที่ผู้ขายออก ต้องเก็บตามต้นฉบับ	仕入先が発行した伝票番号。そのまま保持する必要があります
+Due Date	到期日	วันครบกำหนด	支払期日
+FX Rate	汇率	อัตราแลกเปลี่ยน	為替レート
+VAT Included	含增值税	รวมภาษีมูลค่าเพิ่ม	税込
+Subtotal	小计	ยอดรวมย่อย	小計
+Order Discount	整单折扣	ส่วนลดทั้งใบ	伝票全体の値引
+VAT	增值税	ภาษีมูลค่าเพิ่ม	消費税
+Withholding Tax	预扣税	ภาษีหัก ณ ที่จ่าย	源泉税
+Rounding	尾差	ส่วนต่างปัดเศษ	端数調整
+Net Payable	应付净额	ยอดสุทธิที่ต้องจ่าย	支払純額
+Approval	审批	การอนุมัติ	承認
+Flow Status	流程状态	สถานะขั้นตอน	進行ステータス
+Payment Status	付款状态	สถานะการชำระ	支払状況
+Paid Amount	已付金额	จำนวนที่จ่ายแล้ว	支払済金額
+External IDs & Dedupe	外部标识与去重	รหัสภายนอกและการกันซ้ำ	外部IDと重複排除
+External System Reference	外部系统引用	รหัสอ้างอิงระบบภายนอก	外部システム参照
+The test for a duplicate upload of the same document	同一张票重复上传时的判据	เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ	同じ伝票を二重アップロードしたときの判定基準
+Line No	行号	ลำดับบรรทัด	行番号
+Type	类型	ประเภท	種別
+Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
+Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+The legacy system's product identifier; it becomes a link once product master data lands	旧系统的商品标识；商品主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+Qty	数量	จำนวน	数量
+Unit	单位	หน่วย	単位
+Unit Price	单价	ราคาต่อหน่วย	単価
+Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
+VAT Rate %	税率%	อัตราภาษี %	税率%
+Line Amount	行金额	จำนวนเงินบรรทัด	行金額
+The ID token issuer is not the identity service configured for this site	ID token 的签发方不是本站点配置的身份服务	ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้	IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
+The ID token has no sub	ID token 缺少 sub	ID token ไม่มี sub	IDトークンに sub がありません
+The OCR service returned HTTP {0}: {1}	OCR 服务返回 HTTP {0}：{1}	บริการ OCR ตอบกลับ HTTP {0}: {1}	OCRサービスが HTTP {0} を返しました: {1}
+Both issuer and subject are required	issuer 与 subject 都是必填	ต้องระบุทั้ง issuer และ subject	issuer と subject はどちらも必須です
+nonce mismatch	nonce 不匹配	nonce ไม่ตรงกัน	nonce が一致しません
+state is invalid or has expired	state 无效或已过期	state ไม่ถูกต้องหรือหมดอายุ	state が無効か期限切れです
+All three fields are required	三项都要填	ต้องกรอกทั้งสามช่อง	3項目とも入力が必要です
+The two new passwords do not match	两次输入的新密码不一致	รหัสผ่านใหม่ที่กรอกสองครั้งไม่ตรงกัน	新しいパスワードが2回で一致しません
+A disabled operator cannot issue a bind code; enable them first	停用的操作员不能发绑定码，先启用	ผู้ปฏิบัติงานที่ปิดอยู่ ออกรหัสผูกไม่ได้ ต้องเปิดใช้งานก่อน	無効化中のオペレーターは連携コードを発行できません。先に有効化してください
+Could not create the OIDC client: {0} {1}	创建 OIDC 客户端失败：{0} {1}	สร้าง OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの作成に失敗: {0} {1}
+No existing customer matched and no DMS customer reference was given: confirm manually first	匹配不到已有客户，且没有给出 DMS 客户引用：请先人工确认	ไม่พบลูกค้าที่มีอยู่และไม่ได้ระบุรหัสลูกค้า DMS: กรุณายืนยันด้วยคนก่อน	既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
+Match result must be unmatched / existing customer / new customer	匹配结果只能是 未匹配/已有客户/新建客户	ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่	照合結果は 不一致／既存顧客／新規顧客 のいずれかです
+Could not read the client secret: {0} {1}	取客户端密钥失败：{0} {1}	อ่าน client secret ไม่สำเร็จ: {0} {1}	クライアントシークレットの取得に失敗: {0} {1}
+Could not get the admin token	取管理令牌失败	ขอโทเคนผู้ดูแลไม่สำเร็จ	管理者トークンの取得に失敗しました
+Could not get the admin token: {0}	取管理令牌失败：{0}	ขอโทเคนผู้ดูแลไม่สำเร็จ: {0}	管理者トークンの取得に失敗: {0}
+Only confirmed documents can be queued for push	只有已确认的单据才能排队推送	เฉพาะเอกสารที่ยืนยันแล้วเท่านั้นที่เข้าคิวส่งได้	確定済みの伝票だけが送信キューに入れられます
+Only an admin can manage the operator roster	只有管理员能管操作员花名册	เฉพาะผู้ดูแลเท่านั้นที่จัดการทะเบียนพนักงานได้	オペレーター名簿を管理できるのは管理者だけです
+Only an admin can configure DMS connections	只有管理员能配置 DMS 连接	เฉพาะผู้ดูแลเท่านั้นที่ตั้งค่าการเชื่อมต่อ DMS ได้	DMS接続を設定できるのは管理者だけです
+"Account ""{0}"" already has a default connection ({1}); clear that one's default first"	同一账号下「{0}」已经有一条默认连接（{1}），请先取消它的默认	"บัญชี ""{0}"" มีการเชื่อมต่อเริ่มต้นอยู่แล้ว ({1}) กรุณายกเลิกค่าเริ่มต้นของอันนั้นก่อน"	同一アカウントで「{0}」に既定の接続が既にあります（{1}）。先にそちらの既定を解除してください
+Could not create the account in the target environment: {0} {1}	在目标环境建账号失败：{0} {1}	สร้างบัญชีในสภาพแวดล้อมเป้าหมายไม่สำเร็จ: {0} {1}	対象環境でのアカウント作成に失敗: {0} {1}
+Client ID is required	客户端 ID 不能为空	ต้องระบุ Client ID	クライアントIDは必須です
+Could not create the account: {0} {1}	建账号失败：{0} {1}	สร้างบัญชีไม่สำเร็จ: {0} {1}	アカウントの作成に失敗: {0} {1}
+The current password is wrong	当前密码不正确	รหัสผ่านปัจจุบันไม่ถูกต้อง	現在のパスワードが正しくありません
+Cannot match while the status is {0}	当前状态 {0} 不能做匹配	จับคู่ไม่ได้ในสถานะ {0}	ステータス {0} では照合できません
+Cannot confirm while the status is {0}	当前状态 {0} 不能确认	ยืนยันไม่ได้ในสถานะ {0}	ステータス {0} では確定できません
+This account has no identity binding, so it cannot change its own password; contact an admin	当前账号没有登记身份绑定，无法自助改密，请联系管理员	บัญชีนี้ยังไม่ได้ผูกตัวตน จึงเปลี่ยนรหัสผ่านเองไม่ได้ กรุณาติดต่อผู้ดูแล	このアカウントはアイデンティティ連携が未登録のため、自分でパスワード変更できません。管理者にご連絡ください
+Customer matching must be done before confirming	必须先完成客户匹配才能确认	ต้องจับคู่ลูกค้าให้เสร็จก่อนจึงจะยืนยันได้	確定する前に顧客照合を完了してください
+Customer matching is required before confirming	确认前必须完成客户匹配	ต้องจับคู่ลูกค้าก่อนยืนยัน	確定の前に顧客照合が必要です
+A DMS customer reference is required; otherwise this link means nothing	必须有 DMS 客户引用，否则这条对照没有意义	ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย	DMS顧客参照が必要です。なければこの紐付けは意味を持ちません
+Claiming a push job requires a connection	抢推送任务必须指定连接	การรับงานส่งต้องระบุการเชื่อมต่อ	送信ジョブの取得には接続の指定が必要です
+Could not look the account up by email: {0}	按邮箱查账号失败：{0}	ค้นหาบัญชีด้วยอีเมลไม่สำเร็จ: {0}	メールでアカウントを照会できませんでした: {0}
+Could not exchange the token: {0}	换取令牌失败：{0}	แลกโทเคนไม่สำเร็จ: {0}	トークンの交換に失敗: {0}
+Invalid push channel	推送渠道不合法	ช่องทางส่งไม่ถูกต้อง	送信チャネルが不正です
+The push channel must be companion or cloud	推送渠道只能是 companion 或 cloud	ช่องทางส่งต้องเป็น companion หรือ cloud	送信チャネルは companion または cloud のみです
+Push status must be one of {0}	推送状态只能是 {0}	สถานะการส่งต้องเป็นหนึ่งใน {0}	送信ステータスは {0} のいずれかです
+The new password cannot be the same as the current one	新密码不能与当前密码相同	รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน	新しいパスワードは現在のものと同じにできません
+The new password is required	新密码不能为空	ต้องระบุรหัสผ่านใหม่	新しいパスワードは必須です
+A new record can only start as draft or recognized	新记录只能从 draft 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก draft หรือ recognized เท่านั้น	新規レコードは draft または recognized からしか開始できません
+A new record can only start as uploaded or recognized	新记录只能从 uploaded 或 recognized 开始	ระเบียนใหม่เริ่มได้จาก uploaded หรือ recognized เท่านั้น	新規レコードは uploaded または recognized からしか開始できません
+Direction must be inbound or outbound	方向只能是进项或销项	ทิศทางต้องเป็นขาเข้าหรือขาออก	方向は仕入または売上のみです
+Could not update the OIDC client: {0} {1}	更新 OIDC 客户端失败：{0} {1}	อัปเดต OIDC client ไม่สำเร็จ: {0} {1}	OIDCクライアントの更新に失敗: {0} {1}
+The service account could not exchange its token: {0}	服务账号换令牌失败：{0}	บัญชีบริการแลกโทเคนไม่สำเร็จ: {0}	サービスアカウントのトークン交換に失敗: {0}
+No such local account: {0}	本地账号不存在：{0}	ไม่มีบัญชีในเครื่องนี้: {0}	ローカルアカウントがありません: {0}
+This site has more than one product manifest installed: {0}. One deployment can host only one product.	本站点同时装了多个产品清单：{0}。一个部署只能承载一个产品	เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว	このサイトには複数の製品マニフェストが入っています: {0}。1つのデプロイは1製品のみです。
+This site has no product manifest installed; it cannot run as a business site.	本站点没有安装任何产品清单，不能作为业务站点运行	เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงรันเป็นเว็บไซต์ธุรกิจไม่ได้	このサイトには製品マニフェストが入っていないため、業務サイトとして動作できません。
+This site has no LINE access token configured, so it cannot send messages	本站点没有配 LINE access token，发不出消息	เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้	このサイトはLINEアクセストークン未設定のため、メッセージを送信できません
+Could not look up the account: {0} {1}	查账号失败：{0} {1}	ค้นหาบัญชีไม่สำเร็จ: {0} {1}	アカウントの照会に失敗: {0} {1}
+The FX rate must be greater than 0	汇率必须大于 0	อัตราแลกเปลี่ยนต้องมากกว่า 0	為替レートは0より大きい必要があります
+There is no DMS customer reference, so it cannot be pushed	没有 DMS 客户引用，不能推送	ไม่มีรหัสอ้างอิงลูกค้า DMS จึงส่งไม่ได้	DMS顧客参照がないため送信できません
+No provisioning target is available; configure one under “Provisioning Target” first	没有可用的开户目标，请先在“开户目标”里配一个	"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"	利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
+No OCR key configured (site config pearnly_ocr_api_key)	没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）	ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)	OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
+No client ID for invitation links is configured, so the invitation email cannot be sent	没有配「邀请链接用的客户端 ID」，发不出邀请邮件	ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงส่งอีเมลเชิญไม่ได้	招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
+No service account configured (site config pearnly_ocr_credentials)	没有配服务账号（站点配置 pearnly_ocr_credentials）	ยังไม่ได้ตั้งค่าบัญชีบริการ (ค่าตั้งเว็บไซต์ pearnly_ocr_credentials)	サービスアカウントが未設定です（サイト設定 pearnly_ocr_credentials）
+Status cannot go backwards: {0} → {1}	状态不能回退：{0} → {1}	สถานะถอยกลับไม่ได้: {0} → {1}	ステータスを戻すことはできません: {0} → {1}
+Status must be active or inactive	状态只能是 active 或 inactive	สถานะต้องเป็น active หรือ inactive	ステータスは active または inactive のみです
+Could not generate a bind code; please try again	生成绑定码失败，请重试	สร้างรหัสผูกไม่สำเร็จ กรุณาลองใหม่	連携コードの生成に失敗しました。もう一度お試しください
+The target environment is incomplete: URL, realm, client ID and secret are all required	目标环境配置不完整：地址、realm、客户端 ID 与密钥都要填	การตั้งค่าสภาพแวดล้อมเป้าหมายไม่ครบ: ต้องกรอกที่อยู่, realm, Client ID และ Secret	対象環境の設定が不完全です。URL、realm、クライアントID、シークレットのすべてが必要です
+A DMS customer reference is required before confirming or pushing	确认或推送前必须有 DMS 客户引用	ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง	DMS顧客参照は確定または送信の前に必要です
+Site config is missing {0}	站点配置缺少 {0}	ค่าตั้งเว็บไซต์ขาด {0}	サイト設定に {0} がありません
+Site config is missing {0}_admin_client_id / _secret	站点配置缺少 {0}_admin_client_id / _secret	ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret	サイト設定に {0}_admin_client_id / _secret がありません
+Site config is missing {0}_issuer	站点配置缺少 {0}_issuer	ค่าตั้งเว็บไซต์ขาด {0}_issuer	サイト設定に {0}_issuer がありません
+Row {0}: unit price cannot be negative	第 {0} 行单价不能为负	บรรทัด {0}: ราคาต่อหน่วยติดลบไม่ได้	{0} 行目: 単価はマイナスにできません
+Row {0}: quantity must be greater than 0	第 {0} 行数量必须大于 0	บรรทัด {0}: จำนวนต้องมากกว่า 0	{0} 行目: 数量は0より大きい必要があります
+Binding needs a LINE user and a local account	绑定需要 LINE 用户与本地账号	การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง	連携にはLINEユーザーとローカルアカウントが必要です
+endpoint is missing (which connection to test)	缺 endpoint（要测哪条连接）	ขาด endpoint (จะทดสอบการเชื่อมต่อใด)	endpoint がありません（どの接続をテストするか）
+Missing code or state	缺少 code 或 state	ขาด code หรือ state	code または state がありません
+google-auth is missing (the image should have it): {0}	缺少 google-auth（镜像里应已安装）：{0}	ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}	google-auth がありません（イメージには入っているはず）: {0}
+Provide at least one line item	至少给一行明细	ต้องมีรายการอย่างน้อยหนึ่งบรรทัด	明細を1行以上入力してください
+Role must be sales or admin	角色只能是 sales（销售）或 admin（管理员）	บทบาทต้องเป็น sales หรือ admin	ロールは sales（営業）または admin（管理者）のみです
+Could not set the password: {0} {1}	设置密码失败：{0} {1}	ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}	パスワードの設定に失敗: {0} {1}
+ID number is required	证件号必填	ต้องระบุเลขบัตร	身分証番号は必須です
+This identity is already bound to {0}	该身份已绑定到 {0}	ตัวตนนี้ผูกกับ {0} แล้ว	このアイデンティティは既に {0} に紐づいています
+This identity is already bound to account {0} (record {1})	该身份已绑定到账号 {0}（记录 {1}）	ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})	このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
+This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up)	该身份未在本站点登记，请联系管理员邀请后重试（本站不接受自助注册）	ตัวตนนี้ยังไม่ลงทะเบียนบนเว็บไซต์นี้ กรุณาให้ผู้ดูแลเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่รับสมัครเอง)	このアイデンティティはこのサイトに未登録です。管理者に招待を依頼して再試行してください（自己登録は受け付けていません）
+Fill in the display name, DMS username and password	请填写显示名、DMS 用户名和密码	กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน	表示名、DMSユーザー名、パスワードを入力してください
+Could not read the account profile: {0}	读取账号资料失败：{0}	อ่านข้อมูลบัญชีไม่สำเร็จ: {0}	アカウント情報の読み取りに失敗: {0}
+Both account and password are required	账号和密码都要填	ต้องกรอกทั้งบัญชีและรหัสผ่าน	アカウントとパスワードの両方が必要です
+The account is disabled	账号已停用	บัญชีถูกปิดใช้งาน	アカウントは無効化されています
+The account was created but no id came back	账号已建但取不到 id	สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา	アカウントは作成されましたがIDが返りませんでした
+The details are not confirmed yet, so it cannot be pushed to DMS	资料还没确认，不能推送 DMS	ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้	情報が未確定のためDMSへ送信できません
+The identity service refused the password change: {0} {1}	身份服务拒绝改密：{0} {1}	บริการตัวตนปฏิเสธการเปลี่ยนรหัสผ่าน: {0} {1}	アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
+The identity service did not return an id_token	身份服务未返回 id_token	บริการตัวตนไม่ได้ส่ง id_token กลับมา	アイデンティティサービスが id_token を返しませんでした
+The identity service returned an error: {0}	身份服务返回错误：{0}	บริการตัวตนตอบกลับข้อผิดพลาด: {0}	アイデンティティサービスがエラーを返しました: {0}
+No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)	还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）	ยังไม่ได้กรอกบัญชีใด ๆ การเชื่อมต่อนี้จึงใช้ไม่ได้ตอนนี้ (ตั้งค่าข้อมูลรับรองแล้วค่อยทดสอบการเชื่อมต่อ)	まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
+No DMS connection has been configured yet	还没有配过 DMS 连接	ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS	DMS接続はまだ設定されていません
+Unconfirmed documents cannot be pushed	还没确认的单据不能推送	เอกสารที่ยังไม่ยืนยันส่งไม่ได้	未確定の伝票は送信できません
+This document has already been recorded: {0}	这张单已经录过：{0}	เอกสารนี้ถูกบันทึกแล้ว: {0}	この伝票は既に登録済みです: {0}
+This invoice has already been recorded: {0}	这张票已经录过：{0}	ใบนี้ถูกบันทึกแล้ว: {0}	この請求書は既に登録済みです: {0}
+For an inbound document the counterparty tax ID cannot be your own	进项的对方税号不能等于自己	สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง	仕入伝票では取引先の税番号を自社と同じにできません
+Cannot reach the OCR service: {0}	连不上 OCR 服务：{0}	เชื่อมต่อบริการ OCR ไม่ได้: {0}	OCRサービスに接続できません: {0}
+Cannot reach the identity service of the target environment ({0}): {1} {2}	连不上目标环境的身份服务（{0}）：{1} {2}	เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}	対象環境のアイデンティティサービスに接続できません（{0}）: {1} {2}
+"Connection ""{0}"" is disabled and cannot be used"	连接「{0}」已停用，不能使用	"การเชื่อมต่อ ""{0}"" ถูกปิดใช้งาน ใช้ไม่ได้"	接続「{0}」は無効化されており使えません
+"Connection ""{0}"" has no account with write access configured, so writes are not possible"	连接「{0}」没有配「有修改权限的账号」，无法做写入操作	"การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าบัญชีที่มีสิทธิ์แก้ไข จึงเขียนข้อมูลไม่ได้"	接続「{0}」に書き込み権限のあるアカウントが未設定のため、書き込みできません
+"Connection ""{0}"" has no sign-in credentials yet"	连接「{0}」还没有配登录凭据	"การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ"	接続「{0}」はログイン資格情報が未設定です
+Could not send the invitation email: {0} {1}	邀请邮件发送失败：{0} {1}	ส่งอีเมลเชิญไม่สำเร็จ: {0} {1}	招待メールの送信に失敗: {0} {1}
+A purchase document needs at least one line	采购单至少要有一行	ใบจัดซื้อต้องมีอย่างน้อยหนึ่งบรรทัด	購買伝票には1行以上の明細が必要です
+System URL is not filled in	没填系统地址	ยังไม่ได้กรอกที่อยู่ระบบ	システムURLが未入力です
+No sign-in credentials configured	没配登录凭据	ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ	ログイン資格情報が未設定です
+Only the config was checked; a real connectivity test waits for the adapter	只检查了配置；真实连通性测试要等适配器实现	ตรวจเฉพาะการตั้งค่า การทดสอบเชื่อมต่อจริงต้องรออะแดปเตอร์	設定のみ確認しました。実際の接続テストはアダプタ実装待ちです
+Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise	配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通	ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้	設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
 Billing is unavailable. Please contact support.	计费服务暂不可用，请联系客服。	ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน	課金サービスを利用できません。サポートにお問い合わせください。	Billing is not configured on this site (pearnly_billing_*)
-Cannot reach the billing service: {0}	连不上计费底座：{0}	เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}	課金基盤に接続できません: {0}	
-The billing service returned HTTP {0}	计费底座返回 HTTP {0}	ระบบเรียกเก็บเงินตอบกลับ HTTP {0}	課金基盤が HTTP {0} を返しました	
-{0}: missing field {1}	{0}: 缺少字段 {1}	{0}: ขาดฟิลด์ {1}	{0}: フィールド {1} がありません	
-{0}: {1} cannot be empty	{0}: {1} 不能为空	{0}: {1} ต้องไม่ว่าง	{0}: {1} は空にできません	
-{0}: the manifest requires {1}, but this site does not have it	{0}: 清单要求安装 {1}，但本站点没装	{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง	{0}: マニフェストは {1} を要求していますが、このサイトには入っていません	
-{0}: entry prefixes must start with /: {1}	{0}: 入口前缀必须以 / 开头：{1}	{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}	{0}: エントリ接頭辞は / で始まる必要があります: {1}	
-The control plane is not affected	控制面不受影响	คอนโทรลเพลนไม่ได้รับผลกระทบ	コントロールプレーンは影響を受けません	
-This site has no product workspace yet	本站点还没有产品工作区	เว็บไซต์นี้ยังไม่มีพื้นที่ทำงานของผลิตภัณฑ์	このサイトにはまだ製品ワークスペースがありません	
-Site config pearnly_ocr_credentials must point at an existing service-account JSON	站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON	ค่าตั้งเว็บไซต์ pearnly_ocr_credentials ต้องชี้ไปที่ไฟล์ JSON ของบัญชีบริการที่มีอยู่จริง	サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります	
-Could not take the lock (Redis down?): {0}	取锁失败（Redis 不通？）：{0}	ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}	ロックを取得できません（Redis不通？）: {0}	
-The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)	锁还剩 {0}s（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）	ล็อกยังเหลือ {0} วินาที (ดูเหมือนล็อกค้างจากโปรเซสที่ถูกฆ่า ถ้าไม่มีใครรันอยู่ ลบ key นี้ได้)	ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）	
-Cannot read the remaining time	拿不到剩余时间	อ่านเวลาที่เหลือไม่ได้	残り時間を取得できません	
-Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}	等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}	รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}	{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}	
-Local sample site: not sent to LINE, the raw text is only recorded	本机样例站点：未发往 LINE，仅记录原文	เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ	ローカル見本サイト：LINEへは送信せず、原文のみ記録	
-Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}	
-system_url is required	system_url 必填	ต้องระบุ system_url	system_url は必須です	
-username / password are required	username / password 必填	ต้องระบุ username / password	username / password は必須です	
-Endpoint {0} uses adapter {1}, not mrerp_dms	端点 {0} 的适配器是 {1}，不是 mrerp_dms	ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms	端点 {0} のアダプタは {1} で、mrerp_dms ではありません	
-Endpoint {0} is disabled	端点 {0} 已停用	ปลายทาง {0} ถูกปิดใช้งาน	端点 {0} は無効です	
-Endpoint {0} has no password configured	端点 {0} 没配密码	ปลายทาง {0} ยังไม่ได้ตั้งรหัสผ่าน	端点 {0} にパスワードが設定されていません	
-DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · 可能页面加载太慢或被拦了）	การเข้าสู่ระบบ DMS ไม่จบ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）	
-The DMS account is not approved to use the system	DMS 账号未被批准使用系统	บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ	DMSアカウントはシステム利用が承認されていません	
-The DMS account is marked as resigned	DMS 账号已标记为离职	บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว	DMSアカウントは退職として記録されています	
-DMS refused the sign-in: {0}	DMS 拒绝了登录：{0}	DMS ปฏิเสธการเข้าสู่ระบบ: {0}	DMSがログインを拒否しました: {0}	
-An admin session was requested but no admin credentials are configured	没配 admin 凭据却要求 admin 会话	ขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin	adminセッションが要求されましたが、admin資格情報が未設定です	
-The admin session must be requested inside a `with` block	admin 会话必须在 `with` 块里请求	ต้องขอเซสชัน admin ภายในบล็อก `with`	adminセッションは `with` ブロック内で要求する必要があります	
-DMS admin credentials failed to sign in: {0}	DMS 管理员凭据登录失败：{0}	เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}	DMS管理者の資格情報でログインできません: {0}	
-The balance could not be read	余额查不出来	อ่านยอดคงเหลือไม่ได้	残高を読み取れません	
+Cannot reach the billing service: {0}	连不上计费底座：{0}	เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}	課金基盤に接続できません: {0}
+The billing service returned HTTP {0}	计费底座返回 HTTP {0}	ระบบเรียกเก็บเงินตอบกลับ HTTP {0}	課金基盤が HTTP {0} を返しました
+{0}: missing field {1}	{0}: 缺少字段 {1}	{0}: ขาดฟิลด์ {1}	{0}: フィールド {1} がありません
+{0}: {1} cannot be empty	{0}: {1} 不能为空	{0}: {1} ต้องไม่ว่าง	{0}: {1} は空にできません
+{0}: the manifest requires {1}, but this site does not have it	{0}: 清单要求安装 {1}，但本站点没装	{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง	{0}: マニフェストは {1} を要求していますが、このサイトには入っていません
+{0}: entry prefixes must start with /: {1}	{0}: 入口前缀必须以 / 开头：{1}	{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}	{0}: エントリ接頭辞は / で始まる必要があります: {1}
+The control plane is not affected	控制面不受影响	คอนโทรลเพลนไม่ได้รับผลกระทบ	コントロールプレーンは影響を受けません
+This site has no product workspace yet	本站点还没有产品工作区	เว็บไซต์นี้ยังไม่มีพื้นที่ทำงานของผลิตภัณฑ์	このサイトにはまだ製品ワークスペースがありません
+Site config pearnly_ocr_credentials must point at an existing service-account JSON	站点配置 pearnly_ocr_credentials 要指向一个存在的服务账号 JSON	ค่าตั้งเว็บไซต์ pearnly_ocr_credentials ต้องชี้ไปที่ไฟล์ JSON ของบัญชีบริการที่มีอยู่จริง	サイト設定 pearnly_ocr_credentials は実在するサービスアカウントJSONを指す必要があります
+Could not take the lock (Redis down?): {0}	取锁失败（Redis 不通？）：{0}	ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}	ロックを取得できません（Redis不通？）: {0}
+The lock still has {0}s left (looks like a deadlock left by a killed process; if nobody is running, the key can be deleted)	锁还剩 {0}s（像是上一个进程被杀留下的死锁；确认没人跑的话可以删掉这个 key）	ล็อกยังเหลือ {0} วินาที (ดูเหมือนล็อกค้างจากโปรเซสที่ถูกฆ่า ถ้าไม่มีใครรันอยู่ ลบ key นี้ได้)	ロックは残り {0} 秒（プロセスが強制終了された際のデッドロックと思われます。誰も実行していなければこのkeyを削除できます）
+Cannot read the remaining time	拿不到剩余时间	อ่านเวลาที่เหลือไม่ได้	残り時間を取得できません
+Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}	等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}	รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}	{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
+Local sample site: not sent to LINE, the raw text is only recorded	本机样例站点：未发往 LINE，仅记录原文	เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ	ローカル見本サイト：LINEへは送信せず、原文のみ記録
+Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}
+system_url is required	system_url 必填	ต้องระบุ system_url	system_url は必須です
+username / password are required	username / password 必填	ต้องระบุ username / password	username / password は必須です
+Endpoint {0} uses adapter {1}, not mrerp_dms	端点 {0} 的适配器是 {1}，不是 mrerp_dms	ปลายทาง {0} ใช้อะแดปเตอร์ {1} ไม่ใช่ mrerp_dms	端点 {0} のアダプタは {1} で、mrerp_dms ではありません
+Endpoint {0} is disabled	端点 {0} 已停用	ปลายทาง {0} ถูกปิดใช้งาน	端点 {0} は無効です
+Endpoint {0} has no password configured	端点 {0} 没配密码	ปลายทาง {0} ยังไม่ได้ตั้งรหัสผ่าน	端点 {0} にパスワードが設定されていません
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试后既没有成功的 checklogin 响应，也没有跳转 · 可能页面加载太慢或被拦了）	การเข้าสู่ระบบ DMS ไม่จบ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMSログインが完了しませんでした（再試行後も成功した checklogin 応答もリダイレクトもなし。ページが遅いか遮断された可能性）
+The DMS account is not approved to use the system	DMS 账号未被批准使用系统	บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ	DMSアカウントはシステム利用が承認されていません
+The DMS account is marked as resigned	DMS 账号已标记为离职	บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว	DMSアカウントは退職として記録されています
+DMS refused the sign-in: {0}	DMS 拒绝了登录：{0}	DMS ปฏิเสธการเข้าสู่ระบบ: {0}	DMSがログインを拒否しました: {0}
+An admin session was requested but no admin credentials are configured	没配 admin 凭据却要求 admin 会话	ขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin	adminセッションが要求されましたが、admin資格情報が未設定です
+The admin session must be requested inside a `with` block	admin 会话必须在 `with` 块里请求	ต้องขอเซสชัน admin ภายในบล็อก `with`	adminセッションは `with` ブロック内で要求する必要があります
+DMS admin credentials failed to sign in: {0}	DMS 管理员凭据登录失败：{0}	เข้าสู่ระบบด้วยข้อมูลรับรองผู้ดูแล DMS ไม่สำเร็จ: {0}	DMS管理者の資格情報でログインできません: {0}
+The balance could not be read	余额查不出来	อ่านยอดคงเหลือไม่ได้	残高を読み取れません
 ID card recognition	身份证识别	อ่านบัตรประชาชน	身分証認識	ID card recognition (tier A)
-Could not call the model: {0}	调不动模型：{0}	เรียกโมเดลไม่สำเร็จ: {0}	モデルを呼び出せません: {0}	
-Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）	
-{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました	
+Could not call the model: {0}	调不动模型：{0}	เรียกโมเดลไม่สำเร็จ: {0}	モデルを呼び出せません: {0}
+Neither tier produced a result (network, key or model name could all be the cause)	两档都没读出结果（网络/密钥/模型名都可能）	ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)	どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
+{0} takes {1} arguments, but {2} were passed to the queue	{0} 需要 {1} 个参数，但入队传了 {2} 个	{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว	{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
 Home	首页	หน้าหลัก	ホーム	nav.home
+Work together	工作协作	ทำงานร่วมกัน	コラボレーション	nav.work
 Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	nav.cowork
 Intake Workbench	录入工作台	โต๊ะทำงานบันทึกข้อมูล	取り込みワークベンチ	nav.intake
 Recognition Records	识别记录	บันทึกการอ่านข้อมูล	認識記録	nav.history
@@ -427,7 +430,7 @@ Team	团队管理	ทีมงาน	チーム	nav.team
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
 Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
 Products & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
-Products	商品数据	ข้อมูลสินค้า	商品データ	nav.products
+Products	商品	สินค้า	商品	nav.products
 Stock	库存	สต็อก	在庫	nav.inventory
 Stock In	入库	รับเข้า	入庫	nav.stockIn
 Stock Out	出库	จ่ายออก	出庫	nav.stockOut
@@ -698,6 +701,7 @@ Total incl. VAT	价税合计	รวมภาษี	税込合計	purchase.col.gra
 External document no.	外部单据号	เลขที่เอกสารภายนอก	外部伝票番号	purchase.field.docNo
 Document date	单据日期	วันที่เอกสาร	伝票日付	purchase.field.docDate
 Optional	可留空	เว้นว่างได้	空欄可	purchase.placeholder.docNo
+{0} records · grand total {1} · payable {2} · outstanding {3}	{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}	{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}	{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}	purchase.notice.totals
 Cancel	取消	ยกเลิก	キャンセル	connect.cancel
 Processing…	处理中…	กำลังดำเนินการ…	処理中…	connect.processing
 Request failed (HTTP {0})	请求失败（HTTP {0}）	คำขอล้มเหลว (HTTP {0})	リクエスト失敗（HTTP {0}）	connect.error.http
@@ -718,9 +722,9 @@ Account number	收款账号	เลขที่บัญชี	口座番号	home.
 Account name	收款户名	ชื่อบัญชี	口座名義	home.bank.holder
 Upload transfer slip	上传转账凭证	อัปโหลดหลักฐานการโอน	振込明細をアップロード	home.topup.slip
 Transfer slip attached	已附上转账凭证	แนบหลักฐานการโอนแล้ว	振込明細を添付しました	home.topup.attached
-Upload a transfer slip before submitting	请先上传转账凭证再提交	กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง	送信前に振込明細をアップロードしてください	
-Upload a transfer slip up to 10 MB	请上传不超过 10 MB 的转账凭证	กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB	10 MB 以下の振込明細をアップロードしてください	
-Use a JPG, PNG or PDF transfer slip	转账凭证须为 JPG、PNG 或 PDF	หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF	振込明細は JPG・PNG・PDF を使用してください	
+Upload a transfer slip before submitting	请先上传转账凭证再提交	กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง	送信前に振込明細をアップロードしてください
+Upload a transfer slip up to 10 MB	请上传不超过 10 MB 的转账凭证	กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB	10 MB 以下の振込明細をアップロードしてください
+Use a JPG, PNG or PDF transfer slip	转账凭证须为 JPG、PNG 或 PDF	หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF	振込明細は JPG・PNG・PDF を使用してください
 Sign out and sign in again	退出并重新登录	ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง	ログアウトして再ログイン	account.signInAgain
 JPG, PNG or PDF, up to 10 MB	JPG、PNG 或 PDF，最大 10 MB	JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB	JPG・PNG・PDF、10 MB まで	home.topup.slipFormats
 Change your password from your account profile using Change Password.	请在个人资料中使用“更改密码”修改登录密码。	กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว	プロフィールの「パスワード変更」からログインパスワードを変更してください。	account.identityPasswordOnly
@@ -763,10 +767,16 @@ This username is already in use.	该用户名已被使用。	ชื่อผู�
 Your account was updated elsewhere. Sign in again to load the current username.	账户已在其它地方更新，请重新登录以读取当前用户名。	บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน	別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。	account.profileChanged
 Sign in again before changing your username.	请重新登录后再更改用户名。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้	ユーザー名を変更する前に再ログインしてください。	account.signInToRename
 Could not update your account. Please reload and try again.	无法更新账户，请刷新后重试。	อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง	アカウントを更新できませんでした。再読み込みしてお試しください。	account.profileUpdateFailed
-Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン	
+Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.	按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。	คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า	従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。	home.pricing.pages
 Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.	删除所选 {0} 条记录？此操作不会更改余额或取消充值申请。	ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง	選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。	home.ledger.confirmDelete
 {0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
-The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません	
-LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください	
+The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
+LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください
+Goods & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
+Purchasing	采购系统	ระบบจัดซื้อ	購買システム	nav.group.purchasing
+Sales	销售系统	ระบบขาย	販売システム	nav.group.sales
+Master Data	主数据	ข้อมูลหลัก	マスタ	nav.group.master
+Company Master	公司主档	ทะเบียนบริษัท	会社マスタ	nav.companyMaster
+POS	收银 POS	ขายหน้าร้าน POS	POS レジ	nav.cashier

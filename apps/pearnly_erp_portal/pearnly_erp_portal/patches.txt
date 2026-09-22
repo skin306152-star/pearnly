@@ -4,3 +4,6 @@
 
 [post_model_sync]
 # Patches added in this section will be executed after doctypes are migrated
+pearnly_erp_portal.patches.v1_0_sync_base_unit_with_sale_unit
+pearnly_erp_portal.patches.v1_1_enable_stocktake_feature
+pearnly_erp_portal.patches.v1_2_storage_positions

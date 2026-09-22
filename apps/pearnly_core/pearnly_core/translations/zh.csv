@@ -1,5 +1,6 @@
 A DMS customer reference is required before confirming or pushing,确认或推送前必须有 DMS 客户引用
 A DMS customer reference is required; otherwise this link means nothing,必须有 DMS 客户引用，否则这条对照没有意义
+A board instance is created only when this is on,启用才创建看板实例，不启用不占资源
 A disabled operator cannot issue a bind code; enable them first,停用的操作员不能发绑定码，先启用
 "A human-readable name, e.g. MR.ERP DMS",给人看的名字，例如：MR.ERP DMS
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe 原生 Password 字段，落库即加密（等价于老产品的 encrypt_str + KMS），接口上**不回显**
@@ -45,6 +46,7 @@ Charges,扣费
 Claimed By,认领人
 Claiming a push job requires a connection,抢推送任务必须指定连接
 Client ID is required,客户端 ID 不能为空
+Collaboration Boards (WeKan),协作看板（WeKan）
 Companion,小助手（Companion）
 Company Tax ID,本方税号
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",配置齐全。**没有真的连** —— 适配器还没搬过来，这里不谎报连通
@@ -248,7 +250,7 @@ Product,产品
 Product Ref,商品外部标识
 "Product home: current plan, usage and billing",产品首页，承载当前的订阅套餐、用量与账单
 Product master data,商品主数据
-Products,商品数据
+Products,商品
 Provide at least one line item,至少给一行明细
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
@@ -631,14 +633,20 @@ intake.status.recognized,已识别
 intake.status.rejected,已退回
 intake.subtitle,核对并确认单据后即可推送。
 intake.title,录入工作台
+nav.cashier,收银 POS
 nav.clients,客户管理
 nav.company,公司资料
+nav.companyMaster,公司主档
 nav.connect,连接DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,客户
 nav.erpPurchase,采购系统
 nav.erpSales,销售系统
 nav.erpStock,商品与库存
+nav.group.goodsStock,商品与库存
+nav.group.master,主数据
+nav.group.purchasing,采购系统
+nav.group.sales,销售系统
 nav.guide,使用教程
 nav.history,识别记录
 nav.home,首页
@@ -646,7 +654,7 @@ nav.intake,录入工作台
 nav.integrations,集成
 nav.inventory,库存
 nav.masterData,主数据
-nav.products,商品数据
+nav.products,商品
 nav.purchase,采购记录
 nav.purchaseSettings,采购设置
 nav.pushLogs,推送日志
@@ -660,6 +668,7 @@ nav.stockOut,出库
 nav.stocktake,库存盘点
 nav.suppliers,供应商
 nav.team,团队管理
+nav.work,工作协作
 nonce mismatch,nonce 不匹配
 purchase.action.addLine,添加明细
 purchase.action.new,新建采购单
@@ -682,6 +691,7 @@ purchase.field.supplier,供应商
 purchase.hint.serverTotal,合计金额自动计算。
 purchase.loading,加载中…
 purchase.notice.created,已建单：{0}
+purchase.notice.totals,{0} 单 · 合计 {1} · 应付 {2} · 未付 {3}
 purchase.placeholder.description,品名 / 说明
 purchase.placeholder.docNo,可留空
 purchase.placeholder.qty,数量

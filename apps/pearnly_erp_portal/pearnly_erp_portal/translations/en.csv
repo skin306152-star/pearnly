@@ -5,10 +5,13 @@ Bind this account first,Bind this account first
 Bound to {0},Bound to {0}
 Could not store this document,Could not store this document
 Draft not found,Draft not found
+ERP Stock Count Variance,ERP Stock Count Variance
 LINE unbound,LINE unbound
 Now sending {0} documents,Now sending {0} documents
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
+Select a product for each stock item,Select a product for each stock item
+Select the original sale line,Select the original sale line
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 That code is not valid,That code is not valid
 This account cannot send documents,This account cannot send documents
@@ -18,5 +21,288 @@ This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+adjust,adjust
+branch,branch
+card,card
+cash,cash
+company,company
+completed,completed
+count,count
+draft,draft
+goods,goods
+hq,hq
+issued,issued
+nav.stockCount,Stock count
+opening,opening
+paid,paid
+pending_approval,pending_approval
+person,person
+product.action.bulkDisable,Disable {0} selected
+product.action.bulkEnable,Enable {0} selected
+product.action.disable,Enable / disable
+product.action.edit,Edit
+product.action.enable,Enable
+product.action.import,Import from Excel
+product.action.new,New product
+product.action.reload,Reload
+product.action.save,Save
+product.action.scan,Scan
+product.action.toggleInactive,Show disabled
+product.cell.notSet,Not set
+product.col.avgCost,Average cost
+product.col.barcode,Barcode
+product.col.code,Code
+product.col.cost,Reference cost
+product.col.name,Product
+product.col.price,Price
+product.col.status,Status
+product.col.unit,Unit
+product.error.codeLocked,The product code cannot be changed
+product.field.barcode,Barcode
+product.field.baseUnit,Base unit
+product.field.baseUnitHint,Stock is counted in this unit; leave it empty to use the selling unit
+product.field.category,Category
+product.field.code,Code
+product.field.codeAuto,Generated automatically
+product.field.cost,Reference cost
+product.field.defaultLocation,Default Location
+product.field.defaultWarehouse,Default Warehouse
+product.field.image,Image URL
+product.field.importFile,Excel file
+product.field.locationHint,Used for new documents only. Each location keeps its own stock.
+product.field.minStock,Low stock alert
+product.field.name,Product name
+product.field.nameEn,English name
+product.field.nameZh,Chinese name
+product.field.price,Selling price
+product.field.qr,QR payload
+product.field.search,Search name or barcode
+product.field.trackBatch,Track batches
+product.field.trackExpiry,Track expiry
+product.field.unit,Unit
+product.field.vat,VAT applies
+product.field.weighed,Sold by weight
+product.import.badFile,That file could not be read; please use the template
+product.import.emptyFile,That file has no rows
+product.import.hint,The first row must be the column headings; the sheet needs at least a product name column
+product.import.missingName,The sheet needs a product name column
+product.import.negative,The value must be zero or more
+product.import.noFile,Choose a file to import
+product.import.notNumber,The value is not a number
+product.import.notWorkbook,That file is not an Excel workbook
+product.import.pick,Choose file
+product.import.template,Download template
+product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
+product.notice.imported,Imported {0} product(s)
+product.notice.saved,Saved {0}
+product.notice.toggled,Updated {0}
+product.notice.toggledCount,Updated {0} product(s)
+product.scan.denied,Camera permission was refused; allow it and try again
+product.scan.done,Scanned
+product.scan.hint,Point the camera at the barcode or QR code
+product.scan.light,Light
+product.scan.noCamera,This device has no camera to scan with
+product.scan.open,Open that product
+product.scan.taken,This code is already taken
+product.scan.takenBody,Already used by {0} (code {1})
+product.scan.title,Scan a code
+product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
+promptpay,promptpay
 purchase,purchase
+purchase_in,purchase_in
+quotation,quotation
+receipt,receipt
+refund,refund
+sale,sale
+sale_out,sale_out
 sales,sales
+service,service
+stock.action.count,Count
+stock.action.export,Export
+stock.action.onlyLow,Only low or out of stock
+stock.action.reload,Reload
+stock.action.toggleZero,Show zero stock
+stock.board.by,Chart by
+stock.board.freezeColumn,Freeze column
+stock.board.only,Show only
+stock.board.shelf,Shelf
+stock.board.title,ERP Stock Count Variance
+stock.board.unfreezeColumn,Unfreeze column
+stock.cell.notSet,Not set
+stock.col.barcode,Barcode
+stock.col.code,Code
+stock.col.cost,Average cost
+stock.col.name,Product name
+stock.col.onHand,On hand
+stock.col.status,Status
+stock.col.unit,Unit
+stock.col.value,Value
+stock.col.warehouse,Warehouse
+stock.count.addEntry,Add a count
+stock.count.addEntryHint,Book quantity {0} {1}
+stock.count.addEntryTitle,Add a count — {0}
+stock.count.back,Back
+stock.count.blank,Not set
+stock.count.book,Book quantity
+stock.count.chartEmpty,Nothing counted yet
+stock.count.chartTotals,Book {0} · counted {1} · difference {2}
+stock.count.close,Close count
+stock.count.closeConfirm,Closing locks every entry. Rows never counted stay empty. Continue?
+stock.count.closed,Count closed
+stock.count.counted,Counted quantity
+stock.count.countedAt,Counted at
+stock.count.countedBy,Counted by
+stock.count.countedRows,Counted
+stock.count.created,"Stock count created, {0} rows"
+stock.count.createdAt,Created
+stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted.
+stock.count.deleteSelected,Delete selected ({0})
+stock.count.deleted,Deleted {0} stock counts
+stock.count.difference,Difference
+stock.count.differenceRows,With differences
+stock.count.differenceValue,Difference value
+stock.count.entries,Entries
+stock.count.entriesTitle,Entries — {0}
+stock.count.entryLive,Counted in total
+stock.count.entryOption,{0} · {1} · {2}
+stock.count.entrySaved,Count saved
+stock.count.entryVoided,"Voided, not in the total"
+stock.count.entryVoidedNotice,Voided
+stock.count.filter,Filter
+stock.count.filter.all,All
+stock.count.filter.differences,With differences
+stock.count.filter.uncounted,Not counted
+stock.count.headline,{0} · counted {1} / {2} · differences {3}
+stock.count.import,Import a sheet
+stock.count.importFile,Sheet
+stock.count.importHint,"Rows are matched by product code, then barcode. Rows already imported are replaced."
+stock.count.importMissing,Choose the sheet to import
+stock.count.importPick,Choose a file
+stock.count.importSkipped,{0} rows were not imported
+stock.count.importTitle,Import result
+stock.count.imported,"Imported {0} rows, {1} with a counted quantity"
+stock.count.location,Location
+stock.count.mode,Count by
+stock.count.modeImport,Upload a sheet
+stock.count.modeStock,In-stock
+stock.count.name,Name
+stock.count.new,New stock count
+stock.count.newHint,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
+stock.count.noEntries,No entries
+stock.count.note,Note
+stock.count.notes,Notes
+stock.count.photos,Photos
+stock.count.post,Post differences
+stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
+stock.count.posted,Posted {0} differences
+stock.count.problemCode,No product matches that code
+stock.count.problemIdentifier,The row has no product code or barcode
+stock.count.problemNumber,The quantity is not a valid number
+stock.count.problemWarehouse,No warehouse matches that name
+stock.count.qty,Quantity
+stock.count.reason,Reason
+stock.count.rowDifference,Difference
+stock.count.rowMatch,Matches
+stock.count.rowUncounted,Not counted
+stock.count.rows,Rows
+stock.count.statusActive,In progress
+stock.count.statusClosed,Closed
+stock.count.statusPosted,Posted
+stock.count.system,In {0}: system shows {1} {2}
+stock.count.template,Stock count template
+stock.count.title,Stock count — {0}
+stock.count.void,Void
+stock.count.voidConfirm,Void this count of {0}?
+stock.count.voidPick,Select an entry to void
+stock.count.warehouseHint,Leave empty to use the default warehouse
+stock.field.search,Search name or barcode
+stock.mobile.cameraOff,Close camera
+stock.mobile.codePlaceholder,Code or barcode
+stock.mobile.find,Find
+stock.mobile.noCamera,This browser cannot scan with the camera
+stock.mobile.noTask,No stock count in progress
+stock.mobile.notBound,"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
+stock.mobile.notFound,No product matches that code
+stock.mobile.open,Open
+stock.mobile.pickTask,Select a stock count
+stock.mobile.save,Save
+stock.mobile.saved,Saved
+stock.mobile.scan,Scan
+stock.mobile.title,Stock count
+stock.notice.counted,Counted; difference {0} → {1}
+stock.notice.totals,SKU {0} · Value {1} · Low {2} · Out {3}
+stock.status.low,Low stock
+stock.status.lowWith,Low (≤{0})
+stock.status.ok,In stock
+stock.status.out,Out of stock
+stock_in,stock_in
+stock_out,stock_out
+submitted,submitted
+tax_invoice,tax_invoice
+tax_invoice_receipt,tax_invoice_receipt
+tax_invoice_simple,tax_invoice_simple
+trade.address,Address
+trade.balance,Position Balance
+trade.branchNo,Branch Number
+trade.branchType,Branch Type
+trade.buyer,Customer
+trade.buyerType,Customer Type
+trade.checkout,New Sale
+trade.close,Close
+trade.closeShift,Close Shift
+trade.closing,Closing Quantity
+trade.cost,Unit Cost
+trade.countedCash,Counted Cash
+trade.date,Date
+trade.description,Description
+trade.discount,Discount
+trade.docNo,Document Number
+trade.float,Opening Cash
+trade.from,From Date
+trade.hasVat,Add VAT
+trade.in,Received
+trade.issue,Issue Document
+trade.kind,Document Type
+trade.lines,Items
+trade.location,Location
+trade.method,Payment Method
+trade.newIn,New Stock Receipt
+trade.newOut,New Stock Issue
+trade.newSale,New Sales Document
+trade.noShift,No Open Shift
+trade.note,Note
+trade.openShift,Open Shift
+trade.opening,Opening Quantity
+trade.originalLine,Original Item and Location
+trade.out,Issued
+trade.paid,Amount Received
+trade.paidNotice,Receipt {0} · Change {1}
+trade.pay,Complete Payment
+trade.paymentDate,Payment Date
+trade.paymentState,Payment Status
+trade.price,Unit Price
+trade.product,Product
+trade.qty,Quantity
+trade.reference,Reference
+trade.refund,Refund
+trade.refundAmount,Refund Amount
+trade.save,Save Draft
+trade.shiftOpen,Shift {0} · Expected cash {1}
+trade.status,Status
+trade.stockPending,Not Posted
+trade.stockPosted,Posted to Stock
+trade.stockState,Stock Posting
+trade.submit,Submit
+trade.submitReceive,Submit and Receive Stock
+trade.taxId,Tax ID
+trade.terminal,Terminal
+trade.to,To Date
+trade.total,Total Due
+trade.unit,Unit
+trade.vat,VAT Rate
+trade.void,Void
+trade.voidConfirm,Void this document and reverse its stock movements?
+trade.warehouse,Warehouse
+transfer,transfer
+unpaid,unpaid
+void,void

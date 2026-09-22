@@ -8,7 +8,9 @@
   "qty",
   "unit",
   "unit_cost",
-  "batch_no"
+  "batch_no",
+  "warehouse",
+  "location"
  ],
  "fields": [
   {
@@ -44,6 +46,18 @@
    "fieldtype": "Data",
    "label": "Batch No",
    "length": 100
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "options": "ERP Warehouse",
+   "label": "Warehouse"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,

@@ -1,12 +1,11 @@
-      # -*- coding: utf-8 -*-
-"""期初库存。
-
-期初不是流水：它是收发存报表的起算点。期初日**当天及更早**的流水都算进期初，避免
-"录了期初又录了同一天的入库"被重复计算。
-"""
+"""One record per product, warehouse and free-text location."""
 
 from frappe.model.document import Document
 
+from pearnly_erp_portal.inventory.contracts import position_name
+
 
 class ERPStockOpening(Document):
-    pass
+    def autoname(self):
+        self.location = str(self.location or "").strip()
+        self.name = position_name("OPN", self.product, self.warehouse, self.location)

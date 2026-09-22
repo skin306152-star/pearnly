@@ -265,35 +265,78 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
-app_include_js = [versioned_asset("pearnly_erp_portal", "desk/purchase.js")]
+app_include_js = [
+    versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
+    versioned_asset("pearnly_erp_portal", "desk/products.js"),
+    versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.js"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
+    versioned_asset("pearnly_erp_portal", "desk/scan.js"),
+]
+
+app_include_css = [
+    versioned_asset("pearnly_erp_portal", "desk/scan.css"),
+]
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
 
-# 本产品的侧边栏菜单：写在产品自己的 hooks 里，改菜单不再动共用层的文件。
-# 只有真做出来的页面进 `available`，没做的留在目录里占位（功能归属不丢）。
-pearnly_navigation = [
-    {
-        "product": "erp",
-        "app": "pearnly_erp_portal",
-        "pages": [
-            ("nav.home", "pearnly-home", "home", None),
-            ("nav.products", "pearnly-products", "stock", "products"),
-            ("nav.inventory", "pearnly-inventory", "stock", "warehouses"),
-            ("nav.stockIn", "pearnly-stock-in", "arrow-down", "warehouses"),
-            ("nav.stockOut", "pearnly-stock-out", "arrow-up", "warehouses"),
-            ("nav.stockCard", "pearnly-stock-card", "list", "stockcard"),
-            ("nav.purchase", "pearnly-purchase", "cart", "purchase"),
-            ("nav.suppliers", "pearnly-suppliers", "users", "purchase"),
-            ("nav.purchaseSettings", "pearnly-buy-settings", "settings", "purchase"),
-            ("nav.sales", "pearnly-sales", "cart", "sales"),
-            ("nav.erpClients", "pearnly-clients", "users", "clients"),
-            ("nav.company", "pearnly-company", "organization", None),
-            ("nav.team", "pearnly-team", "users", None),
-            ("nav.integrations", "pearnly-integrations", "plug", None),
-        ],
-        "available": ["pearnly-home", "pearnly-purchase"],
-        "permissions": {"pearnly-purchase": {"doctype": "Purchase Document"}},
-    }
-]
+# Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
+pearnly_navigation = [{'product': 'erp',
+  'app': 'pearnly_erp_portal',
+  'pages': [('nav.home', 'pearnly-home', 'house', None),
+            ('nav.products', 'pearnly-products', 'package', 'products'),
+            ('nav.inventory', 'pearnly-inventory', 'warehouse', 'warehouses'),
+            ('nav.stockIn', 'pearnly-stock-in', 'download', 'warehouses'),
+            ('nav.stockOut', 'pearnly-stock-out', 'upload', 'warehouses'),
+            ('nav.stockCard', 'pearnly-stock-card', 'list-checks', 'stockcard'),
+            ('nav.stockCount', 'pearnly-stock-count', 'boxes', 'stocktake'),
+            ('nav.purchase', 'pearnly-purchase', 'shopping-cart', 'purchase'),
+            ('nav.suppliers', 'pearnly-suppliers', 'store', 'purchase'),
+            ('nav.purchaseSettings', 'pearnly-buy-settings', 'sun', 'purchase'),
+            ('nav.sales', 'pearnly-sales', 'receipt-text', 'sales'),
+            ('nav.cashier', 'pearnly-cashier', 'shopping-cart', 'cashier'),
+            ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
+            ('nav.companyMaster', 'pearnly-company-master', 'users', None),
+            ('nav.company', 'pearnly-company', 'contact', None),
+            ('nav.team', 'pearnly-team', 'users-round', None),
+            ('nav.integrations', 'pearnly-integrations', 'plug', None)],
+  'available': ['pearnly-home',
+                'pearnly-products',
+                'pearnly-inventory',
+                'pearnly-stock-in',
+                'pearnly-stock-out',
+                'pearnly-stock-card',
+                'pearnly-stock-count',
+                'pearnly-purchase',
+                'pearnly-sales',
+                'pearnly-cashier'],
+  'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
+                  'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
+                  'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
+                  'pearnly-stock-out': {'doctype': 'ERP Stock Entry'},
+                  'pearnly-stock-card': {'doctype': 'ERP Stock Movement'},
+                  'pearnly-stock-count': {'doctype': 'ERP Stock Count'},
+                  'pearnly-purchase': {'doctype': 'Purchase Document'},
+                  'pearnly-sales': {'doctype': 'ERP Sales Document'},
+                  'pearnly-cashier': {'doctype': 'ERP Sale'}},
+  'groups': [('nav.group.goodsStock',
+              'boxes',
+              ['pearnly-products',
+               'pearnly-inventory',
+               'pearnly-stock-in',
+               'pearnly-stock-out',
+               'pearnly-stock-card',
+               'pearnly-stock-count']),
+             ('nav.group.purchasing',
+              'shopping-cart',
+              ['pearnly-purchase', 'pearnly-suppliers', 'pearnly-buy-settings']),
+             ('nav.group.sales', 'receipt-text', ['pearnly-sales', 'pearnly-cashier', 'pearnly-clients']),
+             ('nav.group.master',
+              'building-2',
+              ['pearnly-company-master', 'pearnly-company', 'pearnly-team', 'pearnly-integrations'])]}]

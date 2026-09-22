@@ -10,7 +10,7 @@ MANIFEST = {
     # 可售卖的功能目录（角色、授权表、默认开关）在同目录的 features.json：
     # 那张表由控制面读文件汇总，这里是产品的入口/依赖/禁止事项。
     "features": [
-        "products",        # 商品数据
+        "products",        # 商品
         "warehouses",      # 库存、入库、出库
         "stockcard",       # 收发存报表（权限码已从 accounting 改挂 inventory）
         "purchase",        # 采购记录、供应商、采购设置

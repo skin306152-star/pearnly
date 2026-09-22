@@ -1,0 +1,138 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Stock Count Entry",
+ "module": "Pearnly ERP Portal",
+ "autoname": "format:STC-ENTRY-{#####}",
+ "engine": "InnoDB",
+ "field_order": [
+  "count",
+  "item",
+  "product",
+  "warehouse",
+  "location",
+  "column_break_qty",
+  "qty",
+  "voided",
+  "version",
+  "request_id",
+  "photo_total",
+  "note",
+  "column_break_who",
+  "counted_by",
+  "counted_at",
+  "source"
+ ],
+ "fields": [
+  {
+   "fieldname": "count",
+   "fieldtype": "Link",
+   "label": "Count",
+   "options": "ERP Stock Count",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "options": "ERP Stock Count Item",
+   "reqd": 1
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "reqd": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "length": 140
+  },
+  {
+   "fieldname": "column_break_qty",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "qty",
+   "fieldtype": "Float",
+   "label": "Quantity",
+   "precision": "3",
+   "reqd": 1
+  },
+  {
+   "fieldname": "voided",
+   "fieldtype": "Check",
+   "label": "Voided",
+   "default": "0"
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "default": "1"
+  },
+  {
+   "fieldname": "request_id",
+   "fieldtype": "Data",
+   "label": "Request id",
+   "unique": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "photo_total",
+   "fieldtype": "Int",
+   "label": "Photos",
+   "read_only": 1
+  },
+  {
+   "fieldname": "note",
+   "fieldtype": "Small Text",
+   "label": "Note"
+  },
+  {
+   "fieldname": "column_break_who",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "counted_by",
+   "fieldtype": "Link",
+   "label": "Counted by",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "counted_at",
+   "fieldtype": "Datetime",
+   "label": "Counted at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "Desk\nLINE\nImport",
+   "default": "Desk",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ]
+}

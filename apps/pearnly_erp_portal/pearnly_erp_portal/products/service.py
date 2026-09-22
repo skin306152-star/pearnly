@@ -6,31 +6,63 @@
 import frappe
 from frappe import _
 
+from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard, rules
-from pearnly_erp_portal.products import contracts
+from pearnly_erp_portal.products import contracts, workbook
 
 DOCTYPE = "ERP Product"
 UNIT_DOCTYPE = "ERP Product Unit"
 
 NAME_REQUIRED = "A product needs a name"
+# 导入的错误提示（用户可见，走语言包）。
+IMPORT_NO_FILE = "Choose a file to import"
+IMPORT_BAD_FILE = "That file could not be read; please use the template"
+IMPORT_NOT_NUMBER = "The value is not a number"
+IMPORT_NEGATIVE = "The value must be zero or more"
+IMPORT_ERRORS = {
+    "empty_file": "That file has no rows",
+    "not_a_workbook": "That file is not an Excel workbook",
+    "missing_name_column": "The sheet needs a product name column",
+}
+# 模板文件名用户会看到（下载存盘时）。
+TEMPLATE_FILE = "products-import-template.xlsx"
+# 逐行校验的 token → 用户看得懂的提示（解析层是纯规则层，不翻文案，只报 token）。
+ROW_ERRORS = {
+    "not_a_number": IMPORT_NOT_NUMBER,
+    "negative_or_invalid": IMPORT_NEGATIVE,
+    "name_required": NAME_REQUIRED,
+}
 CODE_EXISTS = "This product code already exists"
 BARCODE_EXISTS = "This barcode already exists"
+CODE_LOCKED = "The product code cannot be changed"
 NOT_FOUND = "Product not found"
 INVALID_VALUE = "Invalid value"
 
-# 列表与详情一起用的字段。成本字段由 `_mask` 决定是否清空。
+# 列表与详情一起用的字段：与旧线上 `services/sales/products.py::_COLS` 同一份，
+# 一个不多一个不少。我们的 `price_set` / `cost_set` 是"设过没有"的标记 ——
+# Frappe 的 Currency 列存不下 NULL，旧线上靠可空列区分的"没设价 / 真的 ฿0"，
+# 在这里只能靠标记还原。
 LIST_FIELDS = (
-    "name", "product_name", "code", "barcode", "unit", "unit_price",
-    "price_set", "vat_applicable", "is_active", "min_stock", "default_cost", "avg_cost",
-    "image_url",
+    "name", "product_name", "code", "barcode", "qr_payload",
+    "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
+    "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
+    "track_batch", "track_expiry", "default_warehouse", "default_location",
 )
+
+# 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
+LOOKUP_FIELDS = ("code", "barcode", "qr_payload")
 
 
 def _mask(rows):
     visible = rules.cost_visible(guard.current_roles())
+    def masked(row):
+        # Native field permissions omit restricted fields; keep the product API's null contract.
+        data = {field: None for field in contracts.COST_FIELDS}
+        data.update(row)
+        return contracts.mask_costs(data, visible)
     if isinstance(rows, dict):
-        return contracts.mask_costs(rows, visible)
-    return [contracts.mask_costs(dict(row), visible) for row in rows]
+        return masked(rows)
+    return [masked(row) for row in rows]
 
 
 def _optional(value):
@@ -38,6 +70,13 @@ def _optional(value):
         return contracts.decimal_or_none(value)
     except ValueError:
         frappe.throw(_(INVALID_VALUE))
+
+
+def _cost_fields(value) -> dict:
+    """参考成本与"是否设过"一起写。与 `_price_fields` 同一个理由：
+    Currency 列存不下 NULL，0 既是"真的免费"也是"没设过"，收银/毛利那边要能分辨。"""
+    cost = _optional(value)
+    return {"default_cost": cost or 0, "cost_set": 1 if cost is not None else 0}
 
 
 def _price_fields(value) -> dict:
@@ -56,6 +95,11 @@ def _text(value, limit):
         return contracts.clean_text(value, limit)
     except ValueError:
         frappe.throw(_(INVALID_VALUE))
+
+
+def _flag(value) -> int:
+    """勾选项：表单来的 "1"/true/on 与真布尔都认，其余一律 0。"""
+    return 1 if value in (True, 1, "1", "true", "True", "on") else 0
 
 
 def _assert_unique(code, barcode, *, exclude: str | None = None) -> None:
@@ -79,15 +123,51 @@ def _get(name: str):
     return frappe.get_doc(DOCTYPE, name)
 
 
+def _attach_image(image_url, product: str):
+    """把商品图挂到这条商品上 —— 读权限因此跟着商品走。
+
+    不挂的话它是"私有且无归属"的 File：框架的 `file.has_permission` 对这种文件只认上传者
+    本人，别的员工在商品页看到的是裂图（老板传的图，店员看不着）。用 `db.set_value` 而不是
+    `file.save()`：后者会走一遍 File 的命名字段逻辑，可能把磁盘上的文件改名，落库的 URL 就
+    对不上了。外链（不是本站 URL）不碰。
+    """
+    url = str(image_url or "")
+    if not url.startswith("/"):
+        return
+    # 同一个 URL 理论上只有一条，但传过失败/重传时可能留下同名多条 —— 取最新那条。
+    name = frappe.db.get_value("File", {"file_url": url}, "name", order_by="creation desc")
+    if not name:
+        return
+    current = frappe.db.get_value("File", name, ["attached_to_doctype", "attached_to_name"],
+                                  as_dict=True) or {}
+    if current.get("attached_to_doctype") == DOCTYPE and current.get("attached_to_name") == product:
+        return
+    frappe.db.set_value("File", name,
+                        {"attached_to_doctype": DOCTYPE, "attached_to_name": product})
+
+
+def _allocate_code() -> str:
+    """发下一个商品编码（旧线上 ERP 门户里编码是只读的，新平台同样不让手输）。
+
+    编码列自带唯一索引，并发撞号时报"编码已存在"，不靠这里的读-改-写保证唯一。
+    """
+    codes = frappe.get_all(DOCTYPE, filters={"code": ["like", f"{contracts.CODE_PREFIX}%"]},
+                           pluck="code", limit_page_length=0)
+    return contracts.next_code(codes)
+
+
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
-                   qr_payload=None, note=None):
+                   qr_payload=None, base_unit=None,
+                   category_id=None, track_batch=None, track_expiry=None,
+                   default_warehouse=None, default_location=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
     except ValueError:
         frappe.throw(_(NAME_REQUIRED))
-    code = _text(code, contracts.MAX_CODE)
+    # 编码留空就发一个（导入的表里带码时照收）—— 与旧线上 ERP 门户的 `prepare()` 同一条规则。
+    code = _text(code, contracts.MAX_CODE) or _allocate_code()
     barcode = _text(barcode, contracts.MAX_BARCODE)
     _assert_unique(code, barcode)
 
@@ -102,28 +182,84 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "vat_applicable": 1 if vat_applicable in (True, 1, "1", "true") else 0,
         "image_url": _text(image_url, contracts.MAX_IMAGE_URL),
         "min_stock": _optional(min_stock),
-        "default_cost": _optional(default_cost),
-        "note": note,
+        **_cost_fields(default_cost),
+        # 库存单位留空 = 跟售卖单位一样（旧线上 ERP 建品就是这么补的）。
+        "base_unit": _text(base_unit, contracts.MAX_BASE_UNIT) or unit,
+        "category_id": int(category_id) if str(category_id or "").strip() else None,
+        "track_batch": _flag(track_batch),
+        "track_expiry": _flag(track_expiry),
         "is_active": 1,
+        "default_warehouse": _text(default_warehouse, 140),
+        "default_location": _text(default_location, 140),
     })
     doc.insert()
+    _attach_image(doc.image_url, doc.name)
     frappe.db.commit()
     return {"name": doc.name}
 
 
-def list_products(*, search=None, include_inactive=False, limit=50):
-    guard.require("products.view")
+def _filters(search=None, include_inactive=False):
+    """列表与计数共用的一份筛选，避免两处各写一遍导致"总数与实际不符"。
+
+    名称与条码都要能搜到：扫码后就地找品是收银台的主路径，所以条码走 or。
+    """
     filters: list = []
     if not include_inactive:
         filters.append(["is_active", "=", 1])
     if search:
-        # 名称与条码都要能搜到：扫码后就地找品是收银台的主路径。
         filters.append(["product_name", "like", f"%{search}%"])
+    or_filters = [["barcode", "like", f"%{search}%"]] if search else None
+    return filters, or_filters
+
+
+def list_products(*, search=None, include_inactive=False, limit=50, start=0):
+    guard.require("products.view")
+    filters, or_filters = _filters(search, include_inactive)
     return _mask(frappe.get_list(
-        DOCTYPE, filters=filters, or_filters=(
-            [["barcode", "like", f"%{search}%"]] if search else None),
-        fields=list(LIST_FIELDS), order_by="modified desc", limit_page_length=int(limit),
+        DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
+        order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
+
+
+def find_product(value, exclude=None):
+    """扫到一个码，先看它已经属于谁 —— 撞码**当场**说，别等填完表保存才报错。
+
+    查四处：编码、条码、二维码内容，以及售卖单位上的条码（箱码/瓶码常挂在单位上）。
+    只认在架商品（停用品的码可以用，与旧线上"先下架再占码"一个意思）。查不到回空字典。
+    """
+    guard.require("products.view")
+    wanted = str(value or "").strip()
+    if not wanted:
+        return {}
+    fields = ["name", "product_name", "code", "barcode"]
+    base = [["is_active", "=", 1]]
+    if exclude:
+        base.append(["name", "!=", exclude])
+    for field in LOOKUP_FIELDS:
+        rows = frappe.get_list(DOCTYPE, filters=base + [[field, "=", wanted]], fields=fields,
+                               limit_page_length=1)
+        if rows:
+            return {**rows[0], "matched_by": field}
+    # 售卖单位上的条码：先按条码拿到子表行，再把父商品过一遍权限与在架闸。
+    parent = frappe.db.get_value(UNIT_DOCTYPE, {"barcode": wanted}, "parent")
+    if parent:
+        rows = frappe.get_list(DOCTYPE, filters=base + [["name", "=", parent]], fields=fields,
+                               limit_page_length=1)
+        if rows:
+            return {**rows[0], "matched_by": "unit_barcode"}
+    return {}
+
+
+def count_products(*, search=None, include_inactive=False) -> int:
+    """列表总数（页脚"第 N 项/共 M 项"与"加载更多"用）。
+
+    为什么不用 `frappe.db.count`：那条路**绕过 DocType 权限**，而本站点商品表是按岗位授权的；
+    `frappe.get_list` 跟着权限走。商品是主数据、量级不大，用列表长度换权限正确性。
+    """
+    guard.require("products.view")
+    filters, or_filters = _filters(search, include_inactive)
+    return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters,
+                               pluck="name", limit_page_length=0))
 
 
 def get_product(name: str):
@@ -141,18 +277,36 @@ def get_product(name: str):
 def update_product(name: str, **changes):
     guard.require("products.manage")
     doc = _get(name)
-    code = _text(changes.get("code"), contracts.MAX_CODE) if "code" in changes else doc.code
+    # 编码是系统发的，改它等于让历史单据行换了货（旧线上 ERP 门户也把它按原值写回）。
+    if "code" in changes and (_text(changes["code"], contracts.MAX_CODE) or "") != (doc.code or ""):
+        frappe.throw(_(CODE_LOCKED))
     barcode = (_text(changes.get("barcode"), contracts.MAX_BARCODE)
                if "barcode" in changes else doc.barcode)
-    _assert_unique(code, barcode, exclude=doc.name)
+    _assert_unique(doc.code, barcode, exclude=doc.name)
 
-    for field in ("code", "barcode", "qr_payload", "unit", "image_url"):
+    for field in ("default_warehouse", "default_location"):
+        if field in changes:
+            doc.set(field, _text(changes[field], 140))
+    old_unit, old_base = doc.unit or "", doc.base_unit or ""
+    for field in ("barcode", "qr_payload", "unit", "image_url",
+                  "base_unit"):
         if field in changes:
             doc.set(field, _text(changes[field], {
-                "code": contracts.MAX_CODE, "barcode": contracts.MAX_BARCODE,
-                "qr_payload": contracts.MAX_QR, "unit": contracts.MAX_UNIT,
+                "barcode": contracts.MAX_BARCODE, "qr_payload": contracts.MAX_QR,
+                "unit": contracts.MAX_UNIT,
                 "image_url": contracts.MAX_IMAGE_URL,
+                "base_unit": contracts.MAX_BASE_UNIT,
             }[field]))
+    # 两者原本一致时，改售卖单位就把库存单位一起带走（别让它悄悄变成"另一个单位"）；
+    # 明确分过家的（库存单位与单位不同）不动 —— 那是商户自己的口径。
+    if "unit" in changes and "base_unit" not in changes and old_base == old_unit:
+        doc.base_unit = doc.unit
+    if "category_id" in changes:
+        doc.category_id = (int(changes["category_id"])
+                           if str(changes["category_id"] or "").strip() else None)
+    for field in ("track_batch", "track_expiry"):
+        if field in changes:
+            doc.set(field, _flag(changes[field]))
     if "product_name" in changes:
         try:
             doc.product_name = contracts.require_name(changes["product_name"])
@@ -161,7 +315,10 @@ def update_product(name: str, **changes):
     if "unit_price" in changes:
         for field, value in _price_fields(changes["unit_price"]).items():
             doc.set(field, value)
-    for field in ("min_stock", "default_cost"):
+    if "default_cost" in changes:
+        for field, value in _cost_fields(changes["default_cost"]).items():
+            doc.set(field, value)
+    for field in ("min_stock",):
         if field in changes:
             doc.set(field, _optional(changes[field]))
     if "vat_applicable" in changes:
@@ -169,6 +326,8 @@ def update_product(name: str, **changes):
     if "is_active" in changes:
         doc.is_active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
     doc.save()
+    if "image_url" in changes:
+        _attach_image(doc.image_url, doc.name)
     frappe.db.commit()
     return {"name": doc.name}
 
@@ -219,6 +378,18 @@ def api_list_products(**kwargs):
 
 
 @frappe.whitelist()
+def api_find_product(value=None, exclude=None, **kwargs):
+    kwargs.pop("cmd", None)
+    return find_product(value, exclude=exclude)
+
+
+@frappe.whitelist()
+def api_count_products(**kwargs):
+    kwargs.pop("cmd", None)
+    return count_products(**kwargs)
+
+
+@frappe.whitelist()
 def api_get_product(name=None, **kwargs):
     kwargs.pop("cmd", None)
     return get_product(name)
@@ -246,3 +417,91 @@ def api_set_active(name=None, active=None, **kwargs):
 def api_add_unit(name=None, **kwargs):
     kwargs.pop("cmd", None)
     return add_unit(name, **kwargs)
+
+# ── Excel 批量导入 ──────────────────────────────────────────────────────────
+
+
+def _row_error(token) -> str:
+    """逐行错误：认识的 token 翻成用户看得懂的那一句，不认识的照原样截断带上。"""
+    token = str(token)
+    return _(ROW_ERRORS[token]) if token in ROW_ERRORS else token[:200]
+
+
+def _label_texts() -> dict:
+    """界面标签 → 字段：四种语言都给（模板可能是在另一种语言的站点上下载的）。
+
+    键名本身也收 —— 语言包缺这条时页面与模板都会露出键名，露出来也得认得。
+    """
+    labels: dict = {}
+    for field, key in workbook.FIELD_LABELS:
+        labels[key] = field
+        for text in browser_text.all_languages(key).values():
+            if text:
+                labels[text] = field
+    return labels
+
+
+def _template_headers() -> list:
+    """模板表头按**站点语言**给（租户是泰文就给泰文表头）。"""
+    lang = (frappe.local.lang or browser_text.FALLBACK_LANG)[:2]
+
+    def label_of(key):
+        texts = browser_text.all_languages(key)
+        return texts.get(lang) or texts.get("en") or key
+
+    return workbook.template_headers(label_of)
+
+
+@frappe.whitelist()
+def api_import_template():
+    """下载导入模板：表头就是商品页那几句界面文案，别的什么都没有。
+
+    走 `binary` 直接回文件内容，不在租户里留 `File` 记录 —— 模板是产品自带的，
+    不该在每位客户的库里各存一份。
+    """
+    guard.require("products.manage")
+    frappe.local.response.filename = TEMPLATE_FILE
+    frappe.local.response.filecontent = workbook.template_bytes(_template_headers())
+    frappe.local.response.type = "binary"
+
+
+def import_products(data: bytes) -> dict:
+    """把上传的表逐行入库。**逐行报错、不整批回滚** —— 一行错不该让 200 行白导。
+
+    入库走的是 `create_product`，与手工录入同一条校验路径（编码/条码唯一、金额非负、
+    "没设价"与 ฿0 的区别），所以导入不会绕开任何规则。
+    """
+    guard.require("products.manage")
+    try:
+        rows, errors = workbook.parse_workbook(data, workbook.header_aliases(_label_texts()))
+    except ValueError as exc:
+        frappe.throw(_(IMPORT_ERRORS.get(str(exc), IMPORT_BAD_FILE)))
+    # 解析层只报 token，文案在这里翻（纯层不连 Frappe、也不该管界面话术）。
+    errors = [{"row": row["row"], "error": _row_error(row["error"])} for row in errors]
+    created = 0
+    for index, row in enumerate(rows, start=1):
+        try:
+            create_product(**row)
+            created += 1
+        except Exception as exc:  # noqa: BLE001 - 单行失败要变成行级错误，不连累整批
+            frappe.db.rollback()
+            errors.append({"row": index, "error": _row_error(str(exc))})
+    return {"created": created, "failed": len(errors), "errors": errors[:100]}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_import_products(**kwargs):
+    """导入：前端用原生上传组件把文件传上来，这里按 `file_url` 读回内容再解析。
+
+    为什么不让上传直接打到这个方法：原生上传（`frappe.ui.FileUploader` 的默认通道）
+    会先把文件落成 `File` 记录并做大小/类型限制，我们只要按 URL 取回字节即可 ——
+    两件事分开，各自的失败也分得清（传失败 vs 解析失败）。
+    """
+    kwargs.pop("cmd", None)
+    file_url = str(kwargs.get("file_url") or "").strip()
+    if not file_url:
+        frappe.throw(_(IMPORT_NO_FILE))
+    name = frappe.db.get_value("File", {"file_url": file_url}, "name")
+    if not name:
+        frappe.throw(_(IMPORT_NO_FILE))
+    return import_products(frappe.get_doc("File", name).get_content())

@@ -1,5 +1,6 @@
 A DMS customer reference is required before confirming or pushing,DMS顧客参照は確定または送信の前に必要です
 A DMS customer reference is required; otherwise this link means nothing,DMS顧客参照が必要です。なければこの紐付けは意味を持ちません
+A board instance is created only when this is on,有効にした時だけボードを作成します
 A disabled operator cannot issue a bind code; enable them first,無効化中のオペレーターは連携コードを発行できません。先に有効化してください
 "A human-readable name, e.g. MR.ERP DMS",人が読むための名前（例: MR.ERP DMS）
 "A native Frappe Password field, encrypted at rest (equivalent to the legacy encrypt_str + KMS); the API never echoes it back.",Frappe標準のPasswordフィールド。保存時に暗号化（旧製品の encrypt_str + KMS 相当）。APIは値を返しません。
@@ -45,6 +46,7 @@ Charges,課金
 Claimed By,担当者
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
 Client ID is required,クライアントIDは必須です
+Collaboration Boards (WeKan),コラボボード（WeKan）
 Companion,コンパニオン
 Company Tax ID,自社の税番号
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",設定は揃っています。**実際の接続はしていません**（アダプタ未移植）。接続できたふりはしません
@@ -248,7 +250,7 @@ Product,製品
 Product Ref,商品の外部参照
 "Product home: current plan, usage and billing",製品ホーム。現在のプラン、利用量、請求を表示
 Product master data,商品マスタ
-Products,商品データ
+Products,商品
 Provide at least one line item,明細を1行以上入力してください
 "Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
 Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
@@ -631,14 +633,20 @@ intake.status.recognized,読み取り済み
 intake.status.rejected,差戻し
 intake.subtitle,内容を確認して確定後、送信してください。
 intake.title,取り込みワークベンチ
+nav.cashier,POS レジ
 nav.clients,顧客管理
 nav.company,会社情報
+nav.companyMaster,会社マスタ
 nav.connect,DMSに接続
 nav.cowork,Pearnly Cowork
 nav.erpClients,顧客
 nav.erpPurchase,購買
 nav.erpSales,販売
 nav.erpStock,商品と在庫
+nav.group.goodsStock,商品と在庫
+nav.group.master,マスタ
+nav.group.purchasing,購買システム
+nav.group.sales,販売システム
 nav.guide,使い方
 nav.history,認識記録
 nav.home,ホーム
@@ -646,7 +654,7 @@ nav.intake,取り込みワークベンチ
 nav.integrations,連携
 nav.inventory,在庫
 nav.masterData,マスタデータ
-nav.products,商品データ
+nav.products,商品
 nav.purchase,購買記録
 nav.purchaseSettings,購買設定
 nav.pushLogs,プッシュログ
@@ -660,6 +668,7 @@ nav.stockOut,出庫
 nav.stocktake,棚卸
 nav.suppliers,仕入先
 nav.team,チーム
+nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
 purchase.action.addLine,明細を追加
 purchase.action.new,仕入伝票を作成
@@ -682,6 +691,7 @@ purchase.field.supplier,仕入先
 purchase.hint.serverTotal,合計金額は自動計算されます。
 purchase.loading,読み込み中…
 purchase.notice.created,伝票を作成しました：{0}
+purchase.notice.totals,{0} 件 · 合計 {1} · 支払 {2} · 未払 {3}
 purchase.placeholder.description,品名・摘要
 purchase.placeholder.docNo,空欄可
 purchase.placeholder.qty,数量

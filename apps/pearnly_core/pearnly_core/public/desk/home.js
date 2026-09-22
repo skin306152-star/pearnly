@@ -8,7 +8,7 @@
 			busy = false;
 		let tab = "usage", period = "all", pageLength = 20;
 		let deleting = false, confirming = false;
-		const money = (value) => format_currency(Number(value || 0), "THB");
+		const money = (value) => p.money(Number(value || 0));
 		const read = (name, label, value, fieldtype = "Data") => ({
 			fieldname: name,
 			label: t(label),

@@ -245,6 +245,12 @@ def ensure_feature_roles(spec_json: str, admin_user: str = "") -> dict:
         if frappe.db.exists("DocType", doctype):
             _grant(doctype, role_name, perms)
 
+    for grant in spec.get("field_permissions") or []:
+        if grant.get("role") not in created_roles or int(grant.get("permlevel", 0)) <= 0:
+            continue
+        if frappe.db.exists("DocType", grant["doctype"]):
+            _grant(grant["doctype"], grant["role"], grant["perms"], permlevel=int(grant["permlevel"]))
+
     # 岗位可以先于"可挡的表"存在：收银的 POS 表还没落地，但角色要在开通时就建出来，
     # 否则团队管理里勾不到这个岗位。等表到位，按同一份目录补 DocType 授权即可。
     for row in feature_roles:
@@ -313,7 +319,7 @@ PERM_FIELDS = (
 )
 
 
-def _grant(doctype: str, role: str, perms: dict) -> None:
+def _grant(doctype: str, role: str, perms: dict, *, permlevel: int = 0) -> None:
     """给角色加一条 DocType 权限。已有就更新，不重复建（幂等）。"""
     from frappe.permissions import setup_custom_perms
 
@@ -323,7 +329,7 @@ def _grant(doctype: str, role: str, perms: dict) -> None:
     wanted = {key: (1 if perms.get(key) else 0) for key in PERM_FIELDS}
     existing = frappe.db.get_value(
         "Custom DocPerm",
-        {"parent": doctype, "role": role, "permlevel": 0, "if_owner": 0},
+        {"parent": doctype, "role": role, "permlevel": permlevel, "if_owner": 0},
         "name",
     )
     if existing:
@@ -339,7 +345,7 @@ def _grant(doctype: str, role: str, perms: dict) -> None:
             "parenttype": "DocType",
             "parentfield": "permissions",
             "role": role,
-            "permlevel": 0,
+            "permlevel": permlevel,
             **wanted,
         }).save(ignore_permissions=True)
     frappe.db.commit()

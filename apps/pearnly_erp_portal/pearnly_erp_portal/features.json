@@ -66,6 +66,19 @@
       ]
     },
     {
+      "code": "stocktake",
+      "label": "Stock Count",
+      "default_on": true,
+      "description": "Stock count tasks, staff entries and variance posting",
+      "role": "ERP Stock",
+      "doctypes": [
+        "ERP Stock Count",
+        "ERP Stock Count Item",
+        "ERP Stock Count Entry"
+      ],
+      "read_only": []
+    },
+    {
       "code": "purchase",
       "label": "Purchasing (Records / Suppliers / Settings)",
       "default_on": true,
@@ -74,12 +87,14 @@
       "doctypes": [
         "Purchase Document",
         "Purchase Line",
+        "ERP Product",
         "ERP Supplier",
         "ERP Purchase Settings",
         "ERP Company",
         "ERP LINE Intake"
       ],
       "read_only": [
+        "ERP Product",
         "ERP Company"
       ]
     },
@@ -92,10 +107,12 @@
       "doctypes": [
         "ERP Sales Document",
         "ERP Sales Document Line",
+        "ERP Product",
         "ERP Company",
         "ERP LINE Intake"
       ],
       "read_only": [
+        "ERP Product",
         "ERP Company"
       ]
     },
@@ -109,7 +126,9 @@
         "ERP Customer",
         "ERP Company"
       ],
-      "read_only": []
+      "read_only": [
+        "ERP Company"
+      ]
     },
     {
       "code": "cashier",
@@ -121,12 +140,14 @@
         "ERP POS Terminal",
         "ERP Shift",
         "ERP Sale",
+        "ERP Product",
         "ERP Sale Line",
         "ERP Sale Payment",
         "ERP Customer",
         "ERP Company"
       ],
       "read_only": [
+        "ERP Product",
         "ERP Customer",
         "ERP Company"
       ]
@@ -139,6 +160,26 @@
       "role": "",
       "doctypes": [],
       "read_only": []
+    }
+  ],
+  "field_permissions": [
+    {
+      "doctype": "ERP Product",
+      "role": "ERP Admin",
+      "permlevel": 1,
+      "perms": {
+        "read": 1,
+        "write": 1
+      }
+    },
+    {
+      "doctype": "ERP Product",
+      "role": "ERP Stock",
+      "permlevel": 1,
+      "perms": {
+        "read": 1,
+        "write": 0
+      }
     }
   ]
 }

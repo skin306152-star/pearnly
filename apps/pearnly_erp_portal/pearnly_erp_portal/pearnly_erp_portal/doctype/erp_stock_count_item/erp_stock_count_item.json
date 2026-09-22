@@ -1,0 +1,138 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Stock Count Item",
+ "module": "Pearnly ERP Portal",
+ "autoname": "format:STC-ITEM-{#####}",
+ "engine": "InnoDB",
+ "field_order": [
+  "count",
+  "product",
+  "product_name",
+  "code",
+  "barcode",
+  "unit",
+  "warehouse",
+  "column_break_qty",
+  "book_qty",
+  "counted",
+  "counted_qty",
+  "difference",
+  "last_counted_at",
+  "last_counted_by"
+ ],
+ "fields": [
+  {
+   "fieldname": "count",
+   "fieldtype": "Link",
+   "label": "Count",
+   "options": "ERP Stock Count",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "product",
+   "fieldtype": "Link",
+   "label": "Product",
+   "options": "ERP Product",
+   "reqd": 1
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "Product name",
+   "fetch_from": "product.product_name",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "code",
+   "fieldtype": "Data",
+   "label": "Code",
+   "read_only": 1
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "label": "Barcode",
+   "read_only": 1
+  },
+  {
+   "fieldname": "unit",
+   "fieldtype": "Data",
+   "label": "Unit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse",
+   "reqd": 1
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "in_list_view": 0
+  },
+  {
+   "fieldname": "column_break_qty",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "book_qty",
+   "fieldtype": "Float",
+   "label": "Book quantity",
+   "precision": "3",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "counted",
+   "fieldtype": "Check",
+   "label": "Counted",
+   "default": "0",
+   "read_only": 1
+  },
+  {
+   "fieldname": "counted_qty",
+   "fieldtype": "Float",
+   "label": "Counted",
+   "precision": "3",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "difference",
+   "fieldtype": "Float",
+   "label": "Difference",
+   "precision": "3",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "last_counted_at",
+   "fieldtype": "Datetime",
+   "label": "Last counted at",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_counted_by",
+   "fieldtype": "Link",
+   "label": "Last counted by",
+   "options": "User",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "System Manager",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1,
+   "report": 1,
+   "export": 1
+  }
+ ]
+}

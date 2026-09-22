@@ -175,6 +175,16 @@ def main():
         r["name"] == doc for r in buyer_rows)
     ok, owner_rows = as_user(OWNER, service.list_purchases, limit=50)
     results["owner_visible"] = len(owner_rows) if ok else owner_rows
+    # 列表分页（页面上是原生列表，要 start + total）；limit=0 是"全部"不是"五十条"。
+    ok, first_page = as_user(OWNER, service.list_purchases, limit=1, start=0)
+    results["page_size_one"] = len(first_page) if ok else first_page
+    ok, second_page = as_user(OWNER, service.list_purchases, limit=1, start=1)
+    results["page_two_differs"] = bool(
+        ok and first_page and second_page and first_page[0]["name"] != second_page[0]["name"])
+    ok, total = as_user(OWNER, service.purchase_total)
+    results["total_matches_rows"] = bool(ok and total == len(owner_rows))
+    ok, all_rows = as_user(OWNER, service.list_purchases, limit=0)
+    results["limit_zero_is_all"] = bool(ok and len(all_rows) == total)
 
     # 无采购岗位的账号：读、写、供应商、设置全部拒绝。
     results["outsider_read"] = as_user(OUTSIDER, service.list_purchases, limit=5)[0]
@@ -229,6 +239,10 @@ def main():
         "overpay_allowed": False,
         "buyer_create": True,
         "buyer_visible": 1,
+        "page_size_one": 1,
+        "page_two_differs": True,
+        "total_matches_rows": True,
+        "limit_zero_is_all": True,
         "buyer_sees_owner_doc": False,
         "outsider_read": False,
         "outsider_write": False,

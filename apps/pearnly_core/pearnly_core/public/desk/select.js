@@ -20,6 +20,10 @@
 			};
 			return settings;
 		}
+		validate(value) {
+			// Read-only controls have no input widget; defaults still pass through validation.
+			return this.awesomplete ? super.validate(value) : value;
+		}
 		make_input() {
 			super.make_input();
 			this.$input.attr("autocomplete", "off");

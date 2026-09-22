@@ -122,3 +122,11 @@ def api_convert_quotation(**kwargs):
     kwargs = _clean(kwargs)
     return service.convert_quotation(kwargs.get("name"),
                                      kwargs.get("target") or contracts.TAX_INVOICE)
+
+
+@frappe.whitelist()
+def api_sale_document_total(**kwargs):
+    kwargs = _clean(kwargs)
+    kwargs.pop("start", None)
+    kwargs.pop("limit", None)
+    return len(service.list_documents(**kwargs, limit=0))

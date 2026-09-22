@@ -1,275 +1,275 @@
 en	zh	th	ja	key
-{0} — {1} features	{0} — {1} 项	{0} — {1} ฟีเจอร์	{0} — {1} 件	
-Delete tenant	删除租户	ลบผู้เช่า	テナントを削除	
-Retry deletion	重试删除	ลบอีกครั้ง	削除を再試行	
-Queueing the deletion…	正在排队删除…	กำลังเข้าคิวการลบ…	削除をキューに追加しています…	
-Deletion queued ({0} steps). The on-host runner will do the work.	已排队删除（{0} 步），接下来由本机执行器完成。	เข้าคิวการลบแล้ว ({0} ขั้นตอน) ตัวรันบนเครื่องจะทำงานต่อ	削除をキューに入れました（{0}ステップ）。以降は実行ホストが処理します。	
-This removes everything about this tenant. It cannot be undone.	这会删除这个租户的一切，且不可恢复。	การดำเนินการนี้จะลบทุกอย่างของผู้เช่ารายนี้ และกู้คืนไม่ได้	このテナントのすべてを削除します。元に戻せません。	
-This tenant no longer exists.	这个租户已经不存在了。	ผู้เช่ารายนี้ไม่มีอยู่แล้ว	このテナントは既に存在しません。	
-Could not read what would be deleted	读不到要删除的内容	อ่านรายการที่จะลบไม่ได้	削除対象を読み取れませんでした	
-Could not queue the deletion	排队删除失败	เข้าคิวการลบไม่สำเร็จ	削除をキューに入れられませんでした	
-Control-plane records	控制面记录	บันทึกฝั่งคอนโซล	コントロールプレーンの記録	
-Deployments	部署	การติดตั้ง	デプロイ	
-Issues	发号单	ใบเปิดใช้งาน	発行伝票	
-Sign-in accounts	登录账号	บัญชีเข้าสู่ระบบ	ログインアカウント	
-Sites and databases	站点与数据库	เว็บไซต์และฐานข้อมูล	サイトとデータベース	
-Teardown request {0} does not exist	拆除请求 {0} 不存在	คำขอรื้อถอน {0} ไม่มีอยู่	撤去リクエスト {0} が存在しません	
-Tenant {0} does not exist	租户 {0} 不存在	ผู้เช่า {0} ไม่มีอยู่	テナント {0} が存在しません	
-These accounts could not be deleted: {0}	这些账号删不掉：{0}	บัญชีเหล่านี้ลบไม่ได้: {0}	これらのアカウントを削除できません: {0}	
-Channel ID	渠道 ID	Channel ID	チャネルID	
-Channel Secret	渠道密钥	Channel Secret	チャネルシークレット	
-Channel Access Token	渠道访问令牌	Channel Access Token	チャネルアクセストークン	
-LIFF ID	LIFF ID	LIFF ID	LIFF ID	
-Webhook URL	Webhook 地址	Webhook URL	Webhook URL	
-Realm	Realm	Realm	レルム	
-Tenant	租户	ผู้เช่า	テナント	
-Type	类型	ประเภท	種別	
-Amount (THB)	金额（泰铢）	จำนวนเงิน (บาท)	金額（バーツ）	
-Balance After	变动后余额	ยอดคงเหลือหลังเปลี่ยนแปลง	変動後の残高	
-Details	明细	รายละเอียด	明細	
-Billing Units	计费单位	หน่วยคิดค่าบริการ	課金単位	
-Pages	页数	จำนวนหน้า	ページ数	
-Site Name	站点名	ชื่อเว็บไซต์	サイト名	
-The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.	就是该部署的域名。Frappe 按 Host 认站点，所以站点名与域名是同一个值	คือโดเมนของการติดตั้งนี้ Frappe เลือกเว็บไซต์จาก Host จึงใช้ค่าเดียวกัน	このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。	
-Bench Group	运行组	กลุ่มรัน	実行グループ	
-Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.	同产品的多个站点共享一个 Bench 进程，记录在这里以便定位故障范围	เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้ Bench โปรเซสเดียวกัน บันทึกไว้เพื่อจำกัดขอบเขตของปัญหา	同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。	
-Site	站点	เว็บไซต์	サイト	
-Product App	产品 App	แอปผลิตภัณฑ์	製品アプリ	
-The product app installed on this site; pearnly_core is shared by every product.	该站点安装的产品 App，另有所有产品共用的 pearnly_core	แอปผลิตภัณฑ์ที่ติดตั้งบนเว็บไซต์นี้ ส่วน pearnly_core ใช้ร่วมกันทุกผลิตภัณฑ์	このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。	
-Local Port	本机端口	พอร์ตในเครื่อง	ローカルポート	
-OIDC Client ID	OIDC 客户端 ID	OIDC Client ID	OIDCクライアントID	
-One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.	每个部署一个：回调地址按站点域名算，共用客户端会让第二个租户登不进来	หนึ่งรายต่อการติดตั้ง: callback ใช้โดเมนของเว็บไซต์ ถ้าใช้ร่วมกันผู้เช่ารายที่สองจะเข้าไม่ได้	デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。	
-OIDC Client Secret	OIDC 客户端密钥	OIDC Client Secret	OIDCクライアントシークレット	
-Local URL	本机访问地址	ที่อยู่ในเครื่อง	ローカルURL	
-Enabled Features	已开通功能	ฟีเจอร์ที่เปิดใช้	有効な機能	
-Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).	来自发号单。功能级强制暂未实施（见 docs/p4/06-provisioning.md）	มาจากใบเปิดใช้งาน การบังคับระดับฟีเจอร์ยังไม่ได้ทำ (ดู docs/p4/06-provisioning.md)	発行伝票から取得。機能単位の強制は未実装です（docs/p4/06-provisioning.md 参照）。	
-Source	来源	ที่มา	ソース	
-Issue	发号单	ใบเปิดใช้งาน	発行伝票	
-Feature Code	功能代码	รหัสฟีเจอร์	機能コード	
-Matches the feature key in the product's own feature catalog (features.json).	与产品自己的功能目录 features.json 里的功能键一致	ตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกของผลิตภัณฑ์เอง (features.json)	製品自身の機能カタログ (features.json) の機能キーと一致します。	
-Feature Name	功能名称	ชื่อฟีเจอร์	機能名	
-Default On	常规开通	เปิดตามปกติ	既定で有効	
-Enforcement	权限落地	การบังคับสิทธิ์	権限の適用	
-Role	对应角色	บทบาท	対応ロール	
-At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）	ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。	
-Granted DocTypes	授予的 DocType	DocType ที่อนุญาต	付与するDocType	
-Comma separated. The role gets read/write on these DocTypes.	逗号分隔。该角色拿到这些 DocType 的读写权限	คั่นด้วยจุลภาค บทบาทนี้จะได้สิทธิ์อ่าน/เขียนบน DocType เหล่านี้	カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。	
-Provisioning Target	开户目标	เป้าหมายการเปิดใช้	開通ターゲット	
-Basic Info	基础信息	ข้อมูลพื้นฐาน	基本情報	
-Company Name	公司名称	ชื่อบริษัท	会社名	
-Email	邮箱	อีเมล	メールアドレス	
-Username	用户名	ชื่อผู้ใช้	ユーザー名	
-Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	
-Products & Domains	产品与域名	ผลิตภัณฑ์และโดเมน	製品とドメイン	
-Credential Delivery	凭据交付方式	วิธีส่งมอบข้อมูลรับรอง	資格情報の受け渡し方法	
-Identity Subject	身份主体	ตัวตนSubject	アイデンティティのサブジェクト	
-Invitation Sent At	邀请邮件发送时间	ส่งคำเชิญเมื่อ	招待メール送信日時	
-Password Delivered At	初始密码交付时间	ส่งรหัสผ่านเริ่มต้นเมื่อ	初期パスワード交付日時	
-Issued At	发号时间	ออกใบเมื่อ	発行日時	
-Issued By	操作人	ออกโดย	発行者	
-Domain Prefix	域名前缀	คำนำหน้าโดเมน	ドメイン接頭辞	
-Prefix only, e.g. aerp	只填前缀，如 aerp	ใส่เฉพาะคำนำหน้า เช่น aerp	接頭辞のみ（例: aerp）	
-Domain	访问域名	โดเมน	アクセスドメイン	
-Display Name	界面标题	ชื่อที่แสดง	表示名	
-Leave empty to use the company name	留空用公司名称	เว้นว่างเพื่อใช้ชื่อบริษัท	空欄なら会社名を使います	
-One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.	一个部署（公司×产品）一条 LINE。这是隔离边界：验签与发消息都用这条自己的凭据	หนึ่งช่องทาง LINE ต่อการติดตั้ง (บริษัท × ผลิตภัณฑ์) นี่คือขอบเขตการแยก: การตรวจลายเซ็นและการส่งข้อความใช้ข้อมูลรับรองของช่องทางนี้เอง	デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。	
-DMS is the one already proven; ERP and Cowork use the same API surface.	存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口	ตัวที่พิสูจน์แล้วคือ DMS ส่วน ERP และ Cowork ใช้ API ชุดเดียวกัน	DMSが実績あり。ERPとCoworkも同じAPIを使います。	
-The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.	Messaging API 频道的基本 ID（@xxx），用于识别与排查	Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา	Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。	
-Fill in only if a LIFF app exists; otherwise leave empty.	有 LIFF 应用才填；没有就留空	กรอกเฉพาะเมื่อมีแอป LIFF ถ้าไม่มีให้เว้นว่าง	LIFFアプリがある場合のみ入力。なければ空欄。	
-Credentials (stored only here, pushed to the tenant site at provisioning)	凭据（只在这里存一份，开通时推到租户站点）	ข้อมูลรับรอง (เก็บไว้ที่นี่ที่เดียว ผลักไปเว็บไซต์ผู้เช่าตอนเปิดใช้)	資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）	
-Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.	webhook 验签用。**每个租户一条**：租户站点只用自己的这条，别人的签名验不过	ใช้ตรวจลายเซ็น webhook **หนึ่งรายต่อผู้เช่า**: เว็บไซต์ผู้เช่าใช้ของตัวเองเท่านั้น ลายเซ็นของรายอื่นจะไม่ผ่าน	Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。	
-Used to send messages (long-lived).	发消息用（long-lived）	ใช้ส่งข้อความ (long-lived)	メッセージ送信用（long-lived）。	
-The URL to paste into the LINE console, derived from the deployment domain.	填到 LINE 后台的那个地址，由部署域名算出	ที่อยู่ที่นำไปใส่ในหลังบ้าน LINE คำนวณจากโดเมนของการติดตั้ง	LINE管理画面に貼るURL。デプロイのドメインから算出します。	
-Operations	运维	ปฏิบัติการ	運用	
-Idempotency Key	幂等键	คีย์กันซ้ำ	冪等キー	
-The same key submitted twice yields only one set of resources. Defaults to the issue number.	同一个键重复提交只会有一套资源。默认用发号单号	ส่งคีย์เดิมซ้ำจะได้ทรัพยากรชุดเดียวเท่านั้น ค่าเริ่มต้นคือเลขใบเปิดใช้งาน	同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。	
-Steps	步骤	ขั้นตอน	ステップ	
-Step	步骤	ขั้นตอน	ステップ	
-Started At	开始时间	เริ่มเมื่อ	開始日時	
-Finished At	结束时间	สิ้นสุดเมื่อ	終了日時	
-Action	动作	การกระทำ	アクション	
-Action name the runner understands; see pearnly_control/provisioning.py	执行器认识的动作名，见 pearnly_control/provisioning.py	ชื่อการกระทำที่ตัวรันรู้จัก ดู pearnly_control/provisioning.py	実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。	
-Payload	参数	พารามิเตอร์	パラメータ	
-Output	执行输出	ผลลัพธ์การทำงาน	実行出力	
-Plan	套餐	แพ็กเกจ	プラン	
-Cycle Start	本周期开始	เริ่มรอบนี้	今サイクル開始	
-Cycle End	本周期结束	สิ้นสุดรอบนี้	今サイクル終了	
-Quota	额度	โควตา	枠	
-Quota per Cycle (pages)	每周期额度（张）	โควตาต่อรอบ (หน้า)	1サイクルの枠（枚）	
-Used This Cycle (pages)	本周期已用（张）	ใช้ไปในรอบนี้ (หน้า)	今サイクル使用量（枚）	
-Over-rate (per page)	超额单价（每张）	ราคาส่วนเกิน (ต่อหน้า)	超過単価（1枚あたり）	
-Monthly Fee	月费	ค่าบริการรายเดือน	月額	
-Target Name	目标名称	ชื่อเป้าหมาย	ターゲット名	
-For example: local sample / production	例如：本地样板 / 生产	ตัวอย่าง: ตัวอย่างในเครื่อง / โปรดักชัน	例：ローカル見本 / 本番	
-Default Target	默认目标	เป้าหมายเริ่มต้น	既定のターゲット	
-Identity Service URL	身份服务地址	ที่อยู่บริการตัวตน	アイデンティティサービスURL	
-For example http://keycloak.localhost:8105	例如 http://keycloak.localhost:8105	ตัวอย่าง http://keycloak.localhost:8105	例: http://keycloak.localhost:8105	
-Provisioning Credentials (stored only here)	开户凭据（只在这里存一份）	ข้อมูลรับรองการเปิดใช้ (เก็บไว้ที่นี่ที่เดียว)	開通の資格情報（ここにだけ保存）	
-Admin Client ID	管理客户端 ID	Admin Client ID	管理者クライアントID	
-Admin Client Secret	管理客户端密钥	Admin Client Secret	管理者クライアントシークレット	
-Password-check Client ID	改密校验客户端 ID	Client ID ตรวจรหัสผ่าน	パスワード確認用クライアントID	
-Client with only the password grant, used to verify the current password. Shared by all three products.	只开密码授权、用于校验『当前密码』的客户端。三产品共用	ไคลเอนต์ที่เปิดเฉพาะ password grant ใช้ตรวจสอบ 'รหัสผ่านปัจจุบัน' ทั้งสามผลิตภัณฑ์ใช้ร่วมกัน	パスワードグラントのみ有効なクライアント。現在のパスワード確認に使い、3製品で共用します。	
-Password-check Client Secret	改密校验客户端密钥	Client Secret ตรวจรหัสผ่าน	パスワード確認用クライアントシークレット	
-Site Provisioning API	建站接口	API สร้างเว็บไซต์	サイト構築API	
-Control API URL	控制接口地址	ที่อยู่ Control API	制御APIのURL	
-The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.	服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站	API เปิดใช้บนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments กรอกเมื่อเซิร์ฟเวอร์พร้อม ถ้าเว้นว่างจะออกใบแต่ไม่สร้างเว็บไซต์	サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。	
-Invitation Email	邀请邮件	อีเมลเชิญ	招待メール	
-Client ID for Invitation Links	邀请链接用的客户端 ID	Client ID สำหรับลิงก์เชิญ	招待リンク用クライアントID	
-The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.	身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的	บริการตัวตนสร้างลิงก์ในอีเมลเชิญจากไคลเอนต์นี้ ระยะตัวอย่างผู้เช่าทุกรายใช้ร่วมกัน ผู้เช่าจริงจะมีไคลเอนต์ของตนเอง	招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。	
-Contact Name	联系人	ชื่อผู้ติดต่อ	担当者名	
-Contact Phone	联系电话	เบอร์ติดต่อ	連絡先電話	
-Requested Amount	申请金额	จำนวนที่ขอ	申請額	
-Received Amount	实收金额	จำนวนที่รับจริง	受領額	
-Proof	凭证	หลักฐาน	証憑	
-Transfer Slip	转账截图	สลิปโอนเงิน	振込明細	
-Tenant Note	租户备注	หมายเหตุผู้เช่า	テナント備考	
-Review Note	审核备注	หมายเหตุการตรวจสอบ	審査備考	
-Review	处理	ดำเนินการ	処理	
-Requested At	申请时间	ขอเมื่อ	申請日時	
-Reviewed At	审核时间	ตรวจสอบเมื่อ	審査日時	
-Reviewed By	审核人	ตรวจสอบโดย	審査者	
-Balance (THB)	余额（泰铢）	ยอดคงเหลือ (บาท)	残高（バーツ）	
-Pages Used This Month	本月已用页数	หน้าใช้ไปเดือนนี้	今月の使用ページ数	
-Last Updated	最近变动	แก้ไขล่าสุด	最終更新	
-External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号	
-Step Details	细节	รายละเอียดขั้นตอน	ステップ詳細	
-Unknown billing unit: {0}	未知的计费单位：{0}	หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}	不明な課金単位: {0}	
-grant only handles money in (topup / adjustment); use charge() for deductions	grant 只处理进账（topup / adjustment）；扣费走 charge()	grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()	grant は入金（topup / adjustment）専用。控除は charge() を使います。	
-Amount must be greater than 0	金额必须大于 0	จำนวนเงินต้องมากกว่า 0	金額は0より大きい必要があります	
-An adjustment must have a reason	调账必须写原因	การปรับยอดต้องระบุเหตุผล	調整には理由が必要です	
-An adjustment cannot be 0	调账金额不能是 0	ยอดปรับต้องไม่เป็น 0	調整額は0にできません	
-No such plan: {0}	没有这个套餐：{0}	ไม่มีแพ็กเกจนี้: {0}	そのプランはありません: {0}	
-Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})	余额不够付月费（需要 ฿{0}，只有 ฿{1}）	ยอดคงเหลือไม่พอชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} มี ฿{1})	月額を支払う残高が足りません（必要 ฿{0}、残高 ฿{1}）	
-Only a platform admin can handle top-ups and balances	只有平台管理员能处理充值与余额	เฉพาะผู้ดูแลแพลตฟอร์มเท่านั้นที่จัดการเติมเงินและยอดคงเหลือได้	チャージと残高を扱えるのはプラットフォーム管理者のみです	
-Invalid service token	服务令牌无效	โทเคนบริการไม่ถูกต้อง	サービストークンが無効です	
-No such tenant: {0}	租户不存在：{0}	ไม่มีผู้เช่านี้: {0}	そのテナントはありません: {0}	
-The top-up amount must be between ฿0.01 and ฿500,000	充值金额要在 ฿0.01 到 ฿500,000 之间	จำนวนเติมเงินต้องอยู่ระหว่าง ฿0.01 ถึง ฿500,000	チャージ額は฿0.01〜฿500,000の範囲で入力してください	
-This request has already been handled (currently: {0})	这张申请已经处理过了（当前：{0}）	คำขอนี้ถูกดำเนินการแล้ว (ปัจจุบัน: {0})	この申請はすでに処理済みです（現在: {0}）	
-The received amount must be greater than 0	实收金额必须大于 0	จำนวนที่รับจริงต้องมากกว่า 0	受領額は0より大きい必要があります	
-A rejection needs a reason; the tenant will see it	拒绝要写原因，租户那边要看到	การปฏิเสธต้องระบุเหตุผล เพราะผู้เช่าจะเห็น	却下には理由が必要です。テナント側に表示されます。	
-The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)	必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）	ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)	管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）	
-The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）	ต้องระบุ Client Secret สำหรับตรวจรหัสผ่าน (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）	
-Pick at least one product	至少要选一个产品	เลือกอย่างน้อยหนึ่งผลิตภัณฑ์	製品を1つ以上選んでください	
-Username and initial password are both required: they are the credentials for the user's first sign-in	用户名和初始密码都要填：它们是用户首次登录的凭据	ต้องกรอกทั้งชื่อผู้ใช้และรหัสผ่านเริ่มต้น เพราะเป็นข้อมูลรับรองสำหรับการเข้าสู่ระบบครั้งแรก	ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。	
-Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}	
-The last issue attempt failed; set it back to draft before issuing again	这张单上次发号失败了，先把它改回 draft 再发	การออกใบครั้งก่อนล้มเหลว ตั้งกลับเป็น draft ก่อนออกใหม่	前回の発行に失敗しました。draft に戻してから再発行してください。	
-"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."	账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号	"บัญชี {0} มีอยู่แล้วในเป้าหมาย ""{1}"" กรุณาเชิญบัญชีเดิมแทนการออกใบซ้ำ"	アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。	
-This issue has no usable initial password; fill it in again before issuing	这张单上没有可用的初始密码，重新填一次再发号	ใบนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรอกใหม่ก่อนออกใบ	この伝票には有効な初期パスワードがありません。再入力してから発行してください。	
-No such deployment: {0}	部署不存在：{0}	ไม่มีการติดตั้งนี้: {0}	そのデプロイはありません: {0}	
-Creating a channel requires both secret and access token	新建渠道必须同时给 secret 与 access token	การสร้างช่องทางต้องระบุทั้ง secret และ access token	チャネル作成には secret と access token の両方が必要です	
-Company name is required	公司名称必填	ต้องระบุชื่อบริษัท	会社名は必須です	
-Crediting…	入账中…	กำลังบันทึกเข้าบัญชี…	入金処理中…	
-Could not credit	入账失败	บันทึกเข้าบัญชีไม่สำเร็จ	入金に失敗しました	
-Reason (the tenant will see it; required)	原因（租户那边看得到，必填）	เหตุผล (ผู้เช่าจะเห็น จำเป็นต้องกรอก)	理由（テナント側に表示されます。必須）	
-Approve top-up	同意充值	อนุมัติการเติมเงิน	チャージを承認	
-Approve and credit	同意并到账	อนุมัติและบันทึกเข้าบัญชี	承認して入金	
-Received amount (as actually credited by the bank)	实收金额（以银行到账为准）	จำนวนที่รับจริง (ตามยอดที่ธนาคารเข้าจริง)	受領額（銀行の実際の入金額）	
-Credited ฿{0}; {1} now has ฿{2}	已到账 ฿{0}，{1} 现在余额 ฿{2}	บันทึก ฿{0} เข้าบัญชีแล้ว ตอนนี้ {1} มียอดคงเหลือ ฿{2}	฿{0} を入金しました。{1} の残高は ฿{2} です	
-Rejected	已拒绝	ถูกปฏิเสธ	却下済み	
-Reject	拒绝	ปฏิเสธ	却下	
-Reject top-up	拒绝充值	ปฏิเสธการเติมเงิน	チャージを却下	
-Could not reject	拒绝失败	ปฏิเสธไม่สำเร็จ	却下に失敗しました	
-Confirm credit	确认到账	ยืนยันการบันทึกเข้าบัญชี	入金を確定	
-Confirm rejection	确认拒绝	ยืนยันการปฏิเสธ	却下を確定	
-A single top-up is capped at ฿500,000	单笔充值上限 ฿500,000	เติมเงินครั้งละไม่เกิน ฿500,000	1回のチャージ上限は ฿500,000 です	
-The requested amount must be greater than 0	申请金额必须大于 0	จำนวนที่ขอต้องมากกว่า 0	申請額は0より大きい必要があります	
-This top-up request was already reviewed; it cannot be handled twice	这张充值申请已经审核过了，不能重复处理	คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้	この入金申請は審査済みです。二重処理はできません。	
-A wallet must belong to a tenant	钱包必须挂在某个租户上	กระเป๋าเงินต้องผูกกับผู้เช่า	ウォレットはテナントに紐づける必要があります	
-Close	关闭	ปิด	閉じる	
-Issue failed	发号失败	ออกใบไม่สำเร็จ	発行に失敗しました	
-Issue and provision	发号并开通	ออกใบและเปิดใช้งาน	発行して開通	
-Issued: {0} / tenant {1}	已发号：{0} / 租户 {1}	ออกใบแล้ว: {0} / ผู้เช่า {1}	発行済み: {0} / テナント {1}	
-Queued for provisioning; building the site now	已排入开通队列，正在建站	เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์	開通キューに入りました。サイトを構築中です。	
-Provisioning Progress	开通进度	ความคืบหน้าการเปิดใช้งาน	開通の進捗	
-Feature Catalog	功能目录	แคตตาล็อกฟีเจอร์	機能カタログ	
-LINE Channel	LINE 渠道	ช่องทาง LINE	LINEチャネル	
-Top-up Review	充值审核	ตรวจสอบการเติมเงิน	チャージ承認	
-Run provisioning	执行开通	เริ่มเปิดใช้งาน	開通を実行	
-Could not queue provisioning	排不进开通队列	เข้าคิวการเปิดใช้งานไม่ได้	開通キューに入れられませんでした	
-Not issued	未发号	ยังไม่ออกใบ	未発行	
-View progress	查看进度	ดูความคืบหน้า	進捗を見る	
-Issuing…	正在发号…	กำลังออกใบ…	発行中…	
-Queueing provisioning…	正在排入开通队列…	กำลังเข้าคิวการเปิดใช้งาน…	開通をキューに追加しています…	
-No provisioning request yet; click “Run provisioning” to start	还没有开通请求，点「执行开通」开始	"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"	開通リクエストはまだありません。「開通を実行」を押してください。	
-Product {0} is selected twice	产品 {0} 选了两次	เลือกผลิตภัณฑ์ {0} สองครั้ง	製品 {0} が二重に選ばれています	
-Initial password is required (the user signs in with it directly)	初始密码必填（用户拿它直接登录）	ต้องระบุรหัสผ่านเริ่มต้น (ผู้ใช้ใช้เข้าสู่ระบบโดยตรง)	初期パスワードは必須です（そのままログインに使います）	
-Domain prefix {0} is reserved; pick another	域名前缀 {0} 是保留名，换一个	คำนำหน้าโดเมน {0} สงวนไว้ กรุณาเลือกใหม่	ドメイン接頭辞 {0} は予約済みです。別のものを指定してください	
-Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63	域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63	คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63	ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63	
-Domain prefix cannot be all digits: {0}	域名前缀不能全是数字：{0}	คำนำหน้าโดเมนเป็นตัวเลขล้วนไม่ได้: {0}	ドメイン接頭辞を数字だけにはできません: {0}	
-Duplicate domain on the same issue: {0}	域名在同一张单里重复：{0}	โดเมนซ้ำในใบเดียวกัน: {0}	同じ伝票内でドメインが重複しています: {0}	
-Domain already taken: {0} (issue {1})	域名已被占用：{0}（发号单 {1}）	โดเมนถูกใช้แล้ว: {0} (ใบเปิดใช้งาน {1})	ドメインは既に使用済みです: {0}（発行伝票 {1}）	
-Username may only contain letters, digits, dot, underscore and hyphen, length 3–30	用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ยาว 3–30	ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30	
-Invalid email	邮箱不合法	อีเมลไม่ถูกต้อง	メールアドレスの形式が正しくありません	
-Target name is required	目标名称必填	ต้องระบุชื่อเป้าหมาย	ターゲット名は必須です	
-Service URL is required	服务地址必填	ต้องระบุที่อยู่บริการ	サービスURLは必須です	
-Issue {0} is {1}; only an issued one can be provisioned	发号单 {0} 状态是 {1}，只有 issued 的发号单才能开通	ใบเปิดใช้งาน {0} อยู่สถานะ {1} เปิดใช้งานได้เฉพาะใบที่ issued แล้วเท่านั้น	発行伝票 {0} は {1} です。開通できるのは issued の伝票だけです	
-Row {0} on the issue has no domain; cannot build the site	发号单里 {0} 这一行没有域名，无法建站	แถว {0} ในใบเปิดใช้งานไม่มีโดเมน สร้างเว็บไซต์ไม่ได้	発行伝票の {0} 行にドメインがなく、サイトを構築できません	
-Site name {0} is already taken by deployment {1}	站点名 {0} 已被部署 {1} 占用	ชื่อเว็บไซต์ {0} ถูกการติดตั้ง {1} ใช้อยู่	サイト名 {0} はデプロイ {1} が使用中です	
-Cannot read the provisioning target, so the identity service URL is unknown	取不到开户目标，无法确定身份服务地址	อ่านเป้าหมายการเปิดใช้ไม่ได้ จึงไม่ทราบที่อยู่บริการตัวตน	開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません	
-Unknown step status: {0}	未知步骤状态：{0}	สถานะขั้นตอนที่ไม่รู้จัก: {0}	不明なステップ状態: {0}	
-No such step: {0}	找不到步骤 {0}	ไม่พบขั้นตอน {0}	ステップ {0} が見つかりません	
-Notes	备注	หมายเหตุ	備考	
-(empty)	（空）	(ว่าง)	（空）	
-Feature	功能	ฟีเจอร์	機能	
-Features	功能	ฟีเจอร์	機能	
-{0} out-of-plan scan ({1} over quota)	{0} 套餐外扫描（超额 {1} 张）	{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)	{0} プラン外スキャン（枠超過 {1} 枚）	
-{0} in-plan scan ({1} pages, within quota)	{0} 套餐内扫描（{1} 张，额度内）	{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)	{0} プラン内スキャン（{1} 枚、枠内）	
-Manual adjustment · {0}	人工调账 · {0}	ปรับยอดด้วยคน · {0}	手動調整 · {0}	
-The balance could not be read; this is not 'insufficient balance'	余额查不出来，不是余额不足	อ่านยอดคงเหลือไม่ได้ ไม่ใช่ยอดไม่พอ	残高を読み取れません。残高不足ではありません	
-Insufficient balance; please top up first	余额不足，请先充值	ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน	残高不足です。先にチャージしてください	
-Plan {0} ({1} days · {2} pages)	订阅套餐 {0}（{1} 天 · {2} 张）	แพ็กเกจ {0} ({1} วัน · {2} หน้า)	プラン {0}（{1}日 · {2}枚）	
-Top-up approved · request {0}	充值审核通过 · 申请 {0}	อนุมัติการเติมเงินแล้ว · คำขอ {0}	チャージ承認 · 申請 {0}	
-Create the site	建站点	สร้างเว็บไซต์	サイトを作成	
-Install core apps	装基础 App	ติดตั้งแอปพื้นฐาน	基盤アプリを導入	
-Install the product app	装产品 App	ติดตั้งแอปผลิตภัณฑ์	製品アプリを導入	
-Set up unified sign-in	配统一登录	ตั้งค่าการเข้าสู่ระบบแบบรวม	統一ログインを設定	
-Restart services	重启服务	รีสตาร์ตบริการ	サービスを再起動	
-Finalize the site	收尾站点	เก็บงานเว็บไซต์ให้เรียบร้อย	サイトを仕上げ	
-Set up the LINE channel	配 LINE 渠道	ตั้งค่าช่องทาง LINE	LINEチャネルを設定	
-Create the tenant account	建租户账号	สร้างบัญชีผู้เช่า	テナントアカウントを作成	
-Grant feature roles	发功能权限	มอบบทบาทตามฟีเจอร์	機能ロールを付与	
-Build the workspace	建工作台	สร้างพื้นที่ทำงาน	ワークスペースを作成	
-Mark provisioning done	标记开通完成	ทำเครื่องหมายว่าเปิดใช้งานเสร็จ	開通完了にする	
-Done	完成	เสร็จแล้ว	完了	
-Skipped	不用做	ไม่ต้องทำ	不要	
-Running	进行中	กำลังทำ	実行中	
-Failed	失败	ล้มเหลว	失敗	
-Pending	待办	รอดำเนินการ	未処理	
-Not provisioned	未开通	ยังไม่เปิดใช้งาน	未開通	
-Provisioning failed	开通失败	เปิดใช้งานไม่สำเร็จ	開通に失敗	
-Enabled — {0} steps	已开通 {0} 步	เปิดใช้งานแล้ว {0} ขั้นตอน	開通済み {0} ステップ	
-Partly done {0}/{1}	部分完成 {0}/{1}	ทำไปบางส่วน {0}/{1}	一部完了 {0}/{1}	
-Provisioning {0}/{1}	开通中 {0}/{1}	กำลังเปิดใช้งาน {0}/{1}	開通中 {0}/{1}	
-Account opening is available only for configured cloud targets	仅可为已配置的云端目标开户	เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น	設定済みのクラウド環境でのみアカウントを開設できます	
-Retry provisioning	重试开通	ลองเปิดใช้งานอีกครั้ง	開通処理を再試行	
-Welcome to	欢迎使用	ยินดีต้อนรับสู่	ようこそ	
-Your account is ready	已成功开通	เปิดใช้งานสำเร็จ	アカウント開設完了	
-Dear customer,	尊敬的用户，您好！	เรียน ผู้ใช้งาน	お客様各位	
-Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.	感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。	ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที	Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。	
-Account information	账户信息	ข้อมูลบัญชี	アカウント情報	
-Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン	
-Sign-in account	登录账号	บัญชีผู้ใช้	ログインアカウント	
-Initial password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	
-Sign in to your account	登录账户	เข้าสู่ระบบ	ログイン	
-Please change your initial password promptly	请尽快修改初始密码	กรุณาเปลี่ยนรหัสผ่านเริ่มต้นโดยเร็ว	初期パスワードを速やかに変更してください	
-For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.	为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。	เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น	安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。	
-Contact us	联系我们	ติดต่อเรา	お問い合わせ	
-If you encounter any problems while using our services, please contact us through the official channels below.	在使用过程中遇到任何问题，欢迎通过以下官方联系方式与我们联系。	หากพบปัญหาระหว่างการใช้งาน โปรดติดต่อเราผ่านช่องทางอย่างเป็นทางการด้านล่าง	ご利用中に問題が発生した場合は、以下の公式窓口までお問い合わせください。	
-Support email	客服邮箱	อีเมลฝ่ายบริการลูกค้า	サポートメール	
-Support phone	客服电话	โทรศัพท์	電話番号	
-Kind regards,	此致	ขอแสดงความนับถือ	よろしくお願いいたします。	
-Pearnly Customer Support	Pearnly 客户服务团队	ฝ่ายบริการลูกค้า Pearnly	Pearnly カスタマーサポート	
-This is an account activation notice. If you did not request this account, please contact our support team.	这是一封账户开通通知。若您未申请开通，请联系官方客服。	อีเมลแจ้งการเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า	本メールはアカウント開設のご案内です。お心当たりがない場合は、サポート窓口までご連絡ください。	
-Welcome to {0} — your account is ready	欢迎使用 {0}，您的账户已开通	ยินดีต้อนรับสู่ {0} บัญชีของคุณเปิดใช้งานแล้ว	{0}へようこそ — アカウント開設完了	
-Welcome Email Language	欢迎邮件语言	ภาษาของอีเมลต้อนรับ	ウェルカムメールの言語	
-Welcome Email Queue	欢迎邮件队列	คิวอีเมลต้อนรับ	ウェルカムメールキュー	
-Welcome Email Error	欢迎邮件错误	ข้อผิดพลาดของอีเมลต้อนรับ	ウェルカムメールエラー	
-Retry welcome email	重试欢迎邮件	ลองส่งอีเมลต้อนรับอีกครั้ง	ウェルカムメールを再試行	
-View welcome email	查看欢迎邮件	ดูอีเมลต้อนรับ	ウェルカムメールを表示	
-Welcome email could not be queued. Check the outgoing email account, then retry the email.	欢迎邮件未能加入队列，请检查发信配置后重试邮件。	ไม่สามารถเพิ่มอีเมลต้อนรับเข้าคิวได้ โปรดตรวจสอบบัญชีส่งอีเมลแล้วลองอีกครั้ง	メールをキューに追加できませんでした。送信設定を確認して再試行してください。	
-Provisioning must be complete before sending the welcome email.	开通完成后才能发送欢迎邮件。	ต้องเปิดใช้งานให้เสร็จก่อนส่งอีเมลต้อนรับ	開設完了後にウェルカムメールを送信できます。	
-View transfer slip	查看转账凭证	ดูหลักฐานการโอน	振込明細を表示	
-No transfer slip is attached	未附转账凭证	ยังไม่ได้แนบหลักฐานการโอน	振込明細が添付されていません	
-Billing Mode	计费方式	รูปแบบการคิดค่าบริการ	課金方式	
-Billing Month	计费月份	เดือนที่คิดค่าบริการ	課金対象月	
+{0} — {1} features	{0} — {1} 项	{0} — {1} ฟีเจอร์	{0} — {1} 件
+Delete tenant	删除租户	ลบผู้เช่า	テナントを削除
+Retry deletion	重试删除	ลบอีกครั้ง	削除を再試行
+Queueing the deletion…	正在排队删除…	กำลังเข้าคิวการลบ…	削除をキューに追加しています…
+Deletion queued ({0} steps). The on-host runner will do the work.	已排队删除（{0} 步），接下来由本机执行器完成。	เข้าคิวการลบแล้ว ({0} ขั้นตอน) ตัวรันบนเครื่องจะทำงานต่อ	削除をキューに入れました（{0}ステップ）。以降は実行ホストが処理します。
+This removes everything about this tenant. It cannot be undone.	这会删除这个租户的一切，且不可恢复。	การดำเนินการนี้จะลบทุกอย่างของผู้เช่ารายนี้ และกู้คืนไม่ได้	このテナントのすべてを削除します。元に戻せません。
+This tenant no longer exists.	这个租户已经不存在了。	ผู้เช่ารายนี้ไม่มีอยู่แล้ว	このテナントは既に存在しません。
+Could not read what would be deleted	读不到要删除的内容	อ่านรายการที่จะลบไม่ได้	削除対象を読み取れませんでした
+Could not queue the deletion	排队删除失败	เข้าคิวการลบไม่สำเร็จ	削除をキューに入れられませんでした
+Control-plane records	控制面记录	บันทึกฝั่งคอนโซล	コントロールプレーンの記録
+Deployments	部署	การติดตั้ง	デプロイ
+Issues	发号单	ใบเปิดใช้งาน	発行伝票
+Sign-in accounts	登录账号	บัญชีเข้าสู่ระบบ	ログインアカウント
+Sites and databases	站点与数据库	เว็บไซต์และฐานข้อมูล	サイトとデータベース
+Teardown request {0} does not exist	拆除请求 {0} 不存在	คำขอรื้อถอน {0} ไม่มีอยู่	撤去リクエスト {0} が存在しません
+Tenant {0} does not exist	租户 {0} 不存在	ผู้เช่า {0} ไม่มีอยู่	テナント {0} が存在しません
+These accounts could not be deleted: {0}	这些账号删不掉：{0}	บัญชีเหล่านี้ลบไม่ได้: {0}	これらのアカウントを削除できません: {0}
+Channel ID	渠道 ID	Channel ID	チャネルID
+Channel Secret	渠道密钥	Channel Secret	チャネルシークレット
+Channel Access Token	渠道访问令牌	Channel Access Token	チャネルアクセストークン
+LIFF ID	LIFF ID	LIFF ID	LIFF ID
+Webhook URL	Webhook 地址	Webhook URL	Webhook URL
+Realm	Realm	Realm	レルム
+Tenant	租户	ผู้เช่า	テナント
+Type	类型	ประเภท	種別
+Amount (THB)	金额（泰铢）	จำนวนเงิน (บาท)	金額（バーツ）
+Balance After	变动后余额	ยอดคงเหลือหลังเปลี่ยนแปลง	変動後の残高
+Details	明细	รายละเอียด	明細
+Billing Units	计费单位	หน่วยคิดค่าบริการ	課金単位
+Pages	页数	จำนวนหน้า	ページ数
+Site Name	站点名	ชื่อเว็บไซต์	サイト名
+The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.	就是该部署的域名。Frappe 按 Host 认站点，所以站点名与域名是同一个值	คือโดเมนของการติดตั้งนี้ Frappe เลือกเว็บไซต์จาก Host จึงใช้ค่าเดียวกัน	このデプロイのドメイン。FrappeはHostでサイトを判別するため、サイト名とドメインは同じ値です。
+Bench Group	运行组	กลุ่มรัน	実行グループ
+Sites of the same product share one Bench process; recorded here to narrow down where a fault lives.	同产品的多个站点共享一个 Bench 进程，记录在这里以便定位故障范围	เว็บไซต์ของผลิตภัณฑ์เดียวกันใช้ Bench โปรเซสเดียวกัน บันทึกไว้เพื่อจำกัดขอบเขตของปัญหา	同一製品の複数サイトは1つのBenchプロセスを共有します。障害範囲を絞るために記録します。
+Site	站点	เว็บไซต์	サイト
+Product App	产品 App	แอปผลิตภัณฑ์	製品アプリ
+The product app installed on this site; pearnly_core is shared by every product.	该站点安装的产品 App，另有所有产品共用的 pearnly_core	แอปผลิตภัณฑ์ที่ติดตั้งบนเว็บไซต์นี้ ส่วน pearnly_core ใช้ร่วมกันทุกผลิตภัณฑ์	このサイトに入れる製品アプリ。pearnly_core は全製品で共用します。
+Local Port	本机端口	พอร์ตในเครื่อง	ローカルポート
+OIDC Client ID	OIDC 客户端 ID	OIDC Client ID	OIDCクライアントID
+One per deployment: the callback URL is per site domain, so a shared client would lock the second tenant out.	每个部署一个：回调地址按站点域名算，共用客户端会让第二个租户登不进来	หนึ่งรายต่อการติดตั้ง: callback ใช้โดเมนของเว็บไซต์ ถ้าใช้ร่วมกันผู้เช่ารายที่สองจะเข้าไม่ได้	デプロイごとに1つ。コールバックURLはサイトのドメイン基準なので、共用すると2社目がログインできません。
+OIDC Client Secret	OIDC 客户端密钥	OIDC Client Secret	OIDCクライアントシークレット
+Local URL	本机访问地址	ที่อยู่ในเครื่อง	ローカルURL
+Enabled Features	已开通功能	ฟีเจอร์ที่เปิดใช้	有効な機能
+Comes from the issue. Feature-level enforcement is not implemented yet (see docs/p4/06-provisioning.md).	来自发号单。功能级强制暂未实施（见 docs/p4/06-provisioning.md）	มาจากใบเปิดใช้งาน การบังคับระดับฟีเจอร์ยังไม่ได้ทำ (ดู docs/p4/06-provisioning.md)	発行伝票から取得。機能単位の強制は未実装です（docs/p4/06-provisioning.md 参照）。
+Source	来源	ที่มา	ソース
+Issue	发号单	ใบเปิดใช้งาน	発行伝票
+Feature Code	功能代码	รหัสฟีเจอร์	機能コード
+Matches the feature key in the product's own feature catalog (features.json).	与产品自己的功能目录 features.json 里的功能键一致	ตรงกับคีย์ฟีเจอร์ในแค็ตตาล็อกของผลิตภัณฑ์เอง (features.json)	製品自身の機能カタログ (features.json) の機能キーと一致します。
+Feature Name	功能名称	ชื่อฟีเจอร์	機能名
+Default On	常规开通	เปิดตามปกติ	既定で有効
 Ticked means this feature is on by default; unticked ones are add-ons (for example Companion).	打勾表示这是日常默认开通的功能，取消勾选的是按需加购（如小助手）	ติ๊กหมายถึงเปิดให้ตามปกติ ส่วนที่ไม่ติ๊กคือซื้อเพิ่ม (เช่น ผู้ช่วย)	チェックは既定で有効、外したものは追加購入（コンパニオンなど）。	
+Enforcement	权限落地	การบังคับสิทธิ์	権限の適用
+Role	对应角色	บทบาท	対応ロール
+At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).	开通时在租户站点建这个角色并授予勾选它的租户。留空表示该功能暂无权限可挡（例如首页）	ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)	開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。
+Granted DocTypes	授予的 DocType	DocType ที่อนุญาต	付与するDocType
+Comma separated. The role gets read/write on these DocTypes.	逗号分隔。该角色拿到这些 DocType 的读写权限	คั่นด้วยจุลภาค บทบาทนี้จะได้สิทธิ์อ่าน/เขียนบน DocType เหล่านี้	カンマ区切り。このロールがこれらのDocTypeの読み書き権限を得ます。
+Provisioning Target	开户目标	เป้าหมายการเปิดใช้	開通ターゲット
+Basic Info	基础信息	ข้อมูลพื้นฐาน	基本情報
+Company Name	公司名称	ชื่อบริษัท	会社名
+Email	邮箱	อีเมล	メールアドレス
+Username	用户名	ชื่อผู้ใช้	ユーザー名
+Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード
+Products & Domains	产品与域名	ผลิตภัณฑ์และโดเมน	製品とドメイン
+Credential Delivery	凭据交付方式	วิธีส่งมอบข้อมูลรับรอง	資格情報の受け渡し方法
+Identity Subject	身份主体	ตัวตนSubject	アイデンティティのサブジェクト
+Invitation Sent At	邀请邮件发送时间	ส่งคำเชิญเมื่อ	招待メール送信日時
+Password Delivered At	初始密码交付时间	ส่งรหัสผ่านเริ่มต้นเมื่อ	初期パスワード交付日時
+Issued At	发号时间	ออกใบเมื่อ	発行日時
+Issued By	操作人	ออกโดย	発行者
+Domain Prefix	域名前缀	คำนำหน้าโดเมน	ドメイン接頭辞
+Prefix only, e.g. aerp	只填前缀，如 aerp	ใส่เฉพาะคำนำหน้า เช่น aerp	接頭辞のみ（例: aerp）
+Domain	访问域名	โดเมน	アクセスドメイン
+Display Name	界面标题	ชื่อที่แสดง	表示名
+Leave empty to use the company name	留空用公司名称	เว้นว่างเพื่อใช้ชื่อบริษัท	空欄なら会社名を使います
+One LINE channel per deployment (company × product). This is the isolation boundary: signature checks and outbound messages both use this channel's own credentials.	一个部署（公司×产品）一条 LINE。这是隔离边界：验签与发消息都用这条自己的凭据	หนึ่งช่องทาง LINE ต่อการติดตั้ง (บริษัท × ผลิตภัณฑ์) นี่คือขอบเขตการแยก: การตรวจลายเซ็นและการส่งข้อความใช้ข้อมูลรับรองของช่องทางนี้เอง	デプロイ（会社×製品）ごとに1つのLINEチャネル。これが分離境界で、署名検証も送信もこのチャネル自身の資格情報を使います。
+DMS is the one already proven; ERP and Cowork use the same API surface.	存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口	ตัวที่พิสูจน์แล้วคือ DMS ส่วน ERP และ Cowork ใช้ API ชุดเดียวกัน	DMSが実績あり。ERPとCoworkも同じAPIを使います。
+The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.	Messaging API 频道的基本 ID（@xxx），用于识别与排查	Basic ID ของช่องทาง Messaging API (@xxx) ใช้ระบุและตรวจสอบปัญหา	Messaging APIチャネルの基本ID（@xxx）。識別と調査に使います。
+Fill in only if a LIFF app exists; otherwise leave empty.	有 LIFF 应用才填；没有就留空	กรอกเฉพาะเมื่อมีแอป LIFF ถ้าไม่มีให้เว้นว่าง	LIFFアプリがある場合のみ入力。なければ空欄。
+Credentials (stored only here, pushed to the tenant site at provisioning)	凭据（只在这里存一份，开通时推到租户站点）	ข้อมูลรับรอง (เก็บไว้ที่นี่ที่เดียว ผลักไปเว็บไซต์ผู้เช่าตอนเปิดใช้)	資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
+Used to verify webhooks. **One per tenant**: a tenant site only uses its own, so another tenant's signature will not pass.	webhook 验签用。**每个租户一条**：租户站点只用自己的这条，别人的签名验不过	ใช้ตรวจลายเซ็น webhook **หนึ่งรายต่อผู้เช่า**: เว็บไซต์ผู้เช่าใช้ของตัวเองเท่านั้น ลายเซ็นของรายอื่นจะไม่ผ่าน	Webhookの署名検証用。**テナントごとに1つ**。テナントサイトは自分のものだけを使うため、他社の署名は通りません。
+Used to send messages (long-lived).	发消息用（long-lived）	ใช้ส่งข้อความ (long-lived)	メッセージ送信用（long-lived）。
+The URL to paste into the LINE console, derived from the deployment domain.	填到 LINE 后台的那个地址，由部署域名算出	ที่อยู่ที่นำไปใส่ในหลังบ้าน LINE คำนวณจากโดเมนของการติดตั้ง	LINE管理画面に貼るURL。デプロイのドメインから算出します。
+Operations	运维	ปฏิบัติการ	運用
+Idempotency Key	幂等键	คีย์กันซ้ำ	冪等キー
+The same key submitted twice yields only one set of resources. Defaults to the issue number.	同一个键重复提交只会有一套资源。默认用发号单号	ส่งคีย์เดิมซ้ำจะได้ทรัพยากรชุดเดียวเท่านั้น ค่าเริ่มต้นคือเลขใบเปิดใช้งาน	同じキーで二重送信しても資源は1セットだけ。既定は発行伝票番号。
+Steps	步骤	ขั้นตอน	ステップ
+Step	步骤	ขั้นตอน	ステップ
+Started At	开始时间	เริ่มเมื่อ	開始日時
+Finished At	结束时间	สิ้นสุดเมื่อ	終了日時
+Action	动作	การกระทำ	アクション
+Action name the runner understands; see pearnly_control/provisioning.py	执行器认识的动作名，见 pearnly_control/provisioning.py	ชื่อการกระทำที่ตัวรันรู้จัก ดู pearnly_control/provisioning.py	実行ホストが解釈するアクション名。pearnly_control/provisioning.py 参照。
+Payload	参数	พารามิเตอร์	パラメータ
+Output	执行输出	ผลลัพธ์การทำงาน	実行出力
+Plan	套餐	แพ็กเกจ	プラン
+Cycle Start	本周期开始	เริ่มรอบนี้	今サイクル開始
+Cycle End	本周期结束	สิ้นสุดรอบนี้	今サイクル終了
+Quota	额度	โควตา	枠
+Quota per Cycle (pages)	每周期额度（张）	โควตาต่อรอบ (หน้า)	1サイクルの枠（枚）
+Used This Cycle (pages)	本周期已用（张）	ใช้ไปในรอบนี้ (หน้า)	今サイクル使用量（枚）
+Over-rate (per page)	超额单价（每张）	ราคาส่วนเกิน (ต่อหน้า)	超過単価（1枚あたり）
+Monthly Fee	月费	ค่าบริการรายเดือน	月額
+Target Name	目标名称	ชื่อเป้าหมาย	ターゲット名
+For example: local sample / production	例如：本地样板 / 生产	ตัวอย่าง: ตัวอย่างในเครื่อง / โปรดักชัน	例：ローカル見本 / 本番
+Default Target	默认目标	เป้าหมายเริ่มต้น	既定のターゲット
+Identity Service URL	身份服务地址	ที่อยู่บริการตัวตน	アイデンティティサービスURL
+For example http://keycloak.localhost:8105	例如 http://keycloak.localhost:8105	ตัวอย่าง http://keycloak.localhost:8105	例: http://keycloak.localhost:8105
+Provisioning Credentials (stored only here)	开户凭据（只在这里存一份）	ข้อมูลรับรองการเปิดใช้ (เก็บไว้ที่นี่ที่เดียว)	開通の資格情報（ここにだけ保存）
+Admin Client ID	管理客户端 ID	Admin Client ID	管理者クライアントID
+Admin Client Secret	管理客户端密钥	Admin Client Secret	管理者クライアントシークレット
+Password-check Client ID	改密校验客户端 ID	Client ID ตรวจรหัสผ่าน	パスワード確認用クライアントID
+Client with only the password grant, used to verify the current password. Shared by all three products.	只开密码授权、用于校验『当前密码』的客户端。三产品共用	ไคลเอนต์ที่เปิดเฉพาะ password grant ใช้ตรวจสอบ 'รหัสผ่านปัจจุบัน' ทั้งสามผลิตภัณฑ์ใช้ร่วมกัน	パスワードグラントのみ有効なクライアント。現在のパスワード確認に使い、3製品で共用します。
+Password-check Client Secret	改密校验客户端密钥	Client Secret ตรวจรหัสผ่าน	パスワード確認用クライアントシークレット
+Site Provisioning API	建站接口	API สร้างเว็บไซต์	サイト構築API
+Control API URL	控制接口地址	ที่อยู่ Control API	制御APIのURL
+The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built.	服务器上的开通接口，例如 https://api.pearnly.com/v1/deployments。服务器就绪后填；留空则只发号、不建站	API เปิดใช้บนเซิร์ฟเวอร์ เช่น https://api.pearnly.com/v1/deployments กรอกเมื่อเซิร์ฟเวอร์พร้อม ถ้าเว้นว่างจะออกใบแต่ไม่สร้างเว็บไซต์	サーバー上の開通API（例: https://api.pearnly.com/v1/deployments）。サーバー準備後に記入。空欄なら発行のみでサイトは作りません。
+Invitation Email	邀请邮件	อีเมลเชิญ	招待メール
+Client ID for Invitation Links	邀请链接用的客户端 ID	Client ID สำหรับลิงก์เชิญ	招待リンク用クライアントID
+The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.	身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的	บริการตัวตนสร้างลิงก์ในอีเมลเชิญจากไคลเอนต์นี้ ระยะตัวอย่างผู้เช่าทุกรายใช้ร่วมกัน ผู้เช่าจริงจะมีไคลเอนต์ของตนเอง	招待メール内のリンクはこのクライアントで生成します。見本段階では全テナント共用、実テナントは各自のクライアントに切り替わります。
+Contact Name	联系人	ชื่อผู้ติดต่อ	担当者名
+Contact Phone	联系电话	เบอร์ติดต่อ	連絡先電話
+Requested Amount	申请金额	จำนวนที่ขอ	申請額
+Received Amount	实收金额	จำนวนที่รับจริง	受領額
+Proof	凭证	หลักฐาน	証憑
+Transfer Slip	转账截图	สลิปโอนเงิน	振込明細
+Tenant Note	租户备注	หมายเหตุผู้เช่า	テナント備考
+Review Note	审核备注	หมายเหตุการตรวจสอบ	審査備考
+Review	处理	ดำเนินการ	処理
+Requested At	申请时间	ขอเมื่อ	申請日時
+Reviewed At	审核时间	ตรวจสอบเมื่อ	審査日時
+Reviewed By	审核人	ตรวจสอบโดย	審査者
+Balance (THB)	余额（泰铢）	ยอดคงเหลือ (บาท)	残高（バーツ）
+Pages Used This Month	本月已用页数	หน้าใช้ไปเดือนนี้	今月の使用ページ数
+Last Updated	最近变动	แก้ไขล่าสุด	最終更新
+External Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号
+Step Details	细节	รายละเอียดขั้นตอน	ステップ詳細
+Unknown billing unit: {0}	未知的计费单位：{0}	หน่วยคิดค่าบริการที่ไม่รู้จัก: {0}	不明な課金単位: {0}
+grant only handles money in (topup / adjustment); use charge() for deductions	grant 只处理进账（topup / adjustment）；扣费走 charge()	grant รับเฉพาะเงินเข้า (topup / adjustment) ส่วนการหักเงินใช้ charge()	grant は入金（topup / adjustment）専用。控除は charge() を使います。
+Amount must be greater than 0	金额必须大于 0	จำนวนเงินต้องมากกว่า 0	金額は0より大きい必要があります
+An adjustment must have a reason	调账必须写原因	การปรับยอดต้องระบุเหตุผล	調整には理由が必要です
+An adjustment cannot be 0	调账金额不能是 0	ยอดปรับต้องไม่เป็น 0	調整額は0にできません
+No such plan: {0}	没有这个套餐：{0}	ไม่มีแพ็กเกจนี้: {0}	そのプランはありません: {0}
+Balance is not enough for the monthly fee (need ฿{0}, have ฿{1})	余额不够付月费（需要 ฿{0}，只有 ฿{1}）	ยอดคงเหลือไม่พอชำระค่าบริการรายเดือน (ต้องใช้ ฿{0} มี ฿{1})	月額を支払う残高が足りません（必要 ฿{0}、残高 ฿{1}）
+Only a platform admin can handle top-ups and balances	只有平台管理员能处理充值与余额	เฉพาะผู้ดูแลแพลตฟอร์มเท่านั้นที่จัดการเติมเงินและยอดคงเหลือได้	チャージと残高を扱えるのはプラットフォーム管理者のみです
+Invalid service token	服务令牌无效	โทเคนบริการไม่ถูกต้อง	サービストークンが無効です
+No such tenant: {0}	租户不存在：{0}	ไม่มีผู้เช่านี้: {0}	そのテナントはありません: {0}
+The top-up amount must be between ฿0.01 and ฿500,000	充值金额要在 ฿0.01 到 ฿500,000 之间	จำนวนเติมเงินต้องอยู่ระหว่าง ฿0.01 ถึง ฿500,000	チャージ額は฿0.01〜฿500,000の範囲で入力してください
+This request has already been handled (currently: {0})	这张申请已经处理过了（当前：{0}）	คำขอนี้ถูกดำเนินการแล้ว (ปัจจุบัน: {0})	この申請はすでに処理済みです（現在: {0}）
+The received amount must be greater than 0	实收金额必须大于 0	จำนวนที่รับจริงต้องมากกว่า 0	受領額は0より大きい必要があります
+A rejection needs a reason; the tenant will see it	拒绝要写原因，租户那边要看到	การปฏิเสธต้องระบุเหตุผล เพราะผู้เช่าจะเห็น	却下には理由が必要です。テナント側に表示されます。
+The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET)	必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）	ต้องระบุ Admin Client Secret (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_ADMIN_SECRET)	管理クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_ADMIN_SECRET）
+The password-check client secret is required (env PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	必须给密码校验客户端密钥（环境变量 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）	ต้องระบุ Client Secret สำหรับตรวจรหัสผ่าน (ตัวแปรสภาพแวดล้อม PEARNLY_BIZ_PASSWORD_CHECK_SECRET)	パスワード確認用クライアントシークレットが必要です（環境変数 PEARNLY_BIZ_PASSWORD_CHECK_SECRET）
+Pick at least one product	至少要选一个产品	เลือกอย่างน้อยหนึ่งผลิตภัณฑ์	製品を1つ以上選んでください
+Username and initial password are both required: they are the credentials for the user's first sign-in	用户名和初始密码都要填：它们是用户首次登录的凭据	ต้องกรอกทั้งชื่อผู้ใช้และรหัสผ่านเริ่มต้น เพราะเป็นข้อมูลรับรองสำหรับการเข้าสู่ระบบครั้งแรก	ユーザー名と初期パスワードは両方必須です。初回ログインの資格情報になります。
+Unknown product: {0}	未知产品：{0}	ไม่รู้จักผลิตภัณฑ์: {0}	不明な製品: {0}
+The last issue attempt failed; set it back to draft before issuing again	这张单上次发号失败了，先把它改回 draft 再发	การออกใบครั้งก่อนล้มเหลว ตั้งกลับเป็น draft ก่อนออกใหม่	前回の発行に失敗しました。draft に戻してから再発行してください。
+"Account {0} already exists in target ""{1}"". Invite the existing account instead of issuing again."	账号 {0} 在目标环境「{1}」里已存在。请走邀请已有账号流程，不要重复发号	"บัญชี {0} มีอยู่แล้วในเป้าหมาย ""{1}"" กรุณาเชิญบัญชีเดิมแทนการออกใบซ้ำ"	アカウント {0} は対象「{1}」に既に存在します。再発行せず既存アカウントを招待してください。
+This issue has no usable initial password; fill it in again before issuing	这张单上没有可用的初始密码，重新填一次再发号	ใบนี้ไม่มีรหัสผ่านเริ่มต้นที่ใช้ได้ กรอกใหม่ก่อนออกใบ	この伝票には有効な初期パスワードがありません。再入力してから発行してください。
+No such deployment: {0}	部署不存在：{0}	ไม่มีการติดตั้งนี้: {0}	そのデプロイはありません: {0}
+Creating a channel requires both secret and access token	新建渠道必须同时给 secret 与 access token	การสร้างช่องทางต้องระบุทั้ง secret และ access token	チャネル作成には secret と access token の両方が必要です
+Company name is required	公司名称必填	ต้องระบุชื่อบริษัท	会社名は必須です
+Crediting…	入账中…	กำลังบันทึกเข้าบัญชี…	入金処理中…
+Could not credit	入账失败	บันทึกเข้าบัญชีไม่สำเร็จ	入金に失敗しました
+Reason (the tenant will see it; required)	原因（租户那边看得到，必填）	เหตุผล (ผู้เช่าจะเห็น จำเป็นต้องกรอก)	理由（テナント側に表示されます。必須）
+Approve top-up	同意充值	อนุมัติการเติมเงิน	チャージを承認
+Approve and credit	同意并到账	อนุมัติและบันทึกเข้าบัญชี	承認して入金
+Received amount (as actually credited by the bank)	实收金额（以银行到账为准）	จำนวนที่รับจริง (ตามยอดที่ธนาคารเข้าจริง)	受領額（銀行の実際の入金額）
+Credited ฿{0}; {1} now has ฿{2}	已到账 ฿{0}，{1} 现在余额 ฿{2}	บันทึก ฿{0} เข้าบัญชีแล้ว ตอนนี้ {1} มียอดคงเหลือ ฿{2}	฿{0} を入金しました。{1} の残高は ฿{2} です
+Rejected	已拒绝	ถูกปฏิเสธ	却下済み
+Reject	拒绝	ปฏิเสธ	却下
+Reject top-up	拒绝充值	ปฏิเสธการเติมเงิน	チャージを却下
+Could not reject	拒绝失败	ปฏิเสธไม่สำเร็จ	却下に失敗しました
+Confirm credit	确认到账	ยืนยันการบันทึกเข้าบัญชี	入金を確定
+Confirm rejection	确认拒绝	ยืนยันการปฏิเสธ	却下を確定
+A single top-up is capped at ฿500,000	单笔充值上限 ฿500,000	เติมเงินครั้งละไม่เกิน ฿500,000	1回のチャージ上限は ฿500,000 です
+The requested amount must be greater than 0	申请金额必须大于 0	จำนวนที่ขอต้องมากกว่า 0	申請額は0より大きい必要があります
+This top-up request was already reviewed; it cannot be handled twice	这张充值申请已经审核过了，不能重复处理	คำขอเติมเงินนี้ตรวจสอบแล้ว ไม่สามารถดำเนินการซ้ำได้	この入金申請は審査済みです。二重処理はできません。
+A wallet must belong to a tenant	钱包必须挂在某个租户上	กระเป๋าเงินต้องผูกกับผู้เช่า	ウォレットはテナントに紐づける必要があります
+Close	关闭	ปิด	閉じる
+Issue failed	发号失败	ออกใบไม่สำเร็จ	発行に失敗しました
+Issue and provision	发号并开通	ออกใบและเปิดใช้งาน	発行して開通
+Issued: {0} / tenant {1}	已发号：{0} / 租户 {1}	ออกใบแล้ว: {0} / ผู้เช่า {1}	発行済み: {0} / テナント {1}
+Queued for provisioning; building the site now	已排入开通队列，正在建站	เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์	開通キューに入りました。サイトを構築中です。
+Provisioning Progress	开通进度	ความคืบหน้าการเปิดใช้งาน	開通の進捗
+Feature Catalog	功能目录	แคตตาล็อกฟีเจอร์	機能カタログ
+LINE Channel	LINE 渠道	ช่องทาง LINE	LINEチャネル
+Top-up Review	充值审核	ตรวจสอบการเติมเงิน	チャージ承認
+Run provisioning	执行开通	เริ่มเปิดใช้งาน	開通を実行
+Could not queue provisioning	排不进开通队列	เข้าคิวการเปิดใช้งานไม่ได้	開通キューに入れられませんでした
+Not issued	未发号	ยังไม่ออกใบ	未発行
+View progress	查看进度	ดูความคืบหน้า	進捗を見る
+Issuing…	正在发号…	กำลังออกใบ…	発行中…
+Queueing provisioning…	正在排入开通队列…	กำลังเข้าคิวการเปิดใช้งาน…	開通をキューに追加しています…
+No provisioning request yet; click “Run provisioning” to start	还没有开通请求，点「执行开通」开始	"ยังไม่มีคำขอเปิดใช้งาน กด ""เริ่มเปิดใช้งาน"" เพื่อเริ่ม"	開通リクエストはまだありません。「開通を実行」を押してください。
+Product {0} is selected twice	产品 {0} 选了两次	เลือกผลิตภัณฑ์ {0} สองครั้ง	製品 {0} が二重に選ばれています
+Initial password is required (the user signs in with it directly)	初始密码必填（用户拿它直接登录）	ต้องระบุรหัสผ่านเริ่มต้น (ผู้ใช้ใช้เข้าสู่ระบบโดยตรง)	初期パスワードは必須です（そのままログインに使います）
+Domain prefix {0} is reserved; pick another	域名前缀 {0} 是保留名，换一个	คำนำหน้าโดเมน {0} สงวนไว้ กรุณาเลือกใหม่	ドメイン接頭辞 {0} は予約済みです。別のものを指定してください
+Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63	域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63	คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63	ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63
+Domain prefix cannot be all digits: {0}	域名前缀不能全是数字：{0}	คำนำหน้าโดเมนเป็นตัวเลขล้วนไม่ได้: {0}	ドメイン接頭辞を数字だけにはできません: {0}
+Duplicate domain on the same issue: {0}	域名在同一张单里重复：{0}	โดเมนซ้ำในใบเดียวกัน: {0}	同じ伝票内でドメインが重複しています: {0}
+Domain already taken: {0} (issue {1})	域名已被占用：{0}（发号单 {1}）	โดเมนถูกใช้แล้ว: {0} (ใบเปิดใช้งาน {1})	ドメインは既に使用済みです: {0}（発行伝票 {1}）
+Username may only contain letters, digits, dot, underscore and hyphen, length 3–30	用户名只能由字母、数字、点、下划线、短横线组成，长度 3–30	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดล่าง และขีดกลาง ยาว 3–30	ユーザー名は英数字・ドット・アンダースコア・ハイフンのみ、長さ3〜30
+Invalid email	邮箱不合法	อีเมลไม่ถูกต้อง	メールアドレスの形式が正しくありません
+Target name is required	目标名称必填	ต้องระบุชื่อเป้าหมาย	ターゲット名は必須です
+Service URL is required	服务地址必填	ต้องระบุที่อยู่บริการ	サービスURLは必須です
+Issue {0} is {1}; only an issued one can be provisioned	发号单 {0} 状态是 {1}，只有 issued 的发号单才能开通	ใบเปิดใช้งาน {0} อยู่สถานะ {1} เปิดใช้งานได้เฉพาะใบที่ issued แล้วเท่านั้น	発行伝票 {0} は {1} です。開通できるのは issued の伝票だけです
+Row {0} on the issue has no domain; cannot build the site	发号单里 {0} 这一行没有域名，无法建站	แถว {0} ในใบเปิดใช้งานไม่มีโดเมน สร้างเว็บไซต์ไม่ได้	発行伝票の {0} 行にドメインがなく、サイトを構築できません
+Site name {0} is already taken by deployment {1}	站点名 {0} 已被部署 {1} 占用	ชื่อเว็บไซต์ {0} ถูกการติดตั้ง {1} ใช้อยู่	サイト名 {0} はデプロイ {1} が使用中です
+Cannot read the provisioning target, so the identity service URL is unknown	取不到开户目标，无法确定身份服务地址	อ่านเป้าหมายการเปิดใช้ไม่ได้ จึงไม่ทราบที่อยู่บริการตัวตน	開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
+Unknown step status: {0}	未知步骤状态：{0}	สถานะขั้นตอนที่ไม่รู้จัก: {0}	不明なステップ状態: {0}
+No such step: {0}	找不到步骤 {0}	ไม่พบขั้นตอน {0}	ステップ {0} が見つかりません
+Notes	备注	หมายเหตุ	備考
+(empty)	（空）	(ว่าง)	（空）
+Feature	功能	ฟีเจอร์	機能
+Features	功能	ฟีเจอร์	機能
+{0} out-of-plan scan ({1} over quota)	{0} 套餐外扫描（超额 {1} 张）	{0} สแกนนอกแพ็กเกจ (เกินโควตา {1} หน้า)	{0} プラン外スキャン（枠超過 {1} 枚）
+{0} in-plan scan ({1} pages, within quota)	{0} 套餐内扫描（{1} 张，额度内）	{0} สแกนในแพ็กเกจ ({1} หน้า อยู่ในโควตา)	{0} プラン内スキャン（{1} 枚、枠内）
+Manual adjustment · {0}	人工调账 · {0}	ปรับยอดด้วยคน · {0}	手動調整 · {0}
+The balance could not be read; this is not 'insufficient balance'	余额查不出来，不是余额不足	อ่านยอดคงเหลือไม่ได้ ไม่ใช่ยอดไม่พอ	残高を読み取れません。残高不足ではありません
+Insufficient balance; please top up first	余额不足，请先充值	ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน	残高不足です。先にチャージしてください
+Plan {0} ({1} days · {2} pages)	订阅套餐 {0}（{1} 天 · {2} 张）	แพ็กเกจ {0} ({1} วัน · {2} หน้า)	プラン {0}（{1}日 · {2}枚）
+Top-up approved · request {0}	充值审核通过 · 申请 {0}	อนุมัติการเติมเงินแล้ว · คำขอ {0}	チャージ承認 · 申請 {0}
+Create the site	建站点	สร้างเว็บไซต์	サイトを作成
+Install core apps	装基础 App	ติดตั้งแอปพื้นฐาน	基盤アプリを導入
+Install the product app	装产品 App	ติดตั้งแอปผลิตภัณฑ์	製品アプリを導入
+Set up unified sign-in	配统一登录	ตั้งค่าการเข้าสู่ระบบแบบรวม	統一ログインを設定
+Restart services	重启服务	รีสตาร์ตบริการ	サービスを再起動
+Finalize the site	收尾站点	เก็บงานเว็บไซต์ให้เรียบร้อย	サイトを仕上げ
+Set up the LINE channel	配 LINE 渠道	ตั้งค่าช่องทาง LINE	LINEチャネルを設定
+Create the tenant account	建租户账号	สร้างบัญชีผู้เช่า	テナントアカウントを作成
+Grant feature roles	发功能权限	มอบบทบาทตามฟีเจอร์	機能ロールを付与
+Build the workspace	建工作台	สร้างพื้นที่ทำงาน	ワークスペースを作成
+Mark provisioning done	标记开通完成	ทำเครื่องหมายว่าเปิดใช้งานเสร็จ	開通完了にする
+Done	完成	เสร็จแล้ว	完了
+Skipped	不用做	ไม่ต้องทำ	不要
+Running	进行中	กำลังทำ	実行中
+Failed	失败	ล้มเหลว	失敗
+Pending	待办	รอดำเนินการ	未処理
+Not provisioned	未开通	ยังไม่เปิดใช้งาน	未開通
+Provisioning failed	开通失败	เปิดใช้งานไม่สำเร็จ	開通に失敗
+Enabled — {0} steps	已开通 {0} 步	เปิดใช้งานแล้ว {0} ขั้นตอน	開通済み {0} ステップ
+Partly done {0}/{1}	部分完成 {0}/{1}	ทำไปบางส่วน {0}/{1}	一部完了 {0}/{1}
+Provisioning {0}/{1}	开通中 {0}/{1}	กำลังเปิดใช้งาน {0}/{1}	開通中 {0}/{1}
+Account opening is available only for configured cloud targets	仅可为已配置的云端目标开户	เปิดบัญชีได้เฉพาะระบบคลาวด์ที่กำหนดค่าไว้เท่านั้น	設定済みのクラウド環境でのみアカウントを開設できます
+Retry provisioning	重试开通	ลองเปิดใช้งานอีกครั้ง	開通処理を再試行
+Welcome to	欢迎使用	ยินดีต้อนรับสู่	ようこそ
+Your account is ready	已成功开通	เปิดใช้งานสำเร็จ	アカウント開設完了
+Dear customer,	尊敬的用户，您好！	เรียน ผู้ใช้งาน	お客様各位
+Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.	感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。	ขอบคุณที่เลือก Pearnly บัญชีของคุณเปิดใช้งานแล้ว คุณสามารถเข้าสู่ระบบและเริ่มใช้งานได้ทันที	Pearnlyをご利用いただきありがとうございます。アカウントの開設が完了しました。ログインしてご利用を開始いただけます。
+Account information	账户信息	ข้อมูลบัญชี	アカウント情報
+Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
+Sign-in account	登录账号	บัญชีผู้ใช้	ログインアカウント
+Initial password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード
+Sign in to your account	登录账户	เข้าสู่ระบบ	ログイン
+Please change your initial password promptly	请尽快修改初始密码	กรุณาเปลี่ยนรหัสผ่านเริ่มต้นโดยเร็ว	初期パスワードを速やかに変更してください
+For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.	为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。	เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น	安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
+Contact us	联系我们	ติดต่อเรา	お問い合わせ
+If you encounter any problems while using our services, please contact us through the official channels below.	在使用过程中遇到任何问题，欢迎通过以下官方联系方式与我们联系。	หากพบปัญหาระหว่างการใช้งาน โปรดติดต่อเราผ่านช่องทางอย่างเป็นทางการด้านล่าง	ご利用中に問題が発生した場合は、以下の公式窓口までお問い合わせください。
+Support email	客服邮箱	อีเมลฝ่ายบริการลูกค้า	サポートメール
+Support phone	客服电话	โทรศัพท์	電話番号
+Kind regards,	此致	ขอแสดงความนับถือ	よろしくお願いいたします。
+Pearnly Customer Support	Pearnly 客户服务团队	ฝ่ายบริการลูกค้า Pearnly	Pearnly カスタマーサポート
+This is an account activation notice. If you did not request this account, please contact our support team.	这是一封账户开通通知。若您未申请开通，请联系官方客服。	อีเมลแจ้งการเปิดใช้งานบัญชี หากคุณไม่ได้ขอเปิดใช้งาน โปรดติดต่อฝ่ายบริการลูกค้า	本メールはアカウント開設のご案内です。お心当たりがない場合は、サポート窓口までご連絡ください。
+Welcome to {0} — your account is ready	欢迎使用 {0}，您的账户已开通	ยินดีต้อนรับสู่ {0} บัญชีของคุณเปิดใช้งานแล้ว	{0}へようこそ — アカウント開設完了
+Welcome Email Language	欢迎邮件语言	ภาษาของอีเมลต้อนรับ	ウェルカムメールの言語
+Welcome Email Queue	欢迎邮件队列	คิวอีเมลต้อนรับ	ウェルカムメールキュー
+Welcome Email Error	欢迎邮件错误	ข้อผิดพลาดของอีเมลต้อนรับ	ウェルカムメールエラー
+Retry welcome email	重试欢迎邮件	ลองส่งอีเมลต้อนรับอีกครั้ง	ウェルカムメールを再試行
+View welcome email	查看欢迎邮件	ดูอีเมลต้อนรับ	ウェルカムメールを表示
+Welcome email could not be queued. Check the outgoing email account, then retry the email.	欢迎邮件未能加入队列，请检查发信配置后重试邮件。	ไม่สามารถเพิ่มอีเมลต้อนรับเข้าคิวได้ โปรดตรวจสอบบัญชีส่งอีเมลแล้วลองอีกครั้ง	メールをキューに追加できませんでした。送信設定を確認して再試行してください。
+Provisioning must be complete before sending the welcome email.	开通完成后才能发送欢迎邮件。	ต้องเปิดใช้งานให้เสร็จก่อนส่งอีเมลต้อนรับ	開設完了後にウェルカムメールを送信できます。
+View transfer slip	查看转账凭证	ดูหลักฐานการโอน	振込明細を表示
+No transfer slip is attached	未附转账凭证	ยังไม่ได้แนบหลักฐานการโอน	振込明細が添付されていません
+Billing Mode	计费方式	รูปแบบการคิดค่าบริการ	課金方式
+Billing Month	计费月份	เดือนที่คิดค่าบริการ	課金対象月

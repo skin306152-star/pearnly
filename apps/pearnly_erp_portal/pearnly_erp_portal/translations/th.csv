@@ -5,10 +5,13 @@ Bind this account first,กรุณาผูกบัญชี ERP ก่อน
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Draft not found,ไม่พบรายการร่าง
+ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
 Now sending {0} documents,กำลังส่งเอกสาร{0}
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
+Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
+Select the original sale line,เลือกรายการจากบิลขายเดิม
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
 That code is not valid,รหัสไม่ถูกต้อง
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
@@ -18,5 +21,288 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
+adjust,ปรับปรุง
+branch,สาขา
+card,บัตร
+cash,เงินสด
+company,บริษัท
+completed,เสร็จสิ้น
+count,ตรวจนับ
+draft,ฉบับร่าง
+goods,สินค้า
+hq,สำนักงานใหญ่
+issued,ออกเอกสารแล้ว
+nav.stockCount,ตรวจนับสต็อก
+opening,ยอดยกมา
+paid,ชำระแล้ว
+pending_approval,รออนุมัติ
+person,บุคคล
+product.action.bulkDisable,ปิดใช้งาน {0} รายการที่เลือก
+product.action.bulkEnable,เปิดใช้งาน {0} รายการที่เลือก
+product.action.disable,เปิด / ปิดใช้งาน
+product.action.edit,แก้ไข
+product.action.enable,เปิดใช้งาน
+product.action.import,นำเข้าจาก Excel
+product.action.new,เพิ่มสินค้า
+product.action.reload,โหลดใหม่
+product.action.save,บันทึก
+product.action.scan,สแกน
+product.action.toggleInactive,แสดงที่ปิดใช้งาน
+product.cell.notSet,ยังไม่ตั้ง
+product.col.avgCost,ต้นทุนเฉลี่ย
+product.col.barcode,บาร์โค้ด
+product.col.code,รหัส
+product.col.cost,ต้นทุนอ้างอิง
+product.col.name,สินค้า
+product.col.price,ราคา
+product.col.status,สถานะ
+product.col.unit,หน่วย
+product.error.codeLocked,รหัสสินค้าแก้ไม่ได้
+product.field.barcode,บาร์โค้ด
+product.field.baseUnit,หน่วยฐาน
+product.field.baseUnitHint,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
+product.field.category,หมวดหมู่
+product.field.code,รหัส
+product.field.codeAuto,สร้างอัตโนมัติ
+product.field.cost,ต้นทุนอ้างอิง
+product.field.defaultLocation,ตำแหน่งเริ่มต้น
+product.field.defaultWarehouse,คลังเริ่มต้น
+product.field.image,URL รูปภาพ
+product.field.importFile,ไฟล์ Excel
+product.field.locationHint,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
+product.field.minStock,แจ้งเตือนสต็อกต่ำ
+product.field.name,ชื่อสินค้า
+product.field.nameEn,ชื่อภาษาอังกฤษ
+product.field.nameZh,ชื่อภาษาจีน
+product.field.price,ราคาขาย
+product.field.qr,ข้อมูล QR
+product.field.search,ค้นหาชื่อหรือบาร์โค้ด
+product.field.trackBatch,ติดตามล็อต
+product.field.trackExpiry,ติดตามวันหมดอายุ
+product.field.unit,หน่วย
+product.field.vat,คิด VAT
+product.field.weighed,ขายตามน้ำหนัก
+product.import.badFile,อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ
+product.import.emptyFile,ไฟล์นี้ไม่มีข้อมูล
+product.import.hint,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
+product.import.missingName,ต้องมีคอลัมน์ชื่อสินค้า
+product.import.negative,ค่านี้ต้องไม่ติดลบ
+product.import.noFile,กรุณาเลือกไฟล์ที่จะนำเข้า
+product.import.notNumber,ค่านี้ไม่ใช่ตัวเลข
+product.import.notWorkbook,ไฟล์นี้ไม่ใช่ Excel
+product.import.pick,เลือกไฟล์
+product.import.template,ดาวน์โหลดแบบฟอร์ม
+product.notice.importSkipped,ข้าม {0} แถว รายการแรกแสดงด้านบน
+product.notice.imported,นำเข้า {0} รายการแล้ว
+product.notice.saved,บันทึก {0} แล้ว
+product.notice.toggled,อัปเดต {0} แล้ว
+product.notice.toggledCount,อัปเดต {0} รายการแล้ว
+product.scan.denied,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
+product.scan.done,สแกนแล้ว
+product.scan.hint,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
+product.scan.light,ไฟ
+product.scan.noCamera,อุปกรณ์นี้ไม่มีกล้องให้สแกน
+product.scan.open,ไปแก้รายการนั้น
+product.scan.taken,รหัสนี้ถูกใช้ไปแล้ว
+product.scan.takenBody,ถูกใช้กับ {0} (รหัส {1}) แล้ว
+product.scan.title,สแกนโค้ด
+product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
+promptpay,พร้อมเพย์
 purchase,จัดซื้อ
+purchase_in,รับจากการซื้อ
+quotation,ใบเสนอราคา
+receipt,ใบเสร็จ
+refund,คืนสินค้า
+sale,ขาย
+sale_out,จ่ายจากการขาย
 sales,ขาย
+service,บริการ
+stock.action.count,ตรวจนับ
+stock.action.export,ส่งออก
+stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
+stock.action.reload,โหลดใหม่
+stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
+stock.board.by,แผนภูมิแบ่งตาม
+stock.board.freezeColumn,ตรึงคอลัมน์
+stock.board.only,แสดงเฉพาะ
+stock.board.shelf,ตำแหน่ง
+stock.board.title,กระดานผลต่างการตรวจนับ
+stock.board.unfreezeColumn,ยกเลิกการตรึงคอลัมน์
+stock.cell.notSet,ยังไม่ตั้ง
+stock.col.barcode,บาร์โค้ด
+stock.col.code,รหัส
+stock.col.cost,ต้นทุนเฉลี่ย
+stock.col.name,ชื่อสินค้า
+stock.col.onHand,คงเหลือ
+stock.col.status,สถานะ
+stock.col.unit,หน่วย
+stock.col.value,มูลค่า
+stock.col.warehouse,คลังสินค้า
+stock.count.addEntry,บันทึกการนับ
+stock.count.addEntryHint,จำนวนตามบัญชี {0} {1}
+stock.count.addEntryTitle,บันทึกการนับ — {0}
+stock.count.back,กลับ
+stock.count.blank,ยังไม่กรอก
+stock.count.book,จำนวนตามบัญชี
+stock.count.chartEmpty,ยังไม่มีการนับ
+stock.count.chartTotals,ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
+stock.count.close,ปิดการตรวจนับ
+stock.count.closeConfirm,เมื่อปิดแล้วรายการจะถูกล็อก แถวที่ยังไม่นับจะว่างไว้ ดำเนินการต่อ?
+stock.count.closed,ปิดการตรวจนับแล้ว
+stock.count.counted,จำนวนที่นับได้
+stock.count.countedAt,เวลาที่นับ
+stock.count.countedBy,ผู้ตรวจนับ
+stock.count.countedRows,นับแล้ว
+stock.count.created,สร้างการตรวจนับแล้ว {0} แถว
+stock.count.createdAt,สร้างเมื่อ
+stock.count.deleteConfirm,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
+stock.count.deleteSelected,ลบที่เลือก ({0})
+stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
+stock.count.difference,ผลต่าง
+stock.count.differenceRows,มีผลต่าง
+stock.count.differenceValue,มูลค่าผลต่าง
+stock.count.entries,รายการ
+stock.count.entriesTitle,รายการ — {0}
+stock.count.entryLive,นับรวมแล้ว
+stock.count.entryOption,{0} · {1} · {2}
+stock.count.entrySaved,บันทึกแล้ว
+stock.count.entryVoided,ยกเลิกแล้ว ไม่รวมในยอด
+stock.count.entryVoidedNotice,ยกเลิกแล้ว
+stock.count.filter,ตัวกรอง
+stock.count.filter.all,ทั้งหมด
+stock.count.filter.differences,มีผลต่าง
+stock.count.filter.uncounted,ยังไม่นับ
+stock.count.headline,{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
+stock.count.import,นำเข้าไฟล์ตรวจนับ
+stock.count.importFile,ไฟล์
+stock.count.importHint,แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
+stock.count.importMissing,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+stock.count.importPick,เลือกไฟล์
+stock.count.importSkipped,นำเข้าไม่ได้ {0} แถว
+stock.count.importTitle,ผลการนำเข้า
+stock.count.imported,นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้
+stock.count.location,ตำแหน่ง
+stock.count.mode,วิธีตรวจนับ
+stock.count.modeImport,อัปโหลดไฟล์
+stock.count.modeStock,ตรวจนับในคลัง
+stock.count.name,ชื่อ
+stock.count.new,สร้างการตรวจนับ
+stock.count.newHint,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
+stock.count.noEntries,ไม่มีรายการ
+stock.count.note,หมายเหตุ
+stock.count.notes,หมายเหตุ
+stock.count.photos,รูปภาพ
+stock.count.post,ลงบัญชีผลต่าง
+stock.count.postConfirm,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?
+stock.count.posted,ลงบัญชีผลต่าง {0} รายการ
+stock.count.problemCode,ไม่พบสินค้าที่ตรงกับรหัสนี้
+stock.count.problemIdentifier,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
+stock.count.problemNumber,จำนวนไม่ถูกต้อง
+stock.count.problemWarehouse,ไม่พบคลังสินค้าชื่อนี้
+stock.count.qty,จำนวน
+stock.count.reason,เหตุผล
+stock.count.rowDifference,มีผลต่าง
+stock.count.rowMatch,ตรงกัน
+stock.count.rowUncounted,ยังไม่นับ
+stock.count.rows,จำนวนแถว
+stock.count.statusActive,กำลังดำเนินการ
+stock.count.statusClosed,ปิดแล้ว
+stock.count.statusPosted,ลงบัญชีแล้ว
+stock.count.system,{0}: ในระบบมี {1} {2}
+stock.count.template,เทมเพลตตรวจนับ
+stock.count.title,ตรวจนับ — {0}
+stock.count.void,ยกเลิก
+stock.count.voidConfirm,ยกเลิกรายการนับ {0} นี้?
+stock.count.voidPick,เลือกรายการที่จะยกเลิก
+stock.count.warehouseHint,เว้นว่างไว้จะใช้คลังเริ่มต้น
+stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
+stock.mobile.cameraOff,ปิดกล้อง
+stock.mobile.codePlaceholder,รหัสหรือบาร์โค้ด
+stock.mobile.find,ค้นหา
+stock.mobile.noCamera,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้
+stock.mobile.noTask,ไม่มีการตรวจนับที่เปิดอยู่
+stock.mobile.notBound,บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
+stock.mobile.notFound,ไม่พบสินค้าที่ตรงกับรหัสนี้
+stock.mobile.open,เปิด
+stock.mobile.pickTask,เลือกการตรวจนับ
+stock.mobile.save,บันทึก
+stock.mobile.saved,บันทึกแล้ว
+stock.mobile.scan,สแกน
+stock.mobile.title,ตรวจนับสต็อก
+stock.notice.counted,นับแล้ว: ผลต่าง {0} → {1}
+stock.notice.totals,SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
+stock.status.low,สต็อกต่ำ
+stock.status.lowWith,ต่ำ (≤{0})
+stock.status.ok,มีสินค้า
+stock.status.out,สินค้าหมด
+stock_in,รับเข้า
+stock_out,จ่ายออก
+submitted,ยืนยันแล้ว
+tax_invoice,ใบกำกับภาษีเต็มรูป
+tax_invoice_receipt,ใบกำกับภาษีและใบเสร็จ
+tax_invoice_simple,ใบกำกับภาษีอย่างย่อ
+trade.address,ที่อยู่
+trade.balance,คงเหลือในตำแหน่ง
+trade.branchNo,เลขที่สาขา
+trade.branchType,ประเภทสาขา
+trade.buyer,ชื่อลูกค้า
+trade.buyerType,ประเภทลูกค้า
+trade.checkout,ขายสินค้า
+trade.close,ปิด
+trade.closeShift,ปิดกะ
+trade.closing,ยอดคงเหลือ
+trade.cost,ต้นทุนต่อหน่วย
+trade.countedCash,เงินสดที่นับได้
+trade.date,วันที่
+trade.description,ชื่อหรือรายละเอียด
+trade.discount,ส่วนลด
+trade.docNo,เลขที่เอกสาร
+trade.float,เงินสดเริ่มต้น
+trade.from,ตั้งแต่วันที่
+trade.hasVat,คำนวณ VAT
+trade.in,รับเข้า
+trade.issue,ออกเอกสาร
+trade.kind,ประเภทเอกสาร
+trade.lines,รายการสินค้า
+trade.location,ตำแหน่ง
+trade.method,วิธีชำระเงิน
+trade.newIn,รับสินค้าเข้า
+trade.newOut,จ่ายสินค้าออก
+trade.newSale,สร้างเอกสารขาย
+trade.noShift,ยังไม่เปิดกะ
+trade.note,หมายเหตุ
+trade.openShift,เปิดกะ
+trade.opening,ยอดยกมา
+trade.originalLine,สินค้าและตำแหน่งในบิลเดิม
+trade.out,จ่ายออก
+trade.paid,รับชำระ
+trade.paidNotice,ใบเสร็จ {0} · เงินทอน {1}
+trade.pay,รับชำระเงิน
+trade.paymentDate,วันที่ชำระเงิน
+trade.paymentState,สถานะชำระเงิน
+trade.price,ราคาต่อหน่วย
+trade.product,สินค้า
+trade.qty,จำนวน
+trade.reference,เอกสารอ้างอิง
+trade.refund,คืนสินค้า
+trade.refundAmount,ยอดคืนเงิน
+trade.save,บันทึกฉบับร่าง
+trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
+trade.status,สถานะ
+trade.stockPending,ยังไม่บันทึกสต็อก
+trade.stockPosted,บันทึกสต็อกแล้ว
+trade.stockState,การบันทึกสต็อก
+trade.submit,ยืนยัน
+trade.submitReceive,ยืนยันและรับเข้าสต็อก
+trade.taxId,เลขประจำตัวผู้เสียภาษี
+trade.terminal,จุดขาย
+trade.to,ถึงวันที่
+trade.total,ยอดชำระ
+trade.unit,หน่วย
+trade.vat,อัตรา VAT
+trade.void,ยกเลิก
+trade.voidConfirm,ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?
+trade.warehouse,คลัง
+transfer,โอนเงิน
+unpaid,ยังไม่ชำระ
+void,ยกเลิกแล้ว

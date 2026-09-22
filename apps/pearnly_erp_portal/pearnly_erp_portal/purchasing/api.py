@@ -32,6 +32,11 @@ def api_list_purchases(**kwargs):
 
 
 @frappe.whitelist()
+def api_purchase_total(**kwargs):
+    return service.purchase_total(**_clean(kwargs))
+
+
+@frappe.whitelist()
 def api_get_purchase(**kwargs):
     kwargs = _clean(kwargs)
     return service.get_purchase(kwargs.get("name"))
@@ -48,7 +53,8 @@ def api_update_purchase(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_submit_purchase(**kwargs):
     kwargs = _clean(kwargs)
-    return service.set_status(kwargs.pop("name", None), "submitted")
+    return service.set_status(kwargs.pop("name", None), "submitted",
+                              receive_stock=kwargs.get("receive_stock"))
 
 
 @frappe.whitelist(methods=["POST"])
