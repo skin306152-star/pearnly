@@ -58,6 +58,52 @@
 	100% { opacity: 0.9; transform: scale(1); }
 }
 
+/* 商品表单：条码/二维码那一格右侧的扫码按钮。
+   图标按钮压在输入框右内边缘（原生输入框 + 一个 SVG），不占额外一行，
+   也不跟对话框底部的"保存"抢位置。 */
+.pearnly-code-input {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.pearnly-code-input .form-control {
+	padding-right: 32px;
+}
+
+.pearnly-scan-icon {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-sm, 4px);
+	background: transparent;
+	color: var(--text-muted, #6c7688);
+	cursor: pointer;
+}
+
+.pearnly-scan-icon:hover {
+	color: var(--text-color, #1f272e);
+	background: var(--gray-100, #f4f5f6);
+}
+
+.pearnly-scan-icon:focus-visible {
+	outline: 2px solid var(--focus-color, #2490ef);
+	outline-offset: 1px;
+}
+
+.pearnly-scan-icon svg {
+	width: 15px;
+	height: 15px;
+}
+
 /* 尊重"减少动态效果"的系统设置：只留颜色，不做缩放的动静。 */
 @media (prefers-reduced-motion: reduce) {
 	.pearnly-scan-done .pearnly-scan-check {

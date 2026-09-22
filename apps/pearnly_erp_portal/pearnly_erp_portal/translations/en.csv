@@ -56,6 +56,7 @@ product.cell.notSet,Not set
 product.col.avgCost,Average cost
 product.col.barcode,Barcode
 product.col.code,Code
+product.col.codeValue,Barcode / QR code
 product.col.cost,Reference cost
 product.col.name,Product
 product.col.price,Price
@@ -68,6 +69,7 @@ product.field.baseUnitHint,Stock is counted in this unit; leave it empty to use 
 product.field.category,Category
 product.field.code,Code
 product.field.codeAuto,Generated automatically
+product.field.codeValue,Barcode / QR code
 product.field.cost,Reference cost
 product.field.defaultLocation,Default Location
 product.field.defaultWarehouse,Default Warehouse

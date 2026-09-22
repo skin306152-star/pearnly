@@ -56,6 +56,7 @@ product.cell.notSet,ยังไม่ตั้ง
 product.col.avgCost,ต้นทุนเฉลี่ย
 product.col.barcode,บาร์โค้ด
 product.col.code,รหัส
+product.col.codeValue,บาร์โค้ด / คิวอาร์โค้ด
 product.col.cost,ต้นทุนอ้างอิง
 product.col.name,สินค้า
 product.col.price,ราคา
@@ -68,6 +69,7 @@ product.field.baseUnitHint,นับสต็อกเป็นหน่วย�
 product.field.category,หมวดหมู่
 product.field.code,รหัส
 product.field.codeAuto,สร้างอัตโนมัติ
+product.field.codeValue,บาร์โค้ด / คิวอาร์โค้ด
 product.field.cost,ต้นทุนอ้างอิง
 product.field.defaultLocation,ตำแหน่งเริ่มต้น
 product.field.defaultWarehouse,คลังเริ่มต้น

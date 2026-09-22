@@ -24,6 +24,7 @@ Unknown buyer	未知买家	ไม่ทราบผู้ซื้อ	不明な�
 Product name	商品名称	ชื่อสินค้า	商品名	product.field.name
 Code	编码	รหัส	コード	product.field.code
 Barcode	条码	บาร์โค้ด	バーコード	product.field.barcode
+Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.field.codeValue
 Unit	单位	หน่วย	単位	product.field.unit
 Selling price	售价	ราคาขาย	販売価格	product.field.price
 Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.field.cost
@@ -45,7 +46,7 @@ Saved {0}	已保存 {0}	บันทึก {0} แล้ว	{0} を保存しま�
 Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新しました	product.notice.toggled
 Enable	启用	เปิดใช้งาน	有効化	product.action.enable
 Code	编码	รหัส	コード	product.col.code
-Barcode	条码	บาร์โค้ด	バーコード	product.col.barcode
+Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	product.col.codeValue
 Unit	单位	หน่วย	単位	product.col.unit
 Disable {0} selected	停用选中的 {0} 个	ปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を無効化	product.action.bulkDisable
 Enable {0} selected	启用选中的 {0} 个	เปิดใช้งาน {0} รายการที่เลือก	選択した{0}件を有効化	product.action.bulkEnable
@@ -83,8 +84,6 @@ This code is already taken	这个码已经被占用	รหัสนี้ถู�
 Already used by {0} (code {1})	已经是「{0}」（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
 Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
 Light	灯光	ไฟ	ライト	product.scan.light
-Identify barcode or QR code	扫码识别	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRを読み取る	product.scan.auto
-The code type could not be identified. Enter it in the barcode or QR field.	无法识别码类型，请填入条码或二维码对应字段。	ไม่สามารถระบุชนิดโค้ดได้ กรุณากรอกในช่องบาร์โค้ดหรือคิวอาร์โค้ด	コードの種類を判別できません。バーコードまたはQR欄に入力してください。	product.scan.unknownType
 Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done
 Product name	商品名称	ชื่อสินค้า	商品名	stock.col.name
 Code	编码	รหัส	コード	stock.col.code

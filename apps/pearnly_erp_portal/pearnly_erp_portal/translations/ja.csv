@@ -56,6 +56,7 @@ product.cell.notSet,未設定
 product.col.avgCost,平均原価
 product.col.barcode,バーコード
 product.col.code,コード
+product.col.codeValue,バーコード / QRコード
 product.col.cost,参考原価
 product.col.name,商品
 product.col.price,価格
@@ -68,6 +69,7 @@ product.field.baseUnitHint,在庫はこの単位で数えます。空欄なら�
 product.field.category,カテゴリ
 product.field.code,コード
 product.field.codeAuto,自動生成
+product.field.codeValue,バーコード / QRコード
 product.field.cost,参考原価
 product.field.defaultLocation,既定の保管場所
 product.field.defaultWarehouse,既定の倉庫

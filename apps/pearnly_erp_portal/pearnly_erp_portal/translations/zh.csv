@@ -56,6 +56,7 @@ product.cell.notSet,未设
 product.col.avgCost,均价
 product.col.barcode,条码
 product.col.code,编码
+product.col.codeValue,条码/二维码
 product.col.cost,参考成本
 product.col.name,商品
 product.col.price,售价
@@ -68,6 +69,7 @@ product.field.baseUnitHint,库存按这个单位记数；留空就跟售卖单�
 product.field.category,分类
 product.field.code,编码
 product.field.codeAuto,自动生成
+product.field.codeValue,条码/二维码
 product.field.cost,参考成本
 product.field.defaultLocation,默认仓位
 product.field.defaultWarehouse,默认仓库
