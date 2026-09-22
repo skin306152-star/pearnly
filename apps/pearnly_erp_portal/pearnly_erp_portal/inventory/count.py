@@ -25,6 +25,9 @@ from frappe.utils import flt, now
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import positions, warehouses, count_state
+# 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
+# 决定"表上那一列显示条码还是二维码内容"。这是单向依赖，products 不认识 inventory。
+from pearnly_erp_portal.products import contracts as product_contracts
 
 COUNT = "ERP Stock Count"
 ITEM = "ERP Stock Count Item"
@@ -196,7 +199,9 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
     doc = frappe.get_doc({
         "doctype": ITEM, "count": count, "product": product["name"],
         "product_name": product.get("product_name"), "code": product.get("code"),
-        "barcode": product.get("barcode"),
+        # 商品那边的"码"是一格（条码与二维码合并）：只有二维码的商品，盘点表这一列
+        # 也要带上它，否则盘点员拿着这张表扫不出来（匹配那侧本来就三列一起查）。
+        "barcode": product_contracts.shown_code(product) or None,
         "unit": (product.get("base_unit") or product.get("unit") or "") or None,
         "warehouse": warehouse, "location": location,
         "book_qty": flt(book_qty, 3), "counted": 0,
@@ -331,7 +336,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {row["name"]: row for row in frappe.get_list(
         PRODUCT, filters={"is_active": 1, "name": ["in", [b["product"] for b in balances] or [""]]},
-        fields=["name", "product_name", "code", "barcode", "unit", "base_unit"],
+        fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
     label = _warehouse_label(warehouse)
     out = []
@@ -341,7 +346,8 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             continue
         out.append({
             "product_code": product["code"], "product_name": product["product_name"],
-            "barcode": product["barcode"], "unit": product["base_unit"] or product["unit"],
+            "barcode": product_contracts.shown_code(product),
+            "unit": product["base_unit"] or product["unit"],
             "book_qty": flt(balance["qty_on_hand"], 3), "counted_qty": None,
             "warehouse": label, "location": balance.get("location") or "",
         })

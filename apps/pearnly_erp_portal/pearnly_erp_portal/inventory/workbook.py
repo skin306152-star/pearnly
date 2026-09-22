@@ -49,6 +49,11 @@ LEGACY_ALIASES = {
     "บาร์โค้ด": "barcode",
     "บาร์โค้ด / รหัส qr": "barcode",
     "บาร์โค้ด หรือ รหัส qr": "barcode",
+    # 商品那边的码合并成一格之后，盘点表这一列也跟着改叫"条码/二维码"（同一个含义：
+    # 扫得出这条商品的码）。旧表头照旧认，新表头也要认。
+    "barcode / qr code": "barcode",
+    "条码/二维码": "barcode",
+    "条码 / 二维码": "barcode",
     "条码": "barcode",
     "バーコード": "barcode",
     "unit": "unit",

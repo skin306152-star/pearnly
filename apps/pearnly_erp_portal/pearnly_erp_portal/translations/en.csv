@@ -137,7 +137,7 @@ stock.board.shelf,Shelf
 stock.board.title,Stock count workbench
 stock.board.unfreezeColumn,Unfreeze column
 stock.cell.notSet,Not set
-stock.col.barcode,Barcode
+stock.col.barcode,Barcode / QR code
 stock.col.code,Code
 stock.col.cost,Average cost
 stock.col.name,Product name

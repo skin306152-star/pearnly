@@ -87,7 +87,7 @@ Light	灯光	ไฟ	ライト	product.scan.light
 Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done
 Product name	商品名称	ชื่อสินค้า	商品名	stock.col.name
 Code	编码	รหัส	コード	stock.col.code
-Barcode	条码	บาร์โค้ด	バーコード	stock.col.barcode
+Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	stock.col.barcode
 Unit	单位	หน่วย	単位	stock.col.unit
 Status	状态	สถานะ	状態	stock.col.status
 Warehouse	仓库	คลังสินค้า	倉庫	stock.col.warehouse

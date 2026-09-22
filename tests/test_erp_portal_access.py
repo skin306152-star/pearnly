@@ -20,6 +20,7 @@ from pearnly_erp_portal.products import contracts  # noqa: E402
 from pearnly_erp_portal.products import workbook as product_workbook  # noqa: E402
 from pearnly_erp_portal.purchasing import contracts as purchase_contracts  # noqa: E402
 from pearnly_erp_portal.inventory import contracts as stock_contracts  # noqa: E402
+from pearnly_erp_portal.inventory import workbook as stock_workbook  # noqa: E402
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
 from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E402
 from pearnly_erp_portal.sales import contracts as sales_contracts  # noqa: E402
@@ -169,6 +170,67 @@ class ProductContracts(unittest.TestCase):
         for (field, _key), header in zip(product_workbook.FIELD_LABELS, headers):
             self.assertEqual(aliases[header.strip().lower()], field)
         self.assertEqual(len(set(product_workbook.FIELD_LABELS)), len(product_workbook.FIELD_LABELS))
+
+    def test_the_template_has_one_merged_code_column(self):
+        """条码与二维码在界面与模板上都是**一格**（用户 2026-09-22 口径）。"""
+        fields = [field for field, _key in product_workbook.FIELD_LABELS]
+        self.assertIn("code_value", fields)
+        self.assertNotIn("barcode", fields)
+        self.assertNotIn("qr_payload", fields)
+
+    def test_the_merged_code_column_routes_by_shape_on_import(self):
+        """合并的那一列按内容形状落回两列：短 ASCII 是条码，中文/长串是二维码内容。"""
+        aliases = product_workbook.header_aliases()
+        columns = {0: aliases["商品名称"], 1: aliases["条码/二维码"]}
+        for value, column in (("8850000009912", "barcode"),
+                              ("00123456", "barcode"),
+                              ("https://shop.example/p/1", "qr_payload"),
+                              ("盘点 QR 001", "qr_payload"),
+                              ("A" * 120, "qr_payload")):
+            with self.subTest(value=value[:20]):
+                record = product_workbook._record(["テスト商品", value], columns)
+                self.assertEqual(record.get(column), value)
+                self.assertNotIn("code_value", record)
+
+    def test_a_legacy_two_column_sheet_still_imports(self):
+        """老表还是两列（条码 / 二维码内容）：照旧各落各的，不被合并列吃掉。"""
+        aliases = product_workbook.header_aliases()
+        columns = {0: aliases["商品名称"], 1: aliases["barcode"], 2: aliases["qr_payload"]}
+        self.assertEqual(columns[1], "barcode")
+        self.assertEqual(columns[2], "qr_payload")
+        record = product_workbook._record(["旧表商品", "8850000009912", "QR-旧值"], columns)
+        self.assertEqual(record["barcode"], "8850000009912")
+        self.assertEqual(record["qr_payload"], "QR-旧值")
+        # 合并列与具体列同时在：具体那一列说话（谁写的更明确就听谁的）。
+        columns = {0: aliases["商品名称"], 1: aliases["barcode"],
+                   2: aliases["条码/二维码"]}
+        record = product_workbook._record(["両方", "00123456", "盘点 QR 001"], columns)
+        self.assertEqual(record["barcode"], "00123456")
+        self.assertEqual(record["qr_payload"], "盘点 QR 001")
+
+    def test_the_shared_shape_rule_matches_the_frontend(self):
+        """前端 `desk/products.js` 的 BARCODE_SHAPE 与这里必须同一张表（两处要一起改）。"""
+        for value, column in ((None, "barcode"), ("", "barcode"), ("8850000009912", "barcode"),
+                              ("00123456", "barcode"), ("abc-123", "barcode"),
+                              ("https://shop.example/p/1", "qr_payload"),
+                              ("盘点 QR 001", "qr_payload"), ("A" * 101, "qr_payload"),
+                              ("A" * 100, "barcode")):
+            with self.subTest(value=str(value)[:20]):
+                self.assertEqual(contracts.code_field(value), column)
+
+    def test_the_shown_code_falls_back_to_the_qr_payload(self):
+        """界面与表格上显示的"码"：条码优先，没有条码时才用二维码内容。"""
+        self.assertEqual(contracts.shown_code({"barcode": "BC-1", "qr_payload": "QR-1"}), "BC-1")
+        self.assertEqual(contracts.shown_code({"barcode": None, "qr_payload": "QR-1"}), "QR-1")
+        self.assertEqual(contracts.shown_code({"barcode": "", "qr_payload": None}), "")
+        self.assertEqual(contracts.shown_code(None), "")
+
+    def test_the_stocktake_sheet_accepts_the_merged_column_name(self):
+        """盘点表的同义列：商品那边的码合并成一格后，盘点表表头也跟着认这一句。"""
+        aliases = stock_workbook.header_aliases()
+        self.assertEqual(aliases["条码/二维码"], "barcode")
+        self.assertEqual(aliases["barcode / qr code"], "barcode")
+        self.assertEqual(aliases["条码"], "barcode")
 
     def test_every_template_label_exists_in_the_language_pack(self):
         """模板表头取自语言包：包里缺哪一条，模板上就会露出键名。"""

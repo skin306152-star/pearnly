@@ -137,7 +137,7 @@ stock.board.shelf,库位
 stock.board.title,盘点工作台
 stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设
-stock.col.barcode,条码
+stock.col.barcode,条码/二维码
 stock.col.code,编码
 stock.col.cost,平均成本
 stock.col.name,商品名称

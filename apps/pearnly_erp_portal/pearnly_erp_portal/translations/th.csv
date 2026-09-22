@@ -137,7 +137,7 @@ stock.board.shelf,ตำแหน่ง
 stock.board.title,หน้าปฏิบัติงานตรวจนับ
 stock.board.unfreezeColumn,ยกเลิกการตรึงคอลัมน์
 stock.cell.notSet,ยังไม่ตั้ง
-stock.col.barcode,บาร์โค้ด
+stock.col.barcode,บาร์โค้ด / คิวอาร์โค้ด
 stock.col.code,รหัส
 stock.col.cost,ต้นทุนเฉลี่ย
 stock.col.name,ชื่อสินค้า

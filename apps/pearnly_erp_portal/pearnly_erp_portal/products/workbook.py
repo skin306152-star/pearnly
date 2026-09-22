@@ -15,12 +15,15 @@ from __future__ import annotations
 import io
 from decimal import Decimal, InvalidOperation
 
+from pearnly_erp_portal.products import contracts
+
 # 字段 → 界面文案的键。模板的表头就取这几句（按站点语言），顺序也是这个顺序。
 FIELD_LABELS = (
     ("product_name", "product.field.name"),
     ("code", "product.field.code"),
-    ("barcode", "product.field.barcode"),
-    ("qr_payload", "product.field.qr"),
+    # 界面上一格放条码与二维码（用户 2026-09-22 口径），模板与导出跟着走一格；
+    # 老表里的两列仍然认（见 LEGACY_ALIASES），只是新模板不再分两列。
+    ("code_value", "product.field.codeValue"),
     ("unit", "product.field.unit"),
     ("base_unit", "product.field.baseUnit"),
     ("category_id", "product.field.category"),
@@ -52,9 +55,14 @@ LEGACY_ALIASES = {
     "barcode": "barcode",
     "บาร์โค้ด": "barcode",
     "条码": "barcode",
+    "qr payload": "qr_payload",
     "qr_payload": "qr_payload",
     "qr": "qr_payload",
     "二维码": "qr_payload",
+    # 合并后的那一格（新模板的表头；四语标签由调用方从语言包补，这里兜住中英两套写法）。
+    "barcode / qr code": "code_value",
+    "条码/二维码": "code_value",
+    "条码 / 二维码": "code_value",
     "unit": "unit",
     "หน่วย": "unit",
     "单位": "unit",
@@ -102,7 +110,7 @@ def template_headers(label_of) -> list:
     """模板表头：界面上那几句，按站点语言给。"""
     return [label_of(key) for _field, key in FIELD_LABELS]
 
-TEXT_FIELDS = ("product_name", "code", "barcode", "qr_payload",
+TEXT_FIELDS = ("product_name", "code", "code_value",
                "unit", "base_unit", "image_url", "default_warehouse", "default_location")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")
@@ -153,6 +161,11 @@ def _record(row, columns: dict) -> dict:
                 raise ValueError("not_a_number") from None
         else:
             record[field] = str(value).strip()
+    # 合并的那一列按形状落回条码/二维码两列；表里另外还给了具体某列时，那一列说话
+    # （老表既有合并列又有条码列时不至于互相覆盖）。
+    merged = record.pop("code_value", None)
+    if merged:
+        record.setdefault(contracts.code_field(merged), merged)
     if not record.get("product_name"):
         raise ValueError("name_required")
     return record
