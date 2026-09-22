@@ -465,3 +465,24 @@
 - 库存/收发存/商品这几个列表也是同样的列宽机制（库存有 10 列、收发存 7 列），窗口窄时同样会
   把右边几列切掉 —— 用户这次只说了盘点，那几个我**没动**，等他发话再按同一套写法收一遍。
 - 集成状态不变：分支未合 main、未推送、未上线；远端 main 仍 `ac33e0c`。
+
+## 表格右上角的灰色缺口（2026-09-22 接续，用户报障）
+
+用户口径："盘点里，所有这个表格，右上角哪里灰色都会有一个缺口，修一下"。
+
+- 真因：框架的 `report.scss` 里给 `.report-wrapper .datatable` 套了
+  `border-radius: var(--border-radius) var(--border-radius) 0 0`，`.datatable` 自己还有一条
+  `border-radius: var(--dt-border-radius)`；表头那条通栏灰条被这个圆角 + `overflow: hidden`
+  在右上角切掉一小块，看着就是灰条缺了个口子。工作台的表挂在 `.report-wrapper` 里，
+  记录弹窗里的表走的是另一条 `.datatable` 规则 —— 两处都有，所以"所有这个表格"都能看到。
+- 修法：在共享皮肤 `apps/pearnly_core/pearnly_core/public/desk/product.css` 里把这层圆角去掉
+  （`body.pearnly-product-desk .datatable { border-radius: 0 }`，只在产品 Desk 内生效）。
+  表头是通栏灰条，两端本该是直角。这一条覆盖产品 Desk 里所有原生 DataTable（盘点工作台、
+  记录弹窗、库存流水弹窗、盘点差异报表）。
+- 验证：圆角从 `8px` 变 `0px`，把表头右端放大截图 —— 灰色铺满右上角、缺口消失；工作台那条表与
+  已结束任务的"记录"弹窗（里面真有一条数据）都确认过。诊断期间用 CDP 临时注入过一条探针样式
+  （用完即删）并临时改过视口，两个都已还原（`innerWidth` 回到 1512）。
+- 踩坑记一笔：改 CSS 之后**只跑 `assets` 不够** —— 资源版本号（`?v=`）是进程启动时算的，浏览器
+  拿着旧 URL 里的旧内容，看起来就像"改了没生效"。跑 `reload`（重启预览 web）后立刻正确。
+- 检查：架构 0 违规、i18n 构建与前端词条 0 问题、`check-i18n --strict` 与主目录一致的 113 条基线、
+  十个 JS 测试全绿。

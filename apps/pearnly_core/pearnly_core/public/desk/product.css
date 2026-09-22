@@ -127,3 +127,10 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 		display: block;
 	}
 }
+
+/* 原生表格（DataTable）在报表壳里被框架套了 `border-radius` + `overflow: hidden`：灰色表头
+   右上角会被圆角切掉一块，看上去就是灰条上缺了一个口子（用户 2026-09-22 在盘点那几个表上
+   报障）。表头是通栏的灰条，两端就该是直角 —— 把这层圆角去掉，表头铺满整条。 */
+body.pearnly-product-desk .datatable {
+	border-radius: 0;
+}
