@@ -1,24 +1,27 @@
+/* 销售记录：只有记录，没有开票。
+ *
+ * 本仓不做税务发票（用户 2026-09-23），所以这里没有票面/打印、没有红冲补开、
+ * 没有报价转开票；单据类型只剩报价单与收据，确认（提交）落定并过账出库。
+ * 下一页按采购已定稿的交互重做（连续页面 + 同页复核 + 附件区），本文件先与新契约对齐。
+ */
 (() => {
 	const p = frappe.pearnly;
 	p.sales = async (page, t) => {
 		const api = "pearnly_erp_portal.sales.api.", canWrite = frappe.model.can_write("ERP Sales Document");
 		let list;
-		const keys = ["buyer_name", "doc_date", "doc_kind", "has_vat", "vat_rate", "party_type", "tax_id", "address",
-			"branch_type", "branch_no", "payment_status", "payment_method", "payment_date", "note"];
+		const keys = ["buyer_name", "doc_date", "doc_kind", "has_vat", "vat_rate", "party_type",
+			"address", "payment_status", "payment_method", "payment_date", "note"];
 		async function editor(name) {
 			const doc = name ? await p.call(api + "api_get_sale_document", { name }) : {};
-			const editable = canWrite && (!name || ["draft", "pending_approval"].includes(doc.status));
+			const editable = canWrite && (!name || doc.status === "draft");
 			let d;
 			const clean = values => ({ ...Object.fromEntries(keys.map(key => [key, values[key]])), lines: p.trade.clean(values.lines) });
 			const fields = [
 				{ fieldtype: "Data", fieldname: "buyer_name", label: t("trade.buyer"), reqd: 1 },
 				{ fieldtype: "Date", fieldname: "doc_date", label: t("trade.date"), default: frappe.datetime.get_today(), reqd: 1 },
-				{ fieldtype: "Select", fieldname: "doc_kind", label: t("trade.kind"), options: "quotation\ntax_invoice\ntax_invoice_simple\ntax_invoice_receipt\nreceipt", default: "tax_invoice_simple", read_only: !!name },
+				{ fieldtype: "Select", fieldname: "doc_kind", label: t("trade.kind"), options: "quotation\nreceipt", default: "receipt", read_only: !!name },
 				{ fieldtype: "Select", fieldname: "party_type", label: t("trade.buyerType"), options: "person\ncompany", default: "person" },
-				{ fieldtype: "Data", fieldname: "tax_id", label: t("trade.taxId") },
 				{ fieldtype: "Small Text", fieldname: "address", label: t("trade.address") },
-				{ fieldtype: "Select", fieldname: "branch_type", label: t("trade.branchType"), options: "\nhq\nbranch", default: "hq" },
-				{ fieldtype: "Data", fieldname: "branch_no", label: t("trade.branchNo") },
 				{ fieldtype: "Check", fieldname: "has_vat", label: t("trade.hasVat"), default: 0 },
 				{ fieldtype: "Percent", fieldname: "vat_rate", label: t("trade.vat"), default: 7 },
 				p.trade.lines(t, { readonly: !editable, data: doc.lines || [{ qty: 1 }] }),
@@ -30,18 +33,18 @@
 				default: doc[field.fieldname] ?? field.default }));
 			if (name) fields.push({ fieldtype: "Data", fieldname: "stock_state", label: t("trade.stockState"), read_only: 1,
 				default: t(doc.status === "void" ? "trade.void" : doc.stock_posted_at ? "trade.stockPosted" : "trade.stockPending") });
-			if (editable && name) fields.push({ fieldtype: "Button", fieldname: "issue", label: t("trade.issue"), click: () => p.trade.act(d, async () => {
+			if (editable && name) fields.push({ fieldtype: "Button", fieldname: "confirm", label: t("trade.submit"), click: () => p.trade.act(d, async () => {
 				const values = d.get_values(); if (!values) return;
 				const changes = clean(values); delete changes.doc_kind;
 				await p.call(api + "api_update_sale_document", { name, ...changes }, "POST");
-				await p.call(api + "api_issue_sale_document", { name }, "POST");
+				await p.call(api + "api_confirm_sale_document", { name }, "POST");
 				d.hide(); await list.reload(); await editor(name);
 			}) });
-			if (doc.status === "issued" && canWrite) fields.push({ fieldtype: "Button", fieldname: "void", label: t("trade.void"),
+			if (doc.status === "submitted" && canWrite) fields.push({ fieldtype: "Button", fieldname: "void", label: t("trade.void"),
 				click: () => frappe.confirm(t("trade.voidConfirm"), () => p.trade.act(d, async () => {
 					await p.call(api + "api_void_sale_document", { name }, "POST"); d.hide(); await list.reload(); await editor(name);
 				})) });
-			d = p.dialog(doc.doc_no || name || t("trade.newSale"), fields, editable ? t("trade.save") : t("trade.close"), async (values, dialog) => {
+			d = p.dialog(doc.system_no || name || t("trade.newSale"), fields, editable ? t("trade.save") : t("trade.close"), async (values, dialog) => {
 				if (!editable) { dialog.hide(); return; }
 				const changes = clean(values); if (name) delete changes.doc_kind;
 				const result = await p.call(api + (name ? "api_update_sale_document" : "api_create_sale_document"), { ...changes, ...(name ? { name } : {}) }, "POST");
@@ -54,12 +57,11 @@
 			if (canWrite) page.set_primary_action(t("trade.newSale"), () => editor());
 			else page.clear_primary_action();
 		}
-		// 选中若干张**已开单**的销售单 → 右上角出现"作废选中"（服务端 `api_void_sale_document`：
-		// 把出库退回来，号码不回收）。已作废/草稿的单据不满足，按钮禁用并在 title 说明原因。
+		// 选中若干张**已确认**的销售单 → 右上角出现"作废选中"（服务端把出库退回来）。
 		const selection = p.selection_action({
 			page, list: () => list, empty: restore_new,
 			label: rows => t("trade.action.voidCount", rows.length),
-			when: row => row.status === "issued",
+			when: row => row.status === "submitted",
 			reason: () => t("trade.voidBlocked"),
 			confirm: rows => t("trade.voidConfirmCount", rows.length),
 			run: async rows => {
@@ -74,7 +76,7 @@
 			load: p.trade.load(api, "api_list_sales", "api_sale_document_total"),
 			columns: [
 				{ fieldname: "buyer_name", label: t("trade.buyer") },
-				{ fieldname: "doc_no", label: t("trade.docNo") },
+				{ fieldname: "system_no", label: t("trade.systemNo") },
 				{ fieldname: "doc_date", label: t("trade.date") },
 				{ fieldname: "doc_kind", label: t("trade.kind"), format: value => __(value) },
 				{ fieldname: "status", label: t("trade.status"), format: value => __(value) },

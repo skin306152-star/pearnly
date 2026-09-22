@@ -73,9 +73,3 @@ def api_set_customer_active(**kwargs):
     kwargs = _clean(kwargs)
     return customers.set_active(kwargs.pop("name", None), kwargs.pop("is_active", 1))
 
-
-@frappe.whitelist()
-def api_customer_invoice_requirements(**kwargs):
-    """开票前检查买方缺哪些字段。开票侧调用。"""
-    kwargs = _clean(kwargs)
-    return customers.required_for_invoice(kwargs.get("name"))

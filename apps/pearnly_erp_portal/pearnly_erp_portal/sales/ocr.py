@@ -1,10 +1,11 @@
-"""上传发票的识别调用（薄层）。
+"""上传销售单据的识别调用（薄层）。
 
 归一化在 `contracts.map_recognised`（纯函数、离线可断言）；这里只做"取图 → 问模型"。
 **按页计费**，所以只由人点了"识别"的那条路径调用，测试与探针一律替换本模块的
 `recognise`，不真花钱。
 
-泰文税票提示词只要票面上真有的字段，**不要模型替我们算金额** —— 算错看不出来。
+提示词只要票面上真有的字段，**不要模型替我们算金额** —— 算错看不出来。本仓不开税票，
+所以不向模型要买方税号/分店、也不要预扣税（用户 2026-09-23 去掉开票侧）。
 """
 
 import json
@@ -13,10 +14,10 @@ import frappe
 from frappe import _
 
 PROMPT = (
-    "Read this Thai sales document (invoice, tax invoice, receipt or quotation) and return "
-    "JSON with: doc_no, doc_date (YYYY-MM-DD), seller_name, buyer_type "
-    "(company|person|foreign|anonymous), buyer_name, buyer_tax_id, buyer_branch_type "
-    "(hq|branch), buyer_branch_no, buyer_address, has_vat (true/false), vat_rate, wht_rate, "
+    "Read this Thai sales document (receipt or quotation) and return "
+    "JSON with: doc_date (YYYY-MM-DD), seller_name, buyer_type "
+    "(company|person|foreign|anonymous), buyer_name, buyer_address, has_vat (true/false), "
+    "vat_rate, "
     "and lines: [{description, qty, unit, unit_price, discount}]. Return only fields that "
     "are printed on the document; never compute totals yourself."
 )

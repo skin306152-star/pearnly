@@ -7,7 +7,6 @@ here instead of silently granting nothing.
 """
 import ast
 import json
-from datetime import date
 from pathlib import Path
 import sys
 import unittest
@@ -24,7 +23,6 @@ from pearnly_erp_portal.inventory import workbook as stock_workbook  # noqa: E40
 from pearnly_erp_portal.cashier import contracts as cashier_contracts  # noqa: E402
 from pearnly_erp_portal.masters import contracts as master_contracts  # noqa: E402
 from pearnly_erp_portal.sales import contracts as sales_contracts  # noqa: E402
-from pearnly_erp_portal.sales import render as sales_render  # noqa: E402
 
 CATALOG = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/features.json"
 SHARED = ROOT / "apps/pearnly_control/pearnly_control/features.py"
@@ -549,16 +547,6 @@ class BuyerNormalisation(unittest.TestCase):
         with self.assertRaises(ValueError):
             master_contracts.normalize_buyer({"customer_name": "x" * 300})
 
-    def test_tax_invoice_requirements_per_buyer_type(self):
-        missing = master_contracts.missing_for_tax_invoice
-        self.assertEqual(missing({"party_type": "anonymous"}), ["party_type"])
-        self.assertEqual(sorted(missing({"party_type": "company", "customer_name": "A"})),
-                         ["address", "tax_id"])
-        self.assertEqual(missing({"party_type": "person", "customer_name": "A",
-                                 "address": "B"}), [])
-        self.assertEqual(missing({"party_type": "company", "customer_name": "A", "address": "B",
-                                  "tax_id": "1", "branch_type": "branch"}), ["branch_no"])
-
     def test_fiscal_month_bounds(self):
         self.assertTrue(master_contracts.fiscal_month_ok(1))
         self.assertTrue(master_contracts.fiscal_month_ok("12"))
@@ -603,15 +591,14 @@ class IntegrationBinding(unittest.TestCase):
 
 
 class SalesDocuments(unittest.TestCase):
-    """销项单据契约：金额、连号、开出前的闸、泰文大写（照旧线上口径）。"""
+    """销项单据契约：金额与确认前的闸。本仓不做税务发票（用户 2026-09-23）。"""
 
-    def test_vat_is_added_on_top_of_the_net_and_wht_comes_off_the_result(self):
+    def test_vat_is_added_on_top_of_the_net(self):
         totals = sales_contracts.compute_totals(
-            [{"description": "A", "qty": 1, "unit_price": "1000"}], vat_rate=7, wht_rate=3)
+            [{"description": "A", "qty": 1, "unit_price": "1000"}], vat_rate=7)
         self.assertEqual(str(totals["subtotal"]), "1000.00")
         self.assertEqual(str(totals["vat_amount"]), "70.00")
         self.assertEqual(str(totals["grand_total"]), "1070.00")
-        self.assertEqual(str(totals["net_payable"]), "1040.00")
 
     def test_vat_inclusive_price_is_unwound(self):
         totals = sales_contracts.compute_totals(
@@ -646,161 +633,113 @@ class SalesDocuments(unittest.TestCase):
             header_discount_pct=200)
         self.assertEqual(str(head["header_discount"]), "200.00")
 
-    def test_amount_in_thai_words(self):
-        cases = {
-            "0": "ศูนย์บาทถ้วน",
-            "1": "หนึ่งบาทถ้วน",
-            "11": "สิบเอ็ดบาทถ้วน",
-            "21": "ยี่สิบเอ็ดบาทถ้วน",
-            "100": "หนึ่งร้อยบาทถ้วน",
-            "1000000": "หนึ่งล้านบาทถ้วน",
-            "12.34": "สิบสองบาทสามสิบสี่สตางค์",
-            "0.25": "ศูนย์บาทยี่สิบห้าสตางค์",
-        }
-        for amount, expected in cases.items():
-            with self.subTest(amount=amount):
-                self.assertEqual(sales_contracts.baht_text(amount), expected)
+    def test_wht_is_not_part_of_the_amounts_any_more(self):
+        totals = sales_contracts.compute_totals(
+            [{"description": "A", "qty": 1, "unit_price": "1000"}], vat_rate=7)
+        self.assertNotIn("wht_amount", totals)
+        self.assertNotIn("net_payable", totals)
 
-    def test_wht_label_carries_the_rate_and_the_second_language(self):
-        self.assertEqual(sales_contracts.wht_label(3), "หัก ณ ที่จ่าย 3% / WHT")
-        self.assertEqual(sales_contracts.wht_label("3.00", "th_en"), "หัก ณ ที่จ่าย 3% / WHT")
-        self.assertEqual(sales_contracts.wht_label(1.5, "th"), "หัก ณ ที่จ่าย 1.5%")
+    def test_only_a_receipt_is_gated_on_amount_and_payment(self):
+        # 拒因顺序固定：先金额、再收款 —— 调用方按第一个拒因回话就行。
+        # ฿0 且未收款时两个拒因一起报，让人一次看清差什么。
+        self.assertEqual(sales_contracts.confirm_gates(
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 0}),
+            ["zero_amount", "payment_required"])
+        self.assertEqual(sales_contracts.confirm_gates(
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107,
+             "payment_status": "paid", "payment_method": "cash",
+             "payment_date": "2026-09-21"}), [])
+        self.assertEqual(sales_contracts.confirm_gates(
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107,
+             "payment_status": "unpaid"}), ["payment_required"])
 
-    def test_number_format_follows_the_reset_policy(self):
-        on = date(2026, 9, 21)
-        self.assertEqual(sales_contracts.format_number("INV", "yearly", on, 1),
-                         "INV2026-00001")
-        self.assertEqual(sales_contracts.format_number("INV", "monthly", on, 7),
-                         "INV202609-00007")
-        self.assertEqual(sales_contracts.format_number("INV", "never", on, 12), "INV-00012")
-        self.assertEqual(sales_contracts.period_key("monthly", on), "2026-09")
-        self.assertEqual(sales_contracts.period_key("never", on), "ALL")
-
-    def test_prefix_priority_is_request_then_company_then_kind_default(self):
-        default = sales_contracts.DEFAULT_PREFIXES[sales_contracts.TAX_INVOICE]
-        self.assertEqual(sales_contracts.resolve_prefix("", "", default), "INV")
-        self.assertEqual(sales_contracts.resolve_prefix("", "LAB", default), "LAB")
-        self.assertEqual(sales_contracts.resolve_prefix("X", "LAB", default), "X")
-
-    def test_issue_gates_block_a_zero_tax_invoice_and_an_unpaid_receipt(self):
-        # 拒因顺序固定：先买方、再金额、最后收款 —— 调用方按第一个拒因回话就行。
-        zero = sales_contracts.issue_gates({"doc_kind": sales_contracts.TAX_INVOICE,
-                                            "grand_total": 0})
-        self.assertEqual(zero, ["buyer_incomplete:customer_name,address", "zero_amount"])
-        zero_with_buyer = sales_contracts.issue_gates({
-            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 0,
-            "buyer": {"party_type": "company", "customer_name": "ACME", "address": "BKK",
-                      "tax_id": "0105550000001", "branch_type": "hq"}})
-        self.assertEqual(zero_with_buyer, ["zero_amount"])
-        unpaid = sales_contracts.issue_gates({"doc_kind": sales_contracts.RECEIPT,
-                                              "grand_total": 107, "payment_status": "unpaid"})
-        self.assertEqual(unpaid, ["payment_required"])
-        paid = sales_contracts.issue_gates({"doc_kind": sales_contracts.RECEIPT,
-                                           "grand_total": 107, "payment_status": "paid",
-                                           "payment_method": "cash",
-                                           "payment_date": "2026-09-21"})
-        self.assertEqual(paid, [])
-
-    def test_a_quotation_is_not_a_tax_document(self):
-        self.assertEqual(sales_contracts.issue_gates(
+    def test_a_quotation_is_not_gated(self):
+        self.assertEqual(sales_contracts.confirm_gates(
             {"doc_kind": sales_contracts.QUOTATION, "grand_total": 0}), [])
 
-    def test_a_tax_invoice_needs_a_complete_buyer(self):
-        reasons = sales_contracts.issue_gates({
-            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 107,
-            "buyer": {"party_type": "anonymous"}})
-        self.assertEqual(reasons, ["buyer_incomplete:party_type"])
-        complete = sales_contracts.issue_gates({
-            "doc_kind": sales_contracts.TAX_INVOICE, "grand_total": 107,
-            "buyer": {"party_type": "company", "customer_name": "ACME", "address": "BKK",
-                      "tax_id": "0105550000001", "branch_type": "hq"}})
-        self.assertEqual(complete, [])
+    def test_the_catalogue_carries_no_tax_document_kinds(self):
+        """用户 2026-09-23 去掉开票侧：单据类型里不能再出现税票与冲正单。"""
+        self.assertEqual(sales_contracts.DOC_KINDS, ("quotation", "receipt"))
+        for gone in ("tax_invoice", "tax_invoice_simple", "tax_invoice_receipt",
+                     "credit_note", "debit_note"):
+            with self.subTest(kind=gone):
+                self.assertNotIn(gone, sales_contracts.DOC_KINDS)
+
+    def test_the_statuses_are_the_records_lifecycle(self):
+        self.assertEqual(sales_contracts.STATUSES, ("draft", "submitted", "void"))
+        self.assertEqual(sales_contracts.EDITABLE_STATUSES, (sales_contracts.DRAFT,))
 
 
 class SalesDocumentActions(unittest.TestCase):
-    """状态 × 动作、红冲/补开、报价转票：都是"什么能做什么"的判据。"""
+    """状态 × 动作：只有草稿能改，确认之后只能作废（没有红冲/补开/转票）。"""
 
-    def test_draft_can_be_edited_submitted_issued_but_not_voided(self):
+    def test_draft_can_be_edited_and_confirmed_but_not_voided(self):
         actions = sales_contracts.allowed_actions(sales_contracts.DRAFT)
-        for action in ("edit", "delete", "submit", "issue"):
-            self.assertIn(action, actions)
+        self.assertIn("edit", actions)
+        self.assertIn("confirm", actions)
         self.assertNotIn("void", actions)
-        self.assertNotIn("credit_note", actions)
 
-    def test_an_issued_document_can_only_be_voided_or_noted(self):
-        actions = sales_contracts.allowed_actions(sales_contracts.ISSUED)
-        self.assertNotIn("edit", actions)
-        self.assertNotIn("delete", actions)
-        self.assertIn("void", actions)
-        self.assertIn("credit_note", actions)
-        self.assertIn("debit_note", actions)
+    def test_a_confirmed_document_can_only_be_voided(self):
+        self.assertEqual(sales_contracts.allowed_actions(sales_contracts.SUBMITTED), ("void",))
+        for gone in ("edit", "credit_note", "debit_note", "pdf", "convert"):
+            self.assertNotIn(gone, sales_contracts.allowed_actions(sales_contracts.SUBMITTED))
+
+    def test_a_voided_document_allows_nothing(self):
+        self.assertEqual(sales_contracts.allowed_actions(sales_contracts.VOID), ())
 
     def test_an_unknown_status_allows_nothing(self):
         self.assertEqual(sales_contracts.allowed_actions("nonsense"), ())
-        self.assertFalse(sales_contracts.can("nonsense", "issue"))
-
-    def test_only_an_issued_document_can_be_noted(self):
-        self.assertEqual(sales_contracts.note_gate(None), "original_not_found")
-        self.assertEqual(sales_contracts.note_gate({"status": sales_contracts.DRAFT}),
-                         "original_not_issued")
-        self.assertEqual(sales_contracts.note_gate({"status": sales_contracts.VOID}),
-                         "original_not_issued")
-        self.assertIsNone(sales_contracts.note_gate({"status": sales_contracts.ISSUED}))
-        self.assertEqual(sales_contracts.note_prefix(sales_contracts.CREDIT_NOTE), "CN")
-        self.assertEqual(sales_contracts.note_prefix(sales_contracts.DEBIT_NOTE), "DN")
-
-    def test_only_a_quotation_converts_and_only_into_an_invoice_kind(self):
-        quote = {"doc_kind": sales_contracts.QUOTATION}
-        self.assertIsNone(sales_contracts.convert_gate(quote, sales_contracts.TAX_INVOICE))
-        self.assertEqual(sales_contracts.convert_gate(quote, "quotation"), "bad_target_type")
-        self.assertEqual(sales_contracts.convert_gate({"doc_kind": sales_contracts.RECEIPT},
-                                                      sales_contracts.TAX_INVOICE),
-                         "not_a_quotation")
-        self.assertEqual(sales_contracts.convert_gate(None, sales_contracts.TAX_INVOICE),
-                         "original_not_found")
+        self.assertFalse(sales_contracts.can("nonsense", "confirm"))
+        self.assertTrue(sales_contracts.can(sales_contracts.DRAFT, "confirm"))
 
 
 class SalesDocumentDownstream(unittest.TestCase):
     """销售单的来源与唯一自动下游（出库）。"""
 
-    def test_only_an_issued_sales_voucher_moves_stock(self):
-        kinds = (sales_contracts.TAX_INVOICE, sales_contracts.TAX_INVOICE_SIMPLE,
-                 sales_contracts.TAX_INVOICE_RECEIPT, sales_contracts.RECEIPT)
-        for kind in kinds:
-            with self.subTest(kind=kind):
-                self.assertTrue(sales_contracts.should_post_stock(kind, sales_contracts.ISSUED))
-                self.assertFalse(sales_contracts.should_post_stock(kind, sales_contracts.DRAFT))
-                self.assertFalse(sales_contracts.should_post_stock(kind, sales_contracts.VOID))
+    def test_only_a_confirmed_receipt_moves_stock(self):
+        self.assertTrue(sales_contracts.should_post_stock(sales_contracts.RECEIPT,
+                                                          sales_contracts.SUBMITTED))
+        for status in (sales_contracts.DRAFT, sales_contracts.VOID):
+            with self.subTest(status=status):
+                self.assertFalse(sales_contracts.should_post_stock(sales_contracts.RECEIPT,
+                                                                   status))
 
     def test_a_quotation_never_moves_stock(self):
         self.assertFalse(sales_contracts.should_post_stock(sales_contracts.QUOTATION,
-                                                           sales_contracts.ISSUED))
+                                                           sales_contracts.SUBMITTED))
 
     def test_the_three_sources_are_named(self):
         self.assertEqual(sales_contracts.SOURCES,
                          ("pos", "ocr", "manual"))
 
 
-class RecognisedInvoiceMapping(unittest.TestCase):
+class RecognisedDocumentMapping(unittest.TestCase):
     """识别结果 → 建单字段（纯函数）。模型返回什么形状都在这里看得见。"""
 
-    def test_a_printed_invoice_maps_through(self):
+    def test_a_printed_document_maps_through(self):
         mapped = sales_contracts.map_recognised({
-            "doc_no": "INV-1", "doc_date": "2026-09-21", "buyer_name": "ACME",
-            "buyer_type": "company", "buyer_tax_id": "0105550000001",
-            "buyer_branch_type": "branch", "buyer_branch_no": "00002",
-            "buyer_address": "Bangkok", "has_vat": True, "vat_rate": 7,
+            "doc_no": "R-1", "doc_date": "2026-09-21", "buyer_name": "ACME",
+            "buyer_type": "company", "buyer_address": "Bangkok", "has_vat": True,
+            "vat_rate": 7,
             "lines": [{"description": "item", "qty": 2, "unit_price": "100"}]})
+        self.assertEqual(mapped["doc_kind"], sales_contracts.RECEIPT)
         self.assertEqual(mapped["party_type"], "company")
-        self.assertEqual((mapped["branch_type"], mapped["branch_no"]), ("branch", "00002"))
+        self.assertEqual(mapped["address"], "Bangkok")
         self.assertEqual(len(mapped["lines"]), 1)
         self.assertEqual(mapped["vat_rate"], 7)
 
+    def test_tax_document_fields_are_not_part_of_the_shape(self):
+        """去掉开票侧之后，识别结果里带的税号/分店/预扣税不再进建单字段。"""
+        mapped = sales_contracts.map_recognised({
+            "buyer_tax_id": "0105550000001", "buyer_branch_type": "branch",
+            "buyer_branch_no": "00002", "wht_rate": 3})
+        for gone in ("tax_id", "branch_type", "branch_no", "wht_rate"):
+            with self.subTest(field=gone):
+                self.assertNotIn(gone, mapped)
+
     def test_unknown_values_fall_back_instead_of_leaking_in(self):
-        mapped = sales_contracts.map_recognised(
-            {"buyer_type": "nonsense", "buyer_branch_type": "weird"})
+        mapped = sales_contracts.map_recognised({"buyer_type": "nonsense"})
         self.assertEqual(mapped["party_type"], "company")
-        self.assertIsNone(mapped["branch_type"])
 
     def test_empty_and_description_less_lines_are_dropped(self):
         mapped = sales_contracts.map_recognised(
@@ -820,67 +759,11 @@ class RecognisedInvoiceMapping(unittest.TestCase):
         totals = sales_contracts.compute_totals(mapped["lines"], vat_rate=7)
         self.assertEqual(str(totals["grand_total"]), "21.40")
 
-
-class PromptPayAndPrint(unittest.TestCase):
-    """票面：PromptPay 载荷（照旧线上断言逐条搬）与打印模型。"""
-
-    def test_static_payload_structure(self):
-        payload = sales_render.promptpay_payload("0899999999")
-        self.assertTrue(payload.startswith("000201010211"))
-        self.assertIn("0016A000000677010111", payload)
-        self.assertIn("5802TH", payload)
-        self.assertIn("5303764", payload)
-
-    def test_dynamic_payload_has_amount_and_poi_12(self):
-        payload = sales_render.promptpay_payload("0899999999", "100.00")
-        self.assertIn("010212", payload)
-        self.assertIn("5406100.00", payload)
-
-    def test_amount_is_two_decimals(self):
-        self.assertIn("540521.00", sales_render.promptpay_payload("0812345678", 21))
-
-    def test_crc_is_self_consistent(self):
-        payload = sales_render.promptpay_payload("0812345678", "42.50")
-        self.assertEqual(sales_render._crc16(payload[:-4]), payload[-4:])
-        self.assertEqual(len(payload[-4:]), 4)
-
-    def test_proxy_classes(self):
-        self.assertEqual(sales_render._proxy("0812345678"), ("01", "0066812345678"))
-        self.assertEqual(sales_render._proxy("081-234-5678"), ("01", "0066812345678"))
-        self.assertEqual(sales_render._proxy("0105551234567"), ("02", "0105551234567"))
-        tag, target = sales_render._proxy("012345678901234")
-        self.assertEqual(tag, "03")
-        self.assertEqual(len(target), 15)
-
-    def test_no_promptpay_id_means_no_payload(self):
-        self.assertEqual(sales_render.promptpay_payload("", 100), "")
-
-    def test_print_model_carries_the_thai_page_facts(self):
-        model = sales_render.print_model(
-            {"doc_kind": sales_contracts.TAX_INVOICE, "doc_no": "INV2026-00001",
-             "doc_date": "2026-09-21", "buyer_name": "ACME", "party_type": "company",
-             "tax_id": "0105550000001", "branch_type": "branch", "branch_no": "00002",
-             "grand_total": 107, "net_payable": 107, "wht_amount": 0,
-             "payment_status": "unpaid", "vat_amount": 7, "subtotal": 100,
-             "lines": [{"description": "item", "qty": 1, "unit_price": 107,
-                        "line_total": 107}]},
-            seller={"company_name": "Shop", "promptpay_id": "0899999999"})
-        self.assertIn("ใบกำกับภาษี", model["doc_label"])
-        self.assertEqual(model["amount_in_words"], "หนึ่งร้อยเจ็ดบาทถ้วน")
-        self.assertTrue(model["promptpay"].startswith("000201"))
-        self.assertEqual(model["buyer"]["tin_label"], "เลขประจำตัวผู้เสียภาษี / Tax ID")
-
-    def test_a_paid_document_prints_no_payment_code(self):
-        model = sales_render.print_model(
-            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107, "net_payable": 107,
-             "payment_status": "paid", "lines": []},
-            seller={"promptpay_id": "0899999999"})
-        self.assertEqual(model["promptpay"], "")
-
-    def test_person_buyer_gets_the_national_id_label(self):
-        model = sales_render.print_model({"doc_kind": sales_contracts.RECEIPT,
-                                          "party_type": "person", "lines": []})
-        self.assertIn("เลขบัตรประชาชน", model["buyer"]["tin_label"])
+    def test_the_source_file_and_hash_are_kept(self):
+        mapped = sales_contracts.map_recognised({}, source_file="/private/x.pdf",
+                                                image_sha256="abc")
+        self.assertEqual(mapped["source_file"], "/private/x.pdf")
+        self.assertEqual(mapped["image_sha256"], "abc")
 
 
 def _has_openpyxl() -> bool:

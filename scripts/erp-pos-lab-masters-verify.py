@@ -2,7 +2,7 @@
 
 Real Site path with synthetic data: default company auto-created and used by the
 profile page, editable profile fields with bounds, customer normalisation by buyer
-type, deactivation, invoice requirements, per-job access and tenant isolation.
+type, deactivation, per-job access and tenant isolation.
 """
 import json
 import os
@@ -144,12 +144,6 @@ def main():
         "ERP Customer", walkin_name, ["party_type", "tax_id", "branch_type"],
         as_dict=True) if ok else None
 
-    # 开票前检查：公司买方齐全 → 无缺；个人缺税号但不要求；匿名直接不合格。
-    ok, req_co = as_user(SALES, customers.required_for_invoice, buyer_name)
-    results["requirements_company"] = req_co
-    ok, req_anon = as_user(SALES, customers.required_for_invoice, walkin_name)
-    results["requirements_anonymous"] = req_anon
-
     # 停用后默认列表看不到，但记录仍在。
     ok, off = as_user(SALES, customers.set_active, buyer_name, 0)
     results["deactivate_customer"] = ok
@@ -246,13 +240,6 @@ def main():
     company_count = results.get("company_count")
     if not isinstance(company_count, int) or company_count < 2:
         problems["company_count"] = company_count
-    requirements_company = results.get("requirements_company")
-    if not isinstance(requirements_company, dict) or requirements_company.get("missing"):
-        problems["company_requirements"] = requirements_company
-    requirements_anonymous = results.get("requirements_anonymous")
-    if not isinstance(requirements_anonymous, dict) \
-            or requirements_anonymous.get("missing") != ["party_type"]:
-        problems["anonymous_requirements"] = requirements_anonymous
     if results.get("master_doctypes") != ["ERP Company", "ERP Customer"]:
         problems["master_doctypes"] = results.get("master_doctypes")
 

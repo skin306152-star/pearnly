@@ -103,7 +103,6 @@ Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け�
 Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	stock.action.ledgerSingle
 Generated automatically	自动生成	สร้างอัตโนมัติ	自動生成	stock.field.docNoAuto
 System number	单据编号	เลขที่ระบบ	システム番号	trade.systemNo
-Tax invoice number	税务发票号	เลขที่ใบกำกับภาษี	適格請求書番号	trade.taxNo
 Only an active count can be deleted	只有进行中的盘点能删除	ลบได้เฉพาะงานตรวจนับที่กำลังทำอยู่	進行中の棚卸のみ削除できます	stock.count.deleteBlocked
 In stock	正常	มีสินค้า	在庫あり	stock.status.ok
 Low stock	低库存	สต็อกต่ำ	在庫少	stock.status.low
@@ -256,7 +255,6 @@ Branch Number	分店编号	เลขที่สาขา	支店番号	trade.bra
 Payment Status	付款状态	สถานะชำระเงิน	支払状態	trade.paymentState
 Payment Method	付款方式	วิธีชำระเงิน	支払方法	trade.method
 Payment Date	付款日期	วันที่ชำระเงิน	支払日	trade.paymentDate
-Issue Document	开出单据	ออกเอกสาร	伝票発行	trade.issue
 New Sales Document	新建销售单	สร้างเอกสารขาย	販売伝票を作成	trade.newSale
 Total Due	应收金额	ยอดชำระ	請求額	trade.total
 Shift {0} · Expected cash {1}	班次 {0} · 应有现金 {1}	กะ {0} · เงินสดที่ควรมี {1}	シフト {0} · 現金予定額 {1}	trade.shiftOpen
@@ -281,15 +279,11 @@ Select a product for each stock item	请为每条货物明细选择物料	เล
 draft	草稿	ฉบับร่าง	下書き
 submitted	已提交	ยืนยันแล้ว	確定済み
 void	已作废	ยกเลิกแล้ว	取消済み
-issued	已开出	ออกเอกสารแล้ว	発行済み
 completed	已完成	เสร็จสิ้น	完了
-pending_approval	待审批	รออนุมัติ	承認待ち
 goods	货物	สินค้า	物品
 service	服务	บริการ	サービス
 quotation	报价单	ใบเสนอราคา	見積書
 tax_invoice	完整税务发票	ใบกำกับภาษีเต็มรูป	税務請求書
-tax_invoice_simple	简易税务发票	ใบกำกับภาษีอย่างย่อ	簡易税務請求書
-tax_invoice_receipt	税务发票兼收据	ใบกำกับภาษีและใบเสร็จ	税務請求書兼領収書
 receipt	收据	ใบเสร็จ	領収書
 person	个人	บุคคล	個人
 company	公司	บริษัท	会社

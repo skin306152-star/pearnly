@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""销售单据。金额一律由纯规则层算，服务端与前端不各算一份。
+"""销售单据（记录，不是税务发票）。金额一律由纯规则层算，服务端与前端不各算一份。
 
-票面金额在这张单落库前重算一次：直连 REST 的、以后换前端的，都得过这一关。
+金额在这张单落库前重算一次：直连 REST 的、以后换前端的，都得过这一关。
 金额规则本身在 `pearnly_erp_portal/sales/contracts.py`（不连库、可离线断言）。
 """
 
 import frappe
-from frappe import _
 from frappe.model.document import Document
 
 from pearnly_erp_portal.sales import contracts
@@ -16,8 +15,6 @@ class ERPSalesDocument(Document):
     def validate(self):
         if self.is_new() or self.status in contracts.EDITABLE_STATUSES:
             self._apply_totals()
-        if self.status == contracts.ISSUED and not self.doc_no:
-            frappe.throw(_("An issued document must carry its number"))
 
     def _apply_totals(self):
         totals = contracts.compute_totals(
@@ -32,7 +29,6 @@ class ERPSalesDocument(Document):
                 "vat_applicable": bool(line.vat_applicable),
             } for line in self.lines],
             vat_rate=self.vat_rate if self.has_vat else 0,
-            wht_rate=self.wht_rate,
             header_discount_amount=self.header_discount,
             price_includes_vat=bool(self.get("price_includes_vat")),
         )
@@ -43,6 +39,4 @@ class ERPSalesDocument(Document):
         self.subtotal = totals["subtotal"]
         self.discount_total = totals["discount_total"]
         self.vat_amount = totals["vat_amount"]
-        self.wht_amount = totals["wht_amount"]
         self.grand_total = totals["grand_total"]
-        self.net_payable = totals["net_payable"]

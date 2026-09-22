@@ -1,19 +1,16 @@
-"""销售单据服务：取号、开出、作废、红冲补开，以及"开出即出库"。
+"""销售单据服务：建单、确认（确认即出库）、作废（回冲）、上传识别。
 
 三条口径：
 
-1. **草稿不占号。** 号码在**开出**时于事务内取（行锁在计数器那一行上），作废不回收号 ——
-   税票连号不跳，跳了要跟税局解释。
-2. **只有已开出的销售凭证动货**（`contracts.should_post_stock`）：过账走出库流水，
-   与采购入库同源；幂等锚钉在单据名上，重复开出不会扣两次。
-3. **出库不需要库存岗位**：开票的人已经过了 `sales.write` 这道闸，库存那边走
+1. **草稿只是草稿。** 建单给一个我方单号（`system_no`），但草稿不动货、也不代表成交；
+   确认才落定。**本仓不做税务发票**（用户 2026-09-23），所以没有税票连号那一套。
+2. **只有已确认的销售凭证动货**（`contracts.should_post_stock`）：过账走出库流水，
+   与采购入库同源；幂等锚钉在单据名上，重复确认不会扣两次。
+3. **出库不需要库存岗位**：录单的人已经过了 `sales.write` 这道闸，库存那边走
    `internal=True` 通道 —— 一个用户动作只过一道闸（与收银卖货同一口径）。
 
-本批已落：建单、改单、开出（含取号与出库）、作废（含回滚出库）、红冲/补开（引用原单）。
-上传发票的识别入口与复核、手工录入的表单、PDF/导出在后续批次；它们都落在这同一张表上。
+上传单据的识别入口与复核也在这个模块；它和手工录入落在同一张表上，只是来源不同。
 """
-
-from datetime import date
 
 import frappe
 from frappe import _
@@ -21,26 +18,22 @@ from frappe import _
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company
-from pearnly_erp_portal.sales import contracts, ocr, render
+from pearnly_erp_portal.sales import contracts, ocr
 
 DOCTYPE = "ERP Sales Document"
-SEQUENCE = "ERP Doc Sequence"
 
 NOT_FOUND = "Document not found"
-NOT_EDITABLE = "A issued document cannot be edited"
-ALREADY_ISSUED = "This document was already issued"
-BLOCKED = "This document cannot be issued yet"
-POINTLESS = "Only an issued document can be voided or noted"
+NOT_EDITABLE = "A confirmed document cannot be edited"
+ALREADY_CONFIRMED = "This document was already confirmed"
+BLOCKED = "This document cannot be confirmed yet"
+POINTLESS = "Only a confirmed document can be voided"
 
-# 取号策略：按年归 1（泰国多数按年；换月/永不只改这一处与桶键）。
-RESET = contracts.RESET_YEARLY
-
-LIST_FIELDS = ("name", "status", "doc_kind", "source", "doc_no", "system_no", "doc_date", "customer",
-               "buyer_name", "party_type", "tax_id", "branch_type", "branch_no", "address",
-               "has_vat", "vat_rate", "wht_rate", "header_discount", "subtotal",
-               "discount_total", "vat_amount", "wht_amount", "grand_total", "net_payable",
+LIST_FIELDS = ("name", "status", "doc_kind", "source", "system_no", "doc_date", "customer",
+               "buyer_name", "party_type", "address",
+               "has_vat", "vat_rate", "header_discount", "subtotal",
+               "discount_total", "vat_amount", "grand_total",
                "payment_status", "payment_method", "payment_date", "stock_posted_at",
-               "source_file", "references_document", "note")
+               "source_file", "note")
 
 
 def _get(name):
@@ -49,35 +42,13 @@ def _get(name):
     return frappe.get_doc(DOCTYPE, name)
 
 
-# ── 取号 ────────────────────────────────────────────────────────────────────
-
-
-def allocate_number(doc_kind, on) -> str:
-    """事务内取下一个连号。调用方负责提交；同一个桶上并发时靠行锁排队。"""
-    prefix = contracts.resolve_prefix(
-        None, company.get_profile().get("doc_prefix"),
-        contracts.DEFAULT_PREFIXES.get(doc_kind, "SD"))
-    bucket = contracts.period_key(RESET, on)
-    key = f"{doc_kind}-{prefix}-{bucket}"
-    if not frappe.db.exists(SEQUENCE, key):
-        frappe.get_doc({"doctype": SEQUENCE, "doc_kind": doc_kind, "prefix": prefix,
-                        "bucket": bucket, "next_number": 1}).insert(ignore_permissions=True)
-    rows = frappe.db.sql(
-        f"select next_number from `tab{SEQUENCE}` where name=%s for update",
-        (key,), as_dict=True)
-    number = int(rows[0].next_number)
-    frappe.db.set_value(SEQUENCE, key, "next_number", number + 1, update_modified=False)
-    return contracts.format_number(prefix, RESET, on, number)
-
-
 # ── 建单 / 改单 ─────────────────────────────────────────────────────────────
 
 
 def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.SOURCE_MANUAL,
-                    customer=None, has_vat=True, vat_rate=7, wht_rate=0, header_discount=0,
-                    tax_id=None, party_type=None, branch_type=None, branch_no=None,
-                    address=None, note=None, source_file=None, image_sha256=None,
-                    references_document=None, payment_status="unpaid", payment_method=None,
+                    customer=None, has_vat=True, vat_rate=7, header_discount=0,
+                    party_type=None, address=None, note=None, source_file=None,
+                    image_sha256=None, payment_status="unpaid", payment_method=None,
                     payment_date=None) -> dict:
     guard.require("sales.write")
     if doc_kind not in contracts.DOC_KINDS:
@@ -89,8 +60,7 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
         "status": contracts.DRAFT,
         "doc_kind": doc_kind,
         "source": source,
-        # 我方单据号：系统发（销售 SI），建单就占号 —— 与开出时才发的正式票号（`doc_no`）
-        # 是两个东西，旧线上也是两个（`bill_number` + `document_number`）。
+        # 我方单据号：系统发，建单就占号。这是**记录编号**，不是税票号（本仓没有税票号）。
         "system_no": numbering.allocate(
             direction="sales", on=doc_date,
             exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"system_no": value}))),
@@ -98,18 +68,13 @@ def create_document(*, doc_kind, doc_date, buyer_name, lines, source=contracts.S
         "customer": customer,
         "buyer_name": buyer_name,
         "party_type": party_type or "company",
-        "tax_id": tax_id,
-        "branch_type": branch_type,
-        "branch_no": branch_no,
         "address": address,
         "has_vat": 1 if has_vat in (True, 1, "1", "true") else 0,
         "vat_rate": vat_rate,
-        "wht_rate": wht_rate,
         "header_discount": header_discount,
         "note": note,
         "source_file": source_file,
         "image_sha256": image_sha256,
-        "references_document": references_document,
         "payment_status": payment_status,
         "payment_method": payment_method,
         "payment_date": payment_date,
@@ -129,9 +94,9 @@ def update_document(name, *, lines=None, **changes) -> dict:
         doc.set("lines", [])
         for line in lines:
             doc.append("lines", positions.prepare(line))
-    for field in ("doc_date", "buyer_name", "customer", "tax_id", "party_type",
-                  "branch_type", "branch_no", "address", "has_vat", "vat_rate", "wht_rate",
-                  "header_discount", "note", "source_file", "image_sha256",
+    for field in ("doc_date", "buyer_name", "customer", "party_type",
+                  "address", "has_vat", "vat_rate", "header_discount", "note",
+                  "source_file", "image_sha256",
                   "payment_status", "payment_method", "payment_date"):
         if field in changes:
             doc.set(field, changes[field])
@@ -164,27 +129,24 @@ def get_document(name) -> dict:
     return row
 
 
-# ── 开出前的闸 ──────────────────────────────────────────────────────────────
+# ── 确认前的闸 ──────────────────────────────────────────────────────────────
 
 
 def _gate(doc) -> None:
-    """开出前的全部拒因一起报，让人一次看清差什么（都在取号之前跑）。"""
-    reasons = contracts.issue_gates({
+    """确认前的全部拒因一起报，让人一次看清差什么。"""
+    reasons = contracts.confirm_gates({
         "doc_kind": doc.doc_kind,
         "grand_total": doc.grand_total,
         "payment_status": doc.payment_status,
         "payment_method": doc.payment_method,
         "payment_date": doc.payment_date,
-        "buyer": {"party_type": doc.party_type, "customer_name": doc.buyer_name,
-                  "address": doc.address, "tax_id": doc.tax_id,
-                  "branch_type": doc.branch_type, "branch_no": doc.branch_no},
     })
     if reasons:
         frappe.throw(f"{_(BLOCKED)}: {', '.join(reasons)}")
 
 
 def _post_stock(doc) -> dict:
-    """开出即出库。幂等锚 = 单据名；已经有留痕就跳过。"""
+    """确认即出库。幂等锚 = 单据名；已经有留痕就跳过。"""
     if doc.stock_posted_at or not contracts.should_post_stock(doc.doc_kind, doc.status):
         return {"posted": False}
     lines = [{"product": line.product, "qty": line.qty, "unit": line.unit,
@@ -196,7 +158,7 @@ def _post_stock(doc) -> dict:
     stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="sale_out",
                       lines=lines,
                       posting_date=doc.doc_date, ref_type="ERP Sales Document",
-                      ref_id=doc.name, doc_no=doc.system_no or doc.doc_no, internal=True,
+                      ref_id=doc.name, doc_no=doc.system_no, internal=True,
                       client_uuid=f"sales-doc:{doc.name}")
     frappe.db.set_value(DOCTYPE, doc.name, "stock_posted_at", frappe.utils.now(),
                         update_modified=False)
@@ -206,30 +168,29 @@ def _post_stock(doc) -> dict:
 # ── 流转 ────────────────────────────────────────────────────────────────────
 
 
-def issue_document(name) -> dict:
-    """开出：闸 → 取号 → 过账出库。闸不过就不占号。"""
+def confirm_document(name) -> dict:
+    """确认：闸 → 落定 → 过账出库。闸不过就不落定，也不动货。"""
     guard.require("sales.write")
-    frappe.db.sql("select name from `tabERP Sales Document` where name=%s for update", (name,))
+    frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", (name,))
     doc = _get(name)
-    if doc.status == contracts.ISSUED:
-        frappe.throw(_(ALREADY_ISSUED))
-    if not contracts.can(doc.status, contracts.ISSUE):
+    if doc.status == contracts.SUBMITTED:
+        frappe.throw(_(ALREADY_CONFIRMED))
+    if not contracts.can(doc.status, contracts.CONFIRM):
         frappe.throw(_(NOT_EDITABLE))
     _gate(doc)
-    doc.doc_no = allocate_number(doc.doc_kind, date.fromisoformat(str(doc.doc_date)))
-    doc.status = contracts.ISSUED
+    doc.status = contracts.SUBMITTED
     doc.save()
     posted = _post_stock(doc)
     frappe.db.commit()
-    return {"name": doc.name, "doc_no": doc.doc_no, "stock": posted}
+    return {"name": doc.name, "stock": posted}
 
 
 def void_document(name, reason=None) -> dict:
-    """作废：把出库退回来（反向流水），号码不回收。"""
+    """作废：把出库退回来（反向流水）。"""
     guard.require("sales.write")
-    frappe.db.sql("select name from `tabERP Sales Document` where name=%s for update", (name,))
+    frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", (name,))
     doc = _get(name)
-    if doc.status != contracts.ISSUED:
+    if doc.status != contracts.SUBMITTED:
         frappe.throw(_(POINTLESS))
     _reverse_stock(doc, reason)
     doc.status = contracts.VOID
@@ -247,35 +208,14 @@ def _reverse_stock(doc, reason=None) -> None:
     frappe.db.set_value(DOCTYPE, doc.name, "stock_posted_at", None, update_modified=False)
 
 
-def create_note(original, note_kind, *, lines=None, reason=None, doc_date=None) -> dict:
-    """红冲（贷项）/ 补开（借项）：引用一张**已开出**的原单，自身直接开出。"""
-    guard.require("sales.write")
-    source = get_document(original) if frappe.db.exists(DOCTYPE, original) else None
-    blocked = contracts.note_gate(source)
-    if blocked:
-        frappe.throw(f"{_(BLOCKED)}: {blocked}")
-    if note_kind not in contracts.NOTE_TYPES:
-        frappe.throw(_("Only a credit or debit note can be created"))
-    created = create_document(
-        doc_kind=note_kind, doc_date=doc_date or source["doc_date"],
-        buyer_name=source["buyer_name"], customer=source["customer"],
-        lines=lines or [{"product": line["product"], "description": line["description"],
-                         "qty": line["qty"], "unit": line["unit"],
-                         "unit_price": line["unit_price"], "warehouse": line["warehouse"],
-                         "location": line["location"]} for line in source["lines"]],
-        tax_id=source["tax_id"], party_type=source["party_type"],
-        branch_type=source["branch_type"], branch_no=source["branch_no"],
-        address=source["address"], references_document=source["name"], note=reason)
-    return issue_document(created["name"])
-
-# ── 上传发票：识别 → 填进草稿 ───────────────────────────────────────────────
+# ── 上传单据：识别 → 填进草稿 ───────────────────────────────────────────────
 #
-# 三条来源都落在同一张表上：手工录入直接调 `create_document`；上传发票走这里；
-# POS 收银走收银域（已交付）。下游只有商品/库存/收发存 —— 开出即出库。
+# 三条来源都落在同一张表上：手工录入直接调 `create_document`；上传走这里；
+# POS 收银走收银域（已交付）。下游只有商品/库存/收发存 —— 确认即出库。
 
 
 def create_from_upload(*, content, content_type, filename, doc_date=None, manual=False) -> dict:
-    """上传一张发票：先识别，再把归一后的字段填进一张 `source=ocr` 的草稿。
+    """上传一张单据：先识别，再把归一后的字段填进一张 `source=ocr` 的草稿。
 
     `manual=True` 表示人不想（或不能）识别：那就只留底、开一张空草稿，
     字段自己填 —— 上传不等于必须花钱识别。
@@ -299,8 +239,8 @@ def attach_recognition(name, *, payload) -> dict:
     if doc.status not in contracts.EDITABLE_STATUSES:
         frappe.throw(_(NOT_EDITABLE))
     mapped = contracts.map_recognised(payload)
-    for field in ("doc_date", "buyer_name", "party_type", "tax_id", "branch_type",
-                  "branch_no", "address", "has_vat", "vat_rate", "wht_rate"):
+    for field in ("doc_date", "buyer_name", "party_type", "address", "has_vat",
+                  "vat_rate"):
         if mapped.get(field) is not None:
             doc.set(field, mapped[field])
     doc.set("lines", [])
@@ -332,30 +272,3 @@ def _store_source(content: bytes, filename: str) -> str:
         frappe.log_error(title="Sales source file storage failed",
                          message=frappe.get_traceback()[-1200:])
         return ""
-
-def convert_quotation(name, target_doc_kind) -> dict:
-    """报价单转成目标类型的**草稿**。报价单本身不动，也不占发票号（开出时才取号）。"""
-    guard.require("sales.write")
-    source = get_document(name) if frappe.db.exists(DOCTYPE, name) else None
-    blocked = contracts.convert_gate(source, target_doc_kind)
-    if blocked:
-        frappe.throw(f"{_(BLOCKED)}: {blocked}")
-    return create_document(
-        doc_kind=target_doc_kind, doc_date=source["doc_date"],
-        buyer_name=source["buyer_name"], customer=source["customer"],
-        lines=[{"product": line["product"], "description": line["description"],
-                "qty": line["qty"], "unit": line["unit"], "unit_price": line["unit_price"],
-                "discount": line["discount"], "warehouse": line["warehouse"],
-                "location": line["location"]} for line in source["lines"]],
-        tax_id=source["tax_id"], party_type=source["party_type"],
-        branch_type=source["branch_type"], branch_no=source["branch_no"],
-        address=source["address"], has_vat=source["has_vat"], vat_rate=source["vat_rate"],
-        wht_rate=source["wht_rate"], header_discount=source["header_discount"],
-        references_document=source["name"], note="converted_from_quotation")
-
-
-def print_document(name, lang="th_en") -> dict:
-    """票面模型：标签、明细、金额大写、付款码。不生成 PDF（排版与字体是另一件事）。"""
-    guard.require("sales.read")
-    doc = get_document(name)
-    return render.print_model(doc, seller=company.get_profile(), lang=lang)

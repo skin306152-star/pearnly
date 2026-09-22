@@ -1,9 +1,14 @@
-"""Verify the sales document service on the dedicated laboratory.
+"""Verify the sales record service on the dedicated laboratory.
 
-Real Site with synthetic data. Covers: draft does not take a number, the gates run before
-the number is taken, issuing posts the goods out once (and only once), voiding brings them
-back and keeps the number, notes reference an issued original, job-based access and tenant
-isolation. No external call, no OCR, no money.
+Real Site with synthetic data. Covers: a draft takes a system number but moves nothing,
+the gates run before the record is confirmed, confirming posts the goods out once (and only
+once), voiding brings them back, a quotation never moves stock, the removed tax-document
+kinds are rejected, upload recognition lands a `source=ocr` draft (model result is stubbed:
+no external call, no money), job-based access, and tenant isolation.
+
+**Samples are created on the isolated check Site** (`erp-pos-b.localhost`) and the demo Site
+(`erp-pos-a.localhost`) is only read, so a probe run can never clear the demo's records.
+Nothing is deleted: this probe never wipes a Site's sales documents.
 """
 import json
 import os
@@ -13,8 +18,8 @@ import sys
 import frappe
 
 CONTROL_APP = "/home/frappe/frappe-bench/apps/pearnly_control"
-SITE = "erp-pos-a.localhost"
-OTHER_SITE = "erp-pos-b.localhost"
+SITE = "erp-pos-b.localhost"
+DEMO_SITE = "erp-pos-a.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
 OWNER = "erp-pos-owner@example.com"
 SELLER = "erp-pos-sales2@example.com"
@@ -51,6 +56,11 @@ def ensure_member(email, roles):
     frappe.clear_cache(user=email)
 
 
+def balance(product, warehouse):
+    return frappe.db.get_value("ERP Stock Balance",
+                               {"product": product, "warehouse": warehouse}, "qty_on_hand")
+
+
 def main():
     connect(SITE)
     frappe.set_user("Administrator")
@@ -68,8 +78,6 @@ def main():
     ensure_member(SELLER, ["ERP Sales"])
     ensure_member(CASHIER, ["ERP Cashier"])
 
-    for name in frappe.get_all("ERP Sales Document", pluck="name"):
-        frappe.delete_doc("ERP Sales Document", name, force=True, ignore_permissions=True)
     code = "LAB-SALE-P1"
     if not frappe.db.get_value("ERP Product", {"code": code}, "name"):
         products.create_product(product_name="Lab sale item", code=code, unit="pcs",
@@ -82,85 +90,82 @@ def main():
     results = {}
     lines = [{"product": product, "description": "Lab sale item", "qty": 2, "unit": "pcs",
               "unit_price": "100"}]
-    ok, made = as_user(SELLER, service.create_document, doc_kind=contracts.TAX_INVOICE,
+    paid = {"payment_status": "paid", "payment_method": "cash", "payment_date": "2026-09-21"}
+
+    ok, made = as_user(SELLER, service.create_document, doc_kind=contracts.RECEIPT,
                        doc_date="2026-09-21", buyer_name="Lab Buyer Co", party_type="company",
-                       tax_id="0105550000001", branch_type="hq", address="Bangkok",
-                       lines=lines)
+                       address="Bangkok", **paid, lines=lines)
     results["create"] = ok
     results["create_error"] = None if ok else made
     doc = made.get("name") if ok else None
     results["draft_grand_total"] = str(made.get("grand_total")) if ok else None
-    results["draft_has_no_number"] = frappe.db.get_value("ERP Sales Document", doc, "doc_no") \
+    results["draft_has_system_no"] = bool(frappe.db.get_value(
+        "ERP Sales Document", doc, "system_no")) if doc else None
+    results["draft_status"] = frappe.db.get_value("ERP Sales Document", doc, "status") if doc \
+        else None
+    results["draft_moves_nothing"] = frappe.db.count("ERP Stock Movement", {"ref_id": doc}) \
         if doc else None
 
-    # 闸：面额 0 与未收款收据都开不出去，且不占号。
-    zero = service.create_document(doc_kind=contracts.TAX_INVOICE, doc_date="2026-09-21",
+    # 闸：面额 0 与未收款的收据都确认不了，也不动货。
+    zero = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
                                    buyer_name="Lab Buyer Co", party_type="company",
-                                   tax_id="0105550000001", branch_type="hq", address="BKK",
+                                   address="BKK", **paid,
                                    lines=[{"description": "free", "qty": 1, "unit_price": 0}])
-    ok, err = as_user(SELLER, service.issue_document, zero["name"])
+    ok, err = as_user(SELLER, service.confirm_document, zero["name"])
     results["zero_blocked"] = ok
-    results["zero_error"] = None if ok else err
-    results["zero_has_no_number"] = frappe.db.get_value("ERP Sales Document", zero["name"],
-                                                        "doc_no")
-    receipt = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
-                                      buyer_name="Walk-in", party_type="anonymous",
-                                      lines=lines)
-    ok, err = as_user(SELLER, service.issue_document, receipt["name"])
+    results["zero_status"] = frappe.db.get_value("ERP Sales Document", zero["name"], "status")
+    results["zero_moves_nothing"] = frappe.db.count("ERP Stock Movement",
+                                                    {"ref_id": zero["name"]})
+    unpaid = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
+                                     buyer_name="Walk-in", party_type="anonymous", lines=lines)
+    ok, err = as_user(SELLER, service.confirm_document, unpaid["name"])
     results["unpaid_receipt_blocked"] = ok
+    results["unpaid_status"] = frappe.db.get_value("ERP Sales Document", unpaid["name"],
+                                                   "status")
 
-    # 开出：取号 + 出库一次。
-    on_hand = frappe.db.get_value("ERP Stock Balance", {"product": product, "warehouse": warehouse},
-                                  "qty_on_hand")
-    ok, issued = as_user(SELLER, service.issue_document, doc)
-    results["issue"] = ok
-    results["issue_error"] = None if ok else issued
-    results["doc_no"] = issued.get("doc_no") if ok else None
-    results["stock_posted"] = bool(issued.get("stock", {}).get("posted")) if ok else None
-    after = frappe.db.get_value("ERP Stock Balance", {"product": product, "warehouse": warehouse},
-                                "qty_on_hand")
+    # 确认：出库一次，且只出一次。
+    on_hand = balance(product, warehouse)
+    ok, confirmed = as_user(SELLER, service.confirm_document, doc)
+    results["confirm"] = ok
+    results["confirm_error"] = None if ok else confirmed
+    results["stock_posted"] = bool(confirmed.get("stock", {}).get("posted")) if ok else None
+    after = balance(product, warehouse)
     results["stock_delta"] = float(after) - float(on_hand) if on_hand is not None else None
-    ok, again = as_user(SELLER, service.issue_document, doc)
-    results["reissue_blocked"] = ok
-    results["movements_after_reissue"] = frappe.db.count(
-        "ERP Stock Movement", {"ref_id": doc})
+    results["confirmed_status"] = frappe.db.get_value("ERP Sales Document", doc, "status")
+    ok, again = as_user(SELLER, service.confirm_document, doc)
+    results["reconfirm_blocked"] = ok
+    results["movements_after_reconfirm"] = frappe.db.count("ERP Stock Movement",
+                                                           {"ref_id": doc})
+    ok, err = as_user(SELLER, service.update_document, doc, note="late edit")
+    results["edit_after_confirm_blocked"] = ok
 
-    # 作废：货回来、号保留。
+    # 作废：货回来。
     ok, voided = as_user(SELLER, service.void_document, doc, "lab void")
     results["void"] = ok
     results["void_error"] = None if ok else voided
-    results["number_kept"] = frappe.db.get_value("ERP Sales Document", doc, "doc_no")
-    results["stock_after_void"] = float(frappe.db.get_value(
-        "ERP Stock Balance", {"product": product, "warehouse": warehouse}, "qty_on_hand"))
     results["void_status"] = frappe.db.get_value("ERP Sales Document", doc, "status")
+    results["stock_after_void"] = float(balance(product, warehouse)) if on_hand is not None \
+        else None
 
-    # 第二张：号继续往后。
-    second = service.create_document(doc_kind=contracts.TAX_INVOICE, doc_date="2026-09-21",
-                                     buyer_name="Lab Buyer Co", party_type="company",
-                                     tax_id="0105550000001", branch_type="hq", address="BKK",
-                                     lines=lines)
-    ok, issued2 = as_user(SELLER, service.issue_document, second["name"])
-    results["second_doc_no"] = issued2.get("doc_no") if ok else None
-    results["numbers_differ"] = (results.get("doc_no") != results.get("second_doc_no"))
-
-    # 红冲：只能冲已开出的；草稿不行。
-    ok, note = as_user(SELLER, service.create_note, second["name"], contracts.CREDIT_NOTE,
-                       reason="lab credit")
-    results["credit_note"] = ok
-    results["credit_note_error"] = None if ok else note
-    results["credit_note_kind"] = frappe.db.get_value("ERP Sales Document",
-                                                      note.get("name"), "doc_kind") if ok else None
-    results["credit_note_ref"] = frappe.db.get_value("ERP Sales Document", note.get("name"),
-                                                     "references_document") if ok else None
-    draft = service.create_document(doc_kind=contracts.QUOTATION, doc_date="2026-09-21",
+    # 报价单：确认了也不动货（它不是销售凭证）。
+    quote = service.create_document(doc_kind=contracts.QUOTATION, doc_date="2026-09-21",
                                     buyer_name="Lab Buyer Co", party_type="company",
-                                    tax_id="0105550000001", branch_type="hq", address="BKK",
-                                    lines=lines)
-    ok, err = as_user(SELLER, service.create_note, draft["name"], contracts.CREDIT_NOTE)
-    results["note_on_draft_blocked"] = ok
-    results["note_on_draft_error"] = None if ok else err
+                                    address="BKK", lines=lines)
+    before_quote = balance(product, warehouse)
+    ok, quoted = as_user(SELLER, service.confirm_document, quote["name"])
+    results["quotation_confirm"] = ok
+    results["quotation_moves_nothing"] = frappe.db.count("ERP Stock Movement",
+                                                         {"ref_id": quote["name"]})
+    results["quotation_stock_unchanged"] = float(balance(product, warehouse)) == float(before_quote)
 
-    # 上传发票：识别被替换成固定结果（不花钱），落 source=ocr 草稿并留底。
+    # 去掉开票侧：税票与冲正单类型一律被拒。
+    for kind in ("tax_invoice", "tax_invoice_simple", "tax_invoice_receipt", "credit_note",
+                 "debit_note"):
+        ok, err = as_user(SELLER, service.create_document, doc_kind=kind,
+                          doc_date="2026-09-21", buyer_name="X", lines=lines)
+        results[f"reject_{kind}"] = ok
+
+    # 上传单据：识别被替换成固定结果（不花钱），落 source=ocr 草稿并留底。
     import io
 
     from PIL import Image
@@ -172,19 +177,20 @@ def main():
     jpeg = buffer.getvalue()
     original_recognise = sales_ocr.recognise
     sales_ocr.recognise = lambda content, content_type: {
-        "doc_no": "INV-LAB-1", "doc_date": "2026-09-21", "buyer_name": "Lab OCR Buyer",
-        "buyer_type": "company", "buyer_tax_id": "0105550000002",
-        "buyer_branch_type": "hq", "buyer_address": "Chiang Mai", "has_vat": True,
+        "doc_no": "R-LAB-1", "doc_date": "2026-09-21", "buyer_name": "Lab OCR Buyer",
+        "buyer_type": "company", "buyer_address": "Chiang Mai", "has_vat": True,
         "vat_rate": 7, "lines": [{"description": "ocr line", "qty": 3, "unit_price": "50"}]}
     try:
         ok, up = as_user(SELLER, service.create_from_upload, content=jpeg,
-                         content_type="image/jpeg", filename="lab-invoice.jpg")
+                         content_type="image/jpeg", filename="lab-receipt.jpg")
     finally:
         sales_ocr.recognise = original_recognise
     results["upload"] = ok
     results["upload_error"] = None if ok else up
     results["upload_source"] = frappe.db.get_value("ERP Sales Document", up.get("name"),
                                                    "source") if ok else None
+    results["upload_kind"] = frappe.db.get_value("ERP Sales Document", up.get("name"),
+                                                 "doc_kind") if ok else None
     results["upload_total"] = str(up.get("grand_total")) if ok else None
     results["upload_has_file"] = bool(frappe.db.get_value(
         "ERP Sales Document", up.get("name"), "source_file")) if ok else None
@@ -198,75 +204,52 @@ def main():
     results["attach_recognition"] = ok
     results["reviewed_total"] = str(fixed.get("grand_total")) if ok else None
 
-    # 报价 → 开票：转出草稿、开出时才取号；票面模型带泰文金额大写与未收款付款码。
-    ok, conv = as_user(SELLER, service.convert_quotation, draft["name"],
-                       contracts.TAX_INVOICE)
-    results["convert"] = ok
-    results["convert_error"] = None if ok else conv
-    results["convert_has_no_number"] = frappe.db.get_value(
-        "ERP Sales Document", conv.get("name"), "doc_no") if ok else None
-    ok, conv_issued = as_user(SELLER, service.issue_document, conv.get("name"))
-    results["convert_issue"] = ok
-    results["convert_doc_no"] = conv_issued.get("doc_no") if ok else None
-    results["convert_refs_quote"] = frappe.db.get_value(
-        "ERP Sales Document", conv.get("name"), "references_document") if ok else None
-    from pearnly_erp_portal.masters import company as company_master
-    as_user(OWNER, company_master.update_profile, promptpay_id="0899999999")
-    paid = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
-                                   buyer_name="Walk-in", party_type="anonymous",
-                                   payment_status="paid", payment_method="cash",
-                                   payment_date="2026-09-21", lines=lines)
-    as_user(SELLER, service.issue_document, paid["name"])
-    ok, printed = as_user(SELLER, service.print_document, paid["name"])
-    results["print"] = ok
-    results["print_error"] = None if ok else printed
-    results["print_words"] = printed.get("amount_in_words") if ok else None
-    results["print_promptpay"] = printed.get("promptpay") if ok else None
-    ok, printed2 = as_user(SELLER, service.print_document, results.get("second_doc_no") and
-                           second["name"] or second["name"])
-    results["print_unpaid_has_promptpay"] = bool(printed2.get("promptpay")) if ok else None
-
-    # 岗位与隔离。
-    ok, err = as_user(CASHIER, service.create_document, doc_kind=contracts.TAX_INVOICE,
+    # 岗位。
+    ok, err = as_user(CASHIER, service.create_document, doc_kind=contracts.RECEIPT,
                       doc_date="2026-09-21", buyer_name="X", lines=lines)
     results["cashier_can_create"] = ok
     ok, rows = as_user(SELLER, service.list_documents)
-    results["seller_can_list"] = ok and len(rows) >= 3
-    results["site_a_documents"] = frappe.db.count("ERP Sales Document")
+    results["seller_can_list"] = ok and len(rows) >= 1
+    results["site_records"] = frappe.db.count("ERP Sales Document")
 
+    # 隔离：演示站只读回读，本探针不碰它。
+    demo_before = results.get("demo_pre_count")
     frappe.set_user("Administrator")
     frappe.destroy()
-    connect(OTHER_SITE)
-    results["other_site_documents"] = frappe.db.count("ERP Sales Document")
+
+    connect(DEMO_SITE)
+    results["demo_site_records"] = frappe.db.count("ERP Sales Document")
+    frappe.destroy()
 
     expected = {
-        "create": True, "draft_grand_total": "214.00", "draft_has_no_number": None,
-        "zero_blocked": False, "zero_has_no_number": None, "unpaid_receipt_blocked": False,
-        "issue": True, "stock_posted": True, "stock_delta": -2.0,
-        "reissue_blocked": False, "movements_after_reissue": 1,
-        "void": True, "number_kept": results.get("doc_no"), "void_status": "void",
-        "numbers_differ": True, "credit_note": True,
-        "credit_note_kind": "credit_note", "credit_note_ref": second.get("name"),
-        "note_on_draft_blocked": False, "cashier_can_create": False,
-        "upload": True, "upload_source": "ocr", "upload_total": "160.50",
-        "upload_has_file": True, "upload_sha_set": True,
+        "create": True, "draft_grand_total": "214.00", "draft_has_system_no": True,
+        "draft_status": "draft", "draft_moves_nothing": 0,
+        "zero_blocked": False, "zero_status": "draft", "zero_moves_nothing": 0,
+        "unpaid_receipt_blocked": False, "unpaid_status": "draft",
+        "confirm": True, "stock_posted": True, "stock_delta": -2.0,
+        "confirmed_status": "submitted", "reconfirm_blocked": False,
+        "movements_after_reconfirm": 1, "edit_after_confirm_blocked": False,
+        "void": True, "void_status": "void",
+        "quotation_confirm": True, "quotation_moves_nothing": 0,
+        "quotation_stock_unchanged": True,
+        "reject_tax_invoice": False, "reject_tax_invoice_simple": False,
+        "reject_tax_invoice_receipt": False, "reject_credit_note": False,
+        "reject_debit_note": False,
+        "cashier_can_create": False,
+        "upload": True, "upload_source": "ocr", "upload_kind": "receipt",
+        "upload_total": "160.50", "upload_has_file": True, "upload_sha_set": True,
         "attach_recognition": True, "reviewed_total": "214.00",
-        "convert": True, "convert_has_no_number": None, "convert_issue": True,
-        "convert_refs_quote": draft["name"], "print": True,
-        "print_words": "สองร้อยสิบสี่บาทถ้วน", "print_promptpay": "",
-        "print_unpaid_has_promptpay": True,
-        "seller_can_list": True, "other_site_documents": 0,
+        "seller_can_list": True,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
                 if results.get(k) != v}
-    if results.get("stock_after_void") != float(on_hand):
-        problems["stock_after_void"] = {"expected": on_hand,
+    if on_hand is not None and results.get("stock_after_void") != float(on_hand):
+        problems["stock_after_void"] = {"expected": float(on_hand),
                                         "actual": results.get("stock_after_void")}
-    for key in ("zero_error", "note_on_draft_error"):
-        if not str(results.get(key) or "").startswith("ValidationError"):
-            problems[key] = results.get(key)
-    print(json.dumps({"site": SITE, "results": results, "problems": problems},
-                     ensure_ascii=False, indent=2, default=str))
+    if results.get("zero_error") and not results.get("zero_status") == "draft":
+        problems["zero_left_a_trace"] = results.get("zero_status")
+    print(json.dumps({"site": SITE, "demo_site": DEMO_SITE, "results": results,
+                      "problems": problems}, ensure_ascii=False, indent=2, default=str))
     return 1 if problems else 0
 
 

@@ -1,4 +1,8 @@
-"""销售单据接口层。业务与权限在 services，这里只做参数解析。"""
+"""销售单据接口层。业务与权限在 services，这里只做参数解析。
+
+**只有记录，没有开票**：本仓不做税务发票（用户 2026-09-23），所以这里没有票面/打印、
+没有红冲补开、没有报价转开票。确认（confirm）落定一张销售单并过账出库。
+"""
 
 import frappe
 
@@ -47,9 +51,10 @@ def api_update_sale_document(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_issue_sale_document(**kwargs):
+def api_confirm_sale_document(**kwargs):
+    """确认：落定这张销售单并过账出库。"""
     kwargs = _clean(kwargs)
-    return service.issue_document(kwargs.get("name"))
+    return service.confirm_document(kwargs.get("name"))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -58,28 +63,12 @@ def api_void_sale_document(**kwargs):
     return service.void_document(kwargs.get("name"), kwargs.get("reason"))
 
 
-@frappe.whitelist(methods=["POST"])
-def api_credit_note(**kwargs):
-    _json_args(kwargs, "lines")
-    kwargs = _clean(kwargs)
-    name = kwargs.pop("name", None)
-    return service.create_note(name, contracts.CREDIT_NOTE, **kwargs)
+# ── 上传单据 ────────────────────────────────────────────────────────────────
 
 
 @frappe.whitelist(methods=["POST"])
-def api_debit_note(**kwargs):
-    _json_args(kwargs, "lines")
-    kwargs = _clean(kwargs)
-    name = kwargs.pop("name", None)
-    return service.create_note(name, contracts.DEBIT_NOTE, **kwargs)
-
-
-# ── 上传发票 ────────────────────────────────────────────────────────────────
-
-
-@frappe.whitelist(methods=["POST"])
-def api_recognise_sale_invoice(**kwargs):
-    """上传发票 → 识别（**按页计费**）→ 落一张 source=ocr 的草稿。
+def api_recognise_sale_document(**kwargs):
+    """上传单据 → 识别（**按页计费**）→ 落一张 source=ocr 的草稿。
 
     传 `manual=1` 表示不识别，只把文件留底后手工填（上传不等于必须花钱）。
     """
@@ -88,11 +77,11 @@ def api_recognise_sale_invoice(**kwargs):
     if uploaded:
         content = uploaded.stream.read()
         content_type = uploaded.content_type or "application/octet-stream"
-        filename = uploaded.filename or "invoice"
+        filename = uploaded.filename or "document"
     else:
         content = frappe.parse_json(kwargs.get("content") or "") if kwargs.get("content") else b""
         content_type = kwargs.get("content_type") or "application/octet-stream"
-        filename = kwargs.get("filename") or "invoice"
+        filename = kwargs.get("filename") or "document"
     if isinstance(content, str):
         content = content.encode("utf-8")
     return service.create_from_upload(
@@ -107,21 +96,6 @@ def api_attach_recognition(**kwargs):
     _json_args(kwargs, "payload")
     kwargs = _clean(kwargs)
     return service.attach_recognition(kwargs.get("name"), payload=kwargs.get("payload") or {})
-
-
-@frappe.whitelist()
-def api_sale_document_print(**kwargs):
-    """票面模型（标签 / 明细 / 泰文金额大写 / 未收款时的 PromptPay 载荷）。"""
-    kwargs = _clean(kwargs)
-    return service.print_document(kwargs.get("name"), kwargs.get("lang") or "th_en")
-
-
-@frappe.whitelist(methods=["POST"])
-def api_convert_quotation(**kwargs):
-    """报价单转开票（转出的是草稿，开出时才取号）。"""
-    kwargs = _clean(kwargs)
-    return service.convert_quotation(kwargs.get("name"),
-                                     kwargs.get("target") or contracts.TAX_INVOICE)
 
 
 @frappe.whitelist()
