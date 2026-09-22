@@ -506,7 +506,7 @@ Qty	数量	ปริมาณ	数量
 Quantity	数量	ปริมาณ	数量
 Rate	单价	อัตรา	単価
 Reason for Cancellation	取消原因	เหตุผลในการยกเลิก	取消理由
-Receipt	采购入库	ใบเสร็จ	領収書
+Receipt	收据	ใบเสร็จ	領収書
 Received By	收款人	ผู้รับเงิน	受領者
 Recognition is not configured for this account	尚未配置文字识别	ยังไม่ได้ตั้งค่าการรู้จำข้อความ	文字認識が設定されていません
 Recognition returned nothing	未识别到内容	ไม่พบข้อมูลจากการรู้จำ	内容を認識できませんでした
@@ -586,3 +586,34 @@ Full Screen	全屏	เต็มหน้าจอ	全画面
 Invalid file	无效文件	ไฟล์ไม่ถูกต้อง	無効なファイル
 Upload an invoice, then review the recognized details.	上传发票，识别后复核并修改。	อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้	請求書をアップロードし、読み取り結果を確認・修正します。
 Enter purchase details. Files are added as attachments only.	手动填写采购信息，文件仅作为附件。	กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น	仕入情報を手入力します。ファイルは添付のみです。
+Quotation	报价单	ใบเสนอราคา	見積書
+Company	公司	บริษัท	会社
+Person	个人	บุคคล	個人
+Foreigner	外国人	ชาวต่างชาติ	外国人
+Anonymous	匿名	ลูกค้าทั่วไป	匿名
+Cashier	收银	เก็บเงิน	レジ
+Collection	收款	การรับเงิน	入金
+Collection Status	收款状态	สถานะการรับเงิน	入金状況
+Collection Method	收款方式	วิธีรับเงิน	入金方法
+Collection Date	收款日期	วันที่รับเงิน	入金日
+Received Amount	已收金额	ยอดรับเงิน	入金額
+Details	详细信息	รายละเอียด	詳細
+Preview	预览	ตัวอย่าง	プレビュー
+Previous	上一个	ก่อนหน้า	前へ
+Next	下一个	ถัดไป	次へ
+Loading...	加载中…	กำลังโหลด…	読み込み中…
+Retry	重试	ลองใหม่	再試行
+VAT Applies	计增值税	คิด VAT	課税対象
+Upload a receipt, then review the recognized details.	上传收据，识别后复核并修改。	อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้	領収書をアップロードし、読み取り結果を確認・修正します。
+Enter the sale by hand. Files are added as attachments only.	手动填写销售内容，文件仅作为附件。	กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น	販売内容を手入力します。ファイルは添付のみです。
+A confirmed document cannot be edited	已提交的单据不能修改	เอกสารที่ยืนยันแล้วแก้ไขไม่ได้	確定済みの伝票は編集できません
+This document cannot be recorded yet	这张单据还不能落定	ยังบันทึกเอกสารนี้ไม่ได้	この伝票はまだ記録できません
+Quantity must be greater than zero	数量必须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きい必要があります
+Discount cannot exceed the amount	折扣不能超过金额	ส่วนลดต้องไม่เกินยอดเงิน	割引は金額を超えられません
+Paid amount cannot exceed the total	收款金额不能超过合计	ยอดรับเงินต้องไม่เกินยอดรวม	入金額は合計を超えられません
+Customer is required	必须填写客户	กรุณาระบุลูกค้า	顧客は必須です
+Customer is disabled	客户已停用	ลูกค้าถูกปิดใช้งาน	顧客は無効です
+Item is disabled	物料已停用	สินค้าถูกปิดใช้งาน	品目は無効です
+Document already exists	单据已存在	มีเอกสารนี้อยู่แล้ว	伝票は既に存在します
+Only a submitted document can be cancelled	只有已提交的单据能作废	ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว	確定済みの伝票のみ取消できます
+Only a receipt records a collection	只有收据能记收款	บันทึกการรับเงินได้เฉพาะใบเสร็จ	入金を記録できるのは領収書のみです

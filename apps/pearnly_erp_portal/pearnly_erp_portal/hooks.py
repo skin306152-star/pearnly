@@ -266,8 +266,10 @@ app_license = "mit"
 
 
 has_permission = {"Purchase Document": "pearnly_erp_portal.purchasing.access.document_permission",
+                  "ERP Sales Document": "pearnly_erp_portal.sales.access.document_permission",
                   "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.has_permission"}
 permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasing.access.query_conditions",
+                               "ERP Sales Document": "pearnly_erp_portal.sales.access.query_conditions",
                                "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.permission_query"}
 
 app_include_js = [
@@ -283,6 +285,12 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-viewer.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
@@ -292,6 +300,7 @@ app_include_js = [
 
 app_include_css = [
     versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.css"),
     versioned_asset("pearnly_erp_portal", "desk/scan.css"),
 ]
 

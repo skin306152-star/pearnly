@@ -639,19 +639,25 @@ class SalesDocuments(unittest.TestCase):
         self.assertNotIn("wht_amount", totals)
         self.assertNotIn("net_payable", totals)
 
-    def test_only_a_receipt_is_gated_on_amount_and_payment(self):
-        # 拒因顺序固定：先金额、再收款 —— 调用方按第一个拒因回话就行。
-        # ฿0 且未收款时两个拒因一起报，让人一次看清差什么。
+    def test_only_a_receipt_is_gated_on_amount(self):
+        # 收据不要求已收款：去掉税票之后，收据同时承担现金卖货与赊账两种情形。
         self.assertEqual(sales_contracts.confirm_gates(
-            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 0}),
-            ["zero_amount", "payment_required"])
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 0}), ["zero_amount"])
+        self.assertEqual(sales_contracts.confirm_gates(
+            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107,
+             "payment_status": "unpaid"}), [])
         self.assertEqual(sales_contracts.confirm_gates(
             {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107,
              "payment_status": "paid", "payment_method": "cash",
              "payment_date": "2026-09-21"}), [])
-        self.assertEqual(sales_contracts.confirm_gates(
-            {"doc_kind": sales_contracts.RECEIPT, "grand_total": 107,
-             "payment_status": "unpaid"}), ["payment_required"])
+
+    def test_the_collection_status_follows_the_received_amount(self):
+        status = sales_contracts.payment_status_for
+        self.assertEqual(status(0, 107), "unpaid")
+        self.assertEqual(status(40, 107), "partial")
+        self.assertEqual(status(107, 107), "paid")
+        self.assertEqual(status(200, 107), "paid")
+        self.assertEqual(sales_contracts.PAYMENT_METHODS, ("cash", "transfer", "promptpay", "other"))
 
     def test_a_quotation_is_not_gated(self):
         self.assertEqual(sales_contracts.confirm_gates(

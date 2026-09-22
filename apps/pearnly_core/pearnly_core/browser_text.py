@@ -48,6 +48,8 @@ APP_BY_PREFIX = {
     "product.": "pearnly_erp_portal",
     "stock.": "pearnly_erp_portal",
     "trade.": "pearnly_erp_portal",
+    # 销售记录页的文案在 ERP 那个 App（销售域归它），与商品/库存同一口径。
+    "sales.": "pearnly_erp_portal",
     "connect.": "pearnly_core",
     "account.": "pearnly_core",
     "shell.": "pearnly_core",

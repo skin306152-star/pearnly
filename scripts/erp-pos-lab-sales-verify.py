@@ -1,21 +1,25 @@
 """Verify the sales record service on the dedicated laboratory.
 
-Real Site with synthetic data. Covers: a draft takes a system number but moves nothing,
-the gates run before the record is confirmed, confirming posts the goods out once (and only
-once), voiding brings them back, a quotation never moves stock, the removed tax-document
-kinds are rejected, upload recognition lands a `source=ocr` draft (model result is stubbed:
-no external call, no money), job-based access, and tenant isolation.
+Real Site with synthetic data. Covers: one-submit posting (record + goods out + collection
+mark) and its replay guard, the amount gate, the removed tax-document kinds being rejected,
+collection by amount, list/search/filter, private attachments and the PDF page renderer,
+the workbook export, record scope and tenant isolation.
 
 **Samples are created on the isolated check Site** (`erp-pos-b.localhost`) and the demo Site
-(`erp-pos-a.localhost`) is only read, so a probe run can never clear the demo's records.
-Nothing is deleted: this probe never wipes a Site's sales documents.
+(`erp-pos-a.localhost`) is only read, so a probe run can never touch the demo's records.
+Nothing is deleted wholesale: this probe never wipes a Site's sales documents.
 """
+import base64
+import io
 import json
 import os
 from pathlib import Path
 import sys
+from unittest.mock import patch
 
 import frappe
+import pymupdf
+from PIL import Image
 
 CONTROL_APP = "/home/frappe/frappe-bench/apps/pearnly_control"
 SITE = "erp-pos-b.localhost"
@@ -24,6 +28,7 @@ SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
 OWNER = "erp-pos-owner@example.com"
 SELLER = "erp-pos-sales2@example.com"
 CASHIER = "erp-pos-sales2-cashier@example.com"
+OUTSIDER = "erp-pos-sales2-outsider@example.com"
 
 
 def connect(site):
@@ -61,11 +66,30 @@ def balance(product, warehouse):
                                {"product": product, "warehouse": warehouse}, "qty_on_hand")
 
 
+def private_file(name, content, content_type="image/png"):
+    return frappe.get_doc({"doctype": "File", "file_name": name, "is_private": 1,
+                           "content": content}).insert(ignore_permissions=True)
+
+
+def png():
+    buffer = io.BytesIO()
+    Image.new("RGB", (8, 8), (10, 120, 200)).save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+def pdf(pages=2):
+    with pymupdf.open() as document:
+        for number in range(1, pages + 1):
+            page = document.new_page(width=400, height=560)
+            page.insert_text((35, 60), f"SALES VIEWER TEST - PAGE {number}", fontsize=16)
+        return document.tobytes()
+
+
 def main():
     connect(SITE)
     frappe.set_user("Administrator")
     from pearnly_core.provisioning import ensure_feature_roles
-    from pearnly_erp_portal.sales import contracts, service
+    from pearnly_erp_portal.sales import contracts, entry, files, output, preview, records, recognition
     from pearnly_erp_portal.products import service as products
     from pearnly_erp_portal.inventory import stock, warehouses
 
@@ -77,6 +101,7 @@ def main():
     ensure_feature_roles(json.dumps(spec), admin_user=OWNER)
     ensure_member(SELLER, ["ERP Sales"])
     ensure_member(CASHIER, ["ERP Cashier"])
+    ensure_member(OUTSIDER, [])
 
     code = "LAB-SALE-P1"
     if not frappe.db.get_value("ERP Product", {"code": code}, "name"):
@@ -88,166 +113,191 @@ def main():
                          qty=100, unit="pcs", unit_cost="40")
 
     results = {}
+    run = "lab-sale-" + frappe.generate_hash(length=8)
     lines = [{"product": product, "description": "Lab sale item", "qty": 2, "unit": "pcs",
-              "unit_price": "100"}]
-    paid = {"payment_status": "paid", "payment_method": "cash", "payment_date": "2026-09-21"}
+              "unit_price": "100", "vat_applicable": 1}]
+    payload = {"doc_kind": "receipt", "doc_date": "2026-09-21", "buyer_name": f"{run} buyer",
+               "party_type": "person", "address": "Bangkok", "has_vat": 1, "vat_rate": 7,
+               "is_paid": 1, "payment_method": "cash", "payment_date": "2026-09-21",
+               "lines": lines}
 
-    ok, made = as_user(SELLER, service.create_document, doc_kind=contracts.RECEIPT,
-                       doc_date="2026-09-21", buyer_name="Lab Buyer Co", party_type="company",
-                       address="Bangkok", **paid, lines=lines)
-    results["create"] = ok
-    results["create_error"] = None if ok else made
-    doc = made.get("name") if ok else None
-    results["draft_grand_total"] = str(made.get("grand_total")) if ok else None
-    results["draft_has_system_no"] = bool(frappe.db.get_value(
-        "ERP Sales Document", doc, "system_no")) if doc else None
-    results["draft_status"] = frappe.db.get_value("ERP Sales Document", doc, "status") if doc \
-        else None
-    results["draft_moves_nothing"] = frappe.db.count("ERP Stock Movement", {"ref_id": doc}) \
-        if doc else None
-
-    # 闸：面额 0 与未收款的收据都确认不了，也不动货。
-    zero = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
-                                   buyer_name="Lab Buyer Co", party_type="company",
-                                   address="BKK", **paid,
-                                   lines=[{"description": "free", "qty": 1, "unit_price": 0}])
-    ok, err = as_user(SELLER, service.confirm_document, zero["name"])
-    results["zero_blocked"] = ok
-    results["zero_status"] = frappe.db.get_value("ERP Sales Document", zero["name"], "status")
-    results["zero_moves_nothing"] = frappe.db.count("ERP Stock Movement",
-                                                    {"ref_id": zero["name"]})
-    unpaid = service.create_document(doc_kind=contracts.RECEIPT, doc_date="2026-09-21",
-                                     buyer_name="Walk-in", party_type="anonymous", lines=lines)
-    ok, err = as_user(SELLER, service.confirm_document, unpaid["name"])
-    results["unpaid_receipt_blocked"] = ok
-    results["unpaid_status"] = frappe.db.get_value("ERP Sales Document", unpaid["name"],
-                                                   "status")
-
-    # 确认：出库一次，且只出一次。
+    # 一次提交：落定 + 出库 + 收款标记。
     on_hand = balance(product, warehouse)
-    ok, confirmed = as_user(SELLER, service.confirm_document, doc)
-    results["confirm"] = ok
-    results["confirm_error"] = None if ok else confirmed
-    results["stock_posted"] = bool(confirmed.get("stock", {}).get("posted")) if ok else None
+    ok, made = as_user(SELLER, entry.post, dict(payload), request_id=run)
+    results["post"] = ok
+    results["post_error"] = None if ok else made
+    doc = made.get("name") if ok else None
+    results["status"] = frappe.db.get_value("ERP Sales Document", doc, "status") if doc else None
+    results["system_no_set"] = bool(frappe.db.get_value("ERP Sales Document", doc, "system_no")) if doc else None
+    results["summary"] = frappe.db.get_value("ERP Sales Document", doc, "summary") if doc else None
+    results["grand_total"] = float(frappe.db.get_value("ERP Sales Document", doc, "grand_total")) if doc else None
+    results["vat_amount"] = float(frappe.db.get_value("ERP Sales Document", doc, "vat_amount")) if doc else None
+    results["payment_status"] = frappe.db.get_value("ERP Sales Document", doc, "payment_status") if doc else None
+    results["paid_amount"] = float(frappe.db.get_value("ERP Sales Document", doc, "paid_amount")) if doc else None
     after = balance(product, warehouse)
     results["stock_delta"] = float(after) - float(on_hand) if on_hand is not None else None
-    results["confirmed_status"] = frappe.db.get_value("ERP Sales Document", doc, "status")
-    ok, again = as_user(SELLER, service.confirm_document, doc)
-    results["reconfirm_blocked"] = ok
-    results["movements_after_reconfirm"] = frappe.db.count("ERP Stock Movement",
-                                                           {"ref_id": doc})
-    ok, err = as_user(SELLER, service.update_document, doc, note="late edit")
-    results["edit_after_confirm_blocked"] = ok
+    results["movements"] = frappe.db.count("ERP Stock Movement", {"ref_id": doc}) if doc else None
 
-    # 作废：货回来。
-    ok, voided = as_user(SELLER, service.void_document, doc, "lab void")
-    results["void"] = ok
-    results["void_error"] = None if ok else voided
-    results["void_status"] = frappe.db.get_value("ERP Sales Document", doc, "status")
-    results["stock_after_void"] = float(balance(product, warehouse)) if on_hand is not None \
-        else None
+    # 重复提交同一个请求号：返回同一张单，不再出一次库。
+    ok, replay = as_user(SELLER, entry.post, dict(payload), request_id=run)
+    results["replay_duplicate"] = bool(replay.get("duplicate")) if ok else None
+    results["replay_same_doc"] = replay.get("name") == doc if ok else None
+    results["movements_after_replay"] = frappe.db.count("ERP Stock Movement", {"ref_id": doc}) if doc else None
 
-    # 报价单：确认了也不动货（它不是销售凭证）。
-    quote = service.create_document(doc_kind=contracts.QUOTATION, doc_date="2026-09-21",
-                                    buyer_name="Lab Buyer Co", party_type="company",
-                                    address="BKK", lines=lines)
-    before_quote = balance(product, warehouse)
-    ok, quoted = as_user(SELLER, service.confirm_document, quote["name"])
-    results["quotation_confirm"] = ok
-    results["quotation_moves_nothing"] = frappe.db.count("ERP Stock Movement",
-                                                         {"ref_id": quote["name"]})
-    results["quotation_stock_unchanged"] = float(balance(product, warehouse)) == float(before_quote)
-
-    # 去掉开票侧：税票与冲正单类型一律被拒。
+    # 闸：฿0 的收据落不了定；税票与冲正单类型一律被拒。
+    zero = {**payload, "buyer_name": f"{run} zero", "lines": [{"description": "free", "qty": 1,
+            "unit_price": 0, "vat_applicable": 1}]}
+    ok, err = as_user(SELLER, entry.post, zero, request_id=run + "-zero")
+    results["zero_blocked"] = ok
     for kind in ("tax_invoice", "tax_invoice_simple", "tax_invoice_receipt", "credit_note",
                  "debit_note"):
-        ok, err = as_user(SELLER, service.create_document, doc_kind=kind,
-                          doc_date="2026-09-21", buyer_name="X", lines=lines)
+        ok, err = as_user(SELLER, entry.post, {**payload, "doc_kind": kind},
+                          request_id=f"{run}-{kind}")
         results[f"reject_{kind}"] = ok
 
-    # 上传单据：识别被替换成固定结果（不花钱），落 source=ocr 草稿并留底。
-    import io
+    # 报价单：不动货、不收钱。
+    before_quote = balance(product, warehouse)
+    ok, quote = as_user(SELLER, entry.post, {**payload, "doc_kind": "quotation",
+                       "buyer_name": f"{run} quote"}, request_id=run + "-quote")
+    results["quotation_post"] = ok
+    results["quotation_moves_nothing"] = frappe.db.count("ERP Stock Movement",
+                                                         {"ref_id": quote.get("name")}) if ok else None
+    results["quotation_stock_unchanged"] = float(balance(product, warehouse)) == float(before_quote)
+    results["quotation_unpaid"] = frappe.db.get_value("ERP Sales Document", quote.get("name"),
+                                                      "payment_status") if ok else None
 
-    from PIL import Image
+    # 收款：部分 → 部分收款；收满 → 已收款；撤销 → 未收款。
+    ok, part = as_user(SELLER, entry.payment, doc, amount=100, method="cash", date="2026-09-21")
+    results["partial_status"] = part.get("payment_status") if ok else None
+    ok, paid = as_user(SELLER, entry.payment, doc, paid=1, method="transfer", date="2026-09-22")
+    results["paid_status"] = paid.get("payment_status") if ok else None
+    results["paid_method"] = frappe.db.get_value("ERP Sales Document", doc, "payment_method")
+    ok, back = as_user(SELLER, entry.payment, doc, paid=0)
+    results["reverted_status"] = back.get("payment_status") if ok else None
+    results["reverted_amount"] = float(frappe.db.get_value("ERP Sales Document", doc, "paid_amount"))
+    ok, again = as_user(SELLER, entry.payment, doc, paid=1, method="cash")
+    results["paid_again"] = ok and again.get("payment_status") == "paid"
 
-    from pearnly_erp_portal.sales import ocr as sales_ocr
+    # 列表：条件、搜索、命中总数。
+    ok, page_all = as_user(SELLER, records.page, {"date_from": "2026-09-01",
+                                                  "date_to": "2026-09-30"}, start=0, limit=20)
+    results["list_ok"] = ok
+    results["list_has_own_rows"] = bool(ok and page_all["total"] >= 2)
+    ok, page_q = as_user(SELLER, records.page, {"q": f"{run} buyer"}, start=0, limit=20)
+    results["search_hits"] = page_q["total"] if ok else None
+    ok, page_kind = as_user(SELLER, records.page, {"doc_kind": ["quotation"]}, start=0, limit=20)
+    results["kind_filter_only_quotes"] = bool(ok and page_kind["items"]
+        and all(row["doc_kind"] == "quotation" for row in page_kind["items"]))
+    ok, page_unpaid = as_user(SELLER, records.page, {"group": "unpaid"}, start=0, limit=20)
+    results["unpaid_group_excludes_paid"] = bool(ok and all(
+        row["payment_status"] != "paid" for row in page_unpaid["items"]))
 
-    buffer = io.BytesIO()
-    Image.new("RGB", (8, 8), (10, 120, 200)).save(buffer, "JPEG")
-    jpeg = buffer.getvalue()
-    original_recognise = sales_ocr.recognise
-    sales_ocr.recognise = lambda content, content_type: {
-        "doc_no": "R-LAB-1", "doc_date": "2026-09-21", "buyer_name": "Lab OCR Buyer",
-        "buyer_type": "company", "buyer_address": "Chiang Mai", "has_vat": True,
-        "vat_rate": 7, "lines": [{"description": "ocr line", "qty": 3, "unit_price": "50"}]}
+    # 附件：私有上传、绑定、图库、PDF 分页渲染。
+    file = private_file(f"{run}.png", png())
+    as_user(SELLER, frappe.db.set_value, "File", file.name, "owner", SELLER)
+    frappe.set_user(SELLER)
+    file.reload()
+    ok, bound = as_user(SELLER, files.add, doc, [{"file": file.name, "file_url": file.file_url,
+                                                  "file_name": file.file_name, "kind": "payment_proof"}])
+    results["attach"] = ok
+    results["attach_error"] = None if ok else bound
+    ok, page = as_user(SELLER, preview.page_image, file.name, 1)
+    results["preview_png_rejected"] = ok  # 图片不是 PDF：查看器走后端只渲染 PDF
+    pdf_file = private_file(f"{run}.pdf", pdf(2))
+    as_user(SELLER, frappe.db.set_value, "File", pdf_file.name, "owner", SELLER)
+    ok, pages = as_user(SELLER, preview.page_image, pdf_file.name)
+    results["preview_pdf"] = bool(ok and pages["pages"] == 2
+                                  and base64.b64decode(pages["image"].split(",")[1]).startswith(b"\x89PNG"))
+    ok, second = as_user(SELLER, preview.page_image, pdf_file.name, 2)
+    results["preview_pdf_second_page"] = bool(ok and second.get("image") and second["image"] != pages["image"])
+
+    # 导出：同一个查询出来的 Excel。
+    ok, book = as_user(SELLER, output.workbook, {"q": run})
+    results["export_bytes"] = bool(ok and book.startswith(b"PK") and len(book) > 2000)
+
+    # 岗位与本人范围。
+    ok, err = as_user(CASHIER, entry.post, {**payload, "buyer_name": f"{run} cashier"},
+                      request_id=run + "-cashier")
+    results["cashier_can_post"] = ok
+    ok, rows = as_user(OUTSIDER, records.page, {}, start=0, limit=5)
+    results["outsider_blocked"] = ok is False
+    # 员工只看自己录的：老板能读到销售的同一天记录，另一个销售看不到。
+    ok, other = as_user(OWNER, records.page, {"q": f"{run} buyer"}, start=0, limit=5)
+    results["owner_sees_record"] = bool(ok and other["total"] == 1)
+
+    # 作废：货回来、状态与原因留痕。
+    ok, voided = as_user(SELLER, entry.cancel, doc, "lab void")
+    results["cancel"] = ok
+    results["cancel_error"] = None if ok else voided
+    results["cancel_status"] = frappe.db.get_value("ERP Sales Document", doc, "status")
+    results["cancel_reason"] = frappe.db.get_value("ERP Sales Document", doc, "void_reason")
+    results["stock_after_cancel"] = float(balance(product, warehouse))
+    ok, err = as_user(SELLER, entry.cancel, doc, "again")
+    results["recancel_blocked"] = ok
+
+    # 识别：模型调用被替换（不花钱），归一化后落到建单字段。
+    from pearnly_core import ocr as core_ocr
+
+    original = (core_ocr.is_configured, core_ocr.json_from_images, core_ocr.try_with_fallback)
+    core_ocr.is_configured = lambda: True
+    core_ocr.json_from_images = lambda prompt, images, model=None: {
+        "doc_date": "2026-09-21", "buyer_name": "Lab OCR Buyer", "buyer_type": "company",
+        "buyer_address": "Chiang Mai", "has_vat": True, "vat_rate": 7,
+        "lines": [{"description": "ocr line", "qty": 3, "unit_price": "50"}]}
+    core_ocr.try_with_fallback = lambda call, ok=None, label=None: call(None)
     try:
-        ok, up = as_user(SELLER, service.create_from_upload, content=jpeg,
-                         content_type="image/jpeg", filename="lab-receipt.jpg")
+        ocr_file = private_file(f"{run}-ocr.png", png())
+        as_user(SELLER, frappe.db.set_value, "File", ocr_file.name, "owner", SELLER)
+        frappe.set_user(SELLER)
+        ocr_file.reload()
+        ok, recognised = as_user(SELLER, recognition.recognise,
+                                 [{"file": ocr_file.name, "file_url": ocr_file.file_url,
+                                   "file_name": ocr_file.file_name, "kind": "bill"}])
     finally:
-        sales_ocr.recognise = original_recognise
-    results["upload"] = ok
-    results["upload_error"] = None if ok else up
-    results["upload_source"] = frappe.db.get_value("ERP Sales Document", up.get("name"),
-                                                   "source") if ok else None
-    results["upload_kind"] = frappe.db.get_value("ERP Sales Document", up.get("name"),
-                                                 "doc_kind") if ok else None
-    results["upload_total"] = str(up.get("grand_total")) if ok else None
-    results["upload_has_file"] = bool(frappe.db.get_value(
-        "ERP Sales Document", up.get("name"), "source_file")) if ok else None
-    results["upload_sha_set"] = bool(frappe.db.get_value(
-        "ERP Sales Document", up.get("name"), "image_sha256")) if ok else None
-    ok, fixed = as_user(SELLER, service.attach_recognition, up.get("name"),
-                        payload={"buyer_name": "Lab OCR Buyer (reviewed)", "has_vat": True,
-                                 "vat_rate": 7,
-                                 "lines": [{"description": "reviewed line", "qty": 2,
-                                            "unit_price": "100"}]})
-    results["attach_recognition"] = ok
-    results["reviewed_total"] = str(fixed.get("grand_total")) if ok else None
+        core_ocr.is_configured, core_ocr.json_from_images, core_ocr.try_with_fallback = original
+    results["recognise"] = ok
+    results["recognise_error"] = None if ok else recognised
+    results["recognise_kind"] = recognised.get("doc_kind") if ok else None
+    results["recognise_buyer"] = recognised.get("buyer_name") if ok else None
+    results["recognise_lines"] = len(recognised.get("lines") or []) if ok else None
+    results["recognise_source"] = recognised.get("source") if ok else None
+    results["recognise_hash_set"] = bool(recognised.get("image_sha256")) if ok else None
 
-    # 岗位。
-    ok, err = as_user(CASHIER, service.create_document, doc_kind=contracts.RECEIPT,
-                      doc_date="2026-09-21", buyer_name="X", lines=lines)
-    results["cashier_can_create"] = ok
-    ok, rows = as_user(SELLER, service.list_documents)
-    results["seller_can_list"] = ok and len(rows) >= 1
     results["site_records"] = frappe.db.count("ERP Sales Document")
-
-    # 隔离：演示站只读回读，本探针不碰它。
-    demo_before = results.get("demo_pre_count")
     frappe.set_user("Administrator")
     frappe.destroy()
-
     connect(DEMO_SITE)
     results["demo_site_records"] = frappe.db.count("ERP Sales Document")
     frappe.destroy()
 
     expected = {
-        "create": True, "draft_grand_total": "214.00", "draft_has_system_no": True,
-        "draft_status": "draft", "draft_moves_nothing": 0,
-        "zero_blocked": False, "zero_status": "draft", "zero_moves_nothing": 0,
-        "unpaid_receipt_blocked": False, "unpaid_status": "draft",
-        "confirm": True, "stock_posted": True, "stock_delta": -2.0,
-        "confirmed_status": "submitted", "reconfirm_blocked": False,
-        "movements_after_reconfirm": 1, "edit_after_confirm_blocked": False,
-        "void": True, "void_status": "void",
-        "quotation_confirm": True, "quotation_moves_nothing": 0,
-        "quotation_stock_unchanged": True,
+        "post": True, "status": "submitted", "system_no_set": True,
+        "summary": "Lab sale item", "grand_total": 214.0, "vat_amount": 14.0,
+        "payment_status": "paid", "paid_amount": 214.0, "stock_delta": -2.0, "movements": 1,
+        "replay_duplicate": True, "replay_same_doc": True, "movements_after_replay": 1,
+        "zero_blocked": False,
         "reject_tax_invoice": False, "reject_tax_invoice_simple": False,
         "reject_tax_invoice_receipt": False, "reject_credit_note": False,
         "reject_debit_note": False,
-        "cashier_can_create": False,
-        "upload": True, "upload_source": "ocr", "upload_kind": "receipt",
-        "upload_total": "160.50", "upload_has_file": True, "upload_sha_set": True,
-        "attach_recognition": True, "reviewed_total": "214.00",
-        "seller_can_list": True,
+        "quotation_post": True, "quotation_moves_nothing": 0, "quotation_stock_unchanged": True,
+        "quotation_unpaid": "unpaid",
+        "partial_status": "partial", "paid_status": "paid", "paid_method": "transfer",
+        "reverted_status": "unpaid", "reverted_amount": 0.0, "paid_again": True,
+        "list_ok": True, "list_has_own_rows": True, "search_hits": 1,
+        "kind_filter_only_quotes": True, "unpaid_group_excludes_paid": True,
+        "attach": True, "preview_png_rejected": False, "preview_pdf": True,
+        "preview_pdf_second_page": True, "export_bytes": True,
+        "cashier_can_post": False, "outsider_blocked": True, "owner_sees_record": True,
+        "cancel": True, "cancel_status": "void", "cancel_reason": "lab void",
+        "recancel_blocked": False,
+        "recognise": True, "recognise_kind": "receipt", "recognise_buyer": "Lab OCR Buyer",
+        "recognise_lines": 1, "recognise_source": "ocr", "recognise_hash_set": True,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
                 if results.get(k) != v}
-    if on_hand is not None and results.get("stock_after_void") != float(on_hand):
-        problems["stock_after_void"] = {"expected": float(on_hand),
-                                        "actual": results.get("stock_after_void")}
-    if results.get("zero_error") and not results.get("zero_status") == "draft":
-        problems["zero_left_a_trace"] = results.get("zero_status")
+    if on_hand is not None and results.get("stock_after_cancel") != float(on_hand):
+        problems["stock_after_cancel"] = {"expected": float(on_hand),
+                                          "actual": results.get("stock_after_cancel")}
     print(json.dumps({"site": SITE, "demo_site": DEMO_SITE, "results": results,
                       "problems": problems}, ensure_ascii=False, indent=2, default=str))
     return 1 if problems else 0

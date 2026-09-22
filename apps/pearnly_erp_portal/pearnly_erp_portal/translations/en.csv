@@ -1,3 +1,4 @@
+A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A stored source file must carry its hash,A stored source file must carry its hash
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
@@ -11,6 +12,7 @@ Amended,Amended
 Amended From,Amended From
 Amount,Amount
 Amount Payable,Amount Payable
+Anonymous,Anonymous
 Apply,Apply
 Approval Status,Approval Status
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
@@ -35,10 +37,16 @@ Cancellation,Cancellation
 Cancelled,Cancelled
 Cancelled On,Cancelled On
 Cash,Cash
+Cashier,Cashier
 Category,Category
 Category Name,Category Name
 Cheque,Cheque
+Collection,Collection
+Collection Date,Collection Date
+Collection Method,Collection Method
+Collection Status,Collection Status
 Columns,Columns
+Company,Company
 Confirm,Confirm
 Confirm the document before recording a payment,Confirm the document before recording a payment
 Could not store this document,Could not store this document
@@ -47,12 +55,17 @@ Create New Item,Create New Item
 Creation,Creation
 Currency,Currency
 Custom,Custom
+Customer is disabled,Customer is disabled
+Customer is required,Customer is required
 Date,Date
 Dedupe Key,Dedupe Key
 Delete,Delete
 Description,Description
+Details,Details
 Discount Amount,Discount Amount
+Discount cannot exceed the amount,Discount cannot exceed the amount
 Document Type,Document Type
+Document already exists,Document already exists
 Document has already been cancelled,Document has already been cancelled
 Document has already been submitted,Document has already been submitted
 Document has been cancelled,Document has been cancelled
@@ -63,6 +76,7 @@ Due Date,Due Date
 ERP Stock Count Variance,ERP Stock Count Variance
 Enabled,Enabled
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
+Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Entry Method,Entry Method
 Exchange Rate,Exchange Rate
 Exchange Rate is required,Exchange Rate is required
@@ -77,6 +91,7 @@ File,File
 File Name,File Name
 File not found,File not found
 Filters,Filters
+Foreigner,Foreigner
 From Date,From Date
 Full Screen,Full Screen
 Generated,Generated
@@ -101,6 +116,7 @@ Item Group,Item Group
 Item Name,Item Name
 Item Name is required,Item Name is required
 Item Type,Item Type
+Item is disabled,Item is disabled
 Items,Items
 Items are required,Items are required
 LINE,LINE
@@ -109,6 +125,7 @@ Last Month,Last Month
 Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
+Loading...,Loading...
 Location,Location
 Manual,Manual
 Manual Entry,Manual Entry
@@ -120,6 +137,7 @@ Net Total,Net Total
 New,New
 New Category,New Category
 New Purchase Invoice,New Purchase Invoice
+Next,Next
 No attachments,No attachments
 None,None
 Not permitted,Not permitted
@@ -127,6 +145,8 @@ Note,Note
 Now sending {0} documents,Now sending {0} documents
 OCR,OCR
 Only Draft documents can be deleted,Only Draft documents can be deleted
+Only a receipt records a collection,Only a receipt records a collection
+Only a submitted document can be cancelled,Only a submitted document can be cancelled
 Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Opening Balance,Opening Balance
@@ -134,6 +154,7 @@ Other,Other
 Outstanding Amount,Outstanding Amount
 Paid,Paid
 Paid Amount,Paid Amount
+Paid amount cannot exceed the total,Paid amount cannot exceed the total
 Parent Category,Parent Category
 Parent Item Group,Parent Item Group
 Partly Paid,Partly Paid
@@ -143,8 +164,11 @@ Payment Receipt,Payment Receipt
 Payment Status,Payment Status
 Payments,Payments
 Period,Period
+Person,Person
 Please select an Item,Please select an Item
 Posting Date,Posting Date
+Preview,Preview
+Previous,Previous
 Prices Include Tax,Prices Include Tax
 Print,Print
 Product,Product
@@ -158,9 +182,12 @@ Purchase Order,Purchase Order
 Purchase Records,Purchase Records
 Qty,Qty
 Quantity,Quantity
+Quantity must be greater than zero,Quantity must be greater than zero
+Quotation,Quotation
 Rate,Rate
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
+Received Amount,Received Amount
 Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recognition is not configured for this account,Recognition is not configured for this account
@@ -172,6 +199,7 @@ Remarks,Remarks
 Request ID already exists,Request ID already exists
 Requested By,Requested By
 Reset,Reset
+Retry,Retry
 Reversal,Reversal
 Rotate,Rotate
 Rounding Adjustment,Rounding Adjustment
@@ -218,6 +246,7 @@ This Month,This Month
 This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
 This channel is not open yet,This channel is not open yet
+This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
 This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
@@ -233,11 +262,13 @@ Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid
 Update Stock,Update Stock
+"Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
 "Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
 Upload and Recognize,Upload and Recognize
 Use the stock count workbench,Use the stock count workbench
 User,User
 VAT,VAT
+VAT Applies,VAT Applies
 VAT Rate,VAT Rate
 VAT Rate %,VAT Rate %
 Void the payments before voiding the document,Void the payments before voiding the document

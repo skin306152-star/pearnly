@@ -23,7 +23,7 @@ from frappe import _
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import entry as purchasing
 from pearnly_erp_portal.sales import contracts as sales_contracts
-from pearnly_erp_portal.sales import service as sales
+from pearnly_erp_portal.sales import entry as sales
 
 DOCTYPE = "ERP LINE Intake"
 STATUS_RECEIVED = "received"
@@ -164,13 +164,18 @@ def confirm(name, *, lines, doc_date=None, **fields) -> dict:
         created = purchasing.post(payload, request_id=f"line-intake:{doc.name}", finalize=finish)
         return {"name": created["name"], "intake": doc.name, "duplicate": created.get("duplicate", False)}
     else:
-        created = sales.create_document(
-            doc_kind=fields.pop("doc_kind", None) or sales_contracts.TAX_INVOICE,
-            doc_date=doc_date or str(frappe.utils.nowdate()),
-            buyer_name=fields.pop("buyer_name", None) or _("Unknown buyer"),
-            lines=lines, source=sales_contracts.SOURCE_OCR,
-            image_sha256=doc.file_hash, source_file=doc.source_file, **fields)
-        doc.sales_document = created["name"]
+        def finish(created):
+            doc.sales_document, doc.status, doc.decided_at = created["name"], STATUS_CONFIRMED, frappe.utils.now()
+            doc.save(ignore_permissions=True)
+
+        payload = {**fields, "doc_kind": fields.pop("doc_kind", None) or sales_contracts.RECEIPT,
+            "doc_date": doc_date or str(frappe.utils.nowdate()),
+            "buyer_name": fields.pop("buyer_name", None) or _("Unknown buyer"),
+            "lines": lines, "source": "line", "image_sha256": doc.file_hash,
+            "source_file": doc.source_file}
+        created = sales.post(payload, request_id=f"line-intake:{doc.name}", finalize=finish)
+        return {"name": created["name"], "intake": doc.name,
+                "duplicate": created.get("duplicate", False)}
     doc.status = STATUS_CONFIRMED
     doc.decided_at = frappe.utils.now()
     doc.save(ignore_permissions=True)

@@ -1,0 +1,42 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Sales Attachment",
+ "module": "Pearnly ERP Portal",
+ "istable": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "file",
+  "file_url",
+  "kind",
+  "file_name"
+ ],
+ "fields": [
+  {
+   "fieldname": "file",
+   "label": "File",
+   "fieldtype": "Link",
+   "options": "File",
+   "reqd": 1
+  },
+  {
+   "fieldname": "file_url",
+   "label": "Attachment",
+   "fieldtype": "Attach",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Type",
+   "fieldtype": "Select",
+   "options": "bill\npayment_proof",
+   "default": "bill"
+  },
+  {
+   "fieldname": "file_name",
+   "label": "File Name",
+   "fieldtype": "Data",
+   "read_only": 1
+  }
+ ],
+ "permissions": []
+}

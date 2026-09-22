@@ -1,3 +1,4 @@
+A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须指向它建出的采购记录
 A stored source file must carry its hash,留底文件必须带内容指纹
 Abbreviated Tax Invoice,简式税务发票
@@ -11,6 +12,7 @@ Amended,已修订
 Amended From,修订自(上一版单据编号)
 Amount,金额
 Amount Payable,应付金额
+Anonymous,匿名
 Apply,应用
 Approval Status,审批状态
 Are you sure you want to delete the attachment?,您确定要删除附件？
@@ -35,10 +37,16 @@ Cancellation,取消
 Cancelled,已取消
 Cancelled On,取消时间
 Cash,现金
+Cashier,收银
 Category,类别
 Category Name,分类名称
 Cheque,支票
+Collection,收款
+Collection Date,收款日期
+Collection Method,收款方式
+Collection Status,收款状态
 Columns,列
+Company,公司
 Confirm,确认
 Confirm the document before recording a payment,记录付款前请先提交单据
 Could not store this document,单据留底失败，请重发
@@ -47,12 +55,17 @@ Create New Item,创建新物料
 Creation,创建日期
 Currency,货币
 Custom,自定义
+Customer is disabled,客户已停用
+Customer is required,必须填写客户
 Date,日期
 Dedupe Key,去重键
 Delete,删除
 Description,描述
+Details,详细信息
 Discount Amount,折扣金额
+Discount cannot exceed the amount,折扣不能超过金额
 Document Type,单据类型
+Document already exists,单据已存在
 Document has already been cancelled,单据已取消
 Document has already been submitted,单据已提交
 Document has been cancelled,文档已取消
@@ -63,6 +76,7 @@ Due Date,到期日
 ERP Stock Count Variance,盘点差异看板
 Enabled,已启用
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
+Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Entry Method,录入方式
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
@@ -77,6 +91,7 @@ File,文件
 File Name,文件名
 File not found,文件不存在
 Filters,过滤条件
+Foreigner,外国人
 From Date,开始日期
 Full Screen,全屏
 Generated,已生成
@@ -101,6 +116,7 @@ Item Group,物料组
 Item Name,物料名称
 Item Name is required,物料名称不能为空
 Item Type,项目类型
+Item is disabled,物料已停用
 Items,物料
 Items are required,物料明细不能为空
 LINE,LINE
@@ -109,6 +125,7 @@ Last Month,上个月
 Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
+Loading...,加载中…
 Location,地点
 Manual,手动
 Manual Entry,手动录入
@@ -120,6 +137,7 @@ Net Total,净总计
 New,新建
 New Category,新建分类
 New Purchase Invoice,新供应商发票
+Next,下一个
 No attachments,无附件
 None,无
 Not permitted,没有权限
@@ -127,6 +145,8 @@ Note,备注
 Now sending {0} documents,现在发送{0}单据
 OCR,文字识别
 Only Draft documents can be deleted,只能删除草稿单据
+Only a receipt records a collection,只有收据能记收款
+Only a submitted document can be cancelled,只有已提交的单据能作废
 Only an image or a PDF can be recognised,仅支持识别图片或 PDF
 Only purchase documents can be sent in for now,目前只收采购单据
 Opening Balance,期初余额
@@ -134,6 +154,7 @@ Other,其它
 Outstanding Amount,未付金额
 Paid,已付款
 Paid Amount,付款金额
+Paid amount cannot exceed the total,收款金额不能超过合计
 Parent Category,上级分类
 Parent Item Group,父物料组
 Partly Paid,部分付款
@@ -143,8 +164,11 @@ Payment Receipt,付款凭证
 Payment Status,付款状态
 Payments,付款
 Period,期间
+Person,个人
 Please select an Item,请选择物料
 Posting Date,记账日期
+Preview,预览
+Previous,上一个
 Prices Include Tax,价格含税
 Print,打印
 Product,产品
@@ -158,9 +182,12 @@ Purchase Order,采购订单
 Purchase Records,采购记录
 Qty,数量
 Quantity,数量
+Quantity must be greater than zero,数量必须大于 0
+Quotation,报价单
 Rate,单价
 Reason for Cancellation,取消原因
-Receipt,采购入库
+Receipt,收据
+Received Amount,已收金额
 Received By,收款人
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Recognition is not configured for this account,尚未配置文字识别
@@ -172,6 +199,7 @@ Remarks,备注
 Request ID already exists,请求编号已存在
 Requested By,申请人
 Reset,重置
+Retry,重试
 Reversal,冲销
 Rotate,旋转
 Rounding Adjustment,小数精度尾差调整
@@ -218,6 +246,7 @@ This Month,本月
 This Quarter,本季度
 This account cannot send documents,这个账号不能传单据
 This channel is not open yet,这个通道还没开放
+This document cannot be recorded yet,这张单据还不能落定
 This document has no content,这份文件是空的
 This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
@@ -233,11 +262,13 @@ Unknown buyer,未知买家
 Unknown direction,未知的方向
 Unpaid,未付
 Update Stock,更新库存
+"Upload a receipt, then review the recognized details.",上传收据，识别后复核并修改。
 "Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
 Upload and Recognize,上传识别
 Use the stock count workbench,请通过盘点工作台操作
 User,用户
 VAT,增值税
+VAT Applies,计增值税
 VAT Rate,增值税率
 VAT Rate %,税率%
 Void the payments before voiding the document,取消单据前请先冲销付款

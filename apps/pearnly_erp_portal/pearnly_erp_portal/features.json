@@ -110,6 +110,7 @@
       "doctypes": [
         "ERP Sales Document",
         "ERP Sales Document Line",
+        "ERP Sales Attachment",
         "ERP Product",
         "ERP Company",
         "ERP LINE Intake"

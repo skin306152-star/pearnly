@@ -7,6 +7,7 @@
   "status",
   "doc_kind",
   "source",
+  "system_no",
   "doc_date",
   "customer",
   "column_break_buyer",
@@ -21,14 +22,25 @@
   "discount_total",
   "vat_amount",
   "grand_total",
+  "column_break_payment",
+  "paid_amount",
+  "payment_status",
+  "payment_method",
+  "payment_date",
   "section_links",
+  "summary",
   "source_file",
   "image_sha256",
   "stock_posted_at",
   "note",
-  "payment_status",
-  "payment_method",
-  "payment_date",
+  "request_id",
+  "request_hash",
+  "section_void",
+  "void_reason",
+  "voided_at",
+  "section_files",
+  "attachments",
+  "section_lines",
   "lines"
  ],
  "fields": [
@@ -45,7 +57,7 @@
    "fieldname": "doc_kind",
    "fieldtype": "Select",
    "label": "Document Kind",
-   "options": "quotation\nreceipt",
+   "options": "receipt\nquotation",
    "default": "receipt",
    "reqd": 1,
    "in_list_view": 1
@@ -54,26 +66,24 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "manual\nocr\npos",
+   "options": "web\nmanual\nocr\nline\npos",
    "default": "manual",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "doc_date",
+   "fieldtype": "Date",
+   "label": "Date",
+   "default": "Today",
    "reqd": 1,
    "in_list_view": 1
   },
   {
    "fieldname": "system_no",
    "fieldtype": "Data",
-   "label": "System Number",
+   "label": "System number",
    "read_only": 1,
-   "no_copy": 1,
-   "length": 40,
-   "in_list_view": 1,
-   "description": "Issued by the system when the document is created (SI + Buddhist year + serial); never typed"
-  },
-  {
-   "fieldname": "doc_date",
-   "fieldtype": "Date",
-   "label": "Document Date",
-   "reqd": 1,
    "in_list_view": 1
   },
   {
@@ -90,16 +100,17 @@
   {
    "fieldname": "buyer_name",
    "fieldtype": "Data",
-   "label": "Buyer",
+   "label": "Customer Name",
+   "length": 200,
    "reqd": 1,
-   "length": 200
+   "in_list_view": 1
   },
   {
    "fieldname": "party_type",
    "fieldtype": "Select",
-   "label": "Buyer Type",
+   "label": "Customer Type",
    "options": "company\nperson\nforeign\nanonymous",
-   "default": "company"
+   "default": "person"
   },
   {
    "fieldname": "address",
@@ -108,53 +119,92 @@
   },
   {
    "fieldname": "section_amounts",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Amounts"
   },
   {
    "fieldname": "has_vat",
    "fieldtype": "Check",
-   "label": "VAT",
+   "label": "Add VAT",
    "default": "1"
   },
   {
    "fieldname": "vat_rate",
-   "fieldtype": "Float",
+   "fieldtype": "Percent",
    "label": "VAT Rate",
    "default": "7"
   },
   {
    "fieldname": "header_discount",
    "fieldtype": "Currency",
-   "label": "Header Discount",
+   "label": "Discount Amount",
    "default": "0"
   },
   {
    "fieldname": "subtotal",
    "fieldtype": "Currency",
-   "label": "Subtotal",
+   "label": "Net Total",
    "read_only": 1
   },
   {
    "fieldname": "discount_total",
    "fieldtype": "Currency",
-   "label": "Discount",
+   "label": "Discount Total",
    "read_only": 1
   },
   {
    "fieldname": "vat_amount",
    "fieldtype": "Currency",
-   "label": "VAT Amount",
+   "label": "VAT",
    "read_only": 1
   },
   {
    "fieldname": "grand_total",
    "fieldtype": "Currency",
    "label": "Grand Total",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "column_break_payment",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "paid_amount",
+   "fieldtype": "Currency",
+   "label": "Received Amount",
    "read_only": 1
   },
   {
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "label": "Collection Status",
+   "options": "unpaid\npartial\npaid",
+   "default": "unpaid",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "payment_method",
+   "fieldtype": "Select",
+   "label": "Collection Method",
+   "options": "cash\ntransfer\npromptpay\nother"
+  },
+  {
+   "fieldname": "payment_date",
+   "fieldtype": "Date",
+   "label": "Collection Date"
+  },
+  {
    "fieldname": "section_links",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Record"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Small Text",
+   "label": "Description",
+   "read_only": 1
   },
   {
    "fieldname": "source_file",
@@ -165,9 +215,8 @@
   {
    "fieldname": "image_sha256",
    "fieldtype": "Data",
-   "label": "Source SHA-256",
-   "read_only": 1,
-   "length": 64
+   "label": "File Fingerprint",
+   "read_only": 1
   },
   {
    "fieldname": "stock_posted_at",
@@ -178,32 +227,58 @@
   {
    "fieldname": "note",
    "fieldtype": "Small Text",
-   "label": "Note"
+   "label": "Remarks"
   },
   {
-   "fieldname": "payment_status",
-   "fieldtype": "Select",
-   "label": "Payment Status",
-   "options": "unpaid\npartial\npaid",
-   "default": "unpaid"
-  },
-  {
-   "fieldname": "payment_method",
+   "fieldname": "request_id",
    "fieldtype": "Data",
-   "label": "Payment Method",
-   "length": 40
+   "label": "Request ID",
+   "read_only": 1
   },
   {
-   "fieldname": "payment_date",
-   "fieldtype": "Date",
-   "label": "Payment Date"
+   "fieldname": "request_hash",
+   "fieldtype": "Data",
+   "label": "Request Hash",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_void",
+   "fieldtype": "Section Break",
+   "label": "Cancellation"
+  },
+  {
+   "fieldname": "void_reason",
+   "fieldtype": "Small Text",
+   "label": "Reason for Cancellation",
+   "read_only": 1
+  },
+  {
+   "fieldname": "voided_at",
+   "fieldtype": "Datetime",
+   "label": "Cancelled At",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_files",
+   "fieldtype": "Section Break",
+   "label": "Attachments"
+  },
+  {
+   "fieldname": "attachments",
+   "fieldtype": "Table",
+   "label": "Attachments",
+   "options": "ERP Sales Attachment"
+  },
+  {
+   "fieldname": "section_lines",
+   "fieldtype": "Section Break",
+   "label": "Items"
   },
   {
    "fieldname": "lines",
    "fieldtype": "Table",
-   "label": "Lines",
-   "options": "ERP Sales Document Line",
-   "reqd": 1
+   "label": "Items",
+   "options": "ERP Sales Document Line"
   }
  ],
  "index_web_pages_for_search": 0,

@@ -1,3 +1,4 @@
+A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
 Abbreviated Tax Invoice,簡易税務請求書
@@ -11,6 +12,7 @@ Amended,修正済み
 Amended From,修正元
 Amount,金額
 Amount Payable,支払金額
+Anonymous,匿名
 Apply,適用
 Approval Status,承認状況
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
@@ -35,10 +37,16 @@ Cancellation,取消
 Cancelled,取消済み
 Cancelled On,取消日時
 Cash,現金
+Cashier,レジ
 Category,カテゴリ
 Category Name,カテゴリ名
 Cheque,小切手
+Collection,入金
+Collection Date,入金日
+Collection Method,入金方法
+Collection Status,入金状況
 Columns,列
+Company,会社
 Confirm,確認
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
 Could not store this document,書類を保存できませんでした。再送してください
@@ -47,12 +55,17 @@ Create New Item,新規品目作成
 Creation,作成日時
 Currency,通貨
 Custom,カスタム
+Customer is disabled,顧客は無効です
+Customer is required,顧客は必須です
 Date,日付
 Dedupe Key,重複防止キー
 Delete,削除
 Description,説明
+Details,詳細
 Discount Amount,割引額
+Discount cannot exceed the amount,割引は金額を超えられません
 Document Type,伝票種別
+Document already exists,伝票は既に存在します
 Document has already been cancelled,伝票は取消済みです
 Document has already been submitted,伝票は提出済みです
 Document has been cancelled,伝票は取消済みです
@@ -63,6 +76,7 @@ Due Date,支払期日
 ERP Stock Count Variance,棚卸差異ボード
 Enabled,有効
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
+Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
 Entry Method,入力方法
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
@@ -77,6 +91,7 @@ File,ファイル
 File Name,ファイル名
 File not found,ファイルが見つかりません
 Filters,フィルタ
+Foreigner,外国人
 From Date,開始日
 Full Screen,全画面
 Generated,生成済み
@@ -101,6 +116,7 @@ Item Group,品目グループ
 Item Name,品目名
 Item Name is required,品目名を入力してください
 Item Type,品目区分
+Item is disabled,品目は無効です
 Items,品目
 Items are required,品目を入力してください
 LINE,LINE
@@ -109,6 +125,7 @@ Last Month,先月
 Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
+Loading...,読み込み中…
 Location,保管場所
 Manual,手動入力
 Manual Entry,手動入力
@@ -120,6 +137,7 @@ Net Total,正味合計
 New,新規
 New Category,カテゴリ作成
 New Purchase Invoice,仕入請求書作成
+Next,次へ
 No attachments,添付ファイルなし
 None,なし
 Not permitted,権限がありません
@@ -127,6 +145,8 @@ Note,備考
 Now sending {0} documents,{0}の書類を送信中
 OCR,文字認識
 Only Draft documents can be deleted,下書きの伝票のみ削除できます
+Only a receipt records a collection,入金を記録できるのは領収書のみです
+Only a submitted document can be cancelled,確定済みの伝票のみ取消できます
 Only an image or a PDF can be recognised,画像または PDF のみ認識できます
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Opening Balance,開始残高
@@ -134,6 +154,7 @@ Other,その他
 Outstanding Amount,未払金額
 Paid,支払済み
 Paid Amount,支払済金額
+Paid amount cannot exceed the total,入金額は合計を超えられません
 Parent Category,親カテゴリ
 Parent Item Group,親品目グループ
 Partly Paid,一部支払済み
@@ -143,8 +164,11 @@ Payment Receipt,支払証憑
 Payment Status,支払状況
 Payments,支払履歴
 Period,期間
+Person,個人
 Please select an Item,品目を選択してください
 Posting Date,転記日
+Preview,プレビュー
+Previous,前へ
 Prices Include Tax,税込価格
 Print,印刷
 Product,製品
@@ -158,9 +182,12 @@ Purchase Order,発注書
 Purchase Records,仕入記録
 Qty,数量
 Quantity,数量
+Quantity must be greater than zero,数量は 0 より大きい必要があります
+Quotation,見積書
 Rate,単価
 Reason for Cancellation,取消理由
 Receipt,領収書
+Received Amount,入金額
 Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recognition is not configured for this account,文字認識が設定されていません
@@ -172,6 +199,7 @@ Remarks,備考
 Request ID already exists,リクエスト ID は既に存在します
 Requested By,申請者
 Reset,リセット
+Retry,再試行
 Reversal,取消仕訳
 Rotate,回転
 Rounding Adjustment,丸め調整
@@ -218,6 +246,7 @@ This Month,今月
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
 This channel is not open yet,このチャンネルはまだ開放していません
+This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
 This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
@@ -233,11 +262,13 @@ Unknown buyer,不明な買い手
 Unknown direction,不明な区分
 Unpaid,未払
 Update Stock,在庫更新
+"Upload a receipt, then review the recognized details.",領収書をアップロードし、読み取り結果を確認・修正します。
 "Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
 Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 User,ユーザー
 VAT,消費税
+VAT Applies,課税対象
 VAT Rate,付加価値税率
 VAT Rate %,税率%
 Void the payments before voiding the document,伝票を取り消す前に支払を取り消してください

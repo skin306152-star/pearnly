@@ -145,27 +145,39 @@ def compute_totals(lines: list, *, vat_rate, header_discount_amount=0,
     }
 
 
+# ── 收款 ────────────────────────────────────────────────────────────────────
+#
+# 收款按旧线上的**表头口径**：钱记在单据上（`paid_amount` + 状态 + 方式 + 日期），
+# 不另开流水表 —— 旧线上 `sales_documents` 就是这么存的。状态由"收了多少 / 该收多少"
+# 算出来，不接受前端传来与金额矛盾的组合。
+
+PAYMENT_STATUSES = ("unpaid", "partial", "paid")
+# 旧线上收款方式是自由字符串（少数几家这么用）；这里给常用的四个，够覆盖门店实际。
+PAYMENT_METHODS = ("cash", "transfer", "promptpay", "other")
+
+
+def payment_status_for(paid, total) -> str:
+    """收款状态：没收 = unpaid，收满 = paid，中间 = partial。"""
+    paid_amount = _d(paid)
+    total_amount = _d(total)
+    if paid_amount <= 0:
+        return "unpaid"
+    if total_amount > 0 and paid_amount < total_amount:
+        return "partial"
+    return "paid"
+
+
 # ── 确认前的闸 ──────────────────────────────────────────────────────────────
 #
 # 都在**确认之前**跑：不过就不写成已确认，也就不会动货。
+#
+# 收据**不要求已收款**（用户 2026-09-23 去掉开票侧之后，收据同时承担"现金卖货"和
+# "赊账卖出"两种情形；税务发票那种"钱已收的凭证"口径已不在本仓）。收到钱用「收款」
+# 动作记上去，状态由金额算。
 
-# 收据是"钱已收"的凭证：没款不确认。
-REQUIRE_PAYMENT = (RECEIPT,)
 # 面额 ≤ 0 的收据不确认：那要么是某行没设价（把"没设价"当 0 发过来了），要么走错了单据。
 # 报价单不在内 —— ฿0 的报价顶多是没写完。
 REQUIRE_AMOUNT = (RECEIPT,)
-PAYMENT_STATUSES = ("unpaid", "partial", "paid")
-
-
-def payment_gate(row: dict) -> str | None:
-    """收据确认时必须已收款（状态非 unpaid，且方式与日期齐）。"""
-    if row.get("doc_kind") not in REQUIRE_PAYMENT:
-        return None
-    if (row.get("payment_status") or "unpaid") == "unpaid":
-        return "payment_required"
-    if not row.get("payment_method") or not row.get("payment_date"):
-        return "payment_required"
-    return None
 
 
 def amount_gate(row: dict) -> str | None:
@@ -182,7 +194,7 @@ def amount_gate(row: dict) -> str | None:
 def confirm_gates(row: dict) -> list[str]:
     """确认前的全部拒因（空 = 可以确认）。顺序固定，方便调用方按第一个拒因回话。"""
     reasons = []
-    for reason in (amount_gate(row), payment_gate(row)):
+    for reason in (amount_gate(row),):
         if reason:
             reasons.append(reason)
     return reasons

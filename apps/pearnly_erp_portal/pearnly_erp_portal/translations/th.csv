@@ -1,3 +1,4 @@
+A confirmed document cannot be edited,เอกสารที่ยืนยันแล้วแก้ไขไม่ได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
@@ -11,6 +12,7 @@ Amended,แก้ไขแล้ว
 Amended From,แก้ไขจาก
 Amount,จำนวนเงิน
 Amount Payable,ยอดที่ต้องชำระ
+Anonymous,ลูกค้าทั่วไป
 Apply,สมัคร
 Approval Status,สถานะการอนุมัติ
 Are you sure you want to delete the attachment?,คุณแน่ใจหรือไม่ว่าคุณต้องการลบไฟล์แนบ?
@@ -35,10 +37,16 @@ Cancellation,การยกเลิก
 Cancelled,ยกเลิก
 Cancelled On,วันที่ยกเลิก
 Cash,เงินสด
+Cashier,เก็บเงิน
 Category,หมวดหมู่
 Category Name,ชื่อหมวดหมู่
 Cheque,เช็ค
+Collection,การรับเงิน
+Collection Date,วันที่รับเงิน
+Collection Method,วิธีรับเงิน
+Collection Status,สถานะการรับเงิน
 Columns,คอลัมน์
+Company,บริษัท
 Confirm,ยืนยัน
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
@@ -47,12 +55,17 @@ Create New Item,สร้างสินค้าใหม่
 Creation,การสร้าง
 Currency,สกุลเงิน
 Custom,กำหนดเอง
+Customer is disabled,ลูกค้าถูกปิดใช้งาน
+Customer is required,กรุณาระบุลูกค้า
 Date,วันที่
 Dedupe Key,คีย์กันซ้ำ
 Delete,ลบ
 Description,คำอธิบาย
+Details,รายละเอียด
 Discount Amount,จำนวนส่วนลด
+Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Document Type,ประเภทเอกสาร
+Document already exists,มีเอกสารนี้อยู่แล้ว
 Document has already been cancelled,เอกสารถูกยกเลิกแล้ว
 Document has already been submitted,ส่งเอกสารแล้ว
 Document has been cancelled,เอกสารถูกยกเลิกแล้ว
@@ -63,6 +76,7 @@ Due Date,วันที่ครบกำหนด
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 Enabled,เปิดใช้งานแล้ว
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
+Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Entry Method,วิธีการบันทึก
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
@@ -77,6 +91,7 @@ File,ไฟล์
 File Name,ชื่อไฟล์
 File not found,ไฟล์ไม่พบ
 Filters,ตัวกรอง
+Foreigner,ชาวต่างชาติ
 From Date,จากวันที่
 Full Screen,เต็มหน้าจอ
 Generated,สร้างขึ้น
@@ -101,6 +116,7 @@ Item Group,กลุ่มรายการ
 Item Name,ชื่อรายการ
 Item Name is required,กรุณาระบุชื่อสินค้า
 Item Type,ประเภทของรายการ
+Item is disabled,สินค้าถูกปิดใช้งาน
 Items,รายการ
 Items are required,กรุณาระบุรายการสินค้า
 LINE,LINE
@@ -109,6 +125,7 @@ Last Month,เดือนที่แล้ว
 Line Amount,จำนวนเงินบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
+Loading...,กำลังโหลด…
 Location,ที่ตั้ง
 Manual,คู่มือ
 Manual Entry,กรอกข้อมูลเอง
@@ -120,6 +137,7 @@ Net Total,ยอดรวมสุทธิ
 New,ใหม่
 New Category,สร้างหมวดหมู่
 New Purchase Invoice,ใบแจ้งหนี้ซื้อใหม่
+Next,ถัดไป
 No attachments,ไม่มีไฟล์แนบ
 None,ไม่มี
 Not permitted,ไม่ได้รับอนุญาต
@@ -127,6 +145,8 @@ Note,หมายเหตุ
 Now sending {0} documents,กำลังส่งเอกสาร{0}
 OCR,รู้จำข้อความ
 Only Draft documents can be deleted,ลบได้เฉพาะเอกสารร่าง
+Only a receipt records a collection,บันทึกการรับเงินได้เฉพาะใบเสร็จ
+Only a submitted document can be cancelled,ยกเลิกได้เฉพาะเอกสารที่ยืนยันแล้ว
 Only an image or a PDF can be recognised,รองรับการรู้จำเฉพาะรูปภาพหรือ PDF
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Opening Balance,ยอดคงเหลือต้นงวด
@@ -134,6 +154,7 @@ Other,อื่นๆ
 Outstanding Amount,จำนวนเงินค้างชำระ
 Paid,ชำระแล้ว
 Paid Amount,จำนวนเงินที่ชำระแล้ว
+Paid amount cannot exceed the total,ยอดรับเงินต้องไม่เกินยอดรวม
 Parent Category,หมวดหมู่หลัก
 Parent Item Group,กลุ่มรายการผู้ปกครอง
 Partly Paid,ชำระบางส่วน
@@ -143,8 +164,11 @@ Payment Receipt,หลักฐานการชำระเงิน
 Payment Status,สถานะการชำระ
 Payments,การชำระเงิน
 Period,ช่วงเวลา
+Person,บุคคล
 Please select an Item,กรุณาเลือกสินค้า
 Posting Date,วันที่โพสต์
+Preview,ตัวอย่าง
+Previous,ก่อนหน้า
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
 Product,สินค้า
@@ -158,9 +182,12 @@ Purchase Order,คำสั่งซื้อ
 Purchase Records,บันทึกการจัดซื้อ
 Qty,ปริมาณ
 Quantity,ปริมาณ
+Quantity must be greater than zero,จำนวนต้องมากกว่า 0
+Quotation,ใบเสนอราคา
 Rate,อัตรา
 Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จ
+Received Amount,ยอดรับเงิน
 Received By,ผู้รับเงิน
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
@@ -172,6 +199,7 @@ Remarks,ข้อสังเกต
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
 Requested By,ผู้ขอ
 Reset,เริ่มใหม่
+Retry,ลองใหม่
 Reversal,กลับรายการ
 Rotate,หมุน
 Rounding Adjustment,การปรับปัดเศษ
@@ -218,6 +246,7 @@ This Month,เดือนนี้
 This Quarter,ไตรมาสนี้
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
+This document cannot be recorded yet,ยังบันทึกเอกสารนี้ไม่ได้
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
@@ -233,11 +262,13 @@ Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
 Unpaid,ยังไม่ได้ชำระ
 Update Stock,อัปเดตสต็อก
+"Upload a receipt, then review the recognized details.",อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 "Upload an invoice, then review the recognized details.",อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload and Recognize,อัปโหลดเพื่ออ่านข้อความ
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 User,ผู้ใช้
 VAT,ภาษีมูลค่าเพิ่ม
+VAT Applies,คิด VAT
 VAT Rate,อัตราภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
 Void the payments before voiding the document,กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร

@@ -1,106 +1,101 @@
-"""销售单据接口层。业务与权限在 services，这里只做参数解析。
+"""销售域接口层。业务与权限在服务层，这里只做参数解析。
 
-**只有记录，没有开票**：本仓不做税务发票（用户 2026-09-23），所以这里没有票面/打印、
-没有红冲补开、没有报价转开票。确认（confirm）落定一张销售单并过账出库。
+**只有记录，没有开票**：本仓不做税务发票（用户 2026-09-23），所以没有票面/打印、
+没有红冲补开、没有报价转开票。提交（post）一次落定一张销售单并过账出库。
 """
 
 import frappe
 
-from pearnly_erp_portal.sales import contracts, service
+from pearnly_erp_portal.sales import entry, records
 
 
-def _clean(kwargs):
-    kwargs.pop("cmd", None)
-    return kwargs
+def _payload(value):
+    return frappe.parse_json(value) if isinstance(value, str) else (value or {})
 
 
-def _json_args(kwargs, *names):
-    for name in names:
-        if isinstance(kwargs.get(name), str):
-            kwargs[name] = frappe.parse_json(kwargs[name])
-    return kwargs
+# ── 销售记录 ────────────────────────────────────────────────────────────────
 
 
-# ── 单据 ────────────────────────────────────────────────────────────────────
+@frappe.whitelist(methods=["POST"])
+def api_post_sale(payload, request_id, name=None):
+    return entry.post(_payload(payload), request_id=request_id, name=name)
 
 
 @frappe.whitelist()
-def api_list_sales(**kwargs):
-    return service.list_documents(**_clean(kwargs))
+def api_sales_records(params=None, start=0, limit=20):
+    return records.page(_payload(params), start=start, limit=limit)
 
 
 @frappe.whitelist()
-def api_get_sale_document(**kwargs):
-    kwargs = _clean(kwargs)
-    return service.get_document(kwargs.get("name"))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_create_sale_document(**kwargs):
-    """手工录入：来源固定 manual。"""
-    _json_args(kwargs, "lines")
-    kwargs = _clean(kwargs)
-    return service.create_document(**_clean({**kwargs, "source": contracts.SOURCE_MANUAL}))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_update_sale_document(**kwargs):
-    _json_args(kwargs, "lines")
-    kwargs = _clean(kwargs)
-    return service.update_document(kwargs.pop("name", None), **kwargs)
-
-
-@frappe.whitelist(methods=["POST"])
-def api_confirm_sale_document(**kwargs):
-    """确认：落定这张销售单并过账出库。"""
-    kwargs = _clean(kwargs)
-    return service.confirm_document(kwargs.get("name"))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_void_sale_document(**kwargs):
-    kwargs = _clean(kwargs)
-    return service.void_document(kwargs.get("name"), kwargs.get("reason"))
-
-
-# ── 上传单据 ────────────────────────────────────────────────────────────────
-
-
-@frappe.whitelist(methods=["POST"])
-def api_recognise_sale_document(**kwargs):
-    """上传单据 → 识别（**按页计费**）→ 落一张 source=ocr 的草稿。
-
-    传 `manual=1` 表示不识别，只把文件留底后手工填（上传不等于必须花钱）。
-    """
-    guards = _clean(kwargs)
-    uploaded = frappe.request.files.get("file") if frappe.request else None
-    if uploaded:
-        content = uploaded.stream.read()
-        content_type = uploaded.content_type or "application/octet-stream"
-        filename = uploaded.filename or "document"
-    else:
-        content = frappe.parse_json(kwargs.get("content") or "") if kwargs.get("content") else b""
-        content_type = kwargs.get("content_type") or "application/octet-stream"
-        filename = kwargs.get("filename") or "document"
-    if isinstance(content, str):
-        content = content.encode("utf-8")
-    return service.create_from_upload(
-        content=content, content_type=content_type, filename=filename,
-        doc_date=guards.get("doc_date"),
-        manual=str(guards.get("manual") or "") in ("1", "true", "True"))
-
-
-@frappe.whitelist(methods=["POST"])
-def api_attach_recognition(**kwargs):
-    """复核后把识别字段填回草稿。"""
-    _json_args(kwargs, "payload")
-    kwargs = _clean(kwargs)
-    return service.attach_recognition(kwargs.get("name"), payload=kwargs.get("payload") or {})
+def api_sales_document(name):
+    return records.get(name)
 
 
 @frappe.whitelist()
-def api_sale_document_total(**kwargs):
-    kwargs = _clean(kwargs)
-    kwargs.pop("start", None)
-    kwargs.pop("limit", None)
-    return len(service.list_documents(**kwargs, limit=0))
+def api_sales_defaults(doc_date=None):
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.numbering import service as numbering
+    from pearnly_core import ocr
+
+    guard.require("sales.read")
+    return {"system_no": numbering.preview(direction="sales", on=doc_date),
+            "is_paid": 1, "default_vat_rate": 7,
+            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("sales.write")),
+                "line_intakes": bool(guard.has("sales.write") and frappe.db.exists("ERP LINE Intake",
+                    {**guard.scope_filters(), "direction": "sales", "status": "received"}))}}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_sales_amounts(payload):
+    return entry.preview(_payload(payload))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_cancel_sale(name, reason=None):
+    return entry.cancel(name, reason)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_sale_payment(name, payload):
+    return entry.payment(name, **_payload(payload))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_delete_sale_drafts(names):
+    return entry.delete_drafts(frappe.parse_json(names))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_sale_attachments(name, attachments):
+    from pearnly_erp_portal.sales import files
+
+    return files.add(name, frappe.parse_json(attachments))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_remove_sale_attachment(name, file):
+    from pearnly_erp_portal.sales import files
+
+    return files.remove(name, file)
+
+
+@frappe.whitelist()
+def api_sales_export(params=None):
+    from pearnly_erp_portal.sales import output
+
+    frappe.local.response.update(filename="sales.xlsx", filecontent=output.workbook(_payload(params)),
+                                 type="download", display_content_as="attachment")
+
+
+@frappe.whitelist(methods=["POST"])
+def api_recognise_sales(attachments=None, intake_name=None, document_name=None):
+    from pearnly_erp_portal.sales import recognition
+
+    return recognition.recognise(frappe.parse_json(attachments), intake_name, document_name)
+
+
+@frappe.whitelist()
+def api_sale_file_page(file, page=1):
+    from pearnly_erp_portal.sales import preview
+
+    return preview.page_image(file, page)
