@@ -699,3 +699,33 @@ Saved	已保存	บันทึกแล้ว	保存しました
 Collected {0}	已收款 {0}	รับชำระแล้ว {0}	入金しました {0}
 Paid {0}	已付款 {0}	ชำระแล้ว {0}	{0} を支払いました
 Deleted {0}	已删除 {0}	ลบแล้ว {0}	{0} 件を削除しました
+Shift {0} opened	已开班 · 班次 {0}	เปิดกะแล้ว · กะ {0}	シフト {0} を開始しました	trade.shiftOpened
+Shift closed · Cash difference {0}	已交班 · 差额 {0}	ปิดกะแล้ว · ผลต่างเงินสด {0}	シフト終了 · 現金差異 {0}	trade.shiftClosed
+Shift History	班次记录	ประวัติกะ	シフト履歴	trade.shiftHistory
+Shift No	班次编号	เลขที่กะ	シフト番号	trade.shiftNo
+Cashier	收银员	พนักงานเก็บเงิน	レジ担当	trade.cashier
+Opened At	开班时间	เวลาเปิดกะ	開始時刻	trade.openedAt
+Closed At	交班时间	เวลาปิดกะ	終了時刻	trade.closedAt
+Leave blank to use the default terminal	留空使用默认收银台	เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น	空欄なら既定のレジを使います	trade.terminalHint
+Sales Count	笔数	จำนวนบิล	件数	trade.salesCount
+Refund Count	退款笔数	จำนวนการคืนเงิน	返品件数	trade.refundCount
+Gross	毛额	ยอดขายรวม	売上総額	trade.gross
+Net	净额	ยอดสุทธิ	純額	trade.net
+By Payment Method	按收款方式	แยกตามวิธีรับเงิน	支払方法別	trade.byMethod
+Cash Amount	现金	เงินสด	現金	trade.methodCash
+Card	刷卡	บัตร	カード	trade.methodCard
+PromptPay Amount	扫码（PromptPay）	พร้อมเพย์	PromptPay	trade.methodPromptpay
+Transfer	转账	โอนเงิน	振込	trade.methodTransfer
+Cash Check	现金核对	ตรวจเงินสด	現金確認	trade.countCash
+Change Total	找零合计	เงินทอนรวม	お釣り合計	trade.changeTotal
+Expected Cash	应有现金	เงินสดที่ควรมี	現金予定額	trade.expectedCash
+Difference	差额	ผลต่าง	差異	trade.diff
+Matches	刚好对上	ตรงกัน	一致	trade.diffEven
+Over by {0}	多钱 {0}	เกินมา {0}	{0} 多い	trade.diffOver
+Short by {0}	短钱 {0}	ขาดไป {0}	{0} 不足	trade.diffShort
+Sale	销售	ขาย	販売	trade.kind.sale
+Refund	退货退款	คืนสินค้า	返品・返金	trade.kind.refund
+Completed	已完成	เสร็จสิ้น	完了	trade.state.completed
+Voided	已作废	ยกเลิกแล้ว	取消済み	trade.state.void
+Open	开班中	เปิดกะอยู่	営業中	trade.state.open
+Closed	已交班	ปิดกะแล้ว	終了	trade.state.closed

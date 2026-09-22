@@ -395,6 +395,45 @@ frappe.provide("frappe.pearnly");
 		};
 	}
 
+	// ── 上传框只留「我的设备 / 摄像头」（用户 2026-09-23 口径）───────────────────
+	//
+	// 框架的上传器默认给四颗按钮：我的设备 / 库（本站已有的文件）/ 链接（外部网址）/
+	// 摄像头。我们收的是**当场拍的照片或自己选的文件**："库"会让人把别的单据的附件
+	// 再挂一次（一串单据挂同一份图，对不上是哪张），"链接"存的是别人服务器上的地址
+	// （对方删了就断、我们也没有留底）。所以这两颗全站去掉，只留另外两颗。
+	//
+	// 为什么挂 setter 而不是直接替换：`frappe.ui.FileUploader` 是**懒加载**的
+	// （`frappe/upload.js` 里那句 `frappe.require("file_uploader.bundle.js")` 是异步的），
+	// 我们这段脚本可能跑在它前面、也可能跑在它后面。挂上存取器之后，框架**什么时候**
+	// 赋值都会被换成"固定关掉这两项"的子类；直接替换的话，框架那次赋值会把补丁盖掉。
+	// 覆盖范围是**全站**：不但我们的六处调用，框架自己的附件侧栏、文件列表、表单附件、
+	// 沟通记录里的上传框也一起收紧（那些地方我们改不到）。
+	(() => {
+		const minimal = Native => {
+			if (typeof Native !== "function" || Native.pearnly_minimal_uploader) return Native;
+			const Patched = class extends Native {
+				constructor(options = {}) {
+					super({...options, allow_web_link: false, disable_file_browser: true});
+				}
+			};
+			Object.defineProperty(Patched, "pearnly_minimal_uploader", {value: true});
+			return Patched;
+		};
+		let current = minimal(frappe.ui.FileUploader);
+		try {
+			Object.defineProperty(frappe.ui, "FileUploader", {
+				configurable: true, enumerable: true,
+				get: () => current,
+				set: value => {current = minimal(value);},
+			});
+		} catch (error) {
+			// 理论上不会走到这里（`frappe.ui` 是我们自己的对象）。真发生了也把当前那一个
+			// 换掉，并留一条日志 —— 宁可少一层保险，也不要静默地什么都没做。
+			frappe.ui.FileUploader = current;
+			console.warn("pearnly: uploader options not hooked", error);
+		}
+	})();
+
 	$(document).on("app_ready", () => {
 		if (!frappe.boot.pearnly_product) return;
 		document.body.classList.add("pearnly-product-desk");

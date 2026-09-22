@@ -653,18 +653,29 @@ trade.branchNo,Branch Number
 trade.branchType,Branch Type
 trade.buyer,Customer
 trade.buyerType,Customer Type
+trade.byMethod,By Payment Method
+trade.cashier,Cashier
+trade.changeTotal,Change Total
 trade.checkout,New Sale
 trade.close,Close
 trade.closeShift,Close Shift
+trade.closedAt,Closed At
 trade.closing,Closing Quantity
 trade.cost,Unit Cost
+trade.countCash,Cash Check
 trade.countedCash,Counted Cash
 trade.date,Date
 trade.description,Description
+trade.diff,Difference
+trade.diffEven,Matches
+trade.diffOver,Over by {0}
+trade.diffShort,Short by {0}
 trade.discount,Discount
 trade.docNo,Document Number
+trade.expectedCash,Expected Cash
 trade.float,Opening Cash
 trade.from,From Date
+trade.gross,Gross
 trade.groupBalance,Balance
 trade.groupDoc,Document
 trade.groupIn,In
@@ -673,9 +684,16 @@ trade.hasVat,Add VAT
 trade.in,Received
 trade.issue,Issue Document
 trade.kind,Document Type
+trade.kind.refund,Refund
+trade.kind.sale,Sale
 trade.lines,Items
 trade.location,Location
 trade.method,Payment Method
+trade.methodCard,Card
+trade.methodCash,Cash Amount
+trade.methodPromptpay,PromptPay Amount
+trade.methodTransfer,Transfer
+trade.net,Net
 trade.newIn,New Stock Receipt
 trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
@@ -683,6 +701,7 @@ trade.noShift,No Open Shift
 trade.note,Note
 trade.notice.submitted,Submitted {0}
 trade.openShift,Open Shift
+trade.openedAt,Opened At
 trade.opening,Opening Quantity
 trade.originalLine,Original Item and Location
 trade.out,Issued
@@ -698,10 +717,20 @@ trade.reference,Reference
 trade.refund,Refund
 trade.refundAmount,Refund Amount
 trade.refundBlocked,Only a completed sale receipt can be refunded
+trade.refundCount,Refund Count
 trade.refundSingle,Select one receipt to refund
 trade.rowOpening,Opening
+trade.salesCount,Sales Count
 trade.save,Save Draft
+trade.shiftClosed,Shift closed · Cash difference {0}
+trade.shiftHistory,Shift History
+trade.shiftNo,Shift No
 trade.shiftOpen,Shift {0} · Expected cash {1}
+trade.shiftOpened,Shift {0} opened
+trade.state.closed,Closed
+trade.state.completed,Completed
+trade.state.open,Open
+trade.state.void,Voided
 trade.status,Status
 trade.stockPending,Not Posted
 trade.stockPosted,Posted to Stock
@@ -712,6 +741,7 @@ trade.systemNo,System number
 trade.taxId,Tax ID
 trade.taxNo,Tax invoice number
 trade.terminal,Terminal
+trade.terminalHint,Leave blank to use the default terminal
 trade.to,To Date
 trade.total,Total Due
 trade.totalRows,Total · {0} row(s)

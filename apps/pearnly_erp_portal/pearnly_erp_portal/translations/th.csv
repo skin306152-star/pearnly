@@ -653,18 +653,29 @@ trade.branchNo,เลขที่สาขา
 trade.branchType,ประเภทสาขา
 trade.buyer,ชื่อลูกค้า
 trade.buyerType,ประเภทลูกค้า
+trade.byMethod,แยกตามวิธีรับเงิน
+trade.cashier,พนักงานเก็บเงิน
+trade.changeTotal,เงินทอนรวม
 trade.checkout,ขายสินค้า
 trade.close,ปิด
 trade.closeShift,ปิดกะ
+trade.closedAt,เวลาปิดกะ
 trade.closing,ยอดคงเหลือ
 trade.cost,ต้นทุนต่อหน่วย
+trade.countCash,ตรวจเงินสด
 trade.countedCash,เงินสดที่นับได้
 trade.date,วันที่
 trade.description,ชื่อหรือรายละเอียด
+trade.diff,ผลต่าง
+trade.diffEven,ตรงกัน
+trade.diffOver,เกินมา {0}
+trade.diffShort,ขาดไป {0}
 trade.discount,ส่วนลด
 trade.docNo,เลขที่เอกสาร
+trade.expectedCash,เงินสดที่ควรมี
 trade.float,เงินสดเริ่มต้น
 trade.from,ตั้งแต่วันที่
+trade.gross,ยอดขายรวม
 trade.groupBalance,คงเหลือ
 trade.groupDoc,เอกสาร
 trade.groupIn,รับเข้า
@@ -673,9 +684,16 @@ trade.hasVat,คำนวณ VAT
 trade.in,รับเข้า
 trade.issue,ออกเอกสาร
 trade.kind,ประเภทเอกสาร
+trade.kind.refund,คืนสินค้า
+trade.kind.sale,ขาย
 trade.lines,รายการสินค้า
 trade.location,ตำแหน่ง
 trade.method,วิธีชำระเงิน
+trade.methodCard,บัตร
+trade.methodCash,เงินสด
+trade.methodPromptpay,พร้อมเพย์
+trade.methodTransfer,โอนเงิน
+trade.net,ยอดสุทธิ
 trade.newIn,รับสินค้าเข้า
 trade.newOut,จ่ายสินค้าออก
 trade.newSale,สร้างเอกสารขาย
@@ -683,6 +701,7 @@ trade.noShift,ยังไม่เปิดกะ
 trade.note,หมายเหตุ
 trade.notice.submitted,ยืนยันแล้ว {0}
 trade.openShift,เปิดกะ
+trade.openedAt,เวลาเปิดกะ
 trade.opening,ยอดยกมา
 trade.originalLine,สินค้าและตำแหน่งในบิลเดิม
 trade.out,จ่ายออก
@@ -698,10 +717,20 @@ trade.reference,เอกสารอ้างอิง
 trade.refund,คืนสินค้า
 trade.refundAmount,ยอดคืนเงิน
 trade.refundBlocked,คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว
+trade.refundCount,จำนวนการคืนเงิน
 trade.refundSingle,เลือกได้ครั้งละหนึ่งใบเสร็จ
 trade.rowOpening,ยกมา
+trade.salesCount,จำนวนบิล
 trade.save,บันทึกฉบับร่าง
+trade.shiftClosed,ปิดกะแล้ว · ผลต่างเงินสด {0}
+trade.shiftHistory,ประวัติกะ
+trade.shiftNo,เลขที่กะ
 trade.shiftOpen,กะ {0} · เงินสดที่ควรมี {1}
+trade.shiftOpened,เปิดกะแล้ว · กะ {0}
+trade.state.closed,ปิดกะแล้ว
+trade.state.completed,เสร็จสิ้น
+trade.state.open,เปิดกะอยู่
+trade.state.void,ยกเลิกแล้ว
 trade.status,สถานะ
 trade.stockPending,ยังไม่บันทึกสต็อก
 trade.stockPosted,บันทึกสต็อกแล้ว
@@ -712,6 +741,7 @@ trade.systemNo,เลขที่ระบบ
 trade.taxId,เลขประจำตัวผู้เสียภาษี
 trade.taxNo,เลขที่ใบกำกับภาษี
 trade.terminal,จุดขาย
+trade.terminalHint,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
 trade.to,ถึงวันที่
 trade.total,ยอดชำระ
 trade.totalRows,รวม · {0} รายการ

@@ -653,18 +653,29 @@ trade.branchNo,支店番号
 trade.branchType,支店種類
 trade.buyer,顧客名
 trade.buyerType,顧客種類
+trade.byMethod,支払方法別
+trade.cashier,レジ担当
+trade.changeTotal,お釣り合計
 trade.checkout,会計
 trade.close,閉じる
 trade.closeShift,シフト終了
+trade.closedAt,終了時刻
 trade.closing,期末数量
 trade.cost,単位原価
+trade.countCash,現金確認
 trade.countedCash,実際の現金
 trade.date,日付
 trade.description,名称または説明
+trade.diff,差異
+trade.diffEven,一致
+trade.diffOver,{0} 多い
+trade.diffShort,{0} 不足
 trade.discount,割引額
 trade.docNo,伝票番号
+trade.expectedCash,現金予定額
 trade.float,釣銭準備金
 trade.from,開始日
+trade.gross,売上総額
 trade.groupBalance,残高
 trade.groupDoc,伝票
 trade.groupIn,入库
@@ -673,9 +684,16 @@ trade.hasVat,付加価値税を計算
 trade.in,入庫数量
 trade.issue,伝票発行
 trade.kind,伝票種類
+trade.kind.refund,返品・返金
+trade.kind.sale,販売
 trade.lines,商品明細
 trade.location,保管場所
 trade.method,支払方法
+trade.methodCard,カード
+trade.methodCash,現金
+trade.methodPromptpay,PromptPay
+trade.methodTransfer,振込
+trade.net,純額
 trade.newIn,入庫伝票を作成
 trade.newOut,出庫伝票を作成
 trade.newSale,販売伝票を作成
@@ -683,6 +701,7 @@ trade.noShift,未開店
 trade.note,備考
 trade.notice.submitted,{0} を提出しました
 trade.openShift,シフト開始
+trade.openedAt,開始時刻
 trade.opening,期首数量
 trade.originalLine,元伝票の商品と保管場所
 trade.out,出庫数量
@@ -698,10 +717,20 @@ trade.reference,参照伝票
 trade.refund,返品・返金
 trade.refundAmount,返金額
 trade.refundBlocked,完了した売上レシートのみ返品できます
+trade.refundCount,返品件数
 trade.refundSingle,返品できるレシートは1件ずつです
 trade.rowOpening,期首
+trade.salesCount,件数
 trade.save,下書きを保存
+trade.shiftClosed,シフト終了 · 現金差異 {0}
+trade.shiftHistory,シフト履歴
+trade.shiftNo,シフト番号
 trade.shiftOpen,シフト {0} · 現金予定額 {1}
+trade.shiftOpened,シフト {0} を開始しました
+trade.state.closed,終了
+trade.state.completed,完了
+trade.state.open,営業中
+trade.state.void,取消済み
 trade.status,状態
 trade.stockPending,未計上
 trade.stockPosted,在庫計上済み
@@ -712,6 +741,7 @@ trade.systemNo,システム番号
 trade.taxId,納税者番号
 trade.taxNo,適格請求書番号
 trade.terminal,レジ
+trade.terminalHint,空欄なら既定のレジを使います
 trade.to,終了日
 trade.total,請求額
 trade.totalRows,合計 · {0} 明細
