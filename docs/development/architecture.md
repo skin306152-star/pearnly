@@ -54,6 +54,7 @@
 | `contracts` | 与框架无关的数据与呈现契约（推送方向、历史摘要、错误单行文案） | 无框架、IO、模型依赖；唯一的全域共享纯契约 |
 | `access` | 作用域与共享权限判据 | 只给判据，不承载业务流程 |
 | `masters` | 主档输入、工作区与主档契约 | `masters.api` / `push_inputs`；写入口在服务端 |
+| `tabular` | 共享的内存文件读取叶子：表格/CSV/PDF 字节到值 | masters 的账套导入与 reconciliation 的银行/GL 共用；不依赖业务域、框架、网络或磁盘路径 |
 | `ocr` | 抽取：引擎、表引擎、校验闸、执行批次与计费、反馈 | `engine.runner`（本切片只承接 `invoice`/`auto`）、`execution.service`；依赖 `contracts` 与 `pearnly_core` 的计量 |
 | `reconciliation` | 银行与收入对账：解码、配对、原生落库、导出 | `bank_recon_service` / `income_recon_service`；收调用方已解码的内容，子进程不读文件、不调模型 |
 | `roundtrip` | 往返单契约与解析 | `service` / `parser` |

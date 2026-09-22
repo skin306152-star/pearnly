@@ -30,7 +30,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from pearnly_cowork.reconciliation import table_io
+from pearnly_cowork.tabular import readers as table_io
 from pearnly_cowork.reconciliation.bank_parse import parse_date, to_float
 from pearnly_cowork.reconciliation.bank_statement import (
 	StatementRow, finalize_rows, is_summary_row,

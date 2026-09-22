@@ -31,7 +31,7 @@ import io
 import re
 from typing import Any, Dict, List, Tuple
 
-from pearnly_cowork.reconciliation import table_io
+from pearnly_cowork.tabular import readers as table_io
 from pearnly_cowork.reconciliation.bank_matching import GlRow
 from pearnly_cowork.reconciliation.bank_parse import (
 	is_gl_skip_row, parse_date, to_float,

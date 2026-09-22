@@ -193,7 +193,8 @@
       "ocr"
     ],
     "masters": [
-      "access"
+      "access",
+      "tabular"
     ],
     "ocr": [
       "access",
@@ -212,7 +213,8 @@
     "reconciliation": [
       "access",
       "contracts",
-      "masters"
+      "masters",
+      "tabular"
     ],
     "roundtrip": [
       "access",
@@ -223,6 +225,7 @@
     "stocktake": [
       "access"
     ],
-    "targets": []
+    "targets": [],
+    "tabular": []
   }
 }

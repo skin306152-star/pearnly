@@ -33,10 +33,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from pearnly_cowork.reconciliation import (
 	bank_arbitration, bank_parse, bank_reread, bank_sheets, bank_statement, bank_text,
-	gl_sheets, table_io,
+	gl_sheets,
 )
 from pearnly_cowork.reconciliation.bank_matching import GlRow
 from pearnly_cowork.reconciliation.bank_statement import StatementRow
+from pearnly_cowork.tabular import readers as table_io
 
 WORKBOOK_EXTENSIONS = ("xlsx", "xls", "xlsm", "csv", "tsv", "txt")
 
