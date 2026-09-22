@@ -342,6 +342,21 @@
 
 **验证**：侧栏出现「盘点」与「收银 POS」；打开 `/desk/pearnly-stock-count` 正常（标题「盘点」、按钮「新建盘点」「筛选」，列表 5/5，含本次的 `盘点联动检查`）。
 
+### F9：MR.ERP 里"采购/销售要不要进入库/出库列表"（2026-09-23，只读核对）
+
+用户口径：只按 MR.ERP 判断，不看旧线上。
+
+| MR.ERP 事实 | 出处 |
+| --- | --- |
+| 库存单据头 `tbl_stktran` 区分两类来源：出入库模块写 `tran`（收货/发货/调整各自模块），采购/销售/费用模块**不写 `tran`**、写 `transowner`（来源模块名），`trandocno = 单据类型 + 单据号` | `src/stktrant/allsave.php:64-68`（`tran` + `idmenu`）、`src/aptran/allsave.php:253-258`（`transowner='aptran'`）、`stderp2020.sql:3425-3447` 的字段 |
+| 入库/出库**列表按各自菜单号过滤**：`FROM tbl_stktran WHERE (idmenu=?)` | `src/stktranrec/component/showdata.php:25-48`、`src/stktrant/component/showdata.php:25-48` |
+| 报表能专门区分：出库报表有一版条件带 `(m.tran IS NOT NULL)`，即"真正的出入库单" | `src/expstktraniss/component/expdata.php:102,104` |
+| 内部出入库的编码定义 = 每个出入库菜单一行（自动编号开关 + 前缀 + 当前流水） | `tbl_autono` 的定义与 `src/menu/menuform.php:143,496-506` |
+
+**所以按 MR.ERP：采购不在入库列表出现、销售不在出库列表出现。** 它们以**自己的单据号**进库存卡（报表），用 `transowner` 标明来源模块。内部出入库单是**另一套独立定义**（收货/发货/调整各一个菜单、各自一行编号定义）。
+
+**我们的现状与之对照**：采购确认/销售确认**不生成入库/出库单**，只写带 `PE`/`SI` 号的流水（`purchasing/entry.py`、`sales/entry.py` 直接 `stock.apply_lines`）✓；入库/出库是 `IR`/`IS` 两个独立定义 ✓（计数器 `in-IR-2569` / `out-IS-2569`）。**一处差异**：MR.ERP 把"调整/盘点"当第三个内部模块、有它自己的编号定义（`stktranmod`），我们目前把盘点差异放进入库/出库单（用 IR/IS）。要不要给盘点单独一套定义（例如独立前缀），等用户定。
+
 ## 验证
 
 | 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
