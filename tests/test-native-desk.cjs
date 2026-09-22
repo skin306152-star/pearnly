@@ -103,3 +103,24 @@ for (const name of ['middle_name','last_name','username','roles','sb1','settings
 }
 assert.deepEqual(refreshed, ['refresh_fields'], 'Layout is refreshed so first paint matches a later form refresh');
 console.log('PASS profile keeps visible fields with their real tab/section/column ancestors');
+
+// A Dialog receives a new set of value/label pairs after each product lookup.
+// Native Autocomplete refreshes data at creation, unlike native Select's refresh.
+class NativeAutocomplete {
+  set_options() { this._data = this.df.options; }
+  set_formatted_input(value) { this.display = this._data?.find(row => row.value === value)?.label || value; }
+  validate(value) { return this._data.some(row => row.value === value) ? value : ''; }
+}
+const selectFrappe = {boot:{pearnly_product:'erp'},ui:{form:{ControlAutocomplete:NativeAutocomplete}}};
+vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/select.js','utf8'), {frappe:selectFrappe});
+const choice = new selectFrappe.ui.form.ControlSelect();
+choice.df = {options:[{value:'row-a',label:'仓库 / A架'}]};
+choice.awesomplete = {};
+choice.set_formatted_input('row-a');
+assert.equal(choice.display,'仓库 / A架');
+choice.df.options = [{value:'row-b',label:'仓库 / B架'}];
+choice.set_formatted_input('row-b');
+assert.equal(choice.display,'仓库 / B架');
+assert.equal(choice.validate('row-b'),'row-b');
+assert.equal(choice.validate('row-a'),'');
+console.log('PASS dynamic native Select refreshes labels and rejects the previous product choice');

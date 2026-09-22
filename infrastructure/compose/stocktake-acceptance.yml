@@ -40,11 +40,18 @@ services:
     mem_limit: 384m
   erp-scheduler:
     platform: linux/amd64
+    # Match the dispatch allowance for emulated Python; no command changes.
+    mem_limit: 384m
   erp-socketio:
     platform: linux/amd64
   erp-frontend:
     platform: linux/amd64
-    networks: [runtime, preview]
+    networks:
+      runtime:
+        aliases: [stocktake.localhost]
+      preview: {}
+    volumes:
+      - ./../compose/stocktake-acceptance-origin.conf:/etc/nginx/conf.d/local-origin.conf:ro
     ports: !override ['127.0.0.1:8126:8080']
   acceptance-init:
     profiles: [acceptance-init]
