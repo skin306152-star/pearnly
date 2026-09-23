@@ -4,7 +4,6 @@
 // 不该把组件依赖引进去。
 import type { Component } from "vue";
 import IconHome from "~icons/lucide/house";
-import IconBoard from "~icons/lucide/kanban";
 import IconIntake from "~icons/lucide/file-input";
 import IconHistory from "~icons/lucide/history";
 import IconPush from "~icons/lucide/send";
@@ -30,7 +29,6 @@ import IconDot from "~icons/lucide/circle";
 
 const BY_ROUTE: Record<string, Component> = {
   "/home": IconHome,
-  "/work": IconBoard,
   "/intake": IconIntake,
   "/history": IconHistory,
   "/push-logs": IconPush,

@@ -1,0 +1,144 @@
+{
+  "evidence": {
+    "schema": "pearnly-cowork-push-drift-v1",
+    "captured_at": "2026-09-21T04:49:00.283076+00:00",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "source_baseline_sha256": "1bf8b32e0d4e84128a3b8641450e40923b5bfc1470c1d76fda5a5d11607506c7",
+    "legacy_v1_sha256": "111119d806e9daed01724baeec825453432078020717e21d484a4a7fe723573a",
+    "previous_runtime_sha256": "54e821dd71557b0360c96d546ab9c513512526c9093ae344a60a2800de6eb699",
+    "updated_since": "2026-09-20T21:44:20.181640+00:00",
+    "v1_keys": [
+      "agent_token_hash",
+      "method",
+      "account_set",
+      "account_dir",
+      "account_root",
+      "system_url",
+      "comidyear",
+      "seldb",
+      "max_payload_version",
+      "companion_version",
+      "mapping"
+    ],
+    "v1_sql_sha256": "9c215511d04f442259f459c926ec3ed8047521318d3774683a53373ccd0c82c7",
+    "components": {
+      "pearnly-web": {
+        "v1_identity": {
+          "count": 60,
+          "configuration_digest": "67c022c7edb856033715c51bacf02b22"
+        },
+        "v2_identity": {
+          "count": 60,
+          "configuration_digest": "5ee9e6604b3c6dee19ab3227d8484fad"
+        },
+        "adapters": [
+          {
+            "adapter": "express",
+            "count": 7
+          },
+          {
+            "adapter": "flowaccount",
+            "count": 1
+          },
+          {
+            "adapter": "mrerp",
+            "count": 7
+          },
+          {
+            "adapter": "mrerp_dms",
+            "count": 45
+          }
+        ],
+        "updated_at_present": true,
+        "updated_at_type": "timestamp with time zone",
+        "updates_since_cutoff": [
+          {
+            "adapter": "express",
+            "updated_count": 1,
+            "earliest_update": "2026-09-21T01:15:29.763365+00:00",
+            "latest_update": "2026-09-21T01:15:29.763365+00:00"
+          },
+          {
+            "adapter": "flowaccount",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp_dms",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          }
+        ],
+        "updated_at_authoritative": false,
+        "legacy_v1_unchanged": true
+      },
+      "pearnly-worker": {
+        "v1_identity": {
+          "count": 60,
+          "configuration_digest": "67c022c7edb856033715c51bacf02b22"
+        },
+        "v2_identity": {
+          "count": 60,
+          "configuration_digest": "5ee9e6604b3c6dee19ab3227d8484fad"
+        },
+        "adapters": [
+          {
+            "adapter": "express",
+            "count": 7
+          },
+          {
+            "adapter": "flowaccount",
+            "count": 1
+          },
+          {
+            "adapter": "mrerp",
+            "count": 7
+          },
+          {
+            "adapter": "mrerp_dms",
+            "count": 45
+          }
+        ],
+        "updated_at_present": true,
+        "updated_at_type": "timestamp with time zone",
+        "updates_since_cutoff": [
+          {
+            "adapter": "express",
+            "updated_count": 1,
+            "earliest_update": "2026-09-21T01:15:29.763365+00:00",
+            "latest_update": "2026-09-21T01:15:29.763365+00:00"
+          },
+          {
+            "adapter": "flowaccount",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          },
+          {
+            "adapter": "mrerp_dms",
+            "updated_count": 0,
+            "earliest_update": null,
+            "latest_update": null
+          }
+        ],
+        "updated_at_authoritative": false,
+        "legacy_v1_unchanged": true
+      }
+    }
+  },
+  "sha256": "d313d78c34621288ae9e6d31dad2006ca4ac2a7615a495e8eed51c216840b28f"
+}

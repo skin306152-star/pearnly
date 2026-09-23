@@ -1,0 +1,89 @@
+{
+  "base_commit": "a76c742",
+  "scope": "twenty-third batch: decoded-page conversion of the legacy bank parser and its controlled admission into the native store",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "709693c7519e41b681b2550b6129dc2835ed76efb57d3c72843115629ad6acbe",
+    "start_captured_at": "2026-09-21T11:50:42.866824+00:00",
+    "delivery_sha256": "8b56503f3a9883e5051804af7c473dfeef5ae58a53365423594dd63baf75f1b6",
+    "delivery_captured_at": "2026-09-21T12:00:12.901947+00:00",
+    "source_compare": "PASS",
+    "fixed_source_hashes": {
+      "services/recon/bank_recon_pipeline.py": "c838888c6b9c7a107a1631ffdbf73a569ffc6288f20f71988480d35c484a5716",
+      "services/recon/bank_stmt_legacy.py": "7af6c4130f2ddb4cf5bfa38658d8d9f2b1941d9256f684a874c4317e6b788c7e",
+      "core/thai_date.py": "0e76c92f63f88a02cc82d223ea3ca56f4a7c999b616a00f1eae768e555fed987"
+    },
+    "runtime_projection_delivery_sha256": "2964173fd8ca8390bb118f37915bf994e8bd5f2d73bd2c3daec198de7b668395",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest 5fa7110d -> c012939c; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_within_batch": "not collected at the start of this batch, so no within-batch proof",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 123,
+      "new_tests": 21
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 15
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_source_parity.py --source /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+      "result": "PASS",
+      "new_differentials": {
+        "amount_values": 439,
+        "date_values": 1642,
+        "bank_texts": 419,
+        "statement_entry_batches": 800,
+        "statement_rows": 2728,
+        "gl_page_batches": 800,
+        "gl_rows": 3836,
+        "statement_adapter_batches": 600,
+        "gl_adapter_batches": 400
+      }
+    },
+    {
+      "command": "bench --site <site> migrate (then once more) and PEARNLY_COWORK_BACKEND_LAB=1 ../env/bin/python /workspace/scripts/cowork-bank-recon-lab-verify.py",
+      "result": "PASS",
+      "sites": ["cowork-backend-ack.localhost", "cowork-backend-preparation.localhost"],
+      "tests_per_site": 10,
+      "new_tests_per_site": 2,
+      "anonymous_http": {"create": 403, "records": 403, "detail": 403, "create_from_parsed": 403},
+      "site_leftovers_checked": "no pearnly-work Page remains after migrate on either lab Site"
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {
+      "command": "python3 scripts/check-i18n.py --list",
+      "result": "PASS for this batch",
+      "detail": "0 findings in the files changed by this batch"
+    },
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "side_fix": {
+    "file": "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_matching.py",
+    "issue": "the twentieth batch copied the deployed GlRow fields but not its __post_init__, so the row_hash fingerprint stayed empty",
+    "fix": "restored the deployed MD5 fingerprint over date|doc_no|account_code|debit:.2f|credit:.2f",
+    "result": "PASS (the parity harness now compares every declared GlRow field, row_hash included)"
+  },
+  "intentional_differences": [
+    "the native entry keeps the decoded-row contract, so a parsed row without a description, with a negative movement amount or a batch over MAX_ROWS is refused instead of matched",
+    "a parsed row whose balance column was never read arrives as the deployed 0.0 default and is stored as a known zero; the decoded-row path can express the same row as unknown",
+    "create_from_parsed adds input guards (non-mapping pages/header, a dictionary with no pages) that the legacy in-process flow never needed",
+    "contract violations raise ReconciliationContractError, not frappe.ValidationError, at both native entries (pre-existing behaviour, unchanged)",
+    "deployed quirks kept: the ISO-datetime truncation runs before the printed-month scan, so spaced printed dates never parse; the month keys are lower case and case sensitive"
+  ],
+  "not_run": [
+    "real XLSX/PDF reading, OCR, engine policy and model extraction",
+    "multi-file merge/dedupe orchestration and the bank_stmt_reread eye-swap path",
+    "asynchronous job orchestration, progress polling and cancellation",
+    "exports, review workbook and accountant review actions",
+    "income reconciliation reuse (reconciliation_type=income)",
+    "frontend integration, deployment and user acceptance",
+    "wide test_cowork_*.py run: existing modules still cannot import without frappe/openpyxl on this host"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-parse.md"
+}

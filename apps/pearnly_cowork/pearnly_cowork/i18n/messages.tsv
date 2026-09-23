@@ -1,2 +1,505 @@
 en	zh	th	ja	key
 Cowork	Cowork	Cowork	Cowork
+Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	Pearnly Cowork	
+Cowork Workspace	Cowork 公司账套	Cowork บริษัทที่จัดทำบัญชี	Cowork 会計対象会社	
+Cowork Client	Cowork 买方客户	Cowork ลูกค้าผู้ซื้อ	Cowork 買い手顧客	
+Cowork OCR History	Cowork 识别记录	Cowork ประวัติการอ่านเอกสาร	Cowork 認識履歴	
+Cowork Master Data	Cowork 主数据	Cowork ข้อมูลหลัก	Cowork マスタデータ	
+Company	公司	บริษัท	会社	
+Buyer Client	买方客户	ลูกค้าผู้ซื้อ	買い手顧客	
+Tax ID	纳税人识别号	เลขประจำตัวผู้เสียภาษี	納税者番号	
+Draft	草稿	ฉบับร่าง	下書き	
+Invoice Pages	发票页面	หน้าใบแจ้งหนี้	請求書のページ	
+First Recognition Snapshot	首次识别快照	สำเนาผลการอ่านครั้งแรก	初回認識結果のスナップショット	
+Recognition Confidence	识别置信度	ระดับความมั่นใจในการอ่าน	認識の信頼度	
+Recognition Quality	识别质量	คุณภาพการอ่าน	認識品質	
+Posting Kind	过账类型	ประเภทการผ่านรายการ	記帳区分	
+Invoice Number	发票号码	เลขที่ใบแจ้งหนี้	請求書番号	
+Invoice Date	发票日期	วันที่ใบแจ้งหนี้	請求書の日付	
+Seller Name	卖方名称	ชื่อผู้ขาย	売り手名	
+Invoice Total	发票总额	ยอดรวมใบแจ้งหนี้	請求書合計	
+Decimal summary; pages retain the original amount.	摘要金额使用精确十进制数；页面保留原始金额。	ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้	概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。	
+Record Revision	记录版本	รุ่นของรายการ	レコードの版	
+Edit Count	修改次数	จำนวนครั้งที่แก้ไข	編集回数	
+Last Fields Edit (UTC)	最近字段修改时间（UTC）	แก้ไขข้อมูลล่าสุดเมื่อ (UTC)	項目の最終編集日時（UTC）	
+Completed By	完成人	ผู้ทำรายการเสร็จสิ้น	完了者	
+Completed At (UTC)	完成时间（UTC）	เสร็จสิ้นเมื่อ (UTC)	完了日時（UTC）	
+Request Key	请求标识	รหัสคำขอ	リクエストキー	
+Request Fingerprint	请求内容指纹	ลายนิ้วมือข้อมูลคำขอ	リクエスト内容のフィンガープリント	
+Source PDF ID	来源 PDF 标识	รหัส PDF ต้นฉบับ	元のPDFのID	
+Source Page Indices	源文件页码	หมายเลขหน้าไฟล์ต้นฉบับ	元ファイルのページ番号	
+Invoice Index	发票序号	ลำดับใบแจ้งหนี้	請求書の順番	
+Invoice Count	发票数量	จำนวนใบแจ้งหนี้	請求書の件数	
+Original Filename	原始文件名	ชื่อไฟล์ต้นฉบับ	元のファイル名	
+File Hash	文件哈希值	ค่าแฮชของไฟล์	ファイルのハッシュ値	
+Page Count	页数	จำนวนหน้า	ページ数	
+A name is required.	请填写名称。	กรุณาระบุชื่อ	名前を入力してください。	
+A client cannot be moved to another company.	客户不能转移到另一家公司。	ไม่สามารถย้ายลูกค้าไปยังบริษัทอื่นได้	顧客を別の会社に移動することはできません。	
+A positive record revision is required.	记录版本必须是正整数。	รุ่นของรายการต้องเป็นจำนวนเต็มบวก	レコードの版には正の整数が必要です。	
+The record changed. Reload it before saving.	记录已被修改，请重新加载后再保存。	รายการมีการเปลี่ยนแปลง กรุณาโหลดใหม่ก่อนบันทึก	レコードが変更されました。再読み込みしてから保存してください。	
+Update invoice records through the Cowork review service.	请通过 Cowork 复核功能更新发票记录。	กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork	Coworkの確認機能から請求書の記録を更新してください。	
+Original evidence and ownership cannot be changed.	原始凭据及归属不能修改。	ไม่สามารถแก้ไขหลักฐานต้นฉบับและข้อมูลเจ้าของได้	元の証跡と所属情報は変更できません。	
+A completed record cannot become a draft.	已完成的记录不能改回草稿。	ไม่สามารถเปลี่ยนรายการที่เสร็จสิ้นแล้วกลับเป็นฉบับร่างได้	完了したレコードを下書きに戻すことはできません。	
+Create invoice records through the Cowork intake service.	请通过 Cowork 录入功能创建发票记录。	กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork	Coworkの取り込み機能から請求書の記録を作成してください。	
+New records must start as drafts.	新记录必须先保存为草稿。	รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง	新しいレコードは下書きとして作成する必要があります。	
+A request key of 1 to 128 characters is required.	请求标识须为 1 至 128 个字符。	รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ	リクエストキーは1～128文字で指定してください。	
+This request key has already been used for different content.	此请求标识已用于其他内容。	รหัสคำขอนี้ถูกใช้กับเนื้อหาอื่นแล้ว	このリクエストキーは別の内容ですでに使用されています。	
+At least one invoice page is required when editing.	编辑时必须保留至少一页发票。	เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า	編集時には請求書のページが少なくとも1ページ必要です。	
+Select between 1 and 500 records.	请选择 1 至 500 条记录。	กรุณาเลือก 1 ถึง 500 รายการ	1～500件のレコードを選択してください。	
+Each record must have a name and revision.	每条记录都必须提供标识和版本。	แต่ละรายการต้องมีรหัสและรุ่นของรายการ	各レコードには識別子と版が必要です。	
+Each record must have a valid name.	每条记录都必须提供有效标识。	แต่ละรายการต้องมีรหัสที่ถูกต้อง	各レコードには有効な識別子が必要です。	
+Duplicate records are not allowed.	不能重复选择同一条记录。	ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้	同じレコードを重複して選択することはできません。	
+Assign Cowork access through company and client permissions.	请通过公司和客户权限分配 Cowork 访问范围。	กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า	会社と顧客の権限からCoworkのアクセス範囲を設定してください。	
+Remove legacy document shares before accessing Cowork records.	请先移除旧的文档共享授权，再访问 Cowork 记录。	กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork	旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。	
+Manual	手工	กรอกเอง	手入力	manual
+Cowork LINE	Cowork LINE	Cowork LINE	Cowork LINE	cowork_line
+Summary table import	汇总表导入	นำเข้าตารางสรุป	集計表の取り込み	summary_table_batch
+Failed	失败	ล้มเหลว	失敗	failed
+Pending	待处理	รอดำเนินการ	処理待ち	pending
+Confirmed	已确认	ยืนยันแล้ว	確認済み	confirmed
+No invoice summary found	未识别到摘要	ไม่พบข้อมูลสรุปใบแจ้งหนี้	請求書の概要情報なし	cowork.quality.failed
+Needs review	待复核	รอตรวจสอบ	要確認	cowork.quality.pending
+Recognized with high confidence	高置信识别	อ่านข้อมูลด้วยความมั่นใจสูง	高い信頼度で認識	cowork.quality.confirmed
+Service	服务	บริการ	サービス	service
+Stock	库存	สต็อก	在庫	stock
+The record data is not valid JSON.	记录数据不是有效的 JSON。	ข้อมูลรายการไม่ใช่ JSON ที่ถูกต้อง	レコードデータが有効なJSONではありません。	history.json_invalid
+ERP records cannot be saved in Cowork.	ERP 记录不能保存到 Cowork。	ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้	ERPのレコードはCoworkに保存できません。	history.erp_source_forbidden
+The record source is not supported.	不支持此记录来源。	ไม่รองรับแหล่งที่มาของรายการนี้	このレコードの取得元には対応していません。	history.source_invalid
+Only manual records can be created through this entry.	此入口只能创建手工录入记录。	ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง	この画面からは手入力のレコードのみ作成できます。	history.source_not_public
+The invoice page data has an invalid format.	发票页面数据格式不正确。	รูปแบบข้อมูลหน้าใบแจ้งหนี้ไม่ถูกต้อง	請求書のページデータの形式が正しくありません。	history.pages_invalid
+The invoice fields have an invalid format.	发票字段格式不正确。	รูปแบบข้อมูลในช่องใบแจ้งหนี้ไม่ถูกต้อง	請求書の項目データの形式が正しくありません。	history.fields_invalid
+The record metadata has an invalid format.	记录附加信息格式不正确。	รูปแบบข้อมูลประกอบรายการไม่ถูกต้อง	レコードの付加情報の形式が正しくありません。	history.metadata_invalid
+The printed invoice date cannot be read. Check the date shown on the document.	无法识别票面日期，请核对单据上的日期。	ไม่สามารถอ่านวันที่บนใบแจ้งหนี้ได้ กรุณาตรวจสอบวันที่บนเอกสาร	請求書に記載された日付を読み取れません。書類の日付を確認してください。	history.date_unreadable
+The source page number must be a positive integer.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。	history.page_index_invalid
+The date reference year is missing. Reload and try again.	缺少日期参考年份，请重新加载后重试。	ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年がありません。再読み込みしてから再試行してください。	history.date_anchor_required
+The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
+Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません	
+A positive source page number is required.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。	
+Actor	操作人	ผู้ดำเนินการ	実行者	
+Actual Qty	实盘数量	จำนวนที่ตรวจนับจริง	実棚数量	
+Barcode	条形码	บาร์โค้ด	バーコード	
+Book Qty	账面数量	จำนวนตามบัญชี	帳簿数量	
+Closed At	关闭时间	เวลาปิด	クローズ日時	
+Closed By	关闭人	ผู้ปิด	クローズしたユーザー	
+Count Mode	盘点方式	วิธีตรวจนับ	棚卸方式	
+Counted At	盘点时间	เวลาตรวจนับ	棚卸日時	
+Counted By	盘点人	ผู้ตรวจนับ	棚卸担当者	
+Cowork Source File	Cowork 原始文件	ไฟล์ต้นฉบับ Cowork	Cowork 元ファイル	
+Cowork Stocktake	Cowork 库存盘点	ตรวจนับสต็อก Cowork	Cowork 棚卸	
+Cowork Stocktake Entry	Cowork 盘点记录	รายการตรวจนับสต็อก Cowork	Cowork 棚卸記録	
+Cowork Stocktake Item	Cowork 盘点品项	รายการสินค้าสำหรับตรวจนับ Cowork	Cowork 棚卸品目	
+Cowork Stocktake Operation	Cowork 盘点操作记录	บันทึกการดำเนินการตรวจนับ Cowork	Cowork 棚卸操作記録	
+Cowork Stocktake Task	Cowork 盘点任务	งานตรวจนับสต็อก Cowork	Cowork 棚卸タスク	
+Created By	创建人	ผู้สร้าง	作成者	
+Current Json	当前数据（JSON）	ข้อมูลปัจจุบัน (JSON)	現在のデータ（JSON）	
+Entry	记录	รายการ	エントリー	
+Invalid original filename.	原始文件名无效。	ชื่อไฟล์ต้นฉบับไม่ถูกต้อง	元ファイル名が無効です。	
+Invoice References Complete	发票关联已完整	เชื่อมโยงใบแจ้งหนี้ครบแล้ว	請求書の関連付け完了	
+Invoice References Fingerprint	发票关联指纹	ลายนิ้วมือการเชื่อมโยงใบแจ้งหนี้	請求書関連付けのフィンガープリント	
+Item	项目	รายการ	項目	
+Location	位置	ตำแหน่ง	場所	
+Native Content Hash	原生文件内容哈希	ค่าแฮชเนื้อหาไฟล์ของระบบ	標準ファイルの内容ハッシュ	
+Original SHA-256	原始文件 SHA-256	SHA-256 ของไฟล์ต้นฉบับ	元ファイルの SHA-256	
+Original Size	原始文件大小	ขนาดไฟล์ต้นฉบับ	元ファイルサイズ	
+Original Type	原始文件类型	ประเภทไฟล์ต้นฉบับ	元ファイルの種類	
+Original files can only be changed through the Cowork file service.	只能通过 Cowork 文件服务更改原始文件。	เปลี่ยนแปลงไฟล์ต้นฉบับได้ผ่านบริการไฟล์ Cowork เท่านั้น	元ファイルの変更には Cowork ファイルサービスを使用してください。	
+Original files cannot be changed.	原始文件不可更改。	ไม่สามารถเปลี่ยนแปลงไฟล์ต้นฉบับได้	元ファイルは変更できません。	
+Original files cannot be deleted while invoice references may exist.	可能仍有关联发票时，不可删除原始文件。	ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่	関連する請求書が存在する可能性がある間は、元ファイルを削除できません。	
+Original files cannot be shared separately from their invoices.	原始文件不能与其关联发票分开共享。	ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้	元ファイルを関連する請求書と別に共有することはできません。	
+PDF files must contain between 1 and 50 pages.	PDF 文件必须为 1 至 50 页。	ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า	PDF ファイルのページ数は 1～50 ページにしてください。	
+Page preview is available only for PDF and image originals.	仅支持 PDF 和图像原件的页面预览。	ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น	ページプレビューは PDF と画像の元ファイルにのみ対応しています。	
+Password-protected PDF files cannot be read.	无法读取受密码保护的 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF ที่มีรหัสผ่านได้	パスワードで保護された PDF ファイルは読み取れません。	
+Previous Json	更改前数据（JSON）	ข้อมูลก่อนเปลี่ยนแปลง (JSON)	変更前のデータ（JSON）	
+Private File	私有文件	ไฟล์ส่วนตัว	非公開ファイル	
+Private Storage URL	私有存储地址	URL ที่จัดเก็บส่วนตัว	非公開ストレージ URL	
+Product Code	产品编码	รหัสสินค้า	商品コード	
+Product Name	产品名称	ชื่อสินค้า	商品名	
+Quantity	数量	จำนวน	数量	
+Record Id	记录 ID	รหัสรายการ	レコード ID	
+Request Json	请求数据（JSON）	ข้อมูลคำขอ (JSON)	リクエストデータ（JSON）	
+Select a file to upload.	请选择要上传的文件。	กรุณาเลือกไฟล์ที่จะอัปโหลด	アップロードするファイルを選択してください。	
+Source Digest	来源摘要	ค่าแฮชของข้อมูลต้นทาง	元データのダイジェスト	
+Source Format	来源格式	รูปแบบข้อมูลต้นทาง	元データの形式	
+Task	任务	งาน	タスク	
+The PDF file cannot be read.	无法读取该 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF นี้ได้	この PDF ファイルを読み取れません。	
+The image file cannot be read.	无法读取该图像文件。	ไม่สามารถอ่านไฟล์รูปภาพนี้ได้	この画像ファイルを読み取れません。	
+The original file checksum does not match.	原始文件校验值不匹配。	ค่าแฮชตรวจสอบของไฟล์ต้นฉบับไม่ตรงกัน	元ファイルのチェックサムが一致しません。	
+The original file is not ready for page preview.	原始文件尚未准备好，暂时无法预览页面。	ไฟล์ต้นฉบับยังไม่พร้อมสำหรับการดูตัวอย่างหน้า	元ファイルのページプレビューはまだ準備できていません。	
+The original file reference has changed.	原始文件关联已改变。	การเชื่อมโยงไฟล์ต้นฉบับเปลี่ยนไปแล้ว	元ファイルの参照が変更されています。	
+The requested page is not part of this invoice.	请求的页面不属于这张发票。	หน้าที่ร้องขอไม่ได้เป็นส่วนหนึ่งของใบแจ้งหนี้นี้	指定したページはこの請求書に含まれていません。	
+The uploaded file exceeds the 100 MiB limit.	上传文件超过 100 MiB 上限。	ไฟล์ที่อัปโหลดมีขนาดเกินขีดจำกัด 100 MiB	アップロードしたファイルは上限の 100 MiB を超えています。	
+The uploaded file is empty.	上传文件为空。	ไฟล์ที่อัปโหลดว่างเปล่า	アップロードしたファイルは空です。	
+This file type is not supported.	不支持此文件类型。	ไม่รองรับไฟล์ประเภทนี้	このファイル形式には対応していません。	
+This page is too large to preview safely.	该页面尺寸过大，无法安全预览。	หน้านี้มีขนาดใหญ่เกินกว่าจะแสดงตัวอย่างได้อย่างปลอดภัย	このページは大きすぎるため、安全にプレビューできません。	
+Title	标题	ชื่อเรื่อง	タイトル	
+Updated At	更新时间	เวลาแก้ไข	更新日時	
+Updated By	更新人	ผู้แก้ไข	更新者	
+Uploaded By	上传人	ผู้อัปโหลด	アップロードしたユーザー	
+Use the Cowork original-file service to access this file.	请通过 Cowork 原始文件服务访问此文件。	กรุณาเข้าถึงไฟล์นี้ผ่านบริการไฟล์ต้นฉบับ Cowork	このファイルには Cowork 元ファイルサービスからアクセスしてください。	
+Version	版本	เวอร์ชัน	バージョン	
+Voided	已作废	ยกเลิกแล้ว	無効化済み	
+Warehouse	仓库	คลังสินค้า	倉庫	
+active	有效	ใช้งานอยู่	有効	
+closed	已关闭	ปิดแล้ว	クローズ済み	
+document	文档	เอกสาร	文書	
+image	图像	รูปภาพ	画像	
+legacy	旧版	ระบบเดิม	旧形式	
+pdf	PDF	PDF	PDF	
+scan	扫描	สแกน	スキャン	
+Row {0}: {1}	第 {0} 行：{1}	แถว {0}: {1}	{0} 行目：{1}	
+The uploaded file is empty.	上传文件为空。	ไฟล์ที่อัปโหลดว่างเปล่า	アップロードしたファイルは空です。	ocr.empty_file
+The file exceeds the allowed size.	文件超过允许的大小上限。	ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต	ファイルサイズが上限を超えています。	ocr.file_too_large
+The file size or page metadata is invalid.	文件大小或页数信息无效。	ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง	ファイルサイズまたはページ情報が無効です。	ocr.invalid_input_metadata
+The PDF file cannot be read.	无法读取该 PDF 文件。	ไม่สามารถอ่านไฟล์ PDF นี้ได้	この PDF ファイルを読み取れません。	ocr.invalid_pdf
+The PDF exceeds the allowed page count.	PDF 超过允许的页数上限。	ไฟล์ PDF มีจำนวนหน้าเกินขีดจำกัดที่อนุญาต	PDF のページ数が上限を超えています。	ocr.too_many_pages
+This file type is not supported.	不支持此文件类型。	ไม่รองรับไฟล์ประเภทนี้	このファイル形式には対応していません。	ocr.unsupported_format
+A product code or barcode identifies more than one product.	产品编码或条形码对应了多个产品。	รหัสสินค้าหรือบาร์โค้ดตรงกับสินค้ามากกว่าหนึ่งรายการ	商品コードまたはバーコードが複数の商品に対応しています。	stocktake.ambiguous_code
+Product codes and barcodes must be stored as text.	产品编码和条形码必须以文本格式保存。	รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ	商品コードとバーコードは文字列として保存してください。	stocktake.code_as_text
+Use the stock count workflow to change these records.	请通过盘点流程更改这些记录。	กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก	これらの記録は棚卸の操作から変更してください。	stocktake.dedicated_api_required
+The import contains a repeated product code.	导入数据包含重复的产品编码。	ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ	インポートデータに重複する商品コードがあります。	stocktake.duplicate
+The import contains no product rows.	导入数据中没有产品行。	ข้อมูลนำเข้าไม่มีรายการสินค้า	インポートデータに商品行がありません。	stocktake.empty
+The import columns do not match the stock count template.	导入列与盘点模板不匹配。	คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก	インポートする列が棚卸テンプレートと一致しません。	stocktake.headers_invalid
+Enter a stock count title of 1 to 120 characters.	请输入 1 至 120 个字符的盘点标题。	กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร	棚卸のタイトルを 1～120 文字で入力してください。	stocktake.name_invalid
+The stock count record was not found.	找不到盘点记录。	ไม่พบรายการตรวจนับสต็อก	棚卸記録が見つかりません。	stocktake.not_found
+This operation ID has already been used for another request.	此操作 ID 已用于其他请求。	รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว	この操作 ID は別のリクエストで使用されています。	stocktake.operation_conflict
+Enter a valid quantity with no more than six decimal places.	请输入有效数量，最多保留六位小数。	กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง	有効な数量を小数点以下 6 桁以内で入力してください。	stocktake.quantity_invalid
+The stock count request is invalid. Reload and try again.	盘点请求无效，请重新加载后重试。	คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	棚卸リクエストが無効です。再読み込みしてから再試行してください。	stocktake.request_invalid
+The import row is invalid or has missing required values.	导入行无效或缺少必填值。	แถวนำเข้าไม่ถูกต้องหรือขาดค่าที่จำเป็น	インポート行が無効か、必須項目が不足しています。	stocktake.row_invalid
+The import exceeds the limit of 10,000 rows.	导入数据超过 10,000 行上限。	ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว	インポートデータが上限の 10,000 行を超えています。	stocktake.too_many_rows
+Check the warehouse and location. A warehouse is required.	请检查仓库和位置，仓库为必填项。	กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า	倉庫と場所を確認してください。倉庫は必須です。	stocktake.warehouse_required
+This import request ID has already been used for different content.	此导入请求 ID 已用于不同内容。	รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว	このインポートリクエスト ID は異なる内容で使用されています。	stocktake.import_conflict
+This task uses the previous count format and cannot accept scan entries.	此任务使用旧版盘点格式，不能接收扫描记录。	งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้	このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。	stocktake.legacy_task
+This stock count task is closed.	此盘点任务已关闭。	งานตรวจนับสต็อกนี้ปิดแล้ว	この棚卸タスクはクローズ済みです。	stocktake.closed
+This count entry has changed. Refresh it and try again.	此盘点记录已更改，请刷新后重试。	รายการตรวจนับนี้เปลี่ยนแปลงแล้ว กรุณารีเฟรชแล้วลองอีกครั้ง	この棚卸記録は変更されています。再読み込みしてから再試行してください。	stocktake.conflict
+An original file is already stored for this source.	此来源已保存原始文件。	ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว	この参照元には既に元ファイルが保存されています。	
+Bound Invoice Records	已关联发票记录	รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว	関連付け済みの請求書記録	
+Invalid recognized invoice group.	识别出的发票分组无效。	กลุ่มใบแจ้งหนี้ที่อ่านได้ไม่ถูกต้อง	認識した請求書グループが無効です。	
+Invoice pages do not match the original page references.	发票页面与原件页码关联不一致。	หน้าใบแจ้งหนี้ไม่ตรงกับหน้าต้นฉบับที่อ้างอิง	請求書のページが元ファイルの参照ページと一致しません。	
+Original File	原始文件	ไฟล์ต้นฉบับ	元ファイル	
+The original file already has a completed invoice manifest.	此原始文件已完成发票关联。	ไฟล์ต้นฉบับนี้เชื่อมโยงใบแจ้งหนี้ครบแล้ว	この元ファイルの請求書関連付けは既に完了しています。	
+The original invoice manifest is incomplete.	原始文件的发票关联清单不完整。	รายการเชื่อมโยงใบแจ้งหนี้ของไฟล์ต้นฉบับไม่ครบถ้วน	元ファイルの請求書関連付け一覧が不完全です。	
+Stock count photos are not yet supported. Remove the photos before saving.	盘点照片尚未接入，请先移除照片后保存。	ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก	棚卸写真にはまだ対応していません。写真を削除してから保存してください。	stocktake.photos_not_supported
+Select valid files to download.	请选择有效文件进行下载。	กรุณาเลือกไฟล์ที่ถูกต้องเพื่อดาวน์โหลด	ダウンロードする有効なファイルを選択してください。	
+Anchor Date	参考日期	วันที่อ้างอิง	基準日	
+Billing Code	计费代码	รหัสค่าบริการ	課金コード	
+Billing Receipt	计费回执	ผลยืนยันการเรียกเก็บเงิน	課金処理結果	
+Billing Reference	计费关联号	เลขที่อ้างอิงการเรียกเก็บเงิน	課金参照番号	
+Billing State	计费状态	สถานะการเรียกเก็บเงิน	課金状態	
+Changed At (UTC)	修改时间（UTC）	เวลาที่แก้ไข (UTC)	変更日時（UTC）	
+Changed By	修改人	ผู้แก้ไข	変更者	
+Client	客户	ลูกค้า	顧客	
+Corrected Value	修正值	ค่าที่แก้ไข	修正値	
+Cowork OCR Batch	Cowork 识别批次	Cowork ชุดงานอ่านเอกสาร	Cowork 認識バッチ	
+Cowork OCR Correction	Cowork 识别修正例	Cowork ตัวอย่างการแก้ไขผลอ่านเอกสาร	Cowork 認識修正例	
+Cowork OCR requires a configured provider credential reference.	请先配置 Cowork 识别服务的凭据引用。	กรุณากำหนดการอ้างอิงข้อมูลรับรองของผู้ให้บริการอ่านเอกสาร Cowork ก่อน	Cowork 認識サービスの認証情報参照を設定してください。	
+Cowork OCR requires an explicit invoice configuration.	请先配置 Cowork 发票识别参数。	กรุณากำหนดค่าการอ่านใบแจ้งหนี้ Cowork ก่อน	Cowork の請求書認識設定を指定してください。	
+Direction	业务方向	ทิศทางรายการ	取引方向	
+Event Key	事件标识	รหัสเหตุการณ์	イベント識別子	
+Evidence Fingerprint	证据指纹	ลายนิ้วมือหลักฐาน	証跡フィンガープリント	
+Examples Json	修正例数据（JSON）	ข้อมูลตัวอย่างการแก้ไข (JSON)	修正例データ（JSON）	
+Field	字段	ฟิลด์	項目	
+First Recognition Value	首次识别值	ค่าที่อ่านได้ครั้งแรก	初回認識値	
+History Records	识别记录	บันทึกการอ่านเอกสาร	認識記録	
+Invalid Cowork OCR configuration.	Cowork 识别配置无效。	การตั้งค่าการอ่านเอกสาร Cowork ไม่ถูกต้อง	Cowork の認識設定が無効です。	
+Phase	处理阶段	ขั้นตอนการประมวลผล	処理段階	
+Provider Evidence	服务商调用证据	หลักฐานการเรียกใช้ผู้ให้บริการ	プロバイダー呼び出し証跡	
+Recognition input and ownership cannot be changed.	识别输入和归属不能修改。	ไม่สามารถแก้ไขข้อมูลนำเข้าและเจ้าของงานอ่านเอกสารได้	認識入力と所有情報は変更できません。	
+Recognition tasks cannot be deleted through the document API.	识别任务不能通过通用文档接口删除。	ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้	認識タスクは汎用ドキュメント API から削除できません。	
+Recognition tasks cannot be shared separately from their originals.	识别任务不能脱离原始文件单独共享。	ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้	認識タスクは元ファイルと切り離して共有できません。	
+Requires Review	需要人工核对	ต้องตรวจสอบโดยผู้ใช้	確認が必要	
+Result Json	识别结果（JSON）	ผลการอ่านเอกสาร (JSON)	認識結果（JSON）	
+Sample Key	修正例标识	รหัสตัวอย่างการแก้ไข	修正例識別子	
+Scope Key	权限范围标识	รหัสขอบเขตสิทธิ์	権限範囲識別子	
+Seller Tax ID	卖方税号	เลขประจำตัวผู้เสียภาษีของผู้ขาย	売り手の納税者番号	
+Settings Json	配置数据（JSON）	ข้อมูลการตั้งค่า (JSON)	設定データ（JSON）	
+Site	站点	เว็บไซต์	サイト	
+Source File	原始文件	ไฟล์ต้นฉบับ	元ファイル	
+Source History	来源识别记录	บันทึกการอ่านเอกสารต้นทาง	元の認識記録	
+Source Sha256	原始文件 SHA-256	SHA-256 ของไฟล์ต้นฉบับ	元ファイルの SHA-256	
+The OCR connection changed after this task was accepted.	任务受理后识别服务连接已变更。	การเชื่อมต่อบริการอ่านเอกสารเปลี่ยนไปหลังรับงานนี้	このタスクの受け付け後に認識サービスの接続設定が変更されました。	
+The billing receipt cannot be reverted.	计费回执不能撤回。	ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้	課金処理結果は元に戻せません。	
+The completed recognition result cannot be replaced.	已完成的识别结果不能替换。	ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้	完了済みの認識結果は置き換えられません。	
+The invoice configuration does not match the OCR connection.	发票识别配置与服务连接不一致。	การตั้งค่าการอ่านใบแจ้งหนี้ไม่ตรงกับการเชื่อมต่อบริการอ่านเอกสาร	請求書の認識設定とサービスの接続設定が一致しません。	
+The recognized invoice manifest cannot be replaced.	已识别的发票关联清单不能替换。	ไม่สามารถแทนที่รายการเชื่อมโยงใบแจ้งหนี้ที่อ่านแล้วได้	認識済みの請求書関連付け一覧は置き換えられません。	
+This Cowork OCR mode is not available on the new platform yet.	新平台暂不支持此 Cowork 识别模式。	แพลตฟอร์มใหม่ยังไม่รองรับโหมดอ่านเอกสาร Cowork นี้	新プラットフォームは、この Cowork 認識モードにまだ対応していません。	
+This original already has a recognition task with different parameters.	此原始文件已有参数不同的识别任务。	ไฟล์ต้นฉบับนี้มีงานอ่านเอกสารที่ใช้พารามิเตอร์ต่างกันอยู่แล้ว	この元ファイルには、異なるパラメーターの認識タスクが既にあります。	
+This recognition service currently accepts PDF and image originals.	此识别服务目前仅支持 PDF 和图片原件。	บริการอ่านเอกสารนี้รองรับเฉพาะไฟล์ต้นฉบับ PDF และรูปภาพในขณะนี้	この認識サービスは現在、PDF と画像の元ファイルに対応しています。	
+Use the Cowork OCR service to access recognition tasks.	请通过 Cowork 识别服务访问识别任务。	กรุณาเข้าถึงงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクへのアクセスには Cowork 認識サービスを使用してください。	
+Use the Cowork OCR service to change recognition tasks.	请通过 Cowork 识别服务修改识别任务。	กรุณาแก้ไขงานอ่านเอกสารผ่านบริการอ่านเอกสาร Cowork	認識タスクの変更には Cowork 認識サービスを使用してください。	
+Work Name	后台任务标识	รหัสงานเบื้องหลัง	バックグラウンドタスク識別子	
+Workspace	公司账套	ชุดบัญชีบริษัท	会社帳簿	
+admitted	已受理	รับงานแล้ว	受け付け済み	
+charged	已计费	เรียกเก็บเงินแล้ว	課金済み	
+not_billable	无需计费	ไม่ต้องเรียกเก็บเงิน	課金対象外	
+not_due	尚无需计费	ยังไม่ถึงขั้นตอนเรียกเก็บเงิน	課金処理前	
+not_invoice	非发票	ไม่ใช่ใบแจ้งหนี้	請求書以外	
+recognized	已识别	อ่านเอกสารแล้ว	認識済み	
+recognizing	识别中	กำลังอ่านเอกสาร	認識中	
+saved	已保存	บันทึกแล้ว	保存済み	
+Billing Kind	计费类型	ประเภทการคิดค่าบริการ	課金種別	
+Billing Units	计费单位	หน่วยคิดค่าบริการ	課金単位	
+Source Reference Kind	原件关联类型	ประเภทการอ้างอิงต้นฉบับ	元ファイルの参照種別	
+Source Reference Count	原件关联项数	จำนวนรายการอ้างอิงต้นฉบับ	元ファイルの参照項目数	
+Original Document Manifest	原件内容索引	ดัชนีเนื้อหาเอกสารต้นฉบับ	元文書の内容索引	
+Original Content Coverage Complete	原件内容已完整覆盖	ครอบคลุมเนื้อหาต้นฉบับครบถ้วน	元ファイルの内容をすべて網羅	
+excel	Excel	Excel	Excel	
+physical_page	物理页	หน้าจริงของเอกสาร	物理ページ	
+logical_section	文档逻辑单元	ส่วนข้อมูลของเอกสาร	文書の論理単位	
+Invalid original document manifest.	原件内容索引无效。	ดัชนีเนื้อหาเอกสารต้นฉบับไม่ถูกต้อง	元文書の内容索引が無効です。	
+The original document manifest cannot be changed.	原件内容索引不能修改。	ไม่สามารถแก้ไขดัชนีเนื้อหาเอกสารต้นฉบับได้	元文書の内容索引は変更できません。	
+The original document manifest exceeds the 8 MiB limit.	原件内容索引超过 8 MiB 上限。	ดัชนีเนื้อหาเอกสารต้นฉบับมีขนาดเกินขีดจำกัด 8 MiB	元文書の内容索引が上限の 8 MiB を超えています。	
+The original document manifest is not ready.	原件内容索引尚未就绪。	ดัชนีเนื้อหาเอกสารต้นฉบับยังไม่พร้อมใช้งาน	元文書の内容索引はまだ準備できていません。	
+The recognized content does not match the original references.	识别内容与原件关联不一致。	เนื้อหาที่อ่านได้ไม่ตรงกับรายการอ้างอิงต้นฉบับ	認識した内容が元ファイルの参照項目と一致しません。	ocr.page_association_invalid
+The document contains too many internal files.	文档内部文件数量超过上限。	เอกสารมีจำนวนไฟล์ภายในเกินขีดจำกัด	文書内のファイル数が上限を超えています。	ocr.table_archive_member_limit
+The document exceeds the allowed size after decompression.	文档解压后的大小超过上限。	เอกสารมีขนาดหลังคลายการบีบอัดเกินขีดจำกัด	展開後の文書サイズが上限を超えています。	ocr.table_archive_size_limit
+The document contains too many cells.	文档单元格数量超过上限。	เอกสารมีจำนวนเซลล์เกินขีดจำกัด	文書のセル数が上限を超えています。	ocr.table_cell_limit
+The document contains too many columns.	文档列数超过上限。	เอกสารมีจำนวนคอลัมน์เกินขีดจำกัด	文書の列数が上限を超えています。	ocr.table_column_limit
+The document reader is unavailable. Contact your administrator.	文档读取服务不可用，请联系管理员。	บริการอ่านเอกสารไม่พร้อมใช้งาน กรุณาติดต่อผู้ดูแลระบบ	文書の読み取り機能が利用できません。管理者にお問い合わせください。	ocr.table_dependency_unavailable
+This document format is not supported.	不支持此文档格式。	ไม่รองรับรูปแบบเอกสารนี้	この文書形式には対応していません。	ocr.table_format_not_supported
+The document file is damaged or cannot be decompressed.	文档文件已损坏或无法解压。	ไฟล์เอกสารเสียหายหรือไม่สามารถคลายการบีบอัดได้	文書ファイルが破損しているか、展開できません。	ocr.table_invalid_archive
+The document content is invalid.	文档内容无效。	เนื้อหาเอกสารไม่ถูกต้อง	文書の内容が無効です。	ocr.table_invalid_bytes
+The worksheet row or column information is invalid.	工作表行列信息无效。	ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง	ワークシートの行または列の情報が無効です。	ocr.table_invalid_dimensions
+The document could not be read. Check the file and try again.	无法读取文档，请检查文件后重试。	ไม่สามารถอ่านเอกสารได้ กรุณาตรวจสอบไฟล์แล้วลองอีกครั้ง	文書を読み取れません。ファイルを確認してから再試行してください。	ocr.table_parse_failed
+Reimporting review workbooks is not available on the new platform yet.	新平台暂不支持复核工作簿回导。	แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ	新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。	ocr.table_roundtrip_not_supported
+The document contains too many rows.	文档行数超过上限。	เอกสารมีจำนวนแถวเกินขีดจำกัด	文書の行数が上限を超えています。	ocr.table_row_limit
+The document contains too much text.	文档文本总量超过上限。	เอกสารมีปริมาณข้อความเกินขีดจำกัด	文書のテキスト量が上限を超えています。	ocr.table_text_limit
+A document section exceeds 30,000 characters. Split the document before recognition.	文档中有单个单元超过 30,000 字符，请拆分文档后再识别。	มีส่วนข้อมูลในเอกสารยาวเกิน 30,000 ตัวอักษร กรุณาแบ่งเอกสารก่อนสั่งอ่าน	文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。	ocr.table_text_too_long
+The document sections are incomplete or invalid.	文档逻辑单元不完整或无效。	ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง	文書の論理単位が不完全または無効です。	ocr.table_units_invalid
+The document contains unsupported XML declarations.	文档包含不支持的 XML 声明。	เอกสารมีการประกาศ XML ที่ไม่รองรับ	文書に対応していない XML 宣言が含まれています。	ocr.table_xml_declaration_not_allowed
+The review workbook contains no invoice rows to import.	复核工作簿中没有可回导的发票行。	สมุดงานตรวจทานไม่มีแถวใบแจ้งหนี้ให้นำเข้ากลับ	確認用ワークブックに再取り込みできる請求書の行がありません。	ocr.roundtrip_empty
+The review workbook contains an invalid number.	复核工作簿包含无效数值。	สมุดงานตรวจทานมีค่าตัวเลขที่ไม่ถูกต้อง	確認用ワークブックに無効な数値が含まれています。	ocr.roundtrip_invalid_number
+This file does not match the review workbook format.	此文件不符合复核工作簿格式。	ไฟล์นี้ไม่ตรงกับรูปแบบสมุดงานตรวจทาน	このファイルは確認用ワークブックの形式と一致しません。	ocr.roundtrip_not_matched
+The review workbook cannot be read. Check its format and content.	无法读取复核工作簿，请检查格式和内容。	ไม่สามารถอ่านสมุดงานตรวจทานได้ กรุณาตรวจสอบรูปแบบและเนื้อหา	確認用ワークブックを読み取れません。形式と内容を確認してください。	ocr.roundtrip_parse_failed
+The review worksheet name contains extra spaces. Restore the original name.	复核工作表名称包含多余空格，请恢复原工作表名。	ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม	確認用シート名に余分な空白があります。元のシート名に戻してください。	ocr.roundtrip_sheet_name_invalid
+The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.	复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。	สมุดงานตรวจทานยังมีข้อมูลหลังแถวว่างติดต่อกัน 50 แถว กรุณาลบช่วงแถวว่างก่อนนำเข้ากลับ	確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。	ocr.roundtrip_trailing_rows
+A review workbook must contain between 1 and 500 invoices.	复核工作簿须包含 1 至 500 张发票。	สมุดงานตรวจทานต้องมีใบแจ้งหนี้ 1 ถึง 500 ใบ	確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。	roundtrip.document_limit
+Required invoice amounts are missing. Complete them before exporting.	发票缺少必要金额，请补全后再导出。	ใบแจ้งหนี้ขาดจำนวนเงินที่จำเป็น กรุณากรอกให้ครบก่อนส่งออก	請求書に必要な金額がありません。入力を補ってからエクスポートしてください。	roundtrip.export_amount_missing
+Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.	此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。	การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม	この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。	roundtrip.export_amount_not_roundtrippable
+The invoice date is invalid. Correct it before exporting.	发票日期无效，请更正后再导出。	วันที่ใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก	請求書の日付が無効です。修正してからエクスポートしてください。	roundtrip.export_date_invalid
+The verified ERP export details are invalid.	已核实的 ERP 导出信息无效。	ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง	確認済みの ERP エクスポート情報が無効です。	roundtrip.export_facts_invalid
+The export contains an invalid or repeated history reference.	导出包含无效或重复的历史记录引用。	ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน	エクスポート対象に無効または重複した履歴参照があります。	roundtrip.export_history_invalid
+An invoice line has no amount or complete quantity and unit price. Complete it before exporting.	发票明细缺少金额，且数量和单价不完整，请补全后再导出。	รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก	請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。	roundtrip.export_line_amount_missing
+This multi-page invoice has no verified combined record. Review it before exporting.	此多页发票缺少经核实的合并记录，请复核后再导出。	ใบแจ้งหนี้หลายหน้านี้ไม่มีข้อมูลรวมที่ตรวจสอบแล้ว กรุณาตรวจทานก่อนส่งออก	この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。	roundtrip.export_multipage_unverified
+A numeric value in the invoice is invalid. Correct it before exporting.	发票中有无效数值，请更正后再导出。	มีค่าตัวเลขในใบแจ้งหนี้ไม่ถูกต้อง กรุณาแก้ไขก่อนส่งออก	請求書に無効な数値があります。修正してからエクスポートしてください。	roundtrip.export_number_invalid
+A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.	发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。	ค่าตัวเลขในใบแจ้งหนี้เกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้	請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。	roundtrip.export_number_precision
+The invoice data is invalid and cannot be exported.	发票数据无效，无法导出。	ข้อมูลใบแจ้งหนี้ไม่ถูกต้อง จึงไม่สามารถส่งออกได้	請求書データが無効なため、エクスポートできません。	roundtrip.export_record_invalid
+Select between 1 and 100 distinct history records to export.	请选择 1 至 100 条不重复的历史记录导出。	กรุณาเลือกประวัติที่ไม่ซ้ำกัน 1 ถึง 100 รายการเพื่อส่งออก	エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。	roundtrip.export_records_invalid
+Sales invoices need line items with tax-exclusive amounts before export.	销项发票需要包含税前金额的明细后才能导出。	ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้	売上請求書をエクスポートするには、税抜金額を含む明細が必要です。	roundtrip.export_sales_items_required
+Export records from the same company and client together.	同次导出只能包含同一公司、同一客户的记录。	การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน	同じ会社・顧客の履歴をまとめてエクスポートしてください。	roundtrip.export_scope_mixed
+The invoice contains text that Excel cannot store safely. Check its length and characters.	发票包含 Excel 无法完整保存的文本，请检查长度和字符。	ใบแจ้งหนี้มีข้อความที่ Excel ไม่สามารถจัดเก็บได้ครบถ้วน กรุณาตรวจสอบความยาวและอักขระ	請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。	roundtrip.export_text_invalid
+A referenced history record is unavailable in the selected company and client.	所选公司和客户范围内无法访问引用的历史记录。	ไม่สามารถเข้าถึงประวัติที่อ้างอิงภายใต้บริษัทและลูกค้าที่เลือกได้	選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。	roundtrip.reference_unavailable
+Unsupported ERP connection type.	不支持此ERP连接类型。	ไม่รองรับประเภทการเชื่อมต่อ ERP นี้	このERP接続タイプはサポートされていません。	connection.adapter_invalid
+Check the ERP connection settings.	请检查ERP连接配置。	โปรดตรวจสอบการตั้งค่าการเชื่อมต่อ ERP	ERP接続設定を確認してください。	connection.config_invalid
+This connection is disabled.	此连接已停用。	การเชื่อมต่อนี้ถูกปิดใช้งาน	この接続は無効です。	connection.disabled
+Lock the connection before reading the push target.	读取推送目标前必须锁定连接。	ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง	送信先を読み取る前に接続をロックしてください。	connection.lock_required
+Connection or directory record not found.	找不到此连接或目录记录。	ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี	接続またはディレクトリの記録が見つかりません。	connection.not_found
+Preparation data for this account set is incomplete.	此账套的推送准备资料尚未完整获取。	ข้อมูลเตรียมส่งของชุดบัญชีนี้ยังไม่ครบถ้วน	この会計データの送信準備情報が不足しています。	connection.preparation_incomplete
+Preparation data does not match the connection or account set.	推送准备资料与当前连接或账套不一致。	ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี	準備情報が接続または会計データと一致しません。	connection.preparation_invalid
+This refresh request has expired. Request a new refresh.	此刷新请求已过期，请重新申请刷新。	คำขอรีเฟรชนี้หมดอายุแล้ว โปรดส่งคำขอใหม่	この更新要求は期限切れです。再度要求してください。	connection.refresh_stale
+This request key was used for different content.	此请求编号已用于其他内容。	รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว	この要求キーは別の内容に使用されています。	connection.request_conflict
+Invalid request key.	请求编号无效。	รหัสคำขอไม่ถูกต้อง	要求キーが無効です。	connection.request_key_invalid
+The connection has changed. Reload and try again.	连接已更新，请重新读取后再试。	การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง	接続が更新されました。再読み込みしてお試しください。	connection.revision_conflict
+The company, client and type of a connection cannot be changed.	连接的公司、客户和类型不能直接修改。	ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้	接続の会社、顧客、タイプは変更できません。	connection.scope_immutable
+The directory snapshot does not match this connection.	目录快照与当前连接不一致。	ข้อมูลไดเรกทอรีไม่ตรงกับการเชื่อมต่อนี้	ディレクトリのスナップショットが接続と一致しません。	connection.snapshot_invalid
+The directory snapshot exceeds the 16 MiB limit.	目录快照超过16MiB限制。	ข้อมูลไดเรกทอรีเกินขีดจำกัด 16 MiB	ディレクトリのスナップショットが16 MiBの上限を超えています。	connection.snapshot_too_large
+The ERP address is invalid or not allowed.	ERP连接地址无效或不允许访问。	ที่อยู่ ERP ไม่ถูกต้องหรือไม่ได้รับอนุญาต	ERPのアドレスが無効か、許可されていません。	connection.url_invalid
+This ERP adapter is not connected yet.	此ERP适配器尚未接通。	ตัวเชื่อมต่อ ERP นี้ยังไม่ได้เชื่อมต่อ	このERPアダプターはまだ接続されていません。	push.adapter_not_connected
+Invalid push execution mode.	推送执行模式无效。	โหมดการส่งไม่ถูกต้อง	送信実行モードが無効です。	push.branch_invalid
+The acknowledgement conflicts with the recorded result.	回执与已记录结果冲突。	ผลตอบรับขัดแย้งกับผลที่บันทึกไว้	確認応答が記録済みの結果と矛盾しています。	push.native_ack_conflict
+The invoice has changed. Prepare it again.	票据已修改，请重新准备。	เอกสารมีการเปลี่ยนแปลง โปรดเตรียมใหม่	伝票が変更されました。再度準備してください。	push.native_history_changed
+Another push holds the writer lock.	另一笔推送正在占用写入锁。	การส่งอื่นกำลังใช้ล็อกการเขียน	別の送信が書き込みロックを保持しています。	push.native_lock_conflict
+The push data exceeds the size limit.	推送数据超过大小限制。	ข้อมูลส่งเกินขีดจำกัดขนาด	送信データがサイズ制限を超えています。	push.native_payload_too_large
+Push record not found.	找不到推送记录。	ไม่พบรายการส่ง	送信記録が見つかりません。	push.native_record_not_found
+Invalid push request.	推送请求无效。	คำขอส่งไม่ถูกต้อง	送信要求が無効です。	push.native_request_invalid
+This request conflicts with an existing reservation.	此请求与已有推送预留冲突。	คำขอนี้ขัดแย้งกับรายการที่จองไว้	この要求は既存の送信予約と矛盾しています。	push.native_reservation_conflict
+The push record has changed. Reload and try again.	推送记录已更新，请重新读取后再试。	รายการส่งมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง	送信記録が更新されました。再読み込みしてお試しください。	push.native_revision_conflict
+This push attempt is no longer current.	此推送尝试已失效。	ความพยายามส่งนี้ไม่ใช่รายการปัจจุบันแล้ว	この送信試行は無効になっています。	push.native_stale_attempt
+This action is not allowed in the current push state.	当前推送状态不允许此操作。	สถานะการส่งปัจจุบันไม่อนุญาตให้ดำเนินการนี้	現在の送信状態ではこの操作はできません。	push.native_state_invalid
+The push target has changed. Prepare the invoice again.	推送目标已变更，请重新准备票据。	ปลายทางการส่งเปลี่ยนแปลง โปรดเตรียมเอกสารใหม่	送信先が変更されました。伝票を再度準備してください。	push.native_target_changed
+The frozen push target does not match the authorized target.	已冻结的推送目标与授权目标不一致。	ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต	固定された送信先が許可された送信先と一致しません。	push.native_target_mismatch
+The original invoice reference is invalid or unavailable.	原票据引用无效或不可访问。	การอ้างอิงเอกสารต้นฉบับไม่ถูกต้องหรือเข้าถึงไม่ได้	元の伝票の参照が無効か、アクセスできません。	push.original_reference_invalid
+Invalid posting type.	过账类型无效。	ประเภทการลงบัญชีไม่ถูกต้อง	転記タイプが無効です。	push.posting_kind_invalid
+The unsent preparation was cancelled.	尚未发送的推送准备已撤销。	ยกเลิกการเตรียมส่งที่ยังไม่ได้ส่งแล้ว	未送信の準備を取り消しました。	push.preparation_cancelled
+The outdated unsent preparation was replaced.	已替换过期且尚未发送的推送准备。	แทนที่การเตรียมส่งที่ล้าสมัยและยังไม่ได้ส่งแล้ว	古い未送信の準備を置き換えました。	push.preparation_superseded
+A successful push has no ERP document number. Check its receipt.	已有成功推送缺少ERP凭证号，请核对回执。	รายการส่งสำเร็จไม่มีเลขที่เอกสาร ERP โปรดตรวจสอบผลตอบรับ	成功済みの送信にERP伝票番号がありません。確認応答を確認してください。	push.prior_document_number_missing
+Push record not found.	找不到推送记录。	ไม่พบรายการส่ง	送信記録が見つかりません。	push.record_not_found
+This request key was used for different push content.	此请求编号已用于其他推送内容。	รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว	この要求キーは別の送信内容に使用されています。	push.request_conflict
+Invalid push request.	推送请求无效。	คำขอส่งไม่ถูกต้อง	送信要求が無効です。	push.request_invalid
+A timezone-aware UTC timestamp is required.	必须提供带时区的UTC时间。	ต้องระบุเวลา UTC พร้อมเขตเวลา	タイムゾーン付きのUTC時刻が必要です。	push.utc_required
+You do not have access to this ERP target.	无权访问此ERP目标。	คุณไม่มีสิทธิ์เข้าถึงปลายทาง ERP นี้	このERP送信先にアクセスする権限がありません。	erp.target_access_denied
+The ERP target context is inconsistent.	ERP目标上下文不一致。	บริบทของปลายทาง ERP ไม่สอดคล้องกัน	ERP送信先の情報が一致しません。	erp.target_context_invalid
+This ERP connection is disabled.	此ERP连接已停用。	การเชื่อมต่อ ERP นี้ถูกปิดใช้งาน	このERP接続は無効です。	erp.endpoint_disabled
+This account set is unavailable.	此账套不可用。	ชุดบัญชีนี้ไม่พร้อมใช้งาน	この会計データは利用できません。	erp.account_set_unavailable
+The directory evidence is invalid. Refresh and select again.	目录证据无效，请刷新后重新选择。	หลักฐานไดเรกทอรีไม่ถูกต้อง โปรดรีเฟรชแล้วเลือกใหม่	ディレクトリの情報が無効です。更新して選択し直してください。	catalog_refresh_invalid
+The directory refresh is still pending.	目录正在等待刷新。	กำลังรอการรีเฟรชไดเรกทอรี	ディレクトリの更新を待機しています。	catalog_refresh_pending
+Refresh the account directory before continuing.	请先刷新账套目录。	โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ	先に会計データのディレクトリを更新してください。	catalog_refresh_required
+The account directory is out of date. Refresh it again.	账套目录已过期，请重新刷新。	ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่	会計データのディレクトリが古くなっています。再度更新してください。	catalog_refresh_stale
+Account Key	账套键	คีย์ชุดบัญชี	会計データキー	Account Key
+Account Set Key	账套选择键	คีย์เลือกชุดบัญชี	会計データ選択キー	Account Set Key
+Ack Digest	回执摘要	แฮชผลตอบรับ	確認応答ダイジェスト	Ack Digest
+Active Attempt	当前尝试	ความพยายามปัจจุบัน	現在の試行	Active Attempt
+Active Key	活动防重键	คีย์ป้องกันรายการซ้ำที่ใช้งาน	有効な重複防止キー	Active Key
+Allowed Users	授权用户	ผู้ใช้ที่ได้รับอนุญาต	許可ユーザー	Allowed Users
+Binding Generation	绑定版本	รุ่นการผูก	関連付け世代	Binding Generation
+Blocked By	阻塞记录	รายการที่ขัดขวาง	ブロック元の記録	Blocked By
+Bound Account Set	绑定账套	ชุดบัญชีที่ผูกไว้	関連付けられた会計データ	Bound Account Set
+Bound Profile Key	绑定配置键	คีย์โปรไฟล์ที่ผูกไว้	関連付け設定キー	Bound Profile Key
+Branch	执行分支	สาขาการดำเนินการ	実行分岐	Branch
+Checks Json	检查结果JSON	ผลตรวจสอบ JSON	検証結果JSON	Checks Json
+Completed At	完成时间	เวลาที่เสร็จสิ้น	完了日時	Completed At
+Connection Configuration	连接配置	การตั้งค่าการเชื่อมต่อ	接続設定	Connection Configuration
+Connection Name	连接名称	ชื่อการเชื่อมต่อ	接続名	Connection Name
+Connection Revision	连接版本	รุ่นการเชื่อมต่อ	接続リビジョン	Connection Revision
+Content Hash	内容摘要	แฮชเนื้อหา	内容ハッシュ	Content Hash
+Cowork ERP Connection	Cowork ERP连接	การเชื่อมต่อ ERP ของ Cowork	Cowork ERP接続	Cowork ERP Connection
+Cowork ERP Refresh	Cowork ERP目录刷新	การรีเฟรชไดเรกทอรี ERP ของ Cowork	Cowork ERPディレクトリ更新	Cowork ERP Refresh
+Cowork ERP Snapshot	Cowork ERP目录快照	ภาพข้อมูลไดเรกทอรี ERP ของ Cowork	Cowork ERPディレクトリスナップショット	Cowork ERP Snapshot
+Cowork Push Attempt	Cowork推送尝试	ความพยายามส่งของ Cowork	Cowork送信試行	Cowork Push Attempt
+Cowork Push Record	Cowork推送记录	รายการส่งของ Cowork	Cowork送信記録	Cowork Push Record
+Cowork Push Writer Lock	Cowork推送写入锁	ล็อกการเขียนของ Cowork	Cowork送信書き込みロック	Cowork Push Writer Lock
+Creation Request Hash	创建请求摘要	แฮชคำขอสร้าง	作成要求ハッシュ	Creation Request Hash
+Current Directory Heads	当前目录版本索引	ดัชนีรุ่นไดเรกทอรีปัจจุบัน	現在のディレクトリ索引	Current Directory Heads
+Directory Revision	目录版本	รุ่นไดเรกทอรี	ディレクトリリビジョン	Directory Revision
+Directory Scope Key	目录范围键	คีย์ขอบเขตไดเรกทอรี	ディレクトリ範囲キー	Directory Scope Key
+Directory Scope Kind	目录范围类型	ประเภทขอบเขตไดเรกทอรี	ディレクトリ範囲タイプ	Directory Scope Kind
+Directory Snapshot	目录快照	ภาพข้อมูลไดเรกทอรี	ディレクトリスナップショット	Directory Snapshot
+Document Key	单据防重键	คีย์ป้องกันเอกสารซ้ำ	伝票重複防止キー	Document Key
+ERP Connection	ERP连接	การเชื่อมต่อ ERP	ERP接続	ERP Connection
+ERP Password	ERP密码	รหัสผ่าน ERP	ERPパスワード	ERP Password
+ERP Token	ERP令牌	โทเค็น ERP	ERPトークン	ERP Token
+ERP Username	ERP用户名	ชื่อผู้ใช้ ERP	ERPユーザー名	ERP Username
+External Docnum	ERP凭证号	เลขที่เอกสาร ERP	ERP伝票番号	External Docnum
+Failure Count	失败次数	จำนวนครั้งที่ล้มเหลว	失敗回数	Failure Count
+Fence	尝试隔离序号	ลำดับแยกความพยายาม	試行分離番号	Fence
+History	票据历史	ประวัติเอกสาร	伝票履歴	History
+History Version	票据历史版本	รุ่นประวัติเอกสาร	伝票履歴バージョン	History Version
+Holder	锁持有者	ผู้ถือล็อก	ロック保持者	Holder
+Holder Fence	持锁尝试序号	ลำดับผู้ถือล็อก	ロック保持試行番号	Holder Fence
+Installed At (UTC)	安装时间（UTC）	เวลาติดตั้ง (UTC)	インストール日時（UTC）	Installed At (UTC)
+Invoice No	票据号码	เลขที่เอกสาร	伝票番号	Invoice No
+Last Request Hash	最近请求摘要	แฮชคำขอล่าสุด	最終要求ハッシュ	Last Request Hash
+Last Request Key	最近请求编号	คีย์คำขอล่าสุด	最終要求キー	Last Request Key
+Lease Expires At	租约到期时间	เวลาที่สิทธิ์ถือครองหมดอายุ	リース有効期限	Lease Expires At
+Lock Key	锁键	คีย์ล็อก	ロックキー	Lock Key
+Lock Kind	锁类型	ประเภทล็อก	ロック種別	Lock Kind
+Observed At (UTC)	观测时间（UTC）	เวลาสังเกต (UTC)	観測日時（UTC）	Observed At (UTC)
+Outcome	执行结果	ผลการดำเนินการ	実行結果	Outcome
+Owner Id	执行者编号	รหัสผู้ดำเนินการ	実行者ID	Owner Id
+Payload Json	冻结载荷JSON	ข้อมูลส่งที่ตรึงไว้ JSON	固定ペイロードJSON	Payload Json
+Preparation Evidence	准备资料证据	หลักฐานข้อมูลเตรียมส่ง	準備情報の証拠	Preparation Evidence
+Push Record	推送记录	รายการส่ง	送信記録	Push Record
+Reason	原因	เหตุผล	理由	Reason
+Record Key	记录键	คีย์รายการ	記録キー	Record Key
+Refresh Status	刷新状态	สถานะการรีเฟรช	更新状態	Refresh Status
+Refresh Request Aliases	刷新请求幂等索引	ดัชนีคำขอรีเฟรช	更新要求の冪等索引	Refresh Request Aliases
+Request Digest	请求摘要	แฮชคำขอ	要求ダイジェスト	Request Digest
+Request Hash	请求内容摘要	แฮชเนื้อหาคำขอ	要求内容ハッシュ	Request Hash
+Requested At (UTC)	请求时间（UTC）	เวลาร้องขอ (UTC)	要求日時（UTC）	Requested At (UTC)
+Response Json	回执JSON	ผลตอบรับ JSON	確認応答JSON	Response Json
+Result Directory Revision	结果目录版本	รุ่นไดเรกทอรีผลลัพธ์	結果ディレクトリリビジョン	Result Directory Revision
+Result Unknown	结果未知	ไม่ทราบผลลัพธ์	結果不明	Result Unknown
+Revision	版本	รุ่น	リビジョン	Revision
+Source Hash	来源摘要	แฮชต้นทาง	ソースハッシュ	Source Hash
+Target Json	冻结目标JSON	ปลายทางที่ตรึงไว้ JSON	固定送信先JSON	Target Json
+Token Digest	令牌摘要	แฮชโทเค็น	トークンダイジェスト	Token Digest
+Wire Attempt	发送尝试次数	จำนวนครั้งที่พยายามส่ง	送信試行回数	Wire Attempt
+Started At	开始时间	เริ่มเมื่อ	開始日時	Started At
+Cowork Express Agent Credential	Cowork Express 助手凭据	ข้อมูลรับรองผู้ช่วย Express ของ Cowork	Cowork Express アシスタント認証情報	Cowork Express Agent Credential
+Record ID	记录 ID	รหัสรายการ	レコード ID	Record ID
+Site Name	站点名称	ชื่อไซต์	サイト名	Site Name
+Issued By	签发人	ผู้ออก	発行者	Issued By
+Token Generation	令牌版本	รุ่นโทเคน	トークン世代	Token Generation
+Token Tail	令牌末四位	อักขระท้ายโทเคน	トークン末尾	Token Tail
+Generation Key	凭据版本键	คีย์รุ่นข้อมูลรับรอง	認証情報世代キー	Generation Key
+Issued Request Digest	签发请求摘要	แฮชคำขอออกข้อมูลรับรอง	発行リクエストのダイジェスト	Issued Request Digest
+Request Receipts	请求回执	ผลรับคำขอ	リクエストの受領記録	Request Receipts
+Issued At (UTC)	签发时间（UTC）	เวลาออก (UTC)	発行日時 (UTC)	Issued At (UTC)
+Revoked At (UTC)	撤销时间（UTC）	เวลายกเลิก (UTC)	失効日時 (UTC)	Revoked At (UTC)
+Revoked By	撤销人	ผู้ยกเลิก	失効者	Revoked By
+Revocation Reason	撤销原因	เหตุผลที่ยกเลิก	失効理由	Revocation Reason
+Use the Cowork Companion credential service to access credentials.	请通过 Cowork 助手凭据服务访问凭据。	โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง	認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。	Use the Cowork Companion credential service to access credentials.
+The credential request is invalid.	凭据请求无效。	คำขอข้อมูลรับรองไม่ถูกต้อง	認証情報のリクエストが無効です。	companion.request_invalid
+This request key was used for another credential operation.	此请求键已用于其他凭据操作。	คีย์คำขอนี้ถูกใช้กับการดำเนินการข้อมูลรับรองอื่นแล้ว	このリクエストキーは別の認証情報操作に使用されています。	companion.request_conflict
+The credential changed. Reload before resetting or revoking it.	凭据已变更，请刷新后再重置或撤销。	ข้อมูลรับรองเปลี่ยนแล้ว โปรดโหลดใหม่ก่อนรีเซ็ตหรือยกเลิก	認証情報が変更されました。再読み込みしてからリセットまたは失効してください。	companion.generation_conflict
+No Companion credential has been issued for this connection.	此连接尚未签发助手凭据。	ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้	この接続にはアシスタント認証情報が発行されていません。	companion.credential_not_found
+Companion authentication failed.	助手认证失败。	การยืนยันตัวตนผู้ช่วยไม่สำเร็จ	アシスタント認証に失敗しました。	companion.unauthorized
+The Companion identity is no longer valid. Authenticate again.	助手身份已失效，请重新认证。	ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่	アシスタントの認証が無効になりました。再認証してください。	companion.context_invalid
+This connection does not support an Express Companion credential.	此连接不支持 Express 助手凭据。	การเชื่อมต่อนี้ไม่รองรับข้อมูลรับรองผู้ช่วย Express	この接続は Express アシスタント認証情報に対応していません。	companion.unsupported_connection
+The credential request receipt limit has been reached.	凭据请求回执数量已达到上限。	จำนวนผลรับคำขอข้อมูลรับรองถึงขีดจำกัดแล้ว	認証情報リクエストの受領記録が上限に達しました。	companion.receipt_limit
+The stocktake export snapshot is incomplete. Reload and try again.	盘点导出数据不完整，请刷新后重试。	ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง	棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。	stocktake.export_incomplete
+Companion Report	伴侣端上报	รายงานจาก Companion	Companion レポート	
+Report Received At (UTC)	上报接收时间（UTC）	เวลารับรายงาน (UTC)	レポート受信日時（UTC）	
+Report Credential	上报凭证	ข้อมูลรับรองของรายงาน	レポート認証情報	
+Report Credential Generation	上报凭证版本	รุ่นข้อมูลรับรองของรายงาน	レポート認証情報の世代	
+Refresh Started At (UTC)	刷新开始时间（UTC）	เวลาเริ่มรีเฟรช (UTC)	更新開始日時（UTC）	
+Refresh Lease Owner	刷新租约持有者	ผู้ถือสิทธิ์การรีเฟรช	更新リースの所有者	
+Refresh Lease Generation	刷新租约版本	รุ่นสิทธิ์การรีเฟรช	更新リースの世代	
+Refresh Lease Handle	刷新租约标识	รหัสสิทธิ์การรีเฟรช	更新リース識別子	
+Refresh Lease Expires At (UTC)	刷新租约到期时间（UTC）	เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)	更新リース有効期限（UTC）	
+Refresh Error Code	刷新错误码	รหัสข้อผิดพลาดการรีเฟรช	更新エラーコード	
+The Companion report is invalid.	伴侣端上报内容无效。	รายงานจาก Companion ไม่ถูกต้อง	Companion レポートが無効です。	companion.report_invalid
+leased	已领取	รับงานแล้ว	取得済み	leased
+The ERP data report is missing a required value.	ERP 数据报告缺少必填值。	รายงานข้อมูล ERP ขาดค่าที่จำเป็น	ERP データレポートに必須の値がありません。	erp.target_projection_value_required
+A value in the ERP data report exceeds the allowed length.	ERP 数据报告中的值超过允许长度。	ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด	ERP データレポート内の値が許容される長さを超えています。	erp.target_projection_value_too_long
+The ERP data report contains a restricted field.	ERP 数据报告包含受限制的字段。	รายงานข้อมูล ERP มีฟิลด์ที่ไม่อนุญาต	ERP データレポートに制限対象のフィールドが含まれています。	erp.target_projection_sensitive_field
+The ERP data report contains an invalid number.	ERP 数据报告包含无效数值。	รายงานข้อมูล ERP มีตัวเลขที่ไม่ถูกต้อง	ERP データレポートに無効な数値が含まれています。	erp.target_projection_invalid_number
+The ERP data report contains an unsupported value.	ERP 数据报告包含不支持的值。	รายงานข้อมูล ERP มีค่าที่ไม่รองรับ	ERP データレポートに対応していない値が含まれています。	erp.target_projection_invalid_json
+The ERP data report exceeds the supported size limit.	ERP 数据报告超过支持的大小限制。	รายงานข้อมูล ERP มีขนาดเกินขีดจำกัดที่รองรับ	ERP データレポートが対応するサイズの上限を超えています。	erp.target_projection_too_large
+An option in the ERP data report is invalid.	ERP 数据报告中的选项无效。	ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง	ERP データレポート内の選択肢が無効です。	erp.target_projection_invalid_option
+The ERP data report contains duplicate option identifiers.	ERP 数据报告包含重复的选项标识。	รายงานข้อมูล ERP มีรหัสตัวเลือกซ้ำกัน	ERP データレポートに選択肢の識別子が重複しています。	erp.target_projection_duplicate_source_id
+The ERP master data report is invalid.	ERP 主数据报告无效。	รายงานข้อมูลหลัก ERP ไม่ถูกต้อง	ERP マスターデータレポートが無効です。	erp.target_projection_invalid_masters
+The ERP report contains an unsupported master data type.	ERP 报告包含不支持的主数据类型。	รายงาน ERP มีประเภทข้อมูลหลักที่ไม่รองรับ	ERP レポートに対応していないマスターデータの種類が含まれています。	erp.target_projection_unknown_entity
+The reported ERP field definitions are invalid.	上报的 ERP 字段定义无效。	ข้อกำหนดฟิลด์ ERP ที่รายงานไม่ถูกต้อง	報告された ERP フィールド定義が無効です。	erp.target_projection_invalid_form_schema
+A reported ERP field is invalid.	上报的 ERP 字段无效。	ฟิลด์ ERP ที่รายงานไม่ถูกต้อง	報告された ERP フィールドが無効です。	erp.target_projection_invalid_field
+The ERP report contains duplicate field identifiers.	ERP 报告包含重复的字段标识。	รายงาน ERP มีรหัสฟิลด์ซ้ำกัน	ERP レポートにフィールドの識別子が重複しています。	erp.target_projection_duplicate_field
+The ERP report contains an unsupported field type.	ERP 报告包含不支持的字段类型。	รายงาน ERP มีประเภทฟิลด์ที่ไม่รองรับ	ERP レポートに対応していないフィールド型が含まれています。	erp.target_projection_unknown_field_type
+The reported ERP capabilities are invalid.	上报的 ERP 功能信息无效。	ข้อมูลความสามารถของ ERP ที่รายงานไม่ถูกต้อง	報告された ERP の機能情報が無効です。	erp.target_projection_invalid_capabilities
+A reported ERP action is invalid.	上报的 ERP 操作无效。	การดำเนินการ ERP ที่รายงานไม่ถูกต้อง	報告された ERP の操作が無効です。	erp.target_projection_invalid_action
+The ERP report contains duplicate action identifiers.	ERP 报告包含重复的操作标识。	รายงาน ERP มีรหัสการดำเนินการซ้ำกัน	ERP レポートに操作の識別子が重複しています。	erp.target_projection_duplicate_action
+The ERP report observation time is invalid.	ERP 报告的采集时间无效。	เวลาเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集日時が無効です。	erp.target_projection_observed_at_invalid
+The ERP report collector information is invalid.	ERP 报告的采集器信息无效。	ข้อมูลตัวเก็บข้อมูลของรายงาน ERP ไม่ถูกต้อง	ERP レポートの収集元情報が無効です。	erp.target_projection_collector_invalid
+The ERP data report is invalid.	ERP 数据报告无效。	รายงานข้อมูล ERP ไม่ถูกต้อง	ERP データレポートが無効です。	erp.target_projection_invalid
+The ERP report uses an unsupported adapter.	ERP 报告使用了不支持的适配器。	รายงาน ERP ใช้อะแดปเตอร์ที่ไม่รองรับ	ERP レポートに対応していないアダプターが指定されています。	erp.target_projection_adapter_invalid
+The ERP report refresh status is invalid.	ERP 报告的刷新状态无效。	สถานะการรีเฟรชรายงาน ERP ไม่ถูกต้อง	ERP レポートの更新状態が無効です。	erp.target_projection_refresh_status_invalid
+Collection is not connected for this ERP data type.	此 ERP 数据类型尚未接入采集。	ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้	この ERP データの種類には収集機能が接続されていません。	erp.target_projection_collector_not_connected
+The Companion service is temporarily unavailable. Try again shortly.	伴侣端服务暂时不可用，请稍后重试。	บริการ Companion ไม่พร้อมใช้งานชั่วคราว กรุณาลองอีกครั้งในอีกสักครู่	Companion サービスは一時的に利用できません。しばらくしてから再試行してください。	companion.report_busy
+Cowork Companion Delivery	Cowork 助手任务领取记录	บันทึกการรับงานของผู้ช่วย Cowork	Cowork アシスタントのタスク受領記録	Cowork Companion Delivery
+Credential ID	凭据 ID	รหัสข้อมูลรับรอง	認証情報 ID	Credential ID
+Owner ID	所有者 ID	รหัสเจ้าของ	所有者 ID	Owner ID
+Push Attempt	推送尝试	ความพยายามส่ง	送信試行	Push Attempt
+Attempt Secret	尝试密钥	ข้อมูลลับของการพยายาม	試行用シークレット	Attempt Secret
+Use the Cowork Companion service to access deliveries.	请通过 Cowork 助手服务访问任务领取记录。	โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน	タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。	Use the Cowork Companion service to access deliveries.
+The Companion queue request is invalid.	助手队列请求无效。	คำขอคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューリクエストが無効です。	companion.queue_request_invalid
+The Companion queue response is invalid.	助手队列响应无效。	การตอบกลับคิวงานของผู้ช่วยไม่ถูกต้อง	アシスタントのキューレスポンスが無効です。	companion.queue_response_invalid
+The Companion delivery record is invalid.	助手任务领取记录无效。	บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง	アシスタントのタスク受領記録が無効です。	companion.delivery_invalid
+The Companion delivery record was not found.	未找到助手任务领取记录。	ไม่พบบันทึกการรับงานของผู้ช่วย	アシスタントのタスク受領記録が見つかりません。	companion.delivery_not_found
+Access to the Companion queue has been revoked.	助手队列的访问权限已撤销。	สิทธิ์เข้าถึงคิวงานของผู้ช่วยถูกเพิกถอนแล้ว	アシスタントのキューへのアクセス権が取り消されました。	companion.queue_access_revoked
+This delivery conflicts with the current task state.	此回执与任务当前状态冲突。	ผลรับนี้ขัดแย้งกับสถานะปัจจุบันของงาน	この受領結果はタスクの現在の状態と矛盾しています。	companion.queue_conflict
+Cowork ERP Mapping	Cowork ERP 映射	การจับคู่ ERP ของ Cowork	Cowork ERP マッピング	
+Cowork Supplier Posting Profile	Cowork 供应商过账档案	โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork	Cowork 仕入先転記プロファイル	
+Cowork Bank Evidence	Cowork 银行佐证	หลักฐานธนาคารของ Cowork	Cowork 銀行取引の根拠	
+Mapping Kind	映射类型	ประเภทการจับคู่	マッピング種類	
+Mapping Key	映射键	คีย์การจับคู่	マッピングキー	
+ERP Code	ERP 编码	รหัส ERP	ERP コード	
+Default Payment	默认付款方式	วิธีชำระเงินเริ่มต้น	既定の支払方法	
+Default Item Type	默认项目类型	ประเภทสินค้าเริ่มต้น	既定の明細種類	
+Evidence Owner	佐证所属人	เจ้าของหลักฐาน	根拠データの所有者	
+Transaction Date	交易日期	วันที่ทำรายการ	取引日	
+Confirmation Request	确认请求	คำขอยืนยัน	確認リクエスト	
+Confirmation Revision	确认版本	รุ่นที่ยืนยัน	確認リビジョン	
+IN	入账	เงินเข้า	入金	
+OUT	出账	เงินออก	出金	
+account	科目	บัญชี	勘定科目	
+client	客户	ลูกค้า	顧客	
+Cowork Push Notification	Cowork 推送通知事件	เหตุการณ์แจ้งเตือนการส่ง Cowork	Cowork送信通知イベント	
+Last Push Status	最近推送状态	สถานะการส่งล่าสุด	最終送信状態	
+Last Pushed At (UTC)	最近推送时间（UTC）	เวลาส่งล่าสุด (UTC)	最終送信日時（UTC）	
+Last Push Record	最近推送记录	บันทึกการส่งล่าสุด	最終送信記録	
+Completion Evidence	完成凭据	หลักฐานการเสร็จสิ้น	完了証跡	
+held	待接入发送	รอเชื่อมต่อการส่ง	送信連携待ち	
+Statement review is not available for this task.	此任务没有逐行复核记录。	งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี	このタスクには明細確認記録がありません。	reconciliation.review_unavailable
+Check the statement balance differences before confirming.	请先修正账单余额差异，再确认。	กรุณาแก้ไขส่วนต่างยอดคงเหลือก่อนยืนยัน	明細の残高差異を修正してから確定してください。	reconciliation.review_balance_mismatch
+Complete statement review before exporting the result.	请先完成账单复核，再导出对账结果。	กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล	明細確認を完了してから照合結果を出力してください。	reconciliation.review_required
+Invalid statement review rows or row references.	复核行内容或原始行编号无效。	ข้อมูลรายการตรวจทานหรือหมายเลขรายการต้นฉบับไม่ถูกต้อง	確認明細または元の行番号が無効です。	reconciliation.review_rows_invalid
+Reviewed amounts need a balance and at most two decimal places.	复核行必须填写余额，金额最多保留两位小数。	รายการตรวจทานต้องมียอดคงเหลือและจำนวนเงินไม่เกินสองตำแหน่งทศนิยม	確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。	reconciliation.review_amount_invalid
+Review JSON	复核记录 JSON	ข้อมูลการตรวจทาน JSON	確認記録 JSON	Review JSON

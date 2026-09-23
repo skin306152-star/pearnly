@@ -87,7 +87,7 @@ LINE 侧：`line_bindings`、`line_binding_codes`、`line_action_nonces`、`line
 
 | 表 | 现状 | 需要判断 |
 |---|---|---|
-| `automation_rules` | `services/automation/schema.py`、`services/tenant/owner_users.py`、多个测试 | 是租户级自动化还是 WeKan 看板自动化；决定随平台保留还是随 AI 退役 |
+| `automation_rules` | `services/automation/schema.py`、`services/tenant/owner_users.py`、多个测试 | 是租户级自动化还是 WeKan 看板自动化；看板 2026-09-21 起不再迁移，按此前提重新判定保留范围 |
 | `excel_templates` | `services/tenant/owner_users.py`、`services/erp/credentials_rls.py` | 是导出模板（保留）还是表内 Excel 对账内测用的（退役） |
 
 ## 处置原则

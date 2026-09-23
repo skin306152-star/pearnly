@@ -1,0 +1,136 @@
+{
+  "base_commit": "8e92423",
+  "scope": "thirty-ninth batch: the second half of the third layer (deterministic readers) of native bank-statement and GL document OCR — the ledger workbook reader, the statement text-line readers and the PDF text layer; this closes the third layer",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "b9a7c2ccb7d8d51371fc98094656ab485ce2198994885d772448e55123c48ae5",
+    "delivery_sha256": "bfcf118316b15ad3393f27395a73e4bb0f82b2c8ba10748441ec8c2c41d8e66d",
+    "delivery_captured_at": "2026-09-21T17:18:00.981947+00:00",
+    "start_compare_with_previous_batch": "PASS",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-thirty-ninth-start.json baseline-thirty-ninth-delivery.json (before pinned at b9a7c2cc, after pinned at bfcf1183)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "c76b26dc95817942eb9826d78fc5f6e46673bd2fdbe0e4f6a3b69ca0da03a002",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/recon/bank_gl_excel.py": "5999a1bd6138d91d580add4c0d3c4153b9dcbc171b131e083457d145e6e6bdef",
+      "services/recon/bank_gl_common.py": "ddae19a887c0722eb70ed878405e1fdde97a14a96ed152b558e891540d48fe8e",
+      "services/recon/bank_stmt_text.py": "ef8cd5ae32c69d86d1faa47ff553a184bd729b1f958634e39f7ef374936713c3",
+      "services/recon/bank_recon_utils.py": "35b143f7cfc115fc497397902026c463cdc7a589da70ea690d85f35b4f016745",
+      "services/recon/bank_table_io.py": "19b9161eb5a96f8244efba97b215b50710365ba97f1bd93f8ce04ccd302f190e"
+    },
+    "source_note": "the readers only touch the bytes or text they are handed, but the live-source capture is taken both at the start and at delivery, as the migration rule requires"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_gl_sheets",
+      "result": "PASS",
+      "tests": 23,
+      "new_tests": 23,
+      "covers": [
+        "the four-language ledger headers, the first hit winning each role, and a header below the first rows",
+        "a header needs a date and a money column: a single net-amount ledger is not a header here, because the fixed dictionary has no amount key",
+        "the account-code pattern: a bare number, a tiered number, one taken out of a voucher or a description, and a longer number that must not be chopped",
+        "the running balance lifts on a debit and lowers on a credit",
+        "the opening read from the balance column and the credit-minus-debit fallback",
+        "a blank date inheriting the previous one, and a row before any date being dropped",
+        "carried-forward and subtotal rows skipped, and a row with no movement not being a transaction",
+        "the account-code filter keeping one account, and the code taken from the description when the column is empty",
+        "a file without a usable header refused as gl_headers_not_found, an empty file refused as unreadable, and arbitrary bytes falling through to the CSV reader (which accepts any byte) and then being refused for having no header",
+        "CSV bytes read with the extension and without it"
+      ]
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_reconciliation_bank_text",
+      "result": "PASS",
+      "tests": 13,
+      "new_tests": 13,
+      "covers": [
+        "the PDF text layer of a one-page PDF, and non-PDF or empty bytes returning nothing",
+        "a line per transaction with the direction taken from the balance movement",
+        "the description hint deciding when the printed balance does not add up",
+        "the first row without a previous balance counting as a deposit, and the opening inferred from it",
+        "a Thai dot used as a thousands separator",
+        "lines that cannot be transactions being skipped, a zero movement not being a transaction, and the closing falling back to the last row",
+        "the KBank column-stacked layout: opening, the two transactions paired by position, and the channel joining the description"
+      ]
+    },
+    {
+      "command": "python test_cowork_gl_text_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "gl": {
+        "batches": 225,
+        "ok": 187,
+        "rows": 166,
+        "opening_nonzero": 115,
+        "closing_printed": 61,
+        "header_missing": 37,
+        "unreadable": 1,
+        "csv_fixed": 2,
+        "account_filtered": 19
+      },
+      "text": {
+        "batches": 187,
+        "line_batches": 182,
+        "line_rows": 284,
+        "deposits": 216,
+        "withdrawals": 68,
+        "with_opening": 136,
+        "with_closing": 159,
+        "kbank_batches": 5,
+        "kbank_rows": 4
+      },
+      "pdf": {
+        "batches": 4,
+        "pages_extracted": 2,
+        "empty_results": 2
+      },
+      "note": "only the newly ported definitions are executed from the pinned text; the row classes, the number/date parsers and the CSV loader are injected because earlier batches ported and differentially verified them, so the comparison isolates this batch. Ledger rows are compared field by field including the deduplication fingerprint, plus the account list, the opening/closing and the closing_printed flag; failures are compared on their error text as well. The column dictionaries, the account-code pattern, the opening keywords, _GL_SKIP_KW and AMOUNT_TOL are compared value by value. pypdf prints its own warning for the non-PDF bytes on both sides; that is library output, not a difference."
+    },
+    {
+      "command": "python test_cowork_bank_sheets_source_parity.py --source-stdin (re-run: table_io gained a function in this batch)",
+      "result": "PASS",
+      "differences": 0,
+      "batches": 227,
+      "note": "the workbook reader ported in the previous batch is re-checked because table_io changed; summary rows leaking into results stays 0"
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_bank_sheets test_cowork_reconciliation_gl_sheets test_cowork_reconciliation_bank_text test_cowork_reconciliation_bank_parse test_cowork_reconciliation_bank_statement test_cowork_bank_warnings test_cowork_bank_recon_contracts test_cowork_reconciliation_amounts test_cowork_reconciliation_contracts test_cowork_reconciliation_bank_matching",
+      "result": "PASS",
+      "tests": 228,
+      "note": "bank_parse gained the ledger skip-row rule, so the bank family and the readers are run together"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the ADR-006 template-learning layer of the deployed ledger reader (stored mapping lookup, local inference, one model call under allow_ai, otherwise needs_mapping for the frontend column-confirmation dialog) is not carried over, for the same reason as the statement reader last batch: it needs a mapping store and a confirmation UI this platform does not have. An unrecognised header returns gl_headers_not_found, which is what the deployed code returned without the learning layer",
+    "the deployed fixed dictionary has no amount key, so the signed single-column branch of the deployed reader is only reachable when a caller supplies a mapping (the learning layer was that caller). The branch is carried over unchanged and documented as unreachable on the fixed path today",
+    "the private helper names became public entries (map_gl_columns, find_gl_header, extract_account_code, parse_gl_workbook, parse_statement_text_lines, parse_kbank_text_columns, extract_pdf_text_pages) because this layer is an entry point for the fourth layer",
+    "the bank_code parameter of the text-line reader is kept although the deployed function never read it: callers pass it, so keeping the shape avoids changing two sides at once",
+    "the module-level logger of the pinned text module is not carried over; neither parsing function logs anything",
+    "the row classes, _to_float, _parse_date and the CSV loader are reused from earlier batches instead of being copied again",
+    "only the comments and docstrings were rewritten; every judgement and every returned string is the deployed one"
+  ],
+  "not_run": [
+    "wiring any reader to a caller — the fourth layer has not started, and a half-chain entry point would be worse than none",
+    "real files, model calls, the queue, frontend integration, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-reader-gl-and-text.md"
+}

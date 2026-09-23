@@ -35,4 +35,4 @@
 
 ## 下一步
 
-P1：锁定 Frappe、Keycloak、MariaDB、Redis、WeKan/Meteor/Mongo、Python/Node 与镜像架构；建 6 业务 Site + 控制 Site + Keycloak + 2 WeKan 的本地完整样板；先验 12GB 资源可行性。
+P1：锁定 Frappe、Keycloak、MariaDB、Redis、Python/Node 与镜像架构；建 6 业务 Site + 控制 Site + Keycloak 的本地完整样板；先验 12GB 资源可行性。（WeKan/Meteor/Mongo 已按 2026-09-21 决定移出范围。）

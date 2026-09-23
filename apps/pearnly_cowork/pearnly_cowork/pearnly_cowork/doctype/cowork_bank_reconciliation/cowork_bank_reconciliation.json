@@ -1,0 +1,337 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Bank Reconciliation",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "title",
+  "reconciliation_type",
+  "status",
+  "bank_code",
+  "gl_account_code",
+  "source_format",
+  "source_digest",
+  "request_key",
+  "request_digest",
+  "row_count",
+  "stmt_opening",
+  "gl_opening",
+  "stmt_closing",
+  "gl_closing",
+  "matched_count",
+  "gl_debit_only_count",
+  "gl_credit_only_count",
+  "stmt_withdrawal_only_count",
+  "stmt_deposit_only_count",
+  "stmt_total_deposit",
+  "stmt_total_withdrawal",
+  "gl_total_credit",
+  "gl_total_debit",
+  "gl_debit_only_amount",
+  "gl_credit_only_amount",
+  "stmt_withdrawal_only_amount",
+  "stmt_deposit_only_amount",
+  "opening_diff",
+  "formula_stmt_closing",
+  "formula_diff",
+  "summary_json",
+  "parse_info_json",
+  "run_info_json",
+  "review_json",
+  "created_by",
+  "created_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 60
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "label": "Title",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 140,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "reconciliation_type",
+   "fieldtype": "Select",
+   "label": "Type",
+   "read_only": 1,
+   "options": "bank\nincome",
+   "default": "bank",
+   "reqd": 1
+  },
+  {
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "label": "Status",
+   "read_only": 1,
+   "options": "completed\nneeds_review",
+   "default": "completed",
+   "reqd": 1
+  },
+  {
+   "fieldname": "bank_code",
+   "fieldtype": "Data",
+   "label": "Bank Code",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "gl_account_code",
+   "fieldtype": "Data",
+   "label": "GL Account Code",
+   "read_only": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "source_format",
+   "fieldtype": "Data",
+   "label": "Source Format",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 40
+  },
+  {
+   "fieldname": "source_digest",
+   "fieldtype": "Data",
+   "label": "Source Digest",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "request_digest",
+   "fieldtype": "Data",
+   "label": "Request Digest",
+   "read_only": 1,
+   "reqd": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "row_count",
+   "fieldtype": "Int",
+   "label": "Row Count",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "stmt_opening",
+   "fieldtype": "Float",
+   "label": "Statement Opening",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_opening",
+   "fieldtype": "Float",
+   "label": "GL Opening",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_closing",
+   "fieldtype": "Float",
+   "label": "Statement Closing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_closing",
+   "fieldtype": "Float",
+   "label": "GL Closing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "matched_count",
+   "fieldtype": "Int",
+   "label": "Matched",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "gl_debit_only_count",
+   "fieldtype": "Int",
+   "label": "GL Debit Only",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_credit_only_count",
+   "fieldtype": "Int",
+   "label": "GL Credit Only",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_withdrawal_only_count",
+   "fieldtype": "Int",
+   "label": "Statement Withdrawal Only",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_deposit_only_count",
+   "fieldtype": "Int",
+   "label": "Statement Deposit Only",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_total_deposit",
+   "fieldtype": "Float",
+   "label": "Statement Total Deposit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_total_withdrawal",
+   "fieldtype": "Float",
+   "label": "Statement Total Withdrawal",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_total_credit",
+   "fieldtype": "Float",
+   "label": "GL Total Credit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_total_debit",
+   "fieldtype": "Float",
+   "label": "GL Total Debit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_debit_only_amount",
+   "fieldtype": "Float",
+   "label": "GL Debit Only Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_credit_only_amount",
+   "fieldtype": "Float",
+   "label": "GL Credit Only Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_withdrawal_only_amount",
+   "fieldtype": "Float",
+   "label": "Statement Withdrawal Only Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_deposit_only_amount",
+   "fieldtype": "Float",
+   "label": "Statement Deposit Only Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "opening_diff",
+   "fieldtype": "Float",
+   "label": "Opening Diff",
+   "read_only": 1
+  },
+  {
+   "fieldname": "formula_stmt_closing",
+   "fieldtype": "Float",
+   "label": "Formula Statement Closing",
+   "read_only": 1
+  },
+  {
+   "fieldname": "formula_diff",
+   "fieldtype": "Float",
+   "label": "Formula Diff",
+   "read_only": 1
+  },
+  {
+   "fieldname": "summary_json",
+   "fieldtype": "Long Text",
+   "label": "Summary Json",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "parse_info_json",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Parse Info Json",
+   "read_only": 1
+  },
+  {
+   "fieldname": "run_info_json",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Run Info Json",
+   "read_only": 1,
+   "description": "Run warnings and the anchor snapshot/overrides the workbook shows; keys are the deployed ones"
+  },
+  {
+   "fieldname": "review_json",
+   "fieldtype": "Long Text",
+   "label": "Review JSON",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "created_by",
+   "fieldtype": "Link",
+   "label": "Created By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "created_at",
+   "fieldtype": "Datetime",
+   "label": "Created At",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Bank Reconciliation",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

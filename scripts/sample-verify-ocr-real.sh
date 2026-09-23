@@ -28,7 +28,6 @@ FILES=(
   "$HERE/infrastructure/compose/00-base.yml"
   "$HERE/infrastructure/compose/01-bench.yml"
   "$HERE/infrastructure/compose/02-keycloak.yml"
-  "$HERE/infrastructure/compose/03-wekan.yml"
   "$HERE/infrastructure/compose/04-dev-mounts.yml"
 )
 args=()

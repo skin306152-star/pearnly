@@ -1,0 +1,47 @@
+{
+  "hostname": "DESKTOP-MN2BRKR",
+  "ssh_user": "macadmin",
+  "running_users": [
+    "skin3"
+  ],
+  "profile_path": "C:\\Users\\skin3\\AppData\\Roaming\\Pearnly\\companion.json",
+  "schema_version": 4,
+  "backend_host": "pearnly.com",
+  "profiles": [
+    {
+      "express_root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP",
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "paused": false,
+      "method": "dbf",
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "has_encrypted_token": true,
+      "account_dir_accessible_to_ssh_user": false
+    },
+    {
+      "express_root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP",
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "paused": false,
+      "method": "dbf",
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "has_encrypted_token": true,
+      "account_dir_accessible_to_ssh_user": false
+    }
+  ],
+  "executable": {
+    "path": "C:\\Program Files\\Pearnly Companion\\companion.exe",
+    "sha256": "0BE7E908C3CE38D080F88B57F6EB8BD59F51D0315C3DA5AC58DD775B75BE448A",
+    "process_count": 2
+  },
+  "installed_registry": [
+    {
+      "DisplayName": "Pearnly Companion",
+      "DisplayVersion": "1.1.77"
+    }
+  ],
+  "captured_at": "2026-09-21T09:31:24.160682+00:00",
+  "access": "read_only",
+  "erp_writes": 0,
+  "config_changes": 0,
+  "installed_source_sha_verified": false,
+  "interactive_user_share_access_verified": false
+}

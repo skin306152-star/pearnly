@@ -24,6 +24,12 @@ apps/pearnly_control/pearnly_control/hooks.py	*	元数据：同上
 apps/pearnly_cowork/pearnly_cowork/hooks.py	*	元数据：同上
 apps/pearnly_dms/pearnly_dms/hooks.py	*	元数据：同上
 apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py	*	元数据：同上
+apps/pearnly_cowork/pearnly_cowork/reconciliation/export/labels.py	*	规格：对账工作簿自身的四语标签表，builder 按导出语言取词，不进 Desk 界面
+apps/pearnly_cowork/pearnly_cowork/reconciliation/export/usage.py	*	规格：对账工作簿使用说明四语文案，随工作簿导出，不进 Desk 界面
+apps/pearnly_cowork/pearnly_cowork/reconciliation/export/summary.py	银行对账	规格：报表标题四语表内的中文条目，按导出语言取词
+apps/pearnly_cowork/pearnly_cowork/reconciliation/export/summary.py	銀行照合	规格：同上，日文条目
+apps/pearnly_cowork/pearnly_cowork/reconciliation/export/income_workbook.py	*	规格：收入对账工作簿自身的四语标签与使用说明，builder 按导出语言取词，随工作簿导出，不进 Desk 界面
+apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_warnings.py	*	规格：银行对账的业务警告与完整性提示四语表，随任务存储与工作簿导出，不进 Desk 界面
 apps/pearnly_erp_portal/pearnly_erp_portal/products/workbook.py	*	输入词：客户旧表格的表头别名（中/泰/英），按原字面认表，翻了就认不出客户那张表；不进界面
 apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	条码/二维码	输入词：客户旧盘点表的表头别名，按原字面认表，翻了就认不出客户手里那张表；不进界面
 apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	条码 / 二维码	输入词：同上（客户表里有带空格的写法）

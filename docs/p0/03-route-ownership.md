@@ -60,7 +60,7 @@
 `/api/auth/*`、`/api/login`、`/api/logout`、`/api/me/*`、`/api/switch-company`、`/api/my-companies`、`/api/v1/*`（别名）。
 文件：`login_routes`、`auth_{email_code,password,me,admin,admin_risk}_routes`、`oauth_routes`、`oauth_line_routes`、`line_account_merge_routes`、`services/auth/auth_signup`。
 
-### Cowork（含 WeKan）
+### Cowork（WeKan 看板 2026-09-21 起不再迁移，`/api/work/*` 只作旧系统记录）
 
 | 前缀 | 条数 | 文件 |
 |---|---|---|

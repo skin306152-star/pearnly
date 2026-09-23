@@ -1,0 +1,360 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Push Record",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "request_digest",
+  "request_fingerprint",
+  "document_key",
+  "active_key",
+  "workspace",
+  "client",
+  "actor",
+  "history",
+  "connection",
+  "account_key",
+  "history_version",
+  "connection_revision",
+  "branch",
+  "binding_generation",
+  "status",
+  "revision",
+  "fence",
+  "wire_attempt",
+  "failure_count",
+  "result_unknown",
+  "reason",
+  "target_json",
+  "payload_json",
+  "checks_json",
+  "response_json",
+  "active_attempt",
+  "lease_owner",
+  "lease_expires_at",
+  "external_docnum",
+  "created_at",
+  "updated_at",
+  "completed_at",
+  "business_key",
+  "invoice_no",
+  "seller_name",
+  "blocked_by",
+  "confirmation_request",
+  "confirmation_revision",
+  "completion_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "label": "Record Id",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_digest",
+   "label": "Request Digest",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_fingerprint",
+   "label": "Request Fingerprint",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "document_key",
+   "label": "Document Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "active_key",
+   "label": "Active Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Workspace",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "client",
+   "label": "Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "actor",
+   "label": "Actor",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "User",
+   "reqd": 1
+  },
+  {
+   "fieldname": "history",
+   "label": "History",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork OCR History",
+   "reqd": 1
+  },
+  {
+   "fieldname": "connection",
+   "label": "Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork ERP Connection",
+   "reqd": 1
+  },
+  {
+   "fieldname": "account_key",
+   "label": "Account Key",
+   "fieldtype": "Data",
+   "length": 500,
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "history_version",
+   "label": "History Version",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "connection_revision",
+   "label": "Connection Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "branch",
+   "label": "Branch",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "legacy\nmanaged",
+   "reqd": 1
+  },
+  {
+   "fieldname": "binding_generation",
+   "label": "Binding Generation",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "status",
+   "label": "Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "prepared\npending\nleased\nmanual\nsuccess\ncancelled",
+   "reqd": 1
+  },
+  {
+   "fieldname": "revision",
+   "label": "Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "fence",
+   "label": "Fence",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "wire_attempt",
+   "label": "Wire Attempt",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "failure_count",
+   "label": "Failure Count",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "result_unknown",
+   "label": "Result Unknown",
+   "fieldtype": "Check",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "label": "Reason",
+   "fieldtype": "Data",
+   "length": 500,
+   "read_only": 1
+  },
+  {
+   "fieldname": "target_json",
+   "label": "Target Json",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "payload_json",
+   "label": "Payload Json",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "checks_json",
+   "label": "Checks Json",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "response_json",
+   "label": "Response Json",
+   "fieldtype": "Long Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "active_attempt",
+   "label": "Active Attempt",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Push Attempt"
+  },
+  {
+   "fieldname": "lease_owner",
+   "label": "Lease Owner",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "lease_expires_at",
+   "label": "Lease Expires At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "external_docnum",
+   "label": "External Docnum",
+   "fieldtype": "Data",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "created_at",
+   "label": "Created At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "updated_at",
+   "label": "Updated At",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "completed_at",
+   "label": "Completed At",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "business_key",
+   "label": "Business Key",
+   "fieldtype": "Data",
+   "length": 64,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "invoice_no",
+   "label": "Invoice No",
+   "fieldtype": "Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "seller_name",
+   "label": "Seller Name",
+   "fieldtype": "Text",
+   "read_only": 1
+  },
+  {
+   "fieldname": "blocked_by",
+   "label": "Blocked By",
+   "fieldtype": "Link",
+   "options": "Cowork Push Record",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmation_request",
+   "label": "Confirmation Request",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "confirmation_revision",
+   "label": "Confirmation Revision",
+   "fieldtype": "Int",
+   "read_only": 1
+  },
+  {
+   "fieldname": "completion_json",
+   "label": "Completion Evidence",
+   "fieldtype": "Code",
+   "read_only": 1,
+   "options": "JSON",
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

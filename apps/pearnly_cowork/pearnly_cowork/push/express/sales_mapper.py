@@ -1,0 +1,308 @@
+# -*- coding: utf-8 -*-
+"""扁平化 history → Express 销项(销售)记账载荷(镜像 mapper · 确定性纯函数)。
+
+销售一张赊销/现销发票 = 一笔销售日记账(JNLTYP=03)+ 销项税(喂 ภ.พ.30)+ 复式分录
+(借应收 AR = 贷销售收入 + 贷销项税,与采购相反)。共享纯函数在 common.py;这里只留
+销项特有(客户身份 + 销售分录装配)。
+
+载荷契约(与 companion `sales_adapter` 一字不差,消费方已建):
+  direction     "sales"
+  doctype        IV(赊销/未收 · 默认)| HS(现销/已收)
+  account_set    DATAT(白名单在 enqueue/agent 再校验)
+  docdate_be / vat_period_be   佛历 YYMMDD
+  ref_no         销售参考(幂等锚)
+  customer       {code,name,tax_id,address,prename,customer_new}
+  vat_rate       7.00 | 0.00
+  base_amount / vat_amount / total_amount
+  lines          [{acc,side(D/C),amount,desc}] · 借应收 = 贷收入 + 贷销项税 · 借贷必平
+  stock_acccod   存货科目组(ISACC ACCCOD)· 仅库存路才带 · 小助手建新库存主档用。端点配过
+                 用配的;没配且账套零库存主档时按合格候选数解析(见 stock_acc_group)
+"""
+
+from __future__ import annotations
+
+from decimal import Decimal
+from typing import Any, Dict, List, Optional
+
+from pearnly_cowork.push.express.prior_doc import attach_prior_docnum
+from datetime import date
+from pearnly_cowork.push.express.posting_kind import (
+    POSTING_KIND_SERVICE,
+    POSTING_KIND_STOCK,
+    VALID_POSTING_KINDS,
+    item_posting_kinds,
+)
+from pearnly_cowork.push.express.common import (
+    ExpressMapResult,
+    ITEM_MODE_NONSTOCK,
+    _d,
+    _q,
+    _s,
+    _VAT_RATE,
+    amounts,
+    be_dates,
+    detect_prename,
+    extract_line_items,
+    fail,
+    finalize_payload,
+    item_mode_for,
+    line_item_names,
+    payment_verdict_for,
+    resolve_account,
+    resolve_account_sourced,
+    SRC_DEFAULT,
+)
+from pearnly_cowork.push.express.account_rules import stock_lane_enabled
+from pearnly_cowork.push.express.posting_profile import (
+    account_set_has_no_stock_master,
+    profile_from_config,
+)
+from pearnly_cowork.push.express.stock_acc_group import resolve_stock_acc_group
+from pearnly_cowork.push.express.field_clean import (
+    clean_address,
+    clean_branch_no,
+    clean_invoice_no,
+    clean_seller,
+    clean_tax_id,
+)
+
+
+# 现金销售客户:ERP 真账套通行约定 —— CUSCOD=CUSNAM="เงินสด"(korn/test 套实测均已建档,
+# 应收走 ar_acc)。收现金零售单买方栏 OCR 即「เงินสด」,但被采购卖家清洗器(noise 黑名单含
+# "เงินสด"/"cash")误当噪声抹空 → 触发 confirm 的 vendor_missing。这里对销项直接认现金客户:
+# 用现成档(customer_new=False · 不新建 · 不冒重客户),让记账挂到固定现金客户名下。
+CASH_CUSTOMER_NAME = "เงินสด"
+_CASH_BUYER_TOKENS = frozenset({"เงินสด", "ขายสด", "cash"})
+
+# 每批「库存」过账开关(录入向导 step① · 仅 Express 销项)选中时,商品明细行的写入模式。
+# 小助手 1.1.39 起认它:按真实 STKTYP=0 进销存出库 + 移动加权成本结转 COGS;非真库存品它
+# 自退 needs_review。与画像框架的 ITEM_MODE_STOCK(采购侧 · 本期不发)分属两条路 —— 这条是
+# 用户对本批显式指定的销项路,不经指纹推断。缺省仍走销售·服务(item_mode_for · 行为不变)。
+ITEM_MODE_STOCK_SALE = "stock_sale"
+
+
+def _is_cash_buyer(raw: Any) -> bool:
+    """买方是否为现金客人(销项专用判定)。"""
+    return str(raw or "").strip().lower() in _CASH_BUYER_TOKENS
+
+
+def _resolve_customer(
+    clients: List[Dict[str, Any]],
+    history: Dict[str, Any],
+    name: str,
+    tax_id: str,
+    address: str = "",
+    branch: str = "",
+) -> Dict[str, Any]:
+    """客户身份块。命中 erp_client_mappings(express)→ 带 code、customer_new=False;
+    否则 customer_new=True 让 Agent 在 ARMAS 建档(带 tax_id+address 落档,开全额税票用)。
+    branch=5 位分店号(空=未提供):连锁同税号多分店档,小助手靠它 + 名字定唯一档。"""
+    code = ""
+    client_id = history.get("client_id")
+    if client_id is not None:
+        for c in clients or []:
+            if (
+                str(c.get("client_id")) == str(client_id)
+                and (c.get("erp_type") or "").lower() == "express"
+            ):
+                code = (c.get("erp_code") or "").strip()
+                break
+    return {
+        "code": code,
+        "name": name,
+        "tax_id": tax_id,
+        "address": address,
+        "branch": branch,
+        "prename": detect_prename(name),
+        "customer_new": not bool(code),
+    }
+
+
+def build_express_sales_payload(
+    history: Dict[str, Any],
+    *,
+    config: Dict[str, Any],
+    today: date,
+    prior_docnum: str | None = None,
+    mappings: Optional[Dict[str, Any]] = None,
+    category: str = "",
+    posting_kind: Optional[str] = None,
+) -> ExpressMapResult:
+    """扁平化 history → Express 销项载荷。判脏/不自洽 → ok=False(留人工)。
+
+    config 键:account_set · revenue_acc(兜底收入科目)· vat_output_acc(销项税科目)·
+    ar_acc(应收科目)· default_doctype(IV/HS)。
+    posting_kind:本批过账去向(录入向导 step① 的每批开关)。"stock"=商品行按真实进销存出库
+    (item_mode=stock_sale);缺省/'service'/其它 → 沿用画像推断,行为不变(SAFE 默认)。
+    """
+    mappings = mappings or {}
+    fields = history.get("fields") if isinstance(history.get("fields"), dict) else {}
+    fields = fields or {}
+
+    account_set = str(config.get("account_set") or "").strip()
+    if not account_set:
+        return fail("no_account_set")
+
+    dates = be_dates(history.get("invoice_date") or fields.get("date"))
+    if not dates:
+        return fail("bad_or_missing_date")
+    docdate_be, vat_period_be = dates
+
+    amts = amounts(fields, history)
+    if not amts:
+        return fail("amounts_not_consistent")
+    base, vat, total = amts
+
+    accounts = mappings.get("accounts") or []
+    revenue_acc, acc_source = resolve_account_sourced(accounts, category, config.get("revenue_acc"))
+    if not revenue_acc:
+        return fail("no_revenue_account")
+    ar_acc = resolve_account(accounts, "accounts_receivable", config.get("ar_acc"))
+    if not ar_acc:
+        return fail("no_ar_account")
+
+    has_vat = vat > 0
+    if has_vat:
+        vat_acc = resolve_account(accounts, "output_vat", config.get("vat_output_acc"))
+        if not vat_acc:
+            return fail("no_output_vat_account")
+
+    raw_buyer = fields.get("buyer_name") or fields.get("customer_name") or history.get("buyer_name")
+    tax_id = clean_tax_id(
+        fields.get("buyer_tax") or fields.get("buyer_tax_id") or fields.get("customer_tax")
+    )
+    address = clean_address(fields.get("buyer_addr"))
+    branch = clean_branch_no(fields.get("buyer_branch"))
+    if _is_cash_buyer(raw_buyer):
+        name = CASH_CUSTOMER_NAME
+        # 现金/散客客户用现成档(不新建)→ 不带地址(简易税票无须买方地址)。
+        customer = {
+            "code": CASH_CUSTOMER_NAME,
+            "name": CASH_CUSTOMER_NAME,
+            "tax_id": tax_id,
+            "address": "",
+            "branch": "",
+            "prename": "",
+            "customer_new": False,
+        }
+    else:
+        name = clean_seller(raw_buyer)
+        customer = _resolve_customer(
+            mappings.get("clients") or [], history, name, tax_id, address, branch
+        )
+    ref_no = clean_invoice_no(history.get("invoice_no") or fields.get("invoice_number"))
+
+    # 分录反向:借 应收(含税) = 贷 销售收入(税前) + 贷 销项税。
+    lines: List[Dict[str, str]] = [
+        {"acc": ar_acc, "side": "D", "amount": _s(total), "desc": name or "ลูกหนี้การค้า"},
+        {"acc": revenue_acc, "side": "C", "amount": _s(base), "desc": "รายได้จากการขาย"},
+    ]
+    if has_vat:
+        lines.append({"acc": vat_acc, "side": "C", "amount": _s(vat), "desc": "ภาษีขาย"})
+
+    dr = sum((_d(ln["amount"]) for ln in lines if ln["side"] == "D"), Decimal("0"))
+    cr = sum((_d(ln["amount"]) for ln in lines if ln["side"] == "C"), Decimal("0"))
+    if _q(dr) != _q(cr):
+        return fail("entry_not_balanced")
+
+    line_kinds = item_posting_kinds(fields.get("items"))
+    if line_kinds is not None and len(line_kinds) != len(fields.get("items") or []):
+        return fail("posting_kind_needed", line_item_names(fields))
+    # 记账画像:永续客户库存路未开时,销售会结转 COGS/扣库存,绝不静默按周期制落 → 交会计。
+    # 指纹未上报→unknown→非库存(=今天默认,行为不变)。
+    profile = profile_from_config(config, stock_enabled=stock_lane_enabled(config))
+    # 每批开关(库存/服务)= 用户对本批的显式决定 → 一律尊重,绕过「永续→交会计」自动 escalate:
+    # 选「库存」= 明确卖真实库存(V2-b 真扣库存正是永续客户该走的账);选「服务」= 明确是服务/
+    # 非库存(收入式入账,永续账套里的真服务本就不动库存)。自动 escalate 只兜「没显式选」的情形
+    # (系统拿不准,不硬落)。放行库存侧安全:小助手匹配不到真库存品仍兜底 escalate(ERR_STOCK_NOT_FOUND)。
+    if (
+        posting_kind not in VALID_POSTING_KINDS
+        and line_kinds is None
+        and profile.blocks_auto_posting()
+    ):
+        # 带上票面商品行:补选卡靠它让会计看见这张票卖的是什么再判库存/服务(同科目组卡口径)。
+        return fail(profile.escalate_reason(), line_item_names(fields))
+
+    stock_acccod = str(config.get("stock_acccod") or "").strip()
+    acc_group_auto = False
+    # 每批开关优先于画像:显式「库存」→ stock_sale(小助手扣真实库存 + 结转成本);显式「服务」→
+    # 非库存服务档 + 收入式(不碰库存·不被永续画像推成 stock);缺省 → 沿用画像(=今天默认,行为不变)。
+    line_modes = (
+        [
+            ITEM_MODE_STOCK_SALE if kind == POSTING_KIND_STOCK else ITEM_MODE_NONSTOCK
+            for kind in line_kinds
+        ]
+        if line_kinds is not None
+        else None
+    )
+    has_stock_mode = (ITEM_MODE_STOCK_SALE in line_modes) if line_modes is not None else False
+    effective_has_stock = (
+        has_stock_mode if line_modes is not None else posting_kind == POSTING_KIND_STOCK
+    )
+    if effective_has_stock:
+        # 零库存主档 = 小助手没有可克隆的 STMAS 模板行,只能靠 ISACC 存货科目组从零建档。
+        # 拦的是「定不下来用哪个组」,不是「账里缺这个品」:品不在账里/库存为零负都照落
+        # (建档 + 卖成负,没成本基础就不结转 COGS)—— 选了库存就一定能落,不留死胡同。
+        if account_set_has_no_stock_master(config):
+            choice = resolve_stock_acc_group(config)
+            if choice.fail_reason:
+                # 带上票面商品行:闸在载荷构造之前退出,不带出来卡就没东西可列(只剩一句话)。
+                return fail(choice.fail_reason, line_item_names(fields))
+            stock_acccod, acc_group_auto = choice.acccod, choice.auto
+        line_item_mode = (
+            line_modes[0] if line_modes is not None and line_modes else ITEM_MODE_STOCK_SALE
+        )
+    elif posting_kind == POSTING_KIND_SERVICE:
+        line_item_mode = ITEM_MODE_NONSTOCK
+    else:
+        line_item_mode = item_mode_for(profile.posting_mode)
+    # V1 安全明细:OCR 行项目过对账闸(行合计≈税前额才采信)。挂收入科目作直接科目行,
+    # 不碰库存/成本。status!=ok → companion 退回表头模式 + posted_partial(诚实)。
+    detail = extract_line_items(
+        fields,
+        base,
+        total=total,
+        item_mode=(lambda idx, _it: line_modes[idx]) if line_modes is not None else line_item_mode,
+    )
+
+    # 现销 HS / 赊销 IV:六级漏斗(common.payment_verdict)—— 人工裁决 > 票面显式字段 >
+    # 票种语义(F3)> 银行佐证(F6)> 无信号默认赊销。销项 v1 不接供应商过账档案(档案锚是
+    # 卖方税号,销项无此维度)。verdict_src 留痕排障用:现/赊哪层定的。
+    paid, verdict_src = payment_verdict_for(
+        history, fields, mappings, direction="sales", total=total
+    )
+    doctype = "HS" if paid else "IV"
+    pass  # Diagnostic logging belongs to the calling service.
+    payload = {
+        "direction": "sales",
+        "doctype": doctype,  # 默认 IV 赊销(无信号/未收)
+        "account_set": account_set,
+        "docdate_be": docdate_be,
+        "vat_period_be": vat_period_be,
+        "ref_no": ref_no,
+        "customer": customer,
+        "vat_rate": float(_VAT_RATE) if has_vat else 0.0,
+        "base_amount": _s(base),
+        "vat_amount": _s(vat),
+        "total_amount": _s(total),
+        "lines": lines,
+        "items": detail["items"],
+        "items_status": detail["status"],
+        "items_account": revenue_acc,  # 明细行挂的收入科目(直接科目行)
+        "items_line_sum": detail["line_sum"],
+        # 变动科目(收入)的真实解析来源 · config_default=落账套默认→待核(诚实状态)。
+        "account_source": acc_source,
+        "account_review": acc_source == SRC_DEFAULT,
+        "doctype_src": verdict_src or "config_default",  # 现/赊哪层定的(F2-F6 六级漏斗留痕)
+        "source": {
+            "history_id": str(history.get("id") or ""),
+            "filename": history.get("filename"),
+        },
+    }
+    if (effective_has_stock or line_item_mode == ITEM_MODE_STOCK_SALE) and stock_acccod:
+        # 小助手建新库存主档时拿它填 STMAS.ACCCOD(→ISACC→存货资产 + 销货成本)。
+        # 账里已有该品就用不上;定不下来就不发,别给老小助手塞没约定的空键。
+        payload["stock_acccod"] = stock_acccod
+    return ExpressMapResult(
+        True, finalize_payload(attach_prior_docnum(payload, prior_docnum)), "ok"
+    )

@@ -1,0 +1,188 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork OCR Correction",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "occurred_at",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "event_key",
+  "scope_key",
+  "sample_key",
+  "fingerprint",
+  "site_key",
+  "workspace",
+  "client",
+  "actor",
+  "source_history",
+  "history_revision",
+  "seller_tax",
+  "seller_name",
+  "field_name",
+  "ai_value",
+  "corrected_value",
+  "occurred_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_key",
+   "fieldtype": "Data",
+   "label": "Event Key",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 64,
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "scope_key",
+   "fieldtype": "Data",
+   "label": "Scope Key",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 64,
+   "search_index": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "sample_key",
+   "fieldtype": "Data",
+   "label": "Sample Key",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 64,
+   "search_index": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "fingerprint",
+   "fieldtype": "Data",
+   "label": "Evidence Fingerprint",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 64,
+   "hidden": 1
+  },
+  {
+   "fieldname": "site_key",
+   "fieldtype": "Data",
+   "label": "Site",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 255,
+   "hidden": 1
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Company",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "options": "Cowork Workspace",
+   "search_index": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "label": "Buyer Client",
+   "read_only": 1,
+   "reqd": 0,
+   "no_copy": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "Changed By",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "source_history",
+   "fieldtype": "Link",
+   "label": "Source History",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "options": "Cowork OCR History",
+   "search_index": 1
+  },
+  {
+   "fieldname": "history_revision",
+   "fieldtype": "Int",
+   "label": "Record Revision",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "seller_tax",
+   "fieldtype": "Long Text",
+   "label": "Seller Tax ID",
+   "read_only": 1,
+   "reqd": 0,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "seller_name",
+   "fieldtype": "Long Text",
+   "label": "Seller Name",
+   "read_only": 1,
+   "reqd": 0,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "field_name",
+   "fieldtype": "Data",
+   "label": "Field",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "ai_value",
+   "fieldtype": "Long Text",
+   "label": "First Recognition Value",
+   "read_only": 1,
+   "reqd": 0,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "corrected_value",
+   "fieldtype": "Long Text",
+   "label": "Corrected Value",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "occurred_at",
+   "fieldtype": "Datetime",
+   "label": "Changed At (UTC)",
+   "read_only": 1,
+   "reqd": 1,
+   "no_copy": 1
+  }
+ ],
+ "permissions": [{"role": "All", "read": 1}, {"role": "Guest", "read": 1}]
+}

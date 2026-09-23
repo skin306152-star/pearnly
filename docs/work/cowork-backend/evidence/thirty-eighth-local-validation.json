@@ -1,0 +1,96 @@
+{
+  "base_commit": "242339d",
+  "scope": "thirty-eighth batch: the first half of the third layer (deterministic readers) of native bank-statement and GL document OCR — the low-level table IO and the bank-statement xlsx/csv direct reader",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "3e1696c9a30abb44dea55e6f2db5c090ae70b0dad127a836367b35a760f1a151",
+    "delivery_captured_at": "2026-09-21T17:10:00.290603+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirty-seventh-delivery.json baseline-thirty-eighth-delivery.json (before pinned at 0c854389, after pinned at 3e1696c9)",
+    "runtime_projection_delivery_sha256": "65f2c18bfe08e0173ff29a8bd7796707cdbb5203ff0870837a83438a36d79c4a",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false; the endpoint configuration digest stays c5882f4b, 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/recon/bank_stmt_xlsx.py": "e8df8a52697b524e4a61638099329c09fc08b2b02fac908211694d4e570e032f",
+      "services/recon/bank_table_io.py": "19b9161eb5a96f8244efba97b215b50710365ba97f1bd93f8ce04ccd302f190e"
+    },
+    "source_note": "the reader is pure and reads only the bytes it is handed, but the delivery-time live-source capture is taken anyway, as the migration rule requires"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_bank_sheets",
+      "result": "PASS",
+      "tests": 36,
+      "new_tests": 36,
+      "covers": [
+        "a short ASCII hint (in/out/cr/dr) must be a whole word so the KTB branch column 'Init Br.' is never read as a deposit column",
+        "the four-language statement header dictionary, a single signed amount column, and the first hit winning each role",
+        "a header at the top, a header below the first rows, and the sixteen-row scan limit",
+        "the account number from the label row above the header, the sheet name as fallback, and a sheet name that does not look like an account",
+        "a labelled opening above the header, a real zero opening, and no label meaning unknown",
+        "rows carrying their account and date, a row without a date inheriting the previous one, and the opening row staying out of the rows",
+        "a summary row skipped before it can touch the closing, and a row without movement skipped",
+        "a real zero closing not replaced by the previous row",
+        "one account per sheet, each account using its own opening, and the opening derived when the bank cleared the summary block",
+        "a broken balance chain and a closing that does not add up both surfacing in the completeness issues",
+        "a sheet without a statement table skipped, a file with none refused, an unreadable file refused",
+        "CSV bytes read through their encoding and delimiter, including without a .csv extension",
+        "the bank code taken from the filename, an incidental substring not deciding it, Thai brand names ignored, and no match returning empty"
+      ]
+    },
+    {
+      "command": "python test_cowork_bank_sheets_source_parity.py --source-stdin (pinned source piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "batches": 227,
+      "counts": {
+        "installed": 144,
+        "multi_account": 27,
+        "accounts": 171,
+        "closing_mismatch": 130,
+        "balance_break": 110,
+        "unreadable": 1,
+        "no_header": 82,
+        "summary_leaked": 0,
+        "csv": 1
+      },
+      "note": "only the newly ported reader definitions are executed from the pinned text; the row class, the number/date parsers and the three balance-chain steps are injected because earlier batches ported and differentially verified them, so the comparison isolates this reader. Both sides read the same in-memory workbook/CSV bytes and are compared on the whole result: status, per-account rows, openings/closings, aggregation and the completeness issues. The header dictionaries, _STMT_ACCT_LABEL, _STMT_OPEN_KW and _hit are compared value by value as well."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_bank_sheets test_cowork_reconciliation_bank_parse test_cowork_reconciliation_bank_statement test_cowork_bank_warnings test_cowork_bank_recon_contracts test_cowork_reconciliation_amounts",
+      "result": "PASS",
+      "tests": 145,
+      "note": "bank_parse.py gained one function in this batch, so its own file and the rest of the bank family are run together with the new reader"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the ADR-006 template-learning layer of the deployed reader (stored mapping lookup, local inference, one model call under allow_ai, otherwise needs_mapping for the frontend column-confirmation dialog) is not carried over: it needs a mapping store and a confirmation UI that this platform does not have, and a half-ported version would be a shell. The consequence is written down: an unrecognised header returns stmt_headers_not_found, which is what the deployed code returned when the learning layer was not in play, instead of pretending it can hand back needs_mapping",
+    "the PDF text layer (_pdf_extract_text_safe) of the same pinned bank_table_io.py is not carried over yet: it travels with the PDF path in the next batch rather than sitting here unused",
+    "_is_summary_row and _SUMMARY_ROW_KW are not re-ported: they already live with the balance chain as bank_statement.is_summary_row over the same keyword table, and two copies of one judgement would drift apart",
+    "the deployed reader filters summary rows inline and then calls the three balance-chain helpers; this side calls bank_statement.finalize_rows, which filters and then calls the same three steps in the same order, once per account. The per-account, never-cross-account rule is unchanged",
+    "the private helpers were renamed to public entries (map_statement_columns, find_statement_header, extract_sheet_account, scan_preheader_opening, parse_statement_sheet, read_statement_workbook, header_hit, load_workbook_sheets, load_csv_sheets) because this layer is an entry point for later wiring rather than a file-internal helper; every judgement and every returned string is the deployed one",
+    "only the comments and docstrings were rewritten; the result dictionary shape, parser_version bank_recon_v2+xlsx_direct_v3 and both failure codes are the deployed ones"
+  ],
+  "not_run": [
+    "wiring read_statement_workbook to any caller — the third layer is only half ported and the model path does not exist yet, and a half-chain entry point would be worse than none",
+    "real files, model calls, the queue, frontend integration, deployment, external results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-reader-bank-sheets.md"
+}

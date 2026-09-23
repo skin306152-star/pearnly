@@ -1,0 +1,175 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork ERP Snapshot",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-22 00:00:00.000000",
+ "modified": "2026-09-22 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_key",
+  "workspace",
+  "client",
+  "connection",
+  "connection_revision",
+  "binding_generation",
+  "adapter",
+  "scope_kind",
+  "scope_key",
+  "projection_revision",
+  "source_hash",
+  "content_hash",
+  "body",
+  "preparation",
+  "observed_at",
+  "installed_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "label": "Buyer Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "connection",
+   "label": "ERP Connection",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork ERP Connection"
+  },
+  {
+   "fieldname": "connection_revision",
+   "label": "Connection Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "binding_generation",
+   "label": "Binding Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "adapter",
+   "label": "Adapter",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "scope_kind",
+   "label": "Directory Scope Kind",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "scope_key",
+   "label": "Directory Scope Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 500
+  },
+  {
+   "fieldname": "projection_revision",
+   "label": "Directory Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "source_hash",
+   "label": "Source Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "content_hash",
+   "label": "Content Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "body",
+   "label": "Directory Snapshot",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "preparation",
+   "label": "Preparation Evidence",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "observed_at",
+   "label": "Observed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "installed_at",
+   "label": "Installed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

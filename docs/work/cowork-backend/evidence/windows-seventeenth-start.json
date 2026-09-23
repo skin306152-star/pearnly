@@ -1,0 +1,67 @@
+{
+  "test_credentials_file_present": true,
+  "install_files": [
+    {
+      "Name": "cdx_reindex_runner.exe",
+      "Length": 1242227
+    },
+    {
+      "Name": "companion.exe",
+      "Length": 60710032
+    },
+    {
+      "Name": "pearnly.ico",
+      "Length": 91225
+    },
+    {
+      "Name": "unins000.dat",
+      "Length": 242563
+    },
+    {
+      "Name": "unins000.exe",
+      "Length": 4455682
+    }
+  ],
+  "captured_at": "2026-09-21T10:22:04.9344466Z",
+  "python_commands": [
+    {
+      "Name": "py.exe",
+      "Source": "C:\\WINDOWS\\py.exe"
+    }
+  ],
+  "python_install_dirs": [
+    {
+      "Name": "Python311"
+    }
+  ],
+  "identity": "DESKTOP-MN2BRKR\\macadmin",
+  "profiles": [
+    {
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP",
+      "paused": false,
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "method": "dbf"
+    },
+    {
+      "account_dir": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "root": "\\\\Accserver\\d$\\ACCOUNT\\70EXP",
+      "paused": false,
+      "account_set": "\\\\Accserver\\d$\\ACCOUNT\\70EXP\\TEST",
+      "method": "dbf"
+    }
+  ],
+  "exe_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+  "processes": [
+    {
+      "ProcessId": 15244,
+      "ParentProcessId": 10144,
+      "ExecutablePath": "C:\\Program Files\\Pearnly Companion\\companion.exe"
+    },
+    {
+      "ProcessId": 9056,
+      "ParentProcessId": 15244,
+      "ExecutablePath": "C:\\Program Files\\Pearnly Companion\\companion.exe"
+    }
+  ]
+}

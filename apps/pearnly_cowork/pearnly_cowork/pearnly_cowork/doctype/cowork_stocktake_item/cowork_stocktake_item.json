@@ -1,0 +1,161 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Stocktake Item",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "task",
+  "product_code",
+  "product_name",
+  "barcode",
+  "warehouse",
+  "location",
+  "unit",
+  "book_qty",
+  "actual_qty",
+  "version",
+  "counted_by",
+  "counted_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 36
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "read_only": 1,
+   "options": "Cowork Stocktake Task",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "product_code",
+   "fieldtype": "Data",
+   "label": "Product Code",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "product_name",
+   "fieldtype": "Data",
+   "label": "Product Name",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "barcode",
+   "fieldtype": "Data",
+   "label": "Barcode",
+   "read_only": 1,
+   "reqd": 0,
+   "length": 300
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Data",
+   "label": "Warehouse",
+   "read_only": 1,
+   "reqd": 0,
+   "length": 300
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Location",
+   "read_only": 1,
+   "reqd": 0,
+   "length": 300
+  },
+  {
+   "fieldname": "unit",
+   "fieldtype": "Data",
+   "label": "Unit",
+   "read_only": 1,
+   "reqd": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "book_qty",
+   "fieldtype": "Data",
+   "label": "Book Qty",
+   "read_only": 1,
+   "length": 30,
+   "description": "Exact decimal quantity, at most six decimal places; empty actual quantity means not counted."
+  },
+  {
+   "fieldname": "actual_qty",
+   "fieldtype": "Data",
+   "label": "Actual Qty",
+   "read_only": 1,
+   "length": 30,
+   "description": "Exact decimal quantity, at most six decimal places; empty actual quantity means not counted."
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "counted_by",
+   "fieldtype": "Link",
+   "label": "Counted By",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "counted_at",
+   "fieldtype": "Datetime",
+   "label": "Counted At",
+   "read_only": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Stocktake",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

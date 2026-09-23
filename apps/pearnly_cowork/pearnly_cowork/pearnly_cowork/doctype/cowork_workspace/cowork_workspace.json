@@ -1,0 +1,84 @@
+{
+ "doctype": "DocType",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-20 00:00:00.000000",
+ "modified": "2026-09-20 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "name": "Cowork Workspace",
+ "autoname": "hash",
+ "field_order": [
+  "display_name",
+  "tax_id",
+  "address",
+  "branch",
+  "phone",
+  "enabled"
+ ],
+ "fields": [
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "length": 200,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "tax_id",
+   "fieldtype": "Data",
+   "label": "Tax ID",
+   "length": 40
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "branch",
+   "fieldtype": "Data",
+   "length": 120,
+   "label": "Branch"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "length": 50,
+   "label": "Phone"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Intake",
+   "read": 1
+  },
+  {
+   "role": "Cowork OCR History",
+   "read": 1
+  },
+  {
+   "role": "Cowork Master Data",
+   "read": 1
+  }
+ ]
+}

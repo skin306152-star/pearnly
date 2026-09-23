@@ -1,0 +1,77 @@
+{
+  "base_commit": "f052738",
+  "scope": "nineteenth batch: offline bank-statement row contract and balance chain",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "3e9dfa0fcc1b3b933ff7127db66685019314f192ddf03acdf00f4aae06037022",
+    "start_captured_at": "2026-09-21T11:26:34.824912+00:00",
+    "delivery_sha256": "c40b32d52823ff160ef94d87941763facaab4cc5add600167ef4856f4003316f",
+    "delivery_captured_at": "2026-09-21T11:28:50.646567+00:00",
+    "source_compare": "PASS",
+    "runtime_projection_start_sha256": "0444436525cd37d25b5be233cf759e048bc692e1d1891413ffd2fb90ee7b5090",
+    "runtime_projection_delivery_sha256": "70f8843274807fdf9243c994744665809677811c7807ce652ffd3b7489ae4166",
+    "runtime_projection_compare": "HOLD / push_runtime_identity_changed",
+    "runtime_projection_changed_paths": [
+      "captured_at",
+      "source_baseline_sha256",
+      "components.pearnly-web.database.identity.endpoints.configuration_digest",
+      "components.pearnly-worker.database.identity.endpoints.configuration_digest"
+    ],
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py' -v",
+      "result": "PASS",
+      "tests": 66,
+      "new_tests": 35
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_source_parity.py --source /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+      "result": "PASS",
+      "balance_chain_batches": 1500,
+      "summary_rows_filtered": 3098,
+      "direction_corrections": 218,
+      "amount_repairs": 74,
+      "audit_issues": 567,
+      "constants_verified_equal": ["AMOUNT_TOL", "REPAIR_RATIO", "summary keywords", "None-balance contract"],
+      "retained_previous_cases": {
+        "amount_contract": 119037,
+        "compare_field": 6000,
+        "compare_all_fields": 3000,
+        "matcher_batches": 2000,
+        "stocktake_quantity": 4020,
+        "first_pass_batches": 1000
+      }
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "scope_evidence": {
+    "consumers_of_balance_chain": [
+      "services/recon/bank_stmt_xlsx.py",
+      "services/recon/bank_stmt_extract.py",
+      "services/recon/bank_stmt_reread.py",
+      "services/recon/bank_recon_pipeline.py",
+      "services/recon/bank_recon_v2.py"
+    ],
+    "product_decision": "reconciliation stays in Cowork per docs/p0/04-scope-and-drop-list.md; tax filing, work orders and the Excel-formula internal test are excluded and untouched"
+  },
+  "not_run": [
+    "Site install/upgrade and real transactions",
+    "company and role authorization",
+    "real XLSX/PDF/text statement parsing and model extraction",
+    "statement/GL caches, matching/scoring, task stores, exports and review actions",
+    "business API, queue, browser and LINE device acceptance",
+    "deployment, external business result and user acceptance",
+    "tests/test_cowork_stocktake*.py export cases (local python3.14 lacks openpyxl; untouched module)"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-statement.md"
+}

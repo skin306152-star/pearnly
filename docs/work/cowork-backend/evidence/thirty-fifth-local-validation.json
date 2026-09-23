@@ -1,0 +1,108 @@
+{
+  "base_commit": "412d9fd",
+  "scope": "thirty-fifth batch: the two deterministic OCR-family gaps are closed (supplier magnitude baseline, one-line error text) and the Cowork domain dependency directions are registered with the architecture guard",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "40ae6777306e726ce18397f40aef8a0ee99d4dad336d4a88b5dbfa762175e113",
+    "delivery_captured_at": "2026-09-21T15:22:42.246494+00:00",
+    "delivery_scope": "pearnly-web and pearnly-worker, revision pearnly-web-ec2e5c957e6b-s3, image digest sha256:178af2ed..., runtime secret pearnly-web-env:3",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirty-fourth-delivery.json baseline-thirty-fifth-delivery.json (before pinned at e81f4908)",
+    "fixed_source_hashes": {
+      "services/ocr/magnitude_baseline.py": "94c176047cd5658b87cc4181a173efb4520206233e52728b13739142b3b471ff",
+      "services/ocr/error_format.py": "8774b6f4fe9fc0d8d629e0b78457bbdf3d35f92d302fd29d02506f39b9611cba"
+    },
+    "runtime_projection_delivery_sha256": "201bb3bf8314c01cd9a65b1ff63d056064cd182c4294cba23fe63ede20eb403d",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false; the endpoint configuration digest stays c5882f4b, 60 endpoints and both platform flags unchanged)",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_ocr_error_format tests.test_cowork_income_parse tests.test_cowork_vat_parse tests.test_cowork_income_recon_contracts",
+      "result": "PASS",
+      "tests": 95,
+      "skipped": 2,
+      "note": "the two skips are the real-pydantic cases; the host has no pydantic, so they run in the lab bench instead"
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_magnitude",
+      "result": "PASS",
+      "tests": 8,
+      "new_tests": 8,
+      "environment": "pearnly-cowork-backend-lab-bench-1"
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_ocr_error_format",
+      "result": "PASS",
+      "tests": 15,
+      "new_tests": 15,
+      "environment": "pearnly-cowork-backend-lab-bench-1",
+      "covers": [
+        "a plain message keeps its first line; an empty message falls back to the class name",
+        "the pydantic documentation URL is stripped even when another exception wraps it",
+        "the 160 character cap counts characters, not bytes, and appends the ellipsis",
+        "a real ValidationError names the first fields, drops the leading model index and summarises more than three",
+        "the stand-in paths: no errors, errors() raising, duplicate locations, an int location that is not the model index"
+      ]
+    },
+    {
+      "command": "python test_cowork_ocr_magnitude_source_parity.py --source-stdin (fixed source piped in)",
+      "result": "PASS",
+      "batches": 521,
+      "counts": {"flagged_low": 67, "flagged_high": 28, "withdrawn": 426},
+      "differences": 0
+    },
+    {
+      "command": "python test_cowork_ocr_error_format_source_parity.py --source-stdin (fixed source piped in)",
+      "result": "PASS",
+      "cases": {"plain": 24, "pydantic": 7, "wrapped": 14, "stand_in": 14, "module_constants": 2},
+      "coverage": {"truncated": 5, "class_name_fallback": 6, "field_summary": 7, "empty_errors_fallback": 2, "propagated_str_failure": 1},
+      "differences": 0,
+      "note": "compared against the pinned source, not only against another copy of the migrated code: the pinned module is executed from its fixed text and both sides answer the same inputs"
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_income_parse_parity.py --source <fixed source>",
+      "result": "PASS",
+      "batches": 305,
+      "per_path": {"excel_rows": 161, "table_rows": 172, "text_rows": 156, "pipeline_rows": 70},
+      "differences": 0,
+      "note": "its _short_err double now points at the migrated helper, because the deployed source calls that helper"
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (both lab Sites)",
+      "result": "PASS",
+      "tests_per_site": 19,
+      "covers": [
+        "the admittance path still refuses the bad shapes it refused before (a non-list sheet, an unknown kind, an empty source)",
+        "the same decoded text and Excel sources still produce the same rows and totals",
+        "per-file diagnostics, replay by request id, permission and batch delete are unchanged"
+      ],
+      "anonymous_http": {"create": 403, "create_from_parsed": 403, "records": 403, "detail": 403, "delete": 403, "delete_many": 403}
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {
+      "command": "python3.14 -m unittest tests.test_architecture_guard",
+      "result": "PASS",
+      "tests": 10,
+      "new_tests": 1,
+      "note": "the new case proves an unregistered Cowork cross-domain import fails the guard and passes once registered"
+    },
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "python3 scripts/check-i18n.py", "result": "REPORT-ONLY",
+      "note": "the migrated wording is the same class as the existing sanity/parse wording and is not registered in keep-cjk.tsv, matching the current tree; nothing was added to messages.tsv"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the magnitude rule keeps its decision core only: the deployed project never wired a history source either (its own note says the query stayed out of that commit), so the native module leaves the history source to the caller",
+    "the one-line error text lives in the shared pure contracts domain instead of under ocr, because the deployed module was imported by the reconciliation parse entries and neither side should depend on the other",
+    "the deployed formatter was applied at the file-level entries of the old project; natively it is applied at the two error fields that report a refused source, which is where the same field is still produced",
+    "the diagnostic field diag.exception keeps the raw exception text, because it is a native diagnostic field rather than the user-facing error",
+    "the errors() fallback message and the field-summary wording are carried over verbatim, including the Chinese wording, so an accountant sees what the deployed product showed"
+  ],
+  "not_run": [
+    "real files, real model calls, the asynchronous queue, cost or quota paths",
+    "the bank-statement and GL document OCR layer, so bank_chain_gate.py and gl_balance_chain.py stay unmigrated by decision",
+    "DMS, frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/ocr-validation-and-error-text.md"
+}

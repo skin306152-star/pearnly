@@ -1,0 +1,116 @@
+{
+  "base_sha": "addf40ae4c6ef04df58962225c5c7f1d29e658e7",
+  "branch": "codex/cowork-backend-migration",
+  "changed_code_sha256": {
+    "apps/pearnly_cowork/pearnly_cowork/companion/delivery_documents.py": "73e6264ad9eeedc926aa7a75b17cdee130c556810c79b6c8f4953541e80a75d2",
+    "apps/pearnly_cowork/pearnly_cowork/companion/delivery_store.py": "0ad1c131bec9c876c92da8dc032f669afca432a6bd86300763d052e7940bc522",
+    "apps/pearnly_cowork/pearnly_cowork/companion/queue_contracts.py": "acef76a17e349bafee7a9edb52cd752d1a18acb58345295a001faf53005741bc",
+    "apps/pearnly_cowork/pearnly_cowork/companion/receipt_auth.py": "05fad97183c1544e61397fc69f2be02aace6c3940689a603c6d3ba51acd9d08c",
+    "apps/pearnly_cowork/pearnly_cowork/companion/transport.py": "7b4d3a81677544f44a929dd9003906bcf30e1aa71e9b25cb4f55ade6f704564b",
+    "apps/pearnly_cowork/pearnly_cowork/hooks.py": "1e13b0e99b4f5ef208bc637d69bb408093c409caf48fccf6c8853a7f6e2314fb",
+    "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_companion_delivery/__init__.py": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_companion_delivery/cowork_companion_delivery.json": "4c94268f55bb6f51617c3e87975eebbd0617c5f7e2d6f5ca703350a20146c210",
+    "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_companion_delivery/cowork_companion_delivery.py": "41b38ae35f8cac7be2e7f9ef60a19da5b587d42738ad06e3e636056ab932513a",
+    "apps/pearnly_cowork/pearnly_cowork/push/native/service.py": "aa9fee6a42f489015fa8f2b4ff3ec31474c2e6870777e4440881d0a02364a2a7",
+    "apps/pearnly_cowork/pearnly_cowork/translations/en.csv": "c27c3ce0e00ded0b22dcfb48e2639d22b7127401377b184f09388972e0b5022b",
+    "apps/pearnly_cowork/pearnly_cowork/translations/ja.csv": "ea0c55aef1df90b2bda426ad666ecd07a1c0c681dfdce1e169d02c63227a5e59",
+    "apps/pearnly_cowork/pearnly_cowork/translations/th.csv": "3f543b4246df3f3b078e8f8fbe3d34d3c6468759e0f4dd71f42ec0c8cc15ab7e",
+    "apps/pearnly_cowork/pearnly_cowork/translations/zh.csv": "c4738a68065d1c1856e6b4eab76776549a9ee1360f42c7e1e3ad8d4df56d1858",
+    "scripts/cowork-companion-delivery-upgrade-verify.py": "43cd793c1d6255c3ccde329ea8ea513c4d1758f1f8f16d17013457a3602a3c33",
+    "scripts/cowork-companion-queue-parity.py": "51fe3ae726c198000cced21ca0bdba3c0f2cc69d6779aff1444068fa531b4948",
+    "scripts/cowork-companion-transport-lab-verify.py": "d90ab357c98fbb0017b5213f2f2f6dbb9d85b684f2f8906e4e69be2d695c3354",
+    "scripts/i18n/messages.tsv": "54a2587b0faaf19a25ceefce779bd4986ac5962778c870892fa0f5c2ecc286a6",
+    "tests/test_cowork_companion_queue_contracts.py": "eed243c73a1d9a1cc564831761b961e6a39b947b1823aeda34550e17ff8308ac"
+  },
+  "client_changed": false,
+  "compose_project": "pearnly-cowork-backend-lab",
+  "deployed": false,
+  "docker_context": "colima-pearnly",
+  "external_business_io": false,
+  "frontend": false,
+  "image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+  "merged_to_main": false,
+  "native_unique_tests": 102,
+  "new_transport_http_route": false,
+  "production_readonly_baseline_rechecked": true,
+  "pushed": false,
+  "sites": [
+    "cowork-backend-companion.localhost",
+    "cowork-backend-push.localhost"
+  ],
+  "source_protocol": {
+    "equal_or_both_reject": 910,
+    "explicit_input_adaptation_cases": 17,
+    "local_quarantine_ack_extension": "verified separately; not part of source equality count",
+    "pydantic_candidate": "2.12.5",
+    "pydantic_source_lock": "2.13.2",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188"
+  },
+  "strict_i18n": {
+    "candidate_exit": 1,
+    "files": 43,
+    "findings": 147,
+    "head_exit": 1,
+    "normalized_new": 0,
+    "normalized_removed": 0,
+    "status": "UNCHANGED_EXISTING_FAILURE",
+    "strings": 135
+  },
+  "tests": {
+    "native_credentials": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-cowork-companion-credentials-lab-verify.txt",
+      "sha256": "6a05dcc7afa7f7b63cfe8ae12a58ff2f21cf03ca2508b5b57bd5b7da4558ccdb",
+      "status": "PASS",
+      "tests": 20
+    },
+    "native_ledger": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-cowork-push-native-lab-verify.txt",
+      "sha256": "7a21a74f172c789f6b256ac5daf02e3ca2e1c943081319e3badcc48a1435c578",
+      "status": "PASS",
+      "tests": 24
+    },
+    "native_preparation": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-cowork-push-application-lab-verify.txt",
+      "sha256": "07f5d9669f19bc524f53b61db53ac594ce5ebf8db3e8bb4c1bba361f668c269e",
+      "status": "PASS",
+      "tests": 18
+    },
+    "offline": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-offline-final.txt",
+      "sha256": "4c31ea62b623d45781868cff81edbb1539d0f39cc0456c7d9245501e67f07b8b",
+      "status": "PASS",
+      "tests": 739
+    },
+    "transport": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-transport-native.txt",
+      "sha256": "bf6e28879c3ae07498275988548dbc95052c4b7da13b7ac4898410b59fc6abfe",
+      "status": "PASS",
+      "tests": 36
+    },
+    "transport_additional": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-transport-additional.txt",
+      "sha256": "6287e42822379eb664705e1685437080121ace30ab5089bd0fc7095e8b69452d",
+      "status": "PASS",
+      "tests": 3
+    },
+    "transport_quarantined_ack": {
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/eleventh-quarantined-ack.txt",
+      "sha256": "14cca55f51527a72db96ff70ec7b7ce9bd23ea0432410ea8c206dcab9250aef5",
+      "status": "PASS",
+      "tests": 1
+    }
+  },
+  "translation": {
+    "frontend_keys_checked": 338,
+    "native_lookups": 44,
+    "new_terms": 11
+  },
+  "upgrade": {
+    "original_rows": 115,
+    "original_tables_including_auth": 15,
+    "repeat_rows": 79,
+    "repeat_tables_including_delivery_and_auth": 16,
+    "status": "PASS"
+  },
+  "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly"
+}

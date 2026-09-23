@@ -17,7 +17,7 @@
 # 需要更底层的操作时照旧直接调 docker compose，只要记得带上同一组文件：
 #   docker --context colima-pearnly compose \
 #     -f infrastructure/compose/00-base.yml -f infrastructure/compose/01-bench.yml \
-#     -f infrastructure/compose/02-keycloak.yml -f infrastructure/compose/03-wekan.yml \
+#     -f infrastructure/compose/02-keycloak.yml \
 #     -f infrastructure/compose/04-dev-mounts.yml <命令>
 set -euo pipefail
 
@@ -27,7 +27,6 @@ FILES=(
   "$HERE/infrastructure/compose/00-base.yml"
   "$HERE/infrastructure/compose/01-bench.yml"
   "$HERE/infrastructure/compose/02-keycloak.yml"
-  "$HERE/infrastructure/compose/03-wekan.yml"
   "$HERE/infrastructure/compose/04-dev-mounts.yml"
 )
 

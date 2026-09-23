@@ -1,0 +1,10 @@
+{
+  "status": "UNCHANGED_EXISTING_FAILURE",
+  "head_exit": 1,
+  "candidate_exit": 1,
+  "normalized_new": 0,
+  "normalized_removed": 0,
+  "findings": 147,
+  "files": 43,
+  "strings": 135
+}

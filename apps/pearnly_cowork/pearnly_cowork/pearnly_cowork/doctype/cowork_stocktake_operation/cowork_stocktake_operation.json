@@ -1,0 +1,128 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Stocktake Operation",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "task",
+  "item",
+  "entry",
+  "version",
+  "actor",
+  "request_json",
+  "previous_json",
+  "current_json"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 36
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "read_only": 1,
+   "options": "Cowork Stocktake Task",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "item",
+   "fieldtype": "Link",
+   "label": "Item",
+   "read_only": 1,
+   "options": "Cowork Stocktake Item",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "entry",
+   "fieldtype": "Link",
+   "label": "Entry",
+   "read_only": 1,
+   "options": "Cowork Stocktake Entry",
+   "reqd": 1
+  },
+  {
+   "fieldname": "version",
+   "fieldtype": "Int",
+   "label": "Version",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "actor",
+   "fieldtype": "Link",
+   "label": "Actor",
+   "read_only": 1,
+   "options": "User"
+  },
+  {
+   "fieldname": "request_json",
+   "fieldtype": "Code",
+   "label": "Request Json",
+   "read_only": 1,
+   "options": "JSON",
+   "reqd": 1
+  },
+  {
+   "fieldname": "previous_json",
+   "fieldtype": "Code",
+   "label": "Previous Json",
+   "read_only": 1,
+   "options": "JSON",
+   "reqd": 1
+  },
+  {
+   "fieldname": "current_json",
+   "fieldtype": "Code",
+   "label": "Current Json",
+   "read_only": 1,
+   "options": "JSON",
+   "reqd": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Stocktake",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

@@ -1,0 +1,72 @@
+{
+  "base_commit": "f461b82",
+  "scope": "twentieth batch: offline statement/GL matching core and invoice-candidate scoring",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "5bfedbe9344748d66d8c35a68d1b7e1acfece46fbf9744c34e52b1a66f8cd874",
+    "start_captured_at": "2026-09-21T11:30:15.361433+00:00",
+    "delivery_sha256": "4673e667007971b510d7bbdb5d4f914fee9aa0a7c401b4006be7c326814a3ea3",
+    "delivery_captured_at": "2026-09-21T11:32:33.468836+00:00",
+    "source_compare": "PASS",
+    "runtime_projection_start_sha256": "f6f082af33c4be89949c47c6b410705c494e27472bdce81289aeedce5ab88132",
+    "runtime_projection_delivery_sha256": "741a23e10a57111fac6e36af4352f533a9d87a1841dd60caf0a63ee00186935e",
+    "runtime_projection_compare_within_batch": "settings_unchanged true / observations_changed false",
+    "runtime_projection_compare_cross_batch": "HOLD / push_runtime_identity_changed against the nineteenth delivery",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py' -v",
+      "result": "PASS",
+      "tests": 102,
+      "new_tests": 36
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_reconciliation_source_parity.py --source /tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+      "result": "PASS",
+      "matching_batches": 1200,
+      "match_layers": {"layer1": 146, "layer2": 235, "layer3": 401, "one_sided": 5731},
+      "scoring_batches": 1200,
+      "scored_candidates": 1046,
+      "constants_verified_equal": 11,
+      "retained_previous_cases": {
+        "balance_chain_batches": 1500,
+        "amount_contract": 119037,
+        "compare_field": 6000,
+        "compare_all_fields": 3000,
+        "matcher_batches": 2000,
+        "stocktake_quantity": 4020
+      }
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "scope_evidence": {
+    "migrated_modules": [
+      "services/recon/bank_recon_reconcile.py (pure function: three-layer matching + summary)",
+      "services/recon/bank_recon_scoring.py (scorers and match_one_tx only)"
+    ],
+    "deliberately_not_migrated": [
+      "services/recon/bank_recon_match.py (SQL DAL for candidate retrieval and result persistence)",
+      "services/recon/bank_recon_scoring.py:run_matching_for_session (database orchestration)",
+      "services/recon/bank_recon_pipeline.py, bank_stmt_xlsx.py, bank_stmt_extract.py, bank_stmt_reread.py (parsing and model IO)"
+    ]
+  },
+  "not_run": [
+    "Site install/upgrade and real transactions",
+    "company and role authorization",
+    "real candidate retrieval, result persistence and session orchestration",
+    "real XLSX/PDF/text parsing and model extraction",
+    "exports, review actions, business API, queue, browser and LINE device acceptance",
+    "deployment, external business result and user acceptance",
+    "tests/test_cowork_stocktake*.py export cases (local python3.14 lacks openpyxl; untouched module)"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-bank-matching.md"
+}

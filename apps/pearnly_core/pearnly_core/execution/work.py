@@ -233,7 +233,9 @@ def has_completed_call():
 
 def _notify(name, code):
     row = frappe.db.get_value(DT, name, ["kind", "arguments"], as_dict=True)
-    for path in frappe.get_hooks("pearnly_ocr_failure_handlers").get(row.kind) or []:
+    # A Site with no product notification hook gets [] from Frappe, not {}.
+    # Terminal persistence/slot release must still finish on such product Sites.
+    for path in (frappe.get_hooks("pearnly_ocr_failure_handlers") or {}).get(row.kind) or []:
         try:
             frappe.get_attr(path)(arguments=json.loads(row.arguments), code=code)
         except Exception:

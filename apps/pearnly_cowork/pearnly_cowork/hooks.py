@@ -267,6 +267,110 @@ app_license = "mit"
 
 app_include_js = [versioned_asset("pearnly_cowork", "desk/intake.js")]
 
+# Native resource APIs and Desk lists share the same backend scope.
+permission_query_conditions = {
+    "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
+    "Cowork Invoice Category": "pearnly_cowork.history.categories.native_query",
+    "Cowork Supplier Category Memory": "pearnly_cowork.history.categories.native_query",
+    "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_query",
+    "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
+    "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_query",
+    "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_query",
+    "Cowork ERP Connection": "pearnly_cowork.connections.access.native_query",
+    "Cowork ERP Snapshot": "pearnly_cowork.connections.access.native_query",
+    "Cowork ERP Refresh": "pearnly_cowork.connections.access.native_query",
+    "Cowork Push Record": "pearnly_cowork.push.native.documents.native_query",
+    "Cowork Push Attempt": "pearnly_cowork.push.native.documents.native_query",
+    "Cowork Push Writer Lock": "pearnly_cowork.push.native.documents.native_query",
+    "Cowork OCR Batch": "pearnly_cowork.ocr.execution.access.query",
+    "Pearnly OCR Work": "pearnly_cowork.ocr.execution.access.work_query",
+    "Cowork OCR Correction": "pearnly_cowork.ocr.feedback.access.native_query",
+    "Cowork Workspace": "pearnly_cowork.access.scope.workspace_query",
+    "Cowork Client": "pearnly_cowork.access.scope.client_query",
+    "Cowork OCR History": "pearnly_cowork.access.scope.history_query",
+    "Cowork Source File": "pearnly_cowork.files.access.source_query",
+    "File": "pearnly_cowork.files.access.file_query",
+    "Cowork Stocktake Task": "pearnly_cowork.stocktake.access.task_query",
+    "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.item_query",
+    "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.entry_query",
+    "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.operation_query",
+    "Cowork Bank Reconciliation": "pearnly_cowork.reconciliation.bank_recon_access.task_query",
+    "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.row_query",
+    "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.task_query",
+    "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.row_query",
+}
+has_permission = {
+    "Cowork Workspace Import": "pearnly_cowork.masters.workspace_import.deny",
+    "Cowork Invoice Category": "pearnly_cowork.history.categories.deny",
+    "Cowork Supplier Category Memory": "pearnly_cowork.history.categories.deny",
+    "Cowork Push Notification": "pearnly_cowork.push.native.documents.native_permission",
+    "Cowork Bank Evidence": "pearnly_cowork.reconciliation.bank_evidence.deny",
+    "Cowork Supplier Posting Profile": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork ERP Mapping": "pearnly_cowork.masters.push_inputs.deny",
+    "Cowork Companion Delivery": "pearnly_cowork.companion.delivery_documents.native_permission",
+    "Cowork Express Agent Credential": "pearnly_cowork.companion.documents.native_permission",
+    "Cowork ERP Connection": "pearnly_cowork.connections.access.native_permission",
+    "Cowork ERP Snapshot": "pearnly_cowork.connections.access.native_permission",
+    "Cowork ERP Refresh": "pearnly_cowork.connections.access.native_permission",
+    "Cowork Push Record": "pearnly_cowork.push.native.documents.native_permission",
+    "Cowork Push Attempt": "pearnly_cowork.push.native.documents.native_permission",
+    "Cowork Push Writer Lock": "pearnly_cowork.push.native.documents.native_permission",
+    "Cowork OCR Batch": "pearnly_cowork.ocr.execution.access.has_permission",
+    "Pearnly OCR Work": "pearnly_cowork.ocr.execution.access.work_permission",
+    "Cowork OCR Correction": "pearnly_cowork.ocr.feedback.access.native_permission",
+    "Cowork Workspace": "pearnly_cowork.access.scope.workspace_permission",
+    "Cowork Client": "pearnly_cowork.access.scope.client_permission",
+    "Cowork OCR History": "pearnly_cowork.access.scope.history_permission",
+    "Cowork Source File": "pearnly_cowork.files.access.source_permission",
+    "File": "pearnly_cowork.files.access.file_permission",
+    "Cowork Stocktake Task": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Item": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Entry": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Stocktake Operation": "pearnly_cowork.stocktake.access.has_permission",
+    "Cowork Bank Reconciliation": "pearnly_cowork.reconciliation.bank_recon_access.has_permission",
+    "Cowork Bank Reconciliation Row": "pearnly_cowork.reconciliation.bank_recon_access.has_permission",
+    "Cowork Income Reconciliation": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
+    "Cowork Income Reconciliation Row": "pearnly_cowork.reconciliation.income_recon_access.has_permission",
+}
+doc_events = {"Pearnly OCR Work": {
+    "before_insert": "pearnly_cowork.ocr.execution.work_guard.mutation",
+    "before_validate": "pearnly_cowork.ocr.execution.work_guard.mutation",
+    "validate": "pearnly_cowork.ocr.execution.work_guard.mutation",
+    "on_trash": "pearnly_cowork.ocr.execution.work_guard.deny_delete",
+}, "DocShare": {
+    "before_validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.companion.delivery_documents.reject_share",
+        "pearnly_cowork.companion.documents.reject_share",
+        "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
+        "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
+        "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
+        "pearnly_cowork.reconciliation.income_recon_access.reject_share"],
+    "validate": ["pearnly_cowork.masters.workspace_import.reject_share", "pearnly_cowork.history.categories.reject_share", "pearnly_cowork.masters.push_inputs.reject_share", "pearnly_cowork.reconciliation.bank_evidence.reject_share", "pearnly_cowork.access.scope.reject_share",
+        "pearnly_cowork.companion.delivery_documents.reject_share",
+        "pearnly_cowork.companion.documents.reject_share",
+        "pearnly_cowork.connections.access.reject_share", "pearnly_cowork.push.native.documents.reject_share",
+        "pearnly_cowork.ocr.execution.access.reject_share", "pearnly_cowork.ocr.feedback.access.reject_share",
+        "pearnly_cowork.files.access.reject_share", "pearnly_cowork.stocktake.access.reject_share",
+        "pearnly_cowork.reconciliation.bank_recon_access.reject_share",
+        "pearnly_cowork.reconciliation.income_recon_access.reject_share"],
+}}
+extend_doctype_class = {
+    "File": ["pearnly_cowork.files.guard.CoworkFileGuard"],
+    "Pearnly OCR Work": ["pearnly_cowork.ocr.execution.work_guard.CoworkWorkGuard"],
+}
+before_login = ["pearnly_cowork.companion.http_auth.before_login"]
+before_request = ["pearnly_cowork.companion.http_auth.before_request"]
+auth_hooks = ["pearnly_cowork.companion.http_auth.authenticate_request"]
+after_request = ["pearnly_cowork.files.api.protect_response", "pearnly_cowork.companion.http_auth.after_request"]
+override_whitelisted_methods = {
+    "frappe.core.api.file.zip_files": "pearnly_cowork.files.api.guarded_zip_files",
+}
+
+pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow.run"}
+
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',

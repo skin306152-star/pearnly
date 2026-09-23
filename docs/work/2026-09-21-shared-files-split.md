@@ -1,6 +1,6 @@
 # 按产品各自维护：菜单、功能目录、术语表（2026-09-21）
 
-> 本文记录 2026-09-21 在 Cowork 分支的原始拆分；当前 main 的增量集成、验证与开发顺序见 [共享底座对齐](2026-09-22-shared-foundation-alignment.md)。历史“未合主线”与旧数量只描述当时状态。
+> 本文记录 2026-09-21 在 Cowork 分支的原始拆分；当前 main 的增量集成、验证与开发顺序见 [共享底座对齐](2026-09-22-shared-foundation-alignment.md)。历史“未合主线”与旧数量只描述当时状态。本文后半的 DMS 台账迁移仍只在 Cowork 分支保留，不代表已经进入 main。
 
 ## 目标与完成条件
 
@@ -87,3 +87,51 @@ ERP 菜单落到它自己的声明里：
 漏了这一步的后果：ERP 的商品页会从侧栏消失（`available` 里没有它），而这是那一边
 刚做出来的第一页。`tests/test_native_desk_contract.py` 的项数与"可用页面集合"断言就是
 用来挡这个的 —— 合并后它会直接失败，照着改到通过即可。
+
+## 追加：推送台账搬给 DMS（2026-09-21，用户确认）
+
+上面那条"共用层里还住着产品内容"的发现，用户拍板搬。做完的是同一批：**表 + 控制器 +
+服务层一起进 DMS**，共用层改为发钩子。
+
+| | 搬之前 | 搬之后 |
+| --- | --- | --- |
+| 表与控制器 | `pearnly_core/.../doctype/pearnly_push_log/`（模块 `Pearnly Core`） | `pearnly_dms/.../doctype/pearnly_push_log/`（模块 `Pearnly DMS`） |
+| 服务层 | `pearnly_core/push_log.py`（根模块，登记在架构基线里） | `pearnly_dms/records/push_log.py`（records 域） |
+| "本机镜像"那一步 | 共用层的 `line._mirror` 直接 `from pearnly_core import push_log` 写台账 | 共用层按 `pearnly_line_mirror` 钩子派发；DMS 在 `hooks.py` 注册 `pearnly_dms.records.push_log.line_mirror` |
+| 调用方 | `tests/check_dms_records_runtime.py`、`scripts/sample-verify-foundation.py` 从共用层导入 | 改从 `pearnly_dms.records` 导入 |
+| 架构基线 | `pearnly_core` 根模块含 `push_log.py` | 基线里删掉这一条（表与服务的判据是"谁在用"，不是"谁先写的"） |
+
+表名与字段一字未改（`tabPearnly Push Log` 不变），所以**既有数据不搬迁**；RPC 路径
+`pearnly_core.push_log.api_list/api_status` 变成 `pearnly_dms.records.push_log.*`（仓库内
+没有任何调用方用旧路径，已核对；记录页走的是 DMS 自己的 `query.records.list_records`）。
+
+### 验证
+
+| 项目 | 场景 | 结果 |
+| --- | --- | --- |
+| 数据存活 | 隔离 DMS 站点：**迁移前**用旧代码写一条台账 → 应用本批改动 → `migrate` → 回读 | 那条原样在（`PL-2026-00001`，正文一致），表主人的模块变成 `Pearnly DMS` |
+| 共用层不再引用产品表 | 同一站点开"本地镜像"，调 `pearnly_core.line._mirror` | 返回"已投递"且**通过钩子**写出 `PL-2026-00002`（`trigger=line_mirror`，业务键正确） |
+| 没装 DMS 的站点 | Cowork 站点开同样的开关调 `_mirror` | 返回"已投递"、不报错、不记账（没有钩子处理器）；`migrate` 会把这个 DocType 的登记从站点移除 |
+| DMS 记录页读法 | 以 DMS 管理员身份调 `pearnly_dms.query.records.list_records` | 读到经新服务层写入的那条；匿名调用 `PermissionError` |
+| DMS 地基自检 | `scripts/sample-verify-foundation.py`（连接 + 台账租约/状态/重试） | **17/17 PASS** |
+| 静态检查 | `check-architecture.py`、`check-dms-offline.py`（42+43 通过）、`i18n-build --check`、`git diff --check` | 全部通过 |
+| 全量离线 | `python3.14 -m unittest discover -s tests` | 1011 用例、976 通过 / 2 跳过 / 35 个缺依赖的导入错误（与本次改动无关） |
+
+### 顺手修的一处（与本批无关，但会一直红）
+
+`scripts/sample-verify-foundation.py` 里"测试连接必须诚实"那条检查写死了中文子串
+（`"没有真的连" in note`）。服务端的这些文案早先已改成英文 msgid（`b51643b`），所以在
+英文站点上它从那时起就一直 FAIL。改成比较**同一个 msgid 在本站点语言下的译文**，与语言
+无关。改完 17/17。
+
+### 有意差异与遗留
+
+- **镜像在没装 DMS 的站点上不再记账**：台账归 DMS 之后这是必然（那张表在那些站点上本来
+  也不该由共用层写）。发送结果仍是"已投递"，本机验收流程不受影响。
+- **孤表**：没装 DMS 的站点上，`tabPearnly Push Log` 的空表会留下（Frappe 从不自动删表）。
+  内容是本机镜像留下的测试痕迹，没有代码再读它。删表属于数据删除，**不在本次授权范围**，
+  保留并登记。
+- 台账的字段标签与那句镜像说明的译文仍留在共用层的词库里（DMS 站点也装共用层，所以照常
+  显示）；按"其它的就这样"不动。
+- lab 配方新增一个只装 DMS 的站点（`cowork-backend-ledger.localhost`），用于上面这套
+  迁移验证；Cowork 站点不变。

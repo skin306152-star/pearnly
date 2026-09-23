@@ -1,0 +1,775 @@
+{
+  "evidence": {
+    "schema": "pearnly-cowork-push-runtime-v2",
+    "captured_at": "2026-09-21T15:35:48.643857+00:00",
+    "source_baseline_sha256": "a235691dc32c7e757617721e6b5b3032aaef52840425548aee361dd02242a592",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "components": {
+      "pearnly-web": {
+        "revision": "pearnly-web-ec2e5c957e6b-s3",
+        "runtime_secret": {
+          "name": "pearnly-web-env",
+          "version": "3"
+        },
+        "environment": {
+          "ERP_PUSH_ENABLED": "true",
+          "ERP_SELLER_ROUTING": "1",
+          "PEARNLY_RUNTIME_ROLE": "web"
+        },
+        "presence": {
+          "DATABASE_URL": true,
+          "ERP_SELLER_ROUTING_USERS": true,
+          "PEARNLY_KMS_KEY": true
+        },
+        "database": {
+          "identity": {
+            "missing_columns": {
+              "platform_settings": [],
+              "platform_setting_allowlist": [],
+              "erp_endpoints": [],
+              "erp_push_logs": [],
+              "erp_bridges": [
+                "books",
+                "bridge_version",
+                "effective_role",
+                "id",
+                "last_seen_at",
+                "role",
+                "secret_hash",
+                "tenant_id"
+              ],
+              "bridge_jobs": [
+                "kind",
+                "lease_expires_at",
+                "lease_owner",
+                "status"
+              ]
+            },
+            "flags": [
+              {
+                "key": "erp_shared_express_endpoint",
+                "enabled": true,
+                "rollout": "all",
+                "allowlist_count": 0,
+                "membership_digest": "d41d8cd98f00b204e9800998ecf8427e"
+              },
+              {
+                "key": "erp_target_projection",
+                "enabled": true,
+                "rollout": "all",
+                "allowlist_count": 0,
+                "membership_digest": "d41d8cd98f00b204e9800998ecf8427e"
+              }
+            ],
+            "endpoints": {
+              "count": 60,
+              "configuration_digest": "c5882f4b8d2c4baed118699cf5869e68"
+            },
+            "bridges": null
+          },
+          "observations": {
+            "endpoints": [
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.59",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.67",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.77",
+                "payload_version": "1",
+                "count": 3,
+                "token_present": 3,
+                "unrevoked": 3,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 3,
+                "directory_present": 3,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 3,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 1,
+                "token_present": 0,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "flowaccount",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 1,
+                "token_present": 0,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "enabled": false,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 3,
+                "token_present": 0,
+                "unrevoked": 3,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 4,
+                "token_present": 0,
+                "unrevoked": 4,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "other",
+                "enabled": false,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 25,
+                "token_present": 0,
+                "unrevoked": 25,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "other",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 20,
+                "token_present": 0,
+                "unrevoked": 20,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              }
+            ],
+            "push_logs": [
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "manual",
+                "count": 18,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "success",
+                "count": 18,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 13,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "retrying",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 1
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "success",
+                "count": 11,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 70,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "success",
+                "count": 101,
+                "recent": 10,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              }
+            ],
+            "bridges": null,
+            "bridge_jobs": null
+          }
+        }
+      },
+      "pearnly-worker": {
+        "revision": "pearnly-worker-ec2e5c957e6b-s3",
+        "runtime_secret": {
+          "name": "pearnly-worker-env",
+          "version": "3"
+        },
+        "environment": {
+          "ERP_PUSH_ENABLED": "true",
+          "ERP_SELLER_ROUTING": "1",
+          "PEARNLY_RUNTIME_ROLE": "worker"
+        },
+        "presence": {
+          "DATABASE_URL": true,
+          "ERP_SELLER_ROUTING_USERS": true,
+          "PEARNLY_KMS_KEY": true
+        },
+        "database": {
+          "identity": {
+            "missing_columns": {
+              "platform_settings": [],
+              "platform_setting_allowlist": [],
+              "erp_endpoints": [],
+              "erp_push_logs": [],
+              "erp_bridges": [
+                "books",
+                "bridge_version",
+                "effective_role",
+                "id",
+                "last_seen_at",
+                "role",
+                "secret_hash",
+                "tenant_id"
+              ],
+              "bridge_jobs": [
+                "kind",
+                "lease_expires_at",
+                "lease_owner",
+                "status"
+              ]
+            },
+            "flags": [
+              {
+                "key": "erp_shared_express_endpoint",
+                "enabled": true,
+                "rollout": "all",
+                "allowlist_count": 0,
+                "membership_digest": "d41d8cd98f00b204e9800998ecf8427e"
+              },
+              {
+                "key": "erp_target_projection",
+                "enabled": true,
+                "rollout": "all",
+                "allowlist_count": 0,
+                "membership_digest": "d41d8cd98f00b204e9800998ecf8427e"
+              }
+            ],
+            "endpoints": {
+              "count": 60,
+              "configuration_digest": "c5882f4b8d2c4baed118699cf5869e68"
+            },
+            "bridges": null
+          },
+          "observations": {
+            "endpoints": [
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.59",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.67",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "1.1.77",
+                "payload_version": "1",
+                "count": 3,
+                "token_present": 3,
+                "unrevoked": 3,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 3,
+                "directory_present": 3,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 3,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "1",
+                "count": 1,
+                "token_present": 1,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 1,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 1,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "express",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 1,
+                "token_present": 0,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 1,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "flowaccount",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 1,
+                "token_present": 0,
+                "unrevoked": 1,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "enabled": false,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 3,
+                "token_present": 0,
+                "unrevoked": 3,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 4,
+                "token_present": 0,
+                "unrevoked": 4,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "other",
+                "enabled": false,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 25,
+                "token_present": 0,
+                "unrevoked": 25,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              },
+              {
+                "adapter": "other",
+                "enabled": true,
+                "branch": "legacy",
+                "agent_version": "absent",
+                "companion_version": "absent",
+                "payload_version": "absent",
+                "count": 20,
+                "token_present": 0,
+                "unrevoked": 20,
+                "shared": 0,
+                "scoped": 0,
+                "account_present": 0,
+                "directory_present": 0,
+                "bound": 0,
+                "live_matches": 0,
+                "managed_fresh": 0,
+                "legacy_seen_present": 0,
+                "rollout_enabled": 0
+              }
+            ],
+            "push_logs": [
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "manual",
+                "count": 18,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "express",
+                "branch": "legacy",
+                "status": "success",
+                "count": 18,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 13,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "retrying",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 1
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "mrerp",
+                "branch": "legacy",
+                "status": "success",
+                "count": 11,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "failed",
+                "count": 70,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "skipped_dup",
+                "count": 1,
+                "recent": 0,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              },
+              {
+                "adapter": "other",
+                "branch": "legacy",
+                "status": "success",
+                "count": 101,
+                "recent": 10,
+                "leased": 0,
+                "expired_lease": 0,
+                "scheduled": 0
+              }
+            ],
+            "bridges": null,
+            "bridge_jobs": null
+          }
+        }
+      }
+    }
+  },
+  "sha256": "810eb6c06dcff9996d4b9efcf914344616031cc08b4f4385d185db3c57c2192c"
+}

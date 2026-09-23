@@ -1,0 +1,65 @@
+{
+  "base_commit": "ebef648",
+  "scope": "forty-fifth batch: the third master-data slice — the client roster store and its RPCs, the buyer-memory DocType and the wiring of the attribution core to real data",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-fourth batch delivery, which proves the live source did not change between that delivery and this one, not the identity at the moment work started",
+    "delivery_sha256": "838ced1d24cce0f538b19e33e5f0f625df5930145eec2af81f1928784f3d1b73",
+    "delivery_captured_at": "2026-09-21T18:07:39.536342+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-fourth-delivery.json baseline-forty-fifth-delivery.json (before pinned at ca98ef87, after pinned at 838ced1d)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "e626a05faa52b315752d4fe22347b77a58997f6f3f0d0ec2b7c18ca6679e8444",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/clients/store.py": "24407c4e501bbc950c4e9489e02f583682d6e1efbf91ac05cf33834951f646e7",
+      "services/clients/buyer_resolve.py": "eff506ba79ac781eb0412c58d8f3d06448dc29491e725d49ae2cdf40c461fa94"
+    },
+    "source_note": "the store reuses the field rules and the decision ladder already ported and differentially verified in the previous two batches"
+  },
+  "checks": [
+    {
+      "command": "PEARNLY_COWORK_TEST_SITE=<ack|preparation>.localhost python /workspace/scripts/cowork-masters-lab-verify.py",
+      "result": "PASS",
+      "tests": 7,
+      "new_tests": 7,
+      "note": "isolated Site, run on two Sites. Creating a client cleans every field, cuts to the deployed limits, drops unknown keys and defaults the colour; the roster orders by enabled then name and carries the three per-client totals (two records summing 200.5, an unassigned one excluded); an update touches only what it was given, an emptied text clears the column and a call with nothing writable reports updated False; deactivating hides a client from the default list while include_inactive lists it and re-enabling restores it; deleting a client that still has records is refused and neither the record nor its attribution changes, while an unused client deletes; every new RPC refuses anonymous callers (403); the permission tests cover a read-only role and a non-admin without a company grant; a new tax id creates a client and the second resolve hits the learned memory (use_count 1 to 2); a near name only suggests (nothing learned, nothing created) and conflicting candidates only review (still one client). Records are created through the sanctioned intake service because the history domain refuses direct writes."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_client_records test_cowork_buyer_resolve test_cowork_document_tier",
+      "result": "PASS",
+      "tests": 71,
+      "note": "the two pure modules this store reuses, plus a neighbouring family, still pass; the buyer-build differential (260 batches) and the field-rule differential (200 create + 149 update scenarios) were re-run and still show zero differences after the id coercion was removed for native string ids"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the scope is a company (Cowork Workspace) rather than the deployed user+tenant pair, because this platform binds User Permissions to companies and clients; a Cowork Admin is exempt from the company grant by design, which is why the lab's outsider uses an ordinary role",
+    "the buyer memory keeps the deployed key (company + lowercased name + tax) but stores the lowercased name in a field and looks it up by those fields, instead of relying on the old database index; one buyer therefore still has at most one row per company",
+    "the two write paths that changed a recognition record were not ported: the native history domain makes a record's client immutable on purpose and only its review service may change records. Deleting a client that still has records is refused with the count instead of silently unbinding them, and reassigning attribution is recorded as a cross-domain decision to take",
+    "the roster's include-inactive branch reads through the database after the service's own feature and company checks, because the ORM permission query for this DocType hides disabled clients by design",
+    "the RPCs accept either the native field name (display_name) or the deployed one (name) but not both at once",
+    "the ported store returns projections and flags (updated false when nothing was writable) instead of the deployed rowcount/new-id values"
+  ],
+  "not_run": [
+    "the frontend, deployment, real client data, the import normalisation, product and supplier master data, and user acceptance; the client DocType changes are applied by the native migration, which was run on both lab Sites"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-client-roster.md"
+}

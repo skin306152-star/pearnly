@@ -1,1 +1,676 @@
+A client cannot be moved to another company.,客户不能转移到另一家公司。
+A completed record cannot become a draft.,已完成的记录不能改回草稿。
+"A document section exceeds 30,000 characters. Split the document before recognition.","文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
+A name is required.,请填写名称。
+A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
+A numeric value in the invoice is invalid. Correct it before exporting.,发票中有无效数值，请更正后再导出。
+A positive record revision is required.,记录版本必须是正整数。
+A positive source page number is required.,源文件页码必须是正整数。
+A product code or barcode identifies more than one product.,产品编码或条形码对应了多个产品。
+A referenced history record is unavailable in the selected company and client.,所选公司和客户范围内无法访问引用的历史记录。
+A reported ERP action is invalid.,上报的 ERP 操作无效。
+A reported ERP field is invalid.,上报的 ERP 字段无效。
+A request key of 1 to 128 characters is required.,请求标识须为 1 至 128 个字符。
+A review workbook must contain between 1 and 500 invoices.,复核工作簿须包含 1 至 500 张发票。
+A successful push has no ERP document number. Check its receipt.,已有成功推送缺少ERP凭证号，请核对回执。
+A timezone-aware UTC timestamp is required.,必须提供带时区的UTC时间。
+A value in the ERP data report exceeds the allowed length.,ERP 数据报告中的值超过允许长度。
+Access to the Companion queue has been revoked.,助手队列的访问权限已撤销。
+Account Key,账套键
+Account Set Key,账套选择键
+Ack Digest,回执摘要
+Active Attempt,当前尝试
+Active Key,活动防重键
+Actor,操作人
+Actual Qty,实盘数量
+Allowed Users,授权用户
+An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
+An option in the ERP data report is invalid.,ERP 数据报告中的选项无效。
+An original file is already stored for this source.,此来源已保存原始文件。
+Anchor Date,参考日期
+Another push holds the writer lock.,另一笔推送正在占用写入锁。
+Assign Cowork access through company and client permissions.,请通过公司和客户权限分配 Cowork 访问范围。
+At least one invoice page is required when editing.,编辑时必须保留至少一页发票。
+Attempt Secret,尝试密钥
+Barcode,条形码
+Billing Code,计费代码
+Billing Kind,计费类型
+Billing Receipt,计费回执
+Billing Reference,计费关联号
+Billing State,计费状态
+Billing Units,计费单位
+Binding Generation,绑定版本
+Blocked By,阻塞记录
+Book Qty,账面数量
+Bound Account Set,绑定账套
+Bound Invoice Records,已关联发票记录
+Bound Profile Key,绑定配置键
+Branch,执行分支
+Buyer Client,买方客户
+Changed At (UTC),修改时间（UTC）
+Changed By,修改人
+Check the ERP connection settings.,请检查ERP连接配置。
+Check the statement balance differences before confirming.,请先修正账单余额差异，再确认。
+Check the warehouse and location. A warehouse is required.,请检查仓库和位置，仓库为必填项。
+Checks Json,检查结果JSON
+Client,客户
+Closed At,关闭时间
+Closed By,关闭人
+Collection is not connected for this ERP data type.,此 ERP 数据类型尚未接入采集。
+Companion Report,伴侣端上报
+Companion authentication failed.,助手认证失败。
+Company,公司
+Complete statement review before exporting the result.,请先完成账单复核，再导出对账结果。
+Completed At,完成时间
+Completed At (UTC),完成时间（UTC）
+Completed By,完成人
+Completion Evidence,完成凭据
+Confirmation Request,确认请求
+Confirmation Revision,确认版本
+Confirmed,已确认
+Connection Configuration,连接配置
+Connection Name,连接名称
+Connection Revision,连接版本
+Connection or directory record not found.,找不到此连接或目录记录。
+Content Hash,内容摘要
+Corrected Value,修正值
+Count Mode,盘点方式
+Counted At,盘点时间
+Counted By,盘点人
 Cowork,Cowork
+Cowork Bank Evidence,Cowork 银行佐证
+Cowork Client,Cowork 买方客户
+Cowork Companion Delivery,Cowork 助手任务领取记录
+Cowork ERP Connection,Cowork ERP连接
+Cowork ERP Mapping,Cowork ERP 映射
+Cowork ERP Refresh,Cowork ERP目录刷新
+Cowork ERP Snapshot,Cowork ERP目录快照
+Cowork Express Agent Credential,Cowork Express 助手凭据
+Cowork LINE,Cowork LINE
+Cowork Master Data,Cowork 主数据
+Cowork OCR Batch,Cowork 识别批次
+Cowork OCR Correction,Cowork 识别修正例
+Cowork OCR History,Cowork 识别记录
+Cowork OCR requires a configured provider credential reference.,请先配置 Cowork 识别服务的凭据引用。
+Cowork OCR requires an explicit invoice configuration.,请先配置 Cowork 发票识别参数。
+Cowork Push Attempt,Cowork推送尝试
+Cowork Push Notification,Cowork 推送通知事件
+Cowork Push Record,Cowork推送记录
+Cowork Push Writer Lock,Cowork推送写入锁
+Cowork Source File,Cowork 原始文件
+Cowork Stocktake,Cowork 库存盘点
+Cowork Stocktake Entry,Cowork 盘点记录
+Cowork Stocktake Item,Cowork 盘点品项
+Cowork Stocktake Operation,Cowork 盘点操作记录
+Cowork Stocktake Task,Cowork 盘点任务
+Cowork Supplier Posting Profile,Cowork 供应商过账档案
+Cowork Workspace,Cowork 公司账套
+Create invoice records through the Cowork intake service.,请通过 Cowork 录入功能创建发票记录。
+Created By,创建人
+Creation Request Hash,创建请求摘要
+Credential ID,凭据 ID
+Current Directory Heads,当前目录版本索引
+Current Json,当前数据（JSON）
+Decimal summary; pages retain the original amount.,摘要金额使用精确十进制数；页面保留原始金额。
+Default Item Type,默认项目类型
+Default Payment,默认付款方式
+Direction,业务方向
+Directory Revision,目录版本
+Directory Scope Key,目录范围键
+Directory Scope Kind,目录范围类型
+Directory Snapshot,目录快照
+Document Key,单据防重键
+Draft,草稿
+Duplicate records are not allowed.,不能重复选择同一条记录。
+ERP Code,ERP 编码
+ERP Connection,ERP连接
+ERP Password,ERP密码
+ERP Token,ERP令牌
+ERP Username,ERP用户名
+ERP records cannot be saved in Cowork.,ERP 记录不能保存到 Cowork。
+Each record must have a name and revision.,每条记录都必须提供标识和版本。
+Each record must have a valid name.,每条记录都必须提供有效标识。
+Edit Count,修改次数
+Enter a stock count title of 1 to 120 characters.,请输入 1 至 120 个字符的盘点标题。
+Enter a valid quantity with no more than six decimal places.,请输入有效数量，最多保留六位小数。
+Entry,记录
+Event Key,事件标识
+Evidence Fingerprint,证据指纹
+Evidence Owner,佐证所属人
+Examples Json,修正例数据（JSON）
+Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
+"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
+External Docnum,ERP凭证号
+Failed,失败
+Failure Count,失败次数
+Fence,尝试隔离序号
+Field,字段
+File Hash,文件哈希值
+First Recognition Snapshot,首次识别快照
+First Recognition Value,首次识别值
+Generation Key,凭据版本键
+History,票据历史
+History Records,识别记录
+History Version,票据历史版本
+Holder,锁持有者
+Holder Fence,持锁尝试序号
+IN,入账
+Installed At (UTC),安装时间（UTC）
+Invalid Cowork OCR configuration.,Cowork 识别配置无效。
+Invalid original document manifest.,原件内容索引无效。
+Invalid original filename.,原始文件名无效。
+Invalid posting type.,过账类型无效。
+Invalid push execution mode.,推送执行模式无效。
+Invalid push request.,推送请求无效。
+Invalid recognized invoice group.,识别出的发票分组无效。
+Invalid request key.,请求编号无效。
+Invalid statement review rows or row references.,复核行内容或原始行编号无效。
+Invoice Count,发票数量
+Invoice Date,发票日期
+Invoice Index,发票序号
+Invoice No,票据号码
+Invoice Number,发票号码
+Invoice Pages,发票页面
+Invoice References Complete,发票关联已完整
+Invoice References Fingerprint,发票关联指纹
+Invoice Total,发票总额
+Invoice pages do not match the original page references.,发票页面与原件页码关联不一致。
+Issued At (UTC),签发时间（UTC）
+Issued By,签发人
+Issued Request Digest,签发请求摘要
+Item,项目
+Last Fields Edit (UTC),最近字段修改时间（UTC）
+Last Push Record,最近推送记录
+Last Push Status,最近推送状态
+Last Pushed At (UTC),最近推送时间（UTC）
+Last Request Hash,最近请求摘要
+Last Request Key,最近请求编号
+Lease Expires At,租约到期时间
+Location,位置
+Lock Key,锁键
+Lock Kind,锁类型
+Lock the connection before reading the push target.,读取推送目标前必须锁定连接。
+Manual,手工
+Mapping Key,映射键
+Mapping Kind,映射类型
+Native Content Hash,原生文件内容哈希
+Needs review,待复核
+New records must start as drafts.,新记录必须先保存为草稿。
+No Companion credential has been issued for this connection.,此连接尚未签发助手凭据。
+No invoice summary found,未识别到摘要
+Not Permitted,没有权限
+OUT,出账
+Observed At (UTC),观测时间（UTC）
+Only manual records can be created through this entry.,此入口只能创建手工录入记录。
+Original Content Coverage Complete,原件内容已完整覆盖
+Original Document Manifest,原件内容索引
+Original File,原始文件
+Original Filename,原始文件名
+Original SHA-256,原始文件 SHA-256
+Original Size,原始文件大小
+Original Type,原始文件类型
+Original evidence and ownership cannot be changed.,原始凭据及归属不能修改。
+Original files can only be changed through the Cowork file service.,只能通过 Cowork 文件服务更改原始文件。
+Original files cannot be changed.,原始文件不可更改。
+Original files cannot be deleted while invoice references may exist.,可能仍有关联发票时，不可删除原始文件。
+Original files cannot be shared separately from their invoices.,原始文件不能与其关联发票分开共享。
+Outcome,执行结果
+Owner ID,所有者 ID
+Owner Id,执行者编号
+PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
+Page Count,页数
+Page preview is available only for PDF and image originals.,仅支持 PDF 和图像原件的页面预览。
+Password-protected PDF files cannot be read.,无法读取受密码保护的 PDF 文件。
+Payload Json,冻结载荷JSON
+Pearnly Cowork,Pearnly Cowork
+Pending,待处理
+Phase,处理阶段
+Posting Kind,过账类型
+Preparation Evidence,准备资料证据
+Preparation data does not match the connection or account set.,推送准备资料与当前连接或账套不一致。
+Preparation data for this account set is incomplete.,此账套的推送准备资料尚未完整获取。
+Previous Json,更改前数据（JSON）
+Private File,私有文件
+Private Storage URL,私有存储地址
+Product Code,产品编码
+Product Name,产品名称
+Product codes and barcodes must be stored as text.,产品编码和条形码必须以文本格式保存。
+Provider Evidence,服务商调用证据
+Push Attempt,推送尝试
+Push Record,推送记录
+Push record not found.,找不到推送记录。
+Quantity,数量
+Reason,原因
+Recognition Confidence,识别置信度
+Recognition Quality,识别质量
+Recognition input and ownership cannot be changed.,识别输入和归属不能修改。
+Recognition tasks cannot be deleted through the document API.,识别任务不能通过通用文档接口删除。
+Recognition tasks cannot be shared separately from their originals.,识别任务不能脱离原始文件单独共享。
+Recognized with high confidence,高置信识别
+Record ID,记录 ID
+Record Id,记录 ID
+Record Key,记录键
+Record Revision,记录版本
+Refresh Error Code,刷新错误码
+Refresh Lease Expires At (UTC),刷新租约到期时间（UTC）
+Refresh Lease Generation,刷新租约版本
+Refresh Lease Handle,刷新租约标识
+Refresh Lease Owner,刷新租约持有者
+Refresh Request Aliases,刷新请求幂等索引
+Refresh Started At (UTC),刷新开始时间（UTC）
+Refresh Status,刷新状态
+Refresh the account directory before continuing.,请先刷新账套目录。
+Reimporting review workbooks is not available on the new platform yet.,新平台暂不支持复核工作簿回导。
+Remove legacy document shares before accessing Cowork records.,请先移除旧的文档共享授权，再访问 Cowork 记录。
+Report Credential,上报凭证
+Report Credential Generation,上报凭证版本
+Report Received At (UTC),上报接收时间（UTC）
+Request Digest,请求摘要
+Request Fingerprint,请求内容指纹
+Request Hash,请求内容摘要
+Request Json,请求数据（JSON）
+Request Key,请求标识
+Request Receipts,请求回执
+Requested At (UTC),请求时间（UTC）
+Required invoice amounts are missing. Complete them before exporting.,发票缺少必要金额，请补全后再导出。
+Requires Review,需要人工核对
+Response Json,回执JSON
+Result Directory Revision,结果目录版本
+Result Json,识别结果（JSON）
+Result Unknown,结果未知
+Review JSON,复核记录 JSON
+Reviewed amounts need a balance and at most two decimal places.,复核行必须填写余额，金额最多保留两位小数。
+Revision,版本
+Revocation Reason,撤销原因
+Revoked At (UTC),撤销时间（UTC）
+Revoked By,撤销人
+Row {0}: {1},第 {0} 行：{1}
+Sales invoices need line items with tax-exclusive amounts before export.,销项发票需要包含税前金额的明细后才能导出。
+Sample Key,修正例标识
+Scope Key,权限范围标识
+Select a file to upload.,请选择要上传的文件。
+Select between 1 and 100 distinct history records to export.,请选择 1 至 100 条不重复的历史记录导出。
+Select between 1 and 500 records.,请选择 1 至 500 条记录。
+Select valid files to download.,请选择有效文件进行下载。
+Seller Name,卖方名称
+Seller Tax ID,卖方税号
+Service,服务
+Settings Json,配置数据（JSON）
+Site,站点
+Site Name,站点名称
+Source Digest,来源摘要
+Source File,原始文件
+Source Format,来源格式
+Source Hash,来源摘要
+Source History,来源识别记录
+Source PDF ID,来源 PDF 标识
+Source Page Indices,源文件页码
+Source Reference Count,原件关联项数
+Source Reference Kind,原件关联类型
+Source Sha256,原始文件 SHA-256
+Started At,开始时间
+Statement review is not available for this task.,此任务没有逐行复核记录。
+Stock,库存
+Stock count photos are not yet supported. Remove the photos before saving.,盘点照片尚未接入，请先移除照片后保存。
+Summary table import,汇总表导入
+Target Json,冻结目标JSON
+Task,任务
+Tax ID,纳税人识别号
+The Companion delivery record is invalid.,助手任务领取记录无效。
+The Companion delivery record was not found.,未找到助手任务领取记录。
+The Companion identity is no longer valid. Authenticate again.,助手身份已失效，请重新认证。
+The Companion queue request is invalid.,助手队列请求无效。
+The Companion queue response is invalid.,助手队列响应无效。
+The Companion report is invalid.,伴侣端上报内容无效。
+The Companion service is temporarily unavailable. Try again shortly.,伴侣端服务暂时不可用，请稍后重试。
+The ERP address is invalid or not allowed.,ERP连接地址无效或不允许访问。
+The ERP data report contains a restricted field.,ERP 数据报告包含受限制的字段。
+The ERP data report contains an invalid number.,ERP 数据报告包含无效数值。
+The ERP data report contains an unsupported value.,ERP 数据报告包含不支持的值。
+The ERP data report contains duplicate option identifiers.,ERP 数据报告包含重复的选项标识。
+The ERP data report exceeds the supported size limit.,ERP 数据报告超过支持的大小限制。
+The ERP data report is invalid.,ERP 数据报告无效。
+The ERP data report is missing a required value.,ERP 数据报告缺少必填值。
+The ERP master data report is invalid.,ERP 主数据报告无效。
+The ERP report collector information is invalid.,ERP 报告的采集器信息无效。
+The ERP report contains an unsupported field type.,ERP 报告包含不支持的字段类型。
+The ERP report contains an unsupported master data type.,ERP 报告包含不支持的主数据类型。
+The ERP report contains duplicate action identifiers.,ERP 报告包含重复的操作标识。
+The ERP report contains duplicate field identifiers.,ERP 报告包含重复的字段标识。
+The ERP report observation time is invalid.,ERP 报告的采集时间无效。
+The ERP report refresh status is invalid.,ERP 报告的刷新状态无效。
+The ERP report uses an unsupported adapter.,ERP 报告使用了不支持的适配器。
+The ERP target context is inconsistent.,ERP目标上下文不一致。
+The OCR connection changed after this task was accepted.,任务受理后识别服务连接已变更。
+The PDF exceeds the allowed page count.,PDF 超过允许的页数上限。
+The PDF file cannot be read.,无法读取该 PDF 文件。
+The account directory is out of date. Refresh it again.,账套目录已过期，请重新刷新。
+The acknowledgement conflicts with the recorded result.,回执与已记录结果冲突。
+The billing receipt cannot be reverted.,计费回执不能撤回。
+"The company, client and type of a connection cannot be changed.",连接的公司、客户和类型不能直接修改。
+The completed recognition result cannot be replaced.,已完成的识别结果不能替换。
+The connection has changed. Reload and try again.,连接已更新，请重新读取后再试。
+The credential changed. Reload before resetting or revoking it.,凭据已变更，请刷新后再重置或撤销。
+The credential request is invalid.,凭据请求无效。
+The credential request receipt limit has been reached.,凭据请求回执数量已达到上限。
+The date reference year is invalid. Reload and try again.,日期参考年份无效，请重新加载后重试。
+The date reference year is missing. Reload and try again.,缺少日期参考年份，请重新加载后重试。
+The directory evidence is invalid. Refresh and select again.,目录证据无效，请刷新后重新选择。
+The directory refresh is still pending.,目录正在等待刷新。
+The directory snapshot does not match this connection.,目录快照与当前连接不一致。
+The directory snapshot exceeds the 16 MiB limit.,目录快照超过16MiB限制。
+The document contains too many cells.,文档单元格数量超过上限。
+The document contains too many columns.,文档列数超过上限。
+The document contains too many internal files.,文档内部文件数量超过上限。
+The document contains too many rows.,文档行数超过上限。
+The document contains too much text.,文档文本总量超过上限。
+The document contains unsupported XML declarations.,文档包含不支持的 XML 声明。
+The document content is invalid.,文档内容无效。
+The document could not be read. Check the file and try again.,无法读取文档，请检查文件后重试。
+The document exceeds the allowed size after decompression.,文档解压后的大小超过上限。
+The document file is damaged or cannot be decompressed.,文档文件已损坏或无法解压。
+The document reader is unavailable. Contact your administrator.,文档读取服务不可用，请联系管理员。
+The document sections are incomplete or invalid.,文档逻辑单元不完整或无效。
+The export contains an invalid or repeated history reference.,导出包含无效或重复的历史记录引用。
+The file exceeds the allowed size.,文件超过允许的大小上限。
+The file size or page metadata is invalid.,文件大小或页数信息无效。
+The frozen push target does not match the authorized target.,已冻结的推送目标与授权目标不一致。
+The image file cannot be read.,无法读取该图像文件。
+The import columns do not match the stock count template.,导入列与盘点模板不匹配。
+The import contains a repeated product code.,导入数据包含重复的产品编码。
+The import contains no product rows.,导入数据中没有产品行。
+"The import exceeds the limit of 10,000 rows.","导入数据超过 10,000 行上限。"
+The import row is invalid or has missing required values.,导入行无效或缺少必填值。
+The invoice configuration does not match the OCR connection.,发票识别配置与服务连接不一致。
+The invoice contains text that Excel cannot store safely. Check its length and characters.,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
+The invoice data is invalid and cannot be exported.,发票数据无效，无法导出。
+The invoice date is invalid. Correct it before exporting.,发票日期无效，请更正后再导出。
+The invoice fields have an invalid format.,发票字段格式不正确。
+The invoice has changed. Prepare it again.,票据已修改，请重新准备。
+The invoice page data has an invalid format.,发票页面数据格式不正确。
+The original document manifest cannot be changed.,原件内容索引不能修改。
+The original document manifest exceeds the 8 MiB limit.,原件内容索引超过 8 MiB 上限。
+The original document manifest is not ready.,原件内容索引尚未就绪。
+The original file already has a completed invoice manifest.,此原始文件已完成发票关联。
+The original file checksum does not match.,原始文件校验值不匹配。
+The original file is not ready for page preview.,原始文件尚未准备好，暂时无法预览页面。
+The original file reference has changed.,原始文件关联已改变。
+The original invoice manifest is incomplete.,原始文件的发票关联清单不完整。
+The original invoice reference is invalid or unavailable.,原票据引用无效或不可访问。
+The outdated unsent preparation was replaced.,已替换过期且尚未发送的推送准备。
+The printed invoice date cannot be read. Check the date shown on the document.,无法识别票面日期，请核对单据上的日期。
+The push data exceeds the size limit.,推送数据超过大小限制。
+The push record has changed. Reload and try again.,推送记录已更新，请重新读取后再试。
+The push target has changed. Prepare the invoice again.,推送目标已变更，请重新准备票据。
+The recognized content does not match the original references.,识别内容与原件关联不一致。
+The recognized invoice manifest cannot be replaced.,已识别的发票关联清单不能替换。
+The record changed. Reload it before saving.,记录已被修改，请重新加载后再保存。
+The record data is not valid JSON.,记录数据不是有效的 JSON。
+The record metadata has an invalid format.,记录附加信息格式不正确。
+The record source is not supported.,不支持此记录来源。
+The reported ERP capabilities are invalid.,上报的 ERP 功能信息无效。
+The reported ERP field definitions are invalid.,上报的 ERP 字段定义无效。
+The requested page is not part of this invoice.,请求的页面不属于这张发票。
+The review workbook cannot be read. Check its format and content.,无法读取复核工作簿，请检查格式和内容。
+The review workbook contains an invalid number.,复核工作簿包含无效数值。
+The review workbook contains no invoice rows to import.,复核工作簿中没有可回导的发票行。
+The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。
+The review worksheet name contains extra spaces. Restore the original name.,复核工作表名称包含多余空格，请恢复原工作表名。
+The source page number must be a positive integer.,源文件页码必须是正整数。
+The stock count record was not found.,找不到盘点记录。
+The stock count request is invalid. Reload and try again.,盘点请求无效，请重新加载后重试。
+The stocktake export snapshot is incomplete. Reload and try again.,盘点导出数据不完整，请刷新后重试。
+The unsent preparation was cancelled.,尚未发送的推送准备已撤销。
+The uploaded file exceeds the 100 MiB limit.,上传文件超过 100 MiB 上限。
+The uploaded file is empty.,上传文件为空。
+The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
+The worksheet row or column information is invalid.,工作表行列信息无效。
+This Cowork OCR mode is not available on the new platform yet.,新平台暂不支持此 Cowork 识别模式。
+This ERP adapter is not connected yet.,此ERP适配器尚未接通。
+This ERP connection is disabled.,此ERP连接已停用。
+This account set is unavailable.,此账套不可用。
+This action is not allowed in the current push state.,当前推送状态不允许此操作。
+This connection does not support an Express Companion credential.,此连接不支持 Express 助手凭据。
+This connection is disabled.,此连接已停用。
+This count entry has changed. Refresh it and try again.,此盘点记录已更改，请刷新后重试。
+This delivery conflicts with the current task state.,此回执与任务当前状态冲突。
+This document format is not supported.,不支持此文档格式。
+This file does not match the review workbook format.,此文件不符合复核工作簿格式。
+This file type is not supported.,不支持此文件类型。
+This import request ID has already been used for different content.,此导入请求 ID 已用于不同内容。
+This multi-page invoice has no verified combined record. Review it before exporting.,此多页发票缺少经核实的合并记录，请复核后再导出。
+This operation ID has already been used for another request.,此操作 ID 已用于其他请求。
+This original already has a recognition task with different parameters.,此原始文件已有参数不同的识别任务。
+This page is too large to preview safely.,该页面尺寸过大，无法安全预览。
+This push attempt is no longer current.,此推送尝试已失效。
+This recognition service currently accepts PDF and image originals.,此识别服务目前仅支持 PDF 和图片原件。
+This refresh request has expired. Request a new refresh.,此刷新请求已过期，请重新申请刷新。
+This request conflicts with an existing reservation.,此请求与已有推送预留冲突。
+This request key has already been used for different content.,此请求标识已用于其他内容。
+This request key was used for another credential operation.,此请求键已用于其他凭据操作。
+This request key was used for different content.,此请求编号已用于其他内容。
+This request key was used for different push content.,此请求编号已用于其他推送内容。
+This stock count task is closed.,此盘点任务已关闭。
+This task uses the previous count format and cannot accept scan entries.,此任务使用旧版盘点格式，不能接收扫描记录。
+Title,标题
+Token Digest,令牌摘要
+Token Generation,令牌版本
+Token Tail,令牌末四位
+Transaction Date,交易日期
+Unsupported ERP connection type.,不支持此ERP连接类型。
+Update invoice records through the Cowork review service.,请通过 Cowork 复核功能更新发票记录。
+Updated At,更新时间
+Updated By,更新人
+Uploaded By,上传人
+Use the Cowork Companion credential service to access credentials.,请通过 Cowork 助手凭据服务访问凭据。
+Use the Cowork Companion service to access deliveries.,请通过 Cowork 助手服务访问任务领取记录。
+Use the Cowork OCR service to access recognition tasks.,请通过 Cowork 识别服务访问识别任务。
+Use the Cowork OCR service to change recognition tasks.,请通过 Cowork 识别服务修改识别任务。
+Use the Cowork original-file service to access this file.,请通过 Cowork 原始文件服务访问此文件。
+Use the stock count workflow to change these records.,请通过盘点流程更改这些记录。
+Version,版本
+Voided,已作废
+Warehouse,仓库
+Wire Attempt,发送尝试次数
+Work Name,后台任务标识
+Workspace,公司账套
+You do not have access to this ERP target.,无权访问此ERP目标。
+account,科目
+active,有效
+admitted,已受理
+catalog_refresh_invalid,目录证据无效，请刷新后重新选择。
+catalog_refresh_pending,目录正在等待刷新。
+catalog_refresh_required,请先刷新账套目录。
+catalog_refresh_stale,账套目录已过期，请重新刷新。
+charged,已计费
+client,客户
+closed,已关闭
+companion.context_invalid,助手身份已失效，请重新认证。
+companion.credential_not_found,此连接尚未签发助手凭据。
+companion.delivery_invalid,助手任务领取记录无效。
+companion.delivery_not_found,未找到助手任务领取记录。
+companion.generation_conflict,凭据已变更，请刷新后再重置或撤销。
+companion.queue_access_revoked,助手队列的访问权限已撤销。
+companion.queue_conflict,此回执与任务当前状态冲突。
+companion.queue_request_invalid,助手队列请求无效。
+companion.queue_response_invalid,助手队列响应无效。
+companion.receipt_limit,凭据请求回执数量已达到上限。
+companion.report_busy,伴侣端服务暂时不可用，请稍后重试。
+companion.report_invalid,伴侣端上报内容无效。
+companion.request_conflict,此请求键已用于其他凭据操作。
+companion.request_invalid,凭据请求无效。
+companion.unauthorized,助手认证失败。
+companion.unsupported_connection,此连接不支持 Express 助手凭据。
+confirmed,已确认
+connection.adapter_invalid,不支持此ERP连接类型。
+connection.config_invalid,请检查ERP连接配置。
+connection.disabled,此连接已停用。
+connection.lock_required,读取推送目标前必须锁定连接。
+connection.not_found,找不到此连接或目录记录。
+connection.preparation_incomplete,此账套的推送准备资料尚未完整获取。
+connection.preparation_invalid,推送准备资料与当前连接或账套不一致。
+connection.refresh_stale,此刷新请求已过期，请重新申请刷新。
+connection.request_conflict,此请求编号已用于其他内容。
+connection.request_key_invalid,请求编号无效。
+connection.revision_conflict,连接已更新，请重新读取后再试。
+connection.scope_immutable,连接的公司、客户和类型不能直接修改。
+connection.snapshot_invalid,目录快照与当前连接不一致。
+connection.snapshot_too_large,目录快照超过16MiB限制。
+connection.url_invalid,ERP连接地址无效或不允许访问。
+cowork.quality.confirmed,高置信识别
+cowork.quality.failed,未识别到摘要
+cowork.quality.pending,待复核
+cowork_line,Cowork LINE
+document,文档
+erp.account_set_unavailable,此账套不可用。
+erp.endpoint_disabled,此ERP连接已停用。
+erp.target_access_denied,无权访问此ERP目标。
+erp.target_context_invalid,ERP目标上下文不一致。
+erp.target_projection_adapter_invalid,ERP 报告使用了不支持的适配器。
+erp.target_projection_collector_invalid,ERP 报告的采集器信息无效。
+erp.target_projection_collector_not_connected,此 ERP 数据类型尚未接入采集。
+erp.target_projection_duplicate_action,ERP 报告包含重复的操作标识。
+erp.target_projection_duplicate_field,ERP 报告包含重复的字段标识。
+erp.target_projection_duplicate_source_id,ERP 数据报告包含重复的选项标识。
+erp.target_projection_invalid,ERP 数据报告无效。
+erp.target_projection_invalid_action,上报的 ERP 操作无效。
+erp.target_projection_invalid_capabilities,上报的 ERP 功能信息无效。
+erp.target_projection_invalid_field,上报的 ERP 字段无效。
+erp.target_projection_invalid_form_schema,上报的 ERP 字段定义无效。
+erp.target_projection_invalid_json,ERP 数据报告包含不支持的值。
+erp.target_projection_invalid_masters,ERP 主数据报告无效。
+erp.target_projection_invalid_number,ERP 数据报告包含无效数值。
+erp.target_projection_invalid_option,ERP 数据报告中的选项无效。
+erp.target_projection_observed_at_invalid,ERP 报告的采集时间无效。
+erp.target_projection_refresh_status_invalid,ERP 报告的刷新状态无效。
+erp.target_projection_sensitive_field,ERP 数据报告包含受限制的字段。
+erp.target_projection_too_large,ERP 数据报告超过支持的大小限制。
+erp.target_projection_unknown_entity,ERP 报告包含不支持的主数据类型。
+erp.target_projection_unknown_field_type,ERP 报告包含不支持的字段类型。
+erp.target_projection_value_required,ERP 数据报告缺少必填值。
+erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
+excel,Excel
+failed,失败
+held,待接入发送
+history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
+history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
+history.date_unreadable,无法识别票面日期，请核对单据上的日期。
+history.erp_source_forbidden,ERP 记录不能保存到 Cowork。
+history.fields_invalid,发票字段格式不正确。
+history.json_invalid,记录数据不是有效的 JSON。
+history.metadata_invalid,记录附加信息格式不正确。
+history.page_index_invalid,源文件页码必须是正整数。
+history.pages_invalid,发票页面数据格式不正确。
+history.source_invalid,不支持此记录来源。
+history.source_not_public,此入口只能创建手工录入记录。
+image,图像
+leased,已领取
+legacy,旧版
+logical_section,文档逻辑单元
+manual,手工
+not_billable,无需计费
+not_due,尚无需计费
+not_invoice,非发票
+ocr.empty_file,上传文件为空。
+ocr.file_too_large,文件超过允许的大小上限。
+ocr.invalid_input_metadata,文件大小或页数信息无效。
+ocr.invalid_pdf,无法读取该 PDF 文件。
+ocr.page_association_invalid,识别内容与原件关联不一致。
+ocr.roundtrip_empty,复核工作簿中没有可回导的发票行。
+ocr.roundtrip_invalid_number,复核工作簿包含无效数值。
+ocr.roundtrip_not_matched,此文件不符合复核工作簿格式。
+ocr.roundtrip_parse_failed,无法读取复核工作簿，请检查格式和内容。
+ocr.roundtrip_sheet_name_invalid,复核工作表名称包含多余空格，请恢复原工作表名。
+ocr.roundtrip_trailing_rows,复核工作簿在连续 50 个空行之后仍有数据，请移除空行间隔后回导。
+ocr.table_archive_member_limit,文档内部文件数量超过上限。
+ocr.table_archive_size_limit,文档解压后的大小超过上限。
+ocr.table_cell_limit,文档单元格数量超过上限。
+ocr.table_column_limit,文档列数超过上限。
+ocr.table_dependency_unavailable,文档读取服务不可用，请联系管理员。
+ocr.table_format_not_supported,不支持此文档格式。
+ocr.table_invalid_archive,文档文件已损坏或无法解压。
+ocr.table_invalid_bytes,文档内容无效。
+ocr.table_invalid_dimensions,工作表行列信息无效。
+ocr.table_parse_failed,无法读取文档，请检查文件后重试。
+ocr.table_roundtrip_not_supported,新平台暂不支持复核工作簿回导。
+ocr.table_row_limit,文档行数超过上限。
+ocr.table_text_limit,文档文本总量超过上限。
+ocr.table_text_too_long,"文档中有单个单元超过 30,000 字符，请拆分文档后再识别。"
+ocr.table_units_invalid,文档逻辑单元不完整或无效。
+ocr.table_xml_declaration_not_allowed,文档包含不支持的 XML 声明。
+ocr.too_many_pages,PDF 超过允许的页数上限。
+ocr.unsupported_format,不支持此文件类型。
+pdf,PDF
+pending,待处理
+physical_page,物理页
+push.adapter_not_connected,此ERP适配器尚未接通。
+push.branch_invalid,推送执行模式无效。
+push.native_ack_conflict,回执与已记录结果冲突。
+push.native_history_changed,票据已修改，请重新准备。
+push.native_lock_conflict,另一笔推送正在占用写入锁。
+push.native_payload_too_large,推送数据超过大小限制。
+push.native_record_not_found,找不到推送记录。
+push.native_request_invalid,推送请求无效。
+push.native_reservation_conflict,此请求与已有推送预留冲突。
+push.native_revision_conflict,推送记录已更新，请重新读取后再试。
+push.native_stale_attempt,此推送尝试已失效。
+push.native_state_invalid,当前推送状态不允许此操作。
+push.native_target_changed,推送目标已变更，请重新准备票据。
+push.native_target_mismatch,已冻结的推送目标与授权目标不一致。
+push.original_reference_invalid,原票据引用无效或不可访问。
+push.posting_kind_invalid,过账类型无效。
+push.preparation_cancelled,尚未发送的推送准备已撤销。
+push.preparation_superseded,已替换过期且尚未发送的推送准备。
+push.prior_document_number_missing,已有成功推送缺少ERP凭证号，请核对回执。
+push.record_not_found,找不到推送记录。
+push.request_conflict,此请求编号已用于其他推送内容。
+push.request_invalid,推送请求无效。
+push.utc_required,必须提供带时区的UTC时间。
+recognized,已识别
+recognizing,识别中
+reconciliation.review_amount_invalid,复核行必须填写余额，金额最多保留两位小数。
+reconciliation.review_balance_mismatch,请先修正账单余额差异，再确认。
+reconciliation.review_required,请先完成账单复核，再导出对账结果。
+reconciliation.review_rows_invalid,复核行内容或原始行编号无效。
+reconciliation.review_unavailable,此任务没有逐行复核记录。
+roundtrip.document_limit,复核工作簿须包含 1 至 500 张发票。
+roundtrip.export_amount_missing,发票缺少必要金额，请补全后再导出。
+roundtrip.export_amount_not_roundtrippable,此发票导出后回导会改变金额，请核对明细金额、税前金额、增值税和合计。
+roundtrip.export_date_invalid,发票日期无效，请更正后再导出。
+roundtrip.export_facts_invalid,已核实的 ERP 导出信息无效。
+roundtrip.export_history_invalid,导出包含无效或重复的历史记录引用。
+roundtrip.export_line_amount_missing,发票明细缺少金额，且数量和单价不完整，请补全后再导出。
+roundtrip.export_multipage_unverified,此多页发票缺少经核实的合并记录，请复核后再导出。
+roundtrip.export_number_invalid,发票中有无效数值，请更正后再导出。
+roundtrip.export_number_precision,发票数值超出 Excel 支持的精度或范围，无法在保持原值的情况下导出。
+roundtrip.export_record_invalid,发票数据无效，无法导出。
+roundtrip.export_records_invalid,请选择 1 至 100 条不重复的历史记录导出。
+roundtrip.export_sales_items_required,销项发票需要包含税前金额的明细后才能导出。
+roundtrip.export_scope_mixed,同次导出只能包含同一公司、同一客户的记录。
+roundtrip.export_text_invalid,发票包含 Excel 无法完整保存的文本，请检查长度和字符。
+roundtrip.reference_unavailable,所选公司和客户范围内无法访问引用的历史记录。
+saved,已保存
+scan,扫描
+service,服务
+stock,库存
+stocktake.ambiguous_code,产品编码或条形码对应了多个产品。
+stocktake.closed,此盘点任务已关闭。
+stocktake.code_as_text,产品编码和条形码必须以文本格式保存。
+stocktake.conflict,此盘点记录已更改，请刷新后重试。
+stocktake.dedicated_api_required,请通过盘点流程更改这些记录。
+stocktake.duplicate,导入数据包含重复的产品编码。
+stocktake.empty,导入数据中没有产品行。
+stocktake.export_incomplete,盘点导出数据不完整，请刷新后重试。
+stocktake.headers_invalid,导入列与盘点模板不匹配。
+stocktake.import_conflict,此导入请求 ID 已用于不同内容。
+stocktake.legacy_task,此任务使用旧版盘点格式，不能接收扫描记录。
+stocktake.name_invalid,请输入 1 至 120 个字符的盘点标题。
+stocktake.not_found,找不到盘点记录。
+stocktake.operation_conflict,此操作 ID 已用于其他请求。
+stocktake.photos_not_supported,盘点照片尚未接入，请先移除照片后保存。
+stocktake.quantity_invalid,请输入有效数量，最多保留六位小数。
+stocktake.request_invalid,盘点请求无效，请重新加载后重试。
+stocktake.row_invalid,导入行无效或缺少必填值。
+stocktake.too_many_rows,"导入数据超过 10,000 行上限。"
+stocktake.warehouse_required,请检查仓库和位置，仓库为必填项。
+summary_table_batch,汇总表导入

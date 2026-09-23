@@ -1,0 +1,160 @@
+{
+  "recorded_at": "2026-09-21T10:16:21.300834+00:00",
+  "base_sha": "c9bee02d35c4e025e75c1ac0ed2d51f212d2b47c",
+  "branch": "codex/cowork-backend-migration",
+  "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+  "source_evidence": {
+    "baseline-sixteenth-delivery.json": {
+      "file_sha256": "be2fca951154e3029dc06cec38409af64cdc90ca230af17e770f2bb009a583bc",
+      "canonical_sha256": "621dbdee22f895e996cfdaea1aee2f0d9de43b3b2bf1960b1d5b43d06fb6b6cd",
+      "captured_at": "2026-09-21T10:06:46.366275+00:00"
+    },
+    "baseline-sixteenth-start.json": {
+      "file_sha256": "8992c9a410ad7ea64d540e4b25d7b241fa530a2b8170f7c9ec61764d227f194c",
+      "canonical_sha256": "b4635221bc6f7b9c14e234d76e42b80158d01c752f82f04c47784e8a7f80d92e",
+      "captured_at": "2026-09-21T09:44:13.355313+00:00"
+    },
+    "companion-sixteenth-binary-source.json": {
+      "file_sha256": "5522abb84f8defb104e5df0047ff442be94bf26fe2ddd7e5fd1d971a3da76bf5"
+    },
+    "push-runtime-sixteenth-delivery.json": {
+      "file_sha256": "0220229be1884f167a1474e18877e3825e2264b9d656e69b43eea40dca6976a9",
+      "canonical_sha256": "d1eb18b7e2f1ad047af9f69d491d28274d61b99f474bf41ff9138197fc22ddf1",
+      "captured_at": "2026-09-21T10:07:53.342905+00:00"
+    },
+    "push-runtime-sixteenth-start.json": {
+      "file_sha256": "186129d83d55dce154fb1a4bc521bb89ba2be8e62edc48c88e90d8825d11975c",
+      "canonical_sha256": "c05806366b75cb7572566b8ec95130671ccee3aa662325ce62133cd7c5851384",
+      "captured_at": "2026-09-21T09:45:34.588677+00:00"
+    },
+    "windows-sixteenth-identity.json": {
+      "file_sha256": "21837f3e411d31f6ddf4ae95651d5528ccf2f22dda62999afd563472b73d2ba1"
+    },
+    "windows-sixteenth-readonly.json": {
+      "file_sha256": "863ba8dae103417acc476002a034d51c237a995d78c77e71d916d603e2e237db"
+    }
+  },
+  "source_unchanged": true,
+  "runtime_unchanged": false,
+  "runtime_changed_paths": [
+    "/pearnly-web/database/identity/endpoints/configuration_digest",
+    "/pearnly-worker/database/identity/endpoints/configuration_digest"
+  ],
+  "runtime_change_scope": "same changed paths in fifteenth-delivery to sixteenth-start and sixteenth-start to delivery; no claim about underlying keys",
+  "full_configuration_import": "HOLD",
+  "v1_drift_recapture": "NOT_RUN_no_retry_of_prior_failed_capture",
+  "installed_companion": {
+    "executable_sha256": "0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a",
+    "business_source_sha": "33af0fd5e381e87802c95655dc35e7709eb2a233",
+    "embedded_version": "1.1.77",
+    "matched_modules_including_launcher": 55,
+    "executed_packaged_code": false,
+    "native_helpers_and_dependencies": "NOT_VERIFIED",
+    "signed_build_provenance": "NOT_VERIFIED"
+  },
+  "native_tests": {
+    "count": 4,
+    "status": "PASS_FIRST_RUN_4_OF_4",
+    "runner": "scripts/cowork-companion-legacy-wire-lab-verify.py",
+    "activation": "synthetic internal fixture; not public human confirmation test"
+  },
+  "pure_tests": {
+    "count": 3,
+    "status": "PASS_FIRST_RUN_3_OF_3",
+    "runner": "tests/test_cowork_companion_legacy_wire.py"
+  },
+  "unique_tests_total": 7,
+  "legacy_client_source_hash": "6ee2a943fbe8b847ec3c7db34b53ddd41d30fccdde20cd088823d5c3be5572f4",
+  "legacy_client_transport": "real httpx 0.28.1 WSGITransport; source only removes file logger import",
+  "temporary_lab_dependencies": {
+    "installed_then_uninstalled": {
+      "httpx": "0.28.1",
+      "httpcore": "1.0.9",
+      "h11": "0.16.0",
+      "anyio": "4.15.1"
+    },
+    "product_dependency_files_changed": false,
+    "wheel_and_client_copies_removed": true
+  },
+  "candidate_file_hashes": {
+    "apps/pearnly_cowork/pearnly_cowork/companion/legacy_wire.py": "75fd444941a43739eca01c06f0341b4c04466c3b2d688bb48e76bb5929d314cb",
+    "apps/pearnly_cowork/pearnly_cowork/companion/wsgi.py": "e8f662b5490e7ab30a0ff57eff56535f86443a6e132f028a275bebb11add4062",
+    "scripts/cowork-companion-binary-source.py": "7cabe5161d7dbae3dddbaf9822e25f918d49d11b6de63325e0c0c6b85d07984d",
+    "scripts/cowork-companion-legacy-wire-lab-verify.py": "d8c851ab84c325db97db5d54a22d95dd81efbd9bde324edd2f8737649897c381",
+    "tests/test_cowork_companion_legacy_wire.py": "b07f20b99dc3592fbf31836f4af8440119d705b93fa3a58b5edb4009a10d6487"
+  },
+  "architecture": "PASS_0_VIOLATIONS",
+  "syntax_json_diff": "PASS",
+  "schema": "NO_SCHEMA_CHANGES_no_install_or_migrate",
+  "i18n": "NOT_RUN_no_terms_changed",
+  "lab": {
+    "context": "colima-pearnly",
+    "project": "pearnly-cowork-backend-lab",
+    "site": "cowork-backend-ack.localhost",
+    "image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "frappe": "16.33.0",
+    "python": "3.14.7",
+    "internal_network": true,
+    "ports": [],
+    "source_mounts": "task worktree read-only",
+    "external_credentials": false,
+    "containers": "STOPPED",
+    "data": "retained for continuing migration"
+  },
+  "windows": {
+    "authorization": "necessary test ERP credentials and account writes authorized; not needed for this wire contract package",
+    "interactive_identity": "skin3",
+    "ssh_identity": "DESKTOP-MN2BRKR\\macadmin",
+    "test_share_accessible": true,
+    "account_identity": "ISINFO first active record: company present; 13-digit tax ID matches historical test; only last4 retained",
+    "probe_initial_failures": [
+      "task exit0 without output not accepted as evidence",
+      "DBF probe did not stop at field terminator; fixed read-only probe, not product"
+    ],
+    "actual_erp_writes": 0,
+    "profile_changes": 0,
+    "active_companion_stopped": false,
+    "credentials_decrypted_or_read": false,
+    "probe_task_removed": true,
+    "probe_directory_removed": true,
+    "existing_restore_task_untouched": true,
+    "read_only_probe_script": {
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-windows-probe.ps1",
+      "sha256": "b8092c63d9bb8984e9470a96ecdde14a6584392c353d8320c87fad63d773ed71"
+    }
+  },
+  "logs": {
+    "sixteenth-architecture.log": {
+      "file_sha256": "0b3265722558043d9a9b8ff03ebf2ba10ed8359a7a90292911cb2da3c90b243b",
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-architecture.log"
+    },
+    "sixteenth-pure-wire.log": {
+      "file_sha256": "199ba496f288116d36c62f29346d4fbf0bd75745a1c893abfcbdaa4c6d5b1033",
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-pure-wire.log"
+    },
+    "sixteenth-runtime-compare.log": {
+      "file_sha256": "adfa0e2f57e867efd22bf5b21ff1e6fe45e88ee5fd3012f8fbfb3c294fc926a0",
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-runtime-compare.log"
+    },
+    "sixteenth-site-wire.log": {
+      "file_sha256": "d36dbe8ec6c41b457fccb2f39ff0c0c9fc8acca15fa8071fe6b38285be427f0a",
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-site-wire.log"
+    },
+    "sixteenth-source-compare.log": {
+      "file_sha256": "53f2a15698805157acd6a2477a107de83db8039f8170cd1dc381b49d9bcd3154",
+      "path": "/tmp/pearnly-cowork-migration-20260920/sixteenth-source-compare.log"
+    }
+  },
+  "deployment": false,
+  "frontend": false,
+  "dms_changes": false,
+  "independent_erp_business_readback": false,
+  "integration": {
+    "merged": false,
+    "pushed": false,
+    "main_at_readback": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_main_at_readback": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent",
+    "status": "handoff retained"
+  }
+}

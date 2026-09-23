@@ -1,0 +1,315 @@
+{
+ "doctype": "DocType",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-20 00:00:00.000000",
+ "modified": "2026-09-20 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "name": "Cowork OCR History",
+ "field_order": [
+  "workspace",
+  "client",
+  "source",
+  "staged",
+  "pages",
+  "ai_raw",
+  "confidence",
+  "quality_status",
+  "posting_kind",
+  "invoice_no",
+  "invoice_date",
+  "seller_name",
+  "total_amount",
+  "record_version",
+  "edit_count",
+  "fields_edited_at",
+  "confirmed_by",
+  "confirmed_at",
+  "request_key",
+  "request_fingerprint",
+  "source_pdf_id",
+  "source_page_indices",
+  "source_index",
+  "source_total",
+  "filename",
+  "file_hash",
+  "page_count",
+  "source_file",
+  "last_push_status",
+  "last_pushed_at",
+  "last_push_record",
+  "duplicate_check_status",
+  "duplicate_level",
+  "duplicate_match"
+ ],
+ "fields": [
+  {
+   "fieldname": "duplicate_check_status",
+   "fieldtype": "Select",
+   "label": "Duplicate Check Status",
+   "options": "\nnot_checked\ndisabled\nclear\nmatched\nunavailable",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "duplicate_level",
+   "fieldtype": "Select",
+   "label": "Duplicate Match Level",
+   "options": "\nexact\nlikely",
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "duplicate_match",
+   "fieldtype": "Data",
+   "label": "Duplicate Record Reference",
+   "read_only": 1,
+   "hidden": 1,
+   "permlevel": 1
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "label": "Buyer Client",
+   "options": "Cowork Client",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "manual\ncowork_line\nsummary_table_batch",
+   "reqd": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "staged",
+   "fieldtype": "Check",
+   "label": "Draft",
+   "default": "1",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pages",
+   "fieldtype": "Code",
+   "label": "Invoice Pages",
+   "options": "JSON",
+   "reqd": 1
+  },
+  {
+   "fieldname": "ai_raw",
+   "fieldtype": "Code",
+   "label": "First Recognition Snapshot",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confidence",
+   "fieldtype": "Data",
+   "label": "Recognition Confidence",
+   "read_only": 1
+  },
+  {
+   "fieldname": "quality_status",
+   "fieldtype": "Select",
+   "label": "Recognition Quality",
+   "options": "failed\npending\nconfirmed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "posting_kind",
+   "fieldtype": "Select",
+   "label": "Posting Kind",
+   "options": "\nservice\nstock",
+   "read_only": 1
+  },
+  {
+   "fieldname": "invoice_no",
+   "fieldtype": "Data",
+   "label": "Invoice Number",
+   "length": 200,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "invoice_date",
+   "fieldtype": "Date",
+   "label": "Invoice Date",
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "seller_name",
+   "fieldtype": "Data",
+   "label": "Seller Name",
+   "length": 200,
+   "read_only": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "total_amount",
+   "fieldtype": "Data",
+   "label": "Invoice Total",
+   "length": 200,
+   "read_only": 1,
+   "description": "Decimal summary; pages retain the original amount."
+  },
+  {
+   "fieldname": "record_version",
+   "fieldtype": "Int",
+   "label": "Record Revision",
+   "read_only": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "edit_count",
+   "fieldtype": "Int",
+   "label": "Edit Count",
+   "read_only": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "fields_edited_at",
+   "fieldtype": "Datetime",
+   "label": "Last Fields Edit (UTC)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmed_by",
+   "fieldtype": "Link",
+   "label": "Completed By",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "confirmed_at",
+   "fieldtype": "Datetime",
+   "label": "Completed At (UTC)",
+   "read_only": 1
+  },
+  {
+   "fieldname": "request_key",
+   "fieldtype": "Data",
+   "label": "Request Key",
+   "read_only": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "request_fingerprint",
+   "fieldtype": "Data",
+   "label": "Request Fingerprint",
+   "read_only": 1,
+   "hidden": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "source_pdf_id",
+   "fieldtype": "Data",
+   "label": "Source PDF ID",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_page_indices",
+   "fieldtype": "Code",
+   "label": "Source Page Indices",
+   "options": "JSON",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_index",
+   "fieldtype": "Int",
+   "label": "Invoice Index",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_total",
+   "fieldtype": "Int",
+   "label": "Invoice Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "filename",
+   "fieldtype": "Data",
+   "label": "Original Filename",
+   "read_only": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "file_hash",
+   "fieldtype": "Data",
+   "label": "File Hash",
+   "read_only": 1,
+   "length": 64
+  },
+  {
+   "fieldname": "page_count",
+   "fieldtype": "Int",
+   "label": "Page Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_file",
+   "fieldtype": "Link",
+   "label": "Original File",
+   "options": "Cowork Source File",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "last_push_status",
+   "label": "Last Push Status",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "options": "\npending\nsuccess\nmanual"
+  },
+  {
+   "fieldname": "last_pushed_at",
+   "label": "Last Pushed At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_push_record",
+   "label": "Last Push Record",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Intake",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork OCR History",
+   "read": 1
+  }
+ ]
+}

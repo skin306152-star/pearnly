@@ -1,0 +1,146 @@
+{
+ "doctype": "DocType",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "name": "Cowork Product",
+ "autoname": "hash",
+ "field_order": [
+  "workspace",
+  "display_name",
+  "name_th",
+  "name_en",
+  "name_zh",
+  "sku",
+  "base_unit",
+  "enabled",
+  "units",
+  "track_batch",
+  "track_expiry",
+  "is_weighed",
+  "min_stock",
+  "default_cost"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "display_name",
+   "fieldtype": "Data",
+   "label": "Name",
+   "reqd": 1,
+   "length": 200,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "name_th",
+   "fieldtype": "Data",
+   "label": "Thai Name",
+   "length": 200
+  },
+  {
+   "fieldname": "name_en",
+   "fieldtype": "Data",
+   "label": "English Name",
+   "length": 200
+  },
+  {
+   "fieldname": "name_zh",
+   "fieldtype": "Data",
+   "label": "Chinese Name",
+   "length": 200
+  },
+  {
+   "fieldname": "sku",
+   "fieldtype": "Data",
+   "label": "SKU",
+   "length": 80
+  },
+  {
+   "fieldname": "base_unit",
+   "fieldtype": "Data",
+   "label": "Base Unit",
+   "length": 40,
+   "default": "ชิ้น"
+  },
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled",
+   "default": "1"
+  },
+  {
+   "fieldname": "units",
+   "fieldtype": "Table",
+   "label": "Sell Units",
+   "options": "Cowork Product Unit"
+  },
+  {
+   "fieldname": "track_batch",
+   "fieldtype": "Check",
+   "label": "Track Batch",
+   "default": "0"
+  },
+  {
+   "fieldname": "track_expiry",
+   "fieldtype": "Check",
+   "label": "Track Expiry",
+   "default": "0"
+  },
+  {
+   "fieldname": "is_weighed",
+   "fieldtype": "Check",
+   "label": "Sold by Weight",
+   "default": "0"
+  },
+  {
+   "fieldname": "min_stock",
+   "fieldtype": "Float",
+   "label": "Minimum Stock",
+   "precision": "3"
+  },
+  {
+   "fieldname": "default_cost",
+   "fieldtype": "Float",
+   "label": "Default Cost",
+   "precision": "2"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Cowork Master Data",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Intake",
+   "read": 1
+  },
+  {
+   "role": "Cowork OCR History",
+   "read": 1
+  }
+ ]
+}

@@ -1,0 +1,229 @@
+{
+  "architecture": "PASS_0_VIOLATIONS",
+  "base_sha": "8abf444b6ee953d485cee9e5f7691e6a47244965",
+  "branch": "codex/cowork-backend-migration",
+  "changed_code_sha256": {
+    "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py": "616ff25aa60b431ee91007caf05cd3cd98e4144d15fd9c7acd8bc26f573012f3",
+    "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py": "866323c6aa3df4e0ed298210cdb9590ee7dec9f55dee2bdfc831c1cb5f388eb9",
+    "apps/pearnly_cowork/pearnly_cowork/companion/receipt_auth.py": "a0856a4c35372611c85a94dbedd70a10dac2efb386e698a5e7d8ab80712a5070",
+    "apps/pearnly_cowork/pearnly_cowork/translations/en.csv": "bedacf4aabb119442d7ff25ec8c498424c86aa346a88e48b13b0d9c354862333",
+    "apps/pearnly_cowork/pearnly_cowork/translations/ja.csv": "27021088dcd67ed27e0214a3ea8cd534fc6e2c6f4dba9bcbfd5ff234f9b5f743",
+    "apps/pearnly_cowork/pearnly_cowork/translations/th.csv": "8065e2b516cbc816068628bcd036baa78d568f9989a0ed8a3042b0e0dbaf6c47",
+    "apps/pearnly_cowork/pearnly_cowork/translations/zh.csv": "e96ae4d7f95192b461d05e68602a41fe2357f540ba5fd56b9f1704199410ee32",
+    "scripts/cowork-companion-heartbeat-lab-verify.py": "6b008de8b69c52e2af7c8732f81803106ea90752264fd3e0c99b0af2e769d5d9",
+    "scripts/cowork-companion-queue-ack-http-lab-verify.py": "6e94a9d57ddd5cae4bb0561504a816829a55fd6d9c2b198755dce451694484b8",
+    "scripts/cowork-companion-queue-http-lab-verify.py": "5521a4b56010e0944f8b2878e4bd84683a217aff51f92cc426cf69acde7f2b9f",
+    "scripts/i18n/messages.tsv": "94901907536a001d7ac22fc488d0213076b07749e61e40ec85dc21c4b97d6840",
+    "tests/test_cowork_companion_http_auth.py": "be64f7e609f6f6f49dae733be925c794664fc034f584382b9b7459aeb925d23a",
+    "tests/test_cowork_companion_queue_http_contracts.py": "9b29e3534b9120130868bf314ddfa81e8c28bf090ba89d2f433297b45d01c399"
+  },
+  "ci": "NOT_RUN",
+  "client_changed": false,
+  "deployed": false,
+  "external_business_io": false,
+  "frontend": false,
+  "initial_failures_resolved": [
+    "commit test double missing chain keyword",
+    "synthetic user creation throttle",
+    "Site config 60s process cache in old and new HTTP fixtures",
+    "synthetic contact helper queue overflow",
+    "ACK rollback failure escaping safe diagnostics",
+    "frappe.throw message_log leak on errors and successful retry"
+  ],
+  "limitations": [
+    "Framework outer second commit failure escapes handler; no successful payload but no guaranteed JSON 503",
+    "HTTP failure after commit does not imply rollback",
+    "ACK success is synthetic client assertion; no external ERP readback",
+    "Preparation facts, human activation, History/stock/unique notification effects remain incomplete",
+    "Old Windows binary identity and real device adaptation unverified"
+  ],
+  "merged_to_main": false,
+  "native_unique_tests": 144,
+  "new_http_unique_tests": 40,
+  "new_transport_http_routes": [
+    "pearnly_cowork.companion.queue_api.lease",
+    "pearnly_cowork.companion.queue_api.acknowledge"
+  ],
+  "pushed": false,
+  "response_envelope": "native Frappe message; old Windows URLs and response parsing not adapted",
+  "runtime": {
+    "compose_project": "pearnly-cowork-backend-lab",
+    "containers": [
+      {
+        "image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+        "mounts": [
+          {
+            "Destination": "/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core",
+            "Name": null,
+            "RW": false,
+            "Source": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly/apps/pearnly_core/pearnly_core",
+            "Type": "bind"
+          },
+          {
+            "Destination": "/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork",
+            "Name": null,
+            "RW": false,
+            "Source": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly/apps/pearnly_cowork/pearnly_cowork",
+            "Type": "bind"
+          },
+          {
+            "Destination": "/workspace/scripts",
+            "Name": null,
+            "RW": false,
+            "Source": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly/scripts",
+            "Type": "bind"
+          },
+          {
+            "Destination": "/workspace/tests",
+            "Name": null,
+            "RW": false,
+            "Source": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly/tests",
+            "Type": "bind"
+          },
+          {
+            "Destination": "/home/frappe/frappe-bench/logs",
+            "Name": "71640b5a012f8c99c84b49a27f154d78252b355a87ff8dadfa2e41fc3f3db492",
+            "RW": true,
+            "Source": "/var/lib/docker/volumes/71640b5a012f8c99c84b49a27f154d78252b355a87ff8dadfa2e41fc3f3db492/_data",
+            "Type": "volume"
+          },
+          {
+            "Destination": "/home/frappe/frappe-bench/sites",
+            "Name": "pearnly-cowork-backend-lab_sites",
+            "RW": true,
+            "Source": "/var/lib/docker/volumes/pearnly-cowork-backend-lab_sites/_data",
+            "Type": "volume"
+          }
+        ],
+        "name": "pearnly-cowork-backend-lab-bench-1",
+        "published_ports": false
+      },
+      {
+        "image": "sha256:8b5f33ebd85d1775657e974ed10434128bb493c80e826ceaa54074fd1a92a112",
+        "mounts": [
+          {
+            "Destination": "/var/lib/mysql",
+            "Name": "pearnly-cowork-backend-lab_db",
+            "RW": true,
+            "Source": "/var/lib/docker/volumes/pearnly-cowork-backend-lab_db/_data",
+            "Type": "volume"
+          }
+        ],
+        "name": "pearnly-cowork-backend-lab-db-1",
+        "published_ports": false
+      },
+      {
+        "image": "sha256:d0c875bdacfb5c4d2c2d9124de3f53cee1dc9ceff8936bd459fabc135cb33015",
+        "mounts": [
+          {
+            "Destination": "/data",
+            "Name": "cf5ad7fbfd49e29c178da9c101cbb13b78e3bc64649569a08352fb6d2e9fd269",
+            "RW": true,
+            "Source": "/var/lib/docker/volumes/cf5ad7fbfd49e29c178da9c101cbb13b78e3bc64649569a08352fb6d2e9fd269/_data",
+            "Type": "volume"
+          }
+        ],
+        "name": "pearnly-cowork-backend-lab-redis-1",
+        "published_ports": false
+      }
+    ],
+    "docker_context": "colima-pearnly",
+    "network_internal": true,
+    "new_install_or_migrate": "NOT_RUN_NO_SCHEMA_CHANGE",
+    "owned_containers_stopped": true,
+    "schema_changed": false,
+    "site_and_db_named_volumes_retained": true
+  },
+  "scoped_fixture_queue_cleanup": {
+    "method": "frappe.core.doctype.user.user.create_contact",
+    "new_fixture_contacts": "synchronous only during fixture setup; native HTTP unchanged",
+    "removed": 454,
+    "removed_ids_sha256": "56b078bc884312116cb0f6c1938fed11f69037d8346b0101126cd242d0162bb1",
+    "retained_other_jobs_at_cleanup": 196,
+    "site": "cowork-backend-push.localhost",
+    "user_pattern": "cw-*@example.invalid"
+  },
+  "source": {
+    "observations_changed": false,
+    "old_eighth_ninth_configuration_hold": true,
+    "previous_910_source_cases": "not rerun in this batch; inherited evidence only",
+    "readonly_start_delivery_gate": "PASS",
+    "settings_unchanged": true,
+    "sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "source_protocol_contracts_unchanged_from_base": [
+      "apps/pearnly_cowork/pearnly_cowork/companion/queue_contracts.py",
+      "apps/pearnly_cowork/pearnly_cowork/companion/transport.py"
+    ]
+  },
+  "strict_i18n": {
+    "baseline_exit": 1,
+    "candidate_exit": 1,
+    "comparison_sha256": "ff853cd2939a2d7a3636e52eed62cea7c9c1e472f6ee795213ba4acfc8d5b33a",
+    "files": 43,
+    "findings": 147,
+    "normalized_new": 0,
+    "normalized_removed": 0,
+    "status": "UNCHANGED_EXISTING_FAILURE",
+    "strings": 135
+  },
+  "tests": {
+    "collector": {
+      "environment": "cowork-backend-companion.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-collector-regression.log",
+      "sha256": "49a589bc42ba86af0f15c0dce555c03a25f84f4ac8d223e9734cd247128d1d02",
+      "status": "PASS",
+      "tests": 18
+    },
+    "credentials": {
+      "environment": "cowork-backend-companion.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-credentials-regression.log",
+      "sha256": "6c89f6f8454c941a2cef023b5f5471305e37852a3b846b8d4781df271ff0a65f",
+      "status": "PASS",
+      "tests": 20
+    },
+    "heartbeat_http": {
+      "environment": "cowork-backend-companion.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-heartbeat-regression-complete.log",
+      "sha256": "c31f117da7ec2990895aa41abfddf259066e689fd1f654c01ad0cd92b2a28897",
+      "status": "PASS",
+      "tests": 26
+    },
+    "offline": {
+      "environment": "offline network none",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-offline-final.log",
+      "sha256": "6126038152d9351cb574b8752df91602d07f35e270d07f3129493ee6da77f4d8",
+      "status": "PASS",
+      "tests": 755
+    },
+    "queue_ack_http": {
+      "environment": "cowork-backend-push.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-queue-ack-http-complete.log",
+      "sha256": "2a9ffc0b8bd8073a0bde8823dda186965f12d214944510ce5a6776dc864d5c1e",
+      "status": "PASS",
+      "tests": 24
+    },
+    "queue_http": {
+      "environment": "cowork-backend-push.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-queue-http-complete.log",
+      "sha256": "2d9b8c9dd9efa95017aa63bb4ee28d0b185ceef00479a7271788b9c8f51e16e2",
+      "status": "PASS",
+      "tests": 16
+    },
+    "transport": {
+      "environment": "cowork-backend-companion.localhost",
+      "log_path": "/tmp/pearnly-cowork-migration-20260920/twelfth-transport-regression-r2.log",
+      "sha256": "1b58c833db2bb2ff32ad932df168623981616933fad7b2433f1750028795fedb",
+      "status": "PASS",
+      "tests": 40
+    }
+  },
+  "translation": {
+    "cowork_terms_per_language": 475,
+    "frontend_keys_checked": 338,
+    "frontend_problems": 0,
+    "native_lookups": 4,
+    "new_terms": 1
+  },
+  "user_acceptance": "NOT_RUN",
+  "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly"
+}

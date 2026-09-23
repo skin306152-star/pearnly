@@ -119,7 +119,6 @@ async function login({ host, port, user }, password = PASS) {
 		!nav.includes("库存盘点"),
 		"这条验的是前端按后端授权过滤；真正的拦截在后端"
 	);
-	check("没买的「工作协作」(boards) 不在菜单里", !nav.includes("工作协作"));
 	check(
 		"没买的「主数据」整组都不显示",
 		!nav.includes("客户管理") && !nav.includes("集成"),

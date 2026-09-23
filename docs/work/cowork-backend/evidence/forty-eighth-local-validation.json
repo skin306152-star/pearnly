@@ -1,0 +1,89 @@
+{
+  "base_commit": "ca8d800",
+  "scope": "forty-eighth batch: the sixth master-data slice — the client-roster import normalisation (multilingual header matching, the row projection with its limits, the Thai tax-id and branch-number cleaning, and the row-level structural check)",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-seventh batch delivery",
+    "delivery_sha256": "8e9bec083212dffc6a4bb8fb906fe7a5723881fc79ba26dcbc11a4b8d98e383f",
+    "delivery_captured_at": "2026-09-21T18:50:00.000000+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-seventh-delivery.json baseline-forty-eighth-delivery.json (before pinned at c04f6e02, after pinned at 8e9bec08)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "25f77f476c446da7e2e1154187a5f5cd7daeba9d1eb285d2d29faf3ec86bf67a",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/workspace/client_import.py": "b2b2da81a93f18a7cecf2b51534f5f1bcbfd1c31112d956699c042cbf97e05dc",
+      "services/purchase/field_clean.py": "43912e65fcce3afa53fa4f7cdfd2d57afc02ff5556c5e17a6d76c2d030bdbed8"
+    },
+    "source_note": "both ported modules are pure; the table reader was replaced by a stub in the differential"
+  },
+  "checks": [
+    {
+      "command": "docker exec ... python -m unittest test_cowork_client_import",
+      "result": "PASS",
+      "tests": 14,
+      "new_tests": 14,
+      "covers": [
+        "the three languages are recognised, a substring hits, a miss returns nothing, and the first column wins for each field",
+        "a Thai tax id needs exactly thirteen digits (separators and trailing text are stripped), and a branch number is padded but never invented (empty and over-long stay empty)",
+        "the row-level structural check: a missing name and a malformed tax id, while an empty tax id is not an error",
+        "rows are mapped through the matched columns with trimming and empty missing columns, no name column means nothing is imported, no headers is an empty preview, summary rows are skipped, a long file is truncated and says so, a missing optional column stays empty, and a short row is read as far as it goes"
+      ]
+    },
+    {
+      "command": "python test_cowork_client_import_source_parity.py --source-stdin (pinned sources piped in)",
+      "result": "PASS",
+      "differences": 0,
+      "counts": {
+        "columns": 30,
+        "headers": 7,
+        "cells": 600,
+        "imports": 120,
+        "rows": 273,
+        "name_missing": 37,
+        "truncated": 1,
+        "tax_ok": 3,
+        "tax_bad": 27,
+        "branch_ok": 4,
+        "branch_empty": 26,
+        "structural_none": 55,
+        "errors": 200
+      },
+      "note": "both pinned modules are pure, so they run as pinned with the table reader replaced by a stub that hands both sides the same headers and rows. Compared: every header cell against the pinned matcher, seven header sets, 600 cell lookups, 200 structural checks, the tax and branch cleaning over the same values, and 120 import previews (header echo, matched columns, row count, the name-column flag and every projected row field), plus one oversized file for the truncation flag."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_client_import test_cowork_product_units test_cowork_client_records test_cowork_buyer_resolve",
+      "result": "PASS",
+      "tests": 70,
+      "note": "the master-data family's pure modules together"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the table reader (xlsx/csv parsing) is handed in as headers and rows rather than called here; the platform already has its own readers and this slice only decides which column is the client name and what each imported row looks like",
+    "the route layer (upload, structural check, the shared validated-create body, the dry-run commit) is not ported: creating a client reuses the roster service from the forty-fifth batch, and the import endpoint's shape belongs with the frontend wiring",
+    "field_clean.clean_seller (seller-name cleaning for amounts, labels, dates and short values) is not part of this slice: it serves recognition-field presentation, which is the OCR family",
+    "comments and docstrings were rewritten; every synonym list, both limits, the three error codes, the exact-thirteen-digit rule and the branch-number rule are the deployed ones"
+  ],
+  "not_run": [
+    "the import endpoint and its storage, the supplier and tax-profile master data (whose scope has to be verified first), settings and categories, the frontend, deployment and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-client-import.md"
+}

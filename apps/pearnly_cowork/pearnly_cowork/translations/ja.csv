@@ -1,1 +1,676 @@
+A client cannot be moved to another company.,顧客を別の会社に移動することはできません。
+A completed record cannot become a draft.,完了したレコードを下書きに戻すことはできません。
+"A document section exceeds 30,000 characters. Split the document before recognition.","文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
+A name is required.,名前を入力してください。
+A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
+A numeric value in the invoice is invalid. Correct it before exporting.,請求書に無効な数値があります。修正してからエクスポートしてください。
+A positive record revision is required.,レコードの版には正の整数が必要です。
+A positive source page number is required.,元ファイルのページ番号には正の整数が必要です。
+A product code or barcode identifies more than one product.,商品コードまたはバーコードが複数の商品に対応しています。
+A referenced history record is unavailable in the selected company and client.,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
+A reported ERP action is invalid.,報告された ERP の操作が無効です。
+A reported ERP field is invalid.,報告された ERP フィールドが無効です。
+A request key of 1 to 128 characters is required.,リクエストキーは1～128文字で指定してください。
+A review workbook must contain between 1 and 500 invoices.,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
+A successful push has no ERP document number. Check its receipt.,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
+A timezone-aware UTC timestamp is required.,タイムゾーン付きのUTC時刻が必要です。
+A value in the ERP data report exceeds the allowed length.,ERP データレポート内の値が許容される長さを超えています。
+Access to the Companion queue has been revoked.,アシスタントのキューへのアクセス権が取り消されました。
+Account Key,会計データキー
+Account Set Key,会計データ選択キー
+Ack Digest,確認応答ダイジェスト
+Active Attempt,現在の試行
+Active Key,有効な重複防止キー
+Actor,実行者
+Actual Qty,実棚数量
+Allowed Users,許可ユーザー
+An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
+An option in the ERP data report is invalid.,ERP データレポート内の選択肢が無効です。
+An original file is already stored for this source.,この参照元には既に元ファイルが保存されています。
+Anchor Date,基準日
+Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
+Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
+At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
+Attempt Secret,試行用シークレット
+Barcode,バーコード
+Billing Code,課金コード
+Billing Kind,課金種別
+Billing Receipt,課金処理結果
+Billing Reference,課金参照番号
+Billing State,課金状態
+Billing Units,課金単位
+Binding Generation,関連付け世代
+Blocked By,ブロック元の記録
+Book Qty,帳簿数量
+Bound Account Set,関連付けられた会計データ
+Bound Invoice Records,関連付け済みの請求書記録
+Bound Profile Key,関連付け設定キー
+Branch,実行分岐
+Buyer Client,買い手顧客
+Changed At (UTC),変更日時（UTC）
+Changed By,変更者
+Check the ERP connection settings.,ERP接続設定を確認してください。
+Check the statement balance differences before confirming.,明細の残高差異を修正してから確定してください。
+Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
+Checks Json,検証結果JSON
+Client,顧客
+Closed At,クローズ日時
+Closed By,クローズしたユーザー
+Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
+Companion Report,Companion レポート
+Companion authentication failed.,アシスタント認証に失敗しました。
+Company,会社
+Complete statement review before exporting the result.,明細確認を完了してから照合結果を出力してください。
+Completed At,完了日時
+Completed At (UTC),完了日時（UTC）
+Completed By,完了者
+Completion Evidence,完了証跡
+Confirmation Request,確認リクエスト
+Confirmation Revision,確認リビジョン
+Confirmed,確認済み
+Connection Configuration,接続設定
+Connection Name,接続名
+Connection Revision,接続リビジョン
+Connection or directory record not found.,接続またはディレクトリの記録が見つかりません。
+Content Hash,内容ハッシュ
+Corrected Value,修正値
+Count Mode,棚卸方式
+Counted At,棚卸日時
+Counted By,棚卸担当者
 Cowork,Cowork
+Cowork Bank Evidence,Cowork 銀行取引の根拠
+Cowork Client,Cowork 買い手顧客
+Cowork Companion Delivery,Cowork アシスタントのタスク受領記録
+Cowork ERP Connection,Cowork ERP接続
+Cowork ERP Mapping,Cowork ERP マッピング
+Cowork ERP Refresh,Cowork ERPディレクトリ更新
+Cowork ERP Snapshot,Cowork ERPディレクトリスナップショット
+Cowork Express Agent Credential,Cowork Express アシスタント認証情報
+Cowork LINE,Cowork LINE
+Cowork Master Data,Cowork マスタデータ
+Cowork OCR Batch,Cowork 認識バッチ
+Cowork OCR Correction,Cowork 認識修正例
+Cowork OCR History,Cowork 認識履歴
+Cowork OCR requires a configured provider credential reference.,Cowork 認識サービスの認証情報参照を設定してください。
+Cowork OCR requires an explicit invoice configuration.,Cowork の請求書認識設定を指定してください。
+Cowork Push Attempt,Cowork送信試行
+Cowork Push Notification,Cowork送信通知イベント
+Cowork Push Record,Cowork送信記録
+Cowork Push Writer Lock,Cowork送信書き込みロック
+Cowork Source File,Cowork 元ファイル
+Cowork Stocktake,Cowork 棚卸
+Cowork Stocktake Entry,Cowork 棚卸記録
+Cowork Stocktake Item,Cowork 棚卸品目
+Cowork Stocktake Operation,Cowork 棚卸操作記録
+Cowork Stocktake Task,Cowork 棚卸タスク
+Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
+Cowork Workspace,Cowork 会計対象会社
+Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
+Created By,作成者
+Creation Request Hash,作成要求ハッシュ
+Credential ID,認証情報 ID
+Current Directory Heads,現在のディレクトリ索引
+Current Json,現在のデータ（JSON）
+Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
+Default Item Type,既定の明細種類
+Default Payment,既定の支払方法
+Direction,取引方向
+Directory Revision,ディレクトリリビジョン
+Directory Scope Key,ディレクトリ範囲キー
+Directory Scope Kind,ディレクトリ範囲タイプ
+Directory Snapshot,ディレクトリスナップショット
+Document Key,伝票重複防止キー
+Draft,下書き
+Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
+ERP Code,ERP コード
+ERP Connection,ERP接続
+ERP Password,ERPパスワード
+ERP Token,ERPトークン
+ERP Username,ERPユーザー名
+ERP records cannot be saved in Cowork.,ERPのレコードはCoworkに保存できません。
+Each record must have a name and revision.,各レコードには識別子と版が必要です。
+Each record must have a valid name.,各レコードには有効な識別子が必要です。
+Edit Count,編集回数
+Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
+Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
+Entry,エントリー
+Event Key,イベント識別子
+Evidence Fingerprint,証跡フィンガープリント
+Evidence Owner,根拠データの所有者
+Examples Json,修正例データ（JSON）
+Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+External Docnum,ERP伝票番号
+Failed,失敗
+Failure Count,失敗回数
+Fence,試行分離番号
+Field,項目
+File Hash,ファイルのハッシュ値
+First Recognition Snapshot,初回認識結果のスナップショット
+First Recognition Value,初回認識値
+Generation Key,認証情報世代キー
+History,伝票履歴
+History Records,認識記録
+History Version,伝票履歴バージョン
+Holder,ロック保持者
+Holder Fence,ロック保持試行番号
+IN,入金
+Installed At (UTC),インストール日時（UTC）
+Invalid Cowork OCR configuration.,Cowork の認識設定が無効です。
+Invalid original document manifest.,元文書の内容索引が無効です。
+Invalid original filename.,元ファイル名が無効です。
+Invalid posting type.,転記タイプが無効です。
+Invalid push execution mode.,送信実行モードが無効です。
+Invalid push request.,送信要求が無効です。
+Invalid recognized invoice group.,認識した請求書グループが無効です。
+Invalid request key.,要求キーが無効です。
+Invalid statement review rows or row references.,確認明細または元の行番号が無効です。
+Invoice Count,請求書の件数
+Invoice Date,請求書の日付
+Invoice Index,請求書の順番
+Invoice No,伝票番号
+Invoice Number,請求書番号
+Invoice Pages,請求書のページ
+Invoice References Complete,請求書の関連付け完了
+Invoice References Fingerprint,請求書関連付けのフィンガープリント
+Invoice Total,請求書合計
+Invoice pages do not match the original page references.,請求書のページが元ファイルの参照ページと一致しません。
+Issued At (UTC),発行日時 (UTC)
+Issued By,発行者
+Issued Request Digest,発行リクエストのダイジェスト
+Item,項目
+Last Fields Edit (UTC),項目の最終編集日時（UTC）
+Last Push Record,最終送信記録
+Last Push Status,最終送信状態
+Last Pushed At (UTC),最終送信日時（UTC）
+Last Request Hash,最終要求ハッシュ
+Last Request Key,最終要求キー
+Lease Expires At,リース有効期限
+Location,場所
+Lock Key,ロックキー
+Lock Kind,ロック種別
+Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
+Manual,手入力
+Mapping Key,マッピングキー
+Mapping Kind,マッピング種類
+Native Content Hash,標準ファイルの内容ハッシュ
+Needs review,要確認
+New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
+No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
+No invoice summary found,請求書の概要情報なし
+Not Permitted,適切な権限がありません
+OUT,出金
+Observed At (UTC),観測日時（UTC）
+Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
+Original Content Coverage Complete,元ファイルの内容をすべて網羅
+Original Document Manifest,元文書の内容索引
+Original File,元ファイル
+Original Filename,元のファイル名
+Original SHA-256,元ファイルの SHA-256
+Original Size,元ファイルサイズ
+Original Type,元ファイルの種類
+Original evidence and ownership cannot be changed.,元の証跡と所属情報は変更できません。
+Original files can only be changed through the Cowork file service.,元ファイルの変更には Cowork ファイルサービスを使用してください。
+Original files cannot be changed.,元ファイルは変更できません。
+Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
+Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
+Outcome,実行結果
+Owner ID,所有者 ID
+Owner Id,実行者ID
+PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
+Page Count,ページ数
+Page preview is available only for PDF and image originals.,ページプレビューは PDF と画像の元ファイルにのみ対応しています。
+Password-protected PDF files cannot be read.,パスワードで保護された PDF ファイルは読み取れません。
+Payload Json,固定ペイロードJSON
+Pearnly Cowork,Pearnly Cowork
+Pending,処理待ち
+Phase,処理段階
+Posting Kind,記帳区分
+Preparation Evidence,準備情報の証拠
+Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
+Preparation data for this account set is incomplete.,この会計データの送信準備情報が不足しています。
+Previous Json,変更前のデータ（JSON）
+Private File,非公開ファイル
+Private Storage URL,非公開ストレージ URL
+Product Code,商品コード
+Product Name,商品名
+Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
+Provider Evidence,プロバイダー呼び出し証跡
+Push Attempt,送信試行
+Push Record,送信記録
+Push record not found.,送信記録が見つかりません。
+Quantity,数量
+Reason,理由
+Recognition Confidence,認識の信頼度
+Recognition Quality,認識品質
+Recognition input and ownership cannot be changed.,認識入力と所有情報は変更できません。
+Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
+Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
+Recognized with high confidence,高い信頼度で認識
+Record ID,レコード ID
+Record Id,レコード ID
+Record Key,記録キー
+Record Revision,レコードの版
+Refresh Error Code,更新エラーコード
+Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
+Refresh Lease Generation,更新リースの世代
+Refresh Lease Handle,更新リース識別子
+Refresh Lease Owner,更新リースの所有者
+Refresh Request Aliases,更新要求の冪等索引
+Refresh Started At (UTC),更新開始日時（UTC）
+Refresh Status,更新状態
+Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
+Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
+Report Credential,レポート認証情報
+Report Credential Generation,レポート認証情報の世代
+Report Received At (UTC),レポート受信日時（UTC）
+Request Digest,要求ダイジェスト
+Request Fingerprint,リクエスト内容のフィンガープリント
+Request Hash,要求内容ハッシュ
+Request Json,リクエストデータ（JSON）
+Request Key,リクエストキー
+Request Receipts,リクエストの受領記録
+Requested At (UTC),要求日時（UTC）
+Required invoice amounts are missing. Complete them before exporting.,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
+Requires Review,確認が必要
+Response Json,確認応答JSON
+Result Directory Revision,結果ディレクトリリビジョン
+Result Json,認識結果（JSON）
+Result Unknown,結果不明
+Review JSON,確認記録 JSON
+Reviewed amounts need a balance and at most two decimal places.,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
+Revision,リビジョン
+Revocation Reason,失効理由
+Revoked At (UTC),失効日時 (UTC)
+Revoked By,失効者
+Row {0}: {1},{0} 行目：{1}
+Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
+Sample Key,修正例識別子
+Scope Key,権限範囲識別子
+Select a file to upload.,アップロードするファイルを選択してください。
+Select between 1 and 100 distinct history records to export.,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
+Select between 1 and 500 records.,1～500件のレコードを選択してください。
+Select valid files to download.,ダウンロードする有効なファイルを選択してください。
+Seller Name,売り手名
+Seller Tax ID,売り手の納税者番号
+Service,サービス
+Settings Json,設定データ（JSON）
+Site,サイト
+Site Name,サイト名
+Source Digest,元データのダイジェスト
+Source File,元ファイル
+Source Format,元データの形式
+Source Hash,ソースハッシュ
+Source History,元の認識記録
+Source PDF ID,元のPDFのID
+Source Page Indices,元ファイルのページ番号
+Source Reference Count,元ファイルの参照項目数
+Source Reference Kind,元ファイルの参照種別
+Source Sha256,元ファイルの SHA-256
+Started At,開始日時
+Statement review is not available for this task.,このタスクには明細確認記録がありません。
+Stock,在庫
+Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
+Summary table import,集計表の取り込み
+Target Json,固定送信先JSON
+Task,タスク
+Tax ID,納税者番号
+The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
+The Companion delivery record was not found.,アシスタントのタスク受領記録が見つかりません。
+The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
+The Companion queue request is invalid.,アシスタントのキューリクエストが無効です。
+The Companion queue response is invalid.,アシスタントのキューレスポンスが無効です。
+The Companion report is invalid.,Companion レポートが無効です。
+The Companion service is temporarily unavailable. Try again shortly.,Companion サービスは一時的に利用できません。しばらくしてから再試行してください。
+The ERP address is invalid or not allowed.,ERPのアドレスが無効か、許可されていません。
+The ERP data report contains a restricted field.,ERP データレポートに制限対象のフィールドが含まれています。
+The ERP data report contains an invalid number.,ERP データレポートに無効な数値が含まれています。
+The ERP data report contains an unsupported value.,ERP データレポートに対応していない値が含まれています。
+The ERP data report contains duplicate option identifiers.,ERP データレポートに選択肢の識別子が重複しています。
+The ERP data report exceeds the supported size limit.,ERP データレポートが対応するサイズの上限を超えています。
+The ERP data report is invalid.,ERP データレポートが無効です。
+The ERP data report is missing a required value.,ERP データレポートに必須の値がありません。
+The ERP master data report is invalid.,ERP マスターデータレポートが無効です。
+The ERP report collector information is invalid.,ERP レポートの収集元情報が無効です。
+The ERP report contains an unsupported field type.,ERP レポートに対応していないフィールド型が含まれています。
+The ERP report contains an unsupported master data type.,ERP レポートに対応していないマスターデータの種類が含まれています。
+The ERP report contains duplicate action identifiers.,ERP レポートに操作の識別子が重複しています。
+The ERP report contains duplicate field identifiers.,ERP レポートにフィールドの識別子が重複しています。
+The ERP report observation time is invalid.,ERP レポートの収集日時が無効です。
+The ERP report refresh status is invalid.,ERP レポートの更新状態が無効です。
+The ERP report uses an unsupported adapter.,ERP レポートに対応していないアダプターが指定されています。
+The ERP target context is inconsistent.,ERP送信先の情報が一致しません。
+The OCR connection changed after this task was accepted.,このタスクの受け付け後に認識サービスの接続設定が変更されました。
+The PDF exceeds the allowed page count.,PDF のページ数が上限を超えています。
+The PDF file cannot be read.,この PDF ファイルを読み取れません。
+The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
+The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
+The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
+"The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
+The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
+The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
+The credential changed. Reload before resetting or revoking it.,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
+The credential request is invalid.,認証情報のリクエストが無効です。
+The credential request receipt limit has been reached.,認証情報リクエストの受領記録が上限に達しました。
+The date reference year is invalid. Reload and try again.,日付の基準年が無効です。再読み込みしてから再試行してください。
+The date reference year is missing. Reload and try again.,日付の基準年がありません。再読み込みしてから再試行してください。
+The directory evidence is invalid. Refresh and select again.,ディレクトリの情報が無効です。更新して選択し直してください。
+The directory refresh is still pending.,ディレクトリの更新を待機しています。
+The directory snapshot does not match this connection.,ディレクトリのスナップショットが接続と一致しません。
+The directory snapshot exceeds the 16 MiB limit.,ディレクトリのスナップショットが16 MiBの上限を超えています。
+The document contains too many cells.,文書のセル数が上限を超えています。
+The document contains too many columns.,文書の列数が上限を超えています。
+The document contains too many internal files.,文書内のファイル数が上限を超えています。
+The document contains too many rows.,文書の行数が上限を超えています。
+The document contains too much text.,文書のテキスト量が上限を超えています。
+The document contains unsupported XML declarations.,文書に対応していない XML 宣言が含まれています。
+The document content is invalid.,文書の内容が無効です。
+The document could not be read. Check the file and try again.,文書を読み取れません。ファイルを確認してから再試行してください。
+The document exceeds the allowed size after decompression.,展開後の文書サイズが上限を超えています。
+The document file is damaged or cannot be decompressed.,文書ファイルが破損しているか、展開できません。
+The document reader is unavailable. Contact your administrator.,文書の読み取り機能が利用できません。管理者にお問い合わせください。
+The document sections are incomplete or invalid.,文書の論理単位が不完全または無効です。
+The export contains an invalid or repeated history reference.,エクスポート対象に無効または重複した履歴参照があります。
+The file exceeds the allowed size.,ファイルサイズが上限を超えています。
+The file size or page metadata is invalid.,ファイルサイズまたはページ情報が無効です。
+The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
+The image file cannot be read.,この画像ファイルを読み取れません。
+The import columns do not match the stock count template.,インポートする列が棚卸テンプレートと一致しません。
+The import contains a repeated product code.,インポートデータに重複する商品コードがあります。
+The import contains no product rows.,インポートデータに商品行がありません。
+"The import exceeds the limit of 10,000 rows.","インポートデータが上限の 10,000 行を超えています。"
+The import row is invalid or has missing required values.,インポート行が無効か、必須項目が不足しています。
+The invoice configuration does not match the OCR connection.,請求書の認識設定とサービスの接続設定が一致しません。
+The invoice contains text that Excel cannot store safely. Check its length and characters.,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
+The invoice data is invalid and cannot be exported.,請求書データが無効なため、エクスポートできません。
+The invoice date is invalid. Correct it before exporting.,請求書の日付が無効です。修正してからエクスポートしてください。
+The invoice fields have an invalid format.,請求書の項目データの形式が正しくありません。
+The invoice has changed. Prepare it again.,伝票が変更されました。再度準備してください。
+The invoice page data has an invalid format.,請求書のページデータの形式が正しくありません。
+The original document manifest cannot be changed.,元文書の内容索引は変更できません。
+The original document manifest exceeds the 8 MiB limit.,元文書の内容索引が上限の 8 MiB を超えています。
+The original document manifest is not ready.,元文書の内容索引はまだ準備できていません。
+The original file already has a completed invoice manifest.,この元ファイルの請求書関連付けは既に完了しています。
+The original file checksum does not match.,元ファイルのチェックサムが一致しません。
+The original file is not ready for page preview.,元ファイルのページプレビューはまだ準備できていません。
+The original file reference has changed.,元ファイルの参照が変更されています。
+The original invoice manifest is incomplete.,元ファイルの請求書関連付け一覧が不完全です。
+The original invoice reference is invalid or unavailable.,元の伝票の参照が無効か、アクセスできません。
+The outdated unsent preparation was replaced.,古い未送信の準備を置き換えました。
+The printed invoice date cannot be read. Check the date shown on the document.,請求書に記載された日付を読み取れません。書類の日付を確認してください。
+The push data exceeds the size limit.,送信データがサイズ制限を超えています。
+The push record has changed. Reload and try again.,送信記録が更新されました。再読み込みしてお試しください。
+The push target has changed. Prepare the invoice again.,送信先が変更されました。伝票を再度準備してください。
+The recognized content does not match the original references.,認識した内容が元ファイルの参照項目と一致しません。
+The recognized invoice manifest cannot be replaced.,認識済みの請求書関連付け一覧は置き換えられません。
+The record changed. Reload it before saving.,レコードが変更されました。再読み込みしてから保存してください。
+The record data is not valid JSON.,レコードデータが有効なJSONではありません。
+The record metadata has an invalid format.,レコードの付加情報の形式が正しくありません。
+The record source is not supported.,このレコードの取得元には対応していません。
+The reported ERP capabilities are invalid.,報告された ERP の機能情報が無効です。
+The reported ERP field definitions are invalid.,報告された ERP フィールド定義が無効です。
+The requested page is not part of this invoice.,指定したページはこの請求書に含まれていません。
+The review workbook cannot be read. Check its format and content.,確認用ワークブックを読み取れません。形式と内容を確認してください。
+The review workbook contains an invalid number.,確認用ワークブックに無効な数値が含まれています。
+The review workbook contains no invoice rows to import.,確認用ワークブックに再取り込みできる請求書の行がありません。
+The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。
+The review worksheet name contains extra spaces. Restore the original name.,確認用シート名に余分な空白があります。元のシート名に戻してください。
+The source page number must be a positive integer.,元ファイルのページ番号には正の整数が必要です。
+The stock count record was not found.,棚卸記録が見つかりません。
+The stock count request is invalid. Reload and try again.,棚卸リクエストが無効です。再読み込みしてから再試行してください。
+The stocktake export snapshot is incomplete. Reload and try again.,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+The unsent preparation was cancelled.,未送信の準備を取り消しました。
+The uploaded file exceeds the 100 MiB limit.,アップロードしたファイルは上限の 100 MiB を超えています。
+The uploaded file is empty.,アップロードしたファイルは空です。
+The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
+The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
+This Cowork OCR mode is not available on the new platform yet.,新プラットフォームは、この Cowork 認識モードにまだ対応していません。
+This ERP adapter is not connected yet.,このERPアダプターはまだ接続されていません。
+This ERP connection is disabled.,このERP接続は無効です。
+This account set is unavailable.,この会計データは利用できません。
+This action is not allowed in the current push state.,現在の送信状態ではこの操作はできません。
+This connection does not support an Express Companion credential.,この接続は Express アシスタント認証情報に対応していません。
+This connection is disabled.,この接続は無効です。
+This count entry has changed. Refresh it and try again.,この棚卸記録は変更されています。再読み込みしてから再試行してください。
+This delivery conflicts with the current task state.,この受領結果はタスクの現在の状態と矛盾しています。
+This document format is not supported.,この文書形式には対応していません。
+This file does not match the review workbook format.,このファイルは確認用ワークブックの形式と一致しません。
+This file type is not supported.,このファイル形式には対応していません。
+This import request ID has already been used for different content.,このインポートリクエスト ID は異なる内容で使用されています。
+This multi-page invoice has no verified combined record. Review it before exporting.,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
+This operation ID has already been used for another request.,この操作 ID は別のリクエストで使用されています。
+This original already has a recognition task with different parameters.,この元ファイルには、異なるパラメーターの認識タスクが既にあります。
+This page is too large to preview safely.,このページは大きすぎるため、安全にプレビューできません。
+This push attempt is no longer current.,この送信試行は無効になっています。
+This recognition service currently accepts PDF and image originals.,この認識サービスは現在、PDF と画像の元ファイルに対応しています。
+This refresh request has expired. Request a new refresh.,この更新要求は期限切れです。再度要求してください。
+This request conflicts with an existing reservation.,この要求は既存の送信予約と矛盾しています。
+This request key has already been used for different content.,このリクエストキーは別の内容ですでに使用されています。
+This request key was used for another credential operation.,このリクエストキーは別の認証情報操作に使用されています。
+This request key was used for different content.,この要求キーは別の内容に使用されています。
+This request key was used for different push content.,この要求キーは別の送信内容に使用されています。
+This stock count task is closed.,この棚卸タスクはクローズ済みです。
+This task uses the previous count format and cannot accept scan entries.,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
+Title,タイトル
+Token Digest,トークンダイジェスト
+Token Generation,トークン世代
+Token Tail,トークン末尾
+Transaction Date,取引日
+Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
+Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
+Updated At,更新日時
+Updated By,更新者
+Uploaded By,アップロードしたユーザー
+Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
+Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
+Use the Cowork OCR service to access recognition tasks.,認識タスクへのアクセスには Cowork 認識サービスを使用してください。
+Use the Cowork OCR service to change recognition tasks.,認識タスクの変更には Cowork 認識サービスを使用してください。
+Use the Cowork original-file service to access this file.,このファイルには Cowork 元ファイルサービスからアクセスしてください。
+Use the stock count workflow to change these records.,これらの記録は棚卸の操作から変更してください。
+Version,バージョン
+Voided,無効化済み
+Warehouse,倉庫
+Wire Attempt,送信試行回数
+Work Name,バックグラウンドタスク識別子
+Workspace,会社帳簿
+You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
+account,勘定科目
+active,有効
+admitted,受け付け済み
+catalog_refresh_invalid,ディレクトリの情報が無効です。更新して選択し直してください。
+catalog_refresh_pending,ディレクトリの更新を待機しています。
+catalog_refresh_required,先に会計データのディレクトリを更新してください。
+catalog_refresh_stale,会計データのディレクトリが古くなっています。再度更新してください。
+charged,課金済み
+client,顧客
+closed,クローズ済み
+companion.context_invalid,アシスタントの認証が無効になりました。再認証してください。
+companion.credential_not_found,この接続にはアシスタント認証情報が発行されていません。
+companion.delivery_invalid,アシスタントのタスク受領記録が無効です。
+companion.delivery_not_found,アシスタントのタスク受領記録が見つかりません。
+companion.generation_conflict,認証情報が変更されました。再読み込みしてからリセットまたは失効してください。
+companion.queue_access_revoked,アシスタントのキューへのアクセス権が取り消されました。
+companion.queue_conflict,この受領結果はタスクの現在の状態と矛盾しています。
+companion.queue_request_invalid,アシスタントのキューリクエストが無効です。
+companion.queue_response_invalid,アシスタントのキューレスポンスが無効です。
+companion.receipt_limit,認証情報リクエストの受領記録が上限に達しました。
+companion.report_busy,Companion サービスは一時的に利用できません。しばらくしてから再試行してください。
+companion.report_invalid,Companion レポートが無効です。
+companion.request_conflict,このリクエストキーは別の認証情報操作に使用されています。
+companion.request_invalid,認証情報のリクエストが無効です。
+companion.unauthorized,アシスタント認証に失敗しました。
+companion.unsupported_connection,この接続は Express アシスタント認証情報に対応していません。
+confirmed,確認済み
+connection.adapter_invalid,このERP接続タイプはサポートされていません。
+connection.config_invalid,ERP接続設定を確認してください。
+connection.disabled,この接続は無効です。
+connection.lock_required,送信先を読み取る前に接続をロックしてください。
+connection.not_found,接続またはディレクトリの記録が見つかりません。
+connection.preparation_incomplete,この会計データの送信準備情報が不足しています。
+connection.preparation_invalid,準備情報が接続または会計データと一致しません。
+connection.refresh_stale,この更新要求は期限切れです。再度要求してください。
+connection.request_conflict,この要求キーは別の内容に使用されています。
+connection.request_key_invalid,要求キーが無効です。
+connection.revision_conflict,接続が更新されました。再読み込みしてお試しください。
+connection.scope_immutable,接続の会社、顧客、タイプは変更できません。
+connection.snapshot_invalid,ディレクトリのスナップショットが接続と一致しません。
+connection.snapshot_too_large,ディレクトリのスナップショットが16 MiBの上限を超えています。
+connection.url_invalid,ERPのアドレスが無効か、許可されていません。
+cowork.quality.confirmed,高い信頼度で認識
+cowork.quality.failed,請求書の概要情報なし
+cowork.quality.pending,要確認
+cowork_line,Cowork LINE
+document,文書
+erp.account_set_unavailable,この会計データは利用できません。
+erp.endpoint_disabled,このERP接続は無効です。
+erp.target_access_denied,このERP送信先にアクセスする権限がありません。
+erp.target_context_invalid,ERP送信先の情報が一致しません。
+erp.target_projection_adapter_invalid,ERP レポートに対応していないアダプターが指定されています。
+erp.target_projection_collector_invalid,ERP レポートの収集元情報が無効です。
+erp.target_projection_collector_not_connected,この ERP データの種類には収集機能が接続されていません。
+erp.target_projection_duplicate_action,ERP レポートに操作の識別子が重複しています。
+erp.target_projection_duplicate_field,ERP レポートにフィールドの識別子が重複しています。
+erp.target_projection_duplicate_source_id,ERP データレポートに選択肢の識別子が重複しています。
+erp.target_projection_invalid,ERP データレポートが無効です。
+erp.target_projection_invalid_action,報告された ERP の操作が無効です。
+erp.target_projection_invalid_capabilities,報告された ERP の機能情報が無効です。
+erp.target_projection_invalid_field,報告された ERP フィールドが無効です。
+erp.target_projection_invalid_form_schema,報告された ERP フィールド定義が無効です。
+erp.target_projection_invalid_json,ERP データレポートに対応していない値が含まれています。
+erp.target_projection_invalid_masters,ERP マスターデータレポートが無効です。
+erp.target_projection_invalid_number,ERP データレポートに無効な数値が含まれています。
+erp.target_projection_invalid_option,ERP データレポート内の選択肢が無効です。
+erp.target_projection_observed_at_invalid,ERP レポートの収集日時が無効です。
+erp.target_projection_refresh_status_invalid,ERP レポートの更新状態が無効です。
+erp.target_projection_sensitive_field,ERP データレポートに制限対象のフィールドが含まれています。
+erp.target_projection_too_large,ERP データレポートが対応するサイズの上限を超えています。
+erp.target_projection_unknown_entity,ERP レポートに対応していないマスターデータの種類が含まれています。
+erp.target_projection_unknown_field_type,ERP レポートに対応していないフィールド型が含まれています。
+erp.target_projection_value_required,ERP データレポートに必須の値がありません。
+erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
+excel,Excel
+failed,失敗
+held,送信連携待ち
+history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
+history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
+history.date_unreadable,請求書に記載された日付を読み取れません。書類の日付を確認してください。
+history.erp_source_forbidden,ERPのレコードはCoworkに保存できません。
+history.fields_invalid,請求書の項目データの形式が正しくありません。
+history.json_invalid,レコードデータが有効なJSONではありません。
+history.metadata_invalid,レコードの付加情報の形式が正しくありません。
+history.page_index_invalid,元ファイルのページ番号には正の整数が必要です。
+history.pages_invalid,請求書のページデータの形式が正しくありません。
+history.source_invalid,このレコードの取得元には対応していません。
+history.source_not_public,この画面からは手入力のレコードのみ作成できます。
+image,画像
+leased,取得済み
+legacy,旧形式
+logical_section,文書の論理単位
+manual,手入力
+not_billable,課金対象外
+not_due,課金処理前
+not_invoice,請求書以外
+ocr.empty_file,アップロードしたファイルは空です。
+ocr.file_too_large,ファイルサイズが上限を超えています。
+ocr.invalid_input_metadata,ファイルサイズまたはページ情報が無効です。
+ocr.invalid_pdf,この PDF ファイルを読み取れません。
+ocr.page_association_invalid,認識した内容が元ファイルの参照項目と一致しません。
+ocr.roundtrip_empty,確認用ワークブックに再取り込みできる請求書の行がありません。
+ocr.roundtrip_invalid_number,確認用ワークブックに無効な数値が含まれています。
+ocr.roundtrip_not_matched,このファイルは確認用ワークブックの形式と一致しません。
+ocr.roundtrip_parse_failed,確認用ワークブックを読み取れません。形式と内容を確認してください。
+ocr.roundtrip_sheet_name_invalid,確認用シート名に余分な空白があります。元のシート名に戻してください。
+ocr.roundtrip_trailing_rows,確認用ワークブックに、連続する 50 行の空行より後のデータがあります。空行部分を削除してから再取り込みしてください。
+ocr.table_archive_member_limit,文書内のファイル数が上限を超えています。
+ocr.table_archive_size_limit,展開後の文書サイズが上限を超えています。
+ocr.table_cell_limit,文書のセル数が上限を超えています。
+ocr.table_column_limit,文書の列数が上限を超えています。
+ocr.table_dependency_unavailable,文書の読み取り機能が利用できません。管理者にお問い合わせください。
+ocr.table_format_not_supported,この文書形式には対応していません。
+ocr.table_invalid_archive,文書ファイルが破損しているか、展開できません。
+ocr.table_invalid_bytes,文書の内容が無効です。
+ocr.table_invalid_dimensions,ワークシートの行または列の情報が無効です。
+ocr.table_parse_failed,文書を読み取れません。ファイルを確認してから再試行してください。
+ocr.table_roundtrip_not_supported,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+ocr.table_row_limit,文書の行数が上限を超えています。
+ocr.table_text_limit,文書のテキスト量が上限を超えています。
+ocr.table_text_too_long,"文書内の単位が 30,000 文字を超えています。文書を分割してから認識を実行してください。"
+ocr.table_units_invalid,文書の論理単位が不完全または無効です。
+ocr.table_xml_declaration_not_allowed,文書に対応していない XML 宣言が含まれています。
+ocr.too_many_pages,PDF のページ数が上限を超えています。
+ocr.unsupported_format,このファイル形式には対応していません。
+pdf,PDF
+pending,処理待ち
+physical_page,物理ページ
+push.adapter_not_connected,このERPアダプターはまだ接続されていません。
+push.branch_invalid,送信実行モードが無効です。
+push.native_ack_conflict,確認応答が記録済みの結果と矛盾しています。
+push.native_history_changed,伝票が変更されました。再度準備してください。
+push.native_lock_conflict,別の送信が書き込みロックを保持しています。
+push.native_payload_too_large,送信データがサイズ制限を超えています。
+push.native_record_not_found,送信記録が見つかりません。
+push.native_request_invalid,送信要求が無効です。
+push.native_reservation_conflict,この要求は既存の送信予約と矛盾しています。
+push.native_revision_conflict,送信記録が更新されました。再読み込みしてお試しください。
+push.native_stale_attempt,この送信試行は無効になっています。
+push.native_state_invalid,現在の送信状態ではこの操作はできません。
+push.native_target_changed,送信先が変更されました。伝票を再度準備してください。
+push.native_target_mismatch,固定された送信先が許可された送信先と一致しません。
+push.original_reference_invalid,元の伝票の参照が無効か、アクセスできません。
+push.posting_kind_invalid,転記タイプが無効です。
+push.preparation_cancelled,未送信の準備を取り消しました。
+push.preparation_superseded,古い未送信の準備を置き換えました。
+push.prior_document_number_missing,成功済みの送信にERP伝票番号がありません。確認応答を確認してください。
+push.record_not_found,送信記録が見つかりません。
+push.request_conflict,この要求キーは別の送信内容に使用されています。
+push.request_invalid,送信要求が無効です。
+push.utc_required,タイムゾーン付きのUTC時刻が必要です。
+recognized,認識済み
+recognizing,認識中
+reconciliation.review_amount_invalid,確認明細には残高が必要です。金額は小数点以下2桁以内で入力してください。
+reconciliation.review_balance_mismatch,明細の残高差異を修正してから確定してください。
+reconciliation.review_required,明細確認を完了してから照合結果を出力してください。
+reconciliation.review_rows_invalid,確認明細または元の行番号が無効です。
+reconciliation.review_unavailable,このタスクには明細確認記録がありません。
+roundtrip.document_limit,確認用ワークブックには 1 件以上 500 件以下の請求書が必要です。
+roundtrip.export_amount_missing,請求書に必要な金額がありません。入力を補ってからエクスポートしてください。
+roundtrip.export_amount_not_roundtrippable,この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
+roundtrip.export_date_invalid,請求書の日付が無効です。修正してからエクスポートしてください。
+roundtrip.export_facts_invalid,確認済みの ERP エクスポート情報が無効です。
+roundtrip.export_history_invalid,エクスポート対象に無効または重複した履歴参照があります。
+roundtrip.export_line_amount_missing,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
+roundtrip.export_multipage_unverified,この複数ページの請求書には、確認済みの統合記録がありません。確認してからエクスポートしてください。
+roundtrip.export_number_invalid,請求書に無効な数値があります。修正してからエクスポートしてください。
+roundtrip.export_number_precision,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
+roundtrip.export_record_invalid,請求書データが無効なため、エクスポートできません。
+roundtrip.export_records_invalid,エクスポートする履歴を、重複なく 1 件以上 100 件以下で選択してください。
+roundtrip.export_sales_items_required,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
+roundtrip.export_scope_mixed,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+roundtrip.export_text_invalid,請求書に Excel で正常に保存できないテキストがあります。長さと文字を確認してください。
+roundtrip.reference_unavailable,選択した会社・顧客の範囲では、参照先の履歴にアクセスできません。
+saved,保存済み
+scan,スキャン
+service,サービス
+stock,在庫
+stocktake.ambiguous_code,商品コードまたはバーコードが複数の商品に対応しています。
+stocktake.closed,この棚卸タスクはクローズ済みです。
+stocktake.code_as_text,商品コードとバーコードは文字列として保存してください。
+stocktake.conflict,この棚卸記録は変更されています。再読み込みしてから再試行してください。
+stocktake.dedicated_api_required,これらの記録は棚卸の操作から変更してください。
+stocktake.duplicate,インポートデータに重複する商品コードがあります。
+stocktake.empty,インポートデータに商品行がありません。
+stocktake.export_incomplete,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+stocktake.headers_invalid,インポートする列が棚卸テンプレートと一致しません。
+stocktake.import_conflict,このインポートリクエスト ID は異なる内容で使用されています。
+stocktake.legacy_task,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
+stocktake.name_invalid,棚卸のタイトルを 1～120 文字で入力してください。
+stocktake.not_found,棚卸記録が見つかりません。
+stocktake.operation_conflict,この操作 ID は別のリクエストで使用されています。
+stocktake.photos_not_supported,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
+stocktake.quantity_invalid,有効な数量を小数点以下 6 桁以内で入力してください。
+stocktake.request_invalid,棚卸リクエストが無効です。再読み込みしてから再試行してください。
+stocktake.row_invalid,インポート行が無効か、必須項目が不足しています。
+stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超えています。"
+stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
+summary_table_batch,集計表の取り込み

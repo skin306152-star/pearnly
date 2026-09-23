@@ -1,0 +1,67 @@
+{
+  "base_commit": "68ee91f",
+  "scope": "thirty-first batch: batch deletion of reconciliation tasks, shared by the income and bank stores",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "4f1b28f208e7092399c81bcbdf845581a23cdc5a0831dcf91fa77d2292a64dec",
+    "delivery_captured_at": "2026-09-21T14:50:09.495176+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-thirtieth-delivery.json baseline-thirty-first-delivery.json (before pinned at 3833e228)",
+    "note": "no separate start capture was taken for this batch: the batch began immediately after the batch-30 delivery capture (2026-09-21T14:40:11Z), and the delivery capture was compared against that snapshot",
+    "runtime_projection_delivery_sha256": "0139ae60312f5f025751baf4a93bf5893aa149328a7ea5e18aaf23f11f2b736d",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest bf041a45 -> 6d327c98; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 19,
+      "new_tests": 3,
+      "covers": [
+        "a batch removes every named task and its rows, counting a repeated name once and answering an empty batch with zeros",
+        "a batch naming a task outside the caller's scope is refused and removes nothing, so no partial delete is left behind",
+        "an unknown task name is refused, and a non-list, an empty name, a non-string entry, an over-long name or a batch over the cap is refused before anything is deleted",
+        "the earlier store, pairing, permission, diagnostics and replay cases"
+      ],
+      "anonymous_http": {"create": 403, "create_from_parsed": 403, "records": 403, "detail": 403,
+        "delete": 403, "delete_many": 403}
+    },
+    {
+      "command": "scripts/cowork-bank-recon-lab-verify.py (both lab Sites)",
+      "result": "PASS",
+      "tests_per_site": 12,
+      "new_tests": 2,
+      "covers": [
+        "the same shared batch entry removes the bank tasks and their rows",
+        "a refused batch and an unknown name both leave every task and its rows intact"
+      ],
+      "anonymous_http": {"create": 403, "records": 403, "detail": 403, "create_from_parsed": 403,
+        "export": 403, "delete": 403, "delete_many": 403}
+    },
+    {"command": "scripts/cowork-income-recon-export-lab-verify.py", "result": "PASS", "tests": 3},
+    {"command": "scripts/cowork-bank-recon-export-lab-verify.py", "result": "PASS", "tests": 3},
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed batch delete skipped ids that are unknown or belong to someone else and reported only a count; the native entry checks the whole batch (existence and scope) before deleting, so a batch that names a task the caller may not touch deletes nothing and no partial delete is left behind",
+    "an unknown task name is refused with reconciliation.task_not_found instead of answering a zero count",
+    "the batch is capped at 200 names, where the deployed entry had no cap",
+    "the answer carries deleted, rows_deleted and the names actually removed; the deployed answer carried one count",
+    "the deployed stores are single tables with the detail inside JSONB, so deleting the task row was the whole job; the native store also removes the result rows and reports how many",
+    "the identifiers are the native CIR-/CBR- task names instead of the deployed integer ids"
+  ],
+  "not_run": [
+    "asynchronous task submission and polling, reading a real workbook or report file",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-batch-delete.md"
+}

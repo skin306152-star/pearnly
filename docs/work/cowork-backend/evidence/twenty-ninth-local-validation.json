@@ -1,0 +1,67 @@
+{
+  "base_commit": "d6abf26",
+  "scope": "twenty-ninth batch: the file names and reader diagnostics of an income reconciliation task are stored beside its rows",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "delivery_sha256": "272a1fb5befcb9f7e3d13a59b987f72db1bbe5e5aecaf007aac59dc1f590fd85",
+    "delivery_captured_at": "2026-09-21T14:33:30.347156+00:00",
+    "source_compare": "PASS",
+    "source_compare_command": "cowork-migration-baseline.py compare baseline-twenty-eighth-delivery.json baseline-twenty-ninth-delivery.json (before pinned at 46d01fea)",
+    "note": "no separate start capture was taken for this batch: the batch began immediately after the batch-28 delivery capture (2026-09-21T14:09:28Z), and the delivery capture was compared against that snapshot",
+    "runtime_projection_delivery_sha256": "2f8cd82a869bf1826c1c9a78fb443e0b3eec9052cf6aaacee3341ff0a32e32aa",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest 2227156b -> ff8e39f4; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_income_recon_parse_info",
+      "result": "PASS",
+      "tests": 7,
+      "new_tests": 7
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_income_recon_contracts tests.test_cowork_vat_parse tests.test_cowork_income_parse tests.test_cowork_bank_recon_contracts",
+      "result": "PASS",
+      "tests": 102,
+      "note": "the earlier parsing and the two stored row contracts still pass"
+    },
+    {
+      "command": "bench --site cowork-backend-ack.localhost migrate and bench --site cowork-backend-preparation.localhost migrate",
+      "result": "PASS",
+      "exit_codes": [0, 0],
+      "readback": "tabCowork Income Reconciliation now carries gl_filename varchar(140), vat_filename varchar(140) and parse_info_json longtext on the ack Site"
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 16,
+      "covers": [
+        "the file names are trimmed and stored, and the two diagnostic sections carry the reader's own counters",
+        "a decoded-row task can carry a caller-supplied diagnostic set, stored under the same contract",
+        "an exact replay keeps the diagnostics of the first admission and does not overwrite them",
+        "an unknown diagnostic key is refused before anything is stored",
+        "the stored summary, rows, counters, pairing, scope, permissions, generic writes, identity, pagination and deletion from the earlier batches"
+      ],
+      "anonymous_http": {"create": 403, "create_from_parsed": 403, "records": 403, "detail": 403,
+        "delete": 403}
+    },
+    {"command": "scripts/cowork-bank-recon-lab-verify.py", "result": "PASS", "tests": 10},
+    {"command": "scripts/cowork-bank-recon-export-lab-verify.py", "result": "PASS", "tests": 3},
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the deployed run kept both file names and one diagnostics blob inside a single JSONB row; this platform stores two file-name columns plus a validated diagnostics JSON, so detail can show the names and a later export can read the counters",
+    "the store is idempotent per request id, so the diagnostics belong to the first admission of that request; the deployed run wrote a fresh task row per run",
+    "only the record keys the deployed readers reported are accepted; an unknown key is refused instead of stored and ignored",
+    "a caller may hand over a diagnostics set directly (for rows it decoded itself), which the deployed server-assembled diagnostics never allowed; the structure is still validated"
+  ],
+  "not_run": [
+    "reading a real workbook, PDF or delimited file, and the OCR paths",
+    "asynchronous jobs and polling, the review workbook export that will read these diagnostics, batch delete",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-income-diagnostics.md"
+}

@@ -1,0 +1,89 @@
+{
+ "doctype": "DocType",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 1,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "name": "Cowork Buyer Memory",
+ "autoname": "hash",
+ "field_order": [
+  "workspace",
+  "buyer_name",
+  "buyer_tax",
+  "client",
+  "use_count",
+  "last_used_at"
+ ],
+ "fields": [
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "Cowork Workspace",
+   "reqd": 1
+  },
+  {
+   "fieldname": "buyer_name",
+   "fieldtype": "Data",
+   "label": "Buyer Name",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "buyer_tax",
+   "fieldtype": "Data",
+   "label": "Buyer Tax ID",
+   "length": 30
+  },
+  {
+   "fieldname": "client",
+   "fieldtype": "Link",
+   "label": "Client",
+   "options": "Cowork Client",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "use_count",
+   "fieldtype": "Int",
+   "label": "Times Used",
+   "default": "1"
+  },
+  {
+   "fieldname": "last_used_at",
+   "fieldtype": "Datetime",
+   "label": "Last Used At"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "delete": 1
+  },
+  {
+   "role": "Cowork Master Data",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Intake",
+   "read": 1
+  },
+  {
+   "role": "Cowork OCR History",
+   "read": 1
+  }
+ ]
+}

@@ -1,0 +1,94 @@
+{
+  "base_commit": "2e33245",
+  "scope": "twenty-seventh batch: the migrated general-ledger parsing of the income reconciliation family, with its controlled admission entry",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "295f2aad0ba74691afa42fdc20c6f283fd46b741c9749b612ffc69235e60e58d",
+    "start_captured_at": "2026-09-21T13:57:26.341481+00:00",
+    "delivery_sha256": "db984f6197272e5e6349900a6c0bb5c06d007c5e4c815f85ea64c5e694616ff9",
+    "delivery_captured_at": "2026-09-21T14:02:21.841295+00:00",
+    "source_compare": "PASS",
+    "fixed_source_hashes": {
+      "services/recon/gl_vat_parse_common.py": "ca59a5d1b313806e4358ad5a29b8abfa8b906b1dcc1d2f26128aee932eac5403",
+      "services/recon/gl_vat_parse_excel.py": "1b81310ee241186e6288db01376ea90217d2e1f6771167c7aa9d457baa65b115",
+      "services/recon/gl_vat_parse_pdf.py": "a97a188b1d0bedd3ab0862091baa863c4a49d15ae5a30f72eb0bbde41f0a049e",
+      "services/recon/gl_vat_types.py": "ee24b7dd0a7a24e67ac338f7c7deae73c71c36aca5b731ddc18b6e6af27a300d",
+      "services/recon/field_comparator.py": "109c0401587154d3f3860166b4f0c3812f568b03e2e452a880af866195eec037"
+    },
+    "runtime_projection_delivery_sha256": "13a445a5eb86bf266ddf8c978ca472917eb3d4cd672904a172606dcf8f446ead",
+    "runtime_projection_compare_with_previous_batch": "push_runtime_identity_changed (endpoint configuration_digest bbb0fe7e -> 1ed03962; 60 endpoints and both platform flags unchanged)",
+    "runtime_projection_note": "the endpoint digest moves on every read-only capture because the running legacy agent keeps writing that table; it is not a migration signal, and this batch writes nothing to the legacy database",
+    "runtime_config_import": "HOLD"
+  },
+  "checks": [
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_income_parse",
+      "result": "PASS",
+      "tests": 29,
+      "new_tests": 29
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 tests/test_cowork_income_parse_parity.py --source <fixed source>",
+      "result": "PASS",
+      "batches": 305,
+      "excel_rows": 161,
+      "table_rows": 172,
+      "text_rows": 156,
+      "pipeline_rows": 70,
+      "helper_cases": {"to_float": 18, "extract_account_code": 14, "is_skip_row": 14,
+        "map_gl_columns": 6, "row_has_amount": 30, "is_debit_line": 14},
+      "branches": {"excel_date_cells": 96, "text_credit": 113, "text_debit": 100,
+        "text_tail_three": 57},
+      "reader_doubles": "the pinned functions call openpyxl.load_workbook and pdfplumber.open; both are replaced by in-memory doubles that hand over the same cell rows, page text and tables, because reading a file is not part of this migration",
+      "differences": 0
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_reconciliation*.py'",
+      "result": "PASS",
+      "tests": 137,
+      "note": "the migrated decision core is untouched by this batch"
+    },
+    {
+      "command": "PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest tests.test_cowork_bank_recon_contracts tests.test_cowork_income_recon_contracts",
+      "result": "PASS",
+      "tests": 32
+    },
+    {
+      "command": "bench --site cowork-backend-preparation.localhost migrate",
+      "result": "PASS",
+      "exit_codes": [0],
+      "note": "the preparation Site was brought up to the DocType as committed, whose three counters were added after its previous migration"
+    },
+    {
+      "command": "scripts/cowork-income-recon-lab-verify.py (cowork-backend-ack.localhost, cowork-backend-preparation.localhost)",
+      "result": "PASS",
+      "tests_per_site": 13,
+      "covers": [
+        "the stored summary, result rows, counters and exact replay",
+        "an extracted worksheet admitted through the parsed entry, with a summary identical to the decoded-row entry for the same content",
+        "printed text lines and a framed table admitted through the same entry",
+        "a source with no revenue row, an unreadable source, an unknown source kind and a value over the stored precision refused before anything is stored",
+        "company scope and the recon feature, a revoked workspace permission, generic writes and shares, the immutable identity, pagination and deletion"
+      ],
+      "anonymous_http": {"create": 403, "create_from_parsed": 403, "records": 403, "detail": 403,
+        "delete": 403}
+    },
+    {"command": "python3 scripts/check-architecture.py", "result": "PASS", "violations": 0},
+    {"command": "python3 scripts/i18n-build.py --check", "result": "PASS",
+      "note": "the new error keys are ASCII semantic keys, following the existing reconciliation.* convention"},
+    {"command": "git diff --check", "result": "PASS"}
+  ],
+  "intentional_differences": [
+    "the entry takes already-extracted content (worksheet cell rows, per-page text and tables, printed text lines, pipeline entries); opening the workbook or PDF, OCR and model calls stay in the legacy project, and the dispatch is by a named source kind instead of by file extension",
+    "decoded rows pass through the stored row contract, so a pipeline amount with more than six decimals (or an over-long text) is refused instead of stored as a binary float",
+    "a PDF whose table and text readers both keep no row is not retried through the OCR pipeline; it reports zero rows and the admission refuses it, leaving the fallback to the caller",
+    "the parse diagnostics are returned to the caller rather than stored, because the task DocType has no diagnostic field yet",
+    "the excel and table decoders also report a diag block the deployed excel decoder did not have, using the deployed PDF naming"
+  ],
+  "not_run": [
+    "reading a real Excel or PDF file (openpyxl and pdfplumber are outside this batch)",
+    "the output-VAT report parser family, file diagnostics and file names in storage, asynchronous jobs and polling, the review workbook export, batch delete",
+    "frontend integration, deployment, external business results and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/reconciliation-income-parse.md"
+}

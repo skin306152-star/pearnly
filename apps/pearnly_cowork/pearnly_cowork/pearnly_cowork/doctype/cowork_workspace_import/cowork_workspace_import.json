@@ -1,0 +1,60 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Workspace Import",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-22 00:00:00.000000",
+ "modified": "2026-09-22 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "request_id",
+  "request_fingerprint",
+  "result"
+ ],
+ "fields": [
+  {
+   "fieldname": "request_id",
+   "label": "Request ID",
+   "fieldtype": "Data",
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_fingerprint",
+   "label": "Request Fingerprint",
+   "fieldtype": "Data",
+   "length": 64,
+   "reqd": 1,
+   "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "result",
+   "label": "Result",
+   "fieldtype": "Long Text",
+   "reqd": 1,
+   "read_only": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

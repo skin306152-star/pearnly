@@ -1,0 +1,122 @@
+{
+  "date": "2026-09-22",
+  "base_commit": "de0db45e8085855462a9bb33c7ecc320497f04f8",
+  "code_commit": "10a67cf558b09b753eff361916f952bf40272d01",
+  "scope": "Cowork business classification rules, workspace category tree and workspace/client-scoped review memory; no display-only features",
+  "not_migrating": ["category_tag display", "category autocomplete", "supplier memory count API", "category distribution statistics", "supplier master solely for list names", "workorder Thai-name gate imposed on buyer clients"],
+  "attribution_correction": "Existing preview_client_import/commit_client_import creates buyer Cowork Client; fixed legacy /api/workspace/clients/import/* creates workspace subjects. Keep existing RPC semantics; workspace import remains a gap.",
+  "live_source": {
+    "hash_convention": "envelope sha256 values hash the canonical evidence body, not formatted JSON file bytes",
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": "3fa4aac7c86816600c5179003cc8e8d7dc9a8a1fd15fd02785cb954e63dce046",
+    "delivery_sha256": "aab965dac095afe1fc8b8627cfc254f8d23ee6aa22c00316e20bb21317f7b8b3",
+    "compare_start_to_delivery": "PASS",
+    "compare_previous_delivery_to_delivery": "PASS",
+    "runtime_projection_sha256": "20e51624883224f585a14a47db19cbb52fdbd8ac17926479bb398ce1ced74182",
+    "runtime_projection_captured_at": "2026-09-22T05:15:25.960619+00:00",
+    "runtime_compare_previous_delivery": "FAIL: push_runtime_identity_changed",
+    "runtime_change": {
+      "components": ["pearnly-web", "pearnly-worker"],
+      "path": "database.identity.endpoints.configuration_digest",
+      "before": "d23570c1332deff1a646c69e9a18b921",
+      "after": "ce9d2473b7d79e9088a40661c0f4bbf4",
+      "other_identity_fields": "unchanged",
+      "observations": "other adapter recent success count 9 to 8; total 101 unchanged",
+      "scope_assessment": "Digest includes entire config, including heartbeat/catalog fields; exact changed fields remain uninvestigated. Classification consumes local category/memory only. Express check is pure mapping with explicit input, not live push acceptance.",
+      "configuration_import_or_update": false
+    },
+    "fixed_source_hashes": {
+      "services/purchase/categories.py": "32240121d7c253d9af45a8b6e038ba4d2d9c302384da981656ea66ebbf04c372",
+      "services/expense/category_ai.py": "da413578fb3610cc88127138087ecf8a6cc63d9a1f5de1bad2735c7f325630b9",
+      "services/purchase/image_category.py": "96503acacd68842342118fda1bfe936dd6791cc1c661634f2a7561e732ba2d77",
+      "services/ocr/recognize/category_tag.py": "4b6a17f7cbdd5adada1ff2c2de0f1e30aaad4599ca37ae6e2bfab4638f70246a",
+      "services/clients/store.py": "24407c4e501bbc950c4e9489e02f583682d6e1efbf91ac05cf33834951f646e7",
+      "routes/history_routes.py": "75a3326bd7d2cf845a139134790d767e8299ec3745ca29957ddec6a1d6487169"
+    }
+  },
+  "checks": [
+    {"suite": "tests/test_cowork_classification.py", "result": "PASS", "tests": 7},
+    {"suite": "tests/test_cowork_classification_source_parity.py", "result": "PASS", "comparisons": 3608, "differences": 0, "preset_parents": 16},
+    {"suite": "scripts/cowork-classification-lab-verify.py", "site": "cowork-backend-ack.localhost", "result": "PASS", "tests": 17},
+    {"suite": "scripts/cowork-classification-lab-verify.py --http", "site": "cowork-backend-ack.localhost", "result": "PASS", "requests": 15, "anonymous": [403, 403, 403, 403, 403], "native_crud": "denied"},
+    {"suite": "native fresh Site installation", "site": "cowork-backend-classification.localhost", "result": "PASS", "apps": ["frappe", "pearnly_core", "pearnly_cowork"]},
+    {"suite": "scripts/cowork-classification-lab-verify.py", "site": "cowork-backend-classification.localhost", "result": "PASS", "tests": 16, "note": "Before adding the 17th retry-boundary test; that added test passed on ack"},
+    {"suite": "scripts/cowork-classification-lab-verify.py --http", "site": "cowork-backend-classification.localhost", "result": "PASS", "requests": 15, "anonymous": [403, 403, 403, 403, 403], "native_crud": "denied"},
+    {"suite": "scripts/cowork-classification-lab-verify.py --concurrency", "result": "PASS after RPC retry fix", "real_processes": 2, "category_count": 89, "snapshot": "both establish old REPEATABLE READ snapshot before competing"},
+    {"suite": "scripts/cowork-duplicates-lab-verify.py", "result": "PASS", "tests": 13},
+    {"suite": "scripts/cowork-invoice-lab-verify.py", "result": "PASS", "tests": 6},
+    {"suite": "invoice execution retry regressions", "result": "PASS", "tests": ["test_success_seals_history_and_stable_billing_once", "test_lost_billing_receipt_retries_only_accounting", "test_history_transaction_interruption_resumes_frozen_result"], "external_provider_and_billing": "fake local adapters"},
+    {"suite": "scripts/check-architecture.py and staged-snapshot hook", "result": "PASS", "violations": 0},
+    {"suite": "scripts/i18n-build.py --check", "result": "PASS", "messages": 1561, "apps": 5},
+    {"suite": "scripts/check-i18n.py", "result": "REPORT-ONLY", "findings": 425, "delta": 48, "note": "Added findings are Chinese classification matching aliases, not UI text. No ignore/baseline expansion. Existing glossary debt remains."},
+    {"suite": "git diff --check and git diff --cached --check", "result": "PASS after removing trailing blank lines from three new schema/controller files"}
+  ],
+  "upgrade_preservation": [
+    {
+      "stage": "first native migrate from previous batch",
+      "result": "history and preferences before equal after; new category and memory tables empty",
+      "history_count": 21,
+      "preference_count": 2,
+      "history_sha256": "417b9429463f15f6fbfa2180d38aa9e61da5f80fffa462debd82c7e3e6b4b660",
+      "new_tables_empty_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    {
+      "stage": "repeat native migrate after synthetic custom disabled category and learned memory",
+      "result": "all before hashes equal after",
+      "history_count": 22,
+      "preference_count": 2,
+      "history_sha256": "01f3019584bd033dd4b3a18fb49b4a0b3be8ded9e1a6222527754759ea37a92f",
+      "category_count": 269,
+      "category_sha256": "1a21bc630cf5437c2dc9aae266f22a71068faec699b7fce7bece9b2d4be51a36",
+      "memory_count": 1,
+      "memory_sha256": "7d064ed94bb28791b535f513912cf28ebddca4ac0118caa939cd0800778644f7"
+    }
+  ],
+  "issues_encountered_and_resolved": [
+    "Concurrent first seed hit MariaDB 1020 QueryDeadlockError after a stale RR view; dedicated category RPC now rolls back and retries at most three times. Actual two-process replay passed. Internal recognition still propagates to its existing frozen-result retry workflow.",
+    "A guessed integration script filename did not exist and ran no tests; reran the actual scripts/cowork-invoice-lab-verify.py successfully.",
+    "Staged diff check found trailing blank lines in three new schema/controller files; removed before committing. No hook bypass."
+  ],
+  "intentional_changes": [
+    "Memory is scoped to Site plus workspace plus buyer client/unassigned, instead of tenant-global seller names",
+    "GET tree does not seed; explicit POST and first recognition may seed an empty workspace",
+    "Disabled nodes are excluded from automatic classification and memory sanitization",
+    "No-op review does not learn again; first primary page only",
+    "Original input fingerprint and ai_raw remain unchanged; existing request replay never reclassifies",
+    "Soft disable only; no historical rewrite or hard category deletion"
+  ],
+  "limitations": [
+    "No historical category/memory backfill",
+    "Supplier matching remains name-based, with legacy seller 200/category 80 character limits",
+    "Category renaming does not rewrite historical invoice strings or Express account mappings",
+    "Tree/memory non-security errors are best-effort fallbacks, not a classification success guarantee",
+    "No frontend, browser, real-device or user acceptance",
+    "No paid OCR, LINE or external ERP write",
+    "Runtime endpoint configuration drift still requires investigation before push-related migration"
+  ],
+  "handoff_retention": {
+    "merged": false,
+    "pushed": false,
+    "deployed": false,
+    "local_main_observed": "466beae046b580bb7eab303893cf20bb9498cc4b",
+    "remote_main_observed": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent",
+    "worktree": "/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly",
+    "branch": "codex/cowork-backend-migration",
+    "unique_commits_at_code_commit": 66,
+    "reason": "Ongoing local-only Cowork migration; reassess next batch and final authorized integration",
+    "lab_project": "pearnly-cowork-backend-lab",
+    "docker_context": "colima-pearnly",
+    "bench_image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+    "containers": "bench, db, redis stopped; inspect confirmed all exited; retained task-tree readonly mounts",
+    "volumes": ["pearnly-cowork-backend-lab_db", "pearnly-cowork-backend-lab_sites", "71640b5a012f8c99c84b49a27f154d78252b355a87ff8dadfa2e41fc3f3db492", "cf5ad7fbfd49e29c178da9c101cbb13b78e3bc64649569a08352fb6d2e9fd269"],
+    "new_synthetic_site": "cowork-backend-classification.localhost",
+    "fixed_source": "/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b",
+    "deleted_resources": ["apps/pearnly_cowork/pearnly_cowork/contracts/__pycache__/classification.cpython-314.pyc", "tests/__pycache__/test_cowork_classification.cpython-314.pyc"],
+    "deleted_resources_recovery": "Regenerated by Python tests; no data removed",
+    "other_ignored_content": "Existing apps/scripts/tests __pycache__ retained because not established as new this batch; verify at full task closeout",
+    "symlinks_in_task_tree": 0,
+    "active_task_host_verification_processes_at_closeout": 0,
+    "next": "Resolve workspace subject import gap without changing existing buyer import RPC semantics; cross-domain history reassignment remains pending user decision"
+  }
+}

@@ -1,0 +1,250 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork ERP Connection",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "track_seen": 0,
+ "track_views": 0,
+ "index_web_pages_for_search": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-22 00:00:00.000000",
+ "modified": "2026-09-22 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_key",
+  "workspace",
+  "client",
+  "label",
+  "adapter",
+  "enabled",
+  "record_revision",
+  "allowed_users",
+  "config_json",
+  "credential_username",
+  "credential_password",
+  "credential_token",
+  "binding_generation",
+  "bound_account_set",
+  "bound_profile_key",
+  "projection_heads",
+  "refresh_request_aliases",
+  "create_request_hash",
+  "last_request_key",
+  "last_request_hash",
+  "report_json",
+  "report_received_at",
+  "report_credential",
+  "report_generation"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "Cowork Workspace"
+  },
+  {
+   "fieldname": "client",
+   "label": "Buyer Client",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "no_copy": 1,
+   "options": "Cowork Client"
+  },
+  {
+   "fieldname": "label",
+   "label": "Connection Name",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "adapter",
+   "label": "Adapter",
+   "fieldtype": "Select",
+   "read_only": 1,
+   "no_copy": 1,
+   "reqd": 1,
+   "options": "mrerp\nexpress"
+  },
+  {
+   "fieldname": "enabled",
+   "label": "Enabled",
+   "fieldtype": "Check",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "record_revision",
+   "label": "Connection Revision",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "allowed_users",
+   "label": "Allowed Users",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "config_json",
+   "label": "Connection Configuration",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "credential_username",
+   "label": "ERP Username",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "credential_password",
+   "label": "ERP Password",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "credential_token",
+   "label": "ERP Token",
+   "fieldtype": "Password",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "binding_generation",
+   "label": "Binding Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "default": "0"
+  },
+  {
+   "fieldname": "bound_account_set",
+   "label": "Bound Account Set",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "bound_profile_key",
+   "label": "Bound Profile Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "projection_heads",
+   "label": "Current Directory Heads",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1
+  },
+  {
+   "fieldname": "refresh_request_aliases",
+   "label": "Refresh Request Aliases",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "create_request_hash",
+   "label": "Creation Request Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "last_request_key",
+   "label": "Last Request Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "last_request_hash",
+   "label": "Last Request Hash",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 255
+  },
+  {
+   "fieldname": "report_json",
+   "label": "Companion Report",
+   "fieldtype": "Long Text",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "report_received_at",
+   "label": "Report Received At (UTC)",
+   "fieldtype": "Datetime",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "report_credential",
+   "label": "Report Credential",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "report_generation",
+   "label": "Report Credential Generation",
+   "fieldtype": "Int",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

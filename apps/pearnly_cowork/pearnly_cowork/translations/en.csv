@@ -1,1 +1,676 @@
+A client cannot be moved to another company.,A client cannot be moved to another company.
+A completed record cannot become a draft.,A completed record cannot become a draft.
+"A document section exceeds 30,000 characters. Split the document before recognition.","A document section exceeds 30,000 characters. Split the document before recognition."
+A name is required.,A name is required.
+A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
+A numeric value in the invoice is invalid. Correct it before exporting.,A numeric value in the invoice is invalid. Correct it before exporting.
+A positive record revision is required.,A positive record revision is required.
+A positive source page number is required.,A positive source page number is required.
+A product code or barcode identifies more than one product.,A product code or barcode identifies more than one product.
+A referenced history record is unavailable in the selected company and client.,A referenced history record is unavailable in the selected company and client.
+A reported ERP action is invalid.,A reported ERP action is invalid.
+A reported ERP field is invalid.,A reported ERP field is invalid.
+A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
+A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
+A successful push has no ERP document number. Check its receipt.,A successful push has no ERP document number. Check its receipt.
+A timezone-aware UTC timestamp is required.,A timezone-aware UTC timestamp is required.
+A value in the ERP data report exceeds the allowed length.,A value in the ERP data report exceeds the allowed length.
+Access to the Companion queue has been revoked.,Access to the Companion queue has been revoked.
+Account Key,Account Key
+Account Set Key,Account Set Key
+Ack Digest,Ack Digest
+Active Attempt,Active Attempt
+Active Key,Active Key
+Actor,Actor
+Actual Qty,Actual Qty
+Allowed Users,Allowed Users
+An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
+An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
+An original file is already stored for this source.,An original file is already stored for this source.
+Anchor Date,Anchor Date
+Another push holds the writer lock.,Another push holds the writer lock.
+Assign Cowork access through company and client permissions.,Assign Cowork access through company and client permissions.
+At least one invoice page is required when editing.,At least one invoice page is required when editing.
+Attempt Secret,Attempt Secret
+Barcode,Barcode
+Billing Code,Billing Code
+Billing Kind,Billing Kind
+Billing Receipt,Billing Receipt
+Billing Reference,Billing Reference
+Billing State,Billing State
+Billing Units,Billing Units
+Binding Generation,Binding Generation
+Blocked By,Blocked By
+Book Qty,Book Qty
+Bound Account Set,Bound Account Set
+Bound Invoice Records,Bound Invoice Records
+Bound Profile Key,Bound Profile Key
+Branch,Branch
+Buyer Client,Buyer Client
+Changed At (UTC),Changed At (UTC)
+Changed By,Changed By
+Check the ERP connection settings.,Check the ERP connection settings.
+Check the statement balance differences before confirming.,Check the statement balance differences before confirming.
+Check the warehouse and location. A warehouse is required.,Check the warehouse and location. A warehouse is required.
+Checks Json,Checks Json
+Client,Client
+Closed At,Closed At
+Closed By,Closed By
+Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
+Companion Report,Companion Report
+Companion authentication failed.,Companion authentication failed.
+Company,Company
+Complete statement review before exporting the result.,Complete statement review before exporting the result.
+Completed At,Completed At
+Completed At (UTC),Completed At (UTC)
+Completed By,Completed By
+Completion Evidence,Completion Evidence
+Confirmation Request,Confirmation Request
+Confirmation Revision,Confirmation Revision
+Confirmed,Confirmed
+Connection Configuration,Connection Configuration
+Connection Name,Connection Name
+Connection Revision,Connection Revision
+Connection or directory record not found.,Connection or directory record not found.
+Content Hash,Content Hash
+Corrected Value,Corrected Value
+Count Mode,Count Mode
+Counted At,Counted At
+Counted By,Counted By
 Cowork,Cowork
+Cowork Bank Evidence,Cowork Bank Evidence
+Cowork Client,Cowork Client
+Cowork Companion Delivery,Cowork Companion Delivery
+Cowork ERP Connection,Cowork ERP Connection
+Cowork ERP Mapping,Cowork ERP Mapping
+Cowork ERP Refresh,Cowork ERP Refresh
+Cowork ERP Snapshot,Cowork ERP Snapshot
+Cowork Express Agent Credential,Cowork Express Agent Credential
+Cowork LINE,Cowork LINE
+Cowork Master Data,Cowork Master Data
+Cowork OCR Batch,Cowork OCR Batch
+Cowork OCR Correction,Cowork OCR Correction
+Cowork OCR History,Cowork OCR History
+Cowork OCR requires a configured provider credential reference.,Cowork OCR requires a configured provider credential reference.
+Cowork OCR requires an explicit invoice configuration.,Cowork OCR requires an explicit invoice configuration.
+Cowork Push Attempt,Cowork Push Attempt
+Cowork Push Notification,Cowork Push Notification
+Cowork Push Record,Cowork Push Record
+Cowork Push Writer Lock,Cowork Push Writer Lock
+Cowork Source File,Cowork Source File
+Cowork Stocktake,Cowork Stocktake
+Cowork Stocktake Entry,Cowork Stocktake Entry
+Cowork Stocktake Item,Cowork Stocktake Item
+Cowork Stocktake Operation,Cowork Stocktake Operation
+Cowork Stocktake Task,Cowork Stocktake Task
+Cowork Supplier Posting Profile,Cowork Supplier Posting Profile
+Cowork Workspace,Cowork Workspace
+Create invoice records through the Cowork intake service.,Create invoice records through the Cowork intake service.
+Created By,Created By
+Creation Request Hash,Creation Request Hash
+Credential ID,Credential ID
+Current Directory Heads,Current Directory Heads
+Current Json,Current Json
+Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
+Default Item Type,Default Item Type
+Default Payment,Default Payment
+Direction,Direction
+Directory Revision,Directory Revision
+Directory Scope Key,Directory Scope Key
+Directory Scope Kind,Directory Scope Kind
+Directory Snapshot,Directory Snapshot
+Document Key,Document Key
+Draft,Draft
+Duplicate records are not allowed.,Duplicate records are not allowed.
+ERP Code,ERP Code
+ERP Connection,ERP Connection
+ERP Password,ERP Password
+ERP Token,ERP Token
+ERP Username,ERP Username
+ERP records cannot be saved in Cowork.,ERP records cannot be saved in Cowork.
+Each record must have a name and revision.,Each record must have a name and revision.
+Each record must have a valid name.,Each record must have a valid name.
+Edit Count,Edit Count
+Enter a stock count title of 1 to 120 characters.,Enter a stock count title of 1 to 120 characters.
+Enter a valid quantity with no more than six decimal places.,Enter a valid quantity with no more than six decimal places.
+Entry,Entry
+Event Key,Event Key
+Evidence Fingerprint,Evidence Fingerprint
+Evidence Owner,Evidence Owner
+Examples Json,Examples Json
+Export records from the same company and client together.,Export records from the same company and client together.
+"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+External Docnum,External Docnum
+Failed,Failed
+Failure Count,Failure Count
+Fence,Fence
+Field,Field
+File Hash,File Hash
+First Recognition Snapshot,First Recognition Snapshot
+First Recognition Value,First Recognition Value
+Generation Key,Generation Key
+History,History
+History Records,History Records
+History Version,History Version
+Holder,Holder
+Holder Fence,Holder Fence
+IN,IN
+Installed At (UTC),Installed At (UTC)
+Invalid Cowork OCR configuration.,Invalid Cowork OCR configuration.
+Invalid original document manifest.,Invalid original document manifest.
+Invalid original filename.,Invalid original filename.
+Invalid posting type.,Invalid posting type.
+Invalid push execution mode.,Invalid push execution mode.
+Invalid push request.,Invalid push request.
+Invalid recognized invoice group.,Invalid recognized invoice group.
+Invalid request key.,Invalid request key.
+Invalid statement review rows or row references.,Invalid statement review rows or row references.
+Invoice Count,Invoice Count
+Invoice Date,Invoice Date
+Invoice Index,Invoice Index
+Invoice No,Invoice No
+Invoice Number,Invoice Number
+Invoice Pages,Invoice Pages
+Invoice References Complete,Invoice References Complete
+Invoice References Fingerprint,Invoice References Fingerprint
+Invoice Total,Invoice Total
+Invoice pages do not match the original page references.,Invoice pages do not match the original page references.
+Issued At (UTC),Issued At (UTC)
+Issued By,Issued By
+Issued Request Digest,Issued Request Digest
+Item,Item
+Last Fields Edit (UTC),Last Fields Edit (UTC)
+Last Push Record,Last Push Record
+Last Push Status,Last Push Status
+Last Pushed At (UTC),Last Pushed At (UTC)
+Last Request Hash,Last Request Hash
+Last Request Key,Last Request Key
+Lease Expires At,Lease Expires At
+Location,Location
+Lock Key,Lock Key
+Lock Kind,Lock Kind
+Lock the connection before reading the push target.,Lock the connection before reading the push target.
+Manual,Manual
+Mapping Key,Mapping Key
+Mapping Kind,Mapping Kind
+Native Content Hash,Native Content Hash
+Needs review,Needs review
+New records must start as drafts.,New records must start as drafts.
+No Companion credential has been issued for this connection.,No Companion credential has been issued for this connection.
+No invoice summary found,No invoice summary found
+Not Permitted,Not Permitted
+OUT,OUT
+Observed At (UTC),Observed At (UTC)
+Only manual records can be created through this entry.,Only manual records can be created through this entry.
+Original Content Coverage Complete,Original Content Coverage Complete
+Original Document Manifest,Original Document Manifest
+Original File,Original File
+Original Filename,Original Filename
+Original SHA-256,Original SHA-256
+Original Size,Original Size
+Original Type,Original Type
+Original evidence and ownership cannot be changed.,Original evidence and ownership cannot be changed.
+Original files can only be changed through the Cowork file service.,Original files can only be changed through the Cowork file service.
+Original files cannot be changed.,Original files cannot be changed.
+Original files cannot be deleted while invoice references may exist.,Original files cannot be deleted while invoice references may exist.
+Original files cannot be shared separately from their invoices.,Original files cannot be shared separately from their invoices.
+Outcome,Outcome
+Owner ID,Owner ID
+Owner Id,Owner Id
+PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
+Page Count,Page Count
+Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
+Password-protected PDF files cannot be read.,Password-protected PDF files cannot be read.
+Payload Json,Payload Json
+Pearnly Cowork,Pearnly Cowork
+Pending,Pending
+Phase,Phase
+Posting Kind,Posting Kind
+Preparation Evidence,Preparation Evidence
+Preparation data does not match the connection or account set.,Preparation data does not match the connection or account set.
+Preparation data for this account set is incomplete.,Preparation data for this account set is incomplete.
+Previous Json,Previous Json
+Private File,Private File
+Private Storage URL,Private Storage URL
+Product Code,Product Code
+Product Name,Product Name
+Product codes and barcodes must be stored as text.,Product codes and barcodes must be stored as text.
+Provider Evidence,Provider Evidence
+Push Attempt,Push Attempt
+Push Record,Push Record
+Push record not found.,Push record not found.
+Quantity,Quantity
+Reason,Reason
+Recognition Confidence,Recognition Confidence
+Recognition Quality,Recognition Quality
+Recognition input and ownership cannot be changed.,Recognition input and ownership cannot be changed.
+Recognition tasks cannot be deleted through the document API.,Recognition tasks cannot be deleted through the document API.
+Recognition tasks cannot be shared separately from their originals.,Recognition tasks cannot be shared separately from their originals.
+Recognized with high confidence,Recognized with high confidence
+Record ID,Record ID
+Record Id,Record Id
+Record Key,Record Key
+Record Revision,Record Revision
+Refresh Error Code,Refresh Error Code
+Refresh Lease Expires At (UTC),Refresh Lease Expires At (UTC)
+Refresh Lease Generation,Refresh Lease Generation
+Refresh Lease Handle,Refresh Lease Handle
+Refresh Lease Owner,Refresh Lease Owner
+Refresh Request Aliases,Refresh Request Aliases
+Refresh Started At (UTC),Refresh Started At (UTC)
+Refresh Status,Refresh Status
+Refresh the account directory before continuing.,Refresh the account directory before continuing.
+Reimporting review workbooks is not available on the new platform yet.,Reimporting review workbooks is not available on the new platform yet.
+Remove legacy document shares before accessing Cowork records.,Remove legacy document shares before accessing Cowork records.
+Report Credential,Report Credential
+Report Credential Generation,Report Credential Generation
+Report Received At (UTC),Report Received At (UTC)
+Request Digest,Request Digest
+Request Fingerprint,Request Fingerprint
+Request Hash,Request Hash
+Request Json,Request Json
+Request Key,Request Key
+Request Receipts,Request Receipts
+Requested At (UTC),Requested At (UTC)
+Required invoice amounts are missing. Complete them before exporting.,Required invoice amounts are missing. Complete them before exporting.
+Requires Review,Requires Review
+Response Json,Response Json
+Result Directory Revision,Result Directory Revision
+Result Json,Result Json
+Result Unknown,Result Unknown
+Review JSON,Review JSON
+Reviewed amounts need a balance and at most two decimal places.,Reviewed amounts need a balance and at most two decimal places.
+Revision,Revision
+Revocation Reason,Revocation Reason
+Revoked At (UTC),Revoked At (UTC)
+Revoked By,Revoked By
+Row {0}: {1},Row {0}: {1}
+Sales invoices need line items with tax-exclusive amounts before export.,Sales invoices need line items with tax-exclusive amounts before export.
+Sample Key,Sample Key
+Scope Key,Scope Key
+Select a file to upload.,Select a file to upload.
+Select between 1 and 100 distinct history records to export.,Select between 1 and 100 distinct history records to export.
+Select between 1 and 500 records.,Select between 1 and 500 records.
+Select valid files to download.,Select valid files to download.
+Seller Name,Seller Name
+Seller Tax ID,Seller Tax ID
+Service,Service
+Settings Json,Settings Json
+Site,Site
+Site Name,Site Name
+Source Digest,Source Digest
+Source File,Source File
+Source Format,Source Format
+Source Hash,Source Hash
+Source History,Source History
+Source PDF ID,Source PDF ID
+Source Page Indices,Source Page Indices
+Source Reference Count,Source Reference Count
+Source Reference Kind,Source Reference Kind
+Source Sha256,Source Sha256
+Started At,Started At
+Statement review is not available for this task.,Statement review is not available for this task.
+Stock,Stock
+Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
+Summary table import,Summary table import
+Target Json,Target Json
+Task,Task
+Tax ID,Tax ID
+The Companion delivery record is invalid.,The Companion delivery record is invalid.
+The Companion delivery record was not found.,The Companion delivery record was not found.
+The Companion identity is no longer valid. Authenticate again.,The Companion identity is no longer valid. Authenticate again.
+The Companion queue request is invalid.,The Companion queue request is invalid.
+The Companion queue response is invalid.,The Companion queue response is invalid.
+The Companion report is invalid.,The Companion report is invalid.
+The Companion service is temporarily unavailable. Try again shortly.,The Companion service is temporarily unavailable. Try again shortly.
+The ERP address is invalid or not allowed.,The ERP address is invalid or not allowed.
+The ERP data report contains a restricted field.,The ERP data report contains a restricted field.
+The ERP data report contains an invalid number.,The ERP data report contains an invalid number.
+The ERP data report contains an unsupported value.,The ERP data report contains an unsupported value.
+The ERP data report contains duplicate option identifiers.,The ERP data report contains duplicate option identifiers.
+The ERP data report exceeds the supported size limit.,The ERP data report exceeds the supported size limit.
+The ERP data report is invalid.,The ERP data report is invalid.
+The ERP data report is missing a required value.,The ERP data report is missing a required value.
+The ERP master data report is invalid.,The ERP master data report is invalid.
+The ERP report collector information is invalid.,The ERP report collector information is invalid.
+The ERP report contains an unsupported field type.,The ERP report contains an unsupported field type.
+The ERP report contains an unsupported master data type.,The ERP report contains an unsupported master data type.
+The ERP report contains duplicate action identifiers.,The ERP report contains duplicate action identifiers.
+The ERP report contains duplicate field identifiers.,The ERP report contains duplicate field identifiers.
+The ERP report observation time is invalid.,The ERP report observation time is invalid.
+The ERP report refresh status is invalid.,The ERP report refresh status is invalid.
+The ERP report uses an unsupported adapter.,The ERP report uses an unsupported adapter.
+The ERP target context is inconsistent.,The ERP target context is inconsistent.
+The OCR connection changed after this task was accepted.,The OCR connection changed after this task was accepted.
+The PDF exceeds the allowed page count.,The PDF exceeds the allowed page count.
+The PDF file cannot be read.,The PDF file cannot be read.
+The account directory is out of date. Refresh it again.,The account directory is out of date. Refresh it again.
+The acknowledgement conflicts with the recorded result.,The acknowledgement conflicts with the recorded result.
+The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
+"The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
+The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
+The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
+The credential changed. Reload before resetting or revoking it.,The credential changed. Reload before resetting or revoking it.
+The credential request is invalid.,The credential request is invalid.
+The credential request receipt limit has been reached.,The credential request receipt limit has been reached.
+The date reference year is invalid. Reload and try again.,The date reference year is invalid. Reload and try again.
+The date reference year is missing. Reload and try again.,The date reference year is missing. Reload and try again.
+The directory evidence is invalid. Refresh and select again.,The directory evidence is invalid. Refresh and select again.
+The directory refresh is still pending.,The directory refresh is still pending.
+The directory snapshot does not match this connection.,The directory snapshot does not match this connection.
+The directory snapshot exceeds the 16 MiB limit.,The directory snapshot exceeds the 16 MiB limit.
+The document contains too many cells.,The document contains too many cells.
+The document contains too many columns.,The document contains too many columns.
+The document contains too many internal files.,The document contains too many internal files.
+The document contains too many rows.,The document contains too many rows.
+The document contains too much text.,The document contains too much text.
+The document contains unsupported XML declarations.,The document contains unsupported XML declarations.
+The document content is invalid.,The document content is invalid.
+The document could not be read. Check the file and try again.,The document could not be read. Check the file and try again.
+The document exceeds the allowed size after decompression.,The document exceeds the allowed size after decompression.
+The document file is damaged or cannot be decompressed.,The document file is damaged or cannot be decompressed.
+The document reader is unavailable. Contact your administrator.,The document reader is unavailable. Contact your administrator.
+The document sections are incomplete or invalid.,The document sections are incomplete or invalid.
+The export contains an invalid or repeated history reference.,The export contains an invalid or repeated history reference.
+The file exceeds the allowed size.,The file exceeds the allowed size.
+The file size or page metadata is invalid.,The file size or page metadata is invalid.
+The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
+The image file cannot be read.,The image file cannot be read.
+The import columns do not match the stock count template.,The import columns do not match the stock count template.
+The import contains a repeated product code.,The import contains a repeated product code.
+The import contains no product rows.,The import contains no product rows.
+"The import exceeds the limit of 10,000 rows.","The import exceeds the limit of 10,000 rows."
+The import row is invalid or has missing required values.,The import row is invalid or has missing required values.
+The invoice configuration does not match the OCR connection.,The invoice configuration does not match the OCR connection.
+The invoice contains text that Excel cannot store safely. Check its length and characters.,The invoice contains text that Excel cannot store safely. Check its length and characters.
+The invoice data is invalid and cannot be exported.,The invoice data is invalid and cannot be exported.
+The invoice date is invalid. Correct it before exporting.,The invoice date is invalid. Correct it before exporting.
+The invoice fields have an invalid format.,The invoice fields have an invalid format.
+The invoice has changed. Prepare it again.,The invoice has changed. Prepare it again.
+The invoice page data has an invalid format.,The invoice page data has an invalid format.
+The original document manifest cannot be changed.,The original document manifest cannot be changed.
+The original document manifest exceeds the 8 MiB limit.,The original document manifest exceeds the 8 MiB limit.
+The original document manifest is not ready.,The original document manifest is not ready.
+The original file already has a completed invoice manifest.,The original file already has a completed invoice manifest.
+The original file checksum does not match.,The original file checksum does not match.
+The original file is not ready for page preview.,The original file is not ready for page preview.
+The original file reference has changed.,The original file reference has changed.
+The original invoice manifest is incomplete.,The original invoice manifest is incomplete.
+The original invoice reference is invalid or unavailable.,The original invoice reference is invalid or unavailable.
+The outdated unsent preparation was replaced.,The outdated unsent preparation was replaced.
+The printed invoice date cannot be read. Check the date shown on the document.,The printed invoice date cannot be read. Check the date shown on the document.
+The push data exceeds the size limit.,The push data exceeds the size limit.
+The push record has changed. Reload and try again.,The push record has changed. Reload and try again.
+The push target has changed. Prepare the invoice again.,The push target has changed. Prepare the invoice again.
+The recognized content does not match the original references.,The recognized content does not match the original references.
+The recognized invoice manifest cannot be replaced.,The recognized invoice manifest cannot be replaced.
+The record changed. Reload it before saving.,The record changed. Reload it before saving.
+The record data is not valid JSON.,The record data is not valid JSON.
+The record metadata has an invalid format.,The record metadata has an invalid format.
+The record source is not supported.,The record source is not supported.
+The reported ERP capabilities are invalid.,The reported ERP capabilities are invalid.
+The reported ERP field definitions are invalid.,The reported ERP field definitions are invalid.
+The requested page is not part of this invoice.,The requested page is not part of this invoice.
+The review workbook cannot be read. Check its format and content.,The review workbook cannot be read. Check its format and content.
+The review workbook contains an invalid number.,The review workbook contains an invalid number.
+The review workbook contains no invoice rows to import.,The review workbook contains no invoice rows to import.
+The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
+The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
+The source page number must be a positive integer.,The source page number must be a positive integer.
+The stock count record was not found.,The stock count record was not found.
+The stock count request is invalid. Reload and try again.,The stock count request is invalid. Reload and try again.
+The stocktake export snapshot is incomplete. Reload and try again.,The stocktake export snapshot is incomplete. Reload and try again.
+The unsent preparation was cancelled.,The unsent preparation was cancelled.
+The uploaded file exceeds the 100 MiB limit.,The uploaded file exceeds the 100 MiB limit.
+The uploaded file is empty.,The uploaded file is empty.
+The verified ERP export details are invalid.,The verified ERP export details are invalid.
+The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
+This Cowork OCR mode is not available on the new platform yet.,This Cowork OCR mode is not available on the new platform yet.
+This ERP adapter is not connected yet.,This ERP adapter is not connected yet.
+This ERP connection is disabled.,This ERP connection is disabled.
+This account set is unavailable.,This account set is unavailable.
+This action is not allowed in the current push state.,This action is not allowed in the current push state.
+This connection does not support an Express Companion credential.,This connection does not support an Express Companion credential.
+This connection is disabled.,This connection is disabled.
+This count entry has changed. Refresh it and try again.,This count entry has changed. Refresh it and try again.
+This delivery conflicts with the current task state.,This delivery conflicts with the current task state.
+This document format is not supported.,This document format is not supported.
+This file does not match the review workbook format.,This file does not match the review workbook format.
+This file type is not supported.,This file type is not supported.
+This import request ID has already been used for different content.,This import request ID has already been used for different content.
+This multi-page invoice has no verified combined record. Review it before exporting.,This multi-page invoice has no verified combined record. Review it before exporting.
+This operation ID has already been used for another request.,This operation ID has already been used for another request.
+This original already has a recognition task with different parameters.,This original already has a recognition task with different parameters.
+This page is too large to preview safely.,This page is too large to preview safely.
+This push attempt is no longer current.,This push attempt is no longer current.
+This recognition service currently accepts PDF and image originals.,This recognition service currently accepts PDF and image originals.
+This refresh request has expired. Request a new refresh.,This refresh request has expired. Request a new refresh.
+This request conflicts with an existing reservation.,This request conflicts with an existing reservation.
+This request key has already been used for different content.,This request key has already been used for different content.
+This request key was used for another credential operation.,This request key was used for another credential operation.
+This request key was used for different content.,This request key was used for different content.
+This request key was used for different push content.,This request key was used for different push content.
+This stock count task is closed.,This stock count task is closed.
+This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
+Title,Title
+Token Digest,Token Digest
+Token Generation,Token Generation
+Token Tail,Token Tail
+Transaction Date,Transaction Date
+Unsupported ERP connection type.,Unsupported ERP connection type.
+Update invoice records through the Cowork review service.,Update invoice records through the Cowork review service.
+Updated At,Updated At
+Updated By,Updated By
+Uploaded By,Uploaded By
+Use the Cowork Companion credential service to access credentials.,Use the Cowork Companion credential service to access credentials.
+Use the Cowork Companion service to access deliveries.,Use the Cowork Companion service to access deliveries.
+Use the Cowork OCR service to access recognition tasks.,Use the Cowork OCR service to access recognition tasks.
+Use the Cowork OCR service to change recognition tasks.,Use the Cowork OCR service to change recognition tasks.
+Use the Cowork original-file service to access this file.,Use the Cowork original-file service to access this file.
+Use the stock count workflow to change these records.,Use the stock count workflow to change these records.
+Version,Version
+Voided,Voided
+Warehouse,Warehouse
+Wire Attempt,Wire Attempt
+Work Name,Work Name
+Workspace,Workspace
+You do not have access to this ERP target.,You do not have access to this ERP target.
+account,account
+active,active
+admitted,admitted
+catalog_refresh_invalid,The directory evidence is invalid. Refresh and select again.
+catalog_refresh_pending,The directory refresh is still pending.
+catalog_refresh_required,Refresh the account directory before continuing.
+catalog_refresh_stale,The account directory is out of date. Refresh it again.
+charged,charged
+client,client
+closed,closed
+companion.context_invalid,The Companion identity is no longer valid. Authenticate again.
+companion.credential_not_found,No Companion credential has been issued for this connection.
+companion.delivery_invalid,The Companion delivery record is invalid.
+companion.delivery_not_found,The Companion delivery record was not found.
+companion.generation_conflict,The credential changed. Reload before resetting or revoking it.
+companion.queue_access_revoked,Access to the Companion queue has been revoked.
+companion.queue_conflict,This delivery conflicts with the current task state.
+companion.queue_request_invalid,The Companion queue request is invalid.
+companion.queue_response_invalid,The Companion queue response is invalid.
+companion.receipt_limit,The credential request receipt limit has been reached.
+companion.report_busy,The Companion service is temporarily unavailable. Try again shortly.
+companion.report_invalid,The Companion report is invalid.
+companion.request_conflict,This request key was used for another credential operation.
+companion.request_invalid,The credential request is invalid.
+companion.unauthorized,Companion authentication failed.
+companion.unsupported_connection,This connection does not support an Express Companion credential.
+confirmed,Confirmed
+connection.adapter_invalid,Unsupported ERP connection type.
+connection.config_invalid,Check the ERP connection settings.
+connection.disabled,This connection is disabled.
+connection.lock_required,Lock the connection before reading the push target.
+connection.not_found,Connection or directory record not found.
+connection.preparation_incomplete,Preparation data for this account set is incomplete.
+connection.preparation_invalid,Preparation data does not match the connection or account set.
+connection.refresh_stale,This refresh request has expired. Request a new refresh.
+connection.request_conflict,This request key was used for different content.
+connection.request_key_invalid,Invalid request key.
+connection.revision_conflict,The connection has changed. Reload and try again.
+connection.scope_immutable,"The company, client and type of a connection cannot be changed."
+connection.snapshot_invalid,The directory snapshot does not match this connection.
+connection.snapshot_too_large,The directory snapshot exceeds the 16 MiB limit.
+connection.url_invalid,The ERP address is invalid or not allowed.
+cowork.quality.confirmed,Recognized with high confidence
+cowork.quality.failed,No invoice summary found
+cowork.quality.pending,Needs review
+cowork_line,Cowork LINE
+document,document
+erp.account_set_unavailable,This account set is unavailable.
+erp.endpoint_disabled,This ERP connection is disabled.
+erp.target_access_denied,You do not have access to this ERP target.
+erp.target_context_invalid,The ERP target context is inconsistent.
+erp.target_projection_adapter_invalid,The ERP report uses an unsupported adapter.
+erp.target_projection_collector_invalid,The ERP report collector information is invalid.
+erp.target_projection_collector_not_connected,Collection is not connected for this ERP data type.
+erp.target_projection_duplicate_action,The ERP report contains duplicate action identifiers.
+erp.target_projection_duplicate_field,The ERP report contains duplicate field identifiers.
+erp.target_projection_duplicate_source_id,The ERP data report contains duplicate option identifiers.
+erp.target_projection_invalid,The ERP data report is invalid.
+erp.target_projection_invalid_action,A reported ERP action is invalid.
+erp.target_projection_invalid_capabilities,The reported ERP capabilities are invalid.
+erp.target_projection_invalid_field,A reported ERP field is invalid.
+erp.target_projection_invalid_form_schema,The reported ERP field definitions are invalid.
+erp.target_projection_invalid_json,The ERP data report contains an unsupported value.
+erp.target_projection_invalid_masters,The ERP master data report is invalid.
+erp.target_projection_invalid_number,The ERP data report contains an invalid number.
+erp.target_projection_invalid_option,An option in the ERP data report is invalid.
+erp.target_projection_observed_at_invalid,The ERP report observation time is invalid.
+erp.target_projection_refresh_status_invalid,The ERP report refresh status is invalid.
+erp.target_projection_sensitive_field,The ERP data report contains a restricted field.
+erp.target_projection_too_large,The ERP data report exceeds the supported size limit.
+erp.target_projection_unknown_entity,The ERP report contains an unsupported master data type.
+erp.target_projection_unknown_field_type,The ERP report contains an unsupported field type.
+erp.target_projection_value_required,The ERP data report is missing a required value.
+erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
+excel,excel
+failed,Failed
+held,held
+history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
+history.date_anchor_required,The date reference year is missing. Reload and try again.
+history.date_unreadable,The printed invoice date cannot be read. Check the date shown on the document.
+history.erp_source_forbidden,ERP records cannot be saved in Cowork.
+history.fields_invalid,The invoice fields have an invalid format.
+history.json_invalid,The record data is not valid JSON.
+history.metadata_invalid,The record metadata has an invalid format.
+history.page_index_invalid,The source page number must be a positive integer.
+history.pages_invalid,The invoice page data has an invalid format.
+history.source_invalid,The record source is not supported.
+history.source_not_public,Only manual records can be created through this entry.
+image,image
+leased,leased
+legacy,legacy
+logical_section,logical_section
+manual,Manual
+not_billable,not_billable
+not_due,not_due
+not_invoice,not_invoice
+ocr.empty_file,The uploaded file is empty.
+ocr.file_too_large,The file exceeds the allowed size.
+ocr.invalid_input_metadata,The file size or page metadata is invalid.
+ocr.invalid_pdf,The PDF file cannot be read.
+ocr.page_association_invalid,The recognized content does not match the original references.
+ocr.roundtrip_empty,The review workbook contains no invoice rows to import.
+ocr.roundtrip_invalid_number,The review workbook contains an invalid number.
+ocr.roundtrip_not_matched,This file does not match the review workbook format.
+ocr.roundtrip_parse_failed,The review workbook cannot be read. Check its format and content.
+ocr.roundtrip_sheet_name_invalid,The review worksheet name contains extra spaces. Restore the original name.
+ocr.roundtrip_trailing_rows,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
+ocr.table_archive_member_limit,The document contains too many internal files.
+ocr.table_archive_size_limit,The document exceeds the allowed size after decompression.
+ocr.table_cell_limit,The document contains too many cells.
+ocr.table_column_limit,The document contains too many columns.
+ocr.table_dependency_unavailable,The document reader is unavailable. Contact your administrator.
+ocr.table_format_not_supported,This document format is not supported.
+ocr.table_invalid_archive,The document file is damaged or cannot be decompressed.
+ocr.table_invalid_bytes,The document content is invalid.
+ocr.table_invalid_dimensions,The worksheet row or column information is invalid.
+ocr.table_parse_failed,The document could not be read. Check the file and try again.
+ocr.table_roundtrip_not_supported,Reimporting review workbooks is not available on the new platform yet.
+ocr.table_row_limit,The document contains too many rows.
+ocr.table_text_limit,The document contains too much text.
+ocr.table_text_too_long,"A document section exceeds 30,000 characters. Split the document before recognition."
+ocr.table_units_invalid,The document sections are incomplete or invalid.
+ocr.table_xml_declaration_not_allowed,The document contains unsupported XML declarations.
+ocr.too_many_pages,The PDF exceeds the allowed page count.
+ocr.unsupported_format,This file type is not supported.
+pdf,pdf
+pending,Pending
+physical_page,physical_page
+push.adapter_not_connected,This ERP adapter is not connected yet.
+push.branch_invalid,Invalid push execution mode.
+push.native_ack_conflict,The acknowledgement conflicts with the recorded result.
+push.native_history_changed,The invoice has changed. Prepare it again.
+push.native_lock_conflict,Another push holds the writer lock.
+push.native_payload_too_large,The push data exceeds the size limit.
+push.native_record_not_found,Push record not found.
+push.native_request_invalid,Invalid push request.
+push.native_reservation_conflict,This request conflicts with an existing reservation.
+push.native_revision_conflict,The push record has changed. Reload and try again.
+push.native_stale_attempt,This push attempt is no longer current.
+push.native_state_invalid,This action is not allowed in the current push state.
+push.native_target_changed,The push target has changed. Prepare the invoice again.
+push.native_target_mismatch,The frozen push target does not match the authorized target.
+push.original_reference_invalid,The original invoice reference is invalid or unavailable.
+push.posting_kind_invalid,Invalid posting type.
+push.preparation_cancelled,The unsent preparation was cancelled.
+push.preparation_superseded,The outdated unsent preparation was replaced.
+push.prior_document_number_missing,A successful push has no ERP document number. Check its receipt.
+push.record_not_found,Push record not found.
+push.request_conflict,This request key was used for different push content.
+push.request_invalid,Invalid push request.
+push.utc_required,A timezone-aware UTC timestamp is required.
+recognized,recognized
+recognizing,recognizing
+reconciliation.review_amount_invalid,Reviewed amounts need a balance and at most two decimal places.
+reconciliation.review_balance_mismatch,Check the statement balance differences before confirming.
+reconciliation.review_required,Complete statement review before exporting the result.
+reconciliation.review_rows_invalid,Invalid statement review rows or row references.
+reconciliation.review_unavailable,Statement review is not available for this task.
+roundtrip.document_limit,A review workbook must contain between 1 and 500 invoices.
+roundtrip.export_amount_missing,Required invoice amounts are missing. Complete them before exporting.
+roundtrip.export_amount_not_roundtrippable,"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
+roundtrip.export_date_invalid,The invoice date is invalid. Correct it before exporting.
+roundtrip.export_facts_invalid,The verified ERP export details are invalid.
+roundtrip.export_history_invalid,The export contains an invalid or repeated history reference.
+roundtrip.export_line_amount_missing,An invoice line has no amount or complete quantity and unit price. Complete it before exporting.
+roundtrip.export_multipage_unverified,This multi-page invoice has no verified combined record. Review it before exporting.
+roundtrip.export_number_invalid,A numeric value in the invoice is invalid. Correct it before exporting.
+roundtrip.export_number_precision,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
+roundtrip.export_record_invalid,The invoice data is invalid and cannot be exported.
+roundtrip.export_records_invalid,Select between 1 and 100 distinct history records to export.
+roundtrip.export_sales_items_required,Sales invoices need line items with tax-exclusive amounts before export.
+roundtrip.export_scope_mixed,Export records from the same company and client together.
+roundtrip.export_text_invalid,The invoice contains text that Excel cannot store safely. Check its length and characters.
+roundtrip.reference_unavailable,A referenced history record is unavailable in the selected company and client.
+saved,saved
+scan,scan
+service,Service
+stock,Stock
+stocktake.ambiguous_code,A product code or barcode identifies more than one product.
+stocktake.closed,This stock count task is closed.
+stocktake.code_as_text,Product codes and barcodes must be stored as text.
+stocktake.conflict,This count entry has changed. Refresh it and try again.
+stocktake.dedicated_api_required,Use the stock count workflow to change these records.
+stocktake.duplicate,The import contains a repeated product code.
+stocktake.empty,The import contains no product rows.
+stocktake.export_incomplete,The stocktake export snapshot is incomplete. Reload and try again.
+stocktake.headers_invalid,The import columns do not match the stock count template.
+stocktake.import_conflict,This import request ID has already been used for different content.
+stocktake.legacy_task,This task uses the previous count format and cannot accept scan entries.
+stocktake.name_invalid,Enter a stock count title of 1 to 120 characters.
+stocktake.not_found,The stock count record was not found.
+stocktake.operation_conflict,This operation ID has already been used for another request.
+stocktake.photos_not_supported,Stock count photos are not yet supported. Remove the photos before saving.
+stocktake.quantity_invalid,Enter a valid quantity with no more than six decimal places.
+stocktake.request_invalid,The stock count request is invalid. Reload and try again.
+stocktake.row_invalid,The import row is invalid or has missing required values.
+stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
+stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
+summary_table_batch,Summary table import

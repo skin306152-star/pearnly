@@ -1,0 +1,82 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Supplier Posting Profile",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "input_key",
+  "workspace",
+  "seller_tax_id",
+  "default_payment",
+  "default_item_type",
+  "source"
+ ],
+ "fields": [
+  {
+   "fieldname": "input_key",
+   "label": "Record Key",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 64,
+   "unique": 1,
+   "reqd": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "workspace",
+   "label": "Company",
+   "fieldtype": "Link",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "seller_tax_id",
+   "label": "Seller Tax ID",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "length": 13,
+   "reqd": 1
+  },
+  {
+   "fieldname": "default_payment",
+   "label": "Default Payment",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "default_item_type",
+   "label": "Default Item Type",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source",
+   "label": "Source",
+   "fieldtype": "Data",
+   "read_only": 1,
+   "reqd": 1
+  }
+ ],
+ "permissions": [
+  {
+   "role": "All",
+   "read": 1
+  },
+  {
+   "role": "Guest",
+   "read": 1
+  }
+ ]
+}

@@ -1,0 +1,62 @@
+{
+  "base_commit": "f946755",
+  "scope": "forty-seventh batch: the fifth master-data slice — the product and multi-unit storage layer (two DocTypes, the service and its RPCs)",
+  "live_source": {
+    "source_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "start_sha256": null,
+    "start_capture_note": "no separate start capture was taken this batch; the before-snapshot is the forty-sixth batch delivery",
+    "delivery_sha256": "c04f6e02c34ed3c7b910b481d597997ac93126f4edf900565bed677c1adc24c5",
+    "delivery_captured_at": "2026-09-21T18:36:00.000000+00:00",
+    "delivery_compare_command": "cowork-migration-baseline.py compare baseline-forty-sixth-delivery.json baseline-forty-seventh-delivery.json (before pinned at 922740a8, after pinned at c04f6e02)",
+    "source_compare": "PASS",
+    "runtime_projection_delivery_sha256": "6394e931f22f3ed465c4158a195fa3f06b1ea8fa29f8e4505b155ee15d9d43e6",
+    "runtime_projection_compare_with_previous_batch": "unchanged (settings_unchanged true, observations_changed false)",
+    "runtime_config_import": "HOLD",
+    "fixed_source_hashes": {
+      "services/products/units.py": "b686a65bba251cd7be14cee8438ddbb03c37c3b6f0c7598bcceebd9e66f42bdc"
+    },
+    "source_note": "the store reuses the product-unit rules ported and differentially verified last batch; this batch adds the tables and the service"
+  },
+  "checks": [
+    {
+      "command": "PEARNLY_COWORK_TEST_SITE=<ack|preparation>.localhost python /workspace/scripts/cowork-masters-lab-verify.py",
+      "result": "PASS",
+      "tests": 13,
+      "new_tests": 6,
+      "note": "isolated Site, both Sites. The six new product cases: a product saves with its three names, the deployed default base unit, the batch flag, minimum stock and default cost, and two unit rows with their factors and default marker; the roster and detail read back; switching the default leave exactly one; two defaults, a repeated unit name (with padding) and a unit without a factor are each refused with no product stored; an exact factor (0.1) and price survive the round trip; deactivation hides it, include_inactive lists it and deleting clears the child rows; permissions cover a read-only role and a product of another company; all nine RPCs refuse anonymous callers (403)."
+    },
+    {
+      "command": "docker exec ... python -m unittest test_cowork_product_units test_cowork_client_records test_cowork_buyer_resolve",
+      "result": "PASS",
+      "tests": 56,
+      "note": "the master-data family's pure modules still pass; this batch changed none of them"
+    },
+    {
+      "command": "python3 scripts/check-architecture.py",
+      "result": "PASS",
+      "violations": 0
+    },
+    {
+      "command": "python3 scripts/i18n-build.py --check",
+      "result": "PASS"
+    },
+    {
+      "command": "python3 scripts/check-i18n.py",
+      "result": "REPORT-ONLY"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "intentional_differences": [
+    "the units are a child table of the product rather than a separate table, so they cannot exist without their product; the deployed product_active synchronisation on each unit row is not ported because the problem it addressed (a lookup that hides products of disabled parents) does not arise here",
+    "an update that carries units replaces the whole child table instead of patching row by row; the row-level rules (including an explicit None clearing a nullable column) stay in the ported pure module for when row editing is needed",
+    "the product has both a display name and the three-language name triple, while the deployed row used one name column; the presentation rule still reads the triple, as deployed",
+    "two unit rows asking to be the default are refused rather than silently reduced to one, and a repeated unit name is checked case-insensitively before writing because a child table carries no unique constraint"
+  ],
+  "not_run": [
+    "the buyer import normalisation, supplier and tax-profile master data, settings and categories, real product data, the frontend, deployment and user acceptance"
+  ],
+  "evidence": "docs/work/cowork-backend/masters-product-store.md"
+}

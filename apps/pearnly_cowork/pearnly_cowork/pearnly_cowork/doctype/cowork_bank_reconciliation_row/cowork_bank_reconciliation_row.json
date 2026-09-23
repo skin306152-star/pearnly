@@ -1,0 +1,237 @@
+{
+ "doctype": "DocType",
+ "name": "Cowork Bank Reconciliation Row",
+ "module": "Pearnly Cowork",
+ "engine": "InnoDB",
+ "allow_rename": 0,
+ "track_changes": 0,
+ "owner": "Administrator",
+ "modified_by": "Administrator",
+ "creation": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-21 00:00:00.000000",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "actions": [],
+ "links": [],
+ "field_order": [
+  "record_id",
+  "workspace",
+  "task",
+  "row_index",
+  "match_status",
+  "match_layer",
+  "date_diff_days",
+  "stmt_date",
+  "stmt_desc",
+  "stmt_withdrawal",
+  "stmt_deposit",
+  "stmt_balance",
+  "stmt_balance_known",
+  "stmt_confidence",
+  "stmt_balance_ok",
+  "stmt_autocorrected",
+  "gl_date",
+  "gl_doc_no",
+  "gl_account_code",
+  "gl_desc",
+  "gl_debit",
+  "gl_credit",
+  "gl_balance",
+  "source_stmt_file",
+  "source_gl_file"
+ ],
+ "fields": [
+  {
+   "fieldname": "record_id",
+   "fieldtype": "Data",
+   "label": "Record Id",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1,
+   "hidden": 1,
+   "length": 80
+  },
+  {
+   "fieldname": "workspace",
+   "fieldtype": "Link",
+   "label": "Workspace",
+   "read_only": 1,
+   "options": "Cowork Workspace",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "task",
+   "fieldtype": "Link",
+   "label": "Task",
+   "read_only": 1,
+   "options": "Cowork Bank Reconciliation",
+   "reqd": 1,
+   "in_list_view": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "row_index",
+   "fieldtype": "Int",
+   "label": "Row Index",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "match_status",
+   "fieldtype": "Select",
+   "label": "Match Status",
+   "read_only": 1,
+   "options": "matched\ngl_debit_only\ngl_credit_only\nstmt_withdrawal_only\nstmt_deposit_only",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "match_layer",
+   "fieldtype": "Int",
+   "label": "Match Layer",
+   "read_only": 1,
+   "default": "0",
+   "description": "0 means the row was not matched"
+  },
+  {
+   "fieldname": "date_diff_days",
+   "fieldtype": "Int",
+   "label": "Date Diff Days",
+   "read_only": 1,
+   "default": "-1",
+   "description": "-1 means no day distance was applicable"
+  },
+  {
+   "fieldname": "stmt_date",
+   "fieldtype": "Date",
+   "label": "Statement Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_desc",
+   "fieldtype": "Data",
+   "label": "Statement Description",
+   "read_only": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "stmt_withdrawal",
+   "fieldtype": "Float",
+   "label": "Statement Withdrawal",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_deposit",
+   "fieldtype": "Float",
+   "label": "Statement Deposit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_balance",
+   "fieldtype": "Float",
+   "label": "Statement Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stmt_balance_known",
+   "fieldtype": "Check",
+   "label": "Statement Balance Known",
+   "read_only": 1,
+   "default": "1"
+  },
+  {
+   "fieldname": "stmt_confidence",
+   "fieldtype": "Data",
+   "label": "Statement Confidence",
+   "read_only": 1,
+   "length": 10
+  },
+  {
+   "fieldname": "stmt_balance_ok",
+   "fieldtype": "Select",
+   "label": "Statement Balance Check",
+   "read_only": 1,
+   "options": "\nok\nmismatch"
+  },
+  {
+   "fieldname": "stmt_autocorrected",
+   "fieldtype": "Check",
+   "label": "Statement Autocorrected",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_date",
+   "fieldtype": "Date",
+   "label": "GL Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_doc_no",
+   "fieldtype": "Data",
+   "label": "GL Document No",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "gl_account_code",
+   "fieldtype": "Data",
+   "label": "GL Account Code",
+   "read_only": 1,
+   "length": 140
+  },
+  {
+   "fieldname": "gl_desc",
+   "fieldtype": "Data",
+   "label": "GL Description",
+   "read_only": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "gl_debit",
+   "fieldtype": "Float",
+   "label": "GL Debit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_credit",
+   "fieldtype": "Float",
+   "label": "GL Credit",
+   "read_only": 1
+  },
+  {
+   "fieldname": "gl_balance",
+   "fieldtype": "Float",
+   "label": "GL Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "source_stmt_file",
+   "fieldtype": "Data",
+   "label": "Statement Source",
+   "read_only": 1,
+   "length": 300
+  },
+  {
+   "fieldname": "source_gl_file",
+   "fieldtype": "Data",
+   "label": "GL Source",
+   "read_only": 1,
+   "length": 300
+  }
+ ],
+ "permissions": [
+  {
+   "role": "Cowork Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  },
+  {
+   "role": "Cowork Bank Reconciliation",
+   "read": 1,
+   "write": 1,
+   "create": 1
+  }
+ ]
+}

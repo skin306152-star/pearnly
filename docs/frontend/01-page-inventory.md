@@ -55,11 +55,11 @@ P4.04 当时记过"它没有对应 DocType，所以无从约束" —— 现在�
 
 ## Cowork
 
-预设 `COWORK_PRESET` = `dashboard · cowork · work · master · clients · company · integrations · guide`
+预设 `COWORK_PRESET` = `dashboard · cowork · master · clients · company · integrations · guide`
 
 ```text
 首页（订阅与计费）       dashboard
-工作协作                work        ← WeKan 看板那层（用户：算 Cowork 内部功能，留着）
+工作协作                work        ← 已不再迁移（2026-09-21 用户决定：团队协作后期自行开发）
 Pearnly Cowork ▼        (firm)
   录入工作台             dms-intake
   识别记录               history

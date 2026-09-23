@@ -19,7 +19,6 @@
       "ocr_record.py",
       "password.py",
       "provisioning.py",
-      "push_log.py",
       "session_lock.py",
       "sessions.py",
       "shell.py",
@@ -169,5 +168,64 @@
       "editor",
       "ocr"
     ]
+  },
+  "cowork_domain_dependencies": {
+    "access": [],
+    "companion": [
+      "connections",
+      "push",
+      "targets"
+    ],
+    "connections": [
+      "masters",
+      "reconciliation",
+      "targets"
+    ],
+    "contracts": [],
+    "files": [
+      "access",
+      "ocr"
+    ],
+    "history": [
+      "access",
+      "contracts",
+      "files",
+      "ocr"
+    ],
+    "masters": [
+      "access",
+      "tabular"
+    ],
+    "ocr": [
+      "access",
+      "contracts",
+      "files",
+      "history",
+      "roundtrip"
+    ],
+    "push": [
+      "access",
+      "connections",
+      "contracts",
+      "history",
+      "targets"
+    ],
+    "reconciliation": [
+      "access",
+      "contracts",
+      "masters",
+      "tabular"
+    ],
+    "roundtrip": [
+      "access",
+      "history",
+      "ocr",
+      "push"
+    ],
+    "stocktake": [
+      "access"
+    ],
+    "targets": [],
+    "tabular": []
   }
 }

@@ -1,0 +1,103 @@
+{
+  "base_sha": "70383cdf5e8f45129997c8e773e0bcf3772422a9",
+  "changed_code_sha256": {
+    "apps/pearnly_cowork/pearnly_cowork/companion/heartbeat.py": "b1aa350cae658ef18219923dde08552b7acd5beaf1b646b5e217820a77e0afe5",
+    "apps/pearnly_cowork/pearnly_cowork/companion/http_auth.py": "eb35b5acb95118814c81088418e6e4c48be5b3606d2f90ff2c1efc6115edf795",
+    "apps/pearnly_cowork/pearnly_cowork/connections/collector.py": "142cc54b563cb794b8b571fdac1b51b2132f24fca1782141df0f285ef4bbfb6c",
+    "apps/pearnly_cowork/pearnly_cowork/connections/model.py": "e10f3ead9ee6c5126a3dd858658118de745f77422d4bb02f800fda350d751372",
+    "apps/pearnly_cowork/pearnly_cowork/connections/refresh.py": "95e629a0123fa9e331b5d6bf581eeda34f83cc86d08137a17dc156883565f796",
+    "apps/pearnly_cowork/pearnly_cowork/connections/reports.py": "22a433502a22ca73b64ac4bea102eca2f7408546beee927e8d35cd9a5bf7c72a",
+    "apps/pearnly_cowork/pearnly_cowork/connections/service.py": "8b217da243b21a4062140ab33d6e52f7996d6c813a6e7530643b8f3e2a524240",
+    "apps/pearnly_cowork/pearnly_cowork/connections/snapshots.py": "0ed0737efd36d3d54a606932c3faea8e140eb1debfead63dba731c8a99509fa4",
+    "apps/pearnly_cowork/pearnly_cowork/connections/state.py": "c884cc514c25dcf4b1e278e8c8dd170a3b94cb6c166a5d38a238474ce264f34a",
+    "apps/pearnly_cowork/pearnly_cowork/hooks.py": "a809d85de1a615801d9ec81deb2e02cb754ffd8cb1d615900cb1ded3738c6dd8",
+    "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_erp_connection/cowork_erp_connection.json": "e193c98d8a55e84acce26ca1ec842b61a8b1156ec227f1e7c40646e4423e10be",
+    "apps/pearnly_cowork/pearnly_cowork/pearnly_cowork/doctype/cowork_erp_refresh/cowork_erp_refresh.json": "0e478a97b7897d19e496b70f04db3354a654f79df5d8ce480e445601892e84e7",
+    "apps/pearnly_cowork/pearnly_cowork/translations/en.csv": "2e3f23dfbdde6aecd0e9a8ededff0518ec916ccb12e58bfd176923992c38909b",
+    "apps/pearnly_cowork/pearnly_cowork/translations/ja.csv": "fa1471ddb577043dd8a635828e60b2471894c281c4d660e4b04adcdbf105e499",
+    "apps/pearnly_cowork/pearnly_cowork/translations/th.csv": "cdc338726c6249b6e96f5a618a1a6ac1f76d3cd19f80117c535a88a8b106d84d",
+    "apps/pearnly_cowork/pearnly_cowork/translations/zh.csv": "da3f763ada6abc4bf85cec7101814a0773ba6674f9103b9014f58c627e21f247",
+    "scripts/cowork-backend-lab-init.py": "af9d8f8809c8fcd5dcb4b2de2ee233f274ae5823804cebeeca196536006273c8",
+    "scripts/cowork-backend-lab-verify.py": "b230cbb467b5cfcd3464179e1bbe27f6eaea131f9018ce073bd4d3ae9a3ad128",
+    "scripts/cowork-companion-collector-lab-verify.py": "e83f6e7fd24062462d36a87d5d7fe988376672df9065d8c3f8a44a3fcc779f39",
+    "scripts/cowork-companion-heartbeat-lab-verify.py": "2cc841b51116a22718909c4c6b7cedc89f5f659b1887002ab4ae9371d753471d",
+    "scripts/cowork-companion-upgrade-lab-verify.py": "42e02571799e1f622b5bf47e0753cc0e65ddd2f6371b6af2523edd0a571e5bc9",
+    "scripts/i18n/messages.tsv": "9c21e3d7fbb6e014917e1162c6dafc76dca5f4df850ef15fda91466af7605396",
+    "tests/test_cowork_companion_http_auth.py": "2e967e43d7228e95a8c6184295a49c935c9fd589c1e2c9104871266d8f205789",
+    "tests/test_cowork_companion_reports.py": "42b8c2706760722d09cfe01767a7f5f84f64ee8021354dc0097c82b438c921bd",
+    "tests/test_cowork_companion_reports_source_parity.py": "cd4f985b8dca0e449426400666df72ce3eaf695a20c252b4927e8064d8a58f2b"
+  },
+  "compose_project": "pearnly-cowork-backend-lab",
+  "docker_context": "colima-pearnly",
+  "external_business_io": false,
+  "frontend": false,
+  "image": "sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9",
+  "native_unique_tests": 127,
+  "source_reports": {
+    "cases": 1262,
+    "differences": 0,
+    "fixed_sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "malformed_mapping_adaptations": 4
+  },
+  "strict_i18n": {
+    "added": 0,
+    "findings": 147,
+    "removed": 0,
+    "status": "FAIL_EXISTING"
+  },
+  "tests": {
+    "collector": {
+      "log_path": "/tmp/cowork-tenth-collector-final.log",
+      "log_sha256": "1e1328508a6114638ab979a32ee2dce7970662becbe50bca65f8b978ac748ac7",
+      "status": "PASS",
+      "tests": 18
+    },
+    "concurrency_after_handoff_repeat_not_additive": {
+      "log_path": "/tmp/cowork-tenth-concurrency-handoff.log",
+      "log_sha256": "89db3d110b687b6c0098473c2aae1adb72fd607212af354f2ae8f51d862ba445",
+      "status": "PASS",
+      "tests": 1
+    },
+    "connections": {
+      "log_path": "/tmp/cowork-tenth-connections.log",
+      "log_sha256": "84fff7f9654198a3bcc037f103e1defccda0c92af015fa3651e4667a44186e36",
+      "status": "PASS",
+      "tests": 21
+    },
+    "credentials": {
+      "log_path": "/tmp/cowork-tenth-credentials.log",
+      "log_sha256": "3f2c4c8426469cd755cb0abe8ac4568ceee9826c6bceb8b908625b64563811a5",
+      "status": "PASS",
+      "tests": 20
+    },
+    "http": {
+      "log_path": "/tmp/cowork-tenth-http-final26.log",
+      "log_sha256": "3a5cd741fce87f3997047958550994f2f9f0f21a2e6dac8a98a442d864d38fe9",
+      "status": "PASS",
+      "tests": 26
+    },
+    "offline": {
+      "log_path": "/tmp/cowork-tenth-offline-final.log",
+      "log_sha256": "0ed41c6837c722a48d2499daa42e7675159fc655643ed5b782d8585a79021b08",
+      "status": "PASS",
+      "tests": 721
+    },
+    "push_application": {
+      "log_path": "/tmp/cowork-tenth-push-app.log",
+      "log_sha256": "f94f7c826b2296bbe9dff2b3870cc7ed6eed0cc743afbde7fee1e6cceb5fbb93",
+      "status": "PASS",
+      "tests": 18
+    },
+    "push_ledger": {
+      "log_path": "/tmp/cowork-tenth-push-native.log",
+      "log_sha256": "dc041231c690d0e20940243a731b6a4612d7f185eaa2b0464ac39b57943bcd50",
+      "status": "PASS",
+      "tests": 24
+    }
+  },
+  "translations": {
+    "native_translations_checked": 144,
+    "new_messages": 36,
+    "status": "PASS"
+  }
+}

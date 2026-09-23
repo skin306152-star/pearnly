@@ -1,0 +1,2196 @@
+# Cowork 后端迁移（前端接入前）
+
+## 当前入口：共享基线已同步（2026-09-22，第五十三批之后）
+
+收尾补同步：在 `db8aa9177e5912ff72dc745d881616e969d69665` 后再合入固定 main
+`717d202af3cfcd06815e215ef088e07f4251e00e`。该主线提交已采用取消 boards 后的文案，
+Control TSV 使用其统一格式；下文第 4 项所述的取消看板文案差异已消除。
+本记录所在合并提交为最终同步结果；补同步只改变 TSV 行尾格式及交接记录，业务源码和生成 CSV 不变。
+检查为差异检查、四语生成一致性与提交钩子，不重复业务套件；前端、容器、业务和推送继续暂停，
+工作树/本地分支仍按下文原因交接保留。
+
+本次只执行已协调的本地同步，不是第五十四批功能迁移。用户要求先纠正并行开发顺序：
+共享结构先合主线，产品分支同步后再按拆分规范施工。前端、容器调整及外部业务仍暂停。
+下方第五十三批总交接继续提供后端范围和历史证据；其中旧 main SHA、共享拆分尚未同步及开工启动 lab 的步骤，
+**不适用于本次同步**。当前规范与共同顺序见 [共享底座对齐](2026-09-22-shared-foundation-alignment.md)。
+
+- 同步前 Cowork：`c17f475198eca708671796d49f10c04ccd73bb98`，工作树干净。
+- 合入固定本地主线：`db4c7dc3b8d01d19d5aac8395125b6ca1f9059bd`，不是跟随移动的 main 随意取版本。
+- 首轮同步提交 `db8aa91` 包含上述两个父版本，最终补同步见本节开头。这里只把 main 合入 Cowork，
+  **没有把 Cowork 后端合回 main，也未推送、部署或继续前端**。
+- 工作树及分支不变：`/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，
+  `codex/cowork-backend-migration`。新的前端工作仍待用户解除暂停。
+
+### 冲突取舍与有意剩余差异
+
+1. Core 导航/分组、Control 功能目录读取器、Core 权限落地与共用 Desk 组件全部采用固定 main。
+   ERP App 与 main 一致：17 项菜单目录、10 个已实现页面，成本字段授权留在产品声明。
+   各产品仍按已实现、已购买、当前权限过滤，不因为后端存在而开放新 Cowork 页面。
+2. Cowork / DMS hooks 只更新导航声明为 main 的版本；保留全部已有后端 hooks。
+   清除了自动合并产生的两份 DMS 导航声明，保留 `pearnly_line_mirror`。
+3. `check-architecture.py` 保留 Cowork 域依赖检查，与原保护测试及 `architecture-policy.json` 配套；
+   这部分相对 main 的差异有意保留，不能为共享文件字节一致而删除保护。
+4. 词条按 `(app, msgid)` 合并，接受 main 对商品名称的两处文案更新；保留 Cowork 503 条后端词条。
+   唯一拒绝的 main 词条是功能默认开关说明中已取消的协作看板示例，继续使用仅含 Companion 的原分支版本，
+   与现有 DocType 说明匹配。已有中日韩匹配词/工作簿协议豁免取两边并集，不新增忽略。
+5. 保留整个 Cowork 后端、DMS 台账迁移及 Core `execution/work.py` 增量；这些尚未合回 main。
+   保留 `boards` / WeKan 删除及历史裁剪决定，不恢复入口、实现或产品描述。
+6. main 自带的 Cowork intake 金额格式化与 DMS roster 通用选择调用随基线合入；未另行开发页面。
+
+### 本地验证与证据边界
+
+均为本机离线检查，未启动容器、未连接 Site 或外部业务；本次不是旧功能移植，未采集新的线上来源。
+
+- 架构检查通过；导航契约 17、功能目录 16、架构守卫 17（含 Cowork 拒绝路径）、队列目标 1 项通过。
+- ERP 离线检查运行 106 项：100 通过，6 项因本机缺少工作簿依赖跳过；不能写成 106 项全通过。
+- DMS 零 IO 回归 207 项通过；原生 Desk、roster 选择、records 选择三个 Node 回归通过。
+- 四语重新生成与 `i18n-build.py --check` 通过：1,852 条，Core 774 / Control 274 / Cowork 503 / DMS 4 / ERP 297。
+  前端 522 个文案键、27 个文件检查通过。`check-i18n.py --strict` 仍失败，报告 443 条存量及带入检查项；
+  本次不扩围翻译业务别名或消除既有文案欠账，不能称全仓语言审计通过。
+- 与 `c17f475` 逐字节核对：Cowork App 除导航 hooks 和 main 已有 intake JS 外的 370 个文件、
+  Core execution 9 个文件、DMS 除导航 hooks/术语表格式/roster JS 外的 181 个文件、
+  Cowork 测试及脚本 172 个文件、架构策略文件均未改变。两个产品全部非导航 hook 的 AST 一致。
+  五 App 的词条并集逐字段核对通过（仅上面明确说明的主线商品译名与取消看板示例取舍）。
+- 真实 Site 组合回归、正式候选镜像、CI、部署、外部业务与用户验收未执行；不能把共享集成窗口的历史 Site 结果
+  当作本次带全量 Cowork 后端的组合验收。后续解除暂停后先核对同步 SHA 和运行挂载，再按页接入与验收。
+
+收尾状态为**交接保留**：本任务工作树/本地分支承载未合回 main 的后端及本次同步，暂不能删除。
+本次未创建容器、业务数据或持久临时目录，也不清理先前保留的实验数据与其他任务资源；
+由本 Cowork 任务在获准前端接入时复核，最终合回主线、完成业务验收且解除占用后再按规范清理。
+远端本轮未查询且未写入，前批远端 SHA 仅为历史记录，不能当本次实时回读。
+
+## 换窗口总交接（2026-09-22，第五十三批之后 · 新窗口从这里开始）
+
+本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，
+下面各批记录（含上一版总交接）只在需要细节时查。
+
+### 一、现在的状态（一句话）
+
+Cowork 后端主数据主体已交付；第五十批补上**重复发票提醒与个人开关**，第五十一批补上
+**识别分类规则、公司科目树和按公司/买方隔离的供应商分类记忆**，会实际影响票面分类与 Express 科目映射。
+用户最新指示是**“只用于展示的就不要了”**：分类展示标签、补全与统计不迁；
+不为供应商列表名称新建主档；M1 泰文名闸属于账套主体/工单分拣，不给买方强加。
+**第五十二批已补上账套主体批量导入：文件解析 → 零写预览 → 确认创建公司 → 持久请求防重。现有买方导入含义不变。**
+**第五十三批已补上银行 PDF 逐行复核：待复核 → 服务端余额检查 → 确认后重对账；冻结双侧解析结果，确认不再次读文件/调模型。**
+用户最新明确：此前清单 **1–4 不做**（票据改挂/解绑、额外银行/GL 读取器、多文件合并、列映射/确认列对应）。
+按这个范围，主要后端已确认必搬缺口 **0 块**，不再把上述项目挂为可选或待决定。
+**收尾、同步、真实外部验收与前端一起做**；后续前端按页接。本批未启动前端，不能写成全产品已上线。
+所有工作都在本地提交、**未合回 main、未推送、未部署**。
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，
+  本批代码 `f278ab9`；含文档的 HEAD 以 `git log -1` 为准；开工 `6191f29811ddf1d830beaffb6f664a65bf9805b5`。
+- 本地 `main` 是另一窗口的 ERP 线，持续推进；本批回读为 `4cd39e035e141b53e6b723c70b5d92184ccffadc`；远端 `refs/heads/main`
+  实测仍是 `ac33e0c7362915ae314295cb26f7748cb5589de0`，远端任务分支不存在。
+- **另一窗口在做 ERP**：主工作树 `/Users/skin/pearnly` 与 `erp-pos-migration` 不归本任务。
+  新出现的 `erp-data-flow` 也不归本任务。本窗口只改 Cowork 业务、Cowork lab 脚本与本迁移记录，不操作其他工作树的内容。
+- 证据：`docs/work/cowork-backend/*.md` 批次记录、`docs/work/cowork-backend/evidence/*.json` 证据、
+  `tests/test_cowork_*.py`、`scripts/cowork-*.py`。
+- 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`
+  （固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批开工与交付都重新采集**。
+- 第五十三批来源身份首尾及与第五十二批一致。本批不改推送、不读取真实业务配置；推送运行投影最后一次采集仍为第五十二批，与第五十一批逐项一致。**第五十一批相对第五十批的旧变化仍未定位**：两组件的
+  `database.identity.endpoints.configuration_digest` 从 `d23570c1332deff1a646c69e9a18b921`
+  变为 `ce9d2473b7d79e9088a40661c0f4bbf4`。摘要包含心跳/目录等整个配置 JSON，具体变化字段未定位。
+  本批银行复核不读或创建端点配置，也不声称外部推送通过；用户要求随前端同步时处理运行配置和真实验收。
+  **后续若改推送链路，必须核对这项历史变化，不能以本批相同抹去第五十一批发现的问题**。
+
+### 二、硬边界（用户反复强调，继续有效）
+
+1. **不改 DMS 业务、不接前端、不部署**；只在本地隔离环境验证（lab 容器 + lab Site）。
+2. **不合并进 main、不推送、不部署**。合并、推送、部署是三个独立动作，都要用户明确授权。
+3. 每批**开工与交付都要重新采集线上来源**；采集不到就不算交付。
+4. 提交用真实作者（`zihaopi <skin@zihaopideMacBook-Pro.local>`），前缀 `feat:/fix:/docs:/refactor:/test:/ci:/chore:`；
+   **不用 `--no-verify`**（共享 pre-commit 钩子会跑架构检查）。
+5. **不动另一窗口的东西**：`main`、`apps/pearnly_erp_portal/**`、`scripts/i18n/messages.tsv`
+   与共享底座里他们正在写的文件（见第四节的合并债）。
+6. 团队协作（WeKan/`boards`）**不迁**，第二十二批已删（合并时必须保留删除）。
+7. 主数据边界（用户已定）：**客户以 ERP 为准**；**商品/供应商/科目各产品自己维护一份**。
+
+### 三、已迁完 / 主体已迁（按功能码）
+
+| 功能码 | 状态 | 备注 |
+| --- | --- | --- |
+| `ocr_history` 识别记录 | 已迁 | 第五十批重复提醒；第五十一批识别归类与复核学习，见 `invoice-classification.md` |
+| `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
+| `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
+| `express_guide` | 后端已迁 | 指引文案属前端 |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层已闭合，文件入口已接原生银行任务及 PDF 复核；额外银行/GL 读取器、多文件合并、列映射明确不迁；真实付费调用验收随前端；分类业务链已补，纯展示不迁 |
+| `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
+| `recon` 对账中心 | 银行 + 收入两族闭合 | 第五十三批补上 PDF 逐行复核、确认重对账和审计，见 `bank-review.md`；族边界见 `reconciliation-family-audit.md` |
+| `master_data` 主数据 | **主体已迁，账套导入缺口已补** | 七块旧记录保留；第五十二批独立 `masters.workspace_api` 承接账套导入，原买方 RPC 不改义。见 `workspace-import.md` |
+| `boards` | 不迁 | 用户指示 |
+
+导出/工作簿一并交付：`reconciliation/export/**`、`stocktake` 导出、roundtrip 导出。
+
+### 四、剩下的活（按**块**给，别再一次只做一点点）
+
+#### P1 已补主缺口与明确裁剪（第五十二批更新）
+
+1. **重复发票检测已补完后端**：用户默认开；票号优先，未命中再比日期/卖家/金额；
+   命中只提醒、不阻断保存；权限回读、幂等、失败状态均有本地验证。未接前端。
+2. **纯展示分类不迁**：`category_tag`、分类补全、供应商映射数与分类分布统计。
+   **票面分类与 Express 科目映射保留**。自动分类树与记忆已有本地后端：16 个父类共 89 个预设节点，
+   人工复核后同范围卖家记忆优先；停用不再推荐，重放不重分类。见 `invoice-classification.md`。
+3. **供应商主档不扩建**：本次确认 LEFT JOIN 仅补列表名称；过账按税号仍可用。
+4. **M1 泰文名闸不作为买方欠账**：来源是账套主体，消费者是本次不迁的工单分拣；不能给 Cowork Client 强加。
+5. **账套主体导入已补**：`masters.workspace_api.parse_workspace_import/preview_workspace_import/commit_workspace_import`，
+   创建 `Cowork Workspace`；地址/分支/电话原生保存；500 行、8 MiB；单建与批量共用税号/字段校验。
+   同操作者同 request_key/内容重放原结果；无税号行也不因同请求重试重复创建。
+   来源差分 432 组零差异；两 Site 各 17 条业务检查及 10 次 HTTP；两组真实并发与两轮升级保留通过。
+   旧 `preview_client_import/commit_client_import` 仍是买方。按现有清单没有下一块已确认必搬主功能；不要自行扩建 P2/P3。
+
+#### P2 用户已取消的 1–4（第五十三批，不再是待办）
+
+1. 识别记录改挂/解绑：保留原生归属不可变；仍有发票时拒绝删除买方。
+2. 额外银行/GL 图片、Word、pdfplumber/坐标读取器；普通发票图片 OCR 不在取消范围内。
+3. 多文件合并 `merge_statements` / `merge_gl_files`。
+4. 列映射记忆、`needs_mapping`、确认列对应。
+
+#### P3 第 5 项已补：银行 PDF 逐行复核与确认后重对账
+
+`bank_recon_api.review/check_review/confirm_review`；同任务 `needs_review → completed`，
+revision `1 → 2`，保留原始解析快照及确认记录，不重调模型。无列映射，也没有另建通用审批/任意重跑系统。
+来源谓词 108 组、余额链 1,000 组差分通过；两个 Site 各 10 条复核检查、原银行 21 条回归、
+原生 HTTP、三组双进程并发及两轮升级保留已验证，详见 `bank-review.md` 和本批证据。
+后端范围已收齐；真实付费模型调用、外部配置/数据、Windows/ERP 业务验收与前端同步做，不现在扩建。
+
+#### P4 合并债与最终上线顺序（用户要求随前端同步，暂不执行）
+
+四处合并债（清单与对应表在 `docs/work/2026-09-21-shared-files-split.md` 末尾）：
+① 共用菜单表 → 已拆到各产品 `hooks.py` 的 `pearnly_navigation`，**ERP 菜单要以 main 那版为准**；
+② 共用词库 + 四份翻译包 → 合并后**重跑 `scripts/i18n-build.py`**；③ 推送台账归 DMS + `line.py` 改发钩子；
+④ `main` 上仍带 Cowork 的 `boards` 菜单项 → 合并**必须保留删除**。
+顺序（用户已定）：另一窗口可以先部署；**最后一次部署必须在合并之后**；生产镜像从本仓那次提交构建。
+
+#### P5 词库欠账（用户要求随前端收尾，暂不扩围）
+
+第四十五/四十七/四十九批新增的服务层英文 `_()` 文案还没进 `pearnly_cowork/i18n/messages.tsv`
+（`i18n-build --check` 只证明术语表自身一致）。建议合并前做一次四语补录；**注意 `messages.tsv` 是
+另一窗口正在写的文件**，要动先跟他们错开。第五十二批 `check-i18n` 报告 428 项，比上批新增的
+3 项是总计行匹配词；第五十一批的 48 项也是中文分类别名。都不是界面文案，不得为消警告改写规则或扩大忽略基线。
+
+### 五、新窗口的开工程序（照抄即可，`<第 N 批>` 自己填）
+
+```sh
+cd /Users/skin/.codex/worktrees/cowork-backend-migration/pearnly
+git log -1 --format=%H            # 记下开始 SHA
+git status --short                # 应当干净；有残留先弄清归属
+
+# 1) 开工采集线上来源（必须；采集不到就不算交付）
+python3 scripts/cowork-migration-baseline.py collect-readonly \
+  --project pearnly --region asia-southeast1 --services pearnly-web pearnly-worker \
+  --source-repo /Users/skin/Developer/Pearnly/pearnly-app --ledger-ref origin/master \
+  --github-repo skin306152-star/pearnly-app --run-id 35321281376 \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-start.json
+
+# 2) 起隔离 lab（Docker context colima-pearnly；不要动别的 compose project）
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml up -d
+
+# 3) bench 用例（改到哪个族就跑到哪个族；不要全跑）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python -m unittest test_cowork_<族>"
+
+# 4) 固定源差分（容器看不到主机 /tmp，必须用 --source-stdin + JSON 管道）
+python3 - <<'PY' | docker --context colima-pearnly exec -i -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python test_cowork_<族>_source_parity.py --source-stdin"
+import json, pathlib
+root = pathlib.Path("/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b")
+paths = ["services/<固定源文件>.py"]
+print(json.dumps({p: (root / p).read_text() for p in paths}))
+PY
+
+# 5) 静态检查（每个交付都要跑）
+python3 scripts/check-architecture.py
+python3 scripts/i18n-build.py --check
+python3 scripts/check-i18n.py
+git diff --check
+
+# 6) 隔离 Site 端到端（改到存储/RPC 时必须跑；Site 名在脚本常量里）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  -e PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench/sites && /home/frappe/frappe-bench/env/bin/python /workspace/scripts/<验证脚本>"
+# 新增 DocType 后先 migrate：
+docker --context colima-pearnly exec pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench && bench --site cowork-backend-ack.localhost migrate"
+
+# 7) 交付采集 + 比较（before 用上一批交付快照，绑 SHA256）
+python3 scripts/cowork-migration-baseline.py collect-readonly ... \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-delivery.json
+python3 scripts/cowork-migration-baseline.py compare <上一批>-delivery.json <本批>-delivery.json
+/Users/skin/Developer/Pearnly/pearnly-app/venv/bin/python scripts/cowork-push-runtime-baseline.py \
+  collect-readonly --baseline <本批>-delivery.json --output push-runtime-<第 N 批>-delivery.json
+python3 scripts/cowork-push-runtime-baseline.py compare <上一批>-runtime.json <本批>-runtime.json
+
+# 8) 收尾：写批次记录 + 证据 JSON + 本文档顶部一节 → 提交 → 停 lab
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml stop
+```
+
+**每批必须产出**（缺一项就不算交付）：`docs/work/cowork-backend/<族>-<主题>.md`
+（来源/落点/有意差异/验证表/未做）+ `docs/work/cowork-backend/evidence/<第 N 批>-local-validation.json`
++ 本文档顶部一节 + 更新 `feature-status.md` 的对应行。
+
+**lab 的两个坑**：① 容器看不到主机 `/tmp`，固定源必须用 `--source-stdin` 管道；
+② 多轮脚本可能把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`；先定位本次合成任务，
+只清理证实归本次且已结束的精确 key/成员，不批量删 `rq:*` 或 flush Redis。
+
+第五十批另建的 `cowork-backend-duplicates.localhost` 是同一 lab 卷内的隔离新装 Site。
+跑跨 Site 回归时用 `PEARNLY_COWORK_OTHER_TEST_SITE=cowork-backend-duplicates.localhost`；
+旧脚本默认的 `cowork-backend-b.localhost` 已不在本卷，不能把缺 Site 当产品回归。
+本批校验脚本为 `scripts/cowork-duplicates-lab-verify.py`，`--http` 跑原生 HTTP，
+`--snapshot` 核对原票和偏好；`--install-fresh` 只允许首次建立上述 Site，存在即拒绝覆盖。
+
+第五十一批另建 `cowork-backend-classification.localhost`，已装 Core/Cowork；
+`scripts/cowork-classification-lab-verify.py` 支持业务验证、`--http`、`--snapshot`、`--concurrency`。
+其 `--install-fresh` 也只建精确新 Site，已存在即拒绝。收尾三容器已停止，卷保留，不接共享样板。
+
+第五十二批另建 `cowork-backend-workspace.localhost`，已装 Core/Cowork；
+`scripts/cowork-workspace-import-lab-verify.py` 支持业务、`--http`、`--concurrency`、`--snapshot`、`--prepare-upgrade`。
+新装模式拒绝覆盖现有 Site；本批跨 Site 回归明确用它作 `PEARNLY_COWORK_OTHER_TEST_SITE`。
+第五十二批只解析/创建本站公司，不接外部建账；源码/契约/保留资源见 `workspace-import.md`。
+
+第五十三批另建 `cowork-backend-bank-review.localhost`；验证入口 `scripts/cowork-bank-review-lab-verify.py`，
+支持业务、`--http`、`--concurrency`、`--snapshot`、`--prepare-upgrade`；只建精确新 Site，存在拒绝覆盖。
+本次交接保留工作树/分支及 lab 数据，三个容器停止；解除条件是前端接入后用户明确执行整合收尾。
+
+### 六、用户的沟通偏好（影响交付节奏）
+
+- 中文，**先说结果**；"说人话"、不要技术门槛堆砌。
+- **不喜欢一批只做一点点**：能在一个窗口内连着做完的大块就一次做完。
+- 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
+- 不确定就说不确定；不要用"看起来接上了"糊过去。
+- 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+## 第五十三批交付（2026-09-22）：银行逐行复核与范围收窄
+
+代码 `f278ab9`，固定源不变。PDF 命中低置信度/机器改金额/完整性问题时先待复核；
+确认执行服务端余额检查、用冻结 GL 重对账并存审计，同任务防重；待复核禁止导出完成报告。
+新增权限前置、确认/删除并发锁；列映射与其它取消项不引入。无前端、外部写入或付费模型调用。
+来源/契约/差异见 [银行复核](cowork-backend/bank-review.md)，验证见
+[本地证据](cowork-backend/evidence/fifty-third-local-validation.json)。
+用户取消此前 1–4；收尾/同步/验收留到前端。本批只有本地提交，未合 main、未推送、未部署。
+
+## 第五十二批交付（2026-09-22）：账套主体批量导入
+
+机械抽分 `d906f9a`；业务 `bfea28e`。来源、契约、差异和收尾见 [workspace-import](cowork-backend/workspace-import.md)。
+离线 92 条通过；账套规则差分 432、银行表格 227、GL 225/文本 187/KBank 5/PDF 4 组均零差异。
+新旧 Site 各 17 条导入业务与各 10 次 HTTP 通过，原主数据 22 + 原后端 21 通过；
+两进程同税号只建 1 家、同 key 无税号也只建 1 家；原生升级及重复升级的数据摘要不变。
+新/旧账套与买方归属保持独立；所有必搬主要后端缺口按当前清单已补齐，票据改挂/解绑仍待决定。
+未合并、未推送、未部署、未接前端、未做外部业务验收。专属 lab 三容器已停止；
+工作树/分支/固定来源与数据卷交接保留，不删业务数据，也不动另一窗口 ERP。
+
+## 第五十一批交付（2026-09-22）：业务分类链与主数据归属纠正
+
+代码 `10a67cf`；完整来源、API、差异、验证与保留项见 [invoice-classification](cowork-backend/invoice-classification.md)。
+纯规则 7、固定源差分 3,608 组零差异；升级 Site 17、新装 Site 16 条业务检查通过，两 Site 各 15 次 HTTP 通过；
+真实两进程首次初始化仅生成 89 节点。发现并修复 MariaDB 1020 冲突，RPC 最多重试 3 次，识别内部交给原工作流重试。
+重复提醒 13、识别集成 6、执行恢复 3 通过；两轮原生升级的数据摘要不变。
+线上源码身份一致，但端点配置摘要变化仍未定位；没有外部推送或付费识别验收。
+未合并、未推送、未部署、未接前端；专属 lab 已停止。工作树/分支/卷/固定来源交接保留，
+下一步为账套导入归属修正；另一窗口 ERP 不动。
+
+## 第五十批交付（2026-09-22）：重复提醒与分类范围裁剪
+
+代码 `1ada03d`；范围、验证和保留项见 [recognition-duplicate-check](cowork-backend/recognition-duplicate-check.md)。
+纯规则 6 + 原 history 合同 20 通过；固定源差分 1,120 组无差异；新旧 Site 各 13 条新业务验证
+及 HTTP 通过；原后端 21、识别集成 6、执行重试定向 3 通过。原票与用户偏好跨两轮升级保持一致。
+推送运行配置摘要发生变化已单独登记，不冒充全链配置无变化。未合并、未推送、未部署、未接前端。
+收尾已停止专属 lab 的 bench/db/redis，回读均为 exited；未删除任何分支、工作树或数据。
+工作树、分支、lab 卷和固定来源按“交接保留”留给后续迁移，具体解除条件见本批记录。
+
+## 换窗口交接（2026-09-22，第四十九批交付：主数据第七块——供应商过账档案 + 导入端点 + 归属核对）
+
+第四十九批从 `22b18d7` 开工，先把主数据最后两条旧路由的**归属**逐条核对完（只读），再把确属 Cowork
+的部分补上。详细批次记录见 [masters-supplier-posting](cowork-backend/masters-supplier-posting.md) 与
+[masters-attribution](cowork-backend/masters-attribution.md)。
+
+### 本批结果
+
+- 新增 `masters/field_clean.py`（旧侧两个共用清洗函数只留一份）、`masters/supplier_posting.py`
+  （值域、税号、部分更新、`user_rule` 不被纠错覆盖、幂等清效果）；`masters/push_inputs.py` 改走纯模块
+  并新增列表/清效果；`masters/clients.py` 加同公司税号查重与导入三态编排；`masters/api.py` 加 5 个 RPC。
+- 归属结论：供应商过账档案 = Cowork（本批补完）；`/api/categories` 与重复检测开关 = Cowork 的**识别线**
+  （本仓缺件，等用户定）；归档设置 3 端点、税务画像族 = **登记不迁**。
+- 验证：开工/交付线上来源采集均 PASS 且与上一批一致；主数据族离线 **79** 个通过；供应商档案固定源差分
+  **0** 差异（旧 SQL 捕获后在 SQLite 真跑，80 例）；隔离 Site **22** 条通过；新老 RPC 匿名 HTTP **14/14 = 403**；
+  架构 0 违规、`i18n-build --check` PASS、`git diff --check` 干净。
+- 未做：供应商主档、设置与分类（等决定）、前端、部署、推送、合并、用户验收。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**；lab 容器本批启动用于 bench/差分/隔离 Site 验证，收尾已停止；
+  卷与 Site 保留给下包；`/tmp/pearnly-cowork-migration-20260920/` 的固定副本迁移结束前不删。
+- 另一窗口的 ERP 前端改动（主工作树 `/Users/skin/pearnly`）本批**一行未碰**。
+
+## 换窗口总交接（2026-09-22，第四十八批版 · 已被上一节取代）
+
+本文档自上而下是"最新一批在前"的交接；**这一节是总交接**，一个新窗口读完这一节就能接着干，下面各批记录只在需要细节时查。
+
+### 一、现在的状态（一句话）
+
+Cowork 后端八个功能码里 **七个已迁完或主体已迁并有明确收尾**，剩下**主数据**一个族：客户三块 + 商品两块 + 导入一块已交付，**只剩"供应商/税率档"与"设置/分类"**。所有工作都在本地提交、**未合回 main、未推送、未部署**。
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，本批 HEAD **`0a92a44`**（`git log -1` 为准）。
+- 本分支领先本地 `main` **60 个提交**；本地 `main` 已被另一窗口推进（他们那条线另有 15 个提交），远端 `refs/heads/main` 实测仍是 **`ac33e0c`**（谁都没推）。
+- 证据：`docs/work/cowork-backend/*.md` 78 份批次记录、`docs/work/cowork-backend/evidence/*.json` 196 份证据；测试 `tests/test_cowork_*.py` 114 个；lab/verify 脚本 `scripts/cowork-*.py` 等 79 个。
+- 线上旧来源始终是 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`（固定只读副本 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`）。**每批交付前都重新采集**，命令见第五节。
+
+### 二、硬边界（用户反复强调，继续有效）
+
+1. **不改 DMS 业务、不接前端、不部署**；只在本地隔离环境验证（lab 容器 + lab Site）。
+2. **不合并进 main、不推送、不部署**。合并、推送、部署是三个独立动作，都要用户明确授权。
+3. 每批**开工与交付都要重新采集线上来源**；采集不到就不算交付。
+4. 提交用真实作者（`zihaopi <skin@zihaopideMacBook-Pro.local>`），前缀 `feat:/fix:/docs:/refactor:/test:/ci:/chore:`；**不用 `--no-verify`**（共享 pre-commit 钩子会跑架构检查）。
+5. **不动另一窗口的东西**：`main`、`apps/pearnly_erp_portal/**`、以及共享底座里他们正在写的文件（见第四节的合并债）。
+6. 团队协作（WeKan/`boards`）**不迁**，第二十二批已删（合并时必须保留删除）。
+7. 主数据边界（用户已定）：**客户以 ERP 为准**；**商品/供应商/科目各产品自己维护一份**。
+
+### 三、已迁完 / 主体已迁（按功能码）
+
+| 功能码 | 状态 | 备注 |
+| --- | --- | --- |
+| `ocr_history` 识别记录 | 已迁 | 记录里无已知缺口 |
+| `stocktake` 库存盘点 | 已迁 | 照片/LINE/库存记账明确不迁 |
+| `companion` 小助手 | 服务端已迁 | Windows 程序本体不在本仓 |
+| `express_guide` | 后端已迁 | 指引文案属前端 |
+| `intake` 录入工作台 | 主体已迁 | OCR 四层（文档模型→列来源校验→确定性读取器→模型路径与文档档位）**已闭合**，文件入口已接进原生银行任务；未做：一次真实付费模型调用、图片/pdfplumber 器件、多文件合并、`needs_mapping` |
+| `push_log` 推送日志 | 主体已迁 | MR.ERP 网络适配器与真实推送不迁 |
+| `recon` 对账中心 | 银行 + 收入两族闭合 | 见 `reconciliation-family-audit.md` |
+| `master_data` 主数据 | **进行中（本窗口最后在做的）** | 见下 |
+| `boards` | 不迁 | 用户指示 |
+
+导出/工作簿一并交付：`reconciliation/export/**`、`stocktake` 导出、roundtrip 导出。
+
+### 四、剩下的活（按**大块**给，别再一次只做一点点）
+
+#### P1 主数据收尾（最大一块，建议一个新窗口连着做完）
+
+已完成（别重做）：
+- `masters/buyer_resolve.py` 买家→客户匹配与归属决策（43 批）
+- `masters/client_records.py` 客户档案字段规则（44 批）
+- `masters/clients.py` + `Cowork Client` 字段 + `Cowork Buyer Memory` + 5 个 RPC（45 批）
+- `masters/product_names.py` / `product_units.py` 商品名称与单位规则（46 批）
+- `Cowork Product` + 子表 `Cowork Product Unit` + `masters/products.py` + 4 个 RPC（47 批）
+- `masters/client_import.py` 客户导入归一（48 批）
+
+剩下三件，**建议按这个顺序**：
+
+1. **供应商过账档案的 Cowork 半边**。本仓已有 `Cowork Supplier Posting Profile` 与 `masters/push_inputs.save_profile`（供应商付款方式/品项类型默认值）。旧侧 `routes/supplier_posting_routes.py`（98 行）走的是**采购域**权限、值域来自 `services/ocr_history/posting_manual.py` 的 `_PAYMENT_VALUES`/`_ITEM_TYPE_VALUES`。做法：先把那两组值域与 upsert 的"用户规则不被自动回流覆盖"规则搬成纯模块并差分，再决定要不要给 `save_profile` 加读侧富化（旧侧列表带 `supplier_name`）。
+2. **设置与分类**（`routes/settings_routes.py` 132 行、`routes/categories_routes.py` 35 行）。先核对归属：属 Cowork 的部分（公司/套账设置、商品分类）接着迁；属 ERP 的就登记"不迁"。
+3. **税率档 `routes/tax_profile_routes.py`（411 行）先做归属核对**：它走 `tax.filing.view`/`settings.workspace.manage`，功能清单里 `tax`/`accounting` 属**不在 Cowork 范围**的产品线。核完若确属申报侧 → 在 `feature-status.md` 登记"不迁"，**不要硬搬**。
+
+顺带两件小的（都在 P1 内）：
+- **客户导入端点**：`masters/client_import.py` 已就绪，缺一个"上传 → 预览 → 逐行结构校验 → 复用 `masters/clients.py` 建档"的 RPC（旧侧 `client_import_routes.py` 的三态：valid/created/skip/error）。
+- **商品 RPC 与名册的一致性**：`products`/`save_product` 已可用，若前端要"含停用""按分类筛"再补参数。
+
+#### P2 一处跨域待决策（要用户点头才能动）
+
+**识别记录归属的改挂/解绑**：原生 history 域把记录的 `client` 定为不可变（`history/storage.py` 的 `IMMUTABLE`，只许复核服务带令牌改）。因此 45 批没搬旧侧两条写路径：
+- `assign_invoice`（改挂归属）→ 现在没有受认可的入口；
+- `delete_client(cascade_unlink=True)`（删客户时级联解绑）→ 现在**还有发票就拒绝并报数**。
+
+要恢复与旧侧一致，需在 history 复核契约上开口（属跨域决定）。用户点头后：加一条受认可的归属变更入口 → `masters/clients.py` 的 `delete_client` 再加级联选项 → lab 里补两条用例。
+
+#### P3 OCR 侧可选项（都不挡迁移，用户没点名可不动）
+
+1. 一次**真实付费模型调用**的冒烟（接法已就位：站点配 `pearnly_cowork_ocr_environment`/`pearnly_cowork_ocr_policy` 后控制器自动建客户端；按约定付费调用不进默认回归）。
+2. 器件层：图片/Word 直读、pdfplumber 表格与坐标解析。
+3. 多文件合并（`merge_statements`/`merge_gl_files` 未迁）。
+4. `needs_mapping` 模板学习层（要映射存储表 + 确认界面）。
+5. 银行任务的文档态流程件（确认列对应、重跑、复核动作）。
+
+#### P4 合并债与最终上线顺序（等用户授权）
+
+四处合并债（清单与对应表在 `docs/work/2026-09-21-shared-files-split.md` 末尾）：
+1. 共用菜单表 → 已拆到各产品 `hooks.py` 的 `pearnly_navigation`；**ERP 菜单要以 main 那版为准（15 项、含商品页）**，否则 ERP 商品页会从侧栏消失；
+2. 共用词库 + 四份翻译包 → 合并后**重跑 `scripts/i18n-build.py`**；
+3. 推送台账归 DMS + `line.py` 改发钩子（已交，合并时按本分支）；
+4. `main` 上仍带 Cowork 的 `boards`（团队协作）菜单项 → 合并**必须保留删除**。
+
+顺序（用户已定）：另一窗口可以先部署；**最后一次部署必须在合并之后**；生产镜像从**本仓那次提交**构建，不拉旧产品仓库代码。合并时 `tests/test_native_desk_contract.py` 的项数/可用页面断言会挡住漏改。
+
+### 五、新窗口的开工程序（照抄即可）
+
+```sh
+cd /Users/skin/.codex/worktrees/cowork-backend-migration/pearnly
+git log -1 --format=%H            # 记下开始 SHA
+git status --short                # 应当干净；有残留先弄清归属
+
+# 1) 开工采集线上来源
+python3 scripts/cowork-migration-baseline.py collect-readonly \
+  --project pearnly --region asia-southeast1 --services pearnly-web pearnly-worker \
+  --source-repo /Users/skin/Developer/Pearnly/pearnly-app --ledger-ref origin/master \
+  --github-repo skin306152-star/pearnly-app --run-id 35321281376 \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-start.json
+
+# 2) 起隔离 lab（Docker context colima-pearnly）
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml up -d
+
+# 3) bench 用例（改到哪个族就跑到哪个族；不要全跑）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python -m unittest test_cowork_<族>"
+
+# 4) 固定源差分（容器看不到主机 /tmp，必须用 --source-stdin + JSON 管道）
+python3 - <<'PY' | docker --context colima-pearnly exec -i -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /workspace/tests && PYTHONPATH=/home/frappe/frappe-bench/apps/pearnly_cowork \
+   /home/frappe/frappe-bench/env/bin/python test_cowork_<族>_source_parity.py --source-stdin"
+import json, pathlib
+root = pathlib.Path("/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b")
+paths = ["services/<固定源文件>.py"]
+print(json.dumps({p: (root / p).read_text() for p in paths}))
+PY
+
+# 5) 静态检查（每个交付都要跑）
+python3 scripts/check-architecture.py
+python3 scripts/i18n-build.py --check
+python3 scripts/check-i18n.py
+git diff --check
+
+# 6) 隔离 Site 端到端（改到存储/RPC 时必须跑；Site 名在脚本常量里）
+docker --context colima-pearnly exec -e PEARNLY_COWORK_BACKEND_LAB=1 \
+  -e PEARNLY_COWORK_TEST_SITE=cowork-backend-ack.localhost \
+  pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench/sites && /home/frappe/frappe-bench/env/bin/python /workspace/scripts/<验证脚本>"
+# 新增 DocType 后先 migrate：
+docker --context colima-pearnly exec pearnly-cowork-backend-lab-bench-1 bash -lc \
+  "cd /home/frappe/frappe-bench && bench --site cowork-backend-ack.localhost migrate"
+
+# 7) 交付采集 + 比较（before 用上一批交付快照，绑 SHA256）
+python3 scripts/cowork-migration-baseline.py collect-readonly ... \
+  --output docs/work/cowork-backend/evidence/baseline-<第 N 批>-delivery.json
+python3 scripts/cowork-migration-baseline.py compare <上一批>-delivery.json <本批>-delivery.json
+/Users/skin/Developer/Pearnly/pearnly-app/venv/bin/python scripts/cowork-push-runtime-baseline.py \
+  collect-readonly --baseline <本批>-delivery.json --output push-runtime-<第 N 批>-delivery.json
+python3 scripts/cowork-push-runtime-baseline.py compare <上一批>-runtime.json <本批>-runtime.json
+
+# 8) 收尾：写批次记录 + 证据 JSON + 本文档顶部一节 → 提交 → 停 lab
+docker --context colima-pearnly compose -p pearnly-cowork-backend-lab \
+  -f infrastructure/compose/cowork-backend-lab.yml stop
+```
+
+**每批必须产出**（缺一项就不算交付）：
+`docs/work/cowork-backend/<族>-<主题>.md`（来源/落点/有意差异/验证表/未做）+ `docs/work/cowork-backend/evidence/<第 N 批>-local-validation.json` + 本文档顶部一节 + 更新 `feature-status.md` 的对应行。
+
+**lab 的两个坑**：① 容器看不到主机 `/tmp`，固定源必须用 `--source-stdin` 管道；② 多轮脚本会把隔离 Site 的 Redis 队列顶到 `QueueOverloaded`，清理方式是删 lab Redis 的 `rq:*`。
+
+### 六、用户的沟通偏好（影响交付节奏）
+
+- 中文，**先说结果**；"说人话"、不要技术门槛堆砌。
+- **不喜欢一批只做一点点**：能在一个窗口内连着做完的大块就一次做完（P1 建议一次做完），批次记录可以一次写一节。
+- 证据分层：实现 / 本地测试 / 部署 / 外部业务结果 / 用户验收**分开报**，缺哪层说缺哪层，不代签验收。
+- 不确定就说不确定；不要用"看起来接上了"糊过去。
+- 最担心**共享底座被两边同时改**：动共享文件前先看 `docs/work/2026-09-21-shared-files-split.md`。
+
+
+## 换窗口交接（2026-09-22，第四十八批交付：主数据第六块——客户名录导入的归一）
+
+主数据只剩导入与供应商/设置两块。本批交**客户名录导入**里决定"哪些列是客户名、哪些行要导、导出来长什么样"的那一段；表格解析由调用方给，所以这一层完全离线可验。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `ca8d800`（第四十七批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `masters/client_import.py`（旧 `workspace/client_import.py` + `purchase/field_clean.py` 的两个清洗函数）：三语表头同义词与子串匹配（同字段取靠前列）、`cell_at`、`clean_tax_id`（**恰好 13 位**）、`clean_branch_no`（≤5 位左补零，**空/超长留空** —— 归一成 `00000` 会把分店票配到总店头上）、`structural_error`（缺名/税号非法两个错误码）、`import_rows`（客户名列认不出就不导、汇总行跳过、超 500 行截断）。
+- **有意差异**：解析器与导入端点不迁（建档校验复用第四十五批的客户名册服务）；`clean_seller` 不属本家（它服务识别字段呈现，归 OCR）。
+
+### 验证与证据
+
+- 离线 **14** 个用例；固定源差分（解析换桩、两侧同喂）：**差异 0** —— 表头格 30、表头组 7、单元格 600、结构校验 200、税号/分店清洗各 30、导入预览 120（行 273、缺客户名列 37、截断 1 组超大文件）。
+- 主数据族一起 70 个通过；架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-eighth-delivery.json`（`8e9bec08…`）与第四十七批交付快照 PASS；运行投影 `25f77f47…` 与上一批逐项相同。**仍未做开工采集**。
+- 未执行：导入端点与存储、前端、部署、用户验收。
+
+### 下一批（先核对归属再动手）
+
+**供应商与科目/税率档**：旧侧 `supplier_posting_routes.py` 走采购域权限（`services/purchase/**`）、`tax_profile_routes.py` 是税务申报档（`tax.filing.view`），而功能清单里 `purchase`/`tax`/`accounting` 属**不在 Cowork 范围**的产品线。所以下一批第一步是**只读归属核对**：确属 Cowork（供应商过账档案本仓已有 `Cowork Supplier Posting Profile` 与 `push_inputs.save_profile`）就接着补；属 ERP/申报侧就按"不迁"登记。之后是设置与分类。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线（比我这条线多 15 个提交），远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十七批交付：主数据第五块——商品与多单位的存储层）
+
+上一批交的是商品名称与单位的**规则**，本批把**表与接口**接上。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `f946755`（第四十六批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 DocType `Cowork Product`（公司、展示名与三语名、SKU、基础单位默认 `ชิ้น`、启用、**子表 units**、批量/有效期/称重、最低库存、默认成本）与子表 `Cowork Product Unit`（单位名、换算、条码、售价、默认售卖标记）。
+- 新增 `masters/products.py`：列表、详情、建档/更新（给了 units 就整体替换子表）、删除；权限与公司作用域。判定复用上一批纯模块（名称三语、单位 `Decimal(str(v))` 精确换算）。
+- 把旧表两条硬约束落到原生：**单一默认售卖单位**（两条都声称默认直接拒绝，不猜）、**同商品下单位名忽略大小写不重复**（旧侧靠唯一索引，子表没有）。
+- **有意差异**：单位从独立表变子表（不搬 `product_active` 同步 —— 那个问题在原生结构下不存在）；更新走整体替换而非逐行 PATCH（逐行规则仍留在纯模块里备用）；展示名与三语名并存。
+
+### 验证与证据
+
+- **隔离 Site 端到端 6 条（两个 Site 各跑一遍）**：建档全字段 → 名册与详情 → 默认切换后仍单一 → 两种默认/同名单位/缺换算各自被拒且**一张档案都没落** → 精确换算往返 → 停用隐藏/含停用可见/删除后子表清零 → 权限（只读不能写；读不到别家商品）→ 9 个 RPC 匿名全 403。
+- 主数据族纯模块 56 个用例继续通过；架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-seventh-delivery.json`（`c04f6e02…`）与第四十六批交付快照 PASS；运行投影 `6394e931…` 与上一批逐项相同。**仍未做开工采集**。
+- 未执行：前端、部署、真实商品数据、用户验收。
+
+### 下一批
+
+供应商与科目/税率档 → 设置与分类 → 客户导入归一。跨域待决策仍挂着：识别记录归属的改挂/解绑要不要在 history 复核契约开口。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线（比我这条线多 13 个提交），远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于两个 Site 的端到端（两 Site 都已 migrate 到新 DocType），收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十六批交付：主数据第四块——商品名称与单位规则）
+
+客户三块交完后，主数据往下走是**商品**。旧侧商品只有两个纯逻辑文件，本批搬净：名称呈现规则与多单位的字段/数值规则；单位表与商品列属存储层，下一批。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `b90fd75`（第四十五批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `masters/product_names.py`（旧 `names.py` 逐字搬）：三语名称按序、空与重复略过、展示串 `" / "`、占位可给。
+- 新增 `masters/product_units.py`（旧 `units.py` 不碰数据库的部分）：`coerce_number`（旧 `_num`，`Decimal(str(v))`）、`unit_insert_values`（**跳过 None**）、`unit_update_values`（键存在且（非 None 或该列可空）→ 可空列传显式 None 表示**清空**；没得写返回 None）、`clears_other_defaults`（单一默认：真值默认要先清其它单位的标记）。
+- **有意差异**：旧侧同一函数既判定又执行（清默认、INSERT/UPDATE、同步 `product_active`）；本模块只返回"要写什么"，表/外键/行同步归存储层。
+
+### 验证与证据
+
+- 离线 **15** 个用例；固定源差分：名称纯函数 7 组逐字段比对；单位把游标换成记录器，**122 建档 + 117 更新场景、差异 0**（默认清理 47、数值 262、清空 21、丢未知键 64）。
+- 主数据族一起 56 个通过；架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-sixth-delivery.json`（`922740a8…`，18:22:31Z）与第四十五批交付快照 PASS；运行投影 `3a9e688b…` 与上一批逐项相同。**仍未做开工采集**（已如实记录）。
+- 未执行：存储层、DocType、RPC、真实商品数据、前端、部署、用户验收。
+
+### 下一批
+
+**商品与单位的存储层**（商品档案 + 多单位表：基础单位、换算、条码、售价、单一默认，以及批量/有效期/称重、最低库存、默认成本等商品列）→ 供应商与科目/税率档 → 设置与分类 → 客户导入归一。另有一处**跨域待决策**仍挂着：识别记录归属的改挂/解绑要不要在 history 复核契约开口。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十五批交付：主数据第三块——客户名册的存储与 RPC）
+
+前两块是"每张票算在谁头上"与"档案里存什么"，本批把**存储与接口**接上：档案 CRUD、买家记忆、以及把归属决策接到真实数据。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `ebef648`（第四十四批）。含本交接的本地提交以 `git log -1` 为准。
+- `Cowork Client` 字段补全到与旧侧档案一致（`short_name`/`party_type`/`branch`/`promptpay_id`/`address`/联系人/`notes`/`color`；`display_name` 对应旧侧 `name`），`Cowork Admin` 增删除权限；新增 DocType `Cowork Buyer Memory`（公司 + 小写买家名 + 税号 + 客户 + 次数 + 最近使用）。
+- 新增 `masters/clients.py`：名册（部署版排序 + `invoice_count`/`total_amount`/`last_invoice_at`）、详情、建档、更新、删除、买家记忆学/查、`find_or_create_client_by_tax_id`、`resolve_buyer`；判定一律复用前两批的纯模块。
+- `masters/api.py` 追加 `roster` / `client_detail` / `save_client` / `delete_client` / `resolve_buyer` 五个 RPC（原有不动）。
+- **三处结构性差异**（写清楚了）：作用域换成公司；买家记忆唯一键仍是那三段（小写名存字段里查）；**"改挂归属"与"删客户级联解绑"两条写路径没搬** —— 原生 history 域把记录的 `client` 定为不可变（只许复核服务带令牌改），绕过就是拆闸，所以删除改为**还有发票就拒绝并报数**，改挂归属登记为**跨域待决策**。
+
+### 验证与证据
+
+- **隔离 Site 端到端 7 条，两个 Site 各跑一遍**：建档清洗/截断/丢未知键/颜色默认 → 名册排序与三个聚合（2 张合计 200.5）→ 更新只动给了值的字段 → 空串清字段、无可写返回 `updated=False` → 停用隐藏 / 含停用可见 / 再启用恢复 → **有票客户删除被拒**且记录与归属未动、无票可删 → 新 RPC 匿名全 403 → 权限（只读能读不能建；非 Admin 无授权读写皆拒）→ 新税号建档、二次经记忆命中（`use_count` 1→2）→ 近似只建议（不写记忆不建档）、候选冲突只转人工。记录用受认可的 `history.api.create` 建立。
+- 前两批纯模块与文档档位一起 71 个用例通过（两份固定源差分重跑仍差异 0；为适配原生字符串标识去掉了 `int()` 强制转换，属有意差异）。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-fifth-delivery.json`（`838ced1d…`，18:07:39Z）与第四十四批交付快照 PASS；运行投影 `e626a05f…` 与上一批逐项相同。**仍未做开工采集**（已如实记录）。
+- 未执行：前端、部署、真实客户数据、导入归一、用户验收。
+
+### 下一批
+
+客户导入归一（`client_import_routes.py`）→ 商品与单位（`units.py` 244 行、`names.py`）→ 供应商与科目/税率档 → 设置与分类；另有一处**跨域待决策**：识别记录归属的改挂/解绑要不要在 history 复核契约开口（开了才能提供与旧侧一致的"删客户级联解绑"）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例、差分与两个 Site 的端到端，收尾已停止；卷、Site 保留给下包（两个 Site 已 migrate 到新 DocType）。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十四批交付：主数据第二块——客户档案的字段规则）
+
+主数据族按"先交确定性规则、再交存储与路由"推进。上一批交的是**买家 → 客户**的归属决策，本批交**客户档案本身的字段规则**（决定档案里存进去的是什么）。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `05192c1`（第四十三批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `masters/client_records.py`（旧 `services/clients/store.py` 的 `create_client`/`update_client` 里不碰数据库的那部分）：字段长度上限、`clean_text`（去空白 → 截断 → **空即未填**）、`create_values`（空名不建档、`color` 默认 `#3b82f6`）、`update_values`（只写给了值的字段、`None` 即不动、空则什么都不写、`is_active` 当布尔、白名单不含归属字段）。
+- 一条由差分逼出来的口径：**建档与更新对 `color` 的处理不同** —— 部署版建档原样收下（真值即用），只有更新才清洗+截断；我第一版写成一样，差分立刻报差异，照部署版改了回来。
+- **有意差异**：文本字段上给非字符串时，旧侧对字符串调 `.strip()` 会抛异常并被吞掉 —— **整条建档静默失败**；本侧按字符串收下。旧行为更危险，差异已登记。
+
+### 验证与证据
+
+- 离线 **15** 个用例；固定源差分（**游标换记录器**，按部署版列序还原旧侧要写的 `{列: 值}`）**200 建档 + 149 更新场景、差异 0**（截断 122、未填 862、默认颜色 74、is_active 33、无字段可写 15）。
+- 同族回归 95 个通过；架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-fourth-delivery.json`（`ca98ef87…`，18:02:04Z）与第四十三批交付快照 PASS；运行投影 `1040c20f…` 与上一批逐项相同。**本批仍未做开工采集**（已如实记录）。
+- 未执行：存储层、DocType 变更、RPC、真实客户数据、前端、部署、用户验收。
+
+### 下一批（主数据第三块：客户名册的存储与 RPC）
+
+把 `Cowork Client` 字段补全到与旧侧档案一致 → `masters/clients.py` 服务层（列表按 `is_active DESC, name ASC` 带三个聚合 / 详情 / 建档 / 更新 / 停用删除**默认级联解绑** / 归属发票先校验作用域 / 买家记忆存放 / `create_by_tax_id`）→ RPC → 隔离 Site 端到端。再之后：商品与单位、供应商与科目/税率档、设置与分类。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十三批交付：主数据第一块——买家→客户的匹配与归属决策）
+
+功能清单里唯一"明显未完成"的是**主数据**。用户已定方向（客户按 ERP 为准；商品/供应商/科目各产品自己维护），族很大（旧侧约 2,700 行），所以分批：本批交**最不能出错的那一段** —— 把发票买方（名字/税号）解析到一个 Cowork 客户。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `312c29b`（第四十二批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `masters/buyer_resolve.py`（旧 `services/clients/buyer_resolve.py` 的纯决策部分）：候选冲突判定、税号归一与合法性、**六层匹配**（记忆 1.0 → 税号精确 0.98 → 名字精确 0.95 → 简称精确 0.90 → 名字子串 `0.80+0.10×短/长` → 简称子串 `0.78+0.08×短/长`）、**归属决策阶梯**（五条 action 与各自 reason 逐字保留）。
+- 保留的拍板口径：**税号 = 泰国法定唯一身份**（合法 13 位且无匹配 → 按税号建/取；只靠名字模糊匹配**不建**，防同名异主体错并）；**多页买方候选冲突**（互不包含两名，缩写/全称不算）→ 绝不自动建、转人工；阈值 ≥0.95 自动绑+学习、0.80–0.95 只建议（不绑不学习）、<0.80 待归属。
+- **数据访问注入**（`memory` / `clients` / `create_by_tax_id` / `learn`），所以这一层完全离线可验；存储与 RPC 归下一批的客户名册。写回识别记录（`update_history_client_id`）不迁 —— 那是 history 域的事。
+
+### 验证与证据
+
+- 离线：**26** 个用例（六层匹配各自命中、精确优先于近似、子串按比例、五条决策路径、短税号不建号、简称精确落在建议带而非自动绑带等）。
+- 固定源差分（**数据库换替身**：假游标只回答旧代码真正发的那三条查询，两个写路径用记录型桩）：**260 批、差异 0**；比决策六字段 + 学习调用（次数与参数）+ 建号调用参数，冲突规则另 24 组逐一比。
+- 同族回归：文档档位/银行入口/读取器/模型路径/换眼重读一起 **174** 个通过（本批与它们无耦合，跑一遍确认没碰坏）。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-third-delivery.json`（`2e21cbb0…`，17:58:21Z）与第四十二批交付快照 PASS；运行投影 `b4980c93…` 与上一批逐项相同。**本批仍未做开工采集**（已如实记录）。
+- 未执行：存储层、客户名册 RPC、真实发票数据、前端、部署、用户验收。
+
+### 下一批（主数据族按依赖排）
+
+1. **客户名册（存储 + RPC）**：`Cowork Client` 已有，要补列表/详情/编辑/停用、导入归一，以及买家记忆的存放处 —— 本批的 `memory`/`clients`/`create_by_tax_id` 由它喂；2. 商品与单位（`units.py` 244 行、`names.py`）；3. 供应商与科目/税率档；4. 设置与分类。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十二批交付：OCR 文档档位接上模型缝，四层计划闭合）
+
+上一批把文件入口接进原生银行任务，但模型缝是空的。本批把缝填上：**文档提示词 → 文档模型 → 列来源校验 → 换眼重读 → legacy 形状 → 行**，也就是四层计划第 ④ 层剩下的那一段。**没有付过任何模型调用**（模型调用是注入的，全部用假模型验证）。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `b1bffd9`（第四十一批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `ocr/engine/document_prompts.py`：**文档档位**两份提示词（银行 2,939 字符、总账 3,895 字符），逐字照搬。**注意这一族与第四十批 `reconciliation/bank_prompts.py` 那一族不是同一份**（前者要求 `*_ref` 溯源自证、服务文档 schema 与第 ② 层校验器；后者要求印刷页脚汇总与余额自检、服务行级转换），部署版两条路都在用，测试里显式断言两族不相同。
+- 新增 `ocr/engine/document_tier.py`：`text_pages`（PDF 文字层）、`decode_document`、`model_document`（请求+重试+围栏 JSON）、`validate_document`（部署版顺序：总账先校验再修复、银行单只校验、非发票有告警即转人工）、`reread_bank_page`（**第 ④ 层最早登记未迁的那一件**）、`escalated_reader`、`document_to_legacy`、`read_document`。
+- 控制器新增 `document_model_rows` + `configured_model_call`：用站点自己的 OCR 冻结配置（与发票引擎同一套 `settings.snapshot()` + `build_client`）建客户端，把文档档位接成入口要的 `model_rows`；站点没配时为**显式配置错误**，不静默落空任务。
+- **有意差异**：升档重读部署版读的是页面**图片**，原生读同一页**文本**（还没有图片渲染直读器件）；`vat_report`/`generic_table` 不接（原生没有对应文档模型）；模型回答坏了原生的答案是"没有模型读数"（没有第二条模型路可回落），入口照实报读取器的错误。
+
+### 验证与证据
+
+- **端到端（隔离 Site，零付费）**：真扫描 PDF 经 files 域上传 → 控制器带假模型调用 → 文档档位真跑（两次 `stage="document"`、schema 解码、两个校验层、legacy → 行 → 入库）→ 存下来的任务逐行核对；另一条验证**站点没配 OCR 时被拒**（一个模型都没问、一张任务都没落）。整份 **20** 个用例通过。
+- 离线（隔离 bench）：文档档位新 **30** 个用例；文档族 + 银行族一起 **439** 个通过。
+- 固定源差分（器件换替身）：**120 批、差异 0**（干净 62、翻正 10、链推定覆写 5、升档 55、回落 58、审计警告 16）；两族提示词按字节比对。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-second-delivery.json`（`7ea12219…`，17:53:39Z）与第四十一批交付快照 `compare` PASS；运行投影 `c88b6c73…` 与上一批逐项相同。**本批仍未做开工采集**（同前两批，已如实记录）。
+- 未执行：真实付费模型调用、真实银行单、队列、前端、部署、外部结果与用户验收。
+
+### 四层计划闭合后剩下的可选项（都不挡迁移）
+
+1. **首次真实模型调用**（一次付费预算；接法已就位）；2. 图片/Word 直读与 pdfplumber 表格、坐标解析（器件层）；3. 多文件合并 `merge_statements`/`merge_gl_files`；4. `needs_mapping` 模板学习层（要映射存储表+确认界面）；5. 银行任务的文档态流程件（确认列对应、重跑、复核动作）；6. 清点表其余两族（M2 销项税 Excel、工单对账）与**主数据**（客户按 ERP 为准，商品/供应商/科目各产品自维护）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线，远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例、差分与 Site 端到端，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十一批交付：文件入口接进原生银行任务）
+
+用户要的"把 ①②③ 层接进原生银行任务"在本批落地：**上传的原件 → 行 → 存储的银行对账任务**，并在隔离 Site 上真的跑通一次。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `41869ff`（第四十批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_intake.py`：`read_statement_file` / `read_ledger_file` —— 扩展名分发（工作簿/CSV 先直读，PDF 走文字层 + 文本行解析）→ 行数不足或余额链坏行 >30% 才轮到注入的模型路 → 定案序列 → 换眼重读 → 期初期末兜底 → 完整性交叉校验。部署版的 `_need_gemini` 判定、采纳比自洽度、直读路自带完整性这些口径都保留。
+- 新增 `reconciliation/bank_arbitration.py`：两法分歧守门（两法都出行而期初/期末显著分歧 → 标人工、completeness 置 not-ok，不静默选一个）。
+- `reconciliation/bank_recon_service.py` 追加 `create_from_documents`：字节 → 行 → 与 `create` 同一条校验存储路径，逐文件诊断按旧键写进 parse_info。
+- `doctype/cowork_bank_reconciliation/cowork_bank_reconciliation.py` 追加 `create_from_sources`：用 **files 域**读原件（查权限、查校验和）再交给上面的服务入口。**落在这里的原因**：域依赖表里 `reconciliation` 不许依赖 `files`，两个域都不许依赖对方，能同时用两者的是模块编排层。
+- **有意差异**：部署版 PDF 先试模型管线（提示词+文档模型+校验器）再退本地链；原生先试免费文字层（因为文档档位还没接），顺序是显式一处可改。图片/Word/表格几何、模型客户端、缓存、渲染、并发、`needs_mapping`、企业版都未接，如实返回 `unsupported_format` / `model_unavailable`。
+
+### 验证与证据
+
+- **隔离 Site 端到端**：两个真工作簿经 files 域上传 → `create_from_sources` → 存储任务逐行核对（matched + 两侧各一条未配、文件名给银行码 bbl、期初 1000 期末 510、两侧 source 都是 workbook）；读不了的对账单被拒**且一张任务都没落库**；真 PDF 扫描件在假模型下走模型缝（两侧都有答案才落库）。整份 **18** 个用例通过；匿名 HTTP 复核 8 个端点全 403（含新 RPC）。
+- 离线（隔离 bench）：intake 新 **24** 个用例；银行族一起 **287** 个通过。
+- 固定源差分：`bank_arbitration_guard.py` 256 组金额对 + 720 批随机，**差异 0**（BBL2645 那一例固化）。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY（新增一条 `reconciliation.ledger_unparsed`）；`git diff --check` 干净。
+- 线上复核：交付 `baseline-forty-first-delivery.json`（`789a3f66…`，17:41:34Z）与第四十批交付快照 `compare` PASS；运行投影 `aea23c1a…` 与上一批逐项相同。**本批也没做开工采集**（before 用上一批交付快照，同上一批做法，已如实记录）。
+- 未执行：模型调用、真实银行单、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ④ 层只剩一件）
+
+OCR 引擎的**文档档位**：给银行单/总账各自的提示词档位与准入（`run_invoice` 现在只准入发票类），并把"模型 JSON → 文档模型 → **列来源校验**（第 ② 层）→ entries → 行"接成 `bank_intake` 的 `model_rows` 实现 —— 这条路才是部署版 PDF 的默认路，也才用得上第三十七批的校验器。之后可选：多文件合并（`merge_statements`/`merge_gl_files` 未迁）、`needs_mapping` 的模板学习层、主数据（客户按 ERP 为准，商品/供应商/科目各产品自维护）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `aaf5184`（比我这条线多 11 个提交，我这条线多 52 个未合回），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例、差分与 Site 端到端，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第四十批交付：银行单/GL 第四层前半——模型路径的判定逻辑）
+
+四层计划的第 ④ 层"读取器都读不出来时的那条路"，本批交付**提示词与判定逻辑**：模型返回的 JSON 能不能用、怎么归一成行、以及余额链断掉时要不要换一只眼重读。不接前端、不部署、不改 DMS、不写旧库、**不调模型**。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `2e8a6ac`（第三十九批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_prompts.py`：对账单提示词 + `STATEMENT_PROMPT_VERSION`（`v63-totals`，旧侧用它让改提示词后的旧缓存失效）、总账提示词 + `GL_PAGES_PER_CHUNK`、`gl_prompt()`。两份提示词**逐字照搬**，差分按字节比对。
+- 新增 `reconciliation/bank_model_path.py`：`statement_has_content`（**整张读空不能当成功** —— 否则对账里出现假的 0.00 期末）、`statement_from_model`（期初行不是交易行、缺日期沿用上一行、纯噪声行才丢、置信度降级规则）、`gl_row_from_model`、`gl_from_model_chunks`（**坏块不拖垮其它块**、期初只认第一块、无日期丢、科目前缀过滤）。
+- 新增 `reconciliation/bank_reread.py`：换眼重读仲裁 —— 断链检测复用余额链判定、无断链零成本、**严格更少断链才采纳**、任何一页失败**整轮弃保原读**、每件一轮、巨份（>50 页）跳过。
+- **落点在 `reconciliation/` 而不是 `ocr/`**：部署版就把这条模型路径放在对账包里，行类型也是对账的，而本仓域依赖表里 `ocr` 与 `reconciliation` 互不依赖 —— 所以模型调用在本批是**注入**的，提示词与判定留在对账域,与部署版归属一致。
+- **有意不搬**：模型客户端与"主模型失败升级一次"的策略（`json_from_pdf`/`try_with_fallback`/`flash_lite`）、内存+磁盘缓存、fitz 切页与渲染、线程池与成本归因、环境开关、日志与"异常吞成 ok=False"—— 全归下一批的引擎接线；页数与"读一页"由调用方注入。
+
+### 验证与证据
+
+- 离线（隔离 bench）：新 **35** 个用例（模型路径 24 + 换眼重读 11）；银行族一起 **263** 个通过。
+- 固定源差分（执行固定源码里的函数，**器件一律换替身**：模型客户端/升级策略/缓存/切页/渲染/读页/并发包装）：**差异 0**。对账单 204 批（可用 187、读空 17、行 435、low 163）、总账 143 批（成功 47、失败 96、坏块 73、过滤 28、行 73）、换眼 80 场景（采纳 7、丢弃 10、页读抛错 11、未触发 63）。对账单逐行九字段（含 `confidence` 与指纹）、期初/期末/银行码/页脚汇总与**读空失败文案**一起比；总账逐行九字段加账户表/期初/期末/行数/错误文案；换眼比采纳结果的行指纹与整条留痕。**提示词按字节比对**（对账单提示词从旧函数体 AST 取出）。
+- 架构 0 违规（三个新模块都在 `reconciliation` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：交付 `baseline-fortieth-delivery.json`（`546d3f8a…`，17:27:36Z）与第三十九批交付快照 `compare` **PASS**，来源仍 `ec2e5c95…`；运行投影与上一批逐项相同。**本批开工未单独采集**（before 用上一批交付快照；它证明的是"上一批交付到现在来源没变"，已如实写进批次记录）。
+- 未执行：模型调用、PDF 渲染、真实文件、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ④ 层剩下的：引擎接线）
+
+引擎的**文档档位**（`run_invoice` 现在只准入 `invoice`/`auto`，要加银行单与总账）、银行/GL 的执行接线（先走 ①②③ 的确定性读取器，读不出再走本批的模型路径），以及**接进原生银行任务**。这一包要真实文件、队列与一次真实的模型调用预算。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍是另一窗口的 ERP 线（`a77371c`，比我这条线多 8 个提交），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第三十九批交付：银行单/GL 第三层收口——GL 直读、文本行、PDF 文字层）
+
+四层计划的第 ③ 层「确定性读取器」本批闭合：**总账 xlsx/csv 直读 + 银行单文本行（含 KBank 列压行）+ PDF 文字层**。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `8e92423`（第三十八批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/gl_sheets.py`（旧 `bank_gl_excel.py` 的确定性那一段 + 共用 `bank_gl_common.py`）：列名词典、`map_gl_columns`、`extract_account_code`、`attach_running_balance`、`find_gl_header`、`parse_gl_workbook`。保留：表头**必须**带日期列与钱列（单列净额 GL 不算表头，否则 0 行还一路跑到"完成"）、期初扫该行前四格且优先读余额列（没有才"贷−借"）、空日期沿用上一行、借贷全 0 不算交易、期末优先取表内余额（老公式对资产科目方向相反）、`closing_printed` 如实说明。
+- 新增 `reconciliation/bank_text.py`（旧 `bank_stmt_text.py`）：`parse_statement_text_lines`（方向靠余额差 → 描述动词 → 按存款；泰文句点千分位；取最右边"至少两个数"的连续数字组）与 `parse_kbank_text_columns`（列被压成行时按日期行抽交易头、金额/余额交替配对、首个无时间的交易头是期初行、渠道并入摘要）。
+- `reconciliation/table_io.py` 追加 `extract_pdf_text_pages`（旧 `_pdf_extract_text_safe`：pdfminer → pypdf）。
+- `reconciliation/bank_parse.py` 追加 `GL_SKIP_KEYWORDS` / `is_gl_skip_row`（旧 `_GL_SKIP_KW` / `_is_gl_skip_row`，只看前四格）。
+- **有意不迁**：`bank_gl_excel` 的 ADR-006 模板学习层（同上一批：要映射存储表与确认界面；后果是认不出表头时返回 `gl_headers_not_found`）；固定词典里没有单列净额键，所以"按符号拆借/贷"那段现今不可达（照旧保留并写明）；文本行解析的 `bank_code` 形参保留（旧代码收下从未读过）；pdfplumber 表格/坐标解析、`bank_gl_pdf*`、`bank_stmt_gemini`/`bank_gl_gemini`、`bank_stmt_reread`（整页升档）与 `bank_recon_v2` 的编排都不进这一层。
+
+### 验证与证据
+
+- 离线（隔离 bench）：本批新 **36** 个用例（总账 23 + 文本/PDF 13）；银行族与读取器一起 **228** 个通过。
+- 固定源差分（只执行被搬的纯定义；行类/数字日期解析/CSV 装载器从本侧注入，此前批次已迁并差分过）：**差异 0**。总账 225 批（出结果 187、行合计 166、非零期初 115、期末读自表内 61、无表头 37、读不了 1、CSV 固定样例 2、带科目过滤 19）；文本 187 批（一行一笔 182 批/284 行：存 216、取 68、有期初 136、有期末 159；KBank 列压行 5 批/4 行）；PDF 4 批（2 批读出文字、2 批返回空）。总账逐行九个字段（含去重指纹）与失败文案一起比；文本逐行五字段与期初/期末比；列名词典、科目号正则、期初关键词表、`_GL_SKIP_KW`、`AMOUNT_TOL` 另有等值比对。上一批的流水读取器差分因本批动了 `table_io` 而重跑：仍 **227 批差异 0**。
+- 架构 0 违规（两个新模块都在既有 `reconciliation` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：开工 `baseline-thirty-ninth-start.json`（`b9a7c2cc…`）与第三十八批交付 `compare` PASS；交付 `baseline-thirty-ninth-delivery.json`（`bfcf1183…`，17:18:00Z）再次 PASS。运行投影与上一批**逐项相同**。
+- 未执行：真实文件、模型调用、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ④ 层：模型路径与执行接线）
+
+银行/GL 提示词、引擎的文档档位、执行接线、整页升档重读 `reread_bank_page`，以及把 ①②③ 三层接进原生银行任务 —— 到那时这些读取器才真的被调用。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `a77371c`（比我这条线多 8 个提交，我这条线多 50 个未合回），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第三十八批交付：银行单/GL 第三层前半——确定性读取器）
+
+四层计划的第 ③ 层「确定性读取器」交前半：**低级表格 IO + 银行流水 xlsx/csv 直读**。这一层是"不花钱的那条路"——文件本身就是电子表格时直接读列名与数字，不必送模型。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `242339d`（第三十七批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/table_io.py`（旧 `bank_table_io.py`）：`header_hit`（短 ASCII 词 `in`/`out`/`cr`/`dr` 整词匹配 —— KTB 真实事故：分行号列 `Init Br.` 被当成存款列）、`load_workbook_sheets`（openpyxl → xlrd）、`load_csv_sheets`（五种编码 + 分隔符嗅探）。
+- 新增 `reconciliation/bank_sheets.py`（旧 `bank_stmt_xlsx.py` 的确定性那一段）：表头词典、找表头（前 16 行）、账户号、期初（含被清空时按首笔反推）、逐行转 `StatementRow`、**每账户各用自己的期初**跑 `finalize_rows`、期末取最后一个带余额行、"真 0"与"空格"分开、汇总行在记期末前跳、逐账户 `closing_mismatch` + `balance_break`。
+- `reconciliation/bank_parse.py` 追加 `bank_code_from_filename`（旧 `_bank_from_filename`：文件名优先于内容，只认 ASCII 关键词、词边界，泰文品牌名不参与）。
+- **有意不迁**：旧文件里的 **ADR-006 模板学习层**（已存映射 / 本地推断 / `allow_ai` 调模型问列对应 / 否则 `needs_mapping` 交前端确认列对应）——它要一张映射存储表和确认界面，属另一件事；后果写明：表头认不出时返回旧代码在"没有学习层"时的结果 `stmt_headers_not_found`，不假装能交 `needs_mapping`。同文件的 PDF 文字层 `_pdf_extract_text_safe` 随 PDF 路径下一批走。
+- 结果字典形状与旧侧一致（`ok/rows/row_count/opening/closing/bank_code/parser_version/sheets_parsed/accounts/account_codes/multi_account/completeness/needs_review`），`parser_version` 仍是 `bank_recon_v2+xlsx_direct_v3`。
+
+### 验证与证据
+
+- 离线（隔离 bench）：新 **36** 个用例（短词整词/长词子串、四语表头、单一带符号 amount 列、表头在第 2 行与 16 行上限、账户号与 sheet 名回落、期初真 0 与无期初、缺日期沿用、期初行不进 rows、汇总行不污染期末、真 0 期末不被上一行覆盖、缺余额列不崩、多账户各自期初、期初反推、断链与期末对不上、无表头/读不了、CSV 编码与分隔符、文件名给银行）；银行族一起 **145** 个通过。
+- 固定源差分（只执行被搬的纯定义；行类/数字日期解析/三个余额链步骤从本侧注入，早已迁并差分过）：**227** 批，差异 **0**；装入 144、多账户 27、账户 171、`closing_mismatch` 130、`balance_break` 110、读不了 1、无表头 82、**汇总行泄漏 0**、CSV 1。比对整个结果（状态、逐账户行、期初/期末、聚合、完整性条目），表头词典与 `_hit` 另有等值比对。
+- 架构 0 违规（两个新模块都在既有 `reconciliation` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：`baseline-thirty-eighth-delivery.json`（`3e1696c9…`，采集 17:10:00Z）与第三十七批快照 `compare` **PASS**；运行投影与上一批**逐项相同**。
+- 未执行：真实文件、模型调用、队列、前端、部署、外部结果与用户验收。
+
+### 下一包（第 ③ 层剩下的三块）
+
+`bank_gl_excel.py`（365 行，GL 直读）→ `bank_stmt_text.py`（334 行，银行单文本行）→ `bank_table_io._pdf_extract_text_safe`（PDF 文字层）。之后第 ④ 层：银行/GL 提示词、引擎文档档位、执行接线、整页升档重读 `reread_bank_page`，以及把 ①②③ 层接进原生银行任务。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `51f3095`（比我这条线多 7 个提交，我这条线多 49 个未合回），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单以他们那版为准、推送台账归 DMS + `line.py` 发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site 保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 换窗口交接（2026-09-22，第三十七批交付：银行单/GL 第二层——列来源校验）
+
+四层计划的第 ② 层交付：拦掉"印在说明/凭证号/科目列里的数字被当成金额"的误读（旧侧自己写的理由就是 GL 里 6091 那起事故）。不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `625c3d0`（第三十六批）。含本交接的本地提交以 `git log -1` 为准。
+- `ocr/validation/sources.py` 补齐总账与银行对账单那一半：多语言列名表（借贷/余额、存取/余额）、`_is_allowed_gl_amount_source` / `_is_allowed_bank_amount_source`、`_value_appears_in_description`（独立数字匹配 + 去尾零重试）、`validate_gl_document`（R1–R5b）+ `_clear_amount_field`、`validate_bank_document` + `_clear_bank_amount_field`。发票那一半此前已在同文件里。
+- **拒绝即清值**是这一层的要点：来源列是说明/凭证号/科目代码时，除了报出来，还把那个值（以及方向、推导金额）清掉，下游不可能再用错数——这是旧行为，照搬。
+- 有意差异两处：旧侧定义了但**从未被任何代码使用**的 `_AMOUNT_TOKEN_RE` 不迁（没有规则要保留）；`page` 形参保留但文档写明"今天的规则只读行内溯源"（静态检查确认部署版三个校验器都用不到它，保留形状是为了第 ④ 层接线不改签名）。
+- 未接线：第 ③/④ 层还没落，本批只交纯规则，不造没人调的壳。
+
+### 验证与证据
+
+- 离线（隔离 bench）：新 **31** 个用例（含 6091 复现、拒绝清值、三种关键字表的多语言列名、独立数字不误伤长数字、去尾零、干净文档零告警、银行侧与 GL 的两处不同）；文档侧同族 **122** 个用例一起通过。
+- 固定源差分（只执行被搬的纯定义）：**GL 413 批 + 银行 407 批，差异 0**；除返回值还逐字段比对**行状态**（清值、ref 置空）；列名表/关键字表/三个助手另有逐一等值比对。
+- 架构 0 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 线上复核：`baseline-thirty-seventh-delivery.json`（`0c854389…`，17:02:57Z）与第三十六批快照 `compare` **PASS**；运行投影与上一批逐项相同。纯规则批次也照样复核。
+
+### 下一包（第 ③ 层）
+
+确定性读取器：Excel/CSV/文本直读与 PDF 文字层重建 → 已解码页（旧侧 `bank_stmt_xlsx.py` 498 行、`bank_stmt_text.py` 334、`bank_gl_excel.py` 365、共用 `bank_table_io.py` 151，PDF 文字层另一支）。之后第 ④ 层模型路径（银行/GL 提示词、引擎文档档位、执行接线、整页升档重读）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为另一窗口的 ERP 线（现在比我这条线多 7 个提交），远端 `refs/heads/main` 仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未端到端验证。
+- **合并债仍是四处**（共用菜单表、共用词库 + 四份翻译包、ERP 菜单要以他们那版为准、推送台账归 DMS + `line.py` 改发钩子），清单在[工作包](2026-09-21-shared-files-split.md)末尾。
+- lab 容器本批启动用于 bench 用例与差分，收尾已停止；卷、Site（含新增的 `cowork-backend-ledger.localhost` DMS 站点）保留给下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码迁移结束前不删。
+
+## 结构整理（2026-09-21）：按产品各自维护菜单、功能目录、术语表
+
+用户要求"除了 OCR、登录页、订阅、UI，其它各产品维护自己的源码"，并让另一窗口先停手，所以在本工作树里做了一次共用层整理。**这不是 Cowork 迁移批次，改的是共用层**，但对后续几批都有效。完整记录：[按产品各自维护](2026-09-21-shared-files-split.md)；决策：[ADR-009](../adr/0009-product-owned-declarations.md)。
+
+- **功能目录**：控制面那张三个产品合一的表 → 各产品自己的 `features.json`；控制面按 bench 路径读文件汇总，缺文件报错。控制面目录拆表前后**逐字段相同**（含三份 `roles_payload` 的岗位与只读覆盖）。
+- **菜单**：共用层的 `PAGES`/`AVAILABLE_PAGES` → 各产品 `hooks.py` 的 `pearnly_navigation`；共用层用 `frappe.get_hooks` 只取**已装产品**的声明（未装产品的页面因此不可能出现）。三个产品的项数/归属/可用页面契约不变（4/11/14），真实 Site 上 migrate 会按声明重建侧边栏。
+- **术语表**：`scripts/i18n/messages.tsv`（1568 行总表）→ `apps/<app>/<app>/i18n/messages.tsv` 各一份；旧总表删除，生成脚本发现它还在会直接报错。1561 条去重文案内容相同，20 个翻译包**逐字节未变**（唯一有意改动：`Pearnly Feature` 字段说明改成指向 `features.json`，4 份旧翻译行已清）。
+- **闸门**：`scripts/check-architecture.py` 新增三条规则（产品必须有 `features.json`、必须在 `hooks.py` 声明菜单、必须有自己那份术语表；共用层不许再出现产品路由；旧总表不许复活），并配 7 个守卫用例。
+
+验证：控制面目录等价、菜单契约、术语表等价、翻译包不变、两个隔离 Site migrate + `boot_session`、收入对账 Site 用例 19 个、架构 0 违规、`i18n-build --check` PASS、`git diff --check` 干净。未在控制面站点跑 `sync_features()`（控制面站点不在本任务可用环境里；该函数本身未改，等价性用行前/行后同一份 JSON 证明）。
+
+**合并时必看**：main 上 ERP 的菜单比本分支新（15 项、含商品页），合并后要落到 ERP 自己的 `pearnly_navigation` 里，否则 ERP 商品页会从侧栏消失 —— 具体对应表写在[工作包](2026-09-21-shared-files-split.md)末尾。
+
+### 追加（同一批，用户确认）：推送台账搬给 DMS
+
+共用层里唯一还住着的产品内容——`Pearnly Push Log`（只有 DMS 写和读）——已搬进 DMS：表与控制器进 DMS 模块目录、服务层进 `records` 域；共用层的"本机镜像"改成发 `pearnly_line_mirror` 钩子、DMS 记账，共用层不再引用任何产品表。表名未改（`tabPearnly Push Log`），所以既有数据不搬迁——用"隔离 DMS 站点迁移前写入 → 迁移后回读"验证过。细节与验证表见[工作包](2026-09-21-shared-files-split.md)。
+
+## 换窗口交接（2026-09-21，第三十六批交付：银行单/GL 文档级 OCR 第一层）
+
+**用户决定：银行单 / GL 的文档级 OCR 原生承接（"OCR 是产品的核心产物"）。** 整条链按依赖分四层，本批交付第一层——文档模型 + 余额链确定性修复；不接前端、不部署、不改 DMS、不写旧库、不调模型。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `3325881`（第三十五批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `ocr/schema/documents.py`：`services/ocr/schemas_documents.py` 的 `GLEntry`/`GeneralLedgerDocument`/`BankStatementEntry`/`BankStatementDocument` 四个模型，含全部 `mode="before"` 兜底（None→""、数字/bool→字符串、`direction` 白名单）、`FieldRef` 溯源，以及 `chain_repaired`/`chain_amount_imputed`/`review_required` 三个钱路审计标记。`VatReportDocument`/`GenericTableDocument` 不声明（各自的读取路径迁时再落）。
+- 新增 `ocr/validation/chains.py`：`bank_chain_gate.repair_bank_chain` + `gl_balance_chain.repair_gl_document` 与各自助手合到一处（旧侧自己写着"两链同口径"）。判定顺序原样保留（**先保真再纠偏**：承转行放行 → 正常向 → 翻转向唯一解 → 链推定覆写（20% 安全带，锚=模型读数）→ 报首处断点），容差 `0.01`/`0.05` 不变，自动改数一律落标记。
+- 有意差异：`_audit_warnings` → 公开 `bank_chain_warnings`（调用方要产页级警告）；两个 `_TOL` → `BANK_TOL`/`GL_TOL`；GL 的 `_set_side` → `_set_gl_side`；部署版的 `logger.info` 诊断、`OCR_BANK_CHAIN_GATE` 环境开关、`reread_bank_page`（整页升档重读）都不进纯模块，后者留到第 ④ 层。
+- 顺手：上一批 `ocr/validation/magnitude.py` 与其单测缩进由 tab 改成 4 空格（纯空白），与本包一致。
+
+### 验证与证据
+
+- 离线（隔离 bench）：余额链 **29** 用例、文档模型 **11** 用例；上一批 magnitude **8** + error_format **15** 继续通过。
+- 固定源差分：银行链 **272** 批（断点 98、翻正 24、链推定覆写 32 且全部置复核标记、警告 130），GL 链 **266** 批（方向纠正 94、警告 133、期初反推 107、期末回填 146），**差异 0**；两侧逐字段比对，不只看返回值。magnitude 差分重跑 521 批差异 0。
+- 架构 0 违规（两个新模块都在既有 `ocr` 域内，无新增跨域方向）；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY；`git diff --check` 干净。
+- 未执行：真实文件、模型调用、队列、前端、部署、外部结果与用户验收。
+
+### 线上来源
+
+开工 `baseline-thirty-sixth-start.json`（`2a8fd220…`）与第三十五批交付 `compare` **PASS**；交付 `baseline-thirty-sixth-delivery.json`（`a235691d…`，采集 15:35:46Z）再次 PASS。运行投影 `push-runtime-thirty-sixth-delivery.json`（`810eb6c0…`）与上一批**逐项相同**（端点摘要仍 `c5882f4b…`）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包（第 ② 层）
+
+列来源校验：`validators.py` 的 `validate_gl_document` / `validate_bank_document` 与列名关键字表（`_DESCRIPTION_COLUMN_KEYWORDS`、`_is_allowed_*_amount_source`、`_value_appears_in_description`、`_clear_*_amount_field`）——拦"6091 这类说明里的数字被当金额"的确定性防线，纯逻辑、可离线差分。之后第 ③ 层确定性读取器、第 ④ 层模型路径。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为 `2b4cf18`（另一窗口的 ERP 产品页），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；本分支领先 `main` 45 个提交，组合版本未做端到端验证。
+- **合并债仍在**（第三十五批发现，本批未解）：把 `main` 合入本分支会在 `apps/pearnly_core/pearnly_core/desk/navigation.py` 与 `scripts/i18n/messages.tsv` 冲突，且 `main` 那次侧边栏重写仍保留 Cowork 的 `boards` 团队协作菜单项，本分支已按要求删除——将来合并必须以"保留删除"为准。
+- lab 容器本批启动用于 bench 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第三十五批交付：OCR 族两处真缺口 + 架构归位）
+
+**本批把 OCR 族清点认定的两处真缺口补上，并按要求把 Cowork 的架构方向登记进自动检查。** 不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `412d9fd`（第三十四批）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `ocr/validation/magnitude.py`：`services/ocr/magnitude_baseline.py` 机械搬移——供应商历史量级基线（只揪不改值、`RATIO=20.0`、`MIN_HISTORY=5`、中位数、中文原因串、`True` 当正数的怪癖）。**部署版从未接线**（喂 history 的查询未提交），原生同样只留决策核心，历史来源由调用方给出。
+- 新增 `contracts/errors.py`：`services/ocr/error_format.py` 的 `short_error`/`_fmt_validation`——去 pydantic 文档 URL、只留首行、>160 截断、空文案回落类名、字段去重列前三 + 溢出。落点放在共享纯契约域，因为部署版的使用者是银行/GL/VAT 的解析入口，原生不让对账依赖抽取域。
+- 接回落点：`reconciliation/income_parse.py` 的两个 `error` 字段（`excel_rows`/`text_rows`）从 `str(error)` 改回部署版单行文案；诊断 `diag.exception` 保留原文（原生新增，给排障用）。
+- 架构归位（用户本批要求）：`architecture-policy.json` 新增 `cowork_domain_dependencies`（13 个域，按当前代码实测生成），`scripts/check-architecture.py` 增加 Cowork 分支——未登记的新跨域方向直接失败；`docs/development/architecture.md` 新增"Cowork 的实际职责"（域职责表 + 3 组既有环债务 + 框架模块目录不进表的原因）。新增登记方向只有一条：`reconciliation → contracts`。
+- 一并交付只读清点 [OCR 族缺口清点](cowork-backend/ocr-family-audit.md)：98 文件/16,929 行的旧包哪些已迁、哪些有意不迁、真缺口在哪；`bank_chain_gate.py`/`gl_balance_chain.py` 逐条对应后判定**不属本切片**（它们读写旧侧银行单/GL 文档模型，而原生只承接 `invoice`/`auto`），缺口清单已登记等你给方向。
+
+### 验证与证据
+
+- 离线：`magnitude` 8 用例、`errors` 15 用例（含真实 pydantic `ValidationError`）通过；`income_parse`/`vat_parse`/契约 **95** 个继续通过（主机无 pydantic，2 个真实 pydantic 用例按设计跳过，bench 里全过）。
+- 固定源差分：`magnitude` **521** 批（差异 0）；`error_format` 普通 24 + 真实 pydantic 7 + 包装 14 + `_fmt_validation` 替身 14 + 两个常量，差异 **0**；`income_parse` **305** 批继续差异 0（其 `_short_err` 替身已改指真实迁移函数）。
+- 隔离 Site：两个 Site 收入对账存储 **19** 用例/Site 通过，匿名 RPC 全部 403。
+- 架构 0 违规；新增守卫用例证明未登记的 Cowork 跨域依赖会失败、登记后通过；`i18n-build --check` PASS，`check-i18n` REPORT-ONLY（新文案与既有 `sanity.py`/`vat_parse.py` 同类，未动 `messages.tsv`）；`git diff --check` 干净。
+- 未执行：真实文件与模型、异步队列、前端、部署、外部结果与用户验收。
+
+### 线上来源
+
+交付 `baseline-thirty-fifth-delivery.json`（`40ae6777…`，采集 15:22:42Z）与第三十四批快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-fifth-delivery.json`（`201bb3bf…`）与上一批**逐项相同**（端点摘要仍 `c5882f4b…`）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+两处缺口已补，OCR 族只剩一个待你决策的点：**是否原生承接银行单 / GL 的文档级 OCR**（要，则文档模型 + `bank_chain_gate`/`gl_balance_chain` 整批迁；不要，则表四缺口按"不存在"记录）。其余按族推进：M2 销项税 Excel 族、工单对账族各自清点；主数据仍等你定"自有一份 / 读 ERP 成品"。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 已由另一窗口推进到 `2b4cf18`（第三十四批交接写的 `21581e4` 已过期），远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支任务远端分支不存在；组合版本未做端到端验证。
+- **本批试过把 `main` 合入本分支，出现真实冲突后已中止合并**（工作树保持干净，没有任何一侧的文件被改动）。冲突文件两个：`apps/pearnly_core/pearnly_core/desk/navigation.py`（另一窗口的侧边栏重写 vs 本分支删除团队协作菜单）与 `scripts/i18n/messages.tsv`（两侧都在追加，main 本批 +498 行）；另有 4 个生成的四语 CSV 同属两侧改动。这些都在共享底座、不在本批范围，本批不动它们。
+- **合并时务必注意**：`main` 上的 `97e0409` 重写侧边栏后**仍保留 Cowork 的 `nav.work` → `boards`（团队协作）菜单项**，而本分支 `60b4602` 已按用户要求删除。将来合并要以"保留删除"为准，不能直接取 main 那一侧；`messages.tsv` 按既有做法"两边都保留 + 重跑 `i18n-build.py`"。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第三十四批交付：银行对账闭族）
+
+**本批补上银行 run 的业务警告与锚点快照/覆盖，银行对账这一族的真缺口归零。** 这是[缺口清点](cowork-backend/reconciliation-family-audit.md)认定的本族最后一处真缺口。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `41c3578`（第三十三批清点）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_warnings.py`：`services/recon/bank_recon_warnings.py` 机械搬移——四语 `_BRV2_WARN`（期间不重叠 / GL 行数过少 / 无匹配 / 完整性 / 多账户）、`brv2_warn`、`completeness_details`（含"疑似缺页"与余额链片段）、`detect_recon_mismatch`、`apply_anchor_overrides`。
+- `bank_recon_contracts.run_info(value)` 契约（三个部署键：`warnings`/`anchor_ocr`/`anchor_overrides`，未知键/非数字/超上限入库前拒绝）；`bank_recon_service` 新增 `anchor_plan`（覆盖生效并记双边）与 `run_info`（**入账时按部署规则自产不匹配警告**，语言取调用方 `lang`，调用方可追加 run 级警告）；`create`/`create_from_parsed` 新增 `warnings`/`anchors`/`lang`；`export` 把三样传给工作簿（渲染侧第 24 批已就绪）。
+- DocType 新增 `run_info_json`（Long Text 隐藏）；顺带修掉一个既有缺口：四个锚点金额列此前一直是 0（`TASK_SUMMARY_FIELDS` 漏了它们），现在与摘要一致。
+- 有意差异：警告由入账侧产生（部署版在 run 里产生）；锚点读取值由调用方给出、覆盖可只写替换金额（存储仍补双边）；三个键合成一列而非塞进 summary_json；没有锚点的任务不写快照（这边没有 run 编排可凭空造值）。
+
+### 验证与证据
+
+- 离线：新 **18** 个警告/锚点/契约用例通过；对账 **137** 个、解析与契约 **120** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS；`check-i18n` REPORT-ONLY（四语警告表按登记豁免）；`git diff --check` 干净。
+- 固定源差分：标签 66 组、完整性片段 75 组、不匹配检测 **418** 批（5767/5744 行，期间 93、规模 26、无匹配 190 次命中）、锚点 **6480** 组（含 5184 组带覆盖）全部一致，差异 0；检测结果还与"按输入重述的三条规则"逐条比对。
+- 隔离 Site：两个 Site `migrate` 退出码 0 并新增 `run_info_json`；银行存储 **14** 个（新增 4：警告/快照/覆盖入库、覆盖真的进了匹配（同内容无覆盖时公式差正好差 5）、调用方追加警告、坏形状拒绝且无残留）、银行工作簿 **4** 个（新增 1：警告条文案来自存储、手动录入警示与痕迹段出现、痕迹行的批注带 OCR 与差额、无 run 记录的任务不出现这两段）；收入两侧 19+3 继续通过。
+- 顺带清了一次 lab 环境问题：今天多轮脚本把隔离 Site 的 Redis 队列顶到上限（`QueueOverloaded ... (750)`），只清 lab Redis 的 `rq:*`（隔离环境、只含测试产生的延迟写入）后恢复；不是产品行为。
+- 未执行：真实文件与模型解析、异步编排、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirty-fourth-delivery.json`（`e81f4908…`，采集 15:10:33Z）与第三十三批快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-fourth-delivery.json`（`5b784b84…`）：端点摘要 `6d327c98…` → `c5882f4b…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+银行与收入两族的后端已闭合（[清点表](cowork-backend/reconciliation-family-audit.md)里真缺口为零）。下一批起按族推进：OCR/抽取族清点 → M2 销项税 Excel 族 → 工单对账族；主数据等用户给方向（自有一份 / 读 ERP 成品）。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第三十三批：功能清单与剩余量，只读）
+
+用户问"还有多少功能没迁移"，做成一份可复用的清单：[功能清单与剩余量](cowork-backend/feature-status.md)。要点：
+
+- 要迁的 8 个功能码：**4 个已迁完**（`ocr_history`、`stocktake`、`companion`、`express_guide` 后端）、**3 个主体已迁且有明确收尾项**（`intake`、`push_log`、`recon`）、**1 个明显未完成**（`master_data`；新侧 `masters/` 只有 3 文件 214 行，且需先定形"自有一份"还是"读 ERP 成品"）。`boards` 按指示不迁（第二十二批已删）。
+- 剩余量集中在两处：银行对账的一处存储缺口（下一包）、主数据（先定形再开工）。
+- 不提供全仓完成百分比：旧 monolith 的大头（POS/工资/工单/管家/销售/库存/费用/会计…）不属新产品范围；`services/erp/`（200 文件）与 ERP 窗口共享、`services/billing|credits|usage|tenant|workspace` 属新产品控制面（`pearnly_control`/`pearnly_core`），都无法干净切分。
+
+## 换窗口交接（2026-09-21，第三十二批：对账族缺口清点，只读）
+
+**本批不改代码，只把对账族的缺口清点清楚**（`services/recon/**` 56 个文件 + `services/recon_jobs/**` + 对账用到的 `services/vat/**`），结论进[缺口清点](cowork-backend/reconciliation-family-audit.md)。三条要点：
+
+- **异步任务与轮询不需要原生副本**：旧 `submit` + `jobs/{id}` 存在的理由是解析慢（worker 里跑 OCR/Gemini）与两种人工暂停态（`needs_review` 核对 OCR 行、`needs_mapping` 确认列对应）。新平台把抽取放进已迁的 OCR 执行族（队列 + 轮询 + 重试 + 计费），对账本身本地同步一次事务完成，`needs_review`/`needs_mapping` 属抽取侧状态。再建一套 job 表/队列/轮询会复制既有机制。
+- **旧侧的"计费"是按解析量扣额度**（`precheck_upload_billing` 402/503 + `schedule_parse_charges` 按页/字符事后扣费），属旧 monolith 的 billing；新平台已有对应实现（`pearnly_core.billing_client` + Cowork `ocr/execution` 的冻结/扣费/回执/重试 + `pearnly_control` 控制面），订阅/套餐/登录/OCR 订阅都在新产品侧且已具备——**迁移不用搬旧 billing**。
+- **本族真缺口只剩一处**：银行 run 的业务警告与锚点快照/覆盖（`summary_json._brv2_warnings`/`_anchor_ocr`/`_anchor_overrides`）没有原生存储，所以银行工作簿那三段不显示（工作簿侧渲染在第二十四批已就绪）。`field_overrides` 不算缺口：部署版只有 M2 发票侧在写，M3/M4 的同名列没有写入点，收入工作簿也不渲染覆盖痕迹。
+
+下一包：给原生银行任务补这三项的存储与写入形状，并让 `bank_recon_service.export` 传给工作簿——银行族收尾。之后按族推进（OCR/抽取族、M2 销项税 Excel 族、工单对账族）各自清点。
+
+## 换窗口交接（2026-09-21，第三十一批交付）
+
+**本批补齐两家对账都缺的批量删除入口：机制进共享 `ReconTasks`，收入与银行各接一个 POST RPC。** 部署版两家都有这个入口（`/gl-vat/tasks/batch_delete`、`/bank-v2/tasks/batch_delete`），所以是同一个共享实现的两次接线。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `68ee91f`（第 30 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- `recon_tasks.py` 新增 `MAX_BATCH_DELETE = 200`、`_batch_names(task_ids)` 校验与 `ReconTasks.delete_many(task_ids)`；`delete`/`delete_many` 共用 `_remove(doc)`（先删结果行再删任务）。收入与银行的服务/API 各加 `delete_many`。
+- 与部署版对照：空批次返回零不报错；重复名只删一次；非字符串/空名/超长名/非列表/超 200 条在删除前拒绝；权限沿用任务 API 口径（`recon` 功能 + 角色 + 范围，对应部署版 `recon.create` 权限位）；原生有结果行表所以额外删行并回报行数。
+- 有意差异：部署版对"不存在/不属于本人"的 id **静默跳过**只回计数，原生**整批先检后删**——任何一条不合格整批拒绝，不留部分删除（用例固定）；未知名字报 `reconciliation.task_not_found`；上限 200；返回 `{deleted, rows_deleted, ids}`；入参是 `CIR-`/`CBR-` 名字而不是整数 id。
+
+### 验证与证据
+
+- 隔离 Site：收入 **19** 个（上批 16 + 本批 3）、银行 **12** 个（第 24 批 10 + 本批 2）通过；两侧匿名探针新增 `delete`/`delete_many` 均 **403**；两个工作簿导出脚本各 **3** 个继续通过。
+- 主机侧：对账 **137** 个用例、架构 **0** 违规、`i18n-build --check` PASS、`git diff --check` 干净（本批无界面文案）。
+- 未执行：真实文件读取、异步任务与轮询、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirty-first-delivery.json`（`4f1b28f2…`，采集 14:50:09Z）与第 30 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirty-first-delivery.json`（`0139ae60…`）：端点摘要 `bf041a45…` → `6d327c98…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩**异步任务与轮询**（`/gl-vat/submit` 那条链）。银行侧剩余项：异步状态与轮询、手动覆盖痕迹/运行警告落库。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第三十批交付）
+
+**本批把收入对账的复核工作簿按部署版逐格迁入，并给它一个受权下载入口。** 会计拿到的产物现在能由原生任务生成；至此收入族只剩异步与批删。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `b5c3e66`（第 29 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/export/income_workbook.py`：`services/recon/gl_vat_excel.py` 机械搬移（只改类型导入与缩进），保留四语 `_I18N`/`_t` 与三个 sheet：明细 + KPI 带、对账汇总（六行梯子 + 逐项调整明细，信用侧取负、名称超 55 字符截断）、四语使用说明。
+- 原生入口 `income_recon_service.export(task_id, lang)`（`_export_row` 把 `has_gl_match` 还原成缺失侧、`_stored_summary` 从 `summary_json` 重建数据类）+ GET RPC `income_recon_api.export`（私有附件 + Access Log）。下载名 `GL_VAT_recon_<任务>_<销项税文件名 ASCII 基名>.xlsx`。
+- 有意差异：存储形态（行表+汇总列 vs 旧 JSONB）、单个下载名（部署版发 ASCII + RFC 5987 两个）、权限用 `recon` 功能+角色+范围（部署版 `recon.export` 权限位，与银行同批登记）、第 29 批存的文件名/诊断在部署版版式里没有位置故不上表。
+
+### 验证与证据
+
+- 离线：新 **14** 个 XLSX 用例通过；固定源差分 **192** 个工作簿、**23268** 个单元格、**180** 组标签全部一致（含值/类型/字体/填充/边框/对齐/数字格式/保护/合并/列宽/行高/冻结/归档），四语各 32 本 + 未知语言 64 本，下限不达即失败。**差分抓到一处真实笔误**（日文说明第 2 行 `GL未検出` 少了空格），已按部署版改正。
+- 隔离 Site：导出脚本两个 Site 各 **3** 个用例通过（内容与三行状态、权限与功能位拒绝、WSGI 真请求私有附件 + 匿名/非 GET 403 + Access Log 入队）；收入存储脚本各 **16** 个继续通过；两次 Site 迁移非部署。
+- 主机侧：对账 **137** 个用例、架构 **0** 违规、`i18n-build --check` PASS、`check-i18n` REPORT-ONLY（本批四语表按[登记豁免](../../scripts/i18n/keep-cjk.tsv)）、`git diff --check` 干净。
+- 未执行：真实文件读取、异步任务与轮询、批删、统一 `reconciliation_type=income` 入口、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-thirtieth-delivery.json`（`3833e228…`，采集 14:40:11Z）与第 29 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-thirtieth-delivery.json`（`af1a0b00…`）：端点摘要 `ff8e39f4…` → `bf041a45…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩：异步任务与轮询、批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十九批交付）
+
+**本批给收入任务补上"从哪些文件、用哪个读取器读出来的"：任务表新增两个文件名与一段受校验的解析诊断，入账入口接受并落库。** 这是部署版 `gl_vat_task` 两列文件名的现代替身，也是后续复核工作簿 File Info 段要读的数据。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `d6abf26`（第 28 批交付）。含本交接的本地提交以 `git log -1` 为准。
+- DocType `Cowork Income Reconciliation` 新增 `gl_filename`/`vat_filename`（Data 140）、`parse_info_json`（Long Text，隐藏），`detail` 字段表加入两个文件名；**hooks、权限、共享底座未动**。
+- `income_recon_contracts.parse_info(value)`：只认 `gl`/`vat` 两段，每段 ≤20 条记录，每条只认部署版出现过的键（`file`/`method`/`rows`/`parser_version` + 总账侧 `accounts_seen`/`candidate_data_lines`/`tables_seen`/`header_found`/`sheets_seen`/`rows_kept` + 报告侧 `warnings`）；`rows` 0..20000、计数非负、列表长度与类型受控、文件名去空格 ≤140；未知段/未知键/类型不符入库前拒绝。另有 `file_name(...)` helper。
+- `income_recon_service`：`create(...)` 接受 `parse_info`/`gl_filename`/`vat_filename` 并落库、回传 `parse_info`；`create_from_parsed(...)` 接受两个文件名并用 `gl_diagnostic(...)` + 报告侧读数拼诊断。两个 RPC 同步扩参。
+- 有意差异：部署版是单表 JSONB 里的一段，这里拆两列 + 一段受校验 JSON；指纹仍只覆盖表头与两侧行，所以**诊断属于首次入库**（同 id 重放不改写，Site 用例固定）；多送的键拒绝而非静默忽略；允许调用方自带诊断（部署版只能服务端拼装）。
+
+### 验证与证据
+
+- 离线：本批新 **7** 个契约用例通过；既有解析/行契约等 **102** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS；`git diff --check` 干净。
+- 隔离 Site：两个 Site `migrate` 退出码 0，`tabCowork Income Reconciliation` 已出现 `gl_filename`/`vat_filename`（varchar(140)）与 `parse_info_json`（longtext）；两个 Site 各 **16** 个用例通过（上批 15 + 本批 1：文件名去空格、两段诊断键与读数、`create` 自带诊断、replay 不改写首次诊断、未知键拒绝），五端点匿名 **403**；银行 10 个与工作簿 3 个回归通过。
+- 未执行：真实文件读取、异步任务与轮询、复核工作簿渲染、批删、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付 `baseline-twenty-ninth-delivery.json`（`272a1fb5…`，采集 14:33:30Z）与第 28 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`。运行投影 `push-runtime-twenty-ninth-delivery.json`（`2f8cd82a…`）：端点摘要 `2227156b…` → `ff8e39f4…`（端点数 60、平台开关不变），仍是旧侧代理在写旧库。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族还剩：异步任务与轮询、复核工作簿导出（现在 File Info 段有数据可读）、批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `refs/heads/main` 只读实测仍为 `ac33e0c`（本地领先 26 个提交，即两边都还没推）；本分支已并入本地 main，任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十八批交付）
+
+**本批把收入对账的销项税报告解析迁进来，接到同一个受控入账入口。** 至此收入对账的两侧输入（总账 + 销项税报告）都能从"旧项目抽取出的内容"走到存储；剩下的是诊断入库、异步与导出。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。开工先并入 main `21581e4`（合并提交 `d8f7e3f`，含 `messages.tsv` 冲突解决，见下），本批基线 `d8f7e3f`；含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/vat_parse.py`：`decode(source)` 按 `kind`（`excel` 活动表单元格行 / `pdf` 每页文字+表格+文字行 / `text` 文字行 / `csv` 已解码文本+分隔符 / `pipeline` 管线条目）解码成部署版 `report_*` 行；`None` 沿用部署版语义表示"扫描件/列名认不出，交调用方兜底"；`decoded_rows(rows)` 转到入库六键契约。
+- `income_recon_service.create_from_parsed` 新增 `vat_source`（与 `vat_rows` 二选一）：先解码（`None`→`reconciliation.vat_report_unparsed`、0 行→`vat_no_rows`、都没给→`request_invalid`），返回新增 `vat_parsed`。RPC 同步扩参；**未改 DocType、hooks、共享底座**。
+- 保真的规则：金额读不出是 `None`（不是 0）、参考号列优先、四语列名、表头=日期+单据号或金额、合计行进 `meta`、PDF 三条通道（抽表→文字行 regex→判扫描件）、文字行的日期/税号/分支/名称清洗与粘连切分、CSV 的 MR.ERP 精确列名 + Decimal 金额 + 缺合计补算 + 无单据号告警、管线按发票号过滤（企业引擎例外）、出口统一过垃圾行过滤。
+- 有意差异：入参边界为"已抽取内容"；扫描件/认不出返回 `None` 由入账翻成拒绝；报告行的税号/分支/税额/合计暂不入库；`MIN_DETERMINISTIC_ROWS` 只导出不当路由；形状不合法抛 `ReconciliationContractError`。
+
+### 验证与证据
+
+- 离线：本批新 **34** 个用例通过；固定源差分 **257** 批 × 五条通道（Excel 519 / 抽表 276 / 文字行 339 / CSV 463 / 管线 410 行）+ 33 组 helper 用例，差异 **0**，分支覆盖含文字行回退 1、扫描件 162、MR.ERP 列名 48、无单据号丢弃 46，覆盖率下限不达即失败；既有解析与两份行契约 63 个继续通过。
+- 隔离 Site：两个 Site 各 **15** 个用例通过（上批 13 + 本批 2：已抽取销项税表入账后汇总与解码行入口一致、扫描件/认不出/空报告/缺报告/未知来源入库前被拒且无残留），五端点匿名全 **403**。
+- 架构 **0** 违规；`i18n-build --check` PASS；`git diff --check` 干净。
+- 未执行：真实文件读取与 Gemini/统一管线 OCR、计费与引擎档、诊断与文件名入库、异步任务与轮询、复核工作簿、批删、前端、部署、外部结果与用户验收。
+
+### 合并
+
+开工并入 main `21581e4`（ERP 三个提交：LINE 渠道接销售单据、打印页事实与报价转换、确认后指向销售单据），合并提交 `d8f7e3f`。`scripts/i18n/messages.tsv` 冲突一次：两边都在 ERP 行块尾部追加（main +5 条、本分支 498 条自有行），按"两边都保留、ERP 行块连续"解决后重跑 `i18n-build.py`（`pearnly_erp_portal` 17→22 条），`--check` PASS；`features.py` 自动合并。
+
+### 线上来源与配置限制
+
+交付 `baseline-twenty-eighth-delivery.json`（`46d01fea…`）与第 27 批交付快照 `compare` **PASS**，`source` 仍 `ec2e5c957e6b…`（本批未单独采开工快照，理由见[证据说明](cowork-backend/evidence/twenty-eighth-local-validation.json)）。运行投影 `push-runtime-twenty-eighth-delivery.json`（`56fb569e…`）：端点摘要 `1ed03962…` → `2227156b…`（端点数 60、平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族只剩：两端文件诊断与文件名入库 → 异步任务与轮询 → 复核工作簿导出 → 批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。第一代 `vat_recon_*`（报告入库 + 发票存档配对）不属本族。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 为 `21581e4`，远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`d8f7e3f`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十七批交付）
+
+**本批把收入对账的总账侧解析按部署版迁入，并给它一个受控入账入口。** 上一批只有"已解码行 → 存储"，本批补上"旧项目抽取出的内容 → 总账行"：Excel 两种版式、PDF 表格与文字行两条路径、OCR 管线归一化 JSON。销项税报告由另一个解析族负责，不在本批；读文件与 OCR 仍在旧项目。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `2e33245`（第二十六批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/income_parse.py`：`decode(source, revenue_prefix)` 按 `kind`（`excel` 每表单元格行 / `pdf` 每页文字+表格+文字行 / `text` 文字行 / `pipeline` 管线条目）解码成 `GlRow`，返回部署版形状 `{"ok","rows","row_count","error","diag"}`；`decoded_rows(rows)` 转到入库行契约。叶子 helper（`to_float`/`extract_account_code`/`is_skip_row`/`map_gl_columns`/`row_has_amount`/`is_debit_line`/`is_revenue_account`）与常量、正则逐条对齐部署版。
+- 新入口 `income_recon_service.create_from_parsed` + POST RPC `income_recon_api.create_from_parsed`：先解码（0 行报 `reconciliation.gl_no_revenue_rows`、读不出报 `gl_parse_failed`），再走与 `create` 完全相同的校验与存储，返回 `parsed`（方法、行数、科目、解析器版本）。**未改任何 DocType、hooks、共享底座。**
+- 保真的怪癖（差分逐条确认）：款项 `round(2)`、括号负数、`419.57` 不当科目；表头判定"借方词且贷方词"；Excel 日期单元格转 ISO 并做佛历回退（≥2500 减 543）、表格路径不转日期；文字行的两种数字尾、余额判借贷、退货词优先判借、无日期继承上一行、`รวม` 行跳过、描述取到第一个尾数字最后一次出现（余额同尾时会被拉长）。
+- 有意差异：入参边界改为"已抽取内容"、按 `kind` 分发；管线路径 >6 位小数的金额被入库契约拒绝（部署版直接存 float）；两条本地路径都 0 行时不再回退 OCR 管线；诊断只回传不入库；Excel/表格两条路径多一个 `diag` 块。
+
+### 验证与证据
+
+- 离线：本批新 **29** 个解析用例通过；固定源差分 **305** 批 × 四条路径（Excel 161 / 表格 172 / 文字行 156 / 管线 70 行；佛历日期单元格 96、贷方 113、借方 100、三数字尾 57）+ 96 组 helper 用例，差异 **0**；对账族 137 个与两份行契约 32 个继续通过。
+- 隔离 Site：两个 Site 各 **13** 个用例通过（上一批 10 个 + 本批 3 个：已抽取工作表入账后汇总与解码行入口逐字段相同、文字行/表格经同一入口、无收入行/读不出/未知来源/精度越界入库前被拒且无残留），五端点匿名全 **403**。顺带把 `cowork-backend-preparation` 的 Site 结构补到当前（上一批新增的三列计数）。
+- 架构 **0** 违规；`i18n-build --check` PASS（新错误键是 ASCII 语义键，未登记文案）；`git diff --check` 干净。
+- 未执行：真实文件读取（openpyxl/pdfplumber 不属本批）、销项税报告解析、诊断与文件名入库、异步任务与轮询、复核工作簿、批删、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工 `baseline-twenty-seventh-start.json`（`295f2aad…`）与交付 `baseline-twenty-seventh-delivery.json`（`db984f61…`）均 `source=ec2e5c957e6b…`，`compare` **PASS**。运行投影 `push-runtime-twenty-seventh-delivery.json`（`13a445a5…`）：端点 `configuration_digest` `bbb0fe7e…` → `1ed03962…`（端点数 60、平台开关不变）——该摘要每轮都在动，是在跑的旧侧代理写旧库。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族：销项税报告解析（`services/vat/**`）→ 文件诊断与文件名入库 → 异步任务与轮询 → 复核工作簿导出（与银行那批同型）→ 批删。银行侧剩余项（异步状态与轮询、批删、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 仍为 `42ed146`，远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`debf942`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十六批交付）
+
+**本批给收入对账（总账对销项税）配上原生存储：新增一对 DocType（任务 + 结果行）、一个服务、一组专用 RPC 与权限门，并把银行那套的共享契约、权限门、控制器门、任务机制抽出来复用。** 上一批只迁了判定核心，本批让结果落进新平台自己的表；读文件、出工作簿、异步仍是后续批次。不接前端、不部署、不改 DMS、不写旧库。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `44fdd9a`（第二十五批交付）。交付前按协调顺序并入 main `42ed146`（ERP 销售单据 + 发票识别复核那批），合并提交 `debf942`；该合并只动 `apps/pearnly_erp_portal/**`、`scripts/erp-pos-lab-sales-verify.py`、`tests/test_erp_portal_access.py`，与本分支无重叠。含本交接的本地提交以 `git log -1` 为准。
+- 新增 DocType `Cowork Income Reconciliation`（`record_id`/`workspace`/`title`/`status`/`gl_account_code`/`source_format`/`source_digest`/`request_key`/`request_digest`/`row_count`/`gl_row_count`/`matched_count`/`diff_count`/`unmatched_count`/`amount_tolerance`/六个汇总标量/`summary_json`/`created_by`/`created_at`）与 `Cowork Income Reconciliation Row`（`record_id`/`workspace`/`task`/`row_index`/`doc_no`/`vat_date`/`customer_name`/`vat_amount`/`has_gl_match`/`gl_amount`/`diff`/`account_codes`）。任务名 `CIR-<40hex>` 由站点+用户+`request_id` 派生，同内容重放返回原结果、同 id 换内容报冲突。
+- 新增 `reconciliation/income_recon_contracts.py`（两侧行契约、表头、指纹、转匹配形状；金额先按 `Decimal` 校验再存部署版 float）、`income_recon_access.py`、`income_recon_documents.py`（服务专属写门，通用写入/删除/分享被拒）、`income_recon_service.py`（`create`/`records`/`detail`/`delete`，落库含部署版路由算的三个计数）、`income_recon_api.py`。
+- 共享抽取（本批从银行那套抽出，银行侧改薄别名）：`recon_contracts.py`（金额/文本/日期/未知字段、规范化 JSON、指纹）、`recon_access.py`（`ReconAccess` 工厂）、`recon_documents.py`（`WRITE_TOKEN` + `persist` + 身份不可改写）、`recon_tasks.py`（命名/重放/列表/明细/删除）。
+- `hooks.py` 增加两个新 DocType 的 `permission_query_conditions`、`has_permission` 与 `DocShare` 拒绝；权限沿用同一个 `Cowork Bank Reconciliation` 角色（部署版对账权限不区分类别）。**`features.py`、`pearnly_core/**`、`scripts/i18n/messages.tsv` 三处共享底座本批一律未动。**
+- 有意不照搬旧表：旧 `gl_vat_task` 是单表 `detail_json`+`summary_json`；本平台拆成任务 + 行两表（与银行同型）。无 GL 对手方时 `gl_amount`/`diff` 存 0，用 `has_gl_match` Check 区分（Float 列不能存旧 JSON 的 `null`）；`vat_date` 存印刷文本（部署版按文本排序）；旧 `vat_recon_*` 那代（发票存档 ↔ 报告行）不是这一族，未迁。批删与工作簿导出未做。
+
+### 验证与证据
+
+- 离线：对账族 **137** 个通过（未改判定核心）；银行行契约 **15** + 收入行契约 **17**（本批新增）通过；架构 **0** 违规；`i18n-build --check` PASS（本批无界面文案）；`git diff --check` 干净。
+- 隔离 Site（`cowork-backend-ack`、`cowork-backend-preparation`）：两个 Site `migrate` 退出码 0（ack 重复一次仍 0，两张表已进 `tabDocType`）；新收入用例各 **10** 个通过（幂等重放、同 id 换内容拒绝、容差档位、范围与功能授权、撤销授权、通用写入/分享被拒、身份不可改写、计数与明细、分页、删除），四个端点匿名 HTTP 全 **403**；既有银行 **10** 个与工作簿 **3** 个回归通过。
+- 未执行：GL/VAT 文件解析与列识别、文件诊断入库（`gl_filename`/`vat_filename`）、异步任务与轮询、复核工作簿导出、批删、接 `reconciliation_type="income"`、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+交付前重新采集交付快照 `baseline-twenty-sixth-delivery.json`（`e821c8bb…`），`source` 仍 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，与上一批交付快照 `compare` **PASS**（本批未单独采开工快照，理由见[证据说明](cowork-backend/evidence/twenty-sixth-local-validation.json)）。运行投影 `push-runtime-twenty-sixth-delivery.json`（`1a48598f…`）：`erp_endpoints.configuration_digest` 每次采集都在变（`fc713ee1…` → `307628d8…` → `bbb0fe7e…`，端点数 60、两个平台开关不变），是在跑的旧侧代理持续更新旧库，不是迁移信号。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入族继续：GL/VAT 解析（Excel/PDF 列识别与余额链）→ 文件诊断与 `gl_filename`/`vat_filename` 入库 → 异步任务与轮询 → 复核工作簿导出（与银行那批同型）→ 批删 → 接 `reconciliation_type="income"`。银行侧剩余项（异步任务状态与轮询、批量删除、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `42ed146`（ERP 批次已合入），远端 `origin/main` 只读仍为 `ac33e0c`；本分支已并入本地 main（`debf942`），任务远端分支不存在；未验证组合版本。
+- lab 容器本批启动用于 Site 用例，收尾已停止；命名卷与 Site 保留供下包。`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十五批交付）
+
+**本批开始收入对账（总账对销项税）这一族：先把纯判定核心迁进来。** 对账中心三种类型里，银行那代已经落地（行契约 → 匹配 → 原生存储 → 受控解析入账 → 复核工作簿），收入这代对应 `gl_vat_*` 家族；本批只迁类型、配对规则、容差、贷项单方向与汇总/调整项，读文件、落库、出工作簿仍是后续批次。不接前端、不部署、不改 DMS。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `abcd1d6`（并入 main `2294a10` 后的合并提交）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/income_vat.py`：`GlRow`/`ReconRow`/`GlVatSummary`（字段名、顺序、默认值与 `__post_init__` 全保持）、`normalize_doc_no`（委托已迁的发票号归一化）、`vat_doc_no`（`report_ref_no` → `report_reference_no` → `report_invoice_no`）、`reconcile_gl_vat`（容差常量 `AMOUNT_TOLERANCE = 0.01`）。
+- 保持的判定：VAT 正数与 GL 贷方合计比、负数（贷项单）与借方合计的相反数比；容差内差额显式记 `0.0`；明细以 VAT 为主表、按 `(date, doc_no)` 排序、收入科目去重排序后逗号拼接；汇总四桶（GL 单边借/贷、VAT 单边正/负）各带明细行。
+- 原样保留的两处细节：明细里不可读的 VAT 金额按 0 处理，但汇总 `vat_total` 是裸 `float()`，非空不可读值会整体抛错；`gl_only` 用「VAT 归一化单号集合」判定而 `vat_only` 用「GL 索引」判定，两者口径不同。
+
+### 验证与证据
+
+- 对账用例 **137** 个通过（本批新增 **14** 个收入用例）；`test_cowork_bank_recon_contracts` 15 个继续通过；既有固定源差分继续通过。
+- 新增固定源差分：**1205** 批输入逐字段比对明细与汇总（含四个调整项列表），1105 行明细、253 行命中、29 行贷项单、28 行容差归零、四桶 424/399/432/103 行、759 批与部署版抛同样异常、15 例单号归一化，差异 0；覆盖率下限不达即失败。
+- 架构 0 违规；`i18n-build --check` PASS；`git diff --check` 干净。本批未跑隔离 Site：只加纯逻辑，Site 层没有新增行为可验。
+- 未执行：GL/VAT 的解析与列识别、原生任务/行存储、任务 API 与轮询、工作簿导出、接到 `reconciliation_type="income"`、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`d52f3576…` → `1126ffbf…`）。交付前采运行投影 `push-runtime-twenty-fifth-delivery.json`（`20b121af…`），与第二十四批交付比较仍为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`1bdf7bd2…` → `fc713ee1…`，端点数 60、两个平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+收入这一族继续：GL/VAT 解析（Excel/PDF 列识别与余额链）→ 原生任务与行存储（在 `vat_recon_*`/`gl_vat_store` 两代里定形）→ 任务 API 与轮询 → 复核工作簿（与银行那批同型）→ 接 `reconciliation_type="income"`。银行侧剩余项（异步任务状态与轮询、批量删除、手动覆盖痕迹/运行警告落库）仍挂着。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `2294a10`（ERP 批次 + 空白清理已合入），远端 `origin/main` 收尾只读仍为 `ac33e0c`；本分支已并入本地 main（`abcd1d6`），任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批没有启动 lab 容器（纯逻辑批次）；上一批的容器保持停止、命名卷与 Site 保留供下包。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十四批交付）
+
+**本批把旧项目银行对账的四表 XLSX 复核工作簿按部署版逐格迁入，并给原生任务加了一个受权下载入口。** 会计拿到手复核的那份产物现在能由新平台从已存任务生成；不接前端、不部署、不改 DMS、不写 ERP。本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧侧导出是 `/bank-v2/{task_id}/export`（GET，`recon.export` 权限）→ `export_bank_recon_excel(...)`，生成链 5 个文件自述"纯表现层：i18n 标签 + openpyxl 组表，无匹配/判定逻辑"。所以本批把它们机械搬移到 `reconciliation/export/`（只改模块头、导入路径与私有名公开），再用原生服务与 RPC 消费：工作簿只读任务已存的行、汇总与解析诊断，不重算匹配、不写库、不读文件。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `a65cdd4`（第二十三批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 交付后按协调顺序把当时的 `main`（`22eb94f`，ERP 销售单据那批）并进本分支（合并提交 `11ed367`，`f409bce` 以来第二次平台并入）：唯一冲突是术语表 `scripts/i18n/messages.tsv` —— main 带 24 条 ERP 新键、本分支 498 条自有键，两边共有键的译文完全相同，所以合并结果是 main 的行 + 本分支新增键 − 第 22 批删掉的 4 条协作文案，再跑 `i18n-build.py` 重生成语言包，除那 4 条删除外没有其它变化；`features.py`、`pearnly_core` 语言包、`AGENTS.md`、镜像 Dockerfile、`keep-cjk.tsv` 都自动合并。合并树上架构 0 违规、i18n 检查 PASS、对账用例与固定源差分通过、`stack.sh config` 仍解析通过。main 上两处空白问题（`pearnly_erp_portal/sales/contracts.py:431` 末尾空行、`scripts/erp-pos-lab-masters-verify.py:105` 行尾空格）属 ERP 批次，本批未改，留给其所有者。
+- 新增 `reconciliation/export/`：`workbook.py`（入口与三个 sheet builder）、`summary.py`（Sheet 1）、`labels.py`（四语 103 条标签 + helper）、`usage.py`（使用说明 4 语）、`styles.py`（调色板与表头/边框/日期 helper）。入口 `workbook(rows, summary, lang=..., task_info, parse_info, anchor_overrides, anchor_ocr, warnings)` 签名与部署版一致。
+- 原生入口 `bank_recon_service.export(task_id, lang)` + GET RPC `bank_recon_api.export`：权限沿用任务 API 的 `recon` 功能 + 角色 + 工作区范围，按私有附件返回（`no-store`/`nosniff`）并写 Access Log，下载名仍是 `BankRecon_v2_<任务>_<银行码>.xlsx`。
+- 新增任务字段 `parse_info_json` 与契约 `bank_recon_contracts.parse_info`（只接受部署版两段与记录键）；`create`/`create_from_parsed` 接受并落库每文件诊断，`create_from_parsed` 另加 `gl_filename`。重放判定仍只看表头与行，文件诊断不参与摘要。
+- 登记的有意差异与缺口（详见[本批记录](cowork-backend/reconciliation-bank-export.md)）：手动覆盖痕迹与运行警告暂不出现（其来源仍在未迁的运行编排）；失败文件诊断不落库；未知余额渲染 0.00；权限用功能+角色+范围而非旧 `recon.export` 权限位；下载只接受 GET；四语表按[有意保留登记](../../scripts/i18n/keep-cjk.tsv)豁免 `check-i18n`。
+
+### 验证与证据
+
+- 新模块离线 XLSX 用例 **22** 个通过（四语 sheet 名、冻结窗格、状态/层文案、金额格式、置信度与余额列、零匹配横幅、OCR 小节、文件信息优先 `parse_info`、手动痕迹条件出现、空任务、标签完整性与 helper 回落）。
+- 固定源差分 **41** 个工作簿、**11728** 个单元格、**714** 组标签比对全部一致（值/类型/字体/填充/边框/对齐/数字格式/保护/合并/列宽/行高/冻结/筛选）；覆盖 186 行结果、5 种状态与全部层、四语各 ≥5 本，并设了覆盖率下限。
+- 两个隔离 Site：`migrate` 通过并新增 `parse_info_json` 列；导出脚本各 **3** 个用例通过（内容与诊断、权限拒绝、WSGI 真请求的私有附件响应 + 匿名/跨用户/非 GET 403 + Access Log 入队）；既有对账脚本各 **10** 个继续通过，五个入口匿名全部 403。
+- 主机侧：对账 **123**、契约 **15**、既有固定源差分继续通过；架构 **0** 违规；`i18n-build --check` PASS；本批文件 `check-i18n` 真实发现 **0** 条。
+- 未执行：真实文件与模型解析、GL/VAT 工作簿、异步任务与轮询、换眼重读、收入对账、批量删除、前端、部署、外部结果与用户验收。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`f614cfb1…` → `5fbafea8…`）。交付前采运行投影 `push-runtime-twenty-fourth-delivery.json`（`3c340208…`），与第二十三批交付比较仍为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`c012939c…` → `1bdf7bd2…`，端点数 60、两个平台开关不变）。**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：GL/VAT 工作簿（`gl_vat_excel`，同为纯表现层）、异步任务状态与轮询、收入对账复用 `reconciliation_type=income`、批量删除；手动覆盖痕迹/运行警告要出现在工作簿里，需要先迁它们的来源（运行编排 + OCR 锚点）并落库。真实解析器与模型抽取仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回主线、未推送、未部署**。本地 `main` 收尾为 `22eb94f890a1c0763bf41ebda0c73d05eaf03d62`（ERP 批次已合入），远端 `origin/main` 收尾只读仍为 `ac33e0c7362915ae314295cb26f7748cb5589de0`；本分支已把本地 main 并入，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批用专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows 与旧仓，未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十三批交付）
+
+**本批把旧项目"已经解码的银行对账页面"按部署版转换规则落成同样的流水行/总账行，并给原生任务存储加了一个受控解析入口。** 文件读取、OCR 调用与模型抽取仍在旧项目；不接前端、不部署、不改 DMS。本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧侧银行对账的"解析"分两段：文件格式分派 + OCR/模型（`_parse_bank_stmt_via_pipeline`/`_parse_gl_via_pipeline` 的前半段），和拿管道输出组装行的纯转换（后半段 + `statement_rows_from_entries`/`gl_rows_from_pipeline_legacy`）。原生存储只收"已解码的行"，所以缺的正是这层纯转换。本批只迁这一段，解析器与模型仍留在旧项目、仍走显式授权；`statement_rows_from_entries` 同时是旧仓"断链换眼重读"共用的单一转换事实源，将来重读结果可以走同一入账口径。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `a76c742`（第二十二批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增纯模块 `reconciliation/bank_parse.py`：`to_float`、`parse_date`、`BANK_SIGNATURES`、`detect_bank`、`statement_rows_from_entries`、`statement_from_pipeline`、`gl_rows_from_pages`、`gl_from_pipeline`，以及把行写成原生解码行契约的 `decoded_statement_rows`/`decoded_gl_rows`；月份名取部署版 `core/thai_date` 的三张表与装配顺序。
+- 原生入口 `bank_recon_service.create_from_parsed` + RPC `bank_recon_api.create_from_parsed`：解析结果落成解码行后走既有 `create`（权限、请求键、幂等、匹配持久化不变），`source_format` 记 `pipeline_pages_v1`；调用方 `header` 覆盖从对账单读出的期初/期末/银行码，`gl_opening`/`gl_closing` 仍由调用方给。
+- 顺带补齐第二十批漏掉的 `GlRow.row_hash` 指纹；差分现在逐字段比对全部声明字段，这条链不会再静默漂移。
+- 登记的有意差异（详见[本批记录](cowork-backend/reconciliation-bank-parse.md)）：解析行没有描述、movement 为负或整批超行数时被原生契约**拒绝**而不是照旧匹配；未读余额在解析路落到原生存储是"已知 0"；`create_from_parsed` 新增入参守卫；契约错误仍是 `ReconciliationContractError`；两处部署怪癖（去时分秒截断使带空格的印刷日期解析失败、月份键区分大小写）按原样保留。
+
+### 验证与证据
+
+- 对账用例 **123** 个通过（本批新增 **21** 个，含一个新模块 20 个纯用例）；`test_cowork_bank_recon_contracts` **15** 个继续通过；架构 **0** 违规；`i18n-build --check` PASS 且本批改动文件 `check-i18n.py --list` **0** 条。
+- 固定源差分新增金额 **439**、日期 **1642**、银行文本 **419**、entries→行 **800** 批（2728 行）、GL 页→行 **800** 批（3836 行）、整段银行适配器 **600** 批、整段 GL 适配器 **400** 批；整段适配器用部署版转换函数与 `finalize_rows` 现算期望逐项比对，不重写实现。
+- 两个隔离 Site 各 **10** 个用例通过（各新增 **2** 个：解析入账全链 + 拒绝路径），`migrate` 后重复 `migrate` 均通过，四个入口匿名调用全部 **403**。顺带核对上一批遗留：`migrate` 后两个 Site 已无旧 `pearnly-work` 页。
+- 未执行：真实 XLSX/PDF 与模型解析、多文件合并与换眼重读、异步任务与轮询、导出与人工复核、收入对账、前端、部署、外部结果与用户验收；宽范围 `test_cowork_*.py` 仍有既有模块因本机缺 `frappe`/`openpyxl` 无法导入。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，`compare` PASS（`709693c7…` → `8b56503f…`）。交付前采运行投影 `push-runtime-twenty-third-delivery.json`（`2964173f…`），与第二十一批交付比较为 `push_runtime_identity_changed`：差异只在 `erp_endpoints.configuration_digest`（`5fa7110d…` → `c012939c…`，端点数仍 60、两个平台开关不变）。本批没有开工投影，故这不是本批窗口内的前后一致证明；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：异步任务状态与轮询、导出复核工作簿、人工复核动作（解析路的 `needs_review`/`balance_warn_count`/`amount_fixed_count` 已经由本批入口返回，可直接消费）、收入对账复用 `reconciliation_type=income`；真实解析器与模型抽取仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批启动了专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows 与旧仓，未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十二批：移除团队协作功能）
+
+**按用户 2026-09-21 指示：团队协作（WeKan 看板）不再迁移，已迁部分全部删除；该功能后期自行开发。** 2026-09-17 那次"协作页 `/work` 留"的确认由本次覆盖。其余待迁项继续按计划推进。
+
+### 删了什么（先审计再动手）
+
+审计口径四组关键字（`wekan`、`\bboards?\b`、`nav.work`、`pearnly-work`）覆盖 `apps/`、`frontend/src`、`infrastructure/`、`scripts/`、`tests/`、`docs/`：
+
+- 产品功能键 `boards`（`product_manifest.py`）、控制台功能目录条目（`features.py`）、Cowork 侧边栏入口（`navigation.py`）、前端导航项与 `/work` 图标映射、`pearnly-work` 原生占位页、旧壳页表里的 work 映射。
+- 样板基础设施 `infrastructure/compose/03-wekan.yml`（两租户各一套 WeKan + MongoDB）及 **46 个脚本/文档**里的引用（45 处整行删除，2 处同行里只摘该文件）。
+- 三条术语与四个语言包（`nav.work`、`Collaboration Boards (WeKan)`、`A board instance is created only when this is on`）以及把"协作看板"当例子的控件说明；重新生成语言包后 `i18n-build.py --check` PASS。
+- 描述性提及（根 `README.md`、`apps/README.md`、`apps/pearnly_cowork/{README.md,hooks.py,pyproject.toml}`、`docs/adr/*`、`docs/frontend/*`、`docs/p1/*`、`docs/p0/01`、根 `AGENTS.md`）与两处验证断言（原生导航契约的页数 12→11；前端切片脚本里专验未购买看板的断言随功能移除，其余按功能过滤的断言保留）。
+- **保留不动**：`docs/p0/02-live-inventory.md` 与 `docs/adr/0002-deployment-target.md` 里旧 VM/旧盘的运行与退役记录，以及 `docs/p0/03|05|06` 里对旧系统的路由/表/流程记录——那是旧系统证据，不是本仓实现；三处"保留判定"已加日期覆盖说明。
+
+### 验证
+
+- `python3 scripts/i18n-build.py && i18n-build.py --check` PASS；`check-i18n.py --list` 中**本次改动文件 0 条**发现（`--strict` 仍按既有基线失败，本批未增减该口径：177 条 / 47 文件 / 161 文案）。
+- `python3 scripts/check-architecture.py` **0 违规**；`tests.test_native_desk_contract` **15** 个用例通过（Cowork 页数断言已更新为 11）。
+- 被改的 **44** 个 shell 脚本 `bash -n` 全部通过；`node --check` 通过；`bash scripts/stack.sh config --quiet` 退出码 0，合并后的样板配置里 WeKan 出现 **0** 次。
+
+### 没做与影响
+
+- 旧系统（`pearnly-app` 与线上 WeKan VM）**未动**；本仓不发起对旧系统的删除或退役。
+- 已安装 Site 上的旧 `Workspace Sidebar` 文档与标准 Page 记录需要一次 `bench migrate`／重跑 `ensure_navigation` 才会消失；**本批没有在 Site 上执行**，也没删历史 DocShare。
+- 前端依赖未安装（`frontend/node_modules` 不存在），**未运行 `npm run build`**；本次前端只删一条导航项与一条图标映射。
+
+详见[协作功能移除记录](cowork-backend/collaboration-removal.md)与[范围确认的覆盖说明](p0/04-scope-and-drop-list.md)。
+
+### 下一步
+
+按第二十一批的交接继续：银行对账的受控解析适配（把旧 XLSX/PDF 解析结果落成同样的解码行）、异步任务状态与轮询、导出复核工作簿、人工复核动作；收入对账复用 `reconciliation_type=income`。**团队协作不再出现在任何待迁清单里。**
+
+## 换窗口交接（2026-09-21，第二十一批交付）
+
+**本批落地第一个原生持久化切片：银行对账任务与结果行的原生 DocType、权限、服务与 RPC。** 不接前端、不部署、不调用模型、不写 ERP；本节为最新入口，后文按各批当时事实读取。
+
+### 先定形，再动手
+
+旧项目银行对账两代并存，本批用消费点证据决定只承接哪一代：当前对账中心是 2026-06-14 重设计的三类型外壳（银行=流水对总账，收入=总账对 VAT，税务=已划掉的 Excel 内测）；老会话加发票候选那一代（`/api/bank-recon/*` 加 `bank_reconcile.py`）界面已被重设计覆盖，旧仓自己 2026-05-18 也把它定性为“老体系”，2026-06 想迁到 v2 但未拍板；会计侧 `/api/accounting/bank/*` 会过账出凭证，属已确认不迁的会计模块。因此新平台只承接银行对账这一代，`reconciliation_type` 预留 `income`，老 v1 不建原生表。若你要保留发票候选流程，那是另加一对 DocType，不是重做本批。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `abea988`（第二十批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 DocType `Cowork Bank Reconciliation`（任务、汇总、请求键/指纹，`request_key` 唯一）与 `Cowork Bank Reconciliation Row`（两侧结果行，`task` 建索引），以及纯契约 `bank_recon_contracts.py`、控制器基类 `bank_recon_documents.py`、权限 `bank_recon_access.py`、服务 `bank_recon_service.py`、RPC `bank_recon_api.py`。
+- 入口只收**已解码的行**：金额用 `Decimal` 精确校验（非负、≤6 位小数、量级上限）后再进入已登记的二进制浮点匹配契约；日期 ISO、描述必填、未知字段拒绝。解析、异步任务、导出、人工复核动作都未迁。
+- 幂等：任务名由 site 加 user 加 request_id 派生；同键同内容返回原任务（`replayed`），同键不同内容抛冲突。权限保持 `recon` 功能、角色、工作区公司范围，并拒绝通用删除、通用写入、DocShare 与撤销后的读写。
+
+### 验证与证据
+
+- 隔离 Site 的 **8** 个用例在**两个既有 Site** 各自通过；两个 Site `migrate` 通过并重复迁移一次通过；匿名 WSGI 三入口均 403。离线新增 **15** 个契约用例通过，既有对账 102 个用例继续通过，架构 0 违规。
+- 顺带修掉同任务遗留红灯：`push` 域纯洁性检查未登记第十五批新增的 `export_actions.py`（纯）与 `export_facts.py`（依赖 frappe），现分类登记、两个用例转绿，未放宽断言。
+- 未执行：全新 Site 安装、异步任务编排、真实 XLSX/PDF 解析与模型抽取、导出与人工复核、前端、部署、外部结果与用户验收；宽范围 `test_cowork_*.py` 仍有 24 个模块因本机缺 `frappe`/`openpyxl` 无法导入（既有环境限制）。
+
+详见[来源清点与落地说明](cowork-backend/reconciliation-bank-native.md)和[验证清单](cowork-backend/evidence/twenty-first-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工与交付 source 均为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，证据 sha256 首尾相同（`3b6efeadebd6d4e32c58075ed97ee0678f2cdebc4c1ced3564b516a788e67839`），比较 PASS。本批窗口内运行投影 `settings_unchanged: true`，跨批仍变化；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+同一任务模型可继续：受控解析适配（旧 XLSX/PDF 解析结果落成同样的解码行）、异步任务状态与轮询、导出复核工作簿、人工复核动作；收入对账复用 `reconciliation_type=income`。解析器仍放最后并保持显式授权。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批启动了专属 lab 容器做 Site 迁移与验证，收尾已停止（容器、命名卷、既有 Site 与合成数据保留供下包）；未改 Windows、未新增凭据，只清理本任务可再生的缓存与临时文件。
+- 下包开工前核对 context/project/mount/Site 归属；`/tmp/pearnly-cowork-migration-20260920/` 的固定源码与脱敏证据迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第二十批交付）
+
+**本批迁入银行对账的“打分与配对”纯逻辑：流水对 GL 的三层匹配与汇总，以及流水对发票候选的逐字段评分与排名。** 不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `f461b82`（第十九批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_matching.py`（`GlRow`/`BankReconRow`/`BankReconSummary`、`day_diff`/`amount_matches`/`DATE_TOL_DAYS`、三层 `reconcile`）与 `reconciliation/bank_scoring.py`（权重 50/30/15/5、阈值 85/60、四个评分函数与 `match_one_tx`）。
+- **`bank_recon_match.py` 没有迁**：它是发票候选检索与结果落库的 SQL DAL（`db.get_cursor_rls`、`ocr_history` 查询、`save_match_result`），属持久化层；`run_matching_for_session` 同样因直接读写旧库而未迁。这样将来新平台的候选来源与落库方式可以独立设计，不继承旧 DAL。
+- 两处“注释与实现不一致”按部署行为保留：`bank_recon_reconcile` 的 docstring 写 “±3-day”，实际 `DATE_TOL_DAYS` 是 7。差分脚本核对常量而非注释。
+
+### 验证与证据
+
+- 对账用例 **102** 个通过（本批新增 **36** 个）。固定源差分：**1,200** 批随机配对（逐字段比对全部结果行与汇总），实际产生 146 次 L1、235 次 L2、401 次 L3、5,731 条单侧行；**1,200** 批评分（1,046 条入选候选）与四个评分函数逐值比对；11 个常量核对相等。上一批余额链 1,500 批、第十八批 119,037 组金额契约等差分继续通过。架构 **0 违规**，`git diff --check` 通过。
+- 未执行：Site 安装/升级与真实事务、公司与角色权限、真实候选检索与落库、会话编排、真实 XLSX/PDF 解析与模型抽取、导出模板、业务 API、队列、浏览器、LINE 真机、部署、外部结果与用户验收。本机缺 `openpyxl`，未改动模块的盘点导出用例仍未运行。
+
+详见[来源清点、映射与有意保留](cowork-backend/reconciliation-bank-matching.md)和[验证清单](cowork-backend/evidence/twentieth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工 `5bfedbe9344748d66d8c35a68d1b7e1acfece46fbf9744c34e52b1a66f8cd874`（`2026-09-21T11:30:15Z`），交付 `4673e667007971b510d7bbdb5d4f914fee9aa0a7c401b4006be7c326814a3ea3`（`2026-09-21T11:32:33Z`），source 比较 PASS，源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。证据在 `cowork-backend/evidence/baseline-twentieth-{start,delivery}.json`。
+
+**运行投影漂移本批没有复现**：同一批两分钟内首尾比较为 `settings_unchanged: true, observations_changed: false`；但跨批比较（第十九批交付 → 本批开工）仍报 `push_runtime_identity_changed`。这说明端点配置摘要在几分钟量级上间歇变化，本批未把它归因到具体字段，也没有降低采集器校验；**完整配置与旧状态迁入继续 HOLD**。
+
+### 下一包
+
+银行与 GL/VAT 侧的纯计算基本到位，剩下的是受控解析与持久化：XLSX/PDF/文本/模型抽取解析、`bank_stmt_reread` 换眼重读、模型结果缓存、两代任务存储与轮询、`bank_recon_match` 的候选检索与落库、导出与人工复核动作，以及 GL/VAT 汇总。下一包建议先挑不依赖付费模型的持久化切片（新平台原生任务与候选来源），解析器放最后并保持显式授权。仍不接前端、不部署。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批只做只读线上采集与本地离线测试：未启动容器、未建外部资源、未改 Windows、未新增凭据或临时进程，只清理本任务可再生的 `__pycache__`。上一批的 TEST 单据与原生审计数据继续保留。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 仍为停止状态，容器、命名卷与既有 Site 保留供下包；下包开工前核对 context/project/mount/Site 归属。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码与脱敏证据继续作为本任务复核材料；迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第十九批交付）
+
+**本批按“先清点来源、再迁最小共享切片”的顺序，迁入银行流水行契约与余额链纯函数。** 不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
+
+### 为什么是这一段
+
+银行与 GL/VAT 在固定来源里有近 50 个模块，多数与 XLSX/PDF/文本解析、模型抽取、缓存和任务存储耦合。本批先确认消费路径：`bank_stmt_balance.py` 被 `bank_stmt_xlsx`、`bank_stmt_extract`、`bank_stmt_reread`、`bank_recon_pipeline`、`bank_recon_v2` 共同引用，是流水解析的单一事实源；对账属保留的 Cowork 能力，既不在被砍的报税/工单/Excel 公式内测里，也不依赖会计账簿。因此这一段是保留范围内、可独立验证、且被多条解析路径共享的最小切片。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `f052738`（第十八批交付）。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/bank_statement.py`：流水行契约与指纹、页脚合计过滤（17 个中英泰关键词）、解析质量比、方向自动纠正、逐行核对、金额反推修复、`finalize_rows` 定案序列、完整性交叉校验。
+- 保持的判据都按部署行为：行容差 `min(max(0.02, 金额×0.005), 1.0)`；方向纠正需要可靠上一行余额、方向与余额涨跌相反且金额差 ≤ 0.02；金额修复需要上一行可靠 + 下一行佐证 + 反推差 < 30%，否则保持 `balance_ok=False` 交人工；合计被原样填进余额时跳过合计校验但笔数照查。
+- `bank_recon_utils.py` 未整块迁移（它带模型结果的内存/磁盘缓存），只复现 `AMOUNT_TOL` 并由差分脚本核对常量相等。`AMOUNT_TOL`、`REPAIR_RATIO`、关键词表都不是凭抄写。
+- 一个来源既有约束如实保留：数据类把余额格式化进指纹，余额未读到的行必须构造后再置 `None`；差分脚本同时验证两种实现都以 `TypeError` 拒绝直接传 `None`。
+
+### 验证与证据
+
+- 对账用例 **66** 个通过（本批新增 **35** 个）。固定源差分 **1,500** 批余额链随机语料：逐批比对质量比、三个步骤的独立结果、`finalize_rows` 返回集（含行指纹）与 `audit_completeness` 全量返回；累计过滤 **3,098** 条页脚行、**218** 次方向纠正、**74** 次金额修复、**567** 条完整性 issue，全部与哈希固定的旧实现一致。上一批的 119,037 组金额契约等差分继续通过。架构 **0 违规**，`git diff --check` 通过。
+- 未执行：Site 安装/升级与真实事务、公司与角色权限、真实 XLSX/PDF 解析、模型抽取与缓存、匹配评分、任务存储、导出模板、业务 API、队列、浏览器、LINE 真机、部署、外部结果与用户验收。本机缺 `openpyxl`，未改动模块的盘点导出用例仍未运行。
+
+详见[来源清点、映射与边界](cowork-backend/reconciliation-bank-statement.md)和[验证清单](cowork-backend/evidence/nineteenth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工与交付均重新采集：开工 `3e9dfa0fcc1b3b933ff7127db66685019314f192ddf03acdf00f4aae06037022`（`2026-09-21T11:26:34Z`），交付 `c40b32d52823ff160ef94d87941763facaab4cc5add600167ef4856f4003316f`（`2026-09-21T11:28:50Z`），source 比较 PASS，源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。证据在 `cowork-backend/evidence/baseline-nineteenth-{start,delivery}.json`。
+
+运行投影本批两侧都采集成功（`0444436525cd…` / `70f8843274…`），差异仍只有采集时间与 Web/Worker 两处端点 `configuration_digest`，与第十四至十八批同因；**完整配置与旧状态迁入继续 HOLD**。第十八批交付侧的采集拒绝（`component_database_identity_changed`）只影响那一批的交付证据，本批已按新基线重新采集。
+
+### 下一包
+
+银行侧还剩：流水/GL 的受控解析（XLSX/PDF/文本/模型抽取）、换眼重读编排、模型结果缓存、匹配分层与评分、`BankReconSummary` 汇总、任务存储与轮询、导出与人工复核动作；GL/VAT 汇总同样未迁。下一包应先在这些条目里选一条能独立验证的：优先考虑不依赖模型抽取的 `bank_recon_scoring`/`bank_recon_match`（匹配分层与评分是纯计算），把需要付费模型的部分留到最后并保持显式授权。仍不接前端、不部署。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批只做只读线上采集与本地离线测试：未启动容器、未建外部资源、未改 Windows、未新增凭据或临时进程，只清理本任务可再生的 `__pycache__`。上一批的 TEST 单据、服务主档与原生审计数据继续保留。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 仍为停止状态，容器、命名卷与既有 Site 保留供下包；下包开工前核对 context/project/mount/Site 归属。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码与脱敏证据继续作为本任务复核材料；迁移结束前不删。
+
+## 换窗口交接（2026-09-21，第十八批交付）
+
+**本批解掉了上一批登记的对账数值闸门：金额判据、逐字段对照和第二轮强配对已按固定旧源码迁入，纯计算、无框架无 IO。** 不改 DMS、不接前端、不部署、不扩大测试；本节为最新入口，后文按各批当时事实读取。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `14a40dd4f0722c1c84d8ea7d55ee5e3567f79870`。含本交接的本地提交以 `git log -1` 为准。
+- 新增 `reconciliation/amounts.py`（金额契约）、`reconciliation/fields.py`（逐字段对照），并在 `reconciliation/matching.py` 补第二轮与 `match_rows` 组合。旧第三轮 fuzzy 在来源中已被砍，继续不恢复；孤儿仍交用户自己对照。
+- **登记的有意差异**：金额继续用二进制浮点，不用 Decimal。旧判据 `round(float(...), 2)` 与 `abs(a-b) <= 0.01` 决定了历史配对结果，例如 `2.675→2.67` 而 Decimal 半偶进位为 `2.68`；8 组调查里有 6 组会因此翻面。要改十进制口径属独立行为变更，需单独 ADR 与会计确认。新原生记录的金额仍用 Decimal。
+- 顺带查实来源本身的一个既有事实：该容差在浮点下**不是均匀一分**。固定源实测 `1000.00` 对 `1000.01` 判匹配，而 `100.00` 对 `100.01`、`1.00` 对 `1.01` 判不匹配，`0.00` 对 `0.01` 匹配。本批如实保留，不顺手修正。
+- 第二轮只在日期、买方税号、金额三者同时成立时配对（金额 ±0.01 且按上表取整），任一缺失或无法解析即不配对；同一报告行只消费一次。重复候选按下标升序，等价于原实现遍历 CPython 小整数集合的升序顺序，已用回归用例与 2,000 批差分覆盖。
+
+### 验证与证据
+
+- 对账用例 **31** 个通过（新增 **21** 个）。固定源差分：金额契约 **119,037** 组、`compare_field` **6,000** 组、`compare_all_fields` **3,000** 组、完整配对 **2,000** 批（第二轮实际配对 232 对），全部与哈希固定的旧函数一致；既有 4,020 组数量契约与 1,000 批第一轮差分继续通过。架构 **0 违规**，`git diff --check` 通过。
+- 未执行：Site 安装/升级与真实事务、公司与角色权限、真实文件解析、导出模板、业务 API、队列、浏览器、LINE 真机、部署、外部结果与用户验收。本机缺 `openpyxl`，两个未改动模块的盘点导出用例未运行，也未为此加依赖。
+
+详见[来源、映射与有意差异](cowork-backend/reconciliation-amounts.md)和[验证清单](cowork-backend/evidence/eighteenth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工与交付均重新采集线上身份。source 首尾 PASS：后端源码 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，开工 `fb28b661c4f7382e98210d7372c5e59465bd3514aff6ce4ebce2249d495c5c5b`（`2026-09-21T11:18:49Z`），交付 `cd83c8e3456af885cd22512e113a64ce4f412d2182ecee59500c79c1b88c9da5`（`2026-09-21T11:22:50Z`）。证据在 `cowork-backend/evidence/baseline-eighteenth-{start,delivery}.json`。
+
+运行投影只采到开工侧（`push-runtime-eighteenth-start.json`，`e0b475a5…`）；交付侧被采集器以 `component_database_identity_changed` 拒绝，未生成证据，**没有降低采集器校验**。本批不触碰推送/小助手运行时，**完整配置与旧状态迁入继续 HOLD**。固定源码只读副本仍是 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`。
+
+### 下一包
+
+对账剩余纯计算是 GL/VAT 汇总与银行金额算法（含余额链校验）；再往外是任务持久化、受控文件解析（XLSX/银行流水/GL/VAT 文件）、人工复核动作、导出与模板、删除与计费依赖。先复核线上源，再按影响面选检查；仍不接前端、不部署。用户对必要测试凭据/测试套帐写入的授权继续有效，但不扩展为正式套帐、生产切换、LINE/WeKan 消息或付费 OCR。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留供继续迁移。
+- 本批只做只读线上采集与本地离线测试：未启动容器、未建外部资源、未改 Windows、未新增凭据或临时进程，因此没有需要撤销的临时对象。上一批的 TEST 单据、服务主档与原生审计数据继续保留，不做删除。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 仍为停止状态，容器、命名卷与既有 Site 保留供下包；下包开工前核对 context/project/mount/Site 归属，不接管共享 stack。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码与脱敏证据继续作为本任务复核材料；迁移结束前不删，届时再核归属。
+
+## 换窗口交接（2026-09-21，第十七批交付）
+
+**已完成真实 Windows 采集 → 新后端准备/人工确认 → TEST 单笔写入 → 独立 ERP 回读。** 修复了账套路径小写导致旧 Companion 精确白名单拒绝的问题。仅在本地工作树施工，不改 DMS、不接前端、不部署；本节为最新入口，后文按各批当时事实读取。
+
+### 本批结果与证据
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始 HEAD `d4102dcb8b5562e6f6ce71157979742a28e94002`。含本交接的本地提交以 `git log -1` 为准。
+- TEST `\\Accserver\d$\ACCOUNT\70EXP\TEST` 已写入 **`RR690921-001`**，发票引用 `CW17-2ebbb740df`，含税 **107 THB** / VAT **7**。新进程独立回读：1 张有效单据、3 行分录借贷各 107、1 行税记录、APTRN1 索引命中；1 条非库存服务明细，主档 `PN00060`（类型 3），无库存移动。
+- 原生成功记录 `CWP-e8b04880f110e5237597e482994115648d7f76ff5f7e6b93`，history version=2、一次 attempt/fence=1、writer holder=0。公司/现有供应商/科目/目录来自真实 TEST；初始 OCR 结果为明确标记的合成夹具，没有付费 OCR。公开手工草稿仍被低置信度拦截，没有改规则。
+- Windows 使用固定旧源码 `33af0fd5e381e87802c95655dc35e7709eb2a233` 的临时单笔进程，原已安装 EXE/profile 没有切换到新平台。EXE、原生 CDX helper 已核 hash；原托盘合作退出并释放同会话 mutex 后才领取，拒绝 fail-open；每次 finally 恢复原 EXE。首尾 profile hash 一致，未解密或复用生产 token。
+- `push.express` 仅修正发送载荷的 account_set 拼写：归一身份相等才使用服务端选定目录原始拼写。旧目标选择、归一身份、白名单、权限、写者锁和账本不改。首轮拒绝发生在 DBF 写入前，独立回读为零；旧失败任务隔离后重新准备、人工确认，未重试未知结果。
+- **23 个定向 preflight 用例通过**（新增 2 个）；脚本语法、错误平台/不受限监听拒绝通过；架构 0 违规。没有扩展到全量、DMS、前端、CI、schema 安装/迁移或用户验收。
+
+详见[来源、失败恢复与有意差异](cowork-backend/seventeenth-source-review.md)、[真实 Windows/ERP 证据](cowork-backend/evidence/windows-seventeenth-integration.json)和[检查清单](cowork-backend/evidence/seventeenth-local-validation.json)。
+
+### 来源与仍未完成的部分
+
+开工和最终交付 source 一致，后端 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；Web/Worker 各 100% 对应 `pearnly-*-ec2e5c957e6b-s3`，镜像 digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。最终线上采集 `2026-09-21T11:06:43.880484+00:00`。source 首尾 PASS，运行投影首尾除采集元数据外仍只见两个端点 configuration_digest 变化，**完整配置/旧状态迁入继续 HOLD**，不能据 hash 判定变化键或归因心跳。
+
+单笔采购服务单的实际链路通过，不等于整产品迁移完成、所有 ERP 场景或用户验收。真实销售/库存及 Express 桌面报表验收未做；原安装 EXE直接改连新服务未做。仍待 managed 公开运输、MRERP、完整对账/盘点、LINE/WeKan、其它文件出口和旧状态迁入。通知依然 held，无发送消费者。
+
+**下一批**：从上述未迁后端中选择一个有明确旧线上入口的工作包继续，先复核线上源；无需重跑本批全部联调。若触及新的 Windows 写入路径，继续沿新测试连接/凭据、实际 TEST 和同会话唯一写者交接，绝不把本批样例当销售/库存验收。用户对必要测试凭据/测试套帐写入授权继续有效；不扩展为正式套帐、生产切换、LINE/WeKan消息或付费 OCR。
+
+### 交接保留与清理
+
+- **未合回、未推送、未部署**。目标主线和远端 main 收尾只读均为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在；未验证组合版本。未合并任务工作树/本地分支保留，供继续迁移；到约定接入点并获准整合后再复核删除。
+- Windows `PearnlyCoworkLab-20260921-17` 任务和同名 Public 文件夹已删除并回读不存在；原 Companion 已恢复，profile/EXE hash 不变，其它用户任务和测试凭据文件未动。TEST 业务单据、服务主档及原生审计记录保留，不能因收工删业务数据。
+- 新机器凭据已撤销，两个联调用户已停用，API key/secret 已清除并独立查库确认；Site config 原字节恢复，bench 私有状态删除。Mac `192.168.0.93:43917` 监听已关闭，私有 JSON、TLS 私钥/证书和临时 Windows bundle 已删，没有保留明文 token。
+- 专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab` 的 bench/db/redis 已停止；既有 `cowork-backend-ack.localhost`、本任务容器/命名卷/匿名卷/合成及 TEST 回报审计数据保留供下包。固定镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，源码只读挂载、Internal 网络、无发布端口/后台 worker；下包重新核归属，不接管共享 stack。
+- `/tmp/pearnly-cowork-migration-20260920/` 中固定源码、EXE 及脱敏证据继续作为本任务复核材料，下包/迁移结束复核保留用途；只删本批可再生缓存、临时执行脚本和秘密，不全局清理。
+
+## 换窗口交接（2026-09-21，第十六批交付）
+
+**第十六批已在本地接通旧 Companion 三个URL及顶层JSON协议，并核实Windows现用TEST可读、账套税号符合旧测试记录。** 7个定向用例通过。实际Windows尚未连新平台，没有ERP写入；继续不改DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文历史按当时证据读取。
+
+### 位置与本批结果
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`，开始HEAD `c9bee02d35c4e025e75c1ac0ed2d51f212d2b47c`。含交接的提交以 `git log -1` 为准。
+- 可选入口 `pearnly_cowork.companion.wsgi:application` 只适配精确旧heartbeat/lease/ack POST，沿原生鉴权、事务、权限和账本。默认基础设施仍为原生应用，无新监听、hook、角色、DocType或发送消费者；原生RPC仍保留message。
+- 固定旧QueueClient经真实httpx WSGI验证心跳、prepared不自动发、领取、重复ACK、撤销后历史ACK及失败不重复派发。4个Site用例和3个无Site用例均一次通过；架构0违规。无schema/术语修改，不重跑安装/migrate、i18n、DMS或全量测试。
+- 未合回、未推送、未部署。收尾只读主线/远端main为 `ac33e0c7362915ae314295cb26f7748cb5589de0`，任务远端分支不存在。主线继续由其它任务推进，本包未验证组合版本。
+
+详见[本批来源/合同/限制](cowork-backend/sixteenth-source-review.md)和[验证清单](cowork-backend/evidence/sixteenth-local-validation.json)。
+
+### 线上来源与配置限制
+
+开工/交付均重新取线上revision、digest、源码SHA与相关配置。source首尾PASS：Web/Worker各100% `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，源码 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，镜像 `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。交付采集 `2026-09-21T10:06:46.366275+00:00`；证据 `cowork-backend/evidence/*sixteenth-{start,delivery}.json`。
+
+**完整config迁入HOLD仍在。** 第十五交付→开工和本批首尾均仅在已采投影的Web/Worker端点configuration_digest有差异；不能由hash还原键或归因心跳，不迁旧owner/路径/凭据/状态。其它投影相等不等于全配置稳定。本包只承接固定源码协议；下包继续开工/交付复采。
+
+### Windows已确认与下一步
+
+- 实际EXE SHA256 `0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a`，内嵌1.1.77/Python311；54个业务模块及launcher共55个与固定Companion源码 `33af0fd5e381e87802c95655dc35e7709eb2a233` 编译结果一致。只排除构建路径，不执行内嵌代码。可复跑脚本 `scripts/cowork-companion-binary-source.py`；尚不证明签名构建链、原生CDX助手和第三方依赖。
+- 实机 `DESKTOP-MN2BRKR`；两个Companion进程是父子关系，不能当双写证据。两个现用profile均为 `\\Accserver\d$\ACCOUNT\70EXP\TEST`、dbf、未暂停。配置未改，也未停止现用进程。
+- **skin3交互身份已确认可读TEST**。六张表元信息可读，ISINFO公司名非空、13位税号与历史TEST值相符（证据只记末四位0289及匹配结果）。初始任务无输出和首轮DBF只读解析失败保留，最终按字段终止标记修正后成功；不是ERP写入验收。SSH环境用户名macadmin与旧交接codexops称呼不同，当前身份以本批Windows证据为准。
+- 用户对必要Windows/ERP测试凭据及测试账套写入的授权继续有效，不重复询问。没有扩大为正式账套、生产切换、部署、LINE/WeKan或付费OCR。
+
+**下一包优先**：实际连接新平台与Windows的独立测试入口，使用新原生测试连接/凭据与明确TEST目标，先证明不会领取旧生产队列和引入第二写者，再做一个测试单据及独立ERP回读。旧URL/JSON缺口已在本地补齐；当前不需要再从头比对这55个模块，但EXE或线上源变化时须复核。原生CDX辅助程序/写入依赖仍需核验。
+
+其它待迁仍有managed公开运输、MRERP、完整对账/盘点、LINE/WeKan、其它文件出口及旧状态迁入。第十三批准备/人工确认、第十四批ACK本地联动、第十五批导出事实保持；通知仍held无发送消费者，后端未整体完成。
+
+### 交接保留与清理
+
+状态为**交接保留**。本地提交后保留未合并任务工作树/分支继续迁移；解除条件为到约定后端接入点并获准整合，不为清理擅自合并/推送。任务远端分支不存在。
+
+专属context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`；本树只读源码挂载、Internal网络、无发布端口/外部凭据/worker/scheduler。使用既有 `cowork-backend-ack.localhost`，未建Site/改schema；bench/db/redis收尾已停止。容器、db/sites命名卷、原有匿名卷和合成数据保留供下包，迁移结束再核归属清理。
+
+测试临时安装的四个httpx相关包已卸载，复制到bench的wheel/client已删除；本批可再生Python缓存和重复审计中间件清理。Windows临时任务 `PearnlyCoworkReadOnly-20260921-16` 和同名Public目录最终均回读不存在，旧Restore任务未动。固定源码、EXE、只读探测脚本和日志 `/tmp/pearnly-cowork-migration-20260920/` 保留为证据，下包复核；不存明文测试凭据，不删业务数据。复跑前仍核context/project/mount/Site，不调用共享stack/dev-reload或flush队列。
+
+## 换窗口交接（2026-09-21，第十五批交付）
+
+**第十五批已在本地把 ERP 单号、逐行主档动作、主档清单及授权失败原因接入复核工作簿。** Windows 已连接并只读核对现用 TEST 配置，未发生实际 ERP 写入。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。本节为最新入口，后文按批次保留历史证据。
+
+### 位置与授权
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`；本批开始 HEAD `95bdaf96ad32b567a25ed3b70a95ee968eaf73f0`。包含交接的实际提交以 `git log -1` 核对。
+- 未合回、未推送、未部署。提交后收尾只读主线/远端 main 为 `7128a1e5decf9b79ee19e995c0bf9ead938e5a50`，任务远端分支不存在；主线由其他任务继续推进，本包未验证组合版本，不更新其代码。
+- 用户本轮明确：Windows 已开机，本机可直接访问；需要第三方 ERP 写入时使用旧项目的测试凭据和测试账套。**必要的测试 ERP 联调已获授权**，不再因旧交接重复询问。不扩大为正式账套写入、生产切换、部署、LINE/WeKan外写或付费OCR。
+
+### 本批完成与验证
+
+1. 原生账本按当前 actor / History 取创建时间最新的成功回执；ERP实际单号、逐行新建/复用与商品码、对手方码、库存组及主档清单进入既有四表。最新失败状态/原因与前次成功引用分开，prepared不覆盖成功。
+2. 附加事实需当前 push_log 功能、日志角色、公司/客户和连接授予；授权撤销时仍可导出获准读取的票据，但不带 ERP 明细或错误原因。停用连接可查已授权历史，Admin 不继承别人的 actor 事实。
+3. 票据版本改变后保留原单号，省略可能错位的旧逐行动作/方向和主档清单；库存组描述只取原账号/root/报告凭据来源。票面自报状态/ERP码继续被清除，不输出原响应、运输载荷、token或未知meta。
+4. 无新 DocType/API/菜单/发送消费者，未修改既有工作簿模板/金额计算、准备/确认和ACK状态机。
+
+[本批合同](cowork-backend/fifteenth-source-review.md)和[验证清单](cowork-backend/evidence/fifteenth-local-validation.json)：8个真实Site定向用例最终整次通过，3个新纯解析、3个既有导出用例通过，共14个独立用例；另10组固定源码同输入对比通过。首两轮夹具字段不合旧推送格式的失败及修复记录保留。架构0违规，无schema变化，不重复建Site/migrate/全量测试；无翻译改动，未重跑strict i18n、DMS、前端或CI。
+
+### 线上来源与尚未解除的限制
+
+本批开工/交付源码均重新读取，source比较通过。交付采集 `2026-09-21T09:31:16.309049+00:00`；Web/Worker各100%为 `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，完整源码SHA `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。证据在 `cowork-backend/evidence/*fifteenth-*.json`。
+
+**完整config漂移HOLD继续。** 第十四交付→本批开工与本批首尾均只见端点全config摘要变化，不能用旧hash还原变化键或归因为心跳。开工补采v1身份与第七批一致；交付v1补采因 `component_database_identity_changed` 拒绝生成证据，失败已留档，未降低采集器校验。其余已采环境/开关/observations投影首尾相等，但不证明整个config未变。本包为固定源码的纯解析和新平台原生账本读取，不迁入旧owner/配置/路径/凭据/状态。
+
+只读固定源缓存仍为 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`，下包继续开工/交付复采，不把当前证据当未来生产证明。
+
+### Windows 现场结果及下一包
+
+- `ssh lenovo-office-lan` 可达 `DESKTOP-MN2BRKR`。运行用户 skin3，SSH 用户 codexops。活动配置是 `C:\Users\skin3\AppData\Roaming\Pearnly\companion.json`；codexops自己的空配置不是现用配置。
+- 安装注册表1.1.77，实测 EXE SHA256 `0be7e908c3ce38d080f88b57f6eb8bd59f51d0315c3da5ac58dd775b75be448a`；**EXE→构建源码SHA尚未闭合**，不能用本地Companion HEAD或同版本安装包替代。两个进程可能为打包父子进程，本包未将其判作两个写者。
+- 两个活动 profile 都指向 `\\Accserver\d$\ACCOUNT\70EXP\TEST`，backend=pearnly.com、dbf、未暂停、加密token存在。没有读取/输出明文token、解密或复制凭据。只读证据见 `cowork-backend/evidence/windows-fifteenth-readonly.json`。
+- codexops 上下文的共享目录 Test-Path 为false；这不能判断 skin3 桌面身份的访问能力。旧文档69EXP/test不可作为当前测试目标。尚无TEST内部账套标识、独立ERP回读或实际写入结果。
+
+**下一包优先**：在保留现用profile的前提下补齐EXE来源及正确Windows身份下70EXP/TEST访问/账套确认，再承接旧URL/顶层JSON封套与新原生机器入口的独立接线。测试ERP写入授权有效；先确保新平台测试任务不误领旧生产队列、不出现第二写者。仍不部署、不接前端。
+
+其他待迁：managed公开运输、MRERP、完整对账/盘点剩余路径、LINE/WeKan、其它文件出口和旧状态迁入。第十四批通知仍为held，无发送消费者；后端未整体完成。
+
+### 交接保留与清理
+
+状态为**交接保留**，本批本地提交后保留未合并工作树/分支继续迁移；解除条件为后端到约定接入点并获准整合。任务远端分支不存在，不为清理擅自合并或推送。
+
+专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`；本树只读源码挂载、Internal网络、无发布端口、外部凭据或worker/scheduler。本批使用既有 `cowork-backend-ack.localhost`，未建Site或改schema；bench/db/redis收尾停止。
+
+保留上述容器、db/sites命名卷、原有两个匿名日志/Redis卷、所有本任务Site及合成记录，供下一包继续；迁移完成后再核归属清理。来源缓存与各批验证日志 `/tmp/pearnly-cowork-migration-20260920/` 保留为证据，下包复核。只清理本任务可再生Python缓存，无数据删除或其他资源清理。Windows无文件/进程/profile变更。复跑前核对context/mount/Site，不接管共享stack，不重启Colima，不flush队列。
+
+## 换窗口交接（2026-09-21，第十四批交付）
+
+**第十四批已在本地接上 ACK 的 History 状态、同来源库存计数和唯一通知事件持久化。** 通知为 held，尚无发送消费者；没有实际 ERP/LINE 外写。本节是最新续接入口，后文旧批次只代表当时。继续保持旧功能，不改 DMS、不接前端、不部署、不扩大测试。
+
+### 位置与授权
+
+- 工作树 `/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`，分支 `codex/cowork-backend-migration`。本批基线 `c1e57cf0a91f593cfc25637a2e3fcd4ade77f870`，包含本交接的实际提交以 `git log -1` 核对。
+- 未合回、未推送、未部署。主目录和远端 main 收尾只读均为 `b890691e8de7382302fefe561ea9f3f5294e769b`；任务远端分支不存在，未验证当前主线与任务组合，不改写主线。
+- 仍只有本地实现与隔离合成验证授权。没有真实 ERP/LINE/WeKan 写入、付费 OCR、旧数据迁入、Windows切换授权。
+
+### 本批完成
+
+1. `push.native` 的确认/激活同步 History pending；ACK success/manual、过期 unknown/manual及队列隔离同步终态。重试 pending 不重复更新时间，不改变审核版本/页内容/人工编辑审计。History最近推送由人工确认选择，旧连接晚回执不覆盖后选连接的状态。
+2. legacy 成功按旧 `stock_item + created` 规则计数，严格对应准备时账号/root/报告凭据与缓存来源；切换来源或无画像只记录未应用原因，不改其他账套。managed分支没有此计数。新扫描覆盖缓存，重复ACK不重复增加。
+3. Cowork LINE来源首次成功生成私有 `Cowork Push Notification`，push_record唯一，保留冻结金额/票号等发送素材；当前 held 无发送能力、无接收人绑定、无公开CRUD或分享权限。Web来源不生成LINE事件。
+4. 回执、History、计数、事件、写锁释放共用本地事务；故障全部回滚，两进程并发只产生一次结果。History detail/list及复核工作簿可读取服务器状态；完整ERP单号/逐行主档动作导出仍未接。
+
+详见[本批来源与合同](cowork-backend/fourteenth-source-review.md)及[验证清单](cowork-backend/evidence/fourteenth-local-validation.json)。13个新增Site用例逐项通过、6个既有ACK HTTP用例通过，共19个独立用例；八组旧源计数对比通过。新装/升级/重复迁移通过，复跑不累加数量；新装首轮导出失败与后续修复证据保留。strict i18n仍有旧147项/43文件/135文案，新增0。未跑全量离线、DMS、前端或用户验收。
+
+第十三批准备采集/人工确认能力继续保留：普通心跳/complete标记不能给准备授权；供应商/银行是可选佐证；无明确报告凭据的 prepared 只供审阅，公开confirm必须有匹配的当前凭据。ACK receipt权限仍不同于领取/报告权限，原Secret不得进入错误快照或Recorder。
+
+### 最新线上来源与闸门
+
+本批开工/交付source/runtime均新采，与第十三交付及本批首尾比较通过，settings不变、observations不变。source末采 `2026-09-21T09:02:47.532193+00:00`；Web/Worker各100%为 `pearnly-web-ec2e5c957e6b-s3` / `pearnly-worker-ec2e5c957e6b-s3`，完整SHA `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，digest `sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226`。新证据为 `cowork-backend/evidence/*fourteenth-{start,delivery}.json`；下包需再次采集，不把本次当未来线上证明。
+
+**第八→九批全config漂移HOLD仍未解除。** 不迁入旧owner/账套/路径/凭据/状态，不补造历史通知。只读旧源快照 `/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b` 可从固定Git SHA重建。Windows EXE运行身份、旧URL/JSON封套、WeKan停止实例来源仍未闭合。
+
+### 下一包
+
+按当前约定重读架构并复采线上来源，优先接 **复核表的 ERP 单号、逐行主档动作和回执事实读取**。从原账本取已授权事实，不能信票面自报成功/新建标记，不增加外部发送。仅跑受影响导出/权限/回执用例。
+
+仍有：Windows真实接线与身份、managed公开运输、MRERP、独立ERP回读；完整对账/盘点剩余路径；LINE/WeKan；其他文件出口和旧状态迁入。后端未整体完成；到前端接入点再讨论，不自行合并、推送或部署。
+
+### 本任务保留与清理
+
+状态为**交接保留**。未合并任务工作树/本地分支保留承接迁移；解除条件是后端到约定接入点并获准整合，下包开工复核。本任务远端分支不存在。
+
+专属 Docker context `colima-pearnly` / project `pearnly-cowork-backend-lab`，镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，原工作树只读挂载、内部网络、无发布端口、无外部凭据/worker/scheduler。bench/db/redis收尾停止；容器、db/sites命名卷、原有两个匿名日志/Redis卷保留供下包，不处理其他容器。
+
+新增 `cowork-backend-ack.localhost` 仅供本任务新装与合成ACK验证；既有 `cowork-backend-preparation.localhost`升级。全部Site/合成记录/数据卷在迁移结束时复核归属后清理，禁止重建既有Site或删卷。日志和固定源缓存 `/tmp/pearnly-cowork-migration-20260920/` 保留为迁移证据，下包复核。只删除本任务可再生Python缓存和本批一次性编辑脚本，未删数据或未合并代码。
+
+复跑前核对context/project/mount/Site；不调用共享stack/dev-reload、不重启Colima、不flush队列。Site配置修改/还原后清Frappe配置缓存；共用Site配置的测试串行。保留原HTTP入口的凭据和Recorder清理保护。
+
+## 目标与授权边界
+
+用户 2026-09-20 要求按已讨论方案开始迁移，做到需要接前端时再讨论。旧前端只用于提取业务行为；新界面以已调整的新 DMS / 原生 Desk 为参考，当前不改页面、不构建前端。在本地实现与隔离验证，不上线、不部署。2026-09-21用户补充授权Windows及测试凭据/测试账套ERP联调；不写正式ERP账套、LINE / WeKan，不执行付费OCR。
+
+状态：进行中。功能清单、实现、本地验证、外部业务结果和用户验收分别登记；代码骨架或状态字段不计作完成。Cowork 范围包括录入、识别历史、推送、主数据、对账、盘点、LINE、Companion 和 WeKan。每项达到可接前端之前均须有来源与行为证据；尚未迁入的模块明确保留。
+
+## 工作树与并行边界
+
+- 新仓基线：`1d7832e6c5c767b310542b9022750992ec9957b0`，集成目标 `main`。
+- 本任务分支：`codex/cowork-backend-migration`。
+- 本任务工作树：`/Users/skin/.codex/worktrees/cowork-backend-migration/pearnly`。
+- 其他窗口 `codex/ssdnodes-migration` 及现有 DMS / auth 工作树保持不动。主目录被控制面绑定挂载，当前不合回、不更新主目录、不推送。
+- 现有 Docker context `colima-pearnly`，12.5 GB VM 内存；DMS、auth、control 实例在运行。测试必须使用本任务专有 project / 网络 / Site / DB / Redis / 卷，不调用共享 `stack.sh` 或 `dev-reload.sh`。不重启 Colima，不变更其它容器。
+- 公共 Core / 登录 / 语言 / 控制面修改尽量避免，必要变更独立列明并回归，不能覆盖 DMS 窗口的修复。
+
+## 旧线上来源（开工只读回查）
+
+核验日期：2026-09-20（精确 UTC 时间及首尾结构化证据由本任务基准采集器记录）。
+
+| 组件 | 实际回读 |
+| --- | --- |
+| Cloud Run Web | project `pearnly`，region `asia-southeast1`，`pearnly-web-ec2e5c957e6b-s3`，100% 流量 |
+| Cloud Run Worker | 同项目区域，`pearnly-worker-ec2e5c957e6b-s3`，100% 流量 |
+| 不可变镜像 | 两组件均 `asia-southeast1-docker.pkg.dev/pearnly/pearnly-app/app@sha256:178af2ed94d406c33929290a47c27c11e96451cb79940c47e96adad0073d7226` |
+| 源码映射 | GitHub Manual CD `35321281376`，`conclusion=success`，完整 `head_sha=ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；固定部署账本给出相同 digest / SHA |
+| 挂载 | storage / uploads / var / companion 安装包 / runtime secret；未见 App 业务源码目录覆盖挂载 |
+| 运行配置引用 | `pearnly-web-env:3` / `pearnly-worker-env:3`；秘密值不写入证据 |
+| WeKan VM | `pearnly-work` 当前 `TERMINATED`；不能据历史记录或占位镜像声称当前 WeKan 运行源码已验证 |
+
+旧日常仓库 `master@e4505459` 落后且存在他人脏文件，保持只读。迁移使用 `git archive ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188` 的独立快照：`/tmp/pearnly-cowork-migration-20260920/legacy-ec2e5c957e6b`。该路径可由完整 SHA 重建，不是源码权威副本。旧 `origin/master` 比此线上 SHA 仅多部署账本文档，业务来源仍固定为实际线上 SHA。
+
+## 结构与交付顺序
+
+1. 来源核验工具、覆盖映射、Cowork 业务域和权限合同。
+2. 真实 Frappe Site 内的公司 / 账套范围、录入 / 历史 / 确认 / 推送事实与失败恢复；使用固定识别输入与假外部出口验证。
+3. 识别接入、外部适配、Companion / LINE 协议、对账与盘点，按实际来源依赖拆包；缺少真实版本证据的 WeKan 移植不猜版本。
+4. 当后端接口可以承接实际页面时，整理接口、样例和剩余缺口，与用户讨论前端；不自行搬旧 UI。
+
+业务实现进入 Cowork 域包；纯计算不依赖 Frappe / IO。共享身份、购买功能、识别执行和 `Pearnly Push Log` 复用 Core。每 Site 的推送记录是本站权威，不跨库访问 ERP。列表、详情、导出、附件均需相同范围权限；并发去重不能依赖先查再插入。
+
+## 验证与状态
+
+| 层 | 当前状态 |
+| --- | --- |
+| 开工来源版本 | Web / Worker 已现场核对；WeKan / Companion 的独立运行来源待补 |
+| 实现 | 录入/复核/完成/历史、原件、盘点已有；PDF/图片/普通表格识别已接原生执行、授权纠错、草稿及计费回执；专用回导、外推与其它模块仍待迁 |
+| 架构 / 离线 / 真实 Site | 第五批架构0违规、353个Cowork离线测试、17项新增及63项既有Site回归通过；各批差分、范围及外部替身边界见下文 |
+| 前端接入 / 浏览器验收 | 按用户要求暂不实施 |
+| CI / 合并 / 推送 | 主线8f1851f已单向合入任务分支；未合回主目录，未推送，未运行CI |
+| 部署 / 外部写入 / 真机 / 用户验收 | 未执行，不在本次默认授权中 |
+
+交付前重新读取旧线上身份。若相关源码或配置变化，补齐增量并重验。新仓 SHA、候选源码挂载、安装升级及重复迁移结果、未覆盖项随本记录更新；不把模拟出口当真实外部成功。
+
+## 第一批后端检查点（2026-09-20）
+
+实现与前端承接边界见 [接口与未迁清单](cowork-backend/backend-api.md)。固定来源字段、路由及附件风险见 [录入来源映射](cowork-backend/intake-source-map.md)；对账/盘点与浮点差异见 [对账和盘点](cowork-backend/reconciliation-stocktake.md)；推送当前仅有 [纯预检合同](cowork-backend/push-contract.md)。
+
+新原生数据为 Cowork Workspace、Cowork Client、Cowork OCR History。公司与买方分开授权，完整票面与首次识别快照分开存储。保存使用行锁和版本，完成使用整批范围核对与保存点，重复完成不重复写。手工录入请求幂等由唯一键保护；MariaDB 1020 冲突在单条创建 RPC 的事务边界最多重试两次，内部持久化函数不隐式重试调用方的整个事务。
+
+测试发现并修正的具体问题：
+
+- 原生 PUT 没带客户端 revision 时会从数据库补当前值，不能仅靠 validate 比较版本；现在原生写入拒绝，专用保存 RPC 强制传版本。
+- Frappe DocShare 可以回退绕过自定义权限及列表条件；现在详情明确拒绝，列表阻断遗留分享回退，新增 Cowork 分享拒绝。
+- User Permission 的其它 DocType 局部授权不能被当成全局公司成员；停用客户从原生列表排除；主档可分页到第201条。
+- 两个事务使用同一请求键会遇 MariaDB snapshot conflict；现已实测两进程建立旧快照后同时提交，返回同名且只落一行。
+- 批量第一条保存成功、第二条保存失败时，真实数据库回读两条均仍草稿；保存点异常分支覆盖，数据库死锁走整事务回滚。
+
+### 本地验证证据
+
+- 环境：专有 project `pearnly-cowork-backend-lab`，内网 `Internal=true`，无发布端口、无真实凭据、无 worker/scheduler。
+- Frappe `16.33.0` / Python `3.14.7`，与锁定矩阵一致；镜像 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`，Core/Cowork 只读绑定本任务工作树。
+- Site A/B 证明数据库隔离；后加 `cowork-backend-fresh.localhost` 证明新增 DocType 的全新安装；A/B 已有站点升级与重复 migrate 通过。
+- 升级前后合成数据/权限/用户设置摘要一致：`b2eac3fd2c980f8f3f176d3b8f5cdd8a986ac8b0412ae34852f5eb3920cab2e9`（16条历史、8家公司、4买方、16条范围授权、16用户、20角色分配）。后续测试另增的合成记录不在此摘要内。
+- 21项真实Site用例覆盖成功、越权、Guest、角色、功能、跨Site、即时撤权、原生分享、版本、首存原件、幂等、并发、晚失败回滚和分页。测试只写专有本地卷。
+- WSGI 原生 API 实测创建→详情→完成：成功；PUT不带版本=417且旧票号不变；匿名详情=403；GET写方法=403。未启动浏览器，不代表页面或真机验收。
+- 90项纯离线测试通过（来源闸门24、history20、push19、reconciliation10、stocktake17）。
+- Cowork 语言包沿既有术语表生成。实际 Site 验证 en/zh/th/ja 可加载日期错误与OCR质量文案；通用状态不改成OCR专属含义。日语框架权限文案缺失另由本App补齐。界面显示与泰/日人工用词尚未验收。全仓缺漏检查有其它模块既有缺项，未在本批扩大修复或声称全仓通过。
+- 固定源码差分：数量4020、第一轮配对1000、推送纯预检6361组；history来源与直接差分边界见对应记录。
+- `python3 scripts/check-architecture.py`、Compose config、差异空白检查通过。本机/镜像无 Ruff，未称 Ruff 已通过；新文件另做 AST 语法检查。未改DMS业务或共享Core，不执行外部DMS回归。
+
+### 线上再次核验
+
+结构化来源凭据保存在 `cowork-backend/evidence/`，采集和离线验证方法见 [基准工具](cowork-backend/baseline-tool.md)。
+
+- 开工凭据内容摘要：`6092bc4e235dc7adb2096db97664881b9101342d9b4f61a729af567281a879a9`。
+- 检查点凭据摘要：`6ec3b0fbf990ee5949d57f3d453dbd8dbebb0fbc1681ae9630ef9f774ea9990c`。
+- compare 通过：Web/Worker 的实际流量 revision、digest、固定源码、配置引用在本次记录范围内未变。仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。凭据不含 Secret 内容；来源一致不等同全部业务迁移完成。
+
+前端讨论检查点：目前可讨论录入/复核页面如何承接；整产品迁移尚未完成。保持独立分支，不合回正被其它窗口和本地控制面使用的主线，不推送，不部署。
+
+重跑命令限本工作树：
+
+```sh
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml up -d
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-init.py
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-verify.py
+docker --context colima-pearnly compose -f infrastructure/compose/cowork-backend-lab.yml exec -T bench env/bin/python /workspace/scripts/cowork-backend-lab-verify.py --http-smoke
+python3 scripts/cowork-migration-baseline.py compare docs/work/cowork-backend/evidence/baseline-first.json docs/work/cowork-backend/evidence/baseline-checkpoint.json
+```
+
+这些测试在本地专有卷创建合成记录，不能对真实租户执行；HTTP测试是进程内WSGI请求，不访问外网。验证结束停止本任务三个容器以释放内存，保留工作树、证据和本任务数据卷，便于继续；未停止其它窗口的任何容器。
+
+本批实现已本地提交为 `10f7ef449db036d06ca2f477893183aedaf46463`，共享暂存快照钩子通过。收尾发现其它窗口已将主线推进到 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a`（开户、DMS、侧栏修复）；本任务未回退或改写它。当前验证仍绑定本任务原基线及本批提交，**尚未验证与最新主线合并后的组合**。后续合并须保留双方术语表增量，并按共享配置/身份影响补定向回归。主目录和本任务工作树最后检查均无未提交改动（本记录收尾提交后再核对）。
+
+
+## 第二批后端检查点（2026-09-21）
+
+用户要求继续。本批先将主线 `8f1851fcd4e8f4ae05473bdfc761bfd186690f5a` 合入独立任务分支，合并提交 `f409bce560df11f78ee5fc7908e71129c4e37a36`；术语表唯一冲突保留双方新增项。主目录及其他任务分支/容器未修改。收尾观察主线又推进至 `d3cf80b1ed2336f7c01f0ae7339543ac929fd7d3`，新增是正式部署工具与记录；本轮不部署，不将此未纳入组合冒称已集成。
+
+### 本批实现
+
+- `pearnly_cowork.files`：原生 Source File + 私有 File，上传原字节/校验 SHA、实际页数、幂等与受控下载。沿固定来源100 MiB/50页门禁；PDF/图片解析失败明确拒绝。原件不去EXIF、不与普通附件共用磁盘路径；普通File的全站设置保持原生行为。
+- `history.recognition`：可信内部入口整批保存与封存原件关联；原件初始范围、每张票据范围、物理页证据一并检查。保存 history ID 清单让另一授权用户重放时仍返回原批。等待其它事务绑定后，用 current read 回读这些ID，避免新ID/旧快照混用。不是OCR RPC，没有运行模型、收费或入队。
+- 权限覆盖业务原件/按页预览与原生私有URL、File详情、ZIP、公开切换、修改/删除、路径/缩略图/同hash别名。普通File原生读取/权限/删除有回归。DocShare同时在before_validate和validate拒绝，JSON ignore_validate不能关闭保护。
+- `stocktake`：四个原生DocType，解码行快照、任务/明细、扫描增改作废、operation回执、累计、关单、JSON报告；关单不写库存账。实测MariaDB1020后，在专用RPC增加最多三次整事务尝试；内部service不隐式重试调用方事务。
+- `ocr.inputs/pages`：迁移纯文件门禁、页展开、同页多票与置信度，保留固定源码差分；供应商、完整金额分组及计费接线未搬。四语术语表本批追加106条，仅定向生成Cowork的en/zh/th/ja CSV，每语180条；原有词条保留。
+
+接口及最新缺口见 [后端接口](cowork-backend/backend-api.md)、[文件守卫](cowork-backend/files-guards.md)、[盘点原生后端](cowork-backend/stocktake-native.md)、[OCR接线断点](cowork-backend/ocr-pipeline.md)。没有新增前端或产品导航。旧可搜索PDF/可选加密存储与新上传原字节分开；本批不导入真实旧文件，不宣称旧加密/留底行为已迁完。
+
+### 本地证据
+
+仍使用第一批锁定镜像/Frappe16.33.0/Python3.14.7和专有Compose内网，未共享DMS的Site/卷，未启动worker/scheduler或外部通道。
+
+- `PYTHONPATH=apps/pearnly_cowork python3.14 -m unittest discover -s tests -p 'test_cowork_*.py'`：106项通过（90项原合同+12项OCR+4项盘点原生合同）。初次误用系统Python且未设置包路径的导入失败不算业务失败；改用本仓App路径和3.14后实际通过。
+- 固定源OCR差分：336文件门禁、2000质量批次、200同页多票批次、9非发票场景，通过。未把纯层差分当供应商/完整分组通过。
+- `cowork-backend-lab-verify.py`：21项通过；`cowork-files-lab-verify.py`：20项通过；`cowork-stocktake-lab-verify.py`：14项通过。文件覆盖跨公司PDF、同页跨公司拒绝、完整/不完整清单、跨操作者重放、旧快照回放、晚失败整批回滚、撤权、伪造能力/ignore_validate、路径及缩略图别名、同hash隐私副作用、26MiB原件、开启EXIF清除设置仍保留JPEG原字节、普通File权限/删除、两进程并发上传单行。
+- 最后连续补测触发Site A原生每小时新增用户限流，失败发生在合成账号准备阶段。未关闭或提高限流；验证脚本现在只允许通过 `PEARNLY_COWORK_TEST_SITE` 选择四个既定专用Site，转到刚安装的files Site后，文件HTTP与盘点14项均通过。没有向真实租户创建测试账号。
+- 三组原生WSGI验证：历史创建/修改拒绝/完成；盘点创建/计数/关闭/报告；文件multipart上传/精确下载/PNG预览。越权、匿名、原生owner下载/ZIP/解压/公开切换和GET写方法按预期拒绝；原件及PNG的no-store/nosniff已回读。ZIP在公开入口预检后才交给原生实现，避免打开archive后权限异常导致未关闭警告。无浏览器或真机验收。
+- 新增第四个专用 `cowork-backend-files.localhost`，全新安装Core/Cowork与迁移成功；已有三个Site升级/重复migrate成功。前后摘要 `636eb546e39f52facb7a3142e2f97f4e7f547a91c3620592cb90456320683e39` 一致，覆盖30条历史、5个原件及其磁盘SHA、10个盘点任务/20商品/8扫描/8回执、公司/买方/权限/用户/角色。此摘要绑定比较当时数据；随后并发验证又写入标记清楚的合成记录。没有执行真实旧数据库回灌或备份恢复演练。
+- 合入主线后的定向集成：DMS离线207断言通过；锁定镜像、只读任务源码挂载、`--network none`下`test_cloud_onboarding.py` + `test_dms_entrypoints.py`共20项通过。只读边界测试，不代表DMS线上业务由本任务验收。
+- 架构0违规、i18n生成一致、差异空白检查通过；没有前端改动，不跑前端构建。母语译文、UI、外部业务、CI与部署均未验收。
+
+### 生产来源再次核对
+
+本批开工及交付凭据已保存 `cowork-backend/evidence/baseline-second-start.json` 与 `baseline-second-delivery.json`，离线compare通过：Web/Worker实际流量revision、镜像digest、固定源码与不可变配置引用未变化。
+
+- 开工内容摘要：`3c1c2f256ecf789504401b3549a8b0747d8ff790864dbef5b75e72d5db4be2c8`。
+- 交付内容摘要：`dd9495ce2bd0071e0a46a46b12c82b0380317a7f8a701c7d9966d0bcd794b2dd`。
+- 仍为源码`ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`及前述镜像。秘密值未写入凭据；OCR运行参数的有效值仍需在接供应商前单独核对，不能从源码默认值推断。
+
+### 后续与并行边界
+
+整体后端迁移继续中，尚未到整产品前端接入验收。下一段依次补固定来源的完整OCR schema/金额闸/分组、Core执行/检查点/缓存/计费、外推日志与写者边界、LINE/Companion、完整对账。盘点还缺XLSX字节导入/导出、照片、旧legacy操作、历史回灌和10000行容量验证；WeKan/Companion独立运行来源仍需核对。不得用现有人工pages或纯OCR函数把这些标记完成。
+
+本批只在任务分支本地提交，不合回正被其它窗口使用的main，不推送、不部署。测试容器在收尾停止，保留本任务卷、工作树和凭据以便继续；不清理其他任务资源。
+
+## 第三批后端检查点（2026-09-21）
+
+用户要求继续，沿任务分支 `392d9d917cb62c1a00d0bb43f72dc7b806082a86` 施工。App/域明确为 `pearnly_cowork.ocr`，新增的schema、金额/日期/来源/置信校验、分组、纠错提示、策略和结果准备都是纯合同；依赖向既有纯history/push合同及Pydantic单向流动，不依赖Frappe/HTTP/时钟/环境。新增Site脚本负责把已验证结果交已有 `history.recognition.persist_batch`。没有增加RPC、队列handler、DocType、产品导航、前端或共享Core默认行为。
+
+### 实现与保持行为
+
+- [完整发票模型及校验](cowork-backend/invoice-contracts.md)：30个票据字段、同页附加发票、OCR位置/词置信度、首次证据、贷项/折扣/WHT/金额来源保留；年份和日期由调用方显式传入。金额运算改Decimal，非有限值与超过float精度的差额显式阻断，差异独立登记。
+- [完整分组及结果准备](cowork-backend/invoice-grouping.md)：同号非连续页回并、金额结束页、整件归一、items去重和复写联规则；调用方输入不被合并污染。纯结果核对原件权威物理页集合，缺页/重复物理页/早期失败拒绝；完整有效L2而L3/image-first失败保留为 `review_required` 草稿，不丢掉可人工复核的票据。全非票返回零组及不可作为收费结果的标记。
+- `ocr.results.prepare_history_batch` → 已有 `persist_batch`，每组保留所有source pages、唯一权限页集合与独立ai_raw。`has_billable_result`只是有票据结果，不是余额检查或扣费授权。PDF物理页和表格虚拟行不能混用，本接口不冒充表格来源映射已完成。
+- [纠错提示纯合同](cowork-backend/invoice-feedback.md)：首存AI与人工修正差分、主页卖方、前4税号/每税号20例/最终12例、去重和提示字节保留；只接已授权样例。原生例库、保存hook、真实历史样例导入尚未接。
+- [运行策略](cowork-backend/ocr-runtime-policy.md)：补上只读动态配置取证工具和纯档位解析。实查两个服务invoice均economy+vertex：首读3.1 Flash Lite、升级3.8 Flash。旧env四个模型值虽然写3.5，但被mode覆盖。文本PDF快路和历史纠错注入均开启；不能只照默认image-direct移植。旧Vision回落所需环境缺失已记录，未修生产或试调模型。
+
+新错误码目前是内部纯合同错误，未公开到产品UI；前端/公开API接线时沿现有术语表补齐映射。模型提示块是模型输入合同，不当作产品翻译文案。没有冒称界面、泰/日用词或真实识别质量已验收。
+
+### 验证
+
+继续使用独立 `pearnly-cowork-backend-lab`、锁定镜像/Frappe16.33.0/Python3.14.7；本批确认Pydantic2.12.5。无发布端口、无真实凭据、无scheduler/worker，源码只读挂载本任务工作树；容器内网隔离。不需要新增结构，未重复migrate或跑无关DMS业务。
+
+- 目标运行环境全部 `test_cowork_*.py`：**199项通过**（第二批106 + 本批93）。最终审查修正空fallback与实际L3模型的区分、空timeout回落60秒、证据完整结构/时序检查和独立凭据Secret引用拒绝；补齐断言后，用同一锁定镜像、`--network none`、只读本任务源码的一次性容器运行全套通过，容器自动删除、无Site/数据卷挂载。没有删断言或放宽容差。
+- 固定源码哈希差分：980模型；2500 sanity + 2500金额 + 12折扣 + 56日期来源 + 800置信；10固定 + 3000随机分组、11441普通金额、3000税号；5120策略、120模型档位、45区域；3000编辑、6000卖方、3000提示、3000禁用。普通输入严格对照，明确Decimal舍入/非有限/极值差异单列，不称所有输入逐字一致。
+- `scripts/cowork-invoice-lab-verify.py`：**6项真实Site集成通过**，写入专有 `cowork-backend-files.localhost` 合成数据。验证同页多票+跨页合并保存、物理页预览、同请求返回原ID、缺页不封存、L3失败可复核草稿、首次ai_raw在人工修改后不变、越权拒绝、全非票不生历史。没有模型调用、真实扣费或浏览器。
+- 架构0违规，源码语法与空白检查通过；没有前端或语言包改动，不跑前端构建。安装/升级、55项原生Site、3组WSGI、DMS207断言仍是前批绑定的证据，本批不以旧通过代称新跑。
+
+### 开工与交付生产证据
+
+`evidence/baseline-third-start.json` 与 `baseline-third-delivery.json` compare通过，来源仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。首尾实际流量、镜像digest及固定配置引用未变化。
+
+- 来源开工摘要：`ed778db8459accbf27de222f5c86fe5309b1cfefe8a443a6c1cec9207be5d9cc`。
+- 来源交付摘要：`f9db5642104971bd679ba911d4feecd6fa1e3b48038546b280ce952caa7f2423`。
+- OCR动态配置开工摘要：`682292fdf84387179fe8f019b216689c0a7c89fb5b86636b5bf6e152c1f626fc`。
+- OCR动态配置交付摘要：`e08c07233965dbec5cfe543e9f500d136006cde08fd361b4e2ed78ae6103d104`。
+
+配置取证首尾compare通过。固定Secret只在本机进程内读取，证据只含白名单参数、引用和凭据存在性；数据库只读事务只查一行OCR策略，未读用户/票据/例库数据。瞬时DB读不证明每个进程30秒缓存、用户私钥或实际供应商可调用；未迁真实纠错样例，不能声称模型提示输入和线上完全一致。
+
+### 下一段与收尾
+
+下一段接真实执行链：服务端固定actor/锚定日期/策略及授权样例；PDF文本/200DPI渲染与图像路径；通过Core provider预算/持久检查点调用；同一work逐页串行避免whole-JSON检查点丢更新；结果未知不自动重付费；余额查询失败关闭、保存与稳定reference计费重试分离。缓存、原生纠错例库/保存hook、可搜索PDF、表格回导及原生历史导入需分别补齐。其余推送、对账、盘点缺项、LINE/Companion/WeKan保持第二批清单，不因这批纯层通过被划掉。
+
+主目录收尾观察为 `55d1df4b0a69024c3e7ac446ea98d2697409c13e`，相对上批主目录新增DMS rich-menu修复；未改动、回退或合入此窗口，尚未验证与此最新main的组合。主目录无未提交改动。本批只在独立任务分支本地提交，不合回、不推送、不部署。完成后停止本任务三个容器，保留卷及源码，供下次续接；不影响DMS窗口及其Site/容器。
+
+## 第四批执行链（进行中，2026-09-21）
+
+用户再次要求继续。起点 `ffdcd477632c8cb435d54ab855c721d4b67779cc`，独立任务树无未提交改动；主目录仍为55d1df4，不改DMS及其运行环境。开工来源身份与动态策略重新只读取证，固定源码仍ec2e5c，首尾与第三批比较通过。
+
+本批责任：Cowork `ocr.engine`负责纯发票编排/提示/响应解析；`ocr.inputs_runtime/providers`负责惰性原件渲染和Core provider适配；`ocr.feedback`负责原生授权纠错例库；`ocr.execution`负责服务端受理、actor/范围重验、不可变策略/日期/提示快照、原生Batch状态、Core work队列接线及稳定reference计费。公开入口只受理本站已有受控Source File，不接受客户端模型、actor、租户或原始识别结果；既有history保存服务承接完整结果，原生业务数据使用新DocType，不手改库。
+
+依赖为Cowork流程→纯engine/输入/供应商适配→Core共享执行/预算，以及流程→history/files/feedback。Core不反向导入Cowork；不改共享默认档，不搬旧线程池，不允许无work上下文的付费调用。模型结果未知不能自动切模型/重做；明确拒绝/限流交Core延后。同work逐页串行检查点，原件惰性取页，余额查询失败关闭；识别结果保存后计费失败只重报账，不重识别。Web/原生CRUD/分享/队列与撤权路径均纳入本地验证。
+
+只在专用内部网络/Site以合成票据和假供应商/假账单出口验证，不配置生产密钥、不发付费OCR、不部署、不接前端。供应商真实结果、旧历史回灌/真实纠错样例、浏览器和用户验收仍需另行证据。阶段实现及最终检查在此处续写，不把设计当完成。
+
+### 第四批实现与审查结果
+
+已接通[原生执行合同](cowork-backend/invoice-execution.md)。受控Source→不可变Batch→Core Work→PDF文本/图片/direct或Vision-L2-L3→完整结果冻结→同事务草稿/原件清单→稳定reference账单回执。公开submit/detail/retry_billing不接受actor/租户/模型/AI结果。只有PDF/image、显式economy/enterprise+Vertex；unsupported格式、auto模式和未配置连接在付费前明确拒绝。
+
+本轮审查修复了实际边界问题，未通过扩大忽略或删除断言解决：
+
+- 供应商已完成的非成功响应必须有终态回放；否则后页限流会让前页拒绝再次发请求。另覆盖Core rejected已提交而产品terminal尚未写的崩溃窗口，原raw缺失如实记为恢复拒绝。本地配置/凭据错误独立硬失败，不能误当L3业务失败降级。
+- 长任务不能只清数据库事务：Frappe本进程角色cache仍旧。每次调用和最终保存前重设actor，重新读取角色及范围。
+- 正常返回但字段全空的票据原本能漏进结果准备，现拒绝整件，不保存空票收费。这是登记的收费收紧，不称旧源所有边界行为不变。
+- `client=None`会被Frappe用当前用户唯一客户权限填默认值。History/Source/Batch显式保存空值，避免没有指定买方的单据被框架变更归属；现场覆盖原件、Batch、历史三层。
+- Correction与Batch进入原生query hook必须有All/Guest查询角色，再由hook最终拒绝；直接空permissions会让新Frappe query的旧DocShare路径提前返回。共享Core Work不增加这些权限，使用对象能力/原生生命周期保护和限定Cowork的分享权限升级，保留旧share行，不改DMS份额。
+- Core失败通知无hook时返回[]，原代码`.get`使失败/未知任务释放容量前报错。本批仅修这处兼容，8项回归验证真实DMS回调字典和参数仍保留。
+
+框架错误和内部元数据沿TSV生成Cowork中/泰/日/英四语：新增56条，本批70项核对完整覆盖；未接前端，也未获得用户翻译验收。模型提示和旧诊断字面量为来源合同，尚需前端消费时拆分展示翻译，不能直接当用户提示。
+
+### 第四批验证
+
+锁定镜像仍为`sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`，Frappe16.33.0/Python3.14.7，自己的Core/Cowork源码只读挂载。专用Redis6.2 DB6/数据库与内部网络无共享DMS挂载，无外网路由/端口/worker/scheduler/真实凭据。实查pypdf6.15.0已存在，本批Dockerfile显式固化同版本，没有重建或发布运行镜像。
+
+- 最终独立无网络容器完整`test_cowork_*.py`：**285项通过**。首次运行遗漏Core源码PYTHONPATH导致2项导入错误，修正测试命令同时加载本树Core/Cowork后全部通过，没有修改断言绕过。
+- 纯engine固定源码hash差分**1919项**；IO同源Vision/缩图/文本路径**540项**，由独立审查记录。不把假response的差分当真实模型质量证明。
+- `cowork-execution-lab-verify.py`：**22项真实Site场景通过**，包含两独立进程同时受理、真实Core检查点和Redis预算、原子保存中断/重试、未知结果不重付费、先存后账和丢回执、撤公司/角色、权限/WSGI原生接口、50物理页完整清单与一次按50页记账。所有provider/token/账单出口是假实现，未发真实调用；50页为小尺寸合成PDF，不是大扫描件或多租户峰值承诺。
+- `cowork-feedback-lab-verify.py`：**16项通过**；修正原生client默认填充、legacy share列表旁路，以及不符合真实已规范化AI页的fixture后复跑，不放宽断言。
+- 受影响既有History原生回归**21项通过**；File/整批绑定回归**20项通过**。盘点未受影响，不重复其旧全套。
+- 新建`cowork-backend-execution.localhost`完成空Site安装；原四Site完成结构升级，execution Site后续migrate与重复升级成功。涵盖原件字节、历史、Batch、Correction、Core Work、用户/权限/偏好的前后摘要均为`9bfd48b665f1a6a3de30aca20dd392720e2d5b35974816d9b63f6429f571b94f`（148原件、46历史、101Batch/Work、4Correction）。未做真实旧数据导入或生产恢复。
+- 架构检查0违规、空白/语法通过，DMS离线207断言通过。术语表检查通过；**全仓i18n严格检查仍失败**：既有与纯来源模型/诊断中文共147项检测，另其他App每语缺22个英文msgid。没有扩大忽略或改DMS语言包来造通过；本批英文服务器消息/元数据四语覆盖与全仓静态通过是不同结论。无前端改动，不跑前端构建。
+
+### 第四批首尾线上证据
+
+`evidence/baseline-fourth-start.json`/`baseline-fourth-delivery.json`和对应`ocr-runtime-fourth-*.json`均首尾compare通过；Cloud Run实际100%流量revision仍为`pearnly-web-ec2e5c957e6b-s3`及worker同源，源码、镜像和OCR策略未漂移。原代码/运行配置身份不等于新平台真实识别结果已一致。
+
+- 来源开工摘要`6675134220bf2349153b79aa1fa30bf87fcd0c8cab2e200fb9e41a8f4f0e3a4b`；交付`2cf98e0a529d219f5bbf71f4bffcc89137b9ee6219f2dea6d4124d2b1930a53a`。
+- 动态配置开工摘要`994be70bf797ff2b4d09f7dc2a4d783a03a1e4679cd1ebd892787de41a09bd15`；交付`d07e7c9f99342c130f0566649517cc28e4bed8b011a48b6004a4c05516d55fa3`。
+- Secret只在本机进程内读；数据库只读核对一行策略。未读取票据、客户或真实例库，未修旧线上Vision凭据配置。
+
+### 后续边界
+
+尚未到整个Cowork接前端的讨论门槛。后续优先补表格/虚拟页、可搜索PDF、历史导入和非staged缓存，再接外推连接/写者锁/完整日志回读、对账余项和盘点缺项；LINE/Companion/WeKan独立来源与接口仍需继续核验。真实OCR、账单、部署、浏览器/用户验收均未进行。
+
+主目录本次末读仍为`55d1df4b0a69024c3e7ac446ea98d2697409c13e`且干净，未改其它任务分支、Site或容器。本批留在`codex/cowork-backend-migration`独立树，本地提交，不合回main、不推送、不部署；未验证和最新main组合。收尾停止本任务三个容器，保留标记的合成数据与工作树供续接。
+
+## 第五批：结构化原件识别与原件关联（2026-09-21，本地完成）
+
+承接第四批本地提交 `ecdfd99ded2ea73c365d5b15922fbd4a3614f7a5`。开工工作树干净；主目录为 `55d1df4`，本批未合入主目录新变化、未接管共享DMS运行环境。
+
+开工重新只读采集 Web/Worker 实际来源与 OCR 运行配置，两类比较均 PASS：实际生产仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`。开工证据 `baseline-fifth-start.json` SHA256 `7ae9d5fb97fbf1ef563a74d5dba7e14ebe69befde6d167bad611768f30011362`；`ocr-runtime-fifth-start.json` SHA256 `4ae8163362bf8aa46d524ba7c51cab77e1188c355bd107a367070870b4a4db3b`。表格路径未引入额外动态配置键，继承已冻结模型/L2超时/日期/fewshot/金额置信配置。
+
+- 所有实现仍在 Cowork 域：`ocr/table_inputs` 负责本地字节解析，`ocr/table_engine` 负责无IO的L2编排，既有 `ocr/execution` 负责原生队列/权限/结果/计费，`files`/`history` 负责不可变逻辑区段清单。
+- 保留旧普通表格合同：Excel每sheet一逻辑区段，CSV/TSV/DOCX/DOC/TXT一逻辑区段，禁止调用图像直读/Vision/L3。字符计费保持旧原始输入估算（包括纯表DOCX为0），不拿sheet数或发票数替代费用单位。
+- 原件上传保持原字节与原请求指纹；受理识别才冻结逻辑清单。未冻结的document不能用旧占位page_count=1证明全文已分配。部分内容被旧结构化路径遗漏时保留证据并限制原件访问；所有文档都不伪装成PDF页面。
+- 有意变化：拒绝资源超限与模型实际输入超过30,000字符的原件，不继承旧静默截断。保留旧表头覆盖/首表读取等提示词行为，同时记录不完整覆盖。专用roundtrip Excel指纹命中明确拒绝，本批不改走LLM；独立往返导入协议留待后续迁移。
+- 本地lab只在原镜像上新增 `python-docx==1.2.0`；openpyxl3.1.5、et-xmlfile2.0.0已存在，lxml保留原生6.1.2（来源6.1.1）。候选镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，源基底 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`；增量构建仅 `RUN env/bin/pip install --no-cache-dir --no-deps python-docx==1.2.0`。生产构建定义同步锁定四项依赖，未构建/发布正式业务镜像。
+
+
+### 第五批验证结果
+
+- 生产交付复核：`baseline-fifth-delivery.json` SHA256 `646b3e4d0174753c0ca67d701cf60e1d9e53561f31c05b4bc7a3f6698cbf57f8`、`ocr-runtime-fifth-delivery.json` SHA256 `afc275ebd5aa25aa589f7a9290d7860e0eb22a9fde700c6412474b36a83fc327`；均与本批开工比较 PASS，实际业务来源及相关配置未变化。结构化证据在 `cowork-backend/evidence/`。
+- 最终候选镜像（上述d5c874…）`--network none` 跑全部 `test_cowork_*.py`：**353项通过**。其中新增表格engine20、输入20、原件manifest28；既有285项保持通过。固定源码差分另外执行：输入345组Page全部字段及字符单位相等、5种失败一致；引擎1500指纹和288提示/决定相等，另1条验证30K提前拒绝这一有意差异。详见三个模块记录。
+- 专用 `cowork-backend-table.localhost` 全新安装；现有 `cowork-backend-execution.localhost` 升级；两者重复 migrate 通过。既有 Source150、Batch101、History52、Correction4、CoreWork101、UserPermission24、User29严格按原字段比对不变。原生fixtures重建了20个Page的Has Role子行随机ID，128条角色语义集合保持一致，用户角色未变。保存比对基线 SHA256 `5bb312e7d8ec7492ebe7b4de46f973400dfa2844b0d01b768d6b531e45b108f6`，不把子行ID变化说成整个数据库字节不变。
+- 真实Site **17项新增**：多工作表仅L2/一笔字符计费、CP874与计费字符口径分离、纯表DOCX零单位、旧Batch新字段空值仍可运行、二连接RR旧快照幂等受理、Word遗漏/重复列头/部分sheet/未冻结文档的整原件拒绝、配额断点不重买前sheet、整件失败不落库不扣费、30K/损坏/回导模板提前拒绝、清单不可变、账单回执单独重试、即时撤权。真实File/SQL/Redis/Work路径运行；仅模型、token和计费传输替换。
+- 原有Site回归：识别执行22、原件20、历史21，合计 **63项通过**。本批没有改DMS业务或共享Core；因候选镜像依赖及运行装配变化，仍跑DMS四组离线 **207项通过**。所有云端写入、真实OCR、真实账单和业务推送均未执行。
+- 最后原生断言发现并修正：Frappe `_save` 会覆盖 `flags.ignore_version`，需要显式 `save(ignore_version=True)` 才能防止原件清单复制到Version。已改实现和原生/fake回归；同时核对Correction的track_changes=0，未擅改无此问题的其它域。先前失败只产生专用lab合成测试记录，保留为验证痕迹，没有真实资料。
+- 提出过RR快照重复受理候选，已以两个真实进程的READY/GO屏障验证：第二连接读快照在第一请求提交前建立，并确认RR及旧查询仍不见Batch，再经现有有界API重试返回相同Batch、库内仅一条。未复现未捕获的重复插入，不无证据扩改该流程。
+- 四语新增30词条，Cowork每语266项；新增字段、错误码与服务文案缺漏0、重复0。生成器check通过，真实Site en/zh/th/ja共12次原生翻译查找通过。全仓既有23个msgid×3语缺项仍在，不声称严格全仓i18n通过；页面布局及母语业务措辞未验收。
+- 架构检查0违规、Compose解析、Python语法与diff检查通过。专用环境仍无外网路由、端口、凭据或worker/scheduler；不接管其它任务容器。
+
+### 第五批交付边界与下一步
+
+普通表格识别与逻辑原件关联完成到本地后端验证。仍未接前端，不上线/不部署/不推送；未合回主目录，保留独立工作树与本地提交检查点，防止干扰并行DMS/平台工作。
+
+下一段是专用Excel往返导入、导出以及外推的权威日志/幂等恢复链；随后按依赖推进LINE/Companion、对账剩余路径及其它已登记缺口。真实BIFF xls旧路由不可用、DOC仅有限解码、旧长输入静默截断等已逐条登记，不能宣传全格式或整个Cowork已迁完。WeKan当前运行来源仍不足，未启动或猜版本移植。前端正式接入仍须在后端承接完整后再与用户讨论。
+
+第五批收尾已停止本任务 bench/db/redis 三个容器；Sites/DB/日志卷和合成验证记录保留。bench 的 `sleep infinity` 在停止宽限期后退出137，停前全部测试已经结束、没有运行中的worker；db/redis退出0。再次确认候选镜像d5c874…、源码挂载仅本任务树、无端口发布，未改其它项目资源。
+
+## 第六批：复核工作簿导出、修改与回导（2026-09-21）
+
+### 目标与基准
+
+用户要求继续，并强调DMS迁移曾出现功能不一致；本批按真实旧链证明一致。选择专用Excel往返，前端仍不接入；不上线、不部署、不推送。继承第五批本地基线 `669888001871f5e8cc4bbc783b0ff6c2499d76c5`，仍在独立 `codex/cowork-backend-migration` 工作树，不更改并行DMS目录。
+
+- 开工来源 `baseline-sixth-start.json` SHA256 `48c4d501204ed1ce5afcce25df44094021825249e1d7681177c47b6219e910d9`；开工配置 `ocr-runtime-sixth-start.json` SHA256 `de656e8fdfb9e9ed58873e69e22dee1aced3abeccc9b4747b83358e266cbff23`，两类均与第五交付一致。
+- 交付来源 `baseline-sixth-delivery.json` SHA256 `df945185b16472aa369da3f4f6f1aad4ca760ee4907b04f8e771762dc349dbfd`；交付配置 `ocr-runtime-sixth-delivery.json` SHA256 `f1cb0d01c79878061ac6de58504192ce37c9af817209e0c532f62009cdb9ac37`。start/delivery比较均PASS。
+- 权威源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，web/worker对应revision各100%，既有镜像digest和相关配置未变。结构化证据在 `cowork-backend/evidence/`，不是凭本地HEAD猜线上。WeKan实际运行来源仍不足，未移植或启动。
+
+### 实现与明确差异
+
+App为pearnly_cowork；新增roundtrip业务域，复用OCR纯schema、表格有界解码、Source/History/Batch、Core Work与计费。无新DocType或共享Core业务改动；唯一规格/金额来源和依赖见架构文档及[整链合同](cowork-backend/roundtrip-native.md)。
+
+- 固定泰文四表导出、列位/公式/隐藏PRN键、Decimal金额和逐票回导；每张解析票一个逻辑单元，保留sheet/源行/键/原字段。额外内容不因新票全绑定就向其他读者开放整本原件。
+- 受理、执行、冻结结果恢复保存时复核PRN当前Site/公司/客户权限；无旧UUID映射明确拒绝。回导新建历史，旧历史及ERP数据不动；工作簿ERP号不是防重事实。
+- 零模型调用但保留旧字符收费，余额准入和原子保存后单笔稳定引用结算。幂等重试不重复买识别或建票；确定性回导不要求无用的模型凭据。
+- 修复旧二次按票号误并跨原记录/跨方向单据、整批方向覆盖待判、无票号待判被新完整性闸丢弃。正常解析字段保持来源，以上保存语义有意改变均明确登记。
+- 修复原生多页历史导出重复追加首票已合并商品的问题；可信绑定只取首主票字段，未绑定多页不猜。items.subtotal明确适配amount并校验守恒；含税总额当税基加税等不能无损往返的输入明确拦截。
+- 命中空表、异常带空格sheet、50连续空行后有数据、非有限数不退付费模型；用户文字不变公式。旧float半分与Decimal差异明确验证，不冒称逐格全等。
+- POST导出1至100条，必须全部可读、同公司/客户；失败不跳行。无前端入口；ERP事实查询未接，原生导出状态/ERP号/新建主档清单空白，不冒充已推送。
+
+### 验证结果
+
+- 沿第五批候选镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，没有依赖升级或生产镜像构建。核对本任务lab的只读挂载、独立卷、internal网络、无端口/凭据/worker/scheduler；新增守卫内 `cowork-backend-roundtrip.localhost` 安装和migrate通过，既有Site未重置。
+- 最终 `--network none` 全部 `test_cowork_*.py`：**385项通过**（353既有 + parser16 + export16），无skip。
+- 固定源解析差分：5文件SHA绑定，**162份正常工作簿、1048个Pipeline页**字段相等（时间置零、显式同年、只剥新增审计）；另1521金额、21数字、20规格比较，2种同样Decimal失败，4种有意保护差异。
+- 固定源导出差分：6文件SHA绑定，**60份工作簿、9999单元格、196个回读单据**一致；列位/公式/类型/格式/隐藏/宽度/冻结均核对。另VAT半分样本旧float0.11与Decimal0.10明确不同，打印票面VAT和回读总额保持0.10/1.60。纯算法差分不替代真实Excel软件或ERP验收。
+- 新原生往返 **15项通过**（14项整套+后增WSGI专项1），覆盖导出→改票号→上传→新History、金额与旧记录不变、同号两销项/一进项/一待判四票、空号待判、未映射/跨公司/跨客户键拒绝、冻结结果后模拟引用不可读零新票零扣费、回执重试、重复执行、原件私有、两页商品不重复、手工多页拒绝、POST下载鉴权/no-store和匿名拒绝。主体运行真实原生链，外部计费替换；保存中断与引用不可读以定向故障注入验证，不冒称实际撤权。确定性路径断言不构造模型客户端。
+- 受影响原生回归：普通表格17、PDF/image执行22、原件20，**59项通过**；含新增合计74项。第五批“回导未迁入”拒绝用例改为“命中空模板明确拒绝”，未删失败断言。
+- 新多页case初次是测试helper参数写错（pdf()本来固定两页），修正后该case通过。负面HTTP测试预期PermissionError日志不等于测试失败。
+- DMS四组零IO **207项通过**；未改DMS或Core业务。架构0违规、diff检查通过；四语和最后Git检查见收尾补记。
+
+### 尚未完成的边界
+
+本批只证明工作簿这段本地后端承接及明确差异，不证明整个Cowork与旧线上完整等价。ERP配置/真实push日志/写者锁/回读恢复及Companion重推、旧历史UUID与文件迁入、其它导出格式和外层归档/邮件/自动分配、LINE、对账盘点剩余路径、WeKan、真实账单/模型质量/真机与前端验收仍需推进。
+
+下一工作包接权威ERP推送日志和防重/恢复，使回导原键连接旧ERP单据状态；本次生成xlsx或本地History成功不等于重推闭环完成。未来推送须从不可变Source清单/Batch结果取旧键并重查授权，不使用可编辑pages.fields.history_id代替来源事实。前端仍在后端承接阶段完成后讨论。
+
+第六批仍未合回主线、未推送、未部署；主目录最后核对为干净 `55d1df4b0a69024c3e7ac446ea98d2697409c13e`，未把其后变更混入本任务。独立工作树通过不代表主线集成通过。
+
+第六批收尾补记：四语新增22词条，Cowork每语288项；22个新增键无缺漏/重复/跨App冲突，仅生成Cowork四份CSV。生成器check通过；专用Site原生en/zh/th/ja全部88次查询与术语表相等。真实母语业务措辞及页面尚未验收。最终独立审查指出的多页商品重复已修复并经真实保存回读覆盖；故障注入证据措辞亦按实情收紧。业务检查通过后只补语言、文档和Git收尾，不重复已通过的业务全套。
+
+收尾已停止本任务bench/db/redis三个容器，Sites/DB/日志卷及合成样本保留。bench是sleep进程在宽限期后退出137，测试已全部结束；db/redis退出0。未清理其它工作树、数据库或容器。本批形成独立本地提交检查点，未合回主目录、未推送、未部署。
+
+## 第七批：ERP 目标、Express 准备与恢复合同（2026-09-21）
+
+### 范围与开工证据
+
+承接本地 `407ad132b2e69c871bcb272e2a7a361b6363d295`。仍在独立 `codex/cowork-backend-migration`；开工主目录为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`，本批没有合入或修改它。用户继续授权本地后端迁移，强调行为一致；前端、不上线、不部署、不向真实 ERP 写入的边界不变。
+
+- `baseline-seventh-start.json` SHA256 `d3f6ed40079ebf9049096e007a51ac3ee5cf581614004c558c46717e718449a5`：Web/Worker 实际100%流量仍为 `ec2e5c957e6b` 对应 revision，完整源码 SHA、digest 与第六交付比较 PASS。
+- 先补推送专用只读采集，再开始业务纯代码。`push-runtime-seventh-start.json` SHA256 `111119d806e9daed01724baeec825453432078020717e21d484a4a7fe723573a`：两服务 `ERP_PUSH_ENABLED=true`，动态 shared/target_projection 开关 enabled/all；60 个端点全部 generation0，managed 数0。Express启用7，6个有 token/协议1；历史自报版本不是客户机二进制证明。详见[推送运行基准](cowork-backend/push-runtime-baseline.md)。
+- 没有读取业务票据、凭据明文输出或客户机文件，没有触发建表/修表。目录、映射和其它未取的动态值不冒充完整业务配置快照；source固定只证明服务端算法来源。
+
+### 本批职责与验收边界
+
+本批先迁完整的纯目标选择/证据判断、Express进销项预检与载荷闭包、队列状态/权威回执判据。没有可靠目标收集器前不创建可误认为待发送成功的原生记录；不新增 Push RPC、worker、DocType 或导航。下一段才接原生 Connection/Snapshot/Refresh、Push Record、当前权限与写者锁。
+
+- `targets`：固定来源目录规范化、账套选择、refresh与projection证据、切换目标清理旧科目缓存；服务端注入权限/目录后冻结目标，不能把用户config当权威证明。
+- `push.express`：预检、进销项payload、科目/金额/税/付款/库存策略。显式注入日期、已授权映射/供应商/银行和原凭证号；`ready`仅表示这些输入通过准备，永不等同 queued/success。旧 `stock_lane_enabled` 实际恒False，不凭函数名扩展成开关。
+- `push.lifecycle/retry/receipts`：旧legacy与managed分开；等待锁的attempt不同；确认放行后失联不重领；HTTP reservation结果未知转manual；显示最新状态与历史成功防重分离。
+- 旧legacy ACK没有attempt fencing、managed确认任务过期可停在不可重领pending、旧PRN查失败返回空以及跨账套查询都是已发现的来源缺口。保留纯行为证据并登记；原生外推接入前须明确修复，不能把本批合同当作安全执行器。
+- PRN纯查询明确改为同原History/租户JOIN/端点/账套；失败查询与成功空结果区分。原生调用尚未连接，未来必须从不可变Source/Batch取原键并重新授权，不读可编辑fields作为权限事实。
+
+### 第七批验证与交付范围
+
+- 候选仍为第六批 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9` / Python3.14.7，没有增依赖或重建镜像。仅用 `docker run --rm --network none`（512MiB/1CPU）只读挂本工作树执行纯测试；没有启动bench/db/redis，没有Site结构或数据改动。
+- 最终所有 `test_cowork_*.py` **631项通过、无skip**：385既有、Express170、targets28、lifecycle/receipt29、运行采集17、纯依赖边界2。独立复核后的修改已在同一候选环境重新验证，非沿用修改前结果。
+- 候选运行时固定源码差分：Express **1,013组/28固定源hash**、targets **7,156组/7源hash**、push状态与回执 **1,262组/7源hash**（229分类、480 ACK参数效果、340外单号、5冻结、208发起层分类），全部通过。这是合成输入和替身读写口的算法对照，不是9,431次真实建单或原生队列验证。目标组合另外6项源接受而新冻结拒绝的案例单列，不计入相等数。
+- 独立审查复现并修复目标root与最终程序目录不一致、证明账套B但实际config残留A的问题；默认账套使用服务器明确根目录，保留无需刷新目录的旧行为；MRERP年/库分别trim，不以过严保护缩减原功能。缺真正根目录/非默认仅父目录推断/目标相矛盾的输入明确拒绝并登记。
+- 修复零次attempt只在legacy失败分支规整、SQL普通空格/lower与Pythonstrip/casefold误等价；补终态晚ACK不得回退、Express技术失败与数据错误的调度区别。PRN查失败明确拒绝、同目标回执限制为有意收紧；其它已登记旧行为没有顺手改动。具体案例与范围见[状态与回执](cowork-backend/push-lifecycle.md)、[Express载荷](cowork-backend/express-payload.md)、[目标合同](cowork-backend/push-targets.md)。
+- 初次source v1配置摘要没有覆盖所有端点config键，独立审查指出后增加v2完整JSON的数据库内集合摘要，不返回任何值。补充基准 `push-runtime-seventh-expanded-start.json` SHA256 `638c13bf1b7572bb1a649f2ef481deef4ed0301871be025bdb27fe4926fa84f1`；只证明补充采集时刻起的范围，未回写或替换最初v1。
+- 交付来源 `baseline-seventh-delivery.json` SHA256 `2b66ac9fe67b7ba68c1a6780e78ee4b62bf3d034a54c2842f60191aad578d3df`；与start compare PASS，生产100%流量revision/SHA/digest未变。v2交付配置 `push-runtime-seventh-delivery.json` SHA256 `93d9019400e052a32f7dcfcd21486cde6a22188260f22b194d85ee272578f199`；与expanded-start compare PASS（settings不变、observations不变）。5份原始脱敏证据在 `cowork-backend/evidence/`。
+- 源定义通过stdin传给无网容器并在容器内核验hash。曾直接挂宿主`/tmp`固定源失败（Colima未共享，文件不存在），没有执行到差分；换stdin后成功。没有绕开哈希校验、原生钩子或删失败断言。
+- 本批没有改DMS/Core、共享配置或运行依赖，按影响面未重复DMS/Site/前端检查；现有通过记录只代表原批版本。新增纯异常码/诊断没有接产品入口，不宣称原生四语页面已验收，也未扩大既有i18n忽略。
+
+### 下一段仍需接通
+
+原生 Connection/Snapshot/Refresh和唯一Push Record、当前角色/公司/客户/连接授权、不可变PRN原键查询、端点/账套写者互斥、持久化预留与attempt fencing、真实队列和ACK、失败回读/原目标恢复，才构成可用的后端外推链。MRERP HTTP适配/真实回读、Companion当前执行文件到源码的证据、WeKan、LINE、旧记录导入等前批余项仍在；没有用本批pure ready关闭它们。
+
+前端仍暂不接。未合回主线、未推送、未部署；主目录末次只读核对仍为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`。本任务分支的纯规则通过不代表与最新主线已集成或用户已验收。
+
+第七批收尾：架构检查0违规，纯代码无框架/IO/墙钟依赖检查通过；没有新依赖、结构、运行入口或前端，不重复无关业务套件。专用bench/db/redis继续保持停止，既有合成Site/卷原样保留；临时无网测试容器自动移除。本批保存独立本地提交检查点，后续从原生连接和权威账本装配继续。
+
+## 第八批：原生连接、推送准备与持久账本（2026-09-21）
+
+承接本地提交 `0e5cd94e84f444c2246b57b4838263163c9cdfc3`，独立工作树和不接前端、不推送、不部署、不写外部ERP的边界不变。开工工作树干净；主目录仍为 `3bacdbd`，不将并行DMS改动混入本批。
+
+开工来源 `baseline-eighth-start.json` SHA256 `95f1e96fd6560046d7d88db9b90a80b739ec38aca331a619e78d3e9e0935f1f1`，运行配置 `push-runtime-eighth-start.json` SHA256 `1389e17789dbe9416021d16383b880034f9ed847e5a06101549c79d411342983`；两者与第七交付比较PASS。实际源码仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`；客户端实际二进制及未采目录关联表不在这些证据范围内。
+
+本批职责：`connections` 持有当前Site的连接授权/配置与目录刷新快照；`push.application` 在当前用户下锁定历史、连接和服务端证据，调用既有纯准备；`push.native` 持有唯一推送记录、不可变载荷和尝试/写者状态。依赖只从装配层指向连接、原生账本和纯规则；连接不反向导入推送。新增DocType按原生迁移维护，通用REST和DocShare不得绕过专用服务。记录准备完成不表示已排队到真实客户端或入账成功，不挂接scheduler/外部消费者。
+
+计划在专有无外网lab完成新Site安装、已有Site升级和重复迁移、并发请求、防重、陈旧ACK、未知恢复、撤权和原件PRN来源验证。先做本地模拟运输，真实Companion/MRERP及业务验收不由此代替。
+
+
+### 实现、保持的契约与明确变化
+
+- 新增 Connection/Snapshot/Refresh、Push Record/Attempt/Writer Lock 六个原生DocType。连接管理、授权、目录选择和安全DTO已接专用接口；credentials进入原生Password，不进入公开DTO。没有菜单/页面或公开运输/ACK入口。
+- `prepare` 在连接与票据当前锁下复核身份、公司/买方、显式连接授权及版本；公司税号读当前Workspace，准备资料必须完整且匹配账套，不能把缺映射当已查询为空。Express pure ready装配为持久 prepared；仍无真实collector和外推消费者，MRERP明确未接通。
+- 同请求按原参数/冻结结果重放，当前授权与不可变PRN原票权限仍重验。旧键只取封存Source清单/唯一saved Batch与冻结结果的共同事实，可编辑history_id不能改防重来源。成功原凭证查询沿源兼容express_docnum/meta.docnum，读取失败或缺凭证号不伪装为空。
+- 同scope/revision/generation的目录请求合并同一requested ID，保持旧线上行为；不同request key的durable aliases保留重放，已完成后新key才新请求。版本改变不能重绑旧key。alias保留策略尚未实现，不冒充真实采集队列。
+- 本地唯一账本、跨连接同公司/root/account互斥、每次领取独立随机令牌摘要和递增fence。晚回执不能污染新尝试，成功不被晚失败覆盖。已领取超时保留锁并标未知，绝不自动重发。ACK格式沿实际legacy/managed调用闭包，只有成功保留line_modes；legacy才派生fallback_count/created_masters。
+- 原生全量耐久reserve、全部attempt fencing和未知保留锁是明确保护改进，旧legacy并非本来如此；没有假称逐行搬运。当前actor/History/Connection/branch/generation与Record冻结值必须一致，当前目录撤销也阻止派发。只有prepared、fence0、无active_attempt、查无任何Attempt、非未知，且原版本过期或原actor当前权限明确失效，才可由新已授权请求原子替换；原payload和操作者审计保留。当前旧actor仍有效时不能抢占，数据库异常不当撤权。
+- 所有新DocType通用REST/Desk CRUD及DocShare拒绝，真实专用接口仍走当前角色与范围。内部Python AdapterContext不是Companion身份认证；不能借合成ACK声称真实外推成功。
+
+### 本地验证与最终来源
+
+候选镜像仍 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，Python3.14.7/Frappe16.33.0；没有依赖升级或生产镜像构建。Docker context `colima-pearnly`、project `pearnly-cowork-backend-lab`，只读挂本树代码、独立Sites/DB卷、internal网络、无端口/外部凭据/worker/scheduler。bench为sleep进程。
+
+- 新 `cowork-backend-push.localhost` 安装与迁移通过；最终alias字段追加后再次migrate。既有 `cowork-backend-roundtrip.localhost` 最终结构升级和重复migrate通过，14张原有业务/权限/用户表、340条记录的规范化摘要完全一致：`9990203abcd9624875cadff72842c23ffadf58baf67d22951b765cf663e19e20`。用户只纳入name/enabled/type/language，不读取密码。六个新增表不涉及旧业务数据转换，未执行破坏性清空或另一次全库恢复演练。
+- 最终离线无网候选：所有 `test_cowork_*.py` **652项通过、无skip**（631既有+连接9+原生合同12），日志 `/tmp/cowork-eighth-unit.log`。纯规则边界仍覆盖所有第七批纯文件，并新增相对依赖检查；native/application有明确IO职责，不通过扩大纯模块白名单掩盖依赖。
+- 新原生 **63项通过**：连接21（2.134s）、推送账本24（7.997s）、应用与不可变PRN装配18（3.641s）。分别见 `/tmp/cowork-eighth-connections-final.log`、`/tmp/cowork-eighth-native-complete.log`、`/tmp/cowork-eighth-application-final.log`。含两真实数据库进程同/不同key竞争和双领取、旧RR快照后的税号更新、实际撤角色/范围、原生Password、两连接同账套互斥、错误token/fence、未知锁保留、晚ACK、防重/取消/恢复及事务中断回滚。内部运输与计费使用替身，无外部业务副作用。
+- 18项应用用例包含真实WSGI认证POST prepare→detail→cancel，以及GET写操作、Guest、原生GET/PUT旁路拒绝；负面PermissionError日志为预期。PRN含实际导出/上传/识别保存来源链、篡改可编辑键无效、原引用撤权拒绝。旧往返受影响回归15项通过（2.916s），合计本批 **78项原生测试**，没有把重复运行次数叠加。
+- 受影响receipt纯对照在候选无网容器核验7固定源hash后通过：229分类、480 ACK状态效果、340显示单号、5冻结、208发起层结果，共 **1,262组**。当前24项账本额外覆盖legacy/managed×6种stage的12组响应字段合同。它们不是真实建单数，不证明实际Companion或外部回读。
+- 初轮native22项失败11/错误1：测试进程提交的holder与后续同公司/root/account fixture相撞，正确写锁拒绝领取；非默认账套fixture缺独立映射；并发RR冲突需要调用方整段本地事务重试。修复fixture隔离与完整准备包，合成worker仅对QueryDeadlockError最多3次rollback后重新授权/领取。没有吞错、删断言、放开锁或重试外部IO。此前应用current税号测试暴露真实MariaDB1020，专用无外部IO RPC亦有界重试；内部service不擅自重试整个较大事务。
+- 独立审查发现的meta凭证号漏读、精确head回落、冻结context可被新context复活、目录撤销后仍领取、撤权后预留永久阻塞均修复。三项最后组合问题已在实际函数定向审查及原生测试关闭；[审查记录](cowork-backend/eighth-source-review.md)保留证据边界。
+- 语言包新增116词条，仅生成Cowork四份CSV；每语404项，en/zh/th/ja共464次新增词条原生查询与术语表相等。新增错误码及六个DocType label均从产品已安装Core/Cowork包可取，补复制原先只存在Control的Started At。母语措辞和页面未验收。
+- `i18n-build --check`、新增词条检查、架构0违规、Python语法和diff检查通过。全仓 `check-i18n --strict` **未通过**：147处/43文件/135条，抽取提交基线HEAD用同脚本复核后结果完全一致（只规范化源码行号），本批零新增、未扩大keep-cjk；这仍是待处理旧语言债务，不写成全仓语言通过。
+- 交付来源canonical evidence checksum `61ab9d88c93942de9a42bbedd1e5bd7d2a0f62a1e1f726c6928bdfe9b1e1e640`；交付运行checksum `54e821dd71557b0360c96d546ab9c513512526c9093ae344a60a2800de6eb699`。本批start/delivery比较PASS，Web/Worker实际流量对应源码、digest与采集配置未变，settings_unchanged=true / observations_changed=false。四份脱敏原文件已存 `cowork-backend/evidence/`；这些是规范化evidence内容摘要，不是含校验字段的JSON文件字节hash。
+
+### 仍未完成与下一段
+
+本批完成的是本地持久准备及账本，不是整条ERP外推或Cowork迁移完成。下一段需把真实Companion身份/绑定/目录采集与运输、ACK及未知回读恢复接到这些入口，补旧成功日志和原History UUID映射；实际Windows运行文件来源未核验前不移植未证实客户端。MRERP HTTP、History状态镜像/stock-master计数/通知副作用、导出ERP显示列尚未接权威账本。跨Site/跨公司或别名路径同物理写者也尚未证明。
+
+更早余项仍包括LINE、对账/盘点剩余路径、其它汇总/导出/归档、旧文件及历史迁入、WeKan来源与迁移，以及真实模型/账单、业务与用户验收。前端仍未开始，待后端范围承接到位后再讨论；不搬旧UI。未合回集成主线、未推送、未部署；主目录末次只读核对仍为干净 `3bacdbd996d90880f61a108fd584a50c0af36a9c`，没有改并行DMS工作树或运行组。
+
+
+第八批收尾：本任务bench/db/redis三个容器已停止（sleep bench退出137，DB/Redis退出0）；全部测试已结束，独立Sites/DB/日志卷及合成数据保留，未清理其它工作树或容器。提交使用共享钩子检查实际暂存快照，本地保存本批检查点；未合回主线、未推送或部署。
+
+
+## 第九批：Companion 凭据与盘点导出（2026-09-21）
+
+用户继续本地迁移；承接 `e23b17afa0e881d2c89de7fe930c17d26358c3f5`，独立工作树开工干净。主目录已经前进到 `2efa0ac027ca068a6e998a87d2029f30019f2365`，未将其部署工具等增量混入本树；没有修改DMS/主线或启动其它运行组。框架矩阵和本任务镜像不升级。
+
+第九来源只读回查 source仍为 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，canonical checksum `1bf8b32e0d4e84128a3b8641450e40923b5bfc1470c1d76fda5a5d11607506c7`，与第八source比较通过。但运行配置摘要 compare **拒绝**：两个服务的60端点集合摘要都由 `461d6540e21d14f3a41443ad720d5605` 变为 `5ee9e6604b3c6dee19ab3227d8484fad`；其它identity、flags和observations逐字段相同。新运行evidence checksum `1e3089d071dd49a9973651cb376dbe71e1d66ce690335568109e57da95aa5dc7`。旧全量hash不能反推哪个配置键变了，未把差异认作心跳或自动忽略；先做最小只读归因，影响边界未确认前不开始业务移植。
+
+拟定的下段职责：`companion` 域持有连接密钥发行/轮换/撤销、当前权限约束的机器鉴权及报告协议，单向调用connections；`connections` 继续持有目录Snapshot/Refresh。纯报告规范化不引用框架，原生存储参与同一连接事务；不将客户端报告的complete值当作供应商/银行/映射已读取的证据。真实Windows二进制来源尚未核验。
+
+旧legacy发送只带裸log_id，ACK缺少新账本的attempt凭据，不能直接接入而关闭第八批fencing。计划先迁身份/心跳/目录，不注册发送或ACK消费者，不造一套放宽保护的兼容入口；真实发送必须先证明客户端可支持新凭据或可信兼容句柄。旧普通requested刷新合并同ID，但leased时再次请求实际是旧行failed/ERR_REFRESH_SUPERSEDED、新ID；完成/到期另保留requested_at>started_at的防御性重取规则，不能只看其中一段逻辑迁移。
+
+### 基准缩小与本批范围
+
+恢复第七批最初 v1 SQL 的精确文本后，只读重取同一投影：Web/Worker 各60条、摘要均为 `67c022c7edb856033715c51bacf02b22`，与原v1相同。调查证据checksum `d313d78c34621288ae9e6d31dad2006ca4ac2a7615a495e8eed51c216840b28f`。它覆盖token摘要及所列固定配置键，但没有user_id/express_root，不可推断所有归属/目录不变；updated_at也不是完整更新轨迹。因此仅放行无旧数据迁入的原生凭据生命周期、内部token认证，以及独立于ERP配置的无照片scan导出。全量v2差异仍HOLD，未将其覆盖或重命名为通过；心跳与目录采集仅保留设计。详见[第九来源审查](cowork-backend/ninth-source-review.md)。
+
+所属App均为pearnly_cowork。companion持有新的原生凭据数据，公开仅issue/revoke/status管理RPC；内部authenticate/revalidate不是机器HTTP入口，不设置session user。stocktake.export持有纯字节导出逻辑，公开GET只读下载使用既有stocktake角色、购买功能与公司范围；无新导航、前端、外部网络或ERP写入。旧盘点route完整路径还含照片SQL读取，本批明确不包含照片，不能将无照片切片说成全导出迁移。
+
+### 本地候选与目前验证证据
+
+仍使用第八批候选镜像 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，Python3.14.7/Frappe16.33.0/openpyxl3.1.5。测试前复核本任务专有compose/context、源码挂载、Site与数据卷、internal网络；无端口、无外部凭据、无worker/scheduler。没有切换共享DMS样板。
+
+- 新 `cowork-backend-companion.localhost` 安装/迁移通过；既有push Site升级和重复迁移通过。快照新增纳入第八批6张连接/推送表，21数据组（20组表/用户字段与56份原件字节摘要），439条原有记录保持一致：`a06c5fda8066f462bbe6d182020119887042b096cfb986182c06c7050f6b9c0c`。脚本只输出数量与hash，不输出密码或凭据；新空表不是旧数据迁入。
+- 候选无网容器完整 `test_cowork_*.py` **689项通过**（652旧项+16身份合同+11基准调查+10导出），无skip。日志 `/tmp/pearnly-cowork-migration-20260920/ninth-unit.txt`。没有因为新增功能重复旧ERP外推差分或付费模型测试。
+- 固定源码真实函数差分：盘点84份工作簿/17,524单元格值、类型和样式差异0；身份244组hash/生成token/端点查询判定一致，查询依赖为合成端点，不假称真实旧库鉴权。源码完整hash在执行前核验，容器无网。最初直接绑定host `/tmp` 在Colima VM中不可见，FileNotFound后改stdin完整源码传入并核hash；未改业务逻辑或删除断言。
+- 盘点原生14项回归、新导出3项通过；真实WSGI完整101条、作废/关闭、跨公司/权益/用户禁用/legacy拒绝、公式样式用户串、响应no-store/nosniff与附件格式、实际Frappe每Site deferred Access Log队列均验证。初次把原生deferred日志误当立即落库，修正为读取真实队列断言并补记录task ID；不为了测试启动scheduler。原有连接21项回归通过。
+- 新增23条术语，仅Cowork四语包更新；32个所需msgid由Core+Cowork可解析，无依赖Control。实际新Site执行en/zh/th/ja共92次新增译文查询，均与TSV一致。术语表校验通过；strict全仓仍旧147项/43文件/135条，HEAD/候选归一行号差异0，未扩大忽略，不称全仓语言过闸。
+
+- Companion最终**20项真实Site测试通过**（5.662s）；加连接21、盘点14、导出3，本批合计**58项原生测试**，重复运行不叠加。包含两数据库进程在旧RR快照后竞争同/不同key签发、并发CAS reset、当前授权撤销、公司/客户停用、总闸、native CRUD/DocShare、重放无token、无Version、回执接近1MiB后仍可撤销、WSGI真实API及exp_无法充当普通RPC身份。没有把假context校验当作真实Windows或跨Site物理设备验收。
+- 初轮身份原生18过2失败：测试错误要求额外private头（实际共享保护是更严格的no-store并带no-cache/nosniff）；故障注入按dict新文档is_new判断未触发原生insert。修正为检查实际三个响应头；在第二代Credential.before_insert确认旧代已撤销后注入异常，并断言注入确实执行、回滚后旧token可用且没有新代。没有删除回滚或保密行为断言、没有修改共享File逻辑。最终结果见 `ninth-credentials-native-final.txt`。
+- 测试后对新身份Site重复原生migrate，10条Credential全字段摘要保持 `d06c107b35228893c960143ff64c65e202c1b6626cf72e15a2ee31c18bf2d462`，Version记录0。原生迁移没有转换线上密钥、用户或旧ID。
+- 独立审查指出并修复两处实现差异：旧推送总闸遗漏；凭据请求回执占满容量后撤销会被回滚。当前发行/认证/复验遵守总闸，首次撤销保留1KiB回执空间，两者纯合同和真实Site验证通过；未以关掉幂等或删除审计方式回避。见[审查记录](cowork-backend/ninth-source-review.md)。
+
+### 交付复核与余项
+
+最终旧来源checksum `15e7fd1ed39cb0c597f6de5431ac02e2e2bddd2b02a30e1434647718f5228e3b`，第九start/delivery源码与镜像一致；runtime checksum `29c1276b7f64d97963fc916d0fd0aab2d803041cecc561d532f9a59e56523678`，本批首尾settings_unchanged=true/observations_changed=false。精确v1 delivery checksum `a2239ae9c66d6c05ef32d02b7b057d1c856a63a3a6ef4981b05f514092c90802`，与第七v1及第九补采一致；完整v2相对第八的差异仍HOLD。六份脱敏原证据归档在evidence；此处是canonical内容校验值，不是JSON文件字节hash。不能用本批首尾稳定抹掉跨批配置差异。
+
+目前可继续的下一步先解决目录配置来源范围，随后实现受限机器身份桥、心跳/目录报告和有代际凭据的运输/ACK。旧数据和owner映射、实际Windows来源/客户端兼容、MRERP、未知回读恢复、History投影与通知、LINE/WeKan、盘点照片及legacy/导入删除、对账和剩余导出/归档仍未完成。前端未开始，尚未到接前端讨论点。照片与legacy导出明确拒绝，不把缺失藏在空页面或完整导出声称里。
+
+本轮仅本地实现/测试通过，CI、部署、外部业务结果、Windows/Excel真机及用户验收均未执行。未合回主线、未推送、未部署；另一个窗口的主目录继续前进且末次核对干净，HEAD为 `12176e9e09d579e71935ef456900870e5c85d1f1`。它新增DMS预热队列修复/记录，未引入本批架构或底座要求变化；本任务没有修改、合并或重启它。独立工作树保留用于后续迁移，不能将两分支称为已统一。
+
+第九批收尾：所有测试结束，本任务bench/db/redis三个容器已停止，隔离Site/DB卷及合成数据保留。架构检查0违规、变更Python语法与diff检查通过。通过共享暂存快照钩子保存独立本地提交；不清理或接管其它任务资源。
+
+## 第十批：新原生连接的 Companion 心跳与目录（2026-09-21，实施中）
+
+承接 `70383cdf5e8f45129997c8e773e0bcf3772422a9`；独立工作树开工干净，main为干净 `12176e9e09d579e71935ef456900870e5c85d1f1`，不合并、不部署、不改DMS/前端。重新读取开发入口、迁移基准、架构和第九记录。当前 source 与 runtime 对比第九 delivery均PASS；源码仍ec2e5c957e6b，源码checksum `61b2cb4e24163c8b531be211db8c892a8945d5310fe2d2d18ec7efdb5ad9aa9d`，runtime checksum `970d8f75f0894e0c8fb1c578b7d9f4ca2f01e326eb8aa74a4b2960097ca9bf9a`。
+
+范围按当前实际来源重新界定：迁移新原生Connection/新token/新授权范围下的报告协议及本地目录刷新，不导入旧owner、路径、目录或凭据，不切换真实旧客户端。第八到第九的历史全量配置差异保留HOLD，不能由当前稳定反推当时改动原因；它继续阻止旧业务状态迁入的等价声称。报告规约对正常、缺席、空值和异常输入矩阵做固定源差分，不依赖搬入某一客户旧目录。决策及证据见[第十来源审查](cowork-backend/tenth-source-review.md)。
+
+归属/依赖：`companion.http_auth/heartbeat` 持机器路径限制及认证编排，单向依赖credentials、connections.reports/collector；connections的state/snapshots/refresh只持本Site配置/报告/目录与刷新事务，不反向导入Companion。reports为无IO纯规约。公开只有精确POST heartbeat RPC；现有人工连接/刷新查询仍走原角色/范围；无菜单、页面、外部网络或订单消费者。
+
+保存点覆盖整次本地报告：先Connection→Credential验证，再更新报告与不可变目录，刷新租约绑定当前凭据代数、连接版本及900秒期限。每次领取使用新随机UUID回显句柄放在旧wire的request_id字段，人工查询保留原请求ID；不用增加客户端必填字段，也不假称真实Windows已兼容。普通报告不伪造供应商/银行等服务端资料已收集，preparation仍缺失。配置实质改变将使旧准备与旧租约失效；设备在线和目录刷新不等于可外推。
+
+### 原生收集器与报告差分
+
+[原生收集器说明](cowork-backend/companion-native-collector.md)登记了原始缓存与规范目录分离、配置失效、普通心跳与刷新完成分离，以及租约句柄的有意适配。保留旧 raw 与 projection 两套净化：catalog 缺席/空、账户列表空值、name-only/path-only、选择与科目组、离线哨兵、协议版本均不混并。
+
+- 候选隔离无网容器完整离线 **721项通过**（此前689＋13 HTTP规约＋19报告）；无skip。固定旧源5文件完整hash约束后真实函数执行，**1,262组报告 raw patch/投影/完成请求/response/本次领取选择零差异**。另4个畸形mapping把旧AttributeError改为稳定companion.report_invalid，明确登记，不混入零差异。source-stdin也已验证，未执行旧应用或旧SQL。
+- 真实Connection/Snapshot/Refresh **18项通过**：空目录保留有效快照、空与缺席不同、普通报告不完成请求、错误完成仍可发布独立目录、重复快照去重、offline、不授preparation、配置版本变化、轮换/过期/重取、requested合并/leased替换、旧句柄及范围拒绝、人端错误回读。两个独立数据库进程先建立旧RR快照再调用真实WSGI，仅一个取得租约。
+- 原有连接21、推送账本24、推送应用18及本批挂钩后的凭据20项回归通过。前述纯规则和合成数据库结果不等于真实ERP、Windows或用户验收。
+- 实测并修复鉴权前MariaDB1020：框架的既有查询可先建立RR视图，使机器鉴权当前读在handler重试之前冲突。机器鉴权本地只读段最多3次rollback后完整重验，权限拒绝不重试；后续写入段同样有限重试并重验当前授权。此处没有外部副作用，不增加外部发送自动重试。
+- 独立审查指出并修复领取账套错误：展示response.account_set可以回落配置，但实际领取必须只使用本次body.account_set/account_dir；已加入空报告/仅目录两组差分及原生反例。collector_available统一使用实际显式开关True/1、Express且legacy generation，不将开关状态当作设备在线或采集已成功。
+
+### 本地安装及数据保留边界
+
+本轮开工实查：旧专有lab容器、命名Site/DB卷已不在，仅其他任务的pearnly-sample正在运行；本任务没有清理或接管该环境。重新核对锁定镜像/compose/internal网络/只读挂载，用本任务独立新卷从上批SHA `70383cdf5e8f45129997c8e773e0bcf3772422a9` 归档代码安装旧schema并构建合成fixture；先运行旧凭据20项建立旧状态，再切回本任务源码升级。旧20项只是重建基准，不累加到候选通过总数。
+
+新 `cowork-backend-heartbeat.localhost` 安装通过；重建的 `cowork-backend-companion.localhost` 升级和重复migrate通过。专用升级脚本保存14表的原列集合并逐表比较计数/哈希，18条原记录（包括5连接、5凭据、1目录、1刷新）全字段原值保持；空表按空表说明，不称原439条旧卷记录延续。新增字段由原生schema迁移生成，无手工业务改库，合成报告均在本地独立Site。
+
+### 语言及安全异常边界
+
+本批新增36个术语，仅生成Cowork四语包，每语463条。报告和公开投影错误使用稳定语义键，Core+Cowork可解析；真实Site对新增36×4=144次翻译解析通过。旧projection metadata的Product/Account等标签保持源协议，未来前端应按会计语义映射，不能覆盖全站通用Account词条。全仓strict仍是旧147项/43文件/135文案，去行号新增/删除0；未扩大忽略，不称全仓语言过闸。
+
+机器请求局部退出原生Recorder，保留全局录制及普通请求阳性对照。另实际发现原生Error Log带局部变量的诊断可能记录validate_auth中的Bearer明文；使用本地合成token验证，仅输出是否泄露，不归档原文。最终HTTP安全边界和验证结果见[HTTP桥记录](cowork-backend/companion-http-auth.md)，此项闭环后才提交本批。
+
+### 第十批交付结论
+
+HTTP最终 **26项真实WSGI通过**，包含机器token在before_request完成精确验证后转本请求不可伪造私有envelope，移除本请求Authorization，auth_hooks消费后销毁；原生OAuth/API-key解析不接触机器token，原生issuer IP限制仍执行。IP故障保留诊断且不含token；developer_mode下总闸拒绝保持403并排除含秘密快照；初次鉴权冲突/绑定故障及实际550层合法JSON交接异常以固定503+异常类型诊断返回，不打印令牌或原异常上下文。普通请求的录制、授权和诊断不全局关闭。最后源码只读复审关闭这几处实际发现的残口，详见[来源与限定审查](cowork-backend/tenth-source-review.md)。
+
+本批候选共 **127项原生测试通过**（18收集/租约＋26HTTP＋21连接＋24推送账本＋18推送应用＋20凭据），升级基准重建20项及重复/定向回归不累加。721离线、1,262来源报告差分及144真实翻译查询按各自层级记证据。验证清单、候选源文件哈希及日志哈希已存 `cowork-backend/evidence/tenth-local-validation.json`；升级三份计数/原列摘要也已归档。首次原生装配暴露新helper从targets包根导入非导出符号，已改为直接使用identity/projection域入口；真实Site重新通过，未扩大包根导出或放宽断言。
+
+交付来源复核仍为ec2e5c957e6b：source checksum `f5cfda4cf3682cd7ef83d9a8bc69a572113c502f3e3b75f853f7f49d2038b0bc`，runtime checksum `3008ff7f52604b42f5b0cd873ad53c186a35544fd7661bd2dc47636f099e2e36`；第十首尾与第九delivery均源码/配置一致，settings_unchanged=true、observations_changed=false。第八到第九全量配置差异仍HOLD，未因此迁入旧owner/目标/目录，也未称差异已解释。
+
+下一段仍是带新账本attempt凭据的Companion订单运输/ACK、实际Windows协议兼容与MRERP采集/运输，之后还有不明结果回读恢复、History状态和通知、LINE/WeKan、对账及剩余盘点照片/legacy/导入删除/导出归档等。当前是后端分段迁移，不是Cowork整体完成；尚未到前端接入讨论点。真实设备、外部ERP效果、生产部署与用户验收均未执行。
+
+本批不合并、不推送、不部署。主目录只读末次核验为干净 `1a0585e6d53a995aa59a6045fe027246d18471f9`，较开工仅增加DMS清理与内存调整记录，本任务未改动它或其运行环境。独立工作树继续保留，旧基准只读归档在 `/Users/skin/.codex/cowork-tenth-lab-baseline`，新专有数据卷保留用于后续升级复验；不能称主线代码已统一。
+
+第十批收尾：本任务bench/redis/db三个容器已停止，专有卷和合成数据保留；没有停其它项目。架构检查0违规、全部变更Python语法/候选源文件哈希/diff检查通过。仅暂存本任务38个路径，通过共享暂存快照钩子保存独立本地提交，未禁用钩子。
+
+## 第十一批：Companion 原生领取与回执适配（2026-09-21）
+
+承接本地 `addf40ae4c6ef04df58962225c5c7f1d29e658e7`；只读核对 main 为干净 `1a0585e6d53a995aa59a6045fe027246d18471f9`。开工来源及运行配置相对第十交付 PASS，固定旧源码仍 ec2e5c957e6b；canonical source `c090eac42643a2a84858f1511f144a30bb58cb696fa52ebe03df3b8984b0ef6d`、runtime `97c1306458dee2997458e9a58ef8f104a8118134cb2b3eb9ead9ce296b6fa56b`。八→九旧状态差异 HOLD 保留，仍不导入旧 owner/目录/凭据。详见第十一来源审查与运输审计。
+
+App/域为 pearnly_cowork的 companion：纯 queue_contracts 解析旧 lease/ACK wire；transport 单向调用 push.native 账本与 connections.refresh；receipt_auth 只验证已发放 Delivery 的历史凭据；delivery_store/原生 DocType 保存一次领取映射。push/connections 不反向依赖 companion；无新公开 RPC/导航/消费者、HTTP桥和 Windows客户端不改。当前仅完成内部本地服务切片，下一批再接精确机器HTTP入口与原生响应封装，不能声称现有EXE已兼容。
+
+客户端会记录 log_id，因此 UUID log_id 只作非秘密索引；不可把 native attempt_token 编码进句柄。新不可变 Cowork Companion Delivery 绑定 Site/连接/凭据代次/记录/尝试/fence/owner，原生 Password 将 attempt_token 加密存入 __Auth。领取与映射同一保存点，故障全部回滚。原授权领取后，即使撤权、停闸或轮换，旧凭据也只可报告它已绑定尝试的结果；不能新增领取或覆盖新尝试。接收回执仍核当前 Site/业务范围、原生 token/fence/owner；不借机恢复账号权限。
+
+poll 只消费显式 pending，绝不把 prepared 自动激活。原生 endpoint 写者锁只允许一个未决作业；max仍解析旧1–50合同，实际至多一条。每轮最多检查50条FIFO候选，确定撤权或冻结证据失效时隔离为manual并保留原因，继续后续合法任务；不能换目标、重建载荷或把数据库故障当作业务失效；发送超时转结果未知并保留锁，晚到的正确ACK可收尾。只有已回执 failed/waiting_lock 等原有可重试状态按旧生命周期再排队；不把客户端报告当作服务器独立ERP回读。History状态镜像、库存主档计数、LINE通知、人工激活RPC及真实客户端适配仍分别待办，旧brg_桥不混入本切片。
+
+### 本批验证与已修问题
+
+- 固定源三文件完整SHA256核验后提取实际 Pydantic models、legacy lease/ACK/metadata 函数，在无网候选镜像执行 **910项同值/同拒绝**（201 lease输入、500 ACK输入、16 lease输出、180 ACK输出、13双拒绝）；另 **17项明确收紧**（严格整数4、UUID映射6、line_modes对象3、有限JSON4）。数据库、通知、目录IO为合成替身，没有执行旧线上SQL或发送LINE。候选 Pydantic 2.12.5 与来源 requirements 的2.13.2不同，这只证明固定函数在候选运行时的比较，不冒称完整旧运行时重现。
+- 最終隔离状态增加一个来源没有的明确扩展：finished waiting_lock/failed/rolled_back 同值ACK到来时，若该 pending 已因四类确定原因落manual，只回最小 `{ok:true,status:manual,idempotent:true}`；不重新排队，也不返回冻结载荷。未知结果仍拒绝伪造重放。这不计入910旧源一致项或17输入收紧项。已有原生 docnum 文本仍有140字符/去首尾空白边界，不能把纯wire不截断说成整条ACK对任意字符串均无差异。
+- **739项离线测试通过**，其中新增队列18项；新增分支后重跑，未更改既有断言或扩大忽略。真实Site新测试 **40项**（36主组、3增补、1隔离重放）通过；包含真实两个数据库进程旧RR快照竞争、只生成一个Attempt/Delivery/密文、加密与插入及响应失败整体回滚、唯一Attempt、Frappe原生列表/HTTP资源与内部RPC拒绝、不同身份撤权/轮换/关闭后仅允许原回执、旧fence拒绝、超时未知保锁与迟到ACK释放。
+- 同批受影响回归：native账本24、准备应用18、凭据20全过；合计 **102项原生测试**，不累计重复执行。此处ACK均为合成客户端声明，绝不等同真实ERP入账或独立回读。精确HTTP运输入口尚未注册，现有心跳入口没有扩大白名单。
+- 初次装配真实暴露 UTC转换边界：transport把已供DB保存的naive时间再次传入账本aware入口，导致正常领取拒绝；已改为适配层持aware UTC，只有查询/refresh持久边界转naive，并完整复验。新测试首次加密故障注入指向错误Frappe模块，按实际base_document局部import改为password模块后验证异常确实触发及回滚。新鲜Site测试缺少此前connections套件显式创建的Cowork Push Log合成Role，当前测试自建同一fixture；不将此作正式租户开户验证。
+- 独立审查发现初版失效FIFO头永久卡队列，已增加限定隔离路径并以“A修改后失效→B合法”的真实场景关闭。后续审查补齐隔离后旧回执最小响应，测试失败/等待锁两种情形均通过。候选扫描保持普通RR一致性读：已被别的事务领取的旧候选由当前锁内状态拒绝；旧快照之后新增任务可能要下一独立poll事务才发现。真实竞争通过不等于所有候选查询已变成current read。内部服务不commit、不自动重跑整事务；未来HTTP边界必须在回复前提交、只对确定本地死锁有限回滚并重验，不得重发外部写入。
+
+### 安装、语言与交付边界
+
+复核本任务Docker context、Compose project、只读挂载、无发布端口、internal网络、专属Site/DB卷后启动本任务三个容器。`cowork-backend-push.localhost`新装通过；原`cowork-backend-companion.localhost`增量升级后，14业务表加__Auth共 **115行** 的原列哈希与计数保持。测试后在新Site重复migrate，新增Delivery也纳入16表/ **79行** 比较，包含1条已提交Delivery和其密文，全部原值保持。两Site数据各自统计，不能相加当作同一库的记录延续；证据都是合成数据。
+
+新增11术语，仅Cowork四语包，每语474条；44次实际Frappe翻译查询通过。术语表与前端键检查通过（338键、0问题），没有修改前端。全仓strict仍旧147项/43文件/135文案，与HEAD去行号比较新增/删除0；保留失败现状，未放宽基线。
+
+交付来源仍ec2e5c957e6b；source canonical `cd4daa95eddaf628161dfc180565fa392cbb877fb1c2f0bba99c4472d1619494`，runtime canonical `a497892eebaa3184418ee52af637a34fd1f508ddd1f275eeeb4cdeef78f01505`。对本批开工和第十交付两组均PASS，settings_unchanged=true、observations_changed=false；八→九旧配置HOLD、旧数据映射和Windows实际EXE来源缺口仍在。
+
+下步是：沿第十精确机器桥新增poll/receipt路由和各自授权、原生HTTP封套与客户端接线；准备事实采集和人工激活入口；ACK对应History终态、库存主档计数和唯一通知事件。当前旧客户端硬编码 `/api/erp/agent/*` 且读top-level jobs/ok，本地源码把log_id原样回显也不能证明已运行EXE可直接适配新RPC。本批未开真实客户端、未进行DBF写盘或外部ERP回读。MRERP采集/运输、不明结果回读恢复、LINE/WeKan、对账和剩余盘点照片/legacy/导入删除/导出归档等整体余项保留，尚未到前端接入点。
+
+实现/本地检查通过，CI、部署、外部业务结果、Windows真机和用户验收均未执行。仅保存本任务独立本地提交；未合回集成主线、未推送、未部署。主目录末次只读核验仍干净1a0585e，DMS源码/运行环境没有改动。源码、测试与日志摘要清单见 `cowork-backend/evidence/eleventh-local-validation.json`。专用工作树和数据卷保留以续接，不将本地分支与主线称为统一。
+
+第十一批收尾：本任务bench/redis/db均已停止，命名Site/DB卷与合成数据保留；未停其它项目。架构0违规、变更Python语法、候选文件哈希、diff均通过。通过共享暂存快照钩子保存本任务独立本地提交，无跳过钩子；下次从本记录的待接线范围续接。
+
+## 第十二批：领取与历史回执的精确 HTTP 接线（2026-09-21，本地完成）
+
+承接独立工作树 `8abf444b6ee953d485cee9e5f7691e6a47244965`，主目录只读 `1a0585e6d53a995aa59a6045fe027246d18471f9`。重新核对开发入口、架构、迁移线上基准和任务余项。本批不改 DMS、前端、部署或实际 Windows 客户端，不对 ERP/LINE 发请求。复核后仅启动同一专属实验 Compose 的 bench/db/redis；internal 网络、无发布端口、专属 Site/DB 卷及本工作树只读源码挂载保持。
+
+开工 live source 与 runtime 相对第十一交付 PASS：仍为固定 `ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`，source canonical `07a3b0e7118fb60002618fc0f7fa28d849765f916bdea28366a07aad8a1b939d`，runtime canonical `8fbb2f8d7491572a2ba057e343d2cb3f4658ffca5c7b646d2843424950392e6f`；settings_unchanged=true、observations_changed=false。旧八→九配置 HOLD 与 Windows EXE 身份缺口不变，仅继续新原生 Connection / 新凭据 / 合成本地作业范围。证据与合同差异见[第十二来源审查](cowork-backend/twelfth-source-review.md)。
+
+App/域/依赖：`companion.queue_api` 是两个薄 Frappe RPC，按精确路径的私有 HTTP 能力单向调用 `companion.transport`；`http_auth` 有限方法表区分 heartbeat、lease、ack。派发仍由当前凭据和原 actor 权限验证；receipt_auth 的历史能力加入不可伪造的原 issuer，保留框架原生 IP 限制，同时不重新授予其普通用户或派发权限。没有新 DocType/持久路径移动、通用路由、菜单或前端。
+
+合同：原生 Frappe `message` 封套保留，旧 `/api/erp/agent/*` 和顶层 JSON 读取方式不冒称已兼容。handler 只对提交前确定的本地死锁最多三次回滚重验；显式 commit 成功才返回领取或回执结果。commit / after_commit 的异常不重跑领取，不能据 HTTP 失败推断数据库一定未提交。框架外层仍可能再次提交，相关失败要以真实 WSGI 故障注入确认，不能用 mock 响应替代。ACK 的错误保护须覆盖已解密 attempt secret、Bearer、Recorder 和 Error Log，详见[框架边界审查](cowork-backend/companion-queue-http-boundary.md)。
+
+### 实现与真实请求验证
+
+两个薄 RPC 已完成。输入不合法给稳定 400，凭据或范围不符拒绝，回执与当前 Attempt/fence 冲突给 409，本地可用性故障给 503；不能用空队列掩盖数据库故障。轮换、撤销、禁用发行人/公司/连接、关闭总闸后不再派发，但原历史凭据仍只可回传自己已领任务；原生 IP 检查继续执行。原生 `message` 封套有意保留，没有将裸 Record 名或原始发送令牌作为客户端句柄。
+
+- 新增真实 WSGI **40 项**：领取/共通入口 16、回执 24。正常、畸形参数、别名、其它动词、人工 API key、cookie/cmd/sid、override/server script、不同操作能力混用、写前撤权均验证；两个独立 HTTP 进程先建立旧 RR 快照，再同时领取，只生成一个 Attempt/Delivery 和对应写锁。
+- 提交前故障不会返回任务或成功回执；after_commit 故障不重跑，已持久的领取不再发，已持久 ACK 可幂等回放。外层 Frappe 第二次 commit 故障会逃出框架原 try/except，真实 WSGI 测试确认没有成功 payload，但不将它描述成固定 503 JSON 响应；此时首个 commit 已持久，HTTP 失败不能推断业务未发生。
+- 发现并关闭两类秘密泄漏：ACK 解密后死锁再遇 rollback 失败，异常原链可逃出保护；`frappe.throw` 则先排入 message_log，即使隐藏 traceback 仍能从 `_server_messages` 返回。前者单独转换安全 503 且停止重试；后者同时清原生消息及 error_message，在错误、认证/写入重试之后和成功 commit 返回前处理。真实 developer mode + Recorder 正对照验证 Bearer/解密 attempt secret 不进入错误快照、提示或机器记录；普通 ping 仍正常记录，没有全局关闭 Recorder。
+- 受影响旧回归：心跳 HTTP **26**、内部运输 **40**、凭据 **20**、目录收集 **18**，与新增合计 **144 项原生测试**通过，无 skip，不累计复跑。锁定镜像无网完整离线 **755 项**通过（原 739 加新增 16）；旧 13 个纯 HTTP 断言未改，仅增加方法表依赖提取。
+
+保留真实验证过程：初次 commit 故障替身遗漏 Frappe 的 chain 参数，修正签名后通过；新夹具每项独立用户触发建号节流，限定仅建合成数据的 import flag，不用于 HTTP；两个旧/新 HTTP 夹具修改 Site 文件却未清 Frappe 60 秒进程配置缓存，现通过官方 clear_site_config_cache 使开关/developer mode 测试确定生效，没有改弱断言。旧心跳原 26 组在修正后完整通过。
+
+多轮合成建号的 create_contact 辅助队列累积到 650，造成某次 ACK 组四项 setup 错误，未记为业务通过。先只读逐项核对任务种类/Site/合成用户，再仅删除本任务 push Site 的 454 个 create_contact、`cw-*@example.invalid` 辅助任务；保留其它 196 个队列项，不清空 Redis/全队列/数据库。删除 ID 集合 SHA256 `56b078bc884312116cb0f6c1938fed11f69037d8346b0101126cd242d0162bb1`。新夹具只在合成建用户及改 API secret 时使用 install flag 同步建 Contact，HTTP 前恢复并销毁夹具上下文；完整 ACK 24 项复验通过。后续旧组在独立 companion Site 运行，避免新合成建号的每分钟限流；两 Site 均属同一专有实验环境。
+
+### 语言、来源与余项
+
+新增一条 companion.queue_conflict，TSV 与 Cowork 四语 CSV 同步，每语 475；4 次真实 Frappe 翻译查找通过。术语表检查和前端键检查通过（338 键、0 问题），没有改前端。全仓 strict 仍是旧 **147 项/43 文件/135 文案**失败，与本批基线按 file/kind/text（仅去行号）逐项比较新增/减少均 0，未修改检查器或忽略表。
+
+本批无 schema/DocType/hook 路径变化，复用上批已迁移的两个专属 Site，不重复安装/迁移并冒称新安装证据。实际镜像仍 `sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`。固定来源线协议纯契约和内部 transport 未改；上批 910 组源函数差分和 17 组明确适配保留为当时证据，本次不重复执行或累加到新测试总数。
+
+交付 source canonical `f0ce597a73ab5a0f2e31a959e1ed9f7ed9c820589632fe5e6594340f59487e0a`，runtime canonical `7e3cde2853d973f80469b25c043af2c63739c7df6a058f99b71ee2d2e3e997c3`；对本批开工和第十一交付均 PASS，源码仍 ec2e5c957e6b，settings_unchanged=true、observations_changed=false。四份源证据只读归档；第八→第九旧数据 HOLD 不解除，实际 Windows EXE 来源与新协议适配也未完成。
+
+下一步仍是准备事实采集和人工激活入口，再补 ACK 对应 History 终态、库存主档计数和唯一通知事件。HTTP 收到合成成功回执只证明本地账本流程，不能称为实际 ERP 成功或独立回读。MRERP、未知结果恢复、LINE/WeKan、对账、盘点照片/legacy、导入删除/导出归档及旧状态迁入等余项仍在，尚未到前端接入点。
+
+实现和本地检查通过；全仓 strict i18n 保留既有失败。CI、部署、外部业务结果、Windows 真机和用户验收未执行。仅保存独立本地提交，未合回主线、未推送、未部署；主目录末次只读核验仍干净 `1a0585e`，未改 DMS 或接管其它运行环境。候选文件哈希、准确日志与边界见 `cowork-backend/evidence/twelfth-local-validation.json`。本任务工作树及 Site/DB 卷保留用于续接。
+
+第十二批收尾：候选文件哈希与语法、架构 0 违规、diff 检查通过。本任务 bench/db/redis 三容器已停止，两个命名数据卷保留；没有停止其它项目。使用共享暂存快照钩子保存本地提交，不跳过检查。下一批从上述后端余项续接，不将此批 HTTP 完成写成 Cowork 整体迁移完成。
+
+
+## 第十三批后端检查点（2026-09-21）
+
+本批按顶部交接完成准备资料采集、原生消费所需模型和显式人工确认入口，保留准备/确认/领取分离；详细固定源合同与有意拒绝边界见[第十三批来源审查](cowork-backend/thirteenth-source-review.md)。53个不同Site用例、8组来源比较、架构与本地安装升级证据见[本批清单](cowork-backend/evidence/thirteenth-local-validation.json)。未改DMS/Core/前端，未部署、合回或推送；ACK业务联动为下一包，不把本包写成全部迁移完成。
+
+## 第十四批后端检查点（2026-09-21）
+
+开工 SHA `c1e57cf0a91f593cfc25637a2e3fcd4ade77f870`。只在原任务工作树推进，不合回、推送、部署。开工 source/runtime 新采文件为 `*fourteenth-start.json`，与第十三批交付比较通过，旧配置迁入 HOLD 保持。
+
+归属：Cowork `push.native.completion` 编排同事务成功副作用；`history.push_state` 只投影状态、不改审核版本；`connections.stock_effects` 仅更新同账套/目录/原凭据来源的库存指纹；新增私有 Cowork Push Notification 原生事件，无发送消费者。依赖 push→history/connections，无反向引用。沿现有 ACK RPC，无新产品入口；普通资源 API 和分享均拒绝事件访问。
+
+验证完成情况、失败修复与保留项以顶部交接、本批来源审查和验证清单为准。19个独立Site/HTTP用例、8组源计数对比通过；没有部署或外部业务验收。
