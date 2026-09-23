@@ -31,6 +31,7 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from pearnly_core.browser import BrowserSession
 from pearnly_core.endpoints import read_password
 from pearnly_core.session_lock import account_lock, dms_login_key
+from pearnly_dms.config import pacing
 from frappe import _
 
 logger = logging.getLogger(__name__)
@@ -88,7 +89,11 @@ def is_timeout_error(exc: BaseException) -> bool:
 
 class MrerpDmsAdapter:
     LOGIN_TIMEOUT_MS = 20000
-    DEFAULT_PAGE_TIMEOUT_MS = 15000
+    # 兜底预算也取自**共用口径**（`pearnly_dms.config.pacing`），不留一个比它更小的老常量
+    # 当暗坑：哪怕有人绕开 `build_adapter` 直接 `MrerpDmsAdapter(...)`，也至少拿到第一档
+    # 30 秒。老默认值是 15 秒 —— 那正是 2026-09-23 生产上 17 次超时、48 小时 2492 次
+    # 后台刷新全失败的原因。
+    DEFAULT_PAGE_TIMEOUT_MS = pacing.ATTEMPT_TIMEOUT_MS[0]
     # "打开登录页"的上限。`run_logged_in` 会按**这一次是第几次尝试**覆盖它
     # （见 `pearnly_dms.config.pacing.ATTEMPT_TIMEOUT_MS`）。None = 用默认值。
     page_timeout_ms: Optional[int] = None
@@ -351,7 +356,11 @@ class MrerpDmsAdapter:
             page.fill("#txtpasswords", password)
 
             attempts = 3
-            per_attempt_ms = max(5000, self.LOGIN_TIMEOUT_MS // attempts)
+            # **点完之后的等待窗口也按这一次的预算给**：慢的不只是"打开页面"，也可能慢在
+            # "点下去之后对方迟迟不回应"。老口径是写死的 20 秒总分片，于是重试给到 90 秒
+            # 预算时，后半段其实还是只有 20 秒 —— 等于没放宽（2026-09-23 自查发现的缺口）。
+            verify_ms = max(self.LOGIN_TIMEOUT_MS, int(self.page_timeout_ms or 0), budget)
+            per_attempt_ms = max(5000, verify_ms // attempts)
             for _attempt in range(attempts):
                 captured["body"] = None
                 try:
@@ -382,7 +391,11 @@ class MrerpDmsAdapter:
             except Exception:
                 pass
 
-        raise DmsAuthError(
+        # 走到这里说明**一次拒绝都没收到**：要么点了没回应（对方不答/页面没加载完导致点击
+        # 是空操作），要么对方说成功了却没把我们送进去。两种都是"对方那边没成"，该给
+        # 「重试」、也该计入熔断 —— 老口径在这里报 `DmsAuthError`（不可重试、不计熔断），
+        # 于是"对方慢"被说成了"账号/密码有问题"，用户看到的话术也是错的。
+        raise DmsUnreachableError(
             _("DMS sign-in did not finish (after retrying there was neither a successful "
               "checklogin response nor a redirect · the page may be slow to load or blocked)")
         )

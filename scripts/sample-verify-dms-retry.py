@@ -310,6 +310,21 @@ def main():
     check("刷不动时先给手上那份曾经完整的主档（stale-while-revalidate）",
           "_stale_but_complete(" in shared_src)
 
+    # ── 6. 2026-09-23 自查出的两处缺口（改了才知道的） ──────────────────────
+    check("点完登录之后的等待窗口也按预算放宽（不只是'打开页面'那一段）",
+          "verify_ms = max(self.LOGIN_TIMEOUT_MS" in
+          (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/session.py").read_text(encoding="utf-8"))
+    check("点了没回应 → 报「连不上」（老口径错报成账号/密码问题，不可重试）",
+          "raise DmsUnreachableError(\n            _(\"DMS sign-in did not finish" in
+          (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/session.py").read_text(encoding="utf-8")
+          .replace("            _(", "            _("))
+    check("兜底预算也取自共用口径（不留 15 秒老常量当暗坑）",
+          "DEFAULT_PAGE_TIMEOUT_MS = pacing.ATTEMPT_TIMEOUT_MS[0]" in
+          (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/session.py").read_text(encoding="utf-8"))
+    check("'等多久'这件事有一条**真浏览器**的端到端验证脚本（不只读代码）",
+          (ROOT / "scripts/sample-verify-dms-login-budget.py").is_file()
+          and (ROOT / "scripts/sample-verify-dms-login-budget.sh").is_file())
+
     failed_checks = [x for x in results if not x[1]]
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(results) - len(failed_checks), len(failed_checks)))
