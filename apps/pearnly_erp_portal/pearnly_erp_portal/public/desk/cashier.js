@@ -30,7 +30,10 @@
 (() => {
 	const p = frappe.pearnly;
 	// 支付方式：与 `ERP Sale Payment.method` 同一个集合，顺序照官方收款面板。
-	const METHODS = ["cash", "card", "promptpay", "transfer"];
+	const ALL_METHODS = ["cash", "card", "promptpay", "transfer"];
+	// 页面上真正给收银员看的那几种 = **这家公司开了的**那几种（`apply_company_methods` 按
+	// 服务端回的 `payment_methods` 收窄）。付款面板、落单校验、退款那一格看的都是它。
+	let METHODS = ALL_METHODS;
 	const METHOD_KEYS = {cash: "trade.methodCash", card: "trade.methodCard",
 		promptpay: "trade.methodPromptpay", transfer: "trade.methodTransfer"};
 	// 官方购物车键盘（`pos_item_cart.js` 的 keys / css_classes 原样）：目标键各占两格，
@@ -888,7 +891,9 @@
 				// 我们自己的小票模板还没做，先开原生那份）。
 				done ? `<div class="btn btn-sm summary-btn print-btn">${p.escape(t("trade.printReceipt"))}</div>` : "",
 				can_write && done && doc.sale_type === "sale"
-					? `<div class="btn btn-sm summary-btn return-btn">${p.escape(t("trade.refund"))}</div>` : "",
+					// 类名必须是 `refund-btn`：下面 `$app.on("click", "… .refund-btn")` 绑的就是它。
+					// 早先这里画成 `return-btn`，事件接不上 —— 这颗「退货退款」点了没反应。
+					? `<div class="btn btn-sm summary-btn refund-btn">${p.escape(t("trade.refund"))}</div>` : "",
 				can_write && done
 					? `<div class="btn btn-sm summary-btn void-btn">${p.escape(t("trade.void"))}</div>` : "",
 				// **主按钮永远排最右边**（用户 2026-09-23："次按钮是灰的，主按钮排最右边"）。
@@ -972,7 +977,7 @@
 		});
 		$app.on("click", ".past-order-summary .refund-btn", async () => {
 			if (!active_order) return;
-			await p.pos_receipt.refund({ t, doc: active_order,
+			await p.pos_receipt.refund({ t, doc: active_order, methods: METHODS,
 				on_done: async () => { await refresh(); await load_orders(); } });
 		});
 		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
@@ -1003,6 +1008,19 @@
 		});
 
 		// ── 取数 ────────────────────────────────────────────────────────────────
+		// 这家公司收哪几种钱：与付款面板、开班/交班对账表、退款那一格同一份来源 ——
+		// `api_list_terminals` 上跟着收银台一起回的 `payment_methods`（建公司时勾的那几种）。
+		// 勾掉的方式在这条路上也一并消失；服务端落单时还会再拦一次。
+		async function apply_company_methods() {
+			if (!shift) return;
+			const rows = await p.call(api + "api_list_terminals");
+			const list = Array.isArray(rows) ? rows : (rows?.terminals || []);
+			const terminal = list.find(row => row.name === shift.shift.terminal) || list[0] || {};
+			const allowed = (terminal.payment_methods || []).map(key => String(key).trim()).filter(Boolean);
+			const next = ALL_METHODS.filter(key => allowed.includes(key));
+			if (next.length) METHODS = next;
+		}
+
 		async function refresh() {
 			shift = await p.call(api + "api_current_shift");
 			paint_actions(); paint_customer();
@@ -1013,6 +1031,7 @@
 				q(".items-selector .label").text(t("trade.noShift"));
 				return;
 			}
+			await apply_company_methods();
 			await load_items();
 			await load_orders();
 			paint_cart(); paint_views();

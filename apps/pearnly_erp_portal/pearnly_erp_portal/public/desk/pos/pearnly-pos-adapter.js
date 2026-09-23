@@ -1108,7 +1108,8 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 				this.$summary_btns.on("click", ".print-btn", () =>
 					p.pos_receipt.print(this.summary_doc()));
 				this.$summary_btns.on("click", ".refund-btn", () => void this.with_server_doc(doc =>
-					p.pos_receipt.refund({ t: term, doc, on_done: () => this.after_receipt_action() })));
+					p.pos_receipt.refund({ t: term, doc, methods: payment_methods.map(m => m.key),
+						on_done: () => this.after_receipt_action() })));
 				this.$summary_btns.on("click", ".void-btn", () => void this.with_server_doc(doc =>
 					p.pos_receipt.void_sale({ t: term, doc, on_done: () => this.after_receipt_action() })));
 				this.$summary_btns.on("click", ".new-order-btn", () => {

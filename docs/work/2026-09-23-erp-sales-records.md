@@ -3702,3 +3702,22 @@ return（函数没定义），搬来的官方收银台要「交班」就得有�
 
 实测：`sole()`/`required()`/`place_of()` 四条边界、新单 `SI2569-000065` 单据仓 = 行仓 = `WH-00174`、
 未开班空态与开班后的商品区（40 件、无物料组）。
+
+## 2026-09-24 第四批（用户口径：继续做未完成的）
+
+**收款方式"关掉一种"三条路一起收口**：源头一直是服务端的 `payment_methods`
+（公司上勾的那几种），上一批只接了搬过来的官方收银台，**旧页面（默认路由）还是四种写死**。
+现在旧页面把 `METHODS` 拆成"全集"与"这家公司开了的"两份，`refresh()` 按收银台收窄一次，
+付款面板 / 落单校验 / 退款那一格读的都是它；共用退款模块 `pos_receipt.refund({ …, methods })`
+按调用方给的那几种列，并且那一格**显示本地化名称**（原来把 `cash` 这种键面直接摆给收银员看）。
+
+实测（演示站真点鼠标，两只钟都走）：关掉"转账" → 付款面板只剩三种、退款弹窗候选=现金/刷卡/
+扫码（PromptPay）、`api_list_terminals` 也只回三种；服务端直连 `create_sale` 用 `transfer`
+被 `This payment method is not enabled for this company` 拦下、用 `cash` 正常出单；
+还原成四种后付款面板回到四种。
+
+**顺带修掉一颗真按钮**：旧页面把「退货退款」画成 `return-btn`，事件却绑 `.refund-btn` ——
+**默认路由上这颗按钮点了没反应**（搬过来的官方收银台两边都用 `refund-btn`）。
+
+检查：`node --check` 过、`check-architecture` PASS(0 violations)、`i18n-build --check` PASS、
+`check-frontend-i18n` 0 问题。未推送、未合并、未部署。
