@@ -107,7 +107,9 @@
 				// 作废是"取消"类动作，官方放 `cancel`（不是"保存成功"那一声）。
 				sound: "cancel",
 			});
-			list = p.list({ page, doctype: "ERP Stock Entry", selectable: true, on_selection: selection,
+			// 五列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。
+			list = p.list({ page, doctype: "ERP Stock Entry", selectable: true, compact_columns: true,
+				on_selection: selection,
 				on_open: row => editor(row.name),
 				empty_action: canWrite ? { label: title_new(), action: () => editor() } : null,
 				load: p.trade.load(api, "api_list_stock_entries", "api_stock_entry_total", () => ({ direction })),
@@ -115,12 +117,12 @@
 					// 首列是**单据编号**（系统发的 IR/IS 号）：旧线上列表也是拿它当行标题，
 					// 内部单据名只在点开单据时用，不占一列。
 					// 老单据（编号是后来才发的）没有号，落回内部单据名，别留一列空白。
-					{ fieldname: "doc_no", label: t("trade.docNo"),
+					{ fieldname: "doc_no", width: 150, min_width: 128, label: t("trade.docNo"),
 						format: (_value, row) => row.doc_no || row.name },
-					{ fieldname: "posting_date", label: t("trade.date") },
-					{ fieldname: "warehouse_name", label: t("trade.warehouse") },
-					{ fieldname: "status", label: t("trade.status"), format: value => __(value) },
-					{ fieldname: "reason", label: t("trade.note") },
+					{ fieldname: "posting_date", width: 110, min_width: 96, label: t("trade.date") },
+					{ fieldname: "warehouse_name", width: 150, min_width: 120, label: t("trade.warehouse") },
+					{ fieldname: "status", width: 90, min_width: 74, label: t("trade.status"), format: value => __(value) },
+					{ fieldname: "reason", width: 210, min_width: 150, label: t("trade.note") },
 				],
 			});
 			restore_new();

@@ -23,13 +23,14 @@
 		let list;
 
 		const columns = () => [
-			{ fieldname: "supplier_name", label: t("supplier.col.name") },
-			{ fieldname: "tax_id", label: t("supplier.col.taxId") },
-			{ fieldname: "branch_type", label: t("supplier.col.branch"),
+			// 六列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。
+			{ fieldname: "supplier_name", width: 190, min_width: 150, label: t("supplier.col.name") },
+			{ fieldname: "tax_id", width: 120, min_width: 104, label: t("supplier.col.taxId") },
+			{ fieldname: "branch_type", width: 70, min_width: 58, label: t("supplier.col.branch"),
 				format: value => (value === "branch" ? t("supplier.branch") : "") },
-			{ fieldname: "phone", label: t("supplier.col.phone") },
-			{ fieldname: "address", label: t("supplier.col.address") },
-			{ fieldname: "is_active", label: t("supplier.col.status"),
+			{ fieldname: "phone", width: 110, min_width: 92, label: t("supplier.col.phone") },
+			{ fieldname: "address", width: 200, min_width: 150, label: t("supplier.col.address") },
+			{ fieldname: "is_active", width: 76, min_width: 64, label: t("supplier.col.status"),
 				// 两态都要看得见：原来"正常"那格是空的，看起来像这列没数据
 				// （用户 2026-09-23）。措辞与物料页同一口径（正常 / 已停用），
 				// 用本页自己的术语键取 —— 框架自带的词典把 "Normal" 译成「普通」、
@@ -121,7 +122,8 @@
 			if (can_write) page.set_primary_action(t("supplier.new"), () => editor());
 			else page.clear_primary_action();
 		}
-		list = p.list({page, doctype: "ERP Supplier", selectable: true, on_selection: selection,
+		list = p.list({page, doctype: "ERP Supplier", selectable: true, compact_columns: true,
+			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
 			load: async () => {

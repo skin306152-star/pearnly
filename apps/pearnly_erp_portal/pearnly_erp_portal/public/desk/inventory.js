@@ -80,6 +80,10 @@
 			selectable: true,
 			on_selection: selection,
 			on_open: row => p.stockLedger(row),
+			// 十列要**一屏放得下**、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
+			// 看下能不能放在一屏显示完整"）。`compact_columns` 让每列按下面的宽度走、并按窗口
+			// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
+			compact_columns: true,
 			load: async ({ start, page_length }) => {
 				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 				const [items, total] = await Promise.all([
@@ -89,19 +93,21 @@
 				return { items, total };
 			},
 			columns: [
-				{ fieldname: "product_name", label: t("stock.col.name") },
-				{ fieldname: "code", label: t("stock.col.code") },
-				{ fieldname: "barcode", label: t("stock.col.barcode") },
-				{ fieldname: "warehouse_name", label: t("stock.col.warehouse") },
-				{ fieldname: "location", label: t("stock.count.location") },
-				{ fieldname: "unit", label: t("stock.col.unit") },
-				{ fieldname: "qty_on_hand", label: t("stock.col.onHand"),
+				// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
+				// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
+				{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name") },
+				{ fieldname: "code", width: 80, min_width: 68, label: t("stock.col.code") },
+				{ fieldname: "barcode", width: 110, min_width: 84, label: t("stock.col.barcode") },
+				{ fieldname: "warehouse_name", width: 116, min_width: 92, label: t("stock.col.warehouse") },
+				{ fieldname: "location", width: 56, min_width: 46, label: t("stock.count.location") },
+				{ fieldname: "unit", width: 50, min_width: 44, label: t("stock.col.unit") },
+				{ fieldname: "qty_on_hand", width: 60, min_width: 50, label: t("stock.col.onHand"),
 					format: (value) => p.number(value) },
-				{ fieldname: "unit_cost", label: t("stock.col.cost"),
+				{ fieldname: "unit_cost", width: 78, min_width: 64, label: t("stock.col.cost"),
 					format: (_value, row) => money(row.cost_known ? row.unit_cost : null) },
-				{ fieldname: "value", label: t("stock.col.value"),
+				{ fieldname: "value", width: 82, min_width: 68, label: t("stock.col.value"),
 					format: (_value, row) => money(row.cost_known ? row.value : null) },
-				{ fieldname: "status", label: t("stock.col.status"),
+				{ fieldname: "status", width: 68, min_width: 58, label: t("stock.col.status"),
 					format: (_value, row) => status_label(row) },
 			],
 		});

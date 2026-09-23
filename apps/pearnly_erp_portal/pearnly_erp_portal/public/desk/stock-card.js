@@ -235,18 +235,21 @@
 			});
 			list = p.list({ page, doctype: "ERP Stock Movement", selectable: true, on_selection: selection,
 				on_open: row => open_ledger(row, query()),
+				// 收发存七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
+				// 看下能不能放在一屏显示完整"）。窗口更宽时按下面的比例等比放宽。
+				compact_columns: true,
 				load: async ({ start, page_length }) => {
 					const rows = await p.call(api + "api_stock_summary", query());
 					return { items: rows.slice(start, start + page_length), total: rows.length };
 				},
 				columns: [
-					{ fieldname: "product_name", label: t("trade.product") },
-					{ fieldname: "warehouse_name", label: t("trade.warehouse") },
-					{ fieldname: "location", label: t("trade.location") },
-					{ fieldname: "opening_qty", fieldtype: "Float", label: t("trade.opening"), format: value => p.number(value) },
-					{ fieldname: "in_qty", fieldtype: "Float", label: t("trade.in"), format: value => p.number(value) },
-					{ fieldname: "out_qty", fieldtype: "Float", label: t("trade.out"), format: value => p.number(value) },
-					{ fieldname: "closing_qty", fieldtype: "Float", label: t("trade.closing"), format: value => p.number(value) },
+					{ fieldname: "product_name", width: 200, min_width: 168, label: t("trade.product") },
+					{ fieldname: "warehouse_name", width: 132, min_width: 110, label: t("trade.warehouse") },
+					{ fieldname: "location", width: 66, min_width: 54, label: t("trade.location") },
+					{ fieldname: "opening_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.opening"), format: value => p.number(value) },
+					{ fieldname: "in_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.in"), format: value => p.number(value) },
+					{ fieldname: "out_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.out"), format: value => p.number(value) },
+					{ fieldname: "closing_qty", width: 90, min_width: 80, fieldtype: "Float", label: t("trade.closing"), format: value => p.number(value) },
 				],
 			});
 			set_refresh(() => list.reload());

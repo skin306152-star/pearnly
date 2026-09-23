@@ -95,21 +95,22 @@
 			on_open: row => void open_receipt(row),
 			load: p.trade.load(api, "api_list_sales", "api_sale_total", query),
 			columns: [
-				{ fieldname: "receipt_no", width: 152, min_width: 132, label: t("trade.docNo") },
-				{ fieldname: "sold_at", width: 130, min_width: 108, label: t("trade.date"),
+				// 八列的底线要能塞进最窄的常见窗口，否则最右那两列会被右边那块（计数）盖住。
+				{ fieldname: "receipt_no", width: 150, min_width: 126, label: t("trade.docNo") },
+				{ fieldname: "sold_at", width: 122, min_width: 100, label: t("trade.date"),
 					format: value => p.datetime_text(value) },
-				{ fieldname: "sale_type", width: 96, min_width: 76, label: t("trade.kind"),
+				{ fieldname: "sale_type", width: 88, min_width: 68, label: t("trade.kind"),
 					format: value => kind_label(value) },
-				{ fieldname: "status", width: 88, min_width: 68, label: t("trade.status"),
+				{ fieldname: "status", width: 82, min_width: 62, label: t("trade.status"),
 					format: value => state_label(value) },
 				// 这一单挂的客户（散客留空）—— 收银选的客户在这里也看得到，和主档是同一个。
-				{ fieldname: "customer_name", width: 150, min_width: 110, label: t("trade.customer"),
+				{ fieldname: "customer_name", width: 140, min_width: 96, label: t("trade.customer"),
 					format: value => p.escape(value || "—") },
-				{ fieldname: "grand_total", width: 104, min_width: 84, label: t("trade.total"),
+				{ fieldname: "grand_total", width: 96, min_width: 78, label: t("trade.total"),
 					format: value => p.money(value) },
-				{ fieldname: "paid_total", width: 104, min_width: 84, label: t("trade.paid"),
+				{ fieldname: "paid_total", width: 96, min_width: 78, label: t("trade.paid"),
 					format: value => p.money(value) },
-				{ fieldname: "shift", width: 150, min_width: 110, label: t("trade.shiftNo") },
+				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 			],
 		});
 		page.add_inner_button(__("purchase.action.filter"), () => {

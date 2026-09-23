@@ -22,14 +22,19 @@
 				}));
 		};
 		list = p.list({page, doctype: "ERP LINE Intake", on_selection: selection,
+			// 四列一屏放得下（用户 2026-09-23："内容太多，要滑动才能看得到"）。
+			compact_columns: true,
 			load: async () => {
 				const items = await p.call(api + "api_list_line_intakes",
 					{direction: "purchase", status: "received", limit: 0});
 				return {items, total: items.length};
 			},
 			on_open: row => go("intake", row.name),
-			columns: [{fieldname: "name", label: __("ID")}, {fieldname: "received_at", label: __("Creation"), format: p.datetime_text},
-				{fieldname: "sent_by", label: __("User")}, {fieldname: "note", label: __("Remarks")}],
+			columns: [
+				{fieldname: "name", width: 140, min_width: 120, label: __("ID")},
+				{fieldname: "received_at", width: 140, min_width: 120, label: __("Creation"), format: p.datetime_text},
+				{fieldname: "sent_by", width: 150, min_width: 120, label: __("User")},
+				{fieldname: "note", width: 220, min_width: 150, label: __("Remarks")}],
 			row_actions: row => [{id: "discard", label: __("Cancel"), action: () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text")],
 				__("Confirm"), async (values, dialog) => {await p.call(api + "api_discard_line_intake", {name: row.name, ...values}, "POST"); dialog.hide(); await go();})}],
 		});

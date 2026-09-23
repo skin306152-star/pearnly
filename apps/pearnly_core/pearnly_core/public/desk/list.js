@@ -122,6 +122,21 @@
 			this.$list_head_subject = this.$checkbox_actions = null;
 			header.find(".list-count").text(`${this.data.length} / ${this.total}`);
 			this.$result.prepend(header);
+			this.set_trailing_width();
+		}
+		// 表头右区放的是**计数**、行右区放的是**动作按钮**，两边必须一样宽 —— 否则列与内容
+		// 对不齐（用户 2026-09-23 报的"列和内容位置对不上，歪了"）。宽度取两者更宽的那个：
+		// 既容得下按钮（采购/销售的「付款 / 收款」），也容得下「20 / 47」这类计数。
+		// 计数那格是 `nowrap`（皮肤里写死），所以量到的就是整句的宽度，不会因为格子窄而变短。
+		set_trailing_width() {
+			const list = this.$frappe_list?.[0];
+			if (!list) return;
+			const buttons = this.$result.find(".pearnly-row-actions").get();
+			const count = this.$frappe_list.find(".list-row-head .list-count")[0];
+			list.style.setProperty("--pearnly-actions-width", `${Math.max(
+				buttons.length ? Math.max(...buttons.map(el => el.scrollWidth)) : 0,
+				count ? Math.ceil(count.getBoundingClientRect().width) : 0,
+			)}px`);
 		}
 		// 勾选状态变化时只做两件事：记下当前勾了哪些行、把结果交给页面自己的选中动作。
 		// **必须覆盖框架那一版**：它会把表头整行藏起来换成它自己的"已选 N 项"条，还会写
@@ -175,11 +190,7 @@
 		resize_list() {
 			if (this.destroyed || !this.page.main.is(":visible")) return;
 			if (this.compact_columns) this.apply_column_widths();
-			const actions = this.$result.find(".pearnly-row-actions").get();
-			if (actions.length) {
-				this.$frappe_list[0].style.setProperty("--pearnly-actions-width",
-					`${Math.max(...actions.map(el => el.scrollWidth))}px`);
-			}
+			this.set_trailing_width();
 			if (this.compact_columns && this.data.length) {
 				const row = this.$result.find(".list-row")[0];
 				const px = (el, property) => parseFloat(getComputedStyle(el)[property]) || 0;

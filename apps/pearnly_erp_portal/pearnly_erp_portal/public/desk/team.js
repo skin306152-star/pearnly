@@ -81,7 +81,10 @@
 
 		// 先把名单取回来再建列表：`p.list` 构造时就会 load 一次，先建列表的话第一屏是空的。
 		await refresh_members();
-		list = p.list({ page, doctype: "User", on_selection: selection,
+		// 六列一屏放得下、不用横向滑：团队页的列本来就写了 width/min_width，但没开
+		// `compact_columns` 时它们不起作用（框架按每列 150px 铺），于是要横向滑
+		// （用户 2026-09-23："内容太多，要滑动才能看得到"）。
+		list = p.list({ page, doctype: "User", compact_columns: true, on_selection: selection,
 			on_open: row => editor(row), columns: columns(),
 			// 一个租户的员工就这么多人，整份名单一次给完（搜索在本地过滤，不再打接口）。
 			load: async () => {

@@ -76,23 +76,25 @@
 				const rows = await p.call(api + "api_list_shifts", { limit: 0 });
 				return { items: rows.slice(start, start + page_length), total: rows.length };
 			},
-			columns: [
-				{ fieldname: "name", width: 150, min_width: 120, label: t("trade.shiftNo") },
-				{ fieldname: "terminal", width: 130, min_width: 100, label: t("trade.terminal") },
-				{ fieldname: "cashier", width: 150, min_width: 110, label: t("trade.cashier"),
+				columns: [
+				// 九列的底线要能塞进最窄的常见窗口，否则最右那几列会被右边那块（计数）盖住、
+				// 或者要横向滑（用户 2026-09-23）。
+				{ fieldname: "name", width: 140, min_width: 104, label: t("trade.shiftNo") },
+				{ fieldname: "terminal", width: 100, min_width: 80, label: t("trade.terminal") },
+				{ fieldname: "cashier", width: 120, min_width: 88, label: t("trade.cashier"),
 					format: value => frappe.user_info(value).fullname || value },
-				{ fieldname: "status", width: 90, min_width: 72, label: t("trade.status"),
+				{ fieldname: "status", width: 78, min_width: 62, label: t("trade.status"),
 					format: value => state_label(value) },
-				{ fieldname: "opened_at", width: 130, min_width: 108, label: t("trade.openedAt"),
+				{ fieldname: "opened_at", width: 122, min_width: 94, label: t("trade.openedAt"),
 					format: value => p.datetime_text(value) },
-				{ fieldname: "closed_at", width: 130, min_width: 108, label: t("trade.closedAt"),
+				{ fieldname: "closed_at", width: 122, min_width: 94, label: t("trade.closedAt"),
 					format: value => p.datetime_text(value) },
-				{ fieldname: "expected_cash", width: 108, min_width: 88, label: t("trade.expectedCash"),
+				{ fieldname: "expected_cash", width: 96, min_width: 74, label: t("trade.expectedCash"),
 					format: value => money(value) },
-				{ fieldname: "counted_cash", width: 108, min_width: 88, label: t("trade.countedCash"),
+				{ fieldname: "counted_cash", width: 96, min_width: 74, label: t("trade.countedCash"),
 					format: value => money(value) },
 				// 差额不为 0 标红：与收银页、交班弹窗同一个红（颜色走 `cell_class`）。
-				{ fieldname: "cash_diff", width: 100, min_width: 80, label: t("trade.diff"),
+				{ fieldname: "cash_diff", width: 88, min_width: 66, label: t("trade.diff"),
 					format: value => money(value),
 					cell_class: value => num(value) ? "pearnly-payment-due" : "" },
 			],

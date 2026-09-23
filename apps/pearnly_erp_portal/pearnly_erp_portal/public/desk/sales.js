@@ -40,19 +40,22 @@
 					await p.trade.receipt_view(row.pos_name || row.name, trade_texts, {});
 				},
 				columns: [
-					{fieldname: "system_no", width: 154, min_width: 145, label: __("System number"), format: (value, row) => value || row.name},
-					{fieldname: "doc_date", width: 106, min_width: 98, label: __("Date")},
-					{fieldname: "buyer_name", width: 160, min_width: 112, label: __("Customer Name")},
-					{fieldname: "summary", width: 180, min_width: 115, label: __("Description")},
-					{fieldname: "grand_total", width: 108, min_width: 86, label: __("Grand Total"), format: value => p.money(value)},
-					{fieldname: "doc_kind", width: 90, min_width: 72, label: __("Document Type"), format: u.label},
+					// `width` 是"窗口宽时按这个比例分"，`min_width` 是**不能再压的底线**：九列的
+					// 底线加起来要能塞进最窄的常见窗口，否则最右那两列会被右边那块（计数）盖住
+					// —— 用户 2026-09-23 报的"列和内容位置对不上，歪了"。
+					{fieldname: "system_no", width: 154, min_width: 128, label: __("System number"), format: (value, row) => value || row.name},
+					{fieldname: "doc_date", width: 106, min_width: 88, label: __("Date")},
+					{fieldname: "buyer_name", width: 160, min_width: 96, label: __("Customer Name")},
+					{fieldname: "summary", width: 180, min_width: 96, label: __("Description")},
+					{fieldname: "grand_total", width: 108, min_width: 82, label: __("Grand Total"), format: value => p.money(value)},
+					{fieldname: "doc_kind", width: 90, min_width: 66, label: __("Document Type"), format: u.label},
 					// 「来源」：手工录入 / 上传识别 / LINE / 收银。收银小票就靠这一列认出来
 					// （对齐 ERPNext 的 is_created_using_pos 标记）。
-					{fieldname: "source", width: 96, min_width: 76, label: __("Source"), format: u.label},
+					{fieldname: "source", width: 96, min_width: 68, label: __("Source"), format: u.label},
 					// 还没收到的钱标红（颜色走 `cell_class`，列表这一层只出转义文本）。
-					{fieldname: "payment_status", width: 85, min_width: 64, label: __("Collection Status"), format: u.label,
+					{fieldname: "payment_status", width: 85, min_width: 62, label: __("Collection Status"), format: u.label,
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
-					{fieldname: "status", width: 72, min_width: 56, label: __("Status"), format: u.label},
+					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 				],
 				load: ({start, page_length}) => u.call("api_sales_records", {params: parameters(), start, limit: page_length}),
 				on_selection: rows => {selected = rows; primary();},

@@ -23,12 +23,14 @@
 			foreign: t("client.party.foreign"), anonymous: t("client.party.anonymous")})[value] || value || "";
 
 		const columns = () => [
-			{ fieldname: "customer_name", label: t("client.col.name") },
-			{ fieldname: "party_type", label: t("client.col.type"), format: party_label },
-			{ fieldname: "tax_id", label: t("client.col.taxId") },
-			{ fieldname: "contact_phone", label: t("client.col.phone") },
-			{ fieldname: "address", label: t("client.col.address") },
-			{ fieldname: "is_active", label: t("client.col.status"),
+			// 六列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。
+			// `width` 是窗口宽时的占比，`min_width` 是最窄窗口下的底线。
+			{ fieldname: "customer_name", width: 190, min_width: 150, label: t("client.col.name") },
+			{ fieldname: "party_type", width: 76, min_width: 64, label: t("client.col.type"), format: party_label },
+			{ fieldname: "tax_id", width: 120, min_width: 104, label: t("client.col.taxId") },
+			{ fieldname: "contact_phone", width: 110, min_width: 92, label: t("client.col.phone") },
+			{ fieldname: "address", width: 200, min_width: 150, label: t("client.col.address") },
+			{ fieldname: "is_active", width: 76, min_width: 64, label: t("client.col.status"),
 				// 两态都要看得见（原来"正常"那格是空的）；与供应商页、物料页同一口径。
 				// 走本页术语键：框架词典会把 "Normal"/"Disabled" 译成「普通 / 禁用」。
 				format: value => t(Number(value) ? "client.active" : "client.inactive") },
@@ -117,7 +119,8 @@
 			if (can_write) page.set_primary_action(t("client.new"), () => editor());
 			else page.clear_primary_action();
 		}
-		list = p.list({page, doctype: "ERP Customer", selectable: true, on_selection: selection,
+		list = p.list({page, doctype: "ERP Customer", selectable: true, compact_columns: true,
+			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
 			load: async () => {
