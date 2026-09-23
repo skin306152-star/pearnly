@@ -43,6 +43,12 @@ def build_adapter(endpoint_name: str):
     except Exception as exc:  # noqa: BLE001
         logger.exception("build_adapter 失败")
         return None, {"error_code": "ERR_UNEXPECTED", "raw": f"{type(exc).__name__}: {exc}"}
+    # 默认预算也用**共用口径**的第一档（30 秒），不是类里那个老默认值：
+    # 连接向导的"先测再存"、以及任何直接拿适配器登录的入口都吃得到这一档；
+    # `run_logged_in` 会按"第几次尝试 / 是否后台"再覆盖成更合适的一档。
+    from pearnly_dms.config import pacing
+
+    adapter.page_timeout_ms = pacing.budget_ms(1)
     return adapter, None
 
 

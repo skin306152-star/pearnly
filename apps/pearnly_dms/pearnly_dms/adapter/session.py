@@ -90,7 +90,7 @@ class MrerpDmsAdapter:
     LOGIN_TIMEOUT_MS = 20000
     DEFAULT_PAGE_TIMEOUT_MS = 15000
     # "打开登录页"的上限。`run_logged_in` 会按**这一次是第几次尝试**覆盖它
-    # （见 `pearnly_dms.intake.retry.ATTEMPT_TIMEOUT_MS`）。None = 用默认值。
+    # （见 `pearnly_dms.config.pacing.ATTEMPT_TIMEOUT_MS`）。None = 用默认值。
     page_timeout_ms: Optional[int] = None
 
     def __init__(

@@ -148,8 +148,8 @@
       "new": "apps/pearnly_dms/pearnly_dms/masters/master_contract.py"
     },
     "masters_cache.py": {
-      "diff_lines": 222,
-      "digest": "01c4397d360088f410f76b184c86d2c92b0bca7c13b42aac8d20609f1398c41b",
+      "diff_lines": 223,
+      "digest": "99280fd0923ff2ef7fdb273e81ef2f54ba5e4bbf95b95035ad17cb94c3088e05",
       "new": "apps/pearnly_dms/pearnly_dms/masters/masters_cache.py"
     },
     "menu_cards.py": {

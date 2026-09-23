@@ -155,8 +155,16 @@ def get_session_masters(
     *,
     max_age_seconds: float = SESSION_MAX_AGE_SECONDS,
     require_complete: bool = True,
+    background: bool = False,
 ) -> Dict[str, Any]:
-    """有界新鲜的**完整**主档；并发的刷新会被合并成一次真实登录。"""
+    """有界新鲜的**完整**主档；并发的刷新会被合并成一次真实登录。
+
+    `background=True`：调用方是后台任务（没人等着）→ 预算走共用口径的后台那一档。
+
+    **刷不动就先给手上那份旧的**（stale-while-revalidate）：对方慢/连不上时，让用户
+    立刻拿到上一份"曾经完整"的主档继续干活，比让他干等或直接失败好；新鲜度交给后台去追。
+    只有从来没取全过才回空（那种情况确实没有可用的东西可给）。
+    """
     from pearnly_dms.masters import masters_cache as cache
 
     scope_key = _scope(endpoint)
@@ -166,22 +174,38 @@ def get_session_masters(
 
     owner = _acquire(scope_key)
     if not owner:
-        return _wait_for_fresh(scope_key, max_age_seconds, require_complete)
+        fresh = _wait_for_fresh(scope_key, max_age_seconds, require_complete)
+        return fresh or _stale_but_complete(cached, require_complete)
     try:
         # 等租约的这段时间里，前一个刷新的可能已经写好了
         cached = cache._read(scope_key)
         if _fresh(cached, max_age_seconds, require_complete):
             return cached["masters"]
-        fresh = cache._fetch_masters_via_login(endpoint, require_complete=require_complete)
+        fresh = cache._fetch_masters_via_login(endpoint, require_complete=require_complete,
+                                              background=background)
         if not _complete({"masters": fresh}, require_complete):
             # 空读/残缺**绝不覆盖**上一份好快照 —— 宁可这次返回空让调用方重试
-            logger.warning("[dms masters] 刷新结果不完整，缓存保持不动")
-            return {}
+            if fresh is None:
+                logger.warning("[dms masters] 连不上，本轮用上一份快照（缓存保持不动）")
+            else:
+                logger.warning("[dms masters] 刷新结果不完整，缓存保持不动")
+            return _stale_but_complete(cached, require_complete)
         fresh = _preserve_paints(dict(fresh), cached)
         fresh = cache._write_full_preserving_paints(scope_key, fresh) or fresh
         return fresh
     finally:
         _release(scope_key, owner)
+
+
+def _stale_but_complete(cached: Optional[dict], require_complete: bool) -> Dict[str, Any]:
+    """刷不动时的兜底：手上这份曾经完整就用它（**旧的也能干活**），否则空。
+
+    注意判据用 `require_complete=True`（不管调用方这一轮要不要完整）：只有"曾经真的取全过"
+    的那一份才值得拿给用户，残缺的那份给了反而更坏（下拉里少半截选项）。
+    """
+    if _complete(cached, True) or _complete(cached, require_complete):
+        return (cached or {}).get("masters") or {}
+    return {}
 
 
 # ── 颜色 ────────────────────────────────────────────────────────────────────
@@ -261,11 +285,13 @@ def get_session_paints(
 
 
 def warm_cached_paints(
-    endpoint: Any, *, max_age_seconds: float = BACKGROUND_MAX_AGE_SECONDS
+    endpoint: Any, *, max_age_seconds: float = BACKGROUND_MAX_AGE_SECONDS,
+    background: bool = False,
 ) -> int:
     """在 LINE 请求路径**之外**预热最近用过的颜色（只预热用户选过的车型，有上限）。
 
     每个车型单独持租约，避免和交互式刷新打架；一次登录服务整批。
+    `background=True` 时预算走共用口径的后台那一档（见 `pearnly_dms.config.pacing`）。
     """
     from pearnly_dms.masters import masters_cache as cache
 
@@ -293,7 +319,7 @@ def warm_cached_paints(
         return 0
     try:
         rows_by_car = cache._fetch_paints_batch_via_login(
-            endpoint, [car_id for car_id, _o in leases]
+            endpoint, [car_id for car_id, _o in leases], background=background
         )
         if not rows_by_car:
             return 0

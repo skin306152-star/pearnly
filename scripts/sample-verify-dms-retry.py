@@ -23,6 +23,7 @@
 """
 
 import ast
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -61,7 +62,7 @@ def _csv_rows(relative: str) -> dict:
 
 
 def main():
-    from pearnly_dms.intake import retry as R
+    from pearnly_dms.config import pacing as R
 
     results = []
 
@@ -76,17 +77,17 @@ def main():
           and all(a < b for a, b in zip(R.ATTEMPT_TIMEOUT_MS, R.ATTEMPT_TIMEOUT_MS[1:])),
           R.ATTEMPT_TIMEOUT_MS)
     check("第一次就比老的 15 秒宽（生产实测新连接握手要 24 秒）",
-          R.timeout_ms(1) > 15_000, R.timeout_ms(1))
+          R.budget_ms(1) > 15_000, R.budget_ms(1))
     check("三次的上限都够跑完一次真实握手（>24 秒）",
           all(ms > 24_000 for ms in R.ATTEMPT_TIMEOUT_MS), R.ATTEMPT_TIMEOUT_MS)
     check("第 1/2/3 次拿到各自的上限",
-          [R.timeout_ms(n) for n in (1, 2, 3)] == list(R.ATTEMPT_TIMEOUT_MS))
+          [R.budget_ms(n) for n in (1, 2, 3)] == list(R.ATTEMPT_TIMEOUT_MS))
     check("越界的次数被夹进 1..3（不会 IndexError、也不会白给更长的预算）",
-          (R.timeout_ms(0), R.timeout_ms(-5), R.timeout_ms(99)) ==
-          (R.timeout_ms(1), R.timeout_ms(1), R.timeout_ms(3)))
+          (R.budget_ms(0), R.budget_ms(-5), R.budget_ms(99)) ==
+          (R.budget_ms(1), R.budget_ms(1), R.budget_ms(3)))
     check("次数是脏值（None / 空串 / 非数字）时按第一次算，不炸",
-          (R.timeout_ms(None), R.timeout_ms(""), R.timeout_ms("x")) ==
-          (R.timeout_ms(1), R.timeout_ms(1), R.timeout_ms(1)))
+          (R.budget_ms(None), R.budget_ms(""), R.budget_ms("x")) ==
+          (R.budget_ms(1), R.budget_ms(1), R.budget_ms(1)))
     check("clamp 自己也是这个口径",
           (R.clamp(0), R.clamp(2), R.clamp(9), R.clamp(None)) == (1, 2, 3, 1))
 
@@ -203,6 +204,111 @@ def main():
         rows = _csv_rows(f"apps/pearnly_dms/pearnly_dms/translations/{lang}.csv")
         check(f"「连不上第三方 DMS 系统，请联系管理员」的 {lang} 文案在包里",
               bool(rows.get(key)) and rows.get(key) != key, rows.get(key))
+
+    # ── 5. 同一套口径覆盖**所有** DMS 入口（不是只照顾一个功能） ────────────
+    check("后台不走用户在等的阶梯，一次给足 90 秒",
+          R.budget_ms(1, background=True) == R.budget_ms(3, background=True) == R.BACKGROUND_TIMEOUT_MS
+          and R.BACKGROUND_TIMEOUT_MS >= R.ATTEMPT_TIMEOUT_MS[-1],
+          (R.budget_ms(1, background=True), R.BACKGROUND_TIMEOUT_MS))
+    check("后台预算足够跑完一次实测最慢的握手（>24 秒）",
+          R.BACKGROUND_TIMEOUT_MS > 24_000, R.BACKGROUND_TIMEOUT_MS)
+
+    # 熔断：阈值前不冷却、到阈值开始冷却、逐级拉长、封顶
+    check("没到阈值不冷却（抖一下不算对方挂）",
+          [R.cooldown_seconds(n) for n in range(0, R.FAILURE_THRESHOLD)] == [0] * R.FAILURE_THRESHOLD,
+          [R.cooldown_seconds(n) for n in range(0, R.FAILURE_THRESHOLD)])
+    steps = [R.cooldown_seconds(n) for n in range(R.FAILURE_THRESHOLD, R.FAILURE_THRESHOLD + 4)]
+    check("到阈值开始冷却，且逐级拉长直到封顶",
+          steps[0] == R.COOLDOWN_STEPS[0] and all(a <= b for a, b in zip(steps, steps[1:]))
+          and steps[-1] == R.COOLDOWN_STEPS[-1] and R.cooldown_seconds(99) == R.COOLDOWN_STEPS[-1],
+          steps)
+    check("冷却有上限（不会一路涨到再也不试）", R.COOLDOWN_STEPS[-1] <= 1800, R.COOLDOWN_STEPS[-1])
+    check("脏值就当没失败过（不误挡）",
+          R.cooldown_seconds(None) == 0 and R.cooldown_seconds("x") == 0)
+
+    # 预热频率：有人用在追、没人用降频
+    check("最近有人用过 → 按 45 秒口径追（点到就是热的）",
+          R.should_warm(True, background_max_age=45, age_seconds=60)
+          and not R.should_warm(True, background_max_age=45, age_seconds=30))
+    check("没人用 → 降到 10 分钟一次（不半夜每分钟敲对方）",
+          not R.should_warm(False, background_max_age=45, age_seconds=60)
+          and R.should_warm(False, background_max_age=45, age_seconds=R.IDLE_MAX_AGE_SECONDS + 1),
+          R.IDLE_MAX_AGE_SECONDS)
+    check("从来没刷成功过（age 无穷）也会去刷",
+          R.should_warm(False, background_max_age=45, age_seconds=float("inf")))
+
+    # 状态机（用假缓存跑，不连 Redis）
+    import types
+
+    store = {}
+
+    class FakeCache:
+        def get_value(self, key, use_local_cache=True):
+            return store.get(key)
+
+        def set_value(self, key, value, expires_in_sec=None):
+            store[key] = value
+
+    fake = types.ModuleType("frappe")
+    fake.cache = lambda: FakeCache()
+    sys.modules["frappe"] = fake
+    try:
+        ep = "EP-TEST"
+        check("一开始可以试（没有冷却）", R.cooldown_left(ep) == 0)
+        for _ in range(R.FAILURE_THRESHOLD):
+            R.note_failure(ep, "ERR_DMS_UNREACHABLE")
+        check("连着失败到阈值后进入冷却",
+              R.cooldown_left(ep) > 0 and R.summary(ep)["failures"] == R.FAILURE_THRESHOLD,
+              R.summary(ep))
+        R.note_success(ep)
+        check("成功一次立刻归零（不把上次的账记到下一个人头上）",
+              R.cooldown_left(ep) == 0 and R.summary(ep)["failures"] == 0, R.summary(ep))
+        fresh_ep = "EP-TEST-2"
+        R.note_failure(fresh_ep, "ERR_DMS_UNREACHABLE")
+        check("光失败不算'刚用过'（预热不会因为一直失败就一直追）", not R.used_recently(fresh_ep))
+        R.mark_used(fresh_ep)
+        check("真的用过之后才算'刚用过'", R.used_recently(fresh_ep))
+        check("失败不会把'刚用过'抹掉（之前有人真的用过就算）", R.used_recently(ep))
+    finally:
+        del sys.modules["frappe"]
+        store.clear()
+
+    # 接线：所有登录入口都走同一个漏斗，漏斗自己套口径
+    service_src = (ROOT / "apps/pearnly_dms/pearnly_dms/intake/service.py").read_text(encoding="utf-8")
+    check("漏斗里用的是共用口径模块（不是各写一份常量）",
+          "from pearnly_dms.config import pacing" in service_src
+          and "pacing.budget_ms(" in service_src)
+    check("漏斗在登录前先看冷却，冷却期快速失败（不让每个人再白等 30–90 秒）",
+          "pacing.cooldown_left(" in service_src and "circuit open" in service_src)
+    check("只有「连不上」类失败才记账（账号错/被顶下线是对方好好地拒绝了，不算）",
+          service_src.count("pacing.note_failure(") == 2)
+    check("连上用完之后归零并记'刚用过'", "pacing.note_success(" in service_src)
+
+    # 全仓：不许有绕开漏斗的登录
+    offenders = []
+    for path in (ROOT / "apps/pearnly_dms").rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        rel = path.relative_to(ROOT).as_posix()
+        if rel.endswith(("intake/service.py", "adapter/push.py")):
+            continue  # 漏斗本身 + 连接向导的探针（探针也在 build_adapter 里拿了共用默认预算）
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=rel)):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "login"):
+                offenders.append(f"{rel}:{node.lineno}")
+    check("没有绕开漏斗自己登录的地方（这就是'所有功能同一套'的含义）", not offenders, offenders)
+
+    push_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/push.py").read_text(encoding="utf-8")
+    check("建适配器时就带上共用默认预算（连接向导/直连入口也吃得到）",
+          "pacing.budget_ms(1)" in push_src)
+    warm_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/warm.py").read_text(encoding="utf-8")
+    check("后台预热：冷却期不派发（不再派一个注定白跑、还占 worker 的任务）",
+          "cooldown_left(" in warm_src and "cooling" in warm_src)
+    check("后台预热：没人用就降频，并按共用口径给后台预算",
+          "should_warm(" in warm_src and "background=True" in warm_src)
+    shared_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/master_shared.py").read_text(encoding="utf-8")
+    check("刷不动时先给手上那份曾经完整的主档（stale-while-revalidate）",
+          "_stale_but_complete(" in shared_src)
 
     failed_checks = [x for x in results if not x[1]]
     print("")

@@ -66,14 +66,19 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
     }
 
 
-def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1):
+def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
+                  background: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
 
-    `attempt`：**这一次是第几次尝试**（1..3，见 `pearnly_dms.intake.retry`）。只用来决定
-    "打开登录页"给多长预算 —— 重试每次把超时拉长；连不上时返回 `ERR_DMS_UNREACHABLE`
-    而不是 `ERR_UNEXPECTED`，上层才给得出"重试"按钮。
+    `attempt` / `background`：这一次给多长的"打开登录页"预算（见
+    `pearnly_dms.config.pacing`，**所有 DMS 操作共用那一份口径**）：用户那条路按第几次
+    尝试走 30/60/90 秒的阶梯；后台那条路不走阶梯、一次给足 90 秒。
+
+    **连不上时返回 `ERR_DMS_UNREACHABLE`**（而不是 `ERR_UNEXPECTED`），上层才给得出
+    "重试"按钮；连续失败到阈值会进入冷却，冷却期内**快速失败**，不让每个人再白等
+    30–90 秒（同一个 `pacing` 模块，用户与后台同一套）。
 
     `authoritative_read=True`：**整块 DMS 读取**借管理员会话（配了独立管理员凭据组时），
     销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
@@ -81,13 +86,19 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
     `ERR_DMS_ADMIN_AUTH` **明确失败关闭**，不静默降级。**写操作（上传/提交）不走这个入口。**
     """
     name = endpoint_name(endpoint)
+    from pearnly_dms.config import pacing
+
+    # 熔断：最近连着几次都连不上就先别敲门 —— 直接回同一个错误码（上层照样给得出"重试"），
+    # 但不让每个人再白等一次 30–90 秒。冷却期随时间自解，成功一次立刻归零。
+    wait = pacing.cooldown_left(name)
+    if wait:
+        return err("ERR_DMS_UNREACHABLE",
+                   f"circuit open: {wait}s left ({pacing.summary(name).get('failures')} consecutive failures)")
     adapter, build_err = build_adapter(name)
     if build_err:
         return err(build_err["error_code"], build_err["raw"])
     # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
-    from pearnly_dms.intake import retry as dms_retry
-
-    adapter.page_timeout_ms = dms_retry.timeout_ms(attempt)
+    adapter.page_timeout_ms = pacing.budget_ms(attempt, background=background)
     try:
         from pearnly_dms.adapter.session import (
             DmsAdminAuthError,
@@ -129,6 +140,9 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
                     isinstance(out, dict) and out.get("booking_id")
                 ):
                     return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
+                # 走到了这里 = 真的连上并用完了（业务上被拒也算连上）：计数归零，
+                # 顺手记"这条连接刚被用过" —— 后台预热据此决定追多紧。
+                pacing.note_success(name)
                 return out
         except DmsAdminAuthError as exc:
             # admin 凭据组登录失败（≠ 用户会话）—— **子类必须先于基类捕获**
@@ -137,8 +151,10 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
             return err("ERR_DMS_AUTH", f"{type(exc).__name__}: {exc}")
         # 「连不上」是技术失败的**子类**，必须排在它前面 —— 上层要靠这个码给重试按钮。
         except DmsUnreachableError as exc:
+            pacing.note_failure(name, "ERR_DMS_UNREACHABLE")
             return err("ERR_DMS_UNREACHABLE", f"{type(exc).__name__}: {exc}")
         except DmsTechnicalError as exc:
+            pacing.note_failure(name, "ERR_DMS_TECHNICAL")
             return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
         except DmsClientError as exc:
             return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),

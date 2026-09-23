@@ -42,7 +42,7 @@ from pearnly_dms.ocr import ocr_review as ocr_review
 from pearnly_dms.ocr import ocr_service as _id_ocr
 from pearnly_dms.line import out as out
 from pearnly_dms.line.identity import matches as current_binding
-from pearnly_dms.intake import retry as dms_retry
+from pearnly_dms.config import pacing as dms_retry
 
 logger = logging.getLogger(__name__)
 
@@ -449,7 +449,7 @@ def _dms_failed(
       还是同样的拒绝，只会让人白点。
 
     `kind` 记着"要重跑的是哪件事"（dedup / create / update），点了重试由
-    `_run_retry` 按它再跑一次，并把超时按次数拉长（见 `pearnly_dms.intake.retry`）。
+    `_run_retry` 按它再跑一次，并把超时按次数拉长（见 `pearnly_dms.config.pacing`）。
     """
     if not dms_retry.is_retryable(code):
         _push(line_user_id, text)

@@ -53,18 +53,37 @@ def _is_shared(endpoint: str) -> bool:
 
 
 def sweep() -> Dict[str, Any]:
-    """每分钟被 scheduler 调用：只对"过期了的共享范围"派发一次刷新。**不在这里登录。**"""
+    """每分钟被 scheduler 调用：只对"真该刷的共享范围"派发一次刷新。**不在这里登录。**
+
+    三道闸（2026-09-23 加，原来是"过期就派发"）：
+
+    1. **熔断期不派发** —— 连着几次连不上时，派出去的任务也是白跑，还占着长队列 worker
+       一两分钟（生产实测每次 17–58 秒）；冷却期由 `pacing` 统一算。
+    2. **没人用就降频** —— 最近 30 分钟没人碰过这条连接时，主档放到 10 分钟才刷一次。
+       半夜每分钟敲对方一次没有任何意义，对方还慢。
+    3. 过期才派发（原有判据不变）。
+    """
     import frappe
 
     from pearnly_dms.adapter import master_shared
+    from pearnly_dms.config import pacing
+    from pearnly_dms.masters import masters_cache as cache
 
-    checked = queued = 0
+    checked = queued = cooling = idle = 0
     for endpoint in _endpoints():
         if not _is_shared(endpoint):
             continue
         checked += 1
+        if pacing.cooldown_left(endpoint):
+            cooling += 1
+            continue
         try:
-            if not master_shared.needs_refresh(endpoint, master_shared.BACKGROUND_MAX_AGE_SECONDS):
+            cached = cache._read(endpoint)
+            age = float((cached or {}).get("age_seconds") or float("inf"))
+            if not pacing.should_warm(pacing.used_recently(endpoint),
+                                      background_max_age=master_shared.BACKGROUND_MAX_AGE_SECONDS,
+                                      age_seconds=age):
+                idle += 1
                 continue
         except Exception:
             logger.warning("[dms warm] 新鲜度检查失败 %s", endpoint, exc_info=True)
@@ -83,27 +102,39 @@ def sweep() -> Dict[str, Any]:
             queued += 1
         except Exception:
             logger.warning("[dms warm] 派发失败 %s", endpoint, exc_info=True)
-    if checked or queued:
-        logger.info("[dms warm] checked=%s queued=%s", checked, queued)
-    return {"checked": checked, "queued": queued}
+    if checked or queued or cooling:
+        logger.info("[dms warm] checked=%s queued=%s cooling=%s idle=%s",
+                    checked, queued, cooling, idle)
+    return {"checked": checked, "queued": queued, "cooling": cooling, "idle": idle}
 
 
 def refresh(endpoint: str) -> Dict[str, Any]:
-    """后台刷新一次：完整主档 + 颜色预热。失败只记日志（下一次 sweep 会再来）。"""
+    """后台刷新一次：完整主档 + 颜色预热。失败只记日志（下一次 sweep 会再来）。
+
+    预算走**共用口径的后台那一档**（90 秒）—— 这是后台任务、没人等着看结果，
+    没有理由跟着用户那条 30/60/90 的阶梯走；老默认的 15 秒在这里必然超时
+    （2026-09-23：48 小时里 2492 次刷新、成功 0 次，全卡在打开登录页）。
+    """
     from pearnly_dms.adapter import master_shared
+    from pearnly_dms.config import pacing
 
     masters = master_shared.get_session_masters(
         endpoint,
         max_age_seconds=master_shared.BACKGROUND_MAX_AGE_SECONDS,
         require_complete=True,
+        background=True,
     )
     if not masters:
-        logger.warning("[dms warm] 刷新没拿到完整主档 %s", endpoint)
-        return {"status": "incomplete"}
+        state = pacing.summary(endpoint)
+        logger.warning("[dms warm] 刷新没拿到完整主档 %s（连续失败 %s 次，冷却剩 %s 秒，最近错误 %s）",
+                       endpoint, state.get("failures"), state.get("cooldown_left"),
+                       state.get("last_code"))
+        return {"status": "incomplete", **state}
     warmed = 0
     try:
         warmed = master_shared.warm_cached_paints(
-            endpoint, max_age_seconds=master_shared.BACKGROUND_MAX_AGE_SECONDS
+            endpoint, max_age_seconds=master_shared.BACKGROUND_MAX_AGE_SECONDS,
+            background=True,
         )
     except Exception:
         logger.warning("[dms warm] 颜色预热失败 %s", endpoint, exc_info=True)
