@@ -89,6 +89,8 @@
  "module": "Pearnly ERP Portal",
  "name": "ERP Supplier",
  "naming_rule": "Expression",
+ "show_title_field_in_link": 1,
+ "title_field": "supplier_name",
  "owner": "Administrator",
  "permissions": [
   {

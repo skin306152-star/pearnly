@@ -94,7 +94,11 @@
 					if (name !== state.form.get_value("customer") || state.disposed) return;
 					await state.form.set_values({buyer_name: row.customer_name, party_type: row.party_type, address: row.address});
 				}}),
-			f("buyer_name", "Customer Name", "Data", {reqd: 1}),
+			// 客户名称由上面那条 Link 带出来（客户主档的 `title_field` 就是 `customer_name`，
+			// 所以那条 Link 显示的就是名字），界面上不再摆第二个「客户」输入框
+			// （用户 2026-09-23："销售记录里面…两个客户字段"）。值照旧随单据提交，
+			// 服务端也会从主档补（`sales/entry.py::_buyer`：`name = name or doc.customer_name`）。
+			f("buyer_name", "Customer Name", "Data", {hidden: 1}),
 			f("party_type", "trade.buyerType", "Select", {options: u.options(["company", "person", "foreign", "anonymous"])}), col(),
 			f("address", "Address", "Small Text"),
 			u.section("Items", {fieldname: "items_section"}),

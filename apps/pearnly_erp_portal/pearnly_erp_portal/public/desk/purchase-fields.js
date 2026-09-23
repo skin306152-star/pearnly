@@ -121,9 +121,13 @@
 						supplier_branch_type: row.branch_type === "head" ? "head_office" : row.branch_type || "none",
 						supplier_branch_no: row.branch_no, supplier_branch_name: row.branch_name, supplier_address: row.address});
 				}}),
-			// 供应商名称由上面那条 Link **带出来**（onchange 里 set_values），所以这里只读：
-			// 它是"单据上印什么"，不是一个要和主档选一遍的重复输入框。
-			f("supplier_name", "Supplier Name", "Data", {reqd: 1, read_only: 1}),
+			// 供应商名称由上面那条 Link **带出来**（onchange 里 set_values），所以界面上不再摆
+			// 第二个「供应商」输入框（用户 2026-09-23："不要出现这么多无用的字段，留一个真正能用的…
+			// 采购记录里面…两个供应商字段"）。名字仍然照旧随单据提交、列表和打印都读它
+			// （服务端也会从主档补：`purchasing/entry.py::_supplier`）。
+			// 供应商那条 Link 现在显示的**就是名字**：主档加了 `title_field=supplier_name`
+			// （客户/商品本来就有，供应商漏了 —— 这就是"两个供应商字段"看着重复的根源）。
+			f("supplier_name", "Supplier Name", "Data", {hidden: 1}),
 			f("supplier_tax_id", "Tax ID"), f("supplier_address", "Address", "Small Text"), col(),
 			f("supplier_branch_type", "Branch Type", "Select", {options: u.options(["head_office", "branch", "none"])}),
 			f("supplier_branch_no", "Branch No", "Data", {depends_on: "eval:doc.supplier_branch_type === 'branch'"}),
