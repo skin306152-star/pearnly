@@ -344,6 +344,25 @@ def terminals_of(company=None) -> list[dict]:
     return rows
 
 
+def selling_warehouse(company=None) -> str | None:
+    """这家公司**卖货的那个仓** = 收银台上配的那个仓（一个店一个仓）。
+
+    为什么要有这一位：收银台卖货是从它自己的仓扣的，进货/出入库如果还按商品上那个遗留的
+    "默认仓"落货，两边就是两个仓 —— 卖货仓一路负库存、成本立不起来，收发存报表的金额列
+    自然一直是空的（用户 2026-09-24 实测报的就是这个："退货退款作废后的物料仓库数量、金额，
+    以及收发存报表，数据要关联上，不要只顾 POS 这边"）。他的口径是"**进货就进卖货那个仓**"。
+
+    口径与 `cashier.terminals.place_of` 一致：只认收银台自己身上写着的仓，不猜。
+    多台启用收银台指向**不同**的仓时不替谁拿主意，回 None，由调用方按"唯一的仓 / 报错"处理。
+    """
+    name = document_company(company)
+    places = {str(row or "").strip() for row in frappe.get_all(
+        "ERP POS Terminal", filters={"company": name, "is_active": 1},
+        pluck="warehouse", limit_page_length=0) or []}
+    places.discard("")
+    return next(iter(places)) if len(places) == 1 else None
+
+
 def create_terminal(*, company_name=None, terminal_name, warehouse=None, is_default=False) -> dict:
     """在公司页里加一台收银台（判据是 `company.manage`，见 `get_profile` 的说明）。"""
     guard.require("company.manage")

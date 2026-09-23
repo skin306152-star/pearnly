@@ -23,16 +23,18 @@ def prepare(line, warehouse=None):
     if not result.get("product"):
         return result
     product = frappe.db.get_value("ERP Product", result["product"],
-                                  ["is_active", "default_warehouse", "default_location"],
+                                  ["is_active", "default_location"],
                                   as_dict=True)
     if not product or not product.is_active:
         frappe.throw(_("Product not found"))
-    # 仓库必须是这家公司真实存在的仓（仓库属于公司）。商品上那个默认仓可能是别家公司
-    # 或者已经停用的，那种情况要**报错**而不是把货悄悄记到"没有仓库"上。
-    wanted = result.get("warehouse") or warehouse or product.default_warehouse
-    # 一个都没有时不再往"默认仓"上落：`required()` 只认"这家公司只有一个仓"，
-    # 多个仓直接报错让调用方明确指定（见 `warehouses` 抬头）。
-    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.required()
+    # 仓库必须是这家公司真实存在的仓（仓库属于公司）。
+    # **商品上那个"默认仓"不再参与**（用户 2026-09-24："进货就进卖货那个仓"）：它会让
+    # 进货落在一个仓、收银从另一个仓卖，两边数量与金额永远对不上（实测：`水` 在卖货仓
+    # 一路负库存、成本立不起来，收发存金额列一直是空的）。
+    # 行上没写、单据上也没写时，落"这家公司卖货的那个仓"（`warehouses.receiving`，
+    # 没有收银台才退回"唯一的仓 / 报错"）。
+    wanted = result.get("warehouse") or warehouse
+    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.receiving()
     if not resolved:
         frappe.throw(_("Warehouse not found"))
     result["warehouse"] = resolved

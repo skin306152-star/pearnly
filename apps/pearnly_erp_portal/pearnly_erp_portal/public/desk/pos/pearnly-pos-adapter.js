@@ -388,8 +388,9 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 		payment_methods = (allowed.length ? PAY_METHODS.filter(m => allowed.includes(m.key))
 			: PAY_METHODS).map(m => Object.assign({}, m, { label: t(m.term) }));
 		return {
-			// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
-			// （`api_list_terminals` 现算的 `effective_warehouse`，只有读、不建）。
+			// 「这台收银台从哪个仓卖货」：自己配了用自己；没配、而这家公司只有一个仓时，
+			// 那个唯一仓就是答案（`api_list_terminals` 现算的 `effective_warehouse`，只读不建）。
+			// "默认仓"这个概念已经删掉了，多个仓又没配就是明确报错。
 			// 之前读的 `default_warehouse` 是**不存在的字段名** —— 一直是空，靠服务端兜着。
 			warehouse: terminal.effective_warehouse || terminal.warehouse || "",
 			warehouse_name: terminal.effective_warehouse_name || terminal.warehouse_name || "",
@@ -665,7 +666,7 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 			async on_cart_update(args) {
 				// 官方这几格（换算系数 / 仓库 / 可用量 / 标价）是**服务端**在明细行上带出来的
 				// （`set_item_details` 那一套 + POS Profile 的仓库）。我们这边带上：
-				// 换算系数 = 1（我们的商品没有多单位换算这一步）、仓库 = 终端默认仓库、
+				// 换算系数 = 1（我们的商品没有多单位换算这一步）、仓库 = **这台收银台卖货的仓**、
 				// 可用量与标价来自商品卡那份数据。否则明细面板那四格是空的（实测如此）。
 				const item = args && args.item;
 				if (item && item.item_code) {

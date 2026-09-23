@@ -172,7 +172,6 @@ Collection Remarks,Collection Remarks
 Collection Status,Collection Status
 Colour Tag,Colour Tag
 Columns,Columns
-"Comes from the terminal; if it has none, the company's default warehouse","Comes from the terminal; if it has none, the company's default warehouse"
 Comes from the terminal; set it there if it is empty,Comes from the terminal; set it there if it is empty
 Companies,Companies
 Company,Company
@@ -239,8 +238,6 @@ Default Selling Unit,Default Selling Unit
 Default Terminal,Default Terminal
 Default VAT Rate (%),Default VAT Rate (%)
 Default WHT Rate for Services (%),Default WHT Rate for Services (%)
-Default Warehouse,Default Warehouse
-Default warehouse,Default warehouse
 Default withholding for service documents,Default withholding for service documents
 Delete,Delete
 Delete selected ({0}),Delete selected ({0})
@@ -428,7 +425,6 @@ Last counted by,Last counted by
 Last transacted,Last transacted
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
-Leave empty to use the default warehouse,Leave empty to use the default warehouse
 "Legacy used head office / branch, with the branch number when it is a branch","Legacy used head office / branch, with the branch number when it is a branch"
 Light,Light
 Line Amount,Line Amount
@@ -740,7 +736,6 @@ Serial No: {0} has already been transacted into another POS Invoice.,Serial No: 
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.
 Service,Service
 Set as current,Set as current
-Set as default,Set as default
 Setup Auto Email,Setup Auto Email
 Sheet,Sheet
 Shelf,Shelf
@@ -787,7 +782,7 @@ Stock count workbench,Stock count workbench
 Stock entry not found,Stock entry not found
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
-Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company
 Stock ledger,Stock ledger
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.
 Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
@@ -1027,7 +1022,6 @@ company,company
 company.action.bulkDisable,Disable {0}
 company.action.bulkEnable,Enable {0}
 company.col.current,Current
-company.col.defaultWarehouse,Default warehouse
 company.col.name,Company name
 company.col.phone,Phone
 company.col.shortName,Short name
@@ -1073,7 +1067,6 @@ company.method.transfer,Transfer
 company.new,New company
 company.newWarehouse,New warehouse
 company.notice.created,Created
-company.notice.defaultWarehouse,{0} is now the default warehouse
 company.notice.saved,Saved
 company.notice.toggled,Updated
 company.notice.updated,Updated {0} record(s)
@@ -1090,7 +1083,6 @@ company.section.terminals,Terminals
 company.section.warehouse,Warehouse
 company.section.warehouses,Warehouses
 company.setCurrent,Set as current
-company.setDefaultWarehouse,Set as default
 company.status.active,Active
 company.status.inactive,Disabled
 company.subtitle,The company on your documents
@@ -1154,7 +1146,6 @@ product.field.codeAuto,Generated automatically
 product.field.codeValue,Barcode / QR code
 product.field.cost,Reference cost
 product.field.defaultLocation,Default Location
-product.field.defaultWarehouse,Default Warehouse
 product.field.image,Image URL
 product.field.importFile,Excel file
 product.field.locationHint,Used for new documents only. Each location keeps its own stock.
@@ -1319,7 +1310,6 @@ stock.count.title,Stock count — {0}
 stock.count.void,Void
 stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
-stock.count.warehouseHint,Leave empty to use the default warehouse
 stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera
@@ -1623,6 +1613,5 @@ trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
 unpaid,unpaid
 void,void
-{0} is now the default warehouse,{0} is now the default warehouse
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}

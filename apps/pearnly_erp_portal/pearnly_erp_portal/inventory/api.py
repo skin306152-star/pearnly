@@ -111,7 +111,7 @@ def api_void_stock_entry(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_receive(**kwargs):
-    """入库。不带仓库时落默认仓库。"""
+    """入库。不带仓库时落**这家公司卖货的那个仓**（`warehouses.receiving`）。"""
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)

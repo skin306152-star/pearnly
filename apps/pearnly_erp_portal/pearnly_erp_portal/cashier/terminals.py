@@ -2,7 +2,8 @@
 `company` + `warehouse`）。
 
 所以一句话：收银台 = 某家公司的一台柜台，货从它指定的仓库出。班次、小票、库存因此都能
-一路追到"哪家公司、哪个仓"。每家公司的收银台各自有一个默认（`is_default`）。
+一路追到"哪家公司、哪个仓"。同一家公司有多台柜台时，`is_default` 记的是"先给哪一台"
+（那是**默认收银台**，与"默认仓"无关 —— 后者这个概念已经删掉了）。
 """
 
 import frappe
@@ -81,9 +82,9 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
     rows = frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
                            order_by="is_default desc, terminal_name asc",
                            limit_page_length=int(limit))
-    # 「这台收银台实际从哪个仓卖货」：自己配了就用它，没配就是**这家公司的默认仓** ——
-    # 与卖货那条路（`place_of`）同一口径：**只认它自己配的那个仓**，
-    # 唯一的例外是"这家公司只有一个仓"（唯一解）。列表接口只**读**、不写、不建。
+    # 「这台收银台实际从哪个仓卖货」：自己配了就用它；没配、而这家公司只有一个仓时，
+    # 那个唯一仓就是答案（唯一解，不是"默认仓"）—— 与卖货那条路（`place_of`）同一口径。
+    # 列表接口只**读**、不写、不建。
     for row in rows:
         row["effective_warehouse"] = (row.get("warehouse")
                                       or warehouses.sole(row.get("company")) or "")

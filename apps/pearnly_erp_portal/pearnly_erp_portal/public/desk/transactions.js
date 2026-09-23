@@ -73,7 +73,10 @@
 							const item = await p.call("pearnly_erp_portal.products.service.api_get_product", { name: selected });
 							if (row.product !== selected) return;
 							Object.assign(row, { description: item.product_name, unit: item.unit || item.base_unit,
-								warehouse: item.default_warehouse || "", location: item.default_location || "",
+								// 仓库取**这家公司卖货的那个仓**（进货与卖货同一个仓，库存与金额才对得上）；
+								// 商品上那个遗留的"默认仓"已经删掉，不再参与。
+								warehouse: frappe.boot.pearnly_warehouse || "",
+								location: item.default_location || "",
 								[price]: cost ? item.default_cost : item.unit_price });
 							this.grid_row.refresh();
 						} },
@@ -122,7 +125,7 @@
 		// 用户 2026-09-23 先指出"仓库重复了"，接着说"去掉了后把上面那个加进去。出入库同步"——
 		// 也就是行里要看得到仓库（一眼知道这行进哪个仓），但它跟表头是**同一件事**：只读显示，
 		// 表头一变所有行跟着变。服务端口径也是这样（`inventory/positions.py::prepare`：
-		// `line.warehouse || doc.warehouse || product.default_warehouse`）。
+		// `line.warehouse || doc.warehouse`，两个都没写才落"这家公司卖货的那个仓"）。
 		lines_editor(t, { cost = false, locked_price = false, data = [],
 			suggest_warehouse, warehouse } = {}) {
 			const price = cost ? "unit_cost" : "unit_price";
@@ -146,8 +149,9 @@
 							await line.form.set_values({ description: item.product_name,
 								unit: item.unit || item.base_unit, location: item.default_location || "",
 								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
-							// 主档的默认仓**建议**给表头那个仓库（只在它还空着时填，不覆盖用户选的）。
-							suggest_warehouse?.(item.default_warehouse);
+							// 仓库**建议**给表头那一个 = 这家公司卖货的那个仓（只在它还空着时
+							// 填，不覆盖用户选的）。商品上那个遗留的"默认仓"已经删掉。
+							suggest_warehouse?.(frappe.boot.pearnly_warehouse);
 						} },
 					// 仓库：表头的镜像（只读）。放在物料下面 —— 这一行进哪个仓，一眼看得到。
 					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,

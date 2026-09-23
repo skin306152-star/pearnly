@@ -254,9 +254,9 @@ def _post_stock(doc):
             for row in doc.lines if row.product]
     if not rows:
         return
-    # 出库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过；行上也没给时才按
-    # "这家公司只有一个仓"这条兜底，多个仓直接报错）。"默认仓"这个概念本轮已经删掉了。
-    stock.apply_lines(warehouse=warehouses.required(rows[0].get("warehouse"),
+    # 出库仓来自**这张单上明确的仓**（每行已经由 `positions.saved()` 定过）；行上也没写时落
+    # **这家公司卖货的那个仓** —— 货从店里出，与收银台是同一个仓（见 `warehouses.receiving`）。
+    stock.apply_lines(warehouse=warehouses.receiving(rows[0].get("warehouse"),
                                                      company=doc.get("company")),
                       movement_type="sale_out", lines=rows,
                       posting_date=doc.doc_date, ref_type=DOCTYPE, ref_id=doc.name,

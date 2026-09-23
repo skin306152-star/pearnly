@@ -34,7 +34,6 @@ FIELD_LABELS = (
     ("track_batch", "product.field.trackBatch"),
     ("track_expiry", "product.field.trackExpiry"),
     ("image_url", "product.field.image"),
-    ("default_warehouse", "product.field.defaultWarehouse"),
     ("default_location", "product.field.defaultLocation"),
 )
 
@@ -111,7 +110,7 @@ def template_headers(label_of) -> list:
     return [label_of(key) for _field, key in FIELD_LABELS]
 
 TEXT_FIELDS = ("product_name", "code", "code_value",
-               "unit", "base_unit", "image_url", "default_warehouse", "default_location")
+               "unit", "base_unit", "image_url", "default_location")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable", "track_batch", "track_expiry")
 

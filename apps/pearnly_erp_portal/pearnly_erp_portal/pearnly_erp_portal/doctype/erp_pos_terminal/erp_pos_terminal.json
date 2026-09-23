@@ -34,7 +34,7 @@
    "fieldtype": "Link",
    "label": "Warehouse",
    "options": "ERP Warehouse",
-   "description": "Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse"
+   "description": "Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company"
   },
   {
    "fieldname": "is_default",

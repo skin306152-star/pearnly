@@ -44,7 +44,10 @@
 					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
 						unit_price: item.price_set ? item.unit_price : 0,
 						vat_applicable: item.vat_applicable ? 1 : 0,
-						warehouse: item.default_warehouse || "", location: item.default_location || ""});
+						// 仓库给**这家公司卖货的那个仓**（进货/出货同一个仓，库存与金额才对得上）；
+						// 商品上的"默认仓"已经删掉了。仓位还是商品级的建议值。
+						warehouse: frappe.boot.pearnly_warehouse || "",
+						location: item.default_location || ""});
 				}}),
 			// 「物料名称」只在没选物料时出现（选了就被带出来、Link 显示的就是主档名字）——
 			// 同一个口径见 `purchase-fields.js`（用户 2026-09-23："还有重复的物料字段…"）。

@@ -343,7 +343,6 @@ Original Item and Location	原单物料与仓位	สินค้าและต�
 Refund Amount	退款金额	ยอดคืนเงิน	返金額	trade.refundAmount
 Close Shift	交班	ปิดกะ	シフト終了	trade.closeShift
 Counted Cash	实点现金	เงินสดที่นับได้	実際の現金	trade.countedCash
-Default Warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	product.field.defaultWarehouse
 Default Location	默认仓位	ตำแหน่งเริ่มต้น	既定の保管場所	product.field.defaultLocation
 Used for new documents only. Each location keeps its own stock.	只用于新单据的默认填写，各仓位库存独立计算。	ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก	新しい伝票の初期値です。各保管場所の在庫は個別に管理します。	product.field.locationHint
 Select the original sale line	请选择原单中的物料行	เลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
@@ -998,7 +997,7 @@ Stock Token	库存令牌	โทเคนสต็อก	在庫トークン
 Stock Value	库存金额	มูลค่าสต็อก	在庫金額
 Stock count tasks, staff entries and variance posting	盘点任务、员工录入与差异过账	งานตรวจนับ การบันทึกของพนักงาน และการลงบัญชีผลต่าง	棚卸タスク、担当者入力、差異の転記
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.	库存按这个单位计数，其他单位换算成它。留空就用销售单位。	สต็อกนับด้วยหน่วยนี้ หน่วยอื่นแปลงมาเป็นหน่วยนี้ ถ้าเว้นว่างจะใช้หน่วยขาย	在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
-Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse	库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司的默认仓库	สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเริ่มต้นของบริษัท	在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の既定倉庫
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company	库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司唯一的仓	สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเดียวของบริษัทนี้	在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
 Submitted At	提交时间	เวลาส่ง	提出日時
 That warehouse belongs to another company	这个仓库属于另一家公司	คลังนี้เป็นของบริษัทอื่น	この倉庫は別会社のものです
 The LINE account that sent the document	发来这份文件的 LINE 账号	บัญชี LINE ที่ส่งเอกสารนี้	この書類を送ってきたLINEアカウント

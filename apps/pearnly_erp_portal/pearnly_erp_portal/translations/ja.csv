@@ -172,7 +172,6 @@ Collection Remarks,入金備考
 Collection Status,入金状況
 Colour Tag,カラータグ
 Columns,列
-"Comes from the terminal; if it has none, the company's default warehouse",レジの設定によります。未設定なら会社の既定倉庫です
 Comes from the terminal; set it there if it is empty,レジの設定によります。空の場合はレジ側で倉庫を設定してください
 Companies,会社
 Company,会社
@@ -239,8 +238,6 @@ Default Selling Unit,既定の販売単位
 Default Terminal,既定のレジ
 Default VAT Rate (%),既定のVAT率（%）
 Default WHT Rate for Services (%),サービス既定の源泉徴収率（%）
-Default Warehouse,既定の倉庫
-Default warehouse,既定の倉庫
 Default withholding for service documents,サービス伝票の既定の源泉徴収
 Delete,削除
 Delete selected ({0}),選択を削除（{0}）
@@ -428,7 +425,6 @@ Last counted by,最終棚卸者
 Last transacted,最終取引
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
-Leave empty to use the default warehouse,空欄なら既定の倉庫を使います
 "Legacy used head office / branch, with the branch number when it is a branch",旧システムは本店／支店を使い、支店の場合は支店番号を伴います
 Light,ライト
 Line Amount,行金額
@@ -740,7 +736,6 @@ Serial No: {0} has already been transacted into another POS Invoice.,シリア�
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
 Service,サービス
 Set as current,現在の会社にする
-Set as default,既定にする
 Setup Auto Email,自動メールを設定
 Sheet,シート
 Shelf,棚番
@@ -787,7 +782,7 @@ Stock count workbench,棚卸作業台
 Stock entry not found,入出庫伝票が見つかりません
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
-Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の既定倉庫
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
 Stock ledger,在庫の受け払いを開く
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
 Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
@@ -1027,7 +1022,6 @@ company,会社
 company.action.bulkDisable,{0}件を無効化
 company.action.bulkEnable,{0}件を有効化
 company.col.current,現在
-company.col.defaultWarehouse,既定の倉庫
 company.col.name,会社名
 company.col.phone,電話
 company.col.shortName,略称
@@ -1073,7 +1067,6 @@ company.method.transfer,振込
 company.new,会社を追加
 company.newWarehouse,倉庫を追加
 company.notice.created,作成しました
-company.notice.defaultWarehouse,{0} を既定の倉庫にしました
 company.notice.saved,保存しました
 company.notice.toggled,更新しました
 company.notice.updated,{0}件を更新しました
@@ -1090,7 +1083,6 @@ company.section.terminals,レジ
 company.section.warehouse,倉庫
 company.section.warehouses,倉庫
 company.setCurrent,現在の会社にする
-company.setDefaultWarehouse,既定にする
 company.status.active,有効
 company.status.inactive,無効
 company.subtitle,書類に使う自社情報
@@ -1154,7 +1146,6 @@ product.field.codeAuto,自動生成
 product.field.codeValue,バーコード / QRコード
 product.field.cost,参考原価
 product.field.defaultLocation,既定の保管場所
-product.field.defaultWarehouse,既定の倉庫
 product.field.image,画像 URL
 product.field.importFile,Excel ファイル
 product.field.locationHint,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
@@ -1319,7 +1310,6 @@ stock.count.title,棚卸 — {0}
 stock.count.void,取消
 stock.count.voidConfirm,この {0} の記録を取り消しますか？
 stock.count.voidPick,取消する記録を選択
-stock.count.warehouseHint,空欄なら既定の倉庫を使います
 stock.field.docNoAuto,自動生成
 stock.field.search,名前・バーコードで検索
 stock.mobile.cameraOff,カメラを閉じる
@@ -1623,6 +1613,5 @@ trade.warehouseHint,レジの設定によります。空の場合はレジ側で
 transfer,振込
 unpaid,未払い
 void,取消済み
-{0} is now the default warehouse,{0} を既定の倉庫にしました
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}

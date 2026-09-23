@@ -35,7 +35,7 @@ def resolve(line, *, create=True, currency_rate=1):
             "base_unit": line.get("unit"), "unit_price": 0, "price_set": 0,
             "default_cost": Decimal(str(line.get("line_total", 0))) / Decimal(str(line["qty"])) * Decimal(str(currency_rate)),
             "cost_set": 1, "vat_applicable": int(float(line.get("vat_rate", 0)) > 0),
-            "default_warehouse": line.get("warehouse"), "default_location": line.get("location"),
+            "default_location": line.get("location"),
             "is_active": 1, "track_batch": int(bool(line.get("batch_no"))),
             "track_expiry": int(bool(line.get("expiry_date")))})
         # This capability is deliberately limited to creating a purchase's item;

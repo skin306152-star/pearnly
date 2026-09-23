@@ -172,7 +172,6 @@ Collection Remarks,收款备注
 Collection Status,收款状态
 Colour Tag,颜色标记
 Columns,列
-"Comes from the terminal; if it has none, the company's default warehouse",来自收银台；收银台没配仓就用这家公司的默认仓
 Comes from the terminal; set it there if it is empty,来自收银台；这里空的话要先去收银台上配一个仓
 Companies,公司
 Company,公司
@@ -239,8 +238,6 @@ Default Selling Unit,默认销售单位
 Default Terminal,默认收银台
 Default VAT Rate (%),默认 VAT 税率（%）
 Default WHT Rate for Services (%),服务类默认预扣税率（%）
-Default Warehouse,默认仓库
-Default warehouse,默认仓库
 Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
 Delete selected ({0}),删除所选（{0}）
@@ -428,7 +425,6 @@ Last counted by,上次盘点人
 Last transacted,最近交易时间
 Leave all unchecked to allow every company,不勾 = 不限制，看全部公司
 Leave blank to use the default terminal,留空使用默认收银台
-Leave empty to use the default warehouse,留空就用默认仓库
 "Legacy used head office / branch, with the branch number when it is a branch",旧系统用「总店 / 分支」，是分支时另带分支号
 Light,灯光
 Line Amount,行金额
@@ -740,7 +736,6 @@ Serial No: {0} has already been transacted into another POS Invoice.,序列号 {
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,物料 {0} 在仓库 {1} 没有可用序列号，请换个仓库试试
 Service,服务
 Set as current,设为当前
-Set as default,设为默认
 Setup Auto Email,设置自动邮件
 Sheet,表格文件
 Shelf,库位
@@ -787,7 +782,7 @@ Stock count workbench,盘点工作台
 Stock entry not found,找不到这张出入库单
 Stock is counted in this unit; leave it empty to use the selling unit,库存按这个单位记数；留空就跟售卖单位一样
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,库存按这个单位计数，其他单位换算成它。留空就用销售单位。
-Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司的默认仓库
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司唯一的仓
 Stock ledger,查看流水
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}
 Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
@@ -1027,7 +1022,6 @@ company,公司
 company.action.bulkDisable,停用 {0}
 company.action.bulkEnable,启用 {0}
 company.col.current,当前
-company.col.defaultWarehouse,默认仓库
 company.col.name,公司名称
 company.col.phone,电话
 company.col.shortName,简称
@@ -1073,7 +1067,6 @@ company.method.transfer,转账
 company.new,新建公司
 company.newWarehouse,新建仓库
 company.notice.created,已新建
-company.notice.defaultWarehouse,{0} 已设为默认仓库
 company.notice.saved,已保存
 company.notice.toggled,已更新
 company.notice.updated,已更新 {0} 条
@@ -1090,7 +1083,6 @@ company.section.terminals,收银台
 company.section.warehouse,仓库
 company.section.warehouses,仓库
 company.setCurrent,设为当前
-company.setDefaultWarehouse,设为默认
 company.status.active,正常
 company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
@@ -1154,7 +1146,6 @@ product.field.codeAuto,自动生成
 product.field.codeValue,条码/二维码
 product.field.cost,参考成本
 product.field.defaultLocation,默认仓位
-product.field.defaultWarehouse,默认仓库
 product.field.image,图片地址
 product.field.importFile,Excel 文件
 product.field.locationHint,只用于新单据的默认填写，各仓位库存独立计算。
@@ -1319,7 +1310,6 @@ stock.count.title,盘点 — {0}
 stock.count.void,撤销
 stock.count.voidConfirm,撤销这条 {0} 的记录？
 stock.count.voidPick,选择要撤销的记录
-stock.count.warehouseHint,留空就用默认仓库
 stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机
@@ -1623,6 +1613,5 @@ trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一
 transfer,转账
 unpaid,未付款
 void,已作废
-{0} is now the default warehouse,{0} 已设为默认仓库
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}

@@ -206,8 +206,9 @@ def _post(payload, request_id, fingerprint, name, amended_from):
                   **positions.saved(row)} for row in doc.lines if row.item_type == "goods" and row.product]
         if goods:
             # 入库到**这张采购单上明确的仓**：明细行给了仓就用它（采购表单有那一格），
-            # 行上也没给时才按"这家公司只有一个仓"这条兜底，多个仓直接报错让你去选。
-            stock.apply_lines(warehouse=warehouses.required(goods[0].get("warehouse")),
+            # 行上也没写时落**这家公司卖货的那个仓**（用户 2026-09-24："进货就进卖货那个仓"），
+            # 没有收银台才退回"这家公司只有一个仓"，多个仓直接报错让你去选。
+            stock.apply_lines(warehouse=warehouses.receiving(goods[0].get("warehouse")),
                               movement_type="purchase_in", lines=goods,
                 posting_date=day, ref_type="purchase", ref_id=doc.name, doc_no=doc.system_no,
                 client_uuid="purchase-in:" + doc.name, internal=True)

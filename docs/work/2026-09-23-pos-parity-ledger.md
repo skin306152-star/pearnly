@@ -962,3 +962,75 @@ frappe.pearnly.pos_shift.close({ t, shift, on_done })  // 交班
 
 查下来链路本身是通的（18.2 的四处数字），所以**没有提交**；只在演示站留下测试痕迹：
 `SI2569-000068` 与 `SI2569-000069`（两张都已作废）、库存数量与金额**净变化为 0**（回到起点 3 件 × ฿40）。
+
+## 19. 2026-09-24 第五批：**进货进"卖货那个仓"** + 把残留的"默认仓"引用全部删掉
+
+用户口径（原话）："**按建议做**"（= 进货就进卖货那个仓）、"**再帮我把其它地方引用到默认仓的全部删掉**"。
+
+### 19.1 进货用哪个仓：一条新规则，一个来源
+
+**规则**：单据上明确的仓 → 这家公司**卖货的那个仓**（收银台上配的）→ 这家公司唯一的仓 → 报错。
+
+| 落点 | 之前 | 现在 |
+| --- | --- | --- |
+| 新函数：卖货仓是哪一家 | —— | `masters/company.py::selling_warehouse()`：按启用收银台的 `warehouse` 推；几台指向不同的仓就**不猜**（回 None） |
+| 新函数：单据收发用哪个仓 | `warehouses.required()`（只有"明确 → 唯一仓 → 报错"） | `inventory/warehouses.py::receiving()`（中间多那一步） |
+| 采购入库（`purchasing/service.py`、`purchasing/entry.py`） | `required(行上的仓)` | `receiving(行上的仓)` |
+| 出入库单（`inventory/documents.py`） | 行先按商品默认仓铺、单据再算 → 可能各行一个仓 | **先定单据的仓，再铺行**；`receiving()` |
+| 销售单出库（`sales/entry.py`） | `required(行上的仓)` | `receiving(行上的仓)`（货从店里出，与收银台同一个仓） |
+| 商品行铺仓（`inventory/positions.py::prepare`） | `行 → 单据 → **商品上的默认仓**` | `行 → 单据`；都没有才 `receiving()`。商品那一层**不再参与** |
+| 前端建议值（`transactions.js` / `sales-fields.js` / `purchase-fields.js` / `stock-entry.js`） | 选物料时建议 `item.default_warehouse` | 建议 `frappe.boot.pearnly_warehouse`（新加的 boot 值 = 卖货仓） |
+
+### 19.2 "默认仓"残留一次清干净
+
+**商品上那个 `default_warehouse` 整条线删掉**（它唯一的作用就是上面那步"进货兜底"）：
+DocType JSON 字段、`products/service.py`（列表字段 / 建品 / 改品 / 那个只给它用的改名助手）、
+`products/workbook.py`（导入导出列）、`products/purchase.py`（采购开品时回写）、
+`products.js`（表单两处 + 列表「位置」列 + 快录表）、`inventory/audit.py`（体检里那条
+"商品默认仓与落账仓是不是同一家公司"的比对）、词条 `product.field.defaultWarehouse`，
+外加 **patch `v1_8_drop_product_default_warehouse`**（`[post_model_sync]`，把库里那一列真删掉 ——
+模型同步只加/改列，不删列）。
+
+其余残留（都不再被任何代码引用，从生成的翻译包里清掉；i18n 生成器是**从已有 CSV 往上叠**，
+所以删了词条它也不会自己消失）：`Default Warehouse`、`Default warehouse`、`Default warehouse`、
+`company.col.defaultWarehouse`、`company.notice.defaultWarehouse`、`Set as default`、
+`{0} is now the default warehouse`、`Leave empty to use the default warehouse`、
+`stock.count.warehouseHint`、以及那条"来自收银台；收银台没配仓就用这家公司的默认仓"。
+
+**还有一条是活的**（收银台那个字段的说明还写着"留空 = 这家公司的默认仓"）：把 DocType 的
+`description` 与词条一起改成 **"Blank means the only warehouse of this company / 留空 = 这家公司唯一的仓"**
+（四语一起改）。
+
+顺手把一批还在按老口径说话的注释改成实话（`warehouses.js` 抬头、`terminals.py`、
+`pos-adapter.js`、`pos-shift.js`、`stock-entry.js`、`cashier/sales.py`、`inventory/audit.py`）。
+
+### 19.3 实测
+
+| 面 | 结果 |
+| --- | --- |
+| `ERP Product` 那一列 | `has_column = False`（patch 真删掉了） |
+| 卖货仓 | `selling_warehouse("CO-00552") = WH-00174`；`receiving(None) = WH-00174`；`receiving("WH-00101") = WH-00101`（明确的优先） |
+| 不带仓的入库（`api_receive`） | 真落 `WH-00174`：结存 `PRD-00173` 从 3 → **5 件 × ฿40 = ฿200**，流水 `cost_known = 1` |
+| 商品列表 | 「位置」列只剩**仓位**（水 = `a`、FLOW = `C-03`），不再拼仓库 |
+| 新建物料弹窗 | 字段 = 物料名称/编码/条码/单位/库存单位/分类/**默认仓位**/售价/参考成本/低库存提醒/批次/有效期/VAT/图片 —— **没有"默认仓库"**（新标签页实测） |
+| boot 下发 | 站点 `desk` 的启动数据里 `"pearnly_warehouse": "WH-00174"` |
+
+**一个坑（这轮又踩了一次）**：`clear-cache` + 重启 web 之后，**已经打开的标签页仍跑旧 JS**
+（desk 资产 URL 带内容哈希，浏览器按哈希缓存）—— 判断办法是开**新标签页**；旧标签页里
+"新建物料"仍然画着"默认仓库"那一格，新标签页就没有。所以"页面看着没变"先别当成代码没生效。
+
+### 19.4 保留与未做
+
+- **收银台自己的 `is_default` 保留**：那是"同一家公司有多台柜台时先给哪一台"（`ensure_default`
+  建第一台时打标、开班弹窗优先它），与"默认仓"不是一回事；用户这轮说的"默认仓"里没有它。
+- 商品上的 `default_location`（仓位）保留 —— 它与"默认仓"无关，且是**只用于新单据默认填写**的建议值。
+
+### 19.5 本地痕迹与检查
+
+演示站多了：`PRD-00173` 在 `WH-00174` **+2 件**（那条不带仓的入库测试），以及上一批那两张测试单
+（`SI2569-000068` / `SI2569-000069`，都已作废）。用户口径：本地测试数据不用恢复。
+
+检查：`node --check`（4 个改动 JS）过、`python3 -c ast.parse`（13 个改动 py）过、
+`check-architecture` PASS(0 violations)、`check-desk-ui` exit 0（只有一条 `company.js:286` 的
+既有提示，那不是本任务改的）、`i18n-build --check` PASS、`check-frontend-i18n` 0 问题。
+未推送、未合并、未部署。

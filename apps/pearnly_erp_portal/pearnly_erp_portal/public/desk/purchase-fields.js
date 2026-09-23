@@ -46,7 +46,10 @@
 					await line.form.set_values({description: item.product_name, code: item.code, barcode: item.barcode,
 						unit: item.base_unit || item.unit, unit_price: item.default_cost || 0,
 						vat_rate: item.vat_applicable ? state.defaults.settings.default_vat_rate : 0,
-						warehouse: item.default_warehouse || "", location: item.default_location || ""});
+						// 进货仓给**这家公司卖货的那个仓**（用户 2026-09-24："进货就进卖货那个仓"）；
+						// 商品上的"默认仓"已经删掉了。仓位还是商品级的建议值。
+						warehouse: frappe.boot.pearnly_warehouse || "",
+						location: item.default_location || ""});
 					// 批号/失效日期只在这条物料**真的管这两样**时才露出来（用户 2026-09-23：
 					// "采购记录这边附加信息太多了"）—— 不管批次/有效期的商品不必看这两格。
 					line.form.set_df_property("batch_no", "hidden", !item.track_batch);

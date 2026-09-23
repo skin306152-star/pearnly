@@ -108,11 +108,9 @@
 				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
 					default: value("category_id") },
 				{ fieldtype: "Column Break" },
-				// 默认仓库：官方原生 Link（只列当前公司的仓库），与出入库/销售采购明细同一口径。
-				{ fieldtype: "Link", options: "ERP Warehouse", only_select: true,
-					get_query: p.warehouse_query(), fieldname: "default_warehouse",
-					label: t("product.field.defaultWarehouse"),
-					default: value("default_warehouse") },
+				// 商品上的"默认仓"删掉了（用户 2026-09-24："进货就进卖货那个仓"）：进货/出入库
+				// 那一侧取的是收银台配的仓（`warehouses.receiving`），商品这一层再留一个默认仓
+				// 只会让两边对不上。仓位还是商品级建议值，留着。
 				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
 					description: t("product.field.locationHint"), default: value("default_location") },
 				// 空售价 = "从未设过"，与 ฿0 是两回事（服务端用 *_set 记这个区别）。
@@ -276,13 +274,11 @@
 						format: (_value, row) => marked(row, "price_set", row.unit_price) },
 					{ fieldname: "default_cost", width: 92, min_width: 82, label: t("product.col.cost"),
 						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
-					// 「位置」＝默认仓库 + 默认仓位合成一列（用户 2026-09-23："图二加位置，内容显示
-					// 仓库和仓位，一屏显示完……长字段自动隐藏就好了"）。仓库显示**名字**（与库存/
-					// 盘点/出入库同一个口径）；太长由列表自己截断 + tooltip（`list.js` 给每格挂了
-					// `title`），所以它不会把整张表撑开。
+					// 「位置」＝仓位这一列（用户 2026-09-23："图二加位置，内容显示仓库和仓位，
+					// 一屏显示完"）。仓库那一半随"商品默认仓"一起删掉了 —— 进货进哪个仓由
+					// 这家公司卖货的那个仓决定，不是商品级的属性，摆在商品列表上会误导。
 					{ fieldname: "place", width: 188, min_width: 132, label: t("product.col.place"),
-						format: (_value, row) => [row.default_warehouse_name || row.default_warehouse || "",
-							row.default_location || ""].filter(Boolean).join(" / ") },
+						format: (_value, row) => row.default_location || "" },
 					{ fieldname: "is_active", width: 84, min_width: 72, label: t("product.col.status"),
 						// 与供应商/客户两页同一口径：正常 / 已停用。原来用的是框架自己的
 						// "Active"，中文界面里会译成「激活」，三张列表同一个概念三种说法。
@@ -353,10 +349,7 @@
 				label: t("product.field.price"), in_list_view: 1, columns: 2 },
 			{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 				in_list_view: 1, columns: 1 },
-			// 快录表里也是同一个官方 Link（只列当前公司的仓库）。
-			{ fieldtype: "Link", options: "ERP Warehouse", only_select: true,
-				get_query: p.warehouse_query(), fieldname: "default_warehouse",
-				label: t("product.field.defaultWarehouse"), in_list_view: 1, columns: 1 },
+			// 快录表里也没有"默认仓"了（同上面那条说明）。
 			{ fieldtype: "Data", fieldname: "default_location",
 				label: t("product.field.defaultLocation"), columns: 2 },
 			{ fieldtype: "Currency", fieldname: "default_cost", options: "THB",
@@ -423,7 +416,6 @@
 				unit: row.unit,
 				base_unit: row.base_unit,
 				category_id: row.category_id,
-				default_warehouse: row.default_warehouse,
 				default_location: row.default_location,
 				unit_price: Number(row.unit_price) > 0 ? row.unit_price : null,
 				default_cost: Number(row.default_cost) > 0 ? row.default_cost : null,

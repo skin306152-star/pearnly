@@ -89,6 +89,23 @@ def required(value=None, *, company=None) -> str:
     return only
 
 
+def receiving(value=None, *, company=None) -> str:
+    """**单据收发用哪个仓**：单据上明确的仓 → 这家公司**卖货的那个仓** → 唯一的仓 → 报错。
+
+    比 `required()` 多中间那一步，是因为"进货"和"卖货"必须是同一个仓，库存的数量与金额
+    才连得上（用户 2026-09-24："进货就进卖货那个仓"）。卖货仓在收银台上写着，见
+    `masters.company.selling_warehouse`；没有收银台（或几台指向不同的仓）就退回原来那条
+    "唯一的仓 / 报错"，不替谁猜一个。
+    """
+    if str(value or "").strip():
+        return required(value, company=company)
+    company = company or companies.active_company()
+    shop = companies.selling_warehouse(company)
+    if shop and frappe.db.get_value(DOCTYPE, shop, "is_active"):
+        return shop
+    return required(None, company=company)
+
+
 def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True) -> dict:
     """建一个仓。**必须明确挂在某家公司名下** —— 仓库属于公司（`Warehouse.company`），
     没有公司就没有归属，库存也就没法按公司分开算（用户 2026-09-24："没有绑定公司不可以建仓库"）。

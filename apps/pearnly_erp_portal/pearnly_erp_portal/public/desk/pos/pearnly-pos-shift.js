@@ -75,8 +75,9 @@ frappe.provide("frappe.pearnly.pos_shift");
 		active_methods = allowed.length ? METHODS.filter(key => allowed.includes(key)) : METHODS;
 		const preferred = rows.find(row => Number(row.is_default)) || rows[0];
 		const row_of = name => rows.find(row => row.name === name) || {};
-		// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
-		// （`api_list_terminals` 现算的 `effective_warehouse`）。**显示名字**，不是编号 ——
+		// 「这台收银台从哪个仓卖货」：自己配了用自己；没配、而这家公司只有一个仓时就是那个
+		// 唯一仓（`api_list_terminals` 现算的 `effective_warehouse`；"默认仓"已经删掉了）。
+		// **显示名字**，不是编号 ——
 		// 收银员认的是「Purchase check 4bb0f9fc」，不是 `WH-00174`。
 		const place_of = row => (row.effective_warehouse_name || row.warehouse_name
 			|| row.effective_warehouse || row.warehouse || "");

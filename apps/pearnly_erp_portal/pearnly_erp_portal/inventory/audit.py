@@ -14,7 +14,7 @@
 | `movement_type_unknown` | 流水类型是不是本域登记过的那几种 |
 | `entry_lines_mismatch` | 一张已提交的入库/出库单：明细行与它产生的流水对不对得上 |
 | `count_link_mismatch` | 已过账的盘点：差异单在不在、提交没有 |
-| `stock_reference_drift` | 流水/结存里的仓库、公司还在不在；商品默认仓是不是同公司的 |
+| `stock_reference_drift` | 流水落账的那个仓库还在不在、有没有归属公司 |
 | `party_drift` | 采购的供应商、销售的客户：主档还在不在、名字与主档一致不一致 |
 | `zero_cost_stock` | 有货但成本未知（**提示**，不是错；盘点调增现在就是这个样子） |
 | `negative_stock` | 负结存（**提示**；本域允许超卖，但要知道有） |
@@ -169,22 +169,19 @@ def count_link_mismatch():
 
 
 def stock_reference_drift():
-    """流水/结存里的仓库与公司；商品的默认仓是不是**同公司**的仓。"""
+    """流水/结存里的仓库与公司：这笔货是不是记在一个真实存在、有归属公司的仓上。
+
+    这里原来还比"商品的默认仓是不是同公司的仓"—— 商品上那个默认仓已经删掉（用户
+    2026-09-24："进货就进卖货那个仓"），进货那一侧改用收银台配的仓，所以那条比对作废。
+    """
     drift = []
     for row in _rows("""
-        SELECT m.name, m.product, m.warehouse, m.location, w.company AS warehouse_company,
-               p.default_warehouse AS product_warehouse, pw.company AS product_warehouse_company
+        SELECT m.name, m.product, m.warehouse, m.location, w.company AS warehouse_company
         FROM `tabERP Stock Movement` m
         LEFT JOIN `tabERP Warehouse` w ON w.name = m.warehouse
-        LEFT JOIN `tabERP Product` p ON p.name = m.product
-        LEFT JOIN `tabERP Warehouse` pw ON pw.name = p.default_warehouse
     """):
         if not row["warehouse_company"]:
             drift.append({**row, "why": f"仓库 {row['warehouse']} 不存在或没有公司"})
-        elif row["product_warehouse"] and row["product_warehouse_company"] and \
-                row["product_warehouse_company"] != row["warehouse_company"]:
-            drift.append({**row, "why": f"商品默认仓 {row['product_warehouse']} 属于"
-                                        f"{row['product_warehouse_company']}，不在 {row['warehouse_company']}"})
     return drift
 
 
@@ -250,7 +247,7 @@ CHECKS = [
      ["name", "doc_no", "direction", "lines_qty", "movement_qty"]),
     ("count_link_mismatch", "盘点差异单缺失或没提交", count_link_mismatch,
      ["name", "title", "warehouse", "why"]),
-    ("stock_reference_drift", "商品默认仓与它落账的仓不在同一家公司（多公司租户要确认）", stock_reference_drift,
+    ("stock_reference_drift", "流水落账的仓库不存在或没有归属公司", stock_reference_drift,
      ["name", "product", "warehouse", "why"]),
     ("party_drift", "供应商/客户与主档对不上", party_drift,
      ["name", "doc_no", "supplier", "supplier_name", "customer", "buyer_name", "why"]),

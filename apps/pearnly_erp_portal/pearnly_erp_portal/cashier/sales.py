@@ -138,9 +138,9 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     # 同一口径 —— 界面上显示的可用量就是按它算的）。
     # 两个来源：单据上明确给的（`warehouse`）→ 用它；否则就是**收银台自己配的那个仓**
     # （`terminals.place_of`；"默认仓"那个概念已经删了，没配仓就是明确报错，不猜）。
-    # 顺序要紧：`positions.prepare` 的兜底是"**商品自己的**默认仓"，两个兜底不是一回事 ——
-    # 不定死这里，行会落到商品仓上、单据却写着收银台的仓（实测过：单据 `WH-00174`、
-    # 行 `WH-00101`，库存从行那个仓出）。定死之后行、单据、界面三处才是一个仓。
+    # 顺序要紧：**先把仓定死再铺行**。以前 `positions.prepare` 会回落"商品自己的默认仓"，
+    # 于是行落到商品仓上、单据却写着收银台的仓（实测过：单据 `WH-00174`、行 `WH-00101`，
+    # 库存从行那个仓出）。那个商品级默认仓本轮已经删掉，商品区/单据/行三处从此一个仓。
     warehouse_id = (warehouses.required(warehouse, company=terminal_doc.company)
                     if str(warehouse or "").strip() else terminals.place_of(terminal_doc))
     lines = [positions.prepare(line, warehouse_id) for line in lines]

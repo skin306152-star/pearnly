@@ -359,8 +359,9 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
         return None
     result = stock.apply_lines(
         # 与 `purchasing/entry.py` 同一口径：入库仓来自**这张单上明确的仓**
-        # （每行已经由 `positions.saved()` 定过；行上也没有时才按"唯一仓/报错"兜底）。
-        warehouse=warehouses.required(lines[0].get("warehouse")),
+        # （每行已经由 `positions.saved()` 定过）；行上也没写时落**这家公司卖货的那个仓**，
+        # 没有收银台才退回"唯一仓/报错"（见 `warehouses.receiving`）。
+        warehouse=warehouses.receiving(lines[0].get("warehouse")),
         movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
         # 流水上记的是**我方单据号**（采购 PE），对方单号留在采购单上。

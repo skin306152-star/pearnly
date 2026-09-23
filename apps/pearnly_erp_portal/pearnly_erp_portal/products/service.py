@@ -46,7 +46,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "default_warehouse", "default_location",
+    "track_batch", "track_expiry", "default_location",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
@@ -171,7 +171,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None,
-                   default_warehouse=None, default_location=None):
+                   default_location=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -200,7 +200,6 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "track_batch": _flag(track_batch),
         "track_expiry": _flag(track_expiry),
         "is_active": 1,
-        "default_warehouse": _text(default_warehouse, 140),
         "default_location": _text(default_location, 140),
     })
     doc.insert()
@@ -239,24 +238,7 @@ def list_products(*, search=None, include_inactive=False, is_active=None, limit=
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
         order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
-    return _with_warehouse_names(rows)
-
-
-def _with_warehouse_names(rows):
-    """把默认仓的**名字**带上（列表要显示"位置"那一列）。
-
-    与库存/盘点/出入库同一个口径：界面上显示仓库的**名字**，编号只在选择框的下拉里当辅助
-    （用户 2026-09-23："图三怎么显示不同名呀" —— 同一个仓，有的地方显示 WH-00101、
-    有的地方显示名字）。一次批量取名字，别按行查询。
-    """
-    names = {row["default_warehouse"] for row in rows if row.get("default_warehouse")}
-    if not names:
-        return rows
-    labels = dict(frappe.get_list("ERP Warehouse", filters={"name": ["in", list(names)]},
-                                  fields=["name", "warehouse_name"], limit_page_length=0,
-                                  as_list=True))
-    return [{**row, "default_warehouse_name": labels.get(row.get("default_warehouse")) or row.get("default_warehouse")}
-            for row in rows]
+    return rows
 
 
 def find_product(value, exclude=None):
@@ -322,18 +304,12 @@ def update_product(name: str, **changes):
                if "barcode" in changes else doc.barcode)
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
-    for field in ("default_warehouse", "default_location"):
+    # 商品上的"默认仓"已经删掉（用户 2026-09-24："进货就进卖货那个仓" —— 进货那一侧改用
+    # 收银台上配的仓，见 `warehouses.receiving`），只剩仓位这一栏还是商品级建议值。
+    for field in ("default_location",):
         if field not in changes:
             continue
         value = _text(changes[field], 140)
-        if field == "default_warehouse" and value:
-            # 默认仓库必须是**真实存在且启用**的仓库。商品是全公司共用的主数据（不像单据那样
-            # 挂某一家公司），所以这里只确认"这个仓存在且启用"，不要求它属于当前公司 ——
-            # 页面上的下拉本来只列当前公司的仓库（`p.warehouse_query()`）。
-            exists, active = frappe.db.get_value("ERP Warehouse", value,
-                                                 ["name", "is_active"]) or (None, None)
-            if not exists or not active:
-                frappe.throw(_("Warehouse not found"))
         doc.set(field, value)
     old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
