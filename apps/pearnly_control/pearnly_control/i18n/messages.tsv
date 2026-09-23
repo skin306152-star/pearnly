@@ -273,3 +273,5 @@ View transfer slip	查看转账凭证	ดูหลักฐานการโอ
 No transfer slip is attached	未附转账凭证	ยังไม่ได้แนบหลักฐานการโอน	振込明細が添付されていません
 Billing Mode	计费方式	รูปแบบการคิดค่าบริการ	課金方式
 Billing Month	计费月份	เดือนที่คิดค่าบริการ	課金対象月
+Removed At	移除时间	เวลาที่ลบ	削除日時
+Removed By	移除人	ผู้ลบ	削除者

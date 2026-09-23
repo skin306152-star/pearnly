@@ -1,5 +1,13 @@
+Booking ID,予約ID
+Booking Number,予約番号
+DMS,DMS
 Enter the DMS password.,DMS パスワードを入力してください。
+Last Error,前回のエラー
+Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
+Next Attempt,次回試行
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
+Submission Evidence,送信エビデンス
+Submission Nonce,送信ノンス
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください

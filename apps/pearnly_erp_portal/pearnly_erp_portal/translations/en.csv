@@ -1,8 +1,11 @@
+"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.","0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it."
 1 = January,1 = January
+1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
+A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
 A stock entry needs at least one line,A stock entry needs at least one line
 A stored source file must carry its hash,A stored source file must carry its hash
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
@@ -35,17 +38,21 @@ Amended From,Amended From
 Amount,Amount
 Amount Payable,Amount Payable
 Amount Received,Amount Received
+Amounts,Amounts
 Anonymous,Anonymous
+Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
 Apply,Apply
 Approval Status,Approval Status
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
 Are you sure you want to delete?,Are you sure you want to delete?
+As Of,As Of
 At least 8 characters,At least 8 characters
 At most 5 photos per entry,At most 5 photos per entry
 Attach,Attach
 Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
+Average Unit Cost,Average Unit Cost
 Back,Back
 Back to entries,Back to entries
 Back to summary,Back to summary
@@ -55,9 +62,14 @@ Bank Transfer,Bank Transfer
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
+Base Currency,Base Currency
+Base Unit,Base Unit
 Base unit,Base unit
+Basis Qty,Basis Qty
+Basis Set,Basis Set
 Batch No,Batch No
 Bind this account first,Bind this account first
+Block Duplicate Documents,Block Duplicate Documents
 Book position,Book position
 Book quantity,Book quantity
 Book quantity {0} {1},Book quantity {0} {1}
@@ -71,7 +83,10 @@ Branch Number,Branch Number
 Branch Office,Branch Office
 Branch Type,Branch Type
 Branch {0},Branch {0}
+Bucket,Bucket
+Buyer Type,Buyer Type
 By Payment Method,By Payment Method
+Calculation Version,Calculation Version
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Camera permission was refused; allow it and try again,Camera permission was refused; allow it and try again
 Cancel,Cancel
@@ -87,8 +102,11 @@ Cart,Cart
 Cash,Cash
 Cash Amount,Cash Amount
 Cash Check,Cash Check
+Cash Difference,Cash Difference
 Cashier,Cashier
+Cashier (POS),Cashier (POS)
 Cashier Records,Cashier Records
+"Cashier counter, shifts and the cashier's own sales","Cashier counter, shifts and the cashier's own sales"
 Category,Category
 Category Name,Category Name
 Change,Change
@@ -104,11 +122,14 @@ Choose the sheet to import,Choose the sheet to import
 Clear cart,Clear cart
 Clear customer,Clear customer
 Clear the cart?,Clear the cart?
+Client Reference,Client Reference
 Close,Close
 Close Shift,Close Shift
 Close camera,Close camera
 Close count,Close count
 Closed At,Closed At
+Closed at,Closed at
+Closed by,Closed by
 Closing Quantity,Closing Quantity
 Closing locks every entry. Rows never counted stay empty. Continue?,Closing locks every entry. Rows never counted stay empty. Continue?
 Code,Code
@@ -120,6 +141,7 @@ Collection Date,Collection Date
 Collection Method,Collection Method
 Collection Remarks,Collection Remarks
 Collection Status,Collection Status
+Colour Tag,Colour Tag
 Columns,Columns
 Companies,Companies
 Company,Company
@@ -130,10 +152,14 @@ Complete Payment,Complete Payment
 Completed,Completed
 Confirm,Confirm
 Confirm the document before recording a payment,Confirm the document before recording a payment
+Contact Person,Contact Person
 Contact email,Contact email
 Contact person,Contact person
 Continuous counting,Continuous counting
 Correct entry,Correct entry
+Cost,Cost
+Cost Is Set,Cost Is Set
+Cost Known,Cost Known
 Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
 Count by,Count by
@@ -149,6 +175,8 @@ Counted quantity,Counted quantity
 Create,Create
 Create New Item,Create New Item
 Created,Created
+Created when a sales draft is confirmed,Created when a sales draft is confirmed
+Created when the draft is confirmed,Created when the draft is confirmed
 Created {0} product(s),Created {0} product(s)
 Created {0}; {1} row(s) were not saved — fix them and save again,Created {0}; {1} row(s) were not saved — fix them and save again
 Creation,Creation
@@ -163,10 +191,18 @@ Customer is required,Customer is required
 Customer not found,Customer not found
 Customers,Customers
 Date,Date
+Decided At,Decided At
 Dedupe Key,Dedupe Key
+Default Company,Default Company
+Default Due Days,Default Due Days
 Default Location,Default Location
+Default Selling Unit,Default Selling Unit
+Default Terminal,Default Terminal
+Default VAT Rate (%),Default VAT Rate (%)
+Default WHT Rate for Services (%),Default WHT Rate for Services (%)
 Default Warehouse,Default Warehouse
 Default warehouse,Default warehouse
+Default withholding for service documents,Default withholding for service documents
 Delete,Delete
 Delete selected ({0}),Delete selected ({0})
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
@@ -174,12 +210,15 @@ Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
 Description,Description
 Details,Details
+Difference,Difference
 Difference value,Difference value
+Differences,Differences
 Direction must be in or out,Direction must be in or out
 Disable,Disable
 Disable {0},Disable {0}
 Disable {0} selected,Disable {0} selected
 Disabled,Disabled
+Discard Reason,Discard Reason
 Discount,Discount
 Discount (%),Discount (%)
 Discount Amount,Discount Amount
@@ -187,7 +226,9 @@ Discount Total,Discount Total
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Discount percentage,Discount percentage
 Document,Document
+Document No,Document No
 Document Number,Document Number
+Document Prefix,Document Prefix
 Document Type,Document Type
 Document already exists,Document already exists
 Document has already been cancelled,Document has already been cancelled
@@ -200,6 +241,7 @@ Download template,Download template
 Draft,Draft
 Draft not found,Draft not found
 Due Date,Due Date
+ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 Edit,Edit
 Edit Cart,Edit Cart
@@ -235,9 +277,12 @@ Export,Export
 Export {0},Export {0}
 Exported {0} shifts,Exported {0} shifts
 External System Reference,External System Reference
+Factor to Base Unit,Factor to Base Unit
+Fetched At,Fetched At
 File,File
 File Fingerprint,File Fingerprint
 File Name,File Name
+File SHA-256,File SHA-256
 File not found,File not found
 Fill in as many rows as you need; leave the code empty and the system assigns one,Fill in as many rows as you need; leave the code empty and the system assigns one
 Filter,Filter
@@ -247,9 +292,13 @@ Find product,Find product
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
 First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
+Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
 Foreigner,Foreigner
+Found,Found
 Found: {0},Found: {0}
+"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).","Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set)."
+"Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
 Full Name,Full Name
 Full Screen,Full Screen
@@ -260,7 +309,10 @@ Grand Total,Grand Total
 Gross,Gross
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
+How much of this opening was already pushed into the stock ledger; a revision only posts the difference,How much of this opening was already pushed into the stock ledger; a revision only posts the difference
 ID,ID
+Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
+Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
 Image Fingerprint,Image Fingerprint
 Image URL,Image URL
 Import a sheet,Import a sheet
@@ -300,12 +352,18 @@ Items are required,Items are required
 Items not found.,Items not found.
 Job Roles,Job Roles
 LINE,LINE
+LINE Message,LINE Message
+LINE User,LINE User
 LINE unbound,LINE unbound
 Last Login,Last Login
 Last Month,Last Month
+Last Movement,Last Movement
+Last counted at,Last counted at
+Last counted by,Last counted by
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
 Leave empty to use the default warehouse,Leave empty to use the default warehouse
+"Legacy used head office / branch, with the branch number when it is a branch","Legacy used head office / branch, with the branch number when it is a branch"
 Light,Light
 Line Amount,Line Amount
 Line Discount,Line Discount
@@ -317,14 +375,17 @@ Loading...,Loading...
 Location,Location
 "Lookup failed, please fill in manually","Lookup failed, please fill in manually"
 Low (≤{0}),Low (≤{0})
+Low Stock Threshold,Low Stock Threshold
 Low stock,Low stock
 Low stock alert,Low stock alert
 Main,Main
 Manual,Manual
 Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
+Media Type,Media Type
 Merge Items,Merge Items
 Mode of Payment,Mode of Payment
+Modes of Payment,Modes of Payment
 More Filters,More Filters
 Name,Name
 Net,Net
@@ -344,6 +405,7 @@ New product,New product
 New stock count,New stock count
 New warehouse,New warehouse
 Next,Next
+Next Number,Next Number
 No,No
 No Open Shift,No Open Shift
 No attachments,No attachments
@@ -365,6 +427,8 @@ Notes,Notes
 Nothing counted yet,Nothing counted yet
 Now sending {0} documents,Now sending {0} documents
 OCR,OCR
+Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero
+On Hand,On Hand
 Only Draft documents can be deleted,Only Draft documents can be deleted
 Only a completed sale receipt can be refunded,Only a completed sale receipt can be refunded
 Only a receipt records a collection,Only a receipt records a collection
@@ -385,7 +449,9 @@ Opening,Opening
 Opening Amount,Opening Amount
 Opening Balance,Opening Balance
 Opening Cash,Opening Cash
+Opening Qty,Opening Qty
 Opening Quantity,Opening Quantity
+Opening Unit Cost,Opening Unit Cost
 Original Item and Location,Original Item and Location
 Original Line,Original Line
 Other,Other
@@ -405,6 +471,7 @@ Pay,Pay
 Payment,Payment
 Payment Date,Payment Date
 Payment Method,Payment Method
+Payment Needs Approval,Payment Needs Approval
 Payment Receipt,Payment Receipt
 Payment Reconciliation,Payment Reconciliation
 Payment Status,Payment Status
@@ -420,35 +487,47 @@ Please select an Item,Please select an Item
 Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
 Position Balance,Position Balance
 Position differences,Position differences
+Post Stock On Confirm,Post Stock On Confirm
 Post differences,Post differences
 Posted,Posted
+Posted Qty,Posted Qty
+Posted at,Posted at
+Posted by,Posted by
 Posted to Stock,Posted to Stock
 Posted {0} differences,Posted {0} differences
 Posting Date,Posting Date
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
+Prefix for this company's document numbers,Prefix for this company's document numbers
 Preview,Preview
 Previous,Previous
 Price,Price
+Price Is Set,Price Is Set
 Prices Include Tax,Prices Include Tax
 Print,Print
 Print Receipt,Print Receipt
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
+Product Name,Product Name
 Product Ref,Product Ref
 Product name,Product name
 Product not found,Product not found
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
+PromptPay ID,PromptPay ID
 Purchase,Purchase
 Purchase Amount,Purchase Amount
 Purchase Count,Purchase Count
 Purchase Invoice,Purchase Invoice
 Purchase Order,Purchase Order
+Purchase Record,Purchase Record
 Purchase Records,Purchase Records
 Purchasing,Purchasing
+QR Payload,QR Payload
 QR payload,QR payload
 Qty,Qty
+"Qty (base unit, signed)","Qty (base unit, signed)"
+Qty (entered unit),Qty (entered unit)
 Quantity,Quantity
 Quantity Available,Quantity Available
 Quantity counted this time,Quantity counted this time
@@ -460,28 +539,37 @@ Quotation,Quotation
 Rate,Rate
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
+Receipt No,Receipt No
 Receipt Status,Receipt Status
 Receipt {0} · Change {1},Receipt {0} · Change {1}
 Received,Received
 Received Amount,Received Amount
+Received At,Received At
 Received By,Received By
+"Received from LINE, then confirmed into a purchase record or discarded","Received from LINE, then confirmed into a purchase record or discarded"
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recent Orders,Recent Orders
 Recognition is not configured for this account,Recognition is not configured for this account
 Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
+Record,Record
 Record a count,Record a count
 Recount this product,Recount this product
 Reference,Reference
+Reference Cost,Reference Cost
 Reference cost,Reference cost
 References,References
 Refund,Refund
 Refund Amount,Refund Amount
 Refund Count,Refund Count
+Refund Of,Refund Of
+Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
 Reload,Reload
 Remaining Amount,Remaining Amount
 Remarks,Remarks
+Request Hash,Request Hash
 Request ID already exists,Request ID already exists
+Request id,Request id
 Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
@@ -494,8 +582,10 @@ Rows,Rows
 "Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · Value {1} · Low {2} · Out {3}
 Sale,Sale
+Sale Price,Sale Price
 Sales,Sales
 Sales Count,Sales Count
+Sales Document,Sales Document
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
@@ -520,13 +610,17 @@ Select a stock count,Select a stock count
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
+Selling Units,Selling Units
 Selling price,Selling price
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
+Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
+Sent By,Sent By
 Service,Service
 Set as current,Set as current
 Set as default,Set as default
 Sheet,Sheet
 Shelf,Shelf
+Shift,Shift
 Shift History,Shift History
 Shift No,Shift No
 Shift Records,Shift Records
@@ -534,12 +628,14 @@ Shift closed · Cash difference {0},Shift closed · Cash difference {0}
 Shift {0} opened,Shift {0} opened
 Shift {0} · Expected cash {1},Shift {0} · Expected cash {1}
 Shift {0} · opened {1} · expected cash {2},Shift {0} · opened {1} · expected cash {2}
+Short Name,Short Name
 Short by {0},Short by {0}
 Short name,Short name
 Show disabled,Show disabled
 Show only,Show only
 Show zero stock,Show zero stock
 Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the first ones are listed above
+Sold At,Sold At
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Sort Order,Sort Order
 Source,Source
@@ -547,23 +643,30 @@ Source File,Source File
 Split,Split
 Start counting,Start counting
 Status,Status
+"Still off: the stock tables land in the inventory batch, and posting must not silently skip them","Still off: the stock tables land in the inventory batch, and posting must not silently skip them"
 Stock,Stock
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
+Stock Token,Stock Token
+Stock Value,Stock Value
 Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
 Stock changed; recount,Stock changed; recount
 Stock count,Stock count
 "Stock count created, {0} rows","Stock count created, {0} rows"
 Stock count not found,Stock count not found
+"Stock count tasks, staff entries and variance posting","Stock count tasks, staff entries and variance posting"
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
+Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
+Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse
 Stock ledger,Stock ledger
 Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
 Subcategory,Subcategory
 Submit,Submit
 Submit and Receive Stock,Submit and Receive Stock
 Submitted,Submitted
+Submitted At,Submitted At
 Submitted {0},Submitted {0}
 Substitute Receipt,Substitute Receipt
 Summary,Summary
@@ -597,11 +700,14 @@ That file has no rows,That file has no rows
 That file is not an Excel workbook,That file is not an Excel workbook
 That photo could not be read,That photo could not be read
 That row is not part of this stock count,That row is not part of this stock count
+That warehouse belongs to another company,That warehouse belongs to another company
+The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
 The account you give customers for transfers,The account you give customers for transfers
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
 The company on your documents,The company on your documents
+The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The password must be at least {0} characters,The password must be at least {0} characters
@@ -622,6 +728,7 @@ This browser cannot scan with the camera,This browser cannot scan with the camer
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This channel is not open yet,This channel is not open yet
 This code is already taken,This code is already taken
+This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
 This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
 This document cannot be recorded yet,This document cannot be recorded yet
@@ -647,8 +754,10 @@ Type,Type
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
 UOM,UOM
 Unable to load preview,Unable to load preview
+Unbound,Unbound
 Unit,Unit
 Unit Cost,Unit Cost
+Unit Cost (net of VAT),Unit Cost (net of VAT)
 Unit Price,Unit Price
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
@@ -669,13 +778,16 @@ Upload a sheet,Upload a sheet
 Upload and Recognize,Upload and Recognize
 Use the stock count workbench,Use the stock count workbench
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
+Used when a new purchase line does not say otherwise,Used when a new purchase line does not say otherwise
 User,User
 VAT,VAT
+VAT Applicable,VAT Applicable
 VAT Applies,VAT Applies
 VAT Rate,VAT Rate
 VAT Rate %,VAT Rate %
 VAT applies,VAT applies
 Value,Value
+Void Reason,Void Reason
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
 Void the payments before voiding the document,Void the payments before voiding the document
 Void the refunds first,Void the refunds first
@@ -683,16 +795,19 @@ Void this count of {0}?,Void this count of {0}?
 Void this document and reverse its stock movements?,Void this document and reverse its stock movements?
 Void {0} document(s) and reverse their stock movements?,Void {0} document(s) and reverse their stock movements?
 Void {0} selected,Void {0} selected
+Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
 Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
+Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
 With differences,With differences
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+"Year, year-month or ALL, depending on the reset policy","Year, year-month or ALL, depending on the reset policy"
 Yes,Yes
 You cannot submit empty order.,You cannot submit empty order.
 You cannot submit the order without payment.,You cannot submit the order without payment.
@@ -806,6 +921,7 @@ count,count
 draft,draft
 goods,goods
 hq,hq
+"image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
 nav.posReceipts,Cashier Records
 nav.posShifts,Shift Records

@@ -1,5 +1,13 @@
+Booking ID,รหัสการจอง
+Booking Number,เลขที่การจอง
+DMS,DMS
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
+Last Error,ข้อผิดพลาดล่าสุด
+Multiple DMS connections exist for this operator,ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ
+Next Attempt,ครั้งถัดไปที่ลอง
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
+Submission Evidence,หลักฐานการส่ง
+Submission Nonce,nonce การส่ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
 The saved credentials cannot be read back; check the site encryption key,อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์

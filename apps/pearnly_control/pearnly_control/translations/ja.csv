@@ -203,6 +203,8 @@ Reference,外部参照番号
 Reject,却下
 Reject top-up,チャージを却下
 Rejected,却下済み
+Removed At,削除日時
+Removed By,削除者
 Requested Amount,申請額
 Requested At,申請日時
 Restart services,サービスを再起動

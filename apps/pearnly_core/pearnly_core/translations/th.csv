@@ -28,6 +28,7 @@ Address,ที่อยู่
 Admin Account,บัญชีผู้ดูแล
 Admin Password,รหัสผ่านผู้ดูแล
 Administrator,ผู้ดูแล
+Admission Key,คีย์รับงาน
 Advisors {0},ที่ปรึกษา {0}
 All,ทั้งหมด
 All directions,ทุกทิศทาง
@@ -42,6 +43,7 @@ Approved amounts are credited to your balance.,ยอดที่อนุมั
 Are you sure you want to sign out?,คุณต้องการออกจากระบบหรือไม่?
 Assign To,มอบหมายให้
 Attempt,ครั้งที่พยายาม
+Attempts,จำนวนครั้งที่พยายาม
 Auto Push,ส่งอัตโนมัติ
 Automatic (by DMS account),อัตโนมัติ (ตามบัญชี DMS)
 Back to home,กลับหน้าหลัก
@@ -77,6 +79,7 @@ Change account,แก้ไขบัญชี
 Change password,เปลี่ยนรหัสผ่าน
 Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว
 Charges,ค่าบริการ
+Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
@@ -289,11 +292,13 @@ Item / description,ชื่อสินค้า / คำอธิบาย
 "JPG, PNG or PDF, up to 10 MB","JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB"
 "Kept as evidence, not a business field",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ
 "Kept as evidence, not a business field; only the confirmed fields are.",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น
+Kind,ประเภท
 LINE Display Name,ชื่อที่แสดงบน LINE
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง
 LINE status,สถานะ LINE
 Language,ภาษา
+Last Code,รหัสล่าสุด
 Last Login At,เข้าสู่ระบบล่าสุด
 Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
@@ -302,6 +307,7 @@ Last Verified At,ตรวจสอบล่าสุดเมื่อ
 Last result,ผลล่าสุด
 Lease Expires,สัญญาเช่าหมดอายุ
 Lease Owner,ผู้ถือสัญญาเช่า
+Lease Until,หมดอายุการจองงาน
 Leave blank to keep the current password.,เว้นว่างไว้เพื่อใช้รหัสผ่านเดิม
 Leave blank to keep unchanged,เว้นว่างไว้หากไม่แก้ไข
 Line Amount,จำนวนเงินบรรทัด
@@ -324,6 +330,7 @@ Max Retries,ลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
 My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
+Namespace is not allowed: {0},ไม่อนุญาตเนมสเปซ: {0}
 "Neither tier produced a result (network, key or model name could all be the cause)",ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)
 Net Amount,ยอดก่อนภาษี
 Net Payable,ยอดสุทธิที่ต้องจ่าย
@@ -335,6 +342,7 @@ New entry,บันทึกใหม่
 New password,รหัสผ่านใหม่
 New purchase order,สร้างใบซื้อใหม่
 Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
+Next Run,ครั้งถัดไปที่รัน
 No,ไม่
 No DMS connection has been configured yet,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS
 No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)
@@ -453,6 +461,10 @@ Regenerate,สร้างใหม่
 Rejected,ถูกปฏิเสธ
 Reload advisors,โหลดรายชื่อที่ปรึกษาใหม่
 Remote Address,ที่อยู่ปลายทาง
+Removed At,เวลาที่ลบ
+Removed By,ผู้ลบ
+Removed from Product History At,เวลาที่ลบออกจากประวัติผลิตภัณฑ์
+Removed from Product History By,ผู้ลบออกจากประวัติผลิตภัณฑ์
 Reorder sidebar,จัดลำดับแถบด้านข้าง
 Request & Response,คำขอและการตอบกลับ
 Request Body,เนื้อหาคำขอ
@@ -625,6 +637,7 @@ Transport Result,ผลการรับส่ง
 Trigger,รูปแบบการทริกเกอร์
 Type,ประเภท
 UI language,ภาษาของหน้าจอ
+Unable to load this page. Please reload.,โหลดหน้านี้ไม่ได้ กรุณารีเฟรช
 Unable to read the current advisor list. Retry before changing the assignment.,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ โปรดลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
 Unable to verify this company’s LINE official account. Please try again.,ไม่สามารถตรวจสอบบัญชี LINE ทางการของบริษัทได้ กรุณาลองใหม่
 Unbind LINE,ยกเลิกการผูก LINE

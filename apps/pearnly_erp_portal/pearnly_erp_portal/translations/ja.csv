@@ -1,8 +1,11 @@
+"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",0 は価格を一度も設定していない（実際の ฿0 ではない）ことを表します。Frappe の Currency 列は NULL を保存できないため、「未設定」と「0」の区別はこのフラグで持ち、POS のゼロ価格ガードがこれを参照します。
 1 = January,1 = 1月
+1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
 13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
+A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
 A stock entry needs at least one line,入出庫伝票には少なくとも1行必要です
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
 Abbreviated Tax Invoice,簡易税務請求書
@@ -35,17 +38,21 @@ Amended From,修正元
 Amount,金額
 Amount Payable,支払金額
 Amount Received,受取額
+Amounts,金額
 Anonymous,匿名
+Anonymous buyers get no tax id; only companies have branches,匿名の買い手には税番号がなく、支店があるのは法人だけです
 Apply,適用
 Approval Status,承認状況
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
 Are you sure you want to delete?,削除しますか？
+As Of,基準日
 At least 8 characters,8文字以上
 At most 5 photos per entry,1記録につき写真は5枚までです
 Attach,添付
 Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
 Attachments,添付ファイル
+Average Unit Cost,平均単価
 Back,戻る
 Back to entries,記録へ戻る
 Back to summary,集計へ戻る
@@ -55,9 +62,14 @@ Bank Transfer,銀行振込
 Barcode,バーコード
 Barcode / QR code,バーコード / QRコード
 "Barcode, QR code or product code",バーコード・QRコード・商品コード
+Base Currency,基準通貨
+Base Unit,基準単位
 Base unit,基準単位
+Basis Qty,基準数量
+Basis Set,基準設定済み
 Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
+Block Duplicate Documents,重複伝票をブロック
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
 Book quantity {0} {1},帳簿数量 {0} {1}
@@ -71,7 +83,10 @@ Branch Number,支店番号
 Branch Office,支店
 Branch Type,支店区分
 Branch {0},支店 {0}
+Bucket,採番区分
+Buyer Type,顧客種類
 By Payment Method,支払方法別
+Calculation Version,計算バージョン
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 Camera permission was refused; allow it and try again,カメラの許可が拒否されました。許可してから再試行してください
 Cancel,キャンセル
@@ -87,8 +102,11 @@ Cart,カート
 Cash,現金
 Cash Amount,現金
 Cash Check,現金確認
+Cash Difference,現金差異
 Cashier,レジ
+Cashier (POS),レジ（POS）
 Cashier Records,レジ記録
+"Cashier counter, shifts and the cashier's own sales",レジカウンター、シフト、レジ担当自身の売上
 Category,カテゴリ
 Category Name,カテゴリ名
 Change,お釣り
@@ -104,11 +122,14 @@ Choose the sheet to import,取り込むシートを選択してください
 Clear cart,カートを空にする
 Clear customer,顧客をクリア
 Clear the cart?,カートを空にしますか
+Client Reference,クライアント参照
 Close,閉じる
 Close Shift,シフト終了
 Close camera,カメラを閉じる
 Close count,棚卸を終了
 Closed At,終了時刻
+Closed at,終了日時
+Closed by,終了者
 Closing Quantity,期末数量
 Closing locks every entry. Rows never counted stay empty. Continue?,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
 Code,コード
@@ -120,6 +141,7 @@ Collection Date,入金日
 Collection Method,入金方法
 Collection Remarks,入金備考
 Collection Status,入金状況
+Colour Tag,カラータグ
 Columns,列
 Companies,会社
 Company,会社
@@ -130,10 +152,14 @@ Complete Payment,支払完了
 Completed,完了
 Confirm,確認
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
+Contact Person,担当者
 Contact email,連絡先メール
 Contact person,担当者
 Continuous counting,連続棚卸
 Correct entry,記録を修正
+Cost,原価
+Cost Is Set,原価設定済み
+Cost Known,原価判明
 Could not store this document,書類を保存できませんでした。再送してください
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
 Count by,棚卸方法
@@ -149,6 +175,8 @@ Counted quantity,実地数量
 Create,作成
 Create New Item,新規品目作成
 Created,作成日時
+Created when a sales draft is confirmed,販売下書きの確定時に作成されます
+Created when the draft is confirmed,下書きの確定時に作成されます
 Created {0} product(s),{0}件の商品を作成しました
 Created {0}; {1} row(s) were not saved — fix them and save again,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
 Creation,作成日時
@@ -163,10 +191,18 @@ Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
 Customers,顧客
 Date,日付
+Decided At,判定日時
 Dedupe Key,重複防止キー
+Default Company,既定の会社
+Default Due Days,既定の支払期限（日）
 Default Location,既定の保管場所
+Default Selling Unit,既定の販売単位
+Default Terminal,既定のレジ
+Default VAT Rate (%),既定のVAT率（%）
+Default WHT Rate for Services (%),サービス既定の源泉徴収率（%）
 Default Warehouse,既定の倉庫
 Default warehouse,既定の倉庫
+Default withholding for service documents,サービス伝票の既定の源泉徴収
 Delete,削除
 Delete selected ({0}),選択を削除（{0}）
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
@@ -174,12 +210,15 @@ Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
 Description,説明
 Details,詳細
+Difference,差異
 Difference value,差異金額
+Differences,差異合計
 Direction must be in or out,方向は入庫か出庫のいずれかです
 Disable,無効化
 Disable {0},{0}件を無効化
 Disable {0} selected,選択した{0}件を無効化
 Disabled,無効
+Discard Reason,破棄理由
 Discount,割引額
 Discount (%),割引率 (%)
 Discount Amount,割引額
@@ -187,7 +226,9 @@ Discount Total,割引合計
 Discount cannot exceed the amount,割引は金額を超えられません
 Discount percentage,割引率
 Document,伝票
+Document No,伝票番号
 Document Number,伝票番号
+Document Prefix,伝票接頭辞
 Document Type,伝票種別
 Document already exists,伝票は既に存在します
 Document has already been cancelled,伝票は取消済みです
@@ -200,6 +241,7 @@ Download template,テンプレートをダウンロード
 Draft,下書き
 Draft not found,下書きが見つかりません
 Due Date,支払期日
+ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 Edit,編集
 Edit Cart,カートに戻る
@@ -235,9 +277,12 @@ Export,エクスポート
 Export {0},{0}件をエクスポート
 Exported {0} shifts,{0}件のシフトを出力しました
 External System Reference,外部システム参照
+Factor to Base Unit,基準単位への換算係数
+Fetched At,取得日時
 File,ファイル
 File Fingerprint,ファイル指紋
 File Name,ファイル名
+File SHA-256,ファイル SHA-256
 File not found,ファイルが見つかりません
 Fill in as many rows as you need; leave the code empty and the system assigns one,複数行をまとめて入力できます。コードは空欄なら自動採番されます。
 Filter,絞り込み
@@ -247,9 +292,13 @@ Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
+Fiscal Year Starts In,会計年度の開始月
 Fiscal year start month,会計年度の開始月
 Foreigner,外国人
+Found,検出
 Found: {0},取得: {0}
+"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
+"Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
 Full Name,氏名
 Full Screen,全画面
@@ -260,7 +309,10 @@ Grand Total,税込合計
 Gross,売上総額
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
+How much of this opening was already pushed into the stock ledger; a revision only posts the difference,この期首のうち在庫台帳へ反映済みの数量。修正時は差分のみを転記します
 ID,ID
+Idempotency anchor for a whole request; a repeat submit is ignored,リクエスト全体の冪等アンカー。再送信は無視されます
+Idempotency anchor: a repeat submit returns the same sale instead of charging twice,冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
 Image Fingerprint,画像フィンガープリント
 Image URL,画像 URL
 Import a sheet,棚卸シートを取り込む
@@ -300,12 +352,18 @@ Items are required,品目を入力してください
 Items not found.,商品が見つかりません
 Job Roles,機能権限
 LINE,LINE
+LINE Message,LINEメッセージ
+LINE User,LINEユーザー
 LINE unbound,LINE の連携を解除しました
 Last Login,最終ログイン
 Last Month,先月
+Last Movement,最終の入出庫
+Last counted at,最終棚卸日時
+Last counted by,最終棚卸者
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
 Leave empty to use the default warehouse,空欄なら既定の倉庫を使います
+"Legacy used head office / branch, with the branch number when it is a branch",旧システムは本店／支店を使い、支店の場合は支店番号を伴います
 Light,ライト
 Line Amount,行金額
 Line Discount,行値引
@@ -317,14 +375,17 @@ Loading...,読み込み中…
 Location,保管場所
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
 Low (≤{0}),在庫少（≤{0}）
+Low Stock Threshold,低在庫しきい値
 Low stock,在庫少
 Low stock alert,低在庫アラート
 Main,メイン倉庫
 Manual,手動入力
 Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
+Media Type,メディア種別
 Merge Items,明細統合
 Mode of Payment,支払方法
+Modes of Payment,支払方法
 More Filters,追加フィルタ
 Name,名前
 Net,純額
@@ -344,6 +405,7 @@ New product,商品を追加
 New stock count,棚卸を作成
 New warehouse,倉庫を追加
 Next,次へ
+Next Number,次の番号
 No,番号
 No Open Shift,未開店
 No attachments,添付ファイルなし
@@ -365,6 +427,8 @@ Notes,備考
 Nothing counted yet,まだ棚卸記録がありません
 Now sending {0} documents,{0}の書類を送信中
 OCR,文字認識
+Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,オフは原価が未確定であることを示し、金額と単価は 0 と推測せず空のままにします
+On Hand,現在庫
 Only Draft documents can be deleted,下書きの伝票のみ削除できます
 Only a completed sale receipt can be refunded,完了した売上レシートのみ返品できます
 Only a receipt records a collection,入金を記録できるのは領収書のみです
@@ -385,7 +449,9 @@ Opening,期首
 Opening Amount,開始金額
 Opening Balance,開始残高
 Opening Cash,釣銭準備金
+Opening Qty,期首数量
 Opening Quantity,期首数量
+Opening Unit Cost,期首単価
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Other,その他
@@ -405,6 +471,7 @@ Pay,会計
 Payment,支払
 Payment Date,支払日
 Payment Method,支払方法
+Payment Needs Approval,支払いに承認が必要
 Payment Receipt,支払証憑
 Payment Reconciliation,支払方法の照合
 Payment Status,支払状況
@@ -420,35 +487,47 @@ Please select an Item,品目を選択してください
 Point the camera at the barcode or QR code,カメラをバーコード・QR コードに向けてください
 Position Balance,保管場所の残高
 Position differences,棚番の差異
+Post Stock On Confirm,確定時に在庫転記
 Post differences,差異を転記
 Posted,転記済み
+Posted Qty,転記済み数量
+Posted at,転記日時
+Posted by,転記者
 Posted to Stock,在庫計上済み
 Posted {0} differences,差異 {0} 件を転記しました
 Posting Date,転記日
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
+Prefix for this company's document numbers,この会社の伝票番号の接頭辞
 Preview,プレビュー
 Previous,前へ
 Price,価格
+Price Is Set,価格設定済み
 Prices Include Tax,税込価格
 Print,印刷
 Print Receipt,レシート印刷
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
+Product Name,商品名
 Product Ref,商品の外部参照
 Product name,商品名
 Product not found,商品が見つかりません
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 PromptPay,PromptPay
 PromptPay Amount,PromptPay
+PromptPay ID,PromptPay ID
 Purchase,仕入
 Purchase Amount,仕入金額
 Purchase Count,仕入件数
 Purchase Invoice,仕入請求書
 Purchase Order,発注書
+Purchase Record,仕入記録
 Purchase Records,仕入記録
 Purchasing,購買
+QR Payload,QR内容
 QR payload,QR 内容
 Qty,数量
+"Qty (base unit, signed)",数量（基準単位・符号付き）
+Qty (entered unit),数量（入力単位）
 Quantity,数量
 Quantity Available,在庫数
 Quantity counted this time,今回の実地数量
@@ -460,28 +539,37 @@ Quotation,見積書
 Rate,単価
 Reason for Cancellation,取消理由
 Receipt,領収書
+Receipt No,レシート番号
 Receipt Status,レシート状態
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
 Received,入庫数量
 Received Amount,入金額
+Received At,受信日時
 Received By,受領者
+"Received from LINE, then confirmed into a purchase record or discarded",LINEから受信し、仕入記録として確定するか破棄します
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recent Orders,最近の会計
 Recognition is not configured for this account,文字認識が設定されていません
 Recognition returned nothing,内容を認識できませんでした
 Recognizing...,読み取り中…
+Record,伝票
 Record a count,棚卸を入力
 Recount this product,この商品を再棚卸
 Reference,参照番号
+Reference Cost,参考原価
 Reference cost,参考原価
 References,参照情報
 Refund,返品・返金
 Refund Amount,返金額
 Refund Count,返品件数
+Refund Of,返金元レシート
+Refuse a second document with the same supplier and document number,同じ仕入先・同じ伝票番号の2件目を拒否します
 Reload,再読み込み
 Remaining Amount,残り金額
 Remarks,備考
+Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
+Request id,リクエストID
 Requested By,申請者
 Reset,リセット
 Reset Password,パスワードを再設定
@@ -494,8 +582,10 @@ Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
 Sale,販売
+Sale Price,販売価格
 Sales,販売
 Sales Count,件数
+Sales Document,販売伝票
 Save,保存
 Save Draft,下書きを保存
 Save and next,保存して次へ
@@ -520,13 +610,17 @@ Select a stock count,棚卸を選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
 Select the original sale line,元の販売明細を選択してください
+Selling Units,販売単位
 Selling price,販売価格
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+Sending the same file twice must not create two drafts,同じファイルを2回送っても下書きを2件作らない
+Sent By,送信者
 Service,サービス
 Set as current,現在の会社にする
 Set as default,既定にする
 Sheet,シート
 Shelf,棚番
+Shift,シフト
 Shift History,シフト履歴
 Shift No,シフト番号
 Shift Records,シフト記録
@@ -534,12 +628,14 @@ Shift closed · Cash difference {0},シフト終了 · 現金差異 {0}
 Shift {0} opened,シフト {0} を開始しました
 Shift {0} · Expected cash {1},シフト {0} · 現金予定額 {1}
 Shift {0} · opened {1} · expected cash {2},シフト {0} · 開始 {1} · 現金予定額 {2}
+Short Name,略称
 Short by {0},{0} 不足
 Short name,略称
 Show disabled,無効も表示
 Show only,表示のみ
 Show zero stock,在庫 0 も表示
 Skipped {0} row(s); the first ones are listed above,{0}行をスキップしました（先頭のみ表示）
+Sold At,販売日時
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Sort Order,並び順
 Source,ソース
@@ -547,23 +643,30 @@ Source File,元ファイル
 Split,分割
 Start counting,棚卸を開始
 Status,ステータス
+"Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
+Stock Token,在庫トークン
+Stock Value,在庫金額
 Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
 Stock changed; recount,在庫変動・再棚卸
 Stock count,棚卸
 "Stock count created, {0} rows",棚卸を作成しました（{0} 行）
 Stock count not found,棚卸が見つかりません
+"Stock count tasks, staff entries and variance posting",棚卸タスク、担当者入力、差異の転記
 Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
+Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
+Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の既定倉庫
 Stock ledger,在庫の受け払いを開く
 Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
 Subcategory,サブカテゴリ
 Submit,提出
 Submit and Receive Stock,確定して入庫
 Submitted,提出済み
+Submitted At,提出日時
 Submitted {0},{0} を提出しました
 Substitute Receipt,代替領収書
 Summary,摘要
@@ -597,11 +700,14 @@ That file has no rows,このファイルには行がありません
 That file is not an Excel workbook,Excel ブックではありません
 That photo could not be read,この写真を読み取れません
 That row is not part of this stock count,この行はこの棚卸に含まれていません
+That warehouse belongs to another company,この倉庫は別会社のものです
+The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
 The account you give customers for transfers,入金時に相手へ伝える口座
 The amount received is less than the total,受取額が合計に足りません
 The cart is empty,カートは空です
 The company on your documents,書類に使う自社情報
+The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
@@ -622,6 +728,7 @@ This browser cannot scan with the camera,このブラウザーはカメラでス
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 This channel is not open yet,このチャンネルはまだ開放していません
 This code is already taken,このコードは既に使われています
+This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
 This device cannot scan,この端末ではスキャンできません
 This device has no camera to scan with,この端末にはスキャンに使えるカメラがありません
 This document cannot be recorded yet,この伝票はまだ記録できません
@@ -647,8 +754,10 @@ Type,種別
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
 UOM,単位
 Unable to load preview,プレビューを読み込めません
+Unbound,未連携
 Unit,単位
 Unit Cost,単位原価
+Unit Cost (net of VAT),単価（VAT除く）
 Unit Price,単価
 Unknown buyer,不明な買い手
 Unknown direction,不明な区分
@@ -669,13 +778,16 @@ Upload a sheet,取り込み
 Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
+Used when a new purchase line does not say otherwise,新しい仕入明細で別途指定がない場合に使います
 User,ユーザー
 VAT,消費税
+VAT Applicable,VAT 対象
 VAT Applies,課税対象
 VAT Rate,付加価値税率
 VAT Rate %,税率%
 VAT applies,VAT 対象
 Value,金額
+Void Reason,取消理由
 Void all current observations for this product and recount it? Previous records remain in the history.,この商品の現在の記録を取り消して再棚卸しますか？以前の記録は履歴に残ります。
 Void the payments before voiding the document,伝票を取り消す前に支払を取り消してください
 Void the refunds first,先に返品・返金を取消してください
@@ -683,16 +795,19 @@ Void this count of {0}?,この {0} の記録を取り消しますか？
 Void this document and reverse its stock movements?,この伝票を取り消して在庫移動を戻しますか？
 Void {0} document(s) and reverse their stock movements?,選択した{0}件の伝票を取り消して在庫移動を戻しますか？
 Void {0} selected,選択した{0}件を取り消す
+Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
 Warehouse,倉庫
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
+Who bought this receipt; empty means a walk-in customer,このレシートの購入者。空欄は一般客（通りがかり）です
 With differences,差異あり
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+"Year, year-month or ALL, depending on the reset policy",年・年月・ALL のいずれか（リセット方針による）
 Yes,はい
 You cannot submit empty order.,空の注文は送信できません
 You cannot submit the order without payment.,入金がないと送信できません
@@ -806,6 +921,7 @@ count,棚卸
 draft,下書き
 goods,物品
 hq,本店
+"image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録

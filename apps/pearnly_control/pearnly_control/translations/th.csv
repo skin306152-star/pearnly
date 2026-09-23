@@ -203,6 +203,8 @@ Reference,เลขที่อ้างอิงภายนอก
 Reject,ปฏิเสธ
 Reject top-up,ปฏิเสธการเติมเงิน
 Rejected,ถูกปฏิเสธ
+Removed At,เวลาที่ลบ
+Removed By,ผู้ลบ
 Requested Amount,จำนวนที่ขอ
 Requested At,ขอเมื่อ
 Restart services,รีสตาร์ตบริการ

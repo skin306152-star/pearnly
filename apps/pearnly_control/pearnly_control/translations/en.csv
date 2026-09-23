@@ -196,6 +196,8 @@ Received amount (as actually credited by the bank),Received amount (as actually 
 Reject,Reject
 Reject top-up,Reject top-up
 Rejected,Rejected
+Removed At,Removed At
+Removed By,Removed By
 Requested Amount,Requested Amount
 Requested At,Requested At
 Restart services,Restart services

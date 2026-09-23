@@ -28,6 +28,7 @@ Address,地址
 Admin Account,管理员账号
 Admin Password,管理员密码
 Administrator,管理员
+Admission Key,准入键
 Advisors {0},顾问 {0}
 All,全部
 All directions,全部方向
@@ -42,6 +43,7 @@ Approved amounts are credited to your balance.,审核通过后计入账户余额
 Are you sure you want to sign out?,确定要退出登录吗？
 Assign To,指定审批人
 Attempt,第几次尝试
+Attempts,尝试次数
 Auto Push,自动推送
 Automatic (by DMS account),自动匹配（按 DMS 账号）
 Back to home,回到首页
@@ -77,6 +79,7 @@ Change account,修改账号
 Change password,更改密码
 Change your password from your account profile using Change Password.,请在个人资料中使用“更改密码”修改登录密码。
 Charges,扣费
+Checkpoints,检查点
 Choose a plan,选择套餐
 Claimed By,认领人
 Claiming a push job requires a connection,抢推送任务必须指定连接
@@ -289,11 +292,13 @@ Item / description,品名 / 说明
 "JPG, PNG or PDF, up to 10 MB",JPG、PNG 或 PDF，最大 10 MB
 "Kept as evidence, not a business field",留证用，不是业务字段
 "Kept as evidence, not a business field; only the confirmed fields are.",留证用，不是业务字段；确认后的字段才是
+Kind,类型
 LINE Display Name,LINE 昵称
 LINE User ID,LINE 用户 ID
 LINE could not be reached; please try again,连不上 LINE，请稍后再试
 LINE status,LINE 状态
 Language,语言
+Last Code,上次结果码
 Last Login At,最近登录
 Last Result,最近结果
 Last Seen At,最近活跃
@@ -302,6 +307,7 @@ Last Verified At,最后核对时间
 Last result,最近结果
 Lease Expires,租约到期
 Lease Owner,租约持有者
+Lease Until,租约到期
 Leave blank to keep the current password.,留空则不修改当前密码。
 Leave blank to keep unchanged,留空则不修改
 Line Amount,行金额
@@ -324,6 +330,7 @@ Max Retries,最多重试
 Missing code or state,缺少 code 或 state
 My Profile,个人信息
 Name,名称
+Namespace is not allowed: {0},命名空间不允许：{0}
 "Neither tier produced a result (network, key or model name could all be the cause)",两档都没读出结果（网络/密钥/模型名都可能）
 Net Amount,不含税金额
 Net Payable,应付净额
@@ -335,6 +342,7 @@ New entry,新建录入
 New password,新密码
 New purchase order,新建采购单
 Next Retry At,下次重试时间
+Next Run,下次运行
 No,否
 No DMS connection has been configured yet,还没有配过 DMS 连接
 No OCR key configured (site config pearnly_ocr_api_key),没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）
@@ -453,6 +461,10 @@ Regenerate,重新生成
 Rejected,已拒绝
 Reload advisors,重新读取顾问名册
 Remote Address,对端地址
+Removed At,移除时间
+Removed By,移除人
+Removed from Product History At,从产品历史移除时间
+Removed from Product History By,从产品历史移除人
 Reorder sidebar,侧栏排序
 Request & Response,请求与响应
 Request Body,请求内容
@@ -625,6 +637,7 @@ Transport Result,传输结果
 Trigger,触发方式
 Type,类型
 UI language,界面语言
+Unable to load this page. Please reload.,这个页面加载不了，请刷新。
 Unable to read the current advisor list. Retry before changing the assignment.,无法读取当前顾问名册。请重试后再修改归属。
 Unable to verify this company’s LINE official account. Please try again.,无法核实本公司的 LINE 官方账号，请重试。
 Unbind LINE,解绑 LINE

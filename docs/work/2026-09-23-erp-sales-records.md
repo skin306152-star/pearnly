@@ -1329,6 +1329,13 @@ set_active_company / document_company / scope / for_document`；`api_company_con
 > （加购静音 / 键盘静音 / 结账 `click` / 收款键盘 `numpad-touch` / 供应商保存 `click`）。
 > **未验到**：泰语与日语措辞没有母语者复核（是我按术语表词根写的）；真机听感仍无法核实（量的是播放调用）。
 
+> F60 的补充（2026-09-23）：「实现」再加 —— **140 条 msgid 的四语译文**（124 条 DocType 字段
+> label/description + 10 条消息/界面串 + 6 条功能目录），只动术语表与生成包，没动业务代码；
+> 同时**更正 F59** 里"DMS/Cowork 把中文当 msgid"的说法（AST 复核 = 0 条）。「本地验证」再加 ——
+> `i18n-build --check` PASS、5 个 App 的 msgid × 运行时目录对账 **zh/th 缺 0**、检查器 `--missing zh`
+> 137→19（剩 19 条全是 frappe 自带词条）、硬编码 170 条不变、架构与前端取词 PASS、演示站
+> `frappe._()` 中泰回读。**未验到**：控制面/DMS/Cowork 的运行时（本机容器挂的是主仓，不是本工作树）。
+
 ## 收尾：交接保留
 
 - F59 在演示站的痕迹：**留着没恢复**（用户 2026-09-23 明确"本地的这些测试，可以不用恢复"）——
@@ -3253,3 +3260,50 @@ clear-cache`）后重新打开，页面里的 `?v=` 变成 **`7a6c1d08539d7403`*
 - 演示站开着的班 `SHIFT-2026-00635`（班次 13，`TERM-00485`，22:10 开，备用金 0）**没交班**，你进去就能点。
 - 供应商 `SUP-00116` 按过一次「保存」（没改任何字段，只动了修改时间戳）——那是"保存类音效"的验收动作。
 - 浏览器标签已关；改完之后给站点清过一次缓存（页面里 `cashier.js` 的 `?v=` 指纹已随内容变化）。
+
+### F60：代码里用到的 msgid 全部补齐译文（字段标签/说明 + 消息 + 功能目录）（2026-09-23，未部署）
+
+用户口径："做"（接 F59 末尾我给的"下一批"）。
+
+**先更正 F59 里我说错的一条**：我上一轮说"`pearnly_dms` / `pearnly_cowork` 有 13 条把**中文**当 msgid
+传给 `_()`"。**这条是错的。** 这次换 **AST 精确解析**（不靠正则）重扫 5 个 App 的 `_()` / `__()` 调用点：
+**把中文当 msgid 的地方 = 0 条**；DMS/Cowork 早就在用英文原文，术语表里也早有对应行（例：
+`The details are not confirmed yet, so it cannot be pushed to DMS` = 资料还没确认，不能推送 DMS，
+泰语 `ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้`）。那 13 条是我上个扫描脚本**跨语句误匹配**的产物
+（正则从更早的 `throw(` 一路吞到后面的引号），**没有一行代码要改**。
+
+**真正缺的是什么**（AST 取 py、单语句正则取 js、JSON 取 label/description，再拿**运行时目录**核对：
+frappe 的 `zh.po`/`th.po` + 我们 5 个 App 的生成包）：**140 条**用户可见 msgid 在中/泰目录里都没有 ——
+
+- 124 条是 DocType 字段的 label / description（`ERP Product` 13、`Purchase Settings` 12、
+  `ERP Company`/`ERP Sale`/`ERP Stock Movement` 各 9、`ERP LINE Intake` 10…），其中 13 条是长说明；
+- 10 条是消息或界面串：`Unable to load this page. Please reload.`、`That warehouse belongs to another
+  company`、`Unbound`、`Multiple DMS connections exist for this operator`、`Removed At/By`、
+  `Namespace is not allowed: {0}`…；
+- 6 条是产品功能目录（`features.json` 的 label/description：ERP、Cashier (POS)、Cowork、DMS…）。
+
+**做了什么**：140 行写进 5 个 App 的术语表（中英泰日并排，**泰语为准**），词根沿用既有术语表
+（物料 `สินค้า`、仓库 `คลังสินค้า`、客户 `ลูกค้า`、小票 `ใบเสร็จ`、班次 `กะ`、收银台 `จุดขาย`、
+已过账 `ลงบัญชีแล้ว`、参考成本 `ต้นทุนอ้างอิง`…），长说明逐句翻（例：`0 means the price was never
+set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL…`），
+`scripts/i18n-build.py` 重新生成 5 个 App × 4 语言共 20 个包文件。
+
+**验证**
+
+| 层 | 命令 / 场景 | 结果 |
+| --- | --- | --- |
+| 术语表 | `i18n-build.py --check` | `RESULT: PASS`（5 个 App，erp 1010 条 / dms 13 条…） |
+| 精确对账 | AST+JSON 提取 5 个 App 的 msgid × 运行时目录（frappe po + 我们 CSV） | **zh 缺 0 / th 缺 0**（改前 zh 缺 140） |
+| 检查器 | `check-i18n.py --missing zh` | 137 → 120 → **19**；剩下 19 条**全是 frappe 自带词条**（`Title`/`Version`/`PDF`/`Add Column`/`Setup Auto Email`…，框架自己的 po 里 zh 与 th 都在，`grep -c "^msgid"` 逐条点过），不是真缺口（检查器只比我们的 CSV，脚本里也注明了要人工判断这类） |
+| 硬编码 | `check-i18n.py`（全量） | **170 条，与改前逐项相同**（本次只加译文，没新增写死文案） |
+| 架构 / 前端取词 | `check-architecture.py` / `check-frontend-i18n.py` | `PASS (0 violations)` / `PASS`（0 问题） |
+| 运行时（真站点） | 演示站 `erp-pos-a.localhost`，`frappe._()` 双语回读 | zh：物料名称 / 售价 / 现金差额 / 这个页面加载不了，请刷新。；**th：ชื่อสินค้า / ราคาขาย / ผลต่างเงินสด / โหลดหน้านี้ไม่ได้ กรุณารีเฟรช** |
+
+**没验到 / 限制**
+
+- **控制面、DMS、Cowork 三处没有运行时证据**：本机跑 `control.localhost` 的容器挂的是主仓
+  `/Users/skin/pearnly`（不是本工作树），DMS/Cowork 本机没有站点。这三处只验到**术语表与生成包**
+  （CSV 内容逐条对过：`Removed At`=移除时间/เวลาที่ลบ/削除日時、`Booking Number`=订车单号/เลขที่การจอง/予約番号…），
+  要合进 `main` 之后才有运行时。
+- 泰语与日语仍是我按词根写的，建议泰语同事过一遍，重点是那 13 条长说明。
+- 未部署、未推送、未合并；本次只改术语表与生成的翻译包，没有站点数据变更。

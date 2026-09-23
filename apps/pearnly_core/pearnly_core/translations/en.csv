@@ -28,6 +28,7 @@ Address,Address
 Admin Account,Admin Account
 Admin Password,Admin Password
 Administrator,Administrator
+Admission Key,Admission Key
 Advisors {0},Advisors {0}
 All,All
 All directions,All directions
@@ -42,6 +43,7 @@ Approved amounts are credited to your balance.,Approved amounts are credited to 
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Assign To,Assign To
 Attempt,Attempt
+Attempts,Attempts
 Auto Push,Auto Push
 Automatic (by DMS account),Automatic (by DMS account)
 Back to home,Back to home
@@ -77,6 +79,7 @@ Change account,Change account
 Change password,Change password
 Change your password from your account profile using Change Password.,Change your password from your account profile using Change Password.
 Charges,Charges
+Checkpoints,Checkpoints
 Choose a plan,Choose a plan
 Claimed By,Claimed By
 Claiming a push job requires a connection,Claiming a push job requires a connection
@@ -288,11 +291,13 @@ Item / description,Item / description
 "JPG, PNG or PDF, up to 10 MB","JPG, PNG or PDF, up to 10 MB"
 "Kept as evidence, not a business field","Kept as evidence, not a business field"
 "Kept as evidence, not a business field; only the confirmed fields are.","Kept as evidence, not a business field; only the confirmed fields are."
+Kind,Kind
 LINE Display Name,LINE Display Name
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,LINE could not be reached; please try again
 LINE status,LINE status
 Language,Language
+Last Code,Last Code
 Last Login At,Last Login At
 Last Result,Last Result
 Last Seen At,Last Seen At
@@ -301,6 +306,7 @@ Last Verified At,Last Verified At
 Last result,Last result
 Lease Expires,Lease Expires
 Lease Owner,Lease Owner
+Lease Until,Lease Until
 Leave blank to keep the current password.,Leave blank to keep the current password.
 Leave blank to keep unchanged,Leave blank to keep unchanged
 Line Amount,Line Amount
@@ -323,6 +329,7 @@ Max Retries,Max Retries
 Missing code or state,Missing code or state
 My Profile,My Profile
 Name,Name
+Namespace is not allowed: {0},Namespace is not allowed: {0}
 "Neither tier produced a result (network, key or model name could all be the cause)","Neither tier produced a result (network, key or model name could all be the cause)"
 Net Amount,Net Amount
 Net Payable,Net Payable
@@ -334,6 +341,7 @@ New entry,New entry
 New password,New password
 New purchase order,New purchase order
 Next Retry At,Next Retry At
+Next Run,Next Run
 No,No
 No DMS connection has been configured yet,No DMS connection has been configured yet
 No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (site config pearnly_ocr_api_key)
@@ -451,6 +459,10 @@ Regenerate,Regenerate
 Rejected,Rejected
 Reload advisors,Reload advisors
 Remote Address,Remote Address
+Removed At,Removed At
+Removed By,Removed By
+Removed from Product History At,Removed from Product History At
+Removed from Product History By,Removed from Product History By
 Reorder sidebar,Reorder sidebar
 Request & Response,Request & Response
 Request Body,Request Body
@@ -623,6 +635,7 @@ Transport Result,Transport Result
 Trigger,Trigger
 Type,Type
 UI language,UI language
+Unable to load this page. Please reload.,Unable to load this page. Please reload.
 Unable to read the current advisor list. Retry before changing the assignment.,Unable to read the current advisor list. Retry before changing the assignment.
 Unable to verify this company’s LINE official account. Please try again.,Unable to verify this company’s LINE official account. Please try again.
 Unbind LINE,Unbind LINE

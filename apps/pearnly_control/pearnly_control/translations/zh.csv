@@ -203,6 +203,8 @@ Reference,外部单号
 Reject,拒绝
 Reject top-up,拒绝充值
 Rejected,已拒绝
+Removed At,移除时间
+Removed By,移除人
 Requested Amount,申请金额
 Requested At,申请时间
 Restart services,重启服务

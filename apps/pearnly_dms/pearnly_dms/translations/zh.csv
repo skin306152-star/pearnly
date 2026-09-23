@@ -1,5 +1,13 @@
+Booking ID,订车编号
+Booking Number,订车单号
+DMS,DMS
 Enter the DMS password.,请填写 DMS 密码。
+Last Error,上次错误
+Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
+Next Attempt,下次尝试
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+Submission Evidence,提交凭据
+Submission Nonce,提交随机码
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥

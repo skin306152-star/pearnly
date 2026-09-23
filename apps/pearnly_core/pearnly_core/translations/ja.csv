@@ -28,6 +28,7 @@ Address,住所
 Admin Account,管理者アカウント
 Admin Password,管理者パスワード
 Administrator,管理者
+Admission Key,受け入れキー
 Advisors {0},担当者 {0}
 All,すべて
 All directions,全ての区分
@@ -42,6 +43,7 @@ Approved amounts are credited to your balance.,承認後、残高に反映され
 Are you sure you want to sign out?,ログアウトしますか？
 Assign To,承認者の指定
 Attempt,試行回数
+Attempts,試行回数
 Auto Push,自動送信
 Automatic (by DMS account),自動照合（DMSアカウント基準）
 Back to home,ホームに戻る
@@ -77,6 +79,7 @@ Change account,アカウントを変更
 Change password,パスワード変更
 Change your password from your account profile using Change Password.,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 Charges,課金
+Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
 Claimed By,担当者
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
@@ -289,11 +292,13 @@ Item / description,品名・摘要
 "JPG, PNG or PDF, up to 10 MB",JPG・PNG・PDF、10 MB まで
 "Kept as evidence, not a business field",証跡用で業務フィールドではありません
 "Kept as evidence, not a business field; only the confirmed fields are.",証跡用で業務フィールドではありません。確定後の項目だけが業務値です。
+Kind,種類
 LINE Display Name,LINE表示名
 LINE User ID,LINEユーザーID
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
 LINE status,LINEステータス
 Language,言語
+Last Code,前回のコード
 Last Login At,最終ログイン
 Last Result,最新の結果
 Last Seen At,最終アクセス
@@ -302,6 +307,7 @@ Last Verified At,最終確認日時
 Last result,最新の結果
 Lease Expires,リース期限
 Lease Owner,リース保有者
+Lease Until,確保期限
 Leave blank to keep the current password.,空欄の場合、現在のパスワードを保持します。
 Leave blank to keep unchanged,空欄なら変更しません
 Line Amount,行金額
@@ -324,6 +330,7 @@ Max Retries,最大再試行
 Missing code or state,code または state がありません
 My Profile,個人プロフィール
 Name,名称
+Namespace is not allowed: {0},名前空間は許可されていません: {0}
 "Neither tier produced a result (network, key or model name could all be the cause)",どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 Net Amount,税抜金額
 Net Payable,支払純額
@@ -335,6 +342,7 @@ New entry,新規入力
 New password,新しいパスワード
 New purchase order,仕入伝票を作成
 Next Retry At,次回再試行日時
+Next Run,次回実行
 No,いいえ
 No DMS connection has been configured yet,DMS接続はまだ設定されていません
 No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
@@ -453,6 +461,10 @@ Regenerate,再生成
 Rejected,却下済み
 Reload advisors,担当者一覧を再読み込み
 Remote Address,接続先アドレス
+Removed At,削除日時
+Removed By,削除者
+Removed from Product History At,製品履歴から削除した日時
+Removed from Product History By,製品履歴から削除した人
 Reorder sidebar,サイドバーの並べ替え
 Request & Response,リクエストと応答
 Request Body,リクエスト内容
@@ -625,6 +637,7 @@ Transport Result,転送結果
 Trigger,トリガー
 Type,種別
 UI language,表示言語
+Unable to load this page. Please reload.,このページを読み込めません。再読み込みしてください。
 Unable to read the current advisor list. Retry before changing the assignment.,現在の担当者一覧を取得できません。再試行してから帰属を変更してください。
 Unable to verify this company’s LINE official account. Please try again.,会社のLINE公式アカウントを確認できません。再試行してください。
 Unbind LINE,LINE連携を解除
