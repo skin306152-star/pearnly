@@ -897,6 +897,8 @@ The fiscal year start month must be between 1 and 12	会计年度的起始月份
 A confirmed draft must point at the record it created	已确认的草稿必须指向它创建的那条记录	ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น	確定した下書きは、それが作成した伝票を指している必要があります
 A stock entry needs at least one line	出入库单至少要有一行	เอกสารรับ-จ่ายต้องมีอย่างน้อย 1 รายการ	入出庫伝票には少なくとも1行必要です
 Enter a quantity	请输入数量	กรุณากรอกจำนวน	数量を入力してください
+Click to choose a customer	点击选择客户	แตะเพื่อเลือกลูกค้า	顧客を選んでください	trade.pickCustomer
+Walk-in customer	散客	ลูกค้าทั่วไป	一般客	trade.walkIn
 0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.	0 表示从来没设过价格（不是真的 ฿0）。Frappe 的 Currency 列存不了 NULL，所以「没设」和「0」的差别由这个标记来区分；收银台的零价拦截读的就是它。	0 หมายถึงยังไม่เคยตั้งราคา (ไม่ใช่ราคา ฿0 จริง) คอลัมน์ Currency ของ Frappe เก็บ NULL ไม่ได้ ความต่างระหว่าง "ยังไม่ตั้ง" กับ "ศูนย์" จึงใช้ธงนี้แทน และด่านราคาศูนย์ของ POS อ่านค่านี้	0 は価格を一度も設定していない（実際の ฿0 ではない）ことを表します。Frappe の Currency 列は NULL を保存できないため、「未設定」と「0」の区別はこのフラグで持ち、POS のゼロ価格ガードがこれを参照します。
 1-12; Thai companies commonly start in January	1–12；泰国公司一般从 1 月开始	1-12; บริษัทไทยมักเริ่มเดือนมกราคม	1〜12。タイ企業は1月開始が一般的です
 A payment has to be approved before it counts as paid	付款要先经过审批才算已付	การจ่ายต้องได้รับการอนุมัติก่อนจึงนับว่าจ่ายแล้ว	支払いは承認されて初めて支払済みとして扱われます

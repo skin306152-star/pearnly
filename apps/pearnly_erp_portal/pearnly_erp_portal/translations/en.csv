@@ -123,6 +123,7 @@ Choose the sheet to import,Choose the sheet to import
 Clear cart,Clear cart
 Clear customer,Clear customer
 Clear the cart?,Clear the cart?
+Click to choose a customer,Click to choose a customer
 Client Reference,Client Reference
 Close,Close
 Close Shift,Close Shift
@@ -801,6 +802,7 @@ Void {0} selected,Void {0} selected
 Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
+Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
@@ -1367,6 +1369,7 @@ trade.paidNotice,Receipt {0} · Change {1}
 trade.pay,Complete Payment
 trade.paymentDate,Payment Date
 trade.paymentState,Payment Status
+trade.pickCustomer,Click to choose a customer
 trade.pickLine,Pick a line first
 trade.pickPadTarget,"Pick quantity, discount or price first"
 trade.price,Unit Price
@@ -1429,6 +1432,7 @@ trade.voidConfirm,Void this document and reverse its stock movements?
 trade.voidConfirmCount,Void {0} document(s) and reverse their stock movements?
 trade.voidNotice,Voided {0}
 trade.voidPaid,Void the payments before voiding the document
+trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
 trade.warehouseHint,Type any warehouse name; a new warehouse is created if that name is new
 transfer,transfer

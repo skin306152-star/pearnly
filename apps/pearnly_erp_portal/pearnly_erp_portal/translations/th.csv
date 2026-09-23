@@ -123,6 +123,7 @@ Choose the sheet to import,กรุณาเลือกไฟล์ที่�
 Clear cart,ล้างตะกร้า
 Clear customer,ล้างลูกค้า
 Clear the cart?,ล้างตะกร้าใช่ไหม
+Click to choose a customer,แตะเพื่อเลือกลูกค้า
 Client Reference,ข้อมูลอ้างอิงจากไคลเอนต์
 Close,ปิด
 Close Shift,ปิดกะ
@@ -801,6 +802,7 @@ Void {0} selected,ยกเลิก {0} รายการที่เลือ
 Voided,ยกเลิกแล้ว
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
+Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
@@ -1367,6 +1369,7 @@ trade.paidNotice,ใบเสร็จ {0} · เงินทอน {1}
 trade.pay,รับชำระเงิน
 trade.paymentDate,วันที่ชำระเงิน
 trade.paymentState,สถานะชำระเงิน
+trade.pickCustomer,แตะเพื่อเลือกลูกค้า
 trade.pickLine,เลือกบรรทัดก่อน
 trade.pickPadTarget,เลือกจำนวน ส่วนลด หรือราคาก่อน
 trade.price,ราคาต่อหน่วย
@@ -1429,6 +1432,7 @@ trade.voidConfirm,ยกเลิกเอกสารและย้อนร�
 trade.voidConfirmCount,ยกเลิก {0} เอกสารและย้อนรายการสต็อกหรือไม่?
 trade.voidNotice,ยกเลิก {0} รายการแล้ว
 trade.voidPaid,ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร
+trade.walkIn,ลูกค้าทั่วไป
 trade.warehouse,คลัง
 trade.warehouseHint,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 transfer,โอนเงิน

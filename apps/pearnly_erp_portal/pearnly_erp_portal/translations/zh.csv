@@ -123,6 +123,7 @@ Choose the sheet to import,请先选择要导入的表格
 Clear cart,清空购物车
 Clear customer,清除客户
 Clear the cart?,要清空购物车吗？
+Click to choose a customer,点击选择客户
 Client Reference,客户端引用
 Close,关闭
 Close Shift,交班
@@ -801,6 +802,7 @@ Void {0} selected,作废选中的 {0} 张
 Voided,已撤销
 Voided {0},已作废 {0} 张
 "Voided, not in the total",已撤销，不计入合计
+Walk-in customer,散客
 Warehouse,仓库
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
@@ -1367,6 +1369,7 @@ trade.paidNotice,小票 {0} · 找零 {1}
 trade.pay,收款完成
 trade.paymentDate,付款日期
 trade.paymentState,付款状态
+trade.pickCustomer,点击选择客户
 trade.pickLine,先选一行
 trade.pickPadTarget,先点数量、折扣或单价
 trade.price,单价
@@ -1429,6 +1432,7 @@ trade.voidConfirm,作废这张单据并冲销对应库存变动？
 trade.voidConfirmCount,作废选中的 {0} 张单据并冲销对应库存变动？
 trade.voidNotice,已作废 {0} 张
 trade.voidPaid,先冲掉付款再作废这张单据
+trade.walkIn,散客
 trade.warehouse,仓库
 trade.warehouseHint,仓库可以自由填写，名字没见过的会自动新建一个
 transfer,转账

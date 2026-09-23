@@ -264,19 +264,41 @@
 	align-items: center;
 	cursor: pointer;
 }
-/* 官方 `add-discount-wrapper`：虚线框、居中一颗「折扣」（点一下换成百分比输入）。 */
+/* 官方 `add-discount-wrapper`（`erpnext/public/scss/point-of-sale.scss` 原值照抄）：
+   虚线框 + **左对齐**一颗图标 + 「折扣」；点一下在原地换成百分比输入。
+
+   为什么这里不写 `border`：官方那格的内联样式是 `.css({border: "1px dashed var(--gray-500)"})`
+   （空闲）与 `var(--dark-green-500)`（已折扣），而 **`--dark-green-500` 在页面上并不存在** ——
+   整条 `border` 声明被浏览器丢弃，于是官方**已折扣时是没有任何边框的**（2026-09-23 在
+   ERPNext 16.34.1 的收银台实测：inline 写着 dashed 绿、computed 是 `none 0px`）。
+   边框一律由 JS 设内联样式（与官方同一手），这里不重复声明，免得"比官方多一个框"。 */
 .point-of-sale-app .cart-totals-section .add-discount-wrapper {
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	gap: var(--margin-xs);
-	padding: var(--padding-xs) var(--padding-sm);
+	padding: var(--padding-sm) var(--padding-md);
 	margin-bottom: var(--margin-sm);
-	border: 1px dashed var(--gray-400);
 	border-radius: var(--border-radius-md);
 	font-size: var(--text-md);
 	color: var(--text-color);
 	cursor: pointer;
+}
+
+/* 输入框**铺满整格**（官方 SCSS 的 `.add-discount-field { width: 100% }`；
+   不写这条，输入框会缩成一颗小胶囊）。 */
+.point-of-sale-app .cart-totals-section .add-discount-wrapper > .add-discount-field {
+	width: 100%;
+}
+
+.point-of-sale-app .cart-totals-section .add-discount-wrapper .discount-icon {
+	margin-right: var(--margin-sm);
+}
+
+.point-of-sale-app .cart-totals-section .add-discount-wrapper .edit-discount-btn {
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
+	font-weight: 500;
+	color: var(--dark-green-500);
 }
 .point-of-sale-app .cart-header > .qty-header { margin-right: var(--margin-lg); text-align: center; }
 .point-of-sale-app .cart-header > .rate-amount-header { text-align: right; margin-right: var(--margin-sm); }

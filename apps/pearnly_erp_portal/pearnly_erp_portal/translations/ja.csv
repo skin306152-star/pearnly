@@ -123,6 +123,7 @@ Choose the sheet to import,取り込むシートを選択してください
 Clear cart,カートを空にする
 Clear customer,顧客をクリア
 Clear the cart?,カートを空にしますか
+Click to choose a customer,顧客を選んでください
 Client Reference,クライアント参照
 Close,閉じる
 Close Shift,シフト終了
@@ -801,6 +802,7 @@ Void {0} selected,選択した{0}件を取り消す
 Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
+Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
@@ -1367,6 +1369,7 @@ trade.paidNotice,レシート {0} · お釣り {1}
 trade.pay,支払完了
 trade.paymentDate,支払日
 trade.paymentState,支払状態
+trade.pickCustomer,顧客を選んでください
 trade.pickLine,先に行を選んでください
 trade.pickPadTarget,先に数量・割引・単価を選んでください
 trade.price,単価
@@ -1429,6 +1432,7 @@ trade.voidConfirm,この伝票を取り消して在庫移動を戻しますか�
 trade.voidConfirmCount,選択した{0}件の伝票を取り消して在庫移動を戻しますか？
 trade.voidNotice,{0}件を取り消しました
 trade.voidPaid,先に入金を取り消してから伝票を取り消してください
+trade.walkIn,一般客
 trade.warehouse,倉庫
 trade.warehouseHint,倉庫名は自由入力です。新しい名前なら自動作成します
 transfer,振込

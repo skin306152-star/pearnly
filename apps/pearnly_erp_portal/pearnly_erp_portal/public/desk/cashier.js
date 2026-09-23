@@ -49,6 +49,14 @@
 		[{v: "7"}, {v: "8"}, {v: "9"}],
 		[{v: "sign", label: "+/-"}, {v: "0"}, {v: "delete", en: "Delete"}],
 	];
+	// 官方那颗折扣图标（`pos_item_cart.js` 的 `get_discount_icon()` **原文照抄**）。
+	// 之前我们整个格子是自己写的、没有图标，看着就跟官方不是一个东西。
+	const DISCOUNT_ICON = `<svg class="discount-icon" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" fill="none" xmlns="http://www.w3.org/2000/svg">
+		<path d="M19 15.6213C19 15.2235 19.158 14.842 19.4393 14.5607L20.9393 13.0607C21.5251 12.4749 21.5251 11.5251 20.9393 10.9393L19.4393 9.43934C19.158 9.15804 19 8.7765 19 8.37868V6.5C19 5.67157 18.3284 5 17.5 5H15.6213C15.2235 5 14.842 4.84196 14.5607 4.56066L13.0607 3.06066C12.4749 2.47487 11.5251 2.47487 10.9393 3.06066L9.43934 4.56066C9.15804 4.84196 8.7765 5 8.37868 5H6.5C5.67157 5 5 5.67157 5 6.5V8.37868C5 8.7765 4.84196 9.15804 4.56066 9.43934L3.06066 10.9393C2.47487 11.5251 2.47487 12.4749 3.06066 13.0607L4.56066 14.5607C4.84196 14.842 5 15.2235 5 15.6213V17.5C5 18.3284 5.67157 19 6.5 19H8.37868C8.7765 19 9.15804 19.158 9.43934 19.4393L10.9393 20.9393C11.5251 21.5251 12.4749 21.5251 13.0607 20.9393L14.5607 19.4393C14.842 19.158 15.2235 19 15.6213 19H17.5C18.3284 19 19 18.3284 19 17.5V15.6213Z" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+		<path d="M15 9L9 15" stroke-miterlimit="10" stroke-linecap="round" stroke-linejoin="round"/>
+		<path d="M10.5 9.5C10.5 10.0523 10.0523 10.5 9.5 10.5C8.94772 10.5 8.5 10.0523 8.5 9.5C8.5 8.94772 8.94772 8.5 9.5 8.5C10.0523 8.5 10.5 8.94772 10.5 9.5Z" fill="white" stroke-linecap="round" stroke-linejoin="round"/>
+		<path d="M15.5 14.5C15.5 15.0523 15.0523 15.5 14.5 15.5C13.9477 15.5 13.5 15.0523 13.5 14.5C13.5 13.9477 13.9477 13.5 14.5 13.5C15.0523 13.5 15.5 13.9477 15.5 14.5Z" fill="white" stroke-linecap="round" stroke-linejoin="round"/>
+	</svg>`;
 
 	p.cashier = async (page, t) => {
 		const api = "pearnly_erp_portal.cashier.api.";
@@ -388,14 +396,22 @@
 			const abbr = row.image_url
 				? `<div class="item-image"><img src="${p.escape(row.image_url)}" alt=""></div>`
 				: `<div class="item-image item-abbr">${p.escape(frappe.get_abbr(row.product_name || ""))}</div>`;
+			// 金额那两格照官方 `get_rate_discount_html()`：**应收金额 ≠ 单价时才出两行**，
+			// 上面是应收金额、下面是单价（qty 1 且没折扣就一行）。原来我们**永远两行、
+			// 而且上下颠倒**（上单价、下总额），行高也比官方高一截（56 vs 46）。
+			const rate = num(row.unit_price);
+			const amount = round2(line_total(row));
+			const rates = rate && amount && rate !== amount
+				? `<div class="item-rate">${p.escape(money(amount))}</div>
+					<div class="item-amount">${p.escape(money(rate))}</div>`
+				: `<div class="item-rate">${p.escape(money(rate || amount))}</div>`;
 			return `<div class="cart-item-wrapper" data-product="${p.escape(row.product)}">
 				${abbr}
 				<div class="item-name-desc"><div class="item-name">${p.escape(row.product_name || "")}</div></div>
 				<div class="item-qty-rate">
 					<div class="item-qty"><span>${p.escape(p.number(row.qty))} ${p.escape(row.unit || "")}</span></div>
 					<div class="item-rate-amount">
-						<div class="item-rate">${p.escape(money(row.unit_price))}</div>
-						<div class="item-amount">${p.escape(money(line_total(row)))}</div>
+						${rates}
 					</div>
 				</div>
 			</div>`;
@@ -676,13 +692,16 @@
 			const $box = q(".cart-totals-section .add-discount-wrapper");
 			if (!$box.length || discount_editing) return;
 			const pct = num(discount_pct);
-			$box.css({
-				border: `1px dashed ${pct ? "var(--dark-green-500)" : "var(--gray-500)"}`,
-				padding: "var(--padding-sm) var(--padding-md)",
-			}).html(pct
-				? `<div class="edit-discount-btn">${p.escape(t("trade.discountAdditional"))}&nbsp;<b>${
-					p.escape(p.number(pct))}</b>% ${p.escape(t("trade.discountApplied"))}</div>`
-				: p.escape(t("trade.addDiscount")));
+			// 边框与官方同一手：空闲 `1px dashed var(--gray-500)`，已折扣官方写的是
+			// `var(--dark-green-500)` —— 那个变量在页面上不存在、整条 border 被丢弃，
+			// 所以官方**已折扣时没有边框**。这里照**实际渲染**，不照它的意图。
+			$box.css(pct
+				? { border: "none", padding: "var(--padding-sm) var(--padding-md)" }
+				: { border: "1px dashed var(--gray-500)", padding: "var(--padding-sm) var(--padding-md)" })
+				.html(pct
+					? `<div class="edit-discount-btn">${DISCOUNT_ICON} ${p.escape(t("trade.discountAdditional"))}&nbsp;<b>${
+						p.escape(p.number(pct))}</b>% ${p.escape(t("trade.discountApplied"))}</div>`
+					: `${DISCOUNT_ICON} ${p.escape(t("trade.addDiscount"))}`);
 		}
 
 		function discount_input() {
@@ -1073,10 +1092,16 @@
 		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
 		$app.on("click", ".past-order-summary .new-order-btn", () => void new_invoice());
 		// 客户卡右边那颗叉 = 官方 `reset_customer_selector()`：清掉这一单挂的客户，
-		// 重画成搜索框，焦点回到客户框。`last_customer` 一起清空，下一轮对值才会认"现在是空的"。
+		// 回到散客卡。`last_customer` 一起清空，下一轮对值才会认"现在是空的"。
+		// 点卡片本体（官方 `.customer-display` 的同一手）= 打开客户搜索框，焦点落在里面。
+		$app.on("click", ".customer-section .customer-display", event => {
+			if ($(event.target).closest(".reset-customer-btn").length) return;
+			if (customer_mode === "selector") return;
+			make_customer_selector();
+			customer_control?.set_focus();
+		});
 		$app.on("click", ".customer-section .reset-customer-btn", () => {
 			reset_customer();
-			customer_control?.set_focus();
 		});
 		// 「打印收据」= 框架原生打印视图（官方出小票也走这一条）。
 		$app.on("click", ".past-order-summary .print-btn", () => {
@@ -1162,6 +1187,12 @@
 		// 现在控件是唯一真相：重画只负责建它，不再往回写。
 		let customer_control = null;
 		let last_customer = "", customer_watch = null;
+		// 客户那一格的两态（与官方 `pos_item_cart.js` 同一套结构）：
+		//   `card` = 卡片（默认的散客卡 / 选了人之后的客户卡）；`selector` = 搜索框。
+		// 官方一进去显示的是 **POS Profile 的默认客户卡**；我们没有"默认客户"这一位
+		// （我们的口径是"客户留空 = 散客"，见 `ERP Sale.customer` 的说明），所以默认那张
+		// 画成**散客卡**：形状/位置/那颗 ✕ 与官方一致，语义上也对得上我们的数据。
+		let customer_mode = "card";
 		// 真的**查得到**的那个客户 —— 落单只认它，输入框里还没落定的半截字不算（下面 `update_customer_section`）。
 		let customer_picked = "";
 		// 落单时取的就是"当前到底选了谁"：控件值优先，兜底认输入框里的内部号（理由同卡片那里）。
@@ -1175,6 +1206,7 @@
 		function make_customer_selector() {
 			const host = q(".customer-section");
 			if (!host.length) return;
+			customer_mode = "selector";
 			host.empty().append(`<div class="customer-field"></div>`);
 			// 官方 `make_customer_selector()` 用的就是 `frappe.ui.form.make_control`（不是 FieldGroup）：
 			// 只有这样 DOM 才和官方一致（FieldGroup 会多包一层 form / section / column），
@@ -1209,28 +1241,61 @@
 		function paint_customer() {
 			const host = q(".customer-section");
 			if (!host.length) return;
-			// 未选、且那一格里的控件没了（`p.clear_page()` 把页面清掉过一次）→ 重新建。
-			if (!customer_now() && !host.find(customer_control?.wrapper || []).length) {
+			// 搜索态且控件被页面重建弄丢了 → 补回来；其余交给 `update_customer_section()` 决定
+			// 画卡片还是画搜索框。
+			if (customer_mode === "selector" && !host.find(customer_control?.wrapper || []).length) {
 				make_customer_selector();
+				return;
 			}
-			void update_customer_section();
+			void update_customer_section(true);
 		}
 
-		// 官方 `reset_customer_selector()` 的落点：清掉这一单挂的客户，重画成搜索框。
+		// 官方 `reset_customer_selector()` 的落点：清掉这一单挂的客户。官方清完显示**搜索框**
+		// （它那份"没有默认客户"的状态就是一个裸字段）；我们的空客户 = 散客，所以清完回到
+		// **散客卡**，与刚进页面时一致。
 		function reset_customer() {
 			last_customer = "";
 			customer_picked = "";
-			make_customer_selector();
+			customer_control = null;
+			show_customer_card();
+		}
+
+		// 客户卡（官方 `update_customer_section()` 的同一套标记）：圆头像 + 名字 + 一行小字 + 右边 ✕。
+		// `value` 为空 = 散客卡（✕ 只是回到散客，不往单子上写客户）。
+		function show_customer_card({ name, desc, value } = {}) {
+			const host = q(".customer-section");
+			if (!host.length) return;
+			customer_mode = "card";
+			const shown_name = name || t("trade.walkIn");
+			host.html(`<div class="customer-details">
+				<div class="customer-display">
+					<div class="customer-image customer-abbr">${p.escape(frappe.get_abbr(shown_name))}</div>
+					<div class="customer-name-desc">
+						<div class="customer-name">${p.escape(shown_name)}</div>
+						<div class="customer-desc">${p.escape(desc || t("trade.pickCustomer"))}</div>
+					</div>
+					<div class="reset-customer-btn"${value ? ` data-customer="${p.escape(value)}"` : ""}>
+						<svg width="32" height="32" viewBox="0 0 14 14" fill="none">
+							<path d="M4.93764 4.93759L7.00003 6.99998M9.06243 9.06238L7.00003 6.99998M7.00003 6.99998L4.93764 9.06238L9.06243 4.93759" stroke="#8D99A6"/>
+						</svg>
+					</div>
+				</div>
+			</div>`);
 		}
 
 		// 官方 `update_customer_section()`：选了人就把那一格换成客户卡；没选就回到搜索态。
-		async function update_customer_section() {
+		async function update_customer_section(force = false) {
 			// 取值优先问控件；控件还没把值落下来时（现场几种选法不一定都派发 change），
 			// 兜底看它输入框里的字 —— 看起来像内部号（`CUS-#####`）就认它。
 			const value = customer_now();
-			if (value === last_customer) return;
+			if (!force && value === last_customer) return;
 			last_customer = value;
-			if (!value) { make_customer_selector(); return; }        // 官方 `reset_customer_selector()`
+			// 没选人：搜索态就让它开着（不然刚点开就被重画掉），卡片态保持/回到散客卡。
+			if (!value) {
+				if (customer_mode === "selector") return;
+				show_customer_card();
+				return;
+			}
 			// 官方 `fetch_customer_details()` 取的就是这一句 `frappe.db.get_value(...)`：查得到才有卡，
 			// 查不到返回空对象（不会像走接口那样弹一个"未找到"）。
 			const info = (await frappe.db.get_value("ERP Customer", value,
@@ -1243,20 +1308,7 @@
 			// 官方 `.customer-desc` 是"邮箱 - 电话"，都没有时写"点击添加邮箱/电话"；我们只有电话
 			// 一栏，有就写、没有就不写这一行（收银台不做在这里补资料，不写一句点了没反应的话）。
 			const phone = info?.contact_phone || "";
-			q(".customer-section").html(`<div class="customer-details">
-				<div class="customer-display">
-					<div class="customer-image customer-abbr">${p.escape(frappe.get_abbr(name))}</div>
-					<div class="customer-name-desc">
-						<div class="customer-name">${p.escape(name)}</div>
-						${phone ? `<div class="customer-desc">${p.escape(phone)}</div>` : ""}
-					</div>
-					<div class="reset-customer-btn" data-customer="${p.escape(value)}">
-						<svg width="32" height="32" viewBox="0 0 14 14" fill="none">
-							<path d="M4.93764 4.93759L7.00003 6.99998M9.06243 9.06238L7.00003 6.99998M7.00003 6.99998L4.93764 9.06238L9.06243 4.93759" stroke="#8D99A6"/>
-						</svg>
-					</div>
-				</div>
-			</div>`);
+			show_customer_card({ name, desc: phone, value });
 		}
 
 		p.add_refresh(page, () => void refresh());
