@@ -408,44 +408,68 @@ frappe.provide("frappe.pearnly");
 	// 的菜单里连这一项都没有。
 	p.user_menu = (sidebar = frappe.app?.sidebar) => {
 		const button = sidebar?.$sidebar?.find(".sidebar-user-button");
-		if (!sidebar || !button?.length || button.data("pearnlyMenu")) return;
-		// 原生那行 onclick 要摘掉：不然点一下既换菜单又跳走。
-		button.removeAttr("onclick").data("pearnlyMenu", true);
+		if (!sidebar || !button?.length) return;
 		const entries = [
 			{ label: __("My Profile"), icon: "user",
 				go: () => frappe.ui.toolbar.route_to_user() },
 			...(frappe.boot.pearnly_user_menu || []).map(entry => ({
 				label: __(entry.label), icon: entry.icon || "users",
-				go: () => frappe.set_route(entry.route) })),
+				route: entry.route, go: () => frappe.set_route(entry.route) })),
 		];
-		const cards = () => sidebar.$sidebar.find(".body-sidebar-cards");
-		let open = false;
-		// 收起 = 让原生重新画一遍菜单（我们不自己拼回原来的条目）。
-		const close = () => {
-			if (!open) return;
-			open = false;
-			cards().removeClass("hidden");
-			sidebar.make_sidebar();
+		// 「个人信息 / 团队管理」这两个地方算一个**账号区**：停在里面时左侧就保持这两项，
+		// 回到业务页面（首页、销售记录…）才画回业务菜单。用户 2026-09-23 口径："点了
+		// 其他菜单（团队管理），左侧菜单发生了变化" —— 进去之后不该变回去。
+		const in_account = () => {
+			const route = frappe.get_route() || [];
+			return entries.some(entry => entry.route && entry.route === route[0])
+				|| (route[0] === "Form" && route[1] === "User" && route[2] === frappe.session.user);
 		};
-		button.on("click", (event) => {
-			event.preventDefault();
-			if (open) return close();
-			open = true;
-			cards().addClass("hidden");
+		const state = sidebar.pearnly_user_menu = sidebar.pearnly_user_menu
+			|| {open: in_account(), bound: false};
+		const cards = () => sidebar.$sidebar.find(".body-sidebar-cards");
+		// 画成"账号那两项"（原生 `sidebar_item` 模板，图标/hover 与侧栏一致），
+		// 每次都重绑一次点击 —— 侧栏重画会把节点换掉。
+		const paint_account = () => {
+			state.open = true;
 			sidebar.$items_container.empty().append(entries.map(entry =>
 				frappe.render_template("sidebar_item", {
 					item: {label: entry.label, icon: entry.icon, type: "Link", standard: 1},
 					path: "", edit_mode: false,
 				})));
 			sidebar.$items_container.find(".item-anchor").each((index, element) =>
-				$(element).on("click", (click) => {
-					click.preventDefault();
-					close();
+				$(element).on("click", (event) => {
+					event.preventDefault();
+					// 点进去的这两页本身就在账号区里，菜单保持两项；`in_account()` 守得住。
 					entries[index].go();
 				}));
-		});
-		// 从别处换路由（点面包屑、手输地址）时也收起，别把两份菜单混在一起。
-		frappe.router.on("change", close);
+			cards().addClass("hidden");
+		};
+		// 收起 = 让原生重新画一遍业务菜单（我们不自己拼回原来的条目）。
+		const show_business = () => {
+			state.open = false;
+			cards().removeClass("hidden");
+			sidebar.make_sidebar();
+		};
+		// 原生那行 onclick 要摘掉：不然点一下既换菜单又跳走。绑定记号挂在按钮自己身上，
+		// 万一那颗按钮被换掉还能重绑（路由监听挂在侧栏实例上，只挂一次）。
+		if (!button.data("pearnlyMenu")) {
+			button.removeAttr("onclick").data("pearnlyMenu", true).on("click", (event) => {
+				event.preventDefault();
+				if (state.open) return show_business();
+				// 点开时右侧默认落在「个人信息」；已经在账号区里（例如团队管理）就只换菜单。
+				if (!in_account()) entries[0].go();
+				paint_account();
+			});
+		}
+		if (!state.bound) {
+			state.bound = true;
+			frappe.router.on("change", () => {
+				if (in_account()) return paint_account();
+				if (state.open) show_business();
+			});
+		}
+		// 侧栏每次重画（含框架主动换侧栏、我们自己的 `make_sidebar()`）之后按当前状态画对。
+		if (state.open) paint_account();
 	};
 	// 挂在原生侧栏的 `make_sidebar()` 之后：那颗按钮和条目区都在同一张模板里，而
 	// `make_sidebar()` 开头会把条目区清空（挂早了会被清掉，实测）。`p.user_menu()`
