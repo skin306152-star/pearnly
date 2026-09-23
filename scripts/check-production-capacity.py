@@ -19,6 +19,12 @@ services = config['services']
 M = capacity.MIB
 checks = []
 
+# The dispatcher initializes native Frappe and each Site even without OCR work.
+# Production cold-start evidence: 128 MiB caused OOM/137, not a business failure.
+for product in ('dms', 'erp', 'cowork'):
+    assert int(services[product + '-ocr-dispatch']['mem_limit']) >= 256 * M
+checks.append('All OCR dispatchers retain measured cold-start memory headroom')
+
 
 def test(label, containers, product, total=11960, available=9000, transient=0, reject=False):
     try:

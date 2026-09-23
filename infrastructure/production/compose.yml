@@ -151,7 +151,8 @@ services:
   dms-ocr-dispatch:
     profiles: [dms]
     <<: *runtime
-    mem_limit: 128m
+    # Frappe/site bootstrap exceeded 128 MiB during the unified release cold start.
+    mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
   dms-scheduler:
@@ -198,7 +199,7 @@ services:
   erp-ocr-dispatch:
     profiles: [erp]
     <<: *runtime
-    mem_limit: 128m
+    mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
     volumes: [sites-erp:/home/frappe/frappe-bench/sites]
   erp-scheduler:
@@ -245,7 +246,7 @@ services:
   cowork-ocr-dispatch:
     profiles: [cowork]
     <<: *runtime
-    mem_limit: 128m
+    mem_limit: 256m
     command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.dispatch]
     volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
   cowork-scheduler:
