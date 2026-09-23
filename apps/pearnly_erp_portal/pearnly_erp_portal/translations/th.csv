@@ -649,7 +649,6 @@ Upload and Recognize,อัปโหลดเพื่ออ่านข้อ�
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 Used for new documents only. Each location keeps its own stock.,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 User,ผู้ใช้
-Username and email are issued with the account and can no longer be changed.,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 VAT,ภาษีมูลค่าเพิ่ม
 VAT Applies,คิด VAT
 VAT Rate,อัตราภาษีมูลค่าเพิ่ม
@@ -1096,7 +1095,6 @@ team.companiesHint,ไม่ติ๊กเลย = ไม่จำกัด เ
 team.disable,ปิดใช้งาน
 team.email,อีเมล
 team.enable,เปิดใช้งาน
-team.identityHint,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 team.inactive,ปิดใช้งาน
 team.lastLogin,เข้าใช้ล่าสุด
 team.name,ชื่อ-นามสกุล

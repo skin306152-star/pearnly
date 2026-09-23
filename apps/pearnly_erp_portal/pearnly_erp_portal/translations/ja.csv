@@ -649,7 +649,6 @@ Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 User,ユーザー
-Username and email are issued with the account and can no longer be changed.,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 VAT,消費税
 VAT Applies,課税対象
 VAT Rate,付加価値税率
@@ -1096,7 +1095,6 @@ team.companiesHint,未チェックの場合は全社を許可します
 team.disable,無効化
 team.email,メール
 team.enable,有効化
-team.identityHint,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 team.inactive,無効
 team.lastLogin,最終ログイン
 team.name,氏名

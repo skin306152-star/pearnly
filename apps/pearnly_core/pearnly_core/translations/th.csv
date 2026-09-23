@@ -645,7 +645,6 @@ Used {0} pages this month · pay-as-you-go,ใช้ไปเดือนนี�
 "Used {0} pages this month · plan {1}, {2} left this cycle",ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า
 User,ผู้ใช้
 User Agent,User Agent
-Username and email are issued with the account and can no longer be changed.,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง
 VAT,ภาษีมูลค่าเพิ่ม
 VAT %,ภาษี %
@@ -678,7 +677,6 @@ account.changePassword,เปลี่ยนรหัสผ่าน
 account.error.http,คำขอล้มเหลว (HTTP {0})
 account.error.languageFailed,ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองอีกครั้ง
 account.error.reloginLanguage,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
-account.identityIssued,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 account.identityPasswordOnly,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว
 account.language,ภาษา
 account.profileChanged,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน

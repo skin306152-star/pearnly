@@ -645,7 +645,6 @@ Used {0} pages this month · pay-as-you-go,本月已用 {0} 张 · 未订阅按�
 "Used {0} pages this month · plan {1}, {2} left this cycle",本月已用 {0} 张 · 套餐 {1} 本周期剩 {2} 张
 User,用户
 User Agent,浏览器标识
-Username and email are issued with the account and can no longer be changed.,用户名和邮箱是开户时发的，之后不能修改。
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.",用户名须为 3–30 位字母、数字、点、下划线或短横线。
 VAT,增值税
 VAT %,税率%
@@ -678,7 +677,6 @@ account.changePassword,更改密码
 account.error.http,请求失败（HTTP {0}）
 account.error.languageFailed,无法更新账户语言，请稍后重试。
 account.error.reloginLanguage,请重新登录后再切换语言。
-account.identityIssued,用户名和邮箱是开户时发的，之后不能修改。
 account.identityPasswordOnly,请在个人资料中使用“更改密码”修改登录密码。
 account.language,语言
 account.profileChanged,账户已在其它地方更新，请重新登录以读取当前用户名。

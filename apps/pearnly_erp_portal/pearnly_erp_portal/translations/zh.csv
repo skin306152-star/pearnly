@@ -649,7 +649,6 @@ Upload and Recognize,上传识别
 Use the stock count workbench,请通过盘点工作台操作
 Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
 User,用户
-Username and email are issued with the account and can no longer be changed.,用户名和邮箱是开户时发的，之后不能修改。
 VAT,增值税
 VAT Applies,计增值税
 VAT Rate,增值税率
@@ -1096,7 +1095,6 @@ team.companiesHint,不勾 = 不限制，看全部公司
 team.disable,停用
 team.email,邮箱
 team.enable,启用
-team.identityHint,用户名和邮箱是开户时发的，之后不能修改。
 team.inactive,已停用
 team.lastLogin,最后登录
 team.name,姓名

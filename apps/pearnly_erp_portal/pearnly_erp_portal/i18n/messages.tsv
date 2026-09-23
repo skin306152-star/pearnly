@@ -268,7 +268,6 @@ Initial Password	初始密码	รหัสผ่านเริ่มต้น	�
 At least 8 characters	至少 8 位	อย่างน้อย 8 ตัวอักษร	8文字以上	team.passwordHint
 Job Roles	功能权限	สิทธิ์การใช้งาน	機能権限	team.roles
 Only the checked features are visible to this user	只勾选的功能，这个用户才看得到	ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
-Username and email are issued with the account and can no longer be changed.	用户名和邮箱是开户时发的，之后不能修改。	ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้	ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。	team.identityHint
 Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	team.lastLogin
 Companies	公司	บริษัท	会社	team.companies
 Leave all unchecked to allow every company	不勾 = 不限制，看全部公司	ไม่ติ๊กเลย = ไม่จำกัด เห็นทุกบริษัท	未チェックの場合は全社を許可します	team.companiesHint

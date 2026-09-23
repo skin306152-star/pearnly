@@ -643,7 +643,6 @@ Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-y
 "Used {0} pages this month · plan {1}, {2} left this cycle","Used {0} pages this month · plan {1}, {2} left this cycle"
 User,User
 User Agent,User Agent
-Username and email are issued with the account and can no longer be changed.,Username and email are issued with the account and can no longer be changed.
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.","Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 VAT,VAT
 VAT %,VAT %
@@ -676,7 +675,6 @@ account.changePassword,Change password
 account.error.http,Request failed (HTTP {0})
 account.error.languageFailed,Could not update the account language.
 account.error.reloginLanguage,Please sign in again before changing your language.
-account.identityIssued,Username and email are issued with the account and can no longer be changed.
 account.identityPasswordOnly,Change your password from your account profile using Change Password.
 account.language,Language
 account.profileChanged,Your account was updated elsewhere. Sign in again to load the current username.

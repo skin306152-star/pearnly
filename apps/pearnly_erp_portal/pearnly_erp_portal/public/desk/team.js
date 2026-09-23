@@ -111,11 +111,13 @@
 			return (data.companies || []).find(row => row.value === name)?.label || name;
 		}
 
-		// ── 添加用户 / 改岗位（发号定死的东西不再改）─────────────────────────────
-		// 用户名（发号时填的那个名字，就是登录身份）与邮箱**开户时就定了**：添加时填一次，
-		// 之后谁都改不动（用户 2026-09-23："后台管理发号后，用户名和邮箱是绑死这个租户的，
-		// 唯一关系，用户只可以自己改密码"）。所以编辑这一屏里姓名/邮箱只是**看的**，
-		// 能改的只有岗位，再加上「重置密码」「停用 / 启用」两个动作。
+		// ── 添加用户 / 改岗位 ───────────────────────────────────────────────────
+		// 姓名（就是登录用的用户名）与邮箱是**添加时填一次**的：之后谁都改不动
+		// （用户 2026-09-23："可以用用户名登录，但是不能修改……用户只可以自己改密码"）。
+		// 所以编辑这一屏里姓名/邮箱只是**看的**，能改的只有岗位，再加上「重置密码」
+		// 「停用 / 启用」两个动作。**不在界面上写这类说明**（用户 2026-09-23：
+		// "用户名和邮箱是开户时发的，之后不能修改。这类文案不要随意添加，删掉"）——
+		// 字段只读本身就是那句话，成员也是租户自己加的。
 		// 岗位用框架原生的 **MultiCheck**（多选勾选框，自带全选/清空），不是我们画的清单。
 		function roles_field(default_roles = []) {
 			return { fieldtype: "MultiCheck", fieldname: "roles", label: t("team.roles"),
@@ -138,8 +140,7 @@
 			let dialog;
 			const fields = [
 				field("full_name", "team.name", "Data",
-					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.full_name || "",
-						description: is_new ? "" : t("team.identityHint") }),
+					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.full_name || "" }),
 				field("email", "team.email", "Data",
 					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [

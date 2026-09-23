@@ -649,7 +649,6 @@ Upload and Recognize,Upload and Recognize
 Use the stock count workbench,Use the stock count workbench
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
 User,User
-Username and email are issued with the account and can no longer be changed.,Username and email are issued with the account and can no longer be changed.
 VAT,VAT
 VAT Applies,VAT Applies
 VAT Rate,VAT Rate
@@ -1096,7 +1095,6 @@ team.companiesHint,Leave all unchecked to allow every company
 team.disable,Disable
 team.email,Email
 team.enable,Enable
-team.identityHint,Username and email are issued with the account and can no longer be changed.
 team.inactive,Inactive
 team.lastLogin,Last Login
 team.name,Full Name
