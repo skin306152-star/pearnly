@@ -174,3 +174,24 @@ grand_total / rounded_total / paid_amount / outstanding_amount / additional_disc
 **下一步执行顺序**（不用你再确认）：① 写适配层 `desk/pos/pearnly-pos.js`（命名空间 + settings + `frm`
 薄适配 + 上表 10 个方法的映射，删减项留空实现）；② 让它挂在一条**临时路由**上跑起来（现页面不动），
 用探针逐屏对；③ 一屏对完切一屏，全部对完再把旧 `cashier.js` 下线。
+
+### 7.3 第一次启动结果（2026-09-23，临时路由已可用）
+
+**临时路由**：`/desk/pearnly-cashier?pearnly_pos_next=1` —— 走官方原样搬过来那套；
+不带这个参数仍是原来那页（一行没动，演示站随时可用）。加载器与适配层在 `desk/pos/pearnly-pos-adapter.js`。
+
+**已经起来了**：页面上出现了官方那六块容器，顺序与官方一致 ——
+`items-selector / item-details-container / customer-cart-container / payment-container / past-order-list /
+past-order-summary`，并且 10 列网格（官方 `grid-template-columns: repeat(10, …)`）生效 = 官方 CSS 在跑。
+
+**启动过程中修掉的两处（都记在文件里）**：
+
+1. `official-pos_item_selector.js` 第一行原本是 `import onScan from "onscan.js"`（官方走打包器）。
+   我们不用打包器，改成引用**先加载的全局**；`onscan.js`（MIT，almasaeed2010）已随附在 `desk/pos/onscan.js`。
+2. `official-point_of_sale.js`（官方那条 `/desk/point-of-sale` 路由的入口）**不加载** ——
+   它只做"官方站点注册页面 + 启动控制器"，启动由我们的适配层负责（否则它会去写不存在的
+   `frappe.pages["point-of-sale"]`，报 `Cannot set properties of undefined`）。
+
+**还没通的**：商品列表是空的（一次服务端调用失败，日志里是 `frappe/handler.py get_attr(cmd)` 那类
+"方法不存在"）。适配层已经覆盖了 `get_items`，所以失败的是**另一处**调用 —— 下一步先给 `frappe.call`
+挂一层日志把方法名点出来（这一轮探针超时了，留到下一轮）。

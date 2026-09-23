@@ -59,6 +59,15 @@
 	</svg>`;
 
 	p.cashier = async (page, t) => {
+		// **临时对照路由**：`/desk/pearnly-cashier?pearnly_pos_next=1` 走"官方原样搬过来"的那一套
+		// （`desk/pos/official-*.js` + 适配层 `pearnly-pos-adapter.js`）。默认那条路（下面的手写实现）
+		// 一行不动，方便两边同屏对、也保证演示站随时可用。对接完成后删掉这条分支与旧实现。
+		if (String(window.location.search || "").includes("pearnly_pos_next")) {
+			frappe.require("/assets/pearnly_erp_portal/desk/pos/pearnly-pos-adapter.js", () => {
+				p.pos_next_route(page);
+			});
+			return () => { page.main.find(".point-of-sale-app").remove(); };
+		}
 		const api = "pearnly_erp_portal.cashier.api.";
 		const can_write = frappe.model.can_write("ERP Sale");
 		// 钱一律这么显示（两位小数、带币种）；读数时把千分位剥掉再转数字。

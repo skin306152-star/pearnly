@@ -1,4 +1,7 @@
-import onScan from "onscan.js";
+// [pearnly] 官方这一行是 `import onScan from "onscan.js"`（它那边走打包器）。
+// 我们原样搬过来之后不用打包器，所以改成用**先加载好的全局**：`pos/onscan.js`（MIT，见该文件头），
+// 由适配层在加载本文件之前引入。除了这一行，本文件其余部分与上游一致。
+const onScan = window.onScan;
 
 erpnext.PointOfSale.ItemSelector = class {
 	// eslint-disable-next-line no-unused-vars
