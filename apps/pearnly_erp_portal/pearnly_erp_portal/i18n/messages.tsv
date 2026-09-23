@@ -376,6 +376,7 @@ Continuous counting	连续盘点	ตรวจนับต่อเนื่อ�
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际位置和数量，保存后自动进入下一项。	สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
 Find product	查找物料	ค้นหาสินค้า	商品を検索	stock.workbench.find
+This item is also stocked at:	这件货还在别处：	สินค้านี้มีอยู่ที่อื่นด้วย:	この商品は他の場所にも在庫があります:	stock.workbench.elsewhere
 Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
 Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	stock.workbench.bookPosition
 Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	stock.workbench.actualWarehouse

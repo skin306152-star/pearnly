@@ -46,7 +46,9 @@
 						vat_applicable: item.vat_applicable ? 1 : 0,
 						warehouse: item.default_warehouse || "", location: item.default_location || ""});
 				}}),
-			f("description", "Item Name", "Data", {reqd: 1}),
+			// 「物料名称」只在没选物料时出现（选了就被带出来、Link 显示的就是主档名字）——
+			// 同一个口径见 `purchase-fields.js`（用户 2026-09-23："还有重复的物料字段…"）。
+			f("description", "Item Name", "Data", {reqd: 1, depends_on: "eval:!doc.product"}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),

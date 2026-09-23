@@ -52,7 +52,11 @@
 					line.form.set_df_property("batch_no", "hidden", !item.track_batch);
 					line.form.set_df_property("expiry_date", "hidden", !item.track_expiry);
 				}}),
-			f("description", "Item Name", "Data", {reqd: 1}),
+			// 「物料名称」只在**没选物料**时出现：选了物料它就被带出来了（物料那条 Link 显示的
+			// 就是主档名字），再摆一格是重复的（用户 2026-09-23："还有重复的物料字段，有物料名称
+			// 和物料，采购和销售都有"）。没选物料的自由行（只有说明、没有物料那种）照旧要能写，
+			// 所以按"物料为空才显示"来收，而不是整格删掉；值照旧随单据提交。
+			f("description", "Item Name", "Data", {reqd: 1, depends_on: "eval:!doc.product"}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),

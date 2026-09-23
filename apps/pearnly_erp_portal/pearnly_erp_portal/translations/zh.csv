@@ -614,6 +614,7 @@ This document cannot be recorded yet,这张单据还不能落定
 This document has no content,这份文件是空的
 This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
+This item is also stocked at:,这件货还在别处：
 To Date,结束日期
 Total,总计
 Total Amount,总金额
@@ -1025,6 +1026,7 @@ stock.workbench.code,条形码、二维码或物料编码
 stock.workbench.continuous,连续盘点
 stock.workbench.done,完成
 stock.workbench.editEntry,修改记录
+stock.workbench.elsewhere,这件货还在别处：
 stock.workbench.entryQty,本次实盘数量
 stock.workbench.find,查找物料
 stock.workbench.finishConfirm,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。

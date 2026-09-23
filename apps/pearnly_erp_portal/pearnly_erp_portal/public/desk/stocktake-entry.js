@@ -28,6 +28,9 @@
 			// 实际仓库：官方原生 Link（只列当前公司的仓库），不是自由填写。
 			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
 				label: w("actualWarehouse"), reqd: 1, get_query: p.warehouse_query(), only_select: true },
+			// 「这件货还在别处」：货的账可能在另一个仓/仓位（用户 2026-09-23 那次盘点就是这样，
+			// 数出来的货落成了新位置）。摆在"实际仓库"下面，当场就能改（见 `render_elsewhere`）。
+			{ fieldtype: "HTML", fieldname: "elsewhere", hidden: 1 },
 			{ fieldtype: "Data", fieldname: "location", label: w("actualLocation") },
 			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
 			{ fieldtype: "Small Text", fieldname: "note", label: t("stock.count.note") },
@@ -75,6 +78,21 @@
 			if (event.key === "Enter") { event.preventDefault(); event.stopPropagation(); }
 		});
 		function message(text) { d.fields_dict.message.$wrapper.empty().append($("<p class='text-muted'>").text(text)); }
+		// 「这件货还在别处」：`lookup.elsewhere` 是服务端给的"别的仓/仓位还有多少"。
+		// 有就摆出来，没有就不占地方（用户 2026-09-23："盘点时不提示'这件货的账在别处'"）。
+		function render_elsewhere() {
+			const host = d.fields_dict.elsewhere;
+			if (!host) return;
+			const places = lookup?.elsewhere || [];
+			host.$wrapper.empty();
+			d.set_df_property("elsewhere", "hidden", places.length ? 0 : 1);
+			if (!places.length) return;
+			const text = places.slice(0, 3)
+				.map(place => `${place.warehouse_name} / ${place.location || t("stock.count.blank")} · `
+					+ `${p.number(place.qty)} ${place.unit || ""}`.trim())
+				.join("；");
+			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("elsewhere")} ${text}`));
+		}
 		function editor(show) {
 			d.set_df_property("scan_section", "hidden", show);
 			d.set_df_property("entry_section", "hidden", !show);
@@ -160,6 +178,7 @@
 				editor(true);
 				await load_photos();
 				render_photos();
+				render_elsewhere();
 				d.fields_dict.qty.$input.trigger("focus");
 				// 结果那一声：查到了才响（从码来的那一次才算 —— 打开已录那一行不算"查了"）。
 				if (code) p.scan_result_sound(true);
@@ -188,6 +207,7 @@
 			photos.length = 0;
 			await d.set_value("code", ""); await d.set_value("qty", "");
 			editor(false); render_photos(); message(w("nextReady"));
+			render_elsewhere();   // 换下一条：别处那份提示也收起来
 			if (camera) scanner?.resume();
 			else d.fields_dict.code.$input.trigger("focus");
 		}

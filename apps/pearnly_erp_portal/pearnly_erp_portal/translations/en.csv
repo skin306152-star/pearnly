@@ -614,6 +614,7 @@ This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
 This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
+This item is also stocked at:,This item is also stocked at:
 To Date,To Date
 Total,Total
 Total Amount,Total Amount
@@ -1025,6 +1026,7 @@ stock.workbench.code,"Barcode, QR code or product code"
 stock.workbench.continuous,Continuous counting
 stock.workbench.done,Finish
 stock.workbench.editEntry,Correct entry
+stock.workbench.elsewhere,This item is also stocked at:
 stock.workbench.entryQty,Quantity counted this time
 stock.workbench.find,Find product
 stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.

@@ -614,6 +614,7 @@ This document cannot be recorded yet,ยังบันทึกเอกสา�
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
+This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 To Date,ณ วันที่
 Total,ยอดชำระ
 Total Amount,จำนวนเงินรวม
@@ -1025,6 +1026,7 @@ stock.workbench.code,บาร์โค้ด คิวอาร์โค้ด 
 stock.workbench.continuous,ตรวจนับต่อเนื่อง
 stock.workbench.done,เสร็จสิ้น
 stock.workbench.editEntry,แก้ไขรายการ
+stock.workbench.elsewhere,สินค้านี้มีอยู่ที่อื่นด้วย:
 stock.workbench.entryQty,จำนวนที่นับครั้งนี้
 stock.workbench.find,ค้นหาสินค้า
 stock.workbench.finishConfirm,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว

@@ -112,6 +112,39 @@ frappe.provide("frappe.pearnly");
 	// 而我们自己的提示（音效之外的震动这类）没有那条管道，判断收到这里来 ——
 	// 用户 2026-09-23 口径："同时关联静音和不静音，全站"。个人信息页保存后会当场回写这一位。
 	p.sounds_muted = () => Boolean(frappe.boot?.user?.mute_sounds);
+	// 多行框（备注 / 地址）**默认矮、写不下才长**：高度按内容走，长到上限就自己在框里滚。
+	// 一处规则全站生效 —— 皮肤里把默认高度压到两行（`product.css`），这里负责"依次变大"，
+	// 所以每个页面、每个弹窗都不用自己接一遍（用户 2026-09-23："地址和备注框默认同比例和
+	// 当前在的位置缩小，当字段超出默认尺寸时才自动依次变大"）。
+	p.TEXTAREA_MAX_PX = 240;
+	p.grow_textarea = element => {
+		const node = element?.target ?? element;
+		if (!node || node.tagName !== "TEXTAREA") return;
+		node.style.height = "auto";
+		node.style.height = `${Math.min(node.scrollHeight, p.TEXTAREA_MAX_PX)}px`;
+	};
+	p.fit_textareas = root => {
+		$(root || document).find("textarea.form-control").each((_, node) => p.grow_textarea(node));
+	};
+	// 敲字、点进去、粘贴之后都过一遍（已有内容的长框，点一下也会长到该有的大小）；
+	// 弹窗打开时也过一遍 —— 查看/编辑一张已有单据时，长备注不能只露两行。
+	$(document).on("input focus change", "textarea.form-control", event => p.grow_textarea(event.target));
+	$(document).on("shown.bs.modal", event => p.fit_textareas(event.target));
+	// 官方 `ControlSmallText.make_input()` 里写死了**内联** `height: 150px` ——
+	// 皮肤里的高度被它压住，而我们的"内容超出才长"又必须能改这一格。所以照接管
+	// `ControlLink` 的同一套做法：继承它、只把那个内联高度去掉，其余（官方的
+	// `max_height`、只读呈现、事件）原样留着，交回给皮肤与 `p.grow_textarea`。
+	const NativeSmallText = frappe.ui?.form?.ControlSmallText;
+	if (NativeSmallText && !NativeSmallText.pearnly_small_text) {
+		class SmallText extends NativeSmallText {
+			make_input() {
+				super.make_input();
+				this.$input.css({height: ""});
+			}
+		}
+		SmallText.pearnly_small_text = true;
+		frappe.ui.form.ControlSmallText = SmallText;
+	}
 	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
 	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
 	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。

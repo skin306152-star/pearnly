@@ -614,6 +614,7 @@ This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
 This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
+This item is also stocked at:,この商品は他の場所にも在庫があります:
 To Date,終了日
 Total,請求額
 Total Amount,合計金額
@@ -1025,6 +1026,7 @@ stock.workbench.code,バーコード・QRコード・商品コード
 stock.workbench.continuous,連続棚卸
 stock.workbench.done,完了
 stock.workbench.editEntry,記録を修正
+stock.workbench.elsewhere,この商品は他の場所にも在庫があります:
 stock.workbench.entryQty,今回の実地数量
 stock.workbench.find,商品を検索
 stock.workbench.finishConfirm,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。

@@ -245,12 +245,28 @@ body.pearnly-product-desk .pearnly-link-scan:hover {
 	color: var(--text-color);
 	background-color: var(--control-bg);
 }
-/* 备注 / 地址这类多行框（官方 `Small Text` 控件，就是这几个字）：官方给的是**整列宽**，
-   一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。收窄到 360px ——
-   只收宽度，行数、换行行为都还是官方控件的（用户 2026-09-23："所有备注框地址框收窄"）。
-   窄屏不受影响：`max-width` 只封顶，容器更窄时照容器走。 */
+/* 备注 / 地址这类多行框（官方 `Small Text` 控件）：官方给的是**整列宽 + 四行高**，
+   一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。
+
+   现在的口径（用户 2026-09-23："地址和备注框默认同比例和当前在的位置缩小，当字段超出默认
+   尺寸时才自动依次变大"）：**按它当前所在那一列的比例**收（列宽的 62%，再拿上下限兜住），
+   高度默认压到两行；内容写不下时由 `product.js` 的 `p.grow_textarea` 自动往下长，
+   长到上限才开始在框里滚。手拖（`resize: vertical`）仍然可用。
+   窄屏（手机）不走比例：那一档直接占满列宽，手机上写备注本来就该整行。 */
 body.pearnly-product-desk textarea.form-control {
-	max-width: 360px;
+	width: 62%;
+	max-width: 420px;
+	min-width: 200px;
+	height: 40px;
+	min-height: 40px;
+	resize: vertical;
+	overflow-y: auto;
+}
+@media (max-width: 576px) {
+	body.pearnly-product-desk textarea.form-control {
+		width: 100%;
+		min-width: 0;
+	}
 }
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {

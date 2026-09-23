@@ -363,6 +363,23 @@ def _warehouse_label(name) -> str:
     return frappe.db.get_value("ERP Warehouse", name, "warehouse_name") or name or ""
 
 
+def valuation(product_id: str, key: tuple):
+    """这一笔差异按什么单价落账。
+
+    先看**这个位置现在的成本**；位置是空的 / 新位置（没成本基准）就退回**商品参考成本**
+    （`ERP Product.default_cost`，且是"设过的"才算）—— 官方 `Stock Reconciliation` 就是
+    "数量差要带一个估值率"，不然数出来的货会记成 0 成本（用户 2026-09-23 在实验室实测到：
+    盘点调增 80 瓶，成本 0）。两处都没有才留空，那种情况在体检里会被列成"有货但成本未知"。
+    """
+    unit = stock_service.current_balance(*key).unit
+    if unit is not None:
+        return unit
+    row = frappe.db.get_value(PRODUCT, product_id, ["default_cost", "cost_set"], as_dict=True) or {}
+    if row.get("cost_set") and row.get("default_cost") is not None:
+        return Decimal(str(row["default_cost"]))
+    return None
+
+
 def _warehouse_of(value, fallback) -> str:
     """上传导入那一列里的仓库名 → 真实的仓库（只认当前公司已有的仓）。"""
     return warehouses.required(value or fallback)
@@ -477,7 +494,8 @@ def post_count(name: str, review_token=None) -> dict:
     operations = []
     for row in rows:
         key = (row["product"], row["warehouse"], row["location"] or "")
-        cost = stock_service.current_balance(*key).unit
+        # 估值：位置现有成本 → 商品参考成本（见 `valuation`）。
+        cost = valuation(row["product"], key)
         costs[row["name"]] = cost
         if row["product"] in moved_products:
             # Remove all observed source quantities before adding destinations, carrying
@@ -499,7 +517,7 @@ def post_count(name: str, review_token=None) -> dict:
         for quantity, cost in incoming[key]:
             operations.append((key, quantity, cost))
     for key, delta in sorted(changes.items()):
-        operations.append((key, delta, stock_service.current_balance(*key).unit))
+        operations.append((key, delta, valuation(key[0], key)))
     # **盘点差异也开入库/出库单据**（用户 2026-09-23：这些编号要和商品库存、出入库、
     # 收发存每一笔记录联动；MR.ERP 的调整/盘点模块 `stktranmod` 同样是把带有自己编号的
     # 单据写进库存卡，旧线上盘点差异也发 IR/IS 号并落一张出入库单）。
@@ -627,17 +645,46 @@ def _record_revision(task, product, token=None):
 
 
 def lookup_count(*, count, code=None, product=None):
+    """查一个码/一个商品，准备录这一条：书上的行 + **别处还有多少**。
+
+    `elsewhere` 是给录入弹窗用的（用户 2026-09-23："盘点时不提示'这件货的账在别处'——
+    它默默记进盘点单的仓库"）：这件货在别的仓/仓位还有结存时，界面上要摆出来，让人自己决定
+    是继续（确实是新仓）还是改盘点仓库。不算"错"，但不说清楚就会看着像"库存凭空多一条"。
+    """
     guard.require("stock.read")
     task = _get(count)
     found = product_of_code(code) if code else frappe.db.get_value(
         PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
+    rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
     return {"product": {key: found.get(key) for key in
                         ("name", "product_name", "code", "barcode", "base_unit", "unit")},
-            "rows": [r for r in list_items(count=count, limit=0) if r['product'] == found['name']],
+            "rows": rows,
+            "elsewhere": elsewhere_positions(found["name"],
+                                             {(r["warehouse"], r["location"] or "") for r in rows}),
             "stock_token": count_state.stock_token(found['name']),
             "warehouse_name": _warehouse_label(task.warehouse)}
+
+
+def elsewhere_positions(product_id: str, here: set) -> list:
+    """这件货在**别的**位置上的结存（`here` 是这次盘点已经看过的那几个位置）。"""
+    # ⚠️ 结存表里**没有** `unit` 列（成本/数量才是它的字段）：单位从商品主档取
+    # （库存单位优先，与 `stock.resolve_factor` 同一个口径）。
+    product = frappe.db.get_value(PRODUCT, product_id, ["base_unit", "unit"], as_dict=True) or {}
+    unit = product.get("base_unit") or product.get("unit") or ""
+    out = []
+    for balance in frappe.db.get_all(BALANCE, filters={"product": product_id},
+            fields=["warehouse", "location", "qty_on_hand"],
+            order_by="qty_on_hand desc, warehouse asc"):
+        if (balance.warehouse, balance.location or "") in here:
+            continue
+        if not flt(balance.qty_on_hand, 3):
+            continue
+        out.append({"warehouse_name": _warehouse_label(balance.warehouse),
+                    "location": balance.location or "", "qty": float(balance.qty_on_hand),
+                    "unit": unit})
+    return out
 
 
 def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None, location=None,
