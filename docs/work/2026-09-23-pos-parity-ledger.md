@@ -403,3 +403,58 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 | `format_currency(62, undefined, 2)` | `฿ 62.00`（改前是 `د.إ 62.00`） |
 | 物料列表 | 售价/参考成本全是 `฿`；全页 **无 `THB <数字>`、无 `د.إ`、无弹窗** |
 | `scripts/check-architecture.py` | `PASS (0 violations)` |
+
+## 10. 订单折扣那一格：填了百分比合计不动（2026-09-24，已修 + 实测）
+
+**官方这一格长什么样**（照搬后与官方逐字一致）：没折扣时是虚线框 + 折扣图标 + `Add Discount`；
+填了就是 `附加项 12% 已应用折扣`（官方原文 `Additional 12% discount applied`，
+标记 `<div class="edit-discount-btn">`）。**是内联一格，不是弹窗** —— 你 2026-09-23 说的那条，
+搬过来之后就自动对了。
+
+**但它填完不重算**：实测填 12% 之后 `doc.additional_discount_percentage = 12`，
+而 `discount_amount` 还是 0、`grand_total` 还是 100。
+
+**根因**：官方这次改动**自己不调重算** —— 它只 `frappe.model.set_value(…)` 把百分比写进单据，
+然后等 **`refresh-fields` 事件**（`official-pos_item_cart.js` 的 `attach_refresh_field_event`，
+里面才是"重画购物车 + 重算合计"）。而那个事件由**表单 Layout 的刷新**发出来
+（`frappe/form/layout.js:373`）。我们这张客户端 `ERP Sale` 没有 Layout，事件永远不会响。
+
+**改法**（适配层，两处）：
+
+1. `PearnlyItemCart.hide_discount_control(discount)` 覆盖：走完官方那段之后按我们自己的口径重算一次合计；
+2. `update_totals_section(frm)` 允许**不带参数**调用（官方就是这么调的），
+   并且行金额照 ERPNext 口径算：折% 优先，没有百分比才用折额
+   （`line_amount(row)`）—— 不这样，键盘上那个"折扣"改的是**行**折扣，合计读不出来。
+
+> 踩坑记录：第一版只加了 ①，没意识到官方调用时不传 `frm`，我们那段重算被 `if (frm && …)` 整个跳过，
+> 表现和没改一样（`grand 100`）。补上 ② 之后 `grand 88`。
+
+**实测（演示站真点鼠标）**：填 12% → 界面 `净总计 ฿ 100.00 / 总计 ฿ 88.00`，
+单据 `discount_amount 12 / grand_total 88`；0 报错、0 弹窗（除了下面那条）。
+
+## 11. 下一处断点：点「结账」弹的是我们自己的必填校验（未做）
+
+点结账 → 弹窗：
+
+```
+信息｜错误：ERP Sale 请填写必填字段：销售时间
+     错误：ERP Sale Line 行#1：缺少值：单价
+```
+
+**根因**（官方 `official-pos_controller.js:895`）：官方的 `save_and_checkout()` 会先
+`this.frm.save(…)` **存一张草稿单据**，存成功了才切到付款屏。它存的是我们这张 `ERP Sale`，
+而客户端文档上带的是**官方的字段名**（行上是 `rate`/`qty`，整单没有 `sold_at`），
+于是被框架自己的必填校验挡下。
+
+**两条路，需要你拍一下**（我倾向 B）：
+
+- **A 存草稿**：适配层在保存前把客户端文档翻成我们的字段名（行 `rate → unit_price`、
+  整单补 `sold_at`）。好处是断线/切屏能回来；代价是多一层映射，而且我们会真的往
+  `ERP Sale` 里写**草稿单**（我们现在的口径是"提交时才落单"，草稿单以前不存在）。
+- **B 不存草稿**（倾向）：覆盖 `save_and_checkout()`，跳过框架那次保存、直接进付款屏；
+  单据由 `api_create_sale` 在"完成订单"时一次落定。代价是没存草稿，中途刷新就没了
+  （我们现在本来也是这个行为）。
+
+付款屏本身（方式行：现金/刷卡/扫码/转账、三列键盘、总计/付款金额/剩余金额/找零、
+「完成订单」接 `api_create_sale`、`Update Additional Information` 还是英文）**这一轮没动**，
+是下一个工作包。

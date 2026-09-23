@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 21;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -284,6 +284,15 @@ window.__pos_adapter_v = 21;   // 排查用：确认页面到底加载到哪一�
 		return (frappe.boot.sysdefaults || {}).currency || "THB";
 	}
 
+	// 一行的实收（照 ERPNext 的口径）：折% 优先，没有百分比才用折额。
+	function line_amount(row) {
+		const gross = flt(row.qty) * flt(row.rate);
+		const disc = flt(row.discount_percentage)
+			? gross * flt(row.discount_percentage) / 100
+			: flt(row.discount_amount);
+		return gross - disc;
+	}
+
 	// 我们的收银台设置 → 官方 `settings` 的形状（官方读到的那些开关）。
 	async function our_settings(shift) {
 		const terminals = await p.call(api + "api_list_terminals");
@@ -489,9 +498,13 @@ window.__pos_adapter_v = 21;   // 排查用：确认页面到底加载到哪一�
 			// 再交给官方那套渲染 —— 这样官方那几行数字就有值，而不是一直 0。
 			// 税费行（D1）暂时空着：我们的收银价是含税价，逐条税明细等做到那一步再接。
 			update_totals_section(frm) {
+				// 官方允许不带参数调（它自己去 `events.get_frm()`），我们的重算也要跟上，
+				// 否则不带参数时这一段被跳过：合计不重算，界面还显示原价。
+				if (!frm) frm = this.events.get_frm();
 				if (frm && frm.doc) {
 					const lines = frm.doc.items || [];
-					const net = lines.reduce((sum, row) => sum + flt(row.qty) * flt(row.rate), 0);
+					// 行金额照 ERPNext 的口径：折% 优先，没有百分比才用折额。
+					const net = lines.reduce((sum, row) => sum + line_amount(row), 0);
 					const pct = flt(frm.doc.additional_discount_percentage);
 					const discount = net * pct / 100;
 					frm.doc.total_qty = lines.reduce((sum, row) => sum + flt(row.qty), 0);
@@ -502,6 +515,18 @@ window.__pos_adapter_v = 21;   // 排查用：确认页面到底加载到哪一�
 					frm.doc.taxes = frm.doc.taxes || [];
 				}
 				return super.update_totals_section(frm);
+			}
+
+			// 订单折扣那一格改完，官方**不自己调**重算 —— 它等 `refresh-fields` 事件
+			// （`official-pos_item_cart.js` 的 `attach_refresh_field_event`），而那个事件由
+			// 表单 Layout 的刷新发出来（`frappe/form/layout.js:373`）。我们这张客户端
+			// `ERP Sale` 没有 Layout，事件永远不会响 —— 表现就是"填了 12%，合计还是原价"
+			// （实测 `doc.additional_discount_percentage = 12`，而 `grand_total` 仍是 100）。
+			// 这里在官方那条路上补一脚：改完按我们自己的口径重算一次合计。
+			hide_discount_control(discount) {
+				const out = super.hide_discount_control(discount);
+				this.update_totals_section();
+				return out;
 			}
 
 			// 客户选择框：官方那份指向 **ERPNext 的 `Customer`**，我们没有这张表 —— 它一渲染就会
