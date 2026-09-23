@@ -35,6 +35,9 @@ function boot({ create = async () => ({ name: 'P-1' }) } = {}) {
   let save, tableField, grid;
 
   const p = {
+    // 仓库/收银台的 Link 过滤来自 `transactions.js`（这几次测试只加载某几个页面脚本），
+    // 所以在这里补一个同形状的桩：返回框架 Link 认的过滤对象。
+    warehouse_query: () => ({filters: {}}),
     escape: value => String(value ?? ''),
     money: value => String(value),
     success: message => successes.push(message),

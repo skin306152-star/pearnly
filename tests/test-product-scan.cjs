@@ -32,6 +32,9 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
   let open_create, open_form, list_options;
 
   const p = {
+    // 仓库/收银台的 Link 过滤来自 `transactions.js`（这几次测试只加载某几个页面脚本），
+    // 所以在这里补一个同形状的桩：返回框架 Link 认的过滤对象。
+    warehouse_query: () => ({filters: {}}),
     money: value => String(value),
     escape: value => String(value),
     success() {},

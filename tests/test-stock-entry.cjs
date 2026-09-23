@@ -27,6 +27,9 @@ function boot({ direction = 'in', route = [], doc = null, can_write = true } = {
   let list_options, list_reloads = 0, primary = null, form_values = null;
 
   const p = {
+    // 仓库/收银台的 Link 过滤来自 `transactions.js`（这几次测试只加载某几个页面脚本），
+    // 所以在这里补一个同形状的桩：返回框架 Link 认的过滤对象。
+    warehouse_query: () => ({filters: {}}),
     escape: value => String(value ?? ""),
     number: value => String(value),
     money: value => String(value),
@@ -116,7 +119,11 @@ async function settle(env) {
   const dialog = env.dialogs.at(-1);
   assert.equal(dialog.label, "trade.action.submit", "主按钮叫提交，不叫保存草稿");
   const warehouse = dialog.fields.find(field => field.fieldname === "warehouse");
-  assert.equal(warehouse.fieldtype, "Data", "仓库是自由填写，不是官方 Link 选择器");
+  // 用户 2026-09-23 收回"仓库自由填写"那条口径（"我说用官方原生，这是第四遍了"）：
+  // 仓库改回**官方原生 Link**（下拉只列当前公司的仓，不许现场新建 —— only_select）。
+  assert.equal(warehouse.fieldtype, "Link", "仓库是官方 Link 选择器，不是自由填写");
+  assert.equal(warehouse.options, "ERP Warehouse");
+  assert.equal(warehouse.only_select, true, "下拉里不给「新建 ERP Warehouse」，免得跳去原生表单");
   assert.equal(warehouse.reqd, 1);
   const doc_no = dialog.fields.find(field => field.fieldname === "doc_no");
   assert.equal(doc_no.default, "IR2569-000009", "新建时显示当前要发的单据号");
