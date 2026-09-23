@@ -14,3 +14,5 @@ pearnly_erp_portal.patches.v1_3_company_scope
 pearnly_erp_portal.patches.v1_4_terminal_company
 # 模型同步之后：把"默认仓"那一列真正删掉（同步只加/改列，不删列）。
 pearnly_erp_portal.patches.v1_6_drop_warehouse_default_column
+# 公司级收银开关与"收几种钱"：老公司补上默认那四种。
+pearnly_erp_portal.patches.v1_7_company_payment_methods

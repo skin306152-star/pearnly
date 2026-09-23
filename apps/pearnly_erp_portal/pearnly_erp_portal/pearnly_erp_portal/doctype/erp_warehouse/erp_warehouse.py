@@ -1,17 +1,12 @@
 # -*- coding: utf-8 -*-
-"""仓库。同一时间只有一个默认仓库，入库／出库不带仓库时落到它。"""
+"""仓库。**没有"默认仓"**（用户 2026-09-24："不要做默认仓，依赖全部删掉"）：
+哪个单据、哪台收银台用哪个仓，都写在那个地方自己身上（见 `inventory/warehouses.py` 抬头）。
 
-import frappe
+所以这个控制器**不做任何校验/联动**，只留着这个类（Frappe 按约定要这个模块）。
+"""
+
 from frappe.model.document import Document
 
 
 class ERPWarehouse(Document):
-    def validate(self):
-        if self.is_default:
-            others = frappe.get_all(
-                "ERP Warehouse",
-                filters={"is_default": 1, "name": ["!=", self.name or ""]},
-                pluck="name",
-            )
-            for other in others:
-                frappe.db.set_value("ERP Warehouse", other, "is_default", 0)
+    pass

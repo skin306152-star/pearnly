@@ -33,6 +33,7 @@ Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
+Add terminal,เพิ่มเครื่องขาย
 Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
@@ -205,6 +206,7 @@ Counted at,เวลาที่นับ
 Counted by,ผู้ตรวจนับ
 Counted in total,นับรวมแล้ว
 Counted quantity,จำนวนที่นับได้
+Counter 1,Counter 1
 Create,สร้าง
 Create New Item,สร้างสินค้าใหม่
 Create POS Opening Entry,สร้างรายการเปิดกะ
@@ -281,6 +283,7 @@ Draft not found,ไม่พบรายการร่าง
 Due Date,วันที่ครบกำหนด
 ERP,ERP
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
 Edit Receipt,แก้ไขใบเสร็จ
@@ -292,6 +295,7 @@ Email not sent to {0} (unsubscribed / disabled),ไม่ได้ส่งอ�
 Email sent successfully.,ส่งอีเมลแล้ว
 Enable,เปิดใช้งาน
 Enable / disable,เปิด / ปิดใช้งาน
+Enable POS cashier,เปิดใช้เครื่องขาย POS
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
@@ -483,6 +487,7 @@ No product matches this code,ไม่พบสินค้าที่ตรง
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
+No terminal yet,ยังไม่มีเครื่องขาย
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
 Normal,ปกติ
@@ -539,6 +544,7 @@ POS Closed,ปิดจุดขายแล้ว
 POS Opening Entry Cancelled,ยกเลิกรายการเปิดกะแล้ว
 POS Opening Entry has been cancelled. Please refresh the page.,รายการเปิดกะถูกยกเลิก กรุณารีเฟรชหน้า
 POS Profile,โปรไฟล์จุดขาย
+POS cashier,POS เครื่องขาย
 POS has been closed at {0}. Please refresh the page.,ปิดจุดขายเมื่อ {0} กรุณารีเฟรชหน้า
 POS invoice {0} created successfully,สร้างเอกสารขาย {0} สำเร็จ
 Paid,ชำระแล้ว
@@ -608,6 +614,7 @@ Product not found. Check the code and try again.,ไม่พบสินค้�
 PromptPay,พร้อมเพย์
 PromptPay Amount,พร้อมเพย์
 PromptPay ID,พร้อมเพย์
+PromptPay QR,สแกน (PromptPay)
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งรายการ
 Purchase,การซื้อ
 Purchase Amount,จำนวนเงินซื้อ
@@ -723,6 +730,7 @@ Select one row to open its ledger,เลือกได้ครั้งละ�
 Select the original sale line,เลือกรายการจากบิลขายเดิม
 Selling Units,หน่วยขาย
 Selling price,ราคาขาย
+Selling warehouse,คลังที่ขาย
 Send,ส่ง
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
 Sending the same file twice must not create two drafts,ส่งไฟล์เดิมสองครั้งต้องไม่สร้างฉบับร่างสองใบ
@@ -816,7 +824,9 @@ Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่า
 Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
 Terminal,จุดขาย
+Terminal name,ชื่อเครื่องขาย
 Terminal not found,ไม่พบเครื่องขายนี้
+Terminals,เครื่องขาย
 That code is not valid,รหัสไม่ถูกต้อง
 That file could not be read; please use the template,อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ
 That file has no rows,ไฟล์นี้ไม่มีข้อมูล
@@ -857,6 +867,7 @@ This browser cannot scan with the camera,เบราว์เซอร์นี
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
+"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ขายให้บริษัทนี้ สต็อกจ่ายออกจากคลังของบริษัทนี้
 This device cannot scan,อุปกรณ์นี้สแกนไม่ได้
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องให้สแกน
@@ -881,6 +892,7 @@ This terminal already has an open shift,เครื่องขายนี้�
 This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
+"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 To Date,ณ วันที่
 Total,ยอดชำระ
@@ -948,6 +960,7 @@ Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
+Warehouses,คลังสินค้า
 "Which company this terminal belongs to, and which warehouse it sells from",เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน
 Who bought this receipt; empty means a walk-in customer,ใครซื้อใบเสร็จนี้ ถ้าเว้นว่าง = ลูกค้าทั่วไป
 With differences,มีผลต่าง
@@ -1030,10 +1043,14 @@ company.field.fiscalYearStart,เดือนเริ่มปีบัญช�
 company.field.name,ชื่อบริษัท
 company.field.note,หมายเหตุ
 company.field.phone,โทรศัพท์
+company.field.posEnabled,เปิดใช้เครื่องขาย POS
 company.field.promptpay,พร้อมเพย์รับเงิน
 company.field.shortName,ชื่อย่อ
 company.field.taxId,เลขประจำตัวผู้เสียภาษี
+company.field.terminalName,ชื่อเครื่องขาย
+company.field.terminalWarehouse,คลังที่ขาย
 company.field.warehouse,คลังสินค้า
+company.field.warehouseName,ชื่อคลัง
 company.fiscalHint,1 = มกราคม
 company.lookup.action,ค้นหา
 company.lookup.failed,ค้นหาไม่สำเร็จ กรุณากรอกเอง
@@ -1045,6 +1062,10 @@ company.lookup.not_vat_registered,มีเลขนี้แต่ไม่ไ�
 company.lookup.parse_error,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
 company.lookup.querying,กำลังค้นหาจากกรมสรรพากร…
 company.lookup.rd_unreachable,เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้
+company.method.card,บัตร
+company.method.cash,เงินสด
+company.method.promptpay,สแกน (PromptPay)
+company.method.transfer,โอนเงิน
 company.new,เพิ่มบริษัท
 company.newWarehouse,เพิ่มคลังสินค้า
 company.notice.created,สร้างแล้ว
@@ -1053,21 +1074,31 @@ company.notice.saved,บันทึกแล้ว
 company.notice.toggled,อัปเดตแล้ว
 company.notice.updated,อัปเดต {0} รายการ
 company.onlyAdmin,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
+company.posHint,เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 company.promptpayHint,บัญชีที่ให้ลูกค้าโอนเข้า
 company.readOnly,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว
 company.save,บันทึก
 company.section.address,ที่อยู่และหมายเหตุ
 company.section.basic,ข้อมูลบริษัท
 company.section.documents,เอกสาร
+company.section.pos,POS เครื่องขาย
+company.section.terminals,เครื่องขาย
 company.section.warehouse,คลังสินค้า
+company.section.warehouses,คลังสินค้า
 company.setCurrent,ตั้งเป็นปัจจุบัน
 company.setDefaultWarehouse,ตั้งเป็นค่าเริ่มต้น
 company.status.active,ปกติ
 company.status.inactive,ปิดใช้งาน
 company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
+company.terminalDefaultName,Counter 1
+company.terminalEdit,แก้ไข
+company.terminalNew,เพิ่มเครื่องขาย
+company.terminalNone,ยังไม่มีเครื่องขาย
+company.terminalsHint,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 company.warehouseDefaultName,คลังหลัก
 company.warehouseHint,คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
+company.warehousesHint,คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 company.yes,ใช่
 completed,เสร็จสิ้น
 count,ตรวจนับ

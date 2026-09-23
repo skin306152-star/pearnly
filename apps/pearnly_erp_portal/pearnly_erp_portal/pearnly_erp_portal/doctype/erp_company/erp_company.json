@@ -18,6 +18,9 @@
   "fiscal_year_start_month",
   "is_default",
   "is_active",
+  "section_pos",
+  "pos_enabled",
+  "payment_methods",
   "address",
   "note"
  ],
@@ -112,6 +115,24 @@
    "label": "Active",
    "default": "1",
    "in_list_view": 1
+  },
+  {
+   "fieldname": "section_pos",
+   "fieldtype": "Section Break",
+   "label": "Point of Sale"
+  },
+  {
+   "fieldname": "pos_enabled",
+   "fieldtype": "Check",
+   "label": "Enable POS cashier",
+   "default": "1",
+   "description": "Unticked, this company gets no cashier pages, no cashier job role and no cashier permissions."
+  },
+  {
+   "fieldname": "payment_methods",
+   "fieldtype": "Table",
+   "label": "Payment Methods",
+   "options": "ERP Company Payment Method"
   },
   {
    "fieldname": "address",

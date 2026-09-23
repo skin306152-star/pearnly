@@ -25,7 +25,13 @@ INVALID = "Invalid value"
 
 LIST_FIELDS = ("name", "company_name", "short_name", "tax_id", "branch", "phone",
                "contact_person", "contact_email", "promptpay_id", "doc_prefix",
-               "fiscal_year_start_month", "is_default", "is_active", "address", "note")
+               "fiscal_year_start_month", "is_default", "is_active", "pos_enabled",
+               "address", "note")
+
+# 收银支持的四种收款方式（与 `cashier/contracts.py` 的 `PAYMENT_METHODS` 同一集合）。
+# 新建公司默认四种全开（用户 2026-09-24："收款方式添加，默认给他几个字段"）——
+# 泰国店里这四种就是常态，先给全、不需要的再勾掉。
+POS_PAYMENT_METHODS = ("cash", "card", "promptpay", "transfer")
 
 
 def _get(name):
@@ -107,6 +113,56 @@ def set_active_company(name, user=None) -> dict:
     return {"company": name, "company_name": frappe.db.get_value(DOCTYPE, name, "company_name")}
 
 
+# ── 收银台开关（公司级）──────────────────────────────────────────────────────
+#
+# 用户 2026-09-24："新增是否启用 POS 收银台 …… 不勾选就不显示 pos、记录、交接班，
+# 以及团队管理里的收银"。所以这一位决定的不是"某台机器"，而是**这家公司做不做收银**：
+# 关掉之后入口（侧栏那三页）、岗位（团队页的"收银"）、服务端能力（`cashier.*`）一起收。
+#
+# 判据一律在服务端（菜单显隐只是减负）：`require_pos()` 挂在收银域每个入口上。
+
+def pos_enabled(company=None, user=None) -> bool:
+    """这家公司有没有开收银台（没给公司就按"当前公司"）。"""
+    try:
+        name = document_company(company, user)
+    except Exception:
+        return False
+    return bool(frappe.db.get_value(DOCTYPE, name, "pos_enabled"))
+
+
+def pos_enabled_any(user=None) -> bool:
+    """这个账号**能用**的公司里，有任意一家开了收银台。
+
+    侧栏那三页、团队页的"收银"岗位都看它：一个租户里只要还有一家公司做收银，
+    入口与岗位就该在（进哪一家由当前公司决定）。
+    """
+    user = user or frappe.session.user
+    names = allowed_companies(user)
+    if not names:
+        return False
+    return bool(frappe.db.get_value(DOCTYPE, {"name": ["in", names], "pos_enabled": 1}, "name"))
+
+
+def require_pos(company=None, user=None) -> str:
+    """收银域的每个入口都先过这一关：这家公司没开收银台就拒绝。回公司名。"""
+    name = document_company(company, user)
+    if not pos_enabled(name, user):
+        frappe.throw(_("The cashier is not enabled for this company"), frappe.PermissionError)
+    return name
+
+
+def payment_methods_of(company=None, user=None) -> list:
+    """这家公司收银收哪几种钱（建公司时勾的那几种；老公司由迁移补成四种全开）。
+
+    回的是**服务端 key**（cash/card/promptpay/transfer，见 `cashier/contracts.py`），
+    界面文案由各自的词条表翻。
+    """
+    rows = frappe.get_all("ERP Company Payment Method",
+                          filters={"parent": document_company(company, user)},
+                          pluck="method", order_by="idx asc")
+    return [m for m in rows if m] or list(POS_PAYMENT_METHODS)
+
+
 def document_company(value=None, user=None) -> str:
     """单据上的公司：给了就用给的（必须在可用范围内），没给就用当前公司。"""
     user = user or frappe.session.user
@@ -140,29 +196,112 @@ def list_companies(*, include_inactive=False, limit=50) -> list[dict]:
                            limit_page_length=int(limit))
 
 
-def create_company(*, company_name, warehouse_name=None, **fields) -> dict:
-    """新建一家公司。**顺手把它第一个仓与第一台收银台建好** —— 没有仓就入不了库、
-    没有收银台就开不了班，所以公司一建出来就是能用的。
+def create_company(*, company_name, warehouse_name=None, warehouses=None, terminals=None,
+                   payment_methods=None, **fields) -> dict:
+    """新建一家公司，**一次把主档配齐**（用户 2026-09-24："新建公司可以把有些主档全部配齐
+    …… 仓库可以加多个，收银台也是 …… 第一次配好后后面的数据就能打通了"）。
 
-    用户 2026-09-24 问"收银台的来源是哪里、要不要建公司的时候建"：来源就是这里（以及第一次
-    开班时的懒建，见 `terminals.ensure_default`）。**收银台卖货的仓写成显式的**（指向刚建的
-    这个仓），因为"默认仓"这个概念本轮已经删掉了 —— 卖货只能靠收银台上那个仓。
-    仓库名留空就用 `Main`；已存在同名仓库就复用它。
+    传进来的形状（都可选，缺了就按最小可用配）：
+
+    · `warehouses`：仓库名列表，**可以多个**；第一个（或 `warehouse_name`）就是这家公司最先
+      建的那个仓（"默认仓"那一套本轮已经删掉，这里只是"先建哪个"）。
+    · `terminals`：收银台列表 `[{terminal_name, warehouse}]`，**可以多台**；`warehouse` 指
+      上面某个仓库名（给了就用它，没给就用第一个仓）。**收银台卖货的仓是显式写上去的**。
+    · `payment_methods`：这家公司收哪几种钱（`cash/card/promptpay/transfer` 里挑）；
+      不给就四种全开（泰国店里的常态）。
+    · `pos_enabled`：这家公司做不做收银，走 `fields`（`_apply`）。
     """
     guard.require("company.manage")
     name = contracts.clean(company_name, contracts.MAX_NAME)
     if not name:
         frappe.throw(_(NAME_REQUIRED))
-    doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": name, "is_active": 1})
+    doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": name, "is_active": 1,
+                          "pos_enabled": 1})
     _apply(doc, fields)
     doc.insert()
-    from pearnly_erp_portal.cashier import terminals
+    if "pos_enabled" not in fields:
+        doc.pos_enabled = 1                    # 新公司默认做收银，不要的再勾掉
+
+    made = _create_warehouses(doc.name, warehouse_name, warehouses)
+    if not made:
+        frappe.throw(_("A company needs at least one warehouse"))
+    places = {row["warehouse_name"]: row["name"] for row in made}
+    counters = _create_terminals(doc.name, terminals, made[0]["name"], places)
+    _apply_payment_methods(doc, payment_methods)
+    frappe.db.commit()
+    return {"name": doc.name, "warehouse": made[0]["name"], "warehouses": made,
+            "terminals": counters,
+            "payment_methods": [row.method for row in doc.get("payment_methods") or []]}
+
+
+def _as_list(value) -> list:
+    if value is None or value == "":
+        return []
+    if isinstance(value, str):
+        value = frappe.parse_json(value) if value.strip().startswith("[") else value.split("\n")
+    return list(value) if isinstance(value, (list, tuple)) else [value]
+
+
+def _create_warehouses(company: str, first_name, extra) -> list[dict]:
+    """把表单上那几行仓库建出来（**可以多个**，按给的顺序）。
+
+    第一行（或单独给的 `warehouse_name`，都没有就 `Main`）走 `ensure_for_company`：
+    它会复用同名仓，保证"这家公司至少有一个仓"。其余按名字建，重名就复用。
+    """
     from pearnly_erp_portal.inventory import warehouses
 
-    place = warehouses.ensure_for_company(doc.name, warehouse_name)
-    terminal = terminals.ensure_default(doc.name, warehouse=place)
-    frappe.db.commit()
-    return {"name": doc.name, "warehouse": place, "terminal": terminal}
+    names = [str(row or "").strip() for row in _as_list(extra)]
+    first = str(first_name or "").strip() or (names[0] if names else "Main")
+    made = []
+    first_id = warehouses.ensure_for_company(company, first)
+    made.append({"name": first_id,
+                 "warehouse_name": frappe.db.get_value("ERP Warehouse", first_id, "warehouse_name")})
+    for wanted in [row for row in names if row and row != first]:
+        existing = frappe.db.get_value("ERP Warehouse",
+                                        {"company": company, "warehouse_name": wanted}, "name")
+        if existing:
+            made.append({"name": existing, "warehouse_name": wanted})
+            continue
+        doc = frappe.get_doc({"doctype": "ERP Warehouse", "warehouse_name": wanted,
+                              "company": company, "is_active": 1})
+        doc.insert(ignore_permissions=True)
+        made.append({"name": doc.name, "warehouse_name": wanted})
+    return made
+
+
+def _create_terminals(company: str, rows, first_warehouse: str, places: dict) -> list[str]:
+    """新建公司表单上那几台收银台（**可以多台**）。
+
+    一台都没给就老实建一台（那是以前 `terminals.ensure_default` 懒建的位置）——
+    收银台没有仓就卖不了货，所以它身上那个仓必须是**显式**的。
+    """
+    from pearnly_erp_portal.cashier import terminals
+
+    wanted = _as_list(rows)
+    if not wanted:
+        return [terminals.ensure_default(company, warehouse=first_warehouse)]
+    made = []
+    for index, row in enumerate(wanted):
+        if not isinstance(row, dict):
+            row = {"terminal_name": row}
+        label = str(row.get("terminal_name") or "").strip()
+        if not label:
+            continue
+        place = places.get(str(row.get("warehouse") or "").strip()) or first_warehouse
+        result = terminals.create_terminal(terminal_name=label, warehouse=place,
+                                          is_default=index == 0, company=company)
+        made.append(result["name"])
+    return made or [terminals.ensure_default(company, warehouse=first_warehouse)]
+
+
+def _apply_payment_methods(doc, methods) -> None:
+    """这家公司收哪几种钱。空 = 四种全开，与 `payment_methods_of` 同一口径。"""
+    wanted = [str(row or "").strip() for row in _as_list(methods)] or list(POS_PAYMENT_METHODS)
+    doc.set("payment_methods", [])
+    for key in POS_PAYMENT_METHODS:            # 按固定顺序落行：前后端看到的顺序一致
+        if key in wanted:
+            doc.append("payment_methods", {"method": key, "label": key})
+    doc.save(ignore_permissions=True)
 
 
 def get_profile(name=None) -> dict:
@@ -179,7 +318,92 @@ def get_profile(name=None) -> dict:
     payload = {field: doc.get(field) for field in LIST_FIELDS}
     payload["can_write"] = guard.has("company.manage")
     payload["can_lookup"] = guard.has("tax.lookup")
+    # 收银那一节：这家公司收哪几种钱、有哪几台收银台、以及"能不能改"。
+    # 收发银台的管理判据放在**公司**这一侧（`company.manage`）—— 建公司时就要配，
+    # 而那时不一定有人已经拿到收银岗位（见 `create_company`）。
+    payload["payment_methods"] = [row.method for row in doc.get("payment_methods") or []]
+    payload["terminals"] = terminals_of(doc.name)
+    payload["can_manage_pos"] = guard.has("company.manage")
     return payload
+
+
+def terminals_of(company=None) -> list[dict]:
+    """这家公司的收银台（公司页「收银台」那一节；只要 `company.read` 就看得见）。
+
+    收银台卖货的仓在 `warehouse` / `warehouse_name` 上 —— 它就是这家公司做收银时的
+    "货从哪个仓出"，是显式值（"默认仓"那一套已经删掉了）。
+    """
+    guard.require("company.read")
+    name = document_company(company)
+    rows = frappe.get_list("ERP POS Terminal", filters={"company": name},
+                           fields=["name", "terminal_name", "warehouse", "is_default", "is_active"],
+                           order_by="is_default desc, terminal_name asc", limit_page_length=0)
+    for row in rows:
+        row["warehouse_name"] = frappe.db.get_value(
+            "ERP Warehouse", row.get("warehouse"), "warehouse_name") or row.get("warehouse") or ""
+    return rows
+
+
+def create_terminal(*, company_name=None, terminal_name, warehouse=None, is_default=False) -> dict:
+    """在公司页里加一台收银台（判据是 `company.manage`，见 `get_profile` 的说明）。"""
+    guard.require("company.manage")
+    from pearnly_erp_portal.cashier import terminals as service
+
+    return service.create_terminal(terminal_name=terminal_name, warehouse=warehouse,
+                                   is_default=is_default,
+                                   company=document_company(company_name), internal=True)
+
+
+def update_terminal(name, **changes) -> dict:
+    """改一台收银台：名字 / 卖货的仓 / 启用停用（同样走 `company.manage`）。"""
+    guard.require("company.manage")
+    from pearnly_erp_portal.cashier import terminals as service
+
+    return service.update_terminal(name, internal=True, **changes)
+
+
+def set_payment_methods(company=None, methods=None) -> dict:
+    """这家公司收哪几种钱（公司页那一节）。空 = 四种全开。"""
+    guard.require("company.manage")
+    doc = _get(document_company(company))
+    _apply_payment_methods(doc, methods)
+    frappe.db.commit()
+    return {"name": doc.name,
+            "payment_methods": [row.method for row in doc.get("payment_methods") or []]}
+
+
+def save_terminals(company=None, rows=None) -> dict:
+    """公司页「收银台」那张表：一次提交格子里的改动（新增 / 改名 / 换卖货的仓 / 启停）。
+
+    **不做删除**：要停用就把状态那格取消勾选（数据留着，历史班次与小票还指着它）。
+    换仓时那个值是仓库的名字或编号，**必须解析到这家公司真实存在的仓**（"默认仓"没了，
+    写错就会落到别的公司账上 → 一律报错，不静默）。
+    """
+    guard.require("company.manage")
+    from pearnly_erp_portal.cashier import terminals as service
+    from pearnly_erp_portal.inventory import warehouses
+
+    name = document_company(company)
+    for row in _as_list(rows):
+        if not isinstance(row, dict):
+            continue
+        label = str(row.get("terminal_name") or "").strip()
+        if not label:
+            frappe.throw(_(NAME_REQUIRED))
+        wanted = str(row.get("warehouse") or "").strip()
+        place = warehouses.required(wanted, company=name) if wanted else None
+        active = 1 if row.get("is_active") in (True, 1, "1", "true") else 0
+        existing = str(row.get("name") or "").strip()
+        if existing and frappe.db.exists("ERP POS Terminal", existing):
+            changes = {"terminal_name": label, "is_active": active}
+            if place:
+                changes["warehouse"] = place
+            service.update_terminal(existing, internal=True, **changes)
+        else:
+            service.create_terminal(terminal_name=label, warehouse=place, company=name,
+                                    internal=True)
+    frappe.db.commit()
+    return {"name": name, "terminals": terminals_of(name)}
 
 
 def update_company(name, **fields) -> dict:
@@ -221,3 +445,6 @@ def _apply(doc, fields) -> None:
     for field in ("is_default", "is_active"):
         if field in fields:
             doc.set(field, 1 if fields[field] in (True, 1, "1", "true") else 0)
+    # 收银台开关（公司级）：勾了这家公司做收银，不勾就没有那三页、没有收银岗位、收银接口拒绝。
+    if "pos_enabled" in fields:
+        doc.pos_enabled = 1 if fields["pos_enabled"] in (True, 1, "1", "true") else 0

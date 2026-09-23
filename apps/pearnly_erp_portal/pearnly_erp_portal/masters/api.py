@@ -53,6 +53,40 @@ def api_company_warehouses(company_name=None, include_inactive=1):
                                       limit=0, company=company_name)
 
 
+# ── 公司页的「收银台 / 收款方式」那一节 ──────────────────────────────────────
+# 判据是 `company.manage`（不是收银岗位）：建公司时就要把这些配好，那会儿还不一定有人
+# 已经拿到收银岗位。收银**业务**接口（开班、卖货）仍旧判 `cashier.*`，见 `cashier/api.py`。
+
+@frappe.whitelist()
+def api_company_terminals(company_name=None):
+    return company.terminals_of(company_name)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_create_company_terminal(**kwargs):
+    return company.create_terminal(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_update_company_terminal(**kwargs):
+    kwargs = _clean(kwargs)
+    return company.update_terminal(kwargs.pop("name", None), **kwargs)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_set_payment_methods(**kwargs):
+    kwargs = _clean(kwargs)
+    return company.set_payment_methods(kwargs.pop("company_name", None),
+                                       kwargs.pop("methods", None))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_save_company_terminals(**kwargs):
+    """公司页「收银台」那张表一次提交（新增 / 改名 / 换仓 / 启停）。"""
+    kwargs = _clean(kwargs)
+    return company.save_terminals(kwargs.pop("company_name", None), kwargs.pop("rows", None))
+
+
 @frappe.whitelist(methods=["POST"])
 def api_update_profile(**kwargs):
     return company.update_profile(**_clean(kwargs))

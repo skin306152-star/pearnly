@@ -78,10 +78,10 @@ def _can_open_page(product, route):
 def visible_pages(product):
     from pearnly_core.shell import entitlements
     features = set(entitlements())
-    offered = available_pages(product)
-    return [route for _, route, _, feature in pages(product)
-            if route in offered and (not feature or feature in features)
-            and _can_open_page(product, route)]
+    # 与侧栏同一份口径（`_offered` 里已经含产品自己的页面过滤器），再加"这个账号能不能进"。
+    offered = _offered(product, features)
+    return [route for _, route, _, _feature in pages(product)
+            if route in offered and _can_open_page(product, route)]
 
 
 def _user_menu_specs(product) -> list:
@@ -202,7 +202,29 @@ def _offered(product, features) -> dict:
         if feature and feature not in features:
             continue
         offered[route] = (label, route, icon, feature)
-    return offered
+    return _product_page_filter(product, offered)
+
+
+def _product_page_filter(product, offered) -> dict:
+    """产品可以在自己的声明里挂一个**页面过滤器**，把"某些页在当前数据下不该出现"表达出来。
+
+    为什么要有这一层：租户买了某个功能（`features`）不等于**每一家公司**都用它 ——
+    例如 ERP 的收银台是**公司级**开关（一家公司不开收银，那三页与收银岗位都不该出现），
+    而"哪家公司开了"是产品自己的事，共用层不该认识它。所以产品声明里给一个点号路径，
+    这里只负责调它：签名 `(offered) -> offered`，键是路由、值是 `(label, route, icon, feature)`。
+
+    过滤器取不到（没声明/导不进来）就**原样返回**：这只管显隐，真正的授权在服务端。
+    """
+    spec = (_declarations().get(product) or {}).get("page_filter")
+    if not spec:
+        return offered
+    try:
+        from frappe.utils import get_attr
+
+        return get_attr(spec)(offered) or offered
+    except Exception:
+        frappe.log_error(title=f"{product} page_filter failed")
+        return offered
 
 
 def _sidebar_items(product, features) -> list:

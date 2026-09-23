@@ -334,6 +334,9 @@ boot_session = "pearnly_erp_portal.masters.boot.boot_session"
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
+  # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
+  # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
+  'page_filter': 'pearnly_erp_portal.masters.nav.filter_pages',
   'pages': [('nav.home', 'pearnly-home', 'house', None),
             ('nav.products', 'pearnly-products', 'package', 'products'),
             ('nav.inventory', 'pearnly-inventory', 'warehouse', 'warehouses'),

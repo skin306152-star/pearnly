@@ -33,6 +33,7 @@ Add a count,Add a count
 Add a count — {0},Add a count — {0}
 Add photos,Add photos
 Add row,Add row
+Add terminal,Add terminal
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
@@ -205,6 +206,7 @@ Counted at,Counted at
 Counted by,Counted by
 Counted in total,Counted in total
 Counted quantity,Counted quantity
+Counter 1,Counter 1
 Create,Create
 Create New Item,Create New Item
 Create POS Opening Entry,Create POS Opening Entry
@@ -281,6 +283,7 @@ Draft not found,Draft not found
 Due Date,Due Date
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 Edit,Edit
 Edit Cart,Edit Cart
 Edit Receipt,Edit Receipt
@@ -292,6 +295,7 @@ Email not sent to {0} (unsubscribed / disabled),Email not sent to {0} (unsubscri
 Email sent successfully.,Email sent successfully.
 Enable,Enable
 Enable / disable,Enable / disable
+Enable POS cashier,Enable POS cashier
 Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
@@ -483,6 +487,7 @@ No product matches this code,No product matches this code
 No receipts in this shift,No receipts in this shift
 No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
+No terminal yet,No terminal yet
 No warehouse matches that name,No warehouse matches that name
 None,None
 Normal,Normal
@@ -539,6 +544,7 @@ POS Closed,POS Closed
 POS Opening Entry Cancelled,POS Opening Entry Cancelled
 POS Opening Entry has been cancelled. Please refresh the page.,POS Opening Entry has been cancelled. Please refresh the page.
 POS Profile,POS Profile
+POS cashier,POS cashier
 POS has been closed at {0}. Please refresh the page.,POS has been closed at {0}. Please refresh the page.
 POS invoice {0} created successfully,POS invoice {0} created successfully
 Paid,Paid
@@ -608,6 +614,7 @@ Product not found. Check the code and try again.,Product not found. Check the co
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
 PromptPay ID,PromptPay ID
+PromptPay QR,PromptPay QR
 Provide at least one line item,Provide at least one line item
 Purchase,Purchase
 Purchase Amount,Purchase Amount
@@ -723,6 +730,7 @@ Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
 Selling Units,Selling Units
 Selling price,Selling price
+Selling warehouse,Selling warehouse
 Send,Send
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
@@ -816,7 +824,9 @@ Tax Withholding Rate,Tax Withholding Rate
 Taxes,Taxes
 Taxes and Charges,Taxes and Charges
 Terminal,Terminal
+Terminal name,Terminal name
 Terminal not found,Terminal not found
+Terminals,Terminals
 That code is not valid,That code is not valid
 That file could not be read; please use the template,That file could not be read; please use the template
 That file has no rows,That file has no rows
@@ -857,6 +867,7 @@ This browser cannot scan with the camera,This browser cannot scan with the camer
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This channel is not open yet,This channel is not open yet
 This code is already taken,This code is already taken
+"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
 This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
@@ -881,6 +892,7 @@ This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
+"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 Time,Time
 To Date,To Date
 Total,Total
@@ -948,6 +960,7 @@ Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
+Warehouses,Warehouses
 "Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
 Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
 With differences,With differences
@@ -1030,10 +1043,14 @@ company.field.fiscalYearStart,Fiscal year start month
 company.field.name,Company name
 company.field.note,Note
 company.field.phone,Phone
+company.field.posEnabled,Enable POS cashier
 company.field.promptpay,PromptPay
 company.field.shortName,Short name
 company.field.taxId,Tax ID
+company.field.terminalName,Terminal name
+company.field.terminalWarehouse,Selling warehouse
 company.field.warehouse,Warehouse
+company.field.warehouseName,Warehouse name
 company.fiscalHint,1 = January
 company.lookup.action,Query
 company.lookup.failed,"Lookup failed, please fill in manually"
@@ -1045,6 +1062,10 @@ company.lookup.not_vat_registered,Tax ID exists but is not VAT registered
 company.lookup.parse_error,The Revenue Department replied in an unreadable format
 company.lookup.querying,Querying the Revenue Department...
 company.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+company.method.card,Card
+company.method.cash,Cash
+company.method.promptpay,PromptPay QR
+company.method.transfer,Transfer
 company.new,New company
 company.newWarehouse,New warehouse
 company.notice.created,Created
@@ -1053,21 +1074,31 @@ company.notice.saved,Saved
 company.notice.toggled,Updated
 company.notice.updated,Updated {0} record(s)
 company.onlyAdmin,Only the product admin can change this
+company.posHint,"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 company.promptpayHint,The account you give customers for transfers
 company.readOnly,Only the product admin can change this
 company.save,Save
 company.section.address,Address and notes
 company.section.basic,Company details
 company.section.documents,Documents
+company.section.pos,POS cashier
+company.section.terminals,Terminals
 company.section.warehouse,Warehouse
+company.section.warehouses,Warehouses
 company.setCurrent,Set as current
 company.setDefaultWarehouse,Set as default
 company.status.active,Active
 company.status.inactive,Disabled
 company.subtitle,The company on your documents
 company.taxHint,13 digits; a branch adds its 5-digit branch number
+company.terminalDefaultName,Counter 1
+company.terminalEdit,Edit
+company.terminalNew,Add terminal
+company.terminalNone,No terminal yet
+company.terminalsHint,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 company.warehouseDefaultName,Main
 company.warehouseHint,First warehouse of this company (more on the Warehouses page)
+company.warehousesHint,"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
 company.yes,Yes
 completed,completed
 count,count

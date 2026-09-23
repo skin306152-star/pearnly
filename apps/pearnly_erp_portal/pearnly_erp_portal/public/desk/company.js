@@ -28,7 +28,8 @@
 		// 这一屏的字段清单。**空值也要发**：框架的 `form.get_values()` 把空串当"没有这个
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值。
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "phone",
-			"contact_person", "contact_email", "promptpay_id", "address", "note"];
+			"contact_person", "contact_email", "promptpay_id", "address", "note", "pos_enabled"];
+		const POS_METHODS = ["cash", "card", "promptpay", "transfer"];
 		const payload = (form) => {
 			const values = {};
 			FIELDS.forEach(name => {
@@ -113,12 +114,15 @@
 				// 单击任意一行 → 进这一家的**公司信息**（面包屑二级），行内不再放按钮。
 				on_open: row => frappe.set_route(root, row.name),
 				row_actions: null,
-				empty_action: can_write() ? {label: t("company.new"), action: () => editor(null)} : null});
+				empty_action: can_write()
+					? {label: t("company.new"), action: () => go_to("new")} : null});
 			restore_new();
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
 			// 别处的选择框指过来时（`link.js` 的 one-shot）：新建公司 / 打开这家公司。
-			if (can_write()) await p.take_create("pearnly-company", "ERP Company", () => editor(null));
+			if (can_write()) {
+				await p.take_create("pearnly-company", "ERP Company", () => go_to("new"));
+			}
 			await p.take_open("pearnly-company", "ERP Company", name => frappe.set_route(root, name));
 		}
 
@@ -128,53 +132,92 @@
 
 		function restore_new() {
 			if (!can_write()) return page.clear_primary_action();
-			page.set_primary_action(t("company.new"), () => editor(null));
+			// 新建走**二级页面**（面包屑），不再弹窗 —— 字段太多（用户 2026-09-24）。
+			page.set_primary_action(t("company.new"), () => go_to("new"));
 		}
 
-		// 新建 / 改：一张原生弹窗，字段与资料页同一批。
-		function editor(row) {
-			const is_new = !row;
-			// 查询那颗按钮要拿到这张弹窗（`p.dialog` 建完才返回），所以先留个位置给它。
-			const holder = {};
-			const fields = [
-				f("company_name", "company.field.name", "Data",
-					{reqd: 1, default: row?.company_name || ""}),
-				f("short_name", "company.field.shortName", "Data", {default: row?.short_name || ""}),
-				f("tax_id", "company.field.taxId", "Data", {default: row?.tax_id || ""}),
-				// 税号查询同样给新建/改这一屏（与供应商/客户两页同一个接口、同一颗按钮）。
-				f("lookup", "company.lookup.action", "Button",
-					{click: () => lookup_tax(holder.dialog)}),
-				f("branch", "company.field.branch", "Data", {default: row?.branch || ""}),
-				f("phone", "company.field.phone", "Data", {default: row?.phone || ""}),
-				f("contact_person", "company.field.contactPerson", "Data",
-					{default: row?.contact_person || ""}),
-				f("contact_email", "company.field.contactEmail", "Data",
-					{default: row?.contact_email || ""}),
-				f("promptpay_id", "company.field.promptpay", "Data", {default: row?.promptpay_id || ""}),
-				f("address", "company.field.address", "Small Text", {default: row?.address || ""}),
-				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
-				// 新公司**顺手建第一个仓库**（用户 2026-09-23：新建公司时就加这个入口）：
-				// 没有仓库就入不了库、卖不了货；建好之后它就这家公司的默认仓，之后还能再加。
-				// 这里给的是**名字**（新公司还没有仓库可选）—— 原先这一段的标题也叫「仓库」，
-				// 紧跟的字段标签也是「仓库」，同一个词连着出现两次，看起来像个坏掉的选择框
-				// （用户 2026-09-23："仓库也没法下拉选择且不能新建"）。标题去掉，只留字段 +
-				// 官方字段自带的 description 说明它是什么。
-				...(is_new ? [
-					{fieldtype: "Section Break"},
-					f("warehouse_name", "company.field.warehouse", "Data",
-						{default: t("company.warehouseDefaultName"),
-							description: t("company.warehouseHint")}),
-				] : []),
-			];
-			holder.dialog = p.dialog(is_new ? t("company.new") : row.company_name, fields,
-				is_new ? t("company.new") : __("Save"), async (values, dialog) => {
-					await p.call(api + (is_new ? "api_create_company" : "api_update_company"),
-						is_new ? values : {name: row.name, ...values}, "POST");
-					dialog.hide();
-					p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
-					await list.reload();
-					restore_new();
-				});
+		// ── 新建公司（**一整页**，不是弹窗）─────────────────────────────────────────
+		//
+		// 用户 2026-09-24 的口径："新建公司进入面包屑填写，字段太多了，不要弹窗"；
+		// "新增是否启用 POS 收银台 …… 勾选后填写相关 pos 的配置，形成和公司绑定关系"；
+		// "仓库也可以放在建公司时填写 …… 仓库可以加多个，收银台也是"；
+		// "新建公司可以把有些主档全部配齐，收款方式添加，默认给他几个字段"。
+		//
+		// 所以这一页一次配齐：**主体资料 → 收银开关与收款方式 → 仓库（多行）→ 收银台（多台）**。
+		// 提交只发一次（服务端 `company.create_company` 一把建完并互相绑定：每台收银台显式指向
+		// 上面某个仓）。收款方式与收银开关的**取舍**都落在公司上，后面各页据此过滤。
+		async function create_page() {
+			p.clear_page(page);
+			list = null;
+			page.set_title(t("company.new"));
+			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
+				trail: [{label: t("company.new"), route: ""}]});
+			const form = p.layout(page.main, [
+				{fieldtype: "Section Break", label: t("company.section.basic")},
+				f("company_name", "company.field.name", "Data", {reqd: 1}),
+				f("short_name", "company.field.shortName", "Data"),
+				f("tax_id", "company.field.taxId", "Data"),
+				f("lookup", "company.lookup.action", "Button", {click: () => lookup_tax(form)}),
+				f("branch", "company.field.branch", "Data"),
+				f("phone", "company.field.phone", "Data"),
+				f("contact_person", "company.field.contactPerson", "Data"),
+				f("contact_email", "company.field.contactEmail", "Data"),
+				f("promptpay_id", "company.field.promptpay", "Data"),
+				// ── 收银：开关 + 收哪几种钱 ────────────────────────────────────
+				{fieldtype: "Section Break", label: t("company.section.pos")},
+				f("pos_enabled", "company.field.posEnabled", "Check",
+					{default: 1, description: t("company.posHint")}),
+				...POS_METHODS.map(key => f(`method_${key}`, `company.method.${key}`, "Check",
+					{default: 1})),
+				// ── 仓库：可以多个（第一个就是"先建的那个仓"）────────────────────
+				{fieldtype: "Section Break", label: t("company.section.warehouses")},
+				{fieldtype: "Table", fieldname: "warehouses", cannot_add_rows: 0,
+					data: [{warehouse_name: t("company.warehouseDefaultName")}],
+					description: t("company.warehousesHint"),
+					fields: [{fieldname: "warehouse_name", fieldtype: "Data",
+						label: t("company.field.warehouseName"), in_list_view: 1, reqd: 1}]},
+				// ── 收银台：可以多台，每台写明从哪个仓卖货 ──────────────────────
+				{fieldtype: "Section Break", label: t("company.section.terminals")},
+				{fieldtype: "Table", fieldname: "terminals", cannot_add_rows: 0,
+					data: [{terminal_name: t("company.terminalDefaultName"), warehouse: ""}],
+					description: t("company.terminalsHint"),
+					fields: [
+						{fieldname: "terminal_name", fieldtype: "Data",
+							label: t("company.field.terminalName"), in_list_view: 1, reqd: 1},
+						{fieldname: "warehouse", fieldtype: "Data",
+							label: t("company.field.terminalWarehouse"), in_list_view: 1},
+					]},
+				{fieldtype: "Section Break"},
+				f("address", "company.field.address", "Small Text"),
+				f("note", "company.field.note", "Small Text"),
+			]);
+			const rows_of = fieldname => (form.get_value(fieldname) || [])
+				.map(row => ({...row}));
+			page.set_secondary_action(__("Cancel"), () => go_to());
+			page.set_primary_action(t("company.new"), async () => {
+				const values = payload(form);
+				if (!String(values.company_name || "").trim()) {
+					return frappe.msgprint({
+						title: __("Missing Values Required"),
+						message: __("Following fields have missing values:")
+							+ `<br><br><ul><li>${p.escape(t("company.field.name"))}</ul>`,
+						indicator: "orange",
+					});
+				}
+				const warehouses = rows_of("warehouses")
+					.map(row => String(row.warehouse_name || "").trim()).filter(Boolean);
+				const terminals = rows_of("terminals")
+					.map(row => ({terminal_name: String(row.terminal_name || "").trim(),
+						warehouse: String(row.warehouse || "").trim()}))
+					.filter(row => row.terminal_name);
+				const methods = POS_METHODS.filter(key => Number(form.get_value(`method_${key}`)));
+				await p.call(api + "api_create_company", {
+					...values, warehouses, terminals, payment_methods: methods,
+					pos_enabled: Number(form.get_value("pos_enabled")) ? 1 : 0,
+				}, "POST");
+				p.success(t("company.notice.created"), "click");
+				go_to();                       // 回公司列表；点进去就是刚建的这一家
+			});
 		}
 
 		// ── 公司信息（点列表任意一行进来）────────────────────────────────────────
@@ -187,6 +230,9 @@
 			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
 				trail: [{label: data.company_name || name || "", route: ""}]});
 			const ro = {read_only: !data.can_write};
+			// 建公司时配的那套（收银台）在这里能改：判据是服务端的 `company.manage`
+			// （见 `api_get_profile` 的 `can_manage_pos`）。
+			const can_edit_pos = Boolean(data.can_manage_pos) && Boolean(data.can_write);
 			form = p.layout(page.main, [
 				{fieldtype: "Section Break", label: t("company.section.basic")},
 				f("company_name", "company.field.name", "Data",
@@ -210,6 +256,31 @@
 					{default: data.address || "", ...ro}),
 				{fieldtype: "Column Break"},
 				f("note", "company.field.note", "Small Text", {default: data.note || "", ...ro}),
+				// ── 收银：开关 + 收哪几种钱 + 这家公司的收银台清单 ────────────────
+				// 建公司时配的这一套在这里能改（用户 2026-09-24："同时开发以上功能入口"）。
+				{fieldtype: "Section Break", label: t("company.section.pos")},
+				f("pos_enabled", "company.field.posEnabled", "Check",
+					{default: Number(data.pos_enabled) ? 1 : 0, description: t("company.posHint"),
+						...ro}),
+				...POS_METHODS.map(key => f(`method_${key}`, `company.method.${key}`, "Check",
+					{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})),
+				// 收银台清单用**原生表格**（架构检查也拦自定义 HTML 表格）：
+				// 一行一台，改名字 / 换卖货的仓 / 启用停用都在格子里改，随这一屏一起保存。
+				// **不给删行**：要停用就把状态那格取消勾选（数据留着，历史小票还指着它）。
+				{fieldtype: "Table", fieldname: "terminals", label: "",
+					cannot_add_rows: !can_edit_pos, cannot_delete_rows: 1,
+					description: t("company.terminalsHint"),
+					data: (data.terminals || []).map(row => ({name: row.name,
+						terminal_name: row.terminal_name, warehouse: row.warehouse,
+						is_active: Number(row.is_active) ? 1 : 0})),
+					fields: [
+						{fieldname: "terminal_name", fieldtype: "Data", reqd: 1, in_list_view: 1,
+							label: t("company.field.terminalName")},
+						{fieldname: "warehouse", fieldtype: "Data", in_list_view: 1,
+							label: t("company.field.terminalWarehouse")},
+						{fieldname: "is_active", fieldtype: "Check", in_list_view: 1, default: 1,
+							label: t("company.col.status")},
+					]},
 			]);
 			if (data.can_write) {
 				page.set_primary_action(t("company.save"), async () => {
@@ -226,6 +297,15 @@
 					await p.call(name ? "pearnly_erp_portal.masters.api.api_update_company"
 						: api + "api_update_profile",
 						name ? {name, ...values} : values, "POST");
+					// 收款方式单独走一条（它是子表，不在公司那几个字段里）。
+					await p.call(api + "api_set_payment_methods",
+						{company_name: name || undefined,
+							methods: POS_METHODS.filter(key => Number(form.get_value(`method_${key}`)))},
+						"POST");
+					// 收银台那张表：格子里的改动一次提交（新增 / 改名 / 换仓 / 启停）。
+					await p.call(api + "api_save_company_terminals",
+						{company_name: name || undefined,
+							rows: form.get_value("terminals") || []}, "POST");
 					p.success(t("company.notice.saved"), "click");
 				});
 			} else {
@@ -248,7 +328,14 @@
 				await master();
 				return;
 			}
-			await profile(decodeURIComponent(rest[0]));
+			const segment = decodeURIComponent(rest[0]);
+			// `/公司/new` 是**新建公司**这一页（字段太多，用户 2026-09-24："不要弹窗，
+			// 新建公司进入面包屑填写"）。公司名是哈希，不会撞上 `new` 这个字。
+			if (segment === "new") {
+				await create_page();
+				return;
+			}
+			await profile(segment);
 			if (!still_current()) return;
 		}});
 

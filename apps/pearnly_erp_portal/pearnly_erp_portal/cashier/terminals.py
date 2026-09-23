@@ -95,12 +95,17 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
     return rows
 
 
-def create_terminal(*, terminal_name, warehouse=None, is_default=False) -> dict:
-    guard.require("cashier.manage")
+def create_terminal(*, terminal_name, warehouse=None, is_default=False, company=None,
+                    internal=False) -> dict:
+    # `internal=True`：公司页那条路（判据是 `company.manage`，见 `masters/company.create_terminal`）
+    # —— 建公司时就要把收银台配好，那会儿不一定有人已经拿到收银岗位。
+    if not internal:
+        guard.require("cashier.manage")
     name = (terminal_name or "").strip()
     if not name:
         frappe.throw(_(NAME_REQUIRED))
-    company = companies.active_company()
+    # 建公司时一次配齐要用它建属于**那家新公司**的收银台，所以公司要能显式给。
+    company = companies.document_company(company)
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": name,
                           "company": company,
                           "warehouse": warehouses.required(warehouse, company=company),
@@ -127,8 +132,9 @@ def scope_filter(company=None) -> dict:
     return {"terminal": ["in", names]} if names else {"terminal": "__missing__"}
 
 
-def update_terminal(name, **changes) -> dict:
-    guard.require("cashier.manage")
+def update_terminal(name, internal=False, **changes) -> dict:
+    if not internal:
+        guard.require("cashier.manage")
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     doc = frappe.get_doc(DOCTYPE, name)

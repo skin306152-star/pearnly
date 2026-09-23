@@ -102,7 +102,17 @@ def present_roles() -> list[str]:
 
 
 def assignable_roles() -> tuple[str, ...]:
-    return rules.assignable_roles(present_roles())
+    """能发给员工的岗位。**这家公司不做收银时，"收银"这个岗位不发**（用户 2026-09-24：
+    "不勾选就不显示 pos、记录、交接班，以及团队管理里的收银"）——
+    判据与侧栏那三页同一个（`companies.pos_enabled_any`），发岗位与看菜单口径一致。
+    """
+    roles = rules.assignable_roles(present_roles())
+    from pearnly_erp_portal.masters import company as companies
+
+    if companies.pos_enabled_any():
+        return roles
+    cashier = rules.FEATURE_ROLES.get("cashier")
+    return tuple(role for role in roles if role != cashier)
 
 
 def _clean_roles(roles) -> list[str]:

@@ -27,12 +27,17 @@ def api_list_terminals(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_create_terminal(**kwargs):
-    return terminals.create_terminal(**_clean(kwargs))
+    # `internal` 只给**服务端自己**（公司页那条路）用，客户端传进来一律丢掉 —— 否则
+    # 谁都能借这个开关跳过 `cashier.manage` 那道闸。
+    kwargs = _clean(kwargs)
+    kwargs.pop("internal", None)
+    return terminals.create_terminal(**kwargs)
 
 
 @frappe.whitelist(methods=["POST"])
 def api_update_terminal(**kwargs):
     kwargs = _clean(kwargs)
+    kwargs.pop("internal", None)
     return terminals.update_terminal(kwargs.pop("name", None), **kwargs)
 
 

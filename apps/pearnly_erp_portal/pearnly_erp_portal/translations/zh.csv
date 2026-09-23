@@ -33,6 +33,7 @@ Add a count,记一笔
 Add a count — {0},记一笔 — {0}
 Add photos,添加照片
 Add row,添加明细
+Add terminal,新增收银台
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional,附加项
@@ -205,6 +206,7 @@ Counted at,盘点时间
 Counted by,盘点人
 Counted in total,计入合计
 Counted quantity,实盘数量
+Counter 1,Counter 1
 Create,创建
 Create New Item,创建新物料
 Create POS Opening Entry,新建开班记录
@@ -281,6 +283,7 @@ Draft not found,找不到这条草稿
 Due Date,到期日
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
 Edit Cart,返回购物车
 Edit Receipt,编辑收据
@@ -292,6 +295,7 @@ Email not sent to {0} (unsubscribed / disabled),未向 {0} 发送邮件（已退
 Email sent successfully.,邮件已发送
 Enable,启用
 Enable / disable,启用 / 停用
+Enable POS cashier,启用 POS 收银台
 Enable {0},启用 {0}
 Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
@@ -483,6 +487,7 @@ No product matches this code,该编号找不到物料
 No receipts in this shift,当班暂无小票
 No recent transactions found,没有最近的交易
 No stock count in progress,无进行中的盘点
+No terminal yet,还没有收银台
 No warehouse matches that name,该仓库名不存在
 None,无
 Normal,正常
@@ -539,6 +544,7 @@ POS Closed,收银台已关闭
 POS Opening Entry Cancelled,开班记录已作废
 POS Opening Entry has been cancelled. Please refresh the page.,开班记录已作废，请刷新页面
 POS Profile,收银台配置
+POS cashier,POS 收银台
 POS has been closed at {0}. Please refresh the page.,收银台已于 {0} 关闭，请刷新页面
 POS invoice {0} created successfully,收银单据 {0} 已生成
 Paid,已付款
@@ -608,6 +614,7 @@ Product not found. Check the code and try again.,未找到物料，请核对编�
 PromptPay,PromptPay
 PromptPay Amount,扫码（PromptPay）
 PromptPay ID,PromptPay ID
+PromptPay QR,扫码（PromptPay）
 Provide at least one line item,至少要有一行明细
 Purchase,采购
 Purchase Amount,采购金额
@@ -723,6 +730,7 @@ Select one row to open its ledger,一次只能看一条流水
 Select the original sale line,请选择原单中的物料行
 Selling Units,销售单位
 Selling price,售价
+Selling warehouse,卖货的仓库
 Send,发送
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
 Sending the same file twice must not create two drafts,同一个文件发两次不能生成两张草稿
@@ -816,7 +824,9 @@ Tax Withholding Rate,代扣税款税率
 Taxes,税费
 Taxes and Charges,税费
 Terminal,收银台
+Terminal name,收银台名称
 Terminal not found,找不到这台收银台
+Terminals,收银台
 That code is not valid,验证码不正确
 That file could not be read; please use the template,这个文件读不了，请用模板格式
 That file has no rows,这个文件没有数据行
@@ -857,6 +867,7 @@ This browser cannot scan with the camera,这个浏览器不支持摄像头扫码
 This browser cannot scan with the camera; use a scanner or type the code,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 This channel is not open yet,这个通道还没开放
 This code is already taken,这个码已经被占用
+"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 This counter sells for this company; stock leaves its warehouse,这个收银台为这家公司开单；库存从这个公司的仓库出
 This device cannot scan,这台设备不能扫码
 This device has no camera to scan with,这台设备没有可用的摄像头
@@ -881,6 +892,7 @@ This terminal already has an open shift,这台收银台已经有开着的班次
 This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
 This unit is not defined on the product,这个单位没有在这个物料上定义
 This warehouse already exists,这个仓库已经存在
+"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 To Date,结束日期
 Total,总计
@@ -948,6 +960,7 @@ Walk-in customer,散客
 Warehouse,仓库
 Warehouse name,仓库名称
 Warehouse not found,未找到仓库
+Warehouses,仓库
 "Which company this terminal belongs to, and which warehouse it sells from",这台收银台属于哪家公司、从哪个仓卖货
 Who bought this receipt; empty means a walk-in customer,这张小票是谁买的；留空 = 散客
 With differences,有差异
@@ -1030,10 +1043,14 @@ company.field.fiscalYearStart,财年起月
 company.field.name,公司名称
 company.field.note,备注
 company.field.phone,电话
+company.field.posEnabled,启用 POS 收银台
 company.field.promptpay,PromptPay 收款
 company.field.shortName,简称
 company.field.taxId,税号
+company.field.terminalName,收银台名称
+company.field.terminalWarehouse,卖货的仓库
 company.field.warehouse,仓库
+company.field.warehouseName,仓库名称
 company.fiscalHint,1 = 一月
 company.lookup.action,查询
 company.lookup.failed,查询失败，请手工填写
@@ -1045,6 +1062,10 @@ company.lookup.not_vat_registered,税号存在，但没有 VAT 登记
 company.lookup.parse_error,税务局的回复格式看不懂
 company.lookup.querying,正在向税务局查询…
 company.lookup.rd_unreachable,现在连不上税务局
+company.method.card,刷卡
+company.method.cash,现金
+company.method.promptpay,扫码（PromptPay）
+company.method.transfer,转账
 company.new,新建公司
 company.newWarehouse,新建仓库
 company.notice.created,已新建
@@ -1053,21 +1074,31 @@ company.notice.saved,已保存
 company.notice.toggled,已更新
 company.notice.updated,已更新 {0} 条
 company.onlyAdmin,只有产品管理员能改
+company.posHint,勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 company.promptpayHint,收款时给对方看的账号
 company.readOnly,只有产品管理员能改，这里是只读
 company.save,保存
 company.section.address,地址与备注
 company.section.basic,公司信息
 company.section.documents,单据
+company.section.pos,POS 收银台
+company.section.terminals,收银台
 company.section.warehouse,仓库
+company.section.warehouses,仓库
 company.setCurrent,设为当前
 company.setDefaultWarehouse,设为默认
 company.status.active,正常
 company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
+company.terminalDefaultName,Counter 1
+company.terminalEdit,编辑
+company.terminalNew,新增收银台
+company.terminalNone,还没有收银台
+company.terminalsHint,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 company.warehouseDefaultName,主仓
 company.warehouseHint,这家公司的第一个仓库（之后在「仓库」页再加）
+company.warehousesHint,这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 company.yes,是
 completed,已完成
 count,盘点
