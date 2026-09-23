@@ -98,6 +98,7 @@ Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose the sheet to import,Choose the sheet to import
 Clear cart,Clear cart
+Clear customer,Clear customer
 Clear the cart?,Clear the cart?
 Close,Close
 Close Shift,Close Shift
@@ -339,6 +340,7 @@ No,No
 No Open Shift,No Open Shift
 No attachments,No attachments
 No product for this code: {0},No product for this code: {0}
+No receipts in this shift,No receipts in this shift
 No stock count in progress,No stock count in progress
 No warehouse matches that name,No warehouse matches that name
 None,None
@@ -493,6 +495,8 @@ Scan barcode or QR code,Scan barcode or QR code
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned,Scanned
 Search,Search
+"Search by code, barcode or name","Search by code, barcode or name"
+Search by customer name or phone,Search by customer name or phone
 Search by name or phone,Search by name or phone
 Search by receipt number,Search by receipt number
 Search name or barcode,Search name or barcode
@@ -1152,7 +1156,9 @@ trade.countedAmount,Counted Amount
 trade.countedCash,Counted Cash
 trade.counterProducts,Products
 trade.customer,Customer
-trade.customerHint,Search by name or phone
+trade.customerClear,Clear customer
+trade.customerHint,Search by customer name or phone
+trade.customerLabel,Customer
 trade.date,Date
 trade.description,Description
 trade.diff,Difference
@@ -1221,6 +1227,7 @@ trade.price,Unit Price
 trade.printReceipt,Print Receipt
 trade.product,Product
 trade.qty,Quantity
+trade.receiptsEmpty,No receipts in this shift
 trade.recentOrders,Recent Orders
 trade.reference,Reference
 trade.refund,Refund
@@ -1237,7 +1244,7 @@ trade.scan,Scan
 trade.scanNotFound,No product for this code: {0}
 trade.scanUnsupported,This device cannot scan
 trade.searchOrders,Search by receipt number
-trade.searchProducts,"Search name, code or barcode"
+trade.searchProducts,"Search by code, barcode or name"
 trade.selectOrderHint,Select a receipt to load its summary
 trade.shiftClosed,Shift closed · Cash difference {0}
 trade.shiftHistory,Shift History

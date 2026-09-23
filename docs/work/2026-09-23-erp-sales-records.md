@@ -1588,3 +1588,89 @@ color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内�
 界面那一格只验到"渲染出来、能搜到"）；退货/作废时客户会不会跟着带过去（退货单目前不带客户）。
 
 **演示站新增**：`SALE-2026-00571`（挂客户 `CUS-00215`，THB 39，现金）—— 是这次的验证单，保留。
+
+### F36：搜索框与客户那一格照官方重做（读源码 + 官方站实测），空态与文案全站排查（2026-09-23，未部署）
+
+用户口径："那个搜索框和客户选择，我请你不要自己画了，你做的不对，官方不是这样的，请你去读源码，
+位置布局样式请你做成一模一样，空态按官方原生组件做，并检查其它空态是否正常，有没有出现语言文案
+混用的情况"。他附的那张截图里还露出**团队管理页整页白屏**（`Unable to load this page. Please reload.`）。
+
+**先把官方读清楚**（本轮的依据，不是照截图猜）：
+
+- 官方 POS 源码 `erpnext/selling/page/point_of_sale/`：`pos_item_selector.js`（搜索框 = Data 控件 +
+  `attach_clear_btn()` 补一颗 Clear；扫码靠 `onScan` 监听扫码枪）、`pos_item_cart.js`
+  （客户两态 `make_customer_selector()` / `update_customer_section()` / `reset_customer_selector()`）、
+  `point-of-sale.scss` 197-281（客户那一格的类名与尺寸）。
+- 官方站实测（`127.0.0.1:8084`，官方 ERPNext v16 容器，同一浏览器、同一尺寸量）：
+  1. 搜索框里那颗「扫描」**不是 ERPNext 画的**，是框架 `frappe/.../form/controls/data.js` 的
+     `setup_barcode_field()`：Data 控件带 `options: "Barcode"` 时自己挂第二颗 `.link-btn`
+     （`icon-scan-barcode`），点开的是官方 `frappe.ui.Scanner`，扫到的字 `set_value` 回填进本框；
+  2. 两颗 `.link-btn` 都在 `.control-input` 里、绝对定位在**同一处**（`right:4px`），后进的画在上面 ——
+     官方 DOM 顺序是 Clear 在前、扫描在后，所以露出来的是条码那颗；
+  3. `.customer-section` 是 `.customer-cart-container` 的**第一个直接子级**，与 `.cart-container` 平级。
+
+**改了什么**
+
+| 位置 | 之前（自己画的） | 现在（官方原件） |
+| --- | --- | --- |
+| 搜索框扫码 | 自己写 `<span class="scan-btn">` + 自己的 `p.scan()`（而 `p.scan` 早就没了 → 点下去直接报错） | `df.options = "Barcode"`，框架自己挂扫描按钮 + 官方 `frappe.ui.Scanner`；扫到唯一一条直接进购物车、一条都没有就橙色提示 + 出错音（官方 `onScan` 那段行为） |
+| Clear 小叉 | 自己写的 `.link-btn`，`append` 在最后 → 会盖住条码图标 | 照官方 `attach_clear_btn()` 的 HTML（含 `style="top:2px"`）用 `prepend` 放在扫描**前面**，与官方 DOM 顺序一致 |
+| 客户未选 | 自己画的圆角边框格 + FieldGroup（多包了 form/section/column 三层） | 官方 `.customer-field` + `frappe.ui.form.make_control`（Link → `ERP Customer`，`toggle_label(false)` 藏标签） |
+| 客户已选 | 自己画的 `.customer-card`（avatar / who / who-sub / clear-btn） | 官方 `.customer-details > .customer-display`：`.customer-image.customer-abbr` + `.customer-name` + `.customer-desc` + `.reset-customer-btn`（官方那颗 X 的 SVG 原件） |
+| 客户卡样式 | 自己写 border / padding / 圆角 | 官方 `.pos-card` 那一套（白底 + `--shadow-base` + `--border-radius-md` + `15px 20px`），逐条抄 scss 197-281 |
+
+**几何实测**（同一视口 1440×900，官方站 vs 我们站，逐项一致）：
+
+| 量什么 | 官方 | 我们 |
+| --- | --- | --- |
+| `.filter-section` | `x232 w711` | `x232 w711` |
+| 顶部标签 `.label` | `x252 w224` | `x252 w224` |
+| 搜索框 `.search-field` / 里面的 `input` | `x486 w260` | `x486 w260` |
+| 物料分组占位 `.item-group-field`（我们不做分组，只留位置） | `x756 w168` | `x756 w168` |
+| `.customer-section` / `.cart-container` | `x959 w469` | `x959 w469` |
+| 客户卡 `padding` / `border-radius` / `box-shadow` | `15px 20px` / `10px` / `0 0 1px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.1)` | 同 |
+| 客户卡里 `.customer-display` / 缩写圆 `.customer-image` / 叉 `.reset-customer-btn` | `[979,76,429,48]` / `[979,76,48,48]` / `[1376,84,32,32]` | 同 |
+| `.customer-abbr` 字号 / 底色 / 圆角 | `20px` / `rgb(243,243,243)` / `50%` | 同 |
+
+**行为实测**（演示站浏览器，真点击）：
+
+- 点搜索框里那颗扫码 → **真的弹官方扫码框**（标题「扫描二维码」，摄像头取景框亮起来；关掉后页面里
+  `video` 计数回 0）。
+- 客户框输入 `CUS-00215` → 出卡：缩写圆 `ร` + `ร้านอาหารคุณสมชาย` + `02-345-6789`，**没有**任何报错弹窗。
+- 点卡上那颗叉 → 回到搜索框、占位符「通过客户名称、电话进行搜索」、**焦点自动落回输入框**
+  （官方 `reset_customer_selector()` 的行为）。
+- 点「新单」→ 客户跟着清空（回散客）、购物车回空态。
+
+**顺手修掉的两个真问题**
+
+1. **团队管理页整页白屏**（用户截图里那句 `Unable to load this page. Please reload.`）：`team.js` 里
+   `company_label` 写成 `const`，而列表列在构造时就调它（`format` 在 `p.list()` 里立刻跑）→ 暂时性死区，
+   整页只剩那句报错。改成函数声明（提升）。浏览器复核：列 = 姓名/邮箱/功能权限/公司/状态/最后登录，报错消失。
+2. **客户框里还没落定的半截字会被当成客户画成卡**，并必弹一个「未找到」：官方取客户资料用的就是
+   `frappe.db.get_value("Customer", …)`（查不到返回空对象、不弹错），改成同一句；查不到不画卡、也不把
+   那个值带进单子（落单只认查得到的 `customer_picked`）。
+
+**空态与文案排查**（用户点名要看的那两件）
+
+- 购物车空态 = 官方 `.no-item-wrapper`（官方那套灰底居中块），文案用我们术语表的「购物车是空的」
+  （官方自己把 `Item Cart` 译成"购物车"、把 `No items in cart` 译成"物料车为空"，同一页里两处不一致；
+  我们统一说"购物车"）。
+- 最近订单空态：原来借框架的 `__("No Data")`（"无数据"），换成术语表新增的
+  `trade.receiptsEmpty`「No receipts in this shift / 当班暂无小票」，组件仍是官方 `.no-item-wrapper`。
+- 汇总屏空态 = 官方 `.no-summary-placeholder` + 我们那句「选择小票以加载汇总」。
+- 列表页空态走框架官方的 `frappe.views.ListView.prototype.get_no_result_message()`（`p.list` 里），不是自己画的。
+- 文案混用扫描：首页 / 物料 / 库存 / 入库 / 出库 / 收发存 / 盘点 / 采购 / 销售 / 收银 POS / 收银记录 /
+  交班记录 / 客户 / 供应商 / 公司 / 仓库 / 团队 逐页取"可见文本里的拉丁字母"，只命中**数据**
+  （客户名、地址、仓库名、公司名、单据号、条码）与既定说法（收银 POS、Excel 导入、SKU、THB）；
+  没有漏译的英文界面文案。框架自带的隐藏 `.tooltip-content`（官方页同样有，露出 `undefined`）
+  是假阳性，已排除。
+- 顺带删掉四个空置的术语键：`trade.scan`、`trade.scanUnsupported`、`trade.customerLabel`、`trade.customerClear`。
+
+**验证**：架构 PASS(0)；`i18n-build --check` PASS；`check-frontend-i18n` 0 问题；权限契约 102 条 OK
+（6 跳过）；`test_native_desk_contract` 18 条里 2 条失败 = 与基线同一批（没动）；10 支 JS 测试全过。
+演示站只清缓存 + 重启 web（Desk 脚本改动），没有 migrate、没有部署。
+
+**没验到**：真扫码枪/真摄像头扫一个码 → 落购物车这条链（环境里只有取景框，没有可扫的码）；
+暗色主题下客户卡与搜索框的观感。
+
+**演示站数据**：本轮没新建单据（只点开官方扫码框、点过几次客户与「新单」，没有落库）。

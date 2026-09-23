@@ -74,9 +74,7 @@
 		let shift = null, items = [], items_total = 0, cart = [], selected = null,
 			pad_target = null, pad_value = "", paying = false, pay_target = null,
 			orders = [], active_order = null, orders_shown = false, view = "counter",
-			detail_controls = {},
-			// 这一单的客户（主档 `ERP Customer` 的名字）；空 = 散客。换人不换单，一直是这一个。
-			customer = null;
+			detail_controls = {};
 
 		// ── 骨架（类名与层级照官方那六块）────────────────────────────────────────
 		function pad_html(keys) {
@@ -118,12 +116,12 @@
 				<div class="form-container"></div>
 			</section>
 			<section class="customer-cart-container">
+				${/* 客户那一格在**官方的位置**：`pos_item_cart.js` 里它是 `.customer-cart-container`
+				     的第一个直接子级，与 `.cart-container` 平级（各自一张卡）。未选 = 官方原生
+				     Link 搜索框；选了 = `.customer-details` 那张卡。 */""}
+				<div class="customer-section"></div>
 				<div class="cart-container">
 					<div class="abs-cart-container">
-						${/* 客户那一段（官方在购物车上方那一格）：选主档里的客户，钱和货就都记在这人名下。
-						     搜索走**官方 Link 自己那套** —— 客户表的 `search_fields` 就是
-						     「名称 + 电话」两栏（用户 2026-09-23：只按名称和电话搜，没有的不要做）。 */""}
-						<div class="customer-section"></div>
 						<div class="cart-label">${p.escape(t("trade.cart"))}</div>
 						<div class="cart-header">
 							<div class="name-header">${p.escape(t("trade.product"))}</div>
@@ -207,17 +205,28 @@
 		const $app = page.main.find(".point-of-sale-app");
 		const q = selector => $app.find(selector);
 
-		// 商品区顶上那两颗控件是官方原生控件（Data + placeholder 与 Clear 那颗小叉）。
+		// 商品区顶上那颗搜索框：官方原生 Data 控件，`options: "Barcode"` 时**框架自己**会在
+		// `.control-input` 里挂一颗 `icon-scan-barcode` 的 `.link-btn`（点开的是官方
+		// `frappe.ui.Scanner`，扫到的字回填进本框），Clear 那颗小叉照官方 `attach_clear_btn()`
+		// 的写法补在后面 —— 两颗的位置、尺寸、层叠全由官方控件与框架样式决定，我们不再自己画。
 		const search_control = frappe.ui.form.make_control({
-			df: { fieldtype: "Data", placeholder: t("trade.searchProducts") },
+			df: { fieldtype: "Data", options: "Barcode", placeholder: t("trade.searchProducts") },
 			parent: $app.find(".items-selector .search-field"), render_input: true,
 		});
-		search_control.$wrapper.find(".control-input").append(
-			`<span class="link-btn"><a class="btn-open no-decoration" title="${__("Clear")}">${
-				frappe.utils.icon("close", "sm")}</a></span>`);
-		search_control.$wrapper.on("click", ".link-btn a", () => {
+		search_control.toggle_label(false);
+		// Clear 那颗要放在**扫描前面**（官方页面上实测就是这个顺序：两颗 `.link-btn` 在同一处叠着，
+		// 后进的画在上面，官方露出来的是条码那颗），所以用 `prepend`。
+		search_control.$wrapper.find(".control-input").prepend(
+			`<span class="link-btn" style="top: 2px;">
+				<a class="btn-open no-decoration" title="${__("Clear")}">${
+					frappe.utils.icon("close", "sm")}</a>
+			</span>`);
+		search_control.$wrapper.on("click", `a[title="${__("Clear")}"]`, () => {
 			search_control.set_value(""); void load_items(); search_control.set_focus();
 		});
+		// 点了官方那颗扫码 = "这一次是从码来的"：搜到唯一一条就直接进购物车，一条都没有就
+		// 照实说（官方 `onScan` 那两段行为）。见下面 `load_items()`。
+		search_control.$wrapper.on("click", `a[title="${__("Scan")}"]`, () => { scanned = true; });
 		search_control.$input.on("change", () => void load_items());
 		const order_status_control = frappe.ui.form.make_control({
 			df: { fieldtype: "Select", options: ["", "completed", "void", "refund"],
@@ -255,6 +264,8 @@
 			cart = []; selected = null; pad_target = null; pad_value = "";
 			paying = false; pay_target = null; view = "counter";
 			if (orders_shown) { orders_shown = false; }
+			// 官方"新单"= 一张全新的单子：客户跟着清空（回到散客），免得下一单悄悄挂在上一单的人名下。
+			reset_customer();
 			await paint();
 		}
 
@@ -290,6 +301,9 @@
 		}
 
 		// ── 商品区 ──────────────────────────────────────────────────────────────
+		// 官方 `pos_item_selector.js`：扫码枪/摄像头扫进来就一个字塞进搜索框，回车时
+		// 「唯一一条 → 直接进购物车；一条都没有 → 橙色提示 + 出错音」。
+		let scanned = false;
 		async function load_items() {
 			if (!shift) return;
 			const result = await p.call(api + "api_counter_products", {
@@ -297,6 +311,21 @@
 				start: 0, limit: 40 });
 			items = result?.items || [];
 			items_total = num(result?.total);
+			if (scanned) {
+				scanned = false;
+				const code = String(search_control.get_value() || "");
+				if (items.length === 1) {
+					add_to_cart(items[0]);
+					frappe.utils.play_sound("submit");
+					search_control.set_value("");
+					await load_items();
+					return;
+				}
+				if (!items.length && code) {
+					frappe.show_alert({ message: t("trade.scanNotFound", code), indicator: "orange" });
+					frappe.utils.play_sound("error");
+				}
+			}
 			paint_items();
 		}
 
@@ -658,7 +687,8 @@
 			const result = await p.call(api + "api_create_sale", {
 				shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
 				// 这一单挂哪个客户（空 = 散客）；服务端会核它确实存在且启用着。
-				customer: customer || undefined,
+				// 只认**查得到**的那个客户：客户框里还没落定的字不带进单子里。
+				customer: customer_picked || undefined,
 				// 整单折扣（官方那颗「折扣」按百分比给）：服务端 `sale_totals(discount_total=…)`。
 				discount_total: cart_discount(),
 				lines: cart.map(row => ({ product: row.product, qty: num(row.qty),
@@ -711,7 +741,7 @@
 						<div class="invoice-date">${p.escape(state_label(row.status))}</div>
 					</div>
 				</div>`).join("")
-				: `<div class="no-item-wrapper">${p.escape(__("No Data"))}</div>`);
+				: `<div class="no-item-wrapper">${p.escape(t("trade.receiptsEmpty"))}</div>`);
 		}
 
 		async function show_summary(name) {
@@ -968,6 +998,12 @@
 		});
 		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
 		$app.on("click", ".past-order-summary .new-order-btn", () => void new_invoice());
+		// 客户卡右边那颗叉 = 官方 `reset_customer_selector()`：清掉这一单挂的客户，
+		// 重画成搜索框，焦点回到客户框。`last_customer` 一起清空，下一轮对值才会认"现在是空的"。
+		$app.on("click", ".customer-section .reset-customer-btn", () => {
+			reset_customer();
+			customer_control?.set_focus();
+		});
 		// 「打印收据」= 框架原生打印视图（官方出小票也走这一条）。
 		$app.on("click", ".past-order-summary .print-btn", () => {
 			if (!active_order) return;
@@ -1041,23 +1077,107 @@
 			paint_views();
 		}
 
-		// 客户：一个**原生 Link** 控件（下拉按 **名称 / 电话** 搜，客户表的 `search_fields` 定的）。
-		// 选谁这一单就挂谁；空着 = 散客。只在购物车那一栏出现，选过之后一直留着（换人再选）。
+		// 客户那一格：照官方 `pos_item_cart.js` 的**两态**来做 —— 未选是 `.customer-field` 里一个
+		// **隐藏了标签的原生 Link 控件**（下拉按**名称 / 电话**搜，客户表的 `search_fields` 定的），
+		// 选中后整段换成 `.customer-details`（缩写圆 + 名字 + 电话 + 清空那颗叉）。
+		// 位置、留白、字号、圆角、阴影全是官方那套类名，不再自己画卡片。
+		//
+		// **值就放在控件自己身上**（下面 `customer_now()` 每次都从控件读）。早先把它另存一个变量、
+		// 再在重画时写回控件，结果那个变量的更新依赖字段的 `change` 回调 —— 回调没来时它一直是空，
+		// 于是每次重画都把用户刚选的客户**擦掉**（用户 2026-09-23："你那个客户为什么喜欢自己换"）。
+		// 现在控件是唯一真相：重画只负责建它，不再往回写。
+		let customer_control = null;
+		let last_customer = "", customer_watch = null;
+		// 真的**查得到**的那个客户 —— 落单只认它，输入框里还没落定的半截字不算（下面 `update_customer_section`）。
+		let customer_picked = "";
+		// 落单时取的就是"当前到底选了谁"：控件值优先，兜底认输入框里的内部号（理由同卡片那里）。
+		const customer_now = () => {
+			const from_control = String(customer_control?.get_value() || "").trim();
+			const typed = String(customer_control?.$input?.val() || "").trim();
+			return (from_control || (/^[A-Z]+-\d+$/.test(typed) ? typed : "")) || "";
+		};
+
+		// 官方 `make_customer_selector()`：清空那一格，重新放一个新的 Link 控件。
+		function make_customer_selector() {
+			const host = q(".customer-section");
+			if (!host.length) return;
+			host.empty().append(`<div class="customer-field"></div>`);
+			// 官方 `make_customer_selector()` 用的就是 `frappe.ui.form.make_control`（不是 FieldGroup）：
+			// 只有这样 DOM 才和官方一致（FieldGroup 会多包一层 form / section / column），
+			// 标签也照官方 `toggle_label(false)` 藏起来。
+			customer_control = frappe.ui.form.make_control({
+				df: {
+					label: __("Customer"), fieldtype: "Link", options: "ERP Customer", only_select: true,
+					// 官方的提示是"名称/电话/邮箱"，我们的客户主档只按**名称与电话**两栏搜
+					// （用户 2026-09-23：只按名称和电话搜，没有的不要做），所以提示里不写邮箱。
+					placeholder: t("trade.customerHint"),
+					onchange: () => void update_customer_section(),
+				},
+				parent: host.find(".customer-field"), render_input: true,
+			});
+			customer_control.toggle_label(false);
+			// 选完（鼠标点、键盘回车、失焦）之后把客户卡画出来。框架的 Link 在选完那一刻派发的
+			// 是 `awesomplete-select` / `awesomplete-selectcomplete`，**不一定**派发 `change`；
+			// 三个都听，再加一条兜底的定时核对 —— 漏掉一次事件就会出现"选了客户但卡片不出来"。
+			customer_control.$input.on(
+				"change awesomplete-select awesomplete-selectcomplete blur",
+				() => void update_customer_section());
+			if (!customer_watch) {
+				customer_watch = setInterval(() => void update_customer_section(), 500);
+			}
+		}
+
 		function paint_customer() {
 			const host = q(".customer-section");
-			if (!host.length || host.data("pearnly_control")) {
-				const control = host.data("pearnly_control");
-				if (control && control.get_value() !== (customer || "")) control.set_value(customer || "");
-				return;
+			if (!host.length) return;
+			// 未选、且那一格里的控件没了（`p.clear_page()` 把页面清掉过一次）→ 重新建。
+			if (!customer_now() && !host.find(customer_control?.wrapper || []).length) {
+				make_customer_selector();
 			}
-			const form = p.layout(host, [{
-				fieldtype: "Link", options: "ERP Customer", only_select: true,
-				fieldname: "customer", label: t("trade.customer"),
-				default: customer || "",
-				description: t("trade.customerHint"),
-				change: () => { customer = form.get_value("customer") || null; },
-			}]);
-			host.data("pearnly_control", form);
+			void update_customer_section();
+		}
+
+		// 官方 `reset_customer_selector()` 的落点：清掉这一单挂的客户，重画成搜索框。
+		function reset_customer() {
+			last_customer = "";
+			customer_picked = "";
+			make_customer_selector();
+		}
+
+		// 官方 `update_customer_section()`：选了人就把那一格换成客户卡；没选就回到搜索态。
+		async function update_customer_section() {
+			// 取值优先问控件；控件还没把值落下来时（现场几种选法不一定都派发 change），
+			// 兜底看它输入框里的字 —— 看起来像内部号（`CUS-#####`）就认它。
+			const value = customer_now();
+			if (value === last_customer) return;
+			last_customer = value;
+			if (!value) { make_customer_selector(); return; }        // 官方 `reset_customer_selector()`
+			// 官方 `fetch_customer_details()` 取的就是这一句 `frappe.db.get_value(...)`：查得到才有卡，
+			// 查不到返回空对象（不会像走接口那样弹一个"未找到"）。
+			const info = (await frappe.db.get_value("ERP Customer", value,
+				["customer_name", "contact_phone"])).message || {};
+			if (customer_now() !== value) return;                          // 取的这段时间里又换了
+			// 输进来的字还不是一个真客户（框架的 Link 还没落定值）：不画卡，也不把它当成这一单的客户。
+			if (!info.customer_name) { customer_picked = ""; return; }
+			customer_picked = value;
+			const name = info.customer_name;
+			// 官方 `.customer-desc` 是"邮箱 - 电话"，都没有时写"点击添加邮箱/电话"；我们只有电话
+			// 一栏，有就写、没有就不写这一行（收银台不做在这里补资料，不写一句点了没反应的话）。
+			const phone = info?.contact_phone || "";
+			q(".customer-section").html(`<div class="customer-details">
+				<div class="customer-display">
+					<div class="customer-image customer-abbr">${p.escape(frappe.get_abbr(name))}</div>
+					<div class="customer-name-desc">
+						<div class="customer-name">${p.escape(name)}</div>
+						${phone ? `<div class="customer-desc">${p.escape(phone)}</div>` : ""}
+					</div>
+					<div class="reset-customer-btn" data-customer="${p.escape(value)}">
+						<svg width="32" height="32" viewBox="0 0 14 14" fill="none">
+							<path d="M4.93764 4.93759L7.00003 6.99998M9.06243 9.06238L7.00003 6.99998M7.00003 6.99998L4.93764 9.06238L9.06243 4.93759" stroke="#8D99A6"/>
+						</svg>
+					</div>
+				</div>
+			</div>`);
 		}
 
 		p.add_refresh(page, () => void refresh());
@@ -1065,6 +1185,7 @@
 		if (!shift && can_write) await open_shift_dialog();
 		return () => {
 			$(document).off("keydown.pearnly_pos");
+			if (customer_watch) { clearInterval(customer_watch); customer_watch = null; }
 			page.main.find(".point-of-sale-app").remove();
 		};
 	};

@@ -98,6 +98,7 @@ Choose at least one job role,เลือกสิทธิ์อย่างน
 Choose file,เลือกไฟล์
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Clear cart,ล้างตะกร้า
+Clear customer,ล้างลูกค้า
 Clear the cart?,ล้างตะกร้าใช่ไหม
 Close,ปิด
 Close Shift,ปิดกะ
@@ -339,6 +340,7 @@ No,ลำดับ
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
+No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
@@ -493,6 +495,8 @@ Scan barcode or QR code,สแกนบาร์โค้ดหรือคิ�
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
 Scanned,สแกนแล้ว
 Search,ค้นหา
+"Search by code, barcode or name",ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ
+Search by customer name or phone,ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์
 Search by name or phone,ค้นหาด้วยชื่อหรือโทรศัพท์
 Search by receipt number,ค้นหาด้วยเลขที่ใบเสร็จ
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
@@ -1152,7 +1156,9 @@ trade.countedAmount,ยอดนับได้
 trade.countedCash,เงินสดที่นับได้
 trade.counterProducts,สินค้า
 trade.customer,ลูกค้า
-trade.customerHint,ค้นหาด้วยชื่อหรือโทรศัพท์
+trade.customerClear,ล้างลูกค้า
+trade.customerHint,ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์
+trade.customerLabel,ลูกค้า
 trade.date,วันที่
 trade.description,ชื่อหรือรายละเอียด
 trade.diff,ผลต่าง
@@ -1221,6 +1227,7 @@ trade.price,ราคาต่อหน่วย
 trade.printReceipt,พิมพ์ใบเสร็จ
 trade.product,สินค้า
 trade.qty,จำนวน
+trade.receiptsEmpty,กะนี้ยังไม่มีใบเสร็จ
 trade.recentOrders,ออเดอร์ล่าสุด
 trade.reference,เอกสารอ้างอิง
 trade.refund,คืนสินค้า
@@ -1237,7 +1244,7 @@ trade.scan,สแกน
 trade.scanNotFound,ไม่พบสินค้าสำหรับรหัสนี้: {0}
 trade.scanUnsupported,อุปกรณ์นี้สแกนไม่ได้
 trade.searchOrders,ค้นหาด้วยเลขที่ใบเสร็จ
-trade.searchProducts,ค้นหาชื่อ รหัส หรือบาร์โค้ด
+trade.searchProducts,ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ
 trade.selectOrderHint,เลือกใบเสร็จเพื่อดูสรุป
 trade.shiftClosed,ปิดกะแล้ว · ผลต่างเงินสด {0}
 trade.shiftHistory,ประวัติกะ

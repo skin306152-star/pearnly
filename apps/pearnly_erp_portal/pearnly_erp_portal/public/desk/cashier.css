@@ -209,6 +209,61 @@
 	padding-bottom: var(--padding-md);
 }
 .point-of-sale-app .cart-header > .name-header { flex: 1 1 0%; }
+/* 客户那一格：官方 `point-of-sale.scss` 197-281 那一套，类名、尺寸、留白逐条抄。
+   搜索框右端那颗「扫描」与 Clear 都由官方控件自己来（框架 `.link-btn` 的定位也是官方的），
+   这里不再给它们补任何样式 —— 补了就不是一模一样的了。 */
+.point-of-sale-app > .customer-cart-container > .customer-section {
+	background-color: var(--fg-color);                 /* 官方 198（.pos-card + 下面几条）*/
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	display: flex;
+	flex-direction: column;
+	padding: var(--padding-md) var(--padding-lg);
+	overflow: visible;
+}
+.point-of-sale-app > .customer-cart-container > .customer-section > .customer-field {
+	display: flex;                                     /* 官方 204 */
+	align-items: center;
+	padding-top: var(--padding-xs);
+}
+.point-of-sale-app > .customer-cart-container > .customer-section > .customer-details {
+	display: flex;                                     /* 官方 210 */
+	flex-direction: column;
+	background-color: var(--fg-color);
+}
+.point-of-sale-app .customer-display {                 /* 官方 232 */
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+.point-of-sale-app .customer-image {                   /* 官方 237 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 3rem;
+	height: 3rem;
+	border-radius: 50%;
+	color: var(--text-light);
+	margin-right: var(--margin-md);
+}
+.point-of-sale-app .customer-abbr {                    /* 官方 253（@extend .abbr + 覆盖字号）*/
+	background-color: var(--control-bg);
+	font-size: var(--text-2xl);
+}
+.point-of-sale-app .customer-name-desc {               /* 官方 258 */
+	overflow: hidden;
+	white-space: nowrap;
+	display: flex;
+	flex-direction: column;
+	margin-right: auto;
+}
+.point-of-sale-app .customer-name { font-weight: 700; font-size: var(--text-lg); }   /* 官方 264 */
+.point-of-sale-app .customer-desc { font-weight: 500; font-size: var(--text-sm); }   /* 官方 269 */
+.point-of-sale-app .reset-customer-btn {               /* 官方 275 */
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
 /* 官方 `add-discount-wrapper`：虚线框、居中一颗「折扣」（点一下换成百分比输入）。 */
 .point-of-sale-app .cart-totals-section .add-discount-wrapper {
 	display: flex;

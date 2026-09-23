@@ -212,7 +212,7 @@ Unit	单位	หน่วย	単位	trade.unit
 Discount	折扣金额	ส่วนลด	割引額	trade.discount
 Add Discount	折扣	เพิ่มส่วนลด	割引を追加	trade.addDiscount
 Customer	客户	ลูกค้า	顧客	trade.customer
-Search by name or phone	按名称或电话搜	ค้นหาด้วยชื่อหรือโทรศัพท์	名前か電話で検索	trade.customerHint
+Search by customer name or phone	通过客户名称、电话进行搜索	ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์	顧客名か電話で検索	trade.customerHint
 Enter discount percentage	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力	trade.discountPercentHint
 Discount percentage	折扣百分比	เปอร์เซ็นต์ส่วนลด	割引率	trade.discountPercent
 VAT Rate	增值税率	อัตรา VAT	付加価値税率	trade.vat
@@ -798,9 +798,10 @@ Voided	已作废	ยกเลิกแล้ว	取消済み	trade.state.void
 Open	开班中	เปิดกะอยู่	営業中	trade.state.open
 Closed	已交班	ปิดกะแล้ว	終了	trade.state.closed
 Products	商品	สินค้า	商品	trade.counterProducts
-Search name, code or barcode	搜索名称、编码或条码	ค้นหาชื่อ รหัส หรือบาร์โค้ด	名前・コード・バーコードで検索	trade.searchProducts
+Search by code, barcode or name	按物料号、条码或名称搜索	ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ	コード・バーコード・名前で検索	trade.searchProducts
 Cart	购物车	ตะกร้า	カート	trade.cart
 Lines in this shift	当班小票	บิลในกะนี้	このシフトのレシート	trade.shiftReceipts
+No receipts in this shift	当班暂无小票	กะนี้ยังไม่มีใบเสร็จ	このシフトのレシートはありません	trade.receiptsEmpty
 Code	编码	รหัส	コード	trade.code
 On hand	库存	คงเหลือ	在庫	trade.onHand
 Clear cart	清空购物车	ล้างตะกร้า	カートを空にする	trade.cartClear
@@ -808,10 +809,8 @@ Clear the cart?	要清空购物车吗？	ล้างตะกร้าใช่
 The cart is empty	购物车是空的	ตะกร้าว่างเปล่า	カートは空です	trade.cartEmpty
 Added: {0}	已加入：{0}	เพิ่มแล้ว: {0}	追加しました: {0}	trade.addedToCart
 No product for this code: {0}	没找到这个码对应的商品：{0}	ไม่พบสินค้าสำหรับรหัสนี้: {0}	このコードの商品が見つかりません: {0}	trade.scanNotFound
-This device cannot scan	这台设备不能扫码	อุปกรณ์นี้สแกนไม่ได้	この端末ではスキャンできません	trade.scanUnsupported
 Change	找零	เงินทอน	お釣り	trade.change
 Pay	收款	รับชำระ	会計	trade.action.pay
-Scan	扫码	สแกน	スキャン	trade.scan
 Total Items	总数量	จำนวนชิ้น	合計点数	trade.totalItems
 Remove	移除	นำออก	削除	trade.remove
 Pick a line first	先选一行	เลือกบรรทัดก่อน	先に行を選んでください	trade.pickLine

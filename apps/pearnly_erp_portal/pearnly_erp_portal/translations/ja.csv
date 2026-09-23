@@ -98,6 +98,7 @@ Choose at least one job role,機能権限を1つ以上選んでください
 Choose file,ファイルを選択
 Choose the sheet to import,取り込むシートを選択してください
 Clear cart,カートを空にする
+Clear customer,顧客をクリア
 Clear the cart?,カートを空にしますか
 Close,閉じる
 Close Shift,シフト終了
@@ -339,6 +340,7 @@ No,番号
 No Open Shift,未開店
 No attachments,添付ファイルなし
 No product for this code: {0},このコードの商品が見つかりません: {0}
+No receipts in this shift,このシフトのレシートはありません
 No stock count in progress,進行中の棚卸はありません
 No warehouse matches that name,その倉庫名は存在しません
 None,なし
@@ -493,6 +495,8 @@ Scan barcode or QR code,バーコード・QRコードを読む
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned,読み取りました
 Search,検索
+"Search by code, barcode or name",コード・バーコード・名前で検索
+Search by customer name or phone,顧客名か電話で検索
 Search by name or phone,名前か電話で検索
 Search by receipt number,レシート番号で検索
 Search name or barcode,名前・バーコードで検索
@@ -1152,7 +1156,9 @@ trade.countedAmount,実地金額
 trade.countedCash,実際の現金
 trade.counterProducts,商品
 trade.customer,顧客
-trade.customerHint,名前か電話で検索
+trade.customerClear,顧客をクリア
+trade.customerHint,顧客名か電話で検索
+trade.customerLabel,顧客
 trade.date,日付
 trade.description,名称または説明
 trade.diff,差異
@@ -1221,6 +1227,7 @@ trade.price,単価
 trade.printReceipt,レシート印刷
 trade.product,商品
 trade.qty,数量
+trade.receiptsEmpty,このシフトのレシートはありません
 trade.recentOrders,最近の会計
 trade.reference,参照伝票
 trade.refund,返品・返金
@@ -1237,7 +1244,7 @@ trade.scan,スキャン
 trade.scanNotFound,このコードの商品が見つかりません: {0}
 trade.scanUnsupported,この端末ではスキャンできません
 trade.searchOrders,レシート番号で検索
-trade.searchProducts,名前・コード・バーコードで検索
+trade.searchProducts,コード・バーコード・名前で検索
 trade.selectOrderHint,レシートを選ぶと集計を表示
 trade.shiftClosed,シフト終了 · 現金差異 {0}
 trade.shiftHistory,シフト履歴

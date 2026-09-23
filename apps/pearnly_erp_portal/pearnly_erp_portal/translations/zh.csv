@@ -98,6 +98,7 @@ Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
 Choose the sheet to import,请先选择要导入的表格
 Clear cart,清空购物车
+Clear customer,清除客户
 Clear the cart?,要清空购物车吗？
 Close,关闭
 Close Shift,交班
@@ -339,6 +340,7 @@ No,序号
 No Open Shift,尚未开班
 No attachments,无附件
 No product for this code: {0},没找到这个码对应的商品：{0}
+No receipts in this shift,当班暂无小票
 No stock count in progress,无进行中的盘点
 No warehouse matches that name,该仓库名不存在
 None,无
@@ -493,6 +495,8 @@ Scan barcode or QR code,扫描条形码或二维码
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scanned,扫到了
 Search,搜索
+"Search by code, barcode or name",按物料号、条码或名称搜索
+Search by customer name or phone,通过客户名称、电话进行搜索
 Search by name or phone,按名称或电话搜
 Search by receipt number,按小票编号搜索
 Search name or barcode,搜索名称或条码
@@ -1152,7 +1156,9 @@ trade.countedAmount,实点金额
 trade.countedCash,实点现金
 trade.counterProducts,商品
 trade.customer,客户
-trade.customerHint,按名称或电话搜
+trade.customerClear,清除客户
+trade.customerHint,通过客户名称、电话进行搜索
+trade.customerLabel,客户
 trade.date,日期
 trade.description,名称或说明
 trade.diff,差额
@@ -1221,6 +1227,7 @@ trade.price,单价
 trade.printReceipt,打印收据
 trade.product,物料
 trade.qty,数量
+trade.receiptsEmpty,当班暂无小票
 trade.recentOrders,最近订单
 trade.reference,关联单据
 trade.refund,退货退款
@@ -1237,7 +1244,7 @@ trade.scan,扫码
 trade.scanNotFound,没找到这个码对应的商品：{0}
 trade.scanUnsupported,这台设备不能扫码
 trade.searchOrders,按小票编号搜索
-trade.searchProducts,搜索名称、编码或条码
+trade.searchProducts,按物料号、条码或名称搜索
 trade.selectOrderHint,选择小票以加载汇总
 trade.shiftClosed,已交班 · 差额 {0}
 trade.shiftHistory,班次记录
