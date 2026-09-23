@@ -1,4 +1,9 @@
-/* Existing Pearnly accent tokens; all neutral surfaces and component geometry stay native. */
+/* Brand tokens:主按钮、勾选框这些**动作/状态**用品牌色（用户 2026-09-23 更正："我只说了选择
+   和未选中，没让你改主按钮色和公司图标底色" —— 上一版把它们一起改回官方灰，是改多了，已还原）。
+
+   这一轮真正要改的只有**选择框那一层**（见文件底部 `awesomplete` 那两段）：
+   · 悬停/选中那行 → 官方灰（不再是品牌浅紫）；
+   · `autoFirst` 自动标成选中的第一行（其实什么都没选）→ 不上色。 */
 body.pearnly-product-desk {
 	--pearnly-accent: #7c4dff;
 	--pearnly-accent-deep: #6b3ff2;
@@ -90,6 +95,7 @@ body.pearnly-product-desk .btn.btn-primary:not(:disabled):active {
 	border-color: var(--pearnly-accent-deep);
 	color: #fff !important;
 }
+/* 侧栏当前选中项：品牌浅底 + 品牌深字（官方那一条是白底 `--sidebar-active-color`）。 */
 body.pearnly-product-desk .standard-sidebar-item.active-sidebar {
 	background-color: var(--pearnly-accent-weak);
 	color: #6b3ff2;
@@ -179,22 +185,22 @@ body.pearnly-product-desk .pearnly-dialog .modal-footer {
 	z-index: 3;
 }
 
-/* 选择框的下拉浮层：几何、白底、深色文字、圆角都由官方组件负责，我们只把**强调色**
-   换成品牌色 —— 悬停/选中底色、以及我们那条「新建 …」动作行（官方那条是普通文字色）。
-   框架自己的变量就是 `--awesomplete-hover-bg`（`common/awesomeplete.scss`）。 */
-body.pearnly-product-desk {
-	--awesomplete-hover-bg: var(--pearnly-accent-weak);
-}
-body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option {
-	color: var(--pearnly-accent-deep);
-}
-body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option .fa {
-	color: var(--pearnly-accent);
+/* 选择框的下拉浮层：几何、白底、深色文字、悬停底色**全部归官方**
+   （框架的 `--awesomplete-hover-bg` 就是 `var(--control-bg)`，浅灰）——
+   我们不再给它上品牌色（同一条用户口径：主题色只留给侧栏选中）。 */
+/* 「未选中却带底色」的那一行：awesomplete 的 `autoFirst` 一打开下拉就把第一行标成
+   `aria-selected="true"`，于是刚点开的下拉里总有一行是有色的 —— 用户 2026-09-23：
+   "还有一些是未选中时会出现主题色，也不要保留官方的灰底"。所以：**只有真的悬停/移动**
+   才给官方那层灰底，其余时候不上色。 */
+/* ⚠️ 这一版框架把下拉行渲染成 `[role="option"]` 的 **div**（不是 `li`），所以两个都要写。 */
+body.pearnly-product-desk .awesomplete > ul > li[aria-selected="true"]:not(:hover),
+body.pearnly-product-desk .awesomplete > ul > [role="option"][aria-selected="true"]:not(:hover) {
+	background-color: transparent;
 }
 /* 我们那条「新建 …」**永远看得见**：官方给浮层的 `max-height` 是 300px、超了就在里面滚，
    而这条排在最后 —— 用户看到的是"没有新建"（2026-09-23："图一，仓库没有新建"、
    "组件甚至显示不全"）。把它钉在浮层底部：结果照常滚，这一条一直在。
-   几何、白底、字体仍归官方，只加一条分隔线表明它是**动作**而不是一条结果。 */
+   文案与图标照官方那一条（官方文字色，不是品牌色），只加一条分隔线表明它是**动作**。 */
 body.pearnly-product-desk .awesomplete > ul > li:has(.pearnly-link-option),
 body.pearnly-product-desk .awesomplete > ul > [role="option"]:has(.pearnly-link-option) {
 	position: sticky;
