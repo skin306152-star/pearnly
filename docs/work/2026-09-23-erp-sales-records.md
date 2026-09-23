@@ -2289,3 +2289,95 @@ name = endpoint if isinstance(endpoint, str) else str(getattr(endpoint, "name", 
 - **免费的"比例"**：本地没有真 LINE 通道，记账要等生产跑几天才看得到（用在 `line.usage()`）。
 - 令牌的**真实有效期**：我们代码按 60 秒算，官方偏短；由 `reply_rejected` 说话。
 - 真机 LINE 端到端（点按钮 → 收到卡）仍要部署后验。
+
+### F47：权威只读不再白登一次销售会话（真 DMS 实测：登录 2 次 → 1 次）（2026-09-23，未部署）
+
+F46 收尾时把"省时间"拆成 3a/3b，其中 3a 的验证条件卡在"本机没有能登录的 DMS 端点"。
+用户这轮给了真测试账号（`https://www.mrerp4sme.com/dms/index.php`；销售号 `sale02`/`sale03`、
+管理员号 `dmstest`/`dms001`，凭据在 `~/.config/pearnly/credentials/legacy-endpoints.json`），
+3a 因此可以真验了。
+
+**问题是什么**
+
+`run_logged_in(..., authoritative_read=True)` 以前是"先登销售会话 → 再用管理员会话读"。
+整块读取其实只跑在管理员会话上（`authoritative_read_session` 会把 transport 换成管理员的
+只读闸），所以**销售那次登录是白付的**。生产实测一次新连接 6–16 秒（TLS 握手占绝大部分，
+会话复用 0.2 秒）—— 也就是识别查重 / 客户全字段 / 地址级联 / 编辑页快照 / 主档刷新
+每次都在白等一次登录。
+
+**改了什么**
+
+· `intake/service.py`：`authoritative_read=True` **且**配了独立管理员凭据
+  （`has_distinct_admin_creds`）时跳过销售登录；这一块同时改用
+  `authoritative_read_session(..., require_admin=True)` 兜底 —— 拿不到管理员会话就按
+  `ERR_DMS_ADMIN_AUTH` 明确失败，**绝不回落成"没登录的主会话"**（那样会读出空数据还
+  当成"查无此客"，是最难查的一类失败）。
+· `adapter/admin_read.py`：`authoritative_read_session` 加 `require_admin` 透传
+  （原先只有 `authoritative_read_client` 有这个参数）。
+· 没配管理员 / 管理员与销售同号 → 行为逐字节不变（照旧先登销售会话）。
+· 账号锁不用动：`with adapter` 本来就把销售与管理员两个登录槽一起锁（`session.py` 的 `__enter__`）。
+
+**为什么敢跳（边界核对）**
+
+· 6 个 `authoritative_read=True` 调用点（`recognize_lookup` / `customer_fields` /
+  `geo_options` / `edit_snapshot._read` / `masters_cache` 全量主档 / 颜色批量）**全是只读**，
+  写路径不进这个入口。
+· 块内所有读取都经 `client.transport`（= 管理员只读闸）：`company_banks._fetch_banks`
+  用传进来的 `client`；`employees._fetch_via_admin` 走 `_writer_session`（同一个管理员）；
+  `booking_customer` / `booking_org` 那两处不在这个入口里（它们要销售会话写单）。
+· 「重复登录」弹窗在管理员页上同样记进 `session.dialogs`，收尾那次并发检查照旧有效。
+· 唯一差别：`company_banks._failure_screenshot` 用 `adapter.page`（主会话）截图，跳过之后
+  主页面停在空白页 —— 只影响失败现场那张图，不影响判断和结果。
+
+**验证**
+
+新增 `scripts/sample-verify-dms-authoritative-read-real.py` + `.sh`（真浏览器 + 真 DMS，三场景；
+里面对账用的"登录次数"计在 `_perform_login` 上，主会话与管理员会话都数得到）：
+
+| 场景 | 配置 | 对照（跳过逻辑关掉） | 现在 |
+| --- | --- | --- | --- |
+| A | 销售 `sale02` + 独立管理员 `dmstest` | **登 2 次**（sale02 488ms → dmstest 4457ms），整块 9526ms | **登 1 次**（dmstest），读取真数据 `provinces=77 / prefixes=5` |
+| B | 只有销售号（没配管理员） | 登 1 次（sale02），读取正常 | 三轮一致：登 1 次（sale02），读取正常 |
+| C | 管理员号登不上（不存在的账号） | 登 2 次、`ERR_DMS_ADMIN_AUTH`、读取没跑 | 只登 1 次、`ERR_DMS_ADMIN_AUTH`、读取没跑（失败关闭） |
+| D | 同 A，但跑**生产那个真实入口**（身份证查重 `recognize_lookup`） | —— | 只登 1 次（管理员），`ok=True / scenario=none`；**整条读链都过得了管理员只读闸** |
+
+对照 = 同一份工作树代码，只把"跳过"那两行换回 `skip_sales_login = False`，跑完立即恢复
+（用 `md5` 核对过恢复前后一致）。
+
+场景 D 是只有真系统才验得到的一件事：查重那一整条读链（查客户 → 直读客户 → 表单回显 →
+地址级联 → 称谓）每一跳都必须落在 `admin_read._READ_ONLY_POST_PATHS` 的允许表里；
+有哪一跳不在，管理员会话会直接拒掉（`refused a non read-only request`）—— 离线假 DMS
+不会暴露这种问题，因为假 DMS 里没有真页面路径。
+
+顺带得到一条对照：同样两次读，走管理员会话（A）和走销售会话（B）的整块耗时基本一样
+（5.2s / 5.05s），说明**读本身没变慢**，省的确实只是那一次多余登录。
+
+**别拿单次墙钟当收益**：同一场景连跑三次，A 的整块耗时是 5.2s / 11.1s / 30.8s，登录本身
+0.5s / 0.7s / 6.4s —— 对方主机抖动极大（与生产上量到的现象一致）。**硬证据是登录次数 2 → 1**；
+省下的时间就是那一次登录在生产上的 6–16 秒。
+
+**生产会不会生效（只读；不部署也能确认）**：在生产 DMS 容器里跑
+`has_admin_creds()`（这正是运行时判据，含"密码能不能解开"）—— 9 条端点的管理员凭据
+**都解得开**，其中 6 条是"销售号 ≠ 管理员号"，也就是这个优化**真的会生效**：
+
+| 站点 | 端点 | 销售号 | 管理员号 | 会跳过销售登录？ |
+| --- | --- | --- | --- | --- |
+| testdms | EP-00001 | `dmstest` | `dmstest` | 否（同号，行为不变） |
+| testdms | EP-00002 | `sale02` | `dmstest` | **是** |
+| testdms | EP-00003 | `sale03` | `dmstest` | **是** |
+| ris | EP-00001 / EP-00002 | `dms001` | `dms001` | 否（同号） |
+| ris | EP-00004 / EP-00011 / EP-00015 / EP-00016 | `00000`/`00sctest1`/`10562`/`10434` | `dms001` | **是**（4 条） |
+
+后台预热走同一个 `run_logged_in` 入口，同样从 2 次变 1 次。
+
+| 检查 | 结果 |
+| --- | --- |
+| 真 DMS 四场景（`sample-verify-dms-authoritative-read-real.sh`） | 13/13 PASS（三场景版连跑三轮一致，加场景 D 后 13/13） |
+| `check-dms-offline` 全套 | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / retry 60 / quota 26 全 PASS |
+| 架构 / 对账 / 文案 | PASS(0)；无漂移（`intake/service.py`、`adapter/admin_read.py` 不在那 47 个对账模块里，本次有意偏离登记在本节）；前端文案 0 问题 |
+
+**没验到的**
+
+· 生产上的真实节省：要部署后看（本地链路一次登录只有 0.5–6 秒，抖起来能到 6.4 秒）。
+· 后台预热对真 DMS 的那一条：没单独跑（它走同一个 `run_logged_in` 入口，差别只在预算档）。
+· 3b（跨请求会话租用）仍然没做 —— 它动会话归属，先看这次的记账与耗时数据。

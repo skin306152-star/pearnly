@@ -84,6 +84,13 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
     销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
     管理员 transport；未配管理员照样走销售；配了但管理员登录失败 →
     `ERR_DMS_ADMIN_AUTH` **明确失败关闭**，不静默降级。**写操作（上传/提交）不走这个入口。**
+
+    同一档还有一条省时规矩：**权威只读 + 配了独立管理员凭据时不登销售会话**。这一整块
+    读取只跑在管理员会话上（销售会话登了也用不到），白付的那一次完整登录在生产实测是
+    6–16 秒（新连接卡在 TLS 握手；同一连接复用只要 0.2 秒）。只在**配了独立管理员**时跳：
+    没配或与销售同号 → 照旧先登销售会话，单凭据路径行为逐字节不变。跳过之后这一块
+    **必须**落在管理员会话上（`require_admin`）：拿不到就按 `ERR_DMS_ADMIN_AUTH` 明确失败，
+    绝不回落成"没登录的主会话读出一片空"。
     """
     name = endpoint_name(endpoint)
     from pearnly_dms.config import pacing
@@ -110,18 +117,28 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
 
         try:
             with adapter:
-                try:
-                    adapter.login()
-                except (DmsAuthError, DmsTechnicalError):
-                    if adapter.concurrent_login_detected:
-                        return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                    raise
+                # **权威只读 + 独立管理员 = 不登销售会话**：这一整块读取会被
+                # `authoritative_read_session` 换成管理员 transport，销售会话登了也用不到，
+                # 白付一次完整登录（生产实测每次 6–16 秒，几乎全花在新连接的 TLS 握手上）。
+                # 账号锁不受影响：`with adapter` 本来就同时锁销售与管理员两个登录槽。
+                skip_sales_login = authoritative_read and bool(
+                    getattr(adapter, "has_distinct_admin_creds", False)
+                )
+                if not skip_sales_login:
+                    try:
+                        adapter.login()
+                    except (DmsAuthError, DmsTechnicalError):
+                        if adapter.concurrent_login_detected:
+                            return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
+                        raise
                 try:
                     client = adapter.client()
                     if authoritative_read:
                         from pearnly_dms.adapter.admin_read import authoritative_read_session
 
-                        with authoritative_read_session(client):
+                        # 跳过了销售登录 → 这一块**必须**是管理员会话（拿不到就失败关闭，
+                        # 不许在没登录的主会话上读出一片空还当成"查无此客"）。
+                        with authoritative_read_session(client, require_admin=skip_sales_login):
                             out = fn(client, adapter)
                     else:
                         out = fn(client, adapter)

@@ -109,13 +109,19 @@ def authoritative_read_client(
 
 
 @contextmanager
-def authoritative_read_session(client: Any, *, read_only: bool = True) -> Iterator[DmsClient]:
+def authoritative_read_session(client: Any, *, read_only: bool = True,
+                               require_admin: bool = False) -> Iterator[DmsClient]:
     """把后续读取临时切到管理员会话，退出时**原样换回**（异常路径也换回）。
 
     进出都显式落回进入前的 transport，`_writer_session` 的保存/恢复因此不会把 client
     留在管理员态。未配管理员时产出原 client（行为与单凭据逐字节一致）。
+
+    `require_admin=True`：这一块**必须**落在管理员会话上 —— 没配管理员就抛
+    `ERR_DMS_NO_ADMIN_CREDS`。`run_logged_in` 在"跳过了销售登录"那一档用它兜底：
+    那种情况下回落到销售会话等于在一个**没登录**的会话上读，只会读出一片空，
+    而"看起来成功其实什么都没有"正是最难查的失败。
     """
-    reader = authoritative_read_client(client, read_only=read_only)
+    reader = authoritative_read_client(client, read_only=read_only, require_admin=require_admin)
     if reader is client:
         yield client
         return
