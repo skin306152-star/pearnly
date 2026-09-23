@@ -33,7 +33,7 @@
 		const priced = direction === "in";
 		// 弹窗点「全屏编辑」时把已填的值带进二级页面（两边在同一个闭包里，不必写进 URL）。
 		let carry = null;
-		let list, form, refresh_icon = null;
+		let list, form, lines = null, head = null, refresh_icon = null;
 
 		// 刷新那颗图标只在列表那一级出现：二级页面里有没提交的输入，一颗刷新把它清掉不合适。
 		function set_refresh(on) {
@@ -51,6 +51,9 @@
 
 		// 字段顺序与旧线上入库/出库单据一致：单据号、日期、仓库，然后明细与说明。
 		// `doc_no` 不进请求体：单据编号由服务端发，界面上只读。
+		// 明细：**能录入的时候不用表格** —— 一条一段的官方控件（用户 2026-09-23："出库和入库
+		// 界面添加物料那个位置不要用表格，拆出来"），见 `p.trade.lines_editor`；已提交 / 已作废
+		// 的单据只是看，仍旧用只读的那张表（那是"看"，不是"加物料"）。
 		const entry_fields = ({ doc = {}, doc_no, editable, data }) => [
 			{ fieldtype: "Data", fieldname: "doc_no", label: t("trade.docNo"), read_only: 1,
 				default: doc_no, description: doc.doc_no ? "" : t("stock.field.docNoAuto") },
@@ -61,14 +64,47 @@
 			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
 			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
 				label: t("trade.warehouse"), default: doc.warehouse, reqd: 1,
-				get_query: p.warehouse_query(), only_select: true },
-			p.trade.lines(t, { stock: true, cost: true, readonly: !editable, locked_price: !priced,
-				data: data || doc.lines || [{ qty: 1 }] }),
+				get_query: p.warehouse_query(), only_select: true,
+				// 表头一改，每一行里那格镜像跟着改（行里的仓库是**同一个**仓库，只是也显示在行里）。
+				onchange: () => sync_lines_warehouse() },
+			...(editable
+				// 明细的宿主（HTML 格）与"添加明细"那颗官方按钮：真正的控件由 `mount_lines` 建。
+				? [{ fieldtype: "HTML", fieldname: "lines" },
+					{ fieldtype: "Button", fieldname: "add_line", label: t("trade.action.addLine"),
+						click: () => lines?.add() }]
+				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced,
+					data: doc.lines || [] })]),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
 				default: doc.reason },
 		].map(field => ({ ...field, read_only: editable ? 0 : 1 }))
 			// 单据号永远是只读的（上面那次 map 会把它放开）。
 			.map(field => (field.fieldname === "doc_no" ? { ...field, read_only: 1 } : field));
+
+		// 行里的「仓库」= 表头那一个（镜像，只读）。所以：
+		//   · 表头变了 → 每一行跟着变（`sync_lines_warehouse`）；
+		//   · 选物料时，主档默认仓**建议**给表头（只在表头还空着时填，不覆盖用户选的）。
+		function sync_lines_warehouse() {
+			lines?.set_warehouse(head?.fields_dict?.warehouse?.get_value() || "");
+		}
+		function suggest_warehouse(name) {
+			const control = head?.fields_dict?.warehouse;
+			if (!name || !control) return;
+			if (String(control.get_value() || "").trim()) return;
+			void control.set_value(name);
+			sync_lines_warehouse();
+		}
+
+		// 把逐条明细挂到某一处（弹窗 / 整页），并把实例记在闭包上（按钮、取值、搬家都要用）。
+		function mount_lines(container, rows, target) {
+			head = target;
+			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, data: rows || [],
+				suggest_warehouse, warehouse: () => head?.fields_dict?.warehouse?.get_value() || "" });
+			container.empty().append(lines.host);
+			const initial = (rows && rows.length) ? rows : [{ qty: 1 }];
+			initial.forEach(row => lines.add(row));
+			sync_lines_warehouse();
+			return lines;
+		}
 
 		const clean = values => ({ posting_date: values.posting_date,
 			warehouse: values.warehouse, reason: values.reason, lines: p.trade.clean(values.lines) });
@@ -76,7 +112,11 @@
 		function entry_values() {
 			const values = form.get_values();
 			if (!values) return null;
-			return clean(values);
+			// 明细不在 `get_values()` 里（它们是这一段小表单），单独取；必填没填时它会展开那一段
+			// 并返回 null —— 那就别提交，让用户看到是哪一条。
+			const rows = lines ? lines.values() : values.lines;
+			if (rows === null) return null;
+			return clean({ ...values, lines: rows });
 		}
 
 		// ── 列表 ────────────────────────────────────────────────────────────────
@@ -148,18 +188,27 @@
 			d = p.dialog(name || title_new(), fields, editable ? t("trade.action.submit") : t("trade.close"),
 				async (values, dialog) => {
 					if (!editable) { dialog.hide(); return; }
+					// 明细不在弹窗的 `get_values()` 里（它们是逐条的小表单），单独取；
+					// 必填没填时它会展开那一段并返回 null —— 那就别提交。
+					const rows = lines ? lines.values() : values.lines;
+					if (rows === null) return;
 					// 一次调用就建单/改单 + 过账；完了回列表，不停在这一页。
 					const result = await p.call(api + (name ? "api_update_stock_entry" : "api_create_stock_entry"), {
-						...(name ? { name } : { direction }), submit: 1, ...clean(values),
+						...(name ? { name } : { direction }), submit: 1, ...clean({ ...values, lines: rows }),
 					}, "POST");
 					dialog.hide();
 					p.success(t("trade.notice.submitted", result.doc_no || ""));
 					await list?.reload();
 				});
 			d.$wrapper.find(".modal-dialog").addClass("modal-xl");
+			// 明细：录入时是**逐条摊开**的（见 `mount_lines`）。
+			if (editable) mount_lines(d.fields_dict.lines.$wrapper, doc.lines || null, d);
 			// 只有新建（或还没提交的草稿）才摊成整页；已提交的单据点开就是看。
 			if (editable) {
-				p.edit_all(d, t("trade.action.fullPage"), url(SECOND), values => { carry = values; });
+				// 搬到整页去改：明细也一起带走（这里**不校验**，过去了再改）。
+				p.edit_all(d, t("trade.action.fullPage"), url(SECOND), values => {
+					carry = { ...values, lines: lines ? lines.values({ check: false }) : values.lines };
+				});
 			}
 		}
 
@@ -171,12 +220,13 @@
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
-			// 带过来的明细行（弹窗里已经填好的那些）原样铺进 Grid。
+			// 带过来的明细行（弹窗里已经填好的那些）原样铺成逐条的小表单。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default({}, posting_date);
 			if (frappe.get_route()[0] !== root) return;
 			form = p.layout(page.main, entry_fields({ doc: values, doc_no, editable: true, data }));
+			mount_lines(form.fields_dict.lines.$wrapper, data, form);
 			page.set_primary_action(t("trade.action.submit"), () => void submit_new());
 		}
 
@@ -195,7 +245,7 @@
 
 		async function render(rest) {
 			p.clear_page(page);
-			list = null; form = null;
+			list = null; form = null; lines = null; head = null;
 			set_refresh(false);
 			if (!rest.length) { open_list(); return; }
 			if (rest[0] !== SECOND || !canWrite) { p.redirect_up(root); return; }

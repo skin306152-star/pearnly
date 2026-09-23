@@ -14,6 +14,7 @@ Add VAT,付加価値税を計算
 Add a count,カウントを記録
 Add a count — {0},カウントを記録 — {0}
 Add photos,写真を追加
+Add row,明細を追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional Information,追加情報
@@ -1114,6 +1115,7 @@ team.role.stock,在庫
 team.roles,機能権限
 team.rolesHint,チェックした機能だけがこのユーザーに表示されます
 team.status,状態
+trade.action.addLine,明細を追加
 trade.action.exportCount,{0}件をエクスポート
 trade.action.fullPage,全画面で編集
 trade.action.ledger,在庫の受け払いを開く

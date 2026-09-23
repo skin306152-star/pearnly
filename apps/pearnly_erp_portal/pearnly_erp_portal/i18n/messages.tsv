@@ -198,7 +198,7 @@ Shelf	库位	ตำแหน่ง	棚番	stock.board.shelf
 Stock count workbench	盘点工作台	หน้าปฏิบัติงานตรวจนับ	棚卸作業台	stock.board.title
 Void this count of {0}?	撤销这条 {0} 的记录？	ยกเลิกรายการนับ {0} นี้?	この {0} の記録を取り消しますか？	stock.count.voidConfirm
 ERP Stock Count Variance	盘点差异看板	กระดานผลต่างการตรวจนับ	棚卸差異ボード
-Items	商品	รายการสินค้า	商品	trade.lines
+Items	物料	รายการสินค้า	商品	trade.lines
 Product	物料	สินค้า	商品	trade.product
 Warehouse	仓库	คลัง	倉庫	trade.warehouse
 Location	仓位	ตำแหน่ง	保管場所	trade.location
@@ -283,7 +283,7 @@ Added {0}	已添加 {0}	เพิ่มแล้ว {0}	{0}を追加しました
 Saved	已保存	บันทึกแล้ว	保存しました	team.notice.saved
 Password updated	密码已更新	อัปเดตรหัสผ่านแล้ว	パスワードを更新しました	team.notice.password
 Updated {0} user(s)	已更新 {0} 位用户	อัปเดตผู้ใช้ {0} คน	ユーザー{0}件を更新しました	team.notice.toggled
-Products	商品	สินค้า	商品	team.role.products
+Products	物料	สินค้า	商品	team.role.products
 Stock	库存	สต็อก	在庫	team.role.stock
 Purchasing	采购	จัดซื้อ	購買	team.role.purchase
 Sales	销售	ขาย	販売	team.role.sales
@@ -296,6 +296,7 @@ The password must be at least {0} characters	密码至少 {0} 位	รหัส�
 Select one receipt to refund	一次只能退一条小票	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
 Only a completed sale receipt can be refunded	只有已完成的小票能退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger
+Add row	添加明细	เพิ่มรายการ	明細を追加	trade.action.addLine
 Select one row to open its ledger	一次只能看一条流水	เลือกได้ครั้งละหนึ่งรายการ	明細は1行ずつ開きます	trade.action.ledgerSingle
 Save Draft	保存草稿	บันทึกฉบับร่าง	下書きを保存	trade.save
 Close	关闭	ปิด	閉じる	trade.close
@@ -793,7 +794,7 @@ Completed	已完成	เสร็จสิ้น	完了	trade.state.completed
 Voided	已作废	ยกเลิกแล้ว	取消済み	trade.state.void
 Open	开班中	เปิดกะอยู่	営業中	trade.state.open
 Closed	已交班	ปิดกะแล้ว	終了	trade.state.closed
-Products	商品	สินค้า	商品	trade.counterProducts
+Products	物料	สินค้า	商品	trade.counterProducts
 Search by code, barcode or name	按物料号、条码或名称搜索	ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ	コード・バーコード・名前で検索	trade.searchProducts
 Cart	购物车	ตะกร้า	カート	trade.cart
 Lines in this shift	当班小票	บิลในกะนี้	このシフトのレシート	trade.shiftReceipts
@@ -804,7 +805,7 @@ Clear cart	清空购物车	ล้างตะกร้า	カートを空にす�
 Clear the cart?	要清空购物车吗？	ล้างตะกร้าใช่ไหม	カートを空にしますか	trade.cartClearConfirm
 The cart is empty	购物车是空的	ตะกร้าว่างเปล่า	カートは空です	trade.cartEmpty
 Added: {0}	已加入：{0}	เพิ่มแล้ว: {0}	追加しました: {0}	trade.addedToCart
-No product for this code: {0}	没找到这个码对应的商品：{0}	ไม่พบสินค้าสำหรับรหัสนี้: {0}	このコードの商品が見つかりません: {0}	trade.scanNotFound
+No product for this code: {0}	没找到这个码对应的物料：{0}	ไม่พบสินค้าสำหรับรหัสนี้: {0}	このコードの商品が見つかりません: {0}	trade.scanNotFound
 Change	找零	เงินทอน	お釣り	trade.change
 Pay	收款	รับชำระ	会計	trade.action.pay
 Total Items	总数量	จำนวนชิ้น	合計点数	trade.totalItems

@@ -111,6 +111,118 @@
 				"unit_cost", "discount", "vat_rate", "original_line",
 			].filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 		},
+		// ── 明细：逐条摊开（入库/出库的录入**不用表格**）───────────────────────────
+		// 用户 2026-09-23："出库和入库界面添加物料那个位置不要用表格，拆出来"。
+		// 版式与采购/销售的自由行同一套：**一条一段**（官方可折叠 Section Break）+ 官方控件，
+		// 段里的每一格与老表格那一列一一对应；字段顺序照抄老表格（物料、仓库、仓位、数量、
+		// 单价、说明、单位），所以换个版式、不换口径。
+		// 值仍按 `p.trade.clean()` 认的形状交回去；行里原来带的、界面上没有的键（编辑草稿时
+		// 的 `original_line` 这类）原样带回去 —— 老表格是整行对象，换成小表单别把字段丢了。
+		// 行里的「仓库」是**表头那一个的镜像**，不是一个能各说各话的第二输入框：
+		// 用户 2026-09-23 先指出"仓库重复了"，接着说"去掉了后把上面那个加进去。出入库同步"——
+		// 也就是行里要看得到仓库（一眼知道这行进哪个仓），但它跟表头是**同一件事**：只读显示，
+		// 表头一变所有行跟着变。服务端口径也是这样（`inventory/positions.py::prepare`：
+		// `line.warehouse || doc.warehouse || product.default_warehouse`）。
+		lines_editor(t, { cost = false, locked_price = false, data = [],
+			suggest_warehouse, warehouse } = {}) {
+			const price = cost ? "unit_cost" : "unit_price";
+			const host = $("<div class='pearnly-line-editor'></div>");
+			const lines = [];
+			const field_names = ["product", "warehouse", "location", "qty", price, "description", "unit", "currency"];
+			const any = value => String(value ?? "").trim();
+			// 表头那个仓库的现值（由调用方给；行里的镜像和新建的行都用它）。
+			const head_warehouse = () => (typeof warehouse === "function" ? warehouse() || "" : "");
+			function line_fields(line) {
+				return [
+					{ fieldtype: "Link", options: "ERP Product", fieldname: "product", label: t("trade.product"),
+						reqd: 1, get_query: () => ({filters: {is_active: 1}}),
+						async onchange() {
+							const selected = line.form.get_value("product");
+							if (!selected || !line.ready) return;
+							const item = await p.call("pearnly_erp_portal.products.service.api_get_product",
+								{name: selected});
+							if (line.form.get_value("product") !== selected) return;
+							// 售价取主数据里"设过的"那个价（没设过就别替商家宣布免费）；成本直接取主档成本。
+							await line.form.set_values({ description: item.product_name,
+								unit: item.unit || item.base_unit, location: item.default_location || "",
+								[price]: cost ? item.default_cost : (item.price_set ? item.unit_price : 0) });
+							// 主档的默认仓**建议**给表头那个仓库（只在它还空着时填，不覆盖用户选的）。
+							suggest_warehouse?.(item.default_warehouse);
+						} },
+					// 仓库：表头的镜像（只读）。放在物料下面 —— 这一行进哪个仓，一眼看得到。
+					{ fieldtype: "Link", options: "ERP Warehouse", only_select: true, read_only: 1,
+						fieldname: "warehouse", label: t("trade.warehouse") },
+					{ fieldtype: "Column Break" },
+					{ fieldtype: "Data", fieldname: "location", label: t("trade.location") },
+					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1,
+						precision: 3, formatter: value => p.number(value) },
+					{ fieldtype: "Data", fieldname: "unit", label: t("trade.unit") },
+					{ fieldtype: "Column Break" },
+					{ fieldtype: "Currency", fieldname: price, options: "currency",
+						label: t(cost ? "trade.cost" : "trade.price"),
+						// 出库不给人填价：只锁这一格，行照样能加能改（结存成本由服务端算）。
+						read_only: locked_price ? 1 : 0, formatter: value => p.money(value) },
+					{ fieldtype: "Data", fieldname: "description", label: t("trade.description") },
+					{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
+					{ fieldtype: "Button", fieldname: "remove", label: __("Delete"),
+						click: () => drop(line) },
+				];
+			}
+			// 段标题按当前顺序重排（删掉中间一条之后，后面的段号要接上）。
+			function relabel() {
+				lines.forEach((line, index) => {
+					line.section.head.contents().filter((_, node) => node.nodeType === Node.TEXT_NODE)
+						.first().replaceWith(document.createTextNode(`${t("trade.lines")} ${index + 1} `));
+				});
+			}
+			function drop(line) {
+				line.wrapper.remove();
+				lines.splice(lines.indexOf(line), 1);
+				relabel();
+			}
+			function add(values = {}, collapse_previous = true) {
+				if (collapse_previous) lines.forEach(line => line.section.collapse(true));
+				const wrapper = $("<div>").appendTo(host);
+				const outer = p.layout(wrapper, [
+					{ fieldtype: "Section Break", label: `${t("trade.lines")} ${lines.length + 1}`, collapsible: 1 },
+					{ fieldtype: "HTML", fieldname: "fields" },
+				]);
+				const line = { wrapper, section: outer.sections[0], ready: false,
+					stash: Object.fromEntries(Object.entries(values).filter(([key]) => !field_names.includes(key))) };
+				line.form = p.layout(outer.fields_dict.fields.$wrapper, line_fields(line));
+				lines.push(line);
+				relabel();
+				// 先铺值再放开 onchange：初始化时别把"带出来的"值又算一遍。
+				// 行里的仓库永远是**表头那一个**（旧行自带的仓库不覆盖它 —— 那是老表格的遗留）。
+				void line.form.set_values({ qty: 1, currency: "THB", ...values, warehouse: head_warehouse() }).then(() => {
+					line.ready = true;
+					// 只有**最后那一条**默认展开：铺一叠草稿行时不会一串全开着（前面几条在
+					// `add` 开头就收起来了；这里判"还是不是最后一条"，避免异步回来时又展开）。
+					if (lines[lines.length - 1] === line) line.section.collapse(false);
+				});
+				return line;
+			}
+			return {
+				host, add, lines,
+				// 表头那个仓库变了：所有行跟着变（行里那格是它的镜像，不是第二个源）。
+				set_warehouse(name) {
+					lines.forEach(line => line.form.set_value("warehouse", name || ""));
+				},
+				// 交回明细：默认**校验**（必填没填会就地标红并展开那一段，同时返回 null 让调用方别提交）；
+				// `check: false` 是"搬家"（弹窗→整页）用的，只取值不拦人。
+				values({ check = true } = {}) {
+					const out = [];
+					for (const line of lines) {
+						// 空行（没选物料、也没写字）等于没填：老表格就是把它丢掉的，不拿它拦提交。
+						if (!any(line.form.get_value("product")) && !any(line.form.get_value("description"))) continue;
+						const row = line.form.get_values(!check, check);
+						if (!row) { line.section.collapse(false); return null; }
+						out.push({ ...line.stash, ...row });
+					}
+					return out;
+				},
+			};
+		},
 		async act(dialog, callback) {
 			if (dialog.pearnly_busy) return;
 			dialog.pearnly_busy = true;

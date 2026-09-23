@@ -208,6 +208,14 @@ body.pearnly-product-desk .awesomplete > ul > [role="option"]:has(.pearnly-link-
 	background-color: var(--card-bg);
 	border-top: 1px solid var(--border-color);
 }
+/* 浮层要**浮在弹窗底部那条按钮栏之上**：官方给浮层的 `z-index` 是 2，而 `.modal-footer`
+   是 `position: sticky; z-index: 3` —— 两个在同一个层叠上下文里，于是浮层最后两三行被按钮栏
+   盖住，点下去命中的是按钮栏（用户 2026-09-23："你那个下拉的时候新建好像被隐藏了，点不到"；
+   实测网格格里那条「新建」就在 y=699–734，而按钮栏从 y=704 起，中心点命中的是 `.modal-footer`）。
+   浮层本来就是"临时压在最上面"的东西，抬到 4 就够了；只在大弹窗里抬，弹窗外的层级不动。 */
+body.pearnly-product-desk .modal .awesomplete > ul {
+	z-index: 4;
+}
 /* 选择框里的「扫码」按钮（`link.js` 的 `p.attach_scan_btn`）：形状照官方 `Data` +
    `options:"Barcode"` 那颗（`data.js::setup_barcode_field`）—— 输入框右侧一颗灰图标，
    悬停才上底色。共用层自己带样式，不依赖哪个产品的 CSS（产品只提供动作）。 */
@@ -236,6 +244,13 @@ body.pearnly-product-desk .pearnly-link-scan {
 body.pearnly-product-desk .pearnly-link-scan:hover {
 	color: var(--text-color);
 	background-color: var(--control-bg);
+}
+/* 备注 / 地址这类多行框（官方 `Small Text` 控件，就是这几个字）：官方给的是**整列宽**，
+   一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。收窄到 360px ——
+   只收宽度，行数、换行行为都还是官方控件的（用户 2026-09-23："所有备注框地址框收窄"）。
+   窄屏不受影响：`max-width` 只封顶，容器更窄时照容器走。 */
+body.pearnly-product-desk textarea.form-control {
+	max-width: 360px;
 }
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {

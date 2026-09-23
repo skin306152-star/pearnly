@@ -14,6 +14,7 @@ Add VAT,คำนวณ VAT
 Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
 Add photos,เพิ่มรูปภาพ
+Add row,เพิ่มรายการ
 Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
 Additional Information,ข้อมูลเพิ่มเติม
@@ -1114,6 +1115,7 @@ team.role.stock,สต็อก
 team.roles,สิทธิ์การใช้งาน
 team.rolesHint,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 team.status,สถานะ
+trade.action.addLine,เพิ่มรายการ
 trade.action.exportCount,ส่งออก {0} กะ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า
 trade.action.ledger,ดูบัญชีสต็อก

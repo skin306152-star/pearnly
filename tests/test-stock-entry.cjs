@@ -23,7 +23,8 @@ function element() {
 
 // `route` = [] 时停在列表，['new'] 时直接进二级页面。
 function boot({ direction = 'in', route = [], doc = null, can_write = true } = {}) {
-  const calls = [], dialogs = [], routes = [], successes = [];
+  const calls = [], dialogs = [], routes = [], successes = [], editors = [];
+  const dialog_values = {}, page_fields = {};
   let list_options, list_reloads = 0, primary = null, form_values = null;
 
   const p = {
@@ -44,8 +45,15 @@ function boot({ direction = 'in', route = [], doc = null, can_write = true } = {
     },
     dialog: (title, fields, label, action) => {
       const by_name = {};
-      for (const field of fields) if (field.fieldname) by_name[field.fieldname] = { df: field, $wrapper: element(), $input: element() };
+      for (const field of fields) if (field.fieldname) by_name[field.fieldname] = {
+        df: field, $wrapper: element(), $input: element(),
+        get_value: () => dialog_values[field.fieldname],
+        set_value: value => { dialog_values[field.fieldname] = value; },
+      };
       const dialog = { title, fields, label, action, by_name, hidden: false,
+        // 真家伙是 `frappe.ui.Dialog`，它一定带 `fields_dict`（页面按字段名往里挂控件）；
+        // 桩少了这一层，`mount_lines` 就没处落。
+        fields_dict: by_name,
         $wrapper: { find: () => element() }, hide() { dialog.hidden = true; },
         get_field: name => by_name[name], get_values: () => form_values };
       dialogs.push(dialog);
@@ -64,11 +72,34 @@ function boot({ direction = 'in', route = [], doc = null, can_write = true } = {
     redirect_up: (...parts) => { routes.push(parts); },
     layout: (_parent, fields) => {
       const by_name = {};
-      for (const field of fields) if (field.fieldname) by_name[field.fieldname] = { df: field };
+      for (const field of fields) if (field.fieldname) by_name[field.fieldname] = {
+        df: field, $wrapper: element(),
+        get_value: () => page_fields[field.fieldname],
+        set_value: value => { page_fields[field.fieldname] = value; },
+      };
       return { fields_dict: by_name, get_values: () => form_values, set_value() {} };
     },
     trade: {
       lines: (_t, options) => ({ fieldtype: "Table", fieldname: "lines", label: "trade.lines", options }),
+      // 明细细编辑器（`transactions.js` 的 `p.trade.lines_editor`）：按同一份契约给一个
+      // "真实到够用"的桩 —— 记下每条、`values()` 丢掉空行（没物料也没说明的不算填过）、
+      // `check` 时必填没填返回 null（真实实现也是这个口径）。
+      lines_editor: (_t, options = {}) => {
+        const added = [];
+        const editor = {
+          host: element(), options, warehouse_seen: [],
+          add(values = {}) { added.push({ ...values }); return editor; },
+          // 行里的仓库是表头的镜像：同步过来时记一笔，测试据此断言"表头变、行跟着变"。
+          set_warehouse(name) { editor.warehouse_seen.push(name); },
+          values({ check = true } = {}) {
+            const kept = added.filter(row => String(row.product || "").trim() || String(row.description || "").trim());
+            if (check && kept.some(row => !String(row.product || "").trim())) return null;
+            return kept;
+          },
+        };
+        editors.push(editor);
+        return editor;
+      },
       clean: lines => (lines || []).filter(row => row && row.product),
       load: (api, method, total, query) => async ({ start, page_length }) => ({ items: [], total: 0 }),
       act: async (_dialog, callback) => { await callback(); },
@@ -89,6 +120,9 @@ function boot({ direction = 'in', route = [], doc = null, can_write = true } = {
   vm.runInNewContext(source, { frappe, __: key => key, $: () => element() });
   return { calls, dialogs, routes, successes, page,
     get primary() { return primary; },
+    get lines() { return editors.at(-1); },
+    get dialog_fields() { return dialog_values; },
+    get page_fields() { return page_fields; },
     get values() { return form_values; },
     set values(values) { form_values = values; },
     get list_options() { return list_options; },
@@ -98,6 +132,8 @@ function boot({ direction = 'in', route = [], doc = null, can_write = true } = {
 
 const call_names = env => env.calls.map(call => call.method.split(".").pop());
 const the_call = (env, name) => env.calls.filter(call => call.method.endsWith(name)).at(-1);
+// 明细编辑器交回来的行（摊平成普通对象，跨 realm 好断言）。
+const plain_lines = env => JSON.parse(JSON.stringify(env.lines.values()));
 // 页面那颗主按钮是 `() => void submit_new()`（原生 Page 的动作不接 promise），点完要让
 // 微任务跑干净再断言，不然断言会跑在提交完成之前。
 async function settle(env) {
@@ -129,11 +165,31 @@ async function settle(env) {
   assert.equal(doc_no.default, "IR2569-000009", "新建时显示当前要发的单据号");
   assert.equal(doc_no.read_only, 1);
   assert.ok(!dialog.fields.some(field => field.fieldname === "submit"), "不再有第二颗提交按钮");
+  // 明细：录入时**不是表格**（用户 2026-09-23："出库和入库界面添加物料那个位置不要用表格，
+  // 拆出来"）—— 一个宿主格 + 一颗官方的「添加明细」，真正的行由 `lines_editor` 逐条建。
+  assert.ok(!dialog.fields.some(field => field.fieldtype === "Table"), "录入界面不再有表格");
+  assert.equal(dialog.fields.find(field => field.fieldname === "lines").fieldtype, "HTML");
+  assert.equal(dialog.fields.find(field => field.fieldname === "add_line").fieldtype, "Button");
+  // 仓库只有**一个源**：表头那格。行里那格是它的镜像（只读、跟着表头变）——
+  // 用户 2026-09-23 先指出"仓库重复了"，接着说"去掉了后把上面那个加进去。出入库同步"。
+  assert.equal(typeof env.lines.options.suggest_warehouse, "function");
+  assert.deepEqual(env.lines.warehouse_seen, [""], "挂上来先按表头的现值同步一次");
+  assert.equal(env.lines.options.warehouse(), "", "行里那格读的就是表头的值");
+  env.lines.options.suggest_warehouse("WH-00009");
+  assert.equal(env.dialog_fields.warehouse, "WH-00009", "表头空着 → 用主档默认仓建议");
+  assert.equal(env.lines.warehouse_seen.at(-1), "WH-00009", "建议进表头之后，行里的镜像跟着变");
+  env.lines.options.suggest_warehouse("WH-00010");
+  assert.equal(env.dialog_fields.warehouse, "WH-00009", "表头已有值 → 不覆盖");
+  // 用户自己改表头（框架在 Link 变值后调 `df.onchange`）：行里的镜像同步过去。
+  env.dialog_fields.warehouse = "WH-00011";
+  dialog.fields_dict.warehouse.df.onchange();
+  assert.equal(env.lines.warehouse_seen.at(-1), "WH-00011", "表头一改 → 每一行的仓库跟着走");
   console.log("PASS the dialog shows the number, takes a free-text warehouse and submits");
 
   // 2) 提交：一次调用就建单 + 过账，关掉弹窗、刷新列表，**不再打开编辑器**。
-  env.values = { posting_date: "2026-09-22", warehouse: "验收仓库", reason: "n",
-    lines: [{ product: "PRD-00001", qty: 2 }] };
+  // 明细从**编辑器**里取（不再是被 `get_values()` 收走的表格）；空着的那条不算填过。
+  env.values = { posting_date: "2026-09-22", warehouse: "验收仓库", reason: "n" };
+  env.lines.add({ product: "PRD-00001", qty: 2 });
   await dialog.action(env.values, dialog);
   const created = the_call(env, "api_create_stock_entry");
   assert.equal(created.args.submit, 1, "建单即过账");
@@ -155,7 +211,8 @@ async function settle(env) {
   await draft.list_options.on_open({ name: "STE-9" });
   const draft_dialog = draft.dialogs.at(-1);
   assert.equal(draft_dialog.label, "trade.action.submit");
-  draft.values = { posting_date: "2026-09-22", warehouse: "WH-00002", lines: [{ product: "PRD-00001", qty: 1 }] };
+  draft.values = { posting_date: "2026-09-22", warehouse: "WH-00002" };
+  assert.deepEqual(plain_lines(draft), [{ product: "PRD-00001", qty: 1 }], "草稿里的明细铺进了编辑器");
   await draft_dialog.action(draft.values, draft_dialog);
   const updated = the_call(draft, "api_update_stock_entry");
   assert.equal(updated.args.name, "STE-9");
@@ -177,8 +234,12 @@ async function settle(env) {
   const full = boot({ direction: "out", route: ["new"] });
   await full.ready();
   assert.equal(full.primary.label, "trade.action.submit");
-  full.values = { posting_date: "2026-09-22", warehouse: "自由填写仓",
-    lines: [{ product: "PRD-00001", qty: 1 }] };
+  full.values = { posting_date: "2026-09-22", warehouse: "自由填写仓" };
+  full.lines.add({ product: "PRD-00001", qty: 1 });
+  full.lines.options.suggest_warehouse("WH-00012");
+  assert.equal(full.page_fields.warehouse, "WH-00012", "整页里表头空着 → 建议填上");
+  full.lines.options.suggest_warehouse("WH-00013");
+  assert.equal(full.page_fields.warehouse, "WH-00012", "整页里表头已有值 → 不覆盖");
   await full.primary.action();
   await settle(full);
   const page_call = the_call(full, "api_create_stock_entry");

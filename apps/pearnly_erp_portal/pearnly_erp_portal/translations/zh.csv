@@ -14,6 +14,7 @@ Add VAT,计算增值税
 Add a count,记一笔
 Add a count — {0},记一笔 — {0}
 Add photos,添加照片
+Add row,添加明细
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional Information,附加信息
@@ -341,7 +342,7 @@ No,序号
 No Open Shift,尚未开班
 No attachments,无附件
 No item matches the scanned code {0},扫到的码没有对应的物料：{0}
-No product for this code: {0},没找到这个码对应的商品：{0}
+No product for this code: {0},没找到这个码对应的物料：{0}
 No receipts in this shift,当班暂无小票
 No stock count in progress,无进行中的盘点
 No warehouse matches that name,该仓库名不存在
@@ -1107,13 +1108,14 @@ team.password,初始密码
 team.passwordHint,至少 8 位
 team.resetPassword,重置密码
 team.role.cashier,收银
-team.role.products,商品
+team.role.products,物料
 team.role.purchase,采购
 team.role.sales,销售
 team.role.stock,库存
 team.roles,功能权限
 team.rolesHint,只勾选的功能，这个用户才看得到
 team.status,状态
+trade.action.addLine,添加明细
 trade.action.exportCount,导出选中的 {0} 个班次
 trade.action.fullPage,全屏编辑
 trade.action.ledger,查看流水
@@ -1152,7 +1154,7 @@ trade.cost,单位成本
 trade.countCash,现金核对
 trade.countedAmount,实点金额
 trade.countedCash,实点现金
-trade.counterProducts,商品
+trade.counterProducts,物料
 trade.customer,客户
 trade.customerClear,清除客户
 trade.customerHint,通过客户名称、电话进行搜索
@@ -1189,7 +1191,7 @@ trade.itemsNotFound,没找到物料
 trade.kind,单据类型
 trade.kind.refund,退货退款
 trade.kind.sale,销售
-trade.lines,商品
+trade.lines,物料
 trade.listPrice,标价
 trade.location,仓位
 trade.method,付款方式
@@ -1239,7 +1241,7 @@ trade.rowOpening,期初
 trade.salesCount,笔数
 trade.save,保存草稿
 trade.scan,扫码
-trade.scanNotFound,没找到这个码对应的商品：{0}
+trade.scanNotFound,没找到这个码对应的物料：{0}
 trade.scanUnsupported,这台设备不能扫码
 trade.searchOrders,按小票编号搜索
 trade.searchProducts,按物料号、条码或名称搜索
