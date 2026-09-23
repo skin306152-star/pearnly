@@ -1354,3 +1354,20 @@ set_active_company / document_company / scope / for_document`；`api_company_con
 - F22 在演示站留下的东西：新收银台照官方重做后从界面上真卖了 **1 笔**（`SALE-2026-00507` / `SI2569-000028`，`PRD-00224` ×2 @39、现金 78、找零 0，在班次 3 里，消耗库存 2 → 该商品结存 53 → 51）；另有 1 笔自测单 `SALE-2026-00504`（`SI2569-000027`，`PRD-00410` ×1）**已作废**（`void_reason="自测：该商品本来没库存，作废还原"`，库存回到 0，单据以 `void` 留痕）。这两笔都是真实业务记录，**没有删**；要清掉说一声（作废/删除都要走业务路径）。
 - F22 在**隔离检查站 `erp-pos-b`** 上新增：收银台 `TERM-00173`（自测用）、班次 `SHIFT-2026-00174`（已交班）、一笔 `SI2569-000035`（现金 50 + 刷卡 20）。它们只服务于"按支付方式对账"这条写路径的验证，站点本身就是检查站；要不要清掉由用户定。
 - F22 读官方源码时把 `apps/erpnext` 的 POS 源码与样式表复制到宿主 `/tmp/pos-official.<随机>/` 做只读比对，**没有进仓库**（容器里随时能再拷一份，属于可再生的临时件）。
+
+> **F28 续（2026-09-23）：Link 上的"新建 X"会把用户带去原生 Desk 表单（用户截图）。**
+>
+> 现象：入库/出库弹窗里点仓库下拉的「新建 ERP Warehouse」，会落到 `/desk/erp-warehouse/new-...`
+> 那一屏原生表单；公司那一屏（`/desk/erp-company/CO-00552`）同理会露出 `Document Prefix`、
+> `Fiscal Year Starts In`、`Default Company` 这些我们页面上已经没有的字段，标签还半中半英。
+>
+> 框架里能收掉它的**官方**开关有两个（`link.js` 那段）：`df.only_select`（不给"新建 X"）与
+> **`frappe.model.can_create(doctype)`**（没有 create 权限就不给）。本仓采购/销售明细的 Link
+> 早就在用 `only_select: true, no_create: true`，这轮把仓库那些（入库出库、盘点、盘点实际仓库、
+> 采购/销售明细行）与收银台的收银台选择一起补上 `only_select: true`。
+>
+> 还没做的（要用户点头）：① 我们自己的页面上**没有"新建仓库"的入口**，`only_select` 之后仓库只能
+> 在别处建（`api_create_warehouse` 有接口、没页面）—— 要么补一个产品内的仓库页/弹窗，要么放开
+> `can_create`；② 原生表单/列表本身怎么收拾：官方扩展点是 `doctype_js`（把字段顺序、只读、标签
+> 按产品口径定），加上把 `Document Prefix` / `Fiscal Year Starts In` 两列**真的 migrate 删掉**，
+> 这样万一进去了也不是半成品。

@@ -27,7 +27,7 @@
 			{ fieldtype: "Data", fieldname: "unit", label: t("stock.col.unit"), read_only: 1 },
 			// 实际仓库：官方原生 Link（只列当前公司的仓库），不是自由填写。
 			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
-				label: w("actualWarehouse"), reqd: 1, get_query: p.warehouse_query() },
+				label: w("actualWarehouse"), reqd: 1, get_query: p.warehouse_query(), only_select: true },
 			{ fieldtype: "Data", fieldname: "location", label: w("actualLocation") },
 			{ fieldtype: "Float", fieldname: "qty", label: w("entryQty"), precision: 3, reqd: 1 },
 			{ fieldtype: "Small Text", fieldname: "note", label: t("stock.count.note") },

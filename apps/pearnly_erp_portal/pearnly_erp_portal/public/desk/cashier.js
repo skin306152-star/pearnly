@@ -750,7 +750,7 @@
 			let dialog;
 			dialog = p.dialog(t("trade.openShift"), [
 				currency_field(),
-				{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal",
+				{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal", only_select: true,
 					label: t("trade.terminal"), reqd: 1, default: preferred?.name || "",
 					description: t("trade.terminalHint") },
 				...balance_table(),

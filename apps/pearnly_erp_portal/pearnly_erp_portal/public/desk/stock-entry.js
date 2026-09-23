@@ -61,7 +61,7 @@
 			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
 			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
 				label: t("trade.warehouse"), default: doc.warehouse, reqd: 1,
-				get_query: p.warehouse_query() },
+				get_query: p.warehouse_query(), only_select: true },
 			p.trade.lines(t, { stock: true, cost: true, readonly: !editable, locked_price: !priced,
 				data: data || doc.lines || [{ qty: 1 }] }),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),
