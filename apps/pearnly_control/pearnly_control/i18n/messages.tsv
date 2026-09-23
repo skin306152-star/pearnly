@@ -275,3 +275,17 @@ Billing Mode	计费方式	รูปแบบการคิดค่าบริ
 Billing Month	计费月份	เดือนที่คิดค่าบริการ	課金対象月
 Removed At	移除时间	เวลาที่ลบ	削除日時
 Removed By	移除人	ผู้ลบ	削除者
+A billing reference is required	必须填计费参考号	ต้องกรอกเลขอ้างอิงการเรียกเก็บเงิน	課金参照番号は必須です
+A deployment is a live site. Delete the tenant so its site and database go away too.	部署就是一个正式站点。要连站点和数据库一起清掉，请删除租户。	การติดตั้งคือไซต์จริง หากต้องการลบทั้งไซต์และฐานข้อมูล กรุณาลบผู้เช่า	デプロイは本番サイトです。サイトとデータベースごと削除するにはテナントを削除してください。
+Billing service unavailable; please retry	计费服务不可用，请重试	บริการเรียกเก็บเงินใช้งานไม่ได้ กรุณาลองใหม่	課金サービスが利用できません。再試行してください
+Connect cloud billing	连接云端计费	เชื่อมต่อการเรียกเก็บเงินบนคลาวด์	クラウド課金を接続
+Enable HTTPS access	开启 HTTPS 访问	เปิดการเข้าถึงผ่าน HTTPS	HTTPS アクセスを有効にする
+Invalid amount	金额不对	จำนวนเงินไม่ถูกต้อง	金額が正しくありません
+Invalid billing reference	计费参考号不对	เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง	課金参照番号が正しくありません
+LINE configuration is being applied. Try again shortly.	LINE 配置正在应用，请稍后再试。	กำลังใช้การตั้งค่า LINE กรุณาลองใหม่ภายหลัง	LINE 設定を適用中です。しばらくしてから再試行してください。
+LINE credentials are required before activation.	启用前必须先填 LINE 凭据。	ต้องกรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน	有効化の前に LINE の認証情報が必要です。
+Row {0}: a LINE channel needs both the channel secret and the access token	第 {0} 行：LINE 渠道要同时填 channel secret 与 access token	แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง channel secret และ access token	{0} 行目: LINE チャネルにはチャネルシークレットとアクセストークンの両方が必要です
+Set up OCR	设置 OCR	ตั้งค่า OCR	OCR を設定
+Tenant Provisioning	租户开通	การเตรียมผู้เช่า	テナントプロビジョニング
+The billing reference was already used for another request	这个计费参考号已经用在别的请求上了	เลขอ้างอิงการเรียกเก็บเงินนี้ถูกใช้กับคำขออื่นแล้ว	この課金参照番号は別のリクエストで使用済みです
+This is a read-only copy of the cloud billing request	这是云端计费请求的只读副本	นี่คือสำเนาอ่านอย่างเดียวของคำขอเรียกเก็บเงินบนคลาวด์	これはクラウド課金リクエストの読み取り専用コピーです

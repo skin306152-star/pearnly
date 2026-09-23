@@ -2,16 +2,28 @@
 1 = January,1 = มกราคม
 1-12; Thai companies commonly start in January,1-12; บริษัทไทยมักเริ่มเดือนมกราคม
 13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
+A company needs a name,บริษัทต้องมีชื่อ
 A confirmed document cannot be edited,เอกสารที่ยืนยันแล้วแก้ไขไม่ได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น
+A customer needs a name,ลูกค้าต้องมีชื่อ
 A payment has to be approved before it counts as paid,การจ่ายต้องได้รับการอนุมัติก่อนจึงนับว่าจ่ายแล้ว
+A product needs a name,สินค้าต้องมีชื่อ
+A refund cannot be more than the original sale,คืนเงินได้ไม่เกินบิลขายต้นทาง
+A refund needs the original sale,การคืนเงินต้องอ้างอิงบิลขายต้นทาง
+A stock count needs a name,เอกสารตรวจนับต้องมีชื่อ
 A stock entry needs at least one line,เอกสารรับ-จ่ายต้องมีอย่างน้อย 1 รายการ
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
+A submitted document cannot be changed,เอกสารที่ส่งแล้วแก้ไขไม่ได้
+A submitted entry cannot be changed,รายการที่ส่งแล้วแก้ไขไม่ได้
+A supplier needs a name,ผู้ขายต้องมีชื่อ
+A terminal needs a name,เครื่องขายต้องมีชื่อ
+A warehouse needs a name,คลังต้องมีชื่อ
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
+Add Column,เพิ่มคอลัมน์
 Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
 Add Order Discount,เพิ่มส่วนลดทั้งบิล
@@ -53,6 +65,7 @@ Are you sure you want to delete?,ยืนยันการลบหรือ�
 As Of,ณ วันที่
 At least 8 characters,อย่างน้อย 8 ตัวอักษร
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
+At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
 Attach,แนบ
 Attachment,เอกสารแนบ
 Attachment Type,ประเภทไฟล์แนบ
@@ -157,10 +170,12 @@ Collection Remarks,หมายเหตุการรับเงิน
 Collection Status,สถานะการรับเงิน
 Colour Tag,ป้ายสี
 Columns,คอลัมน์
+"Comes from the terminal; if it has none, the company's default warehouse",มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท
 Companies,บริษัท
 Company,บริษัท
 Company details,ข้อมูลบริษัท
 Company name,ชื่อบริษัท
+Company not found,ไม่พบบริษัทนี้
 Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
@@ -184,6 +199,7 @@ Count saved,บันทึกแล้ว
 Counted,นับแล้ว
 Counted Amount,ยอดนับได้
 Counted Cash,เงินสดที่นับได้
+Counted amount is required,ต้องกรอกยอดนับได้
 Counted at,เวลาที่นับ
 Counted by,ผู้ตรวจนับ
 Counted in total,นับรวมแล้ว
@@ -329,6 +345,7 @@ Fiscal Year Starts In,เดือนที่เริ่มปีบัญช�
 Fiscal year start month,เดือนเริ่มปีบัญชี
 Focus on Item Group filter,โฟกัสตัวกรองกลุ่มรายการ
 Focus on search input,โฟกัสช่องค้นหา
+Following fields have missing values:,ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:
 Foreigner,ชาวต่างชาติ
 Found,พบ
 Found: {0},พบ: {0}
@@ -430,6 +447,7 @@ Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
 Media Type,ประเภทไฟล์
 Merge Items,รวมรายการ
+Missing Values Required,ต้องกรอกข้อมูลที่จำเป็น
 Mode of Payment,วิธีการชำระเงิน
 Modes of Payment,วิธีชำระเงิน
 More Filters,ตัวกรองเพิ่มเติม
@@ -460,6 +478,7 @@ No item matches the scanned code {0},ไม่พบสินค้าที่�
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
 No items in cart,ยังไม่มีสินค้าในตะกร้า
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
+No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
@@ -493,8 +512,10 @@ Only the checked features are visible to this user,ผู้ใช้คนน�
 Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
 Open Form View,เปิดมุมมองฟอร์ม
 Open Shift,เปิดกะ
+Open a shift before selling,ต้องเปิดกะก่อนขาย
 Open a shift on the cashier page first.,กรุณาเปิดกะที่หน้าจุดขายก่อน
 Open that product,ไปแก้รายการนั้น
+"Open this page from LINE, or sign in to the site first",เปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน
 Opened At,เวลาเปิดกะ
 Opened at {0},เปิดกะเมื่อ {0}
 Opening,ยกมา
@@ -585,6 +606,7 @@ Product not found. Check the code and try again.,ไม่พบสินค้�
 PromptPay,พร้อมเพย์
 PromptPay Amount,พร้อมเพย์
 PromptPay ID,พร้อมเพย์
+Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งรายการ
 Purchase,การซื้อ
 Purchase Amount,จำนวนเงินซื้อ
 Purchase Count,จำนวนรายการซื้อ
@@ -592,6 +614,7 @@ Purchase Invoice,ใบแจ้งหนี้ซื้อ
 Purchase Order,คำสั่งซื้อ
 Purchase Record,รายการจัดซื้อ
 Purchase Records,บันทึกการจัดซื้อ
+Purchase document not found,ไม่พบเอกสารจัดซื้อนี้
 Purchasing,จัดซื้อ
 QR Payload,ข้อมูล QR
 QR payload,ข้อมูล QR
@@ -648,6 +671,7 @@ Requested By,ผู้ขอ
 Reset,เริ่มใหม่
 Reset Password,ตั้งรหัสผ่านใหม่
 Retry,ลองใหม่
+Return,คืนสินค้า
 Returned,คืนแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
@@ -659,9 +683,11 @@ Rows,จำนวนแถว
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
 Sale,ขาย
 Sale Price,ราคาขาย
+Sale not found,ไม่พบบิลขายนี้
 Sales,ขาย
 Sales Count,จำนวนบิล
 Sales Document,เอกสารขาย
+Sales Records,บันทึกการขาย
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
@@ -704,6 +730,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,บริการ
 Set as current,ตั้งเป็นปัจจุบัน
 Set as default,ตั้งเป็นค่าเริ่มต้น
+Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
 Shift,กะ
@@ -711,6 +738,7 @@ Shift History,ประวัติกะ
 Shift No,เลขที่กะ
 Shift Records,บันทึกกะ
 Shift closed · Cash difference {0},ปิดกะแล้ว · ผลต่างเงินสด {0}
+Shift not found,ไม่พบกะนี้
 Shift {0} opened,เปิดกะแล้ว · กะ {0}
 Shift {0} · Expected cash {1},กะ {0} · เงินสดที่ควรมี {1}
 Shift {0} · opened {1} · expected cash {2},กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}
@@ -745,6 +773,7 @@ Stock count not found,ไม่พบการตรวจนับ
 "Stock count tasks, staff entries and variance posting",งานตรวจนับ การบันทึกของพนักงาน และการลงบัญชีผลต่าง
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
+Stock entry not found,ไม่พบเอกสารสต็อกนี้
 Stock is counted in this unit; leave it empty to use the selling unit,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,สต็อกนับด้วยหน่วยนี้ หน่วยอื่นแปลงมาเป็นหน่วยนี้ ถ้าเว้นว่างจะใช้หน่วยขาย
 Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเริ่มต้นของบริษัท
@@ -785,12 +814,14 @@ Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่า
 Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
 Terminal,จุดขาย
+Terminal not found,ไม่พบเครื่องขายนี้
 That code is not valid,รหัสไม่ถูกต้อง
 That file could not be read; please use the template,อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ
 That file has no rows,ไฟล์นี้ไม่มีข้อมูล
 That file is not an Excel workbook,ไฟล์นี้ไม่ใช่ Excel
 That photo could not be read,อ่านรูปภาพนี้ไม่ได้
 That row is not part of this stock count,แถวนี้ไม่ได้อยู่ในการตรวจนับนี้
+That submission was already used for a different entry,การส่งนี้ถูกใช้กับรายการอื่นไปแล้ว
 That warehouse belongs to another company,คลังนี้เป็นของบริษัทอื่น
 The LINE account that sent the document,บัญชี LINE ที่ส่งเอกสารนี้
 The Revenue Department replied in an unreadable format,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
@@ -814,10 +845,12 @@ The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
 There were errors while sending email. Please try again.,เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองใหม่
+This LINE account is not bound to an ERP user,บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
 This Month,เดือนนี้
 This Quarter,ไตรมาสนี้
 This account cannot send documents,บัญชีนี้ส่งเอกสารไม่ได้
+This barcode already exists,บาร์โค้ดนี้มีอยู่แล้ว
 This browser cannot scan with the camera,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
@@ -827,10 +860,22 @@ This device cannot scan,อุปกรณ์นี้สแกนไม่ไ�
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องให้สแกน
 This document cannot be recorded yet,ยังบันทึกเอกสารนี้ไม่ได้
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
+This document is already recorded: {0},เอกสารนี้บันทึกแล้ว: {0}
 This document is too large,ไฟล์นี้ใหญ่เกินไป
+This document is void,เอกสารนี้ถูกยกเลิกแล้ว
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
+This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
+This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
+This sale is already voided,บิลขายนี้ถูกยกเลิกแล้ว
+This shift belongs to another cashier,กะนี้เป็นของพนักงานเก็บเงินคนอื่น
+This shift is already closed,กะนี้ปิดไปแล้ว
+This shift is closed,กะนี้ปิดแล้ว
+This status change is not allowed,เปลี่ยนสถานะแบบนี้ไม่ได้
+This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
+This terminal already has an open shift,เครื่องขายนี้มีกะที่เปิดอยู่แล้ว
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 Time,เวลา
@@ -900,6 +945,7 @@ Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
 Warehouse not found,ไม่พบคลังสินค้า
+"Which company this terminal belongs to, and which warehouse it sells from",เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน
 Who bought this receipt; empty means a walk-in customer,ใครซื้อใบเสร็จนี้ ถ้าเว้นว่าง = ลูกค้าทั่วไป
 With differences,มีผลต่าง
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
@@ -1392,6 +1438,7 @@ trade.closeShift,ปิดกะ
 trade.closedAt,เวลาปิดกะ
 trade.closing,ยอดคงเหลือ
 trade.code,รหัส
+trade.company,บริษัท
 trade.completeOrder,ปิดการขาย
 trade.cost,ต้นทุนต่อหน่วย
 trade.countCash,ตรวจเงินสด
@@ -1517,7 +1564,7 @@ trade.systemNo,เลขที่ระบบ
 trade.taxId,เลขประจำตัวผู้เสียภาษี
 trade.taxNo,เลขที่ใบกำกับภาษี
 trade.terminal,จุดขาย
-trade.terminalHint,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
+trade.terminalHint,เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน
 trade.to,ถึงวันที่
 trade.total,ยอดชำระ
 trade.totalItems,จำนวนชิ้น
@@ -1533,7 +1580,7 @@ trade.voidNotice,ยกเลิก {0} รายการแล้ว
 trade.voidPaid,ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร
 trade.walkIn,ลูกค้าทั่วไป
 trade.warehouse,คลัง
-trade.warehouseHint,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
+trade.warehouseHint,มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว

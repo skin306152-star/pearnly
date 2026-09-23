@@ -137,6 +137,7 @@ Counterparty,对方名称
 Counterparty Tax ID,对方税号
 Cowork Admin,Cowork 管理员
 Cowork Intake,Cowork 录入
+Create a new {0},新建{0}
 Created At,创建时间
 Created: {0},已录入：{0}
 Credited,已到账
@@ -212,6 +213,7 @@ Duplicate skipped,重复已跳过
 ERP Admin,ERP 管理员
 ERP Purchase,ERP 采购
 Edit,编辑
+Edit Full Form,编辑完整表单
 Edit operator,编辑操作员
 Elapsed (ms),耗时(ms)
 Email,邮件
@@ -345,6 +347,7 @@ Next Retry At,下次重试时间
 Next Run,下次运行
 No,否
 No DMS connection has been configured yet,还没有配过 DMS 连接
+No Data,暂无数据
 No OCR key configured (site config pearnly_ocr_api_key),没有配 OCR 密钥（站点配置 pearnly_ocr_api_key）
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",还没填任何账号，这条连接暂时不能用（配好了凭据再来测试连接）
 "No client ID for invitation links is configured, so the invitation email cannot be sent",没有配「邀请链接用的客户端 ID」，发不出邀请邮件
@@ -358,6 +361,7 @@ No service account configured (site config pearnly_ocr_credentials),没有配服
 No sign-in credentials configured,没配登录凭据
 No such local account: {0},本地账号不存在：{0}
 No.,单号
+Not Permitted,没有权限
 Not allowed,未允许
 Not connected,未连接
 Not linked,未绑
@@ -366,6 +370,7 @@ Not subscribed,未订阅
 Note,备注
 Notes,备注
 Nothing to save,没有要保存的改动
+Nothing to show,没有可显示的内容
 OK,确定
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",停用后不再参与推送（老产品：停用是「同批不误投」的闸）
 Once disabled its DMS pushes stop and the LINE binding is released,停用后其 DMS 推送停止并解除 LINE 绑定

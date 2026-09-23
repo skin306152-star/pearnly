@@ -137,6 +137,7 @@ Counterparty,取引先名
 Counterparty Tax ID,取引先の税番号
 Cowork Admin,Cowork 管理者
 Cowork Intake,Cowork 取り込み
+Create a new {0},新しい{0}を作成
 Created At,作成日時
 Created: {0},登録しました：{0}
 Credited,入金済み
@@ -212,6 +213,7 @@ Duplicate skipped,重複のためスキップ
 ERP Admin,ERP 管理者
 ERP Purchase,ERP 購買
 Edit,編集
+Edit Full Form,全項目フォームを編集
 Edit operator,オペレーターを編集
 Elapsed (ms),所要時間(ms)
 Email,メール
@@ -345,6 +347,7 @@ Next Retry At,次回再試行日時
 Next Run,次回実行
 No,いいえ
 No DMS connection has been configured yet,DMS接続はまだ設定されていません
+No Data,データがありません
 No OCR key configured (site config pearnly_ocr_api_key),OCRキーが未設定です（サイト設定 pearnly_ocr_api_key）
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
@@ -358,6 +361,7 @@ No service account configured (site config pearnly_ocr_credentials),サービス
 No sign-in credentials configured,ログイン資格情報が未設定です
 No such local account: {0},ローカルアカウントがありません: {0}
 No.,番号
+Not Permitted,権限がありません
 Not allowed,不許可
 Not connected,未接続
 Not linked,未連携
@@ -366,6 +370,7 @@ Not subscribed,未登録
 Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
+Nothing to show,表示する項目がありません
 OK,OK
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",無効にすると送信に関与しません（旧製品では「同じバッチを誤送しない」ためのゲートでした）。
 Once disabled its DMS pushes stop and the LINE binding is released,無効にするとDMSへの送信が止まり、LINE連携も解除されます

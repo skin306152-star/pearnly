@@ -2,16 +2,28 @@
 1 = January,1 = January
 1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
+A company needs a name,A company needs a name
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
+A customer needs a name,A customer needs a name
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
+A product needs a name,A product needs a name
+A refund cannot be more than the original sale,A refund cannot be more than the original sale
+A refund needs the original sale,A refund needs the original sale
+A stock count needs a name,A stock count needs a name
 A stock entry needs at least one line,A stock entry needs at least one line
 A stored source file must carry its hash,A stored source file must carry its hash
+A submitted document cannot be changed,A submitted document cannot be changed
+A submitted entry cannot be changed,A submitted entry cannot be changed
+A supplier needs a name,A supplier needs a name
+A terminal needs a name,A terminal needs a name
+A warehouse needs a name,A warehouse needs a name
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
+Add Column,Add Column
 Add Discount,Add Discount
 Add Employee,Add Employee
 Add Order Discount,Add Order Discount
@@ -53,6 +65,7 @@ Are you sure you want to delete?,Are you sure you want to delete?
 As Of,As Of
 At least 8 characters,At least 8 characters
 At most 5 photos per entry,At most 5 photos per entry
+At most {0} photos per entry,At most {0} photos per entry
 Attach,Attach
 Attachment,Attachment
 Attachment Type,Attachment Type
@@ -157,10 +170,12 @@ Collection Remarks,Collection Remarks
 Collection Status,Collection Status
 Colour Tag,Colour Tag
 Columns,Columns
+"Comes from the terminal; if it has none, the company's default warehouse","Comes from the terminal; if it has none, the company's default warehouse"
 Companies,Companies
 Company,Company
 Company details,Company details
 Company name,Company name
+Company not found,Company not found
 Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
@@ -184,6 +199,7 @@ Count saved,Count saved
 Counted,Counted
 Counted Amount,Counted Amount
 Counted Cash,Counted Cash
+Counted amount is required,Counted amount is required
 Counted at,Counted at
 Counted by,Counted by
 Counted in total,Counted in total
@@ -329,6 +345,7 @@ Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
 Focus on Item Group filter,Focus on Item Group filter
 Focus on search input,Focus on search input
+Following fields have missing values:,Following fields have missing values:
 Foreigner,Foreigner
 Found,Found
 Found: {0},Found: {0}
@@ -430,6 +447,7 @@ Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
 Media Type,Media Type
 Merge Items,Merge Items
+Missing Values Required,Missing Values Required
 Mode of Payment,Mode of Payment
 Modes of Payment,Modes of Payment
 More Filters,More Filters
@@ -460,6 +478,7 @@ No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
 No product for this code: {0},No product for this code: {0}
+No product matches this code,No product matches this code
 No receipts in this shift,No receipts in this shift
 No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
@@ -493,8 +512,10 @@ Only the checked features are visible to this user,Only the checked features are
 Only the product admin can change this,Only the product admin can change this
 Open Form View,Open Form View
 Open Shift,Open Shift
+Open a shift before selling,Open a shift before selling
 Open a shift on the cashier page first.,Open a shift on the cashier page first.
 Open that product,Open that product
+"Open this page from LINE, or sign in to the site first","Open this page from LINE, or sign in to the site first"
 Opened At,Opened At
 Opened at {0},Opened at {0}
 Opening,Opening
@@ -585,6 +606,7 @@ Product not found. Check the code and try again.,Product not found. Check the co
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
 PromptPay ID,PromptPay ID
+Provide at least one line item,Provide at least one line item
 Purchase,Purchase
 Purchase Amount,Purchase Amount
 Purchase Count,Purchase Count
@@ -592,6 +614,7 @@ Purchase Invoice,Purchase Invoice
 Purchase Order,Purchase Order
 Purchase Record,Purchase Record
 Purchase Records,Purchase Records
+Purchase document not found,Purchase document not found
 Purchasing,Purchasing
 QR Payload,QR Payload
 QR payload,QR payload
@@ -648,6 +671,7 @@ Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
 Retry,Retry
+Return,Return
 Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
@@ -659,9 +683,11 @@ Rows,Rows
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · Value {1} · Low {2} · Out {3}
 Sale,Sale
 Sale Price,Sale Price
+Sale not found,Sale not found
 Sales,Sales
 Sales Count,Sales Count
 Sales Document,Sales Document
+Sales Records,Sales Records
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
@@ -704,6 +730,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,Service
 Set as current,Set as current
 Set as default,Set as default
+Setup Auto Email,Setup Auto Email
 Sheet,Sheet
 Shelf,Shelf
 Shift,Shift
@@ -711,6 +738,7 @@ Shift History,Shift History
 Shift No,Shift No
 Shift Records,Shift Records
 Shift closed · Cash difference {0},Shift closed · Cash difference {0}
+Shift not found,Shift not found
 Shift {0} opened,Shift {0} opened
 Shift {0} · Expected cash {1},Shift {0} · Expected cash {1}
 Shift {0} · opened {1} · expected cash {2},Shift {0} · opened {1} · expected cash {2}
@@ -745,6 +773,7 @@ Stock count not found,Stock count not found
 "Stock count tasks, staff entries and variance posting","Stock count tasks, staff entries and variance posting"
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
+Stock entry not found,Stock entry not found
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
 Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse
@@ -785,12 +814,14 @@ Tax Withholding Rate,Tax Withholding Rate
 Taxes,Taxes
 Taxes and Charges,Taxes and Charges
 Terminal,Terminal
+Terminal not found,Terminal not found
 That code is not valid,That code is not valid
 That file could not be read; please use the template,That file could not be read; please use the template
 That file has no rows,That file has no rows
 That file is not an Excel workbook,That file is not an Excel workbook
 That photo could not be read,That photo could not be read
 That row is not part of this stock count,That row is not part of this stock count
+That submission was already used for a different entry,That submission was already used for a different entry
 That warehouse belongs to another company,That warehouse belongs to another company
 The LINE account that sent the document,The LINE account that sent the document
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
@@ -814,10 +845,12 @@ The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
 There is nothing to save,There is nothing to save
 There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
+This LINE account is not bound to an ERP user,This LINE account is not bound to an ERP user
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.","This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
 This Month,This Month
 This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
+This barcode already exists,This barcode already exists
 This browser cannot scan with the camera,This browser cannot scan with the camera
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This channel is not open yet,This channel is not open yet
@@ -827,10 +860,22 @@ This device cannot scan,This device cannot scan
 This device has no camera to scan with,This device has no camera to scan with
 This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
+This document is already recorded: {0},This document is already recorded: {0}
 This document is too large,This document is too large
+This document is void,This document is void
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
+This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This item is also stocked at:,This item is also stocked at:
+This product code already exists,This product code already exists
+This request was already recorded,This request was already recorded
+This sale is already voided,This sale is already voided
+This shift belongs to another cashier,This shift belongs to another cashier
+This shift is already closed,This shift is already closed
+This shift is closed,This shift is closed
+This status change is not allowed,This status change is not allowed
+This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
+This terminal already has an open shift,This terminal already has an open shift
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
 Time,Time
@@ -900,6 +945,7 @@ Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name
 Warehouse not found,Warehouse not found
+"Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
 Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
 With differences,With differences
 Withholding Tax,Withholding Tax
@@ -1392,6 +1438,7 @@ trade.closeShift,Close Shift
 trade.closedAt,Closed At
 trade.closing,Closing Quantity
 trade.code,Code
+trade.company,Company
 trade.completeOrder,Complete Order
 trade.cost,Unit Cost
 trade.countCash,Cash Check
@@ -1517,7 +1564,7 @@ trade.systemNo,System number
 trade.taxId,Tax ID
 trade.taxNo,Tax invoice number
 trade.terminal,Terminal
-trade.terminalHint,Leave blank to use the default terminal
+trade.terminalHint,"Which company this terminal belongs to, and which warehouse it sells from"
 trade.to,To Date
 trade.total,Total
 trade.totalItems,Total Items
@@ -1533,7 +1580,7 @@ trade.voidNotice,Voided {0}
 trade.voidPaid,Void the payments before voiding the document
 trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
-trade.warehouseHint,Type any warehouse name; a new warehouse is created if that name is new
+trade.warehouseHint,"Comes from the terminal; if it has none, the company's default warehouse"
 transfer,transfer
 unpaid,unpaid
 void,void

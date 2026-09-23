@@ -1,11 +1,13 @@
 Booking ID,订车编号
 Booking Number,订车单号
 DMS,DMS
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）
 Enter the DMS password.,请填写 DMS 密码。
 Last Error,上次错误
 Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
 Next Attempt,下次尝试
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+Reload List,刷新列表
 Submission Evidence,提交凭据
 Submission Nonce,提交随机码
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。

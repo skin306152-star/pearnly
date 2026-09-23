@@ -137,6 +137,7 @@ Counterparty,Counterparty
 Counterparty Tax ID,Counterparty Tax ID
 Cowork Admin,Cowork Admin
 Cowork Intake,Cowork Intake
+Create a new {0},Create a new {0}
 Created At,Created At
 Created: {0},Created: {0}
 Credited,Credited
@@ -212,6 +213,7 @@ Duplicate skipped,Duplicate skipped
 ERP Admin,ERP Admin
 ERP Purchase,ERP Purchase
 Edit,Edit
+Edit Full Form,Edit Full Form
 Edit operator,Edit operator
 Elapsed (ms),Elapsed (ms)
 Email,Email
@@ -344,6 +346,7 @@ Next Retry At,Next Retry At
 Next Run,Next Run
 No,No
 No DMS connection has been configured yet,No DMS connection has been configured yet
+No Data,No Data
 No OCR key configured (site config pearnly_ocr_api_key),No OCR key configured (site config pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
@@ -357,6 +360,7 @@ No service account configured (site config pearnly_ocr_credentials),No service a
 No sign-in credentials configured,No sign-in credentials configured
 No such local account: {0},No such local account: {0}
 No.,No.
+Not Permitted,Not Permitted
 Not allowed,Not allowed
 Not connected,Not connected
 Not linked,Not linked
@@ -364,6 +368,7 @@ Not signed in,Not signed in
 Not subscribed,Not subscribed
 Notes,Notes
 Nothing to save,Nothing to save
+Nothing to show,Nothing to show
 OK,OK
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).","Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place)."
 Once disabled its DMS pushes stop and the LINE binding is released,Once disabled its DMS pushes stop and the LINE binding is released

@@ -1,6 +1,6 @@
 (empty),（空）
-A billing reference is required,缺少计费编号
-A deployment is a live site. Delete the tenant so its site and database go away too.,一条部署就是一台真实站点。请改用「删除租户」，这样站点与数据库才会一起删掉。
+A billing reference is required,必须填计费参考号
+A deployment is a live site. Delete the tenant so its site and database go away too.,部署就是一个正式站点。要连站点和数据库一起清掉，请删除租户。
 A rejection needs a reason; the tenant will see it,拒绝要写原因，租户那边要看到
 "A single top-up is capped at ฿500,000","单笔充值上限 ฿500,000"
 A wallet must belong to a tenant,钱包必须挂在某个租户上
@@ -26,7 +26,7 @@ Bench Group,运行组
 Billing Mode,计费方式
 Billing Month,计费月份
 Billing Units,计费单位
-Billing service unavailable; please retry,计费服务暂时不可用，请重试
+Billing service unavailable; please retry,计费服务不可用，请重试
 Build the workspace,建工作台
 "Cannot read the provisioning target, so the identity service URL is unknown",取不到开户目标，无法确定身份服务地址
 Channel Access Token,渠道访问令牌
@@ -41,7 +41,7 @@ Company Name,公司名称
 Company name is required,公司名称必填
 Confirm credit,确认到账
 Confirm rejection,确认拒绝
-Connect cloud billing,接通云端计费
+Connect cloud billing,连接云端计费
 Contact Name,联系人
 Contact Phone,联系电话
 Contact us,联系我们
@@ -78,7 +78,7 @@ Domain prefix {0} is reserved; pick another,域名前缀 {0} 是保留名，换�
 Done,完成
 Duplicate domain on the same issue: {0},域名在同一张单里重复：{0}
 Email,邮箱
-Enable HTTPS access,启用 HTTPS 访问
+Enable HTTPS access,开启 HTTPS 访问
 Enabled Features,已开通功能
 Enabled — {0} steps,已开通 {0} 步
 Enforcement,权限落地
@@ -108,8 +108,8 @@ Initial password is required (the user signs in with it directly),初始密码�
 Install core apps,装基础 App
 Install the product app,装产品 App
 Insufficient balance; please top up first,余额不足，请先充值
-Invalid amount,金额无效
-Invalid billing reference,无效的计费编号
+Invalid amount,金额不对
+Invalid billing reference,计费参考号不对
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63
 Invalid email,邮箱不合法
 Invalid service token,服务令牌无效
@@ -132,8 +132,8 @@ LINE Channel ID,LINE 渠道 ID
 LINE Channel Secret,LINE 渠道密钥
 LINE LIFF ID,LINE LIFF ID
 LINE channel (optional),LINE 渠道（可选）
-LINE configuration is being applied. Try again shortly.,LINE 配置正在下发，请稍后重试。
-LINE credentials are required before activation.,启用前请填写 LINE 密钥和访问令牌。
+LINE configuration is being applied. Try again shortly.,LINE 配置正在应用，请稍后再试。
+LINE credentials are required before activation.,启用前必须先填 LINE 凭据。
 Last Updated,最近变动
 Leave empty to use the company name,留空用公司名称
 Local Port,本机端口
@@ -217,11 +217,11 @@ Reviewed At,审核时间
 Reviewed By,审核人
 Role,对应角色
 Row {0} on the issue has no domain; cannot build the site,发号单里 {0} 这一行没有域名，无法建站
-Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：配 LINE 渠道需要同时填密钥和访问令牌
+Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：LINE 渠道要同时填 channel secret 与 access token
 Run provisioning,执行开通
 Running,进行中
 Service URL is required,服务地址必填
-Set up OCR,配置 OCR
+Set up OCR,设置 OCR
 Set up the LINE channel,配 LINE 渠道
 Set up unified sign-in,配统一登录
 Sign in to your account,登录账户
@@ -247,6 +247,7 @@ Target name is required,目标名称必填
 Teardown request {0} does not exist,拆除请求 {0} 不存在
 Tenant,租户
 Tenant Note,租户备注
+Tenant Provisioning,租户开通
 Tenant {0} does not exist,租户 {0} 不存在
 Thank you for choosing Pearnly. Your account is now active. You can sign in and start using the service.,感谢您选择 Pearnly。您的账户已开通，现在即可登录并开始使用。
 "The Messaging API channel's basic ID (@xxx), used for identification and troubleshooting.",Messaging API 频道的基本 ID（@xxx），用于识别与排查
@@ -254,7 +255,7 @@ Thank you for choosing Pearnly. Your account is now active. You can sign in and 
 The address this tenant is reached at.,这个租户的访问地址
 The admin client secret is required (env PEARNLY_BIZ_ADMIN_SECRET),必须给管理客户端密钥（环境变量 PEARNLY_BIZ_ADMIN_SECRET）
 The balance could not be read; this is not 'insufficient balance',余额查不出来，不是余额不足
-The billing reference was already used for another request,该计费编号已用于另一笔请求
+The billing reference was already used for another request,这个计费参考号已经用在别的请求上了
 "The domain of this deployment. Frappe picks the site by Host header, so site name and domain are the same value.",就是该部署的域名。Frappe 按 Host 认站点，所以站点名与域名是同一个值
 The identity service builds the link in the invitation email from this client. In the sample stage all tenants share one; real tenants get their own client.,身份服务按这个客户端生成邀请邮件里的链接。样板阶段各租户共用同一个；真实租户各自建客户端后会换成租户自己的
 The last issue attempt failed; set it back to draft before issuing again,这张单上次发号失败了，先把它改回 draft 再发
@@ -266,7 +267,7 @@ The requested amount must be greater than 0,申请金额必须大于 0
 The same key submitted twice yields only one set of resources. Defaults to the issue number.,同一个键重复提交只会有一套资源。默认用发号单号
 "The top-up amount must be between ฿0.01 and ฿500,000","充值金额要在 ฿0.01 到 ฿500,000 之间"
 These accounts could not be deleted: {0},这些账号删不掉：{0}
-This is a read-only copy of the cloud billing request,此记录是云端充值申请的只读副本
+This is a read-only copy of the cloud billing request,这是云端计费请求的只读副本
 "This is an account activation notice. If you did not request this account, please contact our support team.",这是一封账户开通通知。若您未申请开通，请联系官方客服。
 This issue has no usable initial password; fill it in again before issuing,这张单上没有可用的初始密码，重新填一次再发号
 This removes everything about this tenant. It cannot be undone.,这会删除这个租户的一切，且不可恢复。

@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -379,7 +379,11 @@ window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一�
 		const t = await load_term();
 		payment_methods = PAY_METHODS.map(m => Object.assign({}, m, { label: t(m.term) }));
 		return {
-			warehouse: terminal.default_warehouse || "",
+			// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
+			// （`api_list_terminals` 现算的 `effective_warehouse`，只有读、不建）。
+			// 之前读的 `default_warehouse` 是**不存在的字段名** —— 一直是空，靠服务端兜着。
+			warehouse: terminal.effective_warehouse || terminal.warehouse || "",
+			warehouse_name: terminal.effective_warehouse_name || terminal.warehouse_name || "",
 			company: terminal.company || "",
 			currency: terminal.currency || "THB",
 			// 官方的开关：我们产品没有这些配置位 → 用"我们已有的行为"对应的固定值；
@@ -565,10 +569,36 @@ window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一�
 				this.payment.events.submit_invoice = () => this.submit_our_sale();
 			}
 
+			// 「最近订单」点一行 → 右边那张汇总。官方那句只认它自己那两种单据
+			// （`if (!["POS Invoice", "Sales Invoice"].includes(doctype)) return;`），
+			// 我们的单是 `ERP Sale` —— 所以那一句永远提前返回，点一行什么都不发生。
+			// 这里**只换事件里那一次读**：官方 `load_summary_of()` 与它下面那套渲染一个字没改，
+			// 我们喂进去的是摆成官方形状的**我们的单据**（见 `summary_doc_of`）。
+			init_recent_order_list() {
+				super.init_recent_order_list();
+				this.recent_order_list.events.open_invoice_data = (doctype, name) => {
+					if (doctype !== "ERP Sale") return;
+					p.call(api + "api_get_sale", { name }).then(doc => {
+						if (doc && doc.name) this.order_summary.load_summary_of(summary_doc_of(doc));
+					});
+				};
+			}
+
+			// 「完成订单」之后那张汇总屏（底下就是我们那三颗按钮）。官方直接把**客户端那张单据**
+			// 交给汇总屏渲染（`this.frm.doc`，字段名是官方 POS Invoice 那一套），我们手上这张是
+			// `ERP Sale`，所以同一处摆成官方形状再喂（与点最近订单那条路同一个 `summary_doc_of`）。
+			toggle_submitted_invoice_summary(show) {
+				this.order_summary.toggle_component(show);
+				this.order_summary.load_summary_of(summary_doc_of(this.frm.doc), true);
+			}
+
 			async submit_our_sale() {
 				const doc = this.frm.doc;
 				const lines = (doc.items || []).map(row => ({
 					product: row.item_code, qty: flt(row.qty), unit: row.uom,
+					// 商品名一起落库（官方 POS Invoice 行上也有 `item_name`）：小票、销售记录、
+					// 汇总屏都读它；不带的话单据行上只有编码，金额旁边就是一行 `PRD-00597`。
+					description: row.item_name || undefined,
 					// 行折扣按**金额**给（`contracts.line_total` 收的就是金额），
 					// 与 `line_amount()` 是同一套算法，两边不会打架。
 					unit_price: flt(row.rate),
@@ -676,6 +706,13 @@ window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一�
 						this.pearnly_scanned = true;
 					});
 				}
+				// 「物料组」我们产品**没有**（用户 2026-09-24："物料组我们是没有的，删掉"）。
+				// 官方那一格就在这个方法里建（`item_group_field`，一个 `Item Group` 的 Link，
+				// 另配 `get_parent_item_group` / `item_group_query` 两个 erpnext 方法）。
+				// **控件照官方那套建、只把那一格连同容器从筛选行里拿掉**：控件对象仍在，
+				// 官方 `attach_clear_btn()` / `attach_shortcuts()` 里对它的引用（`.$wrapper`、`.parent`）
+				// 落在已移除的节点上，是空操作、不会抛错；筛选行只剩标题与搜索框。
+				this.$component.find(".item-group-field").remove();
 				return out;
 			}
 			// **"唯一命中直接进车"官方自己就有**，不要自己再点一次卡：
@@ -865,11 +902,245 @@ window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一�
 			fetch_customer_details(customer) {
 				if (!customer) return Promise.resolve({});
 				return frappe.db.get_value("ERP Customer", customer,
-					["customer_name", "contact_phone", "contact_email"]).then(r => ({
-						customer, customer_name: r.message?.customer_name || customer,
-						mobile_no: r.message?.contact_phone || "",
-						email_id: r.message?.contact_email || "",
-					}));
+					["customer_name", "contact_phone", "contact_email"]).then(r => {
+						const name = r.message?.customer_name || customer;
+						// 顺手把抬头写到**单据上**：完成订单后那张汇总屏读的是 `doc.customer_name`
+						// （官方的名字是服务端 `set_customer_info` 补的，我们删减了那一步），
+						// 不写的话买了单的客户在汇总屏上仍显示"散客"。
+						const frm = this.events.get_frm();
+						if (frm && frm.doc && frm.doc.customer === customer) {
+							frappe.model.set_value(frm.doc.doctype, frm.doc.name, "customer_name", name);
+						}
+						return {
+							customer, customer_name: name,
+							mobile_no: r.message?.contact_phone || "",
+							email_id: r.message?.contact_email || "",
+						};
+					});
+			}
+		}
+
+		// ── 「最近订单」：面板是官方那个，数据是**我们自己的销售记录** ─────────────────
+		// 我们产品**支持**这件事（销售记录 / 收银记录两页就是它），官方那个面板只是去调
+		// `erpnext…get_past_order_list`（那个 app 我们没装）——所以以前点开是"未安装应用程序"。
+		// 做法与加货、明细面板同一套：**官方那两个文件的渲染代码一个字不改**，
+		// 我们把数据摆成它们要的形状喂进去（`invoice_of` / `summary_doc_of`）。
+		// 官方面板里"草稿"那一档我们**没有**（产品口径不存草稿），所以状态只给全部/已完成/已作废。
+		const ORDER_STATUS = [
+			{ value: "", label: __("All") },
+			{ value: "completed", label: __("Completed") },
+			{ value: "void", label: __("Voided") },
+		];
+		const status_value_of = label =>
+			(ORDER_STATUS.find(row => row.label === label) || ORDER_STATUS[0]).value;
+
+		function invoice_of(row) {
+			const at = String(row.sold_at || "");
+			return {
+				doctype: "ERP Sale",
+				// **显示用小票号**（收银员认的那个，如 `SI2569-000060`）。
+				// 取数要的是**内部单号**（`SALE-2026-00673`）—— 官方这个渲染函数两处都用
+				// `invoice.name`（显示 + `data-invoice-name`），所以在 `refresh_list` 里
+				// 追加之前把属性改回内部单号，官方那 20 行标记一个字没动。
+				name: row.receipt_no || row.name,
+				pearnly_name: row.name,
+				customer_name: row.customer_name || __("Walk-in customer"),
+				grand_total: flt(row.grand_total),
+				currency: row.currency || frappe.boot.sysdefaults.currency || "THB",
+				posting_date: at.slice(0, 10),
+				posting_time: at.slice(11, 19),
+			};
+		}
+
+		// 我们这张 `ERP Sale` → 官方那张 `POS Invoice` 的形状（官方汇总屏整屏读的是后者的字段名）。
+		// 状态**只借用官方的词**（`Paid` 绿点、`Voided` 灰点），文案仍由术语表翻；
+		// 底下那几颗按钮是我们自己那版（见 `PearnlyPastOrderSummary`），判据也看这个状态。
+		function summary_doc_of(doc) {
+			// ⚠️ 这份映射要同时认**两种来源**：点最近订单时是服务端那份 `api_get_sale`
+			// （行上是我们的字段名 `product / unit_price / line_total / discount`），
+			// 刚完成订单时是手上那张**客户端单据**（行上是官方那套 `item_code / rate / amount`）。
+			// 两边都用 `??` 兜，不靠"哪一路进来"分叉。
+			const currency = doc.currency || frappe.boot.sysdefaults.currency || "THB";
+			const vat = flt(doc.vat_amount ?? doc.total_taxes_and_charges);
+			const customer = doc.customer || "";
+			const pay_label = row => row.mode_of_payment
+				|| (payment_methods.find(m => m.key === row.method) || {}).label || row.method;
+			return Object.assign({}, doc, {
+				doctype: "ERP Sale",
+				docstatus: 1,
+				// 汇总屏右上角那个号显示**小票号**；取数（退货/作废/重读汇总）用内部单号。
+				name: doc.receipt_no || doc.name,
+				pearnly_name: doc.name,
+				// 两种来源：服务端那一份 `status=completed`；刚提交时手上是客户端那张
+				// （收银台自己把它置成 `Paid`）。都算已完成。
+				// `status` 是给官方那套渲染用的词（`Paid` 绿点 / `Return` 灰点 / `Voided` 灰点）；
+				// 我们自己那几个按钮看的是 `pearnly_status`（我们自己的词：completed / void）——
+				// 两套别混着判，否则"已作废的单"底下还会画着「作废」那颗按钮（实测）。
+				status: doc.status === "void" ? "Voided"
+					: (doc.sale_type === "refund" ? "Return"
+						: (["completed", "Paid"].includes(doc.status) ? "Paid" : "Draft")),
+				pearnly_status: ["completed", "Paid"].includes(doc.status) ? "completed" : "void",
+				is_return: doc.sale_type === "refund",
+				currency,
+				// 散客：不给客户编号（官方那句"客户编码"在散客时会画出一个空行）。
+				customer,
+				customer_name: doc.customer_name || __("Walk-in customer"),
+				owner: doc.owner || doc.cashier || frappe.session.user_fullname || frappe.session.user,
+				items: (doc.lines || []).map(line => {
+					const rate = flt(line.unit_price ?? line.rate);
+					return {
+						name: line.name,
+						item_code: line.product || line.item_code,
+						// 服务端那份里商品名是行上的 `description`（可能为空），编码是 `product`；
+						// 客户端那张单据上则是官方那套 `item_name / item_code`。两边都兜住 ——
+						// 不兜的话汇总屏那一行的名字是空的（实测：只剩"2 瓶 ฿ 100.00"）。
+						// `product_name` 是主档里的名字（`positions.public` 带的），比编码好看。
+						item_name: line.description || line.item_name || line.product_name
+							|| line.product || line.item_code,
+						qty: flt(line.qty),
+						uom: line.unit || line.uom,
+						rate,
+						// 标价 = 成交价 + 行折扣：官方那句严格比较 `rate !== price_list_rate`
+						// 只在真打过折的行上画 `(x% off)`。
+						price_list_rate: rate + flt(line.discount ?? line.discount_amount),
+						amount: flt(line.line_total ?? line.amount),
+					};
+				}),
+				// 我们收银默认不开票（含税拆分在开票侧），所以这里通常没有税行。
+				taxes: vat ? [{ description: __("VAT"), tax_amount_after_discount_amount: vat }] : [],
+				net_total: flt(doc.subtotal ?? doc.net_total),
+				total_taxes_and_charges: vat,
+				discount_amount: flt(doc.discount_total ?? doc.discount_amount),
+				grand_total: flt(doc.grand_total),
+				rounded_total: flt(doc.grand_total),
+				paid_amount: flt(doc.paid_total ?? doc.paid_amount),
+				outstanding_amount: 0,
+				change_amount: flt(doc.change_amount),
+				payments: (doc.payments || []).map(row => ({
+					// 付款方式显示本地化的名字（泰语为主），不是服务端的 key。
+					mode_of_payment: pay_label(row),
+					amount: flt(row.amount),
+				})),
+			});
+		}
+
+		class PearnlyPastOrderList extends O.PastOrderList {
+			// 状态那一格：官方默认筛「草稿」、选项是它自己那套（草稿/已付款/合并/退货/部分付款）。
+			// 我们**不存草稿**（那是产品口径），也没有合并/部分付款，所以换成我们这三档，
+			// 默认「全部」——否则一打开面板就是空的。
+			make_filter_section() {
+				const out = super.make_filter_section();
+				if (!this.status_field) return out;
+				this.status_field.df.options = ORDER_STATUS.map(row => row.label).join("\n");
+				this.status_field.refresh();
+				this.status_field.set_value(ORDER_STATUS[0].label);
+				return out;
+			}
+			// 列表数据：`api_list_sales`（销售记录那张表用的**同一个接口**）。
+			// 非管理员在服务端只回本人的单 —— 与"成员只看自己录入的记录"一致。
+			refresh_list() {
+				// 遮罩**两个出口都要收**：官方的写法是 `freeze()` 之后只在成功回调里
+				// `unfreeze()` —— 请求一失败（以前这里就是"未安装 erpnext"那个 500），
+				// 遮罩就永远留在屏幕上：整页发灰、点什么都没反应（实测遇到过）。
+				frappe.dom.freeze();
+				this.events.reset_summary();
+				const search_term = this.search_field.get_value();
+				const status = status_value_of(this.status_field.get_value());
+				this.$invoices_container.html("");
+				return frappe.call({
+					method: api + "api_list_sales",
+					args: { q: search_term || undefined, status: status || undefined, limit: 20 },
+					callback: (response) => {
+						frappe.dom.unfreeze();
+						(response.message || []).forEach(row => {
+							const $row = $(this.get_invoice_html(invoice_of(row)));
+							// 官方那行同时拿 `invoice.name` 当**显示号**与**取数键**；
+							// 我们两个号不是一回事（显示 `SI…`、取数 `SALE-…`），所以这里
+							// 只把取数那个属性换回内部单号，HTML 一个字没改。
+							$row.attr("data-invoice-name", row.name);
+							this.$invoices_container.append($row);
+						});
+					},
+					error: () => frappe.dom.unfreeze(),
+				});
+			}
+		}
+
+		// 单据汇总底下那几颗按钮照**我们之前那页**来（用户 2026-09-24："这按钮留我们之前的"）：
+		// 打印收据 / 退货退款 / 作废 / 新订单。官方那组是 Print Receipt / **Email Receipt** /
+		// Return / New Order —— 邮件小票我们**没有做**（F22 的产品口径），所以不画。
+		// 三个动作都在共用模块 `desk/pos/pearnly-pos-receipt.js` 里（旧页面调同一份）。
+		class PearnlyPastOrderSummary extends O.PastOrderSummary {
+			constructor(opts) {
+				super(opts);
+				// 官方是"按标签首词生成类名、再在 `bind_events()` 里各自绑动作"（`.print-btn`…
+				// 那串）。我们的动作用自己的接口，所以在**渲染那一处**整段换成我们这一版，
+				// 标记沿用官方那套（`summary-btn btn btn-default <x>-btn`）。
+				// 官方那些动作绑在**外层容器**上（`$summary_container` 的委托），我们这些绑在
+				// 按钮区自己身上 —— 不摘掉官方那一条，点一次「打印收据」会走两遍：
+				// 我们那份开 `/printview`（用内部单号），官方那份再 `frappe.utils.print()`
+				// 开一次（它拿 `doc.name` = 我们给小票号的那个显示名 → 那一张打不开）。
+				// 实测点一次弹出两个打印标签页。这里只摘掉与我们对位的那一个。
+				this.$summary_container.off("click", ".print-btn");
+				this.$summary_btns.on("click", ".print-btn", () =>
+					p.pos_receipt.print(this.summary_doc()));
+				this.$summary_btns.on("click", ".refund-btn", () => void this.with_server_doc(doc =>
+					p.pos_receipt.refund({ t: term, doc, on_done: () => this.after_receipt_action() })));
+				this.$summary_btns.on("click", ".void-btn", () => void this.with_server_doc(doc =>
+					p.pos_receipt.void_sale({ t: term, doc, on_done: () => this.after_receipt_action() })));
+				this.$summary_btns.on("click", ".new-order-btn", () => {
+					this.events.new_order();
+					this.toggle_component(false);
+					this.$component.find(".no-summary-placeholder").css("display", "flex");
+					this.$summary_wrapper.css("display", "none");
+				});
+			}
+			// 汇总屏手上这份可能是**客户端**那张（刚提交完那张）。打印只要名字够用；
+			// 退货 / 作废要服务端那一份（它们按 `lines[].name / line_total / warehouse_name` 取数）。
+			// 「打印收据」走的是框架打印视图（`/printview?doctype=…&name=…`），它要的是**内部单号**
+			// —— 屏上那一版为了让收银员看到小票号，`name` 摆的是 `SI…`，所以这里换回来。
+			summary_doc() {
+				const doc = this.doc || {};
+				return doc.pearnly_name ? Object.assign({}, doc, { name: doc.pearnly_name }) : doc;
+			}
+			async with_server_doc(run) {
+				// 汇总屏上那个号是**小票号**（给人看的）；取服务端那一份要用**内部单号**。
+				const doc = this.doc || {};
+				const name = doc.pearnly_name || doc.name;
+				if (!name) return;
+				const full = await p.call(api + "api_get_sale", { name });
+				if (!full || !full.name) return;
+				await run(full);
+			}
+			// 退货 / 作废之后这张单已经变了：重新取一遍汇总，别让界面停在做完之前的样子。
+			after_receipt_action() {
+				return this.with_server_doc(doc => this.load_summary_of(summary_doc_of(doc), true));
+			}
+			add_summary_btns() {
+				const doc = this.summary_doc();
+				// 判据用**我们自己那个状态**（旧页面同一句：`doc.status === "completed"`）：
+				// 作废过的单只剩「新订单」。`pearnly_status` 是 `summary_doc_of` 归一化过的
+				// （服务端 `completed` 与刚提交时客户端那份 `Paid` 都归 `completed`）。
+				const state = doc.pearnly_status
+					|| (["completed", "Paid"].includes(doc.status) ? "completed" : "void");
+				const done = state === "completed";
+				const can_write = frappe.model.can_write("ERP Sale");
+				const is_refund = doc.sale_type === "refund" || doc.is_return;
+				// 文案走**我们自己的词条键**（与旧页面那三颗按钮同一份：`trade.printReceipt` /
+				// `trade.refund` / `trade.void` / `trade.newOrder`）—— 不写官方那串英文。
+				// 踩过一次：`__("Void")` 在术语表里有两条带 key 的词条（库存那套"撤销"与销售
+				// 这套"作废"），译文不一致 → 生成脚本**不补英文别名行** → 运行时那句直出
+				// 英文"Void"（实测就是那颗按钮）。
+				const buttons = [
+					done ? { cls: "print-btn", label: term("trade.printReceipt") } : null,
+					can_write && done && !is_refund ? { cls: "refund-btn", label: term("trade.refund") } : null,
+					can_write && done ? { cls: "void-btn", label: term("trade.void") } : null,
+					// **主按钮永远排最右边**（用户 2026-09-23："次按钮是灰的，主按钮排最右边"）。
+					{ cls: "new-order-btn btn-primary", label: term("trade.newOrder") },
+				].filter(Boolean);
+				this.$summary_btns.html(buttons.map(row =>
+					`<div class="summary-btn btn btn-default ${row.cls}">${
+						frappe.utils.escape_html(row.label)}</div>`).join(" "));
 			}
 		}
 
@@ -896,10 +1167,14 @@ window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一�
 		O.PearnlyItemSelector = PearnlyItemSelector;
 		O.PearnlyItemCart = PearnlyItemCart;
 		O.PearnlyPayment = PearnlyPayment;
+		O.PearnlyPastOrderList = PearnlyPastOrderList;
+		O.PearnlyPastOrderSummary = PearnlyPastOrderSummary;
 		// 让官方 Controller 里 `new erpnext.PointOfSale.ItemSelector/ItemCart/Payment(...)` 拿到我们的子类。
 		O.ItemSelector = PearnlyItemSelector;
 		O.ItemCart = PearnlyItemCart;
 		O.Payment = PearnlyPayment;
+		O.PastOrderList = PearnlyPastOrderList;
+		O.PastOrderSummary = PearnlyPastOrderSummary;
 		return PearnlyController;
 	}
 

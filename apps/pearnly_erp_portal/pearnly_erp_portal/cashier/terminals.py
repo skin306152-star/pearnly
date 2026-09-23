@@ -53,9 +53,21 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
     filters = {"company": companies.document_company(company)}
     if not include_inactive:
         filters["is_active"] = 1
-    return frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
+    rows = frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
                            order_by="is_default desc, terminal_name asc",
                            limit_page_length=int(limit))
+    # 「这台收银台实际从哪个仓卖货」：自己配了就用它，没配就是**这家公司的默认仓** ——
+    # 与卖货那条路（`counter.warehouse_for` → `warehouses.required`）同一口径。
+    # 这里只**读**、不建：列表接口不该有副作用；真没有默认仓时留空，服务端第一次卖货才建。
+    for row in rows:
+        row["effective_warehouse"] = row.get("warehouse") or frappe.db.get_value(
+            "ERP Warehouse", {"company": row.get("company"), "is_default": 1}, "name") or ""
+        row["effective_warehouse_name"] = frappe.db.get_value(
+            "ERP Warehouse", row["effective_warehouse"], "warehouse_name") if row["effective_warehouse"] else ""
+        # 开班/交班弹窗要显示「这家公司叫什么」给收银员看，编号（`CO-00552`）没人认。
+        row["company_name"] = frappe.db.get_value(
+            "ERP Company", row.get("company"), "company_name") or row.get("company") or ""
+    return rows
 
 
 def create_terminal(*, terminal_name, warehouse=None, is_default=False) -> dict:

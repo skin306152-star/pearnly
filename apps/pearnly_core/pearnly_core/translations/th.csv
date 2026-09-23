@@ -137,6 +137,7 @@ Counterparty,ชื่อคู่ค้า
 Counterparty Tax ID,เลขผู้เสียภาษีคู่ค้า
 Cowork Admin,Cowork ผู้ดูแล
 Cowork Intake,Cowork บันทึกข้อมูล
+Create a new {0},สร้าง {0} ใหม่
 Created At,สร้างเมื่อ
 Created: {0},บันทึกแล้ว: {0}
 Credited,เข้าบัญชีแล้ว
@@ -212,6 +213,7 @@ Duplicate skipped,ข้ามรายการซ้ำ
 ERP Admin,ERP ผู้ดูแล
 ERP Purchase,ERP จัดซื้อ
 Edit,แก้ไข
+Edit Full Form,แก้ไขฟอร์มเต็ม
 Edit operator,แก้ไขพนักงาน
 Elapsed (ms),ใช้เวลา (ms)
 Email,อีเมล
@@ -345,6 +347,7 @@ Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
 Next Run,ครั้งถัดไปที่รัน
 No,ไม่
 No DMS connection has been configured yet,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS
+No Data,ไม่มีข้อมูล
 No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้กรอกบัญชีใด ๆ การเชื่อมต่อนี้จึงใช้ไม่ได้ตอนนี้ (ตั้งค่าข้อมูลรับรองแล้วค่อยทดสอบการเชื่อมต่อ)
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงส่งอีเมลเชิญไม่ได้
@@ -358,6 +361,7 @@ No service account configured (site config pearnly_ocr_credentials),ยังไ
 No sign-in credentials configured,ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ
 No such local account: {0},ไม่มีบัญชีในเครื่องนี้: {0}
 No.,เลขที่
+Not Permitted,ไม่มีสิทธิ์
 Not allowed,ไม่อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
 Not linked,ยังไม่ผูก
@@ -366,6 +370,7 @@ Not subscribed,ยังไม่สมัคร
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
+Nothing to show,ไม่มีข้อมูลให้แสดง
 OK,ตกลง
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)
 Once disabled its DMS pushes stop and the LINE binding is released,เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE

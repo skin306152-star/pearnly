@@ -3646,3 +3646,38 @@ return（函数没定义），搬来的官方收银台要「交班」就得有�
 本轮另外产生三张测试单（`SI2569-000052 / 000053 / 000059`）。
 
 `check-architecture` PASS(0)、`node --check` OK；未部署、未推送、未合并；预览不关。
+
+## 2026-09-24 第二批（用户口径：收据按钮留我们的 / 开班那格别带箭头 / 最近订单我们是支持的 /
+物料组没有就删 / 提示语全局翻译完整）
+
+**收据按钮**：抽出去的共用模块真跑通了。实测「打印收据」只开一张 `/printview`（内部单号
+`SALE-…`，不是小票号 `SI…`）、「退货退款」真出退款单（`SALE-2026-00683 / SI2569-000063`，
+`return_against=SALE-2026-00681`）、对退款单「作废」成功且按钮只剩「新订单」。
+踩到并修掉：官方 `.print-btn` 的委托动作与我们的重复（点一次开两个打印页）、
+显示号与内部单号混用、作废态还画着「作废」。
+
+**开班弹窗**：收银台那一格换成原生 `Select`（没有跳转箭头），选项写成
+`Counter 1 · Purchase check 4bb0f9fc`，下面只读显示公司（抬头）与仓库（名字）。
+服务端 `list_terminals` 补了两个只读字段 `effective_warehouse` / `effective_warehouse_name`
+（终端没配仓 → 公司默认仓；只读不建），因为站上终端的 `warehouse` 全是 NULL。
+
+**POS 卖货仓位不一致（真 bug）**：单据 `WH-00174`、行 `WH-00101`（商品默认仓），库存从行那个仓出。
+改成"先把这台收银台的有效仓定死再铺行"（`warehouses.required(...)` 提到 `positions.prepare` 之前）。
+新单 `SALE-2026-00685` 实测 `doc_wh = line_wh = WH-00174`。
+
+**最近订单**：接我们自己的 `api_list_sales`（一屏 20 条、状态全部/已完成/已作废、默认全部），
+点一行走 `api_get_sale` 并摆成官方字段形状喂给官方汇总渲染；搜索口径补上客户抬头；
+顺带修掉官方"失败也永远不收遮罩"的 freeze 陷阱。
+
+**删物料组**：官方那一格建在 `make_search_bar()` 里 → 适配层在同一个方法（super 之后）把
+`.item-group-field` 容器整个移除。
+
+**翻译补全**：改以生成的翻译包（`translations/<lang>.csv`）为基准做核对，收银域 14 条 +
+其余四个 App 共 48 条补上；修掉两条"假翻译"（`Void`、`No product matches that code` ——
+同英文的两条带 key 词条译文不一致时，生成脚本不补英文行，运行时直出英文）。
+
+**缓存**：适配层从页面里 `frappe.require` 改成挂 `app_include_js`（`versioned_asset` 按内容算 hash）
+—— 原来不带版本，改完代码页面还是旧的；带 `?v=` 又会踩框架 `extn()` 的解析坑（实测报错）。
+
+检查：`node --check` 全过、`i18n-build --check` PASS、`check-frontend-i18n` 0 问题、
+`check-architecture` PASS(0 violations)。未部署、未推送、未合并。

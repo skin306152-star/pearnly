@@ -67,16 +67,41 @@ frappe.provide("frappe.pearnly.pos_shift");
 		const terminals = await p.call(api + "api_list_terminals");
 		const rows = Array.isArray(terminals) ? terminals : (terminals?.terminals || []);
 		const preferred = rows.find(row => Number(row.is_default)) || rows[0];
+		const row_of = name => rows.find(row => row.name === name) || {};
+		// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
+		// （`api_list_terminals` 现算的 `effective_warehouse`）。**显示名字**，不是编号 ——
+		// 收银员认的是「Purchase check 4bb0f9fc」，不是 `WH-00174`。
+		const place_of = row => (row.effective_warehouse_name || row.warehouse_name
+			|| row.effective_warehouse || row.warehouse || "");
+		// 公司看**抬头**（「Purchase Preview」），不是编号（`CO-00552`）。
+		const company_of = row => row.company_name || row.company || "";
+		const label_of = row => [row.terminal_name || row.name, place_of(row)]
+			.filter(Boolean).join(" · ");
 		let dialog;
-		dialog = p.dialog(t("trade.openShift"), [
+		// 收银台这一格**不用 Link**：Link 控件右边那颗箭头（`ControlLink` 的 `.btn-open`）是
+		// "跳到那张单据"，开班时点它会把收银员带到别处去（用户 2026-09-24 的截图）。
+		// 官方只在"能选不能读"时才藏那颗箭头（`toggle_href`），不是我们想要的开关 ——
+		// 所以换成原生 `Select`（值仍是收银台的名字），并把**公司 / 仓库**当场显示出来：
+		// "这台收银台属于哪家公司、从哪个仓卖货"就是这一格的意思（收银台 = 公司 + 仓库）。
+		const fields = [
 			currency_field(),
-			{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal", only_select: true,
-				get_query: p.terminal_query(),
+			{ fieldtype: "Select", fieldname: "terminal",
 				label: t("trade.terminal"), reqd: 1, default: preferred?.name || "",
-				description: t("trade.terminalHint") },
+				description: t("trade.terminalHint"),
+				options: rows.map(row => ({ value: row.name, label: label_of(row) })),
+				onchange: function () {
+					dialog?.set_value("company", company_of(row_of(this.value)));
+					dialog?.set_value("warehouse", place_of(row_of(this.value)));
+				} },
+			{ fieldtype: "Data", fieldname: "company", label: t("trade.company"), read_only: 1,
+				default: company_of(row_of(preferred?.name)) },
+			{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1,
+				description: t("trade.warehouseHint"),
+				default: place_of(row_of(preferred?.name)) },
 			...balance_table(t),
 			{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },
-		], t("trade.openShift"), async (values, d) => {
+		];
+		dialog = p.dialog(t("trade.openShift"), fields, t("trade.openShift"), async (values, d) => {
 			const openings = Object.fromEntries((values.balances || [])
 				.filter(row => row.opening_amount)
 				.map(row => [row.method, num(row.opening_amount)]));

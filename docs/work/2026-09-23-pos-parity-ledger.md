@@ -701,3 +701,110 @@ frappe.pearnly.pos_shift.close({ t, shift, on_done })  // 交班
 
 **声音节点的证据**（上一轮已核，这轮复述）：8 个 `<audio id="sound-…">` 齐（frappe 七个 +
 我们钩子里那条 `numpad-touch`），`mute_sounds = 0`，用到的名字全部 `readyState 4`。
+
+## 15. 2026-09-24 第二批：收据按钮实测、开班到仓、最近订单接上、删物料组、翻译补全
+
+用户这一轮的口径（原话要点）：按钮留我们之前的；开班弹窗那颗箭头会把人带走；
+收银台到底有没有用、没用就删；**提示语全局翻译完整**；**物料组我们是没有的，删掉**；
+**最近订单我们是支持的呀**。
+
+### 15.1 「收据」那三颗按钮：端到端实测（不是只画出来）
+
+点「最近订单」→ 点一行 → 汇总屏底下是 **打印收据 / 退货退款 / 作废 / 新订单**
+（没有官方的「邮件发送收据」—— 我们没做那个功能）。逐个动作实测：
+
+| 动作 | 结果 |
+| --- | --- |
+| 打印收据 | `p.pos_receipt.print` 收到 **1 次**调用，开 `/printview?doctype=ERP Sale&name=SALE-2026-00681`（内部单号） |
+| 退货退款 | 真出了一张退款单 `SALE-2026-00683 / SI2569-000063`，`return_against=SALE-2026-00681`，金额 ฿100 |
+| 作废 | 对那张退款单作废 → 提示「已作废 1 张」，汇总屏立刻变「已作废」，按钮只剩「新订单」 |
+| 新订单 | 清车回商品区 |
+
+**踩到三处**（都已修）：
+
+1. **两个号**：列表与汇总屏要显示**小票号**（`SI2569-000060`），取数要**内部单号**（`SALE-2026-00673`）。
+   官方那个渲染函数两处都用 `invoice.name` —— 不改官方代码，改成"渲染时给小票号、
+   追加到列表前把 `data-invoice-name` 换回内部单号"（`p.pos_receipt.print` 与
+   `api_get_sale` 都按内部单号走）。
+2. **点一次弹两个打印页**：官方把 `.print-btn` 的动作用**委托**绑在外层容器上，
+   我们自己那颗绑在按钮区 → 两个都跑。构造里 `off("click", ".print-btn")` 摘掉官方那一条
+   （实测容器上只剩官方别的委托，没有 `.print-btn`）。
+3. **已作废的单底下还画着「作废」**：官方状态词（`Paid`/`Return`/`Voided`，给色点用）与
+   我们自己的状态（`completed`/`void`，给按钮判据用）混着判了。分成两个字段
+   （`status` 给渲染、`pearnly_status` 给按钮），与旧页面同一句 `doc.status === "completed"`。
+
+### 15.2 开班弹窗：箭头没了，并且当场说清"哪家公司、哪个仓"
+
+收银台那一格是**原生 `Select`**（不是 Link，也就没有那颗跳走的箭头），选项写成
+`Counter 1 · Purchase check 4bb0f9fc`；下面两格只读显示 **公司**（抬头，不是 `CO-00552`）与
+**仓库**（名字，不是 `WH-00174`），各带一句说明。实测：`.modal.show .link-btn .btn-open` = **0**。
+
+顺带修了一个真 bug：`tblERP POS Terminal.warehouse` **全站为 NULL**（终端没配仓），
+所以"仓库"那格以前是空的。现在服务端 `list_terminals` 多回两个**只读**字段
+`effective_warehouse` / `effective_warehouse_name`（自己配了用自己，没配就是这家公司的默认仓，
+与卖货那条路同一口径；只读、不建）。站上两台终端都落在 `WH-00174`。
+
+### 15.3 POS 卖货"单据一个仓、行另一个仓"（**本轮最重要的一个真 bug**）
+
+实测一笔：单据 `SALE-2026-00681` 的 `warehouse = WH-00174`，而它的行 `warehouse = WH-00101`
+（= 该商品自己的 `default_warehouse`），库存是从**行**那个仓出的。
+也就是：商品区显示的可用量按"收银台的仓"算、开班弹窗也这么写，**实际扣的却是商品的默认仓** ——
+"看得到的库存"和"扣掉的库存"不是一个地方。
+
+根因：`cashier/sales.py` 里 `positions.prepare(line, warehouse or terminal_doc.warehouse)` 的
+兜底顺序是"行 → 终端 → **商品默认仓**"，而本租户终端 `warehouse` 是 NULL → 商品默认仓胜出；
+同一函数下面那句 `warehouses.required(...)` 才解析出公司默认仓（= 终端有效仓）。
+
+改法：**先把这台收银台的有效仓定死，再铺行** ——
+`warehouse_id = warehouses.required(warehouse or terminal_doc.warehouse)`，
+`lines = [positions.prepare(line, warehouse_id) …]`。行、单据、界面三处从此同一个仓。
+实测新单 `SALE-2026-00685 / SI2569-000064`：`doc_wh = line_wh = WH-00174` ✓。
+（改动前那两张单的历史行不动，用户口径是本地痕迹不用恢复。）
+
+### 15.4 「最近订单」接上我们自己的销售记录
+
+以前点开是 `未安装应用程序 erpnext / 无法获取命令 …get_past_order_list`。现在：
+
+- 列表 = **`api_list_sales`**（收银记录那页同一个接口），一屏 20 条、按 `sold_at desc`；
+- 状态那一格换成我们这三档：**全部 / 已完成 / 已作废**，默认「全部」
+  （官方默认筛"草稿"，而我们**不存草稿**，照它那个默认一打开就是空的）；
+- 搜索框口径与占位文案一致：单号、内部单号、**客户抬头**（后者本轮补进 `list_sales` 的 `or_filters`）；
+- 点一行 → 走 `api_get_sale`，把我们的单据**摆成官方那套字段形状**喂给官方的汇总渲染
+  （`summary_doc_of`：行、税、净总计、整单折扣、收付款、状态），官方那两个文件的渲染代码一个字没改；
+- 顺手修掉官方那段的遮罩陷阱：`freeze()` 只在成功回调里 `unfreeze()`，请求一失败整页就永远发灰
+  （用户那张标签以前就是这么卡住的）—— 现在失败也收。
+
+### 15.5 删掉「物料组」
+
+我们产品没有物料组。官方那一格建在 `make_search_bar()` 里 → 适配层在自己的
+`make_search_bar()` 里（super 之后）把 `.item-group-field` 整个容器移除：筛选行只剩
+「所有物料」标题 + 搜索框。实测 `.item-group-field` = 0。
+（控件对象照官方那套建，官方在 `attach_clear_btn()` / `attach_shortcuts()` 里对它的引用落在
+已移除节点上是空操作，不会抛错。`Ctrl+G` 那条快捷键还注册着但指向已移除的控件，属无害残留。）
+
+### 15.6 提示语全局翻译补全（**以生成的翻译包为准**做的检查）
+
+只看"术语表里有没有这个词"不够 —— **msgid 只出现在"带 key 的词条"里、且同英文的几条译文
+不一致时，生成脚本按规矩不补"英文原文"那一行，运行时那句就直出英文**。所以这轮改成拿
+`translations/<lang>.csv`（运行时真正生效的那份）当基准逐个核对。
+
+- 收银域缺的 14 条服务端提示全补上，其中就有用户看到的那句
+  **`Open a shift before selling`**（术语表里只有旧页面那句 `Open a shift on the cashier page first.`，
+  而那已经是死词条，一并换掉）；
+- 另外补了 `erp_portal` 27 条、`pearnly_core` 5 条、`pearnly_dms` 2 条、`pearnly_control` 14 条；
+- **修掉两条"假翻译"**：`Void`（术语表里有两条带 key 的：库存"撤销"与销售"作废"，译文不一致
+  → 不生成英文行）与 `No product matches that code`（手机扫码与盘点两条同样冲突）。
+  前者改成走我们自己的词条键（与旧页面同一份），后者把盘点那句英文改成独占写法再加一行；
+- 复查：脚本扫全部 `_()`/`__()` 字面量，剩下的"缺"只有 DocType 名、角色名（`System Manager`）、
+  品牌名与 Frappe 自己已带的词（`Discard`/`Logout`/`Display`/`Website` 实测都已翻出来）。
+
+### 15.7 顺手修掉"改了代码页面还是旧的"
+
+适配层原来是页面里 `frappe.require("/assets/.../pearnly-pos-adapter.js")` 加载的 ——
+路径不带版本，浏览器一直吃缓存（排查时靠 `window.__pos_adapter_v` 认版本）。
+想给它带 `?v=` 又撞上框架自己的坑（`assets.js` 的 `extn()` 从路径里取扩展名，
+带 `?` 就解析错，实测 `TypeError: s is not a function`）。
+
+最后按仓库里已有的做法：**把适配层挂进 `app_include_js`**（`versioned_asset` 按文件内容算 hash），
+页面里改成直接用那个全局加载器；hooks 那份兜底留给"刚改完还没重启 web"的情况。
+代价是改适配层要 `clear-cache` + 重启 web（与 `desk/*.js` 那批一致）。

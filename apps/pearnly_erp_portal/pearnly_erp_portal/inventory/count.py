@@ -42,7 +42,11 @@ TITLE_REQUIRED = "A stock count needs a name"
 CLOSED = "This stock count is closed"
 POSTED = "This stock count is already posted"
 ITEM_NOT_FOUND = "That row is not part of this stock count"
-CODE_NOT_FOUND = "No product matches that code"
+# 这句英文**必须与术语表里别处那句同义的错开**：`No product matches that code` 在术语表里
+# 有两条带 key 的词条（手机扫码那条 `stock.mobile.notFound`、盘点这条 `stock.count.problemCode`），
+# 两条译文不一致 → 生成脚本按规矩**不补"英文原文"那一行**（谁覆盖谁说不清），
+# 结果服务端这句在页面上直出英文。换成一个只属于这里的写法，译文照盘点那一条给。
+CODE_NOT_FOUND = "No product matches this code"
 QUANTITY_REQUIRED = "Enter a quantity"
 VERSION_STALE = "This entry changed underneath you; reload and try again"
 REQUEST_CONFLICT = "That submission was already used for a different entry"

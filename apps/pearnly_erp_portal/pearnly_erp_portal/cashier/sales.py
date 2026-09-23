@@ -131,9 +131,14 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
 
     shift_doc = _resolve_shift(shift, terminal)
     terminal_doc = frappe.get_doc("ERP POS Terminal", terminals.resolve(terminal or shift_doc.terminal))
-    # Explicit terminal location wins; otherwise each product supplies its own default.
-    lines = [positions.prepare(line, warehouse or terminal_doc.warehouse) for line in lines]
+    # **先定这台收银台真正卖货的那个仓**，再铺行：终端自己配了用自己，没配就是这家公司的
+    # 默认仓（与商品区那条 `counter.warehouse_for` 同一口径 —— 界面上显示的可用量就是按它算的）。
+    # 顺序要紧：`positions.prepare` 的兜底是"**商品自己的**默认仓"，而两个兜底不是一回事 ——
+    # 终端没配仓时（本租户的终端就是 NULL）行会落到商品默认仓上，单据却写着公司默认仓，
+    # 于是"看到的库存"与"扣的仓库"不是一个地方（实测：单据 `WH-00174`、行 `WH-00101`，
+    # 库存从行那个仓出的）。死在这里定死，行、单据、界面三处才是一个仓。
     warehouse_id = warehouses.required(warehouse or terminal_doc.warehouse)
+    lines = [positions.prepare(line, warehouse_id) for line in lines]
 
     try:
         totals = contracts.sale_totals(lines, discount_total=discount_total,
@@ -238,7 +243,15 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
         filters["sold_at"] = ["between", [f"{date_from} 00:00:00", f"{date_to} 23:59:59"]]
     or_filters = None
     if q:
-        or_filters = [["receipt_no", "like", f"%{q}%"], ["name", "like", f"%{q}%"]]
+        # 搜索框的口径（收银台「最近订单」那格写的是"按单据编号或客户名称搜索"）：
+        # 单号、内部单号，**以及客户抬头** —— 客户名不在本表上，先按名字取出那几家的编号再挂进来
+        # （`customer` 是 Link，列表里显示的是抬头，见 `_customer_names`）。
+        term = f"%{q}%"
+        or_filters = [["receipt_no", "like", term], ["name", "like", term]]
+        customers = frappe.get_all("ERP Customer", filters={"customer_name": ["like", term]},
+                                   pluck="name", limit_page_length=0)
+        if customers:
+            or_filters.append(["customer", "in", customers])
     rows = frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
                            order_by="sold_at desc", limit_start=int(start),
                            limit_page_length=int(limit))

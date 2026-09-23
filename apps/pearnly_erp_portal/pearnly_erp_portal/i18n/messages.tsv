@@ -777,7 +777,8 @@ Shift No	班次编号	เลขที่กะ	シフト番号	trade.shiftNo
 Cashier	收银员	พนักงานเก็บเงิน	レジ担当	trade.cashier
 Opened At	开班时间	เวลาเปิดกะ	開始時刻	trade.openedAt
 Closed At	交班时间	เวลาปิดกะ	終了時刻	trade.closedAt
-Leave blank to use the default terminal	留空使用默认收银台	เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น	空欄なら既定のレジを使います	trade.terminalHint
+Which company this terminal belongs to, and which warehouse it sells from	这台收银台属于哪家公司、从哪个仓卖货	เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน	このレジがどの会社に属し、どの倉庫から販売するか	trade.terminalHint
+Comes from the terminal; if it has none, the company's default warehouse	来自收银台；收银台没配仓就用这家公司的默认仓	มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท	レジの設定によります。未設定なら会社の既定倉庫です	trade.warehouseHint
 Sales Count	笔数	จำนวนบิล	件数	trade.salesCount
 Refund Count	退款笔数	จำนวนการคืนเงิน	返品件数	trade.refundCount
 Gross	毛额	ยอดขายรวม	売上総額	trade.gross
@@ -1012,7 +1013,7 @@ Unit Cost (net of VAT)	单位成本（不含 VAT）	ต้นทุนต่อ�
 Used when a new purchase line does not say otherwise	新建采购明细没单独指定时用它	ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น	新しい仕入明細で別途指定がない場合に使います
 VAT Applicable	含 VAT	คิด VAT	VAT 対象
 Void Reason	撤销原因	เหตุผลการยกเลิก	取消理由
-Voided	已撤销	ยกเลิกแล้ว	取消済み
+Voided	已作废	ยกเลิกแล้ว	取消済み
 Who bought this receipt; empty means a walk-in customer	这张小票是谁买的；留空 = 散客	ใครซื้อใบเสร็จนี้ ถ้าเว้นว่าง = ลูกค้าทั่วไป	このレシートの購入者。空欄は一般客（通りがかり）です
 Year, year-month or ALL, depending on the reset policy	年、年月或 ALL，取决于重置策略	ปี, ปี-เดือน หรือ ALL ขึ้นกับนโยบายรีเซ็ต	年・年月・ALL のいずれか（リセット方針による）
 Add Order Discount	添加整单折扣	เพิ่มส่วนลดทั้งบิล	伝票割引を追加
@@ -1103,7 +1104,21 @@ You cannot redeem more than {0}.	抵扣金额不能超过 {0}	ใช้แต้
 You don't have enough points to redeem.	积分不足，无法抵扣	คะแนนไม่พอสำหรับการใช้แต้ม	ポイントが足りないため利用できません
 You have unsaved changes. Do you want to save the invoice?	有未保存的改动，要保存这张单据吗？	มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่	未保存の変更があります。伝票を保存しますか？
 You must select a customer before adding an item.	添加物料前必须先选择客户	ต้องเลือกลูกค้าก่อนเพิ่มสินค้า	商品を追加する前に顧客を選択してください
-Open a shift on the cashier page first.	请先在收银台开班（旧页面那条路）	กรุณาเปิดกะที่หน้าจุดขายก่อน	先にレジでシフトを開始してください
+Open a shift before selling	卖货前先开班	ต้องเปิดกะก่อนขาย	販売前にシフトを開始してください
+This shift is closed	这个班次已经交班了	กะนี้ปิดแล้ว	このシフトは終了しています
+This shift is already closed	这个班次已经交过班了	กะนี้ปิดไปแล้ว	このシフトはすでに終了しています
+Shift not found	找不到这个班次	ไม่พบกะนี้	シフトが見つかりません
+This terminal already has an open shift	这台收银台已经有开着的班次	เครื่องขายนี้มีกะที่เปิดอยู่แล้ว	このレジにはすでに開いているシフトがあります
+This shift belongs to another cashier	这是别人的班次	กะนี้เป็นของพนักงานเก็บเงินคนอื่น	このシフトは他のレジ担当のものです
+Counted amount is required	必须填实点金额	ต้องกรอกยอดนับได้	実地金額は必須です
+Terminal not found	找不到这台收银台	ไม่พบเครื่องขายนี้	レジが見つかりません
+A terminal needs a name	收银台要有名称	เครื่องขายต้องมีชื่อ	レジには名前が必要です
+Sale not found	找不到这张销售单	ไม่พบบิลขายนี้	売上が見つかりません
+Provide at least one line item	至少要有一行明细	ต้องมีรายการอย่างน้อยหนึ่งรายการ	明細を最低 1 行入力してください
+A refund needs the original sale	退款必须指定原始销售单	การคืนเงินต้องอ้างอิงบิลขายต้นทาง	返品には元の売上が必要です
+A refund cannot be more than the original sale	退款不能超过原始销售单	คืนเงินได้ไม่เกินบิลขายต้นทาง	返品は元の売上を超えられません
+This sale is already voided	这张销售单已经作废了	บิลขายนี้ถูกยกเลิกแล้ว	この売上はすでに無効です
+Sales Records	销售记录	บันทึกการขาย	売上記録
 Additional Discount Percentage	整单折扣率	เปอร์เซ็นต์ส่วนลดท้ายบิล	伝票割引率
 Available Qty	可用量	จำนวนคงเหลือ	利用可能在庫数
 Conversion Factor	换算系数	ตัวคูณแปลงหน่วย	換算係数
@@ -1114,3 +1129,33 @@ Rounded Total	舍入后总计	ยอดรวมหลังปัดเศษ	�
 Stock UOM	库存单位	หน่วยวัดสต็อก	在庫単位
 Taxes	税费	ภาษี	税
 Time	时间	เวลา	時刻
+Company	公司	บริษัท	会社	trade.company
+A company needs a name	公司要有名称	บริษัทต้องมีชื่อ	会社には名前が必要です
+A customer needs a name	客户要有名称	ลูกค้าต้องมีชื่อ	顧客には名前が必要です
+A product needs a name	物料要有名称	สินค้าต้องมีชื่อ	品目には名前が必要です
+A stock count needs a name	盘点单要有名称	เอกสารตรวจนับต้องมีชื่อ	棚卸には名前が必要です
+A submitted document cannot be changed	已提交的单据不能改	เอกสารที่ส่งแล้วแก้ไขไม่ได้	送信済みの伝票は変更できません
+A submitted entry cannot be changed	已提交的出入库不能改	รายการที่ส่งแล้วแก้ไขไม่ได้	送信済みの入出庫は変更できません
+A supplier needs a name	供应商要有名称	ผู้ขายต้องมีชื่อ	仕入先には名前が必要です
+A warehouse needs a name	仓库要有名称	คลังต้องมีชื่อ	倉庫には名前が必要です
+Add Column	添加列	เพิ่มคอลัมน์	列を追加
+At most {0} photos per entry	每张单据最多 {0} 张照片	หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป	1 件あたり写真は最大 {0} 枚です
+Company not found	找不到这家公司	ไม่พบบริษัทนี้	会社が見つかりません
+Following fields have missing values:	以下字段没有填：	ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:	次の項目が未入力です:
+Missing Values Required	必填项没有填	ต้องกรอกข้อมูลที่จำเป็น	必須項目が未入力です
+Open this page from LINE, or sign in to the site first	请从 LINE 打开本页，或先登录站点	เปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน	このページは LINE から開くか、先にサイトへログインしてください
+Purchase document not found	找不到这张采购单	ไม่พบเอกสารจัดซื้อนี้	購買伝票が見つかりません
+Setup Auto Email	设置自动邮件	ตั้งค่าอีเมลอัตโนมัติ	自動メールを設定
+Stock entry not found	找不到这张出入库单	ไม่พบเอกสารสต็อกนี้	入出庫伝票が見つかりません
+That submission was already used for a different entry	这次提交已经用在别的单上了	การส่งนี้ถูกใช้กับรายการอื่นไปแล้ว	この送信は別の明細で使用済みです
+This LINE account is not bound to an ERP user	这个 LINE 账号还没绑定 ERP 用户	บัญชี LINE นี้ยังไม่ได้ผูกกับผู้ใช้ ERP	この LINE アカウントは ERP ユーザーに紐付いていません
+This barcode already exists	这个条码已经存在	บาร์โค้ดนี้มีอยู่แล้ว	このバーコードは既に存在します
+This document is already recorded: {0}	这张单据已经录入过了：{0}	เอกสารนี้บันทึกแล้ว: {0}	この伝票は登録済みです: {0}
+This document is void	这张单据已作废	เอกสารนี้ถูกยกเลิกแล้ว	この伝票は無効です
+This entry changed underneath you; reload and try again	这张单在别处被改过了，刷新后重试	รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่	この明細は他で変更されました。再読み込みしてやり直してください
+This product code already exists	这个物料编号已经存在	รหัสสินค้านี้มีอยู่แล้ว	この品目コードは既に存在します
+This request was already recorded	这次请求已经记录过了	คำขอนี้ถูกบันทึกแล้ว	このリクエストは登録済みです
+This status change is not allowed	不允许这样改状态	เปลี่ยนสถานะแบบนี้ไม่ได้	このステータス変更は許可されていません
+This stock count is already posted	这张盘点单已经过账了	เอกสารตรวจนับนี้ลงบัญชีแล้ว	この棚卸はすでに計上済みです
+No product matches this code	该编号找不到物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	このコードに一致する商品がありません
+Return	退货退款	คืนสินค้า	返品・返金

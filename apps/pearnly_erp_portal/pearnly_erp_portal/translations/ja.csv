@@ -2,16 +2,28 @@
 1 = January,1 = 1月
 1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
 13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
+A company needs a name,会社には名前が必要です
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A confirmed draft must point at the record it created,確定した下書きは、それが作成した伝票を指している必要があります
+A customer needs a name,顧客には名前が必要です
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
+A product needs a name,品目には名前が必要です
+A refund cannot be more than the original sale,返品は元の売上を超えられません
+A refund needs the original sale,返品には元の売上が必要です
+A stock count needs a name,棚卸には名前が必要です
 A stock entry needs at least one line,入出庫伝票には少なくとも1行必要です
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
+A submitted document cannot be changed,送信済みの伝票は変更できません
+A submitted entry cannot be changed,送信済みの入出庫は変更できません
+A supplier needs a name,仕入先には名前が必要です
+A terminal needs a name,レジには名前が必要です
+A warehouse needs a name,倉庫には名前が必要です
 Abbreviated Tax Invoice,簡易税務請求書
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
+Add Column,列を追加
 Add Discount,割引を追加
 Add Employee,従業員を追加
 Add Order Discount,伝票割引を追加
@@ -53,6 +65,7 @@ Are you sure you want to delete?,削除しますか？
 As Of,基準日
 At least 8 characters,8文字以上
 At most 5 photos per entry,1記録につき写真は5枚までです
+At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
 Attach,添付
 Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
@@ -157,10 +170,12 @@ Collection Remarks,入金備考
 Collection Status,入金状況
 Colour Tag,カラータグ
 Columns,列
+"Comes from the terminal; if it has none, the company's default warehouse",レジの設定によります。未設定なら会社の既定倉庫です
 Companies,会社
 Company,会社
 Company details,会社情報
 Company name,会社名
+Company not found,会社が見つかりません
 Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
@@ -184,6 +199,7 @@ Count saved,保存しました
 Counted,棚卸済み
 Counted Amount,実地金額
 Counted Cash,実際の現金
+Counted amount is required,実地金額は必須です
 Counted at,日時
 Counted by,担当者
 Counted in total,合計に含む
@@ -329,6 +345,7 @@ Fiscal Year Starts In,会計年度の開始月
 Fiscal year start month,会計年度の開始月
 Focus on Item Group filter,品目グループ絞り込みにフォーカス
 Focus on search input,検索欄にフォーカス
+Following fields have missing values:,次の項目が未入力です:
 Foreigner,外国人
 Found,検出
 Found: {0},取得: {0}
@@ -430,6 +447,7 @@ Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
 Media Type,メディア種別
 Merge Items,明細統合
+Missing Values Required,必須項目が未入力です
 Mode of Payment,支払方法
 Modes of Payment,支払方法
 More Filters,追加フィルタ
@@ -460,6 +478,7 @@ No item matches the scanned code {0},スキャンしたコード {0} に一致�
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
 No product for this code: {0},このコードの商品が見つかりません: {0}
+No product matches this code,このコードに一致する商品がありません
 No receipts in this shift,このシフトのレシートはありません
 No recent transactions found,最近の取引はありません
 No stock count in progress,進行中の棚卸はありません
@@ -493,8 +512,10 @@ Only the checked features are visible to this user,チェックした機能だ�
 Only the product admin can change this,製品管理者のみ変更できます
 Open Form View,フォーム表示を開く
 Open Shift,シフト開始
+Open a shift before selling,販売前にシフトを開始してください
 Open a shift on the cashier page first.,先にレジでシフトを開始してください
 Open that product,その商品を開く
+"Open this page from LINE, or sign in to the site first",このページは LINE から開くか、先にサイトへログインしてください
 Opened At,開始時刻
 Opened at {0},開始 {0}
 Opening,期首
@@ -585,6 +606,7 @@ Product not found. Check the code and try again.,商品が見つかりません�
 PromptPay,PromptPay
 PromptPay Amount,PromptPay
 PromptPay ID,PromptPay ID
+Provide at least one line item,明細を最低 1 行入力してください
 Purchase,仕入
 Purchase Amount,仕入金額
 Purchase Count,仕入件数
@@ -592,6 +614,7 @@ Purchase Invoice,仕入請求書
 Purchase Order,発注書
 Purchase Record,仕入記録
 Purchase Records,仕入記録
+Purchase document not found,購買伝票が見つかりません
 Purchasing,購買
 QR Payload,QR内容
 QR payload,QR 内容
@@ -648,6 +671,7 @@ Requested By,申請者
 Reset,リセット
 Reset Password,パスワードを再設定
 Retry,再試行
+Return,返品・返金
 Returned,返品済み
 Reversal,取消仕訳
 Review differences,差異を確認
@@ -659,9 +683,11 @@ Rows,行数
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
 Sale,販売
 Sale Price,販売価格
+Sale not found,売上が見つかりません
 Sales,販売
 Sales Count,件数
 Sales Document,販売伝票
+Sales Records,売上記録
 Save,保存
 Save Draft,下書きを保存
 Save and next,保存して次へ
@@ -704,6 +730,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,サービス
 Set as current,現在の会社にする
 Set as default,既定にする
+Setup Auto Email,自動メールを設定
 Sheet,シート
 Shelf,棚番
 Shift,シフト
@@ -711,6 +738,7 @@ Shift History,シフト履歴
 Shift No,シフト番号
 Shift Records,シフト記録
 Shift closed · Cash difference {0},シフト終了 · 現金差異 {0}
+Shift not found,シフトが見つかりません
 Shift {0} opened,シフト {0} を開始しました
 Shift {0} · Expected cash {1},シフト {0} · 現金予定額 {1}
 Shift {0} · opened {1} · expected cash {2},シフト {0} · 開始 {1} · 現金予定額 {2}
@@ -745,6 +773,7 @@ Stock count not found,棚卸が見つかりません
 "Stock count tasks, staff entries and variance posting",棚卸タスク、担当者入力、差異の転記
 Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
+Stock entry not found,入出庫伝票が見つかりません
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
 Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の既定倉庫
@@ -785,12 +814,14 @@ Tax Withholding Rate,源泉徴収税率
 Taxes,税
 Taxes and Charges,税金および諸費用
 Terminal,レジ
+Terminal not found,レジが見つかりません
 That code is not valid,コードが正しくありません
 That file could not be read; please use the template,このファイルは読み取れません。テンプレートをご利用ください
 That file has no rows,このファイルには行がありません
 That file is not an Excel workbook,Excel ブックではありません
 That photo could not be read,この写真を読み取れません
 That row is not part of this stock count,この行はこの棚卸に含まれていません
+That submission was already used for a different entry,この送信は別の明細で使用済みです
 That warehouse belongs to another company,この倉庫は別会社のものです
 The LINE account that sent the document,この書類を送ってきたLINEアカウント
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
@@ -814,10 +845,12 @@ The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
 There is nothing to save,保存する行がありません
 There were errors while sending email. Please try again.,メール送信中にエラーが発生しました。再試行してください
+This LINE account is not bound to an ERP user,この LINE アカウントは ERP ユーザーに紐付いていません
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",この LINE アカウントは担当者に紐づいていません。LINE から開くか、先にWebでログインしてください。
 This Month,今月
 This Quarter,今四半期
 This account cannot send documents,このアカウントは書類を送信できません
+This barcode already exists,このバーコードは既に存在します
 This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 This channel is not open yet,このチャンネルはまだ開放していません
@@ -827,10 +860,22 @@ This device cannot scan,この端末ではスキャンできません
 This device has no camera to scan with,この端末にはスキャンに使えるカメラがありません
 This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
+This document is already recorded: {0},この伝票は登録済みです: {0}
 This document is too large,この書類は大きすぎます
+This document is void,この伝票は無効です
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
+This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This product code already exists,この品目コードは既に存在します
+This request was already recorded,このリクエストは登録済みです
+This sale is already voided,この売上はすでに無効です
+This shift belongs to another cashier,このシフトは他のレジ担当のものです
+This shift is already closed,このシフトはすでに終了しています
+This shift is closed,このシフトは終了しています
+This status change is not allowed,このステータス変更は許可されていません
+This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
+This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This unit is not defined on the product,この単位はこの商品に定義されていません
 This warehouse already exists,この倉庫は既に存在します
 Time,時刻
@@ -900,6 +945,7 @@ Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse name,倉庫名
 Warehouse not found,倉庫が見つかりません
+"Which company this terminal belongs to, and which warehouse it sells from",このレジがどの会社に属し、どの倉庫から販売するか
 Who bought this receipt; empty means a walk-in customer,このレシートの購入者。空欄は一般客（通りがかり）です
 With differences,差異あり
 Withholding Tax,源泉税
@@ -1392,6 +1438,7 @@ trade.closeShift,シフト終了
 trade.closedAt,終了時刻
 trade.closing,期末数量
 trade.code,コード
+trade.company,会社
 trade.completeOrder,会計を確定
 trade.cost,単位原価
 trade.countCash,現金確認
@@ -1517,7 +1564,7 @@ trade.systemNo,システム番号
 trade.taxId,納税者番号
 trade.taxNo,適格請求書番号
 trade.terminal,レジ
-trade.terminalHint,空欄なら既定のレジを使います
+trade.terminalHint,このレジがどの会社に属し、どの倉庫から販売するか
 trade.to,終了日
 trade.total,請求額
 trade.totalItems,合計点数
@@ -1533,7 +1580,7 @@ trade.voidNotice,{0}件を取り消しました
 trade.voidPaid,先に入金を取り消してから伝票を取り消してください
 trade.walkIn,一般客
 trade.warehouse,倉庫
-trade.warehouseHint,倉庫名は自由入力です。新しい名前なら自動作成します
+trade.warehouseHint,レジの設定によります。未設定なら会社の既定倉庫です
 transfer,振込
 unpaid,未払い
 void,取消済み

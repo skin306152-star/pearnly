@@ -1,11 +1,13 @@
 Booking ID,予約ID
 Booking Number,予約番号
 DMS,DMS
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 Enter the DMS password.,DMS パスワードを入力してください。
 Last Error,前回のエラー
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
 Next Attempt,次回試行
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
+Reload List,リストを再読み込み
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。

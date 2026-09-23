@@ -299,6 +299,14 @@ app_include_js = [
     # 开班 / 交班弹窗：搬过来的官方收银台与旧收银台**共用这一份**（两条路都调它，
     # 旧页面那一份已经删掉）。见该文件抬头。
     versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-shift.js"),
+    # 单据汇总那三个动作（打印收据 / 退货退款 / 作废）：同样两条路共用一份。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-receipt.js"),
+    # 收银台适配层（把搬来的官方收银台接到我们的服务上）。**为什么放这里而不是页面里
+    # `frappe.require`**：框架那个加载器从路径里取扩展名（`assets.js` 的 `extn()`），
+    # 路径带 `?v=` 时会被解析错（实测 `TypeError: s is not a function`）；不带版本又会被
+    # 浏览器缓存住 —— 改了代码页面上还是旧的。挂在这里走与其它 desk 文件同一条路：
+    # 按文件内容算 hash（`versioned_asset`），改一次换一个 URL，不吃缓存。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-adapter.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-receipts.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-shifts.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),

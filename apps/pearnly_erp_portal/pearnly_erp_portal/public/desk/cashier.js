@@ -63,9 +63,16 @@
 		// （`desk/pos/official-*.js` + 适配层 `pearnly-pos-adapter.js`）。默认那条路（下面的手写实现）
 		// 一行不动，方便两边同屏对、也保证演示站随时可用。对接完成后删掉这条分支与旧实现。
 		if (String(window.location.search || "").includes("pearnly_pos_next")) {
-			frappe.require("/assets/pearnly_erp_portal/desk/pos/pearnly-pos-adapter.js", () => {
+			// 适配层随 `app_include_js` 一起来（按文件内容带版本，见 hooks.py 里那一段）——
+			// 页面里**不要再 `frappe.require` 一次**：框架那个加载器从路径取扩展名，
+			// 带 `?v=` 会解析错；不带版本的路径又会被浏览器缓存住（改了代码页面还是旧的，
+			// 排查时看 `window.__pos_adapter_v`）。这里的兜底只为"hooks 改了、web 还没重启"。
+			if (p.pos_next_route) {
 				p.pos_next_route(page);
-			});
+			} else {
+				frappe.require("/assets/pearnly_erp_portal/desk/pos/pearnly-pos-adapter.js",
+					() => p.pos_next_route(page));
+			}
 			return () => { page.main.find(".point-of-sale-app").remove(); };
 		}
 		const api = "pearnly_erp_portal.cashier.api.";
@@ -960,13 +967,13 @@
 		});
 		$app.on("click", ".past-order-summary .void-btn", async () => {
 			if (!active_order) return;
-			await p.call(api + "api_void_sale", { name: active_order.name }, "POST");
-			// 作废 = 官方那套里的"取消"动作：`cancel` 那一声（`cancel` 也是框架取消文档成功的音）。
-			p.success(t("trade.voidNotice", 1), "cancel");
-			await refresh(); await load_orders(); await show_summary(active_order.name);
+			await p.pos_receipt.void_sale({ t, doc: active_order,
+				on_done: async () => { await refresh(); await load_orders(); await show_summary(active_order.name); } });
 		});
-		$app.on("click", ".past-order-summary .refund-btn", () => {
-			if (active_order) refund(active_order);
+		$app.on("click", ".past-order-summary .refund-btn", async () => {
+			if (!active_order) return;
+			await p.pos_receipt.refund({ t, doc: active_order,
+				on_done: async () => { await refresh(); await load_orders(); } });
 		});
 		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
 		$app.on("click", ".past-order-summary .new-order-btn", () => void new_invoice());
@@ -982,46 +989,11 @@
 		$app.on("click", ".customer-section .reset-customer-btn", () => {
 			reset_customer();
 		});
-		// 「打印收据」= 框架原生打印视图（官方出小票也走这一条）。
+		// 「打印收据」= 框架原生打印视图（官方出小票也走这一条）。三段动作都在共用模块里。
 		$app.on("click", ".past-order-summary .print-btn", () => {
-			if (!active_order) return;
-			const url = "/printview?doctype=" + encodeURIComponent("ERP Sale")
-				+ "&name=" + encodeURIComponent(active_order.name) + "&trigger_print=1";
-			window.open(url, "_blank", "noopener,noreferrer");
+			if (active_order) p.pos_receipt.print(active_order);
 		});
 
-		function refund(doc) {
-			const request = crypto.randomUUID();
-			let d;
-			const fields = [
-				{ fieldtype: "Data", fieldname: "currency", default: "THB", hidden: 1 },
-				{ fieldtype: "Select", fieldname: "original_line", label: t("trade.originalLine"), reqd: 1,
-					options: (doc.lines || []).map(row => ({ value: row.name,
-						label: `${row.description || row.product} · ${row.warehouse_name || ""} · ${p.number(row.qty)}` })) },
-				{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1 },
-				{ fieldtype: "Select", fieldname: "method", label: t("trade.method"),
-					options: METHODS.join("\n"), default: METHODS[0], reqd: 1 },
-				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "amount",
-					label: t("trade.refundAmount"), reqd: 1 },
-			];
-			const calculate = () => {
-				if (!d) return;
-				const line = (doc.lines || []).find(row => row.name === d.get_value("original_line"));
-				if (line) d.set_value("amount", round2(num(line.line_total) * num(d.get_value("qty") || 0) / num(line.qty)));
-			};
-			fields.find(item => item.fieldname === "original_line").change = calculate;
-			fields.find(item => item.fieldname === "qty").change = calculate;
-			d = p.dialog(t("trade.refund"), fields, t("trade.refund"), async (values, dialog) => {
-				await p.call(api + "api_refund_sale", { name: doc.name,
-					lines: [{ original_line: values.original_line, qty: values.qty }],
-					payments: [{ method: values.method, amount: values.amount }],
-					client_uuid: request }, "POST");
-				dialog.hide();
-				p.success(t("trade.refund"));
-				await refresh(); await load_orders();
-			});
-			calculate();
-		}
 
 		$(document).on("keydown.pearnly_pos", event => {
 			if (event.key !== "Escape") return;
