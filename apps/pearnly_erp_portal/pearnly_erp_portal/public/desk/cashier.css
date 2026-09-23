@@ -825,6 +825,14 @@
 	margin-top: var(--margin-md);
 }
 .point-of-sale-app .summary-btns > .summary-btn { flex: 1; margin: 0px var(--margin-xs); }  /* 官方 1352 */
+/* 主按钮 / 次按钮的底色要分得开（用户 2026-09-23：官方那张图里 New Order 是实心底，
+   打印与邮件是浅底）。次按钮走框架的 `btn-default`，主按钮跟「结账」用同一对变量。 */
+.point-of-sale-app .summary-btns > .summary-btn.new-order-btn {
+	background-color: var(--btn-primary);
+	color: var(--neutral);
+	font-weight: 500;
+}
+.point-of-sale-app .summary-btns > .summary-btn.new-order-btn:hover { filter: brightness(1.06); }
 
 /* 交班弹窗里差额不为 0 标红（全站同一个红，收银页与交班记录页都读它）。 */
 .modal .pearnly-payment-due { color: var(--red-600, var(--red-500)) !important; font-weight: 600; }

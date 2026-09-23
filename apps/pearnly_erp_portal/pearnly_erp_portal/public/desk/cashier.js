@@ -273,6 +273,10 @@
 			q(".past-order-list").css("display", orders_shown ? "flex" : "none");
 			q(".past-order-summary").css("display",
 				view === "summary" || orders_shown ? "flex" : "none");
+			// 官方：汇总屏**单独显示**时占满十列（在页面里居中），与最近订单并排时才回到六列
+			// （bundle 里那句 `this.$component.css("grid-column","span 10 / span 10")`）。
+			q(".past-order-summary").css("grid-column",
+				orders_shown ? "span 6 / span 6" : "span 10 / span 10");
 			q(".cart-totals-section .edit-cart-btn").toggle(paying);
 			// 「结账」那颗按钮**常驻**，空车也是亮的 —— 官方就是这样（实测：空购物车时
 			// 它的 `.checkout-btn` 仍是 `cursor: pointer`、点下去直接进收款屏，没有灰态）。

@@ -1537,3 +1537,20 @@ color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内�
 **验证**（演示站浏览器，同一页前后对比）：空车 `background-color: rgb(243,243,243)`（`--control-bg`）
 且内联样式是 `--control-bg`；选中一件物料后变 `rgb(124,77,255)`（品牌主色）+ `color: rgb(255,255,255)`；
 清空后再点它：`payment-container` 仍是 `display:none`（**空车点不动**，与官方那条闸一致）。
+
+### F34：汇总屏居中 + 主/次按钮底色分开（2026-09-23，未部署）
+
+用户口径："这一页要居中，和图二一样，主按钮和次按钮的底色区分"（图一我们的汇总屏：卡片贴在左边、
+四颗按钮都一样浅；图二官方：卡片居中、New Order 是实心底、打印/邮件是浅底）。
+
+| 官方原件 | 我们改成 |
+| --- | --- |
+| 汇总屏**单独显示**时 `this.$component.css("grid-column","span 10 / span 10")`；与最近订单并排时回到 `span 6 / span 6`（bundle 里读到的原文） | `paint_views()` 里按 `orders_shown` 设 `grid-column`：单独 = 十列，并排 = 六列 |
+| 汇总按钮都是 `btn btn-default`，但**最后一颗（New Order）是实心**（两张官方截图一致） | 给「新订单」一个 `.new-order-btn`：`background-color: var(--btn-primary)` + `color: var(--neutral)`（与「结账」同一对变量）；打印收据 / 退货退款 / 作废保持浅底 |
+
+**实测**（演示站浏览器，919px 视口）：并排时 `grid-column: span 6 / span 6`；单独时
+`span 10 / span 10`，量出来卡片（31rem = 496px）在宿主里**正好居中**（`cardCenterInHostOffset: 0`），
+宿主中心与窗口中心差 25px；按钮底色：新订单 `rgb(124,77,255)` + 白字，另外三颗透明底灰字
+（`rgb(82,82,82)`）。测量时为了量隐藏元素，我用 CDP 临时把它显示出来量完立刻还原（页面没留改动）。
+
+**顺带验到**：空单点「完成订单」给出官方那句「空单不能提交」提示（上一轮加的闸真的在跑）。
