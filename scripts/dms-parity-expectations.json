@@ -123,8 +123,8 @@
       "new": "apps/pearnly_dms/pearnly_dms/intake/flow.py"
     },
     "draft.py": {
-      "diff_lines": 25,
-      "digest": "0fbb354278d3fb460f991c43d88c5b19d67e9097918f7060cf38c2b5a7f95e2e",
+      "diff_lines": 28,
+      "digest": "c506e569d82d237cc9b70d2938cf09e7929fc904aa2db5bf6dd33099810a9e77",
       "new": "apps/pearnly_dms/pearnly_dms/intake/draft.py"
     },
     "edit_link.py": {

@@ -1705,3 +1705,95 @@ color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内�
 **检查**：`i18n-build --check` PASS、`check-frontend-i18n` 0 问题、架构 PASS(0)、权限契约 102 条 OK、
 10 支 JS 测试全过、`test_native_desk_contract` 仍是那 2 条老失败；`check-i18n --strict` 前后都是
 114 条 / 40 个文件（同一批存量，本次没增没减）。演示站只清缓存 + 重启 web。
+
+### F38：官方原生音效对齐（2026-09-23，未部署）
+
+用户口径："原生点收银开单是有一个单独的音效的，查清楚官方所有原生音效，对应的触发位置，
+同步到我们产品，同时关联静音和不静音，全站"。
+
+**官方清单与机制**（读源码 + 官方站实测，frappe 16.33.0 / erpnext 16.34.1）
+
+- 音效文件：frappe 自带 8 个文件，钩子里启用 7 条 —— `submit` / `error` / `cancel` / `delete` /
+  `click` / `alert` / `email`（音量 0.05–0.2，`chime` 在钩子里是注释掉的）；erpnext 再加 3 条
+  `incoming-call` / `call-disconnect` / `numpad-touch`（0.2 / 0.2 / **0.8**）。
+- 播放机制：Desk 模板按**各 App 的 `sounds` 钩子**生成 `<audio id="sound-<name>">`
+  （`frappe/www/desk.html`），`frappe.utils.play_sound(name)` 取同名节点播放；它**开头的第一件事
+  就是查 `frappe.boot.user.mute_sounds`**，静音时直接返回。所有音效都走这一个口子。
+- 触发位置（框架层，我们不用改、也吃得到）：文档提交成功 → `submit`（`form.js`）；
+  取消/作废文档 → `cancel`；删除（含批量）→ `delete`（`model.js` / `bulk_operations.js:231`）；
+  表单动作与时间线 → `click`；请求失败 → `error`（`request.js`）；邮件发出 → `email`；
+  来电/挂断 → `incoming-call` / `call-disconnect`。
+- 官方 POS 自己那 15 处（v16 源码逐条，`pos_controller/pos_item_cart/pos_item_details/pos_item_selector/pos_payment/pos_past_order_summary`）：
+  开班没填付款方式、加购无价、没选客户、库存不足、不允许改价折扣、小键盘没先选栏位、折扣超 100%、
+  空单或未收款提交、扫码回车没找到 → `error`；搜索命中唯一一条回车加购、客户联系方式保存成功、
+  忠诚度超额提示 → `submit`；有序列号/批号没选就移除行 → `cancel`；邮件发小票 → `email`；
+  **收款小键盘按键 → `numpad-touch`**。点「结账」进收款屏那一下官方**不响**，响的是**完成订单**
+  （单据提交成功那一声 `submit`）。
+
+**我们这边的实况（实测）**：页面里只有 frappe 那七个节点 —— `numpad-touch` **根本没注入**，
+`play_sound("numpad-touch")` 取不到元素、异常被它自己的 try/catch 吞掉，**收银台小键盘那声一直是哑的**。
+根因：节点按各 App 的 `sounds` 钩子生成，`numpad-touch` 在 erpnext 的钩子里，而租户站点**不装 erpnext**
+（文件在 bench 里本来就有，`/assets` 是 bench 级；缺的只是那行声明）。我们所有提示音都走
+`frappe.utils.play_sound`（全仓没有一处 `new Audio()`），所以**静音开关对全部音效天然生效**。
+
+**改成什么**
+
+| 位置 | 之前 | 现在 |
+| --- | --- | --- |
+| `pearnly_core/hooks.py` | 没有 `sounds` 声明 | 按官方同样的文件与音量补一条 `numpad-touch`（0.8）。装了 erpnext 的站点会多一个同名节点，取到的仍是第一个（同一个文件），行为不变 |
+| `p.success(message, sound)` | 只会 `submit` | 收第二个参数，默认 `submit`；删除类给 `delete`、作废/取消类给 `cancel`（框架 `bulk_operations.js` 就是按动作名给音） |
+| `p.selection_action({..., sound})` | 不支持 | 透传；盘点「删除选中」→ `delete`；收银记录 / 入库「作废选中」→ `cancel` |
+| 采购 / 销售「删除草稿」、单据附件删除 | `submit` | `delete` |
+
+**实测**（演示站浏览器，把 `HTMLMediaElement.play` 打桩记录"播了哪个"，不会真出声）
+
+- 加购 → 收银开单 → 完成订单：播 `sound-submit` ✓（进收款屏那一下两边都没音）。这张单真开了：
+  `SI2569-000043`（THB 39，现金，测试单）。
+- 收款小键盘按数字：播 `sound-numpad-touch` ✓（改之前取不到节点、一声不出）。
+- 把 `frappe.boot.user.mute_sounds = 1` 再按：**一次都不播** ✓（静音真的压得住）。
+- 作废（把 `api_void_sale` 打桩，没动真数据）：勾选 → 确认 → 播 `sound-cancel` ✓；
+  `p.success("…", "delete")` 直接播 `sound-delete` ✓。
+
+**没做到 / 没验到**：框架对"必填没填"的拦截**不放音**（官方 POS 那句"请填付款方式"是它自己写的检查），
+我们没在框架校验前插音 —— 这一处和官方不同，记着；官方 POS 的**行明细**小键盘是静音的，我们保留了
+自己的按键音（多一声，非官方），要一律对齐说一声就去掉。
+
+**检查**：架构 PASS(0)、术语 PASS、前端取词 0 问题、10 支 JS 测试全过。演示站只清缓存 + 重启 web。
+
+### F39：LINE 差异卡「没有更新按钮」= 设计如此，不是迁移缺口（2026-09-23，只读诊断 + 一处口径补齐）
+
+用户转来的泰文反馈："视频最后一屏，改完无法更新客户资料，因为没有更新按钮可点"。图一是那张
+「发现已有资料、有些地方不一致」的卡：电话 `0868899228 → 0868898888`，底部一句
+「ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้」（要先在 Pearnly 配管理员账号才能更新），
+按钮只有 `ใช้ข้อมูลเดิม` / `แก้ไข`。
+
+**结论：设计如此，两边一致 —— 不是迁移没搬，也不是 bug。**
+
+- 主按钮是「按花名册角色 + 端点凭据」解出来的：`exact_diff_card` 里
+  `primary = "update" if (has_admin or role == "admin") else "none"` —— 我们
+  `apps/pearnly_dms/pearnly_dms/approval/approval_flow.py:106` 与老产品
+  `services/line_dms/approval_flow.py:91` **是同一行**；`primary == "none"` 时卡片按设计
+  只给提示不给按钮（`line/cards.py: diff_card`，那句提示就是 `TXT_ADMIN_NEEDED`）。
+- 老产品自己的验收脚本里写着："Under single-cred the update button is (correctly) withheld
+  (has_admin=False)"（`scripts/_dl5_drive2.py:189`）—— 说明**有意的**，不是漏搬。
+- 写链路本身在、也搬过来了：`ACT_UPDATE → write_update → execute → push_idcard_fields`
+  （`intake/flow.py:203/438`），与老产品同路径。
+
+**他们那张卡为什么没有按钮**：那份判断要求「端点上配了有改写权的凭据组」**或**「这个 LINE 用户在
+花名册里是 admin」。他们环境里两条都不成立 → 只给提示。要开：在 DMS 的**连接向导**里把账号密码
+配一次并保存（保存时把同一组写成管理员凭据：`connections/api.py` 里 `doc.admin_username = username`），
+或者把该 LINE 用户在**花名册**里的角色设成 admin。配完（或重存一次连接）卡片上的 `อัปเดตข้อมูล`
+就会出现 —— 操作员那条连接是从共用连接继承的（`operators/endpoints.py`: `admin_username = template.admin_username`），
+所以重存一次共用连接即可。
+
+**顺手补齐的一处口径（本次唯一的真差异）**：我们的 `intake/draft.has_admin_creds` 之前**只看
+`admin_username`**，而连接页与老产品都要**账号 + 密码都在**（`connections/api.py`:
+`bool(doc.admin_username and admin_password)`；老产品 `(plain_user and plain_pass) or (enc_user and enc_pass)`）。
+只看账号会在"密码解不开"（站点密钥换过）时**给出按钮**，点下去写库才失败 —— 正是这段代码要避免的
+「点了才知道」。已改成两件都满足才算。
+
+**验到的**：`check-dms-offline.py` 通过（45 / 42 / 43 组全过）；DMS 差异指纹复核后按流程重新登记
+（`check-dms-parity.py --update`），`check-dms-parity.py` 现在报「与老产品的差异没有漂移」。
+**没验到的**：真在 LINE 里点 `อัปเดตข้อมูล` 落库（本机没有装了 `pearnly_dms` 的站点、也没有 LINE 会话）；
+他们环境端点凭据的实际状态（要看 DMS 站的库，需要那边的管理员权限）。
+**建议他们做的**：配一次连接或把角色改成 admin；若配完仍没有按钮，把端点名 + 那个 LINE 用户给我。

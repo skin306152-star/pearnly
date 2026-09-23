@@ -212,6 +212,12 @@ def has_admin_creds(endpoint: Any = None) -> bool:
     """端点是否配了"有修改权限"的凭据组 —— 决定差异卡给不给 [อัปเดตข้อมูล] 按钮。
 
     ⚠️ 没配就**不给按钮**：让用户点了才发现"要管理员"是最差的体验，而且他会以为系统坏了。
+
+    **要账号也要密码**（两边口径一致）：连接向导与连接页判断的是
+    `bool(admin_username and admin_password)`（`connections/api.py` 的 `has_admin_creds`），
+    老产品同样是"一组配全才算"（`(plain_user and plain_pass) or (enc_user and enc_pass)`）。
+    只看 `admin_username` 会在**密码解不开**（站点密钥换过）时给出按钮，点下去写库才失败 ——
+    正是这里要避免的那种"点了才知道"。
     """
     import frappe
 
@@ -221,6 +227,10 @@ def has_admin_creds(endpoint: Any = None) -> bool:
     if not name:
         return False
     try:
-        return bool(frappe.db.get_value("Pearnly ERP Endpoint", name, "admin_username"))
+        if not frappe.db.get_value("Pearnly ERP Endpoint", name, "admin_username"):
+            return False
+        from pearnly_core.endpoints import read_password
+
+        return bool(read_password("Pearnly ERP Endpoint", name, "admin_password"))
     except Exception:
         return False
