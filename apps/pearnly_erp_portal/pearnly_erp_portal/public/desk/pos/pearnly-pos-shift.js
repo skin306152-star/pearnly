@@ -103,7 +103,6 @@ frappe.provide("frappe.pearnly.pos_shift");
 			{ fieldtype: "Data", fieldname: "company", label: t("trade.company"), read_only: 1,
 				default: company_of(row_of(preferred?.name)) },
 			{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1,
-				description: t("trade.warehouseHint"),
 				default: place_of(row_of(preferred?.name)) },
 			...balance_table(t),
 			{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },

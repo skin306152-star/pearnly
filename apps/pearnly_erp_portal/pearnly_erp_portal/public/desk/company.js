@@ -30,6 +30,12 @@
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "phone",
 			"contact_person", "contact_email", "promptpay_id", "address", "note", "pos_enabled"];
 		const POS_METHODS = ["cash", "card", "promptpay", "transfer"];
+		// 收款方式的四个标签**用术语表里已有的词**（`Cash` / `Card` / `PromptPay Amount` /
+		// `Transfer`），不新造 company.method.* 那种词条。
+		const METHOD_LABELS = {cash: "Cash", card: "Card", promptpay: "PromptPay Amount",
+			transfer: "Transfer"};
+		const method_field = (key, extra = {}) => ({fieldname: `method_${key}`,
+			label: __(METHOD_LABELS[key]), fieldtype: "Check", default: 1, ...extra});
 		const payload = (form) => {
 			const values = {};
 			FIELDS.forEach(name => {
@@ -171,33 +177,29 @@
 				{fieldtype: "Column Break"},
 				f("promptpay_id", "company.field.promptpay", "Data"),
 				// ── 收银：开关 + 收哪几种钱 ────────────────────────────────────
-				{fieldtype: "Section Break", label: t("company.section.pos")},
-				f("pos_enabled", "company.field.posEnabled", "Check",
-					{default: 1, description: t("company.posHint")}),
-				// 收款方式：**另起一行、四种并排**（用户 2026-09-24："字段视角对齐，排版要合理"
-				// —— 原来是挤在左列里三层堆叠，跟右边那一列对不齐）。
+				// 文案一律用**术语表里已有的词**（收银台 / 付款方式 / 现金 / 刷卡 / 扫码 / 转账），
+				// 不再自己写说明句（用户 2026-09-24："做新东西不要随意加文案"）。
 				{fieldtype: "Section Break"},
+				{fieldname: "pos_enabled", label: __("Terminal"), fieldtype: "Check", default: 1},
+				{fieldtype: "Section Break", label: __("Payment Method")},
 				...POS_METHODS.flatMap((key, index) => (index === 0
-					? [f(`method_${key}`, `company.method.${key}`, "Check", {default: 1})]
-					: [{fieldtype: "Column Break"},
-						f(`method_${key}`, `company.method.${key}`, "Check", {default: 1})])),
+					? [method_field(key)]
+					: [{fieldtype: "Column Break"}, method_field(key)])),
 				// ── 仓库：可以多个（第一个就是"先建的那个仓"）────────────────────
-				{fieldtype: "Section Break", label: t("company.section.warehouses")},
+				{fieldtype: "Section Break", label: t("company.field.warehouse")},
 				{fieldtype: "Table", fieldname: "warehouses", cannot_add_rows: 0,
 					data: [{warehouse_name: t("company.warehouseDefaultName")}],
-					description: t("company.warehousesHint"),
 					fields: [{fieldname: "warehouse_name", fieldtype: "Data",
-						label: t("company.field.warehouseName"), in_list_view: 1, reqd: 1}]},
+						label: t("company.field.warehouse"), in_list_view: 1, reqd: 1}]},
 				// ── 收银台：可以多台，每台写明从哪个仓卖货 ──────────────────────
-				{fieldtype: "Section Break", label: t("company.section.terminals")},
+				{fieldtype: "Section Break", label: __("Terminal")},
 				{fieldtype: "Table", fieldname: "terminals", cannot_add_rows: 0,
-					data: [{terminal_name: t("company.terminalDefaultName"), warehouse: ""}],
-					description: t("company.terminalsHint"),
+					data: [{terminal_name: "Counter 1", warehouse: ""}],
 					fields: [
 						{fieldname: "terminal_name", fieldtype: "Data",
-							label: t("company.field.terminalName"), in_list_view: 1, reqd: 1},
+							label: __("Terminal"), in_list_view: 1, reqd: 1},
 						{fieldname: "warehouse", fieldtype: "Data",
-							label: t("company.field.terminalWarehouse"), in_list_view: 1},
+							label: t("company.field.warehouse"), in_list_view: 1},
 					]},
 				{fieldtype: "Section Break"},
 				f("address", "company.field.address", "Small Text"),
@@ -269,32 +271,28 @@
 				{fieldtype: "Column Break"},
 				f("note", "company.field.note", "Small Text", {default: data.note || "", ...ro}),
 				// ── 收银：开关 + 收哪几种钱 + 这家公司的收银台清单 ────────────────
-				// 建公司时配的这一套在这里能改（用户 2026-09-24："同时开发以上功能入口"）。
-				{fieldtype: "Section Break", label: t("company.section.pos")},
-				f("pos_enabled", "company.field.posEnabled", "Check",
-					{default: Number(data.pos_enabled) ? 1 : 0, description: t("company.posHint"),
-						...ro}),
+				// 建公司时配的这一套在这里能改；文案同样只用现成的词。
 				{fieldtype: "Section Break"},
+				{fieldname: "pos_enabled", label: __("Terminal"), fieldtype: "Check",
+					default: Number(data.pos_enabled) ? 1 : 0, ...ro},
+				{fieldtype: "Section Break", label: __("Payment Method")},
 				...POS_METHODS.flatMap((key, index) => (index === 0
-					? [f(`method_${key}`, `company.method.${key}`, "Check",
-						{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})]
+					? [method_field(key, {default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})]
 					: [{fieldtype: "Column Break"},
-						f(`method_${key}`, `company.method.${key}`, "Check",
-							{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})])),
+						method_field(key, {default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})])),
 				// 收银台清单用**原生表格**（架构检查也拦自定义 HTML 表格）：
 				// 一行一台，改名字 / 换卖货的仓 / 启用停用都在格子里改，随这一屏一起保存。
 				// **不给删行**：要停用就把状态那格取消勾选（数据留着，历史小票还指着它）。
 				{fieldtype: "Table", fieldname: "terminals", label: "",
 					cannot_add_rows: !can_edit_pos, cannot_delete_rows: 1,
-					description: t("company.terminalsHint"),
 					data: (data.terminals || []).map(row => ({name: row.name,
 						terminal_name: row.terminal_name, warehouse: row.warehouse,
 						is_active: Number(row.is_active) ? 1 : 0})),
 					fields: [
 						{fieldname: "terminal_name", fieldtype: "Data", reqd: 1, in_list_view: 1,
-							label: t("company.field.terminalName")},
+							label: __("Terminal")},
 						{fieldname: "warehouse", fieldtype: "Data", in_list_view: 1,
-							label: t("company.field.terminalWarehouse")},
+							label: t("company.field.warehouse")},
 						{fieldname: "is_active", fieldtype: "Check", in_list_view: 1, default: 1,
 							label: t("company.col.status")},
 					]},

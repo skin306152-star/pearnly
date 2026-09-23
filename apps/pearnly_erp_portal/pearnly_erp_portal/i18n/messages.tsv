@@ -778,7 +778,6 @@ Cashier	收银员	พนักงานเก็บเงิน	レジ担当	tra
 Opened At	开班时间	เวลาเปิดกะ	開始時刻	trade.openedAt
 Closed At	交班时间	เวลาปิดกะ	終了時刻	trade.closedAt
 Which company this terminal belongs to, and which warehouse it sells from	这台收银台属于哪家公司、从哪个仓卖货	เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน	このレジがどの会社に属し、どの倉庫から販売するか	trade.terminalHint
-Comes from the terminal; set it there if it is empty	来自收银台；这里空的话要先去收银台上配一个仓	มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน	レジの設定によります。空の場合はレジ側で倉庫を設定してください	trade.warehouseHint
 Sales Count	笔数	จำนวนบิล	件数	trade.salesCount
 Refund Count	退款笔数	จำนวนการคืนเงิน	返品件数	trade.refundCount
 Gross	毛额	ยอดขายรวม	売上総額	trade.gross
@@ -1158,25 +1157,5 @@ No product matches this code	该编号找不到物料	ไม่พบสิน�
 Return	退货退款	คืนสินค้า	返品・返金
 Pick a warehouse	请选择仓库	กรุณาเลือกคลัง	倉庫を選択してください
 This terminal has no warehouse; set one in the terminal settings	这台收银台还没配仓库，请先在收银台上选一个仓	เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย	このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
-POS cashier	POS 收银台	POS เครื่องขาย	POS レジ	company.section.pos
-Enable POS cashier	启用 POS 收银台	เปิดใช้เครื่องขาย POS	POS レジを有効にする	company.field.posEnabled
-Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.	勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。	เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้	有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。	company.posHint
-Cash	现金	เงินสด	現金	company.method.cash
-Card	刷卡	บัตร	カード	company.method.card
-PromptPay QR	扫码（PromptPay）	สแกน (PromptPay)	コード決済（PromptPay）	company.method.promptpay
-Transfer	转账	โอนเงิน	振込	company.method.transfer
-Warehouses	仓库	คลังสินค้า	倉庫	company.section.warehouses
-This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.	这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。	คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้	この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。	company.warehousesHint
-Warehouse name	仓库名称	ชื่อคลัง	倉庫名	company.field.warehouseName
-Terminals	收银台	เครื่องขาย	レジ	company.section.terminals
-Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).	每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。	เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)	レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。	company.terminalsHint
-Terminal name	收银台名称	ชื่อเครื่องขาย	レジ名	company.field.terminalName
-Selling warehouse	卖货的仓库	คลังที่ขาย	販売する倉庫	company.field.terminalWarehouse
-Edit	编辑	แก้ไข	編集	company.terminalEdit
-Add terminal	新增收银台	เพิ่มเครื่องขาย	レジを追加	company.terminalNew
-No terminal yet	还没有收银台	ยังไม่มีเครื่องขาย	レジはまだありません	company.terminalNone
-Counter 1	Counter 1	Counter 1	Counter 1	company.terminalDefaultName
-Company	公司	บริษัท	会社	company.field.company
-This warehouse belongs to the company above	这个仓挂在上面那家公司名下	คลังนี้อยู่ในบริษัทด้านบน	この倉庫は上の会社に属します	company.warehouseCompanyHint
 A warehouse must belong to a company	仓库必须挂在某家公司名下	คลังต้องอยู่ในบริษัท	倉庫は必ず会社に属します
 This payment method is not enabled for this company	这家公司没有开这种收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません
