@@ -6,6 +6,7 @@ Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
 Add Employee,添加员工
+Add User,添加用户
 Add VAT,计算增值税
 Add a count,记一笔
 Add a count — {0},记一笔 — {0}
@@ -17,6 +18,7 @@ Address,地址
 Against Payment,关联付款
 All,全部
 All Items,所有物料
+Already exists,已存在
 Already received,这份文件已经收过了
 Already used by {0} (code {1}),已经是「{0}」（编码 {1}）
 Amend,修订
@@ -87,6 +89,7 @@ Chart by,看板按
 Cheque,支票
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
+Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
 Choose the sheet to import,请先选择要导入的表格
 Clear cart,清空购物车
@@ -186,8 +189,10 @@ Enable {0},启用 {0}
 Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
 Enter a tax ID first,请先填税号
+Enter a valid email,请填写正确的邮箱
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
+Enter the user name,请填写用户名
 Enter {0} amount,输入{0}金额
 Entries,记录
 Entries — {0},记录 — {0}
@@ -335,6 +340,7 @@ Only an image or a PDF can be recognised,仅支持识别图片或 PDF
 Only low or out of stock,只看低库存或缺货
 Only purchase documents can be sent in for now,目前只收采购单据
 Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
+Only the checked features are visible to this user,只勾选的功能，这个用户才看得到
 Open Shift,开班
 Open that product,去改那一条
 Opened At,开班时间
@@ -545,6 +551,7 @@ The Revenue Department replied in an unreadable format,税务局的回复格式�
 The amount received is less than the total,实收不够应收
 The cart is empty,购物车是空的
 The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
+The password must be at least {0} characters,密码至少 {0} 位
 The payment is more than the net payable,付款金额超过应付金额
 The product code cannot be changed,物料编码不能改
 The quantity is not a valid number,数量不是有效数字
@@ -594,6 +601,7 @@ Updated {0} customer(s),已更新 {0} 位客户
 Updated {0} employee(s),已更新 {0} 位员工
 Updated {0} product(s),已更新 {0} 个物料
 Updated {0} supplier(s),已更新 {0} 家供应商
+Updated {0} user(s),已更新 {0} 位用户
 "Upload a receipt, then review the recognized details.",上传收据，识别后复核并修改。
 Upload a sheet,上传导入
 "Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
@@ -601,6 +609,7 @@ Upload and Recognize,上传识别
 Use the stock count workbench,请通过盘点工作台操作
 Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
 User,用户
+Username and email are issued with the account and can no longer be changed.,用户名和邮箱是开户时发的，之后不能修改。
 VAT,增值税
 VAT Applies,计增值税
 VAT Rate,增值税率
@@ -980,14 +989,15 @@ team.active,正常
 team.disable,停用
 team.email,邮箱
 team.enable,启用
+team.identityHint,用户名和邮箱是开户时发的，之后不能修改。
 team.inactive,已停用
 team.lastLogin,最后登录
 team.name,姓名
-team.new,添加员工
+team.new,添加用户
 team.notice.added,已添加 {0}
 team.notice.password,密码已更新
 team.notice.saved,已保存
-team.notice.toggled,已更新 {0} 位员工
+team.notice.toggled,已更新 {0} 位用户
 team.password,初始密码
 team.passwordHint,至少 8 位
 team.resetPassword,重置密码
@@ -997,7 +1007,7 @@ team.role.purchase,采购
 team.role.sales,销售
 team.role.stock,库存
 team.roles,功能权限
-team.rolesHint,只勾选的功能，这个员工才看得到
+team.rolesHint,只勾选的功能，这个用户才看得到
 team.status,状态
 trade.action.exportCount,导出选中的 {0} 个班次
 trade.action.fullPage,全屏编辑

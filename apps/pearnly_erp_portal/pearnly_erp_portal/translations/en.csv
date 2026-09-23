@@ -6,6 +6,7 @@ Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
 Add Employee,Add Employee
+Add User,Add User
 Add VAT,Add VAT
 Add a count,Add a count
 Add a count — {0},Add a count — {0}
@@ -17,6 +18,7 @@ Address,Address
 Against Payment,Against Payment
 All,All
 All Items,All Items
+Already exists,Already exists
 Already received,Already received
 Already used by {0} (code {1}),Already used by {0} (code {1})
 Amend,Amend
@@ -87,6 +89,7 @@ Chart by,Chart by
 Cheque,Cheque
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
+Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose the sheet to import,Choose the sheet to import
 Clear cart,Clear cart
@@ -186,8 +189,10 @@ Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
 Enter a tax ID first,Enter a tax ID first
+Enter a valid email,Enter a valid email
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
+Enter the user name,Enter the user name
 Enter {0} amount,Enter {0} amount
 Entries,Entries
 Entries — {0},Entries — {0}
@@ -335,6 +340,7 @@ Only an image or a PDF can be recognised,Only an image or a PDF can be recognise
 Only low or out of stock,Only low or out of stock
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Only the checked features are visible to this employee,Only the checked features are visible to this employee
+Only the checked features are visible to this user,Only the checked features are visible to this user
 Open Shift,Open Shift
 Open that product,Open that product
 Opened At,Opened At
@@ -545,6 +551,7 @@ The Revenue Department replied in an unreadable format,The Revenue Department re
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
+The password must be at least {0} characters,The password must be at least {0} characters
 The payment is more than the net payable,The payment is more than the net payable
 The product code cannot be changed,The product code cannot be changed
 The quantity is not a valid number,The quantity is not a valid number
@@ -594,6 +601,7 @@ Updated {0} customer(s),Updated {0} customer(s)
 Updated {0} employee(s),Updated {0} employee(s)
 Updated {0} product(s),Updated {0} product(s)
 Updated {0} supplier(s),Updated {0} supplier(s)
+Updated {0} user(s),Updated {0} user(s)
 "Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
 Upload a sheet,Upload a sheet
 "Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
@@ -601,6 +609,7 @@ Upload and Recognize,Upload and Recognize
 Use the stock count workbench,Use the stock count workbench
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
 User,User
+Username and email are issued with the account and can no longer be changed.,Username and email are issued with the account and can no longer be changed.
 VAT,VAT
 VAT Applies,VAT Applies
 VAT Rate,VAT Rate
@@ -980,14 +989,15 @@ team.active,Active
 team.disable,Disable
 team.email,Email
 team.enable,Enable
+team.identityHint,Username and email are issued with the account and can no longer be changed.
 team.inactive,Inactive
 team.lastLogin,Last Login
 team.name,Full Name
-team.new,Add Employee
+team.new,Add User
 team.notice.added,Added {0}
 team.notice.password,Password updated
 team.notice.saved,Saved
-team.notice.toggled,Updated {0} employee(s)
+team.notice.toggled,Updated {0} user(s)
 team.password,Initial Password
 team.passwordHint,At least 8 characters
 team.resetPassword,Reset Password
@@ -997,7 +1007,7 @@ team.role.purchase,Purchasing
 team.role.sales,Sales
 team.role.stock,Stock
 team.roles,Job Roles
-team.rolesHint,Only the checked features are visible to this employee
+team.rolesHint,Only the checked features are visible to this user
 team.status,Status
 trade.action.exportCount,Export {0}
 trade.action.fullPage,Edit in Full Page

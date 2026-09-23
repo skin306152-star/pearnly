@@ -6,6 +6,7 @@ Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
 Add Employee,従業員を追加
+Add User,ユーザーを追加
 Add VAT,付加価値税を計算
 Add a count,カウントを記録
 Add a count — {0},カウントを記録 — {0}
@@ -17,6 +18,7 @@ Address,住所
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
+Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
 Already used by {0} (code {1}),既に「{0}」(コード {1}) で使われています
 Amend,修正
@@ -87,6 +89,7 @@ Chart by,グラフの軸
 Cheque,小切手
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
+Choose at least one job role,機能権限を1つ以上選んでください
 Choose file,ファイルを選択
 Choose the sheet to import,取り込むシートを選択してください
 Clear cart,カートを空にする
@@ -186,8 +189,10 @@ Enable {0},{0}件を有効化
 Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
 Enter a tax ID first,先に納税者番号を入力してください
+Enter a valid email,正しいメールアドレスを入力してください
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
+Enter the user name,ユーザー名を入力してください
 Enter {0} amount,{0}の金額を入力
 Entries,記録
 Entries — {0},記録 — {0}
@@ -335,6 +340,7 @@ Only an image or a PDF can be recognised,画像または PDF のみ認識でき�
 Only low or out of stock,在庫少・在庫切れのみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
+Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
 Open Shift,シフト開始
 Open that product,その商品を開く
 Opened At,開始時刻
@@ -545,6 +551,7 @@ The Revenue Department replied in an unreadable format,税務局の応答形式�
 The amount received is less than the total,受取額が合計に足りません
 The cart is empty,カートは空です
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
+The password must be at least {0} characters,パスワードは{0}文字以上にしてください
 The payment is more than the net payable,支払金額が支払残高を超えています
 The product code cannot be changed,商品コードは変更できません
 The quantity is not a valid number,数量が正しい数値ではありません
@@ -594,6 +601,7 @@ Updated {0} customer(s),顧客 {0}件を更新しました
 Updated {0} employee(s),従業員{0}件を更新しました
 Updated {0} product(s),{0}件を更新しました
 Updated {0} supplier(s),仕入先 {0}件を更新しました
+Updated {0} user(s),ユーザー{0}件を更新しました
 "Upload a receipt, then review the recognized details.",領収書をアップロードし、読み取り結果を確認・修正します。
 Upload a sheet,取り込み
 "Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
@@ -601,6 +609,7 @@ Upload and Recognize,アップロードして読み取る
 Use the stock count workbench,棚卸作業台から操作してください
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 User,ユーザー
+Username and email are issued with the account and can no longer be changed.,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 VAT,消費税
 VAT Applies,課税対象
 VAT Rate,付加価値税率
@@ -980,14 +989,15 @@ team.active,正常
 team.disable,無効化
 team.email,メール
 team.enable,有効化
+team.identityHint,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 team.inactive,無効
 team.lastLogin,最終ログイン
 team.name,氏名
-team.new,従業員を追加
+team.new,ユーザーを追加
 team.notice.added,{0}を追加しました
 team.notice.password,パスワードを更新しました
 team.notice.saved,保存しました
-team.notice.toggled,従業員{0}件を更新しました
+team.notice.toggled,ユーザー{0}件を更新しました
 team.password,初期パスワード
 team.passwordHint,8文字以上
 team.resetPassword,パスワードを再設定
@@ -997,7 +1007,7 @@ team.role.purchase,購買
 team.role.sales,販売
 team.role.stock,在庫
 team.roles,機能権限
-team.rolesHint,チェックした機能だけがこの従業員に表示されます
+team.rolesHint,チェックした機能だけがこのユーザーに表示されます
 team.status,状態
 trade.action.exportCount,{0}件をエクスポート
 trade.action.fullPage,全画面で編集

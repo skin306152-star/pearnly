@@ -263,12 +263,13 @@ Email	邮箱	อีเมล	メール	team.email
 Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	team.password
 At least 8 characters	至少 8 位	อย่างน้อย 8 ตัวอักษร	8文字以上	team.passwordHint
 Job Roles	功能权限	สิทธิ์การใช้งาน	機能権限	team.roles
-Only the checked features are visible to this employee	只勾选的功能，这个员工才看得到	พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこの従業員に表示されます	team.rolesHint
+Only the checked features are visible to this user	只勾选的功能，这个用户才看得到	ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
+Username and email are issued with the account and can no longer be changed.	用户名和邮箱是开户时发的，之后不能修改。	ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้	ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。	team.identityHint
 Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	team.lastLogin
 Status	状态	สถานะ	状態	team.status
 Active	正常	ปกติ	正常	team.active
 Inactive	已停用	ปิดใช้งาน	無効	team.inactive
-Add Employee	添加员工	เพิ่มพนักงาน	従業員を追加	team.new
+Add User	添加用户	เพิ่มผู้ใช้	ユーザーを追加	team.new
 Reset Password	重置密码	ตั้งรหัสผ่านใหม่	パスワードを再設定	team.resetPassword
 Enable	启用	เปิดใช้งาน	有効化	team.enable
 Disable	停用	ปิดใช้งาน	無効化	team.disable
@@ -277,12 +278,17 @@ Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	team.a
 Added {0}	已添加 {0}	เพิ่มแล้ว {0}	{0}を追加しました	team.notice.added
 Saved	已保存	บันทึกแล้ว	保存しました	team.notice.saved
 Password updated	密码已更新	อัปเดตรหัสผ่านแล้ว	パスワードを更新しました	team.notice.password
-Updated {0} employee(s)	已更新 {0} 位员工	อัปเดตพนักงาน {0} คน	従業員{0}件を更新しました	team.notice.toggled
+Updated {0} user(s)	已更新 {0} 位用户	อัปเดตผู้ใช้ {0} คน	ユーザー{0}件を更新しました	team.notice.toggled
 Products	商品	สินค้า	商品	team.role.products
 Stock	库存	สต็อก	在庫	team.role.stock
 Purchasing	采购	จัดซื้อ	購買	team.role.purchase
 Sales	销售	ขาย	販売	team.role.sales
 Cashier	收银	เก็บเงิน	レジ	team.role.cashier
+Enter the user name	请填写用户名	กรุณากรอกชื่อผู้ใช้	ユーザー名を入力してください
+Enter a valid email	请填写正确的邮箱	กรุณากรอกอีเมลให้ถูกต้อง	正しいメールアドレスを入力してください
+Already exists	已存在	มีอยู่แล้ว	すでに存在します
+Choose at least one job role	至少勾一个功能权限	เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง	機能権限を1つ以上選んでください
+The password must be at least {0} characters	密码至少 {0} 位	รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร	パスワードは{0}文字以上にしてください
 Select one receipt to refund	一次只能退一条小票	เลือกได้ครั้งละหนึ่งใบเสร็จ	返品できるレシートは1件ずつです	trade.refundSingle
 Only a completed sale receipt can be refunded	只有已完成的小票能退货退款	คืนเงินได้เฉพาะใบเสร็จที่ปิดการขายแล้ว	完了した売上レシートのみ返品できます	trade.refundBlocked
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	trade.action.ledger

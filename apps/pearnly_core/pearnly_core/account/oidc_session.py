@@ -29,11 +29,11 @@ def update_locale(locale):
     return update_profile(locale=locale)
 
 
-def update_profile(*, locale=None, username=None, expected_username=None, email=None):
-    """Update only the current verified subject, preserving unrelated attributes.
+def update_profile(*, locale=None):
+    """Update only the current verified subject's locale, preserving other attributes.
 
-    Username updates cannot be deferred: the caller must know which login works.
-    The account API remains the realm-wide uniqueness and validation authority.
+    用户名/邮箱由后台发号、绑死这个租户，**不从这里改**（用户 2026-09-23 口径）——
+    这条通道只剩"语言偏好"一件事，别的字段一律按当前值原样写回。
     """
     key = cache_key()
     with frappe.cache.lock(key + ":refresh", timeout=90, blocking_timeout=5):
@@ -49,7 +49,7 @@ def update_profile(*, locale=None, username=None, expected_username=None, email=
         if response.status_code in (400, 401):
             return False
         if response.status_code != 200:
-            frappe.throw(_("account.profileUpdateFailed") if username else _("Could not update the account language."))
+            frappe.throw(_("Could not update the account language."))
         tokens = response.json()
         # Preserve rotation immediately, even if the later profile operation fails.
         remember({"id_token": saved["id_token"],
@@ -58,31 +58,20 @@ def update_profile(*, locale=None, username=None, expected_username=None, email=
         endpoint = issuer + "/account/"
         response = requests.get(endpoint, headers=headers, timeout=15)
         if response.status_code != 200:
-            frappe.throw(_("account.profileUpdateFailed") if username else _("Could not update the account language."))
+            frappe.throw(_("Could not update the account language."))
         profile = response.json()
         if profile.get("id") != saved["subject"]:
-            frappe.throw(_("Not permitted"), frappe.PermissionError)
-        if email and str(profile.get("email", "")).lower() != email.lower():
             frappe.throw(_("Not permitted"), frappe.PermissionError)
         payload = {k: profile[k] for k in ("username", "firstName", "lastName", "email", "attributes") if k in profile}
         payload["attributes"] = dict(payload.get("attributes") or {})
         if locale:
             payload["attributes"]["locale"] = [locale]
-        if username:
-            if profile.get("username") not in (expected_username, username):
-                frappe.throw(_("account.profileChanged"))
-            payload.update(username=username, firstName=username, lastName="")
         response = requests.post(endpoint, headers=headers, json=payload, timeout=15)
-        if response.status_code == 409:
-            frappe.throw(_("account.usernameTaken"))
         if response.status_code not in (200, 204):
-            frappe.throw(_("account.profileUpdateFailed") if username else _("Could not update the account language."))
+            frappe.throw(_("Could not update the account language."))
         check = requests.get(endpoint, headers=headers, timeout=15)
         current = check.json() if check.status_code == 200 else {}
-        if ((locale and current.get("attributes", {}).get("locale") != [locale])
-                or (username and (current.get("id") != saved["subject"]
-                    or current.get("username") != username or current.get("firstName") != username
-                    or current.get("email") != profile.get("email")))):
-            frappe.throw(_("account.profileUpdateFailed") if username else _("Could not update the account language."))
+        if locale and current.get("attributes", {}).get("locale") != [locale]:
+            frappe.throw(_("Could not update the account language."))
 
         return True

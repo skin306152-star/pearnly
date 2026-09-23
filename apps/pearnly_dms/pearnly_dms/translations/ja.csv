@@ -1,11 +1,14 @@
+Enter the DMS password.,DMS パスワードを入力してください。
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
+The DMS username is issued with the account and cannot be changed; only the password can be.,DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.,Pearnly が保存している DMS パスワードを更新します。ユーザー名はアカウント発行時に確定しており変更できません。
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
-dms.account.hint,Pearnly に保存する DMS のログイン情報を更新します。DMS 側のパスワードは変更しません。
-dms.account.invalid,有効な DMS ユーザー名とパスワードを入力してください。
+dms.account.hint,Pearnly が保存している DMS パスワードを更新します。ユーザー名はアカウント発行時に確定しており変更できません。
+dms.account.invalid,DMS パスワードを入力してください。
 dms.account.open,DMS を開く
 dms.account.password,DMS パスワード
 dms.account.portal,DMS を開く
@@ -14,6 +17,7 @@ dms.account.save,保存
 dms.account.saved,保存しました。次回の DMS ログインに使用します。
 dms.account.title,自分の DMS アカウント
 dms.account.username,DMS ユーザー名
+dms.account.usernameFixed,DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。
 dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
 dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
 dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。

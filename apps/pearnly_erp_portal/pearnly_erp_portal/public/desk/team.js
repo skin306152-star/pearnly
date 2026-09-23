@@ -1,18 +1,22 @@
-/* 团队管理：员工账号与岗位（`/desk/pearnly-team`）。
+/* 团队管理：本租户的用户账号与岗位（`/desk/pearnly-team`）。
  *
- * 账号与权限**都是框架原生的**：员工就是一条 `User`，权限就是 `Role` —— 我们不复刻
+ * 账号与权限**都是框架原生的**：一个用户就是一条 `User`，权限就是 `Role` —— 我们不复刻
  * 一套用户表或权限表，也不另存一份"谁有什么权限"（那必然和框架的判据走偏）。
  *
  * 界面上只做三件事（用户 2026-09-23 口径："不做复杂的配置，只添加员工，基础信息、
  * 邮箱、初始用户和密码、勾选功能权限，做完闭环"）：
  *
- *   · 添加员工：姓名 + 邮箱（就是登录名）+ 初始密码 + 勾岗位；
- *   · 改员工：姓名 / 岗位，另给「重置密码」与「停用 / 启用」两个动作；
+ *   · 添加用户：姓名 + 邮箱（就是登录名）+ 初始密码 + 勾岗位 —— 这一步就是"发号"；
+ *   · 改用户：**只有岗位能改**（用户名与邮箱开户时定死），另给「重置密码」与
+ *     「停用 / 启用」两个动作（用户 2026-09-23："用户名和邮箱是绑死这个租户的，
+ *     唯一关系，用户只可以自己改密码，员工也是一样"）；
  *   · 名单：姓名 / 邮箱 / 岗位 / 状态 / 最后登录，行内没有别的开关。
+ *
+ * 页面上不叫"员工"（用户 2026-09-23："团队管理里面不要出现员工，写添加用户"）。
  *
  * 能勾的岗位**不是我们写的清单**，是服务端 `team.role_catalog()` 给的 —— 那是
  * "本站点上真实存在的功能角色"，也就是这个租户买到的功能；没买的功能没有角色，
- * 勾选框里就不会出现。勾了之后员工看得到哪些菜单，由 `pearnly_navigation` 的
+ * 勾选框里就不会出现。勾了之后这个用户看得到哪些菜单，由 `pearnly_navigation` 的
  * 声明 + 框架的角色判据决定，页面不自己算。
  *
  * 服务端判据在 `team.service`（谁能进：`team.manage`，也就是 ERP Admin）。
@@ -93,7 +97,11 @@
 			data.roles = data.roles || [];
 		}
 
-		// ── 添加 / 编辑员工 ─────────────────────────────────────────────────────
+		// ── 添加用户 / 改岗位（发号定死的东西不再改）─────────────────────────────
+		// 用户名（发号时填的那个名字，就是登录身份）与邮箱**开户时就定了**：添加时填一次，
+		// 之后谁都改不动（用户 2026-09-23："后台管理发号后，用户名和邮箱是绑死这个租户的，
+		// 唯一关系，用户只可以自己改密码"）。所以编辑这一屏里姓名/邮箱只是**看的**，
+		// 能改的只有岗位，再加上「重置密码」「停用 / 启用」两个动作。
 		// 岗位用框架原生的 **MultiCheck**（多选勾选框，自带全选/清空），不是我们画的清单。
 		function roles_field(default_roles = []) {
 			return { fieldtype: "MultiCheck", fieldname: "roles", label: t("team.roles"),
@@ -106,7 +114,9 @@
 			const is_new = !row;
 			let dialog;
 			const fields = [
-				field("full_name", "team.name", "Data", { reqd: 1, default: row?.full_name || "" }),
+				field("full_name", "team.name", "Data",
+					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.full_name || "",
+						description: is_new ? "" : t("team.identityHint") }),
 				field("email", "team.email", "Data",
 					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
@@ -126,9 +136,8 @@
 						d.hide();
 						p.success(t("team.notice.added", values.full_name));
 					} else {
-						await p.call(api + "api_update_member", {
-							email: row.email, full_name: values.full_name, roles: values.roles,
-						}, "POST");
+						await p.call(api + "api_set_member_roles",
+							{ email: row.email, roles: values.roles }, "POST");
 						d.hide();
 						p.success(t("team.notice.saved"));
 					}

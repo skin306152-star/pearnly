@@ -555,6 +555,7 @@ Display name	显示名	ชื่อที่แสดง	表示名	roster.field.
 DMS username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名	roster.field.dmsUsername
 DMS password	DMS 密码	รหัสผ่าน DMS	DMSパスワード	roster.field.dmsPassword
 New DMS password	新 DMS 密码	รหัสผ่าน DMS ใหม่	新しいDMSパスワード	roster.field.newDmsPassword
+The DMS username is issued with the account and cannot be changed; only the password can be.	DMS 用户名是开户时发的，不能修改；这里只能改密码。	ชื่อผู้ใช้ DMS ออกให้ตอนเปิดบัญชี แก้ไขไม่ได้ แก้ได้เฉพาะรหัสผ่าน	DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。	roster.usernameFixed
 Role	角色	บทบาท	ロール	roster.field.role
 Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ค้นหา DMS ผ่าน LINE	LINEでのDMS照会を許可	roster.field.canQuery
 Sales commission owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属	roster.field.advisor
@@ -763,11 +764,7 @@ Delete {0} selected operators? Their LINE bindings and DMS connections will be r
 Deleted {0} operators	已删除 {0} 名操作员	ลบผู้ปฏิบัติงานแล้ว {0} คน	{0}名の操作員を削除しました	roster.notice.deletedCount
 Delete {0} selected push records from this list? Sent business documents will not be affected.	删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。	ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ	選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。	connect.records.confirmDelete
 Deleted {0} push records	已删除 {0} 条推送记录	ลบบันทึกการส่งแล้ว {0} รายการ	{0}件の送信記録を削除しました	connect.records.deletedCount
-Username must contain 3–30 letters, digits, dots, underscores or hyphens.	用户名须为 3–30 位字母、数字、点、下划线或短横线。	ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง	ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。	account.usernameFormat
-This username is already in use.	该用户名已被使用。	ชื่อผู้ใช้นี้ถูกใช้งานแล้ว	このユーザー名は使用されています。	account.usernameTaken
-Your account was updated elsewhere. Sign in again to load the current username.	账户已在其它地方更新，请重新登录以读取当前用户名。	บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน	別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。	account.profileChanged
-Sign in again before changing your username.	请重新登录后再更改用户名。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้	ユーザー名を変更する前に再ログインしてください。	account.signInToRename
-Could not update your account. Please reload and try again.	无法更新账户，请刷新后重试。	อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง	アカウントを更新できませんでした。再読み込みしてお試しください。	account.profileUpdateFailed
+Username and email are issued with the account and can no longer be changed.	用户名和邮箱是开户时发的，之后不能修改。	ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้	ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。	account.identityIssued
 Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.	按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。	คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า	従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。	home.pricing.pages
 Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars

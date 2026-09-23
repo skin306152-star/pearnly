@@ -33,13 +33,6 @@ def api_add_member(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_update_member(**kwargs):
-    _json_args(kwargs, "roles")
-    kwargs = _clean(kwargs)
-    return service.update_member(kwargs.pop("email", None), **kwargs)
-
-
-@frappe.whitelist(methods=["POST"])
 def api_set_member_roles(**kwargs):
     _json_args(kwargs, "roles")
     kwargs = _clean(kwargs)

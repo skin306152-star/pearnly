@@ -174,7 +174,7 @@ doc_events = {
     # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。
     "User": {
         "before_validate": "pearnly_core.account.profile.prepare_profile",
-        "before_save": ["pearnly_core.account.profile.sync_username", "pearnly_core.account.preferences.sync_profile_language"],
+        "before_save": "pearnly_core.account.preferences.sync_profile_language",
         "onload": "pearnly_core.account.profile.load_details",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
     },

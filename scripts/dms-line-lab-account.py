@@ -33,8 +33,17 @@ try:
     line_binding.bind(user, row["user"], "Test only")
     ticket = browser_ticket.issue(user, "account")
     check(api.credentials(ticket).keys() == {"username"}, "credential response never returns password")
-    api.save_credentials(ticket, "lab-sales-updated", "lab-updated-only")
-    check(api.credentials(ticket) == {"username": "lab-sales-updated"}, "own stored credential update readback")
+    # 用户名开户时定死、不能改（用户 2026-09-23："可以用用户名登录，但是不能修改…用户
+    # 只可以自己改密码"）：想改必须被拒，密码照改。老客户端仍会带上同名参数，见下面一条。
+    api.save_credentials(ticket, "lab-updated-only")
+    check(api.credentials(ticket) == {"username": "lab-sales"}, "own stored username unchanged after password update")
+    try:
+        api.save_credentials(ticket, "lab-updated-only", username="lab-sales-updated")
+    except frappe.ValidationError:
+        pass
+    else:
+        raise AssertionError("renaming the DMS username must be refused")
+    check(api.credentials(ticket) == {"username": "lab-sales"}, "refused rename leaves the username alone")
     endpoint = api._endpoint(api._identity(ticket))
     check(endpoint.get_password("password") == "lab-updated-only", "adapter receives current encrypted credential")
     portal = api.portal_ticket(ticket, language="zh")

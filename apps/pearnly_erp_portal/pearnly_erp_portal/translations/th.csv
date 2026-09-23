@@ -6,6 +6,7 @@ Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
 Add Employee,เพิ่มพนักงาน
+Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
 Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
@@ -17,6 +18,7 @@ Address,ที่อยู่
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,รายการทั้งหมด
+Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
 Already used by {0} (code {1}),ถูกใช้กับ {0} (รหัส {1}) แล้ว
 Amend,แก้ไข
@@ -87,6 +89,7 @@ Chart by,แผนภูมิแบ่งตาม
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
+Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose file,เลือกไฟล์
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Clear cart,ล้างตะกร้า
@@ -186,8 +189,10 @@ Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
+Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
+Enter the user name,กรุณากรอกชื่อผู้ใช้
 Enter {0} amount,กรอกจำนวนเงิน {0}
 Entries,รายการ
 Entries — {0},รายการ — {0}
@@ -335,6 +340,7 @@ Only an image or a PDF can be recognised,รองรับการรู้จ
 Only low or out of stock,เฉพาะใกล้หมดหรือหมด
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
+Only the checked features are visible to this user,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Open Shift,เปิดกะ
 Open that product,ไปแก้รายการนั้น
 Opened At,เวลาเปิดกะ
@@ -545,6 +551,7 @@ The Revenue Department replied in an unreadable format,รูปแบบข้�
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The cart is empty,ตะกร้าว่างเปล่า
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
+The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
 The product code cannot be changed,รหัสสินค้าแก้ไม่ได้
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
@@ -594,6 +601,7 @@ Updated {0} customer(s),อัปเดตลูกค้า {0} ราย
 Updated {0} employee(s),อัปเดตพนักงาน {0} คน
 Updated {0} product(s),อัปเดต {0} รายการแล้ว
 Updated {0} supplier(s),อัปเดตผู้ขาย {0} ราย
+Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 "Upload a receipt, then review the recognized details.",อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload a sheet,อัปโหลดไฟล์
 "Upload an invoice, then review the recognized details.",อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
@@ -601,6 +609,7 @@ Upload and Recognize,อัปโหลดเพื่ออ่านข้อ�
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
 Used for new documents only. Each location keeps its own stock.,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 User,ผู้ใช้
+Username and email are issued with the account and can no longer be changed.,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 VAT,ภาษีมูลค่าเพิ่ม
 VAT Applies,คิด VAT
 VAT Rate,อัตราภาษีมูลค่าเพิ่ม
@@ -980,14 +989,15 @@ team.active,ปกติ
 team.disable,ปิดใช้งาน
 team.email,อีเมล
 team.enable,เปิดใช้งาน
+team.identityHint,ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้
 team.inactive,ปิดใช้งาน
 team.lastLogin,เข้าใช้ล่าสุด
 team.name,ชื่อ-นามสกุล
-team.new,เพิ่มพนักงาน
+team.new,เพิ่มผู้ใช้
 team.notice.added,เพิ่มแล้ว {0}
 team.notice.password,อัปเดตรหัสผ่านแล้ว
 team.notice.saved,บันทึกแล้ว
-team.notice.toggled,อัปเดตพนักงาน {0} คน
+team.notice.toggled,อัปเดตผู้ใช้ {0} คน
 team.password,รหัสผ่านเริ่มต้น
 team.passwordHint,อย่างน้อย 8 ตัวอักษร
 team.resetPassword,ตั้งรหัสผ่านใหม่
@@ -997,7 +1007,7 @@ team.role.purchase,จัดซื้อ
 team.role.sales,ขาย
 team.role.stock,สต็อก
 team.roles,สิทธิ์การใช้งาน
-team.rolesHint,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
+team.rolesHint,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 team.status,สถานะ
 trade.action.exportCount,ส่งออก {0} กะ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า

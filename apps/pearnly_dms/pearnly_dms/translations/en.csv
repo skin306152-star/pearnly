@@ -1,11 +1,14 @@
+Enter the DMS password.,Enter the DMS password.
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
+The DMS username is issued with the account and cannot be changed; only the password can be.,The DMS username is issued with the account and cannot be changed; only the password can be.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
+Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.,Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
-dms.account.hint,Update the DMS credentials stored in Pearnly. This does not change your password at DMS.
-dms.account.invalid,Enter a valid DMS username and password.
+dms.account.hint,Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.
+dms.account.invalid,Enter the DMS password.
 dms.account.open,Open DMS
 dms.account.password,DMS password
 dms.account.portal,Open DMS
@@ -14,6 +17,7 @@ dms.account.save,Save
 dms.account.saved,Saved. The next DMS login will use these credentials.
 dms.account.title,My DMS account
 dms.account.username,DMS username
+dms.account.usernameFixed,The DMS username is issued with the account and cannot be changed; only the password can be.
 dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
 dms.card.MSG_BIND_GREETING,Hello
 dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.

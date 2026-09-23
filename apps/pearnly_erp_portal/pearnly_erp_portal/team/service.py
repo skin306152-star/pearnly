@@ -20,7 +20,7 @@ NOT_PERMITTED = "Not permitted"
 ALREADY_EXISTS = "Already exists"
 ROLE_REQUIRED = "Choose at least one job role"
 EMAIL_REQUIRED = "Enter a valid email"
-FULL_NAME_REQUIRED = "Enter the employee name"
+FULL_NAME_REQUIRED = "Enter the user name"
 PASSWORD_TOO_SHORT = "The password must be at least {0} characters"
 
 # 密码最短位数：复用框架那条闸（`frappe.core.doctype.user.user` 的强度检查），
@@ -222,26 +222,13 @@ def set_member_password(email: str, password=None) -> dict:
     return {"email": user.name}
 
 
-def update_member(email: str, full_name: str = "", roles=None) -> dict:
-    """改姓名 + 岗位（一次保存，与"添加员工"同一张表单）。"""
-    guard.require("team.manage")
-    return {**set_member_roles(email, roles), **set_member_name(email, full_name)}
-
-
-def set_member_name(email: str, full_name: str = "") -> dict:
-    guard.require("team.manage")
-    user = _employee(email)
-    name = str(full_name or "").strip()
-    if not name:
-        frappe.throw(_(FULL_NAME_REQUIRED))
-    user.first_name = name
-    user.save(ignore_permissions=True)
-    frappe.db.commit()
-    return {"email": user.name, "full_name": user.full_name}
-
-
 def set_member_roles(email: str, roles=None) -> dict:
-    """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。"""
+    """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。
+
+    这里**只有岗位**可改：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
+    开户时定死的，租户里谁都不改（用户 2026-09-23："后台管理发号后，用户名和邮箱是
+    绑死这个租户的，唯一关系，用户只可以自己改密码，员工也是一样"）。
+    """
     guard.require("team.manage")
     wanted = _clean_roles(roles)
     user = _employee(email)
@@ -250,10 +237,13 @@ def set_member_roles(email: str, roles=None) -> dict:
     # 会各自 `save()` 一次、且不带 `ignore_permissions`，在租户站点上会被产品自己的
     # User 权限钩子挡下（非超管只能改自己那条）。直接给 `user.roles` 赋一串 dict 也不行，
     # Frappe 16 落库时拿到 dict 会炸。功能角色全摘掉再按勾选补回来，Desk User 不动。
-    held = {row.role for row in user.roles}
     for row in list(user.roles):
         if row.role in known:
             user.roles.remove(row)
+    # `held` 必须在**摘掉之后**再看：先记再摘的话，"已有岗位"里含着刚被摘掉的那些，
+    # 于是"原样保存同一批岗位"会把岗位整个点没（2026-09-23 实测：编辑一个采购账号、
+    # 什么都不改直接保存 → 采购岗位消失，这个账号也从员工名单里消失）。
+    held = {row.role for row in user.roles}
     for role in wanted:
         if role not in held:
             user.append("roles", {"role": role})

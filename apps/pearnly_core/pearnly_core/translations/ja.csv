@@ -532,6 +532,7 @@ Testing…,テスト中…
 The DMS account is marked as resigned,DMSアカウントは退職として記録されています
 The DMS account is not approved to use the system,DMSアカウントはシステム利用が承認されていません
 The DMS advisor list is empty.,DMS担当者一覧は空です。
+The DMS username is issued with the account and cannot be changed; only the password can be.,DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。
 The FX rate must be greater than 0,為替レートは0より大きい必要があります
 The ID token has no sub,IDトークンに sub がありません
 The ID token issuer is not the identity service configured for this site,IDトークンの発行者がこのサイトに設定されたアイデンティティサービスと一致しません
@@ -642,6 +643,7 @@ Used {0} pages this month · pay-as-you-go,今月 {0} 枚使用 · 未登録の�
 "Used {0} pages this month · plan {1}, {2} left this cycle",今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 User,ユーザー
 User Agent,ユーザーエージェント
+Username and email are issued with the account and can no longer be changed.,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
 VAT,消費税
 VAT %,税率%
@@ -673,6 +675,7 @@ account.changePassword,パスワード変更
 account.error.http,リクエスト失敗（HTTP {0}）
 account.error.languageFailed,アカウントの言語を更新できませんでした。
 account.error.reloginLanguage,言語を変更する前に再ログインしてください。
+account.identityIssued,ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。
 account.identityPasswordOnly,プロフィールの「パスワード変更」からログインパスワードを変更してください。
 account.language,言語
 account.profileChanged,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
@@ -1036,6 +1039,7 @@ roster.subtitle,1行につき営業または管理者1名。各自のDMS資格�
 roster.title,オペレーター
 roster.unbindLine,LINE連携を解除
 roster.unbound,未連携
+roster.usernameFixed,DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=営業、admin=管理者（旧製品の2種類のみ、3つ目はありません）
 shell.backHome,ホームに戻る
 shell.boot.failed,起動に失敗しました（HTTP {0}）：{1}

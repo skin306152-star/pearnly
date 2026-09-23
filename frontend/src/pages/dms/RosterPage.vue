@@ -193,12 +193,13 @@ function regenCode(): void {
 // ── 编辑 / 启停 / 删除 ─────────────────────────────────────────────────────
 const editOpen = ref(false);
 const editTarget = ref<Operator | null>(null);
-const editForm = reactive({ dms_username: "", dms_password: "" });
+// 编辑只改密码：DMS 用户名由后台发号、绑死这个租户，之后不能改（用户 2026-09-23：
+// "可以用用户名登录，但是不能修改…用户只可以自己改密码"）。所以这里**没有**用户名的框。
+const editForm = reactive({ dms_password: "" });
 
 function openEdit(row: Operator): void {
   editTarget.value = row;
-  // 老产品：两个框都留空 = 不修改
-  editForm.dms_username = "";
+  // 留空 = 不修改密码
   editForm.dms_password = "";
   editOpen.value = true;
 }
@@ -207,7 +208,7 @@ function saveEdit(): Promise<void> {
   const row = editTarget.value;
   return run(`edit:${row?.name}`, async () => {
     if (!row) return;
-    if (!editForm.dms_username && !editForm.dms_password) {
+    if (!editForm.dms_password) {
       error.value = t("roster.notice.noChanges");
       return;
     }
@@ -215,7 +216,6 @@ function saveEdit(): Promise<void> {
       "pearnly_dms.operators.roster.api_update_operator",
       {
         name: row.name,
-        dms_username: editForm.dms_username || null,
         dms_password: editForm.dms_password || null,
       },
       { method: "POST" },
@@ -533,19 +533,17 @@ onUnmounted(stopTimer);
       </template>
     </Dialog>
 
-    <!-- 编辑弹窗：两个框都留空 = 不修改 -->
+    <!-- 编辑弹窗：只改密码（DMS 用户名开户时定死） -->
     <Dialog
       v-model="editOpen"
       :options="{ title: t('roster.editTitle'), size: 'sm' }"
     >
       <template #body-content>
         <div style="display: flex; flex-direction: column; gap: 12px">
-          <FormControl
-            :label="t('roster.field.dmsUsername')"
-            v-model="editForm.dms_username"
-            class="w-full"
-            :placeholder="t('roster.keepBlank')"
-          />
+          <p class="text-sm text-ink-gray-7">
+            {{ t("roster.field.dmsUsername") }}: {{ editTarget?.dms_username || "—" }}
+          </p>
+          <p class="text-sm text-ink-gray-7">{{ t("roster.usernameFixed") }}</p>
           <FormControl
             :label="t('roster.field.newDmsPassword')"
             v-model="editForm.dms_password"

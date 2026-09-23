@@ -39,7 +39,10 @@
 			const fields = [
 				// Renaming is a create-time decision; the old roster's edit modal never changed it.
 				...(adding ? [{fieldtype: "Data", fieldname: "display_name", label: t("roster.field.displayName"), reqd: 1}] : []),
-				{fieldtype: "Data", fieldname: "dms_username", label: t("roster.field.dmsUsername"), reqd: 1, default: row?.dms_username || ""},
+				// DMS 用户名也是**发号时定死**（用户 2026-09-23："可以用用户名登录，但是不能
+				// 修改"）：新建时填一次，之后只给看不给改，编辑这一屏能改的只有密码。
+				{fieldtype: "Data", fieldname: "dms_username", label: t("roster.field.dmsUsername"),
+					reqd: adding ? 1 : 0, read_only: adding ? 0 : 1, default: row?.dms_username || ""},
 				{fieldtype: "Password", fieldname: "dms_password", label: t("roster.field.dmsPassword"), reqd: adding ? 1 : 0,
 					description: adding ? "" : t("roster.edit.passwordHint")},
 				{fieldtype: "Select", fieldname: "dms_role", label: t("roster.field.role"), default: row?.role || "sales",

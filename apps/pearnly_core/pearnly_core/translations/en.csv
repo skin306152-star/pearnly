@@ -530,6 +530,7 @@ Testing…,Testing…
 The DMS account is marked as resigned,The DMS account is marked as resigned
 The DMS account is not approved to use the system,The DMS account is not approved to use the system
 The DMS advisor list is empty.,The DMS advisor list is empty.
+The DMS username is issued with the account and cannot be changed; only the password can be.,The DMS username is issued with the account and cannot be changed; only the password can be.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
@@ -640,6 +641,7 @@ Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-y
 "Used {0} pages this month · plan {1}, {2} left this cycle","Used {0} pages this month · plan {1}, {2} left this cycle"
 User,User
 User Agent,User Agent
+Username and email are issued with the account and can no longer be changed.,Username and email are issued with the account and can no longer be changed.
 "Username must contain 3–30 letters, digits, dots, underscores or hyphens.","Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 VAT,VAT
 VAT %,VAT %
@@ -671,6 +673,7 @@ account.changePassword,Change password
 account.error.http,Request failed (HTTP {0})
 account.error.languageFailed,Could not update the account language.
 account.error.reloginLanguage,Please sign in again before changing your language.
+account.identityIssued,Username and email are issued with the account and can no longer be changed.
 account.identityPasswordOnly,Change your password from your account profile using Change Password.
 account.language,Language
 account.profileChanged,Your account was updated elsewhere. Sign in again to load the current username.
@@ -1034,6 +1037,7 @@ roster.subtitle,One row per salesperson/administrator: each has their own DMS cr
 roster.title,Operators
 roster.unbindLine,Unbind LINE
 roster.unbound,Not linked
+roster.usernameFixed,The DMS username is issued with the account and cannot be changed; only the password can be.
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
 shell.backHome,Back to home
 shell.boot.failed,Failed to start (HTTP {0}): {1}

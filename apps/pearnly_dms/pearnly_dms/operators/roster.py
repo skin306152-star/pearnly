@@ -224,17 +224,22 @@ def update_operator(
     advisor_name: str | None = None,
     notes: str | None = None,
 ) -> dict:
-    """编辑操作员。DMS 用户名与密码**各改各的**（留空 = 不修改），照老产品。"""
+    """编辑操作员：只改密码（留空 = 不修改）。
+
+    DMS 用户名**开户时定死**：可以拿它登录，但不能改（用户 2026-09-23："后台管理发号后，
+    用户名和邮箱是绑死这个租户的，唯一关系，用户只可以自己改密码"）。参数留着是为了
+    老客户端不炸：值一样（或者没带）照旧通过，**想改就明确拒掉**，不静默忽略。
+    """
     _require_admin()
     doc = frappe.get_doc(OPERATOR, name)
 
+    if dms_username is not None and _clean(dms_username) and _clean(dms_username) != (doc.dms_username or ""):
+        frappe.throw(_("Username and email are issued with the account and can no longer be changed."))
     pinned = advisors.resolve(advisor_id) if advisor_id is not None else None
     if display_name is not None:
         if not _clean(display_name):
             frappe.throw(_("Fill in the display name, DMS username and password"))
         doc.display_name = _clean(display_name)
-    if dms_username is not None and _clean(dms_username):
-        doc.dms_username = _clean(dms_username)
     if dms_password:
         doc.dms_password = str(dms_password)
     if dms_role:

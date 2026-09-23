@@ -1,11 +1,14 @@
+Enter the DMS password.,请填写 DMS 密码。
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+The DMS username is issued with the account and cannot be changed; only the password can be.,DMS 用户名是开户时发的，不能修改；这里只能改密码。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
+Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.,更新 Pearnly 保存的 DMS 密码；用户名是开户时发的，不能修改。
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
-dms.account.hint,更新 Pearnly 保存的 DMS 登录凭据，不会修改 DMS 系统的密码。
-dms.account.invalid,请填写有效的 DMS 用户名和密码。
+dms.account.hint,更新 Pearnly 保存的 DMS 密码；用户名是开户时发的，不能修改。
+dms.account.invalid,请填写 DMS 密码。
 dms.account.open,打开 DMS
 dms.account.password,DMS 密码
 dms.account.portal,进入 DMS
@@ -14,6 +17,7 @@ dms.account.save,保存
 dms.account.saved,已保存，下次连接 DMS 时使用这些凭据。
 dms.account.title,我的 DMS 账号
 dms.account.username,DMS 用户名
+dms.account.usernameFixed,DMS 用户名是开户时发的，不能修改；这里只能改密码。
 dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
 dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
 dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。
