@@ -33,9 +33,9 @@ AVAILABLE = {route for item in DECLARATIONS for route in item['available']}
 class NativeDeskContract(unittest.TestCase):
     def test_existing_menu_inventory_is_preserved(self):
         # Fixed product contract, independent of the new navigation implementation.
-        # ERP 现在是 18 项：2026-09-23 撤掉「公司主档」（用户口径"不要公司资料公司主档，
-        # 就一个公司就好了"），只剩一屏公司；供应商与收银那几项是前面几批加的。
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,18])
+        # ERP 现在是 19 项：2026-09-23 撤掉「公司主档」（"不要公司资料公司主档"），同一天又把
+        # **仓库**从公司页里拿出来单独成页（"仓库单独拿出，放在公司下方，仓库做成单独页"）。
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,19])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -94,7 +94,7 @@ class NativeDeskContract(unittest.TestCase):
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
             'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
-            'pearnly-team', 'pearnly-company'})
+            'pearnly-team', 'pearnly-company', 'pearnly-warehouses'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])

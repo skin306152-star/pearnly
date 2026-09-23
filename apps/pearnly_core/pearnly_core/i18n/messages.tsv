@@ -428,6 +428,7 @@ Customers	客户管理	จัดการลูกค้า	顧客管理	nav.cli
 Company	公司	ข้อมูลบริษัท	会社情報	nav.company
 Company List	公司列表	รายชื่อบริษัท	会社一覧	nav.companyList
 Warehouses	仓库	คลังสินค้า	倉庫	nav.companyWarehouses
+Warehouses	仓库	คลังสินค้า	倉庫	nav.warehouses
 Team	团队管理	ทีมงาน	チーム	nav.team
 My Profile	个人信息	ข้อมูลส่วนตัว	個人プロフィール
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations

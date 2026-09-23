@@ -634,6 +634,7 @@ Updated {0},Updated {0}
 Updated {0} customer(s),Updated {0} customer(s)
 Updated {0} employee(s),Updated {0} employee(s)
 Updated {0} product(s),Updated {0} product(s)
+Updated {0} record(s),Updated {0} record(s)
 Updated {0} supplier(s),Updated {0} supplier(s)
 Updated {0} user(s),Updated {0} user(s)
 "Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
@@ -712,6 +713,8 @@ client.party.person,Person
 client.save,Save
 client.title,Customers
 company,company
+company.action.bulkDisable,Disable {0}
+company.action.bulkEnable,Enable {0}
 company.col.current,Current
 company.col.defaultWarehouse,Default warehouse
 company.col.name,Company name
@@ -753,6 +756,8 @@ company.notice.created,Created
 company.notice.defaultWarehouse,{0} is now the default warehouse
 company.notice.saved,Saved
 company.notice.toggled,Updated
+company.notice.updated,Updated {0} record(s)
+company.onlyAdmin,Only the product admin can change this
 company.promptpayHint,The account you give customers for transfers
 company.readOnly,Only the product admin can change this
 company.save,Save

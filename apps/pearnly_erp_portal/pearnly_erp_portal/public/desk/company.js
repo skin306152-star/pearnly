@@ -2,10 +2,13 @@
  *
  * 一张表两张面孔（`ERP Company`），路由分两段：
  *
- *   · `/desk/pearnly-company`        → **当前公司**的资料：抬头、简称、税号、分支、
- *                                      联系方式、收款 PromptPay、地址与备注（能改的只有产品管理员）；
- *   · `/desk/pearnly-company/master` → **公司列表**：登记过哪几家、新建、编辑、
- *                                      「设为当前公司」（写自己的用户默认值）、停用启用。
+ *   · `/desk/pearnly-company`          → **公司列表**（点菜单先看到它）：登记过哪几家；
+ *                                        行内不放按钮，勾选之后右上角才出现「停用 / 启用」；
+ *   · `/desk/pearnly-company/<公司名>` → **公司信息**（点列表任意一行进来）：抬头、简称、
+ *                                        税号、分支、联系方式、收款 PromptPay、地址与备注，
+ *                                        以及「设为当前公司」。改得动它的只有产品管理员。
+ *
+ * 仓库**不在这一页**：它有自己的入口（侧栏「公司」下面那项，`desk/warehouses.js`）。
  *
  * 公司之间怎么隔离：用**官方的 `User Permission`** —— 在团队页给某个账号勾上哪几家，
  * 他列表里就只看得到那几家（官方机制，不用我们另写一套）。切换公司切的是**用户默认值**，
@@ -35,6 +38,8 @@
 			return values;
 		};
 		let form = null, list = null;
+		// 列表上的勾选动作（共享层那一套）：选中之后右上角才出现按钮，停用状态的行显示「启用」。
+		let selection = null;
 
 		// 填税号 → 点查询 → 抬头 / 税号 / 地址带出来（与供应商页同一套写法、同一个接口）。
 		async function lookup_tax(form) {
@@ -62,16 +67,30 @@
 			}
 		}
 
-		// ── 公司列表（一租户多公司）────────────────────────────────────────────
+		// ── 公司列表（一租户多公司）：点菜单先看到这一屏 ─────────────────────────
 		async function master() {
 			p.clear_page(page);
 			form = null;
-			// `nav.*` 是共用层的词（`browser_text` 把 nav. 归到 core），所以这里用 `__()`
-			// 走框架的译文，不用本页那个按前缀取的 `t()`（那个只认 company. 开头）。
-			page.set_title(__("nav.companyList"));
-			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
-				trail: [{label: __("nav.companyList"), route: ""}]});
+			page.set_title(__("nav.company"));
+			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root)});
+			selection = p.selection_action({
+				page, list: () => list, empty: restore_new,
+				label: rows => (rows.every(row => !Number(row.is_active))
+					? t("company.action.bulkEnable", rows.length)
+					: t("company.action.bulkDisable", rows.length)),
+				when: row => can_write(),
+				reason: () => t("company.onlyAdmin"),
+				run: async rows => {
+					const enabling = rows.every(row => !Number(row.is_active));
+					for (const row of rows) {
+						await p.call(api + "api_update_company",
+							{name: row.name, is_active: enabling ? 1 : 0}, "POST");
+					}
+				},
+				success: rows => t("company.notice.toggled", rows.length),
+			});
 			list = p.list({page, doctype: "ERP Company", compact_columns: true,
+				selectable: true, on_selection: selection,
 				columns: [
 					{fieldname: "company_name", label: t("company.col.name"), width: 180, min_width: 130},
 					{fieldname: "short_name", label: t("company.col.shortName"), width: 110, min_width: 90},
@@ -91,7 +110,9 @@
 					const rows = await p.call(api + "api_list_companies", {include_inactive: 1, limit: 0});
 					return {items: rows, total: rows.length};
 				},
-				row_actions: row => row_actions(row),
+				// 单击任意一行 → 进这一家的**公司信息**（面包屑二级），行内不再放按钮。
+				on_open: row => frappe.set_route(root, row.name),
+				row_actions: null,
 				empty_action: can_write() ? {label: t("company.new"), action: () => editor(null)} : null});
 			restore_new();
 			p.add_refresh(page, () => list.reload());
@@ -100,20 +121,6 @@
 
 		function can_write() {
 			return Boolean(frappe.model.can_write("ERP Company"));
-		}
-
-		function row_actions(row) {
-			const actions = [];
-			if (row.name !== frappe.boot.pearnly_company) {
-				actions.push({id: "current", label: t("company.setCurrent"),
-					action: () => set_current(row)});
-			}
-			if (can_write()) {
-				actions.push({id: "edit", label: __("Edit"), action: () => editor(row)});
-				actions.push({id: "active", label: row.is_active ? t("company.disable") : t("company.enable"),
-					action: () => set_active(row)});
-			}
-			return actions.length ? actions : null;
 		}
 
 		function restore_new() {
@@ -162,109 +169,15 @@
 				});
 		}
 
-		// ── 当前公司的仓库（一租户多公司：仓库属于公司，库存按仓库记账）──────────
-		async function warehouses() {
-			p.clear_page(page);
-			form = null;
-			page.set_title(__("nav.companyWarehouses"));
-			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
-				trail: [{label: __("nav.companyWarehouses"), route: ""}]});
-			// 当前公司由服务端在 boot 里给（`masters/boot.py`）。
-			const current = frappe.boot.pearnly_company;
-			const can_manage = can_write();
-			list = p.list({page, doctype: "ERP Warehouse", compact_columns: true,
-				columns: [
-					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
-						width: 200, min_width: 140},
-					{fieldname: "is_default", label: t("company.col.defaultWarehouse"),
-						width: 120, min_width: 96,
-						format: value => (Number(value) ? t("company.yes") : "—")},
-					{fieldname: "is_active", label: t("company.col.status"), width: 92, min_width: 74,
-						format: value => (Number(value) ? t("company.status.active")
-							: t("company.status.inactive")),
-						cell_class: value => (Number(value) ? "" : "pearnly-payment-due")},
-					{fieldname: "note", label: t("company.field.note"), width: 180, min_width: 120},
-				],
-				on_open: row => (can_manage ? edit_warehouse(row) : null),
-				row_actions: can_manage ? row => [
-					{id: "default", label: t("company.setDefaultWarehouse"),
-						disabled: Number(row.is_default) === 1,
-						action: () => make_default(row)},
-					{id: "active", label: Number(row.is_active) ? t("company.disable")
-						: t("company.enable"), action: () => toggle_warehouse(row)},
-				] : null,
-				load: async () => {
-					const rows = await p.call(api + "api_company_warehouses",
-						{company_name: current, include_inactive: 1});
-					return {items: rows, total: rows.length};
-				},
-				empty_action: can_manage
-					? {label: t("company.newWarehouse"), action: () => edit_warehouse(null)} : null});
-			if (can_manage) {
-				page.set_primary_action(t("company.newWarehouse"), () => edit_warehouse(null));
-			} else {
-				page.clear_primary_action();
-			}
-			p.add_refresh(page, () => list.reload());
-			await list.ready;
-		}
-
-		function edit_warehouse(row) {
-			const is_new = !row;
-			p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
-				f("warehouse_name", "company.field.warehouse", "Data",
-					{reqd: 1, default: row?.warehouse_name || ""}),
-				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
-			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
-				if (is_new) {
-					await p.call("pearnly_erp_portal.inventory.api.api_create_warehouse",
-						{warehouse_name: values.warehouse_name, note: values.note, is_default: 0},
-						"POST");
-				} else {
-					await p.call("pearnly_erp_portal.inventory.api.api_update_warehouse",
-						{name: row.name, warehouse_name: values.warehouse_name, note: values.note},
-						"POST");
-				}
-				dialog.hide();
-				p.success(t("company.notice.saved"));
-				await list.reload();
-			});
-		}
-
-		async function make_default(row) {
-			await p.call(api + "api_set_default_warehouse", {name: row.name}, "POST");
-			p.success(t("company.notice.defaultWarehouse", row.warehouse_name));
-			await list.reload();
-		}
-
-		async function toggle_warehouse(row) {
-			await p.call("pearnly_erp_portal.inventory.api.api_update_warehouse",
-				{name: row.name, is_active: Number(row.is_active) ? 0 : 1}, "POST");
-			p.success(t("company.notice.saved"));
-			await list.reload();
-		}
-
-		// 设为当前公司：写自己的用户默认值（官方那个 `company` 键），整页重载跟着换。
-		async function set_current(row) {
-			await p.call(api + "api_set_active_company", {name: row.name}, "POST");
-			window.location.reload();
-		}
-
-		async function set_active(row) {
-			await p.call(api + "api_update_company",
-				{name: row.name, is_active: Number(row.is_active) ? 0 : 1}, "POST");
-			p.success(t("company.notice.toggled"));
-			await list.reload();
-		}
-
-		// ── 当前公司的资料 ─────────────────────────────────────────────────────
-		async function profile() {
+		// ── 公司信息（点列表任意一行进来）────────────────────────────────────────
+		async function profile(name) {
 			p.clear_page(page);
 			list = null;
-			page.set_title(__("nav.company"));
-			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root)});
-			const data = await p.call(api + "api_get_profile");
-			page.set_title_sub(data.company_name || "");
+			const data = await p.call(api + "api_get_profile", name ? {name} : {});
+			page.set_title(data.company_name || name);
+			// 面包屑：公司 / <这家公司>（点公司那一级回到列表）。
+			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
+				trail: [{label: data.company_name || name || "", route: ""}]});
 			const ro = {read_only: !data.can_write};
 			form = p.layout(page.main, [
 				{fieldtype: "Section Break", label: t("company.section.basic")},
@@ -302,32 +215,32 @@
 							indicator: "orange",
 						});
 					}
-					await p.call(api + "api_update_profile", values, "POST");
+					await p.call(name ? "pearnly_erp_portal.masters.api.api_update_company"
+						: api + "api_update_profile",
+						name ? {name, ...values} : values, "POST");
 					p.success(t("company.notice.saved"));
 				});
 			} else {
 				page.clear_primary_action();
 			}
-			// 次按钮进公司列表：一张表两张面孔，来回都在这一个页面上。
-			page.add_inner_button(__("nav.companyWarehouses"), () => go_to("warehouses"));
-			page.add_inner_button(__("nav.companyList"), () => go_to("master"));
+			// 「设为当前公司」只在这一屏给（列表上不再放行内按钮）：写的是自己的用户默认值。
+			if (name && name !== frappe.boot.pearnly_company) {
+				page.add_inner_button(t("company.setCurrent"), () => set_current({name}));
+			}
 			// 右上角那颗刷新：重取一次值填回表单（不整页重画），免得把正在填的内容抹掉。
 			p.add_refresh(page, async () => {
-				form.set_values(await p.call(api + "api_get_profile"));
+				form.set_values(await p.call(api + "api_get_profile", name ? {name} : {}));
 			});
 		}
 
 		const go_to = (...parts) => frappe.set_route(root, ...parts);
 		const show = p.routed_page({wrapper, root, render: async (rest, still_current) => {
-			if (rest[0] === "master") {
+			// 默认（点菜单进来）就是**公司列表**；`/公司名` 才是那家的公司信息。
+			if (!rest.length) {
 				await master();
 				return;
 			}
-			if (rest[0] === "warehouses") {
-				await warehouses();
-				return;
-			}
-			await profile();
+			await profile(decodeURIComponent(rest[0]));
 			if (!still_current()) return;
 		}});
 

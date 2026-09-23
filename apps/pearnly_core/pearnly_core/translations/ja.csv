@@ -932,6 +932,7 @@ nav.stockOut,出庫
 nav.stocktake,棚卸
 nav.suppliers,仕入先
 nav.team,チーム
+nav.warehouses,倉庫
 nav.work,コラボレーション
 nonce mismatch,nonce が一致しません
 purchase.action.addLine,明細を追加

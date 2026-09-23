@@ -303,6 +303,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
     versioned_asset("pearnly_erp_portal", "desk/team.js"),
     versioned_asset("pearnly_erp_portal", "desk/company.js"),
+    versioned_asset("pearnly_erp_portal", "desk/warehouses.js"),
 ]
 
 app_include_css = [
@@ -338,6 +339,7 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
             ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
             ('nav.company', 'pearnly-company', 'building-2', None),
+            ('nav.warehouses', 'pearnly-warehouses', 'warehouse', None),
             ('nav.team', 'pearnly-team', 'users-round', None),
             ('nav.integrations', 'pearnly-integrations', 'plug', None)],
   'available': ['pearnly-home',
@@ -355,7 +357,8 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-pos-receipts',
                 'pearnly-pos-shifts',
                 'pearnly-team',
-                'pearnly-company'],
+                'pearnly-company',
+                'pearnly-warehouses'],
   'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
                   'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
                   'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
@@ -372,6 +375,8 @@ pearnly_navigation = [{'product': 'erp',
                   # 公司（本租户主体资料）：业务岗位都能读（开单要抬头与税号），
                   # 只有产品管理员写得动；判据在服务端（`company.read` / `company.manage`）。
                   'pearnly-company': {'doctype': 'ERP Company'},
+                  # 仓库：库存岗位读得到（出入库要选仓），写由 `stock.manage` 在服务端判。
+                  'pearnly-warehouses': {'doctype': 'ERP Warehouse'},
                   # 员工账号与岗位：能管本产品员工的是产品管理员（ERP Admin）。
                   # 用角色判，不新增权限码 —— Frappe 的用户与权限体系就是判据。
                   'pearnly-team': {'any_role': ['ERP Admin']}},
@@ -403,4 +408,5 @@ pearnly_navigation = [{'product': 'erp',
   # 公司带 `before_profile`：用户 2026-09-23 口径"公司……做在个人信息上方"，
   # 所以它排在「个人信息」上面，团队管理仍排在下面。
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
+                {'route': 'pearnly-warehouses', 'before_profile': True},
                 'pearnly-team']}]

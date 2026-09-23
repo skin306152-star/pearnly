@@ -363,7 +363,7 @@ Only low or out of stock,เฉพาะใกล้หมดหรือหม�
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the checked features are visible to this user,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
-Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว
+Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
 Open Shift,เปิดกะ
 Open that product,ไปแก้รายการนั้น
 Opened At,เวลาเปิดกะ
@@ -634,6 +634,7 @@ Updated {0},อัปเดต {0} แล้ว
 Updated {0} customer(s),อัปเดตลูกค้า {0} ราย
 Updated {0} employee(s),อัปเดตพนักงาน {0} คน
 Updated {0} product(s),อัปเดต {0} รายการแล้ว
+Updated {0} record(s),อัปเดต {0} รายการ
 Updated {0} supplier(s),อัปเดตผู้ขาย {0} ราย
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 "Upload a receipt, then review the recognized details.",อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
@@ -712,6 +713,8 @@ client.party.person,บุคคล
 client.save,บันทึก
 client.title,ลูกค้า
 company,บริษัท
+company.action.bulkDisable,ปิดใช้งาน {0}
+company.action.bulkEnable,เปิดใช้งาน {0}
 company.col.current,ปัจจุบัน
 company.col.defaultWarehouse,คลังเริ่มต้น
 company.col.name,ชื่อบริษัท
@@ -753,6 +756,8 @@ company.notice.created,สร้างแล้ว
 company.notice.defaultWarehouse,{0} เป็นคลังเริ่มต้นแล้ว
 company.notice.saved,บันทึกแล้ว
 company.notice.toggled,อัปเดตแล้ว
+company.notice.updated,อัปเดต {0} รายการ
+company.onlyAdmin,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
 company.promptpayHint,บัญชีที่ให้ลูกค้าโอนเข้า
 company.readOnly,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว
 company.save,บันทึก

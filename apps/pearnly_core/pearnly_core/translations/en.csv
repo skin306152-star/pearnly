@@ -930,6 +930,7 @@ nav.stockOut,Stock Out
 nav.stocktake,Stock Count
 nav.suppliers,Suppliers
 nav.team,Team
+nav.warehouses,Warehouses
 nav.work,Work together
 nonce mismatch,nonce mismatch
 purchase.action.addLine,Add row

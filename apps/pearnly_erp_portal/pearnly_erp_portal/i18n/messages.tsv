@@ -870,3 +870,7 @@ Created	已新建	สร้างแล้ว	作成しました	company.notice.
 Updated	已更新	อัปเดตแล้ว	更新しました	company.notice.toggled
 Switching company...	正在切换公司…	กำลังสลับบริษัท…	会社を切り替えています…
 Print Receipt	打印收据	พิมพ์ใบเสร็จ	レシート印刷	trade.printReceipt
+Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	company.action.bulkDisable
+Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	company.action.bulkEnable
+Only the product admin can change this	只有产品管理员能改	แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์	製品管理者のみ変更できます	company.onlyAdmin
+Updated {0} record(s)	已更新 {0} 条	อัปเดต {0} รายการ	{0}件を更新しました	company.notice.updated

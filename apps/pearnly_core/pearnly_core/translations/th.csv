@@ -932,6 +932,7 @@ nav.stockOut,จ่ายออก
 nav.stocktake,ตรวจนับสต็อก
 nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
+nav.warehouses,คลังสินค้า
 nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
 purchase.action.addLine,เพิ่มรายการ

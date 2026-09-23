@@ -363,7 +363,7 @@ Only low or out of stock,在庫少・在庫切れのみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
 Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
-Only the product admin can change this,変更できるのは製品管理者のみ（ここは読み取り専用）
+Only the product admin can change this,製品管理者のみ変更できます
 Open Shift,シフト開始
 Open that product,その商品を開く
 Opened At,開始時刻
@@ -634,6 +634,7 @@ Updated {0},{0} を更新しました
 Updated {0} customer(s),顧客 {0}件を更新しました
 Updated {0} employee(s),従業員{0}件を更新しました
 Updated {0} product(s),{0}件を更新しました
+Updated {0} record(s),{0}件を更新しました
 Updated {0} supplier(s),仕入先 {0}件を更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
 "Upload a receipt, then review the recognized details.",領収書をアップロードし、読み取り結果を確認・修正します。
@@ -712,6 +713,8 @@ client.party.person,個人
 client.save,保存
 client.title,顧客
 company,会社
+company.action.bulkDisable,{0}件を無効化
+company.action.bulkEnable,{0}件を有効化
 company.col.current,現在
 company.col.defaultWarehouse,既定の倉庫
 company.col.name,会社名
@@ -753,6 +756,8 @@ company.notice.created,作成しました
 company.notice.defaultWarehouse,{0} を既定の倉庫にしました
 company.notice.saved,保存しました
 company.notice.toggled,更新しました
+company.notice.updated,{0}件を更新しました
+company.onlyAdmin,製品管理者のみ変更できます
 company.promptpayHint,入金時に相手へ伝える口座
 company.readOnly,変更できるのは製品管理者のみ（ここは読み取り専用）
 company.save,保存

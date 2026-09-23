@@ -932,6 +932,7 @@ nav.stockOut,出库
 nav.stocktake,库存盘点
 nav.suppliers,供应商
 nav.team,团队管理
+nav.warehouses,仓库
 nav.work,工作协作
 nonce mismatch,nonce 不匹配
 purchase.action.addLine,添加明细
