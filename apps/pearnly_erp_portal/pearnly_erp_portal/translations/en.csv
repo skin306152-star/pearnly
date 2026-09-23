@@ -22,6 +22,7 @@ Add photos,Add photos
 Add row,Add row
 Added {0},Added {0}
 Added: {0},Added: {0}
+Additional,Additional
 Additional Information,Additional Information
 Address,Address
 Address and notes,Address and notes
@@ -223,6 +224,7 @@ Discount,Discount
 Discount (%),Discount (%)
 Discount Amount,Discount Amount
 Discount Total,Discount Total
+Discount cannot be greater than 100%.,Discount cannot be greater than 100%.
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Discount percentage,Discount percentage
 Document,Document
@@ -329,6 +331,7 @@ Inactive,Inactive
 Initial Password,Initial Password
 Input Tax,Input Tax
 Invalid Currency,Invalid Currency
+Invalid Discount,Invalid Discount
 Invalid file,Invalid file
 Invalid payment amount,Invalid payment amount
 Invalid value,Invalid value
@@ -918,6 +921,7 @@ company.warehouseHint,First warehouse of this company (more on the Warehouses pa
 company.yes,Yes
 completed,completed
 count,count
+discount applied,discount applied
 draft,draft
 goods,goods
 hq,hq
@@ -1304,6 +1308,10 @@ trade.diffEven,Matches
 trade.diffOver,Over by {0}
 trade.diffShort,Short by {0}
 trade.discount,Discount
+trade.discountAdditional,Additional
+trade.discountApplied,discount applied
+trade.discountInvalid,Invalid Discount
+trade.discountOver100,Discount cannot be greater than 100%.
 trade.discountPercent,Discount percentage
 trade.discountPercentHint,Enter discount percentage
 trade.docNo,Document Number

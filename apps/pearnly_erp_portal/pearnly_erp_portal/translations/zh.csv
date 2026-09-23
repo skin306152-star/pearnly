@@ -22,6 +22,7 @@ Add photos,添加照片
 Add row,添加明细
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
+Additional,附加项
 Additional Information,附加信息
 Address,地址
 Address and notes,地址与备注
@@ -223,6 +224,7 @@ Discount,折扣金额
 Discount (%),折扣率 (%)
 Discount Amount,折扣金额
 Discount Total,折扣总额
+Discount cannot be greater than 100%.,折扣率不可超过100%
 Discount cannot exceed the amount,折扣不能超过金额
 Discount percentage,折扣百分比
 Document,单据
@@ -329,6 +331,7 @@ Inactive,已停用
 Initial Password,初始密码
 Input Tax,进项税额
 Invalid Currency,币种无效
+Invalid Discount,无效折扣
 Invalid file,无效文件
 Invalid payment amount,付款金额无效
 Invalid value,值无效
@@ -918,6 +921,7 @@ company.warehouseHint,这家公司的第一个仓库（之后在「仓库」页�
 company.yes,是
 completed,已完成
 count,盘点
+discount applied,已应用折扣
 draft,草稿
 goods,货物
 hq,总店
@@ -1304,6 +1308,10 @@ trade.diffEven,刚好对上
 trade.diffOver,多钱 {0}
 trade.diffShort,短钱 {0}
 trade.discount,折扣金额
+trade.discountAdditional,附加项
+trade.discountApplied,已应用折扣
+trade.discountInvalid,无效折扣
+trade.discountOver100,折扣率不可超过100%
 trade.discountPercent,折扣百分比
 trade.discountPercentHint,输入折扣百分比
 trade.docNo,单据编号

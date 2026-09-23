@@ -131,8 +131,9 @@
 						<div class="cart-items-section"></div>
 						<div class="cart-totals-section">
 							${/* 官方 `make_cart_totals_section()` 第一格就是这颗虚线「折扣」：点一下换成
-							     百分比输入（官方截图里那句「输入折扣百分比」）。我们这边点开的是
-							     **原生 Dialog**（仓库规定 Desk 里不写裸输入框），填完改整单折扣。 */""}
+							     百分比输入（官方截图里那句「输入折扣百分比」），输入完原地变绿虚线
+							     「Additional 7% discount applied」。我们照同一条（F61），用的是框架
+							     原生控件 `frappe.ui.form.make_control`，不是自己写裸 input。 */""}
 							<div class="add-discount-wrapper">${p.escape(t("trade.addDiscount"))}</div>
 							<div class="item-qty-total-container">
 								<div class="item-qty-total-label">${p.escape(t("trade.totalItems"))}</div>
@@ -363,6 +364,8 @@
 		const cart_qty = () => round2(cart.reduce((sum, row) => sum + num(row.qty), 0));
 		// 整单折扣（官方那颗「折扣」）：按百分比减在净额上，落单时带 `discount_total` 给服务端。
 		let discount_pct = 0;
+		// 折扣格正在编辑态：这时重画不能把输入框盖掉（官方 `discount_field` 同一手）。
+		let discount_editing = false;
 		const cart_gross = () => round2(cart.reduce((sum, row) => sum + line_total(row), 0));
 		const cart_discount = () => round2(cart_gross() * (num(discount_pct) / 100));
 		const cart_net = () => round2(cart_gross() - cart_discount());
@@ -424,11 +427,8 @@
 			q(".cart-totals-section .checkout-btn").css(has
 				? {"background-color": "var(--btn-primary)", color: "var(--neutral)"}
 				: {"background-color": "var(--control-bg)", color: ""});
-			q(".cart-totals-section .add-discount-wrapper")
-				.css("display", has ? "flex" : "none")
-				.text(num(discount_pct)
-					? `${t("trade.addDiscount")} · ${p.number(discount_pct)}%`
-					: t("trade.addDiscount"));
+			q(".cart-totals-section .add-discount-wrapper").css("display", has ? "flex" : "none");
+			paint_discount();
 			q(".cart-totals-section .item-qty-total-value").text(p.number(cart_qty()));
 			q(".cart-totals-section .net-total-value").text(money(net));
 			q(".cart-totals-section .grand-total-container > div:last-child").text(money(net));
@@ -667,18 +667,63 @@
 			frappe.utils.play_sound("numpad-touch");
 		}
 
-		// 「折扣」：填百分比 → 整单按它减（官方那颗虚线按钮的同一件事）。
-		function discount_dialog() {
-			p.dialog(t("trade.addDiscount"), [
-				{ fieldtype: "Float", fieldname: "percent", label: t("trade.discountPercent"),
-					precision: 2, default: num(discount_pct) },
-				{ fieldtype: "HTML", fieldname: "hint",
-					options: `<p class="text-muted">${p.escape(t("trade.discountPercentHint"))}</p>` },
-			], __("Save"), async (values) => {
-				discount_pct = Math.min(100, Math.max(0, num(values.percent)));
-				paint_cart();
-				if (paying) { paint_payment_amounts(); paint_payment_totals(); }
+		// ── 「折扣」：官方那颗虚线格子点一下就**原地换成百分比输入**，不是弹窗 ─────────────
+		// 官方 `show_discount_control()`（`pos_item_cart.js`）：把 `.add-discount-wrapper` 的内容
+		// 换成原生输入框（`make_control`）并聚焦、去掉虚线框；输入完（回车/失焦）应用，>100% 先弹
+		// 红提示再归零；有折扣时那格变**绿虚线**写着「Additional **7**% discount applied」，
+		// 再点一次还能改（`hide_discount_control()`）。整单按它减（落单带 discount_total）。
+		function paint_discount() {
+			const $box = q(".cart-totals-section .add-discount-wrapper");
+			if (!$box.length || discount_editing) return;
+			const pct = num(discount_pct);
+			$box.css({
+				border: `1px dashed ${pct ? "var(--dark-green-500)" : "var(--gray-500)"}`,
+				padding: "var(--padding-sm) var(--padding-md)",
+			}).html(pct
+				? `<div class="edit-discount-btn">${p.escape(t("trade.discountAdditional"))}&nbsp;<b>${
+					p.escape(p.number(pct))}</b>% ${p.escape(t("trade.discountApplied"))}</div>`
+				: p.escape(t("trade.addDiscount")));
+		}
+
+		function discount_input() {
+			const $box = q(".cart-totals-section .add-discount-wrapper");
+			if (!$box.length || discount_editing) return;
+			discount_editing = true;
+			const pct = num(discount_pct);
+			$box.css({ border: "none", padding: "0px" })
+				.html(`<div class="add-discount-field"></div>`);
+			const field = frappe.ui.form.make_control({
+				df: { fieldtype: "Float", label: t("trade.discountPercent"), precision: 2,
+					placeholder: pct ? `${p.number(pct)}%` : t("trade.discountPercentHint"),
+					input_class: "input-xs" },
+				parent: $box.find(".add-discount-field"), render_input: true,
 			});
+			p.tidy_number(field);
+			field.toggle_label(false);
+			field.set_value(pct || "");
+			// **值先写进去、事件后挂**：`set_value` 自己会触发一次 change，
+			// 先挂 onchange 就会"刚打开就应用并收起"，看着像没反应（实测踩过）。
+			field.$input.on("change", () => { discount_pct = num(field.get_value()); apply_discount(); });
+			// 没改动就点走，也算结束编辑、回到格子上（免得输入框一直杵在那）。
+			field.$input.on("blur", () => {
+				if (!discount_editing) return;
+				discount_editing = false;
+				paint_discount();
+			});
+			field.set_focus();
+		}
+
+		function apply_discount() {
+			let pct = num(discount_pct);
+			if (pct > 100) {
+				frappe.msgprint({ title: t("trade.discountInvalid"), indicator: "red",
+					message: t("trade.discountOver100") });
+				pct = 0;
+			}
+			discount_pct = Math.max(0, pct);
+			discount_editing = false;
+			paint_cart();
+			if (paying) { paint_payment_amounts(); paint_payment_totals(); }
 		}
 
 		async function submit_order() {
@@ -986,9 +1031,8 @@
 			if (!String($(event.currentTarget).attr("style") || "").includes("--btn-primary")) return;
 			void checkout();
 		});
-		// 官方那颗虚线「折扣」：填一个百分比，整单按它打折（落单时带 `discount_total`）。
-		// 输入用**原生 Dialog + Float**（仓库规定 Desk 里不写裸输入框）。
-		$app.on("click", ".cart-totals-section .add-discount-wrapper", () => discount_dialog());
+		// 官方那颗虚线「折扣」：点一下原地变成输入框（有折扣时是绿虚线，再点还能改）。
+		$app.on("click", ".cart-totals-section .add-discount-wrapper", () => discount_input());
 		$app.on("click", ".payment-modes .mode-of-payment", event => {
 			const method = event.currentTarget.dataset.mode;
 			pay_target = method;

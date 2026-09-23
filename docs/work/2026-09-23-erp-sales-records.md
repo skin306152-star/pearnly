@@ -1336,6 +1336,15 @@ set_active_company / document_company / scope / for_document`；`api_company_con
 > 137→19（剩 19 条全是 frappe 自带词条）、硬编码 170 条不变、架构与前端取词 PASS、演示站
 > `frappe._()` 中泰回读。**未验到**：控制面/DMS/Cowork 的运行时（本机容器挂的是主仓，不是本工作树）。
 
+> F61 的补充（2026-09-23）：「实现」再加 —— **收银台「折扣」按官方改成原地输入**（点那颗虚线格子
+> 直接换成框架原生控件、聚焦、无弹窗；有值变绿虚线「附加项 7% 已应用折扣」、可再点改；>100% 弹
+> 官方那两句红提示并归零），并补 4 条词条（附加项/已应用折扣/无效折扣/折扣率不可超过100%，四语）。
+> 「本地验证」再加 —— 与官网站（8084）逐项对照 DOM 与计算样式：点开=原地输入框（同 placeholder、
+> 同去框、同聚焦）、填 7=绿虚线 + 合计 62→57.66、再点可改、填 150=红提示并归零、失焦也收得回去；
+> `i18n-build --check` / `check-frontend-i18n` / `check-architecture` / `check-i18n` / `node --check`
+> / 11 支 node 测试全过。**未验到**：真机与泰语母语观感；另记两个环境要点（新词条要重启 web 才进页面、
+> `?v=` 指纹在 hooks 导入时求值会滞后）—— 见 F61 第 ④ 节。
+
 ## 收尾：交接保留
 
 - F59 在演示站的痕迹：**留着没恢复**（用户 2026-09-23 明确"本地的这些测试，可以不用恢复"）——
@@ -3307,3 +3316,78 @@ set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL�
   要合进 `main` 之后才有运行时。
 - 泰语与日语仍是我按词根写的，建议泰语同事过一遍，重点是那 13 条长说明。
 - 未部署、未推送、未合并；本次只改术语表与生成的翻译包，没有站点数据变更。
+
+### F61：收银台「折扣」改成官方的**原地输入**（原来我们弹的是 Dialog）（2026-09-23，未部署）
+
+用户口径："这个折扣官方根本不是在弹窗里填的"（附截图：我们那边弹了一个「折扣」Dialog 填百分比）。
+
+**① 官方到底是什么**（源码 + 官网站实测）
+
+官方 `pos_item_cart.js`：`.add-discount-wrapper` 那颗虚线格子，点击后 `show_discount_control()`
+**把这格自己的内容换成输入框**（`frappe.ui.form.make_control`，`input-xs`，placeholder
+「Enter discount percentage.」，建完立刻聚焦），并把这格的内联样式改成 `border:none; padding:0`；
+输入完（change，回车或点走）→ `hide_discount_control(value)`：
+空值回到灰虚线「Add Discount」，有值则变**绿虚线**（`1px dashed var(--dark-green-500)`）写着
+`Additional **7**% discount applied`（`.edit-discount-btn`，再点还能改）；>100% 先弹红提示
+「Invalid Discount / Discount cannot be greater than 100%.」再归零。整单按它减
+（`additional_discount_percentage`）。
+
+官网站 `business.localhost`（8084）实测（同一格读 DOM 与计算样式，未落任何单据）：
+
+- 空车时这格**不显示**（与我方一致）；加一件后：`display:flex; border:1px dashed var(--gray-500); padding:7px 15px` + 图标 + 「折扣」；
+- 点下去：`border:0px none; padding:0px`，里面是 `<div class="add-discount-field">` +
+  `data-fieldtype="Data"` 的原生控件、`input-with-feedback form-control input-xs`、
+  placeholder「输入折扣百分比」、**已聚焦**；
+- 填 7 回车：`border:1px dashed var(--dark-green-500)`，内容 `附加项 **7** % 已应用折扣`，
+  合计随之变（净总计 ฿26.04）。
+
+**② 我们改成了什么**（`public/desk/cashier.js`）
+
+原来我们点这颗是 `p.dialog`（Float + 提示语的 Dialog），现在换成与官方同一套：
+
+| 环节 | 做法 |
+| --- | --- |
+| 点击 | 原地把那格换成**框架原生控件** `frappe.ui.form.make_control({fieldtype:"Float", precision:2, input_class:"input-xs"})`（不是自己写裸 input），placeholder 用 `trade.discountPercentHint`（输入折扣百分比），建完 `set_focus()`，并把该格内联改成 `border:none; padding:0` |
+| 应用 | 值变化（回车或点走）→ `apply_discount()`：>100% 先 `frappe.msgprint`（无效折扣 / 折扣率不可超过100%）再归零；否则按它算整单折扣并重画 |
+| 收尾 | 空值 → 灰虚线「折扣」；有值 → **绿虚线**「附加项 7% 已应用折扣」（`.edit-discount-btn`），再点一次可改 |
+| 时机 | 处于编辑态时 `paint_cart()` 不覆盖这格（`discount_editing`），否则会被重绘吃掉 |
+
+顺手记两处**用别的方式写会踩的坑**（这次都实测踩到了）：
+
+1. `field.set_value(...)` **自己会触发一次 change** —— 若先把 `onchange` 挂进 `df`，就会
+   "刚打开就应用并收起"，看着像点了没反应。所以**先写值、再挂事件**（挂在 `$input` 的 `change` 上）。
+2. 没改动就点走（blur）也要收回去，否则输入框一直杵在那格上。
+
+**③ 验证**（演示站 8147，硬刷新 + 与官方同项的 DOM/计算样式对照）
+
+| 动作 | 官方 8084 | 我们 8147 |
+| --- | --- | --- |
+| 点「折扣」 | 原地输入框、`border:0 none; padding:0`、placeholder「输入折扣百分比」、聚焦、**无弹窗** | 同（`data-fieldtype="Float"`、`input-xs`、同 placeholder、聚焦、无弹窗） |
+| 填 7 回车 | 绿虚线 +「附加项 **7** % 已应用折扣」 | 绿虚线 +「附加项 **7**% 已应用折扣」；净总计 THB 62 → **57.66** |
+| 再点绿格子 | 回到输入框（placeholder 带当前值） | 同：输入框回来、值 7、placeholder「7%」、仍无弹窗 |
+| 填 150 回车 | 红提示「无效折扣 / 折扣率不可超过100%」并归零 | 同：`无效折扣 / 折扣率不可超过100%`，格子回灰「折扣」、合计回 THB 62 |
+| 填 5 后点走（失焦） | —（官方同类行为是 change 触发） | 收成绿虚线「附加项 5% 已应用折扣」、合计 58.9、输入框消失 |
+
+检查：`i18n-build --check` PASS（erp 1014 条）／`check-frontend-i18n` PASS（新键 4 条登记齐）／
+`check-architecture` PASS(0)／`check-i18n` 合计 170 条与改前相同／`node --check cashier.js` OK／
+11 支 node 测试全过。
+
+**④ 过程中的两个环境发现（都记下来，避免下次当成"代码没生效"）**
+
+- **四语新词条要"重启 web"才进页面**：页面取词走 `pearnly_core.browser_text.browser_text`
+  接口，而 `browser_text.pack()` 是**进程内缓存**（`_cache`）。所以只 `bench clear-cache`
+  不够（那清的是另起进程的 console），我这次是**重启演示站 web 容器**后才显示中文/泰语。
+  真实发布是整容器重启，不受影响；"只清缓存不重启"的流程要记得这一步。
+- **`?v=` 指纹会滞后**：`versioned_asset()` 在 `hooks.py` 导入时求值，改完文件后不重启 web，
+  页面上的 `?v=` 还是旧指纹（内容其实已是新的）。用户在自己浏览器里看到旧行为时，先硬刷新，
+  还不对就说明 web 没重启。
+
+**⑤ 环境与痕迹**
+
+- 我**重启过一次演示站 web 容器**（`pearnly-purchase-lab-web-1`，挂的正是本任务工作树），
+  没动 sites/db/redis 卷、没动其他容器。
+- 我方演示站**没有产生任何单据**（折扣与购物车都只在那张已关闭的标签页里，页面关掉即消失）；
+  班次 `SHIFT-2026-00635`（班次 13）仍是开着的，留给你继续点。
+- 官网站点现在有一张 **已提交**的小票 `ACC-SINV-2026-00032`（THB 142；食用油 1×62 + 方便面 2×10 +
+  鲜奶 3×20，`owner@sample.localhost`，22:23 创建）：**这不是我做的**（我只点过「电池」那一条卡片，
+  也没走付款），像是你自己在官方 POS 上的试验。我没有动它；要作废说一声。

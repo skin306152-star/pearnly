@@ -214,6 +214,10 @@ Customer	客户	ลูกค้า	顧客	trade.customer
 Search by customer name or phone	通过客户名称、电话进行搜索	ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์	顧客名か電話で検索	trade.customerHint
 Enter discount percentage	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力	trade.discountPercentHint
 Discount percentage	折扣百分比	เปอร์เซ็นต์ส่วนลด	割引率	trade.discountPercent
+Additional	附加项	เพิ่มเติม	追加	trade.discountAdditional
+discount applied	已应用折扣	ส่วนลดที่ใช้	割引を適用しました	trade.discountApplied
+Invalid Discount	无效折扣	ส่วนลดไม่ถูกต้อง	割引が無効です	trade.discountInvalid
+Discount cannot be greater than 100%.	折扣率不可超过100%	ส่วนลดต้องไม่เกิน 100%	割引率は100%を超えられません	trade.discountOver100
 VAT Rate	增值税率	อัตรา VAT	付加価値税率	trade.vat
 Note	备注	หมายเหตุ	備考	trade.note
 Document Type	单据类型	ประเภทเอกสาร	伝票種類	trade.kind

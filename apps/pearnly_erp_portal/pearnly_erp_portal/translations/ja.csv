@@ -22,6 +22,7 @@ Add photos,写真を追加
 Add row,明細を追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
+Additional,追加
 Additional Information,追加情報
 Address,住所
 Address and notes,住所と備考
@@ -223,6 +224,7 @@ Discount,割引額
 Discount (%),割引率 (%)
 Discount Amount,割引額
 Discount Total,割引合計
+Discount cannot be greater than 100%.,割引率は100%を超えられません
 Discount cannot exceed the amount,割引は金額を超えられません
 Discount percentage,割引率
 Document,伝票
@@ -329,6 +331,7 @@ Inactive,無効
 Initial Password,初期パスワード
 Input Tax,仕入税額
 Invalid Currency,通貨が無効です
+Invalid Discount,割引が無効です
 Invalid file,無効なファイル
 Invalid payment amount,支払金額が無効です
 Invalid value,値が無効です
@@ -918,6 +921,7 @@ company.warehouseHint,この会社の最初の倉庫（追加は「倉庫」ペ�
 company.yes,はい
 completed,完了
 count,棚卸
+discount applied,割引を適用しました
 draft,下書き
 goods,物品
 hq,本店
@@ -1304,6 +1308,10 @@ trade.diffEven,一致
 trade.diffOver,{0} 多い
 trade.diffShort,{0} 不足
 trade.discount,割引額
+trade.discountAdditional,追加
+trade.discountApplied,割引を適用しました
+trade.discountInvalid,割引が無効です
+trade.discountOver100,割引率は100%を超えられません
 trade.discountPercent,割引率
 trade.discountPercentHint,割引率を入力
 trade.docNo,伝票番号

@@ -22,6 +22,7 @@ Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
 Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
+Additional,เพิ่มเติม
 Additional Information,ข้อมูลเพิ่มเติม
 Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
@@ -223,6 +224,7 @@ Discount,ส่วนลด
 Discount (%),ส่วนลด (%)
 Discount Amount,จำนวนส่วนลด
 Discount Total,ยอดส่วนลดรวม
+Discount cannot be greater than 100%.,ส่วนลดต้องไม่เกิน 100%
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Discount percentage,เปอร์เซ็นต์ส่วนลด
 Document,เอกสาร
@@ -329,6 +331,7 @@ Inactive,ปิดใช้งาน
 Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
 Invalid Currency,สกุลเงินไม่ถูกต้อง
+Invalid Discount,ส่วนลดไม่ถูกต้อง
 Invalid file,ไฟล์ไม่ถูกต้อง
 Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
 Invalid value,ค่าไม่ถูกต้อง
@@ -918,6 +921,7 @@ company.warehouseHint,คลังแรกของบริษัทนี้ 
 company.yes,ใช่
 completed,เสร็จสิ้น
 count,ตรวจนับ
+discount applied,ส่วนลดที่ใช้
 draft,ฉบับร่าง
 goods,สินค้า
 hq,สำนักงานใหญ่
@@ -1304,6 +1308,10 @@ trade.diffEven,ตรงกัน
 trade.diffOver,เกินมา {0}
 trade.diffShort,ขาดไป {0}
 trade.discount,ส่วนลด
+trade.discountAdditional,เพิ่มเติม
+trade.discountApplied,ส่วนลดที่ใช้
+trade.discountInvalid,ส่วนลดไม่ถูกต้อง
+trade.discountOver100,ส่วนลดต้องไม่เกิน 100%
 trade.discountPercent,เปอร์เซ็นต์ส่วนลด
 trade.discountPercentHint,กรอกเปอร์เซ็นต์ส่วนลด
 trade.docNo,เลขที่เอกสาร
