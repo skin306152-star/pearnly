@@ -7,6 +7,7 @@ Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
+Add Discount,Add Discount
 Add Employee,Add Employee
 Add User,Add User
 Add VAT,Add VAT
@@ -177,6 +178,7 @@ Discount (%),Discount (%)
 Discount Amount,Discount Amount
 Discount Total,Discount Total
 Discount cannot exceed the amount,Discount cannot exceed the amount
+Discount percentage,Discount percentage
 Document,Document
 Document Number,Document Number
 Document Type,Document Type
@@ -203,6 +205,7 @@ Enable {0} selected,Enable {0} selected
 Enabled,Enabled
 Enter a tax ID first,Enter a tax ID first
 Enter a valid email,Enter a valid email
+Enter discount percentage,Enter discount percentage
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Enter the user name,Enter the user name
@@ -414,6 +417,7 @@ Previous,Previous
 Price,Price
 Prices Include Tax,Prices Include Tax
 Print,Print
+Print Receipt,Print Receipt
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
 Product Ref,Product Ref
@@ -603,8 +607,10 @@ This document has no content,This document has no content
 This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 To Date,To Date
+Total,Total
 Total Amount,Total Amount
 Total Due,Total Due
+Total Items,Total Items
 Total Taxes and Charges,Total Taxes and Charges
 Total items,Total items
 Total · {0} row(s),Total · {0} row(s)
@@ -1108,6 +1114,7 @@ trade.action.pay,Pay
 trade.action.submit,Submit
 trade.action.voidCount,Void {0} selected
 trade.actualQty,Quantity Available
+trade.addDiscount,Add Discount
 trade.addedToCart,Added: {0}
 trade.address,Address
 trade.allItems,All Items
@@ -1118,7 +1125,7 @@ trade.branchNo,Branch Number
 trade.branchType,Branch Type
 trade.buyer,Customer
 trade.buyerType,Customer Type
-trade.byMethod,By Payment Method
+trade.byMethod,Payments
 trade.cart,Cart
 trade.cartClear,Clear cart
 trade.cartClearConfirm,Clear the cart?
@@ -1145,6 +1152,8 @@ trade.diffEven,Matches
 trade.diffOver,Over by {0}
 trade.diffShort,Short by {0}
 trade.discount,Discount
+trade.discountPercent,Discount percentage
+trade.discountPercentHint,Enter discount percentage
 trade.docNo,Document Number
 trade.editCart,Edit Cart
 trade.enterAmount,Enter {0} amount
@@ -1176,7 +1185,7 @@ trade.methodCard,Card
 trade.methodCash,Cash Amount
 trade.methodPromptpay,PromptPay Amount
 trade.methodTransfer,Transfer
-trade.net,Net
+trade.net,Net Total
 trade.newIn,New Stock Receipt
 trade.newInvoice,New Invoice
 trade.newOrder,New Order
@@ -1193,7 +1202,7 @@ trade.opening,Opening Quantity
 trade.openingAmount,Opening Amount
 trade.originalLine,Original Item and Location
 trade.out,Issued
-trade.paid,Amount Received
+trade.paid,Paid Amount
 trade.paidNotice,Receipt {0} · Change {1}
 trade.pay,Complete Payment
 trade.paymentDate,Payment Date
@@ -1201,6 +1210,7 @@ trade.paymentState,Payment Status
 trade.pickLine,Pick a line first
 trade.pickPadTarget,"Pick quantity, discount or price first"
 trade.price,Unit Price
+trade.printReceipt,Print Receipt
 trade.product,Product
 trade.qty,Quantity
 trade.recentOrders,Recent Orders
@@ -1246,8 +1256,8 @@ trade.taxNo,Tax invoice number
 trade.terminal,Terminal
 trade.terminalHint,Leave blank to use the default terminal
 trade.to,To Date
-trade.total,Total Due
-trade.totalItems,Total items
+trade.total,Total
+trade.totalItems,Total Items
 trade.totalRows,Total · {0} row(s)
 trade.underpaid,The amount received is less than the total
 trade.unit,Unit

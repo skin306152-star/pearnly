@@ -7,6 +7,7 @@ Abbreviated Tax Invoice,簡易税務請求書
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
+Add Discount,割引を追加
 Add Employee,従業員を追加
 Add User,ユーザーを追加
 Add VAT,付加価値税を計算
@@ -177,6 +178,7 @@ Discount (%),割引率 (%)
 Discount Amount,割引額
 Discount Total,割引合計
 Discount cannot exceed the amount,割引は金額を超えられません
+Discount percentage,割引率
 Document,伝票
 Document Number,伝票番号
 Document Type,伝票種別
@@ -203,6 +205,7 @@ Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
 Enter a tax ID first,先に納税者番号を入力してください
 Enter a valid email,正しいメールアドレスを入力してください
+Enter discount percentage,割引率を入力
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
 Enter the user name,ユーザー名を入力してください
@@ -414,6 +417,7 @@ Previous,前へ
 Price,価格
 Prices Include Tax,税込価格
 Print,印刷
+Print Receipt,レシート印刷
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
 Product Ref,商品の外部参照
@@ -603,8 +607,10 @@ This document has no content,この書類は中身がありません
 This document is too large,この書類は大きすぎます
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 To Date,終了日
+Total,請求額
 Total Amount,合計金額
 Total Due,請求額
+Total Items,合計点数
 Total Taxes and Charges,税金および諸費用合計
 Total items,合計点数
 Total · {0} row(s),合計 · {0} 明細
@@ -1108,6 +1114,7 @@ trade.action.pay,会計
 trade.action.submit,確定
 trade.action.voidCount,選択した{0}件を取り消す
 trade.actualQty,在庫数
+trade.addDiscount,割引を追加
 trade.addedToCart,追加しました: {0}
 trade.address,住所
 trade.allItems,すべての商品
@@ -1118,7 +1125,7 @@ trade.branchNo,支店番号
 trade.branchType,支店種類
 trade.buyer,顧客
 trade.buyerType,顧客種類
-trade.byMethod,支払方法別
+trade.byMethod,入出金
 trade.cart,カート
 trade.cartClear,カートを空にする
 trade.cartClearConfirm,カートを空にしますか
@@ -1145,6 +1152,8 @@ trade.diffEven,一致
 trade.diffOver,{0} 多い
 trade.diffShort,{0} 不足
 trade.discount,割引額
+trade.discountPercent,割引率
+trade.discountPercentHint,割引率を入力
 trade.docNo,伝票番号
 trade.editCart,カートに戻る
 trade.enterAmount,{0}の金額を入力
@@ -1168,7 +1177,7 @@ trade.itemsNotFound,商品が見つかりません
 trade.kind,伝票種類
 trade.kind.refund,返品・返金
 trade.kind.sale,販売
-trade.lines,商品明細
+trade.lines,商品
 trade.listPrice,表示価格
 trade.location,保管場所
 trade.method,支払方法
@@ -1201,6 +1210,7 @@ trade.paymentState,支払状態
 trade.pickLine,先に行を選んでください
 trade.pickPadTarget,先に数量・割引・単価を選んでください
 trade.price,単価
+trade.printReceipt,レシート印刷
 trade.product,商品
 trade.qty,数量
 trade.recentOrders,最近の会計

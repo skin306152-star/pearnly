@@ -209,6 +209,20 @@
 	padding-bottom: var(--padding-md);
 }
 .point-of-sale-app .cart-header > .name-header { flex: 1 1 0%; }
+/* 官方 `add-discount-wrapper`：虚线框、居中一颗「折扣」（点一下换成百分比输入）。 */
+.point-of-sale-app .cart-totals-section .add-discount-wrapper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--margin-xs);
+	padding: var(--padding-xs) var(--padding-sm);
+	margin-bottom: var(--margin-sm);
+	border: 1px dashed var(--gray-400);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-md);
+	color: var(--text-color);
+	cursor: pointer;
+}
 .point-of-sale-app .cart-header > .qty-header { margin-right: var(--margin-lg); text-align: center; }
 .point-of-sale-app .cart-header > .rate-amount-header { text-align: right; margin-right: var(--margin-sm); }
 .point-of-sale-app .no-item-wrapper {                  /* 官方 491 */

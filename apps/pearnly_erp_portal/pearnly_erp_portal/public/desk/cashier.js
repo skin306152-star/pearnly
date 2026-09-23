@@ -126,6 +126,10 @@
 						</div>
 						<div class="cart-items-section"></div>
 						<div class="cart-totals-section">
+							${/* 官方 `make_cart_totals_section()` 第一格就是这颗虚线「折扣」：点一下换成
+							     百分比输入（官方截图里那句「输入折扣百分比」）。我们这边点开的是
+							     **原生 Dialog**（仓库规定 Desk 里不写裸输入框），填完改整单折扣。 */""}
+							<div class="add-discount-wrapper">${p.escape(t("trade.addDiscount"))}</div>
 							<div class="item-qty-total-container">
 								<div class="item-qty-total-label">${p.escape(t("trade.totalItems"))}</div>
 								<div class="item-qty-total-value">0.00</div>
@@ -318,7 +322,11 @@
 		// ── 购物车 ──────────────────────────────────────────────────────────────
 		const line_total = row => round2(num(row.qty) * num(row.unit_price) - num(row.discount));
 		const cart_qty = () => round2(cart.reduce((sum, row) => sum + num(row.qty), 0));
-		const cart_net = () => round2(cart.reduce((sum, row) => sum + line_total(row), 0));
+		// 整单折扣（官方那颗「折扣」）：按百分比减在净额上，落单时带 `discount_total` 给服务端。
+		let discount_pct = 0;
+		const cart_gross = () => round2(cart.reduce((sum, row) => sum + line_total(row), 0));
+		const cart_discount = () => round2(cart_gross() * (num(discount_pct) / 100));
+		const cart_net = () => round2(cart_gross() - cart_discount());
 
 		function add_to_cart(row, qty = 1) {
 			if (!row?.name) return;
@@ -371,6 +379,12 @@
 			q(".rate-amount-header").css("width", max ? `${max}px` : "");
 			q(".cart-items-section .item-rate-amount").css("width", max ? `${max}px` : "");
 			const net = cart_net();
+			// 官方：折扣那一格在**有货**时才出现（空车屏幕上没有它）；已经打过折就把折扣额写在上面。
+			q(".cart-totals-section .add-discount-wrapper")
+				.css("display", has ? "flex" : "none")
+				.text(num(discount_pct)
+					? `${t("trade.addDiscount")} · ${p.number(discount_pct)}%`
+					: t("trade.addDiscount"));
 			q(".cart-totals-section .item-qty-total-value").text(p.number(cart_qty()));
 			q(".cart-totals-section .net-total-value").text(money(net));
 			q(".cart-totals-section .grand-total-container > div:last-child").text(money(net));
@@ -599,6 +613,20 @@
 			frappe.utils.play_sound("numpad-touch");
 		}
 
+		// 「折扣」：填百分比 → 整单按它减（官方那颗虚线按钮的同一件事）。
+		function discount_dialog() {
+			p.dialog(t("trade.addDiscount"), [
+				{ fieldtype: "Float", fieldname: "percent", label: t("trade.discountPercent"),
+					precision: 2, default: num(discount_pct) },
+				{ fieldtype: "HTML", fieldname: "hint",
+					options: `<p class="text-muted">${p.escape(t("trade.discountPercentHint"))}</p>` },
+			], __("Save"), async (values) => {
+				discount_pct = Math.min(100, Math.max(0, num(values.percent)));
+				paint_cart();
+				if (paying) { paint_payment_amounts(); paint_payment_totals(); }
+			});
+		}
+
 		async function submit_order() {
 			const total = cart_net();
 			const amounts = payments_now();
@@ -614,13 +642,15 @@
 			const request = crypto.randomUUID();
 			const result = await p.call(api + "api_create_sale", {
 				shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
+				// 整单折扣（官方那颗「折扣」按百分比给）：服务端 `sale_totals(discount_total=…)`。
+				discount_total: cart_discount(),
 				lines: cart.map(row => ({ product: row.product, qty: num(row.qty),
 					unit_price: num(row.unit_price), discount: num(row.discount),
 					unit: row.unit, description: row.description,
 					warehouse: row.warehouse, location: row.location })),
 				payments, client_uuid: request,
 			}, "POST");
-			cart = []; selected = null; pad_target = null; pad_value = "";
+			cart = []; selected = null; pad_target = null; pad_value = ""; discount_pct = 0;
 			paying = false; pay_target = null;
 			p.success(t("trade.paidNotice", result.receipt_no || result.name,
 				p.money(result.change_amount)));
@@ -715,6 +745,9 @@
 			// 打印与邮件小票我们**没有做**（F22 的产品口径，位置上仍不画）；「新订单」就是
 			// 用户说的"结束下一单"那颗，官方也在这一组里。
 			q(".past-order-summary .summary-btns").html([
+				// 「打印收据」走**框架原生**打印视图（`/printview`，官方也是用它出小票；
+				// 我们自己的小票模板还没做，先开原生那份）。
+				done ? `<div class="btn btn-sm summary-btn print-btn">${p.escape(t("trade.printReceipt"))}</div>` : "",
 				`<div class="btn btn-sm summary-btn new-order-btn">${p.escape(t("trade.newOrder"))}</div>`,
 				can_write && done && doc.sale_type === "sale"
 					? `<div class="btn btn-sm summary-btn return-btn">${p.escape(t("trade.refund"))}</div>` : "",
@@ -869,6 +902,9 @@
 			cart_numpad(event.currentTarget.dataset.buttonValue);
 		});
 		$app.on("click", ".cart-totals-section .checkout-btn", () => void checkout());
+		// 官方那颗虚线「折扣」：填一个百分比，整单按它打折（落单时带 `discount_total`）。
+		// 输入用**原生 Dialog + Float**（仓库规定 Desk 里不写裸输入框）。
+		$app.on("click", ".cart-totals-section .add-discount-wrapper", () => discount_dialog());
 		$app.on("click", ".payment-modes .mode-of-payment", event => {
 			const method = event.currentTarget.dataset.mode;
 			pay_target = method;
@@ -907,6 +943,13 @@
 		});
 		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
 		$app.on("click", ".past-order-summary .new-order-btn", () => void new_invoice());
+		// 「打印收据」= 框架原生打印视图（官方出小票也走这一条）。
+		$app.on("click", ".past-order-summary .print-btn", () => {
+			if (!active_order) return;
+			const url = "/printview?doctype=" + encodeURIComponent("ERP Sale")
+				+ "&name=" + encodeURIComponent(active_order.name) + "&trigger_print=1";
+			window.open(url, "_blank", "noopener,noreferrer");
+		});
 
 		function refund(doc) {
 			const request = crypto.randomUUID();

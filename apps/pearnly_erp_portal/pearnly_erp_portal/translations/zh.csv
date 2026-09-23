@@ -7,6 +7,7 @@ Abbreviated Tax Invoice,简式税务发票
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
+Add Discount,折扣
 Add Employee,添加员工
 Add User,添加用户
 Add VAT,计算增值税
@@ -177,6 +178,7 @@ Discount (%),折扣率 (%)
 Discount Amount,折扣金额
 Discount Total,折扣总额
 Discount cannot exceed the amount,折扣不能超过金额
+Discount percentage,折扣百分比
 Document,单据
 Document Number,单据编号
 Document Type,单据类型
@@ -193,7 +195,7 @@ Draft not found,找不到这条草稿
 Due Date,到期日
 ERP Stock Count Variance,盘点差异看板
 Edit,编辑
-Edit Cart,回到购物车
+Edit Cart,返回购物车
 Edit in Full Page,全屏编辑
 Email,邮箱
 Enable,启用
@@ -203,6 +205,7 @@ Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
 Enter a tax ID first,请先填税号
 Enter a valid email,请填写正确的邮箱
+Enter discount percentage,输入折扣百分比
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Enter the user name,请填写用户名
@@ -414,6 +417,7 @@ Previous,上一个
 Price,售价
 Prices Include Tax,价格含税
 Print,打印
+Print Receipt,打印收据
 Product,产品
 Product / position / counted by / time,物料 / 位置 / 盘点人 / 时间
 Product Ref,物料外部标识
@@ -603,8 +607,10 @@ This document has no content,这份文件是空的
 This document is too large,这份文件太大
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 To Date,结束日期
+Total,总计
 Total Amount,总金额
 Total Due,应收金额
+Total Items,总数量
 Total Taxes and Charges,总税费
 Total items,总件数
 Total · {0} row(s),合计 · {0} 条明细
@@ -1108,6 +1114,7 @@ trade.action.pay,收款
 trade.action.submit,提交
 trade.action.voidCount,作废选中的 {0} 张
 trade.actualQty,数量（仓库）
+trade.addDiscount,折扣
 trade.addedToCart,已加入：{0}
 trade.address,地址
 trade.allItems,所有物料
@@ -1118,7 +1125,7 @@ trade.branchNo,分店编号
 trade.branchType,分店类型
 trade.buyer,客户
 trade.buyerType,客户类型
-trade.byMethod,按收款方式
+trade.byMethod,收付款
 trade.cart,购物车
 trade.cartClear,清空购物车
 trade.cartClearConfirm,要清空购物车吗？
@@ -1145,8 +1152,10 @@ trade.diffEven,刚好对上
 trade.diffOver,多钱 {0}
 trade.diffShort,短钱 {0}
 trade.discount,折扣金额
+trade.discountPercent,折扣百分比
+trade.discountPercentHint,输入折扣百分比
 trade.docNo,单据编号
-trade.editCart,回到购物车
+trade.editCart,返回购物车
 trade.enterAmount,输入{0}金额
 trade.expectedAmount,应有金额
 trade.expectedCash,应有现金
@@ -1168,7 +1177,7 @@ trade.itemsNotFound,没找到物料
 trade.kind,单据类型
 trade.kind.refund,退货退款
 trade.kind.sale,销售
-trade.lines,物料明细
+trade.lines,商品
 trade.listPrice,标价
 trade.location,仓位
 trade.method,付款方式
@@ -1176,7 +1185,7 @@ trade.methodCard,刷卡
 trade.methodCash,现金
 trade.methodPromptpay,扫码（PromptPay）
 trade.methodTransfer,转账
-trade.net,净额
+trade.net,净总计
 trade.newIn,新建入库单
 trade.newInvoice,新单
 trade.newOrder,新订单
@@ -1193,7 +1202,7 @@ trade.opening,期初数量
 trade.openingAmount,期初金额
 trade.originalLine,原单物料与仓位
 trade.out,出库数量
-trade.paid,实收金额
+trade.paid,付款金额
 trade.paidNotice,小票 {0} · 找零 {1}
 trade.pay,收款完成
 trade.paymentDate,付款日期
@@ -1201,6 +1210,7 @@ trade.paymentState,付款状态
 trade.pickLine,先选一行
 trade.pickPadTarget,先点数量、折扣或单价
 trade.price,单价
+trade.printReceipt,打印收据
 trade.product,物料
 trade.qty,数量
 trade.recentOrders,最近订单
@@ -1246,8 +1256,8 @@ trade.taxNo,税务发票号
 trade.terminal,收银台
 trade.terminalHint,留空使用默认收银台
 trade.to,结束日期
-trade.total,应收金额
-trade.totalItems,总件数
+trade.total,总计
+trade.totalItems,总数量
 trade.totalRows,合计 · {0} 条明细
 trade.underpaid,实收不够应收
 trade.unit,单位

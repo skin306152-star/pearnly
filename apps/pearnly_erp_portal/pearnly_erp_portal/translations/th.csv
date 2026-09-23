@@ -7,6 +7,7 @@ Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่�
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
+Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
 Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
@@ -177,6 +178,7 @@ Discount (%),ส่วนลด (%)
 Discount Amount,จำนวนส่วนลด
 Discount Total,ยอดส่วนลดรวม
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
+Discount percentage,เปอร์เซ็นต์ส่วนลด
 Document,เอกสาร
 Document Number,เลขที่เอกสาร
 Document Type,ประเภทเอกสาร
@@ -203,6 +205,7 @@ Enable {0} selected,เปิดใช้งาน {0} รายการที�
 Enabled,เปิดใช้งานแล้ว
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
+Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
@@ -414,6 +417,7 @@ Previous,ก่อนหน้า
 Price,ราคา
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
+Print Receipt,พิมพ์ใบเสร็จ
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 Product Ref,รหัสอ้างอิงสินค้า
@@ -603,8 +607,10 @@ This document has no content,ไฟล์นี้ไม่มีเนื้อ
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 To Date,ณ วันที่
+Total,ยอดชำระ
 Total Amount,จำนวนเงินรวม
 Total Due,ยอดชำระ
+Total Items,จำนวนชิ้น
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
 Total items,จำนวนชิ้น
 Total · {0} row(s),รวม · {0} รายการ
@@ -1108,6 +1114,7 @@ trade.action.pay,รับชำระ
 trade.action.submit,ยืนยัน
 trade.action.voidCount,ยกเลิก {0} รายการที่เลือก
 trade.actualQty,จำนวนคงเหลือ
+trade.addDiscount,เพิ่มส่วนลด
 trade.addedToCart,เพิ่มแล้ว: {0}
 trade.address,ที่อยู่
 trade.allItems,รายการทั้งหมด
@@ -1118,7 +1125,7 @@ trade.branchNo,เลขที่สาขา
 trade.branchType,ประเภทสาขา
 trade.buyer,ลูกค้า
 trade.buyerType,ประเภทลูกค้า
-trade.byMethod,แยกตามวิธีรับเงิน
+trade.byMethod,การรับชำระ
 trade.cart,ตะกร้า
 trade.cartClear,ล้างตะกร้า
 trade.cartClearConfirm,ล้างตะกร้าใช่ไหม
@@ -1145,6 +1152,8 @@ trade.diffEven,ตรงกัน
 trade.diffOver,เกินมา {0}
 trade.diffShort,ขาดไป {0}
 trade.discount,ส่วนลด
+trade.discountPercent,เปอร์เซ็นต์ส่วนลด
+trade.discountPercentHint,กรอกเปอร์เซ็นต์ส่วนลด
 trade.docNo,เลขที่เอกสาร
 trade.editCart,กลับไปที่ตะกร้า
 trade.enterAmount,กรอกจำนวนเงิน {0}
@@ -1201,6 +1210,7 @@ trade.paymentState,สถานะชำระเงิน
 trade.pickLine,เลือกบรรทัดก่อน
 trade.pickPadTarget,เลือกจำนวน ส่วนลด หรือราคาก่อน
 trade.price,ราคาต่อหน่วย
+trade.printReceipt,พิมพ์ใบเสร็จ
 trade.product,สินค้า
 trade.qty,จำนวน
 trade.recentOrders,ออเดอร์ล่าสุด
