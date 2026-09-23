@@ -39,7 +39,7 @@ from pearnly_dms.query import query_access as query_access
 from pearnly_dms.query import query_cards as query_cards
 from pearnly_dms.query import sales_readback as sales_readback
 from pearnly_dms.line.out import enqueue as _enqueue
-from pearnly_dms.line.out import push_text as _push
+from pearnly_dms.line.out import push_or_reply_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.line.out import start_loading as _start_loading

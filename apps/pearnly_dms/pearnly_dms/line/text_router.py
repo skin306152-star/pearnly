@@ -122,6 +122,8 @@ def capture_phone(
         payload["id_card"],
         text,
         payload.get("endpoint_id"),
+        1,
+        reply_token,
     )
 
 

@@ -23,6 +23,8 @@ jobs:
         run: python3 tests/test_product_feature_catalog.py
       - name: Verify queued/reflected dotted targets resolve
         run: python3 tests/test_queue_targets.py
+      - name: Verify DMS queue and reply-token call contracts
+        run: python3 scripts/test-dms-call-contracts.py
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Exercise audited offline DMS contracts

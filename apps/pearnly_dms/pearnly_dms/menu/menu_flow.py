@@ -157,6 +157,8 @@ def _choose(
             id_card,
             phone,
             payload.get("endpoint_id"),
+            1,
+            reply_token,
         )
         return
     if id_card:

@@ -119,12 +119,17 @@ class ProductNavigationAccess(unittest.TestCase):
         self.frappe.throw = Mock(side_effect=ValueError)
         self.frappe.get_roles = Mock(return_value=["DMS Operator"])
         self.frappe.has_permission = Mock(return_value=False)
+        self.frappe.log_error = Mock()
+        self.utils = types.ModuleType("frappe.utils")
+        self.page_filter = Mock(side_effect=lambda offered: offered)
+        self.utils.get_attr = Mock(return_value=self.page_filter)
         # A DMS site installs core + DMS, so only that product's menu is declared.
         self.frappe.get_hooks = Mock(return_value=[declaration('pearnly_dms')])
         self.shell = types.ModuleType("pearnly_core.shell")
         self.shell.entitlements = Mock(return_value=["roster", "push_record"])
         self.shell.PRODUCT_LABELS = {"dms": "DMS", "cowork": "Cowork", "erp": "ERP"}
-        self.modules = patch.dict(sys.modules, {"frappe": self.frappe, "pearnly_core.shell": self.shell})
+        self.modules = patch.dict(sys.modules, {"frappe": self.frappe, "frappe.utils": self.utils,
+                                               "pearnly_core.shell": self.shell})
         self.modules.start()
         self.addCleanup(self.modules.stop)
         self.namespace = {}
@@ -145,6 +150,9 @@ class ProductNavigationAccess(unittest.TestCase):
         self.frappe.has_permission.side_effect = lambda doctype, perm: doctype in {'ERP Product', 'ERP Stock Count'}
         self.assertEqual(self.namespace['visible_pages']('erp'),
                          ['pearnly-home', 'pearnly-products', 'pearnly-stock-count'])
+        self.utils.get_attr.assert_called_once_with('pearnly_erp_portal.masters.nav.filter_pages')
+        self.assertIn('pearnly-inventory', self.page_filter.call_args.args[0])
+        self.frappe.log_error.assert_not_called()
         self.assertEqual(self.namespace['available_pages']('cowork'), set())
         groups = self.namespace['navigation_groups']('erp')
         self.assertEqual([g[0] for g in groups], ['nav.group.goodsStock', 'nav.group.purchasing',
@@ -158,11 +166,44 @@ class ProductNavigationAccess(unittest.TestCase):
         headings = [r for r in boot.workspace_sidebar_item['pearnly erp']['items'] if r.get('type') == 'Section Break']
         self.assertEqual([r['label'] for r in headings], ['nav.group.goodsStock'])
 
+    def test_product_page_filter_is_applied_before_native_permissions(self):
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.shell.entitlements.return_value = ['products', 'cashier']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype == 'ERP Sale'
+        self.page_filter.side_effect = lambda offered: {
+            route: value for route, value in offered.items() if value[3] != 'cashier'}
+        self.assertEqual(self.namespace['visible_pages']('erp'), ['pearnly-home'])
+        self.utils.get_attr.assert_called_once_with('pearnly_erp_portal.masters.nav.filter_pages')
+        offered = self.page_filter.call_args.args[0]
+        self.assertTrue({'pearnly-products', 'pearnly-cashier', 'pearnly-pos-receipts',
+                         'pearnly-pos-shifts'}.issubset(offered))
+        self.assertNotIn('pearnly-inventory', offered)  # Unpurchased features never reach the filter.
+        self.frappe.has_permission.assert_any_call('ERP Product', 'read')
+        self.assertNotIn(('ERP Sale', 'read'), [call.args for call in self.frappe.has_permission.call_args_list])
+        self.frappe.log_error.assert_not_called()
+
+    def test_page_filter_import_or_execution_failure_preserves_native_permissions(self):
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.shell.entitlements.return_value = ['products', 'warehouses']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype == 'ERP Product'
+        for stage in ('import', 'execute'):
+            with self.subTest(stage=stage):
+                self.frappe.log_error.reset_mock()
+                self.utils.get_attr.side_effect = ImportError('fixture') if stage == 'import' else None
+                self.page_filter.side_effect = RuntimeError('fixture') if stage == 'execute' else (lambda offered: offered)
+                self.assertEqual(self.namespace['visible_pages']('erp'), ['pearnly-home', 'pearnly-products'])
+                self.frappe.has_permission.assert_any_call('ERP Stock Balance', 'read')
+                self.frappe.log_error.assert_called_once_with(title='erp page_filter failed')
+
     def test_operator_does_not_see_admin_pages_even_when_site_bought_them(self):
         boot = self.boot()
+        # Stale stored grouping must not leave a flat item with a missing parent.
+        boot.workspace_sidebar_item["pearnly dms"]["items"][0].update(child=1, indent=1)
         self.namespace["extend_boot"](boot)
         self.assertEqual(boot.pearnly_pages, ["pearnly-home"])
-        self.assertEqual(boot.workspace_sidebar_item["pearnly dms"]["items"], [{"link_to":"pearnly-home"}])
+        self.assertEqual(boot.workspace_sidebar_item["pearnly dms"]["items"],
+                         [{"link_to": "pearnly-home", "child": 0, "indent": 0}])
+        self.utils.get_attr.assert_not_called()  # DMS declares no product page filter.
 
     def test_company_title_uses_onboarding_name_without_changing_sidebar_identity(self):
         self.frappe.conf["pearnly_workspace"] = "Existing Company"
@@ -219,11 +260,29 @@ class ProductNavigationAccess(unittest.TestCase):
     def test_save_uses_only_current_user_default_and_current_permissions(self):
         self.frappe.get_roles.return_value = ["DMS Admin"]
         routes = ["pearnly-roster", "pearnly-home", "pearnly-connect", "pearnly-records"]
-        self.assertEqual(self.namespace["save_sidebar_order"](json.dumps(routes)), {"routes": routes})
+        self.assertEqual(self.namespace["save_sidebar_order"](json.dumps(routes)),
+                         {"routes": routes, "pages": ["pearnly-home", "pearnly-connect",
+                                                        "pearnly-records", "pearnly-roster"]})
         self.frappe.defaults.set_user_default.assert_called_once_with("pearnly_sidebar_order_dms", json.dumps(routes))
         self.frappe.get_roles.return_value = ["DMS Operator"]
         with self.assertRaises(ValueError):
             self.namespace["save_sidebar_order"](routes)
+
+    def test_saving_sidebar_order_preserves_user_menu_page_access(self):
+        self.frappe.conf['pearnly_product'] = 'erp'
+        self.frappe.get_hooks.return_value = [declaration('pearnly_erp_portal')]
+        self.frappe.get_roles.return_value = ['ERP Admin']
+        self.shell.entitlements.return_value = ['products']
+        self.frappe.has_permission.side_effect = lambda doctype, perm: doctype in {
+            'ERP Product', 'ERP Company', 'ERP Warehouse'}
+        routes = ['pearnly-products', 'pearnly-home']
+        self.assertEqual(self.namespace['save_sidebar_order'](routes),
+                         {'routes': routes, 'pages': ['pearnly-home', 'pearnly-products',
+                                                      'pearnly-company', 'pearnly-warehouses', 'pearnly-team']})
+        self.frappe.defaults.set_user_default.assert_called_once_with('pearnly_sidebar_order_erp', json.dumps(routes))
+        with self.assertRaises(ValueError):
+            self.namespace['save_sidebar_order'](routes + ['pearnly-team'])
+        self.assertEqual(self.frappe.defaults.set_user_default.call_count, 1)
 
     def test_guest_cannot_save_order(self):
         self.frappe.session.user = "Guest"

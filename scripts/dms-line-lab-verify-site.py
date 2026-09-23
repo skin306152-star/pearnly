@@ -38,15 +38,25 @@ try:
     check(connections.get_connection()["endpoint"]["name"] == shared, "connection screen still selects the company connection")
     endpoint = frappe.get_doc("Pearnly ERP Endpoint", ep_a["name"])
     check(endpoint.get_password("password") == "lab-password-a", "encrypted operator password reaches adapter source")
-    roster.update_operator(first["name"], dms_password="lab-password-a-new", dms_username="lab-a-renamed")
+    original_username = endpoint.username
+    try:
+        roster.update_operator(first["name"], dms_password="must-not-be-applied", dms_username="lab-a-renamed")
+    except frappe.ValidationError:
+        pass
+    else:
+        raise AssertionError("operator username must remain immutable")
     endpoint.reload()
-    check(endpoint.username == "lab-a-renamed" and endpoint.get_password("password") == "lab-password-a-new",
-          "credential change synchronizes the owned endpoint")
+    check(endpoint.username == original_username and endpoint.get_password("password") == "lab-password-a",
+          "rejected username change leaves identity and password unchanged")
+    roster.update_operator(first["name"], dms_password="lab-password-a-new", dms_username=original_username)
+    endpoint.reload()
+    check(endpoint.username == original_username and endpoint.get_password("password") == "lab-password-a-new",
+          "password change synchronizes the owned endpoint without changing identity")
     connections.save_connection("lab-owner-new", "lab-owner-secret-new", "https://example.test/updated-dms/index.php")
     endpoint.reload()
     check(endpoint.admin_username == "lab-owner-new" and endpoint.get_password("admin_password") == "lab-owner-secret-new",
           "company read credentials propagate without changing sales credentials")
-    check(endpoint.username == "lab-a-renamed" and endpoint.system_url.endswith("/updated-dms/index.php"), "organization URL updates preserve employee identity")
+    check(endpoint.username == original_username and endpoint.system_url.endswith("/updated-dms/index.php"), "organization URL updates preserve employee identity")
     connections.set_connection_enabled(0)
     check(resolve_dms_endpoint(user_a, ep_a["name"]) is None, "company suspension also suspends employee writes")
     connections.set_connection_enabled(1)

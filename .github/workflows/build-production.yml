@@ -25,7 +25,9 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Enforce architecture boundaries
-        run: python3 scripts/check-architecture.py
+        run: |
+          python3 scripts/check-architecture.py
+          python3 scripts/test-dms-call-contracts.py
       - name: Verify Desk retry actions
         run: |
           node scripts/production/test-issue-actions.cjs
@@ -56,7 +58,24 @@ jobs:
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
             -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-line-runtime.py
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-intake-queue.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-query-output.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
             -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_teardown_members.py
+      - name: Verify signed DMS webhook and native queued booking in an isolated Site
+        env:
+          PEARNLY_FLOW_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml up -d --wait db redis bench
+          docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml exec -T bench env/bin/python /workspace/scripts/dms-flow-lab-init.py
+          docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-native-flow.py
+          docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml exec -T -w /home/frappe/frappe-bench/sites bench /home/frappe/frappe-bench/env/bin/python -c 'import frappe,runpy; frappe.init(site="dms-flow-lab.localhost"); frappe.connect(); frappe.set_user("Administrator"); runpy.run_path("/workspace/scripts/sample-verify-dms-booking-flow.py")["main"]()'
+      - name: Remove only the disposable DMS flow laboratory
+        if: always()
+        env:
+          PEARNLY_FLOW_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml down --volumes
       - name: Verify runtime and frontend assets
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}

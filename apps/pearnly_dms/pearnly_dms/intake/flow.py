@@ -632,7 +632,7 @@ def execute(
             summary=payload.get("summary"),
         )
     elif result.get("error_code") == "ERR_DMS_ADMIN_AUTH":
-        _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL)  # 不谎称已自动通知
+        _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL, reply_token)  # 不谎称已自动通知
     else:
         fr = result.get("error_friendly") or {}
         # 连不上 DMS（超时/打不开）时不把锅甩给"我们内部错误"：给一次「重试」的机会，

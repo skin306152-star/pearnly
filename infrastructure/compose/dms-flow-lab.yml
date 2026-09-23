@@ -1,0 +1,38 @@
+# Task-owned, offline DMS flow lab. No shared volumes, host ports or credentials.
+name: pearnly-dms-flow-lab
+services:
+  db:
+    extends:
+      file: unified-release-lab.yml
+      service: db
+  redis:
+    extends:
+      file: unified-release-lab.yml
+      service: redis
+  bench:
+    # Native local image has the pinned Frappe 16.33.0 runtime. All candidate
+    # packages are mounted below; this is not claimed to be the production image.
+    image: ${PEARNLY_FLOW_LAB_IMAGE:-sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9}
+    mem_limit: 1g
+    cpus: 1.5
+    command: [sleep, infinity]
+    environment:
+      PEARNLY_DMS_FLOW_LAB: "1"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+      - ../../scripts:/workspace/scripts:ro
+      - ../../tests:/workspace/tests:ro
+networks:
+  default:
+    internal: true
+volumes:
+  db:
+  sites:

@@ -278,8 +278,9 @@ def main():
         binding, uid11, {"nonce": n11, "qa": QA},
         {"preflight": "changed", "qa": QA},
     )
-    ck("主档改名 → 重发摘要 + 新预览卡（草稿仍在待确认态）",
-       len(sent_structured) == 2
+    ck("主档改名 → 提示并入一张新预览卡（草稿仍在待确认态）",
+       len(sent_structured) == 1
+       and flow.qa_cards.TXT_MASTER_CHANGED in str(sent_structured[0])
        and ((store.get_session(uid11) or {}).get("payload") or {}).get("nonce") is not None,
        len(sent_structured))
 
