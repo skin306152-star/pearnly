@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 29;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 32;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -547,6 +547,13 @@ window.__pos_adapter_v = 29;   // 排查用：确认页面到底加载到哪一�
 			// 我们产品里本来也没有"草稿单"这种状态：单据由 `api_create_sale` 在**完成订单**时
 			// 一次落定（写单 + 出库存 + 提交），所以这里只切屏。
 			save_and_checkout() {
+				// **那一声「结账」是"存草稿"带来的**：官方 `.checkout-btn` → `save_and_checkout()`
+				// → `frm.save()` → frappe `form.js` 存成功后播 `click`（音量 0.05；官方 POS 上实测
+				// 就是这一声，加购本身不响）。我们把保存去掉了，这一声就得自己补 —— 同一时刻、同一声、
+				// 同样只在"车里有东西"时响（官方 `is_dirty()` 那条件、我们旧页面 `if (!cart.length) return`）。
+				// 音量与静音不用在这里判：官方 `play_sound` 自己看 `User.mute_sounds`。
+				const doc = this.frm && this.frm.doc;
+				if (doc && (doc.items || []).length) frappe.utils.play_sound("click");
 				this.payment.checkout();
 			}
 
@@ -583,6 +590,10 @@ window.__pos_adapter_v = 29;   // 排查用：确认页面到底加载到哪一�
 					}, "POST");
 					doc.name = result.name;
 					doc.receipt_no = result.receipt_no;
+					// **那一声「完成订单」是"提交成功"带来的**：官方 `frm.savesubmit()` 成功后由
+					// frappe `form.js` 播 `submit`。我们换成了自己的落单接口，这一步同样自己补 ——
+					// 成功之后、绿条之前，与官方那是同一时刻。
+					frappe.utils.play_sound("submit");
 					this.toggle_components(false);
 					this.toggle_submitted_invoice_summary(true);
 					frappe.show_alert({
@@ -667,25 +678,38 @@ window.__pos_adapter_v = 29;   // 排查用：确认页面到底加载到哪一�
 				}
 				return out;
 			}
-			// 扫到码之后：**唯一一条就直接进购物车**（我们之前的行为），一条都没有就照实说。
-			// 走的仍是官方自己那套 —— `filter_items()` 画完卡之后，对那一张卡触发一次它自己的点击。
+			// **"唯一命中直接进车"官方自己就有**，不要自己再点一次卡：
+			// `filter_items()` 里那两处 `auto_add_item && 搜索框有值 && this.items.length == 1
+			// → add_filtered_item_to_cart()`，而我们的设置在 `auto_add_item_to_cart: 1`。
+			// 早先那版我自己又点了一次卡 —— 于是**同一次扫码进两瓶**（实测：一次输入从 1 瓶变 2 瓶）。
+			// 现在加货一律走官方那条路，我们只补官方没有的两件：相机按钮（`make_search_bar`）
+			// 与**声音**（官方那两声只在"回车"那条路上，而相机是 `set_value()` 回填、没有回车）。
+			add_filtered_item_to_cart() {
+				const out = super.add_filtered_item_to_cart();
+				// 相机扫到的字回填进搜索框 → 官方画出一条并自动进车 —— 这一路官方是**静音**的
+				// （它只在回车那条路上播 `submit`）。按我们旧页面的口径补同一颗音：
+				// **扫码命中**才响，手输搜索不响。
+				if (this.pearnly_scanned) {
+					this.pearnly_scanned = false;
+					frappe.utils.play_sound("submit");
+				}
+				return out;
+			}
+			// 相机扫到**没有**对应物料：官方那句提示也在回车那条路上（`items.length == 0 &&
+			// this.barcode_scanned`），相机这条路没有回车 —— 照我们旧页面的口径给一声提示 + `error`。
 			async filter_items(args) {
 				const out = await super.filter_items(args);
 				if (!this.pearnly_scanned) return out;
+				if (this.$component.find(".items-container .item-wrapper").length) return out;
 				this.pearnly_scanned = false;
-				const $cards = this.$component.find(".items-container .item-wrapper");
-				const scanned_code = String((args && args.search_term) || "").trim();
-				if ($cards.length === 1) {
-					$cards.first().trigger("click");
-					await this.search_field?.set_value?.("");
-				} else if (!$cards.length) {
-					frappe.show_alert({
-						// 与我们旧页面同一句（术语表 `trade.scanNotFound`）。
-						message: __("No product for this code: {0}", [scanned_code]),
-						indicator: "orange",
-					});
-					frappe.utils.play_sound("error");
-				}
+				frappe.show_alert({
+					// 与我们旧页面同一句（术语表 `trade.scanNotFound`）。
+					message: __("No product for this code: {0}", [
+						String((args && args.search_term) || "").trim(),
+					]),
+					indicator: "orange",
+				});
+				frappe.utils.play_sound("error");
 				return out;
 			}
 			// 官方这一段会去读 `POS Profile.selling_price_list`（`frappe.db.get_value("POS Profile", …)`）。
