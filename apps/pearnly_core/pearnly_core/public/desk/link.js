@@ -28,9 +28,17 @@
 	// 目标页没渲染成功时不能留着，否则下次进那一页会莫名弹出新建）。
 	p.pending_create = null;
 	p.PENDING_CREATE_TTL_MS = 60000;
-	p.open_link_create = doctype => {
+	// 跳走之前把**发起这次跳转的那张弹窗**收起来：框架的弹窗不跟着路由消失，
+	// 不关的话用户到了我们的页面，屏上还压着原来那张（实测：箭头跳过去之后
+	// 「新建物料」还盖在上面）。用的就是框架 `Dialog.hide()` 那一句 —— `$wrapper.modal("hide")`。
+	p.dismiss_modal_of = $from => {
+		const modal = $from && $from.closest && $from.closest(".modal");
+		if (modal && modal.length) modal.modal("hide");
+	};
+	p.open_link_create = (doctype, $from) => {
 		const route = p.link_target(doctype);
 		if (!route) return false;
+		p.dismiss_modal_of($from);
 		p.pending_create = {route, doctype, at: Date.now()};
 		frappe.set_route(route);
 		return true;
@@ -42,6 +50,28 @@
 		p.pending_create = null;
 		if (Date.now() - Number(pending.at || 0) > p.PENDING_CREATE_TTL_MS) return false;
 		await open();
+		return true;
+	};
+
+	// 选择框右边那颗**箭头**（官方叫 "Open Link"）本来指向官方表单
+	// （`frappe.utils.get_form_link` → `/desk/erp-warehouse/WH-00101`）—— 用户
+	// 2026-09-23："图二那个箭头按钮会带到别的地方……这个界面根本不是我们自己的"。
+	// 所以箭头也回我们自己那一页，并由那一页打开这条记录（`p.take_open`，同 create 那套）。
+	p.pending_open = null;
+	p.open_link_record = (doctype, name, $from) => {
+		const route = p.link_target(doctype);
+		if (!route || !name) return false;
+		p.dismiss_modal_of($from);
+		p.pending_open = {route, doctype, name, at: Date.now()};
+		frappe.set_route(route);
+		return true;
+	};
+	p.take_open = async (route, doctype, open) => {
+		const pending = p.pending_open;
+		if (!pending || pending.route !== route || pending.doctype !== doctype) return false;
+		p.pending_open = null;
+		if (Date.now() - Number(pending.at || 0) > p.PENDING_CREATE_TTL_MS) return false;
+		await open(pending.name);
 		return true;
 	};
 
@@ -68,17 +98,39 @@
 
 		// 官方那两项的兜底：万一入口还在（字段没设 `only_select`），动作也必须落在我们自己的页面上。
 		new_doc() {
-			if (p.open_link_create(this.get_options())) return false;
+			if (p.open_link_create(this.get_options(), this.$input)) return false;
 			return super.new_doc();
 		}
 
 		open_advanced_search() {
 			const route = p.link_target(this.get_options());
 			if (route) {
+				p.dismiss_modal_of(this.$input);
 				frappe.set_route(route);
 				return false;
 			}
 			return super.open_advanced_search();
+		}
+
+		// 箭头那颗按钮：官方在这里写的是官方表单地址，我们改成自己那一页 + 打开这条记录。
+		show_link_and_clear_buttons() {
+			super.show_link_and_clear_buttons();
+			// 明确"不要跳走"的格子（收银台的客户搜索框）：连官方那颗箭头也藏掉 —— 它指向
+			// 官方表单，点了不但出了我们的界面，还会把正在开的这一单丢掉。
+			if (this.df && this.df.pearnly_no_create) {
+				this.$link_open && this.$link_open.hide();
+				return;
+			}
+			const route = p.link_target(this.get_options());
+			const name = this.get_input_value();
+			if (!route || !name || !this.$link_open) return;
+			this.$link_open
+				.attr("href", "/desk/" + route)
+				.off("click.pearnly")
+				.on("click.pearnly", event => {
+					event.preventDefault();
+					p.open_link_record(this.get_options(), name, this.$input);
+				});
 		}
 
 		// 下拉里那两项是官方在 `on_input` 的回调里拼好的，拼完紧接着调 `toggle_href`
@@ -113,7 +165,7 @@
 					label: __("Create a new {0}", [__(doctype)]),
 					// 值以 `__link_option` 结尾：官方选中后会据此把输入框清空（`link.js`）。
 					value: "pearnly_create__link_option",
-					action: () => p.open_link_create(doctype),
+					action: () => p.open_link_create(doctype, this.$input),
 				});
 			}
 			aw.list = kept;

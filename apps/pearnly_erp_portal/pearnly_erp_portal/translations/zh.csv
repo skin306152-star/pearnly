@@ -239,6 +239,7 @@ Find,查询
 Find product,查找物料
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+First warehouse of this company (more on the Warehouses page),这家公司的第一个仓库（之后在「仓库」页再加）
 Fiscal year start month,财年起月
 Foreigner,外国人
 Found: {0},已查到：{0}
@@ -776,6 +777,7 @@ company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
 company.warehouseDefaultName,主仓
+company.warehouseHint,这家公司的第一个仓库（之后在「仓库」页再加）
 company.yes,是
 completed,已完成
 count,盘点

@@ -239,6 +239,7 @@ Find,Find
 Find product,Find product
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
 Fiscal year start month,Fiscal year start month
 Foreigner,Foreigner
 Found: {0},Found: {0}
@@ -776,6 +777,7 @@ company.status.inactive,Disabled
 company.subtitle,The company on your documents
 company.taxHint,13 digits; a branch adds its 5-digit branch number
 company.warehouseDefaultName,Main
+company.warehouseHint,First warehouse of this company (more on the Warehouses page)
 company.yes,Yes
 completed,completed
 count,count

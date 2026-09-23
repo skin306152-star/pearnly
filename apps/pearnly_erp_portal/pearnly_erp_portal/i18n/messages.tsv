@@ -831,6 +831,7 @@ Company details	公司信息	ข้อมูลบริษัท	会社情報	c
 Warehouse	仓库	คลังสินค้า	倉庫	company.section.warehouse
 Warehouse	仓库	คลังสินค้า	倉庫	company.field.warehouse
 Main	主仓	คลังหลัก	メイン倉庫	company.warehouseDefaultName
+First warehouse of this company (more on the Warehouses page)	这家公司的第一个仓库（之后在「仓库」页再加）	คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)	この会社の最初の倉庫（追加は「倉庫」ページから）	company.warehouseHint
 Warehouse name	仓库名称	ชื่อคลังสินค้า	倉庫名	company.col.warehouse
 Default warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	company.col.defaultWarehouse
 New warehouse	新建仓库	เพิ่มคลังสินค้า	倉庫を追加	company.newWarehouse

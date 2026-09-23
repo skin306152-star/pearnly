@@ -828,10 +828,13 @@
 					data: rows || METHODS.map(method => ({ method, opening_amount: 0,
 						counted_amount: 0, currency: CURRENCY })),
 					fields: [
+						// 列宽（官方 grid 的 `columns` 是相对权重）：付款方式那一列原来没给宽度，
+						// 在弹窗里被压到只剩一小截、选择框看起来"显示不全被隐藏"
+						// （用户 2026-09-23）。这几列按"选得清、读得全"排。
 						{ fieldname: "method", fieldtype: "Select", options: METHODS.join("\n"),
-							label: t("trade.method"), in_list_view: 1, reqd: 1 },
+							label: t("trade.method"), in_list_view: 1, reqd: 1, columns: 5 },
 						{ fieldname: "opening_amount", fieldtype: "Currency", options: "currency",
-							label: t("trade.openingAmount"), in_list_view: 1 },
+							label: t("trade.openingAmount"), in_list_view: 1, columns: 4 },
 						...fields_extra,
 					] },
 			];
@@ -906,11 +909,11 @@
 					label: t("trade.changeTotal"), read_only: 1, default: data.change_total },
 				...balance_table([
 					{ fieldname: "expected_amount", fieldtype: "Currency", options: "currency",
-						label: t("trade.expectedAmount"), in_list_view: 1, read_only: 1 },
+						label: t("trade.expectedAmount"), in_list_view: 1, read_only: 1, columns: 3 },
 					{ fieldname: "counted_amount", fieldtype: "Currency", options: "currency",
-						label: t("trade.countedAmount"), in_list_view: 1, reqd: 1 },
+						label: t("trade.countedAmount"), in_list_view: 1, reqd: 1, columns: 3 },
 					{ fieldname: "difference", fieldtype: "Currency", options: "currency",
-						label: t("trade.diff"), in_list_view: 1, read_only: 1 },
+						label: t("trade.diff"), in_list_view: 1, read_only: 1, columns: 3 },
 				], rows),
 				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "cash_diff",
 					label: t("trade.diff"), read_only: 1, default: 0 },

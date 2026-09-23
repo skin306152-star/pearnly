@@ -115,10 +115,11 @@
 				row_actions: null,
 				empty_action: can_write() ? {label: t("company.new"), action: () => editor(null)} : null});
 			restore_new();
-			// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
-			if (can_write()) await p.take_create("pearnly-company", "ERP Company", () => editor(null));
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
+			// 别处的选择框指过来时（`link.js` 的 one-shot）：新建公司 / 打开这家公司。
+			if (can_write()) await p.take_create("pearnly-company", "ERP Company", () => editor(null));
+			await p.take_open("pearnly-company", "ERP Company", name => frappe.set_route(root, name));
 		}
 
 		function can_write() {
@@ -154,10 +155,15 @@
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
 				// 新公司**顺手建第一个仓库**（用户 2026-09-23：新建公司时就加这个入口）：
 				// 没有仓库就入不了库、卖不了货；建好之后它就这家公司的默认仓，之后还能再加。
+				// 这里给的是**名字**（新公司还没有仓库可选）—— 原先这一段的标题也叫「仓库」，
+				// 紧跟的字段标签也是「仓库」，同一个词连着出现两次，看起来像个坏掉的选择框
+				// （用户 2026-09-23："仓库也没法下拉选择且不能新建"）。标题去掉，只留字段 +
+				// 官方字段自带的 description 说明它是什么。
 				...(is_new ? [
-					{fieldtype: "Section Break", label: t("company.section.warehouse")},
+					{fieldtype: "Section Break"},
 					f("warehouse_name", "company.field.warehouse", "Data",
-						{default: t("company.warehouseDefaultName")}),
+						{default: t("company.warehouseDefaultName"),
+							description: t("company.warehouseHint")}),
 				] : []),
 			];
 			holder.dialog = p.dialog(is_new ? t("company.new") : row.company_name, fields,

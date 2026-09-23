@@ -98,7 +98,10 @@
 			f("payment_status", "Payment Status", "Select", {hidden: editable, read_only: 1, options: u.options(["unpaid", "partial", "paid"])}),
 			f("payment_method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), depends_on: "eval:doc.is_paid"}),
 			f("due_date", "Due Date", "Date", {depends_on: "eval:!doc.is_paid"}),
-			u.section("Supplier"),
+			// 这一段原先的标题就是「供应商」，紧跟的字段也叫「供应商」—— 同一个词连着出现两次
+			// （用户 2026-09-23："这一页甚至出现供应商/供应商名称，这种重复字段"）。标题去掉，
+			// 分组仍然靠 Section Break 换行；名字只在字段标签上说一次。
+			u.section(""),
 			f("supplier", "Supplier", "Link", {options: "ERP Supplier", hidden: !editable, get_query: () => ({filters: {is_active: 1}}),
 				async onchange() {
 					const name = state.form?.get_value("supplier"); if (!name || !editable || !state.ready) return;
@@ -109,7 +112,9 @@
 						supplier_branch_type: row.branch_type === "head" ? "head_office" : row.branch_type || "none",
 						supplier_branch_no: row.branch_no, supplier_branch_name: row.branch_name, supplier_address: row.address});
 				}}),
-			f("supplier_name", "Supplier Name", "Data", {reqd: 1}),
+			// 供应商名称由上面那条 Link **带出来**（onchange 里 set_values），所以这里只读：
+			// 它是"单据上印什么"，不是一个要和主档选一遍的重复输入框。
+			f("supplier_name", "Supplier Name", "Data", {reqd: 1, read_only: 1}),
 			f("supplier_tax_id", "Tax ID"), f("supplier_address", "Address", "Small Text"), col(),
 			f("supplier_branch_type", "Branch Type", "Select", {options: u.options(["head_office", "branch", "none"])}),
 			f("supplier_branch_no", "Branch No", "Data", {depends_on: "eval:doc.supplier_branch_type === 'branch'"}),
@@ -122,7 +127,7 @@
 						f("method", "Mode of Payment", "Select", {options: u.options(["cash", "transfer", "promptpay", "bank", "cheque", "other"]), in_list_view: 1, columns: 2}),
 						f("note", "Remarks", "Data", {in_list_view: 1, columns: 4}), f("is_reversal", "Reversal", "Check"), f("reference", "Reference")]}),
 			] : []),
-			u.section("Items", {fieldname: "items_section"}),
+			u.section("", {fieldname: "items_section"}),
 			f("currency", "Currency", "Select", {options: "THB\nUSD\nEUR\nCNY\nJPY\nSGD", reqd: 1}), col(),
 			f("fx_rate", "Exchange Rate", "Float", {reqd: 1, precision: 6, depends_on: `eval:doc.currency !== '${state.defaults.settings.base_currency}'`}),
 			f("price_mode", "Prices Include Tax", "Select", {options: u.options(["exclusive", "inclusive"])}),

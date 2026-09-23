@@ -134,9 +134,14 @@
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
 		restore_new();
-		// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
-		if (can_write) await p.take_create("pearnly-suppliers", "ERP Supplier", () => editor());
 		p.add_refresh(page, () => void list.reload());
 		await list.ready;
+		// 别处的选择框指过来时（`link.js` 的 one-shot）：新建 / 打开这条记录。
+		// **要在列表就绪之后**：按名字找行得先有行。
+		if (can_write) await p.take_create("pearnly-suppliers", "ERP Supplier", () => editor());
+		await p.take_open("pearnly-suppliers", "ERP Supplier", name => {
+			const row = (list.data || []).find(item => item.name === name);
+			if (row) editor(row);
+		});
 	};
 })();

@@ -191,6 +191,17 @@ body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option {
 body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option .fa {
 	color: var(--pearnly-accent);
 }
+/* 我们那条「新建 …」**永远看得见**：官方给浮层的 `max-height` 是 300px、超了就在里面滚，
+   而这条排在最后 —— 用户看到的是"没有新建"（2026-09-23："图一，仓库没有新建"、
+   "组件甚至显示不全"）。把它钉在浮层底部：结果照常滚，这一条一直在。
+   几何、白底、字体仍归官方，只加一条分隔线表明它是**动作**而不是一条结果。 */
+body.pearnly-product-desk .awesomplete > ul > li:has(.pearnly-link-option),
+body.pearnly-product-desk .awesomplete > ul > [role="option"]:has(.pearnly-link-option) {
+	position: sticky;
+	bottom: 0;
+	background-color: var(--card-bg);
+	border-top: 1px solid var(--border-color);
+}
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {
 	display: flex;

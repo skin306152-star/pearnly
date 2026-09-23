@@ -25,8 +25,10 @@ function boot({ links = LINKS, can_create = true, company = 'CO-00552' } = {}) {
   class NativeLink {
     constructor(df) { this.df = df || {}; }
     get_options() { return this.df.options; }
+    get_input_value() { return this.input_value || ""; }
     toggle_href() {}
     make_input() {}
+    show_link_and_clear_buttons() {}
     new_doc() { this.native_new_doc = true; return 'native'; }
     open_advanced_search() { this.native_advanced = true; return 'native'; }
   }
@@ -60,6 +62,23 @@ const native_two = () => ([
 const values_of = control => control.awesomplete._list.map(item => item.value);
 // 共享层在 vm 那个 realm 里造对象：直接 deepEqual 会比原型，先摊平成本地对象。
 const plain = value => JSON.parse(JSON.stringify(value));
+
+// 箭头那颗按钮（官方的 "Open Link"）：只有 attr/off/on，点一下就把事件派给挂上的处理函数。
+function fakeLinkButton() {
+  return {
+    href: null, handlers: {},
+    hidden: false,
+    attr(key, value) { if (key === 'href') this.href = value; return this; },
+    off() { this.handlers = {}; return this; },
+    on(event, handler) { this.handlers[event] = handler; return this; },
+    hide() { this.hidden = true; return this; },
+    click() {
+      let prevented = false;
+      this.handlers['click.pearnly']?.({preventDefault: () => { prevented = true; }});
+      return prevented;
+    },
+  };
+}
 
 (async () => {
   // 1) 声明读得回来；没登记的 doctype 没有目标
@@ -132,6 +151,56 @@ const plain = value => JSON.parse(JSON.stringify(value));
   b.p.pending_create = {route: 'pearnly-warehouses', doctype: 'ERP Warehouse', at: 0};
   assert.equal(await b.p.take_create('pearnly-warehouses', 'ERP Warehouse', () => opened.push('o')), false);
   assert.deepEqual(opened, ['y'], '过期的那次不弹');
+
+  // 10) 箭头（Open Link）：官方写的是官方表单地址，我们改成自己那一页 + 打开这条记录
+  const arrow_env = boot();
+  const arrow = new arrow_env.ControlLink({options: 'ERP Warehouse'});
+  arrow.$input = {closest: () => null};
+  arrow.$link_open = fakeLinkButton();
+  arrow.input_value = 'WH-00118';
+  arrow.show_link_and_clear_buttons();
+  assert.equal(arrow.$link_open.href, '/desk/pearnly-warehouses', '箭头指向我们那一页，不是官方表单');
+  assert.ok(arrow.$link_open.click(), '拦掉官方的默认跳转');
+  assert.deepEqual(arrow_env.routes, ['pearnly-warehouses']);
+  assert.deepEqual(plain(arrow_env.p.pending_open),
+    {route: 'pearnly-warehouses', doctype: 'ERP Warehouse', name: 'WH-00118',
+      at: arrow_env.p.pending_open.at});
+
+  // 目标页接手：对得上才开这条记录（取走即清），对不上不开
+  const opened_records = [];
+  assert.equal(await arrow_env.p.take_open('pearnly-suppliers', 'ERP Supplier',
+    name => opened_records.push(name)), false);
+  assert.equal(await arrow_env.p.take_open('pearnly-warehouses', 'ERP Warehouse',
+    name => opened_records.push(name)), true);
+  assert.deepEqual(opened_records, ['WH-00118']);
+  assert.equal(arrow_env.p.pending_open, null);
+
+  // 没登记的 doctype：箭头照官方（我们一个字都不写）
+  const plain_arrow = new arrow_env.ControlLink({options: 'ERP Purchase Category'});
+  plain_arrow.$input = {closest: () => null};
+  plain_arrow.$link_open = fakeLinkButton();
+  plain_arrow.input_value = 'CAT-1';
+  plain_arrow.show_link_and_clear_buttons();
+  assert.equal(plain_arrow.$link_open.href, null);
+
+  // 明确"不要跳走"的格子：连官方那颗箭头也藏掉（收银台的客户搜索框，跳走会丢单）
+  const stayed = new arrow_env.ControlLink({options: 'ERP Customer', pearnly_no_create: 1});
+  stayed.$input = {closest: () => null};
+  stayed.$link_open = fakeLinkButton();
+  stayed.input_value = 'CUS-00483';
+  stayed.show_link_and_clear_buttons();
+  assert.equal(stayed.$link_open.hidden, true, '箭头藏起来');
+  assert.equal(stayed.$link_open.href, null);
+  assert.deepEqual(arrow_env.routes, ['pearnly-warehouses'], '没有再跳一次');
+
+  // 11) 跳走前把发起跳转的那张弹窗收起来（框架的弹窗不跟路由消失）
+  const hidden = [];
+  const modal = {length: 1, modal(action) { hidden.push(action); }};
+  const from = {closest: selector => (selector === '.modal' ? modal : null)};
+  arrow_env.p.dismiss_modal_of(from);
+  assert.deepEqual(hidden, ['hide']);
+  arrow_env.p.dismiss_modal_of({closest: () => null});   // 不在弹窗里：什么都不做
+  assert.deepEqual(hidden, ['hide']);
 
   console.log('test-link-options: 全部通过');
 })();

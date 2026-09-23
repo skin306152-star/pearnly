@@ -69,12 +69,18 @@
 				empty_action: can_manage()
 					? {label: t("company.newWarehouse"), action: () => editor(null)} : null});
 			restore_new();
-			// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
-			if (can_manage()) {
-				await p.take_create("pearnly-warehouses", "ERP Warehouse", () => editor(null));
-			}
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
+			// 别处的选择框指过来时（`link.js` 的 one-shot）：点「新建」开这一页自己的新建弹窗；
+			// 点右边那颗箭头（打开这条记录）开它自己的弹窗。**必须在列表就绪之后** ——
+			// 要按名字找到那一行（`list.data`），早于加载就什么都找不到。
+			if (can_manage()) {
+				await p.take_create("pearnly-warehouses", "ERP Warehouse", () => editor(null));
+				await p.take_open("pearnly-warehouses", "ERP Warehouse", name => {
+					const row = (list.data || []).find(item => item.name === name);
+					if (row) editor(row);
+				});
+			}
 		}
 
 		function restore_new() {

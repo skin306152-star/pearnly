@@ -239,6 +239,7 @@ Find,検索
 Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
+First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal year start month,会計年度の開始月
 Foreigner,外国人
 Found: {0},取得: {0}
@@ -776,6 +777,7 @@ company.status.inactive,無効
 company.subtitle,書類に使う自社情報
 company.taxHint,13桁。支店は5桁の支店番号を続けます
 company.warehouseDefaultName,メイン倉庫
+company.warehouseHint,この会社の最初の倉庫（追加は「倉庫」ページから）
 company.yes,はい
 completed,完了
 count,棚卸

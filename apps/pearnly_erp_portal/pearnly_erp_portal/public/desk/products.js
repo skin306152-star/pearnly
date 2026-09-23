@@ -284,9 +284,16 @@
 			page.add_inner_button(t("product.action.reload"), () => void list.reload());
 			if (can_create) page.add_inner_button(t("product.action.import"), () => open_import());
 			restore_primary();
+			await list.ready;
 			// 别处的选择框点「新建」指过来时，开这一页自己的快捷弹窗（与右上角那颗同一个，
 			// 用户 2026-09-23："点新建跳转到我们已有的对应位置"）。
 			if (can_create) await p.take_create(root, "ERP Product", () => open_quick());
+			// 箭头（打开这条记录）也回到这一页：在**已加载的行**里找到它就开详情弹窗
+			// （商品列表是分页的，没在当页就只落到列表 —— 不为了一个箭头去拉全表）。
+			await p.take_open(root, "ERP Product", name => {
+				const row = (list.data || []).find(item => item.name === name);
+				if (row) open_detail(row);
+			});
 		}
 
 		// ── 新建弹窗（快捷）────────────────────────────────────────────────────
