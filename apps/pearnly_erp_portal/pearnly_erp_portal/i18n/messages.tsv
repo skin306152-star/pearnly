@@ -822,12 +822,9 @@ Phone	电话	โทรศัพท์	電話	company.field.phone
 Contact person	联系人	ผู้ติดต่อ	担当者	company.field.contactPerson
 Contact email	联系邮箱	อีเมลติดต่อ	連絡先メール	company.field.contactEmail
 PromptPay	PromptPay 收款	พร้อมเพย์รับเงิน	PromptPay 受け取り	company.field.promptpay
-Document prefix	单据前缀	คำนำหน้าเอกสาร	書類プレフィックス	company.field.docPrefix
-Fiscal year start month	财年起月	เดือนเริ่มปีบัญชี	会計年度の開始月	company.field.fiscalYearStart
 Address	地址	ที่อยู่	住所	company.field.address
 Note	备注	หมายเหตุ	備考	company.field.note
 Company details	公司信息	ข้อมูลบริษัท	会社情報	company.section.basic
-Documents	单据	เอกสาร	書類	company.section.documents
 Address and notes	地址与备注	ที่อยู่และหมายเหตุ	住所と備考	company.section.address
 Save	保存	บันทึก	保存	company.save
 Saved	已保存	บันทึกแล้ว	保存しました	company.notice.saved

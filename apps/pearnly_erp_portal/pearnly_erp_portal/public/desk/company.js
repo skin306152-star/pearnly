@@ -1,9 +1,14 @@
 /* 公司：本租户自己的主体资料，**一屏**（`/desk/pearnly-company`）。
  *
  * 用户 2026-09-23 口径："不要公司资料公司主档，就一个公司就好了，包含全部" ——
- * 一个租户一家公司，抬头、简称、税号、分支、联系方式、收款 PromptPay、单据前缀、
- * 财年起月、地址与备注都在这一屏上；原来分「公司资料 / 公司主档」两张面孔，现在
- * 合成一张，也没有"新建 / 设默认 / 停用"那一套。
+ * 一个租户一家公司，抬头、简称、税号、分支、联系方式、收款 PromptPay、地址与备注
+ * 都在这一屏上；原来分「公司资料 / 公司主档」两张面孔，现在合成一张，也没有
+ * "新建 / 设默认 / 停用"那一套。
+ *
+ * **不摆官方没有的东西**：原先还有「单据前缀」与「财年起月」两格，是上一轮自己加的 ——
+ * 官方（ERPNext 的 Company）里没有这两个字段（官方的财年是独立的 `Fiscal Year`，单号走
+ * 命名序列，两样都不在这个表上），而且这两格现在也不接任何地方，所以撤掉（用户
+ * 2026-09-23："官方有单据前戳吗？官方有财年起月吗？…用官方的"）。
  *
  * 表仍是框架原生的 `ERP Company`，站上就一条默认公司。**隔离是平台原生那一层**：
  * 一个租户一个站点、一套库（Site 级），所以"本租户的公司"就是这张表里那一条 ——
@@ -25,17 +30,13 @@
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值 —— 2026-09-23
 		// 实测踩到（清掉备注保存后回读还是原文）。这里按自己的清单逐个取，空的就是空。
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "phone",
-			"contact_person", "contact_email", "promptpay_id", "doc_prefix",
-			"fiscal_year_start_month", "address", "note"];
+			"contact_person", "contact_email", "promptpay_id", "address", "note"];
 		const payload = (form) => {
 			const values = {};
 			FIELDS.forEach(name => {
 				const value = form.get_value(name);
 				values[name] = value === null || value === undefined ? "" : value;
 			});
-			// 财年起月只能是 1-12；留空落回 1（服务端还会再判一次）。
-			const month = Number(values.fiscal_year_start_month);
-			values.fiscal_year_start_month = month >= 1 && month <= 12 ? month : 1;
 			return values;
 		};
 
@@ -91,12 +92,6 @@
 					{options: "Email", default: data.contact_email || "", ...ro}),
 				f("promptpay_id", "company.field.promptpay", "Data",
 					{default: data.promptpay_id || "", ...ro}),
-				{fieldtype: "Section Break", label: t("company.section.documents")},
-				f("doc_prefix", "company.field.docPrefix", "Data",
-					{default: data.doc_prefix || "", ...ro}),
-				{fieldtype: "Column Break"},
-				f("fiscal_year_start_month", "company.field.fiscalYearStart", "Int",
-					{default: data.fiscal_year_start_month || 1, ...ro}),
 				{fieldtype: "Section Break", label: t("company.section.address")},
 				f("address", "company.field.address", "Small Text",
 					{default: data.address || "", ...ro}),

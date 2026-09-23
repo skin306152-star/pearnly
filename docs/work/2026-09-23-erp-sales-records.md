@@ -1020,6 +1020,53 @@
 - **前端没做类型检查/构建**：`frontend/` 的依赖没装，而且这台机器的 `npm` 指向一个不存在的 `npm-cli.js`，`vue-tsc` 跑不起来；两处 Vue 改动（用户名只读、编辑弹窗去掉用户名的框）只做了人工核对。
 - 用户自己改密码的完整闭环（点「更改密码」→ 改完用新密码登录）没在本地站点走完一遍（那是身份服务/改密页的路径，交给有身份的站点验更合适）。
 
+### F27：四个"官方口径"问题、个人信息页少的那一行、撤掉两个非官方字段（2026-09-23，未部署）
+
+用户口径：
+
+> "公司这边官方只允许一个公司吗？如何添加其它公司，公司和公司的数据隔离然后做？权限管理包含公司的分配和权限吗？我说了，用官方的，我说了三次了，官方有单据前戳吗？官方有 财年起月吗？图一：dms 这边对齐，点左下角只出现个人信息，其它功能不加，和 erp 一样，你 erp 这边，少一个域名显示"
+
+#### 一、四个问题，按**官方源码**回答（`apps/erpnext` 就在 bench 里，直接读的）
+
+| 问 | 官方怎么做的（证据） | 我们现在的样子 |
+| --- | --- | --- |
+| 官方只允许一个公司吗 | **不限**：`Company` 是树 —— `is_group`（Check）+ `parent_company`（Link → Company） | 一个租户一个站点、站内一家公司（`ERP Company` 只有一条默认） |
+| 如何添加其它公司 | 官方就是"再建一条 `Company`"（每家自带账套 / 成本中心那套）；单据挂在公司上 —— `Sales Invoice.company` 是 `Link → Company` 且 **reqd=1** | 我们界面上没有"新建公司"（用户 2026-09-23 上午才说"就一个公司就好了"，所以撤了）；服务端 `create_company` 还在 |
+| 公司与公司之间怎么隔离 | 官方的隔离件是 **`User Permission`**：把 `Company = 某公司` 指给某个用户，Frappe 原生按它过滤带该 Link 的列表与报表 | 我们用**站点级**隔离（一个租户一个站点、一套库，Frappe 原生的多租户做法）；单据表里没有公司字段 |
+| 权限管理包含公司的分配吗 | 官方的"公司分配"就在 `User Permission` 那一页，不在角色里 | 团队管理（用户）页只发**功能岗位**（采购/销售/库存/收银…），没有"分配公司"这一项 —— 站内只有一家公司，没有可分配的 |
+| 官方有"单据前缀"吗 | **没有**。官方单号走**命名序列**（`Document Naming Settings` / DocType 的 naming series），不在 Company 上 | 我们那个 `doc_prefix` 是上一轮自己加的，**现在不接任何地方**（单号走 `numbering/contracts.py` 那套固定前缀） |
+| 官方有"财年起月"吗 | **没有**。官方财年是**独立单据** `Fiscal Year`（`year` / `year_start_date` / `year_end_date` / `companies` 子表），不是公司上的一个"起月" | 我们那个 `fiscal_year_start_month` 也是自己加的，只在控制器里校验 1–12，没人读 |
+
+**要用户定的两件事**（都要动表或装东西，本窗口没动）：① 要不要在同一站点里放多家公司 —— 那是 ERPNext 那套（单据加 `company` 字段 + `User Permission` 隔离 + 账套），要么就维持"一家公司 = 一个站点"；② 那两列（`doc_prefix` / `fiscal_year_start_month`）要不要 `migrate` 删掉（界面已经不再显示）。
+
+#### 二、"erp 这边少一个域名显示" —— 查到根因并修好
+
+根因两条，缺一不可：
+
+1. 框架有一条**官方规则**：只读且没有值的字段**整行藏起来**（`System Settings.hide_empty_read_only_fields = 1`，`base_control.get_status()` 走到 `"None"` 就挂 `hide-control`）；
+2. 我们服务端只在带身份服务的站点（`pearnly_native_account`）才把「公司名 / 您的访问域名」两项发给页面（`account/profile.py` 的 `load_details`）—— 本地实验室站点没有那个开关，两格是空的，于是被框架藏掉，看着就是"少一行"。
+
+改法：`load_details` 改成**只要是产品站点、看的是自己的资料就给值**；域名用框架自己的 `get_url()`（官方取站点地址的函数，取 `host_name`，没有就按当前站点拼），不再自己从 `host_name` 取。实测：个人信息页出现「公司名 = Purchase Preview / 您的访问域名 = http://erp-pos-a.localhost」。
+
+#### 三、撤掉两个非官方字段
+
+「单据前缀」与「财年起月」从公司页拿掉（见上表：官方没有这两样，而且我们的没有人读）。页面现在只剩「公司信息 / 地址与备注」两节 + 保存 + 查询，共 11 个字段。表结构里的两列**还在**（界面不显示），删列要 migrate，等用户一句话。
+
+#### 四、"dms 这边对齐" —— 代码里已经一样，那张图是旧部署
+
+- 三个产品共用同一套外壳（`pearnly_core/public/desk/product.js` 的 `p.user_menu`）；`user_menu` 只有 ERP 声明了（公司排在个人信息上面），**DMS 与 Cowork 都没有声明** —— 所以它们的账号区就是「个人信息」一项，点左下角也只出现这一项。
+- 用户截的那张线上 DMS（`testdms.pearnly.com`）里侧栏还是业务菜单，是因为**这次的外壳改动今天才做，还没部署**；线上 DMS 只到 302（跳登录），我在本地没有账号可比对线上代码版本，这一点如实记。
+
+#### 五、顺带：三支一直是红的 JS 测试修回来了
+
+`tests/test-native-desk.cjs`、`test-field-rows.cjs`、`test-stock-card.cjs` 从 F24（`0a9b21e` 引入 `class ProductSidebar extends NativeSidebar`）起就整支加载即抛 `Class extends value undefined` —— 它们的假环境里没有 `frappe.ui.Sidebar`。补上这个成员（`test-native-desk.cjs` 还补了 `frappe.boot.user` 与个人信息页真实的字段清单），现在 `tests/*.cjs` **10 支全绿**；并给"静音保存后当场生效"加了一条断言。
+
+#### 六、没验到（如实记）
+
+- 非管理员视角的公司页（只读、没有保存与查询按钮）：仍然只在服务端测试里覆盖，浏览器没点过。
+- 线上 DMS：只到 302，没有账号，没在线上比对版本与观感。
+- 真机、部署、用户验收：未做。
+
 ### F26：公司合成一屏（原名「公司资料 / 公司主档」）+ 税号查询 + 静音开关即时生效（2026-09-23，未部署）
 
 用户口径（本轮四条，按时间顺序）：
@@ -1179,6 +1226,9 @@
 | 2026-09-23 | 同上 | 同上 | 静音开关两向（勾上 → 保存 → 读 boot 与 `<audio id="sound-submit">`；取消 → 保存 → 再读） | 勾上保存后 `boot.user.mute_sounds = 1` **当场生效**（不用刷新），`frappe.utils.play_sound("submit")` 后 `paused: true`（没响）；取消保存后 `= 0`，同一句 `play_sound` 后 `paused: false`、`currentTime` 走到 0.317（真响了） | 回答用户"那个静音是不是假的"：开关是真的，之前只是**要刷新才生效**；改完两向都即时 |
 | 2026-09-23 | 同上 | 同上 | 表单里实际提交的字段（页面控制台临时包一层 `frappe.call` 记录一次请求体） | `api_update_profile {"company_name":"Purchase Preview","tax_id":"…","fiscal_year_start_month":1,"note":"ZZZ-临时"}` —— **空格子不在里面**，这就是"清空不生效"的证据 | 定位手段只记录、不改行为；页面随后导航过，包的那层已不在 |
 
+| 2026-09-23 | F27 改动（未提交时） | `pearnly-purchase-lab` / `erp-pos-a.localhost`（内嵌浏览器 + CDP） | 读官方源码回答四个问题；改完看个人信息页与公司页 | 官方：`Company.is_group` + `parent_company`（树）、`Sales Invoice.company` = `Link→Company` **reqd=1**、`Fiscal Year` 是独立单据（`year/year_start_date/year_end_date/companies`）、`Document Naming Settings` 是单号那套；**公司上没有"单据前缀"也没有"财年起月"**。改后：个人信息页出现「公司名 = Purchase Preview / 您的访问域名 = http://erp-pos-a.localhost」两行（改前这两行被框架的 `hide_empty_read_only_fields` 藏掉了）；公司页字段 = 公司名称/简称/税号/查询/分支/电话/联系人/联系邮箱/PromptPay/地址/备注（**没有**单据前缀与财年起月），分区 = 公司信息 / 地址与备注 | 用户"官方有哪些"的口径逐条对过；"少一个域名显示"根因是官方那条"只读且空值就藏行"的规则 + 我们只在身份服务站点给值 |
+| 2026-09-23 | 同上 | 宿主 | `node tests/*.cjs`（10 支）/ `check-architecture.py` / `i18n-build.py` + `--check` / `check-frontend-i18n.py` / `tests/test_erp_portal_access.py` / `check-i18n.py` / `tests/test_native_desk_contract.py` | **10 支 JS 全绿**（改前 `test-native-desk` / `test-field-rows` / `test-stock-card` 三支从 F24 起整支加载即抛错）/ `PASS (0 violations)` / PASS（erp **839** 条）/ 0 问题 / 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ 2 失败（与基线同一批） | 三支 JS 测试只是假环境缺 `frappe.ui.Sidebar`（`0a9b21e` 引入），补上即恢复；顺带给"静音保存当场生效"加了断言。`tests/test_product_feature_catalog.py` 的 3 个 error 是**宿主 Python 3.9 跑 `dict | None` 注解**所致，与本次改动无关（容器里 3.11 正常） |
+
 | 层级 | 状态 | 依据与未覆盖项 |
 | --- | --- | --- |
 | 实现 | 已完成（去开票侧 + 销售前端与一次提交 + 删草稿授权与文案收尾 + 收款付款弹窗与状态口径 + 供应商/客户菜单 + **税号查税务局** + 两页**多选/全选** + **主按动作的提示与音效** + **状态列两态** + **表头计数折行** + **上传框去掉库/链接** + **POS 开班交班**） | 旧销售页残留的「收款状态/备注」等字段面与采购一致；未做修订（见上）；删草稿不带私有附件清理（见 F1）；界面上没有再改已收付金额的入口（见 F3）；税号查询只做了"查登记带回字段"，没有做"按登记反查该税号下有哪些单据"（旧线上也没有）；"取消/作废"与采购"代收据/预扣税凭证"两处提示只按同一条代码路径补上，**没有**在浏览器里逐个点（前者在演示站作废后不可撤销，后者会往单据上挂一个文件）；POS 只做了开班/交班/当班小票与班次记录，**没有**做收银台的收银员交接签字、验钞、多收银台切换、班次打印小票（用户口径是"简单的开班交班"） |
@@ -1200,6 +1250,8 @@
 > F25 的补充（2026-09-23）：「实现」再加 —— **身份规则统一成"用户名/邮箱开户时发号、绑死租户，之后谁都不改，只能改自己的密码"**（core：用户名 DocType 级只读、删掉用户改名那条路、身份服务通道只剩语言、本地站点也能进改密页；ERP 团队页：文案改「用户/添加用户」、编辑只给改岗位；DMS：花名册的用户名改成只读、`save_credentials` 只收密码）；顺手修掉 `set_member_roles` "原样保存会把岗位点没"的真 bug（`held` 在摘角色之后才取）。「本地验证」再加 —— 个人信息页只读态与改密按钮、团队页文案与弹窗三类字段、三次岗位保存（改/原样/取消）都在浏览器里点过、检查站团队探针 `problems: {}`（探针此前是坏的，这轮补齐）、两站 `ensure_profile_fields` + `clear-cache`、离线五项检查。**未验到**：云站点走身份服务的改密与唯一性、DMS 界面（本机没有 DMS 站点）、前端 `vue-tsc`（依赖没装且本机 npm 坏了）—— 见 F25 第六节。
 ## 收尾：交接保留
 
+- F27 在演示站的痕迹：**没有动任何数据**（只读源码 + 改代码 + 浏览器看页面）。公司记录 `CO-00552` 仍是 F26 还原后的样子；`pearnly_company` / `pearnly_domain` 两格的值来自站点配置（`pearnly_company_name`、`get_url()`），没有写库。演示站浏览器最后停在个人信息页（用户当时在看的那一屏）。
+- F27 改了 `account/profile.py` 的一处**判据**（不再要求 `pearnly_native_account` 才发公司/域名），影响面是全产品站点的个人信息页：云站点上本来就是 `host_name` 的值，观感不变；本地/非身份服务站点从此也有这两行。要回退就是那一行。
 - F26 在演示站的痕迹**已还原**：公司记录 `CO-00552`（`Purchase Preview`）中途为验证写过 `phone=021234567`、`note=F26 验证用…`、`tax_id=0105546015062`，**都已清掉**，最后一次回读是 `company_name=Purchase Preview`、`fiscal_year_start_month=1`、其余字段 `NULL`（只有 `modified` 时间戳变了），与开工时 `api_get_profile` 的第一份回读逐字段一致。没有新建 / 删除任何公司，也没动默认公司标记。
 - F26 的静音开关：开工时数据库里就是 `mute_sounds=0`（上一条交接写的是"我留成开了"，实测不是 —— 以数据库为准）；本轮为验证勾上、取消各一次，**结束在 0**，与开工一致。`ERP Tax Lookup Cache` 回读 **0 行**（容器连不上税务局，失败分支按设计不写缓存）。
 - F26 的浏览器标签：最后一个标签停在 `/desk/pearnly-company`（用户当时正在看的那一屏）。为抓一次真实请求体，我在该标签的控制台里临时包了一层 `frappe.call`（只记录、不改行为），页面导航后包的那层已消失、没有其它改动留在页面上。

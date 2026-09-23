@@ -15,7 +15,9 @@ function load() {
   const context = {
     frappe: {
       provide() {}, pearnly: {}, boot: {}, re_route: {}, model: {},
-      ui: {}, breadcrumbs: { set_custom_breadcrumbs() {} },
+      // 共享层会替换 `frappe.ui.Sidebar`（`class ProductSidebar extends NativeSidebar`），
+      // 假环境里要给出一个，否则整支脚本在加载时就抛错（2026-09-23 之前就是这么红的）。
+      ui: { Sidebar: class {} }, breadcrumbs: { set_custom_breadcrumbs() {} },
       datetime: { str_to_user: value => value },
     },
     window: {}, document: { body: { classList: { add() {} } } },

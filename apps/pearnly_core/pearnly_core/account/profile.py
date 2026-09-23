@@ -53,12 +53,19 @@ def apply_login_username(user, claims):
 
 
 def load_details(doc, method=None):
-    if not product_identity() or doc.name != frappe.session.user:
+    # 这一行只给"本站是哪家公司、用哪个域名进来的"，页面上是只读的两格。
+    # 原先要求 `pearnly_native_account`（那是**身份服务**那条路的开关，管的是本地密码），
+    # 于是没有身份服务的站点上这两格是空的 —— 而框架有一条官方规则：**只读且没有值的字段
+    # 整行藏起来**（`hide_empty_read_only_fields`），所以看起来"少了一行"（用户 2026-09-23：
+    # "你 erp 这边，少一个域名显示"）。这里改成：只要是产品站点、看的是自己的资料，就给值；
+    # 域名用框架自己的 `get_url()`（官方取站点地址的那个函数，本地实验室站点同样有值）。
+    if not frappe.conf.get("pearnly_product") or doc.name != frappe.session.user:
         return
+    from frappe.utils import get_url
     # Native User permits self-reading without granting the User DocType role.
     # Its virtual fields are filtered by field permissions; pass read-only site
     # context through the native onload channel instead of widening User access.
     doc.set_onload("pearnly_account", {
         "company": frappe.conf.get("pearnly_company_name") or frappe.conf.get("pearnly_workspace") or "",
-        "domain": frappe.conf.get("host_name") or "",
+        "domain": get_url() or "",
     })

@@ -9,11 +9,16 @@ const frappe = {
   // 共享层现在把多级面包屑挂到原生 `frappe.breadcrumbs` 上（商品/入库/出库/收发存/盘点
   // 共用一份），所以这个假环境得给出那个对象。
   breadcrumbs: { set_custom_breadcrumbs() {} },
-  ui: {ThemeSwitcher: class {}, get_current_theme:()=>"light", SidebarHeader: class {
+  // 共享层会替换 `frappe.ui.Sidebar`（产品站点只认自己那份侧栏）—— 真 Desk 里这个
+  // 类一定在，假环境里要给出一个，否则 `class ProductSidebar extends NativeSidebar`
+  // 直接抛 "Class extends value undefined"（2026-09-23 之前这支测试就是这么红的）。
+  ui: {ThemeSwitcher: class {}, get_current_theme:()=>"light", Sidebar: class {}, SidebarHeader: class {
     get_display_siblings(){return [{name:'toggle-theme'},{name:'toggle-full-width'},{name:'toggle-sidebar'}];}
     populate_dropdown_menu(){this.rendered_items = this.dropdown_items.slice();}
   }},
-  boot: {pearnly_product:'dms', desk_settings:{search_bar:1,notifications:1,form_navigation_buttons:1}, navbar_settings:{settings_dropdown:[]},
+  // `frappe.boot.user` 在真 Desk 里一定有（个人信息页的静音开关会回写它的 `mute_sounds`）。
+  boot: {pearnly_product:'dms', user:{mute_sounds:0},
+    desk_settings:{search_bar:1,notifications:1,form_navigation_buttons:1}, navbar_settings:{settings_dropdown:[]},
     pearnly_pages:['pearnly-home','pearnly-connect'],
     pearnly_account_actions:[{name:'language',label:'Language',action:'language'}]},
   Application: class { constructor() { ready(); } logout() { return nativeLogout(); } },
@@ -62,7 +67,8 @@ const toggled = {};
 const properties = [];
 const refreshed = [];
 const profileFrappe = {
-  boot: {pearnly_product:'dms', pearnly_native_account:true, pearnly_sidebar:'DMS'},
+  // `user.mute_sounds` 是框架 `play_sound` 的判据；个人信息页保存后会当场回写它。
+  boot: {pearnly_product:'dms', user:{mute_sounds:0}, pearnly_native_account:true, pearnly_sidebar:'DMS'},
   session: {user:'operator@example.test'},
   set_route() {}, pearnly: {add_refresh() {}},
   app: {sidebar: {sidebar_title:'DMS', setup() {}}},
@@ -71,17 +77,22 @@ const profileFrappe = {
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/user.js','utf8'),
   {frappe: profileFrappe, window: {location: {assign() {}}}, __: text => text});
 const profileForm = {
-  doc: {name:'operator@example.test', __onload:{pearnly_account:{company:'Acme Motors', domain:'https://testdms.pearnly.com'}}},
+  doc: {name:'operator@example.test', mute_sounds:1,
+    __onload:{pearnly_account:{company:'Acme Motors', domain:'https://testdms.pearnly.com'}}},
   meta: {fields: [
     {fieldtype:'Section Break', fieldname:'section_break_3'},
     {fieldtype:'Data', fieldname:'email'},
     {fieldtype:'Data', fieldname:'first_name'},
+    {fieldtype:'Data', fieldname:'pearnly_company'},
+    {fieldtype:'Data', fieldname:'pearnly_domain'},
     {fieldtype:'Data', fieldname:'middle_name'},
     {fieldtype:'Data', fieldname:'last_name'},
     {fieldtype:'Column Break', fieldname:'column_break_11'},
     {fieldtype:'Data', fieldname:'username'},
     {fieldtype:'Link', fieldname:'language'},
     {fieldtype:'Autocomplete', fieldname:'time_zone'},
+    {fieldtype:'Check', fieldname:'mute_sounds'},
+    {fieldtype:'Button', fieldname:'pearnly_change_password'},
     {fieldtype:'Section Break', fieldname:'sb1'},
     {fieldtype:'Table', fieldname:'roles'},
     {fieldtype:'Tab Break', fieldname:'settings_tab'},
@@ -97,6 +108,8 @@ const profileForm = {
 };
 profileHandlers.refresh(profileForm);
 assert.equal(profileForm.doc.pearnly_company,'Acme Motors');
+assert.equal(profileFrappe.boot.user.mute_sounds, 1,
+  'saving the mute switch takes effect right away, without a full page load');
 assert.deepEqual(properties, [['email','read_only',1]]);
 for (const name of ['section_break_3','column_break_11','email','first_name','language','time_zone','pearnly_change_password']) {
   assert.equal(toggled[name], true, `${name} must stay visible`);
