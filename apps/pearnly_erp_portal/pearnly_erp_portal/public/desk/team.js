@@ -104,8 +104,12 @@
 			data.companies = rows.map(row => ({label: row.company_name, value: row.name}));
 		}
 
-		const company_label = name =>
-			(data.companies || []).find(row => row.value === name)?.label || name;
+		// **函数声明而不是 const**：列表那一列在构造时就会调它（`format` 在 `p.list()` 里立刻跑），
+		// 写成 const 会撞上"暂时性死区"——整页直接 `Cannot access 'company_label' before
+		// initialization`，页面只剩 "Unable to load this page."（2026-09-23 实测踩到）。
+		function company_label(name) {
+			return (data.companies || []).find(row => row.value === name)?.label || name;
+		}
 
 		// ── 添加用户 / 改岗位（发号定死的东西不再改）─────────────────────────────
 		// 用户名（发号时填的那个名字，就是登录身份）与邮箱**开户时就定了**：添加时填一次，
