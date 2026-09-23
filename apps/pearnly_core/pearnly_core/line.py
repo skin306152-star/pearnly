@@ -168,21 +168,36 @@ def reply(reply_token: str, messages: list) -> bool:
     """用 reply token 回复（免费、一次有效、60 秒内）。"""
     if not reply_token:
         return False
+    return _post_reply(reply_token, messages)[0]
+
+
+def _post_reply(reply_token: str, messages: list):
+    """发一次回覆。返回 `(成功?, HTTP 状态码, 摘要)`；网络层失败时状态码为 0。
+
+    为什么要返回状态码：**"令牌被明确拒绝"和"网络不知道通没通"要分开处理** ——
+    前者可以放心改用推播，后者改了就可能重复发一条（见 `reply_or_push`）。
+    记账也在这里做（`reply_ok` / `reply_rejected` / `reply_failed` / `reply_unknown`）。
+    """
     if mirroring():
-        return _mirror("reply", reply_token, messages)
-    resp = requests.post(
-        "https://api.line.me/v2/bot/message/reply",
-        headers=_headers(),
-        json={"replyToken": reply_token, "messages": messages},
-        timeout=TIMEOUT,
-    )
-    if resp.status_code != 200:
-        frappe.log_error(
-            title="LINE reply 失败",
-            message=f"{resp.status_code} {resp.text[:400]}",
+        return bool(_mirror("reply", reply_token, messages)), 200, "mirror"
+    try:
+        resp = requests.post(
+            "https://api.line.me/v2/bot/message/reply",
+            headers=_headers(),
+            json={"replyToken": reply_token, "messages": messages},
+            timeout=TIMEOUT,
         )
-        return False
-    return True
+    except Exception as exc:  # noqa: BLE001 —— 超时/连接失败：**不知道发出去没有**
+        _count("reply_unknown")
+        logger.warning("[line] reply 请求异常（不确定是否送达）: %s", type(exc).__name__)
+        return False, 0, type(exc).__name__
+    if resp.status_code == 200:
+        _count("reply_ok")
+        return True, 200, ""
+    # 400/401/403 = 令牌本身不被接受（过期、已被用过、无效）→ 明确被拒，**不含糊**
+    _count("reply_rejected" if resp.status_code in (400, 401, 403) else "reply_failed")
+    frappe.log_error(title="LINE reply 失败", message=f"{resp.status_code} {resp.text[:400]}")
+    return False, resp.status_code, resp.text[:200]
 
 
 def push(to: str, messages: list, *, retry_key: str = "") -> bool:
@@ -194,21 +209,105 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
     headers = _headers()
     if retry_key:
         headers["X-Line-Retry-Key"] = retry_key
-    resp = requests.post(
-        "https://api.line.me/v2/bot/message/push",
-        headers=headers,
-        json={"to": to, "messages": messages},
-        timeout=TIMEOUT,
-    )
+    try:
+        resp = requests.post(
+            "https://api.line.me/v2/bot/message/push",
+            headers=headers,
+            json={"to": to, "messages": messages},
+            timeout=TIMEOUT,
+        )
+    except Exception as exc:  # noqa: BLE001
+        _count("push_failed")
+        logger.warning("[line] push 请求异常: %s", type(exc).__name__)
+        return False
     if retry_key and resp.status_code == 409 and resp.headers.get("x-line-accepted-request-id"):
+        # LINE 按 `X-Line-Retry-Key` 去重：这条它已经收过了，**不算新的一条**
+        _count("push_deduped")
         return True
     if resp.status_code != 200:
+        _count("push_failed")
         frappe.log_error(
             title="LINE push 失败",
             message=f"{resp.status_code} {resp.text[:400]}",
         )
         return False
+    _count("push_ok")
     return True
+
+
+def reply_or_push(to: str, messages: list, reply_token: str = "", *,
+                  retry_key: str = "") -> bool:
+    """**先试免费回覆，不行才推播** —— 省 LINE 额度的主开关（2026-09-23）。
+
+    LINE 的规则：拿用户刚发消息时那张令牌回覆是**免费、不限量**的；主动推播才吃
+    每月额度（我们那个 `144 / 300`）。而我们的流程有个天然毛病：**重活都丢后台**，
+    后台跑完时手上有令牌却不用（或者干脆没把令牌带进来），于是每条结果都成了计费推播。
+
+    三条规则，每条都对应一次真实的坑：
+
+    1. **没令牌 → 直接推播**（老行为不变）；
+    2. **令牌被明确拒绝**（400/401/403：过期、已被用过、无效）→ 转推播。这是免费没戏了，
+       老老实实花一条；
+    3. **超时 / 5xx（不知道到底发出去没有）→ 仍然推播**。代价是极小概率出现一条重复消息；
+       反过来选"不推播"的代价是**消息彻底丢掉** —— 我们的流程是"要等这张卡才能往下走"，
+       丢一条会让操作员卡住、再重发一次，浪费更多，而且他会以为系统坏了。
+       这种"不确定"单独记成 `reply_unknown`：比例一高就说明 LINE 或网络在抖。
+    """
+    if not reply_token:
+        return push(to, messages, retry_key=retry_key)
+    ok, status, _why = _post_reply(reply_token, messages)
+    if ok:
+        return True
+    # 走到这里只有两种可能：令牌明确不被接受（400/401/403），或者**不确定送达**
+    # （超时=0 / 5xx）。两种都转推播 —— 前者的免费机会已经没了，后者宁可冒极小概率
+    # 重复也不让消息丢掉（理由见上）。比例分别记在 `reply_rejected` 与 `reply_unknown`。
+    _ = status
+    return push(to, messages, retry_key=retry_key)
+
+
+# ── 用量记账（免费回覆 vs 计费推播） ─────────────────────────────────────────
+
+#: Redis 里的哈希键：`{日期}|{种类}` → 条数。只计数，不发消息、不写数据库。
+USAGE_HASH = "pearnly:line:usage"
+USAGE_KINDS = ("reply_ok", "reply_rejected", "reply_failed", "reply_unknown",
+               "push_ok", "push_failed", "push_deduped")
+
+
+def _count(kind: str) -> None:
+    """按天记一笔：这一次是**免费回覆**还是**计费推播**，以及失败是哪一种。
+
+    为什么要有它：2026-09-23 用户问"几百人用，这个额度开销得起吗"，而当时**没有任何数据**
+    能回答 —— 只有发送失败才写日志，成功的什么都不留。这里只往 Redis 记一个计数。
+    """
+    try:
+        cache = frappe.cache()
+        day = str(frappe.utils.now())[:10]
+        cache.hincrby(cache.make_key(USAGE_HASH), f"{day}|{kind}", 1)
+    except Exception:
+        # 记账失败绝不能影响发送本身
+        logger.warning("[line] 用量记账失败（不影响发送）", exc_info=True)
+
+
+def usage(days: int = 31) -> dict:
+    """读用量账：`{"2026-09-23": {"reply_ok": 12, "push_ok": 3, ...}}`。**只读**。
+
+    `days<=0` 表示全给。给排查/估算用：免费回覆与计费推播的真实比例、令牌被拒的比例
+    （那句"令牌到底多久过期"的疑问，答案就在 `reply_rejected` 上）。
+    """
+    try:
+        raw = frappe.cache().hgetall(frappe.cache().make_key(USAGE_HASH)) or {}
+    except Exception:
+        logger.warning("[line] 读用量账失败", exc_info=True)
+        return {}
+    out: dict = {}
+    for key, value in raw.items():
+        key = key.decode() if isinstance(key, bytes) else str(key)
+        day, _sep, kind = key.partition("|")
+        out.setdefault(day, {})[kind or "unknown"] = int(value or 0)
+    if days and days > 0:
+        keep = sorted(out)[-days:]
+        out = {day: out[day] for day in keep}
+    return out
 
 
 def start_loading(user_id: str, seconds: int = 30) -> bool:

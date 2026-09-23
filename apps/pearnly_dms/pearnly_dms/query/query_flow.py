@@ -170,10 +170,10 @@ def _pick_type(binding: dict, line_user_id: str, reply_token: str, kind: str) ->
         return
     store.set_session(line_user_id, "query_sales", {})
     _start_loading(line_user_id)
-    _enqueue("query-capabilities", _run_dimensions, binding, line_user_id)
+    _enqueue("query-capabilities", _run_dimensions, binding, line_user_id, reply_token)
 
 
-def _run_dimensions(binding, line_user_id):
+def _run_dimensions(binding, line_user_id, reply_token: str = ""):
     result = sales_readback.query_capabilities(binding["user_id"])
     frappe.db.commit()
     if not current_binding(binding, line_user_id) or not _can_query(binding):
@@ -181,9 +181,10 @@ def _run_dimensions(binding, line_user_id):
     if (store.get_session(line_user_id) or {}).get("state") != "query_sales":
         return
     if not result.get("ok"):
-        _push(line_user_id, _failure_text(result))
+        _push(line_user_id, _failure_text(result), reply_token)
         return
-    _send(line_user_id, query_cards.sales_dimension_message(top_sales=result["top_sales"]))
+    _send(line_user_id, query_cards.sales_dimension_message(top_sales=result["top_sales"]),
+          reply_token)
 
 
 def _pick_dimension(binding: dict, line_user_id: str, reply_token: str, dimension: str) -> None:
@@ -275,10 +276,11 @@ def _begin_records(
     }
     store.set_session(line_user_id, "query_results", params)
     _start_loading(line_user_id)
-    _enqueue("records", _run_records, binding, line_user_id, params)
+    _enqueue("records", _run_records, binding, line_user_id, params, reply_token)
 
 
-def _run_records(binding: dict, line_user_id: str, params: dict) -> None:
+def _run_records(binding: dict, line_user_id: str, params: dict,
+                 reply_token: str = "") -> None:
     """后台任务：读一页记录 → 出看板。**发结果前再查一次权限。**"""
     if not _can_query(binding):
         return
@@ -294,12 +296,12 @@ def _run_records(binding: dict, line_user_id: str, params: dict) -> None:
     if not current_binding(binding, line_user_id):
         return
     if not _can_query(binding):
-        _push(line_user_id, query_cards.TXT_DENIED)
+        _push(line_user_id, query_cards.TXT_DENIED, reply_token)
         return
     if not result.get("ok"):
-        _push(line_user_id, _failure_text(result))
+        _push(line_user_id, _failure_text(result), reply_token)
         return
-    _send(line_user_id, query_cards.sales_board(result))
+    _send(line_user_id, query_cards.sales_board(result), reply_token)
 
 
 def _begin_top(
@@ -325,10 +327,11 @@ def _begin_top(
     }
     store.set_session(line_user_id, "query_results", params)
     _start_loading(line_user_id)
-    _enqueue("top", _run_top, binding, line_user_id, params)
+    _enqueue("top", _run_top, binding, line_user_id, params, reply_token)
 
 
-def _run_top(binding: dict, line_user_id: str, params: dict) -> None:
+def _run_top(binding: dict, line_user_id: str, params: dict,
+             reply_token: str = "") -> None:
     """后台任务：读畅销榜 → 出看板。**发结果前再查一次权限。**"""
     if not _can_query(binding):
         return
@@ -345,12 +348,12 @@ def _run_top(binding: dict, line_user_id: str, params: dict) -> None:
     if not current_binding(binding, line_user_id):
         return
     if not _can_query(binding):
-        _push(line_user_id, query_cards.TXT_DENIED)
+        _push(line_user_id, query_cards.TXT_DENIED, reply_token)
         return
     if not result.get("ok"):
-        _push(line_user_id, _failure_text(result))
+        _push(line_user_id, _failure_text(result), reply_token)
         return
-    _send(line_user_id, query_cards.top_sales_board(result))
+    _send(line_user_id, query_cards.top_sales_board(result), reply_token)
 
 
 def _failure_text(result: dict) -> str:
