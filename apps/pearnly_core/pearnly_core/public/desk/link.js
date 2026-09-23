@@ -86,6 +86,42 @@
 			? {filters: {company}} : null;
 	};
 
+	// ── 扫码：选择框右侧那颗「扫码」按钮 ─────────────────────────────────────
+	// 用户 2026-09-23："把全局所有用到选择物料的选项的地方，全部加图二那个组件，扫码组件，
+	// 扫到匹配后自动带出"。
+	//
+	// 共用层**只负责把按钮放上去**（形状照官方 `Data` + `options:"Barcode"` 那颗：
+	// 输入框右侧一颗灰图标，见 `product.css`）；动作由产品给 —— 产品声明 `p.scan_doctypes`
+	// （哪些 Link 要带扫码）并实现 `p.scan_link(control)`。共用层不知道"物料"是什么，
+	// 也不掺产品逻辑（产品逻辑进产品 App）。
+	p.scan_doctypes = null;
+	p.scan_link = null;
+	p.attach_scan_btn = control => {
+		const doctype = control.get_options ? control.get_options() : "";
+		if (!doctype || !Array.isArray(p.scan_doctypes) || !p.scan_doctypes.includes(doctype)) return;
+		if (typeof p.scan_link !== "function" || control.pearnly_scan_btn) return;
+		// 只读的格子（查看一张已提交的单据）没有"扫一个进来"这回事。
+		if (control.df?.read_only) return;
+		// 筛选弹层里那一格不上扫码：那不是"选物料"的动作，格子也太窄。
+		if (control.$input.closest(".filter-area").length) return;
+		// 表单/弹窗里是 `.control-input`；**网格单元里没有这一层**（`.link-field > .awesomplete > input`），
+		// 那就挂在输入框的直接父元素上 —— 皮肤里的 `.pearnly-link-scan-input` 会给它 `position: relative`，
+		// 两种情况按钮都在输入框右端。
+		const input_holder = control.$input.closest(".control-input");
+		const holder = input_holder.length ? input_holder : control.$input.parent();
+		if (!holder.length) return;
+		const label = __("Scan");
+		const button = $(`<button type="button" class="pearnly-link-scan" title="${label}"
+			aria-label="${label}">${frappe.utils.icon("scan-barcode", "sm")}</button>`);
+		holder.addClass("pearnly-link-scan-input").append(button);
+		button.on("click", event => {
+			event.preventDefault();
+			event.stopPropagation();
+			void p.scan_link(control);
+		});
+		control.pearnly_scan_btn = button;
+	};
+
 	class ControlLink extends NativeLink {
 		make_input() {
 			// 默认联动要在**取数之前**挂上（控件的搜索读 `df.get_query`）。
@@ -94,6 +130,8 @@
 				if (query) this.df.get_query = query;
 			}
 			super.make_input();
+			// 选择框右侧那颗扫码按钮（产品声明了才放）。
+			p.attach_scan_btn(this);
 		}
 
 		// 官方那两项的兜底：万一入口还在（字段没设 `only_select`），动作也必须落在我们自己的页面上。

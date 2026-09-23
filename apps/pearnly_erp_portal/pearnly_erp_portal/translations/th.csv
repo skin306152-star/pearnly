@@ -340,6 +340,7 @@ Next,ถัดไป
 No,ลำดับ
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
+No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
@@ -869,6 +870,7 @@ product.scan.done,สแกนแล้ว
 product.scan.hint,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
 product.scan.light,ไฟ
 product.scan.noCamera,อุปกรณ์นี้ไม่มีกล้องให้สแกน
+product.scan.notFound,ไม่พบสินค้าที่ตรงกับรหัส {0}
 product.scan.open,ไปแก้รายการนั้น
 product.scan.taken,รหัสนี้ถูกใช้ไปแล้ว
 product.scan.takenBody,ถูกใช้กับ {0} (รหัส {1}) แล้ว

@@ -47,6 +47,10 @@
 						unit: item.base_unit || item.unit, unit_price: item.default_cost || 0,
 						vat_rate: item.vat_applicable ? state.defaults.settings.default_vat_rate : 0,
 						warehouse: item.default_warehouse || "", location: item.default_location || ""});
+					// 批号/失效日期只在这条物料**真的管这两样**时才露出来（用户 2026-09-23：
+					// "采购记录这边附加信息太多了"）—— 不管批次/有效期的商品不必看这两格。
+					line.form.set_df_property("batch_no", "hidden", !item.track_batch);
+					line.form.set_df_property("expiry_date", "hidden", !item.track_expiry);
 				}}),
 			f("description", "Item Name", "Data", {reqd: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
@@ -59,7 +63,9 @@
 			f("wht_amount", "Withholding Tax", "Currency", {read_only: 1, depends_on: "eval:doc.wht_rate > 0"}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
 			f("item_type", "Item Type", "Select", {options: u.options(["goods", "service"]), default: "goods"}),
-			f("code", "Item Code"), f("barcode", "Barcode"),
+			// 物料号 / 条码：**自动带出来的**（选了物料、或扫了码就填上），不是让人手打的格，
+			// 所以从界面上收起来 —— 字段留着，值照旧随这一行提交（`LINE_FIELDS` 里要它们）。
+			f("code", "Item Code", "Data", {hidden: 1}), f("barcode", "Barcode", "Data", {hidden: 1}),
 			f("category", "Category", "Link", {options: "ERP Purchase Category", get_query: () => ({filters: {parent_category: ["is", "not set"], is_active: 1}}),
 				onchange: () => line.ready && line.form.set_value("subcategory", "")}),
 			f("subcategory", "Subcategory", "Link", {options: "ERP Purchase Category",
@@ -67,7 +73,10 @@
 			// 仓库：官方原生 Link，只列当前公司的仓库（不是自由填写）。
 			f("warehouse", "Warehouse", "Link",
 				{options: "ERP Warehouse", get_query: p.warehouse_query()}),
-			f("location", "Location"), f("batch_no", "Batch No"), f("expiry_date", "Expiry Date", "Date"),
+			f("location", "Location"),
+			// 批号/失效日期：默认收起，选了"管批次 / 管有效期"的物料才由 onchange 露出来。
+			f("batch_no", "Batch No", "Data", {hidden: 1}),
+			f("expiry_date", "Expiry Date", "Date", {hidden: 1}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,

@@ -208,6 +208,35 @@ body.pearnly-product-desk .awesomplete > ul > [role="option"]:has(.pearnly-link-
 	background-color: var(--card-bg);
 	border-top: 1px solid var(--border-color);
 }
+/* 选择框里的「扫码」按钮（`link.js` 的 `p.attach_scan_btn`）：形状照官方 `Data` +
+   `options:"Barcode"` 那颗（`data.js::setup_barcode_field`）—— 输入框右侧一颗灰图标，
+   悬停才上底色。共用层自己带样式，不依赖哪个产品的 CSS（产品只提供动作）。 */
+body.pearnly-product-desk .pearnly-link-scan-input {
+	position: relative;
+}
+body.pearnly-product-desk .pearnly-link-scan-input .form-control {
+	padding-right: 30px;
+}
+body.pearnly-product-desk .pearnly-link-scan {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-sm);
+	background-color: transparent;
+	color: var(--text-muted);
+}
+body.pearnly-product-desk .pearnly-link-scan:hover {
+	color: var(--text-color);
+	background-color: var(--control-bg);
+}
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {
 	display: flex;

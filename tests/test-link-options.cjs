@@ -22,6 +22,16 @@ function awesomeplete() {
 
 function boot({ links = LINKS, can_create = true, company = 'CO-00552' } = {}) {
   const routes = [];
+  // 造出来的按钮：`attach_scan_btn` 只用到 `on`（点击时给个假事件）与被 append 进宿主。
+  const made = [];
+  const $ = html => {
+    const node = {html, handlers: {},
+      on(event, handler) { this.handlers[event] = handler; return this; },
+      click() { this.handlers.click?.({preventDefault() {}, stopPropagation() {}}); },
+    };
+    made.push(node);
+    return node;
+  };
   class NativeLink {
     constructor(df) { this.df = df || {}; }
     get_options() { return this.df.options; }
@@ -35,6 +45,7 @@ function boot({ links = LINKS, can_create = true, company = 'CO-00552' } = {}) {
   const frappe = {
     boot: { pearnly_links: links, pearnly_company: company },
     ui: { form: { ControlLink: NativeLink } },
+    utils: { icon: () => '<svg class="icon"></svg>' },
     model: { can_create: () => can_create },
     set_route: (...parts) => routes.push(parts.join('/')),
   };
@@ -42,8 +53,8 @@ function boot({ links = LINKS, can_create = true, company = 'CO-00552' } = {}) {
   // 框架的 `__()` 会做 `{0}` 插值（真实实现如此），桩要跟着做，否则断言看到的是模板。
   const translate = (text, args) => String(text)
     .replace(/\{(\d+)\}/g, (whole, index) => (args && args[index] !== undefined ? args[index] : whole));
-  vm.runInNewContext(source, { frappe, window: {}, __: translate, console });
-  return { ControlLink: frappe.ui.form.ControlLink, p: frappe.pearnly, routes };
+  vm.runInNewContext(source, { frappe, window: {}, __: translate, console, $ });
+  return { ControlLink: frappe.ui.form.ControlLink, p: frappe.pearnly, routes, made };
 }
 
 function link_with(booted, df, values) {
@@ -201,6 +212,55 @@ function fakeLinkButton() {
   assert.deepEqual(hidden, ['hide']);
   arrow_env.p.dismiss_modal_of({closest: () => null});   // 不在弹窗里：什么都不做
   assert.deepEqual(hidden, ['hide']);
+
+  // 12) 扫码按钮：只有我们声明要扫的那类选择框有；按下走产品给的扫码动作；不重复挂；
+  //     筛选弹层里、只读的格子里都不放。
+  const scan_env = boot();
+  const scanned_into = [];
+  scan_env.p.scan_doctypes = ['ERP Product'];
+  scan_env.p.scan_link = async control => { scanned_into.push(control.df.fieldname); };
+  // 每个格子一个自家宿主（表单里是 `.control-input`，网格单元里退到输入框的父元素）。
+  const host = () => ({length: 1, classes: [], children: [],
+    addClass(name) { this.classes.push(name); return this; },
+    append(child) { this.children.push(child); return this; }});
+  const place = (control, {filter = false, holder = host()} = {}) => {
+    control.$input = {closest: selector =>
+      (selector === '.filter-area' ? {length: filter ? 1 : 0} : holder)};
+    return holder;
+  };
+
+  const product = new scan_env.ControlLink({options: 'ERP Product', fieldname: 'product'});
+  const product_host = place(product);
+  product.make_input();
+  assert.deepEqual(product_host.classes, ['pearnly-link-scan-input'], '宿主拿到皮肤的类');
+  assert.equal(product_host.children.length, 1, '按钮挂上了');
+  assert.ok(product_host.children[0].html.includes('pearnly-link-scan'), '用皮肤里那颗按钮');
+  product_host.children[0].click();
+  assert.deepEqual(scanned_into, ['product'], '按下就走产品给的扫码动作');
+  product.make_input();
+  assert.equal(product_host.children.length, 1, '再进来一次不会挂第二颗');
+
+  const not_ours = new scan_env.ControlLink({options: 'ERP Warehouse', fieldname: 'warehouse'});
+  const other_host = place(not_ours);
+  not_ours.make_input();
+  assert.equal(other_host.children.length, 0, '没声明要扫的那类，一个像素都不动');
+
+  const no_product = boot();
+  no_product.p.scan_doctypes = null;               // 产品没声明：共用层什么都不做
+  const bare = new no_product.ControlLink({options: 'ERP Product', fieldname: 'product'});
+  const bare_host = place(bare);
+  bare.make_input();
+  assert.equal(bare_host.children.length, 0);
+
+  const in_filter = new scan_env.ControlLink({options: 'ERP Product', fieldname: 'product'});
+  const filter_host = place(in_filter, {filter: true});
+  in_filter.make_input();
+  assert.equal(filter_host.children.length, 0, '筛选弹层里那颗不是"选物料"');
+
+  const readonly = new scan_env.ControlLink({options: 'ERP Product', fieldname: 'product', read_only: 1});
+  const readonly_host = place(readonly);
+  readonly.make_input();
+  assert.equal(readonly_host.children.length, 0, '只读的格子（看一张已提交的单）不留扫码');
 
   console.log('test-link-options: 全部通过');
 })();

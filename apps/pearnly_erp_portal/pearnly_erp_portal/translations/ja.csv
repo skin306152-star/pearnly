@@ -340,6 +340,7 @@ Next,次へ
 No,番号
 No Open Shift,未開店
 No attachments,添付ファイルなし
+No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No product for this code: {0},このコードの商品が見つかりません: {0}
 No receipts in this shift,このシフトのレシートはありません
 No stock count in progress,進行中の棚卸はありません
@@ -869,6 +870,7 @@ product.scan.done,読み取りました
 product.scan.hint,カメラをバーコード・QR コードに向けてください
 product.scan.light,ライト
 product.scan.noCamera,この端末にはスキャンに使えるカメラがありません
+product.scan.notFound,スキャンしたコード {0} に一致する商品がありません
 product.scan.open,その商品を開く
 product.scan.taken,このコードは既に使われています
 product.scan.takenBody,既に「{0}」(コード {1}) で使われています

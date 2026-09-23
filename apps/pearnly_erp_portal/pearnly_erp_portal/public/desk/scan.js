@@ -122,4 +122,27 @@ frappe.provide("frappe.pearnly");
 		await scanner.start();
 		d.set_df_property("torch", "hidden", !scanner.has_torch());
 	};
+
+	// ── 选择框里的扫码：「扫到匹配后自动带出」──────────────────────────────────
+	// 共用层 `link.js` 把按钮放在选择框右侧（`p.attach_scan_btn`），这里给动作：
+	// 扫到一个码 → 用**主数据那条查接口**（编码/条码/二维码/售卖单位条码四路）查它是哪条物料
+	// → 填进选择框 → 该字段自己的 `onchange` 把说明/单位/单价/仓库/地点带出来。
+	// 查不到就照实说（橙色提示 + 出错音），不静默。
+	p.scan_doctypes = ["ERP Product"];
+	p.scan_link = async control => {
+		const t = await p.texts("product.");
+		if (!p.scan_supported()) return frappe.msgprint(t("product.scan.unsupported"));
+		return p.scan({ kind: "all", on_result: async code => {
+			const found = await p.call("pearnly_erp_portal.products.service.api_find_product",
+				{ value: code });
+			if (!found?.name) {
+				frappe.show_alert({ message: t("product.scan.notFound", code), indicator: "orange" });
+				try { frappe.utils.play_sound("error"); } catch (_error) { /* Muted browser. */ }
+				return;
+			}
+			// 填进选择框；后面"带出"交给字段自己的 onchange（各页自己那份），不在这里重复一遍。
+			await control.set_value(found.name);
+			try { frappe.utils.play_sound("submit"); } catch (_error) { /* Muted browser. */ }
+		} });
+	};
 })();

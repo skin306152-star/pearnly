@@ -81,6 +81,7 @@ Camera permission was refused; allow it and try again	摄像头权限被拒绝�
 This device has no camera to scan with	这台设备没有可用的摄像头	อุปกรณ์นี้ไม่มีกล้องให้สแกน	この端末にはスキャンに使えるカメラがありません	product.scan.noCamera
 This code is already taken	这个码已经被占用	รหัสนี้ถูกใช้ไปแล้ว	このコードは既に使われています	product.scan.taken
 Already used by {0} (code {1})	已经是「{0}」（编码 {1}）	ถูกใช้กับ {0} (รหัส {1}) แล้ว	既に「{0}」(コード {1}) で使われています	product.scan.takenBody
+No item matches the scanned code {0}	扫到的码没有对应的物料：{0}	ไม่พบสินค้าที่ตรงกับรหัส {0}	スキャンしたコード {0} に一致する商品がありません	product.scan.notFound
 Open that product	去改那一条	ไปแก้รายการนั้น	その商品を開く	product.scan.open
 Light	灯光	ไฟ	ライト	product.scan.light
 Scanned	扫到了	สแกนแล้ว	読み取りました	product.scan.done

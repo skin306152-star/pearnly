@@ -340,6 +340,7 @@ Next,Next
 No,No
 No Open Shift,No Open Shift
 No attachments,No attachments
+No item matches the scanned code {0},No item matches the scanned code {0}
 No product for this code: {0},No product for this code: {0}
 No receipts in this shift,No receipts in this shift
 No stock count in progress,No stock count in progress
@@ -869,6 +870,7 @@ product.scan.done,Scanned
 product.scan.hint,Point the camera at the barcode or QR code
 product.scan.light,Light
 product.scan.noCamera,This device has no camera to scan with
+product.scan.notFound,No item matches the scanned code {0}
 product.scan.open,Open that product
 product.scan.taken,This code is already taken
 product.scan.takenBody,Already used by {0} (code {1})
