@@ -112,3 +112,65 @@
 3. 第 9 屏单据汇总（被点名的图五）——先按官方 `pos_past_order_summary` 的行逐条对齐，
    然后把"增值税税率 `THB 0`"那处明显的错值修掉；
 4. 每做完一屏：两边同屏跑探针 → 差异表清零 → 记录进本台账第 2 节的"状态"列。
+
+## 7. 改走路子：**整屏搬过来，再删功能、接我们的服务**（2026-09-23 用户口径）
+
+用户："**搬吧，搬过来做功能删减和功能对接**"。所以不再一处一处画 —— 官方的前端整棵搬进本 App，
+然后 (a) 按功能删掉我们不做的，(b) 把要用的接到我们自己的服务上。
+
+**已搬入**（`apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/`，每个文件头都有来源与许可标注）：
+
+| 文件 | 行数/大小 | 对应屏 |
+| --- | --- | --- |
+| `official-pos_controller.js` | 910 行 | 外壳与调度（开班检查、组件切换、form 桥、提交后汇总） |
+| `official-pos_item_selector.js` | 494 | 商品区（搜索、商品组、网格/列表、角标、分页） |
+| `official-pos_item_details.js` | 480 | 明细面板（图/价/折扣、字段表单、与键盘联动） |
+| `official-pos_item_cart.js` | 1,129 | 右栏（客户区、行、折扣格、合计含税行、键盘、结账键） |
+| `official-pos_payment.js` | 737 | 付款屏（方式行、附加信息、键盘、四个数字、完成订单） |
+| `official-pos_past_order_list.js` | 134 | 最近订单列表 |
+| `official-pos_past_order_summary.js` | 490 | 单据汇总（就是"图五"那块） |
+| `official-pos_number_pad.js` | 59 | 数字键盘组件 |
+| `official-point_of_sale.js` | 23 | 页面入口（`new erpnext.PointOfSale.Controller({...})`） |
+| `official-pos.css` | 42 KB / 219 条规则 | **官方编译产物里抽出的 `.point-of-sale-app` 全部样式**（连带 @media 内的 15 条） |
+
+> **许可**（一句话说清，不拦施工）：ERPNext 是 **GPLv3**，本 App 目前是 MIT。这些副本按 GPLv3 处理，
+> 文件头都标了来源；将来若产品要闭源分发，这棵目录要么按 GPL 走，要么换成"照规格重写"。
+
+### 7.1 对接清单（从搬入的代码里机械提取，共 10 个服务端方法 + 1 个命名空间）
+
+**要先给的命名空间**：`window.erpnext = { PointOfSale: {} }`（8 个类都挂在它下面：
+`Controller / ItemSelector / ItemDetails / ItemCart / Payment / NumberPad / PastOrderList / PastOrderSummary`）。
+
+**框架 API**（任何 Frappe 站点都有，不用管）：`frappe.utils.{escape_html, play_sound, is_mac, icon,
+to_title_case, print}`、`frappe.ui.{form, make_app_page, keys}`、`frappe.model.{set_value, sync,
+with_doctype, clear_doc, make_new_doc_and_get_name, get_value, on}`、`frappe.db.{get_doc, get_value}`。
+
+**要接到我们这边的方法**：
+
+| 官方方法 | 用途 | 接到我们这里 |
+| --- | --- | --- |
+| `point_of_sale.get_items` + `get_parent_item_group` | 商品列表与商品组过滤 | 我们的 `cashier.api.api_counter_products`（含库存角标） |
+| `point_of_sale.get_pos_profile_data` | 收银台设置（仓库、支付方式、开关） | 我们的终端 + 班次（`api_current_shift` / 终端配置） |
+| `point_of_sale.get_past_order_list` | 最近订单 | 我们的 `cashier.api.api_list_sales` |
+| `point_of_sale.get_customer_recent_transactions` | 客户最近交易 | 我们的销售记录按客户筛（新增一个只读接口） |
+| `point_of_sale.set_customer_info` | 改客户联系方式 | **删减**（D3：客户资料不在收银台改） |
+| `pos_invoice.get_stock_availability` | 某商品的可用库存 | 我们的库存结存（`current_balance`） |
+| `loyalty_program.*` | 忠诚度 | **删减**（D3/D5） |
+| `serial_no.auto_fetch_serial_number` | 序列号自动取号 | **删减**（D5） |
+| `sales_and_purchase_return.{is_invoice_returnable, get_invoice_item_returned_qty}` | 退货可否与已退数量 | 我们的退货口径（`api_refund_sale` 已有） |
+| `frappe.core.doctype.communication.email.make` | 邮件小票 | 框架自带 ✓（D7 只做按钮与交互） |
+
+### 7.2 对接里最要紧的一处：`frm`（这决定"功能对接"怎么做）
+
+搬进来的代码全程操作一个 `frappe.ui.form.Form`（`frm.doc.items / payments / customer / currency /
+grand_total / rounded_total / paid_amount / outstanding_amount / additional_discount_percentage …`），
+`settings.frm_doctype` 决定用哪张单据。**我们不装 erpnext，没有 POS Invoice**，所以两条路：
+
+| 路 | 做法 | 代价 |
+| --- | --- | --- |
+| A（建议） | 给它一个**真实表单**：`frappe.ui.form.Form("ERP Sale")`，把我们的字段名接到官方那套名字上（一个薄适配层），提交仍走我们的 `api_create_sale` | 需要一张"官方字段名 → 我们的字段/接口"对照表；不新增 DocType |
+| B | 照搬官方字段，在我们自己的 DocType 上加同名栏位 | 会污染我们的数据模型（我们的 `receipt_no`/`sold_at` 与官方的 `name`/`posting_date` 打架） |
+
+**下一步执行顺序**（不用你再确认）：① 写适配层 `desk/pos/pearnly-pos.js`（命名空间 + settings + `frm`
+薄适配 + 上表 10 个方法的映射，删减项留空实现）；② 让它挂在一条**临时路由**上跑起来（现页面不动），
+用探针逐屏对；③ 一屏对完切一屏，全部对完再把旧 `cashier.js` 下线。
