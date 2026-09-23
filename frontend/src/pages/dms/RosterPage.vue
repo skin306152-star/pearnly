@@ -543,7 +543,6 @@ onUnmounted(stopTimer);
           <p class="text-sm text-ink-gray-7">
             {{ t("roster.field.dmsUsername") }}: {{ editTarget?.dms_username || "—" }}
           </p>
-          <p class="text-sm text-ink-gray-7">{{ t("roster.usernameFixed") }}</p>
           <FormControl
             :label="t('roster.field.newDmsPassword')"
             v-model="editForm.dms_password"

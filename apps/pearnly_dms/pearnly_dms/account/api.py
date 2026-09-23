@@ -70,7 +70,9 @@ def save_credentials(ticket: str, password: str, username: str = ""):
         browser_api._fail("dms_booking.not_bound", 403)
     doc = frappe.get_doc("DMS Operator", name, for_update=True)
     if str(username or "").strip() and str(username).strip() != (doc.dms_username or ""):
-        browser_api._fail("dms.account.usernameFixed", 409)
+        # 只报"这一步没成"，**不写"用户名是开户时发的"那类说明**（用户 2026-09-23：
+        # "这类文案不要随意添加，删掉"）。界面按通用失败文案显示。
+        browser_api._fail("dms.account.failed", 409)
     doc.dms_password = password
     doc.save(ignore_permissions=True)  # Native on_update synchronizes the owned endpoint.
     return {"ok": True}

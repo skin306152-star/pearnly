@@ -69,9 +69,29 @@ class DmsTechnicalError(RuntimeError):
     """网络 / Playwright / 找不到元素之类的失败。**上游可以重试。**"""
 
 
+class DmsUnreachableError(DmsTechnicalError):
+    """**打不开对方的 DMS**（打开登录页超时）。是 `DmsTechnicalError` 的子类，
+    catch 时先接这个 —— 上层要靠它区分"连不上"（该给重试按钮）与其它技术失败。
+
+    为什么单独分出来：2026-09-23 生产上那台 DMS 的**全新 TLS 握手实测 24 秒**
+    （会话复用 0.2 秒），而 Playwright 每次登录都是新连接，于是超时被兜成了
+    `ERR_UNEXPECTED`，用户看到的是"我们服务器内部错误" —— 说反了。分开之后
+    上层能按 `ERR_DMS_UNREACHABLE` 给重试、并在第三次说"连不上第三方 DMS 系统"。
+    """
+
+
+def is_timeout_error(exc: BaseException) -> bool:
+    """Playwright 的超时异常。不 import playwright 也能认（它可能是可选依赖）：
+    `playwright._impl._errors.TimeoutError` 的类名 + 文案里都带 Timeout。"""
+    return type(exc).__name__ == "TimeoutError" and "Timeout" in str(exc)
+
+
 class MrerpDmsAdapter:
     LOGIN_TIMEOUT_MS = 20000
     DEFAULT_PAGE_TIMEOUT_MS = 15000
+    # "打开登录页"的上限。`run_logged_in` 会按**这一次是第几次尝试**覆盖它
+    # （见 `pearnly_dms.intake.retry.ATTEMPT_TIMEOUT_MS`）。None = 用默认值。
+    page_timeout_ms: Optional[int] = None
 
     def __init__(
         self,
@@ -313,9 +333,20 @@ class MrerpDmsAdapter:
                 pass
 
         page.on("response", _on_resp)
+        # 这一次给多长的"打开登录页"预算：由 `run_logged_in` 按重试次数设好。
+        budget = int(self.page_timeout_ms or self.DEFAULT_PAGE_TIMEOUT_MS)
         try:
-            page.goto(self.login_url, wait_until="load", timeout=self.DEFAULT_PAGE_TIMEOUT_MS)
-            page.wait_for_selector("#btnlogin", state="visible", timeout=self.DEFAULT_PAGE_TIMEOUT_MS)
+            page.goto(self.login_url, wait_until="load", timeout=budget)
+            page.wait_for_selector("#btnlogin", state="visible", timeout=budget)
+        except Exception as exc:  # noqa: BLE001
+            # 打不开首页 = 连不上对方系统（不是我们坏了、也不是账号错）。单独报，
+            # 上层才有机会给"重试"并把超时拉长。
+            if is_timeout_error(exc):
+                raise DmsUnreachableError(
+                    f"打开 DMS 登录页超时（{budget}ms）：{self.login_url}"
+                ) from exc
+            raise
+        try:
             page.fill("#txtusers", username)
             page.fill("#txtpasswords", password)
 

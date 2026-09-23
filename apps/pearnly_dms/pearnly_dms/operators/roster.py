@@ -234,7 +234,10 @@ def update_operator(
     doc = frappe.get_doc(OPERATOR, name)
 
     if dms_username is not None and _clean(dms_username) and _clean(dms_username) != (doc.dms_username or ""):
-        frappe.throw(_("Username and email are issued with the account and can no longer be changed."))
+        # 拒掉"改用户名"这个动作，但**不写"用户名是开户时发的"那类说明**（用户 2026-09-23：
+        # "这类文案不要随意添加，删掉"）。界面本来就不提供这个动作，这里是防直连客户端的兜底，
+        # 所以用本文件既有的短拒法（同函数其它参数被拒时也是这句）。
+        frappe.throw(_("Invalid value"))
     pinned = advisors.resolve(advisor_id) if advisor_id is not None else None
     if display_name is not None:
         if not _clean(display_name):

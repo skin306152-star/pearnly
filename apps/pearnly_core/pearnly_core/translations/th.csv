@@ -534,7 +534,6 @@ Testing…,กำลังทดสอบ…
 The DMS account is marked as resigned,บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว
 The DMS account is not approved to use the system,บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ
 The DMS advisor list is empty.,รายชื่อที่ปรึกษา DMS ว่างเปล่า
-The DMS username is issued with the account and cannot be changed; only the password can be.,ชื่อผู้ใช้ DMS ออกให้ตอนเปิดบัญชี แก้ไขไม่ได้ แก้ได้เฉพาะรหัสผ่าน
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้
@@ -1043,7 +1042,6 @@ roster.subtitle,หนึ่งแถวต่อพนักงานขาย/
 roster.title,พนักงาน
 roster.unbindLine,ยกเลิกการผูก LINE
 roster.unbound,ยังไม่ผูก
-roster.usernameFixed,ชื่อผู้ใช้ DMS ออกให้ตอนเปิดบัญชี แก้ไขไม่ได้ แก้ได้เฉพาะรหัสผ่าน
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=พนักงานขาย, admin=ผู้ดูแล (สองบทบาทของผลิตภัณฑ์เดิม ไม่มีที่สาม)"
 shell.backHome,กลับหน้าหลัก
 shell.boot.failed,เริ่มระบบล้มเหลว (HTTP {0}): {1}

@@ -218,12 +218,20 @@ def has_admin_creds(endpoint: Any = None) -> bool:
     老产品同样是"一组配全才算"（`(plain_user and plain_pass) or (enc_user and enc_pass)`）。
     只看 `admin_username` 会在**密码解不开**（站点密钥换过）时给出按钮，点下去写库才失败 ——
     正是这里要避免的那种"点了才知道"。
+
+    **端点可以传名字，也可以传端点字典**：老产品这里收的就是字典
+    （`resolve_dms_endpoint()` 的返回），两个调用点里 LINE 那条传的是名字串、网页编辑器
+    那条传的是字典。以前只认字符串/对象，字典落进 `getattr(endpoint, "name", "")` 就成了
+    空名字 → **网页编辑器保存出来的差异卡永远没有 [อัปเดตข้อมูล]**。现在与
+    `contracts/endpoint.py: endpoint_name` 同一口径解析。
     """
     import frappe
 
+    from pearnly_dms.contracts.endpoint import endpoint_name
+
     if not endpoint:
         return False
-    name = endpoint if isinstance(endpoint, str) else str(getattr(endpoint, "name", "") or "")
+    name = endpoint_name(endpoint)
     if not name:
         return False
     try:

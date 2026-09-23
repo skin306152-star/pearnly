@@ -1,13 +1,10 @@
 Enter the DMS password.,Enter the DMS password.
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
-The DMS username is issued with the account and cannot be changed; only the password can be.,The DMS username is issued with the account and cannot be changed; only the password can be.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
-Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.,Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
-dms.account.hint,Update the DMS password Pearnly has saved. The username is issued with the account and cannot be changed.
 dms.account.invalid,Enter the DMS password.
 dms.account.open,Open DMS
 dms.account.password,DMS password
@@ -17,7 +14,6 @@ dms.account.save,Save
 dms.account.saved,Saved. The next DMS login will use these credentials.
 dms.account.title,My DMS account
 dms.account.username,DMS username
-dms.account.usernameFixed,The DMS username is issued with the account and cannot be changed; only the password can be.
 dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
 dms.card.MSG_BIND_GREETING,Hello
 dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
@@ -135,6 +131,7 @@ dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details ar
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
+dms.err.ERR_DMS_UNREACHABLE,Cannot reach the third-party DMS system. Please contact your administrator.
 dms.err.ERR_KMS_MISSING,Server KMS key is not configured
 dms.err.ERR_NO_CREDS,Username and password required
 dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency

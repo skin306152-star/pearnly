@@ -72,6 +72,8 @@ ACT_APPROVAL_TARGET = "approval_target"
 ACT_APPROVAL_APPROVE = "approval_approve"
 ACT_APPROVAL_REJECT = "approval_reject"
 ACT_APPROVAL_RETARGET = "approval_retarget"
+# 连不上对方 DMS 时那颗「重试」（同一件事重跑一次，每次把超时拉长）。
+ACT_RETRY = "retry"
 
 # 差异卡上的字段名 —— 只列会出现在 diff 里的那些；标签从语言包取
 _DIFF_FIELD_NAMES = ("prefix_id", "name", "birthday_be", "phone", "house_no",
@@ -313,6 +315,22 @@ def diff_card(
     # 其它卡（新客户/资料一致/订车预览）都是一次点击直开编辑页（2026-09-21 用户报障）。
     footer.append(_edit_button(nonce))
     return _bubble(_t("TXT_DIFF_HEAD"), rows, footer, _t("TXT_DIFF_ALT"))
+
+
+def retry_message(text: str) -> Dict[str, Any]:
+    """连不上对方 DMS 时那条消息：**一句文案 + LINE 原生按键**（quick reply），不出卡片。
+
+    用户 2026-09-23 口径："不要加卡片，就文案和 line 官方原生按钮触发"。
+
+    按键是 postback、且**不消费 nonce**：重试要重跑的是同一件事，会话里记着是哪件
+    （`intake/flow.py` 的 `dms_retry`），所以载荷只需要动作码。
+    第三次仍失败时**不再给按键**，只回同一句话（见 `intake/flow.py: _dms_failed`）。
+    """
+    return {
+        "type": "text",
+        "text": text,
+        "quickReply": {"items": [_qr_item(_t("BTN_RETRY"), _data(ACT_RETRY))]},
+    }
 
 
 def candidates_card(candidates: List[Dict[str, str]], nonce: str) -> Dict[str, Any]:

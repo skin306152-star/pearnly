@@ -66,10 +66,14 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
     }
 
 
-def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
+def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
+
+    `attempt`：**这一次是第几次尝试**（1..3，见 `pearnly_dms.intake.retry`）。只用来决定
+    "打开登录页"给多长预算 —— 重试每次把超时拉长；连不上时返回 `ERR_DMS_UNREACHABLE`
+    而不是 `ERR_UNEXPECTED`，上层才给得出"重试"按钮。
 
     `authoritative_read=True`：**整块 DMS 读取**借管理员会话（配了独立管理员凭据组时），
     销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
@@ -80,8 +84,17 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
     adapter, build_err = build_adapter(name)
     if build_err:
         return err(build_err["error_code"], build_err["raw"])
+    # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
+    from pearnly_dms.intake import retry as dms_retry
+
+    adapter.page_timeout_ms = dms_retry.timeout_ms(attempt)
     try:
-        from pearnly_dms.adapter.session import DmsAdminAuthError, DmsAuthError, DmsTechnicalError
+        from pearnly_dms.adapter.session import (
+            DmsAdminAuthError,
+            DmsAuthError,
+            DmsTechnicalError,
+            DmsUnreachableError,
+        )
         from pearnly_dms.contracts.client_base import DmsClientError
 
         try:
@@ -122,6 +135,9 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
             return err("ERR_DMS_ADMIN_AUTH", f"{type(exc).__name__}: {exc}")
         except DmsAuthError as exc:
             return err("ERR_DMS_AUTH", f"{type(exc).__name__}: {exc}")
+        # 「连不上」是技术失败的**子类**，必须排在它前面 —— 上层要靠这个码给重试按钮。
+        except DmsUnreachableError as exc:
+            return err("ERR_DMS_UNREACHABLE", f"{type(exc).__name__}: {exc}")
         except DmsTechnicalError as exc:
             return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
         except DmsClientError as exc:
@@ -189,6 +205,7 @@ def recognize_lookup(
     ocr_address: Dict[str, Any],
     phone: str = "",
     fallback_customer_ids: Optional[List[str]] = None,
+    attempt: int = 1,
 ) -> Dict[str, Any]:
     """识别之后：查客户 + 解析地址级联 + 选项 + 称谓 + 相似候选。
 
@@ -307,7 +324,7 @@ def recognize_lookup(
 
     # 查重是**整块权威读**：销售的 DMS 账号常常看不到客户档，拿它判会把
     # "DMS 里明明存在"的客户当成新客户（老产品线上基准 501589f0 这三处都借管理员会话）。
-    return run_logged_in(endpoint, _do, authoritative_read=True)
+    return run_logged_in(endpoint, _do, authoritative_read=True, attempt=attempt)
 
 
 def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
@@ -346,6 +363,7 @@ def push_idcard_fields(
     mode: str,
     customer_id: Optional[str],
     addresses: Optional[Dict[str, Dict[str, Any]]] = None,
+    attempt: int = 1,
 ) -> Dict[str, Any]:
     """面板最终字段 → 建/改客户（**只写 DMS 客户库，不建订车单**）。
 
@@ -376,7 +394,7 @@ def push_idcard_fields(
             },
         }
 
-    out = run_logged_in(endpoint, _do)
+    out = run_logged_in(endpoint, _do, attempt=attempt)
     if not out.get("ok"):
         out["success"] = False
         out["elapsed_ms"] = int((time.time() - t0) * 1000)

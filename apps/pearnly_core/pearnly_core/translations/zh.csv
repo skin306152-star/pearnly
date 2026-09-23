@@ -534,7 +534,6 @@ Testing…,测试中…
 The DMS account is marked as resigned,DMS 账号已标记为离职
 The DMS account is not approved to use the system,DMS 账号未被批准使用系统
 The DMS advisor list is empty.,DMS 顾问名册为空。
-The DMS username is issued with the account and cannot be changed; only the password can be.,DMS 用户名是开户时发的，不能修改；这里只能改密码。
 The FX rate must be greater than 0,汇率必须大于 0
 The ID token has no sub,ID token 缺少 sub
 The ID token issuer is not the identity service configured for this site,ID token 的签发方不是本站点配置的身份服务
@@ -1043,7 +1042,6 @@ roster.subtitle,每行一位销售/管理员：各自 DMS 账密，逐行发 LIN
 roster.title,操作员
 roster.unbindLine,解绑 LINE
 roster.unbound,未绑
-roster.usernameFixed,DMS 用户名是开户时发的，不能修改；这里只能改密码。
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)",sales=销售，admin=管理员（老产品的两种角色，没有第三种）
 shell.backHome,回到首页
 shell.boot.failed,启动失败（HTTP {0}）：{1}

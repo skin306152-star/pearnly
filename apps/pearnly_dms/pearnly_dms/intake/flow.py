@@ -42,6 +42,7 @@ from pearnly_dms.ocr import ocr_review as ocr_review
 from pearnly_dms.ocr import ocr_service as _id_ocr
 from pearnly_dms.line import out as out
 from pearnly_dms.line.identity import matches as current_binding
+from pearnly_dms.intake import retry as dms_retry
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,12 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         _open_browser_editor(line_user_id, reply_token, pb, sess)
         return
 
+    # 连不上 DMS 时那颗「重试」：**不消费 nonce**（要重跑的是同一件事，会话里记着），
+    # 所以和 `ACT_EDIT` 一样必须排在下面对写档 nonce 的守卫之前。
+    if action == cards.ACT_RETRY:
+        _run_retry(binding, line_user_id, reply_token, sess)
+        return
+
     # 写动作：确认守卫（reviewing 态 + nonce 吻合）**原子清 nonce**；不符/过期 → 绝不写。
     # 清掉之后同一个 nonce 的第二次点击必然 mismatch（防双击双写）。
     payload = store.consume_nonce(line_user_id, "reviewing", pb.get("nonce"))
@@ -314,7 +321,12 @@ def _image_draft(binding, line_user_id, message_id):
 
 # ── collecting → reviewing：查重四分支 ─────────────────────────────────────
 def run_dedup(
-    binding: dict, line_user_id: str, id_card: dict, phone: str, endpoint_id: Optional[str]
+    binding: dict,
+    line_user_id: str,
+    id_card: dict,
+    phone: str,
+    endpoint_id: Optional[str],
+    attempt: int = 1,
 ) -> None:
     out.start_loading(line_user_id)
     user_id = binding["user_id"]
@@ -343,13 +355,15 @@ def run_dedup(
         ocr_address=id_card.get("address") or {},
         phone=phone,
         fallback_customer_ids=cands,
+        attempt=attempt,
     )
     frappe.db.commit()
     if not current_binding(binding, line_user_id) or store.get_session(line_user_id) != sess:
         return
     if not res.get("ok"):
         fr = res.get("error_friendly") or {}
-        _push(line_user_id, fr.get("th") or cards.TXT_LOOKUP_FAIL)
+        _dms_failed(binding, line_user_id, kind="dedup", attempt=attempt,
+                    code=res.get("error_code"), text=fr.get("th") or cards.TXT_LOOKUP_FAIL)
         return
 
     scenario = res.get("scenario")
@@ -417,8 +431,80 @@ def run_dedup(
     _send(line_user_id, card)
 
 
+def _dms_failed(
+    binding: dict,
+    line_user_id: str,
+    *,
+    kind: str,
+    attempt: int,
+    code: Any,
+    text: str,
+    retry_payload: Optional[dict] = None,
+) -> None:
+    """连不上对方 DMS 时怎么回话（用户 2026-09-23 口径）。
+
+    · 前两次：**一句文案 + LINE 原生按键**（quick reply 的「重试」），不是卡片；
+    · 第三次：只说「连不上第三方 DMS 系统，请联系管理员」，不再给按键；
+    · 不是"连不上"类的失败（对方明确拒绝等）照旧直接说，不给重试 —— 再点几次
+      还是同样的拒绝，只会让人白点。
+
+    `kind` 记着"要重跑的是哪件事"（dedup / create / update），点了重试由
+    `_run_retry` 按它再跑一次，并把超时按次数拉长（见 `pearnly_dms.intake.retry`）。
+    """
+    if not dms_retry.is_retryable(code):
+        _push(line_user_id, text)
+        return
+    sess = store.get_session(line_user_id) or {}
+    state = str(sess.get("state") or "collecting")
+    payload = dict(sess.get("payload") or {})
+    if dms_retry.clamp(attempt) >= dms_retry.MAX_ATTEMPTS:
+        payload.pop("dms_retry", None)
+        store.set_session(line_user_id, state, payload)
+        # 第三次仍连不上：只说那一句，不再给按键（文案在错误码表里，与上面那句同源）。
+        from pearnly_dms.line.errors import friendly as _friendly
+
+        _push(line_user_id, _friendly("ERR_DMS_UNREACHABLE", lang="th"))
+        return
+    payload["dms_retry"] = {
+        "kind": kind,
+        "attempt": dms_retry.clamp(attempt),
+        "payload": retry_payload,
+    }
+    store.set_session(line_user_id, state, payload)
+    _send(line_user_id, cards.retry_message(text))
+
+
+def _run_retry(binding: dict, line_user_id: str, reply_token: str, sess: Optional[dict]) -> None:
+    """点了「重试」：按会话里记着的那件事重跑一次，尝试次数 +1（超时随之拉长）。"""
+    payload = (sess or {}).get("payload") or {}
+    marker = payload.get("dms_retry") or {}
+    kind = str(marker.get("kind") or "")
+    attempt = dms_retry.clamp(marker.get("attempt") or 1) + 1
+    if not kind or attempt > dms_retry.MAX_ATTEMPTS:
+        # 没有可重试的事、或已经用完三次 —— 不假装还能再试。
+        _reply(reply_token, cards.TXT_EXPIRED)
+        return
+    payload["dms_retry"] = {**marker, "attempt": attempt}
+    store.set_session(line_user_id, str((sess or {}).get("state") or "collecting"), payload)
+    if kind == "dedup":
+        id_card = payload.get("id_card") or {}
+        phone = str(payload.get("phone") or "")
+        if not id_card or not phone:
+            _reply(reply_token, cards.TXT_EXPIRED)
+            return
+        _enqueue("dedup", run_dedup, binding, line_user_id, id_card, phone,
+                 payload.get("endpoint_id"), attempt)
+        return
+    saved = marker.get("payload") or {}
+    if not saved:
+        _reply(reply_token, cards.TXT_EXPIRED)
+        return
+    fn = write_create if kind == "create" else write_update
+    _enqueue(kind, fn, binding, line_user_id, saved, attempt)
+
+
 # ── reviewing → 执行写档 ───────────────────────────────────────────────────
-def write_create(binding: dict, line_user_id: str, payload: dict) -> None:
+def write_create(binding: dict, line_user_id: str, payload: dict, attempt: int = 1) -> None:
     d = payload.get("draft") or {}
     fields = {k: d.get(k, "") for k in _CREATE_ID_KEYS}
     block = {k: d.get(k, "") for k in _ADDR_BLOCK_KEYS}
@@ -432,10 +518,12 @@ def write_create(binding: dict, line_user_id: str, payload: dict) -> None:
         fields=fields,
         addresses=addresses,
         field_diffs=[],
+        attempt=attempt,
+        retry_kind="create",
     )
 
 
-def write_update(binding: dict, line_user_id: str, payload: dict) -> None:
+def write_update(binding: dict, line_user_id: str, payload: dict, attempt: int = 1) -> None:
     d = payload.get("draft") or {}
     field_diffs = payload.get("field_diffs") or []
     # **只写变了的字段** + people_id/name 必填项；没变的字段不进 fields → 保留 DMS 现值。
@@ -452,6 +540,8 @@ def write_update(binding: dict, line_user_id: str, payload: dict) -> None:
         fields=fields,
         addresses=None,
         field_diffs=field_diffs,
+        attempt=attempt,
+        retry_kind="update",
     )
 
 
@@ -465,6 +555,8 @@ def execute(
     fields: Dict[str, Any],
     addresses: Optional[Dict[str, Dict[str, Any]]],
     field_diffs: List[dict],
+    attempt: int = 1,
+    retry_kind: str = "update",
 ) -> None:
     out.start_loading(line_user_id)
     user_id = binding["user_id"]
@@ -485,6 +577,7 @@ def execute(
         mode=mode,
         customer_id=customer_id,
         addresses=addresses,
+        attempt=attempt,
     )
     success = bool(result.get("success"))
     # 推送台账：LINE 推的也要出现在记录页。trigger 位保持 id_card，
@@ -523,7 +616,11 @@ def execute(
         _push(line_user_id, cards.TXT_ADMIN_AUTH_FAIL)  # 不谎称已自动通知
     else:
         fr = result.get("error_friendly") or {}
-        _push(line_user_id, fr.get("th") or cards.TXT_SAVE_FAIL)
+        # 连不上 DMS（超时/打不开）时不把锅甩给"我们内部错误"：给一次「重试」的机会，
+        # 三次仍不行才说"联系管理员"。见 `_dms_failed`。
+        _dms_failed(binding, line_user_id, kind=retry_kind, attempt=attempt,
+                    code=result.get("error_code"), text=fr.get("th") or cards.TXT_SAVE_FAIL,
+                    retry_payload=payload)
 
 
 def _write_push_log(

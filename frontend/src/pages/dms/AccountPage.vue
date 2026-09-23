@@ -74,8 +74,7 @@ async function submit() {
       ready.value = false;
       error.value = t("dms.account.expired");
     } else {
-      error.value = t(["dms.account.invalid", "dms.account.usernameFixed"].includes(key)
-        ? key : "dms.account.failed");
+      error.value = t(key === "dms.account.invalid" ? key : "dms.account.failed");
     }
   } finally { busy.value = false; }
 }
@@ -85,7 +84,6 @@ async function submit() {
   <LineLayout :locale="locale" :disabled="busy" @update:locale="setLocale">
     <section class="space-y-5 rounded border border-outline-gray-2 bg-surface-white p-4">
       <h1 class="text-xl font-semibold">{{ t(portal ? "dms.account.portal" : "dms.account.title") }}</h1>
-      <p class="text-sm text-ink-gray-9">{{ t(portal ? "dms.account.portalHint" : "dms.account.hint") }}</p>
       <ErrorMessage v-if="error" :message="error" />
       <Spinner v-if="!error && (portal || !ready)" class="h-5 w-5" />
       <form v-if="ready && !portal" class="space-y-5" @submit.prevent="submit">

@@ -558,7 +558,6 @@ Display name	显示名	ชื่อที่แสดง	表示名	roster.field.
 DMS username	DMS 用户名	ชื่อผู้ใช้ DMS	DMSユーザー名	roster.field.dmsUsername
 DMS password	DMS 密码	รหัสผ่าน DMS	DMSパスワード	roster.field.dmsPassword
 New DMS password	新 DMS 密码	รหัสผ่าน DMS ใหม่	新しいDMSパスワード	roster.field.newDmsPassword
-The DMS username is issued with the account and cannot be changed; only the password can be.	DMS 用户名是开户时发的，不能修改；这里只能改密码。	ชื่อผู้ใช้ DMS ออกให้ตอนเปิดบัญชี แก้ไขไม่ได้ แก้ได้เฉพาะรหัสผ่าน	DMSユーザー名はアカウント発行時に確定し変更できません。変更できるのはパスワードのみです。	roster.usernameFixed
 Role	角色	บทบาท	ロール	roster.field.role
 Allow DMS queries from LINE	允许在 LINE 使用查询功能	อนุญาตให้ค้นหา DMS ผ่าน LINE	LINEでのDMS照会を許可	roster.field.canQuery
 Sales commission owner	销售提成归属	เจ้าของค่าคอมมิชชัน	販売手数料の帰属	roster.field.advisor

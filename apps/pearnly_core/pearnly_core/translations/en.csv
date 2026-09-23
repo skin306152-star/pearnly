@@ -532,7 +532,6 @@ Testing…,Testing…
 The DMS account is marked as resigned,The DMS account is marked as resigned
 The DMS account is not approved to use the system,The DMS account is not approved to use the system
 The DMS advisor list is empty.,The DMS advisor list is empty.
-The DMS username is issued with the account and cannot be changed; only the password can be.,The DMS username is issued with the account and cannot be changed; only the password can be.
 The FX rate must be greater than 0,The FX rate must be greater than 0
 The ID token has no sub,The ID token has no sub
 The ID token issuer is not the identity service configured for this site,The ID token issuer is not the identity service configured for this site
@@ -1041,7 +1040,6 @@ roster.subtitle,One row per salesperson/administrator: each has their own DMS cr
 roster.title,Operators
 roster.unbindLine,Unbind LINE
 roster.unbound,Not linked
-roster.usernameFixed,The DMS username is issued with the account and cannot be changed; only the password can be.
 "sales=salesperson, admin=administrator (the legacy product's two roles, no third one)","sales=salesperson, admin=administrator (the legacy product's two roles, no third one)"
 shell.backHome,Back to home
 shell.boot.failed,Failed to start (HTTP {0}): {1}
