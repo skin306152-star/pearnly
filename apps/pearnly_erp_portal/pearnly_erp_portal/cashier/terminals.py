@@ -1,5 +1,8 @@
-"""收银台。收银台挂仓库、仓库属于公司 —— 所以"默认收银台"是**每家公司**各一个
-（一租户多公司：收银员只在自己公司的收银台上落单）。
+"""收银台：**属于公司、卖这家公司某个仓库里的货**（官方 POS 配置也是这两样：
+`company` + `warehouse`）。
+
+所以一句话：收银台 = 某家公司的一台柜台，货从它指定的仓库出。班次、小票、库存因此都能
+一路追到"哪家公司、哪个仓"。每家公司的收银台各自有一个默认（`is_default`）。
 """
 
 import frappe
@@ -12,22 +15,21 @@ from pearnly_erp_portal.masters import company as companies
 DOCTYPE = "ERP POS Terminal"
 NOT_FOUND = "Terminal not found"
 NAME_REQUIRED = "A terminal needs a name"
-FIELDS = ("name", "terminal_name", "warehouse", "is_default", "is_active")
+FIELDS = ("name", "terminal_name", "company", "warehouse", "is_default", "is_active")
 
 
 def ensure_default(company=None) -> str:
     company = company or companies.active_company()
-    names = warehouses.names_of(company)
-    in_company = names or [""]
-    existing = frappe.db.get_value(DOCTYPE, {"warehouse": ["in", in_company], "is_default": 1}, "name")
+    existing = frappe.db.get_value(DOCTYPE, {"company": company, "is_default": 1}, "name")
     if existing:
         return existing
-    any_terminal = frappe.db.get_value(DOCTYPE, {"warehouse": ["in", in_company]}, "name",
+    any_terminal = frappe.db.get_value(DOCTYPE, {"company": company}, "name",
                                        order_by="creation asc")
     if any_terminal:
         frappe.db.set_value(DOCTYPE, any_terminal, "is_default", 1)
         return any_terminal
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": "Counter 1",
+                          "company": company,
                           "warehouse": warehouses.ensure_default(company),
                           "is_default": 1, "is_active": 1})
     doc.insert(ignore_permissions=True)
@@ -36,15 +38,19 @@ def ensure_default(company=None) -> str:
 
 def resolve(terminal=None, company=None) -> str:
     if terminal:
-        if not frappe.db.exists(DOCTYPE, terminal):
+        row = frappe.db.get_value(DOCTYPE, terminal, ["company", "is_active"], as_dict=True)
+        if not row or not row.is_active:
             frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
+        # 别家公司的收银台：不能拿来落单（货会记到别人账上）。
+        if row.company != (company or companies.active_company()):
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
         return terminal
     return ensure_default(company)
 
 
 def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[dict]:
     guard.require("cashier.read")
-    filters = dict(warehouses.scope_filter(company))
+    filters = {"company": companies.document_company(company)}
     if not include_inactive:
         filters["is_active"] = 1
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
@@ -57,22 +63,25 @@ def create_terminal(*, terminal_name, warehouse=None, is_default=False) -> dict:
     name = (terminal_name or "").strip()
     if not name:
         frappe.throw(_(NAME_REQUIRED))
+    company = companies.active_company()
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": name,
-                          "warehouse": warehouses.required(warehouse),
+                          "company": company,
+                          "warehouse": warehouses.required(warehouse, company=company),
                           "is_default": 1 if is_default else 0, "is_active": 1})
     doc.insert()
+    if doc.is_default:
+        for other in frappe.get_all(DOCTYPE, filters={"company": company, "is_default": 1,
+                                                      "name": ["!=", doc.name]}, pluck="name"):
+            frappe.db.set_value(DOCTYPE, other, "is_default", 0)
     frappe.db.commit()
     return {"name": doc.name}
 
 
 def names_in_company(company=None) -> list:
-    """某家公司名下的收银台（收银台挂仓库、仓库属于公司）。班次表上没有仓库列，
-    所以班次的作用域靠这一份名单来收（`terminal in (...)`）。"""
-    names = warehouses.names_of(company)
-    if not names:
-        return []
-    return frappe.get_all(DOCTYPE, {"warehouse": ["in", names]}, pluck="name",
-                          order_by="creation asc")
+    """某家公司的收银台。班次表上没有公司/仓库列，所以班次的作用域靠这一份名单来收
+    （`terminal in (...)`）。"""
+    return frappe.get_all(DOCTYPE, {"company": companies.document_company(company)},
+                          pluck="name", order_by="creation asc")
 
 
 def scope_filter(company=None) -> dict:

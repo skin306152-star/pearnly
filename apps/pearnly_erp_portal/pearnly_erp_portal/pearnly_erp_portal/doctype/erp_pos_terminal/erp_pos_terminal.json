@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "terminal_name",
+  "company",
   "warehouse",
   "is_default",
   "is_active"
@@ -19,11 +20,21 @@
    "length": 100
   },
   {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "This counter sells for this company; stock leaves its warehouse"
+  },
+  {
    "fieldname": "warehouse",
    "fieldtype": "Link",
    "label": "Warehouse",
    "options": "ERP Warehouse",
-   "description": "Stock leaves this warehouse. Empty means the default warehouse"
+   "description": "Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse"
   },
   {
    "fieldname": "is_default",

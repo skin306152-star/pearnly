@@ -320,6 +320,7 @@ New,New
 New Category,New Category
 New Customer,New Customer
 New Invoice,New Invoice
+New Order,New Order
 New Purchase Invoice,New Purchase Invoice
 New Sale,New Sale
 New Sales Document,New Sales Document
@@ -659,6 +660,8 @@ Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
 Yes,Yes
+You cannot submit empty order.,You cannot submit empty order.
+You cannot submit the order without payment.,You cannot submit the order without payment.
 Zoom In,Zoom In
 Zoom Out,Zoom Out
 adjust,adjust
@@ -1176,6 +1179,7 @@ trade.methodTransfer,Transfer
 trade.net,Net
 trade.newIn,New Stock Receipt
 trade.newInvoice,New Invoice
+trade.newOrder,New Order
 trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
 trade.noShift,No Open Shift
@@ -1233,6 +1237,8 @@ trade.stockPending,Not Posted
 trade.stockPosted,Posted to Stock
 trade.stockState,Stock Posting
 trade.submit,Submit
+trade.submitEmpty,You cannot submit empty order.
+trade.submitNoPayment,You cannot submit the order without payment.
 trade.submitReceive,Submit and Receive Stock
 trade.systemNo,System number
 trade.taxId,Tax ID

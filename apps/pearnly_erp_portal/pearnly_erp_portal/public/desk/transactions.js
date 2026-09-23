@@ -7,6 +7,11 @@
 	p.warehouse_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});
+	// 收银台同理：属于公司、卖这家公司某个仓的货，所以下拉只列**当前公司**的收银台
+	// （别家的柜台选了会把货记到别人账上；服务端也会拒）。
+	p.terminal_query = () => ({
+		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
+	});
 	p.trade = {
 		// 收银小票的只读查看器：销售记录里点到"来源=POS"的行，或收银页点小票，都开这一个。
 		// `actions` 由调用方给（收银页给「退货退款 / 作废」，销售记录只读打开时不给）。

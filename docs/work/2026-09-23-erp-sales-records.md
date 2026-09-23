@@ -1408,3 +1408,54 @@ set_active_company / document_company / scope / for_document`；`api_company_con
 - 产品内**没有**"仓库"独立页之外的仓库改名/迁移入口（改名会动历史单据上的仓库名，刻意没做）。
 - 演示站上留了两家验证公司（`Purchase Preview 2` = `CO-00553`、`闭环验证公司` = `CO-00554`，
   后者含 `WH-00555` 与一笔入库 `STE-2026-00556`）—— **等你说清就说一声**（属数据删除）。
+
+### F30：收银台归属公司与仓库、开班下拉、以及照官方改的按钮与汇总屏（2026-09-23，未部署）
+
+用户口径：
+
+> "pos 开班，收银台哪里那个也会带到其它地方，那个收银台的定义是什么，收银台是按公司和仓库卖东西吗
+> pos 这边闭环了吗，还有就是收银台，选择商品物料后右下角那个按钮没选中应该是灰色，选中才显示颜色可按，
+> 收银和结束下一单时的界面和官方原生不一样"
+
+#### 一、收银台是什么（按官方 + 我们的现状）
+
+官方管这个的是 **POS Profile**：它同时带 `company` 与 `warehouse`（`pos_profile.json`）。我们的收银台
+（`ERP POS Terminal`）原先**只挂仓库**，公司是从仓库推出来的。这轮给它补了**必填 `company`**，
+并把"仓库必须属于同一家公司"写进控制器：
+
+> **收银台 = 某家公司的一台柜台，货从它指定的仓库出。** 每家公司各有一个默认收银台。
+> 链条是 公司 → 仓库 → 收银台 → 班次 → 小票 → 出库 → 结存/流水，一路都能追到"哪家公司、哪个仓"。
+
+`: 开班的收银台下拉现在只列**当前公司**的收银台（`p.terminal_query()`），并且**没有**「新建 ERP POS
+Terminal」那一项（`only_select`）；服务端 `terminals.resolve()` 也会拒别家公司的收银台。
+
+#### 二、右下角那颗按钮：官方**不置灰**（有证据）
+
+本机的 erpnext 源码里 POS 前端只有 502 字节占位（`point-of-sale.bundle.js`），所以我去了用户那台
+跑着的官方容器（`127.0.0.1:8084`），把它的**编译产物**拉下来读（`/assets/erpnext/dist/js/point-of-sale.bundle.USGGAUZO.js`）：
+
+| 事实 | 证据（官方原件） |
+| --- | --- |
+| 「结账」按钮常驻、空车也是亮的 | `make_cart_totals_section()` 里直接 append `<div class="checkout-btn">Checkout</div>`，没有任何 disabled 分支；实测空购物车时 `cursor: pointer`，点下去直接进收款面板 |
+| 「完成订单」也不置灰，点下去才校验 | 点击处理里：没有行 → `You cannot submit empty order.`；`paid_amount==0` 且不允许部分收款 → `You cannot submit the order without payment.`，两句都配 `play_sound("error")` |
+| 官方没有 `is-disabled` 这种类 | 在官方 bundle 里搜 `is-disabled` = 0 处 |
+
+所以这轮**照官方**改：结账按钮常驻（改前我们是"有货才显示"），完成订单按钮不再置灰，改成点下去给
+官方那两句提示 + 错误音。**如果用户仍要灰态**，那是一行 `toggleClass("disabled", ...)` 的事。
+
+#### 三、收银 / 结束下一单那两屏，照官方补的
+
+| 屏 | 官方结构（bundle 里的模板） | 我们这轮 |
+| --- | --- | --- |
+| 收款屏 | `payment-container`：左「付款方式」+ 右 `fields-section`/`number-pad`，下 `totals-section`，最底 `<div class="submit-order-btn">Complete Order</div>` | 我们的结构早就是这几块（F22 照抄的类名）；这轮只改按钮行为 |
+| 汇总屏（结束/下一单） | `past-order-summary`：`upper-section` + 三段 `Items / Totals / Payments` + `summary-btns`；按钮按官方 `get_condition_btn_map()`：**完成单后 = 打印小票 / 邮件小票 / 新订单**；已收款单再加「退货」；草稿才是「编辑 / 删除」 | 加了**「新订单」**（就是"下一单"这颗），退货/作废保留；**打印小票与邮件小票仍然没做**（F22 的产品口径：没有小票打印模板），位置上也不画 |
+
+#### 四、验证 / 未验证
+
+- 验证：`bench migrate` 两站通过、`v1_4_terminal_company` 把两台老收银台补上了公司（回读
+  `TERM-00485 / TERM-00520 → CO-00552`）；浏览器里开班弹窗的收银台下拉写着"已按 公司 等于
+  \"CO-00552\" 和 激活 已启用 过滤"且**没有新建入口**；空购物车时我们的结账按钮 `display:flex`、
+  `cursor:pointer`（与官方一致）；离线四项（架构 0 违规、术语 PASS、前端取词 0 问题、权限契约 102 条 OK）。
+- **未验证**：收银台管理页（产品内还没有这个页面，只有接口 `api_create_terminal`）；收银台 `company`
+  在**收银落单**那条路上的浏览器验收（服务端改了 `warehouses.required(company=…)`，没逐笔点）；
+  「新订单」按钮的浏览器点击；打印/邮件小票（没做）。

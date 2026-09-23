@@ -269,8 +269,10 @@
 			q(".past-order-list").css("display", orders_shown ? "flex" : "none");
 			q(".past-order-summary").css("display",
 				view === "summary" || orders_shown ? "flex" : "none");
-			q(".cart-totals-section .checkout-btn").toggle(!paying && cart.length > 0 && !selected);
 			q(".cart-totals-section .edit-cart-btn").toggle(paying);
+			// 「结账」那颗按钮**常驻**，空车也是亮的 —— 官方就是这样（实测：空购物车时
+			// 它的 `.checkout-btn` 仍是 `cursor: pointer`、点下去直接进收款屏，没有灰态）。
+			q(".cart-totals-section .checkout-btn").css("display", paying || selected ? "none" : "flex");
 		}
 
 		// ── 商品区 ──────────────────────────────────────────────────────────────
@@ -375,7 +377,8 @@
 			q(".numpad-totals .numpad-item-qty-total").html(`${p.escape(t("trade.totalItems"))}: <span>${p.escape(p.number(cart_qty()))}</span>`);
 			q(".numpad-totals .numpad-net-total").html(`${p.escape(t("trade.net"))}: <span>${p.escape(money(net))}</span>`);
 			q(".numpad-totals .numpad-grand-total").html(`${p.escape(t("trade.total"))}: <span>${p.escape(money(net))}</span>`);
-			q(".cart-totals-section .checkout-btn").toggle(has && !selected);
+			// 同上：结账按钮常驻（空车也亮），官方的空车点它就直接进收款屏。
+			q(".cart-totals-section .checkout-btn").css("display", selected || paying ? "none" : "flex");
 			q(".numpad-section").css("display", has && selected ? "flex" : "none");
 			q(".cart-totals-section").css("display", has && selected ? "none" : "flex");
 		}
@@ -562,7 +565,9 @@
 				<div class="col"><div class="total-label">${p.escape(over ? t("trade.change") : t("trade.remaining"))}</div>
 					<div class="value ${over ? "text-success" : remaining > 0 ? "text-danger" : ""}">${
 						p.escape(money(over ? Math.abs(remaining) : remaining))}</div></div>`);
-			q(".submit-order-btn").toggleClass("disabled", remaining > 0 || paid <= 0);
+			// **不置灰**：官方那颗「完成订单」任何时候都是可点的，点下去才校验并给提示
+			// （官方源码：`You cannot submit empty order.` / `You cannot submit the order
+			// without payment.` + `play_sound("error")`）。这里照它，见下面的点击处理。
 		}
 
 		async function checkout() {
@@ -705,7 +710,12 @@
 					? `<div class="summary-row-wrapper"><span>${p.escape(t("trade.change"))}</span><span>${p.escape(money(doc.change_amount))}</span></div>` : ""));
 			// 官方这张汇总底下的按钮按单据状态给；我们有「退货退款」和「作废」两个真动作。
 			const done = doc.status === "completed";
+			// 底部按钮照官方的条件表给（官方 `get_condition_btn_map`）：单子落定之后是
+			// 「打印小票 / 邮件小票 / **新订单**」，已收款单还能「退货」，草稿才是编辑/删除。
+			// 打印与邮件小票我们**没有做**（F22 的产品口径，位置上仍不画）；「新订单」就是
+			// 用户说的"结束下一单"那颗，官方也在这一组里。
 			q(".past-order-summary .summary-btns").html([
+				`<div class="btn btn-sm summary-btn new-order-btn">${p.escape(t("trade.newOrder"))}</div>`,
 				can_write && done && doc.sale_type === "sale"
 					? `<div class="btn btn-sm summary-btn return-btn">${p.escape(t("trade.refund"))}</div>` : "",
 				can_write && done
@@ -751,6 +761,7 @@
 			dialog = p.dialog(t("trade.openShift"), [
 				currency_field(),
 				{ fieldtype: "Link", fieldname: "terminal", options: "ERP POS Terminal", only_select: true,
+					get_query: p.terminal_query(),
 					label: t("trade.terminal"), reqd: 1, default: preferred?.name || "",
 					description: t("trade.terminalHint") },
 				...balance_table(),
@@ -867,7 +878,19 @@
 			pay_numpad(event.currentTarget.dataset.buttonValue);
 		});
 		$app.on("click", ".submit-order-btn", () => {
-			if (q(".submit-order-btn").hasClass("disabled")) return;
+			// 官方那两句原话（空单 / 没收钱）：先提示 + 错误音，再决定要不要落单。
+			const total = cart_net();
+			const paid = round2(METHODS.reduce((sum, m) => sum + num(payments_now()[m]), 0));
+			if (!cart.length || total <= 0) {
+				frappe.show_alert({ message: t("trade.submitEmpty"), indicator: "orange" });
+				frappe.utils.play_sound("error");
+				return;
+			}
+			if (paid <= 0) {
+				frappe.show_alert({ message: t("trade.submitNoPayment"), indicator: "orange" });
+				frappe.utils.play_sound("error");
+				return;
+			}
 			void submit_order();
 		});
 		$app.on("click", ".past-order-list .invoice-wrapper", async event => {
@@ -882,6 +905,8 @@
 		$app.on("click", ".past-order-summary .refund-btn", () => {
 			if (active_order) refund(active_order);
 		});
+		// 「新订单」= 清干净这一单回到收银台（官方汇总屏上的 New Order，同一颗按钮）。
+		$app.on("click", ".past-order-summary .new-order-btn", () => void new_invoice());
 
 		function refund(doc) {
 			const request = crypto.randomUUID();

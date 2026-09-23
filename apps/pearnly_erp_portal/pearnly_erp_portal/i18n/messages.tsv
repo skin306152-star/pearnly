@@ -811,6 +811,9 @@ Total items	总件数	จำนวนชิ้น	合計点数	trade.totalItems
 Remove	移除	นำออก	削除	trade.remove
 Pick a line first	先选一行	เลือกบรรทัดก่อน	先に行を選んでください	trade.pickLine
 New Invoice	新单	บิลใหม่	新規会計	trade.newInvoice
+New Order	新订单	ออเดอร์ใหม่	新しい注文	trade.newOrder
+You cannot submit empty order.	空单不能提交	ออเดอร์ว่างส่งไม่ได้	空の注文は送信できません	trade.submitEmpty
+You cannot submit the order without payment.	没有收款不能提交	ยังไม่รับชำระ ส่งไม่ได้	入金がないと送信できません	trade.submitNoPayment
 Opened at {0}	开班时间 {0}	เปิดกะเมื่อ {0}	開始 {0}	trade.openedAtSub
 Shift {0} · opened {1} · expected cash {2}	班次 {0} · 开班 {1} · 应有现金 {2}	กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}	シフト {0} · 開始 {1} · 現金予定額 {2}	trade.shiftOpenedAt
 Cashier Records	收银记录	บันทึกการรับเงิน	レジ記録	nav.posReceipts

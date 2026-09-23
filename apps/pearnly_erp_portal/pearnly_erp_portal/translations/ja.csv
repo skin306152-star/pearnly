@@ -320,6 +320,7 @@ New,新規
 New Category,カテゴリ作成
 New Customer,顧客を追加
 New Invoice,新規会計
+New Order,新しい注文
 New Purchase Invoice,仕入請求書作成
 New Sale,会計
 New Sales Document,販売伝票を作成
@@ -659,6 +660,8 @@ Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
 Yes,はい
+You cannot submit empty order.,空の注文は送信できません
+You cannot submit the order without payment.,入金がないと送信できません
 Zoom In,拡大
 Zoom Out,縮小
 adjust,調整
@@ -1176,6 +1179,7 @@ trade.methodTransfer,振込
 trade.net,純額
 trade.newIn,入庫伝票を作成
 trade.newInvoice,新規会計
+trade.newOrder,新しい注文
 trade.newOut,出庫伝票を作成
 trade.newSale,販売伝票を作成
 trade.noShift,未開店
@@ -1233,6 +1237,8 @@ trade.stockPending,未計上
 trade.stockPosted,在庫計上済み
 trade.stockState,在庫計上
 trade.submit,確定
+trade.submitEmpty,空の注文は送信できません
+trade.submitNoPayment,入金がないと送信できません
 trade.submitReceive,確定して入庫
 trade.systemNo,システム番号
 trade.taxId,納税者番号

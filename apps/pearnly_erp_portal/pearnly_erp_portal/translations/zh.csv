@@ -320,6 +320,7 @@ New,新建
 New Category,新建分类
 New Customer,新建客户
 New Invoice,新单
+New Order,新订单
 New Purchase Invoice,新供应商发票
 New Sale,收银开单
 New Sales Document,新建销售单
@@ -659,6 +660,8 @@ Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
 Yes,是
+You cannot submit empty order.,空单不能提交
+You cannot submit the order without payment.,没有收款不能提交
 Zoom In,放大
 Zoom Out,缩小
 adjust,调整
@@ -1176,6 +1179,7 @@ trade.methodTransfer,转账
 trade.net,净额
 trade.newIn,新建入库单
 trade.newInvoice,新单
+trade.newOrder,新订单
 trade.newOut,新建出库单
 trade.newSale,新建销售单
 trade.noShift,尚未开班
@@ -1233,6 +1237,8 @@ trade.stockPending,未记入库存
 trade.stockPosted,已记入库存
 trade.stockState,库存过账
 trade.submit,提交过账
+trade.submitEmpty,空单不能提交
+trade.submitNoPayment,没有收款不能提交
 trade.submitReceive,提交并入库
 trade.systemNo,单据编号
 trade.taxId,税号

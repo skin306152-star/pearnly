@@ -29,8 +29,8 @@ BALANCE = "ERP Stock Balance"
 def warehouse_for(terminal=None) -> str:
     """这个收银台动的是哪个仓库：收银台配了就用它，没配用默认仓库。"""
     name = terminals.resolve(terminal)
-    value = frappe.db.get_value("ERP POS Terminal", name, "warehouse")
-    return warehouses.required(value)
+    row = frappe.db.get_value("ERP POS Terminal", name, ["company", "warehouse"], as_dict=True)
+    return warehouses.required(row.warehouse, company=row.company)
 
 
 def _on_hand(warehouse: str, names: list) -> dict:

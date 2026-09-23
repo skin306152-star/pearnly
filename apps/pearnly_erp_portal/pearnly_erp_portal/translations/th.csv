@@ -320,6 +320,7 @@ New,ใหม่
 New Category,สร้างหมวดหมู่
 New Customer,เพิ่มลูกค้า
 New Invoice,บิลใหม่
+New Order,ออเดอร์ใหม่
 New Purchase Invoice,ใบแจ้งหนี้ซื้อใหม่
 New Sale,ขายสินค้า
 New Sales Document,สร้างเอกสารขาย
@@ -659,6 +660,8 @@ Withholding Tax Certificate,หนังสือรับรองการห�
 Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่าย
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
 Yes,ใช่
+You cannot submit empty order.,ออเดอร์ว่างส่งไม่ได้
+You cannot submit the order without payment.,ยังไม่รับชำระ ส่งไม่ได้
 Zoom In,ขยาย
 Zoom Out,ย่อ
 adjust,ปรับปรุง
@@ -1176,6 +1179,7 @@ trade.methodTransfer,โอนเงิน
 trade.net,ยอดสุทธิ
 trade.newIn,รับสินค้าเข้า
 trade.newInvoice,บิลใหม่
+trade.newOrder,ออเดอร์ใหม่
 trade.newOut,จ่ายสินค้าออก
 trade.newSale,สร้างเอกสารขาย
 trade.noShift,ยังไม่เปิดกะ
@@ -1233,6 +1237,8 @@ trade.stockPending,ยังไม่บันทึกสต็อก
 trade.stockPosted,บันทึกสต็อกแล้ว
 trade.stockState,การบันทึกสต็อก
 trade.submit,ยืนยัน
+trade.submitEmpty,ออเดอร์ว่างส่งไม่ได้
+trade.submitNoPayment,ยังไม่รับชำระ ส่งไม่ได้
 trade.submitReceive,ยืนยันและรับเข้าสต็อก
 trade.systemNo,เลขที่ระบบ
 trade.taxId,เลขประจำตัวผู้เสียภาษี

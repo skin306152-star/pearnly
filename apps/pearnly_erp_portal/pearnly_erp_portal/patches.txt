@@ -8,3 +8,4 @@ pearnly_erp_portal.patches.v1_0_sync_base_unit_with_sale_unit
 pearnly_erp_portal.patches.v1_1_enable_stocktake_feature
 pearnly_erp_portal.patches.v1_2_storage_positions
 pearnly_erp_portal.patches.v1_3_company_scope
+pearnly_erp_portal.patches.v1_4_terminal_company
