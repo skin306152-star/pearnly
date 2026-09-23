@@ -30,7 +30,9 @@ def prepare(line, warehouse=None):
     # 仓库必须是这家公司真实存在的仓（仓库属于公司）。商品上那个默认仓可能是别家公司
     # 或者已经停用的，那种情况要**报错**而不是把货悄悄记到"没有仓库"上。
     wanted = result.get("warehouse") or warehouse or product.default_warehouse
-    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.ensure_default()
+    # 一个都没有时不再往"默认仓"上落：`required()` 只认"这家公司只有一个仓"，
+    # 多个仓直接报错让调用方明确指定（见 `warehouses` 抬头）。
+    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.required()
     if not resolved:
         frappe.throw(_("Warehouse not found"))
     result["warehouse"] = resolved
@@ -41,7 +43,7 @@ def prepare(line, warehouse=None):
 
 def saved(line, warehouse=None):
     """Read an existing line, including legacy blank positions, without product defaults."""
-    return {"warehouse": line.get("warehouse") or warehouse or warehouses.ensure_default(),
+    return {"warehouse": line.get("warehouse") or warehouse or warehouses.required(),
             "location": clean_location(line.get("location"))}
 
 

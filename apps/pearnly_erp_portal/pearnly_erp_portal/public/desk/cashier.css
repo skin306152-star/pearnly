@@ -944,3 +944,32 @@
 	.point-of-sale-app .totals > .col > * { font-size: var(--text-sm) !important; }
 	.point-of-sale-app > .past-order-list { grid-column: span 6 / span 1; }
 }
+
+/* 收银台「还没开班」那块空态（用户 2026-09-24："pos空态未开班时加官方文案和 svg 图标展示"）：
+   图标是官方 POS 自己那枚（内联在适配层里）、文案是官方那两句，这里只管排版 ——
+   跟着主题的文字色走，不引入别的插画风格。 */
+.pearnly-pos-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	min-height: 60vh;
+	text-align: center;
+}
+.pearnly-pos-empty .pearnly-pos-empty-icon {
+	width: 96px;
+	height: 96px;
+	margin-bottom: 6px;
+	color: var(--text-muted);
+	opacity: 0.55;
+}
+.pearnly-pos-empty .pearnly-pos-empty-title {
+	font-size: var(--text-lg);
+	font-weight: 600;
+	color: var(--text-color);
+}
+.pearnly-pos-empty .pearnly-pos-empty-hint {
+	font-size: var(--text-md);
+	color: var(--text-muted);
+}

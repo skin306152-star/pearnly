@@ -151,7 +151,7 @@ def apply_import(*, count, rows) -> dict:
             continue
         try:
             warehouse = _warehouse_of(row.get("warehouse"),
-                                      task.warehouse or warehouses.ensure_default())
+                                      task.warehouse or warehouses.required())
         except frappe.ValidationError:
             problems.append({"row": number, "reason": "warehouse_not_found"})
             continue
@@ -249,7 +249,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
         found = frappe.db.get_value(PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
-    warehouse = task.warehouse or warehouses.ensure_default()
+    warehouse = task.warehouse or warehouses.required()
     book_qty = stock_service.current_balance(found["name"], warehouse, location).qty
     name = _insert_item(task.name, found, warehouse, book_qty, location)
     _refresh_totals(task.name)
@@ -340,7 +340,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             "counted_qty": row["counted_qty"] if row["counted"] else None,
             "warehouse": _warehouse_label(row["warehouse"]), "location": row["location"] or "",
         } for row in list_items(count=name, limit=0)]
-    warehouse = (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else warehouses.ensure_default()
+    warehouse = (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else warehouses.required()
     balances = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {row["name"]: row for row in frappe.get_list(

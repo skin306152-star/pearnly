@@ -131,13 +131,15 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
 
     shift_doc = _resolve_shift(shift, terminal)
     terminal_doc = frappe.get_doc("ERP POS Terminal", terminals.resolve(terminal or shift_doc.terminal))
-    # **先定这台收银台真正卖货的那个仓**，再铺行：终端自己配了用自己，没配就是这家公司的
-    # 默认仓（与商品区那条 `counter.warehouse_for` 同一口径 —— 界面上显示的可用量就是按它算的）。
-    # 顺序要紧：`positions.prepare` 的兜底是"**商品自己的**默认仓"，而两个兜底不是一回事 ——
-    # 终端没配仓时（本租户的终端就是 NULL）行会落到商品默认仓上，单据却写着公司默认仓，
-    # 于是"看到的库存"与"扣的仓库"不是一个地方（实测：单据 `WH-00174`、行 `WH-00101`，
-    # 库存从行那个仓出的）。死在这里定死，行、单据、界面三处才是一个仓。
-    warehouse_id = warehouses.required(warehouse or terminal_doc.warehouse)
+    # **先定这台收银台真正卖货的那个仓**，再铺行（与商品区那条 `counter.warehouse_for`
+    # 同一口径 —— 界面上显示的可用量就是按它算的）。
+    # 两个来源：单据上明确给的（`warehouse`）→ 用它；否则就是**收银台自己配的那个仓**
+    # （`terminals.place_of`；"默认仓"那个概念已经删了，没配仓就是明确报错，不猜）。
+    # 顺序要紧：`positions.prepare` 的兜底是"**商品自己的**默认仓"，两个兜底不是一回事 ——
+    # 不定死这里，行会落到商品仓上、单据却写着收银台的仓（实测过：单据 `WH-00174`、
+    # 行 `WH-00101`，库存从行那个仓出）。定死之后行、单据、界面三处才是一个仓。
+    warehouse_id = (warehouses.required(warehouse, company=terminal_doc.company)
+                    if str(warehouse or "").strip() else terminals.place_of(terminal_doc))
     lines = [positions.prepare(line, warehouse_id) for line in lines]
 
     try:

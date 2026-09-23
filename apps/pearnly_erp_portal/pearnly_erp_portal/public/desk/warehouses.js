@@ -46,21 +46,17 @@
 					// 当前公司的仓库：服务端按 `company` 过滤（`api_company_warehouses`）。
 					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
 						width: 220, min_width: 150},
-					{fieldname: "is_default", label: t("company.col.defaultWarehouse"),
-						width: 130, min_width: 100,
-						format: value => (Number(value) ? t("company.yes") : "—")},
+					// 「默认仓库」那一列本轮删掉了（用户 2026-09-24："不要做默认仓，依赖的全部删掉"）——
+					// 仓库就是一份平铺的清单，哪个单据/哪台收银台用哪个仓都写在它自己身上。
+					{fieldname: "note", label: t("company.field.note"), width: 200, min_width: 130},
+					// 状态排在**备注后面**（用户 2026-09-24 的口径）。
 					{fieldname: "is_active", label: t("company.col.status"), width: 100, min_width: 80,
 						format: value => (Number(value) ? t("company.status.active")
 							: t("company.status.inactive")),
 						cell_class: value => (Number(value) ? "" : "pearnly-payment-due")},
-					{fieldname: "note", label: t("company.field.note"), width: 200, min_width: 130},
 				],
 				on_open: row => (can_manage() ? editor(row) : null),
-				row_actions: can_manage() ? row => [
-					{id: "default", label: t("company.setDefaultWarehouse"),
-						disabled: Number(row.is_default) === 1,
-						action: () => make_default(row)},
-				] : null,
+				// 行内那颗「设为默认」跟着"默认仓"一起删了（它写的就是 `is_default`）。
 				load: async () => {
 					const rows = await p.call(api + "api_company_warehouses",
 						{company_name: frappe.boot.pearnly_company, include_inactive: 1});
@@ -88,28 +84,32 @@
 			page.set_primary_action(t("company.newWarehouse"), () => editor(null));
 		}
 
-		// 新建 = 取个名字（归属当前公司，服务端定）；改 = 改名 + 备注。
+		// 新建 = 取个名字（归属当前公司，服务端定）；改 = 改名 + 备注 + 状态。
+		// 状态那一格的值直接用界面上的字（下拉里没有"值/标签"之分），这里再翻回 1/0。
+		const status_options = () => [t("company.status.active"), t("company.status.inactive")].join("\n");
+		const status_value = label => (label === t("company.status.inactive") ? 0 : 1);
 		function editor(row) {
 			const is_new = !row;
 			p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
 				f("warehouse_name", "company.field.warehouse", "Data",
 					{reqd: 1, default: row?.warehouse_name || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
+				f("is_active", "company.col.status", "Select",
+					{options: status_options(),
+						default: Number(row ? row.is_active : 1) ? t("company.status.active")
+							: t("company.status.inactive")}),
 			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
 				await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
-					is_new ? {warehouse_name: values.warehouse_name, note: values.note, is_default: 0}
-						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note},
+					is_new
+						? {warehouse_name: values.warehouse_name, note: values.note,
+							is_active: status_value(values.is_active)}
+						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note,
+							is_active: status_value(values.is_active)},
 					"POST");
 				dialog.hide();
 				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
 				await list.reload();
 			});
-		}
-
-		async function make_default(row) {
-			await p.call(api + "api_set_default_warehouse", {name: row.name}, "POST");
-			p.success(t("company.notice.defaultWarehouse", row.warehouse_name), "click");
-			await list.reload();
 		}
 
 		await paint();

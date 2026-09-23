@@ -108,7 +108,8 @@ def main():
         products.create_product(product_name="Lab sale item", code=code, unit="pcs",
                                 unit_price="100", default_cost="40")
     product = frappe.db.get_value("ERP Product", {"code": code}, "name")
-    warehouse = warehouses.ensure_default()
+    # 本仓不再有"默认仓"这个概念（2026-09-24 删掉）：实验站上**显式**取/建一个属于本脚本的仓。
+    warehouse = warehouses.resolve("LAB-POS", create=True)
     stock.apply_movement(warehouse=warehouse, movement_type="stock_in", product=product,
                          qty=100, unit="pcs", unit_cost="40")
 

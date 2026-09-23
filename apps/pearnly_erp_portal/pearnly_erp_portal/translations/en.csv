@@ -171,6 +171,7 @@ Collection Status,Collection Status
 Colour Tag,Colour Tag
 Columns,Columns
 "Comes from the terminal; if it has none, the company's default warehouse","Comes from the terminal; if it has none, the company's default warehouse"
+Comes from the terminal; set it there if it is empty,Comes from the terminal; set it there if it is empty
 Companies,Companies
 Company,Company
 Company details,Company details
@@ -567,6 +568,7 @@ Phone,Phone
 Phone Number,Phone Number
 Photos,Photos
 Pick a line first,Pick a line first
+Pick a warehouse,Pick a warehouse
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
 Place,Place
 Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
@@ -876,6 +878,7 @@ This status change is not allowed,This status change is not allowed
 This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
 This terminal already has an open shift,This terminal already has an open shift
+This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
 Time,Time
@@ -1580,7 +1583,7 @@ trade.voidNotice,Voided {0}
 trade.voidPaid,Void the payments before voiding the document
 trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
-trade.warehouseHint,"Comes from the terminal; if it has none, the company's default warehouse"
+trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
 unpaid,unpaid
 void,void

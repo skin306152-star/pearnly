@@ -15,10 +15,19 @@ from pearnly_erp_portal.masters import company as companies
 DOCTYPE = "ERP POS Terminal"
 NOT_FOUND = "Terminal not found"
 NAME_REQUIRED = "A terminal needs a name"
+# 收银台没配卖货的仓、而这家公司又有多个仓时那句提示（没有"默认仓"可以兜）。
+WAREHOUSE_REQUIRED = "This terminal has no warehouse; set one in the terminal settings"
 FIELDS = ("name", "terminal_name", "company", "warehouse", "is_default", "is_active")
 
 
-def ensure_default(company=None) -> str:
+def ensure_default(company=None, warehouse=None) -> str:
+    """这家公司的**默认收银台**（没有就建一台）。
+
+    ⚠️ 这里说的是"默认**收银台**"（同一家公司有多台柜台时先给哪一台），不是"默认仓" ——
+    "默认仓"这个概念已经删掉了（用户 2026-09-24）。新建那台时把卖货的仓写成**显式的**：
+    给了 `warehouse` 就用给的，没给就取这家公司**唯一**的仓；多个仓/一个都没有时留空，
+    卖货那条路会明确报"这台收银台还没配仓库"（见 `place_of`）。
+    """
     company = company or companies.active_company()
     existing = frappe.db.get_value(DOCTYPE, {"company": company, "is_default": 1}, "name")
     if existing:
@@ -30,10 +39,26 @@ def ensure_default(company=None) -> str:
         return any_terminal
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": "Counter 1",
                           "company": company,
-                          "warehouse": warehouses.ensure_default(company),
+                          "warehouse": warehouse or warehouses.sole(company) or "",
                           "is_default": 1, "is_active": 1})
     doc.insert(ignore_permissions=True)
     return doc.name
+
+
+def place_of(terminal_doc, *, company=None) -> str:
+    """这台收银台**卖货的仓**：写在它自己身上的那一个。
+
+    "自己没配就取默认仓"那条兜底已经删掉（用户 2026-09-24："不要做默认仓，依赖全部删掉"）。
+    只剩一种例外：这家公司**只有一个仓** —— 那是唯一解，不算替谁拿主意。
+    其余情况（没配 + 多个仓）明确报错，让用户去收银台上把仓配好。
+    """
+    explicit = str(terminal_doc.get("warehouse") or "").strip()
+    if explicit:
+        return warehouses.required(explicit, company=company or terminal_doc.get("company"))
+    only = warehouses.sole(company or terminal_doc.get("company"))
+    if not only:
+        frappe.throw(_(WAREHOUSE_REQUIRED))
+    return only
 
 
 def resolve(terminal=None, company=None) -> str:
@@ -57,11 +82,11 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
                            order_by="is_default desc, terminal_name asc",
                            limit_page_length=int(limit))
     # 「这台收银台实际从哪个仓卖货」：自己配了就用它，没配就是**这家公司的默认仓** ——
-    # 与卖货那条路（`counter.warehouse_for` → `warehouses.required`）同一口径。
-    # 这里只**读**、不建：列表接口不该有副作用；真没有默认仓时留空，服务端第一次卖货才建。
+    # 与卖货那条路（`place_of`）同一口径：**只认它自己配的那个仓**，
+    # 唯一的例外是"这家公司只有一个仓"（唯一解）。列表接口只**读**、不写、不建。
     for row in rows:
-        row["effective_warehouse"] = row.get("warehouse") or frappe.db.get_value(
-            "ERP Warehouse", {"company": row.get("company"), "is_default": 1}, "name") or ""
+        row["effective_warehouse"] = (row.get("warehouse")
+                                      or warehouses.sole(row.get("company")) or "")
         row["effective_warehouse_name"] = frappe.db.get_value(
             "ERP Warehouse", row["effective_warehouse"], "warehouse_name") if row["effective_warehouse"] else ""
         # 开班/交班弹窗要显示「这家公司叫什么」给收银员看，编号（`CO-00552`）没人认。

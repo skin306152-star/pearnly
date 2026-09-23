@@ -110,7 +110,8 @@ def main():
         frappe.conf["pearnly_features"] = features + ["stocktake"]
 
     results = {}
-    warehouse = warehouses.ensure_default()
+    # 本仓不再有"默认仓"这个概念（2026-09-24 删掉）：实验站上**显式**取/建一个属于本脚本的仓。
+    warehouse = warehouses.resolve("LAB-POS", create=True)
     watched = [product("LAB-SC-A", "Lab count A"), product("LAB-SC-B", "Lab count B")]
     untouched = product("LAB-SC-C", "Lab count untouched")
 

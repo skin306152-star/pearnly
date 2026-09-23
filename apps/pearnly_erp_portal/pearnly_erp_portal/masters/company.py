@@ -141,9 +141,13 @@ def list_companies(*, include_inactive=False, limit=50) -> list[dict]:
 
 
 def create_company(*, company_name, warehouse_name=None, **fields) -> dict:
-    """新建一家公司。**顺手把它第一个仓库建好**（用户 2026-09-23："在新建公司的时候就加新建仓库
-    的入口"）：没有仓库就入不了库、卖不了货，所以公司一建出来就带着一个默认仓。
-    仓库名留空就用 `Main`；已存在同名仓库就复用它并设成默认。
+    """新建一家公司。**顺手把它第一个仓与第一台收银台建好** —— 没有仓就入不了库、
+    没有收银台就开不了班，所以公司一建出来就是能用的。
+
+    用户 2026-09-24 问"收银台的来源是哪里、要不要建公司的时候建"：来源就是这里（以及第一次
+    开班时的懒建，见 `terminals.ensure_default`）。**收银台卖货的仓写成显式的**（指向刚建的
+    这个仓），因为"默认仓"这个概念本轮已经删掉了 —— 卖货只能靠收银台上那个仓。
+    仓库名留空就用 `Main`；已存在同名仓库就复用它。
     """
     guard.require("company.manage")
     name = contracts.clean(company_name, contracts.MAX_NAME)
@@ -152,10 +156,13 @@ def create_company(*, company_name, warehouse_name=None, **fields) -> dict:
     doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": name, "is_active": 1})
     _apply(doc, fields)
     doc.insert()
+    from pearnly_erp_portal.cashier import terminals
     from pearnly_erp_portal.inventory import warehouses
-    warehouses.ensure_for_company(doc.name, warehouse_name)
+
+    place = warehouses.ensure_for_company(doc.name, warehouse_name)
+    terminal = terminals.ensure_default(doc.name, warehouse=place)
     frappe.db.commit()
-    return {"name": doc.name, "warehouse": warehouses.ensure_default(doc.name)}
+    return {"name": doc.name, "warehouse": place, "terminal": terminal}
 
 
 def get_profile(name=None) -> dict:

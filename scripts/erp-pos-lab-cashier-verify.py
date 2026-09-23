@@ -94,7 +94,8 @@ def main():
         d for d in ("ERP POS Terminal", "ERP Shift", "ERP Sale", "ERP Sale Line",
                     "ERP Sale Payment") if frappe.db.exists("DocType", d))
 
-    warehouse = warehouses.ensure_default()
+    # 本仓不再有"默认仓"这个概念（2026-09-24 删掉）：实验站上**显式**取/建一个属于本脚本的仓。
+    warehouse = warehouses.resolve("LAB-POS", create=True)
     item = product("LAB-POS-A", "สินค้าหน้าร้าน A")
     item2 = product("LAB-POS-B", "สินค้าหน้าร้าน B")
 
@@ -117,8 +118,11 @@ def main():
                 movement_type="stock_in", qty=qty, unit_cost=10, posting_date="2026-09-15",
                 client_uuid=f"lab-pos-stock-{product_id}")
 
-    # 终端：没有收银台时自动建默认台。
+    # 终端：没有收银台时自动建默认台，并**把它卖货的仓显式写上**（"默认仓"已经删掉了，
+    # 收银台卖货只认自己身上那个仓；不写的话这台收银台一落单就会报"还没配仓库"）。
     terminal = terminals.ensure_default()
+    frappe.db.set_value("ERP POS Terminal", terminal, "warehouse", warehouse)
+    frappe.db.commit()
     results["default_terminal"] = bool(terminal)
 
     # 没有开班就卖 → 拒绝（否则交班对不上账）。

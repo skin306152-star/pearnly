@@ -808,3 +808,65 @@ frappe.pearnly.pos_shift.close({ t, shift, on_done })  // 交班
 最后按仓库里已有的做法：**把适配层挂进 `app_include_js`**（`versioned_asset` 按文件内容算 hash），
 页面里改成直接用那个全局加载器；hooks 那份兜底留给"刚改完还没重启 web"的情况。
 代价是改适配层要 `clear-cache` + 重启 web（与 `desk/*.js` 那批一致）。
+
+## 16. 2026-09-24 第三批：删掉"默认仓"、空态用官方图标与文案、建公司时一并建收银台
+
+用户这一轮的三个动作 + 两个问题（原话要点）：**不要做默认仓，依赖的全部删掉，删掉后加一个
+状态字段在备注后面**；**pos 空态未开班时加官方文案和 svg 图标展示**；问"收银台的来源是哪里、
+要不要加收银台的配置、建公司的时候建还是怎么做"。
+
+### 16.1 "默认仓"这一位彻底删掉（含它下面挂着的每一处）
+
+**规则换成了什么**：仓库就是这份平铺清单，**哪个单据、哪台收银台用哪个仓，都写在自己身上**。
+以前那种"没写就落默认仓"的兜底换成一个**事实判断**：这家公司**只有一个启用的仓**就用它
+（唯一解，不是替谁拿主意），有多个仓就报错「请选择仓库」。
+
+删掉/改掉的东西（逐处）：
+
+| 落点 | 处理 |
+| --- | --- |
+| `ERP Warehouse.is_default` 字段 | 从 DocType JSON 删掉；`v1_6_…` patch 把库里的列真正 DROP（模型同步只加/改列，不删列） |
+| `warehouses.ensure_default()` | 删掉；`required()` 改成"唯一仓 / 报错"；新增 `sole()`（事实判断，不存配置位） |
+| `warehouses.set_default()` / `_demote_others()` | 删掉 |
+| `masters/api.api_set_default_warehouse` | 删掉 |
+| 仓库页「默认仓库」列 + 行内「设为默认」 | 删掉；列表与新建/编辑弹窗的**状态都排到备注后面**（用户口径） |
+| `list_warehouses` 排序 | `is_default desc` → 按名字 |
+| 出入库/盘点/采购入库/销售单出库/收银 | 全部改成"单据上明确的仓 → 唯一仓 → 报错"，一处不落（见各文件注释） |
+| 词条 | `company.col.defaultWarehouse` / `company.setDefaultWarehouse` / `company.notice.defaultWarehouse` 三条删掉（不再引用） |
+
+**存量数据怎么过来的**：`v1_5_terminal_warehouse` 放在 `[pre_model_sync]`（跑在模型同步**之前**），
+趁 `is_default` 还在的时候把**当时实际生效的那个仓抄到收银台上**（优先 `is_default=1`，
+没有就取这家公司最早的仓）。实测：站上两台终端都补成了 `WH-00174`（= 以前那个默认仓），
+所以老站点不停摆、行为不变，只是值从"隐式"变成"显式"。
+
+**实测四条**（`frappe` 直连跑）：`sole()` → None（这家公司有 19 个仓）；`required()` →
+`ValidationError: Pick a warehouse`；`required("WH-00174")` → `WH-00174`；
+`terminals.place_of(空仓终端)` → `This terminal has no warehouse…`。
+以及新卖的一单 `SI2569-000065`：**单据仓 = 行仓 = `WH-00174`**（行上还带了商品名）。
+
+### 16.2 没开班时的空态：官方那枚图标 + 官方那两句文案
+
+以前那块地方是**一片白**。现在（`check_opening_entry()` 里没班次那条路）画一个空态：
+
+- **图标**：官方 POS 自己那枚（erpnext 16.34.1 `public/images/pos.svg`，与 `official-*.js`
+  同一份 GPLv3 素材），**内联在适配层**（照原样的路径，`fill="currentColor"` 跟着文字色走）；
+- **文案**：官方文件里原文那两句 —— `Create POS Opening Entry`（新建开班记录）与
+  `Please add Mode of payments and opening balance details.`（请添加支付方式与开班余额明细），
+  都在术语表里、四语齐；
+- 排版在 `desk/cashier.css` 的 `.pearnly-pos-empty`（居中、图标 96px、灰 55%）。
+
+实测：真·未开班加载（不是造出来的）→ 图标 + 两行字 + 右上角「开班」主按钮；
+点开班 → 班次 18 开起来、商品区 40 件、物料组 0。
+
+### 16.3 收银台的来源：现在是"建公司时一并建一台，并且**把仓写死在它身上**"
+
+来源有两处，本轮把第一处补上了：
+
+1. **建公司时**（`company.create_company`）：建这家公司的第一个仓 → 建一台收银台
+   （`terminals.ensure_default(company, warehouse=那个仓)`）→ 卖货的仓**显式**指向它。
+   这样新公司一建出来就是能开班、能卖货的。
+2. **第一次开班时的懒建**（`terminals.ensure_default`）：老站点/边界情况兜底，同一套逻辑。
+
+**还没做的**（等用户拍板）：一个能改"收银台名字 / 卖货的仓 / 启用停用"的**配置入口**。
+本轮只把后端能力（`api_create_terminal` / `api_update_terminal`）留着，页面没加 ——
+要加的话放哪儿（收银组下单独一页 / 并进公司页）由用户定，见交接说明。

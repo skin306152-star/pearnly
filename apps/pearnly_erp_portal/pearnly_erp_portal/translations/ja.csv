@@ -171,6 +171,7 @@ Collection Status,入金状況
 Colour Tag,カラータグ
 Columns,列
 "Comes from the terminal; if it has none, the company's default warehouse",レジの設定によります。未設定なら会社の既定倉庫です
+Comes from the terminal; set it there if it is empty,レジの設定によります。空の場合はレジ側で倉庫を設定してください
 Companies,会社
 Company,会社
 Company details,会社情報
@@ -567,6 +568,7 @@ Phone,電話
 Phone Number,電話番号
 Photos,写真
 Pick a line first,先に行を選んでください
+Pick a warehouse,倉庫を選択してください
 "Pick quantity, discount or price first",先に数量・割引・単価を選んでください
 Place,保管場所
 Please add Mode of payments and opening balance details.,支払方法と開始残高の明細を追加してください
@@ -876,6 +878,7 @@ This status change is not allowed,このステータス変更は許可されて�
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
+This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません
 This warehouse already exists,この倉庫は既に存在します
 Time,時刻
@@ -1580,7 +1583,7 @@ trade.voidNotice,{0}件を取り消しました
 trade.voidPaid,先に入金を取り消してから伝票を取り消してください
 trade.walkIn,一般客
 trade.warehouse,倉庫
-trade.warehouseHint,レジの設定によります。未設定なら会社の既定倉庫です
+trade.warehouseHint,レジの設定によります。空の場合はレジ側で倉庫を設定してください
 transfer,振込
 unpaid,未払い
 void,取消済み

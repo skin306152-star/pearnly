@@ -9,9 +9,10 @@
 · 库存：**这个收银台所在仓库**的结存，读 `ERP Stock Balance` —— 那张表由收发存的流水
   维护（`inventory/stock.py`），所以卖出去的那一笔会当场进收发存，不是另算一份。
 
-仓库按"收银台自己配的仓库 → 没有就默认仓库"解析，与 `sales.create_sale` 落单时的
-口径一致（那边是 `warehouse or terminal_doc.warehouse`），否则界面看到的库存和实际
-扣的仓库会不是一个地方。
+仓库按**这台收银台自己配的那个仓**解析（`terminals.place_of`），与 `sales.create_sale`
+落单时同一口径 —— 否则界面看到的库存和实际扣的仓库会不是一个地方。
+**没有"默认仓"可以兜**（用户 2026-09-24 删掉了那个概念）：没配仓、而这家公司又有多个仓时，
+这里直接报错让人去把收银台的仓配好。
 """
 
 from __future__ import annotations
@@ -27,10 +28,10 @@ BALANCE = "ERP Stock Balance"
 
 
 def warehouse_for(terminal=None) -> str:
-    """这个收银台动的是哪个仓库：收银台配了就用它，没配用默认仓库。"""
+    """这个收银台动的是哪个仓库：**它自己配的那个**（没有"默认仓"了）。"""
     name = terminals.resolve(terminal)
     row = frappe.db.get_value("ERP POS Terminal", name, ["company", "warehouse"], as_dict=True)
-    return warehouses.required(row.warehouse, company=row.company)
+    return terminals.place_of(row)
 
 
 def _on_hand(warehouse: str, names: list) -> dict:

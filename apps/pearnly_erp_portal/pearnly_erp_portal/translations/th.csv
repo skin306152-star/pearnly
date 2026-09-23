@@ -171,6 +171,7 @@ Collection Status,สถานะการรับเงิน
 Colour Tag,ป้ายสี
 Columns,คอลัมน์
 "Comes from the terminal; if it has none, the company's default warehouse",มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท
+Comes from the terminal; set it there if it is empty,มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน
 Companies,บริษัท
 Company,บริษัท
 Company details,ข้อมูลบริษัท
@@ -567,6 +568,7 @@ Phone,โทรศัพท์
 Phone Number,เบอร์โทรศัพท์
 Photos,รูปภาพ
 Pick a line first,เลือกบรรทัดก่อน
+Pick a warehouse,กรุณาเลือกคลัง
 "Pick quantity, discount or price first",เลือกจำนวน ส่วนลด หรือราคาก่อน
 Place,ตำแหน่ง
 Please add Mode of payments and opening balance details.,กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา
@@ -876,6 +878,7 @@ This status change is not allowed,เปลี่ยนสถานะแบบ�
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This terminal already has an open shift,เครื่องขายนี้มีกะที่เปิดอยู่แล้ว
+This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 Time,เวลา
@@ -1580,7 +1583,7 @@ trade.voidNotice,ยกเลิก {0} รายการแล้ว
 trade.voidPaid,ต้องยกเลิกการชำระเงินก่อนยกเลิกเอกสาร
 trade.walkIn,ลูกค้าทั่วไป
 trade.warehouse,คลัง
-trade.warehouseHint,มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท
+trade.warehouseHint,มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว

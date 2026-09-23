@@ -778,7 +778,7 @@ Cashier	收银员	พนักงานเก็บเงิน	レジ担当	tra
 Opened At	开班时间	เวลาเปิดกะ	開始時刻	trade.openedAt
 Closed At	交班时间	เวลาปิดกะ	終了時刻	trade.closedAt
 Which company this terminal belongs to, and which warehouse it sells from	这台收银台属于哪家公司、从哪个仓卖货	เครื่องขายนี้เป็นของบริษัทไหน ขายจากคลังไหน	このレジがどの会社に属し、どの倉庫から販売するか	trade.terminalHint
-Comes from the terminal; if it has none, the company's default warehouse	来自收银台；收银台没配仓就用这家公司的默认仓	มาจากเครื่องขาย ถ้าเครื่องขายไม่ได้ตั้งไว้จะใช้คลังเริ่มต้นของบริษัท	レジの設定によります。未設定なら会社の既定倉庫です	trade.warehouseHint
+Comes from the terminal; set it there if it is empty	来自收银台；这里空的话要先去收银台上配一个仓	มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน	レジの設定によります。空の場合はレジ側で倉庫を設定してください	trade.warehouseHint
 Sales Count	笔数	จำนวนบิล	件数	trade.salesCount
 Refund Count	退款笔数	จำนวนการคืนเงิน	返品件数	trade.refundCount
 Gross	毛额	ยอดขายรวม	売上総額	trade.gross
@@ -842,10 +842,7 @@ Warehouse	仓库	คลังสินค้า	倉庫	company.field.warehouse
 Main	主仓	คลังหลัก	メイン倉庫	company.warehouseDefaultName
 First warehouse of this company (more on the Warehouses page)	这家公司的第一个仓库（之后在「仓库」页再加）	คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)	この会社の最初の倉庫（追加は「倉庫」ページから）	company.warehouseHint
 Warehouse name	仓库名称	ชื่อคลังสินค้า	倉庫名	company.col.warehouse
-Default warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	company.col.defaultWarehouse
 New warehouse	新建仓库	เพิ่มคลังสินค้า	倉庫を追加	company.newWarehouse
-Set as default	设为默认	ตั้งเป็นค่าเริ่มต้น	既定にする	company.setDefaultWarehouse
-{0} is now the default warehouse	{0} 已设为默认仓库	{0} เป็นคลังเริ่มต้นแล้ว	{0} を既定の倉庫にしました	company.notice.defaultWarehouse
 Address and notes	地址与备注	ที่อยู่และหมายเหตุ	住所と備考	company.section.address
 Save	保存	บันทึก	保存	company.save
 Saved	已保存	บันทึกแล้ว	保存しました	company.notice.saved
@@ -1159,3 +1156,5 @@ This status change is not allowed	不允许这样改状态	เปลี่ยน
 This stock count is already posted	这张盘点单已经过账了	เอกสารตรวจนับนี้ลงบัญชีแล้ว	この棚卸はすでに計上済みです
 No product matches this code	该编号找不到物料	ไม่พบสินค้าที่ตรงกับรหัสนี้	このコードに一致する商品がありません
 Return	退货退款	คืนสินค้า	返品・返金
+Pick a warehouse	请选择仓库	กรุณาเลือกคลัง	倉庫を選択してください
+This terminal has no warehouse; set one in the terminal settings	这台收银台还没配仓库，请先在收银台上选一个仓	เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย	このレジには倉庫が未設定です。レジ設定で倉庫を選んでください

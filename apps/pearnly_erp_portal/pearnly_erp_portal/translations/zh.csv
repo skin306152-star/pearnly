@@ -171,6 +171,7 @@ Collection Status,收款状态
 Colour Tag,颜色标记
 Columns,列
 "Comes from the terminal; if it has none, the company's default warehouse",来自收银台；收银台没配仓就用这家公司的默认仓
+Comes from the terminal; set it there if it is empty,来自收银台；这里空的话要先去收银台上配一个仓
 Companies,公司
 Company,公司
 Company details,公司信息
@@ -567,6 +568,7 @@ Phone,电话
 Phone Number,电话号码
 Photos,照片
 Pick a line first,先选一行
+Pick a warehouse,请选择仓库
 "Pick quantity, discount or price first",先点数量、折扣或单价
 Place,位置
 Please add Mode of payments and opening balance details.,请添加支付方式与开班余额明细
@@ -876,6 +878,7 @@ This status change is not allowed,不允许这样改状态
 This stock count is already posted,这张盘点单已经过账了
 This stock count is closed,这张盘点已结束
 This terminal already has an open shift,这台收银台已经有开着的班次
+This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
 This unit is not defined on the product,这个单位没有在这个物料上定义
 This warehouse already exists,这个仓库已经存在
 Time,时间
@@ -1580,7 +1583,7 @@ trade.voidNotice,已作废 {0} 张
 trade.voidPaid,先冲掉付款再作废这张单据
 trade.walkIn,散客
 trade.warehouse,仓库
-trade.warehouseHint,来自收银台；收银台没配仓就用这家公司的默认仓
+trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一个仓
 transfer,转账
 unpaid,未付款
 void,已作废

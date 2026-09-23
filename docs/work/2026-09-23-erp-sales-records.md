@@ -3681,3 +3681,24 @@ return（函数没定义），搬来的官方收银台要「交班」就得有�
 
 检查：`node --check` 全过、`i18n-build --check` PASS、`check-frontend-i18n` 0 问题、
 `check-architecture` PASS(0 violations)。未部署、未推送、未合并。
+
+## 2026-09-24 第三批（用户口径：不要做默认仓、依赖全部删掉、状态放备注后面、POS 空态用官方图标与文案）
+
+**"默认仓"整条线删掉**：`ERP Warehouse.is_default` 字段 + 列（`v1_6` patch DROP，
+模型同步不删列）+ `ensure_default()` / `set_default()` / `_demote_others()` /
+`api_set_default_warehouse` + 仓库页那一列与行内「设为默认」。规则换成
+**"单据/收银台上明确的仓 → 这家公司唯一启用的仓 → 报错『请选择仓库』"**，
+出入库、盘点、采购入库、销售单出库、POS 卖货逐处改到位。
+存量数据由 `v1_5_terminal_warehouse`（`[pre_model_sync]`，跑在删列之前）把"当时生效的仓"
+抄到收银台上：站上两台终端补成 `WH-00174`。
+
+**仓库页**：列表列变成 仓库名称 / 备注 / 状态；新建与编辑弹窗变成 仓库 / 备注 / **状态**。
+
+**POS 未开班空态**：官方 POS 那枚 `pos.svg`（内联）+ 官方那两句文案
+（`Create POS Opening Entry` / `Please add Mode of payments and opening balance details.`）。
+
+**建公司 = 建仓 + 建收银台**：`create_company` 现在把新公司第一个仓指给那台收银台
+（"默认仓"没了以后，收银台必须自己带仓才能卖货）。
+
+实测：`sole()`/`required()`/`place_of()` 四条边界、新单 `SI2569-000065` 单据仓 = 行仓 = `WH-00174`、
+未开班空态与开班后的商品区（40 件、无物料组）。

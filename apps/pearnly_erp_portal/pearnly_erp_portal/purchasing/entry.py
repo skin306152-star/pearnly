@@ -205,7 +205,10 @@ def _post(payload, request_id, fingerprint, name, amended_from):
                   "unit_cost": amounts.decimal(row.line_total) / amounts.decimal(row.qty) * rate,
                   **positions.saved(row)} for row in doc.lines if row.item_type == "goods" and row.product]
         if goods:
-            stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="purchase_in", lines=goods,
+            # 入库到**这张采购单上明确的仓**：明细行给了仓就用它（采购表单有那一格），
+            # 行上也没给时才按"这家公司只有一个仓"这条兜底，多个仓直接报错让你去选。
+            stock.apply_lines(warehouse=warehouses.required(goods[0].get("warehouse")),
+                              movement_type="purchase_in", lines=goods,
                 posting_date=day, ref_type="purchase", ref_id=doc.name, doc_no=doc.system_no,
                 client_uuid="purchase-in:" + doc.name, internal=True)
             doc.stock_posted_at = now()

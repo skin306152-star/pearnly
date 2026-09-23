@@ -1,7 +1,13 @@
 """仓库。**仓库属于公司**（官方也是这么分的：`Warehouse.company`），库存因此天然按公司分开 ——
 `ERP Stock Balance` / `ERP Stock Movement` 都按仓库记账，不用再加一列。
 
-每家公司的第一个仓库自动成为**这家公司**的默认仓库；没有仓库就没法入出库，所以不留空目录。
+**没有"默认仓"这个概念**（用户 2026-09-24："不要做默认仓，依赖的全部删掉"）：
+仓库是"这家公司名下第几个仓"这样一份平铺的清单，哪张单据、哪台收银台用哪个仓，
+一律**写在那个地方自己身上**（单据上的仓库字段、收银台的仓库字段）。
+
+需要"随便给我一个仓"的地方（建单没写仓、出入库没选仓）只有一条兜底：
+**这家公司只有一个启用的仓就用它；有多个就报错让你去选** —— 不替你猜一个，
+那是"默认仓"换个名字。
 """
 
 import frappe
@@ -14,19 +20,21 @@ DOCTYPE = "ERP Warehouse"
 NOT_FOUND = "Warehouse not found"
 NAME_REQUIRED = "A warehouse needs a name"
 
-FIELDS = ("name", "warehouse_name", "company", "is_default", "is_active", "note")
+FIELDS = ("name", "warehouse_name", "company", "is_active", "note")
+# 没指定仓库、而这家公司又有多个仓时那句提示（不给隐式默认）。
+WAREHOUSE_REQUIRED = "Pick a warehouse"
 
 
 def resolve(value=None, *, create=False, company=None):
     """按名字取一个**已存在**的仓库（官方原生口径：仓库是主数据，不靠自由填写凭空长出来）。
 
     只有显式传 `create=True` 的调用方才允许按名字新建（开通/实验室造数据那些路径）。
-    留空 = 这家公司的默认仓库。
+    **留空不再等于"默认仓"**：这里只回 None，让调用方自己决定（大多数路径用 `required()`）。
     """
     company = company or companies.active_company()
     value = str(value or "").strip()
     if not value:
-        return ensure_default(company) if create else None
+        return None
     if len(value) > 140:
         frappe.throw(_("Invalid value"))
     name = frappe.db.exists(DOCTYPE, value) or frappe.db.get_value(
@@ -51,34 +59,35 @@ def resolve(value=None, *, create=False, company=None):
     return doc.name
 
 
-def ensure_default(company=None) -> str:
-    """某家公司的默认仓库：没有就建一个（入库/出库不带仓库时落自己公司的默认仓）。"""
-    company = company or companies.active_company()
-    existing = frappe.db.get_value(DOCTYPE, {"company": company, "is_default": 1}, "name")
-    if existing:
-        return existing
-    any_warehouse = frappe.db.get_value(DOCTYPE, {"company": company}, "name",
-                                        order_by="creation asc")
-    if any_warehouse:
-        frappe.db.set_value(DOCTYPE, any_warehouse, "is_default", 1)
-        return any_warehouse
-    doc = frappe.get_doc({"doctype": DOCTYPE, "warehouse_name": "Main", "company": company,
-                          "is_default": 1, "is_active": 1})
-    doc.insert(ignore_permissions=True)
-    return doc.name
+def sole(company=None) -> str | None:
+    """这家公司**唯一**的那个启用仓；有多个或一个都没有时回 None。
+
+    "唯一"是**事实判断**，不是标记：不存"谁是默认"这种配置位（那是"默认仓"换个名字）。
+    """
+    names = frappe.get_all(DOCTYPE, filters={"company": company or companies.active_company(),
+                                             "is_active": 1},
+                           pluck="name", limit_page_length=2)
+    return names[0] if len(names) == 1 else None
 
 
 def required(value=None, *, company=None) -> str:
-    """建单/过账时取仓库：必须是这家公司真实存在的仓，否则报错（不留"没仓库"的单）。
-    留空 = 这家公司的默认仓。"""
-    resolved = ensure_default(company) if not str(value or "").strip() else resolve(
-        value, create=False, company=company)
-    if not resolved:
-        frappe.throw(_(NOT_FOUND))
-    return resolved
+    """建单/过账时取仓库：给了名字就用它（必须是这家公司启用着的仓）。
+
+    没给就**只认"这家公司只有一个启用仓"这一种情况**，多个仓时明确报错让你去选 ——
+    没有"默认仓"这种替你拿主意的东西（见本模块抬头）。
+    """
+    if str(value or "").strip():
+        resolved = resolve(value, create=False, company=company)
+        if not resolved:
+            frappe.throw(_(NOT_FOUND))
+        return resolved
+    only = sole(company)
+    if not only:
+        frappe.throw(_(WAREHOUSE_REQUIRED))
+    return only
 
 
-def create_warehouse(*, warehouse_name, is_default=False, note=None, company=None) -> dict:
+def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True) -> dict:
     guard.require("stock.manage")
     company = companies.document_company(company)
     name = (warehouse_name or "").strip()
@@ -87,40 +96,16 @@ def create_warehouse(*, warehouse_name, is_default=False, note=None, company=Non
     if frappe.db.exists(DOCTYPE, {"warehouse_name": name, "company": company}):
         frappe.throw(_("This warehouse already exists"))
     doc = frappe.get_doc({"doctype": DOCTYPE, "warehouse_name": name, "company": company,
-                          "is_default": 1 if is_default else 0, "is_active": 1, "note": note})
+                          "is_active": 1 if is_active in (True, 1, "1", "true") else 0,
+                          "note": note})
     doc.insert()
-    if is_default:
-        _demote_others(doc)
     frappe.db.commit()
     return {"name": doc.name}
 
 
-def _demote_others(doc) -> None:
-    """默认仓是**每家公司各一个**（官方也是这么分的）：设了新的，就把这家公司原来那个摘掉。"""
-    for other in frappe.get_all(DOCTYPE, filters={"company": doc.company, "is_default": 1,
-                                                  "name": ["!=", doc.name or ""]}, pluck="name"):
-        frappe.db.set_value(DOCTYPE, other, "is_default", 0)
-
-
-def set_default(name, company=None) -> dict:
-    """把某个仓库设成**它所属公司**的默认仓（用户 2026-09-23："建好后当前公司就固定默认这个仓库
-    或者选择其它仓库"）。仓库本身决定公司，所以这里不收 company 参数，只看它自己。"""
-    guard.require("stock.manage")
-    if not name or not frappe.db.exists(DOCTYPE, name):
-        frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    doc = frappe.get_doc(DOCTYPE, name)
-    if doc.company not in companies.allowed_companies():
-        frappe.throw(_("Not permitted"), frappe.PermissionError)
-    doc.is_default = 1
-    doc.save()
-    _demote_others(doc)
-    frappe.db.commit()
-    return {"name": doc.name, "company": doc.company}
-
-
 def ensure_for_company(company, name=None) -> str:
-    """给某家公司配好仓库：建公司时就走这条路 —— 有新名字就按它建，没有就用 `Main`。
-    已存在同名（这家公司的）就直接用它，顺手设成默认。幂等。
+    """给某家公司配好**第一个**仓库：建公司时就走这条路 —— 有新名字就按它建，没有就用 `Main`。
+    已存在同名（这家公司的）就直接用它。**只负责"这家公司至少有一个仓"，不设任何"默认"标记**。幂等。
     """
     wanted = (name or "").strip() or "Main"
     existing = frappe.db.get_value(DOCTYPE, {"company": company, "warehouse_name": wanted}, "name")
@@ -129,9 +114,6 @@ def ensure_for_company(company, name=None) -> str:
                               "is_active": 1})
         doc.insert(ignore_permissions=True)
         existing = doc.name
-    set_value = {"is_default": 1}
-    frappe.db.set_value(DOCTYPE, existing, set_value, update_modified=False)
-    _demote_others(frappe.get_doc(DOCTYPE, existing))
     return existing
 
 
@@ -141,7 +123,7 @@ def list_warehouses(*, include_inactive=False, limit=50, company=None) -> list[d
     if not include_inactive:
         filters["is_active"] = 1
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
-                           order_by="is_default desc, warehouse_name asc",
+                           order_by="warehouse_name asc",
                            limit_page_length=int(limit))
 
 
@@ -171,8 +153,6 @@ def update_warehouse(name, **changes) -> dict:
         if not cleaned:
             frappe.throw(_(NAME_REQUIRED))
         doc.warehouse_name = cleaned
-    if "is_default" in changes:
-        doc.is_default = 1 if changes["is_default"] in (True, 1, "1", "true") else 0
     if "is_active" in changes:
         doc.is_active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
     if "note" in changes:
