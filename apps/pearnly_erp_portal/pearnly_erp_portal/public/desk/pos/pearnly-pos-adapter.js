@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 15;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -380,6 +380,50 @@ window.__pos_adapter_v = 15;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyItemCart extends O.ItemCart {
+			// 客户那一格：官方"没有客户"就重画一个**输入框并聚焦**（所以一进页面下拉就张着、盖住购物车），
+			// 它默认客户是 POS Profile 上配的。我们产品**没有默认客户这一位**，口径是"客户留空 = 散客"，
+			// 所以空态画**散客卡**（样式与官方那张客户卡同一套标记），点卡片才打开搜索框。
+			init_customer_selector() {
+				this.$component.append(`<div class="customer-section"></div>`);
+				this.$customer_section = this.$component.find(".customer-section");
+				this.customer_info = this.customer_info || {};
+				this.update_customer_section();
+			}
+			update_customer_section() {
+				const info = this.customer_info || {};
+				if (info.customer) return super.update_customer_section();
+				const walk_in = __("Walk-in customer");
+				this.$customer_section.html(`<div class="customer-details">
+					<div class="customer-display">
+						<div class="customer-image customer-abbr">${frappe.utils.escape_html(frappe.get_abbr(walk_in))}</div>
+						<div class="customer-name-desc">
+							<div class="customer-name">${frappe.utils.escape_html(walk_in)}</div>
+							<div class="customer-desc">${frappe.utils.escape_html(__("Click to choose a customer"))}</div>
+						</div>
+						<div class="reset-customer-btn">
+							<svg width="32" height="32" viewBox="0 0 14 14" fill="none">
+								<path d="M4.93764 4.93759L7.00003 6.99998M9.06243 9.06238L7.00003 6.99998M7.00003 6.99998L4.93764 9.06238L9.06243 4.93759" stroke="#8D99A6"/>
+							</svg>
+						</div>
+					</div>
+				</div>`);
+			}
+			// 点卡片（官方 `.customer-display` 那条路）→ 散客态就打开搜索框；有客户走官方那套。
+			toggle_customer_info(show) {
+				if ((this.customer_info || {}).customer) return super.toggle_customer_info(show);
+				if (show) {
+					this.make_customer_selector();
+					this.customer_field && this.customer_field.set_focus();
+				}
+			}
+			// 叉掉客户 → 我们的口径是回到散客卡（官方是回到输入框）。
+			reset_customer_selector() {
+				const frm = this.events.get_frm();
+				frm.set_value("customer", "");
+				this.customer_info = {};
+				this.update_customer_section();
+			}
+
 			// 官方的"净总计/总计/物料数"是**服务端**在 POS Invoice 上算好、写进 doc 的
 			// （`calculate_taxes_and_totals`）。我们这张客户端 `ERP Sale` 没有那一步，
 			// 所以在这里按**我们的口径**先算出来（数量、净额 = Σ 数量×单价、整单折扣、总计），
