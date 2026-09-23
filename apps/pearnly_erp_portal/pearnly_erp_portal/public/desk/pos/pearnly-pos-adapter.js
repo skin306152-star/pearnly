@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 13;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 15;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -28,6 +28,20 @@ window.__pos_adapter_v = 13;   // 排查用：确认页面到底加载到哪一�
 	const WALK_IN = "__pearnly_walk_in__";
 	// 商品名 → 可用量（来自我们商品区那一页的回参；见 `to_official_item` 与库存那条映射）。
 	const available_map = {};
+
+	// 官方的单据子表叫 `items`，我们叫 `lines` —— 要的是**同一个数组**，不是"赋一次值"。
+	// 赋一次值会被框架刷新单据时换掉（实测：行落在 `lines` 里，官方读 `items` 读到 0，
+	// 表现就是"点商品不加货"）。用属性别名，永远指向同一个数组。
+	function alias_items(doc) {
+		if (!doc || doc.__pearnly_items_alias) return doc;
+		Object.defineProperty(doc, "items", {
+			configurable: true,
+			get() { return this.lines || (this.lines = []); },
+			set(value) { this.lines = value; },
+		});
+		doc.__pearnly_items_alias = true;
+		return doc;
+	}
 	const CHILD_DOCTYPE = {
 		"POS Invoice Item": "ERP Sale Line",
 		"Sales Invoice Item": "ERP Sale Line",
@@ -307,14 +321,18 @@ window.__pos_adapter_v = 13;   // 排查用：确认页面到底加载到哪一�
 			// 单据：官方用 POS Invoice 的 `items`；我们是 `ERP Sale` 的 `lines` —— 同一个数组两个名字。
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
 				const frm = super.get_new_frm(_frm, doctype);
-				if (frm.doc) {
-					if (!frm.doc.items) frm.doc.items = frm.doc.lines || (frm.doc.lines = []);
-					// 官方整块界面按 `doc.currency` 出符号；我们的 `ERP Sale` 没有这个栏位，
-					// 不给就会掉到框架默认货币（实测出过 `د.إ`）→ 这里钉成**站点货币**
-					// （`frappe.boot.sysdefaults.currency`，拿不到就 THB），不看终端配置。
-					frm.doc.currency = (frappe.boot.sysdefaults || {}).currency || "THB";
-				}
+				alias_items(frm.doc);
 				return frm;
+			}
+			// 官方每次"新建/重开单据"都会再摆一遍设置：**货币要钉在这一拍上** ——
+			// 不然框架给 `doc.currency` 填的默认值会把我们钉的顶掉（实测出过 `د.إ`）。
+			set_pos_profile_data() {
+				const out = super.set_pos_profile_data();
+				if (this.frm && this.frm.doc) {
+					this.frm.doc.currency = (frappe.boot.sysdefaults || {}).currency || "THB";
+					alias_items(this.frm.doc);
+				}
+				return out;
 			}
 			// 产品口径差异（**按功能放行的第一处**）：官方要求"先选客户才能加货"，
 			// 我们这边**客户为空 = 散客**。官方那句判断在 `on_cart_update()` 里，无法只用子类改一行，
@@ -362,6 +380,27 @@ window.__pos_adapter_v = 13;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyItemCart extends O.ItemCart {
+			// 官方的"净总计/总计/物料数"是**服务端**在 POS Invoice 上算好、写进 doc 的
+			// （`calculate_taxes_and_totals`）。我们这张客户端 `ERP Sale` 没有那一步，
+			// 所以在这里按**我们的口径**先算出来（数量、净额 = Σ 数量×单价、整单折扣、总计），
+			// 再交给官方那套渲染 —— 这样官方那几行数字就有值，而不是一直 0。
+			// 税费行（D1）暂时空着：我们的收银价是含税价，逐条税明细等做到那一步再接。
+			update_totals_section(frm) {
+				if (frm && frm.doc) {
+					const lines = frm.doc.items || [];
+					const net = lines.reduce((sum, row) => sum + flt(row.qty) * flt(row.rate), 0);
+					const pct = flt(frm.doc.additional_discount_percentage);
+					const discount = net * pct / 100;
+					frm.doc.total_qty = lines.reduce((sum, row) => sum + flt(row.qty), 0);
+					frm.doc.net_total = net;
+					frm.doc.discount_amount = discount;
+					frm.doc.grand_total = net - discount;
+					frm.doc.rounded_total = net - discount;
+					frm.doc.taxes = frm.doc.taxes || [];
+				}
+				return super.update_totals_section(frm);
+			}
+
 			// 客户选择框：官方那份指向 **ERPNext 的 `Customer`**，我们没有这张表 —— 它一渲染就会
 			// 发一次 `search_link(doctype="Customer")`，被 403 挡下，而框架的 403 提示带 `re_route: true`，
 			// 于是**关掉提示框会把页面路由重置**（实测就是"点商品跳到 /desk"的真凶）。
