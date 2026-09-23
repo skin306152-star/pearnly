@@ -493,6 +493,7 @@ Scan barcode or QR code,バーコード・QRコードを読む
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned,読み取りました
 Search,検索
+Search by name or phone,名前か電話で検索
 Search by receipt number,レシート番号で検索
 Search name or barcode,名前・バーコードで検索
 "Search name, code or barcode",名前・コード・バーコードで検索
@@ -1150,6 +1151,8 @@ trade.countCash,現金確認
 trade.countedAmount,実地金額
 trade.countedCash,実際の現金
 trade.counterProducts,商品
+trade.customer,顧客
+trade.customerHint,名前か電話で検索
 trade.date,日付
 trade.description,名称または説明
 trade.diff,差異

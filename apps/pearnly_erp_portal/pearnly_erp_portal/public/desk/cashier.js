@@ -74,7 +74,9 @@
 		let shift = null, items = [], items_total = 0, cart = [], selected = null,
 			pad_target = null, pad_value = "", paying = false, pay_target = null,
 			orders = [], active_order = null, orders_shown = false, view = "counter",
-			detail_controls = {};
+			detail_controls = {},
+			// 这一单的客户（主档 `ERP Customer` 的名字）；空 = 散客。换人不换单，一直是这一个。
+			customer = null;
 
 		// ── 骨架（类名与层级照官方那六块）────────────────────────────────────────
 		function pad_html(keys) {
@@ -118,6 +120,10 @@
 			<section class="customer-cart-container">
 				<div class="cart-container">
 					<div class="abs-cart-container">
+						${/* 客户那一段（官方在购物车上方那一格）：选主档里的客户，钱和货就都记在这人名下。
+						     搜索走**官方 Link 自己那套** —— 客户表的 `search_fields` 就是
+						     「名称 + 电话」两栏（用户 2026-09-23：只按名称和电话搜，没有的不要做）。 */""}
+						<div class="customer-section"></div>
 						<div class="cart-label">${p.escape(t("trade.cart"))}</div>
 						<div class="cart-header">
 							<div class="name-header">${p.escape(t("trade.product"))}</div>
@@ -651,6 +657,8 @@
 			const request = crypto.randomUUID();
 			const result = await p.call(api + "api_create_sale", {
 				shift: shift.shift.name, terminal: shift.shift.terminal, has_vat: 0,
+				// 这一单挂哪个客户（空 = 散客）；服务端会核它确实存在且启用着。
+				customer: customer || undefined,
 				// 整单折扣（官方那颗「折扣」按百分比给）：服务端 `sale_totals(discount_total=…)`。
 				discount_total: cart_discount(),
 				lines: cart.map(row => ({ product: row.product, qty: num(row.qty),
@@ -715,7 +723,9 @@
 				<div class="left-section">
 					<div class="customer-section">
 						<div class="customer-name">${p.escape(doc.receipt_no || doc.name)}</div>
-						<div class="customer-email">${p.escape(p.datetime_text(doc.sold_at))}</div>
+					<div class="customer-email">${p.escape(p.datetime_text(doc.sold_at))}</div>
+					${doc.customer ? `<div class="customer-picked">${p.escape(t("trade.customer"))}: ${
+						p.escape(doc.customer_name || doc.customer)}</div>` : ""}
 					</div>
 					<div class="cashier">${p.escape(t("trade.cashier"))}: ${
 						p.escape(frappe.user_info(doc.cashier).fullname || doc.cashier || "")}</div>
@@ -757,11 +767,12 @@
 				// 「打印收据」走**框架原生**打印视图（`/printview`，官方也是用它出小票；
 				// 我们自己的小票模板还没做，先开原生那份）。
 				done ? `<div class="btn btn-sm summary-btn print-btn">${p.escape(t("trade.printReceipt"))}</div>` : "",
-				`<div class="btn btn-sm summary-btn new-order-btn">${p.escape(t("trade.newOrder"))}</div>`,
 				can_write && done && doc.sale_type === "sale"
 					? `<div class="btn btn-sm summary-btn return-btn">${p.escape(t("trade.refund"))}</div>` : "",
 				can_write && done
 					? `<div class="btn btn-sm summary-btn void-btn">${p.escape(t("trade.void"))}</div>` : "",
+				// **主按钮永远排最右边**（用户 2026-09-23："次按钮是灰的，主按钮排最右边"）。
+				`<div class="btn btn-sm summary-btn new-order-btn">${p.escape(t("trade.newOrder"))}</div>`,
 			].filter(Boolean).join(" "));
 		}
 
@@ -1008,7 +1019,7 @@
 		// ── 取数 ────────────────────────────────────────────────────────────────
 		async function refresh() {
 			shift = await p.call(api + "api_current_shift");
-			paint_actions();
+			paint_actions(); paint_customer();
 			if (!shift) {
 				view = "counter"; paying = false; selected = null;
 				items = []; cart = []; orders = [];
@@ -1023,10 +1034,30 @@
 
 		async function paint() {
 			if (shift) q(".items-selector .label").text(t("trade.allItems"));
+			paint_customer();
 			paint_actions(); paint_cart();
 			if (selected) paint_details();
 			if (paying) paint_payment();
 			paint_views();
+		}
+
+		// 客户：一个**原生 Link** 控件（下拉按 **名称 / 电话** 搜，客户表的 `search_fields` 定的）。
+		// 选谁这一单就挂谁；空着 = 散客。只在购物车那一栏出现，选过之后一直留着（换人再选）。
+		function paint_customer() {
+			const host = q(".customer-section");
+			if (!host.length || host.data("pearnly_control")) {
+				const control = host.data("pearnly_control");
+				if (control && control.get_value() !== (customer || "")) control.set_value(customer || "");
+				return;
+			}
+			const form = p.layout(host, [{
+				fieldtype: "Link", options: "ERP Customer", only_select: true,
+				fieldname: "customer", label: t("trade.customer"),
+				default: customer || "",
+				description: t("trade.customerHint"),
+				change: () => { customer = form.get_value("customer") || null; },
+			}]);
+			host.data("pearnly_control", form);
 		}
 
 		p.add_refresh(page, () => void refresh());

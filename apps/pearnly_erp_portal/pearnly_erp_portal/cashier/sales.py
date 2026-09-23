@@ -31,9 +31,30 @@ REFUND_NEEDS_ORIGINAL = "A refund needs the original sale"
 REFUND_TOO_MUCH = "A refund cannot be more than the original sale"
 ALREADY_VOID = "This sale is already voided"
 
-LIST_FIELDS = ("name", "receipt_no", "sold_at", "sale_type", "status", "shift", "terminal",
-               "cashier", "warehouse", "return_against", "subtotal", "discount_total",
+LIST_FIELDS = ("name", "receipt_no", "customer", "sold_at", "sale_type", "status", "shift",
+               "terminal", "cashier", "warehouse", "return_against", "subtotal", "discount_total",
                "vat_amount", "grand_total", "paid_total", "change_amount", "note")
+
+
+def _customer(name) -> str:
+    """收银台上的客户（可空 = 散客）。给了就必须是主档里启用着的客户。"""
+    value = str(name or "").strip()
+    if not value:
+        return ""
+    row = frappe.db.get_value("ERP Customer", value, ["customer_name", "is_active"], as_dict=True)
+    if not row or not row.is_active:
+        frappe.throw(_("Customer not found"))
+    return value
+
+
+def _customer_names(names) -> dict:
+    """客户内部的 `CUS-#####` → 抬头。列表与汇总屏要给**人看的名字**，不是单号。"""
+    wanted = sorted({str(n) for n in names if n})
+    if not wanted:
+        return {}
+    return {row["name"]: row["customer_name"] for row in frappe.get_all(
+        "ERP Customer", filters={"name": ["in", wanted]},
+        fields=["name", "customer_name"], limit_page_length=0)}
 
 
 def _get(name):
@@ -90,11 +111,14 @@ def _stock_lines(lines) -> list[dict]:
 
 def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
                 discount_total=0, has_vat=False, vat_rate=7, warehouse=None, client_uuid=None,
-                note=None) -> dict:
+                note=None, customer=None) -> dict:
     """落一笔销售。
 
     `has_vat` 默认 **False**：收银台上顾客付的就是货架标价，直接当应收，不再往上加
     7%。要按不含税价开票的场景由调用方显式传 True（含税拆分属开票侧，见销售记录批次）。
+
+    `customer` 可空（= 散客）。给了就核一下主档里确实有、且启用着 —— 收银台上选错一个停用客户，
+    账单就挂到别人名下去了。
     """
     guard.require("cashier.write")
     if not isinstance(lines, list) or not lines:
@@ -120,6 +144,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
 
     doc = frappe.get_doc({
         "doctype": DT,
+        "customer": _customer(customer),
         "sold_at": sold_at or now(),
         "sale_type": contracts.SALE,
         "status": "completed",
@@ -214,8 +239,14 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
     or_filters = None
     if q:
         or_filters = [["receipt_no", "like", f"%{q}%"], ["name", "like", f"%{q}%"]]
-    return frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
-                           order_by="sold_at desc", limit_start=int(start), limit_page_length=int(limit))
+    rows = frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
+                           order_by="sold_at desc", limit_start=int(start),
+                           limit_page_length=int(limit))
+    # 每行带上客户抬头（列表显示的是人看的名字，不是 `CUS-#####`）。
+    names = _customer_names([row.get("customer") for row in rows])
+    for row in rows:
+        row["customer_name"] = names.get(row.get("customer"), "")
+    return rows
 
 
 def get_sale(name) -> dict:
@@ -225,6 +256,7 @@ def get_sale(name) -> dict:
             and doc.cashier != frappe.session.user):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     data = {field: doc.get(field) for field in LIST_FIELDS}
+    data["customer_name"] = _customer_names([doc.customer]).get(doc.customer, "")
     data["lines"] = [
         {"name": row.name, "product": row.product, "description": row.description, "qty": row.qty,
          "original_line": row.original_line, **positions.public(row, doc.warehouse),

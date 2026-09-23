@@ -825,8 +825,15 @@
 	margin-top: var(--margin-md);
 }
 .point-of-sale-app .summary-btns > .summary-btn { flex: 1; margin: 0px var(--margin-xs); }  /* 官方 1352 */
-/* 主按钮 / 次按钮的底色要分得开（用户 2026-09-23：官方那张图里 New Order 是实心底，
-   打印与邮件是浅底）。次按钮走框架的 `btn-default`，主按钮跟「结账」用同一对变量。 */
+/* 主按钮 / 次按钮的底色要分得开（用户 2026-09-23："次按钮是灰的，主按钮排最右边"）：
+   次按钮**灰底**（`--control-bg`，与官方的浅灰一格一致），主按钮用「结账」那一对变量
+   （品牌实心 + 反白字），并且排在最后一个。 */
+.point-of-sale-app .summary-btns > .summary-btn {
+	background-color: var(--control-bg);
+	color: var(--text-color);
+	border: none;
+}
+.point-of-sale-app .summary-btns > .summary-btn:hover { filter: brightness(0.97); }
 .point-of-sale-app .summary-btns > .summary-btn.new-order-btn {
 	background-color: var(--btn-primary);
 	color: var(--neutral);

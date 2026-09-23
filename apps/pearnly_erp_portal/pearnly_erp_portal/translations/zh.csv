@@ -493,6 +493,7 @@ Scan barcode or QR code,扫描条形码或二维码
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scanned,扫到了
 Search,搜索
+Search by name or phone,按名称或电话搜
 Search by receipt number,按小票编号搜索
 Search name or barcode,搜索名称或条码
 "Search name, code or barcode",搜索名称、编码或条码
@@ -1150,6 +1151,8 @@ trade.countCash,现金核对
 trade.countedAmount,实点金额
 trade.countedCash,实点现金
 trade.counterProducts,商品
+trade.customer,客户
+trade.customerHint,按名称或电话搜
 trade.date,日期
 trade.description,名称或说明
 trade.diff,差额

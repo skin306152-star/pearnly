@@ -493,6 +493,7 @@ Scan barcode or QR code,สแกนบาร์โค้ดหรือคิ�
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
 Scanned,สแกนแล้ว
 Search,ค้นหา
+Search by name or phone,ค้นหาด้วยชื่อหรือโทรศัพท์
 Search by receipt number,ค้นหาด้วยเลขที่ใบเสร็จ
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
@@ -1150,6 +1151,8 @@ trade.countCash,ตรวจเงินสด
 trade.countedAmount,ยอดนับได้
 trade.countedCash,เงินสดที่นับได้
 trade.counterProducts,สินค้า
+trade.customer,ลูกค้า
+trade.customerHint,ค้นหาด้วยชื่อหรือโทรศัพท์
 trade.date,วันที่
 trade.description,ชื่อหรือรายละเอียด
 trade.diff,ผลต่าง

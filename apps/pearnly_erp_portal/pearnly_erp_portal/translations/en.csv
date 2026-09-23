@@ -493,6 +493,7 @@ Scan barcode or QR code,Scan barcode or QR code
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned,Scanned
 Search,Search
+Search by name or phone,Search by name or phone
 Search by receipt number,Search by receipt number
 Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
@@ -1150,6 +1151,8 @@ trade.countCash,Cash Check
 trade.countedAmount,Counted Amount
 trade.countedCash,Counted Cash
 trade.counterProducts,Products
+trade.customer,Customer
+trade.customerHint,Search by name or phone
 trade.date,Date
 trade.description,Description
 trade.diff,Difference

@@ -3,6 +3,8 @@
  "creation": "2026-09-21 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
+ "search_fields": "customer_name,contact_phone",
+ "title_field": "customer_name",
  "field_order": [
   "customer_name",
   "short_name",

@@ -211,6 +211,8 @@ Description	名称或说明	ชื่อหรือรายละเอีย�
 Unit	单位	หน่วย	単位	trade.unit
 Discount	折扣金额	ส่วนลด	割引額	trade.discount
 Add Discount	折扣	เพิ่มส่วนลด	割引を追加	trade.addDiscount
+Customer	客户	ลูกค้า	顧客	trade.customer
+Search by name or phone	按名称或电话搜	ค้นหาด้วยชื่อหรือโทรศัพท์	名前か電話で検索	trade.customerHint
 Enter discount percentage	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力	trade.discountPercentHint
 Discount percentage	折扣百分比	เปอร์เซ็นต์ส่วนลด	割引率	trade.discountPercent
 VAT Rate	增值税率	อัตรา VAT	付加価値税率	trade.vat

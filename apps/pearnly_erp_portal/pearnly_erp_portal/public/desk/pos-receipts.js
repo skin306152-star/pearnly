@@ -98,6 +98,9 @@
 					format: value => kind_label(value) },
 				{ fieldname: "status", width: 88, min_width: 68, label: t("trade.status"),
 					format: value => state_label(value) },
+				// 这一单挂的客户（散客留空）—— 收银选的客户在这里也看得到，和主档是同一个。
+				{ fieldname: "customer_name", width: 150, min_width: 110, label: t("trade.customer"),
+					format: value => p.escape(value || "—") },
 				{ fieldname: "grand_total", width: 104, min_width: 84, label: t("trade.total"),
 					format: value => p.money(value) },
 				{ fieldname: "paid_total", width: 104, min_width: 84, label: t("trade.paid"),
