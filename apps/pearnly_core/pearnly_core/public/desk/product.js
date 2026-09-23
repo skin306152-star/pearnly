@@ -72,19 +72,34 @@ frappe.provide("frappe.pearnly");
 		LAK: "₭", KHR: "៛", MMK: "K", VND: "₫", SGD: "S$", MYR: "RM", IDR: "Rp",
 	};
 	const code_of = currency => currency || (frappe.boot.sysdefaults || {}).currency || "THB";
+	// 框架取符号那条路，**不传币种时**读的是 `frappe.boot.sysdefaults.currency`，而它来自
+	// `DefaultValue` 表。我们自己供的站点在初始化时没写这一行（见补丁
+	// `pearnly_core/patches/v0_0_4_site_default_currency.py`），断在链子后面的样子是：
+	// `get_currency_symbol(undefined)` → `get_value(":Currency", undefined, "symbol")`
+	// 命中缓存里**第一条**货币 → 页面上的金额全变成 `د.إ 100.00`（本机实测）。
+	// 服务端那个补丁是根治；这里再钉一次，保证迁移之前打开的老页面也不会花。
+	const site_currency = () => {
+		const sysdefaults = (frappe.boot.sysdefaults = frappe.boot.sysdefaults || {});
+		if (!sysdefaults.currency) sysdefaults.currency = "THB";
+		return sysdefaults.currency;
+	};
 	// ① 从站点读一次符号，放进框架自己的缓存（之后 `frappe.format`、`format_currency` 都走它）。
+	// 符号从**服务端启动数据**来（`pearnly_core/desk/currency.py` 读到站点配的那一个），
+	// 本文件这张表只做兜底。**别改成前端去读 `Currency` 表** —— 那张表的权限是收紧的，
+	// 读一次就弹一个「无权限操作货币」的 403 弹窗（本机实测，收银台进页面就弹）。
+	const symbol_of = (code) => {
+		const from_boot = frappe.boot.pearnly_currency;
+		if (from_boot && from_boot.code === code && from_boot.symbol) return from_boot.symbol;
+		return SYMBOLS[code];
+	};
 	const warm_symbol = (code) => {
-		if (!code || !SYMBOLS[code]) return;
+		const symbol = symbol_of(code);
+		if (!code || !symbol) return;
 		locals[":Currency"] = locals[":Currency"] || {};
 		if (locals[":Currency"][code]) return;
-		locals[":Currency"][code] = { doctype: ":Currency", name: code, symbol: SYMBOLS[code] };
-		// 数据库里配的符号优先（客户改过就用客户的），读到了再覆盖一次。
-		frappe.db.get_value("Currency", code, "symbol").then(r => {
-			const symbol = r && r.message && r.message.symbol;
-			if (symbol) locals[":Currency"][code].symbol = symbol;
-		}).catch(() => {});
+		locals[":Currency"][code] = { doctype: ":Currency", name: code, symbol };
 	};
-	warm_symbol((frappe.boot.sysdefaults || {}).currency);
+	warm_symbol(site_currency());
 	// ② 兜底：框架把符号取成货币代码时（"THB 62.00"），换成符号。
 	const native_format_currency = window.format_currency;
 	if (native_format_currency && !window.__pearnly_symbol_wrapper) {

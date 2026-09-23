@@ -3488,3 +3488,34 @@ set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL�
 
 **环境**：为让新词条进页面，再重启过一次演示站 web 容器（`browser_text` 是进程内缓存）；
 演示站没有写任何业务数据；我开的标签页都关了（你那张 `收银 POS` 标签留着）。
+
+### F64：搬来的官方收银台"点了不加货"与"钱显示成迪拉姆"，两个根因都找到了（2026-09-24，未部署）
+
+用户口径："继续"（承接 F63 的整屏 1:1 批次）。这一轮只做诊断与修复，不扩功能。
+
+**① 点商品卡加进货、购物车一行都不画** —— 错被官方吞了。
+官方 `on_cart_update()` 里那段 `catch (error) { console.log(error); }`，在标签页里读不到；
+把 `console.log` 临时接管后拿到原话：`check_stock_availability` 第 807 行
+`available_qty.toString()` 抛 `TypeError`。官方要的库存回参是**三元数组**
+（`[可用量, 是否库存商品, 是否允许负库存]`），我们早先只回了一个数字，
+于是 `resp[2]` 是 `undefined`，官方在到达 `update_cart_html()` 之前就跳出 try。
+**改法**：回 `[可用量, 0, 1]`；第三位给真对上我们既有的
+`apply_movement(allow_negative=True)`（"允许超卖、告警在上层"），不是为了让闸门松掉。
+
+**② 商品卡的钱显示成 `د.إ`（迪拉姆）** —— 站点缺全局默认货币。
+框架 `get_currency_symbol()` 不传币种时读 `frappe.boot.sysdefaults.currency`，
+它来自 `DefaultValue` 表；我们自己供的站点初始化时没写这一行（`erpnext` 的安装流程会写），
+于是 `get_value(":Currency", undefined, "symbol")` 命中了缓存里第一条货币（AED）。
+对照机 `business.localhost` 上有 `currency = THB`，我们演示站上没有 —— 这是**供站缺口**，不是收银台自己的问题。
+**改法**：补原生补丁 `pearnly_core.patches.v0_0_4_site_default_currency`（已执行，回读到
+`DefaultValue.currency = THB / __default`）+ 新增 `pearnly_core/desk/currency.py` 的
+`boot_session` 下发 `boot.pearnly_currency = {code, symbol}`；收银台适配层给商品卡带上 `currency`。
+
+**③ 顺带揪出：403 弹窗「无权限操作货币」。** 符号预热真正跑起来之后，
+`product.js` 里那句前端 `frappe.db.get_value("Currency", …)` 会弹出这个 403（以前代码提前返回，
+这次请求从没发过）。已撤掉前端读取，符号一律走服务端启动数据。
+
+**验证（演示站真点鼠标）**：点商品卡 → 购物车 `1 瓶 · ฿ 100.00`、合计三行正确、0 报错 0 弹窗；
+商品卡 `-14 水 ฿ 100 / 瓶`（库存角标这次真的带色带数）；`format_currency(62, undefined, 2)` → `฿ 62.00`；
+物料列表整页无 `THB <数字>`、无 `د.إ`、无弹窗；`check-architecture` PASS(0)。
+细节与证据记在台账 `docs/work/2026-09-23-pos-parity-ledger.md` 第 9 节。

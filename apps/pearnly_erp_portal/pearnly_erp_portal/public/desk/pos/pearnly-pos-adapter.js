@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 21;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -111,6 +111,18 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 		frappe.model.add_child = (doc, doctype, parentfield, idx) =>
 			add_child(doc, CHILD_DOCTYPE[doctype] || doctype, PARENTFIELD[parentfield] || parentfield, idx);
 
+		// `Item` 是我们**没有**的表（不装 erpnext）。官方明细面板会问
+		// `frappe.db.get_value("Item", item_code, ["has_serial_no", "has_batch_no"])`，
+		// 一次未授权的读 → 403 弹窗（它的提示还带 `re_route`）。我们的商品没有序列号/批号，
+		// 所以这里直接答"都没有"，不再发那次请求。
+		const db_get_value = frappe.db.get_value.bind(frappe.db);
+		frappe.db.get_value = function (doctype, ...rest) {
+			if (doctype === "Item") {
+				return Promise.resolve({ message: { has_serial_no: 0, has_batch_no: 0 } });
+			}
+			return db_get_value(doctype, ...rest);
+		};
+
 		// **方法映射垫片**：官方那些 `erpnext.*` 的方法名，一律在这里翻到我们这边（或按"删减"给安全值）。
 		// 放在一处的好处：官方代码一个字不改，我们也不用满地图找调用点；要接一个新方法就加一行。
 		const MAP = {
@@ -126,8 +138,20 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 			// —— 接到我们自己的服务 ——
 			// 库存可用量：我们没有单独那个接口，也不需要 —— 商品区那一页已经带了每个商品的
 			// `qty_on_hand`，装货时顺手存进 `available_map`，这里直接答；落单时服务端仍会再校验。
+			//
+			// **必须是三元数组**：官方 `check_stock_availability()` 读的是
+			// `resp[0]` 可用量 / `resp[1]` 是否库存商品 / `resp[2]` 是否允许负库存，
+			// 明细面板那格仓库的 onchange 也读 `[0]` 与 `[1]`。
+			// 早先我们只回了**一个数字** → 官方第 807 行 `available_qty.toString()` 直接抛
+			// `Cannot read properties of undefined`，而这个错被官方 `on_cart_update` 里那个
+			// 空 `catch` 吞掉，所以"货已经加进单据了、购物车 DOM 却一次都不画"。
+			//
+			// 第三位给**真**是我们既有的口径：`inventory/stock.py` 的 `apply_movement(allow_negative=True)`
+			// —— 允许超卖、告警在上层，收银台不因库存拦单。给了真，官方
+			// `if (is_negative_stock_allowed) return;` 就会提前返回，不会弹"库存不足"。
+			// 可用量只用于界面显示（`Available Qty` 那一格）。
 			"erpnext.accounts.doctype.pos_invoice.pos_invoice.get_stock_availability": (args) => ({
-				message: available_map[(args && args.item_code) || ""] ?? 0,
+				message: [available_map[(args && args.item_code) || ""] ?? 0, 0, 1],
 			}),
 		};
 		const call = frappe.call.bind(frappe);
@@ -164,9 +188,12 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 			[sale]: [
 				df(sale, "customer", "Customer", "Link", { options: "ERP Customer" }),
 				df(sale, "customer_name", "Customer Name", "Data"),
-				df(sale, "company", "Company", "Link", { options: "ERP Company" }),
-				df(sale, "terminal", "Terminal", "Link", { options: "ERP POS Terminal" }),
-				df(sale, "warehouse", "Warehouse", "Link", { options: "ERP Warehouse" }),
+				// 这几格用 **Data** 而不是 Link：我们的 DocType 权限只给 System Manager，
+				// Link 控件一渲染就会去读目标表的元数据/记录 → 403 弹窗（实测"单位"那格就是这么炸的）。
+				// 界面上它们只需要显示/带值，真正校验在服务端（`api_create_sale`）。
+				df(sale, "company", "Company", "Data"),
+				df(sale, "terminal", "Terminal", "Data"),
+				df(sale, "warehouse", "Warehouse", "Data"),
 				df(sale, "currency", "Currency", "Link", { options: "Currency" }),
 				df(sale, "posting_date", "Date", "Date"),
 				df(sale, "posting_time", "Time", "Time"),
@@ -190,10 +217,10 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 				df(sale, "remarks", "Remarks", "Small Text"),
 			],
 			[line]: [
-				df(line, "item_code", "Item Code", "Link", { options: "ERP Product" }),
+				df(line, "item_code", "Item Code", "Data"),
 				df(line, "item_name", "Item Name", "Data"),
 				df(line, "qty", "Quantity", "Float"),
-				df(line, "uom", "UOM", "Link", { options: "ERP Product Unit" }),
+				df(line, "uom", "UOM", "Data"),
 				df(line, "stock_uom", "Stock UOM", "Data"),
 				df(line, "rate", "Rate", "Currency"),
 				df(line, "amount", "Amount", "Currency"),
@@ -201,7 +228,7 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 				df(line, "discount_percentage", "Discount (%)", "Percent"),
 				df(line, "discount_amount", "Discount Amount", "Currency"),
 				df(line, "conversion_factor", "Conversion Factor", "Float"),
-				df(line, "warehouse", "Warehouse", "Link", { options: "ERP Warehouse" }),
+				df(line, "warehouse", "Warehouse", "Data"),
 				df(line, "actual_qty", "Available Qty", "Float"),
 			],
 			[payment]: [
@@ -242,7 +269,19 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 			has_batch_no: 0,
 			has_serial_no: 0,
 			barcode: row.barcode || "",
+			// 官方商品卡的价签是 `format_currency(rate, item.currency, …)`。官方那边的
+			// `item.currency` 由服务端 `get_items` 带出来；我们不带，`undefined` 就会让
+			// 框架去缓存里抓**第一条**货币当默认（本机实测抓成 `د.إ`）。
+			currency: site_currency(),
+			// 官方的库存角标只在 `is_stock_item` 为真时才画（>10 绿 / ≤0 红 / 其余橙）。
+			// 我们的商品都是要盘点的实物，照官方语义就是真。
+			is_stock_item: 1,
 		};
+	}
+
+	// 站点货币：优先框架 boot 里那个（补齐见 `pearnly_core` 的 v0_0_4 补丁），否则用我们自己的。
+	function site_currency() {
+		return (frappe.boot.sysdefaults || {}).currency || "THB";
 	}
 
 	// 我们的收银台设置 → 官方 `settings` 的形状（官方读到的那些开关）。
@@ -338,13 +377,33 @@ window.__pos_adapter_v = 16;   // 排查用：确认页面到底加载到哪一�
 			// 我们这边**客户为空 = 散客**。官方那句判断在 `on_cart_update()` 里，无法只用子类改一行，
 			// 所以调用前后**临时借一个哨兵客户**过闸，返回后还原成空；提交时会把哨兵丢掉。
 			async on_cart_update(args) {
-				if (this.frm.doc.customer) return super.on_cart_update(args);
-				this.frm.doc.customer = WALK_IN;
-				try {
-					return await super.on_cart_update(args);
-				} finally {
-					if (this.frm.doc.customer === WALK_IN) this.frm.doc.customer = "";
+				// 官方这几格（换算系数 / 仓库 / 可用量 / 标价）是**服务端**在明细行上带出来的
+				// （`set_item_details` 那一套 + POS Profile 的仓库）。我们这边带上：
+				// 换算系数 = 1（我们的商品没有多单位换算这一步）、仓库 = 终端默认仓库、
+				// 可用量与标价来自商品卡那份数据。否则明细面板那四格是空的（实测如此）。
+				const item = args && args.item;
+				if (item && item.item_code) {
+					item.price_list_rate = item.price_list_rate ?? flt(item.rate);
+					item.actual_qty = item.actual_qty ?? (available_map[item.item_code] ?? 0);
+					item.stock_uom = item.stock_uom || item.uom;
 				}
+				const row = await (async () => {
+					if (this.frm.doc.customer) return super.on_cart_update(args);
+					this.frm.doc.customer = WALK_IN;
+					try {
+						return await super.on_cart_update(args);
+					} finally {
+						if (this.frm.doc.customer === WALK_IN) this.frm.doc.customer = "";
+					}
+				})();
+				if (row && row.item_code) {
+					row.conversion_factor = flt(row.conversion_factor) || 1;
+					row.warehouse = row.warehouse || (this.settings && this.settings.warehouse) || "";
+					row.price_list_rate = row.price_list_rate ?? flt(row.rate);
+					row.actual_qty = row.actual_qty ?? (available_map[row.item_code] ?? 0);
+					if (this.is_current_item_being_edited(row)) this.edit_item_details_of(row);
+				}
+				return row;
 			}
 		}
 

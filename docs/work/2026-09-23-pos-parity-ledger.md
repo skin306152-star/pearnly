@@ -307,6 +307,8 @@ frappe.meta.sync(meta)
 
 1. **把符号喂进框架自己的缓存**：`locals[":Currency"][THB] = { symbol: "฿" }`，并顺手用
    `frappe.db.get_value("Currency", code, "symbol")` 读一次真实配置覆盖（客户改过就用客户的）；
+   **这一句在 2026-09-24 被撤了** —— 前端读 `Currency` 表会弹 403「无权限操作货币」，
+   符号改成从**服务端启动数据**下发。见下面第 9 节。
 2. **给 `window.format_currency` 加一层兜底**：万一首屏那一瞬还没喂到，框架返回 "…THB 62.00" 时
    也换成符号。两层都在同一文件，商品 / 库存 / 采购 / 销售 / 收银（含搬过来的官方收银台）
    以及所有原生表格一起生效。
@@ -318,3 +320,86 @@ frappe.meta.sync(meta)
 | 物料列表 | 售价/参考成本列全是 `฿ 100`、`฿ 80`…；页面里 **没有任何 `THB <数字>`** |
 | 收银台（对照路由） | 合计 `净总计 ฿ 200.00 / 总计 ฿ 200.00`，同样没有代码形态 |
 | 直接问框架 | `format_currency(62, "THB", 2)` → **`฿ 62.00`** |
+
+## 9. 上一批留下的三个真问题（2026-09-24，均已修 + 演示站实测）
+
+### 9.1 「点商品加进货、购物车一行都不画」——真凶在库存回参的形状
+
+现象一直是"单据里已经有行了（`doc.items` 有 1 行），购物车 DOM 还是 `No items in cart`"，
+而且**控制台什么都没有**。原因是官方把错误吞了：`on_cart_update()` 里那段
+`try { … } catch (error) { console.log(error); }`，`console.log` 在我们的标签页里读不到。
+
+把 `console.log` 临时接管之后，原话是：
+
+```
+TypeError: Cannot read properties of undefined (reading 'toString')
+  at PearnlyController.check_stock_availability (official-pos_controller.js:807)
+  at async PearnlyController.on_cart_update (official-pos_controller.js:708)
+```
+
+官方 `check_stock_availability()` 读的是**三元数组**：
+
+| 位 | 官方语义 | 官方拿它做什么 |
+| --- | --- | --- |
+| `resp[0]` | 可用量 | 显示 `Available Qty`；`available_qty < qty_needed` 时拦单 |
+| `resp[1]` | 是否库存商品 | 为假则"不是库存商品"直接放行 |
+| `resp[2]` | 是否允许负库存 | 为**真**则 `if (is_negative_stock_allowed) return;` 提前返回 |
+
+我们早先只回了一个**数字** → `resp[2]` 是 `undefined` → `available_qty.toString()` 抛错 →
+被官方那个空 `catch` 吞掉 → 后面那句 `this.update_cart_html(item_row)` 根本执行不到。
+
+**改法**：映射回 `[可用量, 0, 1]`。
+第三位给**真**不是为了让闸门松掉，而是它本来就是我们既有口径 ——
+`inventory/stock.py` 的 `apply_movement(allow_negative=True)` 注释写着"允许超卖，告警在上层"，
+收银台不因库存拦单；官方那位读到真就提前返回，跟我们的行为对上。
+第二位给假（我们的商品不是"免盘点"的非库存商品），可用量只用于界面显示。
+
+**实测**：点第一张卡 → 购物车出 `1 瓶 · ฿ 100.00`，合计 `Total Quantity 1 / 净总计 ฿ 100.00 / 总计 ฿ 100.00`，
+控制台零报错、无弹窗。
+
+### 9.2 商品卡上的钱是 `د.إ`（迪拉姆），不是 `฿`
+
+**根因**（两个坑叠在一起）：
+
+1. **站点根本没有全局默认货币**：框架取符号那条路是
+   `format_currency(v, currency)` → `get_currency_symbol(currency)`，**不传币种时**读
+   `frappe.boot.sysdefaults.currency`，而这个键来自 `DefaultValue` 表
+   （`frappe.defaults.get_defaults()`）。我们自己供的站点初始化时**没写这一行**
+   （`erpnext` 的安装流程会写，我们不装 `erpnext`）—— 对照机 `business.localhost` 上有
+   `currency = THB`（parent `__default`），我们演示站上没有。
+2. 链子断在后面的样子：`get_currency_symbol(undefined)` →
+   `frappe.model.get_value(":Currency", undefined, "symbol")` **命中缓存里的第一条货币** →
+   本机抓到的是 `AED`，于是页面上的金额全变成 `د.إ 100.00`。
+
+**改法**：
+
+| 层 | 落点 | 做什么 |
+| --- | --- | --- |
+| 站点数据（根治） | `pearnly_core/patches/v0_0_4_site_default_currency.py` + `patches.txt` | 用原生补丁补上全局默认货币；取值顺序 System Settings 单值 → 采购设置的本位币 → THB；已经有了就一个字不动 |
+| 启动数据 | `pearnly_core/desk/currency.py`（新 `boot_session`） | 下发 `boot.pearnly_currency = {code, symbol}`，并给缺 `currency` 的 boot 兜一层 |
+| 前端 | `pearnly_core/public/desk/product.js` | 预热符号改**只认服务端那一份**；boot 里没币种时钉成 THB（防未迁移的老站点继续花） |
+| 收银台适配层 | `pearnly-pos-adapter.js` | 商品卡带上 `currency`（官方价签读 `item.currency`） |
+
+### 9.3 顺手揪出的第三个：403 弹窗「无权限操作货币」
+
+把符号预热真正跑起来之后（以前代码提前返回，这次请求根本没发过），
+`product.js` 里那句 `frappe.db.get_value("Currency", code, "symbol")` 会**弹一个 403 弹窗**：
+
+```
+信息｜无权限操作货币
+```
+
+`Currency` 这张表的权限在本站是收紧的，前端读它必然撞墙。**已删掉这次前端读取**，
+符号一律走 9.2 的服务端启动数据（服务端 `frappe.db.get_value("Currency", "THB", "symbol")`
+回读是 `฿`，不受用户权限限制）。
+
+### 9.4 这一批的验证（演示站真点鼠标，不是脚本模拟）
+
+| 项 | 结果 |
+| --- | --- |
+| 点商品卡 | 购物车 `1 瓶 · ฿ 100.00`；合计三行正确；**0 报错、0 弹窗** |
+| 商品卡 | `-14 水 ฿ 100 / 瓶`；库存角标这次真的带颜色带数字（`red -14`） |
+| `frappe.boot.pearnly_currency` | `{code: "THB", symbol: "฿"}` |
+| `format_currency(62, undefined, 2)` | `฿ 62.00`（改前是 `د.إ 62.00`） |
+| 物料列表 | 售价/参考成本全是 `฿`；全页 **无 `THB <数字>`、无 `د.إ`、无弹窗** |
+| `scripts/check-architecture.py` | `PASS (0 violations)` |

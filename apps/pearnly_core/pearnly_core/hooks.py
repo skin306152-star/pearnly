@@ -291,7 +291,11 @@ doc_events = {
 # ignore_translatable_strings_from = []
 
 # Product Desk uses the same native UI runtime as the management Site.
-boot_session = "pearnly_core.desk.navigation.extend_boot"
+boot_session = [
+    "pearnly_core.desk.navigation.extend_boot",
+    # 站点货币：符号从服务端给（前端自己去读 `Currency` 表会撞权限弹窗，见该文件抬头）。
+    "pearnly_core.desk.currency.boot_session",
+]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css")]
 app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
 
