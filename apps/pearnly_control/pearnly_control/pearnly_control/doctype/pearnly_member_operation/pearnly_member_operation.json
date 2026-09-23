@@ -1,0 +1,17 @@
+{
+ "doctype": "DocType",
+ "name": "Pearnly Member Operation",
+ "module": "Pearnly Control",
+ "engine": "InnoDB",
+ "autoname": "hash",
+ "allow_rename": 0,
+ "field_order": ["member", "request_hash", "status"],
+ "fields": [
+  {"fieldname": "member", "fieldtype": "Link", "options": "Pearnly Member Identity", "label": "Member", "reqd": 1, "read_only": 1},
+  {"fieldname": "request_hash", "fieldtype": "Data", "label": "Request Hash", "reqd": 1, "read_only": 1},
+  {"fieldname": "status", "fieldtype": "Select", "options": "pending\ndone", "label": "Status", "default": "pending", "reqd": 1, "read_only": 1}
+ ],
+ "permissions": [{"role": "System Manager", "read": 1}],
+ "sort_field": "creation",
+ "sort_order": "DESC"
+}

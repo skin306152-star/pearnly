@@ -27,7 +27,9 @@ jobs:
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Verify Desk retry actions
-        run: node scripts/production/test-issue-actions.cjs
+        run: |
+          node scripts/production/test-issue-actions.cjs
+          node tests/test-line-stocktake.cjs
       - name: Build the shared frontend
         working-directory: frontend
         run: npm ci && npm run build
@@ -49,6 +51,12 @@ jobs:
             -v "$PWD:/candidate:ro" \
             -e PYTHONPATH=/candidate/apps/pearnly_dms:/candidate/apps/pearnly_core:/candidate/apps/pearnly_control \
             "$IMAGE" /candidate/tests/test_dms_entrypoints.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            "$IMAGE" -m unittest pearnly_erp_portal.integrations.test_line_intake pearnly_erp_portal.team.test_identity pearnly_control.account.test_member_service
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-line-runtime.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_teardown_members.py
       - name: Verify runtime and frontend assets
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}

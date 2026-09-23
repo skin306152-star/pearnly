@@ -136,10 +136,11 @@ def run_guarded(target, arguments):
     return frappe.get_attr(target)(**arguments)
 
 
-def run_image(binding, line_user_id, message_id):
+def run_image(binding, line_user_id, message_id, reply_token=""):
     """Registered resumable OCR entry; order writers are deliberately excluded."""
     return run_guarded("pearnly_dms.intake.flow.process_image", {
-        "binding": binding, "line_user_id": line_user_id, "message_id": message_id})
+        "binding": binding, "line_user_id": line_user_id, "message_id": message_id,
+        "reply_token": reply_token})
 
 
 def ocr_failed(arguments, code):

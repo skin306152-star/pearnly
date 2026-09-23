@@ -124,6 +124,8 @@ def api_plan_teardown(tenant: str) -> dict:
         frappe.throw(_("Tenant {0} does not exist").format(tenant or "?"))
 
     targets = targets_of(tenant)
+    from pearnly_control.onboarding.teardown_members import prepare
+    prepare(tenant, targets["issues"])
     # 发号单是请求的必填字段：拿这个租户名下的单子；一张都没有就现造一张占位单，
     # 让"只有租户、没有单子"这种残局也能删干净。
     issue = targets["issues"][0]["name"] if targets["issues"] else None
@@ -248,6 +250,9 @@ def api_purge_control(request: str) -> dict:
             except ValueError:
                 tenant = None
     targets = targets_of(tenant) if tenant else {"deployments": [], "issues": []}
+    if tenant:
+        from pearnly_control.onboarding.teardown_members import prepare
+        prepare(tenant, targets["issues"])
 
     from pearnly_core import keycloak_admin as kc
 

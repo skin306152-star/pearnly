@@ -1,7 +1,8 @@
 """Private billing-management RPC, accessible only through the operator tunnel.
 
-Tenant credentials are deliberately not accepted. No generic method dispatch,
-DocType writes, passwords, provisioning credentials or Desk are exposed here.
+Management dispatch never accepts tenant credentials. The private-site guard
+also permits one separately authorized, tenant-scoped member identity endpoint;
+it is not a generic administrator/password API. No Desk or DocType API is exposed.
 """
 import secrets
 
@@ -25,6 +26,7 @@ def guard_private_site():
         return
     allowed = {f"/api/method/pearnly_control.billing_api.{name}" for name in SERVICE_METHODS}
     allowed.add("/api/method/pearnly_control.billing_control.dispatch")
+    allowed.add("/api/method/pearnly_control.account.member_api.execute")
     # No legacy cmd, alternate REST route, login, generic DocType API or Desk.
     if request.method != "POST" or request.path not in allowed or frappe.form_dict.get("cmd"):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
@@ -78,10 +80,16 @@ def dispatch(action: str, payload=None):
             fields=["name", "tenant", "status", "requested_thb", "approved_thb", "payer_name",
                     "note", "review_note", "requested_at", "reviewed_at", "reviewed_by",
                     "creation", "modified"], order_by="name asc", limit_page_length=500)}
-    if action == "purge":
+    if action in ("prepare_purge", "purge"):
         tenant = str(payload.get("tenant") or "").strip()
         if not tenant:
             frappe.throw(_("Not permitted"), frappe.PermissionError)
+        from pearnly_control.account import member_service
+        if action == "prepare_purge":
+            result = member_service.prepare_purge(tenant)
+            frappe.db.commit()
+            return result
+        member_service.purge_members(tenant)
         for doctype in ("Pearnly Credit Transaction", billing.TOPUP, billing.SUBSCRIPTION, billing.WALLET):
             frappe.db.delete(doctype, {"tenant": tenant})
         if frappe.db.exists("Pearnly Tenant", tenant):

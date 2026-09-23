@@ -20,11 +20,18 @@ r = requests.post(private, headers={**headers,
     "X-Pearnly-Billing-Management": config["pearnly_billing_management_token"]},
     json={"action": "topups"}, timeout=10)
 assert r.status_code == 200
+member = base + "/api/method/pearnly_control.account.member_api.execute"
+assert requests.get(member, headers=headers, timeout=10, allow_redirects=False).status_code in (401, 403)
+response = requests.post(member, headers=headers, json={"action": "create"}, timeout=10)
+assert response.status_code == 200 and response.json().get("message") == {"ok": False, "error": "not_permitted"}
+assert all(config.get("pearnly_member_identity_" + key) for key in (
+    "issuer", "admin_client_id", "admin_client_secret", "ownership_key"))
 print("PASS cloud billing: restricted routes, rejected anonymous access, authenticated read")
 
 import frappe
 frappe.init(site="billing.internal")
 frappe.connect()
-for name in ("Pearnly Tenant", "Pearnly Wallet", "Pearnly Credit Transaction", "Pearnly Topup Request"):
+for name in ("Pearnly Tenant", "Pearnly Wallet", "Pearnly Credit Transaction", "Pearnly Topup Request",
+             "Pearnly Member Identity", "Pearnly Member Operation"):
     print(name + " records=" + str(frappe.db.count(name)))
 frappe.destroy()

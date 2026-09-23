@@ -9,7 +9,7 @@ import frappe
 from frappe import _
 import re
 
-USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,30}$")
+USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 def product_identity():
@@ -36,7 +36,8 @@ def apply_login_username(user, claims):
     if not username or not product_identity():
         return
     doc = frappe.get_doc("User", user)
-    if doc.first_name == username and not doc.middle_name and not doc.last_name:
+    if (doc.first_name == username and not doc.middle_name and not doc.last_name
+            and (not USERNAME_RE.fullmatch(username) or doc.username == username)):
         return
     previous = getattr(frappe.flags, "pearnly_profile_synced", False)
     frappe.flags.pearnly_profile_synced = True

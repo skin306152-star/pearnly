@@ -1,11 +1,8 @@
 """ERP 的 LINE 事件处理器（通道侧）。
 
 传输层（`pearnly_core.line`）负责验签、幂等与回执；这里只做 ERP 的判断。
-本批只落**身份绑定**这一段：没有绑定就不知道这条消息属于哪个账号，后面的
-LINE 录单（发单据 → 识别 → 入账）才有对象。
-
-尚未迁的部分说清楚：绑定成功之后再发消息，会收到一句"这个入口还没开放"。
-**不给假动作**（例如回一句"已收到"然后什么也不做），那是谎报。
+绑定后的图片/PDF 按采购或销售方向留底，交 ERP 页面识别、复核和确认。
+未承接的消息类型明确提示未开放，不声称已经录入。
 """
 
 import frappe
@@ -67,15 +64,22 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str,
                                   "text": _("This account cannot send documents")}])
         return
     media_type = message.get("type") or ""
-    content = line.download_message_content(message.get("id") or "")
     filename = message.get("fileName") or ""
     if not filename:
         filename = f"line-{message.get('id') or 'document'}.jpg" if media_type == "image" \
             else f"line-{message.get('id') or 'document'}.pdf"
     try:
-        saved = intake.receive(line_user_id=user_id, sent_by=bound, media_type=media_type,
-                               content=content, filename=filename, direction=direction,
-                               line_message_id=message.get("id") or "")
+        content = line.download_message_content(message.get("id") or "")
+        # A signed webhook is still a Guest request. Use only the verified local
+        # binding, never Administrator, and restore it before another event runs.
+        previous_user = frappe.session.user
+        try:
+            frappe.set_user(bound)
+            saved = intake.receive(line_user_id=user_id, sent_by=bound, media_type=media_type,
+                                   content=content, filename=filename, direction=direction,
+                                   line_message_id=message.get("id") or "")
+        finally:
+            frappe.set_user(previous_user)
     except Exception:
         # 日志标题也走英文：`check-i18n` 的存量清单已经够长，新代码不再往里加中文。
         frappe.log_error(title="ERP LINE document storage failed",

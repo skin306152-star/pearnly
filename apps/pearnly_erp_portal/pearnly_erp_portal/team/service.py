@@ -110,29 +110,38 @@ def _local_password_allowed() -> bool:
 
     接了统一身份的业务站点**不写**：业务用户只从身份服务登录，本地密码等于旁路
     （本仓合同，见 `pearnly_core.provisioning.ensure_local_user` 的第 2 条）。
-    没有身份服务的站点（实验室 / 离线演示）或显式开了 `pearnly_native_account` 的
-    站点才写 —— 否则账号建出来根本登不上。
+    仅没有身份服务、也没有云端账户标记的实验室 / 离线演示站点写本地密码。
     """
-    return not _identity_configured() or bool(frappe.conf.get("pearnly_native_account"))
+    return not _identity_configured() and not frappe.conf.get("pearnly_native_account")
 
 
-def _identity_subject(email: str, full_name: str, secret: str) -> str:
-    """在身份服务里建号（或改密码），返回 subject。**建不出来就抛错**，不静默降级。
+def _identity_subject(email: str, username: str, secret: str) -> str:
+    """通过私有受限服务建号，返回 subject；绝不接管邮箱相同的现有身份。
 
     静默降级的后果最坏：账号在本地建好了、员工却永远登不上，而且没人知道为什么。
     """
-    from pearnly_core import keycloak_admin
+    from pearnly_core.account import member_client
 
-    subject = keycloak_admin.find_user_id_by_email(email)
-    if subject:
-        # 已经有身份：这次当成"重置密码"，不再建第二个身份。
-        keycloak_admin.set_password(subject, secret)
-        return subject
-    return keycloak_admin.create_user(email, first_name=full_name, password=secret)
+    return member_client.create(email, username, secret)
 
 
 def _bound_subject(user: str) -> str:
-    return frappe.db.get_value("Pearnly Identity", {"user": user, "status": "active"}, "subject")
+    return frappe.db.get_value("Pearnly Identity", {
+        "user": user, "issuer": str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/"),
+        "status": "active"}, "subject")
+
+
+def _bind_member(user: str, subject: str):
+    """Only reached after team.manage and an authenticated private create result.
+
+    The generic identity.bind_identity RPC intentionally requires System Manager.
+    ERP Admin does not gain that role or permission to bind arbitrary identities.
+    """
+    issuer = str(frappe.conf.get("pearnly_oidc_issuer") or "").rstrip("/")
+    if frappe.db.exists("Pearnly Identity", {"issuer": issuer, "subject": subject}):
+        frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
+    frappe.get_doc({"doctype": "Pearnly Identity", "issuer": issuer, "subject": subject,
+        "user": user, "status": "active", "invited_by": frappe.session.user}).insert(ignore_permissions=True)
 
 
 def present_roles() -> list[str]:
@@ -246,6 +255,8 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
     username = _clean_username(username)
     wanted = _clean_roles(roles)
     secret = _clean_password(password)
+    if frappe.conf.get("pearnly_native_account") and not _identity_configured():
+        frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     # 统一身份里的号先建好：建不出来就整件事失败，不留"本地有号、人却登不上"的坑。
     subject = _identity_subject(email, username, secret) if _identity_configured() else None
     user = frappe.get_doc({
@@ -263,9 +274,7 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
         user.new_password = secret
     user.insert(ignore_permissions=True)
     if subject:
-        from pearnly_core import identity
-
-        identity.bind_identity(user=user.name, subject=subject)
+        _bind_member(user.name, subject)
     frappe.db.commit()
     return {"email": user.name, "username": user.username, "roles": sorted(wanted)}
 
@@ -279,12 +288,13 @@ def set_member_password(email: str, password=None) -> dict:
     user = _employee(email)
     secret = _clean_password(password)
     if _identity_configured():
-        from pearnly_core import keycloak_admin
+        from pearnly_core.account import member_client
 
-        subject = _bound_subject(user.name) or keycloak_admin.find_user_id_by_email(user.name)
-        if not subject:
+        if not _bound_subject(user.name):
             frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
-        keycloak_admin.set_password(subject, secret)
+        member_client.reset_password(user.name, secret)
+    elif not _local_password_allowed():
+        frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     if _local_password_allowed():
         user.new_password = secret
         user.save(ignore_permissions=True)

@@ -15,6 +15,7 @@ Amount (THB),金額（バーツ）
 Amount must be greater than 0,金額は0より大きい必要があります
 An adjustment cannot be 0,調整額は0にできません
 An adjustment must have a reason,調整には理由が必要です
+An employee identity is used by another tenant; review it before deleting this tenant,従業員アカウントが他のテナントで使用されています。このテナントを削除する前に確認してください
 Approve and credit,承認して入金
 Approve top-up,チャージを承認
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,開通時にテナントサイトでこのロールを作成し付与します。空欄はまだ制限対象がない機能（ホームなど）を意味します。

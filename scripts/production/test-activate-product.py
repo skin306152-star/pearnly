@@ -64,13 +64,16 @@ class DeployToolingMatch(unittest.TestCase):
 
 
 class Activation(unittest.TestCase):
-    def run_activation(self, failure=''):
+    def run_activation(self, failure='', source_file=SOURCE):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
-            source = SOURCE.read_text().replace('/opt/pearnly', str(root))
+            source = source_file.read_text().replace('/opt/pearnly', str(root))
             # Only the copied test script skips root identity; production retains it.
             source = source.replace('"$EUID" == 0', '1 == 1')
             (root / 'state').mkdir()
+            (root / 'deploy').mkdir()
+            (root / 'secrets').mkdir()
+            (root / 'secrets/member-identity.json').write_text('{}')
             script = root / 'activate.sh'
             script.write_text(source)
             mock = '''#!/usr/bin/env python3
@@ -95,6 +98,7 @@ elif 'ps' in args:
             source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
             # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
             source = source.replace('python3 ' + str(root) + '/deploy/scripts/production/check-deploy-image.py', 'true')
+            source = source.replace('python3 "$root/scripts/production/check-deploy-image.py"', 'true')
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                        TRACE=str(root/'trace'), FAIL_AT=failure)
@@ -128,6 +132,30 @@ elif 'ps' in args:
         result, trace = self.run_activation('backup')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(any('migrate' in row['args'] for row in trace))
+
+
+class FoundationActivation(unittest.TestCase):
+    run_activation = Activation.run_activation
+
+    def test_private_rpc_drains_and_backs_up_before_bootstrap_and_migration(self):
+        result, trace = self.run_activation(source_file=SOURCE.with_name('activate-foundation.sh'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [' '.join(row['args']) for row in trace]
+        find = lambda text: next(i for i, call in enumerate(calls) if text in call)
+        self.assertLess(find('stop -t 130 billing-web'), find('backup --with-files'))
+        self.assertEqual(trace[find('backup --with-files')]['image'], 'sha256:old-running-image')
+        self.assertLess(find('backup --with-files'), find('/run/bootstrap-billing.py'))
+        self.assertLess(find('bench --site billing.internal migrate'), find('up -d --no-deps billing-web'))
+
+    def test_failed_backup_or_migration_never_reopens_private_endpoint(self):
+        for failure in ('backup', 'migrate'):
+            with self.subTest(failure=failure):
+                result, trace = self.run_activation(failure, SOURCE.with_name('activate-foundation.sh'))
+                self.assertNotEqual(result.returncode, 0)
+                calls = [' '.join(row['args']) for row in trace]
+                self.assertFalse(any('up -d --no-deps billing-web' in call for call in calls))
+                if failure == 'backup':
+                    self.assertFalse(any('migrate' in row['args'] for row in trace))
 
 
 if __name__ == '__main__':

@@ -39,7 +39,7 @@ token = request("/realms/master/protocol/openid-connect/token", "POST", {
 settings = {
     "realm": REALM, "enabled": True, "displayName": "Pearnly",
     "sslRequired": "external", "registrationAllowed": False,
-    "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False, "editUsernameAllowed": True,
+    "loginWithEmailAllowed": True, "duplicateEmailsAllowed": False, "editUsernameAllowed": False,
     "resetPasswordAllowed": True, "rememberMe": True, "passwordPolicy": "",
     "loginTheme": "pearnly", "emailTheme": "pearnly", "internationalizationEnabled": True,
     "supportedLocales": ["th", "zh-CN", "en", "ja"], "defaultLocale": "th",
@@ -70,6 +70,8 @@ else:
 profile_path = f"/admin/realms/{REALM}/users/profile"
 profile = request(profile_path, token=token)
 for attribute in profile.get("attributes", []):
+    if attribute.get("name") in ("username", "email"):
+        attribute.setdefault("permissions", {})["edit"] = ["admin"]
     if attribute.get("name") in ("firstName", "lastName"):
         attribute.pop("required", None)
 request(profile_path, "PUT", profile, token)

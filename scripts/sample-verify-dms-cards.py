@@ -274,6 +274,31 @@ def main():
     # 文档串里举的例子，不是真引用（`dms_qa_cards.__getattr__` 的说明里也举了一个）
     used.discard("TXT_XXX")
     used.discard("qa.TXT_XXX")
+    # Explicit QA constants may deliberately use the canonical error catalog.
+    # Check their actual source namespace, not a duplicate card translation.
+    import ast
+    error_aliases = {}
+    for node in ast.parse(Path(_qa.__file__).read_text(encoding="utf-8")).body:
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name) and node.value.func.id == "_err_text"
+                and len(node.value.args) == 1 and isinstance(node.value.args[0], ast.Constant)):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    error_aliases["qa." + target.id] = "dms.err." + node.value.args[0].value
+    error_keys = {error_aliases[k] for k in used if k in error_aliases}
+    def missing_error_keys(packs):
+        return [(key, lang) for key in error_keys for lang in i18n.LANGUAGES
+                if not packs[lang].get(key) or packs[lang].get(key) == key]
+
+    packs = {lang: i18n.pack(lang) for lang in i18n.LANGUAGES}
+    missing_errors = missing_error_keys(packs)
+    check("共享错误话术在四语目录中存在", not missing_errors, missing_errors)
+    if error_keys:
+        key = sorted(error_keys)[0]
+        incomplete = {lang: dict(pack) for lang, pack in packs.items()}
+        incomplete["en"].pop(key, None)
+        check("缺少英文时守卫不能用泰语回落冒充通过", (key, "en") in missing_error_keys(incomplete))
+    used -= error_aliases.keys()
     missing = sorted(k for k in used if i18n.t("dms.card." + k, lang="th").startswith("dms.card."))
     check("代码引用的卡片键在语言包里都有（防漏键）", not missing,
           "共查 %d 个键，缺 %s" % (len(used), missing))

@@ -60,6 +60,7 @@
           return args.length ? text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? '')) : text;
         };
         let csrf = '', ticket = '', task = null, camera = null, last = null;
+        let scanMode = false, cameraGeneration = 0, decoderFallback;
 
         function say(message, bad) {
           toast.textContent = message;
@@ -73,7 +74,12 @@
         }
         function hide(element) { if (element && element.parentNode) element.parentNode.removeChild(element); }
         async function call(method, args, post) {
-          const response = await fetch(API + method, {
+          const query = new URLSearchParams();
+          if (!post) Object.entries(args || {}).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) query.set(key, String(value));
+          });
+          const queryText = query.toString();
+          const response = await fetch(API + method + (queryText ? '?' + queryText : ''), {
             method: post ? 'POST' : 'GET',
             headers: Object.assign({ 'X-Frappe-CSRF-Token': csrf, 'X-Stocktake-Line': ticket },
               post ? { 'Content-Type': 'application/json' } : {}),
@@ -121,57 +127,109 @@
           document.getElementById('title').textContent = t('stock.mobile.title');
         }
 
-        // ── 相机扫码（与桌面同一个做法：浏览器自带的解码器）────────────────
-        async function stopCamera() {
-          if (!camera) return;
-          if (camera.stream) camera.stream.getTracks().forEach((track) => track.stop());
-          clearInterval(camera.timer);
-          hide(camera.node);
+        // Same native-first decoder and bundled, same-origin WASM as Desk scan.js.
+        async function cameraDecoder(formats) {
+          if (typeof window.BarcodeDetector === 'function') {
+            try {
+              const supported = await window.BarcodeDetector.getSupportedFormats();
+              if (formats.every((format) => supported.includes(format))) {
+                return new window.BarcodeDetector({ formats: formats });
+              }
+            } catch (error) { /* Fall back to the existing bundled decoder. */ }
+          }
+          if (!decoderFallback) decoderFallback = (async () => {
+            if (!window.BarcodeDetectionAPI) await new Promise((resolve, reject) => {
+              const script = document.createElement('script');
+              script.src = '/assets/pearnly_erp_portal/vendor/barcode-detector/ponyfill.js';
+              script.onload = resolve;
+              script.onerror = () => { hide(script); reject(new Error('decoder_unavailable')); };
+              document.head.appendChild(script);
+            });
+            const api = window.BarcodeDetectionAPI;
+            await api.prepareZXingModule({ overrides: {
+              locateFile: (name) => name.endsWith('.wasm')
+                ? '/assets/pearnly_erp_portal/vendor/barcode-detector/zxing_reader.wasm' : name,
+            } });
+            return api.BarcodeDetector;
+          })().catch((error) => { decoderFallback = null; throw error; });
+          const Reader = await decoderFallback;
+          return new Reader({ formats: formats });
+        }
+
+        function stopCamera(resetMode) {
+          cameraGeneration += 1;
+          if (resetMode) scanMode = false;
+          const previous = camera;
           camera = null;
+          if (!previous) return;
+          if (previous.stream) previous.stream.getTracks().forEach((track) => track.stop());
+          previous.node.querySelector('video').srcObject = null;
+          clearInterval(previous.timer);
+          hide(previous.node);
         }
         async function startCamera(onCode) {
+          stopCamera();
+          const generation = cameraGeneration;
           const formats = ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'itf',
             'codabar', 'qr_code'];
-          if (typeof window.BarcodeDetector !== 'function' || !navigator.mediaDevices) {
+          if (!navigator.mediaDevices?.getUserMedia) {
+            scanMode = false;
             say(t('stock.mobile.noCamera'), true);
             return;
           }
-          const supported = await window.BarcodeDetector.getSupportedFormats();
-          const use = formats.filter((f) => supported.includes(f));
-          if (!use.length) { say(t('stock.mobile.noCamera'), true); return; }
+          let reader;
+          try { reader = await cameraDecoder(formats); }
+          catch (error) {
+            if (generation !== cameraGeneration) return;
+            scanMode = false;
+            say(t('stock.mobile.noCamera'), true);
+            return;
+          }
+          if (generation !== cameraGeneration) return;
           const node = document.createElement('div');
           node.className = 'card';
           node.innerHTML = '<video playsinline muted></video><div class="row" style="margin-top:8px">'
             + '<button id="stop" class="wide">' + esc(t('stock.mobile.cameraOff')) + '</button></div>';
           app.prepend(node);
           const video = node.querySelector('video');
-          node.querySelector('#stop').onclick = () => stopCamera();
+          node.querySelector('#stop').onclick = () => stopCamera(true);
+          camera = { node: node, stream: null, timer: null };
           let stream;
           try {
             stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            if (generation !== cameraGeneration) {
+              stream.getTracks().forEach((track) => track.stop());
+              return;
+            }
+            camera.stream = stream;
           } catch (error) {
-            hide(node);
+            if (generation !== cameraGeneration) return;
+            await stopCamera(true);
             say(t('stock.scan.denied'), true);
             return;
           }
           video.srcObject = stream;
           const play = () => video.play().catch(() => {});
           await play();
-          const reader = new window.BarcodeDetector({ formats: use });
-          let busy = false;
-          camera = { node: node, stream: stream, timer: setInterval(async () => {
+          if (generation !== cameraGeneration) return;
+          let busy = false, candidate = '', candidateFormat = '', hits = 0;
+          camera.timer = setInterval(async () => {
             if (busy) return;
             busy = true;
             try {
               if (video.paused) await play();
               if (video.readyState < 2) return;
               const found = await reader.detect(video);
+              if (generation !== cameraGeneration) return;
               const code = found.length ? String(found[0].rawValue || '').trim() : '';
-              if (code) { await stopCamera(); onCode(code); }
+              const format = found[0]?.format || '';
+              hits = code && code === candidate && format === candidateFormat ? hits + 1 : (code ? 1 : 0);
+              candidate = code; candidateFormat = format;
+              if (code && hits >= 2) { await stopCamera(); await onCode(code); }
             } catch (error) {
               // 单帧解不出来是常态
             } finally { busy = false; }
-          }, 250) };
+          }, 250);
         }
 
         // ── 界面 ────────────────────────────────────────────────────────────
@@ -216,11 +274,11 @@
             + '<div id="error" class="error"></div></div>'
             + (item ? entryForm(item, rows) : '')
             + (entries.length ? entriesCard(entries) : '');
-          document.getElementById('back').onclick = () => { task = null; boot(); };
-          document.getElementById('scan').onclick = () => startCamera((code) => lookup(code));
+          document.getElementById('back').onclick = async () => { await stopCamera(true); task = null; boot(); };
+          document.getElementById('scan').onclick = () => { scanMode = true; return startCamera((code) => lookup(code)); };
           document.getElementById('find').onclick = () => {
             const code = document.getElementById('code').value.trim();
-            if (code) lookup(code);
+            if (code) { stopCamera(true); lookup(code); }
           };
           if (item) bindForm(item, rows);
           app.querySelectorAll('[data-undo]').forEach((button) => {
@@ -277,8 +335,11 @@
         }
 
         async function lookup(code) {
+          const taskName = task?.name;
+          if (!taskName) return;
           try {
-            const result = await call('api_line_stocktake_lookup', { name: task.name, code: code });
+            const result = await call('api_line_stocktake_lookup', { name: taskName, code: code });
+            if (task?.name !== taskName) return;
             if (!result || !result.item) { say(t('stock.mobile.notFound'), true); return; }
             last = result;
             render(result);
@@ -290,33 +351,45 @@
         }
 
         function bindForm(item, rows) {
+          // Keep the same idempotency key when a response is lost; a confirmed
+          // save renders a fresh form and therefore starts a new observation.
+          const requestId = crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
+          let saving = false;
           const place = document.getElementById('place');
           if (place) place.onchange = () => {
             last = Object.assign({}, last, {item: rows[Number(place.value)], rows: rows});
             render(last);
           };
           document.getElementById('save').onclick = async () => {
+            if (saving) return;
             const qty = document.getElementById('qty').value.trim();
             if (!qty) { say(t('stock.count.qty'), true); return; }
-            const photo_input = document.getElementById('photo');
-            const photos = [];
-            if (photo_input.files && photo_input.files[0]) {
-              photos.push(await toBase64(photo_input.files[0]));
-            }
+            saving = true;
+            const saveButton = document.getElementById('save');
+            saveButton.disabled = true;
             try {
+              const photo_input = document.getElementById('photo');
+              const photos = [];
+              if (photo_input.files && photo_input.files[0]) {
+                photos.push(await toBase64(photo_input.files[0]));
+              }
               await call('api_line_stocktake_add', {
                 name: task.name,
                 item: item.name,
                 qty: qty,
                 note: document.getElementById('note').value.trim() || undefined,
-                request_id: (crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+                request_id: requestId,
                 photos: photos,
               }, true);
               if (navigator.vibrate) navigator.vibrate(60);
               say(t('stock.mobile.saved'));
               await lookup(item.code || '');
+              if (scanMode) await startCamera((code) => lookup(code));
             } catch (error) {
               say(error.message, true);
+            } finally {
+              saving = false;
+              saveButton.disabled = false;
             }
           };
         }
@@ -361,6 +434,7 @@
           }
         }
 
+        window.addEventListener('pagehide', () => stopCamera(true));
         start();
       })();
     </script>

@@ -47,6 +47,11 @@ def _conforms(username: str) -> bool:
 
 
 def execute():
+    # Unified identities are authoritative. A local migration must not invent a
+    # different username or claim to rename the remote login; verified SSO claims
+    # project the display name on login. This patch only normalizes offline users.
+    if frappe.conf.get("pearnly_oidc_issuer") or frappe.conf.get("pearnly_native_account"):
+        return
     for field, value in (("allow_login_using_user_name", 1), ("enable_password_policy", 0)):
         frappe.db.set_single_value("System Settings", field, value)
 

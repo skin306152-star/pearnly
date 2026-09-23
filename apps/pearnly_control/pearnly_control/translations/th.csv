@@ -15,6 +15,7 @@ Amount (THB),จำนวนเงิน (บาท)
 Amount must be greater than 0,จำนวนเงินต้องมากกว่า 0
 An adjustment cannot be 0,ยอดปรับต้องไม่เป็น 0
 An adjustment must have a reason,การปรับยอดต้องระบุเหตุผล
+An employee identity is used by another tenant; review it before deleting this tenant,บัญชีพนักงานถูกใช้งานโดยผู้เช่ารายอื่น โปรดตรวจสอบก่อนลบผู้เช่ารายนี้
 Approve and credit,อนุมัติและบันทึกเข้าบัญชี
 Approve top-up,อนุมัติการเติมเงิน
 At provisioning this role is created on the tenant site and granted. Empty means there is nothing to gate yet (e.g. the home page).,ตอนเปิดใช้งานจะสร้างบทบาทนี้บนเว็บไซต์ผู้เช่าและมอบให้ ว่างไว้หมายถึงยังไม่มีอะไรให้กัน (เช่น หน้าหลัก)

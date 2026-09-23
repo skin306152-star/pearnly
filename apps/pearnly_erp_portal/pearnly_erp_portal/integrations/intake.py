@@ -9,8 +9,8 @@
    识别记录的指纹；新平台的单据还没识别，就用文件本身。
 2. **确认才建单，且只能建一次**：`dedupe_key` 钉在草稿名上，重复确认返回同一张单，
    不会出现两张一样的采购记录。
-3. **谁可以发**：要有采购岗位（`purchase.write`）——收进来的就是采购单据。销售方向
-   （旧线上 `direction=sales`）等销售单据流那一批，本批不假装支持。
+3. **谁可以发**：采购和销售分别要求 `purchase.write` / `sales.write`，来源身份必须
+   是当前仍生效的 LINE 绑定；草稿与文件归该员工，不归 webhook 的 Guest。
 
 识别与确认由采购记录页面承接；只有确认操作才在一个事务内落采购、付款与库存。
 """
@@ -20,6 +20,7 @@ import hashlib
 import frappe
 from frappe import _
 
+from pearnly_core import line_binding
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import entry as purchasing
 from pearnly_erp_portal.sales import contracts as sales_contracts
@@ -85,6 +86,10 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
     """LINE 来了一件单据：留底并落草稿。重复内容返回已有草稿，不新建。"""
     if direction not in DIRECTIONS:
         frappe.throw(_("Unknown direction"))
+    # Recheck after media download: an account can be disabled or rebound while
+    # LINE is returning the file. A caller cannot choose somebody else's sender.
+    if sent_by != frappe.session.user or line_binding.user_of(line_user_id) != sent_by:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     guard.require(DIRECTION_CAPABILITY[direction])
     if not content:
         frappe.throw(_(EMPTY_FILE))
@@ -101,6 +106,7 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
         "doctype": DOCTYPE,
         "status": STATUS_RECEIVED,
         "direction": direction,
+        "owner": sent_by,
         "sent_by": sent_by,
         "line_user_id": line_user_id,
         "media_type": MEDIA_TYPES.get(media_type, media_type or ""),
@@ -108,25 +114,35 @@ def receive(*, line_user_id, sent_by, media_type, content, filename,
         "file_hash": digest,
         "received_at": frappe.utils.now(),
     })
-    intake.insert(ignore_permissions=True)
-    _store_file(intake, content, filename or f"{intake.name}.bin")
-    intake.save(ignore_permissions=True)
+    # The webhook records its event receipt even after a handled failure. Keep
+    # an upload failure from committing an empty, duplicate-blocking draft.
+    frappe.db.savepoint("erp_line_intake_receive")
+    try:
+        intake.insert(ignore_permissions=True)
+        _store_file(intake, content, filename or f"{intake.name}.bin")
+        intake.save(ignore_permissions=True)
+    except Exception:
+        frappe.db.rollback(save_point="erp_line_intake_receive")
+        raise
     frappe.db.commit()
     return {"name": intake.name, "duplicate": False}
 
 
 def list_intakes(*, status=STATUS_RECEIVED, direction=None, limit=50) -> list[dict]:
-    """列草稿。两个方向都会出现在这里，按岗位过滤由调用方决定看哪一边。"""
-    guard.require("purchase.read")
+    """列出当前岗位可读方向的草稿；方向和本人范围都在服务端限制。"""
+    if direction and direction not in DIRECTIONS:
+        frappe.throw(_("Unknown direction"))
+    directions = [direction] if direction else [d for d in DIRECTIONS if guard.has(d + ".read")]
+    # The default capability gives anonymous/unprivileged callers the normal
+    # authentication/permission error instead of exposing an unfiltered inbox.
+    guard.require((directions[0] if directions else "purchase") + ".read")
     filters = {**guard.scope_filters(), **({"status": status} if status else {})}
-    if direction:
-        filters["direction"] = direction
+    filters["direction"] = ["in", directions]
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
                            order_by="received_at desc", limit_page_length=int(limit))
 
 
 def get_intake(name) -> dict:
-    guard.require("purchase.read")
     doc = _get(name)
     return {field: doc.get(field) for field in LIST_FIELDS}
 

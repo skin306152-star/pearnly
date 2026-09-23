@@ -5,6 +5,7 @@
 """
 
 import frappe
+from frappe.recorder import do_not_record
 
 from pearnly_erp_portal.team import service
 
@@ -27,6 +28,7 @@ def api_list_members(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+@do_not_record
 def api_add_member(**kwargs):
     _json_args(kwargs, "roles")
     return service.add_member(**_clean(kwargs))
@@ -48,6 +50,7 @@ def api_set_member_companies(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+@do_not_record
 def api_set_member_password(**kwargs):
     kwargs = _clean(kwargs)
     return service.set_member_password(kwargs.pop("email", None), **kwargs)

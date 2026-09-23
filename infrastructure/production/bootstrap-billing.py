@@ -10,6 +10,11 @@ if site not in {"billing.internal", "verify-billing.internal"}:
     raise SystemExit("Unexpected billing Site")
 path = Path("/run/secrets/runtime.env")
 config = dict(line.split("=", 1) for line in path.read_text().splitlines() if "=" in line)
+member_config = json.loads(Path("/run/secrets/member-identity.json").read_text())
+member_keys = {"pearnly_member_identity_issuer", "pearnly_member_identity_admin_client_id",
+               "pearnly_member_identity_admin_client_secret", "pearnly_member_identity_ownership_key"}
+if set(member_config) != member_keys or not all(member_config.values()):
+    raise SystemExit("Private member identity configuration is incomplete")
 os.setgid(1000)
 os.setuid(1000)
 os.chdir("/home/frappe/frappe-bench/sites")
@@ -42,6 +47,7 @@ for key, value in {
     "pearnly_billing_management_token": config["BILLING_MANAGEMENT_SECRET"],
     "pearnly_billing_reviewers": ["skinzihao@gmail.com"],
     "allow_tests": site == "verify-billing.internal",
+    **member_config,
 }.items():
     update_site_config(key, value)
 if "pearnly_control" not in frappe.get_installed_apps():

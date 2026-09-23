@@ -20,6 +20,7 @@ before_request = [
     "pearnly_control.billing_control.guard_private_site",
     "pearnly_control.billing_remote.before_request",
 ]
+after_request = ["pearnly_control.account.member_api.after_request"]
 
 # Apps
 # ------------------

@@ -43,7 +43,7 @@ def main():
             patch("pearnly_dms.line.identity.current", return_value=identity), \
             patch.object(out, "start_loading") as loading:
         dms_flow._enqueue("probe", dms_flow.process_image,
-                          {"user_id": identity["user"]}, "U", "MID")
+                          {"user_id": identity["user"]}, "U", "MID", "REPLY")
         loading.assert_called_once_with("U", 60)
 
     # 原生队列控制参数不进入业务载荷；守卫原样展开 arguments 给目标函数。
@@ -52,11 +52,12 @@ def main():
        captured.get("method") == "pearnly_dms.line.out.run_guarded"
        and captured.get("kwargs", {}).get("target") == "pearnly_dms.intake.flow.process_image")
     ck("入队的 kwargs 就是形参名（不是 arg0/arg1）",
-       sorted(payload) == ["binding", "line_user_id", "message_id"]
+       sorted(payload) == ["binding", "line_user_id", "message_id", "reply_token"]
        and not [k for k in payload if k.startswith("arg")],
        sorted(payload))
     ck("排队期间保留原绑定版本",
        payload.get("binding", {}).get("binding_revision") == identity["binding_revision"])
+    ck("回复令牌随持久任务传递", payload.get("reply_token") == "REPLY")
 
     with patch("pearnly_dms.line.identity.matches", return_value=True), \
             patch.object(frappe, "get_attr", return_value=lambda **kw: kw) as resolve:
@@ -74,10 +75,19 @@ def main():
             patch("pearnly_core.execution.work.submit", return_value="work-id") as submit, \
             patch.object(frappe, "enqueue") as enqueue:
         dms_flow._enqueue("image", dms_flow.process_image,
-                          {"user_id": identity["user"]}, "U", "MID")
+                          {"user_id": identity["user"]}, "U", "MID", "REPLY")
         submit.assert_called_once_with("dms.id_card", "MID", payload, identity["user"])
         enqueue.assert_not_called()
         ck("图片识别交给共享持久任务，使用消息幂等键", True)
+
+    from pearnly_dms import hooks
+    with patch("pearnly_dms.line.identity.matches", return_value=True), \
+            patch.object(frappe, "get_installed_apps", return_value=["frappe", "pearnly_core", "pearnly_dms"]), \
+            patch.object(dms_flow, "process_image", side_effect=lambda **kw: kw):
+        handler = frappe.get_attr(hooks.pearnly_ocr_handlers["dms.id_card"])
+        ck("真实注册消费者接收新任务并透传回复令牌", handler(**payload) == payload)
+        legacy = {k: v for k, v in payload.items() if k != "reply_token"}
+        ck("旧持久任务没有令牌仍可解析", handler(**legacy) == {**legacy, "reply_token": ""})
 
     try:
         # worker 就是这么调的：`method(**kwargs)`（frappe execute_job 最后一行）
@@ -95,9 +105,15 @@ def main():
     src = Path(dms_flow.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     want_by_name = {}
+    aliases = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef):
             want_by_name[node.name] = len([a for a in node.args.args if a.arg != "self"])
+        if (isinstance(node, ast.Assign) and isinstance(node.value, ast.IfExp)
+                and isinstance(node.value.body, ast.Name) and isinstance(node.value.orelse, ast.Name)):
+            for target in node.targets:
+                if isinstance(target, ast.Name):
+                    aliases[target.id] = [node.value.body.id, node.value.orelse.id]
     bad = []
     for node in ast.walk(tree):
         if not isinstance(node, ast.Call):
@@ -110,9 +126,10 @@ def main():
         target = node.args[1]
         name = getattr(target, "id", None) or getattr(target, "attr", None)
         got = len(node.args) - 2
-        want = want_by_name.get(name)
-        if want != got:
-            bad.append("%s: 给 %s 个，函数要 %s 个" % (name, got, want))
+        for candidate in aliases.get(name, [name]):
+            want = want_by_name.get(candidate)
+            if want != got:
+                bad.append("%s: 给 %s 个，函数要 %s 个" % (candidate, got, want))
     ck("模块里每个 _enqueue 调用点的实参个数都对得上", not bad, bad)
 
     failed = [x for x in ok if not x]

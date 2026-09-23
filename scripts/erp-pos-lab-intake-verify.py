@@ -27,6 +27,9 @@ LINE_USER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb1"
 LINE_STRANGER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb9"
 LINE_SELLER = "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb2"
 SELLER = "erp-pos-line-seller@example.com"
+COMPANY_NAME = "LINE Intake Lab Company"
+WAREHOUSE_NAME = "LINE Intake Lab Warehouse"
+SUPPLIER_INVOICE_NO = "LINE-INTAKE-LAB-001"
 
 def _lab_image() -> bytes:
     """A real (tiny) JPEG: Frappe re-encodes image uploads, so fake bytes would fail
@@ -96,6 +99,26 @@ def ensure_member(email, roles):
     frappe.clear_cache(user=email)
 
 
+def ensure_lab_company():
+    """A real company and native grants for this script's two document authors."""
+    from pearnly_erp_portal.masters import company
+
+    name = frappe.db.get_value("ERP Company", {"company_name": COMPANY_NAME}, "name")
+    if not name:
+        name = frappe.get_doc({"doctype": "ERP Company", "company_name": COMPANY_NAME,
+                               "is_active": 1, "is_default": 0}).insert(
+                                   ignore_permissions=True).name
+    for user in (BUYER, SELLER):
+        grant = {"user": user, "allow": "ERP Company", "for_value": name}
+        if not frappe.db.exists("User Permission", grant):
+            frappe.get_doc({"doctype": "User Permission", **grant,
+                             "apply_to_all_doctypes": 1}).insert(ignore_permissions=True)
+        company.set_active_company(name, user)
+        frappe.clear_cache(user=user)
+    frappe.db.commit()
+    return name
+
+
 class FakeLine:
     def __init__(self, line_module, payloads):
         self.replies = []
@@ -136,7 +159,18 @@ def send(line_module, line_user_id, text=None, *, message_type="image", message_
     if filename:
         message["fileName"] = filename
     event["message"] = message
-    return line_module._dispatch(event)
+    # The public signed webhook is Guest, never Administrator. Signature/HTTP
+    # dispatch is covered by integrations.test_line_intake; this lab keeps the
+    # real Site/storage while replacing only LINE transport.
+    previous = frappe.session.user
+    try:
+        frappe.set_user("Guest")
+        handled = line_module._dispatch(event)
+        if frappe.session.user != "Guest":
+            raise AssertionError("ERP LINE handler leaked its bound-user context")
+        return handled
+    finally:
+        frappe.set_user(previous)
 
 
 def main():
@@ -145,6 +179,7 @@ def main():
     from pearnly_core import line, line_binding
     from pearnly_core.provisioning import ensure_feature_roles
     from pearnly_erp_portal.integrations import intake
+    from pearnly_erp_portal.inventory import warehouses
 
     if CONTROL_APP not in sys.path:
         sys.path.insert(0, CONTROL_APP)
@@ -157,13 +192,17 @@ def main():
     ensure_member(BUYER, ["ERP Purchase"])
     ensure_member(CASHIER, ["ERP Cashier"])
     ensure_member(SELLER, ["ERP Sales"])
+    company = ensure_lab_company()
+    warehouse = warehouses.resolve(WAREHOUSE_NAME, company=company, create=True)
+    frappe.db.commit()
 
     # 干净起点：本脚本的草稿与绑定。
-    for name in frappe.get_all("ERP LINE Intake", filters={"line_user_id": LINE_USER},
+    owned_line_users = [LINE_USER, LINE_SELLER, "Ulablinebbbbbbbbbbbbbbbbbbbbbbbbb8"]
+    for name in frappe.get_all("ERP LINE Intake", filters={"line_user_id": ["in", owned_line_users]},
                                pluck="name"):
         frappe.delete_doc("ERP LINE Intake", name, force=True, ignore_permissions=True)
     for name in frappe.get_all("Pearnly LINE Binding",
-                               filters={"line_user_id": [">=", "Ulablinebbbb"]}, pluck="name"):
+                               filters={"line_user_id": ["in", owned_line_users]}, pluck="name"):
         frappe.delete_doc("Pearnly LINE Binding", name, force=True, ignore_permissions=True)
     # 上一次运行留下的采购单：只清本脚本自己的（供应商名是本脚本合成的）。
     for name in frappe.get_all("Purchase Document", filters={"supplier_name": "Lab Supplier"},
@@ -183,9 +222,10 @@ def main():
         results["image_handled"] = send(line, LINE_USER, message_id="m1")
         row = frappe.db.get_value("ERP LINE Intake", {"line_user_id": LINE_USER},
                                   ["name", "status", "sent_by", "media_type", "file_hash",
-                                   "source_file", "direction"], as_dict=True) or {}
+                                   "source_file", "direction", "owner"], as_dict=True) or {}
         results["row_status"] = row.get("status")
         results["row_sender"] = row.get("sent_by")
+        results["row_owner"] = row.get("owner")
         results["row_media"] = row.get("media_type")
         results["row_direction"] = row.get("direction")
         results["row_hash_matches"] = row.get("file_hash") == hashlib.sha256(IMAGE).hexdigest()
@@ -230,8 +270,9 @@ def main():
         # 确认草稿 → 建 ERP 采购草稿（带来源与内容指纹）。
         ok, created = as_user(BUYER, intake.confirm, row.get("name"),
                               supplier_name="Lab Supplier", doc_date="2026-09-21",
-                              lines=[{"description": "Lab goods", "qty": 2,
-                                      "unit_price": "100"}])
+                              doc_no=SUPPLIER_INVOICE_NO,
+                              lines=[{"description": "LINE Intake Lab Goods", "qty": 2,
+                                      "unit_price": "100", "warehouse": warehouse}])
         results["confirm"] = ok
         results["confirm_error"] = None if ok else created
         purchase = created.get("name") if ok else None
@@ -239,14 +280,20 @@ def main():
             "Purchase Document", purchase, "source") if purchase else None
         results["purchase_hash"] = frappe.db.get_value(
             "Purchase Document", purchase, "image_sha256") if purchase else None
+        results["purchase_supplier_invoice_no"] = frappe.db.get_value(
+            "Purchase Document", purchase, "doc_no") if purchase else None
+        results["purchase_stock_warehouse_matches"] = (frappe.db.get_value(
+            "ERP Stock Movement", {"ref_type": "purchase", "ref_id": purchase},
+            "warehouse") == warehouse) if purchase else False
         results["intake_after_confirm"] = frappe.db.get_value(
             "ERP LINE Intake", row.get("name"), ["status", "purchase"], as_dict=True)
 
         # 重复确认：返回同一张单，不再建一张。
         ok, again = as_user(BUYER, intake.confirm, row.get("name"),
                             supplier_name="Lab Supplier", doc_date="2026-09-21",
-                            lines=[{"description": "Lab goods", "qty": 2,
-                                    "unit_price": "100"}])
+                            doc_no=SUPPLIER_INVOICE_NO,
+                            lines=[{"description": "LINE Intake Lab Goods", "qty": 2,
+                                    "unit_price": "100", "warehouse": warehouse}])
         results["confirm_again_same"] = bool(ok) and again.get("name") == purchase
         results["purchases_for_supplier"] = frappe.db.count(
             "Purchase Document", {"supplier_name": "Lab Supplier"})
@@ -269,7 +316,7 @@ def main():
         results["buyer_sees_rows"] = ok and len(rows) >= 1
 
         # 销售方向：只有拿到销售岗位的账号能发；切到"ขาย"后，确认建的是**销售单据**。
-        # 通道侧不是用户会话（webhook 走 Administrator），先还原会话再发。
+        # send() always dispatches as Guest; setup/readback uses Administrator.
         frappe.set_user("Administrator")
         fake.clear()
         send(line, LINE_USER, "ขาย")
@@ -282,9 +329,14 @@ def main():
         send(line, LINE_SELLER, message_id="m4")
         sales_row = frappe.db.get_value("ERP LINE Intake",
                                         {"line_user_id": LINE_SELLER, "direction": "sales"},
-                                        ["name", "direction", "file_hash"], as_dict=True) or {}
+                                        ["name", "direction", "file_hash", "owner"], as_dict=True) or {}
         results["sales_row_direction"] = sales_row.get("direction")
-        ok, made = as_user(OWNER, intake.confirm, sales_row.get("name"),
+        results["sales_row_owner"] = sales_row.get("owner")
+        ok, rows = as_user(SELLER, intake.list_intakes, direction="sales")
+        results["seller_sees_own_intake"] = ok and any(r["name"] == sales_row.get("name") for r in rows)
+        ok, own_draft = as_user(SELLER, intake.get_intake, sales_row.get("name"))
+        results["seller_reads_own_intake"] = ok and own_draft["sent_by"] == SELLER
+        ok, made = as_user(SELLER, intake.confirm, sales_row.get("name"),
                            lines=[{"product": None, "description": "LINE sale",
                                    "qty": 1, "unit_price": "100"}],
                            doc_date="2026-09-21", buyer_name="LINE Buyer",
@@ -296,6 +348,8 @@ def main():
         sales_doc = made.get("name") if ok else None
         results["sales_source"] = frappe.db.get_value("ERP Sales Document", sales_doc,
                                                       "source") if sales_doc else None
+        results["sales_company_matches"] = (frappe.db.get_value(
+            "ERP Sales Document", sales_doc, "company") == company) if sales_doc else False
         results["sales_hash_matches"] = (frappe.db.get_value("ERP Sales Document", sales_doc,
                                                              "image_sha256")
                                          == sales_row.get("file_hash")) if sales_doc else None
@@ -317,6 +371,7 @@ def main():
         "image_handled": True,
         "row_status": "received",
         "row_sender": BUYER,
+        "row_owner": BUYER,
         "row_media": "image",
         "row_direction": "purchase",
         "row_hash_matches": True,
@@ -328,6 +383,8 @@ def main():
         "stranger_rows": 0,
         "confirm": True,
         "purchase_source": "line",
+        "purchase_supplier_invoice_no": SUPPLIER_INVOICE_NO,
+        "purchase_stock_warehouse_matches": True,
         "confirm_again_same": True,
         "purchases_for_supplier": 1,
         "discard": True,
@@ -335,6 +392,14 @@ def main():
         "confirm_after_discard": False,
         "cashier_can_list": False,
         "buyer_sees_rows": True,
+        "sales_row_direction": "sales",
+        "sales_row_owner": SELLER,
+        "seller_sees_own_intake": True,
+        "seller_reads_own_intake": True,
+        "sales_confirm": True,
+        "sales_hash_matches": True,
+        "sales_source": "line",
+        "sales_company_matches": True,
         "other_site_intakes": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
