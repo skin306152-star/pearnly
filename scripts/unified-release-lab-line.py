@@ -3,6 +3,8 @@
 Only HTTP request context and LINE transport are synthetic. DocTypes, permissions,
 bindings, event receipts, files, purchase/sales confirmation and rollback use the
 real isolated MariaDB Sites. All Python HTTP requests are blocked as a backstop.
+Use fresh release-erp-line-a/b Sites: successful purchase/sales fixtures are
+immutable business records, not something a regression test may delete on rerun.
 """
 import base64
 from contextlib import redirect_stdout

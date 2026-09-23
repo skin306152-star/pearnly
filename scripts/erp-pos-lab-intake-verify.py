@@ -376,7 +376,6 @@ def main():
         "row_direction": "purchase",
         "row_hash_matches": True,
         "row_has_file": True,
-        "file_name": "line-m1.jpg",
         "file_is_private": 1,
         "rows_after_duplicate": 1,
         "cashier_rows": 0,
@@ -406,7 +405,11 @@ def main():
                 if results.get(k) != v}
     if results.get("purchase_hash") != hashlib.sha256(IMAGE).hexdigest():
         problems["purchase_hash"] = results.get("purchase_hash")
-    # Frappe 给重名文件加随机后缀（同一份 PDF 会存多次），这里只认前缀与扩展名。
+    # Frappe 给重名文件加随机后缀（原生 Site reinstall 也会保留私有文件）。
+    # 文件身份另由 hash / owner / private 断言约束，展示文件名只认前缀与扩展名。
+    image_name = str(results.get("file_name") or "")
+    if not image_name.startswith("line-m1") or not image_name.endswith(".jpg"):
+        problems["file_name"] = results.get("file_name")
     pdf_name = str(results.get("pdf_row_file") or "")
     if not pdf_name.startswith("invoice") or not pdf_name.endswith(".pdf"):
         problems["pdf_row_file"] = results.get("pdf_row_file")
