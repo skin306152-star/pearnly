@@ -1104,3 +1104,13 @@ You don't have enough points to redeem.	积分不足，无法抵扣	คะแน
 You have unsaved changes. Do you want to save the invoice?	有未保存的改动，要保存这张单据吗？	มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่	未保存の変更があります。伝票を保存しますか？
 You must select a customer before adding an item.	添加物料前必须先选择客户	ต้องเลือกลูกค้าก่อนเพิ่มสินค้า	商品を追加する前に顧客を選択してください
 Open a shift on the cashier page first.	请先在收银台开班（旧页面那条路）	กรุณาเปิดกะที่หน้าจุดขายก่อน	先にレジでシフトを開始してください
+Additional Discount Percentage	整单折扣率	เปอร์เซ็นต์ส่วนลดท้ายบิล	伝票割引率
+Available Qty	可用量	จำนวนคงเหลือ	利用可能在庫数
+Conversion Factor	换算系数	ตัวคูณแปลงหน่วย	換算係数
+Default	默认	ค่าเริ่มต้น	既定
+Lines	明细行	รายการ	明細行
+Price List Rate	标价	ราคาป้าย	表示価格
+Rounded Total	舍入后总计	ยอดรวมหลังปัดเศษ	端数調整後合計
+Stock UOM	库存单位	หน่วยวัดสต็อก	在庫単位
+Taxes	税费	ภาษี	税
+Time	时间	เวลา	時刻

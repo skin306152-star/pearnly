@@ -24,6 +24,7 @@ Add row,明細を追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional,追加
+Additional Discount Percentage,伝票割引率
 Additional Information,追加情報
 Additional Information updated successfully.,追加情報を更新しました
 Address,住所
@@ -57,6 +58,7 @@ Attachment,添付ファイル
 Attachment Type,添付ファイルの種類
 Attachments,添付ファイル
 Auto Fetch Serial Numbers,シリアル番号を自動取得
+Available Qty,利用可能在庫数
 Average Unit Cost,平均単価
 Back,戻る
 Back to entries,記録へ戻る
@@ -169,6 +171,7 @@ Contact Person,担当者
 Contact email,連絡先メール
 Contact person,担当者
 Continuous counting,連続棚卸
+Conversion Factor,換算係数
 Correct entry,記録を修正
 Cost,原価
 Cost Is Set,原価設定済み
@@ -208,6 +211,7 @@ Customers,顧客
 Date,日付
 Decided At,判定日時
 Dedupe Key,重複防止キー
+Default,既定
 Default Company,既定の会社
 Default Due Days,既定の支払期限（日）
 Default Location,既定の保管場所
@@ -408,6 +412,7 @@ Line Amount,行金額
 Line Discount,行値引
 Line No,行番号
 Line Total,明細小計
+Lines,明細行
 Lines in this shift,このシフトのレシート
 List Price,表示価格
 Loading...,読み込み中…
@@ -565,6 +570,7 @@ Preview,プレビュー
 Previous,前へ
 Price,価格
 Price Is Set,価格設定済み
+Price List Rate,表示価格
 Price is not set for the item.,この商品には価格が設定されていません
 Prices Include Tax,税込価格
 Print,印刷
@@ -646,6 +652,7 @@ Returned,返品済み
 Reversal,取消仕訳
 Review differences,差異を確認
 Rotate,回転
+Rounded Total,端数調整後合計
 Rounding Adjustment,丸め調整
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
@@ -728,6 +735,7 @@ Stock,在庫
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
 Stock Token,在庫トークン
+Stock UOM,在庫単位
 Stock Value,在庫金額
 Stock changed during counting. Recount the affected products.,棚卸中に在庫が変動しました。対象商品を再棚卸してください。
 Stock changed; recount,在庫変動・再棚卸
@@ -774,6 +782,7 @@ Tax Inclusive,税込
 Tax Invoice,税務請求書
 Tax Withholding Amount,源泉徴収税額
 Tax Withholding Rate,源泉徴収税率
+Taxes,税
 Taxes and Charges,税金および諸費用
 Terminal,レジ
 That code is not valid,コードが正しくありません
@@ -824,6 +833,7 @@ This item is also stocked at:,この商品は他の場所にも在庫があり�
 This stock count is closed,この棚卸は終了しています
 This unit is not defined on the product,この単位はこの商品に定義されていません
 This warehouse already exists,この倉庫は既に存在します
+Time,時刻
 To Date,終了日
 Total,請求額
 Total Amount,合計金額

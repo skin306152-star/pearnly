@@ -24,6 +24,7 @@ Add row,เพิ่มรายการ
 Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
+Additional Discount Percentage,เปอร์เซ็นต์ส่วนลดท้ายบิล
 Additional Information,ข้อมูลเพิ่มเติม
 Additional Information updated successfully.,อัปเดตข้อมูลเพิ่มเติมแล้ว
 Address,ที่อยู่
@@ -57,6 +58,7 @@ Attachment,เอกสารแนบ
 Attachment Type,ประเภทไฟล์แนบ
 Attachments,ไฟล์แนบ
 Auto Fetch Serial Numbers,ดึงหมายเลขเครื่องอัตโนมัติ
+Available Qty,จำนวนคงเหลือ
 Average Unit Cost,ต้นทุนต่อหน่วยเฉลี่ย
 Back,กลับ
 Back to entries,กลับไปรายการ
@@ -169,6 +171,7 @@ Contact Person,ผู้ติดต่อ
 Contact email,อีเมลติดต่อ
 Contact person,ผู้ติดต่อ
 Continuous counting,ตรวจนับต่อเนื่อง
+Conversion Factor,ตัวคูณแปลงหน่วย
 Correct entry,แก้ไขรายการ
 Cost,ต้นทุน
 Cost Is Set,ตั้งต้นทุนแล้ว
@@ -208,6 +211,7 @@ Customers,ลูกค้า
 Date,วันที่
 Decided At,เวลาตัดสินใจ
 Dedupe Key,คีย์กันซ้ำ
+Default,ค่าเริ่มต้น
 Default Company,บริษัทเริ่มต้น
 Default Due Days,กำหนดชำระเริ่มต้น (วัน)
 Default Location,ตำแหน่งเริ่มต้น
@@ -408,6 +412,7 @@ Line Amount,จำนวนเงินบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
 Line Total,ยอดรวมบรรทัด
+Lines,รายการ
 Lines in this shift,บิลในกะนี้
 List Price,ราคาป้าย
 Loading...,กำลังโหลด…
@@ -565,6 +570,7 @@ Preview,ตัวอย่าง
 Previous,ก่อนหน้า
 Price,ราคา
 Price Is Set,ตั้งราคาแล้ว
+Price List Rate,ราคาป้าย
 Price is not set for the item.,สินค้านี้ยังไม่ได้ตั้งราคา
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
@@ -646,6 +652,7 @@ Returned,คืนแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
 Rotate,หมุน
+Rounded Total,ยอดรวมหลังปัดเศษ
 Rounding Adjustment,การปรับปัดเศษ
 Rows,จำนวนแถว
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
@@ -728,6 +735,7 @@ Stock,สต็อก
 Stock Posted At,วันที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
 Stock Token,โทเคนสต็อก
+Stock UOM,หน่วยวัดสต็อก
 Stock Value,มูลค่าสต็อก
 Stock changed during counting. Recount the affected products.,สต็อกเปลี่ยนระหว่างตรวจนับ โปรดนับสินค้าที่เกี่ยวข้องใหม่
 Stock changed; recount,สต็อกเปลี่ยน ต้องนับใหม่
@@ -774,6 +782,7 @@ Tax Inclusive,รวมภาษี
 Tax Invoice,ใบกำกับภาษี
 Tax Withholding Amount,ยอดภาษีหัก ณ ที่จ่าย
 Tax Withholding Rate,อัตราภาษีหัก ณ ที่จ่าย
+Taxes,ภาษี
 Taxes and Charges,ภาษีและค่าธรรมเนียม
 Terminal,จุดขาย
 That code is not valid,รหัสไม่ถูกต้อง
@@ -824,6 +833,7 @@ This item is also stocked at:,สินค้านี้มีอยู่ท�
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
+Time,เวลา
 To Date,ณ วันที่
 Total,ยอดชำระ
 Total Amount,จำนวนเงินรวม

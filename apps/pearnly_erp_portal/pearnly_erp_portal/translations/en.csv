@@ -24,6 +24,7 @@ Add row,Add row
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
+Additional Discount Percentage,Additional Discount Percentage
 Additional Information,Additional Information
 Additional Information updated successfully.,Additional Information updated successfully.
 Address,Address
@@ -57,6 +58,7 @@ Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
 Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
+Available Qty,Available Qty
 Average Unit Cost,Average Unit Cost
 Back,Back
 Back to entries,Back to entries
@@ -169,6 +171,7 @@ Contact Person,Contact Person
 Contact email,Contact email
 Contact person,Contact person
 Continuous counting,Continuous counting
+Conversion Factor,Conversion Factor
 Correct entry,Correct entry
 Cost,Cost
 Cost Is Set,Cost Is Set
@@ -208,6 +211,7 @@ Customers,Customers
 Date,Date
 Decided At,Decided At
 Dedupe Key,Dedupe Key
+Default,Default
 Default Company,Default Company
 Default Due Days,Default Due Days
 Default Location,Default Location
@@ -408,6 +412,7 @@ Line Amount,Line Amount
 Line Discount,Line Discount
 Line No,Line No
 Line Total,Line Total
+Lines,Lines
 Lines in this shift,Lines in this shift
 List Price,List Price
 Loading...,Loading...
@@ -565,6 +570,7 @@ Preview,Preview
 Previous,Previous
 Price,Price
 Price Is Set,Price Is Set
+Price List Rate,Price List Rate
 Price is not set for the item.,Price is not set for the item.
 Prices Include Tax,Prices Include Tax
 Print,Print
@@ -646,6 +652,7 @@ Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
 Rotate,Rotate
+Rounded Total,Rounded Total
 Rounding Adjustment,Rounding Adjustment
 Rows,Rows
 "Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
@@ -728,6 +735,7 @@ Stock,Stock
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
 Stock Token,Stock Token
+Stock UOM,Stock UOM
 Stock Value,Stock Value
 Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
 Stock changed; recount,Stock changed; recount
@@ -774,6 +782,7 @@ Tax Inclusive,Tax Inclusive
 Tax Invoice,Tax Invoice
 Tax Withholding Amount,Tax Withholding Amount
 Tax Withholding Rate,Tax Withholding Rate
+Taxes,Taxes
 Taxes and Charges,Taxes and Charges
 Terminal,Terminal
 That code is not valid,That code is not valid
@@ -824,6 +833,7 @@ This item is also stocked at:,This item is also stocked at:
 This stock count is closed,This stock count is closed
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
+Time,Time
 To Date,To Date
 Total,Total
 Total Amount,Total Amount

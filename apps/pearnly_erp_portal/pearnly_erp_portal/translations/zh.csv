@@ -24,6 +24,7 @@ Add row,添加明细
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional,附加项
+Additional Discount Percentage,整单折扣率
 Additional Information,附加信息
 Additional Information updated successfully.,附加信息已更新
 Address,地址
@@ -57,6 +58,7 @@ Attachment,附件
 Attachment Type,附件类型
 Attachments,附件
 Auto Fetch Serial Numbers,自动获取序列号
+Available Qty,可用量
 Average Unit Cost,平均单位成本
 Back,返回
 Back to entries,返回记录
@@ -169,6 +171,7 @@ Contact Person,联系人
 Contact email,联系邮箱
 Contact person,联系人
 Continuous counting,连续盘点
+Conversion Factor,换算系数
 Correct entry,修改记录
 Cost,成本
 Cost Is Set,已设成本
@@ -208,6 +211,7 @@ Customers,客户
 Date,日期
 Decided At,处理时间
 Dedupe Key,去重键
+Default,默认
 Default Company,默认公司
 Default Due Days,默认账期（天）
 Default Location,默认仓位
@@ -408,6 +412,7 @@ Line Amount,行金额
 Line Discount,行折扣
 Line No,行号
 Line Total,明细小计
+Lines,明细行
 Lines in this shift,当班小票
 List Price,标价
 Loading...,加载中…
@@ -565,6 +570,7 @@ Preview,预览
 Previous,上一个
 Price,售价
 Price Is Set,已设价格
+Price List Rate,标价
 Price is not set for the item.,该物料没有设置售价
 Prices Include Tax,价格含税
 Print,打印
@@ -646,6 +652,7 @@ Returned,已退货
 Reversal,冲销
 Review differences,查看差异
 Rotate,旋转
+Rounded Total,舍入后总计
 Rounding Adjustment,小数精度尾差调整
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
@@ -728,6 +735,7 @@ Stock,库存
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
 Stock Token,库存令牌
+Stock UOM,库存单位
 Stock Value,库存金额
 Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的物料。
 Stock changed; recount,库存有变，需重盘
@@ -774,6 +782,7 @@ Tax Inclusive,含税
 Tax Invoice,税务发票
 Tax Withholding Amount,预扣税额
 Tax Withholding Rate,代扣税款税率
+Taxes,税费
 Taxes and Charges,税费
 Terminal,收银台
 That code is not valid,验证码不正确
@@ -824,6 +833,7 @@ This item is also stocked at:,这件货还在别处：
 This stock count is closed,这张盘点已结束
 This unit is not defined on the product,这个单位没有在这个物料上定义
 This warehouse already exists,这个仓库已经存在
+Time,时间
 To Date,结束日期
 Total,总计
 Total Amount,总金额
