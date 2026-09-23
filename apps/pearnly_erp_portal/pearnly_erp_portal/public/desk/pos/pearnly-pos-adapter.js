@@ -37,6 +37,38 @@ frappe.provide("frappe.pearnly.pos_next");
 		const add_child = frappe.model.add_child.bind(frappe.model);
 		frappe.model.add_child = (doc, doctype, parentfield, idx) =>
 			add_child(doc, CHILD_DOCTYPE[doctype] || doctype, PARENTFIELD[parentfield] || parentfield, idx);
+
+		// **方法映射垫片**：官方那些 `erpnext.*` 的方法名，一律在这里翻到我们这边（或按"删减"给安全值）。
+		// 放在一处的好处：官方代码一个字不改，我们也不用满地图找调用点；要接一个新方法就加一行。
+		const MAP = {
+			// —— 删减（我们不做）：给能让界面继续跑的安全值 ——
+			"erpnext.selling.page.point_of_sale.point_of_sale.get_parent_item_group": () => ({ message: [] }),
+			"erpnext.selling.page.point_of_sale.point_of_sale.set_customer_info": () => ({ message: {} }),
+			"erpnext.selling.page.point_of_sale.point_of_sale.get_customer_recent_transactions": () => ({ message: [] }),
+			"erpnext.stock.doctype.serial_no.serial_no.auto_fetch_serial_number": () => ({ message: [] }),
+			"erpnext.accounts.doctype.loyalty_program.loyalty_program.get_loyalty_program_details_with_points":
+				() => ({ message: {} }),
+			"erpnext.controllers.sales_and_purchase_return.is_invoice_returnable": () => ({ message: false }),
+			"erpnext.controllers.sales_and_purchase_return.get_invoice_item_returned_qty": () => ({ message: 0 }),
+			// —— 接到我们自己的服务 ——
+			"erpnext.accounts.doctype.pos_invoice.pos_invoice.get_stock_availability": (args) =>
+				frappe.call({
+					method: "pearnly_erp_portal.cashier.api.api_product_stock",
+					args: { product: args && args.item_code, warehouse: args && args.warehouse },
+				}).then(r => ({ message: r.message })),
+		};
+		const call = frappe.call.bind(frappe);
+		frappe.call = function (opts) {
+			const method = typeof opts === "string" ? opts : (opts && opts.method);
+			const handler = MAP[method];
+			if (!handler) return call(opts);
+			const args = typeof opts === "string" ? {} : (opts && opts.args) || {};
+			const deferred = $.Deferred();
+			Promise.resolve(handler(args, opts)).then(
+				message => deferred.resolve(message),
+				() => deferred.reject());
+			return deferred.promise();
+		};
 	}
 
 	// 「一条我们的商品」→「官方商品卡要的字段」（`get_item_html` 读这几个）。
@@ -131,20 +163,36 @@ frappe.provide("frappe.pearnly.pos_next");
 			// 单据：官方用 POS Invoice 的 `items`；我们是 `ERP Sale` 的 `lines` —— 同一个数组两个名字。
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
 				const frm = super.get_new_frm(_frm, doctype);
-				if (frm.doc && !frm.doc.items) frm.doc.items = frm.doc.lines || (frm.doc.lines = []);
+				if (frm.doc) {
+					if (!frm.doc.items) frm.doc.items = frm.doc.lines || (frm.doc.lines = []);
+					// 官方整块界面按 `doc.currency` 出符号；我们的 `ERP Sale` 没有这个栏位，
+					// 不给就会掉到框架默认货币（实测出过 `د.إ`）→ 这里钉成站点货币。
+					frm.doc.currency = frm.doc.currency || (this.settings && this.settings.currency) || "THB";
+				}
 				return frm;
 			}
 		}
 
 		class PearnlyItemSelector extends O.ItemSelector {
 			// 商品：官方 get_items；我们 api_counter_products（字段映射见 to_official_item）。
+			// **注意**：官方这里返回的是 `frappe.call(...)` 那个 **jQuery promise**（调用方用了 `.always`），
+			// 所以要给 jQuery 的 deferred，不能给原生 Promise —— 给错了一次，页面直接"没找到物料"。
 			get_items({ start = 0, page_length = 40, search_term = "" }) {
-				return p.call(api + "api_counter_products", {
-					terminal: this.pos_profile, search: search_term || undefined,
-					start, limit: page_length,
-				}).then(result => ({
-					message: (result?.items || []).map(to_official_item),
-				}));
+				const deferred = $.Deferred();
+				frappe.call({
+					method: api + "api_counter_products",
+					args: { terminal: this.pos_profile, search: search_term || undefined,
+						start, limit: page_length },
+					// 调用方要的是 `message.items`（对象里的数组，不是数组本身）：
+					//   `.then(({ message }) => { const { items } = message; render_item_list(items) })`
+					callback: (r) => {
+						const raw = ((r && r.message) || {}).items || [];
+						const items = raw.map(to_official_item);
+						deferred.resolve({ message: { items, filtered_items: items } });
+					},
+					error: () => deferred.reject(),
+				});
+				return deferred.promise();
 			}
 		}
 

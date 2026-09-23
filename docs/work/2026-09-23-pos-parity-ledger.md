@@ -195,3 +195,18 @@ past-order-summary`，并且 10 列网格（官方 `grid-template-columns: repea
 **还没通的**：商品列表是空的（一次服务端调用失败，日志里是 `frappe/handler.py get_attr(cmd)` 那类
 "方法不存在"）。适配层已经覆盖了 `get_items`，所以失败的是**另一处**调用 —— 下一步先给 `frappe.call`
 挂一层日志把方法名点出来（这一轮探针超时了，留到下一轮）。
+
+### 7.4 对接进展（第二轮，2026-09-23 晚）
+
+按"挂日志 → 抓到 → 修 → 再跑"的办法推进，逐条解决：
+
+| # | 现象 | 根因（抓到的东西） | 处理 |
+| --- | --- | --- | --- |
+| 1 | 商品区"没找到物料"、报 `this.get_items(...).then(...).always is not a function` | 官方 `get_items` 返回的是 **jQuery promise**（调用方用 `.always`），我们的覆盖体给了原生 Promise | 覆盖体改成 `$.Deferred()` 并返回 jQuery promise |
+| 2 | 同上，即使返回了也仍"没找到物料" | 调用方要的是 `message.items`（**对象里的数组**），我们给的是数组本身 | 解析成 `{ message: { items, filtered_items } }`（与官方服务端同形状） |
+| 3 | 合计区货币显示成 `د.إ` | 官方按 `doc.currency` 出符号；我们的 `ERP Sale` 没有这个栏位 → 掉到框架默认货币 | 适配层给客户端文档钉上 `doc.currency = 站点货币`（现在显示 **THB** ✓） |
+| 4 | 弹窗"未安装应用程序erpnext：无法获取命令 …get_parent_item_group" | 官方还有若干方法我们没接 | 新增**方法映射垫片**：在适配层包一层 `frappe.call`，把官方方法名统一翻到我们这边或按"删减"给安全值（`get_parent_item_group`→空、`set_customer_info`/忠诚度/序列号/退货判定→安全值、库存可用量→我们的 `api_product_stock`）。**要接新方法只加一行** |
+| 5 | 弹窗"没有权限：未授权访问 单据类型" | 客户端某处去读某张 DocType 的元数据，被权限挡下（**哪一个 doctype 还没点到**：CDP 的 `addScriptToEvaluateOnNewDocument` 这台机器不支持，要在适配层里挂日志才能抓到） | **未解决 —— 下一步第一件事** |
+
+**当前状态**：骨架、官方样式、客户端 `ERP Sale` 文档、商品接口、货币都对；**卡在第 5 条权限**上，
+所以商品卡还没出。默认收银台路由仍然不受影响。
