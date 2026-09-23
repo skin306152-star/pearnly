@@ -432,29 +432,71 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 **实测（演示站真点鼠标）**：填 12% → 界面 `净总计 ฿ 100.00 / 总计 ฿ 88.00`，
 单据 `discount_amount 12 / grand_total 88`；0 报错、0 弹窗（除了下面那条）。
 
-## 11. 下一处断点：点「结账」弹的是我们自己的必填校验（未做）
+## 11. 「结账 → 付款屏 → 完成订单」整条打通（2026-09-24，已做 + 实测）
 
-点结账 → 弹窗：
+用户口径："**不存草稿，但是过账应该发生在最后一环节吧**。" —— 按这条做的。
 
-```
-信息｜错误：ERP Sale 请填写必填字段：销售时间
-     错误：ERP Sale Line 行#1：缺少值：单价
-```
+### 11.1 先修断点：点「结账」弹的是我们自己的必填校验
 
-**根因**（官方 `official-pos_controller.js:895`）：官方的 `save_and_checkout()` 会先
-`this.frm.save(…)` **存一张草稿单据**，存成功了才切到付款屏。它存的是我们这张 `ERP Sale`，
-而客户端文档上带的是**官方的字段名**（行上是 `rate`/`qty`，整单没有 `sold_at`），
-于是被框架自己的必填校验挡下。
+官方 `save_and_checkout()`（`official-pos_controller.js:895`）会先 `this.frm.save(…)`
+**存一张草稿单**，存成功才切付款屏；它存的是我们这张 `ERP Sale`，而客户端文档上带的是官方字段名
+（行上是 `rate`、整单没有 `sold_at`），于是被框架的必填校验挡下，弹的才是那句
+"ERP Sale 请填写必填字段：销售时间"。
 
-**两条路，需要你拍一下**（我倾向 B）：
+**改法**：覆盖 `save_and_checkout()`，**跳过保存、直接切付款屏**。
+单据由 `api_create_sale` 在「完成订单」时**一次落定**（写单 + 出库存 + 提交）——
+我们产品里本来也没有"草稿单"这个状态。
 
-- **A 存草稿**：适配层在保存前把客户端文档翻成我们的字段名（行 `rate → unit_price`、
-  整单补 `sold_at`）。好处是断线/切屏能回来；代价是多一层映射，而且我们会真的往
-  `ERP Sale` 里写**草稿单**（我们现在的口径是"提交时才落单"，草稿单以前不存在）。
-- **B 不存草稿**（倾向）：覆盖 `save_and_checkout()`，跳过框架那次保存、直接进付款屏；
-  单据由 `api_create_sale` 在"完成订单"时一次落定。代价是没存草稿，中途刷新就没了
-  （我们现在本来也是这个行为）。
+### 11.2 付款屏本身：方式行、右下角三格、三列键盘
 
-付款屏本身（方式行：现金/刷卡/扫码/转账、三列键盘、总计/付款金额/剩余金额/找零、
-「完成订单」接 `api_create_sale`、`Update Additional Information` 还是英文）**这一轮没动**，
-是下一个工作包。
+官方付款屏要三样东西，都是我们这边缺的：
+
+| 官方的输入 | 谁给 | 我们怎么接 |
+| --- | --- | --- |
+| 方式行 = `doc.payments` 子表 | 服务端 `set_pos_data` 从 POS Profile 带出 | `seed_payments()`：按我们自己的方式表给四行（现金 / 刷卡 / 扫码（PromptPay）/ 转账），**与 `cashier/contracts.py` 的 `PAYMENT_METHODS` 同一集合** |
+| 右下角 = `doc.paid_amount / grand_total / change_amount` | 服务端算好 | `recalc_payment_amounts()`：实收 = Σ 各方式金额；找零只可能从现金出（与 `contracts.settle()` 同一口径，服务端还会再核一遍） |
+| `frm.cscript.calculate_outstanding_amount()` | POS Invoice 的 cscript | 给客户端单据挂一个**同名实现**（`get_new_frm()` 里），官方那句调用一个字没改 |
+
+**方式名为什么不能直接照官方那样当 CSS 类名**：官方 `sanitize_mode_of_payment()` 会把名字里的
+非字母数字**剔掉**再小写。我们的方式名是**本地化标签**（泰语为主，`p.texts` 那张表），
+照那样剔会全变成空串 —— 几种方式撞成同一个类名，`this[`${mode}_control`]` 也互相覆盖。
+所以子类里覆盖 `sanitize_mode_of_payment()`，按方式表还原成 ASCII key（`cash/card/promptpay/transfer`）；
+界面上的字仍是本地化标签，官方那句 `${escape_html(p.mode_of_payment)}` 一个字没动。
+
+### 11.3 提交：官方那句 `this.events.submit_invoice()` 一个字没改
+
+官方把"提交"写在 **controller 传给 payment 的 events** 里（`init_payments()` 中那句
+`submit_invoice: () => this.frm.savesubmit()`），那是 POS Invoice 的路。
+我们覆盖 `init_payments()`，`super` 之后把 `this.payment.events.submit_invoice` 换成自己的
+`submit_our_sale()` —— 换掉的是**我们这一侧的事件实现**，官方 payment 里那句调用原样。
+
+`submit_our_sale()` 把客户端文档翻成 `api_create_sale` 的入参：行给
+`product / qty / unit / unit_price / discount`（折扣按**金额**，与界面那套算法同源）、
+整单给 `discount_total`（界面那格是百分比，我们已算成金额）、付款给 `{method, amount}`。
+
+### 11.4 顺手修的两处 `undefined`（单据汇总屏）
+
+官方的单据汇总在提交后立刻渲染（`toggle_submitted_invoice_summary(true)`），抓到两处：
+
+| 症状 | 根因 | 改法 |
+| --- | --- | --- |
+| 行上 `(undefined% off)` | 官方那句 `item_data.rate !== item_data.price_list_rate` 是**严格比较**，我们行上的 `rate` 是商品卡 `data-rate` 来的 **DOM 字符串**（`"100" !== 100`）→ 被判成"这行有折扣" | `on_cart_update()` 收尾把 `rate / price_list_rate / discount_percentage / discount_amount` 一律转成数字 |
+| 状态徽章是一个 `undefined` | 徽章读 `doc.status`，官方 POS Invoice 是 `Paid/Consolidated…`，我们客户端单据没这一位 | `set_pos_profile_data()` 里钉 `status = "Paid"`（"当场付清"，也是销售记录里收款状态那一列的同一个词） |
+
+另外补了一个映射：汇总屏问客户邮箱走 `frappe.db.get_value("Customer", …)`，我们没有那张表 →
+适配层翻成 `ERP Customer` / `contact_email`，并按官方那个字段名回；散客直接答空
+（不能让 `message` 是 `undefined`，官方那句读法会当场炸）。
+
+### 11.5 实测（演示站真点鼠标，两笔都真落单）
+
+| 步 | 结果 |
+| --- | --- |
+| 点商品 → 结账 | **不再弹任何校验**；付款屏出现四种方式，`data-mode` 分别是 `cash/card/promptpay/transfer` |
+| 付款屏右下角 | `总计 ฿ 88.00 / 付款金额 ฿ 88.00 / 剩余金额 ฿ 0.00`（现金那格按官方 `set_grand_total_to_default_mop` 预填应收） |
+| 点「完成订单」 | 绿条 `POS invoice SI2569-000053 created successfully`；汇总屏 `已付款`、`物料 1 瓶 ฿ 100.00`、`折扣金额 (12 %) ฿ 12.00`、`总计 ฿ 88.00`、`付款 现金 ฿ 88.00` + 打印收据 / Email Receipt / 新订单；**0 报错 0 弹窗** |
+| 过账只在最后一环节 | 全程 0 写入；点完成订单那一下：`ERP Sale` 30→31→32、库存流水 204→205→206、`PRD-00597` 在 `WH-00101` 结存 100→99→98 |
+| 服务端回读 | `SALE-2026-00655`：`subtotal 100 / discount_total 12 / grand_total 88 / paid_total 88 / status completed`；付款行 `cash 88`；行 `PRD-00597 ×1 @100` |
+
+**未做的（下一个包）**：付款屏那行 `Update Additional Information` 还是英文（附加信息弹窗，
+台账 D4）；`+ Add Payment Method`（官方自己注掉了）；打印收据 / Email Receipt / 新订单 三颗按钮
+只有"新订单"那条路是官方原生的，打印与邮件还没接（台账 D7）。

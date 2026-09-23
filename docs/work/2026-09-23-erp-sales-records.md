@@ -3519,3 +3519,36 @@ set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL�
 商品卡 `-14 水 ฿ 100 / 瓶`（库存角标这次真的带色带数）；`format_currency(62, undefined, 2)` → `฿ 62.00`；
 物料列表整页无 `THB <数字>`、无 `د.إ`、无弹窗；`check-architecture` PASS(0)。
 细节与证据记在台账 `docs/work/2026-09-23-pos-parity-ledger.md` 第 9 节。
+
+### F65：「结账 → 付款屏 → 完成订单」整条打通，过账只发生在最后一环节（2026-09-24，未部署）
+
+用户口径："**不存草稿，但是过账应该发生在最后一环节吧**。" 按这条做的。
+
+**① 结账不再落任何东西。** 官方 `save_and_checkout()` 会先 `frm.save()` 存一张**草稿单**，
+存的又是我们这张 `ERP Sale`（客户端文档带的是官方字段名），于是被框架的必填校验挡下 ——
+点结账弹的那句"请填写必填字段：销售时间"就是从这来的。覆盖成"只切付款屏"，
+单据由 `api_create_sale` 在完成订单时一次落定（写单 + 出库存 + 提交）。
+
+**② 付款屏三样输入都补上**：方式行（`doc.payments` 子表，我们用
+`cashier/contracts.py` 的 `PAYMENT_METHODS` 四种）、右下角三格
+（`paid_amount / grand_total / change_amount`，按 `contracts.settle()` 的口径算）、
+以及官方 `checkout()` 里那句 `frm.cscript.calculate_outstanding_amount()`
+（给客户端单据挂一个同名实现，官方代码一个字没改）。
+方式名用**我们自己的词条**（泰语为主），子类覆盖 `sanitize_mode_of_payment()` 还原成 ASCII key ——
+官方那套是拿方式名当 CSS 类名的，本地化标签照它剔字符会全变空串、几种方式撞成一个控件键。
+
+**③ 提交那一句官方原样。** 官方把"提交"写在 controller 传给 payment 的 events 里
+（`frm.savesubmit()`），我们覆盖 `init_payments()`、`super` 之后换掉**我们这一侧的实现**，
+官方 payment 里 `this.events.submit_invoice()` 一个字没动。
+入参翻译：行 `product/qty/unit/unit_price/discount`（折扣按金额）、整单 `discount_total`、
+付款 `{method, amount}`。
+
+**④ 顺手两处 `undefined`**：行上 `(undefined% off)`（我们行上的 `rate` 是 DOM 字符串，
+官方那句严格比较把它当成"有折扣"）与状态徽章的 `undefined`（客户端单据没 `status`，钉 `Paid`）。
+另给 `frappe.db.get_value("Customer", …)` 加了一条到 `ERP Customer` 的映射（汇总屏问客户邮箱）。
+
+**验证（演示站真点鼠标）**：结账不再弹校验；付款屏 `总计 ฿ 88.00 / 付款金额 ฿ 88.00 / 剩余 ฿ 0.00`；
+点完成订单 → 绿条 `SI2569-000053`、汇总屏 `已付款 · 折扣金额 (12 %) ฿ 12.00 · 总计 ฿ 88.00 · 现金 ฿ 88.00`；
+**全程 0 写入**，那一下之后 `ERP Sale` 30→32、库存流水 204→206、`PRD-00597@WH-00101` 100→98；
+服务端回读 `SALE-2026-00655` 各金额与上面逐项一致。`check-architecture` PASS(0)。
+两笔测试单（`SALE-2026-00653` / `SALE-2026-00655`）留在演示站，本地痕迹按你的口径不恢复。

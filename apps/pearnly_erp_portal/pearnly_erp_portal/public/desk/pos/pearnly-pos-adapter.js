@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -28,6 +28,23 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 	const WALK_IN = "__pearnly_walk_in__";
 	// 商品名 → 可用量（来自我们商品区那一页的回参；见 `to_official_item` 与库存那条映射）。
 	const available_map = {};
+
+	// 支付方式：与 `ERP Sale Payment.method` **同一个集合**（`cashier/contracts.py` 的
+	// `PAYMENT_METHODS`），顺序照官方收款面板（现金 / 刷卡 / 扫码 / 转账）。
+	// 界面上的字走**我们自己的词条**（泰语为主，`p.texts` 那张表）；落单时再还原成服务端的 key。
+	const PAY_METHODS = [
+		{ key: "cash", term: "trade.methodCash", type: "Cash", default: 1 },
+		{ key: "card", term: "trade.methodCard", type: "Bank" },
+		{ key: "promptpay", term: "trade.methodPromptpay", type: "Bank" },
+		{ key: "transfer", term: "trade.methodTransfer", type: "Bank" },
+	];
+	// 本地化之后的这一份（`our_settings()` 里解析一次；界面、还原 key、落单都用它）。
+	let payment_methods = [];
+
+	function method_key(label) {
+		const row = payment_methods.find(m => m.label === label);
+		return row ? row.key : undefined;
+	}
 
 	// 官方的单据子表叫 `items`，我们叫 `lines` —— 要的是**同一个数组**，不是"赋一次值"。
 	// 赋一次值会被框架刷新单据时换掉（实测：行落在 `lines` 里，官方读 `items` 读到 0，
@@ -119,6 +136,17 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 		frappe.db.get_value = function (doctype, ...rest) {
 			if (doctype === "Item") {
 				return Promise.resolve({ message: { has_serial_no: 0, has_batch_no: 0 } });
+			}
+			// 官方那张**单据汇总**会问客户邮箱：`get_value("Customer", <客户>, "email_id")`。
+			// 我们没有 `Customer` 这张表，所以翻成我们的 `ERP Customer`、字段名也翻
+			// （`contact_email`），结果再按官方那个名字回 —— 官方那句读法一个字没改。
+			// 散客（客户是空）直接答空：不能让 `message` 是 undefined，官方那句读法会当场炸。
+			if (doctype === "Customer") {
+				const name = rest[0];
+				if (!name) return Promise.resolve({ message: { email_id: "" } });
+				return db_get_value("ERP Customer", name, "contact_email")
+					.then(out => ({ message: { email_id: (out && out.message) || "" } }))
+					.catch(() => ({ message: { email_id: "" } }));
 			}
 			return db_get_value(doctype, ...rest);
 		};
@@ -293,11 +321,40 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 		return gross - disc;
 	}
 
+	// 付款屏右下角那三个数（总计 / 付款金额 / 剩余或找零）。
+	// 官方的 POS Invoice 是**服务端**算好 `paid_amount` 的；我们这张客户端单据没有那一步，
+	// 所以按我们自己的口径算：实收 = Σ 各方式的金额，找零只可能从现金里出来
+	// （与 `cashier/contracts.py` 的 `settle()` 同一口径，最终也由它在服务端再核一遍）。
+	function recalc_payment_amounts(doc) {
+		const paid = (doc.payments || []).reduce((sum, row) => sum + flt(row.amount), 0);
+		const grand = flt(doc.rounded_total != null ? doc.rounded_total : doc.grand_total);
+		doc.paid_amount = paid;
+		doc.outstanding_amount = Math.max(grand - paid, 0);
+		doc.change_amount = paid > grand ? paid - grand : 0;
+		return doc;
+	}
+
+	// 付款方式那几行（`doc.payments`）：官方的它们是**服务端** `set_pos_data` 从 POS Profile 带出来的。
+	// 我们按自己的方式表给上，界面读的就是这几行；金额一律从 0 起，由收银员敲。
+	function seed_payments(frm) {
+		const doc = frm.doc;
+		if ((doc.payments || []).length) return;
+		payment_methods.forEach((m) => {
+			frm.add_child("payments", {
+				mode_of_payment: m.label, type: m.type, amount: 0, default: m.default || 0,
+			});
+		});
+		recalc_payment_amounts(doc);
+	}
+
 	// 我们的收银台设置 → 官方 `settings` 的形状（官方读到的那些开关）。
 	async function our_settings(shift) {
 		const terminals = await p.call(api + "api_list_terminals");
 		const terminal = (terminals?.terminals || []).find(t => t.name === shift.terminal)
 			|| (terminals?.terminals || [])[0] || {};
+		// 方式名要本地化（泰语为主）：`p.texts` 拿的就是站点那份词条表，与页面同一来源。
+		const t = await p.texts("trade.");
+		payment_methods = PAY_METHODS.map(m => Object.assign({}, m, { label: t(m.term) }));
 		return {
 			warehouse: terminal.default_warehouse || "",
 			company: shift.company || terminal.company || "",
@@ -370,6 +427,12 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
 				const frm = super.get_new_frm(_frm, doctype);
 				alias_items(frm.doc);
+				// 官方 `checkout()` 里有一句 `frm.cscript.calculate_outstanding_amount()`
+				// （POS Invoice 的做法）。我们这张客户端单据没有那个 cscript，就给它一个同名实现 ——
+				// 官方那句调用一个字没改，付款屏那三个数由我们自己的口径算。
+				frm.cscript = Object.assign(frm.cscript || {}, {
+					calculate_outstanding_amount: () => recalc_payment_amounts(frm.doc),
+				});
 				return frm;
 			}
 			// 官方每次"新建/重开单据"都会再摆一遍设置：**货币要钉在这一拍上** ——
@@ -378,9 +441,70 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 				const out = super.set_pos_profile_data();
 				if (this.frm && this.frm.doc) {
 					this.frm.doc.currency = (frappe.boot.sysdefaults || {}).currency || "THB";
+					// 单据汇总右上角那个状态徽章读的是 `status`（官方 POS Invoice 是 Paid/Consolidated…）。
+					// 我们的收银单一律"当场付清"，对应的就是官方那个 `Paid`（绿）—— 也是我们销售记录里
+					// 收款状态那一列的同一个词。不写它，徽章会渲染成 `__("undefined")`。
+					this.frm.doc.status = "Paid";
 					alias_items(this.frm.doc);
+					seed_payments(this.frm);
 				}
 				return out;
+			}
+
+			// **结账不落任何东西**（用户 2026-09-24 口径："不存草稿，过账发生在最后一环节"）。
+			// 官方这一步会先 `frm.save()` 存一张**草稿单**，存成功才切付款屏；存的又是我们这张
+			// `ERP Sale`，而客户端文档上带的是官方字段名（行上是 `rate`、整单没有 `sold_at`），
+			// 于是被框架自己的必填校验挡下 —— 点结账弹的就是那句"请填写必填字段：销售时间"。
+			// 我们产品里本来也没有"草稿单"这种状态：单据由 `api_create_sale` 在**完成订单**时
+			// 一次落定（写单 + 出库存 + 提交），所以这里只切屏。
+			save_and_checkout() {
+				this.payment.checkout();
+			}
+
+			// 落单：官方在 `init_payments()` 里把"提交"写成 `frm.savesubmit()`（POS Invoice 的路），
+			// 我们换成自己的接口 —— 官方 payment 里那句 `this.events.submit_invoice()` 一个字没动，
+			// 换掉的是**我们这一侧的事件实现**。
+			init_payments() {
+				super.init_payments();
+				this.payment.events.submit_invoice = () => this.submit_our_sale();
+			}
+
+			async submit_our_sale() {
+				const doc = this.frm.doc;
+				const lines = (doc.items || []).map(row => ({
+					product: row.item_code, qty: flt(row.qty), unit: row.uom,
+					// 行折扣按**金额**给（`contracts.line_total` 收的就是金额），
+					// 与 `line_amount()` 是同一套算法，两边不会打架。
+					unit_price: flt(row.rate),
+					discount: flt(flt(row.qty) * flt(row.rate)) - line_amount(row),
+				}));
+				const payments = (doc.payments || [])
+					.filter(row => flt(row.amount))
+					.map(row => ({ method: method_key(row.mode_of_payment), amount: flt(row.amount) }));
+				frappe.dom.freeze();
+				try {
+					const result = await p.call(api + "api_create_sale", {
+						terminal: this.pos_profile,
+						// 哨兵客户 = 散客 → 传空（我们的口径：客户留空就是散客）。
+						customer: (doc.customer && doc.customer !== WALK_IN) ? doc.customer : undefined,
+						lines, payments,
+						// 整单折扣按**金额**给（界面那一格是百分比，我们已经算成了金额）。
+						discount_total: flt(doc.discount_amount),
+						client_uuid: doc.client_uuid,
+					}, "POST");
+					doc.name = result.name;
+					doc.receipt_no = result.receipt_no;
+					this.toggle_components(false);
+					this.toggle_submitted_invoice_summary(true);
+					frappe.show_alert({
+						indicator: "green",
+						message: __("POS invoice {0} created successfully", [result.receipt_no || result.name]),
+					});
+				} catch (error) {
+					frappe.utils.play_sound("error");
+				} finally {
+					frappe.dom.unfreeze();
+				}
 			}
 			// 产品口径差异（**按功能放行的第一处**）：官方要求"先选客户才能加货"，
 			// 我们这边**客户为空 = 散客**。官方那句判断在 `on_cart_update()` 里，无法只用子类改一行，
@@ -408,7 +532,13 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 				if (row && row.item_code) {
 					row.conversion_factor = flt(row.conversion_factor) || 1;
 					row.warehouse = row.warehouse || (this.settings && this.settings.warehouse) || "";
-					row.price_list_rate = row.price_list_rate ?? flt(row.rate);
+					// 价格要**数字**：商品卡上的 `data-rate` 是 DOM 字符串，官方汇总屏那句
+					// `item_data.rate !== item_data.price_list_rate` 是严格比较，
+					// 字符串 "100" 与数字 100 于是被判成"这行有折扣"，画出 `(undefined% off)`。
+					row.rate = flt(row.rate);
+					row.price_list_rate = flt(row.price_list_rate ?? row.rate);
+					row.discount_percentage = flt(row.discount_percentage || 0);
+					row.discount_amount = flt(row.discount_amount || 0);
 					row.actual_qty = row.actual_qty ?? (available_map[row.item_code] ?? 0);
 					if (this.is_current_item_being_edited(row)) this.edit_item_details_of(row);
 				}
@@ -579,21 +709,21 @@ window.__pos_adapter_v = 23;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyPayment extends O.Payment {
-			// 提交：官方走 POS Invoice 的 submit；我们走 api_create_sale（把客户端文档翻成我们的入参）。
-			submit_invoice() {
-				const doc = this.events.get_frm().doc;
-				const items = (doc.items || []).map(row => ({
-					product: row.item_code, qty: row.qty, unit: row.uom,
-					unit_price: row.rate, discount_percent: row.discount_percentage || 0,
-				}));
-				return p.call(api + "api_create_sale", {
-					terminal: this.pos_profile,
-					// 哨兵客户 = 散客 → 传空（我们的口径：客户留空就是散客）。
-					customer: (doc.customer && doc.customer !== WALK_IN) ? doc.customer : undefined,
-					items, payments: (doc.payments || []).map(x => ({ method: x.mode_of_payment, amount: x.amount })),
-					discount_percent: doc.additional_discount_percentage || 0,
-					client_uuid: doc.client_uuid,
-				}, "POST");
+			// 官方拿「方式名」当 CSS 类名与控件键：`sanitize_mode_of_payment()` 会把名字里
+			// 非字母数字的字符**剔掉**再小写。我们的方式名是本地化标签（泰语为主），照那样剔会
+			// 全变成空串，几种方式于是撞成同一个类名、`this[`${mode}_control`]` 也互相覆盖。
+			// 所以这里按方式表还原成 ASCII key；界面上的字仍是本地化标签。
+			sanitize_mode_of_payment(mode_of_payment) {
+				const key = method_key(mode_of_payment);
+				return key || super.sanitize_mode_of_payment(mode_of_payment);
+			}
+
+			// 付款屏右下角那三格读的是 `doc.paid_amount / grand_total / change_amount`。
+			// 官方在 POS Invoice 上有服务端算好的 `paid_amount`；我们每次渲染前按自己口径先算一遍。
+			update_totals_section(doc) {
+				if (!doc) doc = this.events.get_frm().doc;
+				recalc_payment_amounts(doc);
+				return super.update_totals_section(doc);
 			}
 		}
 
