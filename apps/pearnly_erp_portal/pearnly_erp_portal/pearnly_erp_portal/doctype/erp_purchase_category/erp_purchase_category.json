@@ -53,6 +53,7 @@
   }
  ],
  "autoname": "hash",
+ "show_title_field_in_link": 1,
  "title_field": "category_name",
  "search_fields": "category_name"
 }

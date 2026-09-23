@@ -407,6 +407,7 @@ Phone,電話
 Photos,写真
 Pick a line first,先に行を選んでください
 "Pick quantity, discount or price first",先に数量・割引・単価を選んでください
+Place,保管場所
 Please select an Item,品目を選択してください
 Point the camera at the barcode or QR code,カメラをバーコード・QR コードに向けてください
 Position Balance,保管場所の残高
@@ -815,6 +816,7 @@ product.col.code,コード
 product.col.codeValue,バーコード / QRコード
 product.col.cost,参考原価
 product.col.name,商品
+product.col.place,保管場所
 product.col.price,価格
 product.col.status,状態
 product.col.unit,単位

@@ -407,6 +407,7 @@ Phone,电话
 Photos,照片
 Pick a line first,先选一行
 "Pick quantity, discount or price first",先点数量、折扣或单价
+Place,位置
 Please select an Item,请选择物料
 Point the camera at the barcode or QR code,把条码或二维码对准摄像头
 Position Balance,该仓位结存
@@ -815,6 +816,7 @@ product.col.code,编码
 product.col.codeValue,条码/二维码
 product.col.cost,参考成本
 product.col.name,物料
+product.col.place,位置
 product.col.price,售价
 product.col.status,状态
 product.col.unit,单位

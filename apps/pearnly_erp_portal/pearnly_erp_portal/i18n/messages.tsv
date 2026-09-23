@@ -34,6 +34,7 @@ Search name or barcode	搜索名称或条码	ค้นหาชื่อหร�
 Product	物料	สินค้า	商品	product.col.name
 Price	售价	ราคา	価格	product.col.price
 Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.col.cost
+Place	位置	ตำแหน่ง	保管場所	product.col.place
 Average cost	均价	ต้นทุนเฉลี่ย	平均原価	product.col.avgCost
 Status	状态	สถานะ	状態	product.col.status
 New product	新建物料	เพิ่มสินค้า	商品を追加	product.action.new

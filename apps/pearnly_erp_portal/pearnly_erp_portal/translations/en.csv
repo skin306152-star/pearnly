@@ -407,6 +407,7 @@ Phone,Phone
 Photos,Photos
 Pick a line first,Pick a line first
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
+Place,Place
 Please select an Item,Please select an Item
 Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
 Position Balance,Position Balance
@@ -815,6 +816,7 @@ product.col.code,Code
 product.col.codeValue,Barcode / QR code
 product.col.cost,Reference cost
 product.col.name,Product
+product.col.place,Place
 product.col.price,Price
 product.col.status,Status
 product.col.unit,Unit

@@ -1315,6 +1315,10 @@ set_active_company / document_company / scope / for_document`；`api_company_con
 > F25 的补充（2026-09-23）：「实现」再加 —— **身份规则统一成"用户名/邮箱开户时发号、绑死租户，之后谁都不改，只能改自己的密码"**（core：用户名 DocType 级只读、删掉用户改名那条路、身份服务通道只剩语言、本地站点也能进改密页；ERP 团队页：文案改「用户/添加用户」、编辑只给改岗位；DMS：花名册的用户名改成只读、`save_credentials` 只收密码）；顺手修掉 `set_member_roles` "原样保存会把岗位点没"的真 bug（`held` 在摘角色之后才取）。「本地验证」再加 —— 个人信息页只读态与改密按钮、团队页文案与弹窗三类字段、三次岗位保存（改/原样/取消）都在浏览器里点过、检查站团队探针 `problems: {}`（探针此前是坏的，这轮补齐）、两站 `ensure_profile_fields` + `clear-cache`、离线五项检查。**未验到**：云站点走身份服务的改密与唯一性、DMS 界面（本机没有 DMS 站点）、前端 `vue-tsc`（依赖没装且本机 npm 坏了）—— 见 F25 第六节。
 ## 收尾：交接保留
 
+- F56 在演示站的痕迹：为在真机上量「交班」那张对账表，在 `TERM-00485` 上开过一次班
+  （`SHIFT-2026-00627` 21:01、`SHIFT-2026-00628` 21:12），**两次都已交班关掉**，余额与差分回读为 0；
+  更早那条开着的 `SHIFT-2026-00521`（`TERM-00520`，05:28 开）是接手前就在的，没有动。
+  没有新建 / 删除任何主档或单据。
 - F28 在演示站**新增了一家真实公司** `Purchase Preview 2`（`CO-00553`，`is_default=0`，`is_active=1`）
   —— 它是"一租户多公司"这次验收的样本（从界面「新建公司」建的），**保留**给你看；要清掉说一声。
   `Purchase Preview`（`CO-00552`）仍是默认公司、也是当前公司；`User Permission` 表**没有新增任何行**
@@ -2934,3 +2938,123 @@ JS 全套 11 支 ALL PASS。
 · 备注/地址的宽度是"比例 + 上下限"，不是严格 62%：宽列会被 420px 封顶（否则一行的框能拉到 690px）。
   要严格按比例就去掉那个上限，一行的事。
 · 官方的 `Text`（长文本，默认内联 300px）没动 —— 备注/地址在界面上都是 `Small Text`。
+
+### F56：主档一律显示名字、物料列表的「位置」列、交班弹窗的错位，外加一台能判对错的扫描（2026-09-23，未部署）
+
+用户这轮的四个点 + 一句话：「图一，我这个商品录入时选择了这个仓库，图二加位置，内容显示仓库和仓位，
+一屏显示完，调整好距离，长字段自动隐藏就好了，图三，我盘点的时候也是显示的这个仓位，图三怎么显示
+不同名呀，全站的错误吗，备注框 地址框，还要我说几遍，你的扫描脚本扫不全，会漏」
+以及后半轮追加的一张截图：「这个界面显示不对」（收银台「交班」弹窗）。
+
+**① 同一个仓/公司/客户在有的地方显示编号、有的地方显示名字 —— 是"全站的错误"，已按类别统一**
+
+根因不是某一张页面写错了，而是 DocType 少声明两件事：`title_field`（给人看的名字）与
+`show_title_field_in_link`（链接/选择框里显示它）。官方 `link.js` 的 `set_link_title()` 先查
+`frappe.boot.link_title_doctypes`（= `boot.py: get_link_title_doctypes()`，取 `DocType.show_title_field_in_link = 1`
+的清单），不在里面就把 **docname** 填进输入框 —— 所以仓库显示 `WH-00101`、公司显示 `CO-00552`。
+
+| 表 | 之前 | 现在 |
+| --- | --- | --- |
+| ERP Warehouse | 只有 `title_field` 是上一轮加的 | `title_field=warehouse_name` + `show_title_field_in_link=1` |
+| ERP Company | 两个都没声明 | `title_field=company_name` + `show_title_field_in_link=1` |
+| ERP Customer | 有 `title_field`、缺 `show` | 补齐 `show_title_field_in_link=1` |
+| ERP POS Terminal | 两个都没声明 | `title_field=terminal_name` + `show_title_field_in_link=1` |
+| ERP Purchase Category | 有 `title_field`、缺 `show` | 补齐 `show_title_field_in_link=1` |
+
+四张表都跑了 `reload-doctype`，并在库里回读确认（`tabDocType.title_field / show_title_field_in_link` 全为期望值）。
+实测：仓库表单 `/desk/erp-warehouse/WH-00101` 的「公司」= **Purchase Preview**（原来 CO-00552）；
+收银「开班」弹窗的「收银台」= **Counter 1**（原来 TERM-00485）；盘点/商品的「仓库」= **Purchase check 862289e9**
+（下拉里名字在上、编号在下作辅助）。
+
+**② 物料列表加「位置」列（仓库名 / 仓位）**
+
+`products/service.py` 加 `_with_warehouse_names()`（一次批量取名，不按行查库），列表多一列 `place`
+（`default_warehouse_name` + `default_location`）。列宽 188 / 最窄 132，同时把「物料」200→184、
+「条码」148→136 让出位置 —— 一屏放得下、不用横滑；太长由列表自己截断（`nowrap + ellipsis`，
+整串在元素的 `title` 里，悬停就是完整内容）。
+实测：8 列合计 **915px = 容器宽 915px**（无横向滚动）；首行位置格显示
+`Purchase check 862289e9 / a`，`data-original-title` 挂着完整串。
+
+**③ 收银台「交班」弹窗整块错位（用户截图那张）**
+
+两个原因叠在一起：
+
+1. 字段顺序里有一个 `Column Break`（笔数/净总计 | 退款笔数/找零合计），而后面那张对账表
+   **没有先另起一节** —— Frappe 的一栏是"竖着堆"的，表格于是落进右半栏，容器只有 255px，
+   真正要 795px 的内容被裁在弹窗外面（`gridLeft=476`、`gridW=255`、`scrollW=795`）。
+   **修**：在表格前加 `Section Break`，让对账表 / 差额 / 备注都从整行开始。
+2. 网格列宽写错了单位：`columns` 是**十二等分里的份数**（`grid_row.js` 直接拼成 `col-xs-<columns>`，
+   `setup_columns()` 里 `total_colsize > 10` 才转成横向滚动），不是相对权重。交班那张表
+   5+4+3+3+3 = **18**（= 容器的 1.5 倍），开班 5+4 = 9。**修**：按 ≤10 重排 —— 开班
+   `付款方式 6 + 期初金额 4`；交班 `付款方式 4 + 应有 2 + 实点 2 + 差额 2`，并把「期初金额」列
+   撤掉（那是开班时点的数，五种付款方式里四种恒为 0；官方 POS Closing Entry 的收银对账表也是
+   付款方式 / 应有 / 实点 / 差额四列）。
+
+实测（新的字段顺序）：交班弹窗 `gridLeft=188`（= 弹窗左内边距，整行）、`gridW=543` 装下
+`scrollW=541`，四列表头 付款方式/应有金额/实点金额/差额 全在、值都在（现金 · THB 0.00 ×4），
+备注 337×54；开班弹窗 付款方式 271px（col-xs-6）+ 期初金额 180px（col-xs-4）。
+
+**④ 备注/地址框：这次是"量了六页"，不是"改了就算"**
+
+同一套共用皮肤（`product.css` 的 `textarea.form-control`）：宽 = 所在列 62%（上下限 200–420）、
+高默认约两行、写不下由 `p.grow_textarea` 往下长。真机逐页打开弹窗量的结果：
+
+| 页面 | 多行框 | 尺寸 |
+| --- | --- | --- |
+| 供应商新建 | address / note | 337×54 / 337×54 |
+| 客户新建 | address / note | 337×54 / 337×54 |
+| 公司新建 | address / note | 337×54 / 337×54 |
+| 仓库新建 | note | 337×54 |
+| 入库单新建 | reason | 337×54 |
+| 出库单新建 | reason | 337×54 |
+| 盘点新建 | notes | 337×54 |
+| 收银交班 | note | 337×54 |
+
+（都是弹窗里那一列 543px 的 62%。采购/销售新建页的 `supplier_address` / `notes` 在**折叠的**
+「附加信息」分组里，展开后同样是 40px 默认高；未展开时不占高度。）
+
+**⑤ 扫描脚本重写成"能判对错"的四条规则 + 三份清单（`scripts/check-desk-ui.py`）**
+
+原来那份只会按字段类型 grep，所以漏掉了真正坏掉的那两处。现在四条规则都是能给出"对/错"的：
+
+| 规则 | 判据 | 为什么它会漏不掉 |
+| --- | --- | --- |
+| 多行框尺寸只来自共用皮肤 | 共用皮肤（`product.css`）与 `p.grow_textarea` 之外，任何给 textarea 写死尺寸的地方都算违规 | 不再按"字段类型"猜，而是看"谁在改这个控件" |
+| 主档链接显示名字 | 凡是**被主档引用字段**（company / warehouse / supplier / customer / product / category / terminal）指到、且自己有必填 `*_name` 的表，必须同时声明 `title_field` 与 `show_title_field_in_link` | 新增一张主档表、新增一个主档选择框，规则自动覆盖；单据指针（sales_document / count / item / shift / return_against）明确排除 |
+| 网格列份数 ≤10 | 每张网格 `columns` 的十二等分份数合计 ≤10 | 交班那张表 18 是这么抓出来的；静态算不出的（用展开/变量写的那三张）单独列出来给人核，不静默跳过 |
+| 整行控件不被 Column Break 收口 | `p.dialog()` / `p.layout()` 的字段数组里，Table / HTML / Button（以及 `...helper()` 这种展开）前面若是 Column Break 而没有 Section Break，就算违规 | 这正是交班那个 bug 的形状；共用层 `p.field_rows()` 会自动补 Section Break，绕开它就报 |
+
+自测：故意把交班改回旧顺序（Column Break 后面直接 `...balance_table(...)`）放进一个临时文件跑一次，
+规则报出"展开进来的字段跟在 Column Break 后面，可能被挤进半栏"，删掉临时文件后恢复 `✓`；
+`--strict` 退出码 0。
+
+**一条环境教训（这次踩到并浪费了一轮）**
+
+改了 `products/service.py` 之后只 `clear-cache` 不够：Python 是随进程加载的，网页端仍在用旧模块 ——
+列表上「位置」列显示的还是 `WH-00101 / a`（编号），`bench execute` 同一个函数却已经返回名字。
+**改服务端代码后要 `docker restart pearnly-purchase-lab-web-1`**，改 DocType 元数据要
+`reload-doctype` + `clear-cache`。重启后同一行立即变成 `Purchase check 862289e9 / a`。
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-desk-ui.py --strict` | ✓ 四条规则都过（多行框 30 处 / 主档 12 个 / 网格 3 张） |
+| `python3 scripts/check-architecture.py` | `PASS (0 violations)` |
+| `python3 scripts/check-frontend-i18n.py` | 0 问题 / PASS |
+| `python3 scripts/i18n-build.py --check` | PASS（erp 876 条） |
+| `python3 scripts/check-dms-parity.py` | 无漂移 |
+| `python3 -m unittest tests.test_erp_portal_access` | 102 条 OK（6 skipped） |
+| JS 全套 11 支 | 全 PASS（含 `test-field-rows.cjs`：整行控件必须另起一节） |
+
+**取舍与没验到的**
+
+· **交班表撤掉了「期初金额」列**：这是为了让五列回到 ≤10 份数、跟官方收银对账一致。若你要在交班时
+  也逐种付款方式看开班数，就得接受横向滚动（或把弹窗做成整屏）。
+· 演示站里为验交班开过一次班（`SHIFT-2026-00627` / `SHIFT-2026-00628`），**都已交班关掉**，
+  余额与差分回读为 0；`SHIFT-2026-00521`（TERM-00520）是我接手前就开着的，没动。
+· `p.field_rows()` 这个共用分栏助手目前只有 `stock-card.js` 在用，其余页面手写字段数组 ——
+  新规则能拦住"手写又写错"的情况，但**没有**把它们统一改成走共用层；要不要做这一步等你定。
+· 客户 / 类别 / 收银台三张表只做了"库里的声明 + 机制同源"这一步，真机只抽样验了仓库与收银台
+  （客户链接要在一张真实销售单上才看得到显示文本）。
+· 真机宽度是 919px（应用内浏览器）。更窄（<900px）时列表仍会横向滚动 —— 是否要再收列待你定。

@@ -821,20 +821,32 @@
 		// 官方那张对账表是整页表单，我们放在弹窗里 —— 给宽一点，五列才看得清。
 		const widen = dialog => dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 
-		function balance_table(fields_extra = [], rows = null) {
+		// ⚠️ 官方网格的 `columns` **不是相对权重，是十二等分里的份数**：`grid_row.js` 直接把它
+		// 拼成 `col-xs-<columns>`（`make_column`），而且 `setup_columns()` 里 `total_colsize > 10`
+		// 会打开横向滚动。原来开班 5+4、交班 5+4+3+3+3=18 —— 交班那张表比容器宽 50%，
+		// 整数列被裁在弹窗外面，左边的付款方式被压成空白（用户 2026-09-23 截图："这个界面显示不对"）。
+		// 所以每张表的总份数都排到 ≤10，并且把宽度留给要点的那几列。
+		const method_field = columns => ({
+			fieldname: "method", fieldtype: "Select", options: METHODS.join("\n"),
+			label: t("trade.method"), in_list_view: 1, reqd: 1, columns,
+		});
+		// 期初金额只在**开班**那张表里给：交班时它是"开班时点过的数"，五种付款方式里有四种恒为 0，
+		// 占一列会把对账表挤成横向滚动（官方 POS Closing Entry 的收银对账表也只有
+		// 付款方式 / 应有 / 实点 / 差额四列）。
+		const opening_field = () => ({
+			fieldname: "opening_amount", fieldtype: "Currency", options: "currency",
+			label: t("trade.openingAmount"), in_list_view: 1, columns: 4,
+		});
+
+		function balance_table(fields_extra = [], rows = null, { method_columns = 6, with_opening = true } = {}) {
 			return [
 				{ fieldtype: "Table", fieldname: "balances", label: t("trade.balances"),
 					cannot_add_rows: 1, in_place_edit: 1, reqd: 1,
 					data: rows || METHODS.map(method => ({ method, opening_amount: 0,
 						counted_amount: 0, currency: CURRENCY })),
 					fields: [
-						// 列宽（官方 grid 的 `columns` 是相对权重）：付款方式那一列原来没给宽度，
-						// 在弹窗里被压到只剩一小截、选择框看起来"显示不全被隐藏"
-						// （用户 2026-09-23）。这几列按"选得清、读得全"排。
-						{ fieldname: "method", fieldtype: "Select", options: METHODS.join("\n"),
-							label: t("trade.method"), in_list_view: 1, reqd: 1, columns: 5 },
-						{ fieldname: "opening_amount", fieldtype: "Currency", options: "currency",
-							label: t("trade.openingAmount"), in_list_view: 1, columns: 4 },
+						method_field(method_columns),
+						...(with_opening ? [opening_field()] : []),
 						...fields_extra,
 					] },
 			];
@@ -907,14 +919,18 @@
 					read_only: 1, default: data.refund_count },
 				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "change_total",
 					label: t("trade.changeTotal"), read_only: 1, default: data.change_total },
+				// 对账表 / 差额 / 备注都是**整行**的东西：上面那个 `Column Break` 之后没有分组分隔，
+				// 它们会掉进右边那一栏 —— 半栏宽装不下这张表，格子被裁、备注被压到最小宽度
+				// （用户 2026-09-23 的截图就是这个）。加一个分组，让它们从新的一整行开始。
+				{ fieldtype: "Section Break" },
 				...balance_table([
 					{ fieldname: "expected_amount", fieldtype: "Currency", options: "currency",
-						label: t("trade.expectedAmount"), in_list_view: 1, read_only: 1, columns: 3 },
+						label: t("trade.expectedAmount"), in_list_view: 1, read_only: 1, columns: 2 },
 					{ fieldname: "counted_amount", fieldtype: "Currency", options: "currency",
-						label: t("trade.countedAmount"), in_list_view: 1, reqd: 1, columns: 3 },
+						label: t("trade.countedAmount"), in_list_view: 1, reqd: 1, columns: 2 },
 					{ fieldname: "difference", fieldtype: "Currency", options: "currency",
-						label: t("trade.diff"), in_list_view: 1, read_only: 1, columns: 3 },
-				], rows),
+						label: t("trade.diff"), in_list_view: 1, read_only: 1, columns: 2 },
+				], rows, { method_columns: 4, with_opening: false }),
 				{ fieldtype: "Currency", options: "currency", formatter: money, fieldname: "cash_diff",
 					label: t("trade.diff"), read_only: 1, default: 0 },
 				{ fieldtype: "Small Text", fieldname: "note", label: t("trade.note") },

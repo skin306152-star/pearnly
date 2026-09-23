@@ -407,6 +407,7 @@ Phone,โทรศัพท์
 Photos,รูปภาพ
 Pick a line first,เลือกบรรทัดก่อน
 "Pick quantity, discount or price first",เลือกจำนวน ส่วนลด หรือราคาก่อน
+Place,ตำแหน่ง
 Please select an Item,กรุณาเลือกสินค้า
 Point the camera at the barcode or QR code,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
 Position Balance,คงเหลือในตำแหน่ง
@@ -815,6 +816,7 @@ product.col.code,รหัส
 product.col.codeValue,บาร์โค้ด / คิวอาร์โค้ด
 product.col.cost,ต้นทุนอ้างอิง
 product.col.name,สินค้า
+product.col.place,ตำแหน่ง
 product.col.price,ราคา
 product.col.status,สถานะ
 product.col.unit,หน่วย

@@ -235,10 +235,28 @@ def _filters(search=None, include_inactive=False, is_active=None):
 def list_products(*, search=None, include_inactive=False, is_active=None, limit=50, start=0):
     guard.require("products.view")
     filters, or_filters = _filters(search, include_inactive, is_active)
-    return _mask(frappe.get_list(
+    rows = _mask(frappe.get_list(
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
         order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
+    return _with_warehouse_names(rows)
+
+
+def _with_warehouse_names(rows):
+    """把默认仓的**名字**带上（列表要显示"位置"那一列）。
+
+    与库存/盘点/出入库同一个口径：界面上显示仓库的**名字**，编号只在选择框的下拉里当辅助
+    （用户 2026-09-23："图三怎么显示不同名呀" —— 同一个仓，有的地方显示 WH-00101、
+    有的地方显示名字）。一次批量取名字，别按行查询。
+    """
+    names = {row["default_warehouse"] for row in rows if row.get("default_warehouse")}
+    if not names:
+        return rows
+    labels = dict(frappe.get_list("ERP Warehouse", filters={"name": ["in", list(names)]},
+                                  fields=["name", "warehouse_name"], limit_page_length=0,
+                                  as_list=True))
+    return [{**row, "default_warehouse_name": labels.get(row.get("default_warehouse")) or row.get("default_warehouse")}
+            for row in rows]
 
 
 def find_product(value, exclude=None):

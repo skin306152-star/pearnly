@@ -266,16 +266,23 @@
 					return { items, total };
 				},
 				columns: [
-					{ fieldname: "product_name", width: 200, min_width: 170, label: t("product.col.name") },
+					{ fieldname: "product_name", width: 184, min_width: 160, label: t("product.col.name") },
 					{ fieldname: "code", width: 88, min_width: 78, label: t("product.col.code") },
 					// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
-					{ fieldname: "barcode", width: 148, min_width: 112, label: t("product.col.codeValue"),
+					{ fieldname: "barcode", width: 136, min_width: 104, label: t("product.col.codeValue"),
 						format: (_value, row) => row.barcode || row.qr_payload || "" },
 					{ fieldname: "unit", width: 60, min_width: 52, label: t("product.col.unit") },
 					{ fieldname: "unit_price", width: 92, min_width: 82, label: t("product.col.price"),
 						format: (_value, row) => marked(row, "price_set", row.unit_price) },
 					{ fieldname: "default_cost", width: 92, min_width: 82, label: t("product.col.cost"),
 						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
+					// 「位置」＝默认仓库 + 默认仓位合成一列（用户 2026-09-23："图二加位置，内容显示
+					// 仓库和仓位，一屏显示完……长字段自动隐藏就好了"）。仓库显示**名字**（与库存/
+					// 盘点/出入库同一个口径）；太长由列表自己截断 + tooltip（`list.js` 给每格挂了
+					// `title`），所以它不会把整张表撑开。
+					{ fieldname: "place", width: 188, min_width: 132, label: t("product.col.place"),
+						format: (_value, row) => [row.default_warehouse_name || row.default_warehouse || "",
+							row.default_location || ""].filter(Boolean).join(" / ") },
 					{ fieldname: "is_active", width: 84, min_width: 72, label: t("product.col.status"),
 						// 与供应商/客户两页同一口径：正常 / 已停用。原来用的是框架自己的
 						// "Active"，中文界面里会译成「激活」，三张列表同一个概念三种说法。

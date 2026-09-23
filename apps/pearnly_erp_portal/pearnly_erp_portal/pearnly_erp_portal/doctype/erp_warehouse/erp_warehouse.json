@@ -53,6 +53,8 @@
  "modified": "2026-09-21 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Warehouse",
+ "show_title_field_in_link": 1,
+ "title_field": "warehouse_name",
  "owner": "Administrator",
  "permissions": [
   {
