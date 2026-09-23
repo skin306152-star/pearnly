@@ -379,7 +379,12 @@
 			q(".rate-amount-header").css("width", max ? `${max}px` : "");
 			q(".cart-items-section .item-rate-amount").css("width", max ? `${max}px` : "");
 			const net = cart_net();
-			// 官方：折扣那一格在**有货**时才出现（空车屏幕上没有它）；已经打过折就把折扣额写在上面。
+			// **官方的底色口径**（`highlight_checkout_btn`）：有货时给「结账」上主色底 + 反白字，
+			// 空车时回到普通底（`--control-bg`）—— 而且**只有上过底才允许点**（官方点击处理里
+			// 就是查 inline style 里有没有 `--btn-primary`）。折扣那一格也跟着有货才出现。
+			q(".cart-totals-section .checkout-btn").css(has
+				? {"background-color": "var(--btn-primary)", color: "var(--neutral)"}
+				: {"background-color": "var(--control-bg)", color: ""});
 			q(".cart-totals-section .add-discount-wrapper")
 				.css("display", has ? "flex" : "none")
 				.text(num(discount_pct)
@@ -901,7 +906,12 @@
 		$app.on("click", ".numpad-section .numpad-btn", event => {
 			cart_numpad(event.currentTarget.dataset.buttonValue);
 		});
-		$app.on("click", ".cart-totals-section .checkout-btn", () => void checkout());
+		// 与官方同一条闸：**没上底（空车）就不响应**（官方是查 inline style 里有没有
+		// `--btn-primary`）。上了底才进收款屏，同时把收款屏那颗切出来。
+		$app.on("click", ".cart-totals-section .checkout-btn", event => {
+			if (!String($(event.currentTarget).attr("style") || "").includes("--btn-primary")) return;
+			void checkout();
+		});
 		// 官方那颗虚线「折扣」：填一个百分比，整单按它打折（落单时带 `discount_total`）。
 		// 输入用**原生 Dialog + Float**（仓库规定 Desk 里不写裸输入框）。
 		$app.on("click", ".cart-totals-section .add-discount-wrapper", () => discount_dialog());

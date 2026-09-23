@@ -1507,3 +1507,33 @@ Terminal」那一项（`only_select`）；服务端 `terminals.resolve()` 也会
 离线：架构 PASS(0)、术语 PASS、前端取词 0 问题、权限契约 102 条 OK、原生契约 18 条 2 失败（那两个与基线同一批）。
 
 **没验到**：「启用 N」那一支（需要先有停用行）、批量停用的真实提交、新建仓库这一轮没再点（上一轮点过）。
+
+### F33：收银台「结账」的底色（有货才上色、上色才可点）（2026-09-23，未部署）
+
+用户口径："收银台，选择物料结账显示底色，我之前已经截图给你了" —— 对照他给的两张官方图：空车那张
+「结账」是白底、有货那张是**深底反白字**。
+
+**从官方容器里的编译产物读到的原始规则**（`point-of-sale.bundle.USGGAUZO.js`）：
+
+```js
+highlight_checkout_btn(e) {
+  if (e) { this.$add_discount_elem.css("display","flex");
+    this.$cart_container.find(".checkout-btn").css({"background-color":"var(--btn-primary)",
+      color:"var(--neutral)"}); }
+  else { this.$add_discount_elem.css("display","none");
+    this.$cart_container.find(".checkout-btn").css({"background-color":"var(--control-bg)", color:""}); }
+}
+// 点击闸：$(this).attr("style").indexOf("--btn-primary") != -1 &&（才进收款）
+```
+
+也就是说官方是**两件事绑在一起**：折扣那一格出现 ⟺ 结账按钮上主色底 ⟺ 才允许点。
+
+**我们改成同一套**：`paint_cart()` 里有货就把结账按钮的内联样式设成 `background-color: var(--btn-primary);
+color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内联样式里有没有 `--btn-primary`，
+没有就不响应。两个变量的官方定义也核过（`desk.bundle` 里 `:root` → `--btn-primary: var(--gray-900)`、
+`--neutral: var(--neutral-white)`；暗色主题翻转）—— 我们这套皮肤把 `--btn-primary` 映射成品牌紫，
+所以上色后是**品牌紫底 + 白字**（与官方"深底反白字"同一机制、只是用我们的强调色）。
+
+**验证**（演示站浏览器，同一页前后对比）：空车 `background-color: rgb(243,243,243)`（`--control-bg`）
+且内联样式是 `--control-bg`；选中一件物料后变 `rgb(124,77,255)`（品牌主色）+ `color: rgb(255,255,255)`；
+清空后再点它：`payment-container` 仍是 `display:none`（**空车点不动**，与官方那条闸一致）。
