@@ -249,6 +249,7 @@ Field Diffs,項目ごとの差分
 File,ファイル
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,表示名と、このオペレーター自身のDMSアカウント・パスワードを入力します。保存後に1行ずつ連携コードを発行します
 "Fill in the display name, DMS username and password",表示名、DMSユーザー名、パスワードを入力してください
+"Filters must be four-value rows with string doctypes, fields, and operators.",フィルタは doctype・フィールド・演算子の4値行である必要があります
 Finalize failed: desktop:home_page={0} is_setup_complete={1},仕上げに失敗: desktop:home_page={0} is_setup_complete={1}
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
@@ -257,6 +258,7 @@ Full Name,氏名
 Gender,性別
 Goods & Stock,商品と在庫
 Grand Total,税込合計
+Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にファイルをアップロードできません
 Guide,使い方
 HTTP Status,HTTPステータス
 Handled At,処理日時
@@ -277,6 +279,7 @@ Inbound = invoices received; outbound = invoices issued,仕入＝受け取った
 "Install, pair, upgrade and uninstall guide for Companion",コンパニオンのインストール、ペアリング、更新、アンインストール手順
 Intake Workbench,取り込みワークベンチ
 Integrations,連携
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
 Invalid push channel,送信チャネルが不正です
 Invited By,招待者
 Issue bind code,連携コードを発行

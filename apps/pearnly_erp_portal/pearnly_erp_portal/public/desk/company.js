@@ -171,7 +171,7 @@
 					await p.call(api + (is_new ? "api_create_company" : "api_update_company"),
 						is_new ? values : {name: row.name, ...values}, "POST");
 					dialog.hide();
-					p.success(t(is_new ? "company.notice.created" : "company.notice.saved"));
+					p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
 					await list.reload();
 					restore_new();
 				});
@@ -226,7 +226,7 @@
 					await p.call(name ? "pearnly_erp_portal.masters.api.api_update_company"
 						: api + "api_update_profile",
 						name ? {name, ...values} : values, "POST");
-					p.success(t("company.notice.saved"));
+					p.success(t("company.notice.saved"), "click");
 				});
 			} else {
 				page.clear_primary_action();

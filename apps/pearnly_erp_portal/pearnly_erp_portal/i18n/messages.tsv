@@ -875,3 +875,21 @@ Disable {0}	停用 {0}	ปิดใช้งาน {0}	{0}件を無効化	compan
 Enable {0}	启用 {0}	เปิดใช้งาน {0}	{0}件を有効化	company.action.bulkEnable
 Only the product admin can change this	只有产品管理员能改	แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์	製品管理者のみ変更できます	company.onlyAdmin
 Updated {0} record(s)	已更新 {0} 条	อัปเดต {0} รายการ	{0}件を更新しました	company.notice.updated
+Customer not found	未找到客户	ไม่พบลูกค้า	顧客が見つかりません
+Product not found	未找到物料	ไม่พบสินค้า	商品が見つかりません
+Void the refunds first	先撤销这些退货退款	ต้องยกเลิกการคืนสินค้าก่อน	先に返品・返金を取消してください
+Invalid value: {0}	值无效：{0}	ค่าไม่ถูกต้อง: {0}	値が無効です: {0}
+That photo could not be read	这张照片读不出来	อ่านรูปภาพนี้ไม่ได้	この写真を読み取れません
+Stock count not found	未找到盘点	ไม่พบการตรวจนับ	棚卸が見つかりません
+This stock count is closed	这张盘点已结束	การตรวจนับนี้ปิดแล้ว	この棚卸は終了しています
+That row is not part of this stock count	这一行不属于这张盘点	แถวนี้ไม่ได้อยู่ในการตรวจนับนี้	この行はこの棚卸に含まれていません
+Direction must be in or out	方向只能是入库或出库	ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น	方向は入庫か出庫のいずれかです
+Not enough stock on hand	库存不足	สต็อกคงเหลือไม่พอ	在庫が足りません
+This unit is not defined on the product	这个单位没有在这个物料上定义	หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้	この単位はこの商品に定義されていません
+Warehouse not found	未找到仓库	ไม่พบคลังสินค้า	倉庫が見つかりません
+This warehouse already exists	这个仓库已经存在	คลังสินค้านี้มีอยู่แล้ว	この倉庫は既に存在します
+No company is available for this account	这个账号没有可用的公司	บัญชีนี้ไม่มีบริษัทที่ใช้งานได้	このアカウントで使える会社がありません
+The fiscal year start month must be between 1 and 12	会计年度的起始月份必须在 1 到 12 之间	เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12	会計年度の開始月は1〜12の範囲で指定してください
+A confirmed draft must point at the record it created	已确认的草稿必须指向它创建的那条记录	ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น	確定した下書きは、それが作成した伝票を指している必要があります
+A stock entry needs at least one line	出入库单至少要有一行	เอกสารรับ-จ่ายต้องมีอย่างน้อย 1 รายการ	入出庫伝票には少なくとも1行必要です
+Enter a quantity	请输入数量	กรุณากรอกจำนวน	数量を入力してください

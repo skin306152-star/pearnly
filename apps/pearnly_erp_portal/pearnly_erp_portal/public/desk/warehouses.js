@@ -101,14 +101,14 @@
 						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note},
 					"POST");
 				dialog.hide();
-				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"));
+				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
 				await list.reload();
 			});
 		}
 
 		async function make_default(row) {
 			await p.call(api + "api_set_default_warehouse", {name: row.name}, "POST");
-			p.success(t("company.notice.defaultWarehouse", row.warehouse_name));
+			p.success(t("company.notice.defaultWarehouse", row.warehouse_name), "click");
 			await list.reload();
 		}
 

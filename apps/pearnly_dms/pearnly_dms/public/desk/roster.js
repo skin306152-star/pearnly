@@ -58,7 +58,7 @@
 				if (!loaded) delete values.advisor_id; // Failed loads must never clear an existing assignment.
 				await p.call(api + (adding ? "api_create_operator" : "api_update_operator"), adding ? values : {name: row.name, ...values}, "POST");
 				dialog.set_value("dms_password", ""); dialog.hide();
-				p.success(t(adding ? "roster.notice.created" : "roster.notice.saved"));
+				p.success(t(adding ? "roster.notice.created" : "roster.notice.saved"), "click");
 				await refresh();
 			});
 			async function loadAdvisors() {
@@ -112,7 +112,7 @@
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally {
-					if (removed) p.success(t("roster.notice.deletedCount", removed));
+					if (removed) p.success(t("roster.notice.deletedCount", removed), "delete");
 					// Reload reconciles selected IDs: failed/unprocessed rows stay selected.
 					try { await refresh(); }
 					finally { deleting = false; page.btn_primary.prop("disabled", false); }

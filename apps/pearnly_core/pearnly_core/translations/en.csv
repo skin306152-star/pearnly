@@ -248,6 +248,7 @@ Field Diffs,Field Diffs
 File,File
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving
 "Fill in the display name, DMS username and password","Fill in the display name, DMS username and password"
+"Filters must be four-value rows with string doctypes, fields, and operators.","Filters must be four-value rows with string doctypes, fields, and operators."
 Finalize failed: desktop:home_page={0} is_setup_complete={1},Finalize failed: desktop:home_page={0} is_setup_complete={1}
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
@@ -256,6 +257,7 @@ Full Name,Full Name
 Gender,Gender
 Goods & Stock,Goods & Stock
 Grand Total,Grand Total
+Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to upload files for {0} Doctype
 Guide,Guide
 HTTP Status,HTTP Status
 Handled At,Handled At
@@ -276,6 +278,7 @@ Inbound = invoices received; outbound = invoices issued,Inbound = invoices recei
 "Install, pair, upgrade and uninstall guide for Companion","Install, pair, upgrade and uninstall guide for Companion"
 Intake Workbench,Intake Workbench
 Integrations,Integrations
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value."
 Invalid push channel,Invalid push channel
 Invited By,Invited By
 Issue bind code,Issue bind code

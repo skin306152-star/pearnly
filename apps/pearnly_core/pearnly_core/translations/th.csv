@@ -249,6 +249,7 @@ Field Diffs,ส่วนต่างรายฟิลด์
 File,ไฟล์
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
 "Fill in the display name, DMS username and password",กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน
+"Filters must be four-value rows with string doctypes, fields, and operators.","ตัวกรองต้องเป็นแถว 4 ค่า: doctype, ฟิลด์, ตัวดำเนินการ"
 Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง
@@ -257,6 +258,7 @@ Full Name,ชื่อ-นามสกุล
 Gender,เพศ
 Goods & Stock,สินค้าและสต็อก
 Grand Total,ยอดรวม
+Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ยมชมอัปโหลดไฟล์ให้ {0} ไม่ได้
 Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
 Handled At,จัดการเมื่อ
@@ -277,6 +279,7 @@ Inbound = invoices received; outbound = invoices issued,ขาเข้า = ใ
 "Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
 Intake Workbench,โต๊ะทำงานบันทึกข้อมูล
 Integrations,การเชื่อมต่อ
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","ตัวกรองของฟิลด์ {0} ไม่ถูกต้อง: ตัวกรองต้องเป็นลิสต์ โดยแต่ละรายการมี 4 ค่า คือ doctype, ชื่อฟิลด์, ตัวดำเนินการ และค่า"
 Invalid push channel,ช่องทางส่งไม่ถูกต้อง
 Invited By,ผู้เชิญ
 Issue bind code,ออกรหัสผูก

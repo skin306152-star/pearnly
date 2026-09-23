@@ -249,6 +249,7 @@ Field Diffs,逐字段差异
 File,文件
 Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,填写显示名与该操作员自己的 DMS 账号密码，保存后逐行发绑定码
 "Fill in the display name, DMS username and password",请填写显示名、DMS 用户名和密码
+"Filters must be four-value rows with string doctypes, fields, and operators.",筛选必须是四值行：doctype、字段、运算符
 Finalize failed: desktop:home_page={0} is_setup_complete={1},收尾没成功：desktop:home_page={0} is_setup_complete={1}
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项的对方税号不能等于自己
@@ -257,6 +258,7 @@ Full Name,姓名
 Gender,性别
 Goods & Stock,物料与库存
 Grand Total,价税合计
+Guests are not allowed to upload files for {0} Doctype,访客不能为 {0} 上传文件
 Guide,使用教程
 HTTP Status,HTTP 状态
 Handled At,处理时间
@@ -277,6 +279,7 @@ Inbound = invoices received; outbound = invoices issued,进项=收到的票；�
 "Install, pair, upgrade and uninstall guide for Companion",小助手的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
 Integrations,集成
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.",字段 {0} 的筛选无效：筛选必须是筛选列表，每个筛选是含四个值（doctype、字段名、运算符、值）的列表
 Invalid push channel,推送渠道不合法
 Invited By,邀请人
 Issue bind code,发绑定码

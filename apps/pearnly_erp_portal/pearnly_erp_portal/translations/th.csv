@@ -2,6 +2,8 @@
 13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 A confirmed document cannot be edited,เอกสารที่ยืนยันแล้วแก้ไขไม่ได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
+A confirmed draft must point at the record it created,ฉบับร่างที่ยืนยันแล้วต้องอ้างถึงรายการที่สร้างขึ้น
+A stock entry needs at least one line,เอกสารรับ-จ่ายต้องมีอย่างน้อย 1 รายการ
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Actual position,ตำแหน่งที่พบจริง
@@ -158,6 +160,7 @@ Customer Name,ชื่อลูกค้า
 Customer Type,ประเภทลูกค้า
 Customer is disabled,ลูกค้าถูกปิดใช้งาน
 Customer is required,กรุณาระบุลูกค้า
+Customer not found,ไม่พบลูกค้า
 Customers,ลูกค้า
 Date,วันที่
 Dedupe Key,คีย์กันซ้ำ
@@ -172,6 +175,7 @@ Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} �
 Description,คำอธิบาย
 Details,รายละเอียด
 Difference value,มูลค่าผลต่าง
+Direction must be in or out,ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Disable {0} selected,ปิดใช้งาน {0} รายการที่เลือก
@@ -206,6 +210,7 @@ Enable / disable,เปิด / ปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
+Enter a quantity,กรุณากรอกจำนวน
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
@@ -275,6 +280,7 @@ Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid file,ไฟล์ไม่ถูกต้อง
 Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
 Invalid value,ค่าไม่ถูกต้อง
+Invalid value: {0},ค่าไม่ถูกต้อง: {0}
 Invoice,ใบแจ้งหนี้
 Invoice Amount,ยอดตามใบแจ้งหนี้
 Is Paid,ชำระแล้ว
@@ -341,6 +347,7 @@ Next,ถัดไป
 No,ลำดับ
 No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
+No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
@@ -350,6 +357,7 @@ None,ไม่มี
 Normal,ปกติ
 Not Posted,ยังไม่บันทึกสต็อก
 Not counted,ยังไม่นับ
+Not enough stock on hand,สต็อกคงเหลือไม่พอ
 Not found in the Revenue Department records,ไม่พบข้อมูลในกรมสรรพากร
 Not permitted,ไม่ได้รับอนุญาต
 Note,หมายเหตุ
@@ -428,6 +436,7 @@ Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 Product Ref,รหัสอ้างอิงสินค้า
 Product name,ชื่อสินค้า
+Product not found,ไม่พบสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 PromptPay,พร้อมเพย์
 PromptPay Amount,พร้อมเพย์
@@ -545,6 +554,7 @@ Stock changed during counting. Recount the affected products.,สต็อกเ
 Stock changed; recount,สต็อกเปลี่ยน ต้องนับใหม่
 Stock count,ตรวจนับสต็อก
 "Stock count created, {0} rows",สร้างการตรวจนับแล้ว {0} แถว
+Stock count not found,ไม่พบการตรวจนับ
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
 Stock is counted in this unit; leave it empty to use the selling unit,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
@@ -585,12 +595,15 @@ That code is not valid,รหัสไม่ถูกต้อง
 That file could not be read; please use the template,อ่านไฟล์นี้ไม่ได้ กรุณาใช้ไฟล์ต้นแบบ
 That file has no rows,ไฟล์นี้ไม่มีข้อมูล
 That file is not an Excel workbook,ไฟล์นี้ไม่ใช่ Excel
+That photo could not be read,อ่านรูปภาพนี้ไม่ได้
+That row is not part of this stock count,แถวนี้ไม่ได้อยู่ในการตรวจนับนี้
 The Revenue Department replied in an unreadable format,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The cart is empty,ตะกร้าว่างเปล่า
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
+The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
 The product code cannot be changed,รหัสสินค้าแก้ไม่ได้
@@ -616,6 +629,9 @@ This document has no content,ไฟล์นี้ไม่มีเนื้อ
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This stock count is closed,การตรวจนับนี้ปิดแล้ว
+This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
+This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
 To Date,ณ วันที่
 Total,ยอดชำระ
 Total Amount,จำนวนเงินรวม
@@ -662,6 +678,7 @@ VAT applies,คิด VAT
 Value,มูลค่า
 Void all current observations for this product and recount it? Previous records remain in the history.,ยกเลิกรายการนับปัจจุบันของสินค้านี้แล้วนับใหม่หรือไม่? รายการเดิมยังอยู่ในประวัติ
 Void the payments before voiding the document,กรุณากลับรายการชำระเงินก่อนยกเลิกเอกสาร
+Void the refunds first,ต้องยกเลิกการคืนสินค้าก่อน
 Void this count of {0}?,ยกเลิกรายการนับ {0} นี้?
 Void this document and reverse its stock movements?,ยกเลิกเอกสารและย้อนรายการสต็อกหรือไม่?
 Void {0} document(s) and reverse their stock movements?,ยกเลิก {0} เอกสารและย้อนรายการสต็อกหรือไม่?
@@ -670,6 +687,7 @@ Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
+Warehouse not found,ไม่พบคลังสินค้า
 With differences,มีผลต่าง
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย

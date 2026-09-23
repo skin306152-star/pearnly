@@ -17,7 +17,7 @@
 						await p.call(api + "api_discard_line_intake", {name: row.name, reason: values.reason}, "POST");
 					}
 					dialog.hide();
-					p.success(__("Cancelled {0}", [rows.length]));
+					p.success(__("Cancelled {0}", [rows.length]), "cancel");
 					await list.reload();
 				}));
 		};

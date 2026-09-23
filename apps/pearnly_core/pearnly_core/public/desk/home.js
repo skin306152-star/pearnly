@@ -162,7 +162,7 @@
 				try {
 					const result = await p.call("pearnly_core.billing_www.delete_records",
 						{tab: selectedTab, names}, "POST");
-					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted));
+					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted), "delete");
 					if (table === selectedTable) await table.reload();
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);

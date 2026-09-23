@@ -56,7 +56,7 @@
 					else await p.call(api + "api_stock_count_add_entry", { ...payload, count,
 						item: values.source_row || undefined, product: selected.name, request_id }, "POST");
 					last_place = { warehouse: values.warehouse, location: values.location || "" };
-					p.success(t("stock.count.entrySaved"));
+					p.success(t("stock.count.entrySaved"), "click");
 					photos.length = 0;
 					await on_saved?.();
 					if (closed) return;

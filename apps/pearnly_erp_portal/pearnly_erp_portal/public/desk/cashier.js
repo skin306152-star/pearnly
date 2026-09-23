@@ -540,7 +540,6 @@
 			const amount = pad_value === "" || pad_value === "." ? 0 : round2(pad_value);
 			paint_details_field(pad_target, amount);
 			apply_field(pad_target, amount);
-			frappe.utils.play_sound("numpad-touch");
 		}
 
 		// 键盘改的是明细面板里那一格：改完要把那一格上的值同步回去（不然面板还显示旧数）。

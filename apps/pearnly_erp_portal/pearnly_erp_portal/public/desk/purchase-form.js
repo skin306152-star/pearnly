@@ -201,7 +201,7 @@
 			page.add_menu_item(__("Cancel"), () => p.dialog(__("Cancel"), [u.field("reason", "Reason for Cancellation", "Small Text", {reqd: 1})],
 				__("Confirm"), async (values, dialog) => {
 					await u.call("api_cancel_purchase", {name: doc.name, ...values}, true);
-					dialog.hide(); p.success(__("Cancelled")); await reload();
+					dialog.hide(); p.success(__("Cancelled"), "cancel"); await reload();
 				}));
 			for (const kind of ["substitute_receipt", ...(Number(doc.wht_amount) > 0 ? ["wht_cert"] : [])]) {
 				page.add_menu_item(u.label(kind), () => act(async () => {

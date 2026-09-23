@@ -164,14 +164,14 @@
 						await p.call(api + "api_set_member_companies",
 							{ email: values.email, companies: values.companies || [] }, "POST");
 						d.hide();
-						p.success(t("team.notice.added", values.full_name));
+						p.success(t("team.notice.added", values.full_name), "click");
 					} else {
 						await p.call(api + "api_set_member_roles",
 							{ email: row.email, roles: values.roles }, "POST");
 						await p.call(api + "api_set_member_companies",
 							{ email: row.email, companies: values.companies || [] }, "POST");
 						d.hide();
-						p.success(t("team.notice.saved"));
+						p.success(t("team.notice.saved"), "click");
 					}
 					await refresh_members();
 					await list.reload();
@@ -185,7 +185,7 @@
 					await p.call(api + "api_set_member_active",
 						{ email: row.email, enabled: row.enabled ? 0 : 1 }, "POST");
 					dialog.hide();
-					p.success(row.enabled ? t("team.disable") : t("team.enable"));
+					p.success(row.enabled ? t("team.disable") : t("team.enable"), "click");
 					await refresh_members();
 					await list.reload();
 					restore_new();
@@ -200,7 +200,7 @@
 				await p.call(api + "api_set_member_password",
 					{ email: row.email, password: values.password }, "POST");
 				d.hide();
-				p.success(t("team.notice.password"));
+				p.success(t("team.notice.password"), "click");
 			});
 		}
 	};

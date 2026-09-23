@@ -320,7 +320,7 @@
 					await p.call(api + "api_create_product",
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
 					d.hide();
-					p.success(t("product.notice.saved", values.product_name));
+					p.success(t("product.notice.saved", values.product_name), "click");
 					await list?.reload();
 				},
 			);
@@ -458,7 +458,7 @@
 				grid.df.data = failed;
 				grid.refresh();
 				if (!failed.length) {
-					p.success(t("product.notice.savedCount", done));
+					p.success(t("product.notice.savedCount", done), "click");
 					await list?.reload();
 					p.redirect_up(root);
 					return;
@@ -514,7 +514,7 @@
 				async (_values, d) => {
 					const result = await p.call(api + "api_import_products", { file_url }, "POST");
 					d.hide();
-					p.success(t("product.notice.imported", result.created));
+					p.success(t("product.notice.imported", result.created), "click");
 					if (result.failed) {
 						frappe.msgprint({
 							title: t("product.action.import"),
@@ -543,7 +543,7 @@
 						{ name: existing.name, ...normalize({ ...values, ...code_changes(state, values) }) },
 						"POST");
 					d.hide();
-					p.success(t("product.notice.saved", values.product_name));
+					p.success(t("product.notice.saved", values.product_name), "click");
 					await list?.reload();
 				},
 			);

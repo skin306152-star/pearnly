@@ -779,3 +779,6 @@ Sales	销售系统	ระบบขาย	販売システム	nav.group.sales
 Master Data	主数据	ข้อมูลหลัก	マスタ	nav.group.master
 Company Master	公司主档	ทะเบียนบริษัท	会社マスタ	nav.companyMaster
 POS	收银 POS	ขายหน้าร้าน POS	POS レジ	nav.cashier
+Filters must be four-value rows with string doctypes, fields, and operators.	筛选必须是四值行：doctype、字段、运算符	ตัวกรองต้องเป็นแถว 4 ค่า: doctype, ฟิลด์, ตัวดำเนินการ	フィルタは doctype・フィールド・演算子の4値行である必要があります
+Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.	字段 {0} 的筛选无效：筛选必须是筛选列表，每个筛选是含四个值（doctype、字段名、运算符、值）的列表	ตัวกรองของฟิลด์ {0} ไม่ถูกต้อง: ตัวกรองต้องเป็นลิสต์ โดยแต่ละรายการมี 4 ค่า คือ doctype, ชื่อฟิลด์, ตัวดำเนินการ และค่า	フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
+Guests are not allowed to upload files for {0} Doctype	访客不能为 {0} 上传文件	ผู้เยี่ยมชมอัปโหลดไฟล์ให้ {0} ไม่ได้	ゲストは {0} にファイルをアップロードできません

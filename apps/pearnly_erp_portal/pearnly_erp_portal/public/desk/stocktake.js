@@ -396,7 +396,7 @@
 						file_url: importing ? file_url : undefined,
 					}, "POST");
 					d.hide();
-					p.success(t("stock.count.created", created.rows));
+					p.success(t("stock.count.created", created.rows), "click");
 					report_problems(created.problems);
 					await list.reload();
 					open_detail(created.name);

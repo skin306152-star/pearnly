@@ -2,6 +2,8 @@
 13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
+A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
+A stock entry needs at least one line,A stock entry needs at least one line
 A stored source file must carry its hash,A stored source file must carry its hash
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Actual position,Actual position
@@ -158,6 +160,7 @@ Customer Name,Customer Name
 Customer Type,Customer Type
 Customer is disabled,Customer is disabled
 Customer is required,Customer is required
+Customer not found,Customer not found
 Customers,Customers
 Date,Date
 Dedupe Key,Dedupe Key
@@ -172,6 +175,7 @@ Deleted {0} stock counts,Deleted {0} stock counts
 Description,Description
 Details,Details
 Difference value,Difference value
+Direction must be in or out,Direction must be in or out
 Disable,Disable
 Disable {0},Disable {0}
 Disable {0} selected,Disable {0} selected
@@ -206,6 +210,7 @@ Enable / disable,Enable / disable
 Enable {0},Enable {0}
 Enable {0} selected,Enable {0} selected
 Enabled,Enabled
+Enter a quantity,Enter a quantity
 Enter a tax ID first,Enter a tax ID first
 Enter a valid email,Enter a valid email
 Enter discount percentage,Enter discount percentage
@@ -275,6 +280,7 @@ Invalid Currency,Invalid Currency
 Invalid file,Invalid file
 Invalid payment amount,Invalid payment amount
 Invalid value,Invalid value
+Invalid value: {0},Invalid value: {0}
 Invoice,Invoice
 Invoice Amount,Invoice Amount
 Is Paid,Is Paid
@@ -341,6 +347,7 @@ Next,Next
 No,No
 No Open Shift,No Open Shift
 No attachments,No attachments
+No company is available for this account,No company is available for this account
 No item matches the scanned code {0},No item matches the scanned code {0}
 No product for this code: {0},No product for this code: {0}
 No receipts in this shift,No receipts in this shift
@@ -350,6 +357,7 @@ None,None
 Normal,Normal
 Not Posted,Not Posted
 Not counted,Not counted
+Not enough stock on hand,Not enough stock on hand
 Not found in the Revenue Department records,Not found in the Revenue Department records
 Not permitted,Not permitted
 Note,Note
@@ -428,6 +436,7 @@ Product,Product
 Product / position / counted by / time,Product / position / counted by / time
 Product Ref,Product Ref
 Product name,Product name
+Product not found,Product not found
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
@@ -545,6 +554,7 @@ Stock changed during counting. Recount the affected products.,Stock changed duri
 Stock changed; recount,Stock changed; recount
 Stock count,Stock count
 "Stock count created, {0} rows","Stock count created, {0} rows"
+Stock count not found,Stock count not found
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
@@ -585,12 +595,15 @@ That code is not valid,That code is not valid
 That file could not be read; please use the template,That file could not be read; please use the template
 That file has no rows,That file has no rows
 That file is not an Excel workbook,That file is not an Excel workbook
+That photo could not be read,That photo could not be read
+That row is not part of this stock count,That row is not part of this stock count
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
 The account you give customers for transfers,The account you give customers for transfers
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
 The company on your documents,The company on your documents
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
+The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The password must be at least {0} characters,The password must be at least {0} characters
 The payment is more than the net payable,The payment is more than the net payable
 The product code cannot be changed,The product code cannot be changed
@@ -616,6 +629,9 @@ This document has no content,This document has no content
 This document is too large,This document is too large
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This item is also stocked at:,This item is also stocked at:
+This stock count is closed,This stock count is closed
+This unit is not defined on the product,This unit is not defined on the product
+This warehouse already exists,This warehouse already exists
 To Date,To Date
 Total,Total
 Total Amount,Total Amount
@@ -662,6 +678,7 @@ VAT applies,VAT applies
 Value,Value
 Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
 Void the payments before voiding the document,Void the payments before voiding the document
+Void the refunds first,Void the refunds first
 Void this count of {0}?,Void this count of {0}?
 Void this document and reverse its stock movements?,Void this document and reverse its stock movements?
 Void {0} document(s) and reverse their stock movements?,Void {0} document(s) and reverse their stock movements?
@@ -670,6 +687,7 @@ Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
 Warehouse,Warehouse
 Warehouse name,Warehouse name
+Warehouse not found,Warehouse not found
 With differences,With differences
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate

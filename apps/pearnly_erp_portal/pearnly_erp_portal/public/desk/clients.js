@@ -90,7 +90,7 @@
 				await p.call(api + method, row.name ? {name: row.name, ...values} : values, "POST");
 				dialog.hide();
 				// 主按动作要有回音：提示 + 提示音（与其他页面同一套 `p.success`）。
-				p.success(__("Saved"));
+				p.success(__("Saved"), "click");
 				await list?.reload();
 			});
 			return d;
