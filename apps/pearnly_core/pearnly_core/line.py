@@ -278,7 +278,10 @@ def usage(days: int = 31) -> dict:
     （那句"令牌到底多久过期"的疑问，答案就在 `reply_rejected` 上）。
     """
     try:
-        raw = frappe.cache().hgetall(frappe.cache().make_key(USAGE_HASH)) or {}
+        cache = frappe.cache()
+        # HINCRBY stores raw integers. RedisWrapper.hgetall would namespace the
+        # key again and unpickle values, so use its native command counterpart.
+        raw = cache.execute_command("HGETALL", cache.make_key(USAGE_HASH)) or {}
     except Exception:
         logger.warning("[line] 读用量账失败", exc_info=True)
         return {}

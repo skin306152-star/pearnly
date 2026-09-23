@@ -27,10 +27,16 @@ const opened = [];
 // jQuery 桩：`$(x).on(event, handler)` 可以注册**多组**（`product.js` 除了挂 `app_ready`，
 // 还挂了多行框自增长的委托事件），所以按事件名收进一张表；`app_ready` 那一条照旧能取到。
 const handlers = {};
-const context = {frappe, window:{open:(url)=>opened.push(url)}, document:{body:{classList:{add(){}}}},
+// Native frappe/provide.js creates this model cache before Desk app scripts load.
+// product.js now warms the currency symbol there without a privileged Currency RPC.
+const locals = {};
+const context = {frappe, locals, window:{open:(url)=>opened.push(url)}, document:{body:{classList:{add(){}}}},
   $: () => ({on(event, handler) { (handlers[event] = handlers[event] || []).push(handler); }}),
   __: text=>text};
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/product.js','utf8'),context);
+assert.equal(frappe.boot.sysdefaults.currency, 'THB', 'An unset site currency gets the product default');
+assert.equal(locals[':Currency'].THB.name, 'THB');
+assert.equal(locals[':Currency'].THB.symbol, '฿', 'Native currency cache is warmed before the first Desk paint');
 assert.equal((handlers.app_ready || []).length, 1, '构造期仍然挂上 app_ready');
 ready = handlers.app_ready[0];
 frappe.app = new frappe.Application();

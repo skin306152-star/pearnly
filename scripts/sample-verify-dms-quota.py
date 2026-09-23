@@ -17,6 +17,7 @@
 """
 
 import ast
+import pickle
 import sys
 import types
 from pathlib import Path
@@ -27,20 +28,26 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 
 
 class FakeCache:
-    """够用的假 Redis：hincrby / hgetall / make_key。"""
+    """区分原生命令与 Frappe 的命名空间/pickle hash 封装。"""
 
     def __init__(self):
         self.hash = {}
 
     def make_key(self, key):
-        return key
+        return f"quota-test|{key}".encode()
 
     def hincrby(self, key, field, amount=1):
         self.hash.setdefault(key, {})
         self.hash[key][field] = int(self.hash[key].get(field, 0)) + int(amount)
 
     def hgetall(self, key):
-        return dict(self.hash.get(key) or {})
+        raw = self.execute_command("HGETALL", self.make_key(key))
+        return {field: pickle.loads(value) for field, value in raw.items()}
+
+    def execute_command(self, command, key):
+        if command != "HGETALL":
+            raise AssertionError(f"Unexpected Redis command: {command}")
+        return {field.encode(): str(value).encode() for field, value in (self.hash.get(key) or {}).items()}
 
 
 class FakeResp:
@@ -107,7 +114,7 @@ def main():
         cache.hash.clear()
 
     def counts():
-        return dict(cache.hash.get("pearnly:line:usage") or {})
+        return dict(cache.hash.get(cache.make_key("pearnly:line:usage")) or {})
 
     # ── 1. 记账：免费的、计费的、以及失败是哪一种，都要分得出来 ─────────────
     reset()
@@ -138,6 +145,8 @@ def main():
     check("usage() 能按天读回来（排查与估算都用它）",
           usage.get("2026-09-23", {}).get("reply_ok") == 1
           and usage["2026-09-23"]["push_ok"] == 2, usage)
+    check("计数仅有一层 Site 命名空间，不读取或创建二次前缀",
+          set(cache.hash) == {cache.make_key(line.USAGE_HASH)})
 
     # ── 2. 令牌优先：能免费就免费，免费没戏才花钱 ─────────────────────────
     reset()
