@@ -327,7 +327,7 @@ New Sales Document	新建销售单	สร้างเอกสารขาย	�
 Total	总计	ยอดชำระ	請求額	trade.total
 Shift {0} · Expected cash {1}	班次 {0} · 应有现金 {1}	กะ {0} · เงินสดที่ควรมี {1}	シフト {0} · 現金予定額 {1}	trade.shiftOpen
 No Open Shift	尚未开班	ยังไม่เปิดกะ	未開店	trade.noShift
-New Sale	收银开单	ขายสินค้า	会計	trade.checkout
+Checkout	结账	ชำระเงิน	会計	trade.checkout
 Open Shift	开班	เปิดกะ	シフト開始	trade.openShift
 Terminal	收银台	จุดขาย	レジ	trade.terminal
 Opening Cash	备用现金	เงินสดเริ่มต้น	釣銭準備金	trade.float

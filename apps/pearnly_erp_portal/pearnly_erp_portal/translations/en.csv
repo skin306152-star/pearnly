@@ -92,6 +92,7 @@ Category Name,Category Name
 Change,Change
 Change Total,Change Total
 Chart by,Chart by
+Checkout,Checkout
 Cheque,Cheque
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
@@ -328,7 +329,6 @@ New Customer,New Customer
 New Invoice,New Invoice
 New Order,New Order
 New Purchase Invoice,New Purchase Invoice
-New Sale,New Sale
 New Sales Document,New Sales Document
 New Stock Issue,New Stock Issue
 New Stock Receipt,New Stock Receipt
@@ -1147,7 +1147,7 @@ trade.cartEmpty,The cart is empty
 trade.cashier,Cashier
 trade.change,Change
 trade.changeTotal,Change Total
-trade.checkout,New Sale
+trade.checkout,Checkout
 trade.close,Close
 trade.closeShift,Close Shift
 trade.closedAt,Closed At

@@ -92,6 +92,7 @@ Category Name,ชื่อหมวดหมู่
 Change,เงินทอน
 Change Total,เงินทอนรวม
 Chart by,แผนภูมิแบ่งตาม
+Checkout,ชำระเงิน
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
@@ -328,7 +329,6 @@ New Customer,เพิ่มลูกค้า
 New Invoice,บิลใหม่
 New Order,ออเดอร์ใหม่
 New Purchase Invoice,ใบแจ้งหนี้ซื้อใหม่
-New Sale,ขายสินค้า
 New Sales Document,สร้างเอกสารขาย
 New Stock Issue,จ่ายสินค้าออก
 New Stock Receipt,รับสินค้าเข้า
@@ -1147,7 +1147,7 @@ trade.cartEmpty,ตะกร้าว่างเปล่า
 trade.cashier,พนักงานเก็บเงิน
 trade.change,เงินทอน
 trade.changeTotal,เงินทอนรวม
-trade.checkout,ขายสินค้า
+trade.checkout,ชำระเงิน
 trade.close,ปิด
 trade.closeShift,ปิดกะ
 trade.closedAt,เวลาปิดกะ

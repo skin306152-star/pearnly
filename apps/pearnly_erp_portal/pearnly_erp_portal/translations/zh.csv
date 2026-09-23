@@ -92,6 +92,7 @@ Category Name,分类名称
 Change,找零
 Change Total,找零合计
 Chart by,看板按
+Checkout,结账
 Cheque,支票
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
@@ -328,7 +329,6 @@ New Customer,新建客户
 New Invoice,新单
 New Order,新订单
 New Purchase Invoice,新供应商发票
-New Sale,收银开单
 New Sales Document,新建销售单
 New Stock Issue,新建出库单
 New Stock Receipt,新建入库单
@@ -1147,7 +1147,7 @@ trade.cartEmpty,购物车是空的
 trade.cashier,收银员
 trade.change,找零
 trade.changeTotal,找零合计
-trade.checkout,收银开单
+trade.checkout,结账
 trade.close,关闭
 trade.closeShift,交班
 trade.closedAt,交班时间

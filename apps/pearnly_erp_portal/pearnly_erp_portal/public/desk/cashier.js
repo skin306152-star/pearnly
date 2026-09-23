@@ -630,6 +630,14 @@
 
 		async function checkout() {
 			if (!cart.length) return;
+			// 点「结账」那一声：**与这一排数字键同一个音**（`numpad-touch`）。
+			// 说明口径：官方那颗 `.checkout-btn` 的点击处理里其实**没有** `play_sound`
+			// （`erpnext/selling/page/point_of_sale/pos_item_cart.js:192`，整份官方 POS 只有
+			// 收款屏数字键响 `numpad-touch`、加购成功响 `submit`、校验失败响 `error`）——
+			// 用户 2026-09-23 要求这一颗也响，而它在官方标记里本来就是**键盘里的一颗**
+			// （`numpad-btn checkout-btn`），所以跟同排数字键取同一声，不另造音效。
+			// 音量与静音不用在这里判：官方 `play_sound` 自己看 `User.mute_sounds`。
+			frappe.utils.play_sound("numpad-touch");
 			paying = true;
 			view = "counter";
 			pay_target = METHODS[0];

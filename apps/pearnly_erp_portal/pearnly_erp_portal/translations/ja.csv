@@ -92,6 +92,7 @@ Category Name,カテゴリ名
 Change,お釣り
 Change Total,お釣り合計
 Chart by,グラフの軸
+Checkout,会計
 Cheque,小切手
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
@@ -328,7 +329,6 @@ New Customer,顧客を追加
 New Invoice,新規会計
 New Order,新しい注文
 New Purchase Invoice,仕入請求書作成
-New Sale,会計
 New Sales Document,販売伝票を作成
 New Stock Issue,出庫伝票を作成
 New Stock Receipt,入庫伝票を作成
