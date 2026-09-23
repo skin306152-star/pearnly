@@ -108,6 +108,10 @@ frappe.provide("frappe.pearnly");
 			return text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? ""));
 		};
 	};
+	// 「静音」是**一位管全站**：官方 `frappe.utils.play_sound` 自己看 `User.mute_sounds`，
+	// 而我们自己的提示（音效之外的震动这类）没有那条管道，判断收到这里来 ——
+	// 用户 2026-09-23 口径："同时关联静音和不静音，全站"。个人信息页保存后会当场回写这一位。
+	p.sounds_muted = () => Boolean(frappe.boot?.user?.mute_sounds);
 	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
 	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
 	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。

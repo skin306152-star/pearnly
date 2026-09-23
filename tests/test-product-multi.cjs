@@ -29,7 +29,7 @@ const DIALOG_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit'
   'track_batch', 'track_expiry', 'vat_applicable', 'image_url'];
 
 function boot({ create = async () => ({ name: 'P-1' }) } = {}) {
-  const calls = [], messages = [], routes = [], successes = [], scans = [];
+  const calls = [], messages = [], routes = [], successes = [], scans = [], sounds = [];
   const rows = [];
   const customButtons = element();
   let save, tableField, grid;
@@ -45,10 +45,15 @@ function boot({ create = async () => ({ name: 'P-1' }) } = {}) {
     call: async (method, args) => {
       calls.push({ method, args });
       if (String(method).endsWith('api_next_product_code')) return { code: 'P-000042' };
+      // 扫码查重要显式给"没查到"：桩的默认回值是"建成功了"（`{name: 'P-1'}`），拿它当查重
+      // 结果会把每一个新码都当成别人的（这一条同时决定扫码后放哪一声）。
+      if (String(method).endsWith('api_find_product')) return null;
       return create(method, args);
     },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => true,
+    // 结果那一声由 `scan.js` 的 `p.scan_result_sound` 负责（成功 `true` / 失败 `false`）。
+    scan_result_sound: ok => { sounds.push(ok); },
     selection_action: () => () => {},
     list: () => ({ ready: Promise.resolve(), reload: async () => {}, get_checked_items: () => [], clear_checked_items() {} }),
     dialog: () => ({ hide() {}, get_field: () => ({ $wrapper: element(), $input: element() }), set_value: async () => {} }),
@@ -96,7 +101,7 @@ function boot({ create = async () => ({ name: 'P-1' }) } = {}) {
     __: key => key,
     $: html => { const node = element(); node.html = html; return node; },
   });
-  return { calls, messages, routes, successes, scans, customButtons,
+  return { calls, messages, routes, successes, scans, sounds, customButtons,
     get rows() { return grid.df.data; },
     get tableField() { return tableField; },
     async ready() { await p.products(page, key => key); },
@@ -194,5 +199,6 @@ const row = (product_name, extra = {}) => ({ product_name, vat_applicable: 1,
   assert.equal(env.rows.length, before + 1);
   assert.equal(env.rows.at(-1).code_value, 'QR-扫描-1');
   assert.equal(env.rows.at(-1).__scanned, 'qr');
+  assert.deepEqual(env.sounds, [true], '扫完放一声成功音（码是新的时候）');
   console.log('PASS scanning adds a row and remembers the scanned code kind');
 })().catch(error => { console.error(error); process.exitCode = 1; });

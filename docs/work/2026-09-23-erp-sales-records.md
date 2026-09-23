@@ -2621,3 +2621,64 @@ F46 收尾时把"省时间"拆成 3a/3b，其中 3a 的验证条件卡在"本机
   `BarcodeDetector` + 同源 WASM 兜底。要不要把收银台也统一成自研那一套（一台设备一种行为），等你点头。
 · 盘点录入那一格不是 Link，它自己那套「输入码 → 查找 → 摄像头」是原有的，没并进这条机制。
 · 库存在库页顶上那个"搜索名称或条码"是列表筛选，不是"选物料"，没挂。
+
+### F52：扫码的反馈收成官方口径 —— 静音管住震动，一件事只响一声（2026-09-23，未部署）
+
+用户口径（原话）："**就做1-2吧**"（1＝震动要跟静音；2＝同一件事别响两声），
+外加一问："你说租户站不装 erpnext、官方那条钩子取不到……不可能给租户装 erpnext 吧？"
+
+**先把"钩子"和"文件"这两层讲清楚**（这是我上一轮没说清、把人绕晕的地方）：
+
+| 层 | 由什么决定 | 不装 erpnext 的租户站上是什么样 |
+| --- | --- | --- |
+| `<audio id="sound-…">` 这**一条声明** | 站点**安装**的 App 的 `sounds` 钩子（`frappe.get_hooks` → `get_installed_apps()`） | erpnext 那条**不会**生成（实测 `erp-pos-a` 只装了 frappe + pearnly_core + pearnly_erp_portal） |
+| `/assets/erpnext/sounds/numpad-touch.mp3` 这个**文件** | bench / 镜像里有没有 **clone** 过 erpnext（`sites/assets/erpnext` 是 bench 级软链） | 有 —— 生产镜像就是 `FROM frappe/erpnext:v16.34.1@digest`，`apps.txt` 也写着 erpnext |
+
+所以：**不用给租户装 erpnext，也不用复制文件**。我们在 `pearnly_core/hooks.py` 里补的那一条
+`numpad-touch` 声明，指向的是**镜像里本来就有**的那个文件；实测 `erp-pos-a` 页面里确实有
+`sound-numpad-touch` 这一个节点（只有一条，说明它来自我们，不是 erpnext）。
+残余前提写在下面「取舍」里。
+
+**改了什么**
+
+· `pearnly_core/public/desk/product.js` 新增 `p.sounds_muted()`：账户静音（`User.mute_sounds`）
+  是**一位管全站** —— 官方 `play_sound` 自己看它，我们自己的提示（震动这类）也收到这同一个判断上。
+· `scan.js` 的 `p.scan_feedback`（"读到了"那一刻）**不再出声**：只闪一下 + 对勾 + 震一下，
+  震动跟静音走（`p.sounds_muted?.()` 判断；共享层万一没加载就退回原来的"照震"）。
+· 新增 `p.scan_result_sound(ok)`：命中 `submit`、没命中 `error`，走官方 `play_sound`，
+  由**各调用方在"成了 / 没成"那一下**放 —— 跟官方 POS `pos_item_selector.js` 一样（那边也只有
+  命中才 `play_sound("submit")`）。
+  接上的四处：选择框扫码（`scan_link`）、商品弹窗扫码（写进表单 = 成功音；码是别人的 = 失败音）、
+  商品多行快录扫码（同上）、盘点录入（查到 = 成功音、没查到 = 失败音；打开已录那一行不算"查了"，不响）。
+
+**实测（真页面 `erp-pos-a`，把 `HTMLMediaElement.play` 与 `navigator.vibrate` 偷听下来）**
+
+| 检查 | 结果 |
+| --- | --- |
+| `p.scan_feedback(...)` | 播放列表 **空**（不出声）✔、震一下 `60` ✔、视觉反馈照旧上 `pearnly-scan-done` ✔ |
+| 静音时 `p.scan_feedback(...)` | **不震** ✔（视觉反馈照旧上，静音只管声音和震动） |
+| 取消静音 | 又震 ✔（`p.sounds_muted()` 跟着 `frappe.boot.user.mute_sounds` 走） |
+| `p.scan_result_sound(true/false)` | 真去播 `sound-submit` / `sound-error` 两个**官方节点** ✔ |
+| 页面上的音效节点 | `sound-email` / `submit` / `cancel` / `delete` / `click` / `error` / `alert` / `numpad-touch` 八个 |
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `tests/test-stocktake-scanner.cjs`（扩了三条断言） | 过：读到不放音、震一下、静音不震、结果音是 submit/error |
+| 变异测试①（把音效加回 `scan_feedback`） | "读到的瞬间不放音效"失败 —— 盯得住 |
+| 变异测试②（去掉静音判断） | "静音时不震"失败 —— 盯得住 |
+| `tests/test-product-scan.cjs` / `test-product-multi.cjs`（补契约 + 新断言） | 过：新码 = 成功音、码是别人的 = 失败音、多行快录扫码 = 成功音 |
+| JS 全套 11 支 | ALL PASS |
+| 架构 / 前端文案 / i18n 构建 / 门户权限 | PASS(0) / 0 问题 / PASS / 102 条 OK(6 skipped) |
+
+**取舍与没做**
+
+· 我们那条 `numpad-touch` 声明指向 `/assets/erpnext/sounds/numpad-touch.mp3`：**文件在镜像里**
+  （生产基础镜像就是官方 `frappe/erpnext`，digest 锁定；`infrastructure/production/site-step.py`
+  的 `apps.txt` 也写着 erpnext），但**站点不安装它**。换句话说这条依赖的成立条件是"镜像/bench 里
+  有 erpnext 的 assets"，不是"站点装了 erpnext"。哪天真把基础镜像换成纯 frappe，这条会静默没声 ——
+  要彻底断掉就把那 1.6KB 的 mp3 放进我们自己的 App（ERPNext 是 GPLv3 资产，要不要复制请你定）。
+· 收银台那颗是官方扫码器：它本来就不在"读到"时出声，只在进购物车 / 没找到时各一声 submit/error，
+  跟这次改完的口径一致，所以没动。
+· 扫码枪（键盘输入）在采购行、盘点那几处仍是各页自己处理回车；这次没有并进同一套。

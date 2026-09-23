@@ -42,10 +42,19 @@ frappe.provide("frappe.pearnly");
 		<span class="pearnly-scan-flash" aria-hidden="true"></span>
 		<span class="pearnly-scan-check" aria-hidden="true">${frappe.utils.icon("es-line-success", "md")}</span>
 		</div>`;
+	// "读到了"这一刻的反馈：**只做不像结果的那一部分** —— 闪一下、对勾、震一下。
+	// 音效**不在这里**：官方 POS 是"真的进单"才响一声（`pos_item_selector.js` 里只有命中
+	// 那一条路径 `play_sound("submit")`），读到就响会变成"一件事两声"（用户 2026-09-23 的
+	// 口径）。结果那一声由调用方在**成了 / 没成**的时刻放，见下面的 `p.scan_result_sound`。
 	p.scan_feedback = host => {
-		try { frappe.utils.play_sound("submit"); } catch (_error) { /* Muted browser. */ }
-		navigator.vibrate?.(60);
+		// 震动也算提示：账户静音就一起停。判断跟音效同一个开关（`p.sounds_muted`）。
+		if (!p.sounds_muted?.()) navigator.vibrate?.(60);
 		$(host).find(".pearnly-scan-stage").addClass("pearnly-scan-done");
+	};
+	// 结果那一声：和官方 POS 完全一致的两个音（命中 `submit`、没命中 `error`），走官方的
+	// `play_sound` —— 所以账户静音时它自己就不响了，不用在这儿再判一次。
+	p.scan_result_sound = ok => {
+		try { frappe.utils.play_sound(ok ? "submit" : "error"); } catch (_error) { /* Muted browser. */ }
 	};
 	p.scan_reader = ({ host, kind = "all", on_result, on_error }) => {
 		const video = $(host).find("video").get(0);
@@ -137,12 +146,12 @@ frappe.provide("frappe.pearnly");
 				{ value: code });
 			if (!found?.name) {
 				frappe.show_alert({ message: t("product.scan.notFound", code), indicator: "orange" });
-				try { frappe.utils.play_sound("error"); } catch (_error) { /* Muted browser. */ }
+				p.scan_result_sound(false);
 				return;
 			}
 			// 填进选择框；后面"带出"交给字段自己的 onchange（各页自己那份），不在这里重复一遍。
 			await control.set_value(found.name);
-			try { frappe.utils.play_sound("submit"); } catch (_error) { /* Muted browser. */ }
+			p.scan_result_sound(true);
 		} });
 	};
 })();

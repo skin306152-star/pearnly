@@ -161,11 +161,14 @@
 				await load_photos();
 				render_photos();
 				d.fields_dict.qty.$input.trigger("focus");
+				// 结果那一声：查到了才响（从码来的那一次才算 —— 打开已录那一行不算"查了"）。
+				if (code) p.scan_result_sound(true);
 			} catch (error) {
 				selected = null;
 				message(w("lookupFailed"));
 				if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				scanner?.resume();
+				if (code) p.scan_result_sound(false);
 			} finally { busy = false; }
 		}
 		async function start_camera() {

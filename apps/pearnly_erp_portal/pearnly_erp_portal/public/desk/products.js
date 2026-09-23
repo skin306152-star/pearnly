@@ -170,7 +170,10 @@
 				return p.scan({ kind: "all", on_result: async (code, details) => {
 					state.scanned = details?.kind || null;
 					await dialog.set_value("code_value", code);
-					await flag_taken(code, self_name, () => dialog.hide());
+					// 结果那一声（官方 POS 的口径：进了才算数）：写进表单是成功，码是别人的
+					// 是要你处理，两种给不同的音。
+					const taken = await flag_taken(code, self_name, () => dialog.hide());
+					p.scan_result_sound(!taken);
 				} });
 			});
 			// 扫码枪就是个键盘（它打进来的是文字，没有码型）：打完补的那个回车不能顺手把表单存了。
@@ -400,7 +403,8 @@
 					row.code_value = code;
 					row.__scanned = details?.kind || null;
 					grid.refresh();
-					await flag_taken(code, "", null);
+					const taken = await flag_taken(code, "", null);
+					p.scan_result_sound(!taken);
 				} });
 			});
 

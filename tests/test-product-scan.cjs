@@ -27,7 +27,7 @@ const NEW_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', '
   'track_batch', 'track_expiry', 'vat_applicable', 'image_url'];
 
 function boot({ product = null, supported = true, can_write = true } = {}) {
-  const calls = [], messages = [], scans = [], dialogs = [], editAll = [];
+  const calls = [], messages = [], scans = [], dialogs = [], editAll = [], sounds = [];
   const inputs = {}, controls = {}, values = {};
   let open_create, open_form, list_options;
 
@@ -45,6 +45,9 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     },
     scan: options => { scans.push(options); return Promise.resolve(); },
     scan_supported: () => supported,
+    // 结果那一声由 `scan.js` 的 `p.scan_result_sound` 负责（写进表单 = 成功 `true`，
+    // 码是别人的 = 要你处理 `false`）：按同一份契约记下来，顺带断言扫完真的有反馈。
+    scan_result_sound: ok => { sounds.push(ok); },
     // 弹窗左下角那颗"全屏编辑"由共享层的 `p.edit_all` 提供（核心实现用官方的
     // `dialog.add_custom_action`）。这里按同一份契约模拟：记下调用，并让测试能"点"它。
     edit_all: (dialog, label, route, carry) => {
@@ -103,7 +106,7 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
   // $ 只用来建那颗图标按钮：把 HTML 留下来给断言看。
   vm.runInNewContext(source, { frappe,
     $: html => { const node = element(); node.html = html; return node; } });
-  return { p, page, calls, messages, scans, dialogs, inputs, controls, values,
+  return { p, page, calls, messages, scans, dialogs, inputs, controls, values, sounds,
     get editAll() { return editAll; },
     async ready() { await p.products(page, key => key); },
     get list_options() { return list_options; },
@@ -183,6 +186,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
   assert.equal(scan.kind, 'all');
   await scan.on_result('8850000009912', { format: 'qr_code', kind: 'qr' });
   assert.equal(dialog.values.code_value, '8850000009912');
+  assert.deepEqual(env.sounds, [true], '码是自己的/新的：结果那一声是成功音');
   assert.deepEqual(plain(env.calls.at(-1)), {
     method: 'pearnly_erp_portal.products.service.api_find_product',
     args: { value: '8850000009912', exclude: '' } });
@@ -265,6 +269,7 @@ const plain = value => JSON.parse(JSON.stringify(value));
   await taken.env.scans.at(-1).on_result('8850000009912', { format: 'ean_13', kind: 'barcode' });
   assert.equal(taken.env.messages[0].title, 'product.scan.taken');
   assert.equal(taken.env.messages[0].primary_action.label, 'product.scan.open');
+  assert.deepEqual(taken.env.sounds, [false], '码是别人的：这一声是失败音，跟成功分开');
   console.log('PASS unsupported camera falls back to typing; taken codes warn in place');
 
   // 11) 只读的岗位不挂扫码图标（扫了也存不了）。
