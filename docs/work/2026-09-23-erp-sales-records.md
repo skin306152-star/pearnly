@@ -1879,3 +1879,68 @@ name = endpoint if isinstance(endpoint, str) else str(getattr(endpoint, "name", 
 **没验到的**：客户那张卡的具体推送内容（我们不记录 LINE 卡片正文，日志里搜不到那个号码与那句提示）；
 `ris` 的会话表为空（会话已过期/清掉），拿不到当时存下的 `has_admin` 值；
 他们视野里是否还有租户跑在**旧产品**（旧 Cloud Run 未切流，旧 Contabo 已停机）。
+
+### F41：连不上 DMS 就给「重试」，并删掉那三处"开户时发的"文案（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    超时第一次失败点加按钮重试，重试同步加时长，第三次还失败同步加重试，再加时长，最多三次，
+    还失败就连不上第三方 dms 系统，请联系管理员
+    不要加卡片，就文案和 line 官方原生按钮触发
+    （DMS 操作员的编辑弹窗里那段、DMS 账号页的说明、改用户名被拒时服务端返回的那句 409 文案）要一起删
+
+**A. 连不上 → 用户点「重试」，最多三次，一次比一次宽**
+
+| 第几次 | 打开登录页的预算 | 失败后回什么 |
+| --- | --- | --- |
+| 1 | 30 秒 | 原话 + LINE 原生快捷按键「重试」 |
+| 2 | 60 秒 | 同上 |
+| 3 | 90 秒 | 只说「连不上第三方 DMS 系统，请联系管理员」，**不再给按键** |
+
+- 为什么第一次就 30 秒：F40 实测那台 DMS 的**全新 TLS 握手 24.3 秒**（会话复用才 0.2 秒），
+  而 Playwright 每次登录都是新连接 —— 老的 15 秒预算必然超时。
+- **不自动重试**：一次尝试最坏 90 秒，自动连三次就是几分钟静默，操作员只会以为卡死；
+  决定权交回给他，点一下再试。
+- 只对"连不上/技术失败"（`ERR_DMS_UNREACHABLE` / `ERR_DMS_TECHNICAL`）给重试；
+  对方明确拒绝（账号错、被顶下线、审批被拒）**不给** —— 再点几次还是同样的拒绝。
+- 新增 `DmsUnreachableError`（`DmsTechnicalError` 的子类，**捕获顺序排在父类之前**）与
+  `ERR_DMS_UNREACHABLE`（四语言文案齐）：**"打不开对方登录页"从此不再报成"我们服务器内部错误"**。
+- 回话是**文本 + quick reply**（`cards.retry_message`），没有 Flex 卡片骨架。
+
+**B. 差异卡没有 `[อัปเดตข้อมูล]`（网页编辑器改完保存后更新不了）**
+
+按 F40 的诊断改：`intake/draft.has_admin_creds` 现在与 `contracts/endpoint.py: endpoint_name`
+同一口径解析端点 —— **字典、字符串、带 `.name` 的对象都认**。此前字典会落进
+`getattr(endpoint, "name", "")` 成空串 → 永远 `False`（F39 当时判成"设计如此"，F40 纠正为移植漏项，本条落地）。
+
+**C. 删掉三处"开户时发的、不能修改"**
+
+| 位置 | 改法 |
+| --- | --- |
+| `operators/roster.py:237`（花名册兜底，**用户说"会带到其它页"的那处**） | 改成本文件拒参数时同一句 `Invalid value` |
+| `account/api.py:73`（改用户名被拒的 409） | 改成 `dms.account.failed`（只说这一步没成，不解释账号怎么来的） |
+| `frontend` 的 `AccountPage.vue` / `RosterPage.vue` | 删掉说明行与错误映射里的那个键 |
+
+术语表与四语言包里的 `roster.usernameFixed` / `dms.account.usernameFixed` / `dms.account.hint`
+（含按英文原文补的别名行）一并删；全仓已无任何引用。`dms.account.portalHint` **保留** ——
+`account/portal.py` 还在用它（那是另一个页面上的另一句话）。代码注释里"为什么这么判"照旧留着，
+它不进界面。
+
+**检查（全部本机，未合并、未部署）**
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS(0)（新模块按规则落进域包 `intake/retry.py`，不是 app 根层） |
+| `python3 scripts/check-dms-offline.py` | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / **retry 32** 全 PASS |
+| `python3 scripts/check-dms-parity.py` | 复核 4 处漂移（cards、flow×2、draft，逐条对上本轮改动）后 `--update`，现"没有漂移" |
+| `python3 scripts/check-frontend-i18n.py` | 0 问题 |
+| `python3 scripts/i18n-build.py --check` | PASS（1927 条 / 4 个 App） |
+| 前端 `vue-tsc --noEmit && vite build` | PASS。本机 `npm` shim 指向不存在的 `cua_app` npm-cli，改用 `~/.local/lib/qwen-code/node` 里的真 npm 跑通；产物落在 gitignore 的 `public/pearnly-app/` |
+| 新增 `scripts/sample-verify-dms-retry.py`（32 条断言，已登记进离线回归） | ALL PASS：预算递增与夹取、可重试码集合、**捕获顺序子类在父类之前**、「重试」分支在消费 nonce 之前、第三次不给按键、回话无卡片骨架、四语言文案在包里 |
+
+**没验到的**
+
+- **真机 LINE 点那颗「重试」**：本机没有 DMS 运行时会话（演示站不装 `pearnly_dms`），
+  webhook → 后台 → DMS 这条链端到端跑不起来，只验到离线断言 + 生产日志对照。
+- **DMS 花名册弹窗的实际渲染**：前端源码改了、build 过了，但没有能登录的 DMS 站做真机回归。
+- **生产是否修好**：未部署（本任务只本地改、本地验）。
