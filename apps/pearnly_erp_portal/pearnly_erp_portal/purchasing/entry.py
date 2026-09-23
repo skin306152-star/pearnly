@@ -171,7 +171,7 @@ def _post(payload, request_id, fingerprint, name, amended_from):
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
         if row.get("warehouse"):
-            row["warehouse"] = warehouses.resolve(row["warehouse"])
+            row["warehouse"] = warehouses.required(row["warehouse"])
         rows.append(positions.prepare(row))
     if original:
         _cancel(original, _("Amended"))

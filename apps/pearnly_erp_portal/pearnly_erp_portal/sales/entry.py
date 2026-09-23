@@ -58,7 +58,7 @@ def _lines(payload):
         if qty * price - discount < 0:
             frappe.throw(_("Discount cannot exceed the amount"))
         if row.get("warehouse"):
-            row["warehouse"] = warehouses.resolve(row["warehouse"])
+            row["warehouse"] = warehouses.required(row["warehouse"])
         result.append(row)
     return result
 

@@ -299,8 +299,18 @@ def update_product(name: str, **changes):
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
     for field in ("default_warehouse", "default_location"):
-        if field in changes:
-            doc.set(field, _text(changes[field], 140))
+        if field not in changes:
+            continue
+        value = _text(changes[field], 140)
+        if field == "default_warehouse" and value:
+            # 默认仓库必须是**真实存在且启用**的仓库。商品是全公司共用的主数据（不像单据那样
+            # 挂某一家公司），所以这里只确认"这个仓存在且启用"，不要求它属于当前公司 ——
+            # 页面上的下拉本来只列当前公司的仓库（`p.warehouse_query()`）。
+            exists, active = frappe.db.get_value("ERP Warehouse", value,
+                                                 ["name", "is_active"]) or (None, None)
+            if not exists or not active:
+                frappe.throw(_("Warehouse not found"))
+        doc.set(field, value)
     old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):

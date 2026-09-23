@@ -109,7 +109,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     terminal_doc = frappe.get_doc("ERP POS Terminal", terminals.resolve(terminal or shift_doc.terminal))
     # Explicit terminal location wins; otherwise each product supplies its own default.
     lines = [positions.prepare(line, warehouse or terminal_doc.warehouse) for line in lines]
-    warehouse_id = warehouses.resolve(warehouse or terminal_doc.warehouse)
+    warehouse_id = warehouses.required(warehouse or terminal_doc.warehouse)
 
     try:
         totals = contracts.sale_totals(lines, discount_total=discount_total,

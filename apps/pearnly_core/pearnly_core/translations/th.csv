@@ -654,6 +654,7 @@ VAT Included,รวมภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
 Valid for {0},เหลืออายุ {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}
+Warehouses,คลังสินค้า
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,ส่งอะไรไป
 What Was Recognised,สิ่งที่อ่านได้
@@ -899,6 +900,7 @@ nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
 nav.companyList,รายชื่อบริษัท
 nav.companyMaster,ทะเบียนบริษัท
+nav.companyWarehouses,คลังสินค้า
 nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,ลูกค้า

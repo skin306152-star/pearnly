@@ -654,6 +654,7 @@ VAT Included,税込
 VAT Rate %,税率%
 Valid for {0},残り有効時間 {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},{0} 秒待っても同一アカウントのロックを取得できません（{1}）。同一アカウントへの同時ログインは禁止です。{2}
+Warehouses,倉庫
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
 What Was Pushed,何を送ったか
 What Was Recognised,認識の記録
@@ -899,6 +900,7 @@ nav.clients,顧客管理
 nav.company,会社情報
 nav.companyList,会社一覧
 nav.companyMaster,会社マスタ
+nav.companyWarehouses,倉庫
 nav.connect,DMSに接続
 nav.cowork,Pearnly Cowork
 nav.erpClients,顧客

@@ -58,7 +58,7 @@ def create_terminal(*, terminal_name, warehouse=None, is_default=False) -> dict:
     if not name:
         frappe.throw(_(NAME_REQUIRED))
     doc = frappe.get_doc({"doctype": DOCTYPE, "terminal_name": name,
-                          "warehouse": warehouses.resolve(warehouse),
+                          "warehouse": warehouses.required(warehouse),
                           "is_default": 1 if is_default else 0, "is_active": 1})
     doc.insert()
     frappe.db.commit()

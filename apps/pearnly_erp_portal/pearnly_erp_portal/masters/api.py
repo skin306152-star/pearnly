@@ -44,6 +44,23 @@ def api_get_profile(**kwargs):
     return company.get_profile(kwargs.get("name"))
 
 
+@frappe.whitelist()
+def api_company_warehouses(company_name=None, include_inactive=1):
+    """某家公司名下的仓库（公司页里那一节）。默认看当前公司。"""
+    from pearnly_erp_portal.inventory import warehouses
+
+    return warehouses.list_warehouses(include_inactive=bool(int(include_inactive)),
+                                      limit=0, company=company_name)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_set_default_warehouse(name):
+    """把某个仓库设成它所属公司的默认仓（官方也是"每家公司一个默认仓"）。"""
+    from pearnly_erp_portal.inventory import warehouses
+
+    return warehouses.set_default(name)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_update_profile(**kwargs):
     return company.update_profile(**_clean(kwargs))

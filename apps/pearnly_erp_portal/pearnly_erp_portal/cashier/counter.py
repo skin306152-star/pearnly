@@ -30,7 +30,7 @@ def warehouse_for(terminal=None) -> str:
     """这个收银台动的是哪个仓库：收银台配了就用它，没配用默认仓库。"""
     name = terminals.resolve(terminal)
     value = frappe.db.get_value("ERP POS Terminal", name, "warehouse")
-    return warehouses.resolve(value) if value else warehouses.ensure_default()
+    return warehouses.required(value)
 
 
 def _on_hand(warehouse: str, names: list) -> dict:

@@ -826,6 +826,14 @@ PromptPay	PromptPay 收款	พร้อมเพย์รับเงิน	Prom
 Address	地址	ที่อยู่	住所	company.field.address
 Note	备注	หมายเหตุ	備考	company.field.note
 Company details	公司信息	ข้อมูลบริษัท	会社情報	company.section.basic
+Warehouse	仓库	คลังสินค้า	倉庫	company.section.warehouse
+Warehouse	仓库	คลังสินค้า	倉庫	company.field.warehouse
+Main	主仓	คลังหลัก	メイン倉庫	company.warehouseDefaultName
+Warehouse name	仓库名称	ชื่อคลังสินค้า	倉庫名	company.col.warehouse
+Default warehouse	默认仓库	คลังเริ่มต้น	既定の倉庫	company.col.defaultWarehouse
+New warehouse	新建仓库	เพิ่มคลังสินค้า	倉庫を追加	company.newWarehouse
+Set as default	设为默认	ตั้งเป็นค่าเริ่มต้น	既定にする	company.setDefaultWarehouse
+{0} is now the default warehouse	{0} 已设为默认仓库	{0} เป็นคลังเริ่มต้นแล้ว	{0} を既定の倉庫にしました	company.notice.defaultWarehouse
 Address and notes	地址与备注	ที่อยู่และหมายเหตุ	住所と備考	company.section.address
 Save	保存	บันทึก	保存	company.save
 Saved	已保存	บันทึกแล้ว	保存しました	company.notice.saved

@@ -27,8 +27,13 @@ def prepare(line, warehouse=None):
                                   as_dict=True)
     if not product or not product.is_active:
         frappe.throw(_("Product not found"))
-    result["warehouse"] = warehouses.resolve(
-        result.get("warehouse") or warehouse or product.default_warehouse)
+    # 仓库必须是这家公司真实存在的仓（仓库属于公司）。商品上那个默认仓可能是别家公司
+    # 或者已经停用的，那种情况要**报错**而不是把货悄悄记到"没有仓库"上。
+    wanted = result.get("warehouse") or warehouse or product.default_warehouse
+    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.ensure_default()
+    if not resolved:
+        frappe.throw(_("Warehouse not found"))
+    result["warehouse"] = resolved
     result["location"] = clean_location(
         result["location"] if "location" in result else product.default_location)
     return result

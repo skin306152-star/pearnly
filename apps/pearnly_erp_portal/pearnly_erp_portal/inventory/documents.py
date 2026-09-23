@@ -63,7 +63,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
     lines = [positions.prepare(line, warehouse) for line in _business_lines(lines)]
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
@@ -130,7 +130,7 @@ def update_entry(name, **changes):
     for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:
-            doc.set(field, warehouses.resolve(changes[field]) if field == "warehouse" else changes[field])
+            doc.set(field, warehouses.required(changes[field]) if field == "warehouse" else changes[field])
     if "lines" in changes:
         lines = _business_lines(changes["lines"])
         doc.lines = []

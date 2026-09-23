@@ -104,7 +104,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         _require()
     product_doc = _product(product, allow_inactive=internal and allow_inactive)
     location = positions.clean_location(location)
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     lock_products([product])
 
     if client_uuid:
@@ -357,7 +357,7 @@ def stock_totals(*, warehouse=None, q=None) -> dict:
 def rebuild_balance(product: str, warehouse: str, location="") -> dict:
     """按流水重算某一行结存。用来验"结存确实能从流水推出来"，也用于修复。"""
     _require()
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     location = positions.clean_location(location)
     lock_products([product])
     movements = frappe.get_all(

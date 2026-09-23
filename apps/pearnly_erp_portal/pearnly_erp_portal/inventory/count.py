@@ -100,7 +100,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     name = (title or "").strip()
     if not name:
         frappe.throw(_(TITLE_REQUIRED))
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     doc = frappe.get_doc({"doctype": COUNT, "title": name, "warehouse": warehouse,
                           "notes": notes, "status": "Active"})
     count_state.write_document(doc, "insert")
@@ -364,8 +364,8 @@ def _warehouse_label(name) -> str:
 
 
 def _warehouse_of(value, fallback) -> str:
-    """Import uses the same free-text storage names as business forms."""
-    return warehouses.resolve(value or fallback)
+    """上传导入那一列里的仓库名 → 真实的仓库（只认当前公司已有的仓）。"""
+    return warehouses.required(value or fallback)
 
 
 def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False) -> list[dict]:
@@ -654,7 +654,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         if row['count'] != count:
             frappe.throw(_(ITEM_NOT_FOUND))
         product_id = row['product']
-        actual_warehouse = warehouses.resolve(warehouse if warehouse is not None else row['warehouse'])
+        actual_warehouse = warehouses.required(warehouse if warehouse is not None else row['warehouse'])
         actual_location = positions.clean_location(location if location is not None else row['location'])
     else:
         found = product_of_code(code) if code else frappe.db.get_value(
@@ -662,7 +662,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
         if not found:
             frappe.throw(_(CODE_NOT_FOUND))
         product_id = found['name']
-        actual_warehouse = warehouses.resolve(warehouse or task.warehouse)
+        actual_warehouse = warehouses.required(warehouse or task.warehouse)
         actual_location = positions.clean_location(location)
         item = _insert_item(count, found, actual_warehouse,
                             stock_service.current_balance(product_id, actual_warehouse, actual_location).qty,
@@ -713,7 +713,7 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
     if location is not None:
         doc.location = positions.clean_location(location)
     if warehouse is not None:
-        doc.warehouse = warehouses.resolve(warehouse)
+        doc.warehouse = warehouses.required(warehouse)
     if note is not None:
         doc.note = note
     doc.version = int(doc.version) + 1

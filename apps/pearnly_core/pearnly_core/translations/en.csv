@@ -652,6 +652,7 @@ VAT Included,VAT Included
 VAT Rate %,VAT Rate %
 Valid for {0},Valid for {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2}
+Warehouses,Warehouses
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
 What Was Pushed,What Was Pushed
 What Was Recognised,What Was Recognised
@@ -897,6 +898,7 @@ nav.clients,Customers
 nav.company,Company
 nav.companyList,Company List
 nav.companyMaster,Company Master
+nav.companyWarehouses,Warehouses
 nav.connect,Connect DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,Customers

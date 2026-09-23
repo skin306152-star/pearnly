@@ -108,7 +108,10 @@
 				{ fieldtype: "Int", fieldname: "category_id", label: t("product.field.category"),
 					default: value("category_id") },
 				{ fieldtype: "Column Break" },
-				{ fieldtype: "Data", fieldname: "default_warehouse", label: t("product.field.defaultWarehouse"),
+				// 默认仓库：官方原生 Link（只列当前公司的仓库），与出入库/销售采购明细同一口径。
+				{ fieldtype: "Link", options: "ERP Warehouse", only_select: true,
+					get_query: p.warehouse_query(), fieldname: "default_warehouse",
+					label: t("product.field.defaultWarehouse"),
 					default: value("default_warehouse") },
 				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
 					description: t("product.field.locationHint"), default: value("default_location") },
@@ -322,7 +325,9 @@
 				label: t("product.field.price"), in_list_view: 1, columns: 2 },
 			{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 				in_list_view: 1, columns: 1 },
-			{ fieldtype: "Data", fieldname: "default_warehouse",
+			// 快录表里也是同一个官方 Link（只列当前公司的仓库）。
+			{ fieldtype: "Link", options: "ERP Warehouse", only_select: true,
+				get_query: p.warehouse_query(), fieldname: "default_warehouse",
 				label: t("product.field.defaultWarehouse"), in_list_view: 1, columns: 1 },
 			{ fieldtype: "Data", fieldname: "default_location",
 				label: t("product.field.defaultLocation"), columns: 2 },

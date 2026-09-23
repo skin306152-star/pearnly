@@ -159,6 +159,7 @@ Date,日付
 Dedupe Key,重複防止キー
 Default Location,既定の保管場所
 Default Warehouse,既定の倉庫
+Default warehouse,既定の倉庫
 Delete,削除
 Delete selected ({0}),選択を削除（{0}）
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
@@ -305,6 +306,7 @@ Location,保管場所
 Low (≤{0}),在庫少（≤{0}）
 Low stock,在庫少
 Low stock alert,低在庫アラート
+Main,メイン倉庫
 Manual,手動入力
 Manual Entry,手動入力
 Manually Set Amounts,金額の手動設定
@@ -327,6 +329,7 @@ New Supplier,仕入先を追加
 New company,会社を追加
 New product,商品を追加
 New stock count,棚卸を作成
+New warehouse,倉庫を追加
 Next,次へ
 No,番号
 No Open Shift,未開店
@@ -498,6 +501,7 @@ Selling price,販売価格
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
 Service,サービス
 Set as current,現在の会社にする
+Set as default,既定にする
 Sheet,シート
 Shelf,棚番
 Shift History,シフト履歴
@@ -648,6 +652,7 @@ Void {0} selected,選択した{0}件を取り消す
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
 Warehouse,倉庫
+Warehouse name,倉庫名
 With differences,差異あり
 Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
@@ -699,11 +704,13 @@ client.save,保存
 client.title,顧客
 company,会社
 company.col.current,現在
+company.col.defaultWarehouse,既定の倉庫
 company.col.name,会社名
 company.col.phone,電話
 company.col.shortName,略称
 company.col.status,状態
 company.col.taxId,納税者番号
+company.col.warehouse,倉庫名
 company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
 company.enable,有効にする
@@ -719,6 +726,7 @@ company.field.phone,電話
 company.field.promptpay,PromptPay 受け取り
 company.field.shortName,略称
 company.field.taxId,納税者番号
+company.field.warehouse,倉庫
 company.fiscalHint,1 = 1月
 company.lookup.action,照会
 company.lookup.failed,照会に失敗しました。手入力してください
@@ -731,7 +739,9 @@ company.lookup.parse_error,税務局の応答形式を解釈できません
 company.lookup.querying,税務局に照会中…
 company.lookup.rd_unreachable,現在、税務局に接続できません
 company.new,会社を追加
+company.newWarehouse,倉庫を追加
 company.notice.created,作成しました
+company.notice.defaultWarehouse,{0} を既定の倉庫にしました
 company.notice.saved,保存しました
 company.notice.toggled,更新しました
 company.promptpayHint,入金時に相手へ伝える口座
@@ -740,11 +750,14 @@ company.save,保存
 company.section.address,住所と備考
 company.section.basic,会社情報
 company.section.documents,書類
+company.section.warehouse,倉庫
 company.setCurrent,現在の会社にする
+company.setDefaultWarehouse,既定にする
 company.status.active,有効
 company.status.inactive,無効
 company.subtitle,書類に使う自社情報
 company.taxHint,13桁。支店は5桁の支店番号を続けます
+company.warehouseDefaultName,メイン倉庫
 company.yes,はい
 completed,完了
 count,棚卸
@@ -1244,5 +1257,6 @@ trade.warehouseHint,倉庫名は自由入力です。新しい名前なら自動
 transfer,振込
 unpaid,未払い
 void,取消済み
+{0} is now the default warehouse,{0} を既定の倉庫にしました
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}

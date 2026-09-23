@@ -654,6 +654,7 @@ VAT Included,含增值税
 VAT Rate %,税率%
 Valid for {0},剩余有效期 {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},等 {0}s 仍没拿到同一账号的锁（{1}）—— 绝不并发登同一个账号。{2}
+Warehouses,仓库
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推的是哪一单
 What Was Recognised,识别留证
@@ -899,6 +900,7 @@ nav.clients,客户管理
 nav.company,公司
 nav.companyList,公司列表
 nav.companyMaster,公司主档
+nav.companyWarehouses,仓库
 nav.connect,连接DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,客户

@@ -143,6 +143,13 @@
 				f("promptpay_id", "company.field.promptpay", "Data", {default: row?.promptpay_id || ""}),
 				f("address", "company.field.address", "Small Text", {default: row?.address || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
+				// 新公司**顺手建第一个仓库**（用户 2026-09-23：新建公司时就加这个入口）：
+				// 没有仓库就入不了库、卖不了货；建好之后它就这家公司的默认仓，之后还能再加。
+				...(is_new ? [
+					{fieldtype: "Section Break", label: t("company.section.warehouse")},
+					f("warehouse_name", "company.field.warehouse", "Data",
+						{default: t("company.warehouseDefaultName")}),
+				] : []),
 			];
 			holder.dialog = p.dialog(is_new ? t("company.new") : row.company_name, fields,
 				is_new ? t("company.new") : __("Save"), async (values, dialog) => {
@@ -153,6 +160,88 @@
 					await list.reload();
 					restore_new();
 				});
+		}
+
+		// ── 当前公司的仓库（一租户多公司：仓库属于公司，库存按仓库记账）──────────
+		async function warehouses() {
+			p.clear_page(page);
+			form = null;
+			page.set_title(__("nav.companyWarehouses"));
+			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
+				trail: [{label: __("nav.companyWarehouses"), route: ""}]});
+			// 当前公司由服务端在 boot 里给（`masters/boot.py`）。
+			const current = frappe.boot.pearnly_company;
+			const can_manage = can_write();
+			list = p.list({page, doctype: "ERP Warehouse", compact_columns: true,
+				columns: [
+					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
+						width: 200, min_width: 140},
+					{fieldname: "is_default", label: t("company.col.defaultWarehouse"),
+						width: 120, min_width: 96,
+						format: value => (Number(value) ? t("company.yes") : "—")},
+					{fieldname: "is_active", label: t("company.col.status"), width: 92, min_width: 74,
+						format: value => (Number(value) ? t("company.status.active")
+							: t("company.status.inactive")),
+						cell_class: value => (Number(value) ? "" : "pearnly-payment-due")},
+					{fieldname: "note", label: t("company.field.note"), width: 180, min_width: 120},
+				],
+				on_open: row => (can_manage ? edit_warehouse(row) : null),
+				row_actions: can_manage ? row => [
+					{id: "default", label: t("company.setDefaultWarehouse"),
+						disabled: Number(row.is_default) === 1,
+						action: () => make_default(row)},
+					{id: "active", label: Number(row.is_active) ? t("company.disable")
+						: t("company.enable"), action: () => toggle_warehouse(row)},
+				] : null,
+				load: async () => {
+					const rows = await p.call(api + "api_company_warehouses",
+						{company_name: current, include_inactive: 1});
+					return {items: rows, total: rows.length};
+				},
+				empty_action: can_manage
+					? {label: t("company.newWarehouse"), action: () => edit_warehouse(null)} : null});
+			if (can_manage) {
+				page.set_primary_action(t("company.newWarehouse"), () => edit_warehouse(null));
+			} else {
+				page.clear_primary_action();
+			}
+			p.add_refresh(page, () => list.reload());
+			await list.ready;
+		}
+
+		function edit_warehouse(row) {
+			const is_new = !row;
+			p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
+				f("warehouse_name", "company.field.warehouse", "Data",
+					{reqd: 1, default: row?.warehouse_name || ""}),
+				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
+			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
+				if (is_new) {
+					await p.call("pearnly_erp_portal.inventory.api.api_create_warehouse",
+						{warehouse_name: values.warehouse_name, note: values.note, is_default: 0},
+						"POST");
+				} else {
+					await p.call("pearnly_erp_portal.inventory.api.api_update_warehouse",
+						{name: row.name, warehouse_name: values.warehouse_name, note: values.note},
+						"POST");
+				}
+				dialog.hide();
+				p.success(t("company.notice.saved"));
+				await list.reload();
+			});
+		}
+
+		async function make_default(row) {
+			await p.call(api + "api_set_default_warehouse", {name: row.name}, "POST");
+			p.success(t("company.notice.defaultWarehouse", row.warehouse_name));
+			await list.reload();
+		}
+
+		async function toggle_warehouse(row) {
+			await p.call("pearnly_erp_portal.inventory.api.api_update_warehouse",
+				{name: row.name, is_active: Number(row.is_active) ? 0 : 1}, "POST");
+			p.success(t("company.notice.saved"));
+			await list.reload();
 		}
 
 		// 设为当前公司：写自己的用户默认值（官方那个 `company` 键），整页重载跟着换。
@@ -220,17 +309,22 @@
 				page.clear_primary_action();
 			}
 			// 次按钮进公司列表：一张表两张面孔，来回都在这一个页面上。
-			page.add_inner_button(__("nav.companyList"), () => go_list());
+			page.add_inner_button(__("nav.companyWarehouses"), () => go_to("warehouses"));
+			page.add_inner_button(__("nav.companyList"), () => go_to("master"));
 			// 右上角那颗刷新：重取一次值填回表单（不整页重画），免得把正在填的内容抹掉。
 			p.add_refresh(page, async () => {
 				form.set_values(await p.call(api + "api_get_profile"));
 			});
 		}
 
-		const go_list = () => frappe.set_route(root, "master");
+		const go_to = (...parts) => frappe.set_route(root, ...parts);
 		const show = p.routed_page({wrapper, root, render: async (rest, still_current) => {
 			if (rest[0] === "master") {
 				await master();
+				return;
+			}
+			if (rest[0] === "warehouses") {
+				await warehouses();
 				return;
 			}
 			await profile();

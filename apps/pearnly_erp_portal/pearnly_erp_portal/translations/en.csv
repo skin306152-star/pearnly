@@ -159,6 +159,7 @@ Date,Date
 Dedupe Key,Dedupe Key
 Default Location,Default Location
 Default Warehouse,Default Warehouse
+Default warehouse,Default warehouse
 Delete,Delete
 Delete selected ({0}),Delete selected ({0})
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
@@ -305,6 +306,7 @@ Location,Location
 Low (≤{0}),Low (≤{0})
 Low stock,Low stock
 Low stock alert,Low stock alert
+Main,Main
 Manual,Manual
 Manual Entry,Manual Entry
 Manually Set Amounts,Manually Set Amounts
@@ -327,6 +329,7 @@ New Supplier,New Supplier
 New company,New company
 New product,New product
 New stock count,New stock count
+New warehouse,New warehouse
 Next,Next
 No,No
 No Open Shift,No Open Shift
@@ -498,6 +501,7 @@ Selling price,Selling price
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Service,Service
 Set as current,Set as current
+Set as default,Set as default
 Sheet,Sheet
 Shelf,Shelf
 Shift History,Shift History
@@ -648,6 +652,7 @@ Void {0} selected,Void {0} selected
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
 Warehouse,Warehouse
+Warehouse name,Warehouse name
 With differences,With differences
 Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
@@ -699,11 +704,13 @@ client.save,Save
 client.title,Customers
 company,company
 company.col.current,Current
+company.col.defaultWarehouse,Default warehouse
 company.col.name,Company name
 company.col.phone,Phone
 company.col.shortName,Short name
 company.col.status,Status
 company.col.taxId,Tax ID
+company.col.warehouse,Warehouse name
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
 company.enable,Enable
@@ -719,6 +726,7 @@ company.field.phone,Phone
 company.field.promptpay,PromptPay
 company.field.shortName,Short name
 company.field.taxId,Tax ID
+company.field.warehouse,Warehouse
 company.fiscalHint,1 = January
 company.lookup.action,Query
 company.lookup.failed,"Lookup failed, please fill in manually"
@@ -731,7 +739,9 @@ company.lookup.parse_error,The Revenue Department replied in an unreadable forma
 company.lookup.querying,Querying the Revenue Department...
 company.lookup.rd_unreachable,Cannot reach the Revenue Department right now
 company.new,New company
+company.newWarehouse,New warehouse
 company.notice.created,Created
+company.notice.defaultWarehouse,{0} is now the default warehouse
 company.notice.saved,Saved
 company.notice.toggled,Updated
 company.promptpayHint,The account you give customers for transfers
@@ -740,11 +750,14 @@ company.save,Save
 company.section.address,Address and notes
 company.section.basic,Company details
 company.section.documents,Documents
+company.section.warehouse,Warehouse
 company.setCurrent,Set as current
+company.setDefaultWarehouse,Set as default
 company.status.active,Active
 company.status.inactive,Disabled
 company.subtitle,The company on your documents
 company.taxHint,13 digits; a branch adds its 5-digit branch number
+company.warehouseDefaultName,Main
 company.yes,Yes
 completed,completed
 count,count
@@ -1244,5 +1257,6 @@ trade.warehouseHint,Type any warehouse name; a new warehouse is created if that 
 transfer,transfer
 unpaid,unpaid
 void,void
+{0} is now the default warehouse,{0} is now the default warehouse
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}

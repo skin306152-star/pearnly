@@ -159,6 +159,7 @@ Date,วันที่
 Dedupe Key,คีย์กันซ้ำ
 Default Location,ตำแหน่งเริ่มต้น
 Default Warehouse,คลังเริ่มต้น
+Default warehouse,คลังเริ่มต้น
 Delete,ลบ
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete {0} stock counts? Posted ones cannot be deleted.,ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้
@@ -305,6 +306,7 @@ Location,ที่ตั้ง
 Low (≤{0}),ต่ำ (≤{0})
 Low stock,สต็อกต่ำ
 Low stock alert,แจ้งเตือนสต็อกต่ำ
+Main,คลังหลัก
 Manual,คู่มือ
 Manual Entry,กรอกข้อมูลเอง
 Manually Set Amounts,กำหนดยอดเงินด้วยตนเอง
@@ -327,6 +329,7 @@ New Supplier,เพิ่มผู้ขาย
 New company,เพิ่มบริษัท
 New product,เพิ่มสินค้า
 New stock count,สร้างการตรวจนับ
+New warehouse,เพิ่มคลังสินค้า
 Next,ถัดไป
 No,ลำดับ
 No Open Shift,ยังไม่เปิดกะ
@@ -498,6 +501,7 @@ Selling price,ราคาขาย
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
 Service,บริการ
 Set as current,ตั้งเป็นปัจจุบัน
+Set as default,ตั้งเป็นค่าเริ่มต้น
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
 Shift History,ประวัติกะ
@@ -648,6 +652,7 @@ Void {0} selected,ยกเลิก {0} รายการที่เลือ
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Warehouse,คลังสินค้า
+Warehouse name,ชื่อคลังสินค้า
 With differences,มีผลต่าง
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
 Withholding Tax Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย
@@ -699,11 +704,13 @@ client.save,บันทึก
 client.title,ลูกค้า
 company,บริษัท
 company.col.current,ปัจจุบัน
+company.col.defaultWarehouse,คลังเริ่มต้น
 company.col.name,ชื่อบริษัท
 company.col.phone,โทรศัพท์
 company.col.shortName,ชื่อย่อ
 company.col.status,สถานะ
 company.col.taxId,เลขประจำตัวผู้เสียภาษี
+company.col.warehouse,ชื่อคลังสินค้า
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 company.enable,เปิดใช้งาน
@@ -719,6 +726,7 @@ company.field.phone,โทรศัพท์
 company.field.promptpay,พร้อมเพย์รับเงิน
 company.field.shortName,ชื่อย่อ
 company.field.taxId,เลขประจำตัวผู้เสียภาษี
+company.field.warehouse,คลังสินค้า
 company.fiscalHint,1 = มกราคม
 company.lookup.action,ค้นหา
 company.lookup.failed,ค้นหาไม่สำเร็จ กรุณากรอกเอง
@@ -731,7 +739,9 @@ company.lookup.parse_error,รูปแบบข้อมูลจากกร�
 company.lookup.querying,กำลังค้นหาจากกรมสรรพากร…
 company.lookup.rd_unreachable,เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้
 company.new,เพิ่มบริษัท
+company.newWarehouse,เพิ่มคลังสินค้า
 company.notice.created,สร้างแล้ว
+company.notice.defaultWarehouse,{0} เป็นคลังเริ่มต้นแล้ว
 company.notice.saved,บันทึกแล้ว
 company.notice.toggled,อัปเดตแล้ว
 company.promptpayHint,บัญชีที่ให้ลูกค้าโอนเข้า
@@ -740,11 +750,14 @@ company.save,บันทึก
 company.section.address,ที่อยู่และหมายเหตุ
 company.section.basic,ข้อมูลบริษัท
 company.section.documents,เอกสาร
+company.section.warehouse,คลังสินค้า
 company.setCurrent,ตั้งเป็นปัจจุบัน
+company.setDefaultWarehouse,ตั้งเป็นค่าเริ่มต้น
 company.status.active,ปกติ
 company.status.inactive,ปิดใช้งาน
 company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
+company.warehouseDefaultName,คลังหลัก
 company.yes,ใช่
 completed,เสร็จสิ้น
 count,ตรวจนับ
@@ -1244,5 +1257,6 @@ trade.warehouseHint,พิมพ์ชื่อคลังได้เอง �
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว
+{0} is now the default warehouse,{0} เป็นคลังเริ่มต้นแล้ว
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}

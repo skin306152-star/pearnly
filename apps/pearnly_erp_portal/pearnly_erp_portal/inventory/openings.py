@@ -27,7 +27,7 @@ def upsert_opening(*, product, warehouse, as_of_date, qty, unit_cost=0, note=Non
     guard.require("stock.write")
     if not frappe.db.exists(PRODUCT, product):
         frappe.throw(_("Product not found"), frappe.DoesNotExistError)
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     location = positions.clean_location(location)
     stock.lock_products([product])
     try:

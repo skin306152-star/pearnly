@@ -140,7 +140,11 @@ def list_companies(*, include_inactive=False, limit=50) -> list[dict]:
                            limit_page_length=int(limit))
 
 
-def create_company(*, company_name, **fields) -> dict:
+def create_company(*, company_name, warehouse_name=None, **fields) -> dict:
+    """新建一家公司。**顺手把它第一个仓库建好**（用户 2026-09-23："在新建公司的时候就加新建仓库
+    的入口"）：没有仓库就入不了库、卖不了货，所以公司一建出来就带着一个默认仓。
+    仓库名留空就用 `Main`；已存在同名仓库就复用它并设成默认。
+    """
     guard.require("company.manage")
     name = contracts.clean(company_name, contracts.MAX_NAME)
     if not name:
@@ -148,8 +152,10 @@ def create_company(*, company_name, **fields) -> dict:
     doc = frappe.get_doc({"doctype": DOCTYPE, "company_name": name, "is_active": 1})
     _apply(doc, fields)
     doc.insert()
+    from pearnly_erp_portal.inventory import warehouses
+    warehouses.ensure_for_company(doc.name, warehouse_name)
     frappe.db.commit()
-    return {"name": doc.name}
+    return {"name": doc.name, "warehouse": warehouses.ensure_default(doc.name)}
 
 
 def get_profile(name=None) -> dict:
