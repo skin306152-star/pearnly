@@ -134,6 +134,8 @@
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
 		restore_new();
+		// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
+		if (can_write) await p.take_create("pearnly-suppliers", "ERP Supplier", () => editor());
 		p.add_refresh(page, () => void list.reload());
 		await list.ready;
 	};

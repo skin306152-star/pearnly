@@ -179,6 +179,18 @@ body.pearnly-product-desk .pearnly-dialog .modal-footer {
 	z-index: 3;
 }
 
+/* 选择框的下拉浮层：几何、白底、深色文字、圆角都由官方组件负责，我们只把**强调色**
+   换成品牌色 —— 悬停/选中底色、以及我们那条「新建 …」动作行（官方那条是普通文字色）。
+   框架自己的变量就是 `--awesomplete-hover-bg`（`common/awesomeplete.scss`）。 */
+body.pearnly-product-desk {
+	--awesomplete-hover-bg: var(--pearnly-accent-weak);
+}
+body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option {
+	color: var(--pearnly-accent-deep);
+}
+body.pearnly-product-desk .awesomplete > ul > li .pearnly-link-option .fa {
+	color: var(--pearnly-accent);
+}
 /* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
 body.pearnly-product-desk .pearnly-count-photos {
 	display: flex;

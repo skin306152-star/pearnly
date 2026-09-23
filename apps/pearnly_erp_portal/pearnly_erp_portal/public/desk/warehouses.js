@@ -69,6 +69,10 @@
 				empty_action: can_manage()
 					? {label: t("company.newWarehouse"), action: () => editor(null)} : null});
 			restore_new();
+			// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
+			if (can_manage()) {
+				await p.take_create("pearnly-warehouses", "ERP Warehouse", () => editor(null));
+			}
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
 		}

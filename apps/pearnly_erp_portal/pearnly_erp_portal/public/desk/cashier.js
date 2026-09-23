@@ -1109,6 +1109,11 @@
 			customer_control = frappe.ui.form.make_control({
 				df: {
 					label: __("Customer"), fieldtype: "Link", options: "ERP Customer", only_select: true,
+					// **这一格故意不给「新建客户」入口**（`link.js` 的 `pearnly_no_create`）：
+					// 收银台这一单的购物车只活在这个页面里（`cart` 在渲染闭包里），点"新建"跳去
+					// 客户页会把用户正在开的这单丢掉 —— 主数据页那些入口可以跳，这一格不行。
+					// 要做就做成**就地弹我们自己的客户弹窗**（把客户页那张弹窗抽到共用层），那是下一步。
+					pearnly_no_create: 1,
 					// 官方的提示是"名称/电话/邮箱"，我们的客户主档只按**名称与电话**两栏搜
 					// （用户 2026-09-23：只按名称和电话搜，没有的不要做），所以提示里不写邮箱。
 					placeholder: t("trade.customerHint"),

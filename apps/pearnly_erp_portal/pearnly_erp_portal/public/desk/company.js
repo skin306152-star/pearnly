@@ -115,6 +115,8 @@
 				row_actions: null,
 				empty_action: can_write() ? {label: t("company.new"), action: () => editor(null)} : null});
 			restore_new();
+			// 别处的选择框点「新建」指过来时，开这一页自己的新建弹窗（`link.js`）。
+			if (can_write()) await p.take_create("pearnly-company", "ERP Company", () => editor(null));
 			p.add_refresh(page, () => list.reload());
 			await list.ready;
 		}

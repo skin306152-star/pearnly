@@ -46,6 +46,25 @@ def navigation_groups(product):
     return list((_declarations().get(product) or {}).get("groups") or [])
 
 
+def link_targets(product) -> dict:
+    """产品声明的"选择框里的『新建』去哪儿"：`{主档 doctype: 我们自己的路由}`。
+
+    只留下当前用户**能打开**的那些页面（判据与侧栏同一套 `visible_pages`）：点「新建」
+    落进"没有权限 / 没实现"的一屏，比留在原地更糟。声明在产品的 `hooks.py` 里
+    （ADR-009：菜单与可售卖功能由产品自己声明），这里只组装 + 过滤。
+    """
+    declared = (_declarations().get(product) or {}).get("links") or {}
+    if not isinstance(declared, dict):
+        return {}
+    offered = set(visible_pages(product))
+    out = {}
+    for doctype, route in declared.items():
+        route = str(route or "").strip()
+        if doctype and route in offered:
+            out[str(doctype)] = route
+    return out
+
+
 def _can_open_page(product, route):
     """Mirror the declared page permission; purchased features alone are not a role."""
     rule = ((_declarations().get(product) or {}).get("permissions") or {}).get(route) or {}
@@ -240,6 +259,8 @@ def extend_boot(boot):
                                    or frappe.conf.get("pearnly_workspace") or "").strip()
     boot.pearnly_features = entitlements()
     boot.pearnly_pages = _personal_order(product, visible_pages(product))
+    # 选择框里的「新建 / 高级搜索」该进我们哪一页（已按"能打开"过滤）。产品声明，前端只照着用。
+    boot.pearnly_links = link_targets(product)
     # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
     boot.pearnly_user_menu = user_menu(product)
     # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，

@@ -293,7 +293,7 @@ doc_events = {
 # Product Desk uses the same native UI runtime as the management Site.
 boot_session = "pearnly_core.desk.navigation.extend_boot"
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css")]
-app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
+app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
 
 # 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
 # （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是

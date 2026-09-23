@@ -2381,3 +2381,72 @@ F46 收尾时把"省时间"拆成 3a/3b，其中 3a 的验证条件卡在"本机
 · 生产上的真实节省：要部署后看（本地链路一次登录只有 0.5–6 秒，抖起来能到 6.4 秒）。
 · 后台预热对真 DMS 的那一条：没单独跑（它走同一个 `run_logged_in` 入口，差别只在预算档）。
 · 3b（跨请求会话租用）仍然没做 —— 它动会话归属，先看这次的记账与耗时数据。
+
+### F48：选择框的「新建」回到我们自己的页面，仓库/收银台按公司联动（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    所有涉及到仓库，公司选择，物料，供应商，客户主档信息的选择输入框，数据要关联起来，
+    同时每个输入框加新建入口，和官方原生一样，点新建跳转到我们已有的对应位置，不要把
+    用户带到官方原生的地方去了，全局做到同步……不应该把用户带到原生的系统，不应该带到
+    我们没有的功能，你现在的筛选也会，下拉组件样式做成我们的
+
+**问题是什么**
+
+官方 Link 控件的下拉自带两项：`Create a new X`（官方快速录入 → 落到官方表单）、
+`Advanced Search`（官方选择器）。实测点「新建 ERP Warehouse」直接进了
+`/desk/erp-warehouse/new-erp-warehouse-…` —— 那是官方表单，不是我们的仓库页。
+筛选弹层里的 Link 是**同一个控件类**，所以那里也一样跑掉。
+
+**怎么做的（四处，一处规则全站生效）**
+
+| 层 | 落点 | 做了什么 |
+| --- | --- | --- |
+| 产品声明 | `pearnly_erp_portal/hooks.py` 的 `pearnly_navigation.links` | 声明"这个主档是我们哪一页"：ERP Warehouse→`pearnly-warehouses`、Product→`pearnly-products`、Supplier→`pearnly-suppliers`、Customer→`pearnly-clients`、Company→`pearnly-company`（ADR-009：菜单与映射由产品自己声明） |
+| 启动数据 | `pearnly_core/desk/navigation.py` | `link_targets()` 按**当前用户能打开**的页面过滤（判据与侧栏同一套 `visible_pages`），进 `boot.pearnly_links` |
+| 控件接管 | 新增 `pearnly_core/public/desk/link.js` | ① 下拉里把官方那两项换成我们的那一条（**文案与图标照官方写**，只有去处变了）、值 `pearnly_create__link_option`；② `new_doc()` / `open_advanced_search()` 兜底也进我们的页；③ 「新建」跳到那一页后由目标页**自动开自己的新建弹窗**（`p.take_create`，one-shot + 60 秒时限） |
+| 数据联动 | 同上 | `p.link_query_default`：仓库/收银台**按当前公司**过滤（仓库属于公司）。只在这一条关系上兜底，调用方自己写的 `get_query` 不动 —— 表单、弹窗、明细表格、**筛选弹层**都吃得到，不用各写一份 |
+
+我们的表单字段（`only_select: true`）原本把这两项整个藏掉，所以"新建入口"一直缺；现在按声明补回来，
+没登记的 doctype 仍保持原样（我们的表单也不给它入口，用户不会掉进官方表单）。
+
+两个实现要点，都是踩过才知道的：
+
+· 下拉那两项是官方在 `on_input` 的回调里拼好的，官方**只给了 `toggle_href` 这个点**紧跟在赋值后面
+  （`link_options` 钩子只在 `!only_select` 时被调用，而我们的字段恰恰都用 `only_select`）；
+· 这个 awesomplete 的 `list` 是**只写**属性（`set list(list) { this._list = list }`，没有 getter）——
+  第一版读 `aw.list` 拿到 `undefined`，整段静默失效（浏览器里实测：官方那两项还在、我们的没出现）。
+  现在读 `_list`、写走 `list`，并有一条会失败的回归测试盯着（见下）。
+
+**验证（真浏览器，站点 `erp-pos-a.localhost`）**
+
+| 场景 | 结果 |
+| --- | --- |
+| 启动数据 | `frappe.boot.pearnly_links` = 那 5 条映射；`ControlLink.pearnly_link === true` |
+| 库存在**筛选弹层**取仓库 | 12 项 = 当前公司 10 个仓 + 官方那句"已按 公司 等于 CO-00552 过滤" + **我们的「新建」**；**没有「高级搜索」**；别的公司的 `WH-00555` 不在列 |
+| 点筛选里的「新建」 | 落到 `/desk/pearnly-warehouses`（**不是** `erp-warehouse/new-…`）并自动开出我们的「新建仓库」弹窗 |
+| 物料快捷弹窗里的默认仓库（`only_select` 字段） | 同样有我们的「新建」，仓库按 `公司 + 已启用` 过滤（该字段自己那份 `get_query` 仍在） |
+| 供应商 / 物料 / 公司 / 客户 | 四条目标逐个点过：分别落到 `pearnly-suppliers` / `pearnly-products` / `pearnly-company` / `pearnly-clients`，并自动开出「新建供应商 / 新建物料 / 新建公司 / 新建客户」 |
+| 没登记的 doctype（`ERP Purchase Category`） | 官方那两项**原样保留** —— 我们不动没声明的东西 |
+| 收银台的客户搜索框 | 搜索结果正常（名称+电话），**没有**我们的「新建」也**没有**「高级搜索」（见下面的取舍） |
+
+| 检查 | 结果 |
+| --- | --- |
+| 新增 `tests/test-link-options.cjs` | 全过：官方两项被换掉、未登记不动、无权限不给入口、`pearnly_no_create` 连官方两项一起去掉、公司联动只碰仓库/收银台、`take_create` 对得上才开且取走即清 |
+| 变异测试（把"读 `_list`"改回"读 `list`"） | **该测试失败** —— 证明它盯得住这个坑，不是空转 |
+| JS 全套 11 支 | ALL PASS |
+| `check-architecture` / `check-frontend-i18n` / `i18n-build --check` / `check-dms-parity` | PASS(0) / 0 问题 / PASS / 无漂移 |
+| `tests.test_erp_portal_access` | 102 条 OK(6 skipped) |
+| `tests.test_native_desk_contract` | 18 条里 2 条失败 —— **基线就有**：把本次的 `navigation.py` / `hooks.py` 改动 stash 掉，同样这 2 条失败（侧栏 items 多了 `child/indent`、`save_sidebar_order` 多回一个 `pages`），与本次无关 |
+
+**取舍与没验到的**
+
+· **收银台的客户搜索框故意没有「新建」**：这一单的购物车只活在收银台那一页（`cart` 在渲染闭包里），
+  点"新建"跳去客户页会**把用户正在开的单丢掉**。主数据页那些入口可以跳，这一格不行。
+  要做就做成**就地弹我们自己的客户弹窗**（把客户页那张弹窗抽到共用层），等你点头再做。
+· `ERP POS Terminal`（收银台的收银台号）没进映射：它的"新建"该去哪一页现在没有答案，所以保持原样（没入口）。
+· 只验了 ERP 产品站（`pearnly_product=erp`）。DMS / Cowork 两个产品若以后要这套，各自在自己的
+  `hooks.py` 里声明 `links` 即可，共用层不掺产品内容。
+· 窄屏（390px）与真机没验 —— 这次只动了浮层里的条目与去处，浮层几何仍是官方那套。
+· `link.js` 借的 `toggle_href` 是官方实现里的一个点，**不是公开契约**：框架升级时要重跑
+  `tests/test-link-options.cjs` 与上面那两条浏览器场景（记录在此，免得下次只看代码）。

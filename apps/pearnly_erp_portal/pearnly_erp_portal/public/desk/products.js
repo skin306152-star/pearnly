@@ -193,7 +193,7 @@
 
 		// ── 列表 ────────────────────────────────────────────────────────────────
 
-		function open_list() {
+		async function open_list() {
 			// 右上角那一颗主按钮：没选中任何行时是"新建商品"（打开快捷弹窗），选中若干行时
 			// 切换成批量启用/停用 —— 商品真有的动作。选中即出现操作这套行为由共享层的
 			// `p.selection_action` 提供，其余列表页用的是同一套（确认、忙碌禁用、失败保留选择）。
@@ -284,6 +284,9 @@
 			page.add_inner_button(t("product.action.reload"), () => void list.reload());
 			if (can_create) page.add_inner_button(t("product.action.import"), () => open_import());
 			restore_primary();
+			// 别处的选择框点「新建」指过来时，开这一页自己的快捷弹窗（与右上角那颗同一个，
+			// 用户 2026-09-23："点新建跳转到我们已有的对应位置"）。
+			if (can_create) await p.take_create(root, "ERP Product", () => open_quick());
 		}
 
 		// ── 新建弹窗（快捷）────────────────────────────────────────────────────
@@ -536,7 +539,7 @@
 		async function render(rest) {
 			p.clear_page(page);
 			list = null; form = null;
-			if (!rest.length) { open_list(); return; }
+			if (!rest.length) { await open_list(); return; }
 			if (rest[0] !== SECOND || !can_create) { p.redirect_up(root); return; }
 			await open_new();
 		}

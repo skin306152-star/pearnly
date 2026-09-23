@@ -401,6 +401,17 @@ pearnly_navigation = [{'product': 'erp',
              ('nav.group.master',
               'building-2',
               ['pearnly-integrations'])],
+  # 「选择框里的『新建』去哪儿」（用户 2026-09-23："每个输入框加新建入口，和官方原生一样，
+  # 点新建跳转到我们已有的对应位置，不要把用户带到官方原生的地方去了"）。
+  # 键是**被选的那个主档 doctype**，值是**我们自己的那一页**：官方 Link 控件默认把
+  # 「新建 X」送到官方快速录入、「高级搜索」送到官方选择器 —— 都会把用户带到我们没有的
+  # 功能上。没登记的 doctype 不由这里管（我们的表单也不给它入口），所以用户不会掉进官方表单。
+  # 前端据此把这两项接到我们的页面（`pearnly_core/public/desk/link.js`）。
+  'links': {'ERP Warehouse': 'pearnly-warehouses',
+            'ERP Product': 'pearnly-products',
+            'ERP Supplier': 'pearnly-suppliers',
+            'ERP Customer': 'pearnly-clients',
+            'ERP Company': 'pearnly-company'},
   # 左下角那颗用户按钮里的项（用户 2026-09-23："我点左下角，左侧出现 1.个人信息
   # 2.团队管理"）。写的是**路由**，词与图标仍从上面的 pages 取，不在这儿再写一份；
   # 服务端按与侧栏同一套判据筛（页面已实现 + 当前用户能进），所以只有产品管理员

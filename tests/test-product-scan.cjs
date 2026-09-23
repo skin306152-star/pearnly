@@ -56,6 +56,9 @@ function boot({ product = null, supported = true, can_write = true } = {}) {
     clear_page: () => {},
     breadcrumbs: () => {},
     routed_page: ({ render }) => async () => { await render([]); },
+    // 「选择框里的新建指过来」由共享层的 `link.js` 提供（`p.take_create`）：本页只在**别处
+    // 指过来**时才开自己的新建弹窗。这里按同一份契约给个桩 —— 返回 false = 这次不是指过来的。
+    take_create: async () => false,
     // 选中操作那套由共享层提供（tests/test-selection-action.cjs 单独验）；这里只要它存在。
     selection_action: () => () => {},
     list: config => {
