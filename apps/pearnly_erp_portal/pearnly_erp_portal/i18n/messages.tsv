@@ -1176,3 +1176,7 @@ Edit	编辑	แก้ไข	編集	company.terminalEdit
 Add terminal	新增收银台	เพิ่มเครื่องขาย	レジを追加	company.terminalNew
 No terminal yet	还没有收银台	ยังไม่มีเครื่องขาย	レジはまだありません	company.terminalNone
 Counter 1	Counter 1	Counter 1	Counter 1	company.terminalDefaultName
+Company	公司	บริษัท	会社	company.field.company
+This warehouse belongs to the company above	这个仓挂在上面那家公司名下	คลังนี้อยู่ในบริษัทด้านบน	この倉庫は上の会社に属します	company.warehouseCompanyHint
+A warehouse must belong to a company	仓库必须挂在某家公司名下	คลังต้องอยู่ในบริษัท	倉庫は必ず会社に属します
+This payment method is not enabled for this company	这家公司没有开这种收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません

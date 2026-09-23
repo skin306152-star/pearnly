@@ -18,6 +18,7 @@ A submitted document cannot be changed,เอกสารที่ส่งแ�
 A submitted entry cannot be changed,รายการที่ส่งแล้วแก้ไขไม่ได้
 A supplier needs a name,ผู้ขายต้องมีชื่อ
 A terminal needs a name,เครื่องขายต้องมีชื่อ
+A warehouse must belong to a company,คลังต้องอยู่ในบริษัท
 A warehouse needs a name,คลังต้องมีชื่อ
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Actual position,ตำแหน่งที่พบจริง
@@ -879,6 +880,7 @@ This document is void,เอกสารนี้ถูกยกเลิกแ�
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
 This sale is already voided,บิลขายนี้ถูกยกเลิกแล้ว
@@ -892,6 +894,7 @@ This terminal already has an open shift,เครื่องขายนี้�
 This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
+This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 To Date,ณ วันที่
@@ -1036,6 +1039,7 @@ company.docPrefixHint,บันทึกไว้ก่อน เลขที่
 company.enable,เปิดใช้งาน
 company.field.address,ที่อยู่
 company.field.branch,สาขา
+company.field.company,บริษัท
 company.field.contactEmail,อีเมลติดต่อ
 company.field.contactPerson,ผู้ติดต่อ
 company.field.docPrefix,คำนำหน้าเอกสาร
@@ -1096,6 +1100,7 @@ company.terminalEdit,แก้ไข
 company.terminalNew,เพิ่มเครื่องขาย
 company.terminalNone,ยังไม่มีเครื่องขาย
 company.terminalsHint,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
+company.warehouseCompanyHint,คลังนี้อยู่ในบริษัทด้านบน
 company.warehouseDefaultName,คลังหลัก
 company.warehouseHint,คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 company.warehousesHint,คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้

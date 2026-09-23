@@ -382,7 +382,11 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 		const terminal = rows.find(t => t.name === shift.shift.terminal) || rows[0] || {};
 		// 方式名要本地化（泰语为主）：`p.texts` 拿的就是站点那份词条表，与页面同一来源。
 		const t = await load_term();
-		payment_methods = PAY_METHODS.map(m => Object.assign({}, m, { label: t(m.term) }));
+		// **这家公司收哪几种钱**由服务端给（建公司时勾的那几种，见 `terminals.list_terminals`）——
+		// 付款面板与交班对账都按它来，不把"四种全有"硬写在这儿（用户 2026-09-24 的收银配置）。
+		const allowed = (terminal.payment_methods || []).map(key => String(key).trim()).filter(Boolean);
+		payment_methods = (allowed.length ? PAY_METHODS.filter(m => allowed.includes(m.key))
+			: PAY_METHODS).map(m => Object.assign({}, m, { label: t(m.term) }));
 		return {
 			// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
 			// （`api_list_terminals` 现算的 `effective_warehouse`，只有读、不建）。
@@ -446,16 +450,17 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 				});
 			}
 			// 没开班时那块地方**不留一片白**（用户 2026-09-24："pos空态未开班时加官方文案和
-			// svg 图标展示"）：图标是官方 POS 自己那枚，文案用官方那两句 ——
-			// `Create POS Opening Entry` 与 `Please add Mode of payments and opening balance details.`
-			// （都是官方文件里原文照抄的 msgid，术语表里已有四语译文，不另造话术）。
+			// svg 图标展示"，随后又补："空态下方也加一个按钮，像官方原生那个空态一样，
+			// 不要那个添加支付方式啥的"）。所以形状照 Frappe 官方原生空态：
+			// **图标 + 一行灰字 + 一颗按钮**；图标仍是官方 POS 自己那枚。
 			show_no_shift_placeholder() {
 				this.wrapper.html(`<div class="pearnly-pos-empty">
 					${POS_ICON}
-					<div class="pearnly-pos-empty-title">${__("Create POS Opening Entry")}</div>
-					<div class="pearnly-pos-empty-hint">${
-						__("Please add Mode of payments and opening balance details.")}</div>
+					<div class="pearnly-pos-empty-hint">${frappe.utils.escape_html(term("trade.noShift"))}</div>
+					<button class="btn btn-primary btn-sm pearnly-pos-empty-btn">${
+						frappe.utils.escape_html(term("trade.openShift"))}</button>
 				</div>`);
+				this.wrapper.find(".pearnly-pos-empty-btn").on("click", () => void this.open_shift_here());
 			}
 			// 设置：官方 = 开班凭证 + POS Profile；我们 = 班次 + 终端。
 			async prepare_app_defaults(shift) {

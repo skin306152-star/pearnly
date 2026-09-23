@@ -17,6 +17,7 @@ from frappe.utils import now, nowdate
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals
 from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 
 DT = "ERP Sale"
@@ -30,6 +31,8 @@ INVALID = "Invalid value"
 REFUND_NEEDS_ORIGINAL = "A refund needs the original sale"
 REFUND_TOO_MUCH = "A refund cannot be more than the original sale"
 ALREADY_VOID = "This sale is already voided"
+# 收了这家公司没开的收款方式（建公司时勾的那几种之外）。
+METHOD_NOT_ENABLED = "This payment method is not enabled for this company"
 
 LIST_FIELDS = ("name", "receipt_no", "customer", "sold_at", "sale_type", "status", "shift",
                "terminal", "cashier", "warehouse", "return_against", "subtotal", "discount_total",
@@ -148,6 +151,12 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
         normalized, paid_total, change = contracts.settle(payments, totals["grand_total"])
     except contracts.SettlementError as exc:
         frappe.throw(f"{_(INVALID)}: {exc.detail}")
+    # 收款方式也得是**这家公司开了的那几种**（建公司时勾的，见 `masters/company.payment_methods_of`）：
+    # 服务端兜底，免得关掉"转账"之后老页面还能塞一张转账进来。
+    allowed = companies.payment_methods_of(terminal_doc.company)
+    rejected = [row["method"] for row in normalized if row.get("method") not in allowed]
+    if rejected:
+        frappe.throw(_(METHOD_NOT_ENABLED))
 
     doc = frappe.get_doc({
         "doctype": DT,

@@ -92,6 +92,9 @@ def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[di
         # 开班/交班弹窗要显示「这家公司叫什么」给收银员看，编号（`CO-00552`）没人认。
         row["company_name"] = frappe.db.get_value(
             "ERP Company", row.get("company"), "company_name") or row.get("company") or ""
+        # 「这家公司收哪几种钱」：收银台的付款方式面板、开班/交班那张对账表都照它给
+        # （建公司时勾的那几种，见 `masters/company.payment_methods_of`）。
+        row["payment_methods"] = companies.payment_methods_of(row.get("company"))
     return rows
 
 

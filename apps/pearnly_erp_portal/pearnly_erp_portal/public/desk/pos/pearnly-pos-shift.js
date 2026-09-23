@@ -18,6 +18,10 @@ frappe.provide("frappe.pearnly.pos_shift");
 	const api = "pearnly_erp_portal.cashier.api.";
 	// 与 `ERP Sale Payment.method` 同一个集合（`cashier/contracts.py` 的 `PAYMENT_METHODS`）。
 	const METHODS = ["cash", "card", "promptpay", "transfer"];
+	// **这家公司实际收哪几种钱**：开班时按收银台回的那份（`api_list_terminals` 里的
+	// `payment_methods`），交班时按班次上已经对过的行反推；都没有才回落到四种全有。
+	// 用户在收银配置里勾掉的收款方式，这里就不该再出现（对账表与付款面板同一份）。
+	let active_methods = METHODS;
 	const num = value => {
 		const parsed = Number(String(value ?? "").replace(/,/g, ""));
 		return isFinite(parsed) ? parsed : 0;
@@ -37,7 +41,7 @@ frappe.provide("frappe.pearnly.pos_shift");
 	// 整数列被裁在弹窗外面，左边的付款方式被压成空白（用户 2026-09-23 截图："这个界面显示不对"）。
 	// 所以每张表的总份数都排到 ≤10，并且把宽度留给要点的那几列。
 	const method_field = (t, columns) => ({
-		fieldname: "method", fieldtype: "Select", options: METHODS.join("\n"),
+		fieldname: "method", fieldtype: "Select", options: active_methods.join("\n"),
 		label: t("trade.method"), in_list_view: 1, reqd: 1, columns,
 	});
 	// 期初金额只在**开班**那张表里给：交班时它是"开班时点过的数"，其他付款方式恒为 0，
@@ -53,7 +57,7 @@ frappe.provide("frappe.pearnly.pos_shift");
 		return [
 			{ fieldtype: "Table", fieldname: "balances", label: t("trade.balances"),
 				cannot_add_rows: 1, in_place_edit: 1, reqd: 1,
-				data: rows || METHODS.map(method => ({ method, opening_amount: 0,
+				data: rows || active_methods.map(method => ({ method, opening_amount: 0,
 					counted_amount: 0, currency: frappe.boot.sysdefaults.currency || "THB" })),
 				fields: [
 					method_field(t, method_columns),
@@ -66,6 +70,9 @@ frappe.provide("frappe.pearnly.pos_shift");
 	async function open({ t, on_done } = {}) {
 		const terminals = await p.call(api + "api_list_terminals");
 		const rows = Array.isArray(terminals) ? terminals : (terminals?.terminals || []);
+		// 这家公司收哪几种钱：服务端跟着收银台一起回（建公司时勾的那几种）。
+		const allowed = ((rows[0] || {}).payment_methods || []).map(String).filter(Boolean);
+		active_methods = allowed.length ? METHODS.filter(key => allowed.includes(key)) : METHODS;
 		const preferred = rows.find(row => Number(row.is_default)) || rows[0];
 		const row_of = name => rows.find(row => row.name === name) || {};
 		// 「这台收银台从哪个仓卖货」：自己配了用自己，没配就是**这家公司的默认仓**
@@ -117,6 +124,9 @@ frappe.provide("frappe.pearnly.pos_shift");
 	async function close({ t, shift, on_done } = {}) {
 		if (!shift) { frappe.msgprint(t("trade.noShift")); return; }
 		const data = shift;
+		// 交班那张对账表只列**这个班真正对过的方式**（班次行是开班时按公司配置落下的）。
+		const stored = [...new Set((data.balances || []).map(row => row.method).filter(Boolean))];
+		active_methods = stored.length ? METHODS.filter(key => stored.includes(key)) : METHODS;
 		const expected = Object.fromEntries((data.balances || [])
 			.map(row => [row.method, num(row.expected_amount)]));
 		const openings = Object.fromEntries((data.balances || [])
@@ -138,7 +148,7 @@ frappe.provide("frappe.pearnly.pos_shift");
 				.toggleClass("pearnly-payment-due", Boolean(cash_diff));
 		};
 		// 表里先把期初与应有填好、默认实点=应有（现金那一行就是抽屉里应有的数）。
-		const rows = METHODS.map(method => ({
+		const rows = active_methods.map(method => ({
 			method, currency: frappe.boot.sysdefaults.currency || "THB",
 			opening_amount: openings[method] || 0,
 			expected_amount: expected[method] || 0,

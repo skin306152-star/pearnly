@@ -18,6 +18,7 @@ A submitted document cannot be changed,送信済みの伝票は変更できま�
 A submitted entry cannot be changed,送信済みの入出庫は変更できません
 A supplier needs a name,仕入先には名前が必要です
 A terminal needs a name,レジには名前が必要です
+A warehouse must belong to a company,倉庫は必ず会社に属します
 A warehouse needs a name,倉庫には名前が必要です
 Abbreviated Tax Invoice,簡易税務請求書
 Actual position,実際の棚番
@@ -879,6 +880,7 @@ This document is void,この伝票は無効です
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
 This request was already recorded,このリクエストは登録済みです
 This sale is already voided,この売上はすでに無効です
@@ -892,6 +894,7 @@ This terminal already has an open shift,このレジにはすでに開いてい�
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません
 This warehouse already exists,この倉庫は既に存在します
+This warehouse belongs to the company above,この倉庫は上の会社に属します
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
 To Date,終了日
@@ -1036,6 +1039,7 @@ company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで�
 company.enable,有効にする
 company.field.address,住所
 company.field.branch,支店
+company.field.company,会社
 company.field.contactEmail,連絡先メール
 company.field.contactPerson,担当者
 company.field.docPrefix,書類プレフィックス
@@ -1096,6 +1100,7 @@ company.terminalEdit,編集
 company.terminalNew,レジを追加
 company.terminalNone,レジはまだありません
 company.terminalsHint,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
+company.warehouseCompanyHint,この倉庫は上の会社に属します
 company.warehouseDefaultName,メイン倉庫
 company.warehouseHint,この会社の最初の倉庫（追加は「倉庫」ページから）
 company.warehousesHint,この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。

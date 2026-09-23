@@ -46,6 +46,11 @@
 					// 当前公司的仓库：服务端按 `company` 过滤（`api_company_warehouses`）。
 					{fieldname: "warehouse_name", label: t("company.col.warehouse"),
 						width: 220, min_width: 150},
+					// 仓库**属于公司**：这一列把绑定关系摆在面上（用户 2026-09-24：
+					// "现在的仓库和公司数据是否联动"）。这一页列的是**当前公司**的仓，
+					// 换公司（左上角那颗）整页跟着换。
+					{fieldname: "company_name", label: t("company.field.company"),
+						width: 160, min_width: 120},
 					// 「默认仓库」那一列本轮删掉了（用户 2026-09-24："不要做默认仓，依赖的全部删掉"）——
 					// 仓库就是一份平铺的清单，哪个单据/哪台收银台用哪个仓都写在它自己身上。
 					{fieldname: "note", label: t("company.field.note"), width: 200, min_width: 130},
@@ -91,6 +96,16 @@
 		function editor(row) {
 			const is_new = !row;
 			p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
+				// **建仓必须先选公司**（用户 2026-09-24："没有绑定公司不可以建仓库"）：
+				// 新仓默认落在当前公司，可以改；改的那一侧只读（仓库属于公司，改归属等于换账）。
+				f("company", "company.field.company", "Select", {
+					options: (frappe.boot.pearnly_companies || []).map(item => ({
+						value: item.name, label: item.company_name || item.name})),
+					default: row?.company || frappe.boot.pearnly_company || "",
+					reqd: 1,
+					read_only: !is_new,
+					description: t("company.warehouseCompanyHint"),
+				}),
 				f("warehouse_name", "company.field.warehouse", "Data",
 					{reqd: 1, default: row?.warehouse_name || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
@@ -101,7 +116,7 @@
 			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
 				await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
 					is_new
-						? {warehouse_name: values.warehouse_name, note: values.note,
+						? {company: values.company, warehouse_name: values.warehouse_name, note: values.note,
 							is_active: status_value(values.is_active)}
 						: {name: row.name, warehouse_name: values.warehouse_name, note: values.note,
 							is_active: status_value(values.is_active)},

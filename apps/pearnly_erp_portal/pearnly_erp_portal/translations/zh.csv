@@ -18,6 +18,7 @@ A submitted document cannot be changed,已提交的单据不能改
 A submitted entry cannot be changed,已提交的出入库不能改
 A supplier needs a name,供应商要有名称
 A terminal needs a name,收银台要有名称
+A warehouse must belong to a company,仓库必须挂在某家公司名下
 A warehouse needs a name,仓库要有名称
 Abbreviated Tax Invoice,简式税务发票
 Actual position,实际仓位
@@ -879,6 +880,7 @@ This document is void,这张单据已作废
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
 This item is also stocked at:,这件货还在别处：
+This payment method is not enabled for this company,这家公司没有开这种收款方式
 This product code already exists,这个物料编号已经存在
 This request was already recorded,这次请求已经记录过了
 This sale is already voided,这张销售单已经作废了
@@ -892,6 +894,7 @@ This terminal already has an open shift,这台收银台已经有开着的班次
 This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
 This unit is not defined on the product,这个单位没有在这个物料上定义
 This warehouse already exists,这个仓库已经存在
+This warehouse belongs to the company above,这个仓挂在上面那家公司名下
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 To Date,结束日期
@@ -1036,6 +1039,7 @@ company.docPrefixHint,先存着：单号仍按编号定义自动发
 company.enable,启用
 company.field.address,地址
 company.field.branch,分支
+company.field.company,公司
 company.field.contactEmail,联系邮箱
 company.field.contactPerson,联系人
 company.field.docPrefix,单据前缀
@@ -1096,6 +1100,7 @@ company.terminalEdit,编辑
 company.terminalNew,新增收银台
 company.terminalNone,还没有收银台
 company.terminalsHint,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
+company.warehouseCompanyHint,这个仓挂在上面那家公司名下
 company.warehouseDefaultName,主仓
 company.warehouseHint,这家公司的第一个仓库（之后在「仓库」页再加）
 company.warehousesHint,这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。

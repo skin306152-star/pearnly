@@ -153,22 +153,34 @@
 			p.breadcrumbs({label: __("nav.company"), route: p.subroute(root),
 				trail: [{label: t("company.new"), route: ""}]});
 			const form = p.layout(page.main, [
+				// 两列排布（用户 2026-09-24："字段视角对齐，排版要合理"）：一列一列对齐、
+				// 别拉成一长条 —— 与公司信息那一屏同一套 Section/Column 写法。
 				{fieldtype: "Section Break", label: t("company.section.basic")},
 				f("company_name", "company.field.name", "Data", {reqd: 1}),
+				{fieldtype: "Column Break"},
 				f("short_name", "company.field.shortName", "Data"),
 				f("tax_id", "company.field.taxId", "Data"),
+				// 税号查询与供应商/客户/公司信息三处同一颗按钮、同一个接口。
 				f("lookup", "company.lookup.action", "Button", {click: () => lookup_tax(form)}),
+				{fieldtype: "Column Break"},
 				f("branch", "company.field.branch", "Data"),
 				f("phone", "company.field.phone", "Data"),
+				{fieldtype: "Column Break"},
 				f("contact_person", "company.field.contactPerson", "Data"),
 				f("contact_email", "company.field.contactEmail", "Data"),
+				{fieldtype: "Column Break"},
 				f("promptpay_id", "company.field.promptpay", "Data"),
 				// ── 收银：开关 + 收哪几种钱 ────────────────────────────────────
 				{fieldtype: "Section Break", label: t("company.section.pos")},
 				f("pos_enabled", "company.field.posEnabled", "Check",
 					{default: 1, description: t("company.posHint")}),
-				...POS_METHODS.map(key => f(`method_${key}`, `company.method.${key}`, "Check",
-					{default: 1})),
+				// 收款方式：**另起一行、四种并排**（用户 2026-09-24："字段视角对齐，排版要合理"
+				// —— 原来是挤在左列里三层堆叠，跟右边那一列对不齐）。
+				{fieldtype: "Section Break"},
+				...POS_METHODS.flatMap((key, index) => (index === 0
+					? [f(`method_${key}`, `company.method.${key}`, "Check", {default: 1})]
+					: [{fieldtype: "Column Break"},
+						f(`method_${key}`, `company.method.${key}`, "Check", {default: 1})])),
 				// ── 仓库：可以多个（第一个就是"先建的那个仓"）────────────────────
 				{fieldtype: "Section Break", label: t("company.section.warehouses")},
 				{fieldtype: "Table", fieldname: "warehouses", cannot_add_rows: 0,
@@ -262,8 +274,13 @@
 				f("pos_enabled", "company.field.posEnabled", "Check",
 					{default: Number(data.pos_enabled) ? 1 : 0, description: t("company.posHint"),
 						...ro}),
-				...POS_METHODS.map(key => f(`method_${key}`, `company.method.${key}`, "Check",
-					{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})),
+				{fieldtype: "Section Break"},
+				...POS_METHODS.flatMap((key, index) => (index === 0
+					? [f(`method_${key}`, `company.method.${key}`, "Check",
+						{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})]
+					: [{fieldtype: "Column Break"},
+						f(`method_${key}`, `company.method.${key}`, "Check",
+							{default: (data.payment_methods || []).includes(key) ? 1 : 0, ...ro})])),
 				// 收银台清单用**原生表格**（架构检查也拦自定义 HTML 表格）：
 				// 一行一台，改名字 / 换卖货的仓 / 启用停用都在格子里改，随这一屏一起保存。
 				// **不给删行**：要停用就把状态那格取消勾选（数据留着，历史小票还指着它）。

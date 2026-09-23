@@ -23,6 +23,8 @@ NAME_REQUIRED = "A warehouse needs a name"
 FIELDS = ("name", "warehouse_name", "company", "is_active", "note")
 # 没指定仓库、而这家公司又有多个仓时那句提示（不给隐式默认）。
 WAREHOUSE_REQUIRED = "Pick a warehouse"
+# 建仓必须挂在某家公司名下（用户 2026-09-24："没有绑定公司不可以建仓库"）。
+COMPANY_REQUIRED = "A warehouse must belong to a company"
 
 
 def resolve(value=None, *, create=False, company=None):
@@ -88,7 +90,13 @@ def required(value=None, *, company=None) -> str:
 
 
 def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True) -> dict:
+    """建一个仓。**必须明确挂在某家公司名下** —— 仓库属于公司（`Warehouse.company`），
+    没有公司就没有归属，库存也就没法按公司分开算（用户 2026-09-24："没有绑定公司不可以建仓库"）。
+    所以这里不再"没给就用当前公司"兜底：调用方（页面/建公司那一路）要把公司传进来。
+    """
     guard.require("stock.manage")
+    if not str(company or "").strip():
+        frappe.throw(_(COMPANY_REQUIRED))
     company = companies.document_company(company)
     name = (warehouse_name or "").strip()
     if not name:
@@ -122,9 +130,18 @@ def list_warehouses(*, include_inactive=False, limit=50, company=None) -> list[d
     filters = {"company": companies.document_company(company)}
     if not include_inactive:
         filters["is_active"] = 1
-    return frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
+    rows = frappe.get_list(DOCTYPE, filters=filters, fields=list(FIELDS),
                            order_by="warehouse_name asc",
                            limit_page_length=int(limit))
+    # 每行带上**公司抬头**：仓库属于公司，界面上要看得见这个绑定（用户 2026-09-24：
+    # "现在的仓库和公司数据是否联动"）—— 显示的是抬头，不是 `CO-00552`。
+    names = {row["company"] for row in rows if row.get("company")}
+    titles = {row["name"]: row["company_name"] for row in frappe.get_all(
+        "ERP Company", filters={"name": ["in", sorted(names)]},
+        fields=["name", "company_name"], limit_page_length=0)} if names else {}
+    for row in rows:
+        row["company_name"] = titles.get(row.get("company")) or row.get("company") or ""
+    return rows
 
 
 def names_of(company=None, *, include_inactive=True) -> list:

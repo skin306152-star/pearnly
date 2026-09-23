@@ -18,6 +18,7 @@ A submitted document cannot be changed,A submitted document cannot be changed
 A submitted entry cannot be changed,A submitted entry cannot be changed
 A supplier needs a name,A supplier needs a name
 A terminal needs a name,A terminal needs a name
+A warehouse must belong to a company,A warehouse must belong to a company
 A warehouse needs a name,A warehouse needs a name
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Actual position,Actual position
@@ -879,6 +880,7 @@ This document is void,This document is void
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This item is also stocked at:,This item is also stocked at:
+This payment method is not enabled for this company,This payment method is not enabled for this company
 This product code already exists,This product code already exists
 This request was already recorded,This request was already recorded
 This sale is already voided,This sale is already voided
@@ -892,6 +894,7 @@ This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
 This warehouse already exists,This warehouse already exists
+This warehouse belongs to the company above,This warehouse belongs to the company above
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
 Time,Time
 To Date,To Date
@@ -1036,6 +1039,7 @@ company.docPrefixHint,Stored here for now; document numbers still come from the 
 company.enable,Enable
 company.field.address,Address
 company.field.branch,Branch
+company.field.company,Company
 company.field.contactEmail,Contact email
 company.field.contactPerson,Contact person
 company.field.docPrefix,Document prefix
@@ -1096,6 +1100,7 @@ company.terminalEdit,Edit
 company.terminalNew,Add terminal
 company.terminalNone,No terminal yet
 company.terminalsHint,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
+company.warehouseCompanyHint,This warehouse belongs to the company above
 company.warehouseDefaultName,Main
 company.warehouseHint,First warehouse of this company (more on the Warehouses page)
 company.warehousesHint,"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
