@@ -802,7 +802,6 @@ product.action.reload,刷新
 product.action.save,保存
 product.action.scan,扫码
 product.action.submit,提交
-product.action.toggleInactive,显示已停用
 product.active,正常
 product.cell.notSet,未设
 product.col.avgCost,均价
@@ -876,7 +875,6 @@ product.scan.unknownType,无法识别码类型，请填入条码或二维码对�
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 promptpay,PromptPay
 purchase,采购
-purchase.action.filter,筛选
 purchase_in,采购入库
 quotation,报价单
 receipt,收据
@@ -889,9 +887,7 @@ stock.action.count,盘点
 stock.action.export,导出
 stock.action.ledger,查看流水
 stock.action.ledgerSingle,一次只能看一条流水
-stock.action.onlyLow,只看低库存或缺货
 stock.action.reload,刷新
-stock.action.toggleZero,显示零库存
 stock.board.by,看板按
 stock.board.freezeColumn,冻结列
 stock.board.only,只看

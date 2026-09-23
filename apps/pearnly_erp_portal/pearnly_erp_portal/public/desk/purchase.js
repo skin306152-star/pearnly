@@ -4,7 +4,7 @@
 	p.purchase = async (page, t, wrapper) => {
 		const root = "pearnly-purchase", can_write = frappe.model.can_write("Purchase Document");
 		const go = (...parts) => frappe.set_route(root, ...parts);
-		let cleanup = () => {}, list_cleanup = () => {}, filter_values = {};
+		let cleanup = () => {}, list_cleanup = () => {};
 		const title = () => __("Purchase Records");
 		async function listing(still_current) {
 			page.set_title(title());
@@ -12,8 +12,20 @@
 			const defaults = await u.call("api_purchase_defaults"); if (!still_current()) return;
 			let live = true, list, selected = [];
 			const search = page.add_field({fieldname: "q", label: __("Search"), fieldtype: "Data",
-				default: filter_values.q || "", change: () => {filter_values.q = search.get_value(); void list?.reload();}});
-			const parameters = () => ({...filter_values, q: search.get_value()});
+				change: () => void list?.reload()});
+			// 筛选是**官方原生**那套（那颗 Filter 按钮 + 弹层里的条件行），字段在下面 `filters`
+			// 里声明；这里把条件翻成接口参数（与服务端的参数名一一对应）。
+			const parameters = () => {
+				const picked = p.filter_values(list);
+				const [from, to] = picked.doc_date || [];
+				return {q: search.get_value() || undefined,
+					date_basis: "document",
+					date_from: from || undefined, date_to: to || undefined,
+					doc_kind: picked.doc_kind || undefined,
+					payment_status: picked.payment_status || undefined,
+					supplier: picked.supplier || undefined,
+					status: picked.status || undefined};
+			};
 			const primary = () => {
 				if (!live || !still_current()) return;
 				if (!can_write) {page.clear_primary_action(); return;}
@@ -28,6 +40,14 @@
 				}));
 			};
 			list = p.list({page, doctype: "Purchase Document", selectable: true, compact_columns: true,
+				// 本页支持的筛选条件（官方的字段下拉里只列这五个）。
+				filter_fields: [
+					{fieldname: "doc_date", label: __("Posting Date"), fieldtype: "Date"},
+					{fieldname: "doc_kind", label: __("Type"), fieldtype: "Select"},
+					{fieldname: "payment_status", label: __("Payment Status"), fieldtype: "Select"},
+					{fieldname: "supplier", label: __("Supplier"), fieldtype: "Link"},
+					{fieldname: "status", label: __("Status"), fieldtype: "Select"},
+				],
 				on_open: row => go(row.name),
 				columns: [
 					// 底线要能塞进最窄的常见窗口：否则最右那两列会被右边那块（计数 /「付款」）
@@ -52,33 +72,6 @@
 				empty_action: can_write ? {label: __("New"), action: () => go("new")} : null,
 			});
 			async function refresh() {await list.reload(); primary();}
-			page.add_inner_button(__("purchase.action.filter"), () => {
-				const f = u.field;
-				const multi = (name, label, values) => f(name, label, "MultiSelectList", {get_data: text => values
-					.filter(row => row.label.toLowerCase().includes((text || "").toLowerCase()))
-					.map(row => ({...row, description: ""}))});
-				const dialog = p.dialog(__("purchase.action.filter"), [
-					f("group", "Type", "Select", {options: [{value: "", label: __("All")}, {value: "purchase", label: __("Purchase")},
-						{value: "expense", label: __("Expense")}, {value: "unpaid", label: __("Unpaid")}]}),
-					f("period", "Period", "Select", {options: [{value: "all", label: __("All")}, {value: "this_month", label: __("This Month")},
-						{value: "last_month", label: __("Last Month")}, {value: "this_quarter", label: __("This Quarter")}, {value: "custom", label: __("Custom")}],
-						onchange: async () => {
-							const mode = dialog.get_value("period"), today = moment(frappe.datetime.get_today());
-							if (mode === "custom") return;
-							if (mode === "last_month") today.subtract(1, "month");
-							const unit = mode === "this_quarter" ? "quarter" : "month";
-							await dialog.set_values({date_from: mode === "all" ? "" : today.clone().startOf(unit).format("YYYY-MM-DD"),
-								date_to: mode === "all" ? "" : today.clone().endOf(unit).format("YYYY-MM-DD")});
-						}}),
-					f("date_basis", "Date", "Select", {options: [{value: "document", label: __("Posting Date")}, {value: "upload", label: __("Creation")}]}),
-					f("date_from", "From Date", "Date"), f("date_to", "To Date", "Date"),
-					multi("payment_status", "Payment Status", u.options(["unpaid", "partial", "paid"])),
-					multi("category", "Category", defaults.categories.filter(row => !row.parent_category).map(row => ({value: row.name, label: row.category_name}))),
-				], __("Apply"), async (values, d) => {filter_values = {...values, q: search.get_value()}; d.hide(); await refresh();});
-				void dialog.set_values({group: "", period: "all", date_basis: "document", ...filter_values});
-				dialog.set_secondary_action_label(__("Reset"));
-				dialog.set_secondary_action(async () => {filter_values = {q: search.get_value()}; dialog.hide(); await refresh();});
-			});
 			page.add_menu_item(__("Export"), () => {
 				const query = new URLSearchParams({params: JSON.stringify(parameters())});
 				window.open(`/api/method/${u.api}api_purchase_export?${query}`, "_blank", "noopener,noreferrer");

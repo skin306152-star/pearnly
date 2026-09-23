@@ -802,7 +802,6 @@ product.action.reload,Reload
 product.action.save,Save
 product.action.scan,Scan
 product.action.submit,Submit
-product.action.toggleInactive,Show disabled
 product.active,Active
 product.cell.notSet,Not set
 product.col.avgCost,Average cost
@@ -876,7 +875,6 @@ product.scan.unknownType,The code type could not be identified. Enter it in the 
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 promptpay,promptpay
 purchase,purchase
-purchase.action.filter,Filter
 purchase_in,purchase_in
 quotation,quotation
 receipt,receipt
@@ -889,9 +887,7 @@ stock.action.count,Count
 stock.action.export,Export
 stock.action.ledger,Stock ledger
 stock.action.ledgerSingle,Select one row to open its ledger
-stock.action.onlyLow,Only low or out of stock
 stock.action.reload,Reload
-stock.action.toggleZero,Show zero stock
 stock.board.by,Chart by
 stock.board.freezeColumn,Freeze column
 stock.board.only,Show only

@@ -226,21 +226,26 @@
 				label: t("product.field.search"),
 				change: () => void list?.reload(),
 			});
-			filters.include_inactive = page.add_field({
-				fieldtype: "Check",
-				fieldname: "include_inactive",
-				label: t("product.action.toggleInactive"),
-				change: () => void list?.reload(),
-			});
-			const query = () => ({
-				search: filters.search.get_value() || undefined,
-				include_inactive: filters.include_inactive.get_value() ? 1 : undefined,
-			});
+			// 上面那个自研的"显示已停用"勾选撤掉了，改成**官方原生筛选**里的「上架」(is_active)
+			// 条件（用户 2026-09-23："把我们自己设计的勾选筛选取消掉，做成官方原生的显示出来"）。
+			const query = () => {
+				const picked = p.filter_values(list);
+				return {
+					search: filters.search.get_value() || undefined,
+					is_active: picked.is_active === undefined || picked.is_active === ""
+						? undefined : picked.is_active,
+				};
+			};
 
 			list = p.list({
 				page,
 				doctype: "ERP Product",
 				selectable: true,
+				// 本页支持的筛选条件（官方的字段下拉里只有这一个：上架 / 停用）。
+				// 名称、物料号、条码、二维码仍然走搜索框（一次搜四样，比逐个字段筛更快）。
+				filter_fields: [
+					{ fieldname: "is_active", label: t("product.col.status"), fieldtype: "Check" },
+				],
 				on_selection: selection,
 				on_open: (row) => open_detail(row),
 				// 七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。

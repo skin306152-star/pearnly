@@ -802,7 +802,6 @@ product.action.reload,再読み込み
 product.action.save,保存
 product.action.scan,スキャン
 product.action.submit,確定
-product.action.toggleInactive,無効も表示
 product.active,正常
 product.cell.notSet,未設定
 product.col.avgCost,平均原価
@@ -876,7 +875,6 @@ product.scan.unknownType,コードの種類を判別できません。バーコ�
 product.scan.unsupported,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 promptpay,PromptPay
 purchase,仕入
-purchase.action.filter,絞り込み
 purchase_in,仕入入庫
 quotation,見積書
 receipt,領収書
@@ -889,9 +887,7 @@ stock.action.count,棚卸
 stock.action.export,エクスポート
 stock.action.ledger,在庫の受け払いを開く
 stock.action.ledgerSingle,明細は1行ずつ開きます
-stock.action.onlyLow,在庫少・在庫切れのみ
 stock.action.reload,再読み込み
-stock.action.toggleZero,在庫 0 も表示
 stock.board.by,グラフの軸
 stock.board.freezeColumn,列を固定
 stock.board.only,表示のみ

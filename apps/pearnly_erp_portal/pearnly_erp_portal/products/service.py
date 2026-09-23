@@ -209,7 +209,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     return {"name": doc.name}
 
 
-def _filters(search=None, include_inactive=False):
+def _filters(search=None, include_inactive=False, is_active=None):
     """列表与计数共用的一份筛选，避免两处各写一遍导致"总数与实际不符"。
 
     名称、**物料号**、条码、二维码都要能搜到：扫码后就地找品是收银台的主路径
@@ -220,7 +220,11 @@ def _filters(search=None, include_inactive=False):
     只把条码放进 or 会让"搜名称"变成"名称与条码同时包含"，等于搜不到 —— 实测过。
     """
     filters: list = []
-    if not include_inactive:
+    if is_active is not None and str(is_active) != "":
+        # 原生筛选直接给了"上架 / 停用"这一条就照它来（用户 2026-09-23 把自研的那个
+        # "显示已停用"勾选换成了官方原生筛选条件）。
+        filters.append(["is_active", "=", 1 if int(is_active) else 0])
+    elif not include_inactive:
         filters.append(["is_active", "=", 1])
     or_filters = ([[field, "like", f"%{search}%"]
                    for field in ("product_name", "code", "barcode", "qr_payload")]
@@ -228,9 +232,9 @@ def _filters(search=None, include_inactive=False):
     return filters, or_filters
 
 
-def list_products(*, search=None, include_inactive=False, limit=50, start=0):
+def list_products(*, search=None, include_inactive=False, is_active=None, limit=50, start=0):
     guard.require("products.view")
-    filters, or_filters = _filters(search, include_inactive)
+    filters, or_filters = _filters(search, include_inactive, is_active)
     return _mask(frappe.get_list(
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
         order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
@@ -266,14 +270,14 @@ def find_product(value, exclude=None):
     return {}
 
 
-def count_products(*, search=None, include_inactive=False) -> int:
+def count_products(*, search=None, include_inactive=False, is_active=None) -> int:
     """列表总数（页脚"第 N 项/共 M 项"与"加载更多"用）。
 
     为什么不用 `frappe.db.count`：那条路**绕过 DocType 权限**，而本站点商品表是按岗位授权的；
     `frappe.get_list` 跟着权限走。商品是主数据、量级不大，用列表长度换权限正确性。
     """
     guard.require("products.view")
-    filters, or_filters = _filters(search, include_inactive)
+    filters, or_filters = _filters(search, include_inactive, is_active)
     return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters,
                                pluck="name", limit_page_length=0))
 

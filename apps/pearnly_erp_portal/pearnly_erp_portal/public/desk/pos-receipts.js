@@ -16,7 +16,7 @@
 		const state_label = value => t(`trade.state.${value}`);
 		const f = (fieldname, label, fieldtype = "Data", options = {}) =>
 			({fieldname, label: __(label), fieldtype, ...options});
-		let filters = {}, list, dialog;
+		let list;
 
 		// 小票查看器 + 两个动作（与收银页同一套：退货退款、作废）；动作完刷新本页。
 		async function open_receipt(row) {
@@ -89,8 +89,22 @@
 		});
 		const search = page.add_field({ fieldname: "q", label: __("Search"), fieldtype: "Data",
 			change: () => void list?.reload() });
-		const query = () => ({ ...filters, q: search.get_value() || undefined });
+		// 筛选是**官方原生**那套：字段在下面 `filters` 里声明，条件在这里翻成接口参数
+		// （`sold_at` 的 Between 给 [从, 到]）。
+		const query = () => {
+			const picked = p.filter_values(list);
+			const [from, to] = picked.sold_at || [];
+			return {q: search.get_value() || undefined,
+				date_from: from || undefined, date_to: to || undefined,
+				sale_type: picked.sale_type || undefined, status: picked.status || undefined};
+		};
 		list = p.list({ page, doctype: "ERP Sale", compact_columns: true,
+			// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
+			filter_fields: [
+				{ fieldname: "sold_at", label: t("trade.date"), fieldtype: "Datetime" },
+				{ fieldname: "sale_type", label: t("trade.kind"), fieldtype: "Select" },
+				{ fieldname: "status", label: t("trade.status"), fieldtype: "Select" },
+			],
 			on_selection: can_write ? selection : undefined,
 			on_open: row => void open_receipt(row),
 			load: p.trade.load(api, "api_list_sales", "api_sale_total", query),
@@ -112,28 +126,6 @@
 					format: value => p.money(value) },
 				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 			],
-		});
-		page.add_inner_button(__("purchase.action.filter"), () => {
-			dialog = p.dialog(__("purchase.action.filter"), [
-				f("date_from", "trade.from", "Date"), f("date_to", "trade.to", "Date"),
-				f("sale_type", "trade.kind", "Select", { options: [{ value: "", label: __("All") },
-					{ value: "sale", label: kind_label("sale") },
-					{ value: "refund", label: kind_label("refund") }] }),
-				f("status", "trade.status", "Select", { options: [{ value: "", label: __("All") },
-					{ value: "completed", label: state_label("completed") },
-					{ value: "void", label: state_label("void") }] }),
-			], __("Apply"), async (values, d) => {
-				filters = Object.fromEntries(Object.entries(values).filter(([, value]) => value));
-				d.hide();
-				await list?.reload();
-			});
-			dialog.set_secondary_action_label(__("Reset"));
-			dialog.set_secondary_action(async () => {
-				filters = {};
-				dialog.hide();
-				await list?.reload();
-			});
-			void dialog.set_values(filters);
 		});
 		p.add_refresh(page, () => void list?.reload());
 		await list.ready;

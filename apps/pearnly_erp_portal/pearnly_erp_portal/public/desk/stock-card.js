@@ -216,13 +216,21 @@
 		}
 
 		function open_list() {
+			// 日期区间留在工具栏（它必须**一直看得见**：期初/期末就是按这个区间滚出来的，
+			// 与 ERPNext 自己的报表工具栏同一个做法）；商品与仓库那两条改走**官方原生筛选**
+			// （那颗 Filter 按钮 + 弹层里的条件行），不再堆在工具栏上（用户 2026-09-23：
+			// "把我们自己设计的勾选筛选取消掉，做成官方原生的显示出来"）。
 			const fields = {};
 			for (const [name, type, label, value] of [
 				["date_from", "Date", "trade.from", frappe.datetime.month_start()],
 				["date_to", "Date", "trade.to", frappe.datetime.get_today()],
-				["warehouse", "Data", "trade.warehouse", ""],
 			]) fields[name] = page.add_field({ fieldname: name, fieldtype: type, label: t(label), default: value, change: () => list?.reload() });
-			const query = () => Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.get_value() || undefined]));
+			const query = () => {
+				const picked = p.filter_values(list);
+				return {date_from: fields.date_from.get_value() || undefined,
+					date_to: fields.date_to.get_value() || undefined,
+					warehouse: picked.warehouse || undefined, product: picked.product || undefined};
+			};
 			// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
 			// 对应的那一步 —— 打开这条汇总背后的明细（**二级页面**，这个视图字段多）。
 			// 沿用这一页自己的 `trade.` 词表（`t` 就是这个命名空间；写 stock.* 会露出键名）。
@@ -235,6 +243,11 @@
 			});
 			list = p.list({ page, doctype: "ERP Stock Movement", selectable: true, on_selection: selection,
 				on_open: row => open_ledger(row, query()),
+				// 本页支持的筛选条件（官方的字段下拉里只列这两个）。
+				filter_fields: [
+					{ fieldname: "warehouse", label: t("trade.warehouse"), fieldtype: "Link" },
+					{ fieldname: "product", label: t("trade.product"), fieldtype: "Link" },
+				],
 				// 收发存七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
 				// 看下能不能放在一屏显示完整"）。窗口更宽时按下面的比例等比放宽。
 				compact_columns: true,

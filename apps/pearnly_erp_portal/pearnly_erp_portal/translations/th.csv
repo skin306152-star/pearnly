@@ -802,7 +802,6 @@ product.action.reload,โหลดใหม่
 product.action.save,บันทึก
 product.action.scan,สแกน
 product.action.submit,ยืนยัน
-product.action.toggleInactive,แสดงที่ปิดใช้งาน
 product.active,ปกติ
 product.cell.notSet,ยังไม่ตั้ง
 product.col.avgCost,ต้นทุนเฉลี่ย
@@ -876,7 +875,6 @@ product.scan.unknownType,ไม่สามารถระบุชนิดโ�
 product.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
 promptpay,พร้อมเพย์
 purchase,จัดซื้อ
-purchase.action.filter,ตัวกรอง
 purchase_in,รับจากการซื้อ
 quotation,ใบเสนอราคา
 receipt,ใบเสร็จ
@@ -889,9 +887,7 @@ stock.action.count,ตรวจนับ
 stock.action.export,ส่งออก
 stock.action.ledger,ดูบัญชีสต็อก
 stock.action.ledgerSingle,เลือกได้ครั้งละหนึ่งรายการ
-stock.action.onlyLow,เฉพาะใกล้หมดหรือหมด
 stock.action.reload,โหลดใหม่
-stock.action.toggleZero,แสดงของที่ไม่มีสต็อก
 stock.board.by,แผนภูมิแบ่งตาม
 stock.board.freezeColumn,ตรึงคอลัมน์
 stock.board.only,แสดงเฉพาะ

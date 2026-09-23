@@ -22,7 +22,10 @@
 			? t("stock.cell.notSet")
 			: p.money(value));
 
-		// 原生筛选字段：搜索 + 两个开关（与商品页同一种装配方式）。
+		// 搜索框留在页面上；**筛选走官方原生那套**（那颗 Filter 按钮 + 弹层里的条件行）。
+		// 原来我们自己做的两个勾选（只看低库存或缺货 / 显示零库存）撤掉了：同样的意思用原生
+		// 条件表达更直接 —— 「在库数量 <= 0」= 缺货、「在库数量 != 0」= 不显示零库存
+		// （用户 2026-09-23 口径："把我们自己设计的勾选筛选取消掉，做成官方原生的显示出来"）。
 		const filters = {};
 		filters.search = page.add_field({
 			fieldtype: "Data",
@@ -30,23 +33,18 @@
 			label: t("stock.field.search"),
 			change: () => void list?.reload(),
 		});
-		filters.only_low = page.add_field({
-			fieldtype: "Check",
-			fieldname: "only_low",
-			label: t("stock.action.onlyLow"),
-			change: () => void list?.reload(),
-		});
-		filters.include_zero = page.add_field({
-			fieldtype: "Check",
-			fieldname: "include_zero",
-			label: t("stock.action.toggleZero"),
-			change: () => void list?.reload(),
-		});
-		const query = () => ({
-			q: filters.search.get_value() || undefined,
-			only_low: filters.only_low.get_value() ? 1 : undefined,
-			include_zero: filters.include_zero.get_value() ? 1 : undefined,
-		});
+		// 原生筛选条件 → 接口参数。数量那格把**比较符**一起带过去（服务端按比较符比）。
+		const query = () => {
+			const picked = p.filter_values(list);
+			const qty = list?.filter_area?.get().find(row => row[1] === "qty_on_hand") || [];
+			return {
+				q: filters.search.get_value() || undefined,
+				warehouse: picked.warehouse || undefined,
+				location: picked.location || undefined,
+				qty_op: qty[2] || undefined,
+				qty_value: qty[3] === undefined || qty[3] === "" ? undefined : qty[3],
+			};
+		};
 
 		// 四个数（有货 SKU / 库存金额 / 低库存 / 缺货）放在标题旁那个**原生指示器**里 ——
 		// 这一版 Desk 的页面模板没有副标题位（`set_title_sub` 找不到 h6，等于白写），
@@ -78,6 +76,12 @@
 			page,
 			doctype: "ERP Stock Balance",
 			selectable: true,
+			// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
+			filter_fields: [
+				{ fieldname: "warehouse", label: t("stock.col.warehouse"), fieldtype: "Link" },
+				{ fieldname: "location", label: t("stock.count.location"), fieldtype: "Data" },
+				{ fieldname: "qty_on_hand", label: t("stock.col.onHand"), fieldtype: "Float" },
+			],
 			on_selection: selection,
 			on_open: row => p.stockLedger(row),
 			// 十列要**一屏放得下**、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，

@@ -3,6 +3,38 @@
  */
 (() => {
 	const p = frappe.pearnly;
+	// 框架的 `FilterGroup.add()` 构造 `frappe.ui.Filter` 时不带 `filter_fields`，于是每行过滤器
+	// 的下拉里会列出该 DocType 的**全部**字段（几十个，绝大多数这页根本不支持）。产品列表只
+	// 开放本页真正支持的几个，所以在这里把白名单塞进构造参数 —— 用的是官方自己的开关
+	// （`field_select.js`：给了 `filter_fields` 就只加这几个）。**只对声明了 `filter_fields`
+	// 的列表生效**：别的列表、表单里的过滤器、其它 App 一概不动。
+	const NativeFilter = frappe.ui?.Filter;
+	if (NativeFilter && !NativeFilter.pearnly_filter_fields) {
+		class Filter extends NativeFilter {
+			constructor(options) {
+				// ⚠️ 官方的 `FieldSelect` 收的 `filter_fields` 是**字段对象数组**，不是字段名
+				// （`field_select.js: add_field_option(df)` 直接读 `df.fieldname`）。传一串字符串
+				// 会加出一堆空选项、下拉里什么都没有（实测踩到）。这里从 DocType 的元数据取。
+				const names = options?.filter_list?.filter_fields;
+				const fields = names?.length
+					? names.map(name => frappe.meta.get_docfield(options.doctype, name)).filter(Boolean)
+					: null;
+				super(fields ? {...options, filter_fields: fields} : options);
+			}
+		}
+		Filter.pearnly_filter_fields = true;
+		frappe.ui.Filter = Filter;
+	}
+	// 官方原生筛选条件 → `{字段名: 值}`。`Between` 给 [从, 到]，其余给单值（`in` 给数组）。
+	p.filter_values = list => {
+		const out = {};
+		for (const [doctype, fieldname, operator, value] of (list?.filter_area?.get() || [])) {
+			if (!fieldname) continue;
+			out[fieldname] = String(operator || "").toLowerCase() === "between"
+				&& Array.isArray(value) ? [value[0] || "", value[1] || value[0] || ""] : value;
+		}
+		return out;
+	};
 	class ProductList extends frappe.views.BaseList {
 		constructor(options) {
 			super(options);
@@ -15,9 +47,17 @@
 			Object.assign(this, {view: "List", selectable: options.selectable !== false,
 				start: 0, page_length: options.page_length || 20,
 				selected_page_count: options.page_length || 20, data: [], total: 0, sequence: 0,
-				hide_filters: true, hide_sort_selector: true, column_max_widths: {},
+				// 筛选走**官方原生那一套**（那颗 Filter 按钮 + 弹层里的条件行）：页面用 `filters`
+				// 声明本页支持的字段，没声明就不出筛选区。排序仍然不开放。
+				hide_filters: !options.filter_fields, hide_sort_selector: true, column_max_widths: {},
 				link_field_title_fields: {}, list_view_settings: {}});
 			this.settings = {formatters: {}, button: options.button};
+			// 白名单：只列这些字段（见上面包 `frappe.ui.Filter` 的那段）。注意 `filter_fields`
+			// 是给 `FieldSelect` 看的**字段名数组**；页面声明写成 `filter_fields: [{fieldname…}]`
+			// 是为了同时带着标签与类型，这里取名字。别叫 `filters` —— 那个名字框架自己用着
+			// （初始条件列表），撞上会让筛选区初始化去解析一堆对象而抛错。
+			this.filter_fields = options.filter_fields
+				? options.filter_fields.map(column => column.fieldname) : null;
 			this.spec = options.columns;
 			this.columns = options.columns.map((column, i) => {
 				// The framework measures each cell with `$(column_html)`, so a formatter
@@ -37,6 +77,9 @@
 			});
 			this.page.main.addClass("layout-main-list list-view");
 			this.ready = frappe.model.with_doctype(this.doctype).then(() => {
+				// 框架的筛选区/标准筛选要读 DocType 的字段定义（`meta.fields`、`title_field`），
+				// 那一步在 ListView 的 `setup_meta` 里；产品列表不是 ListView，自己补上。
+				this.meta = frappe.get_meta(this.doctype);
 				if (!this.destroyed) return this.setup_main_section();
 			}).then(() => {
 				if (this.destroyed) return;
@@ -82,6 +125,32 @@
 				$(window).on("resize", this.layout_handler);
 				this.page.wrapper.on("show", this.layout_handler);
 				return this.refresh();
+			});
+		}
+		setup_filter_area() {
+			if (this.hide_filters) return;
+			super.setup_filter_area();
+			// 只要"筛选按钮 + 弹层里的条件行"这一套。框架还会按 DocType 的 `in_standard_filter`
+			// 再铺一排常驻输入框（公司/名称…）—— 它们不在本页的参数映射里，出现了就是"看着能筛、
+			// 其实不生效"（用户 2026-09-23：筛选字段按页删减，不必要这么多），整块收掉。
+			this.page.page_form.find(".standard-filter-section").hide();
+			// 框架那个「+ 添加筛选」默认加的是 `name`（ID）那一行 —— 它不在本页白名单里，加出来
+			// 是一行**空白的选区**（截图实测）。改成加本页第一个筛选字段：走的还是官方同一个
+			// `add_filter`，事件也挂在官方那颗按钮上。
+			const first = this.filter_fields?.[0];
+			if (!first || !this.filter_area) return;
+			this.filter_area.filter_button.on("shown.bs.popover", () => {
+				const group = this.filter_area.filter_list;
+				if (!group?.wrapper) return;
+				group.wrapper.find(".add-filter").off("click").on("click", () => {
+					group.toggle_empty_filters(false);
+					group.add_filter(this.doctype, first);
+				});
+				// 首次弹开时框架已经加过一行 `name`：它不是本页的字段，换掉。
+				for (const row of group.filters.filter(row => !this.filter_fields.includes(row.fieldname))) {
+					row.remove();
+				}
+				if (!group.filters.some(row => row.field)) group.add_filter(this.doctype, first);
 			});
 		}
 		get_subject_element(doc, value) {

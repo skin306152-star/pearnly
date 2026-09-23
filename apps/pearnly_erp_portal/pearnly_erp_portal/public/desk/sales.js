@@ -4,7 +4,7 @@
 	p.sales = async (page, t, wrapper) => {
 		const root = "pearnly-sales", can_write = frappe.model.can_write("ERP Sales Document");
 		const go = (...parts) => frappe.set_route(root, ...parts);
-		let cleanup = () => {}, list_cleanup = () => {}, filter_values = {};
+		let cleanup = () => {}, list_cleanup = () => {};
 		// 收银小票查看器要 `trade.*` 那套文案（收银页的命名空间），第一次点开时取一次。
 		let trade_texts = null;
 		const title = () => __("nav.sales");
@@ -14,8 +14,19 @@
 			const defaults = await u.call("api_sales_defaults"); if (!still_current()) return;
 			let live = true, list, selected = [];
 			const search = page.add_field({fieldname: "q", label: __("Search"), fieldtype: "Data",
-				default: filter_values.q || "", change: () => {filter_values.q = search.get_value(); void list?.reload();}});
-			const parameters = () => ({...filter_values, q: search.get_value()});
+				change: () => void list?.reload()});
+			// 筛选是**官方原生**那套（那颗 Filter 按钮 + 弹层里的条件行），本页只开放下面
+			// `filters` 里声明的四个字段。这里把条件翻成接口参数（服务端的名字与条件一一对应）。
+			const parameters = () => {
+				const picked = p.filter_values(list);
+				const [from, to] = picked.doc_date || [];
+				return {q: search.get_value() || undefined,
+					date_basis: "document",
+					date_from: from || undefined, date_to: to || undefined,
+					doc_kind: picked.doc_kind || undefined,
+					payment_status: picked.payment_status || undefined,
+					source: picked.source || undefined};
+			};
 			const primary = () => {
 				if (!live || !still_current()) return;
 				if (!can_write) {page.clear_primary_action(); return;}
@@ -31,6 +42,13 @@
 			};
 			const refresh = async () => {await list.reload(); primary();};
 			list = p.list({page, doctype: "ERP Sales Document", selectable: true, compact_columns: true,
+				// 本页支持的筛选条件（官方的字段下拉里只列这四个）。
+				filter_fields: [
+					{fieldname: "doc_date", label: __("Date"), fieldtype: "Date"},
+					{fieldname: "doc_kind", label: __("Document Type"), fieldtype: "Select"},
+					{fieldname: "payment_status", label: __("Collection Status"), fieldtype: "Select"},
+					{fieldname: "source", label: __("Source"), fieldtype: "Select"},
+				],
 				// 收银小票（来源=POS）在收银那张单上，不能当销售单打开去看编辑页 ——
 				// 点它开小票查看器（与收银页同一个），其余照旧进详情页。
 				on_open: async row => {
@@ -65,35 +83,6 @@
 					|| row.payment_status === "paid" ? []
 					: [{id: "payment", label: __("Collection"), action: () => u.payment(row, refresh)}] : null,
 				empty_action: can_write ? {label: __("New"), action: () => go("new")} : null,
-			});
-			page.add_inner_button(__("purchase.action.filter"), () => {
-				const f = u.field;
-				const multi = (name, label, values) => f(name, label, "MultiSelectList", {get_data: text => values
-					.filter(row => row.label.toLowerCase().includes((text || "").toLowerCase()))
-					.map(row => ({...row, description: ""}))});
-				const dialog = p.dialog(__("purchase.action.filter"), [
-					f("group", "Type", "Select", {options: [{value: "", label: __("All")}, {value: "receipt", label: __("Receipt")},
-						{value: "quotation", label: __("Quotation")}, {value: "unpaid", label: __("Unpaid")}]}),
-					f("period", "Period", "Select", {options: [{value: "all", label: __("All")}, {value: "this_month", label: __("This Month")},
-						{value: "last_month", label: __("Last Month")}, {value: "this_quarter", label: __("This Quarter")}, {value: "custom", label: __("Custom")}],
-						onchange: async () => {
-							const mode = dialog.get_value("period"), today = moment(frappe.datetime.get_today());
-							if (mode === "custom") return;
-							if (mode === "last_month") today.subtract(1, "month");
-							const unit = mode === "this_quarter" ? "quarter" : "month";
-							await dialog.set_values({date_from: mode === "all" ? "" : today.clone().startOf(unit).format("YYYY-MM-DD"),
-								date_to: mode === "all" ? "" : today.clone().endOf(unit).format("YYYY-MM-DD")});
-						}}),
-					f("date_basis", "Date", "Select", {options: [{value: "document", label: __("Date")}, {value: "upload", label: __("Creation")}]}),
-					f("date_from", "From Date", "Date"), f("date_to", "To Date", "Date"),
-					multi("doc_kind", "Document Type", u.options(["receipt", "quotation"])),
-					multi("payment_status", "Collection Status", u.options(["unpaid", "partial", "paid"])),
-					// 「来源」：手工录入 / 上传识别 / LINE / 收银（收银小票就靠这一档筛出来）。
-					multi("source", "Source", u.options(["manual", "ocr", "line", "pos"])),
-				], __("Apply"), async (values, d) => {filter_values = {...values, q: search.get_value()}; d.hide(); await refresh();});
-				void dialog.set_values({group: "", period: "all", date_basis: "document", ...filter_values});
-				dialog.set_secondary_action_label(__("Reset"));
-				dialog.set_secondary_action(async () => {filter_values = {q: search.get_value()}; dialog.hide(); await refresh();});
 			});
 			page.add_menu_item(__("Export"), () => {
 				const query = new URLSearchParams({params: JSON.stringify(parameters())});

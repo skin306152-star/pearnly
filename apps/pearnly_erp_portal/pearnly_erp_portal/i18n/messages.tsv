@@ -40,7 +40,6 @@ New product	新建物料	เพิ่มสินค้า	商品を追加	produ
 Edit	编辑	แก้ไข	編集	product.action.edit
 Save	保存	บันทึก	保存	product.action.save
 Enable / disable	启用 / 停用	เปิด / ปิดใช้งาน	有効 / 無効	product.action.disable
-Show disabled	显示已停用	แสดงที่ปิดใช้งาน	無効も表示	product.action.toggleInactive
 Not set	未设	ยังไม่ตั้ง	未設定	product.cell.notSet
 Saved {0}	已保存 {0}	บันทึก {0} แล้ว	{0} を保存しました	product.notice.saved
 Updated {0}	已更新 {0}	อัปเดต {0} แล้ว	{0} を更新しました	product.notice.toggled
@@ -95,8 +94,6 @@ On hand	在库	คงเหลือ	在庫数	stock.col.onHand
 Average cost	平均成本	ต้นทุนเฉลี่ย	平均原価	stock.col.cost
 Value	金额	มูลค่า	金額	stock.col.value
 Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	stock.field.search
-Only low or out of stock	只看低库存或缺货	เฉพาะใกล้หมดหรือหมด	在庫少・在庫切れのみ	stock.action.onlyLow
-Show zero stock	显示零库存	แสดงของที่ไม่มีสต็อก	在庫 0 も表示	stock.action.toggleZero
 Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
 Export	导出	ส่งออก	エクスポート	stock.action.export
 Stock ledger	查看流水	ดูบัญชีสต็อก	在庫の受け払いを開く	stock.action.ledger
@@ -641,7 +638,6 @@ Withholding Tax Certificate	预扣税凭证	หนังสือรับรอ
 Withholding Tax Rate	预扣税率	อัตราภาษีหัก ณ ที่จ่าย	源泉徴収税率
 Withholding Tax must be greater than zero	预扣税额必须大于零	ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์	源泉徴収税額はゼロより大きい値にしてください
 No attachments	无附件	ไม่มีไฟล์แนบ	添付ファイルなし
-Filter	筛选	ตัวกรอง	絞り込み	purchase.action.filter
 Split	分拆	แยก	分割
 Entry Method	录入方式	วิธีการบันทึก	入力方法
 Upload and Recognize	上传识别	อัปโหลดเพื่ออ่านข้อความ	アップロードして読み取る
