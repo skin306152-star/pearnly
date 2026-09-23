@@ -14,6 +14,7 @@ Actual positions and quantities,ตำแหน่งจริงและจำ
 Actual warehouse,คลังที่พบจริง
 Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
+Add Order Discount,เพิ่มส่วนลดทั้งบิล
 Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
 Add a count,บันทึกการนับ
@@ -24,12 +25,14 @@ Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
 Additional Information,ข้อมูลเพิ่มเติม
+Additional Information updated successfully.,อัปเดตข้อมูลเพิ่มเติมแล้ว
 Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,รายการทั้งหมด
 All companies,ทุกบริษัท
+All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
 Already used by {0} (code {1}),ถูกใช้กับ {0} (รหัส {1}) แล้ว
@@ -53,6 +56,7 @@ Attach,แนบ
 Attachment,เอกสารแนบ
 Attachment Type,ประเภทไฟล์แนบ
 Attachments,ไฟล์แนบ
+Auto Fetch Serial Numbers,ดึงหมายเลขเครื่องอัตโนมัติ
 Average Unit Cost,ต้นทุนต่อหน่วยเฉลี่ย
 Back,กลับ
 Back to entries,กลับไปรายการ
@@ -111,24 +115,30 @@ Cashier Records,บันทึกการรับเงิน
 Category,หมวดหมู่
 Category Name,ชื่อหมวดหมู่
 Change,เงินทอน
+Change Amount,เงินทอน
 Change Total,เงินทอนรวม
 Chart by,แผนภูมิแบ่งตาม
 Checkout,ชำระเงิน
+Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / ออเดอร์ใหม่
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose file,เลือกไฟล์
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+Clear,ล้าง
+Clear Link,ล้างการเชื่อมโยง
 Clear cart,ล้างตะกร้า
 Clear customer,ล้างลูกค้า
 Clear the cart?,ล้างตะกร้าใช่ไหม
+Click to add email / phone,แตะเพื่อเพิ่มอีเมล / เบอร์โทร
 Click to choose a customer,แตะเพื่อเลือกลูกค้า
 Client Reference,ข้อมูลอ้างอิงจากไคลเอนต์
 Close,ปิด
 Close Shift,ปิดกะ
 Close camera,ปิดกล้อง
 Close count,ปิดการตรวจนับ
+Close the POS,ปิดจุดขาย
 Closed At,เวลาปิดกะ
 Closed at,เวลาปิด
 Closed by,ผู้ปิด
@@ -154,6 +164,7 @@ Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
 Confirm,ยืนยัน
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
+Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
 Contact email,อีเมลติดต่อ
 Contact person,ผู้ติดต่อ
@@ -176,6 +187,7 @@ Counted in total,นับรวมแล้ว
 Counted quantity,จำนวนที่นับได้
 Create,สร้าง
 Create New Item,สร้างสินค้าใหม่
+Create POS Opening Entry,สร้างรายการเปิดกะ
 Created,สร้างเมื่อ
 Created when a sales draft is confirmed,สร้างเมื่อยืนยันฉบับร่างการขาย
 Created when the draft is confirmed,สร้างเมื่อยืนยันฉบับร่าง
@@ -188,6 +200,7 @@ Custom,กำหนดเอง
 Customer,ลูกค้า
 Customer Name,ชื่อลูกค้า
 Customer Type,ประเภทลูกค้า
+Customer contact updated successfully.,อัปเดตข้อมูลติดต่อลูกค้าแล้ว
 Customer is disabled,ลูกค้าถูกปิดใช้งาน
 Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
@@ -225,6 +238,7 @@ Discount,ส่วนลด
 Discount (%),ส่วนลด (%)
 Discount Amount,จำนวนส่วนลด
 Discount Total,ยอดส่วนลดรวม
+Discount cannot be greater than 100%,ส่วนลดต้องไม่เกิน 100%
 Discount cannot be greater than 100%.,ส่วนลดต้องไม่เกิน 100%
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Discount percentage,เปอร์เซ็นต์ส่วนลด
@@ -248,8 +262,13 @@ ERP,ERP
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
+Edit Receipt,แก้ไขใบเสร็จ
 Edit in Full Page,แก้ไขแบบเต็มหน้า
+Editing {0} is not allowed as per POS Profile settings,ไม่อนุญาตให้แก้ไข {0} ตามการตั้งค่าจุดขาย
 Email,อีเมล
+Email Receipt,ส่งใบเสร็จทางอีเมล
+Email not sent to {0} (unsubscribed / disabled),ไม่ได้ส่งอีเมลถึง {0} (ยกเลิกรับ / ปิดใช้งาน)
+Email sent successfully.,ส่งอีเมลแล้ว
 Enable,เปิดใช้งาน
 Enable / disable,เปิด / ปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
@@ -258,11 +277,16 @@ Enabled,เปิดใช้งานแล้ว
 Enter a quantity,กรุณากรอกจำนวน
 Enter a tax ID first,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
+Enter amount to be redeemed.,กรอกจำนวนที่ต้องการใช้แต้ม
+Enter customer's email,กรอกอีเมลลูกค้า
+Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
+Enter discount percentage.,กรอกเปอร์เซ็นต์ส่วนลด
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
 Enter {0} amount,กรอกจำนวนเงิน {0}
+Enter {0} amount.,กรอกจำนวน {0}
 Entries,รายการ
 Entries — {0},รายการ — {0}
 Entry Method,วิธีการบันทึก
@@ -282,6 +306,7 @@ Exported {0} shifts,ส่งออก {0} กะแล้ว
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
 Fetched At,เวลาที่ดึงข้อมูล
+Fetched only {0} available serial numbers.,ดึงหมายเลขเครื่องได้เพียง {0} รายการ
 File,ไฟล์
 File Fingerprint,ลายนิ้วมือไฟล์
 File Name,ชื่อไฟล์
@@ -289,6 +314,7 @@ File SHA-256,SHA-256 ของไฟล์
 File not found,ไฟล์ไม่พบ
 Fill in as many rows as you need; leave the code empty and the system assigns one,กรอกได้หลายแถวในครั้งเดียว รหัสเว้นว่างไว้ระบบจะสร้างให้
 Filter,ตัวกรอง
+Filter by invoice status,กรองตามสถานะเอกสาร
 Filters,ตัวกรอง
 Find,ค้นหา
 Find product,ค้นหาสินค้า
@@ -297,6 +323,8 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
 Fiscal year start month,เดือนเริ่มปีบัญชี
+Focus on Item Group filter,โฟกัสตัวกรองกลุ่มรายการ
+Focus on search input,โฟกัสช่องค้นหา
 Foreigner,ชาวต่างชาติ
 Found,พบ
 Found: {0},พบ: {0}
@@ -316,6 +344,7 @@ How much of this opening was already pushed into the stock ledger; a revision on
 ID,รหัส
 Idempotency anchor for a whole request; a repeat submit is ignored,จุดอ้างอิงกันส่งซ้ำของทั้งคำขอ ส่งซ้ำจะถูกมองข้าม
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,จุดอ้างอิงกันส่งซ้ำ: ส่งซ้ำจะได้ใบเสร็จเดิม ไม่คิดเงินซ้ำ
+Ignore Pricing Rule is enabled. Cannot apply coupon code.,"เปิดใช้ ""ไม่ใช้กฎราคา"" จึงใช้โค้ดคูปองไม่ได้"
 Image Fingerprint,ลายนิ้วมือภาพ
 Image URL,URL รูปภาพ
 Import a sheet,นำเข้าไฟล์ตรวจนับ
@@ -333,24 +362,29 @@ Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
 Invalid Currency,สกุลเงินไม่ถูกต้อง
 Invalid Discount,ส่วนลดไม่ถูกต้อง
+Invalid Return,การคืนสินค้าไม่ถูกต้อง
 Invalid file,ไฟล์ไม่ถูกต้อง
 Invalid payment amount,ยอดชำระเงินไม่ถูกต้อง
 Invalid value,ค่าไม่ถูกต้อง
 Invalid value: {0},ค่าไม่ถูกต้อง: {0}
 Invoice,ใบแจ้งหนี้
 Invoice Amount,ยอดตามใบแจ้งหนี้
+Invoice Status,สถานะเอกสาร
 Is Paid,ชำระแล้ว
 Is Reversal,รายการกลับบัญชี
 Issued,จ่ายออก
 Item,รายการ
 Item / Description,ชื่อสินค้า/คำอธิบาย
+Item Cart,ตะกร้า
 Item Code,รหัสรายการ
+Item Code: {0} is not available under warehouse {1}.,สินค้า {0} ไม่มีในคลัง {1}
 Item Details,รายละเอียดสินค้า
 Item Group,กลุ่มรายการ
 Item Name,ชื่อรายการ
 Item Name is required,กรุณาระบุชื่อสินค้า
 Item Type,ประเภทของรายการ
 Item is disabled,สินค้าถูกปิดใช้งาน
+Item is removed since no serial / batch no selected.,เอาสินค้าออกแล้วเนื่องจากไม่ได้เลือกหมายเลขเครื่อง / ล็อต
 Items,รายการ
 Items are required,กรุณาระบุรายการสินค้า
 Items not found.,ไม่พบสินค้า
@@ -364,6 +398,7 @@ Last Month,เดือนที่แล้ว
 Last Movement,ความเคลื่อนไหวล่าสุด
 Last counted at,ตรวจนับล่าสุดเมื่อ
 Last counted by,ผู้ตรวจนับล่าสุด
+Last transacted,ทำรายการล่าสุด
 Leave all unchecked to allow every company,ไม่ติ๊กเลย = ไม่จำกัด เห็นทุกบริษัท
 Leave blank to use the default terminal,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
 Leave empty to use the default warehouse,เว้นว่างไว้จะใช้คลังเริ่มต้น
@@ -382,6 +417,8 @@ Low (≤{0}),ต่ำ (≤{0})
 Low Stock Threshold,เกณฑ์สต็อกต่ำ
 Low stock,สต็อกต่ำ
 Low stock alert,แจ้งเตือนสต็อกต่ำ
+Loyalty Points,คะแนนสะสม
+Loyalty Program,โปรแกรมสะสมแต้ม
 Main,คลังหลัก
 Manual,คู่มือ
 Manual Entry,กรอกข้อมูลเอง
@@ -415,12 +452,16 @@ No Open Shift,ยังไม่เปิดกะ
 No attachments,ไม่มีไฟล์แนบ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
+No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
+No items in cart,ยังไม่มีสินค้าในตะกร้า
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
+No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
 Normal,ปกติ
+Not Available,ไม่มีสินค้า
 Not Posted,ยังไม่บันทึกสต็อก
 Not counted,ยังไม่นับ
 Not enough stock on hand,สต็อกคงเหลือไม่พอ
@@ -445,13 +486,16 @@ Only purchase documents can be sent in for now,ตอนนี้รับเฉ
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the checked features are visible to this user,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
+Open Form View,เปิดมุมมองฟอร์ม
 Open Shift,เปิดกะ
+Open a shift on the cashier page first.,กรุณาเปิดกะที่หน้าจุดขายก่อน
 Open that product,ไปแก้รายการนั้น
 Opened At,เวลาเปิดกะ
 Opened at {0},เปิดกะเมื่อ {0}
 Opening,ยกมา
 Opening Amount,ยอดยกมา
 Opening Balance,ยอดคงเหลือต้นงวด
+Opening Balance Details,รายละเอียดยอดยกมา
 Opening Cash,เงินสดเริ่มต้น
 Opening Qty,จำนวนยกมา
 Opening Quantity,ยอดยกมา
@@ -461,8 +505,15 @@ Original Line,บรรทัดเดิม
 Other,อื่นๆ
 Out,จ่ายออก
 Out of stock,สินค้าหมด
+Outdated POS Opening Entry,รายการเปิดกะที่ล้าสมัย
 Outstanding Amount,จำนวนเงินค้างชำระ
 Over by {0},เกินมา {0}
+POS Closed,ปิดจุดขายแล้ว
+POS Opening Entry Cancelled,ยกเลิกรายการเปิดกะแล้ว
+POS Opening Entry has been cancelled. Please refresh the page.,รายการเปิดกะถูกยกเลิก กรุณารีเฟรชหน้า
+POS Profile,โปรไฟล์จุดขาย
+POS has been closed at {0}. Please refresh the page.,ปิดจุดขายเมื่อ {0} กรุณารีเฟรชหน้า
+POS invoice {0} created successfully,สร้างเอกสารขาย {0} สำเร็จ
 Paid,ชำระแล้ว
 Paid Amount,จำนวนเงินที่ชำระแล้ว
 Paid amount cannot exceed the total,ยอดรับเงินต้องไม่เกินยอดรวม
@@ -474,20 +525,28 @@ Password updated,อัปเดตรหัสผ่านแล้ว
 Pay,รับชำระ
 Payment,การชำระเงิน
 Payment Date,วันที่ชำระเงิน
+Payment Failed,ชำระเงินไม่สำเร็จ
 Payment Method,วิธีชำระเงิน
 Payment Needs Approval,การจ่ายต้องอนุมัติ
 Payment Receipt,หลักฐานการชำระเงิน
+Payment Received,รับชำระแล้ว
 Payment Reconciliation,กระทบยอดวิธีชำระ
 Payment Status,สถานะการชำระ
+Payment of {0} received successfully.,รับชำระ {0} สำเร็จ
+Payment of {0} received successfully. Waiting for other requests to complete...,รับชำระ {0} สำเร็จ กำลังรอคำขออื่นเสร็จสิ้น...
 Payments,การชำระเงิน
 Period,ช่วงเวลา
 Person,บุคคล
 Phone,โทรศัพท์
+Phone Number,เบอร์โทรศัพท์
 Photos,รูปภาพ
 Pick a line first,เลือกบรรทัดก่อน
 "Pick quantity, discount or price first",เลือกจำนวน ส่วนลด หรือราคาก่อน
 Place,ตำแหน่ง
+Please add Mode of payments and opening balance details.,กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา
+Please select a field to edit from numpad,กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข
 Please select an Item,กรุณาเลือกสินค้า
+Point of Sale,จุดขาย
 Point the camera at the barcode or QR code,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
 Position Balance,คงเหลือในตำแหน่ง
 Position differences,ผลต่างตำแหน่ง
@@ -506,6 +565,7 @@ Preview,ตัวอย่าง
 Previous,ก่อนหน้า
 Price,ราคา
 Price Is Set,ตั้งราคาแล้ว
+Price is not set for the item.,สินค้านี้ยังไม่ได้ตั้งราคา
 Prices Include Tax,ราคารวมภาษี
 Print,พิมพ์
 Print Receipt,พิมพ์ใบเสร็จ
@@ -553,16 +613,19 @@ Received By,ผู้รับเงิน
 "Received from LINE, then confirmed into a purchase record or discarded",รับจาก LINE แล้วยืนยันเป็นรายการจัดซื้อหรือทิ้ง
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Recent Orders,ออเดอร์ล่าสุด
+Recent Transactions,ธุรกรรมล่าสุด
 Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
 Recognition returned nothing,ไม่พบข้อมูลจากการรู้จำ
 Recognizing...,กำลังอ่านข้อความ…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
 Recount this product,นับสินค้านี้ใหม่
+Redeem Loyalty Points,ใช้คะแนนสะสม
 Reference,อ้างอิง
 Reference Cost,ต้นทุนอ้างอิง
 Reference cost,ต้นทุนอ้างอิง
 References,การอ้างอิง
+Refresh,รีเฟรช
 Refund,คืนสินค้า
 Refund Amount,ยอดคืนเงิน
 Refund Count,จำนวนการคืนเงิน
@@ -570,6 +633,7 @@ Refund Of,อ้างอิงใบเสร็จที่คืน
 Refuse a second document with the same supplier and document number,ปฏิเสธเอกสารใบที่สองที่ผู้จัดจำหน่ายและเลขเอกสารซ้ำกัน
 Reload,โหลดใหม่
 Remaining Amount,ยอดคงเหลือ
+Remark,หมายเหตุ
 Remarks,ข้อสังเกต
 Request Hash,แฮชของคำขอ
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
@@ -578,6 +642,7 @@ Requested By,ผู้ขอ
 Reset,เริ่มใหม่
 Reset Password,ตั้งรหัสผ่านใหม่
 Retry,ลองใหม่
+Returned,คืนแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
 Rotate,หมุน
@@ -604,21 +669,31 @@ Scanned,สแกนแล้ว
 Search,ค้นหา
 "Search by code, barcode or name",ค้นหาด้วยรหัส บาร์โค้ด หรือชื่อ
 Search by customer name or phone,ค้นหาด้วยชื่อลูกค้าหรือโทรศัพท์
+"Search by customer name, phone, email.",ค้นหาด้วยชื่อลูกค้า เบอร์โทร อีเมล
+Search by invoice id or customer name,ค้นหาด้วยเลขที่เอกสารหรือชื่อลูกค้า
+"Search by item code, serial number or barcode",ค้นหาด้วยรหัสสินค้า หมายเลขเครื่อง หรือบาร์โค้ด
 Search by name or phone,ค้นหาด้วยชื่อหรือโทรศัพท์
 Search by receipt number,ค้นหาด้วยเลขที่ใบเสร็จ
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
 "Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
+Select Loyalty Program,เลือกโปรแกรมสะสมแต้ม
+Select a Payment Method.,กรุณาเลือกวิธีชำระเงิน
 Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
 Select a receipt to load its summary,เลือกใบเสร็จเพื่อดูสรุป
 Select a stock count,เลือกการตรวจนับ
+Select an invoice to load summary data,เลือกเอกสารเพื่อดูข้อมูลสรุป
+Select item group,เลือกกลุ่มรายการ
 Select one receipt to refund,เลือกได้ครั้งละหนึ่งใบเสร็จ
 Select one row to open its ledger,เลือกได้ครั้งละหนึ่งรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
 Selling Units,หน่วยขาย
 Selling price,ราคาขาย
+Send,ส่ง
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
 Sending the same file twice must not create two drafts,ส่งไฟล์เดิมสองครั้งต้องไม่สร้างฉบับร่างสองใบ
 Sent By,ผู้ส่ง
+Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,สินค้า {0} ในคลัง {1} ไม่มีหมายเลขเครื่อง กรุณาเปลี่ยนคลัง
 Service,บริการ
 Set as current,ตั้งเป็นปัจจุบัน
 Set as default,ตั้งเป็นค่าเริ่มต้น
@@ -640,6 +715,7 @@ Show only,แสดงเฉพาะ
 Show zero stock,แสดงของที่ไม่มีสต็อก
 Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว รายการแรกแสดงด้านบน
 Sold At,เวลาขาย
+Sold by,ผู้ขาย
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวระหว่างตรวจนับ โปรดเปิดรายการที่ระบุและนับสินค้าใหม่ก่อนจบ
 Sort Order,ลำดับการจัดเรียง
 Source,แหล่งที่มา
@@ -665,6 +741,7 @@ Stock is counted in this unit; leave it empty to use the selling unit,นับ�
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,สต็อกนับด้วยหน่วยนี้ หน่วยอื่นแปลงมาเป็นหน่วยนี้ ถ้าเว้นว่างจะใช้หน่วยขาย
 Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเริ่มต้นของบริษัท
 Stock ledger,ดูบัญชีสต็อก
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,สินค้า {0} ในคลัง {1} มีไม่พอ คงเหลือ {2} {3}
 Stored here for now; document numbers still come from the numbering rules,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 Subcategory,หมวดหมู่ย่อย
 Submit,ส่ง
@@ -685,6 +762,7 @@ Supplier is disabled,ผู้จำหน่ายถูกปิดใช้�
 Supplier is required,กรุณาระบุผู้จำหน่าย
 Supplier not found,ไม่พบผู้จำหน่าย
 Suppliers,ผู้จัดจำหน่าย
+Switch Between Payment Modes,สลับวิธีชำระเงิน
 Switching company...,กำลังสลับบริษัท…
 System number,เลขที่ระบบ
 Tax Amount,จำนวนภาษี
@@ -710,8 +788,10 @@ The Revenue Department replied in an unreadable format,รูปแบบข้�
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The cart is empty,ตะกร้าว่างเปล่า
+The cashier assets did not load (official-*.js).,ไฟล์ของหน้าจุดขายโหลดไม่ครบ (official-*.js)
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
+The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
@@ -724,6 +804,7 @@ The stock count changed. Review the differences again.,ข้อมูลตร�
 The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
+There were errors while sending email. Please try again.,เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองใหม่
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",บัญชี LINE นี้ยังไม่ได้ผูกกับพนักงาน กรุณาเปิดจาก LINE หรือเข้าสู่ระบบเว็บก่อน
 This Month,เดือนนี้
 This Quarter,ไตรมาสนี้
@@ -748,9 +829,11 @@ Total,ยอดชำระ
 Total Amount,จำนวนเงินรวม
 Total Due,ยอดชำระ
 Total Items,จำนวนชิ้น
+Total Quantity,จำนวนรวม
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
 Total items,จำนวนชิ้น
 Total · {0} row(s),รวม · {0} รายการ
+Totals,ยอดรวม
 Track batches,ติดตามล็อต
 Track expiry,ติดตามวันหมดอายุ
 Transfer,โอนเงิน
@@ -767,6 +850,7 @@ Unknown buyer,ไม่ทราบผู้ซื้อ
 Unknown direction,ทิศทางไม่ถูกต้อง
 Unpaid,ยังไม่ได้ชำระ
 Up to 5 photos per entry; take a photo or choose from the gallery.,บันทึกได้ไม่เกิน 5 รูปต่อรายการ ถ่ายรูปหรือเลือกจากอัลบั้มก็ได้
+Update Additional Information,อัปเดตข้อมูลเพิ่มเติม
 Update Stock,อัปเดตสต็อก
 Updated,อัปเดตแล้ว
 Updated {0},อัปเดต {0} แล้ว
@@ -814,8 +898,13 @@ Withholding Tax Rate,อัตราภาษีหัก ณ ที่จ่า
 Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ที่จ่ายต้องมากกว่าศูนย์
 "Year, year-month or ALL, depending on the reset policy","ปี, ปี-เดือน หรือ ALL ขึ้นกับนโยบายรีเซ็ต"
 Yes,ใช่
+You can redeem upto {0}.,ใช้แต้มได้สูงสุด {0}
+You cannot redeem more than {0}.,ใช้แต้มได้ไม่เกิน {0}
 You cannot submit empty order.,ออเดอร์ว่างส่งไม่ได้
 You cannot submit the order without payment.,ยังไม่รับชำระ ส่งไม่ได้
+You don't have enough points to redeem.,คะแนนไม่พอสำหรับการใช้แต้ม
+You have unsaved changes. Do you want to save the invoice?,มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่
+You must select a customer before adding an item.,ต้องเลือกลูกค้าก่อนเพิ่มสินค้า
 Zoom In,ขยาย
 Zoom Out,ย่อ
 adjust,ปรับปรุง

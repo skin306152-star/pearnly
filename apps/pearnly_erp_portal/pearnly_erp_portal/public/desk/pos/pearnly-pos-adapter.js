@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -28,6 +28,11 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 	const WALK_IN = "__pearnly_walk_in__";
 	// 商品名 → 可用量（来自我们商品区那一页的回参；见 `to_official_item` 与库存那条映射）。
 	const available_map = {};
+	// 商品编码 → 名字 / 图片 / 单位。**为什么要单独存一份**：官方点击商品时传给
+	// `on_cart_update` 的 `item` 只有 `item_code / uom / rate / stock_uom / batch_no / serial_no`
+	// （见官方 `item_selector` 里那次 `item_selected`），**没有名字与图片**；而购物车行与明细面板
+	// 读的正是行上的 `item_name / image`。这两样只有我们商品卡那份数据里有，所以在这里留一份。
+	const item_meta = {};
 
 	// 支付方式：与 `ERP Sale Payment.method` **同一个集合**（`cashier/contracts.py` 的
 	// `PAYMENT_METHODS`），顺序照官方收款面板（现金 / 刷卡 / 扫码 / 转账）。
@@ -286,6 +291,12 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 		// 顺手存一份到 `available_map`：官方后面问"这个商品还有多少"（`get_stock_availability`）时用它答。
 		const on_hand = Number(row.qty_on_hand ?? 0);
 		available_map[row.name] = on_hand;
+		item_meta[row.name] = {
+			item_name: row.product_name || row.name,
+			item_image: row.image_url || "",
+			uom: row.unit || "",
+			stock_uom: row.base_unit || row.unit || "",
+		};
 		return {
 			item_code: row.name,
 			item_name: row.product_name || row.name,
@@ -377,7 +388,7 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 	function boot(wrapper) {
 		install_shims();
 		if (!O.Controller) {
-			frappe.msgprint(__("收银台资源没加载完（official-*.js）。"));
+			frappe.msgprint(__("The cashier assets did not load (official-*.js)."));
 			return;
 		}
 		return new (O.PearnlyController || O.Controller)(wrapper);
@@ -398,7 +409,7 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 				this.fetch_opening_entry().then(shift => {
 					if (!shift) {
 						this.wrapper.html(`<div class="text-muted p-4">${
-							frappe.utils.escape_html(__("请先在收银台开班（旧页面那条路）。"))}</div>`);
+							frappe.utils.escape_html(__("Open a shift on the cashier page first."))}</div>`);
 						return;
 					}
 					this.prepare_app_defaults(shift);
@@ -423,6 +434,13 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 			setup_listener_for_pos_closing() {}
 			check_outdated_pos_opening_entry() {}
 			fetch_invoice_fields() { this.settings.invoice_fields = []; }
+			// 删减（**不暴露没承接的入口**）：官方这两项菜单在我们这边都没有落点 ——
+			// 「打开表单视图」要打开这张客户端单据的服务端表单（我们没有那种表单），
+			// 「关闭收银台」要开一张 `POS Closing Entry`（我们的交班是自己的 `ERP Shift` 页面，
+			// 走侧栏那条路）。它们各自还绑着快捷键（⌘+F / ⇧+⌘+C），所以整段菜单只清空、不加那两项。
+			prepare_menu() {
+				this.page.clear_menu();
+			}
 			// 单据：官方用 POS Invoice 的 `items`；我们是 `ERP Sale` 的 `lines` —— 同一个数组两个名字。
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
 				const frm = super.get_new_frm(_frm, doctype);
@@ -530,6 +548,16 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 					}
 				})();
 				if (row && row.item_code) {
+					// 名字 / 图片 / 单位：官方这几格是**服务端** `set_item_details` 补在行上的
+					// （商品名、商品图 `image`、单位），我们这张客户端单据没有那一步 ——
+					// 不补的话购物车行只有数量与金额、**没有物料名**，明细面板那格是个空缩写框，
+					// 商品图也不会出现（实测 `.item-abbr` 是空的）。商品卡那份数据里就有这几样。
+					const picked = (args && args.item) || {};
+					const meta = item_meta[row.item_code] || {};
+					row.item_name = row.item_name || picked.item_name || meta.item_name || row.item_code;
+					row.image = row.image || picked.item_image || meta.item_image || "";
+					row.uom = row.uom || picked.uom || meta.uom || "";
+					row.stock_uom = row.stock_uom || picked.stock_uom || meta.stock_uom || row.uom;
 					row.conversion_factor = flt(row.conversion_factor) || 1;
 					row.warehouse = row.warehouse || (this.settings && this.settings.warehouse) || "";
 					// 价格要**数字**：商品卡上的 `data-rate` 是 DOM 字符串，官方汇总屏那句
@@ -541,6 +569,10 @@ window.__pos_adapter_v = 25;   // 排查用：确认页面到底加载到哪一�
 					row.discount_amount = flt(row.discount_amount || 0);
 					row.actual_qty = row.actual_qty ?? (available_map[row.item_code] ?? 0);
 					if (this.is_current_item_being_edited(row)) this.edit_item_details_of(row);
+					// 官方在 `super.on_cart_update()` 里**已经画过一次**购物车 —— 那一画笔的是
+					// 还没补名字/图片/单位的那一行（实测行上只有数量与金额、名字是空的）。
+					// 补完再画一次；官方那套渲染一个字没改，只是让它拿到完整的行。
+					this.update_cart_html(row);
 				}
 				return row;
 			}

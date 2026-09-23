@@ -500,3 +500,83 @@ TypeError: Cannot read properties of undefined (reading 'toString')
 **未做的（下一个包）**：付款屏那行 `Update Additional Information` 还是英文（附加信息弹窗，
 台账 D4）；`+ Add Payment Method`（官方自己注掉了）；打印收据 / Email Receipt / 新订单 三颗按钮
 只有"新订单"那条路是官方原生的，打印与邮件还没接（台账 D7）。
+
+## 12. 声音 / 语言 / 图片 / 图标：逐项盘点（2026-09-24，已补齐 + 实测）
+
+用户口径："对应的声音那些语言图片图标的显示，补充完整。"
+
+### 12.1 声音：本来就是完整的（本轮零改动，但这次有证据）
+
+页面回读：`<audio id="sound-…">` 共 **8 个** —— frappe 自带七个（submit / error / cancel /
+delete / click / alert / email）+ 我们自己钩子里那一条 `numpad-touch`（`pearnly_core/hooks.py`
+的 `sounds`，文件在我们 App 里，30ms / 音量 0.8，与上游同一份）；
+`frappe.boot.user.mute_sounds = 0`；官方 POS 会用到的五种音（error / submit / cancel / email /
+numpad-touch）全部 `readyState 4`、能播。**官方代码里 `play_sound(...)` 的名字与我们的节点一一对上，
+没有一条是取不到节点的。**
+
+### 12.2 语言：官方那 89 条文案，我们术语表里**一条都没有**
+
+**为什么一直没发现**：`scripts/check-i18n.py` 的 `SKIP_DIRS` 里有 `public` ——
+所以 `public/desk/` 下**全部** Desk 脚本（不只搬来的官方文件，我们自己的也是）从来没被这台机器扫过。
+英文就是这样漏出来的（收款屏的 `Update Additional Information`、购物车的 `Item Cart` /
+`No items in cart` / `Total Quantity`、汇总屏的 `Sold by` / `Email Receipt`…）。
+
+**改法**：把官方 POS 用到的 **89 条** `__()` 文案全部写进术语表
+（`pearnly_erp_portal/i18n/messages.tsv`，中英泰日四语、泰语为主），重新生成翻译包、清缓存。
+顺手把适配层自己那两条**中文 msgid** 改成英文（规矩是"msgid 一律英文"：中文 msgid 等于
+"这门语言永远是中文"）：`The cashier assets did not load (official-*.js).` /
+`Open a shift on the cashier page first.`。
+
+其中约二十条属于**已删减功能**的文案（忠诚度、序列号/批号、开班交班单、退货、优惠券）——
+它们在我们这两条链路上渲染不到，照样补上：术语表是"词"的表，不是"功能"的表，
+补上只防英文漏出，不代表我们支持那些功能。
+
+**实测（页面回读 `__()` 与实际 DOM）**：`Item Cart → 购物车`、`No items in cart → 购物车是空的`、
+`Total Quantity → 总数量`、`Sold by → 收银员`、`Email Receipt → 邮件发送收据`、
+`Update Additional Information → 更新附加信息`、`Change Amount → 找零`、`Totals → 合计`、
+`Search by customer name, phone, email. → 按客户名称、电话、邮箱搜索`、
+`Price is not set for the item. → 该物料没有设置售价`、`Remark → 备注`、`Refresh → 刷新`。
+收银台里"仍缺词条"自检：**0 条**。
+
+### 12.3 图片与名字：购物车行、明细面板本来是**空的**
+
+**根因**：官方行上的 `item_name / image / uom` 是**服务端** `set_item_details` 补的
+（官方 POS Invoice 那边由服务端带回），我们这张客户端单据没有那一步。实测明细面板那格是
+`<div class="item-abbr"></div>`（**空 div**）、购物车行只有数量与金额、没有物料名。
+
+**两处细节**（都是实测才看见的）：
+
+1. 官方点击商品时传给 `on_cart_update` 的 `item` **只有** `item_code / uom / rate /
+   stock_uom / batch_no / serial_no`（见官方 `item_selector` 那次 `item_selected`）——
+   **没有名字与图片**。所以适配层另存一份 `item_meta`（从商品卡那份数据来）。
+2. 官方在 `super.on_cart_update()` 里**已经画过一次**购物车，那一笔画的是还没补值的行；
+   补完必须**再画一次**，否则界面停在那张"没名字的行"上。
+
+**实测**：购物车行 `水 | 1 瓶 | ฿ 100.00`（带商品图 `/private/files/IMG_4550.JPG`）；
+明细面板 `水` + 图片 `1024x768` + `฿ 100.00`。没有图片的商品仍走官方的缩写格（39/40 张卡如此，
+与官方同一套判断）。
+
+### 12.4 图标：没有缺口
+
+官方 POS 只用 `frappe.utils.icon("close", …)` 两处，都是框架自带图标（sprite 里 symbol 在、
+可见的框架图标量到 16×16）。POS 里那 7 个 `.es-icon` 落在**隐藏面板**里（量到 0×0），属正常。
+
+### 12.5 顺带删掉两个"没承接的入口"
+
+官方页头菜单挂着两项：**打开表单视图**（要打开这张客户端单据的服务端表单，我们没有那种表单）与
+**关闭收银台**（要开一张 `POS Closing Entry`；我们的交班是自己的 `ERP Shift` 页面）。
+两项各自还绑着快捷键（⌘+F / ⇧+⌘+C），所以覆盖 `prepare_menu()` 整段清空。实测页头只剩
+我们自己的 `最近订单 / 新单`。
+
+### 12.6 这一轮发现、留给下一包的两件事
+
+1. **最近订单面板是空的**：官方 `past_order_list` 调的是
+   `erpnext.selling.page.point_of_sale.point_of_sale.get_past_order_list`，我们适配层的映射表里
+   **没有这一条** → 列表 0 行（面板本身、文案、筛选都在，`单据状态/搜索` 已译）。
+   要接我们的销售记录接口（`api_list_sales`）并做一层字段映射。
+   （面板里那两个 `undefined` 是 frappe 控件的 tooltip 节点，`opacity: 0`，悬停才会显形，
+   不算显示问题 —— 但值得顺手把这两格的 `description` 补上。）
+2. **`check-i18n.py` 的盲区**：它跳过 `public/`。本轮之前 `public/desk/` 下有 **135 条**
+   `__()` 缺词条（收银台 89 条 + 我们自己的页面 46 条）。收银台这 89 条已补；
+   其余 46 条（商品 / 采购 / 销售 / 盘点 / 团队等页面）**这一轮没动**，是下一批要清的账；
+   要不要把这台机器扩到 `public/desk/`（并要求零缺口），需要你拍一下。

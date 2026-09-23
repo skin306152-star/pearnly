@@ -14,6 +14,7 @@ Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
 Add Discount,Add Discount
 Add Employee,Add Employee
+Add Order Discount,Add Order Discount
 Add User,Add User
 Add VAT,Add VAT
 Add a count,Add a count
@@ -24,12 +25,14 @@ Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
 Additional Information,Additional Information
+Additional Information updated successfully.,Additional Information updated successfully.
 Address,Address
 Address and notes,Address and notes
 Against Payment,Against Payment
 All,All
 All Items,All Items
 All companies,All companies
+All the items have been already returned.,All the items have been already returned.
 Already exists,Already exists
 Already received,Already received
 Already used by {0} (code {1}),Already used by {0} (code {1})
@@ -53,6 +56,7 @@ Attach,Attach
 Attachment,Attachment
 Attachment Type,Attachment Type
 Attachments,Attachments
+Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
 Average Unit Cost,Average Unit Cost
 Back,Back
 Back to entries,Back to entries
@@ -111,24 +115,30 @@ Cashier Records,Cashier Records
 Category,Category
 Category Name,Category Name
 Change,Change
+Change Amount,Change Amount
 Change Total,Change Total
 Chart by,Chart by
 Checkout,Checkout
+Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
 Cheque,Cheque
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose the sheet to import,Choose the sheet to import
+Clear,Clear
+Clear Link,Clear Link
 Clear cart,Clear cart
 Clear customer,Clear customer
 Clear the cart?,Clear the cart?
+Click to add email / phone,Click to add email / phone
 Click to choose a customer,Click to choose a customer
 Client Reference,Client Reference
 Close,Close
 Close Shift,Close Shift
 Close camera,Close camera
 Close count,Close count
+Close the POS,Close the POS
 Closed At,Closed At
 Closed at,Closed at
 Closed by,Closed by
@@ -154,6 +164,7 @@ Complete Payment,Complete Payment
 Completed,Completed
 Confirm,Confirm
 Confirm the document before recording a payment,Confirm the document before recording a payment
+Contact Details,Contact Details
 Contact Person,Contact Person
 Contact email,Contact email
 Contact person,Contact person
@@ -176,6 +187,7 @@ Counted in total,Counted in total
 Counted quantity,Counted quantity
 Create,Create
 Create New Item,Create New Item
+Create POS Opening Entry,Create POS Opening Entry
 Created,Created
 Created when a sales draft is confirmed,Created when a sales draft is confirmed
 Created when the draft is confirmed,Created when the draft is confirmed
@@ -188,6 +200,7 @@ Custom,Custom
 Customer,Customer
 Customer Name,Customer Name
 Customer Type,Customer Type
+Customer contact updated successfully.,Customer contact updated successfully.
 Customer is disabled,Customer is disabled
 Customer is required,Customer is required
 Customer not found,Customer not found
@@ -225,6 +238,7 @@ Discount,Discount
 Discount (%),Discount (%)
 Discount Amount,Discount Amount
 Discount Total,Discount Total
+Discount cannot be greater than 100%,Discount cannot be greater than 100%
 Discount cannot be greater than 100%.,Discount cannot be greater than 100%.
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Discount percentage,Discount percentage
@@ -248,8 +262,13 @@ ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
 Edit,Edit
 Edit Cart,Edit Cart
+Edit Receipt,Edit Receipt
 Edit in Full Page,Edit in Full Page
+Editing {0} is not allowed as per POS Profile settings,Editing {0} is not allowed as per POS Profile settings
 Email,Email
+Email Receipt,Email Receipt
+Email not sent to {0} (unsubscribed / disabled),Email not sent to {0} (unsubscribed / disabled)
+Email sent successfully.,Email sent successfully.
 Enable,Enable
 Enable / disable,Enable / disable
 Enable {0},Enable {0}
@@ -258,11 +277,16 @@ Enabled,Enabled
 Enter a quantity,Enter a quantity
 Enter a tax ID first,Enter a tax ID first
 Enter a valid email,Enter a valid email
+Enter amount to be redeemed.,Enter amount to be redeemed.
+Enter customer's email,Enter customer's email
+Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
+Enter discount percentage.,Enter discount percentage.
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Enter the user name,Enter the user name
 Enter {0} amount,Enter {0} amount
+Enter {0} amount.,Enter {0} amount.
 Entries,Entries
 Entries — {0},Entries — {0}
 Entry Method,Entry Method
@@ -282,6 +306,7 @@ Exported {0} shifts,Exported {0} shifts
 External System Reference,External System Reference
 Factor to Base Unit,Factor to Base Unit
 Fetched At,Fetched At
+Fetched only {0} available serial numbers.,Fetched only {0} available serial numbers.
 File,File
 File Fingerprint,File Fingerprint
 File Name,File Name
@@ -289,6 +314,7 @@ File SHA-256,File SHA-256
 File not found,File not found
 Fill in as many rows as you need; leave the code empty and the system assigns one,Fill in as many rows as you need; leave the code empty and the system assigns one
 Filter,Filter
+Filter by invoice status,Filter by invoice status
 Filters,Filters
 Find,Find
 Find product,Find product
@@ -297,6 +323,8 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
 Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
+Focus on Item Group filter,Focus on Item Group filter
+Focus on search input,Focus on search input
 Foreigner,Foreigner
 Found,Found
 Found: {0},Found: {0}
@@ -316,6 +344,7 @@ How much of this opening was already pushed into the stock ledger; a revision on
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
+Ignore Pricing Rule is enabled. Cannot apply coupon code.,Ignore Pricing Rule is enabled. Cannot apply coupon code.
 Image Fingerprint,Image Fingerprint
 Image URL,Image URL
 Import a sheet,Import a sheet
@@ -333,24 +362,29 @@ Initial Password,Initial Password
 Input Tax,Input Tax
 Invalid Currency,Invalid Currency
 Invalid Discount,Invalid Discount
+Invalid Return,Invalid Return
 Invalid file,Invalid file
 Invalid payment amount,Invalid payment amount
 Invalid value,Invalid value
 Invalid value: {0},Invalid value: {0}
 Invoice,Invoice
 Invoice Amount,Invoice Amount
+Invoice Status,Invoice Status
 Is Paid,Is Paid
 Is Reversal,Is Reversal
 Issued,Issued
 Item,Item
 Item / Description,Item / Description
+Item Cart,Item Cart
 Item Code,Item Code
+Item Code: {0} is not available under warehouse {1}.,Item Code: {0} is not available under warehouse {1}.
 Item Details,Item Details
 Item Group,Item Group
 Item Name,Item Name
 Item Name is required,Item Name is required
 Item Type,Item Type
 Item is disabled,Item is disabled
+Item is removed since no serial / batch no selected.,Item is removed since no serial / batch no selected.
 Items,Items
 Items are required,Items are required
 Items not found.,Items not found.
@@ -364,6 +398,7 @@ Last Month,Last Month
 Last Movement,Last Movement
 Last counted at,Last counted at
 Last counted by,Last counted by
+Last transacted,Last transacted
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
 Leave empty to use the default warehouse,Leave empty to use the default warehouse
@@ -382,6 +417,8 @@ Low (≤{0}),Low (≤{0})
 Low Stock Threshold,Low Stock Threshold
 Low stock,Low stock
 Low stock alert,Low stock alert
+Loyalty Points,Loyalty Points
+Loyalty Program,Loyalty Program
 Main,Main
 Manual,Manual
 Manual Entry,Manual Entry
@@ -415,12 +452,16 @@ No Open Shift,No Open Shift
 No attachments,No attachments
 No company is available for this account,No company is available for this account
 No item matches the scanned code {0},No item matches the scanned code {0}
+No items found. Scan barcode again.,No items found. Scan barcode again.
+No items in cart,No items in cart
 No product for this code: {0},No product for this code: {0}
 No receipts in this shift,No receipts in this shift
+No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
 No warehouse matches that name,No warehouse matches that name
 None,None
 Normal,Normal
+Not Available,Not Available
 Not Posted,Not Posted
 Not counted,Not counted
 Not enough stock on hand,Not enough stock on hand
@@ -445,13 +486,16 @@ Only purchase documents can be sent in for now,Only purchase documents can be se
 Only the checked features are visible to this employee,Only the checked features are visible to this employee
 Only the checked features are visible to this user,Only the checked features are visible to this user
 Only the product admin can change this,Only the product admin can change this
+Open Form View,Open Form View
 Open Shift,Open Shift
+Open a shift on the cashier page first.,Open a shift on the cashier page first.
 Open that product,Open that product
 Opened At,Opened At
 Opened at {0},Opened at {0}
 Opening,Opening
 Opening Amount,Opening Amount
 Opening Balance,Opening Balance
+Opening Balance Details,Opening Balance Details
 Opening Cash,Opening Cash
 Opening Qty,Opening Qty
 Opening Quantity,Opening Quantity
@@ -461,8 +505,15 @@ Original Line,Original Line
 Other,Other
 Out,Out
 Out of stock,Out of stock
+Outdated POS Opening Entry,Outdated POS Opening Entry
 Outstanding Amount,Outstanding Amount
 Over by {0},Over by {0}
+POS Closed,POS Closed
+POS Opening Entry Cancelled,POS Opening Entry Cancelled
+POS Opening Entry has been cancelled. Please refresh the page.,POS Opening Entry has been cancelled. Please refresh the page.
+POS Profile,POS Profile
+POS has been closed at {0}. Please refresh the page.,POS has been closed at {0}. Please refresh the page.
+POS invoice {0} created successfully,POS invoice {0} created successfully
 Paid,Paid
 Paid Amount,Paid Amount
 Paid amount cannot exceed the total,Paid amount cannot exceed the total
@@ -474,20 +525,28 @@ Password updated,Password updated
 Pay,Pay
 Payment,Payment
 Payment Date,Payment Date
+Payment Failed,Payment Failed
 Payment Method,Payment Method
 Payment Needs Approval,Payment Needs Approval
 Payment Receipt,Payment Receipt
+Payment Received,Payment Received
 Payment Reconciliation,Payment Reconciliation
 Payment Status,Payment Status
+Payment of {0} received successfully.,Payment of {0} received successfully.
+Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
 Payments,Payments
 Period,Period
 Person,Person
 Phone,Phone
+Phone Number,Phone Number
 Photos,Photos
 Pick a line first,Pick a line first
 "Pick quantity, discount or price first","Pick quantity, discount or price first"
 Place,Place
+Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
+Please select a field to edit from numpad,Please select a field to edit from numpad
 Please select an Item,Please select an Item
+Point of Sale,Point of Sale
 Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
 Position Balance,Position Balance
 Position differences,Position differences
@@ -506,6 +565,7 @@ Preview,Preview
 Previous,Previous
 Price,Price
 Price Is Set,Price Is Set
+Price is not set for the item.,Price is not set for the item.
 Prices Include Tax,Prices Include Tax
 Print,Print
 Print Receipt,Print Receipt
@@ -553,16 +613,19 @@ Received By,Received By
 "Received from LINE, then confirmed into a purchase record or discarded","Received from LINE, then confirmed into a purchase record or discarded"
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recent Orders,Recent Orders
+Recent Transactions,Recent Transactions
 Recognition is not configured for this account,Recognition is not configured for this account
 Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count
 Recount this product,Recount this product
+Redeem Loyalty Points,Redeem Loyalty Points
 Reference,Reference
 Reference Cost,Reference Cost
 Reference cost,Reference cost
 References,References
+Refresh,Refresh
 Refund,Refund
 Refund Amount,Refund Amount
 Refund Count,Refund Count
@@ -570,6 +633,7 @@ Refund Of,Refund Of
 Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
 Reload,Reload
 Remaining Amount,Remaining Amount
+Remark,Remark
 Remarks,Remarks
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
@@ -578,6 +642,7 @@ Requested By,Requested By
 Reset,Reset
 Reset Password,Reset Password
 Retry,Retry
+Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
 Rotate,Rotate
@@ -604,21 +669,31 @@ Scanned,Scanned
 Search,Search
 "Search by code, barcode or name","Search by code, barcode or name"
 Search by customer name or phone,Search by customer name or phone
+"Search by customer name, phone, email.","Search by customer name, phone, email."
+Search by invoice id or customer name,Search by invoice id or customer name
+"Search by item code, serial number or barcode","Search by item code, serial number or barcode"
 Search by name or phone,Search by name or phone
 Search by receipt number,Search by receipt number
 Search name or barcode,Search name or barcode
 "Search name, code or barcode","Search name, code or barcode"
+Select Loyalty Program,Select Loyalty Program
+Select a Payment Method.,Select a Payment Method.
 Select a product for each stock item,Select a product for each stock item
 Select a receipt to load its summary,Select a receipt to load its summary
 Select a stock count,Select a stock count
+Select an invoice to load summary data,Select an invoice to load summary data
+Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
 Selling Units,Selling Units
 Selling price,Selling price
+Send,Send
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
 Sent By,Sent By
+Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.
 Service,Service
 Set as current,Set as current
 Set as default,Set as default
@@ -640,6 +715,7 @@ Show only,Show only
 Show zero stock,Show zero stock
 Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the first ones are listed above
 Sold At,Sold At
+Sold by,Sold by
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Sort Order,Sort Order
 Source,Source
@@ -665,6 +741,7 @@ Stock is counted in this unit; leave it empty to use the selling unit,Stock is c
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
 Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse,Stock leaves this warehouse (must belong to the same company). Empty means the company's default warehouse
 Stock ledger,Stock ledger
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.
 Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
 Subcategory,Subcategory
 Submit,Submit
@@ -685,6 +762,7 @@ Supplier is disabled,Supplier is disabled
 Supplier is required,Supplier is required
 Supplier not found,Supplier not found
 Suppliers,Suppliers
+Switch Between Payment Modes,Switch Between Payment Modes
 Switching company...,Switching company...
 System number,System number
 Tax Amount,Tax Amount
@@ -710,8 +788,10 @@ The Revenue Department replied in an unreadable format,The Revenue Department re
 The account you give customers for transfers,The account you give customers for transfers
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
+The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
+The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
 The password must be at least {0} characters,The password must be at least {0} characters
@@ -724,6 +804,7 @@ The stock count changed. Review the differences again.,The stock count changed. 
 The value is not a number,The value is not a number
 The value must be zero or more,The value must be zero or more
 There is nothing to save,There is nothing to save
+There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.","This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
 This Month,This Month
 This Quarter,This Quarter
@@ -748,9 +829,11 @@ Total,Total
 Total Amount,Total Amount
 Total Due,Total Due
 Total Items,Total Items
+Total Quantity,Total Quantity
 Total Taxes and Charges,Total Taxes and Charges
 Total items,Total items
 Total · {0} row(s),Total · {0} row(s)
+Totals,Totals
 Track batches,Track batches
 Track expiry,Track expiry
 Transfer,Transfer
@@ -767,6 +850,7 @@ Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
 Unpaid,Unpaid
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
+Update Additional Information,Update Additional Information
 Update Stock,Update Stock
 Updated,Updated
 Updated {0},Updated {0}
@@ -814,8 +898,13 @@ Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
 "Year, year-month or ALL, depending on the reset policy","Year, year-month or ALL, depending on the reset policy"
 Yes,Yes
+You can redeem upto {0}.,You can redeem upto {0}.
+You cannot redeem more than {0}.,You cannot redeem more than {0}.
 You cannot submit empty order.,You cannot submit empty order.
 You cannot submit the order without payment.,You cannot submit the order without payment.
+You don't have enough points to redeem.,You don't have enough points to redeem.
+You have unsaved changes. Do you want to save the invoice?,You have unsaved changes. Do you want to save the invoice?
+You must select a customer before adding an item.,You must select a customer before adding an item.
 Zoom In,Zoom In
 Zoom Out,Zoom Out
 adjust,adjust

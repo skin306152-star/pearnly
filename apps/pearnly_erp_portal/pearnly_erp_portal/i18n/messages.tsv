@@ -1015,3 +1015,92 @@ Void Reason	撤销原因	เหตุผลการยกเลิก	取消理
 Voided	已撤销	ยกเลิกแล้ว	取消済み
 Who bought this receipt; empty means a walk-in customer	这张小票是谁买的；留空 = 散客	ใครซื้อใบเสร็จนี้ ถ้าเว้นว่าง = ลูกค้าทั่วไป	このレシートの購入者。空欄は一般客（通りがかり）です
 Year, year-month or ALL, depending on the reset policy	年、年月或 ALL，取决于重置策略	ปี, ปี-เดือน หรือ ALL ขึ้นกับนโยบายรีเซ็ต	年・年月・ALL のいずれか（リセット方針による）
+Add Order Discount	添加整单折扣	เพิ่มส่วนลดทั้งบิล	伝票割引を追加
+Additional Information updated successfully.	附加信息已更新	อัปเดตข้อมูลเพิ่มเติมแล้ว	追加情報を更新しました
+All the items have been already returned.	所有物料都已退货	สินค้าทั้งหมดถูกคืนแล้ว	すべての商品は返品済みです
+Auto Fetch Serial Numbers	自动获取序列号	ดึงหมายเลขเครื่องอัตโนมัติ	シリアル番号を自動取得
+Change Amount	找零	เงินทอน	お釣り
+Checkout Order / Submit Order / New Order	结账 / 提交订单 / 新订单	ชำระเงิน / ยืนยันคำสั่งซื้อ / ออเดอร์ใหม่	会計 / 注文確定 / 新規注文
+Clear	清除	ล้าง	クリア
+Clear Link	清除关联	ล้างการเชื่อมโยง	リンクを解除
+Click to add email / phone	点击添加邮箱 / 电话	แตะเพื่อเพิ่มอีเมล / เบอร์โทร	メール・電話を追加
+Close the POS	关闭收银台	ปิดจุดขาย	レジを閉じる
+Contact Details	联系方式	ข้อมูลติดต่อ	連絡先
+Create POS Opening Entry	新建开班记录	สร้างรายการเปิดกะ	シフト開始を作成
+Customer contact updated successfully.	客户联系方式已更新	อัปเดตข้อมูลติดต่อลูกค้าแล้ว	顧客の連絡先を更新しました
+Discount cannot be greater than 100%	折扣率不可超过 100%	ส่วนลดต้องไม่เกิน 100%	割引率は 100% を超えられません
+Edit Receipt	编辑收据	แก้ไขใบเสร็จ	領収書を編集
+Editing {0} is not allowed as per POS Profile settings	按收银台配置，不允许修改 {0}	ไม่อนุญาตให้แก้ไข {0} ตามการตั้งค่าจุดขาย	レジ設定により {0} は編集できません
+Email Receipt	邮件发送收据	ส่งใบเสร็จทางอีเมล	領収書をメール送信
+Email not sent to {0} (unsubscribed / disabled)	未向 {0} 发送邮件（已退订 / 已停用）	ไม่ได้ส่งอีเมลถึง {0} (ยกเลิกรับ / ปิดใช้งาน)	{0} にメールを送信できませんでした（配信停止・無効）
+Email sent successfully.	邮件已发送	ส่งอีเมลแล้ว	メールを送信しました
+Enter amount to be redeemed.	输入要抵扣的金额	กรอกจำนวนที่ต้องการใช้แต้ม	利用する金額を入力してください
+Enter customer's email	输入客户邮箱	กรอกอีเมลลูกค้า	顧客のメールを入力
+Enter customer's phone number	输入客户电话	กรอกเบอร์โทรลูกค้า	顧客の電話番号を入力
+Enter discount percentage.	输入折扣百分比	กรอกเปอร์เซ็นต์ส่วนลด	割引率を入力してください
+Enter {0} amount.	输入 {0} 金额	กรอกจำนวน {0}	{0} の金額を入力してください
+Fetched only {0} available serial numbers.	只取到了 {0} 个可用序列号	ดึงหมายเลขเครื่องได้เพียง {0} รายการ	利用可能なシリアル番号を {0} 件だけ取得しました
+Filter by invoice status	按单据状态筛选	กรองตามสถานะเอกสาร	伝票ステータスで絞り込み
+Focus on Item Group filter	定位到物料组筛选	โฟกัสตัวกรองกลุ่มรายการ	品目グループ絞り込みにフォーカス
+Focus on search input	定位到搜索框	โฟกัสช่องค้นหา	検索欄にフォーカス
+Ignore Pricing Rule is enabled. Cannot apply coupon code.	已启用「忽略定价规则」，无法使用优惠券	เปิดใช้ "ไม่ใช้กฎราคา" จึงใช้โค้ดคูปองไม่ได้	「価格ルールを無視」が有効なため、クーポンコードは使用できません
+Invalid Return	无效退货	การคืนสินค้าไม่ถูกต้อง	無効な返品
+Invoice Status	单据状态	สถานะเอกสาร	伝票ステータス
+Item Cart	购物车	ตะกร้า	カート
+Item Code: {0} is not available under warehouse {1}.	物料 {0} 在仓库 {1} 无货	สินค้า {0} ไม่มีในคลัง {1}	商品 {0} は倉庫 {1} にありません
+Item is removed since no serial / batch no selected.	未选择序列号 / 批号，已移除该物料	เอาสินค้าออกแล้วเนื่องจากไม่ได้เลือกหมายเลขเครื่อง / ล็อต	シリアル・ロットが未選択のため商品を削除しました
+Last transacted	最近交易时间	ทำรายการล่าสุด	最終取引
+Loyalty Points	忠诚度积分	คะแนนสะสม	ロイヤルティポイント
+Loyalty Program	忠诚度计划	โปรแกรมสะสมแต้ม	ロイヤルティプログラム
+No items found. Scan barcode again.	没有找到物料，请重新扫码	ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง	商品が見つかりません。バーコードを再スキャンしてください
+No items in cart	购物车是空的	ยังไม่มีสินค้าในตะกร้า	カートに商品がありません
+No recent transactions found	没有最近的交易	ไม่พบธุรกรรมล่าสุด	最近の取引はありません
+Not Available	无货	ไม่มีสินค้า	在庫なし
+Open Form View	打开表单视图	เปิดมุมมองฟอร์ม	フォーム表示を開く
+Opening Balance Details	开班余额明细	รายละเอียดยอดยกมา	開始残高の明細
+Outdated POS Opening Entry	过期的开班记录	รายการเปิดกะที่ล้าสมัย	古いシフト開始
+POS Closed	收银台已关闭	ปิดจุดขายแล้ว	レジは閉店しました
+POS Opening Entry Cancelled	开班记录已作废	ยกเลิกรายการเปิดกะแล้ว	シフト開始を取消しました
+POS Opening Entry has been cancelled. Please refresh the page.	开班记录已作废，请刷新页面	รายการเปิดกะถูกยกเลิก กรุณารีเฟรชหน้า	シフト開始は取消されました。ページを更新してください
+POS Profile	收银台配置	โปรไฟล์จุดขาย	POS プロファイル
+POS has been closed at {0}. Please refresh the page.	收银台已于 {0} 关闭，请刷新页面	ปิดจุดขายเมื่อ {0} กรุณารีเฟรชหน้า	レジは {0} に閉店しました。ページを更新してください
+POS invoice {0} created successfully	收银单据 {0} 已生成	สร้างเอกสารขาย {0} สำเร็จ	レジ伝票 {0} を作成しました
+Payment Failed	收款失败	ชำระเงินไม่สำเร็จ	入金失敗
+Payment Received	收款成功	รับชำระแล้ว	入金済み
+Payment of {0} received successfully.	已成功收款 {0}	รับชำระ {0} สำเร็จ	{0} の入金に成功しました
+Payment of {0} received successfully. Waiting for other requests to complete...	已成功收款 {0}，正在等待其它请求完成…	รับชำระ {0} สำเร็จ กำลังรอคำขออื่นเสร็จสิ้น...	{0} の入金に成功しました。他の処理の完了を待っています…
+Phone Number	电话号码	เบอร์โทรศัพท์	電話番号
+Please add Mode of payments and opening balance details.	请添加支付方式与开班余额明细	กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา	支払方法と開始残高の明細を追加してください
+Please select a field to edit from numpad	请先用键盘选择要修改的字段	กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข	テンキーから編集する項目を選択してください
+Point of Sale	收银台	จุดขาย	レジ
+Price is not set for the item.	该物料没有设置售价	สินค้านี้ยังไม่ได้ตั้งราคา	この商品には価格が設定されていません
+Recent Transactions	最近交易	ธุรกรรมล่าสุด	最近の取引
+Redeem Loyalty Points	抵扣忠诚度积分	ใช้คะแนนสะสม	ロイヤルティポイントを使う
+Refresh	刷新	รีเฟรช	更新
+Remark	备注	หมายเหตุ	備考
+Returned	已退货	คืนแล้ว	返品済み
+Search by customer name, phone, email.	按客户名称、电话、邮箱搜索	ค้นหาด้วยชื่อลูกค้า เบอร์โทร อีเมล	顧客名・電話・メールで検索
+Search by invoice id or customer name	按单据编号或客户名称搜索	ค้นหาด้วยเลขที่เอกสารหรือชื่อลูกค้า	伝票番号または顧客名で検索
+Search by item code, serial number or barcode	按物料号、序列号或条码搜索	ค้นหาด้วยรหัสสินค้า หมายเลขเครื่อง หรือบาร์โค้ด	商品コード・シリアル番号・バーコードで検索
+Select Loyalty Program	选择忠诚度计划	เลือกโปรแกรมสะสมแต้ม	ロイヤルティプログラムを選択
+Select a Payment Method.	请选择支付方式	กรุณาเลือกวิธีชำระเงิน	支払方法を選択してください
+Select an invoice to load summary data	选择一张单据以查看汇总	เลือกเอกสารเพื่อดูข้อมูลสรุป	伝票を選択すると概要が表示されます
+Select item group	选择物料组	เลือกกลุ่มรายการ	品目グループを選択
+Send	发送	ส่ง	送信
+Serial No: {0} has already been transacted into another POS Invoice.	序列号 {0} 已在另一张收银单据上使用过	หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว	シリアル番号 {0} は他のレジ伝票で使用済みです
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.	物料 {0} 在仓库 {1} 没有可用序列号，请换个仓库试试	สินค้า {0} ในคลัง {1} ไม่มีหมายเลขเครื่อง กรุณาเปลี่ยนคลัง	商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
+Sold by	收银员	ผู้ขาย	担当者
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.	物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}	สินค้า {0} ในคลัง {1} มีไม่พอ คงเหลือ {2} {3}	商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
+Switch Between Payment Modes	切换支付方式	สลับวิธีชำระเงิน	支払方法を切り替え
+The cashier assets did not load (official-*.js).	收银台资源没加载完（official-*.js）	ไฟล์ของหน้าจุดขายโหลดไม่ครบ (official-*.js)	レジのファイルが読み込めませんでした（official-*.js）
+The current POS opening entry is outdated. Please close it and create a new one.	当前开班记录已过期，请先交班再重新开班	รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่	現在のシフト開始は古くなっています。閉めて新しく作成してください
+There were errors while sending email. Please try again.	发送邮件时出错，请重试	เกิดข้อผิดพลาดในการส่งอีเมล กรุณาลองใหม่	メール送信中にエラーが発生しました。再試行してください
+Total Quantity	总数量	จำนวนรวม	合計数量
+Totals	合计	ยอดรวม	合計
+Update Additional Information	更新附加信息	อัปเดตข้อมูลเพิ่มเติม	追加情報を更新
+You can redeem upto {0}.	最多可抵扣 {0}	ใช้แต้มได้สูงสุด {0}	最大 {0} まで利用できます
+You cannot redeem more than {0}.	抵扣金额不能超过 {0}	ใช้แต้มได้ไม่เกิน {0}	{0} を超えて利用できません
+You don't have enough points to redeem.	积分不足，无法抵扣	คะแนนไม่พอสำหรับการใช้แต้ม	ポイントが足りないため利用できません
+You have unsaved changes. Do you want to save the invoice?	有未保存的改动，要保存这张单据吗？	มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่	未保存の変更があります。伝票を保存しますか？
+You must select a customer before adding an item.	添加物料前必须先选择客户	ต้องเลือกลูกค้าก่อนเพิ่มสินค้า	商品を追加する前に顧客を選択してください
+Open a shift on the cashier page first.	请先在收银台开班（旧页面那条路）	กรุณาเปิดกะที่หน้าจุดขายก่อน	先にレジでシフトを開始してください
