@@ -57,6 +57,48 @@ frappe.provide("frappe.pearnly");
 		const decimals = decimals_of(value, max);
 		return decimals === null ? String(value) : format_currency(value, currency, decimals);
 	};
+
+	// ── 货币符号：全站一律出符号（฿），不出货币代码（THB）────────────────────────────
+	// 用户 2026-09-23 口径："全站货币改为泰铢的符号，不要字母"。
+	//
+	// 框架那条路（`format_currency` → `get_currency_symbol`）取符号的方式是
+	// `frappe.model.get_value(":Currency", <货币代码>, "symbol")`，没有就**退回货币代码本身** ——
+	// 所以页面上到处是 "THB 62.00"。这里两处一起修：
+	//   ① **把符号喂进框架的缓存**（`locals[":Currency"]`，就是从站点数据库读一次）；
+	//   ② 给 `format_currency` 加一层兜底：万一还没喂到（首屏那一瞬），也把代码换成符号。
+	// 两处都在公共层 → 商品、库存、采购、销售、收银（含搬过来的官方收银台）与所有框架表格一起生效。
+	const SYMBOLS = {
+		THB: "฿", USD: "$", EUR: "€", JPY: "¥", CNY: "¥", GBP: "£",
+		LAK: "₭", KHR: "៛", MMK: "K", VND: "₫", SGD: "S$", MYR: "RM", IDR: "Rp",
+	};
+	const code_of = currency => currency || (frappe.boot.sysdefaults || {}).currency || "THB";
+	// ① 从站点读一次符号，放进框架自己的缓存（之后 `frappe.format`、`format_currency` 都走它）。
+	const warm_symbol = (code) => {
+		if (!code || !SYMBOLS[code]) return;
+		locals[":Currency"] = locals[":Currency"] || {};
+		if (locals[":Currency"][code]) return;
+		locals[":Currency"][code] = { doctype: ":Currency", name: code, symbol: SYMBOLS[code] };
+		// 数据库里配的符号优先（客户改过就用客户的），读到了再覆盖一次。
+		frappe.db.get_value("Currency", code, "symbol").then(r => {
+			const symbol = r && r.message && r.message.symbol;
+			if (symbol) locals[":Currency"][code].symbol = symbol;
+		}).catch(() => {});
+	};
+	warm_symbol((frappe.boot.sysdefaults || {}).currency);
+	// ② 兜底：框架把符号取成货币代码时（"THB 62.00"），换成符号。
+	const native_format_currency = window.format_currency;
+	if (native_format_currency && !window.__pearnly_symbol_wrapper) {
+		window.__pearnly_symbol_wrapper = true;
+		window.format_currency = function (value, currency, decimals) {
+			const out = native_format_currency.apply(this, arguments);
+			const code = code_of(currency);
+			const symbol = SYMBOLS[code];
+			if (typeof out === "string" && symbol && out.indexOf(code + " ") === 0) {
+				return symbol + out.slice(code.length);
+			}
+			return out;
+		};
+	}
 	// 产品里的时间一律这么显示：`2026-09-22 20:10`（到分钟）。所有界面（列表、弹窗、明细）
 	// 都走这一个入口 —— 用户 2026-09-22 口径："我真的不希望说一处就该一处"。
 	//
