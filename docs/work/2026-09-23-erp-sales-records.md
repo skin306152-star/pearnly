@@ -3584,3 +3584,34 @@ set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL�
 `api_list_sales` 并做字段映射）；② `public/desk/` 下另外 46 条 `__()` 缺词条（我们自己页面的）
 本轮没动。`check-architecture` PASS(0)、`i18n-build --check` PASS、`check-frontend-i18n` PASS、
 `node --check` OK；未部署、未推送、未合并。
+
+### F67：扫码接我们那套 + 页面动作照"我们之前"摆 + 开班交班抽成共用（2026-09-24，未部署）
+
+用户口径："扫码可以用我们现成的呗，还有右上角那三个点。。。的内容，我们之前是什么，
+如果是主按钮就不要放在。。。里面，你每次做完不要关预览，我要看。"
+
+**我们之前那页的动作**（`cashier.js` 的 `paint_actions()`）：菜单**交班**、主按钮
+**新单**（没班次时**开班**）、次按钮**最近订单/隐藏最近订单**、指示器是**班次状态**
+（`班次 14 · 开班 … · 应有现金 …`）。官方摆的是菜单「打开表单视图/关闭收银台」（两项我们都没承接）、
+指示器是收银台名 —— 全部改回我们的口径，**开班搬到主按钮上**（它是没班次时唯一该点的东西）。
+
+**开班/交班弹窗抽成一份共用**：原先写在 `cashier.js` 的大闭包里，而那个闭包在对照路由分支提前
+return（函数没定义），搬来的官方收银台要「交班」就得有第二份。抽出
+`desk/pos/pearnly-pos-shift.js`（`frappe.pearnly.pos_shift.open/close`），`cashier.js` 那 136 行
+删成两行转调；两条路实测都能开出同一个交班弹窗（对账表四行）。
+
+**扫码**：官方搜索框只认 `onscan.js` 键盘楔式扫码枪；我们用旧页面同一招 —— 控件
+`options: "Barcode"` 是**框架自己的开关**（`ControlData.setup_barcode_field()` 挂上那颗相机按钮），
+适配层在官方建完控件后按框架那条路补上，并接管"扫到之后"：唯一命中**直接进车**、
+一条没有就照实说（`No product for this code: {0}`）。实测条码 `8850011100105` → 直接进车。
+
+**顺手改对三个字段路径**（原靠服务端默认值兜着）：`api_current_shift` 回的是当班汇总
+`{shift: {...}, balances, …}`，而适配层按平铺读 —— `pos_profile`、`opened_at`、`company`/`warehouse`
+以前都是空；`api_list_terminals` 回的是**数组**（也认错了）。另外把
+`action_on_new_invoice` 从 `Always Ask` 改成"直接开新单不存"（前者会弹"要不要保存"→ `frm.save()`
+→ 必填校验，而我们没有草稿单这种状态）。
+
+**验证**：对照路由菜单只有「交班」、主按钮「新单」、指示器班次状态；没班次分支主按钮变「开班」、
+指示器「尚未开班」；旧页面（默认路由）照旧可用；两条路交班弹窗一致。`check-architecture` PASS(0)、
+`i18n-build --check` PASS、`node --check` 三个文件 OK。
+按用户口径，**收尾不关预览**（两张标签 `markDeliverable` 留着）。未部署、未推送、未合并。

@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 29;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -45,6 +45,14 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 	];
 	// 本地化之后的这一份（`our_settings()` 里解析一次；界面、还原 key、落单都用它）。
 	let payment_methods = [];
+	// 我们自己的词条解析器（`p.texts("trade.")` 那一份，泰语为主）。页面动作、开班交班弹窗、
+	// 付款方式名都用它 —— 开机时解析一次，之后不再重复请求。
+	let term = key => key;
+	let term_ready = false;
+	async function load_term() {
+		if (!term_ready) { term = await p.texts("trade."); term_ready = true; }
+		return term;
+	}
 
 	function method_key(label) {
 		const row = payment_methods.find(m => m.label === label);
@@ -361,14 +369,18 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 	// 我们的收银台设置 → 官方 `settings` 的形状（官方读到的那些开关）。
 	async function our_settings(shift) {
 		const terminals = await p.call(api + "api_list_terminals");
-		const terminal = (terminals?.terminals || []).find(t => t.name === shift.terminal)
-			|| (terminals?.terminals || [])[0] || {};
+		// 接口回的是**数组**（`frappe.whitelist` 直接把列表回出来），两种形状都认。
+		const rows = Array.isArray(terminals) ? terminals : (terminals?.terminals || []);
+		// 班次里那个终端在 `shift.shift.terminal`：`api_current_shift` 回的是当班汇总
+		// （`{shift: {...}, balances: [...], …}`）。以前读成 `shift.terminal` 一直是 undefined，
+		// 靠服务端的默认值兜着 —— 现在按真值取，仓库/公司/终端都对得上这一个柜台。
+		const terminal = rows.find(t => t.name === shift.shift.terminal) || rows[0] || {};
 		// 方式名要本地化（泰语为主）：`p.texts` 拿的就是站点那份词条表，与页面同一来源。
-		const t = await p.texts("trade.");
+		const t = await load_term();
 		payment_methods = PAY_METHODS.map(m => Object.assign({}, m, { label: t(m.term) }));
 		return {
 			warehouse: terminal.default_warehouse || "",
-			company: shift.company || terminal.company || "",
+			company: terminal.company || "",
 			currency: terminal.currency || "THB",
 			// 官方的开关：我们产品没有这些配置位 → 用"我们已有的行为"对应的固定值；
 			// 将来要在终端上加一位就改这里（不是改官方代码）。
@@ -377,11 +389,15 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 			allow_discount_change: 1,
 			allow_partial_payment: 0,
 			auto_add_item_to_cart: 1,
-			action_on_new_invoice: "Always Ask",
+			// 「新单」= 这一单清干净重新开始（我们旧页面的行为）。
+			// 官方的 `Always Ask` 会弹"有未保存的改动，要保存这张单据吗？"，点"是"就走
+			// `frm.save()` —— 那条路在我们这边必然撞必填校验（客户端文档带的是官方字段名），
+			// 而且我们根本没有"草稿单"这种状态。所以给一个非那两个值的档位：官方直接开新单、不存。
+			action_on_new_invoice: "Create New Invoice",
 			print_receipt_on_order_complete: 0,
 			set_grand_total_to_default_mop: 1,
 			selling_price_list: "",
-			terminal: shift.terminal || "",
+			terminal: shift.shift.terminal || "",
 		};
 	}
 
@@ -406,21 +422,27 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 				return p.call(api + "api_current_shift");
 			}
 			check_opening_entry() {
-				this.fetch_opening_entry().then(shift => {
+				return this.fetch_opening_entry().then(async shift => {
+					this.pearnly_shift = shift || null;
+					await load_term();
 					if (!shift) {
-						this.wrapper.html(`<div class="text-muted p-4">${
-							frappe.utils.escape_html(__("Open a shift on the cashier page first."))}</div>`);
+						// 没开班：**不建收银台界面**，把「开班」放成主按钮（我们之前的做法 ——
+						// 收银员点一下就开班，而不是看一句"请先去别处开班"）。
+						this.wrapper.html("");
+						this.prepare_page_actions();
 						return;
 					}
-					this.prepare_app_defaults(shift);
+					return this.prepare_app_defaults(shift);
 				});
 			}
 			// 设置：官方 = 开班凭证 + POS Profile；我们 = 班次 + 终端。
 			async prepare_app_defaults(shift) {
-				this.pos_opening = shift.name;
-				this.company = shift.company;
-				this.pos_profile = shift.terminal;
-				this.pos_opening_time = shift.opened_at;
+				await load_term();
+				this.pearnly_shift = shift;
+				// 当班汇总的形状是 `{shift: {...}, balances, sales_count, …}` —— 这几格都在 `shift.shift` 里。
+				this.pos_opening = shift.shift.name;
+				this.pos_profile = shift.shift.terminal;
+				this.pos_opening_time = shift.shift.opened_at;
 				this.item_stock_map = {};
 				this.allow_negative_stock = false;
 				this.settings = Object.assign(await our_settings(shift), {
@@ -428,18 +450,67 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 					invoice_fields: [],
 					customer_groups: [],
 				});
+				// 公司取终端那家（当班汇总里没有公司这一位）。
+				this.company = this.settings.company;
 				this.make_app();
 			}
 			// 删减：我们不做"过期开班提示""交班实时推送""附加信息字段配置"。
 			setup_listener_for_pos_closing() {}
 			check_outdated_pos_opening_entry() {}
 			fetch_invoice_fields() { this.settings.invoice_fields = []; }
-			// 删减（**不暴露没承接的入口**）：官方这两项菜单在我们这边都没有落点 ——
-			// 「打开表单视图」要打开这张客户端单据的服务端表单（我们没有那种表单），
-			// 「关闭收银台」要开一张 `POS Closing Entry`（我们的交班是自己的 `ERP Shift` 页面，
-			// 走侧栏那条路）。它们各自还绑着快捷键（⌘+F / ⇧+⌘+C），所以整段菜单只清空、不加那两项。
+			// **页面动作照我们之前那页来**（用户 2026-09-24："右上角那三个点里之前是什么"）：
+			//
+			//   菜单（那三个点） = 「交班」
+			//   主按钮           = 有班次「新单」／没班次「开班」
+			//   次按钮           = 「最近订单 / 隐藏最近订单」
+			//   指示器           = 有班次：开班时间 · 应有现金（绿）／没班次：「尚未开班」（橙）
+			//
+			// 官方的菜单是「打开表单视图 / 关闭收银台」，两项在我们这边都没有落点（一个要打开这张
+			// 客户端单据的服务端表单、一个要开 `POS Closing Entry`），所以整段不摆。**主按钮的事项
+			// 不放进那三个点里**：开班是没班次时唯一该点的东西，它就得是主按钮。
 			prepare_menu() {
 				this.page.clear_menu();
+			}
+			prepare_btns() {
+				this.prepare_page_actions();
+			}
+			// 官方的指示器显示的是**收银台名**（蓝），而且它在 `make_new_invoice()` 里会再盖一次。
+			// 我们之前那页显示的是**班次**状态（开班时间 · 应有现金 / 尚未开班）——
+			// 这里整段交给 `prepare_page_actions()`，动作与指示器一处定义、每次都用同一份。
+			set_pos_profile_status() {
+				this.prepare_page_actions();
+			}
+			prepare_page_actions() {
+				const shift = this.pearnly_shift;
+				this.page.clear_menu();
+				this.page.clear_secondary_action();
+				this.page.add_menu_item(term("trade.closeShift"),
+					() => void this.close_shift_here(), false);
+				if (!shift) {
+					this.page.set_indicator(term("trade.noShift"), "orange");
+					this.page.set_primary_action(term("trade.openShift"),
+						() => void this.open_shift_here());
+					return;
+				}
+				this.page.set_primary_action(term("trade.newInvoice"),
+					() => this.new_invoice_event());
+				this.page.set_secondary_action(term("trade.recentOrders"),
+					() => this.toggle_recent_order());
+				this.page.set_indicator(term("trade.shiftOpenedAt", shift.shift.shift_seq,
+					p.datetime_text(shift.shift.opened_at), p.money(shift.expected_cash)), "green");
+			}
+			// 开班 / 交班弹窗与我们旧页面是**同一份**（`desk/pos/pearnly-pos-shift.js`）。
+			open_shift_here() {
+				return p.pos_shift.open({ t: term, on_done: () => this.after_shift_change() });
+			}
+			close_shift_here() {
+				return p.pos_shift.close({ t: term, shift: this.pearnly_shift,
+					on_done: () => this.after_shift_change() });
+			}
+			// 班次变了（开班 / 交班）之后整页重来一遍：界面与页面动作都跟着新班次走。
+			async after_shift_change() {
+				this.wrapper.html("");
+				await this.check_opening_entry();
 			}
 			// 单据：官方用 POS Invoice 的 `items`；我们是 `ERP Sale` 的 `lines` —— 同一个数组两个名字。
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
@@ -579,6 +650,44 @@ window.__pos_adapter_v = 28;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyItemSelector extends O.ItemSelector {
+			// 扫码：**用我们现成那条路**（旧页面商品区顶上那颗相机的做法）——
+			// 官方这个搜索框只认 `onscan.js` 那种键盘楔式扫码枪；`options: "Barcode"` 是**框架自己的开关**，
+			// 打开后 `ControlData.setup_barcode_field()` 会给控件挂上那颗 `icon-scan-barcode` 的
+			// `.link-btn`（点开官方相机对话框，扫到的字回填进本框）。我们不改官方建控件的代码，
+			// 只在它建好之后按框架自己那条路补上，再接管"扫到之后干什么"。
+			make_search_bar() {
+				const out = super.make_search_bar();
+				const field = this.search_field;
+				if (field && field.setup_barcode_field && field.df.options !== "Barcode") {
+					field.df.options = "Barcode";
+					field.setup_barcode_field();
+					field.$wrapper.on("click", `a[title="${__("Scan")}"]`, () => {
+						this.pearnly_scanned = true;
+					});
+				}
+				return out;
+			}
+			// 扫到码之后：**唯一一条就直接进购物车**（我们之前的行为），一条都没有就照实说。
+			// 走的仍是官方自己那套 —— `filter_items()` 画完卡之后，对那一张卡触发一次它自己的点击。
+			async filter_items(args) {
+				const out = await super.filter_items(args);
+				if (!this.pearnly_scanned) return out;
+				this.pearnly_scanned = false;
+				const $cards = this.$component.find(".items-container .item-wrapper");
+				const scanned_code = String((args && args.search_term) || "").trim();
+				if ($cards.length === 1) {
+					$cards.first().trigger("click");
+					await this.search_field?.set_value?.("");
+				} else if (!$cards.length) {
+					frappe.show_alert({
+						// 与我们旧页面同一句（术语表 `trade.scanNotFound`）。
+						message: __("No product for this code: {0}", [scanned_code]),
+						indicator: "orange",
+					});
+					frappe.utils.play_sound("error");
+				}
+				return out;
+			}
 			// 官方这一段会去读 `POS Profile.selling_price_list`（`frappe.db.get_value("POS Profile", …)`）。
 			// 我们没有 POS Profile（刻意不装 erpnext 的那套主数据），那次读取会报"未授权访问单据类型"。
 			// 我们的价格来自商品自己的 `unit_price`、**不走价目表**，所以这里先把 `price_list` 填上一个非空值，

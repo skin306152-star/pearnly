@@ -296,6 +296,9 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
     versioned_asset("pearnly_erp_portal", "desk/clients.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
+    # 开班 / 交班弹窗：搬过来的官方收银台与旧收银台**共用这一份**（两条路都调它，
+    # 旧页面那一份已经删掉）。见该文件抬头。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-shift.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-receipts.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-shifts.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
