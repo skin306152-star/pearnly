@@ -17,6 +17,8 @@
 import frappe
 
 from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.inventory import warehouses
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.sales import access, contracts
 
 DOCTYPE = "ERP Sales Document"
@@ -44,6 +46,8 @@ def query(params=None):
     """列表、合计与导出共用的一份条件。"""
     params = params or {}
     filters = [[key, "=", value] for key, value in guard.scope_filters().items()]
+    # 一租户多公司：销售记录只看**当前公司**（切换公司改的是用户默认值里的 company）。
+    filters.append(["company", "=", companies.active_company()])
     for key in ("doc_kind", "payment_status", "source"):
         value = params.get(key)
         if value:
@@ -92,9 +96,10 @@ def wanted_sources(params=None):
 
 def _pos_scope():
     """收银小票的取数范围：老板看全店，收银员只看自己的单（与收银页同一条规矩）。"""
+    scope = [["warehouse", "in", warehouses.names_of() or [""]]]
     if rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:
-        return []
-    return [["cashier", "=", frappe.session.user]]
+        return scope
+    return scope + [["cashier", "=", frappe.session.user]]
 
 
 def _pos_applies(params) -> bool:

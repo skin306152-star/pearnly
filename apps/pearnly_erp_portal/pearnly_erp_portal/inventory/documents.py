@@ -96,6 +96,9 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
         filters["direction"] = direction
     if warehouse:
         filters["warehouse"] = warehouse
+    else:
+        # 不点名仓库 → 只看当前公司那几个仓库的单据（仓库属于公司）。
+        filters.update(warehouses.scope_filter())
     if status:
         filters["status"] = status
     if date_from and date_to:

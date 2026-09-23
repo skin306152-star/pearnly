@@ -1020,6 +1020,71 @@
 - **前端没做类型检查/构建**：`frontend/` 的依赖没装，而且这台机器的 `npm` 指向一个不存在的 `npm-cli.js`，`vue-tsc` 跑不起来；两处 Vue 改动（用户名只读、编辑弹窗去掉用户名的框）只做了人工核对。
 - 用户自己改密码的完整闭环（点「更改密码」→ 改完用新密码登录）没在本地站点走完一遍（那是身份服务/改密页的路径，交给有身份的站点验更合适）。
 
+### F28：一租户多公司（官方那套）+ 仓库改回官方 Link（2026-09-23，未部署）
+
+用户口径："**我要做一租户多公司**"；随后："我说用官方原生，这是第四遍了，你到底懂不懂什么叫
+官方原生啊？你为什么一直按照旧项目做啊。Now 仓库改成按公司分，我之前让他们把其它功能的仓库
+字段全部改为自由填写了，这怎么办，改回官方原生的吗，还有你那个公司的图标不对吧，税号查询接回来"。
+
+#### 一、按官方那套做的决定（都有源码依据，见 F27 那张表）
+
+| 事 | 官方怎么做 | 我们怎么做 |
+| --- | --- | --- |
+| 多家公司 | `Company` 是列表/树（`is_group` + `parent_company`） | 就是 `ERP Company` 的多行；公司页恢复「当前公司资料 + 公司列表」两张面孔 |
+| 单据归公司 | 单据上有 `company`（官方 `Sales Invoice.company` 是 `Link→Company` **reqd=1**） | `Purchase Document` / `ERP Sales Document` 加 `company`（Link, reqd，建单默认当前公司） |
+| **库存怎么分** | 官方 `Warehouse.company` —— 仓库属于公司，库存按仓库记账 | `ERP Warehouse` 加 `company`（reqd）；结存/流水不加列，靠仓库过滤（同一件事，少两列） |
+| **当前公司** | `frappe.defaults` 的 `company` 用户默认值（官方 `get_user_default("company")`） | 同一个键：`set_active_company()` 写它，页面读它 |
+| **公司之间隔离** | 官方 `User Permission`（`allow = Company`），框架按它过滤 | 同一个东西：团队页给账号勾公司 = 写 `User Permission`；**不勾 = 不限制**（官方默认） |
+| 单号 / 财年 | 命名序列（`Document Naming Settings`）与独立单据 `Fiscal Year`，**都不在公司上** | 保持现状（全站一套序列；公司上没有单号/财年字段） |
+
+#### 二、改了什么
+
+**服务端**：`masters/company.py` 加 `allowed_companies / active_company / company_options /
+set_active_company / document_company / scope / for_document`；`api_company_context`、
+`api_set_active_company`；`masters/boot.py`（官方 `boot_session` 扩展点）把"能切哪几家、当前是哪家"
+给前端。`ERP Warehouse` 的 `resolve/ensure_default/create/list_warehouses/names_of/scope_filter`
+全按公司走。采购（`service._purchase_query`、`summary`、`records.query`、凭证抬头取**单据的公司**）、
+销售（`entry._post`、`_post_stock` 走本公司默认仓、`records.query`、收银小票那一侧按仓库）、
+收银台/班次（按收银台的仓库）、入库出库、盘点、期初、收发存与在库（`warehouses.scope_filter()`）
+都按当前公司收。团队页新增 `set_member_companies`（写官方 `User Permission`）。
+
+**前端**：`desk/company-menu.js` —— 左上角那颗（原生 `SidebarHeader` 自己的 `dropdown_items`）
+里多一组「公司」，名单来自服务端；点一下写用户默认值再整页重载。公司页两张面孔（资料 + 列表：
+新建 / 编辑 / **设为当前** / 停用）。团队页加「公司」列与公司多选（同一颗原生 `MultiCheck`）。
+
+**仓库字段改回官方原生**（用户这次的口径反转了以前那句"仓库自由填写"）：入库出库、盘点新建、
+盘点的实际仓库、采购/销售明细行都改成 `Link → ERP Warehouse`，下拉只列**当前公司**的仓库
+（`df.get_query` 给过滤对象，框架 Link 自己认），没找到时 Link 自带官方的「新建 ERP Warehouse」。
+服务端 `warehouses.resolve()` **默认不再自动建仓**（要显式 `create=True` 才建），两条"自由填写"
+的提示文案删掉；实验室里靠自动建仓的 3 个探针加了 `create=True`。
+
+**图标**：账号菜单里「公司」的图标从 `contact` 换成 `building-2`（lucide 精灵里确实有的那个；
+左上角切换那组也是它）。**税号查询**：新建/编辑公司那张弹窗里补回「查询」按钮（与资料页、
+供应商/客户两页同一个接口）。
+
+#### 三、验过的
+
+| 场景 | 结果 |
+| --- | --- |
+| 两站 `bench migrate` + 回填补丁 | 退出码 0；仓库 8 条、采购 74、销售 24 全部归到默认公司 `CO-00552` |
+| 浏览器：公司列表 | 2 条（第二家是从界面「新建公司」建的 `Purchase Preview 2` = `CO-00553`），列 = 公司名称/简称/税号/电话/当前/状态，状态显示「正常」，行内有「设为当前 / 编辑 / 停用」 |
+| 浏览器：`boot.pearnly_companies` | 两家公司 + 当前标记；左上角下拉里出现「公司 ›」这一组 |
+| **隔离生效**（同一页切换前后） | 采购记录 `20 / 74`（当前 `CO-00552`）→ 切到 `CO-00553` 后 `0 / 0` → 切回 `20 / 74` |
+| 浏览器：入库弹窗的仓库字段 | `data-fieldtype="Link"`，下拉里写着"已按 公司 等于 \"CO-00552\" 和 激活 已启用 过滤"，并带官方的「新建 ERP Warehouse」 |
+| 浏览器：公司弹窗 | 有「查询」与「新建公司」两颗按钮（税号查询回来了） |
+| 浏览器：账号菜单 | 公司那一项的图标是 `#icon-building-2` |
+| 离线 | `check-architecture.py` PASS(0)、`i18n-build.py --check` PASS、`check-frontend-i18n.py` 0 问题、`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）、改动 JS 全部 `node --check` 通过 |
+
+#### 四、没验到 / 没做（如实记）
+
+- 团队页里勾公司这条闭环**没在浏览器点过**（服务端 `set_member_companies` 与页面上的公司列/多选都在了）。
+- 非管理员视角（只看得到自己被指的公司）：服务端按官方 `User Permission` 走，浏览器没点过。
+- 按公司收的**浏览器**验收只做了采购页那一处；销售/收银/入库出库/盘点/收发存是同一套服务端过滤，没逐页点。
+- LINE 收件箱没按公司分（它是个收件箱，落地建单时按当前公司）。
+- 单据表单里没有"公司"选择字段：建单默认当前公司，要换公司就先切公司。
+- 单号仍是**全站一套序列**（官方的命名序列也是全站一套，没按公司拆）。
+- 真机、部署、用户验收：未做。
+
 ### F27：四个"官方口径"问题、个人信息页少的那一行、撤掉两个非官方字段（2026-09-23，未部署）
 
 用户口径：
@@ -1249,6 +1314,13 @@
 
 > F25 的补充（2026-09-23）：「实现」再加 —— **身份规则统一成"用户名/邮箱开户时发号、绑死租户，之后谁都不改，只能改自己的密码"**（core：用户名 DocType 级只读、删掉用户改名那条路、身份服务通道只剩语言、本地站点也能进改密页；ERP 团队页：文案改「用户/添加用户」、编辑只给改岗位；DMS：花名册的用户名改成只读、`save_credentials` 只收密码）；顺手修掉 `set_member_roles` "原样保存会把岗位点没"的真 bug（`held` 在摘角色之后才取）。「本地验证」再加 —— 个人信息页只读态与改密按钮、团队页文案与弹窗三类字段、三次岗位保存（改/原样/取消）都在浏览器里点过、检查站团队探针 `problems: {}`（探针此前是坏的，这轮补齐）、两站 `ensure_profile_fields` + `clear-cache`、离线五项检查。**未验到**：云站点走身份服务的改密与唯一性、DMS 界面（本机没有 DMS 站点）、前端 `vue-tsc`（依赖没装且本机 npm 坏了）—— 见 F25 第六节。
 ## 收尾：交接保留
+
+- F28 在演示站**新增了一家真实公司** `Purchase Preview 2`（`CO-00553`，`is_default=0`，`is_active=1`）
+  —— 它是"一租户多公司"这次验收的样本（从界面「新建公司」建的），**保留**给你看；要清掉说一声。
+  `Purchase Preview`（`CO-00552`）仍是默认公司、也是当前公司；`User Permission` 表**没有新增任何行**
+  （隔离只在你给账号勾公司时才有行）。中途为验证切换过当前公司，最后一次是 `CO-00552`。
+- F28 的两站 `bench migrate` 落了新列（`ERP Warehouse` / `Purchase Document` / `ERP Sales Document`
+  的 `company`）与回填补丁；站点缓存已清、web 已重启。仓库里那两条"自由填写"的提示文案已从术语表删除。
 
 - F27 在演示站的痕迹：**没有动任何数据**（只读源码 + 改代码 + 浏览器看页面）。公司记录 `CO-00552` 仍是 F26 还原后的样子；`pearnly_company` / `pearnly_domain` 两格的值来自站点配置（`pearnly_company_name`、`get_url()`），没有写库。演示站浏览器最后停在个人信息页（用户当时在看的那一屏）。
 - F27 改了 `account/profile.py` 的一处**判据**（不再要求 `pearnly_native_account` 才发公司/域名），影响面是全产品站点的个人信息页：云站点上本来就是 `host_name` 的值，观感不变；本地/非身份服务站点从此也有这两行。要回退就是那一行。

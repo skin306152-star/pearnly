@@ -58,7 +58,7 @@ def main():
     from pearnly_erp_portal.products import service
     key = 'WB-CONCURRENT-' + uuid.uuid4().hex[:8]
     product = service.create_product(product_name=key, unit='件')['name']
-    wh = warehouses.resolve(key)
+    wh = warehouses.resolve(key, create=True)
     stock.apply_movement(product=product, warehouse=wh, location='A', movement_type='stock_in', qty=5, unit_cost=7)
     task = count.create_count(title=key, warehouse=wh)['name']
     row = count.list_items(count=task)[0]

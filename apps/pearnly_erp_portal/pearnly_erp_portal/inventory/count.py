@@ -287,7 +287,9 @@ def _size(limit):
 
 def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
     guard.require("stock.read")
-    filters = {"status": status} if status else {}
+    filters = dict(warehouses.scope_filter())
+    if status:
+        filters["status"] = status
     rows = frappe.get_list(
         COUNT, filters=filters,
         fields=["name", "title", "status", "warehouse", "item_total", "counted_total",
@@ -301,7 +303,10 @@ def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
 
 def count_total(*, status=None) -> int:
     guard.require("stock.read")
-    return len(frappe.get_list(COUNT, filters={"status": status} if status else {},
+    filters = dict(warehouses.scope_filter())
+    if status:
+        filters["status"] = status
+    return len(frappe.get_list(COUNT, filters=filters,
                                pluck="name", limit_page_length=0))
 
 

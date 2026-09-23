@@ -21,6 +21,18 @@ def api_list_companies(**kwargs):
     return company.list_companies(**_clean(kwargs))
 
 
+@frappe.whitelist()
+def api_company_context():
+    """页面启动要的两件事：我能用哪些公司、当前是哪家（切换公司那颗按钮用）。"""
+    return {"companies": company.company_options(), "current": company.active_company()}
+
+
+@frappe.whitelist(methods=["POST"])
+def api_set_active_company(name):
+    """切换当前公司（写自己的用户默认值，官方同一个键）。"""
+    return company.set_active_company(name)
+
+
 @frappe.whitelist(methods=["POST"])
 def api_create_company(**kwargs):
     return company.create_company(**_clean(kwargs))

@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "status",
+  "company",
   "doc_kind",
   "source",
   "system_no",
@@ -61,6 +62,14 @@
    "default": "receipt",
    "reqd": 1,
    "in_list_view": 1
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "source",

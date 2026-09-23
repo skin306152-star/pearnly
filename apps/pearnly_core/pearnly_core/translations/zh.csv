@@ -86,6 +86,7 @@ Collaboration Boards (WeKan),协作看板（WeKan）
 Collapse,收起
 Companion,小助手（Companion）
 Company,公司
+Company List,公司列表
 Company Master,公司主档
 Company Profile,公司资料
 Company Tax ID,本方税号
@@ -896,6 +897,7 @@ intake.title,录入工作台
 nav.cashier,收银 POS
 nav.clients,客户管理
 nav.company,公司
+nav.companyList,公司列表
 nav.companyMaster,公司主档
 nav.connect,连接DMS
 nav.cowork,Pearnly Cowork

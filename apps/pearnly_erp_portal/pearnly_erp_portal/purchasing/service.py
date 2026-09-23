@@ -13,6 +13,7 @@ from frappe import _
 from frappe.utils import now, nowdate
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import contracts, settings
 
 DOCTYPE = "Purchase Document"
@@ -27,7 +28,7 @@ BAD_TRANSITION = "This status change is not allowed"
 LINES_REQUIRED = "Provide at least one line item"
 
 LIST_FIELDS = (
-    "name", "doc_kind", "supplier", "supplier_name", "doc_no", "system_no", "doc_date", "due_date",
+    "name", "company", "doc_kind", "supplier", "supplier_name", "doc_no", "system_no", "doc_date", "due_date",
     "status", "approval_status", "source", "currency", "grand_total", "net_payable",
     "paid_amount", "payment_status",
 )
@@ -85,7 +86,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
                     doc_no=None, due_date=None, currency="THB", fx_rate=1, has_vat=True,
                     discount_total=0, wht_amount=None, wht_rate=0, rounding=0,
                     supplier_tax_id=None, external_ref=None, dedupe_key=None,
-                    image_sha256=None, notes=None, source=None):
+                    image_sha256=None, notes=None, source=None, company=None):
     guard.require("purchase.write")
     if not isinstance(lines, list) or not lines:
         frappe.throw(_(LINES_REQUIRED))
@@ -111,6 +112,8 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
+        # 一租户多公司：单据挂在公司上；没给就是**当前公司**（切换公司改的那个用户默认值）。
+        "company": companies.document_company(company),
         "doc_kind": doc_kind,
         "supplier": supplier,
         "supplier_name": supplier_name,
@@ -161,7 +164,9 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
 def _purchase_query(*, supplier=None, supplier_name=None, status=None, kind=None,
                     unpaid=False, q=None, date_from=None, date_to=None):
     """筛选条件只写一处：列表、合计、导出都从这里来，免得三处各写一套。"""
+    # 一租户多公司：采购记录默认只看**当前公司**（切换公司那颗按钮改的是用户默认值）。
     filters: dict = dict(guard.scope_filters())
+    filters["company"] = companies.active_company()
     if supplier:
         filters["supplier"] = supplier
     if supplier_name:
@@ -439,7 +444,8 @@ def set_payment_status(name, status):
 def summary(*, date_from=None, date_to=None):
     """期间汇总。金额求和用 Decimal，避免浮点误差累积。"""
     guard.require("purchase.read")
-    filters: dict = {"status": ["!=", contracts.VOID], **guard.scope_filters()}
+    filters: dict = {"status": ["!=", contracts.VOID], **guard.scope_filters(),
+                     "company": companies.active_company()}
     if date_from and date_to:
         filters["doc_date"] = ["between", [date_from, date_to]]
     rows = frappe.get_list(

@@ -7,6 +7,7 @@
  "engine": "InnoDB",
  "field_order": [
   "system_no",
+  "company",
   "doc_kind",
   "supplier",
   "supplier_name",
@@ -85,6 +86,14 @@
    "in_list_view": 1,
    "label": "Supplier",
    "options": "ERP Supplier"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "supplier_name",

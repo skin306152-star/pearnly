@@ -21,6 +21,7 @@ Address and notes,住所と備考
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
+All companies,全社
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
 Already used by {0} (code {1}),既に「{0}」(コード {1}) で使われています
@@ -114,6 +115,7 @@ Collection Method,入金方法
 Collection Remarks,入金備考
 Collection Status,入金状況
 Columns,列
+Companies,会社
 Company,会社
 Company details,会社情報
 Company name,会社名
@@ -145,6 +147,7 @@ Created {0} product(s),{0}件の商品を作成しました
 Created {0}; {1} row(s) were not saved — fix them and save again,{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください
 Creation,作成日時
 Currency,通貨
+Current,現在
 Custom,カスタム
 Customer,顧客
 Customer Name,顧客名
@@ -286,6 +289,7 @@ LINE,LINE
 LINE unbound,LINE の連携を解除しました
 Last Login,最終ログイン
 Last Month,先月
+Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
 Leave empty to use the default warehouse,空欄なら既定の倉庫を使います
 Light,ライト
@@ -320,6 +324,7 @@ New Sales Document,販売伝票を作成
 New Stock Issue,出庫伝票を作成
 New Stock Receipt,入庫伝票を作成
 New Supplier,仕入先を追加
+New company,会社を追加
 New product,商品を追加
 New stock count,棚卸を作成
 Next,次へ
@@ -492,6 +497,7 @@ Select the original sale line,元の販売明細を選択してください
 Selling price,販売価格
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
 Service,サービス
+Set as current,現在の会社にする
 Sheet,シート
 Shelf,棚番
 Shift History,シフト履歴
@@ -544,6 +550,7 @@ Supplier is disabled,仕入先は無効です
 Supplier is required,仕入先を入力してください
 Supplier not found,仕入先が見つかりません
 Suppliers,仕入先数
+Switching company...,会社を切り替えています…
 System number,システム番号
 Tax Amount,税額
 Tax Exclusive,税抜
@@ -611,6 +618,7 @@ Unknown direction,不明な区分
 Unpaid,未払
 Up to 5 photos per entry; take a photo or choose from the gallery.,1記録につき写真は5枚まで。撮影またはアルバムから選択できます。
 Update Stock,在庫更新
+Updated,更新しました
 Updated {0},{0} を更新しました
 Updated {0} customer(s),顧客 {0}件を更新しました
 Updated {0} employee(s),従業員{0}件を更新しました
@@ -645,6 +653,7 @@ Withholding Tax,源泉税
 Withholding Tax Certificate,源泉徴収証明書
 Withholding Tax Rate,源泉徴収税率
 Withholding Tax must be greater than zero,源泉徴収税額はゼロより大きい値にしてください
+Yes,はい
 Zoom In,拡大
 Zoom Out,縮小
 adjust,調整
@@ -689,7 +698,15 @@ client.party.person,個人
 client.save,保存
 client.title,顧客
 company,会社
+company.col.current,現在
+company.col.name,会社名
+company.col.phone,電話
+company.col.shortName,略称
+company.col.status,状態
+company.col.taxId,納税者番号
+company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
+company.enable,有効にする
 company.field.address,住所
 company.field.branch,支店
 company.field.contactEmail,連絡先メール
@@ -713,15 +730,22 @@ company.lookup.not_vat_registered,番号は存在しますがVAT登録があり�
 company.lookup.parse_error,税務局の応答形式を解釈できません
 company.lookup.querying,税務局に照会中…
 company.lookup.rd_unreachable,現在、税務局に接続できません
+company.new,会社を追加
+company.notice.created,作成しました
 company.notice.saved,保存しました
+company.notice.toggled,更新しました
 company.promptpayHint,入金時に相手へ伝える口座
 company.readOnly,変更できるのは製品管理者のみ（ここは読み取り専用）
 company.save,保存
 company.section.address,住所と備考
 company.section.basic,会社情報
 company.section.documents,書類
+company.setCurrent,現在の会社にする
+company.status.active,有効
+company.status.inactive,無効
 company.subtitle,書類に使う自社情報
 company.taxHint,13桁。支店は5桁の支店番号を続けます
+company.yes,はい
 completed,完了
 count,棚卸
 draft,下書き
@@ -1034,6 +1058,9 @@ tax_invoice_simple,簡易税務請求書
 team.action.bulkDisable,{0}件を無効化
 team.action.bulkEnable,{0}件を有効化
 team.active,正常
+team.allCompanies,全社
+team.companies,会社
+team.companiesHint,未チェックの場合は全社を許可します
 team.disable,無効化
 team.email,メール
 team.enable,有効化

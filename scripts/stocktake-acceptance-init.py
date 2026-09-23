@@ -142,7 +142,7 @@ def main():
         product = create_product(product_name='盘点验收商品', code='ACCEPT-STOCKTAKE',
                                  barcode='8850000009912', qr_payload='盘点 QR 001',
                                  unit='瓶', unit_price=15, default_cost=8)['name']
-        warehouse = warehouses.resolve('验收仓库')
+        warehouse = warehouses.resolve('验收仓库', create=True)
         for location, qty in [('A架', 10), ('B架', 5)]:
             stock.apply_movement(product=product, warehouse=warehouse, location=location,
                                  movement_type='stock_in', qty=qty, unit_cost=8)

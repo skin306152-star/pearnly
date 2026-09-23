@@ -93,8 +93,9 @@ def voucher(name, kind):
     from frappe.utils.pdf import get_pdf
     from frappe.www.printview import get_print_style
 
-    company_name = frappe.db.get_value("ERP Company", {"is_default": 1}, "name")
-    company = frappe.get_doc("ERP Company", company_name).as_dict() if company_name else {}
+    # 抬头取**这张单所属的公司**（一租户多公司：单据挂公司，凭证跟着单据走）。
+    from pearnly_erp_portal.masters import company as companies
+    company = companies.for_document(doc.get("company"))
     body = frappe.render_template("pearnly_erp_portal/purchasing/voucher.html", {
         "doc": doc, "company": company, "kind": kind,
         "title": _("Withholding Tax Certificate") if kind == "wht_cert" else _("Substitute Receipt"),

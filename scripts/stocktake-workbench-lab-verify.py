@@ -31,7 +31,7 @@ def main():
     run='WB-'+uuid.uuid4().hex[:8]
     product=products.create_product(product_name=run, barcode='88'+uuid.uuid4().hex[:10],
         qr_payload=run+' QR text', unit='件', unit_price=10, default_cost=6)['name']
-    wh=warehouses.resolve(run+' 仓库')
+    wh=warehouses.resolve(run+' 仓库', create=True)
     for place,qty in [('A',10),('B',5),('D',2)]:
         stock.apply_movement(product=product,warehouse=wh,location=place,movement_type='stock_in',qty=qty,unit_cost=6)
     task=count.create_count(title=run,warehouse=wh)['name']
@@ -119,7 +119,7 @@ def main():
     assert stock.current_balance(product,wh,'D').qty==0
     # Distinct source costs and a corrected warehouse must survive relocation.
     valued=products.create_product(product_name=run+' valued',unit='件')['name']
-    other_wh=warehouses.resolve(run+' 实际仓库')
+    other_wh=warehouses.resolve(run+' 实际仓库', create=True)
     for loc,qty,cost in [('A',2,3),('B',4,11)]:
         stock.apply_movement(product=valued,warehouse=wh,location=loc,
                              movement_type='stock_in',qty=qty,unit_cost=cost)

@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "warehouse_name",
+  "company",
   "is_default",
   "is_active",
   "note"
@@ -17,6 +18,15 @@
    "reqd": 1,
    "in_list_view": 1,
    "length": 200
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "ERP Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "is_default",

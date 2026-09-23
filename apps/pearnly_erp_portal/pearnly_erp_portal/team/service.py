@@ -27,6 +27,9 @@ PASSWORD_TOO_SHORT = "The password must be at least {0} characters"
 # 这里只在下发前先挡一道，别让"保存成功但账号登不上"这种事发生。
 MIN_PASSWORD = 8
 
+# 公司隔离用的是**框架自己的 User Permission**（官方那套），公司表是我们自己的。
+COMPANY = "ERP Company"
+
 # 岗位的中文/泰文/日文说法：术语表是唯一来源，键写在 ERP 的术语表里。
 ROLE_KEYS = {
     "ERP Products": "team.role.products",
@@ -155,6 +158,8 @@ def list_members() -> list[dict]:
             "full_name": user.full_name or email,
             "enabled": bool(user.enabled),
             "roles": sorted(r.role for r in user.roles if r.role in roles),
+            # 一租户多公司：这个账号被指到哪几家（官方的 User Permission，没指就是全部）。
+            "companies": member_companies(email),
             "last_login": user.last_login,
             "is_admin": bool(set(rules.ALL_RECORDS_ROLES) & {r.role for r in user.roles}),
         })
@@ -252,6 +257,43 @@ def set_member_roles(email: str, roles=None) -> dict:
     # 角色刚变，清掉该账号的会话缓存；否则它当前会话里仍按旧岗位判权限。
     frappe.clear_cache(user=user.name)
     return {"email": user.name, "roles": sorted(wanted)}
+
+
+# ── 公司分配（官方 User Permission）────────────────────────────────────────────
+
+def member_companies(email: str) -> list:
+    """这个账号被指到哪几家公司：读官方的 `User Permission`（`allow = ERP Company`）。"""
+    return sorted(frappe.get_all("User Permission", filters={"user": email, "allow": COMPANY},
+                                 pluck="for_value"))
+
+
+def set_member_companies(email: str, companies=None) -> dict:
+    """把账号指到指定的几家公司；**空 = 不限制（看全部）**，跟官方一样。
+
+    用的是框架自己的 `User Permission`：列表、报表、单据都会按它过滤，不用我们另写一套
+    隔离。切换公司那颗按钮切的是**用户默认值**，两家都指上的人才能切。
+    """
+    guard.require("team.manage")
+    user = _employee(email)
+    wanted = [str(name).strip() for name in (companies or []) if str(name).strip()]
+    for name in wanted:
+        if not frappe.db.exists(COMPANY, name):
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+    for row in frappe.get_all("User Permission", filters={"user": user.name, "allow": COMPANY},
+                              pluck="name"):
+        frappe.delete_doc("User Permission", row, ignore_permissions=True, force=True)
+    for name in wanted:
+        frappe.get_doc({"doctype": "User Permission", "user": user.name, "allow": COMPANY,
+                        "for_value": name, "apply_to_all_doctypes": 0}).insert(
+            ignore_permissions=True)
+    # 用户默认值里那家可能已经被摘掉：跟着改，免得留在"看不见的公司"上。
+    from frappe.defaults import get_user_default, set_user_default
+    current = get_user_default("company", user.name)
+    if current and current not in wanted and wanted:
+        set_user_default("company", wanted[0], user.name)
+    frappe.db.commit()
+    frappe.clear_cache(user=user.name)
+    return {"email": user.name, "companies": sorted(wanted)}
 
 
 def set_member_active(email: str, enabled) -> dict:

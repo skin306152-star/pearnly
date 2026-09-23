@@ -426,6 +426,7 @@ Stock Count	库存盘点	ตรวจนับสต็อก	棚卸	nav.stockta
 Master Data	主数据	ข้อมูลหลัก	マスタデータ	nav.masterData
 Customers	客户管理	จัดการลูกค้า	顧客管理	nav.clients
 Company	公司	ข้อมูลบริษัท	会社情報	nav.company
+Company List	公司列表	รายชื่อบริษัท	会社一覧	nav.companyList
 Team	团队管理	ทีมงาน	チーム	nav.team
 My Profile	个人信息	ข้อมูลส่วนตัว	個人プロフィール
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations

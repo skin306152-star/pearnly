@@ -116,7 +116,6 @@ Stock count	盘点	ตรวจนับสต็อก	棚卸	nav.stockCount
 Name	名称	ชื่อ	名前	stock.count.name
 New stock count	新建盘点	สร้างการตรวจนับ	棚卸を作成	stock.count.new
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.	盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。	ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์	在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。	stock.count.newHint
-Leave empty to use the default warehouse	留空就用默认仓库	เว้นว่างไว้จะใช้คลังเริ่มต้น	空欄なら既定の倉庫を使います	stock.count.warehouseHint
 Notes	备注	หมายเหตุ	備考	stock.count.notes
 Stock count created, {0} rows	盘点已创建，{0} 行	สร้างการตรวจนับแล้ว {0} แถว	棚卸を作成しました（{0} 行）	stock.count.created
 Rows	行数	จำนวนแถว	行数	stock.count.rows
@@ -266,6 +265,9 @@ Job Roles	功能权限	สิทธิ์การใช้งาน	機能権�
 Only the checked features are visible to this user	只勾选的功能，这个用户才看得到	ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
 Username and email are issued with the account and can no longer be changed.	用户名和邮箱是开户时发的，之后不能修改。	ชื่อผู้ใช้และอีเมลออกให้ตอนเปิดบัญชี แก้ไขไม่ได้	ユーザー名とメールアドレスはアカウント発行時に確定し、変更できません。	team.identityHint
 Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	team.lastLogin
+Companies	公司	บริษัท	会社	team.companies
+Leave all unchecked to allow every company	不勾 = 不限制，看全部公司	ไม่ติ๊กเลย = ไม่จำกัด เห็นทุกบริษัท	未チェックの場合は全社を許可します	team.companiesHint
+All companies	全部公司	ทุกบริษัท	全社	team.allCompanies
 Status	状态	สถานะ	状態	team.status
 Active	正常	ปกติ	正常	team.active
 Inactive	已停用	ปิดใช้งาน	無効	team.inactive
@@ -403,7 +405,6 @@ There is nothing to save	没有要保存的行	ไม่มีข้อมูล
 Created {0}; {1} row(s) were not saved — fix them and save again	已新建 {0} 个；{1} 行没保存成功，修正后再存	สร้างแล้ว {0} รายการ อีก {1} แถวบันทึกไม่สำเร็จ กรุณาแก้แล้วบันทึกอีกครั้ง	{0}件を作成しました。{1}行は保存できませんでした。修正して再保存してください	product.notice.partial
 Edit in Full Page	全屏编辑	แก้ไขแบบเต็มหน้า	全画面で編集	trade.action.fullPage
 Submit	提交	ยืนยัน	確定	trade.action.submit
-Type any warehouse name; a new warehouse is created if that name is new	仓库可以自由填写，名字没见过的会自动新建一个	พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้	倉庫名は自由入力です。新しい名前なら自動作成します	trade.warehouseHint
 Submitted {0}	已提交 {0}	ยืนยันแล้ว {0}	{0} を提出しました	trade.notice.submitted
 Submit	提交	ยืนยัน	確定	product.action.submit
 Codes start at {0}	本次从 {0} 开始发	เริ่มที่ {0}	{0} から採番します	product.new.hintCode
@@ -838,3 +839,19 @@ Not found in the Revenue Department records	税务局没有这家登记	ไม�
 Tax ID exists but is not VAT registered	税号存在，但没有 VAT 登记	มีเลขนี้แต่ไม่ได้จดทะเบียน VAT	番号は存在しますがVAT登録がありません	company.lookup.not_vat_registered
 Cannot reach the Revenue Department right now	现在连不上税务局	เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้	現在、税務局に接続できません	company.lookup.rd_unreachable
 The Revenue Department replied in an unreadable format	税务局的回复格式看不懂	รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้	税務局の応答形式を解釈できません	company.lookup.parse_error
+Company name	公司名称	ชื่อบริษัท	会社名	company.col.name
+Short name	简称	ชื่อย่อ	略称	company.col.shortName
+Tax ID	税号	เลขประจำตัวผู้เสียภาษี	納税者番号	company.col.taxId
+Phone	电话	โทรศัพท์	電話	company.col.phone
+Current	当前	ปัจจุบัน	現在	company.col.current
+Status	状态	สถานะ	状態	company.col.status
+Active	正常	ปกติ	有効	company.status.active
+Disabled	已停用	ปิดใช้งาน	無効	company.status.inactive
+Yes	是	ใช่	はい	company.yes
+New company	新建公司	เพิ่มบริษัท	会社を追加	company.new
+Set as current	设为当前	ตั้งเป็นปัจจุบัน	現在の会社にする	company.setCurrent
+Disable	停用	ปิดใช้งาน	無効にする	company.disable
+Enable	启用	เปิดใช้งาน	有効にする	company.enable
+Created	已新建	สร้างแล้ว	作成しました	company.notice.created
+Updated	已更新	อัปเดตแล้ว	更新しました	company.notice.toggled
+Switching company...	正在切换公司…	กำลังสลับบริษัท…	会社を切り替えています…

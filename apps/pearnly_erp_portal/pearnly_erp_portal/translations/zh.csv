@@ -21,6 +21,7 @@ Address and notes,地址与备注
 Against Payment,关联付款
 All,全部
 All Items,所有物料
+All companies,全部公司
 Already exists,已存在
 Already received,这份文件已经收过了
 Already used by {0} (code {1}),已经是「{0}」（编码 {1}）
@@ -114,6 +115,7 @@ Collection Method,收款方式
 Collection Remarks,收款备注
 Collection Status,收款状态
 Columns,列
+Companies,公司
 Company,公司
 Company details,公司信息
 Company name,公司名称
@@ -145,6 +147,7 @@ Created {0} product(s),已新建 {0} 个物料
 Created {0}; {1} row(s) were not saved — fix them and save again,已新建 {0} 个；{1} 行没保存成功，修正后再存
 Creation,创建日期
 Currency,货币
+Current,当前
 Custom,自定义
 Customer,客户
 Customer Name,客户名称
@@ -286,6 +289,7 @@ LINE,LINE
 LINE unbound,LINE 已解绑
 Last Login,最后登录
 Last Month,上个月
+Leave all unchecked to allow every company,不勾 = 不限制，看全部公司
 Leave blank to use the default terminal,留空使用默认收银台
 Leave empty to use the default warehouse,留空就用默认仓库
 Light,灯光
@@ -320,6 +324,7 @@ New Sales Document,新建销售单
 New Stock Issue,新建出库单
 New Stock Receipt,新建入库单
 New Supplier,新建供应商
+New company,新建公司
 New product,新建物料
 New stock count,新建盘点
 Next,下一个
@@ -492,6 +497,7 @@ Select the original sale line,请选择原单中的物料行
 Selling price,售价
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
 Service,服务
+Set as current,设为当前
 Sheet,表格文件
 Shelf,库位
 Shift History,班次记录
@@ -544,6 +550,7 @@ Supplier is disabled,供应商已停用
 Supplier is required,供应商不能为空
 Supplier not found,供应商不存在
 Suppliers,供应商
+Switching company...,正在切换公司…
 System number,单据编号
 Tax Amount,税额
 Tax Exclusive,不含税
@@ -611,6 +618,7 @@ Unknown direction,未知的方向
 Unpaid,未付
 Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
 Update Stock,更新库存
+Updated,已更新
 Updated {0},已更新 {0}
 Updated {0} customer(s),已更新 {0} 位客户
 Updated {0} employee(s),已更新 {0} 位员工
@@ -645,6 +653,7 @@ Withholding Tax,预扣税
 Withholding Tax Certificate,预扣税凭证
 Withholding Tax Rate,预扣税率
 Withholding Tax must be greater than zero,预扣税额必须大于零
+Yes,是
 Zoom In,放大
 Zoom Out,缩小
 adjust,调整
@@ -689,7 +698,15 @@ client.party.person,个人
 client.save,保存
 client.title,客户
 company,公司
+company.col.current,当前
+company.col.name,公司名称
+company.col.phone,电话
+company.col.shortName,简称
+company.col.status,状态
+company.col.taxId,税号
+company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发
+company.enable,启用
 company.field.address,地址
 company.field.branch,分支
 company.field.contactEmail,联系邮箱
@@ -713,15 +730,22 @@ company.lookup.not_vat_registered,税号存在，但没有 VAT 登记
 company.lookup.parse_error,税务局的回复格式看不懂
 company.lookup.querying,正在向税务局查询…
 company.lookup.rd_unreachable,现在连不上税务局
+company.new,新建公司
+company.notice.created,已新建
 company.notice.saved,已保存
+company.notice.toggled,已更新
 company.promptpayHint,收款时给对方看的账号
 company.readOnly,只有产品管理员能改，这里是只读
 company.save,保存
 company.section.address,地址与备注
 company.section.basic,公司信息
 company.section.documents,单据
+company.setCurrent,设为当前
+company.status.active,正常
+company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
+company.yes,是
 completed,已完成
 count,盘点
 draft,草稿
@@ -1034,6 +1058,9 @@ tax_invoice_simple,简易税务发票
 team.action.bulkDisable,停用 {0}
 team.action.bulkEnable,启用 {0}
 team.active,正常
+team.allCompanies,全部公司
+team.companies,公司
+team.companiesHint,不勾 = 不限制，看全部公司
 team.disable,停用
 team.email,邮箱
 team.enable,启用

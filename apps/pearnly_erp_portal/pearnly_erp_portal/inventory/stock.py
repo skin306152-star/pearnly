@@ -261,6 +261,9 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     filters: dict = {}
     if warehouse:
         filters["warehouse"] = warehouses.resolve(warehouse, create=False) or "__missing__"
+    else:
+        # 看库存就是看**当前公司**那几个仓库的结存（结存按仓库记账）。
+        filters.update(warehouses.scope_filter())
     if location is not None:
         filters["location"] = positions.clean_location(location)
     rows = frappe.get_list(BALANCE, filters=filters,

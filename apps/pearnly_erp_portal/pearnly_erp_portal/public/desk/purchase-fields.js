@@ -64,7 +64,10 @@
 				onchange: () => line.ready && line.form.set_value("subcategory", "")}),
 			f("subcategory", "Subcategory", "Link", {options: "ERP Purchase Category",
 				get_query: () => ({filters: {parent_category: line.form?.get_value("category") || "__none__", is_active: 1}})}), col(),
-			f("warehouse", "Warehouse"), f("location", "Location"), f("batch_no", "Batch No"), f("expiry_date", "Expiry Date", "Date"),
+			// 仓库：官方原生 Link，只列当前公司的仓库（不是自由填写）。
+			f("warehouse", "Warehouse", "Link",
+				{options: "ERP Warehouse", get_query: p.warehouse_query()}),
+			f("location", "Location"), f("batch_no", "Batch No"), f("expiry_date", "Expiry Date", "Date"),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,

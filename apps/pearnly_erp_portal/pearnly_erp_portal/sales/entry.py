@@ -13,6 +13,7 @@ from frappe.utils import flt, getdate, now, nowdate
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.sales import access, contracts, files
 
@@ -166,6 +167,9 @@ def _post(payload, request_id, fingerprint, name):
     rows = [_line_row(raw, computed) for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
+    # 一租户多公司：单据挂公司（没给就是当前公司）。
+    if not doc.get("company"):
+        doc.company = companies.document_company(payload.get("company"))
     # 明细必须是子表文档：直接塞 dict 列表，控制器里的 `line.description` 会拿到 dict。
     doc.set("lines", [])
     for row in rows:
@@ -250,7 +254,8 @@ def _post_stock(doc):
             for row in doc.lines if row.product]
     if not rows:
         return
-    stock.apply_lines(warehouse=warehouses.ensure_default(), movement_type="sale_out", lines=rows,
+    # 出库走**这张单所属公司**的默认仓（一租户多公司：库存按公司分开）。
+    stock.apply_lines(warehouse=warehouses.ensure_default(doc.get("company")), movement_type="sale_out", lines=rows,
                       posting_date=doc.doc_date, ref_type=DOCTYPE, ref_id=doc.name,
                       doc_no=doc.system_no, internal=True, client_uuid="sales-doc:" + doc.name)
     doc.stock_posted_at = now()

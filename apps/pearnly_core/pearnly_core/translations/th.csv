@@ -86,6 +86,7 @@ Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKa
 Collapse,ย่อ
 Companion,ผู้ช่วย (Companion)
 Company,ข้อมูลบริษัท
+Company List,รายชื่อบริษัท
 Company Master,ทะเบียนบริษัท
 Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขผู้เสียภาษีของบริษัท
@@ -896,6 +897,7 @@ intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.cashier,ขายหน้าร้าน POS
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
+nav.companyList,รายชื่อบริษัท
 nav.companyMaster,ทะเบียนบริษัท
 nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork

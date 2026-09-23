@@ -47,6 +47,9 @@
 				{ fieldname: "email", width: 210, min_width: 150, label: t("team.email") },
 				{ fieldname: "roles", width: 200, min_width: 130, label: t("team.roles"),
 					format: value => (value || []).map(role_label).join(" · ") || "—" },
+				// 一租户多公司：这个账号被指到哪几家（没指 = 不限制，看全部）。
+				{ fieldname: "companies", width: 170, min_width: 120, label: t("team.companies"),
+					format: value => (value || []).map(company_label).join(" · ") || t("team.allCompanies") },
 				{ fieldname: "status", width: 90, min_width: 72, label: t("team.status"),
 					format: (_value, row) => row.enabled ? t("team.active") : t("team.inactive"),
 					// 停用的账号标红：与其它页同一个红（`.pearnly-payment-due`）。
@@ -95,7 +98,14 @@
 			data = await p.call(api + "api_list_members");
 			data.members = data.members || [];
 			data.roles = data.roles || [];
+			// 公司清单给编辑弹窗里的多选（含停用的：老单据还挂在上面）。
+			const rows = await p.call("pearnly_erp_portal.masters.api.api_list_companies",
+				{include_inactive: 1, limit: 0});
+			data.companies = rows.map(row => ({label: row.company_name, value: row.name}));
 		}
+
+		const company_label = name =>
+			(data.companies || []).find(row => row.value === name)?.label || name;
 
 		// ── 添加用户 / 改岗位（发号定死的东西不再改）─────────────────────────────
 		// 用户名（发号时填的那个名字，就是登录身份）与邮箱**开户时就定了**：添加时填一次，
@@ -108,6 +118,15 @@
 				columns: 2, reqd: 1, description: t("team.rolesHint"),
 				options: data.roles.map(role => ({ label: role.label, value: role.name,
 					checked: default_roles.includes(role.name) })) };
+		}
+
+		// 公司分配用同一颗原生 MultiCheck（多选勾选，自带全选/清空）；**一个都不勾 = 不限制**，
+		// 也就是官方那套"没有 User Permission 就看全部"。
+		function companies_field(default_companies = []) {
+			return { fieldtype: "MultiCheck", fieldname: "companies", label: t("team.companies"),
+				columns: 2, description: t("team.companiesHint"),
+				options: (data.companies || []).map(row => ({ label: row.label, value: row.value,
+					checked: default_companies.includes(row.value) })) };
 		}
 
 		function editor(row) {
@@ -124,6 +143,7 @@
 						{ reqd: 1, description: t("team.passwordHint") }),
 				] : []),
 				roles_field(row?.roles || []),
+				companies_field(row?.companies || []),
 			];
 			dialog = p.dialog(is_new ? t("team.new") : row.email,
 				fields.filter(Boolean), is_new ? t("team.new") : __("Save"),
@@ -133,11 +153,15 @@
 							full_name: values.full_name, email: values.email,
 							password: values.password, roles: values.roles,
 						}, "POST");
+						await p.call(api + "api_set_member_companies",
+							{ email: values.email, companies: values.companies || [] }, "POST");
 						d.hide();
 						p.success(t("team.notice.added", values.full_name));
 					} else {
 						await p.call(api + "api_set_member_roles",
 							{ email: row.email, roles: values.roles }, "POST");
+						await p.call(api + "api_set_member_companies",
+							{ email: row.email, companies: values.companies || [] }, "POST");
 						d.hide();
 						p.success(t("team.notice.saved"));
 					}

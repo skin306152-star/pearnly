@@ -86,6 +86,7 @@ Collaboration Boards (WeKan),Collaboration Boards (WeKan)
 Collapse,Collapse
 Companion,Companion
 Company,Company
+Company List,Company List
 Company Master,Company Master
 Company Profile,Company Profile
 Company Tax ID,Company Tax ID
@@ -894,6 +895,7 @@ intake.title,Intake Workbench
 nav.cashier,POS
 nav.clients,Customers
 nav.company,Company
+nav.companyList,Company List
 nav.companyMaster,Company Master
 nav.connect,Connect DMS
 nav.cowork,Pearnly Cowork

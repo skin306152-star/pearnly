@@ -1,6 +1,12 @@
 /* Shared business line fields, composed from native Dialog/Grid controls. */
 (() => {
 	const p = frappe.pearnly;
+	// 仓库字段一律是**官方原生**的 Link → `ERP Warehouse`，下拉里只列当前公司的仓库
+	// （仓库属于公司，一租户多公司）。`df.get_query` 是框架 Link 控件自己认的写法：
+	// 给一个普通对象它就当过滤条件用（`link.js`：`$.isPlainObject(get_query)`）。
+	p.warehouse_query = () => ({
+		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
+	});
 	p.trade = {
 		// 收银小票的只读查看器：销售记录里点到"来源=POS"的行，或收银页点小票，都开这一个。
 		// `actions` 由调用方给（收银页给「退货退款 / 作废」，销售记录只读打开时不给）。
@@ -66,7 +72,9 @@
 								[price]: cost ? item.default_cost : item.unit_price });
 							this.grid_row.refresh();
 						} },
-					{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: 1, columns: 2 },
+					// 仓库：官方原生 Link（不是自由填写），只列当前公司的仓库。
+					{ fieldtype: "Link", options: "ERP Warehouse", get_query: p.warehouse_query(),
+						fieldname: "warehouse", label: t("trade.warehouse"), in_list_view: 1, columns: 2 },
 					{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), in_list_view: 1, columns: 2 },
 					{ fieldtype: "Float", fieldname: "qty", label: t("trade.qty"), reqd: 1, default: 1, in_list_view: 1, columns: 1, formatter: value => p.number(value) },
 					{ fieldtype: "Currency", fieldname: price, options: "currency", formatter: value => p.money(value), label: t(cost ? "trade.cost" : "trade.price"), in_list_view: 1, columns: 2 },

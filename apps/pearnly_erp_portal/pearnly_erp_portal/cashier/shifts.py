@@ -235,7 +235,8 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
                 names=None, limit=50) -> list[dict]:
     """班次列表。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
     guard.require("cashier.read")
-    filters: dict = {}
+    # 一租户多公司：只看当前公司那几台收银台上的班次（班次表本身没有仓库列）。
+    filters: dict = dict(terminals.scope_filter())
     if not rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:
         filters["cashier"] = frappe.session.user
     elif cashier:

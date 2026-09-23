@@ -21,6 +21,7 @@ Address and notes,Address and notes
 Against Payment,Against Payment
 All,All
 All Items,All Items
+All companies,All companies
 Already exists,Already exists
 Already received,Already received
 Already used by {0} (code {1}),Already used by {0} (code {1})
@@ -114,6 +115,7 @@ Collection Method,Collection Method
 Collection Remarks,Collection Remarks
 Collection Status,Collection Status
 Columns,Columns
+Companies,Companies
 Company,Company
 Company details,Company details
 Company name,Company name
@@ -145,6 +147,7 @@ Created {0} product(s),Created {0} product(s)
 Created {0}; {1} row(s) were not saved — fix them and save again,Created {0}; {1} row(s) were not saved — fix them and save again
 Creation,Creation
 Currency,Currency
+Current,Current
 Custom,Custom
 Customer,Customer
 Customer Name,Customer Name
@@ -286,6 +289,7 @@ LINE,LINE
 LINE unbound,LINE unbound
 Last Login,Last Login
 Last Month,Last Month
+Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
 Leave empty to use the default warehouse,Leave empty to use the default warehouse
 Light,Light
@@ -320,6 +324,7 @@ New Sales Document,New Sales Document
 New Stock Issue,New Stock Issue
 New Stock Receipt,New Stock Receipt
 New Supplier,New Supplier
+New company,New company
 New product,New product
 New stock count,New stock count
 Next,Next
@@ -492,6 +497,7 @@ Select the original sale line,Select the original sale line
 Selling price,Selling price
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
 Service,Service
+Set as current,Set as current
 Sheet,Sheet
 Shelf,Shelf
 Shift History,Shift History
@@ -544,6 +550,7 @@ Supplier is disabled,Supplier is disabled
 Supplier is required,Supplier is required
 Supplier not found,Supplier not found
 Suppliers,Suppliers
+Switching company...,Switching company...
 System number,System number
 Tax Amount,Tax Amount
 Tax Exclusive,Tax Exclusive
@@ -611,6 +618,7 @@ Unknown direction,Unknown direction
 Unpaid,Unpaid
 Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
 Update Stock,Update Stock
+Updated,Updated
 Updated {0},Updated {0}
 Updated {0} customer(s),Updated {0} customer(s)
 Updated {0} employee(s),Updated {0} employee(s)
@@ -645,6 +653,7 @@ Withholding Tax,Withholding Tax
 Withholding Tax Certificate,Withholding Tax Certificate
 Withholding Tax Rate,Withholding Tax Rate
 Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+Yes,Yes
 Zoom In,Zoom In
 Zoom Out,Zoom Out
 adjust,adjust
@@ -689,7 +698,15 @@ client.party.person,Person
 client.save,Save
 client.title,Customers
 company,company
+company.col.current,Current
+company.col.name,Company name
+company.col.phone,Phone
+company.col.shortName,Short name
+company.col.status,Status
+company.col.taxId,Tax ID
+company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
+company.enable,Enable
 company.field.address,Address
 company.field.branch,Branch
 company.field.contactEmail,Contact email
@@ -713,15 +730,22 @@ company.lookup.not_vat_registered,Tax ID exists but is not VAT registered
 company.lookup.parse_error,The Revenue Department replied in an unreadable format
 company.lookup.querying,Querying the Revenue Department...
 company.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+company.new,New company
+company.notice.created,Created
 company.notice.saved,Saved
+company.notice.toggled,Updated
 company.promptpayHint,The account you give customers for transfers
 company.readOnly,Only the product admin can change this
 company.save,Save
 company.section.address,Address and notes
 company.section.basic,Company details
 company.section.documents,Documents
+company.setCurrent,Set as current
+company.status.active,Active
+company.status.inactive,Disabled
 company.subtitle,The company on your documents
 company.taxHint,13 digits; a branch adds its 5-digit branch number
+company.yes,Yes
 completed,completed
 count,count
 draft,draft
@@ -1034,6 +1058,9 @@ tax_invoice_simple,tax_invoice_simple
 team.action.bulkDisable,Disable {0}
 team.action.bulkEnable,Enable {0}
 team.active,Active
+team.allCompanies,All companies
+team.companies,Companies
+team.companiesHint,Leave all unchecked to allow every company
 team.disable,Disable
 team.email,Email
 team.enable,Enable

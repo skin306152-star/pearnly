@@ -56,9 +56,12 @@
 				default: doc_no, description: doc.doc_no ? "" : t("stock.field.docNoAuto") },
 			{ fieldtype: "Date", fieldname: "posting_date", label: t("trade.date"),
 				default: doc.posting_date || frappe.datetime.get_today(), reqd: 1 },
-			// 仓库自由填写（用户口径"不要用官方的仓库"）：不是 Link，服务端按名字找或新建。
-			{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
-				default: doc.warehouse, reqd: 1, description: t("trade.warehouseHint") },
+			// 仓库用**官方原生**的 Link 到 `ERP Warehouse`（用户 2026-09-23："我说用官方原生，
+			// 这是第四遍了"）：下拉里只列**当前公司**的仓库；没找到时 Link 自己会带
+			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
+			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
+				label: t("trade.warehouse"), default: doc.warehouse, reqd: 1,
+				get_query: p.warehouse_query() },
 			p.trade.lines(t, { stock: true, cost: true, readonly: !editable, locked_price: !priced,
 				data: data || doc.lines || [{ qty: 1 }] }),
 			{ fieldtype: "Small Text", fieldname: "reason", label: t("trade.note"),

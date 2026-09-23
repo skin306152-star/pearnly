@@ -86,6 +86,7 @@ Collaboration Boards (WeKan),コラボボード（WeKan）
 Collapse,閉じる
 Companion,コンパニオン
 Company,会社情報
+Company List,会社一覧
 Company Master,会社マスタ
 Company Profile,会社情報
 Company Tax ID,自社の税番号
@@ -896,6 +897,7 @@ intake.title,取り込みワークベンチ
 nav.cashier,POS レジ
 nav.clients,顧客管理
 nav.company,会社情報
+nav.companyList,会社一覧
 nav.companyMaster,会社マスタ
 nav.connect,DMSに接続
 nav.cowork,Pearnly Cowork

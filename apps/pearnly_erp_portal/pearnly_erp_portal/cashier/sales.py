@@ -197,7 +197,8 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
                status=None, q=None, limit=50, start=0) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
     guard.require("cashier.read")
-    filters: dict = {}
+    # 一租户多公司：只看当前公司那几个仓库的小票。
+    filters: dict = dict(warehouses.scope_filter())
     if rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS:
         filters["cashier"] = frappe.session.user
     elif cashier:

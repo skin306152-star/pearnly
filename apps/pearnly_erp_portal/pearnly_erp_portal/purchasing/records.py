@@ -5,6 +5,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import access, amounts
 
 FIELDS = ("name", "system_no", "doc_no", "doc_date", "creation", "supplier", "supplier_name",
@@ -15,6 +16,8 @@ FIELDS = ("name", "system_no", "doc_no", "doc_date", "creation", "supplier", "su
 def query(params=None):
     params = params or {}
     filters = [[key, "=", value] for key, value in guard.scope_filters().items()]
+    # 一租户多公司：导出与列表都只看当前公司（切换公司改的是用户默认值里的 company）。
+    filters.append(["company", "=", companies.active_company()])
     for key in ("status", "supplier", "payment_status", "doc_kind"):
         value = params.get(key)
         if value:

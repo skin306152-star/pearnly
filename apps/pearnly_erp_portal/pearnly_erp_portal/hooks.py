@@ -274,6 +274,7 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
@@ -315,6 +316,9 @@ app_include_css = [
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
 
+# 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
+boot_session = "pearnly_erp_portal.masters.boot.boot_session"
+
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
@@ -333,7 +337,7 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
             ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
-            ('nav.company', 'pearnly-company', 'contact', None),
+            ('nav.company', 'pearnly-company', 'building-2', None),
             ('nav.team', 'pearnly-team', 'users-round', None),
             ('nav.integrations', 'pearnly-integrations', 'plug', None)],
   'available': ['pearnly-home',

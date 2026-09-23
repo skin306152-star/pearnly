@@ -360,8 +360,9 @@
 							t("stock.count.modeImport")].join("\n"),
 						default: t("stock.count.modeStock"),
 						change: () => toggle_import() },
-					{ fieldtype: "Data", fieldname: "warehouse", label: t("stock.col.warehouse"),
-						description: t("stock.count.warehouseHint") },
+					// 仓库：官方原生 Link（只列当前公司的仓库），不是自由填写。
+					{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
+						label: t("stock.col.warehouse"), get_query: p.warehouse_query() },
 					{ fieldtype: "Small Text", fieldname: "notes", label: t("stock.count.notes") },
 					{ fieldtype: "Button", fieldname: "pick", label: t("stock.count.importPick"),
 						hidden: 1, click: pick("file_name") },

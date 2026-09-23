@@ -53,7 +53,10 @@
 			f("vat_applicable", "VAT Applies", "Check", {default: 1}),
 			f("line_total", "Amount", "Currency", {read_only: 1}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
-			f("warehouse", "Warehouse"), f("location", "Location"),
+			// 仓库：官方原生 Link，只列当前公司的仓库（不是自由填写）。
+			f("warehouse", "Warehouse", "Link",
+				{options: "ERP Warehouse", get_query: p.warehouse_query()}),
+			f("location", "Location"),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,
