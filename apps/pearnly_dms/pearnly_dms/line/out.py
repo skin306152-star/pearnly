@@ -27,14 +27,25 @@ logger = logging.getLogger(__name__)
 def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: str = "") -> bool:
     """结构化消息出口：有 reply_token 就 reply，没有就 push。
 
+    现在的口径是 **`reply_or_push`**（2026-09-23）：有令牌就先试**免费回覆**，被明确拒绝
+    才转推播 —— 后台任务因此也能蹭免费窗口，而不是"手上没令牌就只能花钱"。见
+    `pearnly_core.line.reply_or_push` 里那三条规则（尤其"超时也转推播、宁可极小概率重复"
+    的取舍）。
+
     订车逐问既可能由 postback 应答（有令牌），也可能由后台任务发起（没有令牌）。
     `msg is None` 明确表示"这一步没有话说"，不算错，回 False 让调用方自己决定。
     """
     if msg is None:
         return False
-    if reply_token:
-        return line.reply(reply_token, [msg])
-    return line.push(line_user_id, [msg])
+    return line.reply_or_push(line_user_id, [msg], reply_token)
+
+
+def push_or_reply_text(line_user_id: str, text: str, reply_token: str = "") -> bool:
+    """纯文本的同一个口径：能免费回覆就免费，不行才推播。
+
+    给"原本写死 `_push`（纯文本）"的那些地方用 —— 它们同样带着令牌，只是以前没用。
+    """
+    return line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
 
 
 def reply_text(reply_token: str, text: str) -> bool:

@@ -151,7 +151,7 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=None, location=None,
-                           note=None, request_id=None, photos=None, **kwargs):
+                           note=None, request_id=None, photos=None, warehouse=None, stock_token=None, **kwargs):
     """记一笔。手机端每一发都带 `request_id`：重试不会记两笔。
 
     `item` 是员工挑的那一行（商品 × 仓库 × 库位）；只给码时按 `location` 找行。
@@ -160,7 +160,8 @@ def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=Non
     if isinstance(photos, str):
         photos = frappe.parse_json(photos)
     return counts.add_entry(count=name, code=code, item=item, qty=qty, location=location,
-                            note=note, request_id=request_id, photos=photos, source="LINE")
+                            note=note, request_id=request_id, photos=photos, warehouse=warehouse,
+                            stock_token=stock_token, source="LINE")
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])

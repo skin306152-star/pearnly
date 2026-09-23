@@ -27,7 +27,6 @@
   "is_active",
   "image_url",
   "units",
-  "default_warehouse",
   "default_location"
  ],
  "fields": [
@@ -165,11 +164,6 @@
    "fieldtype": "Table",
    "label": "Selling Units",
    "options": "ERP Product Unit"
-  },
-  {
-   "fieldname": "default_warehouse",
-   "fieldtype": "Data",
-   "label": "Default Warehouse"
   },
   {
    "fieldname": "default_location",

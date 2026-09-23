@@ -68,7 +68,7 @@
   {
    "fieldname": "discount_pct",
    "fieldtype": "Float",
-   "label": "Discount %"
+   "label": "Discount (%)"
   },
   {
    "fieldname": "line_total",

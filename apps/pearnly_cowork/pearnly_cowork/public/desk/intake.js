@@ -191,7 +191,7 @@
 						"POST",
 					);
 					d.hide();
-					p.success(t("intake.notice.created", result.name || result));
+					p.success(t("intake.notice.created", result.name || result), "click");
 					await refresh();
 				},
 			),

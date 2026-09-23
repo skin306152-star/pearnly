@@ -429,13 +429,17 @@ def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
-def preview_card(qa: Dict[str, Any], nonce: str) -> Dict[str, Any]:
+def preview_card(qa: Dict[str, Any], nonce: str, notice: str = "") -> Dict[str, Any]:
     """逐问结束的汇总卡：全部答案 + 各渠道金额 + 合计 + 附件两行 + 确认/丢弃。
 
     客户资料区复用 `dms_cards._summary_rows`（与客户确认卡同一份 summary，标签/顺序/
     地址格式完全一致）；legacy 会话没有 summary 时从 draft+customer 拼可读回退。
     按钮复用 `ACT_CONFIRM_BOOKING` / `ACT_CANCEL_BOOKING` 与 `_data` 编码，
     既有订车流程的确认/取消（parse_qs + consume_nonce）**无需任何改动**即可接住。
+
+    `notice`：把"顺带要说的一句话"（例：确认瞬间主档变了）**并进这张卡**，而不是
+    先发一条文本再发这张卡 —— LINE 的额度按**消息条数**算，一次操作发两条就是两条
+    （2026-09-23 省额度）。
     """
     answers = qa.get("answers") or {}
     files = qa.get("files") or {}
@@ -445,6 +449,8 @@ def preview_card(qa: Dict[str, Any], nonce: str) -> Dict[str, Any]:
     customer_rows = _summary_rows(summary)
     customer_rows.insert(4, _kv_row(LBL_POSTCODE, str(summary.get("zipcode") or "")))
     rows: List[Dict[str, Any]] = [
+        # 要说的话放最前面：用户一眼看到"为什么要再确认一次"。
+        *([{"type": "text", "text": notice, "wrap": True, "size": "sm"}] if notice else []),
         *customer_rows,
         # 顾问 = 提成归属，确认前让销售自己看一眼落在谁头上；没匹配上时开局就拦了，不会到这。
         *([_kv_row(LBL_ADVISOR, advisor)] if advisor else []),

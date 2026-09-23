@@ -1,0 +1,104 @@
+{
+  "date": "2026-09-22",
+  "base_sha": "6c602dc18ea73ca97e3b7a9a13477697d050d16e",
+  "file_sha256": {
+    "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py": "8638f2002597aaaecd3c1022122aedd9fc3fea0de4da438c011545b2710d6331",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv": "01d6c19a936571b047e134d13c7db6ca7fd65f17fbab01c6061e752ffd9d32b8",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-entry.js": "6c96dffd483b849f44132ebc2b3eabfc3549d8c70fe607c3d474a184c2c9ea47",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js": "ffcefc1e15eb06753f1546d8b6427a5fa192146da33a055106f5deedbed5bf7e",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-layout.js": "fca188ff606a0de33274a0274e2ad181a95c45305f104bb93152698883052cd3",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-viewer.js": "74b53b78042676032387ae15825447d6bf3c660cbf77fe93683ec88ae1ec6b42",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.css": "2be825376052091cde32fd4ac241cc9d7640298a6affa263346d4371259a3d0f",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js": "dc0dcfeafa6fe2f98555b56a32784208ef820cf3c87d34c848001d79cda254e3",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/api.py": "417187e004fff21bf6ae425c71625cc0ba2d37858db52fbecce8c0a71c1afc0e",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/preview.py": "fc5e0d6e915d3ce72c046889449850150afa91f15dcf1aea6c121d78e53bb12b",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/translations/en.csv": "ee624c12109dc5c04605839ade146e30321ee5c2e867307584f6c61b9ab010f6",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/translations/ja.csv": "26cebe6ca8e88dcd0ff953337d3ac34f18eb90d8e1945971d18d91b7e2397790",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/translations/th.csv": "9b1213d0af16d9cd528093bb5b3c5805180ad0a53fc6115809b3e67fda7d852f",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/translations/zh.csv": "a5e481a53355fbcfa5d615c0cffe433c3a3f444255bdf1b07977832fc64e35db",
+    "scripts/erp-purchase-viewer-verify.py": "e9029e09ad1e54bc40b21617cfdb7f5d8a35ac04e16d9a630fbb95858cc97eb4"
+  },
+  "source": {
+    "sha": "ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188",
+    "viewer_paths": [
+      "src/home/purchase-form-bill.ts",
+      "src/home/image-viewer.ts"
+    ],
+    "baseline_start": "production-baseline-viewer-start.json",
+    "baseline_delivery": "production-baseline-viewer-delivery.json",
+    "identity_compare": "PASS unchanged"
+  },
+  "environment": {
+    "context": "colima-pearnly",
+    "project": "pearnly-purchase-lab",
+    "site": "erp-pos-a.localhost",
+    "port": 8147,
+    "base_image": "sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3",
+    "running_containers": 6
+  },
+  "browser_checks": [
+    "Initial new page: business fields hidden and Submit disabled; verified direct reload and New action from list",
+    "Manual selection: fields shown; two real private uploads (PDF and PNG); no api_recognise_purchase request",
+    "Open native uploader: Submit disabled; cancel: fields and submit restored",
+    "Mock configured OCR selection: fields hidden until success; one OCR request after both native File responses",
+    "Pending OCR: native freeze says Recognizing, entry selector and Submit disabled",
+    "Mock 417 response: freeze removed, fields remain hidden, attachments retained, Submit disabled, Retry enabled",
+    "Explicit Retry success: same-page editable fields filled; actual keyboard correction qty 2 to 3 recalculates 214 to 321",
+    "Real local submission: submitted, paid 321, auto-created item and posted stock, uploaded attachments retained",
+    "Real two-page PDF renders PNG in private viewer; next/previous and boundaries verified",
+    "Zoom 120%, rotate 90 degrees, reset, mouse drag 55x42px and wheel zoom 112% verified",
+    "Native fullscreen Dialog restores original viewer and form values; empty dialog removed on close",
+    "Generate substitute receipt action shows new PDF in same viewer with no extra tab",
+    "390x844: scrollWidth 390, continuous region navigation retained, fullscreen Dialog width 390",
+    "Real unconfigured Site rejects OCR selection with native configuration message; resets selection"
+  ],
+  "local_sample": {
+    "doc_no": "UI-ENTRY-20260922-04",
+    "name": "PUR-2026-00202",
+    "system_no": "PE2569-000073",
+    "qty": 3,
+    "grand_total": 321,
+    "paid_amount": 321,
+    "status": "submitted",
+    "source": "ocr",
+    "is_paid": 1,
+    "auto_create_product": 1,
+    "update_stock": 1,
+    "product": "PRD-00201",
+    "stock_posted_at": "2026-09-22 23:40:10.389846",
+    "uploaded_files": [
+      "1ab144aad2",
+      "9f3760eb48"
+    ],
+    "generated_voucher": "PUR-2026-00202-substitute_receipt.pdf"
+  },
+  "checks": {
+    "architecture": "PASS 0 violations",
+    "frontend_i18n": "PASS 538 keys in 27 files",
+    "i18n_build": "PASS 1643 terms across 4 apps",
+    "javascript_syntax": "PASS entry/viewer/form/layout/list",
+    "diff": "PASS",
+    "pdf_probe": "PASS actual private PDF, multipage rendering, invalid page/content/size, other owner and Guest denied"
+  },
+  "boundaries": {
+    "ocr": "browser XHR fixture only; no external paid OCR; real Site has no OCR configuration",
+    "touch": "legacy gesture implementation adapted; true touch and real device unverified",
+    "user_acceptance": "pending",
+    "production_deployment": "not performed",
+    "ci_and_release_image": "not performed",
+    "strict_i18n": "known 18 bare-CJK inventory/workbook.py violations unchanged; no ignored-rule change",
+    "business_suite": "not repeated; affected read-only PDF probe and real local form submission checked"
+  },
+  "cleanup": {
+    "xhr_interception": "cleared",
+    "viewport_override": "reset",
+    "fullscreen_dialog": "closed and removed",
+    "host_tmp_fixtures": "removed exact PDF/PNG and /tmp/erp-purchase-viewer directory",
+    "container_tmp_fixtures": "removed exact PDF/PNG and /tmp/erp-purchase-viewer directory",
+    "browser": "own tab retained on clean new form",
+    "worktree_branch_runtime_data": "retained for user acceptance; unmerged and mounted; no data deletion",
+    "main_sha": "717d202af3cfcd06815e215ef088e07f4251e00e",
+    "remote_main_sha": "ac33e0c7362915ae314295cb26f7748cb5589de0",
+    "remote_task_branch": "absent"
+  }
+}

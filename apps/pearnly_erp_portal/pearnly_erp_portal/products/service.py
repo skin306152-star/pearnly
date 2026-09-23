@@ -46,7 +46,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category_id", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "track_batch", "track_expiry", "default_warehouse", "default_location",
+    "track_batch", "track_expiry", "default_location",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）。
@@ -156,11 +156,22 @@ def _allocate_code() -> str:
     return contracts.next_code(codes)
 
 
+def next_code_preview() -> dict:
+    """下一个商品编码的**只读预览**（不占号）。
+
+    用户 2026-09-22 口径：编码由系统发、不给手输，但填表时要看得见 —— 与入库/出库表单
+    显示"当前要发的单据号"同一个道理（旧系统也是把号填进只读输入框）。真正的编码在
+    入库那一刻才定，所以这里只是预览、不写任何东西。
+    """
+    guard.require("products.view")
+    return {"code": _allocate_code()}
+
+
 def create_product(*, product_name, code=None, barcode=None, unit=None, unit_price=None,
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category_id=None, track_batch=None, track_expiry=None,
-                   default_warehouse=None, default_location=None):
+                   default_location=None):
     guard.require("products.manage")
     try:
         product_name = contracts.require_name(product_name)
@@ -189,7 +200,6 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "track_batch": _flag(track_batch),
         "track_expiry": _flag(track_expiry),
         "is_active": 1,
-        "default_warehouse": _text(default_warehouse, 140),
         "default_location": _text(default_location, 140),
     })
     doc.insert()
@@ -198,27 +208,37 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
     return {"name": doc.name}
 
 
-def _filters(search=None, include_inactive=False):
+def _filters(search=None, include_inactive=False, is_active=None):
     """列表与计数共用的一份筛选，避免两处各写一遍导致"总数与实际不符"。
 
-    名称与条码都要能搜到：扫码后就地找品是收银台的主路径，所以条码走 or。
+    名称、**物料号**、条码、二维码都要能搜到：扫码后就地找品是收银台的主路径
+    （官方 POS 那一格的提示就是"按物料号，序列号，批号搜索"）。物料号是我们自动发的
+    `P-#####`，很多商品根本没有条码，只按条码搜等于扫自家货架号都找不到。
+
+    这几样必须一起进 `or_filters`：框架把 `filters` 与 `or_filters` 之间按 AND 组合，
+    只把条码放进 or 会让"搜名称"变成"名称与条码同时包含"，等于搜不到 —— 实测过。
     """
     filters: list = []
-    if not include_inactive:
+    if is_active is not None and str(is_active) != "":
+        # 原生筛选直接给了"上架 / 停用"这一条就照它来（用户 2026-09-23 把自研的那个
+        # "显示已停用"勾选换成了官方原生筛选条件）。
+        filters.append(["is_active", "=", 1 if int(is_active) else 0])
+    elif not include_inactive:
         filters.append(["is_active", "=", 1])
-    if search:
-        filters.append(["product_name", "like", f"%{search}%"])
-    or_filters = [["barcode", "like", f"%{search}%"]] if search else None
+    or_filters = ([[field, "like", f"%{search}%"]
+                   for field in ("product_name", "code", "barcode", "qr_payload")]
+                  if search else None)
     return filters, or_filters
 
 
-def list_products(*, search=None, include_inactive=False, limit=50, start=0):
+def list_products(*, search=None, include_inactive=False, is_active=None, limit=50, start=0):
     guard.require("products.view")
-    filters, or_filters = _filters(search, include_inactive)
-    return _mask(frappe.get_list(
+    filters, or_filters = _filters(search, include_inactive, is_active)
+    rows = _mask(frappe.get_list(
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
         order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
     ))
+    return rows
 
 
 def find_product(value, exclude=None):
@@ -250,14 +270,14 @@ def find_product(value, exclude=None):
     return {}
 
 
-def count_products(*, search=None, include_inactive=False) -> int:
+def count_products(*, search=None, include_inactive=False, is_active=None) -> int:
     """列表总数（页脚"第 N 项/共 M 项"与"加载更多"用）。
 
     为什么不用 `frappe.db.count`：那条路**绕过 DocType 权限**，而本站点商品表是按岗位授权的；
     `frappe.get_list` 跟着权限走。商品是主数据、量级不大，用列表长度换权限正确性。
     """
     guard.require("products.view")
-    filters, or_filters = _filters(search, include_inactive)
+    filters, or_filters = _filters(search, include_inactive, is_active)
     return len(frappe.get_list(DOCTYPE, filters=filters, or_filters=or_filters,
                                pluck="name", limit_page_length=0))
 
@@ -284,9 +304,13 @@ def update_product(name: str, **changes):
                if "barcode" in changes else doc.barcode)
     _assert_unique(doc.code, barcode, exclude=doc.name)
 
-    for field in ("default_warehouse", "default_location"):
-        if field in changes:
-            doc.set(field, _text(changes[field], 140))
+    # 商品上的"默认仓"已经删掉（用户 2026-09-24："进货就进卖货那个仓" —— 进货那一侧改用
+    # 收银台上配的仓，见 `warehouses.receiving`），只剩仓位这一栏还是商品级建议值。
+    for field in ("default_location",):
+        if field not in changes:
+            continue
+        value = _text(changes[field], 140)
+        doc.set(field, value)
     old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):
@@ -381,6 +405,12 @@ def api_list_products(**kwargs):
 def api_find_product(value=None, exclude=None, **kwargs):
     kwargs.pop("cmd", None)
     return find_product(value, exclude=exclude)
+
+
+@frappe.whitelist()
+def api_next_product_code(**kwargs):
+    kwargs.pop("cmd", None)
+    return next_code_preview()
 
 
 @frappe.whitelist()

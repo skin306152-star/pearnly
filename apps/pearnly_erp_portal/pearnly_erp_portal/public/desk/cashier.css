@@ -1,0 +1,974 @@
+/* 收银台的皮：数值一条条对着官方那份样式表（`erpnext/public/scss/point-of-sale.scss`，
+ * ERPNext 16.34.1 / Frappe 16.33.0，与本站同一版）搬过来，行尾标了官方行号，改一处能对回去。
+ *
+ * 为什么是"照着搬"而不是"直接引"：那份样式表属于 ERPNext（另一支产品），本站没装它，
+ * 也不能把它整份拷进本仓。所以这里只落**我们真正渲染的那些规则**，数值与官方逐条一致；
+ * 我们关掉的功能（客户区、物料分组、单位换算、行号批次、忠诚度、发票附加信息、
+ * 订单级折扣）对应的块**没有**搬过来 —— 界面自然就短一截，而不是画个假的占位。
+ */
+
+/* ── 底座（官方 1-78）────────────────────────────────────────────────────── */
+.point-of-sale-app {
+	display: grid;
+	grid-template-columns: repeat(10, minmax(0, 1fr)); /* 官方 3 */
+	gap: var(--margin-md);
+	padding: 1%;
+}
+.point-of-sale-app section {
+	min-height: 30rem; /* 官方 8-10 */
+	height: calc(100vh - 5rem);
+	max-height: calc(100vh - 5rem);
+}
+.point-of-sale-app .frappe-control { margin: 0 !important; width: 100%; }   /* 官方 14-17 */
+.point-of-sale-app .form-group { margin-bottom: 0 !important; }
+.point-of-sale-app .nowrap { overflow: hidden; white-space: nowrap; }      /* 官方 27 */
+.point-of-sale-app .image { height: 100% !important; object-fit: cover; }  /* 官方 32 */
+.point-of-sale-app .abbr {                                                 /* 官方 37 */
+	background-color: var(--control-bg);
+	font-size: var(--text-3xl);
+}
+.point-of-sale-app .label {                                                /* 官方 42 */
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+}
+.point-of-sale-app .item-wrapper,
+.point-of-sale-app .cart-item-wrapper,
+.point-of-sale-app .numpad-btn,
+.point-of-sale-app .invoice-wrapper,
+.point-of-sale-app .mode-of-payment { cursor: pointer; user-select: none; }
+.point-of-sale-app .pos-card {                                             /* 官方 49 */
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+}
+/* 官方 `.primary-action`（61）：一条占满行的动作按钮 */
+.point-of-sale-app .primary-action {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-sm);
+	margin-top: var(--margin-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-lg);
+	font-weight: 700;
+}
+/* 官方 `.highlighted-numpad-btn`（73）：键盘上被选中的目标键 */
+.point-of-sale-app .highlighted-numpad-btn {
+	box-shadow: inset 0 0px 4px 0px rgba(0, 0, 0, 0.15) !important;
+	font-weight: 700;
+	background-color: var(--control-bg);
+}
+
+/* ── 商品区（官方 79-318）────────────────────────────────────────────────── */
+.point-of-sale-app > .items-selector {
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	grid-column: span 6 / span 6;   /* 官方 81 */
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+.point-of-sale-app > .items-selector > .filter-section {
+	display: grid;                  /* 官方 87 */
+	grid-template-columns: repeat(12, minmax(0, 1fr));
+	background-color: var(--fg-color);
+	padding: var(--padding-lg);
+	padding-bottom: var(--padding-sm);
+	align-items: center;
+}
+.point-of-sale-app > .items-selector > .filter-section > .label {
+	grid-column: span 4 / span 4;   /* 官方 94 */
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+	padding-bottom: var(--padding-xs);
+}
+/* 物料分组那一格（官方 span 3）我们关掉了，位置留着 —— 搜索框的位置与宽度因此与官方一致。 */
+.point-of-sale-app > .items-selector > .filter-section > .search-field {
+	grid-column: span 5 / span 5;   /* 官方 100 */
+	display: flex;
+	align-items: center;
+	margin: 0px var(--margin-sm);
+}
+.point-of-sale-app > .items-selector > .filter-section > .item-group-field {
+	grid-column: span 3 / span 3;   /* 官方 107 */
+	display: flex;
+	align-items: center;
+}
+.point-of-sale-app > .items-selector > .items-container {
+	display: grid;                  /* 官方 113 */
+	padding-top: var(--padding-xs);
+	overflow-y: scroll;
+	overflow-x: hidden;
+}
+.point-of-sale-app > .items-selector > .items-container.show-item-image {
+	grid-template-columns: repeat(4, minmax(0, 1fr));  /* 官方 157 */
+	gap: var(--margin-lg);
+	padding: var(--padding-lg);
+}
+.point-of-sale-app > .items-selector > .items-container.show-item-image > .item-wrapper {
+	border-radius: var(--border-radius-md);            /* 官方 163 */
+	box-shadow: var(--shadow-base);
+}
+.point-of-sale-app > .items-selector > .items-container.show-item-image > .item-wrapper:hover {
+	transform: scale(1.02, 1.02);                      /* 官方 166 */
+}
+.point-of-sale-app > .items-selector > .items-container.items-not-found {
+	display: flex;                                     /* 官方 149 */
+	align-items: center;
+	justify-content: center;
+	height: 100%;
+}
+.point-of-sale-app > .items-selector > .items-container > .item-wrapper {
+	position: relative;                                /* 官方 251 */
+}
+.point-of-sale-app .item-qty-pill {                    /* 官方 254 */
+	position: absolute;
+	display: flex;
+	margin: var(--margin-sm);
+	justify-content: flex-end;
+	right: 0px;
+}
+/* 卡片里那块图/缩写区（官方 263：这条嵌在 `.items-container > .item-wrapper` 里，
+ * 只作用于**商品卡**；明细面板的 `.item-display` 只有 `display:flex`，别串过去）。 */
+.point-of-sale-app .items-container .item-display {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--border-radius-md);
+	margin: var(--margin-sm);
+	margin-bottom: 0px;
+	min-height: 8rem;
+	height: 8rem;
+	overflow: hidden;
+}
+.point-of-sale-app .item-display > img,
+.point-of-sale-app .item-img {
+	width: 100%;
+	height: 100% !important;
+	object-fit: cover;
+}
+.point-of-sale-app .item-detail {                      /* 官方 297 */
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-height: 3.5rem;
+	height: 3.5rem;
+	padding-left: var(--padding-sm);
+	padding-right: var(--padding-sm);
+}
+.point-of-sale-app .item-detail > .item-name {
+	overflow: hidden;                                  /* 官方 306 */
+	white-space: nowrap;
+	display: flex;
+	align-items: center;
+	font-size: var(--text-md);
+}
+.point-of-sale-app .item-detail > .item-rate { font-weight: 700; }  /* 官方 313 */
+
+/* ── 购物车（官方 319-746；客户区我们关掉，只留 `.cart-container`）──────────── */
+.point-of-sale-app > .customer-cart-container {
+	grid-column: span 4 / span 4;   /* 官方 320 */
+	display: flex;
+	flex-direction: column;
+}
+.point-of-sale-app > .customer-cart-container > .cart-container {
+	background-color: var(--fg-color);                 /* 官方 441（.pos-card + 下面这几条）*/
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	margin-top: var(--margin-md);
+	position: relative;
+	height: 100%;
+}
+.point-of-sale-app .abs-cart-container {               /* 官方 453 */
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	padding: var(--padding-lg);
+	width: 100%;
+	height: 100%;
+}
+.point-of-sale-app .cart-label {                       /* 官方 470 */
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+	padding-bottom: var(--padding-md);
+}
+.point-of-sale-app .cart-header {                      /* 官方 476 */
+	display: flex;
+	width: 100%;
+	font-size: var(--text-md);
+	padding-bottom: var(--padding-md);
+}
+.point-of-sale-app .cart-header > .name-header { flex: 1 1 0%; }
+/* 客户那一格：官方 `point-of-sale.scss` 197-281 那一套，类名、尺寸、留白逐条抄。
+   搜索框右端那颗「扫描」与 Clear 都由官方控件自己来（框架 `.link-btn` 的定位也是官方的），
+   这里不再给它们补任何样式 —— 补了就不是一模一样的了。 */
+.point-of-sale-app > .customer-cart-container > .customer-section {
+	background-color: var(--fg-color);                 /* 官方 198（.pos-card + 下面几条）*/
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	display: flex;
+	flex-direction: column;
+	padding: var(--padding-md) var(--padding-lg);
+	overflow: visible;
+}
+.point-of-sale-app > .customer-cart-container > .customer-section > .customer-field {
+	display: flex;                                     /* 官方 204 */
+	align-items: center;
+	padding-top: var(--padding-xs);
+}
+.point-of-sale-app > .customer-cart-container > .customer-section > .customer-details {
+	display: flex;                                     /* 官方 210 */
+	flex-direction: column;
+	background-color: var(--fg-color);
+}
+.point-of-sale-app .customer-display {                 /* 官方 232 */
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+.point-of-sale-app .customer-image {                   /* 官方 237 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 3rem;
+	height: 3rem;
+	border-radius: 50%;
+	color: var(--text-light);
+	margin-right: var(--margin-md);
+}
+.point-of-sale-app .customer-abbr {                    /* 官方 253（@extend .abbr + 覆盖字号）*/
+	background-color: var(--control-bg);
+	font-size: var(--text-2xl);
+}
+.point-of-sale-app .customer-name-desc {               /* 官方 258 */
+	overflow: hidden;
+	white-space: nowrap;
+	display: flex;
+	flex-direction: column;
+	margin-right: auto;
+}
+.point-of-sale-app .customer-name { font-weight: 700; font-size: var(--text-lg); }   /* 官方 264 */
+.point-of-sale-app .customer-desc { font-weight: 500; font-size: var(--text-sm); }   /* 官方 269 */
+.point-of-sale-app .reset-customer-btn {               /* 官方 275 */
+	display: flex;
+	align-items: center;
+	cursor: pointer;
+}
+/* 官方 `add-discount-wrapper`（`erpnext/public/scss/point-of-sale.scss` 原值照抄）：
+   虚线框 + **左对齐**一颗图标 + 「折扣」；点一下在原地换成百分比输入。
+
+   为什么这里不写 `border`：官方那格的内联样式是 `.css({border: "1px dashed var(--gray-500)"})`
+   （空闲）与 `var(--dark-green-500)`（已折扣），而 **`--dark-green-500` 在页面上并不存在** ——
+   整条 `border` 声明被浏览器丢弃，于是官方**已折扣时是没有任何边框的**（2026-09-23 在
+   ERPNext 16.34.1 的收银台实测：inline 写着 dashed 绿、computed 是 `none 0px`）。
+   边框一律由 JS 设内联样式（与官方同一手），这里不重复声明，免得"比官方多一个框"。 */
+.point-of-sale-app .cart-totals-section .add-discount-wrapper {
+	display: flex;
+	align-items: center;
+	padding: var(--padding-sm) var(--padding-md);
+	margin-bottom: var(--margin-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-md);
+	color: var(--text-color);
+	cursor: pointer;
+}
+
+/* 输入框**铺满整格**（官方 SCSS 的 `.add-discount-field { width: 100% }`；
+   不写这条，输入框会缩成一颗小胶囊）。 */
+.point-of-sale-app .cart-totals-section .add-discount-wrapper > .add-discount-field {
+	width: 100%;
+}
+
+.point-of-sale-app .cart-totals-section .add-discount-wrapper .discount-icon {
+	margin-right: var(--margin-sm);
+}
+
+.point-of-sale-app .cart-totals-section .add-discount-wrapper .edit-discount-btn {
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
+	font-weight: 500;
+	color: var(--dark-green-500);
+}
+.point-of-sale-app .cart-header > .qty-header { margin-right: var(--margin-lg); text-align: center; }
+.point-of-sale-app .cart-header > .rate-amount-header { text-align: right; margin-right: var(--margin-sm); }
+.point-of-sale-app .no-item-wrapper {                  /* 官方 491 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background-color: var(--control-bg);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-md);
+	font-weight: 500;
+	width: 100%;
+	height: 100%;
+}
+.point-of-sale-app .cart-items-section {               /* 官方 502 */
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	overflow-y: scroll;
+	min-height: 50px;
+}
+.point-of-sale-app .cart-item-wrapper {                /* 官方 509 */
+	display: flex;
+	align-items: center;
+	padding: var(--padding-sm);
+	border-radius: var(--border-radius-md);
+	margin-right: var(--margin-sm);
+}
+.point-of-sale-app .cart-item-wrapper:hover { background-color: var(--control-bg); }
+.point-of-sale-app .cart-item-wrapper > .item-image {  /* 官方 525 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	border-radius: var(--border-radius-md);
+	color: var(--text-light);
+	margin-right: var(--margin-md);
+	overflow: hidden;
+}
+.point-of-sale-app .cart-item-wrapper > .item-image > img { height: 100% !important; width: 100%; object-fit: cover; }
+.point-of-sale-app .cart-item-wrapper > .item-image.item-abbr { font-size: var(--text-lg); }
+.point-of-sale-app .cart-item-wrapper > .item-name-desc {   /* 官方 553 */
+	overflow: hidden;
+	white-space: nowrap;
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 0%;
+	flex-shrink: 1;
+}
+.point-of-sale-app .cart-item-wrapper > .item-name-desc > .item-name { font-weight: 700; }
+.point-of-sale-app .cart-item-wrapper > .item-qty-rate {    /* 官方 573 */
+	display: flex;
+	flex-shrink: 0;
+	text-align: right;
+	margin-left: var(--margin-md);
+}
+.point-of-sale-app .cart-item-wrapper > .item-qty-rate > .item-qty {
+	display: flex;
+	align-items: center;
+	margin-right: var(--margin-lg);
+	font-weight: 700;
+}
+.point-of-sale-app .cart-item-wrapper > .item-qty-rate > .item-rate-amount {
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	text-align: right;
+}
+.point-of-sale-app .cart-item-wrapper .item-rate-amount > .item-rate { font-weight: 700; }
+.point-of-sale-app .cart-item-wrapper .item-rate-amount > .item-amount {
+	font-size: var(--text-md);
+	font-weight: 600;
+}
+.point-of-sale-app .cart-totals-section {                   /* 官方 597 */
+	display: flex;
+	flex-direction: column;
+	flex-shrink: 0;
+	width: 100%;
+	margin-top: var(--margin-md);
+}
+.point-of-sale-app .cart-totals-section > .net-total-container {
+	display: flex;                                          /* 官方 632 */
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--padding-sm) 0px;
+	font-weight: 500;
+	font-size: var(--text-md);
+}
+.point-of-sale-app .cart-totals-section > .item-qty-total-container {
+	display: flex;                                          /* 官方 639 */
+	align-items: center;
+	justify-content: space-between;
+	padding: 5px 0px 0px 0px;
+	font-weight: 500;
+	font-size: var(--text-md);
+}
+.point-of-sale-app .cart-totals-section > .grand-total-container {
+	display: flex;                                          /* 官方 654 */
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--padding-sm) 0px;
+	font-weight: 700;
+	font-size: var(--text-lg);
+}
+.point-of-sale-app .cart-totals-section > .checkout-btn {   /* 官方 662 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-sm);
+	margin-top: var(--margin-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-lg);
+	font-weight: 700;
+	background-color: var(--control-bg);
+	cursor: pointer;
+	user-select: none;
+}
+.point-of-sale-app .cart-totals-section > .edit-cart-btn {  /* 官方 667 */
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-sm);
+	margin-top: var(--margin-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-lg);
+	font-weight: 500;
+	background-color: var(--control-bg);
+	cursor: pointer;
+	user-select: none;
+	transition: all 0.15s ease-in-out;
+}
+.point-of-sale-app .numpad-section {                        /* 官方 683 */
+	display: none;
+	flex-direction: column;
+	flex-shrink: 0;
+	margin-top: var(--margin-sm);
+	padding: var(--padding-sm);
+	padding-bottom: 0px;
+	width: 100%;
+}
+.point-of-sale-app .numpad-section > .numpad-totals {       /* 官方 693 */
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: var(--margin-md);
+	font-size: var(--text-md);
+	font-weight: 700;
+}
+.point-of-sale-app .numpad-container {                      /* 官方 700 */
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: var(--margin-md);
+	margin-bottom: var(--margin-md);
+}
+.point-of-sale-app .numpad-container > .numpad-btn {        /* 官方 706 */
+	border-radius: var(--border-radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-md);
+	box-shadow: var(--shadow-base);
+}
+.point-of-sale-app .numpad-container > .numpad-btn:hover { background-color: var(--control-bg); }
+.point-of-sale-app .numpad-container > .col-span-2 { grid-column: span 2 / span 2; }  /* 官方 723 */
+.point-of-sale-app .numpad-container > .remove-btn {        /* 官方 727 */
+	font-weight: 700;
+	color: var(--red-500);
+}
+.point-of-sale-app .numpad-section > .checkout-btn {        /* 官方 732 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-lg);
+	font-weight: 700;
+	margin: 0px;
+	margin-bottom: var(--margin-sm);
+	background-color: var(--blue-200);
+	color: white;
+	cursor: pointer;
+	user-select: none;
+}
+
+/* ── 商品明细（官方 833-940）────────────────────────────────────────────── */
+.point-of-sale-app > .item-details-container {
+	background-color: var(--fg-color);                      /* 官方 835（.pos-card + 下面几条）*/
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	grid-column: span 6 / span 6;
+	display: none;
+	flex-direction: column;
+	padding: var(--padding-lg);
+	padding-top: var(--padding-md);
+	overflow-y: auto;
+}
+.point-of-sale-app > .item-details-container > .item-details-header {
+	display: flex;
+	justify-content: space-between;
+	margin-bottom: var(--margin-md);
+}
+.point-of-sale-app .item-details-header > .label {
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+}
+.point-of-sale-app .item-details-header > .close-btn { cursor: pointer; user-select: none; }
+.point-of-sale-app > .item-details-container > .item-display { display: flex; }  /* 官方 851 */
+.point-of-sale-app .item-display > .item-name-desc-price {
+	flex: 1 1 0%;
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+	margin-right: var(--margin-md);
+}
+.point-of-sale-app .item-name-desc-price > .item-name { font-size: var(--text-3xl); font-weight: 600; }
+.point-of-sale-app .item-name-desc-price > .item-desc { font-size: var(--text-md); font-weight: 500; }
+.point-of-sale-app .item-name-desc-price > .item-price { font-size: var(--text-3xl); font-weight: 700; }
+.point-of-sale-app .item-display > .item-image {          /* 官方 879 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	max-width: 11rem;
+	max-height: 11rem;
+	border-radius: var(--border-radius-md);
+	margin-left: var(--margin-md);
+	color: var(--gray-500);
+	overflow: hidden;
+}
+.point-of-sale-app .item-display > .item-image > img { height: 100% !important; width: 100%; object-fit: cover; }
+.point-of-sale-app .item-display > .item-image > .item-abbr {   /* 官方 895 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-3xl);
+	width: 11rem;
+	height: 11rem;
+	background-color: var(--control-bg);
+}
+.point-of-sale-app > .item-details-container > .discount-section {  /* 官方 908 */
+	display: flex;
+	align-items: center;
+	margin-bottom: var(--margin-sm);
+}
+.point-of-sale-app .discount-section > .item-rate {
+	font-weight: 500;
+	margin-right: var(--margin-sm);
+	text-decoration: line-through;
+}
+.point-of-sale-app .discount-section > .item-discount {
+	padding: 3px var(--padding-sm);
+	border-radius: var(--border-radius-sm);
+	background-color: var(--green-100);
+	color: var(--dark-green-500);
+	font-size: var(--text-sm);
+	font-weight: 700;
+}
+.point-of-sale-app > .item-details-container > .form-container {    /* 官方 929 */
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	column-gap: var(--padding-md);
+	row-gap: var(--padding-md);
+}
+
+/* ── 收款（官方 941-1125）────────────────────────────────────────────────── */
+.point-of-sale-app > .payment-container {
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	grid-column: span 6 / span 6;   /* 官方 943 */
+	display: none;
+	flex-direction: column;
+	padding: var(--padding-lg);
+}
+.point-of-sale-app .payment-container .section-label {          /* 官方 960 */
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+	margin-bottom: var(--margin-md);
+	cursor: pointer;
+	user-select: none;
+}
+.point-of-sale-app .payment-container > .payment-split-container { display: flex; }  /* 官方 967 */
+.point-of-sale-app .payment-split-container > .payment-container-left {
+	width: 50%;
+	margin-bottom: var(--margin-md);
+}
+.point-of-sale-app .payment-modes {                             /* 官方 973 */
+	display: flex;
+	flex-direction: column;
+	padding-right: var(--padding-sm);
+	margin-right: var(--margin-sm);
+	min-height: 15rem;
+	overflow-y: scroll;
+	height: calc(100vh - 350px);
+}
+.point-of-sale-app .payment-mode-wrapper { min-width: 40%; padding: var(--padding-xs); }  /* 官方 984 */
+.point-of-sale-app .mode-of-payment {                           /* 官方 988 */
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	padding: var(--padding-md) var(--padding-lg);
+}
+.point-of-sale-app .mode-of-payment > .pay-amount {
+	display: inline;
+	float: right;
+	font-weight: 700;
+}
+.point-of-sale-app .mode-of-payment > .mode-of-payment-control {  /* 官方 1000 */
+	display: none;
+	align-items: center;
+	margin-top: var(--margin-sm);
+	margin-bottom: var(--margin-xs);
+}
+.point-of-sale-app .payment-container .border-primary { border: 1px solid var(--blue-500); }  /* 官方 946 */
+.point-of-sale-app .payment-split-container > .payment-container-right {
+	display: flex;                                              /* 官方 1013 */
+	flex-direction: column;
+	width: 50%;
+}
+.point-of-sale-app .fields-numpad-container {                   /* 官方 1017 */
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	height: 100%;
+	position: relative;
+	justify-content: flex-end;
+}
+.point-of-sale-app .fields-section {                            /* 官方 1027 */
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	padding-left: var(--margin-md);
+}
+.point-of-sale-app .fields-section .invoice-fields { height: 100%; margin-left: auto; padding: var(--padding-sm); }
+.point-of-sale-app .payment-container .number-pad {             /* 官方 1039 */
+	position: absolute;
+	z-index: 4;
+	right: 0px;
+	flex: 1;
+	display: flex;
+	align-items: flex-end;
+}
+.point-of-sale-app .payment-container .number-pad .numpad-container {  /* 官方 1046 */
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: var(--margin-md);
+	margin-bottom: var(--margin-md);
+	background-color: var(--fg-color);
+	border-radius: var(--border-radius-md);
+	padding: var(--padding-sm);
+}
+.point-of-sale-app .payment-container .number-pad .numpad-btn {  /* 官方 1056 */
+	border-radius: var(--border-radius-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-md);
+	box-shadow: var(--shadow-base);
+}
+.point-of-sale-app .payment-container .number-pad .numpad-btn:hover { background-color: var(--control-bg); }
+.point-of-sale-app .payment-container > .totals-section {        /* 官方 1079 */
+	display: flex;
+	margin-top: auto;
+	margin-bottom: var(--margin-sm);
+	justify-content: center;
+	flex-direction: column;
+	flex-shrink: 0;
+}
+.point-of-sale-app .totals-section > .totals {                    /* 官方 1087 */
+	display: flex;
+	background-color: var(--control-bg);
+	justify-content: center;
+	padding: var(--padding-md);
+	border-radius: var(--border-radius-md);
+}
+.point-of-sale-app .totals > .col { flex-grow: 1; text-align: center; }
+.point-of-sale-app .totals .col > .total-label { font-size: var(--text-md); font-weight: 500; }
+.point-of-sale-app .totals .col > .value { font-size: var(--text-2xl); font-weight: 700; }
+.point-of-sale-app .totals > .seperator-y {
+	margin-left: var(--margin-sm);
+	margin-right: var(--margin-sm);
+	border-right: 1px solid var(--gray-300);
+}
+.point-of-sale-app .payment-container .submit-order-btn {         /* 官方 950 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: var(--padding-sm);
+	border-radius: var(--border-radius-md);
+	font-size: var(--text-lg);
+	font-weight: 700;
+	margin-top: 0%;
+	background-color: var(--btn-primary);
+	color: var(--neutral);
+	cursor: pointer;
+	user-select: none;
+}
+.point-of-sale-app .payment-container .submit-order-btn.disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ── 最近订单（官方 1126-1166）与订单汇总（官方 1167-1365）────────────────── */
+.point-of-sale-app > .past-order-list {
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	grid-column: span 4 / span 4;   /* 官方 1128 */
+	display: none;
+	flex-direction: column;
+	overflow: hidden;
+}
+.point-of-sale-app > .past-order-list > .filter-section {          /* 官方 1134 */
+	display: flex;
+	flex-direction: column;
+	background-color: var(--fg-color);
+	padding: var(--padding-lg);
+}
+.point-of-sale-app > .past-order-list > .filter-section > .label {
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-lg);
+}
+.point-of-sale-app .status-search-fields {                         /* 官方 1141 */
+	display: grid;
+	grid-template-columns: 30% auto;
+	column-gap: 10px;
+	margin-top: var(--margin-md);
+}
+.point-of-sale-app .status-search-fields > .status-field,
+.point-of-sale-app .status-search-fields > .search-field {
+	width: 100%;
+	display: flex;
+	align-items: center;
+}
+.point-of-sale-app > .past-order-list > .list-container {          /* 官方 1157（.invoices-container）*/
+	padding: var(--padding-lg);
+	padding-top: 0px;
+	overflow-x: hidden;
+	overflow-y: scroll;
+}
+.point-of-sale-app .invoice-wrapper {                              /* 官方 747 */
+	display: flex;
+	justify-content: space-between;
+	border-radius: var(--border-radius-md);
+	padding: var(--padding-sm);
+}
+.point-of-sale-app .invoice-wrapper:hover { background-color: var(--control-bg); }
+.point-of-sale-app .invoice-wrapper > .invoice-name-customer,
+.point-of-sale-app .invoice-wrapper > .invoice-name-date {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
+}
+.point-of-sale-app .invoice-wrapper .invoice-customer {
+	overflow: hidden;
+	white-space: nowrap;
+	font-size: var(--text-md);
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+}
+.point-of-sale-app .invoice-wrapper .invoice-name {
+	overflow: hidden;
+	white-space: nowrap;
+	font-size: var(--text-sm);
+}
+.point-of-sale-app .invoice-wrapper > .invoice-name-date > .invoice-name { font-size: var(--text-md); font-weight: 700; }
+.point-of-sale-app .invoice-wrapper > .invoice-total-date {        /* 官方 806 */
+	display: flex;
+	flex-direction: column;
+	font-weight: 500;
+	font-size: var(--text-sm);
+	margin-left: var(--margin-md);
+}
+.point-of-sale-app .invoice-wrapper > .invoice-total-date > .invoice-total {
+	margin-bottom: var(--margin-xs);
+	font-size: var(--text-base);
+	font-weight: 700;
+	text-align: right;
+}
+.point-of-sale-app .invoice-wrapper > .invoice-total-date > .invoice-date {
+	display: flex;
+	align-items: center;
+	color: var(--gray-500);
+	justify-content: right;
+	font-weight: 400;
+}
+
+.point-of-sale-app > .past-order-summary {                         /* 官方 1167 */
+	display: none;
+	grid-column: span 6 / span 6;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+.point-of-sale-app > .past-order-summary > .no-summary-placeholder {  /* 官方 1173 */
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	background-color: var(--gray-50);
+	font-weight: 500;
+	border-radius: var(--border-radius-md);
+}
+.point-of-sale-app > .past-order-summary > .invoice-summary-wrapper {  /* 官方 1184 */
+	background-color: var(--fg-color);
+	box-shadow: var(--shadow-base);
+	border-radius: var(--border-radius-md);
+	display: none;
+	position: relative;
+	width: 31rem;
+	height: 100%;
+}
+.point-of-sale-app .invoice-summary-wrapper > .abs-container {     /* 官方 1190 */
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	padding: var(--padding-lg);
+	overflow-y: auto;
+}
+.point-of-sale-app .abs-container > .upper-section {               /* 官方 1198 */
+	display: flex;
+	justify-content: space-between;
+	width: 100%;
+	margin-bottom: var(--margin-md);
+}
+.point-of-sale-app .upper-section > .left-section,
+.point-of-sale-app .upper-section > .right-section { display: flex; flex-direction: column; }
+.point-of-sale-app .upper-section > .left-section { align-items: flex-start; justify-content: flex-end; padding-right: var(--padding-sm); }
+.point-of-sale-app .upper-section > .right-section { align-items: flex-end; }
+.point-of-sale-app .upper-section .customer-name { font-size: var(--text-2xl); font-weight: 700; }
+.point-of-sale-app .upper-section .customer-email { font-size: var(--text-md); font-weight: 500; }
+.point-of-sale-app .upper-section .cashier { font-size: var(--text-md); font-weight: 500; color: var(--gray-600); margin-top: var(--margin-md); }
+.point-of-sale-app .upper-section .paid-amount { font-size: var(--text-2xl); font-weight: 700; }
+.point-of-sale-app .upper-section .invoice-name { font-size: var(--text-md); font-weight: 500; color: var(--gray-600); margin-bottom: var(--margin-sm); }
+.point-of-sale-app .abs-container > .label {                        /* 官方 1261 一带的三个小标题 */
+	display: flex;
+	align-items: center;
+	font-weight: 700;
+	font-size: var(--text-md);
+	margin-top: var(--margin-sm);
+}
+.point-of-sale-app .summary-container {                             /* 官方 1259 */
+	display: flex;
+	flex-direction: column;
+	border-radius: var(--border-radius-md);
+	background-color: var(--control-bg);
+	margin: var(--margin-md) 0px;
+}
+.point-of-sale-app .summary-container .summary-row-wrapper {        /* 官方 1265 */
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: var(--padding-sm) var(--padding-md);
+}
+.point-of-sale-app .summary-container .grand-total { font-weight: 700; }   /* 官方 1333 */
+.point-of-sale-app .summary-container .item-row-wrapper {           /* 官方 1287 */
+	display: flex;
+	gap: 2px;
+	flex-direction: column;
+	padding: var(--padding-sm) var(--padding-md);
+	border: 1px solid lightgray;
+	border-radius: 10px;
+	background: var(--bg-light-gray);
+}
+.point-of-sale-app .summary-container .item-row-data {              /* 官方 1297 */
+	display: flex;
+	align-items: center;
+}
+.point-of-sale-app .summary-container .item-row-data > .item-name {
+	overflow: hidden;
+	white-space: nowrap;
+	font-weight: 500;
+	margin-right: var(--margin-md);
+}
+.point-of-sale-app .summary-container .item-row-data > .item-qty {
+	font-weight: 500;
+	margin-left: auto;
+	font-size: small;
+}
+.point-of-sale-app .summary-container .item-row-data > .item-rate-disc {
+	display: flex;
+	text-align: right;
+	margin-left: var(--margin-md);
+	justify-content: flex-end;
+	font-size: small;
+}
+.point-of-sale-app .summary-container .item-rate-disc > .item-disc { color: var(--dark-green-500); }
+.point-of-sale-app .summary-container .item-rate-disc > .item-rate { font-weight: 500; margin-left: var(--margin-md); }
+.point-of-sale-app .summary-container .item-rate-disc > .item-amount { font-weight: 700; margin-left: var(--margin-md); }
+.point-of-sale-app .abs-container > .order-summary-container { display: flex; background: white; gap: 8px; }  /* 官方 1342 */
+.point-of-sale-app .abs-container > .summary-btns {                 /* 官方 1348 */
+	display: flex;
+	justify-content: space-between;
+	margin-top: var(--margin-md);
+}
+.point-of-sale-app .summary-btns > .summary-btn { flex: 1; margin: 0px var(--margin-xs); }  /* 官方 1352 */
+/* 主按钮 / 次按钮的底色要分得开（用户 2026-09-23："次按钮是灰的，主按钮排最右边"）：
+   次按钮**灰底**（`--control-bg`，与官方的浅灰一格一致），主按钮用「结账」那一对变量
+   （品牌实心 + 反白字），并且排在最后一个。 */
+.point-of-sale-app .summary-btns > .summary-btn {
+	background-color: var(--control-bg);
+	color: var(--text-color);
+	border: none;
+}
+.point-of-sale-app .summary-btns > .summary-btn:hover { filter: brightness(0.97); }
+.point-of-sale-app .summary-btns > .summary-btn.new-order-btn {
+	background-color: var(--btn-primary);
+	color: var(--neutral);
+	font-weight: 500;
+}
+.point-of-sale-app .summary-btns > .summary-btn.new-order-btn:hover { filter: brightness(1.06); }
+
+/* 交班弹窗里差额不为 0 标红（全站同一个红，收银页与交班记录页都读它）。 */
+.modal .pearnly-payment-due { color: var(--red-600, var(--red-500)) !important; font-weight: 600; }
+
+/* ── 窄屏（官方 1371 / 1381）────────────────────────────────────────────── */
+@media screen and (max-width: 1200px) {
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+@media screen and (max-width: 620px) {
+	.point-of-sale-app { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+	.point-of-sale-app > .items-selector { grid-column: span 6 / span 1 !important; }
+	.point-of-sale-app > .items-selector > .items-container {
+		grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+	}
+	.point-of-sale-app > .item-details-container,
+	.point-of-sale-app > .customer-cart-container { grid-column: span 6 / span 1; }
+	.point-of-sale-app > .payment-container { overflow: scroll; }
+	.point-of-sale-app > .payment-container .fields-numpad-container { flex-direction: column-reverse; }
+	.point-of-sale-app > .payment-container .number-pad { display: none; }
+	.point-of-sale-app > .payment-container .fields-section { width: 100%; }
+	.point-of-sale-app > .past-order-summary > .invoice-summary-wrapper { width: 100%; }
+	.point-of-sale-app .numpad-totals > span { padding: 0 5px; font-size: var(--text-sm); }
+	.point-of-sale-app .totals > .col > * { font-size: var(--text-sm) !important; }
+	.point-of-sale-app > .past-order-list { grid-column: span 6 / span 1; }
+}
+
+/* 收银台「还没开班」那块空态（用户 2026-09-24：加官方文案与 svg 图标；随后又要求
+   "空态下方也加一个按钮，像官方原生那个空态一样"）。形状照 Frappe 的官方空态：
+   **图标 + 一行灰字 + 一颗按钮**，垂直居中；图标是官方 POS 自己那枚（内联在适配层里），
+   颜色跟着主题走，不引入别的插画风格。 */
+.pearnly-pos-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+	min-height: 60vh;
+	text-align: center;
+}
+.pearnly-pos-empty .pearnly-pos-empty-icon {
+	width: 96px;
+	height: 96px;
+	margin-bottom: 2px;
+	color: var(--text-muted);
+	opacity: 0.55;
+}
+.pearnly-pos-empty .pearnly-pos-empty-hint {
+	font-size: var(--text-md);
+	color: var(--text-muted);
+}
+.pearnly-pos-empty .pearnly-pos-empty-btn {
+	margin-top: 2px;
+}

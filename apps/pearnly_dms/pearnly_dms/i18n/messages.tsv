@@ -3,3 +3,14 @@ The recognition queue is busy. Please send the image again shortly.	识别队列
 The recognition result needs checking. Please do not resend this image yet.	识别结果待核实，请先不要重复发送这张图片。	กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ	認識結果を確認中です。この画像を再送しないでください。
 Recognition could not finish. Please try again shortly.	识别未完成，请稍后重试。	อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่	認識を完了できませんでした。しばらくしてから再試行してください。
 The saved credentials cannot be read back; check the site encryption key	保存的凭据读不回来，请检查站点加密密钥	อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์	保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+Enter the DMS password.	请填写 DMS 密码。	กรุณากรอกรหัสผ่าน DMS	DMS パスワードを入力してください。	dms.account.invalid
+Booking ID	订车编号	รหัสการจอง	予約ID
+Booking Number	订车单号	เลขที่การจอง	予約番号
+DMS	DMS	DMS	DMS
+Last Error	上次错误	ข้อผิดพลาดล่าสุด	前回のエラー
+Multiple DMS connections exist for this operator	这个操作员有多条 DMS 连接	ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ	この担当者には複数の DMS 接続があります
+Next Attempt	下次尝试	ครั้งถัดไปที่ลอง	次回試行
+Submission Evidence	提交凭据	หลักฐานการส่ง	送信エビデンス
+Submission Nonce	提交随机码	nonce การส่ง	送信ノンス
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）	เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
+Reload List	刷新列表	โหลดรายการใหม่	リストを再読み込み

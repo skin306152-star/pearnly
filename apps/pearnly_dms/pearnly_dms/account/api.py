@@ -45,13 +45,19 @@ def credentials(ticket: str):
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
-def save_credentials(ticket: str, username: str, password: str):
+def save_credentials(ticket: str, password: str, username: str = ""):
+    """改自己的 DMS 凭据 —— **只改密码**。
+
+    用户名（DMS 登录名）由后台发号、绑死这个租户，界面不给改、这里也不收改动
+    （用户 2026-09-23："可以用用户名登录，但是不能修改…用户只可以自己改密码"）。
+    老客户端仍会带上 `username`：与站上记录一致就照旧通过，**想改就明确拒掉**，
+    不静默忽略（静默会让用户以为改成了）。
+    """
     who = _identity(ticket)
-    username = str(username or "").strip()
     password = str(password or "")
-    if not username or len(username) > 120 or not password or len(password) > 256:
+    if not password or len(password) > 256:
         browser_api._fail("dms.account.invalid", 400)
-    if any(ch in username + password for ch in ("\r", "\n", "\x00")):
+    if any(ch in password for ch in ("\r", "\n", "\x00")):
         browser_api._fail("dms.account.invalid", 400)
     _endpoint(who)
     # Lock the native binding through the update so concurrent unbind cannot
@@ -63,7 +69,10 @@ def save_credentials(ticket: str, username: str, password: str):
     if not name:
         browser_api._fail("dms_booking.not_bound", 403)
     doc = frappe.get_doc("DMS Operator", name, for_update=True)
-    doc.dms_username = username
+    if str(username or "").strip() and str(username).strip() != (doc.dms_username or ""):
+        # 只报"这一步没成"，**不写"用户名是开户时发的"那类说明**（用户 2026-09-23：
+        # "这类文案不要随意添加，删掉"）。界面按通用失败文案显示。
+        browser_api._fail("dms.account.failed", 409)
     doc.dms_password = password
     doc.save(ignore_permissions=True)  # Native on_update synchronizes the owned endpoint.
     return {"ok": True}

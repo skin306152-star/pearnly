@@ -17,7 +17,16 @@
   "vat_rate",
   "line_total",
   "warehouse",
-  "location"
+  "location",
+  "code",
+  "barcode",
+  "wht_rate",
+  "vat_amount",
+  "wht_amount",
+  "category",
+  "subcategory",
+  "batch_no",
+  "expiry_date"
  ],
  "fields": [
   {
@@ -46,14 +55,12 @@
    "fieldtype": "Link",
    "label": "Product",
    "options": "ERP Product",
-   "in_list_view": 1,
-   "description": "Linked product; only goods lines with a product can post to stock"
+   "in_list_view": 1
   },
   {
    "fieldname": "product_ref",
    "fieldtype": "Data",
-   "label": "Product Ref",
-   "description": "The legacy system's product identifier; it becomes a link once product master data lands"
+   "label": "Product Ref"
   },
   {
    "default": "1",
@@ -75,13 +82,15 @@
    "fieldtype": "Currency",
    "label": "Unit Price",
    "in_list_view": 1,
-   "reqd": 1
+   "reqd": 1,
+   "options": "Purchase Document:parent:currency"
   },
   {
    "default": "0",
    "fieldname": "discount",
    "fieldtype": "Currency",
-   "label": "Line Discount"
+   "label": "Line Discount",
+   "options": "Purchase Document:parent:currency"
   },
   {
    "default": "7",
@@ -96,7 +105,8 @@
    "fieldtype": "Currency",
    "label": "Line Amount",
    "in_list_view": 1,
-   "read_only": 1
+   "read_only": 1,
+   "options": "Purchase Document:parent:currency"
   },
   {
    "fieldname": "warehouse",
@@ -109,6 +119,57 @@
    "fieldtype": "Data",
    "label": "Location",
    "default": ""
+  },
+  {
+   "fieldname": "code",
+   "label": "Item Code",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "barcode",
+   "label": "Barcode",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "wht_rate",
+   "label": "Tax Withholding Rate",
+   "fieldtype": "Percent"
+  },
+  {
+   "fieldname": "vat_amount",
+   "label": "Tax Amount",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "options": "Purchase Document:parent:currency"
+  },
+  {
+   "fieldname": "wht_amount",
+   "label": "Tax Withholding Amount",
+   "fieldtype": "Currency",
+   "read_only": 1,
+   "options": "Purchase Document:parent:currency"
+  },
+  {
+   "fieldname": "category",
+   "label": "Item Group",
+   "fieldtype": "Link",
+   "options": "ERP Purchase Category"
+  },
+  {
+   "fieldname": "subcategory",
+   "label": "Subcategory",
+   "fieldtype": "Link",
+   "options": "ERP Purchase Category"
+  },
+  {
+   "fieldname": "batch_no",
+   "label": "Batch No",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "expiry_date",
+   "label": "Expiry Date",
+   "fieldtype": "Date"
   }
  ],
  "index_web_pages_for_search": 0,

@@ -1,0 +1,49 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Purchase Attachment",
+ "module": "Pearnly ERP Portal",
+ "istable": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "file",
+  "file_url",
+  "kind",
+  "file_name",
+  "generated"
+ ],
+ "fields": [
+  {
+   "fieldname": "file",
+   "label": "File",
+   "fieldtype": "Link",
+   "options": "File",
+   "reqd": 1
+  },
+  {
+   "fieldname": "file_url",
+   "label": "Attachment",
+   "fieldtype": "Attach",
+   "read_only": 1
+  },
+  {
+   "fieldname": "kind",
+   "label": "Type",
+   "fieldtype": "Select",
+   "options": "bill\npayment_proof\nsubstitute_receipt\nwht_cert",
+   "default": "bill"
+  },
+  {
+   "fieldname": "file_name",
+   "label": "File Name",
+   "fieldtype": "Data",
+   "read_only": 1
+  },
+  {
+   "fieldname": "generated",
+   "label": "Generated",
+   "fieldtype": "Check",
+   "read_only": 1
+  }
+ ],
+ "permissions": []
+}

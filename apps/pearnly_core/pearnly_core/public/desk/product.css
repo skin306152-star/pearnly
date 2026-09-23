@@ -1,4 +1,9 @@
-/* Existing Pearnly accent tokens; all neutral surfaces and component geometry stay native. */
+/* Brand tokens:主按钮、勾选框这些**动作/状态**用品牌色（用户 2026-09-23 更正："我只说了选择
+   和未选中，没让你改主按钮色和公司图标底色" —— 上一版把它们一起改回官方灰，是改多了，已还原）。
+
+   这一轮真正要改的只有**选择框那一层**（见文件底部 `awesomplete` 那两段）：
+   · 悬停/选中那行 → 官方灰（不再是品牌浅紫）；
+   · `autoFirst` 自动标成选中的第一行（其实什么都没选）→ 不上色。 */
 body.pearnly-product-desk {
 	--pearnly-accent: #7c4dff;
 	--pearnly-accent-deep: #6b3ff2;
@@ -51,13 +56,28 @@ body.pearnly-product-desk .pearnly-row-actions {
 	gap: var(--margin-sm);
 	flex-shrink: 0;
 }
-body.pearnly-product-desk .pearnly-list-with-actions .result .list-row .level-right,
-body.pearnly-product-desk .pearnly-list-with-actions .result .list-row-head .level-right {
-	flex: 0 0 calc(var(--pearnly-actions-width, 180px) + 2 * var(--padding-sm));
-	width: calc(var(--pearnly-actions-width, 180px) + 2 * var(--padding-sm));
+/* 列表右边那一块（表头放计数、行里放动作按钮）**永远按同一个宽度留白**，表头与每一行
+   的左区因此一样宽 —— 列才与内容对得齐。框架默认给它留 130px（给"分配人 / 点赞"用，
+   那两样我们都不开放），白占地方还把列挤窄，所以按"计数与按钮谁宽用谁"重算
+   （`--pearnly-actions-width` 由 `list.js` 量出来写在这棵树上）。 */
+body.pearnly-product-desk .frappe-list .result .list-row .level-right,
+body.pearnly-product-desk .frappe-list .result .list-row-head .level-right {
+	flex: 0 0 calc(var(--pearnly-actions-width, 0px) + 2 * var(--padding-sm));
+	width: calc(var(--pearnly-actions-width, 0px) + 2 * var(--padding-sm));
 	padding-inline: var(--padding-sm);
 	border-left: 0;
 	box-shadow: none;
+}
+/* 表头右区里放的是**计数**、行右区里放的是**动作按钮** —— 两块共用同一个宽度
+   （`--pearnly-actions-width`，由 `list.js` 按"按钮与计数谁宽用谁"量出来），这样表头和
+   每一行的左区一样宽，列才与内容对得齐。以前表头这一块按内容自适应、行那块按按钮宽度
+   固定，两边左区差多少，右边的列就歪多少（用户 2026-09-23 报的"列和内容位置对不上"）。
+   计数不许折行：宽度已经把它算进去了。`white-space` 写在**这一格**上而不是计数那个
+   span：窄屏下框架把 `.list-count` 设成 `display: contents`，那时计数是这里的匿名子项，
+   写在 span 上就管不着它了。 */
+body.pearnly-product-desk .frappe-list .result .list-row .level-right,
+body.pearnly-product-desk .frappe-list .result .list-row-head .level-right {
+	white-space: nowrap;
 }
 body.pearnly-product-desk .pearnly-compact-list .result .level-left {
 	min-width: 0;
@@ -75,6 +95,7 @@ body.pearnly-product-desk .btn.btn-primary:not(:disabled):active {
 	border-color: var(--pearnly-accent-deep);
 	color: #fff !important;
 }
+/* 侧栏当前选中项：品牌浅底 + 品牌深字（官方那一条是白底 `--sidebar-active-color`）。 */
 body.pearnly-product-desk .standard-sidebar-item.active-sidebar {
 	background-color: var(--pearnly-accent-weak);
 	color: #6b3ff2;
@@ -126,4 +147,144 @@ body.pearnly-product-desk .standard-sidebar-item.active-sidebar .icon {
 	body.pearnly-product-desk .page-title .sidebar-toggle-btn .sidebar-toggle-placeholder {
 		display: block;
 	}
+}
+
+/* 原生表格（DataTable）的表头那一行是 flex 行，默认被拉满整个容器宽度：列比容器窄时，
+   灰底会在最后一列右边多铺出一截，再被框架 `.report-wrapper .datatable` 的圆角 + 裁剪切掉，
+   右上角看上去就是灰条缺了个口子（用户 2026-09-22 在盘点那几个表上报障）。
+   官方自己的表格没这个现象：表头灰条止于最后一列，右边留白（原生报表、原生 Grid 都一样）。
+   这里把表头行收回到它的列宽，表头与表体右端对齐；圆角落在留白上，灰条不再被切。
+   只改这一行的宽度，列宽、排序、滚动同步都还是官方组件的既有行为。 */
+body.pearnly-product-desk .datatable .dt-header .dt-row-header {
+	width: max-content;
+	/* 灰底改由表头单元格自己画（颜色与原来同一变量），这样最后一格的圆角就是灰条自己的圆角，
+	   不会在它后面露出一块方的灰。 */
+	background-color: transparent;
+}
+
+body.pearnly-product-desk .datatable .dt-header .dt-cell--header:last-child {
+	border-top-right-radius: var(--border-radius);
+}
+
+/* 有差异的格标红。列表单元格只出转义文本（见 `desk/list.js`），颜色由列上的 `cell_class`
+   挂到 wrapper 上；色值与差异看板、工作台表格、导出表同一个红（框架 `--red-600`）。 */
+body.pearnly-product-desk .pearnly-difference {
+	color: var(--red-600);
+}
+
+/* 还没收到 / 还没付出去的状态也标红：钱没到位是"要找的东西"，用同一个红（用户 2026-09-23）。 */
+body.pearnly-product-desk .pearnly-payment-due {
+	color: var(--red-600);
+}
+
+/* 弹窗里的下拉浮层会盖住 footer：框架给 `awesomplete ul` 的 z-index 是 2、给
+   `.modal-footer` 的是 1，字段少的弹窗里最后一行选项正好压在「提交」上，
+   点「提交」其实点在选项上（销售/采购的收款付款弹窗实测如此）。
+   把 footer 抬到浮层之上，按钮永远点得到；浮层该露的选项仍在它上面。 */
+body.pearnly-product-desk .pearnly-dialog .modal-footer {
+	z-index: 3;
+}
+
+/* 选择框的下拉浮层：几何、白底、深色文字、悬停底色**全部归官方**
+   （框架的 `--awesomplete-hover-bg` 就是 `var(--control-bg)`，浅灰）——
+   我们不再给它上品牌色（同一条用户口径：主题色只留给侧栏选中）。 */
+/* 「未选中却带底色」的那一行：awesomplete 的 `autoFirst` 一打开下拉就把第一行标成
+   `aria-selected="true"`，于是刚点开的下拉里总有一行是有色的 —— 用户 2026-09-23：
+   "还有一些是未选中时会出现主题色，也不要保留官方的灰底"。所以：**只有真的悬停/移动**
+   才给官方那层灰底，其余时候不上色。 */
+/* ⚠️ 这一版框架把下拉行渲染成 `[role="option"]` 的 **div**（不是 `li`），所以两个都要写。 */
+body.pearnly-product-desk .awesomplete > ul > li[aria-selected="true"]:not(:hover),
+body.pearnly-product-desk .awesomplete > ul > [role="option"][aria-selected="true"]:not(:hover) {
+	background-color: transparent;
+}
+/* 我们那条「新建 …」**永远看得见**：官方给浮层的 `max-height` 是 300px、超了就在里面滚，
+   而这条排在最后 —— 用户看到的是"没有新建"（2026-09-23："图一，仓库没有新建"、
+   "组件甚至显示不全"）。把它钉在浮层底部：结果照常滚，这一条一直在。
+   文案与图标照官方那一条（官方文字色，不是品牌色），只加一条分隔线表明它是**动作**。 */
+body.pearnly-product-desk .awesomplete > ul > li:has(.pearnly-link-option),
+body.pearnly-product-desk .awesomplete > ul > [role="option"]:has(.pearnly-link-option) {
+	position: sticky;
+	bottom: 0;
+	background-color: var(--card-bg);
+	border-top: 1px solid var(--border-color);
+}
+/* 浮层要**浮在弹窗底部那条按钮栏之上**：官方给浮层的 `z-index` 是 2，而 `.modal-footer`
+   是 `position: sticky; z-index: 3` —— 两个在同一个层叠上下文里，于是浮层最后两三行被按钮栏
+   盖住，点下去命中的是按钮栏（用户 2026-09-23："你那个下拉的时候新建好像被隐藏了，点不到"；
+   实测网格格里那条「新建」就在 y=699–734，而按钮栏从 y=704 起，中心点命中的是 `.modal-footer`）。
+   浮层本来就是"临时压在最上面"的东西，抬到 4 就够了；只在大弹窗里抬，弹窗外的层级不动。 */
+body.pearnly-product-desk .modal .awesomplete > ul {
+	z-index: 4;
+}
+/* 选择框里的「扫码」按钮（`link.js` 的 `p.attach_scan_btn`）：形状照官方 `Data` +
+   `options:"Barcode"` 那颗（`data.js::setup_barcode_field`）—— 输入框右侧一颗灰图标，
+   悬停才上底色。共用层自己带样式，不依赖哪个产品的 CSS（产品只提供动作）。 */
+body.pearnly-product-desk .pearnly-link-scan-input {
+	position: relative;
+}
+body.pearnly-product-desk .pearnly-link-scan-input .form-control {
+	padding-right: 30px;
+}
+body.pearnly-product-desk .pearnly-link-scan {
+	position: absolute;
+	right: 4px;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: 0;
+	border-radius: var(--border-radius-sm);
+	background-color: transparent;
+	color: var(--text-muted);
+}
+body.pearnly-product-desk .pearnly-link-scan:hover {
+	color: var(--text-color);
+	background-color: var(--control-bg);
+}
+/* 备注 / 地址这类多行框（官方 `Small Text` 控件）：官方给的是**整列宽 + 四行高**，
+   一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。
+
+   现在的口径（用户 2026-09-23："地址和备注框默认同比例和当前在的位置缩小，当字段超出默认
+   尺寸时才自动依次变大"）：**按它当前所在那一列的比例**收（列宽的 62%，再拿上下限兜住），
+   高度默认压到两行；内容写不下时由 `product.js` 的 `p.grow_textarea` 自动往下长，
+   长到上限才开始在框里滚。手拖（`resize: vertical`）仍然可用。
+   窄屏（手机）不走比例：那一档直接占满列宽，手机上写备注本来就该整行。 */
+body.pearnly-product-desk textarea.form-control {
+	width: 62%;
+	max-width: 420px;
+	min-width: 200px;
+	height: 40px;
+	min-height: 40px;
+	resize: vertical;
+	overflow-y: auto;
+}
+@media (max-width: 576px) {
+	body.pearnly-product-desk textarea.form-control {
+		width: 100%;
+		min-width: 0;
+	}
+}
+/* 盘点记录里的照片：一排缩略图，最多 5 张（见 `stocktake-entry.js`）。 */
+body.pearnly-product-desk .pearnly-count-photos {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--padding-sm);
+	margin-top: var(--padding-xs);
+}
+body.pearnly-product-desk .pearnly-count-photo {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: var(--padding-xs);
+}
+body.pearnly-product-desk .pearnly-count-photo img {
+	width: 88px;
+	height: 88px;
+	object-fit: cover;
+	border-radius: var(--border-radius);
+	border: 1px solid var(--border-color);
 }

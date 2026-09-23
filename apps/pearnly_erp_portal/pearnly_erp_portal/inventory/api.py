@@ -1,6 +1,7 @@
 """库存域接口层。业务与权限在 services，这里只做参数解析。"""
 
 import frappe
+from frappe import _
 from frappe.utils import flt
 
 from pearnly_erp_portal.inventory import (
@@ -12,6 +13,7 @@ from pearnly_erp_portal.inventory import (
     workbook,
     warehouses,
 )
+from pearnly_erp_portal.numbering import service as numbering
 
 # 盘点表读不动时的提示（用户可见，走语言包）。解析层只报 token，文案在这一层翻。
 STOCK_FILE_ERRORS = {
@@ -70,6 +72,15 @@ def api_list_stock_entries(**kwargs):
 
 
 @frappe.whitelist()
+def api_next_stock_entry_number(**kwargs):
+    """表单上显示"当前要发的单据号"（只读预览，不占号）—— MR.ERP 的表单也是这样把号
+    填进只读输入框给用户看的。"""
+    kwargs = _clean(kwargs)
+    return {"doc_no": numbering.preview(direction=kwargs.get("direction"),
+                                        on=kwargs.get("posting_date"))}
+
+
+@frappe.whitelist()
 def api_get_stock_entry(**kwargs):
     kwargs = _clean(kwargs)
     return documents.get_entry(kwargs.get("name"))
@@ -100,7 +111,7 @@ def api_void_stock_entry(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_receive(**kwargs):
-    """入库。不带仓库时落默认仓库。"""
+    """入库。不带仓库时落**这家公司卖货的那个仓**（`warehouses.receiving`）。"""
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
@@ -245,6 +256,7 @@ COUNT_COLUMNS = (
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
     ("location", "stock.count.location"),
+    ("actual_positions", "stock.workbench.actualPositions"),
     ("book_qty", "stock.count.book"),
     ("counted_qty", "stock.count.counted"),
     ("difference", "stock.count.difference"),
@@ -253,10 +265,13 @@ COUNT_COLUMNS = (
 COUNT_DETAIL_COLUMNS = (
     ("code", "stock.col.code"),
     ("product_name", "stock.col.name"),
-    ("warehouse_name", "stock.col.warehouse"),
-    ("location", "stock.count.location"),
+    ("book_warehouse_name", "stock.col.warehouse"),
+    ("book_location", "stock.count.location"),
+    ("warehouse_name", "stock.workbench.actualWarehouse"),
+    ("location", "stock.workbench.actualLocation"),
     ("unit", "stock.col.unit"),
     ("qty", "stock.count.qty"),
+    ("note", "stock.count.note"),
     ("counted_by", "stock.count.countedBy"),
     ("counted_at", "stock.count.countedAt"),
     ("state", "stock.col.status"),
@@ -267,7 +282,143 @@ COUNT_DETAIL_COLUMNS = (
 def _count_status_key(row) -> str:
     if not row.get("counted"):
         return "stock.count.rowUncounted"
-    return "stock.count.rowDifference" if row.get("difference") else "stock.count.rowMatch"
+    return "stock.count.rowDifference" if row.get("difference") or row.get("location_difference") else "stock.count.rowMatch"
+
+
+def _count_datetime(value):
+    """导出里的时间按界面同一条规矩：`2026-09-22 20:10`（库里的微秒不上表）。
+    导出与页面看到同一个形状，省得又是一处一处报（用户 2026-09-22 口径）。"""
+    if value in (None, ""):
+        return ""
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d %H:%M")
+    text = str(value).replace("T", " ").split(".")[0]
+    return text[:16]
+
+
+# 有差异的格子标红。色值与网页、差异看板同一个红（框架的 `--red-600`），
+# 这样导出来的表和工作台上看到的是同一处红（用户 2026-09-22 口径）。
+COUNT_DANGER_COLOR = "CC2929"
+
+
+def _count_summary_marks(row, columns) -> set:
+    """汇总行里"在讲差异"的那几格：差异数量 / 差异金额 / 状态，以及实际仓位对不上时那一格。"""
+    fields = set()
+    if row.get("counted") and flt(row.get("difference") or 0):
+        fields |= {"difference", "status"}
+        if row.get("difference_value") is not None:
+            fields.add("difference_value")
+    if row.get("location_difference"):
+        fields.add("actual_positions")
+    return {field for field in fields if field in columns}
+
+
+def _count_detail_marks(entry, book, columns) -> set:
+    """明细行里实盘仓库 / 仓位与账面不同的那几格；不计入合计的作废记录不标。"""
+    if entry.get("voided") or not book:
+        return set()
+    fields = set()
+    if entry.get("warehouse") != book.get("warehouse"):
+        fields.add("warehouse_name")
+    if (entry.get("location") or "") != (book.get("location") or ""):
+        fields.add("location")
+    return {field for field in fields if field in columns}
+
+
+# 照片页里每张图的落脚尺寸（像素）。行高按它设，图不会溢到下一行。
+COUNT_PHOTO_WIDTH = 200
+COUNT_PHOTO_HEIGHT = 140
+
+
+def _count_photo_files(entries) -> dict:
+    """每条记录挂着的照片（私有 File），按记录名分组。读的权限跟记录本身同一档。"""
+    names = [row["name"] for row in entries]
+    if not names:
+        return {}
+    grouped = {}
+    for row in frappe.get_list(
+            "File", filters={"attached_to_doctype": counts.ENTRY, "attached_to_name": ("in", names)},
+            fields=["name", "file_url", "file_name", "attached_to_name"],
+            order_by="creation asc", limit_page_length=0):
+        grouped.setdefault(row["attached_to_name"], []).append(row)
+    return grouped
+
+
+def _count_picture(photo_name: str):
+    """把照片缩到表格放得下的尺寸，返回 (字节, 宽, 高)；读不动就返回空，别毁掉整份导出。"""
+    import io
+
+    try:
+        content = frappe.get_doc("File", photo_name).get_content()
+    except Exception:
+        return None, 0, 0
+    if not content:
+        return None, 0, 0
+    try:
+        from PIL import Image as PILImage
+
+        with PILImage.open(io.BytesIO(content)) as source:
+            image = source.convert("RGB")
+            scale = min(COUNT_PHOTO_WIDTH / image.width, COUNT_PHOTO_HEIGHT / image.height, 1)
+            if scale < 1:
+                image = image.resize((max(1, int(image.width * scale)),
+                                      max(1, int(image.height * scale))))
+            buffer = io.BytesIO()
+            image.save(buffer, "JPEG", quality=85, optimize=True)
+            return buffer.getvalue(), image.width, image.height
+    except Exception:
+        return content, 0, 0
+
+
+def _count_photo_sheet(book, entries, summary_rows, detail_rows) -> None:
+    """照片页（旧项目那份导出也有这一页）：一张图一行，带"返回汇总 / 返回记录"的跳转。"""
+    grouped = _count_photo_files(entries)
+    if not grouped:
+        return
+
+    import io
+
+    from openpyxl.drawing.image import Image as SheetImage
+    from openpyxl.styles import Font
+    from openpyxl.worksheet.hyperlink import Hyperlink
+
+    def link(cell, sheet_name, row, label):
+        cell.value = label
+        cell.hyperlink = Hyperlink(ref=cell.coordinate, location=f"'{sheet_name}'!A{row}",
+                                   display=label)
+        cell.font = Font(color="0563C1", underline="single")
+
+    sheet = book.create_sheet(_label("stock.count.photos"))
+    sheet.append([_label("stock.count.photos"), _label("stock.count.photoInfo"),
+                  _label("stock.count.linkSummary"), _label("stock.count.linkEntries")])
+    for cell in sheet[1]:
+        cell.font = Font(bold=True)
+    for column, width in zip("ABCD", (26, 46, 16, 16)):
+        sheet.column_dimensions[column].width = width
+    row_number = 2
+    for entry in entries:
+        group = grouped.get(entry["name"]) or []
+        if not group:
+            continue
+        caption = " / ".join(str(value) for value in (
+            entry.get("product_name"), entry.get("warehouse_name"), entry.get("location"),
+            entry.get("counted_by"), _count_datetime(entry.get("counted_at"))) if value not in (None, ""))
+        if entry.get("voided"):
+            caption = f"{caption} ({_label('stock.count.entryVoided')})"
+        for photo in group:
+            sheet.cell(row_number, 2, caption)
+            link(sheet.cell(row_number, 3), "Summary",
+                 summary_rows.get(entry.get("item"), 2), _label("stock.count.linkSummary"))
+            link(sheet.cell(row_number, 4), "Entries",
+                 detail_rows.get(entry["name"], 2), _label("stock.count.linkEntries"))
+            content, width, height = _count_picture(photo["name"])
+            if content:
+                picture = SheetImage(io.BytesIO(content))
+                if width and height:
+                    picture.width, picture.height = width, height
+                sheet.add_image(picture, f"A{row_number}")
+            sheet.row_dimensions[row_number].height = 108
+            row_number += 1
 
 
 def _count_workbook(task, items, entries) -> bytes:
@@ -275,23 +426,28 @@ def _count_workbook(task, items, entries) -> bytes:
     import io
 
     from openpyxl import Workbook
-    from openpyxl.styles import Alignment, Font
+    from openpyxl.styles import Alignment, Border, Font, Side
     from openpyxl.utils import get_column_letter
 
     warehouses = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
         "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
 
     book = Workbook()
+    columns = list(COUNT_COLUMNS)
+    if any("difference_value" in row for row in items):
+        columns.insert(-1, ("difference_value", "stock.count.differenceValue"))
+    danger = Font(color=COUNT_DANGER_COLOR)
+    summary_columns = {field: index for index, (field, _key) in enumerate(columns, start=1)}
+    detail_columns = {field: index for index, (field, _key) in enumerate(COUNT_DETAIL_COLUMNS, start=1)}
+    book_items = {row["name"]: row for row in items}
     summary = book.active
     summary.title = "Summary"
-    summary.append([_label(key) for _field, key in COUNT_COLUMNS])
+    summary.append([_label(key) for _field, key in columns])
     for cell in summary[1]:
         cell.font = Font(bold=True)
-    placeholders = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
-        "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
     for row in items:
         line = []
-        for field, _key in COUNT_COLUMNS:
+        for field, _key in columns:
             if field == "status":
                 line.append(_label(_count_status_key(row)))
             elif field == "warehouse_name":
@@ -300,6 +456,8 @@ def _count_workbook(task, items, entries) -> bytes:
                 value = row.get(field)
                 line.append("" if value is None else value)
         summary.append(line)
+        for field in _count_summary_marks(row, summary_columns):
+            summary.cell(summary.max_row, summary_columns[field]).font = danger
     detail = book.create_sheet("Entries")
     detail.append([_label(key) for _field, key in COUNT_DETAIL_COLUMNS])
     for cell in detail[1]:
@@ -312,17 +470,33 @@ def _count_workbook(task, items, entries) -> bytes:
                                    else "stock.count.entryLive"))
             elif field == "warehouse_name":
                 line.append(warehouses.get(row.get("warehouse"), row.get("warehouse")))
+            elif field == "counted_at":
+                line.append(_count_datetime(row.get(field)))
             else:
                 value = row.get(field)
                 line.append("" if value is None else value)
         detail.append(line)
+        for field in _count_detail_marks(row, book_items.get(row.get("item")) or {}, detail_columns):
+            detail.cell(detail.max_row, detail_columns[field]).font = danger
     for sheet in (summary, detail):
-        for index, _key in enumerate(sheet is summary and COUNT_COLUMNS or COUNT_DETAIL_COLUMNS,
+        for index, _key in enumerate(sheet is summary and columns or COUNT_DETAIL_COLUMNS,
                                      start=1):
             sheet.column_dimensions[get_column_letter(index)].width = 18
-        for row in sheet.iter_rows(min_row=2):
-            for cell in row:
+    # 照片页只在真有人传过图时才建（旧项目也是这么做的）。
+    _count_photo_sheet(book, entries,
+                       {row["name"]: index for index, row in enumerate(items, start=2)},
+                       {row["name"]: index for index, row in enumerate(entries, start=2)})
+    # 冻结首行 + 自动筛选 + 细边框：旧项目那份导出就是这样，读表的人不用自己再拉一遍。
+    edge = Side(style="thin", color="A6ACB3")
+    border = Border(left=edge, right=edge, top=edge, bottom=edge)
+    for sheet in book:
+        sheet.freeze_panes = "A2"
+        sheet.auto_filter.ref = sheet.dimensions
+        sheet.row_dimensions[1].height = 26
+        for cells in sheet.iter_rows():
+            for cell in cells:
                 cell.alignment = Alignment(vertical="center")
+                cell.border = border
     buffer = io.BytesIO()
     book.save(buffer)
     book.close()
@@ -416,13 +590,9 @@ def _stock_label_texts() -> dict:
 def _stock_headers() -> list:
     from pearnly_core import browser_text
 
-    lang = (frappe.local.lang or browser_text.FALLBACK_LANG)[:2]
-
-    def label_of(key):
-        texts = browser_text.all_languages(key)
-        return texts.get(lang) or texts.get("en") or key
-
-    return workbook.template_headers(label_of)
+    # 取词就走共享那一份（`pearnly_core.browser_text.label`），别在页面层再写一遍 ——
+    # 导出件、模板、界面必须是同一句话。
+    return workbook.template_headers(browser_text.label)
 
 
 @frappe.whitelist()
@@ -451,6 +621,13 @@ def api_stock_count_photos(**kwargs):
     return counts.entry_photos(kwargs.get("entry"))
 
 
+@frappe.whitelist()
+def api_stock_count_item_photos(**kwargs):
+    """该商品在本任务里的全部照片（记录弹窗表格下面那一片）。"""
+    kwargs = _clean(kwargs)
+    return counts.item_photos(count=kwargs.get("count"), item=kwargs.get("item"))
+
+
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_add_entry(**kwargs):
     _json_args(kwargs, "photos")
@@ -466,13 +643,28 @@ def api_stock_count_edit_entry(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_close(**kwargs):
     kwargs = _clean(kwargs)
-    return counts.close_count(kwargs.get("name"))
+    return counts.close_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_stock_count_post(**kwargs):
     kwargs = _clean(kwargs)
-    return counts.post_count(kwargs.get("name"))
+    return counts.post_count(kwargs.get("name"), review_token=kwargs.get("review_token"))
+
+
+@frappe.whitelist()
+def api_stock_count_review(name):
+    return counts.review_count(name)
+
+
+@frappe.whitelist()
+def api_stock_count_lookup(**kwargs):
+    return counts.lookup_count(**_clean(kwargs))
+
+
+@frappe.whitelist(methods=["POST"])
+def api_stock_count_recount(**kwargs):
+    return counts.recount_product(**_clean(kwargs))
 
 
 @frappe.whitelist(methods=["POST"])

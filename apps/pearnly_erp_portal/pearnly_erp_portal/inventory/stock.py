@@ -104,7 +104,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         _require()
     product_doc = _product(product, allow_inactive=internal and allow_inactive)
     location = positions.clean_location(location)
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     lock_products([product])
 
     if client_uuid:
@@ -230,19 +230,45 @@ def count_lines(*, warehouse: str, lines, posting_date=None, reason="stocktake")
 
 
 def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None):
-    """Internal only: caller authorizes reversal; original ledger fixes the storage position."""
+    """Internal only: caller authorizes reversal; original ledger fixes the storage position.
+
+    反向流水**带上原单的单据号**：收发存与库存明细的"关联单据"列显示的是 `doc_no`
+    （入库 IR / 出库 IS / 采购 PE / 销售 SI 那种系统号），没有号才退回显示内部单据名。
+    原先这里不传 `doc_no`，于是作废产生的那一行显示成 `SD-00286` 这种内部名 ——
+    用户 2026-09-23 报"单号在收发存显示得不对"就是这一处：**同一个单据的冲销行，
+    号要和原单一样**，否则报表上那笔冲销认不出是谁。
+    """
     rows = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id},
-                          fields=["name", "product", "warehouse", "location", "qty_base"],
+                          fields=["name", "product", "warehouse", "location", "qty_base", "doc_no"],
                           order_by="creation asc", limit_page_length=0)
     lock_products([row.product for row in rows])
     for row in rows:
         apply_movement(product=row.product, warehouse=row.warehouse, location=row.location,
                        movement_type=contracts.ADJUST, qty=-contracts.d(row.qty_base),
-                       ref_type="void", ref_id=ref_id, reason=reason,
+                       ref_type="void", ref_id=ref_id, doc_no=row.doc_no, reason=reason,
                        client_uuid=f"{client_uuid}:{row.name}", internal=True, allow_inactive=True)
 
 
-def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False) -> list[dict]:
+def _qty_matches(qty, op, value) -> bool:
+    """按**原生筛选给的那个比较符**比数量（`在库数量 <= 0` = 缺货、`!= 0` = 不显示零库存）。
+
+    比较符是白名单：认不出来的一律当"没这个条件"（宁可多给一行，也不要静默把列表清空）。
+    """
+    if not op or value in (None, ""):
+        return True
+    try:
+        want = float(value)
+        have = float(qty)
+    except (TypeError, ValueError):
+        return True
+    return {
+        "<": have < want, "<=": have <= want, ">": have > want, ">=": have >= want,
+        "=": have == want, "==": have == want, "!=": have != want,
+    }.get(str(op).strip(), True)
+
+
+def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
+                   qty_op=None, qty_value=None) -> list[dict]:
     """在库一览的全部命中行。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。
 
     `only_low` 只留低库存与缺货，并且**隐含带上零库存** —— 缺货就是结存 0，
@@ -254,6 +280,9 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     filters: dict = {}
     if warehouse:
         filters["warehouse"] = warehouses.resolve(warehouse, create=False) or "__missing__"
+    else:
+        # 看库存就是看**当前公司**那几个仓库的结存（结存按仓库记账）。
+        filters.update(warehouses.scope_filter())
     if location is not None:
         filters["location"] = positions.clean_location(location)
     rows = frappe.get_list(BALANCE, filters=filters,
@@ -269,13 +298,18 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
         "ERP Warehouse", filters={"name": ["in", [r["warehouse"] for r in rows] or [""]]},
         fields=["name", "warehouse_name"], limit_page_length=0)}
     visible = rules.cost_visible(guard.current_roles())
+    # 用户自己按原生筛选给了数量条件时，**零库存行不能再被默认藏掉** —— 否则
+    # 「在库数量 = 0」永远查不出东西（默认那套是给"平时只看有货的"用的）。
+    by_qty = bool(qty_op) and qty_value not in (None, "")
     out = []
     for row in rows:
         product = products.get(row["product"]) or {}
         if q and q.lower() not in (product.get("product_name") or "").lower():
             continue
         # "只看低库存/缺货"时零库存行必须在（缺货就是 0），所以那个开关隐含带上零库存。
-        if not include_zero and not only_low and not row["qty_on_hand"]:
+        if not include_zero and not only_low and not by_qty and not row["qty_on_hand"]:
+            continue
+        if not _qty_matches(row["qty_on_hand"], qty_op, qty_value):
             continue
         min_stock = contracts.d(product.get("min_stock") or 0)
         qty_on_hand = contracts.d(row["qty_on_hand"])
@@ -307,20 +341,21 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
 
 
 def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                   start=0, limit=200) -> list[dict]:
+                   qty_op=None, qty_value=None, start=0, limit=200) -> list[dict]:
     """在库一览（分页）。`limit=0` 表示不分页，整批给。"""
     rows = _overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                          only_low=only_low)
+                          only_low=only_low, qty_op=qty_op, qty_value=qty_value)
     start = int(start or 0)
     if not limit:
         return rows[start:]
     return rows[start:start + int(limit)]
 
 
-def stock_count(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False) -> int:
+def stock_count(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
+                qty_op=None, qty_value=None) -> int:
     """与列表同一套筛选的命中行数（页脚"第 N 项/共 M 项"用）。"""
     return len(_overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
-                              only_low=only_low))
+                              only_low=only_low, qty_op=qty_op, qty_value=qty_value))
 
 
 def stock_totals(*, warehouse=None, q=None) -> dict:
@@ -347,7 +382,7 @@ def stock_totals(*, warehouse=None, q=None) -> dict:
 def rebuild_balance(product: str, warehouse: str, location="") -> dict:
     """按流水重算某一行结存。用来验"结存确实能从流水推出来"，也用于修复。"""
     _require()
-    warehouse = warehouses.resolve(warehouse)
+    warehouse = warehouses.required(warehouse)
     location = positions.clean_location(location)
     lock_products([product])
     movements = frappe.get_all(

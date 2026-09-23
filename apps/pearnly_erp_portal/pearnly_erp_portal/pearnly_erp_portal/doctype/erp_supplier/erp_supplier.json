@@ -14,7 +14,8 @@
   "phone",
   "is_active",
   "address",
-  "note"
+  "note",
+  "branch_name"
  ],
  "fields": [
   {
@@ -39,7 +40,7 @@
    "fieldname": "branch_type",
    "fieldtype": "Select",
    "label": "Branch Type",
-   "options": "head\nbranch"
+   "options": "head\nhead_office\nbranch\nnone"
   },
   {
    "depends_on": "eval:doc.branch_type=='branch'",
@@ -75,6 +76,11 @@
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "fieldname": "branch_name",
+   "label": "Branch Name",
+   "fieldtype": "Data"
   }
  ],
  "index_web_pages_for_search": 0,
@@ -83,6 +89,8 @@
  "module": "Pearnly ERP Portal",
  "name": "ERP Supplier",
  "naming_rule": "Expression",
+ "show_title_field_in_link": 1,
+ "title_field": "supplier_name",
  "owner": "Administrator",
  "permissions": [
   {

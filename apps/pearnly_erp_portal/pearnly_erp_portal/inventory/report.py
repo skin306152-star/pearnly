@@ -38,6 +38,9 @@ def _movements(*, product=None, warehouse=None, location=None, date_to=None) -> 
         filters["product"] = product
     if warehouse:
         filters["warehouse"] = warehouses.resolve(warehouse, create=False) or "__missing__"
+    else:
+        # 没点名仓库 → 只看**当前公司**的仓库（一租户多公司：库存按仓库记账）。
+        filters.update(warehouses.scope_filter())
     if location is not None:
         filters["location"] = str(location or "").strip()
     if date_to:

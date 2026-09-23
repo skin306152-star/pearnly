@@ -1,6 +1,6 @@
 ### Pearnly ERP Portal
 
-ERP 门户产品：商品与库存、采购、销售、收发存
+ERP 门户产品：物料与库存、采购、销售、收发存
 
 ### Installation
 

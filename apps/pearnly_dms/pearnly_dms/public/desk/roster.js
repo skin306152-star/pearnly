@@ -39,7 +39,10 @@
 			const fields = [
 				// Renaming is a create-time decision; the old roster's edit modal never changed it.
 				...(adding ? [{fieldtype: "Data", fieldname: "display_name", label: t("roster.field.displayName"), reqd: 1}] : []),
-				{fieldtype: "Data", fieldname: "dms_username", label: t("roster.field.dmsUsername"), reqd: 1, default: row?.dms_username || ""},
+				// DMS 用户名也是**发号时定死**（用户 2026-09-23："可以用用户名登录，但是不能
+				// 修改"）：新建时填一次，之后只给看不给改，编辑这一屏能改的只有密码。
+				{fieldtype: "Data", fieldname: "dms_username", label: t("roster.field.dmsUsername"),
+					reqd: adding ? 1 : 0, read_only: adding ? 0 : 1, default: row?.dms_username || ""},
 				{fieldtype: "Password", fieldname: "dms_password", label: t("roster.field.dmsPassword"), reqd: adding ? 1 : 0,
 					description: adding ? "" : t("roster.edit.passwordHint")},
 				{fieldtype: "Select", fieldname: "dms_role", label: t("roster.field.role"), default: row?.role || "sales",
@@ -55,7 +58,7 @@
 				if (!loaded) delete values.advisor_id; // Failed loads must never clear an existing assignment.
 				await p.call(api + (adding ? "api_create_operator" : "api_update_operator"), adding ? values : {name: row.name, ...values}, "POST");
 				dialog.set_value("dms_password", ""); dialog.hide();
-				p.success(t(adding ? "roster.notice.created" : "roster.notice.saved"));
+				p.success(t(adding ? "roster.notice.created" : "roster.notice.saved"), "click");
 				await refresh();
 			});
 			async function loadAdvisors() {
@@ -109,7 +112,7 @@
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
 				} finally {
-					if (removed) p.success(t("roster.notice.deletedCount", removed));
+					if (removed) p.success(t("roster.notice.deletedCount", removed), "delete");
 					// Reload reconciles selected IDs: failed/unprocessed rows stay selected.
 					try { await refresh(); }
 					finally { deleting = false; page.btn_primary.prop("disabled", false); }

@@ -3,6 +3,9 @@
  "creation": "2026-09-21 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
+ "search_fields": "customer_name,contact_phone",
+ "show_title_field_in_link": 1,
+ "title_field": "customer_name",
  "field_order": [
   "customer_name",
   "short_name",
@@ -24,7 +27,7 @@
   {
    "fieldname": "customer_name",
    "fieldtype": "Data",
-   "label": "Customer",
+   "label": "Customer Name",
    "reqd": 1,
    "in_list_view": 1,
    "length": 200

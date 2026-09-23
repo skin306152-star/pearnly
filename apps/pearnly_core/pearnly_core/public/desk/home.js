@@ -162,7 +162,7 @@
 				try {
 					const result = await p.call("pearnly_core.billing_www.delete_records",
 						{tab: selectedTab, names}, "POST");
-					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted));
+					if (result.deleted) p.success(t("home.ledger.deletedCount", result.deleted), "delete");
 					if (table === selectedTable) await table.reload();
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);
@@ -194,8 +194,9 @@
 				doctype: "Pearnly OCR Record", selectable: home.can_manage,
 				on_selection: updateAction,
 				columns: columns.map(([fieldname, label, format]) => ({fieldname,
+					// 与产品里其它时间一致：`p.datetime_text` 去掉微秒与秒（`str_to_user` 会带上 `:ss`）。
 					label: t("home.col." + label), format: fieldname === "creation"
-						? value => frappe.datetime.str_to_user(value) : format})),
+						? value => p.datetime_text(value) : format})),
 				load: async ({start, page_length}) => {
 					const result = await p.call("pearnly_core.billing_www.records", {
 						tab: activeTab, period: activePeriod, offset: start, limit: page_length});

@@ -16,6 +16,8 @@
   "expected_cash",
   "counted_cash",
   "cash_diff",
+  "section_balances",
+  "balances",
   "note"
  ],
  "fields": [
@@ -75,7 +77,7 @@
   {
    "fieldname": "opening_float",
    "fieldtype": "Currency",
-   "label": "Opening Float",
+   "label": "Opening Cash",
    "default": "0"
   },
   {
@@ -100,6 +102,17 @@
    "fieldname": "note",
    "fieldtype": "Small Text",
    "label": "Note"
+  },
+  {
+   "fieldname": "section_balances",
+   "fieldtype": "Section Break",
+   "label": "Modes of Payment"
+  },
+  {
+   "fieldname": "balances",
+   "fieldtype": "Table",
+   "label": "Payment Reconciliation",
+   "options": "ERP Shift Balance"
   }
  ],
  "index_web_pages_for_search": 0,

@@ -1,51 +1,86 @@
 {
- "actions": [],
- "creation": "2026-09-21 00:00:00.000000",
- "doctype": "DocType",
- "engine": "InnoDB",
- "field_order": [
-  "payment_date",
-  "amount",
-  "method",
-  "note"
- ],
- "fields": [
-  {
-   "fieldname": "payment_date",
-   "fieldtype": "Date",
-   "in_list_view": 1,
-   "label": "Payment Date",
-   "reqd": 1
-  },
-  {
-   "fieldname": "amount",
-   "fieldtype": "Currency",
-   "in_list_view": 1,
-   "label": "Amount",
-   "reqd": 1
-  },
-  {
-   "fieldname": "method",
-   "fieldtype": "Select",
-   "in_list_view": 1,
-   "label": "Method",
-   "options": "cash\nbank\ncheque\nother"
-  },
-  {
-   "fieldname": "note",
-   "fieldtype": "Small Text",
-   "label": "Note"
-  }
- ],
- "index_web_pages_for_search": 0,
- "istable": 1,
- "links": [],
- "modified": "2026-09-21 00:00:00.000000",
- "module": "Pearnly ERP Portal",
- "name": "ERP Purchase Payment",
- "owner": "Administrator",
- "permissions": [],
- "sort_field": "modified",
- "sort_order": "DESC",
- "states": []
+  "actions": [],
+  "creation": "2026-09-21 00:00:00.000000",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "field_order": [
+    "payment_date",
+    "amount",
+    "method",
+    "note",
+    "is_reversal",
+    "reversal_of",
+    "reference",
+    "request_id",
+    "request_hash"
+  ],
+  "fields": [
+    {
+      "fieldname": "payment_date",
+      "fieldtype": "Date",
+      "in_list_view": 1,
+      "label": "Payment Date",
+      "reqd": 1
+    },
+    {
+      "fieldname": "amount",
+      "fieldtype": "Currency",
+      "in_list_view": 1,
+      "label": "Amount",
+      "reqd": 1,
+      "options": "Purchase Document:parent:currency"
+    },
+    {
+      "fieldname": "method",
+      "fieldtype": "Select",
+      "in_list_view": 1,
+      "label": "Mode of Payment",
+      "options": "cash\ntransfer\npromptpay\nbank\ncheque\nother"
+    },
+    {
+      "fieldname": "note",
+      "fieldtype": "Small Text",
+      "label": "Note"
+    },
+    {
+      "fieldname": "is_reversal",
+      "label": "Is Reversal",
+      "fieldtype": "Check"
+    },
+    {
+      "fieldname": "reversal_of",
+      "label": "Against Payment",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "reference",
+      "label": "Reference",
+      "fieldtype": "Data"
+    },
+    {
+      "fieldname": "request_id",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "read_only": 1,
+      "label": "Request ID"
+    },
+    {
+      "fieldname": "request_hash",
+      "fieldtype": "Data",
+      "hidden": 1,
+      "read_only": 1,
+      "label": "Request Hash"
+    }
+  ],
+  "index_web_pages_for_search": 0,
+  "istable": 1,
+  "links": [],
+  "modified": "2026-09-21 00:00:00.000000",
+  "module": "Pearnly ERP Portal",
+  "name": "ERP Purchase Payment",
+  "owner": "Administrator",
+  "permissions": [],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "states": []
 }

@@ -120,7 +120,9 @@ def reconcile(line_user_id):
                         'attach_ok': all(name in names for name in expected),
                         'attached': sum(name in names for name in expected)}
 
-            result = run_logged_in(endpoint, read)
+            # 后台任务（scheduler 派进 long 队列），没人等着看结果 → 预算走共用口径的
+            # 后台那一档（90 秒），见 `pearnly_dms.config.pacing`。
+            result = run_logged_in(endpoint, read, background=True)
             if not result.get('ok'):
                 return  # A missing/ambiguous result never authorizes a new POST.
             booking_ledger.log_booking(endpoint=context['endpoint'], payload={'qa': qa},

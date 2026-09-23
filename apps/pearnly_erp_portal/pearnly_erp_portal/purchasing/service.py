@@ -3,9 +3,7 @@
 权限：能力判据在 `access.guard`；取数一律 `frappe.get_list`，并按岗位收窄到本人
 （老板看全店、员工只看自己录入的）。
 
-刻意**不在本批做**的：过账到库存（表在库存批次）与生成会计凭证（会计不迁移）。
-提交只把单据推进到 `submitted`；库存联动在库存批次接到这里，届时 `auto_stock_in`
-才有效。现在这个开关默认关、并且这里不会假装已经扣过库存。
+旧版单据沿用原金额合同；新版直接过账的单据由 purchasing.entry 承接付款与作废。
 """
 
 from decimal import Decimal
@@ -15,6 +13,7 @@ from frappe import _
 from frappe.utils import now, nowdate
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import contracts, settings
 
 DOCTYPE = "Purchase Document"
@@ -29,7 +28,7 @@ BAD_TRANSITION = "This status change is not allowed"
 LINES_REQUIRED = "Provide at least one line item"
 
 LIST_FIELDS = (
-    "name", "doc_kind", "supplier", "supplier_name", "doc_no", "doc_date", "due_date",
+    "name", "company", "doc_kind", "supplier", "supplier_name", "doc_no", "system_no", "doc_date", "due_date",
     "status", "approval_status", "source", "currency", "grand_total", "net_payable",
     "paid_amount", "payment_status",
 )
@@ -42,7 +41,9 @@ def _q2(value) -> Decimal:
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    from pearnly_erp_portal.purchasing.access import get_document
+
+    return get_document(name)
 
 
 def _dedupe_check(dedupe_key, dedupe_ref, exclude=None):
@@ -85,12 +86,13 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
                     doc_no=None, due_date=None, currency="THB", fx_rate=1, has_vat=True,
                     discount_total=0, wht_amount=None, wht_rate=0, rounding=0,
                     supplier_tax_id=None, external_ref=None, dedupe_key=None,
-                    image_sha256=None, notes=None, source=None):
+                    image_sha256=None, notes=None, source=None, company=None):
     guard.require("purchase.write")
     if not isinstance(lines, list) or not lines:
         frappe.throw(_(LINES_REQUIRED))
 
     from pearnly_erp_portal.inventory import positions
+    from pearnly_erp_portal.numbering import service as numbering
 
     lines = [positions.prepare(line) for line in lines]
     has_vat = has_vat in (True, 1, "1", "true")
@@ -110,11 +112,18 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
 
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
+        # 一租户多公司：单据挂在公司上；没给就是**当前公司**（切换公司改的那个用户默认值）。
+        "company": companies.document_company(company),
         "doc_kind": doc_kind,
         "supplier": supplier,
         "supplier_name": supplier_name,
         "supplier_tax_id": supplier_tax_id,
         "doc_no": doc_no,
+        # 我方单据号：系统发（采购 PE），与"对方单号"（`doc_no`）并列 —— 旧线上也是两个
+        # （`bill_number` + `document_number`）。收发存报表显示的是这一个。
+        "system_no": numbering.allocate(
+            direction="purchase", on=doc_date,
+            exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"system_no": value}))),
         "doc_date": doc_date,
         "due_date": due_date,
         "status": contracts.DRAFT,
@@ -155,7 +164,9 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
 def _purchase_query(*, supplier=None, supplier_name=None, status=None, kind=None,
                     unpaid=False, q=None, date_from=None, date_to=None):
     """筛选条件只写一处：列表、合计、导出都从这里来，免得三处各写一套。"""
+    # 一租户多公司：采购记录默认只看**当前公司**（切换公司那颗按钮改的是用户默认值）。
     filters: dict = dict(guard.scope_filters())
+    filters["company"] = companies.active_company()
     if supplier:
         filters["supplier"] = supplier
     if supplier_name:
@@ -294,6 +305,12 @@ def set_status(name, target, reason=None, receive_stock=None):
     guard.require("purchase.write")
     frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
     doc = _get(name)
+    if doc.calculation_version == 2 and target == contracts.VOID:
+        from pearnly_erp_portal.purchasing import entry
+
+        result = entry.cancel(name, reason)
+        frappe.db.commit()
+        return result
     if not contracts.can_transition(doc.status, target):
         frappe.throw(_(BAD_TRANSITION))
     if target == contracts.VOID and doc.paid_amount and _q2(doc.paid_amount) > 0:
@@ -341,9 +358,14 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
     if not lines:
         return None
     result = stock.apply_lines(
-        warehouse=warehouses.ensure_default(), movement_type="purchase_in", lines=lines,
+        # 与 `purchasing/entry.py` 同一口径：入库仓来自**这张单上明确的仓**
+        # （每行已经由 `positions.saved()` 定过）；行上也没写时落**这家公司卖货的那个仓**，
+        # 没有收银台才退回"唯一仓/报错"（见 `warehouses.receiving`）。
+        warehouse=warehouses.receiving(lines[0].get("warehouse")),
+        movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
-        doc_no=doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
+        # 流水上记的是**我方单据号**（采购 PE），对方单号留在采购单上。
+        doc_no=doc.system_no or doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
     )
     doc.db_set("stock_posted_at", now(), update_modified=False)
     return result
@@ -368,6 +390,12 @@ def pay(name, *, amount, method=None, date=None, note=None):
     """登记一笔付款。多笔累加；超过净应付的付款被拒。"""
     guard.require("purchase.write")
     doc = _get(name)
+    if doc.calculation_version == 2:
+        from pearnly_erp_portal.purchasing import entry
+
+        result = entry.payment(name, amount=amount, method=method or "cash", date=date, note=note)
+        frappe.db.commit()
+        return result
     if doc.status == contracts.VOID:
         frappe.throw(_(VOIDED))
     if doc.status != contracts.SUBMITTED:
@@ -397,6 +425,14 @@ def set_payment_status(name, status):
     """直接把单据标成未付/已付（旧线上有这条快捷路径，用于线下已结清的单据）。"""
     guard.require("purchase.write")
     doc = _get(name)
+    if doc.calculation_version == 2:
+        from pearnly_erp_portal.purchasing import entry
+
+        if status not in (contracts.UNPAID, contracts.PAID):
+            frappe.throw(_(INVALID))
+        result = entry.payment(name, paid=status == contracts.PAID)
+        frappe.db.commit()
+        return result
     if status not in (contracts.UNPAID, contracts.PARTIAL, contracts.PAID):
         frappe.throw(_(INVALID))
     if status == contracts.PAID:
@@ -412,7 +448,8 @@ def set_payment_status(name, status):
 def summary(*, date_from=None, date_to=None):
     """期间汇总。金额求和用 Decimal，避免浮点误差累积。"""
     guard.require("purchase.read")
-    filters: dict = {"status": ["!=", contracts.VOID], **guard.scope_filters()}
+    filters: dict = {"status": ["!=", contracts.VOID], **guard.scope_filters(),
+                     "company": companies.active_company()}
     if date_from and date_to:
         filters["doc_date"] = ["between", [date_from, date_to]]
     rows = frappe.get_list(

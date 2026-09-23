@@ -6,6 +6,8 @@
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
+  "system_no",
+  "company",
   "doc_kind",
   "supplier",
   "supplier_name",
@@ -44,30 +46,60 @@
   "dedupe_key",
   "dedupe_ref",
   "image_sha256",
-  "notes"
+  "notes",
+  "calculation_version",
+  "request_id",
+  "request_hash",
+  "supplier_branch_type",
+  "supplier_branch_no",
+  "supplier_branch_name",
+  "supplier_address",
+  "requester",
+  "requester_user",
+  "price_mode",
+  "amount_override",
+  "override_subtotal",
+  "override_discount",
+  "override_vat",
+  "override_grand",
+  "update_stock",
+  "auto_create_product",
+  "is_paid",
+  "payment_method",
+  "attachments",
+  "corrected_from",
+  "summary"
  ],
  "fields": [
   {
-   "default": "goods",
+   "default": "purchase_invoice",
    "fieldname": "doc_kind",
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Document Type",
-   "options": "goods\nservice\nexpense",
+   "options": "purchase_invoice\npurchase_order\nexpense\ngoods\nservice",
    "reqd": 1
   },
   {
    "fieldname": "supplier",
    "fieldtype": "Link",
    "in_list_view": 1,
-   "label": "Supplier Link",
+   "label": "Supplier",
    "options": "ERP Supplier"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company",
+   "reqd": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "supplier_name",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "Supplier",
+   "label": "Supplier Name",
    "reqd": 1
   },
   {
@@ -83,14 +115,21 @@
    "fieldname": "doc_no",
    "fieldtype": "Data",
    "in_list_view": 1,
-   "label": "External Doc No",
-   "description": "The document number the supplier issued; it must be kept as-is"
+   "label": "Supplier Invoice No"
+  },
+  {
+   "fieldname": "system_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "read_only": 1,
+   "no_copy": 1,
+   "label": "System number"
   },
   {
    "fieldname": "doc_date",
    "fieldtype": "Date",
    "in_list_view": 1,
-   "label": "Doc Date",
+   "label": "Posting Date",
    "reqd": 1
   },
   {
@@ -124,7 +163,7 @@
    "default": "1",
    "fieldname": "fx_rate",
    "fieldtype": "Float",
-   "label": "FX Rate",
+   "label": "Exchange Rate",
    "precision": "6",
    "reqd": 1
   },
@@ -132,7 +171,7 @@
    "default": "1",
    "fieldname": "has_vat",
    "fieldtype": "Check",
-   "label": "VAT Included"
+   "label": "Tax Invoice"
   },
   {
    "fieldname": "column_break_amounts",
@@ -142,33 +181,38 @@
    "default": "0",
    "fieldname": "subtotal",
    "fieldtype": "Currency",
-   "label": "Subtotal",
-   "read_only": 1
+   "label": "Net Total",
+   "read_only": 1,
+   "options": "currency"
   },
   {
    "default": "0",
    "fieldname": "discount_total",
    "fieldtype": "Currency",
-   "label": "Order Discount"
+   "label": "Discount Amount",
+   "options": "currency"
   },
   {
    "default": "0",
    "fieldname": "vat_amount",
    "fieldtype": "Currency",
    "label": "VAT",
-   "read_only": 1
+   "read_only": 1,
+   "options": "currency"
   },
   {
    "default": "0",
    "fieldname": "wht_amount",
    "fieldtype": "Currency",
-   "label": "Withholding Tax"
+   "label": "Withholding Tax",
+   "options": "currency"
   },
   {
    "default": "0",
    "fieldname": "rounding",
    "fieldtype": "Currency",
-   "label": "Rounding"
+   "label": "Rounding Adjustment",
+   "options": "currency"
   },
   {
    "default": "0",
@@ -176,44 +220,45 @@
    "fieldtype": "Currency",
    "label": "Grand Total",
    "read_only": 1,
-   "in_list_view": 1
+   "in_list_view": 1,
+   "options": "currency"
   },
   {
    "default": "0",
    "fieldname": "net_payable",
    "fieldtype": "Currency",
-   "label": "Net Payable",
-   "read_only": 1
+   "label": "Amount Payable",
+   "read_only": 1,
+   "options": "currency"
   },
   {
    "fieldname": "section_lines",
    "fieldtype": "Section Break",
-   "label": "Details"
+   "label": "Items"
   },
   {
    "fieldname": "lines",
    "fieldtype": "Table",
-   "label": "Details",
+   "label": "Items",
    "options": "Purchase Line",
    "reqd": 1
   },
   {
    "fieldname": "section_state",
    "fieldtype": "Section Break",
-   "label": "Flow Status"
+   "label": "Status"
   },
   {
    "default": "none",
    "fieldname": "approval_status",
    "fieldtype": "Select",
-   "label": "Approval",
+   "label": "Approval Status",
    "options": "none\npending\napproved\nrejected"
   },
   {
    "fieldname": "source",
    "fieldtype": "Data",
-   "label": "Source",
-   "description": "Where the document came from: web, LINE or recognition"
+   "label": "Source"
   },
   {
    "default": "unpaid",
@@ -228,7 +273,8 @@
    "default": "0",
    "fieldname": "paid_amount",
    "fieldtype": "Currency",
-   "label": "Paid Amount"
+   "label": "Paid Amount",
+   "options": "currency"
   },
   {
    "fieldname": "payments",
@@ -239,23 +285,23 @@
   {
    "fieldname": "section_void",
    "fieldtype": "Section Break",
-   "label": "Void"
+   "label": "Cancellation"
   },
   {
    "fieldname": "void_reason",
    "fieldtype": "Small Text",
-   "label": "Void Reason"
+   "label": "Reason for Cancellation"
   },
   {
    "fieldname": "voided_at",
    "fieldtype": "Datetime",
-   "label": "Voided At",
+   "label": "Cancelled On",
    "read_only": 1
   },
   {
    "fieldname": "section_refs",
    "fieldtype": "Section Break",
-   "label": "External IDs & Dedupe"
+   "label": "References"
   },
   {
    "fieldname": "external_ref",
@@ -265,14 +311,12 @@
   {
    "fieldname": "dedupe_key",
    "fieldtype": "Data",
-   "label": "Dedupe Key",
-   "description": "The test for a duplicate upload of the same document"
+   "label": "Dedupe Key"
   },
   {
    "fieldname": "dedupe_ref",
    "fieldtype": "Data",
-   "label": "Supplier Doc Reference",
-   "description": "Normalized supplier + document number; the label that catches the same bill entered twice. Kept apart from Dedupe Key because they answer different questions: one is an external idempotency key, the other is 'this supplier already has this document number'"
+   "label": "Supplier Doc Reference"
   },
   {
    "fieldname": "image_sha256",
@@ -282,14 +326,146 @@
   {
    "fieldname": "notes",
    "fieldtype": "Small Text",
-   "label": "Notes"
+   "label": "Remarks"
   },
   {
    "fieldname": "stock_posted_at",
    "fieldtype": "Datetime",
    "label": "Stock Posted At",
-   "read_only": 1,
-   "description": "When the confirmed document posted its goods into stock; empty means nothing was posted"
+   "read_only": 1
+  },
+  {
+   "fieldname": "calculation_version",
+   "label": "Calculation Version",
+   "fieldtype": "Int",
+   "default": "1",
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_id",
+   "label": "Request ID",
+   "fieldtype": "Data",
+   "unique": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "request_hash",
+   "label": "Request Hash",
+   "fieldtype": "Data",
+   "hidden": 1
+  },
+  {
+   "fieldname": "supplier_branch_type",
+   "label": "Branch Type",
+   "fieldtype": "Select",
+   "options": "head_office\nbranch\nnone",
+   "default": "none"
+  },
+  {
+   "fieldname": "supplier_branch_no",
+   "label": "Branch No",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "supplier_branch_name",
+   "label": "Branch Name",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "supplier_address",
+   "label": "Address",
+   "fieldtype": "Small Text"
+  },
+  {
+   "fieldname": "requester",
+   "label": "Requested By",
+   "fieldtype": "Data"
+  },
+  {
+   "fieldname": "requester_user",
+   "label": "User",
+   "fieldtype": "Link",
+   "options": "User"
+  },
+  {
+   "fieldname": "price_mode",
+   "label": "Prices Include Tax",
+   "fieldtype": "Select",
+   "options": "exclusive\ninclusive",
+   "default": "exclusive"
+  },
+  {
+   "fieldname": "amount_override",
+   "label": "Manually Set Amounts",
+   "fieldtype": "Check"
+  },
+  {
+   "fieldname": "override_subtotal",
+   "label": "Net Total",
+   "fieldtype": "Currency",
+   "options": "currency"
+  },
+  {
+   "fieldname": "override_discount",
+   "label": "Discount Amount",
+   "fieldtype": "Currency",
+   "options": "currency"
+  },
+  {
+   "fieldname": "override_vat",
+   "label": "Total Taxes and Charges",
+   "fieldtype": "Currency",
+   "options": "currency"
+  },
+  {
+   "fieldname": "override_grand",
+   "label": "Grand Total",
+   "fieldtype": "Currency",
+   "options": "currency"
+  },
+  {
+   "fieldname": "update_stock",
+   "label": "Update Stock",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "auto_create_product",
+   "label": "Create New Item",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "is_paid",
+   "label": "Is Paid",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "payment_method",
+   "label": "Mode of Payment",
+   "fieldtype": "Select",
+   "options": "cash\ntransfer\npromptpay\nbank\ncheque\nother",
+   "default": "cash"
+  },
+  {
+   "fieldname": "attachments",
+   "label": "Attachments",
+   "fieldtype": "Table",
+   "options": "ERP Purchase Attachment"
+  },
+  {
+   "fieldname": "corrected_from",
+   "label": "Amended From",
+   "fieldtype": "Link",
+   "options": "Purchase Document",
+   "read_only": 1
+  },
+  {
+   "fieldname": "summary",
+   "label": "Description",
+   "fieldtype": "Small Text",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 1,

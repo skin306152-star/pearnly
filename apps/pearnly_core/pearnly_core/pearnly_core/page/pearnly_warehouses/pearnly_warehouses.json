@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-warehouses",
+ "page_name": "pearnly-warehouses",
+ "title": "nav.warehouses",
+ "module": "Pearnly Core",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

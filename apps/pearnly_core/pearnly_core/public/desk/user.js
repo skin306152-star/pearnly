@@ -53,8 +53,16 @@ frappe.ui.form.on("User", {
         frm.refresh_field("pearnly_company");
         frm.refresh_field("pearnly_domain");
         pearnlyProfileScope(frm);
+        // 用户名（`first_name`，见 account/layout.py）在 DocType 那一层就是只读的：
+        // 它和邮箱都是开户时发的，用户自己改不了（用户 2026-09-23 口径）。这里只把
+        // 邮箱再钉一遍（框架原生允许改自己的邮箱），以及保证"改密码"这条路在**两种
+        // 站点上都走得通** —— 云站点走身份服务，本地站点点本站那个改密页。
         frm.set_df_property("email", "read_only", 1);
-        frm.toggle_display("pearnly_change_password", Boolean(frappe.boot.pearnly_native_account));
+        // 静音开关是真的（框架的 `frappe.utils.play_sound` 见到 `frappe.boot.user.mute_sounds`
+        // 就直接不播；我们自己的提示音也都走它）。但那个值**只在整页加载时取一次** ——
+        // 勾上并保存之后当前这一页照响，要刷新才静音，看着就像开关是假的（2026-09-23 实测）。
+        // 这里在每次表单刷新（含保存之后那一次）回写一次，勾上立刻生效。
+        frappe.boot.user.mute_sounds = frm.doc.mute_sounds ? 1 : 0;
         frm.$wrapper.addClass("pearnly-account-profile");
         frm.page.clear_menu();
         frm.page.sidebar.hide();
@@ -68,8 +76,8 @@ frappe.ui.form.on("User", {
         }
     },
     pearnly_change_password() {
-        if (frappe.boot.pearnly_product && frappe.boot.pearnly_native_account) {
-            window.location.assign("/api/method/pearnly_core.identity.begin_password_change");
-        }
+        if (!frappe.boot.pearnly_product) return;
+        window.location.assign(frappe.boot.pearnly_native_account
+            ? "/api/method/pearnly_core.identity.begin_password_change" : "/pearnly-password");
     },
 });

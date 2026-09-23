@@ -22,6 +22,8 @@ SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
 OWNER = "erp-pos-owner@example.com"
 EMPLOYEE = "erp-pos-team-member@example.com"
 CASHIER = "erp-pos-team-cashier@example.com"
+# 发号的初始密码：`add_member` 要求至少 8 位（与页面上那个弹窗同一条闸）。
+LAB_PASSWORD = "Lab-member-2026"
 
 
 def connect(site=SITE):
@@ -56,6 +58,7 @@ def main():
     connect()
     frappe.set_user("Administrator")
     from pearnly_core.provisioning import ensure_feature_roles
+    from pearnly_erp_portal.access import rules
     from pearnly_erp_portal.team import service
     from pearnly_erp_portal import purchase
     from pearnly_core.desk import navigation
@@ -77,7 +80,7 @@ def main():
     # 老板新增一名采购员工 —— 与老板共用同一套站点账号体系。
     drop_user(EMPLOYEE)
     ok, created = as_user(OWNER, service.add_member, email=EMPLOYEE,
-                          full_name="Lab Member", roles=["ERP Purchase"])
+                          full_name="Lab Member", roles=["ERP Purchase"], password=LAB_PASSWORD)
     results["owner_add_member"] = ok
     results["created"] = created if ok else created
 
@@ -88,7 +91,7 @@ def main():
     # 收银含在 ERP：老板能直接把「收银员」发给员工，不需要另买功能。
     drop_user(CASHIER)
     ok, cashier = as_user(OWNER, service.add_member, email=CASHIER,
-                          full_name="Lab Cashier", roles=["ERP Cashier"])
+                          full_name="Lab Cashier", roles=["ERP Cashier"], password=LAB_PASSWORD)
     results["add_cashier_allowed"] = ok
     results["cashier_roles"] = cashier.get("roles") if ok else cashier
 
@@ -97,18 +100,26 @@ def main():
     results["employee_can_read_purchases"] = ok
     results["employee_rows"] = len(rows) if ok else rows
 
+    # 原样保存同一批岗位不能把岗位点没（2026-09-23 修：`set_member_roles` 原先在摘掉
+    # 角色**之前**就记下了"已有"，于是"什么都不改直接保存"会把功能角色整个摘掉）。
+    ok, payload = as_user(OWNER, service.set_member_roles, email=EMPLOYEE, roles=["ERP Purchase"])
+    results["resave_same_roles_allowed"] = ok
+    results["resave_same_roles"] = payload if ok else payload
+    results["resave_same_roles_kept"] = sorted(
+        role for role in frappe.get_roles(EMPLOYEE) if role in set(rules.FEATURE_ROLES.values()))
+
     # 不能发平台角色，也不能发本站点没有的角色。
     for leftover in ("erp-pos-nope@example.com", "erp-pos-nope2@example.com"):
         drop_user(leftover)
     ok, err = as_user(OWNER, service.add_member, email="erp-pos-nope@example.com",
-                      full_name="Nope", roles=["System Manager"])
+                      full_name="Nope", roles=["System Manager"], password=LAB_PASSWORD)
     results["grant_system_manager_allowed"] = ok
     results["grant_system_manager_error"] = None if ok else err
 
     # 不存在的岗位（不是本站点建出来的角色）同样不能发；用真岗位名会随目录变化而失效，
     # 所以这里刻意用一个永远不会被建出来的名字。
     ok, err = as_user(OWNER, service.add_member, email="erp-pos-nope2@example.com",
-                      full_name="Nope", roles=["ERP Not A Job"])
+                      full_name="Nope", roles=["ERP Not A Job"], password=LAB_PASSWORD)
     results["grant_unpurchased_role_allowed"] = ok
     results["grant_unpurchased_role_error"] = None if ok else err
 
@@ -168,6 +179,8 @@ def main():
         "employee_team_error": "PermissionError",
         "employee_can_read_purchases": True,
         "employee_rows": 0,
+        "resave_same_roles_allowed": True,
+        "resave_same_roles_kept": ["ERP Purchase"],
         "member_enabled_after_disable": False,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()

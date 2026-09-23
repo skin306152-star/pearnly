@@ -6,6 +6,7 @@
 | --- | --- | --- |
 | 样板栈 | `stack.sh` | `ps` / `config --quiet` 用于检查；`up`、`down`、`restart` 会改变运行环境 |
 | 本地代码重载 | `dev-reload.sh` | 选择运行组；`--sites` 不会隔离同组服务重启，`--migrate` 会修改数据库 |
+| ERP 前端快速迭代 | `stocktake-preview.sh` | `up`/`down`/`reload`/`assets` 只动本任务的预览与验收 lane；`faithful` 会重建镜像并升级验收 lane |
 | 术语表校验 | `i18n-build.py --check` | 不写文件；不带 `--check` 会生成语言包 |
 | Frappe 文案检查 | `check-i18n.py --strict` | 静态检查，有发现则失败 |
 | 前端翻译键检查 | `check-frontend-i18n.py --strict` | 静态检查，不代替界面语言验收 |

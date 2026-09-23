@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><style>{{ print_style }}</style></head>
+<body><div class="print-format">
+<h2>{{ title | e }}</h2>
+<p>{{ company.get('company_name', '') | e }}<br>{{ company.get('tax_id', '') | e }}<br>{{ company.get('address', '') | e }}</p>
+<table class="table table-bordered">
+<tr><th>{{ _('ID') }}</th><td>{{ (doc.system_no or doc.name) | e }}</td><th>{{ _('Posting Date') }}</th><td>{{ doc.doc_date }}</td></tr>
+<tr><th>{{ _('Supplier') }}</th><td>{{ doc.supplier_name | e }}</td><th>{{ _('Supplier Invoice No') }}</th><td>{{ (doc.doc_no or '') | e }}</td></tr>
+<tr><th>{{ _('Tax ID') }}</th><td>{{ (doc.supplier_tax_id or '') | e }}</td><th>{{ _('Branch') }}</th><td>{{ (doc.supplier_branch_no or '') | e }} {{ (doc.supplier_branch_name or '') | e }}</td></tr>
+<tr><th>{{ _('Address') }}</th><td colspan="3">{{ (doc.supplier_address or '') | e }}</td></tr>
+</table>
+<table class="table table-bordered">
+<thead><tr><th>{{ _('Item Name') }}</th><th>{{ _('Quantity') }}</th><th>{{ _('Rate') }}</th><th>{{ _('Amount') }}</th><th>{{ _('Withholding Tax') }}</th></tr></thead>
+<tbody>{% for row in doc.lines %}<tr><td>{{ row.description | e }}</td><td>{{ row.get_formatted('qty') }}</td><td>{{ row.get_formatted('unit_price') }}</td><td>{{ row.get_formatted('line_total') }}</td><td>{{ row.get_formatted('wht_amount') }}</td></tr>{% endfor %}</tbody>
+</table>
+<table class="table table-bordered">
+{% for key, label in [('subtotal','Net Total'),('discount_total','Discount Amount'),('vat_amount','VAT'),('wht_amount','Withholding Tax'),('rounding','Rounding Adjustment'),('grand_total','Grand Total'),('net_payable','Amount Payable')] %}
+<tr><th>{{ _(label) }}</th><td>{{ doc.get_formatted(key) }} {{ doc.currency | e }}</td></tr>
+{% endfor %}</table>
+{% if doc.notes %}<p>{{ _('Remarks') }}: {{ doc.notes | e }}</p>{% endif %}
+<p>{{ _('Received By') }}: ____________________ &nbsp; {{ _('Date') }}: ____________________</p>
+</div></body></html>

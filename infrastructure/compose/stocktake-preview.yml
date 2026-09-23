@@ -1,0 +1,79 @@
+# 快速迭代预览层（本机专用）：与验收层**同一个 Site、同一个库、同一套认证、同一个拓扑**，
+# 差别只有两处，而这两处正是慢的原因：
+#   1. 镜像用本机原生的 arm64（同一份 frappe.Dockerfile 构建，Frappe 16.33.0 / ERPNext 16.34.1 /
+#      Python 3.14.7 与验收镜像完全一致），不是为了对齐目标机而跑的 linux/amd64 —— 那要过 QEMU，
+#      解释器与 pip 都慢好几倍；
+#   2. 应用源码是**挂载**进来的（只读），改完不用重建镜像（重建一次约 5 分钟）。
+#
+# 迭代回路（这才是快的原因）：
+#   改 JS/CSS  → scripts/stocktake-preview.sh assets（清站内资源缓存，约 2 秒）→ 刷新页面
+#   改 Python  → scripts/stocktake-preview.sh reload（重启预览 web，约 3 秒）
+#   改依赖 / 要出正式镜像 → scripts/stocktake-preview.sh faithful
+#
+# 两条 lane 并存，端口分家：
+#   127.0.0.1:8126 = 验收 lane（正式构建的不可变镜像，用于"和上线一样"的检查）
+#   127.0.0.1:8136 = 预览 lane（本层，日常迭代）
+#
+# 域名只有一个主人：内网里 `stocktake.localhost` 仍然挂在验收 frontend 上（网络别名原样不动），
+# 只是让它多听两个端口、把两条 lane 的 origin 各自回源 —— 见 stocktake-preview-ports.conf。
+# 这样两条 lane 并存不需要改别名，也不会出现"一个名字解析到两个 IP"的随机失败。
+#
+# 用法：见 scripts/stocktake-preview.sh（它固定带上本层，不用手敲 -f）。
+
+# 只挂内层包目录（与 04-dev-mounts.yml 同一个理由：挂整个 apps/<app> 会盖掉 .egg-info）。
+# web 跑 Python，frontend 从 /assets 读源码里的静态文件，所以两边都要。
+x-preview-volumes: &preview-volumes
+  - sites-erp:/home/frappe/frappe-bench/sites
+  - "../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro"
+  - "../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro"
+  - "../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro"
+  - "../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro"
+  - "../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro"
+
+services:
+  erp-web-preview:
+    image: ${PEARNLY_PREVIEW_IMAGE:?本机原生镜像}
+    platform: linux/arm64
+    restart: unless-stopped
+    init: true
+    mem_limit: 768m
+    # 与生产 erp-web 同一条命令：静态资源交给前置 nginx，不让 gunicorn 兼职。
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites,
+      --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread,
+      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, frappe.app:application]
+    environment:
+      DB_HOST: mariadb
+      REDIS_CACHE: redis://redis-cache:6379
+      REDIS_QUEUE: redis://redis-queue:6379
+      SOCKETIO_PORT: '9000'
+      GUNICORN_WORKERS: '2'
+      GUNICORN_THREADS: '4'
+    volumes: *preview-volumes
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis-cache: {condition: service_healthy}
+      redis-queue: {condition: service_healthy}
+    networks: [runtime, preview]
+
+  erp-frontend-preview:
+    image: ${PEARNLY_PREVIEW_IMAGE:?本机原生镜像}
+    platform: linux/arm64
+    restart: unless-stopped
+    mem_limit: 128m
+    entrypoint: [nginx-entrypoint.sh]
+    environment:
+      BACKEND: erp-web-preview:8000
+      SOCKETIO: erp-socketio:9000
+      FRAPPE_SITE_NAME_HEADER: '$$host'
+    volumes: *preview-volumes
+    ports: !override ['127.0.0.1:8136:8080']
+    networks: [runtime, preview]
+    depends_on: [erp-web-preview, erp-socketio]
+
+  # 域名主人（验收 frontend）多挂一份端口 conf：内网按 origin 回源时，8126/8136 分别
+  # 打到验收 web 与预览 web。网络别名保持原样，一个字都不改。
+  erp-frontend:
+    volumes:
+      # 相对路径按**第一个 -f 文件所在目录**（infrastructure/production/）解析，不是本文件，
+      # 所以这里要绕一层 compose/。写错不会报错，只会挂上一个不存在的路径。
+      - ./../compose/stocktake-preview-ports.conf:/etc/nginx/conf.d/local-ports.conf:ro

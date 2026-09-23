@@ -31,6 +31,21 @@ def require(capability: str, user=None) -> None:
         frappe.throw(_("Not signed in"), frappe.AuthenticationError)
     if not has(capability, user):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
+    _require_pos_for_cashier(capability, user)
+
+
+def _require_pos_for_cashier(capability: str, user=None) -> None:
+    """收银台是**公司级**开关（用户 2026-09-24："不勾选就不显示 pos、记录、交接班"）。
+
+    关掉之后，这家公司的收银**业务**一律不放行 —— 判据在 `masters.company.require_pos`，
+    这里挑的是"每一个收银入口都会经过的那一道"（收银域的服务端入口都先 `guard.require("cashier.*")`），
+    所以不用挨个接口去加。惰性 import：`masters.company` 反过来依赖本模块。
+    """
+    if not str(capability or "").startswith("cashier."):
+        return
+    from pearnly_erp_portal.masters import company as companies
+
+    companies.require_pos(user=user)
 
 
 def scope_filters(user=None) -> dict:

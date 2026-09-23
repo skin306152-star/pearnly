@@ -5,6 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "receipt_no",
+  "customer",
   "sold_at",
   "sale_type",
   "status",
@@ -30,6 +31,15 @@
   "note"
  ],
  "fields": [
+  {
+   "fieldname": "customer",
+   "fieldtype": "Link",
+   "label": "Customer",
+   "options": "ERP Customer",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "description": "Who bought this receipt; empty means a walk-in customer"
+  },
   {
    "fieldname": "receipt_no",
    "fieldtype": "Data",

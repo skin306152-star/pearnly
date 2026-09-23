@@ -1,11 +1,21 @@
+Booking ID,Booking ID
+Booking Number,Booking Number
+DMS,DMS
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
+Enter the DMS password.,Enter the DMS password.
+Last Error,Last Error
+Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
+Next Attempt,Next Attempt
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
+Reload List,Reload List
+Submission Evidence,Submission Evidence
+Submission Nonce,Submission Nonce
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
-dms.account.hint,Update the DMS credentials stored in Pearnly. This does not change your password at DMS.
-dms.account.invalid,Enter a valid DMS username and password.
+dms.account.invalid,Enter the DMS password.
 dms.account.open,Open DMS
 dms.account.password,DMS password
 dms.account.portal,Open DMS
@@ -131,6 +141,7 @@ dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details ar
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
+dms.err.ERR_DMS_UNREACHABLE,Cannot reach the third-party DMS system. Please contact your administrator.
 dms.err.ERR_KMS_MISSING,Server KMS key is not configured
 dms.err.ERR_NO_CREDS,Username and password required
 dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency

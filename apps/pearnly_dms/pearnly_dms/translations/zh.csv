@@ -1,11 +1,21 @@
+Booking ID,订车编号
+Booking Number,订车单号
+DMS,DMS
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）
+Enter the DMS password.,请填写 DMS 密码。
+Last Error,上次错误
+Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
+Next Attempt,下次尝试
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
+Reload List,刷新列表
+Submission Evidence,提交凭据
+Submission Nonce,提交随机码
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
-dms.account.hint,更新 Pearnly 保存的 DMS 登录凭据，不会修改 DMS 系统的密码。
-dms.account.invalid,请填写有效的 DMS 用户名和密码。
+dms.account.invalid,请填写 DMS 密码。
 dms.account.open,打开 DMS
 dms.account.password,DMS 密码
 dms.account.portal,进入 DMS
@@ -131,6 +141,7 @@ dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。
 dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
 dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
+dms.err.ERR_DMS_UNREACHABLE,连不上第三方 DMS 系统，请联系管理员
 dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
 dms.err.ERR_NO_CREDS,请输入用户名和密码
 dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"

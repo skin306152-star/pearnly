@@ -70,20 +70,6 @@ def _state(row) -> str:
                   else "stock.count.rowMatch")
 
 
-def _costs(items) -> dict:
-    if not rules.cost_visible(guard.current_roles()):
-        return {}
-    products = [row["product"] for row in items]
-    if not products:
-        return {}
-    # `default_cost` 存不下 NULL（库里 0 与"从未设过"是同一个数），所以看 `cost_set`：
-    # 没设过成本的商品，差异金额**留空**，不写 0（0 会读成"这批货不值钱"）。
-    return {row["name"]: (row["default_cost"] if row["cost_set"] else None)
-            for row in frappe.get_list(
-                PRODUCT, filters={"name": ["in", products]},
-                fields=["name", "default_cost", "cost_set"], limit_page_length=0)}
-
-
 def _rows(name: str, only: str) -> list:
     items = counts.list_items(count=name, limit=0)
     if only == "counted":
@@ -94,12 +80,10 @@ def _rows(name: str, only: str) -> list:
         items = [row for row in items if row["counted"] and flt(row["difference"], 3)]
     warehouses = {row["name"]: row["warehouse_name"] for row in frappe.get_list(
         "ERP Warehouse", fields=["name", "warehouse_name"], limit_page_length=0)}
-    costs = _costs(items)
     out = []
     for row in items:
         counted = bool(row["counted"])
         difference = flt(row["difference"], 3) if counted else None
-        cost = costs.get(row["product"])
         out.append({
             "product_name": row["product_name"], "code": row["code"],
             "barcode": row["barcode"], "unit": row["unit"],
@@ -109,8 +93,7 @@ def _rows(name: str, only: str) -> list:
             "counted_qty": flt(row["counted_qty"], 3) if counted else None,
             "difference": difference,
             # 账面/实盘是数量，金额要乘成本 —— 没成本（或没权限）时留空，不是 0。
-            "difference_value": (flt(difference * cost, 2)
-                                 if difference is not None and cost is not None else None),
+            "difference_value": row.get("difference_value"),
             "counted": 1 if counted else 0,
             "state": _state(row),
             "last_counted_by": row["last_counted_by"],

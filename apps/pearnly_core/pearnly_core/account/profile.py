@@ -1,9 +1,13 @@
-"""Keep cloud account passwords at the identity provider, never the local User store."""
+"""Keep cloud account passwords at the identity provider, never the local User store.
+
+用户名与邮箱由后台发号、绑死这个租户（用户 2026-09-23："可以用用户名登录，但是不能
+修改…后台管理发号后，用户名和邮箱是绑死这个租户的，唯一关系，用户只可以自己改密码"）。
+所以这里只有两道守卫：本地密码不收（云站点走身份服务），邮箱不能改；**没有"用户自己
+改名"那条路**（`first_name` 在 `account/layout.py` 里设成 DocType 级只读）。
+"""
 import frappe
 from frappe import _
 import re
-
-from pearnly_core.account import oidc_session
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9._-]{3,30}$")
 
@@ -24,33 +28,6 @@ def prepare_profile(doc, method=None):
         return
     if doc.email != doc.name:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
-    if not getattr(frappe.flags, "pearnly_profile_synced", False) and doc.has_value_changed("first_name"):
-        doc.first_name = (doc.first_name or "").strip()
-        if not USERNAME_RE.fullmatch(doc.first_name):
-            frappe.throw(_("account.usernameFormat"))
-        # Fail before updating the identity service if a legacy local username collides.
-        if frappe.db.exists("User", {"username": doc.first_name, "name": ["!=", doc.name]}):
-            frappe.throw(_("account.usernameTaken"))
-        doc.username = doc.first_name
-        doc.middle_name = doc.last_name = ""
-
-
-def sync_username(doc, method=None):
-    if (not product_identity() or doc.is_new() or doc.name != frappe.session.user
-            or getattr(frappe.flags, "pearnly_profile_synced", False)
-            or not doc.has_value_changed("first_name")):
-        return
-    from pearnly_core.account.preferences import LANGUAGES
-    previous = doc.get_doc_before_save()
-    locale = LANGUAGES.get(doc.language) if doc.has_value_changed("language") else None
-    if not oidc_session.update_profile(username=doc.first_name,
-            expected_username=previous.first_name, email=doc.name, locale=locale):
-        frappe.throw(_("account.signInToRename"), frappe.AuthenticationError)
-    # The language hook follows this hook. Both changes used one native account update.
-    doc.flags.pearnly_profile_locale_synced = bool(locale)
-    if locale:
-        frappe.defaults.set_user_default("pearnly_pending_locale", None)
-        frappe.local.cookie_manager.set_cookie("pearnly_locale", locale)
 
 
 def apply_login_username(user, claims):
@@ -76,12 +53,19 @@ def apply_login_username(user, claims):
 
 
 def load_details(doc, method=None):
-    if not product_identity() or doc.name != frappe.session.user:
+    # 这一行只给"本站是哪家公司、用哪个域名进来的"，页面上是只读的两格。
+    # 原先要求 `pearnly_native_account`（那是**身份服务**那条路的开关，管的是本地密码），
+    # 于是没有身份服务的站点上这两格是空的 —— 而框架有一条官方规则：**只读且没有值的字段
+    # 整行藏起来**（`hide_empty_read_only_fields`），所以看起来"少了一行"（用户 2026-09-23：
+    # "你 erp 这边，少一个域名显示"）。这里改成：只要是产品站点、看的是自己的资料，就给值；
+    # 域名用框架自己的 `get_url()`（官方取站点地址的那个函数，本地实验室站点同样有值）。
+    if not frappe.conf.get("pearnly_product") or doc.name != frappe.session.user:
         return
+    from frappe.utils import get_url
     # Native User permits self-reading without granting the User DocType role.
     # Its virtual fields are filtered by field permissions; pass read-only site
     # context through the native onload channel instead of widening User access.
     doc.set_onload("pearnly_account", {
         "company": frappe.conf.get("pearnly_company_name") or frappe.conf.get("pearnly_workspace") or "",
-        "domain": frappe.conf.get("host_name") or "",
+        "domain": get_url() or "",
     })

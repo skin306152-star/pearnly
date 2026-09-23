@@ -6,20 +6,33 @@ let ready;
 const nativeLogout = () => 'native';
 const frappe = {
   provide() {}, re_route: {}, pearnly: {}, app: {}, set_route(route){frappe.route = route;},
-  ui: {ThemeSwitcher: class {}, get_current_theme:()=>"light", SidebarHeader: class {
+  // 共享层现在把多级面包屑挂到原生 `frappe.breadcrumbs` 上（商品/入库/出库/收发存/盘点
+  // 共用一份），所以这个假环境得给出那个对象。
+  breadcrumbs: { set_custom_breadcrumbs() {} },
+  // 共享层会替换 `frappe.ui.Sidebar`（产品站点只认自己那份侧栏）—— 真 Desk 里这个
+  // 类一定在，假环境里要给出一个，否则 `class ProductSidebar extends NativeSidebar`
+  // 直接抛 "Class extends value undefined"（2026-09-23 之前这支测试就是这么红的）。
+  ui: {ThemeSwitcher: class {}, get_current_theme:()=>"light", Sidebar: class {}, SidebarHeader: class {
     get_display_siblings(){return [{name:'toggle-theme'},{name:'toggle-full-width'},{name:'toggle-sidebar'}];}
     populate_dropdown_menu(){this.rendered_items = this.dropdown_items.slice();}
   }},
-  boot: {pearnly_product:'dms', desk_settings:{search_bar:1,notifications:1,form_navigation_buttons:1}, navbar_settings:{settings_dropdown:[]},
+  // `frappe.boot.user` 在真 Desk 里一定有（个人信息页的静音开关会回写它的 `mute_sounds`）。
+  boot: {pearnly_product:'dms', user:{mute_sounds:0},
+    desk_settings:{search_bar:1,notifications:1,form_navigation_buttons:1}, navbar_settings:{settings_dropdown:[]},
     pearnly_pages:['pearnly-home','pearnly-connect'],
     pearnly_account_actions:[{name:'language',label:'Language',action:'language'}]},
   Application: class { constructor() { ready(); } logout() { return nativeLogout(); } },
 };
 const opened = [];
+// jQuery 桩：`$(x).on(event, handler)` 可以注册**多组**（`product.js` 除了挂 `app_ready`，
+// 还挂了多行框自增长的委托事件），所以按事件名收进一张表；`app_ready` 那一条照旧能取到。
+const handlers = {};
 const context = {frappe, window:{open:(url)=>opened.push(url)}, document:{body:{classList:{add(){}}}},
-  $: () => ({on(event, handler) { assert.equal(event,'app_ready'); ready=handler; }}),
+  $: () => ({on(event, handler) { (handlers[event] = handlers[event] || []).push(handler); }}),
   __: text=>text};
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/product.js','utf8'),context);
+assert.equal((handlers.app_ready || []).length, 1, '构造期仍然挂上 app_ready');
+ready = handlers.app_ready[0];
 frappe.app = new frappe.Application();
 assert.match(frappe.app.logout.toString(), /pearnly_core.identity.sign_out/);
 assert.equal(frappe.boot.navbar_settings.settings_dropdown.length,0,'Account language is only in native User profile');
@@ -59,7 +72,8 @@ const toggled = {};
 const properties = [];
 const refreshed = [];
 const profileFrappe = {
-  boot: {pearnly_product:'dms', pearnly_native_account:true, pearnly_sidebar:'DMS'},
+  // `user.mute_sounds` 是框架 `play_sound` 的判据；个人信息页保存后会当场回写它。
+  boot: {pearnly_product:'dms', user:{mute_sounds:0}, pearnly_native_account:true, pearnly_sidebar:'DMS'},
   session: {user:'operator@example.test'},
   set_route() {}, pearnly: {add_refresh() {}},
   app: {sidebar: {sidebar_title:'DMS', setup() {}}},
@@ -68,17 +82,22 @@ const profileFrappe = {
 vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/user.js','utf8'),
   {frappe: profileFrappe, window: {location: {assign() {}}}, __: text => text});
 const profileForm = {
-  doc: {name:'operator@example.test', __onload:{pearnly_account:{company:'Acme Motors', domain:'https://testdms.pearnly.com'}}},
+  doc: {name:'operator@example.test', mute_sounds:1,
+    __onload:{pearnly_account:{company:'Acme Motors', domain:'https://testdms.pearnly.com'}}},
   meta: {fields: [
     {fieldtype:'Section Break', fieldname:'section_break_3'},
     {fieldtype:'Data', fieldname:'email'},
     {fieldtype:'Data', fieldname:'first_name'},
+    {fieldtype:'Data', fieldname:'pearnly_company'},
+    {fieldtype:'Data', fieldname:'pearnly_domain'},
     {fieldtype:'Data', fieldname:'middle_name'},
     {fieldtype:'Data', fieldname:'last_name'},
     {fieldtype:'Column Break', fieldname:'column_break_11'},
     {fieldtype:'Data', fieldname:'username'},
     {fieldtype:'Link', fieldname:'language'},
     {fieldtype:'Autocomplete', fieldname:'time_zone'},
+    {fieldtype:'Check', fieldname:'mute_sounds'},
+    {fieldtype:'Button', fieldname:'pearnly_change_password'},
     {fieldtype:'Section Break', fieldname:'sb1'},
     {fieldtype:'Table', fieldname:'roles'},
     {fieldtype:'Tab Break', fieldname:'settings_tab'},
@@ -94,6 +113,8 @@ const profileForm = {
 };
 profileHandlers.refresh(profileForm);
 assert.equal(profileForm.doc.pearnly_company,'Acme Motors');
+assert.equal(profileFrappe.boot.user.mute_sounds, 1,
+  'saving the mute switch takes effect right away, without a full page load');
 assert.deepEqual(properties, [['email','read_only',1]]);
 for (const name of ['section_break_3','column_break_11','email','first_name','language','time_zone','pearnly_change_password']) {
   assert.equal(toggled[name], true, `${name} must stay visible`);
@@ -103,3 +124,24 @@ for (const name of ['middle_name','last_name','username','roles','sb1','settings
 }
 assert.deepEqual(refreshed, ['refresh_fields'], 'Layout is refreshed so first paint matches a later form refresh');
 console.log('PASS profile keeps visible fields with their real tab/section/column ancestors');
+
+// A Dialog receives a new set of value/label pairs after each product lookup.
+// Native Autocomplete refreshes data at creation, unlike native Select's refresh.
+class NativeAutocomplete {
+  set_options() { this._data = this.df.options; }
+  set_formatted_input(value) { this.display = this._data?.find(row => row.value === value)?.label || value; }
+  validate(value) { return this._data.some(row => row.value === value) ? value : ''; }
+}
+const selectFrappe = {boot:{pearnly_product:'erp'},ui:{form:{ControlAutocomplete:NativeAutocomplete}}};
+vm.runInNewContext(fs.readFileSync('apps/pearnly_core/pearnly_core/public/desk/select.js','utf8'), {frappe:selectFrappe});
+const choice = new selectFrappe.ui.form.ControlSelect();
+choice.df = {options:[{value:'row-a',label:'仓库 / A架'}]};
+choice.awesomplete = {};
+choice.set_formatted_input('row-a');
+assert.equal(choice.display,'仓库 / A架');
+choice.df.options = [{value:'row-b',label:'仓库 / B架'}];
+choice.set_formatted_input('row-b');
+assert.equal(choice.display,'仓库 / B架');
+assert.equal(choice.validate('row-b'),'row-b');
+assert.equal(choice.validate('row-a'),'');
+console.log('PASS dynamic native Select refreshes labels and rejects the previous product choice');

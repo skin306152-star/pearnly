@@ -1,11 +1,21 @@
+Booking ID,รหัสการจอง
+Booking Number,เลขที่การจอง
+DMS,DMS
+DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)
+Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
+Last Error,ข้อผิดพลาดล่าสุด
+Multiple DMS connections exist for this operator,ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ
+Next Attempt,ครั้งถัดไปที่ลอง
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
+Reload List,โหลดรายการใหม่
+Submission Evidence,หลักฐานการส่ง
+Submission Nonce,nonce การส่ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
 The saved credentials cannot be read back; check the site encryption key,อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์
 dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
 dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
-dms.account.hint,อัปเดตข้อมูลเข้าสู่ DMS ที่บันทึกใน Pearnly ไม่ได้เปลี่ยนรหัสผ่านที่ DMS
-dms.account.invalid,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน DMS ให้ถูกต้อง
+dms.account.invalid,กรุณากรอกรหัสผ่าน DMS
 dms.account.open,เปิด DMS
 dms.account.password,รหัสผ่าน DMS
 dms.account.portal,เข้าสู่ระบบ DMS
@@ -21,6 +31,7 @@ dms.card.BTN_EDIT,แก้ไข
 dms.card.BTN_KEEP,ใช้ข้อมูลเดิม
 dms.card.BTN_NEW_CUSTOMER,ลูกค้าใหม่
 dms.card.BTN_RESTART,เริ่มใหม่
+dms.card.BTN_RETRY,ลองใหม่
 dms.card.BTN_RETRY_BOOKING,ลองสร้างใบจองอีกครั้ง
 dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
 dms.card.BTN_SUBMIT_APPROVAL,ส่งขออนุมัติ
@@ -397,6 +408,7 @@ dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจ
 dms.err.ERR_DMS_QUERY_SCOPE,บัญชี DMS นี้ยังไม่มีสิทธิ์ดูอันดับยอดขาย กรุณาติดต่อผู้ดูแล DMS
 dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
 dms.err.ERR_DMS_TEMPLATE,ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่
+dms.err.ERR_DMS_UNREACHABLE,เชื่อมต่อระบบ DMS ของบุคคลที่สามไม่ได้ กรุณาติดต่อผู้ดูแลระบบ
 dms.err.ERR_KMS_MISSING,เซิร์ฟเวอร์ยังไม่ตั้งค่าคีย์เข้ารหัส
 dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน
 dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright

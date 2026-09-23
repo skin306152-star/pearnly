@@ -97,7 +97,8 @@ def main():
         if frappe.db.exists("DocType", do))
 
     # 仓库：没有仓库时自动建默认仓（否则入出库无处可落）。
-    warehouse = warehouses.ensure_default()
+    # 本仓不再有"默认仓"这个概念（2026-09-24 删掉）：实验站上**显式**取/建一个属于本脚本的仓。
+    warehouse = warehouses.resolve("LAB-POS", create=True)
     results["default_warehouse"] = bool(warehouse)
 
     # 干净起点：本脚本的商品、流水、结存、期初。

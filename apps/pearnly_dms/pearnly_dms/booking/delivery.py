@@ -93,7 +93,8 @@ def _repair_files(doc, marker):
         return {"ok": not failures, "attached": len(expected & names) + result.get("attached", 0),
                 "failed": failures}
 
-    result = run_logged_in(endpoint, repair)
+    # 后台任务（派进 long 队列），没人等着看结果 → 预算走共用口径的后台那一档（90 秒）。
+    result = run_logged_in(endpoint, repair, background=True)
     marker["result"].update(attach_ok=bool(result.get("ok")), attached=result.get("attached", 0),
                             attach_failed=result.get("failed") or [])
     return bool(result.get("ok"))

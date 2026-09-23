@@ -74,23 +74,6 @@ def normalize_buyer(raw: dict) -> dict:
     }
 
 
-def missing_for_tax_invoice(customer: dict) -> list[str]:
-    """开税票时买方还缺什么。由开票侧调用，这里只回答"缺哪些字段"。"""
-    missing = []
-    if customer.get("party_type") == "anonymous":
-        return ["party_type"]
-    if not customer.get("customer_name"):
-        missing.append("customer_name")
-    if not customer.get("address"):
-        missing.append("address")
-    if customer.get("party_type") == "company":
-        if not customer.get("tax_id"):
-            missing.append("tax_id")
-        if customer.get("branch_type") == "branch" and not customer.get("branch_no"):
-            missing.append("branch_no")
-    return missing
-
-
 def fiscal_month_ok(value) -> bool:
     try:
         return 1 <= int(value) <= 12

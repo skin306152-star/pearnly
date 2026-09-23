@@ -2,7 +2,9 @@
 
 Real Site path with synthetic data: default company auto-created and used by the
 profile page, editable profile fields with bounds, customer normalisation by buyer
-type, deactivation, invoice requirements, per-job access and tenant isolation.
+type, deactivation, per-job access, the Thai Revenue Department tax-id lookup
+(cache round trip on a captured real response, offline failure, who may call it)
+and tenant isolation.
 """
 import json
 import os
@@ -21,7 +23,12 @@ OWNER = "erp-pos-owner@example.com"
 SHOP = "erp-pos-products@example.com"
 CASHIER = "erp-pos-cashier-shift@example.com"
 SALES = "erp-pos-sales@example.com"
+PURCHASE = "erp-pos-purchase-job@example.com"
 OUTSIDER = "erp-pos-outsider@example.com"
+
+# 泰国税务局（RD）查询用的税号：一个**真实**的（夹具就是它的实时响应），一个显然不存在的。
+TAX_ID = "0105546015062"
+TAX_ID_ABSENT = "9999999999999"
 
 
 def connect(site=SITE):
@@ -79,6 +86,7 @@ def main():
     ensure_member(SHOP, ["ERP Products"])
     ensure_member(CASHIER, ["ERP Cashier"])
     ensure_member(SALES, ["ERP Sales"])
+    ensure_member(PURCHASE, ["ERP Purchase"])
     ensure_member(OUTSIDER, [])
 
     results = {}
@@ -144,12 +152,6 @@ def main():
         "ERP Customer", walkin_name, ["party_type", "tax_id", "branch_type"],
         as_dict=True) if ok else None
 
-    # 开票前检查：公司买方齐全 → 无缺；个人缺税号但不要求；匿名直接不合格。
-    ok, req_co = as_user(SALES, customers.required_for_invoice, buyer_name)
-    results["requirements_company"] = req_co
-    ok, req_anon = as_user(SALES, customers.required_for_invoice, walkin_name)
-    results["requirements_anonymous"] = req_anon
-
     # 停用后默认列表看不到，但记录仍在。
     ok, off = as_user(SALES, customers.set_active, buyer_name, 0)
     results["deactivate_customer"] = ok
@@ -183,6 +185,47 @@ def main():
     ok, err = as_user(OUTSIDER, company.get_profile)
     results["outsider_can_read_profile"] = ok
 
+    # 泰国税务局（RD）税号查询。解析口径的离线断言在 `tests/test_erp_tax_lookup.py`；
+    # 这里验的是**站点里那条链路**：真实响应 → 缓存进 `ERP Tax Lookup Cache` → 第二次
+    # 直接命中缓存不再打外部接口；接口连不上时只回原因、不抛异常（本实验室容器就是
+    # 连不上那种）；以及谁有权查。夹具是 2026-09-23 从 `rdws.rd.go.th` 抓下来的。
+    from unittest.mock import patch
+
+    from pearnly_erp_portal.masters import api as masters_api
+
+    fixture = (Path(__file__).resolve().parents[1] / "tests/fixtures"
+               / f"rd_vat_{TAX_ID}.xml").read_text(encoding="utf-8")
+    cache_key = f"TAX-{TAX_ID}-0-vat"
+    results["tax_cache_doctype"] = bool(frappe.db.exists("DocType", "ERP Tax Lookup Cache"))
+
+    ok, denied = as_user(CASHIER, masters_api.api_lookup_tax, tax_id=TAX_ID)
+    results["tax_lookup_denied_for_cashier"] = not ok and "PermissionError" in str(denied)
+    ok, denied = as_user(OUTSIDER, masters_api.api_lookup_tax, tax_id=TAX_ID)
+    results["tax_lookup_denied_for_outsider"] = not ok and "PermissionError" in str(denied)
+    ok, bad = as_user(SALES, masters_api.api_lookup_tax, tax_id="123")
+    results["tax_lookup_bad_format"] = bad.get("error") if isinstance(bad, dict) else bad
+
+    frappe.db.delete("ERP Tax Lookup Cache", {"tax_id": ["in", [TAX_ID, TAX_ID_ABSENT]]})
+    frappe.db.commit()
+    with patch("pearnly_erp_portal.masters.rd._soap_post", return_value=fixture) as soap:
+        ok_sales, first = as_user(SALES, masters_api.api_lookup_tax, tax_id=TAX_ID)
+        ok_purchase, _ = as_user(PURCHASE, masters_api.api_lookup_tax, tax_id=TAX_ID)
+        first_data = first.get("data", {}) if isinstance(first, dict) else {}
+        results["tax_lookup_allowed_for_sales"] = ok_sales and bool(first.get("ok"))
+        results["tax_lookup_allowed_for_purchase"] = ok_purchase
+        results["tax_lookup_name"] = first_data.get("name")
+        results["tax_lookup_address"] = first_data.get("address")
+        results["tax_lookup_first_is_fresh"] = first.get("cached") is False
+        ok, second = as_user(SALES, masters_api.api_lookup_tax, tax_id=TAX_ID)
+        results["tax_lookup_cached_second_time"] = bool(second.get("cached")) if ok else second
+        results["tax_lookup_http_calls"] = soap.call_count
+    results["tax_cache_rows"] = frappe.db.count("ERP Tax Lookup Cache", {"tax_id": TAX_ID})
+
+    # 外部接口连不上（或税局真的没这家）时：只回原因、不抛异常，录入照常能存。
+    ok, offline = as_user(SALES, masters_api.api_lookup_tax, tax_id=TAX_ID_ABSENT)
+    results["tax_lookup_offline_raised"] = not ok
+    results["tax_lookup_offline_error"] = offline.get("error") if isinstance(offline, dict) else offline
+
     # 岗位限制也要落到**表上**，不能只落在服务层：直连 REST 的路径不经过服务层的
     # guard，如果表上给了写权限，员工绕开页面就能改。
     def table_perms(doctype, role):
@@ -202,8 +245,26 @@ def main():
 
     frappe.destroy()
     connect(OTHER_SITE)
-    results["other_site_customers"] = frappe.db.count("ERP Customer")
-    results["other_site_companies"] = frappe.db.count("ERP Company")
+    # 隔离要验的是"**本轮的夹具**没有漏到另一个站点"，不是"另一个站点必须是空的"：
+    # 演示站上留着给用户看的样本（客户/公司），空站断言会被那些样本误伤。
+    # 本轮的夹具是唯一命名的（Lab Buyer Co / Lab Company A/B），照名字查就行。
+    results["other_site_leaked_customers"] = frappe.db.count(
+        "ERP Customer", {"customer_name": ["like", "Lab Buyer%"]})
+    results["other_site_leaked_companies"] = frappe.db.count(
+        "ERP Company", {"company_name": ["like", "Lab Company%"]})
+    # 税号查询的缓存也只落在查它的那个站点。查完就删掉：那是 7 天可再生的缓存，
+    # 不是要留着给用户看的样本。
+    results["other_site_tax_cache_rows"] = frappe.db.count(
+        "ERP Tax Lookup Cache", {"tax_id": ["in", [TAX_ID, TAX_ID_ABSENT]]})
+    frappe.destroy()
+    connect(SITE)
+    frappe.set_user("Administrator")
+    results["tax_cache_rows_cleaned"] = frappe.db.count(
+        "ERP Tax Lookup Cache", {"tax_id": ["in", [TAX_ID, TAX_ID_ABSENT]]})
+    frappe.db.delete("ERP Tax Lookup Cache", {"tax_id": ["in", [TAX_ID, TAX_ID_ABSENT]]})
+    frappe.db.commit()
+    results["tax_cache_rows_left"] = frappe.db.count(
+        "ERP Tax Lookup Cache", {"tax_id": ["in", [TAX_ID, TAX_ID_ABSENT]]})
 
     expected = {
         "default_company": True,
@@ -227,8 +288,23 @@ def main():
         "cashier_can_write_profile": False,
         "outsider_can_read_customers": False,
         "outsider_can_read_profile": False,
-        "other_site_customers": 0,
-        "other_site_companies": 0,
+        # 税号查询：采购/销售岗位能查，收银与无岗位不能；第二次命中缓存、只打一次外部接口。
+        "tax_cache_doctype": True,
+        "tax_lookup_denied_for_cashier": True,
+        "tax_lookup_denied_for_outsider": True,
+        "tax_lookup_bad_format": "invalid_format",
+        "tax_lookup_allowed_for_sales": True,
+        "tax_lookup_allowed_for_purchase": True,
+        "tax_lookup_first_is_fresh": True,
+        "tax_lookup_cached_second_time": True,
+        "tax_lookup_http_calls": 1,
+        "tax_cache_rows": 1,
+        "tax_lookup_offline_raised": False,
+        # 另一站点不许出现本轮的夹具（不要求它是空站：演示站留着用户看的样本）。
+        "other_site_leaked_customers": 0,
+        "other_site_leaked_companies": 0,
+        "other_site_tax_cache_rows": 0,
+        "tax_cache_rows_left": 0,
     }
     problems = {k: {"expected": v, "actual": results.get(k)} for k, v in expected.items()
                 if results.get(k) != v}
@@ -246,15 +322,16 @@ def main():
     company_count = results.get("company_count")
     if not isinstance(company_count, int) or company_count < 2:
         problems["company_count"] = company_count
-    requirements_company = results.get("requirements_company")
-    if not isinstance(requirements_company, dict) or requirements_company.get("missing"):
-        problems["company_requirements"] = requirements_company
-    requirements_anonymous = results.get("requirements_anonymous")
-    if not isinstance(requirements_anonymous, dict) \
-            or requirements_anonymous.get("missing") != ["party_type"]:
-        problems["anonymous_requirements"] = requirements_anonymous
     if results.get("master_doctypes") != ["ERP Company", "ERP Customer"]:
         problems["master_doctypes"] = results.get("master_doctypes")
+    # 回填的抬头与地址要跟税局的响应一致：旧项目那套标签名在这条真实响应上会丢省和区。
+    if results.get("tax_lookup_name") != "บริษัท ซินเซียร์ไอซ์ จำกัด":
+        problems["tax_lookup_name"] = results.get("tax_lookup_name")
+    if "กรุงเทพมหานคร 10510" not in str(results.get("tax_lookup_address") or ""):
+        problems["tax_lookup_address"] = results.get("tax_lookup_address")
+    if results.get("tax_lookup_offline_error") not in (
+            "invalid_format", "not_found", "not_vat_registered", "rd_unreachable", "parse_error"):
+        problems["tax_lookup_offline_error"] = results.get("tax_lookup_offline_error")
 
     company_perms = results.get("company_perms") or {}
     if not (company_perms.get("ERP Admin") or {}).get("write"):

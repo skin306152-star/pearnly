@@ -3,7 +3,7 @@ name = "pearnly_erp_portal"
 authors = [
     { name = "Pearnly", email = "skin@pearnly.local"}
 ]
-description = "ERP 门户产品：商品与库存、采购、销售、收发存"
+description = "ERP 门户产品：物料与库存、采购、销售、收发存"
 requires-python = ">=3.14"
 readme = "README.md"
 dynamic = ["version"]

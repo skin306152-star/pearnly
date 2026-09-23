@@ -9,7 +9,7 @@ Stock Count	库存盘点	ตรวจนับสต็อก	棚卸
 Collaboration Boards (WeKan)	协作看板（WeKan）	กระดานทำงานร่วม (WeKan)	コラボボード（WeKan）
 Companion	小助手（Companion）	ผู้ช่วย (Companion)	コンパニオン
 Express Push Guide	Express 推送手册	คู่มือส่ง Express	Express プッシュガイド
-Products	商品	สินค้า	商品
+Products	物料	สินค้า	商品
 Stock In / Out	库存（入库/出库）	สต็อก (รับเข้า/จ่ายออก)	在庫（入出庫）
 Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表
 Purchasing (Records / Suppliers / Settings)	采购（记录/供应商/设置）	การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)	購買（記録/仕入先/設定）
@@ -62,7 +62,7 @@ Count tasks and variance records	盘点任务与差异记录	งานตรว�
 A board instance is created only when this is on	启用才创建看板实例，不启用不占资源	สร้างกระดานเมื่อเปิดใช้งานเท่านั้น	有効にした時だけボードを作成します
 Windows app on the merchant's accounting PC: installer, pairing, outbound pull	装在商家会计电脑上的 Windows 程序，负责安装包、配对、出站拉取任务	โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก	加盟店の経理PCに入れるWindowsアプリ。インストーラー、ペアリング、外向き取得
 Install, pair, upgrade and uninstall guide for Companion	小助手的安装、配对、升级与卸载说明	คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย	コンパニオンのインストール、ペアリング、更新、アンインストール手順
-Product master data	商品主数据	ข้อมูลหลักของสินค้า	商品マスタ
+Product master data	物料主数据	ข้อมูลหลักของสินค้า	商品マスタ
 Warehouses, stock-in and stock-out documents	仓库、入库与出库单据	คลังสินค้า เอกสารรับเข้าและจ่ายออก	倉庫、入庫・出庫伝票
 Stock in/out summary (kept item, see the ERP manifest)	库存收发存汇总（保留项，见 ERP 清单）	สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)	受払在庫の集計（維持項目。ERPマニフェスト参照）
 Purchase records, suppliers and purchasing settings	采购记录、供应商与采购设置	บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ	購買記録、仕入先、購買設定
@@ -195,7 +195,7 @@ Net Amount	不含税金额	ยอดก่อนภาษี	税抜金額
 VAT Amount	税额	ภาษีมูลค่าเพิ่ม	税額
 Grand Total	价税合计	ยอดรวม	税込合計
 Currency	币种	สกุลเงิน	通貨
-Expense / Item Category	费用/商品类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
+Expense / Item Category	费用/物料类别	หมวดค่าใช้จ่าย/สินค้า	費用・商品カテゴリ
 Source Attachment	原始附件	ไฟล์แนบต้นฉบับ	元の添付ファイル
 Push Channel	推送渠道	ช่องทางส่ง	送信チャネル
 companion = pulled outbound by Companion on the local machine, then stored here	companion = 由小助手在本机出站拉取后落库	companion = ผู้ช่วยดึงข้อมูลขาออกบนเครื่องแล้วบันทึกที่นี่	companion = ローカルのコンパニオンが出站取得してから取り込み
@@ -274,8 +274,8 @@ The test for a duplicate upload of the same document	同一张票重复上传时
 Line No	行号	ลำดับบรรทัด	行番号
 Type	类型	ประเภท	種別
 Item / Description	品名/说明	ชื่อสินค้า/คำอธิบาย	品名・説明
-Product Ref	商品外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
-The legacy system's product identifier; it becomes a link once product master data lands	旧系统的商品标识；商品主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
+Product Ref	物料外部标识	รหัสอ้างอิงสินค้า	商品の外部参照
+The legacy system's product identifier; it becomes a link once product master data lands	旧系统的物料标识；物料主数据落地后再换成链接	รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ	旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
 Qty	数量	จำนวน	数量
 Unit	单位	หน่วย	単位
 Unit Price	单价	ราคาต่อหน่วย	単価
@@ -425,12 +425,16 @@ Reconciliation	对账中心	ศูนย์กระทบยอด	照合セン
 Stock Count	库存盘点	ตรวจนับสต็อก	棚卸	nav.stocktake
 Master Data	主数据	ข้อมูลหลัก	マスタデータ	nav.masterData
 Customers	客户管理	จัดการลูกค้า	顧客管理	nav.clients
-Company Profile	公司资料	ข้อมูลบริษัท	会社情報	nav.company
+Company	公司	ข้อมูลบริษัท	会社情報	nav.company
+Company List	公司列表	รายชื่อบริษัท	会社一覧	nav.companyList
+Warehouses	仓库	คลังสินค้า	倉庫	nav.companyWarehouses
+Warehouses	仓库	คลังสินค้า	倉庫	nav.warehouses
 Team	团队管理	ทีมงาน	チーム	nav.team
+My Profile	个人信息	ข้อมูลส่วนตัว	個人プロフィール
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
 Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
-Products & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
-Products	商品	สินค้า	商品	nav.products
+Products & Stock	物料与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock
+Products	物料	สินค้า	商品	nav.products
 Stock	库存	สต็อก	在庫	nav.inventory
 Stock In	入库	รับเข้า	入庫	nav.stockIn
 Stock Out	出库	จ่ายออก	出庫	nav.stockOut
@@ -762,11 +766,6 @@ Delete {0} selected operators? Their LINE bindings and DMS connections will be r
 Deleted {0} operators	已删除 {0} 名操作员	ลบผู้ปฏิบัติงานแล้ว {0} คน	{0}名の操作員を削除しました	roster.notice.deletedCount
 Delete {0} selected push records from this list? Sent business documents will not be affected.	删除列表中选中的 {0} 条推送记录？已推送的业务单据不受影响。	ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ	選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。	connect.records.confirmDelete
 Deleted {0} push records	已删除 {0} 条推送记录	ลบบันทึกการส่งแล้ว {0} รายการ	{0}件の送信記録を削除しました	connect.records.deletedCount
-Username must contain 3–30 letters, digits, dots, underscores or hyphens.	用户名须为 3–30 位字母、数字、点、下划线或短横线。	ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง	ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。	account.usernameFormat
-This username is already in use.	该用户名已被使用。	ชื่อผู้ใช้นี้ถูกใช้งานแล้ว	このユーザー名は使用されています。	account.usernameTaken
-Your account was updated elsewhere. Sign in again to load the current username.	账户已在其它地方更新，请重新登录以读取当前用户名。	บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน	別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。	account.profileChanged
-Sign in again before changing your username.	请重新登录后再更改用户名。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้	ユーザー名を変更する前に再ログインしてください。	account.signInToRename
-Could not update your account. Please reload and try again.	无法更新账户，请刷新后重试。	อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง	アカウントを更新できませんでした。再読み込みしてお試しください。	account.profileUpdateFailed
 Your access domain	您的访问域名	โดเมนสำหรับเข้าใช้งาน	アクセスドメイン
 Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.	按量计费：每个自然月前 {0} 页 {1}/页，超出部分 {2}/页。	คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า	従量課金：毎月最初の{0}ページは{1}/ページ、超過分は{2}/ページ。	home.pricing.pages
 Text files: {1} per {0} characters, rounded up.	文本文件：每 {0} 个字符 {1}，不足一组按一组计费。	ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม	テキストファイル：{0}文字ごとに{1}、端数切り上げ。	home.pricing.chars
@@ -774,9 +773,30 @@ Delete {0} selected record(s)? This does not change your balance or cancel top-u
 {0} record(s) deleted.	已删除 {0} 条记录。	ลบแล้ว {0} รายการ	{0}件を削除しました。	home.ledger.deletedCount
 The LINE channel is not configured for this account	这个账号还没配置 LINE 通道	บัญชีนี้ยังไม่ได้ตั้งค่าช่องทาง LINE	このアカウントには LINE チャンネルが設定されていません
 LINE could not be reached; please try again	连不上 LINE，请稍后再试	เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง	LINE に接続できませんでした。しばらくしてからお試しください
-Goods & Stock	商品与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
+Goods & Stock	物料与库存	สินค้าและสต็อก	商品と在庫	nav.group.goodsStock
 Purchasing	采购系统	ระบบจัดซื้อ	購買システム	nav.group.purchasing
 Sales	销售系统	ระบบขาย	販売システム	nav.group.sales
 Master Data	主数据	ข้อมูลหลัก	マスタ	nav.group.master
 Company Master	公司主档	ทะเบียนบริษัท	会社マスタ	nav.companyMaster
 POS	收银 POS	ขายหน้าร้าน POS	POS レジ	nav.cashier
+Filters must be four-value rows with string doctypes, fields, and operators.	筛选必须是四值行：doctype、字段、运算符	ตัวกรองต้องเป็นแถว 4 ค่า: doctype, ฟิลด์, ตัวดำเนินการ	フィルタは doctype・フィールド・演算子の4値行である必要があります
+Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.	字段 {0} 的筛选无效：筛选必须是筛选列表，每个筛选是含四个值（doctype、字段名、运算符、值）的列表	ตัวกรองของฟิลด์ {0} ไม่ถูกต้อง: ตัวกรองต้องเป็นลิสต์ โดยแต่ละรายการมี 4 ค่า คือ doctype, ชื่อฟิลด์, ตัวดำเนินการ และค่า	フィールド {0} のフィルタが無効です。フィルタはリストで、各項目は doctype・フィールド名・演算子・値の4値である必要があります
+Guests are not allowed to upload files for {0} Doctype	访客不能为 {0} 上传文件	ผู้เยี่ยมชมอัปโหลดไฟล์ให้ {0} ไม่ได้	ゲストは {0} にファイルをアップロードできません
+Admission Key	准入键	คีย์รับงาน	受け入れキー
+Attempts	尝试次数	จำนวนครั้งที่พยายาม	試行回数
+Checkpoints	检查点	จุดตรวจสอบ	チェックポイント
+Kind	类型	ประเภท	種類
+Last Code	上次结果码	รหัสล่าสุด	前回のコード
+Lease Until	租约到期	หมดอายุการจองงาน	確保期限
+Next Run	下次运行	ครั้งถัดไปที่รัน	次回実行
+Namespace is not allowed: {0}	命名空间不允许：{0}	ไม่อนุญาตเนมสเปซ: {0}	名前空間は許可されていません: {0}
+Removed At	移除时间	เวลาที่ลบ	削除日時
+Removed By	移除人	ผู้ลบ	削除者
+Removed from Product History At	从产品历史移除时间	เวลาที่ลบออกจากประวัติผลิตภัณฑ์	製品履歴から削除した日時
+Removed from Product History By	从产品历史移除人	ผู้ลบออกจากประวัติผลิตภัณฑ์	製品履歴から削除した人
+Unable to load this page. Please reload.	这个页面加载不了，请刷新。	โหลดหน้านี้ไม่ได้ กรุณารีเฟรช	このページを読み込めません。再読み込みしてください。
+Create a new {0}	新建{0}	สร้าง {0} ใหม่	新しい{0}を作成
+Edit Full Form	编辑完整表单	แก้ไขฟอร์มเต็ม	全項目フォームを編集
+No Data	暂无数据	ไม่มีข้อมูล	データがありません
+Not Permitted	没有权限	ไม่มีสิทธิ์	権限がありません
+Nothing to show	没有可显示的内容	ไม่มีข้อมูลให้แสดง	表示する項目がありません

@@ -23,6 +23,28 @@ COST_FIELDS = ("default_cost", "cost_set")
 # 条码/编码唯一性：同一租户内不能重复。旧线上是三条唯一索引，撞哪个报哪个。
 UNIQUE_FIELDS = ("code", "barcode")
 
+# 界面与表格上的"码"是一格（用户 2026-09-22 口径）：条码与二维码内容合并显示，
+# 落库仍旧线上那两列。这一格该写哪一列由**内容形状**决定 —— 条码是短 ASCII
+# （Code39/128 的字符集，外加 EAN/UPC 的数字），其余（中文、含空格的长串、超过条码
+# 上限的）归二维码内容。两列长度上限不同（100 / 500），塞错了会被 clean_text 判成
+# Invalid value，所以形状判断必须与长度上限一起做。
+# 前端的同一份规则在 `public/desk/products.js` 的 BARCODE_SHAPE，两处要一起改。
+BARCODE_SHAPE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9\-$/+.% ]{0," + str(MAX_BARCODE - 1) + r"}$")
+
+
+def code_field(value) -> str:
+    """合并的那一格该落哪一列：条码还是二维码内容。空值按条码（唯一性在条码上）。"""
+    text = str(value or "").strip()
+    if not text:
+        return "barcode"
+    return "barcode" if BARCODE_SHAPE.match(text) else "qr_payload"
+
+
+def shown_code(row) -> str:
+    """这一格**显示**什么：条码优先，没有条码就用二维码内容（两列都可能为空）。"""
+    return str((row or {}).get("barcode") or (row or {}).get("qr_payload") or "")
+
+
 # ERP 门户的商品编码由系统发，不从表单收：旧线上（`services/erp/product_numbers.py`
 # 的 `P-` + 六位）就是这么发的，手输的编码会在单据行、扫码建品与导入之间对不上。
 CODE_PREFIX = "P-"

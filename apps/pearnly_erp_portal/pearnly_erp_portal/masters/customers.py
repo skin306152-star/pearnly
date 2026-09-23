@@ -82,12 +82,3 @@ def update_customer(name, **fields) -> dict:
 def set_active(name, active) -> dict:
     return update_customer(name, is_active=active)
 
-
-def required_for_invoice(name) -> dict:
-    """开票前检查买方还缺什么（供开票侧调用）。"""
-    guard.require("customers.read")
-    doc = _get(name)
-    missing = contracts.missing_for_tax_invoice({field: doc.get(field) for field in
-                                                 ("customer_name", "address", "party_type",
-                                                  "tax_id", "branch_type", "branch_no")})
-    return {"name": doc.name, "missing": missing}

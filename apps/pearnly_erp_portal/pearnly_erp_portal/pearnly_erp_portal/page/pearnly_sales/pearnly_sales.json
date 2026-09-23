@@ -1,0 +1,13 @@
+{
+  "doctype": "Page",
+  "name": "pearnly-sales",
+  "page_name": "pearnly-sales",
+  "title": "nav.sales",
+  "module": "Pearnly ERP Portal",
+  "standard": "Yes",
+  "roles": [
+    {
+      "role": "Desk User"
+    }
+  ]
+}

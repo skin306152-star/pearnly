@@ -26,7 +26,7 @@ def main():
     from pearnly_erp_portal.products import service as products
     from pearnly_erp_portal.purchasing import service as purchase
     from pearnly_erp_portal.inventory import stock, documents, count, report, warehouses, api
-    from pearnly_erp_portal.sales import service as sales
+    from pearnly_erp_portal.sales import entry as sales
     from pearnly_erp_portal.cashier import sales as pos, shifts, terminals
 
     if not frappe.db.exists("User", fixtures.OWNER):
@@ -82,12 +82,13 @@ def main():
     frappe.set_user(seller)
     assert products.get_product(item)["name"] == item
     sold_line = {**line(3, "B-02"), "warehouse": warehouse_name}
-    doc = sales.create_document(doc_kind="tax_invoice_simple", doc_date="2026-09-22",
-                                 buyer_name="Local customer", lines=[sold_line], has_vat="0")["name"]
-    assert sales.get_document(doc)["grand_total"] == 30
-    sales.issue_document(doc)
+    doc = sales.post({"doc_kind": "receipt", "doc_date": "2026-09-22",
+                      "buyer_name": "Local customer", "lines": [sold_line], "has_vat": "0",
+                      "is_paid": 1, "payment_method": "cash",
+                      "payment_date": "2026-09-22"}, request_id="flow-sale:" + run)["name"]
+    assert frappe.db.get_value("ERP Sales Document", doc, "grand_total") == 30
     assert stock.current_balance(item, wh, "B-02").qty == 4
-    sales.void_document(doc)
+    sales.cancel(doc, "flow check")
     assert stock.current_balance(item, wh, "B-02").qty == 7
 
     frappe.set_user(cashier)
@@ -182,7 +183,7 @@ def main():
     frappe.destroy()
     print(json.dumps({"result": "PASS", "run": run, "checks": [
         "free-text warehouse", "product defaults", "two independent positions", "purchase-only receipt",
-        "stock entry reversal after default edit", "sales issue and void", "POS sale dedupe",
+        "stock entry reversal after default edit", "sales confirm and void", "POS sale dedupe",
         "partial refund source line", "refund dedupe and over-refund rejection", "refund and sale void",
         "count leaves uncounted position intact", "ledger rebuild and card", "template and export locations",
         "legacy NULL position upgrade repeated", "HTTP boolean strings", "purchase void", "read-only catalog roles", "unprivileged and guest rejection", "tenant isolation"]}, ensure_ascii=False))

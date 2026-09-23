@@ -1,3 +1,7 @@
+(none),(ไม่มี)
+/ {0} days,/ {0} วัน
+1. Add your company’s LINE official account as a friend,1. เพิ่มบัญชี LINE ทางการของบริษัทเป็นเพื่อน
+2. Send this bind code in the LINE chat to connect,2. ส่งรหัสผูกนี้ในแชท LINE เพื่อเชื่อมต่อ
 A DMS customer reference is required before confirming or pushing,ต้องมีรหัสอ้างอิงลูกค้า DMS ก่อนยืนยันหรือส่ง
 A DMS customer reference is required; otherwise this link means nothing,ต้องมีรหัสอ้างอิงลูกค้า DMS ไม่เช่นนั้นการเชื่อมนี้ไม่มีความหมาย
 A board instance is created only when this is on,สร้างกระดานเมื่อเปิดใช้งานเท่านั้น
@@ -11,52 +15,105 @@ A purchase document needs at least one line,ใบจัดซื้อต้อ
 Account,บัญชี
 "Account ""{0}"" already has a default connection ({1}); clear that one's default first","บัญชี ""{0}"" มีการเชื่อมต่อเริ่มต้นอยู่แล้ว ({1}) กรุณายกเลิกค่าเริ่มต้นของอันนั้นก่อน"
 Account With Write Access,บัญชีที่มีสิทธิ์แก้ไข
+Account balance,ยอดคงเหลือในบัญชี
+Account name,ชื่อบัญชี
+Account number,เลขที่บัญชี
+Account with admin rights,บัญชีที่มีสิทธิ์
+Actions,การจัดการ
 Adapter,อะแดปเตอร์
+Add official account,เพิ่มบัญชีทางการเป็นเพื่อน
+Add operator,เพิ่มพนักงาน
+Add row,เพิ่มรายการ
 Address,ที่อยู่
 Admin Account,บัญชีผู้ดูแล
 Admin Password,รหัสผ่านผู้ดูแล
+Administrator,ผู้ดูแล
+Admission Key,คีย์รับงาน
+Advisors {0},ที่ปรึกษา {0}
+All,ทั้งหมด
+All directions,ทุกทิศทาง
+All statuses,ทุกสถานะ
 All three fields are required,ต้องกรอกทั้งสามช่อง
 Allow DMS queries from LINE,อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE
+Allowed,อนุญาต
 Amount,จำนวนเงิน
 An admin session was requested but no admin credentials are configured,ขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin
 Approval,การอนุมัติ
+Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
+Are you sure you want to sign out?,คุณต้องการออกจากระบบหรือไม่?
 Assign To,มอบหมายให้
 Attempt,ครั้งที่พยายาม
+Attempts,จำนวนครั้งที่พยายาม
 Auto Push,ส่งอัตโนมัติ
+Automatic (by DMS account),อัตโนมัติ (ตามบัญชี DMS)
+Back to home,กลับหน้าหลัก
 Balance,ยอดคงเหลือ
+Balance after,ยอดคงเหลือหลังเปลี่ยนแปลง
+Bank,ธนาคาร
 Batches and results of every recognition run,บันทึกและผลลัพธ์ของการอ่านข้อมูลแต่ละรอบ
 Billing,การคิดค่าบริการ
 Billing is not configured on this site (pearnly_billing_*),ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
 "Billing is not wired up on this site, please contact the platform",ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
+Billing is unavailable. Please contact support.,ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
 Bind Code,รหัสผูก
+Bind LINE,ผูก LINE
+Bind code,รหัสผูก
 Binding needs a LINE user and a local account,การผูกต้องมีผู้ใช้ LINE และบัญชีในเครื่อง
 Birth Date,วันเกิด
 Booking Defaults,ค่าเริ่มต้นการสร้างใบ
 Both account and password are required,ต้องกรอกทั้งบัญชีและรหัสผ่าน
 Both issuer and subject are required,ต้องระบุทั้ง issuer และ subject
 Bound At,ผูกเมื่อ
+Branches {0},สาขา {0}
 Business Key,คีย์ธุรกิจ
+Business number,หมายเลขรายการ
+Cancel,ยกเลิก
 Cannot confirm while the status is {0},ยืนยันไม่ได้ในสถานะ {0}
 Cannot match while the status is {0},จับคู่ไม่ได้ในสถานะ {0}
 Cannot reach the OCR service: {0},เชื่อมต่อบริการ OCR ไม่ได้: {0}
 Cannot reach the billing service: {0},เชื่อมต่อระบบเรียกเก็บเงินไม่ได้: {0}
 Cannot reach the identity service of the target environment ({0}): {1} {2},เชื่อมต่อบริการตัวตนของสภาพแวดล้อมเป้าหมายไม่ได้ ({0}): {1} {2}
 Cannot read the remaining time,อ่านเวลาที่เหลือไม่ได้
+Car models {0},รุ่นรถ {0}
+Change account,แก้ไขบัญชี
+Change password,เปลี่ยนรหัสผ่าน
+Change your password from your account profile using Change Password.,กรุณาเปลี่ยนรหัสผ่านเข้าสู่ระบบด้วยปุ่มเปลี่ยนรหัสผ่านในข้อมูลส่วนตัว
 Charges,ค่าบริการ
+Checkpoints,จุดตรวจสอบ
+Choose a plan,เลือกแพ็กเกจ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Client ID is required,ต้องระบุ Client ID
+Close,ปิด
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
+Collapse,ย่อ
 Companion,ผู้ช่วย (Companion)
+Company,ข้อมูลบริษัท
+Company List,รายชื่อบริษัท
+Company Master,ทะเบียนบริษัท
+Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขผู้เสียภาษีของบริษัท
 "Config is complete. Nothing was really connected — the adapter has not been ported yet, and this does not pretend otherwise",ตั้งค่าครบแล้ว **ยังไม่ได้เชื่อมต่อจริง** — อะแดปเตอร์ยังไม่ได้ย้ายมา และที่นี่ไม่รายงานเท็จว่าต่อได้
+Confirm,ยืนยัน
+Confirm new password,ยืนยันรหัสผ่านใหม่
+Confirmed,ยืนยันแล้ว
 Confirmed At,ยืนยันเมื่อ
 Confirmed By,ยืนยันโดย
+Confirmed · ready to push,ยืนยันแล้ว · พร้อมส่ง
+Connect DMS before adding an operator.,กรุณาเชื่อมต่อ DMS ก่อนเพิ่มผู้ปฏิบัติงาน
+Connect DMS to load the advisor list.,เชื่อมต่อ DMS เพื่ออ่านรายชื่อที่ปรึกษา
+Connect and save,เชื่อมต่อและบันทึก
+Connected,เชื่อมต่อแล้ว
+Connected · {0},เชื่อมต่อแล้ว · {0}
+Connecting…,กำลังเชื่อมต่อ…
 Connection,การเชื่อมต่อ
 "Connection ""{0}"" has no account with write access configured, so writes are not possible","การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าบัญชีที่มีสิทธิ์แก้ไข จึงเขียนข้อมูลไม่ได้"
 "Connection ""{0}"" has no sign-in credentials yet","การเชื่อมต่อ ""{0}"" ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ"
 "Connection ""{0}"" is disabled and cannot be used","การเชื่อมต่อ ""{0}"" ถูกปิดใช้งาน ใช้ไม่ได้"
+Connection OK · {0},การเชื่อมต่อปกติ · {0}
+Connection failed,เชื่อมต่อไม่สำเร็จ
 Console,คอนโซล
+Contact support with the record ID,ติดต่อฝ่ายสนับสนุนพร้อมหมายเลขรายการ
 Could not call the model: {0},เรียกโมเดลไม่สำเร็จ: {0}
 Could not create the OIDC client: {0} {1},สร้าง OIDC client ไม่สำเร็จ: {0} {1}
 Could not create the account in the target environment: {0} {1},สร้างบัญชีในสภาพแวดล้อมเป้าหมายไม่สำเร็จ: {0} {1}
@@ -74,14 +131,22 @@ Could not set the password: {0} {1},ตั้งรหัสผ่านไม�
 Could not take the lock (Redis down?): {0},ล็อกไม่สำเร็จ (Redis ล่มหรือเปล่า?): {0}
 Could not update the OIDC client: {0} {1},อัปเดต OIDC client ไม่สำเร็จ: {0} {1}
 Could not update the account language.,ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองอีกครั้ง
+Could not update your account. Please reload and try again.,อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
 Counterparty,ชื่อคู่ค้า
 Counterparty Tax ID,เลขผู้เสียภาษีคู่ค้า
 Cowork Admin,Cowork ผู้ดูแล
 Cowork Intake,Cowork บันทึกข้อมูล
+Create a new {0},สร้าง {0} ใหม่
 Created At,สร้างเมื่อ
+Created: {0},บันทึกแล้ว: {0}
+Credited,เข้าบัญชีแล้ว
 Currency,สกุลเงิน
 Current State,สถานะปัจจุบัน
+Current account,บัญชีปัจจุบัน
+Current billing: pay as you go.,ปัจจุบันคิดค่าบริการตามการใช้งาน
+Current password,รหัสผ่านปัจจุบัน
+Current plan,แพ็กเกจปัจจุบัน
 Customer Match,จับคู่ลูกค้า
 Customer Name,ชื่อลูกค้า
 Customer Snapshot,สแนปช็อตข้อมูลลูกค้า
@@ -108,29 +173,57 @@ DMS admin credentials failed to sign in: {0},เข้าสู่ระบบ�
 The advisor field is the sales-commission owner: if the account matches a name in the DMS advisor roster it is assigned automatically; only when it does not match (the owner's shared account, a data-entry clerk) does the advisor_id here pin it. Pinning wins over every match.","ค่าเริ่มต้นการสร้างใบ DMS (JSON): รุ่นรถ/สี/สาขา/ทีม/จำนวนวันส่งมอบ และ**ที่ปรึกษาที่กำหนดตายตัว**
 
 ช่องที่ปรึกษาคือเจ้าของค่าคอมมิชชัน ถ้าบัญชีตรงกับชื่อในทะเบียนที่ปรึกษา DMS จะกำหนดให้อัตโนมัติ จะใช้ advisor_id ที่นี่ตรึงไว้เฉพาะเมื่อจับคู่ไม่ได้ (บัญชีที่เจ้าของให้ยืม, พนักงานคีย์ข้อมูล) การตรึงชนะทุกการจับคู่"
+DMS login account,บัญชีเข้า DMS
+DMS login password,รหัสผ่านเข้า DMS
+DMS password,รหัสผ่าน DMS
 DMS refused the sign-in: {0},DMS ปฏิเสธการเข้าสู่ระบบ: {0}
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),การเข้าสู่ระบบ DMS ไม่จบ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)
 DMS usage and balance,การใช้งานและยอดคงเหลือฝั่ง DMS
+DMS username,ชื่อผู้ใช้ DMS
+Date,วันที่
 Dedupe Key,คีย์กันซ้ำ
 Default Connection,การเชื่อมต่อเริ่มต้น
+Delete,ลบ
+Delete {0} selected operators? Their LINE bindings and DMS connections will be removed. Push records will be kept.,ยืนยันลบผู้ปฏิบัติงานที่เลือก {0} คน? การผูก LINE และการเชื่อมต่อ DMS จะถูกลบ โดยเก็บบันทึกการส่งไว้
+Delete {0} selected push records from this list? Sent business documents will not be affected.,ลบบันทึกการส่งที่เลือก {0} รายการออกจากรายการนี้หรือไม่? เอกสารธุรกิจที่ส่งแล้วจะไม่ได้รับผลกระทบ
+Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,ลบรายการที่เลือก {0} รายการหรือไม่? ยอดคงเหลือและคำขอเติมเงินจะไม่เปลี่ยนแปลง
+Deleted,ลบแล้ว
+Deleted {0} operators,ลบผู้ปฏิบัติงานแล้ว {0} คน
+Deleted {0} push records,ลบบันทึกการส่งแล้ว {0} รายการ
 Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
 Deployment,การติดตั้ง
 Description,คำอธิบาย
 Direction,ทิศทาง
 Direction must be inbound or outbound,ทิศทางต้องเป็นขาเข้าหรือขาออก
+Disable,ปิดใช้งาน
+"Disable ""{0}""? Its DMS pushes stop and the LINE link is released.","ยืนยันปิด ""{0}""? การส่งไป DMS จะหยุดและยกเลิกการผูก LINE"
+Disconnect LINE for {0}? Unused bind codes will also expire. The operator and DMS credentials will be retained.,ยกเลิกการผูก LINE ของ {0} หรือไม่? รหัสที่ยังไม่ได้ใช้จะถูกยกเลิก โดยเก็บข้อมูลพนักงานและข้อมูล DMS ไว้
 Display Name,ชื่อที่แสดง
+Display name,ชื่อที่แสดง
 Doc Date,วันที่เอกสาร
 Doc No,เลขที่เอกสาร
 Document Type,ประเภทเอกสาร
+Document date,วันที่เอกสาร
+Document no.,เลขที่เอกสาร
+Documents,จำนวนเอกสาร
+Draft,ฉบับร่าง
 Due Date,วันครบกำหนด
+Duplicate skipped,ข้ามรายการซ้ำ
 ERP Admin,ERP ผู้ดูแล
 ERP Purchase,ERP จัดซื้อ
+Edit,แก้ไข
+Edit Full Form,แก้ไขฟอร์มเต็ม
+Edit operator,แก้ไขพนักงาน
 Elapsed (ms),ใช้เวลา (ms)
+Email,อีเมล
 Email is required,กรุณากรอกอีเมล
 Empty = matched automatically from the DMS account (the legacy product's default).,เว้นว่าง = จับคู่อัตโนมัติจากบัญชี DMS (ค่าเริ่มต้นของผลิตภัณฑ์เดิม)
 Empty = sent to all admins (whoever sees it first approves).,เว้นว่าง = ส่งให้ผู้ดูแลทุกคน (ใครเห็นก่อนอนุมัติ)
+Enable,เปิดใช้งาน
+"Enable ""{0}""? A new bind code is needed to link LINE again.","ยืนยันเปิด ""{0}""? ต้องออกรหัสผูกใหม่เพื่อเชื่อม LINE อีกครั้ง"
 Enabled,เปิดใช้งาน
+Enabled features,ฟังก์ชันที่เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
 Endpoint {0} has no password configured,ปลายทาง {0} ยังไม่ได้ตั้งรหัสผ่าน
 Endpoint {0} is disabled,ปลายทาง {0} ถูกปิดใช้งาน
@@ -139,35 +232,49 @@ Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
 Execution lease: with no result past the lease window it goes back to pending (the executor heals itself after a crash).,สัญญาเช่าการดำเนินการ: ถ้าเกินเวลาแล้วยังไม่มีผล จะกลับไปเป็นรออนุมัติ (ฝั่งที่รันกู้ตัวเองได้หลังล่ม)
 Expense / Item Category,หมวดค่าใช้จ่าย/สินค้า
+Expired,หมดอายุ
 Expires At,หมดอายุเมื่อ
+Export details,ส่งออกรายละเอียด
+Exporting…,กำลังส่งออก…
 Express Push Guide,คู่มือส่ง Express
 External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งออกไป ERP ภายนอก
 External IDs & Dedupe,รหัสภายนอกและการกันซ้ำ
 External Reference,เลขที่อ้างอิงภายนอก
 External System Reference,รหัสอ้างอิงระบบภายนอก
+External document no.,เลขที่เอกสารภายนอก
 FX Rate,อัตราแลกเปลี่ยน
+Failed,ล้มเหลว
+Failed to start (HTTP {0}): {1},เริ่มระบบล้มเหลว (HTTP {0}): {1}
+Failed to start: {0},เริ่มระบบล้มเหลว: {0}
 Failure Reason,สาเหตุที่ล้มเหลว
 Failure reason,สาเหตุที่ล้มเหลว
 Failures,จำนวนล้มเหลว
 Field Diffs,ส่วนต่างรายฟิลด์
 File,ไฟล์
+Fill in a display name and this operator's own DMS account and password; issue bind codes row by row after saving,กรอกชื่อที่แสดงและบัญชี/รหัสผ่าน DMS ของพนักงานรายนี้ แล้วออกรหัสผูกทีละแถวหลังบันทึก
 "Fill in the display name, DMS username and password",กรุณากรอกชื่อที่แสดง ชื่อผู้ใช้ DMS และรหัสผ่าน
+"Filters must be four-value rows with string doctypes, fields, and operators.","ตัวกรองต้องเป็นแถว 4 ค่า: doctype, ฟิลด์, ตัวดำเนินการ"
 Finalize failed: desktop:home_page={0} is_setup_complete={1},ตั้งค่าไม่สำเร็จ: desktop:home_page={0} is_setup_complete={1}
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,สำหรับเอกสารขาเข้า เลขผู้เสียภาษีคู่ค้าต้องไม่ใช่ของตัวเอง
 Frappe Light,Pearnly
 Full Name,ชื่อ-นามสกุล
 Gender,เพศ
+Goods & Stock,สินค้าและสต็อก
 Grand Total,ยอดรวม
+Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ยมชมอัปโหลดไฟล์ให้ {0} ไม่ได้
+Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
 Handled At,จัดการเมื่อ
+Home,หน้าหลัก
 Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
 How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
 ID Card Intake,บันทึกบัตรประชาชน
 ID Details,ข้อมูลบัตร
 ID Image,ภาพบัตร
 ID Number,เลขบัตร
+ID card recognition,อ่านบัตรประชาชน
 ID card recognition (tier A),อ่านบัตรประชาชน
 ID number is required,ต้องระบุเลขบัตร
 IP,IP
@@ -176,53 +283,98 @@ Image Fingerprint,ลายนิ้วมือภาพ
 Inbound = invoices received; outbound = invoices issued,ขาเข้า = ใบที่ได้รับ ขาออก = ใบที่ออกให้
 "Install, pair, upgrade and uninstall guide for Companion",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้งผู้ช่วย
 Intake Workbench,โต๊ะทำงานบันทึกข้อมูล
+Integrations,การเชื่อมต่อ
+"Invalid Filters for field {0}. Filters must be a list of filters, where each filter is a list with four values: doctype, fieldname, operator, and value.","ตัวกรองของฟิลด์ {0} ไม่ถูกต้อง: ตัวกรองต้องเป็นลิสต์ โดยแต่ละรายการมี 4 ค่า คือ doctype, ชื่อฟิลด์, ตัวดำเนินการ และค่า"
 Invalid push channel,ช่องทางส่งไม่ถูกต้อง
 Invited By,ผู้เชิญ
+Issue bind code,ออกรหัสผูก
 Issuer,ผู้ออก
 Item / Description,ชื่อสินค้า/คำอธิบาย
+Item / description,ชื่อสินค้า / คำอธิบาย
+"JPG, PNG or PDF, up to 10 MB","JPG, PNG หรือ PDF ขนาดไม่เกิน 10 MB"
 "Kept as evidence, not a business field",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ
 "Kept as evidence, not a business field; only the confirmed fields are.",เก็บเป็นหลักฐาน ไม่ใช่ฟิลด์ธุรกิจ ฟิลด์ที่ยืนยันแล้วเท่านั้นที่เป็น
+Kind,ประเภท
 LINE Display Name,ชื่อที่แสดงบน LINE
 LINE User ID,LINE User ID
 LINE could not be reached; please try again,เชื่อมต่อ LINE ไม่ได้ กรุณาลองใหม่อีกครั้ง
+LINE status,สถานะ LINE
+Language,ภาษา
+Last Code,รหัสล่าสุด
 Last Login At,เข้าสู่ระบบล่าสุด
 Last Result,ผลล่าสุด
 Last Seen At,ใช้งานล่าสุด
 Last Used,ใช้ล่าสุด
 Last Verified At,ตรวจสอบล่าสุดเมื่อ
+Last result,ผลล่าสุด
 Lease Expires,สัญญาเช่าหมดอายุ
 Lease Owner,ผู้ถือสัญญาเช่า
+Lease Until,หมดอายุการจองงาน
+Leave blank to keep the current password.,เว้นว่างไว้เพื่อใช้รหัสผ่านเดิม
+Leave blank to keep unchanged,เว้นว่างไว้หากไม่แก้ไข
 Line Amount,จำนวนเงินบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
 Line No,ลำดับบรรทัด
+Lines,รายการ
+Linked,ผูกแล้ว
+Loading advisors…,กำลังโหลดรายชื่อที่ปรึกษา…
+Loading…,กำลังโหลด…
 Local Account,บัญชีในเครื่อง
 Local Session,เซสชันในเครื่อง
 "Local sample site: not sent to LINE, the raw text is only recorded",เว็บไซต์ตัวอย่างในเครื่อง: ไม่ได้ส่งไป LINE บันทึกเฉพาะข้อความต้นฉบับ
 Looking up the OIDC client failed: {0} {1},ค้นหา OIDC client ไม่สำเร็จ: {0} {1}
+Manage purchase orders and payment details.,จัดการเอกสารซื้อและรายละเอียดการชำระเงิน
+Manual,กรอกเอง
+Manual handling,ดำเนินการด้วยตนเอง
 Master Data,ข้อมูลหลัก
 Match result must be unmatched / existing customer / new customer,ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่
 Max Retries,ลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
+My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
+Namespace is not allowed: {0},ไม่อนุญาตเนมสเปซ: {0}
 "Neither tier produced a result (network, key or model name could all be the cause)",ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)
 Net Amount,ยอดก่อนภาษี
 Net Payable,ยอดสุทธิที่ต้องจ่าย
+Net amount,ยอดก่อนภาษี
+Net payable,ยอดที่ต้องจ่ายสุทธิ
 New Customer,สร้างใหม่ครั้งนี้
+New DMS password,รหัสผ่าน DMS ใหม่
+New entry,บันทึกใหม่
+New password,รหัสผ่านใหม่
+New purchase order,สร้างใบซื้อใหม่
 Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
+Next Run,ครั้งถัดไปที่รัน
+No,ไม่
 No DMS connection has been configured yet,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS
+No Data,ไม่มีข้อมูล
 No OCR key configured (site config pearnly_ocr_api_key),ยังไม่ได้ตั้งค่าคีย์ OCR (ค่าตั้งเว็บไซต์ pearnly_ocr_api_key)
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้กรอกบัญชีใด ๆ การเชื่อมต่อนี้จึงใช้ไม่ได้ตอนนี้ (ตั้งค่าข้อมูลรับรองแล้วค่อยทดสอบการเชื่อมต่อ)
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงส่งอีเมลเชิญไม่ได้
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่มีอยู่และไม่ได้ระบุรหัสลูกค้า DMS: กรุณายืนยันด้วยคนก่อน
+No operators yet — add one above,ยังไม่มีพนักงาน เพิ่มด้านบนก่อน
 No provisioning target is available; configure one under “Provisioning Target” first,"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"
+No purchase orders yet. Use “New purchase order” in the top right to add the first one.,"ยังไม่มีใบซื้อ กด ""สร้างใบซื้อใหม่"" ที่มุมขวาบนเพื่อเพิ่มใบแรก"
+No records,ไม่มีรายการ
+No records yet. Use “New entry” in the top right to add the first one.,"ยังไม่มีรายการ กด ""บันทึกใหม่"" ที่มุมขวาบนเพื่อเพิ่มรายการแรก"
 No service account configured (site config pearnly_ocr_credentials),ยังไม่ได้ตั้งค่าบัญชีบริการ (ค่าตั้งเว็บไซต์ pearnly_ocr_credentials)
 No sign-in credentials configured,ยังไม่ได้ตั้งค่าข้อมูลรับรองเข้าสู่ระบบ
 No such local account: {0},ไม่มีบัญชีในเครื่องนี้: {0}
+No.,เลขที่
+Not Permitted,ไม่มีสิทธิ์
+Not allowed,ไม่อนุญาต
+Not connected,ยังไม่เชื่อมต่อ
+Not linked,ยังไม่ผูก
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
+Not subscribed,ยังไม่สมัคร
 Note,หมายเหตุ
 Notes,หมายเหตุ
+Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
+Nothing to show,ไม่มีข้อมูลให้แสดง
+OK,ตกลง
 "Once disabled it takes no part in pushes (in the legacy product, disabling was the gate that kept a batch from going to the wrong place).",เมื่อปิดจะไม่เข้าร่วมการส่งอีก (ในผลิตภัณฑ์เดิม การปิดคือประตูที่กันไม่ให้รอบเดียวกันส่งผิดที่)
 Once disabled its DMS pushes stop and the LINE binding is released,เมื่อปิด การส่งไป DMS จะหยุดและยกเลิกการผูก LINE
+One row per salesperson/administrator: each has their own DMS credentials and gets their own LINE bind code,หนึ่งแถวต่อพนักงานขาย/ผู้ดูแล แต่ละคนมีบัญชี DMS ของตัวเองและออกรหัสผูก LINE แยกกัน
 Only a company admin can top up or change the subscription,การเติมเงินและแพ็กเกจทำได้เฉพาะผู้ดูแลบริษัท
 Only a company admin can view top-up records,บันทึกการเติมเงินดูได้เฉพาะผู้ดูแลบริษัท
 Only an admin can configure DMS connections,เฉพาะผู้ดูแลเท่านั้นที่ตั้งค่าการเชื่อมต่อ DMS ได้
@@ -233,66 +385,132 @@ Only the config was checked; a real connectivity test waits for the adapter,ต�
 Only the owner can manage it,เฉพาะเจ้าของเท่านั้นที่จัดการได้
 Operator,ผู้ใช้
 Operator Roster,ทะเบียนพนักงาน
+Operator added,เพิ่มพนักงานแล้ว
+Operator list,รายชื่อพนักงาน
+Operators,พนักงาน
+Optional,เว้นว่างได้
 Order Discount,ส่วนลดทั้งใบ
+Outstanding,ค้างจ่าย
+Overage: {0}/page,ส่วนเกิน: {0}/หน้า
+Overage: {0}/page · Expires: {1},ส่วนเกิน: {0}/หน้า · หมดอายุ: {1}
 Owner Account,บัญชีเจ้าของ
+POS,ขายหน้าร้าน POS
+Page unavailable,ไม่สามารถใช้งานหน้านี้ได้
+Page {0} of {1} · {2} records,หน้า {0} จาก {1} · {2} รายการ
 Pages,จำนวนหน้า
 Paid Amount,จำนวนที่จ่ายแล้ว
 Password,รหัสผ่าน
+Password updated. Use the new password next time you sign in.,อัปเดตรหัสผ่านแล้ว ครั้งหน้าเข้าสู่ระบบด้วยรหัสผ่านใหม่
+Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages at {2}/page.,คิดตามการใช้งาน: {0} หน้าแรกของแต่ละเดือน {1}/หน้า ส่วนที่เกิน {2}/หน้า
 Payer,ผู้ชำระเงิน
+Payer name on the bank transfer,ชื่อผู้โอนในสลิปธนาคาร
 Payload,เพย์โหลด
 Payment Status,สถานะการชำระ
+Pearnly,Pearnly
+Pearnly Cowork,Pearnly Cowork
+Pearnly Dark,Pearnly โหมดมืด
+Pearnly Light,Pearnly โหมดสว่าง
+Pending,รอดำเนินการ
+Pending review,รอตรวจสอบ
 Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
+Plan,แพ็กเกจ
 Plan & Balance,แพ็กเกจและยอดคงเหลือ
+Plans do not renew automatically. Subscribe again after expiry.,แพ็กเกจไม่ต่ออายุอัตโนมัติ สามารถสมัครใหม่ได้เมื่อหมดอายุ
+Please confirm,กรุณายืนยัน
 Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Processing Started At,เริ่มดำเนินการเมื่อ
+Processing…,กำลังดำเนินการ…
 Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้า
 "Product home: current plan, usage and billing",หน้าหลักของผลิตภัณฑ์: แพ็กเกจปัจจุบัน การใช้งาน และค่าบริการ
 Product master data,ข้อมูลหลักของสินค้า
 Products,สินค้า
+Products & Stock,สินค้าและสต็อก
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งบรรทัด
+Purchase,ซื้อ
+Purchase (bills received),ซื้อ (บิลที่ได้รับ)
+Purchase / Sale,ซื้อ / ขาย
+Purchase order created: {0},สร้างใบซื้อแล้ว: {0}
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้ขาย และการตั้งค่าจัดซื้อ
+Purchases (confirmed and above),ยอดซื้อ (ยืนยันแล้วขึ้นไป)
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้ขาย/ตั้งค่า)
+Purchasing Settings,ตั้งค่าการจัดซื้อ
 Push,การส่ง
 Push Channel,ช่องทางส่ง
 Push Log,บันทึกการส่งข้อมูล
 Push Log Reference,อ้างอิงบันทึกการส่ง
 Push Records,บันทึกการส่ง
 Push Status,สถานะการส่ง
+Push failed,ส่งไม่สำเร็จ
 Push status must be one of {0},สถานะการส่งต้องเป็นหนึ่งใน {0}
 Push to the external ERP; the push log is the only source of status,ส่งไป ERP ภายนอก สถานะดูจากบันทึกการส่งเท่านั้น
+Pushed,ส่งแล้ว
 Qty,จำนวน
+Query access,สิทธิ์ค้นหา
+Queued to push,รอส่ง
 "Read the ID card, match it against the DMS customer base, then confirm",อ่านบัตรประชาชน เทียบกับฐานลูกค้า DMS แล้วยืนยันข้อมูล
 Received,จำนวนที่รับจริง
 Recognition Raw,ผลการอ่านดิบ
 Recognition Records,บันทึกการอ่านข้อมูล
+Recognition records,บันทึกการอ่านข้อมูล
+Recognized,อ่านแล้ว
 Reconcile documents against the ledger,กระทบยอดเอกสารกับบัญชี
 Reconciliation,ศูนย์กระทบยอด
+Records,รายละเอียดบันทึก
 Reference,เลขที่อ้างอิง
 Reference DocType,DocType ของเอกสารธุรกิจ
 Reference Name,เอกสารธุรกิจ
+Refresh,รีเฟรช
+Regenerate,สร้างใหม่
+Rejected,ถูกปฏิเสธ
+Reload advisors,โหลดรายชื่อที่ปรึกษาใหม่
 Remote Address,ที่อยู่ปลายทาง
+Removed At,เวลาที่ลบ
+Removed By,ผู้ลบ
+Removed from Product History At,เวลาที่ลบออกจากประวัติผลิตภัณฑ์
+Removed from Product History By,ผู้ลบออกจากประวัติผลิตภัณฑ์
+Reorder sidebar,จัดลำดับแถบด้านข้าง
 Request & Response,คำขอและการตอบกลับ
 Request Body,เนื้อหาคำขอ
 Request Snapshot,สแนปช็อตคำขอ
+Request failed (HTTP {0}),คำขอล้มเหลว (HTTP {0})
 Requested,จำนวนที่ขอ
 Requested By,ผู้ขอ
 Response Body,เนื้อหาการตอบกลับ
 Result,ผลลัพธ์
+Result details,รายละเอียดผลลัพธ์
 Retry & Lease,ลองใหม่และสัญญาเช่า
 Retry Count,จำนวนครั้งที่ลองใหม่
+Retrying,กำลังลองใหม่
+Return to the home page to continue.,กรุณากลับหน้าหลักเพื่อดำเนินการต่อ
+Returned,ตีกลับ
+Review and confirm documents before sending.,ตรวจสอบและยืนยันเอกสารก่อนส่ง
 Revoked At,เพิกถอนเมื่อ
 Role,บทบาท
 Role must be sales or admin,บทบาทต้องเป็น sales หรือ admin
 Rounding,ส่วนต่างปัดเศษ
 Row {0}: quantity must be greater than 0,บรรทัด {0}: จำนวนต้องมากกว่า 0
 Row {0}: unit price cannot be negative,บรรทัด {0}: ราคาต่อหน่วยติดลบไม่ได้
+Sale,ขาย
+Sale (bills we issue),ขาย (บิลที่เราออก)
 Sales,ระบบขาย
+Sales (confirmed and above),ยอดขาย (ยืนยันแล้วขึ้นไป)
 Sales Commission Owner,เจ้าของค่าคอมมิชชัน
+Sales Records,บันทึกการขาย
+Sales commission owner,เจ้าของค่าคอมมิชชัน
 Sales documents and customer dealings,เอกสารขายและความสัมพันธ์กับลูกค้า
+Salesperson,พนักงานขาย
 Same ID number means the same customer; avoids duplicate records,เลขบัตรเดียวกันถือเป็นลูกค้าคนเดียวกัน ป้องกันข้อมูลซ้ำ
+Save,บันทึก
+Save purchase order,บันทึกใบซื้อ
+Saved,บันทึกแล้ว
+Saved as a draft; confirm it before it can be pushed,บันทึกแล้วจะเป็นฉบับร่าง ต้องยืนยันก่อนจึงจะส่งได้
+"Scan to add this account, then send the bind code in LINE.",สแกนเพื่อเพิ่มเพื่อน แล้วส่งรหัสผูกนี้ใน LINE
 Session Payload,เพย์โหลดเซสชัน
+Sign in again before changing your username.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้
+Sign out,ออกจากระบบ
+Sign out and sign in again,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
 Sign-in Credentials,ข้อมูลรับรองเข้าสู่ระบบ
 Site config is missing {0},ค่าตั้งเว็บไซต์ขาด {0}
 Site config is missing {0}_admin_client_id / _secret,ค่าตั้งเว็บไซต์ขาด {0}_admin_client_id / _secret
@@ -303,20 +521,39 @@ Source Attachment,ไฟล์แนบต้นฉบับ
 Status,สถานะ
 Status cannot go backwards: {0} → {1},สถานะถอยกลับไม่ได้: {0} → {1}
 Status must be active or inactive,สถานะต้องเป็น active หรือ inactive
+Stock,สต็อก
 Stock Card Report,รายงานรับ-จ่าย-คงเหลือ
 Stock Count,ตรวจนับสต็อก
+Stock In,รับเข้า
 Stock In / Out,สต็อก (รับเข้า/จ่ายออก)
+Stock Out,จ่ายออก
 "Stock in/out summary (kept item, see the ERP manifest)",สรุปรับ-จ่าย-คงเหลือ (รายการที่เก็บไว้ ดูรายการ ERP)
 Subject,Subject
+Submit request,ส่งคำขอ
+Submitting…,กำลังส่ง…
+Subscribe to this plan,สมัครแพ็กเกจนี้
+Subscribed to plan {0}. The monthly fee comes out of the balance; current balance {1}.,สมัครแพ็กเกจ {0} แล้ว ค่าบริการรายเดือนหักจากยอดคงเหลือ ยอดปัจจุบัน {1}
+Subscribing…,กำลังสมัคร…
 Subtotal,ยอดรวมย่อย
+Succeeded,สำเร็จ
+Success / failure,สำเร็จ / ล้มเหลว
 Successes,จำนวนสำเร็จ
 Summary,สรุป
 Supplier,ผู้ขาย
+Supplier / customer,ผู้ขาย / ลูกค้า
 Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
+Supplier name,ชื่อผู้ขาย
+Suppliers,ผู้ขาย
 System URL,ที่อยู่ระบบ
 System URL is not filled in,ยังไม่ได้กรอกที่อยู่ระบบ
+Team,ทีมงาน
+Tenant boot data,ข้อมูลเริ่มต้นของเว็บไซต์นี้
+Test connection,ทดสอบการเชื่อมต่อ
+Testing…,กำลังทดสอบ…
+"Text files: {1} per {0} characters, rounded up.",ไฟล์ข้อความ: {1} ต่อ {0} อักขระ ปัดขึ้นเป็นหน่วยเต็ม
 The DMS account is marked as resigned,บัญชี DMS ถูกทำเครื่องหมายว่าลาออกแล้ว
 The DMS account is not approved to use the system,บัญชี DMS ยังไม่ได้รับอนุญาตให้ใช้ระบบ
+The DMS advisor list is empty.,รายชื่อที่ปรึกษา DMS ว่างเปล่า
 The FX rate must be greater than 0,อัตราแลกเปลี่ยนต้องมากกว่า 0
 The ID token has no sub,ID token ไม่มี sub
 The ID token issuer is not the identity service configured for this site,ผู้้ออก ID token ไม่ใช่บริการตัวตนที่ตั้งไว้สำหรับเว็บไซต์นี้
@@ -327,7 +564,9 @@ The account is disabled,บัญชีถูกปิดใช้งาน
 The account was created but no id came back,สร้างบัญชีแล้วแต่ไม่ได้ id กลับมา
 The admin session must be requested inside a `with` block,ต้องขอเซสชัน admin ภายในบล็อก `with`
 The balance could not be read,อ่านยอดคงเหลือไม่ได้
+The balance grows once the platform confirms the transfer.,ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
+The bind code has expired — please regenerate,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
 The current password is wrong,รหัสผ่านปัจจุบันไม่ถูกต้อง
 The customer snapshot used to refill the form when approval executes.,สแนปช็อตข้อมูลลูกค้าที่ใช้เติมฟอร์มตอนอนุมัติดำเนินการ
@@ -351,54 +590,90 @@ The name is resolved server-side when pinning; the client's value is not trusted
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",ชื่อที่เจ้าของใช้แยกคนในตารางนี้ เช่น มิ่ง (ขาย)
 The new password cannot be the same as the current one,รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน
 The new password is required,ต้องระบุรหัสผ่านใหม่
+"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น
 The person who tapped approve (written at claim time; cleared if the write fails and it goes back to the pool).,คนที่กดอนุมัติ (บันทึกตอนรับเรื่อง ล้างทิ้งถ้าเขียนไม่สำเร็จและต้องส่งกลับคืน)
+The plan quota is used first; anything over is charged per plan rate from the balance,หลังสมัครจะใช้โควตาก่อน ส่วนที่เกินหักตามราคาต่อหน่วยจากยอดคงเหลือ
 The push channel must be companion or cloud,ช่องทางส่งต้องเป็น companion หรือ cloud
 The result of each push,ผลลัพธ์ของการส่งแต่ละครั้ง
 The service account could not exchange its token: {0},บัญชีบริการแลกโทเคนไม่สำเร็จ: {0}
 "The sign-in URL, e.g. for MR.ERP DMS. The legacy product hard-coded and hid this for DMS (there was only one instance); we keep it editable so switching instances later needs no code change.",ที่อยู่เข้าสู่ระบบ เช่น ของ MR.ERP DMS ผลิตภัณฑ์เดิมเขียนตายและซ่อนไว้สำหรับ DMS (มีอินสแตนซ์เดียว) เราเปิดให้กรอกเพื่อเปลี่ยนอินสแตนซ์ภายหลังโดยไม่ต้องแก้โค้ด
+The subscription could not be activated,ไม่สามารถเปิดใช้แพ็กเกจได้
 "The target environment is incomplete: URL, realm, client ID and secret are all required","การตั้งค่าสภาพแวดล้อมเป้าหมายไม่ครบ: ต้องกรอกที่อยู่, realm, Client ID และ Secret"
 The test for a duplicate upload of the same document,เกณฑ์ตรวจการอัปโหลดเอกสารเดิมซ้ำ
+The total is calculated automatically.,ระบบคำนวณยอดรวมอัตโนมัติ
 "The truth is in erp_push_logs, trigger=id_card","ค่าจริงอยู่ที่ erp_push_logs, trigger=id_card"
 The truth is in erp_push_logs; this is only a display reference,ค่าจริงอยู่ที่ erp_push_logs ที่นี่เป็นเพียงการอ้างอิงเพื่อแสดง
 The two new passwords do not match,รหัสผ่านใหม่ที่กรอกสองครั้งไม่ตรงกัน
+The two passwords do not match,รหัสผ่านทั้งสองไม่ตรงกัน
 "The values follow the legacy product (success | failed | skipped_dup | pending | retrying | manual). **This is the only source of truth for push status**: the push_status on business tables is just a reference, so any ""did it actually push"" decision must read here.","ค่าอ้างตามผลิตภัณฑ์เดิม (success | failed | skipped_dup | pending | retrying | manual) **นี่คือแหล่งความจริงเดียวของสถานะการส่ง** ส่วน push_status บนตารางธุรกิจเป็นเพียงการอ้างอิง การตัดสินว่า ""ส่งสำเร็จหรือยัง"" ต้องดูที่นี่"
 The webhookEventId from LINE. The unique constraint is what makes it idempotent: a re-delivered old event is never processed twice.,webhookEventId จาก LINE ข้อจำกัดไม่ซ้ำคือสิ่งที่ทำให้ทำงานซ้ำได้อย่างปลอดภัย อีเวนต์เดิมที่ส่งซ้ำจะไม่ถูกประมวลผลอีก
 "There is no DMS customer reference, so it cannot be pushed",ไม่มีรหัสอ้างอิงลูกค้า DMS จึงส่งไม่ได้
 This Operator's Own DMS Credentials,บัญชี DMS ของผู้ปฏิบัติงานรายนี้
 "This account has no identity binding, so it cannot change its own password; contact an admin",บัญชีนี้ยังไม่ได้ผูกตัวตน จึงเปลี่ยนรหัสผ่านเองไม่ได้ กรุณาติดต่อผู้ดูแล
+This advisor is no longer in the current DMS list. Please select again.,ไม่พบที่ปรึกษานี้ในรายชื่อ DMS ปัจจุบัน กรุณาเลือกใหม่
+This company’s LINE official account is not configured yet.,บริษัทยังไม่ได้ตั้งค่าบัญชี LINE ทางการ
 This document has already been recorded: {0},เอกสารนี้ถูกบันทึกแล้ว: {0}
 This identity is already bound to account {0} (record {1}),ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})
 This identity is already bound to {0},ตัวตนนี้ผูกกับ {0} แล้ว
 This identity is not registered on this site; ask an admin to invite you and retry (this site does not accept self sign-up),ตัวตนนี้ยังไม่ลงทะเบียนบนเว็บไซต์นี้ กรุณาให้ผู้ดูแลเชิญแล้วลองใหม่ (เว็บไซต์นี้ไม่รับสมัครเอง)
 This invoice has already been recorded: {0},ใบนี้ถูกบันทึกแล้ว: {0}
+This month,เดือนนี้
+This operator's DMS account,บัญชี DMS ของพนักงานรายนี้
+This operator's DMS password,รหัสผ่าน DMS ของพนักงานรายนี้
 This site has more than one product manifest installed: {0}. One deployment can host only one product.,เว็บไซต์นี้ติดตั้งรายการผลิตภัณฑ์มากกว่าหนึ่ง: {0} หนึ่งการติดตั้งรองรับได้เพียงผลิตภัณฑ์เดียว
 "This site has no LINE access token configured, so it cannot send messages",เว็บไซต์นี้ยังไม่ได้ตั้งค่า LINE access token จึงส่งข้อความไม่ได้
 This site has no product manifest installed; it cannot run as a business site.,เว็บไซต์นี้ไม่ได้ติดตั้งรายการผลิตภัณฑ์ใด ๆ จึงรันเป็นเว็บไซต์ธุรกิจไม่ได้
 This site has no product workspace yet,เว็บไซต์นี้ยังไม่มีพื้นที่ทำงานของผลิตภัณฑ์
+"This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?","จะยกเลิกการผูก LINE ของ ""{0}"" และลบการเชื่อมต่อ DMS ส่วนบันทึกการส่งยังเก็บไว้ ยืนยันลบ?"
+This username is already in use.,ชื่อผู้ใช้นี้ถูกใช้งานแล้ว
+This year,ปีนี้
 Time,เวลา
+Titles {0},คำนำหน้า {0}
+To confirm,รอยืนยัน
+To verify,รอตรวจซ้ำ
+Today,วันนี้
+Top up,เติมเงิน
+Top-up request submitted ({0} · {1}). The balance only grows once the platform confirms the transfer.,ส่งคำขอเติมเงินแล้ว ({0} · {1}) ยอดคงเหลือจะเพิ่มเมื่อแพลตฟอร์มยืนยันการโอน
 Top-ups,การเติมเงิน
+Total incl. VAT,รวมภาษี
+Transfer slip attached,แนบหลักฐานการโอนแล้ว
+"Transfer to the account below, then upload your slip for review.",กรุณาโอนเงินเข้าบัญชีด้านล่าง แล้วอัปโหลดหลักฐานเพื่อรอการตรวจสอบ
 Transport Result,ผลการรับส่ง
 Trigger,รูปแบบการทริกเกอร์
 Type,ประเภท
+UI language,ภาษาของหน้าจอ
+Unable to load this page. Please reload.,โหลดหน้านี้ไม่ได้ กรุณารีเฟรช
+Unable to read the current advisor list. Retry before changing the assignment.,ไม่สามารถอ่านรายชื่อที่ปรึกษาปัจจุบันได้ โปรดลองใหม่ก่อนเปลี่ยนผู้รับค่าคอมมิชชัน
+Unable to verify this company’s LINE official account. Please try again.,ไม่สามารถตรวจสอบบัญชี LINE ทางการของบริษัทได้ กรุณาลองใหม่
+Unbind LINE,ยกเลิกการผูก LINE
 Unbound At,ยกเลิกผูกเมื่อ
 Unconfirmed documents cannot be pushed,เอกสารที่ยังไม่ยืนยันส่งไม่ได้
 Unit,หน่วย
 Unit Price,ราคาต่อหน่วย
+Unit price,ราคาต่อหน่วย
 Unknown product: {0},ไม่รู้จักผลิตภัณฑ์: {0}
+Upload,อัปโหลด
 Upload a transfer slip before submitting,กรุณาอัปโหลดหลักฐานการโอนก่อนส่ง
 Upload a transfer slip up to 10 MB,กรุณาอัปโหลดหลักฐานการโอนขนาดไม่เกิน 10 MB
 "Upload receipts and sheets, extract fields, review each item, then push",อัปโหลดใบเสร็จและตาราง อ่านฟิลด์ ตรวจทีละรายการ แล้วส่งต่อ
+Upload transfer slip,อัปโหลดหลักฐานการโอน
 Usage,การใช้งาน
 "Use a JPG, PNG or PDF transfer slip","หลักฐานการโอนต้องเป็นไฟล์ JPG, PNG หรือ PDF"
 Used,ใช้แล้ว
 Used At,ใช้เมื่อ
+Used {0} pages this month · pay-as-you-go,ใช้ไปเดือนนี้ {0} หน้า · ยังไม่สมัคร คิดตามใช้จริง
+"Used {0} pages this month · plan {1}, {2} left this cycle",ใช้ไปเดือนนี้ {0} หน้า · แพ็กเกจ {1} เหลือรอบนี้ {2} หน้า
 User,ผู้ใช้
 User Agent,User Agent
+"Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง
 VAT,ภาษีมูลค่าเพิ่ม
+VAT %,ภาษี %
 VAT Amount,ภาษีมูลค่าเพิ่ม
 VAT Included,รวมภาษีมูลค่าเพิ่ม
 VAT Rate %,อัตราภาษี %
+Valid for {0},เหลืออายุ {0}
 Waited {0}s and still could not take the lock for the same account ({1}) — never sign in to one account concurrently. {2},รอ {0} วินาทีแล้วยังล็อกบัญชีเดียวกันไม่ได้ ({1}) — ห้ามเข้าสู่ระบบบัญชีเดียวกันพร้อมกัน {2}
+Warehouses,คลังสินค้า
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,ส่งอะไรไป
 What Was Recognised,สิ่งที่อ่านได้
@@ -410,8 +685,12 @@ Who raised this (the salesperson). Execution uses the **approver's** own credent
 "Whose connection this is. **Empty = a site-wide shared connection** (configured by the owner, using an account that has the rights); filled = one operator's own connection. In the legacy product every operator had their own DMS connection, with the owner's acting as the template.",การเชื่อมต่อนี้เป็นของใคร **เว้นว่าง = การเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์** (ที่เจ้าของตั้งไว้ ด้วยบัญชีที่มีสิทธิ์) ใส่ค่า = การเชื่อมต่อของผู้ปฏิบัติงานรายนั้น ในผลิตภัณฑ์เดิมผู้ปฏิบัติงานแต่ละคนมี DMS ของตัวเอง โดยใช้ของเจ้าของเป็นแม่แบบ
 "Windows app on the merchant's accounting PC: installer, pairing, outbound pull",โปรแกรม Windows บนเครื่องบัญชีของร้าน: ตัวติดตั้ง การจับคู่ และการดึงงานออก
 Withholding Tax,ภาษีหัก ณ ที่จ่าย
+Work together,ทำงานร่วมกัน
 Workspace,พื้นที่ทำงาน
+Yes,ใช่
+You need to sign in to the site before opening this page. Enter through the site domain and sign in.,หน้านี้ต้องเข้าสู่ระบบของเว็บไซต์ก่อนจึงจะเปิดได้ กรุณาเข้าผ่านโดเมนของเว็บไซต์แล้วเข้าสู่ระบบ
 Your access domain,โดเมนสำหรับเข้าใช้งาน
+Your account was updated elsewhere. Sign in again to load the current username.,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน
 "`[{field,label,old,new}]`: approval applies exactly this, no longer depending on the session.","`[{field,label,old,new}]`: ตอนอนุมัติแก้ตามนี้ ไม่ต้องพึ่งเซสชันอีก"
 account.cancel,ยกเลิก
 account.changePassword,เปลี่ยนรหัสผ่าน
@@ -504,6 +783,7 @@ connect.state.enabled,เปิดใช้งานแล้ว
 connect.state.notConnected,ยังไม่เชื่อมต่อ
 connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
+e.g. Ming (sales),เช่น มิ่ง (ขาย)
 endpoint is missing (which connection to test),ขาด endpoint (จะทดสอบการเชื่อมต่อใด)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 home.balance.title,ยอดคงเหลือในบัญชี
@@ -636,7 +916,9 @@ intake.title,โต๊ะทำงานบันทึกข้อมูล
 nav.cashier,ขายหน้าร้าน POS
 nav.clients,จัดการลูกค้า
 nav.company,ข้อมูลบริษัท
+nav.companyList,รายชื่อบริษัท
 nav.companyMaster,ทะเบียนบริษัท
+nav.companyWarehouses,คลังสินค้า
 nav.connect,เชื่อมต่อ DMS
 nav.cowork,Pearnly Cowork
 nav.erpClients,ลูกค้า
@@ -668,6 +950,7 @@ nav.stockOut,จ่ายออก
 nav.stocktake,ตรวจนับสต็อก
 nav.suppliers,ผู้ขาย
 nav.team,ทีมงาน
+nav.warehouses,คลังสินค้า
 nav.work,ทำงานร่วมกัน
 nonce mismatch,nonce ไม่ตรงกัน
 purchase.action.addLine,เพิ่มรายการ
@@ -797,7 +1080,13 @@ shell.notBuilt.title,ไม่สามารถใช้งานหน้า�
 state is invalid or has expired,state ไม่ถูกต้องหรือหมดอายุ
 system_url is required,ต้องระบุ system_url
 username / password are required,ต้องระบุ username / password
+{0} of {1} pages used this cycle; {2} remaining.,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
+{0} pages per cycle,{0} หน้าต่อรอบ
+{0} record(s) deleted.,ลบแล้ว {0} รายการ
+{0} records · grand total {1} · payable {2} · outstanding {3},{0} รายการ · รวม {1} · ต้องจ่าย {2} · ค้างจ่าย {3}
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} ต้องใช้ {1} พารามิเตอร์ แต่ส่งเข้าคิวมา {2} ตัว
+{0} top-up request(s) pending review.,มีคำขอเติมเงิน {0} รายการรอตรวจสอบ
+{0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}: คำนำหน้าเส้นทางต้องขึ้นต้นด้วย /: {1}
 {0}: missing field {1},{0}: ขาดฟิลด์ {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง

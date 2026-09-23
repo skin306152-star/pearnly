@@ -9,7 +9,7 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
-CASES = ("client", "booking-foundation", "booking-payments", "booking-readback")
+CASES = ("client", "booking-foundation", "booking-payments", "booking-readback", "retry", "quota")
 
 if __name__ == "__main__":
     env = dict(os.environ, PYTHONPATH=str(ROOT / "apps/pearnly_dms"))

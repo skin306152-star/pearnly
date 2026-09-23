@@ -5,7 +5,7 @@
  "engine": "InnoDB",
  "field_order": [
   "warehouse_name",
-  "is_default",
+  "company",
   "is_active",
   "note"
  ],
@@ -19,11 +19,13 @@
    "length": 200
   },
   {
-   "fieldname": "is_default",
-   "fieldtype": "Check",
-   "label": "Default Warehouse",
-   "default": "0",
-   "in_list_view": 1
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "options": "ERP Company",
+   "label": "Company",
+   "reqd": 1,
+   "in_list_view": 1,
+   "in_standard_filter": 1
   },
   {
    "fieldname": "is_active",
@@ -43,6 +45,8 @@
  "modified": "2026-09-21 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Warehouse",
+ "show_title_field_in_link": 1,
+ "title_field": "warehouse_name",
  "owner": "Administrator",
  "permissions": [
   {

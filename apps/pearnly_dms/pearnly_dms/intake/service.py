@@ -66,38 +66,79 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
     }
 
 
-def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
+def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
+                  background: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
+
+    `attempt` / `background`：这一次给多长的"打开登录页"预算（见
+    `pearnly_dms.config.pacing`，**所有 DMS 操作共用那一份口径**）：用户那条路按第几次
+    尝试走 30/60/90 秒的阶梯；后台那条路不走阶梯、一次给足 90 秒。
+
+    **连不上时返回 `ERR_DMS_UNREACHABLE`**（而不是 `ERR_UNEXPECTED`），上层才给得出
+    "重试"按钮；连续失败到阈值会进入冷却，冷却期内**快速失败**，不让每个人再白等
+    30–90 秒（同一个 `pacing` 模块，用户与后台同一套）。
 
     `authoritative_read=True`：**整块 DMS 读取**借管理员会话（配了独立管理员凭据组时），
     销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
     管理员 transport；未配管理员照样走销售；配了但管理员登录失败 →
     `ERR_DMS_ADMIN_AUTH` **明确失败关闭**，不静默降级。**写操作（上传/提交）不走这个入口。**
+
+    同一档还有一条省时规矩：**权威只读 + 配了独立管理员凭据时不登销售会话**。这一整块
+    读取只跑在管理员会话上（销售会话登了也用不到），白付的那一次完整登录在生产实测是
+    6–16 秒（新连接卡在 TLS 握手；同一连接复用只要 0.2 秒）。只在**配了独立管理员**时跳：
+    没配或与销售同号 → 照旧先登销售会话，单凭据路径行为逐字节不变。跳过之后这一块
+    **必须**落在管理员会话上（`require_admin`）：拿不到就按 `ERR_DMS_ADMIN_AUTH` 明确失败，
+    绝不回落成"没登录的主会话读出一片空"。
     """
     name = endpoint_name(endpoint)
+    from pearnly_dms.config import pacing
+
+    # 熔断：最近连着几次都连不上就先别敲门 —— 直接回同一个错误码（上层照样给得出"重试"），
+    # 但不让每个人再白等一次 30–90 秒。冷却期随时间自解，成功一次立刻归零。
+    wait = pacing.cooldown_left(name)
+    if wait:
+        return err("ERR_DMS_UNREACHABLE",
+                   f"circuit open: {wait}s left ({pacing.summary(name).get('failures')} consecutive failures)")
     adapter, build_err = build_adapter(name)
     if build_err:
         return err(build_err["error_code"], build_err["raw"])
+    # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
+    adapter.page_timeout_ms = pacing.budget_ms(attempt, background=background)
     try:
-        from pearnly_dms.adapter.session import DmsAdminAuthError, DmsAuthError, DmsTechnicalError
+        from pearnly_dms.adapter.session import (
+            DmsAdminAuthError,
+            DmsAuthError,
+            DmsTechnicalError,
+            DmsUnreachableError,
+        )
         from pearnly_dms.contracts.client_base import DmsClientError
 
         try:
             with adapter:
-                try:
-                    adapter.login()
-                except (DmsAuthError, DmsTechnicalError):
-                    if adapter.concurrent_login_detected:
-                        return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                    raise
+                # **权威只读 + 独立管理员 = 不登销售会话**：这一整块读取会被
+                # `authoritative_read_session` 换成管理员 transport，销售会话登了也用不到，
+                # 白付一次完整登录（生产实测每次 6–16 秒，几乎全花在新连接的 TLS 握手上）。
+                # 账号锁不受影响：`with adapter` 本来就同时锁销售与管理员两个登录槽。
+                skip_sales_login = authoritative_read and bool(
+                    getattr(adapter, "has_distinct_admin_creds", False)
+                )
+                if not skip_sales_login:
+                    try:
+                        adapter.login()
+                    except (DmsAuthError, DmsTechnicalError):
+                        if adapter.concurrent_login_detected:
+                            return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
+                        raise
                 try:
                     client = adapter.client()
                     if authoritative_read:
                         from pearnly_dms.adapter.admin_read import authoritative_read_session
 
-                        with authoritative_read_session(client):
+                        # 跳过了销售登录 → 这一块**必须**是管理员会话（拿不到就失败关闭，
+                        # 不许在没登录的主会话上读出一片空还当成"查无此客"）。
+                        with authoritative_read_session(client, require_admin=skip_sales_login):
                             out = fn(client, adapter)
                     else:
                         out = fn(client, adapter)
@@ -116,13 +157,21 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False):
                     isinstance(out, dict) and out.get("booking_id")
                 ):
                     return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
+                # 走到了这里 = 真的连上并用完了（业务上被拒也算连上）：计数归零，
+                # 顺手记"这条连接刚被用过" —— 后台预热据此决定追多紧。
+                pacing.note_success(name)
                 return out
         except DmsAdminAuthError as exc:
             # admin 凭据组登录失败（≠ 用户会话）—— **子类必须先于基类捕获**
             return err("ERR_DMS_ADMIN_AUTH", f"{type(exc).__name__}: {exc}")
         except DmsAuthError as exc:
             return err("ERR_DMS_AUTH", f"{type(exc).__name__}: {exc}")
+        # 「连不上」是技术失败的**子类**，必须排在它前面 —— 上层要靠这个码给重试按钮。
+        except DmsUnreachableError as exc:
+            pacing.note_failure(name, "ERR_DMS_UNREACHABLE")
+            return err("ERR_DMS_UNREACHABLE", f"{type(exc).__name__}: {exc}")
         except DmsTechnicalError as exc:
+            pacing.note_failure(name, "ERR_DMS_TECHNICAL")
             return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
         except DmsClientError as exc:
             return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
@@ -189,6 +238,7 @@ def recognize_lookup(
     ocr_address: Dict[str, Any],
     phone: str = "",
     fallback_customer_ids: Optional[List[str]] = None,
+    attempt: int = 1,
 ) -> Dict[str, Any]:
     """识别之后：查客户 + 解析地址级联 + 选项 + 称谓 + 相似候选。
 
@@ -307,7 +357,7 @@ def recognize_lookup(
 
     # 查重是**整块权威读**：销售的 DMS 账号常常看不到客户档，拿它判会把
     # "DMS 里明明存在"的客户当成新客户（老产品线上基准 501589f0 这三处都借管理员会话）。
-    return run_logged_in(endpoint, _do, authoritative_read=True)
+    return run_logged_in(endpoint, _do, authoritative_read=True, attempt=attempt)
 
 
 def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
@@ -346,6 +396,7 @@ def push_idcard_fields(
     mode: str,
     customer_id: Optional[str],
     addresses: Optional[Dict[str, Dict[str, Any]]] = None,
+    attempt: int = 1,
 ) -> Dict[str, Any]:
     """面板最终字段 → 建/改客户（**只写 DMS 客户库，不建订车单**）。
 
@@ -376,7 +427,7 @@ def push_idcard_fields(
             },
         }
 
-    out = run_logged_in(endpoint, _do)
+    out = run_logged_in(endpoint, _do, attempt=attempt)
     if not out.get("ok"):
         out["success"] = False
         out["elapsed_ms"] = int((time.time() - t0) * 1000)

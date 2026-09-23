@@ -3,7 +3,7 @@ from pearnly_core.desk.assets import versioned_asset
 app_name = "pearnly_erp_portal"
 app_title = "Pearnly ERP Portal"
 app_publisher = "Pearnly"
-app_description = "ERP 门户产品：商品与库存、采购、销售、收发存"
+app_description = "ERP 门户产品：物料与库存、采购、销售、收发存"
 app_email = "hello@pearnly.com"
 app_license = "mit"
 
@@ -265,20 +265,62 @@ app_license = "mit"
 # ignore_translatable_strings_from = []
 
 
+has_permission = {"Purchase Document": "pearnly_erp_portal.purchasing.access.document_permission",
+                  "ERP Sales Document": "pearnly_erp_portal.sales.access.document_permission",
+                  "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.has_permission"}
+permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasing.access.query_conditions",
+                               "ERP Sales Document": "pearnly_erp_portal.sales.access.query_conditions",
+                               "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.permission_query"}
+
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-viewer.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-fields.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-layout.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-entry.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-viewer.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
+    versioned_asset("pearnly_erp_portal", "desk/sales-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
+    versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
+    versioned_asset("pearnly_erp_portal", "desk/clients.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
+    # 开班 / 交班弹窗：搬过来的官方收银台与旧收银台**共用这一份**（两条路都调它，
+    # 旧页面那一份已经删掉）。见该文件抬头。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-shift.js"),
+    # 单据汇总那三个动作（打印收据 / 退货退款 / 作废）：同样两条路共用一份。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-receipt.js"),
+    # 收银台适配层（把搬来的官方收银台接到我们的服务上）。**为什么放这里而不是页面里
+    # `frappe.require`**：框架那个加载器从路径里取扩展名（`assets.js` 的 `extn()`），
+    # 路径带 `?v=` 时会被解析错（实测 `TypeError: s is not a function`）；不带版本又会被
+    # 浏览器缓存住 —— 改了代码页面上还是旧的。挂在这里走与其它 desk 文件同一条路：
+    # 按文件内容算 hash（`versioned_asset`），改一次换一个 URL，不吃缓存。
+    versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-adapter.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos-receipts.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos-shifts.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stocktake-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
+    versioned_asset("pearnly_erp_portal", "desk/team.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company.js"),
+    versioned_asset("pearnly_erp_portal", "desk/warehouses.js"),
 ]
 
 app_include_css = [
+    versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
+    versioned_asset("pearnly_erp_portal", "desk/sales.css"),
+    versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
     versioned_asset("pearnly_erp_portal", "desk/scan.css"),
 ]
 
@@ -286,9 +328,15 @@ app_include_css = [
 # 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
 
+# 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
+boot_session = "pearnly_erp_portal.masters.boot.boot_session"
+
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
+  # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
+  # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
+  'page_filter': 'pearnly_erp_portal.masters.nav.filter_pages',
   'pages': [('nav.home', 'pearnly-home', 'house', None),
             ('nav.products', 'pearnly-products', 'package', 'products'),
             ('nav.inventory', 'pearnly-inventory', 'warehouse', 'warehouses'),
@@ -301,9 +349,11 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.purchaseSettings', 'pearnly-buy-settings', 'sun', 'purchase'),
             ('nav.sales', 'pearnly-sales', 'receipt-text', 'sales'),
             ('nav.cashier', 'pearnly-cashier', 'shopping-cart', 'cashier'),
+            ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
+            ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
             ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
-            ('nav.companyMaster', 'pearnly-company-master', 'users', None),
-            ('nav.company', 'pearnly-company', 'contact', None),
+            ('nav.company', 'pearnly-company', 'building-2', None),
+            ('nav.warehouses', 'pearnly-warehouses', 'warehouse', None),
             ('nav.team', 'pearnly-team', 'users-round', None),
             ('nav.integrations', 'pearnly-integrations', 'plug', None)],
   'available': ['pearnly-home',
@@ -314,8 +364,15 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-stock-card',
                 'pearnly-stock-count',
                 'pearnly-purchase',
+                'pearnly-suppliers',
                 'pearnly-sales',
-                'pearnly-cashier'],
+                'pearnly-clients',
+                'pearnly-cashier',
+                'pearnly-pos-receipts',
+                'pearnly-pos-shifts',
+                'pearnly-team',
+                'pearnly-company',
+                'pearnly-warehouses'],
   'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
                   'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
                   'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
@@ -323,8 +380,20 @@ pearnly_navigation = [{'product': 'erp',
                   'pearnly-stock-card': {'doctype': 'ERP Stock Movement'},
                   'pearnly-stock-count': {'doctype': 'ERP Stock Count'},
                   'pearnly-purchase': {'doctype': 'Purchase Document'},
+                  'pearnly-suppliers': {'doctype': 'ERP Supplier'},
                   'pearnly-sales': {'doctype': 'ERP Sales Document'},
-                  'pearnly-cashier': {'doctype': 'ERP Sale'}},
+                  'pearnly-clients': {'doctype': 'ERP Customer'},
+                  'pearnly-cashier': {'doctype': 'ERP Sale'},
+                  'pearnly-pos-receipts': {'doctype': 'ERP Sale'},
+                  'pearnly-pos-shifts': {'doctype': 'ERP Shift'},
+                  # 公司（本租户主体资料）：业务岗位都能读（开单要抬头与税号），
+                  # 只有产品管理员写得动；判据在服务端（`company.read` / `company.manage`）。
+                  'pearnly-company': {'doctype': 'ERP Company'},
+                  # 仓库：库存岗位读得到（出入库要选仓），写由 `stock.manage` 在服务端判。
+                  'pearnly-warehouses': {'doctype': 'ERP Warehouse'},
+                  # 员工账号与岗位：能管本产品员工的是产品管理员（ERP Admin）。
+                  # 用角色判，不新增权限码 —— Frappe 的用户与权限体系就是判据。
+                  'pearnly-team': {'any_role': ['ERP Admin']}},
   'groups': [('nav.group.goodsStock',
               'boxes',
               ['pearnly-products',
@@ -336,7 +405,33 @@ pearnly_navigation = [{'product': 'erp',
              ('nav.group.purchasing',
               'shopping-cart',
               ['pearnly-purchase', 'pearnly-suppliers', 'pearnly-buy-settings']),
-             ('nav.group.sales', 'receipt-text', ['pearnly-sales', 'pearnly-cashier', 'pearnly-clients']),
+             ('nav.group.sales',
+              'receipt-text',
+              ['pearnly-sales',
+               'pearnly-cashier',
+               'pearnly-pos-receipts',
+               'pearnly-pos-shifts',
+               'pearnly-clients']),
              ('nav.group.master',
               'building-2',
-              ['pearnly-company-master', 'pearnly-company', 'pearnly-team', 'pearnly-integrations'])]}]
+              ['pearnly-integrations'])],
+  # 「选择框里的『新建』去哪儿」（用户 2026-09-23："每个输入框加新建入口，和官方原生一样，
+  # 点新建跳转到我们已有的对应位置，不要把用户带到官方原生的地方去了"）。
+  # 键是**被选的那个主档 doctype**，值是**我们自己的那一页**：官方 Link 控件默认把
+  # 「新建 X」送到官方快速录入、「高级搜索」送到官方选择器 —— 都会把用户带到我们没有的
+  # 功能上。没登记的 doctype 不由这里管（我们的表单也不给它入口），所以用户不会掉进官方表单。
+  # 前端据此把这两项接到我们的页面（`pearnly_core/public/desk/link.js`）。
+  'links': {'ERP Warehouse': 'pearnly-warehouses',
+            'ERP Product': 'pearnly-products',
+            'ERP Supplier': 'pearnly-suppliers',
+            'ERP Customer': 'pearnly-clients',
+            'ERP Company': 'pearnly-company'},
+  # 左下角那颗用户按钮里的项（用户 2026-09-23："我点左下角，左侧出现 1.个人信息
+  # 2.团队管理"）。写的是**路由**，词与图标仍从上面的 pages 取，不在这儿再写一份；
+  # 服务端按与侧栏同一套判据筛（页面已实现 + 当前用户能进），所以只有产品管理员
+  # 的菜单里会出现「团队管理」。
+  # 公司带 `before_profile`：用户 2026-09-23 口径"公司……做在个人信息上方"，
+  # 所以它排在「个人信息」上面，团队管理仍排在下面。
+  'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
+                {'route': 'pearnly-warehouses', 'before_profile': True},
+                'pearnly-team']}]

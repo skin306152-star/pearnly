@@ -24,7 +24,7 @@
 				deleting = true;
 				try {
 					const result = await p.call("pearnly_dms.records.manage.delete_records", {names}, "POST");
-					if (result.deleted) p.success(t("connect.records.deletedCount", result.deleted));
+					if (result.deleted) p.success(t("connect.records.deletedCount", result.deleted), "delete");
 					await list.reload();
 				} catch (error) {
 					if (!error?._server_messages && !error?.responseJSON) console.error(error);

@@ -1,0 +1,59 @@
+{
+ "doctype": "DocType",
+ "name": "ERP Purchase Category",
+ "module": "Pearnly ERP Portal",
+ "istable": 0,
+ "engine": "InnoDB",
+ "field_order": [
+  "category_name",
+  "parent_category",
+  "is_active",
+  "sort_order"
+ ],
+ "fields": [
+  {
+   "fieldname": "category_name",
+   "label": "Item Group",
+   "fieldtype": "Data",
+   "reqd": 1,
+   "in_list_view": 1
+  },
+  {
+   "fieldname": "parent_category",
+   "label": "Parent Item Group",
+   "fieldtype": "Link",
+   "options": "ERP Purchase Category"
+  },
+  {
+   "fieldname": "is_active",
+   "label": "Enabled",
+   "fieldtype": "Check",
+   "default": "1"
+  },
+  {
+   "fieldname": "sort_order",
+   "label": "Sort Order",
+   "fieldtype": "Int"
+  }
+ ],
+ "permissions": [
+  {
+   "role": "ERP Purchase",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "select": 1
+  },
+  {
+   "role": "ERP Admin",
+   "read": 1,
+   "write": 1,
+   "create": 1,
+   "select": 1
+  }
+ ],
+ "autoname": "hash",
+ "show_title_field_in_link": 1,
+ "title_field": "category_name",
+ "search_fields": "category_name"
+}

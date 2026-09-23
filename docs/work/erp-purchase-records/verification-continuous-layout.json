@@ -1,0 +1,69 @@
+{
+  "date": "2026-09-22",
+  "base_sha": "7939cfce37efe08bf68220f0d394242f9da50a6f",
+  "file_sha256": {
+    "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py": "a7e9379c1f721edbdb55b0da501891d7a005695a2eb761b6190044e0d7188d19",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-fields.js": "e749486f8715c191f7d3c11895f4122f742dcd1363eef617bb035aefc23382c4",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js": "c2007ad98913666724ae622f4aa0204d28cee81411e08bceea84a913381191c8",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-layout.js": "acb5dba013b4545b32caf43f056a7bd07b6d4a741d2091919e0dbd2872208ffe",
+    "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.css": "f17e0537956d7808d8b669b45357244b91e74729a1bc9c300835377e72a37de4"
+  },
+  "environment": {
+    "docker_context": "colima-pearnly",
+    "compose_project": "pearnly-purchase-lab",
+    "site": "erp-pos-a.localhost",
+    "port": 8147,
+    "base_image": "sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3"
+  },
+  "browser_checks": [
+    "1280x850 continuous form with evidence on right, no desktop section navigation",
+    "390x844 all regions remain displayed; anchor click scrolls and scroll updates active underline",
+    "section navigation preserves entered values and URL; viewport scrollWidth=390",
+    "image preview opens native PhotoSwipe",
+    "mock OCR fills existing form; real keyboard correction recalculates total; submit posts local synthetic record",
+    "empty desktop upload region height about 172px; actual OCR capability hidden after removing mock"
+  ],
+  "local_sample": {
+    "doc_no": "UI-CONTINUOUS-20260922-03",
+    "name": "PUR-2026-00198",
+    "system_no": "PE2569-000072",
+    "qty": 3,
+    "grand_total": 321,
+    "paid_amount": 321,
+    "status": "submitted",
+    "is_paid": 1,
+    "auto_create_product": 1,
+    "update_stock": 1,
+    "stock_posted_at": "2026-09-22 22:54:06.842991"
+  },
+  "checks": {
+    "javascript_syntax": "PASS",
+    "architecture": "PASS 0 violations",
+    "frontend_i18n": "PASS",
+    "i18n_build": "PASS",
+    "diff": "PASS"
+  },
+  "pdf": {
+    "file": "PUR-2026-00198-substitute_receipt.pdf",
+    "signature": "PDF-1.4",
+    "size": 30148,
+    "pages": 1,
+    "has_extractable_text": true,
+    "in_app_browser_rendering": "FAILED even when opened separately; native original-file link retained, no empty inline frame"
+  },
+  "boundaries": {
+    "ocr": "browser XHR fixture only, no external provider call; interception removed",
+    "backend_regression_suite": "not repeated; backend unchanged",
+    "strict_i18n": "known inventory workbook baseline failure, untouched",
+    "production_deployment": "not performed",
+    "real_device": "not performed",
+    "user_acceptance": "pending"
+  },
+  "cleanup": {
+    "xhr_interception": "cleared",
+    "viewport_override": "reset",
+    "pdf_popup": "closed",
+    "preview_tab": "retained",
+    "worktree_and_runtime": "retained for user acceptance"
+  }
+}

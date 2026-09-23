@@ -33,7 +33,9 @@ AVAILABLE = {route for item in DECLARATIONS for route in item['available']}
 class NativeDeskContract(unittest.TestCase):
     def test_existing_menu_inventory_is_preserved(self):
         # Fixed product contract, independent of the new navigation implementation.
-        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,17])
+        # ERP 现在是 19 项：2026-09-23 撤掉「公司主档」（"不要公司资料公司主档"），同一天又把
+        # **仓库**从公司页里拿出来单独成页（"仓库单独拿出，放在公司下方，仓库做成单独页"）。
+        self.assertEqual([len(PAGES[p]) for p in ('dms','cowork','erp')], [4,11,19])
         dms = {label: feature for label, _, _, feature in PAGES['dms']}
         self.assertIsNone(dms['nav.connect'])
         self.assertEqual(dms['nav.roster'], 'roster')
@@ -62,19 +64,37 @@ class NativeDeskContract(unittest.TestCase):
                              if r.get('key')})
         self.assertTrue(rows, 'no semantic keys found in any product glossary')
         for p in (ROOT/'apps').glob('*/*/public/desk/*.js'):
-            for key in re.findall(r'''["']((?:home|roster|connect|intake|purchase|shell|account|product|stock|trade)\.[\w.]+)["']''', p.read_text()):
+            for key in re.findall(r'''["']((?:home|roster|connect|intake|purchase|shell|account|product|stock|trade|company|team|supplier|client|sales)\.[\w.]+)["']''', p.read_text()):
                 if key.endswith('.'):
                     continue
                 self.assertIn(key, rows, (p, key))
                 for lang in ('th','zh','en','ja'):
                     self.assertTrue(rows[key][lang], (key,lang))
 
+    def test_desk_page_text_namespaces_are_allowed(self):
+        # 页面上的 `t("company.xxx")` 是**整包**取词：命名空间没登记在
+        # `browser_text.APP_BY_PREFIX` 里，接口直接报错，整页只显示键名。
+        # （2026-09-23：公司页的 `company.` 就是这么漏的，所以把它钉在这里。）
+        allowed = set(re.findall(r'^\s*"([a-z]+\.)":',
+                                 (ROOT/'apps/pearnly_core/pearnly_core/browser_text.py').read_text(),
+                                 re.MULTILINE))
+        self.assertIn('company.', allowed)
+        for p in (ROOT/'apps').glob('*/*/public/desk/*.js'):
+            for namespace in sorted(set(re.findall(r'''\bt\(\s*["']([a-z]+)\.[\w.]+["']''',
+                                                   p.read_text()))):
+                with self.subTest(page=p.name, namespace=namespace):
+                    self.assertIn(namespace + '.', allowed)
+
     def test_only_working_pages_are_offered(self):
         source = MODULE.read_text()
         available = {route for item in DECLARATIONS for route in item['available']}
+        # 实际能打开的页面（三个产品各自声明，2026-09-23 对齐一次）：供应商、客户、
+        # 收银那几个入口与公司页都是前面几批加的，这里补上，别让清单停在旧版本。
         self.assertEqual(available, {'pearnly-home','pearnly-connect','pearnly-roster','pearnly-records','pearnly-intake','pearnly-purchase',
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
-            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier'})
+            'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
+            'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
+            'pearnly-team', 'pearnly-company', 'pearnly-warehouses'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])

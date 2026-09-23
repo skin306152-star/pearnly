@@ -1,0 +1,13 @@
+{
+ "doctype": "Page",
+ "name": "pearnly-clients",
+ "page_name": "pearnly-clients",
+ "title": "nav.erpClients",
+ "module": "Pearnly ERP Portal",
+ "standard": "Yes",
+ "roles": [
+  {
+   "role": "Desk User"
+  }
+ ]
+}

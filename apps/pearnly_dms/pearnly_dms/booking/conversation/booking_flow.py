@@ -219,8 +219,10 @@ def _resume_after_master_change(
     ):
         return
     if changed:
-        _send(line_user_id, qa_cards.master_changed())
-        _send(line_user_id, qa_cards.preview_card(qa, nonce))
+        # 原来这里是**两条**消息（先说"主档变了"、再发汇总卡）—— 额度按条算，能并就并：
+        # 那句提示并进汇总卡的第一行（`notice=`），一次操作只发一条。
+        _send(line_user_id, qa_cards.preview_card(qa, nonce,
+                                                 notice=qa_cards.TXT_MASTER_CHANGED))
         return
 
     code = str(result.get("error_code") or "ERR_DMS_MASTER_UNMATCHED")

@@ -1,0 +1,142 @@
+/* Business layout only; fields, buttons, sections and nav styling stay with Desk. */
+.pearnly-product-desk .pearnly-purchase-form .purchase-section-nav {
+	display: none;
+	top: var(--purchase-head-height, 50px);
+}
+
+.pearnly-product-desk .pearnly-purchase-form .purchase-body {
+	display: grid;
+	grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+	align-items: start;
+}
+
+.pearnly-product-desk .pearnly-purchase-form .purchase-data {
+	grid-column: 1;
+	grid-row: 2;
+	min-width: 0;
+}
+
+.pearnly-product-desk .pearnly-purchase-form .purchase-evidence {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	min-width: 0;
+	position: sticky;
+	top: var(--purchase-head-height, 50px);
+	border-left: 1px solid var(--border-color);
+}
+
+.pearnly-product-desk .pearnly-purchase-form .purchase-entry {
+	grid-column: 1;
+	grid-row: 1;
+	min-width: 0;
+}
+
+.pearnly-product-desk .purchase-entry .purchase-entry-choice .checkbox > label {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	min-height: 80px;
+	margin: 0;
+	line-height: 1.5;
+	border: 1px solid var(--border-color);
+	border-radius: var(--border-radius);
+}
+
+.pearnly-product-desk .purchase-entry .purchase-entry-choice small {
+	font-size: var(--text-sm);
+}
+
+.pearnly-product-desk .purchase-entry .form-column {
+	flex: 1 0 250px;
+	max-width: 100%;
+}
+
+.pearnly-product-desk .purchase-entry .purchase-entry-choice .input-area {
+	flex-shrink: 0;
+	--primary: var(--gray-900);
+}
+
+.pearnly-product-desk .purchase-entry .purchase-entry-choice .label-area {
+	min-width: 0;
+}
+
+.purchase-document-viewer .purchase-document-canvas {
+	position: relative;
+	height: min(360px, 48vh);
+	overflow: hidden;
+	touch-action: none;
+	cursor: grab;
+	background: var(--subtle-fg);
+}
+
+.purchase-document-viewer .purchase-document-canvas img {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	max-width: 100%;
+	max-height: 100%;
+	transform-origin: center;
+	user-select: none;
+}
+
+.purchase-document-viewer .purchase-document-status {
+	padding-top: 40%;
+}
+
+.purchase-document-viewer .purchase-document-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--margin-xs);
+	padding-block: var(--padding-xs);
+}
+
+.purchase-document-viewer .purchase-document-tool-group {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--margin-xs);
+	white-space: nowrap;
+}
+
+.purchase-document-viewer .purchase-document-value {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 4ch;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+
+.purchase-preview-dialog .modal-dialog {
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+}
+
+.purchase-preview-dialog .modal-content {
+	min-height: 100dvh;
+}
+
+.purchase-preview-dialog .purchase-document-canvas {
+	height: calc(100dvh - 160px);
+}
+
+.pearnly-product-desk .pearnly-purchase-form [data-fieldname="attachment_list"] .result {
+	min-height: 0;
+}
+
+@media (max-width: 767px) {
+	.pearnly-product-desk .pearnly-purchase-form .purchase-section-nav {
+		display: block;
+	}
+
+	.pearnly-product-desk .pearnly-purchase-form .purchase-body {
+		display: block;
+	}
+
+	.pearnly-product-desk .pearnly-purchase-form .purchase-evidence {
+		position: static;
+		border-left: 0;
+	}
+}

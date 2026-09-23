@@ -149,13 +149,20 @@ class AggregatedPermissions(unittest.TestCase):
 
     def test_cost_access_follows_declared_roles(self):
         roles = self.catalog['roles_payload']('erp', ['warehouses', 'stocktake'])
-        grants = {r['role']: r for r in roles['field_permissions']}
-        self.assertEqual(set(grants), {'ERP Admin', 'ERP Stock'})
-        self.assertEqual(grants['ERP Stock']['perms'], {'read': 1, 'write': 0})
-        self.assertEqual(grants['ERP Admin']['perms'], {'read': 1, 'write': 1})
+        grants = {(r['doctype'], r['role']): r for r in roles['field_permissions']}
+        self.assertEqual(set(grants), {(doctype, role)
+            for doctype in ['ERP Product', 'ERP Stock Count Item']
+            for role in ['ERP Admin', 'ERP Stock']})
+        self.assertEqual(grants['ERP Product', 'ERP Stock']['perms'], {'read': 1, 'write': 0})
+        self.assertEqual(grants['ERP Product', 'ERP Admin']['perms'], {'read': 1, 'write': 1})
+        # Frozen valuation is readable but never editable through native forms.
+        for role in ['ERP Admin', 'ERP Stock']:
+            self.assertEqual(grants['ERP Stock Count Item', role]['perms'], {'read': 1, 'write': 0})
+        self.assertTrue(all(grant['permlevel'] == 1 for grant in grants.values()))
         for code in ['products', 'purchase', 'sales', 'cashier']:
             payload = self.catalog['roles_payload']('erp', [code])
-            self.assertEqual([g['role'] for g in payload['field_permissions']], ['ERP Admin'])
+            self.assertEqual({(g['doctype'], g['role']) for g in payload['field_permissions']},
+                {('ERP Product', 'ERP Admin'), ('ERP Stock Count Item', 'ERP Admin')})
         for product in ['cowork', 'dms']:
             self.assertEqual(self.catalog['roles_payload'](product, self.catalog['codes_of'](product))['field_permissions'], [])
 

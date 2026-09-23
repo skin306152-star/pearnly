@@ -1,37 +1,1113 @@
+"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.",0 表示从来没设过价格（不是真的 ฿0）。Frappe 的 Currency 列存不了 NULL，所以「没设」和「0」的差别由这个标记来区分；收银台的零价拦截读的就是它。
+1 = January,1 = 一月
+1-12; Thai companies commonly start in January,1–12；泰国公司一般从 1 月开始
+13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
+A company needs a name,公司要有名称
+A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须指向它建出的采购记录
+A confirmed draft must point at the record it created,已确认的草稿必须指向它创建的那条记录
+A customer needs a name,客户要有名称
+A payment has to be approved before it counts as paid,付款要先经过审批才算已付
+A product needs a name,物料要有名称
+A refund cannot be more than the original sale,退款不能超过原始销售单
+A refund needs the original sale,退款必须指定原始销售单
+A stock count needs a name,盘点单要有名称
+A stock entry needs at least one line,出入库单至少要有一行
 A stored source file must carry its hash,留底文件必须带内容指纹
+A submitted document cannot be changed,已提交的单据不能改
+A submitted entry cannot be changed,已提交的出入库不能改
+A supplier needs a name,供应商要有名称
+A terminal needs a name,收银台要有名称
+A warehouse must belong to a company,仓库必须挂在某家公司名下
+A warehouse needs a name,仓库要有名称
+Abbreviated Tax Invoice,简式税务发票
+Actual position,实际仓位
+Actual positions and quantities,实际仓位及数量
+Actual warehouse,实际仓库
+Add Column,添加列
+Add Discount,折扣
+Add Employee,添加员工
+Add Order Discount,添加整单折扣
+Add User,添加用户
+Add VAT,计算增值税
+Add a count,记一笔
+Add a count — {0},记一笔 — {0}
+Add photos,添加照片
+Add row,添加明细
+Add terminal,新增收银台
+Added {0},已添加 {0}
+Added: {0},已加入：{0}
+Additional,附加项
+Additional Discount Percentage,整单折扣率
+Additional Information,附加信息
+Additional Information updated successfully.,附加信息已更新
+Address,地址
+Address and notes,地址与备注
+Against Payment,关联付款
+All,全部
+All Items,所有物料
+All companies,全部公司
+All the items have been already returned.,所有物料都已退货
+Already exists,已存在
 Already received,这份文件已经收过了
+Already used by {0} (code {1}),已经是「{0}」（编码 {1}）
+Amend,修订
+Amended,已修订
+Amended From,修订自(上一版单据编号)
+Amount,金额
+Amount Payable,应付金额
+Amount Received,实收金额
+Amounts,金额
+Anonymous,匿名
+Anonymous buyers get no tax id; only companies have branches,散客没有税号；只有公司才有分支
+Apply,应用
+Approval Status,审批状态
+Are you sure you want to delete the attachment?,您确定要删除附件？
+Are you sure you want to delete?,确定删除？
+As Of,截至
+At most 5 photos per entry,每条记录最多 5 张照片
+At most {0} photos per entry,每张单据最多 {0} 张照片
+Attach,添加文件
+Attachment,附件
+Attachment Type,附件类型
+Attachments,附件
+Auto Fetch Serial Numbers,自动获取序列号
+Available Qty,可用量
+Average Unit Cost,平均单位成本
+Back,返回
+Back to entries,返回记录
+Back to summary,返回汇总
+Balance,结存
+Bank,银行
+Bank Transfer,银行转账
+Barcode,条码
+Barcode / QR code,条码/二维码
+"Barcode, QR code or product code",条形码、二维码或物料编码
+Base Currency,本位币
+Base Unit,库存单位
+Base unit,库存单位
+Basis Qty,基准数量
+Basis Set,已设基准
+Batch No,批号
 Bind this account first,请先绑定 ERP 账号
+Block Duplicate Documents,阻止重复单据
+Book position,账面仓库／仓位
+Book quantity,账面数量
+Book quantity {0} {1},账面数量 {0} {1}
+Book {0} · counted {1} · difference {2},账面 {0} · 实盘 {1} · 差异 {2}
 Bound to {0},已绑定到 {0}
+Branch,分支机构（分公司）
+Branch Name,分支名称
+Branch No,分支编号
+Branch No is required,分支编号不能为空
+Branch Number,分店编号
+Branch Office,分支机构
+Branch Type,分支类型
+Branch {0},分支机构 {0}
+Bucket,号段
+Buyer Type,客户类型
+By Payment Method,按收款方式
+Calculation Version,计算版本
+"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
+Camera permission was refused; allow it and try again,摄像头权限被拒绝，允许之后再试一次
+Cancel,取消
+Cancel {0},取消选中的 {0} 条
+Cancellation,取消
+Cancelled,已取消
+Cancelled At,作废时间
+Cancelled On,取消时间
+Cancelled {0},已取消 {0} 条
+Cannot reach the Revenue Department right now,现在连不上税务局
+Card,刷卡
+Cart,购物车
+Cash,现金
+Cash Amount,现金
+Cash Check,现金核对
+Cash Difference,现金差额
+Cashier,收银
+Cashier (POS),收银（POS）
+Cashier Records,收银记录
+"Cashier counter, shifts and the cashier's own sales",收银台、班次与收银员自己的销售
+Category,类别
+Category Name,分类名称
+Change,找零
+Change Amount,找零
+Change Total,找零合计
+Chart by,看板按
+Checkout,结账
+Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
+Cheque,支票
+Choose a file,选择文件
+Choose a file to import,请选择要导入的文件
+Choose at least one job role,至少勾一个功能权限
+Choose file,选择文件
+Choose the sheet to import,请先选择要导入的表格
+Clear,清除
+Clear Link,清除关联
+Clear cart,清空购物车
+Clear customer,清除客户
+Clear the cart?,要清空购物车吗？
+Click to add email / phone,点击添加邮箱 / 电话
+Click to choose a customer,点击选择客户
+Client Reference,客户端引用
+Close,关闭
+Close Shift,交班
+Close camera,关闭相机
+Close count,结束盘点
+Close the POS,关闭收银台
+Closed At,交班时间
+Closed at,结束时间
+Closed by,结束人
+Closing Quantity,期末数量
+Closing locks every entry. Rows never counted stay empty. Continue?,结束后记录锁定，未盘点的行保持为空。继续？
+Code,编码
+Code or barcode,编号或条码
+Codes start at {0},本次从 {0} 开始发
+Collected {0},已收款 {0}
+Collection,收款
+Collection Date,收款日期
+Collection Method,收款方式
+Collection Remarks,收款备注
+Collection Status,收款状态
+Colour Tag,颜色标记
+Columns,列
+Comes from the terminal; set it there if it is empty,来自收银台；这里空的话要先去收银台上配一个仓
+Companies,公司
+Company,公司
+Company details,公司信息
+Company name,公司名称
+Company not found,找不到这家公司
+Complete Order,完成订单
+Complete Payment,收款完成
+Completed,已完成
+Confirm,确认
+Confirm the document before recording a payment,记录付款前请先提交单据
+Contact Details,联系方式
+Contact Person,联系人
+Contact email,联系邮箱
+Contact person,联系人
+Continuous counting,连续盘点
+Conversion Factor,换算系数
+Correct entry,修改记录
+Cost,成本
+Cost Is Set,已设成本
+Cost Known,成本已知
 Could not store this document,单据留底失败，请重发
+Count at least one item before finishing,请至少盘点一项后再结束
+Count by,盘点方式
+Count closed,盘点已结束
+Count saved,已保存
+Counted,已盘点
+Counted Amount,实点金额
+Counted Cash,实点现金
+Counted amount is required,必须填实点金额
+Counted at,盘点时间
+Counted by,盘点人
+Counted in total,计入合计
+Counted quantity,实盘数量
+Counter 1,Counter 1
+Create,创建
+Create New Item,创建新物料
+Create POS Opening Entry,新建开班记录
+Created,创建时间
+Created when a sales draft is confirmed,销售草稿确认后生成
+Created when the draft is confirmed,草稿确认后生成
+Created {0} product(s),已新建 {0} 个物料
+Created {0}; {1} row(s) were not saved — fix them and save again,已新建 {0} 个；{1} 行没保存成功，修正后再存
+Creation,创建日期
+Currency,货币
+Current,当前
+Custom,自定义
+Customer,客户
+Customer Name,客户名称
+Customer Type,客户类型
+Customer contact updated successfully.,客户联系方式已更新
+Customer is disabled,客户已停用
+Customer is required,必须填写客户
+Customer not found,未找到客户
+Customers,客户
+Date,日期
+Decided At,处理时间
+Dedupe Key,去重键
+Default,默认
+Default Company,默认公司
+Default Due Days,默认账期（天）
+Default Location,默认仓位
+Default Selling Unit,默认销售单位
+Default Terminal,默认收银台
+Default VAT Rate (%),默认 VAT 税率（%）
+Default WHT Rate for Services (%),服务类默认预扣税率（%）
+Default withholding for service documents,服务类单据默认的预扣税
+Delete,删除
+Delete selected ({0}),删除所选（{0}）
+Delete {0} stock counts? Posted ones cannot be deleted.,删除选中的 {0} 份盘点？已过账的删不掉。
+Deleted {0},已删除 {0}
+Deleted {0} stock counts,已删除 {0} 份盘点
+Description,描述
+Details,详细信息
+Difference,差异
+Difference value,差异金额
+Differences,差异合计
+Direction must be in or out,方向只能是入库或出库
+Disable,停用
+Disable {0},停用 {0}
+Disable {0} selected,停用选中的 {0} 个
+Disabled,已停用
+Discard Reason,丢弃原因
+Discount,折扣金额
+Discount (%),折扣率 (%)
+Discount Amount,折扣金额
+Discount Total,折扣总额
+Discount cannot be greater than 100%,折扣率不可超过 100%
+Discount cannot be greater than 100%.,折扣率不可超过100%
+Discount cannot exceed the amount,折扣不能超过金额
+Discount percentage,折扣百分比
+Document,单据
+Document No,单据编号
+Document Number,单据编号
+Document Prefix,单据前缀
+Document Type,单据类型
+Document already exists,单据已存在
+Document has already been cancelled,单据已取消
+Document has already been submitted,单据已提交
+Document has been cancelled,文档已取消
+Document must be submitted,请先提交单据
+Document prefix,单据前缀
+Documents,单据
+Download template,下载模板
+Draft,草稿
 Draft not found,找不到这条草稿
+Due Date,到期日
+ERP,ERP
 ERP Stock Count Variance,盘点差异看板
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
+Edit,编辑
+Edit Cart,返回购物车
+Edit Receipt,编辑收据
+Edit in Full Page,全屏编辑
+Editing {0} is not allowed as per POS Profile settings,按收银台配置，不允许修改 {0}
+Email,邮箱
+Email Receipt,邮件发送收据
+Email not sent to {0} (unsubscribed / disabled),未向 {0} 发送邮件（已退订 / 已停用）
+Email sent successfully.,邮件已发送
+Enable,启用
+Enable / disable,启用 / 停用
+Enable POS cashier,启用 POS 收银台
+Enable {0},启用 {0}
+Enable {0} selected,启用选中的 {0} 个
+Enabled,已启用
+Enter a quantity,请输入数量
+Enter a tax ID first,请先填税号
+Enter a valid email,请填写正确的邮箱
+Enter amount to be redeemed.,输入要抵扣的金额
+Enter customer's email,输入客户邮箱
+Enter customer's phone number,输入客户电话
+Enter discount percentage,输入折扣百分比
+Enter discount percentage.,输入折扣百分比
+Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
+Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
+Enter the user name,请填写用户名
+Enter {0} amount,输入{0}金额
+Enter {0} amount.,输入 {0} 金额
+Entries,记录
+Entries — {0},记录 — {0}
+Entry Method,录入方式
+Excel file,Excel 文件
+Exchange Rate,汇率
+Exchange Rate is required,汇率不能为空
+Exchange Rate must be greater than zero,汇率必须大于零
+Expected Amount,应有金额
+Expected Cash,应有现金
+Expense,费用
+Expense Amount,费用金额
+Expense Count,费用笔数
+Expiry Date,失效日期
+Export,导出
+Export {0},导出选中的 {0} 个班次
+Exported {0} shifts,已导出 {0} 个班次
+External System Reference,外部系统引用
+Factor to Base Unit,换算到库存单位的系数
+Fetched At,获取时间
+Fetched only {0} available serial numbers.,只取到了 {0} 个可用序列号
+File,文件
+File Fingerprint,文件指纹
+File Name,文件名
+File SHA-256,文件 SHA-256
+File not found,文件不存在
+Fill in as many rows as you need; leave the code empty and the system assigns one,一次可以填多行；编码留空由系统生成
+Filter,筛选
+Filter by invoice status,按单据状态筛选
+Filters,过滤条件
+Find,查询
+Find product,查找物料
+Finish,完成
+Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+First warehouse of this company (more on the Warehouses page),这家公司的第一个仓库（之后在「仓库」页再加）
+Fiscal Year Starts In,会计年度起始月份
+Fiscal year start month,财年起月
+Focus on Item Group filter,定位到物料组筛选
+Focus on search input,定位到搜索框
+Following fields have missing values:,以下字段没有填：
+Foreigner,外国人
+Found,已找到
+Found: {0},已查到：{0}
+"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",Frappe 的 Currency 列存不了 NULL，所以 0 既是真实成本又是「没设过」。收银台要能分辨这两者（和 price_set 同一个理由）。
+"Free note kept with the collection record (who took the money, reference).",跟着这张收款记录一起留的说明（谁收的钱、参考号）。
+From Date,开始日期
+Full Name,姓名
+Full Screen,全屏
+Generated,已生成
+Generated automatically,自动生成
+Goods,货物
+Grand Total,总计
+Gross,毛额
+Head Office,总部
+Hide Recent Orders,隐藏最近订单
+How much of this opening was already pushed into the stock ledger; a revision only posts the difference,这份期初有多少已经推进库存流水；修订时只补登差额
+ID,编号
+Idempotency anchor for a whole request; a repeat submit is ignored,整次请求的幂等锚点；重复提交会被忽略
+Idempotency anchor: a repeat submit returns the same sale instead of charging twice,幂等锚点：重复提交返回同一张小票，不会收两次钱
+Ignore Pricing Rule is enabled. Cannot apply coupon code.,已启用「忽略定价规则」，无法使用优惠券
+Image Fingerprint,影像指纹
+Image URL,图片地址
+Import a sheet,导入盘点表
+Import from Excel,Excel 导入
+Import result,导入结果
+Imported {0} product(s),已导入 {0} 个物料
+"Imported {0} rows, {1} with a counted quantity",已导入 {0} 行，其中 {1} 行带实盘数量
+In,入库
+In progress,进行中
+In stock,正常
+In-stock,盘点在库
+In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
+Inactive,已停用
+Initial Password,初始密码
+Input Tax,进项税额
+Invalid Currency,币种无效
+Invalid Discount,无效折扣
+Invalid Return,无效退货
+Invalid file,无效文件
+Invalid payment amount,付款金额无效
+Invalid value,值无效
+Invalid value: {0},值无效：{0}
+Invoice,发票
+Invoice Amount,发票金额
+Invoice Status,单据状态
+Is Paid,已付款
+Is Reversal,冲销
+Issued,出库数量
+Item,物料
+Item / Description,品名/说明
+Item Cart,购物车
+Item Code,物料号
+Item Code: {0} is not available under warehouse {1}.,物料 {0} 在仓库 {1} 无货
+Item Details,物料详细信息
+Item Group,物料组
+Item Name,物料名称
+Item Name is required,物料名称不能为空
+Item Type,项目类型
+Item is disabled,物料已停用
+Item is removed since no serial / batch no selected.,未选择序列号 / 批号，已移除该物料
+Items,物料
+Items are required,物料明细不能为空
+Items not found.,没找到物料
+Job Roles,功能权限
+LINE,LINE
+LINE Message,LINE 消息
+LINE User,LINE 用户
 LINE unbound,LINE 已解绑
+Last Login,最后登录
+Last Month,上个月
+Last Movement,最后一次流水
+Last counted at,上次盘点时间
+Last counted by,上次盘点人
+Last transacted,最近交易时间
+Leave all unchecked to allow every company,不勾 = 不限制，看全部公司
+Leave blank to use the default terminal,留空使用默认收银台
+"Legacy used head office / branch, with the branch number when it is a branch",旧系统用「总店 / 分支」，是分支时另带分支号
+Light,灯光
+Line Amount,行金额
+Line Discount,行折扣
+Line No,行号
+Line Total,明细小计
+Lines,明细行
+Lines in this shift,当班小票
+List Price,标价
+Loading...,加载中…
+Location,地点
+"Lookup failed, please fill in manually",查询失败，请手工填写
+Low (≤{0}),低库存（≤{0}）
+Low Stock Threshold,低库存阈值
+Low stock,低库存
+Low stock alert,低库存提醒
+Loyalty Points,忠诚度积分
+Loyalty Program,忠诚度计划
+Main,主仓
+Manual,手动
+Manual Entry,手动录入
+Manually Set Amounts,手动设置金额
+Media Type,文件类型
+Merge Items,合并明细
+Missing Values Required,必填项没有填
+Mode of Payment,付款方式
+Modes of Payment,付款方式
+More Filters,更多筛选条件
+Name,名称
+Net,净额
+Net Total,净总计
+New,新建
+New Category,新建分类
+New Customer,新建客户
+New Invoice,新单
+New Order,新订单
+New Purchase Invoice,新供应商发票
+New Sales Document,新建销售单
+New Stock Issue,新建出库单
+New Stock Receipt,新建入库单
+New Supplier,新建供应商
+New company,新建公司
+New product,新建物料
+New stock count,新建盘点
+New warehouse,新建仓库
+Next,下一个
+Next Number,下一个号
+No,序号
+No Open Shift,尚未开班
+No attachments,无附件
+No company is available for this account,这个账号没有可用的公司
+No item matches the scanned code {0},扫到的码没有对应的物料：{0}
+No items found. Scan barcode again.,没有找到物料，请重新扫码
+No items in cart,购物车是空的
+No product for this code: {0},没找到这个码对应的物料：{0}
+No product matches this code,该编号找不到物料
+No receipts in this shift,当班暂无小票
+No recent transactions found,没有最近的交易
+No stock count in progress,无进行中的盘点
+No terminal yet,还没有收银台
+No warehouse matches that name,该仓库名不存在
+None,无
+Normal,正常
+Not Available,无货
+Not Posted,未记入库存
+Not counted,未盘点
+Not enough stock on hand,库存不足
+Not found in the Revenue Department records,税务局没有这家登记
+Not permitted,没有权限
+Note,备注
+Notes,备注
+Nothing counted yet,还没有盘点记录
 Now sending {0} documents,现在发送{0}单据
+OCR,文字识别
+Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,关掉表示成本从来没建过；金额与单位成本留空，而不是猜成 0
+On Hand,现有库存
+Only Draft documents can be deleted,只能删除草稿单据
+Only a completed sale receipt can be refunded,只有已完成的小票能退货退款
+Only a receipt records a collection,只有收据能记收款
+Only a submitted document can be cancelled,只有已提交的单据能作废
+Only a submitted document can be voided,只有已提交（还没作废）的单据能作废
+Only an active count can be deleted,只有进行中的盘点能删除
+Only an image or a PDF can be recognised,仅支持识别图片或 PDF
+Only low or out of stock,只看低库存或缺货
 Only purchase documents can be sent in for now,目前只收采购单据
+Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
+Only the checked features are visible to this user,只勾选的功能，这个用户才看得到
+Only the product admin can change this,只有产品管理员能改
+Open Form View,打开表单视图
+Open Shift,开班
+Open a shift before selling,卖货前先开班
+Open a shift on the cashier page first.,请先在收银台开班（旧页面那条路）
+Open that product,去改那一条
+"Open this page from LINE, or sign in to the site first",请从 LINE 打开本页，或先登录站点
+Opened At,开班时间
+Opened at {0},开班时间 {0}
+Opening,期初
+Opening Amount,期初金额
+Opening Balance,期初余额
+Opening Balance Details,开班余额明细
+Opening Cash,备用现金
+Opening Qty,期初数量
+Opening Quantity,期初数量
+Opening Unit Cost,期初单位成本
+Original Item and Location,原单物料与仓位
+Original Line,原单明细行
+Other,其它
+Out,出库
+Out of stock,缺货
+Outdated POS Opening Entry,过期的开班记录
+Outstanding Amount,未付金额
+Over by {0},多钱 {0}
+POS Closed,收银台已关闭
+POS Opening Entry Cancelled,开班记录已作废
+POS Opening Entry has been cancelled. Please refresh the page.,开班记录已作废，请刷新页面
+POS Profile,收银台配置
+POS cashier,POS 收银台
+POS has been closed at {0}. Please refresh the page.,收银台已于 {0} 关闭，请刷新页面
+POS invoice {0} created successfully,收银单据 {0} 已生成
+Paid,已付款
+Paid Amount,付款金额
+Paid amount cannot exceed the total,收款金额不能超过合计
+Paid {0},已付款 {0}
+Parent Category,上级分类
+Parent Item Group,父物料组
+Partly Paid,部分付款
+Password updated,密码已更新
+Pay,收款
+Payment,付款
+Payment Date,付款日期
+Payment Failed,收款失败
+Payment Method,付款方式
+Payment Needs Approval,付款需要审批
+Payment Receipt,付款凭证
+Payment Received,收款成功
+Payment Reconciliation,支付方式对账
+Payment Status,付款状态
+Payment of {0} received successfully.,已成功收款 {0}
+Payment of {0} received successfully. Waiting for other requests to complete...,已成功收款 {0}，正在等待其它请求完成…
+Payments,付款
+Period,期间
+Person,个人
+Phone,电话
+Phone Number,电话号码
+Photos,照片
+Pick a line first,先选一行
+Pick a warehouse,请选择仓库
+"Pick quantity, discount or price first",先点数量、折扣或单价
+Place,位置
+Please add Mode of payments and opening balance details.,请添加支付方式与开班余额明细
+Please select a field to edit from numpad,请先用键盘选择要修改的字段
+Please select an Item,请选择物料
+Point of Sale,收银台
+Point the camera at the barcode or QR code,把条码或二维码对准摄像头
+Position Balance,该仓位结存
+Position differences,仓位差异
+Post Stock On Confirm,确认时过账库存
+Post differences,过账差异
+Posted,已过账
+Posted Qty,已过账数量
+Posted at,过账时间
+Posted by,过账人
+Posted to Stock,已记入库存
+Posted {0} differences,已过账 {0} 处差异
+Posting Date,记账日期
+Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
+Prefix for this company's document numbers,这家公司单据编号的前缀
+Preview,预览
+Previous,上一个
+Price,售价
+Price Is Set,已设价格
+Price List Rate,标价
+Price is not set for the item.,该物料没有设置售价
+Prices Include Tax,价格含税
+Print,打印
+Print Receipt,打印收据
+Product,产品
+Product / position / counted by / time,物料 / 位置 / 盘点人 / 时间
+Product Name,物料名称
+Product Ref,物料外部标识
+Product name,物料名称
+Product not found,未找到物料
+Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
+PromptPay,PromptPay
+PromptPay Amount,扫码（PromptPay）
+PromptPay ID,PromptPay ID
+PromptPay QR,扫码（PromptPay）
+Provide at least one line item,至少要有一行明细
+Purchase,采购
+Purchase Amount,采购金额
+Purchase Count,采购笔数
+Purchase Invoice,采购发票
+Purchase Order,采购订单
+Purchase Record,采购记录
+Purchase Records,采购记录
+Purchase document not found,找不到这张采购单
+Purchasing,采购
+QR Payload,QR 内容
+QR payload,二维码内容
+Qty,数量
+"Qty (base unit, signed)",数量（库存单位，带正负）
+Qty (entered unit),数量（录入单位）
+Quantity,数量
+Quantity Available,数量（仓库）
+Quantity counted this time,本次实盘数量
+Quantity differences,数量差异
+Quantity must be greater than zero,数量必须大于 0
+Query,查询
+Querying the Revenue Department...,正在向税务局查询…
+Quotation,报价单
+Rate,单价
+Reason for Cancellation,取消原因
+Receipt,收据
+Receipt No,小票号
+Receipt Status,小票状态
+Receipt {0} · Change {1},小票 {0} · 找零 {1}
+Received,入库数量
+Received Amount,已收金额
+Received At,收到时间
+Received By,收款人
+"Received from LINE, then confirmed into a purchase record or discarded",从 LINE 收到，之后确认成采购记录或被丢弃
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
-Select a product for each stock item,请为每条货物明细选择商品
-Select the original sale line,请选择原单中的商品行
+Recent Orders,最近订单
+Recent Transactions,最近交易
+Recognition is not configured for this account,尚未配置文字识别
+Recognition returned nothing,未识别到内容
+Recognizing...,识别中…
+Record,单据
+Record a count,录入盘点
+Recount this product,重新盘点该物料
+Redeem Loyalty Points,抵扣忠诚度积分
+Reference,参考
+Reference Cost,参考成本
+Reference cost,参考成本
+References,参考
+Refresh,刷新
+Refund,退货退款
+Refund Amount,退款金额
+Refund Count,退款笔数
+Refund Of,对应的小票
+Refuse a second document with the same supplier and document number,同一供应商 + 同一单据编号的第二张会被拒绝
+Reload,刷新
+Remaining Amount,剩余金额
+Remark,备注
+Remarks,备注
+Request Hash,请求哈希
+Request ID already exists,请求编号已存在
+Request id,请求 ID
+Requested By,申请人
+Reset,重置
+Reset Password,重置密码
+Retry,重试
+Return,退货退款
+Returned,已退货
+Reversal,冲销
+Review differences,查看差异
+Rotate,旋转
+Rounded Total,舍入后总计
+Rounding Adjustment,小数精度尾差调整
+Rows,行数
+"Rows are matched by product code, then barcode. Rows already imported are replaced.",行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
+SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}
+Sale,销售
+Sale Price,售价
+Sale not found,找不到这张销售单
+Sales,销售
+Sales Count,笔数
+Sales Document,销售单据
+Sales Records,销售记录
+Save,保存
+Save Draft,保存草稿
+Save and next,保存并下一项
+Saved,已保存
+Saved {0},已保存 {0}
+Saved. Scan the next item.,已保存，请扫描下一项。
+Scan,扫码
+Scan a code,扫码
+Scan barcode or QR code,扫描条形码或二维码
+"Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
+Scanned,扫到了
+Search,搜索
+"Search by code, barcode or name",按物料号、条码或名称搜索
+Search by customer name or phone,通过客户名称、电话进行搜索
+"Search by customer name, phone, email.",按客户名称、电话、邮箱搜索
+Search by invoice id or customer name,按单据编号或客户名称搜索
+"Search by item code, serial number or barcode",按物料号、序列号或条码搜索
+Search by name or phone,按名称或电话搜
+Search by receipt number,按小票编号搜索
+Search name or barcode,搜索名称或条码
+"Search name, code or barcode",搜索名称、编码或条码
+Select Loyalty Program,选择忠诚度计划
+Select a Payment Method.,请选择支付方式
+Select a product for each stock item,请为每条货物明细选择物料
+Select a receipt to load its summary,选择小票以加载汇总
+Select a stock count,选择盘点
+Select an invoice to load summary data,选择一张单据以查看汇总
+Select item group,选择物料组
+Select one receipt to refund,一次只能退一条小票
+Select one row to open its ledger,一次只能看一条流水
+Select the original sale line,请选择原单中的物料行
+Selling Units,销售单位
+Selling price,售价
+Selling warehouse,卖货的仓库
+Send,发送
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
+Sending the same file twice must not create two drafts,同一个文件发两次不能生成两张草稿
+Sent By,发送人
+Serial No: {0} has already been transacted into another POS Invoice.,序列号 {0} 已在另一张收银单据上使用过
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,物料 {0} 在仓库 {1} 没有可用序列号，请换个仓库试试
+Service,服务
+Set as current,设为当前
+Setup Auto Email,设置自动邮件
+Sheet,表格文件
+Shelf,库位
+Shift,班次
+Shift History,班次记录
+Shift No,班次编号
+Shift Records,交班记录
+Shift closed · Cash difference {0},已交班 · 差额 {0}
+Shift not found,找不到这个班次
+Shift {0} opened,已开班 · 班次 {0}
+Shift {0} · Expected cash {1},班次 {0} · 应有现金 {1}
+Shift {0} · opened {1} · expected cash {2},班次 {0} · 开班 {1} · 应有现金 {2}
+Short Name,简称
+Short by {0},短钱 {0}
+Short name,简称
+Show disabled,显示已停用
+Show only,只看
+Show zero stock,显示零库存
+Skipped {0} row(s); the first ones are listed above,跳过 {0} 行，前几行见上方
+Sold At,销售时间
+Sold by,收银员
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
+Sort Order,排序
+Source,来源
+Source File,来源文件
+Split,分拆
+Start counting,开始盘点
+Status,状态
+"Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
+Stock,库存
+Stock Posted At,库存过账时间
+Stock Posting,库存过账
+Stock Token,库存令牌
+Stock UOM,库存单位
+Stock Value,库存金额
+Stock changed during counting. Recount the affected products.,盘点期间库存已变化，请重新盘点受影响的物料。
+Stock changed; recount,库存有变，需重盘
+Stock count,盘点
+"Stock count created, {0} rows",盘点已创建，{0} 行
+Stock count not found,未找到盘点
+"Stock count tasks, staff entries and variance posting",盘点任务、员工录入与差异过账
+Stock count template,盘点表模版
+Stock count workbench,盘点工作台
+Stock entry not found,找不到这张出入库单
+Stock is counted in this unit; leave it empty to use the selling unit,库存按这个单位记数；留空就跟售卖单位一样
+Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,库存按这个单位计数，其他单位换算成它。留空就用销售单位。
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司唯一的仓
+Stock ledger,查看流水
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}
+Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
+Subcategory,子分类
+Submit,提交
+Submit and Receive Stock,提交并入库
+Submitted,已提交
+Submitted At,提交时间
+Submitted {0},已提交 {0}
+Substitute Receipt,替代收据
+Summary,概要
+Supplier,供应商
+Supplier Doc Reference,供应商单据参考号
+Supplier Invoice No,供应商发票号
+Supplier Invoice No already exists,供应商发票编号已存在
+Supplier Invoice No is required,供应商发票编号不能为空
+Supplier Name,供应商名称
+Supplier Tax ID,供应商税号
+Supplier is disabled,供应商已停用
+Supplier is required,供应商不能为空
+Supplier not found,供应商不存在
+Suppliers,供应商
+Switch Between Payment Modes,切换支付方式
+Switching company...,正在切换公司…
+System number,单据编号
+Tax Amount,税额
+Tax Exclusive,不含税
+Tax ID,纳税登记号
+Tax ID exists but is not VAT registered,税号存在，但没有 VAT 登记
+Tax ID must be 13 digits,税号必须是 13 位数字
+Tax Inclusive,含税
+Tax Invoice,税务发票
+Tax Withholding Amount,预扣税额
+Tax Withholding Rate,代扣税款税率
+Taxes,税费
+Taxes and Charges,税费
+Terminal,收银台
+Terminal name,收银台名称
+Terminal not found,找不到这台收银台
+Terminals,收银台
 That code is not valid,验证码不正确
+That file could not be read; please use the template,这个文件读不了，请用模板格式
+That file has no rows,这个文件没有数据行
+That file is not an Excel workbook,这不是 Excel 工作簿
+That photo could not be read,这张照片读不出来
+That row is not part of this stock count,这一行不属于这张盘点
+That submission was already used for a different entry,这次提交已经用在别的单上了
+That warehouse belongs to another company,这个仓库属于另一家公司
+The LINE account that sent the document,发来这份文件的 LINE 账号
+The Revenue Department replied in an unreadable format,税务局的回复格式看不懂
+The account you give customers for transfers,收款时给对方看的账号
+The amount received is less than the total,实收不够应收
+The cart is empty,购物车是空的
+The cashier assets did not load (official-*.js).,收银台资源没加载完（official-*.js）
+The company on your documents,单据上用的本公司资料
+The company used for new documents and for the company profile page,新建单据与公司资料页用的公司
+The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
+The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
+The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
+The password must be at least {0} characters,密码至少 {0} 位
+The payment is more than the net payable,付款金额超过应付金额
+The product code cannot be changed,物料编码不能改
+The quantity is not a valid number,数量不是有效数字
+The row has no product code or barcode,这一行没有物料编号或条码
+The sheet needs a product name column,表里要有物料名称列
+The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
+The value is not a number,该值不是数字
+The value must be zero or more,该值不能小于 0
+There is nothing to save,没有要保存的行
+There were errors while sending email. Please try again.,发送邮件时出错，请重试
+This LINE account is not bound to an ERP user,这个 LINE 账号还没绑定 ERP 用户
+"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。
+This Month,本月
+This Quarter,本季度
 This account cannot send documents,这个账号不能传单据
+This barcode already exists,这个条码已经存在
+This browser cannot scan with the camera,这个浏览器不支持摄像头扫码
+This browser cannot scan with the camera; use a scanner or type the code,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 This channel is not open yet,这个通道还没开放
+This code is already taken,这个码已经被占用
+"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
+This counter sells for this company; stock leaves its warehouse,这个收银台为这家公司开单；库存从这个公司的仓库出
+This device cannot scan,这台设备不能扫码
+This device has no camera to scan with,这台设备没有可用的摄像头
+This document cannot be recorded yet,这张单据还不能落定
 This document has no content,这份文件是空的
+This document is already recorded: {0},这张单据已经录入过了：{0}
 This document is too large,这份文件太大
+This document is void,这张单据已作废
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
+This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
+This item is also stocked at:,这件货还在别处：
+This payment method is not enabled for this company,这家公司没有开这种收款方式
+This product code already exists,这个物料编号已经存在
+This request was already recorded,这次请求已经记录过了
+This sale is already voided,这张销售单已经作废了
+This shift belongs to another cashier,这是别人的班次
+This shift is already closed,这个班次已经交过班了
+This shift is closed,这个班次已经交班了
+This status change is not allowed,不允许这样改状态
+This stock count is already posted,这张盘点单已经过账了
+This stock count is closed,这张盘点已结束
+This terminal already has an open shift,这台收银台已经有开着的班次
+This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
+This unit is not defined on the product,这个单位没有在这个物料上定义
+This warehouse already exists,这个仓库已经存在
+This warehouse belongs to the company above,这个仓挂在上面那家公司名下
+"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
+Time,时间
+To Date,结束日期
+Total,总计
+Total Amount,总金额
+Total Due,应收金额
+Total Items,总数量
+Total Quantity,总数量
+Total Taxes and Charges,总税费
+Total items,总件数
+Total · {0} row(s),合计 · {0} 条明细
+Totals,合计
+Track batches,批次管理
+Track expiry,有效期管理
+Transfer,转账
+Type,类型
+Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
+UOM,单位
+Unable to load preview,无法加载预览
+Unbound,未绑定
+Unit,单位
+Unit Cost,单位成本
+Unit Cost (net of VAT),单位成本（不含 VAT）
+Unit Price,单价
 Unknown buyer,未知买家
 Unknown direction,未知的方向
+Unpaid,未付
+Up to 5 photos per entry; take a photo or choose from the gallery.,每条记录最多 5 张照片，可以拍照或从相册选择。
+Update Additional Information,更新附加信息
+Update Stock,更新库存
+Updated,已更新
+Updated {0},已更新 {0}
+Updated {0} customer(s),已更新 {0} 位客户
+Updated {0} employee(s),已更新 {0} 位员工
+Updated {0} product(s),已更新 {0} 个物料
+Updated {0} record(s),已更新 {0} 条
+Updated {0} supplier(s),已更新 {0} 家供应商
+Updated {0} user(s),已更新 {0} 位用户
+"Upload a receipt, then review the recognized details.",上传收据，识别后复核并修改。
+Upload a sheet,上传导入
+"Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
+Upload and Recognize,上传识别
+Use the stock count workbench,请通过盘点工作台操作
+Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
+Used when a new purchase line does not say otherwise,新建采购明细没单独指定时用它
+User,用户
+Username,用户名
+Username can only have letters and numbers,用户名只能用英文字母和数字
+VAT,增值税
+VAT Applicable,含 VAT
+VAT Applies,计增值税
+VAT Rate,增值税率
+VAT Rate %,税率%
+VAT applies,含 VAT
+Value,金额
+Void Reason,撤销原因
+Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+Void the payments before voiding the document,取消单据前请先冲销付款
+Void the refunds first,先撤销这些退货退款
+Void this count of {0}?,撤销这条 {0} 的记录？
+Void this document and reverse its stock movements?,作废这张单据并冲销对应库存变动？
+Void {0} document(s) and reverse their stock movements?,作废选中的 {0} 张单据并冲销对应库存变动？
+Void {0} selected,作废选中的 {0} 张
+Voided,已作废
+Voided {0},已作废 {0} 张
+"Voided, not in the total",已撤销，不计入合计
+Walk-in customer,散客
+Warehouse,仓库
+Warehouse name,仓库名称
+Warehouse not found,未找到仓库
+Warehouses,仓库
+"Which company this terminal belongs to, and which warehouse it sells from",这台收银台属于哪家公司、从哪个仓卖货
+Who bought this receipt; empty means a walk-in customer,这张小票是谁买的；留空 = 散客
+With differences,有差异
+Withholding Tax,预扣税
+Withholding Tax Certificate,预扣税凭证
+Withholding Tax Rate,预扣税率
+Withholding Tax must be greater than zero,预扣税额必须大于零
+"Year, year-month or ALL, depending on the reset policy",年、年月或 ALL，取决于重置策略
+Yes,是
+You can redeem upto {0}.,最多可抵扣 {0}
+You cannot redeem more than {0}.,抵扣金额不能超过 {0}
+You cannot submit empty order.,空单不能提交
+You cannot submit the order without payment.,没有收款不能提交
+You don't have enough points to redeem.,积分不足，无法抵扣
+You have unsaved changes. Do you want to save the invoice?,有未保存的改动，要保存这张单据吗？
+You must select a customer before adding an item.,添加物料前必须先选择客户
+Zoom In,放大
+Zoom Out,缩小
 adjust,调整
 branch,分店
 card,银行卡
 cash,现金
+client.action.bulkDisable,停用 {0}
+client.action.bulkEnable,启用 {0}
+client.active,正常
+client.close,关闭
+client.col.address,地址
+client.col.name,客户名称
+client.col.phone,电话
+client.col.status,状态
+client.col.taxId,税号
+client.col.type,客户类型
+client.create,创建
+client.field.active,启用
+client.field.address,地址
+client.field.name,客户名称
+client.field.note,备注
+client.field.phone,电话
+client.field.taxId,税号
+client.field.type,客户类型
+client.inactive,已停用
+client.lookup.action,查询
+client.lookup.failed,查询失败，请手工填写
+client.lookup.found,已查到：{0}
+client.lookup.invalid_format,税号必须是 13 位数字
+client.lookup.needTaxId,请先填税号
+client.lookup.not_found,税务局没有这家登记
+client.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+client.lookup.parse_error,税务局的回复格式看不懂
+client.lookup.querying,正在向税务局查询…
+client.lookup.rd_unreachable,现在连不上税务局
+client.new,新建客户
+client.notice.toggled,已更新 {0} 位客户
+client.party.anonymous,匿名
+client.party.company,公司
+client.party.foreign,外国人
+client.party.person,个人
+client.save,保存
+client.title,客户
 company,公司
+company.action.bulkDisable,停用 {0}
+company.action.bulkEnable,启用 {0}
+company.col.current,当前
+company.col.name,公司名称
+company.col.phone,电话
+company.col.shortName,简称
+company.col.status,状态
+company.col.taxId,税号
+company.col.warehouse,仓库名称
+company.disable,停用
+company.docPrefixHint,先存着：单号仍按编号定义自动发
+company.enable,启用
+company.field.address,地址
+company.field.branch,分支
+company.field.company,公司
+company.field.contactEmail,联系邮箱
+company.field.contactPerson,联系人
+company.field.docPrefix,单据前缀
+company.field.fiscalYearStart,财年起月
+company.field.name,公司名称
+company.field.note,备注
+company.field.phone,电话
+company.field.posEnabled,启用 POS 收银台
+company.field.promptpay,PromptPay 收款
+company.field.shortName,简称
+company.field.taxId,税号
+company.field.terminalName,收银台名称
+company.field.terminalWarehouse,卖货的仓库
+company.field.warehouse,仓库
+company.field.warehouseName,仓库名称
+company.fiscalHint,1 = 一月
+company.lookup.action,查询
+company.lookup.failed,查询失败，请手工填写
+company.lookup.found,已查到：{0}
+company.lookup.invalid_format,税号必须是 13 位数字
+company.lookup.needTaxId,请先填税号
+company.lookup.not_found,税务局没有这家登记
+company.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+company.lookup.parse_error,税务局的回复格式看不懂
+company.lookup.querying,正在向税务局查询…
+company.lookup.rd_unreachable,现在连不上税务局
+company.method.card,刷卡
+company.method.cash,现金
+company.method.promptpay,扫码（PromptPay）
+company.method.transfer,转账
+company.new,新建公司
+company.newWarehouse,新建仓库
+company.notice.created,已新建
+company.notice.saved,已保存
+company.notice.toggled,已更新
+company.notice.updated,已更新 {0} 条
+company.onlyAdmin,只有产品管理员能改
+company.posHint,勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
+company.promptpayHint,收款时给对方看的账号
+company.readOnly,只有产品管理员能改，这里是只读
+company.save,保存
+company.section.address,地址与备注
+company.section.basic,公司信息
+company.section.documents,单据
+company.section.pos,POS 收银台
+company.section.terminals,收银台
+company.section.warehouse,仓库
+company.section.warehouses,仓库
+company.setCurrent,设为当前
+company.status.active,正常
+company.status.inactive,已停用
+company.subtitle,单据上用的本公司资料
+company.taxHint,税号 13 位；有分店再带 5 位分店编号
+company.terminalDefaultName,Counter 1
+company.terminalEdit,编辑
+company.terminalNew,新增收银台
+company.terminalNone,还没有收银台
+company.terminalsHint,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
+company.warehouseCompanyHint,这个仓挂在上面那家公司名下
+company.warehouseDefaultName,主仓
+company.warehouseHint,这家公司的第一个仓库（之后在「仓库」页再加）
+company.warehousesHint,这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
+company.yes,是
 completed,已完成
 count,盘点
+discount applied,已应用折扣
 draft,草稿
 goods,货物
 hq,总店
+"image or pdf, as LINE reported it",image 或 pdf（LINE 报来的原样）
 issued,已开出
+nav.posReceipts,收银记录
+nav.posShifts,交班记录
 nav.stockCount,盘点
 opening,期初
 paid,已付款
@@ -42,36 +1118,40 @@ product.action.bulkEnable,启用选中的 {0} 个
 product.action.disable,启用 / 停用
 product.action.edit,编辑
 product.action.enable,启用
+product.action.fullPage,全屏编辑
 product.action.import,Excel 导入
-product.action.new,新建商品
+product.action.new,新建物料
 product.action.reload,刷新
 product.action.save,保存
 product.action.scan,扫码
-product.action.toggleInactive,显示已停用
+product.action.submit,提交
+product.active,正常
 product.cell.notSet,未设
 product.col.avgCost,均价
 product.col.barcode,条码
 product.col.code,编码
+product.col.codeValue,条码/二维码
 product.col.cost,参考成本
-product.col.name,商品
+product.col.name,物料
+product.col.place,位置
 product.col.price,售价
 product.col.status,状态
 product.col.unit,单位
-product.error.codeLocked,商品编码不能改
+product.error.codeLocked,物料编码不能改
 product.field.barcode,条码
 product.field.baseUnit,库存单位
 product.field.baseUnitHint,库存按这个单位记数；留空就跟售卖单位一样
 product.field.category,分类
 product.field.code,编码
 product.field.codeAuto,自动生成
+product.field.codeValue,条码/二维码
 product.field.cost,参考成本
 product.field.defaultLocation,默认仓位
-product.field.defaultWarehouse,默认仓库
 product.field.image,图片地址
 product.field.importFile,Excel 文件
 product.field.locationHint,只用于新单据的默认填写，各仓位库存独立计算。
 product.field.minStock,低库存提醒
-product.field.name,商品名称
+product.field.name,物料名称
 product.field.nameEn,英文名
 product.field.nameZh,中文名
 product.field.price,售价
@@ -81,31 +1161,41 @@ product.field.trackBatch,批次管理
 product.field.trackExpiry,有效期管理
 product.field.unit,单位
 product.field.vat,含 VAT
-product.field.weighed,称重商品
+product.field.weighed,称重物料
 product.import.badFile,这个文件读不了，请用模板格式
 product.import.emptyFile,这个文件没有数据行
-product.import.hint,第一行是表头；表里至少要有商品名称列
-product.import.missingName,表里要有商品名称列
+product.import.hint,第一行是表头；表里至少要有物料名称列
+product.import.missingName,表里要有物料名称列
 product.import.negative,该值不能小于 0
 product.import.noFile,请选择要导入的文件
 product.import.notNumber,该值不是数字
 product.import.notWorkbook,这不是 Excel 工作簿
 product.import.pick,选择文件
 product.import.template,下载模板
+product.inactive,已停用
+product.new.hint,一次可以填多行；编码留空由系统生成
+product.new.hintCode,本次从 {0} 开始发
+product.new.lines,物料行
 product.notice.importSkipped,跳过 {0} 行，前几行见上方
-product.notice.imported,已导入 {0} 个商品
+product.notice.imported,已导入 {0} 个物料
+product.notice.nothingToSave,没有要保存的行
+product.notice.partial,已新建 {0} 个；{1} 行没保存成功，修正后再存
 product.notice.saved,已保存 {0}
+product.notice.savedCount,已新建 {0} 个物料
 product.notice.toggled,已更新 {0}
-product.notice.toggledCount,已更新 {0} 个商品
+product.notice.toggledCount,已更新 {0} 个物料
+product.scan.auto,扫码识别
 product.scan.denied,摄像头权限被拒绝，允许之后再试一次
 product.scan.done,扫到了
 product.scan.hint,把条码或二维码对准摄像头
 product.scan.light,灯光
 product.scan.noCamera,这台设备没有可用的摄像头
+product.scan.notFound,扫到的码没有对应的物料：{0}
 product.scan.open,去改那一条
 product.scan.taken,这个码已经被占用
 product.scan.takenBody,已经是「{0}」（编码 {1}）
 product.scan.title,扫码
+product.scan.unknownType,无法识别码类型，请填入条码或二维码对应字段。
 product.scan.unsupported,这个浏览器不支持摄像头扫码，请用扫码枪或手输
 promptpay,PromptPay
 purchase,采购
@@ -119,25 +1209,26 @@ sales,销售
 service,服务
 stock.action.count,盘点
 stock.action.export,导出
-stock.action.onlyLow,只看低库存或缺货
+stock.action.ledger,查看流水
+stock.action.ledgerSingle,一次只能看一条流水
 stock.action.reload,刷新
-stock.action.toggleZero,显示零库存
 stock.board.by,看板按
 stock.board.freezeColumn,冻结列
 stock.board.only,只看
 stock.board.shelf,库位
-stock.board.title,盘点差异看板
+stock.board.title,盘点工作台
 stock.board.unfreezeColumn,取消冻结列
 stock.cell.notSet,未设
-stock.col.barcode,条码
+stock.col.barcode,条码/二维码
 stock.col.code,编码
 stock.col.cost,平均成本
-stock.col.name,商品名称
+stock.col.name,物料名称
 stock.col.onHand,在库
 stock.col.status,状态
 stock.col.unit,单位
 stock.col.value,金额
 stock.col.warehouse,仓库
+stock.count.action.delete,删除选中的 {0} 个
 stock.count.addEntry,记一笔
 stock.count.addEntryHint,账面数量 {0} {1}
 stock.count.addEntryTitle,记一笔 — {0}
@@ -155,7 +1246,9 @@ stock.count.countedBy,盘点人
 stock.count.countedRows,已盘点
 stock.count.created,盘点已创建，{0} 行
 stock.count.createdAt,创建时间
+stock.count.deleteBlocked,只有进行中的盘点能删除
 stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉。
+stock.count.deleteNotice,已删除 {0} 个
 stock.count.deleteSelected,删除所选（{0}）
 stock.count.deleted,已删除 {0} 份盘点
 stock.count.difference,差异
@@ -175,13 +1268,15 @@ stock.count.filter.uncounted,未盘点
 stock.count.headline,{0} · 已盘点 {1} / {2} · 差异 {3}
 stock.count.import,导入盘点表
 stock.count.importFile,表格文件
-stock.count.importHint,行按商品编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
+stock.count.importHint,行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
 stock.count.importMissing,请先选择要导入的表格
 stock.count.importPick,选择文件
 stock.count.importSkipped,{0} 行没有导入
 stock.count.importTitle,导入结果
 stock.count.imported,已导入 {0} 行，其中 {1} 行带实盘数量
-stock.count.location,库位
+stock.count.linkEntries,返回记录
+stock.count.linkSummary,返回汇总
+stock.count.location,仓位
 stock.count.mode,盘点方式
 stock.count.modeImport,上传导入
 stock.count.modeStock,盘点在库
@@ -191,12 +1286,13 @@ stock.count.newHint,盘点在库：按当前库存生成快照。上传导入：
 stock.count.noEntries,无记录
 stock.count.note,说明
 stock.count.notes,备注
+stock.count.photoInfo,物料 / 位置 / 盘点人 / 时间
 stock.count.photos,照片
 stock.count.post,过账差异
 stock.count.postConfirm,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
 stock.count.posted,已过账 {0} 处差异
-stock.count.problemCode,该编号找不到商品
-stock.count.problemIdentifier,这一行没有商品编号或条码
+stock.count.problemCode,该编号找不到物料
+stock.count.problemIdentifier,这一行没有物料编号或条码
 stock.count.problemNumber,数量不是有效数字
 stock.count.problemWarehouse,该仓库名不存在
 stock.count.qty,数量
@@ -205,6 +1301,7 @@ stock.count.rowDifference,有差异
 stock.count.rowMatch,一致
 stock.count.rowUncounted,未盘点
 stock.count.rows,行数
+stock.count.start,开始盘点
 stock.count.statusActive,进行中
 stock.count.statusClosed,已结束
 stock.count.statusPosted,已过账
@@ -214,7 +1311,7 @@ stock.count.title,盘点 — {0}
 stock.count.void,撤销
 stock.count.voidConfirm,撤销这条 {0} 的记录？
 stock.count.voidPick,选择要撤销的记录
-stock.count.warehouseHint,留空就用默认仓库
+stock.field.docNoAuto,自动生成
 stock.field.search,搜索名称或条码
 stock.mobile.cameraOff,关闭相机
 stock.mobile.codePlaceholder,编号或条码
@@ -222,7 +1319,7 @@ stock.mobile.find,查询
 stock.mobile.noCamera,这个浏览器不支持摄像头扫码
 stock.mobile.noTask,无进行中的盘点
 stock.mobile.notBound,这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。
-stock.mobile.notFound,这个码找不到商品
+stock.mobile.notFound,这个码找不到物料
 stock.mobile.open,打开
 stock.mobile.pickTask,选择盘点
 stock.mobile.save,保存
@@ -235,74 +1332,287 @@ stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常
 stock.status.out,缺货
+stock.workbench.actualLocation,实际仓位
+stock.workbench.actualPositions,实际仓位及数量
+stock.workbench.actualWarehouse,实际仓库
+stock.workbench.addPhoto,添加照片
+stock.workbench.bookPosition,账面仓库／仓位
+stock.workbench.camera,扫描条形码或二维码
+stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
+stock.workbench.code,条形码、二维码或物料编码
+stock.workbench.continuous,连续盘点
+stock.workbench.done,完成
+stock.workbench.editEntry,修改记录
+stock.workbench.elsewhere,这件货还在别处：
+stock.workbench.entryQty,本次实盘数量
+stock.workbench.find,查找物料
+stock.workbench.finishConfirm,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+stock.workbench.locationDiff,仓位差异
+stock.workbench.lookupFailed,未找到物料，请核对编码后重试。
+stock.workbench.needsRecount,库存有变，需重盘
+stock.workbench.nextReady,已保存，请扫描下一项。
+stock.workbench.photoHint,每条记录最多 5 张照片，可以拍照或从相册选择。
+stock.workbench.photoLimit,每条记录最多 5 张照片
+stock.workbench.photos,照片
+stock.workbench.quantityDiff,数量差异
+stock.workbench.record,录入盘点
+stock.workbench.recount,重新盘点该物料
+stock.workbench.recountConfirm,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
+stock.workbench.removePhoto,移除
+stock.workbench.review,查看差异
+stock.workbench.saveNext,保存并下一项
+stock.workbench.scanHint,扫码后填写实际位置和数量，保存后自动进入下一项。
+stock.workbench.stockChanged,部分物料在盘点期间发生了库存变动。请打开标记的行，重新盘点该物料后再结束。
+stock.workbench.title,盘点工作台
 stock_in,入库
 stock_out,出库
 submitted,已提交
+supplier.action.bulkDisable,停用 {0}
+supplier.action.bulkEnable,启用 {0}
+supplier.active,正常
+supplier.branch,分支机构
+supplier.close,关闭
+supplier.col.address,地址
+supplier.col.branch,分支
+supplier.col.name,供应商
+supplier.col.phone,电话
+supplier.col.status,状态
+supplier.col.taxId,税号
+supplier.create,创建
+supplier.field.active,启用
+supplier.field.address,地址
+supplier.field.branch,分支类型
+supplier.field.branchNo,分支编号
+supplier.field.name,供应商名称
+supplier.field.note,备注
+supplier.field.phone,电话
+supplier.field.taxId,税号
+supplier.head,总店
+supplier.inactive,已停用
+supplier.lookup.action,查询
+supplier.lookup.failed,查询失败，请手工填写
+supplier.lookup.found,已查到：{0}
+supplier.lookup.invalid_format,税号必须是 13 位数字
+supplier.lookup.needTaxId,请先填税号
+supplier.lookup.not_found,税务局没有这家登记
+supplier.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+supplier.lookup.parse_error,税务局的回复格式看不懂
+supplier.lookup.querying,正在向税务局查询…
+supplier.lookup.rd_unreachable,现在连不上税务局
+supplier.new,新建供应商
+supplier.notice.toggled,已更新 {0} 家供应商
+supplier.save,保存
+supplier.title,供应商
 tax_invoice,完整税务发票
 tax_invoice_receipt,税务发票兼收据
 tax_invoice_simple,简易税务发票
+team.action.bulkDisable,停用 {0}
+team.action.bulkEnable,启用 {0}
+team.active,正常
+team.allCompanies,全部公司
+team.companies,公司
+team.companiesHint,不勾 = 不限制，看全部公司
+team.disable,停用
+team.email,邮箱
+team.enable,启用
+team.inactive,已停用
+team.lastLogin,最后登录
+team.new,添加用户
+team.notice.added,已添加 {0}
+team.notice.password,密码已更新
+team.notice.saved,已保存
+team.notice.toggled,已更新 {0} 位用户
+team.password,初始密码
+team.resetPassword,重置密码
+team.role.cashier,收银
+team.role.products,物料
+team.role.purchase,采购
+team.role.sales,销售
+team.role.stock,库存
+team.roles,功能权限
+team.rolesHint,只勾选的功能，这个用户才看得到
+team.status,状态
+team.username,用户名
+team.usernameCharset,用户名只能用英文字母和数字
+trade.action.addLine,添加明细
+trade.action.exportCount,导出选中的 {0} 个班次
+trade.action.fullPage,全屏编辑
+trade.action.ledger,查看流水
+trade.action.ledgerSingle,一次只能看一条流水
+trade.action.pay,收款
+trade.action.submit,提交
+trade.action.voidCount,作废选中的 {0} 张
+trade.actualQty,数量（仓库）
+trade.addDiscount,折扣
+trade.addedToCart,已加入：{0}
 trade.address,地址
+trade.allItems,所有物料
+trade.amount,金额
 trade.balance,该仓位结存
+trade.balances,支付方式对账
 trade.branchNo,分店编号
 trade.branchType,分店类型
-trade.buyer,客户名称
+trade.buyer,客户
 trade.buyerType,客户类型
-trade.checkout,收银开单
+trade.byMethod,收付款
+trade.cart,购物车
+trade.cartClear,清空购物车
+trade.cartClearConfirm,要清空购物车吗？
+trade.cartEmpty,购物车是空的
+trade.cashier,收银员
+trade.change,找零
+trade.changeTotal,找零合计
+trade.checkout,结账
 trade.close,关闭
 trade.closeShift,交班
+trade.closedAt,交班时间
 trade.closing,期末数量
+trade.code,编码
+trade.company,公司
+trade.completeOrder,完成订单
 trade.cost,单位成本
+trade.countCash,现金核对
+trade.countedAmount,实点金额
 trade.countedCash,实点现金
+trade.counterProducts,物料
+trade.customer,客户
+trade.customerClear,清除客户
+trade.customerHint,通过客户名称、电话进行搜索
+trade.customerLabel,客户
 trade.date,日期
 trade.description,名称或说明
+trade.diff,差额
+trade.diffEven,刚好对上
+trade.diffOver,多钱 {0}
+trade.diffShort,短钱 {0}
 trade.discount,折扣金额
+trade.discountAdditional,附加项
+trade.discountApplied,已应用折扣
+trade.discountInvalid,无效折扣
+trade.discountOver100,折扣率不可超过100%
+trade.discountPercent,折扣百分比
+trade.discountPercentHint,输入折扣百分比
 trade.docNo,单据编号
+trade.editCart,返回购物车
+trade.enterAmount,输入{0}金额
+trade.expectedAmount,应有金额
+trade.expectedCash,应有现金
+trade.exportNotice,已导出 {0} 个班次
 trade.float,备用现金
 trade.from,开始日期
+trade.gross,毛额
+trade.groupBalance,结存
+trade.groupDoc,单据
+trade.groupIn,入库
+trade.groupOut,出库
 trade.hasVat,计算增值税
+trade.hideRecentOrders,隐藏最近订单
 trade.in,入库数量
+trade.invoiceStatus,小票状态
 trade.issue,开出单据
+trade.itemDetails,物料详细信息
+trade.itemsNotFound,没找到物料
 trade.kind,单据类型
-trade.lines,商品明细
+trade.kind.refund,退货退款
+trade.kind.sale,销售
+trade.lines,物料
+trade.listPrice,标价
 trade.location,仓位
 trade.method,付款方式
+trade.methodCard,刷卡
+trade.methodCash,现金
+trade.methodPromptpay,扫码（PromptPay）
+trade.methodTransfer,转账
+trade.net,净总计
 trade.newIn,新建入库单
+trade.newInvoice,新单
+trade.newOrder,新订单
 trade.newOut,新建出库单
 trade.newSale,新建销售单
 trade.noShift,尚未开班
 trade.note,备注
+trade.notice.submitted,已提交 {0}
+trade.onHand,库存
 trade.openShift,开班
+trade.openedAt,开班时间
+trade.openedAtSub,开班时间 {0}
 trade.opening,期初数量
-trade.originalLine,原单商品与仓位
+trade.openingAmount,期初金额
+trade.originalLine,原单物料与仓位
 trade.out,出库数量
-trade.paid,实收金额
+trade.paid,付款金额
 trade.paidNotice,小票 {0} · 找零 {1}
 trade.pay,收款完成
 trade.paymentDate,付款日期
 trade.paymentState,付款状态
+trade.pickCustomer,点击选择客户
+trade.pickLine,先选一行
+trade.pickPadTarget,先点数量、折扣或单价
 trade.price,单价
-trade.product,商品
+trade.printReceipt,打印收据
+trade.product,物料
 trade.qty,数量
+trade.receiptsEmpty,当班暂无小票
+trade.recentOrders,最近订单
 trade.reference,关联单据
 trade.refund,退货退款
 trade.refundAmount,退款金额
+trade.refundBlocked,只有已完成的小票能退货退款
+trade.refundCount,退款笔数
+trade.refundSingle,一次只能退一条小票
+trade.remaining,剩余金额
+trade.remove,移除
+trade.rowOpening,期初
+trade.salesCount,笔数
 trade.save,保存草稿
+trade.scan,扫码
+trade.scanNotFound,没找到这个码对应的物料：{0}
+trade.scanUnsupported,这台设备不能扫码
+trade.searchOrders,按小票编号搜索
+trade.searchProducts,按物料号、条码或名称搜索
+trade.selectOrderHint,选择小票以加载汇总
+trade.shiftClosed,已交班 · 差额 {0}
+trade.shiftHistory,班次记录
+trade.shiftNo,班次编号
 trade.shiftOpen,班次 {0} · 应有现金 {1}
+trade.shiftOpened,已开班 · 班次 {0}
+trade.shiftOpenedAt,班次 {0} · 开班 {1} · 应有现金 {2}
+trade.shiftReceipts,当班小票
+trade.state.closed,已交班
+trade.state.completed,已完成
+trade.state.open,开班中
+trade.state.void,已作废
 trade.status,状态
 trade.stockPending,未记入库存
 trade.stockPosted,已记入库存
 trade.stockState,库存过账
 trade.submit,提交过账
+trade.submitEmpty,空单不能提交
+trade.submitNoPayment,没有收款不能提交
 trade.submitReceive,提交并入库
+trade.systemNo,单据编号
 trade.taxId,税号
+trade.taxNo,税务发票号
 trade.terminal,收银台
+trade.terminalHint,这台收银台属于哪家公司、从哪个仓卖货
 trade.to,结束日期
-trade.total,应收金额
+trade.total,总计
+trade.totalItems,总数量
+trade.totalRows,合计 · {0} 条明细
+trade.underpaid,实收不够应收
 trade.unit,单位
 trade.vat,增值税率
 trade.void,作废
+trade.voidBlocked,只有已提交（还没作废）的单据能作废
 trade.voidConfirm,作废这张单据并冲销对应库存变动？
+trade.voidConfirmCount,作废选中的 {0} 张单据并冲销对应库存变动？
+trade.voidNotice,已作废 {0} 张
+trade.voidPaid,先冲掉付款再作废这张单据
+trade.walkIn,散客
 trade.warehouse,仓库
+trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一个仓
 transfer,转账
 unpaid,未付款
 void,已作废
+{0} rows were not imported,{0} 行没有导入
+{0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}

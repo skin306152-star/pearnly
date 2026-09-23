@@ -1,0 +1,3723 @@
+# 工作包：ERP 销售记录（沿用采购交互，替换销售字段与契约）
+
+> 接续上一窗口的 [采购记录实施与验收记录](2026-09-22-erp-purchase-records.md) 末尾“销售记录接续交接（2026-09-23）”。
+> 采购定稿 = `a4b95398cc332b46f8b2595dc06da81e15be3a63`，交接文档 = `bbd51faaf4ae4d8d89bde3f5eea5911351da180a`。
+> 本文件是销售任务唯一工作记录；采购原有的实施与验收记录继续由采购任务保有，不改写其结论。
+
+## 目标和范围
+
+- 目标 / 完成条件：销售记录按**采购已定稿的前端交互**实现——原生 page-level 列表 + 独立路由的连续录入/详情页 + 同页复核 + 旧项目票图查看器 + 桌面 60/40 与手机滚动定位布局；业务字段与服务端契约换成**销售自己的**，以旧项目当前线上销售域为基准。
+- 本次不做：不重新设计录入方式、电脑/手机布局、文件查看器或列表；不复制采购的付款/凭证/入库事务；不增加草稿步骤、审批流、AI 提示、分支管理、Google Drive / Sheets 同步；不新增产品没有的业务模块与入口。
+- 本次范围状态：进行中（接手完成，尚未写销售代码）
+- 收尾状态：施工中，未收尾
+- 分支 / 基线 SHA / 工作树 / 集成目标：分支 `codex/erp-sales-records`，工作树 `/Users/skin/.codex/worktrees/erp-sales-records/pearnly`，基线 `bbd51faaf4ae4d8d89bde3f5eea5911351da180a`（含本机 main `717d202`、盘点 `8a67e7b`、共享 ADR-009 `db4c7dc`）。集成目标为本机 `main`。
+- 合并 / 推送 / 远端回读状态：未合并、未推送；远端无 `codex/erp-sales-records`。
+- 负责人 / 关联任务或 PR：本窗口（销售记录包）。上游交接见采购记录文件末尾章节。
+- 允许修改的路径 / 数据和运行资源归属：`apps/pearnly_erp_portal/pearnly_erp_portal/sales/`、该 App 的 `public/desk/sales*.js|css`、`doctype/erp_sales_*`、`i18n/messages.tsv` 与生成 CSV、`features.json` / `hooks.py` 的销售声明、本任务新增的 `scripts/`、`tests/` 与 `docs/work/` 记录；`pearnly-purchase-lab` 六个容器与 `sites`/`db` 卷已由采购任务交接给本任务继续演示。
+- 必要外部操作及当前授权：无。不部署、不改旧生产、不推送。
+
+## 接手核对（本次实际执行）
+
+- 采购树干净、无未提交：`git -C .../erp-purchase-records/pearnly status --short --branch` → `## codex/erp-purchase-records`（无改动），tip `bbd51fa`。
+- 按交接步骤创建销售工作树：`git worktree add -b codex/erp-sales-records /Users/skin/.codex/worktrees/erp-sales-records/pearnly codex/erp-purchase-records`。
+- 8147 演示环境交接：`docker --context colima-pearnly compose -p pearnly-purchase-lab -f infrastructure/compose/erp-pos-lab.yml -f infrastructure/compose/erp-purchase-preview.yml up -d --no-deps --force-recreate bench web socketio frontend`。
+  回读四个 App 容器的 App / scripts / tests 挂载已全部指向销售树；`pearnly-purchase-lab_sites`（sites）与 db/redis 容器未重建、未换卷；镜像仍是共享预览 `sha256:90c1d545d215d6081965740013dd8af84337ca23c5fde5c36acdf162cd4655c3`。
+- 交接时采购树仍被挂载，切换后采购演示内容不变（销售分支由采购 tip 创建，内容同源）；采购树保留，可原样回退挂载。
+
+## 迁移映射
+
+- 首次线上核验（本窗口，2026-09-23，曼谷时区，只读）：GCP `pearnly` / `asia-southeast1`，`pearnly-web` 与 `pearnly-worker` 均为 `*-ec2e5c957e6b-s3`、各 100% 流量。
+- 完整源码 SHA / 映射依据：`ec2e5c957e6b4be7dee93ffdd2dae9fa83f69188`（与采购开工/交付时相同，revision 短 SHA 未变，说明旧线上自采购交付后没有新发布）。只读快照位置 `/Users/skin/Developer/Pearnly/pearnly-app`（`git show <sha>:<path>`，本地 HEAD `9aa7a6b2` 不是生产 SHA）。
+- 相关运行配置：同上，未发现影响销售域的开关变化；未读取 Secret 明文、未调用业务接口。
+- 交付前线上复查：待施工完成后按 [迁移基准](../development/migration-baseline.md) 重做，并比较与本次的增量。
+
+采购对照表（P01–P22）是采购口径，**不能直接套到销售**。销售的字段与服务端契约核对是 S1 工作包，落点与边界在下表登记（S1 完成后补齐）。
+
+| 来源仓库 / SHA / 文件 | 新落点 | 保持的契约 | 有意变化及依据 | 验证场景 |
+| --- | --- | --- | --- | --- |
+| 待 S1 逐文件核对后填写 | `pearnly_erp_portal/sales/`、`public/desk/sales*.js`、`doctype/erp_sales_*` | 待填 | 一律以“用采购交互、销售业务”为准 | 待填 |
+
+## 现状盘点（只读，尚未改动）
+
+新平台销售侧已有：
+
+- `sales/service.py`（建单/改单/开出/作废/红冲补开/上传识别/报价转开票/票面模型）、`sales/api.py`、`sales/contracts.py`（金额与泰国税票口径、连号）、`sales/ocr.py`、`sales/render.py`。
+- DocType `ERP Sales Document` / `ERP Sales Document Line`（字段已覆盖 `doc_kind` 七种、`party_type` 四种、税号/分支/地址、VAT/WHT/折扣/合计/净应收、`payment_status`、`references_document`、`source_file`、`stock_posted_at`）；主数据 `ERP Customer`、`masters/customers.py`；POS 侧 `ERP Sale` / `ERP Sale Line` / `ERP Sale Payment`。
+- 菜单与功能目录已声明销售、客户与收银（`hooks.py` 的 `pearnly_navigation`、`features.json` 的 `sales` / `clients`）。
+
+尚未具备（对照采购已交付的同等结构）：
+
+- 前端：`public/desk/sales.js` 仍是旧形态——列表 + 大弹窗编辑、先存草稿再开单；没有连续页路由、原生连续表面板、附件区/票图查看器、手机滚动定位导航、原生选择与批量动作、筛选 Dialog、导出菜单。
+- 服务端：没有采购那种 `entry.py`（一次提交即过账）、`records.py`（统一查询/汇总/导出共享条件）、`access.py`、`files.py`、`preview.py`（鉴权分页渲染 PDF）、`output.py`（替代收据/WHT 凭证）、`amounts.py`；也没有销售收款流水 DocType（采购有 `ERP Purchase Payment`）。
+- 状态机差异：现有销售是 `draft → pending_approval → issued → void` 的两步开单；目标交互是一次录入、复核、确认。历史单据兼容保留，服务端需协调为目标状态机，不再给用户增加草稿/审批步骤。
+
+旧项目销售域规模（`ec2e5c957e6b`，只读）：前端 25 个文件（`src/home/sales-records.ts`、`sales-record-detail.ts`、`sales-common.ts`、`sales-detail.ts`、`sales-wizard*.ts`、`sales-workbench.ts`、`sales-report*.ts`、`sales-settings.ts` 等），后端 35 个文件（`services/sales/*.py` 含 `document*.py`、`issue_gates.py`、`totals.py`、`wht.py`、`promptpay.py`、`numbering.py`、`pdf*.py`、`credit_note.py`、`quotation.py`、`product_import.py`；另有 `services/sales_agg/`、`alembic/versions/0006…0025/0085/0107` 及 `docs/sales-module/`）。**只照当前 `sales.js` 的少量字段做会漏**，S1 必须按域逐项核对；但交互与布局不再从旧向导取，只取字段与业务契约。
+
+## 工作包划分
+
+| 包 | 内容 | 完成判据 |
+| --- | --- | --- |
+| S1 | 销售字段/契约基准：按生产 SHA 逐文件核对开票域（单据类型、买方类型与证件、分支、折扣、价内价外、VAT/WHT、收款与 PromptPay、连号、红冲/补开、报价转换、商品导入与图片），登记对照表 | 对照表可指向来源路径与新落点；缺项与有意差异写清 |
+| S2 | 服务端：一次提交即开票的 entry、records 统一查询/汇总/导出、access、files（附件归属与私有权限）、preview（鉴权只读分页）、output（替代收据/WHT 凭证）、收款流水与状态回读 | 真实 Site 事务、失败回滚、幂等、连号不跳、权限与租户隔离通过 |
+| S3 | 前端：`sales.js` 原生列表（搜索/筛选/新建/选择/导出）、`sales-entry.js`（默认上传识别卡片、字段显隐、整批一次识别、手动零识别）、`sales-fields.js`（原生 Section/FieldGroup 连续字段）、`sales-form.js`（同页复核与提交）、`sales-layout.js`（60/40、手机滚动定位）、`sales-viewer.js`（旧查看器交互）、`sales.css` | 浏览器覆盖列表/选择/录入/复核/查看器/390px，且不破坏采购交互 |
+| S4 | 词条与翻译：ERP `i18n/messages.tsv` → 生成中/泰/英/日 CSV | `i18n-build.py --check` 与词条检查通过，不新增 bare CJK 存量 |
+| S5 | 验证：架构检查、JS 语法、定向业务探针、浏览器验收、真实 Site 回读 | 分层报告，缺哪层写缺哪层 |
+| S6 | 收尾：合并/推送/部署按授权，资源清理与保留登记 | 本任务独有资源逐项核对 |
+
+## 已知限制与风险
+
+### 范围确认：不引入「开票系统」（2026-09-23 用户指示）
+
+用户本轮明确：开票系统此前已说过不要，如果被迁进来就直接删。**本次只读核查结论：没有迁入，无需删除。**
+
+| 核查项 | 结果 |
+| --- | --- |
+| 决策记录 | [前端页面清单](../frontend/01-page-inventory.md) 已把「发票工作台（`sales-invoices`）」「账套 / 开票资料（`sales-account`）」列为 **不要**；[ERP/POS 迁移记录](2026-09-21-erp-pos-migration.md) 的「不迁」表同样登记「销售开票组：发票工作台、账套·开票资料」，并写明开票资料已由「公司资料」承担 |
+| 菜单与路由 | `pearnly_erp_portal/hooks.py` 的 `pearnly_navigation` 只有首页/商品/库存/入库/出库/收发存/盘点/采购/供应商/采购设置/销售记录/收银/客户/主数据等；没有发票工作台或开票资料入口 |
+| 页面 | 全仓 Desk 页面目录（core / dms / erp / cowork）没有发票工作台、账套或开票资料页面，也没有对应路由 |
+| DocType | 没有发票工作台、开票资料、发票模板或销售设置类 DocType（`find apps -path "*doctype*" | grep -i invoice` 为空） |
+| 品牌资产 / 模板 | 旧 `sales-account.ts` 的卖方主体、logo/印章/签字、票面模板**未迁**；`ERP Company` 只有 `company_name / short_name / tax_id / branch / phone / contact_person / contact_email / promptpay_id / doc_prefix / fiscal_year_start_month / address / note` |
+| 其他 App | Cowork / DMS / 控制面没有开票功能；`pearnly_control/billing.py` 是 OCR 按页计费底座，与开票无关 |
+
+仍然存在、但属于「销售记录」自身输出、不是被否掉的开票系统：`sales/render.py` 的票面模型（标签、泰文金额大写、未收款时的 PromptPay 载荷）与 `api_sale_document_print`，以及 `contracts` 里的报价转换、红冲/补开、WHT 预设。这些是否保留由用户在 S1 范围确认时拍板；本记录不把它们当成「开票系统」自动删除，也不因为本次核查而扩展开票侧能力。
+
+**用户随后明确「开税务发票这件事也不要」（2026-09-23），已按下面 D1 删除。** 本节原来的「待拍板」到此结束。
+
+### D1：去掉税务发票能力（2026-09-23 已执行，未部署）
+
+范围判据：只要还在服务**开税务发票**的东西就去掉；剩下的是「记录一次销售」。
+
+| 去掉 | 具体落点 |
+| --- | --- |
+| 三种税票类型与两种冲正单类型 | `sales/contracts.py` 的 `DOC_KINDS`（只剩 `quotation` / `receipt`）；DocType `doc_kind` 选项同步 |
+| 税票号（正式连号） | `sales/service.py` 的 `allocate_number`、`doc_no` 字段与"已开出必须带号"校验；`contracts` 的 `RESET_*` / `DEFAULT_PREFIXES` / `resolve_prefix` / `period_key` / `format_number` / `fiscal_year_start` |
+| 票面与打印 | `sales/render.py`（PromptPay 载荷、泰文标签、泰文金额大写、打印模型）整文件删除；`contracts.baht_text`；`api_sale_document_print` / `print_document` |
+| 预扣税 WHT | `contracts.WHT_PRESETS` / `wht_label` / `compute_totals` 的 WHT 与 `net_payable`；`wht_rate` / `wht_amount` / `net_payable` 字段 |
+| 红冲 / 补开 | `contracts` 的 `NOTE_TYPES` / `note_gate` / `note_prefix`；`service.create_note`；`api_credit_note` / `api_debit_note` |
+| 报价转开票 | `contracts.CONVERT_TARGETS` / `convert_gate`；`service.convert_quotation`；`api_convert_quotation` |
+| 买方的税票要素 | `tax_id` / `branch_type` / `branch_no` 字段（只为开税票而存在）；`masters.contracts.missing_for_tax_invoice`、`masters.customers.required_for_invoice`、`api_customer_invoice_requirements` |
+| 开票语义的状态与动作 | 状态收敛为 `draft / submitted / void`；动作表只留 `edit / confirm / void`；`issued`、`pending_approval` 及审批动作、`trade.issue`、`trade.taxNo` 词条去掉 |
+
+保留（就是「销售记录」本身）：建单（我方单号 `system_no`）、确认（确认即过账出库，幂等）、作废（反向流水）、上传识别与同页复核、报价单（不作为销售凭证、不动货）、金额与 VAT 规则、来源三种、岗位与租户隔离。旧的 `issue` 流程改名为 `confirm`（`api_confirm_sale_document`）；前端 `desk/sales.js` 同步到新契约（仍是有待按采购交互重做的现状页）。
+
+**没有动**：`ERP Customer` 主档（税号/分店是客户主数据，也给收银用）、采购侧的 `doc_type`（进项票种仍要有，`tax_invoice` 词条因此保留）、POS 收银域、商品/库存/盘点已验收页面。
+
+**遗留**：Frappe 的原生 migrate 只同步元数据，不会删掉旧列；实验室两个站点的 `ERP Sales Document` 表里 `doc_no / tax_id / branch_type / branch_no / wht_rate / wht_amount / net_payable / references_document` 列仍在，但已不在 DocType 里，应用不再读写。按本仓规矩没有手工改库；销售记录本来就没有数据（两站都是 0 条），不存在迁移旧值的问题。
+
+### S2/S3：销售前端与一次提交（2026-09-23 已执行，未部署）
+
+交互按采购定稿那一套落地，业务字段与契约换成销售自己的。服务端模块（`pearnly_erp_portal/sales/`）：
+
+| 模块 | 职责 |
+| --- | --- |
+| `access.py` | 单据读写权限与本人范围；并在 `hooks.py` 注册 `ERP Sales Document` 的 has_permission / permission_query_conditions |
+| `records.py` | 列表、单据、导出共用的一份条件（搜索、类型、收款状态、来源、期间、日期口径） |
+| `entry.py` | **一次提交即落定**：建单 + 出库 + 收款标记同一事务；请求号幂等（重复提交返回同一张单、只出一次库）；失败整体回滚；另有 `preview`（前端算金额）、`cancel`、`payment`、`delete_drafts` |
+| `files.py` / `preview.py` / `recognition.py` / `output.py` | 私有附件与归属校验、鉴权后的 PDF 分页渲染、显式触发的整批识别、同查询的 Excel 导出（3 张表） |
+
+原来的 `sales/service.py` 与 `sales/ocr.py` 已删除（写入路径只剩 `entry`，读取只剩 `records`），避免两套写入口。`integrations/intake.py` 的销项分支改为走 `entry.post(..., finalize=...)`，与采购同一条路（LINE 收进来的单也一次落定并出库）。
+
+前端（`public/desk/sales*.js|css`）：`sales.js`（列表 + 过滤 + 导出 + 选择删草稿 + 收款动作）、`sales-fields.js`（原生 Section/FieldGroup 业务字段与逐项明细）、`sales-entry.js`（默认上传识别卡片、互斥、上传完成才整批识别一次）、`sales-layout.js`（电脑 60/40、手机滚动定位导航）、`sales-form.js`（同页复核、金额、提交、合并/分拆、收款弹窗）、`sales-viewer.js`（旧查看器的缩放/拖动/旋转/复位/翻页/全屏）、`sales-intake.js`（LINE 待处理）。页面登记从 core 移到 ERP App（`page/pearnly_sales/`，与采购同一处），`browser_text.py` 放行 `sales.` 命名空间；`features.json` 的销售功能加 `ERP Sales Attachment`。
+
+落定时明确的产品判断（逐条可追）：
+
+- **收款按旧线上表头口径**：钱记在单据上（`paid_amount` + 状态 + 方式 + 日期），状态由「收了多少 / 该收多少」算；不另开流水表。收款方式取旧线上常用的现金/转账/PromptPay/其他。
+- **收据不再要求先收款**：去掉税票之后，收据同时承担现金卖货与赊账两种情形；收到钱用「收款」动作记上去。฿0 的收据仍然拦（`zero_amount`）。
+- **不自动建商品**：旧线上销项明细的商品关联是可空的（"现填时可为空"），卖的东西没建档时明细照样能记，只是这一行不动库存；建档归物料岗位。明细按物料/名称匹配现有主数据，匹配不上就留空。
+- **不做「修订」**：旧线上的更正关联是税票侧的口径（已随开票一起删除）；销售的可走路径是作废后重录，因此菜单里只有作废。
+- **导出只做 Excel**（与采购同一查询条件），不引入 Drive/Sheets。
+
+- **销售探针已改成非破坏性**：原 `scripts/erp-pos-lab-sales-verify.py` 会遍历删除 Site 内全部 `ERP Sales Document`（`frappe.delete_doc(..., force=True)`）。现已重写为「样本只建在隔离检查站 `erp-pos-b.localhost`、演示站 `erp-pos-a.localhost` 只读回读、不删除任何记录」，并在断言里包含税票/冲正单类型一律被拒。
+- 当前 8147 没有 OCR 凭据：只能验证“未配置时原生提示拒绝”和带明确标记的响应替身交互；真实付费识别、真实 LINE 发送、生产环境、手机真机触摸都不能据此声称通过。
+- 采购的“全部为草稿才可删除”是采购规则，不直接套销售；批量动作必须按销售自身状态与角色判断。
+- 销售出库方向与采购入库相反，收款方向与付款相反，**不得通过改 API 前缀复用采购事务**。
+- 采购尚无用户最终验收声明，本任务不代签，也不得破坏其可访问样本（`PUR-2026-00202` 等）。
+
+## 变更与决定
+
+- 本次仅接手：创建销售工作树、切换 8147 源码挂载、重做线上只读核验、建立本记录。无代码变更。
+- 复用共享层（Core 原生列表/路由/布局、共享 OCR、登录、外壳）不重写；销售自有声明仍写在 ERP App。
+
+### F1：删草稿的授权口径与两处英文残留（2026-09-23，未部署）
+
+**问题**：列表选中草稿点「删除 (1)」→ 弹「没有权限 / 角色权限管理中未授权用户 purchase-preview@example.test 访问 ERP Sales Document」。
+
+**根因（只读证据）**：失败点不是销售自己的闸，而是框架 `frappe.model.delete_doc.check_permission_and_not_submitted` → `doc.check_permission("delete")`。实验室站点回读：
+
+| 事实 | 证据 |
+| --- | --- |
+| 功能角色在业务表上一律没有 `delete` | `Custom DocPerm`：`ERP Sales`(read/write/create=1, delete=0)、`ERP Purchase`(同上)；全站 `delete=1` 的行只有 `System Manager` 与 Frappe 自带的 `Contact/All` |
+| 这不是销售特有 | `frappe.has_permission("Purchase Document","delete", user=…)` 与 `ERP Sales Document` **同为 False** —— 采购页的「删草稿」在租户角色下同样是坏的（本次未改采购，见下） |
+| 平台为什么这么给 | `pearnly_core/provisioning.py` 的 `FEATURE_PERMS`：功能角色拿读写建，**不给删除**，理由是"业务单据只能作废不能抹掉"。这是跨产品口径，本次不动 |
+| 但旧线上录入员**是能删草稿的** | 生产 SHA `ec2e5c957e6b` 的 `docs/permissions/02-roles-permissions.md`：`*.create / edit / delete（草稿层）` 给 owner/admin/accountant/clerk；销售路由 `routes/sales_routes.py` 的 `api_delete_draft` 用权限码 `sales.doc.delete` 放行，采购 `routes/purchase_routes.py` 用 `purchase.doc.delete` |
+
+**做法**：框架那一位继续关着（通用/桌面端删除仍然拒绝，共享策略没动），放行的是**产品自己的动作** —— `sales/entry.py::delete_drafts` 在过完三道闸后以 `ignore_permissions` 删除。三道闸：`access.get_document(..., write=True, lock=True)`（`sales.write` 岗位 + 本人范围 + 行锁）、整批核验 `status == draft`、已落定/已作废一律拒绝。这与本 App 既有的 `sales/files.py::remove` 用同一写法（先自己判权限，再 `ignore_permissions` 删 File）。
+
+**两处英文残留**（用户看到的「System number / Add VAT / Customer」）：实际核对后词条键都是好的（`trade.systemNo` / `trade.hasVat` 渲染为「单据编号 / 计算增值税」），真正漏的是**没走词条的英文原文**：
+
+| 位置 | 原因 | 处理 |
+| --- | --- | --- |
+| 客户分组标题 | `u.section("Customer")` 用的是英文原文，而术语表里 `Customer` 那行填了 key（msgid 变成 `trade.buyer`），英文原文没有 msgid | 改成 `u.section("trade.buyer")`（与采购的 `u.section("Supplier")` 同一写法） |
+| 税费区 `discount_total` | 标签 `__("Discount Total")` 在术语表里没有这一条 | 术语表新增 `Discount Total / 折扣总额 / ยอดส่วนลดรวม / 割引合計`，重生成四个语言的翻译包 |
+
+**明确没做**：不清理草稿自带私有附件（采购的删除也不清；本 App 的 `intake.discard` 有意保留留底）。要清的话是另一个决定。
+
+**留给采购任务的发现**：`ERP Purchase` 角色在 `Purchase Document` 上同样没有 `delete`，采购页的「删草稿」会撞同一个错。采购工作树与结论归采购任务，本次只记录证据、不改它。
+
+### F2：LINE 待处理入口核对，以及旧 LINE 探针的三处过期（2026-09-23，未部署）
+
+销售页的「LINE」入口只在**存在销售方向待处理草稿**时才出现（`api_sales_defaults` 的 `capabilities.line_intakes`）。本次用真实接口在演示站造了一条销售方向待处理草稿来验页面，验完已删除（见收尾）。
+
+| 核对项 | 结果 |
+| --- | --- |
+| 列表页入口 | 有待处理草稿时出现「LINE」按钮；验完删掉后按钮消失（口径随数据变化，符合设计） |
+| `/desk/pearnly-sales/intakes` | 原生列表，列为 编号 / 创建日期 / 用户 / 备注，中文，无英文残留 |
+| 打开一条待处理草稿 | 跳到 `/desk/pearnly-sales/intake/LI-00212`，走「新建销售单」录入页并带 `source=line`、附件挂进查看器与附件清单 |
+| 行内「取消」（丢掉草稿） | 原生弹窗：标题「取消」、字段「取消原因」、按钮「确认」；提交后回读 `status=discarded` 且留了原因；页面回到列表 |
+
+**旧探针 `scripts/erp-pos-lab-intake-verify.py` 的三处过期**（本次只修第一处；后两处不是销售域的，报告不改）：
+
+1. **D1 遗留（已修）**：销售方向的确认传的是 `doc_kind="tax_invoice"`，而税票类型已按用户 2026-09-23 的决定删除，所以必然 `ValidationError: Invalid value`。改成 `receipt` 后，隔离站同一条待处理草稿确认成功（`SD-00079` 挂到 `LI-00078`、`source=line`、指纹一致）。这与采购侧那轮"去掉开票前检查"的探针同步是同一类收尾。
+2. **采购方向已先过期**：采购确认现在要求「供应商发票号」（`purchasing/entry.py` 的 `Supplier Invoice No is required`），而这个 2026-09-21 的探针没带 `doc_no`，所以采购方向的确认也过不去。属采购任务的口径变化，未改本探针的采购分支。
+3. **权限范围拦住了员工**（不是本次改动引入，证据在 `28f13cf`）：`integrations/intake.py` 的 `_get` / `has_permission` / `permission_query` 按 `doc.owner` 判范围，而 LINE 收单是**通道身份（Administrator）**落库的，`sent_by` 才是那位员工。结果是员工角色既看不到、也确认不了自己发进来的 LINE 草稿 —— 销售页的 LINE 入口因此只对 `ERP Admin` 出现。这是**共享的 intake 切片**（采购/销售两向同源），归 LINE/采购任务；本次只记录，未改。
+4. 另记：该探针的默认站点是演示站 `erp-pos-a.localhost`，一跑就往演示站写草稿；销售探针的口径是"样本只落隔离站"。本次误跑一次已把产生的草稿与文件全部清回原样（见收尾）。
+
+### F3：收款/付款弹窗点不动、以及「已收付不可改」（2026-09-23，未部署）
+
+用户报「点收款付款的已收/已付提交不了」「那个按钮是不是只是展示」，并要求：未付/未收标红、已付/已收不可更改。查下来是**两个真原因**，都复现到了。
+
+**原因一：下拉浮层盖住了「提交」按钮（框架自己的 z-index 反差）。**
+
+框架样式里 `.awesomplete ul { z-index: 2 }`、`.modal-footer { position: sticky; z-index: 1 }` —— 也就是下拉**故意**画在 footer 之上。字段少的弹窗（收款/付款正是四个字段）里，最后一行选项正好压在「提交」上。用 `document.elementFromPoint()` 取「提交」按钮中心那个点，拿到的是**下拉里的 `<li>`，不是按钮**：
+
+| 视口 | 「提交」中心那个点实际命中的元素 | 按钮可点？ |
+| --- | --- | --- |
+| 1440×900 | `LI`（未付） | 否 |
+| 1100×900 | `LI`（未付） | 否 |
+| 768×900 | `LI`（未付） | 否 |
+| 600×900 | `LI`（未付） | 否 |
+| 390×844 | `LI`（未付） | 否 |
+
+所以用户点「提交」其实点在选项上：钱没提交，选项被改了一下 —— 看起来就是"按钮没用"。这解释了为什么我先前用键盘选完选项再点提交能过（那时下拉已经关掉了），而用户鼠标点完字段直接点提交就过不去。
+
+**原因二：弹窗里那个状态下拉的默认值会把已经收到的钱静默清零。**
+
+收款/付款弹窗原先有「收款状态」下拉（收款 / 未付 / 已付款），默认值是 `余额 > 0 ? 收款 : 未付`。一张**已经收满**的单子打开弹窗，默认落在「未付」且金额字段被藏起来 —— 直接点提交等于把收款清零，页面上没有任何确认。演示站实测：`SD-00204`（已收 214）打开弹窗后提交，变成「未付」，行内按钮翻成「已付款」（已按原值改回）。
+
+**做法**（销售与采购同一套，用户 2026-09-23 口径）：
+
+| 改的东西 | 落点 |
+| --- | --- |
+| 弹窗只问三件事：金额（必填，销售默认=总计、采购默认=还欠）、方式、日期（+采购备注）。**去掉状态下拉**，界面上再没有"把已收到的钱清零"这条路 | `sales-form.js` / `purchase-form.js` 的 `u.payment` |
+| 行内动作变成真正的动作按钮：还欠钱时给「收款 / 付款」，**已付已收一行不给按钮** | `sales.js` / `purchase.js` 的 `row_actions` |
+| 详情页主按钮同样只在还欠钱时出现（已收满的收据页不再有「收款」） | `sales-form.js` / `purchase-form.js` 的 submitted 分支 |
+| 未付/未收（含部分）在列表里标红，色值用框架 `--red-600`，与差异看板同一个红 | 列的 `cell_class` + `product.css` 的 `.pearnly-payment-due` |
+| footer 抬到浮层之上：`p.dialog` 给弹窗挂 `pearnly-dialog` 类，皮肤里 `.modal-footer { z-index: 3 }`。**共享层改动**（core 的 `product.js` / `product.css`，一行类名 + 两条规则），修的是框架这个通用反差，销售/采购/筛选弹窗都受益 | `pearnly_core/pearnly_core/public/desk/product.js`、`product.css` |
+
+**取舍**：footer 抬上去之后，特别矮的弹窗里浮层的最后几项可能被 footer 压住（可以打字过滤后再回车选中）。实测 390×844 的采购付款弹窗里六个付款方式全部露在 footer 之上，没有实际遮挡。
+
+**没有做**：没给"撤销收款/撤销付款"留界面入口（用户明确「已付已收不可更改」）。服务端的 `payment(..., paid=0)` 仍保留，供作废/冲正与探针使用；界面上要改已收付金额现在是走不通的。
+
+### F4：收发存的「关联单据」对作废行显示内部编号（2026-09-23，未部署）
+
+用户报「单号在收发存显示得不对」。看真实界面（库存页的明细弹窗 + 收发存二级明细页）后确认：**原单那几行是对的**（入库 `IR2569-000003`、销售出库 `SI2569-000004` 都是单据号），**只有作废产生的那一行不对** —— 它显示的是 Frappe 内部名（`SD-00286`、`STE-2026-00225` 这种），因为：
+
+| 事实 | 证据 |
+| --- | --- |
+| 报表的"关联单据"列 = `doc_no || desc` | `public/desk/stock-card.js` 的 `movement_cells` / `movement_rows`；`inventory/report.py` 里 `desc` 取的是 `ref_id`（内部单据名） |
+| 作废行没有 `doc_no` | `ERP Stock Movement` 里 `movement_type='adjust'`、`ref_type='void'` 的行 `doc_no` 全为空（演示站 13 条） |
+| 原因在共用冲销入口 | `inventory/stock.py::reverse_movements` 复制原流水时**没带 `doc_no`**；它被五处调用：销售作废、采购作废（两处）、入库/出库作废、收银退货/作废 |
+
+**做法**：`reverse_movements` 复制原行的 `doc_no` 到冲销行 —— 同一个单据的冲销行，号与原单一致。改一处，五处调用一起正确。
+
+**历史行**：演示站里修复前写下的 13 条作废行（1 条销售 + 12 条采购）已按原单的号补上 `doc_no`（只补空的、可重跑）。生产未部署过这套，所以不存在需要处理的真实历史。
+
+**顺带发现（未改，不是销售域）**：`scripts/erp-pos-lab-inventory-verify.py` 已经跑不起来 —— 它给 `documents.create_entry` 传 `doc_no="LAB-INV-ENTRY-1"`，而单据号早已改成系统发号、`create_entry` 不再收这个参数，于是第 181 行 `TypeError: string indices must be integers`。冲销路径本次改为**直接验**：隔离站建一张入库单 → 提交 → 作废，回读冲销行 `doc_no == IR2569-000001`。该探针的修复归库存/POS 任务。
+
+### F5：销售演示样本（2026-09-23，只落演示站）
+
+用户要求"销售这边多搞点数据"。全部走**真实业务接口**（`masters.create_customer`、`products.create_product`、`inventory.create_entry`、`sales.entry.post` / `payment` / `files.add` / `cancel`），没有直接写表；请求号是 `demo-sales-01..22`，重跑会命中幂等、不会重复建。
+
+| 造了什么 | 数量 | 说明 |
+| --- | --- | --- |
+| 客户主档 | 6 | 泰文公司名/人名，带地址与电话；公司 5 家、个人 1 位 |
+| 商品主档 | 6 | 泰文品名（鱼露/鱼罐头/茉莉香米/植物油/方便面/炼乳），带单位、售价与参考成本 |
+| 入库单 | 6 张（`IR2569-000001..000006`，各 150） | 让这些商品在收发存里有一条进来的流水 |
+| 销售单据 | 22 张（`SI2569-000002..000023`） | 收据 20 + 报价单 2；已收款 14、部分收款 3、未收款 4；来源含人工/OCR/LINE；1 张已作废 |
+| 私有附件 | 2 张（付款凭证 + 单据） | 挂在样本单上，供附件区与查看器看 |
+
+**本次造数据时自己的两个失误，都已处理**：把 6 张入库单的单价录成了 0 → 已作废并按参考成本重开（`IR2569-000007..000012`）；有一条本想记成"未收款"，被服务端默认成已收满 → 按表头口径改回未收。副作用：这几样商品的**结存均价**被"0 价那张历史 + 冲销"带着走（例：ข้าวหอมมะลิ 现在 91.83，而参考成本是 185）。数量是对的，报表算得也对，只是均价不像"一次录对"的样子；要干净的一组样本需要连同样本单据一起重建，等用户定。
+
+### F6：编号定义与"每一笔记录联动"的逐条核对（2026-09-23，只读审计 + 记录）
+
+用户口径："物料是自动生成编号的、有编号定义的；出库入库、采购销售也有编号定义、也是自动生成的；然后这些编号都会和商品库存、出库入库、收发存报表，每一笔记录都产生联动。"
+
+**MR.ERP 的编号定义长什么样**（用户给的源码 `/Users/skin/mrerp-source`，只读）：
+
+| 事实 | 出处 |
+| --- | --- |
+| 定义表 `tbl_autono`：`comidyear` + `idmenu`（单据类型）+ `statusautono`（是否自动编号）+ `userdefinedno`（前缀）+ `runautono`（当前流水） | `stderp2020.sql:1920`；真实数据行例 `(27, 5, 68, '1', '6401', 3)` |
+| 定义跟着**菜单维护**走：可勾选自动编号、可填前缀（≤8 字符）、当前流水只读展示 | `src/menu/menuform.php:143,496-506`、`src/menu/menuupdate.php:224-257` |
+| 号码形状 = 前缀 + `-` + 六位零填充流水；表单上填进**只读**输入框 | `src/stktrant/allform.php:384-391` |
+| 保存时校验"提交的号不小于计数器"，并把计数器推到已用号 +1 | `src/stktrant/allsave.php:295-331` |
+
+**我们这边（新平台）的对应实现**：
+
+| 对象 | 定义 / 形状 | 自动发号入口 | 界面（只读预览） |
+| --- | --- | --- | --- |
+| 物料 | `P-` + 6 位流水（`products/contracts.py` 的 `CODE_PREFIX` / `next_code`） | `products.service._allocate_code` | 新建商品只读显示"系统将要发的编码"（`api_next_product_code`）；库存页有"编码"列 |
+| 入库 | `IR` + 佛历年 + `-` + 6 位 | `numbering.allocate(direction="in")` | 新建入库单只读显示当前号（`api_next_stock_entry_number`） |
+| 出库 | `IS` + 佛历年 + `-` + 6 位 | `numbering.allocate(direction="out")` | 同上 |
+| 采购 | `PE` + 佛历年 + `-` + 6 位 | `numbering.allocate(direction="purchase")` | 列表首列与页面标题用 `system_no` |
+| 销售 | `SI` + 佛历年 + `-` + 6 位 | `numbering.allocate(direction="sales")` | 表单只读字段"单据编号" + 列表首列 |
+| 计数器 | 原生 `ERP Doc Sequence`，一个"类型 + 年"一行，取号时 `for update` 排队 | `numbering/service.py` | 演示站现有 `in-IR-2569`、`purchase-PE-2569`、`sales-SI-2569`（出库那行首次发号时才建） |
+
+**与 MR.ERP 的有意差异**：前缀与形状写在代码里（不改库、租户改不了），MR.ERP 是在"菜单维护"里可改前缀与开关。本仓按 [架构要求](../development/architecture.md) 与用户既定口径保留固定前缀；要改成"租户可定义"是产品决定，本记录只登记差异。
+
+**"每一笔记录都联动"的逐条核对**（演示站回读 + 界面截图）：
+
+| 记录来源 | 流水带号 | 在哪看得见 |
+| --- | --- | --- |
+| 采购确认 → 入库 | `PE2569-000073` 等 | 收发存明细"单据编号"、库存明细弹窗"关联单据"、采购列表首列 |
+| 销售确认 → 出库 | `SI2569-000002` 等 | 同上（销售列表首列 `SI2569-0000xx`） |
+| 入库 / 出库单据 | `IR2569-0000xx` / `IS2569-0000xx` | 出入库列表首列、收发存、库存明细 |
+| 收银卖货 / 退货 | 小票号（`cashier/sales.py` 传 `doc_no=doc.receipt_no`） | 同上 |
+| 作废冲销 | **原单的号**（上一轮 F4 修的） | 同上；修复前显示内部名 |
+| 商品 | `P-0000xx` | 库存页"编码"列、出入库明细行、收发存**导出** |
+
+**核对出的三个没编号的入口（都不在用户这次的清单里，登记待定，未改）**：
+
+1. **盘点过账**（`inventory/count.py::post_count`）：流水 `movement_type='count'`、`doc_no` 为空 → 收发存只能显示内部名。隔离站实测：`STC-00120` 过账后流水 `doc_no=None`，明细行显示 `STC-00120`。**旧线上不是这样**：盘点差异给每个差异分配 `IR`/`IS` 号并**落一张入库/出库单据**（`services/erp/inventory.py` 的 `document_numbers.allocate` + `INSERT INTO erp_stock_documents ... source: inventory_count`）。要按旧线上口径对齐，就得让盘点差异生成入库/出库单据 —— 那是盘点窗口的模块，且会影响 `stocktake-workbench-lab-verify.py` 的断言，本任务不擅自改。
+2. **期初**（`inventory/openings.py`）：流水 `ref_type='opening'`，无号；期初日在报表区间之前时它并进"期初"一行（不占行、也就无所谓号），落在区间内才会显示成一行。
+3. **直接动库存的 API**（`inventory/api.py` 的 `api_receive` / `api_issue` / `api_adjust`）：不建单据、不带号；前端没有调用方，目前只有 `scripts/erp-data-flow-lab-verify.py` 在用。
+
+**一处呈现不一致（未改）**：收发存的**列表**只有物料名称、没有"编码"列，而同一个报表的**导出**与库存页都有编码。
+
+### F7：按 MR.ERP 对齐"盘点差异也开单带号"（2026-09-23，未部署）
+
+用户口径：业务联动逻辑对齐 MR.ERP，全部。
+
+**MR.ERP 那边"谁写库存"是清楚的**（`rg "INSERT INTO tbl_stkcard" src/`）：
+
+| MR.ERP 模块 | 写库存卡 |
+| --- | --- |
+| 收货 `stktranrec`、发货 `stktraniss` | ✓ |
+| **调整 / 盘点 `stktranmod`** | ✓（`trandocno = 自己菜单定义的前缀 + 流水`） |
+| 采购 `aptran`（另有 `appe/appd/appc`）、销售 `artran`（另有 `arse/arsd/arsc`） | ✓（`tbl_stktran.trandocno = 单据类型 + 单据号`，`transowner` 记来源模块） |
+
+也就是：**每一种会动库存的单据，都把自己的号写进库存卡**，没有"无号的库存流水"。我们这边原先只有一处例外：盘点过账直接写 `count` 流水、不带号（收发存只能显示 `STC-00379` 这种内部名），而旧线上盘点差异本来是**发 IR/IS 号并落一张出入库单据**的（`services/erp/inventory.py` 的 `document_numbers.allocate` + `insert erp_stock_documents ... source: inventory_count`）。
+
+**改法**：`inventory/count.py::post_count` 不再直接写 count 流水，改为对每笔差异用 `documents.create_entry` 开一张入库/出库单据（系统发的 IR/IS 号、`ref_type=count`、`ref_id=盘点单`、`reason=stocktake:<盘点单>`），流水带着这个号；`create_entry` 新增 `commit=False`（盘点整批一个事务，默认行为不变），所以**过账的原子性没破**。
+
+**验证**：
+
+| 场景 | 结果 |
+| --- | --- |
+| 演示站盘点（`STC-00379`，差异 +3） | 生成 `IR2569-000020`；流水 `doc_no=IR2569-000020`、`ref_type=count`；库存明细该行显示 `入库 IR2569-000020` |
+| 出入库页 | 列表出现这些单据（`IR2569-000020 ... stocktake:STC-00379`），可按号打开 |
+| 作废该单据 | 隔离站实测：数量退回原值（`IR2569-000002` 作废后 2 → 0），说明这类单据的冲销链路是通的 |
+| 盘点验收脚本 | `stocktake-workbench-lab-verify.py` 仍 `{"ok": true}`（含"atomic posting rollback""finished variance valuation is frozen"）；回滚断言按新落点改为"没有 `ref_type=count` 的单据、也没有 `stocktake:<盘点>` 的流水" |
+
+**行为差异（有意）**：盘点过账现在走和出入库同一道门，所以**停用商品不能过账**（原先 `allow_inactive=True` 放行过）；流水类型由 `count` 变为 `stock_in/stock_out`，收发存里按"入库/出库"显示（旧线上盘点差异是 in/out 单据，同形）。这两点如需保留旧行为再定。
+
+### F8：「容器里看不到盘点」的根因（2026-09-23，已修实验室环境）
+
+用户问"你们的容器怎么都没盘点功能，代码没对齐吗"。核对结论：**代码是对齐的，是实验室站点少了"买到盘点"这一步。**
+
+| 检查项 | 事实 |
+| --- | --- |
+| 菜单声明 | `pearnly_erp_portal/hooks.py` 的 `pearnly_navigation` 里有 `('nav.stockCount', 'pearnly-stock-count', 'boxes', 'stocktake')`，且 `available` 含它 |
+| 页面 | `pearnly_core/.../page/pearnly_stock_count/`（`Page` 记录 `pearnly-stock-count` 已在库里） |
+| 服务与验收 | `inventory/count.py` 在（本窗口刚改过过账）；`stocktake-workbench-lab-verify.py` 跑出 `{"ok": true}` |
+| **站点"已购功能"** | `pearnly_features = ["products","warehouses","stockcard","purchase","sales","clients"]` —— **没有 `stocktake`，也没有 `cashier`** |
+| 侧栏 | 侧栏是原生 `Workspace Sidebar`（`Pearnly ERP`）文档，按当时的已购功能生成并留存；`visible_pages()` 只按"已购 + 有权限 + 已实现"过滤，所以盘点被藏 |
+
+成因：`scripts/erp-pos-lab-init.py` 把功能清单**手抄**在脚本里（漏了后来加的 `stocktake` 与 `cashier`），盘点那条功能码就成了"没买的功能"。盘点那包当时是在自己的探针里临时补站点配置绕过（`erp-pos-lab-stock-count-verify.py:107-110` 注释"样板站点在开通时写死一份，实验室自己补"）。
+
+**已做**：
+
+1. `scripts/erp-pos-lab-init.py` 不再手抄清单，改为读产品自己的目录 `apps/pearnly_erp_portal/pearnly_erp_portal/features.json`（加控制面的 `home_subscription`）——下次建实验室不会再漏。
+2. 两个实验室站点的 `pearnly_features` 按产品目录补全（6 → 10 个功能码：加 `home_subscription/stocktake/cashier/erp_push`）。
+3. 重跑 `pearnly_core.desk.navigation.ensure_navigation` 重建侧栏（幂等）。侧栏文档现在是 `…stockCard, stockCount, …sales, cashier`。
+
+**验证**：侧栏出现「盘点」与「收银 POS」；打开 `/desk/pearnly-stock-count` 正常（标题「盘点」、按钮「新建盘点」「筛选」，列表 5/5，含本次的 `盘点联动检查`）。
+
+### F9：MR.ERP 里"采购/销售要不要进入库/出库列表"（2026-09-23，只读核对）
+
+用户口径：只按 MR.ERP 判断，不看旧线上。
+
+| MR.ERP 事实 | 出处 |
+| --- | --- |
+| 库存单据头 `tbl_stktran` 区分两类来源：出入库模块写 `tran`（收货/发货/调整各自模块），采购/销售/费用模块**不写 `tran`**、写 `transowner`（来源模块名），`trandocno = 单据类型 + 单据号` | `src/stktrant/allsave.php:64-68`（`tran` + `idmenu`）、`src/aptran/allsave.php:253-258`（`transowner='aptran'`）、`stderp2020.sql:3425-3447` 的字段 |
+| 入库/出库**列表按各自菜单号过滤**：`FROM tbl_stktran WHERE (idmenu=?)` | `src/stktranrec/component/showdata.php:25-48`、`src/stktrant/component/showdata.php:25-48` |
+| 报表能专门区分：出库报表有一版条件带 `(m.tran IS NOT NULL)`，即"真正的出入库单" | `src/expstktraniss/component/expdata.php:102,104` |
+| 内部出入库的编码定义 = 每个出入库菜单一行（自动编号开关 + 前缀 + 当前流水） | `tbl_autono` 的定义与 `src/menu/menuform.php:143,496-506` |
+
+**所以按 MR.ERP：采购不在入库列表出现、销售不在出库列表出现。** 它们以**自己的单据号**进库存卡（报表），用 `transowner` 标明来源模块。内部出入库单是**另一套独立定义**（收货/发货/调整各一个菜单、各自一行编号定义）。
+
+**我们的现状与之对照**：采购确认/销售确认**不生成入库/出库单**，只写带 `PE`/`SI` 号的流水（`purchasing/entry.py`、`sales/entry.py` 直接 `stock.apply_lines`）✓；入库/出库是 `IR`/`IS` 两个独立定义 ✓（计数器 `in-IR-2569` / `out-IS-2569`）。**一处差异**：MR.ERP 把"调整/盘点"当第三个内部模块、有它自己的编号定义（`stktranmod`），我们目前把盘点差异放进入库/出库单（用 IR/IS）。要不要给盘点单独一套定义（例如独立前缀），等用户定。
+
+### F10：收款弹窗与采购对齐、采购补"单据编号"（2026-09-23，未部署）
+
+用户给三张图：销售收款弹窗的下拉把下面的字段盖住、要和采购付款弹窗一样；采购新建页缺销售那样的"单据编号"。
+
+| 改的东西 | 落点 |
+| --- | --- |
+| 销售收款弹窗补"备注"，成为与采购付款**同一套四个字段**（金额 / 方式 / 日期 / 备注） | `public/desk/sales-form.js` 的 `u.payment` |
+| 备注跟钱一起记：单据新增 `payment_note`（Small Text），`entry.payment` 收 `note`，撤销收款时一并清掉；详情页只读显示"收款备注" | `doctype/erp_sales_document/*.json`、`sales/entry.py`、`public/desk/sales-fields.js` |
+| 采购新建/详情页"详细信息"第一格补只读"单据编号"`system_no`（与销售同位同口径），新建时显示系统将要发的 PE 号 | `public/desk/purchase-fields.js` |
+| 术语表补 `Collection Remarks` | `i18n/messages.tsv` + 生成包 |
+
+**验证**：销售收款弹窗字段 = 已收金额 / 收款方式 / 收款日期 / 备注（与采购付款一致）；在真实界面提交一笔带备注的收款成功，回读 `payment_note = 现金收讫 by 采购验收`（随后把该演示样本改回未收款，备注一并清空）；采购新建页显示 `PE2569-000074` 预览；销售详情页出现"收款备注"；销售探针加 `payment_note` 断言后仍 `problems: {}`。
+
+**注意（未改）**：这两个弹窗里的"方式"是自动完成式下拉，展开时会盖住它下面的字段 —— 采购、销售**同样**如此（图一就是这个现象）。要彻底不遮，需要把这类下拉换成原生 `<select>`（会牵动全站的选择控件外观），等用户定。
+
+### F11：盘点独立编号（AD）+ 删掉采购的「单据类型」（2026-09-23，未部署）
+
+用户口径：盘点也按 MR.ERP 对齐（那边"调整/盘点"是第三个内部模块、有自己的编号定义）；并要判断采购的「类型」与「单据类型」哪个没用、删掉没用的。
+
+**一、盘点独立编号（对齐 MR.ERP 的 `stktranmod`）**
+
+| 改的东西 | 落点 |
+| --- | --- |
+| 编号定义新增第三段：盘点/调整 `AD`（与入库 `IR`、出库 `IS`、采购 `PE`、销售 `SI` 并列，方向名 `stocktake`） | `numbering/contracts.py` |
+| 建单可取号方向覆盖：`create_entry(..., numbering_direction=...)`；单据仍按 in/out 决定货的方向，号来自覆盖后的定义 | `inventory/documents.py` |
+| 盘点过账传 `numbering_direction="stocktake"` | `inventory/count.py` |
+
+**验证**：演示站盘点 −2 生成单据 `AD2569-000001`，收发存该行 `单号 = AD2569-000001`（`kind=stock_out`）；计数器独立成行（`stocktake-AD-2569`，与 `in-IR-2569` / `out-IS-2569` 并存）；盘点验收脚本加断言"盘点过账的单据号都以 AD 开头"后仍 `{"ok": true}`。
+
+**二、删掉采购的「单据类型」`doc_type`**
+
+两个字段的实际用途（只看代码，不看旧线上）：
+
+| 字段 | 语义 | 谁在用 |
+| --- | --- | --- |
+| 「类型」`doc_kind` | 采购发票 / 采购订单 / 费用 | **在用**：默认 `purchase_invoice`；`service` 时明细按服务处理；列表「费用」分组用它；导出列；识别也会填 |
+| 「单据类型」`doc_type` | 税务发票 / 简式税务发票 / 收据 / 采购订单 / 替代收据 / 其它 | **没有规则用它**：只做了四件事 —— 存下来、列表能筛、导出翻一列、识别时问一句。MR.ERP 的采购单头也没有这个字段（头表只有供应商税号 `vatnum` + `vatdate`） |
+
+按"没用的删掉"删了 `doc_type`：DocType 字段、`HEAD_FIELDS`、默认值、列表字段与筛选条件、导出枚举、识别提示词、采购表单字段、采购列表筛选项一起清掉；采购验收探针里那两处引用同步删掉。保留 `doc_kind`（它承载业务分支）。术语表里的 `tax_invoice` 等词条留着不动（不影响；将来真做进项税报表要用到"票种"这个概念时再决定放哪）。
+
+**验证**：采购新建页只剩「单据编号 / 记账日期 / 供应商发票号 / 类型 / 已付款 / 付款方式 / 到期日」等，不再有「单据类型」；`frappe.get_meta('Purchase Document').get_field('doc_type')` 为空；销售探针 `problems: {}`、端口测试 102 条 OK、架构检查 0 违规。Frappe migrate 不删列（旧列留在库里，应用不再读写，同 D1 的处理）。
+
+### F12：数量显示按实际位数（不留尾零）（2026-09-23，未部署）
+
+用户口径："采购销售的物料数量不要留那么多0，涉及到数量的地方都改规整。"
+
+**根因**：框架的 Float 控件按字段的 `precision` 补零 —— 采购/销售明细数量写的是 `precision: 6`，所以 2.5 显示成 `2.500000`；只读时框架又走 `frappe.format(value, df)`，它把 `precision: 0` 当"没设"退回系统默认（2 → `2.000`、2.5 → `2.500`），所以不能靠调 precision 解决。
+
+**做法**（共享层一处，所有数量都受益）：`pearnly_core/public/desk/product.js` 新增 `p.tidy_number(field)`，在 `p.layout`（所有 FieldGroup）与 `p.dialog`（所有我们自己的弹窗）里对 **Float / Percent** 控件自动挂上：
+
+- 可编辑：包一层 `format_for_input` 去掉尾零（只改显示文本；`parse` 走另一条路，所以输入 2.5 不会被四舍五入）。
+- 只读：`set_disp_area` 改用我们自己的 `p.number()`（按实际位数），避开框架那个 precision 回退。
+- **金额（Currency）不动** —— 钱固定两位；百分数用框架自带的"按值截断"逻辑（7 → 7%）。
+
+**验证**：采购详情数量 `2.500000 → 2.5`；销售详情数量 `18`（不是 18.000000）；采购新建行默认数量 `1`（不是 1.000000）；销售新建输入 2.5 后失焦仍是 `2.5`；入库单弹窗数量 `2`；这些页面全页扫描再无 `数字.三位以上小数`。
+
+### F13：供应商 / 客户独立菜单（2026-09-23，未部署）
+
+用户口径（两条，后者覆盖前者）：先要"新建时一个弹窗输入相关信息就搞定"，随后明确
+"**单独做一个供应商和客户的菜单**，和销售采购联动上就好了"。
+
+所以做成**两个独立菜单 + 一个弹窗**（不是采购/销售表单里内嵌的新建按钮；那条路已经撤掉）：
+
+| 菜单 | 路由 | 列 | 弹窗字段 |
+| --- | --- | --- | --- |
+| 供应商（采购系统组） | `/desk/pearnly-suppliers` | 供应商 / 税号 / 分支 / 电话 / 地址 / 状态 | 供应商名称\* / 电话 / 税号 / 分支类型 / 分支编号 / 地址 / 备注（改既有供应商时多一个"启用"） |
+| 客户（销售系统组） | `/desk/pearnly-clients` | 客户名称 / 客户类型 / 税号 / 电话 / 地址 / 状态 | 客户名称\* / 客户类型 / 电话 / 税号 / 地址 / 备注（同上） |
+
+**联动方式**：就是原生的 Link 字段 —— 采购单据的"供应商"指向 `ERP Supplier`、销售单据的"客户"指向 `ERP Customer`，所以菜单里建完，开单时就能选到；选中后供应方名称/税号/地址（采购）与客户名/类型/地址（销售）由单据页自动回填。收银在客户表上只读（沿用既有岗位口径），所以收银员看得到这一页、建不了。
+
+| 改的东西 | 落点 |
+| --- | --- |
+| 页面登记从 core 的占位（`notBuilt`）搬到 ERP App：`page/pearnly_suppliers/`、`page/pearnly_clients/`（json + register 脚本）；core 的四个占位文件删除 | `apps/pearnly_erp_portal/.../page/`、`apps/pearnly_core/.../page/` |
+| 两个页面的实现（原生列表 + 弹窗；`can_write` 决定弹窗是编辑还是只读） | `public/desk/suppliers.js`、`public/desk/clients.js` |
+| 菜单挂到已有分组（供应商→采购系统、客户→销售系统）；`available` 与 `permissions`（按 `ERP Supplier` / `ERP Customer` 的读权限）登记 | `hooks.py` 的 `pearnly_navigation` |
+| 新命名空间 `supplier.` / `client.` 进文案白名单（否则整页取不到文案） | `pearnly_core/browser_text.py` |
+| 术语表新增 `supplier.*` / `client.*` 共 44 条（四语言） | `i18n/messages.tsv` + 生成包 |
+
+**验证**：
+
+| 场景 | 结果 |
+| --- | --- |
+| 两个页面的登记与归属 | migrate 后 `Page` 记录的 module 变成 `Pearnly ERP Portal`（不再是核心的占位）；侧栏出现「供应商」（采购系统下）与「客户」（销售系统下）；两页标题/列头全中文 |
+| 建供应商（弹窗） | 真实界面填名称/电话/税号/地址 → 创建 → 列表出现该行；服务端回读 `SUP-00482`，字段与填写一致 |
+| 建客户（弹窗） | 真实界面填名称/类型/电话/税号/地址 → 创建 → 列表出现该行（`CUS-00483`） |
+| **采购联动** | 采购新建单的"供应商"输入 `SUP-004`，下拉出现刚建的 `SUP-00482`（并提示"已按 激活 已启用过滤"） |
+| **销售联动** | 销售新建单的"客户"输入 `CUS-004`，下拉出现刚建的 `CUS-00483` |
+| 服务端口径 | 以登录用户身份跑 link 检索：`ERP Customer CUS-00483`、`ERP Supplier SUP-00482` 都能查到（说明两个 Link 的取数路径通） |
+| 离线检查 | 端口测试 102 条 OK；架构检查 0 违规；术语表生成 PASS；三个新 JS 语法 OK |
+| 主数据探针 | `erp-pos-lab-masters-verify.py` 由红转绿（见下） |
+
+**顺带修的一处探针过期（不是本次改动引起）**：`erp-pos-lab-masters-verify.py` 原来断言"另一个站点客户/公司数必须为 0"，而演示站这时已经留着给用户看的样本（6 客户 + 演示公司），于是它报红。隔离要验的是"**本轮的夹具**没有漏到另一个站点"，所以改成按夹具名（`Lab Buyer%` / `Lab Company%`）查泄漏，不再要求对方是空站。同类的"空站前提"在采购探针那边也早就踩过（采购任务已记录）。
+
+### F14：税号查泰国税务局（RD）+ 列表多选/全选（2026-09-23，未部署）
+
+用户口径两条：
+
+1. "旧项目那边有一个东西，也搬过来，输入税号后点查询就能得到相应字段，**那是泰国税务局真实登记的信息**"；
+2. "列表把多选全选加进去，**为什么每个窗口做这个列表都不加，是官方原生组件没有这个吗**"。
+
+第 2 条的答案：**原生组件本来就有**（表头那颗全选框与每行的勾选框都是框架 `ListView` 自己渲染的），是**我们自己的产品列表默认把它删掉了** —— 共享层 `pearnly_core/public/desk/list.js` 的 `render_header()` 在页面没有声明 `selectable` 时执行 `remove(".select-like, .checkbox-actions")`。所以这是"每页要显式开一次"的选择，不是框架缺功能；选中的去向也要各页自己给（否则勾了没有动作）。本窗口把这套补齐到供应商/客户两页，并回盘了全部列表页（见下）。
+
+| 改的东西 | 落点 |
+| --- | --- |
+| 解析层（**纯规则**：不联网、不写库、不依赖框架，所以能拿真实响应离线断言）：SOAP 请求模板、`vXxx` 摊平、按别名取值、地址/名称拼装、TIN 与 VAT 两种负载、税号归一 | `masters/rd_contracts.py` |
+| 服务层：TIN + VAT 两个接口、5 秒超时、失败重试 1 次、7 天缓存（**"查不到"也缓存**）、**失败不抛异常**只回原因（`invalid_format` / `not_found` / `not_vat_registered` / `rd_unreachable` / `parse_error`） | `masters/rd.py` |
+| 缓存表：原生 DocType `ERP Tax Lookup Cache`（`autoname: TAX-{tax_id}-{branch_no}-{service}`）+ 控制器；键与旧线上 `rd_cache` 表同形状（tax_id / branch_no / service / payload / is_success / error_msg / expires_at） | `doctype/erp_tax_lookup_cache/` |
+| 接口与能力码：`api_lookup_tax(tax_id, branch)`；新能力 `tax.lookup` = 采购 / 客户 / 销售三个功能码（收银不开票、不给） | `masters/api.py`、`access/rules.py` |
+| 两页弹窗里的「查询」按钮 + 回填：供应商在**税号下一格**（回填 名称/地址/分支类型/分支编号），客户同一位置（回填 名称/地址，`depends_on` 只在"公司"出现 —— 个人/外国人没有 RD 登记） | `public/desk/suppliers.js`、`public/desk/clients.js` |
+| 多选/全选：两页 `selectable: true` + 共享层的 `p.selection_action`，选中后主按钮变「启用 N / 停用 N」（批量走既有 `api_update_supplier` / `api_update_customer`），做完整批后清空选择并刷新 | 同上 |
+| 术语表 +27 条（四语言，含 4 条失败原因各一份 `supplier.lookup.*` / `client.lookup.*`）；`Head Office` / `Branch {0}` 是**服务端** `_()` 文案，按英文原文当 msgid 追加，不是键 | `i18n/messages.tsv` + 生成包 |
+
+**照旧线上基准核对过，并有一处有意差异**（旧仓 `/Users/skin/Developer/Pearnly/pearnly-app`，生产基准 `ec2e5c957e6b`；`git diff ec2e5c957e6b -- services/rd/` 为空，即本地那份就是线上那份）：
+
+| 项 | 旧线上 | 这里 |
+| --- | --- | --- |
+| 入口 | `services/rd/{rd_api,store,official_name}.py`，Postgres `rd_cache` 表 + `rd_daily_usage` 日配额 | 一个 App 内的 `masters/rd*.py` + 原生 DocType 缓存；**没有搬日配额**（旧线上是给公网用户防刷，本仓是租户内网员工用） |
+| 缓存 | 7 天，成功与失败都写 | 一致 |
+| **解析别名** | **只认** `vProvinceName` / `vAmphurName` / `vThumbolName`（`rd_api.py:412-414`） | **按别名**：线上下发的是 `vProvince` / `vAmphur` / `vThambol`，只认 `*Name` 会把**省和区丢掉**（测试夹具就是真实响应，专门断言了这点） |
+
+**多选/全选的页面覆盖回盘**（`selectable: true` 的页面 / 未开的页面）：
+
+| 状态 | 页面 |
+| --- | --- |
+| 已有（本窗口之前就有） | 物料、采购记录、销售记录、库存、入库、出库、收发存报表、盘点、收银 |
+| **本窗口加上** | 供应商、客户 |
+| 仍没有 | 采购/销售各自的 **LINE 收件箱**两个列表（它们是"逐条打开、逐条取消"的收件箱，批量取消要一次给一个取消原因）、单据表单里的**附件子列表**（逐行动作） |
+
+**验证**见下方「验证」表最后六行与探针输出；**未覆盖项**：①浏览器里"点查询→字段被真实填上"这一步在本实验室**验不到** —— 容器出不了外网（`rdws.rd.go.th` 只在宿主上通），所以浏览器侧只验到"连不上时提示正确、不抛异常、弹窗与字段不受影响"；回填用的 `dialog.set_values` 是本仓既有用法（`purchase.js`、`purchase-fields.js` 同一 API）。②LINE 收件箱的多选未做（见上表）。③真机、生产部署、用户验收都未做。
+
+### F15：主按动作的提示与音效、状态列两态、列表计数折行（2026-09-23，未部署）
+
+用户口径三条（一次给的）："采购和销售的主按动作（每次）通知和音效"、"供应商和客户的状态要联动停用和正常状态"、"图中这个显示不规范，所有页排查修复下"（图：采购列表表头右上角 `20 /` `73` 折成两行）。
+
+**一条条对**：
+
+| 用户说的 | 查到的原因 | 改法 |
+| --- | --- | --- |
+| 主按动作没提示、没音效 | 采购/销售两页的写入动作（收款、付款、删除草稿、取消）走完只关弹窗 + 刷新，**没有**调用过全站那套 `p.success`（提示条 + 提示音）；其他页（收银、物料、入库、盘点）都有，就这两页漏了 | 补上 `p.success(...)`：收款「已收款 {金额}」、付款「已付款 {金额}」、删除草稿「已删除 {N}」、取消「已取消」；供应商/客户保存「已保存」；采购的"代收据/预扣税凭证"生成后「已保存」 |
+| 供应商/客户的状态要联动 | 那两页的"状态"列**只在停用时写字**，正常时是**空白**（看着像没数据）；而且物料页同一个概念写的是「激活」（框架词典的译法），三页三种说法 | 三页统一成**正常 / 已停用**；停用/启用后列表刷新即跟着变（批量启停也走同一条） |
+| 表头计数折成两行 | 皮肤把"有行内动作"的列表**表头右区**也按动作列宽固定了；动作列宽是按按钮文字量出来的，采购/销售那种「付款 / 收款」只有 **43px**，减去内边距后 `20 / 73` 放不下就折行 | 表头右区改成**按内容撑开**（行里的动作列保持固定宽度不动），并把"不许折行"写在那一格上（窄屏下框架把计数设成 `display: contents`，写在计数自己身上管不着） |
+
+**一处必须记下来的坑**：这次不能用 `__("Normal")` / `__("Disabled")` 这种英文原文取词 —— **框架自带的词典会盖过我们 App 的翻译包**（`frappe/locale/zh.po`：Normal→普通、Disabled→禁用、Active→激活、Saved→已保存、Cancelled→已取消）。实测"状态"列一度显示成「普通」，所以状态两态改成**每页自己的术语键**（`product.active` / `supplier.active` / `client.active` 等），键不可能与框架词典撞名。带占位符的那几条（`Collected {0}` / `Paid {0}` / `Deleted {0}`）框架词典里没有，照英文原文取词没问题。
+
+**音效怎么算验过**：`p.success` = `frappe.show_alert` + `frappe.utils.play_sound("submit")`，而 `play_sound` 会读账户级的静音开关（`mute_sounds`）。所以验的时候不只等提示条，还盯了页面里那个 `<audio id="sound-submit">`：点下去后 `paused` 变 `false`、`currentTime` 从 0 走到 874ms（`submit.mp3` 长度 882ms）才停 —— 声音真的放了，不是只弹了提示。
+
+### F16：上传框只留「我的设备 / 摄像头」+ POS 开班交班（2026-09-23，未部署）
+
+用户口径两条："接下来开始做 POS，做简单的开班交班，用官方原生前端、复用一些实用小功能，数据联动我们产品的数据"；"**全局**涉及到上传框的，库和链接给我取消掉"（附的图是原生上传框的四颗按钮：我的设备 / 库 / 链接 / 摄像头 —— 但那张弹窗**还带「设为私有 + 上传」的 footer**，说明是框架默认那条路，不是我们自己的六处调用）。
+
+#### 一、上传框（全局一条线收紧）
+
+| 按钮 | 框架里由谁控制 | 处理 |
+| --- | --- | --- |
+| 我的设备 | 永远有（拖放区/选择文件） | 留 |
+| **库** | `disable_file_browser`（默认 false） | **去掉**（`disable_file_browser: true`） |
+| **链接** | `allow_web_link`（默认 true） | **去掉**（`allow_web_link: false`） |
+| 摄像头 | `allow_take_photo`（默认 true，且要浏览器有 `mediaDevices`） | 留 |
+
+为什么不是按调用点改：我们自己的六处调用里有四处早就传了这两个开关，但框架自己还有**一堆**上传入口（附件侧栏 `attachments.js`、表单 `form.js`、明细网格 `grid.js`、文件管理器 `file_view.js`、沟通记录 `communication.js`…），那些我们改不到 —— 而且用户截图里那张正是框架默认那条（`file_view.js` 的 `new frappe.ui.FileUploader({folder})`，一个选项都没传）。
+
+所以做法是在公共层挂一个**属性存取器**（`pearnly_core/public/desk/product.js`）：`frappe.ui.FileUploader` 是**懒加载**的（`frappe/upload.js` 里那句 `frappe.require("file_uploader.bundle.js")` 是异步的），我们这段脚本可能跑在它前、也可能跑在后。挂上 setter 之后，框架**什么时候**赋值都会被换成"固定关掉这两项"的子类；直接替换的话框架那次赋值会把补丁盖掉。
+
+#### 二、POS 开班交班
+
+后端 `cashier/{shifts,contracts,terminals}.py` 本来就有整套（行锁保证一个收银台同时只有一个开班、只能操作自己的班、找零只发现金、应有现金 = 备用金 + 现金实收 − 找零、差额 = 实点 − 应有）。这次补的是**看得见的那一层**：
+
+| 改的东西 | 之前 | 现在 |
+| --- | --- | --- |
+| 开班弹窗 | 收银台要自己挑，开完没有任何回音 | 收银台**默认带出本店默认台**（与服务端 `terminals.resolve` 同一口径，留空也能用）；开完提示「已开班 · 班次 N」+ 提示音 |
+| 交班弹窗 | 只让你填一个"实点现金"，**看不到系统记了多少**，差额自己算 | 先把**当班汇总**摆出来：笔数 / 退款笔数 / 毛额 / 净额 / 各收款方式（现金·刷卡·扫码·转账）/ 备用现金 / 找零合计 / **应有现金**；再填实点现金（默认 = 应有），**差额实时算**，不为 0 就标红并写清"多钱/短钱"；提交后提示「已交班 · 差额 X」+ 提示音 |
+| 班次记录 | `api_list_shifts` 有接口，但界面上没有入口 | 新增「班次记录」：原生列表弹出，列 班次编号/收银台/收银员/状态/开班时间/交班时间/备用现金/应有现金/实点现金/**差额**（差额不为 0 标红） |
+| 当班小票的「单据类型 / 状态」 | 走 `__("sale")` / `__("completed")`，会露出英文原文 | 用本页术语键 `trade.kind.*` / `trade.state.*` → 销售 / 退货退款 / 已完成 / 已作废 |
+
+**顺带修掉两个真问题**（都不是本次功能引入的，是撞上的）：
+
+1. **收银页的主按钮被列表刷掉**：列表没选中任何行时会去清右上角主按钮（"没选中就没有列表动作"是共享层的规矩），而收银页的主按钮是**班次动作**（开班 / 收银开单）—— 于是列表一刷新，「开班」/「收银开单」就被清成隐藏，页面上根本点不到。修法与商品页当初一致：把班次动作作为 `p.selection_action` 的 `empty` 回填（`restore_primary`）。
+2. **原生表格在弹窗里画不出来**：`p.table` 构建时会往容器里插一个 `<style>`，容器还没接上文档时 `styleEl.sheet` 是 `null`，`insertRule` 直接抛 `TypeError`（实测就是空表：表头画出来、一行都没有）。这不是表格坏了，是**时序** —— 弹窗的表单要等 `shown.bs.modal` 才挂到文档上。修法照盘点明细弹窗那份：把渲染放进 `dialog.on_page_show`（框架在 `shown` 时调用），不靠定时器。
+
+#### 三、演示站的 POS 样本（给用户点着看）
+
+演示站原来**没有收银台、没有班次、没有一张 POS 小票**（`ERP Sale` 0 行）。这次按真实服务路径造了一套（不是直接写库，走 `cashier.sales.create_sale`，所以销售、收款、库存出库三处联动都真实发生）：
+
+| 样本 | 内容 |
+| --- | --- |
+| 收银台 `TERM-00485` | "Counter 1"，默认台（`terminals.ensure_default` 生成的） |
+| 班次 1 `SHIFT-2026-00486` | 备用金 1,000；2 笔小票（现金 140 含找零 4 / 扫码 78）；**已交班**，实点 1,130 → **差额 −6.00**（我故意少点 6 元，用来演示差额标红；要清掉说一声） |
+| 班次 2 `SHIFT-2026-00492` | 备用金 1,000；1 笔小票（现金 40 含找零 1）→ 应有现金 1,039；**开着**，用户点「交班」就能看到完整汇总 |
+| 小票 | `R20260923-0001/0002/0003`，都是「销售 / 已完成」 |
+
+造样本时误开了一个空班（`SHIFT-2026-00491`，备用 100、无小票，我自己的误点），已删除；它名下没有小票，删掉不影响任何记录。
+
+### F17：收银单号接上销售记录那套号、收发存确认、以及"POS 记录放哪"的官方口径（2026-09-23，未部署）
+
+用户口径："收银这边的每一笔订单编号，要和销售记录的订单编号同步、业务逻辑自动延续，以及进收发存报表"；"数据联动要做好"；"POS 的记录官方是放在销售记录还是单独记，这个帮我看一下"（并要求看**本仓自己**的官方口径，不要翻旧项目）。
+
+#### 一、收银单号改成与销售记录同一套（已改、已验）
+
+改前收银自己发 `R20260923-0001`（按天递增，而且是自己 `get_value(order_by="receipt_no desc")` 取最大值 +1，**没走取号那把行锁**）；销售记录走共享取号 `numbering.allocate(direction="sales")` → `SI2569-0000NN`。两边各发各的。
+
+| | 改前 | 改后 |
+| --- | --- | --- |
+| 收银小票号 | `R{日期}-{4位流水}`（另一套） | `numbering.allocate(direction="sales")` → **`SI2569-0000NN`**，与销售记录**共用** `sales-SI-{佛历年}` 那一行计数器与同一把行锁 |
+| 收发存里的"关联单据" | `R20260923-0001` | `SI2569-000024`（与销售记录/入库/盘点同一个序列，一眼看得出是同一本账） |
+| 并发 | 自己查最大值，两个收银台同时开单有撞号风险 | 走 `for update` 行锁排队 |
+
+**验过的三层**（不是只看代码）：
+
+1. 隔离检查站（`erp-pos-b`）落一笔 → `receipt_no SI2569-000033`，同一笔的流水 `doc_no` 也是 `SI2569-000033`；
+2. 退货（`refund`）落一笔 → `SI2569-000034`，入库流水同样带 `SI2569-000034`（同一序列继续）；作废的冲销行沿用**原单**的号（`stock.reverse_movements` 带 `doc_no`，F4 那条）；
+3. 演示站落一笔 → `SI2569-000024`，**正好接在现有 22 张销售单的 `SI2569-000023` 后面**；界面收银列表显示 `SI2569-000024`（历史那三张仍是原来的 `R…`，不动历史）；收发存报表里该商品（`ปลากระป๋อง ตราสามแม่ครัว`）的明细第 9 行就是 `SI2569-000024`（出库 2、结存 62），与 `IR…`/`AD…`/`SI…` 同一个账。
+
+**一处要说明的影响**：顾客手里的小票号现在**就是**那个 `SI…` 号（不再是"每天从 1 开始"的小票号）。这是"和销售记录同步、自动延续"的直接结果；如果还想要一个独立的每日小票号，就得在收银单上再加一个 `system_no`（销售记录那张表就是"内部名 `SD-…` + 系统号 `SI…`"两个号），说一声我加。
+
+#### 二、顺带修掉收发存明细页的一个真报错（数据联动缺陷）
+
+`/desk/pearnly-stock-card/<物料>/<仓库>/` 这一页的**开始/结束日期改了没反应**：`df.change` 调的是一个**不存在**的 `reload()`，控制台报 `ReferenceError: reload is not defined`，期初/期末/明细都不重取（实测点日历换日期，表格 9 条明细纹丝不动）。改成把重取逻辑定义成 `refresh_card`，日期两格与右上角刷新都用它；验：日期改到 `2026-09-10` 后明细从 **9 条变 3 条**、期末从 62 变 276（3,588.00），没有报错。
+
+**记一个环境坑**：Desk 那几支 JS 的 URL 带 `?v=<内容哈希>`，而哈希是**服务端启动时**算的（`desk/assets.py` 的 `versioned_asset`）。改完 JS 只重启 web 不够、得**先 `clear-cache` 再重启**，否则页面仍用旧的 `?v=` → 浏览器命中缓存 → 你看到的还是改前的代码（本次实测：文件哈希已变 `a116f324…`，页面却还在请求 `f945539e…`）。
+
+#### 三、"POS 的记录官方放在销售记录还是单独记" —— 本仓口径：**进销售记录**（source=pos）
+
+查的是我们自己的官方声明（不是旧项目）：
+
+| 依据 | 原文 / 事实 |
+| --- | --- |
+| `apps/pearnly_erp_portal/pearnly_erp_portal/sales/contracts.py:230` | "用户 2026-09-21 对齐：销售记录的进出只有两条 —— **进**：POS 收银、上传单据识别、手工录入；**出**：商品/库存/收发存报表"；紧跟着 `SOURCE_POS = "pos"`、`SOURCES = (pos, ocr, manual)` |
+| `ERP Sales Document` 的 `source` 选项 | `web / manual / ocr / line / **pos**` |
+| `sales/records.py` | 列表/合计/导出共用的查询里，`source` **已经是可筛字段**，也在返回字段里 |
+| 原生参照（Frappe/ERPNext） | POS 单也是一张销售单（`is_pos` 标记），交班另记一张 Closing Entry —— 同一本账加标记，不另立一套 |
+
+**现状与声明的差**：POS 现在落的是**另一张表** `ERP Sale`（+行+付款），**不进**销售记录列表；销售记录页也还没有 `source` 那一列与筛选项（`source` 存了但没露出来）。也就是说 —— 官方口径是"一种来源"，实现是"两本账"。
+
+**建议（等用户定）**：把 POS 小票**并进销售记录列表**（显示 `来源=POS`），点开仍开 POS 小票弹窗（班次/收款方式/找零那些留在 `ERP Sale`）。这样一条账、一个号、一张列表，且不动已有数据。另一条路是彻底并表（POS 直接写 `ERP Sales Document`，`ERP Sale` 退役），代价是给销售单加 `shift/terminal/change_amount` 等字段并搬一遍历史 —— 除非用户要求，不建议。
+
+### F18：收银台按官方骨架重做（2026-09-23，未部署）
+
+用户口径："收银台也要做，用官方原生的，数据关联商品，库存，收发存"、"扫码可以用官方的"，随后质疑"**你确定官方的收银台和进入方式长这样吗？**"。
+
+#### 一、先把"官方长什么样"查清楚（本仓自己那份 2026-09-21 决定 + 框架源码）
+
+本仓 `docs/work/2026-09-21-erp-pos-migration.md:143` 的登记："**POS 借 ERPNext 的前端体验与交互**，但业务后端仍走 Pearnly 的商品、库存、收发存与销售"。照这条去翻框架那份实现（bench 里 `apps/erpnext`，只读参考）：
+
+| 官方（ERPNext POS）的做法 | 依据 |
+| --- | --- |
+| 是**一个标准 Desk Page**，不是"某个列表页里叠几段"：Page 名 `point-of-sale`、`standard: Yes`、路由 `/app/point-of-sale`、`roles`（Sales User/Manager、Accounts User/Manager）限定、`restrict_to_domain: Retail` | `erpnext/selling/page/point_of_sale/point_of_sale.json` |
+| 页面里是**一屏多面**由这几块拼起来：商品选择（`pos_item_selector`，含 filter-section + items-container）、购物车（`pos_item_cart`）、行明细（`pos_item_details`）、**数字键盘**（`pos_number_pad`）、收款面板（`pos_payment`）、历史单（`pos_past_order_list/summary`） | `erpnext/public/js/point-of-sale.bundle.js` 的 import 清单 + 同名 js |
+| 版式是**两栏**：`.point-of-sale-app` 下 `> .items-container` 与 `> .customer-cart-container`（8:4），另有 `.number-pad`；窄屏有专门断点 | `erpnext/public/scss/point-of-sale.scss:1/114/319/1120/1371` |
+| 商品卡上直接给"可用数量"（`Quantity Available` 列） | `pos_item_selector.js:114-118` |
+| **进来先开账**：`check_opening_entry()` 拉不到当前用户的开账单就 `create_opening_voucher()` 弹开账对话框（选支付方式 + 期初余额）；交班同理是这张页面上的 Dialog | `pos_controller.js:7-30` |
+| **不是 Vue**：全是普通 class（`erpnext.PointOfSale.Controller` 等）挂在 Page 上 | 各 js 里 `createApp/defineComponent` 计数为 0 |
+
+**结论（回答用户的质疑）**：他质疑得对 —— 我第一版把收银台做成了"收银页里叠三段原生列表（商品/购物车/当班小票）"，**版式不是官方那样**。进入方式那一层我们与官方**是一致的**（都是独立 Desk Page + 自己的路由 + 按角色显示；我们没开班时先弹「开班」Dialog = 官方那步开账），差的是**页面内容**。
+
+#### 二、改成官方那套两栏收银台
+
+| 改的东西 | 之前（我的第一版） | 现在 |
+| --- | --- | --- |
+| 版式 | 三段列表从上往下叠 | **一屏两栏**：左商品（约 8/12）、右购物车（约 4/12），照官方 `items-container` : `customer-cart-container` 的比例；窄屏（≤991px）堆成一栏 |
+| 商品区 | 只有"物料/编码/单位/单价/库存"五行列表 | 同一张原生列表，但**搜索与扫码放进商品那一栏顶上**（官方也是把筛选/search 放在商品区里），五列宽度收紧到能挤进左栏（先前 240/130/70/100/90 超宽，库存列被顶出去） |
+| 购物车 | 独立一段列表 | 右栏：顶上那行"应收金额 ฿X" + 明细列表（点行改数量/单价/折扣，行内「删除」），与右上角主按钮上的金额同一个数 |
+| 扫码 | —— | **框架自带的 `frappe.ui.Scanner`**（用户："扫码可以用官方的"），扫到再走 `api_counter_lookup` 找品；查四处的规则在商品域里，收银台不另写一套 |
+| 数据联动 | —— | 新增 `cashier/counter.py`：`products_page()` 一次给全**商品 + 售价 + 该收银台仓库的结存**（读 `ERP Stock Balance`，就是收发存那张表）；`lookup()` 同理；仓库按"收银台配的 → 默认仓库"解析，与落单时的口径一致 |
+| 没有照搬的 | —— | 官方的**数字键盘**没做（我们收款走的是原生 Dialog 输入，收银只需键入口数）；官方的"历史单面板"用页面下方的「当班小票」列表代替（本仓原有那一块，保留） |
+
+**新增/落点**：`cashier/counter.py`（新）、`cashier/api.py` 的两个只读接口（`api_counter_products` / `api_counter_lookup`）、`public/desk/cashier.js` 重做、`public/desk/cashier.css`（新，两栏版式）+ `hooks.py` 注册、术语表 +15 条。
+
+#### 三、验过的（界面走完整条链，不是只看代码）
+
+| 步骤 | 结果 |
+| --- | --- |
+| 打开「收银 POS」（班次 2 开着） | 一屏两栏：左 576px 商品、右 288px 购物车；商品表头 `物料 编码 单位 单价 库存 20 / 38`；右上角「收款 THB 0」禁用；按钮 交班/班次记录/清空购物车 |
+| 搜"ปลากระป๋อง" | `1 / 1`，该行 `ปลากระป๋อง ตราสามแม่ครัว · P-000023 · กระป๋อง · THB 45 · **62**`（商品+售价+库存三样一起出来） |
+| 点这一行 | 购物车出现 1 行：`… 1 THB 45 THB 45 删除`；右栏"应收金额 THB 45"；主按钮变「收款 THB 45」可点 |
+| 点「收款」 | 原生弹窗「收银开单」：应收金额 THB 45 / 方式 现金 / 实收 45.00 / 找零 THB 0 |
+| 实收改 100 | 找零**实时**变 `THB 55` |
+| 提交 | 提示条「**小票 SI2569-000025 · 找零 THB 55**」+ 音效（0→882ms）；小票弹窗标题 `SI2569-000025`；购物车清空、合计回 THB 0、主按钮回禁用；「当班小票」变 `3 / 3` 且新单在最上 |
+| 服务端回读 | `ERP Sale`：`SI2569-000025 · sale · completed · 总计 45 · 实收 100 · 找零 55 · 收银员 purchase-preview · 班次 SHIFT-2026-00492`；流水：`STM-2026-00498 · PRD-00220 · -1 · sale_out · doc_no SI2569-000025`；结存 PRD-00220 **62 → 61** |
+
+#### 四、被用户当场否掉的两处（第一版仍然不对，F19 重做）
+
+用户看完界面说："你这不是官方的收银台啊 ERPNext 是这样的收银台吗？POS 的记录我也是让你看 ERPNext 的"。两条都成立：
+
+1. **收银台版式还是不对**：我做成了"两栏的原生列表"。ERPNext 的收银台是**商品卡片网格**（`pos_item_selector.js:150-200`：`.item-wrapper` = 库存色点 `indicator-pill`（>10 绿 / ≤0 红 / 其余橙）+ 商品图或缩写 `frappe.get_abbr` + 名称 + `售价 / 单位`），**购物车带合计区**（`总件数 / 净额 / 合计`，`pos_item_cart.js:88-105`）和**常驻数字键盘**（`pos_number_pad.js`；购物车那份是 5 列：`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 删除 移除` + 底部「收款」，`pos_item_cart.js:120-150`；收款面板那份是 3 列 `1 2 3 / 4 5 6 / 7 8 9 / ± 0 删除`，`pos_payment.js:121-135`）。
+2. **"POS 记录放哪"我答错了方向**：我先按本仓自己那份声明（`sales/contracts.py` 的 `SOURCE_POS`）回答"应该进销售记录"。用户要的是 **ERPNext 的答案**，而 ERPNext 是**单独记**：
+   - `POS Invoice` 是一张**独立单据**（`accounts/doctype/pos_invoice`，`is_submittable: 1`，**有自己的 `naming_series`** —— 独立编号序列、独立列表），**不进 Sales Invoice 列表**；
+   - 开班 / 交班各是一张独立单据：`POS Opening Entry`（`autoname: POS-OPE-.YYYY.-.#####`）与 `POS Closing Entry`；
+   - **只有交班时并账**：`POS Closing Entry` 校验当班 POS Invoice（同一 profile、未合并、已提交）后，由 `POS Invoice Merge Log` 生成一张 `Sales Invoice`（`sales_invoice.is_pos = 1`），并把 `consolidated_invoice` **回写到每张 POS Invoice** 上（`pos_invoice_merge_log.py:158/364/379`）。
+   - 也就是说：**POS 记录是单独的一本（POS Invoice），交班时才合并进销售一侧**；不是"直接写进销售记录"。
+
+**这条对我们意味着**：现状（POS 落 `ERP Sale`、与销售记录分开）在"分开记"这一点上与 ERPNext 一致 —— 不需要把 POS 并进销售记录列表。差的可能是**交班时该不该生成一张汇总的销售单据**（ERPNext 是生成 Sales Invoice；我们没有会计侧）。这条留给用户定，不擅自加。
+
+### F19：收银台照 ERPNext 重做（卡片网格 + 键盘），入口与页面动作对齐（2026-09-23，未部署）
+
+用户连问三次"官方的收银台/进入方式是这样吗"，要求一律按 **ERPNext 本身**对，不是按我们的列表凑。查完的结论与改动：
+
+| 项 | ERPNext（证据） | 改前（我的） | 现在 |
+| --- | --- | --- | --- |
+| **进入方式** | **侧栏一项**：`workspace_sidebar/selling.json` 里 `label: "POS"`、`link_to: "point-of-sale"`、`link_type: "Page"` | 侧栏「收银 POS」→ 独立 Desk Page | **本来就是对的**（同一机制：独立页面 + 侧栏入口） |
+| 进门第一步 | `pos_controller.check_opening_entry()`：拉不到开账单就弹 **Create POS Opening Entry**（POS Profile + 各支付方式期初） | 没开班就弹「开班」（选收银台 + 备用金） | 一致（我们一个"收银台"承担官方 POS Profile 的角色） |
+| **商品区** | **卡片网格** `pos_item_selector.js`：库存色点（>10 绿 / ≤0 红 / 其余橙）+ 图片或 `frappe.get_abbr` 缩写 + 名称 + `售价 / 单位` | 原生列表（五行） | **卡片网格**（色点规则照抄，缩写用 `frappe.get_abbr`） |
+| **购物车** | `pos_item_cart.js`：行列表 + **合计区**（总件数 / 净额 / 合计）+ **常驻数字键盘**（`1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 ⌫ 移除`）+ 键盘下「Checkout」 | 原生列表（点行开弹窗改数量） | 行列表 + 合计区 + 同布局键盘 + 键盘下「收款」 |
+| 收款 | `pos_payment.js`：收款面板另带一副 3 列键盘（`1 2 3 / 4 5 6 / 7 8 9 / ± 0 ⌫`） | 纯原生弹窗输入 | 弹窗里加了同一副 3 列键盘，直接写"实收"，找零实时算 |
+| 页面动作 | `prepare_btns/prepare_menu`：主按钮 **New Invoice**、次按钮 **Recent Orders**（切换"最近的单"显隐）、菜单 **Open Form View** / **Close the POS** | 头部三颗按钮：交班 / 班次记录 / 清空购物车 | 主按钮**「新单」**、次按钮**「当班小票」**（切换那一节显隐）、菜单里放 交班 / 班次记录 / 清空购物车 |
+| 关店 | `close_pos()` → 新建 **POS Closing Entry** 并跳到它的表单页 | 自定义「交班」弹窗（汇总 + 实点 + 差额） | 保留我们的弹窗（我们没有那张 DocType），内容与官方同：汇总 + 实点 + 差额标红 |
+
+**没有照搬的两处**（写清楚，不是漏）：官方的 **Open Form View**（把当前单开到 DocType 表单页）—— 产品把 Desk DocType 表单关掉了，没有对应物；官方的**历史单面板**——我们用「当班小票」那一节代替。
+
+**顺带修掉两个真问题**：
+
+1. **`page.set_title_sub()` 在我们页面壳里是空调用**：框架 `Page.$sub_title_area = wrapper.find("h6")`，而产品页面的 h6 数量是 **0**（实测），那句写进去什么都不显示。所以"开班时间"不往 h6 塞补丁，改放进**原生指示器**：`班次 2 · 开班 2026-09-23 03:42 · 应有现金 THB 1,309`。
+2. **`p.clear_page` 不清菜单与次按钮**：而 `render()` 每次开班/交班都重跑一遍，不自己清就会一轮一轮往上叠（交班/班次记录/清空购物车越堆越多）。在 `render()` 里补 `page.clear_menu()` + `page.clear_secondary_action()`。
+
+**界面验过**（桌面视口）：头部 = 标题 + 指示器（班次·开班时间·应有现金）+ ⋯菜单 + 当班小票 + 新单；商品区 24 张卡（色点 0 红 / 53、58、79、101、102、126 绿）；点卡片 → 购物车 1 行、合计 THB 45→78 跟着变；键盘 ⌫ 后按 3 → 数量 3、合计 THB 135、总件数 3；点「新单」→ 购物车清空、合计回 0；点「当班小票」→ 那一节展开显示 5 张小票；收款弹窗键盘点 1/5/0 → 实收 150.00、找零 THB 15（应收 135）。
+
+### F20：POS 记录并进销售记录 + 收银记录 / 交班记录两个入口（2026-09-23，未部署）
+
+用户给了 `/Users/skin/pearnly-erp`（ERPNext 那套产品的仓库）说"你读这个看看，真的是这样吗，我记得不是这样啊"，读完确认**我 F18 第四节那段是错的**，并照他的产品改。
+
+#### 一、读 `pearnly-erp` 得到的事实（我错在哪）
+
+| 事实 | 证据 |
+| --- | --- |
+| ERPNext 的 POS 单据由 `POS Settings.invoice_type` **两选一**：POS Invoice（独立单据）或 **Sales Invoice**（POS 单就是销售发票，用 `is_created_using_pos=1` 区分） | `upstream/erpnext/.../pos_controller.js:133` 读它；`apps/pearnly_business/sample_pos.py:9` 按它决定侧栏指向 |
+| **他的产品用的是 Sales Invoice 模式**，所以零售与批发**进同一套原生销售报表** | `scripts/business-sample/test-sales.py:51` 断言 `invoice_type == "Sales Invoice"`；`docs/business-sample.md:21` |
+| "收银记录"**跟随模式**：Sales Invoice 模式下按 `is_created_using_pos=1` 筛同一张表，避免混入普通销售表单开的单 | `docs/business-sample.md:23`、`sample_pos.py:15`（`route_options`） |
+| 侧栏 = 一个 POS 分组**三个入口**：`POS Counter`（页面 point-of-sale）、`POS Receipts`（跟随模式）、`POS Shift Records`（POS Closing Entry），旁边一个默认折叠的 `POS Management`（POS Profile / POS Settings / POS Opening Records） | `sample_pos.py:9-15、46-83` |
+| 收银台界面保持原生，只把原生商品搜索框接上**摄像头扫码**（改成 Barcode 控件），配合 `auto_add_item_to_cart` 扫完直接进车 | `hooks.py: page_js = {"point-of-sale": "public/js/pos_scanner.js"}`、`pos_scanner.js` |
+
+**我 F18 第四节说"ERPNext 是单独记、不进 Sales Invoice 列表"是拿默认模式当成了唯一答案** —— 对他的产品是错的。正确结论：**POS 记录就是销售记录的一种**（他们那种模式），并有独立的"收银记录"入口（同一张表加筛选）。
+
+#### 二、照这个改（本轮做的）
+
+| 改的东西 | 落点 |
+| --- | --- |
+| **收银小票进销售记录**：`rows()` 现在把 `ERP Sales Document` 与 `ERP Sale` 归并成一列形状（同一套列名、同一套筛选、同一套排序），`source=pos` | `sales/records.py`（新增 `_pos_rows/_pos_shape/_attach_pos_summaries/wanted_sources/_pos_applies`） |
+| 「来源」列 + 来源筛选（手工 / 识别 / LINE / 收银）——对齐他们的 `is_created_using_pos` 区分 | `public/desk/sales.js`（列 + 筛选弹窗的 `multi("source", …)`） |
+| 点"来源=收银"的行 → 开**小票查看器**（不是销售单详情页）；查看器抽成共享件，收银页 / 收银记录 / 销售记录三处同一个 | `public/desk/transactions.js` 的 `p.trade.receipt_view`；`cashier.js` 改用它 |
+| **收银记录**（所有班次的小票，按日期/类型/状态筛）与**交班记录**（各班次汇总 + 差额标红）两个**独立页面 + 侧栏入口**，放在销售系统分组里，顺序对齐他们的 POS Counter / POS Receipts / POS Shift Records | 新页面 `pearnly-pos-receipts`、`pearnly-pos-shifts`（page json + register）、`public/desk/pos-receipts.js`、`pos-shifts.js`、`hooks.py` 清单与导航 |
+| 导出跟着走：收银小票也写进「销售记录」表（明细取 `ERP Sale Line`），不再只导销售单 | `sales/output.py`、`cashier/sales.py` 的 `pos_export_lines` |
+
+**没并表**（按上一轮说好的）：收银小票仍在 `ERP Sale` 里单独存 —— 这一轮只是**读**的时候合成一份；真要像 ERPNext 那样只用一张单，是单独一步（要迁历史）。
+
+#### 三、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 服务端取数 | 全部 **29** 条（23 销售 + **6 收银**）；`source=["pos"]` → 6 条且全为 pos；`source=["manual"]` → 16 条且全为 manual；收银行带 `system_no=SI2569-000026 / receipt / submitted / paid / 135.0 / 摘要"ปลากระป๋อง ตราสามแม่ครัว ×3.0"` |
+| 销售记录页 | 表头多出「来源」列；首屏 6 行收银（`SI2569-000026 / 025 / 024 / R20260923-0003 / 0002 / 0001`）都显示「收银」，其余显示「手工」等；计数 **20 / 29** |
+| 筛选弹窗 | 字段里出现「来源」（类型 / 期间 / 日期 / 开始 / 结束 / 单据类型 / 收款状态 / **来源**） |
+| 点收银行的行 | 开小票查看器：标题 `SI2569-000026`、状态 已完成、明细 1 行 `ปลากระป๋อง ตราสามแม่ครัว … 3 … THB 45`、应收 THB 135（只读，没有列表里那排"添加行/删除/上传"） |
+| 「收银记录」页 | 6 / 6 条：单据编号 / 日期 / 类型 / 状态 / 应收 / 实收 / 班次编号；点行同样开小票查看器（有权限时带 退货退款 / 作废） |
+| 「交班记录」页 | 2 个班次；已交班那行 `应有 1,136 / 实点 1,130 / 差额 **THB -6**`（红）；点行弹汇总：收银台、收银员、笔数 2、退款 0、找零 4、各收款方式、应点/实点、差额 -6（红） |
+| 侧栏 | 销售系统下依次：销售记录 / 收银 POS / **收银记录** / **交班记录** / 客户 |
+| 离线检查 | 架构 0 违规、术语表 PASS（erp 753 条）、权限回归 102 条 OK、`check-i18n --strict` 与基线一致（18 / 113） |
+
+### F21：列表勾选框按官方默认打开；收银记录 / 交班记录 / LINE 待处理补上批量动作（2026-09-23，未部署）
+
+用户："我不明白那个列表都不加单选多选，你打开容器自己研究吧"、"你自己打开那个容器（`http://127.0.0.1:8084/desk/point-of-sale`），看看别人的状态"。
+
+#### 一、先把"官方"看清楚（8084 那台 = `pearnly-erp` 自己跑出来的示例站）
+
+环境：容器组 `pearnly-ci-business-sample`，站点 `business.localhost`，`http://127.0.0.1:8084`；Frappe **16.33.0** / ERPNext **16.34.1**；登录 `owner@sample.localhost`（示例密码），站点单值 `POS Settings.invoice_type = Sales Invoice`。
+
+| 官方看到的事实 | 证据 |
+| --- | --- |
+| 侧栏 = 销售 → **POS 收银** 组：收银台 / 收银记录 / 交班记录，另有一个默认折叠的 **POS 管理** | 截图（8084 收银台） |
+| 收银台 = 商品**卡片网格**（库存色点 + 缩写 + 名称 + `售价 / 单位`）+ 右栏购物车（商品/数量/金额 → 总数量/净总计/总计 → 结账）；页面动作 = `…` 菜单 + 次按钮「最近订单」+ 主按钮「新发票」 | 截图 |
+| **点购物车行** → 左侧「物料详细信息」面板（数量 / 单位 / 单价 / 单位换算系数 / 折扣率(%) / 仓库 / 数量（仓库）/ 标价），右侧**这时才出现数字键盘**（5 列 `1 2 3 数量 / 4 5 6 折扣 / 7 8 9 单价 / . 0 删除 移除` + 底部「结账」） | 截图 + DOM：`.point-of-sale-app > .items-selector / .item-details-container / .customer-cart-container / .payment-container / .past-order-list / .past-order-summary`；`.number-pad` 只在选中行后才可见 |
+| 「收银记录」= **同一张销售发票表加预设筛选**：`/desk/sales-invoice/view/list?is_created_using_pos=1` | 地址栏 |
+| **官方列表每行天生有勾选框**，表头天生有全选 | 截图；源码 `apps/frappe/frappe/public/js/frappe/list/list_view.js`：`get_subject_element()` **无条件** append 复选框、`get_header_html()` **无条件**给全选框；`grep -rn selectable apps/frappe` 只命中 `calendar.js`，**框架里没有"能否选择"的开关** |
+| 全选 20 行后：表头变「已选 20 条记录」，右上角出现「**操作 ▾**」下拉 = 销售出库 / 付款 / 复制到剪贴板 / 编辑 / 导出 / 执行人 / 清除分配 / 应用分配规则 / 添加标签 / 打印 / 提交 / 取消 / 删除 | 截图 |
+
+**回答用户的疑问：官方有，而且是默认就有**；是我们共享列表层把它做成 `selectable` 开关、默认关掉，新建的页面没传就没了勾选框。
+
+#### 二、改前在我们自己站点逐页量到的实情（8147 / `erp-pos-a.localhost`）
+
+`.list-row-checkbox` 个数 / 行数 —— 12 个列表页本来就有（物料 20/20、库存 20/20、入库 20/20、出库 15/15、收发存 20/20、盘点 10/10、采购记录 20/20、供应商 36/36、销售记录 20/20、客户 7/7 …），**只有三个地方没有**：本轮新加的「收银记录」0/6、「交班记录」0/2，以及两个 **LINE 待处理**列表（`purchase-intake.js` / `sales-intake.js` 的 `p.list` 一个 selection 参数都没传）。
+
+#### 三、改了什么
+
+| 改动 | 落点与依据 |
+| --- | --- |
+| 共享列表层**默认打开**勾选框：`selectable: options.selectable !== false`，只有明确不要选择的列表才传 `false` | `pearnly_core/public/desk/list.js`。依据就是上面那条：官方那份渲染器没有开关，每行都有 |
+| **收银记录**：勾选 → 右上角「作废选中的 N 张」（`p.selection_action` + 既有 `api_void_sale`）；只对"已完成"可用（否则按钮禁用、原因写在 title 上），确认框 + 提示 + 音效 | `public/desk/pos-receipts.js`（词条复用既有的 `trade.action.voidCount / voidConfirmCount / voidNotice / voidBlocked`，与入库/出库列表同一套） |
+| **交班记录**：勾选 → 「导出选中的 N 个班次」 | 新 `cashier/output.py` + `cashier/api.py:api_shifts_export`；取数给 `shifts.list_shifts` 加 `names=` 参数（权限口径不变：非管理员只看自己的班），xlsx 走框架自带 `frappe.utils.xlsxutils.build_xlsx_response`；前端 `public/desk/pos-shifts.js` |
+| **LINE 待处理**（采购、销售两个入口）：加勾选框 + 「取消选中的 N 条」，一次填一个原因批量丢掉 | `public/desk/purchase-intake.js`、`sales-intake.js`。为此把取数从"进页面之前取一次"挪进 `load` —— 否则批量完 `reload()` 拿到的还是那一份旧行；批量这条没用 `p.selection_action`（它那口子只有 yes/no，收不到原因），沿用行内「取消」同一个原因弹窗 |
+| 表单里的**附件行**明确 `selectable: false` | `sales-form.js` / `purchase-form.js`：那是表单里的行（每行自带预览/删除），不是可批量操作的集合列表 |
+| 术语表 +4 条 | 带 key 的走产品 `t()`（`trade.action.exportCount` / `trade.exportNotice`）；LINE 那页用的是框架 `__()`，所以 `Cancel {0}` / `Cancelled {0}` **不带 key**（英文原文当 msgid） |
+
+**选中之后都有真动作**，不是只长一个勾选框：收银记录 → 作废；交班记录 → 导出；LINE 待处理 → 取消。官方把这些放在「操作 ▾」下拉里，我们沿用产品既有口径（同一套 `p.selection_action`，右上角主按钮）。
+
+#### 四、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 改后逐页复量（13 个列表页） | 除收银 POS（0 行）外，**每一页的勾选框数 = 行数**；收银记录 6/6、交班记录 2/2、盘点 10/10 都在；原来有勾选框的 12 页一个没少 |
+| 收银记录：表头全选 | 6 行全勾、表头计数 `6 / 6`、右上角出现「**作废选中的 6 张**」 |
+| 收银记录：点那颗按钮 | 原生确认框「作废选中的 6 张单据并冲销对应库存变动？」（否 / 是），点「否」后**选择保留 6 行、按钮可点**；全程没有作废（回读 `ERP Sale` 仍是 6 条 `completed`） |
+| 交班记录：全选 → 点按钮 | 按钮「**导出选中的 2 个班次**」；点下去开新标签 `…api_shifts_export?names=["SHIFT-2026-00492","SHIFT-2026-00486"]` |
+| 导出内容（宿主 curl 带会话取，再用 bench 里的 openpyxl 读） | `HTTP 200 / application/octet-stream / 5375 字节`；表 `Shift Records` A1:J3，两行：`SHIFT-2026-00492 … 应有 1309 / 实点 1309 / 差额 0`、`SHIFT-2026-00486 … 应有 1136 / 实点 1130 / 差额 -6` |
+| LINE 待处理（销售向）：造 2 条草稿 → 进页面 | 勾选框出现（改前没有）；全选后按钮「**取消选中的 2 条**」 |
+| LINE 待处理：点按钮 → 原因弹窗 → 确认 | 弹原生「取消」框（取消原因），填原因提交后：提示条「**已取消 2 条**」、列表刷新成「无数据」；回读两条 `status=discarded`、`discard_reason="自测：批量取消校验"` |
+| 销售单详情（`SD-00204`，带 1 个附件） | 附件区 1 行、`.list-row-checkbox` **0** 个 —— 附件行确实没有勾选框；整页勾选框 0 |
+| 夹具自清 | 见下面第六节：2 条测试草稿 + 它们的 4 个附件文件已删；回读演示站 `ERP LINE Intake` 9 条（全是采购向已确认）、intake 附件文件 18 个，与开工一致 |
+| 离线检查 | `check-architecture.py` `PASS (0 violations)`；`i18n-build.py --check` `RESULT: PASS`（erp **757** 条，含本轮 +4）；`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）；`check-i18n.py` 合计 **113**（与基线逐项相同，未新增未登记文案）；7 个改动过的 JS 全过 `node --check`；3 个改动的 py 过 `py_compile` |
+
+#### 五、没照搬的与已知限制
+
+- **没有做官方的「操作 ▾」下拉**：产品 13 个列表统一用右上角主按钮（`p.selection_action`），本轮只补"勾选框 + 动作"，不动这个交互骨架。
+- **导出表头中英混排**（`Shift No / Terminal / 收银 / 状态 / Opened At / …`）：`_()` 只认"英文原文当 msgid"的词条，而 `Shift No`、`Terminal` 这些在术语表里是**带 key** 的行（走产品自己的 `t()`）。**这不是本次引入的** —— 销售记录导出同样是这个形态（实测表头 `编号 / 状态 / Document Kind / 来源 / System number / 日期 / Customer / 客户名 / …`）。要统一得动整个术语表口径，不在本轮范围。
+- **没有写权限的人在收银记录页勾选不会有动作**（官方也是勾选框常在、动作按权限给）。
+- **交班记录没有可批量做的写动作**（没有作废/改班次的业务），所以选中给的是导出。
+
+#### 六、演示站副作用
+
+- 为验 LINE 批量取消，用服务路径 `intake.receive()` 造了 2 条 **sales 向**草稿 `LI-00501 / LI-00502`（发送人 = 登录用户），在界面上批量取消掉，然后把这两条连同它们的 **4 个附件文件**一起删除；回读 = 9 条草稿（全是采购向 `confirmed`）+ intake 附件文件 18 个，与开工时一致。
+- 收银记录的批量作废**只点到确认框就选了「否」**；回读 `ERP Sale` 6 条全部 `completed`、`ERP Sales Document` 23 条、`SI2569-%` 流水 34 条，与改前一致。
+- 演示站收银台现在开着的是**班次 3**（`SHIFT-2026-00503`，开班 04:43、备用金 1,000），班次 2 在 **04:39** 已交班（实点 1309 = 应有 1309、差额 0）。**这两步不是本窗口做的**（本窗口在收银页只点了批量作废的确认框后取消，没点过开班/交班）；按既有记录保留，不还原。
+
+### F22：收银台与交接班界面照 ERPNext **1:1** 重做（2026-09-23，未部署）
+
+用户口径："pos交接班和pos收银台界面请按100%比例做出，可以关闭一些我们没有的功能，位置尺寸动态交互逻辑必须100%，不要自己画，看清楚摸清楚。"
+
+#### 一、先把官方的"位置尺寸与交互"摸清（离线快照 + 8084 实测）
+
+- 源码快照（只读，从 `pearnly-ci-business-sample-bench-1` 的 `apps/erpnext` 复制出来读）：
+  `selling/page/point_of_sale/{pos_controller,pos_item_selector,pos_item_cart,pos_item_details,pos_number_pad,pos_payment,pos_past_order_list,pos_past_order_summary}.js`、
+  `public/scss/point-of-sale.scss`（1438 行）。
+- 版本：**Frappe 16.33.0 / ERPNext 16.34.1**，与本实验室容器**同一版**（`apps/erpnext` 在本 bench 里就有），所以样式变量（`--margin-md` 等）与官方逐字一致。
+- 8084 实测（`http://127.0.0.1:8084/desk/point-of-sale`，固定视口 1440×900，逐块量 `getBoundingClientRect`）：
+
+| 量到的 | 数值（官方，1440 视口） |
+| --- | --- |
+| `.point-of-sale-app` | x=220 y=49 w=1220 h=844.4；`grid-template-columns: repeat(10, 1fr)`；gap 15px；padding 1%（12.1953px） |
+| 每块尺寸 | 商品区 span 6 → w=711.4；购物车 span 4 → w=469.2；明细/收款 span 6；最近订单 span 4；汇总 span 6 |
+| 段高 | `calc(100vh - 5rem)` = 820（min-height 30rem） |
+| 商品卡 | w=152.8 h=194 = 图/缩写区 8rem(128) + `.item-detail` 3.5rem(56)，图区左右各留 var(--margin-sm) |
+| 商品网格 | `repeat(4, 1fr)`，gap/padding 都 var(--margin-lg)=20px |
+| 筛选区 | 12 列：标签 span 4(223.8) / 搜索 span 5(259.7) / 物料分组 span 3(167.8) |
+| 明细面板 | 与商品区同一格 (711.4×820)；`.form-container` 两列各 328.18、gap 15；`.item-display` 高 176（= 缩写框 11rem） |
+| 购物车行 | h=46；`.rate-amount-header` 与 `.item-rate-amount` 同宽（JS 按内容取最大宽度写死） |
+| 键盘 | 购物车那副 5 列（目标键 `col-span-2`，按钮 h=51）；收款那副 3 列（58.6） |
+| 价格面板 | 左右各 50%；`.number-pad` 绝对定位在右侧贴底；`.totals-section` 高 81；`.submit-order-btn` 高 38 |
+
+**交互逻辑（官方源码逐条读出来，不是猜的）**：
+
+| 动作 | 官方行为 | 依据 |
+| --- | --- | --- |
+| 点商品卡 | 加 1 件进车（不展开明细） | `pos_controller.on_cart_update` |
+| 点购物车某行 | 左半边**换成明细面板**、右半边**这时才出现键盘**；再点同一行 = 收起 | `pos_item_details.toggle_item_details_section`、`pos_item_cart` 的 `numpad_section_hidden` 判断 |
+| 键盘目标键 | 先按「数量/折扣/单价」选目标（该键加 `highlighted-numpad-btn`），再按数字；没选目标就按数字 → 红提示 + error 音 | `pos_item_cart.on_numpad_event` |
+| 「删除」/「移除」 | 删除 = 退一格；移除 = 整行删掉 | 同上 |
+| 结账 | 购物车**留在左四列**、收款面板进右六列（网格自动排：DOM 里购物车在收款之前） | 8084 实测 x：购物车 958.6→ 收款 716.4 |
+| 收款方式 | 点哪个方式才展开它的金额格（`.border-primary` + 显示 control）；键盘写它 | `pos_payment.on_payment_mode_click` |
+| 收款合计 | 总计 / 付款金额 / 剩余金额；**多付时标签变「找零」**、变绿 | `pos_payment.update_totals_section` |
+| 收款完成 | 藏起收银台，右半边显示这张单的汇总 + 绿色提示 | `pos_controller.submit_invoice` → `toggle_components(false)` + `toggle_submitted_invoice_summary(true)` |
+| 最近订单 | 次按钮切换；订单列表在左四列、汇总在右六列；按钮文案变「隐藏最近订单」 | `pos_controller.toggle_recent_order` + 8084 实测 |
+| 开班 | 无开账单时弹「Create POS Opening Entry」：POS Profile + **期初余额表**（支付方式 × 期初金额） | `pos_controller.create_opening_voucher` |
+| 交班 | 「Close the POS」菜单项 → 一张 POS Closing Entry，**支付方式对账表**：期初 / 应有 / 实点 / 差额（实点填完自动算差额） | `pos_closing_entry.json` + `pos_closing_entry.js` 的 `closing_amount` 触发器 |
+
+#### 二、改成什么样
+
+| 项 | 落点 |
+| --- | --- |
+| 页面结构换成官方那六块（类名、层级、显示规则一致） | `public/desk/cashier.js` 重写：`.point-of-sale-app > items-selector / item-details-container / customer-cart-container / payment-container / past-order-list / past-order-summary` |
+| 皮：数值照官方样式表逐条搬（行尾标官方行号），只落我们真正渲染的规则 —— **没有整份拷 ERPNext 的 SCSS**（本站不装它，也不该把别家产品的样式表搬进本仓） | `public/desk/cashier.css` 重写 |
+| 购物车键盘只在选中行时出现（原先常驻）；目标键高亮；删除/移除语义对齐 | `cashier.js` 的 `cart_numpad` / `paint_cart` / `paint_views` |
+| 收款从「弹窗」改成**官方那套收款面板**（支付方式 + 3 列键盘 + 总计/付款金额/剩余金额 + 完成订单）；收款时购物车留左边 | `cashier.js` 的 `checkout/paint_payment/pay_numpad/submit_order` |
+| 「当班小票」从一段列表升级成官方的**最近订单 + 汇总**两块（点订单在右边出汇总；有权限时给「退货退款 / 作废」） | `paint_orders/show_summary` |
+| 页面动作对齐官方：主「新单」、次「最近订单 / 隐藏最近订单」、菜单「交班」（官方还有 Open Form View，产品不开放 DocType 表单页，关掉） | `paint_actions` |
+| **班次对账表（按支付方式）**：新子表 `ERP Shift Balance`（支付方式/期初/应有/实点/差额，`istable`），`ERP Shift` 加 `balances` | 新 DocType + `doctype/erp_shift/erp_shift.json` |
+| 开班/交班服务端：期初按方式记一笔（现金那份同时写回父字段 `opening_float`）；应有 = 期初 + 该方式净额（现金再减找零）；交班收 `counted` 逐方式算差额，父字段仍按现金那份写 | `cashier/shifts.py`（`_clean_amounts` / `_balance_rows` / `open_shift` / `summary` / `close_shift`）、`cashier/api.py` 收 JSON 参数 |
+| 老班次（本轮之前开的，没有子表）读的时候按"只有现金一笔备用金"合出来，旧数据不会变空白 | `_balance_rows` 的回退分支（实测：检查站上老班次返回一行现金 0/0/0） |
+| 术语表 +20 条（所有物料 / 物料详细信息 / 数量（仓库）/ 标价 / 期初·应有·实点金额 / 完成订单 / 剩余金额 / 最近订单 / 隐藏最近订单 / 小票状态 / 支付方式对账 / 回到购物车 …） | `i18n/messages.tsv` + 生成包 |
+
+**明确关掉的官方功能（产品没有对应数据，位置留着不画）**：客户选择与客户信息、物料分组筛选（我们只有 `category_id` 这个裸整数，没有分组主数据）、单位换算系数、行号/批次、忠诚度积分、发票附加信息、打印/邮件小票、订单级折扣（`add-discount-wrapper` 没画 —— 画一颗点不动的按钮就是之前那种"展示作用"的坑）、Open Form View。
+
+#### 三、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 版式比例 | 我们的页面（1159 视口）：app w=1109、10 列各 95.18、gap 15、padding 1%（11.086）；商品区 w=646.1（=6×95.18+5×15）、购物车 w=425.7（=4×95.18+3×15）、段高 = 视口−5rem —— 与官方同一套公式（官方 1440：1220 / 106.055 / 711.4 / 469.2） |
+| 商品卡 | w=136.5 h=194（图区 128 + 明细 56）—— 与官方同结构（官方 152.8/194） |
+| 选中购物车行 | 商品区 `display:none`、明细面板 `display:flex` 占同一格；`.item-display` 176；`.form-container` 两列、7 个原生控件带标签（数量/单位/单价/折扣金额/仓库/数量（仓库）/标价）；键盘 `display:flex`、5 列、目标键 `col-span-2`、按钮顺序 `1 2 3 数量 / 4 5 6 折扣金额 / 7 8 9 单价 / . 0 删除 移除 / 收银开单`；购物车合计区同时隐藏（官方同款切换） |
+| 键盘改数量 | 点「数量」→ 该键高亮；按 3 → 明细里的数量 3.000、行显示「3 件」、键盘上方合计「总件数: 3 净额: THB 30 应收金额: THB 30」全部实时跟着变 |
+| 结账 | 收款面板进右六列（x=501.8）、购物车留最左（x=61.1）—— **官方那种左右调换**；四种方式各一行，只有被点中的展开金额格；3 列键盘；合计行「应收金额 THB 30 / 实收金额 THB 30 / 剩余金额 THB 0」 |
+| 收款键盘 | 按 1、5 → 现金格 15.00、方式行显示 THB 15、合计行标签变**「找零 THB 5」**（绿） |
+| 完成订单（真落单） | 提示「小票 SI2569-000028 · 找零 THB 0」；页面换成这张小票的汇总（小票号/时间/收银员/状态 + 物料明细 + 应收金额 + 按收款方式 + 退货退款/作废）；服务端回读：`SALE-2026-00507 · SI2569-000028 · completed · 78/78/0 · 班次 SHIFT-2026-00503`；流水 `SI2569-000028 · PRD-00224 · 2 · sale_out · WH-00003`；结存 53 → **51** |
+| 最近订单 | 次按钮点了变「隐藏最近订单」；订单列表在左四列（小票状态 + 按小票编号搜索 + 行：类型/小票号/收银员/时间/金额/状态）、汇总在右六列；购物车隐藏 |
+| 交班弹窗 | 期初/应有/实点/差额四列表格，四行（现金/银行卡/PromptPay/转账）；老班次回读正确：现金 `期初 THB 1,000.00 / 应有 THB 1,010.00 / 实点 THB 1,010.00 / 差额 THB 0.00`；金额显示 THB（不是 `$`）；单元格可编辑 |
+| 交互影响面 | 菜单里只剩「交班」（官方那两条里 Open Form View 关掉）；无班次时主按钮＝「开班」、指示器＝「尚未开班」（橙） |
+| **交班写路径（隔离检查站 `erp-pos-b`，不在演示站动用户的班）** | 开班 `balances={cash:300, card:100}` → 落一笔现金 50 + 刷卡 20 的单 → 汇总：现金应有 **350**（300+50，无找零）、刷卡应有 **120** → `close_shift(counted={cash:345, card:120})` → 差额现金 **−5**、刷卡 **0**；父字段 `expected_cash 350 / counted_cash 345 / cash_diff −5`；子表四行落库与算出来的一致 |
+| 离线检查 | `check-architecture.py` PASS(0)、`i18n-build.py --check` PASS（erp 777 条）、`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）、`check-i18n.py` 合计 **113**（与基线逐项相同）、两个站点 `bench migrate` 退出码 0（新表 `tabERP Shift Balance` 建好、`ERP Shift.balances` 字段就位） |
+
+#### 四、没验到的（如实记）
+
+- **开班弹窗没在浏览器里点开过**：登录用户（`purchase-preview@example.test`）此刻就有一个开着的班（班次 3，04:43 开的），而开班弹窗只在"本人没有开着的班"时才出现；要在这个班上验就得先把用户的班交掉。**没有替他做这个决定**。它的字段与对账表跟已验过的交班弹窗是**同一段代码**（同一个 `balance_table()`、同一个 `p.dialog`、同一套币种处理），差别只是少三列、多一个收银台字段。
+- **窄屏（≤620px）没在真机/窄视口量过**：官方那几条窄屏规则照搬了（1 列、商品两列、收款键盘隐藏、汇总 100%），但没有像桌面这样逐块对过。
+- **官方的 1200px 断点在我们这儿也不生效**，原因是官方自己那条 `.show-item-image` 规则多一个类、优先级更高（实测：视口 1159、`matchMedia('(max-width:1200px)')` 为 true，网格仍是 4 列）—— 这一条我们与官方**表现相同**，不是漏搬。
+
+### F23：导出件术语口径统一 + 租户员工与权限页（2026-09-23，未部署）
+
+用户口径："导出的报表 术语表口径要统一，做租户的添加用户和权限和管理复用Frappe/ERPNext，功能的实现只用我们自己的，不做复杂的配置，只添加员工，基础信息，邮箱，初始用户和密码，勾选功能权限，把以上做完闭环。"
+
+#### 一、导出件里为什么是英文（根因）
+
+- 同一句话有三处入口：界面按 **key** 取词（`t("trade.docNo")`），服务端 `_()` 与 DocType 字段标签认的是**英文原文**。术语表里带 key 的词条原先**只按 key 落进语言包**，于是界面是中文、导出件里还是英文。
+- 生成器补一条：`scripts/i18n-build.py` 的 `_aliases()` —— 把"没有同英文的无 key 行、且同英文各条译文一致"的带 key 词条，按英文原文再落一行；两种情况**不补**（已有同英文的无 key 行、同英文各条译文不一致），理由写在文件头。
+- 服务端补一条按 key 取词的口子：`pearnly_core/browser_text.py` 的 `label(key, lang="")`（取词顺序 当前语言 → 英文 → key），`inventory/api.py` 的模板表头改走它（原先本地又写了一遍 `label_of`）；`cashier/output.py` 的交班表头从英文原文改成 10 个 `trade.*` 键。
+- 导出表头来自 DocType 标签与术语表，所以这一轮把标签也归一到已有词条：`Document Kind → Document Type`、`Discount % → Discount (%)`、`Opening Float → Opening Cash`、`Method → Payment Method`，术语表补 `Source File / File Fingerprint / Cancelled At / No / Discount (%) / Line Total / Original Line`。
+
+#### 二、同一件东西两个名（本轮又找出两处，已改）
+
+| 问题 | 改法 |
+| --- | --- |
+| 采购列表把系统号叫「编号」（`__("ID")`），而销售/采购表单和收发存都叫「单据编号」；采购导出里于是出现两列都叫「编号」（内部名 + 系统号） | 两个列表的首列标签由 `ID` 改成 `System number`（销售列表本来就是同一列，一并统一）；采购 DocType 的 `system_no` 标签由 `ID` 改成 `System number` |
+| 销售导出里「客户」（链接到客户主档）与「客户名称」（手填的名字）两列都叫「客户名称」 | 术语表 `Customer` 的译文改成「客户 / ลูกค้า / 顧客」（与 ERPNext 一致：Customer=客户、Customer Name=客户名称）；客户主档的名字字段标签由 `Customer` 改成 `Customer Name`，所以它在界面上仍叫「客户名称」，用户看不到变化 |
+
+#### 三、员工与权限页（复用框架，功能自己写）
+
+- 账号就是框架的 `User`，权限就是框架的 `Role`；**不另存一份"谁有什么权限"**（那必然和框架判据走偏）。
+- 能勾的岗位是服务端 `team.role_catalog()` 给的 —— 本站点真实存在的功能角色，也就是这个租户买到的功能；勾完之后员工看到哪些菜单由框架的角色判据决定，页面不自己算。
+- 界面上只有三件事（用户口径"不做复杂的配置"）：添加员工（姓名 / 邮箱＝登录名 / 初始密码 / 勾岗位）、改员工（姓名 / 岗位 + 重置密码 + 停用·启用）、名单（姓名 / 邮箱 / 岗位 / 状态 / 最后登录 + 批量停用·启用）。
+- 都用原生件：岗位是框架的 `MultiCheck`、密码是原生 `Password` 控件、名单是 page-level 列表；页面文档在 `pearnly_core`（路由要各产品都指得过来），渲染在 `pearnly_erp_portal`（与收银台同一套注册写法）。
+- 真租户站（站点配了身份服务）建号会**先建身份服务账号并绑定**，建不出来整件事失败；只有在没有身份服务的站点才写本地密码。判据：`team.service._identity_configured()` / `_local_password_allowed()`。
+- 顺手修掉一个真 bug：`set_member_roles` 原先给 `user.roles` 赋 `[{...}]`，Frappe 16 落库时炸（`_dict has no attribute is_new`）；改成只动子表 + 最后 `save(ignore_permissions=True)`。
+
+#### 四、员工名单只画一行（根因，与上一窗口的猜测不同）
+
+- 现象：8 个人只画出 1 行，表头计数 `1 / 8`，而同一时刻接口返回 8 人。
+- 根因：框架 `frappe/public/js/frappe/list/base_list.js` 的 `prepare_data()` 末尾有一句
+  `this.data = this.data.uniqBy((d) => d.name)`。我们的员工行里**没有 `name` 字段**，
+  8 行被当成同一行合并成 1 行（其它列表页的行都带 `name`，所以只有这一页中招）。
+- 改法：`team.service.list_members()` 给每行加 `name`（值就是邮箱，与框架里 `User.name` 同一个值，勾选与打开行也按它找行）；团队页里上一窗口留下的三个临时探针（`window.__team_debug` / `__team_loads` / `__team_last`）已删除，不留在交付里。
+
+#### 五、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 销售记录导出（带会话真登录取 xlsx，bench 里 openpyxl 读回） | 主表 29 列表头**全中文**：编号 / 状态 / 单据类型 / 来源 / 单据编号 / 日期 / **客户 / 客户名称** / 客户类型 / 地址 / 计算增值税 / 增值税率 / … / 收款备注；**没有重复表头**；明细表 `折扣率 (%) / 明细小计`；附件表 `类型 / 文件名` |
+| 采购记录导出 | 48 列全中文；前两列由 `编号 / 编号` 变成 **`编号 / 单据编号`**；物料 / 付款 / 附件三张表全中文 |
+| 交班记录导出 | 10 列全中文（班次编号 / 收银台 / 收银员 / 状态 / 开班时间 / 交班时间 / 备用现金 / 应有现金 / 实点现金 / 差额） |
+| 库存导出（CSV） | 表头 物料名称 / 编码 / 条码（二维码）/ 仓库 / 仓位 / 单位 / 在库 / 平均成本 / 金额 / 状态 |
+| 员工页（演示站 8147） | 名单 **8 行 / 8 个勾选框 / 计数 `8 / 8`**（改前 1 行、`1 / 8`）；列＝姓名 / 邮箱 / 功能权限 / 状态 / 最后登录，状态列「正常 / 已停用」 |
+| 添加员工（浏览器里真走一遍） | 弹窗字段＝姓名 / 邮箱 / 初始密码（带眼睛）/ 功能权限（原生 MultiCheck：采购 库存 商品 收银 销售）；填 `selftest-browser@example.test` 勾「收银」提交 → 提示「已添加 自测临时员工」、音效播到 882ms、名单变 9 行 |
+| 改员工 | 改名 + 改岗（收银→销售）→ 提示「已保存」、行内变「销售」；「重置密码」→ 提示「密码已更新」；「停用」→ 该行「已停用」标红；再「启用」→ 回到「正常」 |
+| 新员工真能登录吗（服务端证据） | 停用状态下 `POST /api/method/login` **401**（`User disabled or missing`）；启用后用新密码 `login` **200**（`full_name`＝自测临时员工二）；持会话调 `api_list_members` **403**（岗位是销售，不是管理员）、`api_sales_records` **200**（销售岗可读；`total 0` 是因为销售岗只看到本人的单据，同一时刻老板账号读同一接口 `total 31`） |
+| 页面文案 | 销售列表首列「单据编号」、采购列表首列「单据编号」；销售新建弹窗「单据编号 / **客户** / 客户名称 / 客户类型」；客户列表仍是「客户名称 / 客户类型 / 税号 / 电话 / 地址 / 状态」 |
+| 离线检查 | `check-architecture.py` PASS(0)；`i18n-build.py --check` PASS（erp 809 条）；`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）；`check-i18n.py --strict` 合计 **113**（py-bare-cjk 18，与基线逐项相同）；改动的 JS `node --check` OK、改动的 py `py_compile` OK、两个 DocType JSON 可解析；两个站点 `bench migrate` 退出码 0 |
+| 隔离检查站 `erp-pos-b` | 销售探针、主数据探针均 `problems: {}`；数据流探针 `result: PASS`（19 项） |
+
+#### 六、没验到 / 留给用户定的
+
+- **采购导出里还有三对同名列**：`净总计 / 折扣金额 / 总计` 各出现两次 —— 来自「手动设置金额」那组字段（`override_*`：表单里勾上手动设置才出现，导出里一直有）。要区分有两条路：给这三列加「（手动）」后缀，或者导出里不带这三列。这属于产品措辞，**没有替你定**。
+- **真租户站（带身份服务）的建号 / 停用没实测**：本地站点没有身份服务，走的是本地密码分支；身份服务的停用联动、邮件邀请都没做。
+- `Calculation Version` 仍然是英文：它是 `purchase_document` 的隐藏内部字段（`hidden=1`），表单不渲染、导出显式排除它，所以没有补词条。
+- 员工页的窄屏（≤620px）与真机没量过；岗位勾选只验了「收银→销售」这一次改动。
+
+### F24：团队管理从侧栏移到左下角那颗用户按钮里（2026-09-23，未部署）
+
+用户口径（两轮，第二轮是对第一轮做法的纠正）：
+
+1. "不要主数据，把团队管理放在左下角里面，列入，我点左下角，左侧出现 1.个人信息 2.团队管理"；
+2. "我的意思菜单放在左侧侧栏，点左下角，左侧菜单就只有个人信息和团队管理，**不是挂在左下角**"。
+
+第一轮我做成了左下角的浮层菜单（`frappe.ui.create_menu`），用户当场否掉；现在是**点左下角那颗按钮 → 左侧那栏的条目整个换成这两项**。
+
+#### 一、改了什么
+
+| 层 | 落点 | 说明 |
+| --- | --- | --- |
+| 声明 | `pearnly_erp_portal/hooks.py` | 「团队管理」从 `nav.group.master` 拿掉（主数据组因此没有成员，侧栏整组不出现）；新增声明键 `user_menu: ['pearnly-team']`（写**路由**，词与图标仍从 `pages` 取，不复制一份） |
+| 服务端 | `pearnly_core/desk/navigation.py` | `_user_menu_routes()` / `sidebar_pages()`（= 能打开的页面去掉走左下角的那些）/ `user_menu()`（按与侧栏同一判据筛：页面已实现 + 当前用户能进）；`boot.pearnly_user_menu`；`_sidebar_items()` 与 boot 投影都按 `sidebar_pages` 出条目 |
+| 外壳 | `pearnly_core/public/desk/product.js` | 接管那颗按钮（原生是 `<a onclick="route_to_user()">`）：把**侧栏条目区**换成「个人信息 + 产品声明的项」，用框架自己的 `sidebar_item` 模板渲染。**左侧菜单跟着当前页走**：「个人信息 / 团队管理」算一个账号区，停在里面就保持这两项（点菜单里的另一项也不例外），回到业务页面（首页、销售记录…）才用原生 `make_sidebar()` 画回业务菜单；点左下角时右侧默认落在个人信息，再点一次画回业务菜单（右侧不动） |
+
+第二轮修正（用户看到第一版后当场指出"点了其他菜单，左侧菜单发生了变化，你这逻辑不对吧"）：账号区里的两项互相跳转时不再把菜单画回业务那份 —— 只有离开账号区才画回去。
+| 术语 | `pearnly_core/i18n/messages.tsv` | `My Profile` → 个人信息 / ข้อมูลส่วนตัว / 個人プロフィール |
+| ADR | `docs/adr/0009-product-owned-declarations.md` | 声明表加一行：产品可以在 `user_menu` 里声明"放左下角那颗按钮、不放侧栏"的入口 |
+
+#### 二、顺手钉住的三处（都是这次改动暴露出来的真脆弱点）
+
+1. **被移出侧栏的页面会让侧栏整条换掉**：框架按"这个页面属于哪个模块 / 哪个工作区"决定侧栏，判据是"当前侧栏的条目里有没有这个页面"。把「团队管理」移出条目之后，点进去左侧会变成一份二十来项的原生平铺清单（上面还带着 `团队管理`）。做法：`Sidebar.setup()` 的目标钉成产品自己那一份 —— 模块/工作区侧栏留给没有外壳的裸 Desk（实测：点「团队管理」后侧栏仍是 `Pearnly ERP`）。
+2. **侧栏文档里的旧分组字段会让整条侧栏崩成一项**：页面移出分组后，站点里那份 Workspace Sidebar 文档还留着它 `child=1/indent=1` 的旧字段；原生渲染认这两个字段，一个"带 child 却没有分组父项"的条目会让 `sidebar_item.make()` 读 `parent.indent` 抛错 —— 界面看上去像"菜单全丢了（只剩第一项）"。做法：boot 投影里平铺项一律重写 `child/indent`。另外 hooks 有缓存：**先 `clear-cache` 再跑 `ensure_navigation`**，顺序反了会把旧声明写回文档（这次踩到了）。
+3. **「侧栏排序」保存一直是坏的（改之前就坏）**：编辑器只提交顶层项（分组标题没有 `link_to`、子项在 `nested_items` 里），服务端拿到 `[首页, null, null, null]` 只会回"值无效"；而且保存成功后 `make_sidebar()` 不做嵌套那一步，每组的子项会被画两遍。做法：提交前铺平成路由；保存后先 `prepare()` 再 `make_sidebar()`；服务端校验与返回值跟着改成"校验侧栏那一份、另回一份能打开的页面"。实测保存与放弃两条路都不再报错、子项也不重复。
+
+#### 三、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 收起态（演示站 8147，销售页） | 左侧 = 首页 + 物料与库存（物料/库存/入库/出库/收发存报表/盘点）+ 采购系统（采购记录/供应商）+ 销售系统（销售记录/收银 POS/收银记录/交班记录/客户）；**没有「团队管理」、也没有「主数据」那一组** |
+| 业务页点左下角那颗按钮 | 左侧条目区正好两项：**个人信息 / 团队管理**（框架 `sidebar_item` 模板渲染，图标与 hover 与侧栏一致），**右侧默认落在个人信息**；截图见本窗口对话 |
+| 账号区里两项互跳 | 点「团队管理」→ `/desk/pearnly-team`（页面 **8 / 8** 行），**左侧仍是那两项**（用户第二轮口径）；再点「个人信息」→ `/desk/user/…`，左侧同样是那两项 |
+| 再点一次左下角 | 菜单画回业务那份（首页/物料与库存/…），右侧不动 |
+| 离开账号区 | 到业务页（销售记录/首页）左侧就是业务菜单；再点左下角又回到两项 + 个人信息 |
+| 直接打开团队页（书签/刷新） | 左侧同样是那两项（菜单跟着当前页走），不是业务菜单 |
+| 非管理员看不看得到 | 用 ERP Sales 岗位建一个临时账号 → 登录 → 取 `/desk/pearnly-sales` 页面里的 boot：`pearnly_user_menu: []`、`pearnly_pages` 里也没有 `pearnly-team`（连项都没有）；查完把临时账号与它的会话删掉，员工名单回 8 人 |
+| 侧栏排序 | 进编辑态点「保存」：不再报"值无效"，保存后分组与子项都不重复；点「放弃」同样干净；测试写下的个人偏好行（`DefaultValue`）已删除，回到开工状态 |
+| 隔离检查站 `erp-pos-b` | 同一份声明与投影（`clear-cache` + `ensure_navigation` 各跑一遍，退出码 0） |
+| 离线检查 | `check-architecture.py` PASS(0)；`i18n-build.py --check` PASS（erp 809 条）；`check-frontend-i18n.py` 0 问题；`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）；`check-i18n.py --strict` 合计 **113**（与基线逐项相同）；改动的 JS `node --check`、PY `py_compile` 全 OK |
+
+#### 四、没验到 / 留给用户的
+
+- **窄屏（≤620px）与折叠态下点开那两项的观感没量过**：折叠态（只剩图标）时那两项走的是原生条目的同一套样式，但没有像桌面这样看一眼。
+- 真机没测。
+- 「侧栏排序」这颗入口对**分组菜单基本没有可见效果**（分组与组内顺序都是产品声明的，个人顺序只影响平铺项）。要不要去掉这颗入口、或者做成真能改顺序，等用户定。
+- **另记一个框架层现象（不是本轮引入，也没修）**：框架的加载遮罩是**计数**式的（`frappe.dom.freeze_count`），而"整页跳转"会掐断在途请求、它的回调不再执行 —— 计数不落回 0 时遮罩就一直在，界面看着"点不动"，刷新即恢复。本窗口用自动化连续整页跳转时踩到过（`freeze_count` 卡在 1、侧栏点不动），正常点菜单不会；要不要在框架那边加兜底（例如路由变化时复位计数），等用户定。
+
+### F25：团队管理改叫「用户」、用户名/邮箱开户时定死、只改密码（2026-09-23，未部署）
+
+用户口径（2026-09-23）：
+
+1. "团队管理里面 不要出现员工，写添加用户，或者只写一个添加就好了"；
+2. "你个人信息是不是动过了？你看看dms有些啥，对齐一下，但是有个问题，dms那边上次我说用户名可以自定义修改，这个不太符合逻辑，可以用用户名登录，但是不能修改，后台管理发号后，用户名和邮箱是绑死这个租户的，唯一关系，用户只可以自己改密码，员工也是一样"。
+
+#### 一、先回答"个人信息是不是动过"
+
+- 没有。`git log -- apps/pearnly_core/pearnly_core/public/desk/user.js` 在本分支没有任何提交（最后一次改动来自更早的共享提交 `a1fe87d`）。本任务在 `pearnly_core` 只动过 `browser_text.py`（F23）与 `desk/navigation.py`、`public/desk/{product,sidebar}.js`（F24）。个人信息那一屏的字段与只读规则来自 `account/layout.py` + `user.js`，此前没碰。
+
+#### 二、DMS 那边是什么（对齐的依据）
+
+- **花名册**（`pearnly_dms/operators/roster.py` + `public/desk/roster.js` + `frontend/src/pages/dms/RosterPage.vue`）：每个操作员 = 本地账号 + 他自己的 DMS 账密 + 一行档案；账号只走 LINE、不发本地密码。
+- **我的 DMS 账号**（`frontend/src/pages/dms/AccountPage.vue` + `account/api.py`）：用户名与密码两个框原本都能改 —— 就是用户说的"上次说可以自定义修改"那一处。
+- 对齐后的统一规则：**用户名与邮箱开户时发号、绑死这个租户，之后谁都不改；用户只能改自己的密码**（DMS 与 ERP 的员工账号同一条）。
+
+#### 三、改了什么
+
+| 层 | 落点 | 说明 |
+| --- | --- | --- |
+| 个人信息（core） | `account/layout.py` | `first_name`（界面上就是「用户名」）加一条 **DocType 级只读**的 Property Setter；发号（新建账号）仍是程序写入，不受影响 |
+| 个人信息（core） | `account/profile.py` / `hooks.py` / `account/oidc_session.py` | 删掉"用户自己改名"整条路（`prepare_profile` 里的改名校验与 `username` 写入、`sync_username` 钩子、身份服务里那个改名分支），身份服务那条通道只剩"语言偏好"一件事；邮箱仍不能改 |
+| 个人信息（core） | `public/desk/user.js` | 邮箱只读；**「更改密码」两种站点都给**：云站点走身份服务，本地站点进 `/pearnly-password`（改前本地站点这个按钮是隐藏的 —— 等于本地用户根本改不了自己的密码） |
+| ERP 团队管理 | `public/desk/team.js`、`team/service.py`、`team/api.py`、术语表 | 文案改「添加用户 / 用户」（页面里不再出现"员工"）；编辑弹窗里姓名与邮箱**只读**（带一句"用户名和邮箱是开户时发的，之后不能修改"），能改的只有岗位；删掉 `api_update_member` / `update_member` / `set_member_name` |
+| DMS 花名册 | `public/desk/roster.js`、`RosterPage.vue`、`operators/roster.py` | DMS 用户名改成"新建时填一次、之后只读"；服务端对"想改用户名"的请求**明确拒绝**（值一样或没带照旧通过，老客户端不炸） |
+| DMS 我的账号 | `AccountPage.vue`、`account/api.py` | 用户名只给看不给改（提交只带密码）；服务端 `save_credentials` 只收密码，带不同用户名一律拒 |
+| 术语表 | core / ERP / DMS | 新增「用户名和邮箱是开户时发的，之后不能修改」等词条；删掉 5 条只服务于"改名"的旧词条（`account.usernameFormat/Taken/profileChanged/signInToRename/profileUpdateFailed`）；顺手补上团队服务那几句**一直没登记**的错误文案（请填写用户名 / 请填写正确的邮箱 / 已存在 / 至少勾一个功能权限 / 密码至少 N 位）—— 之前它们会原样显示英文 |
+
+#### 四、顺手修掉一个真 bug（保存岗位会把岗位点没）
+
+- 现象：编辑一个账号、**什么都不改**直接保存 → 它的功能岗位被摘掉、账号直接从这一页消失。
+- 根因：`team/service.py` 的 `set_member_roles` 先记下 `held = {已有岗位}`、再摘掉功能角色、最后按勾选补回 —— 补回时跳过"已在 `held` 里"的，于是被摘掉的那个永远补不回来。改法：`held` 改在**摘掉之后**再取。
+- 实测代价：演示站夹具 `erp-pos-line-buyer@example.com` 的「采购」被我点没了一次，已用同一条服务路径改回（最终回读 `ERP Purchase` + `Desk User`，与开工一致）。
+- 顺带：`scripts/erp-pos-lab-team-verify.py` 这条探针**本来就是坏的**（`add_member` 现在要求初始密码，探针一个都没传 → 从头到尾 ValidationError），补齐夹具与密码，并加了一条"原样保存同一批岗位不能丢"的断言。
+
+#### 五、验过的
+
+| 步骤 | 结果 |
+| --- | --- |
+| 个人信息页（演示站，浏览器） | 用户名/邮箱/中间名/姓/全名都只读（用户名灰底点不动），语言/时区/静音可改，**「更改密码」按钮出现**（本地站点 → `/pearnly-password`） |
+| 团队页文案（浏览器） | 主按钮「添加用户」、名单列 姓名/邮箱/功能权限/状态/最后登录，整页没有"员工"字样 |
+| 编辑弹窗（浏览器） | 姓名与邮箱只读并带"开户时发的、不能修改"提示；只有岗位的勾选框可点，另有「重置密码」「停用」 |
+| 岗位保存（浏览器真点三次） | 改成"收银 + 采购"→ 行内变 `收银 · 采购`、名单仍 `8 / 8`；**原样保存** → 岗位保持（bug 修好）；取消一个勾选 → 回到 `采购` |
+| 隔离检查站 `erp-pos-b` | `scripts/erp-pos-lab-team-verify.py` → `problems: {}`（含新断言：原样保存同一批岗位后仍是 `["ERP Purchase"]`） |
+| 两站服务端 | `ensure_profile_fields`（用户名只读的那条 Property Setter 落库，回读 `read_only=1`）+ `clear-cache` + web 重启 |
+| 离线检查 | `check-architecture.py` PASS(0)、`i18n-build.py --check` PASS（erp 815 条）、`check-frontend-i18n.py` 0 问题、`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）、`check-i18n.py --strict` 合计 **113**（与基线逐项相同）、改动的 py/js `py_compile`/`node --check` 全过 |
+
+#### 六、没验到（如实记）
+
+- **云站点那两条真的要身份服务才走得通的路没实测**：改密码走身份服务、以及"名字/邮箱在身份服务里唯一"这条判据 —— 本实验室的站点没有身份服务。
+- **DMS 的界面没在浏览器里看过**：这台机器上只有 ERP 站点（`erp-pos-a/b`），所以 DMS 的花名册与"我的 DMS 账号"两处改动只做了静态检查（`py_compile` / `node --check` / 逐行核对），没跑 DMS 探针。
+- **前端没做类型检查/构建**：`frontend/` 的依赖没装，而且这台机器的 `npm` 指向一个不存在的 `npm-cli.js`，`vue-tsc` 跑不起来；两处 Vue 改动（用户名只读、编辑弹窗去掉用户名的框）只做了人工核对。
+- 用户自己改密码的完整闭环（点「更改密码」→ 改完用新密码登录）没在本地站点走完一遍（那是身份服务/改密页的路径，交给有身份的站点验更合适）。
+
+### F28：一租户多公司（官方那套）+ 仓库改回官方 Link（2026-09-23，未部署）
+
+用户口径："**我要做一租户多公司**"；随后："我说用官方原生，这是第四遍了，你到底懂不懂什么叫
+官方原生啊？你为什么一直按照旧项目做啊。Now 仓库改成按公司分，我之前让他们把其它功能的仓库
+字段全部改为自由填写了，这怎么办，改回官方原生的吗，还有你那个公司的图标不对吧，税号查询接回来"。
+
+#### 一、按官方那套做的决定（都有源码依据，见 F27 那张表）
+
+| 事 | 官方怎么做 | 我们怎么做 |
+| --- | --- | --- |
+| 多家公司 | `Company` 是列表/树（`is_group` + `parent_company`） | 就是 `ERP Company` 的多行；公司页恢复「当前公司资料 + 公司列表」两张面孔 |
+| 单据归公司 | 单据上有 `company`（官方 `Sales Invoice.company` 是 `Link→Company` **reqd=1**） | `Purchase Document` / `ERP Sales Document` 加 `company`（Link, reqd，建单默认当前公司） |
+| **库存怎么分** | 官方 `Warehouse.company` —— 仓库属于公司，库存按仓库记账 | `ERP Warehouse` 加 `company`（reqd）；结存/流水不加列，靠仓库过滤（同一件事，少两列） |
+| **当前公司** | `frappe.defaults` 的 `company` 用户默认值（官方 `get_user_default("company")`） | 同一个键：`set_active_company()` 写它，页面读它 |
+| **公司之间隔离** | 官方 `User Permission`（`allow = Company`），框架按它过滤 | 同一个东西：团队页给账号勾公司 = 写 `User Permission`；**不勾 = 不限制**（官方默认） |
+| 单号 / 财年 | 命名序列（`Document Naming Settings`）与独立单据 `Fiscal Year`，**都不在公司上** | 保持现状（全站一套序列；公司上没有单号/财年字段） |
+
+#### 二、改了什么
+
+**服务端**：`masters/company.py` 加 `allowed_companies / active_company / company_options /
+set_active_company / document_company / scope / for_document`；`api_company_context`、
+`api_set_active_company`；`masters/boot.py`（官方 `boot_session` 扩展点）把"能切哪几家、当前是哪家"
+给前端。`ERP Warehouse` 的 `resolve/ensure_default/create/list_warehouses/names_of/scope_filter`
+全按公司走。采购（`service._purchase_query`、`summary`、`records.query`、凭证抬头取**单据的公司**）、
+销售（`entry._post`、`_post_stock` 走本公司默认仓、`records.query`、收银小票那一侧按仓库）、
+收银台/班次（按收银台的仓库）、入库出库、盘点、期初、收发存与在库（`warehouses.scope_filter()`）
+都按当前公司收。团队页新增 `set_member_companies`（写官方 `User Permission`）。
+
+**前端**：`desk/company-menu.js` —— 左上角那颗（原生 `SidebarHeader` 自己的 `dropdown_items`）
+里多一组「公司」，名单来自服务端；点一下写用户默认值再整页重载。公司页两张面孔（资料 + 列表：
+新建 / 编辑 / **设为当前** / 停用）。团队页加「公司」列与公司多选（同一颗原生 `MultiCheck`）。
+
+**仓库字段改回官方原生**（用户这次的口径反转了以前那句"仓库自由填写"）：入库出库、盘点新建、
+盘点的实际仓库、采购/销售明细行都改成 `Link → ERP Warehouse`，下拉只列**当前公司**的仓库
+（`df.get_query` 给过滤对象，框架 Link 自己认），没找到时 Link 自带官方的「新建 ERP Warehouse」。
+服务端 `warehouses.resolve()` **默认不再自动建仓**（要显式 `create=True` 才建），两条"自由填写"
+的提示文案删掉；实验室里靠自动建仓的 3 个探针加了 `create=True`。
+
+**图标**：账号菜单里「公司」的图标从 `contact` 换成 `building-2`（lucide 精灵里确实有的那个；
+左上角切换那组也是它）。**税号查询**：新建/编辑公司那张弹窗里补回「查询」按钮（与资料页、
+供应商/客户两页同一个接口）。
+
+#### 三、验过的
+
+| 场景 | 结果 |
+| --- | --- |
+| 两站 `bench migrate` + 回填补丁 | 退出码 0；仓库 8 条、采购 74、销售 24 全部归到默认公司 `CO-00552` |
+| 浏览器：公司列表 | 2 条（第二家是从界面「新建公司」建的 `Purchase Preview 2` = `CO-00553`），列 = 公司名称/简称/税号/电话/当前/状态，状态显示「正常」，行内有「设为当前 / 编辑 / 停用」 |
+| 浏览器：`boot.pearnly_companies` | 两家公司 + 当前标记；左上角下拉里出现「公司 ›」这一组 |
+| **隔离生效**（同一页切换前后） | 采购记录 `20 / 74`（当前 `CO-00552`）→ 切到 `CO-00553` 后 `0 / 0` → 切回 `20 / 74` |
+| 浏览器：入库弹窗的仓库字段 | `data-fieldtype="Link"`，下拉里写着"已按 公司 等于 \"CO-00552\" 和 激活 已启用 过滤"，并带官方的「新建 ERP Warehouse」 |
+| 浏览器：公司弹窗 | 有「查询」与「新建公司」两颗按钮（税号查询回来了） |
+| 浏览器：账号菜单 | 公司那一项的图标是 `#icon-building-2` |
+| 离线 | `check-architecture.py` PASS(0)、`i18n-build.py --check` PASS、`check-frontend-i18n.py` 0 问题、`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）、改动 JS 全部 `node --check` 通过 |
+
+#### 四、没验到 / 没做（如实记）
+
+- 团队页里勾公司这条闭环**没在浏览器点过**（服务端 `set_member_companies` 与页面上的公司列/多选都在了）。
+- 非管理员视角（只看得到自己被指的公司）：服务端按官方 `User Permission` 走，浏览器没点过。
+- 按公司收的**浏览器**验收只做了采购页那一处；销售/收银/入库出库/盘点/收发存是同一套服务端过滤，没逐页点。
+- LINE 收件箱没按公司分（它是个收件箱，落地建单时按当前公司）。
+- 单据表单里没有"公司"选择字段：建单默认当前公司，要换公司就先切公司。
+- 单号仍是**全站一套序列**（官方的命名序列也是全站一套，没按公司拆）。
+- 真机、部署、用户验收：未做。
+
+### F27：四个"官方口径"问题、个人信息页少的那一行、撤掉两个非官方字段（2026-09-23，未部署）
+
+用户口径：
+
+> "公司这边官方只允许一个公司吗？如何添加其它公司，公司和公司的数据隔离然后做？权限管理包含公司的分配和权限吗？我说了，用官方的，我说了三次了，官方有单据前戳吗？官方有 财年起月吗？图一：dms 这边对齐，点左下角只出现个人信息，其它功能不加，和 erp 一样，你 erp 这边，少一个域名显示"
+
+#### 一、四个问题，按**官方源码**回答（`apps/erpnext` 就在 bench 里，直接读的）
+
+| 问 | 官方怎么做的（证据） | 我们现在的样子 |
+| --- | --- | --- |
+| 官方只允许一个公司吗 | **不限**：`Company` 是树 —— `is_group`（Check）+ `parent_company`（Link → Company） | 一个租户一个站点、站内一家公司（`ERP Company` 只有一条默认） |
+| 如何添加其它公司 | 官方就是"再建一条 `Company`"（每家自带账套 / 成本中心那套）；单据挂在公司上 —— `Sales Invoice.company` 是 `Link → Company` 且 **reqd=1** | 我们界面上没有"新建公司"（用户 2026-09-23 上午才说"就一个公司就好了"，所以撤了）；服务端 `create_company` 还在 |
+| 公司与公司之间怎么隔离 | 官方的隔离件是 **`User Permission`**：把 `Company = 某公司` 指给某个用户，Frappe 原生按它过滤带该 Link 的列表与报表 | 我们用**站点级**隔离（一个租户一个站点、一套库，Frappe 原生的多租户做法）；单据表里没有公司字段 |
+| 权限管理包含公司的分配吗 | 官方的"公司分配"就在 `User Permission` 那一页，不在角色里 | 团队管理（用户）页只发**功能岗位**（采购/销售/库存/收银…），没有"分配公司"这一项 —— 站内只有一家公司，没有可分配的 |
+| 官方有"单据前缀"吗 | **没有**。官方单号走**命名序列**（`Document Naming Settings` / DocType 的 naming series），不在 Company 上 | 我们那个 `doc_prefix` 是上一轮自己加的，**现在不接任何地方**（单号走 `numbering/contracts.py` 那套固定前缀） |
+| 官方有"财年起月"吗 | **没有**。官方财年是**独立单据** `Fiscal Year`（`year` / `year_start_date` / `year_end_date` / `companies` 子表），不是公司上的一个"起月" | 我们那个 `fiscal_year_start_month` 也是自己加的，只在控制器里校验 1–12，没人读 |
+
+**要用户定的两件事**（都要动表或装东西，本窗口没动）：① 要不要在同一站点里放多家公司 —— 那是 ERPNext 那套（单据加 `company` 字段 + `User Permission` 隔离 + 账套），要么就维持"一家公司 = 一个站点"；② 那两列（`doc_prefix` / `fiscal_year_start_month`）要不要 `migrate` 删掉（界面已经不再显示）。
+
+#### 二、"erp 这边少一个域名显示" —— 查到根因并修好
+
+根因两条，缺一不可：
+
+1. 框架有一条**官方规则**：只读且没有值的字段**整行藏起来**（`System Settings.hide_empty_read_only_fields = 1`，`base_control.get_status()` 走到 `"None"` 就挂 `hide-control`）；
+2. 我们服务端只在带身份服务的站点（`pearnly_native_account`）才把「公司名 / 您的访问域名」两项发给页面（`account/profile.py` 的 `load_details`）—— 本地实验室站点没有那个开关，两格是空的，于是被框架藏掉，看着就是"少一行"。
+
+改法：`load_details` 改成**只要是产品站点、看的是自己的资料就给值**；域名用框架自己的 `get_url()`（官方取站点地址的函数，取 `host_name`，没有就按当前站点拼），不再自己从 `host_name` 取。实测：个人信息页出现「公司名 = Purchase Preview / 您的访问域名 = http://erp-pos-a.localhost」。
+
+#### 三、撤掉两个非官方字段
+
+「单据前缀」与「财年起月」从公司页拿掉（见上表：官方没有这两样，而且我们的没有人读）。页面现在只剩「公司信息 / 地址与备注」两节 + 保存 + 查询，共 11 个字段。表结构里的两列**还在**（界面不显示），删列要 migrate，等用户一句话。
+
+#### 四、"dms 这边对齐" —— 代码里已经一样，那张图是旧部署
+
+- 三个产品共用同一套外壳（`pearnly_core/public/desk/product.js` 的 `p.user_menu`）；`user_menu` 只有 ERP 声明了（公司排在个人信息上面），**DMS 与 Cowork 都没有声明** —— 所以它们的账号区就是「个人信息」一项，点左下角也只出现这一项。
+- 用户截的那张线上 DMS（`testdms.pearnly.com`）里侧栏还是业务菜单，是因为**这次的外壳改动今天才做，还没部署**；线上 DMS 只到 302（跳登录），我在本地没有账号可比对线上代码版本，这一点如实记。
+
+#### 五、顺带：三支一直是红的 JS 测试修回来了
+
+`tests/test-native-desk.cjs`、`test-field-rows.cjs`、`test-stock-card.cjs` 从 F24（`0a9b21e` 引入 `class ProductSidebar extends NativeSidebar`）起就整支加载即抛 `Class extends value undefined` —— 它们的假环境里没有 `frappe.ui.Sidebar`。补上这个成员（`test-native-desk.cjs` 还补了 `frappe.boot.user` 与个人信息页真实的字段清单），现在 `tests/*.cjs` **10 支全绿**；并给"静音保存后当场生效"加了一条断言。
+
+#### 六、没验到（如实记）
+
+- 非管理员视角的公司页（只读、没有保存与查询按钮）：仍然只在服务端测试里覆盖，浏览器没点过。
+- 线上 DMS：只到 302，没有账号，没在线上比对版本与观感。
+- 真机、部署、用户验收：未做。
+
+### F26：公司合成一屏（原名「公司资料 / 公司主档」）+ 税号查询 + 静音开关即时生效（2026-09-23，未部署）
+
+用户口径（本轮四条，按时间顺序）：
+
+1. "那个静音是不是一个假的，根本不起作用" + "个人信息和团队管理你是不是没有加选中的主底色" + "然后做公司，按官方原生隔离系统做好数据隔离，然后数据关联全站打通，做在个人信息上方"；
+2. "不要公司资料公司主档，就一个公司就好了，包含全部"；
+3. "我说了用官方的功能简化，而且我说了，只写公司，再把税号查询接进来"；
+4. "不要出现哪些傻逼文案"。
+
+一条条对：
+
+| 用户说的 | 查到的 / 做的 |
+| --- | --- |
+| 静音是不是假的 | **开关是真的**：框架 `frappe.utils.play_sound` 见到 `frappe.boot.user.mute_sounds` 直接不播，我们自己的 6 处提示音（`product.js` 的 submit、`cashier.js` 的 error/numpad-touch、`scan.js`）全走它。**假的观感来自那个值只在整页加载时取一次** —— 勾上并保存后当前这一页照响，刷新才静音。改法：`user.js` 的 `refresh` 里回写一次（含保存之后那一次刷新）。实测两向都通（见验证表）。 |
+| 两个账号菜单项没有选中底色 | 业务侧栏用原生 `.active-sidebar` 上底色，我们画「个人信息 / 团队管理」时没加。改成按当前路由给对应项加同一个类：个人信息 = `Form/User/<自己>`，产品声明的项 = 路由首段。 |
+| 公司做成"一屏" | 原来是「公司资料（默认公司那一屏）+ 公司主档（公司列表/新建/设默认/停用）」两张面孔。按第 2 条合成**一屏**：`/desk/pearnly-company` 一页放下抬头、简称、税号、分支、电话、联系人、联系邮箱、PromptPay、单据前缀、财年起月、地址、备注；`nav.companyMaster` 从 `pages`/分组里拿掉（服务端 `list_companies / create_company` 留着，实验室脚本还在用，界面不再进）。 |
+| 名字只写「公司」 | core 术语表里 `nav.company` 那条英文 msgid 由 `Company Profile` 改成 `Company`、中文由「公司资料」改成「公司」 —— 这条 nav 词是 Cowork 与 ERP 共用的，Cowork 那边的菜单项也跟着显示「公司」。 |
+| 税号查询接进来 | 复用供应商 / 客户两页那套：同一接口 `api_lookup_tax`（泰国税务局官方登记）、同一套失败原因文案；按钮是**原生 `Button` 字段**（不是自画的控件），点在税号下面，回填抬头 / 税号 / 地址 / 分支号。能不能查由服务端 `can_lookup`（能力码 `tax.lookup`）说 —— 没这个能力的岗位连按钮都不出现。 |
+| "不要哪些傻逼文案" | 上一轮我自己加的四条说明（税号 13 位 / 收款账号 / 「单据前缀先存着」/「1 = 一月」）与页面副标题**全部删掉**；页面现在只剩分区标题与字段标签，查询/保存的提示沿用供应商页那几条已统一的文案。 |
+| （顺手修掉的真 bug） | 框架的 `FieldGroup.get_values()` 把空串当"没这个字段"丢掉（`is_null("")` 为真），所以**清空一格再保存根本不生效**。实测：清掉备注保存后回读还是原文。公司页改成按自己的字段清单逐个取（空就是空），并补上"名称必填"用框架那两条 msgid 的提示。**同样的写法还在别处**（供应商 / 客户 / 团队等页用 `dialog.get_values()` 保存），本轮只修公司页，其余要不要一起改等用户发话。 |
+
+**隔离与"全站打通"的现状（本轮只读核对，没动数据模型）**：
+
+| 项 | 现状 |
+| --- | --- |
+| 数据隔离 | 平台原生 **Site 级**：一个租户一个站点、一套库（`ERP Company` 就是"本租户的公司"）。单据表（`ERP Sales Document` / `Sales Document` / `ERP Sale` / `Purchase Document`）里**没有**公司字段 —— 即数据不按公司切分，站上只有一条 `is_default` 公司。 |
+| 已经打通的 | 采购的「代收据 / 预扣税凭证」PDF 抬头取默认公司的 **名称 / 税号 / 地址**（`purchasing/output.py` + `purchase_document`）。 |
+| 还没打通的 | 导出件抬头、销售 / 收银的小票抬头都还没读公司；`doc_prefix`（单据前缀）**当前不接任何地方** —— 单号仍走编号定义（`numbering/contracts.py` 那套 PE/SI/IR/IS… 前缀）。 |
+| 要用户定的一句话 | 是"**一个租户一家公司**，把抬头接进导出与小票就好"，还是"**多公司严格隔离**（单据挂公司字段、各页按公司过滤）"。这决定要不要动表结构，本轮没动。 |
+
+**没验到（如实记）**：①非管理员进公司页那一路（字段只读、没有保存按钮、没有查询按钮）只在服务端有测试覆盖，**浏览器里没点过**；②隔离检查站 `erp-pos-b` 只跑了 `clear-cache`，没跑探针；③真机、部署、用户验收未做。
+
+> **与旧记录的冲突说明**：`docs/work/2026-09-21-erp-pos-migration.md` 与 `docs/frontend/01-page-inventory.md` 记的是 **2026-09-21** 的口径 —— "公司主档与公司资料两个不同页面，用户确认两者都要"。**2026-09-23 用户改口径了**（"不要公司资料公司主档，就一个公司就好了，包含全部"），以本轮为准；那两份旧记录按原样留着当历史，不改写。
+
+## 验证
+
+| 时间 | 代码 SHA / 未提交差异 | 环境与数据归属 | 命令或场景 | 预期 / 实际 / 退出码 | 结论和证据 |
+| --- | --- | --- | --- | --- | --- |
+| 2026-09-23 | `bbd51fa`（销售分支基线，无代码改动） | 本地 Git | `git worktree add -b codex/erp-sales-records … codex/erp-purchase-records` | 工作树创建成功 / 分支指向 `bbd51fa` | 交接步骤 1 |
+| 2026-09-23 | 同上 | `colima-pearnly` / project `pearnly-purchase-lab` | `compose config --quiet` 后 `up -d --no-deps --force-recreate bench web socketio frontend` | 四个容器重建成功，`config` 退出码 0 | 挂载已切到销售树，sites/db/redis 未动 |
+| 2026-09-23 | 同上 | GCP `pearnly` / `asia-southeast1` | `gcloud run services describe pearnly-web\|pearnly-worker` | 两个组件仍 100% 流量在 `*-ec2e5c957e6b-s3` | 线上身份未变，销售基准仍是 `ec2e5c957e6b` |
+| 2026-09-23 | D1 改动（未提交时） | 宿主 Python，无 Site | `python3 tests/test_erp_portal_access.py` | 101 条 / 95 通过 / 6 跳过（openpyxl 只在 bench 装）/ 退出码 0 | 销售契约、金额、闸、动作、下游、识别映射 |
+| 2026-09-23 | D1 改动（未提交时） | 宿主 | `python3 scripts/check-architecture.py` | `PASS (0 violations)` / 0 | App 边界与命名空间未破 |
+| 2026-09-23 | D1 改动（未提交时） | 宿主 | `python3 scripts/i18n-build.py` 与 `--check` | `RESULT: PASS`（erp 587 条）/ 0 | 术语表与生成包一致；生成器按设计保留 CSV 里已有行，所以文件无变化 |
+| 2026-09-23 | D1 改动（未提交时） | 宿主 | `python3 scripts/check-i18n.py --strict` | `FAIL`：bare CJK 18 处、全在 `inventory/workbook.py`（与基线相同，销售文件不在列） | 本次未新增 bare CJK，未改忽略规则 |
+| 2026-09-23 | D1 改动（未提交时） | 宿主机 Node | `node --check …/desk/sales.js` | 退出码 0 | Desk 脚本语法 |
+| 2026-09-23 | D1 改动（未提交时） | `pearnly-purchase-lab`，A + B | `bench --site erp-pos-{a,b}.localhost migrate` | 退出码 0；回读 `doc_kind` 选项 = `quotation / receipt`、`status` = `draft / submitted / void` | 结构变更走原生迁移；旧列残留见上 |
+| 2026-09-23 | D1 改动（未提交时） | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `./env/bin/python /workspace/scripts/erp-pos-lab-sales-verify.py`（`PEARNLY_ERP_POS_LAB=1`） | `problems: {}` / 0 | 真实 Site 事务：建单占我方单号、闸拦住 ฿0 与未收款、确认出库一次且重复确认被拒、作废回冲回到 100、报价不动货、五种税票/冲正类型全被拒、上传识别落 `source=ocr` 且留底与哈希齐、复核回填 214.00、收银员不能建单、销售可读 |
+| 2026-09-23 | 同上 | 同上 | `scripts/erp-pos-lab-masters-verify.py`（`PEARNLY_ERP_POS_LAB_SITE=erp-pos-b.localhost`） | `problems: {}` | 去掉开票前检查后客户主档检查仍全通过 |
+| 2026-09-23 | 同上 | 同上 | `scripts/erp-data-flow-lab-verify.py` | `result: PASS`（含 "sales confirm and void"）/ 0 | 采购→销售→库存→收银的联动未被破坏 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` web | 登录后 `GET /desk/pearnly-sales`、`api_list_sales`、`api_sale_document_total` | 200 / `{"message":[]}` / `{"message":0}` | 页面与接口可用 |
+| 2026-09-23 | 同上 | 内嵌浏览器（本窗口自己的标签，8147） | 打开销售页 → 新建销售单对话 | 列表渲染「无数据」、对话字段为 客户名称/日期/单据类型（默认收据）/客户类型/地址/计算增值税/增值税率/明细/付款状态/付款方式/付款日期/备注，**没有税号与分店字段**；未提交 | 浏览器层（桌面视口）通过；未做真机与移动宽度 |
+| 2026-09-23 | S2/S3 改动（未提交时） | 宿主 | `python3 tests/test_erp_portal_access.py` / `check-architecture.py` / `i18n-build.py --check` / `node --check sales*.js` | 102 条（96 通过 / 6 跳过）、0 违规、`RESULT: PASS`（erp 618 条）、JS OK | 契约、边界、术语表、前端语法；上述 D1 行里的确认/复核接口已被本次一次提交（`api_post_sale`）取代，行内容按当时提交读 |
+| 2026-09-23 | S2/S3 改动（未提交时） | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `scripts/erp-pos-lab-sales-verify.py` | `problems: {}` | 一次提交（单据 + 出库 + 收款）与请求号重放、金额闸、五种税票/冲正类型被拒、报价不动货、部分/全额/撤销收款、列表搜索与过滤、私有附件与 PDF 分页、Excel 导出、岗位与本人范围、作废回冲、识别归一化 |
+| 2026-09-23 | 同上 | 同上 | `scripts/erp-pos-lab-masters-verify.py`、`erp-data-flow-lab-verify.py` | 均无 problems / `result: PASS` | 去掉开票前检查后客户主档仍全通过；采购→销售→库存→收银联动未破 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表（8 列 + 搜索 + 过滤 + 导出菜单 + 选择删草稿 + 收款行内动作）→ 新建（上传识别/手动录入卡片、默认隐藏字段）→ 手动录入 → 提交 | 记录 `SD-00204`：`submitted`、`system_no SI2569-000001`、`summary` 有值、明细 2 盒 × 100、含税 214、已收款 214/现金、`stock_posted_at` 有值、库存 3→1；列表与详情按新交互显示 | 浏览器层通过（默认 919px 桌面视口） |
+| 2026-09-23 | 同上 | 同上 | 详情页真实上传私有 PNG → 查看器与附件清单；收款弹窗改「已付款」并提交；过滤「未收款」→ 0 条、重置 → 1 条；390×844 视口 | 附件为私有且挂在 `SD-00204`；预览画布可见并加载图片（600px 宽）；收款回到「已付款 / THB 214 / 现金」；过滤与重置符合预期；手机单列、滚动定位导航（附件/详细信息/物料）高亮跟随、无横向溢出 | 浏览器层通过；上传与查看器走真实私有文件；真机未测 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 采购页 | 打开 `/desk/pearnly-purchase` | 标题「采购记录」、20 / 73 行、按钮齐全、无报错 | 未破坏采购交互（本次只动 core 的命名空间白名单与销售页登记位置） |
+| 2026-09-23 | F1 改动（未提交时） | 宿主 | `tests/test_erp_portal_access.py` / `check-architecture.py` / `i18n-build.py --check` / `node --check sales-fields.js` | 102 条（96 通过 / 6 跳过）、`PASS (0 violations)`、`RESULT: PASS`（erp 619 条）、JS OK | 契约与边界未被本次改动破坏；术语表 +1 条已同步生成包 |
+| 2026-09-23 | 同上 | 宿主 | `python3 scripts/check-i18n.py --strict` | `FAIL`：bare CJK 18 处，全在 `inventory/workbook.py`（另有 95 处内部日志用中文，与基线同类） | 与基线一致；本次只在 `sales-fields.js` 去掉一个英文字面量，没有新增 bare CJK，未改忽略规则 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `./env/bin/python /workspace/scripts/erp-pos-lab-sales-verify.py`（`PEARNLY_ERP_POS_LAB=1`） | `problems: {}` / 0 | 新增断言全过：草稿本人可删、删除后记录不存在；员工（无销售岗位）与其他岗位删不动；已作废与已落定的删除被拒；`frappe.has_permission(...,"delete")` 对销售角色仍为 False（框架那一位没放开） |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表选中合成草稿 `SD-00206` → 主按钮「删除 (1)」→ 确认「是」 | 不再报权限错；行消失，列表只剩 `SI2569-000001`（`SD-00204`） | 服务端回读：`ERP Sales Document` 只剩 `SD-00204`；无权限弹窗；`SD-00206` 是上一窗口为这次检查建的合成草稿 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 新建页（手动录入）与 `SD-00204` 详情页逐项扫「System number / Add VAT / Customer / Discount Total / Attachment Gallery」 | 两页**都没有**上述英文原文；分组标题为「客户名称」、税费区为「折扣总额」，列表 8 列与其他标签全中文 | 界面文案已收干净；`Attachment Gallery` 是字段类型标签，页面上不渲染 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 列表行内动作「未付」→ 收款弹窗 | 弹窗原生「收款」，字段 收款状态/已收金额/收款方式/收款日期 全中文；因应收 214，默认值为 收款 / 214.00 / 现金 / 当天 | 行内动作按状态给标签（已付款的行显示「未付」，反之显示「已付款」） |
+| 2026-09-23 | 同上 | 同上 | 同一弹窗上误按回车触发提交 | 记录变成「未付」、行内动作翻成「已付款」 | 顺带证明弹窗提交这条路真的会写库；随后用 `entry.payment('SD-00204', amount=214, method='cash', date='2026-09-22')` 恢复，回读 `paid_amount 214 / payment_status paid / payment_method cash / payment_date 2026-09-22 / status submitted`，与原样一致 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147，视口 390×844 | 新建页（手动录入）单列与滚动定位 | `scrollWidth == innerWidth == 390`（无横向溢出），滚动定位导航为「附件 / 详细信息 / 物料」，标签全中文，折扣总额正常显示 | 手机宽度回归本次未破；随后已把视口复位；真机仍未测 |
+| 2026-09-23 | F2 改动（未提交时） | 内嵌浏览器 / 演示站 8147 | 用真实接口造一条销售方向待处理草稿 → 列表出现「LINE」→ `/desk/pearnly-sales/intakes` → 打开该草稿 → 行内「取消」并填原因 | 列表出现 LINE 按钮；待处理页原生列表（编号/创建日期/用户/备注，中文）；打开后进「新建销售单」并带 `source=line` 与附件；取消弹窗（取消原因 + 确认）提交后 `status=discarded`、原因留痕、页面回列表；删掉该草稿后 LINE 按钮消失 | 三层都通过（页面 / 交互 / 服务端回读）；该草稿是本次造的，已删除；页面上查看器对这条 1×1 合成图显示「无法加载预览」是服务端重编码该图为无效 PNG 所致（原图 `naturalWidth=1` 能加载），不是页面问题 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `PEARNLY_ERP_POS_LAB_SITE=erp-pos-b.localhost ./env/bin/python /workspace/scripts/erp-pos-lab-intake-verify.py` | 仍有 problems（采购方向缺 `doc_no`、员工被 owner 范围拦住、隔离断言受演示站遗留影响）；销售方向在改 `receipt` 后单跑成功 | 见 F2：本探针只修了 D1 遗留那一处，其余两处不是销售域的；**没有**据此声称 LINE 切片全通过 |
+| 2026-09-23 | F3 改动（未提交时） | 宿主 | `node --check sales*.js purchase*.js product.js` / `check-architecture.py` / `i18n-build.py --check` | JS OK / `PASS (0 violations)` / `RESULT: PASS`（erp 619 条） | 新引用的文案（Grand Total / Outstanding Amount / Payment / Collection）都已在术语表里，没有新增英文原文 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147（改动前后同一场景） | 打开收款/付款弹窗 → 点开方式下拉 → 取「提交」按钮中心那个点问它是谁 | **改前**：1440/1100/768/600/390 五个宽度全部命中下拉里的 `LI`（按钮点不到）；**改后**：同样操作全部命中 `BUTTON`（可点） | F3 原因一，改前改后各量一次 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 采购列表：`PE2569-000070`（未付）与 `PE2569-000069`（部分付款）行 | 「未付 / 部分付款」两个字变红（`rgb(204,41,41)` = 框架 `--red-600`），行内有「付款」按钮；15 个欠钱单元格全在列，已付款行不标红 | 与差异看板同一个红；颜色走 `cell_class`，没有往列表里塞 HTML |
+| 2026-09-23 | 同上 | 同上 | 采购行内「付款」→ 弹窗（付款金额 104.00 / 现金 / 记账日期 / 备注）→ 金额改 50 → 提交 | 记录 `PUR-2026-00190` 回读 `paid_amount 50 / net_payable 104 / payment_status partial`；行内仍是「付款」 | 用户要求「输入金额试试」这一条，服务端回读为证；随后已把该样本改回未付 |
+| 2026-09-23 | 同上 | 同上 | 销售行内「收款」→ 弹窗（已收金额 214.00 / 现金 / 收款日期）→ 提交 | `SD-00204` 回读 `paid 214 / paid / submitted`，列表行**不再有按钮**、状态不标红 | 收款/付款两边都真的写库 |
+| 2026-09-23 | 同上 | 同上 | 已付清的销售单详情页与未付清的采购单详情页 | 销售已付清：主按钮区没有「收款」（只有菜单里的「取消」）；采购未付清：仍有「付款」 | 详情页与列表同一口径（已付已收不可更改） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `./env/bin/python /workspace/scripts/erp-pos-lab-sales-verify.py` | `problems: {}` / 0 | 本次只改前端与共享皮肤，服务端契约未动；探针仍全绿 |
+| 2026-09-23 | F4 改动（未提交时） | 宿主 | `check-architecture.py` | `PASS (0 violations)` | 共享冲销入口的改动没有越界 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `erp-pos-lab-sales-verify.py` | `problems: {}`；新断言 `void_movement_doc_no = SI2569-000025`、`void_movement_matches_number = true` | 销售作废的冲销行带的**就是本单的号**，不是内部名 |
+| 2026-09-23 | 同上 | 同上（直接验，因为库存探针已跑不起来，见 F4） | 建入库单 → 提交 → 作废，回读冲销行 | 入库单号 `IR2569-000001`，冲销行 `doc_no = IR2569-000001`、`movement_type = adjust`、`qty_base = -3` | 入库/出库这条冲销路径也带号；采购（两处）与收银退货走的是同一个函数 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 库存页搜「ข้าวหอมมะลิ」→ 打开明细弹窗；收发存选中该商品 → 查看流水 | 明细弹窗「关联单据」列：`IR2569-000003 / IR2569-000009 / SI2569-000004 / … / SI2569-000021`，**作废那条显示 `SI2569-000023`**（修复前显示 `SD-00286`）；收发存明细页同样每一行都是单据号，作废行显示 `SI2569-000023`（+2）与 `IR2569-000003`（-150） | 用户报的"单号显示不对"在两层界面都已修正；日期列在窄弹窗里显示截断是列宽，不是数据 |
+| 2026-09-23 | F5 演示样本（未提交时） | 内嵌浏览器 / 演示站 8147 | 销售列表首屏 | 表头 `20 / 23`；行内 6 个「收款」按钮、8 个红色未收/部分状态；点「筛选」选未付得 `9 / 9` 且状态只有未付与部分付款 | 样本按真实接口生成，列表/筛选/颜色都能看到效果 |
+| 2026-09-23 | F14 改动（未提交时） | 宿主，无 Site | `python3 tests/test_erp_tax_lookup.py` | 11 条 **OK** / 0 | 夹具是 2026-09-23 从 `rdws.rd.go.th` 抓的真实响应（税号 `0105546015062`）：抬头、门牌、区、省、邮编、VAT 首次登记日逐项断言；另断言 `anyType` 包装不进字段表、`-` 当空、乱响应返回空 |
+| 2026-09-23 | 同上 | 宿主 | `tests/test_erp_portal_access.py` / `check-architecture.py` / `i18n-build.py --check` / `node --check suppliers.js clients.js` | 102 条（96 通过 / 6 跳过）、`PASS (0 violations)`、`RESULT: PASS`（erp 692 条）、JS OK / 全 0 | 契约与边界未被破坏；新命名空间走的是既有白名单 |
+| 2026-09-23 | 同上 | 宿主 | `python3 scripts/check-i18n.py --strict` | `FAIL`，但 `py-bare-cjk` **18** 条、合计 **113** 条，与基线**逐项相同**；新增文件一条没有 | 与基线一致，未改忽略规则、未删断言 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab`，A + B | `bench --site erp-pos-{a,b}.localhost migrate` | 退出码 0；回读 `show columns from \`tabERP Tax Lookup Cache\`` 得到 tax_id/branch_no/service/is_success/error_msg/fetched_at/expires_at/payload | 缓存表按原生迁移建好（第一次 migrate 报 `ImportError`：DocType 缺同名控制器 `.py`，补上后通过） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-a.localhost` 服务端 | `bench execute pearnly_erp_portal.masters.rd.lookup`（税号 `123` 与 `0105546015062`） | `{"ok": false, "error": "invalid_format"}` / `{"ok": false, "error": "rd_unreachable"}` | 格式闸在打接口之前；**容器出不了外网**，失败只回原因、不抛异常 |
+| 2026-09-23 | 同上 | **宿主**直连真实接口（`urllib`，超时 10s，走 `rd_contracts` 的模板与解析） | VAT + TIN 两个服务 | VAT：`บริษัท ซินเซียร์ไอซ์ จำกัด`、`14 รามคำแหง 189 มีนบุรี มีนบุรี กรุงเทพมหานคร 10510`、省 `กรุงเทพมหานคร`、邮编 `10510`、VAT 登记日 `2546-02-14`；TIN：`valid/exists = true` | 解析层对**活着的**线上接口成立（含省与区 —— 旧线上那套只认 `*Name` 的写法在这里会丢；同一次抓下来的响应就是测试夹具） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` 隔离检查站 | `PEARNLY_ERP_POS_LAB_SITE=erp-pos-b.localhost ./env/bin/python /workspace/scripts/erp-pos-lab-masters-verify.py` | `problems: {}`；新断言：`tax_cache_doctype true` / `denied_for_cashier true` / `denied_for_outsider true` / `bad_format "invalid_format"` / `allowed_for_sales true` / `allowed_for_purchase true` / `first_is_fresh true` / `cached_second_time true` / `http_calls 1` / `cache_rows 1` / `offline_raised false` / `offline_error "rd_unreachable"` / `other_site_tax_cache_rows 0` / `cache_rows_left 0` | 站点里的整条链路：真实响应→缓存 DocType→第二次命中缓存**只打一次外部接口**；岗位边界（收银与无岗位被 `PermissionError` 拒）；连不上不抛异常；缓存不外漏到另一站点；跑完自己删掉缓存行 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-b.localhost` | `./env/bin/python /workspace/scripts/erp-pos-lab-sales-verify.py` | `problems: {}` / 0 | 本次只加主数据与前端，销售域未被带动破坏 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 / 客户页 | 点表头「全选」→ 主按钮 → 再全选 → 主按钮 | 7 行全勾、主按钮变「停用 7」；点下去提示「已更新 7 位客户」、7 行标「已停用」、选择清空、主按钮回「新建客户」；再全选时按钮已读成「启用 7」，点完 7 行恢复；服务端回读 7 位 `is_active=1` | 全选/批量**真的写库**且能来回；窗口内的截图另存于本窗口对话，仓库不留图 |
+| 2026-09-23 | 同上 | 同上 / 供应商页 | 勾前 2 行 → 「停用 2」→ 再勾 → 「启用 2」 | 提示「已更新 2 家供应商」、两行标「已停用」→ 恢复；主按钮回到「新建供应商」 | 部分选择与全选走同一条路径；演示站的 36 家供应商已全部回到启用 |
+| 2026-09-23 | 同上 | 同上 / 两个弹窗 | 客户弹窗「查询」：空税号 / `123` / 真税号 `0105546015062` | 依次弹「请先填税号」/「税号必须是 13 位数字」/「现在连不上税务局」；三种都在**不改动弹窗**的前提下返回（弹窗不关、字段不丢、主按钮可用、遮罩已释放） | 提示能说人话（分别对应前端闸、`invalid_format`、`rd_unreachable`）；供应商弹窗点「查询」同样得到「现在连不上税务局」 |
+| 2026-09-23 | 同上 | 同上 / 客户弹窗 | 客户类型切「个人」→ 切回「公司」 | 切到个人：`查询` 那一格 `display: none`；切回公司：重新出现 | `depends_on` 生效（个人/外国人没有 RD 登记） |
+
+| 截图证据（F14，桌面视口） |
+| --- |
+| 客户页全选后：表头全选框勾上、7 行全勾、右上角主按钮「停用 7」；弹窗「查询」按钮在税号与地址之间；提示框为原生「信息 / 现在连不上税务局」 |
+| 2026-09-23 | F15 改动（未提交时） | 内嵌浏览器 / 演示站 8147 | 采购列表量 `20 / 73` 那一格（改前 → 改后） | 改前：`--pearnly-actions-width` 43px、计数格 **33×42**（两行，与用户截图一致）；改后：同一格 **47×21**（一行） | 与用户那张图同一页同一位置，改前改后各量一次 |
+| 2026-09-23 | 同上 | 同上 | 12 个页面逐个量计数格高度（物料 / 库存 / 入库 / 出库 / 收发存 / 盘点 / 采购记录 / 供应商 / 销售记录 / 收银 / 客户 / 首页） | 除收银（0/0、无行内动作）与首页（无列表）外**全部 h=21**（一行） | "所有页排查"这一条，逐页量过 |
+| 2026-09-23 | 同上 | 同上 / 视口 414×844 | 采购列表计数格 | 窄屏下框架把 `.list-count` 设成 `display: contents`（`headerRight` 60.8px），文字**仍在一行** | 窄屏是另一套规则（`@media max-width:991px`），单独验过一次；验完已把视口复位 |
+| 2026-09-23 | 同上 | 同上 | 物料 / 供应商 / 客户三页的状态列 | 三页正常行都显示「**正常**」（改前：物料显示「激活」、供应商/客户是空白） | 同一概念三页同一说法 |
+| 2026-09-23 | 同上 | 同上 / 客户页 | 勾 1 行 →「停用 1」→ 再「启用 1」 | 状态格 `正常` → `已停用` → `正常`，提示条「已更新 1 位客户」；回读 `is_active=1` | "状态联动停用与正常"这一条 |
+| 2026-09-23 | 同上 | 同上 / 供应商弹窗 | 打开演示供应商 → 点「保存」（未改动任何字段） | 提示条「**已保存**」；`#sound-submit` `paused=false`、`currentTime` 96→722ms | 提示 + 音效都发生 |
+| 2026-09-23 | 同上 | 同上 / 销售列表 | `SI2569-000010`（未付）行内「收款」→ 弹窗默认 1,078.56 → 提交 | 提示条「**已收款 THB 1,078.56**」；音效走到 882ms（文件长度）才停；列表行变已付款、不再给收款入口 | 主按动作的回音（销售侧）；随后已用同一条服务路径 `entry.payment("SD-00255", paid=0)` 改回未付，回读 `unpaid / 0 / 方法日期备注全 NULL` |
+| 2026-09-23 | 同上 | 同上 / 采购列表 | `PE2569-000070`（未付）行内「付款」→ 弹窗默认 104.00（正好是欠款）→ 提交 | 提示条「**已付款 THB 104**」+ 音效；随后 `purchasing.service.set_payment_status("PUR-2026-00190", "unpaid")` 改回，回读 `unpaid / paid_amount 0`（与开工时一致） | 主按动作的回音（采购侧） |
+| 2026-09-23 | 同上 | 同上 + `bench console`（造夹具，非界面） | 造一条合成草稿 `SD-00484`（owner 改成登录用户）→ 列表勾选 →「删除 (1)」→「是」 | 提示条「**已删除 1**」+ 音效（0→874ms）；回读该单 `count=0`，销售单据回到 `submitted 22 / void 1`（与开工时一致） | 删除草稿的回音；夹具自清，演示站不留痕 |
+| 2026-09-23 | 同上 | 宿主 | `check-architecture.py` / `i18n-build.py --check` / `tests/test_erp_portal_access.py` / `node --check`（7 个改动过的 JS） | `PASS (0 violations)` / `RESULT: PASS`（erp 700 条）/ 102 条 OK（6 跳过）/ JS 全 OK | 本次只动前端与皮肤，服务端契约未动 |
+| 2026-09-23 | 同上 | 宿主 | `check-i18n.py --strict` | `FAIL`，但 `py-bare-cjk` **18**、合计 **113**，与基线**逐项相同** | 未新增未登记文案，未改忽略规则 |
+| 2026-09-23 | F16 改动（未提交时） | 宿主 | `check-architecture.py` / `i18n-build.py --check` / `tests/test_erp_portal_access.py` / `node --check product.js cashier.js` | `PASS (0 violations)` / `RESULT: PASS`（erp 730 条）/ 102 条 OK（6 跳过）/ JS OK | 本次只动前端与皮肤，服务端契约未动 |
+| 2026-09-23 | 同上 | 宿主 | `check-i18n.py --strict` | `FAIL`，`py-bare-cjk` 18 / 合计 113，与基线相同 | 同上 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 / **框架自带的文件管理器** `/desk/file` | 点「添加文件」→ 看上传框的按钮 | 改前（用户截图同一处）：我的设备 / 库 / 链接 / 摄像头 **4 颗**；改后：**我的设备 / 摄像头 2 颗** | 这一处的调用是 `new frappe.ui.FileUploader({folder})`（一个选项都没传）= 框架默认那条路；说明补丁盖住了我们自己改不到的地方 |
+| 2026-09-23 | 同上 | 同上 / 收银 POS | 打开页面 | 改前：主按钮「收银开单」带 `hide`（**点不到**）、当班小票的类型/状态是英文原文；改后：主按钮可见、列表为 销售 / 已完成，指示器「班次 2 · 应有现金 THB 1,039」 | 主按钮被列表清掉的问题（见 F16 第 1 条）同一处验完 |
+| 2026-09-23 | 同上 | 同上 / 收银 POS | 点「开班」→ 看默认值 → 备用金填 1,000 → 开班 | 收银台**默认带出 `TERM-00485`**；提示条「**已开班 · 班次 2**」+ 音效（0→882ms）；指示器变「班次 2 · 应有现金 THB 1,000」，主按钮变「收银开单」 | 开班这一路（含提示与音效） |
+| 2026-09-23 | 同上 | 同上 / 收银 POS | 点「交班」→ 读汇总 → 实点填 1,140 → 1,120 → 1,130 → 提交 | 汇总与后端逐项一致（笔数 2 / 毛额 214 / 退款 0 / 净额 214 / 现金 140 / 扫码 78 / 刷卡 0 / 转账 0 / 备用 1,000 / 找零 4 / 应有 1,136）；差额 1,140→**多钱 +4**、1,120→**短钱 −16**、两处都是 `rgb(204,41,41)`（框架 `--red-600`）；按 1,130 提交 → 提示「**已交班 · 差额 THB -6**」+ 音效；页面回「尚未开班 / 开班」 | 交班这一路（汇总、实时差额、标红、提示音效）一次走完；服务端回读 `closed / expected 1136 / counted 1130 / diff -6` |
+| 2026-09-23 | 同上 | 同上 / 收银 POS | 点「班次记录」 | 表头 班次编号/收银台/收银员/状态/开班时间/交班时间/备用现金/应有现金/实点现金/差额；两行数据（含刚交的 `SHIFT-2026-00486`，实点 1,130、差额 **THB -6 标红**）；收银员显示全名「采购验收」 | 第一次是**空表**（表头有一行没有）→ 查出是 `p.table` 在弹窗表单挂上文档之前构建（`styleEl.sheet` 为 null）→ 改用 `on_page_show` 后正常（见 F16 第 2 条） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-a.localhost`（服务端造样本，非界面） | `cashier.terminals.ensure_default` / `shifts.open_shift` / `cashier.sales.create_sale` | 终端 `TERM-00485`；班次 `SHIFT-2026-00486`（备用 1,000）+ 小票 `SALE-2026-00487`（136.00 现金、找零 4）与 `SALE-2026-00489`（78.00 扫码）；汇总 `expected_cash 1136` 与界面读到的**一致** | 演示样本走真实服务路径（销售 + 收款 + 出库三处联动），不是直接写库 |
+| 2026-09-23 | F17 改动（未提交时） | 宿主 | `check-architecture.py` / `tests/test_erp_portal_access.py` / `i18n-build.py --check` / `node --check stock-card.js cashier.js` | `PASS (0 violations)` / 102 条 OK（6 跳过）/ `RESULT: PASS`（erp 730 条）/ JS OK | 本次动的是取号调用与前端重取逻辑，服务端契约未改 |
+| 2026-09-23 | 同上 | 宿主 | `check-i18n.py --strict` | `FAIL`，`py-bare-cjk` 18 / 合计 113，与基线相同 | 未新增未登记文案 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / **隔离检查站** `erp-pos-b.localhost` | 服务端落一笔收银 + 一笔退货 | 收银 `receipt_no SI2569-000033`，流水 `doc_no SI2569-000033`（`sale_out`，-1）；退货 `SI2569-000034`，流水 `doc_no SI2569-000034`（`stock_in`，+1）；计数器 `sales-SI-2569` 从 33 → 35 | 与销售记录共用同一行计数器与行锁；退货也接在同一序列 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / 演示站 `erp-pos-a.localhost` | 服务端落一笔收银（`PRD-00220` × 2 @ 45，现金 100）→ 界面收银列表 → 收发存明细 | `receipt_no SI2569-000024`（**紧接销售记录的 `SI2569-000023`**）；界面列表显示 `SI2569-000024 · 销售 · 已完成 · THB 90`，历史三张仍是 `R…`；收发存 `ปลากระป๋อง ตราสามแม่ครัว` 明细第 9 行 = `SI2569-000024`（出库 2、结存 62），与 `IR…/AD…/SI…` 同一账；班次 2 汇总含这笔（应有现金 1,129） | 用户能看到的三层（列表 / 单号 / 账）都对上 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 | 收发存明细页：点日历把结束日期改成 `2026-09-10` | 改前：控制台 `ReferenceError: reload is not defined`、明细 9 条纹丝不动；改后：合计 **3 条明细**、期末 **276 / 3,588.00**、`SI2569-000024` 按日期被正确排除、无报错 | F17 第二节那个缺陷；顺带记了"改 Desk JS 要先 clear-cache 再重启 web，否则浏览器吃旧缓存" |
+
+| 2026-09-23 | F21 改动（未提交时） | 外部环境：`pearnly-ci-business-sample` / `business.localhost` / `127.0.0.1:8084`（`pearnly-erp` 自己的示例站，只用浏览器只读查看） | 登录 `owner@sample.localhost` → `/desk/point-of-sale` → 点商品卡 → 点购物车行 → 侧栏「收银记录」→ 全选 → 展开「操作 ▾」 | 收银台 = 卡片网格 + 购物车；点购物车行出「物料详细信息」面板且键盘这时才出现；`.number-pad`/`.item-details-container` 在 DOM 里；「收银记录」地址 = `/desk/sales-invoice/view/list?is_created_using_pos=1`；列表每行都有勾选框、全选后「已选 20 条记录」+「操作 ▾」13 项 | 回答"官方有没有单选多选"：有，而且是默认的（另附框架源码：`list_view.js` 里没有开关） |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147，13 个列表页逐个量 `.list-row-checkbox` / `.list-row` | 改前 / 改后各量一遍 | 改前：12 页勾选框数 = 行数；**收银记录 0/6、交班记录 0/2**；改后：收银记录 **6/6**、交班记录 **2/2**、盘点 10/10，其余 12 页一个没少 | 用户那条"列表都不加单选多选"落到具体页上就是这个范围 |
+| 2026-09-23 | 同上 | 同上 / 收银记录页 | 表头全选 → 点「作废选中的 6 张」→ 确认框点「否」 | 按钮文案 `作废选中的 6 张`；确认框「作废选中的 6 张单据并冲销对应库存变动？」（否/是）；点否后 6 行仍勾着、按钮可点；回读 `ERP Sale` 6 条全 `completed`（没误作废） | 真实动作 + 不误伤数据 |
+| 2026-09-23 | 同上 | 同上 / 交班记录页 | 全选 → 点「导出选中的 2 个班次」；宿主 `curl` 带会话取同一 URL；bench 里 openpyxl 读回 | 按钮文案 `导出选中的 2 个班次`；新标签 URL `…api_shifts_export?names=["SHIFT-2026-00492","SHIFT-2026-00486"]`；`HTTP 200 / application/octet-stream / 5375 字节`；表 `Shift Records` A1:J3 = 两行班次（00492 应有 1309/实点 1309/差额 0；00486 应有 1136/实点 1130/差额 -6） | 新的导出链路端到端可用；表头中英混排见 F21 第五节（与销售记录导出同形态） |
+| 2026-09-23 | 同上 | 同上 / LINE 待处理（销售向） | 服务路径造 2 条草稿 `LI-00501/502` → 页面全选 → 「取消选中的 2 条」→ 填原因 → 确认 | 改前该页无勾选框；改后 2/2 勾选框 + 按钮 `取消选中的 2 条`；提交后提示条「已取消 2 条」+ 列表「无数据」；回读两条 `discarded` 且 `discard_reason` 落库；随后连同 4 个附件文件删除，回读演示站 = 9 条草稿 + 18 个 intake 文件（与开工一致） | 批量取消真的写库且带原因；夹具自清 |
+| 2026-09-23 | 同上 | 同上 / 销售单详情 `SD-00204` | 打开带 1 个附件的销售单 | 附件区 1 行、`.list-row-checkbox` = **0**；整页勾选框 0 | 表单里的附件行明确不参与批量选择 |
+| 2026-09-23 | 同上 | 宿主 | `check-architecture.py` / `i18n-build.py --check` / `tests/test_erp_portal_access.py` / `check-i18n.py` / `node --check`（7 个 JS）/ `py_compile`（3 个 py） | `PASS (0 violations)` / `RESULT: PASS`（erp **757** 条）/ 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ JS 全 OK / PY OK | 只动前端、一个只读接口与术语表，服务端契约与权限口径未变 |
+
+| 2026-09-23 | F22 改动（未提交时） | 外部环境：`pearnly-ci-business-sample` / `business.localhost` / `127.0.0.1:8084`（读官方源码与样式表；固定视口 1440×900 逐块量盒子） | 登录 `owner@sample.localhost` → `/desk/point-of-sale` → 点商品 → 点购物车行 → 结账 → 最近订单 | app `1220×844.4`、10 列各 106.055、gap 15、padding 1%；商品区 711.4 / 购物车 469.2 / 段高 820；卡片 194=128+56；键盘只在选中行后出现（5 列）；结账后购物车 x=958.6 留左、收款面板 x=716.4 占右六列；最近订单左四列+汇总右六列 | 官方那套"位置尺寸与交互"的**基准值**，后面逐条对 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 / 新收银台 | 重写后按同一批动作走一遍（加商品 → 选行 → 键盘改数量 → 结账 → 收款键盘 → 完成订单 → 最近订单 → 交班弹窗） | 版式公式与官方一致（app 1109、列 95.18、商品区 646.1、购物车 425.7、段高=视口−5rem、卡片 194=128+56）；键盘高亮目标键后按 3 → 数量 3.000/行「3 件」/合计 THB 30 全跟着变；收款面板进右六列、购物车留最左；按 1、5 → 现金 15、合计标签变「找零 THB 5」；完成订单 → 提示「小票 SI2569-000028 · 找零 THB 0」+ 右半边换成本单汇总 | 界面与交互按官方复刻后逐条对上（截图另存于本窗口对话，仓库不留图） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / 演示站 `erp-pos-a.localhost` | 服界面上真卖一笔（`PRD-00224` × 2、现金 78）→ 服务端回读 | `SALE-2026-00507 / SI2569-000028 / completed / 78 / 78 / 找零 0`；流水 `SI2569-000028 · PRD-00224 · 2 · sale_out · WH-00003`；结存 53 → 51 | 新收银台 → 我们的销售/库存/收发存三处联动没断 |
+| 2026-09-23 | 同上 | 同上（自测用的那笔） | 先用 `PRD-00410`（库存 0）卖了一笔 `SI2569-000027` | 卖出后该商品结存变成 **-1** → 用服务路径作废该单（`void_sale(reason="自测：该商品本来没库存，作废还原")`）→ 结存回 **0**；单据留成 `void` | 自测数据自己收拾；留下一条作废单（下面的收尾里登记） |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / **隔离检查站** `erp-pos-b.localhost` | 新表写路径：`open_shift(balances={cash:300,card:100})` → 卖一笔现金 50+刷卡 20 → `close_shift(counted={cash:345,card:120})` | 开班后有四行对账；应有现金 **350**、刷卡 **120**；交班后差额现金 **−5**、刷卡 **0**；父字段 `expected_cash 350 / counted_cash 345 / cash_diff −5`；子表四行与算出来的一致 | 按支付方式对账的**写路径**在真站点跑通（不在演示站动用户那个开着的班） |
+| 2026-09-23 | 同上 | 同上 / 检查站上的老班次 | 直接读一个**本轮之前开的**班的汇总 | 返回一行现金 `opening 0 / expected 0 / counted None`（开着的班不报实点） | 老数据不会因为新子表变空白 |
+| 2026-09-23 | 同上 | 宿主 | `check-architecture.py` / `i18n-build.py --check` / `tests/test_erp_portal_access.py` / `check-i18n.py` / `node --check cashier.js` / 两站 `bench migrate` | `PASS (0 violations)` / `RESULT: PASS`（erp **777** 条）/ 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ JS OK / migrate 退出码 0 | 新 DocType 与新字段走原生迁移；未新增未登记文案 |
+
+| 2026-09-23 | F23 改动（未提交时） | `pearnly-purchase-lab` / 演示站 `erp-pos-a.localhost` + 检查站 `erp-pos-b.localhost` | 带会话真取四份导出件（销售 / 采购 / 交班 xlsx、库存 CSV），bench 里 openpyxl 读表头 | 销售 29 列全中文、**无重复表头**（改前两列都叫「客户名称」）；采购 48 列全中文、前两列由 `编号 / 编号` 变成 `编号 / 单据编号`；交班 10 列、库存 10 列全中文 | 用户口径"导出的报表术语表口径要统一"：导出件与页面用同一批词 |
+| 2026-09-23 | 同上 | 同上 / 演示站 8147（内嵌浏览器） | 员工页：重载 → 量行数与勾选框 → 添加员工 → 改名改岗 → 重置密码 → 停用 → 启用 | 改前 `1 / 8` 一行（框架 `uniqBy(d => d.name)` 把没有 `name` 的 8 行并成 1 行）；补 `name` 后 **8 行 / 8 勾选框 / `8 / 8`**；添加提示「已添加 自测临时员工」+ 提示音（882ms）；改名改岗「已保存」；重置密码「密码已更新」；停用后该行「已停用」标红、`login` **401**；启用后新密码 `login` **200** | 员工页整条闭环在界面走完，权限边界有服务端回读（`api_list_members` 403 / `api_sales_records` 200） |
+| 2026-09-23 | 同上 | 同上 / 演示站 8147 | 销售列表 / 采购列表 / 客户列表表头 + 销售新建弹窗字段标签 | 销售与采购首列都读「单据编号」（改前「编号」）；销售弹窗「单据编号 / 客户 / 客户名称 / 客户类型」；客户列表「客户名称 / 客户类型 / 税号 / 电话 / 地址 / 状态」不变 | 术语归一到页面可见层，不是只改词表 |
+| 2026-09-23 | 同上 | 宿主 + 两站 | `check-architecture.py` / `i18n-build.py --check` / `tests/test_erp_portal_access.py` / `check-i18n.py --strict` / `node --check`（3 个 JS）/ `py_compile`（5 个 py）/ 两站 `bench migrate` / 检查站三个探针 | `PASS (0 violations)` / `RESULT: PASS`（erp **809** 条）/ 102 条 OK（6 跳过）/ 合计 **113**（py-bare-cjk 18，与基线逐项相同）/ JS 与 PY OK / migrate 退出码 0 / 三个探针 `problems: {}` 与 `result: PASS` | 术语表、边界、权限契约、迁移与数据流都过了一遍；本次是导出措辞 + 员工页，不涉业务契约 |
+
+| 2026-09-23 | F24 改动（未提交时） | 演示站 `erp-pos-a.localhost`（内嵌浏览器）+ 两站服务端 | 收起态量左侧条目 → 点左下角那颗按钮 → 点「团队管理」/「个人信息」 → 再点一次收起 | 收起态：首页 + 三组（**无团队管理、无主数据组**）；点开后条目区正好 `个人信息 / 团队管理`；两者各自到 `/desk/pearnly-team`（页面 8 / 8 行）与 `/desk/user/…`，**侧栏都仍是产品那份**；再点一次画回原菜单 | 用户第二轮口径：点左下角 → 左侧只剩这两项（不是浮层） |
+| 2026-09-23 | 同上 | 演示站（服务端 + HTTP） | 用 ERP Sales 岗位建临时账号 → 登录 → 取 desk 页面里的 boot → 删账号 | `pearnly_user_menu: []`、`pearnly_pages` 无 `pearnly-team`；账号与 `Pearnly Session` 已删，员工名单回 8 人 | 非管理员连这一项都看不到（判据与页面准入同一条） |
+| 2026-09-23 | 同上 | 演示站（内嵌浏览器） | 进「侧栏排序」编辑态 → 点保存 → 再进一次点放弃 | 改前保存回"值无效"（编辑器只提交顶层项）、成功后子项会被画两遍；改后两条路都干净、分组不重复；测试写下的个人偏好行已删 | 这两处是改之前就有的毛病，这轮顺手修掉 |
+| 2026-09-23 | 同上 | 宿主 + 两站 | `check-architecture.py` / `i18n-build.py --check` / `check-frontend-i18n.py` / `tests/test_erp_portal_access.py` / `check-i18n.py --strict` / `node --check`（4 个 JS）/ `py_compile` / 两站 `clear-cache` + `ensure_navigation` | `PASS (0 violations)` / PASS（erp 809）/ 0 问题 / 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ JS 与 PY OK / 退出码 0 | 声明键、术语表、边界与权限契约都没破 |
+
+| 2026-09-23 | F25 改动（未提交时） | 演示站 `erp-pos-a.localhost`（内嵌浏览器）+ 检查站 `erp-pos-b.localhost`（探针） | 个人信息页字段只读态 → 团队页按钮/表头 → 编辑弹窗三类字段 → 三次岗位保存（改、原样、取消） | 用户名/邮箱只读、语言/时区/静音可改、「更改密码」出现；团队页按钮「添加用户」、整页无"员工"；弹窗里只有岗位可改；保存三次的结果分别是 `收银 · 采购`、原样保持、回到 `采购`，名单始终 `8 / 8` | 用户口径"不要出现员工" + "用户名和邮箱绑死、只能改密码"；顺带修掉"原样保存会丢岗位"的真 bug |
+| 2026-09-23 | 同上 | 检查站 `erp-pos-b.localhost` | `PEARNLY_ERP_POS_LAB=1 PEARNLY_ERP_POS_LAB_SITE=erp-pos-b.localhost python scripts/erp-pos-lab-team-verify.py` | `problems: {}`；新增断言 `resave_same_roles_kept = ["ERP Purchase"]` | 探针本身此前是坏的（`add_member` 缺初始密码），这轮补齐；隔离站上岗位保存不再丢 |
+| 2026-09-23 | 同上 | 宿主 + 两站 | `check-architecture.py` / `i18n-build.py --check` / `check-frontend-i18n.py` / `tests/test_erp_portal_access.py` / `check-i18n.py --strict` / `py_compile` / `node --check` / 两站 `ensure_profile_fields` + `clear-cache` | `PASS (0 violations)` / PASS（erp **815** 条）/ 0 问题 / 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ 语法全过 / Property Setter 回读 `read_only=1` | 术语表、边界、权限契约都没破；用户名只读那条落在站点上 |
+
+| 2026-09-23 | F26 改动（未提交时） | 宿主 + 两站 | `node --check company.js` / `py ast` / `check-architecture.py` / `i18n-build.py` + `--check` / `check-frontend-i18n.py` / `tests/test_erp_portal_access.py` / `check-i18n.py --strict` / `tests/test_native_desk_contract.py` / 两站 `clear-cache` + `ensure_navigation` + web 重启 | JS 与 PY 语法过 / `PASS (0 violations)` / PASS（erp **842** 条）/ 0 问题 / 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ 原生契约 18 条 2 失败 / 两站退出码 0 | 那个 2 失败**与基线相同**：我在 `/tmp` 用 `git worktree add --detach HEAD`（提交 `e2a331b`）跑同一支测试，基线是 17 条 4 失败（`save_sidebar_order` 那两条与本轮无关，是更早那批留下的加 `pages` 字段引起的）；本轮把产品清单 17→18、`available` 清单与真实一致两处**按现状对齐**（不是放宽断言），另加两条新断言：Desk 页面用到的文案命名空间必须都登记在 `browser_text.APP_BY_PREFIX`（`company.` 就是这么漏的）、`company/team/supplier/client/sales` 的键必须四语齐全 |
+| 2026-09-23 | 同上 | `pearnly-purchase-lab` / `erp-pos-a.localhost` | `bench execute pearnly_core.desk.navigation.user_menu` + `pearnly_erp_portal.masters.api.api_get_profile` | `[{route: pearnly-company, before_profile: true}, {route: pearnly-team, before_profile: false}]`；资料 = `CO-00552 Purchase Preview`、`can_write: true`、`can_lookup: true` | 菜单声明与资料接口的服务端回读 |
+| 2026-09-23 | 同上 | 内嵌浏览器 / 演示站 8147 | 菜单顺序与底色、页面标题、字段面、按钮 | 侧栏正好 `公司 / 个人信息 / 团队管理`，停在公司页时**公司**高亮、停在个人信息页时**个人信息**高亮；标题与面包屑都是「公司」；12 个字段标签全中文、**没有任何说明文案**；按钮 = 保存 + 查询 | 用户四条口径里的"只写公司""做在个人信息上方""不要傻逼文案"逐条对上 |
+| 2026-09-23 | 同上 | 同上 | 税号空着点「查询」→ 填 13 位再点 | 空着提示「请先填税号」；填了之后提示「现在连不上税务局」（本实验室容器出不了外网，税务局只在宿主上通）—— 失败分支正确、页面与字段不受影响，没有抛异常 | 回填分支在本环境**验不到**（同 F14 的限制）；接口本身在页面里直接调过：`{ok: false, error: "rd_unreachable"}` |
+| 2026-09-23 | 同上 | 同上 | 改备注 + 电话 → 保存 → 回读；再清空两格 → 保存 → 回读 | 第一次写进 `phone=021234567`、`note=F26 验证用…`；**改前**清空保存后回读还是老值（`get_values()` 丢空值）；**改后**清空保存回读 `NULL / NULL` | 顺带把税号也清回 `NULL`，记录回到开工原样（见收尾） |
+| 2026-09-23 | 同上 | 同上 | 静音开关两向（勾上 → 保存 → 读 boot 与 `<audio id="sound-submit">`；取消 → 保存 → 再读） | 勾上保存后 `boot.user.mute_sounds = 1` **当场生效**（不用刷新），`frappe.utils.play_sound("submit")` 后 `paused: true`（没响）；取消保存后 `= 0`，同一句 `play_sound` 后 `paused: false`、`currentTime` 走到 0.317（真响了） | 回答用户"那个静音是不是假的"：开关是真的，之前只是**要刷新才生效**；改完两向都即时 |
+| 2026-09-23 | 同上 | 同上 | 表单里实际提交的字段（页面控制台临时包一层 `frappe.call` 记录一次请求体） | `api_update_profile {"company_name":"Purchase Preview","tax_id":"…","fiscal_year_start_month":1,"note":"ZZZ-临时"}` —— **空格子不在里面**，这就是"清空不生效"的证据 | 定位手段只记录、不改行为；页面随后导航过，包的那层已不在 |
+
+| 2026-09-23 | F27 改动（未提交时） | `pearnly-purchase-lab` / `erp-pos-a.localhost`（内嵌浏览器 + CDP） | 读官方源码回答四个问题；改完看个人信息页与公司页 | 官方：`Company.is_group` + `parent_company`（树）、`Sales Invoice.company` = `Link→Company` **reqd=1**、`Fiscal Year` 是独立单据（`year/year_start_date/year_end_date/companies`）、`Document Naming Settings` 是单号那套；**公司上没有"单据前缀"也没有"财年起月"**。改后：个人信息页出现「公司名 = Purchase Preview / 您的访问域名 = http://erp-pos-a.localhost」两行（改前这两行被框架的 `hide_empty_read_only_fields` 藏掉了）；公司页字段 = 公司名称/简称/税号/查询/分支/电话/联系人/联系邮箱/PromptPay/地址/备注（**没有**单据前缀与财年起月），分区 = 公司信息 / 地址与备注 | 用户"官方有哪些"的口径逐条对过；"少一个域名显示"根因是官方那条"只读且空值就藏行"的规则 + 我们只在身份服务站点给值 |
+| 2026-09-23 | 同上 | 宿主 | `node tests/*.cjs`（10 支）/ `check-architecture.py` / `i18n-build.py` + `--check` / `check-frontend-i18n.py` / `tests/test_erp_portal_access.py` / `check-i18n.py` / `tests/test_native_desk_contract.py` | **10 支 JS 全绿**（改前 `test-native-desk` / `test-field-rows` / `test-stock-card` 三支从 F24 起整支加载即抛错）/ `PASS (0 violations)` / PASS（erp **839** 条）/ 0 问题 / 102 条 OK（6 跳过）/ 合计 **113**（与基线逐项相同）/ 2 失败（与基线同一批） | 三支 JS 测试只是假环境缺 `frappe.ui.Sidebar`（`0a9b21e` 引入），补上即恢复；顺带给"静音保存当场生效"加了断言。`tests/test_product_feature_catalog.py` 的 3 个 error 是**宿主 Python 3.9 跑 `dict | None` 注解**所致，与本次改动无关（容器里 3.11 正常） |
+
+| 层级 | 状态 | 依据与未覆盖项 |
+| --- | --- | --- |
+| 实现 | 已完成（去开票侧 + 销售前端与一次提交 + 删草稿授权与文案收尾 + 收款付款弹窗与状态口径 + 供应商/客户菜单 + **税号查税务局** + 两页**多选/全选** + **主按动作的提示与音效** + **状态列两态** + **表头计数折行** + **上传框去掉库/链接** + **POS 开班交班**） | 旧销售页残留的「收款状态/备注」等字段面与采购一致；未做修订（见上）；删草稿不带私有附件清理（见 F1）；界面上没有再改已收付金额的入口（见 F3）；税号查询只做了"查登记带回字段"，没有做"按登记反查该税号下有哪些单据"（旧线上也没有）；"取消/作废"与采购"代收据/预扣税凭证"两处提示只按同一条代码路径补上，**没有**在浏览器里逐个点（前者在演示站作废后不可撤销，后者会往单据上挂一个文件）；POS 只做了开班/交班/当班小票与班次记录，**没有**做收银台的收银员交接签字、验钞、多收银台切换、班次打印小票（用户口径是"简单的开班交班"） |
+| 本地验证 | 通过（离线 + 真实 Site + 桌面/414px 浏览器 + 真实私有附件 + 界面删草稿实删 + LINE 待处理页 + 收款付款真的写库 + 税号查询的缓存与岗位边界 + 批量启停真的写库 + 提示条与提示音逐条盯过 + POS 开班/交班/差额标红/班次记录在界面走完）+ 12 个列表页的计数格逐页量过 | 未覆盖：真机、真实付费识别（本环境无 OCR 凭据，识别走响应替身）、真实 LINE 发送（页面走真实接口造的草稿，不是 LINE 通道发来的）、生产部署、用户验收；LINE 草稿对员工角色不可见/不可确认（F2 第 3 条，归 intake 切片）；**浏览器里"点查询→字段被填上"这一步在本实验室验不到**（容器出不了外网，只验到失败分支），回填走的是本仓既有 `dialog.set_values`；"取消"与采购凭证那两处提示未在界面点过（见上）；**POS 的收款（收银开单）这一路本次没在界面点**（演示样本是走服务端服务路径造的），下次验收时可以顺手点一遍 |
+| 部署 | 未执行 | 本任务未获部署授权 |
+| 外部业务结果 | 未执行 | 不调用旧生产、不付费识别、不发 LINE |
+| 用户验收 | 未执行 | 采购与销售都未由用户验收，本记录不代签 |
+
+> F21 对上表的补充（2026-09-23）：「实现」再加一条 —— **列表勾选框按官方默认打开**（收银记录→批量作废、交班记录→导出选中、LINE 待处理→批量取消）；「本地验证」再加一条 —— 13 个列表页的勾选框逐页量过、交班记录导出取到真 xlsx（`HTTP 200`、openpyxl 读回两行班次）、LINE 批量取消真写库并带原因。
+
+> F22 的补充（2026-09-23）：「实现」再加 —— **收银台与交接班界面按 ERPNext 1:1 重做**（六块骨架 / 商品卡 / 明细面板 / 只在选中行出现的键盘与它的目标高亮 / 收款面板 + 3 列键盘 + 总计·付款·剩余·找零 / 最近订单与汇总 / 开班交班的按支付方式对账表 + 新子表 `ERP Shift Balance`）；「本地验证」再加 —— 官方基准值逐块对过（1440 视口）、演示站上真卖一笔联动到收发存、按支付方式的对账写路径在隔离检查站跑通、两站 migrate、离线四项检查。「用户验收」仍未执行；**开班弹窗与窄屏没在浏览器里点过/量过**（原因写在 F22 第四节）。
+
+> F23 的补充（2026-09-23）：「实现」再加 —— **导出件的术语口径统一**（术语表带 key 的词条按英文原文再落一行；服务端补按键取词的 `browser_text.label`；销售 / 采购 / 交班 / 库存四份导出件表头全中文且无重复列；采购列表与表单的「编号」统一成「单据编号」；`Customer`=客户、`Customer Name`=客户名称）+ **租户员工与权限页**（框架 `User`/`Role`、原生 MultiCheck 与 Password、添加 / 改名改岗 / 重置密码 / 停用启用 / 批量启停，页面文档在 core、渲染在 erp_portal）；「本地验证」再加 —— 四份导出件用真会话取回并在 bench 里读表头、员工页在浏览器里把添加→改→停用→启用走完、新账号真登录（停用 401 / 启用 200）与越权 403 回读、两个列表与销售弹窗的标签在页面上量过、两站 migrate、离线五项检查与检查站三个探针。**未验到**：真租户站（带身份服务）的建号与停用、员工页窄屏与真机、采购导出里 `override_*` 那三对同名列的措辞（留给用户定，见 F23 第六节）。
+
+> F24 的补充（2026-09-23）：「实现」再加 —— **「团队管理」从侧栏移进左下角那颗用户按钮**（产品在 `pearnly_navigation` 里声明 `user_menu`；点开时左侧条目区换成「个人信息 + 产品声明的项」，再点一次或换路由画回去；`My Profile`=个人信息）；顺带钉住三处脆弱点（被移出侧栏的页面会让框架把侧栏换成模块那份 → `Sidebar.setup()` 目标钉成产品自己那份；侧栏文档里的旧分组字段会让整条侧栏崩成一项 → 平铺项重写 `child/indent`；「侧栏排序」保存一直报"值无效"且保存后子项画两遍 → 铺平提交 + 保存后先 `prepare()`）。「本地验证」再加 —— 收起态与点开态逐项量过、两条入口的去向与侧栏都在浏览器里走过、非管理员账号的 boot 里没有这一项、侧栏排序保存与放弃两条路都干净、两站 `clear-cache` + `ensure_navigation`、离线五项检查。**未验到**：窄屏与折叠态下那两项的观感、真机（见 F24 第四节）。
+
+
+
+> F25 的补充（2026-09-23）：「实现」再加 —— **身份规则统一成"用户名/邮箱开户时发号、绑死租户，之后谁都不改，只能改自己的密码"**（core：用户名 DocType 级只读、删掉用户改名那条路、身份服务通道只剩语言、本地站点也能进改密页；ERP 团队页：文案改「用户/添加用户」、编辑只给改岗位；DMS：花名册的用户名改成只读、`save_credentials` 只收密码）；顺手修掉 `set_member_roles` "原样保存会把岗位点没"的真 bug（`held` 在摘角色之后才取）。「本地验证」再加 —— 个人信息页只读态与改密按钮、团队页文案与弹窗三类字段、三次岗位保存（改/原样/取消）都在浏览器里点过、检查站团队探针 `problems: {}`（探针此前是坏的，这轮补齐）、两站 `ensure_profile_fields` + `clear-cache`、离线五项检查。**未验到**：云站点走身份服务的改密与唯一性、DMS 界面（本机没有 DMS 站点）、前端 `vue-tsc`（依赖没装且本机 npm 坏了）—— 见 F25 第六节。
+
+> F58 的补充（2026-09-23）：「实现」再加 —— **收银台「结账」那一声改成官方同一声**（`cashier.js` 的
+> `checkout()`：`numpad-touch` → `click`，音量 0.05）；「本地验证」再加 —— 官方 8084 与演示站 8147
+> 各用同一套音频打桩量过：加购不响、点「结账」两边都播 `sound-click`@0.05、收款小键盘两边都播
+> `numpad-touch`@0.8，且我们站点那份 `numpad-touch.mp3` 与官方**同一个文件**（md5 一致）。
+> **未验到**：真机听感（内嵌浏览器没有音频输出可核对，量到的是"播放调用 + 节点 + 音量"）；上一轮 F57
+> 关于"官方点结账没音效"的结论已在 F57 处标注更正。见 F58。
+
+> F59 的补充（2026-09-23）：「实现」再加 —— **官方音效分工对齐**（保存类 18 处改 `click`、作废取消类
+> 4 处改 `cancel`、删除类 3 处改 `delete`、购物车小键盘去掉 `numpad-touch`）+ **18 条 ERP 英文提示与
+> 3 条 frappe 原生提示补进术语表**（中英泰日，泰语为准）并重新生成四个语言包。「本地验证」再加 ——
+> `--missing zh` 137→120、硬编码 170 条逐项不变、`i18n-build --check` PASS、前端取词 PASS、架构
+> PASS(0)、17 个 JS 语法 + 11 支 node 测试、演示站真实 `frappe._()` 中泰双语回读、浏览器打桩验音
+> （加购静音 / 键盘静音 / 结账 `click` / 收款键盘 `numpad-touch` / 供应商保存 `click`）。
+> **未验到**：泰语与日语措辞没有母语者复核（是我按术语表词根写的）；真机听感仍无法核实（量的是播放调用）。
+
+> F60 的补充（2026-09-23）：「实现」再加 —— **140 条 msgid 的四语译文**（124 条 DocType 字段
+> label/description + 10 条消息/界面串 + 6 条功能目录），只动术语表与生成包，没动业务代码；
+> 同时**更正 F59** 里"DMS/Cowork 把中文当 msgid"的说法（AST 复核 = 0 条）。「本地验证」再加 ——
+> `i18n-build --check` PASS、5 个 App 的 msgid × 运行时目录对账 **zh/th 缺 0**、检查器 `--missing zh`
+> 137→19（剩 19 条全是 frappe 自带词条）、硬编码 170 条不变、架构与前端取词 PASS、演示站
+> `frappe._()` 中泰回读。**未验到**：控制面/DMS/Cowork 的运行时（本机容器挂的是主仓，不是本工作树）。
+
+> F61 的补充（2026-09-23）：「实现」再加 —— **收银台「折扣」按官方改成原地输入**（点那颗虚线格子
+> 直接换成框架原生控件、聚焦、无弹窗；有值变绿虚线「附加项 7% 已应用折扣」、可再点改；>100% 弹
+> 官方那两句红提示并归零），并补 4 条词条（附加项/已应用折扣/无效折扣/折扣率不可超过100%，四语）。
+> 「本地验证」再加 —— 与官网站（8084）逐项对照 DOM 与计算样式：点开=原地输入框（同 placeholder、
+> 同去框、同聚焦）、填 7=绿虚线 + 合计 62→57.66、再点可改、填 150=红提示并归零、失焦也收得回去；
+> `i18n-build --check` / `check-frontend-i18n` / `check-architecture` / `check-i18n` / `node --check`
+> / 11 支 node 测试全过。**未验到**：真机与泰语母语观感；另记两个环境要点（新词条要重启 web 才进页面、
+> `?v=` 指纹在 hooks 导入时求值会滞后）—— 见 F61 第 ④ 节。
+
+## 收尾：交接保留
+
+- F59 在演示站的痕迹：**留着没恢复**（用户 2026-09-23 明确"本地的这些测试，可以不用恢复"）——
+  收银台开着的班 `SHIFT-2026-00635`（班次 13，`TERM-00485`）未交班；供应商 `SUP-00116` 被按过一次
+  「保存」（无字段改动）。要清就说一声（交班 + 把这条主档回读一遍即可）。
+- F58 在演示站与官网站点的痕迹：为量「结账」那一声，在 `TERM-00485` 上开过一次班
+  （`SHIFT-2026-00634`，21:57 开 / 21:58 交班，差额 0，回读 `closed`；接手前就开着的
+  `SHIFT-2026-00521` 没动）；官网站点 `business.localhost` 上那次点击真存出一张草稿
+  `ACC-SINV-2026-00032`（`docstatus 0`、THB 62），**已删**（回读 `remaining 0`）。浏览器里本次
+  打开的两个标签页已关，页面上的打桩只在会话内，标签页关闭即消失。
+- F56 在演示站的痕迹：为在真机上量「交班」那张对账表，在 `TERM-00485` 上开过一次班
+  （`SHIFT-2026-00627` 21:01、`SHIFT-2026-00628` 21:12），**两次都已交班关掉**，余额与差分回读为 0；
+  更早那条开着的 `SHIFT-2026-00521`（`TERM-00520`，05:28 开）是接手前就在的，没有动。
+  没有新建 / 删除任何主档或单据。
+- F28 在演示站**新增了一家真实公司** `Purchase Preview 2`（`CO-00553`，`is_default=0`，`is_active=1`）
+  —— 它是"一租户多公司"这次验收的样本（从界面「新建公司」建的），**保留**给你看；要清掉说一声。
+  `Purchase Preview`（`CO-00552`）仍是默认公司、也是当前公司；`User Permission` 表**没有新增任何行**
+  （隔离只在你给账号勾公司时才有行）。中途为验证切换过当前公司，最后一次是 `CO-00552`。
+- F28 的两站 `bench migrate` 落了新列（`ERP Warehouse` / `Purchase Document` / `ERP Sales Document`
+  的 `company`）与回填补丁；站点缓存已清、web 已重启。仓库里那两条"自由填写"的提示文案已从术语表删除。
+
+- F27 在演示站的痕迹：**没有动任何数据**（只读源码 + 改代码 + 浏览器看页面）。公司记录 `CO-00552` 仍是 F26 还原后的样子；`pearnly_company` / `pearnly_domain` 两格的值来自站点配置（`pearnly_company_name`、`get_url()`），没有写库。演示站浏览器最后停在个人信息页（用户当时在看的那一屏）。
+- F27 改了 `account/profile.py` 的一处**判据**（不再要求 `pearnly_native_account` 才发公司/域名），影响面是全产品站点的个人信息页：云站点上本来就是 `host_name` 的值，观感不变；本地/非身份服务站点从此也有这两行。要回退就是那一行。
+- F26 在演示站的痕迹**已还原**：公司记录 `CO-00552`（`Purchase Preview`）中途为验证写过 `phone=021234567`、`note=F26 验证用…`、`tax_id=0105546015062`，**都已清掉**，最后一次回读是 `company_name=Purchase Preview`、`fiscal_year_start_month=1`、其余字段 `NULL`（只有 `modified` 时间戳变了），与开工时 `api_get_profile` 的第一份回读逐字段一致。没有新建 / 删除任何公司，也没动默认公司标记。
+- F26 的静音开关：开工时数据库里就是 `mute_sounds=0`（上一条交接写的是"我留成开了"，实测不是 —— 以数据库为准）；本轮为验证勾上、取消各一次，**结束在 0**，与开工一致。`ERP Tax Lookup Cache` 回读 **0 行**（容器连不上税务局，失败分支按设计不写缓存）。
+- F26 的浏览器标签：最后一个标签停在 `/desk/pearnly-company`（用户当时正在看的那一屏）。为抓一次真实请求体，我在该标签的控制台里临时包了一层 `frappe.call`（只记录、不改行为），页面导航后包的那层已消失、没有其它改动留在页面上。
+- F26 为核对"测试文件在基线就是红的"，在 `/tmp/pearnly-baseline` 建过一个 `--detach` 的临时工作树（`git worktree add … HEAD`，提交 `e2a331b`），**已 `git worktree remove` 删掉**，本仓内没有残留引用。
+
+- F23 在演示站的痕迹：为验收「添加员工」这条闭环，从界面真建了一个临时账号 `selftest-browser@example.test`（自测临时员工 → 改名自测临时员工二，岗位收银 → 销售，走完改名/改岗/重置密码/停用/启用），**验完已删**（先删掉它自己的 `Pearnly Session`，再删 User；回读 `frappe.db.exists` 无、名单回到 8 人，与 F23 开工时一致）。**保留**：上一窗口留下的自测员工 `selftest-cashier@example.test`（显示名「自测销售员」，岗位 销售＋库存，启用中）—— 它是员工页的演示样本，要清就说一声。
+- F23 的术语改动是代码层（术语表 / DocType 标签 / 列表列名），随 `bench migrate` 落到站点，没有改任何业务数据；两个站点都已 migrate、缓存已清、web 已重启。
+- F24 在演示站的痕迹：为验"非管理员看不到这一项"建过一个临时账号 `selftest-menu@example.test`（ERP Sales），**验完已删**（连同它的 `Pearnly Session`，回读员工名单 8 人）；点「侧栏排序 → 保存」写下的个人偏好行（`DefaultValue`，值就是原顺序）**也已删掉**，回到开工时没有这行的状态。侧栏的改动是代码 + 站点文档（`ensure_navigation` 重写 `Workspace Sidebar`，把「团队管理」从分组里去掉），两站都跑过。
+- F25 在演示站的痕迹：为验"保存岗位"把夹具 `erp-pos-line-buyer@example.com` 的「采购」点没了一次（就是这一轮修掉的那个 bug），**已用同一条服务路径改回**，最后一次回读是 `ERP Purchase` + `Desk User`、该行显示「采购」，与开工一致；没有新建或删除任何账号。两站都跑过 `ensure_profile_fields`（用户名只读那条 Property Setter）与 `clear-cache`，web 已重启。
+- **本窗口自己的失误，如实记**：收尾跑回归探针时漏了 `PEARNLY_ERP_POS_LAB_SITE`，`scripts/erp-data-flow-lab-verify.py` 于是落在**演示站** `erp-pos-a.localhost`（它按 `SITE` 默认值取站点，只由 `.erp-pos-lab` 标记把关，不认"这是演示站"），在 `2026-09-23 05:28:46` 一口气造了一整套 `FLOW-` 夹具。
+  - **已收拾**：探针建的 3 个账号 `flow-purchase / flow-cashier / flow-sales@example.com` 已删除（先删各自的 `Pearnly Session`，再删 User），员工名单回读 **8 人**，与 F23 开工时一致。
+  - **未删（属数据删除，本任务没有自主授权）**：仓库 `WH-00510`（`FLOW-… 自填仓库`）、商品 `PRD-00509 / PRD-00536`、已过账盘点 `STC-00530`、已提交入库 `STE-2026-00534`、开着的班 `SHIFT-2026-00521`（收银员账号已随账号删除而消失）、已作废的 `PUR-2026-00511 / SD-00517 / SALE-2026-00522 / SALE-2026-00525 / STE-2026-00514`，以及它们带出的 16 条流水 `STM-2026-00512…00539`。清理路径已想清楚（`STE-2026-00534` 走入库作废、`STC-00530` 是已过账盘点、`WH-00510`/`PRD-0050x` 与流水互相引用），**等用户点头再做**。
+  - 教训记在这：跑 `scripts/erp-*-lab-verify.py` 一律显式带 `PEARNLY_ERP_POS_LAB_SITE=erp-pos-b.localhost`，否则默认值是**演示站**。
+
+- 保留：采购工作树 `/Users/skin/.codex/worktrees/erp-purchase-records/pearnly` 及分支 `codex/erp-purchase-records`（含采购成果与本次交接，未合并主线，作为销售基线与回退挂载来源）；销售工作树与本任务分支；`pearnly-purchase-lab` 六个容器、`sites`/`db` 卷、合成样本与私有附件（继续用于演示与验收）。解除条件为销售成果按授权集成、采购完成用户验收、且核验无挂载与独有提交。
+- 本次在演示站**删掉**了上一窗口为「删草稿」检查建的合成草稿 `SD-00206`（它没有附件，站内也不再有它的私有文件）；`SD-00204`（含私有附件）保留供用户与下一窗口看，状态已回读确认与原样一致（已收款 214 / 现金 / 2026-09-22）—— 中途为验 F3 改过（部分收款、全额、日期），最后一次已用同一条服务路径改回原值。
+- F3 期间在演示站改动过的采购样本 `PUR-2026-00190`（`PE2569-000070`）已改回未付（`paid 0 / is_paid 0 / unpaid`），与本次开工时一致；`PUR-2026-00183`（`PE2569-000066`）也在试弹窗时改过，同样已改回未付。
+- F5 的销售演示样本（6 客户 / 6 商品 / 6 张入库单 / 22 张销售单据 / 2 个私有附件）保留在演示站，供用户与下一窗口看；它们不是临时文件，按样本批次编号处理。用户在浏览器里看到的 `SD-0020x` 是内部名，界面用的是系统号（`SI2569-0000xx`）。
+- 误跑一次默认站是演示站的旧 LINE 探针（F2 第 4 条）之后，把它在演示站产生的 3 条草稿（`LI-00209/210/211`）与 6 个私有文件清掉；用于看 LINE 页面的 `LI-00212` 也连同 3 个文件删除。回读演示站：`ERP LINE Intake` 9 条（都是采购方向已确认的历史样本）、intake 文件 18 个、销售单据只有 `SD-00204`（附件 1 个）、销售方向待处理 0 条 —— 与本次开工时一致。
+- 原 stocktake / erp-pos / Cowork 工作树与容器归各自任务，本任务只读查看，未取得清理授权。
+- 本任务未创建远端分支；未创建临时夹具或额外服务。
+- F14 在演示站只做了**可逆**的批量启停（客户 7 位、供应商前 2 家）：两次方向相反的批量动作后已回读全部 `is_active=1`，与开工时一致；税号查询的演示缓存行没留下（容器连不上税务局，失败分支不写缓存），探针在 `erp-pos-b` 写的缓存行由探针自己删掉（`tax_cache_rows_left 0`）。浏览器会话已恢复到列表页、无弹窗、无选中。
+- F15 在演示站的改动**全部已还原**并回读确认：销售 `SD-00255` 回到 `unpaid / 0 / 方式日期备注全 NULL`；采购 `PUR-2026-00190` 回到 `unpaid / 0`；为"删草稿"检查造的合成草稿 `SD-00484` 已由界面删除，回读 `count=0`，销售单据回到 `submitted 22 / void 1`。为造夹具在 `bench console` 里临时改写过的 `owner`（那条草稿）随该单一起消失，没有其它记录被动过。浏览器视口已复位（414×844 → 默认）。
+- F16 在演示站**新增**了 POS 演示样本（1 个收银台 + 2 个班次 + 3 张小票，见 F16 第三节），并删掉自己误开的一个空班。用户点「交班」会作用在**班次 2**（开着、3 笔单、应有 1,039）—— 交完就成了一条真实记录，需要清掉时说一声。样本消耗的库存：`PRD-00219` 2 瓶、`PRD-00223` 1 包、`PRD-00224` 1 罐（都走出库流水，与销售记录一致）。
+- F17 在演示站又落了**一笔**收银小票（`SALE-2026-00495` / `SI2569-000024`，`PRD-00220` × 2、现金 100、找零 10），用来验证单号接在销售记录后面、以及收发存里带上同一个号；它在**班次 2** 里（该班现在 2 笔、应有现金 1,129）。要清掉说一声（作废会把库存还回去）。隔离检查站 `erp-pos-b` 上另有两笔验证单（`SALE-2026-00169` 销售 + 它的一笔退货），是检查站自己的数据。
+- F18 又在演示站的**班次 2** 里从界面上卖出一笔（`SALE-2026-00500` / `SI2569-000025`，`PRD-00220` × 1、现金 100、找零 55），用来验收银台整条链；同时把当天那两笔历史单号仍是 `R…` 的原样保留。演示站的班次 2 现在 3 笔（应有现金随交班界面实时算）。用户点「交班」后这些都会成为交班记录的一部分。
+- F21 在演示站的痕迹**已清干净**：为验 LINE 批量取消造的 2 条 sales 向草稿 `LI-00501 / LI-00502` 与它们的 4 个附件文件已删（回读 9 条草稿 / 18 个 intake 文件，与开工一致）；收银记录的批量作废只到确认框就点了「否」，`ERP Sale` 6 条仍是 `completed`。**另记**：演示站收银台现在是**班次 3**（`SHIFT-2026-00503`，开班 04:43、备用金 1,000），班次 2 已于 04:39 交班（实点 1309 = 应有 1309、差额 0）—— 这两步不是本窗口做的，按既有记录保留、未还原。
+- F22 在演示站留下的东西：新收银台照官方重做后从界面上真卖了 **1 笔**（`SALE-2026-00507` / `SI2569-000028`，`PRD-00224` ×2 @39、现金 78、找零 0，在班次 3 里，消耗库存 2 → 该商品结存 53 → 51）；另有 1 笔自测单 `SALE-2026-00504`（`SI2569-000027`，`PRD-00410` ×1）**已作废**（`void_reason="自测：该商品本来没库存，作废还原"`，库存回到 0，单据以 `void` 留痕）。这两笔都是真实业务记录，**没有删**；要清掉说一声（作废/删除都要走业务路径）。
+- F22 在**隔离检查站 `erp-pos-b`** 上新增：收银台 `TERM-00173`（自测用）、班次 `SHIFT-2026-00174`（已交班）、一笔 `SI2569-000035`（现金 50 + 刷卡 20）。它们只服务于"按支付方式对账"这条写路径的验证，站点本身就是检查站；要不要清掉由用户定。
+- F22 读官方源码时把 `apps/erpnext` 的 POS 源码与样式表复制到宿主 `/tmp/pos-official.<随机>/` 做只读比对，**没有进仓库**（容器里随时能再拷一份，属于可再生的临时件）。
+
+> **F28 续（2026-09-23）：Link 上的"新建 X"会把用户带去原生 Desk 表单（用户截图）。**
+>
+> 现象：入库/出库弹窗里点仓库下拉的「新建 ERP Warehouse」，会落到 `/desk/erp-warehouse/new-...`
+> 那一屏原生表单；公司那一屏（`/desk/erp-company/CO-00552`）同理会露出 `Document Prefix`、
+> `Fiscal Year Starts In`、`Default Company` 这些我们页面上已经没有的字段，标签还半中半英。
+>
+> 框架里能收掉它的**官方**开关有两个（`link.js` 那段）：`df.only_select`（不给"新建 X"）与
+> **`frappe.model.can_create(doctype)`**（没有 create 权限就不给）。本仓采购/销售明细的 Link
+> 早就在用 `only_select: true, no_create: true`，这轮把仓库那些（入库出库、盘点、盘点实际仓库、
+> 采购/销售明细行）与收银台的收银台选择一起补上 `only_select: true`。
+>
+> 还没做的（要用户点头）：① 我们自己的页面上**没有"新建仓库"的入口**，`only_select` 之后仓库只能
+> 在别处建（`api_create_warehouse` 有接口、没页面）—— 要么补一个产品内的仓库页/弹窗，要么放开
+> `can_create`；② 原生表单/列表本身怎么收拾：官方扩展点是 `doctype_js`（把字段顺序、只读、标签
+> 按产品口径定），加上把 `Document Prefix` / `Fiscal Year Starts In` 两列**真的 migrate 删掉**，
+> 这样万一进去了也不是半成品。
+
+### F29：公司 × 仓库的闭环（新建公司就带仓库，仓库是各处的共同锚点）（2026-09-23，未部署）
+
+用户口径：
+
+> "那我们在新建公司的时候就加新建仓库的入口吧，可以多仓库，建好后当前公司就固定默认这个仓库
+> 或者选择其它仓库，商品，出入库，库存，销售采购，pos 盘点，全部数据关联打通，形成闭环，怎么样？"
+
+**做法**（仓库是这一圈的中心：它属于公司，单据/结存/流水都按仓库记账）：
+
+| 环节 | 落点 |
+| --- | --- |
+| 新建公司 | 弹窗里多一节「仓库」（默认名「主仓」）；`create_company` 顺手 `warehouses.ensure_for_company()` 建好**第一家公司的默认仓**并返回 `warehouse`。没有仓库就入不了库、卖不了货，所以公司一建出来就带仓 |
+| 多仓 / 换默认仓 | 公司页新增一屏 `/desk/pearnly-company/warehouses`（原生列表）：仓库名称 / 默认仓库 / 状态 / 备注，行内「设为默认 / 停用」，主按钮「新建仓库」；`warehouses.set_default()` 保证**每家公司只有一条默认仓**（设新的自动摘旧的） |
+| 商品 | 商品表单与快录表里的「默认仓库」从自由填写改成**官方 Link**（只列当前公司的仓）；服务端只接受"存在且启用"的仓 |
+| 出入库 / 盘点 | 仓库一律 `warehouses.required()`：必须是这家公司真实存在的仓，否则**报错**（不再静默落到"没有仓库"上）；商品上那个默认仓指向别家公司或已停用时也会被拦下 |
+| 库存 / 收发存 | 结存与流水不加列，按"当前公司那几个仓库"过滤（`warehouses.scope_filter()`） |
+| 销售 / 采购 / POS | 单据挂公司、出库走**本公司**默认仓；收银台、班次按收银台的仓库收；销售记录/采购记录的列表与导出都按当前公司 |
+
+**验证**（演示站，浏览器 + 服务端回读）：
+
+| 步骤 | 结果 |
+| --- | --- |
+| 界面建公司「闭环验证公司」+ 仓库「中央仓」 | 新建成功后 `tabERP Warehouse` 多出 `WH-00555 中央仓 is_default=1`，挂在新公司下 |
+| 切到这家公司看入库单 | 仓库那一格是 `Link`，下拉只列 `WH-00555`（写着"已按 公司 等于 \"CO-00554\" 和 激活 已启用 过滤"），**没有「新建 ERP Warehouse」入口** |
+| 往 `WH-00555` 入库 3 件（`STE-2026-00556` / `IR2569-000021`） | 结存 `BAL-PRD-00220-WH-00555` = 3 |
+| 库存页 | 这家公司 `1 / 1`（只有那一条，在「中央仓」）；切回 `Purchase Preview` 仍是 `20 / 42`（原数据没被影响） |
+| 离线 | `check-architecture.py` PASS(0)、`i18n-build.py --check` PASS、`check-frontend-i18n.py` 0 问题、`tests/test_erp_portal_access.py` 102 条 OK（6 跳过）、改动 JS `node --check` 全过 |
+
+**没验到 / 仍缺**：
+
+- 销售/收银/盘点这三条**在浏览器里**没逐页点（它们与入库共用 `warehouses.required()` 与同一套公司过滤，
+  服务端已改，但没有逐页走一遍）。
+- 商品页的「默认仓库」下拉我改了字段类型与过滤，**没在浏览器点开看过**。
+- 产品内**没有**"仓库"独立页之外的仓库改名/迁移入口（改名会动历史单据上的仓库名，刻意没做）。
+- 演示站上留了两家验证公司（`Purchase Preview 2` = `CO-00553`、`闭环验证公司` = `CO-00554`，
+  后者含 `WH-00555` 与一笔入库 `STE-2026-00556`）—— **等你说清就说一声**（属数据删除）。
+
+### F30：收银台归属公司与仓库、开班下拉、以及照官方改的按钮与汇总屏（2026-09-23，未部署）
+
+用户口径：
+
+> "pos 开班，收银台哪里那个也会带到其它地方，那个收银台的定义是什么，收银台是按公司和仓库卖东西吗
+> pos 这边闭环了吗，还有就是收银台，选择商品物料后右下角那个按钮没选中应该是灰色，选中才显示颜色可按，
+> 收银和结束下一单时的界面和官方原生不一样"
+
+#### 一、收银台是什么（按官方 + 我们的现状）
+
+官方管这个的是 **POS Profile**：它同时带 `company` 与 `warehouse`（`pos_profile.json`）。我们的收银台
+（`ERP POS Terminal`）原先**只挂仓库**，公司是从仓库推出来的。这轮给它补了**必填 `company`**，
+并把"仓库必须属于同一家公司"写进控制器：
+
+> **收银台 = 某家公司的一台柜台，货从它指定的仓库出。** 每家公司各有一个默认收银台。
+> 链条是 公司 → 仓库 → 收银台 → 班次 → 小票 → 出库 → 结存/流水，一路都能追到"哪家公司、哪个仓"。
+
+`: 开班的收银台下拉现在只列**当前公司**的收银台（`p.terminal_query()`），并且**没有**「新建 ERP POS
+Terminal」那一项（`only_select`）；服务端 `terminals.resolve()` 也会拒别家公司的收银台。
+
+#### 二、右下角那颗按钮：官方**不置灰**（有证据）
+
+本机的 erpnext 源码里 POS 前端只有 502 字节占位（`point-of-sale.bundle.js`），所以我去了用户那台
+跑着的官方容器（`127.0.0.1:8084`），把它的**编译产物**拉下来读（`/assets/erpnext/dist/js/point-of-sale.bundle.USGGAUZO.js`）：
+
+| 事实 | 证据（官方原件） |
+| --- | --- |
+| 「结账」按钮常驻、空车也是亮的 | `make_cart_totals_section()` 里直接 append `<div class="checkout-btn">Checkout</div>`，没有任何 disabled 分支；实测空购物车时 `cursor: pointer`，点下去直接进收款面板 |
+| 「完成订单」也不置灰，点下去才校验 | 点击处理里：没有行 → `You cannot submit empty order.`；`paid_amount==0` 且不允许部分收款 → `You cannot submit the order without payment.`，两句都配 `play_sound("error")` |
+| 官方没有 `is-disabled` 这种类 | 在官方 bundle 里搜 `is-disabled` = 0 处 |
+
+所以这轮**照官方**改：结账按钮常驻（改前我们是"有货才显示"），完成订单按钮不再置灰，改成点下去给
+官方那两句提示 + 错误音。**如果用户仍要灰态**，那是一行 `toggleClass("disabled", ...)` 的事。
+
+#### 三、收银 / 结束下一单那两屏，照官方补的
+
+| 屏 | 官方结构（bundle 里的模板） | 我们这轮 |
+| --- | --- | --- |
+| 收款屏 | `payment-container`：左「付款方式」+ 右 `fields-section`/`number-pad`，下 `totals-section`，最底 `<div class="submit-order-btn">Complete Order</div>` | 我们的结构早就是这几块（F22 照抄的类名）；这轮只改按钮行为 |
+| 汇总屏（结束/下一单） | `past-order-summary`：`upper-section` + 三段 `Items / Totals / Payments` + `summary-btns`；按钮按官方 `get_condition_btn_map()`：**完成单后 = 打印小票 / 邮件小票 / 新订单**；已收款单再加「退货」；草稿才是「编辑 / 删除」 | 加了**「新订单」**（就是"下一单"这颗），退货/作废保留；**打印小票与邮件小票仍然没做**（F22 的产品口径：没有小票打印模板），位置上也不画 |
+
+#### 四、验证 / 未验证
+
+- 验证：`bench migrate` 两站通过、`v1_4_terminal_company` 把两台老收银台补上了公司（回读
+  `TERM-00485 / TERM-00520 → CO-00552`）；浏览器里开班弹窗的收银台下拉写着"已按 公司 等于
+  \"CO-00552\" 和 激活 已启用 过滤"且**没有新建入口**；空购物车时我们的结账按钮 `display:flex`、
+  `cursor:pointer`（与官方一致）；离线四项（架构 0 违规、术语 PASS、前端取词 0 问题、权限契约 102 条 OK）。
+- **未验证**：收银台管理页（产品内还没有这个页面，只有接口 `api_create_terminal`）；收银台 `company`
+  在**收银落单**那条路上的浏览器验收（服务端改了 `warehouses.required(company=…)`，没逐笔点）；
+  「新订单」按钮的浏览器点击；打印/邮件小票（没做）。
+
+### F31：照官方那四张截图对齐收银台（2026-09-23，未部署）
+
+用户贴了四张**官方**截图（空车 / 有货 / 收款屏 / 提交后汇总），说"以上是官方的"。逐屏比过之后：
+
+| 官方（截图 + 我从官方容器拉的编译产物） | 我们改前 | 这轮改成 |
+| --- | --- | --- |
+| 购物车小计：**总数量 / 净总计 / 总计** | 总件数 / 净额 / 应收金额 | 术语表按官方中文改：`Total Items`=总数量、`Net Total`=净总计、`Total`=总计 |
+| 购物车第一格是虚线**「折扣」**（点开填百分比） | 没有这一格 | 加了虚线「折扣」框（官方 `add-discount-wrapper` 同一位置、同一形状），点开用**原生 Dialog + Float** 填百分比；整单折扣真的生效（服务端 `sale_totals(discount_total=…)`，落单时带上） |
+| 空车时没有折扣那一格 | —— | 有货才显示（与官方截图一致） |
+| 收款屏底部三段：**总计 / 付款金额 / 剩余金额** | 总计 / 实收金额 / 剩余 | 术语表改成官方的付款金额（`Paid Amount`）；剩余金额本来就是同一句 |
+| 收款屏左侧那颗宽按钮是**「返回购物车」** | 回到购物车 | 改成返回购物车（官方 `Edit Cart` 的中文） |
+| 「结账」常驻（空车也亮）、「完成订单」不置灰 | 结账要有货才显示、完成订单会置灰 | 上一轮已按官方改成常驻 + 点击时校验（本轮复核仍在） |
+| 提交后汇总屏：三段 **商品 / 总计 / 收付款** + 按钮 **打印收据 / 邮件发送收据 / New Order** | 物料明细 / 总计 / 按收款方式 + 退货 / 作废 | 三段改官方中文；加了「新订单」与**「打印收据」**（走框架原生 `/printview`，官方出小票也是这条）、退货/作废保留；**邮件发送收据没做**（要站点 SMTP，演示站发不出去，不摆假按钮） |
+
+**验证**（演示站浏览器）：空车时 `折扣` 隐藏、`结账` 可见可点（`display:flex`），三格文案 总数量/净总计/总计；
+进收款屏后 `.payment-container .totals` = 「总计 THB 0 付款金额 THB 0 剩余金额 THB 0」，`完成订单` 按钮
+无 `disabled` 类；购物车那颗虚线「折扣」在有货时出现。离线四项照旧全过（架构 0 违规、术语 PASS、
+前端取词 0 问题、权限契约 102 条 OK）。
+
+**没验到**：折扣真落库这一条（点开对话框 → 填百分比 → 收款 → 回读 `discount_total`）只走到"打开与显示"，
+没有在浏览器把一单打完；「打印收据」没点开看渲染效果（框架默认打印格式，小票模板还没做）；
+「邮件发送收据」未实现。
+
+### F32：公司页重排（先列表、勾选才出动作、仓库独立成页）（2026-09-23，未部署）
+
+用户口径（两句连一起）："图一，点公司应该先显示列表；图二：设为当前 / 编辑 / 停用取消，单选或者多选
+右上角才显现按钮【停用】，（选中）停用状态（的行）显示【启用】，单击任意公司才是进入面包屑公司信息页；
+仓库单独拿出，放在公司下方，仓库做成单独页"。
+
+| 改的东西 | 现在长什么样 |
+| --- | --- |
+| 点侧栏「公司」 | **先看到公司列表**（`/desk/pearnly-company` 默认就是列表）：列 = 公司名称 / 简称 / 税号 / 电话 / 当前 / 状态 |
+| 行内动作 | **全部取消**。勾选（单选或多选）之后右上角才出现「停用 N」；选中的都是已停用行时按钮变成「启用 N」（共享层 `p.selection_action` 那一套） |
+| 单击任意一行 | 进**公司信息**：`/desk/pearnly-company/<公司名>`，面包屑「公司 / <公司名>」，字段与保存、税号查询都在那里；「设为当前」也挪到这一屏（只在不是当前公司时出现） |
+| 仓库 | 从公司页里**整个搬出去**，单独成页 `/desk/pearnly-warehouses`（侧栏在公司**下面**新增一项，icon `warehouse`）：列 仓库名称 / 默认仓库 / 状态 / 备注，行内「设为默认」，主按钮「新建仓库」，同样是勾选后批量停用/启用 |
+
+页面注册照旧：Page 文档在 core（`page/pearnly_warehouses/`），渲染在 ERP（`public/desk/warehouses.js`），
+`nav.warehouses` 的词写在 core 术语表，仓库那些词仍在 ERP 的 `company.*` 命名空间（所以这个页面注册也用
+`company.` 前缀）。
+
+**验证**（演示站浏览器）：`/desk/pearnly-company` 是列表（3/3 行、行内 0 个按钮、行名是链接）；表头全选后
+右上角主按钮变「**停用 3**」；单击 `Purchase Preview` 进 `/desk/pearnly-company/CO-00552`，面包屑
+「公司 / Purchase Preview」，字段 11 个 + 保存 + 查询；`/desk/pearnly-warehouses` 是独立页（列 = 仓库名称/
+默认仓库/状态/备注，行内「设为默认」）；账号菜单顺序 **公司 → 仓库 → 个人信息 → 团队管理**（仓库在公司下方）。
+离线：架构 PASS(0)、术语 PASS、前端取词 0 问题、权限契约 102 条 OK、原生契约 18 条 2 失败（那两个与基线同一批）。
+
+**没验到**：「启用 N」那一支（需要先有停用行）、批量停用的真实提交、新建仓库这一轮没再点（上一轮点过）。
+
+### F33：收银台「结账」的底色（有货才上色、上色才可点）（2026-09-23，未部署）
+
+用户口径："收银台，选择物料结账显示底色，我之前已经截图给你了" —— 对照他给的两张官方图：空车那张
+「结账」是白底、有货那张是**深底反白字**。
+
+**从官方容器里的编译产物读到的原始规则**（`point-of-sale.bundle.USGGAUZO.js`）：
+
+```js
+highlight_checkout_btn(e) {
+  if (e) { this.$add_discount_elem.css("display","flex");
+    this.$cart_container.find(".checkout-btn").css({"background-color":"var(--btn-primary)",
+      color:"var(--neutral)"}); }
+  else { this.$add_discount_elem.css("display","none");
+    this.$cart_container.find(".checkout-btn").css({"background-color":"var(--control-bg)", color:""}); }
+}
+// 点击闸：$(this).attr("style").indexOf("--btn-primary") != -1 &&（才进收款）
+```
+
+也就是说官方是**两件事绑在一起**：折扣那一格出现 ⟺ 结账按钮上主色底 ⟺ 才允许点。
+
+**我们改成同一套**：`paint_cart()` 里有货就把结账按钮的内联样式设成 `background-color: var(--btn-primary);
+color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内联样式里有没有 `--btn-primary`，
+没有就不响应。两个变量的官方定义也核过（`desk.bundle` 里 `:root` → `--btn-primary: var(--gray-900)`、
+`--neutral: var(--neutral-white)`；暗色主题翻转）—— 我们这套皮肤把 `--btn-primary` 映射成品牌紫，
+所以上色后是**品牌紫底 + 白字**（与官方"深底反白字"同一机制、只是用我们的强调色）。
+
+**验证**（演示站浏览器，同一页前后对比）：空车 `background-color: rgb(243,243,243)`（`--control-bg`）
+且内联样式是 `--control-bg`；选中一件物料后变 `rgb(124,77,255)`（品牌主色）+ `color: rgb(255,255,255)`；
+清空后再点它：`payment-container` 仍是 `display:none`（**空车点不动**，与官方那条闸一致）。
+
+### F34：汇总屏居中 + 主/次按钮底色分开（2026-09-23，未部署）
+
+用户口径："这一页要居中，和图二一样，主按钮和次按钮的底色区分"（图一我们的汇总屏：卡片贴在左边、
+四颗按钮都一样浅；图二官方：卡片居中、New Order 是实心底、打印/邮件是浅底）。
+
+| 官方原件 | 我们改成 |
+| --- | --- |
+| 汇总屏**单独显示**时 `this.$component.css("grid-column","span 10 / span 10")`；与最近订单并排时回到 `span 6 / span 6`（bundle 里读到的原文） | `paint_views()` 里按 `orders_shown` 设 `grid-column`：单独 = 十列，并排 = 六列 |
+| 汇总按钮都是 `btn btn-default`，但**最后一颗（New Order）是实心**（两张官方截图一致） | 给「新订单」一个 `.new-order-btn`：`background-color: var(--btn-primary)` + `color: var(--neutral)`（与「结账」同一对变量）；打印收据 / 退货退款 / 作废保持浅底 |
+
+**实测**（演示站浏览器，919px 视口）：并排时 `grid-column: span 6 / span 6`；单独时
+`span 10 / span 10`，量出来卡片（31rem = 496px）在宿主里**正好居中**（`cardCenterInHostOffset: 0`），
+宿主中心与窗口中心差 25px；按钮底色：新订单 `rgb(124,77,255)` + 白字，另外三颗透明底灰字
+（`rgb(82,82,82)`）。测量时为了量隐藏元素，我用 CDP 临时把它显示出来量完立刻还原（页面没留改动）。
+
+**顺带验到**：空单点「完成订单」给出官方那句「空单不能提交」提示（上一轮加的闸真的在跑）。
+
+### F35：收银台选客户（订单数据挂到客户身上）+ 汇总按钮的灰底与最右主按钮（2026-09-23，未部署）
+
+用户口径："这个要做，和客户的数据接通，订单数据全站接通"（图一是官方收银台那个客户搜索框）；
+"图二，我说了，次按钮是灰的，主按钮排最右边"。
+
+**客户**（照官方那一格做，按**名称 / 电话**搜 —— 用户又补了一句"只按名称和电话搜就好了，没有的不要做"）：
+
+| 层 | 改了什么 |
+| --- | --- |
+| 主档 | `ERP Customer` 的 `search_fields` = `customer_name,contact_phone`，`title_field` = `customer_name` —— 这是框架 Link 下拉**官方**那套搜索字段，所以按名称或电话都能搜到，不用我们写搜索接口 |
+| 单据 | `ERP Sale` 加 `customer`（Link → ERP Customer，可空 = 散客）；服务端 `create_sale(customer=…)` 会核"确实存在且启用着"，停用/不存在的客户直接拒 |
+| 收银台 | 购物车上方那一格放了一个**原生 Link** 控件（`only_select`，提示「按名称或电话搜」）；选谁这一单就挂谁，一直留着，清空 = 散客 |
+| 打通 | 汇总屏显示「客户: <抬头>」；**收银记录**列表新增「客户」列；`api_get_sale` / `api_list_sales` 都带 `customer_name`（内部 `CUS-#####` 换成抬头给人看） |
+
+**按钮**：次序改成 **次按钮在前、主按钮最右**（打印收据 / 退货退款 / 作废 / 新订单），次按钮统一
+**灰底**（`--control-bg`），主按钮仍是品牌实心 + 反白字。
+
+**验证**（演示站浏览器 + 服务端回读）：
+
+- 下拉搜索：搜「สยาม」「คุณสมชาย」命中客户抬头，搜「02-345」命中**电话** → 名称与电话两条路都通。
+- 真挂客户卖一单：`SALE-2026-00571` / `SI2569-000040`，回读 `customer=CUS-00215`、
+  `customer_name=ร้านอาหารคุณสมชาย`；`api_list_sales` 前三行第一行带抬头、后两行（没有客户）为空。
+- 汇总屏：「SI2569-000040 2026-09-23 15:05 **客户: ร้านอาหารคุณสมชาย** 收银员: 采购验收」。
+- 汇总按钮实测底色：打印收据 / 退货退款 / 作废 = `rgb(243,243,243)`（灰），新订单 = `rgb(124,77,255)`
+  （品牌实心）且排在**最后一个**。
+- 收银记录列：单据编号 / 日期 / 单据类型 / 状态 / **客户** / 总计 / 付款金额 / 班次编号；第一行显示
+  `ร้านอาหารคุณสมชาย`。
+- 离线：架构 PASS(0)、术语 PASS、前端取词 0 问题、权限契约 102 条 OK、10 支 JS 测试全过；两站 migrate + 清缓存。
+
+**没验到**：在收银台**界面里**选客户 → 结账 → 落库这条完整点击链（我是用同一条服务路径落的单，
+界面那一格只验到"渲染出来、能搜到"）；退货/作废时客户会不会跟着带过去（退货单目前不带客户）。
+
+**演示站新增**：`SALE-2026-00571`（挂客户 `CUS-00215`，THB 39，现金）—— 是这次的验证单，保留。
+
+### F36：搜索框与客户那一格照官方重做（读源码 + 官方站实测），空态与文案全站排查（2026-09-23，未部署）
+
+用户口径："那个搜索框和客户选择，我请你不要自己画了，你做的不对，官方不是这样的，请你去读源码，
+位置布局样式请你做成一模一样，空态按官方原生组件做，并检查其它空态是否正常，有没有出现语言文案
+混用的情况"。他附的那张截图里还露出**团队管理页整页白屏**（`Unable to load this page. Please reload.`）。
+
+**先把官方读清楚**（本轮的依据，不是照截图猜）：
+
+- 官方 POS 源码 `erpnext/selling/page/point_of_sale/`：`pos_item_selector.js`（搜索框 = Data 控件 +
+  `attach_clear_btn()` 补一颗 Clear；扫码靠 `onScan` 监听扫码枪）、`pos_item_cart.js`
+  （客户两态 `make_customer_selector()` / `update_customer_section()` / `reset_customer_selector()`）、
+  `point-of-sale.scss` 197-281（客户那一格的类名与尺寸）。
+- 官方站实测（`127.0.0.1:8084`，官方 ERPNext v16 容器，同一浏览器、同一尺寸量）：
+  1. 搜索框里那颗「扫描」**不是 ERPNext 画的**，是框架 `frappe/.../form/controls/data.js` 的
+     `setup_barcode_field()`：Data 控件带 `options: "Barcode"` 时自己挂第二颗 `.link-btn`
+     （`icon-scan-barcode`），点开的是官方 `frappe.ui.Scanner`，扫到的字 `set_value` 回填进本框；
+  2. 两颗 `.link-btn` 都在 `.control-input` 里、绝对定位在**同一处**（`right:4px`），后进的画在上面 ——
+     官方 DOM 顺序是 Clear 在前、扫描在后，所以露出来的是条码那颗；
+  3. `.customer-section` 是 `.customer-cart-container` 的**第一个直接子级**，与 `.cart-container` 平级。
+
+**改了什么**
+
+| 位置 | 之前（自己画的） | 现在（官方原件） |
+| --- | --- | --- |
+| 搜索框扫码 | 自己写 `<span class="scan-btn">` + 自己的 `p.scan()`（而 `p.scan` 早就没了 → 点下去直接报错） | `df.options = "Barcode"`，框架自己挂扫描按钮 + 官方 `frappe.ui.Scanner`；扫到唯一一条直接进购物车、一条都没有就橙色提示 + 出错音（官方 `onScan` 那段行为） |
+| Clear 小叉 | 自己写的 `.link-btn`，`append` 在最后 → 会盖住条码图标 | 照官方 `attach_clear_btn()` 的 HTML（含 `style="top:2px"`）用 `prepend` 放在扫描**前面**，与官方 DOM 顺序一致 |
+| 客户未选 | 自己画的圆角边框格 + FieldGroup（多包了 form/section/column 三层） | 官方 `.customer-field` + `frappe.ui.form.make_control`（Link → `ERP Customer`，`toggle_label(false)` 藏标签） |
+| 客户已选 | 自己画的 `.customer-card`（avatar / who / who-sub / clear-btn） | 官方 `.customer-details > .customer-display`：`.customer-image.customer-abbr` + `.customer-name` + `.customer-desc` + `.reset-customer-btn`（官方那颗 X 的 SVG 原件） |
+| 客户卡样式 | 自己写 border / padding / 圆角 | 官方 `.pos-card` 那一套（白底 + `--shadow-base` + `--border-radius-md` + `15px 20px`），逐条抄 scss 197-281 |
+
+**几何实测**（同一视口 1440×900，官方站 vs 我们站，逐项一致）：
+
+| 量什么 | 官方 | 我们 |
+| --- | --- | --- |
+| `.filter-section` | `x232 w711` | `x232 w711` |
+| 顶部标签 `.label` | `x252 w224` | `x252 w224` |
+| 搜索框 `.search-field` / 里面的 `input` | `x486 w260` | `x486 w260` |
+| 物料分组占位 `.item-group-field`（我们不做分组，只留位置） | `x756 w168` | `x756 w168` |
+| `.customer-section` / `.cart-container` | `x959 w469` | `x959 w469` |
+| 客户卡 `padding` / `border-radius` / `box-shadow` | `15px 20px` / `10px` / `0 0 1px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.1)` | 同 |
+| 客户卡里 `.customer-display` / 缩写圆 `.customer-image` / 叉 `.reset-customer-btn` | `[979,76,429,48]` / `[979,76,48,48]` / `[1376,84,32,32]` | 同 |
+| `.customer-abbr` 字号 / 底色 / 圆角 | `20px` / `rgb(243,243,243)` / `50%` | 同 |
+
+**行为实测**（演示站浏览器，真点击）：
+
+- 点搜索框里那颗扫码 → **真的弹官方扫码框**（标题「扫描二维码」，摄像头取景框亮起来；关掉后页面里
+  `video` 计数回 0）。
+- 客户框输入 `CUS-00215` → 出卡：缩写圆 `ร` + `ร้านอาหารคุณสมชาย` + `02-345-6789`，**没有**任何报错弹窗。
+- 点卡上那颗叉 → 回到搜索框、占位符「通过客户名称、电话进行搜索」、**焦点自动落回输入框**
+  （官方 `reset_customer_selector()` 的行为）。
+- 点「新单」→ 客户跟着清空（回散客）、购物车回空态。
+
+**顺手修掉的两个真问题**
+
+1. **团队管理页整页白屏**（用户截图里那句 `Unable to load this page. Please reload.`）：`team.js` 里
+   `company_label` 写成 `const`，而列表列在构造时就调它（`format` 在 `p.list()` 里立刻跑）→ 暂时性死区，
+   整页只剩那句报错。改成函数声明（提升）。浏览器复核：列 = 姓名/邮箱/功能权限/公司/状态/最后登录，报错消失。
+2. **客户框里还没落定的半截字会被当成客户画成卡**，并必弹一个「未找到」：官方取客户资料用的就是
+   `frappe.db.get_value("Customer", …)`（查不到返回空对象、不弹错），改成同一句；查不到不画卡、也不把
+   那个值带进单子（落单只认查得到的 `customer_picked`）。
+
+**空态与文案排查**（用户点名要看的那两件）
+
+- 购物车空态 = 官方 `.no-item-wrapper`（官方那套灰底居中块），文案用我们术语表的「购物车是空的」
+  （官方自己把 `Item Cart` 译成"购物车"、把 `No items in cart` 译成"物料车为空"，同一页里两处不一致；
+  我们统一说"购物车"）。
+- 最近订单空态：原来借框架的 `__("No Data")`（"无数据"），换成术语表新增的
+  `trade.receiptsEmpty`「No receipts in this shift / 当班暂无小票」，组件仍是官方 `.no-item-wrapper`。
+- 汇总屏空态 = 官方 `.no-summary-placeholder` + 我们那句「选择小票以加载汇总」。
+- 列表页空态走框架官方的 `frappe.views.ListView.prototype.get_no_result_message()`（`p.list` 里），不是自己画的。
+- 文案混用扫描：首页 / 物料 / 库存 / 入库 / 出库 / 收发存 / 盘点 / 采购 / 销售 / 收银 POS / 收银记录 /
+  交班记录 / 客户 / 供应商 / 公司 / 仓库 / 团队 逐页取"可见文本里的拉丁字母"，只命中**数据**
+  （客户名、地址、仓库名、公司名、单据号、条码）与既定说法（收银 POS、Excel 导入、SKU、THB）；
+  没有漏译的英文界面文案。框架自带的隐藏 `.tooltip-content`（官方页同样有，露出 `undefined`）
+  是假阳性，已排除。
+- 顺带删掉四个空置的术语键：`trade.scan`、`trade.scanUnsupported`、`trade.customerLabel`、`trade.customerClear`。
+
+**验证**：架构 PASS(0)；`i18n-build --check` PASS；`check-frontend-i18n` 0 问题；权限契约 102 条 OK
+（6 跳过）；`test_native_desk_contract` 18 条里 2 条失败 = 与基线同一批（没动）；10 支 JS 测试全过。
+演示站只清缓存 + 重启 web（Desk 脚本改动），没有 migrate、没有部署。
+
+**没验到**：真扫码枪/真摄像头扫一个码 → 落购物车这条链（环境里只有取景框，没有可扫的码）；
+暗色主题下客户卡与搜索框的观感。
+
+**演示站数据**：本轮没新建单据（只点开官方扫码框、点过几次客户与「新单」，没有落库）。
+
+### F37：删掉成员编辑里那句"开户时发的、不能修改"（2026-09-23，未部署）
+
+用户口径："用户名和邮箱是开户时发的，之后不能修改。这类文案不要随意添加，删掉，这是租户自己
+添加的成员，我真无语"。也就是说这句话本身（而不是"姓名/邮箱只读"这件事）不该出现 —— 成员是
+租户自己加的，用"开户时发的"来说它既不对也没必要，字段只读本身就是那句话。
+
+**删了什么**
+
+| 位置 | 之前 | 现在 |
+| --- | --- | --- |
+| 团队管理 → 点成员 → 编辑弹窗的「姓名」下面（`team.js` 里那个 `description`） | 「用户名和邮箱是开户时发的，之后不能修改。」 | 不写这句 —— 姓名/邮箱照旧只读，其它字段与按钮一个没动 |
+| 术语表 `pearnly_erp_portal`：`team.identityHint` | 那条词条 | 删掉（代码里已无人取词） |
+| 术语表 `pearnly_core`：`account.identityIssued` | 同一句话，**代码里早没人用**的僵尸键（上一轮留下的） | 删掉 |
+| 生成的语言包（erp 与 core 的 en/zh/th/ja 四份） | 上面两条 + 它们按英文原文补的别名行 | 手工清掉（生成脚本按设计不删已有行，见 `scripts/i18n-build.py` 的说明） |
+
+**没动**（在别的产品面上、且那儿的用户名确实是我们发的，用户 2026-09-23 也确认过"DMS 用户名
+不能改"）：DMS 操作员弹窗里那段（`roster.usernameFixed`）、DMS 账号页的说明（`dms.account.hint`）、
+以及服务端那条 409 错误文案（`dms.account.usernameFixed`，改用户名被拒时才会出现）。
+要一起删/改说一声 —— 那三处在 Vue 前端，本机 `npm` 是坏的（`/Users/skin/.local/bin/npm` 指向
+不存在的 `cua_node/npm-cli.js`），前端 build 跑不了，所以没有连带改动。
+
+**验证**（演示站浏览器，真点击）：清缓存 + 重启 web 后打开 `/desk/pearnly-team` → 点一行成员 →
+编辑弹窗（标题 `erp-pos-line-seller@example.com`）里「姓名」「邮箱」下面**没有任何说明文字**，
+整页与弹窗里都搜不到「开户 / 不能修改」字样；弹窗其余内容不变（姓名、邮箱、功能权限、公司、
+重置密码、停用、保存）；页面上那两条 `.help-box` 是空的（原来那句就渲染在这里）。个人信息页
+也复核过：没有这类文案，字段只是只读。
+
+**检查**：`i18n-build --check` PASS、`check-frontend-i18n` 0 问题、架构 PASS(0)、权限契约 102 条 OK、
+10 支 JS 测试全过、`test_native_desk_contract` 仍是那 2 条老失败；`check-i18n --strict` 前后都是
+114 条 / 40 个文件（同一批存量，本次没增没减）。演示站只清缓存 + 重启 web。
+
+### F38：官方原生音效对齐（2026-09-23，未部署）
+
+用户口径："原生点收银开单是有一个单独的音效的，查清楚官方所有原生音效，对应的触发位置，
+同步到我们产品，同时关联静音和不静音，全站"。
+
+**官方清单与机制**（读源码 + 官方站实测，frappe 16.33.0 / erpnext 16.34.1）
+
+- 音效文件：frappe 自带 8 个文件，钩子里启用 7 条 —— `submit` / `error` / `cancel` / `delete` /
+  `click` / `alert` / `email`（音量 0.05–0.2，`chime` 在钩子里是注释掉的）；erpnext 再加 3 条
+  `incoming-call` / `call-disconnect` / `numpad-touch`（0.2 / 0.2 / **0.8**）。
+- 播放机制：Desk 模板按**各 App 的 `sounds` 钩子**生成 `<audio id="sound-<name>">`
+  （`frappe/www/desk.html`），`frappe.utils.play_sound(name)` 取同名节点播放；它**开头的第一件事
+  就是查 `frappe.boot.user.mute_sounds`**，静音时直接返回。所有音效都走这一个口子。
+- 触发位置（框架层，我们不用改、也吃得到）：文档提交成功 → `submit`（`form.js`）；
+  取消/作废文档 → `cancel`；删除（含批量）→ `delete`（`model.js` / `bulk_operations.js:231`）；
+  表单动作与时间线 → `click`；请求失败 → `error`（`request.js`）；邮件发出 → `email`；
+  来电/挂断 → `incoming-call` / `call-disconnect`。
+- 官方 POS 自己那 15 处（v16 源码逐条，`pos_controller/pos_item_cart/pos_item_details/pos_item_selector/pos_payment/pos_past_order_summary`）：
+  开班没填付款方式、加购无价、没选客户、库存不足、不允许改价折扣、小键盘没先选栏位、折扣超 100%、
+  空单或未收款提交、扫码回车没找到 → `error`；搜索命中唯一一条回车加购、客户联系方式保存成功、
+  忠诚度超额提示 → `submit`；有序列号/批号没选就移除行 → `cancel`；邮件发小票 → `email`；
+  **收款小键盘按键 → `numpad-touch`**。点「结账」进收款屏那一下官方**不响**，响的是**完成订单**
+  （单据提交成功那一声 `submit`）。
+
+**我们这边的实况（实测）**：页面里只有 frappe 那七个节点 —— `numpad-touch` **根本没注入**，
+`play_sound("numpad-touch")` 取不到元素、异常被它自己的 try/catch 吞掉，**收银台小键盘那声一直是哑的**。
+根因：节点按各 App 的 `sounds` 钩子生成，`numpad-touch` 在 erpnext 的钩子里，而租户站点**不装 erpnext**
+（文件在 bench 里本来就有，`/assets` 是 bench 级；缺的只是那行声明）。我们所有提示音都走
+`frappe.utils.play_sound`（全仓没有一处 `new Audio()`），所以**静音开关对全部音效天然生效**。
+
+**改成什么**
+
+| 位置 | 之前 | 现在 |
+| --- | --- | --- |
+| `pearnly_core/hooks.py` | 没有 `sounds` 声明 | 按官方同样的文件与音量补一条 `numpad-touch`（0.8）。装了 erpnext 的站点会多一个同名节点，取到的仍是第一个（同一个文件），行为不变 |
+| `p.success(message, sound)` | 只会 `submit` | 收第二个参数，默认 `submit`；删除类给 `delete`、作废/取消类给 `cancel`（框架 `bulk_operations.js` 就是按动作名给音） |
+| `p.selection_action({..., sound})` | 不支持 | 透传；盘点「删除选中」→ `delete`；收银记录 / 入库「作废选中」→ `cancel` |
+| 采购 / 销售「删除草稿」、单据附件删除 | `submit` | `delete` |
+
+**实测**（演示站浏览器，把 `HTMLMediaElement.play` 打桩记录"播了哪个"，不会真出声）
+
+- 加购 → 收银开单 → 完成订单：播 `sound-submit` ✓（进收款屏那一下两边都没音）。这张单真开了：
+  `SI2569-000043`（THB 39，现金，测试单）。
+- 收款小键盘按数字：播 `sound-numpad-touch` ✓（改之前取不到节点、一声不出）。
+- 把 `frappe.boot.user.mute_sounds = 1` 再按：**一次都不播** ✓（静音真的压得住）。
+- 作废（把 `api_void_sale` 打桩，没动真数据）：勾选 → 确认 → 播 `sound-cancel` ✓；
+  `p.success("…", "delete")` 直接播 `sound-delete` ✓。
+
+**没做到 / 没验到**：框架对"必填没填"的拦截**不放音**（官方 POS 那句"请填付款方式"是它自己写的检查），
+我们没在框架校验前插音 —— 这一处和官方不同，记着；官方 POS 的**行明细**小键盘是静音的，我们保留了
+自己的按键音（多一声，非官方），要一律对齐说一声就去掉。
+
+**检查**：架构 PASS(0)、术语 PASS、前端取词 0 问题、10 支 JS 测试全过。演示站只清缓存 + 重启 web。
+
+### F39：LINE 差异卡「没有更新按钮」= 设计如此，不是迁移缺口（2026-09-23，只读诊断 + 一处口径补齐）
+
+用户转来的泰文反馈："视频最后一屏，改完无法更新客户资料，因为没有更新按钮可点"。图一是那张
+「发现已有资料、有些地方不一致」的卡：电话 `0868899228 → 0868898888`，底部一句
+「ต้องตั้งค่าบัญชีแอดมินใน Pearnly ก่อนจึงจะอัปเดตได้」（要先在 Pearnly 配管理员账号才能更新），
+按钮只有 `ใช้ข้อมูลเดิม` / `แก้ไข`。
+
+**结论：设计如此，两边一致 —— 不是迁移没搬，也不是 bug。**
+
+- 主按钮是「按花名册角色 + 端点凭据」解出来的：`exact_diff_card` 里
+  `primary = "update" if (has_admin or role == "admin") else "none"` —— 我们
+  `apps/pearnly_dms/pearnly_dms/approval/approval_flow.py:106` 与老产品
+  `services/line_dms/approval_flow.py:91` **是同一行**；`primary == "none"` 时卡片按设计
+  只给提示不给按钮（`line/cards.py: diff_card`，那句提示就是 `TXT_ADMIN_NEEDED`）。
+- 老产品自己的验收脚本里写着："Under single-cred the update button is (correctly) withheld
+  (has_admin=False)"（`scripts/_dl5_drive2.py:189`）—— 说明**有意的**，不是漏搬。
+- 写链路本身在、也搬过来了：`ACT_UPDATE → write_update → execute → push_idcard_fields`
+  （`intake/flow.py:203/438`），与老产品同路径。
+
+**他们那张卡为什么没有按钮**：那份判断要求「端点上配了有改写权的凭据组」**或**「这个 LINE 用户在
+花名册里是 admin」。他们环境里两条都不成立 → 只给提示。要开：在 DMS 的**连接向导**里把账号密码
+配一次并保存（保存时把同一组写成管理员凭据：`connections/api.py` 里 `doc.admin_username = username`），
+或者把该 LINE 用户在**花名册**里的角色设成 admin。配完（或重存一次连接）卡片上的 `อัปเดตข้อมูล`
+就会出现 —— 操作员那条连接是从共用连接继承的（`operators/endpoints.py`: `admin_username = template.admin_username`），
+所以重存一次共用连接即可。
+
+**顺手补齐的一处口径（本次唯一的真差异）**：我们的 `intake/draft.has_admin_creds` 之前**只看
+`admin_username`**，而连接页与老产品都要**账号 + 密码都在**（`connections/api.py`:
+`bool(doc.admin_username and admin_password)`；老产品 `(plain_user and plain_pass) or (enc_user and enc_pass)`）。
+只看账号会在"密码解不开"（站点密钥换过）时**给出按钮**，点下去写库才失败 —— 正是这段代码要避免的
+「点了才知道」。已改成两件都满足才算。
+
+**验到的**：`check-dms-offline.py` 通过（45 / 42 / 43 组全过）；DMS 差异指纹复核后按流程重新登记
+（`check-dms-parity.py --update`），`check-dms-parity.py` 现在报「与老产品的差异没有漂移」。
+**没验到的**：真在 LINE 里点 `อัปเดตข้อมูล` 落库（本机没有装了 `pearnly_dms` 的站点、也没有 LINE 会话）；
+他们环境端点凭据的实际状态（要看 DMS 站的库，需要那边的管理员权限）。
+**建议他们做的**：配一次连接或把角色改成 admin；若配完仍没有按钮，把端点名 + 那个 LINE 用户给我。
+
+### F40：生产日志定位那两个问题（2026-09-23，只读诊断，未改代码）
+
+**先找到"生产"在哪**：旧 alias `pearnly` / `pearnly-prod`（66.42.49.213）指向**退役机器**，装到一半会报
+host key 变了 —— 按 `docs/production/01-foundation-20260919.md` 与实际目标配置，现在的生产是
+**SSD Nodes 107.155.65.74**（主机名 `pearnly`），SSH 用 `/Users/skin/.config/pearnly-production/operator`。
+旧 Contabo `194.233.74.40` 已 `suspended`（不可达）。
+
+生产上 DMS 产品组 7 个容器在跑（web / worker / socketio / scheduler / ocr-worker / ocr-dispatch / frontend），
+两个站：`testdms.pearnly.com`、`ris.pearnly.com`。
+
+**日志在哪（这一点和预期不同）**：站点目录 `sites/<site>/logs/` 只有 cssutils / database / frappe /
+render-template，业务报错**不在那儿**；`tabError Log` 全站只有 1 条（09-21 建联系人）。
+真正能查的是**容器 stdout**：`docker logs -t pearnly-production-dms-{web,worker}-1`。
+
+**① 图一那句"服务器内部错误"（发完身份证、打完电话那一步）—— 真因是 DMS 站点打不开（超时）**
+
+日志逐层（`docker logs -t pearnly-production-dms-worker-1`）：
+
+```
+08:45:19  job dms-dedup-9747aa1b  target=pearnly_dms.intake.flow.run_dedup   (site=testdms)
+08:45:53  DMS 操作意外失败   Traceback (most recent call last):
+   intake/service.py:100            run_logged_in → with authoritative_read_session(client)
+   adapter/admin_read.py:118/99/77  authoritative_read_session → authoritative_read_client → _admin_transport_of
+   client/gateway.py:53             _resolve_admin_transport
+   adapter/session.py:401/392       admin_transport → ensure_admin_session → _perform_login(admin_page, admin_user, admin_pw)
+   adapter/session.py:317           page.goto(login_url, wait_until="load", timeout=DEFAULT_PAGE_TIMEOUT_MS)
+   playwright._impl._errors.TimeoutError: Page.goto: Timeout 15000ms exceeded.
+     navigating to "https://www.mrerp4sme.com/dms/index.php", waiting until "load"
+```
+
+- **时间点与截图完全对上**：15:45:19 / 15:46:15（Bangkok，= 08:45/08:46 UTC）两次打电话，两次都是这个超时；
+  `tabPearnly LINE Session` 里那个 LINE 用户（`U26139c19…`，"Skin"）状态停在 `collecting`，
+  payload 里 `phone=1436789`、身份证正是截图那张（อักษราภัค อักษรวรนารถ）✓。
+- **量化（今天 00:00→09:00 UTC）**：worker 里 **17 次 Playwright 超时，17 次全是**打不开
+  `https://www.mrerp4sme.com/dms/index.php`；**17 条「DMS 操作意外失败」**，最近几次 08:49 / 08:53 / 08:57
+  —— **现在还在失败**，不是历史抖动。两个站都受影响（今天 testdms 4627 条 / ris 4768 条后台任务，共用同一个 DMS 主机）。
+- **为什么慢**：从生产机连测 5 次同一个登录页 —— **第 1 次 TLS 握手 24.3 秒**，后 4 次 0.2–0.6 秒（会话复用）。
+  Playwright 每次登录都是**新连接**，所以每次都撞上那次慢握手，而我们的预算只有 15 秒 → 必然超时。
+  （生产到该主机的 ping 只有 ~30ms，网络本身没问题。）
+- **用户为什么看到"服务器内部错误"**：这条异常在 `intake/service.py` 最外层被兜成
+  `ERR_UNEXPECTED` → 文案 `dms.err.ERR_UNEXPECTED` =「ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน…」，正是截图那句。
+  也就是说：**一个"连不上对方服务器"的超时，被当成"我们服务器内部错误"报给了客户。**
+- 修的方向（**未改，等点头**）：登录那一段的 `page.goto` 预算是 15 秒（`DEFAULT_PAGE_TIMEOUT_MS`），
+  要提到 ≥45 秒或对 `TimeoutError` 整体重试一次；**不能**把 `wait_until` 改成 `domcontentloaded` ——
+  `adapter/session.py` 的注释写明了 DMS 的 `index.js` 把登录按钮绑在 `window.load` 上，
+  页面没 load 完点登录是**静默无操作**（老产品 2026-05-31 的线上 bug）。另外建议把这类超时
+  单独映射成一个"对方 DMS 暂时连不上"的码与文案，别再报"我们内部错误"。
+
+**② 差异卡没有 `[อัปเดตข้อมูล]` 按钮（客户："改完更新不了"）—— 是移植时的一处漏，不是设计**
+
+生产事实：两站端点的 `admin_username` **都配着**（testdms = `dmstest`，ris = `dms001`），
+所以"没配管理员凭据"这条路不成立；`tabDMS ID Card Intake` 两站都是 **0 条**；
+`tabPearnly LINE Binding` 里是真实绑定（ris 有 `B.ISUZU?` 等，今天 13:20 绑的）。
+
+代码对照（新 vs 旧）：
+
+| | 旧产品（线上基准 501589f0） | 我们的移植 |
+| --- | --- | --- |
+| 判据签名 | `has_admin_creds(ep: dict)` —— 收**端点字典**，读 `ep["config"]` | `has_admin_creds(endpoint)` —— 只认**字符串端点名**或带 `.name` 的对象 |
+| 调用点 | `services/line_dms/customer_edit.py` 传字典 ✓ | `editor/customer_edit.py:188` **仍然传字典**（`resolve_dms_endpoint()` 的返回值）✗ |
+
+`resolve_dms_endpoint()` 返回的是 `{"id": "EP-000xx", "name": "EP-000xx", ...}`；`has_admin_creds` 里
+`str(getattr(endpoint, "name", "") or "")` 对**字典**取不到属性 → 空串 → `return False`。
+
+→ 结论：**在网页编辑器里改完保存，回来的那张差异卡永远不带更新按钮**，跟租户配得多全无关；
+`intake/flow.py:382` 那条路没事，因为它先把字典 `.get("name")` 归一成字符串了（`flow.py:329-331`）。
+这正好对上客户的报告口径："**หลังจากแก้ไขแล้ว**（改完之后）没有更新按钮"。
+
+最小复现（本机，纯 Python）：
+```python
+endpoint = {"id": "EP-00003", "name": "EP-00003"}
+name = endpoint if isinstance(endpoint, str) else str(getattr(endpoint, "name", "") or "")
+# → name == ''  → has_admin_creds 直接 return False
+```
+
+修的方向（**未改，等点头**）：让 `has_admin_creds` 也认字典（`endpoint.get("name")`），
+或在 `customer_edit.save()` 里像 `flow.py` 那样先归一成端点名。两处都改更稳（同类调用不会被下一个窗口再踩）。
+
+**没验到的**：客户那张卡的具体推送内容（我们不记录 LINE 卡片正文，日志里搜不到那个号码与那句提示）；
+`ris` 的会话表为空（会话已过期/清掉），拿不到当时存下的 `has_admin` 值；
+他们视野里是否还有租户跑在**旧产品**（旧 Cloud Run 未切流，旧 Contabo 已停机）。
+
+### F41：连不上 DMS 就给「重试」，并删掉那三处"开户时发的"文案（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    超时第一次失败点加按钮重试，重试同步加时长，第三次还失败同步加重试，再加时长，最多三次，
+    还失败就连不上第三方 dms 系统，请联系管理员
+    不要加卡片，就文案和 line 官方原生按钮触发
+    （DMS 操作员的编辑弹窗里那段、DMS 账号页的说明、改用户名被拒时服务端返回的那句 409 文案）要一起删
+
+**A. 连不上 → 用户点「重试」，最多三次，一次比一次宽**
+
+| 第几次 | 打开登录页的预算 | 失败后回什么 |
+| --- | --- | --- |
+| 1 | 30 秒 | 原话 + LINE 原生快捷按键「重试」 |
+| 2 | 60 秒 | 同上 |
+| 3 | 90 秒 | 只说「连不上第三方 DMS 系统，请联系管理员」，**不再给按键** |
+
+- 为什么第一次就 30 秒：F40 实测那台 DMS 的**全新 TLS 握手 24.3 秒**（会话复用才 0.2 秒），
+  而 Playwright 每次登录都是新连接 —— 老的 15 秒预算必然超时。
+- **不自动重试**：一次尝试最坏 90 秒，自动连三次就是几分钟静默，操作员只会以为卡死；
+  决定权交回给他，点一下再试。
+- 只对"连不上/技术失败"（`ERR_DMS_UNREACHABLE` / `ERR_DMS_TECHNICAL`）给重试；
+  对方明确拒绝（账号错、被顶下线、审批被拒）**不给** —— 再点几次还是同样的拒绝。
+- 新增 `DmsUnreachableError`（`DmsTechnicalError` 的子类，**捕获顺序排在父类之前**）与
+  `ERR_DMS_UNREACHABLE`（四语言文案齐）：**"打不开对方登录页"从此不再报成"我们服务器内部错误"**。
+- 回话是**文本 + quick reply**（`cards.retry_message`），没有 Flex 卡片骨架。
+
+**B. 差异卡没有 `[อัปเดตข้อมูล]`（网页编辑器改完保存后更新不了）**
+
+按 F40 的诊断改：`intake/draft.has_admin_creds` 现在与 `contracts/endpoint.py: endpoint_name`
+同一口径解析端点 —— **字典、字符串、带 `.name` 的对象都认**。此前字典会落进
+`getattr(endpoint, "name", "")` 成空串 → 永远 `False`（F39 当时判成"设计如此"，F40 纠正为移植漏项，本条落地）。
+
+**C. 删掉三处"开户时发的、不能修改"**
+
+| 位置 | 改法 |
+| --- | --- |
+| `operators/roster.py:237`（花名册兜底，**用户说"会带到其它页"的那处**） | 改成本文件拒参数时同一句 `Invalid value` |
+| `account/api.py:73`（改用户名被拒的 409） | 改成 `dms.account.failed`（只说这一步没成，不解释账号怎么来的） |
+| `frontend` 的 `AccountPage.vue` / `RosterPage.vue` | 删掉说明行与错误映射里的那个键 |
+
+术语表与四语言包里的 `roster.usernameFixed` / `dms.account.usernameFixed` / `dms.account.hint`
+（含按英文原文补的别名行）一并删；全仓已无任何引用。`dms.account.portalHint` **保留** ——
+`account/portal.py` 还在用它（那是另一个页面上的另一句话）。代码注释里"为什么这么判"照旧留着，
+它不进界面。
+
+**检查（全部本机，未合并、未部署）**
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-architecture.py` | PASS(0)（新模块按规则落进域包 `intake/retry.py`，不是 app 根层） |
+| `python3 scripts/check-dms-offline.py` | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / **retry 32** 全 PASS |
+| `python3 scripts/check-dms-parity.py` | 复核 4 处漂移（cards、flow×2、draft，逐条对上本轮改动）后 `--update`，现"没有漂移" |
+| `python3 scripts/check-frontend-i18n.py` | 0 问题 |
+| `python3 scripts/i18n-build.py --check` | PASS（1927 条 / 4 个 App） |
+| 前端 `vue-tsc --noEmit && vite build` | PASS。本机 `npm` shim 指向不存在的 `cua_app` npm-cli，改用 `~/.local/lib/qwen-code/node` 里的真 npm 跑通；产物落在 gitignore 的 `public/pearnly-app/` |
+| 新增 `scripts/sample-verify-dms-retry.py`（32 条断言，已登记进离线回归） | ALL PASS：预算递增与夹取、可重试码集合、**捕获顺序子类在父类之前**、「重试」分支在消费 nonce 之前、第三次不给按键、回话无卡片骨架、四语言文案在包里 |
+
+**没验到的**
+
+- **真机 LINE 点那颗「重试」**：本机没有 DMS 运行时会话（演示站不装 `pearnly_dms`），
+  webhook → 后台 → DMS 这条链端到端跑不起来，只验到离线断言 + 生产日志对照。
+- **DMS 花名册弹窗的实际渲染**：前端源码改了、build 过了，但没有能登录的 DMS 站做真机回归。
+- **生产是否修好**：未部署（本任务只本地改、本地验）。
+
+### F42：列表页"列与内容对不上"和"要滑动才看得到"（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    图一列和内容位置对不上，歪了，图二的状态和内容也是对不上，图三图四图五，内容太多，
+    要滑动才能看得到，看下能不能放在一屏显示完整
+
+**根因（演示站实测出来的数字，不是照图猜的）**
+
+1. **表头与每一行的左区宽度不同** —— 右边那一块（表头放计数、行里放动作按钮）宽度不一样：
+   我们的皮肤把动作列固定成"按钮宽 + 内边距"（采购/销售的「付款」实测 43px、行里那块 57px），
+   而表头那块是按内容自适应（只装「20 / 47」，71px）。两边差多少，右边的列就整体偏多少
+   （销售 9 列实测偏 10–14px，窗口越宽偏得越多）。把 `document.elementFromPoint` 打在
+   「状态」表头那格上，取到的是 `list-count` —— **计数那块压在最后一列上**。
+2. **五列以上的页在常见窗口宽度下放不下**：物料 7 列、库存 10 列、收发存 7 列原先都没给宽度，
+   按框架的每列 150px 铺开是 1050–1500px，而可见内容区只有约 900–1030px（1280 窗口减侧栏），
+   于是最右几列要横向滑才看得到 —— 图三/四/五 就是这么来的。
+
+**改法**
+
+- 右边那一块**永远按同一个宽度留白**，宽度取"最宽的动作按钮"与"计数那句"里更宽的那个，由共享
+  列表层量出来写在 `--pearnly-actions-width` 上（`pearnly_core/public/desk/list.js` 的
+  `set_trailing_width`，表头渲染完与每次 resize 各算一次）；皮肤的 CSS 让表头与每一行都用它。
+  框架默认那 130px 是给"分配人 / 点赞"预留的，我们两样都不开，白白挤窄列。
+- 点名的五页 + 同病的其它列表（客户/供应商/入库/出库/团队/交班记录/收银记录/LINE 收件箱）
+  **逐列定宽**：`width` 是窗口宽时的占比，`min_width` 是不能再压的底线，底线之和按"约 900px
+  可见区也放得下"配。窄到放不下时仍回落到框架自己的横向滚动。
+
+**验证（演示站实测，1280 视口 / 内容区约 1030，浏览器临时锁定视口后逐页量）**
+
+| 页面 | 列数 | 表头=行宽 | 不用横向滑 | 计数不压列 |
+| --- | --- | --- | --- | --- |
+| 销售记录 | 9 | ✓ | ✓ | ✓ |
+| 采购记录 | 8 | ✓ | ✓ | ✓ |
+| 物料 | 7 | ✓ | ✓ | ✓ |
+| 库存 | 10 | ✓ | ✓ | ✓ |
+| 收发存报表 | 7 | ✓ | ✓ | ✓ |
+| 客户 / 供应商 / 入库 / 出库 / 团队 / 交班记录 / 收银记录 / 盘点 / 仓库 / 公司 | 4–9 | ✓ | ✓ | ✓ |
+
+判定口径：表头每列宽 == 行每列宽、`.result.scrollWidth == clientWidth`（不用滑）、最后一列右缘
+≤ 右侧留白左缘、最后一列表头上 `elementFromPoint` 取到的是它自己。
+
+改动前的对照（同一套量法）：销售表头左区 945 vs 行 1002（差 57px）、采购 824 vs 838（差 14px）；
+库存 10 列按框架的 150px 下限铺开是 1842px 宽（要滑近 900px）；客户溢出 537px、供应商 375px、
+团队 289px、入库 172px、交班 114px、出库 30px、收银记录 19px。改成定宽后这 15 个页面在
+1280 视口下都是 `scrollWidth == clientWidth`（不用滑）、表头与行逐列同宽。
+
+**检查**：10 支 JS 测试全过、架构 PASS(0)、前端文案 0 问题、`i18n-build --check` PASS、
+权限契约 102 条 OK（6 跳过）、`test_native_desk_contract` 18 条里仍是那 2 条基线失败；
+演示站只清缓存 + 重启 web（Desk 脚本与皮肤改动）。
+
+**没验到**：LINE 收件箱那两页是空态（演示站没有 LINE 收件数据），只验到列定义已定宽、渲染没报错；
+窗口更窄的档位（内容区 ~650px 时仍需横向滚动 —— 那时列已经压到底线，再压就读不出内容了）；
+用户自己屏幕的实际像素（本机是用 1280 视口量的）。
+
+### F43：列表筛选改官方原生（并按页删减字段）+ DMS 那 24 秒拆开量（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    把全局的筛选按钮取消掉，和我们自己设计的勾选筛选取消掉，做成官方原生的显示出来，
+    分别对每个页的筛选字段做对应的删减，不必要这么多
+    "域名解析 / 建连接 / 对暗号 / 对方回话"各花了多少毫秒拆开，涉及到这类的功能都要排查一下，
+    看下有没有更好的解决方案
+
+#### A. 筛选：自研的那一套撤掉，换成官方原生（字段按页删减）
+
+**撤掉的东西**：采购/销售/收银记录各自那颗自研「筛选」弹窗（里面一次铺 7–8 个条件）；
+库存那两个自研勾选（只看低库存或缺货 / 显示零库存）；物料那个自研勾选（显示已停用）；
+收发存工具栏里那格自由填写的「仓库」（日期区间保留 —— 它是报表的口径，必须一直看得见，
+与 ERPNext 自己的报表工具栏同一个做法）。
+
+**换上的东西**：框架自带的 `FilterArea`（那颗 Filter 按钮 + 弹层里的条件行 + 清除/应用）。
+页面用 `filter_fields` 声明本页支持的字段，共享列表层把它翻成官方 `FieldSelect` 的白名单。
+
+| 页面 | 原生筛选里开放的字段 | 验证（条件 → 命中） |
+| --- | --- | --- |
+| 销售记录 | 日期、单据类型、收款状态、来源 | 单据类型=报价单 → 47 条里 **2** 条 |
+| 采购记录 | 记账日期、类型、付款状态、供应商、状态 | 付款状态=未付 → 74 条里 **45** 条 |
+| 收银记录 | 日期、单据类型、状态 | 状态=已作废 → 23 条里 **3** 条 |
+| 库存 | 仓库、仓位、在库数量 | 在库数量 ≤ 0 → 42 条里 **11** 条（与页头"缺货 11"对上） |
+| 物料 | 上架 / 停用 | 上架=是 → 40 条；上架=否 → **0** 条（演示站没有停用商品） |
+| 收发存报表 | 仓库、商品 | 条件能正常下发（取值用了编码 P-000025，实际主键是 PRD-xxxxx，故命中 0） |
+
+**踩到并处理掉的两处框架坑**（都写在 `pearnly_core/public/desk/list.js` 的注释里）：
+
+1. 官方 `FieldSelect` 的 `filter_fields` 收的是**字段对象数组**、不是字段名（`add_field_option(df)`
+   直接读 `df.fieldname`）。传字符串会加出一堆空选项、下拉里什么都没有 —— 所以从
+   `frappe.meta.get_docfield()` 取对象。
+2. 官方「+ 添加筛选」默认加的那行是 `name`（ID），不在本页白名单里 → 加出来是**空白选区**。
+   列表层把这行换成本页第一个字段（走的仍是官方 `add_filter`）。
+3. 框架还会按 DocType 的 `in_standard_filter` 在页面上再铺一排常驻输入框（公司 / 名称 / 编号…），
+   它们不在本页的参数映射里 —— 出现就是"看着能筛、其实不生效"，整块收掉。
+4. `BaseList` 用 `this.filters` 存初始条件，列表选项里那个"白名单"因此改名 `filter_fields`
+   （撞名会让筛选区初始化去解析一堆对象而抛错，页面直接渲染不出来 —— 实测踩到并修好）。
+
+术语表里随之删掉四个空置词条：`purchase.action.filter`、`stock.action.onlyLow`、
+`stock.action.toggleZero`、`product.action.toggleInactive`（含四语言包对应行）。
+
+#### B. DMS 那 24 秒：拆开量出来（生产机实测，只读）
+
+从生产机对 `https://www.mrerp4sme.com/dms/index.php` 连测 5 次全新连接：
+
+| 次 | 域名解析 | 建连接 | 对暗号(TLS) | 首字节 | 合计 |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 87 ms | 140 ms | **13.65 s** | 13.69 s | 13.69 s |
+| 2 | 8 ms | 48 ms | **11.77 s** | 11.80 s | 11.80 s |
+| 3 | 8 ms | 33 ms | **15.69 s** | 15.72 s | 15.72 s |
+| 4 | 8 ms | 37 ms | **9.86 s** | 9.89 s | 9.89 s |
+| 5 | 47 ms | 84 ms | **6.49 s** | 6.58 s | 6.58 s |
+
+- **卡在"对暗号"这一段**，不在域名解析、也不在建连接（这两个都是几十毫秒），页面本身
+  返回只要 ~30 ms（首字节 ≈ 对暗号结束）。
+- **同一台机器的明文 HTTP（80 端口）也慢**：3 次分别 0.8 / 3.8 / 6.0 s 才返回一个 301 ——
+  说明不是 TLS 特有的问题，而是**"对方服务器对新连接要愣几秒到十几秒才应答"**。
+- 同一时刻我们从生产机连别的第三方都很快：LINE 0.25 s、泰国税务局 0.38 s、Google 0.19 s、
+  OpenAI 0.15 s（都是全新连接的对暗号时间）→ **我们这边的网络与机器没问题**。
+- 数值形态（0.8 / 3.8 / 6.0 / 9.9 / 13.7 / 15.7 s）很像 TCP 重传退避（1+2+4+8…），
+  也就是**丢包/重传**，不是算力不够那种稳定的慢。
+
+**同批次排查的其它出口**（都不会撞上这种事，不需要改）：
+
+| 出口 | 我们给的超时 | 实测对方 |
+| --- | --- | --- |
+| DMS 登录页（Playwright） | **30/60/90 秒 + 用户点重试**（F41 已做） | 6.5–15.7 s（就是上面这张表） |
+| DMS 下单提交 | 120 s 请求超时 | — |
+| 泰国税务局查税号 | 5 s | 0.38 s 可达 |
+| LINE 消息 / 菜单 | 10–20 s | 0.25 s 可达 |
+| 会话/Keycloak 管理接口 | 15 s | 内网 |
+
+**还能更好的三件事（本轮没做，等点头）**：
+
+1. **一次流程少开一次新连接**：现在"查重"和"写档"各登录一次 = 两次全新连接，每次都可能撞上
+   那几秒。把两件事合进同一个会话能把连接数砍一半 —— 但"每次动作都真登录"是照搬老产品
+   （复用 cookie 会拿到已注销会话）的有意设计，要改得先设计会话复用的安全边界。
+2. **等太久时给个回音**：`start_loading` 的动画 60 秒会过期，而一次尝试最长 90 秒；
+   可以在 ~25 秒时补一句"对方系统响应很慢，还在等…"。
+3. **让对方修他们的主机**：证据现在够硬（明文 HTTP 也慢、DNS/TCP 都快、只有他们一家慢），
+   可以拿这张表找他们的运维，不用我们猜。
+
+### F44：连 DMS 的"等多久、失败怎么办"改成一份共用口径，覆盖所有入口（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    有关于 dms 这个慢的问题，我们不是设定一个轮询查新状态新字段的机制吗，我们不可以只读那个
+    机制返回的信息……除了录入的时候必须要进登录
+    → 答：那份机制预热的是**订车用的下拉主档**（车型/颜色/顾问/银行…），不含"这个客户在
+    不在、字段是什么值"，也不是"记录级"数据；客户档只能带会话去问，DMS 也没有 API。
+    要本地有客户数据就得定时镜像他们的客户表（分钟级延迟 + 他们搜索本身有"新客隐身期"，
+    会把新客判错），不划算。
+
+    那个后台预热自己也在撞同样的慢，这个怎么解决呢
+    → 见下。
+
+    是所有用户在 line 使用时涉及到这类问题的都要用同一个方案，不要只针对一个功能做
+
+**A. 生产实测：后台预热不是"慢"，是**一次都没成功**
+
+（只读查生产日志，48 小时窗口，`pearnly-production-dms-worker-1`）
+
+| 现象 | 数字 |
+| --- | --- |
+| 派发的预热任务 | 4984 条日志（约 2492 次任务） |
+| 成功刷新（`refreshed EP-…`） | **0** |
+| "刷新没拿到完整主档" | 83 条（其余失败在更早的分支，日志里能直接看到 `Page.goto: Timeout 15000ms exceeded`） |
+| 单次任务耗时 | **0.1 秒 ～ 58 秒**，多数 16–30 秒，占着 long 队列 worker |
+| 被顶下线/并发登录 | 0（不是互踢） |
+
+根因：**(1)** 后台那条路的"打开登录页"预算还是老默认 **15 秒**（F41 只放宽了用户按的那条），
+而那台主机新连接要 6–16 秒；**(2)** 全量刷新走**权威只读**=登录**两次**（销售会话 + 管理员会话），
+两次都撞慢握手；**(3)** 失败没有退避，判定"过期"就下一分钟再来，形成永不停止的循环。
+
+**B. 一份共用口径（`config/pacing.py`），所有 DMS 入口自动吃**
+
+| 口径 | 值 | 谁用 |
+| --- | --- | --- |
+| 用户那条路的预算阶梯 | 30 / 60 / 90 秒（按第几次尝试） | LINE 里所有"有人等着"的动作（查重、建档、改档、订车、查单、编辑页） |
+| 后台那条路的预算 | 一次给足 90 秒（不走阶梯） | 主档预热、颜色预热、订车对账、单据投递 |
+| 连不上才计数的熔断 | 连续 3 次 → 冷却 1 → 5 → 15 → 30 分钟（封顶） | 全部；冷却期内**快速失败**，不让每个人再白等 30–90 秒 |
+| 成功即归零 + 记"刚用过" | — | 全部 |
+| 预热频率 | 有人用：45 秒口径；没人用：降到 10 分钟一次 | 后台预热 |
+
+落地方式（**不给每个功能各写一份**）：
+
+· 所有登录都从 `intake/service.py: run_logged_in` 这一个漏斗走 —— 口径写在漏斗里，
+  调用方只需声明"我是不是后台"（`background=True`）；
+· **建适配器时**就带上共用默认预算（`adapter/push.py`），连接向导的"先测再存"等直连入口
+  也吃得到；
+· 后台预热 `warm.sweep` 加两道闸：冷却期**不派发**（不再派一个注定白跑、还占 worker 一分钟
+  的任务）、没人用就降频；
+· `master_shared.get_session_masters` 加 **stale-while-revalidate**：刷不动时把上一份
+  "曾经完整"的主档给用户，新鲜度交给后台追 —— 只有从来没取全过才回空；
+· 失败原因写进日志（原来只回一句"没拿到完整主档"，48 小时全失败却看不出为什么，
+  就是这个盲点）。
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `scripts/sample-verify-dms-retry.py`（离线回归，已登记进 `check-dms-offline`） | **56 条全过**（原 32 条 + 新增 24 条：后台预算、冷却阈值/递增/封顶、脏值不误挡、预热频率三态、状态机（假缓存）、**"全仓没有绕开漏斗自己登录的地方"**、预热两道闸、旧快照兜底） |
+| `check-dms-offline`（5 个用例） | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / retry 56 全 PASS |
+| `check-architecture` | PASS(0)（共用模块落进 `config/`，各域都能引；`intake/retry.py` 已并入并删除） |
+| 真 Frappe + 真 Redis 集成（演示站容器，把工作树的 `pearnly_dms` 拷进临时目录单独验证） | 状态机真跑：3 次失败→冷却 59 秒；**漏斗在冷却期不登录、直接回 `ERR_DMS_UNREACHABLE`**；成功后归零；`warm.sweep()` 正常返回计数 |
+| stale-while-revalidate（打桩 IO + 真函数） | 4 个分支全对：刷得动给新的 / 连不上给旧的（曾完整）/ 只有残缺不给 / 什么都没有给空 |
+| 模块导入图（真 Frappe 环境） | `flow`、`service`、`warm`、`push`、`master_shared`、`masters_cache` 全部导入 OK |
+| `check-dms-parity` | 复核 `masters_cache.py` 漂移（登记 222 → 223 行，就是新加的失败原因日志）后 `--update`，现无漂移 |
+| `check-frontend-i18n` / `i18n-build --check` | 0 问题 / PASS |
+
+**没验到的**
+
+- **对真 DMS 端到端**：本机没有可登录的端点（演示站没装这个 App、也没有 DMS 凭据），
+  只验到"策略与接线正确 + 真 Redis 状态机正确"；"后台预热现在能刷成功"要部署后看
+  `[dms warm] refreshed EP-…` 才作数。
+- **生产上那个每分钟重试的循环只有部署后才会停** —— 本轮不部署（用户明确"部署不要急"）。
+- 会话租约（一次登录供多次读写共用）**没做**：它是设计改动，牵扯对方"单账号只允许一个会话"
+  的互踢，单独评估。
+
+### F45：自查"到底覆盖全没有"，并补掉两处真缺口（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    有没有没覆盖到的功能和功能用回归到旧方案，和方案又没生效的情况，像之前一样做了一个
+    毫无用处的方案，是需要部署后才能验证吗？
+
+**逐条查的结果**
+
+| 面 | 结论 | 依据 |
+| --- | --- | --- |
+| 还有没有"自己登录、不走漏斗"的地方 | **没有** | 全仓只有 `intake/service.run_logged_in` 与连接向导探针两处调 `.login()`；探针也在 `build_adapter` 里拿到共用默认预算。已写成断言（离线回归里那条"没有绕开漏斗自己登录的地方"） |
+| 还有没有别的 App 自己连 DMS | **没有** | `pearnly_core/line.py` 只是注释里提到 DMS + 把 LINE 回调指到 `pearnly_dms.line.handlers`（入口仍在漏斗内） |
+| 管理员会话（第二次登录）吃得到预算吗 | **吃得到** | `ensure_admin_session` 调的是同一个 `_perform_login`，预算读的是同一个 `page_timeout_ms` |
+| **缺口 1：点完登录之后的等待窗口** | **已补** | 老的写死 20 秒总分片：预算给到 90 秒时后半段其实还是 20 秒，等于没放宽。现在这窗口也按这一次的预算算（`verify_ms`） |
+| **缺口 2：点了没回应被错报成"账号/密码问题"** | **已补** | 老口径在"一次拒绝都没收到"时报 `DmsAuthError`（不可重试、不计熔断）→ 用户看到"凭据有问题"而不是"连不上，可重试"。现在报 `DmsUnreachableError`；对方明确拒绝（`al::`/`err::`/未批准）仍报 `DmsAuthError` |
+| **缺口 3：兜底常量还是 15 秒** | **已补** | `DEFAULT_PAGE_TIMEOUT_MS` 现在取自共用口径第一档（30 秒），不留暗坑 |
+| 登录之后的业务请求（transport 默认 30 秒） | 留观（有理由） | 同一条连接复用实测 0.2–0.6 秒；新连接的慢只发生在**第一条**请求（也就是登录页），那一段已被预算覆盖。若以后看到"登录成功后卡住"，这里才是下一个要动的地方 |
+| 有没有功能"又走回旧方案" | 目前没有 | 老的页面级筛选/自研勾选（F43）与 DMS 旧超时都已撤；本轮把它们都转成断言，改动漂回去会红 |
+
+**"方案会不会又没用"这件事，改成用真浏览器证明（本轮新增）**
+
+新增 `scripts/sample-verify-dms-login-budget.py/.sh`：起一个**假 DMS**（登录页故意慢 12 秒
+才回、按钮绑在 `window.load` 上，与真 DMS 同形），用**真浏览器 + 真适配器**去登。实测：
+
+| 场景 | 期望 | 实测 |
+| --- | --- | --- |
+| 登录页慢 12 秒 + 30 秒预算 | 登得上 | **登上（13.0 秒）** ← 这条就是"预算真的生效"的证据 |
+| 同一页面 + 5 秒预算 | 报"连不上"（可重试） | `DmsUnreachableError` |
+| 对方明确拒绝（`al::`） | 报"被拒"（不可重试） | `DmsAuthError` |
+| 按钮没绑事件（点了没回应） | 报"连不上" | `DmsUnreachableError`（老口径会错报成账号问题） |
+
+5 条全过。离线回归加到 **60 条**全过；架构 PASS(0)；对账无漂移；前端文案 0 问题。
+
+**要不要"部署才能验"——分三层说清**
+
+1. **纯逻辑与接线（已验，不需要部署）**：预算档位、熔断阈值/冷却、预热频率、状态机
+   （真 Redis）、旧快照兜底、全仓无绕开漏斗的登录。
+2. **"预算真的能等出结果"（已验，不需要部署，但用假 DMS）**：真浏览器 + 慢 12 秒的假登录页
+   → 30 秒预算下登得上。这条回答的正是"方案会不会没用"。
+3. **只有部署后才能知道的三件事**：① 真 DMS 现在能不能在 90 秒内登成功（它到底慢到几秒，
+   本机测的是 6–16 秒）；② 生产上那个每分钟重试的循环是否停下（看
+   `[dms warm] refreshed EP-…` 出现、`cooling=` 计数上来）；③ 真机 LINE 端到端（点重试、
+   收到正确话术）。这三件在生产上**只读就能验**，但前提是这份代码被部署。
+4. 还有一条**不用部署就能做的只读核对**（需要你点头，因为它会真登一次对方 DMS、可能挤掉
+   正在操作的会话）：在生产容器里对**一个**端点跑一次带 90 秒预算的登录，量它到底几秒、
+   能不能成。要的话我就做。
+
+### F46：LINE 额度：记账 + 令牌优先 + 合并卡片（第 3 步没做，理由在下面）（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    dms line 这边什么场景会消耗 line 官方的这个回话额度？
+    我这个产品未来可能几百人用啊……这个额度我开销不起
+    按顺序依次做吧，做完验证真的覆盖全且不回退
+
+**先钉住事实（代码 + 生产只读查询）**
+
+| 事实 | 证据 |
+| --- | --- |
+| 回覆免费（一张令牌一次、窗口很短）；**推播才吃额度** | `line.reply` / `line.push` 两个出口；`144/300` 是推播 |
+| 额度按**每个租户自己的 OA** 一份 | 凭据在各自站点配置（`pearnly_line_channel_*`），控制面 `Pearnly LINE Channel` 一个部署一条 |
+| 审批通知（发给别人）目前**没在用** | 两站查询：testdms 绑定 2 / ris 绑定 4，**审批人 0、审批单 0** |
+| 定时汇总**没有**实现 | 定时任务只有预热/菜单/对账/投递 |
+| 只在用的那类计费消息 = 订车单回执（事后重发） | ris「已投递」2 条 |
+
+**第 1 步 记账（完成）**
+
+`pearnly_core/line.py`：每发一条记一笔 Redis 计数（`hincrby`，不发消息、不写库）——
+`reply_ok` / `reply_rejected` / `reply_failed` / `reply_unknown` / `push_ok` / `push_failed` /
+`push_deduped`，按天存；`line.usage(days)` 读回来。**为什么**：当初被问"额度开销得起吗"
+时我们**一个数据都没有**（只有失败才写日志），只能猜。`reply_rejected` 还会替我们回答
+"令牌到底多久过期"。
+
+**第 2 步 令牌优先（完成）**
+
+· `line.reply_or_push(to, messages, reply_token)`：没令牌 → 推播（老行为不变）；有令牌 →
+  先试免费回覆；**被明确拒绝（400/401/403：过期/已用过/无效）→ 转推播**；
+  **超时或 5xx（不知道送没送到）→ 也转推播** —— 宁可极小概率重复一条，也不让消息丢掉
+  （我们的流程是"要等这张卡才能往下走"，丢一条会让操作员卡住再重发，更贵）。
+· **把令牌带进后台任务**（这才是关键；只改发送层等于白改）：
+
+| 动作 | 之前 | 现在 |
+| --- | --- | --- |
+| 发身份证照片 → 结果卡 | 没带令牌 → **必然计费** | 令牌进 `process_image` → `run_dedup`，来得及就**免费** |
+| 点确认建/改档 → 回执 | 没带令牌 → **必然计费** | 令牌进 `write_create/write_update/execute` → **免费**（来得及时） |
+| 查询结果看板 / 畅销榜 | 入口**收了令牌却丢掉** → **必然计费** | 令牌进 `_run_records` / `_run_top` → **免费**（来得及时） |
+| 连不上时的"重试/联系管理员" | 必然计费 | 免费（来得及时） |
+| 菜单、选择、状态提示、催办 | 已经免费 | 不变 |
+
+**第 4 步 合并（完成一处）**
+
+"确认瞬间主档变了"原来是**两条**消息（提示 + 汇总卡）；现在并进汇总卡第一行
+（`preview_card(..., notice=)`），一次操作 1 条。
+
+**第 3 步 会话租约：本轮没做（诚实交代）**
+
+它要动的是**会话归属与登录语义**（一次登录供多次读写共用）。不做的理由有两条，都站得住：
+
+1. **本地没有可登录的 DMS 端点**可以验证 —— 没有真机证据就改会话/身份相关的东西，违反
+   项目自己的迁移保护（身份、会话票据这些在迁移期不放松）。
+2. **收益已经不大**：令牌优先对"单次动作"够了（每个用户动作 ≈ 一次登录 6–16 秒，落在窗口内）。
+   只有"一次动作连登两次"的路径（权威只读 = 销售 + 管理员两次登录；提交 + 回读）在对方特别
+   慢时才会超出窗口 —— 这类会体现在记账的 `reply_rejected` 上。
+
+所以第 3 步按数据决定，拆成两半：
+
+- **3a（收益最大、风险中等）**：权威只读块跳过销售那次多余的登录（省 6–16 秒/次）；
+- **3b（收益高、风险高）**：跨请求的会话租用。
+
+等记账跑几天、看到真实的免费比例与被拒比例，再决定做哪一半 —— 这比现在拍脑袋改会话稳。
+
+**第 5 步（审批/汇总走应用内）：挂起** —— 用户明确不做。
+
+**验证（"覆盖全且不回退"的凭据）**
+
+| 检查 | 结果 |
+| --- | --- |
+| 新增 `scripts/sample-verify-dms-quota.py`（已登记进 `check-dms-offline` 的 CASES） | **26 条全过**：七种计数各记对；令牌优先四条路径（成功只回覆 / 被拒转推播 / 超时转推播 / 没令牌直接推播）；**令牌真的进了后台任务**；**被入队的函数签名收得下 `reply_token`**（签名对不上会在 worker 里 TypeError —— 这正是"改了等于没改"的典型形态）；合并卡片；没令牌时行为不变 |
+| `check-dms-offline` 全套 | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / retry 60 / **quota 26** 全 PASS |
+| 架构 / 对账 / 文案 | PASS(0)；6 处漂移逐条对上本次改动后重新登记，现无漂移；前端文案 0 问题；i18n PASS |
+| 真浏览器回归（假 DMS，第 3 步的验证手段） | 5/5 仍全过（慢 12 秒 + 30 秒预算 → 登得上 12.7 秒） |
+
+**没验到的**
+
+- **免费的"比例"**：本地没有真 LINE 通道，记账要等生产跑几天才看得到（用在 `line.usage()`）。
+- 令牌的**真实有效期**：我们代码按 60 秒算，官方偏短；由 `reply_rejected` 说话。
+- 真机 LINE 端到端（点按钮 → 收到卡）仍要部署后验。
+
+### F47：权威只读不再白登一次销售会话（真 DMS 实测：登录 2 次 → 1 次）（2026-09-23，未部署）
+
+F46 收尾时把"省时间"拆成 3a/3b，其中 3a 的验证条件卡在"本机没有能登录的 DMS 端点"。
+用户这轮给了真测试账号（`https://www.mrerp4sme.com/dms/index.php`；销售号 `sale02`/`sale03`、
+管理员号 `dmstest`/`dms001`，凭据在 `~/.config/pearnly/credentials/legacy-endpoints.json`），
+3a 因此可以真验了。
+
+**问题是什么**
+
+`run_logged_in(..., authoritative_read=True)` 以前是"先登销售会话 → 再用管理员会话读"。
+整块读取其实只跑在管理员会话上（`authoritative_read_session` 会把 transport 换成管理员的
+只读闸），所以**销售那次登录是白付的**。生产实测一次新连接 6–16 秒（TLS 握手占绝大部分，
+会话复用 0.2 秒）—— 也就是识别查重 / 客户全字段 / 地址级联 / 编辑页快照 / 主档刷新
+每次都在白等一次登录。
+
+**改了什么**
+
+· `intake/service.py`：`authoritative_read=True` **且**配了独立管理员凭据
+  （`has_distinct_admin_creds`）时跳过销售登录；这一块同时改用
+  `authoritative_read_session(..., require_admin=True)` 兜底 —— 拿不到管理员会话就按
+  `ERR_DMS_ADMIN_AUTH` 明确失败，**绝不回落成"没登录的主会话"**（那样会读出空数据还
+  当成"查无此客"，是最难查的一类失败）。
+· `adapter/admin_read.py`：`authoritative_read_session` 加 `require_admin` 透传
+  （原先只有 `authoritative_read_client` 有这个参数）。
+· 没配管理员 / 管理员与销售同号 → 行为逐字节不变（照旧先登销售会话）。
+· 账号锁不用动：`with adapter` 本来就把销售与管理员两个登录槽一起锁（`session.py` 的 `__enter__`）。
+
+**为什么敢跳（边界核对）**
+
+· 6 个 `authoritative_read=True` 调用点（`recognize_lookup` / `customer_fields` /
+  `geo_options` / `edit_snapshot._read` / `masters_cache` 全量主档 / 颜色批量）**全是只读**，
+  写路径不进这个入口。
+· 块内所有读取都经 `client.transport`（= 管理员只读闸）：`company_banks._fetch_banks`
+  用传进来的 `client`；`employees._fetch_via_admin` 走 `_writer_session`（同一个管理员）；
+  `booking_customer` / `booking_org` 那两处不在这个入口里（它们要销售会话写单）。
+· 「重复登录」弹窗在管理员页上同样记进 `session.dialogs`，收尾那次并发检查照旧有效。
+· 唯一差别：`company_banks._failure_screenshot` 用 `adapter.page`（主会话）截图，跳过之后
+  主页面停在空白页 —— 只影响失败现场那张图，不影响判断和结果。
+
+**验证**
+
+新增 `scripts/sample-verify-dms-authoritative-read-real.py` + `.sh`（真浏览器 + 真 DMS，三场景；
+里面对账用的"登录次数"计在 `_perform_login` 上，主会话与管理员会话都数得到）：
+
+| 场景 | 配置 | 对照（跳过逻辑关掉） | 现在 |
+| --- | --- | --- | --- |
+| A | 销售 `sale02` + 独立管理员 `dmstest` | **登 2 次**（sale02 488ms → dmstest 4457ms），整块 9526ms | **登 1 次**（dmstest），读取真数据 `provinces=77 / prefixes=5` |
+| B | 只有销售号（没配管理员） | 登 1 次（sale02），读取正常 | 三轮一致：登 1 次（sale02），读取正常 |
+| C | 管理员号登不上（不存在的账号） | 登 2 次、`ERR_DMS_ADMIN_AUTH`、读取没跑 | 只登 1 次、`ERR_DMS_ADMIN_AUTH`、读取没跑（失败关闭） |
+| D | 同 A，但跑**生产那个真实入口**（身份证查重 `recognize_lookup`） | —— | 只登 1 次（管理员），`ok=True / scenario=none`；**整条读链都过得了管理员只读闸** |
+
+对照 = 同一份工作树代码，只把"跳过"那两行换回 `skip_sales_login = False`，跑完立即恢复
+（用 `md5` 核对过恢复前后一致）。
+
+场景 D 是只有真系统才验得到的一件事：查重那一整条读链（查客户 → 直读客户 → 表单回显 →
+地址级联 → 称谓）每一跳都必须落在 `admin_read._READ_ONLY_POST_PATHS` 的允许表里；
+有哪一跳不在，管理员会话会直接拒掉（`refused a non read-only request`）—— 离线假 DMS
+不会暴露这种问题，因为假 DMS 里没有真页面路径。
+
+顺带得到一条对照：同样两次读，走管理员会话（A）和走销售会话（B）的整块耗时基本一样
+（5.2s / 5.05s），说明**读本身没变慢**，省的确实只是那一次多余登录。
+
+**别拿单次墙钟当收益**：同一场景连跑三次，A 的整块耗时是 5.2s / 11.1s / 30.8s，登录本身
+0.5s / 0.7s / 6.4s —— 对方主机抖动极大（与生产上量到的现象一致）。**硬证据是登录次数 2 → 1**；
+省下的时间就是那一次登录在生产上的 6–16 秒。
+
+**生产会不会生效（只读；不部署也能确认）**：在生产 DMS 容器里跑
+`has_admin_creds()`（这正是运行时判据，含"密码能不能解开"）—— 9 条端点的管理员凭据
+**都解得开**，其中 6 条是"销售号 ≠ 管理员号"，也就是这个优化**真的会生效**：
+
+| 站点 | 端点 | 销售号 | 管理员号 | 会跳过销售登录？ |
+| --- | --- | --- | --- | --- |
+| testdms | EP-00001 | `dmstest` | `dmstest` | 否（同号，行为不变） |
+| testdms | EP-00002 | `sale02` | `dmstest` | **是** |
+| testdms | EP-00003 | `sale03` | `dmstest` | **是** |
+| ris | EP-00001 / EP-00002 | `dms001` | `dms001` | 否（同号） |
+| ris | EP-00004 / EP-00011 / EP-00015 / EP-00016 | `00000`/`00sctest1`/`10562`/`10434` | `dms001` | **是**（4 条） |
+
+后台预热走同一个 `run_logged_in` 入口，同样从 2 次变 1 次。
+
+| 检查 | 结果 |
+| --- | --- |
+| 真 DMS 四场景（`sample-verify-dms-authoritative-read-real.sh`） | 13/13 PASS（三场景版连跑三轮一致，加场景 D 后 13/13） |
+| `check-dms-offline` 全套 | client 77 / booking-foundation 45 / booking-payments 42 / booking-readback 43 / retry 60 / quota 26 全 PASS |
+| 架构 / 对账 / 文案 | PASS(0)；无漂移（`intake/service.py`、`adapter/admin_read.py` 不在那 47 个对账模块里，本次有意偏离登记在本节）；前端文案 0 问题 |
+
+**没验到的**
+
+· 生产上的真实节省：要部署后看（本地链路一次登录只有 0.5–6 秒，抖起来能到 6.4 秒）。
+· 后台预热对真 DMS 的那一条：没单独跑（它走同一个 `run_logged_in` 入口，差别只在预算档）。
+· 3b（跨请求会话租用）仍然没做 —— 它动会话归属，先看这次的记账与耗时数据。
+
+### F48：选择框的「新建」回到我们自己的页面，仓库/收银台按公司联动（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    所有涉及到仓库，公司选择，物料，供应商，客户主档信息的选择输入框，数据要关联起来，
+    同时每个输入框加新建入口，和官方原生一样，点新建跳转到我们已有的对应位置，不要把
+    用户带到官方原生的地方去了，全局做到同步……不应该把用户带到原生的系统，不应该带到
+    我们没有的功能，你现在的筛选也会，下拉组件样式做成我们的
+
+**问题是什么**
+
+官方 Link 控件的下拉自带两项：`Create a new X`（官方快速录入 → 落到官方表单）、
+`Advanced Search`（官方选择器）。实测点「新建 ERP Warehouse」直接进了
+`/desk/erp-warehouse/new-erp-warehouse-…` —— 那是官方表单，不是我们的仓库页。
+筛选弹层里的 Link 是**同一个控件类**，所以那里也一样跑掉。
+
+**怎么做的（四处，一处规则全站生效）**
+
+| 层 | 落点 | 做了什么 |
+| --- | --- | --- |
+| 产品声明 | `pearnly_erp_portal/hooks.py` 的 `pearnly_navigation.links` | 声明"这个主档是我们哪一页"：ERP Warehouse→`pearnly-warehouses`、Product→`pearnly-products`、Supplier→`pearnly-suppliers`、Customer→`pearnly-clients`、Company→`pearnly-company`（ADR-009：菜单与映射由产品自己声明） |
+| 启动数据 | `pearnly_core/desk/navigation.py` | `link_targets()` 按**当前用户能打开**的页面过滤（判据与侧栏同一套 `visible_pages`），进 `boot.pearnly_links` |
+| 控件接管 | 新增 `pearnly_core/public/desk/link.js` | ① 下拉里把官方那两项换成我们的那一条（**文案与图标照官方写**，只有去处变了）、值 `pearnly_create__link_option`；② `new_doc()` / `open_advanced_search()` 兜底也进我们的页；③ 「新建」跳到那一页后由目标页**自动开自己的新建弹窗**（`p.take_create`，one-shot + 60 秒时限） |
+| 数据联动 | 同上 | `p.link_query_default`：仓库/收银台**按当前公司**过滤（仓库属于公司）。只在这一条关系上兜底，调用方自己写的 `get_query` 不动 —— 表单、弹窗、明细表格、**筛选弹层**都吃得到，不用各写一份 |
+
+我们的表单字段（`only_select: true`）原本把这两项整个藏掉，所以"新建入口"一直缺；现在按声明补回来，
+没登记的 doctype 仍保持原样（我们的表单也不给它入口，用户不会掉进官方表单）。
+
+两个实现要点，都是踩过才知道的：
+
+· 下拉那两项是官方在 `on_input` 的回调里拼好的，官方**只给了 `toggle_href` 这个点**紧跟在赋值后面
+  （`link_options` 钩子只在 `!only_select` 时被调用，而我们的字段恰恰都用 `only_select`）；
+· 这个 awesomplete 的 `list` 是**只写**属性（`set list(list) { this._list = list }`，没有 getter）——
+  第一版读 `aw.list` 拿到 `undefined`，整段静默失效（浏览器里实测：官方那两项还在、我们的没出现）。
+  现在读 `_list`、写走 `list`，并有一条会失败的回归测试盯着（见下）。
+
+**验证（真浏览器，站点 `erp-pos-a.localhost`）**
+
+| 场景 | 结果 |
+| --- | --- |
+| 启动数据 | `frappe.boot.pearnly_links` = 那 5 条映射；`ControlLink.pearnly_link === true` |
+| 库存在**筛选弹层**取仓库 | 12 项 = 当前公司 10 个仓 + 官方那句"已按 公司 等于 CO-00552 过滤" + **我们的「新建」**；**没有「高级搜索」**；别的公司的 `WH-00555` 不在列 |
+| 点筛选里的「新建」 | 落到 `/desk/pearnly-warehouses`（**不是** `erp-warehouse/new-…`）并自动开出我们的「新建仓库」弹窗 |
+| 物料快捷弹窗里的默认仓库（`only_select` 字段） | 同样有我们的「新建」，仓库按 `公司 + 已启用` 过滤（该字段自己那份 `get_query` 仍在） |
+| 供应商 / 物料 / 公司 / 客户 | 四条目标逐个点过：分别落到 `pearnly-suppliers` / `pearnly-products` / `pearnly-company` / `pearnly-clients`，并自动开出「新建供应商 / 新建物料 / 新建公司 / 新建客户」 |
+| 没登记的 doctype（`ERP Purchase Category`） | 官方那两项**原样保留** —— 我们不动没声明的东西 |
+| 收银台的客户搜索框 | 搜索结果正常（名称+电话），**没有**我们的「新建」也**没有**「高级搜索」（见下面的取舍） |
+
+| 检查 | 结果 |
+| --- | --- |
+| 新增 `tests/test-link-options.cjs` | 全过：官方两项被换掉、未登记不动、无权限不给入口、`pearnly_no_create` 连官方两项一起去掉、公司联动只碰仓库/收银台、`take_create` 对得上才开且取走即清 |
+| 变异测试（把"读 `_list`"改回"读 `list`"） | **该测试失败** —— 证明它盯得住这个坑，不是空转 |
+| JS 全套 11 支 | ALL PASS |
+| `check-architecture` / `check-frontend-i18n` / `i18n-build --check` / `check-dms-parity` | PASS(0) / 0 问题 / PASS / 无漂移 |
+| `tests.test_erp_portal_access` | 102 条 OK(6 skipped) |
+| `tests.test_native_desk_contract` | 18 条里 2 条失败 —— **基线就有**：把本次的 `navigation.py` / `hooks.py` 改动 stash 掉，同样这 2 条失败（侧栏 items 多了 `child/indent`、`save_sidebar_order` 多回一个 `pages`），与本次无关 |
+
+**取舍与没验到的**
+
+· **收银台的客户搜索框故意没有「新建」**：这一单的购物车只活在收银台那一页（`cart` 在渲染闭包里），
+  点"新建"跳去客户页会**把用户正在开的单丢掉**。主数据页那些入口可以跳，这一格不行。
+  要做就做成**就地弹我们自己的客户弹窗**（把客户页那张弹窗抽到共用层），等你点头再做。
+· `ERP POS Terminal`（收银台的收银台号）没进映射：它的"新建"该去哪一页现在没有答案，所以保持原样（没入口）。
+· 只验了 ERP 产品站（`pearnly_product=erp`）。DMS / Cowork 两个产品若以后要这套，各自在自己的
+  `hooks.py` 里声明 `links` 即可，共用层不掺产品内容。
+· 窄屏（390px）与真机没验 —— 这次只动了浮层里的条目与去处，浮层几何仍是官方那套。
+· `link.js` 借的 `toggle_href` 是官方实现里的一个点，**不是公开契约**：框架升级时要重跑
+  `tests/test-link-options.cjs` 与上面那两条浏览器场景（记录在此，免得下次只看代码）。
+
+### F49：选择框这一类补齐（新建永远看得见、箭头回我们自己的页、标签不重复）（2026-09-23，未部署）
+
+用户拿 13 张截图一次报了一串，最后一句是重点："这些问题没有一套框架管控吗，都是发现一点改一点。
+组件要按类别统一"。所以这一轮**先按类修框架，再修具体页**，并把判据写成测试。
+
+**按类查出来的四个根因**（一个根因解释好几张截图）
+
+| 类 | 症状（用户截图） | 根因 | 修法 |
+| --- | --- | --- | --- |
+| 下拉里的「新建」 | 图1/4/7/9/10/13："仓库没有新建""不可以新建""组件显示不全" | 我们那条一直有，但排在最后、浮层 `max-height:300px` 要**滚动**才看得到（实测 `scrollH 488 > clientH 298`） | `product.css`：把这一条**钉在浮层底部**（`position: sticky; bottom: 0` + 分隔线）——结果照常滚，它一直在 |
+| 箭头（Open Link） | 图2→图3："箭头按钮会带到别的地方……根本不是我们自己的" | 官方把 href 写成 `frappe.utils.get_form_link` = **官方表单** | `link.js` 接管箭头：href 指我们那一页 + 点击走 `p.open_link_record`（记录级 one-shot `p.take_open`，由目标页开那条记录） |
+| 跳走时旧弹窗 | 箭头跳过去后旧弹窗还压在上面 | 框架弹窗不随路由消失（`Dialog.hide()` 要自己调） | 跳转前 `p.dismiss_modal_of($from)`（就是框架那句 `$wrapper.modal("hide")`） |
+| 标签重复 | 图10/11/13："供应商/供应商名称""物料/物料名称""仓库/仓库" | ① 段落标题与紧跟的字段标签**同一个词**（`u.section("Supplier")` + `f("supplier","Supplier")`；公司弹窗的 `Section Break label=仓库` + 字段 `仓库`）② 派生字段（供应商名称）画成了可编辑输入框，看起来像要再填一遍 | 段落标题去掉（`u.section("")`）；`supplier_name` 改**只读**（由所选供应商带出）；公司弹窗那段去掉标题、字段加一句原生 description 说明它是什么 |
+
+另外三处具体页：
+
+| 图 | 问题 | 修法 |
+| --- | --- | --- |
+| 图5/图8 | 网格里的物料「新建」会进官方 `erp-product/new-…` | 复核：现在网格那条**就是我们的**（官方两条已被换掉），点下去到 `/desk/pearnly-products`（实测）；用户截图应是改前那次页面 |
+| 图12 | 开班对账表"付款方式"列被压到看不见 | 那几列没给宽度（官方 grid 的 `columns` 是权重）：`method 5 / opening 4 /（交班）expected、counted、diff 各 3`。实测列宽 271px、控件 270px 完整显示 |
+| 图13 | 公司弹窗的"仓库"不能下拉、也不能新建 | 这一格给的是**新公司第一个仓库的名字**（新公司还没有仓库可选），不是选择框 —— 去掉重复标题 + 加说明"这家公司的第一个仓库（之后在「仓库」页再加）"；建完就在仓库页管理（含新建） |
+
+**一处顺序修正（自查发现的）**：`take_open` 原先在 `await list.ready` **之前**跑，那时列表还没数据，
+按名字找不到那一行 → 箭头到了我们的页却不开记录（实测 "landing: modals=0"）。五个页面统一挪到
+列表就绪之后再接手，复测 `modals=1 / 标题=仓库名`。
+
+**实测（真浏览器，`erp-pos-a`；每条都在改后的代码上重跑过）**
+
+| 场景 | 结果 |
+| --- | --- |
+| 物料弹窗的默认仓库 | 12 项，我们那条 `position: sticky`、**不用滚动就在可视区内** |
+| 入库单弹窗的仓库 / 盘点的仓库 | 同上（各 12 项，`sticky`，可视） |
+| 采购新建页的供应商 | 12 项、我们那条 sticky 可视；选一个供应商 → `supplier_name` 自动带出 `Purchase check 0107b55c`、红框消失（只读生效） |
+| 采购新建页的物料 | 12 项、我们那条 sticky 可视 |
+| 箭头（物料弹窗 → 仓库） | 落在 `/desk/pearnly-warehouses`、**旧弹窗已收起**（`modals=1` 是新的那张）、弹出的是**我们的**仓库弹窗（标题=仓库名，字段 仓库/备注） |
+| 采购新建页标签 | 段落标题里不再出现"供应商"，`supplier_name` 渲染成只读（`like-disabled-input`）且空值时不报错 |
+| 公司新建弹窗 | 没有重复的"仓库"标题；字段仍是 仓库（默认值"主仓"）+ 说明"这家公司的第一个仓库（之后在「仓库」页再加）" |
+| 开班对账表 | 列宽 付款方式 271px / 期初金额 180px；点开那一格控件 270px 完整显示、值是"现金" |
+| 收银台客户搜索框 | 仍然没有「新建」，**并且连箭头也藏掉**（跳走会丢正在开的这一单） |
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `tests/test-link-options.cjs`（扩到 11 组） | 全过：新增**箭头**行为（href 指我们那一页、拦掉官方跳转、`take_open` 对得上才开且取走即清、未登记 doctype 一个字都不动、"不要跳走"的格子箭头藏掉）与 `dismiss_modal_of`（在弹窗里就 hide、不在就什么都不做） |
+| JS 全套 11 支 | ALL PASS |
+| 架构 / 前端文案 / i18n 构建 / DMS 对账 / 门户权限 | PASS(0) / 0 问题 / PASS（新键 `company.warehouseHint` 四种语言已进 `translations/*.csv`）/ 无漂移 / 102 条 OK(6 skipped) |
+| 变异测试（把"读 `_list`"改回去） | 该测试失败 —— 仍然盯得住 |
+
+**取舍与没做**
+
+· **"跳转"就会丢当前弹窗里没保存的输入**：选择框点新建/箭头是**跳页**（用户口径"点新建跳转到
+  我们已有的对应位置"），跳之前我们把那张弹窗收起来 —— 里面的输入不会跟着走。要"不丢"就得做成
+  **就地弹我们自己的弹窗**（把主数据页那张弹窗抽到共用层，收银台那格也顺带解决），等你点头。
+· 采购页的「物料名称」（`description`）仍是可编辑的：它是**印在单据上的描述**，允许与主档不同名，
+  所以没跟着改成只读；只去掉了重复的段落标题。
+· 静态防回归（"每个 Link 的 options 必须在 `pearnly_navigation.links` 里声明或显式说明不要"）
+  还没做：它能挡住"下次又漏一个字段"，但 `check-architecture.py` 是共享文件，按仓库约定由单个窗口
+  改，先记在这里当下一步。
+
+### F50：选择框那一层不再用主题色（未选中不上色、悬停回官方灰）（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    除了侧栏选中状态用主题色，其它全部延用官方的灰底，还有一些是未选中是会出现主题色，
+    也不要保留官方的灰底
+
+    （第一版我改多了，把主按钮色和公司图标底色也一起换回官方灰 —— 用户当场更正：
+     "我只说了选择和未选中，没让你改主按钮色和公司图标底色"。已还原。）
+
+**先扫清楚"现在到底哪儿用了主题色"**（真页面 `pearnly-stock-out`，逐元素比对
+`#7c4dff / #6b3ff2 / #eee5ff` 的计算值）——比看代码准，扫出来一共三类：
+
+| 命中 | 是什么 | 处理 |
+| --- | --- | --- |
+| `.standard-sidebar-item.active-sidebar`（底 + 字 + 图标） | 侧栏**当前选中**那一项 | **保留**（用户明确要的那一处） |
+| `[role="option"][aria-selected="true"]` | 下拉里被 **`autoFirst` 自动标成选中**的那一行 —— 什么都没选就有一行有色 | 去掉：未选中不上色（见下） |
+| `.btn-primary`、侧栏 header 的 logo 方块 | 主按钮、公司首字那块的底 | **不动**（用户更正：他说的只是"选中/未选中"的配色，这两处是品牌色，属产品口径） |
+
+**改了什么**
+
+· **下拉浮层不再上品牌色**：悬停/移动＝官方那层灰（`var(--control-bg)`）；而"没人动过"的
+  自动高亮行**完全不上色**（用户："未选中却出现主题色……也不要保留官方的灰底"）。
+  ⚠️ 这一版框架把下拉行渲染成 `[role="option"]` 的 **div**（不是 `li`）—— 两个选择器都写才命中（第一版只写 `li`，实测没生效）。
+· 我们那条「新建 …」：文案/图标/文字色回官方（只保留"钉底 + 一条分隔线"）。
+
+**没有动的**（第一版动错了，已逐条还原）：`--primary` / `--primary-color` / `--btn-primary` /
+`--checkbox-color` 四个品牌令牌、主按钮的显式样式、侧栏 logo 方块、标签页选中下划线、
+盘点差异图那两根柱子的颜色 —— 这些都不是"选中/未选中"的配色，用户没让改。
+
+**实测（改后重扫同一个页面 + 出库单弹窗的仓库下拉）**
+
+| 检查 | 结果 |
+| --- | --- |
+| 全页主题色命中 | **只剩** `.standard-sidebar-item.active-sidebar`（选中项）那几条 ✔ |
+| 主按钮底色 | `rgb(124,77,255)`（品牌色，**未动**） |
+| 侧栏 logo | 底 `rgb(124,77,255)`、字 `#fff`（品牌色，**未动**） |
+| 刚打开的下拉 | 自动高亮行 `rgba(0,0,0,0)`（**不上色**）、其它行也不上色 |
+| 真鼠标移到某一行 | `rgb(243,243,243)` = 官方灰底（**hover 保留官方灰**）✔ |
+| 我们那条「新建」 | 白底、`position: sticky`、文字色 `rgb(56,56,56)`（官方） |
+| 悬停变量 | `--awesomplete-hover-bg` = `#f3f3f3`（官方 `--control-bg`，不再是品牌浅紫） |
+| 对上一版的 diff | 只剩"下拉那一层"这几行 —— 其余改动已全部还原 |
+
+| 检查 | 结果 |
+| --- | --- |
+| JS 全套 11 支 / 架构 / 前端文案 / i18n 构建 | ALL PASS / PASS(0) / 0 问题 / PASS |
+
+**取舍（要你定）**
+
+· 自动高亮行不再上色之后，**纯键盘操作**（方向键上下）时那一行的位置看不出来了：Enter 仍然选它，
+  只是没有底色提示。要的话给它留一层很淡的官方灰（一行的改动），但那就等于把官方灰加回来。
+· 侧栏选中项仍是品牌色（用户要保留的那一处）。
+
+### F51：「附加信息」收瘦 + 全站"选物料"的地方都能扫（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    采购记录这边附加信息太多了，把全局所有用到选择物料的选项的地方，全部加图二那个组件，
+    扫码组件，扫到匹配后自动带出
+
+**改了什么**
+
+· **共用层只放按钮、动作由产品给**（`pearnly_core/public/desk/link.js`）：产品声明
+  `p.scan_doctypes`（哪几类 Link 要带扫码）并实现 `p.scan_link(control)`；共用层在
+  `ControlLink.make_input()` 之后调 `p.attach_scan_btn(control)` 把按钮放上去。形状照官方
+  `Data` + `options:"Barcode"` 那颗（`data.js::setup_barcode_field`）：输入框右内缘一颗灰图标，
+  悬停才上底色 —— 皮肤写在共用层（`product.css` 的 `.pearnly-link-scan`），产品不重画一遍。
+  · 宿主：表单/弹窗是 `.control-input`；**网格单元没有这一层**，退到输入框的父元素（`.awesomplete`）。
+  · 不放的三处：筛选弹层里（`.filter-area` —— 那不是"选物料"的动作）、只读的格子、已经挂过的格子
+    （`control.pearnly_scan_btn` 幂等）。
+· **产品给动作**（`pearnly_erp_portal/public/desk/scan.js`）：`p.scan_doctypes = ["ERP Product"]`；
+  `p.scan_link` = 走自研扫码（`p.scan`）→ 用主数据那条四路查接口（编码 / 条码 / 二维码 /
+  售卖单位条码）找物料 → 填进选择框 → **"带出"交给该字段自己的 `onchange`**（各页那份：说明、单位、
+  单价、仓库、地点都由各页规则决定，共用层不重复一遍）。查不到就橙色提示 + 出错音，不静默。
+· **采购行「附加信息」收瘦**（`purchase-fields.js`）：物料号 / 条码改成"自动带出来的"（`hidden`，
+  值照旧随行提交）；批号 / 失效日期默认收起，选了**管批次 / 管有效期**的物料才由 `onchange` 露出来。
+
+**实测（真页面 `erp-pos-a`，真点真看）**
+
+| 位置 | 结果 |
+| --- | --- |
+| 采购新建行的「物料」 | 有扫码钮：宿主 `.control-input.pearnly-link-scan-input`、距输入框右缘 **4px**、垂直居中、24×24、输入框 `padding-right:30px` |
+| 采购行扫码（打桩回 `88dc6260926a`） | 带出 `product=PRD-00410 / description=WB-e66c3ea3 / unit=件 / unit_price=6.00` |
+| 采购行「附加信息」默认 | 只剩 项目类型 / 仓库 / 类别 / 地点 / 子分类；物料号 / 条码 / 批号 / 失效日期 都 `.hide-cont` |
+| 选到管批次的物料（`PRD-00186`） | 批号 + 失效日期 当场露出来；换回普通物料又收起 |
+| 销售新建行的「物料」 | 有扫码钮（同一形状）；扫码带出 `product / description / unit / unit_price` |
+| 入库单网格里的「物料」 | 有扫码钮（宿主退到 `.awesomplete`，距右缘 4px、在框内）；扫码后这一行 `product / description / unit / unit_cost` 全带上 |
+| 筛选弹层（收发存报表） | **不长**扫码钮。对照组：同一页把 `scan_doctypes` 临时加上 `ERP Warehouse` 之后，弹层里那颗 Link 仍然没有，而"新建出库单"弹窗里的仓库格**有** —— 说明挡住它的是 `.filter-area` 那一条，不是"压根没挂上" |
+| 已提交单据的查看页 | 一个扫码钮都没有（只读 / 隐藏） |
+| 收银台搜索框 | 仍是官方那颗「扫码」（框架 `options:"Barcode"` 自己挂的）—— 本来就有、形状就是图二那颗，没动 |
+
+**"隐藏了还提交吗"单独验**（这条最容易出事）：把行的 `get_values()` 拦下来看，隐藏之后
+`code` / `barcode` **仍然在**提交值里（`code=P-000031`、`barcode=88dc6260926a`），
+服务端 `LINE_FIELDS` 照收 —— 隐藏只是不让人手打，不是把数据丢掉。
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `tests/test-link-options.cjs`（新增第 12 组） | 过：只对声明的那类 Link 挂、按下走产品给的动作、不重复挂、筛选弹层里不放、只读格子不放 |
+| 变异测试（把"只读不放"那行注释掉） | 该断言失败 —— 断言盯得住 |
+| JS 全套 11 支 | ALL PASS |
+| 架构 / 前端文案 / i18n 构建 / DMS 对账 / 门户权限 | PASS(0) / 0 问题 / PASS（新键 `product.scan.notFound` 四种语言）/ 无漂移 / 102 条 OK(6 skipped) |
+
+**取舍与没做**
+
+· 收银台那颗扫码仍是官方 `frappe.ui.Scanner`（html5-qrcode，同源资产）；我们自研那套有原生
+  `BarcodeDetector` + 同源 WASM 兜底。要不要把收银台也统一成自研那一套（一台设备一种行为），等你点头。
+· 盘点录入那一格不是 Link，它自己那套「输入码 → 查找 → 摄像头」是原有的，没并进这条机制。
+· 库存在库页顶上那个"搜索名称或条码"是列表筛选，不是"选物料"，没挂。
+
+### F52：扫码的反馈收成官方口径 —— 静音管住震动，一件事只响一声（2026-09-23，未部署）
+
+用户口径（原话）："**就做1-2吧**"（1＝震动要跟静音；2＝同一件事别响两声），
+外加一问："你说租户站不装 erpnext、官方那条钩子取不到……不可能给租户装 erpnext 吧？"
+
+**先把"钩子"和"文件"这两层讲清楚**（这是我上一轮没说清、把人绕晕的地方）：
+
+| 层 | 由什么决定 | 不装 erpnext 的租户站上是什么样 |
+| --- | --- | --- |
+| `<audio id="sound-…">` 这**一条声明** | 站点**安装**的 App 的 `sounds` 钩子（`frappe.get_hooks` → `get_installed_apps()`） | erpnext 那条**不会**生成（实测 `erp-pos-a` 只装了 frappe + pearnly_core + pearnly_erp_portal） |
+| `/assets/erpnext/sounds/numpad-touch.mp3` 这个**文件** | bench / 镜像里有没有 **clone** 过 erpnext（`sites/assets/erpnext` 是 bench 级软链） | 有 —— 生产镜像就是 `FROM frappe/erpnext:v16.34.1@digest`，`apps.txt` 也写着 erpnext |
+
+所以：**不用给租户装 erpnext，也不用复制文件**。我们在 `pearnly_core/hooks.py` 里补的那一条
+`numpad-touch` 声明，指向的是**镜像里本来就有**的那个文件；实测 `erp-pos-a` 页面里确实有
+`sound-numpad-touch` 这一个节点（只有一条，说明它来自我们，不是 erpnext）。
+残余前提写在下面「取舍」里。
+
+**改了什么**
+
+· `pearnly_core/public/desk/product.js` 新增 `p.sounds_muted()`：账户静音（`User.mute_sounds`）
+  是**一位管全站** —— 官方 `play_sound` 自己看它，我们自己的提示（震动这类）也收到这同一个判断上。
+· `scan.js` 的 `p.scan_feedback`（"读到了"那一刻）**不再出声**：只闪一下 + 对勾 + 震一下，
+  震动跟静音走（`p.sounds_muted?.()` 判断；共享层万一没加载就退回原来的"照震"）。
+· 新增 `p.scan_result_sound(ok)`：命中 `submit`、没命中 `error`，走官方 `play_sound`，
+  由**各调用方在"成了 / 没成"那一下**放 —— 跟官方 POS `pos_item_selector.js` 一样（那边也只有
+  命中才 `play_sound("submit")`）。
+  接上的四处：选择框扫码（`scan_link`）、商品弹窗扫码（写进表单 = 成功音；码是别人的 = 失败音）、
+  商品多行快录扫码（同上）、盘点录入（查到 = 成功音、没查到 = 失败音；打开已录那一行不算"查了"，不响）。
+
+**实测（真页面 `erp-pos-a`，把 `HTMLMediaElement.play` 与 `navigator.vibrate` 偷听下来）**
+
+| 检查 | 结果 |
+| --- | --- |
+| `p.scan_feedback(...)` | 播放列表 **空**（不出声）✔、震一下 `60` ✔、视觉反馈照旧上 `pearnly-scan-done` ✔ |
+| 静音时 `p.scan_feedback(...)` | **不震** ✔（视觉反馈照旧上，静音只管声音和震动） |
+| 取消静音 | 又震 ✔（`p.sounds_muted()` 跟着 `frappe.boot.user.mute_sounds` 走） |
+| `p.scan_result_sound(true/false)` | 真去播 `sound-submit` / `sound-error` 两个**官方节点** ✔ |
+| 页面上的音效节点 | `sound-email` / `submit` / `cancel` / `delete` / `click` / `error` / `alert` / `numpad-touch` 八个 |
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `tests/test-stocktake-scanner.cjs`（扩了三条断言） | 过：读到不放音、震一下、静音不震、结果音是 submit/error |
+| 变异测试①（把音效加回 `scan_feedback`） | "读到的瞬间不放音效"失败 —— 盯得住 |
+| 变异测试②（去掉静音判断） | "静音时不震"失败 —— 盯得住 |
+| `tests/test-product-scan.cjs` / `test-product-multi.cjs`（补契约 + 新断言） | 过：新码 = 成功音、码是别人的 = 失败音、多行快录扫码 = 成功音 |
+| JS 全套 11 支 | ALL PASS |
+| 架构 / 前端文案 / i18n 构建 / 门户权限 | PASS(0) / 0 问题 / PASS / 102 条 OK(6 skipped) |
+
+**取舍与没做**
+
+· 我们那条 `numpad-touch` 声明指向 `/assets/erpnext/sounds/numpad-touch.mp3`：**文件在镜像里**
+  （生产基础镜像就是官方 `frappe/erpnext`，digest 锁定；`infrastructure/production/site-step.py`
+  的 `apps.txt` 也写着 erpnext），但**站点不安装它**。换句话说这条依赖的成立条件是"镜像/bench 里
+  有 erpnext 的 assets"，不是"站点装了 erpnext"。哪天真把基础镜像换成纯 frappe，这条会静默没声 ——
+  要彻底断掉就把那 1.6KB 的 mp3 放进我们自己的 App（ERPNext 是 GPLv3 资产，要不要复制请你定）。
+· 收银台那颗是官方扫码器：它本来就不在"读到"时出声，只在进购物车 / 没找到时各一声 submit/error，
+  跟这次改完的口径一致，所以没动。
+· 扫码枪（键盘输入）在采购行、盘点那几处仍是各页自己处理回车；这次没有并进同一套。
+
+### F53：下拉点不到、音效搬进自己 App、商品→物料、出入库明细拆掉表格（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    把那 1.6KB 的 mp3 放进我们自己 App，全局出现商品字段和商品标题的地方全部改为物料，
+    出库和入库界面添加物料那个位置不要用表格，拆出来，而且你那个下来的时候新建好像被隐藏了，
+    点不到，所有备注框地址框收窄
+    （接着：）去掉了后把上面那个加进去。出入库同步，调整视角对齐，扫码能匹配同步带出
+
+**① 下拉里的「新建」点不到 —— 复现到根因了**
+
+真页面上量：入库单弹窗的物料格里，那条「新建 ERP Product」在 y=699–734，而弹窗底部那条
+`.modal-footer` 从 y=704 起、`position: sticky; z-index: 3`，浮层 `ul` 是 `z-index: 2` ——
+**两者在同一个层叠上下文里，按钮栏把浮层最后两三行盖住了**：点中心命中的是 `.modal-footer`
+（元素级实测 `elementFromPoint` 返回 `.modal-footer`），所以"看得见、点不到"。
+
+修法：只在大弹窗里把浮层抬到 `z-index: 4`（浮层本来就是"临时压在最上面"的东西）。
+验证：同一个点再量，命中变成我们自己那条的字（`新建ERP Product`）；再用真鼠标事件点一次，
+**跳到了 `/desk/pearnly-products` 并弹出「新建物料」**（`pending_create` 取走即清）。
+
+**② 音效文件搬进自己 App**
+
+`apps/pearnly_core/pearnly_core/public/sounds/numpad-touch.mp3`（与上游**同一份**音频，
+sha256 `e4de894f…` 两边一致，1688 字节），`hooks.py` 的 `sounds` 改指
+`/assets/pearnly_core/sounds/numpad-touch.mp3`。验证：真页面上 `#sound-numpad-touch` 的
+`src` 已是我们的路径，并且 `canplaythrough` 能过（**能播**）。这样这条依赖彻底不靠 erpnext。
+
+**③ 「商品」→「物料」（中文界面）**
+
+改了 4 条中文词条（都在 ERP 那个 App 的术语表，改了之后跑 `i18n-build.py` 重生成四语言 CSV）：
+
+| 键 | 原文 | 现在 |
+| --- | --- | --- |
+| `trade.lines` | 商品 | 物料 |
+| `team.role.products` | 商品 | 物料 |
+| `trade.counterProducts` | 商品 | 物料 |
+| `trade.scanNotFound` | 没找到这个码对应的**商品**：{0} | 没找到这个码对应的**物料**：{0} |
+
+另加一条 `trade.action.addLine`＝添加明细（入库/出库那颗按钮原来引的是 `purchase.` 命名空间的键，
+而 `t()` 只装 `trade.` 那一包，于是按钮上直接露出 `trade.action.addLine` 这个键名 —— 顺手修掉）。
+
+**把主要页面扫了一遍**（物料 / 库存 / 收银 / 收银记录 / 销售记录 / 出库 / 采购新建 / 团队管理）：
+中文里已经**没有**「商品」这个词了；剩下能看到的「商品」全在**测试数据的物料名**里
+（"识别后复核测试商品"这类），不是界面文案。
+
+**④ 备注 / 地址框收窄**
+
+这些格子官方都是 `Small Text` 控件（`textarea.form-control`），官方给的是整列宽 ——
+实测入库单弹窗里那格 **543px** 宽、只填一行字。共用皮肤里收窄到 **360px**（只收宽度；
+窄屏不受影响，`max-width` 只封顶）。验证：入库单那格实测 360px。
+
+**⑤ 入库 / 出库的明细：不再用表格，一条一段**
+
+· 新增共用件 `p.trade.lines_editor(t, …)`（`transactions.js`）：一条明细 = 官方可折叠
+  `Section Break` + 一个 `FieldGroup`，字段与老表格的列一一对应；带「添加明细」与每条的「删除」。
+  滚动、折叠、校验（必填没填 → 就地标红 + 展开那一段 + 阻止提交）都用官方行为。
+· **仓库只有一个源**：表头那格。行里那格是它的**镜像**（只读、跟着表头变）——
+  用户先指出"仓库重复了"，接着说"去掉了后把上面那个加进去。出入库同步"。服务端口径本来
+  也是"行没给仓库就用单据的仓库"（`inventory/positions.py::prepare`）。
+  选物料时主档默认仓**建议**给表头（只在表头空着时填，不覆盖用户选的）。
+· 版面重排对齐（3 列）：物料/仓库 · 仓位/数量/单位 · 单位成本/名称或说明（+ 删除）。
+· **查看**已提交的单据仍然用原来那张只读表（那是"看"，不是"加物料"）—— 实测点开一张已提交单
+  仍是表格、没有编辑器。
+· 出入库共用这一份代码，所以两边**同一套**：实测两边的字段、按钮、镜像仓库完全一致，
+  唯一差别仍是出库的「单位成本」只读（结存成本由服务端算）。
+
+**实测（真页面，`p.call` 打桩不打服务端）**
+
+| 检查 | 结果 |
+| --- | --- |
+| 入库弹窗 | 无表格；「物料 1」段 + 物料/仓库/仓位/数量/单位/单位成本/名称或说明 + 删除 + 添加明细 + 全屏编辑 + 提交 |
+| 加第二条 | 第一条收起、第二条展开；段号「物料 1 / 物料 2」 |
+| 行里扫码（`8850011100105`） | 带出 物料=水 / 名称或说明=水 / 单位=瓶 / 单位成本=80.00 / 仓位=a ✔ |
+| 同上，仓库 | 主档默认仓 **WH-00101 进了表头**，而且**两条明细的仓库都同步成 WH-00101** ✔ |
+| 提交载荷（打桩看真实 args） | `{direction, submit:1, posting_date, warehouse, lines:[{product, description, qty, unit, unit_cost, warehouse}]}` —— 与改造前**同一个形状**；空行自动丢掉 ✔ |
+| 出库弹窗 | 同一套字段与按钮；「单位成本」是只读呈现（`.like-disabled-input`）✔ |
+| 全屏编辑（弹窗 → 整页） | 明细一起带过去（整页上就是刚才那条，值没丢）✔ |
+| 已提交单据 | 只读表格，没有编辑器 ✔ |
+| 备注框 | 360px（原来是 543px 整列宽）✔ |
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `tests/test-stock-entry.cjs`（补了契约与断言） | 过：录入界面**没有** Table、有 HTML 宿主 + Button；仓库镜像只在表头空着时被建议、表头一改行跟着变；明细从编辑器取值、空行丢掉 |
+| JS 全套 11 支 | ALL PASS |
+| 架构 / 前端文案 / i18n 构建 / DMS 对账 / 门户权限 | PASS(0) / 0 问题 / PASS / 无漂移 / 102 条 OK(6 skipped) |
+
+**取舍与没做**
+
+· 明细里的「仓库」是只读镜像：**一行一个仓**这条老能力没有了（老表格允许每行填不同仓）。
+  现在整单一仓 —— 这是"仓库重复了"这条口径的直接结果；要恢复"一行一仓"就得把行里那格改回可编辑，
+  并接受它和表头可能不一致。
+· 老草稿里行上的仓库不再原样发回去（会被表头的仓库覆盖）。**已过账**的单据不受影响（只读）。
+· 真机（手机上的扫一扫、弹窗滚动到最底部时那条「新建」）没验；本地只在桌面宽度实测。
+
+### F54：盘点那条"新库存"查清了 + 一个只读「库存体检」+ 重复的供应商/客户字段（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    我的意思不要出现这么多无用的字段，留一个真正能用的，还有采购记录里面和销售记录里面也存在
+    同样的问题，两个供应商字段，两个客户字段……但是我盘点后，库存里新出现了一条记录，不是在
+    原来的基础上做增减，且这个商品没有流水来源记录，这不太对吗，官方原生是怎么处理这个业务逻辑的
+    ……这些是我很担心的问题……我一点点的去试不知道要试到啥时候才发现问题
+
+**① 那条"新库存"是怎么回事（只读查库，结论：账没错，是"盘点仓库 ≠ 货所在仓库"）**
+
+拿真实数据对（实验室站点 `erp-pos-a`，商品"水" `PRD-00597`）：
+
+| 位置（商品×仓库×仓位） | 数量 | 来源单据 |
+| --- | --- | --- |
+| `WH-00101` / 仓位 `a` | 100 瓶，成本 80 | 采购 `PE2569-000075`（流水 `STM-2026-00599`，`ref_type=purchase`） |
+| `WH-00003` / 仓位空 | 80 瓶，**成本 0** | 盘点差异 `AD2569-000017`（流水 `STM-2026-00603`，`ref_type=count`） |
+
+盘点是 **`STC-00581`，开的仓库是 `WH-00003`**；录这一条时"实际仓库"跟的是**盘点单的仓库**
+（没有书上的行可跟），而货的账在 `WH-00101`/`a`。于是：
+
+· **没有"凭空多一条"**：多出来的那条是 `WH-00003` 这个**位置**的新结存，账照样有流水、有来源单据
+  （AD 号在"关联单据"那一列看得到）；
+· **原来那条也没被动**：`WH-00101`/`a` 还是 100 —— 这正是"位置账"（商品×仓库×仓位）的行为；
+· 所以**不需要"加减原来那条"**，要的是**在货真正所在的那个仓/仓位去盘**。
+  官方 ERPNext 也是这个模型（库存按**仓库**记账 + `Stock Ledger Entry` 逐笔 + 现行数量在 `Bin`；
+  盘点差异走 `Stock Reconciliation`，一样是"追加一笔带来源的流水"）——差别只在官方没有"仓位"这一层，
+  粒度到仓库；我们有仓位，所以位置更细，"货在 A 仓/仓位、你盘在 B 仓"就会多出一个位置。
+
+**顺带查出的两处真问题**（都记在体检里，未改）：
+
+1. **盘点调增的库存成本是 0**（上表 `WH-00003` 那条）：`count_lines` 落账时没给 `unit_cost`，
+   官方 `Stock Reconciliation` 是要一个估值率的。要不要给"数出来的货"补成本口径，等你定。
+2. **盘点时不提示"这件货的账在别处"**：现在默默记到盘点单那个仓库。建议在录入那一步把
+   "这件货在 `WH-00101/a` 还有 100"显示出来，让人自己决定。
+
+**② 一个只读「库存体检」（这就是"不用一点点试"的办法）**
+
+新增 `pearnly_erp_portal.inventory.audit`（只读、**不 whitelist**，不给外部 API 面）+
+`scripts/erp-pos-consistency-check.py`（打哪个容器/站点都能跑）。一次把这条链上的**对不上**列出来：
+结存能不能由流水推回来、每笔流水有没有来源单据、单据明细与流水对不对得上、盘点差异单在不在、
+仓库/公司/商品默认仓的引用、采购供应商与销售客户跟主档一致不一致；另外单列两条**提示**
+（有货但成本未知、负结存）。
+
+**首轮结果（`erp-pos-a`，190 笔流水 / 51 条结存 / 46 张出入库单 / 12 次盘点）**：
+
+| 发现 | 条数 | 是什么 |
+| --- | --- | --- |
+| 结存 ≠ 流水之和 | **0** | 账和流水没分家 ✔ |
+| 有结存没流水 / 指向不存在的商品仓库 | **0** | ✔ |
+| 单据明细与流水对不上 | **0** | ✔ |
+| 盘点差异单缺失或没提交 | **0** | （第一版把"差异为 0"的盘点也报了，属于判太严，已改） |
+| 流水追不到来源 | 21 | 19 条是**本仓验收脚本**直接 `stock.apply_movement` 造的假数据（无来源）；另外 2 条是指向被删掉的 `SD-00286` 的反向流水 |
+| 供应商/客户与主档对不上 | 6 | 5 张验收用的老采购单没挂供应商主档、1 张销售单没挂客户（都是脚本造的） |
+| 提示：有货但成本未知 | 2 | 就是上面那条盘点调增（成本 0） |
+| 提示：负结存 | 5 | 超卖（本域允许），但有数 |
+
+另外报告头会把**"账是谁记的"**列出来，顺带暴露一处词汇不统一：销售记录页落账用的是
+DocType 全名 `ERP Sales Document`，而采购/POS/盘点/期初用的是短标记 `purchase` / `sale` /
+`count` / `opening` / `void`（`sales/entry.py` 里 `ref_type=DOCTYPE`）。两边各自自洽，
+但成套词汇该统一 —— 统一要带一次旧数据订正，先记着，动手前问你。
+
+**③ 重复的供应商 / 客户字段**
+
+· **根因**：`ERP Customer` 与 `ERP Product` 都有 `title_field`（所以它们的 Link 显示的是**名字**），
+  **`ERP Supplier` 漏了** —— 供应商那条 Link 只显示 `SUP-00116`，于是旁边那个"供应商名称"输入框
+  看着就是第二遍。给主档补上 `title_field=supplier_name` + `show_title_field_in_link=1`
+  （`erp_supplier.json`，与客户/商品同一个口径；`bench migrate` 会带过去）。
+· **界面上**：采购不再摆"供应商名称"那一格、销售不再摆"客户名称"那一格（改 `hidden`）——
+  值照旧随单据提交（隐藏字段一样进 `get_values`，前面验证过），列表与打印都读它；
+  服务端本来也会从主档补（`_supplier` / `_buyer` 里 `name = name or doc.…`）。
+
+**实测**
+
+| 检查 | 结果 |
+| --- | --- |
+| 采购新建页可见标签 | 只剩「供应商」（还有「供应商发票号」，那是发票号，不是重名）+ 税号/地址/分支（印在税票上的，保留） |
+| 供应商下拉 | 现在显示 **名字 + 编号**：`Purchase check 0107b55c SUP-00116` ✔（与物料 `水 PRD-00597` 同一风格） |
+| 销售新建页 | 可见的是「客户」「客户类型」；"客户名称"那格已收起 ✔ |
+| 体检脚本 | `python3 scripts/erp-pos-consistency-check.py` 直接出报告；有硬问题非零退出（可当闸） |
+
+**检查**：架构 PASS(0) / 前端文案 0 问题 / i18n 构建 PASS / 门户权限 102 条 OK(6 skipped) /
+JS 全套 11 支 ALL PASS。
+
+**取舍与没做**
+
+· 体检现在**认**两种 ref_type 写法（`ERP Sales Document` 与 `sale`），所以它不会拿"词汇不统一"
+  当错误刷屏；真要统一，是"改 `sales/entry.py` + 一次旧数据订正"的活，等你点头。
+· 盘点那两条（成本为 0、不提示"账在别处"）**只报不改** —— 都动了就是改业务口径，先问你。
+· 那 19 条无来源流水与 6 条主档对不上的单据是**本仓验收脚本造的实验室数据**（`scripts/*-init.py`、
+  `*-verify.py` 直接写流水），不是生产的写入路径；体检工具照实报，正是为了这种"钱货对不上"能被看见。
+
+### F55：盘点的估值与"账在别处"、重复的物料名称、备注/地址框按位置收（2026-09-23，未部署）
+
+用户口径（原话）：
+
+    1. 盘点调增的库存成本是 0 —— 落账时没给估值；官方盘点是要一个估值率的。
+    2. 盘点时不提示"这件货的账在别处"—— 建议录入那一步就把"在 WH-00101/a 还有 100"摆出来。
+    3. 还有重复的物料字段，有物料名称和物料，采购和销售都有
+    4. 地址和备注框默认同比例和当前在的位置缩小，当字段超出默认尺寸时才自动依次变大
+
+**① 盘点的估值：位置成本 → 商品参考成本**
+
+`inventory/count.py` 新增 `valuation(product, key)`：这一笔差异先按**这个位置现在的成本**计价；
+位置是空的 / 新位置（没有成本基准）就退回**商品参考成本**（`ERP Product.default_cost`，且要"设过的"），
+两处都没有才留空（那种情况体检里会列成"有货但成本未知"）。这正是官方 `Stock Reconciliation`
+的意思："数量差要带一个估值率"。
+
+实测（`bench execute` 直接调那一个函数）：商品"水"在 `WH-00003`（空位置）→ **80.0**（商品参考成本）；
+在 `WH-00101/a`（有结存）→ 80.0（位置自己的成本）。也就是说**下一次**同样的盘点，那条调增会带
+80 的估值，不再落成 0。
+
+**② 盘点的"这件货还在别处"**
+
+`lookup_count` 多返回一项 `elsewhere`（这件货在**别的**仓/仓位还有多少，按结存量倒序）；
+录入弹窗在"实际仓库"下面摆一行灰字（`render_elsewhere`，没有就不占地方）。
+
+实测（临时开一份盘点验完即删）：录"水"的条码后，弹窗里出现
+**"这件货还在别处： Purchase check 862289e9 / a · 100 瓶"**（`STC-00605`，验完已删 —— 盘点单、
+快照行、记录、流水都回读为 0 条）。
+
+**③ 重复的「物料名称」**
+
+采购/销售行的 `description`（物料名称）改成 `depends_on: "eval:!doc.product"`：**选了物料它就不显示**
+（名字由那条 Link 带出来，Link 显示的就是主档名字），没选物料时才出现 —— 保留"只有说明、没有物料的
+自由行"这个能力，而不是把整格删掉。值照旧随单据提交。
+实测：采购行选了"น้ำปลา …"之后，物料名称那格收起、值仍是"น้ำปลา ตราทิพรส ขวด 700 มล."。
+
+**④ 备注 / 地址框：按所在列的比例收，写不下才长**
+
+· 宽度：**所在列的 62%**，上下限 200–420px（窄屏 `max-width: 576px` 那一档直接占满列宽 ——
+  手机上写备注本来就该整行）。
+· 高度：**默认约两行**；内容超出由共享层的 `p.grow_textarea` 自动往下长，长到 240px 才开始在框里滚；
+  `resize: vertical` 仍然可以手拖。
+· 踩到的坑：官方 `ControlSmallText.make_input()` 里写死了**内联** `height: 150px`，皮肤的高度被它压住
+  （第一版实测还是 150px）。所以照接管 `ControlLink` 的同一套做法，在 `product.js` 里继承
+  `frappe.ui.form.ControlSmallText`、只去掉那个内联高度，其余（官方的 `max_height`、只读呈现）原样留着。
+
+实测：入库单弹窗里那格 **420px 宽 / 列宽 1108px（38%，被 420 上限封住）**、默认高 **54px**，
+敲三行后自己长到 **75px**（=内容高度）。
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| JS 全套 11 支 | ALL PASS（`test-native-desk.cjs` 的 jQuery 桩原来只认 `app_ready` 一个事件，按"能注册多组"改忠实了；`frappe.ui?.form?.ControlSmallText` 也做了可选链，孤立加载 product.js 的测试不再炸） |
+| 架构 / 前端文案 / i18n 构建 / DMS 对账 / 门户权限 | PASS(0) / 0 问题 / PASS / 无漂移 / 102 条 OK(6 skipped) |
+
+**取舍与没做**
+
+· **已经过账的那条盘点（`STC-00581` 调增 80 瓶、成本 0）没有自动改**：要不要按新口径把历史那几条
+  订正过来（按位置成本/参考成本重算），是一次写数据的活，等你点头再做。
+· 备注/地址的宽度是"比例 + 上下限"，不是严格 62%：宽列会被 420px 封顶（否则一行的框能拉到 690px）。
+  要严格按比例就去掉那个上限，一行的事。
+· 官方的 `Text`（长文本，默认内联 300px）没动 —— 备注/地址在界面上都是 `Small Text`。
+
+### F56：主档一律显示名字、物料列表的「位置」列、交班弹窗的错位，外加一台能判对错的扫描（2026-09-23，未部署）
+
+用户这轮的四个点 + 一句话：「图一，我这个商品录入时选择了这个仓库，图二加位置，内容显示仓库和仓位，
+一屏显示完，调整好距离，长字段自动隐藏就好了，图三，我盘点的时候也是显示的这个仓位，图三怎么显示
+不同名呀，全站的错误吗，备注框 地址框，还要我说几遍，你的扫描脚本扫不全，会漏」
+以及后半轮追加的一张截图：「这个界面显示不对」（收银台「交班」弹窗）。
+
+**① 同一个仓/公司/客户在有的地方显示编号、有的地方显示名字 —— 是"全站的错误"，已按类别统一**
+
+根因不是某一张页面写错了，而是 DocType 少声明两件事：`title_field`（给人看的名字）与
+`show_title_field_in_link`（链接/选择框里显示它）。官方 `link.js` 的 `set_link_title()` 先查
+`frappe.boot.link_title_doctypes`（= `boot.py: get_link_title_doctypes()`，取 `DocType.show_title_field_in_link = 1`
+的清单），不在里面就把 **docname** 填进输入框 —— 所以仓库显示 `WH-00101`、公司显示 `CO-00552`。
+
+| 表 | 之前 | 现在 |
+| --- | --- | --- |
+| ERP Warehouse | 只有 `title_field` 是上一轮加的 | `title_field=warehouse_name` + `show_title_field_in_link=1` |
+| ERP Company | 两个都没声明 | `title_field=company_name` + `show_title_field_in_link=1` |
+| ERP Customer | 有 `title_field`、缺 `show` | 补齐 `show_title_field_in_link=1` |
+| ERP POS Terminal | 两个都没声明 | `title_field=terminal_name` + `show_title_field_in_link=1` |
+| ERP Purchase Category | 有 `title_field`、缺 `show` | 补齐 `show_title_field_in_link=1` |
+
+四张表都跑了 `reload-doctype`，并在库里回读确认（`tabDocType.title_field / show_title_field_in_link` 全为期望值）。
+实测：仓库表单 `/desk/erp-warehouse/WH-00101` 的「公司」= **Purchase Preview**（原来 CO-00552）；
+收银「开班」弹窗的「收银台」= **Counter 1**（原来 TERM-00485）；盘点/商品的「仓库」= **Purchase check 862289e9**
+（下拉里名字在上、编号在下作辅助）。
+
+**② 物料列表加「位置」列（仓库名 / 仓位）**
+
+`products/service.py` 加 `_with_warehouse_names()`（一次批量取名，不按行查库），列表多一列 `place`
+（`default_warehouse_name` + `default_location`）。列宽 188 / 最窄 132，同时把「物料」200→184、
+「条码」148→136 让出位置 —— 一屏放得下、不用横滑；太长由列表自己截断（`nowrap + ellipsis`，
+整串在元素的 `title` 里，悬停就是完整内容）。
+实测：8 列合计 **915px = 容器宽 915px**（无横向滚动）；首行位置格显示
+`Purchase check 862289e9 / a`，`data-original-title` 挂着完整串。
+
+**③ 收银台「交班」弹窗整块错位（用户截图那张）**
+
+两个原因叠在一起：
+
+1. 字段顺序里有一个 `Column Break`（笔数/净总计 | 退款笔数/找零合计），而后面那张对账表
+   **没有先另起一节** —— Frappe 的一栏是"竖着堆"的，表格于是落进右半栏，容器只有 255px，
+   真正要 795px 的内容被裁在弹窗外面（`gridLeft=476`、`gridW=255`、`scrollW=795`）。
+   **修**：在表格前加 `Section Break`，让对账表 / 差额 / 备注都从整行开始。
+2. 网格列宽写错了单位：`columns` 是**十二等分里的份数**（`grid_row.js` 直接拼成 `col-xs-<columns>`，
+   `setup_columns()` 里 `total_colsize > 10` 才转成横向滚动），不是相对权重。交班那张表
+   5+4+3+3+3 = **18**（= 容器的 1.5 倍），开班 5+4 = 9。**修**：按 ≤10 重排 —— 开班
+   `付款方式 6 + 期初金额 4`；交班 `付款方式 4 + 应有 2 + 实点 2 + 差额 2`，并把「期初金额」列
+   撤掉（那是开班时点的数，五种付款方式里四种恒为 0；官方 POS Closing Entry 的收银对账表也是
+   付款方式 / 应有 / 实点 / 差额四列）。
+
+实测（新的字段顺序）：交班弹窗 `gridLeft=188`（= 弹窗左内边距，整行）、`gridW=543` 装下
+`scrollW=541`，四列表头 付款方式/应有金额/实点金额/差额 全在、值都在（现金 · THB 0.00 ×4），
+备注 337×54；开班弹窗 付款方式 271px（col-xs-6）+ 期初金额 180px（col-xs-4）。
+
+**④ 备注/地址框：这次是"量了六页"，不是"改了就算"**
+
+同一套共用皮肤（`product.css` 的 `textarea.form-control`）：宽 = 所在列 62%（上下限 200–420）、
+高默认约两行、写不下由 `p.grow_textarea` 往下长。真机逐页打开弹窗量的结果：
+
+| 页面 | 多行框 | 尺寸 |
+| --- | --- | --- |
+| 供应商新建 | address / note | 337×54 / 337×54 |
+| 客户新建 | address / note | 337×54 / 337×54 |
+| 公司新建 | address / note | 337×54 / 337×54 |
+| 仓库新建 | note | 337×54 |
+| 入库单新建 | reason | 337×54 |
+| 出库单新建 | reason | 337×54 |
+| 盘点新建 | notes | 337×54 |
+| 收银交班 | note | 337×54 |
+
+（都是弹窗里那一列 543px 的 62%。采购/销售新建页的 `supplier_address` / `notes` 在**折叠的**
+「附加信息」分组里，展开后同样是 40px 默认高；未展开时不占高度。）
+
+**⑤ 扫描脚本重写成"能判对错"的四条规则 + 三份清单（`scripts/check-desk-ui.py`）**
+
+原来那份只会按字段类型 grep，所以漏掉了真正坏掉的那两处。现在四条规则都是能给出"对/错"的：
+
+| 规则 | 判据 | 为什么它会漏不掉 |
+| --- | --- | --- |
+| 多行框尺寸只来自共用皮肤 | 共用皮肤（`product.css`）与 `p.grow_textarea` 之外，任何给 textarea 写死尺寸的地方都算违规 | 不再按"字段类型"猜，而是看"谁在改这个控件" |
+| 主档链接显示名字 | 凡是**被主档引用字段**（company / warehouse / supplier / customer / product / category / terminal）指到、且自己有必填 `*_name` 的表，必须同时声明 `title_field` 与 `show_title_field_in_link` | 新增一张主档表、新增一个主档选择框，规则自动覆盖；单据指针（sales_document / count / item / shift / return_against）明确排除 |
+| 网格列份数 ≤10 | 每张网格 `columns` 的十二等分份数合计 ≤10 | 交班那张表 18 是这么抓出来的；静态算不出的（用展开/变量写的那三张）单独列出来给人核，不静默跳过 |
+| 整行控件不被 Column Break 收口 | `p.dialog()` / `p.layout()` 的字段数组里，Table / HTML / Button（以及 `...helper()` 这种展开）前面若是 Column Break 而没有 Section Break，就算违规 | 这正是交班那个 bug 的形状；共用层 `p.field_rows()` 会自动补 Section Break，绕开它就报 |
+
+自测：故意把交班改回旧顺序（Column Break 后面直接 `...balance_table(...)`）放进一个临时文件跑一次，
+规则报出"展开进来的字段跟在 Column Break 后面，可能被挤进半栏"，删掉临时文件后恢复 `✓`；
+`--strict` 退出码 0。
+
+**一条环境教训（这次踩到并浪费了一轮）**
+
+改了 `products/service.py` 之后只 `clear-cache` 不够：Python 是随进程加载的，网页端仍在用旧模块 ——
+列表上「位置」列显示的还是 `WH-00101 / a`（编号），`bench execute` 同一个函数却已经返回名字。
+**改服务端代码后要 `docker restart pearnly-purchase-lab-web-1`**，改 DocType 元数据要
+`reload-doctype` + `clear-cache`。重启后同一行立即变成 `Purchase check 862289e9 / a`。
+
+**检查**
+
+| 检查 | 结果 |
+| --- | --- |
+| `python3 scripts/check-desk-ui.py --strict` | ✓ 四条规则都过（多行框 30 处 / 主档 12 个 / 网格 3 张） |
+| `python3 scripts/check-architecture.py` | `PASS (0 violations)` |
+| `python3 scripts/check-frontend-i18n.py` | 0 问题 / PASS |
+| `python3 scripts/i18n-build.py --check` | PASS（erp 876 条） |
+| `python3 scripts/check-dms-parity.py` | 无漂移 |
+| `python3 -m unittest tests.test_erp_portal_access` | 102 条 OK（6 skipped） |
+| JS 全套 11 支 | 全 PASS（含 `test-field-rows.cjs`：整行控件必须另起一节） |
+
+**取舍与没验到的**
+
+· **交班表撤掉了「期初金额」列**：这是为了让五列回到 ≤10 份数、跟官方收银对账一致。若你要在交班时
+  也逐种付款方式看开班数，就得接受横向滚动（或把弹窗做成整屏）。
+· 演示站里为验交班开过一次班（`SHIFT-2026-00627` / `SHIFT-2026-00628`），**都已交班关掉**，
+  余额与差分回读为 0；`SHIFT-2026-00521`（TERM-00520）是我接手前就开着的，没动。
+· `p.field_rows()` 这个共用分栏助手目前只有 `stock-card.js` 在用，其余页面手写字段数组 ——
+  新规则能拦住"手写又写错"的情况，但**没有**把它们统一改成走共用层；要不要做这一步等你定。
+· 客户 / 类别 / 收银台三张表只做了"库里的声明 + 机制同源"这一步，真机只抽样验了仓库与收银台
+  （客户链接要在一张真实销售单上才看得到显示文本）。
+· 真机宽度是 919px（应用内浏览器）。更窄（<900px）时列表仍会横向滚动 —— 是否要再收列待你定。
+
+### F57：「收银开单」改「结账」+ 点它响一声（2026-09-23，未部署）
+
+用户要求：收银台那颗按钮的文案改成「结账」，并说"官方原生点结是有音效的"。
+
+**① 文案**（术语表唯一来源，改一处、四个语言一起变）
+
+`i18n/messages.tsv` 里 `trade.checkout` 那行原来是 `New Sale → 收银开单 / ขายสินค้า / 会計`。
+现在按官方英文原文与官方各语言译文对齐（`erpnext/locale/zh.po` 的 `msgid "Checkout"` = **结账**，
+`th.po` = **ชำระเงิน**；`ja` 官方没有这一条，沿用已有的「会計」）：
+
+    Checkout	结账	ชำระเงิน	会計	trade.checkout
+
+CSV 里那条旧的无 key 行 `New Sale,…` 已删掉（否则同一句话在导出件/表单里还是旧词），
+`scripts/i18n-build.py` 重新生成四个语言包，`check-frontend-i18n.py` PASS。
+实测（重启 web 后）：`.checkout-btn` 两处（购物车汇总那颗、小键盘里那颗）都显示 **结账**。
+
+**② 音效** —— 这里要如实说明一处与用户判断不一致的地方
+
+翻遍官方 POS 源码（`erpnext/selling/page/point_of_sale/*.js`），**官方那颗 `.checkout-btn`
+的点击处理里没有 `play_sound`**（`pos_item_cart.js:192`：查 `--btn-primary` → `events.checkout()`
+→ 收起按钮）。整份官方 POS 只响三处：收款屏数字键 `numpad-touch`、加购成功 `submit`、
+校验失败 `error`。所以"官方点结账有音效"这件事在**这版源码里找不到**，可能用户听的是别处
+（加购/收款）。按用户要求仍然让它响：取**同一排数字键那一声** `numpad-touch`
+（那颗按钮在官方标记里本来就是键盘里的一颗：`numpad-btn checkout-btn`），不另造音效；
+静音与音量交给官方 `play_sound`（它自己看 `User.mute_sounds`）。
+
+**没验到**：音效**没能真听**（内嵌浏览器没有音频输出可核对）。可以核的是：节点在
+（页面里 `#sound-numpad-touch` 存在，音源是我们自己 App 里的那份 mp3）、调用点唯一
+（`checkout()` 开头一处）。**要你或下一窗口在真机上点一下听**。
+
+> **更正（F58，同日晚）**：这一节的结论**错了一半**。"处理函数里没有 `play_sound`" 这句本身没错，
+> 但它漏了那颗按钮接下来调用的 `frm.save()` —— 官方那一下**是响的**，响的是存草稿音 `click`（0.05），
+> 不是键盘音。当时只读了 `.checkout-btn` 自己的处理函数就下了结论，也没在官方页面上打桩量过。
+> 具体见下面的 **F58**。
+
+### F58：「结账」那一声对不上官方 —— 官方响的是**存草稿音** `click`，不是键盘音（2026-09-23，未部署）
+
+用户口径："继续这个任务，我点结账就是有声音的，我不知道为什么就是对不上官方的。"
+
+**① 复查官方那一下到底响什么（这次是量出来的，不是只读源码）**
+
+官方站 `pearnly-ci-business-sample` / `business.localhost` / `127.0.0.1:8084`（erpnext **16.34.1** +
+frappe **16.33**），登录 `owner@sample.localhost`，页面 `/desk/point-of-sale`（POS Profile
+「Pearnly Sample POS」）。把 `HTMLMediaElement.prototype.play` 打桩（记录被播放的节点 id 与音量，
+不真出声），再按真机动作点一遍：点商品卡「食用油 1升」→ 点购物车那颗「结账」。
+
+- 加购：**0 次播放**（官方点商品卡不响）。
+- 点「结账」：响 **`#sound-click`，音量 0.05**；同一时刻文档从 `new-sales-invoice-qpmnvxevbr`
+  变成 **`ACC-SINV-2026-00032`**（`docstatus 0`、`dirty false`）——**那一下真的存了草稿**。
+- 也就是说这一声的**由来是"保存成功"**，不是按钮自己：`.checkout-btn` 的处理函数里确实没有
+  `play_sound`（F57 读到的那句没错），但它调用 `save_and_checkout()`
+  （`erpnext/selling/page/point_of_sale/pos_controller.js:895`）→ 购物车有改动时 `await this.frm.save(…)`
+  → 存成功后由 frappe `form.js:826` 播 `click`（`save_action ∈ {Save, Update, Amend}`）。
+  `numpad-touch`（音量 **0.8**）只出现在**收款小键盘**（`pos_payment.js:175`），与「结账」无关。
+
+**② 我们这边为什么对不上**
+
+`cashier.js` 的 `checkout()` 上一轮（F57）加的是 `play_sound("numpad-touch")` —— 键盘音、音量 0.8；
+官方同一个动作是 `click`、音量 0.05。音色和音量都不是同一声，这就是"对不上"。
+
+**③ 改成什么**
+
+| 位置 | 之前 | 现在 |
+| --- | --- | --- |
+| `public/desk/cashier.js` 的 `checkout()` | `play_sound("numpad-touch")` | `play_sound("click")`（官方同一声、同一音量 0.05） |
+
+`click` 来自 frappe 基础钩子，租户站本来就有 `<audio id="sound-click" volume=0.05>`，不用另声明；
+静音仍由 `frappe.utils.play_sound` 自己看 `User.mute_sounds`。
+
+**如实记两处差别**（不假装一模一样）：官方那一声是"存成功"的回音，**我们这一下不写库**（我们的单在
+「完成订单」才落），只对齐声音；官方若购物车没有改动、`frm.is_dirty()` 为假，那一手指**是静的**，
+我们这边只要车里有货就响。
+
+**④ 验证（两站同一套打桩法，都是"量到播放调用 + 节点 + 音量"，不是听）**
+
+| 动作 | 官方 8084 | 我们 8147 |
+| --- | --- | --- |
+| 点商品卡加购 | 不响 | 不响 |
+| 点「结账」 | `sound-click` @ 0.05 | `sound-click` @ 0.05（栈：`checkout()` `cashier.js:643` ← 点击处理 `:988`） |
+| 收款小键盘按数字 | `numpad-touch` @ 0.8 | `numpad-touch` @ 0.8（本次未动） |
+
+页内 `<audio>` 节点也逐条量过：我们站点 8 个（`email/submit/cancel/delete/click/error/alert/numpad-touch`），
+`click`=0.05、`numpad-touch`=0.8，与官方同名同值；我们的 `numpad-touch.mp3` 与官方那份
+**同一个文件**（md5 `f1524f9a578b2445a532fb67eeb562a1`）。
+**注（更新后怎么拿到新脚本）**：改完第一次点还是旧声 —— 那时页面用的是**改动前加载**的那个
+`?v=8044413864bc9395`，浏览器直接吃了缓存。清一次站点缓存（`bench --site erp-pos-a.localhost
+clear-cache`）后重新打开，页面里的 `?v=` 变成 **`7a6c1d08539d7403`**（`pearnly_core.desk.assets.versioned_asset`
+是按文件内容算 sha256 的，内容变了指纹就变），普通刷新即可取到新文件；用禁用缓存硬刷新复测的结果也是上表。
+
+**⑤ 还没对上官方的地方（这次没动，等你定）**
+
+- 购物车那排小键盘（数量/折扣/单价）按数字：我们响 `numpad-touch`，官方**是静的**（F38 已记过，
+  当时口径是保留）。要一律对齐说一声就去掉。
+
+**⑥ 环境与痕迹**：演示站为验证开过一次班（`SHIFT-2026-00634`，21:57 开、21:58 交班，差额 0，
+回读 `closed`）；官网站点为量声音真存出一张草稿 `ACC-SINV-2026-00032`，**已删**（回读 `remaining 0`）；
+浏览器里本次开的两个标签页已关。
+
+### F59：官方音效分工对齐 + 服务端英文提示补译文（2026-09-23，未部署）
+
+用户口径两条："**改**"（按 F58 末尾给的三步走）＋"那个译文是要**中英泰日**，**泰语为主**哦"。
+
+**① 音效：按官方"什么动作响什么音"分工，改了 21 处、去掉 1 声**
+
+官方那套音不是按钮自己写的，是框架在动作完成时放的（保存 `click` 0.05 / 提交 `submit` 0.1 /
+删除 `delete` 0.05 / 取消作废 `cancel` 0.1 / 请求失败 `error`）。我们自己的页不走框架表单，
+所以逐个调用点显式给音：
+
+| 我们这里的动作 | 官方对应 | 改前 | 改后 | 落点 |
+| --- | --- | --- | --- | --- |
+| 主档保存/新建（公司、公司资料、仓库、默认仓库、员工三处、物料三处、物料导入、客户、供应商、盘点录入、DMS 花名册、Cowork 手记） | 表单 `Save/Update` → `click`（`form.js:826`） | 默认 `submit` | **`click`** | 18 处（erp 16 + dms 1 + cowork 1） |
+| 单据作废（销售/采购）、待处理"取消选中" | `cancel` | 默认 `submit` | **`cancel`** | 4 处 |
+| 删除（首页账目、DMS 记录、花名册） | `delete` | 默认 `submit` | **`delete`** | 3 处 |
+| 购物车那排小键盘（数量/折扣/单价） | 官方**静音** | `numpad-touch` | **不出声** | `cashier.js` 的 `cart_numpad` |
+
+保持不动的：提交/开单（销售开单、采购入库、出入库、完成订单、开班、交班、盘点结束、收款、付款）
+→ `submit`；收款小键盘 → `numpad-touch`；「结账」→ `click`（F58）；校验失败 → `error`；
+框架的请求失败 → `error`（自动）。税号查询命中、DMS 连接测试成功、手记"移入"这几处是"我们自己的
+提示"、官方没有对应动作，仍按原样（`submit`），要静音说一声。
+
+> **更正 F58⑥ 里我说错的一条**：购物车"移除行"官方**不是**响 `cancel`。官方那一声 `cancel`
+> 只在"物料有序列号/批号、没选就点移除"的**拒绝分支**里（`pos_item_details.js:124`，配那句橙色
+> 「Item is removed since no serial / batch no selected.」）；正常移除**是静音的**。我们的 POS
+> 没有序列号/批号，所以这一声**不加**。
+
+**② 服务端英文提示：真缺的 18 条（ERP）+ 3 条 frappe 原生，补进术语表（四语，泰语为主）**
+
+- **先更正我上一轮报的"23 条"**：其中 5 条（`pearnly_core` 4 条 `Connection "{0}" …` +
+  控制面 1 条 `Account {0} already exists in target …`）是**我的扫描脚本误报** —— 脚本抓源码字面量时
+  没还原 `\"` 转义，把 `Connection \"{0}\"…` 当成了原文。那 5 条**早已有译文**（术语表、生成包、
+  泰语都在）。真缺的是 **18 条，全在 ERP 产品里**。
+- 新增 18 行（`pearnly_erp_portal`）：未找到客户/物料/仓库、库存不足、这个单位没有定义、
+  `Invalid value: {0}`、盘点三句（未找到/已结束/这一行不属于它）、照片读不出来、方向只能入库或出库、
+  仓库已存在、没有可用公司、会计年度月份 1–12、草稿必须指向记录、出入库至少要一行、请输入数量、
+  先撤销退货退款。
+- 新增 3 行（`pearnly_core`，**frappe 原生** msgid，zh.po 里 msgstr 是空的）：筛选四值行、
+  字段的筛选无效、访客不能上传文件。译文目录是全站合并的，落在每个站点都装的 `pearnly_core` 才生效。
+- 术语沿用既有词根（泰语为准）：仓库 `คลังสินค้า`、物料 `สินค้า`、客户 `ลูกค้า`、盘点 `การตรวจนับ`、
+  撤销 `ยกเลิก`、照片 `รูปภาพ`、单位 `หน่วย`、筛选 `ตัวกรอง`、账号 `บัญชี`、草稿 `ฉบับร่าง`。
+- `scripts/i18n-build.py` 重新生成四个语言包（`en/zh/th/ja.csv`，这是要提交的产物）。
+
+**③ 验证**
+
+| 层 | 命令 / 场景 | 结果 |
+| --- | --- | --- |
+| 术语表 | `python3 scripts/i18n-build.py --check` | `RESULT: PASS`（1949 条 / 4 个 App） |
+| 译文覆盖 | `check-i18n.py --missing zh` | **137 → 120**；我补的 18 条逐条不再出现在缺项里 |
+| 硬编码 | `check-i18n.py`（全量） | 170 条，与改前**逐项相同**；`--list` 里我动过的文件**一条没有** |
+| 前端取词 | `check-frontend-i18n.py` | 674 键 / 0 问题 / `RESULT: PASS` |
+| 架构 | `check-architecture.py` | `PASS (0 violations)` |
+| JS 语法 + 单测 | `node --check`（17 个改过的 JS）、11 支 `tests/test-*.cjs` | 全过 |
+| 运行时（真实站点） | 演示站 `erp-pos-a.localhost` `bench console`：`frappe._(...)` | zh 未找到仓库 / **th ไม่พบคลังสินค้า**；zh 库存不足 / **th สต็อกคงเหลือไม่พอ**；zh 请输入数量 / **th กรุณากรอกจำนวน**；原生那条 → **th ตัวกรองต้องเป็นแถว 4 ค่า: doctype, ฟิลด์, ตัวดำเนินการ**（改前同一句原样返回英文） |
+| 浏览器（演示站 8147，音频打桩） | 加购 / 购物车键盘「数量→3」/ 点「结账」/ 收款键盘 / 供应商保存 | 加购**不响**；键盘按 3 **没播放**且数量 1→3、合计 THB 186；「结账」播 **`click`** 并进收款屏；收款键盘播 `numpad-touch`；供应商保存提示「已保存」+ 播 **`click`** |
+
+**④ 没做到 / 限制**
+
+- **泰语与日语是我写的**（按术语表既有词根），上线前建议让泰语同事过一眼，尤其
+  「会计年度的起始月份」「筛选必须是四值行」这种长句。
+- 仍有 **120 条**缺 zh 译文，本次**没动**：绝大多数是 DocType/报表 JSON 的字段标签（不走
+  `throw/msgprint`，是另一批活）；frappe/erpnext 原生那 500+ 条英文提示也只补了我们会碰到的 3 条。
+- 扫到一类**更该修**的（本次未动）：`pearnly_dms` / `pearnly_cowork` 有 13 条把**中文**当 msgid 传给
+  `_()`（如「资料还没确认，不能推送 DMS」「推送渠道只能是 companion 或 cloud」）—— 中文当 msgid
+  等于"换语言永远是中文"，泰语站点上会显中文。要修就是把这批改成英文原文 + 补四语。
+- 未部署、未推送、未合并。
+
+**⑤ 环境与痕迹**（用户说本地测试不用恢复，所以按"留着方便你验"处理）
+
+- 演示站开着的班 `SHIFT-2026-00635`（班次 13，`TERM-00485`，22:10 开，备用金 0）**没交班**，你进去就能点。
+- 供应商 `SUP-00116` 按过一次「保存」（没改任何字段，只动了修改时间戳）——那是"保存类音效"的验收动作。
+- 浏览器标签已关；改完之后给站点清过一次缓存（页面里 `cashier.js` 的 `?v=` 指纹已随内容变化）。
+
+### F60：代码里用到的 msgid 全部补齐译文（字段标签/说明 + 消息 + 功能目录）（2026-09-23，未部署）
+
+用户口径："做"（接 F59 末尾我给的"下一批"）。
+
+**先更正 F59 里我说错的一条**：我上一轮说"`pearnly_dms` / `pearnly_cowork` 有 13 条把**中文**当 msgid
+传给 `_()`"。**这条是错的。** 这次换 **AST 精确解析**（不靠正则）重扫 5 个 App 的 `_()` / `__()` 调用点：
+**把中文当 msgid 的地方 = 0 条**；DMS/Cowork 早就在用英文原文，术语表里也早有对应行（例：
+`The details are not confirmed yet, so it cannot be pushed to DMS` = 资料还没确认，不能推送 DMS，
+泰语 `ข้อมูลยังไม่ยืนยัน จึงส่งไป DMS ไม่ได้`）。那 13 条是我上个扫描脚本**跨语句误匹配**的产物
+（正则从更早的 `throw(` 一路吞到后面的引号），**没有一行代码要改**。
+
+**真正缺的是什么**（AST 取 py、单语句正则取 js、JSON 取 label/description，再拿**运行时目录**核对：
+frappe 的 `zh.po`/`th.po` + 我们 5 个 App 的生成包）：**140 条**用户可见 msgid 在中/泰目录里都没有 ——
+
+- 124 条是 DocType 字段的 label / description（`ERP Product` 13、`Purchase Settings` 12、
+  `ERP Company`/`ERP Sale`/`ERP Stock Movement` 各 9、`ERP LINE Intake` 10…），其中 13 条是长说明；
+- 10 条是消息或界面串：`Unable to load this page. Please reload.`、`That warehouse belongs to another
+  company`、`Unbound`、`Multiple DMS connections exist for this operator`、`Removed At/By`、
+  `Namespace is not allowed: {0}`…；
+- 6 条是产品功能目录（`features.json` 的 label/description：ERP、Cashier (POS)、Cowork、DMS…）。
+
+**做了什么**：140 行写进 5 个 App 的术语表（中英泰日并排，**泰语为准**），词根沿用既有术语表
+（物料 `สินค้า`、仓库 `คลังสินค้า`、客户 `ลูกค้า`、小票 `ใบเสร็จ`、班次 `กะ`、收银台 `จุดขาย`、
+已过账 `ลงบัญชีแล้ว`、参考成本 `ต้นทุนอ้างอิง`…），长说明逐句翻（例：`0 means the price was never
+set (not a real ฿0 price)…` 与 `Frappe's Currency column cannot hold NULL…`），
+`scripts/i18n-build.py` 重新生成 5 个 App × 4 语言共 20 个包文件。
+
+**验证**
+
+| 层 | 命令 / 场景 | 结果 |
+| --- | --- | --- |
+| 术语表 | `i18n-build.py --check` | `RESULT: PASS`（5 个 App，erp 1010 条 / dms 13 条…） |
+| 精确对账 | AST+JSON 提取 5 个 App 的 msgid × 运行时目录（frappe po + 我们 CSV） | **zh 缺 0 / th 缺 0**（改前 zh 缺 140） |
+| 检查器 | `check-i18n.py --missing zh` | 137 → 120 → **19**；剩下 19 条**全是 frappe 自带词条**（`Title`/`Version`/`PDF`/`Add Column`/`Setup Auto Email`…，框架自己的 po 里 zh 与 th 都在，`grep -c "^msgid"` 逐条点过），不是真缺口（检查器只比我们的 CSV，脚本里也注明了要人工判断这类） |
+| 硬编码 | `check-i18n.py`（全量） | **170 条，与改前逐项相同**（本次只加译文，没新增写死文案） |
+| 架构 / 前端取词 | `check-architecture.py` / `check-frontend-i18n.py` | `PASS (0 violations)` / `PASS`（0 问题） |
+| 运行时（真站点） | 演示站 `erp-pos-a.localhost`，`frappe._()` 双语回读 | zh：物料名称 / 售价 / 现金差额 / 这个页面加载不了，请刷新。；**th：ชื่อสินค้า / ราคาขาย / ผลต่างเงินสด / โหลดหน้านี้ไม่ได้ กรุณารีเฟรช** |
+
+**没验到 / 限制**
+
+- **控制面、DMS、Cowork 三处没有运行时证据**：本机跑 `control.localhost` 的容器挂的是主仓
+  `/Users/skin/pearnly`（不是本工作树），DMS/Cowork 本机没有站点。这三处只验到**术语表与生成包**
+  （CSV 内容逐条对过：`Removed At`=移除时间/เวลาที่ลบ/削除日時、`Booking Number`=订车单号/เลขที่การจอง/予約番号…），
+  要合进 `main` 之后才有运行时。
+- 泰语与日语仍是我按词根写的，建议泰语同事过一遍，重点是那 13 条长说明。
+- 未部署、未推送、未合并；本次只改术语表与生成的翻译包，没有站点数据变更。
+
+### F61：收银台「折扣」改成官方的**原地输入**（原来我们弹的是 Dialog）（2026-09-23，未部署）
+
+用户口径："这个折扣官方根本不是在弹窗里填的"（附截图：我们那边弹了一个「折扣」Dialog 填百分比）。
+
+**① 官方到底是什么**（源码 + 官网站实测）
+
+官方 `pos_item_cart.js`：`.add-discount-wrapper` 那颗虚线格子，点击后 `show_discount_control()`
+**把这格自己的内容换成输入框**（`frappe.ui.form.make_control`，`input-xs`，placeholder
+「Enter discount percentage.」，建完立刻聚焦），并把这格的内联样式改成 `border:none; padding:0`；
+输入完（change，回车或点走）→ `hide_discount_control(value)`：
+空值回到灰虚线「Add Discount」，有值则变**绿虚线**（`1px dashed var(--dark-green-500)`）写着
+`Additional **7**% discount applied`（`.edit-discount-btn`，再点还能改）；>100% 先弹红提示
+「Invalid Discount / Discount cannot be greater than 100%.」再归零。整单按它减
+（`additional_discount_percentage`）。
+
+官网站 `business.localhost`（8084）实测（同一格读 DOM 与计算样式，未落任何单据）：
+
+- 空车时这格**不显示**（与我方一致）；加一件后：`display:flex; border:1px dashed var(--gray-500); padding:7px 15px` + 图标 + 「折扣」；
+- 点下去：`border:0px none; padding:0px`，里面是 `<div class="add-discount-field">` +
+  `data-fieldtype="Data"` 的原生控件、`input-with-feedback form-control input-xs`、
+  placeholder「输入折扣百分比」、**已聚焦**；
+- 填 7 回车：`border:1px dashed var(--dark-green-500)`，内容 `附加项 **7** % 已应用折扣`，
+  合计随之变（净总计 ฿26.04）。
+
+**② 我们改成了什么**（`public/desk/cashier.js`）
+
+原来我们点这颗是 `p.dialog`（Float + 提示语的 Dialog），现在换成与官方同一套：
+
+| 环节 | 做法 |
+| --- | --- |
+| 点击 | 原地把那格换成**框架原生控件** `frappe.ui.form.make_control({fieldtype:"Float", precision:2, input_class:"input-xs"})`（不是自己写裸 input），placeholder 用 `trade.discountPercentHint`（输入折扣百分比），建完 `set_focus()`，并把该格内联改成 `border:none; padding:0` |
+| 应用 | 值变化（回车或点走）→ `apply_discount()`：>100% 先 `frappe.msgprint`（无效折扣 / 折扣率不可超过100%）再归零；否则按它算整单折扣并重画 |
+| 收尾 | 空值 → 灰虚线「折扣」；有值 → **绿虚线**「附加项 7% 已应用折扣」（`.edit-discount-btn`），再点一次可改 |
+| 时机 | 处于编辑态时 `paint_cart()` 不覆盖这格（`discount_editing`），否则会被重绘吃掉 |
+
+顺手记两处**用别的方式写会踩的坑**（这次都实测踩到了）：
+
+1. `field.set_value(...)` **自己会触发一次 change** —— 若先把 `onchange` 挂进 `df`，就会
+   "刚打开就应用并收起"，看着像点了没反应。所以**先写值、再挂事件**（挂在 `$input` 的 `change` 上）。
+2. 没改动就点走（blur）也要收回去，否则输入框一直杵在那格上。
+
+**③ 验证**（演示站 8147，硬刷新 + 与官方同项的 DOM/计算样式对照）
+
+| 动作 | 官方 8084 | 我们 8147 |
+| --- | --- | --- |
+| 点「折扣」 | 原地输入框、`border:0 none; padding:0`、placeholder「输入折扣百分比」、聚焦、**无弹窗** | 同（`data-fieldtype="Float"`、`input-xs`、同 placeholder、聚焦、无弹窗） |
+| 填 7 回车 | 绿虚线 +「附加项 **7** % 已应用折扣」 | 绿虚线 +「附加项 **7**% 已应用折扣」；净总计 THB 62 → **57.66** |
+| 再点绿格子 | 回到输入框（placeholder 带当前值） | 同：输入框回来、值 7、placeholder「7%」、仍无弹窗 |
+| 填 150 回车 | 红提示「无效折扣 / 折扣率不可超过100%」并归零 | 同：`无效折扣 / 折扣率不可超过100%`，格子回灰「折扣」、合计回 THB 62 |
+| 填 5 后点走（失焦） | —（官方同类行为是 change 触发） | 收成绿虚线「附加项 5% 已应用折扣」、合计 58.9、输入框消失 |
+
+检查：`i18n-build --check` PASS（erp 1014 条）／`check-frontend-i18n` PASS（新键 4 条登记齐）／
+`check-architecture` PASS(0)／`check-i18n` 合计 170 条与改前相同／`node --check cashier.js` OK／
+11 支 node 测试全过。
+
+**④ 过程中的两个环境发现（都记下来，避免下次当成"代码没生效"）**
+
+- **四语新词条要"重启 web"才进页面**：页面取词走 `pearnly_core.browser_text.browser_text`
+  接口，而 `browser_text.pack()` 是**进程内缓存**（`_cache`）。所以只 `bench clear-cache`
+  不够（那清的是另起进程的 console），我这次是**重启演示站 web 容器**后才显示中文/泰语。
+  真实发布是整容器重启，不受影响；"只清缓存不重启"的流程要记得这一步。
+- **`?v=` 指纹会滞后**：`versioned_asset()` 在 `hooks.py` 导入时求值，改完文件后不重启 web，
+  页面上的 `?v=` 还是旧指纹（内容其实已是新的）。用户在自己浏览器里看到旧行为时，先硬刷新，
+  还不对就说明 web 没重启。
+
+**⑤ 环境与痕迹**
+
+- 我**重启过一次演示站 web 容器**（`pearnly-purchase-lab-web-1`，挂的正是本任务工作树），
+  没动 sites/db/redis 卷、没动其他容器。
+- 我方演示站**没有产生任何单据**（折扣与购物车都只在那张已关闭的标签页里，页面关掉即消失）；
+  班次 `SHIFT-2026-00635`（班次 13）仍是开着的，留给你继续点。
+- 官网站点现在有一张 **已提交**的小票 `ACC-SINV-2026-00032`（THB 142；食用油 1×62 + 方便面 2×10 +
+  鲜奶 3×20，`owner@sample.localhost`，22:23 创建）：**这不是我做的**（我只点过「电池」那一条卡片，
+  也没走付款），像是你自己在官方 POS 上的试验。我没有动它；要作废说一声。
+
+### F62：折扣格的四处"自己画"偏差逐项对齐 + 一台"官方 vs 我们"的自动对照机（2026-09-23，未部署）
+
+用户口径（九张对照图）："图六官方的输入框、图七我们的输入框""图八图九为什么喜欢自己画啊，
+我就不明白了，关键是画出来的还不像，怎么办？那我没发现的差异这么办？"
+
+**① 先认账**：这几处确实是我们**照官方"意图"手写、而不是照官方"渲染"抄**的产物。逐个钉死：
+
+| 位置 | 官方（源码 + 8084 实测） | 我们改前 | 现在 |
+| --- | --- | --- | --- |
+| 折扣格的**输入框宽度** | `.add-discount-field { width: 100% }`，输入框铺满整格（367px） | 缩成一颗小胶囊（176px）：我们没有那条 width，而我们的 `.add-discount-wrapper` 还多了 `justify-content:center` | 照抄官方 SCSS：`.add-discount-field{width:100%}`，去掉自造的居中 |
+| 折扣格的**内容对齐** | `align-items:center`、**左对齐**（没有 `justify-content`） | 居中 | 左对齐 |
+| 折扣格的**图标** | `get_discount_icon()` 的 SVG，24×24、`.discount-icon{margin-right: var(--margin-sm)}`，空闲与应用态都带 | 我们没有图标 | 照抄官方那段 SVG 原文 |
+| 应用态的**边框** | 官方内联写 `border: 1px dashed var(--dark-green-500)`，但 **`--dark-green-500` 在页面上不存在** → 整条 border 被浏览器丢弃 → **实测 computed 是 `none 0px`**（没框） | 我上一轮照它的"意图"画了一条绿虚线 —— 于是"画出来的还不像" | 照**实际渲染**：应用态不画边框 |
+| 购物车**行的金额格** | `get_rate_discount_html()`：**应收金额 ≠ 单价时才两行**（上=应收金额、下=单价），相等就一行 | 我们**永远两行**，而且**上下颠倒**（上单价、下总额）→ 行高 56（官方 46） | 照抄这条判断；qty 1 时实测行高 **46**、单行 `THB 62`；qty 2 时两行「上 124 / 下 62」 |
+| 那三处**文字键没翻译** | — | 你截图里是 `trade.discountAdditional` / `trade.discountApplied`：`browser_text` 的语言包是**每个 web 进程内的缓存**，新词条不重启 web 不生效 | 已重启演示站 web（F61 记过）；你那张页刷新一次即可 |
+
+**② 造了一台机器，回答"我没发现的差异怎么办"**
+
+新增两个文件（**不是一次性脚本，可重复用**）：
+
+- `scripts/pos-parity-probe.js`：一段在**任意收银台上**跑的探针，把 33 个固定选择器 × 26 个属性
+  （尺寸/内边距/边框/圆角/字号/字重/颜色/阴影…）＋ 可见性 ＋ 是否缺元素，导成一份 JSON；
+- `scripts/pos-parity-diff.py`：把官方与我们的两份 JSON 逐项对照，输出差异表（尺寸带容差、
+  颜色原样打印、**只一边有**单独标出来），有差异退出码 1（可以进闸门）。
+
+用法写进两个文件的文件头：两边开同一屏、做**同样的动作**、各导一份 JSON，跑
+`python3 scripts/pos-parity-diff.py 官方.json 我们.json`。
+
+**③ 这台机器这一轮抓到的**（第一次跑就抓到东西，也抓到两类"假差异"）
+
+- 真差异（已修）：购物车行高 46→56、行内数量格 42→21、折扣输入框宽度、应用态图标与边框 —— 见上表；
+- **假差异 1：两边不在同一步**。官方点过购物车行 → 键盘区出现、总计区隐藏，于是整列对不上；
+  所以探针必须在**同一动作之后**各跑一次（这条写进了文件头）；
+- **假差异 2：视口不同**。官方那张页改不动视口（1220），我们是 1390；宽度差要用**比例**看，
+  高度差要按绝对值看（本次就是这么判的）；
+- 还留了两条**预期中的不同**（不是缺陷，需要进"已知差异"白名单）：结账按钮底色
+  （官方近黑 `rgb(23,23,23)` = 它那套 `--btn-primary`；我们是我们自己的品牌色 `rgb(124,77,255)`）、
+  正文色（官方 `rgb(82,82,82)` vs 我们 `rgb(56,56,56)`，两站主题不同）。
+
+**④ 验证**
+
+| 项 | 结果 |
+| --- | --- |
+| 折扣格（空闲/编辑/应用三态，两边同视口实测） | 空闲：h40、左对齐、`1px dashed rgb(153,153,153)`、padding 7/15、radius 10、字号 14 —— 两边逐项相同；编辑：h28、`border:none`、`padding:0`、输入框宽=整格、高 28 —— 相同；应用：h38、**无边框**、图标 24×24、`.edit-discount-btn` flex/居中/字重 500/宽 177.273 —— 两边**连宽度都一模一样** |
+| 购物车行 | qty 1 → 行高 **46**、单行；qty 2 → 两行「上=应收 124、下=单价 62」 —— 与官方同一判断与同一顺序 |
+| 检查 | `node --check`（cashier.js、探针）OK；`check-architecture` PASS(0)；`check-frontend-i18n` PASS；`i18n-build --check` PASS；11 支 node 测试全过 |
+
+**⑤ 没做到 / 没验到**
+
+- **图五那句"那个字段没有视角对齐"我没定位到**：图五是我方"完成订单"后的那张汇总（SI2569-000050），
+  上面四行是 净总计 / 折扣金额 / 增值税税率 / 总计。我怀疑你说的是**「增值税税率」那一行**——
+  它现在显示 `THB 0`（税率被当成金额显示），官方那张汇总的同类行是百分比口径。**等你点一下是哪一格**，
+  我按官方的汇总面板逐行对齐（包括要不要保留"折扣金额/增值税税率"这两行）。
+- 对照机这一轮只跑了**购物车与折扣**两屏；收款屏、完成订单后的汇总、最近订单还没跑（跑法一样）。
+  下一轮把这几屏补齐，差异表直接给出来。
+- 泰语/日语措辞仍未母语复核；未部署、未推送、未合并。
+
+**⑥ 环境与痕迹**
+
+- 官网站点：我在那边点「结账」留下的一张草稿 `ACC-SINV-2026-00033`（THB 26.04）**已删**（回读只剩
+  `…00032/31/30`）。你自己那张已提交的 `ACC-SINV-2026-00032`（THB 142）**没动**。
+- 我方演示站：本轮**没有写任何业务数据**（只读尺寸）；我打开的标签页都关了；
+  你那张收银台标签页刷新一次就能看到新样式（web 已在 F61 重启过）。
+
+### F63：立「官方 1:1」台账 + 这一批又补齐两处（客户卡、购物车行）（2026-09-23，未部署）
+
+用户口径："把官方的 POS 内**所有**布局位置间距组件交互业务逻辑**全部**按我们产品做到 100% 1:1……
+什么位置有些啥、长啥样、在什么位置、点什么发生什么，全部给我做成一样。"
+
+**做法（回答"没发现的差异怎么办"）**：先立台账 `docs/work/2026-09-23-pos-parity-ledger.md` ——
+把官方 8 个模块（5,221 行 JS/PY）与 1,438 行 SCSS 拆成 10 屏，逐屏列"官方有什么 / 我们有没有 /
+差点什么 / 要不要你拍板"，再按屏施工、按屏用对照机（`scripts/pos-parity-probe.js` +
+`scripts/pos-parity-diff.py`）量。**不再一张截图一个补**。
+
+**这一批做的两处**
+
+| 处 | 官方 | 我们改前 | 现在 |
+| --- | --- | --- | --- |
+| 客户区**默认卡** | 一进页面就显示默认客户卡（圆头像 + 名字 + 一行小字 + ✕） | 只有一条搜索框（用户图一/图二右上角的差别） | 默认画**散客卡**（"散客 / 点击选择客户"，四语）；点卡片 → 搜索框；选中 → 客户卡（真名 + 电话）；✕ → 回散客卡。标记与官方同一套（`.customer-details/.customer-display/.customer-image.customer-abbr/.customer-name-desc/.reset-customer-btn`） |
+| 购物车**行的金额格** | `get_rate_discount_html()`：应收 ≠ 单价才两行（上=应收、下=单价） | 永远两行、上下颠倒、行高 56 | 照抄判断；qty 1 → 单行、行高 **46**（官方 46）；qty 2 → 两行「上 124 / 下 62」 |
+
+**台账里机械查出的缺口（下一批的活）**：合计区的**税费行**（官方净总计与总计之间有逐条税行，
+我们没有）、付款屏的**附加信息**弹窗与方式行结构、商品区的**列表模式/列头/库存角标/分页**、
+单据汇总屏（你点名的图五）与"增值税税率显示成 `THB 0`"那处错值。
+
+**需你拍板的 7 项**（台账第 4 节，我给了建议）：税费行（建议做）、默认客户卡（已做）、
+客户联系方式/最近交易（建议只做邮箱电话）、附加信息弹窗（建议先做固定几格）、
+优惠券/定价规则/序列号批号（建议不做）、开班交班的 DocType（建议保持我们的 `ERP Shift`、界面按官方）、
+打印/邮件/退货（建议先做按钮与交互）。
+
+**验证**：客户卡三态在演示站实测（默认 `散 | 散客 | 点击选择客户` → 搜索框 → 选中 `บส | บริษัท สยามเทรดดิ้ง จำกัด | 02-123-4567` → ✕ 回散客卡）；
+购物车行 qty 1 行高 46、单行 `THB 62`，qty 2 两行；`check-architecture` PASS(0)、
+`check-frontend-i18n` PASS、`i18n-build --check` PASS、11 支 node 测试全过、`node --check` OK。
+
+**环境**：为让新词条进页面，再重启过一次演示站 web 容器（`browser_text` 是进程内缓存）；
+演示站没有写任何业务数据；我开的标签页都关了（你那张 `收银 POS` 标签留着）。
+
+### F64：搬来的官方收银台"点了不加货"与"钱显示成迪拉姆"，两个根因都找到了（2026-09-24，未部署）
+
+用户口径："继续"（承接 F63 的整屏 1:1 批次）。这一轮只做诊断与修复，不扩功能。
+
+**① 点商品卡加进货、购物车一行都不画** —— 错被官方吞了。
+官方 `on_cart_update()` 里那段 `catch (error) { console.log(error); }`，在标签页里读不到；
+把 `console.log` 临时接管后拿到原话：`check_stock_availability` 第 807 行
+`available_qty.toString()` 抛 `TypeError`。官方要的库存回参是**三元数组**
+（`[可用量, 是否库存商品, 是否允许负库存]`），我们早先只回了一个数字，
+于是 `resp[2]` 是 `undefined`，官方在到达 `update_cart_html()` 之前就跳出 try。
+**改法**：回 `[可用量, 0, 1]`；第三位给真对上我们既有的
+`apply_movement(allow_negative=True)`（"允许超卖、告警在上层"），不是为了让闸门松掉。
+
+**② 商品卡的钱显示成 `د.إ`（迪拉姆）** —— 站点缺全局默认货币。
+框架 `get_currency_symbol()` 不传币种时读 `frappe.boot.sysdefaults.currency`，
+它来自 `DefaultValue` 表；我们自己供的站点初始化时没写这一行（`erpnext` 的安装流程会写），
+于是 `get_value(":Currency", undefined, "symbol")` 命中了缓存里第一条货币（AED）。
+对照机 `business.localhost` 上有 `currency = THB`，我们演示站上没有 —— 这是**供站缺口**，不是收银台自己的问题。
+**改法**：补原生补丁 `pearnly_core.patches.v0_0_4_site_default_currency`（已执行，回读到
+`DefaultValue.currency = THB / __default`）+ 新增 `pearnly_core/desk/currency.py` 的
+`boot_session` 下发 `boot.pearnly_currency = {code, symbol}`；收银台适配层给商品卡带上 `currency`。
+
+**③ 顺带揪出：403 弹窗「无权限操作货币」。** 符号预热真正跑起来之后，
+`product.js` 里那句前端 `frappe.db.get_value("Currency", …)` 会弹出这个 403（以前代码提前返回，
+这次请求从没发过）。已撤掉前端读取，符号一律走服务端启动数据。
+
+**验证（演示站真点鼠标）**：点商品卡 → 购物车 `1 瓶 · ฿ 100.00`、合计三行正确、0 报错 0 弹窗；
+商品卡 `-14 水 ฿ 100 / 瓶`（库存角标这次真的带色带数）；`format_currency(62, undefined, 2)` → `฿ 62.00`；
+物料列表整页无 `THB <数字>`、无 `د.إ`、无弹窗；`check-architecture` PASS(0)。
+细节与证据记在台账 `docs/work/2026-09-23-pos-parity-ledger.md` 第 9 节。
+
+### F65：「结账 → 付款屏 → 完成订单」整条打通，过账只发生在最后一环节（2026-09-24，未部署）
+
+用户口径："**不存草稿，但是过账应该发生在最后一环节吧**。" 按这条做的。
+
+**① 结账不再落任何东西。** 官方 `save_and_checkout()` 会先 `frm.save()` 存一张**草稿单**，
+存的又是我们这张 `ERP Sale`（客户端文档带的是官方字段名），于是被框架的必填校验挡下 ——
+点结账弹的那句"请填写必填字段：销售时间"就是从这来的。覆盖成"只切付款屏"，
+单据由 `api_create_sale` 在完成订单时一次落定（写单 + 出库存 + 提交）。
+
+**② 付款屏三样输入都补上**：方式行（`doc.payments` 子表，我们用
+`cashier/contracts.py` 的 `PAYMENT_METHODS` 四种）、右下角三格
+（`paid_amount / grand_total / change_amount`，按 `contracts.settle()` 的口径算）、
+以及官方 `checkout()` 里那句 `frm.cscript.calculate_outstanding_amount()`
+（给客户端单据挂一个同名实现，官方代码一个字没改）。
+方式名用**我们自己的词条**（泰语为主），子类覆盖 `sanitize_mode_of_payment()` 还原成 ASCII key ——
+官方那套是拿方式名当 CSS 类名的，本地化标签照它剔字符会全变空串、几种方式撞成一个控件键。
+
+**③ 提交那一句官方原样。** 官方把"提交"写在 controller 传给 payment 的 events 里
+（`frm.savesubmit()`），我们覆盖 `init_payments()`、`super` 之后换掉**我们这一侧的实现**，
+官方 payment 里 `this.events.submit_invoice()` 一个字没动。
+入参翻译：行 `product/qty/unit/unit_price/discount`（折扣按金额）、整单 `discount_total`、
+付款 `{method, amount}`。
+
+**④ 顺手两处 `undefined`**：行上 `(undefined% off)`（我们行上的 `rate` 是 DOM 字符串，
+官方那句严格比较把它当成"有折扣"）与状态徽章的 `undefined`（客户端单据没 `status`，钉 `Paid`）。
+另给 `frappe.db.get_value("Customer", …)` 加了一条到 `ERP Customer` 的映射（汇总屏问客户邮箱）。
+
+**验证（演示站真点鼠标）**：结账不再弹校验；付款屏 `总计 ฿ 88.00 / 付款金额 ฿ 88.00 / 剩余 ฿ 0.00`；
+点完成订单 → 绿条 `SI2569-000053`、汇总屏 `已付款 · 折扣金额 (12 %) ฿ 12.00 · 总计 ฿ 88.00 · 现金 ฿ 88.00`；
+**全程 0 写入**，那一下之后 `ERP Sale` 30→32、库存流水 204→206、`PRD-00597@WH-00101` 100→98；
+服务端回读 `SALE-2026-00655` 各金额与上面逐项一致。`check-architecture` PASS(0)。
+两笔测试单（`SALE-2026-00653` / `SALE-2026-00655`）留在演示站，本地痕迹按你的口径不恢复。
+
+### F66：收银台的声音 / 语言 / 图片 / 图标逐项盘点补齐（2026-09-24，未部署）
+
+用户口径："对应的声音那些语言图片图标的显示，补充完整。"
+
+**声音**：本来就是完整的 —— 页面 8 个 `<audio id="sound-…">`（frappe 七个 + 我们钩子里那条
+`numpad-touch`），官方用到的五种全部 `readyState 4`、`mute_sounds=0`，官方 `play_sound(...)`
+的名字与节点一一对上。本轮零改动，只补了证据。
+
+**语言**：官方 POS 用到的 89 条 `__()` 文案，我们术语表里一条都没有 ——
+`scripts/check-i18n.py` 的 `SKIP_DIRS` 含 `public`，所以 `public/desk/` 下的 Desk 脚本
+（含我们自己的）从来没被扫过，英文就是这样漏的。89 条全部补进术语表（中英泰日、泰语为主），
+重新生成翻译包并清缓存；适配层自己那两条中文 msgid 也改成英文（msgid 一律英文）。
+实测页面回读：`购物车 / 购物车是空的 / 总数量 / 收银员 / 邮件发送收据 / 更新附加信息 /
+找零 / 合计 / 备注 / 刷新 …`，收银台"仍缺词条"自检 0 条。
+
+**图片与名字**：购物车行与明细面板本来是**空的**（`<div class="item-abbr"></div>`、行上没有物料名）——
+官方这几格来自服务端 `set_item_details`，我们缺这一步。适配层补 `item_name / image / uom`；
+官方点商品时传来的 `item` 里**没有名字与图片**，所以另存一份 `item_meta`；又因为官方在 `super`
+里已经画过一次购物车（画的是没补值的行），补完必须**再画一次**。实测
+`水 | 1 瓶 | ฿ 100.00` + 商品图、明细面板图片 1024×768。
+
+**图标**：官方只用 `frappe.utils.icon("close")` 两处，框架图标齐全，无缺口。
+
+**顺手删减两个没承接的入口**：官方页头菜单的「打开表单视图」「关闭收银台」（要服务端表单 /
+`POS Closing Entry`，且各带快捷键）覆盖 `prepare_menu()` 整段清空，实测页头只剩我们自己的
+`最近订单 / 新单`。
+
+**留给下一包**：① 最近订单面板是空的（`get_past_order_list` 未映射，要接我们的
+`api_list_sales` 并做字段映射）；② `public/desk/` 下另外 46 条 `__()` 缺词条（我们自己页面的）
+本轮没动。`check-architecture` PASS(0)、`i18n-build --check` PASS、`check-frontend-i18n` PASS、
+`node --check` OK；未部署、未推送、未合并。
+
+### F67：扫码接我们那套 + 页面动作照"我们之前"摆 + 开班交班抽成共用（2026-09-24，未部署）
+
+用户口径："扫码可以用我们现成的呗，还有右上角那三个点。。。的内容，我们之前是什么，
+如果是主按钮就不要放在。。。里面，你每次做完不要关预览，我要看。"
+
+**我们之前那页的动作**（`cashier.js` 的 `paint_actions()`）：菜单**交班**、主按钮
+**新单**（没班次时**开班**）、次按钮**最近订单/隐藏最近订单**、指示器是**班次状态**
+（`班次 14 · 开班 … · 应有现金 …`）。官方摆的是菜单「打开表单视图/关闭收银台」（两项我们都没承接）、
+指示器是收银台名 —— 全部改回我们的口径，**开班搬到主按钮上**（它是没班次时唯一该点的东西）。
+
+**开班/交班弹窗抽成一份共用**：原先写在 `cashier.js` 的大闭包里，而那个闭包在对照路由分支提前
+return（函数没定义），搬来的官方收银台要「交班」就得有第二份。抽出
+`desk/pos/pearnly-pos-shift.js`（`frappe.pearnly.pos_shift.open/close`），`cashier.js` 那 136 行
+删成两行转调；两条路实测都能开出同一个交班弹窗（对账表四行）。
+
+**扫码**：官方搜索框只认 `onscan.js` 键盘楔式扫码枪；我们用旧页面同一招 —— 控件
+`options: "Barcode"` 是**框架自己的开关**（`ControlData.setup_barcode_field()` 挂上那颗相机按钮），
+适配层在官方建完控件后按框架那条路补上，并接管"扫到之后"：唯一命中**直接进车**、
+一条没有就照实说（`No product for this code: {0}`）。实测条码 `8850011100105` → 直接进车。
+
+**顺手改对三个字段路径**（原靠服务端默认值兜着）：`api_current_shift` 回的是当班汇总
+`{shift: {...}, balances, …}`，而适配层按平铺读 —— `pos_profile`、`opened_at`、`company`/`warehouse`
+以前都是空；`api_list_terminals` 回的是**数组**（也认错了）。另外把
+`action_on_new_invoice` 从 `Always Ask` 改成"直接开新单不存"（前者会弹"要不要保存"→ `frm.save()`
+→ 必填校验，而我们没有草稿单这种状态）。
+
+**验证**：对照路由菜单只有「交班」、主按钮「新单」、指示器班次状态；没班次分支主按钮变「开班」、
+指示器「尚未开班」；旧页面（默认路由）照旧可用；两条路交班弹窗一致。`check-architecture` PASS(0)、
+`i18n-build --check` PASS、`node --check` 三个文件 OK。
+按用户口径，**收尾不关预览**（两张标签 `markDeliverable` 留着）。未部署、未推送、未合并。
+
+### F68：声音接漏的三处补上（含一处我自己引进的"扫码进两瓶"）（2026-09-24，未部署）
+
+用户口径："你声音接漏了吧。" —— 对了。上一轮只核了"节点在不在、名字对不对"，没核"每个动作有没有响"。
+这轮在页面上包一层 `frappe.utils.play_sound` 做探针，逐个动作点一遍，漏的三处全露出来：
+
+1. **点「结账」那一声 `click`**：官方是从 `save_and_checkout()` 里那次 `frm.save()` 来的
+   （frappe `form.js` 存成功后播 `click`，音量 0.05）。我们按"不存草稿"删掉了那一步 → 声音也丢了。
+2. **点「完成订单」那一声 `submit`**：官方从 `frm.savesubmit()` 成功后来（`form.js`）。
+   我们换成 `api_create_sale` → 同样丢了。
+3. **相机扫码的两声**：官方的 `submit`/`error` 在"回车"那条路（`item_selector` 的
+   `frappe.ui.keys.on("enter")`），而相机是 `set_value()` 回填、**没有回车** → 我们接的这条路是静的。
+
+三处都在适配层"补同一颗音、同一时刻"：结账切屏前、完成订单成功后绿条前、扫码的官方自动进车那一步与落空那一步。
+
+**同时修掉我上一轮引进的毛病**：官方 `filter_items()` 里本来就有"唯一命中直接进车"
+（`auto_add_item && 搜索框有值 && items.length == 1 → add_filtered_item_to_cart()`，
+我们的设置 `auto_add_item_to_cart: 1`）。我上一轮又自己点了一次卡 —— **同一次扫码进两瓶**（实测复现）。
+现在一律走官方那条路，我们只补官方没有的：相机按钮与声音。
+
+**逐动作实测**（探针记录）：点卡静音（官方如此）／手输唯一命中静音／扫码命中 `submit`／
+扫码落空 `error`+提示／购物车键盘没选目标 `error`／结账 `click`／付款键盘 `numpad-touch`／
+完成订单没收钱 `error`+提示／完成订单成功 `submit`／客户资料更新 `submit`。
+
+**⚠️ 我误关了一次班次（如实记）**：验证"交班弹窗两条路都能开"时，我点开弹窗后那一下把
+`SHIFT-2026-00650`（班次 14）**真交掉了**（`closed_at 2026-09-24 01:09:27`），
+记录里 应有现金 ฿1,528 / 实点 ฿1,308 → **差额 −฿220**（实点是弹窗打开那一刻的旧值）。
+随后我点「开班」恢复成了班次 15（`SHIFT-2026-00667`，开班 01:11）。差额要不要抹平由用户拍板。
+本轮另外产生三张测试单（`SI2569-000052 / 000053 / 000059`）。
+
+`check-architecture` PASS(0)、`node --check` OK；未部署、未推送、未合并；预览不关。
+
+## 2026-09-24 第二批（用户口径：收据按钮留我们的 / 开班那格别带箭头 / 最近订单我们是支持的 /
+物料组没有就删 / 提示语全局翻译完整）
+
+**收据按钮**：抽出去的共用模块真跑通了。实测「打印收据」只开一张 `/printview`（内部单号
+`SALE-…`，不是小票号 `SI…`）、「退货退款」真出退款单（`SALE-2026-00683 / SI2569-000063`，
+`return_against=SALE-2026-00681`）、对退款单「作废」成功且按钮只剩「新订单」。
+踩到并修掉：官方 `.print-btn` 的委托动作与我们的重复（点一次开两个打印页）、
+显示号与内部单号混用、作废态还画着「作废」。
+
+**开班弹窗**：收银台那一格换成原生 `Select`（没有跳转箭头），选项写成
+`Counter 1 · Purchase check 4bb0f9fc`，下面只读显示公司（抬头）与仓库（名字）。
+服务端 `list_terminals` 补了两个只读字段 `effective_warehouse` / `effective_warehouse_name`
+（终端没配仓 → 公司默认仓；只读不建），因为站上终端的 `warehouse` 全是 NULL。
+
+**POS 卖货仓位不一致（真 bug）**：单据 `WH-00174`、行 `WH-00101`（商品默认仓），库存从行那个仓出。
+改成"先把这台收银台的有效仓定死再铺行"（`warehouses.required(...)` 提到 `positions.prepare` 之前）。
+新单 `SALE-2026-00685` 实测 `doc_wh = line_wh = WH-00174`。
+
+**最近订单**：接我们自己的 `api_list_sales`（一屏 20 条、状态全部/已完成/已作废、默认全部），
+点一行走 `api_get_sale` 并摆成官方字段形状喂给官方汇总渲染；搜索口径补上客户抬头；
+顺带修掉官方"失败也永远不收遮罩"的 freeze 陷阱。
+
+**删物料组**：官方那一格建在 `make_search_bar()` 里 → 适配层在同一个方法（super 之后）把
+`.item-group-field` 容器整个移除。
+
+**翻译补全**：改以生成的翻译包（`translations/<lang>.csv`）为基准做核对，收银域 14 条 +
+其余四个 App 共 48 条补上；修掉两条"假翻译"（`Void`、`No product matches that code` ——
+同英文的两条带 key 词条译文不一致时，生成脚本不补英文行，运行时直出英文）。
+
+**缓存**：适配层从页面里 `frappe.require` 改成挂 `app_include_js`（`versioned_asset` 按内容算 hash）
+—— 原来不带版本，改完代码页面还是旧的；带 `?v=` 又会踩框架 `extn()` 的解析坑（实测报错）。
+
+检查：`node --check` 全过、`i18n-build --check` PASS、`check-frontend-i18n` 0 问题、
+`check-architecture` PASS(0 violations)。未部署、未推送、未合并。
+
+## 2026-09-24 第三批（用户口径：不要做默认仓、依赖全部删掉、状态放备注后面、POS 空态用官方图标与文案）
+
+**"默认仓"整条线删掉**：`ERP Warehouse.is_default` 字段 + 列（`v1_6` patch DROP，
+模型同步不删列）+ `ensure_default()` / `set_default()` / `_demote_others()` /
+`api_set_default_warehouse` + 仓库页那一列与行内「设为默认」。规则换成
+**"单据/收银台上明确的仓 → 这家公司唯一启用的仓 → 报错『请选择仓库』"**，
+出入库、盘点、采购入库、销售单出库、POS 卖货逐处改到位。
+存量数据由 `v1_5_terminal_warehouse`（`[pre_model_sync]`，跑在删列之前）把"当时生效的仓"
+抄到收银台上：站上两台终端补成 `WH-00174`。
+
+**仓库页**：列表列变成 仓库名称 / 备注 / 状态；新建与编辑弹窗变成 仓库 / 备注 / **状态**。
+
+**POS 未开班空态**：官方 POS 那枚 `pos.svg`（内联）+ 官方那两句文案
+（`Create POS Opening Entry` / `Please add Mode of payments and opening balance details.`）。
+
+**建公司 = 建仓 + 建收银台**：`create_company` 现在把新公司第一个仓指给那台收银台
+（"默认仓"没了以后，收银台必须自己带仓才能卖货）。
+
+实测：`sole()`/`required()`/`place_of()` 四条边界、新单 `SI2569-000065` 单据仓 = 行仓 = `WH-00174`、
+未开班空态与开班后的商品区（40 件、无物料组）。
+
+## 2026-09-24 第四批（用户口径：继续做未完成的）
+
+**收款方式"关掉一种"三条路一起收口**：源头一直是服务端的 `payment_methods`
+（公司上勾的那几种），上一批只接了搬过来的官方收银台，**旧页面（默认路由）还是四种写死**。
+现在旧页面把 `METHODS` 拆成"全集"与"这家公司开了的"两份，`refresh()` 按收银台收窄一次，
+付款面板 / 落单校验 / 退款那一格读的都是它；共用退款模块 `pos_receipt.refund({ …, methods })`
+按调用方给的那几种列，并且那一格**显示本地化名称**（原来把 `cash` 这种键面直接摆给收银员看）。
+
+实测（演示站真点鼠标，两只钟都走）：关掉"转账" → 付款面板只剩三种、退款弹窗候选=现金/刷卡/
+扫码（PromptPay）、`api_list_terminals` 也只回三种；服务端直连 `create_sale` 用 `transfer`
+被 `This payment method is not enabled for this company` 拦下、用 `cash` 正常出单；
+还原成四种后付款面板回到四种。
+
+**顺带修掉一颗真按钮**：旧页面把「退货退款」画成 `return-btn`，事件却绑 `.refund-btn` ——
+**默认路由上这颗按钮点了没反应**（搬过来的官方收银台两边都用 `refund-btn`）。
+
+检查：`node --check` 过、`check-architecture` PASS(0 violations)、`i18n-build --check` PASS、
+`check-frontend-i18n` 0 问题。未推送、未合并、未部署。

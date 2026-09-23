@@ -46,6 +46,25 @@ def navigation_groups(product):
     return list((_declarations().get(product) or {}).get("groups") or [])
 
 
+def link_targets(product) -> dict:
+    """产品声明的"选择框里的『新建』去哪儿"：`{主档 doctype: 我们自己的路由}`。
+
+    只留下当前用户**能打开**的那些页面（判据与侧栏同一套 `visible_pages`）：点「新建」
+    落进"没有权限 / 没实现"的一屏，比留在原地更糟。声明在产品的 `hooks.py` 里
+    （ADR-009：菜单与可售卖功能由产品自己声明），这里只组装 + 过滤。
+    """
+    declared = (_declarations().get(product) or {}).get("links") or {}
+    if not isinstance(declared, dict):
+        return {}
+    offered = set(visible_pages(product))
+    out = {}
+    for doctype, route in declared.items():
+        route = str(route or "").strip()
+        if doctype and route in offered:
+            out[str(doctype)] = route
+    return out
+
+
 def _can_open_page(product, route):
     """Mirror the declared page permission; purchased features alone are not a role."""
     rule = ((_declarations().get(product) or {}).get("permissions") or {}).get(route) or {}
@@ -59,10 +78,63 @@ def _can_open_page(product, route):
 def visible_pages(product):
     from pearnly_core.shell import entitlements
     features = set(entitlements())
-    offered = available_pages(product)
-    return [route for _, route, _, feature in pages(product)
-            if route in offered and (not feature or feature in features)
-            and _can_open_page(product, route)]
+    # 与侧栏同一份口径（`_offered` 里已经含产品自己的页面过滤器），再加"这个账号能不能进"。
+    offered = _offered(product, features)
+    return [route for _, route, _, _feature in pages(product)
+            if route in offered and _can_open_page(product, route)]
+
+
+def _user_menu_specs(product) -> list:
+    """产品声明的那几项左下角菜单，按声明顺序。
+
+    一项可以写成路由字符串，也可以写成 `{"route": ..., "before_profile": True}`；
+    后者排在**「个人信息」上面**（用户 2026-09-23："公司……做在个人信息上方"），
+    不带这个记号的一律排在「个人信息」下面。位置是产品自己的声明，外壳只照着画。
+    """
+    declared = (_declarations().get(product) or {}).get("user_menu") or []
+    specs = []
+    for item in declared:
+        spec = item if isinstance(item, dict) else {"route": item}
+        route = str(spec.get("route") or "").strip()
+        if route:
+            specs.append({"route": route,
+                          "before_profile": bool(spec.get("before_profile"))})
+    return specs
+
+
+def _user_menu_routes(product) -> set:
+    """只在**左下角用户菜单**里出现的路由。
+
+    写进 `user_menu` 的页面从侧栏移出去 —— 这个声明本身就是"这个入口不放侧栏、放
+    左下角那颗按钮里"（用户 2026-09-23："不要主数据，把团队管理放在左下角里面"）。
+    页面本身仍然可按路由打开，`boot.pearnly_pages`（也能打开）不受影响。
+    """
+    return {spec["route"] for spec in _user_menu_specs(product)}
+
+
+def sidebar_pages(product):
+    """侧栏这一份该出现哪些页面：能打开的页面里去掉走左下角菜单的那些。"""
+    hidden = _user_menu_routes(product)
+    return [route for route in visible_pages(product) if route not in hidden]
+
+
+def user_menu(product):
+    """产品要在**左下角那颗用户按钮**的菜单里出现哪几项（例如 ERP 的「团队管理」）。
+
+    产品声明的是**路由**，标题与图标仍从 `pages` 取 —— 同一句话只有一处词，不复制。
+    判据与侧栏完全一致（`visible_pages`：页面已实现 + 当前用户能进），所以"只有产品
+    管理员能进"的页面只会出现在管理员的菜单里，别人连项都看不到。
+    """
+    entries = {route: (label, icon) for label, route, icon, _feature in pages(product)}
+    offered = set(visible_pages(product))
+    entries_out = []
+    for spec in _user_menu_specs(product):
+        route = spec["route"]
+        if route in offered and route in entries:
+            label, icon = entries[route]
+            entries_out.append({"route": route, "label": label, "icon": icon or "",
+                                "before_profile": spec["before_profile"]})
+    return entries_out
 
 
 def _personal_order(product, offered):
@@ -90,13 +162,16 @@ def save_sidebar_order(routes):
             routes = json.loads(routes)
         except ValueError:
             frappe.throw(_("Invalid value"))
-    allowed = visible_pages(product)
+    # 校验的是**侧栏那一份**：走左下角菜单的页面本来就不在侧栏里，不该出现在这里比对。
+    allowed = sidebar_pages(product)
     if (not isinstance(routes, list) or not all(isinstance(r, str) for r in routes)
             or len(routes) != len(allowed) or set(routes) != set(allowed)):
         frappe.throw(_("Invalid value"))
     # User Default is per-site and per-session user. No shared sidebar or role writes.
     frappe.defaults.set_user_default("pearnly_sidebar_order_" + product, json.dumps(routes))
-    return {"routes": routes}
+    # `routes` 是侧栏的新顺序，`pages` 是"这个用户能打开的全部页面"（含左下角那些）——
+    # 页面路由的准入判据用后者，不能因为排序把它变小。
+    return {"routes": routes, "pages": visible_pages(product)}
 
 
 def ensure_navigation():
@@ -127,12 +202,36 @@ def _offered(product, features) -> dict:
         if feature and feature not in features:
             continue
         offered[route] = (label, route, icon, feature)
-    return offered
+    return _product_page_filter(product, offered)
+
+
+def _product_page_filter(product, offered) -> dict:
+    """产品可以在自己的声明里挂一个**页面过滤器**，把"某些页在当前数据下不该出现"表达出来。
+
+    为什么要有这一层：租户买了某个功能（`features`）不等于**每一家公司**都用它 ——
+    例如 ERP 的收银台是**公司级**开关（一家公司不开收银，那三页与收银岗位都不该出现），
+    而"哪家公司开了"是产品自己的事，共用层不该认识它。所以产品声明里给一个点号路径，
+    这里只负责调它：签名 `(offered) -> offered`，键是路由、值是 `(label, route, icon, feature)`。
+
+    过滤器取不到（没声明/导不进来）就**原样返回**：这只管显隐，真正的授权在服务端。
+    """
+    spec = (_declarations().get(product) or {}).get("page_filter")
+    if not spec:
+        return offered
+    try:
+        from frappe.utils import get_attr
+
+        return get_attr(spec)(offered) or offered
+    except Exception:
+        frappe.log_error(title=f"{product} page_filter failed")
+        return offered
 
 
 def _sidebar_items(product, features) -> list:
     """侧栏条目：有分组定义就出「分组标题 + 缩进的子项」，否则平铺。"""
-    offered = _offered(product, features)
+    hidden = _user_menu_routes(product)
+    offered = {route: value for route, value in _offered(product, features).items()
+               if route not in hidden}
     groups = navigation_groups(product)
     if not groups:
         return [{"type": "Link", "label": label, "link_type": "Page", "link_to": route,
@@ -182,6 +281,14 @@ def extend_boot(boot):
                                    or frappe.conf.get("pearnly_workspace") or "").strip()
     boot.pearnly_features = entitlements()
     boot.pearnly_pages = _personal_order(product, visible_pages(product))
+    # 选择框里的「新建 / 高级搜索」该进我们哪一页（已按"能打开"过滤）。产品声明，前端只照着用。
+    boot.pearnly_links = link_targets(product)
+    # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
+    boot.pearnly_user_menu = user_menu(product)
+    # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
+    # 页面路由的准入判据用它，不能跟着少）。
+    sidebar_routes = [route for route in boot.pearnly_pages
+                      if route in sidebar_pages(product)]
     boot.pearnly_native_account = bool(frappe.conf.get("pearnly_native_account"))
     from pearnly_core.shell import PRODUCT_LABELS
     boot.pearnly_sidebar = "Pearnly " + PRODUCT_LABELS[product]
@@ -190,7 +297,7 @@ def extend_boot(boot):
     # 只写进 Workspace Sidebar 文档不够（那个文档只在整页刷新时才重新读）。
     boot.pearnly_nav_groups = [
         {"label": label, "icon": icon,
-         "routes": [route for route in routes if route in boot.pearnly_pages]}
+         "routes": [route for route in routes if route in sidebar_routes]}
         for label, icon, routes in navigation_groups(product)
     ]
 
@@ -204,11 +311,17 @@ def extend_boot(boot):
         # 侧栏随后用它自己的 find_nested_items 嵌套，我们不自建折叠控件。
         groups = navigation_groups(product)
         if not groups:
-            sidebar["items"] = [items[route] for route in boot.pearnly_pages if route in items]
+            sidebar["items"] = [{**items[route], "child": 0, "indent": 0}
+                                for route in sidebar_routes if route in items]
             return
-        routes = list(boot.pearnly_pages)
+        routes = sidebar_routes
         grouped = {route for _label, _icon, group_routes in groups for route in group_routes}
-        projected = [items[route] for route in routes
+        # 平铺项一律按"平铺"重写：`items` 来自站点里那份 Workspace Sidebar 文档，
+        # 页面改过分组之后，旧文档里可能还留着 `child`/`indent`（它原先是挂在某个
+        # 分组下的）。原生渲染认这两个字段：**一个带 `child` 却没有分组父项的条目**
+        # 会在 `sidebar_item.make()` 里读 `parent.indent` 抛错，整条侧栏只剩第一项
+        # （2026-09-23 把「团队管理」移出分组时实测踩到，界面看上去像"菜单全丢了"）。
+        projected = [{**items[route], "child": 0, "indent": 0} for route in routes
                      if route in items and route not in grouped]
         for label, icon, group_routes in groups:
             members = [items[route] for route in group_routes

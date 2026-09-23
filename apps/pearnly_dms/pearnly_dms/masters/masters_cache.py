@@ -171,13 +171,18 @@ def _write_full_preserving_paints(endpoint: Any, masters: Dict[str, Any]) -> Opt
 
 
 # ── 登录抓取（失败即软回退） ──────────────────────────────────────────────
-def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False):
+def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False,
+                             background: bool = False):
     """登录 DMS 抓全量主档；登录/抓取失败（`run_logged_in` 回 err dict）→ None。
 
     走**权威只读**：配了独立管理员凭据组的租户借管理员会话读 —— 销售账号常看不到
     车型/银行全表，拿不完整视图当"主档是空的"会静默把存在的车/银行判成不存在；
     而五类银行目录现在也算进完整度判据，看不到就永远不满足、每次重读都要重登。
     管理员登录失败 → `ERR_DMS_ADMIN_AUTH` 落成 None，由调用方 fail closed，不静默退回销售。
+
+    `background=True`：这次是后台任务在刷（没人等着看结果）→ 用**共用预算口径**里
+    后台那一档（一次给足 90 秒，不走用户在等的 30/60/90 阶梯），见
+    `pearnly_dms.config.pacing`。
     """
     from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
     from pearnly_dms.intake.service import run_logged_in
@@ -188,8 +193,13 @@ def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False):
             **fetch_payment_bank_masters(adapter, client=client),
         }
 
-    res = run_logged_in(endpoint, _fetch, authoritative_read=True)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background)
     if isinstance(res, dict) and res.get("ok") is False:
+        # **把失败原因留在日志里**：这一段只返回 None，光看"没拿到完整主档"分不清
+        # "连不上"、"管理员凭据不对"还是"某个下拉读不出来"——2026-09-23 排查时
+        # 就是被这句话挡住了（48 小时 2492 次刷新全失败，却看不出为什么）。
+        logger.warning("[dms masters] 全量刷新失败 code=%s raw=%s",
+                       res.get("error_code"), str(res.get("raw_error") or "")[:200])
         return None
     return res
 
@@ -209,8 +219,12 @@ def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
     return res if isinstance(res, list) else None
 
 
-def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional[Dict[str, List[list]]]:
-    """一次登录抓**多个**车型的颜色（预热用；逐个抓要登 N 次，会把会话踢来踢去）。"""
+def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str],
+                                  *, background: bool = False) -> Optional[Dict[str, List[list]]]:
+    """一次登录抓**多个**车型的颜色（预热用；逐个抓要登 N 次，会把会话踢来踢去）。
+
+    `background=True`：后台预热在跑（没人等着）→ 预算走共用口径的后台那一档。
+    """
     from pearnly_dms.intake.service import run_logged_in
 
     want = [str(c) for c in car_ids if c]
@@ -220,7 +234,7 @@ def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str]) -> Optional
     def _fetch(client, _adapter):
         return {car: (client._bshsd_all("txtcarpaint", idcar=car) or []) for car in want}
 
-    res = run_logged_in(endpoint, _fetch, authoritative_read=True)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background)
     return res if isinstance(res, dict) and res.get("ok") is not False else None
 
 

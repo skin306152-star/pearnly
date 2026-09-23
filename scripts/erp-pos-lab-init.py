@@ -14,6 +14,22 @@ import subprocess
 
 PRODUCT_APPS = ("pearnly_core", "pearnly_erp_portal")
 
+# 站点"买到了哪些功能"**从产品自己的清单读**，不在这里再抄一份。
+#
+# 这份清单原先写死在下面（`["products", "warehouses", "stockcard", "purchase",
+# "sales", "clients"]`），于是产品后来加的 `stocktake`（盘点）与 `cashier`（收银）
+# 没被写进站点 —— 菜单按"没买的功能不出现"把它们藏了，用户看到的是"容器里没有盘点"。
+# 产品清单是 ADR-009 里产品自己声明的唯一来源（`apps/<app>/<app>/features.json`），
+# 实验室只是把整份清单买下来（与开通口径一致：选了产品就全开）。
+HOME_FEATURE = "home_subscription"   # 三个产品共有的首页，由控制面声明
+CATALOG = Path("apps/pearnly_erp_portal/pearnly_erp_portal/features.json")
+
+
+def feature_codes() -> list:
+    """本产品的全部功能码 = 首页 + 产品清单里的每一条。"""
+    data = json.loads(CATALOG.read_text(encoding="utf-8"))
+    return [HOME_FEATURE, *[str(item["code"]) for item in data["features"]]]
+
 
 def _bench(args, **kwargs):
     return subprocess.run(["bench", *args], check=True, **kwargs)
@@ -72,7 +88,7 @@ def main():
         site_config.update(
             pearnly_product="erp",
             pearnly_erp_pos_lab=True,
-            pearnly_features=["products", "warehouses", "stockcard", "purchase", "sales", "clients"],
+            pearnly_features=feature_codes(),
             pause_scheduler=1,
             disable_scheduler=1,
             mute_emails=1,

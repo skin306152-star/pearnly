@@ -1,37 +1,1113 @@
+"0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it.","0 means the price was never set (not a real ฿0 price). Frappe's Currency column cannot store NULL, so the difference between 'unset' and 'zero' is carried by this flag; the POS zero-price gate reads it."
+1 = January,1 = January
+1-12; Thai companies commonly start in January,1-12; Thai companies commonly start in January
+13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
+A company needs a name,A company needs a name
+A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
+A confirmed draft must point at the record it created,A confirmed draft must point at the record it created
+A customer needs a name,A customer needs a name
+A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
+A product needs a name,A product needs a name
+A refund cannot be more than the original sale,A refund cannot be more than the original sale
+A refund needs the original sale,A refund needs the original sale
+A stock count needs a name,A stock count needs a name
+A stock entry needs at least one line,A stock entry needs at least one line
 A stored source file must carry its hash,A stored source file must carry its hash
+A submitted document cannot be changed,A submitted document cannot be changed
+A submitted entry cannot be changed,A submitted entry cannot be changed
+A supplier needs a name,A supplier needs a name
+A terminal needs a name,A terminal needs a name
+A warehouse must belong to a company,A warehouse must belong to a company
+A warehouse needs a name,A warehouse needs a name
+Abbreviated Tax Invoice,Abbreviated Tax Invoice
+Actual position,Actual position
+Actual positions and quantities,Actual positions and quantities
+Actual warehouse,Actual warehouse
+Add Column,Add Column
+Add Discount,Add Discount
+Add Employee,Add Employee
+Add Order Discount,Add Order Discount
+Add User,Add User
+Add VAT,Add VAT
+Add a count,Add a count
+Add a count — {0},Add a count — {0}
+Add photos,Add photos
+Add row,Add row
+Add terminal,Add terminal
+Added {0},Added {0}
+Added: {0},Added: {0}
+Additional,Additional
+Additional Discount Percentage,Additional Discount Percentage
+Additional Information,Additional Information
+Additional Information updated successfully.,Additional Information updated successfully.
+Address,Address
+Address and notes,Address and notes
+Against Payment,Against Payment
+All,All
+All Items,All Items
+All companies,All companies
+All the items have been already returned.,All the items have been already returned.
+Already exists,Already exists
 Already received,Already received
+Already used by {0} (code {1}),Already used by {0} (code {1})
+Amend,Amend
+Amended,Amended
+Amended From,Amended From
+Amount,Amount
+Amount Payable,Amount Payable
+Amount Received,Amount Received
+Amounts,Amounts
+Anonymous,Anonymous
+Anonymous buyers get no tax id; only companies have branches,Anonymous buyers get no tax id; only companies have branches
+Apply,Apply
+Approval Status,Approval Status
+Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
+Are you sure you want to delete?,Are you sure you want to delete?
+As Of,As Of
+At most 5 photos per entry,At most 5 photos per entry
+At most {0} photos per entry,At most {0} photos per entry
+Attach,Attach
+Attachment,Attachment
+Attachment Type,Attachment Type
+Attachments,Attachments
+Auto Fetch Serial Numbers,Auto Fetch Serial Numbers
+Available Qty,Available Qty
+Average Unit Cost,Average Unit Cost
+Back,Back
+Back to entries,Back to entries
+Back to summary,Back to summary
+Balance,Balance
+Bank,Bank
+Bank Transfer,Bank Transfer
+Barcode,Barcode
+Barcode / QR code,Barcode / QR code
+"Barcode, QR code or product code","Barcode, QR code or product code"
+Base Currency,Base Currency
+Base Unit,Base Unit
+Base unit,Base unit
+Basis Qty,Basis Qty
+Basis Set,Basis Set
+Batch No,Batch No
 Bind this account first,Bind this account first
+Block Duplicate Documents,Block Duplicate Documents
+Book position,Book position
+Book quantity,Book quantity
+Book quantity {0} {1},Book quantity {0} {1}
+Book {0} · counted {1} · difference {2},Book {0} · counted {1} · difference {2}
 Bound to {0},Bound to {0}
+Branch,Branch
+Branch Name,Branch Name
+Branch No,Branch No
+Branch No is required,Branch No is required
+Branch Number,Branch Number
+Branch Office,Branch Office
+Branch Type,Branch Type
+Branch {0},Branch {0}
+Bucket,Bucket
+Buyer Type,Buyer Type
+By Payment Method,By Payment Method
+Calculation Version,Calculation Version
+"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
+Camera permission was refused; allow it and try again,Camera permission was refused; allow it and try again
+Cancel,Cancel
+Cancel {0},Cancel {0}
+Cancellation,Cancellation
+Cancelled,Cancelled
+Cancelled At,Cancelled At
+Cancelled On,Cancelled On
+Cancelled {0},Cancelled {0}
+Cannot reach the Revenue Department right now,Cannot reach the Revenue Department right now
+Card,Card
+Cart,Cart
+Cash,Cash
+Cash Amount,Cash Amount
+Cash Check,Cash Check
+Cash Difference,Cash Difference
+Cashier,Cashier
+Cashier (POS),Cashier (POS)
+Cashier Records,Cashier Records
+"Cashier counter, shifts and the cashier's own sales","Cashier counter, shifts and the cashier's own sales"
+Category,Category
+Category Name,Category Name
+Change,Change
+Change Amount,Change Amount
+Change Total,Change Total
+Chart by,Chart by
+Checkout,Checkout
+Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
+Cheque,Cheque
+Choose a file,Choose a file
+Choose a file to import,Choose a file to import
+Choose at least one job role,Choose at least one job role
+Choose file,Choose file
+Choose the sheet to import,Choose the sheet to import
+Clear,Clear
+Clear Link,Clear Link
+Clear cart,Clear cart
+Clear customer,Clear customer
+Clear the cart?,Clear the cart?
+Click to add email / phone,Click to add email / phone
+Click to choose a customer,Click to choose a customer
+Client Reference,Client Reference
+Close,Close
+Close Shift,Close Shift
+Close camera,Close camera
+Close count,Close count
+Close the POS,Close the POS
+Closed At,Closed At
+Closed at,Closed at
+Closed by,Closed by
+Closing Quantity,Closing Quantity
+Closing locks every entry. Rows never counted stay empty. Continue?,Closing locks every entry. Rows never counted stay empty. Continue?
+Code,Code
+Code or barcode,Code or barcode
+Codes start at {0},Codes start at {0}
+Collected {0},Collected {0}
+Collection,Collection
+Collection Date,Collection Date
+Collection Method,Collection Method
+Collection Remarks,Collection Remarks
+Collection Status,Collection Status
+Colour Tag,Colour Tag
+Columns,Columns
+Comes from the terminal; set it there if it is empty,Comes from the terminal; set it there if it is empty
+Companies,Companies
+Company,Company
+Company details,Company details
+Company name,Company name
+Company not found,Company not found
+Complete Order,Complete Order
+Complete Payment,Complete Payment
+Completed,Completed
+Confirm,Confirm
+Confirm the document before recording a payment,Confirm the document before recording a payment
+Contact Details,Contact Details
+Contact Person,Contact Person
+Contact email,Contact email
+Contact person,Contact person
+Continuous counting,Continuous counting
+Conversion Factor,Conversion Factor
+Correct entry,Correct entry
+Cost,Cost
+Cost Is Set,Cost Is Set
+Cost Known,Cost Known
 Could not store this document,Could not store this document
+Count at least one item before finishing,Count at least one item before finishing
+Count by,Count by
+Count closed,Count closed
+Count saved,Count saved
+Counted,Counted
+Counted Amount,Counted Amount
+Counted Cash,Counted Cash
+Counted amount is required,Counted amount is required
+Counted at,Counted at
+Counted by,Counted by
+Counted in total,Counted in total
+Counted quantity,Counted quantity
+Counter 1,Counter 1
+Create,Create
+Create New Item,Create New Item
+Create POS Opening Entry,Create POS Opening Entry
+Created,Created
+Created when a sales draft is confirmed,Created when a sales draft is confirmed
+Created when the draft is confirmed,Created when the draft is confirmed
+Created {0} product(s),Created {0} product(s)
+Created {0}; {1} row(s) were not saved — fix them and save again,Created {0}; {1} row(s) were not saved — fix them and save again
+Creation,Creation
+Currency,Currency
+Current,Current
+Custom,Custom
+Customer,Customer
+Customer Name,Customer Name
+Customer Type,Customer Type
+Customer contact updated successfully.,Customer contact updated successfully.
+Customer is disabled,Customer is disabled
+Customer is required,Customer is required
+Customer not found,Customer not found
+Customers,Customers
+Date,Date
+Decided At,Decided At
+Dedupe Key,Dedupe Key
+Default,Default
+Default Company,Default Company
+Default Due Days,Default Due Days
+Default Location,Default Location
+Default Selling Unit,Default Selling Unit
+Default Terminal,Default Terminal
+Default VAT Rate (%),Default VAT Rate (%)
+Default WHT Rate for Services (%),Default WHT Rate for Services (%)
+Default withholding for service documents,Default withholding for service documents
+Delete,Delete
+Delete selected ({0}),Delete selected ({0})
+Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
+Deleted {0},Deleted {0}
+Deleted {0} stock counts,Deleted {0} stock counts
+Description,Description
+Details,Details
+Difference,Difference
+Difference value,Difference value
+Differences,Differences
+Direction must be in or out,Direction must be in or out
+Disable,Disable
+Disable {0},Disable {0}
+Disable {0} selected,Disable {0} selected
+Disabled,Disabled
+Discard Reason,Discard Reason
+Discount,Discount
+Discount (%),Discount (%)
+Discount Amount,Discount Amount
+Discount Total,Discount Total
+Discount cannot be greater than 100%,Discount cannot be greater than 100%
+Discount cannot be greater than 100%.,Discount cannot be greater than 100%.
+Discount cannot exceed the amount,Discount cannot exceed the amount
+Discount percentage,Discount percentage
+Document,Document
+Document No,Document No
+Document Number,Document Number
+Document Prefix,Document Prefix
+Document Type,Document Type
+Document already exists,Document already exists
+Document has already been cancelled,Document has already been cancelled
+Document has already been submitted,Document has already been submitted
+Document has been cancelled,Document has been cancelled
+Document must be submitted,Document must be submitted
+Document prefix,Document prefix
+Documents,Documents
+Download template,Download template
+Draft,Draft
 Draft not found,Draft not found
+Due Date,Due Date
+ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
+Edit,Edit
+Edit Cart,Edit Cart
+Edit Receipt,Edit Receipt
+Edit in Full Page,Edit in Full Page
+Editing {0} is not allowed as per POS Profile settings,Editing {0} is not allowed as per POS Profile settings
+Email,Email
+Email Receipt,Email Receipt
+Email not sent to {0} (unsubscribed / disabled),Email not sent to {0} (unsubscribed / disabled)
+Email sent successfully.,Email sent successfully.
+Enable,Enable
+Enable / disable,Enable / disable
+Enable POS cashier,Enable POS cashier
+Enable {0},Enable {0}
+Enable {0} selected,Enable {0} selected
+Enabled,Enabled
+Enter a quantity,Enter a quantity
+Enter a tax ID first,Enter a tax ID first
+Enter a valid email,Enter a valid email
+Enter amount to be redeemed.,Enter amount to be redeemed.
+Enter customer's email,Enter customer's email
+Enter customer's phone number,Enter customer's phone number
+Enter discount percentage,Enter discount percentage
+Enter discount percentage.,Enter discount percentage.
+Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
+Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
+Enter the user name,Enter the user name
+Enter {0} amount,Enter {0} amount
+Enter {0} amount.,Enter {0} amount.
+Entries,Entries
+Entries — {0},Entries — {0}
+Entry Method,Entry Method
+Excel file,Excel file
+Exchange Rate,Exchange Rate
+Exchange Rate is required,Exchange Rate is required
+Exchange Rate must be greater than zero,Exchange Rate must be greater than zero
+Expected Amount,Expected Amount
+Expected Cash,Expected Cash
+Expense,Expense
+Expense Amount,Expense Amount
+Expense Count,Expense Count
+Expiry Date,Expiry Date
+Export,Export
+Export {0},Export {0}
+Exported {0} shifts,Exported {0} shifts
+External System Reference,External System Reference
+Factor to Base Unit,Factor to Base Unit
+Fetched At,Fetched At
+Fetched only {0} available serial numbers.,Fetched only {0} available serial numbers.
+File,File
+File Fingerprint,File Fingerprint
+File Name,File Name
+File SHA-256,File SHA-256
+File not found,File not found
+Fill in as many rows as you need; leave the code empty and the system assigns one,Fill in as many rows as you need; leave the code empty and the system assigns one
+Filter,Filter
+Filter by invoice status,Filter by invoice status
+Filters,Filters
+Find,Find
+Find product,Find product
+Finish,Finish
+Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
+Fiscal Year Starts In,Fiscal Year Starts In
+Fiscal year start month,Fiscal year start month
+Focus on Item Group filter,Focus on Item Group filter
+Focus on search input,Focus on search input
+Following fields have missing values:,Following fields have missing values:
+Foreigner,Foreigner
+Found,Found
+Found: {0},Found: {0}
+"Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).","Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set)."
+"Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
+From Date,From Date
+Full Name,Full Name
+Full Screen,Full Screen
+Generated,Generated
+Generated automatically,Generated automatically
+Goods,Goods
+Grand Total,Grand Total
+Gross,Gross
+Head Office,Head Office
+Hide Recent Orders,Hide Recent Orders
+How much of this opening was already pushed into the stock ledger; a revision only posts the difference,How much of this opening was already pushed into the stock ledger; a revision only posts the difference
+ID,ID
+Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
+Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
+Ignore Pricing Rule is enabled. Cannot apply coupon code.,Ignore Pricing Rule is enabled. Cannot apply coupon code.
+Image Fingerprint,Image Fingerprint
+Image URL,Image URL
+Import a sheet,Import a sheet
+Import from Excel,Import from Excel
+Import result,Import result
+Imported {0} product(s),Imported {0} product(s)
+"Imported {0} rows, {1} with a counted quantity","Imported {0} rows, {1} with a counted quantity"
+In,In
+In progress,In progress
+In stock,In stock
+In-stock,In-stock
+In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
+Inactive,Inactive
+Initial Password,Initial Password
+Input Tax,Input Tax
+Invalid Currency,Invalid Currency
+Invalid Discount,Invalid Discount
+Invalid Return,Invalid Return
+Invalid file,Invalid file
+Invalid payment amount,Invalid payment amount
+Invalid value,Invalid value
+Invalid value: {0},Invalid value: {0}
+Invoice,Invoice
+Invoice Amount,Invoice Amount
+Invoice Status,Invoice Status
+Is Paid,Is Paid
+Is Reversal,Is Reversal
+Issued,Issued
+Item,Item
+Item / Description,Item / Description
+Item Cart,Item Cart
+Item Code,Item Code
+Item Code: {0} is not available under warehouse {1}.,Item Code: {0} is not available under warehouse {1}.
+Item Details,Item Details
+Item Group,Item Group
+Item Name,Item Name
+Item Name is required,Item Name is required
+Item Type,Item Type
+Item is disabled,Item is disabled
+Item is removed since no serial / batch no selected.,Item is removed since no serial / batch no selected.
+Items,Items
+Items are required,Items are required
+Items not found.,Items not found.
+Job Roles,Job Roles
+LINE,LINE
+LINE Message,LINE Message
+LINE User,LINE User
 LINE unbound,LINE unbound
+Last Login,Last Login
+Last Month,Last Month
+Last Movement,Last Movement
+Last counted at,Last counted at
+Last counted by,Last counted by
+Last transacted,Last transacted
+Leave all unchecked to allow every company,Leave all unchecked to allow every company
+Leave blank to use the default terminal,Leave blank to use the default terminal
+"Legacy used head office / branch, with the branch number when it is a branch","Legacy used head office / branch, with the branch number when it is a branch"
+Light,Light
+Line Amount,Line Amount
+Line Discount,Line Discount
+Line No,Line No
+Line Total,Line Total
+Lines,Lines
+Lines in this shift,Lines in this shift
+List Price,List Price
+Loading...,Loading...
+Location,Location
+"Lookup failed, please fill in manually","Lookup failed, please fill in manually"
+Low (≤{0}),Low (≤{0})
+Low Stock Threshold,Low Stock Threshold
+Low stock,Low stock
+Low stock alert,Low stock alert
+Loyalty Points,Loyalty Points
+Loyalty Program,Loyalty Program
+Main,Main
+Manual,Manual
+Manual Entry,Manual Entry
+Manually Set Amounts,Manually Set Amounts
+Media Type,Media Type
+Merge Items,Merge Items
+Missing Values Required,Missing Values Required
+Mode of Payment,Mode of Payment
+Modes of Payment,Modes of Payment
+More Filters,More Filters
+Name,Name
+Net,Net
+Net Total,Net Total
+New,New
+New Category,New Category
+New Customer,New Customer
+New Invoice,New Invoice
+New Order,New Order
+New Purchase Invoice,New Purchase Invoice
+New Sales Document,New Sales Document
+New Stock Issue,New Stock Issue
+New Stock Receipt,New Stock Receipt
+New Supplier,New Supplier
+New company,New company
+New product,New product
+New stock count,New stock count
+New warehouse,New warehouse
+Next,Next
+Next Number,Next Number
+No,No
+No Open Shift,No Open Shift
+No attachments,No attachments
+No company is available for this account,No company is available for this account
+No item matches the scanned code {0},No item matches the scanned code {0}
+No items found. Scan barcode again.,No items found. Scan barcode again.
+No items in cart,No items in cart
+No product for this code: {0},No product for this code: {0}
+No product matches this code,No product matches this code
+No receipts in this shift,No receipts in this shift
+No recent transactions found,No recent transactions found
+No stock count in progress,No stock count in progress
+No terminal yet,No terminal yet
+No warehouse matches that name,No warehouse matches that name
+None,None
+Normal,Normal
+Not Available,Not Available
+Not Posted,Not Posted
+Not counted,Not counted
+Not enough stock on hand,Not enough stock on hand
+Not found in the Revenue Department records,Not found in the Revenue Department records
+Not permitted,Not permitted
+Note,Note
+Notes,Notes
+Nothing counted yet,Nothing counted yet
 Now sending {0} documents,Now sending {0} documents
+OCR,OCR
+Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero,Off means the cost was never established; the value and unit cost stay empty rather than being guessed as zero
+On Hand,On Hand
+Only Draft documents can be deleted,Only Draft documents can be deleted
+Only a completed sale receipt can be refunded,Only a completed sale receipt can be refunded
+Only a receipt records a collection,Only a receipt records a collection
+Only a submitted document can be cancelled,Only a submitted document can be cancelled
+Only a submitted document can be voided,Only a submitted document can be voided
+Only an active count can be deleted,Only an active count can be deleted
+Only an image or a PDF can be recognised,Only an image or a PDF can be recognised
+Only low or out of stock,Only low or out of stock
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
+Only the checked features are visible to this employee,Only the checked features are visible to this employee
+Only the checked features are visible to this user,Only the checked features are visible to this user
+Only the product admin can change this,Only the product admin can change this
+Open Form View,Open Form View
+Open Shift,Open Shift
+Open a shift before selling,Open a shift before selling
+Open a shift on the cashier page first.,Open a shift on the cashier page first.
+Open that product,Open that product
+"Open this page from LINE, or sign in to the site first","Open this page from LINE, or sign in to the site first"
+Opened At,Opened At
+Opened at {0},Opened at {0}
+Opening,Opening
+Opening Amount,Opening Amount
+Opening Balance,Opening Balance
+Opening Balance Details,Opening Balance Details
+Opening Cash,Opening Cash
+Opening Qty,Opening Qty
+Opening Quantity,Opening Quantity
+Opening Unit Cost,Opening Unit Cost
+Original Item and Location,Original Item and Location
+Original Line,Original Line
+Other,Other
+Out,Out
+Out of stock,Out of stock
+Outdated POS Opening Entry,Outdated POS Opening Entry
+Outstanding Amount,Outstanding Amount
+Over by {0},Over by {0}
+POS Closed,POS Closed
+POS Opening Entry Cancelled,POS Opening Entry Cancelled
+POS Opening Entry has been cancelled. Please refresh the page.,POS Opening Entry has been cancelled. Please refresh the page.
+POS Profile,POS Profile
+POS cashier,POS cashier
+POS has been closed at {0}. Please refresh the page.,POS has been closed at {0}. Please refresh the page.
+POS invoice {0} created successfully,POS invoice {0} created successfully
+Paid,Paid
+Paid Amount,Paid Amount
+Paid amount cannot exceed the total,Paid amount cannot exceed the total
+Paid {0},Paid {0}
+Parent Category,Parent Category
+Parent Item Group,Parent Item Group
+Partly Paid,Partly Paid
+Password updated,Password updated
+Pay,Pay
+Payment,Payment
+Payment Date,Payment Date
+Payment Failed,Payment Failed
+Payment Method,Payment Method
+Payment Needs Approval,Payment Needs Approval
+Payment Receipt,Payment Receipt
+Payment Received,Payment Received
+Payment Reconciliation,Payment Reconciliation
+Payment Status,Payment Status
+Payment of {0} received successfully.,Payment of {0} received successfully.
+Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
+Payments,Payments
+Period,Period
+Person,Person
+Phone,Phone
+Phone Number,Phone Number
+Photos,Photos
+Pick a line first,Pick a line first
+Pick a warehouse,Pick a warehouse
+"Pick quantity, discount or price first","Pick quantity, discount or price first"
+Place,Place
+Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
+Please select a field to edit from numpad,Please select a field to edit from numpad
+Please select an Item,Please select an Item
+Point of Sale,Point of Sale
+Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
+Position Balance,Position Balance
+Position differences,Position differences
+Post Stock On Confirm,Post Stock On Confirm
+Post differences,Post differences
+Posted,Posted
+Posted Qty,Posted Qty
+Posted at,Posted at
+Posted by,Posted by
+Posted to Stock,Posted to Stock
+Posted {0} differences,Posted {0} differences
+Posting Date,Posting Date
+Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
+Prefix for this company's document numbers,Prefix for this company's document numbers
+Preview,Preview
+Previous,Previous
+Price,Price
+Price Is Set,Price Is Set
+Price List Rate,Price List Rate
+Price is not set for the item.,Price is not set for the item.
+Prices Include Tax,Prices Include Tax
+Print,Print
+Print Receipt,Print Receipt
+Product,Product
+Product / position / counted by / time,Product / position / counted by / time
+Product Name,Product Name
+Product Ref,Product Ref
+Product name,Product name
+Product not found,Product not found
+Product not found. Check the code and try again.,Product not found. Check the code and try again.
+PromptPay,PromptPay
+PromptPay Amount,PromptPay Amount
+PromptPay ID,PromptPay ID
+PromptPay QR,PromptPay QR
+Provide at least one line item,Provide at least one line item
+Purchase,Purchase
+Purchase Amount,Purchase Amount
+Purchase Count,Purchase Count
+Purchase Invoice,Purchase Invoice
+Purchase Order,Purchase Order
+Purchase Record,Purchase Record
+Purchase Records,Purchase Records
+Purchase document not found,Purchase document not found
+Purchasing,Purchasing
+QR Payload,QR Payload
+QR payload,QR payload
+Qty,Qty
+"Qty (base unit, signed)","Qty (base unit, signed)"
+Qty (entered unit),Qty (entered unit)
+Quantity,Quantity
+Quantity Available,Quantity Available
+Quantity counted this time,Quantity counted this time
+Quantity differences,Quantity differences
+Quantity must be greater than zero,Quantity must be greater than zero
+Query,Query
+Querying the Revenue Department...,Querying the Revenue Department...
+Quotation,Quotation
+Rate,Rate
+Reason for Cancellation,Reason for Cancellation
+Receipt,Receipt
+Receipt No,Receipt No
+Receipt Status,Receipt Status
+Receipt {0} · Change {1},Receipt {0} · Change {1}
+Received,Received
+Received Amount,Received Amount
+Received At,Received At
+Received By,Received By
+"Received from LINE, then confirmed into a purchase record or discarded","Received from LINE, then confirmed into a purchase record or discarded"
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
+Recent Orders,Recent Orders
+Recent Transactions,Recent Transactions
+Recognition is not configured for this account,Recognition is not configured for this account
+Recognition returned nothing,Recognition returned nothing
+Recognizing...,Recognizing...
+Record,Record
+Record a count,Record a count
+Recount this product,Recount this product
+Redeem Loyalty Points,Redeem Loyalty Points
+Reference,Reference
+Reference Cost,Reference Cost
+Reference cost,Reference cost
+References,References
+Refresh,Refresh
+Refund,Refund
+Refund Amount,Refund Amount
+Refund Count,Refund Count
+Refund Of,Refund Of
+Refuse a second document with the same supplier and document number,Refuse a second document with the same supplier and document number
+Reload,Reload
+Remaining Amount,Remaining Amount
+Remark,Remark
+Remarks,Remarks
+Request Hash,Request Hash
+Request ID already exists,Request ID already exists
+Request id,Request id
+Requested By,Requested By
+Reset,Reset
+Reset Password,Reset Password
+Retry,Retry
+Return,Return
+Returned,Returned
+Reversal,Reversal
+Review differences,Review differences
+Rotate,Rotate
+Rounded Total,Rounded Total
+Rounding Adjustment,Rounding Adjustment
+Rows,Rows
+"Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
+SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · Value {1} · Low {2} · Out {3}
+Sale,Sale
+Sale Price,Sale Price
+Sale not found,Sale not found
+Sales,Sales
+Sales Count,Sales Count
+Sales Document,Sales Document
+Sales Records,Sales Records
+Save,Save
+Save Draft,Save Draft
+Save and next,Save and next
+Saved,Saved
+Saved {0},Saved {0}
+Saved. Scan the next item.,Saved. Scan the next item.
+Scan,Scan
+Scan a code,Scan a code
+Scan barcode or QR code,Scan barcode or QR code
+"Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
+Scanned,Scanned
+Search,Search
+"Search by code, barcode or name","Search by code, barcode or name"
+Search by customer name or phone,Search by customer name or phone
+"Search by customer name, phone, email.","Search by customer name, phone, email."
+Search by invoice id or customer name,Search by invoice id or customer name
+"Search by item code, serial number or barcode","Search by item code, serial number or barcode"
+Search by name or phone,Search by name or phone
+Search by receipt number,Search by receipt number
+Search name or barcode,Search name or barcode
+"Search name, code or barcode","Search name, code or barcode"
+Select Loyalty Program,Select Loyalty Program
+Select a Payment Method.,Select a Payment Method.
 Select a product for each stock item,Select a product for each stock item
+Select a receipt to load its summary,Select a receipt to load its summary
+Select a stock count,Select a stock count
+Select an invoice to load summary data,Select an invoice to load summary data
+Select item group,Select item group
+Select one receipt to refund,Select one receipt to refund
+Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
+Selling Units,Selling Units
+Selling price,Selling price
+Selling warehouse,Selling warehouse
+Send,Send
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
+Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
+Sent By,Sent By
+Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
+Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.
+Service,Service
+Set as current,Set as current
+Setup Auto Email,Setup Auto Email
+Sheet,Sheet
+Shelf,Shelf
+Shift,Shift
+Shift History,Shift History
+Shift No,Shift No
+Shift Records,Shift Records
+Shift closed · Cash difference {0},Shift closed · Cash difference {0}
+Shift not found,Shift not found
+Shift {0} opened,Shift {0} opened
+Shift {0} · Expected cash {1},Shift {0} · Expected cash {1}
+Shift {0} · opened {1} · expected cash {2},Shift {0} · opened {1} · expected cash {2}
+Short Name,Short Name
+Short by {0},Short by {0}
+Short name,Short name
+Show disabled,Show disabled
+Show only,Show only
+Show zero stock,Show zero stock
+Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the first ones are listed above
+Sold At,Sold At
+Sold by,Sold by
+Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
+Sort Order,Sort Order
+Source,Source
+Source File,Source File
+Split,Split
+Start counting,Start counting
+Status,Status
+"Still off: the stock tables land in the inventory batch, and posting must not silently skip them","Still off: the stock tables land in the inventory batch, and posting must not silently skip them"
+Stock,Stock
+Stock Posted At,Stock Posted At
+Stock Posting,Stock Posting
+Stock Token,Stock Token
+Stock UOM,Stock UOM
+Stock Value,Stock Value
+Stock changed during counting. Recount the affected products.,Stock changed during counting. Recount the affected products.
+Stock changed; recount,Stock changed; recount
+Stock count,Stock count
+"Stock count created, {0} rows","Stock count created, {0} rows"
+Stock count not found,Stock count not found
+"Stock count tasks, staff entries and variance posting","Stock count tasks, staff entries and variance posting"
+Stock count template,Stock count template
+Stock count workbench,Stock count workbench
+Stock entry not found,Stock entry not found
+Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
+Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
+Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company
+Stock ledger,Stock ledger
+Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.
+Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
+Subcategory,Subcategory
+Submit,Submit
+Submit and Receive Stock,Submit and Receive Stock
+Submitted,Submitted
+Submitted At,Submitted At
+Submitted {0},Submitted {0}
+Substitute Receipt,Substitute Receipt
+Summary,Summary
+Supplier,Supplier
+Supplier Doc Reference,Supplier Doc Reference
+Supplier Invoice No,Supplier Invoice No
+Supplier Invoice No already exists,Supplier Invoice No already exists
+Supplier Invoice No is required,Supplier Invoice No is required
+Supplier Name,Supplier Name
+Supplier Tax ID,Supplier Tax ID
+Supplier is disabled,Supplier is disabled
+Supplier is required,Supplier is required
+Supplier not found,Supplier not found
+Suppliers,Suppliers
+Switch Between Payment Modes,Switch Between Payment Modes
+Switching company...,Switching company...
+System number,System number
+Tax Amount,Tax Amount
+Tax Exclusive,Tax Exclusive
+Tax ID,Tax ID
+Tax ID exists but is not VAT registered,Tax ID exists but is not VAT registered
+Tax ID must be 13 digits,Tax ID must be 13 digits
+Tax Inclusive,Tax Inclusive
+Tax Invoice,Tax Invoice
+Tax Withholding Amount,Tax Withholding Amount
+Tax Withholding Rate,Tax Withholding Rate
+Taxes,Taxes
+Taxes and Charges,Taxes and Charges
+Terminal,Terminal
+Terminal name,Terminal name
+Terminal not found,Terminal not found
+Terminals,Terminals
 That code is not valid,That code is not valid
+That file could not be read; please use the template,That file could not be read; please use the template
+That file has no rows,That file has no rows
+That file is not an Excel workbook,That file is not an Excel workbook
+That photo could not be read,That photo could not be read
+That row is not part of this stock count,That row is not part of this stock count
+That submission was already used for a different entry,That submission was already used for a different entry
+That warehouse belongs to another company,That warehouse belongs to another company
+The LINE account that sent the document,The LINE account that sent the document
+The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
+The account you give customers for transfers,The account you give customers for transfers
+The amount received is less than the total,The amount received is less than the total
+The cart is empty,The cart is empty
+The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
+The company on your documents,The company on your documents
+The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
+The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
+The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
+The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
+The password must be at least {0} characters,The password must be at least {0} characters
+The payment is more than the net payable,The payment is more than the net payable
+The product code cannot be changed,The product code cannot be changed
+The quantity is not a valid number,The quantity is not a valid number
+The row has no product code or barcode,The row has no product code or barcode
+The sheet needs a product name column,The sheet needs a product name column
+The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
+The value is not a number,The value is not a number
+The value must be zero or more,The value must be zero or more
+There is nothing to save,There is nothing to save
+There were errors while sending email. Please try again.,There were errors while sending email. Please try again.
+This LINE account is not bound to an ERP user,This LINE account is not bound to an ERP user
+"This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.","This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first."
+This Month,This Month
+This Quarter,This Quarter
 This account cannot send documents,This account cannot send documents
+This barcode already exists,This barcode already exists
+This browser cannot scan with the camera,This browser cannot scan with the camera
+This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This channel is not open yet,This channel is not open yet
+This code is already taken,This code is already taken
+"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
+This counter sells for this company; stock leaves its warehouse,This counter sells for this company; stock leaves its warehouse
+This device cannot scan,This device cannot scan
+This device has no camera to scan with,This device has no camera to scan with
+This document cannot be recorded yet,This document cannot be recorded yet
 This document has no content,This document has no content
+This document is already recorded: {0},This document is already recorded: {0}
 This document is too large,This document is too large
+This document is void,This document is void
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
+This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
+This item is also stocked at:,This item is also stocked at:
+This payment method is not enabled for this company,This payment method is not enabled for this company
+This product code already exists,This product code already exists
+This request was already recorded,This request was already recorded
+This sale is already voided,This sale is already voided
+This shift belongs to another cashier,This shift belongs to another cashier
+This shift is already closed,This shift is already closed
+This shift is closed,This shift is closed
+This status change is not allowed,This status change is not allowed
+This stock count is already posted,This stock count is already posted
+This stock count is closed,This stock count is closed
+This terminal already has an open shift,This terminal already has an open shift
+This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
+This unit is not defined on the product,This unit is not defined on the product
+This warehouse already exists,This warehouse already exists
+This warehouse belongs to the company above,This warehouse belongs to the company above
+"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.","Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
+Time,Time
+To Date,To Date
+Total,Total
+Total Amount,Total Amount
+Total Due,Total Due
+Total Items,Total Items
+Total Quantity,Total Quantity
+Total Taxes and Charges,Total Taxes and Charges
+Total items,Total items
+Total · {0} row(s),Total · {0} row(s)
+Totals,Totals
+Track batches,Track batches
+Track expiry,Track expiry
+Transfer,Transfer
+Type,Type
+Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
+UOM,UOM
+Unable to load preview,Unable to load preview
+Unbound,Unbound
+Unit,Unit
+Unit Cost,Unit Cost
+Unit Cost (net of VAT),Unit Cost (net of VAT)
+Unit Price,Unit Price
 Unknown buyer,Unknown buyer
 Unknown direction,Unknown direction
+Unpaid,Unpaid
+Up to 5 photos per entry; take a photo or choose from the gallery.,Up to 5 photos per entry; take a photo or choose from the gallery.
+Update Additional Information,Update Additional Information
+Update Stock,Update Stock
+Updated,Updated
+Updated {0},Updated {0}
+Updated {0} customer(s),Updated {0} customer(s)
+Updated {0} employee(s),Updated {0} employee(s)
+Updated {0} product(s),Updated {0} product(s)
+Updated {0} record(s),Updated {0} record(s)
+Updated {0} supplier(s),Updated {0} supplier(s)
+Updated {0} user(s),Updated {0} user(s)
+"Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
+Upload a sheet,Upload a sheet
+"Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
+Upload and Recognize,Upload and Recognize
+Use the stock count workbench,Use the stock count workbench
+Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
+Used when a new purchase line does not say otherwise,Used when a new purchase line does not say otherwise
+User,User
+Username,Username
+Username can only have letters and numbers,Username can only have letters and numbers
+VAT,VAT
+VAT Applicable,VAT Applicable
+VAT Applies,VAT Applies
+VAT Rate,VAT Rate
+VAT Rate %,VAT Rate %
+VAT applies,VAT applies
+Value,Value
+Void Reason,Void Reason
+Void all current observations for this product and recount it? Previous records remain in the history.,Void all current observations for this product and recount it? Previous records remain in the history.
+Void the payments before voiding the document,Void the payments before voiding the document
+Void the refunds first,Void the refunds first
+Void this count of {0}?,Void this count of {0}?
+Void this document and reverse its stock movements?,Void this document and reverse its stock movements?
+Void {0} document(s) and reverse their stock movements?,Void {0} document(s) and reverse their stock movements?
+Void {0} selected,Void {0} selected
+Voided,Voided
+Voided {0},Voided {0}
+"Voided, not in the total","Voided, not in the total"
+Walk-in customer,Walk-in customer
+Warehouse,Warehouse
+Warehouse name,Warehouse name
+Warehouse not found,Warehouse not found
+Warehouses,Warehouses
+"Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
+Who bought this receipt; empty means a walk-in customer,Who bought this receipt; empty means a walk-in customer
+With differences,With differences
+Withholding Tax,Withholding Tax
+Withholding Tax Certificate,Withholding Tax Certificate
+Withholding Tax Rate,Withholding Tax Rate
+Withholding Tax must be greater than zero,Withholding Tax must be greater than zero
+"Year, year-month or ALL, depending on the reset policy","Year, year-month or ALL, depending on the reset policy"
+Yes,Yes
+You can redeem upto {0}.,You can redeem upto {0}.
+You cannot redeem more than {0}.,You cannot redeem more than {0}.
+You cannot submit empty order.,You cannot submit empty order.
+You cannot submit the order without payment.,You cannot submit the order without payment.
+You don't have enough points to redeem.,You don't have enough points to redeem.
+You have unsaved changes. Do you want to save the invoice?,You have unsaved changes. Do you want to save the invoice?
+You must select a customer before adding an item.,You must select a customer before adding an item.
+Zoom In,Zoom In
+Zoom Out,Zoom Out
 adjust,adjust
 branch,branch
 card,card
 cash,cash
+client.action.bulkDisable,Disable {0}
+client.action.bulkEnable,Enable {0}
+client.active,Active
+client.close,Close
+client.col.address,Address
+client.col.name,Customer Name
+client.col.phone,Phone
+client.col.status,Status
+client.col.taxId,Tax ID
+client.col.type,Customer Type
+client.create,Create
+client.field.active,Active
+client.field.address,Address
+client.field.name,Customer Name
+client.field.note,Remarks
+client.field.phone,Phone
+client.field.taxId,Tax ID
+client.field.type,Customer Type
+client.inactive,Disabled
+client.lookup.action,Query
+client.lookup.failed,"Lookup failed, please fill in manually"
+client.lookup.found,Found: {0}
+client.lookup.invalid_format,Tax ID must be 13 digits
+client.lookup.needTaxId,Enter a tax ID first
+client.lookup.not_found,Not found in the Revenue Department records
+client.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+client.lookup.parse_error,The Revenue Department replied in an unreadable format
+client.lookup.querying,Querying the Revenue Department...
+client.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+client.new,New Customer
+client.notice.toggled,Updated {0} customer(s)
+client.party.anonymous,Anonymous
+client.party.company,Company
+client.party.foreign,Foreigner
+client.party.person,Person
+client.save,Save
+client.title,Customers
 company,company
+company.action.bulkDisable,Disable {0}
+company.action.bulkEnable,Enable {0}
+company.col.current,Current
+company.col.name,Company name
+company.col.phone,Phone
+company.col.shortName,Short name
+company.col.status,Status
+company.col.taxId,Tax ID
+company.col.warehouse,Warehouse name
+company.disable,Disable
+company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
+company.enable,Enable
+company.field.address,Address
+company.field.branch,Branch
+company.field.company,Company
+company.field.contactEmail,Contact email
+company.field.contactPerson,Contact person
+company.field.docPrefix,Document prefix
+company.field.fiscalYearStart,Fiscal year start month
+company.field.name,Company name
+company.field.note,Note
+company.field.phone,Phone
+company.field.posEnabled,Enable POS cashier
+company.field.promptpay,PromptPay
+company.field.shortName,Short name
+company.field.taxId,Tax ID
+company.field.terminalName,Terminal name
+company.field.terminalWarehouse,Selling warehouse
+company.field.warehouse,Warehouse
+company.field.warehouseName,Warehouse name
+company.fiscalHint,1 = January
+company.lookup.action,Query
+company.lookup.failed,"Lookup failed, please fill in manually"
+company.lookup.found,Found: {0}
+company.lookup.invalid_format,Tax ID must be 13 digits
+company.lookup.needTaxId,Enter a tax ID first
+company.lookup.not_found,Not found in the Revenue Department records
+company.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+company.lookup.parse_error,The Revenue Department replied in an unreadable format
+company.lookup.querying,Querying the Revenue Department...
+company.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+company.method.card,Card
+company.method.cash,Cash
+company.method.promptpay,PromptPay QR
+company.method.transfer,Transfer
+company.new,New company
+company.newWarehouse,New warehouse
+company.notice.created,Created
+company.notice.saved,Saved
+company.notice.toggled,Updated
+company.notice.updated,Updated {0} record(s)
+company.onlyAdmin,Only the product admin can change this
+company.posHint,"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear."
+company.promptpayHint,The account you give customers for transfers
+company.readOnly,Only the product admin can change this
+company.save,Save
+company.section.address,Address and notes
+company.section.basic,Company details
+company.section.documents,Documents
+company.section.pos,POS cashier
+company.section.terminals,Terminals
+company.section.warehouse,Warehouse
+company.section.warehouses,Warehouses
+company.setCurrent,Set as current
+company.status.active,Active
+company.status.inactive,Disabled
+company.subtitle,The company on your documents
+company.taxHint,13 digits; a branch adds its 5-digit branch number
+company.terminalDefaultName,Counter 1
+company.terminalEdit,Edit
+company.terminalNew,Add terminal
+company.terminalNone,No terminal yet
+company.terminalsHint,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
+company.warehouseCompanyHint,This warehouse belongs to the company above
+company.warehouseDefaultName,Main
+company.warehouseHint,First warehouse of this company (more on the Warehouses page)
+company.warehousesHint,"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
+company.yes,Yes
 completed,completed
 count,count
+discount applied,discount applied
 draft,draft
 goods,goods
 hq,hq
+"image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
+nav.posReceipts,Cashier Records
+nav.posShifts,Shift Records
 nav.stockCount,Stock count
 opening,opening
 paid,paid
@@ -42,18 +1118,22 @@ product.action.bulkEnable,Enable {0} selected
 product.action.disable,Enable / disable
 product.action.edit,Edit
 product.action.enable,Enable
+product.action.fullPage,Edit in Full Page
 product.action.import,Import from Excel
 product.action.new,New product
 product.action.reload,Reload
 product.action.save,Save
 product.action.scan,Scan
-product.action.toggleInactive,Show disabled
+product.action.submit,Submit
+product.active,Active
 product.cell.notSet,Not set
 product.col.avgCost,Average cost
 product.col.barcode,Barcode
 product.col.code,Code
+product.col.codeValue,Barcode / QR code
 product.col.cost,Reference cost
 product.col.name,Product
+product.col.place,Place
 product.col.price,Price
 product.col.status,Status
 product.col.unit,Unit
@@ -64,9 +1144,9 @@ product.field.baseUnitHint,Stock is counted in this unit; leave it empty to use 
 product.field.category,Category
 product.field.code,Code
 product.field.codeAuto,Generated automatically
+product.field.codeValue,Barcode / QR code
 product.field.cost,Reference cost
 product.field.defaultLocation,Default Location
-product.field.defaultWarehouse,Default Warehouse
 product.field.image,Image URL
 product.field.importFile,Excel file
 product.field.locationHint,Used for new documents only. Each location keeps its own stock.
@@ -92,20 +1172,30 @@ product.import.notNumber,The value is not a number
 product.import.notWorkbook,That file is not an Excel workbook
 product.import.pick,Choose file
 product.import.template,Download template
+product.inactive,Disabled
+product.new.hint,Fill in as many rows as you need; leave the code empty and the system assigns one
+product.new.hintCode,Codes start at {0}
+product.new.lines,Products
 product.notice.importSkipped,Skipped {0} row(s); the first ones are listed above
 product.notice.imported,Imported {0} product(s)
+product.notice.nothingToSave,There is nothing to save
+product.notice.partial,Created {0}; {1} row(s) were not saved — fix them and save again
 product.notice.saved,Saved {0}
+product.notice.savedCount,Created {0} product(s)
 product.notice.toggled,Updated {0}
 product.notice.toggledCount,Updated {0} product(s)
+product.scan.auto,Identify barcode or QR code
 product.scan.denied,Camera permission was refused; allow it and try again
 product.scan.done,Scanned
 product.scan.hint,Point the camera at the barcode or QR code
 product.scan.light,Light
 product.scan.noCamera,This device has no camera to scan with
+product.scan.notFound,No item matches the scanned code {0}
 product.scan.open,Open that product
 product.scan.taken,This code is already taken
 product.scan.takenBody,Already used by {0} (code {1})
 product.scan.title,Scan a code
+product.scan.unknownType,The code type could not be identified. Enter it in the barcode or QR field.
 product.scan.unsupported,This browser cannot scan with the camera; use a scanner or type the code
 promptpay,promptpay
 purchase,purchase
@@ -119,17 +1209,17 @@ sales,sales
 service,service
 stock.action.count,Count
 stock.action.export,Export
-stock.action.onlyLow,Only low or out of stock
+stock.action.ledger,Stock ledger
+stock.action.ledgerSingle,Select one row to open its ledger
 stock.action.reload,Reload
-stock.action.toggleZero,Show zero stock
 stock.board.by,Chart by
 stock.board.freezeColumn,Freeze column
 stock.board.only,Show only
 stock.board.shelf,Shelf
-stock.board.title,ERP Stock Count Variance
+stock.board.title,Stock count workbench
 stock.board.unfreezeColumn,Unfreeze column
 stock.cell.notSet,Not set
-stock.col.barcode,Barcode
+stock.col.barcode,Barcode / QR code
 stock.col.code,Code
 stock.col.cost,Average cost
 stock.col.name,Product name
@@ -138,6 +1228,7 @@ stock.col.status,Status
 stock.col.unit,Unit
 stock.col.value,Value
 stock.col.warehouse,Warehouse
+stock.count.action.delete,Delete {0} selected
 stock.count.addEntry,Add a count
 stock.count.addEntryHint,Book quantity {0} {1}
 stock.count.addEntryTitle,Add a count — {0}
@@ -155,7 +1246,9 @@ stock.count.countedBy,Counted by
 stock.count.countedRows,Counted
 stock.count.created,"Stock count created, {0} rows"
 stock.count.createdAt,Created
+stock.count.deleteBlocked,Only an active count can be deleted
 stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted.
+stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
 stock.count.difference,Difference
@@ -181,6 +1274,8 @@ stock.count.importPick,Choose a file
 stock.count.importSkipped,{0} rows were not imported
 stock.count.importTitle,Import result
 stock.count.imported,"Imported {0} rows, {1} with a counted quantity"
+stock.count.linkEntries,Back to entries
+stock.count.linkSummary,Back to summary
 stock.count.location,Location
 stock.count.mode,Count by
 stock.count.modeImport,Upload a sheet
@@ -191,6 +1286,7 @@ stock.count.newHint,In-stock: freeze the current balances. Import: take the rows
 stock.count.noEntries,No entries
 stock.count.note,Note
 stock.count.notes,Notes
+stock.count.photoInfo,Product / position / counted by / time
 stock.count.photos,Photos
 stock.count.post,Post differences
 stock.count.postConfirm,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
@@ -205,6 +1301,7 @@ stock.count.rowDifference,Difference
 stock.count.rowMatch,Matches
 stock.count.rowUncounted,Not counted
 stock.count.rows,Rows
+stock.count.start,Start counting
 stock.count.statusActive,In progress
 stock.count.statusClosed,Closed
 stock.count.statusPosted,Posted
@@ -214,7 +1311,7 @@ stock.count.title,Stock count — {0}
 stock.count.void,Void
 stock.count.voidConfirm,Void this count of {0}?
 stock.count.voidPick,Select an entry to void
-stock.count.warehouseHint,Leave empty to use the default warehouse
+stock.field.docNoAuto,Generated automatically
 stock.field.search,Search name or barcode
 stock.mobile.cameraOff,Close camera
 stock.mobile.codePlaceholder,Code or barcode
@@ -235,74 +1332,287 @@ stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock
 stock.status.out,Out of stock
+stock.workbench.actualLocation,Actual position
+stock.workbench.actualPositions,Actual positions and quantities
+stock.workbench.actualWarehouse,Actual warehouse
+stock.workbench.addPhoto,Add photos
+stock.workbench.bookPosition,Book position
+stock.workbench.camera,Scan barcode or QR code
+stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
+stock.workbench.code,"Barcode, QR code or product code"
+stock.workbench.continuous,Continuous counting
+stock.workbench.done,Finish
+stock.workbench.editEntry,Correct entry
+stock.workbench.elsewhere,This item is also stocked at:
+stock.workbench.entryQty,Quantity counted this time
+stock.workbench.find,Find product
+stock.workbench.finishConfirm,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+stock.workbench.locationDiff,Position differences
+stock.workbench.lookupFailed,Product not found. Check the code and try again.
+stock.workbench.needsRecount,Stock changed; recount
+stock.workbench.nextReady,Saved. Scan the next item.
+stock.workbench.photoHint,Up to 5 photos per entry; take a photo or choose from the gallery.
+stock.workbench.photoLimit,At most 5 photos per entry
+stock.workbench.photos,Photos
+stock.workbench.quantityDiff,Quantity differences
+stock.workbench.record,Record a count
+stock.workbench.recount,Recount this product
+stock.workbench.recountConfirm,Void all current observations for this product and recount it? Previous records remain in the history.
+stock.workbench.removePhoto,Remove
+stock.workbench.review,Review differences
+stock.workbench.saveNext,Save and next
+stock.workbench.scanHint,"Scan, enter the actual position and quantity, then save to continue."
+stock.workbench.stockChanged,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
+stock.workbench.title,Stock count workbench
 stock_in,stock_in
 stock_out,stock_out
 submitted,submitted
+supplier.action.bulkDisable,Disable {0}
+supplier.action.bulkEnable,Enable {0}
+supplier.active,Active
+supplier.branch,Branch Office
+supplier.close,Close
+supplier.col.address,Address
+supplier.col.branch,Branch
+supplier.col.name,Supplier
+supplier.col.phone,Phone
+supplier.col.status,Status
+supplier.col.taxId,Tax ID
+supplier.create,Create
+supplier.field.active,Active
+supplier.field.address,Address
+supplier.field.branch,Branch Type
+supplier.field.branchNo,Branch No
+supplier.field.name,Supplier Name
+supplier.field.note,Remarks
+supplier.field.phone,Phone
+supplier.field.taxId,Tax ID
+supplier.head,Head Office
+supplier.inactive,Disabled
+supplier.lookup.action,Query
+supplier.lookup.failed,"Lookup failed, please fill in manually"
+supplier.lookup.found,Found: {0}
+supplier.lookup.invalid_format,Tax ID must be 13 digits
+supplier.lookup.needTaxId,Enter a tax ID first
+supplier.lookup.not_found,Not found in the Revenue Department records
+supplier.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+supplier.lookup.parse_error,The Revenue Department replied in an unreadable format
+supplier.lookup.querying,Querying the Revenue Department...
+supplier.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+supplier.new,New Supplier
+supplier.notice.toggled,Updated {0} supplier(s)
+supplier.save,Save
+supplier.title,Suppliers
 tax_invoice,tax_invoice
 tax_invoice_receipt,tax_invoice_receipt
 tax_invoice_simple,tax_invoice_simple
+team.action.bulkDisable,Disable {0}
+team.action.bulkEnable,Enable {0}
+team.active,Active
+team.allCompanies,All companies
+team.companies,Companies
+team.companiesHint,Leave all unchecked to allow every company
+team.disable,Disable
+team.email,Email
+team.enable,Enable
+team.inactive,Inactive
+team.lastLogin,Last Login
+team.new,Add User
+team.notice.added,Added {0}
+team.notice.password,Password updated
+team.notice.saved,Saved
+team.notice.toggled,Updated {0} user(s)
+team.password,Initial Password
+team.resetPassword,Reset Password
+team.role.cashier,Cashier
+team.role.products,Products
+team.role.purchase,Purchasing
+team.role.sales,Sales
+team.role.stock,Stock
+team.roles,Job Roles
+team.rolesHint,Only the checked features are visible to this user
+team.status,Status
+team.username,Username
+team.usernameCharset,Username can only have letters and numbers
+trade.action.addLine,Add row
+trade.action.exportCount,Export {0}
+trade.action.fullPage,Edit in Full Page
+trade.action.ledger,Stock ledger
+trade.action.ledgerSingle,Select one row to open its ledger
+trade.action.pay,Pay
+trade.action.submit,Submit
+trade.action.voidCount,Void {0} selected
+trade.actualQty,Quantity Available
+trade.addDiscount,Add Discount
+trade.addedToCart,Added: {0}
 trade.address,Address
+trade.allItems,All Items
+trade.amount,Amount
 trade.balance,Position Balance
+trade.balances,Payment Reconciliation
 trade.branchNo,Branch Number
 trade.branchType,Branch Type
 trade.buyer,Customer
 trade.buyerType,Customer Type
-trade.checkout,New Sale
+trade.byMethod,Payments
+trade.cart,Cart
+trade.cartClear,Clear cart
+trade.cartClearConfirm,Clear the cart?
+trade.cartEmpty,The cart is empty
+trade.cashier,Cashier
+trade.change,Change
+trade.changeTotal,Change Total
+trade.checkout,Checkout
 trade.close,Close
 trade.closeShift,Close Shift
+trade.closedAt,Closed At
 trade.closing,Closing Quantity
+trade.code,Code
+trade.company,Company
+trade.completeOrder,Complete Order
 trade.cost,Unit Cost
+trade.countCash,Cash Check
+trade.countedAmount,Counted Amount
 trade.countedCash,Counted Cash
+trade.counterProducts,Products
+trade.customer,Customer
+trade.customerClear,Clear customer
+trade.customerHint,Search by customer name or phone
+trade.customerLabel,Customer
 trade.date,Date
 trade.description,Description
+trade.diff,Difference
+trade.diffEven,Matches
+trade.diffOver,Over by {0}
+trade.diffShort,Short by {0}
 trade.discount,Discount
+trade.discountAdditional,Additional
+trade.discountApplied,discount applied
+trade.discountInvalid,Invalid Discount
+trade.discountOver100,Discount cannot be greater than 100%.
+trade.discountPercent,Discount percentage
+trade.discountPercentHint,Enter discount percentage
 trade.docNo,Document Number
+trade.editCart,Edit Cart
+trade.enterAmount,Enter {0} amount
+trade.expectedAmount,Expected Amount
+trade.expectedCash,Expected Cash
+trade.exportNotice,Exported {0} shifts
 trade.float,Opening Cash
 trade.from,From Date
+trade.gross,Gross
+trade.groupBalance,Balance
+trade.groupDoc,Document
+trade.groupIn,In
+trade.groupOut,Out
 trade.hasVat,Add VAT
+trade.hideRecentOrders,Hide Recent Orders
 trade.in,Received
+trade.invoiceStatus,Receipt Status
 trade.issue,Issue Document
+trade.itemDetails,Item Details
+trade.itemsNotFound,Items not found.
 trade.kind,Document Type
+trade.kind.refund,Refund
+trade.kind.sale,Sale
 trade.lines,Items
+trade.listPrice,List Price
 trade.location,Location
 trade.method,Payment Method
+trade.methodCard,Card
+trade.methodCash,Cash Amount
+trade.methodPromptpay,PromptPay Amount
+trade.methodTransfer,Transfer
+trade.net,Net Total
 trade.newIn,New Stock Receipt
+trade.newInvoice,New Invoice
+trade.newOrder,New Order
 trade.newOut,New Stock Issue
 trade.newSale,New Sales Document
 trade.noShift,No Open Shift
 trade.note,Note
+trade.notice.submitted,Submitted {0}
+trade.onHand,On hand
 trade.openShift,Open Shift
+trade.openedAt,Opened At
+trade.openedAtSub,Opened at {0}
 trade.opening,Opening Quantity
+trade.openingAmount,Opening Amount
 trade.originalLine,Original Item and Location
 trade.out,Issued
-trade.paid,Amount Received
+trade.paid,Paid Amount
 trade.paidNotice,Receipt {0} · Change {1}
 trade.pay,Complete Payment
 trade.paymentDate,Payment Date
 trade.paymentState,Payment Status
+trade.pickCustomer,Click to choose a customer
+trade.pickLine,Pick a line first
+trade.pickPadTarget,"Pick quantity, discount or price first"
 trade.price,Unit Price
+trade.printReceipt,Print Receipt
 trade.product,Product
 trade.qty,Quantity
+trade.receiptsEmpty,No receipts in this shift
+trade.recentOrders,Recent Orders
 trade.reference,Reference
 trade.refund,Refund
 trade.refundAmount,Refund Amount
+trade.refundBlocked,Only a completed sale receipt can be refunded
+trade.refundCount,Refund Count
+trade.refundSingle,Select one receipt to refund
+trade.remaining,Remaining Amount
+trade.remove,Remove
+trade.rowOpening,Opening
+trade.salesCount,Sales Count
 trade.save,Save Draft
+trade.scan,Scan
+trade.scanNotFound,No product for this code: {0}
+trade.scanUnsupported,This device cannot scan
+trade.searchOrders,Search by receipt number
+trade.searchProducts,"Search by code, barcode or name"
+trade.selectOrderHint,Select a receipt to load its summary
+trade.shiftClosed,Shift closed · Cash difference {0}
+trade.shiftHistory,Shift History
+trade.shiftNo,Shift No
 trade.shiftOpen,Shift {0} · Expected cash {1}
+trade.shiftOpened,Shift {0} opened
+trade.shiftOpenedAt,Shift {0} · opened {1} · expected cash {2}
+trade.shiftReceipts,Lines in this shift
+trade.state.closed,Closed
+trade.state.completed,Completed
+trade.state.open,Open
+trade.state.void,Voided
 trade.status,Status
 trade.stockPending,Not Posted
 trade.stockPosted,Posted to Stock
 trade.stockState,Stock Posting
 trade.submit,Submit
+trade.submitEmpty,You cannot submit empty order.
+trade.submitNoPayment,You cannot submit the order without payment.
 trade.submitReceive,Submit and Receive Stock
+trade.systemNo,System number
 trade.taxId,Tax ID
+trade.taxNo,Tax invoice number
 trade.terminal,Terminal
+trade.terminalHint,"Which company this terminal belongs to, and which warehouse it sells from"
 trade.to,To Date
-trade.total,Total Due
+trade.total,Total
+trade.totalItems,Total Items
+trade.totalRows,Total · {0} row(s)
+trade.underpaid,The amount received is less than the total
 trade.unit,Unit
 trade.vat,VAT Rate
 trade.void,Void
+trade.voidBlocked,Only a submitted document can be voided
 trade.voidConfirm,Void this document and reverse its stock movements?
+trade.voidConfirmCount,Void {0} document(s) and reverse their stock movements?
+trade.voidNotice,Voided {0}
+trade.voidPaid,Void the payments before voiding the document
+trade.walkIn,Walk-in customer
 trade.warehouse,Warehouse
+trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
 unpaid,unpaid
 void,void
+{0} rows were not imported,{0} rows were not imported
+{0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}

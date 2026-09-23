@@ -174,7 +174,7 @@ doc_events = {
     # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。
     "User": {
         "before_validate": "pearnly_core.account.profile.prepare_profile",
-        "before_save": ["pearnly_core.account.profile.sync_username", "pearnly_core.account.preferences.sync_profile_language"],
+        "before_save": "pearnly_core.account.preferences.sync_profile_language",
         "onload": "pearnly_core.account.profile.load_details",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
     },
@@ -291,9 +291,29 @@ doc_events = {
 # ignore_translatable_strings_from = []
 
 # Product Desk uses the same native UI runtime as the management Site.
-boot_session = "pearnly_core.desk.navigation.extend_boot"
+boot_session = [
+    "pearnly_core.desk.navigation.extend_boot",
+    # 站点货币：符号从服务端给（前端自己去读 `Currency` 表会撞权限弹窗，见该文件抬头）。
+    "pearnly_core.desk.currency.boot_session",
+]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css")]
-app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
+app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
+
+# 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
+# （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是
+# 这些节点里同名的那一个。frappe 自带七个（submit / error / cancel / delete / click / alert / email），
+# 官方 POS 收款小键盘那一声 `numpad-touch` 在 **erpnext** 的钩子里 —— 而租户站点不装 erpnext，
+# 于是 `play_sound("numpad-touch")` 取不到节点、异常被它自己的 try/catch 吞掉，**看着像没音效**
+# （2026-09-23 在实验室站点实测：页面里只有 frappe 那七个）。
+# 这里按官方同样的音量补上那一条，**文件用我们自己 App 里的一份**（`public/sounds/`，
+# 与上游同一份音频）—— 之前指向 `/assets/erpnext/...`，那要求 bench/镜像里 clone 过 erpnext
+# （资产是 bench 级软链，跟站点装不装它无关）：生产镜像底座正好是官方 `frappe/erpnext`，
+# 所以当时也能用，但那是一条我们**不拥有**的路径，哪天换成纯 frappe 的基础镜像就会静默没声。
+# 用自己的文件之后这条依赖彻底消失（用户 2026-09-23："把那 1.6KB 的 mp3 放进我们自己 App"）。
+# 装了 erpnext 的站点会多一个同名节点（框架不去重，取到的仍是第一个、也就是我们这条），行为不变。
+sounds = [
+    {"name": "numpad-touch", "src": "/assets/pearnly_core/sounds/numpad-touch.mp3", "volume": 0.8},
+]
 after_migrate = [
     "pearnly_core.desk.navigation.ensure_navigation",
     "pearnly_core.desk.branding.ensure_site_favicon",

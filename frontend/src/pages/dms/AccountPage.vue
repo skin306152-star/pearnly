@@ -64,7 +64,8 @@ async function submit() {
   if (busy.value) return;
   busy.value = true; error.value = ""; saved.value = false;
   try {
-    await call(api + "save_credentials", { ticket, username: username.value, password: password.value }, { method: "POST" });
+    // 只提交密码：用户名由后台发号、绑死这个租户，服务端不再接受改动。
+    await call(api + "save_credentials", { ticket, password: password.value }, { method: "POST" });
     password.value = "";
     saved.value = true;
   } catch (e) {
@@ -83,11 +84,12 @@ async function submit() {
   <LineLayout :locale="locale" :disabled="busy" @update:locale="setLocale">
     <section class="space-y-5 rounded border border-outline-gray-2 bg-surface-white p-4">
       <h1 class="text-xl font-semibold">{{ t(portal ? "dms.account.portal" : "dms.account.title") }}</h1>
-      <p class="text-sm text-ink-gray-9">{{ t(portal ? "dms.account.portalHint" : "dms.account.hint") }}</p>
       <ErrorMessage v-if="error" :message="error" />
       <Spinner v-if="!error && (portal || !ready)" class="h-5 w-5" />
       <form v-if="ready && !portal" class="space-y-5" @submit.prevent="submit">
-        <FormControl variant="outline" v-model="username" :label="t('dms.account.username')" :disabled="busy" autocomplete="username" required />
+        <!-- 用户名（DMS 登录名）由后台发号、绑死这个租户，只给看不给改；能改的只有密码
+             （用户 2026-09-23："可以用用户名登录，但是不能修改…用户只可以自己改密码"）。 -->
+        <FormControl variant="outline" v-model="username" :label="t('dms.account.username')" :disabled="true" autocomplete="username" />
         <FormControl variant="outline" v-model="password" type="password" :label="t('dms.account.password')" :disabled="busy" autocomplete="off" required />
         <p v-if="saved" role="status" class="text-sm text-ink-gray-9">{{ t('dms.account.saved') }}</p>
         <Button variant="solid" theme="gray" class="pn-primary" type="submit" :loading="busy" :disabled="!username.trim() || !password">

@@ -1,8 +1,11 @@
-# -*- coding: utf-8 -*-
-"""ERP 盘点记录（追加式，可撤销）。"""
-
+"""Native stock-count write guards; business writes use the inventory service."""
 from frappe.model.document import Document
+from pearnly_erp_portal.inventory import count_state
 
 
 class ERPStockCountEntry(Document):
-    pass
+    def validate(self):
+        count_state.validate_document(self)
+
+    def on_trash(self):
+        count_state.before_delete(self)
