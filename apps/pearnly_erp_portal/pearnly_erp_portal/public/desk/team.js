@@ -37,13 +37,15 @@
 
 		const role_label = name => (data.roles.find(role => role.name === name) || {}).label || name;
 		const rows_now = () => data.members.filter(row => !term
-			|| String(row.full_name || "").toLowerCase().includes(term)
+			|| String(row.username || "").toLowerCase().includes(term)
 			|| String(row.email || "").toLowerCase().includes(term));
 
 		// ── 名单 ────────────────────────────────────────────────────────────────
 		function columns() {
 			return [
-				{ fieldname: "full_name", width: 150, min_width: 110, label: t("team.name") },
+				// 显示的是**用户名**（不再有"姓名"这一栏）—— 用户 2026-09-24："全局可以涉及到
+				// 姓名的地方，全部改为用户名"。没有用户名的老账号回落显示邮箱。
+				{ fieldname: "display", width: 150, min_width: 110, label: __("Username") },
 				{ fieldname: "email", width: 210, min_width: 150, label: t("team.email") },
 				{ fieldname: "roles", width: 200, min_width: 130, label: t("team.roles"),
 					format: value => (value || []).map(role_label).join(" · ") || "—" },
@@ -142,13 +144,15 @@
 			const is_new = !row;
 			let dialog;
 			const fields = [
-				field("full_name", "team.name", "Data",
-					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.full_name || "" }),
+				// 用户名：**英文和数字**（用户 2026-09-24 的口径），既是显示名也是登录名
+				// （和邮箱一样能登）。长度不设限；服务端还会再按"只允许英文数字 + 不重名"挡一次。
+				field("username", "Username", "Data",
+					{ reqd: 1, read_only: is_new ? 0 : 1, default: row?.username || "" }),
 				field("email", "team.email", "Data",
 					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
-					field("password", "team.password", "Password",
-						{ reqd: 1, description: t("team.passwordHint") }),
+					// 密码不设任何规则（长度、字符都不限），所以这里没有说明句。
+					field("password", "team.password", "Password", { reqd: 1 }),
 				] : []),
 				roles_field(row?.roles || []),
 				companies_field(row?.companies || []),
@@ -158,13 +162,13 @@
 				async (values, d) => {
 					if (is_new) {
 						await p.call(api + "api_add_member", {
-							full_name: values.full_name, email: values.email,
+							username: values.username, email: values.email,
 							password: values.password, roles: values.roles,
 						}, "POST");
 						await p.call(api + "api_set_member_companies",
 							{ email: values.email, companies: values.companies || [] }, "POST");
 						d.hide();
-						p.success(t("team.notice.added", values.full_name), "click");
+						p.success(t("team.notice.added", values.username), "click");
 					} else {
 						await p.call(api + "api_set_member_roles",
 							{ email: row.email, roles: values.roles }, "POST");
@@ -194,8 +198,8 @@
 
 		function password_dialog(row) {
 			p.dialog(t("team.resetPassword"), [
-				field("password", "team.password", "Password",
-					{ reqd: 1, description: t("team.passwordHint") }),
+				// 密码不设规则（长度、字符都不限），所以这一格没有说明句。
+				field("password", "team.password", "Password", { reqd: 1 }),
 			], t("team.resetPassword"), async (values, d) => {
 				await p.call(api + "api_set_member_password",
 					{ email: row.email, password: values.password }, "POST");

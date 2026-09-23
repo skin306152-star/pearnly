@@ -1034,3 +1034,72 @@ DocType JSON 字段、`products/service.py`（列表字段 / 建品 / 改品 / �
 `check-architecture` PASS(0 violations)、`check-desk-ui` exit 0（只有一条 `company.js:286` 的
 既有提示，那不是本任务改的）、`i18n-build --check` PASS、`check-frontend-i18n` 0 问题。
 未推送、未合并、未部署。
+
+## 20. 2026-09-24 第六批：客户选择那个真 bug + 用户名当登录名／当显示名
+
+用户这一轮两句（原话）："收银台先不管，**你选择客户的那个功能是失效的吗？**"、
+"**全局可以涉及到姓名的地方，全部改为用户名**；添加用户必须是英文和数字，不区分大小写，
+长度不限；密码可以自由填写，不限制长度，也不限制其它东西；这个用户名是可以登录的，
+和邮箱一样，**邮箱和用户名是唯一绑定关系**。"
+
+### 20.1 客户选择：**是失效的**，根因在适配层漏了一行赋值（已修，实测通过）
+
+用户没看错。复现：在新版收银台点客户卡 → 下拉里点一个人 → **卡片回到"散客"**，客户没选上。
+抓到的证据链（页面里装探针）：
+
+| 观察 | 值 |
+| --- | --- |
+| 事件 | `awesomplete-select` → `awesomplete-selectcomplete` → `blur`（我们监听的那条有触发） |
+| 框架调用 | `search_link` → `validate_link_and_fetch` ✓（值确实落进控件了） |
+| 我们那一句 | `frappe.db.get_value("ERP Customer", "CUS-00214", …)` ✓ 也跑了 |
+| 结果 | 卡片仍然画成"散客" |
+
+**根因**：适配层 `fetch_customer_details()` **只 return、没有写回 `this.customer_info`** ——
+而 `update_customer_section()` 判的就是 `customer_info.customer`，于是永远画散客卡。
+官方那份是 `this.customer_info = { ...message, customer }`，我们抄的时候漏了这一句。
+
+**修法**：照官方写成"赋值 + 返回"，清空那一路同样把 `customer_info` 置空。
+**实测**（适配层 `v42`，新标签页真点鼠标）：选完卡片变成
+`C / บริษัท บางกอกเฟรช มาร์เก็ต จำกัด / 02-234-5678` ✓；点右边那颗 ✕ 回到散客卡 ✓。
+（顺手把 `__pos_adapter_v` 从 41 提到 42，方便判断页面加载到哪一版。）
+
+### 20.2 用户名：既是登录名，也是全站显示名
+
+**规则**（`team/service.py::_clean_username`）：`^[A-Za-z0-9]+$`（只允许英文和数字）、
+**不区分大小写**（比较用 `lower()`）、长度不设限，只挡空和重名。重名报的是**框架自己那一句**
+`Username {0} already exists`（四语都有）；字符集那条是本轮新增的一句话（四语已进术语表）。
+
+| 面 | 改法 |
+| --- | --- |
+| 加人 | `add_member(username, email, password, roles)`：不再要"姓名"；`User.username` = 用户名，`first_name`/`full_name` **也写成用户名**（框架顶栏、邮件、"经手人"读的就是它俩）；身份服务（Keycloak）那边 `first_name` 同步用用户名 |
+| 密码 | `_clean_password` 取消"至少 8 位"（**只挡空字符串**）；框架那道强度闸在站点设置里关掉（`enable_password_policy = 0`） |
+| 登录 | 打开 `System Settings.allow_login_using_user_name = 1` —— `User.find_by_credentials()` 于是同时按邮箱与用户名找账号（**邮箱和用户名都能登**） |
+| 邮箱 ↔ 用户名 | 两条都唯一：邮箱是 `User.name`（账号主键），用户名是 `User.username`（框架自带唯一列） |
+| 存量账号 | patch `v1_9_username_login`：空的按邮箱补一个（只留英文数字、撞名加序号）；**已经建过但带下划线/连字符/中日韩字的也一起纠正**（老的 `frappe.scrub` 会留下下划线）；三个字段写成同一个值 |
+| 显示 | 团队页那一列由"姓名"改成**用户名**；收银汇总的"经手人"用服务端新回的 `cashier_name`；销售/收银导出 `cashier_label()` 由"全名（账号）"改成用户名；团队页弹窗 = 用户名 / 邮箱 / 初始密码 / 功能权限 / 公司 |
+| 文案 | 删掉三条不再成立的词条（`team.name`「姓名」、`team.passwordHint`「至少 8 位」、msgid `At least 8 characters`）；新增 `Username`（中英泰日）与那条字符集提示 |
+
+**实测**（演示站 `erp-pos-a.localhost`）：
+
+| 测什么 | 结果 |
+| --- | --- |
+| 用户名字符集 | `ab-c` / `ab_c` / `张三` / `a b` → 全被拦，报"只能用英文和数字"；空 → "请填写用户名" |
+| 大小写重名 | `PurchasePreview` → `Username PurchasePreview already exists` ✓；`somchai01` 正常 ✓ |
+| 密码不限 | 3 个字符 `abc` 真设上去 ✓（原先被"至少 8 位"挡住） |
+| **用用户名登录** | `find_by_credentials("ErpPosLineCashier", "abc")` → 命中该账号 ✓（故意换大小写）；用邮箱登同一账号同样命中 ✓ |
+| 加人落库 | `add_member("TestUser01", …, password="1")` → `username/first_name/full_name` 三个都是 `TestUser01` ✓（测完已删掉那个测试账号） |
+| 存量账号 | 9 个账号全部 `username == first_name == full_name` ✓；侧边栏由"采购验收 purchase-preview@…"变成 **`purchasepreview / purchase-preview@example.test`** ✓ |
+| 团队页 | 列头 = 用户名 / 邮箱 / 功能权限 / 公司 / 状态 / 最后登录 ✓，行里是 `purchasepreview`、`erpposlinecashier`… ✓；「添加用户」弹窗 = 用户名/邮箱/初始密码/功能权限/公司，**没有"姓名"、也没有"至少 8 位"** ✓ |
+
+**没走完的一步（如实记）**：浏览器里"填表 → 点提交"的整条点击没走通 —— 本环境的合成点击对
+MultiCheck（功能权限）不稳定：第一次提交被前端拦成"以下字段没有填：功能权限"，之后
+`cur_dialog` 又指向了另一个空弹窗。加人这条链的**服务端**是实测过的（上面那行 `add_member`
+走的就是页面调的同一个函数），前端只是把 `full_name` 换名成 `username` 一路透传。
+**建议你亲手在预览里加一个人**确认最后那一下。
+
+### 20.3 检查与状态
+
+`node --check`（team.js / 适配层）过、`ast.parse`（service / output / sales / patch）过、
+`check-architecture` PASS(0 violations)、`check-desk-ui` exit 0、`i18n-build --check` PASS、
+`check-frontend-i18n` 0 问题。演示站跑过 migrate（`v1_9` 已执行）+ `clear-cache` + 重启 web。
+未推送、未合并、未部署。

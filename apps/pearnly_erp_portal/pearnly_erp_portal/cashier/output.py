@@ -7,7 +7,6 @@
 导出件与页面上是同一句话（用户 2026-09-23："导出的报表术语表口径要统一"）。
 """
 from frappe import _
-from frappe.utils import get_fullname
 from frappe.utils.xlsxutils import build_xlsx_response
 from pearnly_core import browser_text
 
@@ -21,11 +20,13 @@ COLUMNS = [("name", "trade.shiftNo"), ("terminal", "trade.terminal"),
            ("counted_cash", "trade.countedCash"), ("cash_diff", "trade.diff")]
 
 def cashier_label(user):
-    """收银员按「全名（账号）」落表，与页面显示的写法一致。"""
-    if not user:
-        return ""
-    fullname = get_fullname(user)
-    return fullname if fullname == user else f"{fullname} ({user})"
+    """收银员落表写**用户名**（用户 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名"）。
+
+    没有用户名的老账号回落账号本身（邮箱），不让这一格空着。
+    """
+    from pearnly_erp_portal.team import service as team
+
+    return team.username_of(user)
 
 
 def cell(row, field):

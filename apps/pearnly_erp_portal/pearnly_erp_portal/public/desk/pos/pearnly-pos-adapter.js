@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -923,24 +923,38 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 			// 客户资料：官方走 erpnext…set_customer_info（我们删减）；这里只给"读得到"的那点信息。
 			// 字段名按**我们的** `ERP Customer`：`contact_phone` / `contact_email`
 			// （官方那边叫 `mobile_no` / `email_id` —— 用过官方名会被 417 挡下，实测踩过）。
+			//
+			// ⚠️ **一定要写回 `this.customer_info`**：调用链是
+			// `fetch_customer_details() → customer_details_updated() → update_customer_section()`，
+			// 而 `update_customer_section()` 判的就是 `customer_info.customer` —— 只 return 不赋值，
+			// 选完客户卡片永远画不出来（一直显示"散客"）。用户 2026-09-24 报
+			// "你选择客户的那个功能是失效的吗"，实测根因就是这一行漏了（官方那份是
+			// `this.customer_info = { ...message, customer }`）。
 			fetch_customer_details(customer) {
-				if (!customer) return Promise.resolve({});
-				return frappe.db.get_value("ERP Customer", customer,
-					["customer_name", "contact_phone", "contact_email"]).then(r => {
-						const name = r.message?.customer_name || customer;
-						// 顺手把抬头写到**单据上**：完成订单后那张汇总屏读的是 `doc.customer_name`
-						// （官方的名字是服务端 `set_customer_info` 补的，我们删减了那一步），
-						// 不写的话买了单的客户在汇总屏上仍显示"散客"。
-						const frm = this.events.get_frm();
-						if (frm && frm.doc && frm.doc.customer === customer) {
-							frappe.model.set_value(frm.doc.doctype, frm.doc.name, "customer_name", name);
-						}
-						return {
-							customer, customer_name: name,
-							mobile_no: r.message?.contact_phone || "",
-							email_id: r.message?.contact_email || "",
-						};
-					});
+				if (!customer) {
+					// 官方同款：清空时把客户资料也置空，不是留着一份旧的。
+					return new Promise(resolve => { this.customer_info = {}; resolve(); });
+				}
+				return new Promise(resolve => {
+					frappe.db.get_value("ERP Customer", customer,
+						["customer_name", "contact_phone", "contact_email"]).then(({ message }) => {
+							const info = message || {};
+							const name = info.customer_name || customer;
+							// 顺手把抬头写到**单据上**：完成订单后那张汇总屏读的是 `doc.customer_name`
+							// （官方的名字是服务端 `set_customer_info` 补的，我们删减了那一步），
+							// 不写的话买了单的客户在汇总屏上仍显示"散客"。
+							const frm = this.events.get_frm();
+							if (frm && frm.doc && frm.doc.customer === customer) {
+								frappe.model.set_value(frm.doc.doctype, frm.doc.name, "customer_name", name);
+							}
+							this.customer_info = {
+								...info, customer, customer_name: name,
+								mobile_no: info.contact_phone || "",
+								email_id: info.contact_email || "",
+							};
+							resolve();
+						});
+				});
 			}
 		}
 
@@ -1009,7 +1023,11 @@ window.__pos_adapter_v = 41;   // 排查用：确认页面到底加载到哪一�
 				// 散客：不给客户编号（官方那句"客户编码"在散客时会画出一个空行）。
 				customer,
 				customer_name: doc.customer_name || __("Walk-in customer"),
-				owner: doc.owner || doc.cashier || frappe.session.user_fullname || frappe.session.user,
+				// 「经手人」显示**用户名**（服务端 `api_get_sale` 回的 `cashier_name`）—— 用户
+				// 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名"。没有用户名（老账号）
+				// 才回落到邮箱/框架那份。
+				owner: doc.cashier_name || doc.owner || doc.cashier
+					|| frappe.session.user_fullname || frappe.session.user,
 				items: (doc.lines || []).map(line => {
 					const rate = flt(line.unit_price ?? line.rate);
 					return {

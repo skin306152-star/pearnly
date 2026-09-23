@@ -65,7 +65,6 @@ Approval Status,承認状況
 Are you sure you want to delete the attachment?,添付ファイルを削除しますか？
 Are you sure you want to delete?,削除しますか？
 As Of,基準日
-At least 8 characters,8文字以上
 At most 5 photos per entry,1記録につき写真は5枚までです
 At most {0} photos per entry,1 件あたり写真は最大 {0} 枚です
 Attach,添付
@@ -936,6 +935,8 @@ Use the stock count workbench,棚卸作業台から操作してください
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 Used when a new purchase line does not say otherwise,新しい仕入明細で別途指定がない場合に使います
 User,ユーザー
+Username,ユーザー名
+Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 VAT,消費税
 VAT Applicable,VAT 対象
 VAT Applies,課税対象
@@ -1416,14 +1417,12 @@ team.email,メール
 team.enable,有効化
 team.inactive,無効
 team.lastLogin,最終ログイン
-team.name,氏名
 team.new,ユーザーを追加
 team.notice.added,{0}を追加しました
 team.notice.password,パスワードを更新しました
 team.notice.saved,保存しました
 team.notice.toggled,ユーザー{0}件を更新しました
 team.password,初期パスワード
-team.passwordHint,8文字以上
 team.resetPassword,パスワードを再設定
 team.role.cashier,レジ
 team.role.products,商品
@@ -1433,6 +1432,8 @@ team.role.stock,在庫
 team.roles,機能権限
 team.rolesHint,チェックした機能だけがこのユーザーに表示されます
 team.status,状態
+team.username,ユーザー名
+team.usernameCharset,ユーザー名は英数字のみ使用できます
 trade.action.addLine,明細を追加
 trade.action.exportCount,{0}件をエクスポート
 trade.action.fullPage,全画面で編集

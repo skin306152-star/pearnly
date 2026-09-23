@@ -65,7 +65,6 @@ Approval Status,审批状态
 Are you sure you want to delete the attachment?,您确定要删除附件？
 Are you sure you want to delete?,确定删除？
 As Of,截至
-At least 8 characters,至少 8 位
 At most 5 photos per entry,每条记录最多 5 张照片
 At most {0} photos per entry,每张单据最多 {0} 张照片
 Attach,添加文件
@@ -936,6 +935,8 @@ Use the stock count workbench,请通过盘点工作台操作
 Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
 Used when a new purchase line does not say otherwise,新建采购明细没单独指定时用它
 User,用户
+Username,用户名
+Username can only have letters and numbers,用户名只能用英文字母和数字
 VAT,增值税
 VAT Applicable,含 VAT
 VAT Applies,计增值税
@@ -1416,14 +1417,12 @@ team.email,邮箱
 team.enable,启用
 team.inactive,已停用
 team.lastLogin,最后登录
-team.name,姓名
 team.new,添加用户
 team.notice.added,已添加 {0}
 team.notice.password,密码已更新
 team.notice.saved,已保存
 team.notice.toggled,已更新 {0} 位用户
 team.password,初始密码
-team.passwordHint,至少 8 位
 team.resetPassword,重置密码
 team.role.cashier,收银
 team.role.products,物料
@@ -1433,6 +1432,8 @@ team.role.stock,库存
 team.roles,功能权限
 team.rolesHint,只勾选的功能，这个用户才看得到
 team.status,状态
+team.username,用户名
+team.usernameCharset,用户名只能用英文字母和数字
 trade.action.addLine,添加明细
 trade.action.exportCount,导出选中的 {0} 个班次
 trade.action.fullPage,全屏编辑

@@ -280,6 +280,11 @@ def get_sale(name) -> dict:
             and doc.cashier != frappe.session.user):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     data = {field: doc.get(field) for field in LIST_FIELDS}
+    # 收银员显示**用户名**（用户 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名"）：
+    # 汇总屏那行"Sold by"读的是 `owner`，页面上不能再摆一个邮箱/姓名出来。
+    from pearnly_erp_portal.team import service as team
+
+    data["cashier_name"] = team.username_of(doc.cashier)
     data["customer_name"] = _customer_names([doc.customer]).get(doc.customer, "")
     data["lines"] = [
         {"name": row.name, "product": row.product, "description": row.description, "qty": row.qty,

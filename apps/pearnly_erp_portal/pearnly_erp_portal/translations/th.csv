@@ -65,7 +65,6 @@ Approval Status,สถานะการอนุมัติ
 Are you sure you want to delete the attachment?,คุณแน่ใจหรือไม่ว่าคุณต้องการลบไฟล์แนบ?
 Are you sure you want to delete?,ยืนยันการลบหรือไม่
 As Of,ณ วันที่
-At least 8 characters,อย่างน้อย 8 ตัวอักษร
 At most 5 photos per entry,บันทึกได้ไม่เกิน 5 รูปต่อรายการ
 At most {0} photos per entry,หนึ่งเอกสารแนบรูปได้ไม่เกิน {0} รูป
 Attach,แนบ
@@ -936,6 +935,8 @@ Use the stock count workbench,โปรดใช้หน้าปฏิบั�
 Used for new documents only. Each location keeps its own stock.,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 Used when a new purchase line does not say otherwise,ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น
 User,ผู้ใช้
+Username,ชื่อผู้ใช้
+Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 VAT,ภาษีมูลค่าเพิ่ม
 VAT Applicable,คิด VAT
 VAT Applies,คิด VAT
@@ -1416,14 +1417,12 @@ team.email,อีเมล
 team.enable,เปิดใช้งาน
 team.inactive,ปิดใช้งาน
 team.lastLogin,เข้าใช้ล่าสุด
-team.name,ชื่อ-นามสกุล
 team.new,เพิ่มผู้ใช้
 team.notice.added,เพิ่มแล้ว {0}
 team.notice.password,อัปเดตรหัสผ่านแล้ว
 team.notice.saved,บันทึกแล้ว
 team.notice.toggled,อัปเดตผู้ใช้ {0} คน
 team.password,รหัสผ่านเริ่มต้น
-team.passwordHint,อย่างน้อย 8 ตัวอักษร
 team.resetPassword,ตั้งรหัสผ่านใหม่
 team.role.cashier,เก็บเงิน
 team.role.products,สินค้า
@@ -1433,6 +1432,8 @@ team.role.stock,สต็อก
 team.roles,สิทธิ์การใช้งาน
 team.rolesHint,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 team.status,สถานะ
+team.username,ชื่อผู้ใช้
+team.usernameCharset,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 trade.action.addLine,เพิ่มรายการ
 trade.action.exportCount,ส่งออก {0} กะ
 trade.action.fullPage,แก้ไขแบบเต็มหน้า

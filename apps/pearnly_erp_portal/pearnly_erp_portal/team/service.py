@@ -11,6 +11,8 @@
 `ensure_local_user` 的做法一致（那里同样用 `ignore_permissions` 建账号）。
 """
 
+import re
+
 import frappe
 from frappe import _
 
@@ -20,12 +22,17 @@ NOT_PERMITTED = "Not permitted"
 ALREADY_EXISTS = "Already exists"
 ROLE_REQUIRED = "Choose at least one job role"
 EMAIL_REQUIRED = "Enter a valid email"
-FULL_NAME_REQUIRED = "Enter the user name"
-PASSWORD_TOO_SHORT = "The password must be at least {0} characters"
+# 用户名就是"这个人"：请填写用户名（原来那句是"姓名"必填，一回事）。
+USERNAME_REQUIRED = "Enter the user name"
+# 用户名只认英文和数字 —— 这条是新增的一句，四语在术语表里。
+USERNAME_CHARSET = "Username can only have letters and numbers"
+# 重名用框架自己那句（`User.validate_username` 同款，四语都有）。
+USERNAME_TAKEN = "Username {0} already exists"
 
-# 密码最短位数：复用框架那条闸（`frappe.core.doctype.user.user` 的强度检查），
-# 这里只在下发前先挡一道，别让"保存成功但账号登不上"这种事发生。
-MIN_PASSWORD = 8
+# 用户名：**英文和数字**（用户 2026-09-24："添加用户必须是英文和数字，不区分大小写，长度不限"）。
+# 长度不设上限（框架 `User.username` 是 Data，库列的宽度自己管着）；大小写不区分交给库的
+# 排序规则 + 下面那次显式查询。
+USERNAME_RE = re.compile(r"^[A-Za-z0-9]+$")
 
 # 公司隔离用的是**框架自己的 User Permission**（官方那套），公司表是我们自己的。
 COMPANY = "ERP Company"
@@ -52,11 +59,45 @@ def role_catalog() -> list[dict]:
             for role in assignable_roles()]
 
 
+def _clean_username(username, *, exclude=None) -> str:
+    """用户名：英文 + 数字、不区分大小写、长度不限；只挡空和重名。
+
+    重名这一句用**框架自己那句**（`Username {0} already exists`），四语都有；
+    比较用 `lower()`，所以 `Somchai` 与 `somchai` 算同一个人（用户口径"不区分大小写"）。
+    """
+    value = str(username or "").strip()
+    if not value:
+        frappe.throw(_(USERNAME_REQUIRED))
+    if not USERNAME_RE.fullmatch(value):
+        frappe.throw(_(USERNAME_CHARSET))
+    taken = frappe.db.sql(
+        "select name from `tabUser` where lower(username) = lower(%s) and name != %s limit 1",
+        (value, exclude or ""), pluck=True)
+    if taken:
+        frappe.throw(_(USERNAME_TAKEN).format(value))
+    return value
+
+
+def username_of(user) -> str:
+    """一个人显示成什么：**用户名**（没设才回落账号本身）。
+
+    用户 2026-09-24："全局可以涉及到姓名的地方，全部改为用户名。" 显示层统一走这里，
+    不要在页面上各写一遍 `full_name` / 邮箱。
+    """
+    if not user:
+        return ""
+    return frappe.db.get_value("User", user, "username") or str(user)
+
+
 def _clean_password(password) -> str:
-    """下发/重置密码前的闸：太短直接拒，别让账号建出来却登不上。"""
+    """密码：**不做任何限制**（用户 2026-09-24："密码可以自由填写，不限制长度，也不限制其它东西"）。
+
+    只挡空字符串 —— 空密码等于账号建出来谁都进不去（不是"限制"，是这条数据没有意义）。
+    框架自己的强度闸也在站点设置里关掉了（`enable_password_policy = 0`，见 patch `v1_9_username_login`）。
+    """
     value = str(password or "")
-    if len(value) < MIN_PASSWORD:
-        frappe.throw(_(PASSWORD_TOO_SHORT).format(MIN_PASSWORD))
+    if not value:
+        frappe.throw(_("Invalid value"))
     return value
 
 
@@ -165,7 +206,9 @@ def list_members() -> list[dict]:
             # 值就是邮箱 —— 与框架里 `User.name` 同一个值，勾选与打开行也按它找行。
             "name": email,
             "email": email,
-            "full_name": user.full_name or email,
+            # 列表上显示的就是**用户名**（没有才回落邮箱）—— 不再有"姓名"这一栏。
+            "username": user.username or "",
+            "display": username_of(email),
             "enabled": bool(user.enabled),
             "roles": sorted(r.role for r in user.roles if r.role in roles),
             # 一租户多公司：这个账号被指到哪几家（官方的 User Permission，没指就是全部）。
@@ -176,8 +219,19 @@ def list_members() -> list[dict]:
     return members
 
 
-def add_member(email: str, full_name: str = "", roles=None, password=None) -> dict:
-    """新增员工：姓名 + 邮箱（就是登录名）+ 初始密码 + 勾选的岗位。
+def add_member(username: str = "", email: str = "", roles=None, password=None) -> dict:
+    """新增员工：**用户名** + 邮箱 + 初始密码 + 勾选的岗位。
+
+    用户 2026-09-24 的口径："添加用户必须是英文和数字，不区分大小写，长度不限；密码可以自由
+    填写，不限制长度，也不限制其它东西；**这个用户名是可以登录的，和邮箱一样**；邮箱和用户名
+    是唯一绑定关系。"
+
+    所以这里不再有"姓名"这一栏：**用户名就是这个人**（`User.username`，唯一；同时它也写进
+    `first_name`，框架自己那些显示名字的地方（顶栏、邮件、"经手人"）跟着就是用户名）。
+    邮箱仍是 `User.name`（账号主键），两边都是一对一：用户名不重、邮箱不重。
+
+    登录那半边靠框架：`User.find_by_credentials` 在 `System Settings.allow_login_using_user_name`
+    打开后同时按 `name`（邮箱）与 `username` 找账号 —— 这一位由 patch `v1_9_username_login` 打开。
 
     账号本身是**框架的 `User`**（复用 Frappe/ERPNext 的用户与权限体系），我们只做三件事：
     建账号、发"本站点确实存在"的功能角色、给一个初始密码让员工能马上登录。
@@ -187,18 +241,19 @@ def add_member(email: str, full_name: str = "", roles=None, password=None) -> di
     email = (email or "").strip().lower()
     if "@" not in email:
         frappe.throw(_(EMAIL_REQUIRED))
-    if not str(full_name or "").strip():
-        frappe.throw(_(FULL_NAME_REQUIRED))
     if frappe.db.exists("User", email):
         frappe.throw(_(ALREADY_EXISTS))
+    username = _clean_username(username)
     wanted = _clean_roles(roles)
     secret = _clean_password(password)
     # 统一身份里的号先建好：建不出来就整件事失败，不留"本地有号、人却登不上"的坑。
-    subject = _identity_subject(email, str(full_name).strip(), secret) if _identity_configured() else None
+    subject = _identity_subject(email, username, secret) if _identity_configured() else None
     user = frappe.get_doc({
         "doctype": "User",
         "email": email,
-        "first_name": str(full_name).strip(),
+        # 用户名既是登录名，也是这个人在全站显示的名字（不再有"姓名"这一栏）。
+        "username": username,
+        "first_name": username,
         "send_welcome_email": 0,
         "user_type": "System User",
         "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted)],
@@ -212,7 +267,7 @@ def add_member(email: str, full_name: str = "", roles=None, password=None) -> di
 
         identity.bind_identity(user=user.name, subject=subject)
     frappe.db.commit()
-    return {"email": user.name, "roles": sorted(wanted)}
+    return {"email": user.name, "username": user.username, "roles": sorted(wanted)}
 
 
 def set_member_password(email: str, password=None) -> dict:

@@ -265,10 +265,8 @@ No	序号	ลำดับ	番号
 Discount (%)	折扣率 (%)	ส่วนลด (%)	割引率 (%)
 Line Total	明细小计	ยอดรวมบรรทัด	明細小計
 Original Line	原单明细行	บรรทัดเดิม	元の明細行
-Full Name	姓名	ชื่อ-นามสกุล	氏名	team.name
 Email	邮箱	อีเมล	メール	team.email
 Initial Password	初始密码	รหัสผ่านเริ่มต้น	初期パスワード	team.password
-At least 8 characters	至少 8 位	อย่างน้อย 8 ตัวอักษร	8文字以上	team.passwordHint
 Job Roles	功能权限	สิทธิ์การใช้งาน	機能権限	team.roles
 Only the checked features are visible to this user	只勾选的功能，这个用户才看得到	ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก	チェックした機能だけがこのユーザーに表示されます	team.rolesHint
 Last Login	最后登录	เข้าใช้ล่าสุด	最終ログイン	team.lastLogin
@@ -1158,3 +1156,5 @@ Pick a warehouse	请选择仓库	กรุณาเลือกคลัง	倉�
 This terminal has no warehouse; set one in the terminal settings	这台收银台还没配仓库，请先在收银台上选一个仓	เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย	このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 A warehouse must belong to a company	仓库必须挂在某家公司名下	คลังต้องอยู่ในบริษัท	倉庫は必ず会社に属します
 This payment method is not enabled for this company	这家公司没有开这种收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません
+Username	用户名	ชื่อผู้ใช้	ユーザー名	team.username
+Username can only have letters and numbers	用户名只能用英文字母和数字	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข	ユーザー名は英数字のみ使用できます	team.usernameCharset

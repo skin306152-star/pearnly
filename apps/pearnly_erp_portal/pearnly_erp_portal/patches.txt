@@ -18,3 +18,5 @@ pearnly_erp_portal.patches.v1_6_drop_warehouse_default_column
 pearnly_erp_portal.patches.v1_7_company_payment_methods
 # 商品上那个"默认仓"整条线删掉（进货改认收银台配的仓）：把库里那一列清掉。
 pearnly_erp_portal.patches.v1_8_drop_product_default_warehouse
+# 用户名当登录名（打开框架那两位开关 + 给存量账号补用户名与显示名）。
+pearnly_erp_portal.patches.v1_9_username_login

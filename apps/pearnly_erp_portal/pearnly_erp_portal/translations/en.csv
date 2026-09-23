@@ -65,7 +65,6 @@ Approval Status,Approval Status
 Are you sure you want to delete the attachment?,Are you sure you want to delete the attachment?
 Are you sure you want to delete?,Are you sure you want to delete?
 As Of,As Of
-At least 8 characters,At least 8 characters
 At most 5 photos per entry,At most 5 photos per entry
 At most {0} photos per entry,At most {0} photos per entry
 Attach,Attach
@@ -936,6 +935,8 @@ Use the stock count workbench,Use the stock count workbench
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
 Used when a new purchase line does not say otherwise,Used when a new purchase line does not say otherwise
 User,User
+Username,Username
+Username can only have letters and numbers,Username can only have letters and numbers
 VAT,VAT
 VAT Applicable,VAT Applicable
 VAT Applies,VAT Applies
@@ -1416,14 +1417,12 @@ team.email,Email
 team.enable,Enable
 team.inactive,Inactive
 team.lastLogin,Last Login
-team.name,Full Name
 team.new,Add User
 team.notice.added,Added {0}
 team.notice.password,Password updated
 team.notice.saved,Saved
 team.notice.toggled,Updated {0} user(s)
 team.password,Initial Password
-team.passwordHint,At least 8 characters
 team.resetPassword,Reset Password
 team.role.cashier,Cashier
 team.role.products,Products
@@ -1433,6 +1432,8 @@ team.role.stock,Stock
 team.roles,Job Roles
 team.rolesHint,Only the checked features are visible to this user
 team.status,Status
+team.username,Username
+team.usernameCharset,Username can only have letters and numbers
 trade.action.addLine,Add row
 trade.action.exportCount,Export {0}
 trade.action.fullPage,Edit in Full Page
