@@ -163,6 +163,20 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
         menu_flow.handle_postback(binding, line_user_id, reply_token, action, pb, sess)
         return
 
+    # Unmatched OCR geography stays empty. Do not consume the edit nonce before
+    # rejecting an incomplete write (including submitting that write for approval).
+    if action in {cards.ACT_CREATE, cards.ACT_UPDATE, cards.ACT_SUBMIT_APPROVAL} and any(
+        not str((payload.get("draft") or {}).get(key) or "").strip()
+        for key in ("province_id", "district_id", "subdistrict_id", "zipcode_id")
+    ):
+        if not store.verify_nonce(sess, pb.get("nonce"), "reviewing"):
+            _reply(reply_token, cards.TXT_EXPIRED)
+            return
+        _send(line_user_id, cards.edit_entry_card(
+            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th")
+        ), reply_token)
+        return
+
     # 审批那一族（提审 / 选人 / 改派 / 批 / 拒）：一次性由存储的原子认领保证，
     # 所以这里**不消费 nonce**，但必须排在下方的写档守卫之前。
     from pearnly_dms.approval import approval_flow as approval_flow

@@ -183,6 +183,64 @@ def main():
           cl._norm_geo("จังหวัดกรุงเทพมหานคร"))
     opts = cl._parse_options('<option value="">--</option><option value="10">กรุงเทพ</option>')
     check("下拉选项丢掉空 value 占位", opts == [["10", "กรุงเทพ"]], opts)
+
+    # OCR 地址必须唯一命中，不可将新表单默认项/目录第一项当成识别结果。
+    from dataclasses import replace
+    from pearnly_dms.contracts.models import ThaiAddress
+
+    geo_address = ThaiAddress(province_name="สมุทรปราการ", district_name="เมืองสมุทรปราการ",
+                              subdistrict_name="ปากน้ำ", zipcode="10270")
+    geo_form = ('<select name="selprovinces"><option value="9" selected>กรุงเทพมหานคร</option>'
+                '<option value="2">จังหวัด สมุทรปราการ</option></select>')
+    geo_routes = {
+        "listdistricts.php": lambda data: '<option value="51">อำเภอ เมืองสมุทรปราการ</option>',
+        "listsubdistricts.php": lambda data: '<option value="158">ท้ายบ้าน</option><option value="155">ตำบล ปากน้ำ</option>',
+        "listzipcodes.php": lambda data: '<option value="115">10280</option><option value="116">10270</option>',
+    }
+    geo_transport = FakeTransport(geo_routes)
+    geo_client = DmsClient(geo_transport, "https://example.test/dms/")
+    resolved = geo_client._resolve_address_geo(geo_address, geo_form)
+    geo_ids = ("province_id", "district_id", "subdistrict_id", "zipcode_id")
+    check("四级地址唯一命中，不继承表单默认值", tuple(getattr(resolved, k) for k in geo_ids)
+          == ("2", "51", "155", "116"))
+    check("地址正规前缀/首尾空白可精确匹配",
+          geo_client._match_geo([["155", "  ต.\u00a0ปากน้ำ  "]], "ปากน้ำ") == "155")
+    check("泰文等价Unicode写法可精确匹配",
+          geo_client._match_geo([["155", "ปากน้ำ"]], "ปากน้\u0e4dา") == "155")
+    check("规范名相同但ID不唯一必须留空",
+          geo_client._match_geo([["155", "ปากน้ำ"], ["999", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "")
+    check("同一个ID重复不产生伪歧义",
+          geo_client._match_geo([["155", "ปากน้ำ"], ["155", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "155")
+    for index, name_key in enumerate(("province_name", "district_name", "subdistrict_name", "zipcode")):
+        for missing in ("", "NOT-IN-CATALOG"):
+            geo_transport.calls.clear()
+            # 输入可能携带旧id；只认可本次按名称实时解析到的前缀链。
+            incoming = replace(geo_address, **{k: "stale" for k in geo_ids}, **{name_key: missing})
+            result = geo_client._resolve_address_geo(incoming, geo_form)
+            check("地址%s=%r时本级及子级均留空" % (name_key, missing),
+                  not any(getattr(result, k) for k in geo_ids[index:]))
+            check("地址%s=%r时不查询无父级目录" % (name_key, missing),
+                  len(geo_transport.calls) == index)
+    missing_form = geo_client._resolve_address_geo(replace(geo_address, province_id="stale"), "")
+    check("缺省目录不能保留传入旧ID", not any(getattr(missing_form, k) for k in geo_ids))
+    for index, route in enumerate((None, "listdistricts.php", "listsubdistricts.php", "listzipcodes.php")):
+        for label, options in (("空目录", '<option value="">--</option>'),
+                               ("重复名字", '<option value="first">{name}</option><option value="second">{name}</option>')):
+            name = (geo_address.province_name, geo_address.district_name,
+                    geo_address.subdistrict_name, geo_address.zipcode)[index]
+            body = options.format(name=name)
+            routes = {**geo_routes, **({route: lambda data, body=body: body} if route else {})}
+            transport = FakeTransport(routes)
+            result = DmsClient(transport, "https://example.test/dms/")._resolve_address_geo(
+                geo_address, geo_form if route else '<select name="selprovinces">' + body + '</select>')
+            check("第%d级%s不猜ID/不查询下级" % (index + 1, label),
+                  not any(getattr(result, k) for k in geo_ids[index:]) and len(transport.calls) == index)
+    # 2026-09-24 合成003真实目录：区51中没有ปากน้ำ，第一项158为ท้ายบ้าน。
+    real_directory = FakeTransport({**geo_routes,
+        "listsubdistricts.php": lambda data: '<option value="158">ท้ายบ้าน</option><option value="155">เทศบาลนครสมุทรปราการ</option>'})
+    no_alias = DmsClient(real_directory, "https://example.test/dms/")._resolve_address_geo(geo_address, geo_form)
+    check("目录不存在ปากน้ำ时不选ท้ายบ้าน/不猜市政府别名", no_alias.subdistrict_id == "" and no_alias.zipcode_id == "")
+    check("镇未命中不得继续查第一项镇的邮编", not any("listzipcodes" in u for u, _ in real_directory.calls))
     rows_body = (
         '<div data-val="651" onclick="ctllistdata(this)"><div class="detaildata">'
         '<div><p>C0001</p><p>สมชาย</p></div>'
@@ -354,6 +412,12 @@ def main():
     bad_child, _ = _save_with(GOOD_FIELDS,
                               {"": {**GOOD_ADDR[""], "district_id": "D1"}})
     check("县不属于所选省 → 拦（父级链对不上）", bad_child[0], bad_child[1])
+    for key in geo_ids:
+        rejected, transport = _save_with(GOOD_FIELDS, {"": {**GOOD_ADDR[""], key: ""}})
+        check("缺少%s保存拒绝且不外推" % key,
+              rejected[0] and "ERR_DMS_MASTER_UNMATCHED" in rejected[1]
+              and not any(u.endswith(("cus/new.php", "cus/edit.php")) for u, _ in transport.calls),
+              rejected[1])
 
     noread = FakeTransport(routes={
         "cus/form.php": cus_form,

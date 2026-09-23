@@ -216,16 +216,17 @@ def _summary_rows(summary: Dict[str, str]) -> List[Dict[str, Any]]:
     return [_kv_row(_t(f"sum.{f}"), s.get(f, "")) for f in _SUMMARY_FIELD_NAMES]
 
 
-def edit_entry_card(nonce: str) -> Dict[str, Any]:
+def edit_entry_card(nonce: str, *, notice: str = "") -> Dict[str, Any]:
     """点 [แก้ไข] 之后回的那张卡：就一个"打开编辑页"的按钮。
 
     线上 `customer_edit_entry._open` 就是这个形状（`cards._bubble(BTN_EDIT, [],
     [cards._edit_button(nonce)], BTN_EDIT)`）—— 点编辑不再展开字段菜单，
-    而是给一个能开浏览器编辑页的入口。正文故意是空的：多一句话就多一处要翻译、
-    要维护的文案，而这个按钮本身已经把事说清楚了。
+    而是给一个能开浏览器编辑页的入口。一般正文为空；保存前缺项拒绝可带上既有
+    已翻译错误提示，同时保持原 nonce 的编辑入口有效。
     """
     label = _t("BTN_EDIT")
-    return _bubble(label, [], [_edit_button(nonce)], label)
+    rows = [{"type": "text", "text": notice, "wrap": True, "size": "sm"}] if notice else []
+    return _bubble(label, rows, [_edit_button(nonce)], notice or label)
 
 
 def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:

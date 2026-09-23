@@ -25,7 +25,8 @@ USER = "queue-regression@example.invalid"
 LINE_USER = "U-offline-intake-queue"
 PHONE = "000000000"
 CARD = {"people_id": "0000000000000", "name": "Offline Fixture", "address": {}}
-SUCCESS = {"ok": True, "scenario": "none", "geo": {}, "prefixes": []}
+GEO = {"province_id": "2", "district_id": "51", "subdistrict_id": "155", "zipcode_id": "116"}
+SUCCESS = {"ok": True, "scenario": "none", "geo": {"selected": GEO}, "prefixes": []}
 UNREACHABLE = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE"}
 
 
@@ -102,6 +103,7 @@ class IntakeQueue(unittest.TestCase):
         from pearnly_dms.intake import flow
         cls.line, cls.store, cls.handlers, cls.out, cls.cards, cls.flow = (
             line, line_session, handlers, out, cards, flow)
+        cls.real_lookup = staticmethod(flow.dms_intake.recognize_lookup)
 
     def setUp(self):
         self.stack = ExitStack()
@@ -329,6 +331,247 @@ class IntakeQueue(unittest.TestCase):
                    nonce=payload["nonce"], token="reply-confirm")
         self.assertEqual(self.jobs[0][1]["target"], f"pearnly_dms.intake.flow.write_{kind}")
         return payload["nonce"]
+
+    def test_incomplete_address_keeps_nonce_and_real_edit_link_without_write_or_approval(self):
+        actions = (self.cards.ACT_CREATE, self.cards.ACT_UPDATE, self.cards.ACT_SUBMIT_APPROVAL)
+        for field in GEO:
+            for action in actions:
+                with self.subTest(field=field, action=action):
+                    self.jobs.clear()
+                    payload = {"nonce": "needs-address", "draft": {**GEO, field: ""},
+                               "scenario": "exact_diff", "approval": True}
+                    self.store.set_session(LINE_USER, "reviewing", payload)
+                    before = self.store.get_session(LINE_USER)
+                    self.event(action=action, nonce="needs-address", token="reply-needs-address")
+                    self.assertFalse(self.jobs)
+                    self.push_fields.assert_not_called()
+                    self.assertEqual(self.store.get_session(LINE_USER), before)
+                    kind, body = self.messages()[-1]
+                    self.assertEqual((kind, body["replyToken"]), ("reply", "reply-needs-address"))
+                    card = body["messages"][0]
+                    button = card["contents"]["footer"]["contents"][0]["action"]
+                    self.assertEqual(button["type"], "uri")
+                    self.assertIn("needs-address", button["uri"])
+                    self.assertIn("editor=customer", button["uri"])
+                    self.assertIn(self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"), str(card))
+
+    def test_incomplete_address_stale_nonce_is_rejected_without_edit_ticket(self):
+        self.store.set_session(LINE_USER, "reviewing", {"nonce": "current", "draft": {}})
+        self.event(action=self.cards.ACT_CREATE, nonce="stale")
+        self.assertFalse(self.jobs)
+        self.assertEqual(self.messages()[-1][1]["messages"], [{"type": "text", "text": self.cards.TXT_EXPIRED}])
+        self.assertEqual(self.store.get_session(LINE_USER)["payload"]["nonce"], "current")
+
+    def test_phone_only_update_or_approval_still_requires_unmatched_ocr_address_review(self):
+        for action in (self.cards.ACT_UPDATE, self.cards.ACT_SUBMIT_APPROVAL):
+            with self.subTest(action=action):
+                payload = {"nonce": "phone-only", "customer_id": "offline-customer",
+                    "scenario": "exact_diff", "approval": True,
+                    "draft": {**GEO, "phone": PHONE, "subdistrict_id": "", "zipcode_id": ""},
+                    "field_diffs": [{"field": "phone", "old": "0000000000", "new": PHONE}],
+                    "id_card": {"address": {"subdistrict": "ปากน้ำ", "zipcode": "10270"}}}
+                self.store.set_session(LINE_USER, "reviewing", payload)
+                before = self.store.get_session(LINE_USER)
+                self.event(action=action, nonce="phone-only", token="reply-phone-only")
+                self.assertFalse(self.jobs)
+                self.push_fields.assert_not_called()
+                self.assertEqual(self.store.get_session(LINE_USER), before)
+                kind, body = self.messages()[-1]
+                self.assertEqual((kind, body["replyToken"]), ("reply", "reply-phone-only"))
+                button = body["messages"][0]["contents"]["footer"]["contents"][0]["action"]
+                self.assertEqual(button["type"], "uri")
+                self.assertIn("phone-only", button["uri"])
+
+    def test_missing_catalog_name_reaches_review_and_edit_through_real_lookup(self):
+        from pearnly_dms.client.gateway import DmsClient
+        from pearnly_dms.client.transport import Resp
+
+        pages = {
+            "cus/form.php": '<select name="selprovinces"><option value="2">สมุทรปราการ</option></select><select name="selprefix"><option value="17">นาย</option></select>',
+            "drfcbc/form.php": "",
+            "cus/component/showdata.php": "ndt::",
+            "cus/component/listdistricts.php": '<option value="51">เมืองสมุทรปราการ</option>',
+            "cus/component/listsubdistricts.php": '<option value="158">ท้ายบ้าน</option><option value="155">เทศบาลนครสมุทรปราการ</option>',
+        }
+        def respond(url, data=None, **kwargs):
+            path = url.removeprefix("https://offline.invalid/dms/")
+            self.assertIn(path, pages)  # No zip request without a matched subdistrict; no writes.
+            return Resp(200, pages[path], pages[path].encode())
+        client = DmsClient(Mock(post=respond), "https://offline.invalid/dms/")
+        def authenticated(endpoint, fn, **kwargs):
+            self.assertTrue(kwargs["authoritative_read"])
+            return fn(client, None)
+        self.fixture()
+        sess = self.store.get_session(LINE_USER)
+        source = {"province": "สมุทรปราการ", "district": "เมืองสมุทรปราการ",
+                  "subdistrict": "ปากน้ำ", "zipcode": "10270", "house_no": "45"}
+        sess["payload"]["id_card"]["address"] = source
+        self.store.set_session(LINE_USER, "collecting", sess["payload"])
+        self.lookup.side_effect = self.real_lookup
+        with patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
+             patch.object(self.flow.dms_intake.time, "sleep"):
+            self.event(text=PHONE)
+            self.worker()
+        current = self.store.get_session(LINE_USER)
+        self.assertEqual(current["state"], "reviewing")
+        payload = current["payload"]
+        self.assertEqual(payload["id_card"]["address"], source)
+        self.assertEqual(payload["draft"]["district_id"], "51")
+        self.assertEqual(payload["draft"]["subdistrict_id"], "")
+        self.assertEqual(payload["draft"]["zipcode_id"], "")
+        self.assertNotIn("ท้ายบ้าน", payload["summary"]["address"])
+        self.assertNotIn("10280", payload["summary"]["address"])
+        self.event(action=self.cards.ACT_CREATE, nonce=payload["nonce"])
+        self.assertFalse(self.jobs)
+        self.assertEqual(self.store.get_session(LINE_USER), current)
+
+    def test_customer_editor_can_complete_missing_address_then_rotate_nonce(self):
+        from pearnly_dms.editor import customer_edit
+        from pearnly_dms.editor import booking_edit
+
+        complete = {**GEO, "prefix_id": "17", "people_id": "1000000888697", "name": "Offline Fixture",
+                    "phone": PHONE, "birthday_be": "01/01/2530", "house_no": "45"}
+        snapshot = {"prefixes": [["17", "นาย"]], "geo": {
+            "provinces": [["2", "สมุทรปราการ"]], "districts": [["51", "เมืองสมุทรปราการ"]],
+            "subdistricts": [["155", "เทศบาลนครสมุทรปราการ"]], "zipcodes": [["116", "10270"]]}}
+        self.store.set_session(LINE_USER, "reviewing", {"nonce": "needs-address", "mode": "customer",
+            "endpoint_id": "offline-endpoint", "draft": {**complete, "subdistrict_id": "", "zipcode_id": ""}})
+        with patch.object(customer_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}), \
+             patch.object(booking_edit, "read_edit_snapshot", return_value=snapshot), \
+             patch.object(customer_edit, "recognize_lookup", return_value=copy.deepcopy(SUCCESS)) as lookup, \
+             patch.object(customer_edit.draft, "has_admin_creds", return_value=False):
+            loaded = customer_edit.load(LINE_USER, "needs-address")
+            self.assertFalse(loaded["form"]["customer"].get("subdistrict_id"))
+            for field in GEO:
+                with self.subTest(missing=field):
+                    with self.assertRaises(booking_edit.DmsBookingEditError) as exc:
+                        customer_edit.save(LINE_USER, "needs-address", {"customer": {**complete, field: ""}})
+                    self.assertEqual(exc.exception.code, f"dms_booking.invalid_{field}")
+                    self.assertEqual(self.store.get_session(LINE_USER)["payload"]["nonce"], "needs-address")
+            nonce = customer_edit.save(LINE_USER, "needs-address", {"customer": complete})
+            self.assertNotEqual(nonce, "needs-address")
+            current = self.store.get_session(LINE_USER)["payload"]
+            self.assertTrue(current["customer_edited"])
+            self.assertEqual({key: current["draft"][key] for key in GEO}, GEO)
+            self.assertEqual(lookup.call_args.kwargs["ocr_address"]["subdistrict_name"], "เทศบาลนครสมุทรปราการ")
+            self.push_fields.assert_not_called()
+
+    def test_existing_customer_editor_fills_from_master_not_first_options_then_saves(self):
+        from pearnly_dms.editor import customer_edit, edit_snapshot
+
+        complete = {**GEO, "prefix_id": "17", "prefix_name": "นาย", "people_id": "1000000888697",
+                    "name": "Offline Fixture", "phone": PHONE, "birthday_be": "01/01/2530",
+                    "house_no": "45", "province_name": "สมุทรปราการ", "district_name": "เมืองสมุทรปราการ",
+                    "subdistrict_name": "เทศบาลนครสมุทรปราการ", "zipcode_name": "10270"}
+        catalog = {"provinces": [["9", "กรุงเทพมหานคร"], ["2", "สมุทรปราการ"]],
+                   "districts": [["99", "Other district"], ["51", "เมืองสมุทรปราการ"]],
+                   "subdistricts": [["158", "ท้ายบ้าน"], ["155", "เทศบาลนครสมุทรปราการ"]],
+                   "zipcodes": [["115", "10280"], ["116", "10270"]]}
+        parents = {"provinces": "", "districts": "2", "subdistricts": "51", "zipcodes": "155"}
+        def list_geo(level, parent):
+            self.assertEqual(parent, parents[level])
+            return catalog[level]
+        client = Mock(read_customer=Mock(return_value=complete), list_geo=Mock(side_effect=list_geo))
+        def authenticated(endpoint, fn, **kwargs):
+            self.assertTrue(kwargs["authoritative_read"])
+            return fn(client, None)
+        # Legacy customer material can lack address IDs without asserting a different OCR address.
+        self.store.set_session(LINE_USER, "reviewing", {"nonce": "old-customer", "mode": "customer",
+            "endpoint_id": "offline-endpoint", "customer_id": "offline-customer",
+            "draft": {"people_id": complete["people_id"], "province_id": "2", "district_id": "51",
+                      "subdistrict_id": "", "zipcode_id": ""}})
+        result = {"ok": True, "scenario": "exact", "match": {
+            "customer_id": "offline-customer", "current_fields": complete}}
+        with patch.object(customer_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}), \
+             patch.object(edit_snapshot, "_shared_masters", return_value={"prefixes": [["17", "นาย"]]}), \
+             patch.object(edit_snapshot, "_store"), \
+             patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
+             patch.object(customer_edit, "recognize_lookup", return_value=result) as lookup, \
+             patch.object(customer_edit.draft, "has_admin_creds", return_value=False):
+            loaded = customer_edit.load(LINE_USER, "old-customer")
+            form = loaded["form"]["customer"]
+            client.read_customer.assert_called_once_with("offline-customer")
+            self.assertEqual({key: form[key] for key in GEO}, GEO)
+            self.assertEqual(form["zipcode"], "10270")
+            self.assertEqual(loaded["geo"]["subdistricts"][0]["id"], "158")
+            self.assertNotEqual(form["subdistrict_id"], loaded["geo"]["subdistricts"][0]["id"])
+            nonce = customer_edit.save(LINE_USER, "old-customer", {"customer": form})
+            self.assertNotEqual(nonce, "old-customer")
+            saved = self.store.get_session(LINE_USER)["payload"]
+            self.assertEqual(saved["customer_id"], "offline-customer")
+            self.assertEqual({key: saved["draft"][key] for key in GEO}, GEO)
+            self.assertEqual(lookup.call_args.kwargs["ocr_address"]["subdistrict_name"], complete["subdistrict_name"])
+            self.assertEqual(client.list_geo.call_count, 8)  # load and save each read the selected parent chain.
+            self.push_fields.assert_not_called()
+
+    def test_ocr_unmatched_old_customer_address_stays_empty_then_manual_selection_saves(self):
+        from pearnly_dms.editor import customer_edit, edit_snapshot
+
+        old = {**GEO, "subdistrict_id": "158", "zipcode_id": "115", "prefix_id": "17",
+               "prefix_name": "นาย", "people_id": "1000000888697", "name": "Offline Fixture",
+               "phone": PHONE, "birthday_be": "01/01/2530", "house_no": "45", "building": "Old building",
+               "province_name": "สมุทรปราการ", "district_name": "เมืองสมุทรปราการ",
+               "subdistrict_name": "ท้ายบ้าน", "zipcode_name": "10280"}
+        catalog = {"provinces": [["2", "สมุทรปราการ"]], "districts": [["51", "เมืองสมุทรปราการ"]],
+                   "subdistricts": [["158", "ท้ายบ้าน"], ["155", "เทศบาลนครสมุทรปราการ"]],
+                   "zipcodes": [["116", "10270"]]}
+        parents = {"provinces": "", "districts": "2", "subdistricts": "51", "zipcodes": "155"}
+        def list_geo(level, parent):
+            self.assertEqual(parent, parents[level])  # Never hydrate old/incorrect subdistrict 158.
+            return catalog[level]
+        client = Mock(read_customer=Mock(return_value=old), list_geo=Mock(side_effect=list_geo))
+        def authenticated(endpoint, fn, **kwargs):
+            self.assertTrue(kwargs["authoritative_read"])
+            return fn(client, None)
+        self.store.set_session(LINE_USER, "reviewing", {"nonce": "ocr-unmatched", "mode": "customer",
+            "endpoint_id": "offline-endpoint", "customer_id": "offline-customer",
+            "id_card": {"address": {"subdistrict": "ปากน้ำ", "zipcode": "10270"}},
+            "draft": {"people_id": old["people_id"], "province_id": "2", "district_id": "51",
+                      "subdistrict_id": "", "zipcode_id": ""}})
+        result = {"ok": True, "scenario": "exact", "match": {
+            "customer_id": "offline-customer", "current_fields": old}}
+        with patch.object(customer_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}), \
+             patch.object(edit_snapshot, "_shared_masters", return_value={"prefixes": [["17", "นาย"]]}), \
+             patch.object(edit_snapshot, "_store"), \
+             patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
+             patch.object(customer_edit, "recognize_lookup", return_value=result) as lookup, \
+             patch.object(customer_edit.draft, "has_admin_creds", return_value=True):
+            loaded = customer_edit.load(LINE_USER, "ocr-unmatched")
+            form = loaded["form"]["customer"]
+            self.assertEqual((form["province_id"], form["district_id"]), ("2", "51"))
+            for key in ("subdistrict_id", "subdistrict_name", "zipcode_id", "zipcode"):
+                self.assertEqual(form[key], "")
+            self.assertEqual((form["name"], form["building"]), (old["name"], "Old building"))
+            self.assertNotIn("zipcodes", loaded["geo"])
+            self.assertEqual(client.list_geo.call_count, 3)
+            with self.assertRaises(customer_edit.editor.DmsBookingEditError):
+                customer_edit.save(LINE_USER, "ocr-unmatched", {"customer": form})
+            self.assertEqual(self.store.get_session(LINE_USER)["payload"]["nonce"], "ocr-unmatched")
+            form.update(subdistrict_id="155", zipcode_id="116")  # Explicit user selection, not aliasing.
+            nonce = customer_edit.save(LINE_USER, "ocr-unmatched", {"customer": form})
+            self.assertNotEqual(nonce, "ocr-unmatched")
+            saved = self.store.get_session(LINE_USER)["payload"]
+            self.assertTrue(saved["customer_edited"])
+            self.assertEqual({key: saved["draft"][key] for key in GEO}, GEO)
+            self.assertEqual(saved["draft"]["zipcode"], "10270")
+            self.assertEqual(lookup.call_args.kwargs["ocr_address"]["subdistrict_name"], "เทศบาลนครสมุทรปราการ")
+            self.assertEqual(self.messages()[-1][1]["messages"][0]["type"], "flex")
+            self.push_fields.assert_not_called()
+
+    def test_preserve_empty_geo_is_opt_in_and_clears_each_descendant(self):
+        from pearnly_dms.editor.edit_snapshot import GEO_FIELDS, _merge_customer_defaults, geo_levels
+
+        old = {**GEO, "building": "Old building"}
+        for index, (key, _) in enumerate(GEO_FIELDS):
+            with self.subTest(level=key):
+                incoming = {**GEO, key: "", "building": ""}
+                default = _merge_customer_defaults(incoming, old)
+                self.assertEqual({field: default[field] for field in GEO}, GEO)
+                guarded = _merge_customer_defaults(incoming, old, preserve_empty_geo=True)
+                self.assertEqual(guarded["building"], "Old building")
+                for id_field, name_field in GEO_FIELDS[index:]:
+                    self.assertEqual((guarded[id_field], guarded[name_field]), ("", ""))
+                self.assertEqual(len(geo_levels(guarded)), index + 1)
 
     def test_create_and_update_confirm_run_real_consumer_and_nonce_is_single_use(self):
         for kind in ("create", "update"):

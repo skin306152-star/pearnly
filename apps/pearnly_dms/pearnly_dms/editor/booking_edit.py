@@ -187,11 +187,14 @@ def _snapshot(
     car_ids: Iterable[str] = (),
     customer: Optional[dict] = None,
     customer_id: str = "",
+    preserve_empty_geo: bool = False,
 ) -> dict:
     """本请求唯一一次权威登录取回的快照；读不到就 fail closed（不拿旧缓存冒充实时）。"""
     kwargs = {"car_ids": car_ids, "customer": customer}
     if customer_id:
         kwargs["customer_id"] = customer_id
+    if preserve_empty_geo:
+        kwargs["preserve_empty_geo"] = True
     snapshot = read_edit_snapshot(endpoint, **kwargs)
     if not snapshot:
         raise DmsBookingEditError("dms_booking.master_unavailable", 503)

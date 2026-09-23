@@ -23,6 +23,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pearnly_core import line_session as store
 from pearnly_dms.approval import approval_flow as approval_flow
 from pearnly_dms.editor import booking_edit as editor
+from pearnly_dms.editor.edit_snapshot import GEO_FIELDS
 from pearnly_dms.line import cards as cards
 from pearnly_dms.intake import draft as draft
 from pearnly_dms.menu import menu_flow as menu_flow
@@ -51,12 +52,17 @@ def _review(line_user_id: str, nonce: str) -> Tuple[dict, dict, dict]:
 
 
 def load(line_user_id: str, nonce: str) -> dict:
-    """首屏：客户现值（草稿优先，缺的从 DMS 权威直读补齐）+ 称谓选项 + 四级地址级联。"""
+    """首屏补客户现值；OCR 未解析的地址保持空选，不能用不同旧地址掩盖。"""
     _, payload, endpoint = _review(line_user_id, nonce)
     customer = dict(payload.get("draft") or {})
+    preserve_empty_geo = (
+        bool(payload.get("id_card")) and not payload.get("customer_edited")
+        and any(key in customer and not str(customer[key] or "").strip() for key, _ in GEO_FIELDS)
+    )
     snapshot = editor._snapshot(
         endpoint, customer=customer,
-        customer_id="" if payload.get("customer_edited") else payload.get("customer_id", "")
+        customer_id="" if payload.get("customer_edited") else payload.get("customer_id", ""),
+        preserve_empty_geo=preserve_empty_geo,
     )
     # 先把 OCR 的称谓在主档里解出 id（解不出就留空，交给用户在下拉里选）。
     title = customer.get("prefix_name") or (payload.get("id_card") or {}).get("prefix_name")
@@ -64,6 +70,12 @@ def load(line_user_id: str, nonce: str) -> dict:
         customer["prefix_id"] = draft._prefix_id(title, snapshot["prefixes"])
     # 草稿里有值的字段优先（用户/OCR 已经确认过的），其余用 DMS 现值补。
     merged = {**snapshot.get("resolved_customer", {}), **{k: v for k, v in customer.items() if v}}
+    if preserve_empty_geo:
+        # The snapshot cleared an unresolved level and its children before loading
+        # options. Do not reintroduce stale child IDs/labels from the raw draft.
+        for id_field, name_field in GEO_FIELDS:
+            for key in (id_field, name_field):
+                merged[key] = (snapshot.get("resolved_customer") or {}).get(key, "")
     if title and not customer.get("prefix_id"):
         merged["prefix_id"] = ""
     return {

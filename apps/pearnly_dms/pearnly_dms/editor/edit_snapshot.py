@@ -33,6 +33,13 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+GEO_FIELDS = (
+    ("province_id", "province_name"),
+    ("district_id", "district_name"),
+    ("subdistrict_id", "subdistrict_name"),
+    ("zipcode_id", "zipcode"),
+)
+
 
 def geo_levels(customer: Optional[Dict[str, Any]]) -> Tuple[Tuple[str, str], ...]:
     """客户四级地址标签要读的级联层级（缺上一级 id 的层级不读：读了也是空表）。"""
@@ -82,14 +89,23 @@ def _shared_masters(endpoint: Any) -> Dict[str, Any]:
 
 
 def _merge_customer_defaults(
-    draft: Optional[Dict[str, Any]], live: Optional[Dict[str, Any]]
+    draft: Optional[Dict[str, Any]], live: Optional[Dict[str, Any]], *,
+    preserve_empty_geo: bool = False,
 ) -> Dict[str, str]:
-    """只用 DMS 当前客户资料补草稿空值；用户已有值永远优先。"""
+    """补当前客户资料；客户识别草稿可要求未解析地址及其子级继续留空。"""
     out = {str(key): str(value or "") for key, value in (draft or {}).items()}
     for key, value in (live or {}).items():
         target = "zipcode" if key == "zipcode_name" else str(key)
         if not str(out.get(target) or "").strip():
             out[target] = str(value or "")
+    if preserve_empty_geo:
+        unresolved = False
+        for id_field, name_field in GEO_FIELDS:
+            unresolved = unresolved or (
+                id_field in (draft or {}) and not str(draft[id_field] or "").strip()
+            )
+            if unresolved:
+                out[id_field] = out[name_field] = ""
     return out
 
 
@@ -98,6 +114,8 @@ def _read(
     cars: Tuple[str, ...],
     customer: Optional[Dict[str, Any]],
     customer_id: str,
+    *,
+    preserve_empty_geo: bool = False,
 ):
     """一次登录读主档、客户现值、颜色和地址级联；任何权威读取失败都 fail closed。"""
 
@@ -142,7 +160,9 @@ def _read(
                 raise DmsClientError(
                     "booking editor customer identity mismatch", "ERR_DMS_CUSTOMER_LOOKUP"
                 )
-        resolved_customer = _merge_customer_defaults(customer, live_customer)
+        resolved_customer = _merge_customer_defaults(
+            customer, live_customer, preserve_empty_geo=preserve_empty_geo
+        )
         geo = {
             level: list(client.list_geo(level, parent) or [])
             for level, parent in geo_levels(resolved_customer)
@@ -183,14 +203,18 @@ def read_edit_snapshot(
     car_ids: Iterable[Any] = (),
     customer: Optional[Dict[str, Any]] = None,
     customer_id: Any = "",
+    preserve_empty_geo: bool = False,
 ) -> Optional[Dict[str, Any]]:
     """一次权威登录取齐编辑器要用的主档/银行/颜色/地址级联；失败回 None（fail closed）。
 
     返回 `{"masters", "paints": {car_id: rows}, "prefixes", "geo", "customer",
     "resolved_customer"}`。
     """
+    # Only customer OCR editing opts in. Booking/legacy callers keep their defaults;
+    # the protected path hydrates options only below still-resolved parent IDs.
     cars = _plain_car_ids(car_ids)
-    result = _read(endpoint, cars, customer, str(customer_id or ""))
+    result = _read(endpoint, cars, customer, str(customer_id or ""),
+                   preserve_empty_geo=preserve_empty_geo)
     if not isinstance(result, dict) or result.get("ok") is False:
         # `run_logged_in` 的 _err dict（dict 但 ok=False）与异常回退路径都算失败。
         # **留一条日志**：返回值必须是 None（fail closed），但"为什么没读到"不能一起吞掉 ——

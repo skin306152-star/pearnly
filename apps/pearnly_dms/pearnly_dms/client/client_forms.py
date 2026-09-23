@@ -4,14 +4,16 @@
 这一层全是"跟 PHP 表单页对话"的脏活：把表单页里的 input/select/textarea 默认值抠出来，
 因为**提交时必须带上完整表单** —— 只发几个字段会把其它字段冲空。
 
-照搬老产品 `services/erp/mrerp_dms_client_forms.py`，方法体一字未改
-（正则、字段名、级联接口路径都是真机勘察来的）。
+沿用老产品 `services/erp/mrerp_dms_client_forms.py` 的表单协议
+（正则、字段名、级联接口路径都是真机勘察来的）。地址映射只认唯一命中，
+不再继承旧实现的目录第一项兜底。
 """
 
 from __future__ import annotations
 
 import html
 import re
+import unicodedata
 from dataclasses import replace
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
@@ -60,8 +62,10 @@ class DmsClientFormsMixin:
         return data
 
     def _norm_geo(self, name: str) -> str:
-        s = html.unescape(str(name or "")).strip()
+        # Only presentation equivalence, never municipality aliases/fuzzy matches.
+        s = " ".join(unicodedata.normalize("NFKC", html.unescape(str(name or ""))).split())
         for prefix in self._GEO_PREFIXES:
+            prefix = unicodedata.normalize("NFKC", prefix)
             if s.startswith(prefix):
                 return s[len(prefix) :].strip()
         return s
@@ -80,58 +84,48 @@ class DmsClientFormsMixin:
         target = self._norm_geo(name)
         if not target:
             return ""
-        for value, label in options:
-            if self._norm_geo(label) == target:
-                return value
-        return ""
+        matches = {str(value) for value, label in options
+                   if value and self._norm_geo(label) == target}
+        return next(iter(matches)) if len(matches) == 1 else ""
 
     def _resolve_address_geo(self, address, form_html: str):
         """地址文本 → DMS 主档 id，走客户表单自己的级联接口
         （listdistricts → listsubdistricts → listzipcodes）。
 
-        ⚠️ **每一级都必须给出有效值**：`cus/new.php` 对空的 geo 下拉会报一个
-        **误导性的"已被使用"错误**。所以 OCR 出来的名字匹配不上时，逐级回落到
-        列表第一项（以及表单预选的府）—— 客户总能建成，而地址文本字段里仍然是
-        真实的登记地址。
+        只接受当前父级目录内的唯一精确匹配。缺名、缺目录或重复名字时，本级及
+        子级留空让用户编辑；绝不继承新表单默认值或目录第一项。保存仍由实时
+        父级链校验拦截缺项，不能为绕过第三方必填报错而编造地址。
         """
+        address = replace(address, province_id="", district_id="", subdistrict_id="", zipcode_id="")
         prov = re.search(
             r'<select[^>]+name="selprovinces"[^>]*>(.*?)</select>', form_html, re.S | re.I
         )
         if not prov:
             return address
         provinces = self._parse_options(prov.group(1))
-        default_province = self._selected_value(prov.group(1)) or (
-            provinces[0][0] if provinces else ""
-        )
-        province_id = self._match_geo(provinces, address.province_name) or default_province
+        province_id = self._match_geo(provinces, address.province_name)
         if not province_id:
             return address
+        address = replace(address, province_id=province_id)
 
         districts = self._fetch_options(
             "cus/component/listdistricts.php", {"selprovinces": province_id}
         )
-        district_id = self._match_geo(districts, address.district_name) or (
-            districts[0][0] if districts else ""
-        )
+        district_id = self._match_geo(districts, address.district_name)
+        if not district_id:
+            return address
+        address = replace(address, district_id=district_id)
         subdistricts = self._fetch_options(
             "cus/component/listsubdistricts.php", {"seldistricts": district_id}
         )
-        subdistrict_id = self._match_geo(subdistricts, address.subdistrict_name) or (
-            subdistricts[0][0] if subdistricts else ""
-        )
+        subdistrict_id = self._match_geo(subdistricts, address.subdistrict_name)
+        if not subdistrict_id:
+            return address
+        address = replace(address, subdistrict_id=subdistrict_id)
         zipcodes = self._fetch_options(
             "cus/component/listzipcodes.php", {"selsubdistricts": subdistrict_id}
         )
-        zipcode_id = self._match_geo(zipcodes, address.zipcode) or (
-            zipcodes[0][0] if zipcodes else ""
-        )
-        return replace(
-            address,
-            province_id=province_id,
-            district_id=district_id,
-            subdistrict_id=subdistrict_id,
-            zipcode_id=zipcode_id,
-        )
+        return replace(address, zipcode_id=self._match_geo(zipcodes, address.zipcode))
 
     def _fetch_options(self, path: str, body: Dict[str, str]) -> List[List[str]]:
         return self._parse_options(self._post_text(path, body))
