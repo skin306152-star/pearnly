@@ -65,6 +65,40 @@ def visible_pages(product):
             and _can_open_page(product, route)]
 
 
+def _user_menu_routes(product) -> set:
+    """只在**左下角用户菜单**里出现的路由。
+
+    写进 `user_menu` 的页面从侧栏移出去 —— 这个声明本身就是"这个入口不放侧栏、放
+    左下角那颗按钮里"（用户 2026-09-23："不要主数据，把团队管理放在左下角里面"）。
+    页面本身仍然可按路由打开，`boot.pearnly_pages`（也能打开）不受影响。
+    """
+    return {str(route) for route in ((_declarations().get(product) or {}).get("user_menu") or [])}
+
+
+def sidebar_pages(product):
+    """侧栏这一份该出现哪些页面：能打开的页面里去掉走左下角菜单的那些。"""
+    hidden = _user_menu_routes(product)
+    return [route for route in visible_pages(product) if route not in hidden]
+
+
+def user_menu(product):
+    """产品要在**左下角那颗用户按钮**的菜单里出现哪几项（例如 ERP 的「团队管理」）。
+
+    产品声明的是**路由**，标题与图标仍从 `pages` 取 —— 同一句话只有一处词，不复制。
+    判据与侧栏完全一致（`visible_pages`：页面已实现 + 当前用户能进），所以"只有产品
+    管理员能进"的页面只会出现在管理员的菜单里，别人连项都看不到。
+    """
+    declared = (_declarations().get(product) or {}).get("user_menu") or []
+    entries = {route: (label, icon) for label, route, icon, _feature in pages(product)}
+    offered = set(visible_pages(product))
+    entries_out = []
+    for route in declared:
+        if route in offered and route in entries:
+            label, icon = entries[route]
+            entries_out.append({"route": route, "label": label, "icon": icon or ""})
+    return entries_out
+
+
 def _personal_order(product, offered):
     raw = frappe.defaults.get_user_default("pearnly_sidebar_order_" + product)
     try:
@@ -90,13 +124,16 @@ def save_sidebar_order(routes):
             routes = json.loads(routes)
         except ValueError:
             frappe.throw(_("Invalid value"))
-    allowed = visible_pages(product)
+    # 校验的是**侧栏那一份**：走左下角菜单的页面本来就不在侧栏里，不该出现在这里比对。
+    allowed = sidebar_pages(product)
     if (not isinstance(routes, list) or not all(isinstance(r, str) for r in routes)
             or len(routes) != len(allowed) or set(routes) != set(allowed)):
         frappe.throw(_("Invalid value"))
     # User Default is per-site and per-session user. No shared sidebar or role writes.
     frappe.defaults.set_user_default("pearnly_sidebar_order_" + product, json.dumps(routes))
-    return {"routes": routes}
+    # `routes` 是侧栏的新顺序，`pages` 是"这个用户能打开的全部页面"（含左下角那些）——
+    # 页面路由的准入判据用后者，不能因为排序把它变小。
+    return {"routes": routes, "pages": visible_pages(product)}
 
 
 def ensure_navigation():
@@ -132,7 +169,9 @@ def _offered(product, features) -> dict:
 
 def _sidebar_items(product, features) -> list:
     """侧栏条目：有分组定义就出「分组标题 + 缩进的子项」，否则平铺。"""
-    offered = _offered(product, features)
+    hidden = _user_menu_routes(product)
+    offered = {route: value for route, value in _offered(product, features).items()
+               if route not in hidden}
     groups = navigation_groups(product)
     if not groups:
         return [{"type": "Link", "label": label, "link_type": "Page", "link_to": route,
@@ -182,6 +221,12 @@ def extend_boot(boot):
                                    or frappe.conf.get("pearnly_workspace") or "").strip()
     boot.pearnly_features = entitlements()
     boot.pearnly_pages = _personal_order(product, visible_pages(product))
+    # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
+    boot.pearnly_user_menu = user_menu(product)
+    # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
+    # 页面路由的准入判据用它，不能跟着少）。
+    sidebar_routes = [route for route in boot.pearnly_pages
+                      if route in sidebar_pages(product)]
     boot.pearnly_native_account = bool(frappe.conf.get("pearnly_native_account"))
     from pearnly_core.shell import PRODUCT_LABELS
     boot.pearnly_sidebar = "Pearnly " + PRODUCT_LABELS[product]
@@ -190,7 +235,7 @@ def extend_boot(boot):
     # 只写进 Workspace Sidebar 文档不够（那个文档只在整页刷新时才重新读）。
     boot.pearnly_nav_groups = [
         {"label": label, "icon": icon,
-         "routes": [route for route in routes if route in boot.pearnly_pages]}
+         "routes": [route for route in routes if route in sidebar_routes]}
         for label, icon, routes in navigation_groups(product)
     ]
 
@@ -204,11 +249,17 @@ def extend_boot(boot):
         # 侧栏随后用它自己的 find_nested_items 嵌套，我们不自建折叠控件。
         groups = navigation_groups(product)
         if not groups:
-            sidebar["items"] = [items[route] for route in boot.pearnly_pages if route in items]
+            sidebar["items"] = [{**items[route], "child": 0, "indent": 0}
+                                for route in sidebar_routes if route in items]
             return
-        routes = list(boot.pearnly_pages)
+        routes = sidebar_routes
         grouped = {route for _label, _icon, group_routes in groups for route in group_routes}
-        projected = [items[route] for route in routes
+        # 平铺项一律按"平铺"重写：`items` 来自站点里那份 Workspace Sidebar 文档，
+        # 页面改过分组之后，旧文档里可能还留着 `child`/`indent`（它原先是挂在某个
+        # 分组下的）。原生渲染认这两个字段：**一个带 `child` 却没有分组父项的条目**
+        # 会在 `sidebar_item.make()` 里读 `parent.indent` 抛错，整条侧栏只剩第一项
+        # （2026-09-23 把「团队管理」移出分组时实测踩到，界面看上去像"菜单全丢了"）。
+        projected = [{**items[route], "child": 0, "indent": 0} for route in routes
                      if route in items and route not in grouped]
         for label, icon, group_routes in groups:
             members = [items[route] for route in group_routes

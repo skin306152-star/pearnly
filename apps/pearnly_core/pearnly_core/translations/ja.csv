@@ -317,6 +317,7 @@ Master Data,マスタデータ
 Match result must be unmatched / existing customer / new customer,照合結果は 不一致／既存顧客／新規顧客 のいずれかです
 Max Retries,最大再試行
 Missing code or state,code または state がありません
+My Profile,個人プロフィール
 Name,名称
 "Neither tier produced a result (network, key or model name could all be the cause)",どちらのティアも結果を返しませんでした（ネットワーク・キー・モデル名のいずれも原因になり得ます）
 Net Amount,税抜金額

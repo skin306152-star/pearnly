@@ -317,6 +317,7 @@ Master Data,ข้อมูลหลัก
 Match result must be unmatched / existing customer / new customer,ผลการจับคู่ต้องเป็น ไม่ตรง / ลูกค้าที่มีอยู่ / ลูกค้าใหม่
 Max Retries,ลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
+My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
 "Neither tier produced a result (network, key or model name could all be the cause)",ทั้งสองระดับอ่านไม่สำเร็จ (อาจเป็นที่เครือข่าย คีย์ หรือชื่อโมเดล)
 Net Amount,ยอดก่อนภาษี

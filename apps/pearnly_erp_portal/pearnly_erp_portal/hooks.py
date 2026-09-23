@@ -387,4 +387,9 @@ pearnly_navigation = [{'product': 'erp',
                'pearnly-clients']),
              ('nav.group.master',
               'building-2',
-              ['pearnly-company-master', 'pearnly-company', 'pearnly-team', 'pearnly-integrations'])]}]
+              ['pearnly-company-master', 'pearnly-company', 'pearnly-integrations'])],
+  # 左下角那颗用户按钮里的项（用户 2026-09-23："我点左下角，左侧出现 1.个人信息
+  # 2.团队管理"）。写的是**路由**，词与图标仍从上面的 pages 取，不在这儿再写一份；
+  # 服务端按与侧栏同一套判据筛（页面已实现 + 当前用户能进），所以只有产品管理员
+  # 的菜单里会出现「团队管理」。
+  'user_menu': ['pearnly-team']}]

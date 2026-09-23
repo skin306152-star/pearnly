@@ -28,6 +28,7 @@
 | --- | --- | --- |
 | 可售卖功能目录（功能码、标签、默认开关、岗位、可挡的 DocType、只读表、图标、模块） | `apps/<app>/<app>/features.json`（纯数据） | `pearnly_control/features.py` 按 bench 路径**读文件**；缺文件直接报错，不静默降级成空目录 |
 | 侧边栏菜单（每一项：标题键、页面路由、图标、所需功能码；以及"已做出来的页面"与每页准入判据） | 各产品 `hooks.py` 里的 `pearnly_navigation` | `pearnly_core/desk/navigation.py` 用 `frappe.get_hooks` 取**已装产品**的声明；站点只装一个产品，就只声明得到那一个 |
+| 左下角用户菜单里属于产品的项（例如 ERP 的「团队管理」） | 同一个 `pearnly_navigation` 的 `user_menu`（写**路由**，词与图标仍从 `pages` 取，不复制一份） | 同上；判据与侧栏同一条（页面已实现 + 当前用户能进）。写进 `user_menu` 的页面**从侧栏移出去**——这个声明本身就是"这个入口放左下角那颗按钮里，不放侧栏" |
 | 术语表（唯一来源） | `apps/<app>/<app>/i18n/messages.tsv`（一条文案一行） | `scripts/i18n_glossary.py` 汇总给 `i18n-build.py` / `i18n-apply.py`，翻译包仍是生成物、仍要提交 |
 
 配套规矩：

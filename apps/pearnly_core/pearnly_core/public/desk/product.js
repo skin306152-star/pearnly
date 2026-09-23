@@ -395,6 +395,77 @@ frappe.provide("frappe.pearnly");
 		};
 	}
 
+	// ── 左下角那颗用户按钮：点开时**左侧那栏整个换成一份两项菜单** ───────────────
+	//
+	// 原生那颗按钮只有一件事：点了直接进个人信息（`sidebar.html` 里写死
+	// `onclick="return frappe.ui.toolbar.route_to_user()"`）。用户 2026-09-23 口径：
+	// "我点左下角，左侧菜单就只有个人信息和团队管理" —— 所以点开时把侧栏**条目区**
+	// 换成那两项，再点一次（或换路由）用原生 `make_sidebar()` 画回原来的菜单。
+	// 条目用框架自己的 `sidebar_item` 模板渲染，图标、hover、折叠态都跟侧栏一致。
+	//
+	// 项由各产品在 `pearnly_navigation` 的 `user_menu` 里声明，服务端按与侧栏同一套
+	// 判据（页面已实现 + 当前用户能进）筛过再进 boot（`desk/navigation.py`）；别人
+	// 的菜单里连这一项都没有。
+	p.user_menu = (sidebar = frappe.app?.sidebar) => {
+		const button = sidebar?.$sidebar?.find(".sidebar-user-button");
+		if (!sidebar || !button?.length || button.data("pearnlyMenu")) return;
+		// 原生那行 onclick 要摘掉：不然点一下既换菜单又跳走。
+		button.removeAttr("onclick").data("pearnlyMenu", true);
+		const entries = [
+			{ label: __("My Profile"), icon: "user",
+				go: () => frappe.ui.toolbar.route_to_user() },
+			...(frappe.boot.pearnly_user_menu || []).map(entry => ({
+				label: __(entry.label), icon: entry.icon || "users",
+				go: () => frappe.set_route(entry.route) })),
+		];
+		const cards = () => sidebar.$sidebar.find(".body-sidebar-cards");
+		let open = false;
+		// 收起 = 让原生重新画一遍菜单（我们不自己拼回原来的条目）。
+		const close = () => {
+			if (!open) return;
+			open = false;
+			cards().removeClass("hidden");
+			sidebar.make_sidebar();
+		};
+		button.on("click", (event) => {
+			event.preventDefault();
+			if (open) return close();
+			open = true;
+			cards().addClass("hidden");
+			sidebar.$items_container.empty().append(entries.map(entry =>
+				frappe.render_template("sidebar_item", {
+					item: {label: entry.label, icon: entry.icon, type: "Link", standard: 1},
+					path: "", edit_mode: false,
+				})));
+			sidebar.$items_container.find(".item-anchor").each((index, element) =>
+				$(element).on("click", (click) => {
+					click.preventDefault();
+					close();
+					entries[index].go();
+				}));
+		});
+		// 从别处换路由（点面包屑、手输地址）时也收起，别把两份菜单混在一起。
+		frappe.router.on("change", close);
+	};
+	// 挂在原生侧栏的 `make_sidebar()` 之后：那颗按钮和条目区都在同一张模板里，而
+	// `make_sidebar()` 开头会把条目区清空（挂早了会被清掉，实测）。`p.user_menu()`
+	// 自己是幂等的，侧栏每次重建都会重画，这里每次调用都安全。
+	const NativeSidebar = frappe.ui.Sidebar;
+	frappe.ui.Sidebar = class ProductSidebar extends NativeSidebar {
+		make_sidebar(...args) {
+			super.make_sidebar(...args);
+			p.user_menu(this);
+		}
+		// 产品站点只认自己那份侧栏：框架会按"这个页面属于哪个模块 / 哪个工作区"来换侧栏
+		// （我们的页面都挂在 `Pearnly Core` 模块下，`pearnly-team` 这种**被移出侧栏**的
+		// 页面就会中招 —— 2026-09-23 实测：点进去之后左侧换成一份二十来项的平铺原生清单，
+		// 上面还带着 `团队管理`，跟"菜单只放在侧栏里"正好相反）。所以在 `setup()` 这一层
+		// 把目标钉成我们这一份：模块/工作区侧栏留给没有外壳的裸 Desk。
+		setup(workspace_title) {
+			super.setup(frappe.boot?.pearnly_sidebar || workspace_title);
+		}
+	};
+
 	// ── 上传框只留「我的设备 / 摄像头」（用户 2026-09-23 口径）───────────────────
 	//
 	// 框架的上传器默认给四颗按钮：我的设备 / 库（本站已有的文件）/ 链接（外部网址）/

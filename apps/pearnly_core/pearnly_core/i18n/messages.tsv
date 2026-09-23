@@ -427,6 +427,7 @@ Master Data	主数据	ข้อมูลหลัก	マスタデータ	nav.mast
 Customers	客户管理	จัดการลูกค้า	顧客管理	nav.clients
 Company Profile	公司资料	ข้อมูลบริษัท	会社情報	nav.company
 Team	团队管理	ทีมงาน	チーム	nav.team
+My Profile	个人信息	ข้อมูลส่วนตัว	個人プロフィール
 Integrations	集成	การเชื่อมต่อ	連携	nav.integrations
 Guide	使用教程	คู่มือใช้งาน	使い方	nav.guide
 Products & Stock	物料与库存	สินค้าและสต็อก	商品と在庫	nav.erpStock

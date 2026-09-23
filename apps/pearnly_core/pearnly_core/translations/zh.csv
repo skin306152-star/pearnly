@@ -317,6 +317,7 @@ Master Data,主数据
 Match result must be unmatched / existing customer / new customer,匹配结果只能是 未匹配/已有客户/新建客户
 Max Retries,最多重试
 Missing code or state,缺少 code 或 state
+My Profile,个人信息
 Name,名称
 "Neither tier produced a result (network, key or model name could all be the cause)",两档都没读出结果（网络/密钥/模型名都可能）
 Net Amount,不含税金额
