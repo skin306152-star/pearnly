@@ -104,6 +104,8 @@
 					}
 				},
 				success: rows => t("trade.voidNotice", rows.length),
+				// 作废是"取消"类动作，官方放 `cancel`（不是"保存成功"那一声）。
+				sound: "cancel",
 			});
 			list = p.list({ page, doctype: "ERP Stock Entry", selectable: true, on_selection: selection,
 				on_open: row => editor(row.name),

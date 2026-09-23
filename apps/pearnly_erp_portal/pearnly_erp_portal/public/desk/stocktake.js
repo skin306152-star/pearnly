@@ -104,6 +104,8 @@
 					}
 				},
 				success: rows => t("stock.count.deleted", rows.length),
+				// 删除这一声和"保存成功"不同（官方批量删除也是 `delete` 那一声）。
+				sound: "delete",
 			});
 			list = p.list({ page, doctype: "ERP Stock Count", selectable: true, on_selection: selection,
 				compact_columns: true,

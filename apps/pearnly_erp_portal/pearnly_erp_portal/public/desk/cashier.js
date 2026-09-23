@@ -990,7 +990,8 @@
 		$app.on("click", ".past-order-summary .void-btn", async () => {
 			if (!active_order) return;
 			await p.call(api + "api_void_sale", { name: active_order.name }, "POST");
-			p.success(t("trade.voidNotice", 1));
+			// 作废 = 官方那套里的"取消"动作：`cancel` 那一声（`cancel` 也是框架取消文档成功的音）。
+			p.success(t("trade.voidNotice", 1), "cancel");
 			await refresh(); await load_orders(); await show_summary(active_order.name);
 		});
 		$app.on("click", ".past-order-summary .refund-btn", () => {

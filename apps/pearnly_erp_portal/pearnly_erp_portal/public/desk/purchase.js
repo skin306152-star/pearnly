@@ -21,8 +21,9 @@
 				if (selected.some(row => row.status !== "draft")) {page.clear_primary_action(); return;}
 				page.set_primary_action(`${__("Delete")} (${selected.length})`, () => frappe.confirm(__("Are you sure you want to delete?"), async () => {
 					await u.call("api_delete_purchase_drafts", {names: selected.map(row => row.name)}, true);
-					// 主按动作要有回音：提示 + 提示音。
-					p.success(__("Deleted {0}", [selected.length]));
+					// 主按动作要有回音：提示 + 提示音。删掉的和"保存成功"不是同一声 —— 官方
+					// 批量删除放的是 `delete`（框架 `bulk_operations.js` 也是按动作名给音）。
+					p.success(__("Deleted {0}", [selected.length]), "delete");
 					await refresh();
 				}));
 			};

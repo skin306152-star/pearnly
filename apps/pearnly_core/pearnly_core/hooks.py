@@ -294,6 +294,18 @@ doc_events = {
 boot_session = "pearnly_core.desk.navigation.extend_boot"
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css")]
 app_include_js = [versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js")]
+
+# 页面里的 `<audio id="sound-…">` 是 Desk 模板按**各 App 的 `sounds` 钩子**生成的
+# （`frappe/www/desk.html` 遍历 `hooks["sounds"]`），`frappe.utils.play_sound(name)` 取的就是
+# 这些节点里同名的那一个。frappe 自带七个（submit / error / cancel / delete / click / alert / email），
+# 官方 POS 收款小键盘那一声 `numpad-touch` 在 **erpnext** 的钩子里 —— 而租户站点不装 erpnext，
+# 于是 `play_sound("numpad-touch")` 取不到节点、异常被它自己的 try/catch 吞掉，**看着像没音效**
+# （2026-09-23 在实验室站点实测：页面里只有 frappe 那七个）。
+# 这里把我们要用的那一条按官方同样的文件与音量补上：文件在 bench 里本来就有（`/assets` 是 bench 级），
+# 装了 erpnext 的站点会多一个同名节点（框架不去重，取到的仍是第一个、也就是 erpnext 那条），行为不变。
+sounds = [
+    {"name": "numpad-touch", "src": "/assets/erpnext/sounds/numpad-touch.mp3", "volume": 0.8},
+]
 after_migrate = [
     "pearnly_core.desk.navigation.ensure_navigation",
     "pearnly_core.desk.branding.ensure_site_favicon",

@@ -134,6 +134,8 @@
 					action: () => frappe.confirm(__("Are you sure you want to delete the attachment?"), async () => {
 						if (doc.name) await u.call("api_remove_purchase_attachment", {name: doc.name, file: row.file}, true);
 						else await frappe.call({method: "frappe.client.delete", args: {doctype: "File", name: row.file}, type: "POST"});
+						// 删掉的是附件，给的是官方那声 `delete`（不是"保存成功"那声）。
+						frappe.utils.play_sound("delete");
 						state.attachments = state.attachments.filter(item => item.file !== row.file);
 						await refresh_files();
 					})}],

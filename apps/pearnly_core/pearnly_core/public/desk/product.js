@@ -108,9 +108,12 @@ frappe.provide("frappe.pearnly");
 			return text.replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? ""));
 		};
 	};
-	p.success = (message) => {
+	// 成功回音。官方那一声是**按动作分**的：保存/提交 → `submit`，删除 → `delete`
+	// （框架自己的批量动作就是 `play_sound(action)`，`bulk_operations.js` 里 submit/cancel/delete 各一声），
+	// 所以第二个参数留给"这不是提交、是删除"这类场合；默认仍是 submit。
+	p.success = (message, sound = "submit") => {
 		frappe.show_alert({ message: p.escape(message), indicator: "green" });
-		frappe.utils.play_sound("submit");
+		frappe.utils.play_sound(sound);
 	};
 	p.dialog = (title, fields, label, action) => {
 		const d = new frappe.ui.Dialog({

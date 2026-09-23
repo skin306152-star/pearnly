@@ -287,10 +287,11 @@
 	// 返回的就是 `p.list({ on_selection })` 要的那个回调。
 	// `empty` 给"没选中时右上角本来就有主按钮"的页面用（商品页的"新建商品"、盘点页的"新建盘点"）：
 	// 不传就按惯例清掉那颗按钮。
+	// `sound` 只在**删除类**动作上传 `"delete"`（官方批量删除就是这一声）；其余默认 `submit`。
 	// 注意：确认文案那个参数收下来就改名成 confirm_text —— 架构检查拦的是裸的浏览器
 	// confirm 调用，参数也叫 confirm 的话会被它的正则误伤（连注释里的字面量都算）。
 	p.selection_action = ({ page, list, label, when, reason, confirm: confirm_text, run, success,
-		empty }) => {
+		empty, sound }) => {
 		const rows_now = () => (list()?.get_checked_items?.() || []);
 		const eligible = (row, rows) => (when ? Boolean(when(row, rows)) : true);
 		let busy = false, confirming = false;
@@ -309,7 +310,7 @@
 			busy = true; paint();
 			try {
 				await run(rows);
-				if (success) p.success(success(rows));
+				if (success) p.success(success(rows), sound);
 				list()?.clear_checked_items?.();
 				await list()?.reload?.();
 			} catch (error) {

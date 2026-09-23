@@ -24,6 +24,8 @@
 				refund: (doc, parent) => refund(doc, parent),
 				void: async (doc, parent) => {
 					await p.call(api + "api_void_sale", { name: doc.name }, "POST");
+					// 作废 = 官方那套里的"取消"动作，给的是 `cancel` 那一声（`form.js` 取消成功同音）。
+					frappe.utils.play_sound("cancel");
 					parent?.hide?.();
 					await list?.reload();
 				},
@@ -82,6 +84,8 @@
 				}
 			},
 			success: rows => t("trade.voidNotice", rows.length),
+			// 作废是"取消"类动作，官方放 `cancel`（不是"保存成功"那一声）。
+			sound: "cancel",
 		});
 		const search = page.add_field({ fieldname: "q", label: __("Search"), fieldtype: "Data",
 			change: () => void list?.reload() });
