@@ -301,6 +301,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/stocktake.js"),
     versioned_asset("pearnly_erp_portal", "desk/scan.js"),
     versioned_asset("pearnly_erp_portal", "desk/team.js"),
+    versioned_asset("pearnly_erp_portal", "desk/company.js"),
 ]
 
 app_include_css = [
@@ -332,7 +333,6 @@ pearnly_navigation = [{'product': 'erp',
             ('nav.posReceipts', 'pearnly-pos-receipts', 'receipt-text', 'cashier'),
             ('nav.posShifts', 'pearnly-pos-shifts', 'clipboard-list', 'cashier'),
             ('nav.erpClients', 'pearnly-clients', 'user', 'clients'),
-            ('nav.companyMaster', 'pearnly-company-master', 'users', None),
             ('nav.company', 'pearnly-company', 'contact', None),
             ('nav.team', 'pearnly-team', 'users-round', None),
             ('nav.integrations', 'pearnly-integrations', 'plug', None)],
@@ -350,7 +350,8 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-cashier',
                 'pearnly-pos-receipts',
                 'pearnly-pos-shifts',
-                'pearnly-team'],
+                'pearnly-team',
+                'pearnly-company'],
   'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
                   'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
                   'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
@@ -364,6 +365,9 @@ pearnly_navigation = [{'product': 'erp',
                   'pearnly-cashier': {'doctype': 'ERP Sale'},
                   'pearnly-pos-receipts': {'doctype': 'ERP Sale'},
                   'pearnly-pos-shifts': {'doctype': 'ERP Shift'},
+                  # 公司（本租户主体资料）：业务岗位都能读（开单要抬头与税号），
+                  # 只有产品管理员写得动；判据在服务端（`company.read` / `company.manage`）。
+                  'pearnly-company': {'doctype': 'ERP Company'},
                   # 员工账号与岗位：能管本产品员工的是产品管理员（ERP Admin）。
                   # 用角色判，不新增权限码 —— Frappe 的用户与权限体系就是判据。
                   'pearnly-team': {'any_role': ['ERP Admin']}},
@@ -387,9 +391,12 @@ pearnly_navigation = [{'product': 'erp',
                'pearnly-clients']),
              ('nav.group.master',
               'building-2',
-              ['pearnly-company-master', 'pearnly-company', 'pearnly-integrations'])],
+              ['pearnly-integrations'])],
   # 左下角那颗用户按钮里的项（用户 2026-09-23："我点左下角，左侧出现 1.个人信息
   # 2.团队管理"）。写的是**路由**，词与图标仍从上面的 pages 取，不在这儿再写一份；
   # 服务端按与侧栏同一套判据筛（页面已实现 + 当前用户能进），所以只有产品管理员
   # 的菜单里会出现「团队管理」。
-  'user_menu': ['pearnly-team']}]
+  # 公司带 `before_profile`：用户 2026-09-23 口径"公司……做在个人信息上方"，
+  # 所以它排在「个人信息」上面，团队管理仍排在下面。
+  'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
+                'pearnly-team']}]

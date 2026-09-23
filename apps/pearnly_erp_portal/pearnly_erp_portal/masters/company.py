@@ -1,7 +1,11 @@
-"""公司主档与公司资料。
+"""公司：本租户自己的主体资料（抬头、税号、分支、联系方式、地址）。
 
-同一张表两种用法：列表页看登记过哪些公司（公司主档），资料页看默认公司那条的详细资料
-（公司资料）。默认公司不存在时自动建一条，否则新租户一来就先看到空页面。
+用户 2026-09-23 口径："不要公司资料公司主档，就一个公司就好了，包含全部" ——
+界面上只有**一屏**（`/desk/pearnly-company`），看的就是默认公司那一条。
+默认公司不存在时自动建一条，否则新租户一来就先看到空页面。
+
+列表与新建仍留在服务端（一个法人主体确实可能登记多条，实验室脚本也按这套走），
+只是界面不再分「公司资料 / 公司主档」两页。
 """
 
 import frappe
@@ -62,10 +66,20 @@ def create_company(*, company_name, **fields) -> dict:
 
 
 def get_profile(name=None) -> dict:
-    """公司资料：不带名字就是默认公司。"""
+    """公司资料：不带名字就是默认公司。
+
+    多回两个判据给页面用，前端不再复刻一份角色清单：
+
+    · `can_write`：能不能改这张资料（服务端 `company.manage`）；
+    · `can_lookup`：能不能按税号查泰国税务局（服务端 `tax.lookup`，与供应商/
+      客户两页同一个能力码）—— 没这个能力的岗位那边不出现那颗按钮。
+    """
     guard.require("company.read")
     doc = _get(name or ensure_default())
-    return {field: doc.get(field) for field in LIST_FIELDS}
+    payload = {field: doc.get(field) for field in LIST_FIELDS}
+    payload["can_write"] = guard.has("company.manage")
+    payload["can_lookup"] = guard.has("tax.lookup")
+    return payload
 
 
 def update_company(name, **fields) -> dict:

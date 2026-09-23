@@ -58,6 +58,11 @@ frappe.ui.form.on("User", {
         // 邮箱再钉一遍（框架原生允许改自己的邮箱），以及保证"改密码"这条路在**两种
         // 站点上都走得通** —— 云站点走身份服务，本地站点点本站那个改密页。
         frm.set_df_property("email", "read_only", 1);
+        // 静音开关是真的（框架的 `frappe.utils.play_sound` 见到 `frappe.boot.user.mute_sounds`
+        // 就直接不播；我们自己的提示音也都走它）。但那个值**只在整页加载时取一次** ——
+        // 勾上并保存之后当前这一页照响，要刷新才静音，看着就像开关是假的（2026-09-23 实测）。
+        // 这里在每次表单刷新（含保存之后那一次）回写一次，勾上立刻生效。
+        frappe.boot.user.mute_sounds = frm.doc.mute_sounds ? 1 : 0;
         frm.$wrapper.addClass("pearnly-account-profile");
         frm.page.clear_menu();
         frm.page.sidebar.hide();

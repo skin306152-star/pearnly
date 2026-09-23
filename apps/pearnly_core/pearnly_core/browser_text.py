@@ -55,6 +55,8 @@ APP_BY_PREFIX = {
     "client.": "pearnly_erp_portal",
     # 团队（员工账号与岗位）是 ERP 的功能，页面渲染也在 ERP。
     "team.": "pearnly_erp_portal",
+    # 公司（本租户的主体资料：抬头/税号/地址那几栏）也是 ERP 的，页面渲染在 ERP。
+    "company.": "pearnly_erp_portal",
     "connect.": "pearnly_core",
     "account.": "pearnly_core",
     "shell.": "pearnly_core",

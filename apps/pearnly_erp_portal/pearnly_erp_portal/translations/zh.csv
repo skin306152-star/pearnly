@@ -1,3 +1,5 @@
+1 = January,1 = 一月
+13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
 A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须指向它建出的采购记录
 A stored source file must carry its hash,留底文件必须带内容指纹
@@ -15,6 +17,7 @@ Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional Information,附加信息
 Address,地址
+Address and notes,地址与备注
 Against Payment,关联付款
 All,全部
 All Items,所有物料
@@ -112,11 +115,15 @@ Collection Remarks,收款备注
 Collection Status,收款状态
 Columns,列
 Company,公司
+Company details,公司信息
+Company name,公司名称
 Complete Order,完成订单
 Complete Payment,收款完成
 Completed,已完成
 Confirm,确认
 Confirm the document before recording a payment,记录付款前请先提交单据
+Contact email,联系邮箱
+Contact person,联系人
 Continuous counting,连续盘点
 Correct entry,修改记录
 Could not store this document,单据留底失败，请重发
@@ -174,6 +181,8 @@ Document has already been cancelled,单据已取消
 Document has already been submitted,单据已提交
 Document has been cancelled,文档已取消
 Document must be submitted,请先提交单据
+Document prefix,单据前缀
+Documents,单据
 Download template,下载模板
 Draft,草稿
 Draft not found,找不到这条草稿
@@ -222,6 +231,7 @@ Find,查询
 Find product,查找物料
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,确定结束并将确认的差异写入库存？已盘点 {0} 项，未盘点 {1} 项保持不变。结束后任务只可查看和导出。
+Fiscal year start month,财年起月
 Foreigner,外国人
 Found: {0},已查到：{0}
 From Date,开始日期
@@ -341,6 +351,7 @@ Only low or out of stock,只看低库存或缺货
 Only purchase documents can be sent in for now,目前只收采购单据
 Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
 Only the checked features are visible to this user,只勾选的功能，这个用户才看得到
+Only the product admin can change this,只有产品管理员能改，这里是只读
 Open Shift,开班
 Open that product,去改那一条
 Opened At,开班时间
@@ -491,6 +502,7 @@ Shift {0} opened,已开班 · 班次 {0}
 Shift {0} · Expected cash {1},班次 {0} · 应有现金 {1}
 Shift {0} · opened {1} · expected cash {2},班次 {0} · 开班 {1} · 应有现金 {2}
 Short by {0},短钱 {0}
+Short name,简称
 Show disabled,显示已停用
 Show only,只看
 Show zero stock,显示零库存
@@ -513,6 +525,7 @@ Stock count template,盘点表模版
 Stock count workbench,盘点工作台
 Stock is counted in this unit; leave it empty to use the selling unit,库存按这个单位记数；留空就跟售卖单位一样
 Stock ledger,查看流水
+Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
 Subcategory,子分类
 Submit,提交
 Submit and Receive Stock,提交并入库
@@ -548,8 +561,10 @@ That file could not be read; please use the template,这个文件读不了，请
 That file has no rows,这个文件没有数据行
 That file is not an Excel workbook,这不是 Excel 工作簿
 The Revenue Department replied in an unreadable format,税务局的回复格式看不懂
+The account you give customers for transfers,收款时给对方看的账号
 The amount received is less than the total,实收不够应收
 The cart is empty,购物车是空的
+The company on your documents,单据上用的本公司资料
 The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
 The password must be at least {0} characters,密码至少 {0} 位
 The payment is more than the net payable,付款金额超过应付金额
@@ -674,6 +689,39 @@ client.party.person,个人
 client.save,保存
 client.title,客户
 company,公司
+company.docPrefixHint,先存着：单号仍按编号定义自动发
+company.field.address,地址
+company.field.branch,分支
+company.field.contactEmail,联系邮箱
+company.field.contactPerson,联系人
+company.field.docPrefix,单据前缀
+company.field.fiscalYearStart,财年起月
+company.field.name,公司名称
+company.field.note,备注
+company.field.phone,电话
+company.field.promptpay,PromptPay 收款
+company.field.shortName,简称
+company.field.taxId,税号
+company.fiscalHint,1 = 一月
+company.lookup.action,查询
+company.lookup.failed,查询失败，请手工填写
+company.lookup.found,已查到：{0}
+company.lookup.invalid_format,税号必须是 13 位数字
+company.lookup.needTaxId,请先填税号
+company.lookup.not_found,税务局没有这家登记
+company.lookup.not_vat_registered,税号存在，但没有 VAT 登记
+company.lookup.parse_error,税务局的回复格式看不懂
+company.lookup.querying,正在向税务局查询…
+company.lookup.rd_unreachable,现在连不上税务局
+company.notice.saved,已保存
+company.promptpayHint,收款时给对方看的账号
+company.readOnly,只有产品管理员能改，这里是只读
+company.save,保存
+company.section.address,地址与备注
+company.section.basic,公司信息
+company.section.documents,单据
+company.subtitle,单据上用的本公司资料
+company.taxHint,税号 13 位；有分店再带 5 位分店编号
 completed,已完成
 count,盘点
 draft,草稿

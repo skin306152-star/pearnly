@@ -85,6 +85,7 @@ Close,Close
 Collaboration Boards (WeKan),Collaboration Boards (WeKan)
 Collapse,Collapse
 Companion,Companion
+Company,Company
 Company Master,Company Master
 Company Profile,Company Profile
 Company Tax ID,Company Tax ID
@@ -892,7 +893,7 @@ intake.subtitle,Review and confirm documents before sending.
 intake.title,Intake Workbench
 nav.cashier,POS
 nav.clients,Customers
-nav.company,Company Profile
+nav.company,Company
 nav.companyMaster,Company Master
 nav.connect,Connect DMS
 nav.cowork,Pearnly Cowork

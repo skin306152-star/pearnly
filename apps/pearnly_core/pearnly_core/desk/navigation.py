@@ -65,6 +65,24 @@ def visible_pages(product):
             and _can_open_page(product, route)]
 
 
+def _user_menu_specs(product) -> list:
+    """产品声明的那几项左下角菜单，按声明顺序。
+
+    一项可以写成路由字符串，也可以写成 `{"route": ..., "before_profile": True}`；
+    后者排在**「个人信息」上面**（用户 2026-09-23："公司……做在个人信息上方"），
+    不带这个记号的一律排在「个人信息」下面。位置是产品自己的声明，外壳只照着画。
+    """
+    declared = (_declarations().get(product) or {}).get("user_menu") or []
+    specs = []
+    for item in declared:
+        spec = item if isinstance(item, dict) else {"route": item}
+        route = str(spec.get("route") or "").strip()
+        if route:
+            specs.append({"route": route,
+                          "before_profile": bool(spec.get("before_profile"))})
+    return specs
+
+
 def _user_menu_routes(product) -> set:
     """只在**左下角用户菜单**里出现的路由。
 
@@ -72,7 +90,7 @@ def _user_menu_routes(product) -> set:
     左下角那颗按钮里"（用户 2026-09-23："不要主数据，把团队管理放在左下角里面"）。
     页面本身仍然可按路由打开，`boot.pearnly_pages`（也能打开）不受影响。
     """
-    return {str(route) for route in ((_declarations().get(product) or {}).get("user_menu") or [])}
+    return {spec["route"] for spec in _user_menu_specs(product)}
 
 
 def sidebar_pages(product):
@@ -88,14 +106,15 @@ def user_menu(product):
     判据与侧栏完全一致（`visible_pages`：页面已实现 + 当前用户能进），所以"只有产品
     管理员能进"的页面只会出现在管理员的菜单里，别人连项都看不到。
     """
-    declared = (_declarations().get(product) or {}).get("user_menu") or []
     entries = {route: (label, icon) for label, route, icon, _feature in pages(product)}
     offered = set(visible_pages(product))
     entries_out = []
-    for route in declared:
+    for spec in _user_menu_specs(product):
+        route = spec["route"]
         if route in offered and route in entries:
             label, icon = entries[route]
-            entries_out.append({"route": route, "label": label, "icon": icon or ""})
+            entries_out.append({"route": route, "label": label, "icon": icon or "",
+                                "before_profile": spec["before_profile"]})
     return entries_out
 
 

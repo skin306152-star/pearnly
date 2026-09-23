@@ -1,3 +1,5 @@
+1 = January,1 = January
+13 digits; a branch adds its 5-digit branch number,13 digits; a branch adds its 5-digit branch number
 A confirmed document cannot be edited,A confirmed document cannot be edited
 A confirmed draft must point at the purchase record it created,A confirmed draft must point at the purchase record it created
 A stored source file must carry its hash,A stored source file must carry its hash
@@ -15,6 +17,7 @@ Added {0},Added {0}
 Added: {0},Added: {0}
 Additional Information,Additional Information
 Address,Address
+Address and notes,Address and notes
 Against Payment,Against Payment
 All,All
 All Items,All Items
@@ -112,11 +115,15 @@ Collection Remarks,Collection Remarks
 Collection Status,Collection Status
 Columns,Columns
 Company,Company
+Company details,Company details
+Company name,Company name
 Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
 Confirm,Confirm
 Confirm the document before recording a payment,Confirm the document before recording a payment
+Contact email,Contact email
+Contact person,Contact person
 Continuous counting,Continuous counting
 Correct entry,Correct entry
 Could not store this document,Could not store this document
@@ -174,6 +181,8 @@ Document has already been cancelled,Document has already been cancelled
 Document has already been submitted,Document has already been submitted
 Document has been cancelled,Document has been cancelled
 Document must be submitted,Document must be submitted
+Document prefix,Document prefix
+Documents,Documents
 Download template,Download template
 Draft,Draft
 Draft not found,Draft not found
@@ -222,6 +231,7 @@ Find,Find
 Find product,Find product
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
+Fiscal year start month,Fiscal year start month
 Foreigner,Foreigner
 Found: {0},Found: {0}
 From Date,From Date
@@ -341,6 +351,7 @@ Only low or out of stock,Only low or out of stock
 Only purchase documents can be sent in for now,Only purchase documents can be sent in for now
 Only the checked features are visible to this employee,Only the checked features are visible to this employee
 Only the checked features are visible to this user,Only the checked features are visible to this user
+Only the product admin can change this,Only the product admin can change this
 Open Shift,Open Shift
 Open that product,Open that product
 Opened At,Opened At
@@ -491,6 +502,7 @@ Shift {0} opened,Shift {0} opened
 Shift {0} · Expected cash {1},Shift {0} · Expected cash {1}
 Shift {0} · opened {1} · expected cash {2},Shift {0} · opened {1} · expected cash {2}
 Short by {0},Short by {0}
+Short name,Short name
 Show disabled,Show disabled
 Show only,Show only
 Show zero stock,Show zero stock
@@ -513,6 +525,7 @@ Stock count template,Stock count template
 Stock count workbench,Stock count workbench
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
 Stock ledger,Stock ledger
+Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
 Subcategory,Subcategory
 Submit,Submit
 Submit and Receive Stock,Submit and Receive Stock
@@ -548,8 +561,10 @@ That file could not be read; please use the template,That file could not be read
 That file has no rows,That file has no rows
 That file is not an Excel workbook,That file is not an Excel workbook
 The Revenue Department replied in an unreadable format,The Revenue Department replied in an unreadable format
+The account you give customers for transfers,The account you give customers for transfers
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
+The company on your documents,The company on your documents
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The password must be at least {0} characters,The password must be at least {0} characters
 The payment is more than the net payable,The payment is more than the net payable
@@ -674,6 +689,39 @@ client.party.person,Person
 client.save,Save
 client.title,Customers
 company,company
+company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
+company.field.address,Address
+company.field.branch,Branch
+company.field.contactEmail,Contact email
+company.field.contactPerson,Contact person
+company.field.docPrefix,Document prefix
+company.field.fiscalYearStart,Fiscal year start month
+company.field.name,Company name
+company.field.note,Note
+company.field.phone,Phone
+company.field.promptpay,PromptPay
+company.field.shortName,Short name
+company.field.taxId,Tax ID
+company.fiscalHint,1 = January
+company.lookup.action,Query
+company.lookup.failed,"Lookup failed, please fill in manually"
+company.lookup.found,Found: {0}
+company.lookup.invalid_format,Tax ID must be 13 digits
+company.lookup.needTaxId,Enter a tax ID first
+company.lookup.not_found,Not found in the Revenue Department records
+company.lookup.not_vat_registered,Tax ID exists but is not VAT registered
+company.lookup.parse_error,The Revenue Department replied in an unreadable format
+company.lookup.querying,Querying the Revenue Department...
+company.lookup.rd_unreachable,Cannot reach the Revenue Department right now
+company.notice.saved,Saved
+company.promptpayHint,The account you give customers for transfers
+company.readOnly,Only the product admin can change this
+company.save,Save
+company.section.address,Address and notes
+company.section.basic,Company details
+company.section.documents,Documents
+company.subtitle,The company on your documents
+company.taxHint,13 digits; a branch adds its 5-digit branch number
 completed,completed
 count,count
 draft,draft

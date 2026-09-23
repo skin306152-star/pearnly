@@ -409,12 +409,17 @@ frappe.provide("frappe.pearnly");
 	p.user_menu = (sidebar = frappe.app?.sidebar) => {
 		const button = sidebar?.$sidebar?.find(".sidebar-user-button");
 		if (!sidebar || !button?.length) return;
+		// 产品声明的那几项按声明顺序插在「个人信息」周围：带 `before_profile` 的在它**上面**
+		// （ERP 的公司），其余的（团队管理）在它下面。用户 2026-09-23："公司……做在个人信息上方"。
+		const declared = frappe.boot.pearnly_user_menu || [];
+		const elsewhere = entry => ({ label: __(entry.label), icon: entry.icon || "users",
+			route: entry.route, go: () => frappe.set_route(entry.route) });
+		const profile = { label: __("My Profile"), icon: "user",
+			go: () => frappe.ui.toolbar.route_to_user() };
 		const entries = [
-			{ label: __("My Profile"), icon: "user",
-				go: () => frappe.ui.toolbar.route_to_user() },
-			...(frappe.boot.pearnly_user_menu || []).map(entry => ({
-				label: __(entry.label), icon: entry.icon || "users",
-				route: entry.route, go: () => frappe.set_route(entry.route) })),
+			...declared.filter(entry => entry.before_profile).map(elsewhere),
+			profile,
+			...declared.filter(entry => !entry.before_profile).map(elsewhere),
 		];
 		// 「个人信息 / 团队管理」这两个地方算一个**账号区**：停在里面时左侧就保持这两项，
 		// 回到业务页面（首页、销售记录…）才画回业务菜单。用户 2026-09-23 口径："点了
@@ -431,11 +436,21 @@ frappe.provide("frappe.pearnly");
 		// 每次都重绑一次点击 —— 侧栏重画会把节点换掉。
 		const paint_account = () => {
 			state.open = true;
-			sidebar.$items_container.empty().append(entries.map(entry =>
-				frappe.render_template("sidebar_item", {
+			// 当前停在哪一项就给它原生的选中底色（`.active-sidebar`，业务侧栏那套同一个
+			// 类与样式）—— 少这个的话点进来两项长得一样，看不出自己在哪。
+			const route = frappe.get_route() || [];
+			const on_profile = route[0] === "Form" && route[1] === "User"
+				&& route[2] === frappe.session.user;
+			sidebar.$items_container.empty().append(entries.map(entry => {
+				const item = $(frappe.render_template("sidebar_item", {
 					item: {label: entry.label, icon: entry.icon, type: "Link", standard: 1},
 					path: "", edit_mode: false,
-				})));
+				}));
+				if (entry.route ? route[0] === entry.route : on_profile) {
+					item.find(".standard-sidebar-item").addClass("active-sidebar");
+				}
+				return item;
+			}));
 			sidebar.$items_container.find(".item-anchor").each((index, element) =>
 				$(element).on("click", (event) => {
 					event.preventDefault();
@@ -457,7 +472,7 @@ frappe.provide("frappe.pearnly");
 				event.preventDefault();
 				if (state.open) return show_business();
 				// 点开时右侧默认落在「个人信息」；已经在账号区里（例如团队管理）就只换菜单。
-				if (!in_account()) entries[0].go();
+				if (!in_account()) profile.go();
 				paint_account();
 			});
 		}

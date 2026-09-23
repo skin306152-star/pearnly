@@ -1,3 +1,5 @@
+1 = January,1 = 1月
+13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
 A confirmed document cannot be edited,確定済みの伝票は編集できません
 A confirmed draft must point at the purchase record it created,確認済みの下書きは作成した仕入記録を指している必要があります
 A stored source file must carry its hash,保存したファイルにはハッシュが必要です
@@ -15,6 +17,7 @@ Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional Information,追加情報
 Address,住所
+Address and notes,住所と備考
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
@@ -112,11 +115,15 @@ Collection Remarks,入金備考
 Collection Status,入金状況
 Columns,列
 Company,会社
+Company details,会社情報
+Company name,会社名
 Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
 Confirm,確認
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
+Contact email,連絡先メール
+Contact person,担当者
 Continuous counting,連続棚卸
 Correct entry,記録を修正
 Could not store this document,書類を保存できませんでした。再送してください
@@ -174,6 +181,8 @@ Document has already been cancelled,伝票は取消済みです
 Document has already been submitted,伝票は提出済みです
 Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
+Document prefix,書類プレフィックス
+Documents,書類
 Download template,テンプレートをダウンロード
 Draft,下書き
 Draft not found,下書きが見つかりません
@@ -222,6 +231,7 @@ Find,検索
 Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
+Fiscal year start month,会計年度の開始月
 Foreigner,外国人
 Found: {0},取得: {0}
 From Date,開始日
@@ -341,6 +351,7 @@ Only low or out of stock,在庫少・在庫切れのみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
 Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
 Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
+Only the product admin can change this,変更できるのは製品管理者のみ（ここは読み取り専用）
 Open Shift,シフト開始
 Open that product,その商品を開く
 Opened At,開始時刻
@@ -491,6 +502,7 @@ Shift {0} opened,シフト {0} を開始しました
 Shift {0} · Expected cash {1},シフト {0} · 現金予定額 {1}
 Shift {0} · opened {1} · expected cash {2},シフト {0} · 開始 {1} · 現金予定額 {2}
 Short by {0},{0} 不足
+Short name,略称
 Show disabled,無効も表示
 Show only,表示のみ
 Show zero stock,在庫 0 も表示
@@ -513,6 +525,7 @@ Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
 Stock ledger,在庫の受け払いを開く
+Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
 Subcategory,サブカテゴリ
 Submit,提出
 Submit and Receive Stock,確定して入庫
@@ -548,8 +561,10 @@ That file could not be read; please use the template,このファイルは読み
 That file has no rows,このファイルには行がありません
 That file is not an Excel workbook,Excel ブックではありません
 The Revenue Department replied in an unreadable format,税務局の応答形式を解釈できません
+The account you give customers for transfers,入金時に相手へ伝える口座
 The amount received is less than the total,受取額が合計に足りません
 The cart is empty,カートは空です
+The company on your documents,書類に使う自社情報
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
 The payment is more than the net payable,支払金額が支払残高を超えています
@@ -674,6 +689,39 @@ client.party.person,個人
 client.save,保存
 client.title,顧客
 company,会社
+company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
+company.field.address,住所
+company.field.branch,支店
+company.field.contactEmail,連絡先メール
+company.field.contactPerson,担当者
+company.field.docPrefix,書類プレフィックス
+company.field.fiscalYearStart,会計年度の開始月
+company.field.name,会社名
+company.field.note,備考
+company.field.phone,電話
+company.field.promptpay,PromptPay 受け取り
+company.field.shortName,略称
+company.field.taxId,納税者番号
+company.fiscalHint,1 = 1月
+company.lookup.action,照会
+company.lookup.failed,照会に失敗しました。手入力してください
+company.lookup.found,取得: {0}
+company.lookup.invalid_format,納税者番号は13桁です
+company.lookup.needTaxId,先に納税者番号を入力してください
+company.lookup.not_found,税務局に登録がありません
+company.lookup.not_vat_registered,番号は存在しますがVAT登録がありません
+company.lookup.parse_error,税務局の応答形式を解釈できません
+company.lookup.querying,税務局に照会中…
+company.lookup.rd_unreachable,現在、税務局に接続できません
+company.notice.saved,保存しました
+company.promptpayHint,入金時に相手へ伝える口座
+company.readOnly,変更できるのは製品管理者のみ（ここは読み取り専用）
+company.save,保存
+company.section.address,住所と備考
+company.section.basic,会社情報
+company.section.documents,書類
+company.subtitle,書類に使う自社情報
+company.taxHint,13桁。支店は5桁の支店番号を続けます
 completed,完了
 count,棚卸
 draft,下書き

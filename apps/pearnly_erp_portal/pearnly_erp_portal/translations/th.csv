@@ -1,3 +1,5 @@
+1 = January,1 = มกราคม
+13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 A confirmed document cannot be edited,เอกสารที่ยืนยันแล้วแก้ไขไม่ได้
 A confirmed draft must point at the purchase record it created,รายการที่ยืนยันแล้วต้องอ้างถึงเอกสารจัดซื้อที่สร้างขึ้น
 A stored source file must carry its hash,ไฟล์ที่เก็บต้องมีค่าแฮช
@@ -15,6 +17,7 @@ Added {0},เพิ่มแล้ว {0}
 Added: {0},เพิ่มแล้ว: {0}
 Additional Information,ข้อมูลเพิ่มเติม
 Address,ที่อยู่
+Address and notes,ที่อยู่และหมายเหตุ
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,รายการทั้งหมด
@@ -112,11 +115,15 @@ Collection Remarks,หมายเหตุการรับเงิน
 Collection Status,สถานะการรับเงิน
 Columns,คอลัมน์
 Company,บริษัท
+Company details,ข้อมูลบริษัท
+Company name,ชื่อบริษัท
 Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
 Confirm,ยืนยัน
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
+Contact email,อีเมลติดต่อ
+Contact person,ผู้ติดต่อ
 Continuous counting,ตรวจนับต่อเนื่อง
 Correct entry,แก้ไขรายการ
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
@@ -174,6 +181,8 @@ Document has already been cancelled,เอกสารถูกยกเลิ�
 Document has already been submitted,ส่งเอกสารแล้ว
 Document has been cancelled,เอกสารถูกยกเลิกแล้ว
 Document must be submitted,กรุณาส่งเอกสารก่อน
+Document prefix,คำนำหน้าเอกสาร
+Documents,เอกสาร
 Download template,ดาวน์โหลดแบบฟอร์ม
 Draft,ร่าง
 Draft not found,ไม่พบรายการร่าง
@@ -222,6 +231,7 @@ Find,ค้นหา
 Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
+Fiscal year start month,เดือนเริ่มปีบัญชี
 Foreigner,ชาวต่างชาติ
 Found: {0},พบ: {0}
 From Date,จากวันที่
@@ -341,6 +351,7 @@ Only low or out of stock,เฉพาะใกล้หมดหรือหม�
 Only purchase documents can be sent in for now,ตอนนี้รับเฉพาะเอกสารจัดซื้อ
 Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the checked features are visible to this user,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
+Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว
 Open Shift,เปิดกะ
 Open that product,ไปแก้รายการนั้น
 Opened At,เวลาเปิดกะ
@@ -491,6 +502,7 @@ Shift {0} opened,เปิดกะแล้ว · กะ {0}
 Shift {0} · Expected cash {1},กะ {0} · เงินสดที่ควรมี {1}
 Shift {0} · opened {1} · expected cash {2},กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}
 Short by {0},ขาดไป {0}
+Short name,ชื่อย่อ
 Show disabled,แสดงที่ปิดใช้งาน
 Show only,แสดงเฉพาะ
 Show zero stock,แสดงของที่ไม่มีสต็อก
@@ -513,6 +525,7 @@ Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
 Stock is counted in this unit; leave it empty to use the selling unit,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
 Stock ledger,ดูบัญชีสต็อก
+Stored here for now; document numbers still come from the numbering rules,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 Subcategory,หมวดหมู่ย่อย
 Submit,ส่ง
 Submit and Receive Stock,ยืนยันและรับเข้าสต็อก
@@ -548,8 +561,10 @@ That file could not be read; please use the template,อ่านไฟล์น
 That file has no rows,ไฟล์นี้ไม่มีข้อมูล
 That file is not an Excel workbook,ไฟล์นี้ไม่ใช่ Excel
 The Revenue Department replied in an unreadable format,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
+The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The cart is empty,ตะกร้าว่างเปล่า
+The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
@@ -674,6 +689,39 @@ client.party.person,บุคคล
 client.save,บันทึก
 client.title,ลูกค้า
 company,บริษัท
+company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
+company.field.address,ที่อยู่
+company.field.branch,สาขา
+company.field.contactEmail,อีเมลติดต่อ
+company.field.contactPerson,ผู้ติดต่อ
+company.field.docPrefix,คำนำหน้าเอกสาร
+company.field.fiscalYearStart,เดือนเริ่มปีบัญชี
+company.field.name,ชื่อบริษัท
+company.field.note,หมายเหตุ
+company.field.phone,โทรศัพท์
+company.field.promptpay,พร้อมเพย์รับเงิน
+company.field.shortName,ชื่อย่อ
+company.field.taxId,เลขประจำตัวผู้เสียภาษี
+company.fiscalHint,1 = มกราคม
+company.lookup.action,ค้นหา
+company.lookup.failed,ค้นหาไม่สำเร็จ กรุณากรอกเอง
+company.lookup.found,พบ: {0}
+company.lookup.invalid_format,เลขประจำตัวผู้เสียภาษีต้องมี 13 หลัก
+company.lookup.needTaxId,กรุณากรอกเลขประจำตัวผู้เสียภาษีก่อน
+company.lookup.not_found,ไม่พบข้อมูลในกรมสรรพากร
+company.lookup.not_vat_registered,มีเลขนี้แต่ไม่ได้จดทะเบียน VAT
+company.lookup.parse_error,รูปแบบข้อมูลจากกรมสรรพากรอ่านไม่ได้
+company.lookup.querying,กำลังค้นหาจากกรมสรรพากร…
+company.lookup.rd_unreachable,เชื่อมต่อกรมสรรพากรไม่ได้ในขณะนี้
+company.notice.saved,บันทึกแล้ว
+company.promptpayHint,บัญชีที่ให้ลูกค้าโอนเข้า
+company.readOnly,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว
+company.save,บันทึก
+company.section.address,ที่อยู่และหมายเหตุ
+company.section.basic,ข้อมูลบริษัท
+company.section.documents,เอกสาร
+company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
+company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 completed,เสร็จสิ้น
 count,ตรวจนับ
 draft,ฉบับร่าง
