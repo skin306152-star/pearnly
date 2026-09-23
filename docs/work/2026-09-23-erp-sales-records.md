@@ -1797,3 +1797,85 @@ color: var(--neutral)`（空车回到 `--control-bg`），点击处理先查内�
 **没验到的**：真在 LINE 里点 `อัปเดตข้อมูล` 落库（本机没有装了 `pearnly_dms` 的站点、也没有 LINE 会话）；
 他们环境端点凭据的实际状态（要看 DMS 站的库，需要那边的管理员权限）。
 **建议他们做的**：配一次连接或把角色改成 admin；若配完仍没有按钮，把端点名 + 那个 LINE 用户给我。
+
+### F40：生产日志定位那两个问题（2026-09-23，只读诊断，未改代码）
+
+**先找到"生产"在哪**：旧 alias `pearnly` / `pearnly-prod`（66.42.49.213）指向**退役机器**，装到一半会报
+host key 变了 —— 按 `docs/production/01-foundation-20260919.md` 与实际目标配置，现在的生产是
+**SSD Nodes 107.155.65.74**（主机名 `pearnly`），SSH 用 `/Users/skin/.config/pearnly-production/operator`。
+旧 Contabo `194.233.74.40` 已 `suspended`（不可达）。
+
+生产上 DMS 产品组 7 个容器在跑（web / worker / socketio / scheduler / ocr-worker / ocr-dispatch / frontend），
+两个站：`testdms.pearnly.com`、`ris.pearnly.com`。
+
+**日志在哪（这一点和预期不同）**：站点目录 `sites/<site>/logs/` 只有 cssutils / database / frappe /
+render-template，业务报错**不在那儿**；`tabError Log` 全站只有 1 条（09-21 建联系人）。
+真正能查的是**容器 stdout**：`docker logs -t pearnly-production-dms-{web,worker}-1`。
+
+**① 图一那句"服务器内部错误"（发完身份证、打完电话那一步）—— 真因是 DMS 站点打不开（超时）**
+
+日志逐层（`docker logs -t pearnly-production-dms-worker-1`）：
+
+```
+08:45:19  job dms-dedup-9747aa1b  target=pearnly_dms.intake.flow.run_dedup   (site=testdms)
+08:45:53  DMS 操作意外失败   Traceback (most recent call last):
+   intake/service.py:100            run_logged_in → with authoritative_read_session(client)
+   adapter/admin_read.py:118/99/77  authoritative_read_session → authoritative_read_client → _admin_transport_of
+   client/gateway.py:53             _resolve_admin_transport
+   adapter/session.py:401/392       admin_transport → ensure_admin_session → _perform_login(admin_page, admin_user, admin_pw)
+   adapter/session.py:317           page.goto(login_url, wait_until="load", timeout=DEFAULT_PAGE_TIMEOUT_MS)
+   playwright._impl._errors.TimeoutError: Page.goto: Timeout 15000ms exceeded.
+     navigating to "https://www.mrerp4sme.com/dms/index.php", waiting until "load"
+```
+
+- **时间点与截图完全对上**：15:45:19 / 15:46:15（Bangkok，= 08:45/08:46 UTC）两次打电话，两次都是这个超时；
+  `tabPearnly LINE Session` 里那个 LINE 用户（`U26139c19…`，"Skin"）状态停在 `collecting`，
+  payload 里 `phone=1436789`、身份证正是截图那张（อักษราภัค อักษรวรนารถ）✓。
+- **量化（今天 00:00→09:00 UTC）**：worker 里 **17 次 Playwright 超时，17 次全是**打不开
+  `https://www.mrerp4sme.com/dms/index.php`；**17 条「DMS 操作意外失败」**，最近几次 08:49 / 08:53 / 08:57
+  —— **现在还在失败**，不是历史抖动。两个站都受影响（今天 testdms 4627 条 / ris 4768 条后台任务，共用同一个 DMS 主机）。
+- **为什么慢**：从生产机连测 5 次同一个登录页 —— **第 1 次 TLS 握手 24.3 秒**，后 4 次 0.2–0.6 秒（会话复用）。
+  Playwright 每次登录都是**新连接**，所以每次都撞上那次慢握手，而我们的预算只有 15 秒 → 必然超时。
+  （生产到该主机的 ping 只有 ~30ms，网络本身没问题。）
+- **用户为什么看到"服务器内部错误"**：这条异常在 `intake/service.py` 最外层被兜成
+  `ERR_UNEXPECTED` → 文案 `dms.err.ERR_UNEXPECTED` =「ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน…」，正是截图那句。
+  也就是说：**一个"连不上对方服务器"的超时，被当成"我们服务器内部错误"报给了客户。**
+- 修的方向（**未改，等点头**）：登录那一段的 `page.goto` 预算是 15 秒（`DEFAULT_PAGE_TIMEOUT_MS`），
+  要提到 ≥45 秒或对 `TimeoutError` 整体重试一次；**不能**把 `wait_until` 改成 `domcontentloaded` ——
+  `adapter/session.py` 的注释写明了 DMS 的 `index.js` 把登录按钮绑在 `window.load` 上，
+  页面没 load 完点登录是**静默无操作**（老产品 2026-05-31 的线上 bug）。另外建议把这类超时
+  单独映射成一个"对方 DMS 暂时连不上"的码与文案，别再报"我们内部错误"。
+
+**② 差异卡没有 `[อัปเดตข้อมูล]` 按钮（客户："改完更新不了"）—— 是移植时的一处漏，不是设计**
+
+生产事实：两站端点的 `admin_username` **都配着**（testdms = `dmstest`，ris = `dms001`），
+所以"没配管理员凭据"这条路不成立；`tabDMS ID Card Intake` 两站都是 **0 条**；
+`tabPearnly LINE Binding` 里是真实绑定（ris 有 `B.ISUZU?` 等，今天 13:20 绑的）。
+
+代码对照（新 vs 旧）：
+
+| | 旧产品（线上基准 501589f0） | 我们的移植 |
+| --- | --- | --- |
+| 判据签名 | `has_admin_creds(ep: dict)` —— 收**端点字典**，读 `ep["config"]` | `has_admin_creds(endpoint)` —— 只认**字符串端点名**或带 `.name` 的对象 |
+| 调用点 | `services/line_dms/customer_edit.py` 传字典 ✓ | `editor/customer_edit.py:188` **仍然传字典**（`resolve_dms_endpoint()` 的返回值）✗ |
+
+`resolve_dms_endpoint()` 返回的是 `{"id": "EP-000xx", "name": "EP-000xx", ...}`；`has_admin_creds` 里
+`str(getattr(endpoint, "name", "") or "")` 对**字典**取不到属性 → 空串 → `return False`。
+
+→ 结论：**在网页编辑器里改完保存，回来的那张差异卡永远不带更新按钮**，跟租户配得多全无关；
+`intake/flow.py:382` 那条路没事，因为它先把字典 `.get("name")` 归一成字符串了（`flow.py:329-331`）。
+这正好对上客户的报告口径："**หลังจากแก้ไขแล้ว**（改完之后）没有更新按钮"。
+
+最小复现（本机，纯 Python）：
+```python
+endpoint = {"id": "EP-00003", "name": "EP-00003"}
+name = endpoint if isinstance(endpoint, str) else str(getattr(endpoint, "name", "") or "")
+# → name == ''  → has_admin_creds 直接 return False
+```
+
+修的方向（**未改，等点头**）：让 `has_admin_creds` 也认字典（`endpoint.get("name")`），
+或在 `customer_edit.save()` 里像 `flow.py` 那样先归一成端点名。两处都改更稳（同类调用不会被下一个窗口再踩）。
+
+**没验到的**：客户那张卡的具体推送内容（我们不记录 LINE 卡片正文，日志里搜不到那个号码与那句提示）；
+`ris` 的会话表为空（会话已过期/清掉），拿不到当时存下的 `has_admin` 值；
+他们视野里是否还有租户跑在**旧产品**（旧 Cloud Run 未切流，旧 Contabo 已停机）。
