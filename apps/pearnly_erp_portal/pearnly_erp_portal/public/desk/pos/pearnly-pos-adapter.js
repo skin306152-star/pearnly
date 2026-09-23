@@ -15,6 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
+window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -23,6 +24,8 @@ frappe.provide("frappe.pearnly.pos_next");
 	const O = (NS.PointOfSale = NS.PointOfSale || {});
 
 	// 官方代码里的子表名/父字段 → 我们的（`add_child(doc, "POS Invoice Item", "items")` 那一套）。
+	// 散客哨兵：只在"借过官方那道'必须先选客户'的闸"时用一下，提交前会被丢掉。
+	const WALK_IN = "__pearnly_walk_in__";
 	const CHILD_DOCTYPE = {
 		"POS Invoice Item": "ERP Sale Line",
 		"Sales Invoice Item": "ERP Sale Line",
@@ -34,6 +37,23 @@ frappe.provide("frappe.pearnly.pos_next");
 	function install_shims() {
 		if (frappe.model.pearnly_pos_shim) return;
 		frappe.model.pearnly_pos_shim = true;
+
+		seed_meta();
+
+		// 排查开关：`?pearnly_pos_debug=1` 时，把"客户端读了哪张 DocType 的元数据/记录"记在
+		// `window.__pos_dt_log` 里。上一轮就是因为读不出"哪一个 doctype 被权限挡下"卡住的。
+		if (String(window.location.search || "").includes("pearnly_pos_debug")) {
+			window.__pos_dt_log = [];
+			const note = (kind) => (dt) => window.__pos_dt_log.push(kind + ":" + dt);
+			const with_dt = frappe.model.with_doctype.bind(frappe.model);
+			frappe.model.with_doctype = function (dt, cb) { note("with_doctype")(dt); return with_dt(dt, cb); };
+			for (const fn of ["get_doc", "get_value", "get_single_value"]) {
+				if (!frappe.db[fn]) continue;
+				const orig = frappe.db[fn].bind(frappe.db);
+				frappe.db[fn] = function (dt, ...rest) { note("db." + fn)(dt); return orig(dt, ...rest); };
+			}
+		}
+
 		const add_child = frappe.model.add_child.bind(frappe.model);
 		frappe.model.add_child = (doc, doctype, parentfield, idx) =>
 			add_child(doc, CHILD_DOCTYPE[doctype] || doctype, PARENTFIELD[parentfield] || parentfield, idx);
@@ -69,6 +89,87 @@ frappe.provide("frappe.pearnly.pos_next");
 				() => deferred.reject());
 			return deferred.promise();
 		};
+	}
+
+	// ── 客户端元数据：**不申请权限**，自带一份字段定义给搬来的官方界面用 ────────────────
+	// 官方收银台要 `frappe.get_meta(子表).fields` 来画明细面板的输入框，而我们的 DocType 权限
+	// 只给了 System Manager（我们的页面平时**不读元数据**，所以以前没撞上）。这里按框架自己的
+	// 机制把一份"我们支持的字段"种进客户端缓存：`locals.DocType[...]` + `frappe.meta.sync()`，
+	// 于是 `with_doctype` 直接短路、不发那次会被挡下的请求，权限模型一个字没动。
+	// **要加字段就在这里加**（这也是"我们给收银台支持哪些字段"的唯一清单）。
+	function df(parent, fieldname, label, fieldtype, extra = {}) {
+		return Object.assign({ parent, fieldname, label, fieldtype }, extra);
+	}
+	function seed_meta() {
+		if (frappe.model.pearnly_meta_seeded) return;
+		frappe.model.pearnly_meta_seeded = true;
+
+		const line = "ERP Sale Line";
+		const payment = "ERP Sale Payment";
+		const sale = "ERP Sale";
+		const fields = {
+			[sale]: [
+				df(sale, "customer", "Customer", "Link", { options: "ERP Customer" }),
+				df(sale, "customer_name", "Customer Name", "Data"),
+				df(sale, "company", "Company", "Link", { options: "ERP Company" }),
+				df(sale, "terminal", "Terminal", "Link", { options: "ERP POS Terminal" }),
+				df(sale, "warehouse", "Warehouse", "Link", { options: "ERP Warehouse" }),
+				df(sale, "currency", "Currency", "Link", { options: "Currency" }),
+				df(sale, "posting_date", "Date", "Date"),
+				df(sale, "posting_time", "Time", "Time"),
+				df(sale, "items", "Items", "Table", { options: line }),
+				df(sale, "lines", "Lines", "Table", { options: line }),
+				df(sale, "payments", "Payments", "Table", { options: payment }),
+				df(sale, "taxes", "Taxes", "Table", { options: "ERP Sale Tax" }),
+				df(sale, "net_total", "Net Total", "Currency"),
+				df(sale, "total_taxes_and_charges", "Total Taxes and Charges", "Currency"),
+				df(sale, "grand_total", "Grand Total", "Currency"),
+				df(sale, "rounded_total", "Rounded Total", "Currency"),
+				df(sale, "total_qty", "Total Quantity", "Float"),
+				df(sale, "discount_amount", "Discount Amount", "Currency"),
+				df(sale, "additional_discount_percentage", "Additional Discount Percentage", "Percent"),
+				df(sale, "paid_amount", "Paid Amount", "Currency"),
+				df(sale, "outstanding_amount", "Outstanding Amount", "Currency"),
+				df(sale, "change_amount", "Change Amount", "Currency"),
+				df(sale, "status", "Status", "Data"),
+				df(sale, "receipt_no", "Receipt No", "Data"),
+				df(sale, "client_uuid", "Client Reference", "Data"),
+				df(sale, "remarks", "Remarks", "Small Text"),
+			],
+			[line]: [
+				df(line, "item_code", "Item Code", "Link", { options: "ERP Product" }),
+				df(line, "item_name", "Item Name", "Data"),
+				df(line, "qty", "Quantity", "Float"),
+				df(line, "uom", "UOM", "Link", { options: "ERP Product Unit" }),
+				df(line, "stock_uom", "Stock UOM", "Data"),
+				df(line, "rate", "Rate", "Currency"),
+				df(line, "amount", "Amount", "Currency"),
+				df(line, "price_list_rate", "Price List Rate", "Currency"),
+				df(line, "discount_percentage", "Discount (%)", "Percent"),
+				df(line, "discount_amount", "Discount Amount", "Currency"),
+				df(line, "conversion_factor", "Conversion Factor", "Float"),
+				df(line, "warehouse", "Warehouse", "Link", { options: "ERP Warehouse" }),
+				df(line, "actual_qty", "Available Qty", "Float"),
+			],
+			[payment]: [
+				df(payment, "mode_of_payment", "Mode of Payment", "Data"),
+				df(payment, "amount", "Amount", "Currency"),
+				df(payment, "type", "Type", "Data"),
+				df(payment, "default", "Default", "Check"),
+			],
+		};
+		locals.DocType = locals.DocType || {};
+		for (const [name, dfs] of Object.entries(fields)) {
+			// 框架要的那几个标志位给全：能读、能写、不是单页、不是子表（子表由 parent 表达）。
+			const meta = {
+				name, doctype: "DocType", istable: 0, issingle: 0, is_submittable: 0,
+				quick_entry: 0, track_changes: 0, fields: dfs,
+				permissions: [{ read: 1, write: 1, create: 1, role: "All" }],
+			};
+			locals.DocType[name] = meta;
+			frappe.meta.sync(meta);
+			// 子表还要把 df 挂到父表的 `__ doctype` 里一份，框架画 Table 控件时读它。
+		}
 	}
 
 	// 「一条我们的商品」→「官方商品卡要的字段」（`get_item_html` 读这几个）。
@@ -171,9 +272,29 @@ frappe.provide("frappe.pearnly.pos_next");
 				}
 				return frm;
 			}
+			// 产品口径差异（**按功能放行的第一处**）：官方要求"先选客户才能加货"，
+			// 我们这边**客户为空 = 散客**。官方那句判断在 `on_cart_update()` 里，无法只用子类改一行，
+			// 所以调用前后**临时借一个哨兵客户**过闸，返回后还原成空；提交时会把哨兵丢掉。
+			async on_cart_update(args) {
+				if (this.frm.doc.customer) return super.on_cart_update(args);
+				this.frm.doc.customer = WALK_IN;
+				try {
+					return await super.on_cart_update(args);
+				} finally {
+					if (this.frm.doc.customer === WALK_IN) this.frm.doc.customer = "";
+				}
+			}
 		}
 
 		class PearnlyItemSelector extends O.ItemSelector {
+			// 官方这一段会去读 `POS Profile.selling_price_list`（`frappe.db.get_value("POS Profile", …)`）。
+			// 我们没有 POS Profile（刻意不装 erpnext 的那套主数据），那次读取会报"未授权访问单据类型"。
+			// 我们的价格来自商品自己的 `unit_price`、**不走价目表**，所以这里先把 `price_list` 填上一个非空值，
+			// 官方的 `if (!this.price_list)` 分支就不会进，其余流程原样。
+			async load_items_data() {
+				if (!this.price_list) this.price_list = "Standard Selling";
+				return super.load_items_data();
+			}
 			// 商品：官方 get_items；我们 api_counter_products（字段映射见 to_official_item）。
 			// **注意**：官方这里返回的是 `frappe.call(...)` 那个 **jQuery promise**（调用方用了 `.always`），
 			// 所以要给 jQuery 的 deferred，不能给原生 Promise —— 给错了一次，页面直接"没找到物料"。
@@ -217,7 +338,9 @@ frappe.provide("frappe.pearnly.pos_next");
 					unit_price: row.rate, discount_percent: row.discount_percentage || 0,
 				}));
 				return p.call(api + "api_create_sale", {
-					terminal: this.pos_profile, customer: doc.customer || undefined,
+					terminal: this.pos_profile,
+					// 哨兵客户 = 散客 → 传空（我们的口径：客户留空就是散客）。
+					customer: (doc.customer && doc.customer !== WALK_IN) ? doc.customer : undefined,
 					items, payments: (doc.payments || []).map(x => ({ method: x.mode_of_payment, amount: x.amount })),
 					discount_percent: doc.additional_discount_percentage || 0,
 					client_uuid: doc.client_uuid,
