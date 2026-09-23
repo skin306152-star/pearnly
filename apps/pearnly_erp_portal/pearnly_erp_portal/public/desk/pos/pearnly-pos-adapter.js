@@ -15,7 +15,7 @@
  *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
+window.__pos_adapter_v = 13;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -26,6 +26,8 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 	// 官方代码里的子表名/父字段 → 我们的（`add_child(doc, "POS Invoice Item", "items")` 那一套）。
 	// 散客哨兵：只在"借过官方那道'必须先选客户'的闸"时用一下，提交前会被丢掉。
 	const WALK_IN = "__pearnly_walk_in__";
+	// 商品名 → 可用量（来自我们商品区那一页的回参；见 `to_official_item` 与库存那条映射）。
+	const available_map = {};
 	const CHILD_DOCTYPE = {
 		"POS Invoice Item": "ERP Sale Line",
 		"Sales Invoice Item": "ERP Sale Line",
@@ -44,6 +46,43 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 		// `window.__pos_dt_log` 里。上一轮就是因为读不出"哪一个 doctype 被权限挡下"卡住的。
 		if (String(window.location.search || "").includes("pearnly_pos_debug")) {
 			window.__pos_dt_log = [];
+			window.__pos_route_log = [];
+			window.__pos_call_log = [];
+			// 把每一个 `frappe.call` 的方法名与失败原因都记下来（403 那种会顺带把页面路由重置）。
+			const call_probe = frappe.call.bind(frappe);
+			frappe.call = function (opts) {
+				const method = typeof opts === "string" ? opts : (opts && opts.method);
+				const out = call_probe(opts);
+				if (out && out.fail) {
+					out.fail(err => window.__pos_call_log.push({
+						method,
+						args: JSON.stringify((opts && opts.args) || {}).slice(0, 160),
+						status: err && err.status,
+						msg: String((err && (err.statusText || err.message)) || "").slice(0, 80),
+						server: String(((err && err.responseJSON) || {})._server_messages || "").slice(0, 200),
+					}));
+				}
+				return out;
+			};
+			const set_route = frappe.set_route.bind(frappe);
+			frappe.set_route = function (...args) {
+				window.__pos_route_log.push({
+					args: JSON.stringify(args).slice(0, 120),
+					stack: String(new Error().stack || "").split("\n").slice(1, 7).join(" | "),
+				});
+				return set_route(...args);
+			};
+			const router = frappe.router && frappe.router.set_route;
+			if (router) {
+				frappe.router.set_route = function (...args) {
+					window.__pos_route_log.push({
+						via: "router.set_route",
+						args: JSON.stringify(args).slice(0, 120),
+						stack: String(new Error().stack || "").split("\n").slice(1, 7).join(" | "),
+					});
+					return router.apply(frappe.router, args);
+				};
+			}
 			const note = (kind) => (dt) => window.__pos_dt_log.push(kind + ":" + dt);
 			const with_dt = frappe.model.with_doctype.bind(frappe.model);
 			frappe.model.with_doctype = function (dt, cb) { note("with_doctype")(dt); return with_dt(dt, cb); };
@@ -71,11 +110,11 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 			"erpnext.controllers.sales_and_purchase_return.is_invoice_returnable": () => ({ message: false }),
 			"erpnext.controllers.sales_and_purchase_return.get_invoice_item_returned_qty": () => ({ message: 0 }),
 			// —— 接到我们自己的服务 ——
-			"erpnext.accounts.doctype.pos_invoice.pos_invoice.get_stock_availability": (args) =>
-				frappe.call({
-					method: "pearnly_erp_portal.cashier.api.api_product_stock",
-					args: { product: args && args.item_code, warehouse: args && args.warehouse },
-				}).then(r => ({ message: r.message })),
+			// 库存可用量：我们没有单独那个接口，也不需要 —— 商品区那一页已经带了每个商品的
+			// `qty_on_hand`，装货时顺手存进 `available_map`，这里直接答；落单时服务端仍会再校验。
+			"erpnext.accounts.doctype.pos_invoice.pos_invoice.get_stock_availability": (args) => ({
+				message: available_map[(args && args.item_code) || ""] ?? 0,
+			}),
 		};
 		const call = frappe.call.bind(frappe);
 		frappe.call = function (opts) {
@@ -174,6 +213,10 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 
 	// 「一条我们的商品」→「官方商品卡要的字段」（`get_item_html` 读这几个）。
 	function to_official_item(row) {
+		// 我们那一页的可用量字段叫 `qty_on_hand`（`cashier.counter.products_page`），官方叫 `actual_qty`。
+		// 顺手存一份到 `available_map`：官方后面问"这个商品还有多少"（`get_stock_availability`）时用它答。
+		const on_hand = Number(row.qty_on_hand ?? 0);
+		available_map[row.name] = on_hand;
 		return {
 			item_code: row.name,
 			item_name: row.product_name || row.name,
@@ -181,7 +224,7 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 			stock_uom: row.unit || "",
 			uom: row.unit || "",
 			price_list_rate: Number(row.unit_price || 0),
-			actual_qty: Number(row.available_qty ?? row.available ?? 0),
+			actual_qty: on_hand,
 			has_batch_no: 0,
 			has_serial_no: 0,
 			barcode: row.barcode || "",
@@ -267,8 +310,9 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 				if (frm.doc) {
 					if (!frm.doc.items) frm.doc.items = frm.doc.lines || (frm.doc.lines = []);
 					// 官方整块界面按 `doc.currency` 出符号；我们的 `ERP Sale` 没有这个栏位，
-					// 不给就会掉到框架默认货币（实测出过 `د.إ`）→ 这里钉成站点货币。
-					frm.doc.currency = frm.doc.currency || (this.settings && this.settings.currency) || "THB";
+					// 不给就会掉到框架默认货币（实测出过 `د.إ`）→ 这里钉成**站点货币**
+					// （`frappe.boot.sysdefaults.currency`，拿不到就 THB），不看终端配置。
+					frm.doc.currency = (frappe.boot.sysdefaults || {}).currency || "THB";
 				}
 				return frm;
 			}
@@ -318,13 +362,51 @@ window.__pos_adapter_v = 7;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyItemCart extends O.ItemCart {
+			// 客户选择框：官方那份指向 **ERPNext 的 `Customer`**，我们没有这张表 —— 它一渲染就会
+			// 发一次 `search_link(doctype="Customer")`，被 403 挡下，而框架的 403 提示带 `re_route: true`，
+			// 于是**关掉提示框会把页面路由重置**（实测就是"点商品跳到 /desk"的真凶）。
+			// 这里整段照官方抄一遍，只把 `options` 换成我们的 `ERP Customer`（我们的客户表对这角色可搜）。
+			make_customer_selector() {
+				this.$customer_section.html(`<div class="customer-field"></div>`);
+				const me = this;
+				this.customer_field = frappe.ui.form.make_control({
+					df: {
+						label: __("Customer"),
+						fieldtype: "Link",
+						options: "ERP Customer",
+						placeholder: __("Search by customer name, phone, email."),
+						onchange: function () {
+							if (!this.value) return;
+							const frm = me.events.get_frm();
+							frappe.dom.freeze();
+							frappe.model.set_value(frm.doc.doctype, frm.doc.name, "customer", this.value);
+							frm.script_manager.trigger("customer", frm.doc.doctype, frm.doc.name).then(() => {
+								frappe.run_serially([
+									() => me.fetch_customer_details(this.value),
+									() => me.events.customer_details_updated(me.customer_info),
+									() => me.update_customer_section(),
+									() => me.update_totals_section(),
+									() => frappe.dom.unfreeze(),
+								]);
+							});
+						},
+					},
+					parent: this.$customer_section.find(".customer-field"),
+					render_input: true,
+				});
+				this.customer_field.toggle_label(false);
+			}
+
 			// 客户资料：官方走 erpnext…set_customer_info（我们删减）；这里只给"读得到"的那点信息。
+			// 字段名按**我们的** `ERP Customer`：`contact_phone` / `contact_email`
+			// （官方那边叫 `mobile_no` / `email_id` —— 用过官方名会被 417 挡下，实测踩过）。
 			fetch_customer_details(customer) {
 				if (!customer) return Promise.resolve({});
 				return frappe.db.get_value("ERP Customer", customer,
-					["customer_name", "contact_phone", "email_id"]).then(r => ({
+					["customer_name", "contact_phone", "contact_email"]).then(r => ({
 						customer, customer_name: r.message?.customer_name || customer,
-						mobile_no: r.message?.contact_phone || "", email_id: r.message?.email_id || "",
+						mobile_no: r.message?.contact_phone || "",
+						email_id: r.message?.contact_email || "",
 					}));
 			}
 		}
