@@ -38,4 +38,19 @@
 
 ## 状态与下一步
 
-主功能已在本地集成；客户未知提交的稳定身份屏障和审批派发前权限/claim 补充测试正在最终整合。只验证受影响新增内容，不重跑无变化的业务全套。最终提交、工作树清理与停止实验室情况在下方收尾登记。
+本地实现和本轮验证完成，交接保留，未上线。最后业务补包 `8a3883f`、`e62b7e9` 已整合；业务内容固定在 `c2ca3f47dd1956c6d46be37274cc45c91596b323`（后续仅记录更正）。最终组合 consumer 19/19、客户流程 15/15 通过；纯客户 client 三方比较 11 场景、旧身份 31 场景、旧 intake 23 场景亦有对应包验证。
+
+客户派发原生 7/7：真实 MariaDB/Redis 和两个独立进程，稳定同源/CID/旧新证号共同拦截未知重放；同请求已证实成功可恢复；失败前不留已派发证据。审批派发前重检当前绑定/管理员/认领，失去 claim 时不能写入或发送旧回执。旧 RR 与跨连接 claim 变更触发 MariaDB 1020 后安全拒绝，回滚后证实新认领未被覆盖，**不宣称旧 RR 一定成功锁读**。
+
+原生主连接测试 fixture、CW marker、审批记录、快照均已精确清除；本轮 migrate/一次失败 harness 清理新增的 6 个原生 housekeeping job 按已核实 ID 删除，未消费历史队列。最终队列回到既有 default=8、long=3、dms_sync=0；合成账户停用审计保留于隔离实验室，无用户数据。
+
+### Git 与资源收尾
+
+- main 与远端实际 `refs/heads/main` 均为 `57039ca15595641932f053fd34c49d4e45dba964`，主目录干净且未改。当前仅本机授权，因此未合回 main、未推送、未部署，也未新建 PR。四个本任务远端分支均不存在。
+- 三个子包先 cherry-pick 到本任务集成树，核对内容等价（原生查询脚本保留父树独立 seed 修改），再以 ancestry-only merge 登记已整合来源。已正常非强制删除 `dms-manual-connect`、`dms-manual-query`、`dms-manual-conflicts` 三个工作树及对应 `codex/` 分支；删除前核 tracked/untracked/ignored、符号链接、进程及所有容器挂载，均无残留或占用。
+- 保留主任务树 `/Users/skin/.codex/worktrees/dms-five-minute-snapshots/pearnly` / `codex/dms-five-minute-snapshots`：用户尚未授权本方案合并/推送/部署，成果唯一整合位置；下一次开始本方案部署前复核 main 增量及授权。
+- 保留该树旧批生成的 `frontend/node_modules/`、`frontend/auto-imports.d.ts`、`frontend/components.d.ts`、`apps/pearnly_core/pearnly_core/public/pearnly-app/`：本任务候选编辑器构建和后续复验所需，未沿链接删除共享依赖；正式候选构建/主任务合并时复核再生清理。
+- 本轮测试专用的 browser serve 和三个 `pearnly-dms-snapshot-lab-{bench,db,redis}-1` 容器收尾停止；保留该任务 sites/db/redis-data/logs 四卷及原有固定镜像，供新方案后续本机复验。解除条件：用户确认不再复验或授权对应实验室收工；不得因停止容器删除数据卷。其他 ERP/Cowork/runtime 未动。
+- 本轮一次性无网络容器已自动删除，三个临时子树无容器引用。已查看的宿主浏览器截图 `/tmp/pearnly-dms-manual-evidence.8vuTtH` 移入废纸篓，可恢复；复验脚本保留，容器内截图随测试容器生命周期保留。
+
+后续若要上线：先取得授权并合并当前主线增量，制作固定候选与备份/恢复方案，再部署/migrate 和启用专用 worker；之后由管理员首次手动建缓存，做真实 LINE 菜单 1–5 与第三方 DMS 对账。此段是下一步，不代表已执行或已获生产授权。
