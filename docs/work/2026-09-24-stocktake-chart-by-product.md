@@ -424,6 +424,48 @@
 - Cowork 的录单页（`pearnly_cowork/public/desk/intake.js`）也用同一个 `p.table`，但本机 lab 站点没装 Cowork，
   这次没验；改动是纯数据/格式化层的，风险低，Cowork 窗口恢复后应顺手复验一次。
 - Freeze/Unfreeze（列冻结）仍按 2026-09-22 的口径隐藏着；用户只是问它是做什么的，本轮没动。
+
+## 第十轮：列头点一下直接排序（次日凌晨）
+
+用户口径："点列头我要的是这种，不要那种繁琐的点开，选择"。
+
+### 改了什么
+
+- 共享层 `p.table` 里把**官方自己的排序通道**（菜单里那三项调用的同一个 `columnmanager.sortColumn`）
+  绑到列头本身上：**点一次升序 → 再点倒序 → 第三次取消**（回到原始顺序），列头右侧仍然显示官方的
+  ↑ / ↓ 指示。排序规则就是第九轮修好的"按看得见的文字、数字按数值"。
+- 菜单那三项**保留**（官方行为一个字不改）；点在小箭头、列宽拖拽把手或输入控件上时不会误触发排序。
+- 补一条皮肤：列头给 `cursor: pointer`（官方只给小箭头设了手型，整格可点却不提示会让人以为点不动）。
+
+### 验证（2026-09-25 凌晨，预览 lane 8136，Chrome + Playwright）
+
+| 场景 | 期望 | 实际 |
+| --- | --- | --- |
+| 点"物料名称"列头 ×1 / ×2 / ×3 | 升序 → 倒序 → 取消 | 列头指示依次 `物料名称 ↑` / `物料名称 ↓` / `物料名称`；顺序：原顺序 → 鸡精/鱼露/香皂/食盐 → 原顺序 |
+| 点"账面数量"列头 ×1 | 按数值升序 | `28 / 28 / 36 / 36 / 36 / 40`，列头显示 ↑ |
+| 小箭头 | 仍能打开原来的菜单 | 菜单可见（`display:block`） |
+| 点行 | 仍打开"记录"弹窗 | `记录 — 一次性手套 50只` |
+| 另一端 `p.table`（库存页流水弹窗） | 同样点列头能排序 | 点"结存"列头两次 → `202 / 101`（原为 `101 / 202`） |
+| 光标 | 列头是手型 | `cursor: pointer` |
+| 出错面 | 无报错 | 无 pageerror |
+
+门槛：`check-architecture.py`、`i18n-build.py --check`、`tests/test_native_desk_contract.py`、
+`node tests/test-native-desk.cjs`、`test-line-stocktake.cjs`、`test-stocktake-scanner.cjs`、
+`node --test tests/test_pos_lifecycle.js`、`test-roster-selection.cjs`、`test-records-selection.cjs`、
+`git diff --check` 全通过。
+
+### 列表（不是表格）的情况 —— 待用户决定
+
+用户同一轮也问了"列表有这类功能吗"。核对结果：
+
+- 官方 `ListView` **支持点列头排序**（列头挂 `data-sort-by`，点击后 `sort_selector.set_value(...)`），
+  并且是**服务端排序**（`sort_by` / `sort_order` 进列表查询）。
+- 我们的共享列表层 `p.list` **故意关掉了**：`hide_sort_selector: true` ＋ 渲染表头时摘掉 `data-sort-by`
+  （`apps/pearnly_core/pearnly_core/public/desk/list.js`）。实测「物料」列表点列头前后顺序不变。
+- 要开的话不是一行：列表是**服务端分页**（一页 20 条，数据来自各页自己的 `api_list_*`，接口里有固定
+  `order_by`），只放开前端只会重排当前这 20 行。正确做法是给每张列表声明可排序字段白名单、对应接口
+  接受 `sort_by/sort_order`，再放开列头点击；建议分批（先 物料 / 库存 / 盘点）。
+- 列表没有"列冻结"这个能力（那是表格 datatable 的）；列表对应的原生能力是列设置、列宽拖拽、行内编辑等。
   点击弹原生对话框），暂不做。
 - 明细表走 `p.table`（`layout: "fluid"`，列宽按比例摊），窄屏上"编码 / 条码 / 单位"这类列会被压出省略号；
   前面第二轮记的三条取舍（fixed 布局 / 减列 / 单仓只显示货位）仍然成立。
