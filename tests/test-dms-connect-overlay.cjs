@@ -113,7 +113,7 @@ test('idle connection page has no manual trigger and stops polling after one sta
   assert(!h.buttons.some(label => /update|更新/i.test(label)));
 });
 
-test('binding shows the native mask following real per-group progress', async () => {
+test('binding shows the native mask with a live percentage', async () => {
   const h = harness({rows: [
     row('vehicles', 'running', {request_id: ID, progress: {processed: 12, total: 29}}),
     row('customers', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
@@ -121,8 +121,10 @@ test('binding shows the native mask following real per-group progress', async ()
   ]});
   await h.start();
   assert.equal(h.frozen, true, 'a running read masks the page');
-  assert.match(h.freezeTexts[0], /车辆主档信息 12\/29/, 'freeze text carries live progress');
-  assert.match(h.freezeTexts[0], /客户资料 0/, 'groups still queued are named too');
+  // 12/29 的车辆组占四分之一 → 10%；客户组已排队但还没读到条数，不虚报。
+  assert.match(h.freezeTexts[0], /10%$/, 'the mask shows a percentage, not a group list');
+  assert(!/车辆|客户|公司|地址/.test(h.freezeTexts[0]),
+    'the group breakdown is replaced by the percentage');
   h.setRows([
     row('vehicles', 'running', {request_id: ID, progress: {processed: 25, total: 29}}),
     row('customers', 'running', {request_id: ID, progress: {processed: 4, total: 40}}),
@@ -131,8 +133,28 @@ test('binding shows the native mask following real per-group progress', async ()
   await h.poll();
   assert.equal(h.frozen, true);
   assert.equal(h.freezeCount, 1, 'the mask is reused, not re-created every frame');
-  assert.match(h.freezeMessage, /车辆主档信息 25\/29/, 'the visible text keeps moving');
-  assert.match(h.freezeMessage, /客户资料 4\/40/);
+  // 25/29 与 4/40 各占四分之一 → (0.862 + 0.1) / 4 ≈ 24%。
+  assert.match(h.freezeMessage, /24%$/, 'the visible percentage keeps moving');
+});
+
+test('the percentage never goes backwards and never claims 100% while reading', async () => {
+  const h = harness({rows: [
+    row('vehicles', 'running', {request_id: ID, progress: {processed: 28, total: 29}}),
+    row('customers', 'running', {request_id: ID, progress: {processed: 39, total: 40}}),
+    row('company', 'succeeded', {request_id: ID, count: 27, as_of: 1}),
+    row('geo', 'running', {request_id: ID, progress: {processed: 15000, total: 15729}}),
+  ]});
+  await h.start();
+  // 28/29、39/40、整组完成、15000/15729 各占四分之一 → 97%，远没有到 100%。
+  assert.match(h.freezeMessage, /97%$/, 'three groups nearly done still shows less than 100%');
+  h.setRows([
+    row('vehicles', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
+    row('customers', 'running', {request_id: ID, progress: {processed: 5, total: 40}}),
+    row('company', 'running', {request_id: ID, progress: {processed: 1, total: 27}}),
+    row('geo', 'idle'),
+  ]);
+  await h.poll();
+  assert.match(h.freezeMessage, /97%$/, 'a poll that looks smaller must not rewind the number');
 });
 
 test('a finished bootstrap releases the mask and reports success exactly once', async () => {
@@ -202,7 +224,8 @@ test('leaving releases the mask and returning resumes the live progress', async 
   await tick();
   await tick();
   assert.equal(h.frozen, true, 'coming back to an in-flight read shows the mask again');
-  assert.match(h.freezeMessage, /车辆主档信息 7\/9/);
+  // 5/9 → 13%，回来时 7/9 → 19%。
+  assert.match(h.freezeMessage, /19%$/);
 });
 
 test('the removed manual trigger leaves no glossary text promising a button', () => {

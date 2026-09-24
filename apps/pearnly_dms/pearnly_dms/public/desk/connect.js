@@ -9,6 +9,7 @@
 		const datasets = ["vehicles", "customers", "company", "geo"];
 		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
 		let frozen = false, announced = "";
+		let shownPercent = 0;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";
 		const active = (row) => ["queued", "running", "waiting"].includes(row.state);
 		let sawActive = false;
@@ -21,20 +22,37 @@
 			// 只在真的有人在读的时候轮询：空闲页面读一次状态就停，不做无谓的定时敲门。
 			if (visible && conn?.connected && statuses.some(active)) timer = setTimeout(pollStatus, 2000);
 		}
-		// 「正在读取 DMS 主档… 车辆 12/29 · 客户 8/40」：读的过程中一直在动，
-		// 管理员绑完就能看出"底座建到哪一步了"，而不是干等一张空白页。
+		// 「正在读取 DMS 主档… 58%」：四组各占四分之一，已知总数的组再按"读到几条/共几条"
+		// 细分，所以数字读的过程中一直在动，管理员不用干等一张空白页。
+		// **只往上走**：轮询之间偶发的状态回退不该让进度倒退，那会让人以为出错了。
+		// 四组没全成功之前最多显示 99% —— 不预告"读完了"。
+		function progressPercent() {
+			const share = 1 / datasets.length;
+			let done = 0,
+				reading = false;
+			for (const dataset of datasets) {
+				const row = statuses.find((item) => item.dataset === dataset);
+				if (!row) continue;
+				if (row.state === "succeeded") {
+					done += share;
+					continue;
+				}
+				if (!active(row)) continue;
+				reading = true;
+				const processed = row.progress?.processed || 0;
+				const total = row.progress?.total;
+				if (typeof total === "number" && total > 0) {
+					done += share * Math.min(1, processed / total);
+				}
+			}
+			if (!reading) return null;
+			shownPercent = Math.max(shownPercent, done * 100);
+			return Math.min(99, Math.floor(shownPercent));
+		}
 		function progressText() {
-			const parts = datasets
-				.map((dataset) => statuses.find((row) => row.dataset === dataset))
-				.filter((row) => row && active(row))
-				.map((row) => {
-					const label = cacheText("dms.connect.cache.dataset." + row.dataset);
-					const done = row.progress?.processed || 0;
-					const total = row.progress?.total;
-					return total ? `${label} ${done}/${total}` : `${label} ${done}`;
-				});
 			const head = cacheText("dms.connect.cache.processing");
-			return parts.length ? `${head} ${parts.join(" · ")}` : head;
+			const percent = progressPercent();
+			return percent === null ? head : `${head} ${percent}%`;
 		}
 		function updateOverlay() {
 			const running = statuses.filter((row) => active(row));
@@ -169,6 +187,7 @@
 			}
 			p.layout(page.main, fields);
 			statuses = [];
+			shownPercent = 0;
 			if (conn.connected) await pollStatus();
 		}
 		function feedback(result) {
