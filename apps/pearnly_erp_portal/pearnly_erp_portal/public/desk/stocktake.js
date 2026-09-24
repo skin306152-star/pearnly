@@ -28,7 +28,7 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, count, state, table_host, summary;
+		let list, table, count, state, table_host, conflict;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
@@ -70,7 +70,9 @@
 				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
 					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
-			summary = $("<div class='report-summary'>").appendTo(page.main);
+			// 库存被别的业务改过时要重盘：这条警告原先挂在汇总卡片里，卡片删掉后直接排在表格上方
+			// （空字符串时不留任何痕迹）。
+			conflict = $("<p class='text-danger'></p>").appendTo(page.main);
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
 			table_host.on("click", ".dt-row", event => {
 				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
@@ -167,16 +169,9 @@
 		}
 		async function render_data() {
 			if (!state || !table_host || !table_host[0].isConnected) return;
-			summary.empty();
-			for (const [label, value] of [[t("stock.count.countedRows"), state.task.counted_total],
-				[t("stock.count.rowUncounted"), state.task.item_total - state.task.counted_total],
-				[w("quantityDiff"), state.items.filter(r => r.counted && Number(r.difference)).length],
-				[w("locationDiff"), state.location_total]]) {
-				const item = $("<div class='summary-item'>").appendTo(summary);
-				$("<div class='summary-label'>").text(label).appendTo(item);
-				$("<div class='summary-value'>").text(value).appendTo(item);
-			}
-			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
+			// 最上面那张四格汇总卡片已按用户口径删掉；任务进度仍在页面指示器上
+			// （`进行中 · 已盘点 x / y · 差异 z`），每个数字与差异明细在明细表里。
+			conflict.text(state.conflicts.length ? w("stockChanged") : "");
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)
