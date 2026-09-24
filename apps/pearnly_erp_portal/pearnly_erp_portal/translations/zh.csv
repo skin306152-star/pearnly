@@ -668,6 +668,7 @@ Quantity,数量
 Quantity Available,数量（仓库）
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。
 Quantity must be greater than zero,数量必须大于 0
 Query,查询
@@ -1312,7 +1313,7 @@ stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉�
 stock.count.deleteNotice,已删除 {0} 个
 stock.count.deleteSelected,删除所选（{0}）
 stock.count.deleted,已删除 {0} 份盘点
-stock.count.diffRankHint,数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。
+stock.count.diffRankHint,数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。
 stock.count.difference,差异
 stock.count.differenceRows,有差异
 stock.count.differenceValue,差异金额

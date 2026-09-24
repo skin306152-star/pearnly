@@ -189,7 +189,7 @@ No warehouse matches that name	该仓库名不存在	ไม่พบคลัง
 The quantity is not a valid number	数量不是有效数字	จำนวนไม่ถูกต้อง	数量が正しい数値ではありません	stock.count.problemNumber
 Book {0} · counted {1} · difference {2}	账面 {0} · 实盘 {1} · 差异 {2}	ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}	帳簿 {0} · 実地 {1} · 差異 {2}	stock.count.chartTotals
 Nothing counted yet	还没有盘点记录	ยังไม่มีการนับ	まだ棚卸記録がありません	stock.count.chartEmpty
-Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.	数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。	ผลต่างจำนวน เรียงจากมากไปน้อย แถบเทาคือจำนวนตามบัญชี แถบสีคือจำนวนที่นับได้ นับได้น้อยจะสั้นกว่าแถบเทา นับได้เกินจะล้นออกไป	数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。	stock.count.diffRankHint
+Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.	数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。	ผลต่างจำนวน เรียงจากมากไปน้อย แท่งเทาคือจำนวนตามบัญชี แท่งสีคือจำนวนที่นับได้ วางเมาส์บนแท่งเพื่อดูสินค้า ตำแหน่ง และจำนวน	数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。	stock.count.diffRankHint
 Items found at a different place	位置不一样的商品	สินค้าที่พบคนละตำแหน่ง	違う場所で見つかった商品	stock.count.locationHint
 Short	少货	ขาด	不足	stock.count.short
 Over	多货	เกิน	過剰	stock.count.over

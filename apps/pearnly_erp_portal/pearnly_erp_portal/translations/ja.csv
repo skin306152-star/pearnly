@@ -668,6 +668,7 @@ Quantity,数量
 Quantity Available,在庫数
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
 Quantity must be greater than zero,数量は 0 より大きい必要があります
 Query,照会
@@ -1312,7 +1313,7 @@ stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？�
 stock.count.deleteNotice,{0}件を削除しました
 stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
-stock.count.diffRankHint,数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
+stock.count.diffRankHint,数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
 stock.count.differenceValue,差異金額

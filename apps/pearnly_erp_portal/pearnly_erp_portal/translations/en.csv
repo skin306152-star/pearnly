@@ -668,6 +668,7 @@ Quantity,Quantity
 Quantity Available,Quantity Available
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.","Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts."
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.","Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it."
 Quantity must be greater than zero,Quantity must be greater than zero
 Query,Query
@@ -1312,7 +1313,7 @@ stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted
 stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
-stock.count.diffRankHint,"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it."
+stock.count.diffRankHint,"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts."
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
 stock.count.differenceValue,Difference value

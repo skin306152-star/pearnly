@@ -28,7 +28,7 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, ranking, moved, count, state, table_host, rank_host, rank_hint,
+		let list, table, moved, chart, count, state, table_host, rank_host, rank_hint,
 			moved_host, moved_hint, summary;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
@@ -45,8 +45,8 @@
 		});
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
-			list?.destroy(); table?.destroy(); ranking?.destroy(); moved?.destroy();
-			list = table = ranking = moved = null;
+			list?.destroy(); table?.destroy(); moved?.destroy();
+			list = table = moved = chart = null;
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
@@ -195,48 +195,37 @@
 				.sort((a, b) => Math.abs(Number(b.difference)) - Math.abs(Number(a.difference)));
 			const moved_rows = counted_rows.filter(r => r.location_difference)
 				.sort((a, b) => String(a.product_name || "").localeCompare(String(b.product_name || "")));
-			// 横条：灰＝账面数量（这一行的"满格"），彩＝实盘数量。整条轨道按**最大比例**归一化，
-			// 所以超盘的彩条能压过灰条又不被裁掉；少盘的彩条短于灰条，一眼看出少了百分之多少。
-			// 灰色与看板的账面柱同一个灰（`#a3a3a3`），条本身用 desk 包自带的 Bootstrap `.progress`。
-			// 轨道最多画到账面的 1.5 倍：不让"账上 14 件却数出 61 件"这种极端行把别的条全压成一小截。
-			// 超过 1.5 倍的按满格画（真值在右边那格照旧写出来）。
-			const widest = Math.min(1.5, Math.max(1, ...diff_rows.filter(r => Number(r.book_qty) > 0)
-				.map(r => Number(r.counted_qty || 0) / Number(r.book_qty))));
-			const unit = 100 / widest;
-			const bars = row => {
-				const book = Number(row.book_qty) || 0, actual = Number(row.counted_qty) || 0;
-				const book_width = book > 0 ? unit : 0;
-				const actual_width = book > 0 ? Math.min(actual / book, widest) * unit : (actual > 0 ? 100 : 0);
-				const colour = Number(row.difference) < 0 ? "var(--red-600)" : accent;
-				return `<div class="progress" style="margin:0;position:relative">`
-					+ `<div class="progress-bar" style="width:${book_width}%;background-color:#a3a3a3"></div>`
-					+ `<div class="progress-bar" style="position:absolute;left:0;top:0;height:100%;`
-					+ `width:${actual_width}%;background-color:${colour}"></div></div>`;
-			};
 			const amount_text = (row, diff) => {
 				const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
 				return `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`;
 			};
-			ranking?.destroy(); ranking = null;
+			// 柱形图（框架自带的 `frappe.Chart`）：**灰柱＝账面数量、彩柱＝实盘数量**，
+			// 只画有数量差异的行、一条不落，按差得多少排序。
+			// 商品名、仓位、"少货 70 瓶"这些字都放进**标签**：轴上的字会被框架按宽度截短，
+			// 鼠标放到柱子上才把它们（连同两个数量）完整显示出来
+			// （用户 2026-09-24："柱子立起来，把信息放在鼠标放上去才显示"）。
+			const chart_label = row => {
+				const diff = Number(row.difference);
+				const bits = [row.product_name, `${row.warehouse_name} / ${row.location || t("stock.count.blank")}`,
+					amount_text(row, diff)];
+				if (row.location_difference) bits.push(`${w("locationDiff")} → ${row.actual_positions || "—"}`);
+				return bits.join(" · ");
+			};
+			rank_host.empty();
 			rank_hint.text(diff_rows.length ? t("stock.count.diffRankHint") : "");
 			if (diff_rows.length) {
-				ranking = await p.table(rank_host, [
-					{ name: t("stock.col.name"), width: 190, format: value => value },
-					{ name: w("bookPosition"), width: 160, format: value => value },
-					{ name: `${t("stock.count.book")} / ${t("stock.count.counted")}`, width: 300, format: value => value },
-					{ name: w("quantityDiff"), width: 170, format: value => value },
-				], diff_rows.map(row => {
-					const diff = Number(row.difference);
-					return [
-						p.escape(row.product_name),
-						p.escape(`${row.warehouse_name} / ${row.location || t("stock.count.blank")}`),
-						bars(row),
-						`<span style="color: ${diff < 0 ? "var(--red-600)" : accent}">`
-							+ `${p.escape(amount_text(row, diff))}</span>`,
-					];
-				}), table_options());
-			} else {
-				rank_host.empty();
+				chart = new frappe.Chart(rank_host[0], {
+					type: "bar", height: 260, colors: ["#a3a3a3", accent],
+					// 柱子多的时候只在轴上留几个完整商品名（`xIsSeries`），其余留给悬停提示。
+					axisOptions: { shortenYAxisNumbers: 1, xIsSeries: 1 },
+					data: {
+						labels: diff_rows.map(chart_label),
+						datasets: [
+							{ name: t("stock.count.book"), values: diff_rows.map(r => Number(r.book_qty) || 0) },
+							{ name: t("stock.count.counted"), values: diff_rows.map(r => Number(r.counted_qty) || 0) },
+						],
+					},
+				});
 			}
 			// 仓库/仓位的差异是**另一类**问题：数量条只能表达数量（放错位置的行数量正好对上，
 			// 在条上什么也看不出来）。所以单独列一小块"账面位置 → 实际位置"，条数正好等于
