@@ -45,7 +45,7 @@ def configure() -> None:
         data["pearnly_ocr_budget_redis"] = "redis://redis-queue:6379/6"
         changed.append("pearnly_ocr_budget_redis")
     queues = {"ocr": OCR_QUEUE_TIMEOUT}
-    if os.environ.get("TESTENV_APP", "dms") == "dms":
+    if os.environ.get("TESTENV_GROUP", "dms") == "dms":
         queues["dms_sync"] = DMS_SYNC_QUEUE_TIMEOUT
     workers = dict(data.get("workers") or {})
     for queue, timeout in queues.items():

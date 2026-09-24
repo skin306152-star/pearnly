@@ -39,7 +39,7 @@ finish_start() {
   #   ② 清掉 Frappe 的 hooks/资源缓存（缓存里存着旧的资源版本号，页面会一直加载旧 JS）
   # 顺带写入运行配置：OCR 容量存储与专用队列，缺了会让 LINE 识别在入队处直接失败。
   # 详见 docs/development/test-environment.md 的"开始测试前自动完成的事"。
-  dc run --rm --no-deps -T -e TESTENV_APP="$app" "$app-web" \
+  dc run --rm --no-deps -T -e TESTENV_GROUP="$app" "$app-web" \
     /home/frappe/frappe-bench/env/bin/python /workspace/testenv/finish-start.py
 }
 
@@ -74,15 +74,17 @@ wait_healthy() {
 init_sites() {
   for group in "$@"; do
     case "$group" in
-      dms) app=pearnly_dms ;;
-      erp) app=pearnly_erp_portal ;;
-      cowork) app=pearnly_cowork ;;
+      # 用局部变量：`app` 是本脚本的顶层「产品名」，这里再赋值会把它覆盖成 Frappe 应用名，
+      # 后面的 finish_start / dc（--profile）就全找错对象。
+      dms) local frappe_app=pearnly_dms ;;
+      erp) local frappe_app=pearnly_erp_portal ;;
+      cowork) local frappe_app=pearnly_cowork ;;
       *) echo "unknown group $group"; exit 2 ;;
     esac
     site="${group}.${site_suffix}"
     echo "== $group -> $site"
     dc run --rm --no-deps -T \
-      -e TESTENV_SITE="$site" -e TESTENV_GROUP="$group" -e TESTENV_APP="$app" \
+      -e TESTENV_SITE="$site" -e TESTENV_GROUP="$group" -e TESTENV_APP="$frappe_app" \
       -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
       -e TESTENV_ADMIN_PASSWORD="${TESTENV_ADMIN_PASSWORD:-testenv-admin}" \
       "$group-web" \
