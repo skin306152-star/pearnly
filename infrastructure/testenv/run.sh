@@ -186,6 +186,12 @@ case "${1:-}" in
       -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
       "$service" \
       /home/frappe/frappe-bench/env/bin/python /workspace/testenv/import-test-tenant.py
+    # 账本站点是导入进一个**新卷**的：sites 卷上的公共配置与应用清单没人生成过，
+    # 少了它们 bench 会说 redis 没在跑、计费接口直接 404。补上再继续。
+    if [[ "$group" == "billing" ]]; then
+      dc run --rm --no-deps -T "$service" \
+        /home/frappe/frappe-bench/env/bin/python /workspace/testenv/billing-init.py
+    fi
     ;;
   migrate)
     group=${2:?group}

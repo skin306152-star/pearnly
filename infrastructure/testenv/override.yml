@@ -28,7 +28,10 @@ services:
   keycloak:
     profiles: [keycloak]
   billing-web:
-    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+    # 账本站点也要能整站导入（付费路径依赖它），所以和产品容器一样挂 testenv 与 import。
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
   dms-web:
     volumes:
       - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro

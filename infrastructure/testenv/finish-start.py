@@ -78,11 +78,33 @@ def bench(*args: str) -> subprocess.CompletedProcess:
     )
 
 
+def check_credentials(sites) -> None:
+    """付费路径的凭据必须是**容器里这个用户**读得动的。
+
+    实测踩过：从线上拷 `ocr.json` 过来时是 `root:root 600`，而应用以 uid 1000 跑，
+    于是识别在换令牌那步就 `Permission denied`，表现成"任务一直重试/failed"。
+    线上那份是 `1000:1000 600`。这里只读检查并提示，不改宿主文件。
+    """
+    for site in sites:
+        config = json.loads((SITES / site / "site_config.json").read_text())
+        path = str(config.get("pearnly_ocr_credentials") or "").strip()
+        if not path:
+            continue
+        try:
+            with open(path, "rb") as handle:
+                handle.read(1)
+            log(f"· {site} 识别凭据：可读（{path}）")
+        except OSError as exc:
+            log(f"· {site} 识别凭据：**读不了** {path}（{exc.strerror}）")
+            log("  宿主上执行：chown 1000:1000 <文件> && chmod 600 <文件>（与线上一致）")
+
+
 def finish() -> None:
     sites = sites_to_finish()
     if not sites:
         log("· 站点：本栈还没有站点（先跑 import 导入测试租户）")
         return
+    check_credentials(sites)
     for site in sites:
         for name in ("migrate", "clear-cache"):
             done = bench("--site", site, name)
