@@ -73,6 +73,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
+The data volume exceeds the read limit. Please contact an administrator.,数据量超过了读取上限，请联系管理人员。
 The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
@@ -276,7 +277,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,已登记的查询条件过多，请稍�
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 dms.err.ERR_DMS_SNAPSHOT_STALE,现有 DMS 资料已过期，暂不能使用。请手动重新读取，成功后再试。
-dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,数据量超过了读取上限，请联系管理人员。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
 dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
 dms.err.ERR_DMS_UNREACHABLE,连不上第三方 DMS 系统，请联系管理员

@@ -73,6 +73,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
+The data volume exceeds the read limit. Please contact an administrator.,The data volume exceeds the read limit. Please contact an administrator.
 The read status changed. Refresh the page to check before trying again.,The read status changed. Refresh the page to check before trying again.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
@@ -276,7 +277,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,Too many query conditions are registered.
 dms.err.ERR_DMS_SNAPSHOT_RETRY,"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 dms.err.ERR_DMS_SNAPSHOT_STALE,"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
-dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,"This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,The data volume exceeds the read limit. Please contact an administrator.
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
 dms.err.ERR_DMS_UNREACHABLE,Cannot reach the third-party DMS system. Please contact your administrator.

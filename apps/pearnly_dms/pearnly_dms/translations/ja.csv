@@ -73,6 +73,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
+The data volume exceeds the read limit. Please contact an administrator.,データ量が読み取り上限を超えています。管理者にご連絡ください。
 The read status changed. Refresh the page to check before trying again.,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
@@ -276,7 +277,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,登録済みの検索条件が多すぎ�
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
-dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,このテナントのデータ量が現在の読み取り上限を超えているため、このグループは読み取っていません。接続は正常です。管理者が上限を上げてから再度読み取ってください。
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,データ量が読み取り上限を超えています。管理者にご連絡ください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
 dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
 dms.err.ERR_DMS_UNREACHABLE,サードパーティの DMS システムに接続できません。管理者に連絡してください。

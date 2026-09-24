@@ -73,6 +73,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 The account is busy. Click Read later to continue.,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
 "The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
+The data volume exceeds the read limit. Please contact an administrator.,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ
 The read status changed. Refresh the page to check before trying again.,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
@@ -537,7 +538,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,มีเงื่อนไขการ�
 dms.err.ERR_DMS_SNAPSHOT_RETRY,การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 dms.err.ERR_DMS_SNAPSHOT_STALE,ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณากดอ่านข้อมูลใหม่ แล้วลองอีกครั้งเมื่อสำเร็จ
-dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,ข้อมูลของ租户นี้มากกว่าเพดานการอ่านปัจจุบัน กลุ่มนี้จึงยังไม่ได้อ่าน การเชื่อมต่อปกติดี ผู้ดูแลต้องปรับเพดานแล้วอ่านอีกครั้ง
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ
 dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
 dms.err.ERR_DMS_TEMPLATE,ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่
 dms.err.ERR_DMS_UNREACHABLE,เชื่อมต่อระบบ DMS ของบุคคลที่สามไม่ได้ กรุณาติดต่อผู้ดูแลระบบ
