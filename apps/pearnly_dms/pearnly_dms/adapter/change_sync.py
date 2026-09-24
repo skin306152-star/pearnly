@@ -332,16 +332,29 @@ def _new_events(client, module, *, cursor, limits, usage):
 
 # ── 按记录补读（目前只有客户） ──────────────────────────────────────────
 def _apply_customers(client, events, *, endpoint, expected_scope):
-    """把流水点名的客户补读回来。返回 True＝这批变化已经落到缓存。"""
+    """把流水点名的客户补读回来。返回 True＝这批变化已经落到缓存。
+
+    删除：不逐条猜"删掉之后还剩什么"，但**必须先把自己这条 overlay 撤掉** ——
+    overlay 会被下一次整组重读当成必须读到的目标，留着它会让客户缓存永久读不出来。
+    撤掉之后仍然交整组重读（由它按原生列表决定这条客户到底还在不在）。
+    """
+    known = store.customer_index(endpoint)
     targets = []
     for event in events:
-        if not event.names_record or event.action == eventlog_reader.ACTION_DELETE:
-            return False            # 点名不到记录 / 删除 → 交给整组重读
+        if not event.names_record:
+            return False            # 点不到记录 → 交给整组重读
         target = normalize_thai_id(event.target)
-        if not target or target in targets:
+        if not target:
+            return False
+        if event.action == eventlog_reader.ACTION_DELETE:
+            cid = known.get(target)
+            if cid:
+                store.forget_customer(endpoint, cid, expected_scope=expected_scope)
+            continue
+        if target in targets:
             continue
         targets.append(target)
-    known = store.customer_index(endpoint) if targets else {}
+    removed = any(event.action == eventlog_reader.ACTION_DELETE for event in events)
     for target in targets:
         cid = known.get(target) or _search_customer(client, target)
         if not cid:
@@ -350,7 +363,7 @@ def _apply_customers(client, events, *, endpoint, expected_scope):
         if normalize_thai_id(fields.get("people_id")) != target:
             return False            # 读回来的不是这个人 → 不写
         store.verified_customer(endpoint, cid, fields, expected_scope=expected_scope)
-    return True
+    return not removed
 
 
 def _search_customer(client, target):

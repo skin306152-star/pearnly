@@ -63,6 +63,7 @@ class FakeStore:
         self.customers = dict(customers or {})
         self.written = []
         self.verified = []
+        self.forgotten = []
 
     def scope(self, endpoint, **_kwargs):
         return self.scope_key
@@ -80,6 +81,10 @@ class FakeStore:
 
     def verified_customer(self, endpoint, customer_id, fields, *, expected_scope=None):
         self.verified.append((customer_id, fields))
+
+    def forget_customer(self, endpoint, customer_id, *, expected_scope=None):
+        self.forgotten.append(customer_id)
+        return True
 
 
 class FakeManual:
@@ -197,6 +202,33 @@ class ChangeSyncTests(unittest.TestCase):
 
         self.assertEqual(self.read.call_count, 0)
         self.assertEqual(self.store.verified, [])
+        self.assertEqual(self.store.forgotten, ["59"],
+                         "自己这条 overlay 必须先撤掉，否则整组重读会被它永久毒住")
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
+
+    def test_delete_without_a_local_customer_has_nothing_to_forget(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        log = FakeEventLog({CUSTOMERS: {"count": 231,
+                                        "rows": [row(832, CUSTOMERS, ACTION_DELETE)]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.forgotten, [])
+        self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
+
+    def test_an_edit_and_a_delete_in_the_same_batch_both_land(self):
+        self.store.state = self.baseline(**{CUSTOMERS: {"count": 230, "seq": 831, "dirty_since": 0}})
+        self.store.customers[ID_CARD] = "59"
+        self.store.customers["1000001205453"] = "60"
+        log = FakeEventLog({CUSTOMERS: {"count": 232, "rows": [
+            row(832, CUSTOMERS, ACTION_EDIT, ID_CARD),
+            row(833, CUSTOMERS, ACTION_DELETE, "1000001205453"),
+        ]}})
+
+        self.catch_up(log)
+
+        self.assertEqual(self.store.verified[0][0], "59")
+        self.assertEqual(self.store.forgotten, ["60"])
         self.assertEqual([item["dataset"] for item in self.manual.requests], ["customers"])
 
     def test_unreadable_log_stops_without_moving_any_watermark(self):

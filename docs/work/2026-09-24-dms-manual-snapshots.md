@@ -695,3 +695,10 @@ main 与真实远端 main 本批回读均为 `57039ca15595641932f053fd34c49d4e45
 本就允许）；`check-dms-offline.py` 全 PASS（新增 `tests/test_dms_eventlog_reader.py` 8 项、
 `tests/test_dms_change_sync.py` 17 项，旧 `test_dms_operator_advisors.py` 按新契约更新
 "顺手同步"开关断言，未削弱任何严格性）；`i18n` 无新增文案，无需改词条。
+
+补一提交（同日）：**删除事件必须先撤掉自己那条 overlay**。整组客户重读会把 `overlays`
+里的客户当成必须读到的目标，读不到就整代替换失败——一条指向"已在 DMS 删掉"的 overlay
+会让客户缓存**永久读不出来**（每轮重读都失败）。增量同步会给更多客户加 overlay，等于把
+这个既有隐患的曝光面放大，所以在本链路里一并处理：删除事件按身份证号找到本地客户号后
+调 `store.forget_customer` 撤掉本地这一条，**仍然**交整组重读（由原生列表决定这条客户
+到底还在不在，软删除也能被带回来）。测试补到 19 项。

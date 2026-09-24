@@ -332,6 +332,45 @@ def customer_index(endpoint):
     return index
 
 
+def forget_customer(endpoint, customer_id, *, expected_scope=None):
+    """把一条客户从本地缓存里去掉（**只在 DMS 侧确认删掉时**调用）。
+
+    为什么必须做：`overlays` 里的客户会被下一次整组重读**当成必须读到的目标**，
+    读不到就整代替换失败。一条指向"DMS 里已经删掉"的 overlay 会把客户缓存
+    **永久毒住**——每轮重读都失败，界面上只看到一条错误码。
+    """
+    with _cache_connection() as database:
+        return _forget_customer(database, endpoint, customer_id, expected_scope=expected_scope)
+
+
+def _forget_customer(database, endpoint, customer_id, *, expected_scope):
+    key = scope(endpoint, current=True, _database=database)
+    if expected_scope is not None and key != expected_scope:
+        raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
+    name = _name(key, "customers")
+    rows = database.sql(f"SELECT payload, overlays, generation FROM `tab{DT}` WHERE name=%s FOR UPDATE",
+                        name, as_dict=True)
+    if not rows:
+        return False
+    cid = str(customer_id)
+    overlays = json.loads(rows[0].overlays or "{}")
+    dropped = overlays.pop(cid, None) is not None
+    values = {"overlays": _dump(overlays)}
+    if rows[0].payload:
+        data = json.loads(rows[0].payload)
+        if (data.get("customers") or {}).pop(cid, None) is not None:
+            dropped = True
+            values["payload"] = _dump(data)
+            values["generation"] = uuid.uuid4().hex
+    if not dropped:
+        return False
+    database.sql(f"UPDATE `tab{DT}` SET overlays=%s, payload=%s, generation=%s, "
+        "modified=UTC_TIMESTAMP(6) WHERE name=%s",
+        (values["overlays"], values.get("payload", rows[0].payload),
+         values.get("generation", rows[0].generation), name))
+    return True
+
+
 @contextmanager
 def _cache_connection():
     """A short cache-only transaction, isolated from the caller's business log."""
