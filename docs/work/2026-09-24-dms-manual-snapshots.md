@@ -130,6 +130,18 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 - 下一步（待用户决定）：一次只勾一组重试；或测试期间暂停线上 4 分钟自动刷新；或给测试站配独立 DMS 账号。后两者要动线上/第三方账号，需明确授权。
 - 另记：测试机 worker 容器初始化阶段（14:32–14:45）有若干 `validate_queue` → `RuntimeError: object is not bound` 回溯，发生在启动期、与本轮采集无关，留作测试环境噪音待查。
 
+### LINE 身份证识别在测试环境为什么回"请再发一次"
+
+用户在 DMS-TEST OA 发身份证照片（本地 22:19），机器人回泰文"คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่"。定位：**消息确实到了测试环境，OCR 任务在入队那一刻就被拒**——测试环境没有接 OCR 的容量/凭据/计费，属环境缺口，不是采集或识别代码缺陷。
+
+- 到达证据：`pearnly-testenv-dms-frontend-1` 访问日志 15:18:55、15:19:06 两条 `POST /api/method/pearnly_core.line.webhook` 均返回 200（LINE 不会重试刷屏）。
+- 失败证据：`pearnly-testenv-dms-web-1` 日志中的入队回溯 `pearnly_dms/intake/flow.py:_enqueue` → `pearnly_dms/line/out.py:enqueue` → `pearnly_core/execution/work.py:submit` → `pearnly_core/execution/budget.py:redis()` → `Deferred("capacity_not_configured")`。该回溯由 `flow.py:_enqueue` 明确记录（"入队失败不能静默"），不是被吞掉的错误。
+- 直接原因：测试环境 `sites/common_site_config.json` 缺 `pearnly_ocr_budget_redis`。线上同一文件有该键（`redis://redis-queue:6379/6`，由 `infrastructure/production/site-step.py` 写入，口径见 `docs/operations/shared-ocr-capacity.md`）。容量存储缺失 → `submit()` 直接抛 Deferred，任务不入队。
+- 同一环境还缺另两件（补了容量也仍跑不通）：测试机 `/opt/pearnly/secrets/ocr.json` 只有 **3 字节占位**，不是真实服务账号；站点 `pearnly_billing_api` 指向本机 `billing-web`，而该容器没有站点（与首页 `BillingUnavailable … 计费系统响应 HTTP 404` 同一根因）。
+- 产品行为符合设计：`line/out.py` 捕获 `QueueFull/Deferred` 后回"识别队列繁忙，请稍后重新发送图片。"（泰文即用户看到那句）并重新抛出以便记日志；webhook 仍正常返回。
+- 小观察（非缺陷）：容量"没配置"与"真的排满"共用同一句提示，排查时容易误判成业务繁忙；测试环境会一直命中前者。
+- 待用户决定：① 给测试环境接本地假 OCR（仓库既有 `pearnly_ocr_endpoint` 的实验室做法）只验链路、不产生费用；② 接真实凭据与计费（会产生真实付费调用，与"测试环境不接付费 OCR"的约定冲突，需明确授权）；③ 先跳过拍照识别，测其余不依赖 OCR 的菜单路径。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
