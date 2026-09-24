@@ -27,9 +27,32 @@ def has(capability: str, user=None) -> bool:
     from pearnly_erp_portal.access import menu
 
     features = set(entitlements())
+    # The old Stock role spans several separately purchased inventory features.
+    # Preserve that role's compatibility without letting one active feature open another.
+    stock_feature = next((spec[0] for spec in menu.CATALOG.values()
+                          if spec[1] == "ERP Stock" and capability in spec[2]), None)
+    if stock_feature and stock_feature not in features:
+        return False
     held = current_roles(user)
     disabled = {menu.role(key) for key, spec in menu.CATALOG.items() if spec[0] and spec[0] not in features}
+    disabled.update(role for role in set(rules.FEATURE_ROLES.values())
+                    if not any(code in features for code, legacy in rules.FEATURE_ROLES.items() if legacy == role))
     return rules.can(held - disabled, capability)
+
+
+def cost_visible(user=None) -> bool:
+    """Inactive inventory grants cannot reveal costs through another active feature."""
+    from pearnly_core.shell import entitlements
+    from pearnly_erp_portal.access import menu
+
+    held = current_roles(user)
+    features = set(entitlements())
+    for key, spec in menu.CATALOG.items():
+        if spec[0] and spec[0] not in features:
+            held.discard(menu.role(key))
+    if not features.intersection(("warehouses", "stockcard", "stocktake")):
+        held.discard(rules.FEATURE_ROLES["warehouses"])
+    return rules.cost_visible(held)
 
 
 def require(capability: str, user=None) -> None:

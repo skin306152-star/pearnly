@@ -8,8 +8,16 @@ from pearnly_erp_portal.access import menu, rules
 def sync_roles():
     read = {"read": 1, "select": 1}
     write = {**read, "write": 1, "create": 1, "report": 1, "export": 1}
-    dependencies = ("ERP Product", "ERP Company", "ERP Warehouse", "ERP POS Terminal",
-                    "ERP Stock Balance", "ERP Stock Movement")
+    dependencies = ("ERP Product", "ERP Company", "ERP Warehouse", "ERP POS Terminal")
+    # Costs for employees are projected by live entitlement-aware product services.
+    # A static field grant would survive a feature being turned off.
+    frappe.db.delete("Custom DocPerm", {"parent": "ERP Product", "permlevel": 1,
+        "role": ["in", ["ERP Stock", *menu.roles()]], "if_owner": 0})
+    # Updating the catalog alone leaves old Custom DocPerm rows effective on existing Sites.
+    for doctype, key in (("ERP Stock Balance", "inventory"), ("ERP Stock Movement", "stock-card")):
+        stale_roles = [role for role in menu.roles() if role != menu.role(key)]
+        frappe.db.delete("Custom DocPerm", {"parent": doctype, "role": ["in", stale_roles],
+                                            "permlevel": 0, "if_owner": 0})
     for key, (_feature, _legacy, _caps, writable, readable) in menu.CATALOG.items():
         role = menu.role(key)
         _ensure_role(role)
@@ -18,8 +26,11 @@ def sync_roles():
             if frappe.db.exists("DocType", doctype):
                 _grant(doctype, role, write if doctype in writable else read)
         if key in ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses"):
-            _grant("ERP Product", role, {"read": 1}, permlevel=1)
             _grant("ERP Stock Count Item", role, {"read": 1}, permlevel=1)
+    from pearnly_erp_portal.access.sharing import remove_legacy_shares
+
+    remove_legacy_shares()
+    frappe.clear_cache()
 
 
 def migrate_members():

@@ -143,6 +143,7 @@ def update_terminal(name, internal=False, **changes) -> dict:
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     doc = frappe.get_doc(DOCTYPE, name)
+    companies.document_company(doc.company)
     for field in ("terminal_name", "warehouse"):
         if field in changes:
             doc.set(field, changes[field])

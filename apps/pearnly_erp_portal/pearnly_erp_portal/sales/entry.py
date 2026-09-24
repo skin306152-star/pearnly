@@ -57,8 +57,6 @@ def _lines(payload):
             frappe.throw(_("Invalid value"))
         if qty * price - discount < 0:
             frappe.throw(_("Discount cannot exceed the amount"))
-        if row.get("warehouse"):
-            row["warehouse"] = warehouses.required(row["warehouse"])
         result.append(row)
     return result
 
@@ -151,6 +149,10 @@ def _post(payload, request_id, fingerprint, name):
     kind = payload.get("doc_kind") or contracts.RECEIPT
     if kind not in contracts.DOC_KINDS:
         frappe.throw(_("Invalid value"))
+    doc = access.get_document(name, write=True, lock=True) if name else frappe.new_doc(DOCTYPE)
+    if name and doc.status != contracts.DRAFT:
+        frappe.throw(_("A confirmed document cannot be edited"))
+    company = companies.document_company(doc.get("company") if name else payload.get("company"))
     day = str(getdate(payload.get("doc_date") or nowdate()))
     payload["lines"] = _lines(payload)
     totals = contracts.compute_totals(
@@ -160,20 +162,17 @@ def _post(payload, request_id, fingerprint, name):
     reasons = contracts.confirm_gates({"doc_kind": kind, "grand_total": totals["grand_total"]})
     if reasons:
         frappe.throw(f"{_(BLOCKED)}: {', '.join(reasons)}")
-    doc = access.get_document(name, write=True, lock=True) if name else frappe.new_doc(DOCTYPE)
-    if name and doc.status != contracts.DRAFT:
-        frappe.throw(_("A confirmed document cannot be edited"))
     if payload.get("image_sha256"):
         duplicates = frappe.get_all(DOCTYPE, filters={"image_sha256": payload["image_sha256"],
             "status": ["!=", contracts.VOID]}, pluck="name")
         if any(key != name for key in duplicates):
             frappe.throw(_("Document already exists"))
     customer, buyer_name = _buyer(payload)
-    rows = [_line_row(raw, computed) for raw, computed in zip(payload["lines"], totals["lines"])]
+    rows = [_line_row(raw, computed, company=company) for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
     # 一租户多公司：单据挂公司（没给就是当前公司）。
-    doc.company = companies.document_company(doc.get("company") if name else payload.get("company"))
+    doc.company = company
     # 明细必须是子表文档：直接塞 dict 列表，控制器里的 `line.description` 会拿到 dict。
     doc.set("lines", [])
     for row in rows:
@@ -223,7 +222,7 @@ def _resolve_item(row):
     return row
 
 
-def _line_row(raw, computed):
+def _line_row(raw, computed, *, company=None):
     """明细行：只带这张单自己的字段（纯规则层算出来的是"金额"，不是行结构）。"""
     row = _resolve_item(dict(raw))
     row["line_no"] = computed["line_no"]
@@ -231,7 +230,7 @@ def _line_row(raw, computed):
     row["discount"] = computed["discount"]
     row["discount_pct"] = computed.get("discount_pct")
     row["vat_applicable"] = int(bool(computed["vat_applicable"]))
-    return positions.prepare(row)
+    return positions.prepare(row, company=company)
 
 
 def _collection(payload, kind, grand_total, day):
@@ -256,7 +255,8 @@ def _post_stock(doc):
     """落定即出库。幂等锚 = 单据名；已经有留痕就不重复出。"""
     if doc.stock_posted_at or not contracts.should_post_stock(doc.doc_kind, doc.status):
         return
-    rows = [{"product": row.product, "qty": row.qty, "unit": row.unit, **positions.saved(row)}
+    rows = [{"product": row.product, "qty": row.qty, "unit": row.unit,
+             **positions.saved(row, company=doc.get("company"))}
             for row in doc.lines if row.product]
     if not rows:
         return
@@ -266,7 +266,8 @@ def _post_stock(doc):
                                                      company=doc.get("company")),
                       movement_type="sale_out", lines=rows,
                       posting_date=doc.doc_date, ref_type=DOCTYPE, ref_id=doc.name,
-                      doc_no=doc.system_no, internal=True, client_uuid="sales-doc:" + doc.name)
+                      doc_no=doc.system_no, internal=True, client_uuid="sales-doc:" + doc.name,
+                      company=doc.get("company"))
     doc.stock_posted_at = now()
 
 
@@ -279,7 +280,8 @@ def cancel(name, reason=None):
         frappe.throw(_("Only a submitted document can be cancelled"))
     if doc.stock_posted_at:
         stock.reverse_movements(ref_type=DOCTYPE, ref_id=doc.name,
-                                client_uuid="sales-doc-void:" + doc.name, reason=reason)
+                                client_uuid="sales-doc-void:" + doc.name, reason=reason,
+                                company=doc.get("company"))
     doc.status, doc.void_reason, doc.voided_at = contracts.VOID, reason, now()
     doc.stock_posted_at = None
     doc.flags.sales_action = True

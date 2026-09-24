@@ -27,13 +27,25 @@ WAREHOUSE_REQUIRED = "Pick a warehouse"
 COMPANY_REQUIRED = "A warehouse must belong to a company"
 
 
+def company_of(name) -> str:
+    """Authorize the company saved on a warehouse, independent of the active company.
+
+    Historical documents and reversals use their saved warehouse, including an
+    inactive one. New movements still pass through required() to check activity.
+    """
+    owner = frappe.db.get_value(DOCTYPE, name, "company") if name else None
+    if not owner:
+        frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
+    return companies.document_company(owner)
+
+
 def resolve(value=None, *, create=False, company=None):
     """按名字取一个**已存在**的仓库（官方原生口径：仓库是主数据，不靠自由填写凭空长出来）。
 
     只有显式传 `create=True` 的调用方才允许按名字新建（开通/实验室造数据那些路径）。
     **留空不再等于"默认仓"**：这里只回 None，让调用方自己决定（大多数路径用 `required()`）。
     """
-    company = company or companies.active_company()
+    company = companies.document_company(company)
     value = str(value or "").strip()
     if not value:
         return None
@@ -66,7 +78,7 @@ def sole(company=None) -> str | None:
 
     "唯一"是**事实判断**，不是标记：不存"谁是默认"这种配置位（那是"默认仓"换个名字）。
     """
-    names = frappe.get_all(DOCTYPE, filters={"company": company or companies.active_company(),
+    names = frappe.get_all(DOCTYPE, filters={"company": companies.document_company(company),
                                              "is_active": 1},
                            pluck="name", limit_page_length=2)
     return names[0] if len(names) == 1 else None
@@ -99,7 +111,7 @@ def receiving(value=None, *, company=None) -> str:
     """
     if str(value or "").strip():
         return required(value, company=company)
-    company = company or companies.active_company()
+    company = companies.document_company(company)
     shop = companies.selling_warehouse(company)
     if shop and frappe.db.get_value(DOCTYPE, shop, "is_active"):
         return shop

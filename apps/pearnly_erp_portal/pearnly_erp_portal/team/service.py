@@ -174,24 +174,51 @@ def assignable_roles() -> tuple[str, ...]:
                  and frappe.db.exists("Role", menu.role(key)))
 
 
-def _clean_roles(roles) -> list[str]:
+def _clean_roles(roles, *, existing=()) -> list[str]:
     if isinstance(roles, str):
         roles = frappe.parse_json(roles)
     if not isinstance(roles, (list, tuple)):
         frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     allowed = set(assignable_roles())
-    if not roles:
+    retained = set(existing) - allowed
+    if not roles and not retained:
         # 旧线上同样的口径：员工必须至少有一个功能，不能发一个空岗位。
         frappe.throw(_(ROLE_REQUIRED))
-    cleaned: list[str] = []
+    cleaned: list[str] = sorted(retained)
     for role in roles:
         role = str(role).strip()
         # 平台角色、管理员角色，以及本站点没有的角色，一律拒绝。
-        if role not in allowed:
+        if role not in allowed and role not in retained:
             frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
         if role not in cleaned:
             cleaned.append(role)
     return cleaned
+
+
+def _member_roles():
+    """Membership survives entitlement/POS changes; the assignable catalog does not."""
+    return set(rules.FEATURE_ROLES.values()) | set(menu.roles())
+
+
+def _tenant_admin():
+    return frappe.session.user == "Administrator" or bool(
+        set(rules.ALL_RECORDS_ROLES) & guard.current_roles())
+
+
+def _within_management_scope(user):
+    from pearnly_erp_portal.masters import company
+
+    held = {row.role for row in user.roles}
+    if user.name in ("Administrator", "Guest") or not held.intersection(_member_roles()):
+        return False
+    if held.intersection(rules.ALL_RECORDS_ROLES):
+        return False
+    if _tenant_admin():
+        return True
+    # An unrestricted target remains unrestricted when new companies are added.
+    # A delegated manager may only manage explicitly bounded employee accounts.
+    target = set(member_companies(user.name))
+    return bool(target and target.issubset(set(company.allowed_companies())))
 
 
 def _employee(email: str):
@@ -199,24 +226,25 @@ def _employee(email: str):
     if not email or not frappe.db.exists("User", email):
         frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     user = frappe.get_doc("User", email)
-    if set(rules.ALL_RECORDS_ROLES) & {r.role for r in user.roles} or email == "Administrator":
+    if not _within_management_scope(user):
         frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     return user
 
 
 def list_members() -> list[dict]:
     guard.require("team.manage")
-    roles = set(assignable_roles())
-    if not roles:
-        return []
+    roles = _member_roles()
     emails = sorted(set(frappe.get_all(
-        "Has Role", filters={"role": ["in", list(roles)], "parenttype": "User"}, pluck="parent"
+        "Has Role", filters={"role": ["in", list(roles | {rules.ADMIN_ROLE})], "parenttype": "User"}, pluck="parent"
     )))
     members = []
     for email in emails:
         if email == "Administrator":
             continue
         user = frappe.get_doc("User", email)
+        admin_row = rules.ADMIN_ROLE in {row.role for row in user.roles}
+        if not _within_management_scope(user) and not (admin_row and _tenant_admin()):
+            continue
         members.append({
             # `name` 是给列表框架用的行标识，**必须有**：框架在 `BaseList.prepare_data()`
             # 末尾有一句 `this.data = this.data.uniqBy(d => d.name)`，少了这个字段，
@@ -321,8 +349,11 @@ def set_member_roles(email: str, roles=None, companies=None) -> dict:
     绑死这个租户的，唯一关系，用户只可以自己改密码，员工也是一样"）。
     """
     guard.require("team.manage")
-    wanted = _clean_roles(roles)
     user = _employee(email)
+    held_roles = {row.role for row in user.roles}
+    # Closed features cannot be newly granted, but editing an existing employee
+    # must not silently erase their inactive grants.
+    wanted = _clean_roles(roles, existing=held_roles.intersection(menu.roles()))
     wanted_companies = _clean_companies(companies) if companies is not None else None
     known = set(rules.FEATURE_ROLES.values()) | set(menu.roles())
     # 只动子表、最后自己 save（`ignore_permissions`）：框架的 `add_roles/remove_roles`
@@ -378,6 +409,11 @@ def _clean_companies(companies):
     for name in wanted:
         if not frappe.db.exists(COMPANY, {"name": name, "is_active": 1}):
             frappe.throw(_("Not permitted"), frappe.PermissionError)
+    if not _tenant_admin():
+        from pearnly_erp_portal.masters import company
+
+        if not wanted or not set(wanted).issubset(set(company.allowed_companies())):
+            frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
     return wanted
 
 

@@ -458,3 +458,17 @@ has_permission.update({
     "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_permission",
 })
 permission_query_conditions["ERP Stock Entry"] = "pearnly_erp_portal.inventory.access.entry_query"
+for _doctype in ("ERP Stock Balance", "ERP Stock Movement", "ERP Stock Opening", "ERP Stock Count",
+                 "ERP Stock Count Item", "ERP Stock Count Entry"):
+    has_permission[_doctype] = "pearnly_erp_portal.inventory.access.record_permission"
+    permission_query_conditions[_doctype] = "pearnly_erp_portal.inventory.access.record_query"
+for _doctype in ("ERP Sale", "ERP Shift"):
+    has_permission[_doctype] = "pearnly_erp_portal.cashier.access.record_permission"
+    permission_query_conditions[_doctype] = "pearnly_erp_portal.cashier.access.record_query"
+has_permission["ERP POS Terminal"] = "pearnly_erp_portal.cashier.access.terminal_permission"
+permission_query_conditions.update({
+    "ERP Company": "pearnly_erp_portal.masters.access.company_list_query",
+    "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_list_query",
+    "ERP POS Terminal": "pearnly_erp_portal.cashier.access.terminal_query",
+})
+doc_events = {"DocShare": {"validate": "pearnly_erp_portal.access.sharing.validate_share"}}

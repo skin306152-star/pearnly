@@ -68,7 +68,8 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     # 不会各行一个仓（以前 `prepare` 会回落商品的"默认仓"，单据与行就会各说各话）。
     # 单据也没写仓时落"这家公司卖货的那个仓"（见 `warehouses.receiving`）。
     warehouse = warehouses.receiving(warehouse)
-    lines = [positions.prepare(line, warehouse) for line in _business_lines(lines)]
+    company = warehouses.company_of(warehouse)
+    lines = [positions.prepare(line, warehouse, company=company) for line in _business_lines(lines)]
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
@@ -122,10 +123,12 @@ def get_entry(name):
     guard.require("stock.read")
     doc = _get(name)
     guard.require("stock." + doc.direction)
+    company = warehouses.company_of(doc.warehouse)
     data = {field: doc.get(field) for field in LIST_FIELDS}
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": row.unit_cost, "batch_no": row.batch_no, **positions.public(row, doc.warehouse)}
+         "unit_cost": row.unit_cost, "batch_no": row.batch_no,
+         **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
     return data
@@ -138,16 +141,17 @@ def update_entry(name, **changes):
     guard.require("stock." + doc.direction)
     if doc.status != "draft":
         frappe.throw(_(LOCKED))
+    company = warehouses.company_of(doc.warehouse)
     # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
     for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:
-            doc.set(field, warehouses.required(changes[field]) if field == "warehouse" else changes[field])
+            doc.set(field, warehouses.required(changes[field], company=company) if field == "warehouse" else changes[field])
     if "lines" in changes:
         lines = _business_lines(changes["lines"])
         doc.lines = []
         for line in lines:
-            line = positions.prepare(line, changes.get("warehouse"))
+            line = positions.prepare(line, doc.warehouse, company=company)
             doc.append("lines", {
                 "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
                 "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
@@ -174,13 +178,14 @@ def _post(doc) -> dict:
     流水幂等锚是单据名，所以重复提交不会记两次。
     """
     movement_type = _movement_type(doc)
+    company = warehouses.company_of(doc.warehouse)
     result = stock.apply_lines(
         warehouse=doc.warehouse, movement_type=movement_type,
         lines=[{"product": row.product, "qty": row.qty, "unit": row.unit,
-                "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse)} for row in doc.lines],
+                "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse, company=company)} for row in doc.lines],
         posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry",
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,
-        client_uuid=f"stock-entry:{doc.name}", internal=True,
+        client_uuid=f"stock-entry:{doc.name}", internal=True, company=company,
     )
     doc.status = "submitted"
     doc.submitted_at = now()
@@ -210,7 +215,8 @@ def void_entry(name):
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))
     stock.reverse_movements(ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,
-                            client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}")
+                            client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}",
+                            company=warehouses.company_of(doc.warehouse))
     doc.status = "void"
     doc.save(ignore_permissions=True)
     frappe.db.commit()

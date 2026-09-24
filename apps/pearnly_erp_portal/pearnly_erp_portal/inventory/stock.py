@@ -14,6 +14,7 @@ from frappe.utils import now, nowdate
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import contracts, positions, warehouses
+from pearnly_erp_portal.masters import company as companies
 
 MOVEMENT = "ERP Stock Movement"
 BALANCE = "ERP Stock Balance"
@@ -91,7 +92,8 @@ def _save_balance(product: str, warehouse: str, balance: contracts.Balance, loca
 def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, unit=None,
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                   allow_negative=True, internal=False, location="", allow_inactive=False) -> dict:
+                   allow_negative=True, internal=False, location="", allow_inactive=False,
+                   company=None) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
@@ -104,7 +106,12 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         _require()
     product_doc = _product(product, allow_inactive=internal and allow_inactive)
     location = positions.clean_location(location)
-    warehouse = warehouses.required(warehouse)
+    company = _movement_company(warehouse, company, internal)
+    if internal and allow_inactive:
+        if warehouses.company_of(warehouse) != company:
+            frappe.throw(_("Warehouse not found"))
+    else:
+        warehouse = warehouses.required(warehouse, company=company)
     lock_products([product])
 
     if client_uuid:
@@ -169,16 +176,25 @@ def lock_products(products):
         frappe.db.sql("select name from `tabERP Product` where name=%s for update", (product,))
 
 
+def _movement_company(warehouse, company, internal):
+    # Authorized document actions carry a saved warehouse; switching the header's
+    # active company must not redirect or prevent posting/reversing that document.
+    if company is None and internal and warehouse:
+        return warehouses.company_of(warehouse)
+    return companies.document_company(company)
+
+
 def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
                 ref_type=None, ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                allow_negative=True, internal=False) -> dict:
+                allow_negative=True, internal=False, company=None) -> dict:
     """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。"""
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
 
     if not internal:
         _require()
-    lines = [positions.prepare(line, warehouse) for line in lines]
+    company = _movement_company(warehouse, company, internal)
+    lines = [positions.prepare(line, warehouse, company=company) for line in lines]
     lock_products([line["product"] for line in lines])
     if client_uuid and frappe.db.exists(MOVEMENT, {"client_uuid": client_uuid}):
         return {"movements": [], "updated": [], "deduped": True}
@@ -192,7 +208,7 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
             qty=line["qty"], unit=line.get("unit"), unit_cost=line.get("unit_cost"),
             posting_date=posting_date, ref_type=ref_type, ref_id=ref_id, doc_no=doc_no,
             reason=reason, client_uuid=client_uuid if index == 0 else None,
-            allow_negative=allow_negative, internal=True,
+            allow_negative=allow_negative, internal=True, company=company,
         )
         movements.append(result["movement"])
         updated.append({"product": line["product"], "warehouse": place["warehouse"],
@@ -229,7 +245,7 @@ def count_lines(*, warehouse: str, lines, posting_date=None, reason="stocktake")
     return {"adjustments": adjustments}
 
 
-def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None):
+def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=None):
     """Internal only: caller authorizes reversal; original ledger fixes the storage position.
 
     反向流水**带上原单的单据号**：收发存与库存明细的"关联单据"列显示的是 `doc_no`
@@ -241,12 +257,18 @@ def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None):
     rows = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id},
                           fields=["name", "product", "warehouse", "location", "qty_base", "doc_no"],
                           order_by="creation asc", limit_page_length=0)
+    resolved_companies = {row.warehouse: warehouses.company_of(row.warehouse) for row in rows}
+    if company is not None:
+        company = companies.document_company(company)
+        if any(owner != company for owner in resolved_companies.values()):
+            frappe.throw(_("Warehouse not found"))
     lock_products([row.product for row in rows])
     for row in rows:
         apply_movement(product=row.product, warehouse=row.warehouse, location=row.location,
                        movement_type=contracts.ADJUST, qty=-contracts.d(row.qty_base),
                        ref_type="void", ref_id=ref_id, doc_no=row.doc_no, reason=reason,
-                       client_uuid=f"{client_uuid}:{row.name}", internal=True, allow_inactive=True)
+                       client_uuid=f"{client_uuid}:{row.name}", internal=True, allow_inactive=True,
+                       company=resolved_companies[row.warehouse])
 
 
 def _qty_matches(qty, op, value) -> bool:
@@ -275,7 +297,6 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     否则"只看缺货"会一条都看不到。
     """
     _require("inventory.read")
-    from pearnly_erp_portal.access import rules
 
     filters: dict = {}
     if warehouse:
@@ -297,7 +318,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     names = {w["name"]: w["warehouse_name"] for w in frappe.get_list(
         "ERP Warehouse", filters={"name": ["in", [r["warehouse"] for r in rows] or [""]]},
         fields=["name", "warehouse_name"], limit_page_length=0)}
-    visible = rules.cost_visible(guard.current_roles())
+    visible = guard.cost_visible()
     # 用户自己按原生筛选给了数量条件时，**零库存行不能再被默认藏掉** —— 否则
     # 「在库数量 = 0」永远查不出东西（默认那套是给"平时只看有货的"用的）。
     by_qty = bool(qty_op) and qty_value not in (None, "")
@@ -365,10 +386,9 @@ def stock_totals(*, warehouse=None, q=None) -> dict:
     **始终带零库存**统计（列表上的"显示零库存"只管列表本身）。金额按岗位遮蔽：
     没有成本权限就回 None，不回 0 —— 0 会被当成"库存一文不值"。
     """
-    from pearnly_erp_portal.access import rules
 
     rows = _overview_rows(warehouse=warehouse, q=q, include_zero=True)
-    visible = rules.cost_visible(guard.current_roles())
+    visible = guard.cost_visible()
     valued = [row for row in rows if row.get("cost_known")]
     return {
         "sku_count": len({row["product"] for row in rows if row["qty_on_hand"]}),

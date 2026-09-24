@@ -13,25 +13,37 @@
 			arrow?.toggle(available);
 			$(control.input_area).toggleClass("pearnly-has-link-actions", available);
 		};
-		let choices = [], revision = 0, applied = "", pending = Promise.resolve();
+		let choices = [], revision = 0, value_revision = 0, sync_revision = 0, applied = "", pending = Promise.resolve();
+		// Search/focus refreshes must not cancel a valid scan. Only a changed value,
+		// a new scan, an OCR refill or a master refresh supersedes its result.
+		const current = own => own === value_revision && control.$wrapper[0].isConnected;
 		const field = kind === "product" ? "product_name" : kind === "supplier" ? "supplier_name" : "customer_name";
 		const label = row => `${row[field]} · ${row.code || row.tax_id || row.name}${row.branch_no ? " / " + row.branch_no : ""} · ${row.name}`;
 		const sync = async () => {
 			if (!editable || !control.$wrapper[0].isConnected) return;
 			const value = String(control.$input?.val() || "").trim();
 			if (value === applied) return pending;
+			const own = ++sync_revision;
+			const valid = () => own === sync_revision && control.$wrapper[0].isConnected;
+			++revision; ++value_revision;
 			applied = value;
 			const row = choices.find(item => label(item) === value);
 			pending = pending.catch(() => {}).then(async () => {
-				if (value !== applied) return;
+				if (!valid()) return;
+				const was_linked = Boolean(form.get_value(reference));
 				await form.set_values({[reference]: row?.name || "", [title]: row?.[field] || value});
+				if (!valid()) return;
 				if (row) {
 					await on_select(row);
-					if (value === applied) {
+					if (valid()) {
 						applied = row[field];
 						await control.set_value(applied);
 					}
-				} else await on_clear?.();
+				} else if (!value || was_linked) {
+					// OCR/free text has its own document details. Correcting its spelling
+					// must not erase those details unless the field is actually cleared.
+					await on_clear?.();
+				}
 				update_arrow();
 			});
 			return pending;
@@ -81,24 +93,30 @@
 					p.open_link_record(doctype, form.get_value(reference), control.$input, control);
 				});
 			update_arrow();
-			p.watch_master_control(control, doctype, () => {++revision; set_rows([]);});
-			button.on("click", () => p.scan({kind: "all", on_result: async code => {
+			p.watch_master_control(control, doctype, () => {++revision; ++value_revision; set_rows([]);});
+			button.on("click", () => {
+				const own = ++value_revision;
 				++revision;
-				const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1});
-				set_rows(rows);
-				if (rows.length === 1) {
-					await control.set_value(label(rows[0])); await sync();
-				} else {
-					// Unknown scans remain search text, never a fabricated master reference.
-					await control.set_value(code); await sync(); control.$input.trigger("focus");
-					if (!rows.length) frappe.show_alert({message: __("No results found"), indicator: "orange"});
-				}
-			}}));
+				return p.scan({kind: "all", on_result: async code => {
+					if (!current(own)) return;
+					const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1});
+					if (!current(own)) return;
+					++revision;
+					set_rows(rows);
+					if (rows.length === 1) {
+						await control.set_value(label(rows[0])); await sync();
+					} else {
+						// Unknown scans remain search text, never a fabricated master reference.
+						await control.set_value(code); await sync(); control.$input.trigger("focus");
+						if (!rows.length) frappe.show_alert({message: __("No results found"), indicator: "orange"});
+					}
+				}});
+			});
 		}
 		return {
 			sync,
 			async show() {
-				++revision; choices = [];
+				++revision; ++value_revision; ++sync_revision; choices = [];
 				applied = form.get_value(title) || "";
 				await control.set_value(applied);
 				update_arrow();

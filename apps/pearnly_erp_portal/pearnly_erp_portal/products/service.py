@@ -54,11 +54,17 @@ LOOKUP_FIELDS = ("code", "barcode", "qr_payload")
 
 
 def _mask(rows):
-    visible = rules.cost_visible(guard.current_roles())
+    visible = guard.cost_visible()
+    records = [rows] if isinstance(rows, dict) else rows
+    names = [row.get("name") for row in records if row.get("name")]
+    # Only supplement records already admitted by the product lookup above.
+    costs = {row.name: row for row in frappe.get_all(DOCTYPE,
+        filters={"name": ["in", names]}, fields=["name", "default_cost", "cost_set"])} if visible and names else {}
     def masked(row):
         # Native field permissions omit restricted fields; keep the product API's null contract.
         data = {field: None for field in contracts.COST_FIELDS}
         data.update(row)
+        data.update(costs.get(row.get("name")) or {})
         return contracts.mask_costs(data, visible)
     if isinstance(rows, dict):
         return masked(rows)

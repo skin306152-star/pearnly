@@ -23,6 +23,7 @@ from frappe import _
 from frappe.utils import flt, now
 
 from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
@@ -59,13 +60,17 @@ PHOTO_LIMIT_ERROR = "At most {0} photos per entry"
 def _get(name) -> "frappe.Document":
     if not name or not frappe.db.exists(COUNT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(COUNT, name)
+    doc = frappe.get_doc(COUNT, name)
+    company_access.require_warehouse(doc.warehouse)
+    return doc
 
 
 def _item(name: str) -> dict:
     row = frappe.db.get_value(ITEM, name, "*", as_dict=True)
     if not row:
         frappe.throw(_(ITEM_NOT_FOUND), frappe.DoesNotExistError)
+    _get(row["count"])
+    company_access.require_warehouse(row["warehouse"])
     return row
 
 
@@ -110,7 +115,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     count_state.write_document(doc, "insert")
     if not snapshot:
             return {"name": doc.name, "rows": 0}
-    rows = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
+    rows = frappe.get_all(BALANCE, filters={"warehouse": warehouse},
                            fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
         PRODUCT, filters={"is_active": 1, "name": ["in", [r["product"] for r in rows] or [""]]},
@@ -217,6 +222,7 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
 def item_of_product(*, count: str, product: str, location="") -> dict | None:
     """这份盘点里某个商品在某个库位那一行（库位给了就精确匹配）。"""
     guard.require("count.read")
+    _get(count)
     filters = {"count": count, "product": product}
     if location:
         filters["location"] = location
@@ -226,6 +232,7 @@ def item_of_product(*, count: str, product: str, location="") -> dict | None:
 def rows_of_product(*, count: str, product: str) -> list:
     """这个商品在这份盘点里的**所有行**（一个货架一行），手机端要拿它给员工挑。"""
     guard.require("count.read")
+    _get(count)
     return frappe.get_list(ITEM, filters={"count": count, "product": product},
                            fields=["name", "product", "product_name", "code", "barcode", "unit",
                                    "warehouse", "location", "book_qty", "counted",
@@ -341,7 +348,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             "warehouse": _warehouse_label(row["warehouse"]), "location": row["location"] or "",
         } for row in list_items(count=name, limit=0)]
     warehouse = (warehouses.resolve(warehouse, create=False) or "__missing__") if warehouse else warehouses.required()
-    balances = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
+    balances = frappe.get_all(BALANCE, filters={"warehouse": warehouse},
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {row["name"]: row for row in frappe.get_list(
         PRODUCT, filters={"is_active": 1},
@@ -411,7 +418,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
     wanted = (q or "").strip().lower()
     out = []
     tokens = {}
-    can_view_costs = rules.cost_visible(guard.current_roles())
+    can_view_costs = guard.cost_visible()
     costs = {r.name: r for r in frappe.get_all(ITEM, filters={"count": count},
              fields=["name", "basis_unit_cost", "basis_cost_known"])} if can_view_costs else {}
     for row in rows:
@@ -470,7 +477,7 @@ def review_count(name, *, _locked=False):
     token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
     return {"task": task, "items": items, "entries": entries, "review_token": token,
             "can_write": guard.has("count.write"),
-            "can_view_costs": rules.cost_visible(guard.current_roles()),
+            "can_view_costs": guard.cost_visible(),
             "conflicts": [r["name"] for r in items if r["stock_changed"]],
             "location_total": sum(bool(r["location_difference"]) for r in items)}
 
@@ -681,7 +688,7 @@ def elsewhere_positions(product_id: str, here: set) -> list:
     product = frappe.db.get_value(PRODUCT, product_id, ["base_unit", "unit"], as_dict=True) or {}
     unit = product.get("base_unit") or product.get("unit") or ""
     out = []
-    for balance in frappe.db.get_all(BALANCE, filters={"product": product_id},
+    for balance in frappe.db.get_all(BALANCE, filters={"product": product_id, **warehouses.scope_filter()},
             fields=["warehouse", "location", "qty_on_hand"],
             order_by="qty_on_hand desc, warehouse asc"):
         if (balance.warehouse, balance.location or "") in here:
@@ -822,6 +829,7 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
 def entries_total(*, count, item=None) -> int:
     """记录的条数（列表分页要用）。"""
     guard.require("count.read")
+    _get(count)
     filters = {"count": count}
     if item:
         filters["item"] = item
@@ -830,6 +838,7 @@ def entries_total(*, count, item=None) -> int:
 
 def entry_photos(entry: str) -> list[dict]:
     guard.require("count.read")
+    _get(frappe.db.get_value(ENTRY, entry, "count"))
     return frappe.get_list("File", filters={"attached_to_doctype": ENTRY,
                                             "attached_to_name": entry},
                            fields=["name", "file_url", "file_name"], order_by="creation asc",

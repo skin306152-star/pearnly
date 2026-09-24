@@ -57,6 +57,7 @@ def upsert_opening(*, product, warehouse, as_of_date, qty, unit_cost=0, note=Non
             unit_cost=unit_cost, posting_date=as_of_date, ref_type="opening", ref_id=name,
             reason="opening stock" if movement_type == contracts.OPENING else "opening revised",
             client_uuid=f"opening:{frappe.generate_hash(length=24)}",
+            internal=True,
         )
         doc.posted_qty = quantity
     doc.as_of_date = as_of_date
@@ -74,7 +75,7 @@ def list_openings(*, product=None, warehouse=None, limit=200) -> list[dict]:
     if product:
         filters["product"] = product
     if warehouse:
-        filters["warehouse"] = warehouse
+        filters["warehouse"] = warehouses.required(warehouse)
     else:
         filters.update(warehouses.scope_filter())
     return frappe.get_list(DOCTYPE, filters=filters,

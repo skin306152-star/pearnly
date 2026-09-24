@@ -75,7 +75,7 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
     guard.require("report.read")
     date_from = _date(date_from)
     date_to = _date(date_to)
-    visible = rules.cost_visible(guard.current_roles())
+    visible = guard.cost_visible()
     movements = _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)
 
     keys = sorted({(m["product"], m["warehouse"], m.get("location") or "") for m in movements})
@@ -114,7 +114,7 @@ def card(*, product, warehouse=None, location=None, date_from=None, date_to=None
     guard.require("report.read")
     date_from = _date(date_from)
     date_to = _date(date_to)
-    visible = rules.cost_visible(guard.current_roles())
+    visible = guard.cost_visible()
     movements = [dict(m, posting_date=_date(m["posting_date"]))
                  for m in _movements(product=product, warehouse=warehouse, location=location, date_to=date_to)]
     before, period = contracts.movements_before(movements, date_from, after=True)

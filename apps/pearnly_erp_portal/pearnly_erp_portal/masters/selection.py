@@ -51,7 +51,7 @@ def api_choices(kind, context, txt="", scan=False):
     if exact and not text:
         return []
     fields = list(FIELDS[kind])
-    if kind == "product" and not rules.cost_visible(guard.current_roles()):
+    if kind == "product" and not guard.cost_visible():
         fields.remove("default_cost")
     filters = {"is_active": 1}
     matches = [[field, "=" if exact else "like", text if exact else f"%{text}%"]

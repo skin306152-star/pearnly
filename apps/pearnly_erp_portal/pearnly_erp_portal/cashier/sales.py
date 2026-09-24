@@ -63,7 +63,11 @@ def _customer_names(names) -> dict:
 def _get(name):
     if not name or not frappe.db.exists(DT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DT, name)
+    from pearnly_erp_portal.cashier.access import require_record
+
+    doc = frappe.get_doc(DT, name)
+    require_record(doc)
+    return doc
 
 
 def _receipt_no(doc) -> str:
@@ -130,6 +134,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     if client_uuid:
         existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
         if existing:
+            _get(existing)
             return {"name": existing, "deduped": True}
 
     shift_doc = _resolve_shift(shift, terminal)
@@ -316,6 +321,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
     if client_uuid:
         existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
         if existing:
+            _get(existing)
             return {"name": existing, "deduped": True}
     original = _get(name)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS

@@ -18,8 +18,10 @@ def clean_location(value):
     return value
 
 
-def prepare(line, warehouse=None):
+def prepare(line, warehouse=None, *, company=None):
     result = dict(line)
+    if result.get("warehouse"):
+        result["warehouse"] = warehouses.required(result["warehouse"], company=company)
     if not result.get("product"):
         return result
     product = frappe.db.get_value("ERP Product", result["product"],
@@ -34,7 +36,7 @@ def prepare(line, warehouse=None):
     # 行上没写、单据上也没写时，落"这家公司卖货的那个仓"（`warehouses.receiving`，
     # 没有收银台才退回"唯一的仓 / 报错"）。
     wanted = result.get("warehouse") or warehouse
-    resolved = warehouses.resolve(wanted, create=False) if wanted else warehouses.receiving()
+    resolved = warehouses.receiving(wanted, company=company)
     if not resolved:
         frappe.throw(_("Warehouse not found"))
     result["warehouse"] = resolved
@@ -43,14 +45,17 @@ def prepare(line, warehouse=None):
     return result
 
 
-def saved(line, warehouse=None):
+def saved(line, warehouse=None, *, company=None):
     """Read an existing line, including legacy blank positions, without product defaults."""
-    return {"warehouse": line.get("warehouse") or warehouse or warehouses.required(),
+    value = line.get("warehouse") or warehouse
+    if value and company and warehouses.company_of(value) != company:
+        frappe.throw(_("Warehouse not found"))
+    return {"warehouse": value or warehouses.required(company=company),
             "location": clean_location(line.get("location"))}
 
 
-def public(line, warehouse=None):
-    place = saved(line, warehouse)
+def public(line, warehouse=None, *, company=None):
+    place = saved(line, warehouse, company=company)
     return {**place, "product_name": frappe.db.get_value("ERP Product", line.get("product"), "product_name")
             if line.get("product") else None, "warehouse_name": frappe.db.get_value(
         "ERP Warehouse", place["warehouse"], "warehouse_name") or place["warehouse"]}

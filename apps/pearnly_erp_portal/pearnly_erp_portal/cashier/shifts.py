@@ -86,7 +86,11 @@ def _balance_rows(doc, *, by_method=None, change_total=0.0) -> list[dict]:
 def _get(name):
     if not name or not frappe.db.exists(DT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DT, name)
+    from pearnly_erp_portal.cashier.access import require_record
+
+    doc = frappe.get_doc(DT, name)
+    require_record(doc)
+    return doc
 
 
 def _own_shift(name, *, allow_admin=True):
@@ -137,7 +141,7 @@ def open_shift(*, terminal=None, opening_float=0, balances=None, note=None) -> d
 def current_shift(*, terminal=None) -> dict | None:
     """本人当前开着的班（收银台不带就找本人任意一个开班）。"""
     guard.require("cashier.read")
-    filters = {"cashier": frappe.session.user, "status": contracts.OPEN}
+    filters = {"cashier": frappe.session.user, "status": contracts.OPEN, **terminals.scope_filter()}
     if terminal:
         filters["terminal"] = terminals.resolve(terminal)
     name = frappe.db.get_value(DT, filters, "name")
@@ -246,7 +250,7 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
         # 权限过滤在上一步已经写进 filters，这里再按名字收窄 —— 越权传别人的班次号只会取到空。
         filters["name"] = ["in", list(names)]
     if terminal:
-        filters["terminal"] = terminal
+        filters["terminal"] = terminals.resolve(terminal)
     if status:
         filters["status"] = status
     if date_from and date_to:

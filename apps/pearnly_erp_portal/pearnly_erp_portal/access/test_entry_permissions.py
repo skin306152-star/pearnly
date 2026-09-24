@@ -37,7 +37,7 @@ class EntryPermissions(unittest.TestCase):
                                                 tax_id=cls.prefix, branch_type="branch", branch_no="0001")["name"]
         cls.customer = customers.create_customer(customer_name=cls.prefix + " customer", party_type="company")["name"]
         cls.users = {}
-        for key in ("purchase", "sales", "stock-in", "stock-out", "stock-count", "products", "suppliers", "clients", "home", "profile", "team", "pos-receipts", "pos-shifts"):
+        for key in menu.CATALOG:
             existing = frappe.get_all("User", filters={"name": ["like", "entry%" + key + "@example.test"]},
                                       pluck="name", order_by="creation desc", limit_page_length=1)
             user = existing[0] if existing else cls.prefix + key + "@example.test"
@@ -113,8 +113,10 @@ class EntryPermissions(unittest.TestCase):
                 self.assertIn("pearnly-" + key, pages)
             if key != "team":
                 self.assertNotIn("pearnly-team", pages)
-            self.assertNotIn("pearnly-company", pages)
-            self.assertNotIn("pearnly-warehouses", pages)
+            if key != "company":
+                self.assertNotIn("pearnly-company", pages)
+            if key != "warehouses":
+                self.assertNotIn("pearnly-warehouses", pages)
             for other in self.users:
                 if other != key:
                     self.assertNotIn("pearnly-" + other, pages)

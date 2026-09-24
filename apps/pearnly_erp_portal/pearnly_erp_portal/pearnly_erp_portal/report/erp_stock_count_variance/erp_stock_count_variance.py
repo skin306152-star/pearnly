@@ -47,7 +47,7 @@ def _columns() -> list:
         {"label": _label("stock.count.difference"), "fieldname": "difference",
          "fieldtype": "Float", "precision": 3, "width": 110},
     ]
-    if rules.cost_visible(guard.current_roles()):
+    if guard.cost_visible():
         # 成本按岗位遮蔽（与库存页同一条规矩）：没权限的岗位这一列根本不出现。
         columns.append({"label": _label("stock.count.differenceValue"),
                         "fieldname": "difference_value", "fieldtype": "Currency",
