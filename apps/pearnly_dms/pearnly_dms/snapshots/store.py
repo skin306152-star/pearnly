@@ -22,10 +22,12 @@ from pearnly_dms.contracts.endpoint import endpoint_name
 
 DT = "DMS Read Snapshot"
 INTERVAL = 300
-# 单组快照的存储上限。2026-09-25 实测：rayong 有 15,135 个客户，完整快照按每条约
-# 1–1.5KB 估算要 15–22MB，旧的 8MB 会让读取全部成功却在发布时被丢掉。数据库单包
-# 上限是 16MB，取 14MB 留出余量；再大就要同时调 MariaDB 的 max_allowed_packet。
-MAX_BYTES = 14 * 1024 * 1024
+# 单组快照（含读取中的检查点）的存储上限。2026-09-25 实测：rayong 有 15,135 个客户，
+# 检查点每客户约 1.3–1.5KB，整组要 **20MB 以上**；旧的 8MB 让任务在读到一半时
+# 写检查点这一步就报"超出存储预算"，任务链直接断掉（夜间定时任务也会同样断在这里）。
+# 24MB 留出余量。同时必须保证 MariaDB 的 `max_allowed_packet` 覆盖它：
+# 生产 compose 的 mariadb 已带 `--max-allowed-packet=64M`。
+MAX_BYTES = 24 * 1024 * 1024
 MAX_REQUESTS = 32
 REQUEST_TTL = 7 * 86400
 #: 变更流水的水位（模块事件总数 + 已处理的流水号）。不是快照，只走内部读写。

@@ -51,7 +51,9 @@ services:
     image: mariadb:11.8@sha256:79d59758afc91b89b120b0a8904d637f5a3b3e1c4900f29b740d6d46c72fef68
     restart: unless-stopped
     mem_limit: 2g
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G]
+    # --max-allowed-packet: 大数据量租户的单份快照可达 20MB 以上（rayong 15,135 个客户），
+    # 默认 16MB 会让写入在读取中途被数据库拒绝。必须覆盖 store.MAX_BYTES。
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --innodb-buffer-pool-size=1G, --max-allowed-packet=64M]
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
       MARIADB_DATABASE: keycloak
