@@ -19,6 +19,12 @@ SITES = BENCH / "sites"
 MARKER = SITES / ".pearnly-testenv"
 PRODUCT_BY_GROUP = {"dms": "dms", "erp": "erp", "cowork": "cowork"}
 
+# 账本（控制面）站点不是产品租户：它没有 pearnly_product，靠 pearnly_billing_only 标识。
+# **必须整站导入**，不能只建空站：产品站点用的是**记账本库里的**分租户服务令牌，
+# 空站的库里没有那行，所有计费请求都会被拒（实测表现为 billing 404 / 一直重试）。
+BILLING_GROUP = "billing"
+BILLING_SITE = "billing.internal"
+
 
 def shell(cmd, **kwargs):
     result = subprocess.run(cmd, text=True, capture_output=True, **kwargs)
@@ -48,7 +54,12 @@ def main():
     if not config_file.is_file():
         raise SystemExit(f"missing {config_file}")
     config = json.loads(config_file.read_text())
-    if config.get("pearnly_product") != PRODUCT_BY_GROUP.get(group):
+    if group == BILLING_GROUP:
+        if site != BILLING_SITE:
+            raise SystemExit(f"refusing {site} into group {group} (only {BILLING_SITE})")
+        if not config.get("pearnly_billing_only"):
+            raise SystemExit(f"refusing {site}: not a billing-only site")
+    elif config.get("pearnly_product") != PRODUCT_BY_GROUP.get(group):
         raise SystemExit(f"refusing {config.get('pearnly_product')} into group {group}")
     db_name, db_user, db_password = config["db_name"], config["db_user"], config["db_password"]
 

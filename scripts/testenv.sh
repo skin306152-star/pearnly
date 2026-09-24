@@ -157,24 +157,30 @@ lab_start() {
   local first; first=$(lab_apps "$@" | head -1)
   echo "本次涉及产品：$apps"
 
-  echo "== 1/5 起本栈（拉镜像 → 起服务；自动升级站点库、清缓存、写运行配置）"
+  echo "== 1/6 起本栈（拉镜像 → 起服务；自动升级站点库、清缓存、写运行配置）"
   bash "$0" up "$first" | tail -8
 
-  echo "== 2/5 线上导出测试租户"
+  echo "== 2/6 线上导出测试租户与账本"
   ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" 'bash -s' "$prod_dir" \
-    $specs \
+    $specs billing:billing.internal \
     < "$root/infrastructure/testenv/export-test-tenant.sh" | tail -3
 
-  echo "== 3/5 取回本机"
+  echo "== 3/6 取回本机"
   mkdir -p /tmp/te-export
   scp -q -i "$prod_key" -o BatchMode=yes "root@$prod_host:$prod_dir/*" /tmp/te-export/
 
-  echo "== 4/5 导入测试环境"
+  echo "== 4/6 导入测试环境"
   for spec in $specs; do
     bash "$0" import "${spec%%:*}" "${spec#*:}" | tail -2
   done
 
-  echo "== 5/5 收尾（升级导入的站点库 + 清缓存）并把域名切到测试环境"
+  # 账本（控制面）必须在本栈自己的 billing-web 里，否则产品的付费路径（DMS 身份证识别
+  # 等）会卡在计费那一步无限重试。它和产品租户一起从线上整站导入，与线上账本物理隔离。
+  echo "== 5/6 导入账本站点"
+  bash "$0" import billing billing.internal | tail -2
+  bash "$0" migrate billing billing.internal | tail -2
+
+  echo "== 6/6 收尾（升级导入的站点库 + 清缓存）并把域名切到测试环境"
   # 导入是全新的库，起栈时那次升级没有覆盖到，必须再来一次。
   bash "$0" finish "$first" | tail -10
   bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
@@ -241,11 +247,14 @@ case "${1:-}" in
   sites) app=$(resolve_app "${2:-}"); sync; bash_remote_app "$app" sites ;;
   import)
     group=${2:?group}; site=${3:?site}
-    sync; publish_import "$group" "$site"; bash_remote_app "$group" import "$group" "$site"
+    # 账本不是产品：它住在当前那套栈的 billing-web 里（app 用 PEARNLY_TESTENV_APP 选）。
+    target=$group; [[ "$group" == billing ]] && target=$(resolve_app)
+    sync; publish_import "$group" "$site"; bash_remote_app "$target" import "$group" "$site"
     ;;
   migrate)
     group=${2:?group}; site=${3:?site}
-    sync; bash_remote_app "$group" migrate "$group" "$site"
+    target=$group; [[ "$group" == billing ]] && target=$(resolve_app)
+    sync; bash_remote_app "$target" migrate "$group" "$site"
     ;;
   sh) shift; bash_remote_app "$(resolve_app)" sh "$@" ;;
   urls) urls ;;

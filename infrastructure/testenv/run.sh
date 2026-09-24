@@ -173,19 +173,29 @@ case "${1:-}" in
   import)
     group=${2:?group}
     site=${3:?site}
-    [[ "$group" == "$app" ]] || { echo "this stack serves $app, not $group" >&2; exit 2; }
+    # 账本站点（billing.internal）住在每套栈自己的 billing-web 里，不属于任何产品。
+    if [[ "$group" == "billing" ]]; then
+      service=billing-web
+    else
+      [[ "$group" == "$app" ]] || { echo "this stack serves $app, not $group" >&2; exit 2; }
+      service="$group-web"
+    fi
     dc run --rm --no-deps -T \
       -e TESTENV_SITE="$site" -e TESTENV_GROUP="$group" \
       -e TESTENV_IMPORT_DIR="/workspace/import/$site" \
       -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
-      "$group-web" \
+      "$service" \
       /home/frappe/frappe-bench/env/bin/python /workspace/testenv/import-test-tenant.py
     ;;
   migrate)
     group=${2:?group}
     site=${3:?site}
-    [[ "$group" == "$app" ]] || { echo "this stack serves $app, not $group" >&2; exit 2; }
-    dc run --rm --no-deps -T "$group-web" bench --site "$site" migrate
+    if [[ "$group" == "billing" ]]; then
+      dc run --rm --no-deps -T billing-web bench --site "$site" migrate
+    else
+      [[ "$group" == "$app" ]] || { echo "this stack serves $app, not $group" >&2; exit 2; }
+      dc run --rm --no-deps -T "$group-web" bench --site "$site" migrate
+    fi
     ;;
   sh)
     shift
