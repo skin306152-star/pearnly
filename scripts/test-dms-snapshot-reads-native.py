@@ -274,6 +274,64 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         # Old address data cannot disable unrelated car/paint choices.
         self.assertEqual(self.master(self.qa(), "cars")[0][0], "cars-1")
 
+    def _manual_query(self, authenticated):
+        """Real request, serialized RQ job and execute_job; only DMS IO is fake.
+
+        Remove only this exact token's job. Foreign queue entries, including
+        native installation work, must survive unchanged.
+        """
+        from frappe.utils.background_jobs import get_queue
+        from pearnly_core import line_binding
+        from pearnly_dms.snapshots import manual
+
+        queue = get_queue(manual.QUEUE)
+        baseline, jobs = set(queue.get_job_ids()), []
+        line_binding.bind(self.line_id, self.users[0], "Synthetic manual query")
+        binding = line_binding.binding_of(self.line_id)
+        conditions = rb.query_parameters(field="customer", query="MATCH", status="active")
+        dataset = rb.query_dataset(conditions)
+        self.key(reader="sales")
+        params = {**conditions, "_binding": {"user_id": self.users[0], "line_user_id": self.line_id,
+                  "binding_revision": str(binding.modified)}}
+        try:
+            request = manual.request(self.endpoint, dataset, reader="sales", params=params, actor=self.users[0])
+            for job_id in set(queue.get_job_ids()) - baseline:
+                job = queue.fetch_job(job_id)
+                self.assertEqual(job.func_name, "frappe.utils.background_jobs.execute_job")
+                self.assertEqual(job.kwargs.get("site"), lab["SITE"])
+                self.assertEqual(job.kwargs.get("method"), "pearnly_dms.snapshots.manual.execute")
+                self.assertEqual(job.kwargs.get("kwargs", {}).get("request_id"), request["request_id"])
+                self.assertEqual(job.kwargs["kwargs"].get("endpoint"), self.endpoint)
+                jobs.append(job_id)
+            self.assertEqual(len(jobs), 1)
+            frappe.db.commit()
+            job = queue.fetch_job(jobs[0])
+            queue.remove(job.id)
+            frappe.destroy()
+            # Reloaded Job arguments crossed Redis serialization. perform calls
+            # the real Frappe execute_job and the registered manual consumer.
+            with patch.object(snapshot_sync, "run_logged_in", authenticated):
+                result = job.perform()
+            lab["connect"]()
+            if result.get("ok"):
+                status = manual.status(self.endpoint, dataset, reader="sales")
+                self.assertEqual(status["state"], "succeeded")
+                self.assertEqual(status["count"], 2)
+            return result, dataset
+        finally:
+            if not getattr(frappe.local, "site", None):
+                lab["connect"]()
+            for job_id in jobs:
+                job = queue.fetch_job(job_id)
+                if job:
+                    self.assertEqual(job.kwargs.get("method"), "pearnly_dms.snapshots.manual.execute")
+                    self.assertEqual(job.kwargs["kwargs"].get("endpoint"), self.endpoint)
+                    self.assertEqual(job.kwargs["kwargs"].get("request_id"), request["request_id"])
+                    queue.remove(job_id)
+                    job.delete()
+            line_binding.unbind(self.line_id)
+            self.assertTrue(baseline.issubset(set(queue.get_job_ids())))
+
     def test_query_refresh_to_native_store_then_local_reads_and_revoke(self):
         calls = []
         client = query_fixture["NativeClient"]()
@@ -281,16 +339,18 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         self.key(reader="sales")
         def authenticated(endpoint, callback, **kwargs):
             self.assertEqual(endpoint, self.endpoint)
-            self.assertEqual(kwargs, {"authoritative_read": False, "background": True})
+            self.assertEqual(kwargs, {"authoritative_read": False, "background": True, "read_only_batch": True})
             calls.append(endpoint)
             return callback(client, adapter)
-        with patch.object(snapshot_sync, "run_logged_in", authenticated):
-            result = snapshot_sync.refresh(self.endpoint)
+        result, dataset = self._manual_query(authenticated)
         self.assertTrue(result["ok"], result)
         self.assertEqual(len(calls), 1)
         read = rb.fetch_sales_records(self.users[0], field="customer", query="MATCH", status="active")
         self.assertTrue(read["ok"], read)
         self.assertEqual([row["id"] for row in read["rows"]], ["2", "0"])
+        self.assertEqual(store.read(self.endpoint, dataset, reader="sales")["data"]["params"],
+                         rb.query_parameters(field="customer", query="MATCH", status="active"))
+        self.assertFalse(rb.fetch_sales_records(self.users[0], field="customer", query="different")["ok"])
         self.assertFalse(rb.fetch_sales_records(self.users[1])["ok"])
         operator = frappe.get_doc("DMS Operator", self.users[0])
         operator.can_query_dms = 0
@@ -307,11 +367,10 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
             operator.dms_password = self.password + "-changed-during-io"
             operator.save(ignore_permissions=True)
             return result
-        with patch.object(snapshot_sync, "run_logged_in", authenticated):
-            result = snapshot_sync.refresh(self.endpoint)
+        result, dataset = self._manual_query(authenticated)
         self.assertFalse(result["ok"], result)
         self.assertEqual(result["error_code"], "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, rb.SALES_DATASET, reader="sales")
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, dataset, reader="sales")
 
     def test_separate_connection_revocation_during_capture_is_not_hidden_by_rr(self):
         for action, expected in (("revoke", "ERR_DMS_QUERY_FORBIDDEN"),
@@ -322,10 +381,11 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
                 operator.save(ignore_permissions=True)
                 frappe.db.commit()
                 key = self.key(reader="sales")
+                dataset = rb.query_dataset(rb.query_parameters(field="customer", query="MATCH", status="active"))
                 self.publish({"ok": True, "sentinel": "old generation"},
-                             dataset=rb.SALES_DATASET, reader="sales")
+                             dataset=dataset, reader="sales")
                 frappe.db.commit()
-                name = store._name(key, rb.SALES_DATASET)
+                name = store._name(key, dataset)
                 before = frappe.db.get_value(store.DT, name, ["generation", "payload"])
                 def authenticated(endpoint, callback, **kwargs):
                     result = callback(query_fixture["NativeClient"](), query_fixture["adapter"]())
@@ -334,12 +394,15 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
                     self.assertEqual(child.returncode, 0, child.stderr[-1500:])
                     self.assertEqual(child.stdout.strip(), "MUTATED_SYNTHETIC_FIXTURE")
                     return result
-                with patch.object(snapshot_sync, "run_logged_in", authenticated):
-                    result = snapshot_sync.refresh(self.endpoint)
+                result, actual_dataset = self._manual_query(authenticated)
+                self.assertEqual(actual_dataset, dataset)
                 self.assertFalse(result["ok"], result)
                 self.assertEqual(result["error_code"], expected)
                 self.assertEqual(frappe.db.get_value(store.DT, name, ["generation", "payload"]), before)
-                self.assertEqual(frappe.get_all(store.DT, filters={"scope_key": key}, pluck="name"), [name])
+                # Registration may retain its private capacity guard row, but
+                # no unrequested sales/ranking payload is collected.
+                self.assertEqual(frappe.get_all(store.DT,
+                    filters={"scope_key": key, "generation": ["!=", ""]}, pluck="name"), [name])
 
 
 if __name__ == "__main__":
