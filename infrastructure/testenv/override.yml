@@ -22,8 +22,14 @@ services:
   billing-web:
     volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
   dms-web:
-    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
   erp-web:
-    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
   cowork-web:
-    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro

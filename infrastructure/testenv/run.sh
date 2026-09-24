@@ -93,7 +93,9 @@ case "${1:-}" in
   smoke)
     # 在测试机内部按 Host 头访问前端入口，证明应用真的在应答（不经过 Mac 侧）。
     for entry in "dms.${site_suffix}:8183" "erp.${site_suffix}:8182" \
-                 "cowork.${site_suffix}:8181" "billing.internal:8184"; do
+                 "cowork.${site_suffix}:8181" \
+                 "testdms.pearnly.com:8183" "testerp.pearnly.com:8182" \
+                 "billing.internal:8184"; do
       host_name=${entry%%:*}; port=${entry##*:}
       echo "== $host_name:$port"
       for path in / /login /api/method/ping; do
@@ -104,6 +106,11 @@ case "${1:-}" in
           "http://127.0.0.1:$port$path" | tail -c 120 | tr -d '\n' | sed 's/^/      /'
       done
     done
+    ;;
+  tunnel)
+    shift
+    # 传参给设备侧脚本：tunnel.sh <站点> <端口>
+    bash "$(dirname "$0")/tunnel.sh" "$@"
     ;;
   logs) shift; dc logs --tail "${TESTENV_LOG_LINES:-100}" "$@" ;;
   down) dc down ;;
@@ -118,6 +125,23 @@ case "${1:-}" in
   sites)
     shift
     init_sites "${@:-dms}"
+    ;;
+  import)
+    group=${2:?group}
+    site=${3:?site}
+    case "$group" in dms|erp|cowork) ;; *) echo "unknown group $group"; exit 2 ;; esac
+    dc run --rm --no-deps -T \
+      -e TESTENV_SITE="$site" -e TESTENV_GROUP="$group" \
+      -e TESTENV_IMPORT_DIR="/workspace/import/$site" \
+      -e TESTENV_DB_ROOT_PASSWORD="$(grep -E '^DB_ROOT_PASSWORD=' "$env_file" | cut -d= -f2-)" \
+      "$group-web" \
+      /home/frappe/frappe-bench/env/bin/python /workspace/testenv/import-test-tenant.py
+    ;;
+  migrate)
+    group=${2:?group}
+    site=${3:?site}
+    case "$group" in dms|erp|cowork) ;; *) echo "unknown group $group"; exit 2 ;; esac
+    dc run --rm --no-deps -T "$group-web" bench --site "$site" migrate
     ;;
   sh)
     shift

@@ -56,12 +56,31 @@
 
 ## 未完成 / 下一步
 
-1. Mac 侧浏览器通路：那台机器的 sshd 禁了 TCP 转发。要么按需放开本地转发，
-   要么靠隧道（下一条）提供 https 入口。**待用户决定，未擅自改 sshd。**
-2. 隧道（供 LINE 测试租户回调与手机 HTTPS）：需要用户选定提供方与域名，尚未开始。
-3. `billing.internal` 站点尚未建（线上由 `bootstrap-billing.py` 建），因此计费/身份链未接。
-4. 测试租户的 LINE 频道凭据与 OIDC/计费接线未配；按需再开。
+1. 身份登录：测试租户的 OIDC 指向正式 `https://auth.pearnly.com`，而测试环境的 Keycloak 是
+   空的。要"登录也一样"得把正式 Keycloak 库导过来，那里面含**全部租户的用户**，
+   属于数据外带，未获授权不做。当前可用本机管理员账号验证业务流。
+2. LINE 真实回调：测试租户频道现在的 webhook 指向正式。要在测试环境收真实事件，
+   需要把该频道 webhook 临时指向隧道地址（会影响正式 test 租户），或用独立频道；
+   且快速隧道地址重启会变。**待用户决定**。
+3. `billing.internal` 站点尚未建（线上由 `bootstrap-billing.py` 建），计费链未接。
+4. OCR 在测试环境是占位空凭据，不会产生付费调用；需要验 OCR 时再单独处理。
 5. 浏览器真实操作、LINE 真实回调、真机验收均未执行。
+
+## 本轮追加能力（2026-09-24 下午）
+
+- **测试租户整站导入**：`export-test-tenant.sh`（正式机侧）+ `import-test-tenant.py`（测试机侧）。
+  已导入 `testdms.pearnly.com`（租户 T-2026-0271，260 表）与 `testerp.pearnly.com`
+  （租户 T-2026-0283，286 表），站点名、数据库名、站点配置（含 encryption_key 与渠道凭据）
+  与线上一致；读回到真实数据（如 `tabScheduled Job Log=704`）。
+- **Mac 侧访问**：那台机器的 sshd 原为 `AllowTcpForwarding no`。经用户同意改为 `local`
+  （仅本地转发，仍禁止远程转发与网关端口），原文件备份为
+  `C:\ProgramData\ssh\sshd_config.bak-20260924`。Mac 经 `ssh -L` 访问三个前端均 200。
+- **WSL 网络**：`localhostForwarding` 到不了 docker 发布的端口，改用 `networkingMode=mirrored`，
+  Windows 与 WSL 共享网络栈后打通。
+- **公网 https 入口**：`tunnel.sh` 用 nginx 改写 Host + Cloudflare 快速隧道，
+  由 systemd 单元 `pearnly-tunnel.service` 托管。实测
+  `https://<随机域名>.trycloudflare.com/api/method/ping` → 200、`/` → 302。
+  快速隧道地址每次重启会变；要固定地址需自有域名建 named tunnel。
 
 ## 证据分层
 

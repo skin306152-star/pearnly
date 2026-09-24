@@ -31,8 +31,13 @@ printf 'deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download
   > /etc/apt/sources.list.d/docker.list
 apt-get update -qq
 apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+# 公网入口用：nginx 做 Host 改写，cloudflared 提供 https 隧道。
+apt-get install -y -qq nginx
+curl -fsSL -o /tmp/cloudflared.deb \
+  https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+dpkg -i /tmp/cloudflared.deb >/dev/null
 timedatectl set-timezone UTC
-systemctl enable --now docker
+systemctl enable --now docker nginx
 
 # 测试环境的 OCR 是占位空凭据：正式 compose 会把它挂进产品容器，测试站点不启用 OCR，
 # 因此不会产生付费调用。

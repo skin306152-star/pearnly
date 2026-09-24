@@ -92,6 +92,26 @@ pull() {
   echo "pulled $image"
 }
 
+publish_import() {
+  # 把 Mac 上导出的测试租户备份放到测试机的 import 目录（不进仓库、不长期留存）。
+  local group=$1 site=$2 src=${PEARNLY_TESTENV_IMPORT_SRC:-/tmp/te-export}
+  local slug; slug=$(printf '%s' "$site" | tr '.' '_')
+  local stage=/tmp/pearnly-import/$site
+  mkdir -p "$stage"
+  local db pub priv
+  db=$(ls -1t "$src"/*"$slug"*database.sql.gz 2>/dev/null | head -1)
+  pub=$(ls -1t "$src"/*"$slug"*files.tar 2>/dev/null | grep -v private-files | head -1)
+  priv=$(ls -1t "$src"/*"$slug"*private-files.tar 2>/dev/null | head -1)
+  [[ -n "$db" && -n "$pub" && -n "$priv" && -f "$src/$site-site_config.json" ]] || {
+    echo "missing export for $site under $src (need db/public/private/site_config)" >&2; exit 2; }
+  cp "$db" "$pub" "$priv" "$src/$site-site_config.json" "$stage/"
+  # 传父目录，远端结构与 win_temp/pearnly-import/<site>/ 一致
+  scp -q -o BatchMode=yes -r /tmp/pearnly-import "$host:C:/Users/codexops/AppData/Local/Temp/"
+  wsl mkdir -p "/opt/pearnly-testenv/import/$site"
+  wsl cp -r "$win_temp/pearnly-import/$site/." "/opt/pearnly-testenv/import/$site/"
+  echo "published $(ls -1 "$stage" | wc -l | tr -d ' ') files for $site"
+}
+
 case "${1:-}" in
   setup)
     sync
@@ -110,9 +130,18 @@ case "${1:-}" in
   env) sync; write_env ;;
   pull) sync; pull ;;
   config|ps|check|smoke|down|reset|base) sync; bash_remote "$@" ;;
+  tunnel) shift; sync; bash_remote tunnel "$@" ;;
   up) sync; write_env; bash_remote up ;;
   logs) shift; sync; bash_remote logs "$@" ;;
   sites) shift; sync; bash_remote sites "$@" ;;
+  import)
+    group=${2:?group}; site=${3:?site}
+    sync; publish_import "$group" "$site"; bash_remote import "$group" "$site"
+    ;;
+  migrate)
+    group=${2:?group}; site=${3:?site}
+    sync; bash_remote migrate "$group" "$site"
+    ;;
   sh) shift; bash_remote sh "$@" ;;
   urls) urls ;;
   *)
