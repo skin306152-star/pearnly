@@ -112,6 +112,37 @@ publish_import() {
   echo "published $(ls -1 "$stage" | wc -l | tr -d ' ') files for $site"
 }
 
+lab_start() {
+  # 一键开始测试：从线上导出测试租户 → 取回 → 导入测试环境 → 把域名切过来。
+  local prod_host=${PEARNLY_TESTENV_PROD_HOST:-107.155.65.74}
+  local prod_key=${PEARNLY_TESTENV_PROD_KEY:-$HOME/.config/pearnly-production/operator}
+  local prod_dir=/root/te-export
+  [[ -s "$prod_key" ]] || { echo "missing production key $prod_key" >&2; exit 2; }
+
+  echo "== 1/4 线上导出测试租户"
+  ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" 'bash -s' "$prod_dir" \
+    dms:testdms.pearnly.com erp:testerp.pearnly.com \
+    < "$root/infrastructure/testenv/export-test-tenant.sh" | tail -3
+
+  echo "== 2/4 取回本机"
+  mkdir -p /tmp/te-export
+  scp -q -i "$prod_key" -o BatchMode=yes "root@$prod_host:$prod_dir/*" /tmp/te-export/
+
+  echo "== 3/4 导入测试环境"
+  bash "$0" import dms testdms.pearnly.com | tail -2
+  bash "$0" import erp testerp.pearnly.com | tail -2
+
+  echo "== 4/4 把域名切到测试环境"
+  bash "$root/scripts/testenv-cloudflare.sh" switch-lab
+  bash "$root/scripts/testenv-cloudflare.sh" status
+}
+
+lab_stop() {
+  # 一键结束测试：域名切回线上。
+  bash "$root/scripts/testenv-cloudflare.sh" switch-prod
+  bash "$root/scripts/testenv-cloudflare.sh" status
+}
+
 case "${1:-}" in
   setup)
     sync
@@ -131,6 +162,14 @@ case "${1:-}" in
   pull) sync; pull ;;
   config|ps|check|smoke|down|reset|base) sync; bash_remote "$@" ;;
   tunnel) shift; sync; bash_remote tunnel "$@" ;;
+  tunnel-named)
+    cf=$HOME/.config/pearnly-testenv/tunnel.token
+    [[ -s "$cf" ]] || { echo "missing $cf (run scripts/testenv-cloudflare.sh tunnel-create)" >&2; exit 2; }
+    sync
+    scp -q -o BatchMode=yes "$cf" "$host:C:/Users/codexops/AppData/Local/Temp/pearnly-tunnel.token"
+    wsl install -m 600 "$win_temp/pearnly-tunnel.token" /opt/pearnly-testenv/cloudflare-tunnel.token
+    wsl_bash "$remote_deploy/infrastructure/testenv/tunnel-named.sh"
+    ;;
   up) sync; write_env; bash_remote up ;;
   logs) shift; sync; bash_remote logs "$@" ;;
   sites) shift; sync; bash_remote sites "$@" ;;
@@ -144,6 +183,8 @@ case "${1:-}" in
     ;;
   sh) shift; bash_remote sh "$@" ;;
   urls) urls ;;
+  lab-start) lab_start ;;
+  lab-stop) lab_stop ;;
   *)
     cat <<'EOF'
 usage: testenv.sh {setup|sync|env|pull|config|up|ps|logs|urls|down|reset|sites|sh}
