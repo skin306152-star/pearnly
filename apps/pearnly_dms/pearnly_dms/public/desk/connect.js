@@ -4,60 +4,69 @@
 		const cacheText = await p.texts("dms.connect.cache.");
 		let conn,
 			busy = false;
-		// 地址（geo）不在这里：它由后台每日自动刷新（泰国凌晨 4 点那一小时），
-		// 一次完整读取只要几十个请求，没必要让操作员在按钮里等它。
-		const datasets = ["vehicles", "customers", "company"];
+		// 四组都在：绑定成功时它们会被一起排队（缓存底座），这里是**进度显示**，
+		// 不是"等操作员点按钮"。页面不再有手动触发。
+		const datasets = ["vehicles", "customers", "company", "geo"];
 		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
-		let pending = null, outcome = null, frozen = false, posting = false;
+		let frozen = false, announced = "";
 		const cacheMethod = "pearnly_dms.connections.snapshots.";
-		const active = (row) => ["queued", "running"].includes(row.state);
+		const active = (row) => ["queued", "running", "waiting"].includes(row.state);
+		let sawActive = false;
 		function stopPoll() {
 			clearTimeout(timer);
 			timer = null;
 		}
 		function schedulePoll() {
 			stopPoll();
-			if (visible && conn?.connected && pending?.size) timer = setTimeout(pollStatus, 3000);
+			// 只在真的有人在读的时候轮询：空闲页面读一次状态就停，不做无谓的定时敲门。
+			if (visible && conn?.connected && statuses.some(active)) timer = setTimeout(pollStatus, 2000);
 		}
-		function freezeRead() {
-			if (frozen) return;
-			frappe.dom.freeze(p.escape(cacheText("dms.connect.cache.processing")));
-			frozen = true;
+		// 「正在读取 DMS 主档… 车辆 12/29 · 客户 8/40」：读的过程中一直在动，
+		// 管理员绑完就能看出"底座建到哪一步了"，而不是干等一张空白页。
+		function progressText() {
+			const parts = datasets
+				.map((dataset) => statuses.find((row) => row.dataset === dataset))
+				.filter((row) => row && active(row))
+				.map((row) => {
+					const label = cacheText("dms.connect.cache.dataset." + row.dataset);
+					const done = row.progress?.processed || 0;
+					const total = row.progress?.total;
+					return total ? `${label} ${done}/${total}` : `${label} ${done}`;
+				});
+			const head = cacheText("dms.connect.cache.processing");
+			return parts.length ? `${head} ${parts.join(" · ")}` : head;
 		}
-		function finishRead(key, indicator = "orange") {
-			stopPoll();
-			pending = null;
-			outcome = null;
+		function updateOverlay() {
+			const running = statuses.filter((row) => active(row));
+			if (running.length) {
+				sawActive = true;
+				// Already frozen: keep the mask but let its text follow the progress.
+				const text = p.escape(progressText());
+				if (!frozen) { frappe.dom.freeze(text); frozen = true; }
+				else setOverlayText(text);
+				announced = "";
+				return;
+			}
 			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
-			if (!key) return;
-			if (key === "dms.connect.cache.state.succeeded") p.success(cacheText(key));
-			else frappe.msgprint({ message: p.escape(cacheText(key)), indicator });
+			announceResult();
 		}
-		function checkRead() {
-			if (!pending) {
-				const running = statuses.filter((row) => active(row) && row.request_id);
-				if (!running.length) return;
-				pending = new Map(running.map((row) => [row.dataset, row.request_id]));
-				freezeRead();
-			}
-			for (const [dataset, requestId] of pending) {
-				const row = statuses.find((item) => item.dataset === dataset);
-				// Never mistake an old successful generation for this read's completion.
-				if (!row || row.request_id !== requestId || row.state === "idle") {
-					finishRead("dms.connect.cache.changed");
-					return;
-				}
-				if (active(row) && requestId) continue;
-				if (row.state === "failed") outcome = "failed";
-				else if (row.state === "waiting") { if (outcome !== "failed") outcome = "waiting"; }
-				else if (row.state !== "succeeded" || !requestId) {
-					finishRead("dms.connect.cache.changed");
-					return;
-				}
-				pending.delete(dataset);
-			}
-			if (!pending.size) finishRead("dms.connect.cache.state." + (outcome || "succeeded"),
-				outcome === "failed" ? "red" : "orange");
+		// 原生覆盖的正文是 `#freeze .freeze-message p.lead`。重复调 freeze 只会加计数、
+		// 不换文字，所以冻结之后直接改这一段；没有 DOM（离线断言）时静默跳过。
+		function setOverlayText(text) {
+			if (typeof document === "undefined") return;
+			const lead = document.querySelector("#freeze .freeze-message p.lead");
+			if (lead) lead.textContent = text;
+		}
+		// 只在"从读取中变成读取完"那一次提示，不在每次轮询里重复弹。
+		function announceResult() {
+			if (!sawActive) return;
+			const key = statuses.map((row) => `${row.dataset}:${row.state}:${row.count}`).join("|");
+			if (!key || key === announced) return;
+			announced = key;
+			const failed = statuses.some((row) => row.state === "failed");
+			const succeeded = statuses.length && statuses.every((row) => row.state === "succeeded");
+			if (failed) frappe.msgprint({ message: p.escape(cacheText("dms.connect.cache.state.failed")), indicator: "red" });
+			else if (succeeded) p.success(cacheText("dms.connect.cache.state.succeeded"));
 		}
 		async function pollStatus() {
 			if (!visible || !conn?.connected || pollGeneration === generation) return;
@@ -67,61 +76,33 @@
 				const result = await p.call(cacheMethod + "get_status");
 				if (visible && request === generation) {
 					statuses = result.datasets || [];
-					checkRead();
+					updateOverlay();
 				}
 			} catch (error) {
 				// A failed status request must not leave the native page frozen.
-				if (visible && request === generation) finishRead("dms.connect.cache.unconfirmed");
+				if (visible && request === generation) {
+					unfreeze();
+					frappe.msgprint(p.escape(cacheText("dms.connect.cache.unconfirmed")));
+				}
 				return;
 			} finally {
 				if (pollGeneration === request) pollGeneration = null;
 			}
 			if (visible && request === generation) schedulePoll();
 		}
-		function requestCache() {
-			if (busy || posting || frozen) return;
-			const firstRead = !statuses.some((item) => item.as_of > 0);
-			p.dialog(cacheText("dms.connect.cache.read"), [
-				{ fieldtype: "Section Break", description: cacheText("dms.connect.cache.help") },
-				...datasets.map((dataset) => ({ fieldtype: "Check", fieldname: dataset,
-					label: cacheText("dms.connect.cache.dataset." + dataset), default: firstRead ? 1 : 0 })),
-			], cacheText("dms.connect.cache.read"), async (values, dialog) => {
-				if (posting || frozen || !visible) return;
-				const selected = datasets.filter((dataset) => values[dataset]);
-				if (!selected.length) {
-					frappe.msgprint(p.escape(cacheText("dms.connect.cache.select")));
-					return;
-				}
-				dialog.hide();
-				posting = true;
-				const request = ++generation;
-				stopPoll();
-				freezeRead();
-				try {
-					const result = await p.call(cacheMethod + "request_refresh", { datasets: selected }, "POST");
-					if (!visible || request !== generation) return;
-					statuses = statuses.filter((row) => !selected.includes(row.dataset)).concat(result.datasets || []);
-					pending = new Map(selected.map((dataset) => [dataset,
-						statuses.find((row) => row.dataset === dataset)?.request_id || ""]));
-					checkRead();
-					schedulePoll();
-				} catch (error) {
-					if (visible && request === generation) finishRead("dms.connect.cache.unconfirmed");
-				} finally {
-					posting = false;
-				}
-			});
+		function unfreeze() {
+			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
 		}
 		if (wrapper) {
 			$(wrapper).on("show", () => {
 				visible = true;
 				void pollStatus();
 			});
-			$(wrapper).on("hide", () => { visible = false; generation += 1; finishRead(); });
+			$(wrapper).on("hide", () => { visible = false; generation += 1; unfreeze(); });
 		}
 		async function refresh() {
 			generation += 1;
-			finishRead();
+			unfreeze();
 			conn = await p.call("pearnly_dms.connections.api.get_connection");
 			const ep = conn.endpoint;
 			page.main.empty();
@@ -135,7 +116,6 @@
 				conn.connected ? "green" : "orange",
 			);
 			if (ep) {
-				if (conn.connected) page.add_inner_button(cacheText("dms.connect.cache.read"), requestCache);
 				page.add_inner_button(t("connect.action.test"), () =>
 					run(async () => {
 						const result = await p.call(

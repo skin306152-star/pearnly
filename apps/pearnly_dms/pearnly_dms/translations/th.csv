@@ -1,5 +1,6 @@
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
 Account busy — click Update data later to continue,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
+Account busy — the read will continue shortly,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 Address directory,รายการที่อยู่
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
@@ -43,11 +44,13 @@ Read / refresh this query,อ่าน / อัปเดตข้อมูลค
 Read completed,อ่านเสร็จแล้ว
 Read completed. Click View result.,อ่านเสร็จแล้ว กดดูผลการอ่าน
 Read failed — click Read to retry,อ่านไม่สำเร็จ กดอ่านเพื่อลองใหม่
+Read failed — it will be retried automatically,อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ
 Read progress,ความคืบหน้าการอ่าน
 Read status,สถานะการอ่าน
 "Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.",กรุณากดอ่านข้อมูลครั้งนี้ใน LINE สำหรับข้อมูลพื้นฐาน ให้ผู้ดูแลเลือกอ่านที่หน้าการเชื่อมต่อ DMS
 Read time unknown,ไม่ทราบเวลาที่อ่าน
 Reading,กำลังอ่าน
+Reading DMS master data…,กำลังอ่านข้อมูลหลักจาก DMS…
 "Reading data, please wait…",กำลังอ่านข้อมูล กรุณารอสักครู่…
 Reading this query.,กำลังอ่านข้อมูลครั้งนี้
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
@@ -394,16 +397,16 @@ dms.connect.cache.field.progress,ความคืบหน้าการอ�
 dms.connect.cache.field.state,สถานะการอ่าน
 dms.connect.cache.help,เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
 dms.connect.cache.processed,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
-dms.connect.cache.processing,กำลังอัปเดตข้อมูล…
+dms.connect.cache.processing,กำลังอ่านข้อมูลหลักจาก DMS…
 dms.connect.cache.read,อัปเดตข้อมูล
 dms.connect.cache.select,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 dms.connect.cache.stale,ข้อมูลเก่า ณ {0}
-dms.connect.cache.state.failed,อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่
+dms.connect.cache.state.failed,อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ
 dms.connect.cache.state.idle,ยังไม่ได้อ่าน
 dms.connect.cache.state.queued,อยู่ในคิว
 dms.connect.cache.state.running,กำลังอ่าน
 dms.connect.cache.state.succeeded,อัปเดตข้อมูลแล้ว
-dms.connect.cache.state.waiting,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
+dms.connect.cache.state.waiting,บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่
 dms.connect.cache.title,ข้อมูล DMS ที่อ่านไว้
 dms.connect.cache.unconfirmed,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
 dms.edit.addPayment,เพิ่มช่องทาง

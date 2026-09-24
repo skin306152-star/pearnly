@@ -3,7 +3,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
 Update data	更新数据	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
-Updating data…	数据更新中...	กำลังอัปเดตข้อมูล…	データを更新中…	dms.connect.cache.processing
+Reading DMS master data…	正在读取 DMS 主档…	กำลังอ่านข้อมูลหลักจาก DMS…	DMS マスターデータを読み取り中…	dms.connect.cache.processing
 The read status changed. Refresh the page to check before trying again.	读取状态已变化，请刷新页面确认后再试。	สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง	読み取り状態が変わりました。ページを更新して確認してから再試行してください。	dms.connect.cache.changed
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.	暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。	ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง	読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。	dms.connect.cache.unconfirmed
 Select at least one data group.	请至少选择一组资料。	กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม	データを1種類以上選択してください。	dms.connect.cache.select
@@ -20,9 +20,9 @@ Latest error code	最近错误代码	รหัสข้อผิดพลาด�
 Not read yet	尚未读取	ยังไม่ได้อ่าน	未読み取り	dms.connect.cache.state.idle
 Queued	已排队	อยู่ในคิว	待機中	dms.connect.cache.state.queued
 Reading	正在读取	กำลังอ่าน	読み取り中	dms.connect.cache.state.running
-Account busy — click Update data later to continue	账号忙，请稍后点击更新数据继续	บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ	アカウントが使用中です。後で「データを更新」を押して続行してください	dms.connect.cache.state.waiting
+Account busy — the read will continue shortly	账号忙，读取稍后会自动继续	บัญชีไม่ว่าง ระบบจะอ่านต่อให้อัตโนมัติในอีกสักครู่	アカウントが使用中です。まもなく自動的に続行します	dms.connect.cache.state.waiting
 Data updated	数据更新完成	อัปเดตข้อมูลแล้ว	データ更新完了	dms.connect.cache.state.succeeded
-Update failed — click Update data to retry	更新失败，点击更新数据可重试	อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่	更新に失敗しました。「データを更新」を押して再試行してください	dms.connect.cache.state.failed
+Read failed — it will be retried automatically	读取失败，稍后会自动重试	อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ	読み取りに失敗しました。後で自動的に再試行します	dms.connect.cache.state.failed
 {0} processed; total not yet known	已处理 {0} 项，总数尚未确定	อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด	{0} 件処理済み。総数は未確定です	dms.connect.cache.processed
 Older data: {0}	旧资料：{0}	ข้อมูลเก่า ณ {0}	古いデータ：{0}	dms.connect.cache.stale
 Multiple primary DMS connections exist; ask an administrator to check the configuration	存在多条 DMS 主连接，请管理员检查配置	มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลตรวจสอบการตั้งค่า	DMS の主接続が複数あります。管理者に設定の確認を依頼してください

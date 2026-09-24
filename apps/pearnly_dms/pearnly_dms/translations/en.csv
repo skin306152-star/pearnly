@@ -1,5 +1,6 @@
 Account busy — click Read later to continue,Account busy — click Read later to continue
 Account busy — click Update data later to continue,Account busy — click Update data later to continue
+Account busy — the read will continue shortly,Account busy — the read will continue shortly
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
 Address directory,Address directory
 Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
@@ -43,11 +44,13 @@ Read / refresh this query,Read / refresh this query
 Read completed,Read completed
 Read completed. Click View result.,Read completed. Click View result.
 Read failed — click Read to retry,Read failed — click Read to retry
+Read failed — it will be retried automatically,Read failed — it will be retried automatically
 Read progress,Read progress
 Read status,Read status
 "Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.","Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."
 Read time unknown,Read time unknown
 Reading,Reading
+Reading DMS master data…,Reading DMS master data…
 "Reading data, please wait…","Reading data, please wait…"
 Reading this query.,Reading this query.
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
@@ -130,16 +133,16 @@ dms.connect.cache.field.progress,Read progress
 dms.connect.cache.field.state,Read status
 dms.connect.cache.help,"Select the data to update, then wait for the read to finish."
 dms.connect.cache.processed,{0} processed; total not yet known
-dms.connect.cache.processing,Updating data…
+dms.connect.cache.processing,Reading DMS master data…
 dms.connect.cache.read,Update data
 dms.connect.cache.select,Select at least one data group.
 dms.connect.cache.stale,Older data: {0}
-dms.connect.cache.state.failed,Update failed — click Update data to retry
+dms.connect.cache.state.failed,Read failed — it will be retried automatically
 dms.connect.cache.state.idle,Not read yet
 dms.connect.cache.state.queued,Queued
 dms.connect.cache.state.running,Reading
 dms.connect.cache.state.succeeded,Data updated
-dms.connect.cache.state.waiting,Account busy — click Update data later to continue
+dms.connect.cache.state.waiting,Account busy — the read will continue shortly
 dms.connect.cache.title,Saved DMS data
 dms.connect.cache.unconfirmed,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 dms.edit.addPayment,Add payment method

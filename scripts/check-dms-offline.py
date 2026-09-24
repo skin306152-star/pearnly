@@ -16,8 +16,7 @@ UNIT_TESTS = (
     "scripts/test-dms-snapshot-reader.py",
     "tests/test_dms_catalogue_reader.py",
     "tests/test_dms_company_catalogue_schema.py",
-    "tests/test_dms_geo_catalogue.py",
-    "tests/test_dms_geo_resume.py",
+    "tests/test_dms_geo_list_reader.py",
     "tests/test_dms_connection_snapshots.py",
     "tests/test_dms_operator_advisors.py",
 )
