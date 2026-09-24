@@ -853,3 +853,26 @@ DMS 账号密码 POST 给 DMS 并在弹窗里打开。它**故意做得极简**�
 
 **还需要用户复测的**：第 1、2、3 条的端到端效果要他在真机 LINE 上再走一遍才算数
 （我这里只能给到代码、离线断言和只读数据层证据）。
+
+### 部署与部署后验证（2026-09-25 03:0x）
+
+镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:cb69a9ef…c086e3`（revision
+`98863eea1c91…`）已发到测试机并 `testenv.sh up dms`，12 个容器全部 Up、迁移与清缓存通过。
+
+在**部署后的镜像**上验证（真实数据）：
+
+- **菜单 5 的绑定版本**：对当前真实的 LINE 绑定取一次 —— `revision_present: true`、
+  `revision_matches_row: true`、该操作员 `can_query: true`。也就是说那条"永远被拒"的路
+  已经具备了走通的全部条件。
+- **新话术**：`dms.err.ERR_DMS_ADDRESS_INCOMPLETE` 四种语言全部有译文；那张卡用默认字号
+  正文 + `height: md` 的按钮，正文里就是这句新话术。
+- **不再注入时间**：把两个快照 flag 塞进 `frappe.flags` 再调一次出口，消息**原样返回**、
+  正文里没有时间、flag 仍被清掉。
+- **旧提示**：服务端发出的 `connect.js`（HTTP 200，实际给浏览器的那个文件）里
+  `add_inner_button` 出现 0 次、绑定成功那一支不再调 `feedback()`（只剩失败那一支）。
+- **前端产物**：`assets/pearnly_core/pearnly-app/assets/EditorPage.*.js` 里能找到
+  `zipcodes"&&de(...)`（即"镇选中/首屏加载后自动补唯一邮编"那段压缩后的代码）。
+- **方案仍在跟上**：28 个模块水位齐、`dirty` 为空。
+
+临时的只读脚本已从测试机与容器里移走（各自放到 `/tmp/*-scratch-trash/`，未删除）。
+**仍未做**：生产部署、真机 LINE 复测。
