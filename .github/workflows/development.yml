@@ -25,6 +25,8 @@ jobs:
         run: python3 tests/test_queue_targets.py
       - name: Verify DMS queue and reply-token call contracts
         run: python3 scripts/test-dms-call-contracts.py
+      - name: Verify exact DMS customer identity before automatic writes
+        run: python3 scripts/test-dms-customer-identity.py
       - name: Enforce architecture boundaries
         run: python3 scripts/check-architecture.py
       - name: Exercise audited offline DMS contracts

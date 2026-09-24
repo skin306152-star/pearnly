@@ -28,6 +28,7 @@ jobs:
         run: |
           python3 scripts/check-architecture.py
           python3 scripts/test-dms-call-contracts.py
+          python3 scripts/test-dms-customer-identity.py
       - name: Verify Desk retry actions
         run: |
           node scripts/production/test-issue-actions.cjs

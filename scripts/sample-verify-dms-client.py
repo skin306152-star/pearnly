@@ -300,7 +300,7 @@ def main():
           cl4._bshsd_all("txtcar") is None, cl4._bshsd_all("txtcar"))
 
     # ══ 6. 建档：幂等转覆盖 / 写库后必须回读复核 ══════════════════════════
-    state = {"name": ""}
+    state = {"name": "", "people_id": "1000000730317", "tax_id": "1000000730317"}
 
     # 新建表单**自带一组默认地址**（P1/D1/S1/Z1）：不清掉，客户就会带着一个
     # 没人选过的地址被存进 DMS。这里就用这组默认值当陷阱。
@@ -308,6 +308,7 @@ def main():
         nm = state["name"] if data.get("status") == "e" else ""
         return ('<form><input name="txtcuscode" value="C0002">'
                 '<input name="txtcusname" value="%s">'
+                '<input name="txtpeopleid" value="%s"><input name="txttaxid" value="%s">'
                 '<select name="selprefix"><option value="17">นาย</option></select>'
                 # 表单带「全量选项」+ 一组「预选默认值」——真实表单就是这样，
                 # 坑在预选的那组：不清掉就会被当成客户自己填的地址。
@@ -323,7 +324,7 @@ def main():
                 '<select name="selzipcodes">'
                 '<option value="Z1" selected>10100</option>'
                 '<option value="Z9">10900</option></select>'
-                '</form>' % nm)
+                '</form>' % (nm, state["people_id"], state["tax_id"]))
 
     # 实时级联：请求哪个父级就只认那个父级下的子项（对不上要能拦下来）
     CHILD_ROUTES = {
@@ -356,9 +357,10 @@ def main():
         "cus/form.php": cus_form,
         "cus/component/showdata.php": lambda data: (
             '<div data-val="777" onclick="ctllistdata">x</div>'
-            if "1000000730317" in (data.get("sd") or "") else ""),
+            if "1000000730317" in (data.get("sd") or "") else "ndt::"),
         "cus/new.php": lambda data: (state.update(name=data.get("txtcusname", "")), "")[1],
-        "cus/edit.php": lambda data: (state.update(name=data.get("txtcusname", "")), "")[1],
+        "cus/edit.php": lambda data: (state.update(name=data.get("txtcusname", ""),
+            people_id=data.get("txtpeopleid", ""), tax_id=data.get("txttaxid", "")), "")[1],
         **_child_routes(),
     })
     cl5 = DmsClient(saves, "https://example.test/dms/")
@@ -397,7 +399,7 @@ def main():
     def _save_with(fields, addresses=None):
         t = FakeTransport(routes={
             "cus/form.php": cus_form,
-            "cus/component/showdata.php": lambda data: '<div data-val="779" onclick="x">x</div>',
+            "cus/component/showdata.php": lambda data: "ndt::",
             "cus/new.php": lambda data: "",
             **_child_routes(),
         })
@@ -421,7 +423,7 @@ def main():
 
     noread = FakeTransport(routes={
         "cus/form.php": cus_form,
-        "cus/component/showdata.php": lambda data: "",
+        "cus/component/showdata.php": lambda data: "ndt::",
         "cus/new.php": lambda data: "",
         **_child_routes(),
     })
@@ -429,6 +431,8 @@ def main():
     ok, detail = raises(lambda: cl6.save_customer(
         fields=GOOD_FIELDS, mode="create", addresses=GOOD_ADDR), DmsClientError)
     check("create 成功码但搜不到 → 报错（PHP 200 不算写库成功）", ok, detail)
+    check("未找到回读的场景确实执行过新建（不是提前解析失败）",
+          any(u.endswith("cus/new.php") for u, _ in noread.calls))
 
     # ══ 7. 附件：回读校验必须能发现"没真挂上" ════════════════════════════
     book_form = ('<form><input name="stsel" value="e"><input name="idsel" value="901">'

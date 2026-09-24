@@ -30,7 +30,6 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_dms.intake.customer_diff import diff_customer_fields
 from pearnly_dms.line.errors import friendly
-from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.push import build_adapter
 
@@ -248,24 +247,16 @@ def recognize_lookup(
     def _do(cl, adapter):
         from pearnly_dms.contracts.models import ThaiAddress
 
-        look = cl.lookup_customer(people_id)
-        if not look["found"]:
-            # **台账兜底先行**：本租户最近推过的同尾号客户，按客户号直读核对全证号 ——
-            # 直读不经搜索缓存，权威且零等待。"新客隐身期"的案例全在台账里，
-            # 先直读能省掉下面的退避重试。
-            pid_norm = normalize_thai_id(str(people_id))
-            for cid in fallback_customer_ids or []:
-                f = cl.read_customer(str(cid))
-                if pid_norm and normalize_thai_id(str(f.get("people_id") or "")) == pid_norm:
-                    look = {"found": True, "customer_id": str(cid), "fields": f}
-                    break
+        # 搜索及台账都只是候选来源；统一直读完整证号并拒绝多客户歧义。
+        # 台账不能先命中先返回，也不能把未知/空表单当作不存在再允许新建。
+        look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
         # 台账也没有才退避重试：只剩"DMS 原生老客户 + 搜索偶发空返"这个窄场景。
         # 真新客户会为它多付约 3 秒 —— 但**误标新客的代价更高**，所以保守保留两次。
         for _ in range(2):
             if look["found"] or not (people_id or "").strip():
                 break
             time.sleep(1.5)
-            look = cl.lookup_customer(people_id)
+            look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
 
         form_html = cl._post_text("cus/form.php", {"status": "n"})
         prefixes = cl.list_prefixes()

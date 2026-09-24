@@ -19,7 +19,7 @@
    再把每个值拿去和**实时**父级链核对 —— 显式给值且对得上才放行，否则拦下让人去选。
    （老实现是"空了就拿第一项补"，结果客户被填上凭空捏造的称谓；线上 `b78697f3` 禁掉了。
    见 `dms_customer_geo.py` 顶部。）
-3. **PHP 返回 200 / 没有 err:: 不代表写库成功** → 建完要用搜索复核，改完要重读姓名复核。
+3. **PHP 返回 200 / 没有 err:: 不代表写库成功** → 自动匹配必须直读完整证号，写后重读提交的身份。
 """
 
 from __future__ import annotations
@@ -29,9 +29,11 @@ import logging
 import re
 import time
 from contextlib import contextmanager
+from html.parser import HTMLParser
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from pearnly_dms.contracts.client_base import DmsClientError
+from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.intake.customer_geo import clear_customer_select_defaults, validate_customer_selects
 
 logger = logging.getLogger(__name__)
@@ -81,14 +83,86 @@ _GEO_LABEL_MAP = {
 }
 
 
+class _IdentitySearchRows(HTMLParser):
+    """Only native customer row IDs; labels/codes are never identity evidence."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.ids = []
+        self.depth = 0
+        self.invalid = False
+
+    def handle_starttag(self, tag, attrs):
+        if tag == "div":
+            self.depth += 1
+        attributes = dict(attrs)
+        candidate = "data-val" in attributes
+        handler = str(attributes.get("onclick") or "").strip().startswith("ctllistdata")
+        if candidate or handler:
+            if (tag != "div" or not candidate or not handler or not attributes.get("data-val")
+                    or len(attrs) != len(attributes)):
+                self.invalid = True
+            else:
+                self.ids.append(attributes["data-val"])
+
+    def handle_endtag(self, tag):
+        if tag == "div":
+            self.depth -= 1
+            if self.depth < 0:
+                self.invalid = True
+
+
 class DmsClientIntakeMixin:
     # ── 读 ──────────────────────────────────────────────────────────
-    def lookup_customer(self, people_id: str) -> Dict[str, Any]:
-        """按身份证号查 DMS 客户。命中就回当前全字段（给面板的"历史资料"）。"""
-        cid = self.search_customer(people_id) if (people_id or "").strip() else None
-        if not cid:
-            return {"found": False, "customer_id": None, "fields": {}}
-        return {"found": True, "customer_id": cid, "fields": self.read_customer(cid)}
+    def lookup_customer(self, people_id: str, *,
+                        fallback_customer_ids: Optional[List[str]] = None) -> Dict[str, Any]:
+        """Only one native full-ID match is existing; search hits/ledger IDs are hints.
+
+        A full ten-row page is possibly truncated, never proof of uniqueness or absence.
+        At most nine search rows plus five recent ledger IDs are read, with duplicates
+        removed. Unknown responses fail closed, not as 'new customer'.
+        """
+        target = normalize_thai_id(people_id)
+        if not re.fullmatch(r"[0-9]{13}", target):
+            raise DmsClientError("customer lookup requires a complete identity", "ERR_DMS_CUSTOMER_SAVE")
+        fallback = list(dict.fromkeys(str(cid) for cid in (fallback_customer_ids or []) if cid))
+        if len(fallback) > 5:
+            raise DmsClientError("customer identity fallback limit exceeded", "ERR_DMS_CUSTOMER_SAVE")
+        body = self._post_text("cus/component/showdata.php", {
+            "sdtamt": "10", "sdtpage": "1", "sd": target,
+            "selcolsort": "1", "selcolsorttype": "1",
+        })
+        parser = _IdentitySearchRows()
+        parser.feed(body)
+        parser.close()
+        empty = body.lstrip().startswith("ndt::")
+        # Counting raw attributes also detects an unparsed/malformed trailing row.
+        if (parser.invalid or parser.depth or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))
+                or body.lstrip().startswith("err::") or (empty and parser.ids)
+                or (not empty and not parser.ids)):
+            raise DmsClientError("customer identity search response is incomplete", "ERR_DMS_CUSTOMER_SAVE")
+        if len(parser.ids) >= 10:
+            raise DmsClientError("customer identity search may be truncated", "ERR_DMS_CUSTOMER_SAVE")
+        found = {"found": False, "customer_id": None, "fields": {}}
+        for cid in dict.fromkeys(parser.ids + fallback):
+            page = self._post_text("cus/form.php", {"status": "e", "id": cid})
+            data = self._identity_form_data(page)
+            if normalize_thai_id(data["txtpeopleid"]) != target:
+                continue
+            if found["found"]:
+                raise DmsClientError("customer identity has multiple exact matches", "ERR_DMS_CUSTOMER_SAVE")
+            found = {"found": True, "customer_id": cid,
+                     "fields": self._extract_customer_fields(data, page)}
+        return found
+
+    def _identity_form_data(self, page: str) -> Dict[str, str]:
+        data = self._parse_form_defaults(page)
+        identity_keys = ("txtcuscode", "txtcusname", "txtpeopleid", "txttaxid")
+        names = [self._attr(attrs, "name") for attrs in re.findall(r"<input\b([^>]*)>", page, re.I | re.S)]
+        if (page.lstrip().startswith("err::")
+                or not all(key in data and names.count(key) == 1 for key in identity_keys)):
+            raise DmsClientError("customer identity form is incomplete", "ERR_DMS_CUSTOMER_SAVE")
+        return data
 
     def read_customer(self, customer_id: str) -> Dict[str, str]:
         """按客户号**直读**全字段。直读不经搜索，所以不受列表缓存的
@@ -244,20 +318,26 @@ class DmsClientIntakeMixin:
         mode: str,
         customer_id: Optional[str] = None,
         addresses: Optional[Dict[str, Dict[str, Any]]] = None,
+        expected_people_id: Optional[str] = None,
     ) -> Tuple[str, bool]:
         # 幂等：一个身份证 = DMS 一个客户（编号/身份证号唯一）。create 前先按身份证号查，
         # 已存在就转成更新它 —— 修「撞客户编号重复」，并自愈「客户建了但订车失败」后的重推。
         converted = False
         if mode == "create":
-            existing = self.search_customer((fields.get("people_id") or "").strip())
+            existing = self.lookup_customer(fields.get("people_id") or "")["customer_id"]
             if existing:
                 mode, customer_id, converted = "overwrite", existing, True
+                expected_people_id = str(fields["people_id"])
         if mode == "overwrite" and not customer_id:
             raise DmsClientError("overwrite needs customer_id", "ERR_DMS_CUSTOMER_SAVE")
 
         form_args = {"status": "n"} if mode == "create" else {"status": "e", "id": customer_id}
         form_html = self._post_text("cus/form.php", form_args)
         data = self._parse_form_defaults(form_html)
+        if expected_people_id is not None:
+            current = self._identity_form_data(form_html)
+            if normalize_thai_id(current["txtpeopleid"]) != normalize_thai_id(expected_people_id):
+                raise DmsClientError("customer identity changed before automatic update", "ERR_DMS_CUSTOMER_SAVE")
         data["stsel"] = "n" if mode == "create" else "e"
         if mode == "overwrite":
             data["idsel"] = customer_id
@@ -281,7 +361,8 @@ class DmsClientIntakeMixin:
             existing = self._research_customer((fields.get("people_id") or "").strip())
             if existing:
                 cid, _ = self._save_customer_locked(
-                    fields=fields, mode="overwrite", customer_id=existing, addresses=addresses
+                    fields=fields, mode="overwrite", customer_id=existing, addresses=addresses,
+                    expected_people_id=str(fields["people_id"]),
                 )
                 return cid, True
         if resp.status_code != 200 or body.startswith("err::"):
@@ -298,7 +379,7 @@ class DmsClientIntakeMixin:
         for attempt in range(3):
             if attempt:
                 time.sleep(1.5)
-            cid = self.search_customer(people_id)
+            cid = self.lookup_customer(people_id)["customer_id"]
             if cid:
                 return cid
         return None
@@ -360,23 +441,25 @@ class DmsClientIntakeMixin:
 
     def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str]) -> str:
         """**PHP 成功码 ≠ 真写库**（这条在老产品是铁律）：
-        建 → 用搜索复核；改 → 重读姓名复核。"""
+        建 → 唯一完整证号复核；改 → 直读提交的身份字段（含隐式税号）。"""
         if mode == "create":
-            cid = self.search_customer(fields.get("people_id") or fields.get("name") or "")
-            if not cid:
+            look = self.lookup_customer(fields.get("people_id") or "")
+            if not look["found"]:
                 raise DmsClientError(
-                    "customer create returned success but search could not find row",
+                    "customer create returned success but exact identity was not found",
                     "ERR_DMS_CUSTOMER_SAVE",
                 )
-            return cid
-        page = self._post_text("cus/form.php", {"status": "e", "id": customer_id})
-        saved = self._parse_form_defaults(page)
-        want = str(fields.get("name") or "").strip()
-        if want and saved.get("txtcusname", "").strip() != want:
-            raise DmsClientError(
-                "customer overwrite returned success but re-read name mismatch",
-                "ERR_DMS_CUSTOMER_SAVE",
-            )
+            customer_id, saved = look["customer_id"], look["fields"]
+        else:
+            page = self._post_text("cus/form.php", {"status": "e", "id": customer_id})
+            saved = self._extract_customer_fields(self._identity_form_data(page))
+        expected = {key: str(fields.get(key) or "") for key in ("name", "people_id", "tax_id") if key in fields}
+        if not fields.get("tax_id") and fields.get("people_id"):
+            expected["tax_id"] = str(fields["people_id"])
+        for key, value in expected.items():
+            normalize = str.strip if key == "name" else normalize_thai_id
+            if normalize(str(saved.get(key) or "")) != normalize(value):
+                raise DmsClientError("customer write identity readback mismatch", "ERR_DMS_CUSTOMER_SAVE")
         return customer_id
 
     def _select_options(self, page: str, name: str) -> List[List[str]]:
