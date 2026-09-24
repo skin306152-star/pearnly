@@ -1,0 +1,73 @@
+# Local-only ERP release acceptance. Production commands/images are inherited.
+# Run with the dedicated colima-pearnly-erp-acceptance context and --profile erp.
+# Set PEARNLY_IMAGE to an immutable linux/amd64 candidate built by frappe.Dockerfile.
+# Synthetic tenants only; no production secrets/data, no application source mounts.
+name: pearnly-erp-acceptance
+
+x-local: &local
+  platform: linux/amd64
+  restart: "no"
+  volumes: !override [sites-erp:/home/frappe/frappe-bench/sites]
+  environment:
+    GOOGLE_APPLICATION_CREDENTIALS: ""
+    PEARNLY_ERP_POS_LAB: "1"
+    PEARNLY_ERP_ACCEPTANCE: "1"
+
+services:
+  mariadb:
+    extends: {file: ../production/compose.yml, service: mariadb}
+    platform: linux/amd64
+    restart: "no"
+    # QEMU materializes MariaDB 11.8.9's default 8 TiB virtual resize ceiling.
+    # Keep production's actual 1 GiB buffer pool; cap only its unused resize range.
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci,
+              --innodb-buffer-pool-size=1G, --innodb-buffer-pool-size-max=1G]
+    networks:
+      runtime:
+        aliases: [db]
+  redis-cache:
+    extends: {file: ../production/compose.yml, service: redis-cache}
+    platform: linux/amd64
+    restart: "no"
+  redis-queue:
+    extends: {file: ../production/compose.yml, service: redis-queue}
+    platform: linux/amd64
+    restart: "no"
+  bench:
+    extends: {file: ../production/compose.yml, service: erp-web}
+    <<: *local
+    command: [sleep, infinity]
+  erp-web:
+    extends: {file: ../production/compose.yml, service: erp-web}
+    <<: *local
+  erp-worker:
+    extends: {file: ../production/compose.yml, service: erp-worker}
+    <<: *local
+  erp-ocr-worker:
+    extends: {file: ../production/compose.yml, service: erp-ocr-worker}
+    <<: *local
+  erp-ocr-dispatch:
+    extends: {file: ../production/compose.yml, service: erp-ocr-dispatch}
+    <<: *local
+  erp-scheduler:
+    extends: {file: ../production/compose.yml, service: erp-scheduler}
+    <<: *local
+    # Local amd64 QEMU uses more memory than the native production scheduler.
+    # Only this acceptance override is 384 MiB; production remains 192 MiB.
+    mem_limit: 384m
+  erp-socketio:
+    extends: {file: ../production/compose.yml, service: erp-socketio}
+    <<: *local
+  erp-frontend:
+    extends: {file: ../production/compose.yml, service: erp-frontend}
+    <<: *local
+    ports: !override ['127.0.0.1:8167:8080']
+    networks: [runtime, preview]
+
+networks:
+  runtime: {internal: true}
+  preview: {}
+volumes:
+  database:
+  queue:
+  sites-erp:

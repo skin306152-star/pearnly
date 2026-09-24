@@ -1,6 +1,6 @@
 # ERP 单框录入、菜单权限与公司快捷切换
 
-状态：本地实现和定向验证完成，保留独立分支及预览，等待用户验收。用户最初要求只读定位，随后明确授权独立分支实施并在本地预览；后续补充扫码与箭头避让、主档原地新增，以及手机附件拍照预览溢出修复。未部署生产，未合并或推送。
+状态：已知问题修复和生产结构本地验收完成，保留独立分支及预览，等待用户验收。最终应用源码 `afca8c8b450a2ec4df304e5b45fe96111dda4867`，不可变镜像 `sha256:1ff37316b1bb78700f99fceae29c7fbe0060ebb29639f48509feefc6d4eaa586`，当前验收入口 `http://erp-pos-a.localhost:8167/desk/pearnly-team`。以下前三轮为历史过程，第四轮为最终验证结果。未部署生产，未合并或推送；真机相机/扫码和付费 OCR 仍有明确验收边界。
 
 ## 已实现与落点
 
@@ -122,6 +122,85 @@
 ### 保存与保留
 
 本轮保存为独立分支上的后续本地提交；继续保留工作树 `/Users/skin/.codex/worktrees/erp-purchase-menu-diagnosis/pearnly`、分支 `codex/erp-purchase-menu-diagnosis` 及 `pearnly-erp-entry-lab` 的六个容器和专属卷，用于用户本地预览。没有新增后台进程、卷或持久化测试文件。解除保留条件为用户结束预览并明确合并/保存安排，届时再次核验后清理。当前主线和远端 main 仍为 `57039ca15595641932f053fd34c49d4e45dba964`，未合并、推送或部署；远端任务分支不存在，交接保留。
+
+## 第四轮：完整性复查与生产结构本地验收（已完成本地验证）
+
+用户要求“修复完整，并搭建真实线上环境容器在本地做最终验收”。本轮开始于 `7b2d40e47a3b4c21defe986c170187d10b5cfb26`，以下缺口由新复现确认，不能沿用前几轮通过结论把它们标为完成。
+
+- 异步扫码旧响应可覆盖后来的手选、输入或 OCR 回填；无主档绑定的 OCR 名称纠错会清空税号/地址/分支。公共单框组件已修，52 项行为回归通过；旧实现同测 32 项失败。
+- 单据公司、行仓及库存落账使用了不同的当前公司默认值；已贯通采购/销售、旧草稿、出入库草稿和历史冲销，新增真实 Site 正反向回归通过。
+- 业务叶子的原生依赖过宽，采购用户可以直接读跨公司库存余额和成本；盘点/POS 的部分按号入口及过滤参数同样缺公司约束。原生列表、文档、导出、专业服务及历史授权撤回已修复并通过真实权限测试。
+- 团队委派管理没有限制目标公司的范围，清空公司等于全公司；停订功能成员可能从团队列表消失。服务端目标/公司/角色校验及成员可见性已修复并通过回归。
+- 叶子菜单矩阵从手写 13 项改为产品声明中的全部 18 项。覆盖率按实际场景及测量范围报告，不把测试数量换算成代码覆盖率。
+
+### 当前生产基线与本地环境
+
+- 只读回读生产 ERP image=`sha256:a11eb9e36bae8ca16e3dc37cbda45915fd1ccf18d4b28714c21d235fbff4934f`，源码标签 `dd81a3f009e255c2facbb8da818cd92a98face30`。Frappe 16.33.0，ERP Site 仅安装 frappe、pearnly_core、pearnly_erp_portal。没有复制生产数据或凭据。
+- MariaDB 11.8 digest=`79d59758afc91b89b120b0a8904d637f5a3b3e1c4900f29b740d6d46c72fef68`，Redis 6.2 digest=`ad151300731763a711bf517916519e5cc8f035c95139aa1750836048390439d0`；生产 Redis queue DB=2、developer_mode=0。Keycloak 26.7.4 digest=`82a77884f3af238beab1e7afd63b5f530e1b5c0590bd7aa60b40a40463e29b2c`。线上已启用 OIDC 和 native account，本地已接入真实 Keycloak 与私有身份 broker 验证同一账号链。
+- 新建专属 Colima profile/context `pearnly-erp-acceptance` / `colima-pearnly-erp-acceptance`（4 CPU、8 GiB、50 GiB），不修改当前默认 context，不接管 DMS/原 ERP 预览。宿主 ARM，通过 QEMU 执行 linux/amd64 候选镜像；硬件性能不代表线上。
+- `infrastructure/compose/erp-acceptance.yml` 直接继承生产服务命令及固定基础镜像；独立 DB/Site/queue 卷、分离 Redis、web/worker/OCR worker/dispatch/scheduler/socketio/nginx。业务容器无源码挂载，出网隔离；预览仅127.0.0.1:8167。
+- 首次 MariaDB 初始化因 amd64 转译时8TiB虚拟预留触发内存上限，2GiB与4GiB均失败。固定镜像 `mariadbd --verbose --help` 回读最大预留=8796093022208。仅本地增加 `innodb_buffer_pool_size_max=1G` 后成功，实际缓冲池仍1GiB、容器内存上限恢复生产2GiB。两次初始化失败的专属空卷经归属核验后重建，尚无Site/业务数据。参考 [MariaDB变量说明](https://mariadb.com/docs/server/server-usage/storage-engines/innodb/innodb-system-variables#innodb_buffer_pool_size_max)。该本机转译适配不代表线上配置已修改。
+- 先从固定生产源码归档构建 baseline，再用候选代码构建不可变镜像，验证现有 Site 升级及新安装，不以 bind mount 开发环境替代。
+- 临时文件仅 `/tmp/pearnly-erp-acceptance-*`，baseline 归档 `/tmp/pearnly-erp-acceptance-baseline-dd81a3f`。新环境/旧8157预览/未合并工作树本轮暂保留，待用户完成本地验收且确定保存安排后复核清理。尚未推送、合并或部署生产。
+
+### 最终候选与新增复查结果
+
+- 应用最终候选源码 `afca8c8b450a2ec4df304e5b45fe96111dda4867`，不可变 amd64 镜像 `sha256:1ff37316b1bb78700f99fceae29c7fbe0060ebb29639f48509feefc6d4eaa586`（tag `pearnly/erp-acceptance:afca8c8`），来自与生产相同的 Dockerfile。ERP/Billing 的 10 个服务/bench 均回读为同一 image ID；App 源码未挂入容器，Keycloak 主题单独只读挂载。
+- 在 `cfd0118` 候选实际 `frappe.client.save` 中复现：A 公司员工将 B 公司仓库/收银台的公司字段改为 A 后可保存；两笔复现均回滚。最终候选同时检查保存前归属、禁止历史主档换公司，将库存单写入统一收口到带对象能力的业务服务。新增原生修改、子行修改、删除、忽略验证、跳过校验重命名的拒绝回归及正常业务正向对照。
+- 第一轮真实 Site 40 项：36 通过、2 错误、2 失败。销售旧草稿错误是测试的 owner 在原生 insert 时被 Administrator 覆盖，修正 fixture 后继续验证原公司授权和撤权；成本两项是框架对隐藏数字返回 0.0，改为严格比较数据库真实成本 17 和受限返回 0.0。收银列表是实际代码读取 `current_shift` 结构错误，修为 `active["shift"]["name"]`，补无班/当班/关班检查。没有删除权限断言或跳过失败。
+- HTTP 首轮通过真实 nginx/Gunicorn 路径：私有 PNG 上传与权限、供应商/商品/客户/公司/仓库/附件关联、采购入库、销售出库、重复请求、原仓冲销、跨公司原生文档/列表/导出、六类跨租户资源拒绝。销售客户用真实已建主档按名称匹配，遵守既有“不自动建客户”的业务契约。
+- 宿主离线 ERP 113 项中107通过、6项因宿主无 openpyxl 跳过；同6项随后在固定候选镜像内真实 openpyxl 运行全部通过。JS 单框52项、原生 Desk Python22项、JS4组通过；DMS 离线331项通过，未运行外部业务。
+- OCR worker 初始化缺少自定义队列声明已按生产 site-step 补上，两个 worker 实际监听 OCR 队列，容量 Redis使用DB6。调度器在本机QEMU下192MiB触发OOM，仅验收覆盖层提高到384MiB，生产定义保持192MiB。此差异只解决本机转译开销，不作为生产容量结论。
+
+### 最终修复与通过证据
+
+更深的业务验证继续发现并修复两个真实问题：销售旧草稿更新会把未传字段覆盖为空，现只更新明确传入字段，并保留既有来源和备注；收银备用金未同步现金子行，交班汇总少计备用金，现同步新班次并兼容历史子行错误值。混合现金/卡/转账、找零、当前销售列表和关班对账均有回归。
+
+| 验证层 | 最终证据 |
+| --- | --- |
+| 真实 Frappe Site | 最终镜像运行 46/46，通过且无跳过：菜单与录入 13、公司关联 10、完整业务流 9、原生权限边界 14；耗时 222.874 秒 |
+| 菜单覆盖 | 从 ERP 产品目录枚举全部 18/18 叶子；独立授权、依赖查询、页面与服务端拒绝分别检查，包含首页/个人信息/团队/公司/仓库 |
+| 真实 HTTP | 最终镜像经 nginx/Gunicorn 的 8 组场景全部通过；采购 `PUR-2026-00404`、销售 `SD-00406` 保留于 Site B |
+| 关联链 | 私有 PNG 上传 → File 权限 → 供应商/客户/商品 → 公司/行仓 → 单据 → 库存流水与余额 → 原仓冲销；重复提交/冲销不会重复落账 |
+| 原生越权负例 | 跨公司 document/list/export、跨租户六类精确资源 URL、仓库/收银台/库存单换公司、已提交库存单改状态/子行数量、跳过校验的原生 rename 均拒绝；回读原记录和库存保持原值，合法业务服务可继续保存/过账/冲销 |
+| 真实身份 | 团队建成员 → 私有 broker → Keycloak subject 绑定 → 用户名/邮箱登录 → 重设合成成员密码 → 旧密码拒绝通过；ERP 没有本地密码和身份管理员凭据。浏览器授权码+PKCE登录也通过 |
+| 升级与安装 | 固定生产源码 `dd81a3f` 建 baseline 并播入旧草稿/主档/限公司员工；cfd/805 候选升级 A/B，通过保留 IDs、数量、公司、授权检查；最终 afca 的 A 再 migrate 和保留检查通过。独立空 Site 在 cfd 完成全新安装，805 再 migrate 通过；afca 两处业务改动不改 schema，未把前一版全新安装写成 afca 从零安装 |
+| 离线与架构 | 单框 JS 52、原生 Desk Python 22、Desk JS 4 组通过；ERP 离线 107+容器补跑 openpyxl 6 项通过；DMS 离线 331 通过；架构 0 违规，diff/辅助脚本语法/Compose 配置检查通过 |
+
+真实 Site 的重复 fixture 批次触及 Frappe 每小时 60 用户创建限制，因此只在验证脚本进程将 `frappe.conf.throttle_user_limit` 设为 1000；没有写 Site 配置、没有改变 web 的生产限流，没有跳过业务授权或文档校验。HTTP 回归默认使用保留原生合成账户的 Site B，Site A 使用真实 OIDC。
+
+最终执行日志：`/tmp/pearnly-erp-acceptance-afca-site-tests.log`、`/tmp/pearnly-erp-acceptance-afca-http.log`。日志是本机临时证据，结果及版本已在本记录保存。未测量全仓语句/分支覆盖率，不报告“100% 代码覆盖率”；此表陈述的是受影响链的场景覆盖。
+
+### 最终浏览器验证
+
+- 使用 8167 的真实 OIDC 管理员会话；左上角公司子菜单从 A 切到 B，仍停留原页面，当前公司回读为 B。
+- 添加用户显示 5 组/18 叶子；桌面两组一行，子项相对父项缩进；全选物料与库存后单独取消库存，父项变半选、其他五项保留。没有通过 GUI 创建无关用户。
+- 采购页保留票号 `UI-验收保留-20260924`、数量 3，原地新增供应商 `SUP-00038`、物料 `PRD-00039`、仓库 `WH-00040`，原路由和已录字段保持，候选无需刷新页面就出现。
+- 销售页保留数量 4、备注“客户新增前保留备注0924”，原地新增客户 `CUS-00041`，即时可选；手动选中后回填公司类型和地址；箭头再次打开该客户详情仍停在销售页，关闭后数量和备注保持。
+- 保存主档只刷新候选，不自动替换单据当前字段；选择新增候选后才应用主档值，避免覆盖 OCR 和人工输入。
+- 扫码按钮在悬停时由 24px 收为 20px，左移让出箭头位置；箭头和扫码框无交叠。共用原生 Link/Grid/单框行为由此前浏览器及当前 52 项组件回归共同覆盖。
+- 物料原地新增 → 原生图片附件 → Camera 三层弹窗，使用临时 Capture.show 输入替身提供 1440×2560、2560×1440、200×8000 三张合成图，其余原生预览/删除/提交/上传链不替换。390×740、740×390、1280×800 下各层 scrollWidth=clientWidth，操作按钮可见；删除一张后回到上传列表成功。
+- 实际上传私有原图 `/private/files/capture_2026_09_24_17_19_57.png` 并保存物料成功；关闭图片优化后 naturalWidth/naturalHeight 仍为 1440×2560。一次上传恰逢本任务候选容器重建返回 502，运行稳定后同入口重试成功，并未丢失外层表单；无后续服务重启。
+- 页面刷新已清除临时 Capture 输入替身，浏览器尺寸恢复默认，团队管理页保留给用户。浏览器采购/销售验收草稿未提交；合成主档和图片保留。
+
+### 当前入口、复验与保留
+
+- 当前入口：`http://erp-pos-a.localhost:8167/desk/pearnly-team`，浏览器管理员已登录。合成管理员 `AcceptanceOwner` / `acceptance-owner@example.test`，合成采购员工 `AcceptanceBuyer` / `acceptance-buyer@example.test`；本地合成密码均为 `erp-acceptance-only`。全局系统时区/语言/日期仍与生产一致（Asia/Bangkok、th、yyyy-mm-dd），仅这两个预览用户为中文。
+- Compose 使用 `infrastructure/compose/erp-acceptance.yml` + `erp-acceptance-identity.yml`；环境文件 `/tmp/pearnly-erp-acceptance.env` 权限 0600。只能使用 context `colima-pearnly-erp-acceptance`，不要套用默认 context 或共享样板。
+- 复验可将当前辅助脚本复制到专用 bench，再运行。以下操作只向合成 Site B 新增唯一前缀测试资料，不会清库，但需要允许本地测试写入：
+
+```sh
+docker --context colima-pearnly-erp-acceptance cp scripts/erp-acceptance-verify.py pearnly-erp-acceptance-bench-1:/tmp/erp-acceptance-verify.py
+docker --context colima-pearnly-erp-acceptance exec pearnly-erp-acceptance-bench-1 env/bin/python /tmp/erp-acceptance-verify.py
+docker --context colima-pearnly-erp-acceptance cp scripts/erp-acceptance-http.py pearnly-erp-acceptance-bench-1:/tmp/erp-acceptance-http.py
+docker --context colima-pearnly-erp-acceptance exec pearnly-erp-acceptance-bench-1 env/bin/python /tmp/erp-acceptance-http.py erp-pos-b.localhost
+```
+
+- 账号脚本 `erp-acceptance-identity.py --verify` 会重设合成采购员工密码并终止该员工旧会话；不会重设管理员密码或修改其当前公司。仅需查看时不重跑。初始化/升级/HTTP/身份脚本均有验收标记和 Site 白名单保护，不可用于生产。
+- 本轮已删除闲置 `pearnly-erp-acceptance-fresh-init` 容器及其专属匿名日志卷 `bdab72ef1b6b0defdccd8d4eaca47e7042ebc22fc921dcfab197632ad481a929`。独立新安装 Site 的 named 卷 `pearnly-erp-acceptance_sites-fresh` 仍保存数据库清理凭据，数据库位于专属验收 database 卷；保留至用户结束验收后原生 drop-site，不提前丢弃配置。
+- 保留验收 Compose 的 14 个容器、专属 Colima profile、5 个 named 卷及运行服务的 11 个匿名卷。保留候选/基线镜像和 `/tmp/pearnly-erp-acceptance-*` 运行配置、构建归档、日志，供当前用户验收、升级复现和问题追踪；解除条件为用户结束本地验收、完成保存/合并安排，届时按资源引用逐项复核清理。
+- 旧 8157 预览仍保留作为前轮对照，DMS 和其他 ERP 环境未动。工作树 `/Users/skin/.codex/worktrees/erp-purchase-menu-diagnosis/pearnly` 与本地分支 `codex/erp-purchase-menu-diagnosis` 未合并、未推送；工作树仍被旧预览源码及新验收 Keycloak 主题引用，不能删除。目标本地/远端 main 交付前回读仍为 `57039ca15595641932f053fd34c49d4e45dba964`，任务远端分支不存在。这是交接保留。
+- 交付前只读回读生产仍运行 `a11eb9e…` / `dd81a3f…`，没有部署。本地使用 localhost HTTP、QEMU 和已记录的两项内存适配，不验收生产 TLS/吞吐；没有生产数据、外部付费 OCR 凭据或第三方消息发送。真实 iPhone 系统相机/相册、硬件扫码、付费 OCR 质量/速度及 testerp 原发票重走仍未执行；用户业务验收不由 Agent 代签。
 
 ## 初始只读诊断记录
 
