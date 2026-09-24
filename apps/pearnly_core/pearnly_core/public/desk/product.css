@@ -323,3 +323,8 @@ body.pearnly-product-desk .pearnly-count-photo img {
 	border-radius: var(--border-radius);
 	border: 1px solid var(--border-color);
 }
+/* 列头点一下就能排序（见 `p.table`）。官方只给列头右侧那颗小箭头设了手型，
+   整格可点却不给提示会让人以为点不动，所以这里补一个手型。 */
+body.pearnly-product-desk .dt-cell--header {
+	cursor: pointer;
+}

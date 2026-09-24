@@ -298,6 +298,22 @@ frappe.provide("frappe.pearnly");
 			translations: frappe.utils.datatable.get_translations(),
 			...options,
 		});
+		// **点列头直接排序**（用户 2026-09-25："点列头我要的是这种，不要那种繁琐的点开、选择"）：
+		// 官方只把排序藏在列头右侧那颗小箭头的菜单里。这里沿用**官方自己的排序通道**
+		// （菜单里那三项调用的就是同一个 `columnmanager.sortColumn`），把它绑到列头本身：
+		// 未排序 → 升序 → 倒序 → 取消（回到原始顺序）。菜单三项保留，官方行为一个字不改。
+		// 点在小箭头、列宽拖拽把手或输入控件上时不触发。
+		$(parent).on("click", ".dt-cell--header", function (event) {
+			if ($(event.target).closest(".dt-dropdown, .dt-cell__resize-handle, input, select, button").length) {
+				return;
+			}
+			const matched = String(this.className).match(/dt-cell--header-(\d+)/);
+			if (!matched) return;
+			const index = Number(matched[1]);
+			const order = table.datamanager.getColumn(index)?.sortOrder;
+			table.columnmanager.sortColumn(index,
+				order === "asc" ? "desc" : (order === "desc" ? "none" : "asc"));
+		});
 		return p.table_menu(table);
 	};
 	// 列头菜单只留排序三项。官方 datatable 默认还挂"移除栏"和"冻结/解冻"，本项目表格是
