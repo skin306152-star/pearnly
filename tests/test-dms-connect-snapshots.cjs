@@ -147,7 +147,7 @@ test('Chinese glossary renders four exact group labels, update action and native
   ]);
   await dialog.submit({vehicles: 1, customers: 1, geo: 1, company: 1});
   assert.deepEqual(h.calls.find(call => call.method.endsWith('request_refresh')).args, {datasets: DATASETS});
-  assert.deepEqual(h.freezeTexts, ['数据更新中。。。']);
+  assert.deepEqual(h.freezeTexts, ['数据更新中...']);
   assert.equal(h.frozen, true);
   h.setRows(DATASETS.map(dataset => status(dataset, 'succeeded', ID))); await h.poll();
   assert.equal(h.frozen, false); assert.equal(h.successes.length, 1); assert.equal(h.timers.size, 0);

@@ -3,7 +3,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
 Update data	更新数据	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
-Updating data…	数据更新中。。。	กำลังอัปเดตข้อมูล…	データを更新中…	dms.connect.cache.processing
+Updating data…	数据更新中...	กำลังอัปเดตข้อมูล…	データを更新中…	dms.connect.cache.processing
 The read status changed. Refresh the page to check before trying again.	读取状态已变化，请刷新页面确认后再试。	สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง	読み取り状態が変わりました。ページを更新して確認してから再試行してください。	dms.connect.cache.changed
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.	暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。	ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง	読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。	dms.connect.cache.unconfirmed
 Select at least one data group.	请至少选择一组资料。	กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม	データを1種類以上選択してください。	dms.connect.cache.select

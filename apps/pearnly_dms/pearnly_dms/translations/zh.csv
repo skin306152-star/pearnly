@@ -81,7 +81,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
 Update data,更新数据
 Update failed — click Update data to retry,更新失败，点击更新数据可重试
-Updating data…,数据更新中。。。
+Updating data…,数据更新中...
 Vehicle master data,车辆主档信息
 View result / status,查看结果／状态
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
@@ -130,7 +130,7 @@ dms.connect.cache.field.progress,读取进度
 dms.connect.cache.field.state,读取状态
 dms.connect.cache.help,选择需要更新的资料，点击后请等待读取完成。
 dms.connect.cache.processed,已处理 {0} 项，总数尚未确定
-dms.connect.cache.processing,数据更新中。。。
+dms.connect.cache.processing,数据更新中...
 dms.connect.cache.read,更新数据
 dms.connect.cache.select,请至少选择一组资料。
 dms.connect.cache.stale,旧资料：{0}
