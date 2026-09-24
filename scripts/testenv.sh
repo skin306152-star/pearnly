@@ -114,14 +114,18 @@ publish_import() {
 
 lab_start() {
   # 一键开始测试：从线上导出测试租户 → 取回 → 导入测试环境 → 把域名切过来。
+  # 带产品名只处理这些产品，例如 `lab-start dms` 只动 DMS 租户，ERP 域名保持不动。
   local prod_host=${PEARNLY_TESTENV_PROD_HOST:-107.155.65.74}
   local prod_key=${PEARNLY_TESTENV_PROD_KEY:-$HOME/.config/pearnly-production/operator}
   local prod_dir=/root/te-export
   [[ -s "$prod_key" ]] || { echo "missing production key $prod_key" >&2; exit 2; }
+  local apps; apps=$(lab_apps "$@" | paste -sd' ' -)
+  local specs; specs=$(lab_apps "$@" | tenant_spec | paste -sd' ' -)
+  echo "本次涉及产品：$apps"
 
   echo "== 1/4 线上导出测试租户"
   ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" 'bash -s' "$prod_dir" \
-    dms:testdms.pearnly.com erp:testerp.pearnly.com \
+    $specs \
     < "$root/infrastructure/testenv/export-test-tenant.sh" | tail -3
 
   echo "== 2/4 取回本机"
@@ -129,18 +133,35 @@ lab_start() {
   scp -q -i "$prod_key" -o BatchMode=yes "root@$prod_host:$prod_dir/*" /tmp/te-export/
 
   echo "== 3/4 导入测试环境"
-  bash "$0" import dms testdms.pearnly.com | tail -2
-  bash "$0" import erp testerp.pearnly.com | tail -2
+  for spec in $specs; do
+    bash "$0" import "${spec%%:*}" "${spec#*:}" | tail -2
+  done
 
   echo "== 4/4 把域名切到测试环境"
-  bash "$root/scripts/testenv-cloudflare.sh" switch-lab
-  bash "$root/scripts/testenv-cloudflare.sh" status
+  bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
+  bash "$root/scripts/testenv-cloudflare.sh" status $apps
 }
 
 lab_stop() {
-  # 一键结束测试：域名切回线上。
-  bash "$root/scripts/testenv-cloudflare.sh" switch-prod
-  bash "$root/scripts/testenv-cloudflare.sh" status
+  # 一键结束测试：域名切回线上。带产品名只切回这些产品，默认两个都切回。
+  local apps; apps=$(lab_apps "$@" | paste -sd' ' -)
+  bash "$root/scripts/testenv-cloudflare.sh" switch-prod $apps
+  bash "$root/scripts/testenv-cloudflare.sh" status $apps
+}
+
+# 有公网测试租户的产品：app → <组>:<站点>；不带参数=全部。
+lab_apps() {
+  if (( $# == 0 )); then printf '%s\n' dms erp; else printf '%s\n' "$@"; fi
+}
+
+tenant_spec() {
+  while read -r app; do
+    case "$app" in
+      dms) echo 'dms:testdms.pearnly.com' ;;
+      erp) echo 'erp:testerp.pearnly.com' ;;
+      *) echo "unknown app: $app (expected dms|erp)" >&2; exit 2 ;;
+    esac
+  done
 }
 
 case "${1:-}" in
@@ -183,11 +204,11 @@ case "${1:-}" in
     ;;
   sh) shift; bash_remote sh "$@" ;;
   urls) urls ;;
-  lab-start) lab_start ;;
-  lab-stop) lab_stop ;;
+  lab-start) shift; lab_start "$@" ;;
+  lab-stop) shift; lab_stop "$@" ;;
   *)
     cat <<'EOF'
-usage: testenv.sh {setup|sync|env|pull|config|up|ps|logs|urls|down|reset|sites|sh}
+usage: testenv.sh {setup|sync|env|pull|config|up|ps|logs|urls|down|reset|sites|sh|lab-start [产品...]|lab-stop [产品...]}
 
   setup            在那台 Windows 的 WSL 里装好与正式机同源的宿主运行环境
   env              同步栈定义并写运行环境文件（需要 PEARNLY_TESTENV_IMAGE）
@@ -196,6 +217,8 @@ usage: testenv.sh {setup|sync|env|pull|config|up|ps|logs|urls|down|reset|sites|s
   urls             打印 Mac 侧端口转发与可直接打开的地址
   logs <服务>      看某个服务日志
   reset            停栈并删除测试数据卷（只删 pearnly-testenv_ 开头的卷）
+  lab-start [产品...]  导出/导入测试租户并切域名；带产品名只动这些产品（dms|erp），默认两个都动
+  lab-stop  [产品...]  域名切回线上；同样可按产品选择
 EOF
     ;;
 esac

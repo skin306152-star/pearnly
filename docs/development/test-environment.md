@@ -31,9 +31,18 @@
 ## 一键切换（把测试租户整体切到测试环境）
 
 ```bash
-bash scripts/testenv.sh lab-start   # 线上导出测试租户 → 取回 → 导入测试环境 → 域名切过去
+bash scripts/testenv.sh lab-start   # 线上导出两个测试租户 → 取回 → 导入测试环境 → 域名切过去
 bash scripts/testenv.sh lab-stop    # 域名切回线上（测试环境数据保留）
+bash scripts/testenv.sh lab-start dms   # 只动 DMS：只导出/导入 testdms 并只切它的域名
+bash scripts/testenv.sh lab-stop  dms   # 只把 testdms 切回线上，ERP 域名不动
 ```
+
+**按产品切换**：`lab-start` / `lab-stop` 可以只带要测的产品名（`dms`、`erp`，不带=两个都动）。
+只切一个产品时，另一个产品的域名完全不动：它仍走通配记录、仍由线上服务。
+底层是 [`testenv-cloudflare.sh`](../../scripts/testenv-cloudflare.sh) 的 `switch-lab` / `switch-prod`
+（同样接受产品名，并可 `status [dms] [erp]` 只读看某一个）。隧道本身同时带两个域名，
+所以"切哪个产品"只是"给哪个域名建/删自己的 CNAME"，不需要改隧道配置。
+注意 DMS 与 ERP 共用同一个测试租户数据导出通道，只切一个产品时不会顺带刷新另一个产品的数据。
 
 - 切换改的是 Cloudflare 解析：这两个名字平时走通配记录 `*.pearnly.com → 线上 IP`；
   切过去时建两条 `CNAME → 隧道`，切回来时删除，自动回落到通配记录。
@@ -56,7 +65,7 @@ bash scripts/testenv.sh lab-stop    # 域名切回线上（测试环境数据保
 | `bash scripts/testenv.sh smoke` | 入口冒烟（按 Host 头访问各站点） |
 | `bash scripts/testenv.sh urls` | 打印 Mac 侧端口转发与可访问地址 |
 | `bash scripts/testenv.sh logs <服务>` / `down` / `reset` | 看日志 / 停栈（保留数据）/ 删测试环境数据卷 |
-| `bash scripts/testenv.sh lab-start` / `lab-stop` | 见上"一键切换" |
+| `bash scripts/testenv.sh lab-start [dms\|erp]` / `lab-stop [dms\|erp]` | 见上"一键切换"；可只切一个产品 |
 
 ## 凭据与边界
 
