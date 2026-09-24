@@ -173,6 +173,36 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 
 ### 地址目录：为什么它和另外三组不是一类东西（2026-09-24 调查）
 
+### OCR 在测试环境一直重试：三道坎与处置（2026-09-24）
+
+用户报告"测试环境 OCR 一直在重试"。只读排查后逐层解决，**现已可真实识别**。
+
+**在重试的是什么（不是失控）**：`tabPearnly OCR Work` 共 27 条——26 条是从线上导入的历史任务，状态全是 `succeeded`（终态，不会被重跑，**没有重复扣费风险**）；只有 1 条 `deferred`，就是用户那张身份证照片（`176ad2ecc0dcf4a7e9f385136ac2459cc84e9593cfe1177b53d6886adf94c0de`），每约 31 秒重试一次。日志 `billing.status 查不到：… HTTP 404` 说明它**卡在计费那一步**（容量那道坎上一轮已由 `finish-start` 自动补好），而且重试期间**没有调用模型、没有扣费**。
+
+**三道坎与处置**：
+
+1. **OCR 容量存储**（上一轮已解决）：`pearnly_ocr_budget_redis` 写进 common_site_config，否则任务在**入队**那步就 `capacity_not_configured`。
+2. **账本站点缺失**（本轮解决）：测试栈的 `billing-web` 里没有 `billing.internal`，计费请求 404。**必须整站导入**，不能只建空站——产品站点用的是**记账本数据库里的**分租户服务令牌（`pearnly_billing_scoped_tokens`），空站里没有那一行。
+3. **OCR 凭据文件权限**（本轮解决）：线上 `/opt/pearnly/secrets/ocr.json` 是 `1000:1000 600`；我上轮拷过去的是 `root:root 600`，而应用以 uid 1000 运行 → `PermissionError: [Errno 13] Permission denied: '/run/secrets/ocr.json'`（表现成识别 failed / 一直重试）。已 `chown 1000:1000` + `chmod 600`，与线上一致。
+
+**本轮实现（`codex/testenv-per-app`，已推送 `e1be310` 等，并合入本分支）**：
+
+- `import-test-tenant.py`：加 `billing` 组分支（只接受 `billing.internal`，校验 `pearnly_billing_only`），产品校验对它跳过。
+- `run.sh`：`import`/`migrate` 允许 `billing` 并路由到本栈的 `billing-web`；`override.yml` 给 `billing-web` 补挂 `/workspace/import`（否则导入找不到文件）。
+- 新增 `billing-init.py`：账本站点是导入进**新卷**的，sites 卷上的 `common_site_config.json` 与 `apps.txt` 没人生成过 → `bench` 会报 "Service redis_cache is not running"（实测）。该脚本按产品栈同形补公共配置，并按镜像现有 App 补应用清单（结果与线上一致：`erpnext / frappe / pearnly_control`）。
+- `finish-start.py`：新增**凭据可读性检查**（读 site_config 的 `pearnly_ocr_credentials` 并试读），读不了就明确提示 `chown 1000:1000`。防止第 3 类坑再静默发生。
+- `testenv.sh`：`lab-start` 现在连带导出/导入账本站点（`billing:billing.internal`），`import billing billing.internal` 可用。
+
+**验证证据（本轮实测）**：
+
+- 产品站点 `billing_client.configured()` = True；`status()` 返回 `{"allowed": true, "balance_thb": 959.5, "estimate_thb": 1.5}`。
+- 容器内 `ocr.access_token()` 成功（长度 1024）；配置 project `pearnly` / location `asia-southeast1` / backend `vertex`。
+- **真实识别调用成功**（仓库合成样本，非客户数据）：两次分别 8.8 秒与 7.4 秒，字段齐全、`missing=[]`、`needs_review=False`。
+- **真实扣费**：`OCR-2026-000043` / `OCR-2026-000044` 均 `ok`、各扣 1.5 THB（reference 分别为 `testenv:verify:20260924`、`testenv:verify3:20260924`，与本次验证调用一一对应）。本轮验证共花 3.0 THB（测试账本，与线上账本隔离）。
+- 那张失败的照片（work `176ad2…`，`attempts=46`，`last_code=ocr.failed`，`charged=0`）已是终态，不会再重试。
+
+**仍未验证**：LINE 端到端（webhook → 队列 → 识别 → 回卡/建档）。需要用户在 LINE 里重发照片，属于用户侧验收，不能由本轮只读/直连调用代替。
+
 触发：首次真实四组采集中 `geo` 失败（`ERR_DMS_SNAPSHOT_INCOMPLETE`）；用户提出"身份证上本来就有地址，OCR 读出来填即可，地址为什么要读缓存"。以下全部为**只读实测**（走既有适配器与会话锁，未绕过、未写入任何第三方数据）。
 
 **现状与失败机理**：当前按"逐条读详情页"采集，全国 15,729 条＝15,729 次 `{kind}/form.php`；实测约 8 请求/秒 → 一路顺利也需约 33 分钟；任何一次单页 30 秒超时即整轮判不完整并丢弃断点（本任务实测在第 31 轮被打断，即仅走完约 1/5）。结构上几乎不可能成功。
