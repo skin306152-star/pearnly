@@ -225,6 +225,7 @@ Customer contact updated successfully.,อัปเดตข้อมูลต�
 Customer is disabled,ลูกค้าถูกปิดใช้งาน
 Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
+Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
 Customers,ลูกค้า
 Date,วันที่
 Decided At,เวลาตัดสินใจ
@@ -356,6 +357,7 @@ Found: {0},พบ: {0}
 From Date,จากวันที่
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
+General,ทั่วไป
 Generated,สร้างขึ้น
 Generated automatically,สร้างอัตโนมัติ
 Goods,สินค้า
@@ -736,6 +738,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,บริการ
 Set as current,ตั้งเป็นปัจจุบัน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
+Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
 Shift,กะ
@@ -803,8 +806,10 @@ Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
 Supplier is disabled,ผู้จำหน่ายถูกปิดใช้งาน
 Supplier is required,กรุณาระบุผู้จำหน่าย
 Supplier not found,ไม่พบผู้จำหน่าย
+Supplier not found. Please select the supplier again.,ไม่พบผู้จำหน่าย กรุณาเลือกใหม่
 Suppliers,ผู้จัดจำหน่าย
 Switch Between Payment Modes,สลับวิธีชำระเงิน
+Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
 System number,เลขที่ระบบ
 Tax Amount,จำนวนภาษี
@@ -935,6 +940,7 @@ Use the stock count workbench,โปรดใช้หน้าปฏิบั�
 Used for new documents only. Each location keeps its own stock.,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 Used when a new purchase line does not say otherwise,ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น
 User,ผู้ใช้
+User Settings,เมนูผู้ใช้
 Username,ชื่อผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 VAT,ภาษีมูลค่าเพิ่ม

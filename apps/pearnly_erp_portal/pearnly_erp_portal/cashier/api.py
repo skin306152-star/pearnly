@@ -109,6 +109,7 @@ def api_create_sale(**kwargs):
 
 @frappe.whitelist()
 def api_list_sales(**kwargs):
+    kwargs.pop("current_only", None)
     return sales.list_sales(**_clean(kwargs))
 
 
@@ -133,7 +134,14 @@ def api_void_sale(**kwargs):
 
 @frappe.whitelist()
 def api_sale_total(**kwargs):
+    kwargs.pop("current_only", None)
     kwargs = _clean(kwargs)
     kwargs.pop("start", None)
     kwargs.pop("limit", None)
     return len(sales.list_sales(**kwargs, limit=0))
+
+
+@frappe.whitelist()
+def api_current_sales(**kwargs):
+    kwargs.pop("current_only", None)
+    return sales.list_sales(**_clean(kwargs), current_only=True)

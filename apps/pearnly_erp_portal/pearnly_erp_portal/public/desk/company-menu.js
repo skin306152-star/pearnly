@@ -5,7 +5,7 @@
  * —— 就是官方那个 `company` 键（`frappe.defaults.set_user_default`）。所以这是"切我自己
  * 现在在哪家公司干活"，不是改租户配置，不需要管理员。
  *
- * 用的是原生 `SidebarHeader` 自己的 `dropdown_items`（原生菜单里那一组嵌套项），不另画控件：
+ * 用的是原生 `SidebarHeader` 自己的 `dropdown_items`（原生菜单里的公司列表），不另画控件：
  * 只有一家公司时整组不出现。切换后整页重载 —— 页面上的列表、仓库、单号都跟着这家公司走。
  */
 (() => {
@@ -23,23 +23,28 @@
 		window.location.reload();
 	}
 
-	const NativeHeader = frappe.ui.SidebarHeader;
-	frappe.ui.SidebarHeader = class ProductCompanyHeader extends NativeHeader {
-		// 原生构造函数第一句就调它，然后才建菜单 —— 插在这里，菜单与列表两处都会有。
-		add_navbar_items(...args) {
-			super.add_navbar_items(...args);
-			const rows = frappe.boot.pearnly_companies || [];
-			if (rows.length <= 1) return;
-			this.dropdown_items.unshift({
-				name: "pearnly-company",
-				label: __("Company"),
-				icon: "building-2",
-				items: rows.map(row => ({
-					name: "pearnly-company-" + row.name,
-					label: row.is_current ? `${row.company_name} ✓` : row.company_name,
-					onClick: () => switch_company(row.name, row.is_current),
-				})),
-			});
-		}
+	// Native hover opens the submenu before the first click, which then toggles it closed.
+	// Keep the native submenu, but make clicking this shortcut open it consistently.
+	p.prepare_header_menu = menu => {
+		const index = menu.menu_items_to_show.findIndex(item => item.name === "pearnly-company");
+		if (index < 0) return;
+		const item = menu.template.children().eq(index);
+		item.off("click").on("click", event => {
+			event.stopPropagation();
+			const child = menu.nested_menus.find(nested => nested.parent.get(0) === item.get(0));
+			if (!child) return;
+			menu.nested_menus.filter(nested => nested !== child).forEach(nested => nested.hide());
+			menu.current_menu = child;
+			if (!child.visible) child.show(event);
+		});
+	};
+	p.header_title = () => (frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_name;
+	p.header_menu_items = () => {
+		const rows = frappe.boot.pearnly_companies || [];
+		if (rows.length <= 1) return [];
+		return [{name: "pearnly-company", label: __("Company"), icon: "building-2",
+			items: rows.map(row => ({name: "pearnly-company-" + row.name,
+				label: p.escape(row.company_name) + (row.is_current ? " ✓" : ""),
+				onClick: () => switch_company(row.name, row.is_current)}))}];
 	};
 })();

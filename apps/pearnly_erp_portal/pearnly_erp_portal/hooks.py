@@ -275,6 +275,7 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
     versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
+    versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
@@ -334,6 +335,9 @@ boot_session = "pearnly_erp_portal.masters.boot.boot_session"
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
+  "profile_label": "My Profile",
+  "permission_groups": [("General", ["pearnly-home"]),
+                        ("User Settings", ["user", "pearnly-team", "pearnly-company", "pearnly-warehouses"])],
   # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
   # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
   'page_filter': 'pearnly_erp_portal.masters.nav.filter_pages',
@@ -435,3 +439,22 @@ pearnly_navigation = [{'product': 'erp',
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
                 {'route': 'pearnly-warehouses', 'before_profile': True},
                 'pearnly-team']}]
+
+# Product-owned leaf roles; lookup reads never decide which management menu is visible.
+from pearnly_erp_portal.access import menu as _menu_permissions
+for _key, _spec in _menu_permissions.CATALOG.items():
+    pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)] = {
+        "any_role": [_menu_permissions.role(_key), _spec[1], "ERP Admin"]}
+# Existing coarse-role employees retain their previously available home and profile.
+for _key in ("home", "profile"):
+    pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)]["any_role"] += [
+        "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier"]
+after_install = "pearnly_erp_portal.access.setup.sync_roles"
+after_migrate = "pearnly_erp_portal.access.setup.sync_roles"
+
+has_permission.update({
+    "ERP Stock Entry": "pearnly_erp_portal.inventory.access.entry_permission",
+    "ERP Company": "pearnly_erp_portal.masters.access.company_permission",
+    "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_permission",
+})
+permission_query_conditions["ERP Stock Entry"] = "pearnly_erp_portal.inventory.access.entry_query"

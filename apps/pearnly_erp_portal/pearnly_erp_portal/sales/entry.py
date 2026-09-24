@@ -94,11 +94,16 @@ def preview(payload):
 
 
 def _buyer(payload):
+    from pearnly_erp_portal.masters.selection import match_party
+
     key = payload.get("customer")
     name = str(payload.get("buyer_name") or "").strip()
+    if not key:
+        key = match_party("customer", name)
     if key:
+        if not frappe.db.exists("ERP Customer", key):
+            frappe.throw(_("Customer not found. Please select the customer again."))
         doc = frappe.get_doc("ERP Customer", key)
-        doc.check_permission("read")
         if not doc.is_active:
             frappe.throw(_("Customer is disabled"))
         name = name or doc.customer_name
@@ -168,8 +173,7 @@ def _post(payload, request_id, fingerprint, name):
     collection = _collection(payload, kind, totals["grand_total"], day)
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
     # 一租户多公司：单据挂公司（没给就是当前公司）。
-    if not doc.get("company"):
-        doc.company = companies.document_company(payload.get("company"))
+    doc.company = companies.document_company(doc.get("company") if name else payload.get("company"))
     # 明细必须是子表文档：直接塞 dict 列表，控制器里的 `line.description` 会拿到 dict。
     doc.set("lines", [])
     for row in rows:
@@ -207,7 +211,9 @@ def _resolve_item(row):
     if not row.get("product"):
         matches = frappe.get_all("ERP Product", filters={"product_name": row["description"],
             "is_active": 1}, pluck="name", limit_page_length=2)
-        row["product"] = matches[0] if len(matches) == 1 else None
+        if len(matches) > 1:
+            frappe.throw(_("Several matches found. Please select a record."))
+        row["product"] = matches[0] if matches else None
     if row.get("product"):
         item = frappe.get_doc("ERP Product", row["product"])
         item.check_permission("read")

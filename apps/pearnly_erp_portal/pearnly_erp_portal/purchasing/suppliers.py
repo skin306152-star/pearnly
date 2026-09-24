@@ -28,7 +28,7 @@ def _clean(value, limit=300):
 
 def create_supplier(*, supplier_name, tax_id=None, branch_type="head", branch_no=None,
                     address=None, phone=None, note=None):
-    guard.require("purchase.write")
+    guard.require("suppliers.write")
     supplier_name = _clean(supplier_name)
     if not supplier_name:
         frappe.throw(_(NAME_REQUIRED))
@@ -50,7 +50,7 @@ def create_supplier(*, supplier_name, tax_id=None, branch_type="head", branch_no
 
 
 def list_suppliers(*, q=None, include_inactive=False, limit=50) -> list[dict]:
-    guard.require("purchase.read")
+    guard.require("suppliers.read")
     filters: dict = {}
     if not include_inactive:
         filters["is_active"] = 1
@@ -63,7 +63,7 @@ def list_suppliers(*, q=None, include_inactive=False, limit=50) -> list[dict]:
 
 
 def update_supplier(name, **changes):
-    guard.require("purchase.write")
+    guard.require("suppliers.write")
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     doc = frappe.get_doc(DOCTYPE, name)

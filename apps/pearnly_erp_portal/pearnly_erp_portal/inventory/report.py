@@ -72,7 +72,7 @@ def _public(row: dict, *, cost_visible: bool) -> dict:
 
 def summary(*, date_from=None, date_to=None, product=None, warehouse=None, location=None) -> list[dict]:
     """按商品汇总：期初、本期入、本期出、期末。"""
-    guard.require("stock.read")
+    guard.require("report.read")
     date_from = _date(date_from)
     date_to = _date(date_to)
     visible = rules.cost_visible(guard.current_roles())
@@ -111,7 +111,7 @@ def summary(*, date_from=None, date_to=None, product=None, warehouse=None, locat
 
 def card(*, product, warehouse=None, location=None, date_from=None, date_to=None) -> dict:
     """单品收发存明细：期初一行 + 逐笔进出 + 期末。"""
-    guard.require("stock.read")
+    guard.require("report.read")
     date_from = _date(date_from)
     date_to = _date(date_to)
     visible = rules.cost_visible(guard.current_roles())

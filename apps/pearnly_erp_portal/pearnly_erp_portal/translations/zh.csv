@@ -225,6 +225,7 @@ Customer contact updated successfully.,客户联系方式已更新
 Customer is disabled,客户已停用
 Customer is required,必须填写客户
 Customer not found,未找到客户
+Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
 Customers,客户
 Date,日期
 Decided At,处理时间
@@ -356,6 +357,7 @@ Found: {0},已查到：{0}
 From Date,开始日期
 Full Name,姓名
 Full Screen,全屏
+General,常用功能
 Generated,已生成
 Generated automatically,自动生成
 Goods,货物
@@ -736,6 +738,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,服务
 Set as current,设为当前
 Setup Auto Email,设置自动邮件
+Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
 Shelf,库位
 Shift,班次
@@ -803,8 +806,10 @@ Supplier Tax ID,供应商税号
 Supplier is disabled,供应商已停用
 Supplier is required,供应商不能为空
 Supplier not found,供应商不存在
+Supplier not found. Please select the supplier again.,供应商不存在，请重新选择供应商。
 Suppliers,供应商
 Switch Between Payment Modes,切换支付方式
+Switch company,切换公司
 Switching company...,正在切换公司…
 System number,单据编号
 Tax Amount,税额
@@ -935,6 +940,7 @@ Use the stock count workbench,请通过盘点工作台操作
 Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
 Used when a new purchase line does not say otherwise,新建采购明细没单独指定时用它
 User,用户
+User Settings,用户菜单
 Username,用户名
 Username can only have letters and numbers,用户名只能用英文字母和数字
 VAT,增值税

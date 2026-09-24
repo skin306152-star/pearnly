@@ -16,7 +16,7 @@ import re
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, rules, menu
 
 NOT_PERMITTED = "Not permitted"
 ALREADY_EXISTS = "Already exists"
@@ -53,10 +53,17 @@ def role_catalog() -> list[dict]:
     这不是一张配置表：名单来自 `rules.FEATURE_ROLES`，只保留本站点实际存在的角色。
     没开通的功能没有角色，也就不会出现在勾选框里。
     """
-    from pearnly_core import browser_text
+    from pearnly_core.desk.navigation import _declarations
 
-    return [{"name": role, "label": browser_text.label(ROLE_KEYS.get(role, role))}
-            for role in assignable_roles()]
+    spec = _declarations().get("erp") or {}
+    labels = {route: label for label, route, _icon, _feature in spec.get("pages", [])}
+    groups = {route: label for label, _icon, routes in spec.get("groups", []) for route in routes}
+    labels["user"] = spec.get("profile_label", "My Profile")
+    groups.update({route: label for label, routes in spec.get("permission_groups", []) for route in routes})
+    allowed = set(assignable_roles())
+    return [{"name": menu.role(key), "label": _(labels.get(menu.route(key), key)),
+             "group": _(groups.get(menu.route(key), "User Settings"))}
+            for key in menu.CATALOG if menu.role(key) in allowed]
 
 
 def _clean_username(username, *, exclude=None) -> str:
@@ -156,13 +163,15 @@ def assignable_roles() -> tuple[str, ...]:
     "不勾选就不显示 pos、记录、交接班，以及团队管理里的收银"）——
     判据与侧栏那三页同一个（`companies.pos_enabled_any`），发岗位与看菜单口径一致。
     """
-    roles = rules.assignable_roles(present_roles())
+    from pearnly_core.shell import entitlements
     from pearnly_erp_portal.masters import company as companies
 
-    if companies.pos_enabled_any():
-        return roles
-    cashier = rules.FEATURE_ROLES.get("cashier")
-    return tuple(role for role in roles if role != cashier)
+    features = set(entitlements())
+    pos = companies.pos_enabled_any()
+    return tuple(menu.role(key) for key, spec in menu.CATALOG.items()
+                 if (not spec[0] or spec[0] in features)
+                 and (spec[0] != "cashier" or pos)
+                 and frappe.db.exists("Role", menu.role(key)))
 
 
 def _clean_roles(roles) -> list[str]:
@@ -228,7 +237,7 @@ def list_members() -> list[dict]:
     return members
 
 
-def add_member(username: str = "", email: str = "", roles=None, password=None) -> dict:
+def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None) -> dict:
     """新增员工：**用户名** + 邮箱 + 初始密码 + 勾选的岗位。
 
     用户 2026-09-24 的口径："添加用户必须是英文和数字，不区分大小写，长度不限；密码可以自由
@@ -254,6 +263,7 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
         frappe.throw(_(ALREADY_EXISTS))
     username = _clean_username(username)
     wanted = _clean_roles(roles)
+    wanted_companies = _clean_companies(companies)
     secret = _clean_password(password)
     if frappe.conf.get("pearnly_native_account") and not _identity_configured():
         frappe.throw(_(NOT_PERMITTED), frappe.PermissionError)
@@ -275,6 +285,7 @@ def add_member(username: str = "", email: str = "", roles=None, password=None) -
     user.insert(ignore_permissions=True)
     if subject:
         _bind_member(user.name, subject)
+    _write_companies(user, wanted_companies)
     frappe.db.commit()
     return {"email": user.name, "username": user.username, "roles": sorted(wanted)}
 
@@ -302,7 +313,7 @@ def set_member_password(email: str, password=None) -> dict:
     return {"email": user.name}
 
 
-def set_member_roles(email: str, roles=None) -> dict:
+def set_member_roles(email: str, roles=None, companies=None) -> dict:
     """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。
 
     这里**只有岗位**可改：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
@@ -312,7 +323,8 @@ def set_member_roles(email: str, roles=None) -> dict:
     guard.require("team.manage")
     wanted = _clean_roles(roles)
     user = _employee(email)
-    known = set(rules.FEATURE_ROLES.values())
+    wanted_companies = _clean_companies(companies) if companies is not None else None
+    known = set(rules.FEATURE_ROLES.values()) | set(menu.roles())
     # 只动子表、最后自己 save（`ignore_permissions`）：框架的 `add_roles/remove_roles`
     # 会各自 `save()` 一次、且不带 `ignore_permissions`，在租户站点上会被产品自己的
     # User 权限钩子挡下（非超管只能改自己那条）。直接给 `user.roles` 赋一串 dict 也不行，
@@ -328,6 +340,8 @@ def set_member_roles(email: str, roles=None) -> dict:
         if role not in held:
             user.append("roles", {"role": role})
     user.save(ignore_permissions=True)
+    if wanted_companies is not None:
+        _write_companies(user, wanted_companies)
     frappe.db.commit()
     # 角色刚变，清掉该账号的会话缓存；否则它当前会话里仍按旧岗位判权限。
     frappe.clear_cache(user=user.name)
@@ -350,10 +364,24 @@ def set_member_companies(email: str, companies=None) -> dict:
     """
     guard.require("team.manage")
     user = _employee(email)
-    wanted = [str(name).strip() for name in (companies or []) if str(name).strip()]
+    wanted = _clean_companies(companies)
+    _write_companies(user, wanted)
+    frappe.db.commit()
+    frappe.clear_cache(user=user.name)
+    return {"email": user.name, "companies": sorted(wanted)}
+
+
+def _clean_companies(companies):
+    if not isinstance(companies or [], (list, tuple)):
+        frappe.throw(_("Invalid value"))
+    wanted = sorted({str(name).strip() for name in (companies or []) if str(name).strip()})
     for name in wanted:
-        if not frappe.db.exists(COMPANY, name):
+        if not frappe.db.exists(COMPANY, {"name": name, "is_active": 1}):
             frappe.throw(_("Not permitted"), frappe.PermissionError)
+    return wanted
+
+
+def _write_companies(user, wanted):
     for row in frappe.get_all("User Permission", filters={"user": user.name, "allow": COMPANY},
                               pluck="name"):
         frappe.delete_doc("User Permission", row, ignore_permissions=True, force=True)
@@ -366,9 +394,6 @@ def set_member_companies(email: str, companies=None) -> dict:
     current = get_user_default("company", user.name)
     if current and current not in wanted and wanted:
         set_user_default("company", wanted[0], user.name)
-    frappe.db.commit()
-    frappe.clear_cache(user=user.name)
-    return {"email": user.name, "companies": sorted(wanted)}
 
 
 def set_member_active(email: str, enabled) -> dict:

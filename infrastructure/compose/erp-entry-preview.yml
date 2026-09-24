@@ -1,0 +1,33 @@
+# Dedicated ERP entry/menu preview. Use -p pearnly-erp-entry-lab with erp-pos-lab.yml.
+# Synthetic Sites, isolated database/Redis/Site volumes; never use production data.
+services:
+  web:
+    extends:
+      file: erp-pos-lab.yml
+      service: bench
+    command: [/home/frappe/frappe-bench/env/bin/gunicorn, --chdir=/home/frappe/frappe-bench/sites,
+      --bind=0.0.0.0:8000, --threads=4, --workers=2, --worker-class=gthread,
+      --worker-tmp-dir=/dev/shm, --timeout=120, --preload, frappe.app:application]
+    networks:
+      default:
+        aliases: [erp-pos-a.localhost, erp-pos-b.localhost]
+  socketio:
+    extends:
+      file: erp-pos-lab.yml
+      service: bench
+    command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
+  frontend:
+    extends:
+      file: erp-pos-lab.yml
+      service: bench
+    entrypoint: [nginx-entrypoint.sh]
+    command: []
+    environment:
+      BACKEND: web:8000
+      SOCKETIO: socketio:9000
+      FRAPPE_SITE_NAME_HEADER: '$$host'
+    ports: ['127.0.0.1:8157:8080']
+    networks: [default, preview]
+    depends_on: [web, socketio]
+networks:
+  preview: {}

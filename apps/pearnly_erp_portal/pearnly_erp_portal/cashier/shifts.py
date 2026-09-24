@@ -146,6 +146,7 @@ def current_shift(*, terminal=None) -> dict | None:
 
 def summary(name, *, own_only=True) -> dict:
     """当班汇总：笔数、毛额、各支付方式净额、找零合计。"""
+    guard.require("cashier.read" if guard.has("cashier.read") else "shifts.read")
     doc = _own_shift(name) if own_only else _get(name)
     # 一次取出当班已完成单据，再按父单取付款：退款按负号回冲，抽屉与报表才对得上。
     rows = frappe.get_all(
@@ -234,7 +235,7 @@ def close_shift(name, *, counted_cash=None, counted=None, note=None) -> dict:
 def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None,
                 names=None, limit=50) -> list[dict]:
     """班次列表。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
-    guard.require("cashier.read")
+    guard.require("shifts.read")
     # 一租户多公司：只看当前公司那几台收银台上的班次（班次表本身没有仓库列）。
     filters: dict = dict(terminals.scope_filter())
     if not rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:

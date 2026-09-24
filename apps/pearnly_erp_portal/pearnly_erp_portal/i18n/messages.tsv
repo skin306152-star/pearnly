@@ -1158,3 +1158,8 @@ A warehouse must belong to a company	仓库必须挂在某家公司名下	คล
 This payment method is not enabled for this company	这家公司没有开这种收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません
 Username	用户名	ชื่อผู้ใช้	ユーザー名	team.username
 Username can only have letters and numbers	用户名只能用英文字母和数字	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข	ユーザー名は英数字のみ使用できます	team.usernameCharset
+User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
+Several matches found. Please select a record.	找到多个匹配结果，请选择一条记录。	พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ	複数の候補があります。レコードを選択してください。
+Supplier not found. Please select the supplier again.	供应商不存在，请重新选择供应商。	ไม่พบผู้จำหน่าย กรุณาเลือกใหม่	仕入先が見つかりません。選択し直してください。
+Customer not found. Please select the customer again.	客户不存在，请重新选择客户。	ไม่พบลูกค้า กรุณาเลือกใหม่	顧客が見つかりません。選択し直してください。
+General	常用功能	ทั่วไป	一般

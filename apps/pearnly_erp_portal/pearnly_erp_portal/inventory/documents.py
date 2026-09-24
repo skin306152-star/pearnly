@@ -22,7 +22,9 @@ LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "do
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    doc = frappe.get_doc(DOCTYPE, name)
+    doc.check_permission("read")
+    return doc
 
 
 def _posting_now(value) -> bool:
@@ -59,7 +61,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     **盘点差异传 `stocktake`**，走它自己的 `AD` 定义 —— 单据还是 in/out（决定货的
     方向），但号是盘点那一段，与 MR.ERP"调整是第三个模块、有自己的编号定义"一致。
     """
-    guard.require("stock.write")
+    guard.require("count.write" if numbering_direction == "stocktake" else "stock." + str(direction))
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
     # 顺序要紧：**先把这张单的仓定死，再铺行** —— 行上没写仓时跟着单据走，
@@ -82,7 +84,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
             "warehouse": line["warehouse"], "location": line["location"],
         } for line in lines],
     })
-    doc.insert()
+    doc.insert(ignore_permissions=numbering_direction == "stocktake")
     # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
     if _posting_now(submit):
         _post(doc)
@@ -94,7 +96,12 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
 def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
                  limit=50, start=0):
     guard.require("stock.read")
-    filters: dict = {}
+    allowed = [key for key in ("in", "out") if guard.has("stock." + key)]
+    if direction:
+        guard.require("stock." + direction)
+    elif not allowed:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    filters: dict = {"direction": ["in", allowed]}
     if direction:
         filters["direction"] = direction
     if warehouse:
@@ -114,6 +121,7 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
 def get_entry(name):
     guard.require("stock.read")
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     data = {field: doc.get(field) for field in LIST_FIELDS}
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
@@ -127,6 +135,7 @@ def update_entry(name, **changes):
     guard.require("stock.write")
     submit = changes.pop("submit", None)
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "draft":
         frappe.throw(_(LOCKED))
     # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
@@ -171,7 +180,7 @@ def _post(doc) -> dict:
                 "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse)} for row in doc.lines],
         posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry",
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,
-        client_uuid=f"stock-entry:{doc.name}",
+        client_uuid=f"stock-entry:{doc.name}", internal=True,
     )
     doc.status = "submitted"
     doc.submitted_at = now()
@@ -184,6 +193,7 @@ def submit_entry(name):
     guard.require("stock.write")
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "draft":
         frappe.throw(_(BAD_TRANSITION))
     result = _post(doc)
@@ -196,6 +206,7 @@ def void_entry(name):
     guard.require("stock.write")
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))
     stock.reverse_movements(ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,

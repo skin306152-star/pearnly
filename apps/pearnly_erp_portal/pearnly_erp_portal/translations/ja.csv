@@ -225,6 +225,7 @@ Customer contact updated successfully.,顧客の連絡先を更新しました
 Customer is disabled,顧客は無効です
 Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
+Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
 Customers,顧客
 Date,日付
 Decided At,判定日時
@@ -356,6 +357,7 @@ Found: {0},取得: {0}
 From Date,開始日
 Full Name,氏名
 Full Screen,全画面
+General,一般
 Generated,生成済み
 Generated automatically,自動生成
 Goods,商品
@@ -736,6 +738,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,サービス
 Set as current,現在の会社にする
 Setup Auto Email,自動メールを設定
+Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
 Sheet,シート
 Shelf,棚番
 Shift,シフト
@@ -803,8 +806,10 @@ Supplier Tax ID,仕入先の税番号
 Supplier is disabled,仕入先は無効です
 Supplier is required,仕入先を入力してください
 Supplier not found,仕入先が見つかりません
+Supplier not found. Please select the supplier again.,仕入先が見つかりません。選択し直してください。
 Suppliers,仕入先数
 Switch Between Payment Modes,支払方法を切り替え
+Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
 System number,システム番号
 Tax Amount,税額
@@ -935,6 +940,7 @@ Use the stock count workbench,棚卸作業台から操作してください
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 Used when a new purchase line does not say otherwise,新しい仕入明細で別途指定がない場合に使います
 User,ユーザー
+User Settings,ユーザーメニュー
 Username,ユーザー名
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 VAT,消費税

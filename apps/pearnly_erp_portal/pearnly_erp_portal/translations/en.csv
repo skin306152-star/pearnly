@@ -225,6 +225,7 @@ Customer contact updated successfully.,Customer contact updated successfully.
 Customer is disabled,Customer is disabled
 Customer is required,Customer is required
 Customer not found,Customer not found
+Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
 Customers,Customers
 Date,Date
 Decided At,Decided At
@@ -356,6 +357,7 @@ Found: {0},Found: {0}
 From Date,From Date
 Full Name,Full Name
 Full Screen,Full Screen
+General,General
 Generated,Generated
 Generated automatically,Generated automatically
 Goods,Goods
@@ -736,6 +738,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,Service
 Set as current,Set as current
 Setup Auto Email,Setup Auto Email
+Several matches found. Please select a record.,Several matches found. Please select a record.
 Sheet,Sheet
 Shelf,Shelf
 Shift,Shift
@@ -803,8 +806,10 @@ Supplier Tax ID,Supplier Tax ID
 Supplier is disabled,Supplier is disabled
 Supplier is required,Supplier is required
 Supplier not found,Supplier not found
+Supplier not found. Please select the supplier again.,Supplier not found. Please select the supplier again.
 Suppliers,Suppliers
 Switch Between Payment Modes,Switch Between Payment Modes
+Switch company,Switch company
 Switching company...,Switching company...
 System number,System number
 Tax Amount,Tax Amount
@@ -935,6 +940,7 @@ Use the stock count workbench,Use the stock count workbench
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
 Used when a new purchase line does not say otherwise,Used when a new purchase line does not say otherwise
 User,User
+User Settings,User Settings
 Username,Username
 Username can only have letters and numbers,Username can only have letters and numbers
 VAT,VAT

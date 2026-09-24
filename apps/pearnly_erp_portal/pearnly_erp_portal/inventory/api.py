@@ -14,6 +14,7 @@ from pearnly_erp_portal.inventory import (
     warehouses,
 )
 from pearnly_erp_portal.numbering import service as numbering
+from pearnly_erp_portal.access import guard
 
 # 盘点表读不动时的提示（用户可见，走语言包）。解析层只报 token，文案在这一层翻。
 STOCK_FILE_ERRORS = {
@@ -62,6 +63,9 @@ def api_update_warehouse(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_create_stock_entry(**kwargs):
+    guard.require("stock." + str(kwargs.get("direction")))
+    kwargs.pop("numbering_direction", None)
+    kwargs.pop("commit", None)
     _json_args(kwargs, "lines")
     return documents.create_entry(**_clean(kwargs))
 
@@ -112,6 +116,7 @@ def api_void_stock_entry(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_receive(**kwargs):
     """入库。不带仓库时落**这家公司卖货的那个仓**（`warehouses.receiving`）。"""
+    guard.require("stock.in")
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
@@ -122,6 +127,7 @@ def api_receive(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_issue(**kwargs):
     """出库。"""
+    guard.require("stock.out")
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
@@ -131,6 +137,7 @@ def api_issue(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_count(**kwargs):
+    guard.require("stock.manage")
     _json_args(kwargs, "lines")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
@@ -139,6 +146,7 @@ def api_count(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_adjust(**kwargs):
+    guard.require("stock.manage")
     kwargs = _clean(kwargs)
     warehouse = kwargs.pop("warehouse", None)
     return stock.apply_movement(warehouse=warehouse, movement_type="adjust", **kwargs)
@@ -524,10 +532,10 @@ def api_create_stock_count(**kwargs):
     """开一份盘点。带 `file_url` 就是"上传导入"：先建空任务，再把表里的行并进去。"""
     kwargs = _clean(kwargs)
     file_url = str(kwargs.pop("file_url", "") or "").strip()
+    rows, problems = _stock_rows(file_url) if file_url else ([], [])
     task = counts.create_count(**{**kwargs, "snapshot": not file_url})
     if not file_url:
         return task
-    rows, problems = _stock_rows(file_url)
     imported = counts.apply_import(count=task["name"], rows=rows)
     return {**task, "rows": imported["rows"], "counted": imported["counted"],
             "problems": imported["problems"] + problems}
@@ -705,6 +713,7 @@ def api_upsert_opening(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_rebuild_balance(**kwargs):
     """按流水重算结存。用于验证"结存确实能由流水重建"，也可用于修复。"""
+    guard.require("warehouses.manage")
     kwargs = _clean(kwargs)
     return stock.rebuild_balance(kwargs.get("product"), kwargs.get("warehouse"), kwargs.get("location", ""))
 

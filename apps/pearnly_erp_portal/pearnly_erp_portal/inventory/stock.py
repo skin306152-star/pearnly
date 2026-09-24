@@ -274,7 +274,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     `only_low` 只留低库存与缺货，并且**隐含带上零库存** —— 缺货就是结存 0，
     否则"只看缺货"会一条都看不到。
     """
-    _require("stock.read")
+    _require("inventory.read")
     from pearnly_erp_portal.access import rules
 
     filters: dict = {}

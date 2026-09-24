@@ -70,7 +70,7 @@ def allowed_companies(user=None) -> list:
     permitted = frappe.get_all("User Permission", filters={"user": user, "allow": DOCTYPE},
                                pluck="for_value")
     if permitted:
-        rows = frappe.get_all(DOCTYPE, {"name": ["in", permitted]}, ["name"], order_by=order_by)
+        rows = frappe.get_all(DOCTYPE, {"name": ["in", permitted], "is_active": 1}, ["name"], order_by=order_by)
         return [row["name"] for row in rows]
     rows = frappe.get_all(DOCTYPE, {"is_active": 1}, ["name"], order_by=order_by)
     return [row["name"] for row in rows]
@@ -314,7 +314,7 @@ def get_profile(name=None) -> dict:
       客户两页同一个能力码）—— 没这个能力的岗位那边不出现那颗按钮。
     """
     guard.require("company.read")
-    doc = _get(name or ensure_default())
+    doc = _get(document_company(name))
     payload = {field: doc.get(field) for field in LIST_FIELDS}
     payload["can_write"] = guard.has("company.manage")
     payload["can_lookup"] = guard.has("tax.lookup")
@@ -427,7 +427,7 @@ def save_terminals(company=None, rows=None) -> dict:
 
 def update_company(name, **fields) -> dict:
     guard.require("company.manage")
-    doc = _get(name)
+    doc = _get(document_company(name))
     _apply(doc, fields)
     doc.save()
     frappe.db.commit()

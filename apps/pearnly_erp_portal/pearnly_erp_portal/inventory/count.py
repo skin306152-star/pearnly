@@ -100,7 +100,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     `snapshot=True`（盘点在库）把当前结存抄成快照行；`snapshot=False`（上传导入）
     只建一张空任务，行由上传的表带进来（`apply_import`）。
     """
-    guard.require("stock.write")
+    guard.require("count.write")
     name = (title or "").strip()
     if not name:
         frappe.throw(_(TITLE_REQUIRED))
@@ -137,7 +137,7 @@ def apply_import(*, count, rows) -> dict:
     同一份表**重复上传是覆盖不是叠加**：导入记录用 `import:<任务>:<行>` 当幂等锚，
     再传一次是改那一条，不是又记一笔（用户改完数重传是常态）。
     """
-    guard.require("stock.write")
+    guard.require("count.write")
     count_state.lock_task(count)
     task = _get(count)
     if task.status != "Active":
@@ -216,7 +216,7 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
 
 def item_of_product(*, count: str, product: str, location="") -> dict | None:
     """这份盘点里某个商品在某个库位那一行（库位给了就精确匹配）。"""
-    guard.require("stock.read")
+    guard.require("count.read")
     filters = {"count": count, "product": product}
     if location:
         filters["location"] = location
@@ -225,7 +225,7 @@ def item_of_product(*, count: str, product: str, location="") -> dict | None:
 
 def rows_of_product(*, count: str, product: str) -> list:
     """这个商品在这份盘点里的**所有行**（一个货架一行），手机端要拿它给员工挑。"""
-    guard.require("stock.read")
+    guard.require("count.read")
     return frappe.get_list(ITEM, filters={"count": count, "product": product},
                            fields=["name", "product", "product_name", "code", "barcode", "unit",
                                    "warehouse", "location", "book_qty", "counted",
@@ -239,7 +239,7 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
     与加记录分开：手机端扫一下只是"看看这是哪件、账面多少"，不该在那一下
     就写进一条实盘（写 0 会被当成"数出来是 0"，比不写更糟）。
     """
-    guard.require("stock.write")
+    guard.require("count.write")
     count_state.lock_task(count)
     task = _get(count)
     if task.status != "Active":
@@ -290,7 +290,7 @@ def _size(limit):
 
 
 def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
-    guard.require("stock.read")
+    guard.require("count.read")
     filters = dict(warehouses.scope_filter())
     if status:
         filters["status"] = status
@@ -306,7 +306,7 @@ def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
 
 
 def count_total(*, status=None) -> int:
-    guard.require("stock.read")
+    guard.require("count.read")
     filters = dict(warehouses.scope_filter())
     if status:
         filters["status"] = status
@@ -315,7 +315,7 @@ def count_total(*, status=None) -> int:
 
 
 def get_count(name: str) -> dict:
-    guard.require("stock.read")
+    guard.require("count.read")
     doc = _get(name)
     return {
         "name": doc.name, "title": doc.title, "status": doc.status, "warehouse": doc.warehouse,
@@ -331,7 +331,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
 
     仓库列给的是**仓库名**（人认得的那串），不是内部编号；导回来时两种都认。
     """
-    guard.require("stock.read")
+    guard.require("count.read")
     if name:
         _get(name)
         return [{
@@ -344,10 +344,13 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
     balances = frappe.get_list(BALANCE, filters={"warehouse": warehouse},
                                fields=["product", "qty_on_hand", "location"], limit_page_length=0)
     products = {row["name"]: row for row in frappe.get_list(
-        PRODUCT, filters={"is_active": 1, "name": ["in", [b["product"] for b in balances] or [""]]},
+        PRODUCT, filters={"is_active": 1},
         fields=["name", "product_name", "code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
     label = _warehouse_label(warehouse)
+    present = {row["product"] for row in balances}
+    balances.extend({"product": key, "qty_on_hand": 0, "location": ""}
+                    for key in products if key not in present)
     out = []
     for balance in balances:
         product = products.get(balance["product"])
@@ -391,7 +394,7 @@ def _warehouse_of(value, fallback) -> str:
 
 def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False) -> list[dict]:
     """快照行。`filter`: all / uncounted / counted / differences（旧线上那三个筛选项）。"""
-    guard.require("stock.read")
+    guard.require("count.read")
     task = _get(count)
     rows = frappe.get_list(
         ITEM, filters={"count": count},
@@ -449,7 +452,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
 
 
 def items_total(*, count: str, q=None, filter="all") -> int:
-    guard.require("stock.read")
+    guard.require("count.read")
     return len(list_items(count=count, q=q, filter=filter, limit=0))
 
 
@@ -459,21 +462,21 @@ def close_count(name: str, review_token=None) -> dict:
 
 
 def review_count(name, *, _locked=False):
-    guard.require("stock.read")
+    guard.require("count.read")
     task = get_count(name)
     items = list_items(count=name, limit=0, _locked=_locked)
     entries = list_entries(count=name, limit=0)
     state = [task, items, entries]
     token = hashlib.sha256(json.dumps(state, sort_keys=True, default=str).encode()).hexdigest()
     return {"task": task, "items": items, "entries": entries, "review_token": token,
-            "can_write": guard.has("stock.write"),
+            "can_write": guard.has("count.write"),
             "can_view_costs": rules.cost_visible(guard.current_roles()),
             "conflicts": [r["name"] for r in items if r["stock_changed"]],
             "location_total": sum(bool(r["location_difference"]) for r in items)}
 
 
 def post_count(name: str, review_token=None) -> dict:
-    guard.require("stock.write")
+    guard.require("count.write")
     count_state.lock_task(name, active=False)
     doc = _get(name)
     if doc.status == "Posted":
@@ -552,7 +555,7 @@ def post_count(name: str, review_token=None) -> dict:
 
 
 def delete_count(name: str) -> dict:
-    guard.require("stock.write")
+    guard.require("count.write")
     frappe.db.sql("select name from `tabERP Stock Count` where name=%s for update", (name,))
     doc = _get(name)
     if doc.status != "Active":
@@ -655,7 +658,7 @@ def lookup_count(*, count, code=None, product=None):
     它默默记进盘点单的仓库"）：这件货在别的仓/仓位还有结存时，界面上要摆出来，让人自己决定
     是继续（确实是新仓）还是改盘点仓库。不算"错"，但不说清楚就会看着像"库存凭空多一条"。
     """
-    guard.require("stock.read")
+    guard.require("count.read")
     task = _get(count)
     found = product_of_code(code) if code else frappe.db.get_value(
         PRODUCT, {"name": product, "is_active": 1}, "*", as_dict=True)
@@ -694,7 +697,7 @@ def elsewhere_positions(product_id: str, here: set) -> list:
 def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None, location=None,
               note=None, request_id=None, photos=None, source="Desk", stock_token=None) -> dict:
     """A record belongs to a book row; warehouse/location describe where it was found."""
-    guard.require("stock.write")
+    guard.require("count.write")
     count_state.lock_task(count)
     task = _get(count)
     quantity = _qty(qty)
@@ -746,7 +749,7 @@ def add_entry(*, count, qty, item=None, code=None, product=None, warehouse=None,
 
 def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, location=None,
                warehouse=None, note=None, stock_token=None) -> dict:
-    guard.require("stock.write")
+    guard.require("count.write")
     parent = frappe.db.get_value(ENTRY, entry, "count")
     count_state.lock_task(parent)
     doc = frappe.get_doc(ENTRY, entry)
@@ -780,7 +783,7 @@ def edit_entry(*, entry, qty=None, voided=None, version=None, photos=None, locat
 
 def recount_product(*, count, product):
     """Explicit recount preserves old observations as voided audit rows."""
-    guard.require("stock.write")
+    guard.require("count.write")
     count_state.lock_task(count)
     stock_service.lock_products([product])
     items = frappe.get_all(ITEM, filters={"count": count, "product": product}, pluck="name")
@@ -793,7 +796,7 @@ def recount_product(*, count, product):
 
 
 def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
-    guard.require("stock.read")
+    guard.require("count.read")
     _get(count)
     filters = {"count": count}
     if item:
@@ -818,7 +821,7 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
 
 def entries_total(*, count, item=None) -> int:
     """记录的条数（列表分页要用）。"""
-    guard.require("stock.read")
+    guard.require("count.read")
     filters = {"count": count}
     if item:
         filters["item"] = item
@@ -826,7 +829,7 @@ def entries_total(*, count, item=None) -> int:
 
 
 def entry_photos(entry: str) -> list[dict]:
-    guard.require("stock.read")
+    guard.require("count.read")
     return frappe.get_list("File", filters={"attached_to_doctype": ENTRY,
                                             "attached_to_name": entry},
                            fields=["name", "file_url", "file_name"], order_by="creation asc",
@@ -836,7 +839,7 @@ def entry_photos(entry: str) -> list[dict]:
 def item_photos(*, count, item) -> list[dict]:
     """该商品在**本任务里所有记录**的照片（记录弹窗表格下面那一片，含作废记录）。
     带上记录自己的位置与时间，看图片时知道是哪一次、在哪儿拍的。"""
-    guard.require("stock.read")
+    guard.require("count.read")
     _get(count)
     entries = list_entries(count=count, item=item, limit=0)
     if not entries:

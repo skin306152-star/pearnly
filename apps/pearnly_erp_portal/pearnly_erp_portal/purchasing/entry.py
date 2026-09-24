@@ -27,13 +27,17 @@ def flag(value, default=False):
 
 
 def _supplier(payload):
+    from pearnly_erp_portal.masters.selection import match_party
+
     key = payload.get("supplier")
     name = str(payload.get("supplier_name") or "").strip()
-    if not key and name:
-        key = frappe.db.get_value("ERP Supplier", {"supplier_name": name, "is_active": 1}, "name")
+    if not key:
+        key = match_party("supplier", name, tax_id=payload.get("supplier_tax_id"),
+                          branch_type=payload.get("supplier_branch_type"), branch_no=payload.get("supplier_branch_no"))
     if key:
+        if not frappe.db.exists("ERP Supplier", key):
+            frappe.throw(_("Supplier not found. Please select the supplier again."))
         doc = frappe.get_doc("ERP Supplier", key)
-        doc.check_permission("read")
         if not doc.is_active:
             frappe.throw(_("Supplier is disabled"))
         name = name or doc.supplier_name
@@ -56,7 +60,7 @@ def _supplier(payload):
         doc = frappe.get_doc({"doctype": "ERP Supplier", "supplier_name": name,
             "tax_id": payload.get("supplier_tax_id"), "branch_type": branch,
             "branch_no": payload.get("supplier_branch_no"), "branch_name": payload.get("supplier_branch_name"),
-            "address": payload.get("supplier_address"), "is_active": 1}).insert()
+            "address": payload.get("supplier_address"), "is_active": 1}).insert(ignore_permissions=True)
         key = doc.name
     return key, name
 
@@ -176,6 +180,9 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     if original:
         _cancel(original, _("Amended"))
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
+    from pearnly_erp_portal.masters import company as companies
+
+    doc.company = companies.document_company(doc.get("company") if name else payload.get("company"))
     doc.update({"doc_kind": kind, "doc_date": day, "supplier": supplier, "supplier_name": supplier_name,
         "currency": payload.get("currency") or "THB", "fx_rate": rate,
         "system_no": doc.get("system_no") or numbering.allocate(direction="purchase", on=day,

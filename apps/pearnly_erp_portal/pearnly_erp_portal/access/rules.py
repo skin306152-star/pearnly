@@ -96,12 +96,20 @@ def required_roles(capability: str) -> tuple[str, ...]:
         return (ADMIN_ROLE,)
     if capability == "company.manage":
         return COMPANY_MANAGE_ROLES
+    aliases = {"suppliers.read": "purchase.read", "suppliers.write": "purchase.write",
+               "inventory.read": "stock.read", "stock.in": "stock.write", "stock.out": "stock.write",
+               "count.read": "stock.read", "count.write": "stock.write", "report.read": "stock.read",
+               "report.write": "stock.write", "warehouses.read": "stock.read", "warehouses.manage": "stock.manage",
+               "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}
+    capability = aliases.get(capability, capability)
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
     return tuple(role for role in roles if role)
 
 
 def can(roles, capability: str) -> bool:
-    return bool(set(required_roles(capability)) & set(roles))
+    from pearnly_erp_portal.access import menu
+
+    return capability in menu.capabilities(roles) or bool(set(required_roles(capability)) & set(roles))
 
 
 def record_scope(roles) -> str:
@@ -110,7 +118,10 @@ def record_scope(roles) -> str:
 
 
 def cost_visible(roles) -> bool:
-    return bool(set(COST_ROLES) & set(roles))
+    from pearnly_erp_portal.access import menu
+
+    return bool((set(COST_ROLES) | {menu.role(key) for key, spec in menu.CATALOG.items()
+                                   if spec[1] == "ERP Stock"}) & set(roles))
 
 
 def assignable_roles(available) -> tuple[str, ...]:

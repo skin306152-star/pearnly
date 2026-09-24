@@ -805,7 +805,7 @@
 
 		// ── 最近订单 + 订单汇总（官方 PastOrderList / PastOrderSummary）────────────
 		async function load_orders() {
-			orders = await p.call(api + "api_list_sales", {
+			orders = await p.call(api + "api_current_sales", {
 				shift: shift?.shift?.name, limit: 0 });
 			paint_orders();
 		}

@@ -30,13 +30,13 @@ def api_list_members(**kwargs):
 @frappe.whitelist(methods=["POST"])
 @do_not_record
 def api_add_member(**kwargs):
-    _json_args(kwargs, "roles")
+    _json_args(kwargs, "roles", "companies")
     return service.add_member(**_clean(kwargs))
 
 
 @frappe.whitelist(methods=["POST"])
 def api_set_member_roles(**kwargs):
-    _json_args(kwargs, "roles")
+    _json_args(kwargs, "roles", "companies")
     kwargs = _clean(kwargs)
     return service.set_member_roles(kwargs.pop("email", None), **kwargs)
 

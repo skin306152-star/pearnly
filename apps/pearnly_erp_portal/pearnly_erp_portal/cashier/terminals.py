@@ -75,7 +75,8 @@ def resolve(terminal=None, company=None) -> str:
 
 
 def list_terminals(*, include_inactive=False, limit=50, company=None) -> list[dict]:
-    guard.require("cashier.read")
+    capability = next((cap for cap in ("cashier.read", "receipts.read", "shifts.read") if guard.has(cap)), "cashier.read")
+    guard.require(capability)
     filters = {"company": companies.document_company(company)}
     if not include_inactive:
         filters["is_active"] = 1

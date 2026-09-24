@@ -21,7 +21,15 @@ def current_roles(user=None) -> set:
 
 
 def has(capability: str, user=None) -> bool:
-    return _is_superuser(user) or rules.can(current_roles(user), capability)
+    if _is_superuser(user):
+        return True
+    from pearnly_core.shell import entitlements
+    from pearnly_erp_portal.access import menu
+
+    features = set(entitlements())
+    held = current_roles(user)
+    disabled = {menu.role(key) for key, spec in menu.CATALOG.items() if spec[0] and spec[0] not in features}
+    return rules.can(held - disabled, capability)
 
 
 def require(capability: str, user=None) -> None:
@@ -41,7 +49,7 @@ def _require_pos_for_cashier(capability: str, user=None) -> None:
     这里挑的是"每一个收银入口都会经过的那一道"（收银域的服务端入口都先 `guard.require("cashier.*")`），
     所以不用挨个接口去加。惰性 import：`masters.company` 反过来依赖本模块。
     """
-    if not str(capability or "").startswith("cashier."):
+    if not str(capability or "").startswith(("cashier.", "receipts.", "shifts.")):
         return
     from pearnly_erp_portal.masters import company as companies
 

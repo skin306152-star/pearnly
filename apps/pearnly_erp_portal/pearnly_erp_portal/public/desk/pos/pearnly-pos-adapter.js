@@ -1078,7 +1078,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 				this.status_field.set_value(ORDER_STATUS[0].label);
 				return out;
 			}
-			// 列表数据：`api_list_sales`（销售记录那张表用的**同一个接口**）。
+			// 列表数据：`api_current_sales`（销售记录那张表用的**同一个接口**）。
 			// 非管理员在服务端只回本人的单 —— 与"成员只看自己录入的记录"一致。
 			refresh_list() {
 				// 遮罩**两个出口都要收**：官方的写法是 `freeze()` 之后只在成功回调里
@@ -1090,7 +1090,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 				const status = status_value_of(this.status_field.get_value());
 				this.$invoices_container.html("");
 				return frappe.call({
-					method: api + "api_list_sales",
+					method: api + "api_current_sales",
 					args: { q: search_term || undefined, status: status || undefined, limit: 20 },
 					callback: (response) => {
 						frappe.dom.unfreeze();

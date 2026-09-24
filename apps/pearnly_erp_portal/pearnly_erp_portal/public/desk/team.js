@@ -105,7 +105,7 @@
 			data.roles = data.roles || [];
 			// 公司清单给编辑弹窗里的多选（含停用的：老单据还挂在上面）。
 			const rows = await p.call("pearnly_erp_portal.masters.api.api_list_companies",
-				{include_inactive: 1, limit: 0});
+				{limit: 0});
 			data.companies = rows.map(row => ({label: row.company_name, value: row.name}));
 		}
 
@@ -124,11 +124,32 @@
 		// "用户名和邮箱是开户时发的，之后不能修改。这类文案不要随意添加，删掉"）——
 		// 字段只读本身就是那句话，成员也是租户自己加的。
 		// 岗位用框架原生的 **MultiCheck**（多选勾选框，自带全选/清空），不是我们画的清单。
-		function roles_field(default_roles = []) {
-			return { fieldtype: "MultiCheck", fieldname: "roles", label: t("team.roles"),
-				columns: 2, reqd: 1, description: t("team.rolesHint"),
-				options: data.roles.map(role => ({ label: role.label, value: role.name,
-					checked: default_roles.includes(role.name) })) };
+		const permission_groups = () => [...new Set(data.roles.map(role => role.group))];
+		function roles_fields(default_roles = [], get_dialog) {
+			return permission_groups().flatMap((group, index) => {
+				const rows = data.roles.filter(role => role.group === group);
+				const update_parent = () => {
+					const fields = get_dialog()?.fields_dict;
+					if (!fields) return;
+					const parent = fields["group_" + index], count = fields["roles_" + index].get_value().length;
+					parent._syncing = true;
+					Promise.resolve(parent.set_value(count === rows.length ? 1 : 0)).finally(() => {
+						parent.$input.prop("indeterminate", count > 0 && count < rows.length);
+						parent._syncing = false;
+					});
+				};
+				return [{fieldtype: index % 2 ? "Column Break" : "Section Break",
+					...(index === 0 ? {label: t("team.roles")} : {})},
+					field("group_" + index, group, "Check", {
+					default: rows.every(row => default_roles.includes(row.name)) ? 1 : 0,
+					onchange() {
+						if (this._syncing || !get_dialog()) return;
+						get_dialog().fields_dict["roles_" + index].select_all(!this.get_value());
+					}}),
+					{fieldname: "roles_" + index, fieldtype: "MultiCheck", columns: 1, sort_options: false,
+						options: rows.map(row => ({label: row.label, value: row.name, checked: default_roles.includes(row.name)})),
+						on_change: update_parent}];
+			});
 		}
 
 		// 公司分配用同一颗原生 MultiCheck（多选勾选，自带全选/清空）；**一个都不勾 = 不限制**，
@@ -154,26 +175,24 @@
 					// 密码不设任何规则（长度、字符都不限），所以这里没有说明句。
 					field("password", "team.password", "Password", { reqd: 1 }),
 				] : []),
-				roles_field(row?.roles || []),
+				...roles_fields(row?.roles || [], () => dialog),
+				{fieldtype: "Section Break"},
 				companies_field(row?.companies || []),
 			];
 			dialog = p.dialog(is_new ? t("team.new") : row.email,
 				fields.filter(Boolean), is_new ? t("team.new") : __("Save"),
 				async (values, d) => {
+					const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);
 					if (is_new) {
 						await p.call(api + "api_add_member", {
 							username: values.username, email: values.email,
-							password: values.password, roles: values.roles,
+							password: values.password, roles, companies: values.companies || [],
 						}, "POST");
-						await p.call(api + "api_set_member_companies",
-							{ email: values.email, companies: values.companies || [] }, "POST");
 						d.hide();
 						p.success(t("team.notice.added", values.username), "click");
 					} else {
 						await p.call(api + "api_set_member_roles",
-							{ email: row.email, roles: values.roles }, "POST");
-						await p.call(api + "api_set_member_companies",
-							{ email: row.email, companies: values.companies || [] }, "POST");
+							{ email: row.email, roles, companies: values.companies || [] }, "POST");
 						d.hide();
 						p.success(t("team.notice.saved"), "click");
 					}
@@ -181,6 +200,13 @@
 					await list.reload();
 					restore_new();
 				});
+			permission_groups().forEach((group, index) => {
+				const parent = dialog.fields_dict["group_" + index];
+				parent.$wrapper.find(".label-area").addClass("font-weight-bold");
+				dialog.fields_dict["roles_" + index].$wrapper.addClass("ml-4");
+				const count = dialog.fields_dict["roles_" + index].get_value().length;
+				parent.$input.prop("indeterminate", count > 0 && count < data.roles.filter(role => role.group === group).length);
+			});
 			if (is_new) return;
 			// 两个动作挂在原生弹窗的自定义动作槽里（与产品其它弹窗同一个位置）。
 			dialog.add_custom_action(t("team.resetPassword"), () => password_dialog(row));

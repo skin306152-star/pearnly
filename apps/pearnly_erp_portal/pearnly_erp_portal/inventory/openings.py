@@ -24,7 +24,7 @@ def _name(product: str, warehouse: str, location="") -> str:
 
 
 def upsert_opening(*, product, warehouse, as_of_date, qty, unit_cost=0, note=None, location="") -> dict:
-    guard.require("stock.write")
+    guard.require("report.write")
     if not frappe.db.exists(PRODUCT, product):
         frappe.throw(_("Product not found"), frappe.DoesNotExistError)
     warehouse = warehouses.required(warehouse)
@@ -69,7 +69,7 @@ def upsert_opening(*, product, warehouse, as_of_date, qty, unit_cost=0, note=Non
 
 
 def list_openings(*, product=None, warehouse=None, limit=200) -> list[dict]:
-    guard.require("stock.read")
+    guard.require("report.read")
     filters: dict = {}
     if product:
         filters["product"] = product

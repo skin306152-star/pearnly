@@ -38,28 +38,9 @@
 		const f = u.field, col = u.column;
 		return [
 			u.section(""),
-			f("product", "Item", "Link", {options: "ERP Product", hidden: !state.editable, get_query: () => ({filters: {is_active: 1}}),
-				async onchange() {
-					const name = line.form?.get_value("product"); if (!name || !state.editable || !line.ready) return;
-					const item = await p.call("pearnly_erp_portal.products.service.api_get_product", {name});
-					if (name !== line.form.get_value("product") || state.disposed) return;
-					await line.form.set_values({description: item.product_name, code: item.code, barcode: item.barcode,
-						unit: item.base_unit || item.unit, unit_price: item.default_cost || 0,
-						vat_rate: item.vat_applicable ? state.defaults.settings.default_vat_rate : 0,
-						// 进货仓给**这家公司卖货的那个仓**（用户 2026-09-24："进货就进卖货那个仓"）；
-						// 商品上的"默认仓"已经删掉了。仓位还是商品级的建议值。
-						warehouse: frappe.boot.pearnly_warehouse || "",
-						location: item.default_location || ""});
-					// 批号/失效日期只在这条物料**真的管这两样**时才露出来（用户 2026-09-23：
-					// "采购记录这边附加信息太多了"）—— 不管批次/有效期的商品不必看这两格。
-					line.form.set_df_property("batch_no", "hidden", !item.track_batch);
-					line.form.set_df_property("expiry_date", "hidden", !item.track_expiry);
-				}}),
-			// 「物料名称」只在**没选物料**时出现：选了物料它就被带出来了（物料那条 Link 显示的
-			// 就是主档名字），再摆一格是重复的（用户 2026-09-23："还有重复的物料字段，有物料名称
-			// 和物料，采购和销售都有"）。没选物料的自由行（只有说明、没有物料那种）照旧要能写，
-			// 所以按"物料为空才显示"来收，而不是整格删掉；值照旧随单据提交。
-			f("description", "Item Name", "Data", {reqd: 1, depends_on: "eval:!doc.product"}),
+			p.entry_choice_field("Item", state.editable),
+			f("product", "Item", "Data", {hidden: 1}),
+			f("description", "Item Name", "Data", {hidden: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),
@@ -118,22 +99,8 @@
 			// （用户 2026-09-23："这一页甚至出现供应商/供应商名称，这种重复字段"）。标题去掉，
 			// 分组仍然靠 Section Break 换行；名字只在字段标签上说一次。
 			u.section(""),
-			f("supplier", "Supplier", "Link", {options: "ERP Supplier", hidden: !editable, get_query: () => ({filters: {is_active: 1}}),
-				async onchange() {
-					const name = state.form?.get_value("supplier"); if (!name || !editable || !state.ready) return;
-					const {message: row} = await frappe.db.get_value("ERP Supplier", name,
-						["supplier_name", "tax_id", "branch_type", "branch_no", "branch_name", "address"]);
-					if (name !== state.form.get_value("supplier") || state.disposed) return;
-					await state.form.set_values({supplier_name: row.supplier_name, supplier_tax_id: row.tax_id,
-						supplier_branch_type: row.branch_type === "head" ? "head_office" : row.branch_type || "none",
-						supplier_branch_no: row.branch_no, supplier_branch_name: row.branch_name, supplier_address: row.address});
-				}}),
-			// 供应商名称由上面那条 Link **带出来**（onchange 里 set_values），所以界面上不再摆
-			// 第二个「供应商」输入框（用户 2026-09-23："不要出现这么多无用的字段，留一个真正能用的…
-			// 采购记录里面…两个供应商字段"）。名字仍然照旧随单据提交、列表和打印都读它
-			// （服务端也会从主档补：`purchasing/entry.py::_supplier`）。
-			// 供应商那条 Link 现在显示的**就是名字**：主档加了 `title_field=supplier_name`
-			// （客户/商品本来就有，供应商漏了 —— 这就是"两个供应商字段"看着重复的根源）。
+			p.entry_choice_field("Supplier", editable),
+			f("supplier", "Supplier", "Data", {hidden: 1}),
 			f("supplier_name", "Supplier Name", "Data", {hidden: 1}),
 			f("supplier_tax_id", "Tax ID"), f("supplier_address", "Address", "Small Text"), col(),
 			f("supplier_branch_type", "Branch Type", "Select", {options: u.options(["head_office", "branch", "none"])}),

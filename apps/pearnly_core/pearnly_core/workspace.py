@@ -196,7 +196,8 @@ def landing_url() -> str:
     登录后还是先落桌面那一屏"（2026-09-18 实测）。
     """
     if is_tenant_site():
-        return "/desk/pearnly-home"
+        from pearnly_core.desk.navigation import entry_route
+        return entry_route(frappe.conf.get("pearnly_product"))
 
     from frappe.website.utils import get_home_page
 

@@ -111,7 +111,7 @@ def create_warehouse(*, warehouse_name, note=None, company=None, is_active=True)
     没有公司就没有归属，库存也就没法按公司分开算（用户 2026-09-24："没有绑定公司不可以建仓库"）。
     所以这里不再"没给就用当前公司"兜底：调用方（页面/建公司那一路）要把公司传进来。
     """
-    guard.require("stock.manage")
+    guard.require("warehouses.manage")
     if not str(company or "").strip():
         frappe.throw(_(COMPANY_REQUIRED))
     company = companies.document_company(company)
@@ -178,7 +178,7 @@ def scope_filter(company=None) -> dict:
 
 
 def update_warehouse(name, **changes) -> dict:
-    guard.require("stock.manage")
+    guard.require("warehouses.manage")
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     doc = frappe.get_doc(DOCTYPE, name)
