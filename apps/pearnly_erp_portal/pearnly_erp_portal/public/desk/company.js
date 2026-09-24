@@ -113,9 +113,14 @@
 							: t("company.status.inactive")),
 						cell_class: value => (Number(value) ? "" : "pearnly-payment-due")},
 				],
-				load: async () => {
+				// 列头点一下排序：这一页一次取全（`limit: 0`），在本地排（同 core `p.sort_rows`）。
+				// "当前公司"那一列是按登录人的当前公司算出来的，排它等于排一个不存在于数据里的值，不列进来。
+				sort_fields: ["company_name", "short_name", "tax_id", "phone", "is_active"],
+				load: async ({sort_by, sort_order}) => {
 					const rows = await p.call(api + "api_list_companies", {include_inactive: 1, limit: 0});
-					return {items: rows, total: rows.length};
+					const items = p.sort_rows(rows, {sort_by, sort_order,
+						fields: ["company_name", "short_name", "tax_id", "phone", "is_active"]});
+					return {items, total: items.length};
 				},
 				// 单击任意一行 → 进这一家的**公司信息**（面包屑二级），行内不再放按钮。
 				on_open: row => frappe.set_route(root, row.name),

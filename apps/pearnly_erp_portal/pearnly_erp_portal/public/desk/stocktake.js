@@ -112,9 +112,14 @@
 				compact_columns: true,
 				on_open: row => open_detail(row.name),
 				empty_action: { label: t("stock.count.new"), action: open_new },
-				load: async ({ start, page_length }) => {
+				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+				// 仓库列显示的是仓库名（由 link 名翻出来），排 link 名没意义，所以它不在这里。
+				sort_fields: ["title", "status", "item_total", "counted_total",
+					"difference_total", "creation"],
+				load: async ({ start, page_length, sort_by, sort_order }) => {
 					const [items, total] = await Promise.all([
-						p.call(api + "api_list_stock_counts", { start, limit: page_length }),
+						p.call(api + "api_list_stock_counts",
+							{ start, limit: page_length, sort_by, sort_order }),
 						p.call(api + "api_stock_count_total"),
 					]); return { items, total };
 				}, columns: [

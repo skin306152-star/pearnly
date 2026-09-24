@@ -63,7 +63,11 @@
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 				],
-				load: ({start, page_length}) => u.call("api_purchase_records", {params: parameters(), start, limit: page_length}),
+				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+				sort_fields: ["system_no", "doc_date", "supplier_name", "grand_total",
+					"doc_kind", "payment_status", "status", "creation"],
+				load: ({start, page_length, sort_by, sort_order}) => u.call("api_purchase_records",
+					{params: parameters(), start, limit: page_length, sort_by, sort_order}),
 				on_selection: rows => {selected = rows; primary();},
 				// 行内付款和销售同一套：开弹窗、能看到金额、能改方式与日期（用户 2026-09-23）。
 				// 已经付清的单据不再提供入口（用户 2026-09-23 口径「已付不可更改」）。

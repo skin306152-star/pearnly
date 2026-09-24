@@ -131,10 +131,15 @@
 			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
-			load: async () => {
+			// 列头点一下排序：这一页**一次取全**（没有分页），所以整套在手上直接排，
+			// 口径与服务端那几张一致（见 core `p.sort_rows`）。
+			sort_fields: ["customer_name", "party_type", "tax_id", "contact_phone", "address", "is_active"],
+			load: async ({sort_by, sort_order}) => {
 				const rows = await p.call(api + "api_list_customers",
 					{q: search.get_value() || undefined, include_inactive: 1, limit: 0});
-				return {items: rows, total: rows.length};
+				const items = p.sort_rows(rows, {sort_by, sort_order,
+					fields: ["customer_name", "party_type", "tax_id", "contact_phone", "address", "is_active"]});
+				return {items, total: items.length};
 			},
 			empty_action: can_write ? {label: t("client.new"), action: () => editor()} : null,
 		});

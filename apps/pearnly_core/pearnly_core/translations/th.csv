@@ -83,6 +83,7 @@ Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
 Claimed By,ผู้รับเรื่อง
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
+Click to sort by {0},คลิกเพื่อเรียงตาม {0}
 Client ID is required,ต้องระบุ Client ID
 Close,ปิด
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)

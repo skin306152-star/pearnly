@@ -63,10 +63,14 @@
 				],
 				on_open: row => (can_manage() ? editor(row) : null),
 				// 行内那颗「设为默认」跟着"默认仓"一起删了（它写的就是 `is_default`）。
-				load: async () => {
+				// 列头点一下排序：一次取全，在本地排（同 core `p.sort_rows`）。
+				sort_fields: ["warehouse_name", "company_name", "note", "is_active"],
+				load: async ({sort_by, sort_order}) => {
 					const rows = await p.call(api + "api_company_warehouses",
 						{company_name: frappe.boot.pearnly_company, include_inactive: 1});
-					return {items: rows, total: rows.length};
+					const items = p.sort_rows(rows, {sort_by, sort_order,
+						fields: ["warehouse_name", "company_name", "note", "is_active"]});
+					return {items, total: items.length};
 				},
 				empty_action: can_manage()
 					? {label: t("company.newWarehouse"), action: () => editor(null)} : null});

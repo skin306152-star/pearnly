@@ -44,9 +44,11 @@
 			return doc;
 		},
 		load(api, method, totalMethod, query = () => ({})) {
-			return async ({ start, page_length }) => {
+			// 列头点一下排序：`sort_by/sort_order` 一路交给服务端（列表是服务端分页的），
+			// 具体认哪些字段由各接口自己的白名单决定（见 `pearnly_erp_portal.listing`）。
+			return async ({ start, page_length, sort_by, sort_order }) => {
 				const [items, total] = await Promise.all([
-					p.call(api + method, { ...query(), start, limit: page_length }),
+					p.call(api + method, { ...query(), start, limit: page_length, sort_by, sort_order }),
 					p.call(api + totalMethod, query()),
 				]); return { items, total };
 			};

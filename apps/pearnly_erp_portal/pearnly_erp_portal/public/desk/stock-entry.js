@@ -154,6 +154,10 @@
 				on_selection: selection,
 				on_open: row => editor(row.name),
 				empty_action: canWrite ? { label: title_new(), action: () => editor() } : null,
+				// 列头点一下排序（`sort_fields` 用页面上的列名，服务端白名单里一一对应）。
+				// 「备注」列不在里面：那个字段（`note`）受字段级权限保护，服务端排不了（见
+				// `inventory/documents.py` 的白名单注释），点了只会报错，所以干脆不开放。
+				sort_fields: ["doc_no", "posting_date", "warehouse_name", "status", "creation"],
 				load: p.trade.load(api, "api_list_stock_entries", "api_stock_entry_total", () => ({ direction })),
 				columns: [
 					// 首列是**单据编号**（系统发的 IR/IS 号）：旧线上列表也是拿它当行标题，

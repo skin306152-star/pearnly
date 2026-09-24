@@ -107,6 +107,8 @@
 			],
 			on_selection: can_write ? selection : undefined,
 			on_open: row => void open_receipt(row),
+			// 列头点一下排序（客户那一列是回填的抬头，服务端排不了，所以不在白名单里）。
+			sort_fields: ["receipt_no", "sold_at", "sale_type", "status", "grand_total"],
 			load: p.trade.load(api, "api_list_sales", "api_sale_total", query),
 			columns: [
 				// 八列的底线要能塞进最窄的常见窗口，否则最右那两列会被右边那块（计数）盖住。

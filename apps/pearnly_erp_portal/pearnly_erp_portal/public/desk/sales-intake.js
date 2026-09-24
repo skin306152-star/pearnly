@@ -24,10 +24,14 @@
 		list = p.list({page, doctype: "ERP LINE Intake", on_selection: selection,
 			// 四列一屏放得下（用户 2026-09-23："内容太多，要滑动才能看得到"）。
 			compact_columns: true,
-			load: async () => {
+			// 列头点一下排序：这一页一次取全，在本地排（同 core `p.sort_rows`）。
+			sort_fields: ["name", "received_at", "sent_by", "note"],
+			load: async ({sort_by, sort_order}) => {
 				const items = await p.call(api + "api_list_line_intakes",
 					{direction: "sales", status: "received", limit: 0});
-				return {items, total: items.length};
+				const sorted = p.sort_rows(items, {sort_by, sort_order,
+					fields: ["name", "received_at", "sent_by", "note"]});
+				return {items: sorted, total: sorted.length};
 			},
 			on_open: row => go("intake", row.name),
 			columns: [

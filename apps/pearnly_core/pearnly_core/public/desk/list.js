@@ -51,6 +51,13 @@
 				// 声明本页支持的字段，没声明就不出筛选区。排序仍然不开放。
 				hide_filters: !options.filter_fields, hide_sort_selector: true, column_max_widths: {},
 				link_field_title_fields: {}, list_view_settings: {}});
+			// **列头点一下排序**（用户 2026-09-25："点列头我要的是这种，不要那种繁琐的点开、选择"）。
+			// 页面用 `sort_fields` 声明哪些字段**服务端认**；只有这些列头可点，其余列头照旧不可点
+			// （点了没反应比不给点更糟）。列表是服务端分页的，所以排序参数交给各页的 `load` 回服务端，
+			// 不在前端重排这一页（那只会排当前 20 条，是假的）。
+			this.sort_fields = new Set(options.sort_fields || []);
+			this.sort_by = null;
+			this.sort_order = null;
 			this.settings = {formatters: {}, button: options.button};
 			// 白名单：只列这些字段（见上面包 `frappe.ui.Filter` 的那段）。注意 `filter_fields`
 			// 是给 `FieldSelect` 看的**字段名数组**；页面声明写成 `filter_fields: [{fieldname…}]`
@@ -119,6 +126,16 @@
 						if (!error?._server_messages && !error?.responseJSON) console.error(error);
 					} finally { button.disabled = false; }
 				});
+				// 列头排序：升序 → 倒序 → 恢复本页默认顺序（与服务端"没给排序参数"一致）。
+				this.$result.on("click", "[data-sort-by]", event => {
+					event.preventDefault();
+					const fieldname = event.currentTarget.getAttribute("data-sort-by");
+					if (!this.sort_fields.has(fieldname)) return;
+					if (this.sort_by !== fieldname) { this.sort_by = fieldname; this.sort_order = "asc"; }
+					else if (this.sort_order === "asc") { this.sort_order = "desc"; }
+					else { this.sort_by = null; this.sort_order = null; }
+					return this.reload();
+				});
 				// BaseList normally does this in refresh() and via cur_list. Product Pages
 				// use scoped APIs, so retain its sizing on refresh, resize and return navigation.
 				this.layout_handler = frappe.utils.debounce(() => this.resize_list(), 300);
@@ -175,15 +192,27 @@
 			wrapper.appendChild(element);
 			return wrapper;
 		}
-			render_header() {
-				const header = $(this.get_header_html());
-				// 勾选框默认保留（官方列表就是这样）；只有 `selectable: false` 的列表才摘掉。
-				// "点赞"和通用排序仍然不开放。
-				header.find(".list-liked-by-me").remove();
-				if (!this.selectable) header.find(".select-like, .checkbox-actions").remove();
+		render_header() {
+			const header = $(this.get_header_html());
+			// 勾选框默认保留（官方列表就是这样）；只有 `selectable: false` 的列表才摘掉。
+			// "点赞"仍然不开放。
+			header.find(".list-liked-by-me").remove();
+			if (!this.selectable) header.find(".select-like, .checkbox-actions").remove();
+			// 排序：页面声明过的列（`sort_fields`，服务端同样认这几项）保留官方的 `data-sort-by`
+			// 与"点击排序"提示，并在当前排序列后面挂 ↑ / ↓ —— 框架的列表本身没有列头箭头
+			// （它把箭头画在排序控件里，而那个控件在我们这里是隐藏的）。没声明的列照旧摘掉属性，
+			// 免得点上去什么都没发生还以为坏了。
 			header.find("[data-sort-by]").each((_, el) => {
-				el.title = el.textContent.trim();
-				el.removeAttribute("data-sort-by");
+				const fieldname = el.getAttribute("data-sort-by");
+				const label = el.textContent.trim();
+				if (!this.sort_fields.has(fieldname)) {
+					el.title = label;
+					el.removeAttribute("data-sort-by");
+					return;
+				}
+				el.title = __("Click to sort by {0}", [label]);
+				el.textContent = fieldname === this.sort_by
+					? `${label} ${this.sort_order === "desc" ? "↓" : "↑"}` : label;
 			});
 			// 框架那套"已选 N 项"条（`.checkbox-actions`）我们不用：产品的选中反馈是右上角那颗
 			// 按钮（`p.selection_action`），表头要一直看得见。这两个引用留着 null 也有个用途 ——
@@ -298,7 +327,9 @@
 			const start = this.start, length = this.page_length;
 			this.freeze(true);
 			try {
-				const result = await this.load({start, page_length: length});
+				// 排序参数一并交给页面自己的 `load`：列表是服务端分页的，排序必须回服务端。
+				const result = await this.load({start, page_length: length,
+					sort_by: this.sort_by, sort_order: this.sort_order});
 				if (request !== this.sequence) return;
 				this.total = result.total;
 				// The framework renders the first column as the row subject and skips its
@@ -357,6 +388,32 @@
 		ProductList.prototype[method] = frappe.views.ListView.prototype[method];
 	}
 	p.list = options => new ProductList(options);
+	// **整批取回来**的列表（客户 / 供应商 / 仓库 / 团队 / 收发存 / 交班那种一次拿全的）
+	// 就在页面里排：整套数据都在手上，排序结果与服务端分页那几张一致。
+	// 口径与服务端 `pearnly_erp_portal.listing` 对齐：只认白名单字段、空值排最后、
+	// 能当数字看就按数值比（`1,204` 这种带千分位的也不会按字符排）。
+	// `fields` 是**列名**（点的是列头），`keys` 只给"列名和行里的键不一样"的列用
+	// （团队那列叫 `status`，值其实在 `row.enabled` 上）—— 不这么写就会点半天顺序不动。
+	p.sort_rows = (rows, {sort_by, sort_order, fields = [], keys = {}} = {}) => {
+		if (!sort_by || !fields.includes(sort_by)) return rows;
+		const key = keys[sort_by] || sort_by;
+		const value = row => row[key];
+		const as_number = item => {
+			const text = String(item ?? "").replace(/[,\s\u00a0]/g, "");
+			const number = Number(text);
+			return text !== "" && Number.isFinite(number) ? number : null;
+		};
+		const filled = rows.filter(row => value(row) != null && value(row) !== "");
+		const empty = rows.filter(row => value(row) == null || value(row) === "");
+		filled.sort((a, b) => {
+			const left = as_number(value(a)), right = as_number(value(b));
+			if (left != null && right != null) return left - right;
+			return String(value(a)).localeCompare(String(value(b)), frappe.boot.lang || "en",
+				{numeric: true, sensitivity: "base"});
+		});
+		if (sort_order === "desc") filled.reverse();
+		return filled.concat(empty);
+	};
 
 	// 选中若干行 → 右上角出现那颗动作按钮。每个列表页都要同一套行为，所以放在共享列表层：
 	// 选择状态、忙碌时禁用、确认、失败保留选择、做完刷新并清空 —— 各页自己写一份必然走样。

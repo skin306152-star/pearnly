@@ -75,7 +75,11 @@
 						cell_class: value => value === "paid" ? "" : "pearnly-payment-due"},
 					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 				],
-				load: ({start, page_length}) => u.call("api_sales_records", {params: parameters(), start, limit: page_length}),
+				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+				sort_fields: ["system_no", "doc_date", "buyer_name", "grand_total",
+					"doc_kind", "source", "payment_status", "status", "creation"],
+				load: ({start, page_length, sort_by, sort_order}) => u.call("api_sales_records",
+					{params: parameters(), start, limit: page_length, sort_by, sort_order}),
 				on_selection: rows => {selected = rows; primary();},
 				// 收款只在**还欠钱**时给动作：已经收满的单据不再提供入口（用户 2026-09-23
 				// 口径「已收不可更改」）。按钮说的是动作（收款），不是状态。

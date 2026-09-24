@@ -254,11 +254,14 @@
 				compact_columns: true,
 				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
-				load: async ({ start, page_length }) => {
+				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+				sort_fields: ["product_name", "code", "barcode", "unit", "unit_price",
+					"default_cost", "place", "is_active"],
+				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 					const [items, total] = await Promise.all([
 						p.call(api + "api_list_products",
-							{ start, limit: page_length, ...query() }),
+							{ start, limit: page_length, sort_by, sort_order, ...query() }),
 						p.call(api + "api_count_products", query()),
 					]);
 					return { items, total };

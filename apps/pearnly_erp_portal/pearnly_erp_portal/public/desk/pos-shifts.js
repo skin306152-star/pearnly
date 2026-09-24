@@ -72,9 +72,15 @@
 		list = p.list({ page, doctype: "ERP Shift", compact_columns: true,
 			on_selection: selection,
 			on_open: row => void summary_of(row),
-			load: async ({ start, page_length }) => {
+			// 列头点一下排序：一次取全，排完再切这一页（同 core `p.sort_rows`）。
+			sort_fields: ["name", "terminal", "cashier", "status", "opened_at", "closed_at",
+				"expected_cash", "counted_cash", "cash_diff"],
+			load: async ({ start, page_length, sort_by, sort_order }) => {
 				const rows = await p.call(api + "api_list_shifts", { limit: 0 });
-				return { items: rows.slice(start, start + page_length), total: rows.length };
+				const sorted = p.sort_rows(rows, { sort_by, sort_order,
+					fields: ["name", "terminal", "cashier", "status", "opened_at", "closed_at",
+						"expected_cash", "counted_cash", "cash_diff"] });
+				return { items: sorted.slice(start, start + page_length), total: sorted.length };
 			},
 				columns: [
 				// 九列的底线要能塞进最窄的常见窗口，否则最右那几列会被右边那块（计数）盖住、

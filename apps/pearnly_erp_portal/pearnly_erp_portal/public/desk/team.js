@@ -85,8 +85,13 @@
 			list = p.list({ page, doctype: "User", compact_columns: true, on_selection: selection,
 				on_open: row => editor(row), columns: columns(),
 				// 一个租户的员工就这么多人，整份名单一次给完（搜索在本地过滤，不再打接口）。
-				load: async () => {
-					const items = rows_now();
+				// 列头点一下排序：名单在手上，直接排（同 core `p.sort_rows`）。
+				sort_fields: ["display", "email", "status"],
+				load: async ({ sort_by, sort_order }) => {
+					const items = p.sort_rows(rows_now(), { sort_by, sort_order,
+						fields: ["display", "email", "status"],
+						// 状态那列显示的是"启用/停用"，值在 `enabled` 上（`status` 只是列名）。
+						keys: { status: "enabled" } });
 					return { items, total: items.length };
 				},
 				empty_action: { label: t("team.new"), action: () => editor(null) },

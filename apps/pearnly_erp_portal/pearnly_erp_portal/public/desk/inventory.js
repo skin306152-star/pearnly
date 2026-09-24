@@ -94,10 +94,14 @@
 			// 看下能不能放在一屏显示完整"）。`compact_columns` 让每列按下面的宽度走、并按窗口
 			// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
 			compact_columns: true,
-			load: async ({ start, page_length }) => {
+			// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
+			sort_fields: ["product_name", "code", "barcode", "warehouse_name", "location",
+				"unit", "qty_on_hand", "unit_cost", "value"],
+			load: async ({ start, page_length, sort_by, sort_order }) => {
 				// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 				const [items, total] = await Promise.all([
-					p.call(api + "api_stock", { start, limit: page_length, ...query() }),
+					p.call(api + "api_stock",
+						{ start, limit: page_length, sort_by, sort_order, ...query() }),
 					p.call(api + "api_stock_count", query()),
 				]);
 				return { items, total };

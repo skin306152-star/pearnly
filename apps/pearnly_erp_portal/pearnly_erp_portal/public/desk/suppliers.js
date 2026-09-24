@@ -134,10 +134,14 @@
 			on_selection: selection,
 			on_open: row => editor(row),
 			columns: columns(),
-			load: async () => {
+			// 列头点一下排序：一次取全，在本地排（同 core `p.sort_rows`）。
+			sort_fields: ["supplier_name", "tax_id", "branch_type", "phone", "address", "is_active"],
+			load: async ({sort_by, sort_order}) => {
 				const rows = await p.call(api + "api_list_suppliers",
 					{q: search.get_value() || undefined, include_inactive: 1, limit: 0});
-				return {items: rows, total: rows.length};
+				const items = p.sort_rows(rows, {sort_by, sort_order,
+					fields: ["supplier_name", "tax_id", "branch_type", "phone", "address", "is_active"]});
+				return {items, total: items.length};
 			},
 			empty_action: can_write ? {label: t("supplier.new"), action: () => editor()} : null,
 		});
