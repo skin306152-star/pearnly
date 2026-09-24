@@ -1,12 +1,9 @@
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
-Address data as of {time}; full refresh scheduled daily,ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
 Booking ID,รหัสการจอง
 Booking Number,เลขที่การจอง
-"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย กำหนดซิงก์ทุก 5 นาที ช่วงวันที่ใหม่อาจต้องรอซิงก์ ข้อมูล ณ
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
-"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",ข้อมูล DMS ที่ซิงก์ไว้ กำหนดซิงก์ทุก 5 นาที แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การค้นหาช่วงวันที่ครั้งแรกอาจต้องรอซิงก์
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
 DMS,DMS

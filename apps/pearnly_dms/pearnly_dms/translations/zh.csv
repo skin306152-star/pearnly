@@ -1,12 +1,9 @@
 Account busy — click Read later to continue,账号忙，请稍后点击读取继续
-Address data as of {time}; full refresh scheduled daily,地址资料时间：{time}；每天安排完整更新
 Address data as of {time}; refreshed manually,地址资料时间：{time}；手动读取更新
 Address sync is delayed; showing address data as of {time},地址同步有延迟，当前显示 {time} 的地址资料
 Booking ID,订车编号
 Booking Number,订车单号
-"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",本账号可见分店和团队的原生 DMS 统计缓存，草稿不计营业额。每 5 分钟安排同步，新日期范围可能需要等待。资料时间
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
-"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",DMS 缓存记录，每 5 分钟安排同步。状态来自原生单据，草稿不计营业额；首次查询日期范围可能需要等待同步。
 Cached result captured at {time},已缓存结果读取于 {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
 DMS,DMS

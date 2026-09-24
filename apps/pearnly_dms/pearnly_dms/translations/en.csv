@@ -1,12 +1,9 @@
 Account busy — click Read later to continue,Account busy — click Read later to continue
-Address data as of {time}; full refresh scheduled daily,Address data as of {time}; full refresh scheduled daily
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
 Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
 Booking ID,Booking ID
 Booking Number,Booking Number
-"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of","Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
-"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.","Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync."
 Cached result captured at {time},Cached result captured at {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
 DMS,DMS
