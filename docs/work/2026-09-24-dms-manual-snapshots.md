@@ -106,6 +106,18 @@ ERP 已采用产品独立镜像配置：`provision-agent.image(group)` 优先读
 
 LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址整轮）、编辑回卡与订车付款附件、真机与真实消息本轮都没有测。
 
+### 第二个环境落差：导入的站点库没有新表（已 migrate）
+
+清缓存后"更新数据"按钮出现，点击即暴露下一层问题：`MySQLdb.ProgrammingError (1146) "Table '_32ceeaae3b7cd7ba.tabDMS Read Snapshot' doesn't exist"`，另一张截图是前端友好提示"单据类型 DMS Read Snapshot未找到 … 暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。"（后者说明新版 JS 确实已在运行，只是服务端缺表，可反过来印证上一节的缓存结论）。
+
+- 根因：`testdms.pearnly.com` 的库是**换镜像之前**从线上导入的，站点库里没有本分支新增的 DocType；`testenv.sh up` 只切换镜像，不做 `bench migrate`。同一镜像新建的空白站 `dms.test.localhost` 反而有该表，两者对照即可说明是"导入库 + 新镜像"的组合问题。
+- 处置：在 `pearnly-testenv-dms-web-1` 对 `testdms.pearnly.com` 执行 `bench --site testdms.pearnly.com migrate`（约 10 秒：frappe/pearnly_core/pearnly_dms DocTypes、jobs、fixtures、dashboards 同步，结尾排队重建搜索索引）。
+- 回读证据：`frappe.db.get_tables` 已含 `tabDMS Read Snapshot`（同批还有 `tabDMS Booking Delivery`、`tabDMS Customer Link`、`tabDMS Change Request` 等）；`pearnly_dms.connections.snapshots.get_status` 返回 `configured: true` 与四组 `state: idle`，即连接页读取链路的服务端部分已可用。
+- 后台就绪：`sites/common_site_config.json` 仍有 `dms_sync` 队列配置，`pearnly-testenv-dms-sync-worker-1` 处于 Up。
+- 待办：把 `bench --site <site> migrate` 与上面的 `clear-cache` 一起并入测试环境流程（`testenv.sh up` 或文档步骤），否则每次换镜像都要人工补。
+- **未对** `testerp.pearnly.com` 与 `cowork.test.localhost` 执行 migrate：它们是同样的"导入库 + 新镜像"组合，很可能缺表，但属其它任务窗口，本轮不越界改动，等对应窗口测试前各自 migrate。
+- 仍未验收：四组真实采集与首次发布（用户下一步动作）、LINE 菜单 1–5。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
