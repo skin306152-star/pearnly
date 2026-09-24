@@ -181,6 +181,8 @@ def recognize_lookup(
             field_diffs = []
             rows = cl.search_customers_detailed(name) if (name or "").strip() else []
             candidates = score_candidates(rows, people_id=people_id, name=name or "")
+            for candidate in candidates:
+                candidate["baseline"] = cl.read_customer(str(candidate["customer_id"]))
             scenario = "similar" if candidates else "none"
 
         return {
@@ -247,6 +249,10 @@ def push_idcard_fields(
     customer_id: Optional[str],
     addresses: Optional[Dict[str, Dict[str, Any]]] = None,
     attempt: int = 1,
+    baseline: Optional[dict] = None,
+    request_id: str = "",
+    actor: str = "",
+    assert_current=None,
 ) -> Dict[str, Any]:
     """面板最终字段 → 建/改客户（**只写 DMS 客户库，不建订车单**）。
 
@@ -257,12 +263,29 @@ def push_idcard_fields(
     """
     t0 = time.time()
     save_mode = "create" if mode == "create" else "overwrite"
+    from pearnly_dms.intake.customer_attempt import Attempt
+    from pearnly_dms.contracts.client_base import DmsClientError
+    marker = Attempt(endpoint, request_id, actor, fields=fields, mode=mode,
+                     customer_id=customer_id, addresses=addresses, baseline=baseline)
+    try:
+        previous = marker.previous()
+    except DmsClientError as exc:
+        return err(exc.error_code, response_body=exc.response_body)
+    if previous:
+        return previous
     from pearnly_dms.adapter import snapshot_writeback
     cache_scope = snapshot_writeback.capture_scope(endpoint)
 
     def _do(cl, adapter):
+        def begin():
+            if assert_current:
+                import frappe
+                frappe.db.commit()
+                assert_current()
+            marker.begin()
         cid, converted = cl.save_customer(
-            fields=fields, mode=save_mode, customer_id=customer_id, addresses=addresses
+            fields=fields, mode=save_mode, customer_id=customer_id, addresses=addresses,
+            baseline=baseline, on_attempt=begin,
         )
         # create 被幂等/撞码转成 overwrite 时**如实回 update** —— 回执不谎称"新建"。
         actual = "update" if converted else mode
@@ -281,7 +304,7 @@ def push_idcard_fields(
             },
         }
 
-    out = run_logged_in(endpoint, _do, attempt=attempt)
+    out = marker.finish(run_logged_in(endpoint, _do, attempt=attempt))
     if not out.get("ok"):
         out["success"] = False
         out["elapsed_ms"] = int((time.time() - t0) * 1000)

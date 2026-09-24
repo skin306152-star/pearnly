@@ -241,7 +241,7 @@ def load(line_user_id: str, nonce: str) -> dict:
     # An explicitly saved form is complete, including intentional blanks and
     # corrected identity fields. Do not refill it with the still-unsubmitted
     # external customer record when reopening the editor.
-    customer_id = "" if qa.get("customer_edited") else str((qa.get("customer") or {}).get("id") or "")
+    customer_id = "" if qa.get("customer_baseline") or qa.get("customer_edited") else str((qa.get("customer") or {}).get("id") or "")
     snapshot = _snapshot(
         endpoint,
         car_ids=(car_id,) if car_id else (),
@@ -251,6 +251,11 @@ def load(line_user_id: str, nonce: str) -> dict:
     # 身份证草稿已填的值优先；缺失的称谓/邮编/地址 id 从同一次管理员权威直读补齐。
     resolved_customer = snapshot.get("resolved_customer") or {}
     form["customer"].update({key: str(resolved_customer.get(key) or "") for key in CUSTOMER_FIELDS})
+    qa = {**qa, "customer_edit_form": dict(form["customer"])}
+    if customer_id and snapshot.get("customer"):
+        qa["customer_baseline"] = dict(snapshot["customer"])
+    if not store.replace_review_payload(line_user_id, nonce, {**payload, "qa": qa}):
+        raise DmsBookingEditError("dms_booking.expired", 409)
     masters = _masters(snapshot)
     prefix_rows = masters.get("prefixes") or []
     return {
@@ -366,7 +371,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     """保存草稿并**同步确认**新版预览卡已送达 LINE；返回轮换后的新 nonce。"""
     binding, payload, endpoint = _review(line_user_id, nonce)
     qa = dict(payload.get("qa") or {})
-    original_customer = _form(qa)["customer"]
+    original_customer = qa.get("customer_edit_form") or _form(qa)["customer"]
     customer = _customer(dict(submitted.get("customer") or {}))
     raw_answers = dict(submitted.get("answers") or {})
     car_id = str(raw_answers.get("car_id") or "")
@@ -398,6 +403,12 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     qa["summary"] = qa_cards._fallback_summary(qa)
     # 网页端改过客户资料 → 记一条，后续"资料有差异"的分支按它走。
     qa["customer_dirty"] = bool(qa.get("customer_dirty")) or customer_changed
+    from pearnly_dms.contracts.customer_merge import flatten
+    edits = {key: customer[key] for key in CUSTOMER_DIRTY_FIELDS
+             if str(customer.get(key) or "") != str(original_customer.get(key) or "")}
+    qa["customer_changes"] = {**qa.get("customer_changes", {}), **flatten(edits)}
+    # Freeze the original server-owned view; never accept a baseline from submitted JSON.
+    # A pre-upgrade draft without a baseline will fail closed at the live write.
     qa["customer_edited"] = True
     qa["answers"] = {
         "place": _pick(masters, "place", raw_answers.get("place_id")),

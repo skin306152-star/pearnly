@@ -166,6 +166,9 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
     if result.get("preflight"):
         _resume_after_master_change(binding, line_user_id, payload, result)
         return
+    if (result.get("response_body") or {}).get("customer_conflict"):
+        _resume_after_customer_change(line_user_id, payload, result)
+        return
     qa = payload.get("qa") or {}
     booking_ledger.log_booking(endpoint=endpoint, payload=payload, result=result, actor=user_id)
     if result.get("ok"):
@@ -196,6 +199,24 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
             )
             return
     _push(line_user_id, friendly.get("th") or cards.TXT_BOOKING_FAIL)
+
+
+def _resume_after_customer_change(line_user_id, payload, result):
+    from pearnly_dms.intake.draft import master_snapshot
+    from pearnly_dms.line.errors import friendly
+    conflict = result["response_body"]["customer_conflict"]
+    qa = dict(payload.get("qa") or {})
+    qa["customer_baseline"] = conflict["current"]
+    qa["customer_changes"] = conflict["desired"]
+    qa["draft"] = {**conflict["current"], **conflict["desired"]}
+    qa["customer"] = {**qa.get("customer", {}), "name": qa["draft"].get("name", "")}
+    _, qa["summary"] = master_snapshot(qa["draft"])
+    qa["customer_dirty"] = True
+    nonce = secrets.token_hex(8)
+    if store.replace_claimed_booking_payload(line_user_id, payload.get("nonce"),
+                                             "booking_review", {**payload, "qa": qa, "nonce": nonce}):
+        _send(line_user_id, qa_cards.preview_card(qa, nonce,
+            notice=friendly("ERR_DMS_CUSTOMER_CHANGED", lang="th")))
 
 
 def _resume_after_master_change(

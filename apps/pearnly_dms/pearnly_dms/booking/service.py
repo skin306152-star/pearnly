@@ -11,7 +11,7 @@
    但客户写入/挂附件/刷主档这些慢步骤**不进共享锁**（否则一个慢附件卡住全店）；
 3. **附件在同一会话挂**（少一次登录），且**建单成功但附件没挂全要如实说**，
    绝不谎报附件成功；
-4. 成功后请求后台刷新员工销售快照；不把部分复核资料冒充全量刷新成功。
+4. 成功不自动刷新员工销售全量；不把部分复核资料冒充全量刷新成功。
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def book_in_session(
     *,
     on_attempt=None,
 ) -> Dict[str, Any]:
-    """一个 DMS 会话内：复核主档 → 建单并回读 → 挂附件；随后登记后台销售刷新。
+    """一个 DMS 会话内：复核主档 → 建单并回读 → 挂附件。
 
     逐问选的 `place/term/regis/car/paint` id 覆盖端点默认值；**顾问**在逐问开局就按操作员
     的 DMS 账号匹配好（或端点上钉死）存进 `qa["advisor"]` —— 建单层
@@ -163,10 +163,33 @@ def book_in_session(
                 frappe.db.commit()
                 guard()
             if qa.get("customer_dirty"):
+                from pearnly_dms.contracts import customer_merge
+                from pearnly_dms.intake.customer_attempt import Attempt
                 draft = dict(qa.get("draft") or {})
                 draft["name"] = str((qa.get("customer") or {}).get("name") or "")
+                baseline = qa.get("customer_baseline")
+                fields = {key: value for key, value in draft.items()
+                          if key in customer_merge.IDENTITY + customer_merge.ADDRESS
+                          and (baseline is None or str(value or "") != str(baseline.get(key) or ""))}
+                fields, addresses = customer_merge.split(qa.get("customer_changes",
+                                                         customer_merge.flatten(fields)))
+                marker = Attempt(endpoint, "booking-customer:" + str(payload.get("nonce") or ""),
+                    qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
+                    addresses=addresses, baseline=baseline)
                 # DmsClient.save_customer restores the original sales writer transport.
-                cl.save_customer(fields=draft, mode="overwrite", customer_id=customer_id)
+                def begin_customer():
+                    if callable(guard):
+                        guard()
+                    marker.begin()
+                try:
+                    if not marker.previous():
+                        cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
+                                         addresses=addresses, baseline=baseline, on_attempt=begin_customer)
+                        marker.finish({"ok": True, "success": True, "customer_id": customer_id,
+                                       "mode": "overwrite"})
+                except customer_merge.DmsClientError as exc:
+                    result = err(exc.error_code, response_body=getattr(exc, "response_body", None))
+                    return marker.finish(result)
                 snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
             master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
             org = resolve_booking_org(cl, defaults.advisor_id, defaults)
@@ -196,14 +219,6 @@ def book_in_session(
             except Exception:
                 logger.warning("[dms booking] attachment failed after booking commit", exc_info=True)
                 failed.append({"error_code": "ERR_DMS_ATTACHMENT"})
-        # Do not stamp a partial live preflight as a complete directory refresh.
-        # Employee-native sales rows are refreshed asynchronously, never invented
-        # from an acknowledgement or shared with another salesperson.
-        try:
-            cache_refresh_requested = snapshot_writeback.sales(endpoint)
-        except Exception:
-            cache_refresh_requested = False
-            logger.warning("DMS post-write refresh failed after verified booking")
         return {
             "ok": True,
             "booking_id": booking_id,
@@ -212,7 +227,7 @@ def book_in_session(
             "attached": attached,
             "attach_failed": failed,
             "cache_updated": False,  # Compatibility: no complete sales read yet.
-            "cache_refresh_requested": cache_refresh_requested,
+            "cache_refresh_requested": False,
         }
 
     return run_logged_in(endpoint, _do)

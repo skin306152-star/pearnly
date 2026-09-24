@@ -34,6 +34,7 @@ from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.id_validate import normalize_thai_id
+from pearnly_dms.contracts import customer_merge
 from pearnly_dms.intake.customer_geo import clear_customer_select_defaults, validate_customer_selects
 
 logger = logging.getLogger(__name__)
@@ -274,10 +275,11 @@ class DmsClientIntakeMixin:
         mode: str,
         customer_id: Optional[str] = None,
         addresses: Optional[Dict[str, Dict[str, Any]]] = None,
+        baseline: Optional[Dict[str, Any]] = None,
+        on_attempt=None,
     ) -> Tuple[str, bool]:
         """建（`mode='create'`）或覆盖（`mode='overwrite'`）客户。
-        返回 `(customer_id, converted)` —— `converted=True` 表示 create 因幂等/撞码
-        被转成了覆盖，回执里要**如实说"อัปเดต"**。
+        返回 `(customer_id, False)`。实时发现已存在不自动覆盖，必须重新确认。
 
         覆盖：载入现表单 → 合并面板字段（没动过的字段原样保留）→ 提交。
 
@@ -289,7 +291,8 @@ class DmsClientIntakeMixin:
             raise DmsClientError(f"bad save mode: {mode!r}", "ERR_DMS_CUSTOMER_SAVE")
         with self._writer_session():
             return self._save_customer_locked(
-                fields=fields, mode=mode, customer_id=customer_id, addresses=addresses
+                fields=fields, mode=mode, customer_id=customer_id, addresses=addresses,
+                baseline=baseline, on_attempt=on_attempt,
             )
 
     @contextmanager
@@ -318,26 +321,35 @@ class DmsClientIntakeMixin:
         mode: str,
         customer_id: Optional[str] = None,
         addresses: Optional[Dict[str, Dict[str, Any]]] = None,
-        expected_people_id: Optional[str] = None,
+        baseline: Optional[Dict[str, Any]] = None,
+        on_attempt=None,
     ) -> Tuple[str, bool]:
-        # 幂等：一个身份证 = DMS 一个客户（编号/身份证号唯一）。create 前先按身份证号查，
-        # 已存在就转成更新它 —— 修「撞客户编号重复」，并自愈「客户建了但订车失败」后的重推。
-        converted = False
+        desired = customer_merge.flatten(fields, addresses)
+        if (mode == "overwrite" and baseline is not None and "tax_id" not in fields
+                and normalize_thai_id(fields.get("people_id") or "")
+                == normalize_thai_id(baseline.get("people_id") or "")):
+            desired.pop("tax_id", None)  # unchanged identity does not authorize a tax edit
         if mode == "create":
-            existing = self.lookup_customer(fields.get("people_id") or "")["customer_id"]
-            if existing:
-                mode, customer_id, converted = "overwrite", existing, True
-                expected_people_id = str(fields["people_id"])
+            existing = self.lookup_customer(fields.get("people_id") or "")
+            if existing["found"]:
+                raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_EXISTS",
+                    existing["customer_id"], existing["fields"], desired)
+            fields, addresses = customer_merge.split(desired)
         if mode == "overwrite" and not customer_id:
             raise DmsClientError("overwrite needs customer_id", "ERR_DMS_CUSTOMER_SAVE")
 
         form_args = {"status": "n"} if mode == "create" else {"status": "e", "id": customer_id}
         form_html = self._post_text("cus/form.php", form_args)
         data = self._parse_form_defaults(form_html)
-        if expected_people_id is not None:
-            current = self._identity_form_data(form_html)
-            if normalize_thai_id(current["txtpeopleid"]) != normalize_thai_id(expected_people_id):
-                raise DmsClientError("customer identity changed before automatic update", "ERR_DMS_CUSTOMER_SAVE")
+        if mode == "overwrite":
+            current = self._extract_customer_fields(self._identity_form_data(form_html), form_html)
+            desired, conflicts = customer_merge.merge(baseline, desired, current)
+            if conflicts:
+                raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_CHANGED",
+                    customer_id, current, desired, conflicts)
+            fields, addresses = customer_merge.split(desired)
+            if not desired:
+                return str(customer_id), False
         data["stsel"] = "n" if mode == "create" else "e"
         if mode == "overwrite":
             data["idsel"] = customer_id
@@ -348,29 +360,37 @@ class DmsClientIntakeMixin:
             # 新建表单自带一组省/县/区/邮编预选值：不清掉，客户就会带着一个
             # 没人选过的地址被存进 DMS（见 dms_customer_geo 顶部第 1 条）。
             clear_customer_select_defaults(data)
-        self._apply_customer_fields(data, fields, addresses)
+        self._apply_customer_fields(data, fields, addresses, derive_tax=False)
         self._guard_required_selects(data, form_html)
 
         endpoint = "cus/new.php" if mode == "create" else "cus/edit.php"
-        resp = self.transport.post(self._url(endpoint), data=data, timeout_ms=60000)
+        if on_attempt:
+            on_attempt()
+        try:
+            resp = self.transport.post(self._url(endpoint), data=data, timeout_ms=60000)
+        except Exception as exc:
+            raise customer_merge.unknown() from exc
         body = (resp.text or "").strip()
         if mode == "create" and body.startswith("err::") and "ซ้ำ" in body:
-            # 「ซ้ำ」（重复）= 记录其实已经在，只是查重搜索漏检了
-            # （DMS 搜索偶发空返，2026-07-19 实锤：建档后 3 分钟同号搜不到 → 重复建档被拒）。
-            # 复搜转覆盖，**不把"已存在"当失败抛给用户**；仍搜不到才如实报错。
+            # A duplicate rejection is not proof that THIS request created it.
             existing = self._research_customer((fields.get("people_id") or "").strip())
             if existing:
-                cid, _ = self._save_customer_locked(
-                    fields=fields, mode="overwrite", customer_id=existing, addresses=addresses,
-                    expected_people_id=str(fields["people_id"]),
-                )
-                return cid, True
-        if resp.status_code != 200 or body.startswith("err::"):
-            raise DmsClientError(
+                current = self.read_customer(existing)
+                raise customer_merge.CustomerConflict("ERR_DMS_CUSTOMER_EXISTS",
+                    existing, current, desired)
+        if resp.status_code != 200:
+            raise customer_merge.unknown()
+        if body.startswith("err::"):
+            exc = DmsClientError(
                 f"customer {mode} failed: {resp.status_code} {body[:200]!r}",
                 "ERR_DMS_CUSTOMER_SAVE",
             )
-        return self._verify_saved(mode, fields, customer_id), converted
+            exc.response_body = {"submitted": False, "rejected": True}
+            raise exc
+        try:
+            return self._verify_saved(mode, fields, customer_id, addresses), False
+        except Exception as exc:
+            raise customer_merge.unknown() from exc
 
     def _research_customer(self, people_id: str) -> Optional[str]:
         """撞唯一键后的复搜：搜索端点偶发空返，隔 1.5s 共试 3 次再放弃。"""
@@ -415,6 +435,7 @@ class DmsClientIntakeMixin:
         data: Dict[str, str],
         f: Dict[str, Any],
         addresses: Optional[Dict[str, Dict[str, Any]]] = None,
+        *, derive_tax: bool = True,
     ) -> None:
         # **所见即所存**：字段【存在】（键在）就写，空串 = 真的清空 DMS；
         # 字段【缺省】（键不在）才保留载入的 DMS 原值。界面表单的初值来自 DMS，
@@ -423,7 +444,7 @@ class DmsClientIntakeMixin:
             if fk in f:
                 data[dms] = str(f.get(fk) or "")
         # 个人主体：税号留空时取身份证号（DMS 里个人客户的税号就是身份证号）
-        if not f.get("tax_id") and f.get("people_id"):
+        if derive_tax and not f.get("tax_id") and f.get("people_id"):
             data["txttaxid"] = str(f["people_id"])
         # 三套地址：给了 addresses 就各套分别写；否则单套写满三处（向后兼容）。
         blocks = addresses if addresses else {sfx: f for sfx in _ADDR_SUFFIXES}
@@ -439,7 +460,8 @@ class DmsClientIntakeMixin:
         """称谓与地址四级必须与**实时**级联对账；空值/被删值不再拿第一项补齐。"""
         validate_customer_selects(self, data, form_html)
 
-    def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str]) -> str:
+    def _verify_saved(self, mode: str, fields: Dict[str, Any], customer_id: Optional[str],
+                      addresses=None) -> str:
         """**PHP 成功码 ≠ 真写库**（这条在老产品是铁律）：
         建 → 唯一完整证号复核；改 → 直读提交的身份字段（含隐式税号）。"""
         if mode == "create":
@@ -453,11 +475,9 @@ class DmsClientIntakeMixin:
         else:
             page = self._post_text("cus/form.php", {"status": "e", "id": customer_id})
             saved = self._extract_customer_fields(self._identity_form_data(page))
-        expected = {key: str(fields.get(key) or "") for key in ("name", "people_id", "tax_id") if key in fields}
-        if not fields.get("tax_id") and fields.get("people_id"):
-            expected["tax_id"] = str(fields["people_id"])
+        expected = customer_merge.flatten(fields, addresses, derive_tax=False)
         for key, value in expected.items():
-            normalize = str.strip if key == "name" else normalize_thai_id
+            normalize = normalize_thai_id if key in ("people_id", "tax_id") else str.strip
             if normalize(str(saved.get(key) or "")) != normalize(value):
                 raise DmsClientError("customer write identity readback mismatch", "ERR_DMS_CUSTOMER_SAVE")
         return customer_id

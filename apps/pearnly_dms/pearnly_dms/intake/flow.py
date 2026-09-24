@@ -237,7 +237,9 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
             _reply(reply_token, cards.TXT_EXPIRED)
             return
         # 相似认领 = 无差异的 overwrite，认领到所选客户号
-        _enqueue("update", write_update, binding, line_user_id, {**payload, "customer_id": cid},
+        selected = next(c for c in payload["candidates"] if str(c.get("customer_id")) == cid)
+        _enqueue("update", write_update, binding, line_user_id, {**payload, "customer_id": cid,
+                 "customer_baseline": selected.get("baseline")},
                  1, reply_token)
     else:
         _reply(reply_token, cards.TXT_EXPIRED)
@@ -414,7 +416,8 @@ def run_dedup(
         payload = {**base, "scenario": "none"}
         card = cards.new_customer_card(summary, nonce)
     elif scenario == "exact":
-        payload = {**base, "scenario": "exact_diff", "customer_id": res["match"]["customer_id"]}
+        payload = {**base, "scenario": "exact_diff", "customer_id": res["match"]["customer_id"],
+                   "customer_baseline": dict(res["match"].get("current_fields") or {})}
         if field_diffs:
             master_draft, master_summary = draft.master_snapshot(
                 (res.get("match") or {}).get("current_fields") or {}
@@ -446,6 +449,7 @@ def run_dedup(
                 "cuscode": c.get("cuscode", ""),
                 "name": c.get("name", ""),
                 "people_id": c.get("people_id", ""),
+                "baseline": c.get("baseline"),
             }
             for c in (res.get("candidates") or [])
         ]
@@ -561,6 +565,7 @@ def write_update(binding: dict, line_user_id: str, payload: dict, attempt: int =
     fields = {"people_id": d.get("people_id", ""), "name": d.get("name", "")}
     for diff in field_diffs:
         fields[diff["field"]] = diff.get("new", "")
+    fields = payload.get("write_fields", fields)
     execute(
         binding,
         line_user_id,
@@ -568,7 +573,7 @@ def write_update(binding: dict, line_user_id: str, payload: dict, attempt: int =
         mode="overwrite",
         customer_id=payload.get("customer_id"),
         fields=fields,
-        addresses=None,
+        addresses=payload.get("write_addresses"),
         field_diffs=field_diffs,
         attempt=attempt,
         retry_kind="update",
@@ -597,11 +602,22 @@ def execute(
 
     if not current_binding(binding, line_user_id):
         return
+    source_session = store.get_session(line_user_id)
+    source_payload = (source_session or {}).get("payload") or {}
+    if (not source_session or source_session.get("state") != "reviewing"
+            or source_payload.get("nonce") is not None
+            or source_payload.get("draft") != payload.get("draft")):
+        return
     resolved = _id_ocr.resolve_dms_endpoint(user_id, payload.get("endpoint_id"))
     ep_name = (resolved or {}).get("name")
     if not ep_name:
         _push(line_user_id, cards.TXT_NO_ENDPOINT, reply_token)
         return
+
+    def assert_current():
+        if not current_binding(binding, line_user_id) or store.get_session(line_user_id) != source_session:
+            from pearnly_dms.contracts.client_base import DmsClientError
+            raise DmsClientError("Customer draft was replaced before dispatch", "ERR_DMS_CUSTOMER_SAVE")
 
     result = dms_intake.push_idcard_fields(
         ep_name,
@@ -610,6 +626,10 @@ def execute(
         customer_id=customer_id,
         addresses=addresses,
         attempt=attempt,
+        baseline=payload.get("customer_baseline"),
+        request_id="line:" + str(payload.get("nonce") or ""),
+        actor=user_id,
+        assert_current=assert_current,
     )
     success = bool(result.get("success"))
     # 推送台账：LINE 推的也要出现在记录页。trigger 位保持 id_card，
@@ -625,8 +645,15 @@ def execute(
         field_diffs=field_diffs,
         result=result,
     )
+    if not current_binding(binding, line_user_id):
+        return
+    if store.get_session(line_user_id) != source_session:
+        return
 
-    if success:
+    if (result.get("response_body") or {}).get("customer_conflict"):
+        from pearnly_dms.intake.review import reopen
+        reopen(binding, line_user_id, payload, result, reply_token=reply_token, expected=source_session)
+    elif success:
         # create 被幂等/撞码转更新时，回执如实说"已更新"
         actual = result.get("mode") or mode
         _push(line_user_id, cards.receipt_text(result.get("customer_id") or "", name, actual),
@@ -669,6 +696,8 @@ def _write_push_log(
     result: Dict[str, Any],
 ) -> None:
     """写一条推送台账。**台账失败不能影响业务结果**（用户已经存成功了）。"""
+    if result.get("customer_write_log"):
+        return
     try:
         doc = frappe.new_doc("Pearnly Push Log")
         doc.status = "success" if success else "failed"

@@ -312,7 +312,7 @@ class NativeFlow(unittest.TestCase):
         self.assertEqual(frappe.db.count("Pearnly Push Log", {"actor": self.user, "status": "success"}), 1)
         self.assertTrue(any(self.dms.orders[0]["number"] in str(data.get("json")) for _, url, data in self.http if url.endswith("/push")))
 
-    def test_verified_booking_only_requests_own_sales_sync_without_claiming_fresh_data(self):
+    def test_verified_booking_does_not_automatically_refresh_sales_or_claim_fresh_data(self):
         from pearnly_dms.snapshots import store as snapshots
         from pearnly_dms.query import snapshot_sync
         self.assertFalse(frappe.db.exists("Pearnly ERP Endpoint", {
@@ -344,21 +344,14 @@ class NativeFlow(unittest.TestCase):
         self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=self.review())
         self.assertEqual(self.drain(), 1)
         created = set(queue.get_job_ids()) - baseline
-        for job_id in created:
-            job = queue.fetch_job(job_id)
-            self.assertEqual(job.func_name, "frappe.utils.background_jobs.execute_job")
-            self.assertEqual(job.kwargs.get("site"), SITE)
-            self.assertEqual(job.kwargs.get("method"), "pearnly_dms.query.snapshot_sync.refresh")
-            self.assertEqual(job.kwargs.get("kwargs"), {"endpoint": self.endpoint})
-            self.snapshot_jobs.add(job_id)
-            self.assertEqual(job.get_status(refresh=True), "queued")
-        self.assertEqual(len(created), 1)
+        self.snapshot_jobs.update(created)
+        self.assertEqual(created, set())
         forbidden.assert_not_called()
         # Durable delivery deliberately projects business fields only. Observe
         # the unchanged real service callback result, not a fabricated payload.
         results = [value for value in self.dms.callback_results if value.get("booking_id")]
         self.assertEqual(len(results), 1)
-        self.assertTrue(results[0]["cache_refresh_requested"])
+        self.assertIs(results[0]["cache_refresh_requested"], False)
         self.assertIs(results[0]["cache_updated"], False)
         self.assertEqual(snapshots.read(self.endpoint), before)
         with self.assertRaises(snapshots.SnapshotUnavailable):
