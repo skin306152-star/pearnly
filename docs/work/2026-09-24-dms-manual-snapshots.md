@@ -171,6 +171,17 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
    - 生产侧参考实现：`infrastructure/production/bootstrap-billing.py`（建 `billing.internal`、装 `pearnly_control`、写 `pearnly_billing_only/scoped_tokens/token/management_token`），它依赖 `/run/secrets/runtime.env` 与 `/run/secrets/member-identity.json`——测试机要照搬这两个挂载，或改为整站导入。
 4. 验证通过后：按 `activate-product.sh` 部署新版 DMS 到线上（届时 `warm.sweep` 由 `clear_events()` 自动删除）。
 
+### 本轮执行结果（2026-09-24，独立栈已在测试机跑通）
+
+- `codex/testenv-per-app` 已推送 `951f80e`（含一个自己引入又修掉的 bug：`init_sites` 把产品名 `app` 覆盖成 Frappe 应用名，收尾步骤因此找不到服务），并合进本分支 `797b727`。
+- 测试机跑 `PEARNLY_TESTENV_SRC=<本工作树> PEARNLY_TESTENV_IMAGE=<候选 digest> bash scripts/testenv.sh lab-start dms` 全流程成功：
+  - 独立栈 12 容器全部健康，全为 `pearnly-testenv-dms-*`（自己的 MariaDB、两个 Redis、8 个 DMS 服务含 `dms-sync-worker`），无 keycloak；ERP/Cowork 栈不存在。
+  - 自动收尾在真实流程生效：`testdms.pearnly.com migrate：ok`、`clear-cache：ok`；`dms-sync-worker` 因队列未配先重启、收尾写完配置后稳定（这条过去靠人工进容器补）。
+  - 租户数据完整：已装 `frappe/pearnly_core/pearnly_dms`；`Pearnly ERP Endpoint=4`、`DMS Operator=2`、`Pearnly OCR Record=27`（历史识别记录随整站导入）、`DMS Read Snapshot=0`（缓存空，首次"更新数据"走完整读取）。
+  - 域名按产品切换：`testdms.pearnly.com → <tunnel>.cfargotunnel.com proxied=True`，`*.pearnly.com → 107.155.65.74` 未动，`testerp` 未受影响。
+  - 公开入口：经 Cloudflare 的 `/api/method/ping` 返回 200 且带 `cf-ray`，证明走隧道到测试机而不是线上。
+- 剩余阻塞只有**账本站点**（OCR 付费路径需要）：导出侧 `export-test-tenant.sh` 已支持 `billing:billing.internal`；但 `import-test-tenant.py` 的 `PRODUCT_BY_GROUP` 没有 billing（第 51 行会 refusing），`run.sh` 的 app 校验与 `scripts/testenv.sh` 的 `lab_apps/tenant_spec/host_for` 也只认三个产品，需在这三处加 billing。必须整站导入以保持 `pearnly_billing_token` 与账本站点密钥一致（生产参考 `bootstrap-billing.py`）。DMS 其它验证不依赖账本，可先用。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
