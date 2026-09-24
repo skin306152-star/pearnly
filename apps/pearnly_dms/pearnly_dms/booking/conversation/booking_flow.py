@@ -203,7 +203,7 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
 
 def _resume_after_customer_change(line_user_id, payload, result):
     from pearnly_dms.intake.draft import master_snapshot
-    from pearnly_dms.line.errors import friendly
+    from pearnly_dms.intake.review import conflict_notice
     conflict = result["response_body"]["customer_conflict"]
     qa = dict(payload.get("qa") or {})
     qa["customer_baseline"] = conflict["current"]
@@ -216,7 +216,7 @@ def _resume_after_customer_change(line_user_id, payload, result):
     if store.replace_claimed_booking_payload(line_user_id, payload.get("nonce"),
                                              "booking_review", {**payload, "qa": qa, "nonce": nonce}):
         _send(line_user_id, qa_cards.preview_card(qa, nonce,
-            notice=friendly("ERR_DMS_CUSTOMER_CHANGED", lang="th")))
+            notice=conflict_notice(conflict)))
 
 
 def _resume_after_master_change(

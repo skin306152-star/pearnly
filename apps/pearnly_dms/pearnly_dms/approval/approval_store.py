@@ -252,7 +252,7 @@ def claim(request_id: str, decided_by: str) -> Optional[dict]:
         _unlock(request_id, lock)
 
 
-def finish(request_id: str, status: str) -> bool:
+def finish(request_id: str, status: str, *, expected_claim: Optional[dict] = None) -> bool:
     """执行收尾：`approved` / `rejected`（记处理时间），或 `pending`（**写失败回炉**）。
 
     回炉那一条会**清掉认领人与租约** —— 任何管理员都能再点一次。
@@ -266,10 +266,16 @@ def finish(request_id: str, status: str) -> bool:
     if not lock:
         return False
     try:
-        if not frappe.db.exists(DT, request_id):
-            return False
-        doc = frappe.get_doc(DT, request_id)
+        # A worker may still hold a pre-login repeatable-read view. Redis only
+        # serializes writers; a current locking read must also observe a newer
+        # claim, without committing unrelated caller work just to refresh it.
+        doc = frappe.get_doc(DT, request_id, for_update=True)
         if str(doc.status or "") != "processing":
+            return False
+        if expected_claim is not None and (
+            str(doc.decided_by or "") != str(expected_claim.get("decided_by") or "")
+            or str(doc.processing_at or "") != str(expected_claim.get("processing_at") or "")
+        ):
             return False
         if status == "pending":
             doc.status = "pending"

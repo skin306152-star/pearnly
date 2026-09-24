@@ -249,7 +249,7 @@ def _decide(
         return
 
     if not approve:
-        approval_store.finish(str(req["id"]), "rejected")
+        approval_store.finish(str(req["id"]), "rejected", expected_claim=req)
         _reply(reply_token, approval_cards.TXT_REQ_REJECTED_ADMIN)
         _notify_operator(req, approval_cards.TXT_REQ_REJECTED_SALES)
         return
@@ -262,16 +262,28 @@ def _decide(
 def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None:
     """**以批准人自己的凭据**执行覆盖写：成功 → 已批；失败 → 回炉（可再批）。"""
     tenant_user = str(binding["user_id"])
+    def finish(status):
+        return approval_store.finish(str(req["id"]), status, expected_claim=req)
+
+    def assert_current():
+        from pearnly_dms.line.identity import matches
+        from pearnly_dms.contracts.client_base import DmsClientError
+        live = approval_store.get_request(str(req["id"])) or {}
+        if (not matches(binding, admin_line_user_id)
+                or not _is_active_admin(roster_store.get_profile(tenant_user))
+                or live.get("status") != "processing" or live.get("decided_by") != tenant_user
+                or live.get("processing_at") != req.get("processing_at")):
+            raise DmsClientError("Approval claim or authority changed before dispatch", "ERR_DMS_CUSTOMER_SAVE")
     profile = roster_store.get_profile(tenant_user)
     if not _is_active_admin(profile):
         # 认领之后权限被收回：退回待批，别让这张单卡在"执行中"
-        approval_store.finish(str(req["id"]), "pending")
+        finish("pending")
         return
     _start_loading(admin_line_user_id)
 
     endpoint = resolve_dms_endpoint(tenant_user, None)
     if not endpoint:
-        approval_store.finish(str(req["id"]), "pending")
+        finish("pending")
         _push(admin_line_user_id, approval_cards.TXT_APPROVER_NO_ENDPOINT)
         return
 
@@ -293,6 +305,7 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
         baseline=draft_wrap.get("baseline"),
         request_id="approval:" + str(req["id"]),
         actor=tenant_user,
+        assert_current=assert_current,
     )
     success = bool(result.get("success"))
     _write_push_log(
@@ -308,7 +321,7 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
     if conflict:
         # The old approval authorizes only its original baseline/diff, never the
         # newly discovered change. Terminalize it before issuing another review.
-        approval_store.finish(str(req["id"]), "rejected")
+        finish("rejected")
         operator_id = str(req.get("operator_user_id") or "")
         luid = roster_store.line_user_id_of(operator_id)
         current = store.get_session(luid) if luid else None
@@ -324,13 +337,12 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
                 _send(luid, card)
         _push(admin_line_user_id, (result.get("error_friendly") or {}).get("th") or cards.TXT_SAVE_FAIL)
     elif success:
-        approval_store.finish(str(req["id"]), "approved")
+        finish("approved")
         _push(admin_line_user_id, approval_cards.TXT_REQ_APPROVED_ADMIN)
         _notify_operator(req, approval_cards.TXT_REQ_APPROVED_SALES)
     else:
         # A durable unknown dispatch cannot be authorized for replay by another approver.
-        approval_store.finish(str(req["id"]), "rejected" if
-                              (result.get("response_body") or {}).get("submitted") else "pending")
+        finish("rejected" if (result.get("response_body") or {}).get("submitted") else "pending")
         friendly = (result.get("error_friendly") or {}).get("th") or ""
         _push(
             admin_line_user_id,

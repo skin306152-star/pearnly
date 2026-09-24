@@ -35,6 +35,9 @@ class CustomerWriteFlow(unittest.TestCase):
         self.db.rows["Pearnly ERP Endpoint", "offline-endpoint"] = {
             "name": "offline-endpoint", "system_url": "https://identity.invalid/dms/"}
         self.db.set_value = lambda kind, name, values: self.db.rows[kind, name].update(values)
+        self.enterContext(patch.object(frappe, "get_all", side_effect=lambda kind, **kwargs: [
+            frappe._dict(row) for (dt, name), row in self.db.rows.items()
+            if dt == kind and name.startswith("CW-") and row.get("status") == "manual"]))
         doc = queue["MemoryDocument"]
         def insert(record, **kwargs):
             record.name = kwargs.get("set_name") or record.get("name")
@@ -196,7 +199,7 @@ class CustomerWriteFlow(unittest.TestCase):
         self.enterContext(patch.object(approval_flow.roster_store, "line_user_id_of", return_value=UID))
         self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
         approval_flow._execute_approved(binding, UID, req)
-        finish.assert_called_once_with("approval-one", "rejected")
+        finish.assert_called_once_with("approval-one", "rejected", expected_claim=req)
         fresh = self.store.get_session(UID)
         self.assertEqual(fresh["state"], "reviewing")
         self.assertEqual(fresh["payload"]["customer_baseline"]["phone"], "0800000888")
@@ -217,6 +220,134 @@ class CustomerWriteFlow(unittest.TestCase):
             "draft": {"fields": payload["draft"], "baseline": baseline}})
         self.assertEqual(self.store.get_session(UID)["payload"], payload)
         self.assertFalse(self.transport.writes())
+
+    def booking_editor(self):
+        from pearnly_dms.editor import booking_edit, edit_snapshot
+        self.transport.records["own"] = identity["record"](txtbirthday="01/01/2530")
+        baseline = self.client.read_customer("own")
+        masters = {key: [[rid, rid.upper(), rid.title()]] for key, rid in (
+            ("cars", "car"), ("advisors", "advisor"), ("place_books", "place"),
+            ("term_sales", "term"), ("regis_behalfs", "regis"))}
+        masters.update(prefixes=[["17", "นาย"]], company_banks=[], source_banks=[],
+                       cheque_banks=[], cashier_banks=[], card_banks=[], branches=[], employees=[])
+        geo = {level: [[rid, "label"]] for level, rid in
+               (("provinces", "P"), ("districts", "D"), ("subdistricts", "S"), ("zipcodes", "Z"))}
+        def snapshot(endpoint, *, car_ids=(), customer=None, customer_id="", **kwargs):
+            saved = baseline if customer_id else {}
+            return {"customer": copy.deepcopy(saved), "masters": copy.deepcopy(masters),
+                    "prefixes": masters["prefixes"], "geo": geo,
+                    "paints": {"car": [["paint", "PAINT", "Paint"]]},
+                    "resolved_customer": edit_snapshot._merge_customer_defaults(customer, saved)}
+        self.enterContext(patch.object(booking_edit, "read_edit_snapshot", side_effect=snapshot))
+        self.enterContext(patch.object(booking_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
+        qa = {"endpoint_id": "offline-endpoint", "user_id": USER, "customer": {"id": "own", "name": baseline["name"]},
+              "draft": copy.deepcopy(baseline), "advisor": {"id": "advisor", "name": "Advisor"},
+              "answers": {**{key: {"id": key, "name": key.title()} for key in ("place", "paint", "term", "regis")},
+                          "car": {"id": "car", "label": "CAR Car"}, "delivery_date_be": "30/09/2569", "regis_name": baseline["name"]},
+              "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}], "files": {}}
+        self.store.set_session(UID, "booking_review", {"nonce": "booking-editor", "qa": qa})
+        loaded = booking_edit.load(UID, "booking-editor")
+        submitted = {"customer": loaded["form"]["customer"], "answers": {
+            "place_id": "place", "car_id": "car", "paint_id": "paint", "term_id": "term",
+            "regis_id": "regis", "delivery_date_be": "30/09/2569", "regis_name": baseline["name"]},
+            "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}], "keep_files": {}}
+        return booking_edit, baseline, submitted
+
+    def test_approval_revoked_during_live_read_cannot_dispatch(self):
+        from pearnly_dms.approval import approval_flow, approval_store
+        payload = self.review()
+        self.transport.records["own"] = identity["record"]()
+        baseline = self.client.read_customer("own")
+        req = {"id": "active-request", "operator_user_id": USER, "customer_id": "own",
+               "processing_at": "claim-time", "decided_by": USER, "status": "processing",
+               "field_diffs": [{"field": "phone", "old": baseline["phone"], "new": queue["PHONE"]}],
+               "draft": {"fields": payload["draft"], "baseline": baseline}}
+        self.enterContext(patch.object(approval_store, "get_request", return_value=req))
+        self.enterContext(patch.object(approval_store, "finish", return_value=True))
+        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
+        post = self.transport.post
+        def revoked(url, **kwargs):
+            if url.endswith("cus/form.php"):
+                self.db.rows["DMS Operator", "operator"]["status"] = "inactive"
+            return post(url, **kwargs)
+        self.transport.post = revoked
+        approval_flow._execute_approved({"user_id": USER, "binding_revision": "revision-1"}, UID, req)
+        self.assertFalse(self.transport.writes())
+        self.assertFalse(self.ledgers())
+
+    def test_booking_editor_freezes_baseline_and_only_records_user_edits(self):
+        editor, baseline, submitted = self.booking_editor()
+        submitted["customer"].update(phone="0800000999", road="")
+        # A client cannot replace the server-owned baseline to authorize stale writes.
+        submitted["customer_baseline"] = {"phone": "forged"}
+        nonce = editor.save(UID, "booking-editor", submitted)
+        qa = self.store.get_session(UID)["payload"]["qa"]
+        self.assertNotEqual(nonce, "booking-editor")
+        self.assertEqual(qa["customer_baseline"], baseline)
+        self.assertEqual(qa["customer_changes"], {"phone": "0800000999", "road": "", "road_ct": "", "road_sd": ""})
+        self.assertTrue(qa["customer_dirty"])
+        self.assertFalse(self.transport.writes())
+
+    def test_booking_reopen_preserves_first_baseline_and_prior_explicit_clear(self):
+        editor, baseline, submitted = self.booking_editor()
+        submitted["customer"].update(road="")
+        nonce = editor.save(UID, "booking-editor", submitted)
+        loaded = editor.load(UID, nonce)
+        self.assertEqual(loaded["form"]["customer"]["road"], "")
+        submitted["customer"] = loaded["form"]["customer"]
+        submitted["customer"]["phone"] = "0800000999"
+        editor.save(UID, nonce, submitted)
+        qa = self.store.get_session(UID)["payload"]["qa"]
+        self.assertEqual(qa["customer_baseline"], baseline)
+        self.assertEqual(qa["customer_changes"]["road"], "")
+        self.assertEqual(qa["customer_changes"]["phone"], "0800000999")
+
+    def booking_writer(self):
+        from pearnly_dms.adapter import operations
+        from pearnly_dms.booking import service as booking_service
+        native = runpy.run_path(str(Path(__file__).with_name("test-dms-native-flow.py")))
+        dms = native["DmsFixture"]("SYNTHETIC")
+        dms.read_customer = self.client.read_customer
+        dms.save_customer = self.client.save_customer
+        self.enterContext(patch.object(operations, "run_logged_in", dms.session))
+        # Only the external fixture's authenticated client is substituted.
+        # Real preflight, three-way customer client, marker and payload run.
+        from contextlib import nullcontext
+        self.enterContext(patch.object(booking_service, "booking_lock", side_effect=lambda *a, **kw: nullcontext()))
+        return booking_service, dms
+
+    def test_booking_live_customer_conflict_stops_order_and_displays_exact_new_diff(self):
+        editor, baseline, submitted = self.booking_editor()
+        submitted["customer"]["phone"] = "0800000999"
+        nonce = editor.save(UID, "booking-editor", submitted)
+        payload = self.store.get_session(UID)["payload"]
+        booking_service, dms = self.booking_writer()
+        self.transport.records["own"]["txttel"] = "0800000888"
+        result = booking_service.book_in_session("offline-endpoint", payload, on_attempt=MagicMock())
+        self.assertEqual(result["error_code"], "ERR_DMS_CUSTOMER_CHANGED")
+        self.assertFalse(self.transport.writes())
+        self.assertFalse(dms.orders)
+        self.assertFalse(self.ledgers())
+        from pearnly_dms.intake.review import conflict_notice
+        notice = conflict_notice(result["response_body"]["customer_conflict"])
+        self.assertIn("0800000888 → 0800000999", notice)
+
+    def test_booking_live_customer_merge_preserves_unedited_external_change(self):
+        editor, baseline, submitted = self.booking_editor()
+        submitted["customer"]["phone"] = "0800000999"
+        editor.save(UID, "booking-editor", submitted)
+        payload = self.store.get_session(UID)["payload"]
+        booking_service, dms = self.booking_writer()
+        self.transport.records["own"]["txtemail"] = "changed@example.invalid"
+        result = booking_service.book_in_session("offline-endpoint", payload, on_attempt=MagicMock())
+        self.assertTrue(result.get("ok"), result)
+        self.assertEqual(len(self.transport.writes()), 1)
+        self.assertEqual(len(dms.orders), 1)
+        self.assertEqual(self.transport.records["own"]["txtemail"], "changed@example.invalid")
+        self.assertEqual(self.transport.records["own"]["txttel"], "0800000999")
+        self.assertEqual(self.ledgers()[0]["status"], "success")
+        self.assertFalse(result["cache_refresh_requested"])
+        self.assertFalse(result["cache_updated"])
 
 
 if __name__ == "__main__":

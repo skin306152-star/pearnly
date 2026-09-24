@@ -179,6 +179,8 @@ def book_in_session(
                 # DmsClient.save_customer restores the original sales writer transport.
                 def begin_customer():
                     if callable(guard):
+                        import frappe
+                        frappe.db.commit()  # live form reads must not freeze authority in an old RR view
                         guard()
                     marker.begin()
                 try:

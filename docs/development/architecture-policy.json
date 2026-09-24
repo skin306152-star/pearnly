@@ -84,6 +84,7 @@
       "config"
     ],
     "approval": [
+      "contracts",
       "intake",
       "line",
       "ocr",

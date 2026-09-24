@@ -13,7 +13,7 @@ import socket
 import sys
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import parse_qs
 
 import frappe
@@ -203,6 +203,20 @@ class SnapshotConsumers(unittest.TestCase):
         self.assertEqual(kwargs, {"expected_scope": "expected"})
 
     def live_writer(self):
+        # Native dispatch protocol remains real; only document/Redis IO is local
+        # memory here. The dedicated native test owns actual DB concurrency.
+        self.db.set_value = lambda kind, name, values: self.db.rows[kind, name].update(values)
+        self.replace(frappe, "get_all", side_effect=lambda kind, **kwargs: [
+            frappe._dict(row) for (dt, name), row in self.db.rows.items()
+            if dt == kind and name.startswith("CW-") and row.get("status") == "manual"])
+        document = queue_fixture.MemoryDocument
+        def insert(doc, **kwargs):
+            doc.name = kwargs.get("set_name") or doc.get("name")
+            if doc.name and (doc.doctype, doc.name) in self.db.rows:
+                raise AssertionError("Duplicate customer dispatch reservation")
+            return document.save(doc)
+        self.replace(document, "insert", insert)
+        self.cache.lock.side_effect = lambda *args, **kwargs: MagicMock()
         data = identity_fixture.record()
         for field in reader_fixture._IDENTITY_MAP.values(): data.setdefault(field, "")
         data.update(branchcusval="B", txtbranchcus="Branch")
@@ -226,23 +240,28 @@ class SnapshotConsumers(unittest.TestCase):
         client, transport, events = self.live_writer()
         publish = self.replace(self.store, "verified_customer", side_effect=RuntimeError("synthetic cache unavailable"))
         saved = self.replace(client, "save_customer", wraps=client.save_customer)
-        result = self.service.push_idcard_fields(EP, fields=identity_fixture.FIELDS,
-                                                mode="overwrite", customer_id="own")
+        baseline = client.read_customer("own")
+        result = self.service.push_idcard_fields(EP, fields={**identity_fixture.FIELDS, "phone": "0800000999"},
+            mode="overwrite", customer_id="own", baseline=baseline, request_id="server-nonce-success", actor=USER)
         self.assertTrue(result["success"]); self.assertFalse(result["cache_updated"])
         self.assertEqual(result["customer_id"], "own")
         self.assertEqual(events, ["enter", "login", "client", "exit"])
         self.assertEqual(len(transport.writes()), 1); saved.assert_called_once(); publish.assert_called_once()
         self.assertGreater(sum(path == "cus/form.php" for path, _ in transport.calls), 1)
+        self.assertEqual(self.db.rows["Pearnly Push Log", result["customer_write_log"]]["status"], "success")
 
     def test_final_live_write_rejection_cannot_be_overridden_by_cache(self):
-        _, transport, events = self.live_writer()
+        client, transport, events = self.live_writer()
         transport.statuses["cus/edit.php"] = 503
         publish = self.replace(self.store, "verified_customer")
-        result = self.service.push_idcard_fields(EP, fields=identity_fixture.FIELDS,
-                                                mode="overwrite", customer_id="own")
+        baseline = client.read_customer("own")
+        result = self.service.push_idcard_fields(EP, fields={**identity_fixture.FIELDS, "phone": "0800000999"},
+            mode="overwrite", customer_id="own", baseline=baseline, request_id="server-nonce-failure", actor=USER)
         self.assertFalse(result["success"]); publish.assert_not_called()
         self.assertEqual(len(transport.writes()), 1)
         self.assertEqual(events[-1], "exit")
+        self.assertEqual(result["error_code"], "ERR_DMS_CUSTOMER_UNCONFIRMED")
+        self.assertEqual(self.db.rows["Pearnly Push Log", result["customer_write_log"]]["status"], "manual")
 
     def test_booking_writeback_never_starts_an_employee_scan(self):
         hooks = self.replace(self.schedule, "collectors")

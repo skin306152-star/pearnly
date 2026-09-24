@@ -10,6 +10,14 @@ from pearnly_dms.line.errors import friendly
 from pearnly_dms.line.identity import matches
 
 
+def conflict_notice(conflict):
+    text = friendly("ERR_DMS_CUSTOMER_CHANGED", lang="th")
+    for change in conflict.get("conflicts") or []:
+        label = cards.FIELD_LABELS_TH.get(change["field"], change["field"])
+        text += "\n" + str(label) + ": " + str(change["old"]) + " → " + str(change["new"])
+    return text
+
+
 def build(user_id, payload, conflict, *, has_admin):
     current, desired = conflict["current"], conflict["desired"]
     diffs = [{"field": key, "old": str(current.get(key) or ""), "new": str(value)}
