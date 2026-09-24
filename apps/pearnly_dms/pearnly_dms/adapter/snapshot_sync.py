@@ -1,4 +1,5 @@
 """Manual groups: complete native forms plus compatible LINE projections."""
+import logging
 import math
 import time
 
@@ -11,6 +12,8 @@ from pearnly_dms.client.snapshot_reader import (
 )
 from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
 from pearnly_dms.snapshots import manual, store
+
+logger = logging.getLogger(__name__)
 
 
 def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
@@ -79,9 +82,22 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
         if not result.get("ok"):
             if result.get("error_code") == "ERR_DMS_SNAPSHOT_BUSY":
                 return {**result, "busy": True}
-            if result.get("error_code") == "ERR_DMS_SNAPSHOT_INCOMPLETE":
+            code = result.get("error_code")
+            # 只有"这一代不算数"的失败才丢断点。可续读的失败（传输抖动、单步时间
+            # 租约用完）保留检查点，下一步接着读；否则数据量大的租户永远读不完。
+            if code == "ERR_DMS_SNAPSHOT_INCOMPLETE":
                 store.checkpoint(endpoint, None, dataset=dataset, expected_scope=expected)
-            store.failed(endpoint, dataset, result.get("error_code"), expected_scope=expected)
+            # 留痕：以前失败只留一个笼统的 error_code，读不通时看不出卡在哪一步。
+            # 只记计数与阶段，不记响应体、也不记客户字段。
+            tree = (checkpoint or {}).get("tree") or {}
+            logger.warning(
+                "DMS snapshot read failed dataset=%s endpoint=%s code=%s phase=%s done=%s "
+                "cursor=%s requests=%s seconds=%.1f resumes=%s",
+                dataset, endpoint, code, tree.get("phase"), tree.get("done"), tree.get("cursor"),
+                (tree.get("usage") or {}).get("requests"),
+                float((tree.get("usage") or {}).get("seconds") or 0),
+                code != "ERR_DMS_SNAPSHOT_INCOMPLETE")
+            store.failed(endpoint, dataset, code, expected_scope=expected)
             frappe.db.commit()
             return result
         complete = "data" in result

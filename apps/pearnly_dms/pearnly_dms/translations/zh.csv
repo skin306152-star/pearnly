@@ -67,6 +67,7 @@ Submission Nonce,提交随机码
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
 The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
+"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
@@ -135,10 +136,12 @@ dms.connect.cache.field.count,上次成功记录数
 dms.connect.cache.field.error_code,最近错误代码
 dms.connect.cache.field.progress,读取进度
 dms.connect.cache.field.state,读取状态
+dms.connect.cache.groups,{0}/{1} 组
 dms.connect.cache.help,选择需要更新的资料，点击后请等待读取完成。
 dms.connect.cache.processed,已处理 {0} 项，总数尚未确定
 dms.connect.cache.processing,正在读取 DMS 主档…
 dms.connect.cache.read,更新数据
+dms.connect.cache.records,{0} 条
 dms.connect.cache.select,请至少选择一组资料。
 dms.connect.cache.stale,旧资料：{0}
 dms.connect.cache.state.failed,读取失败，稍后会自动重试
@@ -269,6 +272,7 @@ dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,本次读取已中断，请再次点击读�
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,请在 LINE 点击读取本次查询；基础资料需请管理员到 DMS 连接页选择读取。
 dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS 资料尚未就绪，请查看读取状态；若未在读取，请在 LINE 或 DMS 连接页手动发起读取。
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
+dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 dms.err.ERR_DMS_SNAPSHOT_STALE,现有 DMS 资料已过期，暂不能使用。请手动重新读取，成功后再试。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
@@ -283,3 +287,5 @@ dms.snapshot.geo_as_of,地址资料时间：{time}；手动读取更新
 dms.snapshot.geo_stale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 dms.snapshot.stale,当前为 {time} 的旧资料，需要时请手动刷新
 {0} processed; total not yet known,已处理 {0} 项，总数尚未确定
+{0} records,{0} 条
+{0}/{1} groups,{0}/{1} 组

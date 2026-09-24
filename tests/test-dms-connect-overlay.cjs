@@ -144,10 +144,10 @@ test('a successful re-bind shows only the reading overlay, not the old probe not
   assert.equal(h.frozen, true, 'the reading overlay is up');
   assert.equal(h.successes.length, 0,
     'no "connection ok · counts" toast: it used to collide with the reading overlay');
-  assert.match(h.freezeMessage, /%/, 'the overlay carries the live percentage');
+  assert.match(h.freezeMessage, /0\/4 组 · 00:00$/, 'the overlay carries live figures from the first frame');
 });
 
-test('binding shows the native mask with a live percentage', async () => {
+test('binding shows the native mask with live group, record and elapsed figures', async () => {
   const h = harness({rows: [
     row('vehicles', 'running', {request_id: ID, progress: {processed: 12, total: 29}}),
     row('customers', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
@@ -155,10 +155,11 @@ test('binding shows the native mask with a live percentage', async () => {
   ]});
   await h.start();
   assert.equal(h.frozen, true, 'a running read masks the page');
-  // 12/29 的车辆组占四分之一 → 10%；客户组已排队但还没读到条数，不虚报。
-  assert.match(h.freezeTexts[0], /10%$/, 'the mask shows a percentage, not a group list');
+  // 一组都还没读完 → 0/4；车辆组已经读到 12 条，所以数字从第一帧就不是死的。
+  assert.match(h.freezeTexts[0], /0\/4 组 · 12 条 · 00:00$/,
+    'the mask carries live figures, not a group list');
   assert(!/车辆|客户|公司|地址/.test(h.freezeTexts[0]),
-    'the group breakdown is replaced by the percentage');
+    'the group breakdown is replaced by the live figures');
   h.setRows([
     row('vehicles', 'running', {request_id: ID, progress: {processed: 25, total: 29}}),
     row('customers', 'running', {request_id: ID, progress: {processed: 4, total: 40}}),
@@ -167,11 +168,11 @@ test('binding shows the native mask with a live percentage', async () => {
   await h.poll();
   assert.equal(h.frozen, true);
   assert.equal(h.freezeCount, 1, 'the mask is reused, not re-created every frame');
-  // 25/29 与 4/40 各占四分之一 → (0.862 + 0.1) / 4 ≈ 24%。
-  assert.match(h.freezeMessage, /24%$/, 'the visible percentage keeps moving');
+  // 12 → 25+4 条：条数一直在动，管理员不用猜它是不是卡住了。
+  assert.match(h.freezeMessage, /0\/4 组 · 29 条/, 'the visible figures keep moving');
 });
 
-test('the percentage never goes backwards and never claims 100% while reading', async () => {
+test('the group count never goes backwards and a full read is never claimed early', async () => {
   const h = harness({rows: [
     row('vehicles', 'running', {request_id: ID, progress: {processed: 28, total: 29}}),
     row('customers', 'running', {request_id: ID, progress: {processed: 39, total: 40}}),
@@ -179,8 +180,9 @@ test('the percentage never goes backwards and never claims 100% while reading', 
     row('geo', 'running', {request_id: ID, progress: {processed: 15000, total: 15729}}),
   ]});
   await h.start();
-  // 28/29、39/40、整组完成、15000/15729 各占四分之一 → 97%，远没有到 100%。
-  assert.match(h.freezeMessage, /97%$/, 'three groups nearly done still shows less than 100%');
+  // 四组里只有公司组读完 → 1/4，离"读完了"还差得远。
+  assert.match(h.freezeMessage, /1\/4 组 · 15,067 条/,
+    'one finished group out of four must not read as done');
   h.setRows([
     row('vehicles', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
     row('customers', 'running', {request_id: ID, progress: {processed: 5, total: 40}}),
@@ -188,7 +190,7 @@ test('the percentage never goes backwards and never claims 100% while reading', 
     row('geo', 'idle'),
   ]);
   await h.poll();
-  assert.match(h.freezeMessage, /97%$/, 'a poll that looks smaller must not rewind the number');
+  assert.match(h.freezeMessage, /1\/4 组/, 'a poll that looks smaller must not rewind the group count');
 });
 
 test('a finished bootstrap releases the mask and reports success exactly once', async () => {
@@ -258,8 +260,8 @@ test('leaving releases the mask and returning resumes the live progress', async 
   await tick();
   await tick();
   assert.equal(h.frozen, true, 'coming back to an in-flight read shows the mask again');
-  // 5/9 → 13%，回来时 7/9 → 19%。
-  assert.match(h.freezeMessage, /19%$/);
+  // 离开前 5 条，回来时 7 条：条数跟着真实读取走，不是记住的旧数字。
+  assert.match(h.freezeMessage, /0\/4 组 · 7 条/);
 });
 
 test('the removed manual trigger leaves no glossary text promising a button', () => {

@@ -1,7 +1,12 @@
 """Server-side OIDC credentials, scoped to the current native Frappe session."""
+import logging
+
 import frappe
 import requests
 from frappe import _
+
+logger = logging.getLogger(__name__)
+SESSION_HINT = "pearnly_oidc_id_token"
 
 
 def cache_key():
@@ -14,14 +19,26 @@ def remember(tokens, subject):
         "id_token": tokens["id_token"], "refresh_token": tokens.get("refresh_token"),
         "subject": subject,
     }, expires_in_sec=get_expiry_in_seconds())
+    # 会话自己再存一份注销凭据：发布流程的 `clear-cache` 会把 Redis 那份带走，
+    # 之后点注销就会掉到身份服务自带的"您要退出登录吗"确认页（2026-09-25 实际遇到）。
+    # 会话数据存在站点数据库里，不随缓存清理消失。
+    try:
+        frappe.session[SESSION_HINT] = tokens["id_token"]
+    except Exception:
+        logger.warning("Could not persist the OIDC logout hint in the session", exc_info=True)
 
 
 def logout_hint():
-    return (frappe.cache.get_value(cache_key()) or {}).get("id_token")
+    return (frappe.session.get(SESSION_HINT)
+            or (frappe.cache.get_value(cache_key()) or {}).get("id_token"))
 
 
 def forget():
     frappe.cache.delete_value(cache_key())
+    try:
+        frappe.session[SESSION_HINT] = None
+    except Exception:
+        logger.warning("Could not clear the OIDC logout hint in the session", exc_info=True)
 
 
 def update_locale(locale):

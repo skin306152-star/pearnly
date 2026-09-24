@@ -67,6 +67,7 @@ Submission Nonce,送信ノンス
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS account is busy. The read retries automatically; please wait.,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
+"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
@@ -135,10 +136,12 @@ dms.connect.cache.field.count,前回成功時の件数
 dms.connect.cache.field.error_code,最新のエラーコード
 dms.connect.cache.field.progress,読み取りの進捗
 dms.connect.cache.field.state,読み取り状態
+dms.connect.cache.groups,{0}/{1} グループ
 dms.connect.cache.help,更新するデータを選択し、読み取りが完了するまでお待ちください。
 dms.connect.cache.processed,{0} 件処理済み。総数は未確定です
 dms.connect.cache.processing,DMS マスターデータを読み取り中…
 dms.connect.cache.read,データを更新
+dms.connect.cache.records,{0} 件
 dms.connect.cache.select,データを1種類以上選択してください。
 dms.connect.cache.stale,古いデータ：{0}
 dms.connect.cache.state.failed,読み取りに失敗しました。後で自動的に再試行します
@@ -269,6 +272,7 @@ dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されまし�
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。
 dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
@@ -283,3 +287,5 @@ dms.snapshot.geo_as_of,住所データ取得時刻：{time}。手動で更新し
 dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 dms.snapshot.stale,{time} 時点の古いデータです。必要に応じて手動で更新してください。
 {0} processed; total not yet known,{0} 件処理済み。総数は未確定です
+{0} records,{0} 件
+{0}/{1} groups,{0}/{1} グループ

@@ -362,6 +362,20 @@ class CatalogueTests(unittest.TestCase):
             self.fail("Expected a failed read")
         self.assertNotIn("DO-NOT-LOG-SYNTHETIC-CREDENTIAL", rendered)
 
+    def test_transport_failure_is_resumable_not_a_lost_generation(self):
+        """传输抖动报可续读的码，调用方据此**保留**断点。
+
+        2026-09-25：这个分支以前和其余失败共用一个码，而失败路径见到那个码就把整组
+        断点清掉重来 —— 数据量大的租户一组要跑很多步，于是永远读不完。
+        """
+        client, transport = setup()
+        def fail(path, data, body):
+            raise RuntimeError("synthetic transport failure")
+        transport.override = fail
+        with self.assertRaises(DmsClientError) as caught:
+            collect(client)
+        self.assertEqual(caught.exception.error_code, "ERR_DMS_SNAPSHOT_RETRY")
+
     def test_campaign_applicable_models_preserve_group_ids_and_checkbox_selection(self):
         record = _parse_form(campaign_form(campaign_group() + campaign_group('3', checked_all=False)), REGISTRY['carcampaign'], '1')
         fields = record['fields']

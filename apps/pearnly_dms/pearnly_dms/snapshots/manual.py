@@ -12,6 +12,7 @@ import uuid
 
 import frappe
 
+from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.snapshots import store
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,10 @@ QUEUE = "dms_sync"
 ACTIVE = {"queued", "running"}
 REQUEST_AGE = 6 * 3600
 LEASE_AGE = 15 * 60
+# 可续读的失败自动接着排下一步：断点还在，所以那是真的往前推进，不是从零重来。
+# 连失败这么多次就停手，交给下一次显式请求或夜间任务，免得对着坏掉的上游空转。
+MAX_RETRIES = 5
+RETRYABLE = "ERR_DMS_SNAPSHOT_RETRY"
 
 
 def _collector(dataset, reader):
@@ -36,7 +41,10 @@ def _actor(endpoint, reader, actor):
     if not actor or actor == "Guest" or not frappe.db.get_value("User", actor, "enabled"):
         raise frappe.PermissionError("Manual DMS reader is unavailable")
     if reader == "sales":
-        owner = frappe.db.get_value("Pearnly ERP Endpoint", endpoint, "owner_user")
+        # Accept the `{"id": …, "name": …}` shape the LINE query path passes in:
+        # a bare dict reached `get_value` before 2026-09-25 and produced
+        # `Unknown column 'id'`, which is what menu 5 reported as a read failure.
+        owner = frappe.db.get_value("Pearnly ERP Endpoint", endpoint_name(endpoint), "owner_user")
         if owner != actor:
             raise frappe.PermissionError("Manual DMS reader does not own this connection")
     elif not {"DMS Admin", "System Manager"}.intersection(frappe.get_roles(actor)):
@@ -76,6 +84,9 @@ def status(endpoint, dataset, *, reader="authority"):
 
 def request(endpoint, dataset, *, reader="authority", params=None, actor=None):
     """Register one user-requested read; duplicate active requests share work."""
+    # One canonical name from here on: it is stored in `refresh_request` and passed
+    # to the queue, and `assert_active` compares both against each other.
+    endpoint = endpoint_name(endpoint)
     _collector(dataset, reader)
     actor = actor or frappe.session.user
     _actor(endpoint, reader, actor)
@@ -99,6 +110,7 @@ def request(endpoint, dataset, *, reader="authority", params=None, actor=None):
             pending = {"id": uuid.uuid4().hex, "state": "queued", "actor": actor,
                 "endpoint": endpoint, "expected_scope": key, "reader": reader,
                 "params": params, "created_at": now, "updated_at": now, "step": 0,
+                "retries": 0,
                 "count": previous.get("count"), "error_code": "",
                 "progress": {"processed": 0, "total": None, "unit": "records"}}
             database.sql(f"UPDATE `tab{store.DT}` SET refresh_request=%s, modified=UTC_TIMESTAMP(6) "
@@ -187,16 +199,24 @@ def execute(endpoint, dataset, reader, request_id, step=0):
         assert_active(endpoint, dataset, request_id, reader=reader)
         progress = {"processed": int(result.get("processed", result.get("count", 0))),
                     "total": result.get("total", result.get("count")), "unit": "records"}
+        retries = int(req.get("retries") or 0)
         if result.get("busy"):
             state = "waiting"
         elif not result.get("ok"):
-            state = "failed"
+            if result.get("error_code") == RETRYABLE and retries < MAX_RETRIES:
+                # 传输抖动、单步租约用完这类失败可以接着读：检查点没有被丢掉。
+                state = "queued"
+                retries += 1
+            else:
+                state = "failed"
         elif result.get("complete", True):
             state = "succeeded"
+            retries = 0
         else:
             state = "queued"
+            retries = 0
         values = {"state": state, "progress": progress,
-                  "error_code": result.get("error_code", ""), "step": step + 1}
+                  "error_code": result.get("error_code", ""), "step": step + 1, "retries": retries}
         if state == "succeeded":
             values["count"] = result.get("count", progress["processed"])
         if _update(endpoint, dataset, reader, request_id, values) and state == "queued":

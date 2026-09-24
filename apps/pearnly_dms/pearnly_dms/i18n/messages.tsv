@@ -5,6 +5,8 @@ Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่าน�
 Update data	更新数据	อัปเดตข้อมูล	データを更新	dms.connect.cache.read
 Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
 Reading DMS master data…	正在读取 DMS 主档…	กำลังอ่านข้อมูลหลักจาก DMS…	DMS マスターデータを読み取り中…	dms.connect.cache.processing
+{0}/{1} groups	{0}/{1} 组	{0}/{1} กลุ่ม	{0}/{1} グループ	dms.connect.cache.groups
+{0} records	{0} 条	{0} รายการ	{0} 件	dms.connect.cache.records
 The read status changed. Refresh the page to check before trying again.	读取状态已变化，请刷新页面确认后再试。	สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง	読み取り状態が変わりました。ページを更新して確認してから再試行してください。	dms.connect.cache.changed
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.	暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。	ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง	読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。	dms.connect.cache.unconfirmed
 Select at least one data group.	请至少选择一组资料。	กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม	データを1種類以上選択してください。	dms.connect.cache.select
@@ -72,3 +74,4 @@ Older address data as of {time}; ask an administrator to refresh if needed	当�
 Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.	DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。	ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ	読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。	dms.card.query.CARD_NOTE
 Data captured at	资料取得时间	เวลาที่ซิงก์ข้อมูล	データ取得時刻	dms.card.query.LBL_READ_AT
 Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of	本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间	สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ	このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻	dms.card.query.TOP_NOTE_PREFIX
+The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.	DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。	การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่	DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。	dms.err.ERR_DMS_SNAPSHOT_RETRY

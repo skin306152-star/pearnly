@@ -8,7 +8,7 @@
 		const datasets = ["vehicles", "customers", "company", "geo"];
 		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
 		let frozen = false, announced = "";
-		let shownPercent = 0;
+		let startedAt = 0, peakDone = 0;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";
 		const active = (row) => ["queued", "running", "waiting"].includes(row.state);
 		let sawActive = false;
@@ -21,42 +21,43 @@
 			// 只在真的有人在读的时候轮询：空闲页面读一次状态就停，不做无谓的定时敲门。
 			if (visible && conn?.connected && statuses.some(active)) timer = setTimeout(pollStatus, 2000);
 		}
-		// 「正在读取 DMS 主档… 58%」：四组各占四分之一，已知总数的组再按"读到几条/共几条"
-		// 细分，所以数字读的过程中一直在动，管理员不用干等一张空白页。
-		// **只往上走**：轮询之间偶发的状态回退不该让进度倒退，那会让人以为出错了。
-		// 四组没全成功之前最多显示 99% —— 不预告"读完了"。
-		function progressPercent() {
-			const share = 1 / datasets.length;
-			let done = 0,
-				reading = false;
-			for (const dataset of datasets) {
-				const row = statuses.find((item) => item.dataset === dataset);
-				if (!row) continue;
-				if (row.state === "succeeded") {
-					done += share;
-					continue;
-				}
-				if (!active(row)) continue;
-				reading = true;
-				const processed = row.progress?.processed || 0;
-				const total = row.progress?.total;
-				if (typeof total === "number" && total > 0) {
-					done += share * Math.min(1, processed / total);
-				}
+		// 「正在读取 DMS 主档… 2/4 组 · 12,480 条 · 00:48」
+		// 为什么不是百分比：一次全量的大部分时间花在排队和等第三方（2026-09-25 实测
+		// 四组一轮约 65 秒，前面还要排 53 秒），而百分比只按"正在读那一组"的条数比例
+		// 算，排队那段时间恒定 0%，管理员会以为页面卡死。换成两样一直在动的东西：
+		// 已完成的组数、读到的条数，以及从开始到现在的耗时。这三个都会随轮询往上走，
+		// 所以每隔两秒至少有一个数字在变。
+		function elapsedText() {
+			const total = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+			const minutes = String(Math.floor(total / 60)).padStart(2, "0");
+			return `${minutes}:${String(total % 60).padStart(2, "0")}`;
+		}
+		function progressSuffix() {
+			const rows = datasets
+				.map((dataset) => statuses.find((item) => item.dataset === dataset))
+				.filter(Boolean);
+			// 已完成组数只往上走：轮询之间偶发的状态回退不该让数字倒退，那看着像出错。
+			peakDone = Math.max(peakDone, rows.filter((row) => row.state === "succeeded").length);
+			const parts = [cacheText("dms.connect.cache.groups")
+				.replace("{0}", String(peakDone)).replace("{1}", String(datasets.length))];
+			const records = rows.reduce((sum, row) => sum + (Number(row.progress?.processed) || 0), 0);
+			if (records > 0) {
+				parts.push(cacheText("dms.connect.cache.records")
+					.replace("{0}", records.toLocaleString("en-US")));
 			}
-			if (!reading) return null;
-			shownPercent = Math.max(shownPercent, done * 100);
-			return Math.min(99, Math.floor(shownPercent));
+			if (startedAt) parts.push(elapsedText());
+			return parts.join(" · ");
 		}
 		function progressText() {
 			const head = cacheText("dms.connect.cache.processing");
-			const percent = progressPercent();
-			return percent === null ? head : `${head} ${percent}%`;
+			const suffix = progressSuffix();
+			return suffix ? `${head} ${suffix}` : head;
 		}
 		function updateOverlay() {
 			const running = statuses.filter((row) => active(row));
 			if (running.length) {
 				sawActive = true;
+				if (!startedAt) startedAt = Date.now();
 				// Already frozen: keep the mask but let its text follow the progress.
 				const text = p.escape(progressText());
 				if (!frozen) { frappe.dom.freeze(text); frozen = true; }
@@ -64,6 +65,9 @@
 				announced = "";
 				return;
 			}
+			// 这一轮读完了：计时和组数峰值都归零，下一轮从头算。
+			startedAt = 0;
+			peakDone = 0;
 			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
 			announceResult();
 		}

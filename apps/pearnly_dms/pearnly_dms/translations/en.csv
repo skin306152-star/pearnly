@@ -67,6 +67,7 @@ Submission Nonce,Submission Nonce
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
+"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.","The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
@@ -135,10 +136,12 @@ dms.connect.cache.field.count,Last successful record count
 dms.connect.cache.field.error_code,Latest error code
 dms.connect.cache.field.progress,Read progress
 dms.connect.cache.field.state,Read status
+dms.connect.cache.groups,{0}/{1} groups
 dms.connect.cache.help,"Select the data to update, then wait for the read to finish."
 dms.connect.cache.processed,{0} processed; total not yet known
 dms.connect.cache.processing,Reading DMS master data…
 dms.connect.cache.read,Update data
+dms.connect.cache.records,{0} records
 dms.connect.cache.select,Select at least one data group.
 dms.connect.cache.stale,Older data: {0}
 dms.connect.cache.state.failed,Read failed — it will be retried automatically
@@ -269,6 +272,7 @@ dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,This read was interrupted. Click Read again
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."
 dms.err.ERR_DMS_SNAPSHOT_PENDING,"DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page."
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
+dms.err.ERR_DMS_SNAPSHOT_RETRY,"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 dms.err.ERR_DMS_SNAPSHOT_STALE,"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
@@ -283,3 +287,5 @@ dms.snapshot.geo_as_of,Address data as of {time}; refreshed manually
 dms.snapshot.geo_stale,Older address data as of {time}; ask an administrator to refresh if needed
 dms.snapshot.stale,Older data as of {time}; refresh manually if needed
 {0} processed; total not yet known,{0} processed; total not yet known
+{0} records,{0} records
+{0}/{1} groups,{0}/{1} groups

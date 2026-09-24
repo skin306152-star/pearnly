@@ -67,6 +67,7 @@ Submission Nonce,nonce การส่ง
 Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
 The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
+"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 The account is busy. Click Read later to continue.,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
@@ -396,10 +397,12 @@ dms.connect.cache.field.count,จำนวนรายการที่อ่�
 dms.connect.cache.field.error_code,รหัสข้อผิดพลาดล่าสุด
 dms.connect.cache.field.progress,ความคืบหน้าการอ่าน
 dms.connect.cache.field.state,สถานะการอ่าน
+dms.connect.cache.groups,{0}/{1} กลุ่ม
 dms.connect.cache.help,เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
 dms.connect.cache.processed,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
 dms.connect.cache.processing,กำลังอ่านข้อมูลหลักจาก DMS…
 dms.connect.cache.read,อัปเดตข้อมูล
+dms.connect.cache.records,{0} รายการ
 dms.connect.cache.select,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 dms.connect.cache.stale,ข้อมูลเก่า ณ {0}
 dms.connect.cache.state.failed,อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ
@@ -530,6 +533,7 @@ dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,การอ่านครั้งนี�
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,กรุณากดอ่านข้อมูลครั้งนี้ใน LINE สำหรับข้อมูลพื้นฐาน ให้ผู้ดูแลเลือกอ่านที่หน้าการเชื่อมต่อ DMS
 dms.err.ERR_DMS_SNAPSHOT_PENDING,ข้อมูล DMS ยังไม่พร้อม กรุณาดูสถานะการอ่าน หากยังไม่มีงานอ่าน ให้กดอ่านใน LINE หรือหน้าการเชื่อมต่อ DMS
 dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
+dms.err.ERR_DMS_SNAPSHOT_RETRY,การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 dms.err.ERR_DMS_SNAPSHOT_STALE,ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณากดอ่านข้อมูลใหม่ แล้วลองอีกครั้งเมื่อสำเร็จ
 dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
@@ -544,3 +548,5 @@ dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} อั
 dms.snapshot.geo_stale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 dms.snapshot.stale,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
 {0} processed; total not yet known,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
+{0} records,{0} รายการ
+{0}/{1} groups,{0}/{1} กลุ่ม
