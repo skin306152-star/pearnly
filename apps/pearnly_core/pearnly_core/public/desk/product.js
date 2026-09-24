@@ -243,6 +243,24 @@ frappe.provide("frappe.pearnly");
 		Object.values(form.fields_dict).forEach(field => p.tidy_number(field));
 		return form;
 	};
+	// 排序要按**看得见的文字**排。框架的 `_sortRows` 拿单元格的**原始值**直接比大小，而我们很多列的
+	// 原始值就是**拼好的 HTML**（商品名带链接、差异带红字）——那样比出来等于按内部单据号排，
+	// 用户看到的顺序是乱的；数量若是 `1,204` 这种带千分位的字符串，还会按字符排（`9` > `1,204`）。
+	// 所以原始值统一做成"**排序键 + 分隔符 + 要显示的 HTML**"：
+	//   · 排序键：能当数字看就按数值（固定 18 位整数 + 6 位小数，负号单独一档，保证负数排在前面），
+	//     否则按文字；框架只比字符串，所以键要自己补零；
+	//   · 显示仍然是原来那份 HTML，由包装过的 `format` 切回来（框架的单元格标题也取显示内容，
+	//     所以悬停提示里不会漏出键）。
+	// 这样列头菜单里官方的"升序 / 倒序 / 重置排序"对每一张表都排得对。
+	const SORT_SEP = "\u0000";
+	const sort_key = (html) => {
+		const text = $("<div>").append(html == null ? "" : String(html)).text().trim();
+		const cleaned = text.replace(/[,\s\u00a0]/g, "");
+		const number = cleaned === "" ? NaN : Number(cleaned);
+		if (!Number.isFinite(number)) return `s:${text}`;
+		const [whole, fraction] = Math.abs(number).toFixed(6).split(".");
+		return `n:${number < 0 ? 0 : 1}${whole.padStart(18, "0")}.${fraction}`;
+	};
 	p.table = async (parent, columns, data, options = {}) => {
 		await frappe.require("report.bundle.js");
 		parent.empty();
@@ -250,13 +268,28 @@ frappe.provide("frappe.pearnly");
 			parent.append(frappe.views.QueryReport.prototype.get_no_result_message());
 			return { destroy: () => parent.empty() };
 		}
+		const specs = columns.map((column) =>
+			typeof column === "string"
+				? { name: column, editable: false, format: p.escape }
+				: { editable: false, ...column },
+		);
+		const rows = data.map((row) => specs.map((spec, index) => {
+			const value = row[index];
+			const html = spec.format ? spec.format(value, row, spec, data) : (value == null ? "" : String(value));
+			return `${sort_key(html)}${SORT_SEP}${html}`;
+		}));
 		const table = new window.DataTable(parent[0], {
-			columns: columns.map((column) =>
-				typeof column === "string"
-					? { name: column, editable: false, format: p.escape }
-					: { editable: false, ...column },
-			),
-			data,
+			columns: specs.map((spec) => ({
+				...spec,
+				// 切回"排序键之外"的那段：就是原来要显示的 HTML。
+				format: (value, row, column, all) => {
+					const raw = value == null ? "" : String(value);
+					const cut = raw.indexOf(SORT_SEP);
+					return cut >= 0 ? raw.slice(cut + 1)
+						: (spec.format ? spec.format(value, row, column, all) : p.escape(raw));
+				},
+			})),
+			data: rows,
 			layout: "fluid",
 			noDataMessage: __("No Data"),
 			serialNoColumn: false,
