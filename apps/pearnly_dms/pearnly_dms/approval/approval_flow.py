@@ -249,7 +249,9 @@ def _decide(
         return
 
     if not approve:
-        approval_store.finish(str(req["id"]), "rejected", expected_claim=req)
+        if not approval_store.finish(str(req["id"]), "rejected", expected_claim=req):
+            _reply(reply_token, approval_cards.TXT_REQ_STALE)
+            return
         _reply(reply_token, approval_cards.TXT_REQ_REJECTED_ADMIN)
         _notify_operator(req, approval_cards.TXT_REQ_REJECTED_SALES)
         return
@@ -283,8 +285,8 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
 
     endpoint = resolve_dms_endpoint(tenant_user, None)
     if not endpoint:
-        finish("pending")
-        _push(admin_line_user_id, approval_cards.TXT_APPROVER_NO_ENDPOINT)
+        if finish("pending"):
+            _push(admin_line_user_id, approval_cards.TXT_APPROVER_NO_ENDPOINT)
         return
 
     draft_wrap = req.get("draft") or {}
@@ -321,7 +323,8 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
     if conflict:
         # The old approval authorizes only its original baseline/diff, never the
         # newly discovered change. Terminalize it before issuing another review.
-        finish("rejected")
+        if not finish("rejected"):
+            return  # A different claim owns the request and all subsequent cards.
         operator_id = str(req.get("operator_user_id") or "")
         luid = roster_store.line_user_id_of(operator_id)
         current = store.get_session(luid) if luid else None
@@ -337,12 +340,14 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
                 _send(luid, card)
         _push(admin_line_user_id, (result.get("error_friendly") or {}).get("th") or cards.TXT_SAVE_FAIL)
     elif success:
-        finish("approved")
+        if not finish("approved"):
+            return
         _push(admin_line_user_id, approval_cards.TXT_REQ_APPROVED_ADMIN)
         _notify_operator(req, approval_cards.TXT_REQ_APPROVED_SALES)
     else:
         # A durable unknown dispatch cannot be authorized for replay by another approver.
-        finish("rejected" if (result.get("response_body") or {}).get("submitted") else "pending")
+        if not finish("rejected" if (result.get("response_body") or {}).get("submitted") else "pending"):
+            return
         friendly = (result.get("error_friendly") or {}).get("th") or ""
         _push(
             admin_line_user_id,
