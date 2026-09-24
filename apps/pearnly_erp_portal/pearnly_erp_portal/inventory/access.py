@@ -1,14 +1,40 @@
 """Native inventory records use the same capability and warehouse scope as services."""
 import frappe
+from frappe import _
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.masters import company
 from pearnly_erp_portal.masters import access as scope
 
+_ENTRY_WRITE = object()
+
 
 def entry_permission(doc, ptype="read", user=None, **kwargs):
+    if ptype not in scope.READ_TYPES:
+        return False
     return bool(guard.has("stock." + str(doc.direction), user)
                 and scope.warehouse_allowed(doc.warehouse, user))
+
+
+def validate_entry_write(doc, method=None, *args, **kwargs):
+    """Only the service may change an entry, including its lines and posting state."""
+    context = getattr(frappe.local, "stock_entry_service_write", None)
+    if not context or context[0] is not doc or context[1] is not _ENTRY_WRITE:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def write_entry(doc, method):
+    """Bind an unforgeable write capability to this document for one service save."""
+    if doc.doctype != "ERP Stock Entry" or method not in ("insert", "save"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    previous = getattr(frappe.local, "stock_entry_service_write", None)
+    ignored = doc.flags.ignore_permissions
+    frappe.local.stock_entry_service_write = (doc, _ENTRY_WRITE)
+    try:
+        return getattr(doc, method)(ignore_permissions=True)
+    finally:
+        frappe.local.stock_entry_service_write = previous
+        doc.flags.ignore_permissions = ignored
 
 
 def entry_query(user=None):

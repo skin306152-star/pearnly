@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils import now
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import contracts, positions, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, positions, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
 
 DOCTYPE = "ERP Stock Entry"
@@ -85,7 +85,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
             "warehouse": line["warehouse"], "location": line["location"],
         } for line in lines],
     })
-    doc.insert(ignore_permissions=numbering_direction == "stocktake")
+    access.write_entry(doc, "insert")
     # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
     if _posting_now(submit):
         _post(doc)
@@ -157,7 +157,7 @@ def update_entry(name, **changes):
                 "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
                 "warehouse": line["warehouse"], "location": line["location"],
             })
-    doc.save()
+    access.write_entry(doc, "save")
     if _posting_now(submit):
         _post(doc)
     frappe.db.commit()
@@ -189,7 +189,7 @@ def _post(doc) -> dict:
     )
     doc.status = "submitted"
     doc.submitted_at = now()
-    doc.save(ignore_permissions=True)
+    access.write_entry(doc, "save")
     return result
 
 
@@ -218,6 +218,6 @@ def void_entry(name):
                             client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}",
                             company=warehouses.company_of(doc.warehouse))
     doc.status = "void"
-    doc.save(ignore_permissions=True)
+    access.write_entry(doc, "save")
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status}

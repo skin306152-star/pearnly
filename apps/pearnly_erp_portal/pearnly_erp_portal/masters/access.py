@@ -43,6 +43,21 @@ def warehouse_list_query(user=None):
     return company_query("ERP Warehouse", user, "company") if guard.has("stock.read", user) else "1=0"
 
 
+def company_write_allowed(doc, user=None):
+    """Authorize both persisted and supplied ownership before native updates."""
+    if not company_allowed(doc.company, user):
+        return False
+    previous = frappe.db.get_value(doc.doctype, doc.name, ["company"], as_dict=True) if doc.name else None
+    return previous is None or company_allowed(previous.company, user)
+
+
+def validate_company_unchanged(doc, method=None):
+    """Reassigning a master would also reassign all historical records linked to it."""
+    previous = frappe.db.get_value(doc.doctype, doc.name, ["company"], as_dict=True) if doc.name else None
+    if previous is not None and previous.company != doc.company:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
 def company_permission(doc, ptype="read", user=None, **kwargs):
     user = user or frappe.session.user
     read = ptype in READ_TYPES
@@ -55,4 +70,5 @@ def warehouse_permission(doc, ptype="read", user=None, **kwargs):
     user = user or frappe.session.user
     if not guard.has("stock.read" if ptype in READ_TYPES else "warehouses.manage", user):
         return False
-    return company_allowed(doc.company, user)
+    return (company_allowed(doc.company, user) if ptype in READ_TYPES
+            else company_write_allowed(doc, user))

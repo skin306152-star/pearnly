@@ -69,6 +69,18 @@ class EntryCompanyIntegrity(unittest.TestCase):
         return tuple(stock.current_balance(self.product, place["warehouse"]).qty
                      for place in (self.a, self.b))
 
+    def legacy_sale_draft(self):
+        # Fixture-only native insertion models a draft saved before direct creation
+        # was restricted. Frappe stamps a new document's owner from the session user.
+        frappe.set_user(self.user)
+        doc = frappe.get_doc({"doctype": "ERP Sales Document", "company": self.b["name"],
+            "status": "draft", "doc_kind": "receipt", "doc_date": "2026-09-24",
+            "buyer_name": self.prefix + " buyer", "lines": self.payload("sales")["lines"]})
+        doc.insert(ignore_permissions=True)
+        frappe.db.commit()
+        self.assertEqual(frappe.db.get_value(doc.doctype, doc.name, "owner"), self.user)
+        return doc
+
     def assert_posted_in_b(self, module, doctype, kind):
         before = self.balances()
         payload, request = self.payload(kind), uuid4().hex
@@ -162,19 +174,49 @@ class EntryCompanyIntegrity(unittest.TestCase):
         doc = frappe.get_doc("Purchase Document", result["name"])
         self.assertEqual(doc.company, self.b["name"])
         self.assertEqual(doc.lines[0].warehouse, self.b["warehouse"])
-        # Existing legacy draft fixture; ordinary users need not retain raw REST creation.
-        frappe.set_user("Administrator")
-        sale_draft = frappe.get_doc({"doctype": "ERP Sales Document", "company": self.b["name"],
-            "owner": self.user,
-            "status": "draft", "doc_kind": "receipt", "doc_date": "2026-09-24",
-            "buyer_name": self.prefix + " buyer", "lines": self.payload("sales")["lines"]})
-        sale_draft.insert()
-        frappe.db.commit()
-        frappe.set_user(self.user)
+        sale_draft = self.legacy_sale_draft()
+        self.assertEqual(company.active_company(), self.a["name"])
+        self.assertTrue(frappe.has_permission("ERP Sales Document", "write", doc=sale_draft.name))
         result = sales.post(self.payload("sales", company=self.a["name"]), name=sale_draft.name,
                             request_id=uuid4().hex)
         self.assertEqual(frappe.db.get_value("ERP Sales Document", result["name"], "company"), self.b["name"])
         self.assertEqual(frappe.get_doc("ERP Sales Document", result["name"]).lines[0].warehouse, self.b["warehouse"])
+        self.assertEqual(company.active_company(), self.a["name"])
+
+    def test_saved_drafts_recheck_ownership_and_revoked_company(self):
+        purchase_draft = legacy_purchase.create_purchase(supplier=self.supplier,
+            supplier_name=self.prefix + " supplier", doc_date="2026-09-24", company=self.b["name"],
+            has_vat=False, lines=self.payload("purchase")["lines"])
+        sale_draft = self.legacy_sale_draft()
+        drafts = ((purchase, "purchase", "Purchase Document", purchase_draft["name"]),
+                  (sales, "sales", "ERP Sales Document", sale_draft.name))
+        before = self.balances()
+        try:
+            # Both users can access B; document ownership must still reject a peer.
+            frappe.set_user("Administrator")
+            team.set_member_companies(self.restricted, companies=[self.a["name"], self.b["name"]])
+            frappe.set_user(self.restricted)
+            company.set_active_company(self.a["name"])
+            for module, kind, doctype, name in drafts:
+                with self.subTest(kind=kind, reason="owner"):
+                    with self.assertRaises(frappe.PermissionError):
+                        module.post(self.payload(kind), name=name, request_id=uuid4().hex)
+                    self.assertEqual(frappe.db.get_value(doctype, name, "status"), "draft")
+            # The original owner also loses access when B is removed from their grant.
+            frappe.set_user("Administrator")
+            team.set_member_companies(self.user, companies=[self.a["name"]])
+            frappe.set_user(self.user)
+            company.set_active_company(self.a["name"])
+            for module, kind, doctype, name in drafts:
+                with self.subTest(kind=kind, reason="company revoked"):
+                    with self.assertRaises(frappe.PermissionError):
+                        module.post(self.payload(kind), name=name, request_id=uuid4().hex)
+                    self.assertEqual(frappe.db.get_value(doctype, name, "status"), "draft")
+            self.assertEqual(self.balances(), before)
+        finally:
+            frappe.set_user("Administrator")
+            team.set_member_companies(self.user, companies=[self.a["name"], self.b["name"]])
+            team.set_member_companies(self.restricted, companies=[self.a["name"]])
 
     def test_legacy_submit_and_stock_entry_update_keep_saved_company(self):
         before = self.balances()

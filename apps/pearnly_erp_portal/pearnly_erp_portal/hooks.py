@@ -472,3 +472,9 @@ permission_query_conditions.update({
     "ERP POS Terminal": "pearnly_erp_portal.cashier.access.terminal_query",
 })
 doc_events = {"DocShare": {"validate": "pearnly_erp_portal.access.sharing.validate_share"}}
+for _doctype in ("ERP Warehouse", "ERP POS Terminal"):
+    doc_events[_doctype] = {"before_validate": "pearnly_erp_portal.masters.access.validate_company_unchanged"}
+doc_events["ERP Stock Entry"] = {
+    _event: "pearnly_erp_portal.inventory.access.validate_entry_write"
+    for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
+}

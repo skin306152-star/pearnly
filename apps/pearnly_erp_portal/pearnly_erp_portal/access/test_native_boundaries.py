@@ -13,7 +13,7 @@ from frappe import client
 from pearnly_erp_portal.access import guard, menu
 from pearnly_erp_portal.access.setup import sync_roles
 from pearnly_erp_portal.cashier import sales, shifts
-from pearnly_erp_portal.inventory import api, count, openings, stock
+from pearnly_erp_portal.inventory import api, count, documents, openings, stock
 from pearnly_erp_portal.masters import company, selection
 from pearnly_erp_portal.products import service as products
 from pearnly_erp_portal.team import service as team
@@ -39,7 +39,8 @@ class NativeBoundaries(unittest.TestCase):
         cls.product = products.create_product(product_name=cls.prefix, unit="pcs",
                                               default_cost=17, unit_price=29)["name"]
         cls.users = {}
-        for key in ("purchase", "inventory", "stock-card", "stock-count", "cashier", "pos-shifts", "team", "products"):
+        for key in ("purchase", "inventory", "stock-card", "stock-count", "stock-in", "warehouses", "company",
+                    "cashier", "pos-shifts", "team", "products"):
             name = cls.prefix + key + "@example.test"
             team.add_member(username=cls.prefix + key.replace("-", ""), email=name, password="lab-only",
                             roles=[menu.role(key)], companies=[cls.a["name"]])
@@ -54,7 +55,7 @@ class NativeBoundaries(unittest.TestCase):
         cls.owner = cls.prefix + "owner@example.test"
         frappe.get_doc({"doctype": "User", "email": cls.owner, "first_name": cls.prefix + "owner",
             "send_welcome_email": 0, "roles": [{"role": "Desk User"}, {"role": "ERP Admin"}]}).insert()
-        cls.ledger, cls.counts, cls.receipts, cls.shift_docs = {}, {}, {}, {}
+        cls.ledger, cls.counts, cls.receipts, cls.shift_docs, cls.entries, cls.terminals = {}, {}, {}, {}, {}, {}
         for key, target in (("a", cls.a), ("b", cls.b)):
             company.set_active_company(target["name"])
             moved = stock.apply_movement(product=cls.product, warehouse=target["warehouse"],
@@ -62,7 +63,11 @@ class NativeBoundaries(unittest.TestCase):
             cls.ledger[key] = {"movement": moved["movement"], "balance": frappe.db.get_value(
                 "ERP Stock Balance", {"product": cls.product, "warehouse": target["warehouse"]}, "name")}
             cls.counts[key] = count.create_count(title=cls.prefix + key, warehouse=target["warehouse"])["name"]
+            cls.entries[key] = documents.create_entry(direction="in" if key == "a" else "out",
+                posting_date="2026-09-24", warehouse=target["warehouse"],
+                lines=[{"product": cls.product, "qty": 1, "unit_cost": 17}], submit=True, commit=False)["name"]
             terminal = frappe.db.get_value("ERP POS Terminal", {"company": target["name"]}, "name")
+            cls.terminals[key] = terminal
             shift = frappe.get_doc({"doctype": "ERP Shift", "terminal": terminal,
                 "cashier": cls.users["cashier"], "status": "open", "opened_at": "2026-09-24 09:00:00"}).insert()
             cls.shift_docs[key] = shift.name
@@ -100,7 +105,8 @@ class NativeBoundaries(unittest.TestCase):
             self.denied(client.get, doctype, self.ledger["a"][field])
             self.assertFalse(frappe.has_permission(doctype, "read", doc=self.ledger["b"][field]))
         native = client.get("ERP Product", self.product)
-        self.assertIsNone(native.get("default_cost"))
+        self.assertEqual(frappe.db.get_value("ERP Product", self.product, "default_cost"), 17)
+        self.assertEqual(native["default_cost"], 0.0)
         self.as_user("inventory")
         rows = client.get_list("ERP Stock Balance", fields=["name", "unit_cost", "warehouse"])
         self.assertIn(self.ledger["a"]["balance"], {row.name for row in rows})
@@ -112,7 +118,8 @@ class NativeBoundaries(unittest.TestCase):
         self.as_user(self.mixed)
         frappe.conf.pearnly_features = ["purchase"]
         self.assertFalse(guard.cost_visible())
-        self.assertIsNone(client.get("ERP Product", self.product).get("default_cost"))
+        self.assertEqual(frappe.db.get_value("ERP Product", self.product, "default_cost"), 17)
+        self.assertEqual(client.get("ERP Product", self.product)["default_cost"], 0.0)
         self.assertIsNone(products.get_product(self.product)["default_cost"])
         choices = selection.api_choices("product", "purchase", self.prefix)
         self.assertTrue(choices)
@@ -222,3 +229,87 @@ class NativeBoundaries(unittest.TestCase):
         products.update_product(self.product, min_stock=4)
         self.assertEqual(products.get_product(self.product)["min_stock"], 4)
         self.assertIsNone(products.get_product(self.product)["default_cost"])
+
+    def test_native_master_updates_check_old_company_and_keep_history_immutable(self):
+        for doctype, role, names, label in (
+            ("ERP Warehouse", "warehouses", {"a": self.a["warehouse"], "b": self.b["warehouse"]}, "warehouse_name"),
+            ("ERP POS Terminal", "company", self.terminals, "terminal_name"),
+        ):
+            self.as_user(role)
+            stolen = frappe.get_doc(doctype, names["b"]).as_dict()
+            stolen["company"] = self.a["name"]
+            if doctype == "ERP POS Terminal":
+                stolen["warehouse"] = self.a["warehouse"]
+            self.assertFalse(frappe.has_permission(doctype, "write", doc=frappe.get_doc(stolen)))
+            self.denied(client.save, stolen)
+            self.assertEqual(frappe.db.get_value(doctype, names["b"], "company"), self.b["name"])
+
+            allowed = frappe.get_doc(doctype, names["a"]).as_dict()
+            allowed[label] = self.prefix + " renamed"
+            client.save(allowed)
+            self.assertEqual(frappe.db.get_value(doctype, names["a"], label), allowed[label])
+
+            # Even a trusted ignore_permissions save must not reinterpret historical links.
+            frappe.set_user("Administrator")
+            moved = frappe.get_doc(stolen)
+            moved.flags.ignore_validate = True
+            self.denied(moved.save, ignore_permissions=True)
+            self.assertEqual(frappe.db.get_value(doctype, names["b"], "company"), self.b["name"])
+
+    def test_native_stock_entry_updates_cannot_take_ownership_or_bypass_posting(self):
+        self.as_user("stock-in")
+        stolen = frappe.get_doc("ERP Stock Entry", self.entries["b"]).as_dict()
+        stolen.update(direction="in", warehouse=self.a["warehouse"], status="draft")
+        for row in stolen["lines"]:
+            row.update(warehouse=self.a["warehouse"], qty=99)
+        self.denied(client.save, stolen)
+        self.assertEqual(frappe.db.get_value("ERP Stock Entry", self.entries["b"], "warehouse"), self.b["warehouse"])
+
+        tampered = frappe.get_doc("ERP Stock Entry", self.entries["a"]).as_dict()
+        tampered["status"] = "draft"
+        tampered["lines"][0]["qty"] = 99
+        tampered["flags"] = {"ignore_permissions": True, "ignore_validate": True, "stock_entry_service_write": True}
+        self.denied(client.save, tampered)
+        self.denied(client.set_value, "ERP Stock Entry Line", tampered["lines"][0]["name"], "qty", 99)
+        self.denied(client.delete, "ERP Stock Entry", self.entries["a"])
+        frappe.set_user("Administrator")
+        bypass = frappe.get_doc(tampered)
+        bypass.flags.ignore_validate = True
+        bypass.flags.stock_entry_service_write = True
+        self.denied(bypass.save, ignore_permissions=True)
+        self.assertEqual(frappe.db.get_value("ERP Stock Entry", self.entries["a"], "status"), "submitted")
+        self.assertEqual(frappe.db.get_value("ERP Stock Entry Line", tampered["lines"][0]["name"], "qty"), 1)
+
+        new_entry = frappe.get_doc({"doctype": "ERP Stock Entry", "direction": "in",
+            "warehouse": self.a["warehouse"], "posting_date": "2026-09-24", "status": "submitted",
+            "lines": [{"product": self.product, "qty": 99, "warehouse": self.a["warehouse"]}]})
+        self.denied(new_entry.insert, ignore_permissions=True)
+
+    def test_native_stock_entry_rename_cannot_skip_service_boundary(self):
+        from frappe.handler import run_doc_method
+
+        self.as_user("stock-in")
+        renamed = self.prefix + "-native-rename"
+        savepoint = "entry_rename_" + uuid4().hex
+        frappe.db.savepoint(savepoint)
+        try:
+            self.denied(run_doc_method, "rename", dt="ERP Stock Entry", dn=self.entries["a"],
+                        args={"name": renamed, "validate_rename": False})
+        finally:
+            # after_rename runs after SQL; the HTTP request rolls back on the denial.
+            frappe.db.rollback(save_point=savepoint)
+        self.assertTrue(frappe.db.exists("ERP Stock Entry", self.entries["a"]))
+        self.assertFalse(frappe.db.exists("ERP Stock Entry", renamed))
+
+    def test_stock_entry_services_still_update_post_and_void(self):
+        self.as_user("stock-in")
+        before = stock.current_balance(self.product, self.a["warehouse"]).qty
+        created = documents.create_entry(direction="in", posting_date="2026-09-24",
+            warehouse=self.a["warehouse"], lines=[{"product": self.product, "qty": 1, "unit_cost": 17}])
+        self.assertEqual(created["status"], "draft")
+        documents.update_entry(created["name"], lines=[{"product": self.product, "qty": 2, "unit_cost": 17}])
+        self.assertEqual(documents.get_entry(created["name"])["lines"][0]["qty"], 2)
+        self.assertEqual(documents.submit_entry(created["name"])["status"], "submitted")
+        self.assertEqual(stock.current_balance(self.product, self.a["warehouse"]).qty, before + 2)
+        self.assertEqual(documents.void_entry(created["name"])["status"], "void")
+        self.assertEqual(stock.current_balance(self.product, self.a["warehouse"]).qty, before)

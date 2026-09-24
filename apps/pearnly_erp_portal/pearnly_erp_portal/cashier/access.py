@@ -51,7 +51,9 @@ def record_query(user=None, doctype=None):
 
 def terminal_permission(doc, ptype="read", user=None, **kwargs):
     capability = "stock.read" if ptype in scope.READ_TYPES else "company.manage"
-    return bool(guard.has(capability, user) and scope.company_allowed(doc.company, user)
+    allowed = (scope.company_allowed(doc.company, user) if ptype in scope.READ_TYPES
+               else scope.company_write_allowed(doc, user))
+    return bool(guard.has(capability, user) and allowed
                 and (not doc.warehouse or frappe.db.get_value("ERP Warehouse", doc.warehouse, "company") == doc.company))
 
 

@@ -248,7 +248,7 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
         active = current_shift()
         if not active:
             return []
-        shift = active["name"]
+        shift = active["shift"]["name"]
     else:
         guard.require("receipts.read")
     # 一租户多公司：只看当前公司那几个仓库的小票。

@@ -280,10 +280,13 @@ class EntryFlowAcceptance(unittest.TestCase):
 
     def test_cashier_leaf_shift_sale_replay_and_settlement(self):
         self.as_role("cashier")
+        self.assertEqual(cashier_api.api_current_sales(), [])
         found = cashier_api.api_counter_lookup(value=self.prefix + "-cashier", terminal=self.terminal)
         self.assertEqual((found["name"], found["warehouse"], found["qty_on_hand"]),
                          (self.products["cashier"], self.warehouse, 8))
         shift = cashier_api.api_open_shift(terminal=self.terminal, opening_float=100, note=self.prefix)
+        active = cashier_api.api_current_shift(terminal=self.terminal)
+        self.assertEqual(active["shift"]["name"], shift["name"])
         args = {"terminal": self.terminal, "shift": shift["name"], "client_uuid": uuid4().hex,
                 "lines": [{"product": self.products["cashier"], "description": self.prefix + " cashier",
                            "qty": 2, "unit": "pcs", "unit_price": 20}],
@@ -301,6 +304,7 @@ class EntryFlowAcceptance(unittest.TestCase):
         closed = cashier_api.api_close_shift(name=shift["name"], counted_cash=140)
         self.assertEqual(closed["cash_diff"], 0)
         self.assertIsNone(cashier_api.api_current_shift(terminal=self.terminal))
+        self.assertEqual(cashier_api.api_current_sales(), [])
         self.as_role("purchase")
         self.denied(cashier_api.api_open_shift, terminal=self.terminal)
         self.denied(cashier_api.api_create_sale, **args)
