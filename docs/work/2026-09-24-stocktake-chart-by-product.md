@@ -577,6 +577,87 @@
   客户的例子在表里）。要不要统一（服务端也按语言排）另说，本轮没动。
 - 未推送、未合并、未部署；真机验收、测试环境验收都没有。
 
+## 第十二轮：合并、推送与仅 ERP 发布（2026-09-25 01:30–02:00 Asia/Bangkok）
+
+用户指令（01:35）："推上去吧，另一个窗口在做 dms，看下有没碰到共享文件，如果没问题就合并推送部署。"
+即：先做共享文件冲突核对，通过后合并、推送、部署。
+
+### 共享文件核对（先做，结论：零重叠）
+
+- 本任务的改动文件 42 个（`git diff --name-only main...codex/stocktake-chart`）。
+- 同仓在跑的工作树逐个比对（各自的 `main...HEAD` 加工作区改动）：
+  `codex/dms-five-minute-snapshots`（DMS 窗口，143 个文件）、`codex/testenv-per-app`（8 个）、
+  `codex/dms-line-full-flow-fix`（1 个）、`cowork-backend-migration` / `erp-*` / `stocktake-workbench`
+  / `windows-testenv`（各 0 个）。**交集为空**。
+- 我改到共享层 `pearnly_core` 的 8 个文件（`desk/list.js`、`desk/product.js`、`desk/product.css`、
+  `i18n/messages.tsv`、四个 `translations/*.csv`）；DMS 窗口分支**没有**改动 `pearnly_core` 任何文件，
+  也没有改到我碰过的任何文件。文档命名也不撞（他们 4 份 dms-*，我 1 份 stocktake-chart-*）。
+- 结论：不需要"共享组件同一批只由一个窗口改"的协调让步；DMS 分支的未验证成果整条不纳入本轮发布。
+
+### 合并与推送
+
+- 合并前：本地/远端 main 均为 `3c5e4a3`，本分支领先 29 个提交、main 领先 0 个（纯快进），main 工作区干净。
+- 合并前跑了 CI 同名闸门全部通过（见下"门槛"），其中包含共享层影响的 DMS 侧检查。
+- `git merge --ff-only codex/stocktake-chart` → main = `fd5a9790cfbe4f72d72f503ef687c7399976764e`；推送后回读
+  `origin/main` 与本地 HEAD **一致**（`3c5e4a3..fd5a979`）。
+
+### 门槛（CI 同名清单逐条实跑）
+
+`tests/test_architecture_guard.py`、`tests/test_native_desk_contract.py`、
+`tests/test_product_feature_catalog.py`、`tests/test_queue_targets.py`、
+`scripts/test-dms-call-contracts.py`、`scripts/test-dms-customer-identity.py`、
+`scripts/check-architecture.py`（0 违规）、`scripts/check-dms-offline.py`（27 通过 / 0 失败）、
+`scripts/production/test-provision-agent.py`、`scripts/check-production-capacity.py`、
+`scripts/production/test-activate-product.py`、`node tests/test-native-desk.cjs`、
+`node --test tests/test_pos_lifecycle.js`（9 pass）、`tests/test-roster-selection.cjs`、
+`tests/test-records-selection.cjs`、`node scripts/production/test-issue-actions.cjs`、
+`tests/test_welcome_email.py`、`scripts/i18n-build.py --check`、`git diff --check` 全通过；
+另加本轮新增的 `tests/test_listing_sort.py`（5 条）。
+
+- 本机默认 `python3` 是 macOS 自带 3.9，`test_product_feature_catalog.py` 与 `test_welcome_email.py`
+  会因 `int | None` 注解报 `TypeError`；换成 `/opt/homebrew/bin/python3.14` 后通过。该失败在**干净的
+  main 上同样复现**，与本轮改动无关（属本机解释器问题，不是代码问题）。
+- `scripts/check-desk-ui.py` 报 2 处违规（`company.js` 的 Table 紧跟 Column Break、`stock-opening.js` 同类），
+  在干净 main 上逐字复现，**不是本轮引入**，且该脚本不在 CI 清单里；本轮不顺手改（避免扩大范围）。
+
+### 镜像、投递与激活
+
+| 步骤 | 结果 |
+| --- | --- |
+| 生产镜像构建 | 开发检查后触发 `build-production.yml`（run [36042640623](https://github.com/skin306152-star/pearnly/actions/runs/36042640623)，main）success，约 6.5 分钟 |
+| 镜像 | `ghcr.io/skin306152-star/pearnly/frappe@sha256:5ea2e4850895e8edfd570d46aa366c9bf09d1bbeb5f4c6cc8e661a920e3d90b0` |
+| 镜像标签回读 | `org.opencontainers.image.revision=fd5a9790cfbe4f72d72f503ef687c7399976764e`（发布代码 SHA） |
+| 投递（只拉取不启动） | `stage-production.yml`（run [36043430288](https://github.com/skin306152-star/pearnly/actions/runs/36043430288)）success |
+| 部署工具同源检查 | 服务器上 `check-deploy-image.py <image> /opt/pearnly/deploy` → **Deploy tooling matches this image**（`infrastructure/production` 与 `scripts/production` 自 695325f1 起未变，无需同步） |
+| 激活 | `bash /opt/pearnly/deploy/scripts/production/activate-product.sh <image> erp`，**2 分 21 秒**，输出 `Product erp activated with verified image.`（维护模式 → 排空 → 旧镜像整站备份 → migrate → enable-scheduler → 重建 7 个服务 → 关维护） |
+
+### 发布后回读（只读）
+
+- **7 个 ERP 容器**（web / worker / scheduler / socketio / frontend / ocr-worker / ocr-dispatch）全部运行新 digest，
+  标签均为发布代码 SHA `fd5a979`；`/desk/pearnly-products` 返回 302（未登录跳登录，预期），静态资源 200，
+  erp-web 近 6 分钟日志无 traceback/error。
+- **其他产品与底座没被碰**：DMS 7 个容器 ID 与启动时间逐项与激活前一致（`3afd6dbc21af` / `c6a5b20bc447` /
+  `98d5dd1d3386` / `126cbae9cc00` / `76c20b31e4aa` / `247b803a7835` / `8d32bcb655f0`，均 Up 18 hours）；
+  billing-web、keycloak、mariadb、两个 redis 的容器 ID 与 Up 时间也未变。
+- **镜像记录**：`active-image-erp.json` → 本次 digest；全局 `active-image.json` 仍为 `a11eb9e…`（未迁移产品保持旧候选）。
+- **站点状态**：`maintenance_mode=0`、`enable_scheduler=True`、`pause_scheduler=0`；已装 App 与版本不变。
+- **恢复材料**：本次迁移前整站备份 `20260925_014936-testerp_pearnly_com-{database,files,private-files,site_config_backup}`（站点私有 backups，保留）。
+- **改动内容逐一核对**：`695325f1..fd5a979` 的 **39 个 App 文件**在 erp-web 容器内逐个 SHA-256 比对，
+  缺失 0、内容不一致 0（另 3 个是 `docs/work`、`tests/`、`scripts/local-review` 下的非镜像文件）。
+- **对外分发的静态资源**：`https://testerp.pearnly.com` 上 20 个改动过的 `public/` JS/CSS 逐个下载比对字节，
+  全部与仓库一致（含 `pearnly_core/desk/list.js`、`desk/product.js`、`desk/product.css` 与 17 个 ERP 列表页 JS）。
+- **业务计数前后一致**：商品 4 / 公司 2 / 盘点 1 / 客户 0 / 供应商 1 / 用户 2。
+- 本轮**没有 schema 或数据迁移**（无新 patch、无 DocType 变更），`bench migrate` 只是标准动作。
+
+### 未验 / 边界
+
+- **生产页面上的点击验收没做**：那需要在 `testerp.pearnly.com` 登录后点列头看排序，本轮没有生产登录凭据，
+  也没有用真实单据冒充分验收。生产侧目前是"代码/镜像/静态资源/状态回读一致"，不是"人在生产页面上点过"。
+- 本轮**没有**做 Windows 真实环境验证，也**没有**切测试租户（`testenv.sh lab-start`）——那个环境另一个窗口在用。
+- 发布不等于真机、真实业务或用户验收；原汇报口径里的这几层仍需单独确认。
+- 预览 lane（8136，挂本工作树源码）与验收 lane（8126，旧镜像）保留未动；本工作树、本地分支
+  `codex/stocktake-chart` 也保留（用户还要看预览）。远端无本任务分支，未创建。
+
 ## 未做 / 下一步
 
 - 没有"看板按"切换（商品/仓库/仓位）。
