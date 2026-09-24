@@ -8,6 +8,9 @@
 · 三个仓（主仓 / 冷藏仓 / 退货仓）、三份盘点（一份月度大盘、一份周盘、一份已过账的复盘）；
 · 差异有种类：大幅少货、大幅多货、微小差异、正好对上、未盘点、放错货位。
 
+列表排序（2026-09-25 口径"列表也点列头排序"）要看得见效果，而客户 / 供应商这两张列表在
+演示站点初始化后是空的（一行都没有），所以这里一并铺一批**像正式主数据**的名录。
+
 它同时**收回本任务上一版造的演示数据**（编码前缀 `DEMO-CHART-` 的那批商品与两份进行中盘点：
 先把结存清掉再停用），免得同一套预览里混着两批口径不同的样本。别的任务留下的站点数据
 （验收仓库那几份）不动。
@@ -37,6 +40,29 @@ WAREHOUSE_SHELVES = {
     "冷藏仓": ["R-01", "R-02", "R-03"],
     "退货仓": ["T-01", "T-02"],
 }
+
+# 名录类演示数据：客户 / 供应商这两张列表本来是空的，排序点下去也看不出效果。
+# (客户名, 纳税号, 电话, 地址)
+DEMO_CUSTOMERS = [
+    ("บริษัท สยามเทรดดิ้ง จำกัด", "0105558001001", "02-123-4567", "88/12 ถ.สุขุมวิท กรุงเทพฯ"),
+    ("บริษัท นครพาณิชย์ จำกัด", "0105558002002", "02-234-5678", "129 ถ.พหลโยธิน กรุงเทพฯ"),
+    ("ร้านเจริญพานิช", "1103700112233", "081-234-5678", "45/7 ต.บางรัก อ.เมือง ชลบุรี"),
+    ("บริษัท ไทยฟู้ดส์ เซอร์วิส จำกัด", "0105558003003", "02-345-6789", "500 ถ.บางนา-ตราด สมุทรปราการ"),
+    ("บริษัท เชียงใหม่มาร์ท จำกัด", "0505558004004", "053-123-456", "77 ถ.นิมมานเหมินท์ เชียงใหม่"),
+    ("ร้านป้าแดงของชำ", "", "089-111-2222", "12/3 ต.ในเมือง อ.เมือง ขอนแก่น"),
+    ("บริษัท ภูเก็ตซีฟู้ด จำกัด", "0805558005005", "076-234-567", "9/1 ถ.เทพกระษัตรี ภูเก็ต"),
+    ("บริษัท อีสานค้าส่ง จำกัด", "0405558006006", "043-345-678", "222 ถ.มิตรภาพ ขอนแก่น"),
+]
+
+# (供应商名, 纳税号, 电话, 地址)
+DEMO_SUPPLIERS = [
+    ("บริษัท เครื่องดื่มไทย จำกัด", "0105559001001", "02-111-2222", "31 ถ.รามคำแหง กรุงเทพฯ"),
+    ("บริษัท เครื่องปรุงรสไทย จำกัด", "0105559002002", "02-222-3333", "88 ถ.ลาดพร้าว กรุงเทพฯ"),
+    ("หจก. ข้าวสารเจริญทรัพย์", "1103700445566", "081-333-4444", "19/5 ต.ท่าศาลา อ.เมือง นครศรีธรรมราช"),
+    ("บริษัท น้ำมันพืชไทย จำกัด", "0105559003003", "02-333-4444", "450 นิคมฯ บางปู สมุทรปราการ"),
+    ("บริษัท ของใช้ในบ้าน จำกัด", "0105559004004", "02-444-5555", "77/9 ถ.เพชรเกษม นครปฐม"),
+    ("บริษัท อาหารสดตะวันออก จำกัด", "0205559005005", "038-555-666", "25 ถ.สุขุมวิท ระยอง"),
+]
 
 # (名称, 单位, 售价, 参考成本, 分类)
 PRODUCTS = [
@@ -92,11 +118,14 @@ def main():
     frappe.flags.mute_emails = True
     from pearnly_erp_portal.inventory import count as counts
     from pearnly_erp_portal.inventory import stock, warehouses
+    from pearnly_erp_portal.masters import customers
     from pearnly_erp_portal.products import service as products
+    from pearnly_erp_portal.purchasing import suppliers
 
     try:
         retire_previous_demo(products, counts, stock)
         frappe.set_user("Administrator")
+        directory = seed_directory(customers, suppliers)
         product_ids = seed_products(products)
         frappe.set_user(OWNER)
         warehouse_ids = seed_stock(product_ids, stock, warehouses)
@@ -106,8 +135,26 @@ def main():
         # 整批一个事务：中途失败不留半份盘点（不然重跑会按标题跳过，留下缺记录的任务）。
         frappe.db.rollback()
         raise
-    print(json.dumps({"products": len(product_ids), "counts": frappe.db.count("ERP Stock Count")},
-                     ensure_ascii=False))
+    print(json.dumps({"products": len(product_ids), "counts": frappe.db.count("ERP Stock Count"),
+                      **directory}, ensure_ascii=False))
+
+
+def seed_directory(service_customers, service_suppliers) -> dict:
+    """客户 / 供应商的名录演示数据（按业务键幂等，重复跑只补缺的那几条）。"""
+    made = {"customers": 0, "suppliers": 0}
+    for customer_name, tax_id, phone, address in DEMO_CUSTOMERS:
+        if frappe.db.exists("ERP Customer", {"customer_name": customer_name}):
+            continue
+        service_customers.create_customer(customer_name=customer_name, tax_id=tax_id,
+                                          contact_phone=phone, address=address)
+        made["customers"] += 1
+    for supplier_name, tax_id, phone, address in DEMO_SUPPLIERS:
+        if frappe.db.exists("ERP Supplier", {"supplier_name": supplier_name}):
+            continue
+        service_suppliers.create_supplier(supplier_name=supplier_name, tax_id=tax_id,
+                                          phone=phone, address=address)
+        made["suppliers"] += 1
+    return made
 
 
 def retire_previous_demo(products, counts, stock):
