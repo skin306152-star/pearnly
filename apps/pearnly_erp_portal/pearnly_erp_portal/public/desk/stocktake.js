@@ -183,15 +183,11 @@
 				$("<div class='summary-value'>").text(value).appendTo(item);
 			}
 			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
-			// 「有差异」清单：**所有**有差异的行都列出来（一条不滤），按差得多少排序，条越长差得越多，
-			// 右边直接写"少货 62 提 / 多货 45 盒"。用的是原生 DataTable + desk 包自带的
-			// Bootstrap `.progress` 条：没有坐标轴、没有正负号、没有图例，一线同事不用先懂"差异"
-			// 这个词也能看懂（用户 2026-09-24 口径："现在这个太专业了，很多人看不懂的，
-			// 我要的是直观易懂，且只要有差异的都在显示"）。
-			// 数量差异为 0、只是放错货位的那几行也在这里（数字那格写"仓位差异"）。
 			const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
 			const counted_rows = state.items.filter(r => r.counted);
-			const diff_rows = counted_rows.filter(r => Number(r.difference))
+			// 图上是**所有有差异的行**：数量对不上的，以及数量对得上但放错位置的（用户 2026-09-24：
+			// "把仓库差异，字段简短放在有差异的商品柱形图中"）。按差得多少排序。
+			const problem_rows = counted_rows.filter(r => Number(r.difference) || r.location_difference)
 				.sort((a, b) => Math.abs(Number(b.difference)) - Math.abs(Number(a.difference)));
 			const moved_rows = counted_rows.filter(r => r.location_difference)
 				.sort((a, b) => String(a.product_name || "").localeCompare(String(b.product_name || "")));
@@ -199,37 +195,51 @@
 				const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
 				return `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`;
 			};
+			// 位置字段：就是**货位**（放错位置时写成 `账面货位→实际货位`）。实际货位从记录里取，
+			// 只有跨仓才带上仓库名，尽量短。
+			const counts_at = row => {
+				const places = [];
+				for (const entry of state.entries) {
+					if (entry.voided || entry.item !== row.name) continue;
+					const shelf = entry.location || t("stock.count.blank");
+					const place = entry.warehouse === row.warehouse ? shelf : `${entry.warehouse_name} · ${shelf}`;
+					if (!places.includes(place)) places.push(place);
+				}
+				return places.join(" / ");
+			};
+			const place_text = row => {
+				const book = row.location || t("stock.count.blank");
+				return row.location_difference ? `${book}→${counts_at(row)}` : book;
+			};
 			// 柱形图（框架自带的 `frappe.Chart`）：**灰柱＝账面数量、彩柱＝实盘数量**，
-			// 只画有数量差异的行、一条不落，按差得多少排序。
-			// 商品名、仓位、"少货 70 瓶"这些字都放进**标签**：轴上的字会被框架按宽度截短，
+			// 一条差异都不落。商品名、位置字段、"少货 70 瓶"都放进**标签**：轴上的字会被框架按宽度截短，
 			// 鼠标放到柱子上才把它们（连同两个数量）完整显示出来
 			// （用户 2026-09-24："柱子立起来，把信息放在鼠标放上去才显示"）。
 			const chart_label = row => {
 				const diff = Number(row.difference);
-				const bits = [row.product_name, `${row.warehouse_name} / ${row.location || t("stock.count.blank")}`,
-					amount_text(row, diff)];
-				if (row.location_difference) bits.push(`${w("locationDiff")} → ${row.actual_positions || "—"}`);
+				const bits = [row.product_name, place_text(row)];
+				if (diff) bits.push(amount_text(row, diff));
 				return bits.join(" · ");
 			};
 			rank_host.empty();
-			rank_hint.text(diff_rows.length ? t("stock.count.diffRankHint") : "");
-			if (diff_rows.length) {
+			rank_hint.text(problem_rows.length ? t("stock.count.diffRankHint") : "");
+			if (problem_rows.length) {
 				chart = new frappe.Chart(rank_host[0], {
 					type: "bar", height: 260, colors: ["#a3a3a3", accent],
 					// 柱子多的时候只在轴上留几个完整商品名（`xIsSeries`），其余留给悬停提示。
 					axisOptions: { shortenYAxisNumbers: 1, xIsSeries: 1 },
 					data: {
-						labels: diff_rows.map(chart_label),
+						labels: problem_rows.map(chart_label),
 						datasets: [
-							{ name: t("stock.count.book"), values: diff_rows.map(r => Number(r.book_qty) || 0) },
-							{ name: t("stock.count.counted"), values: diff_rows.map(r => Number(r.counted_qty) || 0) },
+							{ name: t("stock.count.book"), values: problem_rows.map(r => Number(r.book_qty) || 0) },
+							{ name: t("stock.count.counted"), values: problem_rows.map(r => Number(r.counted_qty) || 0) },
 						],
 					},
 				});
 			}
-			// 仓库/仓位的差异是**另一类**问题：数量条只能表达数量（放错位置的行数量正好对上，
-			// 在条上什么也看不出来）。所以单独列一小块"账面位置 → 实际位置"，条数正好等于
-			// 汇总里的"仓位差异"。实际问题落点（哪个仓哪个位）在下面的明细表里也有。
+			// 位置差异在图上只是标签里的一个短字段（`B-03→A-01`），柱高看不出"放错位置"这件事，
+			// 所以这里再单独列一小块完整的"账面位置 → 实际位置"（行数正好等于汇总里的"仓位差异"）。
+			// 用户 2026-09-24 口径：图里放短字段，这块表留着。
 			moved?.destroy(); moved = null;
 			moved_hint.text(moved_rows.length ? t("stock.count.locationHint") : "");
 			if (moved_rows.length) {
