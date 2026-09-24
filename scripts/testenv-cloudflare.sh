@@ -9,10 +9,13 @@
 # 凭据只从本机文件读：~/.config/pearnly-testenv/cloudflare.token（600，不进仓库）
 #
 # 用法：
-#   bash scripts/testenv-cloudflare.sh status
+#   bash scripts/testenv-cloudflare.sh status [dms] [erp]
 #   bash scripts/testenv-cloudflare.sh tunnel-create     # 只做一次
-#   bash scripts/testenv-cloudflare.sh switch-lab
-#   bash scripts/testenv-cloudflare.sh switch-prod
+#   bash scripts/testenv-cloudflare.sh switch-lab  dms    # 只把 DMS 测试租户切过去
+#   bash scripts/testenv-cloudflare.sh switch-prod erp    # 只把 ERP 测试租户切回来
+#
+# 不带产品名 = 两个都切（与旧行为一致）。隧道本身同时带这两个域名，
+# 所以"切哪个产品"只是"给哪个域名建/删自己的 CNAME"。
 set -euo pipefail
 
 config_dir=${PEARNLY_TESTENV_CFG:-$HOME/.config/pearnly-testenv}
@@ -20,6 +23,28 @@ token_file=$config_dir/cloudflare.token
 env_file=$config_dir/cloudflare.env
 zone_name=${PEARNLY_TESTENV_ZONE:-pearnly.com}
 hosts=(testdms.pearnly.com testerp.pearnly.com)
+
+host_for() {
+  case "$1" in
+    dms) echo testdms.pearnly.com ;;
+    erp) echo testerp.pearnly.com ;;
+    *) echo "unknown app: $1 (expected dms|erp)" >&2; exit 2 ;;
+  esac
+}
+
+# 本次要操作的域名：不带参数=全部；带产品名=只这些产品。
+targets() {
+  if (( $# == 0 )); then
+    printf '%s\n' "${hosts[@]}"
+    return
+  fi
+  for app in "$@"; do host_for "$app"; done
+}
+
+# records() 收的是 python 列表字面量，这里按同样的选择生成。
+targets_py() {
+  printf '[%s]' "$(targets "$@" | sed 's/.*/"&"/' | paste -sd, -)"
+}
 
 [[ -s "$token_file" ]] || { echo "missing $token_file" >&2; exit 2; }
 token=$(cat "$token_file")
@@ -56,7 +81,7 @@ for r in d['result']:
 
 cmd_status() {
   echo "== 当前解析 =="
-  records "['testdms.pearnly.com','testerp.pearnly.com']" || true
+  records "$(targets_py "$@")" || true
   echo "== 通配记录 =="
   records "['*.pearnly.com']" || true
 }
@@ -91,7 +116,7 @@ EOF
 cmd_switch_lab() {
   local tid; tid=$(tunnel_id)
   [[ -n "$tid" ]] || { echo 'tunnel pearnly-testenv not found; run tunnel-create first' >&2; exit 2; }
-  for host in "${hosts[@]}"; do
+  while read -r host; do
     local existing
     existing=$(api GET "/zones/$(zone_id)/dns_records?type=CNAME&name=$host" | json "print(d['result'][0]['id'] if d['result'] else '')")
     local body
@@ -102,13 +127,13 @@ cmd_switch_lab() {
       api POST "/zones/$(zone_id)/dns_records" --data "$body" | json "print('created', d['success'])"
     fi
     echo "  $host -> tunnel"
-  done
-  echo '已切到测试环境；跑 `status` 复核。'
+  done < <(targets "$@")
+  echo '以上域名已切到测试环境；跑 `status` 复核。'
 }
 
 cmd_switch_prod() {
   local zid; zid=$(zone_id)
-  for host in "${hosts[@]}"; do
+  while read -r host; do
     local ids
     ids=$(api GET "/zones/$zid/dns_records?type=CNAME&name=$host" | json "print(' '.join(r['id'] for r in d['result']))")
     if [[ -z "$ids" ]]; then
@@ -118,14 +143,14 @@ cmd_switch_prod() {
     for id in $ids; do
       api DELETE "/zones/$zid/dns_records/$id" | json "print('  deleted', d['success'])"
     done
-  done
-  echo '已切回线上；跑 `status` 复核回落通配记录。'
+  done < <(targets "$@")
+  echo '以上域名已切回线上；跑 `status` 复核回落通配记录。'
 }
 
 case "${1:-}" in
-  status) cmd_status ;;
+  status) shift; cmd_status "$@" ;;
   tunnel-create) cmd_tunnel_create ;;
-  switch-lab) cmd_switch_lab ;;
-  switch-prod) cmd_switch_prod ;;
-  *) echo 'usage: testenv-cloudflare.sh {status|tunnel-create|switch-lab|switch-prod}'; exit 2 ;;
+  switch-lab) shift; cmd_switch_lab "$@" ;;
+  switch-prod) shift; cmd_switch_prod "$@" ;;
+  *) echo 'usage: testenv-cloudflare.sh {status|tunnel-create|switch-lab|switch-prod} [dms] [erp]'; exit 2 ;;
 esac
