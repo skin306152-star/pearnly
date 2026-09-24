@@ -185,6 +185,18 @@ body.pearnly-product-desk .pearnly-dialog .modal-footer {
 	z-index: 3;
 }
 
+/* 多产品共用：Frappe Capture 将手机照片直接放进原生缩略图网格，图片没有尺寸约束。
+   原图会溢出网格和相机弹窗，使整个弹窗可以横向拖走。只约束预览的显示尺寸，
+   保留原图、原生删除/继续拍照/提交及上传回调；不影响单据查看器的缩放。 */
+body.pearnly-product-desk .frappe-capture .fc-preview-container img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	max-height: 60vh;
+	max-height: 60dvh;
+	margin-inline: auto;
+}
+
 /* 选择框的下拉浮层：几何、白底、深色文字、悬停底色**全部归官方**
    （框架的 `--awesomplete-hover-bg` 就是 `var(--control-bg)`，浅灰）——
    我们不再给它上品牌色（同一条用户口径：主题色只留给侧栏选中）。 */
