@@ -179,6 +179,35 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 
 ### 逆向 DMS：它自带**变更流水**，这是并发对齐的正解（2026-09-25 只读实测）
 
+### 落地：绑定即建缓存底座 + 删除手动触发 + 地址改列表读取（2026-09-25，已上测试环境）
+
+用户决定：只用"绑定读全量做底座 + 操作顺手读日志补增量"这一条路；**删除**之前的手动触发与定时方案；第二个账号暂不做；做好后发到测试环境，并把测试账号的数据清一下以便做首次绑定实测。
+
+**已实现（分支 `codex/dms-five-minute-snapshots`，提交 `5952a50`，已推送）**：
+
+- `connections/snapshots.py`：删掉 `request_refresh` RPC；`get_status` 仍只读本地元数据并覆盖**四组**；新增内部入口 `bootstrap(endpoint, actor)`（不是白名单方法），把四组依次排队。
+- `connections/api.py`：`save_connection` 成功后调用 `bootstrap` → **绑定即建底座**（凭据一换 scope 就变，所以总是重读）。
+- `public/desk/connect.js`：删掉"更新数据"按钮与选择弹窗；白屏覆盖改为**跟着真实进度动**（`正在读取 DMS 主档… 车辆主档信息 12/29 · 客户资料 4/40`），读完只提示一次，**空闲不轮询**，失败不重试风暴。
+- `adapter/geo_sync.py` + `client/geo_list_reader.py`：地址改**列表端点**读取（计数锚点 + 分页读满 + 父级唯一匹配 + 完整树校验）。首次读取从 15,729 次详情请求 / 约 33 分钟变成 **37 个请求 / 约 7 秒**。
+- `hooks.py` / `snapshots/geo_daily.py`：**删除**每日 4 点那套定时任务（属"之前的方案"）。
+- 词条：把"点击更新数据"这类指向已删除按钮的文案改成"稍后自动重试/继续"；`i18n-build.py --check` PASS。
+- 测试：`tests/test_dms_geo_list_reader.py`（18 项）替代旧的 `test_dms_geo_catalogue.py` + `test_dms_geo_resume.py`；`tests/test_dms_connection_snapshots.py`（13 项）改为新契约（含"`request_refresh` 必须不存在""bootstrap 不是 RPC"）；`tests/test-dms-connect-overlay.cjs`（7 项）替代旧的 `test-dms-connect-snapshots.cjs`（那套的全部前提是被删除的手动选择流程）。旧断言针对的是已退役工作流，替换而非放宽。
+
+**本地闸门（提交前全跑）**：`check-architecture.py` 0 违规；`check-dms-offline.py` 全 PASS（reader 54、catalogue 26、company schema 8、geo list 18、connection 13、advisors 15 及六个 sample-verify 套件）；`test-provision-agent.py`、`check-production-capacity.py`、`test-activate-product.py`、`i18n-build.py --check`、`test_welcome_email.py`、`git diff --check` 通过；CI 同名 node 套件（native desk / POS / roster / records / issue actions / editor snapshot）通过；新增 JS 套件 7/7。
+
+**测试环境部署与验证（实测）**：
+
+- CI `build-production.yml` run `36038917347` 成功；镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:25c0c3a3…f117`，revision 标签 `5952a5072ebe…`（＝本次提交）。用仓库既定 `receive-image.py`（凭据走 stdin）拉到测试机后 `testenv.sh up dms`，12 个容器全部 Up。
+- **清缓存**：`DMS Read Snapshot` 的四行被**清空内容**（`payload/overlays/staging/refresh_request/source_started_at/completed_at/generation`），不删行——该 DocType 的 `on_trash` 明确保护（"managed by the synchronizer"）。业务数据未动：endpoint 4、operator 2、OCR Work 28 条保留。
+- **绑定路径实跑成功**：调用与 `save_connection` 相同的 `bootstrap` → 四组全部 `succeeded`：vehicles 29、customers 46、company 27、**geo 15,729**（payload 约 1.04 MB）；四组 `as_of` 落在 15 秒之内。worker 日志显示单次作业 1.9–2.8 秒（含分片复核），队列随后为空、无残留锁。
+- 教训（记下来避免误判）：我用一个长事务脚本轮询状态时看到的"车辆组卡住 4 分钟、其它排队"是**观察者自己的 REPEATABLE READ 快照**造成的假象，不是系统卡住。任何"进度显示"都不能在长事务里读——连接页每次轮询是独立 RPC/事务，所以不受影响。
+
+**仍未做（下一步）**：
+
+- **增量同步**（用户认定的"唯一方案"）：操作动作顺手读 `eventlog/component/showdata.php`（按模块 `ftd=<模块>||2`）、按游标取"上次之后的变化"、只补读被点名的记录。三条待验边界仍在：批量导入是否记明细、日志保留窗口、六个次要表无同名模块。
+- 第二个共享账号（用户明确"先不做"）。
+- 生产发布与正式验收。
+
 用户把问题问准了：一个 DMS 被几十上百人共用，LINE 端拿缓存，**别人新增/修改的数据、以及写操作才产生的单号，我们怎么跟上**。全量重读和"每次手动刷新"都不是答案。于是去逆 DMS 自身，找到它原生的"使用记录"（`eventlog`）——**这正是一条可用的变更流水**。
 
 **入口与参数（实测）**：页面 `eventlog/view.php`，列表端点 `eventlog/component/showdata.php`。参数是 `sd`（自由搜索）、`ftd`（过滤器，**不是** `selfilterdata`；该名字是页面 select 的 id）、`sdtamt`/`sdtpage`。过滤器格式 `<模块名>||<类别>`，例如 `ลูกค้า||2`（客户）、`ใบจอง||2`（订车）；类别 1＝登录类事件，2＝模块事件。**没有"所有模块"这一个过滤值**（`ftd=2` 直接 `err::`），所以必须按模块逐条查。
