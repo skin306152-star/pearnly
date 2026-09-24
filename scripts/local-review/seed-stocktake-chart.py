@@ -96,10 +96,6 @@ def main():
 
     try:
         retire_previous_demo(products, counts, stock)
-        if frappe.db.exists("ERP Stock Count", {"title": MAIN_TASK}):
-            frappe.db.commit()
-            print(json.dumps({"seeded": False, "reason": "already present"}, ensure_ascii=False))
-            return
         frappe.set_user("Administrator")
         product_ids = seed_products(products)
         frappe.set_user(OWNER)
@@ -179,19 +175,25 @@ def seed_stock(product_ids, stock, warehouses):
 
 
 def seed_tasks(product_ids, warehouse_ids, counts):
-    monthly = counts.create_count(title=MAIN_TASK, warehouse=warehouse_ids["主仓"],
-                                  notes="月度全盘：主仓全部货位，含两处放错货位。")
-    count_rows(monthly["name"], counts, request_prefix="std-monthly", move_every=9, skip_every=7)
-    weekly = counts.create_count(title="冷藏仓周盘", warehouse=warehouse_ids["冷藏仓"],
-                                 notes="每周抽盘冷藏仓，重点看有效期与损耗。")
-    count_rows(weekly["name"], counts, request_prefix="std-weekly", move_every=0, skip_every=5)
-    # 一份已经过账的复盘：工作台的只读态（导出 / 刷新）也要能看。
-    back = counts.create_count(title="退货仓复盘", warehouse=warehouse_ids["退货仓"],
-                               notes="退货入账后的复核，数量按实际点清。")
-    count_rows(back["name"], counts, request_prefix="std-returns", move_every=0, skip_every=0,
-               exact=True)
-    review = counts.review_count(back["name"])
-    counts.close_count(back["name"], review_token=review["review_token"])
+    # 每份盘点按**标题**各自幂等：只补缺的那一份。写成"主任务在就整体跳过"的话，
+    # 中途删掉一份就再也补不回来（record_id 还是全局唯一的，重建时会撞上旧记录）。
+    if not frappe.db.exists("ERP Stock Count", {"title": MAIN_TASK}):
+        monthly = counts.create_count(title=MAIN_TASK, warehouse=warehouse_ids["主仓"],
+                                      notes="月度全盘：主仓全部货位，含两处放错货位。")
+        count_rows(monthly["name"], counts, request_prefix="std-monthly", move_every=9, skip_every=7)
+    if not frappe.db.exists("ERP Stock Count", {"title": "冷藏仓周盘"}):
+        weekly = counts.create_count(title="冷藏仓周盘", warehouse=warehouse_ids["冷藏仓"],
+                                     notes="每周抽盘冷藏仓，重点看有效期与损耗。")
+        count_rows(weekly["name"], counts, request_prefix="std-weekly", move_every=0, skip_every=5)
+    # 一份已经过账的复盘：工作台的只读态（导出 / 刷新）也要能看。过账过的那份删不掉，
+    # 所以这里只补缺（已存在就原样留着）。
+    if not frappe.db.exists("ERP Stock Count", {"title": "退货仓复盘"}):
+        back = counts.create_count(title="退货仓复盘", warehouse=warehouse_ids["退货仓"],
+                                   notes="退货入账后的复核，数量按实际点清。")
+        count_rows(back["name"], counts, request_prefix="std-returns", move_every=0, skip_every=0,
+                   exact=True)
+        review = counts.review_count(back["name"])
+        counts.close_count(back["name"], review_token=review["review_token"])
 
 
 def count_rows(task, counts, *, request_prefix, move_every, skip_every, exact=False):
@@ -203,8 +205,9 @@ def count_rows(task, counts, *, request_prefix, move_every, skip_every, exact=Fa
         qty = max(0, float(row["book_qty"]) + delta)
         found = row["location"]
         if move_every and index % move_every == move_every - 1:
-            shelves = WAREHOUSE_SHELVES["主仓"]
-            found = next((s for s in shelves if s != row["location"]), shelves[0])
+            # 挑一个**和账面不同**的货位，并在几个候选里轮着取：不然演示数据里"实际"全是同一个位。
+            others = [s for s in WAREHOUSE_SHELVES["主仓"] if s != row["location"]]
+            found = others[(index // move_every) % len(others)]
         counts.add_entry(count=task, item=row["name"], qty=qty, location=found,
                          request_id=f"{request_prefix}-{index + 1}")
 
