@@ -35,7 +35,9 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
             or not 0 < checkpoint["started_at"] <= started + 1
             or started - checkpoint["started_at"] > manual.REQUEST_AGE):
         checkpoint = None
-    limits = SnapshotLimits(max_seconds=30)
+    # 单步读取租约。车型颜色是逐个车型读的（rayong 有 457 个车型），收尾投影要 30 多秒，
+    # 旧的 30 秒必然把它掐断；队列给这一步的硬上限是 420 秒，取 120 秒足够又安全。
+    limits = SnapshotLimits(max_seconds=120)
 
     def capture(client, adapter):
         nonlocal checkpoint

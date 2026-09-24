@@ -16,23 +16,8 @@ import time
 
 from pearnly_dms.client.catalogue_schema import REGISTRY as VEHICLES
 from pearnly_dms.client.client_intake import _IdentitySearchRows
-from pearnly_dms.client.snapshot_reader import SnapshotLimits, _fail, _too_large
+from pearnly_dms.client.snapshot_reader import SnapshotLimits, _fail, _retry, _too_large
 from pearnly_dms.contracts.client_base import DmsClientError
-
-RETRY = "ERR_DMS_SNAPSHOT_RETRY"
-
-
-def _retry(reason):
-    """可续读的失败：下一步接着读，不丢掉已经读到的断点。
-
-    传输抖动或单次时间租约用完，并不说明已经读到的内容作废；最终 verify 阶段会
-    逐页核对数量与 ID，真正的数据漂移在那里被抓住。2026-09-25 实测：数据量大的
-    租户一组全量要跑很多步，一次偶发失败就把断点清掉，会让它**永远读不完**。
-    """
-    # `from None` 与原来的 transport 分支一致：绝不把原生错误体或异常链带进
-    # 会被持久化的错误里（上游的报错可能含凭据）。
-    raise DmsClientError("DMS snapshot retry: " + reason, RETRY) from None
-
 
 VERSION = 1
 # 整个 generation 的**累计读取时间**上限（不含排队和登录）。2026-09-25 实测：

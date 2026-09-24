@@ -76,6 +76,8 @@ class SnapshotLimits:
 # 顶穿上面那些阀时用的独立错误码：调用方要能一眼看出"是数据太大"，而不是
 # 又一个说不清的"资料不完整"。见 `_too_large`。
 TOO_LARGE = "ERR_DMS_SNAPSHOT_TOO_LARGE"
+# 可续读的失败：下一步接着读，断点还在。
+RETRY = "ERR_DMS_SNAPSHOT_RETRY"
 
 
 def _fail(reason):
@@ -92,6 +94,16 @@ def _too_large(reason):
     raise DmsClientError("DMS snapshot too large: " + reason, TOO_LARGE)
 
 
+def _retry(reason):
+    """这一步没做完，但断点有效，下一步接着来。
+
+    单步时间租约用完属于这一类：车型颜色是逐个车型读的（rayong 有 457 个车型），
+    收尾投影要 30 多秒，旧的 30 秒租约必然把它掐断（2026-09-25 实测）。
+    报可续读的码，调用方才会保留断点并接着排，而不是把整组读到的内容丢掉。
+    """
+    raise DmsClientError("DMS snapshot retry: " + reason, RETRY) from None
+
+
 class _Budget:
     def __init__(self, limits):
         self.limits = limits
@@ -102,7 +114,7 @@ class _Budget:
     def check(self):
         if self.failed or time.monotonic() - self.started > self.limits.max_seconds:
             self.failed = True
-            _fail("collection budget exceeded")
+            _retry("collection budget exceeded")
 
     def add_rows(self, count):
         self.check()
