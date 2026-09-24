@@ -4,7 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import now
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import access, contracts, positions, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
 
@@ -94,8 +94,21 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     return {"name": doc.name, "doc_no": doc.doc_no, "status": doc.status}
 
 
+# 列头排序白名单。单据号那一列显示的是 `doc_no or name`，排库里的 doc_no 就够用。
+SORT_FIELDS = {
+    "doc_no": "doc_no", "posting_date": "posting_date", "warehouse": "warehouse",
+    "direction": "direction", "status": "status", "creation": "creation",
+    # 列表上的列名叫法（前端 `sort_fields` 用页面上的列名，这里一一对应到库字段）。
+    "warehouse_name": "warehouse",
+    # 「备注」列（`reason` → `note`）**故意不开放排序**：`note` 是字段级受权限保护的字段，
+    # `frappe.get_list(order_by="note")` 会直接抛 `PermissionError`（实测："您无权访问字段：
+    # ERP Stock Entry.note"）。要排它就得把这一页从"服务端分页"改成"整批取回内存排序"，
+    # 而单据会越积越多，为了一列备注不值当 —— 宁可这一列不可点，也不要点了报错。
+}
+
+
 def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
-                 limit=50, start=0):
+                 limit=50, start=0, sort_by=None, sort_order=None):
     guard.require("stock.read")
     allowed = [key for key in ("in", "out") if guard.has("stock." + key)]
     if direction:
@@ -115,7 +128,8 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
     if date_from and date_to:
         filters["posting_date"] = ["between", [date_from, date_to]]
     return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
-                           order_by="posting_date desc, creation desc",
+                           order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS,
+                                                     "posting_date desc, creation desc"),
                            limit_start=int(start), limit_page_length=int(limit))
 
 

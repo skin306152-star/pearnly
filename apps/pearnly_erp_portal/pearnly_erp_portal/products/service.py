@@ -7,7 +7,7 @@ import frappe
 from frappe import _
 
 from pearnly_core import browser_text
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.products import contracts, workbook
 
 DOCTYPE = "ERP Product"
@@ -237,12 +237,28 @@ def _filters(search=None, include_inactive=False, is_active=None):
     return filters, or_filters
 
 
-def list_products(*, search=None, include_inactive=False, is_active=None, limit=50, start=0):
+# 列头排序白名单（前端列名 → 真正能排的库字段）。`order_by` 是拼进 SQL 的，
+# 只认这几项；别的字段回落到默认顺序（见 `listing.order_by`）。
+SORT_FIELDS = {
+    "product_name": "product_name",
+    "code": "code",
+    "barcode": "barcode",
+    "unit": "unit",
+    "unit_price": "unit_price",
+    "default_cost": "default_cost",
+    "place": "default_location",
+    "is_active": "is_active",
+}
+
+
+def list_products(*, search=None, include_inactive=False, is_active=None, limit=50, start=0,
+                  sort_by=None, sort_order=None):
     guard.require("products.view")
     filters, or_filters = _filters(search, include_inactive, is_active)
     rows = _mask(frappe.get_list(
         DOCTYPE, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
-        order_by="modified desc", limit_start=int(start), limit_page_length=int(limit),
+        order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "modified desc"),
+        limit_start=int(start), limit_page_length=int(limit),
     ))
     return rows
 

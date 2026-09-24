@@ -16,7 +16,7 @@
 """
 import frappe
 
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.inventory import warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.sales import access, contracts
@@ -195,9 +195,29 @@ def _sort_key(row):
     return (str(row.get("doc_date") or ""), str(row.get("creation") or ""))
 
 
-def rows(params=None, *, start=0, limit=20):
+# 列头排序白名单（列表列名 → 行里的字段）。这一页是**销售记录 + 收银小票**两路归并出来的，
+# 所以排任意字段时要把两侧整批取回来再排（默认顺序那条路才用"各取一页就够"的省法）。
+SORT_FIELDS = {
+    "system_no": "system_no", "doc_date": "doc_date", "buyer_name": "buyer_name",
+    "grand_total": "grand_total", "doc_kind": "doc_kind", "source": "source",
+    "payment_status": "payment_status", "status": "status", "sold_at": "sold_at",
+    "creation": "creation",
+}
+
+
+def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):
     """列表、合计与导出共用的一份取数：销售记录 + 收银小票（后者按来源开关）。"""
     guard.require("sales.read")
+    field = SORT_FIELDS.get(str(sort_by or "").strip())
+    if field:
+        merged = _doc_rows(params, start=0, limit=0)
+        if _pos_applies(params):
+            merged = merged + _pos_rows(params, start=0, limit=0)
+        merged = listing.sort_rows(merged, sort_by, sort_order, SORT_FIELDS)
+        _attach_pos_summaries(merged)
+        start = max(0, int(start))
+        window = merged[start:] if not limit else merged[start:start + int(limit)]
+        return window
     if not _pos_applies(params):
         return _doc_rows(params, start=start, limit=limit)
     # 两侧各取"够切这一页"的条数（limit=0 表示整批），归并排序后再切这一页。
@@ -209,9 +229,9 @@ def rows(params=None, *, start=0, limit=20):
     return window
 
 
-def page(params=None, *, start=0, limit=20) -> dict:
+def page(params=None, *, start=0, limit=20, sort_by=None, sort_order=None) -> dict:
     """列表一页 + 命中总数（同一个查询，翻页与导出不会各算一份）。"""
-    return {"items": rows(params, start=start, limit=limit),
+    return {"items": rows(params, start=start, limit=limit, sort_by=sort_by, sort_order=sort_order),
             "total": len(rows(params, limit=0))}
 
 

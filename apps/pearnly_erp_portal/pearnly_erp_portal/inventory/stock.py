@@ -12,7 +12,7 @@ import frappe
 from frappe import _
 from frappe.utils import now, nowdate
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.inventory import contracts, positions, warehouses
 from pearnly_erp_portal.masters import company as companies
 
@@ -361,11 +361,22 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     return out
 
 
+# 列头排序白名单：在库一览是**先在内存里算好整批、再切片分页**的（见 `_overview_rows`），
+# 所以排序也在这里做，键就是行里的字段名。
+SORT_FIELDS = {
+    "product_name": "product_name", "code": "code", "barcode": "barcode",
+    "warehouse_name": "warehouse_name", "location": "location", "unit": "unit",
+    "qty_on_hand": "qty_on_hand", "unit_cost": "unit_cost", "value": "value",
+}
+
+
 def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
-                   qty_op=None, qty_value=None, start=0, limit=200) -> list[dict]:
+                   qty_op=None, qty_value=None, start=0, limit=200,
+                   sort_by=None, sort_order=None) -> list[dict]:
     """在库一览（分页）。`limit=0` 表示不分页，整批给。"""
     rows = _overview_rows(warehouse=warehouse, location=location, q=q, include_zero=include_zero,
                           only_low=only_low, qty_op=qty_op, qty_value=qty_value)
+    rows = listing.sort_rows(rows, sort_by, sort_order, SORT_FIELDS)
     start = int(start or 0)
     if not limit:
         return rows[start:]

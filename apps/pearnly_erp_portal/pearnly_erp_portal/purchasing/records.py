@@ -4,7 +4,7 @@ from decimal import Decimal
 import frappe
 from frappe import _
 
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, listing
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import access, amounts
 
@@ -46,11 +46,22 @@ def query(params=None):
     return filters, or_filters, datefield
 
 
-def rows(params=None, *, start=0, limit=20):
+# 列头排序白名单（列表那一层的列名 → 能排的库字段）。日期那一列点的是 `doc_date`，
+# 但"按上传时间"那档的默认顺序用的是 `creation`，所以默认顺序由 `query()` 给的 datefield 决定。
+SORT_FIELDS = {
+    "system_no": "system_no", "doc_no": "doc_no", "doc_date": "doc_date",
+    "supplier_name": "supplier_name", "grand_total": "grand_total",
+    "doc_kind": "doc_kind", "payment_status": "payment_status", "status": "status",
+    "creation": "creation",
+}
+
+
+def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):
     guard.require("purchase.read")
     filters, or_filters, datefield = query(params)
     result = frappe.get_list("Purchase Document", filters=filters, or_filters=or_filters,
-        fields=list(FIELDS), distinct=True, order_by=f"{datefield} desc, creation desc",
+        fields=list(FIELDS), distinct=True,
+        order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, f"{datefield} desc, creation desc"),
         limit_start=max(0, int(start)), limit_page_length=max(0, int(limit)))
     for row in result:
         row["attachment_count"] = frappe.db.count("ERP Purchase Attachment", {"parent": row.name})

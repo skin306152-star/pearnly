@@ -22,7 +22,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt, now
 
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.inventory import stock as stock_service
 from pearnly_erp_portal.inventory import count_state, documents as stock_documents, positions, warehouses
@@ -296,7 +296,16 @@ def _size(limit):
     return max(0, int(limit))
 
 
-def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
+# 列头排序白名单。仓库那一列显示的是**仓库名**（由 link 名翻出来），排 link 名没意义，
+# 所以它不在这里 —— 那一列头保持不可点（前端见 `sort_fields`）。
+SORT_FIELDS = {
+    "title": "title", "status": "status", "item_total": "item_total",
+    "counted_total": "counted_total", "difference_total": "difference_total",
+    "creation": "creation",
+}
+
+
+def list_counts(*, status=None, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
     guard.require("count.read")
     filters = dict(warehouses.scope_filter())
     if status:
@@ -305,7 +314,7 @@ def list_counts(*, status=None, limit=50, start=0) -> list[dict]:
         COUNT, filters=filters,
         fields=["name", "title", "status", "warehouse", "item_total", "counted_total",
                 "difference_total", "creation", "modified", "closed_at", "posted_at"],
-        order_by="creation desc",
+        order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "creation desc"),
         limit_start=int(start or 0), limit_page_length=_size(limit),
     )
 

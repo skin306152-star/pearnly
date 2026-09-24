@@ -14,7 +14,7 @@ import frappe
 from frappe import _
 from frappe.utils import now, nowdate
 
-from pearnly_erp_portal.access import guard, rules
+from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.cashier import contracts, shifts, terminals
 from pearnly_erp_portal.inventory import positions, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
@@ -239,8 +239,17 @@ def pos_export_lines(names) -> list[dict]:
     return lines
 
 
+# 列头排序白名单。客户那一列显示的是抬头（`customer_name` 是回填的），库里只有 link，
+# 所以它不在这里 —— 那一列头保持不可点。
+SORT_FIELDS = {
+    "receipt_no": "receipt_no", "sold_at": "sold_at", "sale_type": "sale_type",
+    "status": "status", "grand_total": "grand_total",
+}
+
+
 def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
-               status=None, q=None, limit=50, start=0, current_only=False) -> list[dict]:
+               status=None, q=None, limit=50, start=0, current_only=False,
+               sort_by=None, sort_order=None) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
     if current_only:
         guard.require("cashier.read")
@@ -277,7 +286,8 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
         if customers:
             or_filters.append(["customer", "in", customers])
     rows = frappe.get_list(DT, filters=filters, or_filters=or_filters, fields=list(LIST_FIELDS),
-                           order_by="sold_at desc", limit_start=int(start),
+                           order_by=listing.order_by(sort_by, sort_order, SORT_FIELDS, "sold_at desc"),
+                           limit_start=int(start),
                            limit_page_length=int(limit))
     # 每行带上客户抬头（列表显示的是人看的名字，不是 `CUS-#####`）。
     names = _customer_names([row.get("customer") for row in rows])

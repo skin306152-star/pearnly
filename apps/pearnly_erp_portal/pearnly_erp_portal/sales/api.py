@@ -22,8 +22,9 @@ def api_post_sale(payload, request_id, name=None):
 
 
 @frappe.whitelist()
-def api_sales_records(params=None, start=0, limit=20):
-    return records.page(_payload(params), start=start, limit=limit)
+def api_sales_records(params=None, start=0, limit=20, sort_by=None, sort_order=None):
+    return records.page(_payload(params), start=start, limit=limit,
+                        sort_by=sort_by, sort_order=sort_order)
 
 
 @frappe.whitelist()
