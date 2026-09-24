@@ -2,8 +2,7 @@
 	const p = frappe.pearnly;
 	p.connect = async (page, t, wrapper) => {
 		const cacheText = await p.texts("dms.connect.cache.");
-		let conn,
-			busy = false;
+		let conn;
 		// 四组都在：绑定成功时它们会被一起排队（缓存底座），这里是**进度显示**，
 		// 不是"等操作员点按钮"。页面不再有手动触发。
 		const datasets = ["vehicles", "customers", "company", "geo"];
@@ -133,38 +132,11 @@
 				t(conn.connected ? "connect.state.connected" : "connect.state.notConnected"),
 				conn.connected ? "green" : "orange",
 			);
-			if (ep) {
-				page.add_inner_button(t("connect.action.test"), () =>
-					run(async () => {
-						const result = await p.call(
-							"pearnly_dms.connections.api.test_endpoint",
-							{ endpoint: ep.name },
-							"POST",
-						);
-						feedback(result);
-						await refresh();
-					}),
-				);
-				page.add_inner_button(
-					t(ep.enabled ? "connect.action.disable" : "connect.action.enable"),
-					() => {
-						frappe.confirm(
-							p.escape(
-								t(ep.enabled ? "connect.action.disable" : "connect.action.enable"),
-							),
-							() =>
-								run(async () => {
-									await p.call(
-										"pearnly_dms.connections.api.set_connection_enabled",
-										{ enabled: ep.enabled ? 0 : 1 },
-										"POST",
-									);
-									await refresh();
-								}),
-						);
-					},
-				);
-			}
+			// **页面上只留一个动作按钮**（用户 2026-09-25："功能按钮只保留一个"）。
+			// 原来的「测试连接」「停用/启用」是内联按钮，和右上角的主按钮挤在一块，
+			// 操作员看不出该按哪个。这个页面只有一件事要做：换账号（右上角那个）。
+			// 服务端两个 RPC（test_endpoint / set_connection_enabled）保留不动，
+			// 只是不再从这个页面露出。
 			const fields = [{ fieldtype: "Section Break", label: t("connect.title") }];
 			for (const [name, key, value] of [
 				[
@@ -212,17 +184,6 @@
 			);
 			return true;
 		}
-		async function run(fn) {
-			if (busy) return;
-			busy = true;
-			frappe.dom.freeze(t("connect.processing"));
-			try {
-				await fn();
-			} finally {
-				busy = false;
-				frappe.dom.unfreeze();
-			}
-		}
 		function wizard() {
 			p.dialog(
 				t("connect.title"),
@@ -255,7 +216,11 @@
 					await p.call("pearnly_dms.connections.api.save_connection", values, "POST");
 					d.set_value("password", "");
 					d.hide();
-					feedback(probe);
+					// **绑定成功不再弹"连接正常 · 车型 3 · 分店 1 …"**（用户 2026-09-25：
+					// "旧的提示和界面存在冲突"）。那句话是"快速探测"的产物，弹出时正好和
+					// 白屏上的读取进度叠在一起，看着像两件事同时在跑。
+					// 绑定后的反馈交给读取本身：白屏百分比 → 读完一句「数据更新完成」。
+					// 探测失败仍然照原样报错（那时没有读取在跑）。
 					await refresh();
 				},
 			);

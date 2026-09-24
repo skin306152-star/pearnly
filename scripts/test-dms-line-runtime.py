@@ -261,6 +261,26 @@ class MasterRepair(unittest.TestCase):
             self.assertEqual(reply.call_count, 3)
             route.assert_not_called()
 
+    def test_conversation_binding_carries_the_live_revision(self):
+        """菜单 5 的「读取／看结果」要求绑定版本非空且仍是当前绑定。
+
+        2026-09-25 实测：对话上下文的 binding 少了 `binding_revision`，那两个按钮
+        一律被判成"没有权限"（操作员只收到"未获授权搜索"）。这里守住这个键必须
+        来自**当前**绑定行，而不是调用方手里的旧值。
+        """
+        from pearnly_dms.line import handlers, identity
+        live = {"user": "employee", "binding_revision": "rev-9"}
+        with patch.object(frappe.local, "site", "offline-line.test", create=True), \
+             patch.object(identity, "current", return_value=live):
+            binding = handlers._binding("U-lab", "employee")
+        self.assertEqual(binding["user_id"], "employee")
+        self.assertEqual(binding["line_user_id"], "U-lab")
+        self.assertEqual(binding["binding_revision"], "rev-9")
+        with patch.object(frappe.local, "site", "offline-line.test", create=True), \
+             patch.object(identity, "current", return_value=None):
+            self.assertEqual(handlers._binding("U-lab", "employee")["binding_revision"], "",
+                             "没有当前绑定时必须留空，不能编一个版本出来")
+
 
 class LineIdentity(unittest.TestCase):
     def setUp(self):

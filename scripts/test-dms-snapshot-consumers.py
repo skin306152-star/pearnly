@@ -113,30 +113,35 @@ class SnapshotConsumers(unittest.TestCase):
         frappe.flags.dms_snapshot_status = {"as_of": 1790209380, "stale": False}
         frappe.flags.dms_snapshot_geo_status = {"as_of": 1790122980, "stale": True}
 
-    def test_notice_uses_both_source_times_without_mutating_input(self):
+    def test_notice_never_injects_source_times_into_line_messages(self):
+        """操作员 2026-09-25：每条 LINE 回话都带「ข้อมูล ณ …」太啰嗦 —— 不再注入。
+
+        曾经这里断言"两段时间都出现在正文里"。契约变了，但**严格性不变**：
+        消息必须原样返回（不夹任何时间），两个 flag 仍然按"本消息消费一次"清掉。
+        """
         self.flags()
         msg = {"type": "text", "text": "Original", "quickReply": {"items": []}}
         before = copy.deepcopy(msg)
         result = self.out._snapshot_notice(msg)
         self.assertEqual(msg, before)
-        self.assertIsNot(result, msg)
-        self.assertIn("24/09/2026 07:23", result["text"])
-        self.assertIn("23/09/2026 07:23", result["text"])
+        self.assertEqual(result, msg)
+        self.assertEqual(result["text"], "Original")
         self.assertNotIn("dms_snapshot_status", frappe.flags)
         self.assertNotIn("dms_snapshot_geo_status", frappe.flags)
         self.assertEqual(self.out._snapshot_notice(msg), msg)
 
-    def test_notice_one_flex_reply_not_extra_push_and_no_next_card_pollution(self):
+    def test_notice_leaves_a_flex_bubble_untouched_and_keeps_one_reply(self):
         bubble = {"type": "bubble", "body": {"type": "box", "layout": "vertical", "contents": []}}
         msg = {"type": "flex", "altText": "test", "contents": {"type": "carousel", "contents": [bubble]}}
         before = copy.deepcopy(msg); self.flags()
         self.assertTrue(self.out.send(UID, msg, TOKEN))
-        self.assertEqual(msg, before)
+        self.assertEqual(msg, before, "卡片正文不再被追加时间行")
         self.assertEqual(len(self.http), 1)
         self.assertTrue(self.http[0][0].endswith("/reply"))
         self.assertEqual(len(self.http[0][1]["messages"]), 1)
         rendered = self.http[0][1]["messages"][0]
-        self.assertEqual(len(rendered["contents"]["contents"][0]["body"]["contents"]), 1)
+        self.assertEqual(len(rendered["contents"]["contents"][0]["body"]["contents"]), 0,
+                         "卡片正文不再被追加时间行，也不额外多发一条消息")
         self.assertTrue(self.out.push_or_reply_text(UID, "Next card", TOKEN))
         self.assertEqual(self.http[1][1]["messages"], [{"type": "text", "text": "Next card"}])
 

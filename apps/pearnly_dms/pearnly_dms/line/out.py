@@ -26,34 +26,20 @@ logger = logging.getLogger(__name__)
 
 
 def _snapshot_notice(msg):
-    """Show source time in the same LINE message, without another paid push."""
-    import frappe
-    from datetime import datetime
-    from zoneinfo import ZoneInfo
-    from pearnly_dms import i18n
+    """**不再往消息里拼"资料时间 / 地址资料时间"**（用户 2026-09-25 明确要求）。
 
-    metadata = frappe.flags.pop("dms_snapshot_status", None)
-    geo = frappe.flags.pop("dms_snapshot_geo_status", None)
-    if not metadata and not geo:
-        return msg
-    notes = []
-    for data, prefix in ((metadata, "dms.snapshot."), (geo, "dms.snapshot.geo_")):
-        if data:
-            stamp = datetime.fromtimestamp(data["as_of"], ZoneInfo("Asia/Bangkok"))
-            notes.append(i18n.t(prefix + ("stale" if data["stale"] else "as_of"),
-                               lang="th", time=stamp.strftime("%d/%m/%Y %H:%M")))
-    note = "\n".join(notes)
-    result = copy.deepcopy(msg)
-    if result.get("type") == "text":
-        result["text"] = str(result.get("text", ""))[:4800] + "\n" + note
-    elif result.get("type") == "flex":
-        contents = result.get("contents") or {}
-        bubble = (contents.get("contents") or [{}])[0] if contents.get("type") == "carousel" else contents
-        body = bubble.get("body") or {}
-        if body.get("type") == "box" and isinstance(body.get("contents"), list):
-            body["contents"].append({"type": "text", "text": note, "size": "xxs",
-                                     "color": "#666666", "wrap": True, "margin": "md"})
-    return result
+    以前这里会把「ข้อมูล ณ …」「ข้อมูลที่อยู่ ณ …」补到每一条 LINE 回话后面（纯文本拼一行、
+    Flex 卡在正文末尾加一小行灰字）。操作员说这行没用、还占地方，所以**消息正文不再带时间**。
+    时间本身照旧记在快照元数据里（连接页、查询结果卡按需显示），只是不再注入对方的消息。
+
+    这里保留两个 flag 的消费：一次请求里读过的快照标记仍按"本消息消费一次"处理，
+    免得残留在后面某条消息上（将来若要恢复显示，直接从这里接着写即可）。
+    """
+    import frappe
+
+    frappe.flags.pop("dms_snapshot_status", None)
+    frappe.flags.pop("dms_snapshot_geo_status", None)
+    return msg
 
 
 def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: str = "") -> bool:

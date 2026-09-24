@@ -67,6 +67,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
+"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
 The read status changed. Refresh the page to check before trying again.,The read status changed. Refresh the page to check before trying again.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
@@ -237,6 +238,7 @@ dms.edit.total,Booking deposit total
 dms.edit.transfer,Transfer
 dms.edit.village,Village
 dms.err.ERR_CRED_DECRYPT,Credential decrypt failed — please re-enter username and password
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 dms.err.ERR_DMS_ADMIN_AUTH,DMS admin credential login failed — check the admin username and password
 dms.err.ERR_DMS_ADVISOR_REQUIRED,"This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again"
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,"The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it"

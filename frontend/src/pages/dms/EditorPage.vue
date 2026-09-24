@@ -272,11 +272,27 @@ async function hydrateGeo(): Promise<void> {
       continue;
     }
     geo[level] = await loadGeo(ticket.value, nonce.value, level, parent);
+    // 已有客户的档：首屏就把唯一候选的邮编补上，操作员不用再点一次下拉。
+    if (level === "zipcodes") autoZipcode(geo[level]);
   }
 }
 
 /** 取下一级选项；父级为空就是空表（与老产品一致，不去请求）。 */
 const geoRequest: Record<string, number> = { districts: 0, subdistricts: 0, zipcodes: 0 };
+
+/**
+ * 邮编**自动选中**：一个镇（ตำบล）在泰国通常只有一个邮编。
+ *
+ * 为什么必须做（2026-09-25 操作员实测）：邮编那一格不自动填，操作员选完镇就
+ * 直接保存 —— 服务端按"地址必须选全"拒了这笔写入，而拒绝话术当时说的是
+ * "所选项目已不在主档"，看着像 DMS 把数据删了。**只有一个候选就替你选上**；
+ * 有多个候选仍然留空让操作员自己挑（绝不猜一个错的邮编写进客户档）。
+ */
+function autoZipcode(rows: Option[]): void {
+  if (customer.zipcode_id) return;
+  if (rows.length === 1) customer.zipcode_id = String(rows[0].id);
+}
+
 async function cascade(
   level: string,
   parentId: string,
@@ -288,7 +304,10 @@ async function cascade(
   if (!parentId) return;
   try {
     const rows = await loadGeo(ticket.value, nonce.value, level, parentId);
-    if (request === geoRequest[level]) geo[level] = rows;
+    if (request === geoRequest[level]) {
+      geo[level] = rows;
+      if (level === "zipcodes") autoZipcode(rows);
+    }
   } catch (err) {
     if (request === geoRequest[level]) errorText.value = explain(err);
   }

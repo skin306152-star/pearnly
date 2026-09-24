@@ -355,7 +355,14 @@ class IntakeQueue(unittest.TestCase):
                     self.assertEqual(button["type"], "uri")
                     self.assertIn("needs-address", button["uri"])
                     self.assertIn("editor=customer", button["uri"])
-                    self.assertIn(self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"), str(card))
+                    # 话术**必须说清是"地址没选全"**：2026-09-25 实测里那条
+                    # "所选项目已不在主档"让操作员以为 DMS 把数据删了。
+                    self.assertIn(
+                        self.flow.dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang="th"),
+                        str(card))
+                    self.assertNotIn(
+                        self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"),
+                        str(card))
 
     def test_incomplete_address_stale_nonce_is_rejected_without_edit_ticket(self):
         self.store.set_session(LINE_USER, "reviewing", {"nonce": "current", "draft": {}})

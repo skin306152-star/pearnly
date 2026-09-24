@@ -67,6 +67,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
 The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
+"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 The read status changed. Refresh the page to check before trying again.,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
@@ -237,6 +238,7 @@ dms.edit.total,予約金合計
 dms.edit.transfer,振込
 dms.edit.village,村・住宅地
 dms.err.ERR_CRED_DECRYPT,認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,お客様の住所が不完全です。「編集」から都県・郡区・町村・郵便番号をすべて選んでから、もう一度保存してください。
 dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください
 dms.err.ERR_DMS_ADVISOR_REQUIRED,この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください

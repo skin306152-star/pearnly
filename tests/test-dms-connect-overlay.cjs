@@ -32,13 +32,18 @@ const row = (dataset, state = 'idle', extra = {}) => ({
 function harness({connected = true, rows = null} = {}) {
   const calls = [], timers = new Map(), messages = [], successes = [], freezeTexts = [];
   const buttons = [], handlers = {};
+  let dialogSubmit = null;
+  let savedConnection = false;
   let serial = 0, frozen = false, freezeCount = 0, unfreezeCount = 0, freezeMessage = '';
   let statusError = null;
   let serverRows = clone(rows || groups.map(name => row(name)));
   const page = {
-    main: {empty() {}}, clear_inner_toolbar() {}, set_primary_action() {}, set_indicator() {},
+    main: {empty() {}}, clear_inner_toolbar() {},
+    set_primary_action(label, fn) {primaryAction = fn;},
+    set_indicator() {},
     add_inner_button(label) {buttons.push(label);},
   };
+  let primaryAction = null;
   const wrapper = {};
   const t = (key, ...args) => (zh[key] || key) + (args.length ? ':' + args.join('|') : '');
   const p = {
@@ -54,8 +59,11 @@ function harness({connected = true, rows = null} = {}) {
         if (statusError) throw statusError;
         return {configured: true, datasets: clone(serverRows)};
       }
+      if (method.endsWith('test_credentials')) return {ok: true, masters: {car_models: [1]}};
+      if (method.endsWith('save_connection')) {savedConnection = true; return {ok: true};}
       throw new Error('Unexpected connection call: ' + method);
     },
+    dialog(title, fields, action, submit) {dialogSubmit = submit;},
     layout() {return {fields: [], values: {}, set_value() {}};},
     escape: value => String(value),
     success(value) {successes.push(value);},
@@ -84,6 +92,15 @@ function harness({connected = true, rows = null} = {}) {
   vm.runInContext(source, context);
   return {
     calls, buttons, messages, successes, freezeTexts, handlers,
+    get savedConnection() {return savedConnection;},
+    async connect(values = {username: 'synthetic', password: 'synthetic'}) {
+      assert(primaryAction, 'the page must expose exactly one primary action');
+      primaryAction();
+      await tick();
+      assert(dialogSubmit, 'the connection dialog must have been opened');
+      await dialogSubmit(values, {set_value() {}, hide() {}});
+      await tick();
+    },
     get timers() {return timers;},
     get frozen() {return frozen;}, get freezeCount() {return freezeCount;},
     get unfreezeCount() {return unfreezeCount;}, get freezeMessage() {return freezeMessage;},
@@ -108,9 +125,26 @@ test('idle connection page has no manual trigger and stops polling after one sta
   assert.equal(h.calls.filter(call => call.type === 'POST').length, 0);
   assert.equal(h.timers.size, 0, 'nothing is being read, so nothing keeps polling');
   assert.equal(h.frozen, false);
+  assert.equal(h.buttons.length, 0,
+    'the toolbar keeps a single action: no inner "test" or "disable" buttons');
   assert(!h.buttons.includes(zh['dms.connect.cache.read']),
     'the "update data" button is gone: reads happen on bind and on operator action');
   assert(!h.buttons.some(label => /update|更新/i.test(label)));
+});
+
+test('a successful re-bind shows only the reading overlay, not the old probe notice', async () => {
+  const h = harness({rows: [
+    row('vehicles', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
+    row('customers', 'queued', {request_id: ID, progress: {processed: 0, total: null}}),
+    row('company', 'idle'), row('geo', 'idle'),
+  ]});
+  await h.start();
+  await h.connect();
+  assert.equal(h.savedConnection, true, 'the credentials were saved');
+  assert.equal(h.frozen, true, 'the reading overlay is up');
+  assert.equal(h.successes.length, 0,
+    'no "connection ok · counts" toast: it used to collide with the reading overlay');
+  assert.match(h.freezeMessage, /%/, 'the overlay carries the live percentage');
 });
 
 test('binding shows the native mask with a live percentage', async () => {

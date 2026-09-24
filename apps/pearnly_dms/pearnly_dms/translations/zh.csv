@@ -67,6 +67,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
+"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
 The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
@@ -237,6 +238,7 @@ dms.edit.total,订金合计
 dms.edit.transfer,转账
 dms.edit.village,村/小区
 dms.err.ERR_CRED_DECRYPT,凭据解密失败 · 请重新输入用户名和密码
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,客户地址不完整：请点「编辑」，把府／区／镇／邮编都选上，再保存一次。
 dms.err.ERR_DMS_ADMIN_AUTH,DMS 管理员凭据登录失败 · 请检查管理员用户名和密码
 dms.err.ERR_DMS_ADVISOR_REQUIRED,这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,"在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属"

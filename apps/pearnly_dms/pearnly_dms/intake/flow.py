@@ -168,6 +168,9 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
 
     # Unmatched OCR geography stays empty. Do not consume the edit nonce before
     # rejecting an incomplete write (including submitting that write for approval).
+    # 拒绝的话术**必须说清是缺地址**：2026-09-25 实测里操作员在这里被
+    # 「所选项目已不在主档」误导，以为 DMS 那边把数据删了 —— 真实原因只是编辑页里
+    # 地址没选全（多半是邮编那格）。缺项照旧不写入，只是改成能照着做的话。
     if action in {cards.ACT_CREATE, cards.ACT_UPDATE, cards.ACT_SUBMIT_APPROVAL} and any(
         not str((payload.get("draft") or {}).get(key) or "").strip()
         for key in ("province_id", "district_id", "subdistrict_id", "zipcode_id")
@@ -176,7 +179,7 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
             _reply(reply_token, cards.TXT_EXPIRED)
             return
         _send(line_user_id, cards.edit_entry_card(
-            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th")
+            pb["nonce"], notice=dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang="th")
         ), reply_token)
         return
 

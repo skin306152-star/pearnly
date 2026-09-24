@@ -67,6 +67,7 @@ The DMS account is busy or a submission is waiting. No read will retry automatic
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 The account is busy. Click Read later to continue.,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
+"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.",ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 The customer record changed after you edited it. Review the current differences before confirming again.,ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง
 The read status changed. Refresh the page to check before trying again.,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
@@ -501,6 +502,7 @@ dms.edit.total,ยอดเงินจองรวม
 dms.edit.transfer,เงินโอน
 dms.edit.village,หมู่บ้าน
 dms.err.ERR_CRED_DECRYPT,ถอดรหัสข้อมูลรับรองไม่สำเร็จ
+dms.err.ERR_DMS_ADDRESS_INCOMPLETE,ที่อยู่ของลูกค้ายังไม่ครบ กรุณากด «แก้ไข» แล้วเลือก จังหวัด อำเภอ ตำบล และรหัสไปรษณีย์ ให้ครบก่อนบันทึกอีกครั้ง
 dms.err.ERR_DMS_ADMIN_AUTH,เข้าสู่ระบบด้วยบัญชีผู้ดูแล DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่านผู้ดูแล
 dms.err.ERR_DMS_ADVISOR_REQUIRED,ใบจองนี้ยังไม่ได้กำหนดที่ปรึกษาการขาย กรุณาให้ผู้ดูแลกำหนดที่ปรึกษาให้บัญชี DMS นี้ แล้วเปิดใบจองใหม่
 dms.err.ERR_DMS_ADVISOR_UNMATCHED,ไม่พบที่ปรึกษาการขายรายนี้ในรายชื่อที่ปรึกษาของ DMS กรุณาให้ผู้ดูแลเพิ่มบัญชีนี้ในรายชื่อที่ปรึกษาการขาย หรือติดต่อทีม Pearnly เพื่อกำหนดให้
