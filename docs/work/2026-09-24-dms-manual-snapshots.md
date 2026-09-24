@@ -165,7 +165,10 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 
 1. 推 `codex/testenv-per-app`（推前按 CI 同名闸门复核）→ 把它合进 DMS 候选分支（`codex/dms-five-minute-snapshots`），这样被测栈定义里既有 `dms-sync-worker` 又有新工具。
 2. 在测试机执行 `PEARNLY_TESTENV_SRC=<DMS 工作树> PEARNLY_TESTENV_IMAGE=<候选 digest> bash scripts/testenv.sh lab-start dms`，验证：独立栈起来、站点库自动升级、缓存已清、四组采集不再撞账号。
-3. 补 OCR 与计费（"理想状态"缺的两块）：① `ocr.json` 真凭据要不要拷到那台 Windows（同一服务账号，会产生真实识别费用）；② 计费走线上账本还是测试机本地建 `billing.internal` 站点并充测试租户额度。**两条都等用户点头**，本轮未做。
+3. 补 OCR 与计费（"理想状态"缺的两块）。用户已定：**OCR 凭据拷过去、计费要"做完整做真实"**。
+   - ① OCR 凭据：**已完成**——测试机 `/opt/pearnly/secrets/ocr.json` 换成线上那份，回读 2343 字节、600、sha256 `7a5476486b1b7262…` 与线上逐字节一致（原来是 3 字节空占位）。
+   - ② 计费（**未做**）：结论先记清楚——**DMS 识别在调模型前会先问账本**（`pearnly_dms/ocr/ocr_service.py` 先 `billing_client.status`，取不到就 `Deferred("billing_unavailable")` 一直推迟），所以"不接计费"等于"拍照识别永远不会开始"。做法：把线上 `billing.internal` 整站导入测试机自己的 billing 容器（`pearnly-testenv-<app>_sites-billing`，与生产物理隔离），带上测试租户真实余额与流水，识别走真实"查余额→放行→扣费→留记录"。**不能只建空站点**：租户 site_config 里的 `pearnly_billing_token` 是从线上导入的，必须与账本站点的密钥匹配，否则签名请求被拒。
+   - 生产侧参考实现：`infrastructure/production/bootstrap-billing.py`（建 `billing.internal`、装 `pearnly_control`、写 `pearnly_billing_only/scoped_tokens/token/management_token`），它依赖 `/run/secrets/runtime.env` 与 `/run/secrets/member-identity.json`——测试机要照搬这两个挂载，或改为整站导入。
 4. 验证通过后：按 `activate-product.sh` 部署新版 DMS 到线上（届时 `warm.sweep` 由 `clear_events()` 自动删除）。
 
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
