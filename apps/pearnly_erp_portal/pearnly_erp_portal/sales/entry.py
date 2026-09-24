@@ -170,7 +170,9 @@ def _post(payload, request_id, fingerprint, name):
     customer, buyer_name = _buyer(payload)
     rows = [_line_row(raw, computed, company=company) for raw, computed in zip(payload["lines"], totals["lines"])]
     collection = _collection(payload, kind, totals["grand_total"], day)
-    doc.update({key: payload.get(key) for key in HEAD_FIELDS})
+    source = payload.get("source") or doc.get("source") or "manual"
+    doc.update({key: payload[key] for key in HEAD_FIELDS if key in payload})
+    doc.source = source
     # 一租户多公司：单据挂公司（没给就是当前公司）。
     doc.company = company
     # 明细必须是子表文档：直接塞 dict 列表，控制器里的 `line.description` 会拿到 dict。

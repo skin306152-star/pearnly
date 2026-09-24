@@ -69,11 +69,12 @@ class EntryCompanyIntegrity(unittest.TestCase):
         return tuple(stock.current_balance(self.product, place["warehouse"]).qty
                      for place in (self.a, self.b))
 
-    def legacy_sale_draft(self):
+    def legacy_sale_draft(self, source="manual"):
         # Fixture-only native insertion models a draft saved before direct creation
         # was restricted. Frappe stamps a new document's owner from the session user.
         frappe.set_user(self.user)
         doc = frappe.get_doc({"doctype": "ERP Sales Document", "company": self.b["name"],
+            "source": source, "note": self.prefix + " saved draft",
             "status": "draft", "doc_kind": "receipt", "doc_date": "2026-09-24",
             "buyer_name": self.prefix + " buyer", "lines": self.payload("sales")["lines"]})
         doc.insert(ignore_permissions=True)
@@ -90,6 +91,8 @@ class EntryCompanyIntegrity(unittest.TestCase):
         self.assertEqual({row.warehouse for row in doc.lines}, {self.b["warehouse"]})
         self.assertEqual(company.active_company(), self.a["name"])
         self.assertEqual(Decimal(str(doc.paid_amount)), Decimal(20))
+        if kind == "sales":
+            self.assertEqual(doc.source, "manual")
         delta = Decimal(2) if kind == "purchase" else Decimal(-2)
         self.assertEqual(self.balances(), (before[0], before[1] + delta))
         replay = module.post(payload, request_id=request)
@@ -174,14 +177,18 @@ class EntryCompanyIntegrity(unittest.TestCase):
         doc = frappe.get_doc("Purchase Document", result["name"])
         self.assertEqual(doc.company, self.b["name"])
         self.assertEqual(doc.lines[0].warehouse, self.b["warehouse"])
-        sale_draft = self.legacy_sale_draft()
-        self.assertEqual(company.active_company(), self.a["name"])
-        self.assertTrue(frappe.has_permission("ERP Sales Document", "write", doc=sale_draft.name))
-        result = sales.post(self.payload("sales", company=self.a["name"]), name=sale_draft.name,
-                            request_id=uuid4().hex)
-        self.assertEqual(frappe.db.get_value("ERP Sales Document", result["name"], "company"), self.b["name"])
-        self.assertEqual(frappe.get_doc("ERP Sales Document", result["name"]).lines[0].warehouse, self.b["warehouse"])
-        self.assertEqual(company.active_company(), self.a["name"])
+        for source in ("manual", "ocr"):
+            with self.subTest(source=source):
+                sale_draft = self.legacy_sale_draft(source=source)
+                self.assertEqual(company.active_company(), self.a["name"])
+                self.assertTrue(frappe.has_permission("ERP Sales Document", "write", doc=sale_draft.name))
+                result = sales.post(self.payload("sales", company=self.a["name"]), name=sale_draft.name,
+                                    request_id=uuid4().hex)
+                saved = frappe.get_doc("ERP Sales Document", result["name"])
+                self.assertEqual((saved.company, saved.lines[0].warehouse), (self.b["name"], self.b["warehouse"]))
+                self.assertEqual(saved.source, source)
+                self.assertEqual(saved.note, self.prefix + " saved draft")
+                self.assertEqual(company.active_company(), self.a["name"])
 
     def test_saved_drafts_recheck_ownership_and_revoked_company(self):
         purchase_draft = legacy_purchase.create_purchase(supplier=self.supplier,

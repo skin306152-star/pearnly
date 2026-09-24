@@ -56,14 +56,16 @@ def _balance_rows(doc, *, by_method=None, change_total=0.0) -> list[dict]:
     """
     by_method = by_method or {}
     stored = {row.method: row for row in (doc.get("balances") or [])}
-    methods = [method for method in METHODS if method in stored or method in by_method]
-    if not methods:
-        methods = [contracts.CASH]
+    methods = [method for method in METHODS
+               if method == contracts.CASH or method in stored or method in by_method]
     rows = []
     for method in methods:
         row = stored.get(method)
         if row is not None:
-            opening = contracts.d(row.opening_amount or 0)
+            # The legacy cash field is also used by expected_cash. Earlier shifts
+            # could have opening_float set while their cash child was left at zero.
+            opening = (contracts.d(doc.opening_float or 0) if method == contracts.CASH
+                       else contracts.d(row.opening_amount or 0))
             counted = None if row.counted_amount is None else contracts.d(row.counted_amount)
         else:
             # 老班次：现金那一份是父字段 `opening_float` / `counted_cash`（实点只在交班后才有意义）。
@@ -119,6 +121,8 @@ def open_shift(*, terminal=None, opening_float=0, balances=None, note=None) -> d
     opening = _clean_amounts(balances)
     if opening:
         opening_float = opening.get(contracts.CASH, 0)
+    else:
+        opening = {contracts.CASH: contracts.q2(opening_float)}
 
     # 行锁：两个收银员同时点开班时，只有一个能拿到这个收银台。
     frappe.db.sql("select name from `tabERP POS Terminal` where name=%s for update", terminal)
@@ -215,6 +219,8 @@ def close_shift(name, *, counted_cash=None, counted=None, note=None) -> dict:
                 "opening_amount": contracts.q2(doc.opening_float or 0)
                                   if method == contracts.CASH else 0})
             rows[method] = row
+        if method == contracts.CASH:
+            row.opening_amount = contracts.q2(doc.opening_float or 0)
         row.expected_amount = contracts.q2(expected_by_method.get(method, 0.0))
         row.counted_amount = contracts.q2(amount)
         row.difference = contracts.shift_difference(row.counted_amount, row.expected_amount)

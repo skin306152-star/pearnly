@@ -287,15 +287,23 @@ class NativeBoundaries(unittest.TestCase):
 
     def test_native_stock_entry_rename_cannot_skip_service_boundary(self):
         from frappe.handler import run_doc_method
+        from werkzeug.wrappers import Request
 
         self.as_user("stock-in")
         renamed = self.prefix + "-native-rename"
         savepoint = "entry_rename_" + uuid4().hex
         frappe.db.savepoint(savepoint)
+        missing = object()
+        previous_request = getattr(frappe.local, "request", missing)
         try:
+            frappe.local.request = Request.from_values(method="POST")
             self.denied(run_doc_method, "rename", dt="ERP Stock Entry", dn=self.entries["a"],
                         args={"name": renamed, "validate_rename": False})
         finally:
+            if previous_request is missing:
+                del frappe.local.request
+            else:
+                frappe.local.request = previous_request
             # after_rename runs after SQL; the HTTP request rolls back on the denial.
             frappe.db.rollback(save_point=savepoint)
         self.assertTrue(frappe.db.exists("ERP Stock Entry", self.entries["a"]))

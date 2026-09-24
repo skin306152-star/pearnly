@@ -40,10 +40,10 @@ class EntryFlowAcceptance(unittest.TestCase):
         cls.warehouse = cls.company["warehouse"]
         cls.terminal = cls.company["terminals"][0]
         cls.products = {}
-        for key in ("zero", "blank", "counted_zero", "inventory", "card", "cashier", "purchase"):
+        for key in ("zero", "blank", "counted_zero", "inventory", "card", "cashier", "cashier_mixed", "purchase"):
             cls.products[key] = products.create_product(product_name=cls.prefix + " " + key,
                 code=cls.prefix + "-" + key, unit="pcs", default_cost=10, unit_price=20)["name"]
-        for key, quantity in (("blank", 7), ("counted_zero", 5), ("inventory", 9), ("cashier", 8)):
+        for key, quantity in (("blank", 7), ("counted_zero", 5), ("inventory", 9), ("cashier", 8), ("cashier_mixed", 8)):
             stock.apply_movement(product=cls.products[key], warehouse=cls.warehouse,
                 movement_type="stock_in", qty=quantity, unit_cost=10,
                 reason=cls.prefix, client_uuid=cls.prefix + "-seed-" + key, internal=True)
@@ -287,6 +287,7 @@ class EntryFlowAcceptance(unittest.TestCase):
         shift = cashier_api.api_open_shift(terminal=self.terminal, opening_float=100, note=self.prefix)
         active = cashier_api.api_current_shift(terminal=self.terminal)
         self.assertEqual(active["shift"]["name"], shift["name"])
+        self.assertEqual(next(row["opening_amount"] for row in active["balances"] if row["method"] == "cash"), 100)
         args = {"terminal": self.terminal, "shift": shift["name"], "client_uuid": uuid4().hex,
                 "lines": [{"product": self.products["cashier"], "description": self.prefix + " cashier",
                            "qty": 2, "unit": "pcs", "unit_price": 20}],
@@ -301,6 +302,7 @@ class EntryFlowAcceptance(unittest.TestCase):
         self.denied(cashier_api.api_list_shifts)
         summary = cashier_api.api_shift_summary(name=shift["name"])
         self.assertEqual((summary["sales_count"], summary["gross"], summary["expected_cash"]), (1, 40, 140))
+        self.assertEqual(next(row["expected_amount"] for row in summary["balances"] if row["method"] == "cash"), 140)
         closed = cashier_api.api_close_shift(name=shift["name"], counted_cash=140)
         self.assertEqual(closed["cash_diff"], 0)
         self.assertIsNone(cashier_api.api_current_shift(terminal=self.terminal))
@@ -309,6 +311,32 @@ class EntryFlowAcceptance(unittest.TestCase):
         self.denied(cashier_api.api_open_shift, terminal=self.terminal)
         self.denied(cashier_api.api_create_sale, **args)
         self.assertEqual(self.quantity("cashier"), Decimal(6))
+
+    def test_cashier_mixed_payments_and_legacy_cash_opening_reconcile(self):
+        self.as_role("cashier")
+        shift = cashier_api.api_open_shift(terminal=self.terminal,
+            balances={"cash": 100, "card": 5, "transfer": 7}, note=self.prefix + " mixed")
+        # Model a task-owned shift persisted by the old opening_float path: the
+        # parent has 100 while the cash child was incorrectly initialized to 0.
+        cash_row = frappe.db.get_value("ERP Shift Balance", {"parent": shift["name"], "method": "cash"}, "name")
+        frappe.db.set_value("ERP Shift Balance", cash_row, "opening_amount", 0)
+        sale = cashier_api.api_create_sale(terminal=self.terminal, shift=shift["name"], client_uuid=uuid4().hex,
+            lines=[{"product": self.products["cashier_mixed"], "description": self.prefix + " mixed",
+                    "qty": 2, "unit": "pcs", "unit_price": 50}],
+            payments=[{"method": "cash", "amount": 60}, {"method": "card", "amount": 30},
+                      {"method": "transfer", "amount": 20}])
+        self.assertEqual((sale["grand_total"], sale["change_amount"]), (100, 10))
+        summary = cashier_api.api_shift_summary(name=shift["name"])
+        expected = {"cash": 150, "card": 35, "promptpay": 0, "transfer": 27}
+        self.assertEqual(summary["expected_cash"], 150)
+        self.assertEqual({row["method"]: row["expected_amount"] for row in summary["balances"]}, expected)
+        closed = cashier_api.api_close_shift(name=shift["name"], counted=expected)
+        self.assertEqual((closed["expected_cash"], closed["counted_cash"], closed["cash_diff"]), (150, 150, 0))
+        saved = frappe.get_doc("ERP Shift", shift["name"])
+        self.assertEqual({row.method: row.expected_amount for row in saved.balances}, expected)
+        self.assertTrue(all(row.difference == 0 for row in saved.balances))
+        self.assertEqual(next(row.opening_amount for row in saved.balances if row.method == "cash"), 100)
+        self.assertEqual(self.quantity("cashier_mixed"), Decimal(6))
 
     def test_company_and_warehouse_leaf_management_boundaries(self):
         self.as_role("company")
