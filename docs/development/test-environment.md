@@ -20,21 +20,50 @@
 
 1. Mac 上改代码并跑本地快循环（语法、单测、前端 build、`scripts/check-architecture.py`）。
 2. 推分支 → 手动触发 `build-production.yml`，在 CI 跑完强制检查与隔离 lab，产出镜像并记下 **digest**。
-3. 在测试环境起这一版：
+3. 把那个分支的代码与 compose 指给驱动，然后起这一版（**一次只起一个产品**）：
    ```bash
+   export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
    export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
-   bash scripts/testenv.sh up
+   bash scripts/testenv.sh lab-start dms        # 起 DMS 栈 + 导入最新租户数据 + 切域名
    ```
 4. 按下面的"一键切换"用测试租户做真实验证。
 5. 通过 → 合并推送，再用**同一个 digest** 部署；不通过 → 在测试环境里改，线上从没被动过。
 
+## 一个产品一套栈
+
+DMS / ERP / Cowork 各有**自己的栈**：项目名 `pearnly-testenv-<app>`，各自独立占有一套
+MariaDB、两个 Redis、站点卷、网络与容器。这样测一个产品不会碰到另一个——改坏 DMS 不影响
+ERP，两边的库、队列、缓存都不共享。
+
+- **同时只跑一个**：端口是固定分配的（前端 8183/8182/8181、账本 8184），所以 `up <app>`
+  会先停掉别的测试栈（容器删掉、**卷保留**，数据不丢，下次 `up` 就回来）。
+- **驱动与被测代码分开**：驱动、测试辅助脚本、这份文档取本分支；产品代码与
+  `production/compose.yml` 取 `PEARNLY_TESTENV_SRC`（默认当前工作树）。所以在哪个窗口跑
+  脚本都不会串，也不必先把工具改动合进被测分支。
+- **Keycloak 不在每套栈里**：测试租户的身份走线上 Keycloak（`pearnly_oidc_issuer` 指向
+  `auth.pearnly.com`）。只有要登那些空白 `<app>.test.localhost` 站点时才
+  `--profile keycloak` 起一个。
+
+## 开始测试前自动完成的事
+
+换镜像之后有三件事过去靠人记，现在由 `up` / `finish` 自动做（实现见
+[`finish-start.py`](../../infrastructure/testenv/finish-start.py)）；这三件漏掉任何一件，
+用户看到的现象都不是"环境没配好"，而是像产品坏了：
+
+| 动作 | 漏了会看到 |
+| --- | --- |
+| `bench migrate`（把站点库升到当前镜像的 DocType） | 点按钮报 `Table 'tab<新 DocType>' doesn't exist` |
+| `bench clear-cache`（清 Frappe hooks/资源缓存） | "新功能看不见"——缓存里存着旧的资源版本号，页面一直加载旧 JS |
+| 写 `pearnly_ocr_budget_redis` 与队列超时 | LINE 发照片在入队处就失败，回"识别队列繁忙，请稍后重发" |
+
+`lab-start` 会在导入完成后再跑一次收尾：导入是全新的库，起栈时那次升级没有覆盖到它。
+
 ## 一键切换（把测试租户整体切到测试环境）
 
 ```bash
-bash scripts/testenv.sh lab-start   # 线上导出两个测试租户 → 取回 → 导入测试环境 → 域名切过去
-bash scripts/testenv.sh lab-stop    # 域名切回线上（测试环境数据保留）
-bash scripts/testenv.sh lab-start dms   # 只动 DMS：只导出/导入 testdms 并只切它的域名
-bash scripts/testenv.sh lab-stop  dms   # 只把 testdms 切回线上，ERP 域名不动
+bash scripts/testenv.sh lab-start dms   # 起 DMS 栈 → 导出 testdms → 取回 → 导入 → 收尾 → 切域名
+bash scripts/testenv.sh lab-stop  dms   # 域名切回线上 → 停 DMS 栈（卷保留）
+bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 ```
 
 **按产品切换**：`lab-start` / `lab-stop` 可以只带要测的产品名（`dms`、`erp`，不带=两个都动）。
@@ -57,8 +86,9 @@ bash scripts/testenv.sh lab-stop  dms   # 只把 testdms 切回线上，ERP 域�
 | 命令 | 用途 |
 | --- | --- |
 | `bash scripts/testenv.sh setup` | 设备侧一次性准备（WSL 内装 docker / nginx / cloudflared） |
-| `bash scripts/testenv.sh up` | 拉指定 digest 并起整栈（含建/迁移站点） |
-| `bash scripts/testenv.sh sites dms erp cowork` | 只建/迁移空白站点 |
+| `bash scripts/testenv.sh up [dms\|erp\|cowork]` | 拉起该产品的独立栈（先停别的栈），并自动升级库 / 清缓存 / 写运行配置 |
+| `bash scripts/testenv.sh finish [产品]` | 只跑那三个收尾动作（导入数据后、换镜像后单独用） |
+| `bash scripts/testenv.sh sites [产品]` | 只建/迁移本栈的空白站点 |
 | `bash scripts/testenv.sh import <组> <站点>` | 导入某个测试租户（数据来源于线上导出） |
 | `bash scripts/testenv.sh migrate <组> <站点>` | 发版后升级某个站点 |
 | `bash scripts/testenv.sh check` | 读回每个站点的产品、已装 App、版本、数据量 |
