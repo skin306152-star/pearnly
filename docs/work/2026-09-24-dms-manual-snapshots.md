@@ -78,6 +78,41 @@ ERP 已采用产品独立镜像配置：`provision-agent.image(group)` 优先读
 
 收尾状态为**交接保留**：本次仅提交本节文档，未合入 main、未推送任务分支、未部署 DMS；没有删除工作树/分支/运行资源。其它工作树、Windows 本地主线新增提交及旧 DMS 未暂存文档均不替其提交或清理。下个窗口从本节开始即可，不必重新阅读全部历史对话。
 
+## 最新续接：对齐已确认新主线（2026-09-24，合并提交 ff6127f）
+
+本轮只做“对齐主线 + 受影响本地检查”。**没有推送、没有构建镜像、没有部署、没有动测试环境、没有删资源。** 承接的是用户“把新主线对齐过来”的指示；正式 DMS 发布与推送仍需用户届时明确指示。
+
+### 合并事实
+
+- 方向：把本地主线（与真实远端 main 同为 `90b5cb31bdda546466e44791772fb342688aaa7e`）合进本 DMS 分支 `codex/dms-five-minute-snapshots`，合并提交 `ff6127f`（第一父提交 `f369435`）。
+- **总交接里“真实远端 main = `3cee765`、本地主线领先远端 7 个提交、不能称作已推送”已过时**：本轮 `git ls-remote` 回读远端 main 已是 `90b5cb3`，Windows 测试环境那批已经推送并合入。本任务远端分支仍不存在（从未推送）。
+- 合并前预演与结果一致：两侧共 125 / 134 个改动文件，真正重叠并冲突的只有交接点名的两个共享部署文件。
+
+### 共享文件收口方式
+
+- `scripts/production/activate-product.sh`：保留 DMS 的 `dms-sync-worker` 停止/重建与 `configure-dms-runtime.py` 前置步骤，同时采用主线的“只写本产品 `active-image-<product>.json`、旧 global `active-image.json` 保持不动”的固定记录方式。两侧改动合并后是同一段顺序：维护模式 → 备份 → 运行配置 → 迁移 → 重建 → 关维护 → 发布本产品 pin。
+- `scripts/production/test-activate-product.py`：取主线的 `run_activation(failure, source_file, product, records)` 超集（含临时记录与失败不发布检查），并保留 DMS 的同步队列用例；主线的容器清单断言改为按产品计算，DMS 多一个 `dms-sync-worker`。
+- `infrastructure/production/provision-agent.py` 自动合并后同时含主线的 `image(group)`（按产品 pin，缺失才回落 global）与 DMS 的 `services(group)`（DMS 追加同步 worker）；`scripts/production/test-provision-agent.py` 的 `restart_web` 断言同步按该规则更新。
+
+### 顺手修掉的一处陈旧断言（与本合并无关）
+
+`scripts/test-dms-editor-snapshot.cjs` 仍在断言五分钟轮询/每日地址同步时代的文案（`Address sync is delayed`、`5 minutes.*not draft revenue`），而这两句已被手动更新方案替换（`Older address data as of …`、`updated only when you click Read / refresh`）。用 `git diff` 核对：该测试及其输入文件（`frontend/src`、`apps/pearnly_dms`）都不在本次合并改动范围内，**合并前就是红的**，属本分支从未推送、CI 从未跑过的存量缺口。已把期望值改为当前已采纳文案（不是放宽或删除断言），现 5/5 通过。
+
+### 本轮实际跑过并通过的检查（合并后的工作区）
+
+- `scripts/check-architecture.py`：0 违规；`scripts/check-dms-offline.py`：27 套全通过（含 snapshot reader 54、catalogue 26、company schema 8、geo 14、geo resume 4、连接 13、顾问 15）。
+- `tests/test_architecture_guard.py`、`tests/test_native_desk_contract.py`、`tests/test_product_feature_catalog.py`、`tests/test_queue_targets.py`、`scripts/test-dms-call-contracts.py`、`scripts/test-dms-customer-identity.py`、`tests/test_welcome_email.py` 通过。
+- `scripts/production/test-activate-product.py` 12 项、`test-provision-agent.py` 16 项、`test-dms-runtime.py` 2 项通过；`scripts/check-production-capacity.py` 12 项通过。
+- node 侧：`tests/test-native-desk.cjs`、`tests/test_pos_lifecycle.js`、`tests/test-roster-selection.cjs`、`tests/test-records-selection.cjs`、`scripts/production/test-issue-actions.cjs`、`scripts/test-dms-editor-snapshot.cjs` 通过。
+- `scripts/i18n-build.py --check` PASS；`bash -n` / `py_compile` 语法通过；`git diff --check` 干净。
+- 环境注意：本机默认 `python3` 是 **3.9.6**，`X | None` 语法会让 `tests/test_welcome_email.py`、`tests/test_product_feature_catalog.py` 抛 TypeError；改用 `python3.12` 即通过（**本地主线同样如此，非本次引入**）。`scripts/test-dms-query-snapshots.py`、`scripts/test-dms-snapshot-consumers.py` 需要镜像内 Frappe，本机不能直接跑。
+
+### 下一步与授权边界
+
+文档化的候选路径是：**推分支 → 手动触发 `build-production.yml` → 记下 digest → `PEARNLY_TESTENV_IMAGE=<digest> bash scripts/testenv.sh up`**（见 `docs/development/test-environment.md` 的运行流程）。推分支是外部写，**本分支至今从未推送，本轮没有该授权**，因此固定候选镜像尚未构建。本机原生 arm64 lab 仍以只读方式挂当前工作树源码，合并后的逻辑在 lab 里已生效，但那不是能交给测试机的候选 digest。
+
+仍未验收（与上一节结论一致）：四组完整真实采集与首次发布（尤其全国地址整轮）、新版在测试租户上的安装/升级、LINE 菜单 1–5（含编辑回卡与订车付款附件）、同权限第三方回读与失败恢复。
+
 ## 最新续接：单次真实 OCR 与首次绑定说明（2026-09-24，基线 410b87b）
 
 用户明确允许使用现有测试附件做一次真实识别，并要求等待文案改用三个英文句点。仅该次付费 OCR 获得新增授权；不合并、不推送、不部署，不发 LINE、不写第三方 DMS 业务。文字归 DMS 产品词条，没有修改绑定流程、识别模型或共享计费策略。
