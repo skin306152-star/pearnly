@@ -92,7 +92,7 @@ jobs:
         env:
           PEARNLY_FLOW_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
         run: docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml down --volumes
-      - name: Verify native snapshot storage, reads, synchronization and dedicated queue
+      - name: Verify native snapshot storage, reads, manual requests and dedicated queue
         env:
           PEARNLY_SNAPSHOT_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
         run: |
@@ -100,7 +100,7 @@ jobs:
           docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/dms-snapshot-lab-init.py
           docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-store-native.py
           docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-reads-native.py
-          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-sync-native.py
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-manual-native.py
           docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-queue-native.py
       - name: Remove only the disposable DMS snapshot laboratory
         if: always()
