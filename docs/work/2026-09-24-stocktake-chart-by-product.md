@@ -716,6 +716,58 @@ DOM 仍只用官方类名（`.table .table-bordered` + `text-right`，与框架�
 
 ## 未做 / 下一步
 
+## 第十五轮：第二次发布（第十三、十四轮一起上线，2026-09-25 02:15–02:30）
+
+用户口径："就这样合并推送部署，有没有动共享文件"。
+
+### 共享文件核对：**动了一个**
+
+- 这次上线的内容是第十三、十四轮那两笔：`apps/pearnly_core/pearnly_core/public/desk/**product.js**`
+  （共享层：新增 `p.field_grid`，"点列头排序"的绑定改成带命名空间先解绑）、
+  `apps/pearnly_erp_portal/.../desk/stock-card.js`（只 ERP 用）、以及本任务记录。
+- 同仓 11 个工作树逐个比对（各自 `main...HEAD` 加工作区改动）：**只有本分支自己**命中；
+  DMS 窗口（`codex/dms-five-minute-snapshots`，HEAD 已到 `073f735`）**没有改过 `product.js`**，
+  其余 ERP / Cowork / testenv 工作树也都没有交集 —— 无冲突、无需协调让位。
+
+### 合并、闸门与推送
+
+- 合并前 `main` = `origin/main` = `5ab7c2f`，本分支领先 2 个提交（纯快进）；main 工作区干净。
+- CI 同名闸门逐条实跑全通过（架构 0 违规、DMS 离线 27/0、原生 Desk 22 项、产品激活 10/10、
+  容量、开户、欢迎邮件、队列目标、i18n、POS 生命周期 9/9、收发存 6 项、入出库、选择/删除、
+  issue-actions、`git diff --check`）。
+- `git merge --ff-only` → `f0f5a43`；推送后回读 `origin/main` 与本地 HEAD **一致**。
+
+### 镜像、投递与激活
+
+| 步骤 | 结果 |
+| --- | --- |
+| 生产镜像构建 | run [36047068432](https://github.com/skin306152-star/pearnly/actions/runs/36047068432) success（约 6 分钟） |
+| 镜像 | `ghcr.io/skin306152-star/pearnly/frappe@sha256:a3d007a76ec95fa40547cb2348fe3f61b4f2385175677ec356bbc9e392352044` |
+| 镜像标签 | `org.opencontainers.image.revision=f0f5a4325711637c9f1cb849219824c6d1976cd6` |
+| 部署工具同源 | `check-deploy-image.py` → **Deploy tooling matches this image** |
+| 投递 | run [36047758396](https://github.com/skin306152-star/pearnly/actions/runs/36047758396) success |
+| 激活 | `activate-product.sh <image> erp`，**1 分 35 秒**，`Product erp activated with verified image.` |
+
+### 发布后回读（只读）
+
+- 7 个 ERP 容器（web / worker / scheduler / socketio / frontend / ocr-worker / ocr-dispatch）全部是
+  新 digest，标签均为 `f0f5a43`。
+- 其余服务逐项与激活前一致：DMS 7 个（`3afd6dbc21af` / `c6a5b20bc447` / `98d5dd1d3386` /
+  `126cbae9cc00` / `76c20b31e4aa` / `247b803a7835` / `8d32bcb655f0`，Up 18 hours）、
+  billing `fca3624c404d`、keycloak、mariadb、两个 redis 的容器 ID 与 Up 时间都没变。
+- `active-image-erp.json` = 本次 digest；全局 `active-image.json` 仍是 `a11eb9e…`（未迁移产品不动）。
+- `maintenance_mode=0`、`enable_scheduler=True`；备份 `20260925_022519-testerp_pearnly_com-*` 已留。
+- 本次两个 App 文件在容器内 SHA-256 与仓库一致；`https://testerp.pearnly.com` 上
+  `assets/pearnly_core/desk/product.js` 与 `assets/pearnly_erp_portal/desk/stock-card.js`
+  下载比对也**字节一致**。`/desk/pearnly-stock-card` 返回 302（未登录跳登录，预期）。
+- 业务计数前后一致：商品 4 / 公司 2 / 盘点 1 / 客户 0 / 供应商 1 / 用户 2；本轮无 schema 或数据迁移。
+
+### 仍未验的层
+
+- **生产页面上的点击验收没做**（需要登录生产账号）：本次是"代码 / 镜像 / 静态资源 / 状态回读一致"，
+  不等于"人在生产页面上点过"。收发存那页现在应该是一排 4 个字段的布局，请你在线上看一眼。
+- 没做 Windows 真实环境验证、没切测试租户。
+
 ## 第十四轮：收发存明细页的字段改成一排 4 个（2026-09-25）
 
 用户口径："把上面那7组字段，分成一排4组方，视觉对齐"。
