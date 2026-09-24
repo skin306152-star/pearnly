@@ -118,6 +118,18 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 - **未对** `testerp.pearnly.com` 与 `cowork.test.localhost` 执行 migrate：它们是同样的"导入库 + 新镜像"组合，很可能缺表，但属其它任务窗口，本轮不越界改动，等对应窗口测试前各自 migrate。
 - 仍未验收：四组真实采集与首次发布（用户下一步动作）、LINE 菜单 1–5。
 
+### 首次真实四组采集：2/4 成功发布，2/4 被线上自动刷新抢账号
+
+用户在连接页点"更新数据"全选四组（测试机本地 22:15–22:18，容器日志 UTC 15:15–15:18）。**方案按设计工作**：分组入队、多轮复核、独立发布、区分错误码、不假成功都实测到；失败两组的根因是线上环境正在用同一个第三方 DMS 账号自动刷新。
+
+- 成功：`vehicles` 发布 29 条（attempt 0/1/2 三轮，`as_of`/`completed_at` 写入）；`customers` 发布 46 条（多轮复核 40 → 46 后发布，attempt 0..3）。`get_status` 同时返回 `configured: true` 与四组 state/progress/count/as_of/error_code，前端"更新数据"按钮、全屏"数据更新中..."、失败提示均实测出现。
+- 失败：`geo` = `ERR_DMS_CONCURRENT_LOGIN`（第三方判定该账号正在别处使用）；`company` = `ERR_DMS_UNREACHABLE`（连不上，对方主机新连接本就 6–16 秒起步）。
+- 队列证据：`pearnly-testenv-dms-sync-worker-1` 上 `pearnly_dms.snapshots.manual.execute` 逐条执行，作业 ID 带 `-0/-1/-2` attempt 后缀，说明多轮复核确实由重新入队实现，不是单次长任务。
+- **根因证据**：线上 `107.155.65.74` 的 `pearnly-production-dms-worker-1` 日志里，`pearnly_dms.adapter.warm.refresh` 针对 **testdms.pearnly.com / EP-00036** 每 **4 分钟** 自动跑一次（3 小时内 20 次，间隔全为 4 分钟），单次 44–62 秒；本次 15:16:10 的那一轮与测试环境 15:15:48–15:17:48 的采集完全重叠。测试环境的 DMS 账号来自整站导入的线上租户数据，两个环境共用同一账号 → 会话互顶。这正是总交接里"同一第三方 DMS 账号的双环境活动必须核对"首次被实测命中。线上跑的是旧镜像 `a11eb9e`，仍带这套自动刷新。
+- 熔断回读（Redis `pearnly:dms:pacing:v1:EP-00001`）：`failures: 0`、`until: 0`，**当前无冷却可直接重试**；`failed_at` 与 company 失败时刻一致，其后一次成功已把计数清零。
+- 下一步（待用户决定）：一次只勾一组重试；或测试期间暂停线上 4 分钟自动刷新；或给测试站配独立 DMS 账号。后两者要动线上/第三方账号，需明确授权。
+- 另记：测试机 worker 容器初始化阶段（14:32–14:45）有若干 `validate_queue` → `RuntimeError: object is not bound` 回溯，发生在启动期、与本轮采集无关，留作测试环境噪音待查。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
