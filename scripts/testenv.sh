@@ -88,7 +88,7 @@ pull() {
   ssh -o BatchMode=yes "$host" \
     "wsl -d $distro -u root -- python3 $remote_deploy/infrastructure/production/receive-image.py" \
     < /tmp/pearnly-testenv-pull.txt
-  rm /tmp/pearnly-testenv-pull.txt
+  rm -f /tmp/pearnly-testenv-pull.txt
   echo "pulled $image"
 }
 
@@ -109,7 +109,7 @@ case "${1:-}" in
   sync) sync ;;
   env) sync; write_env ;;
   pull) sync; pull ;;
-  config|ps|down|reset|base) sync; bash_remote "$@" ;;
+  config|ps|check|smoke|down|reset|base) sync; bash_remote "$@" ;;
   up) sync; write_env; bash_remote up ;;
   logs) shift; sync; bash_remote logs "$@" ;;
   sites) shift; sync; bash_remote sites "$@" ;;

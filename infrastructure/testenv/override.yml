@@ -20,10 +20,10 @@ volumes:
 
 services:
   billing-web:
-    volumes: ['/opt/pearnly-testenv/deploy:/workspace/testenv:ro']
+    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
   dms-web:
-    volumes: ['/opt/pearnly-testenv/deploy:/workspace/testenv:ro']
+    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
   erp-web:
-    volumes: ['/opt/pearnly-testenv/deploy:/workspace/testenv:ro']
+    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
   cowork-web:
-    volumes: ['/opt/pearnly-testenv/deploy:/workspace/testenv:ro']
+    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
