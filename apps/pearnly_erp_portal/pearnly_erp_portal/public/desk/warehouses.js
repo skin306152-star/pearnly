@@ -13,7 +13,7 @@
 (() => {
 	const p = frappe.pearnly;
 
-	p.warehouses = async (page, t) => {
+	p.warehouses = async (page, t, wrapper, inline = null) => {
 		const api = "pearnly_erp_portal.masters.api.";
 		const stock_api = "pearnly_erp_portal.inventory.api.";
 		const f = (fieldname, label, fieldtype = "Data", options = {}) =>
@@ -96,7 +96,7 @@
 		const status_value = label => (label === t("company.status.inactive") ? 0 : 1);
 		function editor(row) {
 			const is_new = !row;
-			p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
+			return p.dialog(is_new ? t("company.newWarehouse") : row.warehouse_name, [
 				// **建仓必须先选公司**（用户 2026-09-24："没有绑定公司不可以建仓库"）：
 				// 新仓默认落在当前公司，可以改；改的那一侧只读（仓库属于公司，改归属等于换账）。
 				{fieldname: "company", label: __("Company"), fieldtype: "Select", reqd: 1,
@@ -105,14 +105,14 @@
 						value: item.name, label: item.company_name || item.name})),
 					default: row?.company || frappe.boot.pearnly_company || ""},
 				f("warehouse_name", "company.field.warehouse", "Data",
-					{reqd: 1, default: row?.warehouse_name || ""}),
+					{reqd: 1, default: row?.warehouse_name || inline?.initial || ""}),
 				f("note", "company.field.note", "Small Text", {default: row?.note || ""}),
 				f("is_active", "company.col.status", "Select",
 					{options: status_options(),
 						default: Number(row ? row.is_active : 1) ? t("company.status.active")
 							: t("company.status.inactive")}),
 			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
-				await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
+				const saved = await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
 					is_new
 						? {company: values.company, warehouse_name: values.warehouse_name, note: values.note,
 							is_active: status_value(values.is_active)}
@@ -121,11 +121,24 @@
 					"POST");
 				dialog.hide();
 				p.success(t(is_new ? "company.notice.created" : "company.notice.saved"), "click");
-				await list.reload();
+				await inline?.on_saved?.({...row, ...values, ...saved});
+				await list?.reload();
 			});
 		}
 
+		if (inline) {
+			const row = inline.name ? await p.call("frappe.client.get", {doctype: "ERP Warehouse", name: inline.name}) : null;
+			const dialog = editor(row);
+			if (!can_manage()) {
+				Object.values(dialog.fields_dict).forEach(field => dialog.set_df_property(field.df.fieldname, "read_only", 1));
+				dialog.get_primary_btn().prop("disabled", true);
+			}
+			return dialog;
+		}
 		await paint();
 		return () => list?.destroy();
 	};
+	p.link_editors["ERP Warehouse"] = async context =>
+		p.warehouses(null, await p.texts("company."), null, context);
+	p.link_editors["ERP Warehouse"].label = __("Warehouse");
 })();

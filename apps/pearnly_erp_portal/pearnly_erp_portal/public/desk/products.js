@@ -22,7 +22,7 @@
 (() => {
 	const p = frappe.pearnly;
 
-	p.products = async (page, t, wrapper) => {
+	p.products = async (page, t, wrapper, inline = null) => {
 		const api = "pearnly_erp_portal.products.service.";
 		const root = "pearnly-products";
 		// 二级页面的路由段。`frappe.get_route()` 是第一段之后的分段，所以列表是空数组。
@@ -307,25 +307,27 @@
 		// 快捷新建：编码由服务端发，这里先取一个**预览**填进只读那一格（不占号）。
 		async function open_quick() {
 			const preview_code = (await p.call(api + "api_next_product_code")).code;
-			const { fields, state } = product_fields({}, preview_code);
+			const { fields, state } = product_fields({product_name: inline?.initial || ""}, preview_code);
 			const dialog = p.dialog(
 				t("product.action.new"),
 				fields,
 				t("product.action.submit"),
 				async (values, d) => {
-					await p.call(api + "api_create_product",
+					const saved = await p.call(api + "api_create_product",
 						normalize({ ...values, ...code_changes(state, values) }), "POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
+					await inline?.on_saved?.({...values, ...saved});
 					await list?.reload();
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			attach_scan_icon(dialog, state, null);
 			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
-			p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
+			if (!inline) p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
 				carry = { ...values, __scanned: state.scanned };
 			});
+			return dialog;
 		}
 
 		// ── 二级页面：一次建多个商品 ─────────────────────────────────────────────
@@ -536,12 +538,14 @@
 						"POST");
 					d.hide();
 					p.success(t("product.notice.saved", values.product_name), "click");
+					await inline?.on_saved?.({...existing, ...values});
 					await list?.reload();
 				},
 			);
 			dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
 			if (!can_write) dialog.get_primary_btn().prop("disabled", true);
 			if (can_write) attach_scan_icon(dialog, state, existing.name);
+			return dialog;
 		}
 
 		// ── 路由 ────────────────────────────────────────────────────────────────
@@ -554,7 +558,12 @@
 			await open_new();
 		}
 
+		if (inline) return inline.name ? open_detail({name: inline.name}) : open_quick();
+
 		const show = p.routed_page({ wrapper, root, render });
 		await show();
 	};
+	p.link_editors["ERP Product"] = async context =>
+		p.products(null, await p.texts("product."), null, context);
+	p.link_editors["ERP Product"].label = __("Item");
 })();

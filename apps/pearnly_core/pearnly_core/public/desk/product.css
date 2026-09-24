@@ -230,6 +230,7 @@ body.pearnly-product-desk .pearnly-link-scan {
 	right: 4px;
 	top: 50%;
 	transform: translateY(-50%);
+	transition: right 120ms ease, width 120ms ease;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -244,6 +245,28 @@ body.pearnly-product-desk .pearnly-link-scan {
 body.pearnly-product-desk .pearnly-link-scan:hover {
 	color: var(--text-color);
 	background-color: var(--control-bg);
+}
+/* Reserve the native arrow slot only while it is exposed. This also covers Grid Links. */
+body.pearnly-product-desk .pearnly-link-scan-input .link-btn {
+	opacity: 0;
+	pointer-events: none;
+}
+body.pearnly-product-desk .pearnly-link-scan-input:hover .link-btn,
+body.pearnly-product-desk .pearnly-link-scan-input .link-btn:has(:focus-visible) {
+	opacity: 1;
+	pointer-events: auto;
+}
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:hover .pearnly-link-scan,
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:has(.link-btn :focus-visible) .pearnly-link-scan {
+	right: calc(4px + var(--pearnly-link-actions-width, 28px));
+	width: 20px;
+}
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:hover .form-control,
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:has(.link-btn :focus-visible) .form-control {
+	padding-right: calc(30px + var(--pearnly-link-actions-width, 28px));
+}
+@media (prefers-reduced-motion: reduce) {
+	body.pearnly-product-desk .pearnly-link-scan { transition: none; }
 }
 /* 备注 / 地址这类多行框（官方 `Small Text` 控件）：官方给的是**整列宽 + 四行高**，
    一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。

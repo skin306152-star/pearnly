@@ -13,7 +13,7 @@
 (() => {
 	const p = frappe.pearnly;
 
-	p.suppliers = async (page, t, wrapper) => {
+	p.suppliers = async (page, t, wrapper, inline = null) => {
 		const api = "pearnly_erp_portal.purchasing.api.";
 		const api_lookup = "pearnly_erp_portal.masters.api.api_lookup_tax";
 		const can_write = frappe.model.can_write("ERP Supplier");
@@ -89,13 +89,21 @@
 			async (values, dialog) => {
 				if (!editable) {dialog.hide(); return;}
 				const method = row.name ? "api_update_supplier" : "api_create_supplier";
-				await p.call(api + method, row.name ? {name: row.name, ...values} : values, "POST");
+				const saved = await p.call(api + method, row.name ? {name: row.name, ...values} : values, "POST");
 				dialog.hide();
 				// 主按动作要有回音：提示 + 提示音（与其他页面同一套 `p.success`）。
 				p.success(__("Saved"), "click");
+				await inline?.on_saved?.({...row, ...values, ...saved});
 				await list?.reload();
 			});
 			return d;
+		}
+
+		// Use the same editor without constructing a page or changing the caller's route.
+		if (inline) {
+			const row = inline.name ? await p.call("frappe.client.get", {doctype: "ERP Supplier", name: inline.name})
+				: {supplier_name: inline.initial || ""};
+			return editor(row);
 		}
 
 		page.set_title(t("supplier.title"));
@@ -144,4 +152,7 @@
 			if (row) editor(row);
 		});
 	};
+	p.link_editors["ERP Supplier"] = async context =>
+		p.suppliers(null, await p.texts("supplier."), null, context);
+	p.link_editors["ERP Supplier"].label = __("Supplier");
 })();

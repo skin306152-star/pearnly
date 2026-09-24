@@ -5,6 +5,14 @@
 		fieldtype: "Autocomplete", ignore_validation: true, options: [], read_only: !editable});
 	p.bind_entry_choice = (form, {kind, context, reference, title, editable, on_select, on_clear}) => {
 		const control = form.fields_dict.entry_choice;
+		const doctype = {product: "ERP Product", supplier: "ERP Supplier", customer: "ERP Customer"}[kind];
+		const create_value = "pearnly_create__link_option";
+		let arrow;
+		const update_arrow = () => {
+			const available = Boolean(form.get_value(reference));
+			arrow?.toggle(available);
+			$(control.input_area).toggleClass("pearnly-has-link-actions", available);
+		};
 		let choices = [], revision = 0, applied = "", pending = Promise.resolve();
 		const field = kind === "product" ? "product_name" : kind === "supplier" ? "supplier_name" : "customer_name";
 		const label = row => `${row[field]} · ${row.code || row.tax_id || row.name}${row.branch_no ? " / " + row.branch_no : ""} · ${row.name}`;
@@ -24,12 +32,15 @@
 						await control.set_value(applied);
 					}
 				} else await on_clear?.();
+				update_arrow();
 			});
 			return pending;
 		};
 		const set_rows = rows => {
 			choices = rows;
-			control.set_data(rows.map(row => ({label: label(row), value: label(row)})));
+			control.set_data([...rows.map(row => ({label: label(row), value: label(row)})),
+				...(editable && frappe.model.can_create(doctype) ? [{value: create_value,
+					label: __("Create a new {0}", [p.link_editors[doctype]?.label || __(doctype)])}] : [])]);
 		};
 		if (editable) {
 			// Native autocomplete interaction and keyboard handling; customer text is textContent.
@@ -37,7 +48,10 @@
 			control.awesomplete.item = item => {
 				const node = document.createElement("li");
 				node.setAttribute("role", "option");
-				node.setAttribute("aria-selected", "false"); node.textContent = item.label;
+				node.setAttribute("aria-selected", "false");
+				const text = document.createElement("span");
+				if (item.value === create_value) text.className = "pearnly-link-option";
+				text.textContent = item.label; node.append(text);
 				return node;
 			};
 			const search = frappe.utils.debounce(async () => {
@@ -48,12 +62,26 @@
 				if (own !== revision || !control.$wrapper[0].isConnected || !control.$input.is(":focus")) return;
 				set_rows(rows); control.awesomplete.evaluate();
 			}, 180);
+			control.input.addEventListener("awesomplete-select", event => {
+				if (event.text?.value !== create_value) return;
+				event.preventDefault(); event.stopImmediatePropagation();
+				control.awesomplete.close();
+				p.open_link_create(doctype, control.$input, control);
+			}, true);
 			control.$input.on("input.entry-choice", () => {++revision; void sync(); search();});
 			control.$input.on("focus.entry-choice click.entry-choice", search);
 			control.$input.on("change.entry-choice awesomplete-selectcomplete.entry-choice", () => void sync());
 			const button = $('<button type="button" class="btn btn-default btn-xs pearnly-link-scan"></button>')
-				.attr({title: __("Scan"), "aria-label": __("Scan")}).html(frappe.utils.icon("scan", "sm"));
-			$(control.input_area).addClass("position-relative").append(button);
+				.attr({title: __("Scan"), "aria-label": __("Scan")}).html(frappe.utils.icon("scan-barcode", "sm"));
+			const holder = $(control.input_area).addClass("pearnly-link-scan-input").append(button);
+			arrow = $('<span class="link-btn"><a class="btn-open" href="#"></a></span>').appendTo(holder);
+			arrow.find("a").attr({title: __("Open Link"), "aria-label": __("Open Link")})
+				.html(frappe.utils.icon("arrow-right", "xs")).on("click", event => {
+					event.preventDefault(); event.stopPropagation();
+					p.open_link_record(doctype, form.get_value(reference), control.$input, control);
+				});
+			update_arrow();
+			p.watch_master_control(control, doctype, () => {++revision; set_rows([]);});
 			button.on("click", () => p.scan({kind: "all", on_result: async code => {
 				++revision;
 				const rows = await p.call("pearnly_erp_portal.masters.selection.api_choices", {kind, context, txt: code, scan: 1});
@@ -73,6 +101,7 @@
 				++revision; choices = [];
 				applied = form.get_value(title) || "";
 				await control.set_value(applied);
+				update_arrow();
 			},
 		};
 	};

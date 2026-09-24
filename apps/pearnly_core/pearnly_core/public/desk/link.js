@@ -8,8 +8,8 @@
  *     启动数据读回来（`frappe.boot.pearnly_links`）—— 前端不再各写一份映射（ADR-009）；
  *   · 没声明的 doctype 一切照官方；我们的表单对这类字段本来就用 `only_select` 不给入口，
  *     所以用户不会掉进官方表单；
- *   · 「新建」跳过去之后，由目标页**自动开它自己的新建弹窗**（`p.take_create`）：
- *     跳过去还要用户再点一次，不算"点新建"。
+ *   · 产品登记 `p.link_editors` 后，新建和箭头原地打开同一份主档弹窗；保存仅刷新主档候选。
+ *     未登记弹窗的产品入口仍采用原有页面路由。
  *
  * 另外一条数据规矩也放在这里（一处规则、全站生效）：**仓库 / 收银台按当前公司联动**
  * （`p.link_query_default`）。仓库属于公司（一租户多公司），别家的仓选出来只会得到空列表。
@@ -24,6 +24,43 @@
 	// ── 我们自己的页面：声明在产品的 `pearnly_navigation.links` 里 ──────────────
 	p.link_target = doctype => (frappe.boot.pearnly_links || {})[doctype] || "";
 
+	// Product-owned editors; the shared layer owns only opening and cache invalidation.
+	p.link_editors = {};
+	p.master_controls = new Set();
+	p.watch_master_control = (control, doctype, refresh) => {
+		control.pearnly_master_type = doctype;
+		control.pearnly_master_refresh = refresh;
+		p.master_controls.add(control);
+	};
+	p.refresh_master_links = (doctype, row) => {
+		for (const control of p.master_controls) {
+			if (!control.$input?.[0]?.isConnected) {p.master_controls.delete(control); continue;}
+			if (control.pearnly_master_type !== doctype) continue;
+			// Invalidate native query caches without setting values or firing field changes.
+			control.$input.cache = {};
+			control.$input._created_new_doc = true;
+			control.pearnly_master_refresh?.(row);
+		}
+	};
+	p.open_inline_link = async (doctype, name, control) => {
+		if (control?.pearnly_editor_open) return;
+		if (!name && !frappe.model.can_create(doctype)) {
+			frappe.msgprint(__("Not permitted")); return;
+		}
+		if (control) control.pearnly_editor_open = true;
+		try {
+			const dialog = await p.link_editors[doctype]({name,
+				initial: name ? "" : control?.get_label_value?.() || control?.$input?.val() || "",
+				on_saved: row => p.refresh_master_links(doctype, row)});
+			dialog.$wrapper.one("hidden.bs.modal", () => {
+				if (control) control.pearnly_editor_open = false;
+			});
+		} catch (error) {
+			if (control) control.pearnly_editor_open = false;
+			if (!error?._server_messages && !error?.responseJSON) console.error(error);
+		}
+	};
+
 	// 「新建」的去处。跳过去之前先把"到了那边要开新建弹窗"记下（one-shot，带时限：
 	// 目标页没渲染成功时不能留着，否则下次进那一页会莫名弹出新建）。
 	p.pending_create = null;
@@ -35,7 +72,8 @@
 		const modal = $from && $from.closest && $from.closest(".modal");
 		if (modal && modal.length) modal.modal("hide");
 	};
-	p.open_link_create = (doctype, $from) => {
+	p.open_link_create = (doctype, $from, control) => {
+		if (p.link_editors[doctype]) {void p.open_inline_link(doctype, null, control); return true;}
 		const route = p.link_target(doctype);
 		if (!route) return false;
 		p.dismiss_modal_of($from);
@@ -56,9 +94,10 @@
 	// 选择框右边那颗**箭头**（官方叫 "Open Link"）本来指向官方表单
 	// （`frappe.utils.get_form_link` → `/desk/erp-warehouse/WH-00101`）—— 用户
 	// 2026-09-23："图二那个箭头按钮会带到别的地方……这个界面根本不是我们自己的"。
-	// 所以箭头也回我们自己那一页，并由那一页打开这条记录（`p.take_open`，同 create 那套）。
+	// 已登记的主档原地开弹窗；其余声明仍保留页面打开流程。
 	p.pending_open = null;
-	p.open_link_record = (doctype, name, $from) => {
+	p.open_link_record = (doctype, name, $from, control) => {
+		if (name && p.link_editors[doctype]) {void p.open_inline_link(doctype, name, control); return true;}
 		const route = p.link_target(doctype);
 		if (!route || !name) return false;
 		p.dismiss_modal_of($from);
@@ -105,10 +144,10 @@
 		// 筛选弹层里那一格不上扫码：那不是"选物料"的动作，格子也太窄。
 		if (control.$input.closest(".filter-area").length) return;
 		// 表单/弹窗里是 `.control-input`；**网格单元里没有这一层**（`.link-field > .awesomplete > input`），
-		// 那就挂在输入框的直接父元素上 —— 皮肤里的 `.pearnly-link-scan-input` 会给它 `position: relative`，
+		// 网格挂在 `.link-field` 上，同时包住输入与原生箭头，才能统一避让；
 		// 两种情况按钮都在输入框右端。
 		const input_holder = control.$input.closest(".control-input");
-		const holder = input_holder.length ? input_holder : control.$input.parent();
+		const holder = input_holder.length ? input_holder : control.$input.closest(".link-field");
 		if (!holder.length) return;
 		const label = __("Scan");
 		const button = $(`<button type="button" class="pearnly-link-scan" title="${label}"
@@ -132,11 +171,20 @@
 			super.make_input();
 			// 选择框右侧那颗扫码按钮（产品声明了才放）。
 			p.attach_scan_btn(this);
+			this.$link_clear?.on("click.pearnly-scan", () => this.pearnly_scan_btn?.parent().removeClass("pearnly-has-link-actions"));
+			p.watch_master_control(this, this.get_options());
+			// Intercept before native Link clears the selected value for action options.
+			this.input.addEventListener("awesomplete-select", event => {
+				if (event.text?.value !== "pearnly_create__link_option" || !p.link_editors[this.get_options()]) return;
+				event.preventDefault(); event.stopImmediatePropagation();
+				this.awesomplete.close();
+				p.open_link_create(this.get_options(), this.$input, this);
+			}, true);
 		}
 
 		// 官方那两项的兜底：万一入口还在（字段没设 `only_select`），动作也必须落在我们自己的页面上。
 		new_doc() {
-			if (p.open_link_create(this.get_options(), this.$input)) return false;
+			if (p.open_link_create(this.get_options(), this.$input, this)) return false;
 			return super.new_doc();
 		}
 
@@ -150,13 +198,17 @@
 			return super.open_advanced_search();
 		}
 
-		// 箭头那颗按钮：官方在这里写的是官方表单地址，我们改成自己那一页 + 打开这条记录。
+		// 原生箭头优先打开产品登记的主档弹窗；阻止冒泡到框架的全局路由处理。
 		show_link_and_clear_buttons() {
 			super.show_link_and_clear_buttons();
+			const holder = this.pearnly_scan_btn?.parent();
+			holder?.toggleClass("pearnly-has-link-actions", Boolean(this.get_input_value() && this.$link?.is(":visible")));
+			if (holder?.length) holder[0].style.setProperty("--pearnly-link-actions-width", `${this.$link.outerWidth() || 28}px`);
 			// 明确"不要跳走"的格子（收银台的客户搜索框）：连官方那颗箭头也藏掉 —— 它指向
 			// 官方表单，点了不但出了我们的界面，还会把正在开的这一单丢掉。
 			if (this.df && this.df.pearnly_no_create) {
 				this.$link_open && this.$link_open.hide();
+				holder?.removeClass("pearnly-has-link-actions");
 				return;
 			}
 			const route = p.link_target(this.get_options());
@@ -166,9 +218,14 @@
 				.attr("href", "/desk/" + route)
 				.off("click.pearnly")
 				.on("click.pearnly", event => {
-					event.preventDefault();
-					p.open_link_record(this.get_options(), name, this.$input);
+					event.preventDefault(); event.stopPropagation();
+					p.open_link_record(this.get_options(), name, this.$input, this);
 				});
+		}
+
+		hide_link_and_clear_buttons() {
+			super.hide_link_and_clear_buttons();
+			this.pearnly_scan_btn?.parent().removeClass("pearnly-has-link-actions");
 		}
 
 		// 下拉里那两项是官方在 `on_input` 的回调里拼好的，拼完紧接着调 `toggle_href`
@@ -199,11 +256,11 @@
 				kept.push({
 					html: "<span class='link-option pearnly-link-option'>" +
 						"<i class='fa fa-plus' style='margin-right: 5px;'></i> " +
-						__("Create a new {0}", [__(doctype)]) + "</span>",
-					label: __("Create a new {0}", [__(doctype)]),
+						__("Create a new {0}", [p.link_editors[doctype]?.label || __(doctype)]) + "</span>",
+					label: __("Create a new {0}", [p.link_editors[doctype]?.label || __(doctype)]),
 					// 值以 `__link_option` 结尾：官方选中后会据此把输入框清空（`link.js`）。
 					value: "pearnly_create__link_option",
-					action: () => p.open_link_create(doctype, this.$input),
+					action: () => p.open_link_create(doctype, this.$input, this),
 				});
 			}
 			aw.list = kept;
