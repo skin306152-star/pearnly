@@ -142,6 +142,32 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
 - 小观察（非缺陷）：容量"没配置"与"真的排满"共用同一句提示，排查时容易误判成业务繁忙；测试环境会一直命中前者。
 - 待用户决定：① 给测试环境接本地假 OCR（仓库既有 `pearnly_ocr_endpoint` 的实验室做法）只验链路、不产生费用；② 接真实凭据与计费（会产生真实付费调用，与"测试环境不接付费 OCR"的约定冲突，需明确授权）；③ 先跳过拍照识别，测其余不依赖 OCR 的菜单路径。
 
+## 最新续接：线上停掉自动重刷 + 测试环境改成"一个产品一套栈"（2026-09-24）
+
+用户口径（原话摘要）：线上的自动刷新"全部关掉、不用这个机制"；测试环境要"再次搭建好、搭成理想状态、未来方便用"；**每个 app 一套单独的容器**（DMS 一套，将来 ERP 也一套），不要全挤在一起怕冲突。流程目标：改代码 → 一键把该 app 的测试租户整套切到测试机 → 真机验证 → 一键切回 → 正式部署。
+
+### 线上自动重刷已停（含真租户）
+
+- 机制是 `pearnly_dms.adapter.warm.sweep`，cron `* * * * *`：每分钟醒一次，判断"该刷了"就派发 `pearnly_dms.adapter.warm.refresh`（实测表现为每约 4 分钟真刷一次，单次 44–62 秒，且要登录同一个第三方 DMS 账号）。**这正是本任务四组采集被顶掉账号的根因。**
+- 两个站点各自独立数据库与独立记录：`testdms.pearnly.com`（`_32ceeaae…`，行 `93joaufdck`）与 `ris.pearnly.com`（`_b8a0c781…`，行 `rnm47tp8f6`）。均已置 `stopped=1`。用户说明真租户当前无人使用，同意一并停。
+- **"删掉"在旧代码上不成立**：`frappe.core.doctype.scheduled_job_type.scheduled_job_type.sync_jobs()` 在每次 `bench migrate` 时按代码清单 `insert_events()` 补建缺失行（新建即启用），同时 `clear_events()` 删除清单里没有的。旧镜像的 hooks 声明了这项，所以删了会被下一次升级建回来。置 `stopped=1` 会被 `insert_single_event` 保留（它只更新 frequency/cron_format）。**新代码的 hooks 不再声明它 → 新版部署 + migrate 时由 `clear_events()` 自动清掉**，那才是真正的删除。
+- 效果回读：改后 2 分钟内生产 worker 日志中 `dms-master-warm` / `pearnly_dms.adapter.warm` 出现 **0 次**（改前每分钟一次）。
+- 副作用（已告知）：`ris` 的预热没了，旧代码下真客户第一次操作会从"秒开"变成约 12.3 秒冷读；无人使用期间无影响，新方案上线后该机制本来就退役。
+
+### 测试环境按 app 拆栈（本地已提交，未推送）
+
+- 分支 `codex/testenv-per-app` 提交 `2d5cd60`：每个产品一套栈，项目名 `pearnly-testenv-<app>`，各自独立 MariaDB、两个 Redis、站点卷、网络与容器；`up <app>` 会先停掉别的测试栈（容器删、卷保留）。同一时间只跑一个（端口固定分配）。
+- 起栈自动做三件以前靠人记的事（`infrastructure/testenv/finish-start.py`）：`bench migrate`、`bench clear-cache`、写 `pearnly_ocr_budget_redis` 与队列超时。这三件正是本轮"看不见新功能 / 表不存在 / 识别请重发"的直接原因。
+- 工具与被测代码分开：驱动与测试辅助脚本取本分支，产品代码与 `production/compose.yml` 取 `PEARNLY_TESTENV_SRC`（默认当前工作树）；`lab-start <app>` / `lab-stop <app>` 已改成起栈/停栈 + 导出导入 + 收尾 + 切域名，一次只允许一个产品。
+- 本地检查：`check-architecture.py` 0 违规、`bash -n`、`py_compile`、`git diff --check` 通过。**尚未推送、尚未在测试机实跑**。
+
+### 下一步（接手直接从这里开始）
+
+1. 推 `codex/testenv-per-app`（推前按 CI 同名闸门复核）→ 把它合进 DMS 候选分支（`codex/dms-five-minute-snapshots`），这样被测栈定义里既有 `dms-sync-worker` 又有新工具。
+2. 在测试机执行 `PEARNLY_TESTENV_SRC=<DMS 工作树> PEARNLY_TESTENV_IMAGE=<候选 digest> bash scripts/testenv.sh lab-start dms`，验证：独立栈起来、站点库自动升级、缓存已清、四组采集不再撞账号。
+3. 补 OCR 与计费（"理想状态"缺的两块）：① `ocr.json` 真凭据要不要拷到那台 Windows（同一服务账号，会产生真实识别费用）；② 计费走线上账本还是测试机本地建 `billing.internal` 站点并充测试租户额度。**两条都等用户点头**，本轮未做。
+4. 验证通过后：按 `activate-product.sh` 部署新版 DMS 到线上（届时 `warm.sweep` 由 `clear_events()` 自动删除）。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
