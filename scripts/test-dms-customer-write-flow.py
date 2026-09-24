@@ -221,6 +221,26 @@ class CustomerWriteFlow(unittest.TestCase):
         self.assertEqual(self.store.get_session(UID)["payload"], payload)
         self.assertFalse(self.transport.writes())
 
+    def test_lost_approval_claim_cannot_reopen_review_even_for_original_draft(self):
+        from pearnly_dms.approval import approval_flow, approval_store
+        payload = self.review()
+        self.transport.records["own"] = identity["record"]()
+        baseline = self.client.read_customer("own")
+        binding = {"user_id": USER, "binding_revision": "revision-1"}
+        pending = {"approval_request": "old-request", "source": payload, "binding": binding}
+        self.store.set_session(UID, "approval_pending", pending)
+        self.transport.records["own"]["txttel"] = "0800000888"
+        self.enterContext(patch.object(approval_store, "finish", return_value=False))
+        self.enterContext(patch.object(approval_flow.roster_store, "line_user_id_of", return_value=UID))
+        self.enterContext(patch.object(approval_flow, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}))
+        approval_flow._execute_approved(binding, UID, {
+            "id": "old-request", "operator_user_id": USER, "customer_id": "own",
+            "field_diffs": [{"field": "phone", "new": queue["PHONE"]}],
+            "draft": {"fields": payload["draft"], "baseline": baseline}})
+        self.assertEqual(self.store.get_session(UID)["state"], "approval_pending")
+        self.assertEqual(self.store.get_session(UID)["payload"], pending)
+        self.assertFalse(self.transport.writes())
+
     def booking_editor(self):
         from pearnly_dms.editor import booking_edit, edit_snapshot
         self.transport.records["own"] = identity["record"](txtbirthday="01/01/2530")
