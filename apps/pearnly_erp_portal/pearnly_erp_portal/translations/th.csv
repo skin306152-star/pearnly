@@ -425,6 +425,7 @@ Item is removed since no serial / batch no selected.,เอาสินค้า
 Items,รายการ
 Items are required,กรุณาระบุรายการสินค้า
 Items not found.,ไม่พบสินค้า
+"Items with a difference, largest first",สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
 Job Roles,สิทธิ์การใช้งาน
 "Keep product IDs, codes and barcodes as text in the opening stock file",รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ
 LINE,LINE
@@ -565,6 +566,7 @@ Out,จ่ายออก
 Out of stock,สินค้าหมด
 Outdated POS Opening Entry,รายการเปิดกะที่ล้าสมัย
 Outstanding Amount,จำนวนเงินค้างชำระ
+Over,เกิน
 Over by {0},เกินมา {0}
 POS Closed,ปิดจุดขายแล้ว
 POS Opening Entry Cancelled,ยกเลิกรายการเปิดกะแล้ว
@@ -788,6 +790,7 @@ Shift not found,ไม่พบกะนี้
 Shift {0} opened,เปิดกะแล้ว · กะ {0}
 Shift {0} · Expected cash {1},กะ {0} · เงินสดที่ควรมี {1}
 Shift {0} · opened {1} · expected cash {2},กะ {0} · เปิด {1} · เงินสดที่ควรมี {2}
+Short,ขาด
 Short Name,ชื่อย่อ
 Short by {0},ขาดไป {0}
 Short name,ชื่อย่อ
@@ -1307,6 +1310,7 @@ stock.count.deleteConfirm,ลบการตรวจนับ {0} รายก�
 stock.count.deleteNotice,ลบ {0} รายการแล้ว
 stock.count.deleteSelected,ลบที่เลือก ({0})
 stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
+stock.count.diffRankHint,สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
 stock.count.difference,ผลต่าง
 stock.count.differenceRows,มีผลต่าง
 stock.count.differenceValue,มูลค่าผลต่าง
@@ -1342,6 +1346,7 @@ stock.count.newHint,ตรวจนับในคลัง: ตรึงยอ�
 stock.count.noEntries,ไม่มีรายการ
 stock.count.note,หมายเหตุ
 stock.count.notes,หมายเหตุ
+stock.count.over,เกิน
 stock.count.photoInfo,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
 stock.count.photos,รูปภาพ
 stock.count.post,ลงบัญชีผลต่าง
@@ -1357,6 +1362,7 @@ stock.count.rowDifference,มีผลต่าง
 stock.count.rowMatch,ตรงกัน
 stock.count.rowUncounted,ยังไม่นับ
 stock.count.rows,จำนวนแถว
+stock.count.short,ขาด
 stock.count.start,เริ่มตรวจนับ
 stock.count.statusActive,กำลังดำเนินการ
 stock.count.statusClosed,ปิดแล้ว

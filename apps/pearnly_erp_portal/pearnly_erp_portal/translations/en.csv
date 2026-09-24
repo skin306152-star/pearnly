@@ -425,6 +425,7 @@ Item is removed since no serial / batch no selected.,Item is removed since no se
 Items,Items
 Items are required,Items are required
 Items not found.,Items not found.
+"Items with a difference, largest first","Items with a difference, largest first"
 Job Roles,Job Roles
 "Keep product IDs, codes and barcodes as text in the opening stock file","Keep product IDs, codes and barcodes as text in the opening stock file"
 LINE,LINE
@@ -565,6 +566,7 @@ Out,Out
 Out of stock,Out of stock
 Outdated POS Opening Entry,Outdated POS Opening Entry
 Outstanding Amount,Outstanding Amount
+Over,Over
 Over by {0},Over by {0}
 POS Closed,POS Closed
 POS Opening Entry Cancelled,POS Opening Entry Cancelled
@@ -788,6 +790,7 @@ Shift not found,Shift not found
 Shift {0} opened,Shift {0} opened
 Shift {0} · Expected cash {1},Shift {0} · Expected cash {1}
 Shift {0} · opened {1} · expected cash {2},Shift {0} · opened {1} · expected cash {2}
+Short,Short
 Short Name,Short Name
 Short by {0},Short by {0}
 Short name,Short name
@@ -1307,6 +1310,7 @@ stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted
 stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
+stock.count.diffRankHint,"Items with a difference, largest first"
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
 stock.count.differenceValue,Difference value
@@ -1342,6 +1346,7 @@ stock.count.newHint,In-stock: freeze the current balances. Import: take the rows
 stock.count.noEntries,No entries
 stock.count.note,Note
 stock.count.notes,Notes
+stock.count.over,Over
 stock.count.photoInfo,Product / position / counted by / time
 stock.count.photos,Photos
 stock.count.post,Post differences
@@ -1357,6 +1362,7 @@ stock.count.rowDifference,Difference
 stock.count.rowMatch,Matches
 stock.count.rowUncounted,Not counted
 stock.count.rows,Rows
+stock.count.short,Short
 stock.count.start,Start counting
 stock.count.statusActive,In progress
 stock.count.statusClosed,Closed

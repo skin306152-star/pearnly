@@ -28,19 +28,11 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, chart, count, state, table_host, chart_host, summary, chart_mode;
+		let list, table, ranking, count, state, table_host, rank_host, rank_hint, summary;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
-		// 图上画几组：桌面上 12 组看得清，手机上 12 组的商品名会挤成"卷纸.生抽.气泡"、
-		// 柱顶数字也会叠在一起，所以窄屏只画差异最大的 6 组。
-		const chart_limit = () => window.innerWidth < 700 ? 6 : 12;
-		// 轴标签：小屏时宁可**少标几个商品名**（框架会给每个标签留固定字符预算，
-		// 中文名一律被截成两个字："卷 ..."），也不要每根柱都顶着看不懂的省略号。
-		const chart_axes = () => window.innerWidth < 700
-			? { shortenYAxisNumbers: 1, xIsSeries: 1 }
-			: { shortenYAxisNumbers: 1 };
 		// 有差异的地方标红：色值与差异看板、导出表同一个红（框架的 `--red-600`），
 		// 桌面表格与 Excel 因此看到的是同一处红（用户 2026-09-22 口径）。
 		const danger = value => `<span style="color: var(--red-600)">${value}</span>`;
@@ -52,8 +44,8 @@
 		});
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
-			list?.destroy(); table?.destroy(); chart?.parent?.remove?.();
-			list = table = chart = null;
+			list?.destroy(); table?.destroy(); ranking?.destroy();
+			list = table = ranking = null;
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
@@ -78,17 +70,10 @@
 				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
 					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
-			// 图表的**口径**（不是筛数据）：默认"差异"＝实盘 − 账面一根柱、柱顶带数字；另一档是
-			// 账面 / 实盘两根柱。形态用原生 Select，与框架报表页那条"看板按"一致，不新增自绘控件。
-			chart_mode = page.add_field({ fieldtype: "Select", fieldname: "chart", label: t("stock.count.chart"),
-				default: "difference",
-				options: [
-					{ value: "difference", label: t("stock.count.difference") },
-					{ value: "pair", label: `${t("stock.count.book")} / ${t("stock.count.counted")}` },
-				],
-				change: () => render_data() });
 			summary = $("<div class='report-summary'>").appendTo(page.main);
-			chart_host = $("<div class='chart-wrapper'>").appendTo(page.main);
+			// 「有差异」清单的卡片（沿用框架 `.chart-wrapper` 那块留白，形态与之前一致）。
+			rank_hint = $("<p class='text-muted'></p>").appendTo(page.main);
+			rank_host = $("<div class='chart-wrapper'>").appendTo(page.main);
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
 			table_host.on("click", ".dt-row", event => {
 				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
@@ -195,50 +180,49 @@
 				$("<div class='summary-value'>").text(value).appendTo(item);
 			}
 			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
-			// 图表按**商品**分类（用户 2026-09-24："这个柱形图设计得不合理，分类不够明确"）：
-			// x 轴是商品，取 |差异| 最大的前几组（桌面 12 / 窄屏 6，见 `chart_limit`）。
-			// 以前按「仓库 / 仓位 · 单位」分类，问题是三重的：
-			// 一次盘点往往只有一个仓、仓位还常常是空的，所有行于是并成一根柱；数量又是相加减的，
-			// 正负差异互相抵消（表里四行全标红，图上两根柱却几乎一样高）；分类名还只是
-			// "仓库 / 未填 · 单位"这种拼接串，本身不带信息。与原生报表的"看板按＝商品名称"同一维度。
-			chart_host.empty();
-			// 每条记录先按快照行归一次（原实现是每行都 `state.entries.filter(...)`，行数×记录数）。
-			const counted_qty = new Map();
-			for (const entry of state.entries) {
-				if (entry.voided) continue;
-				counted_qty.set(entry.item, (counted_qty.get(entry.item) || 0) + Number(entry.qty));
-			}
-			const groups = new Map();
-			for (const row of state.items) {
-				if (!row.counted) continue;
-				// 同一商品可能在多个仓位各有一行：这里是"商品"这一维，所以按商品合并。
-				const key = row.product || row.name;
-				if (!groups.has(key)) groups.set(key, { label: row.product_name || key, book: 0, actual: 0 });
-				const bucket = groups.get(key);
-				bucket.book += Number(row.book_qty);
-				bucket.actual += counted_qty.get(row.name) || 0;
-			}
-			const ranked = [...groups.values()]
-				.sort((a, b) => Math.abs(b.actual - b.book) - Math.abs(a.actual - a.book))
-				.slice(0, chart_limit());
-			if (ranked.length) {
-				const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
-				const labels = ranked.map(v=>v.label);
-				// 默认那一档画**差异**（实盘 − 账面）：负值＝少货、正值＝多货，柱顶直接标数字，
-				// 不用两根柱互相"目测相减"。负值柱与 `valuesOverPoints` 都是框架图表库
-				// （`frappe-charts`）自带能力，没有引第三方、也没自绘 SVG。
-				chart = new frappe.Chart(chart_host[0], (chart_mode?.get_value() || "difference") === "difference"
-					? { type: "bar", height: 260, colors: [accent], valuesOverPoints: 1,
-						axisOptions: chart_axes(),
-						data: { labels, datasets: [
-							{ name: t("stock.count.difference"), values: ranked.map(v=>v.actual - v.book) },
-						] } }
-					: { type: "bar", height: 260, colors: ["#a3a3a3", accent],
-						axisOptions: chart_axes(),
-						data: { labels, datasets: [
-							{ name: t("stock.count.book"), values: ranked.map(v=>v.book) },
-							{ name: t("stock.count.counted"), values: ranked.map(v=>v.actual) },
-						] } });
+			// 「有差异」清单：**所有**有差异的行都列出来（一条不滤），按差得多少排序，条越长差得越多，
+			// 右边直接写"少货 62 提 / 多货 45 盒"。用的是原生 DataTable + desk 包自带的
+			// Bootstrap `.progress` 条：没有坐标轴、没有正负号、没有图例，一线同事不用先懂"差异"
+			// 这个词也能看懂（用户 2026-09-24 口径："现在这个太专业了，很多人看不懂的，
+			// 我要的是直观易懂，且只要有差异的都在显示"）。
+			// 数量差异为 0、只是放错货位的那几行也在这里（数字那格写"仓位差异"）。
+			const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
+			const problems = state.items
+				.filter(r => r.counted && (Number(r.difference) || r.location_difference))
+				.sort((a, b) => Math.abs(Number(b.difference)) - Math.abs(Number(a.difference)));
+			ranking?.destroy(); ranking = null;
+			rank_hint.text(problems.length ? t("stock.count.diffRankHint") : "");
+			if (problems.length) {
+				const widest = problems.reduce((max, r) => Math.max(max, Math.abs(Number(r.difference))), 0);
+				const bar = row => {
+					const size = Math.abs(Number(row.difference));
+					// 最长的条占满，其余按比例；差 1 件的也留一条看得见的细条。
+					const width = size ? Math.max(size / widest * 100, 2) : 0;
+					const colour = Number(row.difference) < 0 ? "var(--red-600)" : accent;
+					return `<div class="progress" style="margin:0"><div class="progress-bar" role="progressbar"`
+						+ ` aria-valuenow="${Math.round(width)}" aria-valuemin="0" aria-valuemax="100"`
+						+ ` style="width:${width}%;background-color:${colour}"></div></div>`;
+				};
+				ranking = await p.table(rank_host, [
+					{ name: t("stock.col.name"), width: 200, format: value => value },
+					{ name: w("bookPosition"), width: 170, format: value => value },
+					{ name: t("stock.count.difference"), width: 260, format: value => value },
+					{ name: w("quantityDiff"), width: 170, format: value => value },
+				], problems.map(row => {
+					const diff = Number(row.difference);
+					const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
+					const text = diff ? `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`
+						: w("locationDiff");
+					const colour = diff < 0 ? "var(--red-600)" : accent;
+					return [
+						p.escape(row.product_name),
+						p.escape(`${row.warehouse_name} / ${row.location || t("stock.count.blank")}`),
+						bar(row),
+						`<span style="color: ${colour}">${p.escape(text)}</span>`,
+					];
+				}), table_options());
+			} else {
+				rank_host.empty();
 			}
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))

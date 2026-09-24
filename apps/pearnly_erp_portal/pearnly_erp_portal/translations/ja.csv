@@ -425,6 +425,7 @@ Item is removed since no serial / batch no selected.,シリアル・ロットが
 Items,品目
 Items are required,品目を入力してください
 Items not found.,商品が見つかりません
+"Items with a difference, largest first",差異のある商品（大きい順）
 Job Roles,機能権限
 "Keep product IDs, codes and barcodes as text in the opening stock file",商品ID・コード・バーコードは文字列形式にしてください
 LINE,LINE
@@ -565,6 +566,7 @@ Out,出庫
 Out of stock,在庫切れ
 Outdated POS Opening Entry,古いシフト開始
 Outstanding Amount,未払金額
+Over,過剰
 Over by {0},{0} 多い
 POS Closed,レジは閉店しました
 POS Opening Entry Cancelled,シフト開始を取消しました
@@ -788,6 +790,7 @@ Shift not found,シフトが見つかりません
 Shift {0} opened,シフト {0} を開始しました
 Shift {0} · Expected cash {1},シフト {0} · 現金予定額 {1}
 Shift {0} · opened {1} · expected cash {2},シフト {0} · 開始 {1} · 現金予定額 {2}
+Short,不足
 Short Name,略称
 Short by {0},{0} 不足
 Short name,略称
@@ -1307,6 +1310,7 @@ stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？�
 stock.count.deleteNotice,{0}件を削除しました
 stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
+stock.count.diffRankHint,差異のある商品（大きい順）
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
 stock.count.differenceValue,差異金額
@@ -1342,6 +1346,7 @@ stock.count.newHint,在庫棚卸：現在の在庫を凍結。取り込み：シ
 stock.count.noEntries,記録なし
 stock.count.note,メモ
 stock.count.notes,備考
+stock.count.over,過剰
 stock.count.photoInfo,商品・位置・担当者・日時
 stock.count.photos,写真
 stock.count.post,差異を転記
@@ -1357,6 +1362,7 @@ stock.count.rowDifference,差異あり
 stock.count.rowMatch,一致
 stock.count.rowUncounted,未棚卸
 stock.count.rows,行数
+stock.count.short,不足
 stock.count.start,棚卸を開始
 stock.count.statusActive,進行中
 stock.count.statusClosed,終了
