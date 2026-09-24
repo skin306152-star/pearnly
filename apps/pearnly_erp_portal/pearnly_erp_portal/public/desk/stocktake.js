@@ -178,25 +178,37 @@
 				$("<div class='summary-value'>").text(value).appendTo(item);
 			}
 			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
+			// 图表按**商品**分类（用户 2026-09-24："这个柱形图设计得不合理，分类不够明确"）：
+			// x 轴是商品，取 |差异| 最大的前 12 个，两根柱是账面 / 实盘。
+			// 以前按「仓库 / 仓位 · 单位」分类，问题是三重的：一次盘点往往只有一个仓、仓位还常常是
+			// 空的，所有行于是并成一根柱；数量又是相加减的，正负差异互相抵消（表里四行全标红，
+			// 图上两根柱却几乎一样高）；分类名还只是"仓库 / 未填 · 单位"这种拼接串，本身不带信息。
+			// 与原生报表 `erp_stock_count_variance` 的"看板按＝商品名称"同一维度。
 			chart_host.empty();
-			const groups = new Map();
-			const group = (warehouse, location, unit) => {
-				const key = `${warehouse} / ${location || t("stock.count.blank")} · ${unit || ""}`;
-				if (!groups.has(key)) groups.set(key, { book: 0, actual: 0 });
-				return groups.get(key);
-			};
-			for (const row of state.items) if (row.counted) {
-				group(row.warehouse_name, row.location, row.unit).book += Number(row.book_qty);
-				for (const e of state.entries.filter(e => e.item === row.name && !e.voided)) {
-					group(e.warehouse_name, e.location, row.unit).actual += Number(e.qty);
-				}
+			// 每条记录先按快照行归一次（原实现是每行都 `state.entries.filter(...)`，行数×记录数）。
+			const counted_qty = new Map();
+			for (const entry of state.entries) {
+				if (entry.voided) continue;
+				counted_qty.set(entry.item, (counted_qty.get(entry.item) || 0) + Number(entry.qty));
 			}
-			const ranked = [...groups].sort((a,b) => Math.abs(b[1].actual-b[1].book)-Math.abs(a[1].actual-a[1].book)).slice(0,12);
+			const groups = new Map();
+			for (const row of state.items) {
+				if (!row.counted) continue;
+				// 同一商品可能在多个仓位各有一行：这里是"商品"这一维，所以按商品合并。
+				const key = row.product || row.name;
+				if (!groups.has(key)) groups.set(key, { label: row.product_name || key, book: 0, actual: 0 });
+				const bucket = groups.get(key);
+				bucket.book += Number(row.book_qty);
+				bucket.actual += counted_qty.get(row.name) || 0;
+			}
+			const ranked = [...groups.values()]
+				.sort((a, b) => Math.abs(b.actual - b.book) - Math.abs(a.actual - a.book)).slice(0, 12);
 			if (ranked.length) chart = new frappe.Chart(chart_host[0], { type: "bar", height: 260,
 				colors: ["#a3a3a3", getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff"],
-				data: { labels: ranked.map(([key])=>key), datasets: [
-					{ name: t("stock.count.book"), values: ranked.map(([,v])=>v.book) },
-					{ name: t("stock.count.counted"), values: ranked.map(([,v])=>v.actual) },
+				axisOptions: { shortenYAxisNumbers: 1 },
+				data: { labels: ranked.map(v=>v.label), datasets: [
+					{ name: t("stock.count.book"), values: ranked.map(v=>v.book) },
+					{ name: t("stock.count.counted"), values: ranked.map(v=>v.actual) },
 				] } });
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
