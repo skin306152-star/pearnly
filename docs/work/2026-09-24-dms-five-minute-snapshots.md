@@ -8,7 +8,7 @@
 
 - 分支 `codex/dms-five-minute-snapshots`；工作树 `/Users/skin/.codex/worktrees/dms-five-minute-snapshots/pearnly`。
 - 开工基线/集成目标 main 与开工远端 main：`57039ca15595641932f053fd34c49d4e45dba964`；已包含共享 ADR-009。开工主目录干净。
-- 当前实现尚在本任务分支，收尾提交和最终资源状态在下文更新；不能说全仓已统一。
+- 实现本地提交 `58ea02a583fcf1cfff3726801128a1571c136571`，提交钩子检查实际 staged 快照通过；本记录的收尾补充仅文档提交。尚未合回 main，不能说全仓已统一。
 - 旧任务 `dms-line-full-flow-fix` 的未提交诊断、暂停实验室及测试附件原样保留；其它 ERP/Cowork 工作树、分支、数据未修改。
 
 ## 实现及旧依赖替换
@@ -78,7 +78,7 @@
 - Docker context：`colima-pearnly`；Compose project：`pearnly-dms-snapshot-lab`。
 - Site：`dms-snapshot-lab.localhost`；镜像：`sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9`，本机 arm64 Frappe 16.33.0，MariaDB 11.8、Redis 6.2；不是生产 amd64 候选镜像验收。
 - 独占 sites/db/redis-data/logs 四卷、internal 网络、无 host 端口、无生产凭据；5 App 与 scripts/tests 只读挂自本工作树。bench 只 sleep，无常驻 worker/scheduler，pause_scheduler=1。
-- 队列测试只用本任务 burst worker；合成快照/marker/活跃操作员/自建 queued job 已按 UUID 清理或停用；原生安装/迁移留下的 3 个索引任务不清空冒领。
+- 队列测试只用本任务 burst worker；合成快照/marker/活跃操作员/自建 queued job 已按 UUID 清理或停用；原生安装/迁移留下的 long 3 个索引任务及 default 8 个安装任务不清空冒领。最终 dms_sync 为空，native sweep 测试任务不存在。
 - 本地页面冒烟两个自建服务及 Chrome 标签已关闭。
 
 在本树、只操作上述专属项目复跑：
@@ -92,4 +92,14 @@ docker --context colima-pearnly exec -w /home/frappe/frappe-bench pearnly-dms-sn
 
 ## 收尾与保留
 
-本批按“仅本地验证、先不部署”交接保留，不擅自合并、推送或改变线上。目标主线/远端状态、提交 SHA 和容器最终停止状态在本次收尾回读后记录。工作树/任务分支因为尚未集成必须保留；本地实验室卷及构建依赖用于复跑和后续用户验收，归属本任务，解除条件为用户确认本地成果并决定集成/下一轮测试后复核，不作为长期归档。其它任务工作树和旧任务资料不在清理范围。
+本批按“仅本地验证、先不部署”交接保留，不擅自合并、推送或改变线上。
+
+- 目标本地主线与真实远端 main 经 `git ls-remote` 回读均为 `57039ca15595641932f053fd34c49d4e45dba964`；主目录仍干净。本任务远端分支不存在，未创建 PR、未推送、未部署。
+- 本地实现提交 `58ea02a583fcf1cfff3726801128a1571c136571`，作者沿用当前环境与前序主线实际身份。随后仅提交本次交接文档；不重复跑未改业务测试。
+- 已正常停止并回读 exited：`pearnly-dms-snapshot-lab-bench-1`、`pearnly-dms-snapshot-lab-db-1`、`pearnly-dms-snapshot-lab-redis-1`；自建预览服务/标签和 burst worker 已结束。未停止任何共享容器。
+- 保留四个本任务卷：`pearnly-dms-snapshot-lab_sites`、`pearnly-dms-snapshot-lab_db`、`pearnly-dms-snapshot-lab_redis-data`、`pearnly-dms-snapshot-lab_logs`；包含原生安装状态及停用合成审计，供下一轮验收复跑。没有删除卷或业务资料。
+- 保留本任务工作树、`codex/dms-five-minute-snapshots` 本地分支及 internal 网络/已停容器：成果尚未集成，且容器仍绑定此源码目录，不能删目录断挂载。本任务远端分支不存在，无远端分支清理。
+- 保留本树 ignored `frontend/node_modules/`、`frontend/auto-imports.d.ts`、`frontend/components.d.ts`、`apps/pearnly_core/pearnly_core/public/pearnly-app/`：均为本次锁定构建/本地预览所需可再生资料，不提交。未触碰共享依赖。
+- 所有保留项归属当前快照任务；下一次复核为用户确认本地成果并决定集成或下一轮测试时。满足集成保存、无源码挂载/运行占用后再逐项清理，不长期以“另一个窗口”为保留理由。其它任务工作树及旧任务资料不在本次清理范围。
+
+下一步只在用户明确安排后：按真实目标资源核对容量、生成正式候选镜像、初始化并观察真实全量客户/全国地址快照，然后跑真实 LINE 菜单业务及独立 DMS 回读；这些不是本批本机验证的已完成项。
