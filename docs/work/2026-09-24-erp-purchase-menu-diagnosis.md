@@ -369,3 +369,15 @@ docker --context colima-pearnly-erp-acceptance exec pearnly-erp-acceptance-bench
 - 既有后端验收类本轮重跑在建用户阶段遇到 Frappe 限流，0 项业务用例执行，未计作通过，也未关闭限流；使用此前对应版本的已记录后端证据及本轮基础检查。
 - 首次开发 CI 发现旧目录测试仍要求 `ERP Stock` 商品成本静态授权；按 `access/setup.py` 已明确的权限收紧规则改为精确 3 条授权及禁止旧授权的断言，16/16 通过，`e473be2` 开发 CI 全部通过。
 - `e473be2` 候选镜像编译通过，运行时门禁发现 LINE Guest 离线 fixture 没配置已购买功能；新版真实权限守卫正确拒绝该无权益站点。为 fixture 显式配置购买/销售/收银权益并保留未购买拒绝断言；不 mock 掉权限判据、不跳过门禁，重新构建固定提交。
+
+### 正式发布结果与收尾（2026-09-24 19:40，Asia/Bangkok）
+
+- 发布代码 `695325f18a02dc3294dc239352c00fba77c0993e` 已合入并推送 main；本轮所有 ERP 提交在此版本内。主线后续发布记录提交只改本文件，不重发业务镜像。
+- 开发检查 [35999233324](https://github.com/skin306152-star/pearnly/actions/runs/35999233324)、生产构建 [35999235051](https://github.com/skin306152-star/pearnly/actions/runs/35999235051)、服务器接收 [35999828086](https://github.com/skin306152-star/pearnly/actions/runs/35999828086) 全部 success。LINE 权限定向 29/29 通过。
+- ERP 镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:56f9011b6ab2ef633a92f9f37942d77ebca01121367c7084bfed97572545cd23` 已激活；7 个 ERP 容器标签全部为发布代码 SHA。数据库与文件完整备份前缀 `testerp.pearnly.com/private/backups/20260924_193707-testerp_pearnly_com-`；服务器旧部署工具备份 `/opt/pearnly/state/erp-release-695325f-deploy-tools.tar.gz` 保留恢复用途。
+- 原生迁移成功，`v1_10_menu_permissions` 执行成功，maintenance=0。上线前后商品 4、供应商 1、客户 0、采购单 0、销售单 0、班次 2、期初单/库存流水/库存余额均 0；没有用真实业务单据做上线验收。
+- 77 个变更 App 文件逐一 SHA-256 回读一致；19 个公开静态资源经 `https://testerp.pearnly.com` 下载核对一致。Chrome 新标签从无参数 `/desk/pearnly-cashier` 显示官方商品选择、购物车、班次与正确标题，控制台无错误；用户原有未提交购物车标签未刷新、未操作。
+- DMS 7 个服务及 billing/Keycloak/数据库/Redis 等其余 12 个服务，容器 ID、启动时间、镜像与发布前逐项一致。旧全局 `active-image.json` 保持 `a11eb9e…`；只有 `active-image-erp.json` 固定本次 `56f9011…`，未集成或激活未验证 DMS 分支。
+- 按用户要求停止全套前端复验。本次上线回读不等于手机真机或真实收款业务验收；这些边界仍保留。
+- 交接保留：本任务工作树 `/Users/skin/.codex/worktrees/erp-purchase-menu-diagnosis/pearnly`、本地分支 `codex/erp-purchase-menu-diagnosis`、`colima-pearnly` 上 `pearnly-erp-entry-lab` 的 6 个快速预览容器和合成 Site A/B 数据仍供用户查看。已核实容器直接挂载工作树；停止预览或迁出挂载后立即复核删除工作树与本地分支。远端任务分支不存在，不创建归档分支。主线已完整包含实现，不再以未合并作为保留理由。
+- 清理本次镜像核对临时容器及本机 manifest/readback 临时文件；服务器备份为恢复材料继续保留，待发布验收后按备份保留规则处理。其他 DMS 工作树、容器、数据与未提交记录不动。收尾状态为“预览用途交接保留”，不宣称全部资源已删除。
