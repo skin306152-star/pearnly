@@ -12,7 +12,13 @@ ROOT = Path(__file__).resolve().parents[1]
 CASES = ("client", "booking-foundation", "booking-payments", "booking-readback", "retry", "quota")
 # Explicitly audited stdlib suites use unittest's exit status, not the legacy
 # RESULT marker. Frappe-dependent snapshot suites run in the candidate image.
-UNIT_TESTS = ("test-dms-snapshot-reader.py",)
+UNIT_TESTS = (
+    "scripts/test-dms-snapshot-reader.py",
+    "tests/test_dms_catalogue_reader.py",
+    "tests/test_dms_company_catalogue_schema.py",
+    "tests/test_dms_geo_catalogue.py",
+    "tests/test_dms_connection_snapshots.py",
+)
 
 if __name__ == "__main__":
     env = dict(os.environ, PYTHONPATH=str(ROOT / "apps/pearnly_dms"))
@@ -27,7 +33,7 @@ if __name__ == "__main__":
             print(result.stdout); print(result.stderr)
             failed = True
     for script in UNIT_TESTS:
-        result = subprocess.run([sys.executable, str(ROOT / "scripts" / script)],
+        result = subprocess.run([sys.executable, str(ROOT / script)],
                                 env=env, capture_output=True, text=True)
         passed = result.returncode == 0
         print(f"{script}: {'PASS' if passed else 'FAIL'}")

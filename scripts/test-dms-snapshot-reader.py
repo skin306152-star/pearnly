@@ -23,6 +23,7 @@ from pearnly_dms.client.client_intake import _ADDR_MAP, _ADDR_SUFFIXES, _IDENTIT
 from pearnly_dms.client.snapshot_reader import (
     BANK_KEYS, ERROR, GEO_PATHS, SnapshotLimits, advance_geo, collect_business,
     collect_catalog, collect_customers, collect_directory, read_customer_complete, start_geo,
+    _Budget, EMPTY_BANK_SELECTORS,
 )
 from pearnly_dms.contracts.client_base import DmsClientError
 
@@ -39,6 +40,7 @@ def options(rows):
 
 def customer_form(cid):
     values = {name: "" for name in _IDENTITY_MAP.values()}
+    values.update(stsel="e", idsel=cid)
     values.update({name + suffix: "" for name in _ADDR_MAP.values() for suffix in _ADDR_SUFFIXES})
     values.update(txtcuscode="TEST-" + cid, txtcusname="Synthetic " + cid,
                   txtpeopleid="1000000730317", txttaxid="1000000730317", selprefix="17",
@@ -136,6 +138,32 @@ class SnapshotReaderTests(unittest.TestCase):
 
     def collect(self, **changes):
         return collect_directory(self.client, bank_masters=deepcopy(BANKS), limits=replace(LIMITS, **changes))
+
+    def test_native_zero_byte_optional_bank_selectors_are_known_empty(self):
+        self.transport.overrides['drfcbc/component/bshsd.php'] = ''
+        for elem in EMPTY_BANK_SELECTORS:
+            with self.subTest(elem=elem), _Budget(LIMITS).bind(self.client):
+                self.assertEqual(self.client._bshsd_all(elem), [])
+
+    def test_optional_bank_nonempty_invalid_bodies_are_not_empty(self):
+        for body in (' ', 'null', '{}', '<html>session expired</html>', 'err::'):
+            for elem in EMPTY_BANK_SELECTORS:
+                self.transport.overrides['drfcbc/component/bshsd.php'] = body
+                with self.subTest(body=body, elem=elem), self.assertRaises(DmsClientError), _Budget(LIMITS).bind(self.client):
+                    self.client._bshsd_all(elem)
+
+    def test_other_selector_zero_bytes_remain_incomplete(self):
+        self.transport.overrides['drfcbc/component/bshsd.php'] = ''
+        for elem in ('txtcar', 'txtusers', 'txtbanknametfmon', 'unregistered'):
+            with self.subTest(elem=elem), self.assertRaises(DmsClientError), _Budget(LIMITS).bind(self.client):
+                self.client._bshsd_all(elem)
+
+    def test_unknown_customer_field_or_wrong_native_identity_rejected(self):
+        for change in (lambda body: body.replace('</form>', '<input name="new_unmapped_field" value="x"></form>'),
+                       lambda body: body.replace('name="idsel" value="C1"', 'name="idsel" value="OTHER"')):
+            self.transport.overrides['cus/form.php'] = lambda data: change(customer_form(data['id']))
+            with self.assertRaises(DmsClientError):
+                collect_customers(self.client, limits=LIMITS)
 
     def reject(self, call):
         with self.assertRaises(DmsClientError) as caught:
@@ -515,6 +543,63 @@ class ManualCustomerChunks(unittest.TestCase):
         for path, data in self.transport.calls:
             self.assertNotIn(path, {"cus/component/showdata.php", "cus/component/listdistricts.php",
                                     "cus/component/listsubdistricts.php", "cus/component/listzipcodes.php"})
+
+    def assert_checkpoint_rejected_without_io(self, stage):
+        from pearnly_dms.client.snapshot_reader import advance_customers
+        before = deepcopy(stage)
+        calls = len(self.transport.calls)
+        with self.assertRaises(DmsClientError) as raised:
+            advance_customers(self.client, stage, max_nodes=1, limits=LIMITS)
+        self.assertEqual(raised.exception.error_code, ERROR)
+        self.assertEqual(len(self.transport.calls), calls)
+        self.assertEqual(stage, before)
+
+    def test_resumed_customer_checkpoint_rejects_missing_full_form_fields(self):
+        complete = self.run_chunks()
+        for phase in ('details', 'verify', 'done'):
+            for field in ('name', 'province_name_sd', 'branch_code', 'customer_id'):
+                with self.subTest(phase=phase, field=field):
+                    stage = deepcopy(complete)
+                    stage['phase'] = phase
+                    if phase == 'details':
+                        stage['verified'] = []
+                    stage['customers']['C1'].pop(field)
+                    self.assert_checkpoint_rejected_without_io(stage)
+        stage = deepcopy(complete)
+        stage['customers']['C1'] = {}
+        self.assert_checkpoint_rejected_without_io(stage)
+
+    def test_resumed_customer_checkpoint_rejects_wrong_identity_types_and_unknown_fields(self):
+        complete = self.run_chunks()
+        for field, value in (('customer_id', 'OTHER'), ('name', None), ('phone', 800000000),
+                             ('district_id_ct', []), ('province_name_sd', {}), ('credit_day', True),
+                             ('unexpected', 'must not publish')):
+            with self.subTest(field=field, value_type=type(value).__name__):
+                stage = deepcopy(complete)
+                stage['customers']['C1'][field] = value
+                self.assert_checkpoint_rejected_without_io(stage)
+
+    def test_resumed_verify_requires_all_details_before_any_count_request(self):
+        stage = self.run_chunks()
+        stage['phase'] = 'verify'
+        stage['customers'].pop('C1')
+        self.assert_checkpoint_rejected_without_io(stage)
+        stage = self.run_chunks()
+        stage['verified'].pop()
+        self.assert_checkpoint_rejected_without_io(stage)
+
+    def test_correct_completed_customer_checkpoint_returns_unchanged_without_io(self):
+        from pearnly_dms.client.snapshot_reader import advance_customers
+        stage = self.run_chunks(extras=('HIDDEN',))
+        # Native empty optional business values remain legal; presence and type
+        # are checked, not a newly invented requirement for each field's value.
+        self.assertEqual(stage['customers']['C1']['email'], '')
+        before = deepcopy(stage)
+        calls = len(self.transport.calls)
+        result = advance_customers(self.client, stage, max_nodes=1, limits=LIMITS)
+        self.assertEqual(result, before)
+        self.assertEqual(stage, before)
+        self.assertEqual(len(self.transport.calls), calls)
 
 
 if __name__ == "__main__":

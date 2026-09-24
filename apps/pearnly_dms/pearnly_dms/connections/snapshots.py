@@ -14,7 +14,7 @@ from frappe import _
 
 from pearnly_dms.connections.api import ADAPTER, ENDPOINT, _require_admin
 
-DATASETS = ("masters", "customers", "geo")
+DATASETS = ("vehicles", "customers", "geo", "company")
 STATES = frozenset(("idle", "queued", "running", "waiting", "succeeded", "failed"))
 
 

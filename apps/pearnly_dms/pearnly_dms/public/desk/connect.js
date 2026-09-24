@@ -4,7 +4,7 @@
 		const cacheText = await p.texts("dms.connect.cache.");
 		let conn,
 			busy = false;
-		const datasets = ["masters", "customers", "geo"];
+		const datasets = ["vehicles", "customers", "geo", "company"];
 		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
 		let pending = null, outcome = null, frozen = false, posting = false;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";

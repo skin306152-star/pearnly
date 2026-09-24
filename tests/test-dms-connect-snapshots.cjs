@@ -20,7 +20,7 @@ assert(dialogStart >= 0 && dialogEnd > dialogStart, 'Native Dialog helper must r
 const dialogSource = product.slice(dialogStart, dialogEnd);
 const clone = value => JSON.parse(JSON.stringify(value));
 const tick = () => new Promise(resolve => setImmediate(resolve));
-const DATASETS = ['masters', 'customers', 'geo'];
+const DATASETS = ['vehicles', 'customers', 'geo', 'company'];
 const ID = 'a'.repeat(32), OLD_ID = 'b'.repeat(32);
 const status = (dataset, state = 'idle', request_id = '', extra = {}) => ({
   dataset, state, request_id, progress: {processed: 0, total: null},
@@ -32,7 +32,7 @@ function deferred() {
   return {promise, resolve, reject};
 }
 
-function harness({connected = true, endpoint = true, rows = DATASETS.map(name => status(name))} = {}) {
+function harness({connected = true, endpoint = true, rows = DATASETS.map(name => status(name)), messagesByKey = {}} = {}) {
   const calls = [], forms = [], dialogs = [], handlers = {}, timers = new Map();
   const buttons = new Map(), messages = [], successes = [], errors = [], freezeTexts = [];
   let serial = 0, frozen = false, freezeCount = 0, unfreezeCount = 0;
@@ -41,7 +41,7 @@ function harness({connected = true, endpoint = true, rows = DATASETS.map(name =>
   const page = {main: {empty() {}}, clear_inner_toolbar() {buttons.clear();},
     set_primary_action() {}, set_indicator() {}, add_inner_button(label, fn) {buttons.set(label, fn);}};
   const wrapper = {};
-  const t = (key, ...args) => key + (args.length ? ':' + args.join('|') : '');
+  const t = (key, ...args) => (messagesByKey[key] || key) + (args.length ? ':' + args.join('|') : '');
   const p = {
     async texts(prefix) {assert.equal(prefix, 'dms.connect.cache.'); return t;},
     async call(method, args = {}, type = 'GET') {
@@ -107,7 +107,7 @@ function harness({connected = true, endpoint = true, rows = DATASETS.map(name =>
     deferStatus() {statusWait = deferred(); return statusWait;},
     deferRequest() {requestWait = deferred(); return requestWait;},
     start: () => p.connect(page, t, wrapper),
-    choose() {buttons.get('dms.connect.cache.read')(); return dialogs.at(-1);},
+    choose() {buttons.get(t('dms.connect.cache.read'))(); return dialogs.at(-1);},
     count(method) {return calls.filter(call => call.method.endsWith(method)).length;},
     async poll() {
       assert.equal(timers.size, 1, 'Exactly one active poll is scheduled');
@@ -120,15 +120,45 @@ test('idle page has no saved-data fields or ongoing polling; first selection is 
   const h = harness(); await h.start();
   assert.equal(h.forms.length, 1, 'Only existing connection details remain on the page');
   const names = h.forms.flatMap(form => form.fields.map(field => field.fieldname).filter(Boolean));
-  assert(!names.some(name => /^(masters|customers|geo)_/.test(name)), 'No data status/count/time/error fields');
+  assert(!names.some(name => /^(masters|vehicles|customers|geo|company)_/.test(name)), 'No data status/count/time/error fields');
   assert.equal(h.timers.size, 0); assert.equal(h.frozen, false);
   assert.equal(h.calls.filter(call => call.type === 'POST').length, 0);
   const dialog = h.choose();
   assert.deepEqual(Array.from(dialog.fields.filter(field => field.fieldtype === 'Check'), field => [field.fieldname, field.default]),
-    [['masters', 1], ['customers', 1], ['geo', 1]]);
+    [['vehicles', 1], ['customers', 1], ['geo', 1], ['company', 1]]);
   await dialog.submit({});
   assert.equal(h.messages.length, 1); assert.equal(dialog.hidden, false);
   assert.equal(h.count('request_refresh'), 0); assert.equal(h.frozen, false);
+});
+
+test('Chinese glossary renders four exact group labels, update action and native freeze text', async () => {
+  const glossary = fs.readFileSync(path.join(appRoot, 'pearnly_dms/pearnly_dms/i18n/messages.tsv'), 'utf8');
+  const rows = glossary.trim().split(/\r?\n/).map(line => line.split('\t'));
+  const header = rows.shift(), keyIndex = header.indexOf('key'), zhIndex = header.indexOf('zh');
+  assert(keyIndex >= 0 && zhIndex >= 0, 'Read product-owned glossary columns by name');
+  const messagesByKey = Object.fromEntries(rows.map(row => [row[keyIndex], row[zhIndex]]));
+  const h = harness({messagesByKey}); await h.start();
+  assert(h.buttons.has('更新数据'));
+  const dialog = h.choose();
+  assert.equal(dialog.options.title, '更新数据');
+  assert.equal(dialog.options.primary_action_label, '更新数据');
+  assert.deepEqual(Array.from(dialog.fields.filter(field => field.fieldtype === 'Check'), field => [field.fieldname, field.label]), [
+    ['vehicles', '车辆主档信息'], ['customers', '客户资料'], ['geo', '地址目录'], ['company', '公司资料'],
+  ]);
+  await dialog.submit({vehicles: 1, customers: 1, geo: 1, company: 1});
+  assert.deepEqual(h.calls.find(call => call.method.endsWith('request_refresh')).args, {datasets: DATASETS});
+  assert.deepEqual(h.freezeTexts, ['数据更新中。。。']);
+  assert.equal(h.frozen, true);
+  h.setRows(DATASETS.map(dataset => status(dataset, 'succeeded', ID))); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.successes.length, 1); assert.equal(h.timers.size, 0);
+});
+
+test('company can be selected alone and obsolete or forged groups never enter the request', async () => {
+  const h = harness(); await h.start();
+  await h.choose().submit({company: 1, vehicles: 0, customers: 0, geo: 0, masters: 1, unknown: 1});
+  assert.deepEqual(h.calls.find(call => call.method.endsWith('request_refresh')).args, {datasets: ['company']});
+  h.setRows([status('company', 'succeeded', ID)]); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.successes.length, 1); assert.equal(h.timers.size, 0);
 });
 
 test('subset request excludes forged endpoint; actual Dialog helper suppresses repeated submit', async () => {
@@ -137,7 +167,7 @@ test('subset request excludes forged endpoint; actual Dialog helper suppresses r
   const first = dialog.submit({customers: 1, geo: 0, endpoint: 'forged'});
   await tick(); assert.equal(dialog.disabled, true);
   h.choose(); assert.equal(h.dialogs.length, 1, 'Posting cannot open another request dialog');
-  await dialog.submit({masters: 1});
+  await dialog.submit({vehicles: 1});
   assert.equal(h.count('request_refresh'), 1);
   assert.deepEqual(h.calls.find(call => call.method.endsWith('request_refresh')), {
     method: 'pearnly_dms.connections.snapshots.request_refresh', args: {datasets: ['customers']}, type: 'POST',
@@ -148,7 +178,7 @@ test('subset request excludes forged endpoint; actual Dialog helper suppresses r
   assert.equal(h.frozen, true); assert.equal(h.timers.size, 1); assert.equal(h.successes.length, 0);
   assert.deepEqual(h.freezeTexts, ['dms.connect.cache.processing']);
   h.choose(); assert.equal(h.dialogs.length, 1, 'Active read cannot open another request dialog');
-  await dialog.submit({masters: 1}); assert.equal(h.count('request_refresh'), 1);
+  await dialog.submit({vehicles: 1}); assert.equal(h.count('request_refresh'), 1);
   h.setRows([status('customers', 'succeeded', ID)]); await h.poll();
   assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 1);
   assert.deepEqual(h.successes, ['dms.connect.cache.state.succeeded']);
@@ -156,14 +186,14 @@ test('subset request excludes forged endpoint; actual Dialog helper suppresses r
 });
 
 test('cached data defaults to no selection; only all matching current requests may report success', async () => {
-  const h = harness({rows: [status('masters', 'succeeded', OLD_ID, {as_of: 1720000000})]});
+  const h = harness({rows: [status('vehicles', 'succeeded', OLD_ID, {as_of: 1720000000})]});
   await h.start(); assert.equal(h.timers.size, 0);
   const dialog = h.choose();
   assert(dialog.fields.filter(field => field.fieldtype === 'Check').every(field => field.default === 0));
-  await dialog.submit({masters: 1, customers: 1});
-  h.setRows([status('masters', 'succeeded', ID), status('customers', 'running', ID)]);
+  await dialog.submit({vehicles: 1, customers: 1});
+  h.setRows([status('vehicles', 'succeeded', ID), status('customers', 'running', ID)]);
   await h.poll(); assert.equal(h.frozen, true); assert.equal(h.successes.length, 0);
-  h.setRows([status('masters', 'succeeded', ID), status('customers', 'succeeded', ID)]);
+  h.setRows([status('vehicles', 'succeeded', ID), status('customers', 'succeeded', ID)]);
   await h.poll(); assert.equal(h.frozen, false); assert.equal(h.successes.length, 1);
   assert.equal(h.timers.size, 0);
 });
@@ -188,9 +218,9 @@ test('request-level failure with no request_id is failure feedback, not an empty
   assert.equal(h.messages[0].message, 'dms.connect.cache.state.failed');
 });
 
-for (const rows of [[status('masters', 'succeeded', OLD_ID)], [status('masters')], []]) {
+for (const rows of [[status('vehicles', 'succeeded', OLD_ID)], [status('vehicles')], []]) {
   test('changed/missing request cannot turn into success: ' + JSON.stringify(rows.map(row => row.state)), async () => {
-    const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+    const h = harness(); await h.start(); await h.choose().submit({vehicles: 1});
     h.setRows(rows); await h.poll();
     assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
     assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
@@ -200,24 +230,24 @@ for (const rows of [[status('masters', 'succeeded', OLD_ID)], [status('masters')
 
 test('RPC request failure releases mask and native Dialog submit button', async () => {
   const h = harness(); await h.start(); h.failRequest(); const dialog = h.choose();
-  await dialog.submit({masters: 1});
+  await dialog.submit({vehicles: 1});
   assert.equal(h.frozen, false); assert.equal(dialog.disabled, false);
   assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
   assert.equal(h.messages[0].message, 'dms.connect.cache.unconfirmed');
 });
 
 test('poll failure releases mask and stops retry', async () => {
-  const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+  const h = harness(); await h.start(); await h.choose().submit({vehicles: 1});
   h.failStatus(); await h.poll();
   assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
   assert.equal(h.messages[0].message, 'dms.connect.cache.unconfirmed');
 });
 
 test('a failed group is remembered while another selected group is still running', async () => {
-  const h = harness(); await h.start(); await h.choose().submit({masters: 1, geo: 1});
-  h.setRows([status('masters', 'failed', ID), status('geo', 'running', ID)]); await h.poll();
+  const h = harness(); await h.start(); await h.choose().submit({vehicles: 1, geo: 1});
+  h.setRows([status('vehicles', 'failed', ID), status('geo', 'running', ID)]); await h.poll();
   assert.equal(h.frozen, true); assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 0);
-  h.setRows([status('masters', 'failed', ID), status('geo', 'succeeded', ID)]); await h.poll();
+  h.setRows([status('vehicles', 'failed', ID), status('geo', 'succeeded', ID)]); await h.poll();
   assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
   assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
   assert.match(JSON.stringify(h.messages[0]), /state\.failed/);
@@ -225,10 +255,10 @@ test('a failed group is remembered while another selected group is still running
 
 test('failure takes priority over waiting regardless of selected group order', async () => {
   for (const states of [['failed', 'waiting'], ['waiting', 'failed']]) {
-    const h = harness(); await h.start(); await h.choose().submit({masters: 1, customers: 1, geo: 1});
-    h.setRows([status('masters', states[0], ID), status('customers', states[1], ID), status('geo', 'running', ID)]);
+    const h = harness(); await h.start(); await h.choose().submit({vehicles: 1, customers: 1, geo: 1});
+    h.setRows([status('vehicles', states[0], ID), status('customers', states[1], ID), status('geo', 'running', ID)]);
     await h.poll(); assert.equal(h.frozen, true); assert.equal(h.messages.length, 0);
-    h.setRows([status('masters', states[0], ID), status('customers', states[1], ID), status('geo', 'succeeded', ID)]);
+    h.setRows([status('vehicles', states[0], ID), status('customers', states[1], ID), status('geo', 'succeeded', ID)]);
     await h.poll();
     assert.equal(h.frozen, false); assert.equal(h.successes.length, 0); assert.equal(h.timers.size, 0);
     assert.equal(h.messages[0].message, 'dms.connect.cache.state.failed');
@@ -236,13 +266,13 @@ test('failure takes priority over waiting regardless of selected group order', a
 });
 
 test('leaving releases mask; returning reads current active tasks and resumes one poll', async () => {
-  const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+  const h = harness(); await h.start(); await h.choose().submit({vehicles: 1});
   const before = h.count('get_status'); h.handlers.hide();
   assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.count('get_status'), before);
   h.handlers.show(); await tick();
   assert.equal(h.count('get_status'), before + 1);
   assert.equal(h.frozen, true); assert.equal(h.timers.size, 1);
-  h.setRows([status('masters', 'succeeded', ID)]); await h.poll();
+  h.setRows([status('vehicles', 'succeeded', ID)]); await h.poll();
   assert.equal(h.successes.length, 1); assert.equal(h.frozen, false);
 });
 

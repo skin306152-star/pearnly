@@ -69,7 +69,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.assertEqual(self.api.request_refresh.allowed_methods, ["POST"])
         for field in ("endpoint", "actor", "reader", "params"):
             with self.subTest(field=field), self.assertRaises(TypeError):
-                self.api.request_refresh(["masters"], **{field: "forged"})
+                self.api.request_refresh(["vehicles"], **{field: "forged"})
             with self.assertRaises(TypeError):
                 self.api.get_status(**{field: "forged"})
 
@@ -77,7 +77,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
         for user, roles, error in (("Guest", [], Unsigned), ("staff", ["DMS User"], Denied)):
             self.frappe.session.user = user
             self.frappe.get_roles.return_value = roles
-            for call in (self.api.get_status, lambda: self.api.request_refresh(["masters"])):
+            for call in (self.api.get_status, lambda: self.api.request_refresh(["vehicles"])):
                 with self.subTest(user=user), self.assertRaises(error):
                     call()
         self.frappe.get_all.assert_not_called()
@@ -87,9 +87,9 @@ class ConnectionSnapshotTests(unittest.TestCase):
     def test_admin_roles_use_only_site_primary_authority(self):
         for role in ("DMS Admin", "System Manager"):
             self.frappe.get_roles.return_value = [role]
-            result = self.api.request_refresh('["geo", "masters", "geo"]')
-            self.assertEqual([r["dataset"] for r in result["datasets"]], ["masters", "geo"])
-            self.manual.request.assert_any_call("PRIMARY-LOCAL", "masters", reader="authority",
+            result = self.api.request_refresh('["geo", "vehicles", "geo"]')
+            self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "geo"])
+            self.manual.request.assert_any_call("PRIMARY-LOCAL", "vehicles", reader="authority",
                                                actor="admin@example.test")
         self.assertEqual(self.frappe.get_all.call_args.kwargs, {
             "filters": {"adapter": "mrerp_dms", "owner_user": ["is", "not set"]},
@@ -98,9 +98,23 @@ class ConnectionSnapshotTests(unittest.TestCase):
     def test_status_is_local_only_and_all_datasets(self):
         result = self.api.get_status()
         self.assertTrue(result["configured"])
-        self.assertEqual([r["dataset"] for r in result["datasets"]], ["masters", "customers", "geo"])
-        self.assertEqual(self.manual.status.call_count, 3)
+        self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "customers", "geo", "company"])
+        self.assertEqual(self.manual.status.call_count, 4)
         self.manual.request.assert_not_called()
+
+    def test_each_group_is_independently_selectable_and_all_four_have_fixed_order(self):
+        datasets = ["vehicles", "customers", "geo", "company"]
+        for dataset in datasets:
+            with self.subTest(dataset=dataset):
+                self.manual.request.reset_mock()
+                result = self.api.request_refresh([dataset])
+                self.assertEqual([row["dataset"] for row in result["datasets"]], [dataset])
+                self.manual.request.assert_called_once_with("PRIMARY-LOCAL", dataset,
+                    reader="authority", actor="admin@example.test")
+        self.manual.request.reset_mock()
+        result = self.api.request_refresh(json.dumps(list(reversed(datasets))))
+        self.assertEqual([row["dataset"] for row in result["datasets"]], datasets)
+        self.assertEqual([call.args[1] for call in self.manual.request.call_args_list], datasets)
 
     def test_unconfigured_status_is_empty_and_request_rejects(self):
         self.rows = []
@@ -125,8 +139,9 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.manual.request.assert_not_called()
 
     def test_invalid_dataset_input_never_queues(self):
-        for value in (None, [], {}, "masters", '{"endpoint":"x"}', ["sales"],
-                      ["geo", "customers", "masters", "geo"], [1], [["geo"]]):
+        for value in (None, [], {}, "vehicles", '{"endpoint":"x"}', ["sales"],
+                      ["masters"], ["directory"], ["query.capabilities"], ["company", "unknown"],
+                      ["vehicles", "customers", "geo", "company", "geo"], [1], [["geo"]]):
             with self.subTest(value=value), self.assertRaises(Invalid):
                 self.api.request_refresh(value)
         self.manual.request.assert_not_called()
@@ -142,7 +157,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
         row = result["datasets"][0]
         self.assertEqual(row["as_of"], 1720000000.5)
         self.assertEqual(row["completed_at"], 1720000010)
-        self.assertEqual(row["progress"], {"processed": 7, "total": 25, "unit": "masters"})
+        self.assertEqual(row["progress"], {"processed": 7, "total": 25, "unit": "vehicles"})
         self.assertTrue(row["stale"])
         self.assertEqual(row["error_code"], "ERR_DMS_SNAPSHOT_INCOMPLETE")
         for secret in ("never-export", "private", "credential", "secret"):
@@ -152,8 +167,8 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.assertEqual((row["error_code"], row["as_of"], row["completed_at"], row["count"]), ("", 0, 0, None))
 
     def test_repeat_requests_preserve_domain_dedup_identity(self):
-        first = self.api.request_refresh(["masters"])
-        second = self.api.request_refresh(["masters"])
+        first = self.api.request_refresh(["vehicles"])
+        second = self.api.request_refresh(["vehicles"])
         self.assertEqual(first, second)
         self.assertEqual(first["datasets"][0]["request_id"], "ab" * 16)
         self.assertEqual(self.manual.request.call_count, 2)
@@ -162,7 +177,7 @@ class ConnectionSnapshotTests(unittest.TestCase):
     def test_failure_in_one_group_does_not_hide_another_accepted_request(self):
         self.manual.request.side_effect = [RuntimeError("private upstream data"),
             {"state": "queued", "request_id": "ab" * 16}]
-        result = self.api.request_refresh(["masters", "customers"])
+        result = self.api.request_refresh(["vehicles", "customers"])
         self.assertEqual([r["state"] for r in result["datasets"]], ["failed", "queued"])
         self.assertNotIn("private", json.dumps(result))
 

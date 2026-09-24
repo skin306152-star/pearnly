@@ -20,13 +20,19 @@ import time
 
 from pearnly_dms.client.client_intake import (
     _ADDR_MAP, _ADDR_SUFFIXES, _BRANCH_CODE, _BRANCH_VAL,
-    _IDENTITY_MAP, _IdentitySearchRows,
+    _GEO_LABEL_MAP, _IDENTITY_MAP, _IdentitySearchRows,
 )
 from pearnly_dms.contracts.client_base import DmsClientError
 
 
 ERROR = "ERR_DMS_SNAPSHOT_INCOMPLETE"
 BANK_KEYS = ("company_banks", "source_banks", "cheque_banks", "cashier_banks", "card_banks")
+# DMS-TEST native protocol rechecked on 2026-09-24: these optional bank
+# selectors return HTTP 200 with exactly zero bytes for no matches. The native
+# payment contract permits manual names; receipt accounts do not share this rule.
+EMPTY_BANK_SELECTORS = frozenset({
+    "txtbanknametffrom", "txtbanknamecheque", "txtbanknamecashiercq", "txtbanknamecddbc",
+})
 MASTER_KEYS = ("cars", "place_books", "term_sales", "branches", "regis_behalfs", "advisors", "prefixes")
 GEO_PATHS = {
     "districts": ("cus/component/listdistricts.php", "selprovinces"),
@@ -121,6 +127,8 @@ class _Budget:
                 self.failed = True
                 _fail("response budget exceeded")
             if path.endswith("/bshsd.php"):
+                if body == "" and data.get("elemname") in EMPTY_BANK_SELECTORS:
+                    return body  # Known native empty, not whitespace/error HTML/null.
                 try:
                     value = json.loads(body)
                 except ValueError:
@@ -409,6 +417,10 @@ def _read_customer_complete(client, cid, budget):
                 for attrs in re.findall(r"<(?:input|select|textarea)\b([^>]*)>", page, re.I | re.S)]
     if any(field not in data or controls.count(field) != 1 for field in required):
         _fail("incomplete customer detail")
+    if any(name and name not in required | {"stsel", "idsel"} for name in controls):
+        _fail("unrecognized customer field")
+    if data.get("stsel") != "e" or data.get("idsel") != cid:
+        _fail("customer form identity mismatch")
     budget.add_rows(1)
     # The source ID is the explicit full-form read target, never a list code,
     # visible name, or an untrusted field in the response/defaults.
@@ -459,6 +471,44 @@ def collect_masters(client, *, bank_masters, limits=None):
     return _collect(client, lambda budget: _business_catalog(client, bank_masters, budget), limits)
 
 
+def collect_vehicle_options(client, *, catalogues, limits=None):
+    """Preserve the native booking projection, separate from complete car forms."""
+    def collect(budget):
+        cars = _rows(client._bshsd_all("txtcar"), budget)
+        paints = {}
+        for car in cars:
+            cid = str(car[0])
+            if cid not in catalogues["car"]:
+                _fail("car picker changed during collection")
+            rows = _rows(client._bshsd_all("txtcarpaint", idcar=cid), budget)
+            expected = set(catalogues["car"][cid]["fields"]["chkcarpaint[]"])
+            if {str(row[0]) for row in rows} != expected or not expected.issubset(catalogues["carpaint"]):
+                _fail("car colour relationships changed during collection")
+            paints[cid] = rows
+        return {"masters": {"cars": cars}, "paints": paints}
+    return _collect(client, collect, limits)
+
+
+def collect_company_options(client, *, catalogues, bank_reader, limits=None):
+    """Operational selectors retain native IDs and their distinct bank scopes."""
+    def collect(budget):
+        masters = {key: _rows(client._bshsd_all(elem), budget) for key, elem in (
+            ("place_books", "txtplacebook"), ("term_sales", "txttermsale"),
+            ("branches", "txtbranch_book"), ("regis_behalfs", "txtregisbehalf"))}
+        masters["advisors"] = _rows(client._advisor_rows(), budget)
+        banks = bank_reader()
+        for key in BANK_KEYS:
+            masters[key] = _rows(banks.get(key), budget)
+        for key, table in (("branches", "branch"), ("advisors", "users"), ("company_banks", "bank")):
+            if any(str(row[0]) not in catalogues[table] for row in masters[key]):
+                _fail("company picker changed during collection")
+        masters["employees"] = [{"id": cid, "code": row["fields"]["txtuserscode"],
+            "login": row["fields"]["txtusers"], "name": row["fields"]["txtusersname"]}
+            for cid, row in catalogues["users"].items()]
+        return {"masters": masters}
+    return _collect(client, collect, limits)
+
+
 def start_customers(client, *, extra_customer_ids=(), limits=None):
     """Begin a private, resumable full scan, not an incrementally fresh result."""
     def begin(budget):
@@ -484,6 +534,20 @@ def _customer_page(client, budget, count, page):
             or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))):
         _fail("invalid customer page")
     return parser.ids
+
+
+def _validate_customer_checkpoint_records(customers):
+    # Match _read_customer_complete/_extract_customer_fields, including all three
+    # address blocks and their selected labels. A persisted ID alone is not a
+    # complete customer. Empty native values are legal; missing or typed values
+    # are not repaired with defaults or treated as a fresh "not found" result.
+    required = set(_IDENTITY_MAP) | {"customer_id", "prefix_name", "cuscode", "branch_id", "branch_code"}
+    required.update(field + suffix for field in (*_ADDR_MAP, *_GEO_LABEL_MAP) for suffix in _ADDR_SUFFIXES)
+    for cid, fields in customers.items():
+        if (not isinstance(fields, dict) or set(fields) != required
+                or fields.get("customer_id") != cid
+                or any(not isinstance(value, str) for value in fields.values())):
+            _fail("incomplete customer checkpoint fields")
 
 
 def advance_customers(client, stage, *, max_nodes=20, limits=None):
@@ -512,6 +576,11 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
             _fail("combined customer count exceeds bound")
         if candidate["phase"] != "list" and len(ids) != count:
             _fail("incomplete customer checkpoint list")
+        _validate_customer_checkpoint_records(customers)
+        if candidate["phase"] in {"verify", "done"} and set(customers) != set(detail_ids):
+            _fail("incomplete customer checkpoint details")
+        if candidate["phase"] == "done" and verified != ids:
+            _fail("incomplete customer checkpoint verification")
         for _ in range(max_nodes):
             if budget.limits.max_seconds - (time.monotonic() - budget.started) < 5:
                 break
@@ -548,6 +617,8 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
                 if set(customers) != set(detail_ids) or verified != ids:
                     _fail("incomplete customer checkpoint result")
                 break
+        if candidate["phase"] == "done" and (set(customers) != set(detail_ids) or verified != ids):
+            _fail("incomplete customer checkpoint result")
         return candidate
     return _collect(client, advance, limits)
 

@@ -1,11 +1,15 @@
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
+Account busy — click Update data later to continue,アカウントが使用中です。後で「データを更新」を押して続行してください
 Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
+Address directory,住所一覧
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 Booking ID,予約ID
 Booking Number,予約番号
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
+Company information,会社情報
+Customer records,顧客情報
 DMS,DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
@@ -15,6 +19,7 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
 Data as of {time},データ取得時刻：{time}
 Data captured at,データ取得時刻
+Data updated,データ更新完了
 Enable the DMS connection before reading data,データを読み取る前に DMS 接続を有効にしてください
 Enter the DMS password.,DMS パスワードを入力してください。
 Full address directory,完全な住所一覧
@@ -74,6 +79,10 @@ This read was interrupted. Click Read again to retry; previously completed data 
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
+Update data,データを更新
+Update failed — click Update data to retry,更新に失敗しました。「データを更新」を押して再試行してください
+Updating data…,データを更新中…
+Vehicle master data,車両マスター情報
 View result / status,結果／状態を見る
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
@@ -108,9 +117,11 @@ dms.card.query.NAV_FETCH,この検索を読み取り／更新
 dms.card.query.NAV_RESULT,結果／状態を見る
 dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 dms.connect.cache.changed,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
-dms.connect.cache.dataset.customers,完全な顧客データ
-dms.connect.cache.dataset.geo,完全な住所一覧
+dms.connect.cache.dataset.company,会社情報
+dms.connect.cache.dataset.customers,顧客情報
+dms.connect.cache.dataset.geo,住所一覧
 dms.connect.cache.dataset.masters,マスターデータと全車種の色
+dms.connect.cache.dataset.vehicles,車両マスター情報
 dms.connect.cache.field.as_of,データ取得時刻
 dms.connect.cache.field.completed_at,前回成功時の完了時刻
 dms.connect.cache.field.count,前回成功時の件数
@@ -119,16 +130,16 @@ dms.connect.cache.field.progress,読み取りの進捗
 dms.connect.cache.field.state,読み取り状態
 dms.connect.cache.help,更新するデータを選択し、読み取りが完了するまでお待ちください。
 dms.connect.cache.processed,{0} 件処理済み。総数は未確定です
-dms.connect.cache.processing,データを読み取り中です。しばらくお待ちください…
-dms.connect.cache.read,選択したデータを読み取り／更新
+dms.connect.cache.processing,データを更新中…
+dms.connect.cache.read,データを更新
 dms.connect.cache.select,データを1種類以上選択してください。
 dms.connect.cache.stale,古いデータ：{0}
-dms.connect.cache.state.failed,読み取り失敗。読み取りを押して再試行してください
+dms.connect.cache.state.failed,更新に失敗しました。「データを更新」を押して再試行してください
 dms.connect.cache.state.idle,未読み取り
 dms.connect.cache.state.queued,待機中
 dms.connect.cache.state.running,読み取り中
-dms.connect.cache.state.succeeded,読み取り完了
-dms.connect.cache.state.waiting,アカウントが使用中です。後で読み取りを押して続行してください
+dms.connect.cache.state.succeeded,データ更新完了
+dms.connect.cache.state.waiting,アカウントが使用中です。後で「データを更新」を押して続行してください
 dms.connect.cache.title,読み取り済み DMS データ
 dms.connect.cache.unconfirmed,読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。
 dms.edit.addPayment,支払方法を追加

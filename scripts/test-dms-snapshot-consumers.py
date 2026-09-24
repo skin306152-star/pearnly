@@ -144,9 +144,15 @@ class SnapshotConsumers(unittest.TestCase):
         self.replace(self.qa, "resolve_operator_advisor", return_value=({"id": "AD1", "name": "Advisor"}, "sales"))
         masters = {key: [["1", "CODE", "Synthetic"]] for key in ("cars", "place_books", "term_sales", "regis_behalfs")}
         masters["company_banks"] = []
-        snapshot = {"data": {"masters": masters, "paints": {}},
-                    "as_of": 1790209380, "completed_at": 1790209400,
-                    "generation": "synthetic-generation", "stale": False}
+        data = {
+            "vehicles": {"masters": {"cars": masters["cars"]}, "paints": {}, "catalogues": {"fixture": {}}},
+            "company": {"masters": {key: value for key, value in masters.items() if key != "cars"},
+                        "catalogues": {"fixture": {}}},
+            "customers": {"customers": {}, "prefixes": [["p", "Prefix"]]},
+        }
+        snapshots = {dataset: {"data": value, "as_of": 1790209380, "completed_at": 1790209400,
+                               "generation": "synthetic-" + dataset, "stale": False}
+                     for dataset, value in data.items()}
         reads = self.replace(self.store, "read", side_effect=self.store.SnapshotUnavailable())
         forbidden = self.replace(self.service, "push_idcard_fields", side_effect=AssertionError("No replay of saved customer"))
         self.replace(self.flow, "process_image", side_effect=AssertionError("No OCR replay"))
@@ -161,11 +167,12 @@ class SnapshotConsumers(unittest.TestCase):
         action = self.http[0][1]["messages"][0]["quickReply"]["items"][0]["action"]
         parsed = {key: value[0] for key, value in parse_qs(action["data"]).items()}
         self.assertEqual(parsed, {"action": "continue_booking", "cid": "saved-id"})
-        def masters_only(endpoint, dataset, **kwargs):
+        def master_groups_only(endpoint, dataset, **kwargs):
             name = endpoint.get("name") if isinstance(endpoint, dict) else endpoint
-            self.assertEqual((name, dataset), (EP, "masters"))
-            return snapshot
-        reads.side_effect = masters_only
+            self.assertEqual(name, EP)
+            self.assertIn(dataset, snapshots)
+            return copy.deepcopy(snapshots[dataset])
+        reads.side_effect = master_groups_only
         self.menu.handle_postback(self.binding, UID, TOKEN, parsed["action"], parsed, saved)
         resumed = self.sessions.get_session(UID)
         self.assertEqual(resumed["state"], "booking_qa")
@@ -219,7 +226,7 @@ class SnapshotConsumers(unittest.TestCase):
         self.cache.lock.side_effect = lambda *args, **kwargs: MagicMock()
         data = identity_fixture.record()
         for field in reader_fixture._IDENTITY_MAP.values(): data.setdefault(field, "")
-        data.update(branchcusval="B", txtbranchcus="Branch")
+        data.update(branchcusval="B", txtbranchcus="Branch", stsel="e", idsel="own")
         transport = identity_fixture.Transport({"own": data})
         client = identity_fixture.DmsClient(transport, "https://identity.invalid/dms/")
         events = []
@@ -333,7 +340,7 @@ class SnapshotConsumers(unittest.TestCase):
         endpoints.assert_not_called(); read.assert_not_called(); self.assertEqual(self.jobs, [])
         registry = self.hooks.pearnly_dms_snapshot_collectors
         self.assertEqual({item["dataset"] for item in registry if item["reader"] == "authority"},
-                         {"masters", "customers", "geo"})
+                         {"vehicles", "customers", "geo", "company"})
         self.assertEqual([item.get("dataset_prefix") for item in registry if item["reader"] == "sales"], ["query."])
 
     def test_old_geo_and_directory_jobs_without_request_do_not_login_or_acquire_lease(self):
@@ -344,6 +351,8 @@ class SnapshotConsumers(unittest.TestCase):
                 login = self.replace(module, "run_logged_in", side_effect=AssertionError("Old jobs must not login"))
                 self.assertEqual(module.refresh(EP), {"ok": False, "retired": True})
                 login.assert_not_called()
+        self.assertEqual(self.snapshot_sync.refresh(EP, dataset="masters", request_id="obsolete"),
+                         {"ok": False, "retired": True})
         stage.assert_not_called(); read.assert_not_called()
         self.cache.lock.assert_not_called(); self.assertEqual(self.jobs, [])
 
@@ -359,28 +368,47 @@ class SnapshotConsumers(unittest.TestCase):
     def test_independent_dataset_reads_keep_real_times_and_never_trigger_refresh(self):
         from pearnly_dms.snapshots.directory import Directory
         snapshots = {
-            "masters": {"data": {"masters": {"prefixes": [["p", "Prefix"]]}, "paints": {"car": [["c", "Color"]]}},
-                        "as_of": 200, "completed_at": 205, "generation": "m1", "stale": False},
-            "customers": {"data": {"customers": {"c1": {"customer_id": "c1", "name": "Synthetic"}}},
+            "vehicles": {"data": {"masters": {"cars": [["car", "Car"]]}, "paints": {"car": [["c", "Color"]]},
+                                   "catalogues": {"fixture": {}}},
+                         "as_of": 200, "completed_at": 205, "generation": "v1", "stale": False},
+            "company": {"data": {"masters": {"branches": [["branch", "Branch"]]}, "catalogues": {"fixture": {}}},
+                        "as_of": 150, "completed_at": 155, "generation": "o1", "stale": False},
+            "customers": {"data": {"customers": {"c1": {"customer_id": "c1", "name": "Synthetic"}},
+                                    "prefixes": [["p", "Prefix"]]},
                           "as_of": 100, "completed_at": 110, "generation": "c1", "stale": True},
             "geo": {"data": {"provinces": {"": [["p1", "Province"]]}},
                     "as_of": 50, "completed_at": 90, "generation": "g1", "stale": True},
         }
         reads = self.replace(self.store, "read", side_effect=lambda ep, ds, **kw: copy.deepcopy(snapshots[ds]))
         directory = Directory(EP)
-        directory.masters(); directory.paints("car")
-        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters"])
+        self.assertEqual(directory.paints("car"), [["c", "Color"]])
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["vehicles"])
         self.assertEqual(directory.metadata()["as_of"], 200)
+        masters = directory.masters()
+        self.assertEqual(masters["cars"], [["car", "Car"]])
+        self.assertEqual(masters["branches"], [["branch", "Branch"]])
+        self.assertEqual(masters["prefixes"], [["p", "Prefix"]])
         self.assertEqual(directory.read_customer("c1")["customer_id"], "c1")
-        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters", "customers"])
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["vehicles", "company", "customers"])
         self.assertEqual(directory.metadata()["as_of"], 100)
         self.assertEqual(directory.metadata()["completed_at"], 110)
+        self.assertEqual(directory.metadata()["generation"], "o1:c1:v1")
         self.assertTrue(directory.metadata()["stale"])
         directory.list_geo("provinces")
         self.assertEqual(directory.metadata()["as_of"], 100, "Address age stays independent of business data")
         self.assertEqual(directory.metadata()["geo_as_of"], 50)
         self.assertTrue(directory.metadata()["geo_stale"])
-        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters", "customers", "geo"])
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["vehicles", "company", "customers", "geo"])
+        self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
+
+    def test_prefixes_only_read_customer_group_without_vehicle_or_company_dependency(self):
+        directory = self.snapshot_directory({})
+        result = {"data": {"customers": {}, "prefixes": [["p", "Prefix"]]}, "as_of": 100,
+                  "completed_at": 110, "generation": "customer-only", "stale": False}
+        self.store.read.side_effect = lambda ep, dataset, **kwargs: copy.deepcopy(result) if dataset == "customers" else self.fail(dataset)
+        self.assertEqual(directory.list_prefixes(), [["p", "Prefix"]])
+        self.store.read.assert_called_once_with(EP, "customers", refresh_interval=1800)
+        self.assertEqual(directory.metadata()["generation"], "customer-only")
         self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
 
     def test_ledger_hint_missing_from_generation_is_pending_not_a_new_customer(self):

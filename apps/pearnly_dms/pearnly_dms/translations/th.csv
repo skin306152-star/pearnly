@@ -1,11 +1,15 @@
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
+Account busy — click Update data later to continue,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
+Address directory,รายการที่อยู่
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
 Booking ID,รหัสการจอง
 Booking Number,เลขที่การจอง
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
 Cached result captured at {time},อ่านผลที่บันทึกไว้เมื่อ {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ
+Company information,ข้อมูลบริษัท
+Customer records,ข้อมูลลูกค้า
 DMS,DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
@@ -15,6 +19,7 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,การซิงก์ DMS ได้ข้อมูลไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองใหม่หลังซิงก์สำเร็จ
 Data as of {time},ข้อมูล ณ {time}
 Data captured at,เวลาที่ซิงก์ข้อมูล
+Data updated,อัปเดตข้อมูลแล้ว
 Enable the DMS connection before reading data,กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
 Full address directory,รายการที่อยู่ครบชุด
@@ -74,6 +79,10 @@ This read was interrupted. Click Read again to retry; previously completed data 
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
+Update data,อัปเดตข้อมูล
+Update failed — click Update data to retry,อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่
+Updating data…,กำลังอัปเดตข้อมูล…
+Vehicle master data,ข้อมูลหลักรถยนต์
 View result / status,ดูผล / สถานะการอ่าน
 dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
 dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
@@ -372,9 +381,11 @@ dms.card.sum.name,ชื่อ
 dms.card.sum.people_id,เลขบัตร
 dms.card.sum.phone,เบอร์โทร
 dms.connect.cache.changed,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
-dms.connect.cache.dataset.customers,ข้อมูลลูกค้าครบชุด
-dms.connect.cache.dataset.geo,รายการที่อยู่ครบชุด
+dms.connect.cache.dataset.company,ข้อมูลบริษัท
+dms.connect.cache.dataset.customers,ข้อมูลลูกค้า
+dms.connect.cache.dataset.geo,รายการที่อยู่
 dms.connect.cache.dataset.masters,ข้อมูลหลักและสีรถทุกรุ่น
+dms.connect.cache.dataset.vehicles,ข้อมูลหลักรถยนต์
 dms.connect.cache.field.as_of,เวลาที่อ่านข้อมูล
 dms.connect.cache.field.completed_at,เวลาที่อ่านสำเร็จล่าสุด
 dms.connect.cache.field.count,จำนวนรายการที่อ่านสำเร็จล่าสุด
@@ -383,16 +394,16 @@ dms.connect.cache.field.progress,ความคืบหน้าการอ�
 dms.connect.cache.field.state,สถานะการอ่าน
 dms.connect.cache.help,เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
 dms.connect.cache.processed,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
-dms.connect.cache.processing,กำลังอ่านข้อมูล กรุณารอสักครู่…
-dms.connect.cache.read,อ่าน / อัปเดตข้อมูลที่เลือก
+dms.connect.cache.processing,กำลังอัปเดตข้อมูล…
+dms.connect.cache.read,อัปเดตข้อมูล
 dms.connect.cache.select,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 dms.connect.cache.stale,ข้อมูลเก่า ณ {0}
-dms.connect.cache.state.failed,อ่านไม่สำเร็จ กดอ่านเพื่อลองใหม่
+dms.connect.cache.state.failed,อัปเดตไม่สำเร็จ กดอัปเดตข้อมูลเพื่อลองใหม่
 dms.connect.cache.state.idle,ยังไม่ได้อ่าน
 dms.connect.cache.state.queued,อยู่ในคิว
 dms.connect.cache.state.running,กำลังอ่าน
-dms.connect.cache.state.succeeded,อ่านเสร็จแล้ว
-dms.connect.cache.state.waiting,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
+dms.connect.cache.state.succeeded,อัปเดตข้อมูลแล้ว
+dms.connect.cache.state.waiting,บัญชีไม่ว่าง กดอัปเดตข้อมูลอีกครั้งภายหลังเพื่อทำต่อ
 dms.connect.cache.title,ข้อมูล DMS ที่อ่านไว้
 dms.connect.cache.unconfirmed,ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง
 dms.edit.addPayment,เพิ่มช่องทาง

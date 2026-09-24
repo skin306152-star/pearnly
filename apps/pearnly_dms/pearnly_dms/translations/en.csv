@@ -1,11 +1,15 @@
 Account busy — click Read later to continue,Account busy — click Read later to continue
+Account busy — click Update data later to continue,Account busy — click Update data later to continue
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
+Address directory,Address directory
 Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
 Booking ID,Booking ID
 Booking Number,Booking Number
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 Cached result captured at {time},Cached result captured at {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
+Company information,Company information
+Customer records,Customer records
 DMS,DMS
 DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
@@ -15,6 +19,7 @@ DMS sign-in did not finish (after retrying there was neither a successful checkl
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
 Data as of {time},Data as of {time}
 Data captured at,Data captured at
+Data updated,Data updated
 Enable the DMS connection before reading data,Enable the DMS connection before reading data
 Enter the DMS password.,Enter the DMS password.
 Full address directory,Full address directory
@@ -74,6 +79,10 @@ This read was interrupted. Click Read again to retry; previously completed data 
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
+Update data,Update data
+Update failed — click Update data to retry,Update failed — click Update data to retry
+Updating data…,Updating data…
+Vehicle master data,Vehicle master data
 View result / status,View result / status
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
@@ -108,9 +117,11 @@ dms.card.query.NAV_FETCH,Read / refresh this query
 dms.card.query.NAV_RESULT,View result / status
 dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
-dms.connect.cache.dataset.customers,Full customer records
-dms.connect.cache.dataset.geo,Full address directory
+dms.connect.cache.dataset.company,Company information
+dms.connect.cache.dataset.customers,Customer records
+dms.connect.cache.dataset.geo,Address directory
 dms.connect.cache.dataset.masters,Master data and all vehicle colors
+dms.connect.cache.dataset.vehicles,Vehicle master data
 dms.connect.cache.field.as_of,Data captured at
 dms.connect.cache.field.completed_at,Last successful completion
 dms.connect.cache.field.count,Last successful record count
@@ -119,16 +130,16 @@ dms.connect.cache.field.progress,Read progress
 dms.connect.cache.field.state,Read status
 dms.connect.cache.help,"Select the data to update, then wait for the read to finish."
 dms.connect.cache.processed,{0} processed; total not yet known
-dms.connect.cache.processing,"Reading data, please wait…"
-dms.connect.cache.read,Read / refresh selected data
+dms.connect.cache.processing,Updating data…
+dms.connect.cache.read,Update data
 dms.connect.cache.select,Select at least one data group.
 dms.connect.cache.stale,Older data: {0}
-dms.connect.cache.state.failed,Read failed — click Read to retry
+dms.connect.cache.state.failed,Update failed — click Update data to retry
 dms.connect.cache.state.idle,Not read yet
 dms.connect.cache.state.queued,Queued
 dms.connect.cache.state.running,Reading
-dms.connect.cache.state.succeeded,Read completed
-dms.connect.cache.state.waiting,Account busy — click Read later to continue
+dms.connect.cache.state.succeeded,Data updated
+dms.connect.cache.state.waiting,Account busy — click Update data later to continue
 dms.connect.cache.title,Saved DMS data
 dms.connect.cache.unconfirmed,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 dms.edit.addPayment,Add payment method

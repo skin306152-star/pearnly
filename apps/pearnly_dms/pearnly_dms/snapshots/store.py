@@ -196,12 +196,17 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
         # The collector directly rereads known IDs; until then retain its verified
         # overlay rather than erasing a successful write from the local directory.
         overlays = {cid: {**item, "fields": data["customers"][cid]} for cid, item in overlays.items()}
+    elif dataset in ("vehicles", "company"):
+        required = ("masters", "catalogues", "paints") if dataset == "vehicles" else ("masters", "catalogues")
+        if not all(isinstance(data.get(k), dict) for k in required) or not data["catalogues"]:
+            raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
     elif dataset == "masters":
         if not all(isinstance(data.get(k), dict) for k in ("masters", "paints")):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
     elif dataset == "geo":
         from pearnly_dms.contracts.geo_matching import complete_tree
-        if not complete_tree(data):
+        tree = {key: data.get(key) for key in ("provinces", "districts", "subdistricts", "zipcodes")}
+        if not complete_tree(tree) or ("catalogues" in data and not isinstance(data["catalogues"], dict)):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
     frappe.db.set_value(DT, name, {"payload": _dump(data), "overlays": _dump(overlays),
         "source_started_at": float(source_started_at), "completed_at": time.time(),

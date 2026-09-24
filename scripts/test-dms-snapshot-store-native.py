@@ -173,6 +173,30 @@ class SnapshotLabCase(unittest.TestCase):
 
 
 class NativeSnapshotStore(SnapshotLabCase):
+    def test_new_master_groups_require_raw_catalogues_and_publish_independently(self):
+        for dataset, extra in (("vehicles", {"paints": {}}), ("company", {})):
+            payload = {"masters": {}, "catalogues": {"fixture": {}}, **extra}
+            self.publish(payload, dataset=dataset)
+            frappe.db.commit()
+            before = self.observe(dataset=dataset)
+            self.assertEqual(before["data"], payload)
+            self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish,
+                             {"masters": {}, **extra}, dataset=dataset)
+            frappe.db.rollback()
+            self.assertEqual(self.observe(dataset=dataset), before)
+
+    def test_full_geo_catalogues_preserved_without_weakening_tree_validation(self):
+        payload = {**geo(), "catalogues": {"provinces": {
+            "P1": {"fields": {"txtprovincesengname": "Synthetic English"}}}}}
+        self.publish(payload, dataset="geo")
+        frappe.db.commit()
+        before = self.observe(dataset="geo")
+        self.assertEqual(before["data"], payload)
+        invalid = {**payload, "districts": {"UNKNOWN": [["D1", "bad parent"]]}}
+        self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish, invalid, dataset="geo")
+        frappe.db.rollback()
+        self.assertEqual(self.observe(dataset="geo"), before)
+
     def test_cold_and_failed_cold_are_not_successful_empty(self):
         self.key()
         self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")

@@ -21,7 +21,7 @@ class Directory:
         if dataset not in self.loaded:
             snap = store.read(self.endpoint, dataset, refresh_interval=1800)
             self.loaded[dataset] = snap
-            self.data.update(snap["data"])
+            self.data.update({k: v for k, v in snap["data"].items() if k not in {"catalogues", "masters"}})
             earliest = min(self.loaded.values(), key=lambda item: item["as_of"])
             self.snapshot.update({key: earliest[key] for key in ("as_of", "completed_at")})
             self.snapshot.update(generation=":".join(self.loaded[key]["generation"] for key in sorted(self.loaded)),
@@ -32,19 +32,23 @@ class Directory:
         return {k: v for k, v in self.snapshot.items() if k != "data"}
 
     def masters(self):
-        snapshot = self._load("masters")
-        return {**copy.deepcopy(self.data["masters"]), "_snapshot": {
-            k: snapshot[k] for k in ("as_of", "generation", "stale")}}
+        vehicles = self._load("vehicles")["data"]["masters"]
+        company = self._load("company")["data"]["masters"]
+        prefixes = self.list_prefixes()
+        return {**copy.deepcopy(company), **copy.deepcopy(vehicles), "prefixes": prefixes,
+                "_snapshot": {k: self.snapshot[k] for k in ("as_of", "generation", "stale")}}
 
     def paints(self, car_id):
-        self._load("masters")
+        self._load("vehicles")
         if str(car_id) not in self.data["paints"]:
             raise DmsClientError("Car is absent from the complete snapshot", "ERR_DMS_MASTER_CHANGED")
         return copy.deepcopy(self.data["paints"][str(car_id)])
 
     def list_prefixes(self):
-        self._load("masters")
-        return copy.deepcopy(self.data["masters"]["prefixes"])
+        self._load("customers")
+        if not isinstance(self.data.get("prefixes"), list) or not self.data["prefixes"]:
+            raise store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_PENDING")
+        return copy.deepcopy(self.data["prefixes"])
 
     def list_geo(self, level, parent_id=""):
         if level not in ("provinces", "districts", "subdistricts", "zipcodes"):

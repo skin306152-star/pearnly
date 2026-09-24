@@ -27,7 +27,9 @@ doc_events = {
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
 pearnly_dms_snapshot_collectors = [
-    {"dataset": "masters", "reader": "authority",
+    {"dataset": "vehicles", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset": "company", "reader": "authority",
      "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
     {"dataset": "customers", "reader": "authority",
      "method": "pearnly_dms.adapter.snapshot_sync.refresh"},

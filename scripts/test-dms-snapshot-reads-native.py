@@ -88,14 +88,21 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         geo = data.pop("geo")
         self.publish(geo, start=time.time() - geo_age, dataset="geo")
         stamp = time.time() - age
-        self.publish({key: data[key] for key in ("masters", "paints")}, start=stamp, dataset="masters")
-        self.publish({"customers": data["customers"]}, start=stamp, dataset="customers")
+        self.publish({"masters": {"cars": data["masters"]["cars"]}, "paints": data["paints"],
+                      "catalogues": {"fixture": {}}}, start=stamp, dataset="vehicles")
+        self.publish({"masters": {key: value for key, value in data["masters"].items()
+                                  if key not in {"cars", "prefixes"}}, "catalogues": {"fixture": {}}},
+                     start=stamp, dataset="company")
+        self.publish({"customers": data["customers"], "prefixes": data["masters"]["prefixes"]},
+                     start=stamp, dataset="customers")
         frappe.db.commit()
         from pearnly_dms.snapshots.directory import Directory
         view = Directory(self.endpoint)
         view.read_customer("customer-1")
+        customer_metadata = view.metadata()
         view.masters()
-        return {**view.metadata(), "master_generation": view.loaded["masters"]["generation"]}
+        return {**customer_metadata, "master_generation": view.metadata()["generation"],
+                "paint_generation": view.loaded["vehicles"]["generation"]}
 
     def lookup(self, *, people_id=PID, name="Synthetic Customer", address=None):
         return service.recognize_lookup(self.endpoint, people_id=people_id, name=name,
@@ -190,7 +197,7 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
                  "subdistrict_id": "", "zipcode_id": ""}
         result = edit_snapshot.read_edit_snapshot(self.endpoint, car_ids=["cars-1"],
             customer=draft, customer_id="customer-1", preserve_empty_geo=True)
-        self.assertEqual(result["snapshot"]["generation"], snapshot["generation"])
+        self.assertEqual(result["snapshot"]["generation"], snapshot["master_generation"])
         self.assertEqual(result["snapshot"]["as_of"], snapshot["as_of"])
         self.assertEqual(result["resolved_customer"]["subdistrict_id"], "")
         self.assertEqual(result["resolved_customer"]["zipcode_id"], "")
@@ -252,9 +259,10 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         self.master(qa, "cars")
         self.paints(qa)
         captured = datetime.fromtimestamp(snapshot["as_of"], timezone.utc).isoformat(timespec="seconds")
-        for value in (qa["master_snapshot"], qa["paint_snapshots"]["cars-1"]):
+        for value, expected in ((qa["master_snapshot"], snapshot["master_generation"]),
+                                (qa["paint_snapshots"]["cars-1"], snapshot["paint_generation"])):
             self.assertEqual(value["captured_at"], captured)
-            self.assertEqual(value["source_generation"], snapshot["master_generation"])
+            self.assertEqual(value["source_generation"], expected)
         before = copy.deepcopy(qa)
         self.master(qa, "cars")
         self.paints(qa)

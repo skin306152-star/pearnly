@@ -1,42 +1,77 @@
-"""Explicit, independently published masters and resumable customer reads."""
+"""Manual groups: complete native forms plus compatible LINE projections."""
+import math
 import time
 
 import frappe
 
 from pearnly_dms.adapter.operations import run_logged_in
+from pearnly_dms.client.catalogue_reader import start_catalogues, advance_catalogues
 from pearnly_dms.client.snapshot_reader import (
-    advance_customers, collect_masters, start_customers, SnapshotLimits,
+    advance_customers, start_customers, collect_vehicle_options, collect_company_options, SnapshotLimits,
 )
 from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
 from pearnly_dms.snapshots import manual, store
 
 
 def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
-    # Persisted old jobs are inert; a current explicit request authorizes login.
-    if not request_id:
+    # Old scheduled jobs and the retired three-group contract cannot acquire IO.
+    if not request_id or dataset not in {"vehicles", "company", "customers"}:
         return {"ok": False, "retired": True}
     manual.assert_active(endpoint, dataset, request_id)
     expected = store.scope(endpoint)
     started = time.time()
-    checkpoint = store.stage(endpoint, dataset) if dataset == "customers" else None
-    if checkpoint and started - checkpoint["started_at"] > manual.REQUEST_AGE:
+    checkpoint = store.stage(endpoint, dataset)
+    if checkpoint is not None and (not isinstance(checkpoint, dict)
+            or checkpoint.get("version") != 2
+            or not {"version", "started_at", "phase", "tree"} <= set(checkpoint)
+            or set(checkpoint) - {"version", "started_at", "phase", "tree", "customers"}
+            or checkpoint["phase"] not in {"catalogues", "projection"}
+            or isinstance(checkpoint["started_at"], bool)
+            or not isinstance(checkpoint["started_at"], (int, float))
+            or not math.isfinite(checkpoint["started_at"])
+            or not 0 < checkpoint["started_at"] <= started + 1
+            or started - checkpoint["started_at"] > manual.REQUEST_AGE):
         checkpoint = None
+    limits = SnapshotLimits(max_seconds=30)
 
     def capture(client, adapter):
         nonlocal checkpoint
-        if dataset == "masters":
-            banks = fetch_payment_bank_masters(adapter, client=client)
-            data = collect_masters(client, bank_masters=banks, limits=SnapshotLimits(max_seconds=30))
-            return {"ok": True, "data": data}
-        if dataset != "customers":
-            raise ValueError("Invalid shared DMS dataset")
         if checkpoint is None:
-            checkpoint = {"started_at": started, "tree": start_customers(client,
-                extra_customer_ids=store.overlay_customer_ids(endpoint),
-                limits=SnapshotLimits(max_seconds=30))}
-        tree = advance_customers(client, checkpoint["tree"], max_nodes=20,
-                                 limits=SnapshotLimits(max_seconds=30))
-        return {"ok": True, "tree": tree}
+            checkpoint = {"version": 2, "started_at": started, "phase": "catalogues",
+                "tree": start_catalogues(client, "customer_aux" if dataset == "customers" else dataset,
+                                         limits=limits)}
+        stage = dict(checkpoint)
+        if stage["phase"] == "catalogues":
+            tree = advance_catalogues(client, stage["tree"], max_nodes=100, limits=limits)
+            stage["tree"] = tree
+            if tree["done"]:
+                stage["phase"] = "projection"
+            return {"ok": True, "stage": stage, "processed": tree["processed"], "total": tree["total"]}
+        # A projection resumes in a new process: revalidate the completed private
+        # catalogue before trusting it. A done checkpoint performs no HTTP here.
+        checked = advance_catalogues(client, stage["tree"], max_nodes=1, limits=limits)
+        if not checked["done"] or checked["dataset"] != ("customer_aux" if dataset == "customers" else dataset):
+            raise store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
+        catalogues = checked["data"]["catalogues"]
+        if dataset == "vehicles":
+            projection = collect_vehicle_options(client, catalogues=catalogues, limits=limits)
+        elif dataset == "company":
+            projection = collect_company_options(client, catalogues=catalogues,
+                bank_reader=lambda: fetch_payment_bank_masters(adapter, client=client), limits=limits)
+        else:
+            if "customers" not in stage:
+                stage["customers"] = start_customers(client,
+                    extra_customer_ids=store.overlay_customer_ids(endpoint), limits=limits)
+            tree = advance_customers(client, stage["customers"], max_nodes=20, limits=limits)
+            stage["customers"] = tree
+            if tree["phase"] != "done":
+                return {"ok": True, "stage": stage, "processed": len(tree["customers"]), "total": tree["count"]}
+            prefixes = [[cid, row["fields"]["txtprefixname"]] for cid, row in catalogues["prefix"].items()]
+            if not prefixes:
+                raise store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
+            projection = {"customers": tree["customers"], "prefixes": prefixes}
+        return {"ok": True, "data": {"catalogues": catalogues, **projection},
+                "count": sum(stage["tree"]["counts"].values()) + len(projection.get("customers", {}))}
 
     result = run_logged_in(endpoint, capture, authoritative_read=True, background=True, read_only_batch=True)
     frappe.db.commit()
@@ -44,27 +79,18 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
         if not result.get("ok"):
             if result.get("error_code") == "ERR_DMS_SNAPSHOT_BUSY":
                 return {**result, "busy": True}
-            if dataset == "customers" and result.get("error_code") == "ERR_DMS_SNAPSHOT_INCOMPLETE":
-                # Pagination drift invalidates the checkpoint, not the last good
-                # generation. The next explicit retry must start with a fresh list.
+            if result.get("error_code") == "ERR_DMS_SNAPSHOT_INCOMPLETE":
                 store.checkpoint(endpoint, None, dataset=dataset, expected_scope=expected)
             store.failed(endpoint, dataset, result.get("error_code"), expected_scope=expected)
             frappe.db.commit()
             return result
-        if dataset == "masters":
-            store.publish(endpoint, dataset, result["data"], started, expected_scope=expected)
-            count = sum(len(rows) for rows in result["data"]["masters"].values() if isinstance(rows, list))
-            complete = True
+        complete = "data" in result
+        if complete:
+            store.publish(endpoint, dataset, result["data"], checkpoint["started_at"], expected_scope=expected)
+            store.checkpoint(endpoint, None, dataset=dataset, expected_scope=expected)
         else:
-            tree = result["tree"]
-            complete = tree["phase"] == "done"
-            count = len(tree["customers"])
-            if complete:
-                store.publish(endpoint, dataset, {"customers": tree["customers"]}, checkpoint["started_at"],
-                              expected_scope=expected)
-                store.checkpoint(endpoint, None, dataset=dataset, expected_scope=expected)
-            else:
-                store.checkpoint(endpoint, {**checkpoint, "tree": tree}, dataset=dataset, expected_scope=expected)
+            store.checkpoint(endpoint, result["stage"], dataset=dataset, expected_scope=expected)
     frappe.db.commit()
+    count = result.get("count", result.get("processed", 0))
     return {"ok": True, "complete": complete, "count": count, "processed": count,
-            "total": count if complete else tree["count"]}
+            "total": count if complete else result.get("total")}

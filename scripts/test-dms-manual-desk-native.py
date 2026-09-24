@@ -21,8 +21,9 @@ lab = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-store-nativ
 Fixture = lab["SnapshotLabCase"]
 STATUS = "pearnly_dms.connections.snapshots.get_status"
 REFRESH = "pearnly_dms.connections.snapshots.request_refresh"
+DATASETS = ("vehicles", "customers", "geo", "company")
 CACHE_FIELDS = tuple(dataset + "_" + suffix
-    for dataset in ("masters", "customers", "geo")
+    for dataset in (*DATASETS, "masters")
     for suffix in ("state", "progress", "count", "as_of", "completed_at", "error_code"))
 
 
@@ -70,6 +71,7 @@ def main():
             with page.expect_response(lambda r: STATUS in r.url) as response:
                 page.goto("http://127.0.0.1:8000/desk/pearnly-connect")
             assert response.value.ok
+            assert tuple(row["dataset"] for row in response.value.json()["message"]["datasets"]) == DATASETS
             assert not any(row["state"] in {"queued", "running"}
                            for row in response.value.json()["message"]["datasets"])
             page.wait_for_function("typeof frappe !== 'undefined' && !!frappe.pearnly?.connect", timeout=30000)
@@ -80,7 +82,9 @@ def main():
                 const t = await frappe.pearnly.texts('dms.connect.cache.');
                 return {read: t('dms.connect.cache.read'),
                     processing: t('dms.connect.cache.processing'),
-                    success: t('dms.connect.cache.state.succeeded')};
+                    success: t('dms.connect.cache.state.succeeded'),
+                    ...Object.fromEntries(['vehicles', 'customers', 'geo', 'company']
+                        .map(key => [key, t('dms.connect.cache.dataset.' + key)]))};
             }""")
             assert all(value and not value.startswith("dms.connect.cache.") for value in labels.values())
             no_cache_fields(page)
@@ -88,21 +92,26 @@ def main():
             polling_stopped(page, requests)  # idle pages must not poll indefinitely
             page.get_by_role("button", name=labels["read"], exact=True).click()
             dialog = page.locator(".modal:visible")
-            dialog.locator('input[data-fieldname="masters"]').check()
-            dialog.locator('input[data-fieldname="customers"]').uncheck()
-            dialog.locator('input[data-fieldname="geo"]').uncheck()
+            dialog.locator('input[data-fieldname="vehicles"]').wait_for(state="visible")
+            fields = dialog.locator('input[type="checkbox"][data-fieldname]').evaluate_all(
+                "nodes => nodes.map(node => node.dataset.fieldname)")
+            assert tuple(fields) == DATASETS, fields
+            for dataset in DATASETS:
+                assert dialog.get_by_text(labels[dataset], exact=True).count() == 1
+                dialog.locator(f'input[data-fieldname="{dataset}"]').check()
             with page.expect_response(lambda r: REFRESH in r.url) as response:
                 dialog.get_by_role("button", name=labels["read"], exact=True).click()
             assert response.value.ok and response.value.request.method == "POST"
             payload = response.value.json()["message"]["datasets"]
-            assert len(payload) == 1 and payload[0]["dataset"] == "masters", payload
-            assert payload[0]["state"] == "queued", payload
-            queued.append(payload[0]["request_id"])
+            assert tuple(row["dataset"] for row in payload) == DATASETS, payload
+            assert all(row["state"] == "queued" for row in payload), payload
+            queued.extend(row["request_id"] for row in payload)
+            assert len(set(queued)) == len(DATASETS), queued
             dialog.wait_for(state="hidden")
             page.locator("#freeze").wait_for(state="visible")
             assert labels["processing"] in page.locator("#freeze").inner_text()
             no_cache_fields(page)
-            assert len(queue.get_job_ids()) == len(baseline) + 1
+            assert len(queue.get_job_ids()) == len(baseline) + len(DATASETS)
             own_jobs = set(queue.get_job_ids()) - set(baseline)
             assert count_requests(requests, "POST", REFRESH) == 1
 
@@ -115,9 +124,10 @@ def main():
             with page.expect_response(lambda r: STATUS in r.url) as response:
                 page.evaluate("frappe.set_route('pearnly-connect')")
             native_status = response.value.json()["message"]
-            resumed = [row for row in native_status["datasets"] if row["dataset"] == "masters"]
-            assert len(resumed) == 1 and resumed[0]["request_id"] == queued[0], resumed
-            assert resumed[0]["state"] == "queued", resumed
+            resumed = native_status["datasets"]
+            assert tuple(row["dataset"] for row in resumed) == DATASETS, resumed
+            assert [row["request_id"] for row in resumed] == queued, resumed
+            assert all(row["state"] == "queued" for row in resumed), resumed
             page.locator("#freeze").wait_for(state="visible")
             assert set(queue.get_job_ids()) - set(baseline) == own_jobs
             assert count_requests(requests, "POST", REFRESH) == 1
@@ -128,7 +138,7 @@ def main():
             terminal = {**native_status, "datasets": [
                 {**row, "state": "succeeded", "count": 0, "as_of": time.time(),
                  "completed_at": time.time(), "stale": False, "error_code": ""}
-                if row["dataset"] == "masters" else row for row in native_status["datasets"]]}
+                if row["dataset"] in DATASETS else row for row in native_status["datasets"]]}
             def complete_status(route):
                 assert route.request.method == "GET"
                 route.fulfill(status=200, content_type="application/json", body=json.dumps({"message": terminal}))
@@ -141,7 +151,7 @@ def main():
             no_cache_fields(page)
             assert not errors, errors
             page.screenshot(path="/tmp/dms-manual-desk-native.png", full_page=True)
-            print("PASS native Desk: selected dataset, freeze, hide/show resumes one request without POST, "
+            print("PASS native Desk: four selected datasets, freeze, hide/show resumes the same requests without POST, "
                   "mocked completion unfreezes, no cache fields or idle polling; collector not executed")
             browser.close()
             browser = None
