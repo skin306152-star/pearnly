@@ -28,8 +28,8 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, chart, count, state, table_host, rank_host, summary;
-		let sequence = 0, refresh_sequence = 0, paint_token = 0, item_filter = "all", search, filter;
+		let list, table, count, state, table_host, summary;
+		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
@@ -45,7 +45,7 @@
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
 			list?.destroy(); table?.destroy();
-			list = table = chart = null;
+			list = table = null;
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
@@ -71,8 +71,6 @@
 					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
 			summary = $("<div class='report-summary'>").appendTo(page.main);
-			// 柱形图那块（沿用框架 `.chart-wrapper` 的留白）。
-			rank_host = $("<div class='chart-wrapper'>").appendTo(page.main);
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
 			table_host.on("click", ".dt-row", event => {
 				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
@@ -167,44 +165,6 @@
 			return p.stockCountEntry({ count, t, row, entry, continuous, on_saved: refresh,
 				on_done: () => filter?.set_value("differences") });
 		}
-		// 柱下那一行标签在框架里和悬停提示是**同一份数据**：这里只把柱下那行抹掉，字留在悬停里。
-		// 位置有差异的行，在它那根彩柱（实盘）正上方点一个小红点。
-		// 注意框架是**分帧**把图（含标签）画出来的，所以抹标签要连着抹一段时间（幂等，抹掉就没了）；
-		// 红点等彩柱出现后画一次即可 —— 位置取柱子自己的静态属性，与入场动画无关。
-		// `token` 防止上一笔渲染的回调标到新图上。
-		function mark_chart(rows, token) {
-			const SVG_NS = "http://www.w3.org/2000/svg";
-			const places = rows.map((row, index) => row.location_difference ? index : -1)
-				.filter(index => index >= 0);
-			const until = (window.performance?.now?.() || 0) + 1500;
-			const paint = () => {
-				if (token !== paint_token || (window.performance?.now?.() || 0) > until) return;
-				const svg = rank_host[0]?.querySelector("svg");
-				if (svg) {
-					for (const text of svg.querySelectorAll("text"))
-						if (Number(text.getAttribute("y")) > 0) text.remove();
-					const dots = svg.querySelectorAll("circle.pearnly-count-place-dot");
-					// 柱子也是分帧画出来的：数量对不上就整批重画（下一帧补齐还没出现的柱子）。
-					if (dots.length !== places.length) {
-						for (const dot of dots) dot.remove();
-						for (const index of places) {
-							const bar = svg.querySelector(`g.dataset-1 > rect[data-point-index="${index}"]`);
-							if (!bar) continue;
-							const dot = document.createElementNS(SVG_NS, "circle");
-							dot.setAttribute("class", "pearnly-count-place-dot");
-							dot.setAttribute("cx",
-								Number(bar.getAttribute("x")) + Number(bar.getAttribute("width")) / 2);
-							dot.setAttribute("cy", Math.max(Number(bar.getAttribute("y")) - 5, 3));
-							dot.setAttribute("r", 2.5);
-							dot.style.fill = "var(--red-600)";
-							svg.appendChild(dot);
-						}
-					}
-				}
-				requestAnimationFrame(paint);
-			};
-			requestAnimationFrame(paint);
-		}
 		async function render_data() {
 			if (!state || !table_host || !table_host[0].isConnected) return;
 			summary.empty();
@@ -217,54 +177,6 @@
 				$("<div class='summary-value'>").text(value).appendTo(item);
 			}
 			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
-			const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
-			const counted_rows = state.items.filter(r => r.counted);
-			// 图上是**所有有差异的行**：数量对不上的，以及数量对得上但放错位置的。按差得多少排序。
-			const problem_rows = counted_rows.filter(r => Number(r.difference) || r.location_difference)
-				.sort((a, b) => Math.abs(Number(b.difference)) - Math.abs(Number(a.difference)));
-			const amount_text = (row, diff) => {
-				const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
-				return `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`;
-			};
-			// 位置：就是**货位**（放错位置时写成 `账面货位→实际货位`）。实际货位从记录里取，
-			// 只有跨仓才带上仓库名。
-			const counts_at = row => {
-				const places = [];
-				for (const entry of state.entries) {
-					if (entry.voided || entry.item !== row.name) continue;
-					const shelf = entry.location || t("stock.count.blank");
-					const place = entry.warehouse === row.warehouse ? shelf : `${entry.warehouse_name} · ${shelf}`;
-					if (!places.includes(place)) places.push(place);
-				}
-				return places.join(" / ");
-			};
-			const place_text = row => {
-				const book = row.location || t("stock.count.blank");
-				return row.location_difference ? `${book}→${counts_at(row)}` : book;
-			};
-			// 柱形图（框架自带的 `frappe.Chart`）：**灰柱＝账面数量、彩柱＝实盘数量**，一条差异都不落；
-			// 位置有差异的那根彩柱上方点一个**小红点**。商品名/仓位/少货多货这些字**只进悬停提示**，
-			// 柱下那行标签渲染后要去掉（用户 2026-09-24："文案进鼠标放上去会显示"、"不要随意增加文案"）。
-			const chart_label = row => {
-				const bits = [row.product_name, place_text(row)];
-				if (Number(row.difference)) bits.push(amount_text(row, Number(row.difference)));
-				return bits.join(" · ");
-			};
-			rank_host.empty();
-			if (problem_rows.length) {
-				chart = new frappe.Chart(rank_host[0], {
-					type: "bar", height: 260, colors: ["#a3a3a3", accent],
-					axisOptions: { shortenYAxisNumbers: 1 },
-					data: {
-						labels: problem_rows.map(chart_label),
-						datasets: [
-							{ name: t("stock.count.book"), values: problem_rows.map(r => Number(r.book_qty) || 0) },
-							{ name: t("stock.count.counted"), values: problem_rows.map(r => Number(r.counted_qty) || 0) },
-						],
-					},
-				});
-				mark_chart(problem_rows, ++paint_token);
-			}
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)

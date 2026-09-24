@@ -189,8 +189,6 @@ No warehouse matches that name	该仓库名不存在	ไม่พบคลัง
 The quantity is not a valid number	数量不是有效数字	จำนวนไม่ถูกต้อง	数量が正しい数値ではありません	stock.count.problemNumber
 Book {0} · counted {1} · difference {2}	账面 {0} · 实盘 {1} · 差异 {2}	ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}	帳簿 {0} · 実地 {1} · 差異 {2}	stock.count.chartTotals
 Nothing counted yet	还没有盘点记录	ยังไม่มีการนับ	まだ棚卸記録がありません	stock.count.chartEmpty
-Short	少货	ขาด	不足	stock.count.short
-Over	多货	เกิน	過剰	stock.count.over
 Delete selected ({0})	删除所选（{0}）	ลบที่เลือก ({0})	選択を削除（{0}）	stock.count.deleteSelected
 Delete {0} stock counts? Posted ones cannot be deleted.	删除选中的 {0} 份盘点？已过账的删不掉。	ลบการตรวจนับ {0} รายการ? รายการที่ลงบัญชีแล้วลบไม่ได้	選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。	stock.count.deleteConfirm
 Deleted {0} stock counts	已删除 {0} 份盘点	ลบการตรวจนับแล้ว {0} รายการ	棚卸を {0} 件削除しました	stock.count.deleted
