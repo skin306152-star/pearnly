@@ -171,6 +171,41 @@ LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址
    - 生产侧参考实现：`infrastructure/production/bootstrap-billing.py`（建 `billing.internal`、装 `pearnly_control`、写 `pearnly_billing_only/scoped_tokens/token/management_token`），它依赖 `/run/secrets/runtime.env` 与 `/run/secrets/member-identity.json`——测试机要照搬这两个挂载，或改为整站导入。
 4. 验证通过后：按 `activate-product.sh` 部署新版 DMS 到线上（届时 `warm.sweep` 由 `clear_events()` 自动删除）。
 
+### 地址目录：为什么它和另外三组不是一类东西（2026-09-24 调查）
+
+触发：首次真实四组采集中 `geo` 失败（`ERR_DMS_SNAPSHOT_INCOMPLETE`）；用户提出"身份证上本来就有地址，OCR 读出来填即可，地址为什么要读缓存"。以下全部为**只读实测**（走既有适配器与会话锁，未绕过、未写入任何第三方数据）。
+
+**现状与失败机理**：当前按"逐条读详情页"采集，全国 15,729 条＝15,729 次 `{kind}/form.php`；实测约 8 请求/秒 → 一路顺利也需约 33 分钟；任何一次单页 30 秒超时即整轮判不完整并丢弃断点（本任务实测在第 31 轮被打断，即仅走完约 1/5）。结构上几乎不可能成功。
+
+**DMS 侧新发现（只读）**：
+
+- 列表接口 `{kind}/component/showdata.php` 支持 `sdtamt`（每页条数）与 `sdtpage`：实测一次可返回 1000 行；四张表全量 = **22 个请求 / 6.2 秒**（省 77、区 928、镇 7,364、邮编 7,360），行数与既有已知总数逐一吻合、分页无重叠。
+- 列表行内含**本行及父级的可读名字**（镇行＝镇名+区名+府名；邮编行＝邮编+镇名+区名+府名），但**不含**父级原生 ID，也不含英文名。
+- 四张表的英文名字段（`txtprovincesengname` / `txtdistrictsengname` / `txtsubdistrictsengname`）**抽查 12 条全为空**；邮编表无该字段。→ 逐条读详情换来的英文名实际不存在。
+- **该租户对四张表有增删改权限**：列表页渲染 เพิ่ม/แก้ไข/ลบ（增/改/删）按钮，行上带 `data-allo="ved"`。所以"拉一次永久用"不成立。（未提交任何写入去验证服务端强制；行上的 `ผู้จัดทำ`+日期 是**制单人**戳，不是修改时间，不能当变更游标。）
+- DMS **没有** CSV/Excel 导出：框架 JS（`mt.js`/`mtform.js`/`mtviewnc.js`/`mtview.js`）与全部 80 项菜单里只有单条打印（`btnctl-print` → `form.php`，`status=p`），无批量导出、无地址相关报表模块。
+
+**地址在生产代码里的三个真实用途**（`intake/service.py`、`contracts/geo_matching.py`、`editor/edit_snapshot.py`、`snapshots/directory.py`）：
+
+1. **名字→原生 ID 解析**：OCR 返回结构化 `province/district/subdistrict/zipcode`（`ocr_id_card.py` 的提示词确实要求这四个字段）；`resolve()` 做严格唯一匹配（去掉 จ./อ./ต. 前缀，多个匹配即视为歧义），匹配不到就留空并停止下沉——**不猜**。
+2. **编辑器四级下拉**：`edit_snapshot.read_edit_snapshot` 只取"已解析那一支"的各级选项。
+3. **差异卡可读名**：客户主档只有地址 ID，旧地址可能属于另一支，故按需补那一支的名字用来显示「旧→新」。
+
+**关键结论：地址缓存不是安全的关键，也不是成本的必然**：
+
+- 级联读取**代码已经存在**（`client_intake.list_geo`：省走 `cus/form.php`，区/镇/邮编走 `cus/component/listdistricts|listsubdistricts|listzipcodes.php`），并且**每次写客户都在用它做实时父链校验**（`intake/customer_geo.py:validate_customer_selects`，对不上即 `ERR_DMS_MASTER_UNMATCHED` 拒绝）。实测一条分支：4 个请求、4.22 秒，其中省那一次整页 4.16 秒、三个下级 fragments 各 **0.02 秒**。
+- 也就是说：即使本地缓存陈旧，**写入也不会错**（提交前实时校验会拦）；缓存只影响"预览/下拉"。
+- 全国 14,724/15,729 条（镇+邮编）只在"人真的要改到那一级"时才需要，而那时也只需当前分支。
+   
+**待用户选择的方案**（尚未实施）：
+
+| 方案 | 做法 | 代价 |
+| --- | --- | --- |
+| A（推荐） | 地址不再作为独立缓存组；解析/下拉/旧名显示走实时级联（每分支 4 请求，下级 0.02s） | 编辑/解析期需要 DMS 会话；DMS 连不上时地址只能只读显示现有值 |
+| B | 只缓存省+区（77+928＝2 请求），镇/邮编实时 | 前两级秒开，第三四级要联机 |
+| C | 保留全国缓存，改用列表接口刷新（22 请求 / 6.2 秒） | 保住"编辑零外呼"，仍有陈旧窗口 |
+| 现状 | 15,729 次详情请求（约 33 分钟，一次超时全废） | 不推荐 |
+
 ### 本轮执行结果（2026-09-24，独立栈已在测试机跑通）
 
 - `codex/testenv-per-app` 已推送 `951f80e`（含一个自己引入又修掉的 bug：`init_sites` 把产品名 `app` 覆盖成 Frappe 应用名，收尾步骤因此找不到服务），并合进本分支 `797b727`。
