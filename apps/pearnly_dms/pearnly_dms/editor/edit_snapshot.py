@@ -1,4 +1,4 @@
-"""Editor projections from one complete five-minute directory generation.
+"""Editor projections from complete, manually read independent directory datasets.
 
 No DMS login, synchronous refresh, or restamping of old data. Final writes still
 perform their independent live validation/readback in the write service.

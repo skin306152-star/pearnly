@@ -31,7 +31,7 @@
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
 | `snapshots` | 本地完整读代际、私有分批进度、凭据/员工范围与后台派发 | 只依赖纯契约/原生框架，不登录、不依赖业务消费者；见 ADR-010 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
-| `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
+| `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow`；依赖纯 `contracts` 错误类型拒绝派发前权限或认领变化 |
 | `records` | 推送台账本身（状态、租约、重试、收口）与推送历史的列表移除、审计 | `push_log`（`record` / `claim_for_push` / `status_of`）、`manage.delete_records`；只改展示标记，保留权威推送凭据 |
 | `query` | 查询权限、记录/排行及结果卡片 | `query_flow`；只读路径不承担写入 |
 | `menu`、`line` | 菜单、事件路由、公共卡片与消息输出 | `line.handlers.handle`，共享输出 `line.out` |

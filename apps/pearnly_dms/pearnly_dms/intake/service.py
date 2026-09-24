@@ -1,6 +1,6 @@
 """Cached identity previews and live, independently verified customer writes.
 
-The five-minute directory is used by lookup/editor reads. It never authorizes an
+Manually read, independent directory datasets serve lookup/editor reads. They never authorize an
 external write; final save retains native identity, address and readback checks.
 The historical run_logged_in/err imports remain as thin compatibility exports.
 """
@@ -287,7 +287,8 @@ def push_idcard_fields(
             fields=fields, mode=save_mode, customer_id=customer_id, addresses=addresses,
             baseline=baseline, on_attempt=begin,
         )
-        # create 被幂等/撞码转成 overwrite 时**如实回 update** —— 回执不谎称"新建"。
+        # Keep the client tuple contract; create collisions now require a new
+        # explicit review and never silently convert into an overwrite.
         actual = "update" if converted else mode
         cache_updated = snapshot_writeback.customer(endpoint, cl, cid, expected_scope=cache_scope)
         return {
