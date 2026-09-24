@@ -702,3 +702,35 @@ main 与真实远端 main 本批回读均为 `57039ca15595641932f053fd34c49d4e45
 这个既有隐患的曝光面放大，所以在本链路里一并处理：删除事件按身份证号找到本地客户号后
 调 `store.forget_customer` 撤掉本地这一条，**仍然**交整组重读（由原生列表决定这条客户
 到底还在不在，软删除也能被带回来）。测试补到 19 项。
+
+### 部署与部署后实测（2026-09-25）
+
+镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:617c3ce4…d41e`（revision 标签
+`224f7b7617d9…`）已发到测试机并 `testenv.sh up dms`，12 个容器全部 Up、站点 `migrate`
+与 `clear-cache` 通过。**这次没有往容器里塞任何文件**——测的就是镜像里的代码。
+
+在部署后的镜像上（`bench` 环境里跑一段只读脚本）：
+
+- 代码确实在：`eventlog_reader.ENDPOINT`、`change_sync.VERSION=1`、28 个模块、
+  `run_logged_in(...)` 带 `catch_up` 参数。
+- 基线：28 个模块 × (计数 + 最新一条) = **2.59 秒**（真实 DMS）。
+- 一次真实增量：合成"客户被修改"事件（只拦流水端点），其余全走真实请求 ——
+  身份证号反查得客户号 `59`、真读客户表单、身份证号校验一致、写回缓存、
+  水位 230/831 → 231/832，**0.677 秒**；测后已把水位复原。
+- 最终状态：28 个模块水位齐、无 `dirty`、`next_index=0`；四组底座与业务数据未被改动。
+
+中途一个**误判**值得记下来（我踩了、又爬出来）：`seed` 明明返回 `seeded: True`，
+可我在**同一个进程里**读回水位却是旧值，一度以为写入没落地。原因是 `frappe.db`
+那条长连接处于 REPEATABLE READ，同事务内看不到独立连接刚提交的写入——**读之前先
+`commit()`**（或换新进程）就对了；独立连接上的写入与 `merge_change_state` 本身都正常。
+这与 09-24 那条"进度显示不能在长事务里读"是同一个坑。
+
+配套修的三个镜像内套件（`test-dms-line-runtime`、`test-dms-query-snapshots`、
+`test-dms-snapshot-reads-native`）只是替身按精确 kwargs 断言调用形状，按新契约更新后
+在本机隔离实验室（snapshot lab + flow lab）实跑全绿：store-native 27、reads-native 17、
+manual-native 12、queue-native 2、native-flow 10、native-recovery 8、line-runtime 36、
+intake-queue 23、query-output 11、query-snapshots 40、snapshot-consumers 25、
+booking-flow 33/33。两个实验室容器收尾已停，四个卷按既有约定保留。
+
+**未做**：生产部署、真实 LINE 消息与真机验收、批量导入明细/日志保留窗口/六张次要表
+这三条边界的实测。
