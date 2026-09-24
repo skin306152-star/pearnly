@@ -82,6 +82,32 @@
   `https://<随机域名>.trycloudflare.com/api/method/ping` → 200、`/` → 302。
   快速隧道地址每次重启会变；要固定地址需自有域名建 named tunnel。
 
+## 一键切换测试租户（2026-09-24 晚）
+
+用户要求：测试租户（`testdms` / `testerp`）的登录、计费、域名、LINE、第三方 ERP
+在测试时整体切到那台 Windows，测完一键切回线上；其它租户不受影响。
+
+- **凭据**：用户在 Cloudflare 后台授权创建 User API Token `pearnly-testenv-switch`
+  （Account→Cloudflare Tunnel:Edit、Zone→DNS:Edit，仅 `pearnly.com`），
+  存于 `~/.config/pearnly-testenv/cloudflare.token`（600，不进仓库）。
+- **隧道**：命名隧道 `pearnly-testenv`（id `875e14d3-ac1b-4ff5-860e-2533f09dbd5a`），
+  远端 ingress 为 `testdms.pearnly.com → http://127.0.0.1:8183`、
+  `testerp.pearnly.com → http://127.0.0.1:8182`；运行令牌在测试机
+  `/opt/pearnly-testenv/cloudflare-tunnel.token`，由 systemd 单元 `pearnly-tunnel` 托管。
+- **切换机制**：这两个名字平时走通配记录 `*.pearnly.com → 107.155.65.74`。
+  切到测试环境 = 建两条 `CNAME → <tunnel>.cfargotunnel.com`（proxied）；
+  切回线上 = 删除这两条记录，自动回落到通配记录。
+- **命令**：`scripts/testenv.sh lab-start`（线上导出 → 取回 → 导入测试环境 → 切域名）、
+  `lab-stop`（切回线上）；另有 `scripts/testenv-cloudflare.sh status|switch-lab|switch-prod`。
+- **实测**：切换后 `https://testdms.pearnly.com` 与 `testerp.pearnly.com` 均 200 且
+  请求出现在测试机 `dms-frontend` / `erp-frontend` 访问日志（含 `host: testdms.pearnly.com`）；
+  切回后公共解析（1.1.1.1 / 8.8.8.8 / 9.9.9.9）回到 `107.155.65.74`，直连该 IP 200。
+- **不需要改的**：LINE webhook 地址不变（同一个域名），登录/OIDC 不变（同一个域名与
+  回调地址，身份仍是线上 Keycloak），第三方 ERP 推送按原地址真推（测试租户绑的是测试账号）。
+- **未做真实验收**：用测试账号真实登录一次、真实 LINE 消息、真机 HTTPS 拍照。
+- **遗留**：账号里另有一个旧隧道 `pearnly-erp-dev`（down）与 5 个未使用的
+  Cloudflare Tunnel token，属其它窗口痕迹，未清理。
+
 ## 证据分层
 
 实现：本批文件。测试：`compose config`、整栈 up、三站点建站+migrate、入口 200 冒烟。
