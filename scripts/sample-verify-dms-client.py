@@ -211,6 +211,23 @@ def main():
           geo_client._match_geo([["155", "ปากน้ำ"], ["999", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "")
     check("同一个ID重复不产生伪歧义",
           geo_client._match_geo([["155", "ปากน้ำ"], ["155", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "155")
+    # 泰国身份证正面常常不印邮编：本街道只有一个邮编时**确定性补齐**（线上基准
+    # `services/erp/mrerp_dms_client_forms.py` 的同一条注释）。少了它，拍完身份证
+    # 会因为邮编为空被写入守卫拦下，操作员被迫进编辑页手动挑邮编。
+    one_zip = {"listdistricts.php": lambda data: '<option value="51">เมืองสมุทรปราการ</option>',
+               "listsubdistricts.php": lambda data: '<option value="155">ปากน้ำ</option>',
+               "listzipcodes.php": lambda data: '<option value="116">10270</option>'}
+    resolved_one = DmsClient(FakeTransport(one_zip), "https://example.test/dms/")._resolve_address_geo(
+        replace(geo_address, zipcode=""), geo_form)
+    check("身份证没印邮编、本街道只有一个邮编 → 补齐",
+          (resolved_one.subdistrict_id, resolved_one.zipcode_id) == ("155", "116"),
+          (resolved_one.subdistrict_id, resolved_one.zipcode_id))
+    check("本街道有两个邮编时不补齐（留空让用户选）",
+          geo_client._resolve_address_geo(replace(geo_address, zipcode=""), geo_form).zipcode_id == "",
+          geo_client._resolve_address_geo(replace(geo_address, zipcode=""), geo_form).zipcode_id)
+    check("街道名对不上时连邮编也不补",
+          DmsClient(FakeTransport(one_zip), "https://example.test/dms/")._resolve_address_geo(
+              replace(geo_address, zipcode="", subdistrict_name="NOT-IN-CATALOG"), geo_form).zipcode_id == "")
     for index, name_key in enumerate(("province_name", "district_name", "subdistrict_name", "zipcode")):
         for missing in ("", "NOT-IN-CATALOG"):
             geo_transport.calls.clear()

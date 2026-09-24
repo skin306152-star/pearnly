@@ -64,17 +64,23 @@ test('missing, invalid, or out-of-range timestamps never become now', () => {
   }
   assert.equal(helpers.snapshotLabel(undefined, 'en', () => { throw new Error('No timestamp'); }), '');
 });
-test('business and manually refreshed address timestamps/staleness remain independent in Vue setup', () => {
-  const { page, locale } = setup();
+test('the edit page no longer shows snapshot timestamps', () => {
+  // 2026-09-25 操作员："资料时间／地址资料时间"不要出现在编辑页。契约变了，
+  // 但严格性不变：时间仍然随草稿返回（下一项断言），只是页面不再渲染它。
+  const { page } = setup();
   page.adopt({ form: { customer: {}, answers: {}, payments: [], files: {}, advisor: {} },
     masters: {}, geo: {}, manual_banks: [], snapshot: info });
-  assert.match(page.snapshotNote.value, /Data as of.*09\/24\/2026/);
-  assert.match(page.addressSnapshotNote.value, /Older address data as of.*09\/23\/2026/);
-  locale.value = 'zh';
-  assert.match(page.snapshotNote.value, /资料时间/);
-  assert.match(page.addressSnapshotNote.value, /旧地址资料/);
-  page.adopt({ form: { customer: {} }, masters: {}, geo: {} });
-  assert.equal(page.snapshotNote.value, ''); assert.equal(page.addressSnapshotNote.value, '');
+  for (const key of ['snapshotNote', 'addressSnapshotNote']) {
+    assert.equal(page[key], undefined, `${key} must be gone from the page`);
+  }
+});
+
+test('the draft still carries both source timestamps for whoever needs them', () => {
+  const { page } = setup();
+  page.adopt({ form: { customer: {} }, masters: {}, geo: {}, snapshot: info });
+  assert.equal(page.snapshot.value.as_of, info.as_of);
+  assert.equal(page.snapshot.value.geo_as_of, info.geo_as_of);
+  assert.equal(page.snapshot.value.geo_stale, true);
 });
 test('five service error codes resolve to readable product translations in all languages', () => {
   const { page, locale } = setup();
@@ -90,9 +96,8 @@ test('five service error codes resolve to readable product translations in all l
   assert.equal(helpers.snapshotErrorKey('dms.err.PRIVATE_UNEXPECTED'), '');
   assert.equal(page.explain(new ApiError('unknown', 409)), 'dms.edit.expired');
 });
-test('visible native text binds both timestamps and query notes are declared in all languages', () => {
-  assert.match(source, /<p v-if="snapshotNote"[^>]*role="status">\{\{ snapshotNote \}\}<\/p>/);
-  assert.match(source, /<p v-if="addressSnapshotNote"[^>]*role="status">\{\{ addressSnapshotNote \}\}<\/p>/);
+test('no timestamp line is bound into the edit page, and query notes are declared in all languages', () => {
+  assert.doesNotMatch(source, /snapshotNote|addressSnapshotNote/);
   for (const key of ['dms.card.query.CARD_NOTE', 'dms.card.query.LBL_READ_AT', 'dms.card.query.TOP_NOTE_PREFIX',
     'dms.snapshot.geo_as_of', 'dms.snapshot.geo_stale']) {
     for (const language of ['en', 'zh', 'th', 'ja']) assert.ok(table[key][language]);

@@ -24,7 +24,6 @@ import {
   CHANNEL_BANK,
   CHANNEL_FIELDS,
   MAX_PAYMENTS,
-  addressSnapshotLabel,
   ensureTicket,
   forgetTicket,
   loadConfig,
@@ -33,7 +32,6 @@ import {
   loadPaints,
   saveDraft,
   snapshotErrorKey,
-  snapshotLabel,
   type Draft,
   type EditorMode,
   type Option,
@@ -80,8 +78,6 @@ const manualBanks = ref<string[]>([]);
 const advisor = ref("");
 const hasFiles = reactive({ id_card: false, slip: false });
 const snapshot = ref<SnapshotInfo>();
-const snapshotNote = computed(() => snapshotLabel(snapshot.value, locale.value, t));
-const addressSnapshotNote = computed(() => addressSnapshotLabel(snapshot.value, locale.value, t));
 
 // 表单模型：字段名与老产品提交的 payload 一字不差（服务端就按这些名字读）。
 const customer = reactive<Record<string, string>>({});
@@ -505,8 +501,8 @@ function changeLocale(value: Locale): void {
               t(mode === "customer" ? "dms.edit.customerSub" : "dms.edit.sub")
             }}
           </p>
-          <p v-if="snapshotNote" class="pn-editor-sub" role="status">{{ snapshotNote }}</p>
-          <p v-if="addressSnapshotNote" class="pn-editor-sub" role="status">{{ addressSnapshotNote }}</p>
+          <!-- 不在这里显示"资料时间／地址资料时间"（用户 2026-09-25：不要随意添加文案，
+               这两行对操作员没用、只是占地方）。时间仍然随草稿一起返回，谁需要谁看。 -->
         </div>
 
         <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">
