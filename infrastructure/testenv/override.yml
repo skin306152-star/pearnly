@@ -1,0 +1,35 @@
+# 只在测试机上叠加；栈定义本身仍然只有 production/compose.yml 一份。
+#
+# 1) 正式 compose 用固定名 external 卷（pearnly-production_sites-*），这里换成测试项目
+#    自己的卷，落盘位置互不影响。卷名写死，便于 reset 时明确删除，不依赖项目名前缀。
+# 2) 把本仓的测试辅助脚本只读挂进产品容器，用来建站点/迁移，不额外装东西。
+
+volumes:
+  sites-billing:
+    external: true
+    name: pearnly-testenv_sites-billing
+  sites-dms:
+    external: true
+    name: pearnly-testenv_sites-dms
+  sites-erp:
+    external: true
+    name: pearnly-testenv_sites-erp
+  sites-cowork:
+    external: true
+    name: pearnly-testenv_sites-cowork
+
+services:
+  billing-web:
+    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+  dms-web:
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
+  erp-web:
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
+  cowork-web:
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro

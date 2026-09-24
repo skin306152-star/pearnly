@@ -72,6 +72,19 @@
 - 审查共享调用方、入口、队列与状态回读，不能只修一个表面调用点。阻塞项写明复现条件、影响与剩余验证。
 - 使用本任务已选定的模型和工具。默认由一个 Agent 完成；用户要求分工时，按独立文件归属委派，返回具体证据。角色规范见 [开发 Agent](docs/development/agents.md)，不强制多代理或外部 worker。
 
+### 真实环境验证（Windows 测试环境）
+
+需要"真实环境验证"的改动，在隔离局域网那台 Windows 上验完再合并推送部署；它跑的是**线上同一份镜像**，
+验证站点用**测试租户**（`testdms.pearnly.com` / `testerp.pearnly.com`）。
+做法、命令与边界见 [测试环境](docs/development/test-environment.md)。
+
+- 起环境：`PEARNLY_TESTENV_IMAGE=<digest> bash scripts/testenv.sh up`。
+- 整租户切换：`bash scripts/testenv.sh lab-start`（拉线上测试租户数据并切域名）/ `lab-stop`（切回线上）。
+- 测试环境不能替代线上的部分（WSL2 内核与网络、生产并发、真机与真实消息验收）必须如实说明；
+  HTTP 200、页面能打开、健康检查都不算业务验收。
+- 凭据只存本机 `~/.config/pearnly-testenv/`（600），不进仓库；不把正式账本、付费 OCR、
+  真实客户频道接进测试环境。
+
 ## 提交
 
 使用真实作者身份，不添加工具或模型的联合署名。提交默认使用 `feat:`、`fix:`、`docs:`、`test:`、`refactor:`、`ci:` 或 `chore:` 前缀；只暂存本任务路径。
