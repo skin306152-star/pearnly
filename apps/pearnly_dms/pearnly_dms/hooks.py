@@ -26,6 +26,9 @@ doc_events = {
     },
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
+# 全国地址每日一次（泰国凌晨 4 点那一小时，cron 按站点时区求值）。
+# 4:00 与 4:30 各一次：第二次是失败重试；已成功则任务自身跳过。见 snapshots/geo_daily.py。
+schedule_address_refresh = "pearnly_dms.snapshots.geo_daily.run"
 pearnly_dms_snapshot_collectors = [
     {"dataset": "vehicles", "reader": "authority",
      "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
@@ -39,6 +42,8 @@ pearnly_dms_snapshot_collectors = [
      "method": "pearnly_dms.adapter.geo_sync.refresh"},
 ]
 scheduler_events = {"cron": {
+    "0 4 * * *": [schedule_address_refresh],
+    "30 4 * * *": [schedule_address_refresh],
     "*/10 * * * *": [schedule_menu_reconciliation],
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",

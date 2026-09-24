@@ -87,23 +87,24 @@ class ConnectionSnapshotTests(unittest.TestCase):
     def test_admin_roles_use_only_site_primary_authority(self):
         for role in ("DMS Admin", "System Manager"):
             self.frappe.get_roles.return_value = [role]
-            result = self.api.request_refresh('["geo", "vehicles", "geo"]')
-            self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "geo"])
+            result = self.api.request_refresh('["company", "vehicles", "company"]')
+            self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "company"])
             self.manual.request.assert_any_call("PRIMARY-LOCAL", "vehicles", reader="authority",
                                                actor="admin@example.test")
         self.assertEqual(self.frappe.get_all.call_args.kwargs, {
             "filters": {"adapter": "mrerp_dms", "owner_user": ["is", "not set"]},
             "fields": ["name", "enabled"], "limit_page_length": 2})
 
-    def test_status_is_local_only_and_all_datasets(self):
+    def test_status_is_local_only_and_lists_the_button_groups(self):
+        # 地址（geo）**不在**按钮里：它由后台每日刷新（snapshots/geo_daily.py）。
         result = self.api.get_status()
         self.assertTrue(result["configured"])
-        self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "customers", "geo", "company"])
-        self.assertEqual(self.manual.status.call_count, 4)
+        self.assertEqual([r["dataset"] for r in result["datasets"]], ["vehicles", "customers", "company"])
+        self.assertEqual(self.manual.status.call_count, 3)
         self.manual.request.assert_not_called()
 
-    def test_each_group_is_independently_selectable_and_all_four_have_fixed_order(self):
-        datasets = ["vehicles", "customers", "geo", "company"]
+    def test_each_group_is_independently_selectable_and_fixed_order(self):
+        datasets = ["vehicles", "customers", "company"]
         for dataset in datasets:
             with self.subTest(dataset=dataset):
                 self.manual.request.reset_mock()
@@ -116,17 +117,25 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.assertEqual([row["dataset"] for row in result["datasets"]], datasets)
         self.assertEqual([call.args[1] for call in self.manual.request.call_args_list], datasets)
 
+    def test_address_is_not_requestable_from_the_button(self):
+        """地址从按钮移除是**服务端**拒绝，不是前端藏起来。"""
+        with self.assertRaises(Invalid):
+            self.api.request_refresh(["geo"])
+        with self.assertRaises(Invalid):
+            self.api.request_refresh(["vehicles", "geo"])
+        self.manual.request.assert_not_called()
+
     def test_unconfigured_status_is_empty_and_request_rejects(self):
         self.rows = []
         self.assertEqual(self.api.get_status(), {"configured": False, "datasets": []})
         with self.assertRaises(Invalid):
-            self.api.request_refresh(["geo"])
+            self.api.request_refresh(["vehicles"])
         self.manual.status.assert_not_called()
         self.manual.request.assert_not_called()
 
     def test_ambiguous_primary_rejected_even_for_status(self):
         self.rows += [{"name": "OTHER", "enabled": 1}]
-        for call in (self.api.get_status, lambda: self.api.request_refresh(["geo"])):
+        for call in (self.api.get_status, lambda: self.api.request_refresh(["vehicles"])):
             with self.assertRaises(Invalid):
                 call()
         self.manual.status.assert_not_called()
@@ -141,7 +150,8 @@ class ConnectionSnapshotTests(unittest.TestCase):
     def test_invalid_dataset_input_never_queues(self):
         for value in (None, [], {}, "vehicles", '{"endpoint":"x"}', ["sales"],
                       ["masters"], ["directory"], ["query.capabilities"], ["company", "unknown"],
-                      ["vehicles", "customers", "geo", "company", "geo"], [1], [["geo"]]):
+                      ["geo"], ["vehicles", "geo"], ["vehicles", "customers", "company", "company"],
+                      [1], [["vehicles"]]):
             with self.subTest(value=value), self.assertRaises(Invalid):
                 self.api.request_refresh(value)
         self.manual.request.assert_not_called()

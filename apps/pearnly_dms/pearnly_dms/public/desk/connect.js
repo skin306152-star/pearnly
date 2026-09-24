@@ -4,7 +4,9 @@
 		const cacheText = await p.texts("dms.connect.cache.");
 		let conn,
 			busy = false;
-		const datasets = ["vehicles", "customers", "geo", "company"];
+		// 地址（geo）不在这里：它由后台每日自动刷新（泰国凌晨 4 点那一小时），
+		// 一次完整读取只要几十个请求，没必要让操作员在按钮里等它。
+		const datasets = ["vehicles", "customers", "company"];
 		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
 		let pending = null, outcome = null, frozen = false, posting = false;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";

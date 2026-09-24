@@ -14,7 +14,10 @@ from frappe import _
 
 from pearnly_dms.connections.api import ADAPTER, ENDPOINT, _require_admin
 
-DATASETS = ("vehicles", "customers", "geo", "company")
+# 地址（geo）**不在**这里：全国四级目录是租户可编辑的字典，但一次完整读取只要几十个
+# 请求、约 8 秒，且每天自动刷新一次就够（见 `snapshots/geo_daily.py`）。把它放进"更新
+# 数据"按钮只会让操作员为一个通常不需要的动作等待。手动刷新仍由管理员入口负责。
+DATASETS = ("vehicles", "customers", "company")
 STATES = frozenset(("idle", "queued", "running", "waiting", "succeeded", "failed"))
 
 

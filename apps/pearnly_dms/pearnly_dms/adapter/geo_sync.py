@@ -1,22 +1,26 @@
-"""Manual full address catalogues, resumed in account-lock-releasing chunks.
+"""完整地址目录的采集入口：一次读完四张表，整代成功才发布。
 
-The legacy cascade checkpoint lacked English names/native parent fields and is
-never resumed. Only a fully collected/rechecked catalogue becomes a generation.
+2026-09-24 换成**列表端点**读取（`client/geo_list_reader`）。原因写在那个模块里：
+详情页是"一条一次请求"，全国 15,729 条要约 33 分钟，且整代完整才允许发布——中途
+一次 30 秒超时就让整代作废，真实环境实测在第 31 轮被打断，结构上几乎不可能成功。
+列表端点同一棵树只要几十个请求、约 8 秒。
+
+**不再有分片断点**：一次调用内读完全部四张表；读不完就失败、保留上一代。旧版留下的
+分片暂存（详情协议的形状）已不再兼容，这里显式清掉，避免被当成可续跑的残留。
+
+发布契约不变：完整树通过 `store.publish` 的校验（`complete_tree`）才落地；失败的代
+绝不覆盖上一代成功数据。
 """
-import math
 import time
 
 import frappe
 
 from pearnly_dms.adapter.operations import run_logged_in
-from pearnly_dms.client.catalogue_reader import start_catalogues, advance_catalogues, CatalogueLimits
-from pearnly_dms.client.geo_catalogue import geo_from_catalogues
+from pearnly_dms.client.geo_list_reader import GeoListLimits, read as read_address_tables
 from pearnly_dms.snapshots import manual, store
 
 
-CHECKPOINT_VERSION = 2
-GEO_LIMITS = CatalogueLimits(max_seconds=30, max_total_seconds=5 * 3600,
-    max_requests=40000, max_total_bytes=1024 * 1024 * 1024, max_rows=50000)
+GEO_LIMITS = GeoListLimits()
 
 
 def refresh(endpoint, *, request_id=None, dataset="geo", params=None):
@@ -24,47 +28,30 @@ def refresh(endpoint, *, request_id=None, dataset="geo", params=None):
         return {"ok": False, "retired": True}
     manual.assert_active(endpoint, dataset, request_id)
     key = store.scope(endpoint)
-    checkpoint = store.stage(endpoint)
-    if checkpoint is not None and (not isinstance(checkpoint, dict)
-            or checkpoint.get("version") != CHECKPOINT_VERSION
-            or set(checkpoint) != {"version", "started_at", "catalogues"}
-            or isinstance(checkpoint["started_at"], bool)
-            or not isinstance(checkpoint["started_at"], (int, float))
-            or not math.isfinite(checkpoint["started_at"])
-            or not 0 < checkpoint["started_at"] <= time.time() + 1
-            or time.time() - checkpoint["started_at"] > manual.REQUEST_AGE):
-        checkpoint = None
 
     def capture(client, adapter):
-        nonlocal checkpoint
-        if checkpoint is None:
-            checkpoint = {"version": CHECKPOINT_VERSION, "started_at": time.time(),
-                          "catalogues": start_catalogues(client, "geo_aux", limits=GEO_LIMITS)}
-        catalogues = advance_catalogues(client, checkpoint["catalogues"],
-                                       max_nodes=100, limits=GEO_LIMITS)
-        result = {"ok": True, "catalogues": catalogues}
-        if catalogues["done"]:
-            result["geo"] = geo_from_catalogues(catalogues["data"]["catalogues"])
-        return result
+        started = time.time()
+        tree, tables, usage = read_address_tables(client, GEO_LIMITS)
+        return {"ok": True, "geo": tree, "catalogues": tables, "started_at": started,
+                "count": usage.rows, "requests": usage.requests, "bytes": usage.bytes}
 
-    result = run_logged_in(endpoint, capture, authoritative_read=True, background=True, read_only_batch=True)
+    result = run_logged_in(endpoint, capture, authoritative_read=True, background=True,
+                           read_only_batch=True)
     frappe.db.commit()
     with manual.publish_guard(endpoint, dataset, request_id):
         if not result.get("ok"):
             if result.get("error_code") == "ERR_DMS_SNAPSHOT_BUSY":
                 return {**result, "busy": True}
-            if result.get("error_code") == "ERR_DMS_SNAPSHOT_INCOMPLETE":
-                store.checkpoint(endpoint, None, expected_scope=key)
+            # 一次性读取：没有可续跑的暂存，旧版分片格式也一并清掉。
+            store.checkpoint(endpoint, None, expected_scope=key)
             store.failed(endpoint, "geo", result.get("error_code"), expected_scope=key)
             frappe.db.commit()
             return result
-        catalogues = result["catalogues"]
-        complete = catalogues["done"]
-        if complete:
-            store.publish(endpoint, "geo", result["geo"], checkpoint["started_at"], expected_scope=key)
-            store.checkpoint(endpoint, None, expected_scope=key)
-        else:
-            store.checkpoint(endpoint, {**checkpoint, "catalogues": catalogues}, expected_scope=key)
+        # `catalogues` 是原始行（含各级显示名），只进私有快照，不对外展示。
+        published = store.publish(endpoint, "geo", {**result["geo"], "catalogues": result["catalogues"]},
+                                  result["started_at"], expected_scope=key)
+        store.checkpoint(endpoint, None, expected_scope=key)
     frappe.db.commit()
-    return {"ok": True, "complete": complete, "count": catalogues["processed"],
-            "processed": catalogues["processed"], "total": catalogues["total"]}
+    return {"ok": True, "complete": True, "published": bool(published),
+            "count": result["count"], "processed": result["count"], "total": result["count"],
+            "requests": result["requests"]}
