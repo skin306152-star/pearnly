@@ -46,3 +46,16 @@
 实现：解析、nginx 站点、静态占位页、清理命令。测试：公网访问与容器状态读回（见上）。
 部署：本次改的是正式服务器解析与 nginx（已读回生效）。外部业务结果：未产生。
 用户验收：未确认。
+
+## 追加（用户确认后执行）
+
+- **删除 5 个从未使用的 Cloudflare 隧道令牌**（面板操作，保留在用的 `pearnly-testenv-switch`
+  与无关的 `pearnly-fix` / `Pearnly`）。账号内隧道现在只剩 `pearnly-testenv`（healthy，4 连接）。
+- **删除本机已停止的 Colima 配置 `pearnly-erp-acceptance`**，并清掉其遗留的 8.3 GB 孤儿磁盘；
+  `~/.colima` 从 64 GB 降到 **54 GB**。运行中的 `pearnly`、`pearnly-stocktake` 两个配置未动。
+- **旧 Cloud Run 已确认不存在**：`gcloud run services list --project pearnly --region asia-southeast1`
+  返回 0 项，说明退役后没有残留服务在计费。
+- **找到未迁移的旧宣传页**：`/Users/skin/Developer/Pearnly/pearnly-app/static/landing/portal.dc.html`
+  （28 个文件、12 MB，含 th/en/zh/ja 四语文案、auth 背景图、猫咪插画、tour 场景与样式；
+  GitHub 上该目录有提交历史）。当前 `pearnly.com` 先用最简占位页，宣传页待后续重做时以它为基础。
+- 执行后复核：`pearnly.com` 200，`testdms` / `testerp` 302（跳登录属预期），测试环境隧道服务 active。
