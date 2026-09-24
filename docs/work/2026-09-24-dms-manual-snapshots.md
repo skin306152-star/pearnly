@@ -78,6 +78,39 @@ ERP 已采用产品独立镜像配置：`provision-agent.image(group)` 优先读
 
 收尾状态为**交接保留**：本次仅提交本节文档，未合入 main、未推送任务分支、未部署 DMS；没有删除工作树/分支/运行资源。其它工作树、Windows 本地主线新增提交及旧 DMS 未暂存文档均不替其提交或清理。下个窗口从本节开始即可，不必重新阅读全部历史对话。
 
+## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
+
+授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
+
+### 本机容器清理（已完成）
+
+- 保留 `pearnly-sample`（15 容器，含 `control-*` = 后台租户管理/控制面）及其网络 `pearnly-sample_sample`。
+- 删除 8 组 46 个容器及对应项目网络：`pearnly-ci-business-sample`(9)、`pearnly-cowork-backend-lab`(3)、`pearnly-erp-entry-lab`(6)、`pearnly-erp-pos-lab`(3)、`pearnly-erp-pos-provision-lab`(4)、`pearnly-purchase-lab`(6)、`pearnly-stocktake-workbench-lab`(3)、`pearnly-tenant-lab`(12)；另删空的 `pearnly-auth-preview_default` 网络。
+- 卷按"用户只说了容器"保留：仍剩 69 个卷（约 3.2 GB，2.8 GB 可回收，含上述 lab 的命名卷与 48 个匿名卷）；镜像 15.8 GB、构建缓存 4.5 GB 未动。**没有做全局 prune**；要清盘需用户再说一句。
+
+### 候选镜像上测试机（已完成）
+
+- 用仓库既定 `infrastructure/production/receive-image.py`（凭据只走 stdin、临时 `DOCKER_CONFIG`，机器上不留长期凭据）把候选拉到测试机：`ghcr.io/skin306152-star/pearnly/frappe@sha256:0b37fe9775c0b9f21da0d56e105144ff9ffa8e69e9811e827418c5e8400969a9`（revision `0b3a90c`）。测试机原先运行旧 `a11eb9e`。
+- 从本 DMS 工作树跑 `bash scripts/testenv.sh up`（栈定义取候选那一份），24 个产品容器 + keycloak + mariadb + 双 Redis 全部 Up；站点读回：`dms/erp/cowork.test.localhost` 三空白站 + `testdms.pearnly.com`、`testerp.pearnly.com` 两个导入租户，均 frappe 16.33.0。
+
+### 真实环境发现的两个问题（已处理）
+
+1. **测试机数据库口令被重新生成**：`testenv.sh` 的 `.testenv-secrets` 取运行它的工作树根（`$root`），本树原先没有该文件 → 首次 `up` 生成了新随机口令 → keycloak 与既有卷里的口令不符、反复重启。处理：从原始工作树 `windows-testenv/pearnly/.testenv-secrets` 复制回来（SHA-256 一致），重写环境文件并重建 keycloak，现已 Up。**教训：`testenv.sh` 必须用持有原始口令的工作树运行，或先把该文件拷过去。**
+2. **新队列在测试机没有生效**：`dms_sync` 队列靠生产发布脚本 `activate-product.sh` 调用 `configure-dms-runtime.py` 写进 bench 的 `common_site_config.json`；测试环境的 `up` 不做这一步，`dms-sync-worker` 因 `Queue should be one of …` 反复重启（新服务本身的定义没问题）。处理：在 `pearnly-testenv-dms-web-1` 内执行该脚本，`workers={'ocr': {'timeout': 600}, 'dms_sync': {'timeout': 420}}` 已写入，重启后稳定 Up。该配置落在 sites 卷里，只需做一次（`reset` 删卷后要重做）；把它并入测试环境 `up` 是待办。
+
+### 按产品切租户（已实现、已使用）
+
+- 原状：`lab-start`/`lab-stop` 与 `testenv-cloudflare.sh` 把 dms+erp 两个域名写死在一起切。
+- 改动在分支 `codex/testenv-per-app`（从远端 main `3c5e4a3` 起，已推送，HEAD `4706323`）：`lab-start [dms|erp]`、`lab-stop [dms|erp]`、`switch-lab|switch-prod|status [dms|erp]`；不带参数与旧行为一致。隧道本身已同时带两个域名，所以只切一个产品不需要改隧道配置。推送前已本地跑同名闸门（架构、离线 DMS 27/27、provision/activate 套件、容量、词条与 diff 检查）。
+- 本轮实际只切 DMS：`switch-lab dms` 后 `testdms.pearnly.com` 建了 CNAME → 隧道（Cloudflare 解析 104.21.28.241 / 172.67.147.231），`testerp.pearnly.com` 仍 `107.155.65.74`（线上，未动）。带唯一标记 `?codex-probe-dms=3` 的请求出现在测试机 `dms-frontend` 访问日志中（经隧道，302），证明 DMS 流量确实落在测试机。测试机侧 `smoke`：testdms 的 `/`、`/login` 302，`/api/method/ping` 200。
+- 本机 DNS 有约 300 秒缓存：切完立刻用普通 `curl` 可能仍解析到线上 IP，用 `dig` 或 `curl --resolve` 可绕过。
+- 边界：`lab-start dms` 的完整链路（线上导出 → 导入 → 切换）本轮**没有整条跑过**，只跑了 `switch-lab dms`；测试机上的 DMS 租户数据仍是上一次导入（约 19 小时前）。要最新数据需另跑 `lab-start dms`（会读线上导出并重建该测试站）。
+
+### 仍未验收
+
+- 真机/浏览器：LINE 菜单 1–5、编辑回卡、订车付款附件、拍照 OCR、真实 LINE 消息；四组完整真实采集（尤其全国地址整轮）；测试租户上的安装/升级。
+- 边界提醒：DMS 测试租户现在由测试机服务，线上容器仍在跑但不再接到该域名的流量；LINE webhook 与 OIDC 仍走同一域名与线上 Keycloak。切回：`bash scripts/testenv.sh lab-stop dms`。
+
 ## 最新续接：候选镜像已产出 + 本机试验环境已清理（2026-09-24）
 
 授权来自用户本轮原话“推，本机的试验环境删掉吧”。本轮只做推送、CI 构建与本机清理；**未部署、未切测试租户、未动测试机、未调用付费 OCR、未写第三方业务**。
