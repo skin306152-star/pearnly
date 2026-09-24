@@ -1,8 +1,16 @@
-"""盘点图表预览用的合成数据（只写隔离的 stocktake.localhost）。
+"""盘点预览用的标准演示数据（只写隔离的 stocktake.localhost）。
 
 为什么要有它：图表只在"有已盘点行"时才画得出来，而实验室站点初始化后只有一个商品两行，
-看不出分类、排序、12 组上限和长表。这里造一批商品 / 结存 / 盘点记录，让本地预览能看到
-接近真实规模的样子（差异、无差异、未盘点、跨仓位移动混在一起）。
+看不出分类、排序、12 组上限和长表。这里造一套**像正式主数据那样**的样本：
+
+· 商品编码由系统发（`P-000001` 这种），条形码是校验位正确的 EAN-13（885 开头）；
+· 商品按 6 个分类、不同单位铺开，货位用标准货位号（A-01 / R-01 / T-01 …）而不是"某架"；
+· 三个仓（主仓 / 冷藏仓 / 退货仓）、三份盘点（一份月度大盘、一份周盘、一份已过账的复盘）；
+· 差异有种类：大幅少货、大幅多货、微小差异、正好对上、未盘点、放错货位。
+
+它同时**收回本任务上一版造的演示数据**（编码前缀 `DEMO-CHART-` 的那批商品与两份进行中盘点：
+先把结存清掉再停用），免得同一套预览里混着两批口径不同的样本。别的任务留下的站点数据
+（验收仓库那几份）不动。
 
 只在 lab 站点写合成数据；不连生产、不发 LINE、不调付费 OCR。按业务键幂等，重复跑是空操作。
 
@@ -17,27 +25,59 @@ import frappe
 
 SITE = "stocktake.localhost"
 SITE_ROOT = Path("/home/frappe/frappe-bench/sites")
-CODE_PREFIX = "DEMO-CHART-"
 OWNER = "stocktake-owner@example.com"
+RETIRED_CODE_PREFIX = "DEMO-CHART-"
+RETIRED_TASKS = ("月底盘点", "冷藏区抽盘")
+MAIN_TASK = "2026-09 月度盘点"
 
-# 差异样本：正数=实盘多、负数=实盘少、0=正好对上（口径与工作台一致）。
-DELTAS = [-34, 4, 32, 23, -12, 7, 0, -60, 45, 18, -25, 0, 9, -18, 26, -7,
-          15, -41, 0, 52, -3, 11, -29, 6, 0, 34, -16, 21, -8, 13]
+# 分类只作商品档案里的一个编号（`ERP Product.category_id` 是整数，旧系统同形）：
+# 1 饮料 · 2 调味 · 3 粮油 · 4 清洁 · 5 日用 · 6 冷藏。
+WAREHOUSE_SHELVES = {
+    "主仓": ["A-01", "A-02", "A-03", "B-01", "B-02", "B-03", "C-01", "C-02"],
+    "冷藏仓": ["R-01", "R-02", "R-03"],
+    "退货仓": ["T-01", "T-02"],
+}
 
+# (名称, 单位, 售价, 参考成本, 分类)
 PRODUCTS = [
-    ("沐浴露", "瓶", 15, 8), ("番茄酱", "瓶", 22, 12), ("蛋白质", "罐", 39, 24),
-    ("饮料", "瓶", 12, 6), ("洗发水", "瓶", 18, 10), ("牙膏", "支", 9, 5),
-    ("洗衣粉", "袋", 28, 16), ("洗洁精", "瓶", 14, 7), ("酱油", "瓶", 16, 9),
-    ("醋", "瓶", 13, 7), ("蚝油", "瓶", 25, 14), ("辣椒酱", "瓶", 19, 11),
-    ("味精", "袋", 11, 6), ("白砂糖", "袋", 21, 12), ("食盐", "袋", 8, 4),
-    ("食用油", "瓶", 42, 26), ("面粉", "袋", 30, 17), ("大米", "袋", 65, 38),
-    ("方便面", "包", 7, 4), ("牛奶", "盒", 17, 10), ("酸奶", "盒", 20, 12),
-    ("矿泉水", "瓶", 6, 3), ("汽水", "瓶", 10, 5), ("啤酒", "瓶", 24, 14),
-    ("咖啡", "盒", 48, 29), ("茶叶", "盒", 55, 33), ("饼干", "包", 15, 8),
-    ("巧克力", "盒", 36, 21), ("薯片", "包", 18, 10), ("糖果", "包", 12, 7),
-    ("纸巾", "包", 9, 5), ("湿巾", "包", 13, 7), ("垃圾袋", "卷", 16, 9),
-    ("保鲜膜", "卷", 14, 8), ("一次性手套", "盒", 27, 15), ("酒精喷雾", "瓶", 23, 13),
+    ("矿泉水 600ml", "瓶", 7, 4, 1), ("苏打水 325ml", "瓶", 12, 7, 1),
+    ("可乐 325ml", "瓶", 15, 9, 1), ("橙汁 1L", "瓶", 45, 28, 1),
+    ("椰子水 330ml", "瓶", 25, 15, 1), ("豆奶 300ml", "瓶", 14, 8, 1),
+    ("运动饮料 500ml", "瓶", 20, 12, 1), ("即饮咖啡 180ml", "罐", 22, 13, 1),
+    ("啤酒 320ml", "瓶", 32, 20, 1), ("气泡水 500ml", "瓶", 18, 10, 1),
+    ("生抽 700ml", "瓶", 42, 26, 2), ("老抽 700ml", "瓶", 45, 28, 2),
+    ("蚝油 500g", "瓶", 55, 34, 2), ("鱼露 700ml", "瓶", 48, 30, 2),
+    ("白醋 500ml", "瓶", 26, 15, 2), ("陈醋 500ml", "瓶", 32, 19, 2),
+    ("辣椒酱 250g", "瓶", 38, 22, 2), ("番茄酱 300g", "瓶", 35, 20, 2),
+    ("味精 200g", "袋", 18, 10, 2), ("鸡精 200g", "袋", 26, 15, 2),
+    ("白砂糖 1kg", "袋", 32, 19, 2), ("食盐 500g", "袋", 12, 6, 2),
+    ("花椒粉 50g", "袋", 22, 13, 2), ("咖喱粉 100g", "袋", 36, 21, 2),
+    ("茉莉香米 5kg", "袋", 235, 175, 3), ("糯米 1kg", "袋", 62, 42, 3),
+    ("面粉 1kg", "袋", 45, 29, 3), ("玉米油 1L", "瓶", 78, 52, 3),
+    ("棕榈油 1L", "瓶", 65, 43, 3), ("花生 500g", "袋", 58, 38, 3),
+    ("绿豆 500g", "袋", 42, 27, 3), ("红豆 500g", "袋", 44, 28, 3),
+    ("方便面 5包", "包", 55, 36, 3), ("意大利面 500g", "包", 62, 40, 3),
+    ("洗衣液 2L", "瓶", 128, 86, 4), ("洗衣粉 1kg", "袋", 68, 44, 4),
+    ("洗洁精 1L", "瓶", 52, 33, 4), ("洁厕剂 700ml", "瓶", 58, 37, 4),
+    ("玻璃清洁剂 600ml", "瓶", 62, 40, 4), ("消毒液 1L", "瓶", 88, 57, 4),
+    ("漂白水 1L", "瓶", 48, 30, 4),
+    ("沐浴露 450ml", "瓶", 118, 74, 5), ("洗发水 400ml", "瓶", 145, 92, 5),
+    ("护发素 400ml", "瓶", 138, 88, 5), ("牙膏 160g", "支", 62, 38, 5),
+    ("牙刷 2支装", "包", 55, 33, 5), ("香皂 100g", "个", 25, 14, 5),
+    ("洗手液 500ml", "瓶", 85, 54, 5), ("面巾纸 3包", "包", 52, 32, 5),
+    ("卷纸 10卷", "提", 135, 92, 5), ("湿巾 80片", "包", 45, 27, 5),
+    ("垃圾袋 30只", "卷", 38, 22, 5), ("保鲜膜 30m", "卷", 42, 25, 5),
+    ("铝箔纸 10m", "卷", 58, 36, 5), ("一次性手套 50只", "盒", 96, 62, 5),
+    ("口罩 50只", "盒", 88, 55, 5),
+    ("鲜牛奶 1L", "瓶", 68, 45, 6), ("原味酸奶 4杯", "组", 55, 34, 6),
+    ("黄油 200g", "盒", 128, 88, 6), ("芝士片 150g", "盒", 105, 70, 6),
+    ("冷冻虾仁 500g", "袋", 215, 155, 6), ("冷冻鸡翅 1kg", "袋", 168, 118, 6),
+    ("冰淇淋 1L", "桶", 185, 128, 6), ("香肠 500g", "袋", 132, 90, 6),
 ]
+
+# 差异样本，按已盘点行循环取用：大幅少货、大幅多货、微小差异、正好对上混在一起。
+DELTAS = [-48, 45, -12, 0, 62, -35, 8, -70, 26, 0, 41, -18, 15, -55, 3, 33,
+          -22, 0, 58, -9, 19, -41, 7, 28, -63, 0, 12, -30, 47, -5]
 
 
 def main():
@@ -55,6 +95,11 @@ def main():
     from pearnly_erp_portal.products import service as products
 
     try:
+        retire_previous_demo(products, counts, stock)
+        if frappe.db.exists("ERP Stock Count", {"title": MAIN_TASK}):
+            frappe.db.commit()
+            print(json.dumps({"seeded": False, "reason": "already present"}, ensure_ascii=False))
+            return
         frappe.set_user("Administrator")
         product_ids = seed_products(products)
         frappe.set_user(OWNER)
@@ -65,91 +110,103 @@ def main():
         # 整批一个事务：中途失败不留半份盘点（不然重跑会按标题跳过，留下缺记录的任务）。
         frappe.db.rollback()
         raise
-    print(json.dumps({"products": len(product_ids),
-                      "counts": frappe.db.count("ERP Stock Count")}, ensure_ascii=False))
+    print(json.dumps({"products": len(product_ids), "counts": frappe.db.count("ERP Stock Count")},
+                     ensure_ascii=False))
+
+
+def retire_previous_demo(products, counts, stock):
+    """收回本任务上一版的演示数据（只碰 `DEMO-CHART-` 前缀的商品与那两份进行中的盘点）。"""
+    frappe.set_user(OWNER)
+    for title in RETIRED_TASKS:
+        task = frappe.db.get_value("ERP Stock Count", {"title": title, "status": "Active"}, "name")
+        if task:
+            counts.delete_count(task)
+    for row in frappe.get_all("ERP Product", filters={"code": ["like", f"{RETIRED_CODE_PREFIX}%"]},
+                              fields=["name"], limit_page_length=0):
+        for balance in frappe.get_all("ERP Stock Balance", filters={"product": row["name"]},
+                                      fields=["warehouse", "location", "qty_on_hand"],
+                                      limit_page_length=0):
+            qty = float(balance["qty_on_hand"] or 0)
+            if qty:
+                stock.apply_movement(product=row["name"], warehouse=balance["warehouse"],
+                                     location=balance["location"] or "", movement_type="stock_out", qty=qty)
+        products.set_active(row["name"], False)
 
 
 def seed_products(service):
     out = {}
-    for index, (name, unit, price, cost) in enumerate(PRODUCTS):
-        code = f"{CODE_PREFIX}{index + 1:03d}"
-        existing = frappe.db.get_value("ERP Product", {"code": code}, "name")
+    for index, (name, unit, price, cost, category) in enumerate(PRODUCTS):
+        existing = frappe.db.get_value("ERP Product", {"product_name": name, "is_active": 1}, "name")
         if existing:
             out[name] = existing
             continue
+        # 编码交给系统发（`P-000001`），不手填；条码是校验位正确的 EAN-13。
+        # 前缀用 8851：条码列是唯一索引，而上一版演示数据占着 8850 那一段（停用后仍然占号）。
         created = service.create_product(
-            product_name=name, code=code, barcode=f"8850{index + 1:09d}",
-            qr_payload=f"{code} QR", unit=unit, unit_price=price, default_cost=cost)
+            product_name=name, barcode=ean13(f"8851{index:08d}"), qr_payload=f"{name} QR",
+            unit=unit, unit_price=price, default_cost=cost, category_id=category)
         out[name] = created["name"]
     return out
 
 
+def ean13(twelve: str) -> str:
+    """12 位数字 → 带校验位的 EAN-13。条码看起来要像真的，扫码/导入才不会一眼假。"""
+    total = sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(twelve))
+    return twelve + str((10 - total % 10) % 10)
+
+
 def seed_stock(product_ids, stock, warehouses):
-    # 主仓铺 4 个货架（另有 6 个商品的仓位留空 —— 老图表会把空仓位写成"未填"当分类名）；
-    # 冷藏仓放饮料/乳制品；备用仓只放两件，用来做一份"已结束"的小盘点。
-    plan = {
-        "测试主仓": ("A架", "B架", "C架", "D架"),
-        "冷藏仓": ("E架", "F架"),
-        "备用仓": ("G架",),
-    }
-    resolved = {}
-    for name in plan:
-        resolved[name] = warehouses.resolve(name, create=True)
-    for index, (name, _unit, _price, cost) in enumerate(PRODUCTS):
-        shelves = plan["测试主仓"]
+    resolved = {name: warehouses.resolve(name, create=True) for name in WAREHOUSE_SHELVES}
+    for index, (name, _unit, _price, cost, category) in enumerate(PRODUCTS):
+        product = product_ids[name]
+        if category == 6:
+            house, shelves = "冷藏仓", WAREHOUSE_SHELVES["冷藏仓"]
+        elif index % 11 == 4:
+            house, shelves = "退货仓", WAREHOUSE_SHELVES["退货仓"]  # 退回来的货也占库存
+        else:
+            house, shelves = "主仓", WAREHOUSE_SHELVES["主仓"]
+        # 每 6 个商品留一个没有货位：老口径里的"未填"就是这个来源。
         place = None if index % 6 == 5 else shelves[index % len(shelves)]
-        qty = 20 + (index * 7) % 180
-        stock.apply_movement(product=product_ids[name], warehouse=resolved["测试主仓"],
-                             location=place, movement_type="stock_in", qty=qty, unit_cost=cost)
-        # 每 5 个商品在第二个货架上再放一份：同一商品两行，看图表按商品合并后的样子。
-        if index % 5 == 2:
-            other = shelves[(index + 2) % len(shelves)]
+        stock.apply_movement(product=product, warehouse=resolved[house], location=place,
+                             movement_type="stock_in", qty=20 + (index * 7) % 180, unit_cost=cost)
+        # 每 4 个商品在第二个货位再放一份：同一商品两行，图表按商品合并后的样子才看得见。
+        if index % 4 == 2:
+            other = shelves[(index + 3) % len(shelves)]
             if other != place:
-                stock.apply_movement(product=product_ids[name], warehouse=resolved["测试主仓"],
-                                     location=other, movement_type="stock_in",
-                                     qty=10 + index % 20, unit_cost=cost)
-        if index % 4 == 1:
-            stock.apply_movement(product=product_ids[name], warehouse=resolved["冷藏仓"],
-                                 location=plan["冷藏仓"][index % 2], movement_type="stock_in",
-                                 qty=15 + index % 40, unit_cost=cost)
-    for index, name in enumerate(("大米", "食用油")):
-        stock.apply_movement(product=product_ids[name], warehouse=resolved["备用仓"],
-                             location="G架", movement_type="stock_in",
-                             qty=30 + index * 12, unit_cost=10)
+                stock.apply_movement(product=product, warehouse=resolved[house], location=other,
+                                     movement_type="stock_in", qty=12 + index % 24, unit_cost=cost)
     return resolved
 
 
 def seed_tasks(product_ids, warehouse_ids, counts):
-    if not frappe.db.exists("ERP Stock Count", {"title": "月底盘点"}):
-        task = counts.create_count(title="月底盘点", warehouse=warehouse_ids["测试主仓"])["name"]
-        rows = counts.list_items(count=task, limit=0)
-        for index, row in enumerate(rows):
-            if index % 9 == 5:
-                continue  # 留几行未盘点：图上不该出现、表里要能筛出来
-            delta = DELTAS[index % len(DELTAS)]
-            qty = max(0, float(row["book_qty"]) + delta)
-            # 每 7 行模拟"放错货架"：账面在 B架、实盘在 D架。
-            found = row["location"]
-            if index % 7 == 3 and row["location"] != "D架":
-                found = "D架"
-            counts.add_entry(count=task, item=row["name"], qty=qty, location=found,
-                             request_id=f"demo-chart-main-{index + 1}")
-    if not frappe.db.exists("ERP Stock Count", {"title": "冷藏区抽盘"}):
-        task = counts.create_count(title="冷藏区抽盘", warehouse=warehouse_ids["冷藏仓"])["name"]
-        for index, row in enumerate(counts.list_items(count=task, limit=0)):
-            if index % 4 == 3:
-                continue
-            counts.add_entry(count=task, item=row["name"],
-                             qty=max(0, float(row["book_qty"]) + DELTAS[(index + 4) % len(DELTAS)]),
-                             request_id=f"demo-chart-cold-{index + 1}")
-    # 一份已经结束的盘点：工作台的只读态（导出 / 刷新）也要能看。
-    if not frappe.db.exists("ERP Stock Count", {"title": "备用仓快盘"}):
-        task = counts.create_count(title="备用仓快盘", warehouse=warehouse_ids["备用仓"])["name"]
-        for index, row in enumerate(counts.list_items(count=task, limit=0)):
-            counts.add_entry(count=task, item=row["name"], qty=float(row["book_qty"]),
-                             request_id=f"demo-chart-standby-{index + 1}")
-        review = counts.review_count(task)
-        counts.close_count(task, review_token=review["review_token"])
+    monthly = counts.create_count(title=MAIN_TASK, warehouse=warehouse_ids["主仓"],
+                                  notes="月度全盘：主仓全部货位，含两处放错货位。")
+    count_rows(monthly["name"], counts, request_prefix="std-monthly", move_every=9, skip_every=7)
+    weekly = counts.create_count(title="冷藏仓周盘", warehouse=warehouse_ids["冷藏仓"],
+                                 notes="每周抽盘冷藏仓，重点看有效期与损耗。")
+    count_rows(weekly["name"], counts, request_prefix="std-weekly", move_every=0, skip_every=5)
+    # 一份已经过账的复盘：工作台的只读态（导出 / 刷新）也要能看。
+    back = counts.create_count(title="退货仓复盘", warehouse=warehouse_ids["退货仓"],
+                               notes="退货入账后的复核，数量按实际点清。")
+    count_rows(back["name"], counts, request_prefix="std-returns", move_every=0, skip_every=0,
+               exact=True)
+    review = counts.review_count(back["name"])
+    counts.close_count(back["name"], review_token=review["review_token"])
+
+
+def count_rows(task, counts, *, request_prefix, move_every, skip_every, exact=False):
+    """按快照行录记录：`skip_every` 留未盘点，`move_every` 制造放错货位，`exact` 是完全一致。"""
+    for index, row in enumerate(counts.list_items(count=task, limit=0)):
+        if skip_every and index % skip_every == skip_every - 1:
+            continue
+        delta = 0 if exact else DELTAS[index % len(DELTAS)]
+        qty = max(0, float(row["book_qty"]) + delta)
+        found = row["location"]
+        if move_every and index % move_every == move_every - 1:
+            shelves = WAREHOUSE_SHELVES["主仓"]
+            found = next((s for s in shelves if s != row["location"]), shelves[0])
+        counts.add_entry(count=task, item=row["name"], qty=qty, location=found,
+                         request_id=f"{request_prefix}-{index + 1}")
 
 
 if __name__ == "__main__":
