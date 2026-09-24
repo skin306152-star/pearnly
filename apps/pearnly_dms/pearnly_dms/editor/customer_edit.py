@@ -66,6 +66,7 @@ def load(line_user_id: str, nonce: str) -> dict:
         endpoint, customer=customer,
         customer_id="" if baseline or payload.get("customer_edited") else payload.get("customer_id", ""),
         preserve_empty_geo=preserve_empty_geo,
+        include_booking_masters=False,
     )
     # 先把 OCR 的称谓在主档里解出 id（解不出就留空，交给用户在下拉里选）。
     title = customer.get("prefix_name") or (payload.get("id_card") or {}).get("prefix_name")
@@ -191,7 +192,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     """保存客户档并**同步确认**新卡已送达 LINE；返回轮换后的新 nonce。**不写 DMS**。"""
     binding, payload, endpoint = _review(line_user_id, nonce)
     customer = editor._customer(dict(submitted.get("customer") or {}))
-    snapshot = editor._snapshot(endpoint, customer=customer)
+    snapshot = editor._snapshot(endpoint, customer=customer, include_booking_masters=False)
     labels = editor._customer_master_labels(snapshot, customer)
     if labels is None:
         raise editor.DmsBookingEditError("dms_booking.invalid_master")

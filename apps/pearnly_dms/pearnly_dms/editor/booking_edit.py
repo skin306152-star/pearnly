@@ -188,6 +188,7 @@ def _snapshot(
     customer: Optional[dict] = None,
     customer_id: str = "",
     preserve_empty_geo: bool = False,
+    include_booking_masters: bool = True,
 ) -> dict:
     """本请求只读完整本地代际；缺失/过期明确报错，不触发外部读取。"""
     kwargs = {"car_ids": car_ids, "customer": customer}
@@ -195,6 +196,8 @@ def _snapshot(
         kwargs["customer_id"] = customer_id
     if preserve_empty_geo:
         kwargs["preserve_empty_geo"] = True
+    if not include_booking_masters:
+        kwargs["include_booking_masters"] = False
     from pearnly_dms.contracts.client_base import DmsClientError
     try:
         snapshot = read_edit_snapshot(endpoint, **kwargs)

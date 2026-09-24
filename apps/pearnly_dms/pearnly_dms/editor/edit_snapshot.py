@@ -45,17 +45,22 @@ def _merge_customer_defaults(draft, live, *, preserve_empty_geo=False):
 
 
 def read_edit_snapshot(endpoint, *, car_ids=(), customer=None, customer_id="",
-                       preserve_empty_geo=False):
+                       preserve_empty_geo=False, include_booking_masters=True):
     view = Directory(endpoint)
     saved = view.read_customer(str(customer_id)) if customer_id else {}
     expected = normalize_thai_id(str((customer or {}).get("people_id") or ""))
     if expected and saved and normalize_thai_id(str(saved.get("people_id") or "")) != expected:
         raise DmsClientError("editor identity mismatch", "ERR_DMS_CUSTOMER_LOOKUP")
     resolved = _merge_customer_defaults(customer, saved, preserve_empty_geo=preserve_empty_geo)
+    # Customer-only editors use prefixes and addresses, not the independently
+    # loaded vehicle/company catalogues. Booking callers keep the full default.
+    masters = view.masters() if include_booking_masters else {}
+    prefixes = view.list_prefixes()
     return {
-        "masters": view.masters(),
-        "paints": {str(car): view.paints(str(car)) for car in car_ids if car},
-        "prefixes": view.list_prefixes(),
+        "masters": masters if include_booking_masters else {"prefixes": prefixes},
+        "paints": {str(car): view.paints(str(car)) for car in car_ids if car}
+        if include_booking_masters else {},
+        "prefixes": prefixes,
         "geo": {level: view.list_geo(level, parent) for level, parent in geo_levels(resolved)},
         "customer": saved, "resolved_customer": resolved,
         "snapshot": view.metadata(),

@@ -8,6 +8,7 @@ external business acceptance; the separate native lab owns those checks.
 from contextlib import ExitStack, nullcontext
 import copy
 import importlib.util
+import json
 from pathlib import Path
 import socket
 import sys
@@ -409,6 +410,124 @@ class SnapshotConsumers(unittest.TestCase):
         self.assertEqual(directory.list_prefixes(), [["p", "Prefix"]])
         self.store.read.assert_called_once_with(EP, "customers", refresh_interval=1800)
         self.assertEqual(directory.metadata()["generation"], "customer-only")
+        self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
+
+    def customer_editor_fixture(self):
+        from pearnly_core import endpoints
+        from pearnly_dms.editor import booking_edit, customer_edit
+        self.replace(frappe, "get_roles", return_value=[])
+        self.replace(endpoints, "read_password", side_effect=lambda kind, name, field: self.passwords.get((name, field), ""))
+        self.replace(self.operations, "run_logged_in", side_effect=AssertionError("Editor must not login"))
+        self.replace(self.service, "run_logged_in", side_effect=AssertionError("Editor must not login"))
+        self.replace(reader_fixture.DmsClient, "_post_text", side_effect=AssertionError("Editor must not read DMS"))
+        client = reader_fixture.DmsClient(None, "https://snapshot.invalid/dms/")
+        html = reader_fixture.customer_form("C1")
+        customer = {**client._extract_customer_fields(client._parse_form_defaults(html), html),
+                    "customer_id": "C1", "birthday_be": "01/01/2540", "house_no": "1", "zipcode": "TEST"}
+        snapshots = {
+            "customers": {"customers": {"C1": customer}, "prefixes": [["17", "TEST"]]},
+            "geo": {"provinces": {"": [["P1", "TEST"]]}, "districts": {"P1": [["D1", "TEST"]]},
+                    "subdistricts": {"D1": [["S1", "TEST"]]}, "zipcodes": {"S1": [["Z1", "TEST"]]}},
+        }
+        scope = self.store.scope(EP)
+        for dataset, data in snapshots.items():
+            name = self.store._name(scope, dataset)
+            self.db.rows[self.store.DT, name] = {"name": name, "payload": json.dumps(data),
+                "source_started_at": 1790209380, "completed_at": 1790209400,
+                "generation": "synthetic-" + dataset, "last_error": ""}
+        payload = {"nonce": "editor-before", "endpoint_id": EP, "customer_id": "C1",
+                   "mode": "customer", "draft": copy.deepcopy(customer)}
+        self.sessions.set_session(UID, "reviewing", payload)
+        reads = self.replace(self.store, "read", wraps=self.store.read)
+        return customer_edit, booking_edit, customer, reads
+
+    def test_customer_editor_load_save_only_reads_customer_and_address_groups(self):
+        customer_edit, _, customer, reads = self.customer_editor_fixture()
+        loaded = customer_edit.load(UID, "editor-before")
+        self.assertEqual(loaded["form"]["customer"]["people_id"], customer["people_id"])
+        self.assertEqual(set(loaded["masters"]), {"prefixes"})
+        self.assertEqual(loaded["snapshot"]["generation"], "synthetic-customers")
+        nonce = customer_edit.save(UID, "editor-before", {"customer": customer})
+        self.assertNotEqual(nonce, "editor-before")
+        self.assertEqual(self.sessions.get_session(UID)["payload"]["nonce"], nonce)
+        self.assertEqual({call.args[1] for call in reads.call_args_list}, {"customers", "geo"})
+        self.assertEqual([url for url, _ in self.http], ["https://api.line.me/v2/bot/message/push"])
+        self.assertEqual(self.jobs, [])
+
+    def test_customer_editor_missing_required_cache_or_auth_rejection_keeps_draft(self):
+        customer_edit, booking_edit, customer, reads = self.customer_editor_fixture()
+        scope = self.store.scope(EP)
+        before = self.sessions.get_session(UID)
+        for dataset, error in (("customers", ""), ("geo", ""), ("customers", "ERR_DMS_ADMIN_AUTH")):
+            with self.subTest(dataset=dataset, error=error):
+                key = self.store.DT, self.store._name(scope, dataset)
+                saved = copy.deepcopy(self.db.rows[key])
+                if error:
+                    self.db.rows[key]["last_error"] = error
+                else:
+                    del self.db.rows[key]
+                try:
+                    for method, args in ((customer_edit.load, (UID, "editor-before")),
+                                         (customer_edit.save, (UID, "editor-before", {"customer": customer}))):
+                        with self.assertRaises(booking_edit.DmsBookingEditError) as raised:
+                            method(*args)
+                        self.assertEqual(raised.exception.code, "dms.err." + (error or "ERR_DMS_SNAPSHOT_PENDING"))
+                        self.assertEqual(self.sessions.get_session(UID), before)
+                finally:
+                    self.db.rows[key] = saved
+        self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
+
+    def test_customer_editor_still_rejects_expired_nonce_revocation_and_disabled_endpoint(self):
+        customer_edit, booking_edit, customer, reads = self.customer_editor_fixture()
+        before = self.sessions.get_session(UID)
+        for key, field, value in ((None, None, None), (("Pearnly LINE Binding", "binding"), "status", "unbound"),
+                                  (("User", USER), "enabled", 0), (("Pearnly ERP Endpoint", EP), "enabled", 0)):
+            with self.subTest(target=key):
+                old = self.db.rows[key][field] if key else None
+                if key:
+                    self.db.rows[key][field] = value
+                try:
+                    nonce = "editor-before" if key else "expired"
+                    for method, args in ((customer_edit.load, (UID, nonce)),
+                                         (customer_edit.save, (UID, nonce, {"customer": customer}))):
+                        with self.assertRaises(booking_edit.DmsBookingEditError):
+                            method(*args)
+                    self.assertEqual(self.sessions.get_session(UID), before)
+                finally:
+                    if key:
+                        self.db.rows[key][field] = old
+        reads.assert_not_called()
+        self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
+
+    def test_customer_editor_failed_line_delivery_restores_original_nonce_and_payload(self):
+        customer_edit, booking_edit, customer, reads = self.customer_editor_fixture()
+        before = self.sessions.get_session(UID)
+        def reject(url, **kwargs):
+            response = self.http_post(url, **kwargs)
+            response.status_code = 400
+            return response
+        self.replace(requests, "post", side_effect=reject)
+        with self.assertRaises(booking_edit.DmsBookingEditError) as raised:
+            customer_edit.save(UID, "editor-before", {"customer": customer})
+        self.assertEqual(raised.exception.code, "dms_booking.preview_send_failed")
+        self.assertEqual(self.sessions.get_session(UID), before)
+        self.assertEqual(len(self.http), 1); self.assertEqual(self.jobs, [])
+        self.assertEqual({call.args[1] for call in reads.call_args_list}, {"customers", "geo"})
+
+    def test_booking_editor_keeps_vehicle_and_company_cache_dependency(self):
+        _, booking_edit, customer, reads = self.customer_editor_fixture()
+        for has_vehicle in (False, True):
+            if has_vehicle:
+                name = self.store._name(self.store.scope(EP), "vehicles")
+                self.db.rows[self.store.DT, name] = {"name": name,
+                    "payload": json.dumps({"masters": {"cars": [["car", "Car"]]}, "paints": {}}),
+                    "source_started_at": 1790209380, "completed_at": 1790209400,
+                    "generation": "synthetic-vehicles", "last_error": ""}
+            reads.reset_mock()
+            with self.assertRaises(booking_edit.DmsBookingEditError) as raised:
+                booking_edit._snapshot(EP, customer=customer)
+            self.assertEqual(raised.exception.code, "dms.err.ERR_DMS_SNAPSHOT_PENDING")
+            self.assertIn("company" if has_vehicle else "vehicles", [call.args[1] for call in reads.call_args_list])
         self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
 
     def test_ledger_hint_missing_from_generation_is_pending_not_a_new_customer(self):

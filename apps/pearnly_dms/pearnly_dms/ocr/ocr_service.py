@@ -15,6 +15,7 @@ import time
 from typing import Any, Dict, Optional, Tuple
 from frappe import _
 from pearnly_core.execution.errors import Deferred, Uncertain
+from . import timing
 
 logger = logging.getLogger(__name__)
 
@@ -238,6 +239,7 @@ def _flag_bad_id_checksum(ocr: Dict[str, Any]) -> None:
         missing.append("people_id_checksum")
 
 
+@timing.traced("recognize_id_card")
 def recognize_id_card(
     user: str,
     content: bytes,
@@ -256,20 +258,26 @@ def recognize_id_card(
         raise DmsOcrError(
             "ocr.file_too_large", 400, {"code": "ocr.file_too_large", "mb": MAX_ID_CARD_MB}
         )
-    ep = resolve_dms_endpoint(user, endpoint_id)
+    with timing.stage("endpoint"):
+        ep = resolve_dms_endpoint(user, endpoint_id)
     if not ep:
         raise DmsOcrError("dms.no_endpoint", 400, "dms.no_endpoint")
     from pearnly_core.execution.work import has_completed_call
-    if not has_completed_call():
-        _billing_gate()
+    with timing.stage("billing_gate"):
+        completed = has_completed_call()
+        timing.completed_checkpoint(completed)
+        if not completed:
+            _billing_gate()
 
-    image_bytes = ensure_image_bytes(content, content_type)
-    t0 = time.time()
+    with timing.stage("prepare_image"):
+        image_bytes = ensure_image_bytes(content, content_type)
+    t0 = time.monotonic()
     try:
         from pearnly_core import ocr as _ocr
         from pearnly_dms.ocr import ocr_id_card as _idcard
 
-        ocr = _idcard.extract(image_bytes)
+        with timing.stage("recognition"):
+            ocr = _idcard.extract(image_bytes)
     except (Deferred, Uncertain):
         raise
     except _ocr.OcrUnavailable as exc:
@@ -293,24 +301,26 @@ def recognize_id_card(
                 "msg": str(exc)[:200] if is_unreadable else type(exc).__name__,
             },
         )
-    elapsed = int((time.time() - t0) * 1000)
+    elapsed = int((time.monotonic() - t0) * 1000)
     _flag_bad_id_checksum(ocr)
     # LINE retries reuse the message identity; a different card must be a new charge.
     # The former per-user reference is not an idempotency key.
     from uuid import uuid4
     reference = billing_reference or f"idcard:{uuid4().hex}"
-    charge = _charge_id_card(reference=reference)
+    with timing.stage("billing_charge"):
+        charge = _charge_id_card(reference=reference)
     if charge.get("ok") is not True:
         raise Deferred("billing_unavailable", 30)
     # 识别记录：读出来了但校验位不对的标 needs_review（要人看一眼），其余算 ok
-    _record_ocr(
-        "needs_review" if ocr.get("needs_review") else "ok",
-        filename,
-        user=user,
-        charged=charge.get("charged_thb"),
-        detail=(ocr.get("id_card") or {}).get("thai_name") or "",
-        reference=reference,
-    )
+    with timing.stage("record"):
+        _record_ocr(
+            "needs_review" if ocr.get("needs_review") else "ok",
+            filename,
+            user=user,
+            charged=charge.get("charged_thb"),
+            detail=(ocr.get("id_card") or {}).get("thai_name") or "",
+            reference=reference,
+        )
     return ep, ocr, elapsed
 
 

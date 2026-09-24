@@ -5,18 +5,16 @@
 （真机取证"填谁存谁"，三键留空整单被拒）。老实现恒填顾问主档第一行 → 全公司的单
 记到同一个人头上。所以这里每条都在钉一件事：**认不准就拦下来，绝不猜**。
 
-用例按老产品 `tests/unit/test_dms_advisor_match.py` 迁移（线上基准 `501589f0`），
-其中三组是线上 `b78697f3` 那次修复的契约：
+用例从老产品 `tests/unit/test_dms_advisor_match.py` 迁移，并按当前手动缓存契约验证：
 
-· 无传入快照时**一律现抓**（`force_refresh=True`），不认缓存；
-· 钉死的 id 必须在**当前**名册里，名字取**实时**值；
-· **读取失败不得用旧配置放行**。
+· 未传入主档时明确拒绝，**不得自动登录、刷新或回退旧缓存**；
+· 钉死的 id 必须在传入名册里，名字取该主档值，不信存下来的别名；
+· 主档为空或匹配失败不得用旧配置放行；最终提交另作实时复核。
 """
 
 
 def main():
     from pearnly_dms.masters import advisor as dms_advisor
-    from pearnly_dms.masters import masters_cache as dms_masters_cache
 
     results = []
 
@@ -66,7 +64,7 @@ def main():
     check("重复登录名 → 不猜测归属",
           dms_advisor.match_in_masters({"advisors": ADVISORS, "employees": duplicates}, "sale01") is None)
 
-    # ── 3. 端点解析：现抓、钉死校验、失败不放行 ───────────────────────
+    # ── 3. 端点解析：只匹配传入主档，钉死校验、失败不放行 ─────────────
     calls = []
 
     def fake_masters(endpoint, *, force_refresh=False, require_complete=False):
@@ -85,42 +83,53 @@ def main():
         dms_advisor.dms_username = lambda ep: "sale01"
         calls.clear()
         advisor, username = dms_advisor.resolve_operator_advisor("EP-1")
-        check("匹配到顾问", (advisor or {}).get("id") == "297", advisor)
+        check("未传主档 → 拒绝并保留拦截话术账号", (advisor, username) == (None, "sale01"))
+        check("未传主档不调用旧全量读取", calls == [], calls)
+        calls.clear()
+        check("空主档 → 拒绝且不回退",
+              dms_advisor.resolve_operator_advisor("EP-1", masters={}) == (None, "sale01"))
+        check("空主档零旧读取", calls == [], calls)
+        advisor, username = dms_advisor.resolve_operator_advisor(
+            "EP-1", masters={"advisors": ADVISORS, "employees": EMPLOYEES})
+        check("明确完整主档匹配到顾问", advisor == {"id": "297", "name": "สมชาย"}, advisor)
         check("同时回出是哪个账号（拦截话术要报账号）", username == "sale01", username)
-        check("无快照时一律现抓 + 要完整主档",
-              calls == [(True, True)], calls)
 
         dms_advisor.dms_username = lambda ep: ""
         check("解不出登录名 → (None, ''), 不猜账号",
               dms_advisor.resolve_operator_advisor("EP-1") == (None, ""))
+        check("无登录名时显式主档也不猜",
+              dms_advisor.resolve_operator_advisor(
+                  "EP-1", masters={"advisors": ADVISORS, "employees": EMPLOYEES}) == (None, ""))
 
         # 钉死归属
         dms_advisor.booking_defaults = lambda ep: {"advisor_id": "335", "advisor_name": "旧名字"}
         calls.clear()
         advisor, username = dms_advisor.resolve_operator_advisor("EP-1")
-        check("钉死的 id 在名册里 → 放行", (advisor or {}).get("id") == "335", advisor)
-        check("钉死时名字取实时值，不信存下来的旧名字",
-              (advisor or {}).get("name") == "sale02", advisor)
+        check("钉死但未传主档 → 拒绝", advisor is None)
         check("钉死时不解析登录名", username == "", username)
-        check("钉死也现抓（不认缓存）", calls == [(True, True)], calls)
+        check("钉死但未传主档也零旧读取", calls == [], calls)
+        calls.clear()
+        check("直接钉死辅助入口未传主档也拒绝",
+              dms_advisor._pinned_advisor("EP-1", {"advisor_id": "335"}) is None)
+        check("直接辅助入口零旧读取", calls == [], calls)
+        calls.clear()
+        check("钉死但空主档 → 拒绝",
+              dms_advisor.resolve_operator_advisor("EP-1", masters={}) == (None, ""))
+        check("钉死空主档零旧读取", calls == [], calls)
 
         dms_advisor.booking_defaults = lambda ep: {"advisor_id": "335", "advisor_name": "旧名字"}
-        cache_mod.get_masters = lambda ep, **kw: {"advisors": []}
         check("钉死的 id 已从名册删除 → 拦截",
-              dms_advisor.resolve_operator_advisor("EP-1") == (None, ""))
-        cache_mod.get_masters = lambda ep, **kw: {}
-        check("名册取数失败 → 拦截（不得用旧配置放行）",
-              dms_advisor.resolve_operator_advisor("EP-1") == (None, ""))
+              dms_advisor.resolve_operator_advisor("EP-1", masters={"advisors": []}) == (None, ""))
 
-        cache_mod.get_masters = fake_masters
         dms_advisor.booking_defaults = lambda ep: {"advisor_id": "335", "advisor_name": "旧名字"}
         advisor, _ = dms_advisor.resolve_operator_advisor(
             "EP-1", masters={"advisors": [["335", "sale02", "现在的名字"]]}
         )
-        check("外部快照里名字是实时值 → 覆盖存下来的旧名字",
+        check("名字采用传入主档值 → 覆盖存下来的旧名字",
               advisor == {"id": "335", "name": "现在的名字"}, advisor)
         advisor, _ = dms_advisor.resolve_operator_advisor("EP-1", masters={"advisors": []})
         check("外部快照里没有这个 id → 拦截", advisor is None)
+        check("所有显式主档匹配零旧读取", calls == [], calls)
     finally:
         cache_mod.get_masters = real_get
         dms_advisor.booking_defaults = real_defaults
@@ -130,6 +139,8 @@ def main():
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(results) - len(failed), len(failed)))
     print("RESULT: %s" % ("ALL PASS" if not failed else "FAIL"))
+    if failed:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

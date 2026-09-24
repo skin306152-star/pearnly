@@ -9,16 +9,11 @@ POST 上去的**（真机取证："填谁存谁"，与登录账号无关；三�
 取数失败、零命中或重复登录名都不能借它们猜测归属。管理员明确指定的顾问 ID 仍可使用。
 
 账号不在顾问名册（老板借号、代录员）时，可以在端点上**钉死归属**，钉死优先于一切匹配。
-钉死只认那个 **id**：文字（name）每次按 id 从**实时**名册重解，存下来的名字不作数 ——
-名字直接决定月底提成表上印谁，客户端能改的值不能信；名册里已删/改名 → 拦下来，
-不拿旧配置放行。
+钉死只认那个 **id**：文字（name）每次按 id 从传入的完整名册重解，存下来的名字不作数。
+LINE 开局使用已发布快照；最终提交仍在写服务里独立实时核对，不拿旧配置放行。
 
-照搬老产品 `services/erp/dms_advisor.py`（线上基准 `501589f0`）。两处容易搬错的
-地方按线上 `b78697f3`（2026-09-12，"实时校验完整主档关系与变更，禁止旧值及首项兜底"）：
-
-1. 无传入快照时**一律现抓** `get_masters(force_refresh=True, require_complete=True)`，
-   不认缓存；
-2. `_pinned_advisor` 的 id 必须在当前名册里，**名字取实时值、读取失败不放行**。
+本模块只读取本地端点配置并匹配调用方传入的主档；未传主档明确拒绝，
+不登录 DMS，不刷新或回退旧缓存。缺失、空表或匹配失败均不能猜测顾问归属。
 """
 
 from __future__ import annotations
@@ -27,7 +22,6 @@ import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from pearnly_dms.masters import employees as dms_employees
-from pearnly_dms.masters import masters_cache as dms_masters_cache
 from pearnly_dms.client.client_ops import row_by_id
 from pearnly_dms.contracts.endpoint import endpoint_name
 
@@ -55,7 +49,8 @@ def _ref(row: list) -> Dict[str, str]:
 def match_advisor(advisors: List[list], dms_username: str) -> Optional[Dict[str, str]]:
     """启发层：DMS 登录名 → 顾问主档行；**认不准就弃权（返回 None），不猜**。
 
-    只在员工表拿不到时用。先比 code 列，没有再比 name 列（有些站把登录名直接当顾问名）。
+    保留的纯匹配辅助函数；当前自动归属不以它作为员工表缺失时的回退。
+    先比 code 列，没有再比 name 列（有些站把登录名直接当顾问名）。
     同一层命中多行 = 名册里有重名/重号，此时填错提成要到月底对账才炸 ——
     拦下来反而当场有人喊，所以**多命中一律弃权**。
     """
@@ -87,20 +82,18 @@ def resolve_operator_advisor(
     """端点 → `(顾问, DMS 登录名)`。返回登录名只用于拦截话术，
     好让销售知道**是哪个账号**没对上。
 
-    阻塞函数（可能触发一次 DMS 登录去抓主档），异步调用方要放线程里跑。
+    仅使用本地端点配置与显式传入的主档；缺少主档时拒绝，不触发外部读取。
     """
     pinned = booking_defaults(endpoint)
     if str(pinned.get("advisor_id") or "").strip():
         return _pinned_advisor(endpoint, pinned, masters=masters), ""
     username = dms_username(endpoint)
+    if masters is None:
+        logger.warning("[dms advisor] explicit masters required; refusing resolution")
+        return None, username
     if not username:
         return None, ""
-    if masters is not None:
-        return match_in_masters(masters, username), username
-    # 一律现抓（force + require_complete），**不认缓存**：顾问栏直接决定月底提成算给谁，
-    # 拿一份可能缺行/陈旧的名单去匹配，等于把人记错。抓不到就空表 → 下面的 None 走拦截。
-    fresh = dms_masters_cache.get_masters(endpoint, force_refresh=True, require_complete=True) or {}
-    return match_in_masters(fresh, username), username
+    return match_in_masters(masters, username), username
 
 
 def _pinned_advisor(
@@ -111,19 +104,17 @@ def _pinned_advisor(
 ) -> Optional[Dict[str, str]]:
     """端点上钉死的归属（账号不在顾问名册时的出路）。
 
-    指定 ID 仍必须在**当前主档**存在；文字采用实时值，**读取失败不得使用旧配置放行**。
+    指定 ID 必须在传入主档存在；未传或空主档均拒绝，不使用旧配置放行。
 
     存下来的 `advisor_name` 只当线索、**不作数**：客户端能改的名字直接决定月底提成表上
-    印谁，一律按 id 从实时名册重解。名册里已删/改名的钉子 → None（拦截），
-    不拿旧配置继续放行。
+    印谁，一律按 id 从传入名册重解。名册里没有指定 id → None（拦截）；
+    最终提交的实时复核由写服务负责。
     """
+    if masters is None:
+        logger.warning("[dms advisor] explicit masters required; refusing resolution")
+        return None
     advisor_id = str(pinned.get("advisor_id") or "").strip()
-    fresh = (
-        masters
-        if masters is not None
-        else dms_masters_cache.get_masters(endpoint, force_refresh=True, require_complete=True) or {}
-    )
-    row = row_by_id(fresh.get("advisors"), advisor_id)
+    row = row_by_id(masters.get("advisors"), advisor_id)
     return _ref(row) if row is not None else None
 
 

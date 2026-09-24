@@ -112,7 +112,7 @@
 
 ### 操作员提成归属的读取边界（2026-09-20）
 
-`operators.advisors` 通过 `masters.masters_cache.get_masters(force_refresh=True, require_complete=True)` 读取管理员端点的顾问名册，保存时按 ID 重新解析名称。此依赖只读，不向主档或外部 DMS 写入，不反向引用 roster；实际读取链在 ADR-010 后为 `masters_cache` → `adapter.operations.run_logged_in` → `adapter` → `client`，不调用 roster。内部不再依赖 intake 的兼容导出；masters → intake 换为 masters → adapter，既有 adapter/masters 协议协作不扩展业务范围。顾问业务校验归 operators，抓取与会话互斥归 adapter。登记 operators → masters 是为恢复旧线上提成归属校验，不授权绕过刷新失败。
+`operators.advisors` 的下拉选项只读手动发布的 `company` 快照，缺缓存或范围失效不回退实时读取。保存非空顾问 ID 才经 `adapter.operations.run_logged_in(authoritative_read=True)` 窄读原生顾问 selector 的全部分页，并按实时 ID 取名；不再调用旧全量 `masters_cache`。返回前以当前锁定读重验同一启用管理员，并核对唯一主连接及凭据范围，失败拒绝保存，不提交调用方事务。登记的单向依赖改为 operators → snapshots/adapter；没有反向引用 roster，也没有外部业务写入。顾问业务校验归 operators，抓取与账号互斥仍归 adapter。
 
 ### 推送记录管理的边界（2026-09-20）
 

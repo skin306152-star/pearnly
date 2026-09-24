@@ -160,8 +160,9 @@
       "line"
     ],
     "operators": [
+      "adapter",
       "contracts",
-      "masters"
+      "snapshots"
     ],
     "query": [
       "contracts",

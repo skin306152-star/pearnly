@@ -17,7 +17,9 @@ UNIT_TESTS = (
     "tests/test_dms_catalogue_reader.py",
     "tests/test_dms_company_catalogue_schema.py",
     "tests/test_dms_geo_catalogue.py",
+    "tests/test_dms_geo_resume.py",
     "tests/test_dms_connection_snapshots.py",
+    "tests/test_dms_operator_advisors.py",
 )
 
 if __name__ == "__main__":

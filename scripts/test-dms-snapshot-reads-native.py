@@ -13,6 +13,7 @@ import runpy
 import subprocess
 import sys
 import time
+import types
 import unittest
 from unittest.mock import patch
 import uuid
@@ -20,7 +21,7 @@ import uuid
 import frappe
 import requests
 
-from pearnly_core import line_session
+from pearnly_core import line_binding, line_session
 from pearnly_dms.adapter import operations
 from pearnly_dms.booking.conversation import booking_qa_sync as qa_sync
 from pearnly_dms.editor import edit_snapshot
@@ -74,6 +75,8 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
 
     def tearDown(self):
         frappe.set_user("Administrator")
+        if line_binding.binding_of(self.line_id):
+            line_binding.unbind(self.line_id)
         line_session.clear_session(self.line_id)
         frappe.db.commit()
         super().tearDown()
@@ -212,6 +215,74 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         with self.assertRaises(DmsClientError) as caught:
             edit_snapshot.read_edit_snapshot(self.endpoint, customer_id="customer-1", customer={"people_id": OTHER_PID})
         self.assertEqual(caught.exception.error_code, "ERR_DMS_CUSTOMER_LOOKUP")
+
+    def customer_only_editor(self):
+        """Only two real published groups; binding/session/CAS are native."""
+        data = complete_directory()
+        customer = {**data["customers"]["customer-1"], "birthday_be": "01/01/2540"}
+        self.publish({"customers": {"customer-1": customer}, "prefixes": data["masters"]["prefixes"]},
+                     dataset="customers")
+        self.publish(data["geo"], dataset="geo")
+        frappe.db.commit()
+        line_binding.bind(self.line_id, self.users[0], "Synthetic customer editor")
+        line_session.set_session(self.line_id, "reviewing", {"nonce": "customer-editor-before",
+            "endpoint_id": self.endpoint, "customer_id": "customer-1", "mode": "customer", "draft": customer})
+        frappe.db.commit()
+        return customer
+
+    def test_customer_editor_native_load_save_needs_only_customer_and_geo(self):
+        from pearnly_dms.editor import booking_edit, customer_edit
+        customer = self.customer_only_editor()
+        calls = []
+        def delivered(url, **kwargs):
+            self.assertEqual(url, "https://api.line.me/v2/bot/message/push")
+            self.assertEqual(kwargs["json"]["to"], self.line_id)
+            calls.append(copy.deepcopy(kwargs["json"]))
+            return types.SimpleNamespace(status_code=200, headers={})
+        with patch.object(requests, "post", delivered), patch.object(store, "read", wraps=store.read) as reads:
+            loaded = customer_edit.load(self.line_id, "customer-editor-before")
+            self.assertEqual(loaded["form"]["customer"]["people_id"], PID)
+            self.assertEqual(set(loaded["masters"]), {"prefixes"})
+            nonce = customer_edit.save(self.line_id, "customer-editor-before", {"customer": customer})
+            self.assertNotEqual(nonce, "customer-editor-before")
+            self.assertEqual({call.args[1] for call in reads.call_args_list}, {"customers", "geo"})
+            frappe.db.commit()
+            self.assertEqual(line_session.get_session(self.line_id)["payload"]["nonce"], nonce)
+            with self.assertRaises(booking_edit.DmsBookingEditError) as expired:
+                customer_edit.load(self.line_id, "customer-editor-before")
+            self.assertEqual(expired.exception.code, "dms_booking.expired")
+            self.assertEqual(len(calls), 1)
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "vehicles")
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "company")
+        # Booking retains its wider contract; fixing customer edit cannot make
+        # a booking without vehicle/company data appear valid.
+        with self.assertRaises(booking_edit.DmsBookingEditError) as missing:
+            booking_edit._snapshot(self.endpoint, customer=customer)
+        self.assertEqual(missing.exception.code, "dms.err.ERR_DMS_SNAPSHOT_PENDING")
+
+    def test_customer_editor_native_rejected_delivery_restores_old_card_nonce(self):
+        from pearnly_dms.editor import booking_edit, customer_edit
+        customer = self.customer_only_editor()
+        before = copy.deepcopy(line_session.get_session(self.line_id))
+        calls = []
+        rejection = "SYNTHETIC_CUSTOMER_EDIT_REJECT_" + self.line_id
+        def clean_error():
+            frappe.db.delete("Error Log", {"error": "400 " + rejection})
+            frappe.db.commit()
+        self.addCleanup(clean_error)
+        def rejected(url, **kwargs):
+            self.assertEqual(url, "https://api.line.me/v2/bot/message/push")
+            calls.append(url)
+            return types.SimpleNamespace(status_code=400, headers={}, text=rejection)
+        with patch.object(requests, "post", rejected):
+            with self.assertRaises(booking_edit.DmsBookingEditError) as error:
+                customer_edit.save(self.line_id, "customer-editor-before", {"customer": customer})
+        self.assertEqual(error.exception.code, "dms_booking.preview_send_failed")
+        frappe.db.commit()
+        restored = line_session.get_session(self.line_id)
+        self.assertEqual((restored["state"], restored["payload"]), (before["state"], before["payload"]))
+        self.assertEqual(customer_edit.load(self.line_id, "customer-editor-before")["form"]["customer"]["people_id"], PID)
+        self.assertEqual(len(calls), 1)
 
     def test_all_booking_master_and_paint_steps_use_real_store_and_session(self):
         self.seed()

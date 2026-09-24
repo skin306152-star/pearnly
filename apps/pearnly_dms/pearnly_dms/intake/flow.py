@@ -40,6 +40,7 @@ from pearnly_dms.intake import draft as draft
 from pearnly_dms.intake import service as dms_intake
 from pearnly_dms.ocr import ocr_review as ocr_review
 from pearnly_dms.ocr import ocr_service as _id_ocr
+from pearnly_dms.ocr import timing as ocr_timing
 from pearnly_dms.line import out as out
 from pearnly_dms.line.identity import matches as current_binding
 from pearnly_dms.config import pacing as dms_retry
@@ -68,7 +69,8 @@ _CREATE_ID_KEYS = ("prefix_id", "name", "people_id", "tax_id", "birthday_be", "p
 # ── LINE 出口小工具（老产品的 _out 那一层） ────────────────────────────────
 def _push(line_user_id: str, text: str, reply_token: str = "") -> None:
     """纯文本出口。**带上令牌就先试免费回覆**（见 `line.reply_or_push`）。"""
-    out.push_or_reply_text(line_user_id, text, reply_token)
+    with ocr_timing.stage("line_reply"):
+        out.push_or_reply_text(line_user_id, text, reply_token)
 
 
 def _reply(reply_token: str, text: str) -> None:
@@ -77,7 +79,8 @@ def _reply(reply_token: str, text: str) -> None:
 
 def _send(line_user_id: str, message: Dict[str, Any], reply_token: str = "") -> None:
     """结构化出口（卡片）。同样**令牌优先**。"""
-    out.send(line_user_id, message, reply_token)
+    with ocr_timing.stage("line_reply"):
+        out.send(line_user_id, message, reply_token)
 
 
 def _enqueue(job: str, fn, *args) -> None:
@@ -284,18 +287,21 @@ def _open_browser_editor(
 
 
 # ── collecting：识别 ───────────────────────────────────────────────────────
+@ocr_timing.traced("line_id_card")
 def process_image(binding: dict, line_user_id: str, message_id: str,
                   reply_token: str = "") -> None:
     """下载 + 识别身份证。成功存 id_card；材料齐了自动查重。"""
     if not _image_draft(binding, line_user_id, message_id):
         return {"cancelled": "draft_changed"}
-    out.start_loading(line_user_id)
+    with ocr_timing.stage("loading"):
+        out.start_loading(line_user_id)
     user_id = binding["user_id"]
     try:
         from pearnly_core.execution import inputs
         maximum = _id_ocr.MAX_ID_CARD_MB * 1024 * 1024
-        content = inputs.read(message_id,
-            lambda: line.download_message_content(message_id, max_bytes=maximum), maximum)
+        with ocr_timing.stage("download"):
+            content = inputs.read(message_id,
+                lambda: line.download_message_content(message_id, max_bytes=maximum), maximum)
     except line.MediaTooLarge:
         _push(line_user_id, ocr_error_text(_id_ocr.DmsOcrError(
             "ocr.file_too_large", 400, {"mb": _id_ocr.MAX_ID_CARD_MB})), reply_token)
@@ -375,15 +381,16 @@ def run_dedup(
     # 台账仅为漏档提示：候选尚未进入完整快照时待同步，不现场按号登录读取。
     tail = str(id_card.get("people_id") or "")[-4:]
     cands = _id_ocr.recent_dms_customer_ids_by_tail(tail)
-    res = dms_intake.recognize_lookup(
-        ep_name,
-        people_id=id_card.get("people_id", ""),
-        name=id_card.get("name") or "",
-        ocr_address=id_card.get("address") or {},
-        phone=phone,
-        fallback_customer_ids=cands,
-        attempt=attempt,
-    )
+    with ocr_timing.stage("local_lookup"):
+        res = dms_intake.recognize_lookup(
+            ep_name,
+            people_id=id_card.get("people_id", ""),
+            name=id_card.get("name") or "",
+            ocr_address=id_card.get("address") or {},
+            phone=phone,
+            fallback_customer_ids=cands,
+            attempt=attempt,
+        )
     frappe.db.commit()
     if not current_binding(binding, line_user_id) or store.get_session(line_user_id) != sess:
         return

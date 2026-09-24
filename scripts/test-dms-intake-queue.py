@@ -390,10 +390,13 @@ class IntakeQueue(unittest.TestCase):
                "districts": {"2": [["51", "เมืองสมุทรปราการ"]]},
                "subdistricts": {"51": [["158", "ท้ายบ้าน"], ["155", "เทศบาลนครสมุทรปราการ"]]},
                "zipcodes": {"158": [], "155": []}}
-        def cached(endpoint, dataset="directory", **kwargs):
-            data = geo if dataset == "geo" else {
-                "masters": {"prefixes": [["17", "นาย"]]}, "paints": {}, "customers": {}}
-            return {"data": copy.deepcopy(data), "as_of": 100, "generation": "local", "stale": False}
+        cached_groups = {"geo": geo, "customers": {"prefixes": [["17", "นาย"]], "customers": {}}}
+        cache_reads = []
+        def cached(endpoint, dataset, **kwargs):
+            self.assertIn(dataset, cached_groups, "Intake must only use customers and address data")
+            cache_reads.append(dataset)
+            return {"data": copy.deepcopy(cached_groups[dataset]), "as_of": 100,
+                    "completed_at": 110, "generation": "local-" + dataset, "stale": False}
         self.fixture()
         sess = self.store.get_session(LINE_USER)
         source = {"province": "สมุทรปราการ", "district": "เมืองสมุทรปราการ",
@@ -405,6 +408,7 @@ class IntakeQueue(unittest.TestCase):
              patch.object(self.flow.dms_intake, "run_logged_in", side_effect=AssertionError("cache read logged in")):
             self.event(text=PHONE)
             self.assertFalse(self.jobs)
+        self.assertEqual(set(cache_reads), {"customers", "geo"})
         current = self.store.get_session(LINE_USER)
         self.assertEqual(current["state"], "reviewing")
         payload = current["payload"]
