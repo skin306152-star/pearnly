@@ -60,7 +60,7 @@
    "label": "Posted Qty",
    "precision": "6",
    "read_only": 1,
-   "description": "How much of this opening was already pushed into the stock ledger; a revision only posts the difference"
+   "description": "Opening quantity already recorded in stock"
   },
   {
    "fieldname": "location",

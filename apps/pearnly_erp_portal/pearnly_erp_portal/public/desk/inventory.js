@@ -14,9 +14,14 @@
 (() => {
 	const p = frappe.pearnly;
 
-	p.inventory = async (page, t) => {
+	p.inventory = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
+		const root = "pearnly-inventory";
 		let list;
+		const can_open = () => frappe.boot.pearnly_pages?.includes("pearnly-stock-in");
+		async function show_list(current) {
+		page.set_title(__("nav.inventory"));
+		p.breadcrumbs({ label: __("nav.inventory"), route: p.subroute(root) });
 
 		const money = (value) => (value === null || value === undefined
 			? t("stock.cell.notSet")
@@ -54,6 +59,7 @@
 			const totals = await p.call(api + "api_stock_totals", {
 				q: filters.search.get_value() || undefined,
 			});
+			if (!current()) return;
 			const color = totals.out_count ? "red" : (totals.low_count ? "orange" : "green");
 			page.set_indicator(t("stock.notice.totals", totals.sku_count,
 				money(totals.value), totals.low_count, totals.out_count), color);
@@ -129,8 +135,20 @@
 			window.location.assign(
 				`/api/method/${api}api_stock_export?${params.toString()}`);
 		});
+		if (can_open()) page.add_inner_button(t("stock.opening.title"), () =>
+			frappe.set_route(root, "opening"));
 
 		await list.ready;
-		await refresh_totals();
+		if (current()) await refresh_totals();
+		}
+		const show = p.routed_page({ wrapper, root, render: async (rest, current) => {
+			list?.destroy(); list = null;
+			p.clear_page(page);
+			page.clear_secondary_action();
+			if (!rest.length) return show_list(current);
+			if (rest.length !== 1 || rest[0] !== "opening" || !can_open()) return p.redirect_up(root);
+			return p.stockOpening(page, t, current);
+		} });
+		await show();
 	};
 })();

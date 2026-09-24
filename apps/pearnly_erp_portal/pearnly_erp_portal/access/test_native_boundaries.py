@@ -149,9 +149,24 @@ class NativeBoundaries(unittest.TestCase):
         self.as_user("stock-card")
         with self.assertRaises((frappe.PermissionError, frappe.ValidationError)):
             openings.list_openings(warehouse=self.b["warehouse"])
-        openings.upsert_opening(product=self.product, warehouse=self.a["warehouse"],
-                                as_of_date="2026-09-24", qty=1, unit_cost=17)
-        self.assertTrue(openings.list_openings(warehouse=self.a["warehouse"]))
+        before = stock.current_balance(self.product, self.a["warehouse"])
+        with self.assertRaises(frappe.ValidationError):
+            openings.upsert_opening(product=self.product, warehouse=self.a["warehouse"],
+                                    as_of_date="2026-09-24", qty=1, unit_cost=17)
+        self.assertEqual(stock.current_balance(self.product, self.a["warehouse"]), before)
+        frappe.set_user("Administrator")
+        fresh = products.create_product(product_name=self.prefix + " opening " + uuid4().hex[:8],
+                                        unit="pcs", default_cost=17, unit_price=29)["name"]
+        self.as_user("stock-card")
+        opening = openings.upsert_opening(product=fresh, warehouse=self.a["warehouse"],
+                                          as_of_date="2026-09-24", qty=1, unit_cost=17)
+        self.assertIn(opening["name"], {row.name for row in openings.list_openings(
+            product=fresh, warehouse=self.a["warehouse"])})
+        tampered = client.get("ERP Stock Opening", opening["name"])
+        tampered["qty"] = 99
+        self.denied(client.save, tampered)
+        self.assertEqual(client.get("ERP Stock Opening", opening["name"])["qty"], 1)
+        self.assertEqual(stock.current_balance(fresh, self.a["warehouse"]).qty, 1)
         self.as_user("stock-count")
         from frappe.core.doctype.data_export.exporter import DataExporter
 

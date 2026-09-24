@@ -284,6 +284,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-opening.js"),
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
@@ -476,5 +477,9 @@ for _doctype in ("ERP Warehouse", "ERP POS Terminal"):
     doc_events[_doctype] = {"before_validate": "pearnly_erp_portal.masters.access.validate_company_unchanged"}
 doc_events["ERP Stock Entry"] = {
     _event: "pearnly_erp_portal.inventory.access.validate_entry_write"
+    for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
+}
+doc_events["ERP Stock Opening"] = {
+    _event: "pearnly_erp_portal.inventory.access.validate_opening_write"
     for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
 }

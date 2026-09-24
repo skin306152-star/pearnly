@@ -7,6 +7,7 @@ from pearnly_erp_portal.masters import company
 from pearnly_erp_portal.masters import access as scope
 
 _ENTRY_WRITE = object()
+_OPENING_WRITE = object()
 
 
 def entry_permission(doc, ptype="read", user=None, **kwargs):
@@ -34,6 +35,28 @@ def write_entry(doc, method):
         return getattr(doc, method)(ignore_permissions=True)
     finally:
         frappe.local.stock_entry_service_write = previous
+        doc.flags.ignore_permissions = ignored
+
+
+def validate_opening_write(doc, method=None, *args, **kwargs):
+    """Keep the opening voucher in the same transaction as its service-owned ledger."""
+    context = getattr(frappe.local, "stock_opening_service_write", None)
+    if (not isinstance(context, tuple) or len(context) != 2
+            or context[0] is not doc or context[1] is not _OPENING_WRITE):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
+def write_opening(doc, method="insert"):
+    """Authorize one opening save on this exact object, never a client-supplied flag."""
+    if doc.doctype != "ERP Stock Opening" or method not in ("insert", "save"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    previous = getattr(frappe.local, "stock_opening_service_write", None)
+    ignored = doc.flags.ignore_permissions
+    frappe.local.stock_opening_service_write = (doc, _OPENING_WRITE)
+    try:
+        return getattr(doc, method)(ignore_permissions=True)
+    finally:
+        frappe.local.stock_opening_service_write = previous
         doc.flags.ignore_permissions = ignored
 
 

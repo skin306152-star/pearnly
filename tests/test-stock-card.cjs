@@ -15,6 +15,7 @@ const STOCK_CARD = fs.readFileSync(
 
 function boot() {
   const context = {
+    locals: {},
     frappe: {
       provide() {}, pearnly: {}, boot: {}, re_route: {}, model: {},
       // 共享层会替换 `frappe.ui.Sidebar`（`class ProductSidebar extends NativeSidebar`），

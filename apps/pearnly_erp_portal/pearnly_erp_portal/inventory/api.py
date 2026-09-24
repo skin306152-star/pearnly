@@ -8,6 +8,7 @@ from pearnly_erp_portal.inventory import (
     count as counts,
     documents,
     openings,
+    opening_batch,
     report,
     stock,
     workbook,
@@ -700,6 +701,50 @@ def api_stock_summary(**kwargs):
     return report.summary(**_clean(kwargs))
 
 
+@frappe.whitelist(methods=["POST"])
+def api_preview_stock_opening(warehouse, as_of_date, rows, note=None):
+    return opening_batch.preview(warehouse=warehouse, as_of_date=as_of_date, rows=rows, note=note)
+
+
+def _opening_transaction(operation, **kwargs):
+    """Retry only a dedicated local RPC with no caller-owned pending writes.
+
+    MariaDB snapshot isolation can raise 1020 when a product lock is followed by
+    a current read of a concurrently inserted opening. A fresh transaction must
+    reauthorize and review every row. Domain callers use opening_batch directly;
+    they own their surrounding transaction and are never silently restarted.
+    """
+    retry_safe = getattr(frappe.db, "transaction_writes", None) == 0
+    for attempt in range(3):
+        try:
+            return operation(**kwargs)
+        except frappe.QueryDeadlockError:
+            if not retry_safe:
+                raise
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
+
+
+@frappe.whitelist(methods=["POST"])
+def api_submit_stock_opening(warehouse, as_of_date, rows, review_token, note=None):
+    return _opening_transaction(opening_batch.submit, warehouse=warehouse, as_of_date=as_of_date, rows=rows,
+                                review_token=review_token, note=note)
+
+
+@frappe.whitelist()
+def api_stock_opening_template(warehouse):
+    content = opening_batch.template(warehouse)
+    frappe.local.response.filename = "stock-opening-template.xlsx"
+    frappe.local.response.filecontent = content
+    frappe.local.response.type = "binary"
+
+
+@frappe.whitelist(methods=["POST"])
+def api_read_stock_opening_file(file_url):
+    return opening_batch.read_file(file_url)
+
+
 @frappe.whitelist()
 def api_list_openings(**kwargs):
     return openings.list_openings(**_clean(kwargs))
@@ -707,7 +752,7 @@ def api_list_openings(**kwargs):
 
 @frappe.whitelist(methods=["POST"])
 def api_upsert_opening(**kwargs):
-    return openings.upsert_opening(**_clean(kwargs))
+    return _opening_transaction(openings.upsert_opening, **_clean(kwargs))
 
 
 @frappe.whitelist(methods=["POST"])
