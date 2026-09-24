@@ -28,6 +28,8 @@ ACT_QUERY_TOP_GROUP = "query_top_group"
 ACT_QUERY_TOP_METRIC = "query_top_metric"
 ACT_QUERY_TOP_PERIOD = "query_top_period"
 ACT_QUERY_PAGE = "query_page"
+ACT_QUERY_REFRESH = "query_refresh"
+ACT_QUERY_RESULT = "query_result"
 
 # 这一族的动作码（流程层用它识别 postback 归谁）
 QUERY_ACTION_NAMES = (
@@ -38,6 +40,8 @@ QUERY_ACTION_NAMES = (
     ACT_QUERY_TOP_METRIC,
     ACT_QUERY_TOP_PERIOD,
     ACT_QUERY_PAGE,
+    ACT_QUERY_REFRESH,
+    ACT_QUERY_RESULT,
 )
 
 
@@ -81,6 +85,7 @@ def query_type_message() -> Dict[str, Any]:
         _t("TXT_PICK_TYPE"),
         [
             _item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales"),
+            *_manual_actions("query.capabilities"),
         ],
     )
 
@@ -214,7 +219,7 @@ def _snapshot_label(result: dict) -> str:
     """Show source capture time, never pretend an old snapshot was just read."""
     if result.get("as_of") is not None:
         return datetime.fromtimestamp(float(result["as_of"]), ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M")
-    return _now_label()  # Compatibility for already queued pre-snapshot results.
+    return _t("LBL_UNKNOWN_TIME")
 
 
 def _text_row(label: str, value: Any) -> Dict[str, Any]:
@@ -294,15 +299,35 @@ def _record_bubble(row: dict, position: int) -> Dict[str, Any]:
 
 
 def _navigation(result: dict, kind: str) -> List[Dict[str, Any]]:
-    """翻页按钮：首页不出"上一页"；没有下一页就不出"下一页"；"重新读"永远有。"""
+    """Only the explicitly named fetch action can request external reading."""
     actions = []
     page = int(result.get("page") or 1)
+    key = result.get("query_key") or ""
     if page > 1:
-        actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev"))
-    actions.append(_item(_t("NAV_REFRESH"), ACT_QUERY_PAGE, kind=kind, direction="refresh"))
+        actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev", key=key))
+    actions.extend(_manual_actions(key))
     if result.get("has_more"):
-        actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next"))
+        actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next", key=key))
     return actions
+
+
+def _manual_actions(query_key):
+    return [_item(_t("NAV_FETCH"), ACT_QUERY_REFRESH, key=query_key),
+            _item(_t("NAV_RESULT"), ACT_QUERY_RESULT, key=query_key)]
+
+
+def manual_status_message(status: dict, query_key: str) -> Dict[str, Any]:
+    """Cold/waiting/failed are not zero records; source time is never restamped."""
+    state = str(status.get("state") or status.get("status") or "idle")
+    if state not in {"idle", "queued", "running", "waiting", "succeeded", "failed"}:
+        state = "failed"
+    lines = [_t("MANUAL_" + state.upper())]
+    progress = status.get("progress") or {}
+    if progress.get("total") is not None:
+        lines.append(_t("MANUAL_PROGRESS", processed=progress.get("processed") or 0, total=progress["total"]))
+    if status.get("as_of"):
+        lines.append(_t("MANUAL_AS_OF", time=_snapshot_label(status)))
+    return _quick("\n".join(lines), _manual_actions(query_key))
 
 
 def _button(item: Dict[str, Any]) -> Dict[str, Any]:

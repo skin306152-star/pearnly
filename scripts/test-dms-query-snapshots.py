@@ -5,6 +5,7 @@ Only DMS transport/login, local persistence and permission IO are replaced here;
 the separate task-owned Site suite verifies the real snapshot DocType contract.
 """
 import copy
+from contextlib import nullcontext
 import json
 import unittest
 from unittest.mock import Mock, patch
@@ -12,7 +13,7 @@ from unittest.mock import Mock, patch
 import frappe
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.query import sales_readback as rb, snapshot_sync as sync
-from pearnly_dms.snapshots import store
+from pearnly_dms.snapshots import manual, store
 
 
 HOME = ('<input id="idusers" value="employee-only">'
@@ -46,9 +47,8 @@ class NativeClient:
             return "native initialized view"
         if path == rb.LIST_PATH:
             assert self.initialized, "Fresh login must initialize the native list"
-            assert payload["sd"] == "", "The snapshot must not inherit a user's search"
             assert payload["selcolsorttype"] == "2"
-            ids = list(self.rows)
+            ids = [rid for rid, body in self.rows.items() if payload["sd"].casefold() in body.casefold()]
             # An intentionally non-Python/native ordering: the reader must
             # preserve the captured order rather than resort translated text.
             if payload["selcolsort"] == "5":
@@ -98,38 +98,30 @@ class Collectors(unittest.TestCase):
             with self.assertRaises(DmsClientError):
                 rb.parse_sales_rows(body)
 
-    def test_complete_native_orders_and_all_status_memberships(self):
-        result = sync.collect_sales(self.client, self.scope)
-        self.assertEqual(result["orders"]["customer"], ["2", "1", "0"])
-        self.assertEqual(result["orders"]["booking_no"], ["0", "1", "2"])
-        self.assertEqual(set(result["statuses"]), set(rb.STATUS_FILTERS))
-        self.assertEqual(result["statuses"]["active"], ["0", "2"])
+    def test_only_current_order_status_query_is_captured(self):
+        params = rb.query_parameters(field="customer", query="match", status="all")
+        result = sync.collect_sales(self.client, params)
+        self.assertEqual([row["id"] for row in result["rows"]], ["2", "0"])
+        self.assertEqual(result["params"], params)
         calls = [payload for path, payload in self.client.calls if path == rb.LIST_PATH]
-        self.assertEqual(len(calls), 75)
-        self.assertEqual({p["selcolsort"] for p in calls if p["ftd"] == "1"}, set(rb.SEARCH_COLUMNS.values()))
-        self.assertEqual({p["ftd"] for p in calls}, set(rb.STATUS_FILTERS.values()))
-        self.assertTrue(result["capabilities"]["top_sales"])
+        self.assertEqual(len(calls), 3)  # One count/page/count, not 75 prefetch calls.
+        self.assertEqual({(p["selcolsort"], p["ftd"], p["sd"]) for p in calls}, {("5", "1", "match")})
 
-    def test_complete_sales_pagination_not_first_page_only(self):
+    def test_complete_current_query_pagination_not_first_page_only(self):
         self.client = NativeClient(count=201)
-        result = sync.collect_sales(self.client, self.scope)
+        result = sync.collect_sales(self.client, rb.query_parameters(status="all"))
         self.assertEqual(len(result["rows"]), 201)
-        self.assertEqual(result["orders"]["booking_no"][-1], "200")
-        pages = [p["sdtpage"] for path, p in self.client.calls if path == rb.LIST_PATH and p["ftd"] == "1" and p["selcolsort"] == "1" and "sdtpage" in p]
-        self.assertEqual(pages, ["1", "2"])
+        self.assertEqual(result["rows"][-1]["id"], "200")
+        self.assertEqual([p["sdtpage"] for _, p in self.client.calls if "sdtpage" in p], ["1", "2"])
 
-    def test_repeated_page_bound_and_cross_order_mutation_are_rejected(self):
+    def test_repeated_or_over_bound_pages_are_rejected(self):
         rows = rb.parse_sales_rows(markup(1) + markup(2))
         with patch.object(rb, "_sales_page", return_value=rows), patch.object(sync, "PAGE_SIZE", 2):
             with self.assertRaises(DmsClientError):
                 sync._all_sales(Mock(_post_text=Mock(return_value="dt::4")), "1", "1")
-        with patch.object(rb, "_sales_page", side_effect=[rows, [{**rows[0], "id": "3"}, {**rows[1], "id": "4"}]]), \
-                patch.object(sync, "PAGE_SIZE", 2), patch.object(sync, "MAX_PAGES", 2):
+        with patch.object(sync, "PAGE_SIZE", 2), patch.object(sync, "MAX_PAGES", 2):
             with self.assertRaises(DmsClientError):
                 sync._all_sales(Mock(_post_text=Mock(return_value="dt::5")), "1", "1")
-        with patch.object(sync, "_all_sales", side_effect=[rows, [{**rows[0], "customer": "changed"}, rows[1]]]):
-            with self.assertRaises(DmsClientError):
-                sync.collect_sales(self.client, self.scope)
 
     def test_invalid_empty_and_duplicate_rows_do_not_mean_no_records(self):
         for body in ("", "<form>login</form>", markup(1) + markup(1)):
@@ -148,12 +140,6 @@ class Collectors(unittest.TestCase):
         with patch.object(rb, "_sales_page", side_effect=AssertionError("No rows advertised")):
             self.assertEqual(sync._all_sales(client, "1", "1"), [])
         self.assertEqual(client._post_text.call_count, 2)
-
-    def test_status_row_change_rejects_whole_sales_snapshot(self):
-        rows = rb.parse_sales_rows(markup(1))
-        with patch.object(sync, "_all_sales", side_effect=[rows] * 11 + [[{**rows[0], "finance_status": "changed"}]]):
-            with self.assertRaises(DmsClientError):
-                sync.collect_sales(self.client, self.scope)
 
     def test_top_complete_pages_count_contract_and_native_parameters(self):
         params = rb.top_parameters("type", "amount", "1/9/2569", "24/9/2569")
@@ -225,165 +211,205 @@ class Collectors(unittest.TestCase):
 
 class LocalReads(unittest.TestCase):
     def setUp(self):
+        self.params = rb.query_parameters(field="customer", query="match")
+        self.data = sync.collect_sales(NativeClient(), self.params)
         self.scope = sync.dashboard_scope(adapter())
-        self.client = NativeClient()
-        self.data = sync.collect_sales(self.client, self.scope)
+        self.caps = sync._capture(NativeClient(), adapter(), {"kind": "capabilities"})
         self.permission = self.enterContext(patch.object(rb, "can_query", return_value=True))
         self.endpoint = self.enterContext(patch.object(rb, "_enabled_endpoint", return_value="EP-own"))
         self.read = self.enterContext(patch.object(store, "read", return_value=envelope(self.data)))
-        self.request = self.enterContext(patch.object(store, "request"))
-        self.login = self.enterContext(patch.object(sync, "run_logged_in", side_effect=AssertionError("Interactive login forbidden")))
-        self.enqueue = self.enterContext(patch.object(frappe, "enqueue", side_effect=AssertionError("Interactive enqueue forbidden")))
+        self.request = self.enterContext(patch.object(store, "request", side_effect=AssertionError("No registration")))
+        self.login = self.enterContext(patch.object(sync, "run_logged_in", side_effect=AssertionError("No interactive login")))
+        self.enqueue = self.enterContext(patch.object(frappe, "enqueue", side_effect=AssertionError("No interactive enqueue")))
 
-    def test_local_filter_before_pagination_and_preserved_native_order(self):
-        result = rb.fetch_sales_records("own", field="customer", query="match", limit=1, page=1)
-        self.assertEqual([r["id"] for r in result["rows"]], ["2"])
-        self.assertTrue(result["has_more"])
-        result = rb.fetch_sales_records("own", field="customer", query="match", limit=1, page=2)
-        self.assertEqual([r["id"] for r in result["rows"]], ["0"])
-        self.assertFalse(result["has_more"])
-        self.assertEqual(result["source"], "mrerp_dms_snapshot")
-        self.assertEqual(result["as_of"], 123.0)
-        self.read.assert_called_with("EP-own", rb.SALES_DATASET, reader="sales")
-        self.login.assert_not_called()
-        self.enqueue.assert_not_called()
+    def test_local_pages_preserve_native_order_and_original_time(self):
+        for page, ids in ((1, ["2"]), (2, ["0"])):
+            result = rb.fetch_sales_records("own", field="customer", query="match", limit=1, page=page)
+            self.assertEqual([r["id"] for r in result["rows"]], ids)
+            self.assertEqual(result["has_more"], page == 1)
+            self.assertEqual(result["as_of"], 123.0)
+        self.read.assert_called_with("EP-own", rb.query_dataset(self.params), reader="sales")
 
-    def test_permissions_and_endpoint_rechecked_even_if_snapshot_exists(self):
+    def test_only_conditions_define_cache_identity(self):
+        key = rb.query_dataset(self.params)
+        self.assertEqual(key, rb.query_dataset({**self.params, "page": 2, "limit": 1, "_binding": {"revision": "other"}}))
+        for change in ({"status": "cash"}, {"query": "other"}, {"field": "vehicle"}):
+            self.assertNotEqual(key, rb.query_dataset({**self.params, **change}))
+
+    def test_permission_and_endpoint_are_rechecked(self):
         for getter in (rb.fetch_sales_records, rb.query_capabilities, rb.fetch_top_sales):
-            with self.subTest(getter=getter.__name__):
-                self.permission.return_value = False
-                self.read.reset_mock()
-                self.assertEqual(getter("own")["error_code"], "ERR_DMS_QUERY_FORBIDDEN")
-                self.read.assert_not_called()
-                self.permission.return_value = True
-                self.endpoint.return_value = None
-                self.assertEqual(getter("own")["error_code"], "ERR_NO_CREDS")
-                self.read.assert_not_called()
-                self.endpoint.return_value = "EP-own"
+            self.permission.return_value = False
+            self.read.reset_mock()
+            self.assertEqual(getter("own")["error_code"], "ERR_DMS_QUERY_FORBIDDEN")
+            self.read.assert_not_called()
+            self.permission.return_value = True
+            self.endpoint.return_value = None
+            self.assertEqual(getter("own")["error_code"], "ERR_NO_CREDS")
+            self.endpoint.return_value = "EP-own"
 
-    def test_missing_stale_or_denial_never_becomes_empty_success(self):
+    def test_missing_expired_denied_wrong_conditions_never_mean_zero(self):
         for code in ("ERR_DMS_SNAPSHOT_PENDING", "ERR_DMS_SNAPSHOT_STALE", "ERR_NO_CREDS"):
             self.read.side_effect = store.SnapshotUnavailable(code)
             self.assertEqual(rb.fetch_sales_records("own")["error_code"], code)
         self.read.side_effect = None
+        self.assertEqual(rb.fetch_sales_records("own")["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
         self.read.return_value = envelope({"ok": False, "error_code": "ERR_DMS_AUTH"})
         self.assertEqual(rb.fetch_sales_records("own")["error_code"], "ERR_DMS_AUTH")
 
     def test_capability_is_local_and_scope_loss_blocks_old_top(self):
+        self.read.return_value = envelope(self.caps)
         self.assertTrue(rb.query_capabilities("own")["top_sales"])
-        self.data["capabilities"]["top_sales"] = False
-        self.read.return_value = envelope(self.data)
-        self.read.reset_mock()
+        self.caps["capabilities"]["top_sales"] = False
+        top = sync.collect_top(NativeClient(), self.scope, rb.top_parameters())
+        self.read.side_effect = [envelope(top), envelope(self.caps, as_of=124)]
         self.assertEqual(rb.fetch_top_sales("own")["error_code"], "ERR_DMS_QUERY_SCOPE")
-        self.assertEqual(self.read.call_count, 1)
-        self.request.assert_not_called()
 
-    def test_custom_top_registers_only_and_is_paginated_locally(self):
+    def test_custom_top_never_registers_or_logs_in(self):
         params = rb.top_parameters("subtype", "amount", "01/01/2569", "24/09/2569")
-        top = sync.collect_top(self.client, self.scope, params)
-        self.read.side_effect = [envelope(self.data), envelope(top)]
+        top = sync.collect_top(NativeClient(), self.scope, params)
+        self.read.side_effect = [envelope(top), envelope(self.caps)]
         result = rb.fetch_top_sales("own", **params, limit=30, page=2)
-        self.assertTrue(result["ok"])
         self.assertEqual(result["rows"], [{"label": "Model 30", "value": 30}])
         self.assertEqual(result["total"], 31)
-        self.assertFalse(result["has_more"])
-        self.request.assert_called_once_with("EP-own", rb.top_dataset(params), params, reader="sales")
+        self.request.assert_not_called()
         self.login.assert_not_called()
         self.enqueue.assert_not_called()
 
-    def test_default_top_does_not_consume_custom_slots_or_fail_when_full(self):
-        top = sync.collect_top(self.client, self.scope, rb.top_parameters())
-        self.read.side_effect = [envelope(self.data), envelope(top)]
-        self.request.side_effect = store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_REQUEST_LIMIT")
-        self.assertTrue(rb.fetch_top_sales("own")["ok"])
+    def test_new_period_or_changed_dashboard_scope_cannot_reuse_old_top(self):
+        params = rb.top_parameters()
+        top = sync.collect_top(NativeClient(), self.scope, params)
+        for bad in ({**top, "dashboard_scope": "old"}, {**top, "params": {**top["params"], "metric": "amount"}}):
+            self.read.side_effect = [envelope(bad), envelope(self.caps)]
+            self.assertEqual(rb.fetch_top_sales("own")["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
+        self.read.side_effect = store.SnapshotUnavailable()
+        self.assertEqual(rb.fetch_top_sales("own", date_from="01/01/2569")["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
         self.request.assert_not_called()
 
-    def test_new_period_pending_has_no_external_read_and_same_dataset_across_pages(self):
-        self.read.side_effect = [envelope(self.data), store.SnapshotUnavailable(), envelope(self.data), store.SnapshotUnavailable()]
-        for page in (1, 3):
-            self.assertEqual(rb.fetch_top_sales("own", date_from="01/01/2569", page=page)["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
-        self.assertEqual(self.request.call_args_list[0], self.request.call_args_list[1])
-        self.login.assert_not_called()
-
-    def test_changed_external_scope_or_wrong_period_cannot_reuse_old_top(self):
-        params = rb.top_parameters()
-        top = sync.collect_top(self.client, self.scope, params)
-        for bad in ({**top, "dashboard_scope": "old-scope"}, {**top, "params": {**params, "metric": "amount"}}):
-            self.read.side_effect = [envelope(self.data), envelope(bad)]
-            self.assertEqual(rb.fetch_top_sales("own")["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
+    def test_new_top_uses_its_own_scope_but_newer_denial_blocks_old_top(self):
+        top = sync.collect_top(NativeClient(), self.scope, rb.top_parameters())
+        self.caps["dashboard_scope"] = "older-scope"
+        self.caps["capabilities"]["top_sales"] = False
+        self.read.side_effect = [envelope(top, as_of=200), envelope(self.caps, as_of=100)]
+        self.assertTrue(rb.fetch_top_sales("own")["ok"])
+        self.read.side_effect = [envelope(top, as_of=100), envelope(self.caps, as_of=200)]
+        self.assertEqual(rb.fetch_top_sales("own")["error_code"], "ERR_DMS_QUERY_SCOPE")
+        self.read.side_effect = [envelope(top), store.SnapshotUnavailable()]
+        self.assertTrue(rb.fetch_top_sales("own")["ok"])
 
     def test_period_normalization_and_invalid_dates(self):
         self.assertEqual(rb.top_parameters(date_from="1/9/2569", date_to="24/9/2569")["date_from"], "01/09/2569")
         for start, end in (("31/02/2569", "01/03/2569"), ("02/03/2569", "01/03/2569"), ("text", "01/03/2569")):
-            self.assertFalse(rb.fetch_top_sales("own", date_from=start, date_to=end)["ok"])
-        self.request.assert_not_called()
+            with self.assertRaises(DmsClientError):
+                rb.top_parameters(date_from=start, date_to=end)
 
 
 class Refresh(unittest.TestCase):
     def setUp(self):
         self.client, self.adapter = NativeClient(), adapter()
+        self.params = {**rb.query_parameters(field="customer", query="match"),
+                       "_binding": {"user_id": "employee", "line_user_id": "U-lab", "binding_revision": "current"}}
+        self.record = {"actor": "employee", "params": self.params, "expected_scope": "start-scope"}
         self.db = self.enterContext(patch.object(frappe, "db", Mock()))
-        self.db.get_value.return_value = "employee"
         self.enterContext(patch.object(rb, "_query_endpoint", return_value="EP-own"))
-        self.enterContext(patch.object(store, "scope", return_value="start-scope"))
-        self.requests = self.enterContext(patch.object(store, "requested", return_value=[]))
+        self.guard = self.enterContext(patch.object(manual, "assert_active", side_effect=lambda *a, **k: self.record))
+        self.publish_guard = self.enterContext(patch.object(manual, "publish_guard", side_effect=lambda *a, **k: nullcontext(self.record)))
+        self.binding = self.enterContext(patch.object(sync, "current_binding", return_value=True))
         self.publish = self.enterContext(patch.object(store, "publish", return_value=True))
         self.failed = self.enterContext(patch.object(store, "failed"))
         self.login = self.enterContext(patch.object(sync, "run_logged_in", side_effect=self.run_login))
 
     def run_login(self, endpoint, fn, **kwargs):
         self.assertEqual(endpoint, "EP-own")
-        self.assertEqual(kwargs, {"authoritative_read": False, "background": True})
+        self.assertEqual(kwargs, {"authoritative_read": False, "background": True, "read_only_batch": True})
         try:
             return fn(self.client, self.adapter)
         except DmsClientError as exc:
             return {"ok": False, "error_code": exc.error_code}
 
-    def test_one_employee_login_collects_defaults_and_registered_period(self):
-        params = rb.top_parameters("type", "amount", "01/01/2569", "24/09/2569")
-        self.requests.return_value = [{"dataset": rb.top_dataset(params), "params": params}]
-        result = sync.refresh("EP-own")
-        self.assertTrue(result["ok"])
-        self.assertEqual(self.login.call_count, 1)
-        self.assertEqual(len(result["published"]), 8)
-        self.assertEqual(self.publish.call_count, 8)
-        for call in self.publish.call_args_list:
-            self.assertEqual(call.kwargs, {"reader": "sales", "expected_scope": "start-scope"})
-        self.assertEqual(self.db.commit.call_count, 2)
-        self.db.rollback.assert_not_called()
+    def run_refresh(self):
+        return sync.refresh("EP-own", request_id="token", dataset=rb.query_dataset(self.params), params=self.params)
 
-    def test_partial_sales_not_published_while_independent_tops_complete(self):
-        with patch.object(sync, "collect_sales", side_effect=sync._incomplete("bounded")):
-            result = sync.refresh("EP-own")
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["failed"][rb.SALES_DATASET], "ERR_DMS_SNAPSHOT_INCOMPLETE")
-        self.assertNotIn(rb.SALES_DATASET, result["published"])
-        self.failed.assert_called_once_with("EP-own", rb.SALES_DATASET, "ERR_DMS_SNAPSHOT_INCOMPLETE", reader="sales", expected_scope="start-scope")
-
-    def test_one_top_failure_does_not_block_complete_sales(self):
-        with patch.object(sync, "collect_top", side_effect=sync._incomplete("malformed")):
-            result = sync.refresh("EP-own")
-        self.assertEqual(result["published"], [rb.SALES_DATASET])
-        self.assertEqual(len(result["failed"]), 6)
-
-    def test_auth_loss_overwrites_old_authorized_results_but_timeout_does_not(self):
-        self.login.side_effect = None
-        self.login.return_value = {"ok": False, "error_code": "ERR_DMS_AUTH"}
-        result = sync.refresh("EP-own")
-        self.assertEqual(len(result["published"]), 7)
-        self.assertTrue(all(call.args[2] == {"ok": False, "error_code": "ERR_DMS_AUTH"} for call in self.publish.call_args_list))
-        self.publish.reset_mock()
-        self.login.return_value = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE"}
-        result = sync.refresh("EP-own")
-        self.assertEqual(result["published"], [])
+    def test_no_token_retired_without_db_login_or_publish(self):
+        self.assertTrue(sync.refresh("EP-own")["retired"])
+        self.guard.assert_not_called()
+        self.login.assert_not_called()
         self.publish.assert_not_called()
-        self.assertEqual(self.failed.call_count, 7)
 
-    def test_scope_change_before_publish_rolls_back_entire_batch(self):
+    def test_one_query_one_login_and_one_scoped_publication(self):
+        self.assertEqual(self.run_refresh(), {"ok": True, "complete": True, "count": 2})
+        self.login.assert_called_once()
+        self.publish.assert_called_once()
+        self.assertEqual(self.publish.call_args.kwargs, {"reader": "sales", "expected_scope": "start-scope"})
+        self.assertEqual(self.guard.call_count, 2)
+        self.publish_guard.assert_called_once_with("EP-own", rb.query_dataset(self.params), "token", reader="sales")
+        self.assertEqual(self.binding.call_count, 2)
+        self.adapter.transport.return_value.get.assert_not_called()
+        self.assertFalse(any(path == rb.TOP_SALES_PATH for path, _ in self.client.calls))
+
+    def test_capability_only_home_and_top_only_selected_condition(self):
+        for condition in ({"kind": "capabilities"}, rb.query_parameters("top", group="type", metric="amount",
+                          date_from="01/01/2569", date_to="24/09/2569")):
+            self.params = {**condition, "_binding": self.params["_binding"]}
+            self.record["params"] = self.params
+            self.client.calls.clear()
+            self.publish.reset_mock()
+            self.assertTrue(self.run_refresh()["ok"])
+            self.publish.assert_called_once()
+            self.assertTrue(all(path == rb.TOP_SALES_PATH for path, _ in self.client.calls))
+            if condition["kind"] == "capabilities":
+                self.assertEqual(self.client.calls, [])
+
+    def test_invalid_token_actor_binding_revision_or_dataset_prevents_io(self):
+        for mutation in ("token", "actor", "binding", "revision", "dataset"):
+            with self.subTest(mutation=mutation):
+                self.login.reset_mock()
+                self.guard.side_effect = lambda *a, **k: self.record
+                self.record["actor"] = "employee"
+                self.params["_binding"]["binding_revision"] = "current"
+                self.binding.return_value = True
+                if mutation == "token":
+                    self.guard.side_effect = store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
+                if mutation == "actor": self.record["actor"] = "another"
+                if mutation == "binding": self.binding.return_value = False
+                if mutation == "revision": self.params["_binding"]["binding_revision"] = ""
+                dataset = "query.invalid" if mutation == "dataset" else rb.query_dataset(self.params)
+                self.assertFalse(sync.refresh("EP-own", request_id="token", dataset=dataset, params=self.params)["ok"])
+                self.login.assert_not_called()
+        self.publish.assert_not_called()
+
+    def test_changed_binding_or_request_after_io_never_publishes(self):
+        self.binding.side_effect = [True, False]
+        self.assertEqual(self.run_refresh()["error_code"], "ERR_DMS_QUERY_FORBIDDEN")
+        self.publish.assert_not_called()
+        self.binding.side_effect = None
+        self.guard.side_effect = [self.record, store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")]
+        self.assertFalse(self.run_refresh()["ok"])
+        self.publish.assert_not_called()
+
+    def test_superseded_token_at_publication_lock_cannot_overwrite_cache(self):
+        self.publish_guard.side_effect = store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
+        self.assertEqual(self.run_refresh()["error_code"], "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
+        self.login.assert_called_once()
+        self.publish.assert_not_called()
+        self.failed.assert_not_called()
+        self.db.rollback.assert_called_once()
+
+    def test_busy_keeps_old_data_without_marking_failed(self):
+        self.login.side_effect = None
+        self.login.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_BUSY"}
+        self.assertEqual(self.run_refresh(), {"ok": False, "busy": True})
+        self.publish.assert_not_called()
+        self.failed.assert_not_called()
+
+    def test_partial_failure_keeps_old_and_scope_change_rolls_back(self):
+        self.login.side_effect = None
+        self.login.return_value = {"ok": False, "error_code": "ERR_DMS_UNREACHABLE"}
+        self.assertFalse(self.run_refresh()["ok"])
+        self.publish.assert_not_called()
+        self.failed.assert_called_once()
+        self.login.side_effect = self.run_login
         self.publish.side_effect = store.SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
-        result = sync.refresh("EP-own")
-        self.assertEqual(result["error_code"], "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
-        self.db.commit.assert_called_once()  # Discard the capture's read view only.
+        self.assertEqual(self.run_refresh()["error_code"], "ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
         self.db.rollback.assert_called_once()
 
 
@@ -403,6 +429,9 @@ class QueryInteraction(unittest.TestCase):
         self.records = self.enterContext(patch.object(rb, "fetch_sales_records", return_value={"ok": True, "rows": []}))
         self.top = self.enterContext(patch.object(rb, "fetch_top_sales", return_value={"ok": True, "rows": []}))
         self.capabilities = self.enterContext(patch.object(rb, "query_capabilities", return_value={"ok": True, "top_sales": True}))
+        self.enterContext(patch.object(rb, "_query_endpoint", return_value="EP-own"))
+        self.request = self.enterContext(patch.object(manual, "request", return_value={"status": "queued"}))
+        self.status = self.enterContext(patch.object(manual, "status", return_value={"status": "idle"}))
         self.identity = {"user_id": "employee", "binding_revision": "current"}
 
     def set_session(self, _, state, payload):
@@ -436,6 +465,82 @@ class QueryInteraction(unittest.TestCase):
         self.flow._begin_top(self.identity, "U-lab", group="model", metric="quantity", date_from="01/09/2569", date_to="24/09/2569", limit=10, reply_token="reply")
         self.send.assert_not_called()
         self.push.assert_not_called()
+
+    def test_cold_read_shows_buttons_not_zero_and_never_enqueues(self):
+        from pearnly_dms.query import query_cards
+        self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_PENDING"}
+        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
+        message = self.send.call_args.args[1]
+        actions = [item["action"]["data"] for item in message["quickReply"]["items"]]
+        self.assertTrue(any(query_cards.ACT_QUERY_REFRESH in action for action in actions))
+        self.assertTrue(any(query_cards.ACT_QUERY_RESULT in action for action in actions))
+        self.assertNotIn(query_cards._t("EMPTY_RECORDS_PREFIX"), message["text"])
+        self.request.assert_not_called()
+
+    def test_invalid_custom_date_reports_failure_without_session_or_read(self):
+        self.flow._begin_top(self.identity, "U-lab", group="model", metric="quantity",
+                            date_from="31/02/2569", date_to="01/03/2569", limit=10, reply_token="reply")
+        self.assertIsNone(self.session)
+        self.top.assert_not_called()
+        self.request.assert_not_called()
+        self.push.assert_called_once()
+
+    def test_explicit_refresh_enqueues_current_condition_actor_and_binding_only(self):
+        from pearnly_dms.query import query_cards
+        self.flow._begin_records(self.identity, "U-lab", field="customer", query="match", reply_token="reply")
+        params = rb.query_parameters(field="customer", query="match")
+        key = rb.query_dataset(params)
+        self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_REFRESH, {"key": key})
+        self.request.assert_called_once_with("EP-own", key, reader="sales", actor="employee", params={**params,
+            "_binding": {**self.identity, "line_user_id": "U-lab"}})
+        self.assertEqual(self.send.call_args.args[-1], "reply")
+        self.request.reset_mock()
+        self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_RESULT, {"key": key})
+        self.request.assert_not_called()
+
+    def test_stale_button_wrong_binding_or_missing_revision_never_enqueue(self):
+        from pearnly_dms.query import query_cards
+        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
+        key = rb.query_dataset(rb.query_parameters())
+        self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_REFRESH, {"key": "query.old"})
+        with patch.object(self.flow, "_reply"):
+            self.binding.return_value = False
+            self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_REFRESH, {"key": key})
+            self.binding.return_value = True
+            self.flow._manual_action({"user_id": "employee"}, "U-lab", "reply", query_cards.ACT_QUERY_REFRESH, {"key": key})
+        self.request.assert_not_called()
+
+    def test_view_result_shows_inflight_status_without_enqueue_or_login(self):
+        from pearnly_dms.query import query_cards
+        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
+        self.records.reset_mock()
+        key = rb.query_dataset(rb.query_parameters())
+        for state in ("queued", "running", "waiting", "failed"):
+            self.status.return_value = {"state": state, "as_of": 123}
+            self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_RESULT, {"key": key})
+            self.assertEqual(self.send.call_args.args[1], query_cards.manual_status_message(self.status.return_value, key))
+        self.records.assert_not_called()
+        self.request.assert_not_called()
+
+    def test_expired_completed_result_does_not_promise_available_result(self):
+        self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_STALE"}
+        self.status.return_value = {"state": "succeeded", "as_of": 123, "stale": True}
+        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
+        from pearnly_dms.query import query_cards
+        self.assertIn(query_cards._t("MANUAL_IDLE"), self.send.call_args.args[1]["text"])
+        self.request.assert_not_called()
+
+    def test_local_pagination_does_not_refresh_or_reuse_different_conditions(self):
+        from pearnly_dms.query import query_cards
+        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
+        self.flow._paginate(self.identity, "U-lab", "reply", self.session, {"kind": "records", "direction": "next"})
+        self.assertEqual(self.records.call_args.kwargs["page"], 2)
+        self.records.reset_mock()
+        with patch.object(self.flow, "_reply"):
+            self.flow._paginate(self.identity, "U-lab", "reply", self.session,
+                                {"kind": "records", "direction": "next", "key": "query.old"})
+        self.records.assert_not_called()
+        self.request.assert_not_called()
 
     def test_snapshot_cards_show_source_time_not_response_time(self):
         from pearnly_dms.query import query_cards
