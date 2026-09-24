@@ -320,12 +320,42 @@
 `node tests/test-native-desk.cjs`、`test-line-stocktake.cjs`、`test-stocktake-scanner.cjs`、
 `git diff --check` 全通过。
 
+## 第八轮：柱形图整块删掉（同日晚）
+
+用户口径："把柱形图全部删了，不要了"。
+
+### 改了什么
+
+- 工作台现在只有**汇总四格 + 明细表**：删掉图表那块的容器、`frappe.Chart` 构建、位置红点标注
+  （`mark_chart`）、只服务图表的辅助函数（`amount_text` / `counts_at` / `place_text` / `chart_label`）、
+  状态变量（`chart` / `rank_host` / `paint_token`）与相关注释，不留死代码。
+- 只被图表用到的两个词条 `stock.count.short` / `stock.count.over` 从术语表移除。
+  `stock.count.book` / `stock.count.counted` 仍被明细表列头使用，保留。
+
+### 验证（2026-09-25 凌晨，预览 lane 8136，Chrome + Playwright）
+
+| 场景 | 期望 | 实际 |
+| --- | --- | --- |
+| `STC-00743` 月度盘点 | 没有图表，明细表照常 | `.chart-wrapper` 0 块、图表 SVG 0 个；明细 65 行；汇总 55 / 9 / 47 / 6 |
+| `STC-00863` 冷藏仓周盘（无差异） | 不画图也不报错 | 同上（无图表），汇总 7 / 1 / 6 / 0 |
+| `STC-00652` 退货仓复盘（已过账只读） | 同上 | 无图表，明细 7 行 |
+| 筛选 | 仍然生效 | 选"未盘点"→9 行；选"有差异"→48 行（都含表头行） |
+| 窄屏 390×844 | 不横向溢出 | `scrollWidth＝390` |
+| 出错面 | 无 4xx/5xx、无 JS 报错 | 通过 |
+
+门槛：`check-architecture.py`、`i18n-build.py --check`、`tests/test_native_desk_contract.py`、
+`node tests/test-native-desk.cjs`、`test-line-stocktake.cjs`、`test-stocktake-scanner.cjs`、
+`git diff --check` 全通过。
+
 ### 取舍与后续
 
-- 生成的翻译包按仓库规矩"不删已有的行"，所以两条已停用词条（`stock.count.diffRankHint`、
-  `stock.count.locationHint`）仍留在 `translations/*.csv` 里（术语表已无此键，不会再被引用）。
-- 横条那版与更早的"差异柱"版都还在 git 里（本任务第 2、4 个提交），要换回来都便宜。
-- 手机端拿不到悬停信息（触屏没有 hover），红点在窄屏也偏小；用户还没选备选（窄屏退回清单 /
+- 生成的翻译包按仓库规矩"不删已有的行"，所以三条已停用词条（`stock.count.diffRankHint`、
+  `stock.count.locationHint`、`stock.count.short`/`stock.count.over`）仍留在 `translations/*.csv` 里
+  （术语表已无这些键，不会再被引用）。
+- 图表各版（按商品的账面/实盘柱、差异柱、横向条、红点）都还在 git 里（本任务第 2、4、6、7 个提交），
+  要恢复任一版都便宜。
+- 手机端的问题随图表一起消失（不再有"触屏没有悬停"这件事）；明细表在窄屏仍然按列宽截断，
+  前面第二轮记的三条取舍（fixed 布局 / 减列 / 单仓只显示货位）仍然成立。
   点击弹原生对话框），暂不做。
 - 明细表走 `p.table`（`layout: "fluid"`，列宽按比例摊），窄屏上"编码 / 条码 / 单位"这类列会被压出省略号；
   前面第二轮记的三条取舍（fixed 布局 / 减列 / 单仓只显示货位）仍然成立。
