@@ -311,9 +311,10 @@
 				form.set_value("closing", p.number(current.closing.qty));
 				form.fields_dict.movements.$wrapper.empty().append(p.ledger_table(t, current));
 			}
-			// 四栏（每栏两行）把宽度用满，明细表另起一节占满整宽 —— 用户 2026-09-22 口径：
-			// "后面不要留那么多"，字段别占半边、把表挤走。
-			form = p.layout(page.main, p.field_rows([
+			// **一排 4 个**字段（用户 2026-09-25："分成一排4组方，视觉对齐"）：7 个字段排成
+			// 两排 4+3，第二排末尾补一栏空的，两排的竖线才对得齐；明细表另起一节占满整宽
+			// （用户 2026-09-22 口径："后面不要留那么多"，字段别占半边、把表挤走）。
+			form = p.layout(page.main, p.field_grid([
 				{ fieldtype: "Date", fieldname: "date_from", label: t("trade.from"),
 					default: dates.date_from, change: () => void refresh_card() },
 				{ fieldtype: "Date", fieldname: "date_to", label: t("trade.to"),

@@ -370,6 +370,39 @@ frappe.provide("frappe.pearnly");
 		});
 		return rows;
 	};
+	// 每**排** `per_row` 个字段（与上面"每栏 N 个"不是一回事，用户 2026-09-25 口径：
+	// "分成一排4组方，视觉对齐"）。做法：一个字段一栏、行与行之间用 Section Break 断开。
+	//
+	// 为什么末尾要**补空栏**：框架是按"本节里可见栏数"平均分 12 格的（`column.js` 的
+	// `resize_all_columns`：`col-sm-<int(12/栏数)>`）。第二排只有 3 个字段时它会被算成 3 栏、
+	// 每栏变成 4/12，比第一排的 3/12 宽 —— 两排的竖线就对不齐了。补一栏空的，每排都是 4 栏。
+	p.field_grid = (fields, per_row = 4) => {
+		const full_width = (field) => ["Section Break", "HTML", "Table", "Button"]
+			.includes(field?.fieldtype);
+		const groups = [];
+		let row = [];
+		const close_row = () => { if (row.length) { groups.push(row); row = []; } };
+		fields.forEach(field => {
+			// 整行控件自己占一整排（收发存那张明细表就是）：先收口当前这一排，再单独放它。
+			if (full_width(field)) { close_row(); groups.push(field); return; }
+			row.push(field);
+			if (row.length === per_row) close_row();
+		});
+		close_row();
+		const out = [];
+		groups.forEach((group, index) => {
+			if (index) out.push({ fieldtype: "Section Break" });
+			if (!Array.isArray(group)) { out.push(group); return; }
+			group.forEach((field, position) => {
+				if (position) out.push({ fieldtype: "Column Break" });
+				out.push(field);
+			});
+			for (let pad = group.length; pad < per_row; pad += 1) {
+				out.push({ fieldtype: "Column Break" });
+			}
+		});
+		return out;
+	};
 	p.restore_sidebar = () => {
 		if (frappe.boot.pearnly_sidebar && frappe.app?.sidebar?.sidebar_title !== frappe.boot.pearnly_sidebar) {
 			return frappe.app.sidebar.setup(frappe.boot.pearnly_sidebar);

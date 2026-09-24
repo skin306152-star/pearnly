@@ -716,6 +716,44 @@ DOM 仍只用官方类名（`.table .table-bordered` + `text-right`，与框架�
 
 ## 未做 / 下一步
 
+## 第十四轮：收发存明细页的字段改成一排 4 个（2026-09-25）
+
+用户口径："把上面那7组字段，分成一排4组方，视觉对齐"。
+
+### 原来的样子 / 为什么不是 4 个一排
+
+那一页原来是 `p.field_rows([…7 个字段…], 4)`。这个共享 helper 的 `columns` 是**每栏几个**
+（Frappe 的"栏"是竖着堆字段的，`Column Break` 换下一栏），所以 7 个字段排出来是
+**2 栏 × 每栏 3~4 行**（左：开始日期 / 结束日期 / 物料 / 仓库；右：仓位 / 期初 / 期末）——
+和用户要的"一排 4 个"正好差 90 度。
+
+### 改法
+
+共享层新增 `p.field_grid(fields, per_row)`（与 `field_rows` 并存，不动它原来那个语义）：
+
+- **一排 N 个**：一个字段一栏，行与行之间用 `Section Break` 断开；整行控件（HTML / Table /
+  Button / Section）仍自己占一整排。
+- **末尾补空栏**：框架是按"本节里可见栏数"平均分 12 格的（`column.js` 的
+  `resize_all_columns`：`col-sm-<int(12/栏数)>`）。第二排只有 3 个字段时会被算成 3 栏、
+  每栏 4/12，比第一排的 3/12 宽，两排的竖线就对不齐 —— 补一栏空的，两排都是 4 栏。
+
+收发存明细页改成 `p.field_grid([…7 个字段 + 明细表…], 4)`：第一排「开始日期 / 结束日期 /
+物料 / 仓库」，第二排「仓位 / 期初数量 / 期末数量 + 空栏」，明细表照旧另起一节占满整宽。
+
+### 验证（预览 lane 8136，1440 与 390 两种宽度）
+
+- 1440：两排每栏都是 `form-column col-sm-3`、宽 313px，左边缘 x = 235 / 548 / 860 / 1173
+  **两排一致**（视觉对齐就是这条）；明细表 `col-sm-12`、1250px 占满。
+- 390（手机宽度）：`scrollWidth == innerWidth == 390`、**无横向溢出**，`col-sm-3` 落到
+  断点以下自动堆成一列（每栏 359px）。
+- 同一页的"库存 → 查看"弹窗仍走 `p.field_rows`（两栏 `col-sm-6` + 整宽明细表），未被这轮影响。
+- 无 pageerror、无 5xx。
+- 门槛：`check-architecture.py` PASS、`i18n-build.py --check` PASS、
+  `tests/test_native_desk_contract.py` OK、`node tests/test-native-desk.cjs`、
+  `node tests/test-stock-card.cjs`、`node tests/test-stock-entry.cjs`、`git diff --check` 全通过；
+  `check-desk-ui.py` 仍只有那 2 处 main 上就有的历史违规。
+- **未推送、未合并、未部署**（连同第十三轮那两处修复一起停在本地）。
+
 - 没有"看板按"切换（商品/仓库/仓位）。
 - DMS / Cowork 的列表排序没做（等用户点头，见第十一轮"边界"）。
 - 未推送、未合并、未部署；测试环境 `testerp.pearnly.com` 上看到的仍是旧图。
