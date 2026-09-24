@@ -6,11 +6,14 @@ malformed pages, changing row sets and repeated pages fail the entire dataset.
 """
 import hashlib
 import json
+import logging
 import math
 import re
 import time
 
 import frappe
+
+logger = logging.getLogger(__name__)
 
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.endpoint import endpoint_name
@@ -225,6 +228,35 @@ def _guard(endpoint, dataset, request_id, params):
     return conditions, request["expected_scope"]
 
 
+def _push_result(endpoint, dataset, request_id, conditions):
+    """读取落地后，把结果推给发起这次查询的那位操作员（失败绝不影响读取结果）。
+
+    `request_id` 此刻可能已经被下一次登记替换掉 —— 那就**不推**：那份结果属于
+    旧的条件。推送失败只记日志：数据已经安全落库，界面动作不该因为一条消息回退。
+    """
+    try:
+        request = manual._load(endpoint, dataset, "sales")[2]
+        if request.get("id") != request_id:
+            return
+        binding = (request.get("params") or {}).get("_binding") or {}
+        if not current_binding(binding, binding.get("line_user_id")):
+            return
+        from pearnly_dms.query import query_flow
+
+        kind = conditions["kind"]
+        if kind == "capabilities":
+            query_flow._run_dimensions(binding, binding["line_user_id"])
+        else:
+            # 条件形状与 `_begin_records` 当初写进会话的那份逐字一致 —— 否则
+            # `_same_query_session` 会认为"操作员已经换条件了"，结果就不该推。
+            params = {"query_kind": kind, **{key: value for key, value in conditions.items()
+                                             if key != "kind"}}
+            runner = query_flow._run_records if kind == "records" else query_flow._run_top
+            runner(binding, binding["line_user_id"], params)
+    except Exception:
+        logger.warning("DMS query result push failed", exc_info=True)
+
+
 def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
     """Token-gated one-shot collector. Retired scheduler calls do no IO."""
     if not request_id:
@@ -259,6 +291,9 @@ def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
             frappe.db.commit()
         if not published:
             return {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_SCOPE_CHANGED"}
+        # 读完就把结果推回给发起这次查询的操作员：菜单 5 上**没有**"查看结果"按钮，
+        # 老产品也是选完条件由后台读完直接推卡（`cloud_dispatch.spawn`）。
+        _push_result(name, dataset, request_id, conditions)
         return {"ok": True, "complete": True, "count": len(result.get("rows") or [])}
     except Exception as exc:
         frappe.db.rollback()

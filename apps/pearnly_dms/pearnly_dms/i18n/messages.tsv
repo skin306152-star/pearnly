@@ -34,14 +34,12 @@ The customer record changed after you edited it. Review the current differences 
 The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.	提交已发出，但结果尚未确认。请勿重复提交，先核实结果。	ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน	送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。	dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED
 Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.	请在 LINE 点击读取本次查询；基础资料需请管理员到 DMS 连接页选择读取。	กรุณากดอ่านข้อมูลครั้งนี้ใน LINE สำหรับข้อมูลพื้นฐาน ให้ผู้ดูแลเลือกอ่านที่หน้าการเชื่อมต่อ DMS	LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。	dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED
 This read was interrupted. Click Read again to retry; previously completed data was retained.	本次读取已中断，请再次点击读取重试；此前成功资料仍保留。	การอ่านครั้งนี้หยุดกลางทาง กรุณากดอ่านอีกครั้งเพื่อลองใหม่ ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่	今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。	dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED
-Read / refresh this query	读取／刷新本次查询	อ่าน / อัปเดตข้อมูลครั้งนี้	この検索を読み取り／更新	dms.card.query.NAV_FETCH
-View result / status	查看结果／状态	ดูผล / สถานะการอ่าน	結果／状態を見る	dms.card.query.NAV_RESULT
-These conditions have not been read. Click Read this query.	尚未读取此条件，请点击读取本次查询。	ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้	この条件のデータは未読み取りです。この検索の読み取りを押してください。	dms.card.query.MANUAL_IDLE
-This query is queued.	本次查询已排队。	การอ่านครั้งนี้อยู่ในคิวแล้ว	この検索は待機中です。	dms.card.query.MANUAL_QUEUED
-Reading this query.	正在读取本次查询。	กำลังอ่านข้อมูลครั้งนี้	この検索を読み取り中です。	dms.card.query.MANUAL_RUNNING
-The account is busy. Click Read later to continue.	账号忙，请稍后点击读取继续。	บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ	アカウントが使用中です。後で読み取りを押して続行してください。	dms.card.query.MANUAL_WAITING
-Read completed. Click View result.	读取完成，点击查看结果。	อ่านเสร็จแล้ว กดดูผลการอ่าน	読み取りが完了しました。結果を見るを押してください。	dms.card.query.MANUAL_SUCCEEDED
-This read failed. Click Read to retry.	本次读取失败，可点击读取重试。	อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้	今回の読み取りは失敗しました。読み取りを押して再試行できます。	dms.card.query.MANUAL_FAILED
+Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_IDLE
+Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_QUEUED
+Reading this query now. The result arrives as soon as it is ready.	正在读取这个条件的记录，读完马上把结果发过来。	กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ	この条件のデータを読み取っています。読み終わり次第結果をお送りします。	dms.card.query.MANUAL_RUNNING
+The DMS account is busy. The read retries automatically; please wait.	DMS 账号忙，系统会自动重读，请稍等。	บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่	DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。	dms.card.query.MANUAL_WAITING
+Read completed. Sending the result now.	读取完成，正在把结果发过来。	อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้	読み取りが完了しました。結果をお送りします。	dms.card.query.MANUAL_SUCCEEDED
+This read failed. Please try again later.	本次读取失败，请稍后再试。	อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง	今回の読み取りは失敗しました。しばらくしてからお試しください。	dms.card.query.MANUAL_FAILED
 Cached result captured at {time}	已缓存结果读取于 {time}	อ่านผลที่บันทึกไว้เมื่อ {time}	保存済み結果の取得時刻：{time}	dms.card.query.MANUAL_AS_OF
 Progress {processed}/{total}	进度 {processed}/{total}	ความคืบหน้า {processed}/{total}	進捗 {processed}/{total}	dms.card.query.MANUAL_PROGRESS
 Read time unknown	读取时间未知	ไม่ทราบเวลาที่อ่าน	読み取り時刻不明	dms.card.query.LBL_UNKNOWN_TIME

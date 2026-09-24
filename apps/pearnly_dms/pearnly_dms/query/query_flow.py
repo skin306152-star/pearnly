@@ -1,11 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Menu-5 conditions → local cache or explicit one-query read → cards.
+"""Menu-5 conditions → cached read, or one automatic read → result card.
+
+**菜单 5 只有一个功能：按类查记录**（用户 2026-09-25 口径，也与线上基准
+`services/line_dms/query_flow.py` 一致 —— 老产品选完条件就 `cloud_dispatch.spawn`
+去读、读完把结果推过来，页面上没有"读取""查看结果"这类按钮）。
+所以这里：条件一凑齐就**自动**登记这次读取（冷缓存时真去 DMS 拉一次），
+读完由 `query/snapshot_sync` 把结果卡推给操作员；操作员不需要点任何"读取"。
+卡上只留翻页导航：上一页 / 重新读一次 / 下一页 —— 与老产品同形。
 
 Every action and result delivery rechecks current permission/binding. Conditions
 remain in the LINE session; obsolete results cannot replace a newer query. The
-``_run_*`` names are retained for queued jobs from a rolling upgrade, but new
-local result/page actions call them directly and never log into DMS. Only the
-separate explicit refresh action registers background work.
+``_run_*`` names are retained for queued jobs from a rolling upgrade, but result
+and page actions call them directly and never log into DMS.
 """
 
 from __future__ import annotations
@@ -99,7 +105,7 @@ def handle_postback(
         _pick_top_period(binding, line_user_id, reply_token, sess, values)
     elif action == query_cards.ACT_QUERY_PAGE:
         _paginate(binding, line_user_id, reply_token, sess, values)
-    elif action in (query_cards.ACT_QUERY_REFRESH, query_cards.ACT_QUERY_RESULT):
+    elif action == query_cards.ACT_QUERY_REFRESH:
         _manual_action(binding, line_user_id, reply_token, action, values)
 
 
@@ -356,20 +362,35 @@ def _run_top(binding: dict, line_user_id: str, params: dict,
 
 
 def _read_failure(binding, line_user_id, conditions, result, reply_token):
+    """条件齐了就**自己把这次读取发出去**（老产品的行为：选完条件直接出结果）。
+
+    新平台的读是缓存的，冷的时候要真去 DMS 拉一次。以前这里会回一张挂着
+    「读取／刷新本次查询」「查看结果／状态」两个按钮的卡，让操作员自己点两步；
+    用户 2026-09-25 明确：菜单 5 只有"按类查记录"这一个功能，那两个按钮不要。
+    所以现在改成：**服务端直接登记这次读取**（同一个 `manual` 队列），
+    读完由 `snapshot_sync` 把结果推过来；操作员什么都不用点。
+    """
     if not str(result.get("error_code") or "").startswith("ERR_DMS_SNAPSHOT_"):
         _push(line_user_id, _failure_text(result), reply_token)
         return
     try:
-        endpoint = sales_readback._query_endpoint(binding["user_id"])
-        dataset = sales_readback.query_dataset(conditions)
-        status = manual.status(endpoint, dataset, reader="sales")
-        if status.get("state") == "succeeded":
-            # A previous request succeeded, but this result is now expired or
-            # invalid. Do not promise that clicking result will reveal it.
-            status = {**status, "state": "idle"}
-        _send(line_user_id, query_cards.manual_status_message(status, dataset), reply_token)
+        status = _request_read(binding, line_user_id, conditions)
     except Exception as exc:
         _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
+        return
+    _send(line_user_id, query_cards.manual_status_message(status), reply_token)
+
+
+def _request_read(binding, line_user_id, conditions):
+    """登记一次读取（同一条件重复登记由队列自己去重）。返回当前状态。"""
+    endpoint = sales_readback._query_endpoint(binding["user_id"])
+    params = {
+        **conditions,
+        "_binding": {"line_user_id": line_user_id, "user_id": binding["user_id"],
+                     "binding_revision": binding.get("binding_revision") or ""},
+    }
+    return manual.request(endpoint, sales_readback.query_dataset(conditions), reader="sales",
+                          params=params, actor=binding["user_id"])
 
 
 def _manual_conditions(session):
@@ -382,7 +403,11 @@ def _manual_conditions(session):
 
 
 def _manual_action(binding, line_user_id, reply_token, action, values):
-    """Only a current card and binding can explicitly enqueue this query."""
+    """卡上的"重新读一次"：只有当前卡 + 当前绑定才能登记这次读取。
+
+    登记完照旧把"正在读"的文本回给操作员，读完由 `snapshot_sync` 推结果 ——
+    这一条对应老产品 `_navigation` 里那个"重新读"按键（那时是就地重读并出结果）。
+    """
     session = store.get_session(line_user_id)
     try:
         conditions = _manual_conditions(session)
@@ -393,29 +418,13 @@ def _manual_action(binding, line_user_id, reply_token, action, values):
                 or not _can_query(binding)):
             _denied(reply_token)
             return
-        endpoint = sales_readback._query_endpoint(binding["user_id"])
-        if action == query_cards.ACT_QUERY_RESULT:
-            status = manual.status(endpoint, values["key"], reader="sales")
-            if status.get("state") in {"queued", "running", "waiting", "failed"}:
-                _send(line_user_id, query_cards.manual_status_message(status, values["key"]), reply_token)
-                return
-            if conditions["kind"] == "capabilities":
-                store.set_session(line_user_id, "query_sales", {})
-                _run_dimensions(binding, line_user_id, reply_token)
-            else:
-                runner = _run_records if conditions["kind"] == "records" else _run_top
-                runner(binding, line_user_id, session["payload"], reply_token)
-            return
-        params = {**conditions, "_binding": {"line_user_id": line_user_id,
-                  "user_id": binding["user_id"], "binding_revision": binding["binding_revision"]}}
-        status = manual.request(endpoint, sales_readback.query_dataset(conditions), reader="sales",
-                                params=params, actor=binding["user_id"])
+        status = _request_read(binding, line_user_id, conditions)
         frappe.db.commit()
         if not current_binding(binding, line_user_id) or not _can_query(binding):
             return
         if store.get_session(line_user_id) != session:
             return
-        _send(line_user_id, query_cards.manual_status_message(status, values["key"]), reply_token)
+        _send(line_user_id, query_cards.manual_status_message(status), reply_token)
     except Exception as exc:
         _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
 

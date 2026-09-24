@@ -468,16 +468,29 @@ class QueryInteraction(unittest.TestCase):
         self.send.assert_not_called()
         self.push.assert_not_called()
 
-    def test_cold_read_shows_buttons_not_zero_and_never_enqueues(self):
+    def test_cold_read_enqueues_by_itself_and_never_shows_zero(self):
+        """冷缓存时**服务端自己**把这次读取登记出去：菜单 5 只有一个功能按钮
+        （按类查记录），操作员不需要再点"读取"（用户 2026-09-25）。
+
+        契约变了，但严格性不变：冷数据绝不能显示成"零记录"；登记的这次读取
+        必须带当前绑定与本人 actor；状态提示里**不能再出现任何按钮**。
+        """
         from pearnly_dms.query import query_cards
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_PENDING"}
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
         message = self.send.call_args.args[1]
-        actions = [item["action"]["data"] for item in message["quickReply"]["items"]]
-        self.assertTrue(any(query_cards.ACT_QUERY_REFRESH in action for action in actions))
-        self.assertTrue(any(query_cards.ACT_QUERY_RESULT in action for action in actions))
+        self.assertEqual(message["type"], "text")
+        self.assertNotIn("quickReply", message)
         self.assertNotIn(query_cards._t("EMPTY_RECORDS_PREFIX"), message["text"])
-        self.request.assert_not_called()
+        self.request.assert_called_once()
+        args, kwargs = self.request.call_args
+        self.assertEqual(args[:2], ("EP-own", rb.query_dataset(rb.query_parameters())))
+        self.assertEqual(kwargs["reader"], "sales")
+        self.assertEqual(kwargs["actor"], "employee")
+        self.assertEqual(kwargs["params"]["_binding"]["line_user_id"], "U-lab")
+        # 绑定版本必须原样带上：后台任务靠它判断"这张卡还是不是当前绑定"。
+        self.assertEqual(kwargs["params"]["_binding"]["binding_revision"],
+                         self.identity["binding_revision"])
 
     def test_invalid_custom_date_reports_failure_without_session_or_read(self):
         self.flow._begin_top(self.identity, "U-lab", group="model", metric="quantity",
@@ -496,9 +509,6 @@ class QueryInteraction(unittest.TestCase):
         self.request.assert_called_once_with("EP-own", key, reader="sales", actor="employee", params={**params,
             "_binding": {**self.identity, "line_user_id": "U-lab"}})
         self.assertEqual(self.send.call_args.args[-1], "reply")
-        self.request.reset_mock()
-        self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_RESULT, {"key": key})
-        self.request.assert_not_called()
 
     def test_stale_button_wrong_binding_or_missing_revision_never_enqueue(self):
         from pearnly_dms.query import query_cards
@@ -512,17 +522,14 @@ class QueryInteraction(unittest.TestCase):
             self.flow._manual_action({"user_id": "employee"}, "U-lab", "reply", query_cards.ACT_QUERY_REFRESH, {"key": key})
         self.request.assert_not_called()
 
-    def test_view_result_shows_inflight_status_without_enqueue_or_login(self):
+    def test_the_status_card_has_no_buttons_left_to_press(self):
+        """没有"查看结果／状态"这条路了：状态只当一句话说，按钮一个都不给。"""
         from pearnly_dms.query import query_cards
-        self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
-        self.records.reset_mock()
-        key = rb.query_dataset(rb.query_parameters())
-        for state in ("queued", "running", "waiting", "failed"):
-            self.status.return_value = {"state": state, "as_of": 123}
-            self.flow._manual_action(self.identity, "U-lab", "reply", query_cards.ACT_QUERY_RESULT, {"key": key})
-            self.assertEqual(self.send.call_args.args[1], query_cards.manual_status_message(self.status.return_value, key))
-        self.records.assert_not_called()
-        self.request.assert_not_called()
+        self.assertFalse(hasattr(query_cards, "ACT_QUERY_RESULT"))
+        for state in ("idle", "queued", "running", "waiting", "failed"):
+            message = query_cards.manual_status_message({"state": state, "as_of": 123})
+            self.assertEqual(message["type"], "text", state)
+            self.assertNotIn("quickReply", message, state)
 
     def test_expired_completed_result_does_not_promise_available_result(self):
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_STALE"}
@@ -530,7 +537,11 @@ class QueryInteraction(unittest.TestCase):
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
         from pearnly_dms.query import query_cards
         self.assertIn(query_cards._t("MANUAL_IDLE"), self.send.call_args.args[1]["text"])
-        self.request.assert_not_called()
+        # 读已经过期 → **自动重读一次**（菜单 5 没有"读取"按钮），但绝不承诺
+        # "点一下就能看到结果"；状态提示里也没有任何按钮。
+        message = self.send.call_args.args[1]
+        self.assertNotIn("quickReply", message)
+        self.request.assert_called_once()
 
     def test_local_pagination_does_not_refresh_or_reuse_different_conditions(self):
         from pearnly_dms.query import query_cards

@@ -43,6 +43,7 @@ Read / refresh selected data,อ่าน / อัปเดตข้อมูล
 Read / refresh this query,อ่าน / อัปเดตข้อมูลครั้งนี้
 Read completed,อ่านเสร็จแล้ว
 Read completed. Click View result.,อ่านเสร็จแล้ว กดดูผลการอ่าน
+Read completed. Sending the result now.,อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้
 Read failed — click Read to retry,อ่านไม่สำเร็จ กดอ่านเพื่อลองใหม่
 Read failed — it will be retried automatically,อ่านไม่สำเร็จ ระบบจะลองใหม่ให้อัตโนมัติ
 Read progress,ความคืบหน้าการอ่าน
@@ -52,6 +53,7 @@ Read time unknown,ไม่ทราบเวลาที่อ่าน
 Reading,กำลังอ่าน
 Reading DMS master data…,กำลังอ่านข้อมูลหลักจาก DMS…
 "Reading data, please wait…",กำลังอ่านข้อมูล กรุณารอสักครู่…
+Reading this query now. The result arrives as soon as it is ready.,กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ
 Reading this query.,กำลังอ่านข้อมูลครั้งนี้
 Recognition could not finish. Please try again shortly.,อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่
 Reload List,โหลดรายการใหม่
@@ -64,6 +66,7 @@ Submission Evidence,หลักฐานการส่ง
 Submission Nonce,nonce การส่ง
 Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
+The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง
 The account is busy. Click Read later to continue.,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
@@ -79,6 +82,7 @@ The saved credentials cannot be read back; check the site encryption key,อ่�
 These conditions have not been read. Click Read this query.,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
 This query is queued.,การอ่านครั้งนี้อยู่ในคิวแล้ว
 This read failed. Click Read to retry.,อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้
+This read failed. Please try again later.,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
 This read was interrupted. Click Read again to retry; previously completed data was retained.,การอ่านครั้งนี้หยุดกลางทาง กรุณากดอ่านอีกครั้งเพื่อลองใหม่ ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่
@@ -331,20 +335,18 @@ dms.card.query.LBL_PAGE,หน้า
 dms.card.query.LBL_READ_AT,เวลาที่ซิงก์ข้อมูล
 dms.card.query.LBL_UNKNOWN_TIME,ไม่ทราบเวลาที่อ่าน
 dms.card.query.MANUAL_AS_OF,อ่านผลที่บันทึกไว้เมื่อ {time}
-dms.card.query.MANUAL_FAILED,อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้
-dms.card.query.MANUAL_IDLE,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
+dms.card.query.MANUAL_FAILED,อ่านครั้งนี้ไม่สำเร็จ กรุณาลองใหม่ภายหลัง
+dms.card.query.MANUAL_IDLE,กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ
 dms.card.query.MANUAL_PROGRESS,ความคืบหน้า {processed}/{total}
-dms.card.query.MANUAL_QUEUED,การอ่านครั้งนี้อยู่ในคิวแล้ว
-dms.card.query.MANUAL_RUNNING,กำลังอ่านข้อมูลครั้งนี้
-dms.card.query.MANUAL_SUCCEEDED,อ่านเสร็จแล้ว กดดูผลการอ่าน
-dms.card.query.MANUAL_WAITING,บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ
+dms.card.query.MANUAL_QUEUED,กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ
+dms.card.query.MANUAL_RUNNING,กำลังอ่านข้อมูลตามเงื่อนไขนี้ให้ครับ ผลจะส่งมาให้ทันทีที่อ่านเสร็จ
+dms.card.query.MANUAL_SUCCEEDED,อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้
+dms.card.query.MANUAL_WAITING,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
 dms.card.query.MET_AMOUNT,ยอดเงิน
 dms.card.query.MET_QTY,จำนวนคัน
-dms.card.query.NAV_FETCH,อ่าน / อัปเดตข้อมูลครั้งนี้
 dms.card.query.NAV_NEXT,หน้าถัดไป
 dms.card.query.NAV_PREV,หน้าก่อน
 dms.card.query.NAV_REFRESH,อ่านใหม่
-dms.card.query.NAV_RESULT,ดูผล / สถานะการอ่าน
 dms.card.query.PERIOD_CUSTOM,กำหนดเอง 1–30
 dms.card.query.PERIOD_M_10,เดือนนี้ Top 10
 dms.card.query.PERIOD_M_20,เดือนนี้ Top 20
@@ -374,8 +376,6 @@ dms.card.query.TXT_NO_ENDPOINT,ไม่พบบัญชี DMS ที่เ�
 dms.card.query.TXT_PICK_SALES,เลือกเงื่อนไขหลักเพียงข้อเดียว ระบบจะค้นหาให้ทันที ไม่ต้องตอบทุกข้อ
 dms.card.query.TXT_PICK_TYPE,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
 dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
-dms.card.query.TYPE_INVENTORY,2 สินค้าคงคลัง
-dms.card.query.TYPE_OTHER,3 รายการอื่น
 dms.card.query.TYPE_SALES,1 บันทึกการขาย
 dms.card.query.UNIT_AMOUNT,บาท
 dms.card.query.UNIT_QTY,คัน

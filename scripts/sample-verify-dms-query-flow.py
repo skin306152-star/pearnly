@@ -45,7 +45,7 @@ def main():
     binding = {"tenant_id": "one761900.localhost", "user_id": "user@x", "line_user_id": uid}
 
     # ── 1. 形状 ────────────────────────────────────────────────────────
-    ck("动作码 = 菜单项 + 卡片那 7 个",
+    ck("动作码 = 菜单项 + 卡片那一族（没有'查看结果'了）",
        qf.QUERY_ACTIONS == {cards.ACT_MENU_QUERY, *qc.QUERY_ACTION_NAMES},
        sorted(qf.QUERY_ACTIONS))
     ck("要打字的维度 8 个（与卡片层的提示表一致）",

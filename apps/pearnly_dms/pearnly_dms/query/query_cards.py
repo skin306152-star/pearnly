@@ -29,9 +29,10 @@ ACT_QUERY_TOP_METRIC = "query_top_metric"
 ACT_QUERY_TOP_PERIOD = "query_top_period"
 ACT_QUERY_PAGE = "query_page"
 ACT_QUERY_REFRESH = "query_refresh"
-ACT_QUERY_RESULT = "query_result"
 
-# 这一族的动作码（流程层用它识别 postback 归谁）
+# 这一族的动作码（流程层用它识别 postback 归谁）。
+# **没有** query_result：结果读完由服务端直接推过来，不需要"查看结果／状态"这一步
+# （用户 2026-09-25：菜单 5 只有"按类查记录"这一个功能）。
 QUERY_ACTION_NAMES = (
     ACT_QUERY_TYPE,
     ACT_QUERY_DIMENSION,
@@ -41,7 +42,6 @@ QUERY_ACTION_NAMES = (
     ACT_QUERY_TOP_PERIOD,
     ACT_QUERY_PAGE,
     ACT_QUERY_REFRESH,
-    ACT_QUERY_RESULT,
 )
 
 
@@ -79,14 +79,21 @@ def _quick(text: str, items: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     return {"type": "text", "text": text, "quickReply": {"items": list(items)}}
 
 
+def _text(text: str) -> Dict[str, Any]:
+    """纯文本（不带任何 quick reply）—— 只报状态、不要求用户再点东西。"""
+    return {"type": "text", "text": text}
+
+
 # ── 选类别 / 选维度 / 选状态 / 看板条件 ─────────────────────────────────────
 def query_type_message() -> Dict[str, Any]:
+    """菜单 5 的入口：**只有一个按钮** —— 按类查记录。
+
+    线上基准（`services/line_dms/query_cards.py`）当年摆过三个（销售记录 / 库存 /
+    其它），后两个是占位；用户口径是"只要按钮 1，占位的取消了"。这里就只留 1。
+    """
     return _quick(
         _t("TXT_PICK_TYPE"),
-        [
-            _item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales"),
-            *_manual_actions("query.capabilities"),
-        ],
+        [_item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales")],
     )
 
 
@@ -299,25 +306,30 @@ def _record_bubble(row: dict, position: int) -> Dict[str, Any]:
 
 
 def _navigation(result: dict, kind: str) -> List[Dict[str, Any]]:
-    """Only the explicitly named fetch action can request external reading."""
+    """翻页导航：**与老产品同形** —— 上一页 / 重新读一次 / 下一页。
+
+    老产品（`services/line_dms/query_cards.py::_navigation`）就是这三个，而且那时是
+    "按一下就重读并出结果"。新平台把它接成"重新读一次，读完把结果发过来"，所以这里
+    **不再有"读取／刷新本次查询"和"查看结果／状态"那两个按钮** —— 那两个是后来加的
+    机械步骤，用户明确说不要（2026-09-25）。
+    """
     actions = []
     page = int(result.get("page") or 1)
     key = result.get("query_key") or ""
     if page > 1:
         actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev", key=key))
-    actions.extend(_manual_actions(key))
+    actions.append(_item(_t("NAV_REFRESH"), ACT_QUERY_REFRESH, key=key))
     if result.get("has_more"):
         actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next", key=key))
     return actions
 
 
-def _manual_actions(query_key):
-    return [_item(_t("NAV_FETCH"), ACT_QUERY_REFRESH, key=query_key),
-            _item(_t("NAV_RESULT"), ACT_QUERY_RESULT, key=query_key)]
+def manual_status_message(status: dict) -> Dict[str, Any]:
+    """"正在读／读到一半／读失败"的**纯文本提示**（没有任何按钮）。
 
-
-def manual_status_message(status: dict, query_key: str) -> Dict[str, Any]:
-    """Cold/waiting/failed are not zero records; source time is never restamped."""
+    Cold/waiting/failed 都不是"零记录"；来源时间也不会被改写。读取现在是**自动**发起的，
+    结果读完就推过来，所以这里不再挂"点读取 / 点看结果"的按钮。
+    """
     state = str(status.get("state") or status.get("status") or "idle")
     if state not in {"idle", "queued", "running", "waiting", "succeeded", "failed"}:
         state = "failed"
@@ -327,7 +339,7 @@ def manual_status_message(status: dict, query_key: str) -> Dict[str, Any]:
         lines.append(_t("MANUAL_PROGRESS", processed=progress.get("processed") or 0, total=progress["total"]))
     if status.get("as_of"):
         lines.append(_t("MANUAL_AS_OF", time=_snapshot_label(status)))
-    return _quick("\n".join(lines), _manual_actions(query_key))
+    return _text("\n".join(lines))
 
 
 def _button(item: Dict[str, Any]) -> Dict[str, Any]:

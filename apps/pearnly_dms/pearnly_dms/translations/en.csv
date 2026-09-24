@@ -43,6 +43,7 @@ Read / refresh selected data,Read / refresh selected data
 Read / refresh this query,Read / refresh this query
 Read completed,Read completed
 Read completed. Click View result.,Read completed. Click View result.
+Read completed. Sending the result now.,Read completed. Sending the result now.
 Read failed — click Read to retry,Read failed — click Read to retry
 Read failed — it will be retried automatically,Read failed — it will be retried automatically
 Read progress,Read progress
@@ -52,6 +53,7 @@ Read time unknown,Read time unknown
 Reading,Reading
 Reading DMS master data…,Reading DMS master data…
 "Reading data, please wait…","Reading data, please wait…"
+Reading this query now. The result arrives as soon as it is ready.,Reading this query now. The result arrives as soon as it is ready.
 Reading this query.,Reading this query.
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
 Reload List,Reload List
@@ -64,6 +66,7 @@ Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
+The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
@@ -79,6 +82,7 @@ The saved credentials cannot be read back; check the site encryption key,The sav
 These conditions have not been read. Click Read this query.,These conditions have not been read. Click Read this query.
 This query is queued.,This query is queued.
 This read failed. Click Read to retry.,This read failed. Click Read to retry.
+This read failed. Please try again later.,This read failed. Please try again later.
 This read was interrupted. Click Read again to retry; previously completed data was retained.,This read was interrupted. Click Read again to retry; previously completed data was retained.
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
@@ -110,15 +114,14 @@ dms.card.query.CARD_NOTE,"Saved DMS records; updated only when you click Read / 
 dms.card.query.LBL_READ_AT,Data captured at
 dms.card.query.LBL_UNKNOWN_TIME,Read time unknown
 dms.card.query.MANUAL_AS_OF,Cached result captured at {time}
-dms.card.query.MANUAL_FAILED,This read failed. Click Read to retry.
-dms.card.query.MANUAL_IDLE,These conditions have not been read. Click Read this query.
+dms.card.query.MANUAL_FAILED,This read failed. Please try again later.
+dms.card.query.MANUAL_IDLE,Reading this query now. The result arrives as soon as it is ready.
 dms.card.query.MANUAL_PROGRESS,Progress {processed}/{total}
-dms.card.query.MANUAL_QUEUED,This query is queued.
-dms.card.query.MANUAL_RUNNING,Reading this query.
-dms.card.query.MANUAL_SUCCEEDED,Read completed. Click View result.
-dms.card.query.MANUAL_WAITING,The account is busy. Click Read later to continue.
-dms.card.query.NAV_FETCH,Read / refresh this query
-dms.card.query.NAV_RESULT,View result / status
+dms.card.query.MANUAL_QUEUED,Reading this query now. The result arrives as soon as it is ready.
+dms.card.query.MANUAL_RUNNING,Reading this query now. The result arrives as soon as it is ready.
+dms.card.query.MANUAL_SUCCEEDED,Read completed. Sending the result now.
+dms.card.query.MANUAL_WAITING,The DMS account is busy. The read retries automatically; please wait.
+dms.card.query.NAV_REFRESH,Read again
 dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.company,Company information

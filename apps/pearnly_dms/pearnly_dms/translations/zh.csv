@@ -43,6 +43,7 @@ Read / refresh selected data,读取／刷新所选资料
 Read / refresh this query,读取／刷新本次查询
 Read completed,读取完成
 Read completed. Click View result.,读取完成，点击查看结果。
+Read completed. Sending the result now.,读取完成，正在把结果发过来。
 Read failed — click Read to retry,读取失败，点击读取可重试
 Read failed — it will be retried automatically,读取失败，稍后会自动重试
 Read progress,读取进度
@@ -52,6 +53,7 @@ Read time unknown,读取时间未知
 Reading,正在读取
 Reading DMS master data…,正在读取 DMS 主档…
 "Reading data, please wait…",正在读取资料，请稍候…
+Reading this query now. The result arrives as soon as it is ready.,正在读取这个条件的记录，读完马上把结果发过来。
 Reading this query.,正在读取本次查询。
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
 Reload List,刷新列表
@@ -64,6 +66,7 @@ Submission Evidence,提交凭据
 Submission Nonce,提交随机码
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
+The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
@@ -79,6 +82,7 @@ The saved credentials cannot be read back; check the site encryption key,保存�
 These conditions have not been read. Click Read this query.,尚未读取此条件，请点击读取本次查询。
 This query is queued.,本次查询已排队。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
+This read failed. Please try again later.,本次读取失败，请稍后再试。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
@@ -110,15 +114,14 @@ dms.card.query.CARD_NOTE,DMS 已读取记录，仅点击读取／刷新后更新
 dms.card.query.LBL_READ_AT,资料取得时间
 dms.card.query.LBL_UNKNOWN_TIME,读取时间未知
 dms.card.query.MANUAL_AS_OF,已缓存结果读取于 {time}
-dms.card.query.MANUAL_FAILED,本次读取失败，可点击读取重试。
-dms.card.query.MANUAL_IDLE,尚未读取此条件，请点击读取本次查询。
+dms.card.query.MANUAL_FAILED,本次读取失败，请稍后再试。
+dms.card.query.MANUAL_IDLE,正在读取这个条件的记录，读完马上把结果发过来。
 dms.card.query.MANUAL_PROGRESS,进度 {processed}/{total}
-dms.card.query.MANUAL_QUEUED,本次查询已排队。
-dms.card.query.MANUAL_RUNNING,正在读取本次查询。
-dms.card.query.MANUAL_SUCCEEDED,读取完成，点击查看结果。
-dms.card.query.MANUAL_WAITING,账号忙，请稍后点击读取继续。
-dms.card.query.NAV_FETCH,读取／刷新本次查询
-dms.card.query.NAV_RESULT,查看结果／状态
+dms.card.query.MANUAL_QUEUED,正在读取这个条件的记录，读完马上把结果发过来。
+dms.card.query.MANUAL_RUNNING,正在读取这个条件的记录，读完马上把结果发过来。
+dms.card.query.MANUAL_SUCCEEDED,读取完成，正在把结果发过来。
+dms.card.query.MANUAL_WAITING,DMS 账号忙，系统会自动重读，请稍等。
+dms.card.query.NAV_REFRESH,重新读取
 dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
 dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.company,公司资料
