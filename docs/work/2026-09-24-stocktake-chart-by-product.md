@@ -80,9 +80,73 @@
    `http://stocktake.localhost:8136/api/method/pearnly_core.identity.callback`，站点 `pearnly_oidc_redirect_uri`
    指向 8136（8126 的回调保留）。这样用户只开 8136 就能登录，不会触发第 2 条的污染。
 
+## 第二轮：更标准的数据 + 更直观的图（同日晚）
+
+用户口径："你多加点种类进去，做标准点嘛，翻下官方有没有可以就地取材的更好用于展示的表格，
+有没有比这个更好更直观的"。
+
+### 先查官方能就地取材的东西（结论，都在这台机器的框架源码里核过）
+
+- 图表库就是框架自带的那一个：`frappe-charts` **2.0.0-rc27**（`apps/frappe/node_modules/frappe-charts`），
+  框架自己的报表图表（`get_chart_data`）也用它。支持的 type：`bar / line / pie / donut / percentage /
+  heatmap / axis-mixed`；可用的轴与柱选项：`axisOptions.{shortenYAxisNumbers,xAxisMode,yAxisMode,
+  seriesLabelSpaceRatio,xIsSeries}`、`barOptions.spaceRatio`、`valuesOverPoints`、`stacked`、
+  `truncateLegends`、`isNavigable`。
+- **负值柱是原生支持的**，`valuesOverPoints: 1` 会把数字标在柱顶（含负号）—— 实测：y 轴自动含负区间，
+  柱顶显示 `62 / -62`。
+- 想"少货红、多货紫"就得拆成两个 dataset（颜色按 dataset 走）：实测柱宽减半、在组内偏左/偏右，
+  空的那一侧还会标出 `0`（传 `null` 则标 `NaN`）—— 不干净，放弃。
+- 轴标签的字符预算按 **Latin 约 7px/字符**算（`calcLabels` 里 `width / labels * 0.6 / 7`），
+  中文名一律被截短：桌面 12 组时约留 5 个字，手机 6 组时只剩 2 个字（`卷 ...`）。
+  所以窄屏改成"少画几组 + 隔一个标一个全名"，而不是每根柱都顶着省略号。
+- 框架另有 Dashboard Chart / Number Card / Dashboard 这套展示件，但它们是**站点级配置文档**
+  （按 Dashboard 组装、面向 Workspace），不是"一份单据一页"的形态，这里用不上；原生报表页
+  仍是框架另一条展示路径（工作台按设计把它重定向掉了）。
+
+### 改了什么
+
+- 图表**口径可切**（原生 Select，与框架报表页那条"看板按"同形态）：
+  - 默认 **差异**（实盘 − 账面）：一根柱一个商品，负值＝少货、正值＝多货，柱顶带数字；
+    再也不用两根柱互相"目测相减"。
+  - 另一档 **账面数量 / 实盘数量**：保留原来的两根柱，给要看量级的人。
+- 窄屏（<700px）只画差异最大的 **6 组**，并用 `axisOptions.xIsSeries` 隔一个标一个全名。
+- 文案新增术语表词条 `stock.count.chart`（Chart / 图表 / แผนภูมิ / グラフ），
+  其余复用既有键（`stock.count.difference`、`stock.count.book`、`stock.count.counted`），
+  翻译包由 `scripts/i18n-build.py` 重新生成。
+- 演示数据换成**标准样本**（`scripts/local-review/seed-stocktake-chart.py`）：
+  - 商品编码由系统发（`P-0000xx`），条形码是**校验位正确的 EAN-13**（8851 段），
+    66 个商品按 6 个分类、9 种单位铺开（饮料/调味/粮油/清洁/日用/冷藏）；
+  - 货位用标准货位号：`A-01…C-02`（主仓）、`R-01…R-03`（冷藏仓）、`T-01/T-02`（退货仓），
+    每 6 个商品留一个没有货位（对应老口径的"未填"）；
+  - 三份盘点：**2026-09 月度盘点**（主仓 · 64 行 · 55 已盘）、**冷藏仓周盘**、**退货仓复盘**（已过账，只读态）；
+  - 差异有种类：大幅少货、大幅多货、微小差异、正好对上、未盘点、放错货位。
+  - 同时收回本任务**上一版**造的演示数据（`DEMO-CHART-` 前缀商品与两份进行中的盘点：先清结存再停用），
+    免得同一套预览里混着两批口径不同的样本。别的任务留下的站点数据（验收仓库那几份）不动。
+
+### 验证（2026-09-24 晚，预览 lane 8136，Chrome + Playwright）
+
+| 场景 | 期望 | 实际 |
+| --- | --- | --- |
+| 月度盘点 · 差异档（默认） | 12 组＝商品名，柱顶带数字，负值向下 | 一致：`62 / -62 / 58 / -55 / -55 / -48 / 47 / 45 / 42 / 41 / -41 / 41`；y 轴 −80…80 |
+| 切到"账面数量 / 实盘数量" | 回到两根柱 | 26 个 rect（12 组 × 2 + 2 图例），图例＝账面数量/实盘数量 |
+| 表与汇总 | 64 行快照按行展开 | 65 行（含表头）、汇总 55 / 9 / 47 / 6，无 4xx/5xx、无 JS 报错 |
+| 窄屏 390×844 | 不横向溢出、能看清是哪几个商品 | 无横向滚动（scrollWidth＝390），6 根柱、3 个全名轮标 |
+| 空态（一行都没盘） | 不画图、无报错 | 通过 |
+
+门槛：`check-architecture.py` PASS、`tests/test_native_desk_contract.py`、`i18n-build.py --check`、
+`node tests/test-native-desk.cjs`、`test-line-stocktake.cjs`、`test-stocktake-scanner.cjs`、
+`git diff --check` 全通过（`check-desk-ui.py` 与 `test_product_feature_catalog.py` 的既有失败与 main 相同）。
+
+### 顺带看到、但这次没动的
+
+- 工作台表格走共享层 `p.table`（`layout: "fluid"`），列宽是**按比例摊**的：列多的时候
+  "物料名称 / 编码 / 条码 / 账面仓位"都会被压出省略号（标准样本名更长后更明显）。
+  要更"好展示"有三条路，取舍不同：改 `layout: "fixed"` 让列宽生效（换来横向滚动）、
+  去掉"编码/条码"两列、或者把"账面仓位"在单仓盘点里只显示货位。这次没动，等用户挑。
+
 ## 未做 / 下一步
 
-- 只做了"按商品分类"这一版：没有加"看板按"切换（商品/仓库/仓位），也没有改成单根"差异柱"（实盘 − 账面）。
+- 没有"看板按"切换（商品/仓库/仓位）；图表只有"差异 / 账面·实盘"两档口径。
 - 未推送、未合并、未部署；测试环境 `testerp.pearnly.com` 上看到的仍是旧图。
 - 上一轮盘点任务的验收 lane（8126，镜像停在 `1fd06f3`）保留未动；它的资源索引已被预览 lane 接管，
   要继续用它做"和上线一致"的检查，需按 `stocktake-preview.sh faithful` 重建同源镜像。
