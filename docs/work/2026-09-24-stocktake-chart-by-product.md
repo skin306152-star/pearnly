@@ -454,7 +454,9 @@
 `node --test tests/test_pos_lifecycle.js`、`test-roster-selection.cjs`、`test-records-selection.cjs`、
 `git diff --check` 全通过。
 
-### 列表（不是表格）的情况 —— 待用户决定
+### 列表（不是表格）的情况 —— 后来做了，见第十一轮
+
+下面这段是当时的只读核对，保留当背景；结论在第十一轮（用户"列表的也做"）。
 
 用户同一轮也问了"列表有这类功能吗"。核对结果：
 
@@ -470,9 +472,115 @@
 - 明细表走 `p.table`（`layout: "fluid"`，列宽按比例摊），窄屏上"编码 / 条码 / 单位"这类列会被压出省略号；
   前面第二轮记的三条取舍（fixed 布局 / 减列 / 单仓只显示货位）仍然成立。
 
+## 第十一轮：列表（不是表格）也点列头排序（当日）
+
+用户口径："列表的也做"（承接第十轮的表格列头排序），更早那句是"覆盖所有有这种列的界面"。
+第十轮末尾列的"待用户决定"到这里有了结论：**做**。
+
+### 改了什么
+
+服务端（`pearnly_erp_portal`）：新增 `access/listing.py`，两条判据 + 六张列表接参数。
+
+- 放 `access/` 而不是产品根层：根层只允许 `__init__.py / hooks.py / product_manifest.py /
+  purchase.py`，`check-architecture.py` 会拦（第一版放根层直接 FAIL）。
+- `order_by(sort_by, sort_order, allowed, default)`：白名单命中才给 `"<列> asc|desc"`，
+  认不出来的字段或方向一律回落该列表的默认顺序 —— **绝不把用户输入拼进 SQL**。
+- `sort_rows(rows, sort_by, sort_order, allowed)`：内存排序（库存一览那种先算好整批再切页的），
+  空值不管升序降序都排最后。
+- 接参数的：物料 `list_products`、库存 `stock_overview`（内存排）、盘点 `list_counts`、
+  入出库 `list_entries`、采购 `records.rows` / `api_purchase_records`、
+  销售 `records.rows`+`page`（销售单 + 收银小票**两路归并**，排任意字段时两侧整批取回）、
+  收银小票 `cashier.list_sales`。都是关键字参数带默认值，导出那条路（`records.rows(params, limit=0)`）
+  不受影响。
+
+前端（`pearnly_core` 共享列表层 `list.js`）：
+
+- `p.list` 新增 `sort_fields` 声明；`render_header()` 只给声明过的列保留官方的 `data-sort-by`
+  与"点击排序"提示，其余列照旧摘掉属性 —— 点了没反应比不给点更糟。
+- 绑 `this.$result.on("click", "[data-sort-by]")`：**升序 → 倒序 → 取消**（回本页默认顺序），
+  当前排序列挂 ↑ / ↓。框架自己把箭头画在排序控件里，而那个控件在我们这是隐藏的，所以箭头得自己挂。
+- `refresh()` 把 `sort_by` / `sort_order` 交给各页 `load` → 服务端。列表是服务端分页的
+  （一页 20 条），只在前端重排这一页是假排序。
+- 新增 `p.sort_rows(rows, {sort_by, sort_order, fields, keys})`：一次取全的列表在本地排，
+  口径与服务端一致（白名单、空值最后、数字按数值）；`keys` 只给"列名和行里的键不一样"的列用。
+- 各页声明并透传：物料、库存、盘点、采购、销售、入出库、收银小票、交班、收发存、客户、供应商、
+  仓库、公司、团队、LINE 销售待处理、LINE 采购待处理（共 17 张；交班 / 收发存 / 客户 / 供应商 /
+  仓库 / 公司 / 团队 / LINE 待处理是一次取全、本地排）。
+
+### 探针抓出来的三个真问题（都已修）
+
+接口级探针（把每张列表声明的每个字段都按 asc / desc 打一遍）抓出三个"点了会出事"的：
+
+1. **销售列表按「单据日期」排 → 500**：`TypeError: '<' not supported between instances of
+   'str' and 'datetime.date'`。那一页是销售单 + 收银小票两路归并，同一列一半是 `datetime.date`
+   一半是字符串。修在 `listing._comparable()`：数字按数值比，其余按文本比（日期的文本是 ISO
+   形状，字符串序与时间序一致）。
+2. **入出库按「备注」排 → `PermissionError: 您无权访问字段：ERP Stock Entry.note`**：`note`
+   是字段级受权限保护的字段，`frappe.get_list(order_by="note")` 直接被拒。**这一列不开放排序** ——
+   要排它就得把这一页从"服务端分页"改成"整批取回内存排"，单据只会越积越多，为一列备注不值当。
+3. **团队列表的「状态」列点半天不动**：那一列显示的是"启用 / 停用"，值在 `row.enabled` 上，
+   而列名是 `status`。靠 `keys: {status: "enabled"}` 修掉（`p.sort_rows` 新增的 `keys` 映射）。
+
+### 验证（2026-09-25，预览 lane 8136，Chrome + Playwright）
+
+界面：17 张列表逐个访问，点每页第一个可排列表头 ×3，箭头依次 `列名 ↑` / `列名 ↓` / `列名`，
+全程无 pageerror、无 5xx（`/tmp/listsort5.mjs`）。抽样顺序证据：
+
+| 列表 | 列 | 结果 |
+| --- | --- | --- |
+| 物料 | 物料名称 | 升序 `123 / 123 / 一次性手套 50只 / 保鲜膜 30m` ← 库里的升序就是编码序；倒序 `黄油 / 鸡精 / 鲜牛奶 / 鱼露`；复位回原顺序 |
+| 物料 | 成本 | 升序 `฿4 / 6 / 7 / 8`；倒序 `฿175 / 155 / 128 / 118` |
+| 库存 | 在库 | 升序 `5 / 7 / 28 / 28`；倒序 `394 / 390 / 380 / 376` |
+| 盘点 | 有差异 | 升序先 0（0 显示为空）；倒序 `48 / 6 / 1 / 1` |
+| 客户（8 行） | 客户名称 | 升序按泰文字典序 `เชียงใหม่ / ไทยฟู้ดส์ / นครพาณิชย์ / ภูเก็ตซีฟู้ด`；倒序 `ร้านป้าแดงของชำ / ร้านเจริญพานิช / อีสานค้าส่ง / สยามเทรดดิ้ง` |
+| 供应商（6 行） | 供应商 | 升序 / 倒序翻转，复位回原顺序 |
+| 仓库（7 行） | 仓库名称 | 升序 `123 / 备用仓 / 测试主仓 / 冷藏仓`（拼音序）；倒序 `主仓 / 验收仓库 / 退货仓 / 冷藏仓` |
+| 收发存 | 结存 | 升序先空行；倒序 `394 / 390 / 380 / 376` |
+| 交班 / 入出库 / 收银小票 / 公司 / 团队 / LINE 待处理 | 第一列 | 箭头三态正常；这些列表在演示站点只有 0～1 行，看不出重排（见下面"边界"） |
+
+接口（`/tmp/listserversort.mjs` + `/tmp/sortprobe.mjs`）：把 7 张服务端列表声明的**每个字段**
+按 asc / desc 各打一遍（物料 8 / 库存 9 / 盘点 6 / 采购 7 / 销售 8 / 入出库 5 / 收银小票 5 个字段），
+全部无错；再打一个不存在的 `sort_by=no_such_column` → 正常回落默认顺序，不报错。
+
+纯函数单测：新增 `tests/test_listing_sort.py`（5 条：白名单、方向、空值最后、混类型、数值/Decimal），
+`python3 tests/test_listing_sort.py` 通过。
+
+门户：`check-architecture.py` PASS、`i18n-build.py --check` PASS（新增词条
+`Click to sort by {0}` → 中文"点击按 {0} 排序"，已生成四语翻译包）、
+`tests/test_native_desk_contract.py` 22 项 OK、`node tests/test-native-desk.cjs`、
+`test-line-stocktake.cjs`、`test-stocktake-scanner.cjs`、`node --test tests/test_pos_lifecycle.js`（9 pass）、
+`test-roster-selection.cjs`、`test-records-selection.cjs`、`test-stock-entry.cjs`、`test-stock-card.cjs`、
+`test-selection-action.cjs`、`git diff --check` 全通过。
+
+### 故意不可排的列（不是漏掉）
+
+- 盘点「仓库」：显示的是仓库名（由 link 名翻出来），排 link 名没意义。
+- 收银小票「客户」：回填的抬头，服务端排不了。
+- 团队「角色 / 公司 / 最后登录」：前两个是拼接文本；最后登录在名单里也只有 1 行能看到效果。
+- 公司「当前公司」：按登录人算出来的，不在数据里。
+- 入出库「备注」：字段级权限（上面第 2 条）。
+
+### 演示数据（客户 / 供应商本来是空的）
+
+客户、供应商两张列表在演示站点是 **0 行**，排序点了看不出效果。已在本任务自己的实验室种子里
+补了 8 个客户 + 6 个供应商（`scripts/local-review/seed-stocktake-chart.py::seed_directory`，
+按业务键幂等，跑第二遍输出 `customers: 0, suppliers: 0`）。**没有**动团队 / 交班 / 收银记录 ——
+那几个要建真实账号或走收银流程，演示站点上本来就只有 1 行。
+
+### 边界 / 未做
+
+- **DMS / Cowork 的列表**（`roster.js` / `records.js` / `intake.js`）没有声明 `sort_fields`，
+  列头照旧不可点：那是另外两个产品，这个预览 lane（`stocktake.localhost`）也没装它们，等用户
+  点头再单独开一条验证。
+- 服务端列表的中文 / 泰文排序跟的是数据库（按编码），"一次取回本地排"的那几张跟的是语言习惯
+  （拼音 / 泰文字典序）。所以同一列的「默认顺序」与「升序」可能不完全一样（两者都算有序，
+  客户的例子在表里）。要不要统一（服务端也按语言排）另说，本轮没动。
+- 未推送、未合并、未部署；真机验收、测试环境验收都没有。
+
 ## 未做 / 下一步
 
 - 没有"看板按"切换（商品/仓库/仓位）。
+- DMS / Cowork 的列表排序没做（等用户点头，见第十一轮"边界"）。
 - 未推送、未合并、未部署；测试环境 `testerp.pearnly.com` 上看到的仍是旧图。
 - 上一轮盘点任务的验收 lane（8126，镜像停在 `1fd06f3`）保留未动；它的资源索引已被预览 lane 接管，
   要继续用它做"和上线一致"的检查，需按 `stocktake-preview.sh faithful` 重建同源镜像。
