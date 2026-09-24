@@ -107,7 +107,8 @@
       "masters"
     ],
     "connections": [
-      "adapter"
+      "adapter",
+      "snapshots"
     ],
     "contracts": [],
     "editor": [
