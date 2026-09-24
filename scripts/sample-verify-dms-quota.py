@@ -194,13 +194,21 @@ def main():
     check("查重与重试链继续往下传令牌",
           'payload.get("endpoint_id"), attempt, reply_token' in flow_src
           and "_enqueue(kind, fn, binding, line_user_id, saved, attempt, reply_token)" in flow_src)
-    check("查询：结果看板与畅销榜都带令牌（以前收了参数却丢掉）",
-          '_enqueue("records", _run_records, binding, line_user_id, params, reply_token)' in query_src
-          and '_enqueue("top", _run_top, binding, line_user_id, params, reply_token)' in query_src
+    query_tree = ast.parse(query_src)
+    def direct_query_token(entry, target):
+        function = next(node for node in query_tree.body if isinstance(node, ast.FunctionDef) and node.name == entry)
+        return any(isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == target
+                   and [arg.id if isinstance(arg, ast.Name) else None for arg in node.args]
+                   == ["binding", "line_user_id", "params", "reply_token"]
+                   for node in ast.walk(function))
+
+    check("查询：本地同步读记录与畅销榜仍完整透传免费回覆令牌",
+          direct_query_token("_begin_records", "_run_records")
+          and direct_query_token("_begin_top", "_run_top")
           and "_send(line_user_id, query_cards.sales_board(result), reply_token)" in query_src
           and "_send(line_user_id, query_cards.top_sales_board(result), reply_token)" in query_src)
     check("发送出口走 reply_or_push（不是只看有没有令牌就推播）",
-          "line.reply_or_push(line_user_id, [msg], reply_token)" in out_src)
+          "line.reply_or_push(line_user_id, [_snapshot_notice(msg)], reply_token)" in out_src)
 
     def params(path, name):
         tree = ast.parse((ROOT / path).read_text(encoding="utf-8"), filename=path)

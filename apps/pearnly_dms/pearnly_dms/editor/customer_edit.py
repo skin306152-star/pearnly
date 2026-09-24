@@ -7,7 +7,7 @@
 
   · 会话态是 **`reviewing`**（客户档确认卡那一态），不是 `booking_review`；
   · 只改**客户资料**，不动订车的答案/付款/附件；
-  · 保存后**不写 DMS**：重新查一次客户（`recognize_lookup`），把差异算出来，
+  · 保存后**不写 DMS**：按本地完整客户快照再查重（`recognize_lookup`），把差异算出来，
     发一张新的确认卡/差异卡回 LINE —— 真正的写入仍然要用户在 LINE 里点确认。
 
 `_prefix_id` 那两行是给"身份证识别出的称谓在主档里暂时没命中"兜底的：合并现值时必须
@@ -80,6 +80,7 @@ def load(line_user_id: str, nonce: str) -> dict:
         merged["prefix_id"] = ""
     return {
         "form": {"customer": merged},
+        "snapshot": snapshot.get("snapshot", {}),
         "masters": {"prefixes": editor._options(snapshot["prefixes"])},
         "geo": {k: editor._options(v) for k, v in snapshot["geo"].items()},
     }
@@ -92,7 +93,7 @@ def geo(line_user_id: str, nonce: str, level: str, parent_id: str = "") -> List[
         raise editor.DmsBookingEditError("dms_booking.invalid_geo")
     result = _geo_options(endpoint, level=level, parent_id=parent_id)
     if not result.get("ok"):
-        raise editor.DmsBookingEditError("dms_booking.geo_unavailable", 503)
+        raise editor._read_error(result, "dms_booking.geo_unavailable")
     return editor._options(result.get("options") or [])
 
 
@@ -194,7 +195,7 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
         phone=customer["phone"],
     )
     if not lookup.get("ok"):
-        raise editor.DmsBookingEditError("dms_booking.master_unavailable", 503)
+        raise editor._read_error(lookup, "dms_booking.master_unavailable")
     new_nonce = secrets.token_hex(8)
     new, card = _card(
         binding, payload, customer, lookup, snapshot, new_nonce, draft.has_admin_creds(endpoint)

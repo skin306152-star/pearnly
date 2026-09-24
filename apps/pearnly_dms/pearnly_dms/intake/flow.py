@@ -20,7 +20,7 @@
 
 `exact` 且无差异时出"用旧资料"卡（老产品直拍路径的行为，未变）。
 
-重活（识别 / DMS 登录 / 写库）一律**丢后台任务**，webhook 不占着回复令牌等它
+识别和最终外部写入仍走后台任务；查重只读完整本地快照，在当前 webhook 内完成。
 （老产品是 spawn 后台 + start_loading + push 结果，同一个思路）。
 """
 
@@ -353,7 +353,7 @@ def run_dedup(
     attempt: int = 1,
     reply_token: str = "",
 ) -> None:
-    out.start_loading(line_user_id)
+    # Cache-only: no extra LINE loading request before the immediate result card.
     user_id = binding["user_id"]
     sess = store.get_session(line_user_id)
     sess_payload = (sess or {}).get("payload") or {}
@@ -370,7 +370,7 @@ def run_dedup(
         _push(line_user_id, cards.TXT_NO_ENDPOINT, reply_token)
         return
 
-    # 台账候选：DMS 搜索有"新客隐身期"，刚推过的同尾号客户按号直读核对
+    # 台账仅为漏档提示：候选尚未进入完整快照时待同步，不现场按号登录读取。
     tail = str(id_card.get("people_id") or "")[-4:]
     cands = _id_ocr.recent_dms_customer_ids_by_tail(tail)
     res = dms_intake.recognize_lookup(

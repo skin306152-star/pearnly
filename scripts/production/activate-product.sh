@@ -23,12 +23,17 @@ previous_image=$(docker inspect "$previous_container" --format '{{.Image}}')
 trap 'printf "Activation failed; maintenance remains enabled. Inspect migration and backups before recovery.\n" >&2' ERR
 "${compose[@]}" stop -t 30 "$product-ocr-dispatch" "$product-scheduler"
 "${compose[@]}" stop -t 130 "$product-web" "$product-socketio"
-"${compose[@]}" stop -t 660 "$product-worker" "$product-ocr-worker"
+workers=("$product-worker" "$product-ocr-worker")
+if [[ "$product" == dms ]]; then workers+=(dms-sync-worker); fi
+"${compose[@]}" stop -t 660 "${workers[@]}"
 PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web" bench --site all backup --with-files
 "${compose[@]}" run --rm --no-deps "$product-web" env/bin/python -m pearnly_core.execution.configuration --redis-url redis://redis-queue:6379/6
+if [[ "$product" == dms ]]; then
+  "${compose[@]}" run --rm --no-deps dms-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py
+fi
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
-"${compose[@]}" up -d --no-deps --force-recreate "$product-web" "$product-worker" "$product-ocr-worker" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
+"${compose[@]}" up -d --no-deps --force-recreate "$product-web" "${workers[@]}" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
 # 记下"这一组现在用的是哪张镜像"。不记的话，之后任何 `compose up -d`（例如开户里的
 # restart_web 步骤、或容器重建）会拿旧的 PEARNLY_IMAGE 重建本组容器，
 # 表现就是"发布成功、过一会儿自己退回旧版"。这份记录也是 agent 取镜像的来源。

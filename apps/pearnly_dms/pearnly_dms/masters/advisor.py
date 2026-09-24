@@ -29,7 +29,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from pearnly_dms.masters import employees as dms_employees
 from pearnly_dms.masters import masters_cache as dms_masters_cache
 from pearnly_dms.client.client_ops import row_by_id
-from pearnly_dms.intake.service import endpoint_name
+from pearnly_dms.contracts.endpoint import endpoint_name
 
 logger = logging.getLogger(__name__)
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import secrets
 import shutil
 import sys
+import runpy
 
 
 def main():
@@ -24,6 +25,9 @@ def main():
                   socketio_port=9000, serve_default_site=False,
                   pearnly_ocr_budget_redis="redis://redis-queue:6379/6",
                   workers={**values.get("workers", {}), "ocr": {"timeout": 600}})
+    if group == "dms":
+        configure = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py")
+        values = configure["configured"](values)
     common.write_text(json.dumps(values))
     Path("apps.txt").write_text("\n".join(["frappe", "erpnext", "pearnly_core", "pearnly_dms",
                                         "pearnly_cowork", "pearnly_erp_portal"]) + "\n")
@@ -143,6 +147,9 @@ def main():
         from pearnly_core.provisioning import ensure_product_workspace
         ensure_product_workspace(json.dumps(p))
     elif action == "verify_site":
+        if group == "dms":
+            assert frappe.conf.get("scheduler_tick_interval") == 60
+            assert frappe.conf.get("workers", {}).get("dms_sync", {}).get("timeout") == 420
         assert frappe.conf.pearnly_tenant == p["tenant"]
         assert frappe.conf.pearnly_product == group
         assert frappe.conf.pearnly_native_account

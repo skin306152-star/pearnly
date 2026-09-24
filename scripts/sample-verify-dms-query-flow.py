@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""查资料流程层验证：权限门的**两次校验**、四路维度、看板条件、翻页、后台任务。
+"""查资料流程层验证：双重权限、四路维度、看板条件、本地读取、翻页。
 
 这一层最要紧的是**权限的二次校验**：动作入口查一次（没权限连菜单都进不去），
-**后台任务发结果之前再查一次** —— 读 DMS 要几秒，这几秒里权限可能被收回；
+**发送结果之前再查一次** —— 即使本地读取也可能遇到并发收权；
 少了第二次，刚被收权的人还会收到一份数据。这条是静默的，界面上看不出来。
 
-出口（reply/push/send/入队）全换记录器，读数据换假的，**会话用真的**。
+出口和同步调用换记录器，读数据换假的，**会话用真的**；无外部读取。
 
 用法: scripts/sample-verify-dms-query-flow.sh <组> <站点>
 """
@@ -28,10 +28,14 @@ def main():
 
     replied, pushed, sent, queued = [], [], [], []
     qf._reply = lambda reply_token, text: replied.append(text)
-    qf._push = lambda line_user_id, text: pushed.append(text)
+    qf._push = lambda line_user_id, text, reply_token="": pushed.append(text)
     qf._send = lambda line_user_id, msg, reply_token="": sent.append(msg)
-    qf._start_loading = lambda line_user_id: None
-    qf._enqueue = lambda job, fn, *args: queued.append((job, fn.__name__, args))
+    real_records, real_top = qf._run_records, qf._run_top
+    record_spy = lambda *args: queued.append(("records", "_run_records", args))
+    top_spy = lambda *args: queued.append(("top", "_run_top", args))
+    qf._run_records, qf._run_top = record_spy, top_spy
+    qf.current_binding = lambda *args: True
+    rb.query_capabilities = lambda user: {"ok": True, "top_sales": True}
 
     allowed = {"v": True}
     qf._can_query = lambda binding: allowed["v"]
@@ -147,11 +151,11 @@ def main():
     ck("本年 → 起 '01/01/佛历'，条数夹到 1",
        p["date_from"] == "01/01/%d" % (today.year + 543) and p["limit"] == 1, (p["date_from"], p["limit"]))
 
-    # ── 5. 会话态 + 入队（两条路） ─────────────────────────────────────
+    # ── 5. 会话态 + 同步本地调用（两条路） ──────────────────────────────
     queued.clear()
     qf._begin_records(binding, uid, field="customer", query="สมชาย", status="ready", limit=99, page=0)
     sess = store.get_session(uid) or {}
-    ck("记录：条件进会话、进 query_results 态、丢后台",
+    ck("记录：条件进会话、进 query_results 态、直接调用本地读取",
        sess.get("state") == "query_results" and sess["payload"]["query_kind"] == "records"
        and queued[-1][1] == "_run_records", (sess.get("state"), queued[-1][:2]))
     ck("⚠️ 记录的页大小上限是 **10**（看板才是 30），页码至少 1",
@@ -161,24 +165,27 @@ def main():
     qf._begin_top(binding, uid, group="model", metric="amount",
                   date_from="01/09/2569", date_to="18/09/2569", limit=99)
     sess = store.get_session(uid) or {}
-    ck("看板：条件进会话、丢后台，页大小上限 30",
+    ck("看板：条件进会话、直接调用本地读取，页大小上限 30",
        sess["payload"]["query_kind"] == "top" and sess["payload"]["limit"] == 30
        and queued[-1][1] == "_run_top", sess["payload"])
 
-    # ── 6. 后台任务：**发结果前再查一次权限** ──────────────────────────
+    # ── 6. 真实结果处理器：**发结果前再查一次权限** ────────────────────
+    qf._run_records, qf._run_top = real_records, real_top
+    store.set_session(uid, "query_results", {"query_kind": "records", "field": "booking_no",
+                      "query": "", "status": "active", "limit": 10, "page": 1})
     sent.clear()
     pushed.clear()
     allowed["v"] = False
     qf._run_records(binding, uid, {"field": "booking_no", "query": "", "status": "active",
                                    "limit": 10, "page": 1})
-    ck("后台任务开工时没权限 → 静默不发（连拒答都不发，避免骚扰）",
+    ck("读取之前没权限 → 静默不发（连拒答都不发，避免骚扰）",
        not sent and not pushed, (len(sent), len(pushed)))
 
     allowed["v"] = True
     calls = {"n": 0}
 
     def flip_after_read(*args, **kwargs):
-        """模拟"读 DMS 这几秒里权限被收回"：读之前有、读之后没。"""
+        """模拟本地读取期间被收权：读之前有、读之后没。"""
         calls["n"] += 1
         allowed["v"] = False
         return {"ok": True, "rows": [{"booking_no": "BK1"}]}
@@ -219,17 +226,20 @@ def main():
     sent.clear()
     qf._run_records(binding, uid, {"field": "booking_no", "query": "", "status": "active",
                                    "limit": 10, "page": 1})
-    ck("读成功 → 推记录看板（后台任务没有 reply token，只能 push）",
+    ck("读成功 → 发记录看板（调用者未传 reply token 的兼容路径）",
        len(sent) == 1 and sent[-1]["type"] == "flex", len(sent))
 
     qf.sales_readback.fetch_top_sales = lambda *a, **k: {"ok": True, "metric": "quantity",
                                                         "rows": [{"label": "A", "value": 1}]}
+    store.set_session(uid, "query_results", {"query_kind": "top", "group": "model",
+                      "metric": "quantity", "date_from": "d", "date_to": "d", "limit": 10, "page": 1})
     sent.clear()
     qf._run_top(binding, uid, {"group": "model", "metric": "quantity", "date_from": "d",
                                "date_to": "d", "limit": 10, "page": 1})
     ck("看板任务成功 → 推畅销卡", len(sent) == 1 and sent[-1]["type"] == "flex", len(sent))
 
-    # ── 7. 打字那两条路 ────────────────────────────────────────────────
+    # ── 7. 打字那两条路（记录同步调用参数） ──────────────────────────────
+    qf._run_records, qf._run_top = record_spy, top_spy
     queued.clear()
     store.set_session(uid, "query_sales_input", {"field": "customer"})
     ck("打字态：普通文本进查询（带上字段与 active）",

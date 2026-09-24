@@ -148,6 +148,13 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  dms-sync-worker:
+    profiles: [dms]
+    <<: *worker
+    # One browser-capable background lane, never consumes interactive long/OCR.
+    mem_limit: 1g
+    command: [bench, worker, --queue, dms_sync]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
   dms-ocr-dispatch:
     profiles: [dms]
     <<: *runtime

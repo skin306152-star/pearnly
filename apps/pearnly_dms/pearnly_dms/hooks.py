@@ -26,12 +26,22 @@ doc_events = {
     },
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
+extend_doctype_class = {
+    "Scheduled Job Type": ["pearnly_dms.snapshots.scheduler_job.DmsSnapshotScheduler"],
+}
+
+pearnly_dms_snapshot_collectors = [
+    {"dataset": "directory", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset": "sales_query", "reader": "sales",
+     "method": "pearnly_dms.query.snapshot_sync.refresh"},
+    {"dataset": "geo", "reader": "authority",
+     "method": "pearnly_dms.adapter.geo_sync.refresh"},
+]
 scheduler_events = {"cron": {
-    # 主档后台预热：每分钟只看新鲜度，超过 45 秒才派发一次刷新（口径照老产品
-    # `dms_master_refresh.sweep`）。没有它，用户点第一下就要现场等一次全量登录。
-    "* * * * *": ["pearnly_dms.adapter.warm.sweep"],
     "*/10 * * * *": [schedule_menu_reconciliation],
-    "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
+    "*/5 * * * *": ["pearnly_dms.snapshots.schedule.sweep",
+                      "pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
 }}

@@ -82,6 +82,9 @@ def build_snapshot(
     *,
     require_nonempty: bool = True,
 ) -> Dict[str, Any]:
+    metadata = masters.get("_snapshot") or {}
+    if not captured_at and metadata.get("as_of"):
+        captured_at = datetime.fromtimestamp(float(metadata["as_of"]), timezone.utc).isoformat(timespec="seconds")
     rows: Dict[str, List[list]] = {}
     for key in SNAPSHOT_KEYS:
         source = masters.get(key)
@@ -93,6 +96,7 @@ def build_snapshot(
     return {
         "version": _version(rows),
         "captured_at": captured_at or _now(),
+        "source_generation": metadata.get("generation", ""),
         "counts": {key: len(value) for key, value in rows.items()},
         "rows": rows,
     }
@@ -108,7 +112,7 @@ def snapshot_rows(snapshot: Dict[str, Any], key: str) -> List[list]:
     return value
 
 
-def build_paint_snapshot(car_id: str, rows: List[list]) -> Dict[str, Any]:
+def build_paint_snapshot(car_id: str, rows: List[list], *, metadata=None) -> Dict[str, Any]:
     compact = _compact(rows)
     if not compact:
         raise MasterSyncError("ERR_DMS_MASTER_EMPTY", "paints")
@@ -116,7 +120,9 @@ def build_paint_snapshot(car_id: str, rows: List[list]) -> Dict[str, Any]:
     return {
         **payload,
         "version": _version({"paints": compact}),
-        "captured_at": _now(),
+        "captured_at": (datetime.fromtimestamp(float(metadata["as_of"]), timezone.utc).isoformat(timespec="seconds")
+                        if metadata and metadata.get("as_of") else _now()),
+        "source_generation": (metadata or {}).get("generation", ""),
         "count": len(compact),
     }
 

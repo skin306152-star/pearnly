@@ -79,7 +79,9 @@
       "client",
       "contracts",
       "line",
-      "masters"
+      "masters",
+      "snapshots",
+      "config"
     ],
     "approval": [
       "intake",
@@ -95,7 +97,8 @@
       "intake",
       "line",
       "masters",
-      "ocr"
+      "ocr",
+      "snapshots"
     ],
     "client": [
       "booking",
@@ -116,7 +119,8 @@
       "line",
       "masters",
       "menu",
-      "ocr"
+      "ocr",
+      "snapshots"
     ],
     "intake": [
       "adapter",
@@ -127,7 +131,8 @@
       "line",
       "menu",
       "ocr",
-      "query"
+      "query",
+      "snapshots"
     ],
     "line": [
       "booking",
@@ -137,10 +142,10 @@
       "query"
     ],
     "masters": [
+      "adapter",
       "booking",
       "client",
-      "contracts",
-      "intake"
+      "contracts"
     ],
     "menu": [
       "booking",
@@ -161,12 +166,17 @@
       "intake",
       "line",
       "ocr",
-      "records"
+      "records",
+      "snapshots",
+      "adapter"
     ],
     "records": [],
     "account": [
       "editor",
       "ocr"
+    ],
+    "snapshots": [
+      "contracts"
     ]
   },
   "cowork_domain_dependencies": {

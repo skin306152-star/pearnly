@@ -34,7 +34,6 @@ from pearnly_dms.booking.conversation import booking_qa_sync as booking_qa_sync
 from pearnly_dms.booking.conversation import booking_qa_transfer as booking_qa_transfer
 from pearnly_dms.line import commands as commands
 from pearnly_dms.booking.conversation import qa_cards as qa_cards
-from pearnly_dms.adapter import master_shared
 from pearnly_dms.masters.advisor import resolve_operator_advisor
 from pearnly_dms.contracts.client_base import to_be_date
 from pearnly_dms.masters.master_contract import MasterSyncError
@@ -80,7 +79,7 @@ def start(
         persist=_persist,
         send_step=send_step,
         resolve_endpoint=resolve_dms_endpoint,
-        get_masters=master_shared.get_session_masters,
+        get_masters=booking_qa_sync.get_masters,
         resolve_advisor=resolve_operator_advisor,
         reply_token=reply_token,
         draft=draft,

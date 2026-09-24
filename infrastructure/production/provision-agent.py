@@ -74,6 +74,13 @@ def check_capacity(group, transient_mib=0):
                 "--product", group, "--transient-mib", str(transient_mib)], timeout=30)
 
 
+def services(group, suffixes):
+    names = [group + "-" + suffix for suffix in suffixes]
+    if group == "dms" and "worker" in suffixes:
+        names.append("dms-sync-worker")
+    return names
+
+
 def restart_group(group):
     """Restart one product's app processes.
 
@@ -90,8 +97,8 @@ def restart_group(group):
     # exactly our case (same image, same volumes) — it left the old processes running
     # and the new configuration unread. `restart` is the operation that actually gives
     # the product fresh processes.
-    compose(group, "restart", "-t", "30", *[group + "-" + suffix for suffix in
-            ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
+    compose(group, "restart", "-t", "30", *services(group,
+            ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")))
 
 
 def site_step(job):
@@ -265,8 +272,8 @@ def main():
             # 从未被 web 进程加载过，不存在读到旧副本的问题。这里只要保证产品组在跑即可。
             # 曾经这里放的是真重启 —— 那会把**该产品下所有已有租户**一起踢下线，开一个新
             # 租户的代价变成"别人抖一下"（用户 2026-09-19 指出）。
-            compose(p["group"], "up", "-d", *[p["group"] + "-" + suffix for suffix in
-                    ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
+            compose(p["group"], "up", "-d", *services(p["group"],
+                    ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")))
         elif action == "drop_site":
             path = Path(f"/etc/nginx/conf.d/pearnly-tenant-{p['site']}.conf")
             path.unlink(missing_ok=True)
@@ -274,11 +281,11 @@ def main():
             run(["systemctl", "reload", "nginx"])
             # Pause this product's queue while its exact Site/database is removed.
             # Other product queues use independent Redis databases.
-            compose(p["group"], "stop", "-t", "120", *[p["group"] + "-" + suffix for suffix in ("scheduler", "worker", "ocr-worker", "ocr-dispatch")])
+            compose(p["group"], "stop", "-t", "120", *services(p["group"], ("scheduler", "worker", "ocr-worker", "ocr-dispatch")))
             try:
                 site_step(job)
             finally:
-                compose(p["group"], "start", *[p["group"] + "-" + suffix for suffix in ("worker", "ocr-worker", "ocr-dispatch", "scheduler")])
+                compose(p["group"], "start", *services(p["group"], ("worker", "ocr-worker", "ocr-dispatch", "scheduler")))
             if Path(f"/etc/letsencrypt/live/{p['site']}").exists():
                 run(["certbot", "delete", "--non-interactive", "--cert-name", p["site"]])
             manifest.write_text(json.dumps({**owner, "deleted": True}))

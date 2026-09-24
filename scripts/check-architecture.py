@@ -131,7 +131,7 @@ def check(root=ROOT):
                     errors.append(f"{relative}:{n.lineno}: internal code must use domain API, not {dependency}")
                 if "/pearnly_dms/contracts/" in relative:
                     prefix = dependency.split(".")[0]
-                    if prefix not in {"__future__", "datetime", "dataclasses", "typing", "decimal", "re", "enum", "collections", "math", "pearnly_dms"} or (prefix == "pearnly_dms" and not dependency.startswith("pearnly_dms.contracts.")):
+                    if prefix not in {"__future__", "datetime", "dataclasses", "typing", "decimal", "re", "enum", "collections", "math", "html", "unicodedata", "pearnly_dms"} or (prefix == "pearnly_dms" and not dependency.startswith("pearnly_dms.contracts.")):
                         errors.append(f"{relative}:{n.lineno}: contracts must remain pure and independent: {dependency}")
     for old in compat:
         path = root / "apps/pearnly_dms" / (old.replace(".", "/") + ".py")

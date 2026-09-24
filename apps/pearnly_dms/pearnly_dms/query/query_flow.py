@@ -1,27 +1,10 @@
 # -*- coding: utf-8 -*-
-"""查资料那一族的流程：选条件 → 现读 DMS → 出看板（受权限门控）。
+"""Menu-5 conditions → local snapshots → cards, without a long-queue hop.
 
-照搬老产品 `services/line_dms/query_flow.py`（线上基准 `501589f0`，逻辑未改），
-async → 同步。
-
-## 权限是**二次校验**的（这条不能省）
-
-每一步动作、以及**后台任务真正发结果之前**都会再查一次"这个人还有没有查询权"：
-
-· 动作入口查一次 —— 没权限的人连菜单都进不去（回"还没有查询权限"）；
-· 后台任务发结果**之前再查一次** —— 因为读 DMS 要几秒，这几秒里权限可能被收回。
-  少了这一次，刚被收权的人还会收到一份数据。
-
-**判据本身在 `dms_query_access`**（花名册那一栏），这里只负责在正确的位置调用它。
-
-## 两步都丢后台
-
-读 DMS 要重新登录（几秒到十几秒），所以 `_begin_records` / `_begin_top` 只做两件事：
-把条件存进会话（`query_results`）→ 丢后台任务。webhook 立刻返回。
-翻页、重读都是同一套：**条件进会话、任务读参数**，不靠内存里的状态。
-
-新平台的两处映射：后台调度走 `dms_out.enqueue`；多 OA 的 `binding_guard` 去掉
-（一个站点一条 OA，绑定随事件带进来）。
+Every action and result delivery rechecks current permission/binding. Conditions
+remain in the LINE session; obsolete results cannot replace a newer query. The
+``_run_*`` names are retained for queued jobs from a rolling upgrade, but new
+interactions call them directly and never log into DMS.
 """
 
 from __future__ import annotations
@@ -38,11 +21,10 @@ from pearnly_dms.line import cards as cards
 from pearnly_dms.query import query_access as query_access
 from pearnly_dms.query import query_cards as query_cards
 from pearnly_dms.query import sales_readback as sales_readback
-from pearnly_dms.line.out import enqueue as _enqueue
+from pearnly_dms.line.errors import friendly
 from pearnly_dms.line.out import push_or_reply_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
-from pearnly_dms.line.out import start_loading as _start_loading
 from pearnly_dms.line.identity import matches as current_binding
 
 logger = logging.getLogger(__name__)
@@ -169,11 +151,12 @@ def _pick_type(binding: dict, line_user_id: str, reply_token: str, kind: str) ->
         _reply(reply_token, query_cards.TXT_COMING_SOON)
         return
     store.set_session(line_user_id, "query_sales", {})
-    _start_loading(line_user_id)
-    _enqueue("query-capabilities", _run_dimensions, binding, line_user_id, reply_token)
+    _run_dimensions(binding, line_user_id, reply_token)
 
 
 def _run_dimensions(binding, line_user_id, reply_token: str = ""):
+    if not _can_query(binding):
+        return
     result = sales_readback.query_capabilities(binding["user_id"])
     frappe.db.commit()
     if not current_binding(binding, line_user_id) or not _can_query(binding):
@@ -253,7 +236,7 @@ def _pick_top_period(
     )
 
 
-# ── 两条"落地成任务"的路 ─────────────────────────────────────────────────────
+# ── 条件落会话后，直接读本地快照 ─────────────────────────────────────────────
 def _begin_records(
     binding: dict,
     line_user_id: str,
@@ -265,7 +248,7 @@ def _begin_records(
     page: int = 1,
     reply_token: str = "",
 ) -> None:
-    """条件进会话 + 丢后台。⚠️ 记录的页大小上限是 **10**（看板才是 30）。"""
+    """条件进会话再本地读取。记录每页上限 10，看板每页上限 30。"""
     params = {
         "query_kind": "records",
         "field": field,
@@ -275,13 +258,18 @@ def _begin_records(
         "page": max(int(page), 1),
     }
     store.set_session(line_user_id, "query_results", params)
-    _start_loading(line_user_id)
-    _enqueue("records", _run_records, binding, line_user_id, params, reply_token)
+    _run_records(binding, line_user_id, params, reply_token)
+
+
+def _same_query_session(line_user_id, kind, params):
+    session = store.get_session(line_user_id) or {}
+    return (session.get("state") == "query_results"
+            and session.get("payload") == {**params, "query_kind": kind})
 
 
 def _run_records(binding: dict, line_user_id: str, params: dict,
                  reply_token: str = "") -> None:
-    """后台任务：读一页记录 → 出看板。**发结果前再查一次权限。**"""
+    """读本地一页记录；发送前重新确认绑定、权限及原查询会话。"""
     if not _can_query(binding):
         return
     result = sales_readback.fetch_sales_records(
@@ -292,11 +280,13 @@ def _run_records(binding: dict, line_user_id: str, params: dict,
         limit=params["limit"],
         page=params["page"],
     )
-    frappe.db.commit()  # Discard the snapshot held during the external read.
+    frappe.db.commit()  # New transaction for the final identity/permission check.
     if not current_binding(binding, line_user_id):
         return
     if not _can_query(binding):
         _push(line_user_id, query_cards.TXT_DENIED, reply_token)
+        return
+    if not _same_query_session(line_user_id, "records", params):
         return
     if not result.get("ok"):
         _push(line_user_id, _failure_text(result), reply_token)
@@ -326,13 +316,12 @@ def _begin_top(
         "page": max(int(page), 1),
     }
     store.set_session(line_user_id, "query_results", params)
-    _start_loading(line_user_id)
-    _enqueue("top", _run_top, binding, line_user_id, params, reply_token)
+    _run_top(binding, line_user_id, params, reply_token)
 
 
 def _run_top(binding: dict, line_user_id: str, params: dict,
              reply_token: str = "") -> None:
-    """后台任务：读畅销榜 → 出看板。**发结果前再查一次权限。**"""
+    """本地排行读取/登记条件；发送前再次查权限，不等待第三方同步。"""
     if not _can_query(binding):
         return
     result = sales_readback.fetch_top_sales(
@@ -350,6 +339,8 @@ def _run_top(binding: dict, line_user_id: str, params: dict,
     if not _can_query(binding):
         _push(line_user_id, query_cards.TXT_DENIED, reply_token)
         return
+    if not _same_query_session(line_user_id, "top", params):
+        return
     if not result.get("ok"):
         _push(line_user_id, _failure_text(result), reply_token)
         return
@@ -360,6 +351,10 @@ def _failure_text(result: dict) -> str:
     """读失败怎么说：没账号就直说没账号，其余用 DMS 那句友好文案，兜底"读不到，请重试"。"""
     if result.get("error_code") == "ERR_NO_CREDS":
         return query_cards.TXT_NO_ENDPOINT
+    if str(result.get("error_code") or "").startswith("ERR_DMS_SNAPSHOT_"):
+        return friendly(result["error_code"])["th"]
+    if result.get("error_code") == "ERR_DMS_QUERY_FORBIDDEN":
+        return query_cards.TXT_DENIED
     return (result.get("error_friendly") or {}).get("th") or query_cards.TXT_QUERY_FAILED
 
 

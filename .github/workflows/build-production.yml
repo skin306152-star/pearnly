@@ -29,6 +29,7 @@ jobs:
           python3 scripts/check-architecture.py
           python3 scripts/test-dms-call-contracts.py
           python3 scripts/test-dms-customer-identity.py
+          python3 scripts/test-dms-snapshot-reader.py
       - name: Verify Desk retry actions
         run: |
           node scripts/production/test-issue-actions.cjs
@@ -36,6 +37,8 @@ jobs:
       - name: Build the shared frontend
         working-directory: frontend
         run: npm ci && npm run build
+      - name: Verify offline DMS editor snapshot rendering
+        run: node --test scripts/test-dms-editor-snapshot.cjs
       - name: Build an amd64 image from the exact source revision
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
@@ -64,6 +67,14 @@ jobs:
             -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-query-output.py
           docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
             -v "$PWD:/candidate:ro" "$IMAGE" /candidate/tests/test_teardown_members.py
+      - name: Verify DMS query and snapshot consumers without network access
+        env:
+          IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-query-snapshots.py
+          docker run --rm --network none --entrypoint /home/frappe/frappe-bench/env/bin/python \
+            -v "$PWD:/candidate:ro" "$IMAGE" /candidate/scripts/test-dms-snapshot-consumers.py
       - name: Verify signed DMS webhook and native queued booking in an isolated Site
         env:
           PEARNLY_FLOW_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
@@ -79,6 +90,21 @@ jobs:
         env:
           PEARNLY_FLOW_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
         run: docker compose -p pearnly-dms-flow-lab -f infrastructure/compose/dms-flow-lab.yml down --volumes
+      - name: Verify native snapshot storage, reads, synchronization and dedicated queue
+        env:
+          PEARNLY_SNAPSHOT_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: |
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml up -d --wait db redis bench
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/dms-snapshot-lab-init.py
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-store-native.py
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-reads-native.py
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-sync-native.py
+          docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml exec -T bench env/bin/python /workspace/scripts/test-dms-snapshot-queue-native.py
+      - name: Remove only the disposable DMS snapshot laboratory
+        if: always()
+        env:
+          PEARNLY_SNAPSHOT_LAB_IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+        run: docker compose -p pearnly-dms-snapshot-lab -f infrastructure/compose/dms-snapshot-lab.yml down --volumes
       - name: Verify runtime and frontend assets
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}

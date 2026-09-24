@@ -358,7 +358,7 @@ class SubmissionEvidence(unittest.TestCase):
         evidence = {"submitted": True, "booking_no": "LAB-UNKNOWN", "mismatches": ["paint"]}
         failure = DmsClientError("unverified stored result", "ERR_DMS_BOOKING_UNKNOWN")
         failure.response_body = evidence
-        with patch.object(intake_service, "build_adapter", return_value=(adapter, None)):
+        with patch("pearnly_dms.adapter.operations.build_adapter", return_value=(adapter, None)):
             result = intake_service.run_logged_in("EP-lab", Mock(side_effect=failure))
         self.assertEqual(result["error_code"], "ERR_DMS_BOOKING_UNKNOWN")
         for key, value in evidence.items():
@@ -392,25 +392,26 @@ class SalesQuery(unittest.TestCase):
                 query._sales_page(client, "1", "1", "", 10, 1)
 
     def test_ranking_respects_native_account_scope_and_array_contract(self):
-        from pearnly_dms.query import sales_readback as query
+        from pearnly_dms.query import snapshot_sync as sync, sales_readback as query
         client, adapter = Mock(), Mock()
         adapter.base_url = "https://example.test/dms/"
         home = '<input id="idusers" value="own-id">'
         adapter.transport.return_value.get.return_value.text = home
-        with patch.object(query, "_enabled_endpoint", return_value="EP-own"), \
-             patch.object(query, "run_logged_in", side_effect=lambda ep, fn: fn(client, adapter)):
-            self.assertFalse(query.query_capabilities("own")["top_sales"])
-            with self.assertRaises(DmsClientError) as failure:
-                query.fetch_top_sales("own")
-            self.assertEqual(failure.exception.error_code, "ERR_DMS_QUERY_SCOPE")
-            client._post_text.assert_not_called()
-            adapter.transport.return_value.get.return_value.text = home + ''.join(
-                f'<select id="{field}"><option value="0">All</option><option value="7">Own scope</option></select>'
-                for field in ("carmaxsellbranch", "carmaxsellteam"))
-            self.assertTrue(query.query_capabilities("own")["top_sales"])
-            client._post_text.side_effect = ["2", '[["A", "B"], ["1"], [1, 2]]']
-            with self.assertRaises(DmsClientError):
-                query.fetch_top_sales("own")
+        adapter.transport.return_value.get.return_value.status_code = 200
+        scope = sync.dashboard_scope(adapter)
+        self.assertFalse(scope["top_sales"])
+        with self.assertRaises(DmsClientError) as failure:
+            sync.collect_top(client, scope, query.top_parameters())
+        self.assertEqual(failure.exception.error_code, "ERR_DMS_QUERY_SCOPE")
+        client._post_text.assert_not_called()
+        adapter.transport.return_value.get.return_value.text = home + ''.join(
+            f'<select id="{field}"><option value="0">All</option><option value="7">Own scope</option></select>'
+            for field in ("carmaxsellbranch", "carmaxsellteam"))
+        scope = sync.dashboard_scope(adapter)
+        self.assertTrue(scope["top_sales"])
+        client._post_text.side_effect = ["2", '[["A", "B"], ["1"], [1, 2]]']
+        with self.assertRaises(DmsClientError):
+            sync.collect_top(client, scope, query.top_parameters())
 
     def test_rebound_identity_receives_no_result_after_slow_read(self):
         from pearnly_dms.query import query_flow as flow
@@ -430,7 +431,7 @@ class SalesQuery(unittest.TestCase):
                 send.assert_not_called()
 
     def test_fresh_session_initializes_native_list_before_query(self):
-        from pearnly_dms.query import sales_readback as query
+        from pearnly_dms.query import sales_readback as query, snapshot_sync as sync
         client = Mock()
         initialized = False
 
@@ -442,15 +443,15 @@ class SalesQuery(unittest.TestCase):
                 return "native view"
             self.assertTrue(initialized, "A direct query silently hides existing DMS records")
             self.assertEqual(path, query.LIST_PATH)
+            if "sdtamt" not in values:
+                return "dt::1"
             cells = ["", "active", "BK-LAB", "20/09/2569", "21/10/2569",
                      "Salesperson", "Customer", "Model", "Red", "cash", "", "", ""]
             return '<div data-val="lab">' + ''.join('<p>' + c + '</p>' for c in cells) + '</div>'
 
         client._post_text.side_effect = post
-        with patch.object(query, "_enabled_endpoint", return_value="EP-lab"), \
-                patch.object(query, "run_logged_in", side_effect=lambda endpoint, fn: fn(client, None)):
-            result = query.fetch_sales_records("user-lab")
-        self.assertEqual(result["rows"][0]["booking_no"], "BK-LAB")
+        result = sync.collect_sales(client, {"top_sales": False, "key": "employee-scope"})
+        self.assertEqual(result["rows"]["lab"]["booking_no"], "BK-LAB")
 
 
 class BookingService(unittest.TestCase):
@@ -461,7 +462,7 @@ class BookingService(unittest.TestCase):
         self.db = Mock()
         self.db.get_value.side_effect = self.db_value
         self.enterContext(patch.object(frappe, "db", self.db))
-        self.enterContext(patch("pearnly_dms.intake.service.run_logged_in", side_effect=self.run_session))
+        self.enterContext(patch("pearnly_dms.adapter.operations.run_logged_in", side_effect=self.run_session))
         self.enterContext(patch("pearnly_dms.adapter.admin_read.authoritative_read_session", self.read_session))
         self.enterContext(patch.object(service, "booking_lock", self.write_lock))
         self.payload = {"qa": {
@@ -483,7 +484,7 @@ class BookingService(unittest.TestCase):
         self.enterContext(patch("pearnly_dms.booking.booking_customer.card_from_customer", return_value=object()))
         self.enterContext(patch("pearnly_dms.masters.company_banks.validate_company_bank_payments",
                                 side_effect=lambda adapter, payments, **kw: payments))
-        self.cache = self.enterContext(patch("pearnly_dms.masters.masters_cache.write_authoritative_snapshot"))
+        self.cache = self.enterContext(patch("pearnly_dms.adapter.snapshot_writeback.sales", return_value=True))
         self.attempt = Mock()
 
     def db_value(self, doctype, name, field):

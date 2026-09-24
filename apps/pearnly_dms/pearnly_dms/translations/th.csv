@@ -1,7 +1,15 @@
+Address data as of {time}; full refresh scheduled daily,ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน
+Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
 Booking ID,รหัสการจอง
 Booking Number,เลขที่การจอง
+"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย กำหนดซิงก์ทุก 5 นาที ช่วงวันที่ใหม่อาจต้องรอซิงก์ ข้อมูล ณ
+"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",ข้อมูล DMS ที่ซิงก์ไว้ กำหนดซิงก์ทุก 5 นาที แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การค้นหาช่วงวันที่ครั้งแรกอาจต้องรอซิงก์
 DMS,DMS
+DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)
+DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,การซิงก์ DMS ได้ข้อมูลไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองใหม่หลังซิงก์สำเร็จ
+Data as of {time},ข้อมูล ณ {time}
+Data captured at,เวลาที่ซิงก์ข้อมูล
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
 Last Error,ข้อผิดพลาดล่าสุด
 Multiple DMS connections exist for this operator,ผู้ปฏิบัติงานนี้มีการเชื่อมต่อ DMS หลายรายการ
@@ -10,9 +18,13 @@ Recognition could not finish. Please try again shortly.,อ่านข้อม
 Reload List,โหลดรายการใหม่
 Submission Evidence,หลักฐานการส่ง
 Submission Nonce,nonce การส่ง
+Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
+The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
 The recognition queue is busy. Please send the image again shortly.,คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this image yet.,กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ
+"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณารอให้ซิงก์เสร็จแล้วลองใหม่
 The saved credentials cannot be read back; check the site encryption key,อ่านข้อมูลรับรองที่บันทึกไว้ไม่สำเร็จ กรุณาตรวจสอบคีย์เข้ารหัสของเว็บไซต์
+"Too many new date ranges are waiting to sync. Please wait, then retry the same query.",มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
 dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
 dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
 dms.account.invalid,กรุณากรอกรหัสผ่าน DMS
@@ -223,7 +235,7 @@ dms.card.query.ASK_TOP_GROUP,จัดอันดับยอดขายตา
 dms.card.query.ASK_TOP_METRIC,จัดอันดับด้วยจำนวนคันหรือยอดเงิน
 dms.card.query.ASK_TOP_PERIOD,เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
 dms.card.query.ASK_VEHICLE,พิมพ์รุ่นรถ
-dms.card.query.CARD_NOTE,สถานะเอกสารแสดงตาม DMS จริง · แบบร่างไม่นับเป็นยอดขาย
+dms.card.query.CARD_NOTE,ข้อมูล DMS ที่ซิงก์ไว้ กำหนดซิงก์ทุก 5 นาที แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การค้นหาช่วงวันที่ครั้งแรกอาจต้องรอซิงก์
 dms.card.query.CARD_TITLE,บันทึกการขายจาก DMS
 dms.card.query.DIM_ADVISOR,ที่ปรึกษาการขาย
 dms.card.query.DIM_ALLOCATION,การจัดสรรรถ
@@ -253,7 +265,7 @@ dms.card.query.LBL_DELIVERY,ส่งมอบ
 dms.card.query.LBL_DOCS,เอกสาร/เครื่อง
 dms.card.query.LBL_FINANCE,ไฟแนนซ์
 dms.card.query.LBL_PAGE,หน้า
-dms.card.query.LBL_READ_AT,อ่านล่าสุด
+dms.card.query.LBL_READ_AT,เวลาที่ซิงก์ข้อมูล
 dms.card.query.MET_AMOUNT,ยอดเงิน
 dms.card.query.MET_QTY,จำนวนคัน
 dms.card.query.NAV_NEXT,หน้าถัดไป
@@ -279,7 +291,7 @@ dms.card.query.ST_MANAGER_PENDING,รอ ผจก.ขาย
 dms.card.query.ST_READY,พร้อมรับรถ
 dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
-dms.card.query.TOP_NOTE_PREFIX,ทุกสาขา/ทีมที่บัญชีนี้มองเห็น · อ่านล่าสุด
+dms.card.query.TOP_NOTE_PREFIX,สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย กำหนดซิงก์ทุก 5 นาที ช่วงวันที่ใหม่อาจต้องรอซิงก์ ข้อมูล ณ
 dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
 dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่
@@ -299,6 +311,8 @@ dms.card.sum.name,ชื่อ
 dms.card.sum.people_id,เลขบัตร
 dms.card.sum.phone,เบอร์โทร
 dms.edit.addPayment,เพิ่มช่องทาง
+dms.edit.addressSnapshotAsOf,ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน
+dms.edit.addressSnapshotStale,การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
 dms.edit.advisor,ที่ปรึกษาการขาย (ระบบกำหนด)
 dms.edit.amount,จำนวนเงิน
 dms.edit.attached,เก็บไฟล์แนบนี้
@@ -406,6 +420,11 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,อ่านข้อมูลหลักข
 dms.err.ERR_DMS_MASTER_UNMATCHED,รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง
 dms.err.ERR_DMS_QUERY_SCOPE,บัญชี DMS นี้ยังไม่มีสิทธิ์ดูอันดับยอดขาย กรุณาติดต่อผู้ดูแล DMS
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,การซิงก์ DMS ได้ข้อมูลไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองใหม่หลังซิงก์สำเร็จ
+dms.err.ERR_DMS_SNAPSHOT_PENDING,กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง
+dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง
+dms.err.ERR_DMS_SNAPSHOT_STALE,ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณารอให้ซิงก์เสร็จแล้วลองใหม่
 dms.err.ERR_DMS_TECHNICAL,การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่
 dms.err.ERR_DMS_TEMPLATE,ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่
 dms.err.ERR_DMS_UNREACHABLE,เชื่อมต่อระบบ DMS ของบุคคลที่สามไม่ได้ กรุณาติดต่อผู้ดูแลระบบ
@@ -413,3 +432,7 @@ dms.err.ERR_KMS_MISSING,เซิร์ฟเวอร์ยังไม่ต�
 dms.err.ERR_NO_CREDS,กรุณากรอกชื่อผู้ใช้และรหัสผ่าน
 dms.err.ERR_PLAYWRIGHT_MISSING,เซิร์ฟเวอร์ขาดไลบรารี Playwright
 dms.err.ERR_UNEXPECTED,ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล
+dms.snapshot.as_of,ข้อมูล ณ {time}
+dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน
+dms.snapshot.geo_stale,การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
+dms.snapshot.stale,การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}

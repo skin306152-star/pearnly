@@ -1,7 +1,15 @@
+Address data as of {time}; full refresh scheduled daily,住所データ取得時刻：{time}。毎日、全件更新を実行します。
+Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 Booking ID,予約ID
 Booking Number,予約番号
+"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻
+"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。
 DMS,DMS
+DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
+DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
+Data as of {time},データ取得時刻：{time}
+Data captured at,データ取得時刻
 Enter the DMS password.,DMS パスワードを入力してください。
 Last Error,前回のエラー
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
@@ -10,9 +18,13 @@ Recognition could not finish. Please try again shortly.,認識を完了できま
 Reload List,リストを再読み込み
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
+Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
+The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
+"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",保存された DMS データは古いため使用できません。同期完了後に再試行してください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+"Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
 dms.account.invalid,DMS パスワードを入力してください。
@@ -31,7 +43,12 @@ dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Web
 dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
 dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
+dms.card.query.CARD_NOTE,DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。
+dms.card.query.LBL_READ_AT,データ取得時刻
+dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻
 dms.edit.addPayment,支払方法を追加
+dms.edit.addressSnapshotAsOf,住所データ取得時刻：{time}。毎日、全件更新を実行します。
+dms.edit.addressSnapshotStale,住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 dms.edit.advisor,販売担当者（システム指定）
 dms.edit.amount,金額
 dms.edit.attached,この添付を保持
@@ -139,6 +156,11 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に�
 dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
+dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
+dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。同期完了後に再試行してください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
 dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
 dms.err.ERR_DMS_UNREACHABLE,サードパーティの DMS システムに接続できません。管理者に連絡してください。
@@ -146,3 +168,7 @@ dms.err.ERR_KMS_MISSING,サーバーの暗号化キーが設定されていま�
 dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してください
 dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
 dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください
+dms.snapshot.as_of,データ取得時刻：{time}
+dms.snapshot.geo_as_of,住所データ取得時刻：{time}。毎日、全件更新を実行します。
+dms.snapshot.geo_stale,住所の同期が遅延しています。{time} 時点の住所データを表示中です。
+dms.snapshot.stale,同期が遅延しています。{time} 時点のデータを表示中です。

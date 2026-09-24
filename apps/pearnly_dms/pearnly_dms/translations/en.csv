@@ -1,7 +1,15 @@
+Address data as of {time}; full refresh scheduled daily,Address data as of {time}; full refresh scheduled daily
+Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
 Booking ID,Booking ID
 Booking Number,Booking Number
+"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of","Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of"
+"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.","Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync."
 DMS,DMS
+DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)
+DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
+Data as of {time},Data as of {time}
+Data captured at,Data captured at
 Enter the DMS password.,Enter the DMS password.
 Last Error,Last Error
 Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
@@ -10,9 +18,13 @@ Recognition could not finish. Please try again shortly.,Recognition could not fi
 Reload List,Reload List
 Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
+Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
+The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
+"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.","The saved DMS data is too old to use safely. Please wait for sync to finish, then retry."
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
+"Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
 dms.account.invalid,Enter the DMS password.
@@ -31,7 +43,12 @@ dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the 
 dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
 dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
 dms.card.TXT_EDIT_UNAVAILABLE,The edit page could not be opened. Please start again from LINE.
+dms.card.query.CARD_NOTE,"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync."
+dms.card.query.LBL_READ_AT,Data captured at
+dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of"
 dms.edit.addPayment,Add payment method
+dms.edit.addressSnapshotAsOf,Address data as of {time}; full refresh scheduled daily
+dms.edit.addressSnapshotStale,Address sync is delayed; showing address data as of {time}
 dms.edit.advisor,Sales adviser (system assigned)
 dms.edit.amount,Amount
 dms.edit.attached,Keep this attachment
@@ -139,6 +156,11 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable �
 dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data — go back, re-select it, and retry"
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
+dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,"Too many new date ranges are waiting to sync. Please wait, then retry the same query."
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
+dms.err.ERR_DMS_SNAPSHOT_STALE,"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry."
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
 dms.err.ERR_DMS_UNREACHABLE,Cannot reach the third-party DMS system. Please contact your administrator.
@@ -146,3 +168,7 @@ dms.err.ERR_KMS_MISSING,Server KMS key is not configured
 dms.err.ERR_NO_CREDS,Username and password required
 dms.err.ERR_PLAYWRIGHT_MISSING,Server is missing the Playwright dependency
 dms.err.ERR_UNEXPECTED,"Internal server error, please contact admin"
+dms.snapshot.as_of,Data as of {time}
+dms.snapshot.geo_as_of,Address data as of {time}; full refresh scheduled daily
+dms.snapshot.geo_stale,Address sync is delayed; showing address data as of {time}
+dms.snapshot.stale,Sync is delayed; showing data as of {time}

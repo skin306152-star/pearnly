@@ -29,6 +29,7 @@
 | `booking/conversation` | 订车问答、卡片及确认流程 | `booking_flow`；不另造提交实现 |
 | `intake` | 客户识别后录入、去重、创建/修改及会话流程 | `flow` / `service` / `id_card` |
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
+| `snapshots` | 本地完整读代际、私有分批进度、凭据/员工范围与后台派发 | 只依赖纯契约/原生框架，不登录、不依赖业务消费者；见 ADR-010 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
 | `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
 | `records` | 推送台账本身（状态、租约、重试、收口）与推送历史的列表移除、审计 | `push_log`（`record` / `claim_for_push` / `status_of`）、`manage.delete_records`；只改展示标记，保留权威推送凭据 |
@@ -38,6 +39,12 @@
 | `operators` | 操作员、销售身份与绑定 | `roster`；保留管理员权限 |
 
 这次是保持行为的模块归位，已把纯契约与运行依赖分开。既有 `client` 到 `booking`、`intake` 的业务协议协作，以及会话流程间的延迟导入仍存在；不能据此宣称已完成严格无环分层。下一次改动相关链时，要围绕真实职责调整并补对应回归，不能再整批搬回根目录。
+
+### DMS 后台读快照（2026-09-24）
+
+读取架构的后续有意变化见 [ADR-010](../adr/0010-dms-background-read-snapshots.md)：交互只读后台完整快照，客户写入和最终订车仍实时复核。采集器在 DMS hooks 声明，调度域通过框架钩子派发；不通过反向业务导入形成循环。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
+
+DMS 的 `extend_doctype_class` 对原生 Scheduled Job Type 只扩展本 dispatcher 的队列选择，入口及采集器都用 `dms_sync`；其余任务调用 `super()` 保留默认/long 选择，执行、去重与调度记录仍为原生实现。不重写通用 scheduler 或修改 Frappe 源码。
 
 ### 推送台账归 DMS（2026-09-21）
 
@@ -81,7 +88,7 @@
 
 运行 `python3 scripts/check-architecture.py`：检查全部 App 的根模块基线、Frappe 必备文件、DMS 薄兼容入口、内部旧路径引用、纯契约依赖和新增跨域依赖。DMS 与 Cowork 已存在的域依赖方向分别登记在 `architecture-policy.json` 的 `dms_domain_dependencies` 与 `cowork_domain_dependencies`，新增方向必须说明契约并审查，不能自动扩充。增加领域、例外或改变基线必须同时说明责任边界与理由，不能只改基线让检查变绿。
 
-`python3 scripts/check-dms-offline.py` 只执行已审过的四组零 IO 检查，检查失败标记和退出码。完整业务 / Site / 真机验收另按影响选择。
+`python3 scripts/check-dms-offline.py` 只执行显式列出的已审计零 IO 检查（含完整快照读取器），检查失败标记和退出码。完整业务 / Site / 真机验收另按影响选择。
 
 本地运行 `sh scripts/install-dev-hooks.sh`，从长期主目录安装仓库级共享 `core.hooksPath`。提交钩子导出实际暂存快照后检查，其他窗口和工作树也使用同一钩子，不受它们是否重新读取规则影响。旧分支缺检查脚本时拒绝提交并提示同步规则；不覆盖已有钩子。该配置仅属于本仓，不改全局 Git 配置。新克隆需要安装一次；人工禁用钩子仍然属于违规，Git hook 不是权限隔离机制。
 
@@ -105,7 +112,7 @@
 
 ### 操作员提成归属的读取边界（2026-09-20）
 
-`operators.advisors` 通过 `masters.masters_cache.get_masters(force_refresh=True, require_complete=True)` 读取管理员端点的顾问名册，保存时按 ID 重新解析名称。此依赖只读，不向主档或外部 DMS 写入，不反向引用 roster；实际读取链 `masters_cache` → `intake.service.run_logged_in` → `adapter` → `client` 不调用 roster；其他业务流程的历史域间循环仍按既有债务记录。顾问业务校验归 operators，抓取、会话互斥和缓存仍归既有 masters/adapter。登记 operators → masters 是为恢复旧线上已具备的提成归属校验，不授权其他反向依赖或绕过刷新失败。
+`operators.advisors` 通过 `masters.masters_cache.get_masters(force_refresh=True, require_complete=True)` 读取管理员端点的顾问名册，保存时按 ID 重新解析名称。此依赖只读，不向主档或外部 DMS 写入，不反向引用 roster；实际读取链在 ADR-010 后为 `masters_cache` → `adapter.operations.run_logged_in` → `adapter` → `client`，不调用 roster。内部不再依赖 intake 的兼容导出；masters → intake 换为 masters → adapter，既有 adapter/masters 协议协作不扩展业务范围。顾问业务校验归 operators，抓取与会话互斥归 adapter。登记 operators → masters 是为恢复旧线上提成归属校验，不授权绕过刷新失败。
 
 ### 推送记录管理的边界（2026-09-20）
 

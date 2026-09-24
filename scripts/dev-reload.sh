@@ -75,6 +75,9 @@ existing() {  # 传入候选名字，输出其中真实存在的那几个
 
 for g in "${groups[@]}"; do
   echo "── $g"
+  if [ "$g" = dms ]; then
+    dc exec -T "$g-bench" env/bin/python - < "$HERE/scripts/production/configure-dms-runtime.py"
+  fi
   # 这个组里有哪些站点：直接列 sites 目录（比维护一份名单可靠）
   sites=$(dc exec -T "$g-bench" bash -lc \
     'ls /home/frappe/frappe-bench/sites | grep -vE "^(assets|apps.json|apps.txt|common_site_config.json)$"' \
@@ -116,7 +119,12 @@ for g in "${groups[@]}"; do
   done
 
   # socketio 不含我们的代码，不用重启
-  targets=$(existing "$g-web" "$g-worker" "$g-scheduler")
+  if [ "$g" = dms ]; then
+    # First application of the new definition must create the dedicated lane;
+    # restart alone silently leaves a never-created worker absent.
+    dc up -d --no-deps "$g-sync-worker" >/dev/null
+  fi
+  targets=$(existing "$g-web" "$g-worker" "$g-sync-worker" "$g-scheduler")
   [ -n "$targets" ] || { echo "   [错误] $g 组一个服务都没找到" >&2; exit 1; }
   # 按名单逐个重启：`restart a b c` 是**顺序**执行的，一个卡住会拖住后面的
   for t in $targets; do

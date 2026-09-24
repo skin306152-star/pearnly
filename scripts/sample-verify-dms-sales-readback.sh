@@ -21,9 +21,11 @@ site="${2:?用法: $0 <组> <站点>}"
 
 docker --context "$CTX" compose "${args[@]}" exec -T "$group-bench" \
   bash -lc 'mkdir -p /tmp/dmscheck && cat > /tmp/dmscheck/verify_sales_readback.py' < "$CHECK"
+docker --context "$CTX" compose "${args[@]}" exec -T "$group-bench" \
+  bash -lc 'cat > /tmp/dmscheck/test-dms-query-snapshots.py' < "$HERE/scripts/test-dms-query-snapshots.py"
 
 out=$(docker --context "$CTX" compose "${args[@]}" exec -T -e PYTHONUNBUFFERED=1 "$group-bench" \
-  bash -lc "cd /home/frappe/frappe-bench && printf 'exec(open(\"/tmp/dmscheck/verify_sales_readback.py\").read())\nmain()\n' | PYTHONUNBUFFERED=1 bench --site '$site' console 2>&1 | grep -E 'PASS|FAIL|RESULT|合计' || true")
+  bash -lc "cd /home/frappe/frappe-bench && printf 'import runpy; runpy.run_path(\"/tmp/dmscheck/verify_sales_readback.py\")[\"main\"]()\n' | PYTHONUNBUFFERED=1 bench --site '$site' console 2>&1 | grep -E 'PASS|FAIL|RESULT|合计' || true")
 printf '%s\n' "$out"
 
 if printf '%s' "$out" | grep -q "^RESULT: ALL PASS"; then

@@ -1,27 +1,9 @@
-# -*- coding: utf-8 -*-
-"""DMS 身份证「识别 → 可编辑面板 → 确认推送」两步流的服务封装。
+"""Cached identity previews and live, independently verified customer writes.
 
-四个动作：
-
-| 动作 | 干什么 |
-|---|---|
-| `recognize_lookup` | 登录一次 → 查 DMS 客户 + 把识别的地址解析成主档 id + 府/县/区/邮编选项 + 称谓 → 一次性喂面板 |
-| `customer_fields` | 载入指定客户的全字段（相似候选选中后填充表单） |
-| `geo_options` | 面板改地址时的级联代理 |
-| `push_idcard_fields` | 用面板编辑后的字段建/改客户（**只写客户，不建订车单**） |
-
-三个关键设计（照搬老产品）：
-
-1. **`run_logged_in` 从不抛异常** —— 所有失败都变成带错误码的 dict，因为它要落进
-   推送日志；抛出去就只剩一条没上下文的堆栈。
-2. **每次动作都真登录一次**，不缓存 cookie 复用：适配器退出时会显式访问 logout 页注销
-   浏览器会话，复用那种 cookie 只会拿到**已注销会话**（HTTP 200 的空壳正文或静默空的
-   级联列表 —— 这种"看起来成功其实什么都没有"最难查）。
-3. **台账兜底先于退避重试**：DMS 的搜索对新客户有"隐身期"（刚建/刚改的客户对新会话
-   隐身数分钟，老产品 2026-07-19 四案实锤）。所以拿本租户最近推过的同尾号客户**按客户号
-   直读**核对全证号 —— 直读不经搜索缓存，零等待。
+The five-minute directory is used by lookup/editor reads. It never authorizes an
+external write; final save retains native identity, address and readback checks.
+The historical run_logged_in/err imports remain as thin compatibility exports.
 """
-
 from __future__ import annotations
 
 import logging
@@ -53,131 +35,7 @@ def _merge_geo_rows(base: Optional[List[Any]], extra: Optional[List[Any]]) -> Li
     return out
 
 
-def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[str, Any]:
-    """失败结果。带 `response_body` 是有意的：**光有 error_code 分不清**
-    "DMS 拒了"还是"我们复核没查到"，这两件事的处理方式完全不同。"""
-    return {
-        "ok": False,
-        "error_code": code,
-        "error_friendly": friendly(code),
-        "raw_error": (raw or "")[:300],
-        "response_body": {**(response_body or {}), "raw_error": (raw or "")[:300]},
-    }
-
-
-def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
-                  background: bool = False):
-    """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
-
-    会话随 adapter 退出即注销，不缓存 cookie 复用。
-
-    `attempt` / `background`：这一次给多长的"打开登录页"预算（见
-    `pearnly_dms.config.pacing`，**所有 DMS 操作共用那一份口径**）：用户那条路按第几次
-    尝试走 30/60/90 秒的阶梯；后台那条路不走阶梯、一次给足 90 秒。
-
-    **连不上时返回 `ERR_DMS_UNREACHABLE`**（而不是 `ERR_UNEXPECTED`），上层才给得出
-    "重试"按钮；连续失败到阈值会进入冷却，冷却期内**快速失败**，不让每个人再白等
-    30–90 秒（同一个 `pacing` 模块，用户与后台同一套）。
-
-    `authoritative_read=True`：**整块 DMS 读取**借管理员会话（配了独立管理员凭据组时），
-    销售的挑选/匹配因此看到的是**权威映射**，而不是自己的不完整视图。整块只解析一次
-    管理员 transport；未配管理员照样走销售；配了但管理员登录失败 →
-    `ERR_DMS_ADMIN_AUTH` **明确失败关闭**，不静默降级。**写操作（上传/提交）不走这个入口。**
-
-    同一档还有一条省时规矩：**权威只读 + 配了独立管理员凭据时不登销售会话**。这一整块
-    读取只跑在管理员会话上（销售会话登了也用不到），白付的那一次完整登录在生产实测是
-    6–16 秒（新连接卡在 TLS 握手；同一连接复用只要 0.2 秒）。只在**配了独立管理员**时跳：
-    没配或与销售同号 → 照旧先登销售会话，单凭据路径行为逐字节不变。跳过之后这一块
-    **必须**落在管理员会话上（`require_admin`）：拿不到就按 `ERR_DMS_ADMIN_AUTH` 明确失败，
-    绝不回落成"没登录的主会话读出一片空"。
-    """
-    name = endpoint_name(endpoint)
-    from pearnly_dms.config import pacing
-
-    # 熔断：最近连着几次都连不上就先别敲门 —— 直接回同一个错误码（上层照样给得出"重试"），
-    # 但不让每个人再白等一次 30–90 秒。冷却期随时间自解，成功一次立刻归零。
-    wait = pacing.cooldown_left(name)
-    if wait:
-        return err("ERR_DMS_UNREACHABLE",
-                   f"circuit open: {wait}s left ({pacing.summary(name).get('failures')} consecutive failures)")
-    adapter, build_err = build_adapter(name)
-    if build_err:
-        return err(build_err["error_code"], build_err["raw"])
-    # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
-    adapter.page_timeout_ms = pacing.budget_ms(attempt, background=background)
-    try:
-        from pearnly_dms.adapter.session import (
-            DmsAdminAuthError,
-            DmsAuthError,
-            DmsTechnicalError,
-            DmsUnreachableError,
-        )
-        from pearnly_dms.contracts.client_base import DmsClientError
-
-        try:
-            with adapter:
-                # **权威只读 + 独立管理员 = 不登销售会话**：这一整块读取会被
-                # `authoritative_read_session` 换成管理员 transport，销售会话登了也用不到，
-                # 白付一次完整登录（生产实测每次 6–16 秒，几乎全花在新连接的 TLS 握手上）。
-                # 账号锁不受影响：`with adapter` 本来就同时锁销售与管理员两个登录槽。
-                skip_sales_login = authoritative_read and bool(
-                    getattr(adapter, "has_distinct_admin_creds", False)
-                )
-                if not skip_sales_login:
-                    try:
-                        adapter.login()
-                    except (DmsAuthError, DmsTechnicalError):
-                        if adapter.concurrent_login_detected:
-                            return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                        raise
-                try:
-                    client = adapter.client()
-                    if authoritative_read:
-                        from pearnly_dms.adapter.admin_read import authoritative_read_session
-
-                        # 跳过了销售登录 → 这一块**必须**是管理员会话（拿不到就失败关闭，
-                        # 不许在没登录的主会话上读出一片空还当成"查无此客"）。
-                        with authoritative_read_session(client, require_admin=skip_sales_login):
-                            out = fn(client, adapter)
-                    else:
-                        out = fn(client, adapter)
-                except DmsClientError as exc:
-                    # 提交类失败带着"已经发出去了"的证据（`response_body.submitted`）：
-                    # 这时候报"被别人顶下线"会误导 —— 单可能已经建出来了。
-                    if adapter.concurrent_login_detected and not getattr(
-                        exc, "response_body", {}
-                    ).get("submitted"):
-                        return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                    return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
-                               getattr(exc, "response_body", None))
-                # 收尾再查一次：中途被别人顶下线，结果不能算数。
-                # 但**已经拿到单号**的结果算数 —— 单确实建出来了。
-                if adapter.concurrent_login_detected and not (
-                    isinstance(out, dict) and out.get("booking_id")
-                ):
-                    return err("ERR_DMS_CONCURRENT_LOGIN", adapter.last_dialog)
-                # 走到了这里 = 真的连上并用完了（业务上被拒也算连上）：计数归零，
-                # 顺手记"这条连接刚被用过" —— 后台预热据此决定追多紧。
-                pacing.note_success(name)
-                return out
-        except DmsAdminAuthError as exc:
-            # admin 凭据组登录失败（≠ 用户会话）—— **子类必须先于基类捕获**
-            return err("ERR_DMS_ADMIN_AUTH", f"{type(exc).__name__}: {exc}")
-        except DmsAuthError as exc:
-            return err("ERR_DMS_AUTH", f"{type(exc).__name__}: {exc}")
-        # 「连不上」是技术失败的**子类**，必须排在它前面 —— 上层要靠这个码给重试按钮。
-        except DmsUnreachableError as exc:
-            pacing.note_failure(name, "ERR_DMS_UNREACHABLE")
-            return err("ERR_DMS_UNREACHABLE", f"{type(exc).__name__}: {exc}")
-        except DmsTechnicalError as exc:
-            pacing.note_failure(name, "ERR_DMS_TECHNICAL")
-            return err("ERR_DMS_TECHNICAL", f"{type(exc).__name__}: {exc}")
-        except DmsClientError as exc:
-            return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
-                       getattr(exc, "response_body", None))
-    except Exception as exc:  # noqa: BLE001
-        logger.exception("DMS 操作意外失败")
-        return err("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")
+from pearnly_dms.adapter.operations import err, run_logged_in
 
 
 def score_candidates(
@@ -247,18 +105,11 @@ def recognize_lookup(
     def _do(cl, adapter):
         from pearnly_dms.contracts.models import ThaiAddress
 
-        # 搜索及台账都只是候选来源；统一直读完整证号并拒绝多客户歧义。
-        # 台账不能先命中先返回，也不能把未知/空表单当作不存在再允许新建。
+        # 全量快照按完整证号匹配并拒绝歧义；台账候选若未同步到本代，
+        # 明确待同步而非新客。这里不按台账号现场读取 DMS。
         look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
-        # 台账也没有才退避重试：只剩"DMS 原生老客户 + 搜索偶发空返"这个窄场景。
-        # 真新客户会为它多付约 3 秒 —— 但**误标新客的代价更高**，所以保守保留两次。
-        for _ in range(2):
-            if look["found"] or not (people_id or "").strip():
-                break
-            time.sleep(1.5)
-            look = cl.lookup_customer(people_id, fallback_customer_ids=fallback_customer_ids)
-
-        form_html = cl._post_text("cus/form.php", {"status": "n"})
+        # A complete immutable local generation is a preview, not authorization
+        # to write. Repeating the same snapshot cannot improve freshness.
         prefixes = cl.list_prefixes()
         a = ocr_address or {}
         addr = ThaiAddress(
@@ -271,9 +122,9 @@ def recognize_lookup(
             subdistrict_name=str(a.get("subdistrict") or a.get("subdistrict_name") or ""),
             zipcode=str(a.get("zipcode") or ""),
         )
-        resolved = cl._resolve_address_geo(addr, form_html)
+        resolved = cl.resolve_address(addr)
         geo = {
-            "provinces": cl._select_options(form_html, "selprovinces"),
+            "provinces": cl.list_geo("provinces"),
             "districts": (
                 cl.list_geo("districts", resolved.province_id) if resolved.province_id else []
             ),
@@ -300,7 +151,7 @@ def recognize_lookup(
         # 卡上的地址名是靠上面这张选项表反查的，表里只有「新地址那一支」的
         # 县/镇/邮编，主档那几个 id 查不到就会把裸 id 印给用户（实测：151/1082/1084
         # 本来该显示 ขลุง/ขลุง/22110）。省表是全量的所以省不犯这个毛病。
-        # 只补主档那一支的 2–3 个请求，且与已取的相同就跳过。
+        # 只补本地每日目录中旧地址的层级选项，不产生外部请求。
         master = (look.get("fields") or {}) if look.get("found") else {}
         for level, parent_field, taken_parent in (
             ("districts", "province_id", resolved.province_id),
@@ -346,38 +197,46 @@ def recognize_lookup(
             "prefixes": prefixes,
         }
 
-    # 查重是**整块权威读**：销售的 DMS 账号常常看不到客户档，拿它判会把
-    # "DMS 里明明存在"的客户当成新客户（老产品线上基准 501589f0 这三处都借管理员会话）。
-    return run_logged_in(endpoint, _do, authoritative_read=True, attempt=attempt)
+    # 完整快照来自同一权威读取范围；不能混入销售被裁剪的目录。
+    from pearnly_dms.snapshots.directory import Directory
+    from pearnly_dms.contracts.client_base import DmsClientError
+    try:
+        directory = Directory(endpoint)
+        result = _do(directory, None)
+        result["snapshot"] = directory.metadata()
+        return result
+    except DmsClientError as exc:
+        return err(exc.error_code)
 
 
 def customer_fields(endpoint: Any, *, customer_id: str) -> Dict[str, Any]:
     """载入指定客户的全字段（相似场景选定候选后填充表单）。
     返回 `current_fields`（含三套地址 + 下拉选中标签）+ 府选项 + 称谓。"""
 
-    def _do(cl, adapter):
-        page = cl._post_text("cus/form.php", {"status": "e", "id": customer_id})
-        data = cl._parse_form_defaults(page)
+    from pearnly_dms.snapshots.directory import Directory
+    from pearnly_dms.contracts.client_base import DmsClientError
+    try:
+        cl = Directory(endpoint)
         return {
             "ok": True,
             "customer_id": customer_id,
-            "current_fields": cl._extract_customer_fields(data, page),
-            "provinces": cl._select_options(page, "selprovinces"),
+            "current_fields": cl.read_customer(customer_id),
+            "provinces": cl.list_geo("provinces"),
             "prefixes": cl.list_prefixes(),
         }
 
-    # 按客户号直读属于权威读：销售读不到时不能把"读不到"当成"这个客户没资料"。
-    return run_logged_in(endpoint, _do, authoritative_read=True)
+    except DmsClientError as exc:
+        return err(exc.error_code)
 
 
 def geo_options(endpoint: Any, *, level: str, parent_id: str = "") -> Dict[str, Any]:
-    """地址级联选项。走真实 Playwright 会话（**不复用已注销的 cookie**）。"""
-
-    def _do(cl, adapter):
-        return {"ok": True, "options": cl.list_geo(level, parent_id)}
-
-    # 级联是建档表单的选项来源，同样按权威视图读（未配管理员即原样用销售会话）。
-    return run_logged_in(endpoint, _do, authoritative_read=True)
+    """Address options from the published complete local tree; no DMS login."""
+    from pearnly_dms.snapshots.directory import Directory
+    from pearnly_dms.contracts.client_base import DmsClientError
+    try:
+        return {"ok": True, "options": Directory(endpoint).list_geo(level, parent_id)}
+    except DmsClientError as exc:
+        return err(exc.error_code)
 
 
 def push_idcard_fields(
@@ -398,6 +257,8 @@ def push_idcard_fields(
     """
     t0 = time.time()
     save_mode = "create" if mode == "create" else "overwrite"
+    from pearnly_dms.adapter import snapshot_writeback
+    cache_scope = snapshot_writeback.capture_scope(endpoint)
 
     def _do(cl, adapter):
         cid, converted = cl.save_customer(
@@ -405,11 +266,13 @@ def push_idcard_fields(
         )
         # create 被幂等/撞码转成 overwrite 时**如实回 update** —— 回执不谎称"新建"。
         actual = "update" if converted else mode
+        cache_updated = snapshot_writeback.customer(endpoint, cl, cid, expected_scope=cache_scope)
         return {
             "ok": True,
             "success": True,
             "customer_id": cid,
             "mode": actual,
+            "cache_updated": cache_updated,
             "elapsed_ms": int((time.time() - t0) * 1000),
             "response_body": {
                 "adapter": "mrerp_dms",

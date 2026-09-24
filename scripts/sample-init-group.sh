@@ -44,6 +44,9 @@ dc exec -T "$bench" bench set-config -g db_host mariadb >/dev/null
 dc exec -T "$bench" bench set-config -g redis_cache redis://redis-cache:6379 >/dev/null
 dc exec -T "$bench" bench set-config -g redis_queue redis://redis-queue:6379 >/dev/null
 dc exec -T "$bench" bench set-config -g redis_socketio redis://redis-queue:6379 >/dev/null
+if [ "$group" = dms ]; then
+  dc exec -T "$bench" env/bin/python - < scripts/production/configure-dms-runtime.py
+fi
 
 for site in "$@"; do
   if dc exec -T "$bench" bench --site "$site" list-apps >/dev/null 2>&1; then

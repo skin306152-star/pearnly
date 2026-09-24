@@ -64,7 +64,7 @@ class DeployToolingMatch(unittest.TestCase):
 
 
 class Activation(unittest.TestCase):
-    def run_activation(self, failure='', source_file=SOURCE):
+    def run_activation(self, failure='', source_file=SOURCE, product='dms'):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -102,7 +102,7 @@ elif 'ps' in args:
             script.write_text(source)
             env = dict(os.environ, PATH=str(root)+os.pathsep+os.environ['PATH'],
                        TRACE=str(root/'trace'), FAIL_AT=failure)
-            result = subprocess.run(['bash', str(script), IMAGE, 'dms'], env=env,
+            result = subprocess.run(['bash', str(script), IMAGE, product], env=env,
                                     text=True, capture_output=True, timeout=10)
             import json
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
@@ -132,6 +132,28 @@ elif 'ps' in args:
         result, trace = self.run_activation('backup')
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(any('migrate' in row['args'] for row in trace))
+
+    def test_dms_sync_is_drained_configured_and_recreated(self):
+        result, trace = self.run_activation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        drain = next(i for i, args in enumerate(calls) if '660' in args and 'stop' in args)
+        configure = next(i for i, args in enumerate(calls) if any('configure-dms-runtime.py' in arg for arg in args))
+        migrate = next(i for i, args in enumerate(calls) if 'migrate' in args)
+        start = next(i for i, args in enumerate(calls) if 'up' in args)
+        self.assertIn('dms-sync-worker', calls[drain])
+        self.assertIn('dms-sync-worker', calls[start])
+        self.assertLess(drain, configure)
+        self.assertLess(configure, migrate)
+        self.assertLess(migrate, start)
+
+    def test_other_products_do_not_get_dms_queue_or_tick_changes(self):
+        for product in ('erp', 'cowork'):
+            with self.subTest(product=product):
+                result, trace = self.run_activation(product=product)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(any('dms-sync-worker' in row['args'] or
+                    any('configure-dms-runtime.py' in arg for arg in row['args']) for row in trace))
 
 
 class FoundationActivation(unittest.TestCase):

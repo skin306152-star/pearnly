@@ -210,6 +210,13 @@ def _now_label() -> str:
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M")
 
 
+def _snapshot_label(result: dict) -> str:
+    """Show source capture time, never pretend an old snapshot was just read."""
+    if result.get("as_of") is not None:
+        return datetime.fromtimestamp(float(result["as_of"]), ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M")
+    return _now_label()  # Compatibility for already queued pre-snapshot results.
+
+
 def _text_row(label: str, value: Any) -> Dict[str, Any]:
     return {
         "type": "box",
@@ -309,7 +316,7 @@ def sales_board(result: dict) -> Dict[str, Any]:
         # ⚠️ 前缀末尾那个空格**必须写在代码里**：线上那句以空格结尾（"…读完于 "），
         # 而语言包读取器对每条值做 `strip()`，行尾空格存不进 CSV —— 少了空格，
         # 前缀的最后一个词会和时间粘成一个词。既有守卫（语言包首尾空白）会直接报这个错。
-        return _quick(_t("EMPTY_RECORDS_PREFIX") + " " + _now_label(),
+        return _quick(_t("EMPTY_RECORDS_PREFIX") + " " + _snapshot_label(result),
                       _navigation(result, "records"))
     page = int(result.get("page") or 1)
     summary = {
@@ -332,7 +339,7 @@ def sales_board(result: dict) -> Dict[str, Any]:
                 },
                 _text_row(_t("LBL_PAGE"), page),
                 _text_row(_t("LBL_COUNT"), len(rows)),
-                _text_row(_t("LBL_READ_AT"), _now_label()),
+                _text_row(_t("LBL_READ_AT"), _snapshot_label(result)),
             ],
         },
         "footer": {
@@ -393,7 +400,7 @@ def top_sales_board(result: dict) -> Dict[str, Any]:
                 {
                     "type": "text",
                     # 同上：分隔空格放代码里
-                    "text": _t("TOP_NOTE_PREFIX") + " " + _now_label(),
+                    "text": _t("TOP_NOTE_PREFIX") + " " + _snapshot_label(result),
                     "size": "xxs",
                     "wrap": True,
                     "color": "#8a8a8a",

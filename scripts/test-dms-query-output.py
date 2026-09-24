@@ -67,6 +67,7 @@ class QueryOutput(unittest.TestCase):
         self.allowed.side_effect = None
         self.allowed.return_value = True
         self.binding_matches.return_value = True
+        self.session.return_value = {"state": "query_sales"}
         for read in self.reads.values():
             read.reset_mock()
 
@@ -83,8 +84,10 @@ class QueryOutput(unittest.TestCase):
         if kind == "dimensions":
             query_flow._run_dimensions(self.binding, self.line_user, token)
         elif kind == "records":
+            self.session.return_value = {"state": "query_results", "payload": {**self.record_params, "query_kind": "records"}}
             query_flow._run_records(self.binding, self.line_user, self.record_params, token)
         else:
+            self.session.return_value = {"state": "query_results", "payload": {**self.top_params, "query_kind": "top"}}
             query_flow._run_top(self.binding, self.line_user, self.top_params, token)
 
     def _assert_route(self, routes):

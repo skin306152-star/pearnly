@@ -24,6 +24,7 @@ import {
   CHANNEL_BANK,
   CHANNEL_FIELDS,
   MAX_PAYMENTS,
+  addressSnapshotLabel,
   ensureTicket,
   forgetTicket,
   loadConfig,
@@ -31,10 +32,13 @@ import {
   loadGeo,
   loadPaints,
   saveDraft,
+  snapshotErrorKey,
+  snapshotLabel,
   type Draft,
   type EditorMode,
   type Option,
   type Payment,
+  type SnapshotInfo,
 } from "../../lib/dms-editor";
 import {
   createTexts,
@@ -47,9 +51,9 @@ const mode = computed<EditorMode>(() =>
 );
 const nonce = ref(String(route.query.draft || ""));
 
-// keys 传空 + 给前缀 → 服务端把 `dms.edit.*` 整包给回来（四语齐全）。
+// 编辑文案、共用同步错误和资料时间都由 DMS 产品语言包一次返回（四语齐全）。
 // 页面不维护"我要用哪些键"的清单：清单与语言包一旦不同步，页面上就会露出 key。
-const { t, tf, locale, load: loadTexts, setLocale } = createTexts([], "dms.edit.");
+const { t, tf, locale, load: loadTexts, setLocale } = createTexts([], "dms.");
 const paymentFieldLabels: Record<string, string> = {
   cheque_no: "dms.edit.chequeNo",
   cheque_book_no: "dms.edit.chequeBookNo",
@@ -75,6 +79,9 @@ const paints = ref<Option[]>([]);
 const manualBanks = ref<string[]>([]);
 const advisor = ref("");
 const hasFiles = reactive({ id_card: false, slip: false });
+const snapshot = ref<SnapshotInfo>();
+const snapshotNote = computed(() => snapshotLabel(snapshot.value, locale.value, t));
+const addressSnapshotNote = computed(() => addressSnapshotLabel(snapshot.value, locale.value, t));
 
 // 表单模型：字段名与老产品提交的 payload 一字不差（服务端就按这些名字读）。
 const customer = reactive<Record<string, string>>({});
@@ -152,6 +159,8 @@ const totalText = computed(() =>
 
 function explain(err: unknown): string {
   const code = err instanceof ApiError ? err.message : "";
+  const snapshotKey = snapshotErrorKey(code);
+  if (snapshotKey) return t(snapshotKey);
   const key = ERROR_KEYS[code];
   if (key) return t(`dms.edit.${key}`);
   const field = INVALID_FIELD_KEYS[code.replace(/^dms_booking\.invalid_/, "")];
@@ -192,6 +201,7 @@ async function closePage(): Promise<void> {
 
 /** 首屏：把服务端给的草稿铺进表单模型。 */
 function adopt(draft: Draft): void {
+  snapshot.value = draft.snapshot;
   Object.keys(draft.form.customer || {}).forEach((key) => {
     customer[key] = String(draft.form.customer[key] ?? "");
   });
@@ -476,6 +486,8 @@ function changeLocale(value: Locale): void {
               t(mode === "customer" ? "dms.edit.customerSub" : "dms.edit.sub")
             }}
           </p>
+          <p v-if="snapshotNote" class="pn-editor-sub" role="status">{{ snapshotNote }}</p>
+          <p v-if="addressSnapshotNote" class="pn-editor-sub" role="status">{{ addressSnapshotNote }}</p>
         </div>
 
         <section class="pn-editor-section rounded border border-outline-gray-2 bg-surface-white p-4">

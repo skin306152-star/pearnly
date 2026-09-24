@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import copy
 import secrets
 from typing import Any, Dict, Optional
 
@@ -22,6 +23,37 @@ from pearnly_core import line
 from frappe import _
 
 logger = logging.getLogger(__name__)
+
+
+def _snapshot_notice(msg):
+    """Show source time in the same LINE message, without another paid push."""
+    import frappe
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    from pearnly_dms import i18n
+
+    metadata = frappe.flags.pop("dms_snapshot_status", None)
+    geo = frappe.flags.pop("dms_snapshot_geo_status", None)
+    if not metadata and not geo:
+        return msg
+    notes = []
+    for data, prefix in ((metadata, "dms.snapshot."), (geo, "dms.snapshot.geo_")):
+        if data:
+            stamp = datetime.fromtimestamp(data["as_of"], ZoneInfo("Asia/Bangkok"))
+            notes.append(i18n.t(prefix + ("stale" if data["stale"] else "as_of"),
+                               lang="th", time=stamp.strftime("%d/%m/%Y %H:%M")))
+    note = "\n".join(notes)
+    result = copy.deepcopy(msg)
+    if result.get("type") == "text":
+        result["text"] = str(result.get("text", ""))[:4800] + "\n" + note
+    elif result.get("type") == "flex":
+        contents = result.get("contents") or {}
+        bubble = (contents.get("contents") or [{}])[0] if contents.get("type") == "carousel" else contents
+        body = bubble.get("body") or {}
+        if body.get("type") == "box" and isinstance(body.get("contents"), list):
+            body["contents"].append({"type": "text", "text": note, "size": "xxs",
+                                     "color": "#666666", "wrap": True, "margin": "md"})
+    return result
 
 
 def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: str = "") -> bool:
@@ -37,7 +69,7 @@ def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: s
     """
     if msg is None:
         return False
-    return line.reply_or_push(line_user_id, [msg], reply_token)
+    return line.reply_or_push(line_user_id, [_snapshot_notice(msg)], reply_token)
 
 
 def push_or_reply_text(line_user_id: str, text: str, reply_token: str = "") -> bool:
@@ -45,7 +77,7 @@ def push_or_reply_text(line_user_id: str, text: str, reply_token: str = "") -> b
 
     给"原本写死 `_push`（纯文本）"的那些地方用 —— 它们同样带着令牌，只是以前没用。
     """
-    return line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+    return line.reply_or_push(line_user_id, [_snapshot_notice({"type": "text", "text": text})], reply_token)
 
 
 def reply_text(reply_token: str, text: str) -> bool:
@@ -77,7 +109,7 @@ def download_content(message_id: str) -> Optional[bytes]:
 
 
 def enqueue(job: str, fn, *args) -> None:
-    """把重活丢后台（老产品 `_out.make_spawn` 那一层）。
+    """识别/写入进后台；纯快照查重保留身份守卫并直接完成。
 
     webhook 必须立刻返回，否则 LINE 会超时重发 —— 而重发会让同一个按钮被点两次。
 
@@ -105,6 +137,11 @@ def enqueue(job: str, fn, *args) -> None:
     if not identity or identity["user"] != (arguments.get("binding") or {}).get("user_id"):
         frappe.throw("dms_booking.not_bound", frappe.PermissionError)
     arguments["binding"] = {**arguments["binding"], "binding_revision": identity["binding_revision"]}
+    if job == "dedup":
+        # Cache-only read: never wait behind OCR, writes or background imports.
+        if fn.__module__ != "pearnly_dms.intake.flow" or fn.__name__ != "run_dedup":
+            raise ValueError("Invalid cache-only dedup target")
+        return run_guarded(f"{fn.__module__}.{fn.__name__}", arguments)
     # Show activity while the job is waiting, then the worker renews it on start.
     start_loading(arguments["line_user_id"], 60)
     if job == "image":

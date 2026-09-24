@@ -1,7 +1,15 @@
+Address data as of {time}; full refresh scheduled daily,地址资料时间：{time}；每天安排完整更新
+Address sync is delayed; showing address data as of {time},地址同步有延迟，当前显示 {time} 的地址资料
 Booking ID,订车编号
 Booking Number,订车单号
+"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",本账号可见分店和团队的原生 DMS 统计缓存，草稿不计营业额。每 5 分钟安排同步，新日期范围可能需要等待。资料时间
+"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",DMS 缓存记录，每 5 分钟安排同步。状态来自原生单据，草稿不计营业额；首次查询日期范围可能需要等待同步。
 DMS,DMS
+DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）
+DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS 同步未取得完整资料，没有发布不完整结果。请等待同步成功后重试。
+Data as of {time},资料时间：{time}
+Data captured at,资料取得时间
 Enter the DMS password.,请填写 DMS 密码。
 Last Error,上次错误
 Multiple DMS connections exist for this operator,这个操作员有多条 DMS 连接
@@ -10,9 +18,13 @@ Recognition could not finish. Please try again shortly.,识别未完成，请稍
 Reload List,刷新列表
 Submission Evidence,提交凭据
 Submission Nonce,提交随机码
+Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
+The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
+"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",现有 DMS 资料已过期，暂不能使用。请等待同步完成后重试。
 The saved credentials cannot be read back; check the site encryption key,保存的凭据读不回来，请检查站点加密密钥
+"Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
 dms.account.invalid,请填写 DMS 密码。
@@ -31,7 +43,12 @@ dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码
 dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
 dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
 dms.card.TXT_EDIT_UNAVAILABLE,暂时打不开编辑页，请从 LINE 重新进入。
+dms.card.query.CARD_NOTE,DMS 缓存记录，每 5 分钟安排同步。状态来自原生单据，草稿不计营业额；首次查询日期范围可能需要等待同步。
+dms.card.query.LBL_READ_AT,资料取得时间
+dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 统计缓存，草稿不计营业额。每 5 分钟安排同步，新日期范围可能需要等待。资料时间
 dms.edit.addPayment,添加支付方式
+dms.edit.addressSnapshotAsOf,地址资料时间：{time}；每天安排完整更新
+dms.edit.addressSnapshotStale,地址同步有延迟，当前显示 {time} 的地址资料
 dms.edit.advisor,销售顾问（系统指定）
 dms.edit.amount,金额
 dms.edit.attached,保留此附件
@@ -139,6 +156,11 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重�
 dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
 dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS 同步未取得完整资料，没有发布不完整结果。请等待同步成功后重试。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。
+dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,待同步的新日期范围过多，请稍候再重试当前查询。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
+dms.err.ERR_DMS_SNAPSHOT_STALE,现有 DMS 资料已过期，暂不能使用。请等待同步完成后重试。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
 dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
 dms.err.ERR_DMS_UNREACHABLE,连不上第三方 DMS 系统，请联系管理员
@@ -146,3 +168,7 @@ dms.err.ERR_KMS_MISSING,"服务器加密密钥未配置,请联系运维"
 dms.err.ERR_NO_CREDS,请输入用户名和密码
 dms.err.ERR_PLAYWRIGHT_MISSING,"服务器缺少 Playwright 依赖,请联系运维"
 dms.err.ERR_UNEXPECTED,"服务器内部错误,请联系管理员"
+dms.snapshot.as_of,资料时间：{time}
+dms.snapshot.geo_as_of,地址资料时间：{time}；每天安排完整更新
+dms.snapshot.geo_stale,地址同步有延迟，当前显示 {time} 的地址资料
+dms.snapshot.stale,同步有延迟，当前显示 {time} 的资料

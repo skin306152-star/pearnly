@@ -161,6 +161,12 @@ services:
     command: ["bench", "worker", "--queue", "short,default,long"]
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
 
+  dms-sync-worker:
+    <<: *frappe-common
+    mem_limit: 1g
+    command: ["bench", "worker", "--queue", "dms_sync"]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+
   dms-scheduler:
     # `bench schedule` 不处理 SIGTERM：不加这一条，Docker 会等满默认的 10 秒宽限期
     # 再 SIGKILL，于是"重启调度器"要 10 秒 —— 迭代时这条最肉疼（实测 10s vs 0s）。

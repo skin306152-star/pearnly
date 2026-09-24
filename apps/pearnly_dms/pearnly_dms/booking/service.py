@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""建订车单：一次 DMS 会话里「复核主档 → 建单 → 挂附件 → 刷主档缓存」。
+"""建订车单：一次 DMS 会话里「复核主档 → 建单并回读 → 挂附件」。
 
 照搬老产品 `services/line_dms/booking_flow.py:_book_in_session`（那是它的建单执行体）。
 
@@ -11,7 +11,7 @@
    但客户写入/挂附件/刷主档这些慢步骤**不进共享锁**（否则一个慢附件卡住全店）；
 3. **附件在同一会话挂**（少一次登录），且**建单成功但附件没挂全要如实说**，
    绝不谎报附件成功；
-4. 建完顺手全量刷主档缓存（零额外登录）。
+4. 成功后请求后台刷新员工销售快照；不把部分复核资料冒充全量刷新成功。
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def book_in_session(
     *,
     on_attempt=None,
 ) -> Dict[str, Any]:
-    """一个 DMS 会话内：复核主档 → 建单 → 挂附件 → 顺手全量刷主档缓存（零额外登录）。
+    """一个 DMS 会话内：复核主档 → 建单并回读 → 挂附件；随后登记后台销售刷新。
 
     逐问选的 `place/term/regis/car/paint` id 覆盖端点默认值；**顾问**在逐问开局就按操作员
     的 DMS 账号匹配好（或端点上钉死）存进 `qa["advisor"]` —— 建单层
@@ -112,15 +112,16 @@ def book_in_session(
     from pearnly_dms.booking.booking_payload import build_booking_payload
     from pearnly_dms.booking.booking_preflight import readonly_preflight
     from pearnly_dms.contracts.payments import validate_payment_completeness
-    from pearnly_dms.intake.service import err, run_logged_in
+    from pearnly_dms.adapter.operations import err, run_logged_in
     from pearnly_dms.masters.company_banks import fetch_payment_bank_masters, validate_company_bank_payments
-    from pearnly_dms.masters.masters_cache import write_authoritative_snapshot
+    from pearnly_dms.adapter import snapshot_writeback
 
     # Resolver returns a mapping; Frappe treats mappings as SQL filters, not document names.
     endpoint = endpoint_name(endpoint)
     if not endpoint:
         return err("ERR_NO_CREDS")
     qa = payload.get("qa") or {}
+    cache_scope = snapshot_writeback.capture_scope(endpoint)
 
     def _do(cl, adapter):
         nonlocal qa
@@ -166,6 +167,7 @@ def book_in_session(
                 draft["name"] = str((qa.get("customer") or {}).get("name") or "")
                 # DmsClient.save_customer restores the original sales writer transport.
                 cl.save_customer(fields=draft, mode="overwrite", customer_id=customer_id)
+                snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
             master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
             org = resolve_booking_org(cl, defaults.advisor_id, defaults)
             booking = build_booking_payload(
@@ -194,15 +196,14 @@ def book_in_session(
             except Exception:
                 logger.warning("[dms booking] attachment failed after booking commit", exc_info=True)
                 failed.append({"error_code": "ERR_DMS_ATTACHMENT"})
-        cache_updated = True
+        # Do not stamp a partial live preflight as a complete directory refresh.
+        # Employee-native sales rows are refreshed asynchronously, never invented
+        # from an acknowledgement or shared with another salesperson.
         try:
-            write_authoritative_snapshot(
-                endpoint, preflight["masters"],
-                car_id=str((answers.get("car") or {}).get("id") or ""), paints=preflight["paints"],
-            )
+            cache_refresh_requested = snapshot_writeback.sales(endpoint)
         except Exception:
-            cache_updated = False
-            logger.warning("[dms booking] cache failed after booking commit", exc_info=True)
+            cache_refresh_requested = False
+            logger.warning("DMS post-write refresh failed after verified booking")
         return {
             "ok": True,
             "booking_id": booking_id,
@@ -210,7 +211,8 @@ def book_in_session(
             "attach_ok": not failed,
             "attached": attached,
             "attach_failed": failed,
-            "cache_updated": cache_updated,
+            "cache_updated": False,  # Compatibility: no complete sales read yet.
+            "cache_refresh_requested": cache_refresh_requested,
         }
 
     return run_logged_in(endpoint, _do)

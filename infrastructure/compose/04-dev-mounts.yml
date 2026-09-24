@@ -63,6 +63,8 @@ services:
     volumes: *app-volumes
   dms-worker:
     volumes: *app-volumes
+  dms-sync-worker:
+    volumes: *app-volumes
   dms-scheduler:
     volumes: *app-volumes
 
