@@ -9,6 +9,7 @@
 """
 from __future__ import annotations
 
+import logging
 import math
 import re
 
@@ -16,6 +17,8 @@ import frappe
 from frappe import _
 
 from pearnly_dms.connections.api import ADAPTER, ENDPOINT, _require_admin
+
+logger = logging.getLogger(__name__)
 
 #: 读取顺序即界面展示顺序。四组都要 —— 地址也是底座的一部分（全国四级目录）。
 DATASETS = ("vehicles", "customers", "company", "geo")
@@ -97,8 +100,21 @@ def bootstrap(endpoint: str, actor: str) -> list:
 
     单组登记失败不影响其它组：登记本身是各自提交的队列状态，界面上该组会显示失败，
     管理员能看见，不需要在这里吞掉或放大成整体失败。
+
+    四组之前先排一个**基线**任务（`change_sync.seed`）：它只记下每个模块此刻的
+    使用记录水位，不补任何东西。有了它，"本次绑定之后发生的改动"才有一条明确的
+    起算线；底座由这四组全量读负责。
     """
     from pearnly_dms.snapshots import manual
+
+    try:
+        frappe.enqueue("pearnly_dms.adapter.change_sync.seed", endpoint=endpoint,
+                       actor=actor, queue=manual.QUEUE, timeout=420,
+                       job_id=f"dms-changes-seed-{endpoint}", deduplicate=True,
+                       enqueue_after_commit=False)
+    except Exception:
+        # 基线排不上不影响底座；操作动作那一路发现没有基线会自己补一次。
+        logger.warning("[dms changes] 基线任务排队失败（操作时会自动重建）")
 
     queued = []
     for dataset in DATASETS:

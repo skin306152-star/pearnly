@@ -17,6 +17,8 @@ UNIT_TESTS = (
     "tests/test_dms_catalogue_reader.py",
     "tests/test_dms_company_catalogue_schema.py",
     "tests/test_dms_geo_list_reader.py",
+    "tests/test_dms_eventlog_reader.py",
+    "tests/test_dms_change_sync.py",
     "tests/test_dms_connection_snapshots.py",
     "tests/test_dms_operator_advisors.py",
 )

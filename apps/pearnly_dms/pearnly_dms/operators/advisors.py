@@ -116,7 +116,7 @@ def resolve(advisor_id):
         # no customer, vehicle, bank, address or employee master is read here.
         return {"ok": True, "items": _items(client._advisor_rows())}
 
-    result = run_logged_in(endpoint, read, authoritative_read=True)
+    result = run_logged_in(endpoint, read, authoritative_read=True, catch_up=True)
     _admin(actor, current=True)
     try:
         with store._cache_connection() as database:

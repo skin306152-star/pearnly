@@ -232,4 +232,5 @@ def book_in_session(
             "cache_refresh_requested": False,
         }
 
-    return run_logged_in(endpoint, _do)
+    # 操作员自己发起的一笔：做完顺手把 DMS 使用记录里的增量补回缓存。
+    return run_logged_in(endpoint, _do, catch_up=True)

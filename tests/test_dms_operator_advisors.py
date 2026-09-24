@@ -105,7 +105,8 @@ class OperatorAdvisorTests(unittest.TestCase):
 
     def logged_in(self, endpoint, callback, **kwargs):
         self.assertEqual(endpoint, "primary-endpoint")
-        self.assertEqual(kwargs, {"authoritative_read": True})
+        # 操作员自己发起的那一次：读主档之外还要**顺手**把使用记录里的增量补回缓存。
+        self.assertEqual(kwargs, {"authoritative_read": True, "catch_up": True})
         client = DmsClient(SimpleNamespace(post=self.post), "https://synthetic.invalid/dms/")
         try:
             result = callback(client, None)

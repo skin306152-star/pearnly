@@ -194,7 +194,8 @@ def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False,
             **fetch_payment_bank_masters(adapter, client=client),
         }
 
-    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background,
+                        catch_up=not background)
     if isinstance(res, dict) and res.get("ok") is False:
         # **把失败原因留在日志里**：这一段只返回 None，光看"没拿到完整主档"分不清
         # "连不上"、"管理员凭据不对"还是"某个下拉读不出来"——2026-09-23 排查时
@@ -216,6 +217,7 @@ def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
         endpoint,
         lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id),
         authoritative_read=True,
+        catch_up=True,
     )
     return res if isinstance(res, list) else None
 

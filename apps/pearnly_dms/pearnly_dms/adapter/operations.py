@@ -26,7 +26,8 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
 
 
 def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
-                  background: bool = False, read_only_batch: bool = False):
+                  background: bool = False, read_only_batch: bool = False,
+                  catch_up: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
@@ -50,6 +51,10 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
     没配或与销售同号 → 照旧先登销售会话，单凭据路径行为逐字节不变。跳过之后这一块
     **必须**落在管理员会话上（`require_admin`）：拿不到就按 `ERR_DMS_ADMIN_AUTH` 明确失败，
     绝不回落成"没登录的主会话读出一片空"。
+
+    `catch_up=True`：**操作员自己发起的那一次**（不是后台任务）在动作做完之后，
+    顺手把 DMS 使用记录里的增量补回缓存（`snapshots/change_sync`）——用同一个会话，
+    不额外登录、不额外抢账号；同步失败只记日志，绝不改这次动作的结果。
     """
     name = endpoint_name(endpoint)
     from pearnly_dms.config import pacing
@@ -95,15 +100,24 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
                         raise
                 try:
                     client = adapter.client()
+
+                    def run_and_catch_up():
+                        out = fn(client, adapter)
+                        if catch_up:
+                            from pearnly_dms.adapter import change_sync
+
+                            change_sync.catch_up(endpoint, client=client)
+                        return out
+
                     if authoritative_read:
                         from pearnly_dms.adapter.admin_read import authoritative_read_session
 
                         # 跳过了销售登录 → 这一块**必须**是管理员会话（拿不到就失败关闭，
                         # 不许在没登录的主会话上读出一片空还当成"查无此客"）。
                         with authoritative_read_session(client, require_admin=skip_sales_login):
-                            out = fn(client, adapter)
+                            out = run_and_catch_up()
                     else:
-                        out = fn(client, adapter)
+                        out = run_and_catch_up()
                 except DmsClientError as exc:
                     # 提交类失败带着"已经发出去了"的证据（`response_body.submitted`）：
                     # 这时候报"被别人顶下线"会误导 —— 单可能已经建出来了。

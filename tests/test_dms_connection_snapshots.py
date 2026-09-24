@@ -48,9 +48,11 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.frappe.get_all = Mock(side_effect=lambda *a, **k: self.rows)
         self.frappe.whitelist = whitelist
         self.frappe.throw = throws
+        self.frappe.enqueue = Mock()
         self.frappe.PermissionError = Denied
         self.frappe.AuthenticationError = Unsigned
         self.manual = types.ModuleType("pearnly_dms.snapshots.manual")
+        self.manual.QUEUE = "dms_sync"
         self.manual.status = Mock(side_effect=lambda ep, ds, **kw: {"state": "idle", "dataset": ds})
         self.manual.request = Mock(side_effect=lambda ep, ds, **kw: {
             "state": "queued", "dataset": ds, "request_id": "ab" * 16})
@@ -114,6 +116,11 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.assertEqual([call.args[1] for call in self.manual.request.call_args_list],
                          list(self.api.DATASETS))
         self.assertTrue(all(row["state"] == "queued" for row in result))
+        # 使用记录的**基线任务先排**：它记的是"此刻的水位"，排晚了窗口内的改动就漏了。
+        self.assertEqual(self.frappe.enqueue.call_args.args[0],
+                         "pearnly_dms.adapter.change_sync.seed")
+        self.assertEqual(self.frappe.enqueue.call_args.kwargs["actor"], "admin@example.test")
+        self.assertEqual(self.frappe.enqueue.call_args.kwargs["queue"], self.manual.QUEUE)
 
     def test_bootstrap_keeps_going_and_never_leaks_a_raw_error(self):
         """一组登记失败不能拖垮别组，也不能把上游原文写进返回。"""

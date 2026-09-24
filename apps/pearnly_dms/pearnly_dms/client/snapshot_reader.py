@@ -23,6 +23,7 @@ from pearnly_dms.client.client_intake import (
     _GEO_LABEL_MAP, _IDENTITY_MAP, _IdentitySearchRows,
 )
 from pearnly_dms.contracts.client_base import DmsClientError
+from pearnly_dms.contracts.id_validate import normalize_thai_id
 
 
 ERROR = "ERR_DMS_SNAPSHOT_INCOMPLETE"
@@ -626,6 +627,47 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
 def read_customer_complete(client, cid, *, limits=None):
     """A bounded full native read for write-through, never default-filled truncation."""
     return _collect(client, lambda budget: _read_customer_complete(client, cid, budget), limits)
+
+
+def search_customer_by_identity(client, identity, *, limits=None):
+    """按身份证号在原生客户列表里找客户号；找不到或有歧义一律返回空字符串。
+
+    给"顺手同步"用：DMS 的使用记录里，客户那一栏写的是**身份证号**，不是客户号
+    （实测 `… | ลูกค้า | แก้ไข | 1103702587460`）。所以必须反查回客户号才能补读。
+
+    严格程度与建档时的查重一致：一页 10 条被打满视为可能被截断、找不到第二页、
+    形状可疑、多命中全部**放弃**（返回空），绝不猜一个客户号去覆盖缓存。
+    """
+    target = normalize_thai_id(identity)
+    if len(target) != 13 or not (target.isascii() and target.isdigit()):
+        return ""
+
+    def search(budget):
+        body = client._post_text("cus/component/showdata.php", {
+            "sdtamt": "10", "sdtpage": "1", "sd": target,
+            "selcolsort": "1", "selcolsorttype": "1"})
+        budget.add_rows(1)
+        parser = _IdentitySearchRows()
+        parser.feed(body)
+        parser.close()
+        if (parser.invalid or parser.depth
+                or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))
+                or len(parser.ids) >= 10 or body.lstrip().startswith("err::")):
+            _fail("customer search response is unusable")
+        found = ""
+        for cid in dict.fromkeys(parser.ids):
+            fields = _read_customer_complete(client, cid, budget)
+            if normalize_thai_id(fields.get("people_id")) != target:
+                continue
+            if found:
+                _fail("customer identity has multiple exact matches")
+            found = cid
+        return found
+
+    try:
+        return _collect(client, search, limits)
+    except DmsClientError:
+        return ""
 
 
 def collect_customers(client, *, extra_customer_ids=(), limits=None):

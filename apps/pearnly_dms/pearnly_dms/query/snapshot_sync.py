@@ -239,8 +239,9 @@ def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
             budget = ScanBudget(job_started)
             return _capture(_BoundedClient(client, budget), _BoundedAdapter(adapter, budget), conditions)
 
-        result = run_logged_in(name, capture,
-                               authoritative_read=False, background=True, read_only_batch=True)
+        # 这是操作员自己按出来的那一次查询：做完顺手把使用记录里的增量补回缓存。
+        result = run_logged_in(name, capture, authoritative_read=False, background=True,
+                               read_only_batch=True, catch_up=True)
         # Capture only reads local state. End MariaDB's repeatable-read view
         # before rechecking credentials/permission in publish(expected_scope).
         # Otherwise a revocation in another connection can remain invisible.

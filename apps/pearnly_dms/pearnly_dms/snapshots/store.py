@@ -25,6 +25,8 @@ INTERVAL = 300
 MAX_BYTES = 8 * 1024 * 1024
 MAX_REQUESTS = 32
 REQUEST_TTL = 7 * 86400
+#: 变更流水的水位（模块事件总数 + 已处理的流水号）。不是快照，只走内部读写。
+CHANGE_DATASET = "changes"
 AUTH_ERRORS = {"ERR_DMS_AUTH", "ERR_DMS_ADMIN_AUTH", "ERR_DMS_NO_ADMIN_CREDS",
                "ERR_DMS_QUERY_FORBIDDEN", "ERR_DMS_QUERY_SCOPE", "ERR_NO_CREDS"}
 
@@ -252,6 +254,82 @@ def overlay_customer_ids(endpoint):
     key = scope(endpoint)
     raw = frappe.db.get_value(DT, _name(key, "customers"), "overlays")
     return tuple(json.loads(raw or "{}"))
+
+
+def change_state(endpoint):
+    """变更流水的水位；没有就返回 None（＝还没建过基线，不能做增量判断）。
+
+    只读本地元数据，不登录第三方。存的是 `staging` 列 —— 那一列本来就是
+    "按数据集的私有中间状态"，而 `changes` 这个数据集没有采集器，不会互相覆盖。
+    """
+    key = scope(endpoint)
+    raw = frappe.db.get_value(DT, _name(key, CHANGE_DATASET), "staging")
+    return json.loads(raw) if raw else None
+
+
+def _furthest(stored, incoming):
+    """两个水位取更靠前的那个（并发时另一个进程可能已经推进过）。"""
+    merged = dict(incoming)
+    for field in ("actor", "seeded_at"):
+        if not merged.get(field) and stored.get(field):
+            merged[field] = stored[field]
+    stored_modules = stored.get("modules") or {}
+    incoming_modules = incoming.get("modules") or {}
+    modules = {}
+    for module in set(stored_modules) | set(incoming_modules):
+        old, new = stored_modules.get(module) or {}, incoming_modules.get(module) or {}
+        modules[module] = new if int(new.get("seq") or 0) >= int(old.get("seq") or 0) else old
+    merged["modules"] = modules
+    stored_pending = stored.get("pending") or {}
+    incoming_pending = incoming.get("pending") or {}
+    merged["pending"] = {
+        dataset: max(stored_pending.get(dataset, 0), incoming_pending.get(dataset, 0))
+        for dataset in set(stored_pending) | set(incoming_pending)}
+    return merged
+
+
+def merge_change_state(endpoint, incoming, *, base, expected_scope=None):
+    """把水位写回。基线变了（另一个进程先写了）就按更靠前的合并，绝不回退。
+
+    外部 IO 已经做完才调这里；锁内只做本地读写。私有短事务、独立提交，
+    不牵动调用方（操作员那一笔）的业务事务。
+    """
+    with _cache_connection() as database:
+        key = scope(endpoint, current=True, _database=database)
+        if expected_scope is not None and key != expected_scope:
+            raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
+        name = _name(key, CHANGE_DATASET)
+        _ensure(name, key, CHANGE_DATASET, _database=database, exclusive=True)
+        rows = database.sql(f"SELECT staging FROM `tab{DT}` WHERE name=%s FOR UPDATE",
+                            name, as_dict=True)
+        stored = json.loads(rows[0].staging or "{}")
+        merged = incoming if stored == (base or {}) else _furthest(stored, incoming)
+        database.sql(f"UPDATE `tab{DT}` SET staging=%s, modified=UTC_TIMESTAMP(6) WHERE name=%s",
+                     (_dump(merged), name))
+        return merged
+
+
+def customer_index(endpoint):
+    """本地缓存的 身份证号 → 客户号（归一化后唯一才算入索引）。
+
+    **一次读、一次解析**：一轮增量可能点名好几条客户，逐条去解析整份 payload
+    在大租户上是白花的开销。身份证号重复的客户不进索引 —— 有歧义宁可去 DMS 反查。
+    """
+    from pearnly_dms.contracts.id_validate import normalize_thai_id
+
+    key = scope(endpoint)
+    raw = frappe.db.get_value(DT, _name(key, "customers"), "payload")
+    index, ambiguous = {}, set()
+    for cid, item in ((json.loads(raw).get("customers") if raw else {}) or {}).items():
+        people = normalize_thai_id((item or {}).get("people_id"))
+        if not people:
+            continue
+        if people in index:
+            ambiguous.add(people)
+        index[people] = cid
+    for people in ambiguous:
+        index.pop(people, None)
+    return index
 
 
 @contextmanager
