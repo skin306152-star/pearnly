@@ -55,15 +55,37 @@
 					label: __("Create a new {0}", [p.link_editors[doctype]?.label || __(doctype)])}] : [])]);
 		};
 		if (editable) {
-			// Native autocomplete interaction and keyboard handling; customer text is textContent.
+			// Keep the Link's title/detail and plus-action presentation. Autocomplete
+			// only permits unbound OCR text; it does not need a different visual style.
+			// Master data stays textContent, never executable HTML.
 			control.awesomplete.filter = () => true;
 			control.awesomplete.item = item => {
 				const node = document.createElement("li");
 				node.setAttribute("role", "option");
 				node.setAttribute("aria-selected", "false");
-				const text = document.createElement("span");
-				if (item.value === create_value) text.className = "pearnly-link-option";
-				text.textContent = item.label; node.append(text);
+				const content = document.createElement("p");
+				if (item.value === create_value) {
+					const action = document.createElement("span");
+					action.className = "link-option pearnly-link-option";
+					const icon = document.createElement("i");
+					icon.className = "fa fa-plus mr-1";
+					icon.setAttribute("aria-hidden", "true");
+					action.append(icon, document.createTextNode(" " + item.label));
+					content.append(action);
+				} else {
+					const row = choices.find(choice => label(choice) === item.value);
+					const name = document.createElement("strong");
+					name.textContent = row?.[field] || item.label;
+					content.append(name);
+					if (row) {
+						const detail = document.createElement("span");
+						detail.className = "small";
+						detail.textContent = (row.code || row.tax_id || row.name) +
+							(row.branch_no ? " / " + row.branch_no : "");
+						content.append(document.createElement("br"), detail);
+					}
+				}
+				node.append(content);
 				return node;
 			};
 			const search = frappe.utils.debounce(async () => {

@@ -35,7 +35,7 @@
 		const f = u.field, col = u.column;
 		return [
 			u.section(""),
-			p.entry_choice_field("Item", state.editable),
+			{...p.entry_choice_field("Item", state.editable), reqd: 1},
 			f("product", "Item", "Data", {hidden: 1}),
 			f("description", "Item Name", "Data", {hidden: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),

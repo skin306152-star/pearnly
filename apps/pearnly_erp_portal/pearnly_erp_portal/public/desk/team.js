@@ -24,16 +24,12 @@
  */
 (() => {
 	const p = frappe.pearnly;
-	p.team = async (page, t) => {
+	p.team = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.team.api.";
 		const field = (fieldname, label, fieldtype = "Data", options = {}) =>
 			({ fieldname, label: __(label), fieldtype, ...options });
-		let data = { members: [], roles: [] }, list, term = "";
-
-		page.set_title(__("nav.team"));
-		p.breadcrumbs({ label: __("nav.team"), route: p.subroute("pearnly-team") });
-		const search = page.add_field({ fieldname: "q", label: __("Search"), fieldtype: "Data",
-			change: () => { term = String(search.get_value() || "").toLowerCase(); void list?.reload(); } });
+		const root = "pearnly-team";
+		let data = { members: [], roles: [] }, list, term = "", carry = null;
 
 		const role_label = name => (data.roles.find(role => role.name === name) || {}).label || name;
 		const rows_now = () => data.members.filter(row => !term
@@ -81,23 +77,24 @@
 			page.set_primary_action(t("team.new"), () => editor(null));
 		}
 
-		// 先把名单取回来再建列表：`p.list` 构造时就会 load 一次，先建列表的话第一屏是空的。
-		await refresh_members();
-		// 六列一屏放得下、不用横向滑：团队页的列本来就写了 width/min_width，但没开
-		// `compact_columns` 时它们不起作用（框架按每列 150px 铺），于是要横向滑
-		// （用户 2026-09-23："内容太多，要滑动才能看得到"）。
-		list = p.list({ page, doctype: "User", compact_columns: true, on_selection: selection,
-			on_open: row => editor(row), columns: columns(),
-			// 一个租户的员工就这么多人，整份名单一次给完（搜索在本地过滤，不再打接口）。
-			load: async () => {
-				const items = rows_now();
-				return { items, total: items.length };
-			},
-			empty_action: { label: t("team.new"), action: () => editor(null) },
-		});
-		restore_new();
-		p.add_refresh(page, () => list.reload());
-		await list.ready;
+		async function show_list() {
+			page.set_title(__("nav.team"));
+			p.breadcrumbs({ label: __("nav.team"), route: p.subroute(root) });
+			const search = page.add_field({ fieldname: "q", label: __("Search"), fieldtype: "Data",
+				default: term, change: () => { term = String(search.get_value() || "").toLowerCase(); void list?.reload(); } });
+			list = p.list({ page, doctype: "User", compact_columns: true, on_selection: selection,
+				on_open: row => editor(row), columns: columns(),
+				// 一个租户的员工就这么多人，整份名单一次给完（搜索在本地过滤，不再打接口）。
+				load: async () => {
+					const items = rows_now();
+					return { items, total: items.length };
+				},
+				empty_action: { label: t("team.new"), action: () => editor(null) },
+			});
+			restore_new();
+			p.add_refresh(page, () => list.reload());
+			await list.ready;
+		}
 
 		async function refresh_members() {
 			data = await p.call(api + "api_list_members");
@@ -161,7 +158,7 @@
 					checked: default_companies.includes(row.value) })) };
 		}
 
-		function editor(row) {
+		function editor(row, full_page = false, initial = {}) {
 			const is_new = !row;
 			let dialog;
 			const fields = [
@@ -173,41 +170,72 @@
 					{ options: "Email", reqd: 1, read_only: is_new ? 0 : 1, default: row?.email || "" }),
 				...(is_new ? [
 					// 密码不设任何规则（长度、字符都不限），所以这里没有说明句。
+					{ fieldtype: "Column Break" },
 					field("password", "team.password", "Password", { reqd: 1 }),
 				] : []),
 				...roles_fields(row?.roles || [], () => dialog),
 				{fieldtype: "Section Break"},
 				companies_field(row?.companies || []),
 			];
-			dialog = p.dialog(is_new ? t("team.new") : row.email,
-				fields.filter(Boolean), is_new ? t("team.new") : __("Save"),
-				async (values, d) => {
-					const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);
-					if (is_new) {
-						await p.call(api + "api_add_member", {
-							username: values.username, email: values.email,
-							password: values.password, roles, companies: values.companies || [],
-						}, "POST");
-						d.hide();
-						p.success(t("team.notice.added", values.username), "click");
-					} else {
-						await p.call(api + "api_set_member_roles",
-							{ email: row.email, roles, companies: values.companies || [] }, "POST");
-						d.hide();
-						p.success(t("team.notice.saved"), "click");
-					}
-					await refresh_members();
-					await list.reload();
-					restore_new();
+			for (const item of fields) {
+				if (!Object.hasOwn(initial, item.fieldname)) continue;
+				if (item.fieldtype === "MultiCheck") item.options.forEach(option => {
+					option.checked = (initial[item.fieldname] || []).includes(option.value);
 				});
+				else item.default = initial[item.fieldname];
+			}
+			const title = is_new ? t("team.new") : row.email;
+			const label = is_new ? t("team.new") : __("Save");
+			const save = async values => {
+				const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);
+				if (is_new) {
+					await p.call(api + "api_add_member", {username: values.username, email: values.email,
+						password: values.password, roles, companies: values.companies || []}, "POST");
+					p.success(t("team.notice.added", values.username), "click");
+				} else {
+					await p.call(api + "api_set_member_roles", {email: row.email, roles,
+						companies: values.companies || []}, "POST");
+					p.success(t("team.notice.saved"), "click");
+				}
+				if (full_page) return frappe.set_route(root);
+				dialog.hide();
+				await refresh_members();
+				await list.reload();
+				restore_new();
+			};
+			if (full_page) {
+				page.set_title(title);
+				p.breadcrumbs({label: __("nav.team"), route: p.subroute(root), trail: [{label: title}]});
+				dialog = p.layout(page.main, fields);
+				let busy = false;
+				const button = page.set_primary_action(label, async () => {
+					const values = dialog.get_values();
+					if (!values || busy) return;
+					busy = true; button.prop("disabled", true);
+					try { await save(values); }
+					catch (error) { if (!error?._server_messages && !error?.responseJSON) console.error(error); }
+					finally { busy = false; button.prop("disabled", false); }
+				});
+				page.set_secondary_action(__("Cancel"), () => frappe.set_route(root));
+			} else {
+				dialog = p.dialog(title, fields, label, save);
+				dialog.$wrapper.find(".modal-dialog").addClass("modal-lg");
+				const route = is_new ? [root, "new"] : [root, "edit", row.email];
+				p.edit_all(dialog, __("Edit in Full Page"), route, values => {
+					carry = {route: route.join("/"), values};
+				});
+			}
+
 			permission_groups().forEach((group, index) => {
 				const parent = dialog.fields_dict["group_" + index];
-				parent.$wrapper.find(".label-area").addClass("font-weight-bold");
-				dialog.fields_dict["roles_" + index].$wrapper.addClass("ml-4");
+				parent.$wrapper.addClass("mb-0").find(".label-area").addClass("font-weight-bold");
+				const children = dialog.fields_dict["roles_" + index];
+				children.$wrapper.addClass("ml-3 mb-0");
+				children.$checkbox_area.addClass("py-0");
 				const count = dialog.fields_dict["roles_" + index].get_value().length;
 				parent.$input.prop("indeterminate", count > 0 && count < data.roles.filter(role => role.group === group).length);
 			});
-			if (is_new) return;
+			if (is_new || full_page) return;
 			// 两个动作挂在原生弹窗的自定义动作槽里（与产品其它弹窗同一个位置）。
 			dialog.add_custom_action(t("team.resetPassword"), () => password_dialog(row));
 			dialog.add_custom_action(row.enabled ? t("team.disable") : t("team.enable"),
@@ -233,5 +261,22 @@
 				p.success(t("team.notice.password"), "click");
 			});
 		}
+		const show = p.routed_page({wrapper, root, render: async (rest, current) => {
+			p.clear_page(page);
+			page.clear_secondary_action();
+			list = null;
+			await refresh_members();
+			if (!current()) return;
+			if (!rest.length) { carry = null; await show_list(); return; }
+			const row = rest[0] === "edit" && rest.length === 2
+				? data.members.find(member => member.email === rest[1]) : null;
+			if (!(rest[0] === "new" && rest.length === 1) && !row) return p.redirect_up(root);
+			const key = [root, ...rest].join("/");
+			const initial = carry?.route === key ? carry.values : {};
+			carry = null;
+			editor(row, true, initial);
+		}});
+		await show();
+
 	};
 })();
