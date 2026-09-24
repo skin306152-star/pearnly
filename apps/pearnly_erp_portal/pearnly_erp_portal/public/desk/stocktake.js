@@ -28,7 +28,8 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, ranking, count, state, table_host, rank_host, rank_hint, summary;
+		let list, table, ranking, moved, count, state, table_host, rank_host, rank_hint,
+			moved_host, moved_hint, summary;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
@@ -44,8 +45,8 @@
 		});
 		const active = () => state?.task.status === "Active" && state.can_write;
 		function clear() {
-			list?.destroy(); table?.destroy(); ranking?.destroy();
-			list = table = ranking = null;
+			list?.destroy(); table?.destroy(); ranking?.destroy(); moved?.destroy();
+			list = table = ranking = moved = null;
 			// Page owns the native filter row inside main; retain it across routes.
 			page.page_form.detach();
 			page.main.empty().append(page.page_form).removeClass("layout-main-list list-view");
@@ -74,6 +75,8 @@
 			// 「有差异」清单的卡片（沿用框架 `.chart-wrapper` 那块留白，形态与之前一致）。
 			rank_hint = $("<p class='text-muted'></p>").appendTo(page.main);
 			rank_host = $("<div class='chart-wrapper'>").appendTo(page.main);
+			moved_hint = $("<p class='text-muted'></p>").appendTo(page.main);
+			moved_host = $("<div class='chart-wrapper'>").appendTo(page.main);
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
 			table_host.on("click", ".dt-row", event => {
 				if ($(event.target).closest(".dt-dropdown, input, select, button").length || window.getSelection()?.toString()) return;
@@ -187,42 +190,71 @@
 			// 我要的是直观易懂，且只要有差异的都在显示"）。
 			// 数量差异为 0、只是放错货位的那几行也在这里（数字那格写"仓位差异"）。
 			const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
-			const problems = state.items
-				.filter(r => r.counted && (Number(r.difference) || r.location_difference))
+			const counted_rows = state.items.filter(r => r.counted);
+			const diff_rows = counted_rows.filter(r => Number(r.difference))
 				.sort((a, b) => Math.abs(Number(b.difference)) - Math.abs(Number(a.difference)));
+			const moved_rows = counted_rows.filter(r => r.location_difference)
+				.sort((a, b) => String(a.product_name || "").localeCompare(String(b.product_name || "")));
+			// 横条：灰＝账面数量（这一行的"满格"），彩＝实盘数量。整条轨道按**最大比例**归一化，
+			// 所以超盘的彩条能压过灰条又不被裁掉；少盘的彩条短于灰条，一眼看出少了百分之多少。
+			// 灰色与看板的账面柱同一个灰（`#a3a3a3`），条本身用 desk 包自带的 Bootstrap `.progress`。
+			// 轨道最多画到账面的 1.5 倍：不让"账上 14 件却数出 61 件"这种极端行把别的条全压成一小截。
+			// 超过 1.5 倍的按满格画（真值在右边那格照旧写出来）。
+			const widest = Math.min(1.5, Math.max(1, ...diff_rows.filter(r => Number(r.book_qty) > 0)
+				.map(r => Number(r.counted_qty || 0) / Number(r.book_qty))));
+			const unit = 100 / widest;
+			const bars = row => {
+				const book = Number(row.book_qty) || 0, actual = Number(row.counted_qty) || 0;
+				const book_width = book > 0 ? unit : 0;
+				const actual_width = book > 0 ? Math.min(actual / book, widest) * unit : (actual > 0 ? 100 : 0);
+				const colour = Number(row.difference) < 0 ? "var(--red-600)" : accent;
+				return `<div class="progress" style="margin:0;position:relative">`
+					+ `<div class="progress-bar" style="width:${book_width}%;background-color:#a3a3a3"></div>`
+					+ `<div class="progress-bar" style="position:absolute;left:0;top:0;height:100%;`
+					+ `width:${actual_width}%;background-color:${colour}"></div></div>`;
+			};
+			const amount_text = (row, diff) => {
+				const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
+				return `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`;
+			};
 			ranking?.destroy(); ranking = null;
-			rank_hint.text(problems.length ? t("stock.count.diffRankHint") : "");
-			if (problems.length) {
-				const widest = problems.reduce((max, r) => Math.max(max, Math.abs(Number(r.difference))), 0);
-				const bar = row => {
-					const size = Math.abs(Number(row.difference));
-					// 最长的条占满，其余按比例；差 1 件的也留一条看得见的细条。
-					const width = size ? Math.max(size / widest * 100, 2) : 0;
-					const colour = Number(row.difference) < 0 ? "var(--red-600)" : accent;
-					return `<div class="progress" style="margin:0"><div class="progress-bar" role="progressbar"`
-						+ ` aria-valuenow="${Math.round(width)}" aria-valuemin="0" aria-valuemax="100"`
-						+ ` style="width:${width}%;background-color:${colour}"></div></div>`;
-				};
+			rank_hint.text(diff_rows.length ? t("stock.count.diffRankHint") : "");
+			if (diff_rows.length) {
 				ranking = await p.table(rank_host, [
-					{ name: t("stock.col.name"), width: 200, format: value => value },
-					{ name: w("bookPosition"), width: 170, format: value => value },
-					{ name: t("stock.count.difference"), width: 260, format: value => value },
+					{ name: t("stock.col.name"), width: 190, format: value => value },
+					{ name: w("bookPosition"), width: 160, format: value => value },
+					{ name: `${t("stock.count.book")} / ${t("stock.count.counted")}`, width: 300, format: value => value },
 					{ name: w("quantityDiff"), width: 170, format: value => value },
-				], problems.map(row => {
+				], diff_rows.map(row => {
 					const diff = Number(row.difference);
-					const amount = `${p.number(Math.abs(diff))} ${row.unit || ""}`.trim();
-					const text = diff ? `${t(diff < 0 ? "stock.count.short" : "stock.count.over")} ${amount}`
-						: w("locationDiff");
-					const colour = diff < 0 ? "var(--red-600)" : accent;
 					return [
 						p.escape(row.product_name),
 						p.escape(`${row.warehouse_name} / ${row.location || t("stock.count.blank")}`),
-						bar(row),
-						`<span style="color: ${colour}">${p.escape(text)}</span>`,
+						bars(row),
+						`<span style="color: ${diff < 0 ? "var(--red-600)" : accent}">`
+							+ `${p.escape(amount_text(row, diff))}</span>`,
 					];
 				}), table_options());
 			} else {
 				rank_host.empty();
+			}
+			// 仓库/仓位的差异是**另一类**问题：数量条只能表达数量（放错位置的行数量正好对上，
+			// 在条上什么也看不出来）。所以单独列一小块"账面位置 → 实际位置"，条数正好等于
+			// 汇总里的"仓位差异"。实际问题落点（哪个仓哪个位）在下面的明细表里也有。
+			moved?.destroy(); moved = null;
+			moved_hint.text(moved_rows.length ? t("stock.count.locationHint") : "");
+			if (moved_rows.length) {
+				moved = await p.table(moved_host, [
+					{ name: t("stock.col.name"), width: 220, format: value => value },
+					{ name: w("bookPosition"), width: 200, format: value => value },
+					{ name: w("actualPositions"), width: 300, format: value => value },
+				], moved_rows.map(row => [
+					p.escape(row.product_name),
+					p.escape(`${row.warehouse_name} / ${row.location || t("stock.count.blank")}`),
+					danger(p.escape(row.actual_positions || "—")),
+				]), table_options());
+			} else {
+				moved_host.empty();
 			}
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))

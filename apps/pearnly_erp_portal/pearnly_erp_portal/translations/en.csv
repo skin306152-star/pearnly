@@ -424,6 +424,7 @@ Item is disabled,Item is disabled
 Item is removed since no serial / batch no selected.,Item is removed since no serial / batch no selected.
 Items,Items
 Items are required,Items are required
+Items found at a different place,Items found at a different place
 Items not found.,Items not found.
 "Items with a difference, largest first","Items with a difference, largest first"
 Job Roles,Job Roles
@@ -667,6 +668,7 @@ Quantity,Quantity
 Quantity Available,Quantity Available
 Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.","Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it."
 Quantity must be greater than zero,Quantity must be greater than zero
 Query,Query
 Querying the Revenue Department...,Querying the Revenue Department...
@@ -1310,7 +1312,7 @@ stock.count.deleteConfirm,Delete {0} stock counts? Posted ones cannot be deleted
 stock.count.deleteNotice,Deleted {0}
 stock.count.deleteSelected,Delete selected ({0})
 stock.count.deleted,Deleted {0} stock counts
-stock.count.diffRankHint,"Items with a difference, largest first"
+stock.count.diffRankHint,"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it."
 stock.count.difference,Difference
 stock.count.differenceRows,With differences
 stock.count.differenceValue,Difference value
@@ -1337,6 +1339,7 @@ stock.count.imported,"Imported {0} rows, {1} with a counted quantity"
 stock.count.linkEntries,Back to entries
 stock.count.linkSummary,Back to summary
 stock.count.location,Location
+stock.count.locationHint,Items found at a different place
 stock.count.mode,Count by
 stock.count.modeImport,Upload a sheet
 stock.count.modeStock,In-stock

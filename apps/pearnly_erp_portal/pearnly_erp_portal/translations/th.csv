@@ -424,6 +424,7 @@ Item is disabled,สินค้าถูกปิดใช้งาน
 Item is removed since no serial / batch no selected.,เอาสินค้าออกแล้วเนื่องจากไม่ได้เลือกหมายเลขเครื่อง / ล็อต
 Items,รายการ
 Items are required,กรุณาระบุรายการสินค้า
+Items found at a different place,สินค้าที่พบคนละตำแหน่ง
 Items not found.,ไม่พบสินค้า
 "Items with a difference, largest first",สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
 Job Roles,สิทธิ์การใช้งาน
@@ -667,6 +668,7 @@ Quantity,ปริมาณ
 Quantity Available,จำนวนคงเหลือ
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",ผลต่างจำนวน เรียงจากมากไปน้อย แถบเทาคือจำนวนตามบัญชี แถบสีคือจำนวนที่นับได้ นับได้น้อยจะสั้นกว่าแถบเทา นับได้เกินจะล้นออกไป
 Quantity must be greater than zero,จำนวนต้องมากกว่า 0
 Query,ค้นหา
 Querying the Revenue Department...,กำลังค้นหาจากกรมสรรพากร…
@@ -1310,7 +1312,7 @@ stock.count.deleteConfirm,ลบการตรวจนับ {0} รายก�
 stock.count.deleteNotice,ลบ {0} รายการแล้ว
 stock.count.deleteSelected,ลบที่เลือก ({0})
 stock.count.deleted,ลบการตรวจนับแล้ว {0} รายการ
-stock.count.diffRankHint,สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
+stock.count.diffRankHint,ผลต่างจำนวน เรียงจากมากไปน้อย แถบเทาคือจำนวนตามบัญชี แถบสีคือจำนวนที่นับได้ นับได้น้อยจะสั้นกว่าแถบเทา นับได้เกินจะล้นออกไป
 stock.count.difference,ผลต่าง
 stock.count.differenceRows,มีผลต่าง
 stock.count.differenceValue,มูลค่าผลต่าง
@@ -1337,6 +1339,7 @@ stock.count.imported,นำเข้าแล้ว {0} แถว ในนั�
 stock.count.linkEntries,กลับไปรายการ
 stock.count.linkSummary,กลับไปสรุป
 stock.count.location,ตำแหน่ง
+stock.count.locationHint,สินค้าที่พบคนละตำแหน่ง
 stock.count.mode,วิธีตรวจนับ
 stock.count.modeImport,อัปโหลดไฟล์
 stock.count.modeStock,ตรวจนับในคลัง

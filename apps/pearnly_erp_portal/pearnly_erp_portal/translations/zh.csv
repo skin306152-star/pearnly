@@ -424,6 +424,7 @@ Item is disabled,物料已停用
 Item is removed since no serial / batch no selected.,未选择序列号 / 批号，已移除该物料
 Items,物料
 Items are required,物料明细不能为空
+Items found at a different place,位置不一样的商品
 Items not found.,没找到物料
 "Items with a difference, largest first",有差异的商品，差得最多的排在最前
 Job Roles,功能权限
@@ -667,6 +668,7 @@ Quantity,数量
 Quantity Available,数量（仓库）
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。
 Quantity must be greater than zero,数量必须大于 0
 Query,查询
 Querying the Revenue Department...,正在向税务局查询…
@@ -1310,7 +1312,7 @@ stock.count.deleteConfirm,删除选中的 {0} 份盘点？已过账的删不掉�
 stock.count.deleteNotice,已删除 {0} 个
 stock.count.deleteSelected,删除所选（{0}）
 stock.count.deleted,已删除 {0} 份盘点
-stock.count.diffRankHint,有差异的商品，差得最多的排在最前
+stock.count.diffRankHint,数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。
 stock.count.difference,差异
 stock.count.differenceRows,有差异
 stock.count.differenceValue,差异金额
@@ -1337,6 +1339,7 @@ stock.count.imported,已导入 {0} 行，其中 {1} 行带实盘数量
 stock.count.linkEntries,返回记录
 stock.count.linkSummary,返回汇总
 stock.count.location,仓位
+stock.count.locationHint,位置不一样的商品
 stock.count.mode,盘点方式
 stock.count.modeImport,上传导入
 stock.count.modeStock,盘点在库

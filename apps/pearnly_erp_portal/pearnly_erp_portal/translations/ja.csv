@@ -424,6 +424,7 @@ Item is disabled,品目は無効です
 Item is removed since no serial / batch no selected.,シリアル・ロットが未選択のため商品を削除しました
 Items,品目
 Items are required,品目を入力してください
+Items found at a different place,違う場所で見つかった商品
 Items not found.,商品が見つかりません
 "Items with a difference, largest first",差異のある商品（大きい順）
 Job Roles,機能権限
@@ -667,6 +668,7 @@ Quantity,数量
 Quantity Available,在庫数
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
+"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
 Quantity must be greater than zero,数量は 0 より大きい必要があります
 Query,照会
 Querying the Revenue Department...,税務局に照会中…
@@ -1310,7 +1312,7 @@ stock.count.deleteConfirm,選択した {0} 件の棚卸を削除しますか？�
 stock.count.deleteNotice,{0}件を削除しました
 stock.count.deleteSelected,選択を削除（{0}）
 stock.count.deleted,棚卸を {0} 件削除しました
-stock.count.diffRankHint,差異のある商品（大きい順）
+stock.count.diffRankHint,数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
 stock.count.difference,差異
 stock.count.differenceRows,差異あり
 stock.count.differenceValue,差異金額
@@ -1337,6 +1339,7 @@ stock.count.imported,{0} 行を取り込みました（うち {1} 行に実地�
 stock.count.linkEntries,記録へ戻る
 stock.count.linkSummary,集計へ戻る
 stock.count.location,棚番
+stock.count.locationHint,違う場所で見つかった商品
 stock.count.mode,棚卸方法
 stock.count.modeImport,取り込み
 stock.count.modeStock,在庫棚卸
