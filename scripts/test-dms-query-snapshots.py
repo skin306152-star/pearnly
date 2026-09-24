@@ -320,7 +320,9 @@ class Refresh(unittest.TestCase):
 
     def run_login(self, endpoint, fn, **kwargs):
         self.assertEqual(endpoint, "EP-own")
-        self.assertEqual(kwargs, {"authoritative_read": False, "background": True, "read_only_batch": True})
+        # 操作员自己按出来的那一次查询：做完顺手把使用记录里的增量补回缓存。
+        self.assertEqual(kwargs, {"authoritative_read": False, "background": True,
+                                  "read_only_batch": True, "catch_up": True})
         try:
             return fn(self.client, self.adapter)
         except DmsClientError as exc:

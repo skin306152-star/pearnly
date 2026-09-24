@@ -418,7 +418,9 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         self.key(reader="sales")
         def authenticated(endpoint, callback, **kwargs):
             self.assertEqual(endpoint, self.endpoint)
-            self.assertEqual(kwargs, {"authoritative_read": False, "background": True, "read_only_batch": True})
+            # 操作员自己按出来的那一次查询：做完顺手把使用记录里的增量补回缓存。
+            self.assertEqual(kwargs, {"authoritative_read": False, "background": True,
+                                      "read_only_batch": True, "catch_up": True})
             calls.append(endpoint)
             return callback(client, adapter)
         result, dataset = self._manual_query(authenticated)

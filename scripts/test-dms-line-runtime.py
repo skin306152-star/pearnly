@@ -494,8 +494,10 @@ class BookingService(unittest.TestCase):
         self.assertEqual(name, "EP-lab")  # dict-as-filter caused the production SQL error
         return "{}" if field == "booking_defaults" else "https://example.test/dms/index.php"
 
-    def run_session(self, endpoint, fn):
+    def run_session(self, endpoint, fn, **kwargs):
         self.assertEqual(endpoint, "EP-lab")
+        # 操作员自己发起的那一笔：动作之外还要顺手把使用记录里的增量补回缓存。
+        self.assertEqual(kwargs, {"catch_up": True})
         return fn(self.client, object())
 
     @contextmanager
