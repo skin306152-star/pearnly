@@ -150,10 +150,10 @@ class CatalogueTests(unittest.TestCase):
         self.no_network.start()
         self.addCleanup(self.no_network.stop)
 
-    def rejected(self, client, dataset="vehicles", **kwargs):
+    def rejected(self, client, dataset="vehicles", code="ERR_DMS_SNAPSHOT_INCOMPLETE", **kwargs):
         with self.assertRaises(DmsClientError) as raised:
             collect(client, dataset, **kwargs)
-        self.assertEqual(raised.exception.error_code, "ERR_DMS_SNAPSHOT_INCOMPLETE")
+        self.assertEqual(raised.exception.error_code, code)
         self.assertNotIn("Synthetic", str(raised.exception))
 
     def test_complete_vehicles_preserve_cancelled_full_controls_and_children(self):
@@ -279,7 +279,9 @@ class CatalogueTests(unittest.TestCase):
                        replace(LIMITS, max_response_bytes=100), replace(LIMITS, max_pages=1)):
             with self.subTest(limits=limits):
                 client, _ = setup(records={"car": ["1", "2", "3"]})
-                self.rejected(client, limits=limits, nodes=1)
+                # 顶穿预算阀报"数据太大"这一个独立码：那种失败重试没有意义，
+                # 也不该和"这一代不算数"的普通不完整混在一个码里（2026-09-25）。
+                self.rejected(client, limits=limits, nodes=1, code="ERR_DMS_SNAPSHOT_TOO_LARGE")
 
     def test_checkpoint_missing_detail_done_or_schema_change_rejected(self):
         client, _ = setup()
@@ -346,7 +348,8 @@ class CatalogueTests(unittest.TestCase):
         limits = SnapshotLimits(page_size=2, max_seconds=30)
         state = collect(client, limits=limits)
         self.assertTrue(state["done"])
-        self.assertEqual(state["limits"]["max_total_seconds"], 1800)
+        # 累计读取预算要够一轮大数据量租户跑完（见 catalogue_reader.TOTAL_SECONDS）。
+        self.assertEqual(state["limits"]["max_total_seconds"], 7200)
 
     def test_transport_exception_does_not_expose_native_error_body(self):
         import traceback

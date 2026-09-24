@@ -16,7 +16,7 @@ import time
 
 from pearnly_dms.client.catalogue_schema import REGISTRY as VEHICLES
 from pearnly_dms.client.client_intake import _IdentitySearchRows
-from pearnly_dms.client.snapshot_reader import SnapshotLimits, _fail
+from pearnly_dms.client.snapshot_reader import SnapshotLimits, _fail, _too_large
 from pearnly_dms.contracts.client_base import DmsClientError
 
 RETRY = "ERR_DMS_SNAPSHOT_RETRY"
@@ -35,7 +35,10 @@ def _retry(reason):
 
 
 VERSION = 1
-TOTAL_SECONDS = 1800
+# 整个 generation 的**累计读取时间**上限（不含排队和登录）。2026-09-25 实测：
+# rayong 租户 15,135 个客户，详情阶段约 4–8 个/秒 → 一轮要 50–85 分钟；旧的
+# 30 分钟会在读完之前把任务掐死。留一倍余量。
+TOTAL_SECONDS = 7200
 LIST_PARAMS = {"sd": "", "ftd": "1", "selcolsort": "1", "selcolsorttype": "1"}
 INPUT_TYPES = frozenset(("text", "hidden", "number", "date", "datetime-local", "tel", "email", "url"))
 _SECRET = re.compile(r"password|passwd|secret|token|credential", re.I)
@@ -446,7 +449,7 @@ def advance_catalogues(client, state, limits=None, max_nodes=20):
                 params.update(sdtamt=str(policy["page_size"]), sdtpage=str(page))
         usage["requests"] += 1
         if usage["requests"] > policy["max_requests"]:
-            _fail("catalogue total request budget exceeded")
+            _too_large("catalogue total request budget exceeded")
         try:
             body = client._post_text(path, params)
         except Exception:
@@ -458,13 +461,13 @@ def advance_catalogues(client, state, limits=None, max_nodes=20):
             # 只是这一步的时间租约用完，断点还能接着读。
             _retry("catalogue read lease exceeded")
         if usage["seconds"] + elapsed > policy["max_total_seconds"]:
-            _fail("catalogue time budget exceeded")
+            _too_large("catalogue time budget exceeded")
         if not isinstance(body, str):
             _fail("non-text catalogue response")
         size = len(body.encode("utf-8"))
         usage["bytes"] += size
         if size > policy["max_response_bytes"] or usage["bytes"] > policy["max_total_bytes"]:
-            _fail("catalogue response budget exceeded")
+            _too_large("catalogue response budget exceeded")
         if body.lstrip().startswith("err::"):
             _fail("native catalogue read rejected")
         return body
@@ -475,7 +478,7 @@ def advance_catalogues(client, state, limits=None, max_nodes=20):
             _fail("invalid native catalogue count")
         value = int(match[1])
         if value > policy["max_rows"] or math.ceil(value / policy["page_size"]) > policy["max_pages"]:
-            _fail("native catalogue count exceeds bound")
+            _too_large("native catalogue count exceeds bound")
         return value
 
     def next_kind():
@@ -558,7 +561,7 @@ def advance_catalogues(client, state, limits=None, max_nodes=20):
         candidate["processed"] = candidate["count"]
         candidate["total"] = sum(candidate["counts"].values()) if len(candidate["counts"]) == len(kinds) else None
         if candidate["count"] > policy["max_rows"] or usage["rows"] > 2 * policy["max_rows"]:
-            _fail("catalogue total row budget exceeded")
+            _too_large("catalogue total row budget exceeded")
     usage["seconds"] += time.monotonic() - started
     _validate(candidate, registry)
     return candidate

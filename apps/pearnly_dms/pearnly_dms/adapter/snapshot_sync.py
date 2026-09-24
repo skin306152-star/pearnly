@@ -65,7 +65,10 @@ def refresh(endpoint, *, request_id=None, dataset="directory", params=None):
             if "customers" not in stage:
                 stage["customers"] = start_customers(client,
                     extra_customer_ids=store.overlay_customer_ids(endpoint), limits=limits)
-            tree = advance_customers(client, stage["customers"], max_nodes=20, limits=limits)
+            # 每步尽量多做：一次队列 job 要付一次完整登录（6–16 秒），20 个客户一步
+            # 意味着 15,135 个客户要 757 步、光登录就两个多小时（2026-09-25 实测）。
+            # 100 是一步能取的最大块，30 秒租约内读得完。
+            tree = advance_customers(client, stage["customers"], max_nodes=100, limits=limits)
             stage["customers"] = tree
             if tree["phase"] != "done":
                 return {"ok": True, "stage": stage, "processed": len(tree["customers"]), "total": tree["count"]}

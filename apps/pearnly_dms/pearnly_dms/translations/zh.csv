@@ -85,6 +85,7 @@ This query is queued.,本次查询已排队。
 This read failed. Click Read to retry.,本次读取失败，可点击读取重试。
 This read failed. Please try again later.,本次读取失败，请稍后再试。
 This read was interrupted. Click Read again to retry; previously completed data was retained.,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
+"This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
@@ -275,6 +276,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,已登记的查询条件过多，请稍�
 dms.err.ERR_DMS_SNAPSHOT_RETRY,DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 dms.err.ERR_DMS_SNAPSHOT_STALE,现有 DMS 资料已过期，暂不能使用。请手动重新读取，成功后再试。
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
 dms.err.ERR_DMS_TECHNICAL,连接 DMS 超时或网络异常 · 请稍后重试
 dms.err.ERR_DMS_TEMPLATE,下载订车单模板失败 · 请稍后重试
 dms.err.ERR_DMS_UNREACHABLE,连不上第三方 DMS 系统，请联系管理员

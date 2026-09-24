@@ -85,6 +85,7 @@ This query is queued.,This query is queued.
 This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
 This read was interrupted. Click Read again to retry; previously completed data was retained.,This read was interrupted. Click Read again to retry; previously completed data was retained.
+"This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.","This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
 Unable to confirm the read result. Refresh the page to check; the background read may still be running.,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
@@ -275,6 +276,7 @@ dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,Too many query conditions are registered.
 dms.err.ERR_DMS_SNAPSHOT_RETRY,"The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 dms.err.ERR_DMS_SNAPSHOT_STALE,"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds."
+dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE,"This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
 dms.err.ERR_DMS_TECHNICAL,DMS connection timed out — please retry
 dms.err.ERR_DMS_TEMPLATE,Failed to download the booking template — please retry
 dms.err.ERR_DMS_UNREACHABLE,Cannot reach the third-party DMS system. Please contact your administrator.

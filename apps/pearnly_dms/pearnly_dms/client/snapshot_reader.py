@@ -51,9 +51,12 @@ READ_PATHS = frozenset({
 @dataclass(frozen=True)
 class SnapshotLimits:
     page_size: int = 100
-    max_pages: int = 100
-    max_customers: int = 5000
-    max_requests: int = 20000
+    # 这些是**防呆阀**，不是产品上限：真实租户顶穿它们时，整组资料就再也读不出来。
+    # 2026-09-25 实测 rayong 租户有 15,135 个客户（旧上限 5,000）→ 每次读取都在第一步
+    # 报"customer count exceeds bound"。按最大的已知租户留一倍余量。
+    max_pages: int = 400
+    max_customers: int = 30000
+    max_requests: int = 60000
     max_rows: int = 50000
     max_response_bytes: int = 4 * 1024 * 1024
     max_total_bytes: int = 128 * 1024 * 1024
@@ -70,9 +73,23 @@ class SnapshotLimits:
             raise ValueError("Snapshot page size exceeds native collection bound")
 
 
+# 顶穿上面那些阀时用的独立错误码：调用方要能一眼看出"是数据太大"，而不是
+# 又一个说不清的"资料不完整"。见 `_too_large`。
+TOO_LARGE = "ERR_DMS_SNAPSHOT_TOO_LARGE"
+
+
 def _fail(reason):
     # Never include response bodies or customer fields in errors/logs.
     raise DmsClientError("DMS snapshot incomplete: " + reason, ERROR)
+
+
+def _too_large(reason):
+    """顶穿防呆阀：这是"这个租户的数据超出当前上限"，不是一次偶发失败。
+
+    单独一个码，调用方和管理员才能一眼看出该调上限，而不是对着笼统的"资料不完整"
+    反复重试 —— 2026-09-25 排查客户资料读不出来时正是卡在这里。
+    """
+    raise DmsClientError("DMS snapshot too large: " + reason, TOO_LARGE)
 
 
 class _Budget:
@@ -92,7 +109,7 @@ class _Budget:
         self.rows += count
         if self.rows > self.limits.max_rows:
             self.failed = True
-            _fail("row budget exceeded")
+            _too_large("row budget exceeded")
 
     @contextmanager
     def bind(self, client):
@@ -110,7 +127,7 @@ class _Budget:
             self.requests += 1
             if self.requests > self.limits.max_requests:
                 self.failed = True
-                _fail("request budget exceeded")
+                _too_large("request budget exceeded")
             try:
                 body = original(path, data)
             except Exception:
@@ -126,7 +143,7 @@ class _Budget:
             self.bytes += size
             if size > self.limits.max_response_bytes or self.bytes > self.limits.max_total_bytes:
                 self.failed = True
-                _fail("response budget exceeded")
+                _too_large("response budget exceeded")
             if path.endswith("/bshsd.php"):
                 if body == "" and data.get("elemname") in EMPTY_BANK_SELECTORS:
                     return body  # Known native empty, not whitespace/error HTML/null.
@@ -368,7 +385,7 @@ def _customer_count(client, budget):
         _fail("invalid customer count")
     count = int(match[1])
     if count > budget.limits.max_customers:
-        _fail("customer count exceeds bound")
+        _too_large("customer count exceeds bound")
     return count
 
 
@@ -376,7 +393,7 @@ def _customer_ids(client, budget):
     count = _customer_count(client, budget)
     page_count = (count + budget.limits.page_size - 1) // budget.limits.page_size
     if page_count > budget.limits.max_pages:
-        _fail("customer page limit reached before end")
+        _too_large("customer page limit reached before end")
     ids, seen = [], set()
     for page in range(1, page_count + 1):
         body = client._post_text("cus/component/showdata.php", {
@@ -435,7 +452,7 @@ def _customers(client, budget, extra_customer_ids):
     if not isinstance(extra_customer_ids, (tuple, list, set, frozenset)):
         _fail("invalid extra customer identities")
     if len(extra_customer_ids) > budget.limits.max_customers:
-        _fail("extra customer count exceeds bound")
+        _too_large("extra customer count exceeds bound")
     extras = []
     for cid in extra_customer_ids:
         _customer_id(cid)
@@ -444,7 +461,7 @@ def _customers(client, budget, extra_customer_ids):
     ids = _customer_ids(client, budget)
     detail_ids = list(dict.fromkeys(ids + extras))
     if len(detail_ids) > budget.limits.max_customers:
-        _fail("combined customer count exceeds bound")
+        _too_large("combined customer count exceeds bound")
     customers = {cid: _read_customer_complete(client, cid, budget) for cid in detail_ids}
     if _customer_ids(client, budget) != ids:
         _fail("customer list changed during collection")
@@ -516,7 +533,7 @@ def start_customers(client, *, extra_customer_ids=(), limits=None):
         extras = list(dict.fromkeys(_customer_id(cid) for cid in extra_customer_ids))
         count = _customer_count(client, budget)
         if len(extras) > budget.limits.max_customers:
-            _fail("extra customer count exceeds bound")
+            _too_large("extra customer count exceeds bound")
         return {"version": 1, "phase": "list", "count": count, "ids": [],
                 "extras": extras, "customers": {}, "verified": [], "page": 1}
     return _collect(client, begin, limits)
@@ -574,7 +591,7 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
             _customer_id(cid)
         detail_ids = list(dict.fromkeys(ids + extras))
         if len(detail_ids) > budget.limits.max_customers:
-            _fail("combined customer count exceeds bound")
+            _too_large("combined customer count exceeds bound")
         if candidate["phase"] != "list" and len(ids) != count:
             _fail("incomplete customer checkpoint list")
         _validate_customer_checkpoint_records(customers)
@@ -606,7 +623,7 @@ def advance_customers(client, stage, *, max_nodes=20, limits=None):
                     candidate["page"] = 1
                     detail_ids = list(dict.fromkeys(ids + extras))
                     if len(detail_ids) > budget.limits.max_customers:
-                        _fail("combined customer count exceeds bound")
+                        _too_large("combined customer count exceeds bound")
             elif phase == "details":
                 pending = [cid for cid in detail_ids if cid not in customers]
                 if pending:
