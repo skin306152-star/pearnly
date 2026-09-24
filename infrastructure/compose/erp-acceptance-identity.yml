@@ -1,0 +1,42 @@
+# Add to erp-acceptance.yml, using only colima-pearnly-erp-acceptance.
+# Broker remains private. ERP containers never receive identity-admin credentials.
+services:
+  keycloak:
+    extends: {file: ../production/compose.yml, service: keycloak}
+    platform: linux/amd64
+    restart: "no"
+    command: [start, --http-enabled=true, --http-port=8168, --hostname-strict=true,
+      --health-enabled=true, --proxy-headers=xforwarded]
+    environment:
+      KC_HOSTNAME: http://erp-identity.localhost:8168
+      KC_BOOTSTRAP_ADMIN_USERNAME: pearnly-acceptance
+    ports: !override ['127.0.0.1:8168:8168']
+    networks:
+      runtime:
+        aliases: [erp-identity.localhost]
+      preview: {}
+  billing-web:
+    extends: {file: ../production/compose.yml, service: billing-web}
+    platform: linux/amd64
+    restart: "no"
+    ports: !override []
+    volumes: !override [sites-billing:/home/frappe/frappe-bench/sites]
+    environment:
+      PEARNLY_ERP_ACCEPTANCE: "1"
+      GOOGLE_APPLICATION_CREDENTIALS: ""
+  billing-bench:
+    extends: {file: ../production/compose.yml, service: billing-web}
+    platform: linux/amd64
+    restart: "no"
+    command: [sleep, infinity]
+    ports: !override []
+    volumes: !override
+      - sites-billing:/home/frappe/frappe-bench/sites
+      - sites-erp:/home/frappe/frappe-bench/sites-erp
+    environment:
+      PEARNLY_ERP_ACCEPTANCE: "1"
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?}
+      GOOGLE_APPLICATION_CREDENTIALS: ""
+volumes:
+  sites-billing:

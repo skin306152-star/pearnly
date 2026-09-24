@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 import frappe
 
 from pearnly_core import line, line_binding
-from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.access import guard, menu
 from pearnly_erp_portal.integrations import handlers, intake
 
 
@@ -36,7 +36,8 @@ class GuestIntake(unittest.TestCase):
         self.list = Mock(return_value=[])
         patches = {
             "session": self.session, "db": self.db,
-            "conf": {"pearnly_line_channel_secret": "synthetic-webhook-secret"},
+            "conf": {"pearnly_line_channel_secret": "synthetic-webhook-secret",
+                     "pearnly_features": ["purchase", "sales", "cashier"]},
             "local": SimpleNamespace(response=SimpleNamespace(http_status_code=200)),
             "request": SimpleNamespace(get_data=lambda: self.body),
             "get_request_header": lambda name: self.signature,
@@ -158,6 +159,22 @@ class GuestIntake(unittest.TestCase):
                 self.assertEqual(self.files, [])
                 self.download.assert_not_called()
                 self.assert_restored()
+
+    def test_revoked_feature_blocks_legacy_and_menu_roles_before_download(self):
+        for user, direction, legacy in (("buyer", "purchase", "ERP Purchase"),
+                                        ("seller", "sales", "ERP Sales")):
+            for role in (legacy, menu.role(direction)):
+                with self.subTest(direction=direction, role=role):
+                    self.users[user] = [role]
+                    frappe.conf["pearnly_features"] = ["purchase", "sales", "cashier"]
+                    self.assertTrue(guard.has(direction + ".write", user=user))
+                    frappe.conf["pearnly_features"].remove(direction)
+                    self.webhook("U-" + user)
+                    self.assertEqual(self.replies[-1][1][0]["text"], "This account cannot send documents")
+                    self.download.assert_not_called()
+                    self.assertEqual(self.docs, {})
+                    self.assertEqual(self.files, [])
+                    self.assert_restored()
 
     def test_rebinding_or_disabling_during_download_does_not_store(self):
         for change in (lambda: self.bindings.update({"U-buyer": "seller"}),

@@ -64,15 +64,15 @@ test('missing, invalid, or out-of-range timestamps never become now', () => {
   }
   assert.equal(helpers.snapshotLabel(undefined, 'en', () => { throw new Error('No timestamp'); }), '');
 });
-test('business and daily-address timestamps/staleness remain independent in Vue setup', () => {
+test('business and manually refreshed address timestamps/staleness remain independent in Vue setup', () => {
   const { page, locale } = setup();
   page.adopt({ form: { customer: {}, answers: {}, payments: [], files: {}, advisor: {} },
     masters: {}, geo: {}, manual_banks: [], snapshot: info });
   assert.match(page.snapshotNote.value, /Data as of.*09\/24\/2026/);
-  assert.match(page.addressSnapshotNote.value, /Address sync is delayed.*09\/23\/2026/);
+  assert.match(page.addressSnapshotNote.value, /Older address data as of.*09\/23\/2026/);
   locale.value = 'zh';
   assert.match(page.snapshotNote.value, /资料时间/);
-  assert.match(page.addressSnapshotNote.value, /地址同步有延迟/);
+  assert.match(page.addressSnapshotNote.value, /旧地址资料/);
   page.adopt({ form: { customer: {} }, masters: {}, geo: {} });
   assert.equal(page.snapshotNote.value, ''); assert.equal(page.addressSnapshotNote.value, '');
 });
@@ -97,5 +97,5 @@ test('visible native text binds both timestamps and query notes are declared in 
     'dms.snapshot.geo_as_of', 'dms.snapshot.geo_stale']) {
     for (const language of ['en', 'zh', 'th', 'ja']) assert.ok(table[key][language]);
   }
-  assert.match(table['dms.card.query.CARD_NOTE'].en, /5 minutes.*not draft revenue/);
+  assert.match(table['dms.card.query.CARD_NOTE'].en, /updated only when you click Read \/ refresh.*not draft revenue/);
 });

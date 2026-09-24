@@ -4,13 +4,15 @@ import json
 
 import frappe
 from frappe import _
+from pearnly_erp_portal.masters import access as company_access
 
 
 def lock_task(name, *, active=True):
-    rows = frappe.db.sql("select name, status from `tabERP Stock Count` where name=%s for update",
+    rows = frappe.db.sql("select name, status, warehouse from `tabERP Stock Count` where name=%s for update",
                          (name,), as_dict=True)
     if not rows:
         frappe.throw(_("Stock count not found"), frappe.DoesNotExistError)
+    company_access.require_warehouse(rows[0].warehouse)
     if active and rows[0].status != "Active":
         frappe.throw(_("This stock count is closed"))
     return rows[0]

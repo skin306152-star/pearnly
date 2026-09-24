@@ -94,7 +94,8 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     from pearnly_erp_portal.inventory import positions
     from pearnly_erp_portal.numbering import service as numbering
 
-    lines = [positions.prepare(line) for line in lines]
+    company = companies.document_company(company)
+    lines = [positions.prepare(line, company=company) for line in lines]
     has_vat = has_vat in (True, 1, "1", "true")
     config = settings.read_settings()
     supplier, supplier_name = _resolve_supplier(supplier, supplier_name)
@@ -113,7 +114,7 @@ def create_purchase(*, supplier_name, doc_date, lines, supplier=None, doc_kind="
     doc = frappe.get_doc({
         "doctype": DOCTYPE,
         # 一租户多公司：单据挂在公司上；没给就是**当前公司**（切换公司改的那个用户默认值）。
-        "company": companies.document_company(company),
+        "company": company,
         "doc_kind": doc_kind,
         "supplier": supplier,
         "supplier_name": supplier_name,
@@ -236,7 +237,7 @@ def get_purchase(name):
     data["lines"] = [
         {"line_no": row.line_no, "item_type": row.item_type, "description": row.description,
          "product_ref": row.product_ref, "product": row.product,
-         **(positions.public(row) if row.product else {}), "qty": row.qty, "unit": row.unit,
+         **(positions.public(row, company=doc.get("company")) if row.product else {}), "qty": row.qty, "unit": row.unit,
          "unit_price": row.unit_price, "discount": row.discount,
          "vat_rate": row.vat_rate, "line_total": row.line_total}
         for row in doc.get("lines") or []
@@ -274,7 +275,7 @@ def update_purchase(name, **changes):
         from pearnly_erp_portal.inventory import positions
 
         for index, line in enumerate(lines, start=1):
-            line = positions.prepare(line)
+            line = positions.prepare(line, company=doc.get("company"))
             doc.append("lines", {
                 "line_no": index,
                 "item_type": "service" if doc.doc_kind == "service" else line.get("item_type", "goods"),
@@ -327,7 +328,8 @@ def set_status(name, target, reason=None, receive_stock=None):
         from pearnly_erp_portal.inventory import stock
 
         stock.reverse_movements(ref_type="purchase", ref_id=doc.name,
-                                client_uuid=f"purchase-void:{doc.name}", reason=reason)
+                                client_uuid=f"purchase-void:{doc.name}", reason=reason,
+                                company=doc.get("company"))
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status}
 
@@ -351,7 +353,7 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
         frappe.throw(_("Select a product for each stock item"))
     lines = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": _line_net_cost(row), **positions.saved(row)}
+         "unit_cost": _line_net_cost(row), **positions.saved(row, company=doc.get("company"))}
         for row in doc.get("lines") or []
         if row.get("product") and (row.item_type or "goods") == "goods"
     ]
@@ -361,11 +363,12 @@ def _post_stock(doc, receive_stock=None) -> dict | None:
         # 与 `purchasing/entry.py` 同一口径：入库仓来自**这张单上明确的仓**
         # （每行已经由 `positions.saved()` 定过）；行上也没写时落**这家公司卖货的那个仓**，
         # 没有收银台才退回"唯一仓/报错"（见 `warehouses.receiving`）。
-        warehouse=warehouses.receiving(lines[0].get("warehouse")),
+        warehouse=warehouses.receiving(lines[0].get("warehouse"), company=doc.get("company")),
         movement_type="purchase_in", lines=lines,
         posting_date=str(doc.doc_date), ref_type="purchase", ref_id=doc.name,
         # 流水上记的是**我方单据号**（采购 PE），对方单号留在采购单上。
         doc_no=doc.system_no or doc.doc_no, client_uuid=f"purchase-in:{doc.name}", internal=True,
+        company=doc.get("company"),
     )
     doc.db_set("stock_posted_at", now(), update_modified=False)
     return result

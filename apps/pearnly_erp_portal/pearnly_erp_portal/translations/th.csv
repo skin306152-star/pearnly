@@ -32,6 +32,7 @@ Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
 Add a count,บันทึกการนับ
 Add a count — {0},บันทึกการนับ — {0}
+Add opening item,เพิ่มรายการ
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
 Add terminal,เพิ่มเครื่องขาย
@@ -50,6 +51,7 @@ All companies,ทุกบริษัท
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
+Already recorded; skipped,บันทึกแล้ว ไม่บันทึกซ้ำ
 Already used by {0} (code {1}),ถูกใช้กับ {0} (รหัส {1}) แล้ว
 Amend,แก้ไข
 Amended,แก้ไขแล้ว
@@ -134,11 +136,14 @@ Change,เงินทอน
 Change Amount,เงินทอน
 Change Total,เงินทอนรวม
 Chart by,แผนภูมิแบ่งตาม
+Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / ออเดอร์ใหม่
 Cheque,เช็ค
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
+Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาที่อัปโหลดไว้
+Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose file,เลือกไฟล์
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
@@ -181,6 +186,7 @@ Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
 Confirm,ยืนยัน
+Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
 Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
@@ -189,6 +195,7 @@ Contact person,ผู้ติดต่อ
 Continuous counting,ตรวจนับต่อเนื่อง
 Conversion Factor,ตัวคูณแปลงหน่วย
 Correct entry,แก้ไขรายการ
+"Correct the marked rows, then preview again",กรุณาแก้ไขแถวที่มีข้อผิดพลาดแล้วตรวจสอบอีกครั้ง
 Cost,ต้นทุน
 Cost Is Set,ตั้งต้นทุนแล้ว
 Cost Known,ทราบต้นทุนแล้ว
@@ -225,6 +232,7 @@ Customer contact updated successfully.,อัปเดตข้อมูลต�
 Customer is disabled,ลูกค้าถูกปิดใช้งาน
 Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
+Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
 Customers,ลูกค้า
 Date,วันที่
 Decided At,เวลาตัดสินใจ
@@ -274,12 +282,14 @@ Document has been cancelled,เอกสารถูกยกเลิกแล�
 Document must be submitted,กรุณาส่งเอกสารก่อน
 Document prefix,คำนำหน้าเอกสาร
 Documents,เอกสาร
+Download opening template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 Download template,ดาวน์โหลดแบบฟอร์ม
 Draft,ร่าง
 Draft not found,ไม่พบรายการร่าง
 Due Date,วันที่ครบกำหนด
 ERP,ERP
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
+Each product and location may appear only once,สินค้าและตำแหน่งเดียวกันระบุได้เพียงครั้งเดียว
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
@@ -304,6 +314,7 @@ Enter customer's email,กรอกอีเมลลูกค้า
 Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
 Enter discount percentage.,กรอกเปอร์เซ็นต์ส่วนลด
+Enter opening stock,บันทึกสต็อกยกมา
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
@@ -345,6 +356,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
 Fiscal year start month,เดือนเริ่มปีบัญชี
+Fix all opening stock errors before submitting,กรุณาแก้ไขข้อผิดพลาดทั้งหมดก่อนบันทึก
 Focus on Item Group filter,โฟกัสตัวกรองกลุ่มรายการ
 Focus on search input,โฟกัสช่องค้นหา
 Following fields have missing values:,ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:
@@ -356,6 +368,7 @@ Found: {0},พบ: {0}
 From Date,จากวันที่
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
+General,ทั่วไป
 Generated,สร้างขึ้น
 Generated automatically,สร้างอัตโนมัติ
 Goods,สินค้า
@@ -363,7 +376,6 @@ Grand Total,ยอดรวมทั้งหมด
 Gross,ยอดขายรวม
 Head Office,สำนักงานใหญ่
 Hide Recent Orders,ซ่อนออเดอร์ล่าสุด
-How much of this opening was already pushed into the stock ledger; a revision only posts the difference,ยอดยกมานี้ถูกส่งเข้าบัญชีสต็อกไปแล้วเท่าไร การแก้ไขจะลงบัญชีเฉพาะส่วนต่าง
 ID,รหัส
 Idempotency anchor for a whole request; a repeat submit is ignored,จุดอ้างอิงกันส่งซ้ำของทั้งคำขอ ส่งซ้ำจะถูกมองข้าม
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,จุดอ้างอิงกันส่งซ้ำ: ส่งซ้ำจะได้ใบเสร็จเดิม ไม่คิดเงินซ้ำ
@@ -372,6 +384,7 @@ Image Fingerprint,ลายนิ้วมือภาพ
 Image URL,URL รูปภาพ
 Import a sheet,นำเข้าไฟล์ตรวจนับ
 Import from Excel,นำเข้าจาก Excel
+Import opening stock,นำเข้าสต็อกยกมา
 Import result,ผลการนำเข้า
 Imported {0} product(s),นำเข้า {0} รายการแล้ว
 "Imported {0} rows, {1} with a counted quantity",นำเข้าแล้ว {0} แถว ในนั้น {1} แถวมีจำนวนที่นับได้
@@ -412,6 +425,7 @@ Items,รายการ
 Items are required,กรุณาระบุรายการสินค้า
 Items not found.,ไม่พบสินค้า
 Job Roles,สิทธิ์การใช้งาน
+"Keep product IDs, codes and barcodes as text in the opening stock file",รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ
 LINE,LINE
 LINE Message,ข้อความ LINE
 LINE User,ผู้ใช้ LINE
@@ -421,6 +435,7 @@ Last Month,เดือนที่แล้ว
 Last Movement,ความเคลื่อนไหวล่าสุด
 Last counted at,ตรวจนับล่าสุดเมื่อ
 Last counted by,ผู้ตรวจนับล่าสุด
+Last page,หน้าสุดท้าย
 Last transacted,ทำรายการล่าสุด
 Leave all unchecked to allow every company,ไม่ติ๊กเลย = ไม่จำกัด เห็นทุกบริษัท
 Leave blank to use the default terminal,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
@@ -528,6 +543,20 @@ Opening Cash,เงินสดเริ่มต้น
 Opening Qty,จำนวนยกมา
 Opening Quantity,ยอดยกมา
 Opening Unit Cost,ต้นทุนต่อหน่วยยกมา
+Opening date,วันที่สต็อกยกมา
+Opening quantity,จำนวนยกมา
+Opening quantity already recorded in stock,จำนวนยกมาที่บันทึกในสต็อกแล้ว
+Opening quantity and unit cost are required and must be non-negative,ต้องระบุจำนวนและต้นทุนต่อหน่วยยกมาเป็นค่าที่ไม่ติดลบ
+Opening quantity supports six decimal places and unit cost supports two,จำนวนยกมารองรับทศนิยม6ตำแหน่ง ต้นทุนต่อหน่วย2ตำแหน่ง
+Opening stock changed. Preview the rows again before submitting.,ข้อมูลยกมาเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก
+Opening stock files cannot contain formulas or error cells,ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ข้อผิดพลาด กรุณาวางเป็นค่า
+Opening stock item,รายการยกมา
+Opening stock items,รายการสต็อกยกมา
+Opening stock must use the product base unit,สต็อกยกมาต้องใช้หน่วยฐานของสินค้า
+Opening stock review,ตรวจสอบสต็อกยกมา
+Opening stock review is not configured,ยังไม่ได้ตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแล
+Opening unit cost,ต้นทุนต่อหน่วยยกมา
+Opening value,มูลค่ายกมา
 Original Item and Location,สินค้าและตำแหน่งในบิลเดิม
 Original Line,บรรทัดเดิม
 Other,อื่นๆ
@@ -592,6 +621,7 @@ Posting Date,วันที่โพสต์
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,การลงบัญชีจะปรับสต็อกตามจำนวนที่นับได้และบันทึกความเคลื่อนไหว แถวที่ยังไม่นับจะไม่ถูกแตะ ดำเนินการต่อ?
 Prefix for this company's document numbers,คำนำหน้าเลขเอกสารของบริษัทนี้
 Preview,ตัวอย่าง
+Preview opening stock,ตรวจสอบก่อนบันทึก
 Previous,ก่อนหน้า
 Price,ราคา
 Price Is Set,ตั้งราคาแล้ว
@@ -602,16 +632,20 @@ Print,พิมพ์
 Print Receipt,พิมพ์ใบเสร็จ
 Product,สินค้า
 Product / position / counted by / time,สินค้า / ตำแหน่ง / ผู้ตรวจนับ / เวลา
+Product ID,รหัสระบุสินค้า
 Product Name,ชื่อสินค้า
 Product Ref,รหัสอ้างอิงสินค้า
+Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
 Product not found,ไม่พบสินค้า
+Product not found or its identifiers are ambiguous,ไม่พบสินค้า หรือรหัสตรงกับสินค้ามากกว่าหนึ่งรายการ
 Product not found. Check the code and try again.,ไม่พบสินค้า โปรดตรวจสอบรหัสแล้วลองอีกครั้ง
 PromptPay,พร้อมเพย์
 PromptPay Amount,พร้อมเพย์
 PromptPay ID,พร้อมเพย์
 PromptPay QR,สแกน (PromptPay)
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งรายการ
+Provide between 1 and 5000 opening stock rows,กรุณาระบุรายการยกมา1ถึง5000รายการ
 Purchase,การซื้อ
 Purchase Amount,จำนวนเงินซื้อ
 Purchase Count,จำนวนรายการซื้อ
@@ -635,6 +669,7 @@ Query,ค้นหา
 Querying the Revenue Department...,กำลังค้นหาจากกรมสรรพากร…
 Quotation,ใบเสนอราคา
 Rate,อัตรา
+Ready to post,พร้อมบันทึก
 Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จ
 Receipt No,เลขที่ใบเสร็จ
@@ -653,6 +688,7 @@ Recognition returned nothing,ไม่พบข้อมูลจากการ
 Recognizing...,กำลังอ่านข้อความ…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
+Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
 Recount this product,นับสินค้านี้ใหม่
 Redeem Loyalty Points,ใช้คะแนนสะสม
 Reference,อ้างอิง
@@ -669,6 +705,7 @@ Reload,โหลดใหม่
 Remaining Amount,ยอดคงเหลือ
 Remark,หมายเหตุ
 Remarks,ข้อสังเกต
+Replace the entered rows with the imported file?,แทนที่รายการที่กรอกด้วยไฟล์นำเข้าหรือไม่?
 Request Hash,แฮชของคำขอ
 Request ID already exists,รหัสคำขอมีอยู่แล้ว
 Request id,รหัสคำขอ
@@ -683,6 +720,7 @@ Review differences,ตรวจสอบผลต่าง
 Rotate,หมุน
 Rounded Total,ยอดรวมหลังปัดเศษ
 Rounding Adjustment,การปรับปัดเศษ
+Row number,แถวที่
 Rows,จำนวนแถว
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",แถวจะจับคู่ด้วยรหัสสินค้า ถ้าไม่พบจึงใช้บาร์โค้ด แถวที่นำเข้าแล้วจะถูกเขียนทับ
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
@@ -719,6 +757,7 @@ Select a Payment Method.,กรุณาเลือกวิธีชำระ�
 Select a product for each stock item,เลือกสินค้าสำหรับแต่ละรายการ
 Select a receipt to load its summary,เลือกใบเสร็จเพื่อดูสรุป
 Select a stock count,เลือกการตรวจนับ
+Select a warehouse and opening date first,กรุณาเลือกคลังและวันที่ยกมาก่อน
 Select an invoice to load summary data,เลือกเอกสารเพื่อดูข้อมูลสรุป
 Select item group,เลือกกลุ่มรายการ
 Select one receipt to refund,เลือกได้ครั้งละหนึ่งใบเสร็จ
@@ -736,6 +775,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,บริการ
 Set as current,ตั้งเป็นปัจจุบัน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
+Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
 Shift,กะ
@@ -803,8 +843,10 @@ Supplier Tax ID,เลขผู้เสียภาษีผู้ขาย
 Supplier is disabled,ผู้จำหน่ายถูกปิดใช้งาน
 Supplier is required,กรุณาระบุผู้จำหน่าย
 Supplier not found,ไม่พบผู้จำหน่าย
+Supplier not found. Please select the supplier again.,ไม่พบผู้จำหน่าย กรุณาเลือกใหม่
 Suppliers,ผู้จัดจำหน่าย
 Switch Between Payment Modes,สลับวิธีชำระเงิน
+Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
 System number,เลขที่ระบบ
 Tax Amount,จำนวนภาษี
@@ -841,9 +883,13 @@ The company used for new documents and for the company profile page,บริษ
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่
 The first row must be the column headings; the sheet needs at least a product name column,แถวแรกคือหัวตาราง ต้องมีคอลัมน์ชื่อสินค้าอย่างน้อย
 The fiscal year start month must be between 1 and 12,เดือนเริ่มต้นปีบัญชีต้องอยู่ระหว่าง 1 ถึง 12
+The opening stock amount is too large,มูลค่าสต็อกยกมามากเกินไป
+The opening stock file is too large,ไฟล์สต็อกยกมาใหญ่เกินไป
+The opening stock value is too large to preserve its decimal precision,ค่าสต็อกยกมามากเกินกว่าจะรักษาความละเอียดทศนิยม
 The password must be at least {0} characters,รหัสผ่านต้องมีอย่างน้อย {0} ตัวอักษร
 The payment is more than the net payable,ยอดชำระเกินยอดที่ต้องชำระ
 The product code cannot be changed,รหัสสินค้าแก้ไม่ได้
+The product identifiers refer to different products,รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
@@ -884,6 +930,8 @@ This shift is closed,กะนี้ปิดแล้ว
 This status change is not allowed,เปลี่ยนสถานะแบบนี้ไม่ได้
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
+This stock position already has stock movements; use a stock adjustment,สินค้าตำแหน่งนี้มีการเคลื่อนไหวแล้ว กรุณาใช้การปรับสต็อก
+This stock position is already initialized; use a stock adjustment,สินค้าตำแหน่งนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับสต็อก
 This terminal already has an open shift,เครื่องขายนี้มีกะที่เปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,เครื่องขายนี้ยังไม่ได้ตั้งคลัง กรุณาเลือกคลังในตั้งค่าเครื่องขาย
 This unit is not defined on the product,หน่วยนี้ไม่ได้กำหนดไว้บนสินค้านี้
@@ -899,6 +947,7 @@ Total Items,จำนวนชิ้น
 Total Quantity,จำนวนรวม
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
 Total items,จำนวนชิ้น
+Total opening value,มูลค่ายกมารวม
 Total · {0} row(s),รวม · {0} รายการ
 Totals,ยอดรวม
 Track batches,ติดตามล็อต
@@ -931,10 +980,15 @@ Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
 Upload a sheet,อัปโหลดไฟล์
 "Upload an invoice, then review the recognized details.",อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload and Recognize,อัปโหลดเพื่ออ่านข้อความ
+Use a valid opening date that is not in the future,กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้
+Use an XLSX opening stock file,กรุณาใช้ไฟล์สต็อกยกมารูปแบบXLSX
+Use one worksheet for opening stock,ไฟล์สต็อกยกมาต้องมีแผ่นงานเดียว
 Use the stock count workbench,โปรดใช้หน้าปฏิบัติงานตรวจนับ
+"Use unique opening stock columns, including a product identifier, quantity and unit cost",กรุณาใช้หัวตารางตามแบบฟอร์ม ต้องมีรหัสสินค้า จำนวนและต้นทุนต่อหน่วย โดยไม่ซ้ำคอลัมน์
 Used for new documents only. Each location keeps its own stock.,ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก
 Used when a new purchase line does not say otherwise,ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น
 User,ผู้ใช้
+User Settings,เมนูผู้ใช้
 Username,ชื่อผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
 VAT,ภาษีมูลค่าเพิ่ม
@@ -1328,6 +1382,29 @@ stock.mobile.scan,สแกน
 stock.mobile.title,ตรวจนับสต็อก
 stock.notice.counted,นับแล้ว: ผลต่าง {0} → {1}
 stock.notice.totals,SKU {0} · มูลค่า {1} · ใกล้หมด {2} · หมด {3}
+stock.opening.add,เพิ่มรายการ
+stock.opening.amount,มูลค่ายกมา
+stock.opening.cost,ต้นทุนต่อหน่วยยกมา
+stock.opening.date,วันที่สต็อกยกมา
+stock.opening.fixErrors,กรุณาแก้ไขแถวที่มีข้อผิดพลาดแล้วตรวจสอบอีกครั้ง
+stock.opening.headerRequired,กรุณาเลือกคลังและวันที่ยกมาก่อน
+stock.opening.import,นำเข้าสต็อกยกมา
+stock.opening.item,รายการยกมา
+stock.opening.lastPage,หน้าสุดท้าย
+stock.opening.preview,ตรวจสอบก่อนบันทึก
+stock.opening.productId,รหัสระบุสินค้า
+stock.opening.qty,จำนวนยกมา
+stock.opening.ready,พร้อมบันทึก
+stock.opening.replaceRows,แทนที่รายการที่กรอกด้วยไฟล์นำเข้าหรือไม่?
+stock.opening.review,ตรวจสอบสต็อกยกมา
+stock.opening.rowNumber,แถวที่
+stock.opening.rows,รายการสต็อกยกมา
+stock.opening.saved,บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
+stock.opening.skipped,บันทึกแล้ว ไม่บันทึกซ้ำ
+stock.opening.submit,ยืนยันบันทึกสต็อกยกมา
+stock.opening.template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
+stock.opening.title,บันทึกสต็อกยกมา
+stock.opening.total,มูลค่ายกมารวม
 stock.status.low,สต็อกต่ำ
 stock.status.lowWith,ต่ำ (≤{0})
 stock.status.ok,มีสินค้า

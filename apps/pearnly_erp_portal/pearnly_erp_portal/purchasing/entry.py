@@ -8,6 +8,7 @@ from frappe.utils import getdate, now, nowdate
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import positions, stock, warehouses
+from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import purchase as purchase_items
 from pearnly_erp_portal.purchasing import access, amounts, contracts, files, settings
@@ -27,13 +28,17 @@ def flag(value, default=False):
 
 
 def _supplier(payload):
+    from pearnly_erp_portal.masters.selection import match_party
+
     key = payload.get("supplier")
     name = str(payload.get("supplier_name") or "").strip()
-    if not key and name:
-        key = frappe.db.get_value("ERP Supplier", {"supplier_name": name, "is_active": 1}, "name")
+    if not key:
+        key = match_party("supplier", name, tax_id=payload.get("supplier_tax_id"),
+                          branch_type=payload.get("supplier_branch_type"), branch_no=payload.get("supplier_branch_no"))
     if key:
+        if not frappe.db.exists("ERP Supplier", key):
+            frappe.throw(_("Supplier not found. Please select the supplier again."))
         doc = frappe.get_doc("ERP Supplier", key)
-        doc.check_permission("read")
         if not doc.is_active:
             frappe.throw(_("Supplier is disabled"))
         name = name or doc.supplier_name
@@ -56,7 +61,7 @@ def _supplier(payload):
         doc = frappe.get_doc({"doctype": "ERP Supplier", "supplier_name": name,
             "tax_id": payload.get("supplier_tax_id"), "branch_type": branch,
             "branch_no": payload.get("supplier_branch_no"), "branch_name": payload.get("supplier_branch_name"),
-            "address": payload.get("supplier_address"), "is_active": 1}).insert()
+            "address": payload.get("supplier_address"), "is_active": 1}).insert(ignore_permissions=True)
         key = doc.name
     return key, name
 
@@ -133,6 +138,18 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     kind = payload.get("doc_kind") or "purchase_invoice"
     if kind not in KINDS:
         frappe.throw(_("Invalid value"))
+    doc = access.get_document(name, write=True, lock=True) if name else frappe.new_doc("Purchase Document")
+    if name and doc.status != "draft":
+        frappe.throw(_("Document has already been submitted"))
+    original = access.get_document(amended_from, write=True, lock=True) if amended_from else None
+    if original and original.status != "submitted":
+        frappe.throw(_("Document has already been cancelled"))
+    # Resolve once before any row uses a warehouse. Existing records and their
+    # corrections retain their company even when the user's active company changed.
+    company = companies.document_company(doc.get("company") if name else
+                original.get("company") if original else payload.get("company"))
+    if original and original.get("company") and original.company != company:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     day = str(getdate(payload.get("doc_date") or nowdate()))
     payload["lines"] = _lines(payload)
     totals = _calculate(payload)
@@ -146,12 +163,6 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     has_vat = flag(payload.get("has_vat"), True)
     if has_vat and not str(payload.get("doc_no") or "").strip():
         frappe.throw(_("Supplier Invoice No is required"))
-    doc = access.get_document(name, write=True, lock=True) if name else frappe.new_doc("Purchase Document")
-    if name and doc.status != "draft":
-        frappe.throw(_("Document has already been submitted"))
-    original = access.get_document(amended_from, write=True, lock=True) if amended_from else None
-    if original and original.status != "submitted":
-        frappe.throw(_("Document has already been cancelled"))
     if payload.get("image_sha256"):
         duplicates = frappe.get_all("Purchase Document", filters={"image_sha256": payload["image_sha256"],
             "status": ["!=", "void"]}, pluck="name")
@@ -170,12 +181,11 @@ def _post(payload, request_id, fingerprint, name, amended_from):
                                      currency_rate=rate)
         if flag(payload.get("update_stock"), True) and row["item_type"] == "goods" and not row.get("product"):
             frappe.throw(_("Please select an Item"))
-        if row.get("warehouse"):
-            row["warehouse"] = warehouses.required(row["warehouse"])
-        rows.append(positions.prepare(row))
+        rows.append(positions.prepare(row, company=company))
     if original:
         _cancel(original, _("Amended"))
     doc.update({key: payload.get(key) for key in HEAD_FIELDS})
+    doc.company = company
     doc.update({"doc_kind": kind, "doc_date": day, "supplier": supplier, "supplier_name": supplier_name,
         "currency": payload.get("currency") or "THB", "fx_rate": rate,
         "system_no": doc.get("system_no") or numbering.allocate(direction="purchase", on=day,
@@ -203,15 +213,15 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     if doc.update_stock:
         goods = [{"product": row.product, "qty": row.qty, "unit": row.unit,
                   "unit_cost": amounts.decimal(row.line_total) / amounts.decimal(row.qty) * rate,
-                  **positions.saved(row)} for row in doc.lines if row.item_type == "goods" and row.product]
+                  **positions.saved(row, company=company)} for row in doc.lines if row.item_type == "goods" and row.product]
         if goods:
             # 入库到**这张采购单上明确的仓**：明细行给了仓就用它（采购表单有那一格），
             # 行上也没写时落**这家公司卖货的那个仓**（用户 2026-09-24："进货就进卖货那个仓"），
             # 没有收银台才退回"这家公司只有一个仓"，多个仓直接报错让你去选。
-            stock.apply_lines(warehouse=warehouses.receiving(goods[0].get("warehouse")),
+            stock.apply_lines(warehouse=warehouses.receiving(goods[0].get("warehouse"), company=company),
                               movement_type="purchase_in", lines=goods,
                 posting_date=day, ref_type="purchase", ref_id=doc.name, doc_no=doc.system_no,
-                client_uuid="purchase-in:" + doc.name, internal=True)
+                client_uuid="purchase-in:" + doc.name, internal=True, company=company)
             doc.stock_posted_at = now()
     files.bind(doc, payload.get("attachments"))
     if original:
@@ -249,7 +259,8 @@ def _cancel(doc, reason=None):
     _reverse_payments(doc)
     if doc.stock_posted_at:
         stock.reverse_movements(ref_type="purchase", ref_id=doc.name,
-                                client_uuid="purchase-void:" + doc.name, reason=reason)
+                                client_uuid="purchase-void:" + doc.name, reason=reason,
+                                company=doc.get("company"))
     doc.status, doc.void_reason, doc.voided_at = "void", reason, now()
     doc.flags.purchase_action = True
     doc.save()

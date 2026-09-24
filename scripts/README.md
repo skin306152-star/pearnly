@@ -11,6 +11,8 @@
 | Frappe 文案检查 | `check-i18n.py --strict` | 静态检查，有发现则失败 |
 | 前端翻译键检查 | `check-frontend-i18n.py --strict` | 静态检查，不代替界面语言验收 |
 | 定向业务验证 | `sample-verify-*` | 有离线、本地写入、外部读取和外部真写，不能通配符全跑 |
+| Windows 测试环境 | `testenv.sh` | `sync` / `config` / `check` / `smoke` / `urls` 只读；`up`、`sites`、`import`、`migrate`、`reset` 会改测试环境；`lab-start` / `lab-stop` 会**切换测试租户域名在线上与测试环境之间的指向**，见 [测试环境](../docs/development/test-environment.md) |
+| 测试租户域名切换 | `testenv-cloudflare.sh` | 只改 Cloudflare 上 `testdms` / `testerp` 的解析记录；读取本机 `~/.config/pearnly-testenv/` 凭据，不碰其它记录 |
 
 Compose project 默认固定为 `pearnly-sample`。工作树独立不代表运行环境独立，执行前核对 context、project、Site、卷与源码挂载；不要接管其他任务正在使用的栈。
 

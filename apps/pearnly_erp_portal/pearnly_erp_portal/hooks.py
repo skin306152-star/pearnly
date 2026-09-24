@@ -275,6 +275,7 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
     versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
+    versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-layout.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
@@ -283,6 +284,7 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
+    versioned_asset("pearnly_erp_portal", "desk/stock-opening.js"),
     versioned_asset("pearnly_erp_portal", "desk/inventory.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-card.js"),
@@ -296,16 +298,18 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
     versioned_asset("pearnly_erp_portal", "desk/clients.js"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.js"),
-    # 开班 / 交班弹窗：搬过来的官方收银台与旧收银台**共用这一份**（两条路都调它，
-    # 旧页面那一份已经删掉）。见该文件抬头。
+    # Pinned upstream components precede our adapter. Versioned Desk assets load once.
+    versioned_asset("pearnly_erp_portal", "desk/pos/onscan.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_number_pad.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_selector.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_details.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_item_cart.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_payment.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_past_order_list.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_past_order_summary.js"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos_controller.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-shift.js"),
-    # 单据汇总那三个动作（打印收据 / 退货退款 / 作废）：同样两条路共用一份。
     versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-receipt.js"),
-    # 收银台适配层（把搬来的官方收银台接到我们的服务上）。**为什么放这里而不是页面里
-    # `frappe.require`**：框架那个加载器从路径里取扩展名（`assets.js` 的 `extn()`），
-    # 路径带 `?v=` 时会被解析错（实测 `TypeError: s is not a function`）；不带版本又会被
-    # 浏览器缓存住 —— 改了代码页面上还是旧的。挂在这里走与其它 desk 文件同一条路：
-    # 按文件内容算 hash（`versioned_asset`），改一次换一个 URL，不吃缓存。
     versioned_asset("pearnly_erp_portal", "desk/pos/pearnly-pos-adapter.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-receipts.js"),
     versioned_asset("pearnly_erp_portal", "desk/pos-shifts.js"),
@@ -320,6 +324,7 @@ app_include_js = [
 app_include_css = [
     versioned_asset("pearnly_erp_portal", "desk/purchase.css"),
     versioned_asset("pearnly_erp_portal", "desk/sales.css"),
+    versioned_asset("pearnly_erp_portal", "desk/pos/official-pos.css"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
     versioned_asset("pearnly_erp_portal", "desk/scan.css"),
 ]
@@ -334,6 +339,9 @@ boot_session = "pearnly_erp_portal.masters.boot.boot_session"
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 pearnly_navigation = [{'product': 'erp',
   'app': 'pearnly_erp_portal',
+  "profile_label": "My Profile",
+  "permission_groups": [("General", ["pearnly-home"]),
+                        ("User Settings", ["user", "pearnly-team", "pearnly-company", "pearnly-warehouses"])],
   # 产品自己的**页面过滤器**（共用层只负责调）：收银台是公司级开关，这家公司没开收银，
   # 那三个收银页与收银岗位都不出现。见 `masters/nav.py` 与 ADR-009 的声明约定。
   'page_filter': 'pearnly_erp_portal.masters.nav.filter_pages',
@@ -435,3 +443,46 @@ pearnly_navigation = [{'product': 'erp',
   'user_menu': [{'route': 'pearnly-company', 'before_profile': True},
                 {'route': 'pearnly-warehouses', 'before_profile': True},
                 'pearnly-team']}]
+
+# Product-owned leaf roles; lookup reads never decide which management menu is visible.
+from pearnly_erp_portal.access import menu as _menu_permissions
+for _key, _spec in _menu_permissions.CATALOG.items():
+    pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)] = {
+        "any_role": [_menu_permissions.role(_key), _spec[1], "ERP Admin"]}
+# Existing coarse-role employees retain their previously available home and profile.
+for _key in ("home", "profile"):
+    pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)]["any_role"] += [
+        "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier"]
+after_install = "pearnly_erp_portal.access.setup.sync_roles"
+after_migrate = "pearnly_erp_portal.access.setup.sync_roles"
+
+has_permission.update({
+    "ERP Stock Entry": "pearnly_erp_portal.inventory.access.entry_permission",
+    "ERP Company": "pearnly_erp_portal.masters.access.company_permission",
+    "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_permission",
+})
+permission_query_conditions["ERP Stock Entry"] = "pearnly_erp_portal.inventory.access.entry_query"
+for _doctype in ("ERP Stock Balance", "ERP Stock Movement", "ERP Stock Opening", "ERP Stock Count",
+                 "ERP Stock Count Item", "ERP Stock Count Entry"):
+    has_permission[_doctype] = "pearnly_erp_portal.inventory.access.record_permission"
+    permission_query_conditions[_doctype] = "pearnly_erp_portal.inventory.access.record_query"
+for _doctype in ("ERP Sale", "ERP Shift"):
+    has_permission[_doctype] = "pearnly_erp_portal.cashier.access.record_permission"
+    permission_query_conditions[_doctype] = "pearnly_erp_portal.cashier.access.record_query"
+has_permission["ERP POS Terminal"] = "pearnly_erp_portal.cashier.access.terminal_permission"
+permission_query_conditions.update({
+    "ERP Company": "pearnly_erp_portal.masters.access.company_list_query",
+    "ERP Warehouse": "pearnly_erp_portal.masters.access.warehouse_list_query",
+    "ERP POS Terminal": "pearnly_erp_portal.cashier.access.terminal_query",
+})
+doc_events = {"DocShare": {"validate": "pearnly_erp_portal.access.sharing.validate_share"}}
+for _doctype in ("ERP Warehouse", "ERP POS Terminal"):
+    doc_events[_doctype] = {"before_validate": "pearnly_erp_portal.masters.access.validate_company_unchanged"}
+doc_events["ERP Stock Entry"] = {
+    _event: "pearnly_erp_portal.inventory.access.validate_entry_write"
+    for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
+}
+doc_events["ERP Stock Opening"] = {
+    _event: "pearnly_erp_portal.inventory.access.validate_opening_write"
+    for _event in ("before_insert", "before_validate", "on_change", "on_trash", "before_rename", "after_rename")
+}

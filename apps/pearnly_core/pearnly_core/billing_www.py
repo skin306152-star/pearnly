@@ -28,6 +28,10 @@ def _require_login() -> str:
     user = frappe.session.user
     if not user or user == "Guest":
         frappe.throw(_("Please sign in"), frappe.AuthenticationError)
+    from pearnly_core.desk.navigation import _can_open_page
+    product = frappe.conf.get("pearnly_product")
+    if product and not _can_open_page(product, "pearnly-home"):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     return user
 
 

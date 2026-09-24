@@ -420,7 +420,8 @@ frappe.provide("frappe.pearnly");
 			pearnly_trail: trail,
 			menu_items: trail.length ? [
 				// 语义键（`nav.home`）而不是英文原句 —— 传 "Home" 会被框架自带译文抢走。
-				{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") },
+				...(frappe.boot.pearnly_pages?.includes("pearnly-home")
+					? [{ label: __("nav.home"), onClick: () => frappe.set_route("pearnly-home") }] : []),
 				{ label, onClick: () => frappe.set_route(route || frappe.get_route_str()) },
 				...parents.map(step => ({
 					label: p.escape(step.label), onClick: () => frappe.set_route(step.route),
@@ -433,7 +434,7 @@ frappe.provide("frappe.pearnly");
 	};
 
 	if (frappe.boot.pearnly_product) {
-		frappe.re_route[""] = "/desk/pearnly-home";
+		frappe.re_route[""] = frappe.boot.pearnly_landing_url || "/desk/pearnly-home";
 		// Use the framework's initialization switches: no search/notification widgets or
 		// their keyboard targets. A hidden icon alone would leave the global routes active.
 		Object.assign(frappe.boot.desk_settings, {
@@ -444,7 +445,7 @@ frappe.provide("frappe.pearnly");
 			make() {
 				super.make();
 				// Company names are customer data, never translation keys or HTML.
-				const company = frappe.boot.pearnly_company_name || "Pearnly";
+				const company = p.header_title?.() || frappe.boot.pearnly_company_name || "Pearnly";
 				this.wrapper.find(".header-title").text(company).attr("title", company);
 				const first = [...new Intl.Segmenter(frappe.boot.lang || "th", { granularity: "grapheme" })
 					.segment(company)][0].segment.toLocaleUpperCase();
@@ -460,7 +461,9 @@ frappe.provide("frappe.pearnly");
 				// "侧栏排序"按原生放"编辑侧栏"的位置（第一条分隔线之后、显示之前）。
 				const is_dark = frappe.ui.get_current_theme() === "dark";
 				this.dropdown_items = [
+					...(p.header_menu_items?.() || []),
 					{ name: "home", label: __("Home"), icon: "home",
+						condition: () => frappe.boot.pearnly_pages.includes("pearnly-home"),
 						onClick: () => frappe.set_route("/desk/pearnly-home") },
 					{ name: "website", label: __("Website"), icon: "web",
 						onClick: () => window.open("https://pearnly.com") },
@@ -477,12 +480,17 @@ frappe.provide("frappe.pearnly");
 						onClick: () => frappe.app.logout() },
 				];
 			}
+			setup_app_switcher() {
+				const menu = frappe.ui.create_menu({parent: this.wrapper, menu_items: this.dropdown_items,
+					onShow: wrapper => {this.toggle_active(wrapper); p.prepare_header_menu?.(menu);},
+					onHide: this.toggle_active, onItemClick: this.toggle_active});
+			}
 			populate_dropdown_menu() {
 				// 标题里那份菜单是逐项渲染的，原生没有"分隔线行"，照搬会多出一行
 				// `undefined`。分隔线交给原生 context menu（同一次点击里的另一份）画，
 				// 这里只列真正可点的项。
 				const items = this.dropdown_items;
-				this.dropdown_items = items.filter((item) => !item.is_divider);
+				this.dropdown_items = items.filter((item) => !item.is_divider && (!item.condition || item.condition()));
 				try {
 					super.populate_dropdown_menu();
 				} finally {
@@ -515,7 +523,7 @@ frappe.provide("frappe.pearnly");
 			go: () => frappe.ui.toolbar.route_to_user() };
 		const entries = [
 			...declared.filter(entry => entry.before_profile).map(elsewhere),
-			profile,
+			...(frappe.boot.pearnly_profile_allowed !== false ? [profile] : []),
 			...declared.filter(entry => !entry.before_profile).map(elsewhere),
 		];
 		// 「个人信息 / 团队管理」这两个地方算一个**账号区**：停在里面时左侧就保持这两项，
@@ -569,7 +577,8 @@ frappe.provide("frappe.pearnly");
 				event.preventDefault();
 				if (state.open) return show_business();
 				// 点开时右侧默认落在「个人信息」；已经在账号区里（例如团队管理）就只换菜单。
-				if (!in_account()) profile.go();
+				if (!entries.length) return;
+				if (!in_account()) (entries.includes(profile) ? profile : entries[0]).go();
 				paint_account();
 			});
 		}

@@ -5,7 +5,7 @@ from frappe import _
 from frappe.utils import now
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import contracts, positions, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, positions, stock, warehouses
 from pearnly_erp_portal.numbering import service as numbering
 
 DOCTYPE = "ERP Stock Entry"
@@ -22,7 +22,9 @@ LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "supplier", "do
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, name)
+    doc = frappe.get_doc(DOCTYPE, name)
+    doc.check_permission("read")
+    return doc
 
 
 def _posting_now(value) -> bool:
@@ -59,14 +61,15 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     **盘点差异传 `stocktake`**，走它自己的 `AD` 定义 —— 单据还是 in/out（决定货的
     方向），但号是盘点那一段，与 MR.ERP"调整是第三个模块、有自己的编号定义"一致。
     """
-    guard.require("stock.write")
+    guard.require("count.write" if numbering_direction == "stocktake" else "stock." + str(direction))
     if direction not in ("in", "out"):
         frappe.throw(_("Direction must be in or out"))
     # 顺序要紧：**先把这张单的仓定死，再铺行** —— 行上没写仓时跟着单据走，
     # 不会各行一个仓（以前 `prepare` 会回落商品的"默认仓"，单据与行就会各说各话）。
     # 单据也没写仓时落"这家公司卖货的那个仓"（见 `warehouses.receiving`）。
     warehouse = warehouses.receiving(warehouse)
-    lines = [positions.prepare(line, warehouse) for line in _business_lines(lines)]
+    company = warehouses.company_of(warehouse)
+    lines = [positions.prepare(line, warehouse, company=company) for line in _business_lines(lines)]
     # 单据号由系统发（入库 IR / 出库 IS，类型码 + 佛历年 + 六位流水），不接受手输 ——
     # 收发存报表"关联单据"那一列显示的就是它，口径见 `numbering.contracts`。
     # 撞号继续往后找（MR.ERP 建单时也是先查库再加）。
@@ -82,7 +85,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
             "warehouse": line["warehouse"], "location": line["location"],
         } for line in lines],
     })
-    doc.insert()
+    access.write_entry(doc, "insert")
     # 直接过账：与建单在同一个事务里（中途失败整笔回滚，不会剩一张草稿）。
     if _posting_now(submit):
         _post(doc)
@@ -94,7 +97,12 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
 def list_entries(*, direction=None, warehouse=None, status=None, date_from=None, date_to=None,
                  limit=50, start=0):
     guard.require("stock.read")
-    filters: dict = {}
+    allowed = [key for key in ("in", "out") if guard.has("stock." + key)]
+    if direction:
+        guard.require("stock." + direction)
+    elif not allowed:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    filters: dict = {"direction": ["in", allowed]}
     if direction:
         filters["direction"] = direction
     if warehouse:
@@ -114,10 +122,13 @@ def list_entries(*, direction=None, warehouse=None, status=None, date_from=None,
 def get_entry(name):
     guard.require("stock.read")
     doc = _get(name)
+    guard.require("stock." + doc.direction)
+    company = warehouses.company_of(doc.warehouse)
     data = {field: doc.get(field) for field in LIST_FIELDS}
     data["lines"] = [
         {"product": row.product, "qty": row.qty, "unit": row.unit,
-         "unit_cost": row.unit_cost, "batch_no": row.batch_no, **positions.public(row, doc.warehouse)}
+         "unit_cost": row.unit_cost, "batch_no": row.batch_no,
+         **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
     return data
@@ -127,24 +138,26 @@ def update_entry(name, **changes):
     guard.require("stock.write")
     submit = changes.pop("submit", None)
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "draft":
         frappe.throw(_(LOCKED))
+    company = warehouses.company_of(doc.warehouse)
     # `doc_no` 不在可改字段里：号是发出去的，改它等于让历史流水对不上单据。
     for field in ("posting_date", "warehouse", "supplier", "reason",
                   "ref_type", "ref_id"):
         if field in changes:
-            doc.set(field, warehouses.required(changes[field]) if field == "warehouse" else changes[field])
+            doc.set(field, warehouses.required(changes[field], company=company) if field == "warehouse" else changes[field])
     if "lines" in changes:
         lines = _business_lines(changes["lines"])
         doc.lines = []
         for line in lines:
-            line = positions.prepare(line, changes.get("warehouse"))
+            line = positions.prepare(line, doc.warehouse, company=company)
             doc.append("lines", {
                 "product": line["product"], "qty": line["qty"], "unit": line.get("unit"),
                 "unit_cost": line.get("unit_cost"), "batch_no": line.get("batch_no"),
                 "warehouse": line["warehouse"], "location": line["location"],
             })
-    doc.save()
+    access.write_entry(doc, "save")
     if _posting_now(submit):
         _post(doc)
     frappe.db.commit()
@@ -165,17 +178,18 @@ def _post(doc) -> dict:
     流水幂等锚是单据名，所以重复提交不会记两次。
     """
     movement_type = _movement_type(doc)
+    company = warehouses.company_of(doc.warehouse)
     result = stock.apply_lines(
         warehouse=doc.warehouse, movement_type=movement_type,
         lines=[{"product": row.product, "qty": row.qty, "unit": row.unit,
-                "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse)} for row in doc.lines],
+                "unit_cost": row.unit_cost, **positions.saved(row, doc.warehouse, company=company)} for row in doc.lines],
         posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry",
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,
-        client_uuid=f"stock-entry:{doc.name}",
+        client_uuid=f"stock-entry:{doc.name}", internal=True, company=company,
     )
     doc.status = "submitted"
     doc.submitted_at = now()
-    doc.save(ignore_permissions=True)
+    access.write_entry(doc, "save")
     return result
 
 
@@ -184,6 +198,7 @@ def submit_entry(name):
     guard.require("stock.write")
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "draft":
         frappe.throw(_(BAD_TRANSITION))
     result = _post(doc)
@@ -196,11 +211,13 @@ def void_entry(name):
     guard.require("stock.write")
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
     doc = _get(name)
+    guard.require("stock." + doc.direction)
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))
     stock.reverse_movements(ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,
-                            client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}")
+                            client_uuid=f"stock-void:{doc.name}", reason=f"void of {doc.name}",
+                            company=warehouses.company_of(doc.warehouse))
     doc.status = "void"
-    doc.save(ignore_permissions=True)
+    access.write_entry(doc, "save")
     frappe.db.commit()
     return {"name": doc.name, "status": doc.status}

@@ -3,6 +3,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import company as companies
 
 
 def get_document(name, *, write=False, lock=False):
@@ -20,6 +21,8 @@ def document_permission(doc, ptype="read", user=None, **kwargs):
     user = user or frappe.session.user
     if not guard.has("purchase.read" if ptype in ("read", "print", "export", "select") else "purchase.write", user):
         return False
+    if doc.get("company") and doc.company not in companies.allowed_companies(user):
+        return False
     scope = guard.scope_filters(user)
     if scope and doc.owner != user:
         return False
@@ -28,6 +31,7 @@ def document_permission(doc, ptype="read", user=None, **kwargs):
 
 def query_conditions(user=None):
     user = user or frappe.session.user
+    conditions = ["`tabPurchase Document`.`company` = " + frappe.db.escape(companies.active_company(user))]
     if guard.scope_filters(user):
-        return "`tabPurchase Document`.`owner` = " + frappe.db.escape(user)
-    return ""
+        conditions.append("`tabPurchase Document`.`owner` = " + frappe.db.escape(user))
+    return " and ".join(conditions)

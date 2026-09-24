@@ -34,6 +34,8 @@ jobs:
         run: |
           node scripts/production/test-issue-actions.cjs
           node tests/test-line-stocktake.cjs
+      - name: Verify native POS entry and lifecycle
+        run: node --test tests/test_pos_lifecycle.js
       - name: Build the shared frontend
         working-directory: frontend
         run: npm ci && npm run build

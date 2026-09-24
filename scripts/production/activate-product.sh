@@ -20,7 +20,8 @@ previous_image=$(docker inspect "$previous_container" --format '{{.Image}}')
 # own schema. An interrupted migration must never automatically reopen traffic
 # or start an old worker against a partially upgraded database.
 "${compose[@]}" exec -T "$product-web" bench --site all set-maintenance-mode on
-trap 'printf "Activation failed; maintenance remains enabled. Inspect migration and backups before recovery.\n" >&2' ERR
+image_record_temp=
+trap '[[ -z "$image_record_temp" ]] || rm -f "$image_record_temp"; printf "Activation failed; inspect maintenance status, migration and backups before recovery.\n" >&2' ERR
 "${compose[@]}" stop -t 30 "$product-ocr-dispatch" "$product-scheduler"
 "${compose[@]}" stop -t 130 "$product-web" "$product-socketio"
 workers=("$product-worker" "$product-ocr-worker")
@@ -34,11 +35,14 @@ fi
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
 "${compose[@]}" up -d --no-deps --force-recreate "$product-web" "${workers[@]}" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
-# 记下"这一组现在用的是哪张镜像"。不记的话，之后任何 `compose up -d`（例如开户里的
-# restart_web 步骤、或容器重建）会拿旧的 PEARNLY_IMAGE 重建本组容器，
-# 表现就是"发布成功、过一会儿自己退回旧版"。这份记录也是 agent 取镜像的来源。
-mkdir -p /opt/pearnly/deploy
-docker image inspect "$image" --format '{{json .RepoDigests}}' > /opt/pearnly/deploy/active-image.json
+# Pin only this product. Keep the legacy shared record unchanged for products
+# that have not been activated separately; their next provisioning job must not
+# silently upgrade them. Write the exact verified input, not an arbitrary first
+# RepoDigest, and publish the record only after activation has fully succeeded.
+image_record_temp=$(mktemp "/opt/pearnly/deploy/.active-image-$product.XXXXXX")
+printf '["%s"]\n' "$image" > "$image_record_temp"
 "${compose[@]}" exec -T "$product-web" bench --site all set-maintenance-mode off
+mv -f "$image_record_temp" "/opt/pearnly/deploy/active-image-$product.json"
+image_record_temp=
 trap - ERR
 printf 'Product %s activated with verified image.\n' "$product"

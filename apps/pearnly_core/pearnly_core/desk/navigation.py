@@ -65,14 +65,16 @@ def link_targets(product) -> dict:
     return out
 
 
-def _can_open_page(product, route):
+def _can_open_page(product, route, user=None):
     """Mirror the declared page permission; purchased features alone are not a role."""
+    if (user or frappe.session.user) == "Administrator":
+        return True
     rule = ((_declarations().get(product) or {}).get("permissions") or {}).get(route) or {}
     roles = rule.get("any_role")
     if roles:
-        return bool(set(roles) & set(frappe.get_roles()))
+        return bool(set(roles) & set(frappe.get_roles(user)))
     doctype = rule.get("doctype")
-    return not doctype or frappe.has_permission(doctype, "read")
+    return not doctype or frappe.has_permission(doctype, "read", **({"user": user} if user else {}))
 
 
 def visible_pages(product):
@@ -82,6 +84,18 @@ def visible_pages(product):
     offered = _offered(product, features)
     return [route for _, route, _, _feature in pages(product)
             if route in offered and _can_open_page(product, route)]
+
+
+def entry_route(product):
+    """Enter at the first authorized product page, or at the native self profile."""
+    routes = visible_pages(product)
+    if routes:
+        return "/desk/" + routes[0]
+    if _can_open_page(product, "user"):
+        from urllib.parse import quote
+        return "/desk/user/" + quote(frappe.session.user, safe="")
+    declared = pages(product)
+    return "/desk/" + declared[0][1] if declared else "/desk"
 
 
 def _user_menu_specs(product) -> list:
@@ -213,18 +227,19 @@ def _product_page_filter(product, offered) -> dict:
     而"哪家公司开了"是产品自己的事，共用层不该认识它。所以产品声明里给一个点号路径，
     这里只负责调它：签名 `(offered) -> offered`，键是路由、值是 `(label, route, icon, feature)`。
 
-    过滤器取不到（没声明/导不进来）就**原样返回**：这只管显隐，真正的授权在服务端。
+    没有声明则保持原菜单；声明后加载失败或返回空集合时不放出被过滤的入口。
     """
     spec = (_declarations().get(product) or {}).get("page_filter")
     if not spec:
         return offered
     try:
-        from frappe.utils import get_attr
-
-        return get_attr(spec)(offered) or offered
+        result = frappe.get_attr(spec)(offered)
+        if not isinstance(result, dict):
+            raise TypeError("Product page filter must return a dict")
+        return {key: offered[key] for key in result if key in offered}
     except Exception:
         frappe.log_error(title=f"{product} page_filter failed")
-        return offered
+        return {}
 
 
 def _sidebar_items(product, features) -> list:
@@ -285,6 +300,8 @@ def extend_boot(boot):
     boot.pearnly_links = link_targets(product)
     # 左下角用户菜单里产品自己那几项（已按"能进"筛过），外壳只负责画。
     boot.pearnly_user_menu = user_menu(product)
+    boot.pearnly_profile_allowed = _can_open_page(product, "user")
+    boot.pearnly_landing_url = entry_route(product)
     # 侧栏这一份去掉了走左下角的那些页面（`boot.pearnly_pages` 仍是"能打开的页面"，
     # 页面路由的准入判据用它，不能跟着少）。
     sidebar_routes = [route for route in boot.pearnly_pages

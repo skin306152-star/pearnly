@@ -177,6 +177,7 @@ doc_events = {
         "before_save": "pearnly_core.account.preferences.sync_profile_language",
         "onload": "pearnly_core.account.profile.load_details",
         "after_insert": "pearnly_core.workspace.apply_to_new_user",
+        "on_update": "pearnly_core.desk.permissions.sync_profile_share",
     },
 }
 

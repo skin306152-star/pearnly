@@ -942,7 +942,7 @@ Fiscal Year Starts In	会计年度起始月份	เดือนที่เริ
 Found	已找到	พบ	検出
 Frappe's Currency column cannot hold NULL, so 0 is both a real cost and "never set". The counter needs to tell them apart (same reason as price_set).	Frappe 的 Currency 列存不了 NULL，所以 0 既是真实成本又是「没设过」。收银台要能分辨这两者（和 price_set 同一个理由）。	คอลัมน์ Currency ของ Frappe เก็บ NULL ไม่ได้ 0 จึงเป็นได้ทั้งต้นทุนจริงและ "ยังไม่ตั้ง" จุดขายต้องแยกสองกรณีนี้ออกจากกัน (เหตุผลเดียวกับ price_set)	Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
 Free note kept with the collection record (who took the money, reference).	跟着这张收款记录一起留的说明（谁收的钱、参考号）。	บันทึกอิสระที่เก็บไว้กับรายการรับเงิน (ใครรับเงิน เอกสารอ้างอิง)	入金記録に残す自由記入（受け取った人、参照番号）。
-How much of this opening was already pushed into the stock ledger; a revision only posts the difference	这份期初有多少已经推进库存流水；修订时只补登差额	ยอดยกมานี้ถูกส่งเข้าบัญชีสต็อกไปแล้วเท่าไร การแก้ไขจะลงบัญชีเฉพาะส่วนต่าง	この期首のうち在庫台帳へ反映済みの数量。修正時は差分のみを転記します
+Opening quantity already recorded in stock	已记入库存的期初数量	จำนวนยกมาที่บันทึกในสต็อกแล้ว	在庫に記録済みの期首数量
 Idempotency anchor for a whole request; a repeat submit is ignored	整次请求的幂等锚点；重复提交会被忽略	จุดอ้างอิงกันส่งซ้ำของทั้งคำขอ ส่งซ้ำจะถูกมองข้าม	リクエスト全体の冪等アンカー。再送信は無視されます
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice	幂等锚点：重复提交返回同一张小票，不会收两次钱	จุดอ้างอิงกันส่งซ้ำ: ส่งซ้ำจะได้ใบเสร็จเดิม ไม่คิดเงินซ้ำ	冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
 image or pdf, as LINE reported it	image 或 pdf（LINE 报来的原样）	image หรือ pdf ตามที่ LINE แจ้ง	image または pdf（LINEが通知したまま）
@@ -1158,3 +1158,56 @@ A warehouse must belong to a company	仓库必须挂在某家公司名下	คล
 This payment method is not enabled for this company	这家公司没有开这种收款方式	บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้	この会社ではこの支払方法が有効になっていません
 Username	用户名	ชื่อผู้ใช้	ユーザー名	team.username
 Username can only have letters and numbers	用户名只能用英文字母和数字	ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข	ユーザー名は英数字のみ使用できます	team.usernameCharset
+User Settings	用户菜单	เมนูผู้ใช้	ユーザーメニュー
+Several matches found. Please select a record.	找到多个匹配结果，请选择一条记录。	พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ	複数の候補があります。レコードを選択してください。
+Supplier not found. Please select the supplier again.	供应商不存在，请重新选择供应商。	ไม่พบผู้จำหน่าย กรุณาเลือกใหม่	仕入先が見つかりません。選択し直してください。
+Customer not found. Please select the customer again.	客户不存在，请重新选择客户。	ไม่พบลูกค้า กรุณาเลือกใหม่	顧客が見つかりません。選択し直してください。
+General	常用功能	ทั่วไป	一般
+Enter opening stock	录入期初库存	บันทึกสต็อกยกมา	期首在庫を登録	stock.opening.title
+Opening date	期初日期	วันที่สต็อกยกมา	期首日	stock.opening.date
+Opening quantity	期初数量	จำนวนยกมา	期首数量	stock.opening.qty
+Opening unit cost	库存成本单价	ต้นทุนต่อหน่วยยกมา	期首在庫単価	stock.opening.cost
+Opening value	期初金额	มูลค่ายกมา	期首金額	stock.opening.amount
+Total opening value	期初总金额	มูลค่ายกมารวม	期首金額合計	stock.opening.total
+Opening stock items	期初库存明细	รายการสต็อกยกมา	期首在庫明細	stock.opening.rows
+Import opening stock	导入期初库存	นำเข้าสต็อกยกมา	期首在庫を取込	stock.opening.import
+Download opening template	下载期初模板	ดาวน์โหลดแบบฟอร์มสต็อกยกมา	期首在庫テンプレートをダウンロード	stock.opening.template
+Preview opening stock	预览核对	ตรวจสอบก่อนบันทึก	プレビューして確認	stock.opening.preview
+Opening stock review	期初库存核对	ตรวจสอบสต็อกยกมา	期首在庫の確認	stock.opening.review
+Confirm opening stock	确认入账	ยืนยันบันทึกสต็อกยกมา	期首在庫を確定	stock.opening.submit
+Row number	行号	แถวที่	行番号	stock.opening.rowNumber
+Ready to post	待入账	พร้อมบันทึก	登録可能	stock.opening.ready
+Already recorded; skipped	已录入，不重复入账	บันทึกแล้ว ไม่บันทึกซ้ำ	登録済み・重複登録なし	stock.opening.skipped
+Select a warehouse and opening date first	请先选择仓库和期初日期	กรุณาเลือกคลังและวันที่ยกมาก่อน	先に倉庫と期首日を選択してください	stock.opening.headerRequired
+Correct the marked rows, then preview again	请修正明细中的错误，再重新预览	กรุณาแก้ไขแถวที่มีข้อผิดพลาดแล้วตรวจสอบอีกครั้ง	明細のエラーを修正して再確認してください	stock.opening.fixErrors
+Replace the entered rows with the imported file?	用导入文件替换已填写的明细？	แทนที่รายการที่กรอกด้วยไฟล์นำเข้าหรือไม่?	入力済みの明細を取込ファイルで置き換えますか？	stock.opening.replaceRows
+Recorded {0} opening row(s); skipped {1} already recorded row(s)	已录入 {0} 行期初库存，{1} 行已存在未重复入账	บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว	期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました	stock.opening.saved
+Opening stock item	期初明细	รายการยกมา	期首明細	stock.opening.item
+Add opening item	添加明细	เพิ่มรายการ	明細を追加	stock.opening.add
+Product ID	物料标识	รหัสระบุสินค้า	商品ID	stock.opening.productId
+Last page	末页	หน้าสุดท้าย	最終ページ	stock.opening.lastPage
+Check the opening stock row	请检查这条期初明细	กรุณาตรวจสอบรายการยกมานี้	この期首明細を確認してください
+Choose a local opening stock file	请选择本地上传的期初库存文件	กรุณาเลือกไฟล์สต็อกยกมาที่อัปโหลดไว้	アップロード済みの期首在庫ファイルを選択してください
+Choose an existing product for opening stock	请选择已有的物料录入期初	กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา	登録済みの商品を選択してください
+Each product and location may appear only once	同一物料和仓位只能填写一次	สินค้าและตำแหน่งเดียวกันระบุได้เพียงครั้งเดียว	同じ商品と保管場所は1回だけ入力してください
+Fix all opening stock errors before submitting	请修正全部期初明细错误后再入账	กรุณาแก้ไขข้อผิดพลาดทั้งหมดก่อนบันทึก	期首明細のエラーをすべて修正してから確定してください
+Keep product IDs, codes and barcodes as text in the opening stock file	期初文件中的物料标识、编码和条码请使用文本格式	รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ	商品ID・コード・バーコードは文字列形式にしてください
+Opening quantity and unit cost are required and must be non-negative	期初数量和成本单价必填，且不能小于零	ต้องระบุจำนวนและต้นทุนต่อหน่วยยกมาเป็นค่าที่ไม่ติดลบ	期首数量と単価は必須です。0以上で入力してください
+Opening quantity supports six decimal places and unit cost supports two	期初数量最多六位小数，成本单价最多两位小数	จำนวนยกมารองรับทศนิยม6ตำแหน่ง ต้นทุนต่อหน่วย2ตำแหน่ง	数量は小数6桁、単価は小数2桁まで入力できます
+Opening stock changed. Preview the rows again before submitting.	期初数据已变化，请重新预览核对后再入账。	ข้อมูลยกมาเปลี่ยนแปลง กรุณาตรวจสอบอีกครั้งก่อนบันทึก	期首データが変更されました。再確認してから確定してください
+Opening stock files cannot contain formulas or error cells	期初文件不能包含公式或错误单元格，请粘贴为数值	ไฟล์ยกมาต้องไม่มีสูตรหรือเซลล์ข้อผิดพลาด กรุณาวางเป็นค่า	数式やエラーのあるセルは使用できません。値として貼り付けてください
+Opening stock must use the product base unit	期初库存必须使用物料的库存单位	สต็อกยกมาต้องใช้หน่วยฐานของสินค้า	期首在庫は商品の基準単位で入力してください
+Opening stock review is not configured	期初核对配置缺失，请联系管理员	ยังไม่ได้ตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแล	期首確認の設定がありません。管理者に連絡してください
+Product is disabled	物料已停用	สินค้าถูกปิดใช้งาน	商品は無効になっています
+Product not found or its identifiers are ambiguous	找不到物料，或编码、条码匹配不唯一	ไม่พบสินค้า หรือรหัสตรงกับสินค้ามากกว่าหนึ่งรายการ	商品が見つからないか、コードが一意ではありません
+Provide between 1 and 5000 opening stock rows	请填写1至5000条期初明细	กรุณาระบุรายการยกมา1ถึง5000รายการ	期首明細を1〜5000行入力してください
+The opening stock amount is too large	期初库存金额过大	มูลค่าสต็อกยกมามากเกินไป	期首在庫金額が大きすぎます
+The opening stock file is too large	期初库存文件过大	ไฟล์สต็อกยกมาใหญ่เกินไป	期首在庫ファイルが大きすぎます
+The product identifiers refer to different products	这行的物料标识、编码或条码对应了不同物料	รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ	この行の商品ID・コード・バーコードは別の商品を指しています
+This stock position already has stock movements; use a stock adjustment	该物料在此仓位已有出入库记录，请使用库存调整	สินค้าตำแหน่งนี้มีการเคลื่อนไหวแล้ว กรุณาใช้การปรับสต็อก	この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
+This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้าตำแหน่งนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
+Use a valid opening date that is not in the future	请填写有效的期初日期，不能晚于今天	กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้	本日以前の有効な期首日を入力してください
+Use an XLSX opening stock file	请使用XLSX格式的期初库存文件	กรุณาใช้ไฟล์สต็อกยกมารูปแบบXLSX	XLSX形式の期首在庫ファイルを使用してください
+Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเดียว	期首在庫ファイルのシートは1つにしてください
+Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์ม ต้องมีรหัสสินค้า จำนวนและต้นทุนต่อหน่วย โดยไม่ซ้ำคอลัมน์	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
+The opening stock value is too large to preserve its decimal precision	期初数值过大，无法保持所需小数精度	ค่าสต็อกยกมามากเกินกว่าจะรักษาความละเอียดทศนิยม	期首数値が大きすぎて必要な小数精度を保持できません

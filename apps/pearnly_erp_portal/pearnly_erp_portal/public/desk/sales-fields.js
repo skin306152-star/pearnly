@@ -35,23 +35,9 @@
 		const f = u.field, col = u.column;
 		return [
 			u.section(""),
-			f("product", "Item", "Link", {options: "ERP Product", hidden: !state.editable, get_query: () => ({filters: {is_active: 1}}),
-				async onchange() {
-					const name = line.form?.get_value("product"); if (!name || !state.editable || !line.ready) return;
-					const item = await p.call("pearnly_erp_portal.products.service.api_get_product", {name});
-					if (name !== line.form.get_value("product") || state.disposed) return;
-					// 售价取主数据里"设过的"那个价：没设过就不替商家宣布免费（沿用商品页口径）。
-					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
-						unit_price: item.price_set ? item.unit_price : 0,
-						vat_applicable: item.vat_applicable ? 1 : 0,
-						// 仓库给**这家公司卖货的那个仓**（进货/出货同一个仓，库存与金额才对得上）；
-						// 商品上的"默认仓"已经删掉了。仓位还是商品级的建议值。
-						warehouse: frappe.boot.pearnly_warehouse || "",
-						location: item.default_location || ""});
-				}}),
-			// 「物料名称」只在没选物料时出现（选了就被带出来、Link 显示的就是主档名字）——
-			// 同一个口径见 `purchase-fields.js`（用户 2026-09-23："还有重复的物料字段…"）。
-			f("description", "Item Name", "Data", {reqd: 1, depends_on: "eval:!doc.product"}),
+			{...p.entry_choice_field("Item", state.editable), reqd: 1},
+			f("product", "Item", "Data", {hidden: 1}),
+			f("description", "Item Name", "Data", {hidden: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),
@@ -91,18 +77,8 @@
 				depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
 			f("payment_date", "Collection Date", "Date", {depends_on: "eval:doc.is_paid && doc.doc_kind === 'receipt'"}),
 			u.section("trade.buyer"),
-			f("customer", "trade.buyer", "Link", {options: "ERP Customer", hidden: !editable, get_query: () => ({filters: {is_active: 1}}),
-				async onchange() {
-					const name = state.form?.get_value("customer"); if (!name || !editable || !state.ready) return;
-					const {message: row} = await frappe.db.get_value("ERP Customer", name,
-						["customer_name", "party_type", "address"]);
-					if (name !== state.form.get_value("customer") || state.disposed) return;
-					await state.form.set_values({buyer_name: row.customer_name, party_type: row.party_type, address: row.address});
-				}}),
-			// 客户名称由上面那条 Link 带出来（客户主档的 `title_field` 就是 `customer_name`，
-			// 所以那条 Link 显示的就是名字），界面上不再摆第二个「客户」输入框
-			// （用户 2026-09-23："销售记录里面…两个客户字段"）。值照旧随单据提交，
-			// 服务端也会从主档补（`sales/entry.py::_buyer`：`name = name or doc.customer_name`）。
+			p.entry_choice_field("Customer", editable),
+			f("customer", "Customer", "Data", {hidden: 1}),
 			f("buyer_name", "Customer Name", "Data", {hidden: 1}),
 			f("party_type", "trade.buyerType", "Select", {options: u.options(["company", "person", "foreign", "anonymous"])}), col(),
 			f("address", "Address", "Small Text"),

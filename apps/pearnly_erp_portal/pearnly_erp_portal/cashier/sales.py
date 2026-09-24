@@ -63,7 +63,11 @@ def _customer_names(names) -> dict:
 def _get(name):
     if not name or not frappe.db.exists(DT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DT, name)
+    from pearnly_erp_portal.cashier.access import require_record
+
+    doc = frappe.get_doc(DT, name)
+    require_record(doc)
+    return doc
 
 
 def _receipt_no(doc) -> str:
@@ -130,6 +134,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     if client_uuid:
         existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
         if existing:
+            _get(existing)
             return {"name": existing, "deduped": True}
 
     shift_doc = _resolve_shift(shift, terminal)
@@ -235,9 +240,17 @@ def pos_export_lines(names) -> list[dict]:
 
 
 def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_type=None,
-               status=None, q=None, limit=50, start=0) -> list[dict]:
+               status=None, q=None, limit=50, start=0, current_only=False) -> list[dict]:
     """销售记录。非管理员只能看自己的单（与旧线上"成员只看自己录入的记录"一致）。"""
-    guard.require("cashier.read")
+    if current_only:
+        guard.require("cashier.read")
+        from pearnly_erp_portal.cashier.shifts import current_shift
+        active = current_shift()
+        if not active:
+            return []
+        shift = active["shift"]["name"]
+    else:
+        guard.require("receipts.read")
     # 一租户多公司：只看当前公司那几个仓库的小票。
     filters: dict = dict(warehouses.scope_filter())
     if rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS:
@@ -274,7 +287,7 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
 
 
 def get_sale(name) -> dict:
-    guard.require("cashier.read")
+    guard.require("cashier.read" if guard.has("cashier.read") else "receipts.read")
     doc = _get(name)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
             and doc.cashier != frappe.session.user):
@@ -303,11 +316,12 @@ def get_sale(name) -> dict:
 
 def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) -> dict:
     """退货：按原单退，数量不得超过已售；库存按原样加回。"""
-    guard.require("cashier.write")
+    guard.require("cashier.write" if guard.has("cashier.write") else "receipts.write")
     frappe.db.sql("select name from `tabERP Sale` where name=%s for update", (name,))
     if client_uuid:
         existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
         if existing:
+            _get(existing)
             return {"name": existing, "deduped": True}
     original = _get(name)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
@@ -398,7 +412,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
 
 def void_sale(name, *, reason=None) -> dict:
     """作废：把库存还回去，单据留痕。已退过的单不允许作废。"""
-    guard.require("cashier.write")
+    guard.require("cashier.write" if guard.has("cashier.write") else "receipts.write")
     frappe.db.sql("select name from `tabERP Sale` where name=%s for update", (name,))
     doc = _get(name)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS

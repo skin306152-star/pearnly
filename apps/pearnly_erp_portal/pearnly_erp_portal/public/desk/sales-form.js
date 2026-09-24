@@ -24,6 +24,9 @@
 		}, 400);
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
+		state.party_choice = p.bind_entry_choice(form, {kind: "customer", context: "sales", reference: "customer", title: "buyer_name", editable,
+			on_select: row => form.set_values({party_type: row.party_type, address: row.address}),
+			on_clear: () => form.set_values({party_type: "anonymous", address: ""})});
 		const layout = u.continuous_layout(form, page);
 		const cleanup_entry = u.entry_method(state, layout);
 		state.sync_entry();
@@ -56,12 +59,19 @@
 			outer.sections[0].columns.forEach(column => column.wrapper.addClass("px-0"));
 			const line = {wrapper, section: outer.sections[0], ready: false};
 			line.form = p.layout(outer.fields_dict.item.$wrapper, u.line_fields(state, line, changes));
+			line.choice = p.bind_entry_choice(line.form, {kind: "product", context: "sales", reference: "product", title: "description", editable,
+				on_select: async item => {
+					await line.form.set_values({description: item.product_name, unit: item.base_unit || item.unit,
+					unit_price: item.price_set ? item.unit_price : 0, vat_applicable: item.vat_applicable ? 1 : 0,
+					warehouse: frappe.boot.pearnly_warehouse || "", location: item.default_location || ""});
+				}, on_clear: () => Promise.resolve()});
 			line.form.sections.forEach(section => section.wrapper.addClass("px-0"));
 			line.form.sections.forEach(section => section.columns.forEach(column => column.wrapper.addClass("px-0 px-sm-3")));
 			line.form.sections[0].body.addClass("mt-0 pt-0");
 			state.lines.push(line);
 			await line.form.set_values({qty: 1, unit_price: 0, discount: 0, vat_applicable: 1, ...values});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
+			await line.choice.show();
 			line.ready = true; line.section.collapse(false); changes();
 			return line;
 		};
@@ -80,6 +90,7 @@
 			payment_method: "cash", payment_date: frappe.datetime.get_today(), header_discount: 0,
 			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")),
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
+		await state.party_choice.show();
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 		let attachment_list;
@@ -134,6 +145,8 @@
 		};
 		if (editable) {
 			page.set_primary_action(__("Submit"), () => state.can_submit() && act(async () => {
+				await state.party_choice.sync();
+				for (const line of state.lines) await line.choice.sync();
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
@@ -151,6 +164,8 @@
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break", "Table"].includes(form.fields_dict[key].df.fieldtype));
 					await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
+					await form.set_value("customer", "");
+					await state.party_choice.show();
 					state.source = result.source;
 					state.ocr_hash = result.image_sha256;
 					if (result.lines) await state.set_lines(result.lines);

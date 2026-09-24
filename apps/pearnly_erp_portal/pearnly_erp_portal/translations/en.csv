@@ -32,6 +32,7 @@ Add User,Add User
 Add VAT,Add VAT
 Add a count,Add a count
 Add a count — {0},Add a count — {0}
+Add opening item,Add opening item
 Add photos,Add photos
 Add row,Add row
 Add terminal,Add terminal
@@ -50,6 +51,7 @@ All companies,All companies
 All the items have been already returned.,All the items have been already returned.
 Already exists,Already exists
 Already received,Already received
+Already recorded; skipped,Already recorded; skipped
 Already used by {0} (code {1}),Already used by {0} (code {1})
 Amend,Amend
 Amended,Amended
@@ -134,11 +136,14 @@ Change,Change
 Change Amount,Change Amount
 Change Total,Change Total
 Chart by,Chart by
+Check the opening stock row,Check the opening stock row
 Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
 Cheque,Cheque
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
+Choose a local opening stock file,Choose a local opening stock file
+Choose an existing product for opening stock,Choose an existing product for opening stock
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
 Choose the sheet to import,Choose the sheet to import
@@ -181,6 +186,7 @@ Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
 Confirm,Confirm
+Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
 Contact Details,Contact Details
 Contact Person,Contact Person
@@ -189,6 +195,7 @@ Contact person,Contact person
 Continuous counting,Continuous counting
 Conversion Factor,Conversion Factor
 Correct entry,Correct entry
+"Correct the marked rows, then preview again","Correct the marked rows, then preview again"
 Cost,Cost
 Cost Is Set,Cost Is Set
 Cost Known,Cost Known
@@ -225,6 +232,7 @@ Customer contact updated successfully.,Customer contact updated successfully.
 Customer is disabled,Customer is disabled
 Customer is required,Customer is required
 Customer not found,Customer not found
+Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
 Customers,Customers
 Date,Date
 Decided At,Decided At
@@ -274,12 +282,14 @@ Document has been cancelled,Document has been cancelled
 Document must be submitted,Document must be submitted
 Document prefix,Document prefix
 Documents,Documents
+Download opening template,Download opening template
 Download template,Download template
 Draft,Draft
 Draft not found,Draft not found
 Due Date,Due Date
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
+Each product and location may appear only once,Each product and location may appear only once
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 Edit,Edit
 Edit Cart,Edit Cart
@@ -304,6 +314,7 @@ Enter customer's email,Enter customer's email
 Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
 Enter discount percentage.,Enter discount percentage.
+Enter opening stock,Enter opening stock
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Enter the user name,Enter the user name
@@ -345,6 +356,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),First warehouse of this company (more on the Warehouses page)
 Fiscal Year Starts In,Fiscal Year Starts In
 Fiscal year start month,Fiscal year start month
+Fix all opening stock errors before submitting,Fix all opening stock errors before submitting
 Focus on Item Group filter,Focus on Item Group filter
 Focus on search input,Focus on search input
 Following fields have missing values:,Following fields have missing values:
@@ -356,6 +368,7 @@ Found: {0},Found: {0}
 From Date,From Date
 Full Name,Full Name
 Full Screen,Full Screen
+General,General
 Generated,Generated
 Generated automatically,Generated automatically
 Goods,Goods
@@ -363,7 +376,6 @@ Grand Total,Grand Total
 Gross,Gross
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
-How much of this opening was already pushed into the stock ledger; a revision only posts the difference,How much of this opening was already pushed into the stock ledger; a revision only posts the difference
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
@@ -372,6 +384,7 @@ Image Fingerprint,Image Fingerprint
 Image URL,Image URL
 Import a sheet,Import a sheet
 Import from Excel,Import from Excel
+Import opening stock,Import opening stock
 Import result,Import result
 Imported {0} product(s),Imported {0} product(s)
 "Imported {0} rows, {1} with a counted quantity","Imported {0} rows, {1} with a counted quantity"
@@ -412,6 +425,7 @@ Items,Items
 Items are required,Items are required
 Items not found.,Items not found.
 Job Roles,Job Roles
+"Keep product IDs, codes and barcodes as text in the opening stock file","Keep product IDs, codes and barcodes as text in the opening stock file"
 LINE,LINE
 LINE Message,LINE Message
 LINE User,LINE User
@@ -421,6 +435,7 @@ Last Month,Last Month
 Last Movement,Last Movement
 Last counted at,Last counted at
 Last counted by,Last counted by
+Last page,Last page
 Last transacted,Last transacted
 Leave all unchecked to allow every company,Leave all unchecked to allow every company
 Leave blank to use the default terminal,Leave blank to use the default terminal
@@ -528,6 +543,20 @@ Opening Cash,Opening Cash
 Opening Qty,Opening Qty
 Opening Quantity,Opening Quantity
 Opening Unit Cost,Opening Unit Cost
+Opening date,Opening date
+Opening quantity,Opening quantity
+Opening quantity already recorded in stock,Opening quantity already recorded in stock
+Opening quantity and unit cost are required and must be non-negative,Opening quantity and unit cost are required and must be non-negative
+Opening quantity supports six decimal places and unit cost supports two,Opening quantity supports six decimal places and unit cost supports two
+Opening stock changed. Preview the rows again before submitting.,Opening stock changed. Preview the rows again before submitting.
+Opening stock files cannot contain formulas or error cells,Opening stock files cannot contain formulas or error cells
+Opening stock item,Opening stock item
+Opening stock items,Opening stock items
+Opening stock must use the product base unit,Opening stock must use the product base unit
+Opening stock review,Opening stock review
+Opening stock review is not configured,Opening stock review is not configured
+Opening unit cost,Opening unit cost
+Opening value,Opening value
 Original Item and Location,Original Item and Location
 Original Line,Original Line
 Other,Other
@@ -592,6 +621,7 @@ Posting Date,Posting Date
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?
 Prefix for this company's document numbers,Prefix for this company's document numbers
 Preview,Preview
+Preview opening stock,Preview opening stock
 Previous,Previous
 Price,Price
 Price Is Set,Price Is Set
@@ -602,16 +632,20 @@ Print,Print
 Print Receipt,Print Receipt
 Product,Product
 Product / position / counted by / time,Product / position / counted by / time
+Product ID,Product ID
 Product Name,Product Name
 Product Ref,Product Ref
+Product is disabled,Product is disabled
 Product name,Product name
 Product not found,Product not found
+Product not found or its identifiers are ambiguous,Product not found or its identifiers are ambiguous
 Product not found. Check the code and try again.,Product not found. Check the code and try again.
 PromptPay,PromptPay
 PromptPay Amount,PromptPay Amount
 PromptPay ID,PromptPay ID
 PromptPay QR,PromptPay QR
 Provide at least one line item,Provide at least one line item
+Provide between 1 and 5000 opening stock rows,Provide between 1 and 5000 opening stock rows
 Purchase,Purchase
 Purchase Amount,Purchase Amount
 Purchase Count,Purchase Count
@@ -635,6 +669,7 @@ Query,Query
 Querying the Revenue Department...,Querying the Revenue Department...
 Quotation,Quotation
 Rate,Rate
+Ready to post,Ready to post
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
 Receipt No,Receipt No
@@ -653,6 +688,7 @@ Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count
+Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
 Recount this product,Recount this product
 Redeem Loyalty Points,Redeem Loyalty Points
 Reference,Reference
@@ -669,6 +705,7 @@ Reload,Reload
 Remaining Amount,Remaining Amount
 Remark,Remark
 Remarks,Remarks
+Replace the entered rows with the imported file?,Replace the entered rows with the imported file?
 Request Hash,Request Hash
 Request ID already exists,Request ID already exists
 Request id,Request id
@@ -683,6 +720,7 @@ Review differences,Review differences
 Rotate,Rotate
 Rounded Total,Rounded Total
 Rounding Adjustment,Rounding Adjustment
+Row number,Row number
 Rows,Rows
 "Rows are matched by product code, then barcode. Rows already imported are replaced.","Rows are matched by product code, then barcode. Rows already imported are replaced."
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · Value {1} · Low {2} · Out {3}
@@ -719,6 +757,7 @@ Select a Payment Method.,Select a Payment Method.
 Select a product for each stock item,Select a product for each stock item
 Select a receipt to load its summary,Select a receipt to load its summary
 Select a stock count,Select a stock count
+Select a warehouse and opening date first,Select a warehouse and opening date first
 Select an invoice to load summary data,Select an invoice to load summary data
 Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
@@ -736,6 +775,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,Service
 Set as current,Set as current
 Setup Auto Email,Setup Auto Email
+Several matches found. Please select a record.,Several matches found. Please select a record.
 Sheet,Sheet
 Shelf,Shelf
 Shift,Shift
@@ -803,8 +843,10 @@ Supplier Tax ID,Supplier Tax ID
 Supplier is disabled,Supplier is disabled
 Supplier is required,Supplier is required
 Supplier not found,Supplier not found
+Supplier not found. Please select the supplier again.,Supplier not found. Please select the supplier again.
 Suppliers,Suppliers
 Switch Between Payment Modes,Switch Between Payment Modes
+Switch company,Switch company
 Switching company...,Switching company...
 System number,System number
 Tax Amount,Tax Amount
@@ -841,9 +883,13 @@ The company used for new documents and for the company profile page,The company 
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The first row must be the column headings; the sheet needs at least a product name column,The first row must be the column headings; the sheet needs at least a product name column
 The fiscal year start month must be between 1 and 12,The fiscal year start month must be between 1 and 12
+The opening stock amount is too large,The opening stock amount is too large
+The opening stock file is too large,The opening stock file is too large
+The opening stock value is too large to preserve its decimal precision,The opening stock value is too large to preserve its decimal precision
 The password must be at least {0} characters,The password must be at least {0} characters
 The payment is more than the net payable,The payment is more than the net payable
 The product code cannot be changed,The product code cannot be changed
+The product identifiers refer to different products,The product identifiers refer to different products
 The quantity is not a valid number,The quantity is not a valid number
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
@@ -884,6 +930,8 @@ This shift is closed,This shift is closed
 This status change is not allowed,This status change is not allowed
 This stock count is already posted,This stock count is already posted
 This stock count is closed,This stock count is closed
+This stock position already has stock movements; use a stock adjustment,This stock position already has stock movements; use a stock adjustment
+This stock position is already initialized; use a stock adjustment,This stock position is already initialized; use a stock adjustment
 This terminal already has an open shift,This terminal already has an open shift
 This terminal has no warehouse; set one in the terminal settings,This terminal has no warehouse; set one in the terminal settings
 This unit is not defined on the product,This unit is not defined on the product
@@ -899,6 +947,7 @@ Total Items,Total Items
 Total Quantity,Total Quantity
 Total Taxes and Charges,Total Taxes and Charges
 Total items,Total items
+Total opening value,Total opening value
 Total · {0} row(s),Total · {0} row(s)
 Totals,Totals
 Track batches,Track batches
@@ -931,10 +980,15 @@ Updated {0} user(s),Updated {0} user(s)
 Upload a sheet,Upload a sheet
 "Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
 Upload and Recognize,Upload and Recognize
+Use a valid opening date that is not in the future,Use a valid opening date that is not in the future
+Use an XLSX opening stock file,Use an XLSX opening stock file
+Use one worksheet for opening stock,Use one worksheet for opening stock
 Use the stock count workbench,Use the stock count workbench
+"Use unique opening stock columns, including a product identifier, quantity and unit cost","Use unique opening stock columns, including a product identifier, quantity and unit cost"
 Used for new documents only. Each location keeps its own stock.,Used for new documents only. Each location keeps its own stock.
 Used when a new purchase line does not say otherwise,Used when a new purchase line does not say otherwise
 User,User
+User Settings,User Settings
 Username,Username
 Username can only have letters and numbers,Username can only have letters and numbers
 VAT,VAT
@@ -1328,6 +1382,29 @@ stock.mobile.scan,Scan
 stock.mobile.title,Stock count
 stock.notice.counted,Counted; difference {0} → {1}
 stock.notice.totals,SKU {0} · Value {1} · Low {2} · Out {3}
+stock.opening.add,Add opening item
+stock.opening.amount,Opening value
+stock.opening.cost,Opening unit cost
+stock.opening.date,Opening date
+stock.opening.fixErrors,"Correct the marked rows, then preview again"
+stock.opening.headerRequired,Select a warehouse and opening date first
+stock.opening.import,Import opening stock
+stock.opening.item,Opening stock item
+stock.opening.lastPage,Last page
+stock.opening.preview,Preview opening stock
+stock.opening.productId,Product ID
+stock.opening.qty,Opening quantity
+stock.opening.ready,Ready to post
+stock.opening.replaceRows,Replace the entered rows with the imported file?
+stock.opening.review,Opening stock review
+stock.opening.rowNumber,Row number
+stock.opening.rows,Opening stock items
+stock.opening.saved,Recorded {0} opening row(s); skipped {1} already recorded row(s)
+stock.opening.skipped,Already recorded; skipped
+stock.opening.submit,Confirm opening stock
+stock.opening.template,Download opening template
+stock.opening.title,Enter opening stock
+stock.opening.total,Total opening value
 stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock

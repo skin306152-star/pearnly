@@ -185,6 +185,18 @@ body.pearnly-product-desk .pearnly-dialog .modal-footer {
 	z-index: 3;
 }
 
+/* 多产品共用：Frappe Capture 将手机照片直接放进原生缩略图网格，图片没有尺寸约束。
+   原图会溢出网格和相机弹窗，使整个弹窗可以横向拖走。只约束预览的显示尺寸，
+   保留原图、原生删除/继续拍照/提交及上传回调；不影响单据查看器的缩放。 */
+body.pearnly-product-desk .frappe-capture .fc-preview-container img {
+	display: block;
+	max-width: 100%;
+	height: auto;
+	max-height: 60vh;
+	max-height: 60dvh;
+	margin-inline: auto;
+}
+
 /* 选择框的下拉浮层：几何、白底、深色文字、悬停底色**全部归官方**
    （框架的 `--awesomplete-hover-bg` 就是 `var(--control-bg)`，浅灰）——
    我们不再给它上品牌色（同一条用户口径：主题色只留给侧栏选中）。 */
@@ -230,6 +242,7 @@ body.pearnly-product-desk .pearnly-link-scan {
 	right: 4px;
 	top: 50%;
 	transform: translateY(-50%);
+	transition: right 120ms ease, width 120ms ease;
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -244,6 +257,28 @@ body.pearnly-product-desk .pearnly-link-scan {
 body.pearnly-product-desk .pearnly-link-scan:hover {
 	color: var(--text-color);
 	background-color: var(--control-bg);
+}
+/* Reserve the native arrow slot only while it is exposed. This also covers Grid Links. */
+body.pearnly-product-desk .pearnly-link-scan-input .link-btn {
+	opacity: 0;
+	pointer-events: none;
+}
+body.pearnly-product-desk .pearnly-link-scan-input:hover .link-btn,
+body.pearnly-product-desk .pearnly-link-scan-input .link-btn:has(:focus-visible) {
+	opacity: 1;
+	pointer-events: auto;
+}
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:hover .pearnly-link-scan,
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:has(.link-btn :focus-visible) .pearnly-link-scan {
+	right: calc(4px + var(--pearnly-link-actions-width, 28px));
+	width: 20px;
+}
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:hover .form-control,
+body.pearnly-product-desk .pearnly-link-scan-input.pearnly-has-link-actions:has(.link-btn :focus-visible) .form-control {
+	padding-right: calc(30px + var(--pearnly-link-actions-width, 28px));
+}
+@media (prefers-reduced-motion: reduce) {
+	body.pearnly-product-desk .pearnly-link-scan { transition: none; }
 }
 /* 备注 / 地址这类多行框（官方 `Small Text` 控件）：官方给的是**整列宽 + 四行高**，
    一屏里又长又空（实测入库单弹窗里那一格 543px 宽、只填一行字）。

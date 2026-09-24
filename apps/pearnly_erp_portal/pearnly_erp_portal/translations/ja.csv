@@ -32,6 +32,7 @@ Add User,ユーザーを追加
 Add VAT,付加価値税を計算
 Add a count,カウントを記録
 Add a count — {0},カウントを記録 — {0}
+Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
 Add terminal,レジを追加
@@ -50,6 +51,7 @@ All companies,全社
 All the items have been already returned.,すべての商品は返品済みです
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
+Already recorded; skipped,登録済み・重複登録なし
 Already used by {0} (code {1}),既に「{0}」(コード {1}) で使われています
 Amend,修正
 Amended,修正済み
@@ -134,11 +136,14 @@ Change,お釣り
 Change Amount,お釣り
 Change Total,お釣り合計
 Chart by,グラフの軸
+Check the opening stock row,この期首明細を確認してください
 Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
 Cheque,小切手
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
+Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
+Choose an existing product for opening stock,登録済みの商品を選択してください
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose file,ファイルを選択
 Choose the sheet to import,取り込むシートを選択してください
@@ -181,6 +186,7 @@ Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
 Confirm,確認
+Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
 Contact Details,連絡先
 Contact Person,担当者
@@ -189,6 +195,7 @@ Contact person,担当者
 Continuous counting,連続棚卸
 Conversion Factor,換算係数
 Correct entry,記録を修正
+"Correct the marked rows, then preview again",明細のエラーを修正して再確認してください
 Cost,原価
 Cost Is Set,原価設定済み
 Cost Known,原価判明
@@ -225,6 +232,7 @@ Customer contact updated successfully.,顧客の連絡先を更新しました
 Customer is disabled,顧客は無効です
 Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
+Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
 Customers,顧客
 Date,日付
 Decided At,判定日時
@@ -274,12 +282,14 @@ Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
 Document prefix,書類プレフィックス
 Documents,書類
+Download opening template,期首在庫テンプレートをダウンロード
 Download template,テンプレートをダウンロード
 Draft,下書き
 Draft not found,下書きが見つかりません
 Due Date,支払期日
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
+Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
 Edit,編集
 Edit Cart,カートに戻る
@@ -304,6 +314,7 @@ Enter customer's email,顧客のメールを入力
 Enter customer's phone number,顧客の電話番号を入力
 Enter discount percentage,割引率を入力
 Enter discount percentage.,割引率を入力してください
+Enter opening stock,期首在庫を登録
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
 Enter the user name,ユーザー名を入力してください
@@ -345,6 +356,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal Year Starts In,会計年度の開始月
 Fiscal year start month,会計年度の開始月
+Fix all opening stock errors before submitting,期首明細のエラーをすべて修正してから確定してください
 Focus on Item Group filter,品目グループ絞り込みにフォーカス
 Focus on search input,検索欄にフォーカス
 Following fields have missing values:,次の項目が未入力です:
@@ -356,6 +368,7 @@ Found: {0},取得: {0}
 From Date,開始日
 Full Name,氏名
 Full Screen,全画面
+General,一般
 Generated,生成済み
 Generated automatically,自動生成
 Goods,商品
@@ -363,7 +376,6 @@ Grand Total,税込合計
 Gross,売上総額
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
-How much of this opening was already pushed into the stock ledger; a revision only posts the difference,この期首のうち在庫台帳へ反映済みの数量。修正時は差分のみを転記します
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,リクエスト全体の冪等アンカー。再送信は無視されます
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
@@ -372,6 +384,7 @@ Image Fingerprint,画像フィンガープリント
 Image URL,画像 URL
 Import a sheet,棚卸シートを取り込む
 Import from Excel,Excel から取込
+Import opening stock,期首在庫を取込
 Import result,取り込み結果
 Imported {0} product(s),{0}件を取り込みました
 "Imported {0} rows, {1} with a counted quantity",{0} 行を取り込みました（うち {1} 行に実地数量）
@@ -412,6 +425,7 @@ Items,品目
 Items are required,品目を入力してください
 Items not found.,商品が見つかりません
 Job Roles,機能権限
+"Keep product IDs, codes and barcodes as text in the opening stock file",商品ID・コード・バーコードは文字列形式にしてください
 LINE,LINE
 LINE Message,LINEメッセージ
 LINE User,LINEユーザー
@@ -421,6 +435,7 @@ Last Month,先月
 Last Movement,最終の入出庫
 Last counted at,最終棚卸日時
 Last counted by,最終棚卸者
+Last page,最終ページ
 Last transacted,最終取引
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
 Leave blank to use the default terminal,空欄なら既定のレジを使います
@@ -528,6 +543,20 @@ Opening Cash,釣銭準備金
 Opening Qty,期首数量
 Opening Quantity,期首数量
 Opening Unit Cost,期首単価
+Opening date,期首日
+Opening quantity,期首数量
+Opening quantity already recorded in stock,在庫に記録済みの期首数量
+Opening quantity and unit cost are required and must be non-negative,期首数量と単価は必須です。0以上で入力してください
+Opening quantity supports six decimal places and unit cost supports two,数量は小数6桁、単価は小数2桁まで入力できます
+Opening stock changed. Preview the rows again before submitting.,期首データが変更されました。再確認してから確定してください
+Opening stock files cannot contain formulas or error cells,数式やエラーのあるセルは使用できません。値として貼り付けてください
+Opening stock item,期首明細
+Opening stock items,期首在庫明細
+Opening stock must use the product base unit,期首在庫は商品の基準単位で入力してください
+Opening stock review,期首在庫の確認
+Opening stock review is not configured,期首確認の設定がありません。管理者に連絡してください
+Opening unit cost,期首在庫単価
+Opening value,期首金額
 Original Item and Location,元伝票の商品と保管場所
 Original Line,元の明細行
 Other,その他
@@ -592,6 +621,7 @@ Posting Date,転記日
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,転記すると在庫を実地数量に合わせて記録します。未棚卸の行は変更しません。続けますか？
 Prefix for this company's document numbers,この会社の伝票番号の接頭辞
 Preview,プレビュー
+Preview opening stock,プレビューして確認
 Previous,前へ
 Price,価格
 Price Is Set,価格設定済み
@@ -602,16 +632,20 @@ Print,印刷
 Print Receipt,レシート印刷
 Product,製品
 Product / position / counted by / time,商品・位置・担当者・日時
+Product ID,商品ID
 Product Name,商品名
 Product Ref,商品の外部参照
+Product is disabled,商品は無効になっています
 Product name,商品名
 Product not found,商品が見つかりません
+Product not found or its identifiers are ambiguous,商品が見つからないか、コードが一意ではありません
 Product not found. Check the code and try again.,商品が見つかりません。コードを確認してください。
 PromptPay,PromptPay
 PromptPay Amount,PromptPay
 PromptPay ID,PromptPay ID
 PromptPay QR,コード決済（PromptPay）
 Provide at least one line item,明細を最低 1 行入力してください
+Provide between 1 and 5000 opening stock rows,期首明細を1〜5000行入力してください
 Purchase,仕入
 Purchase Amount,仕入金額
 Purchase Count,仕入件数
@@ -635,6 +669,7 @@ Query,照会
 Querying the Revenue Department...,税務局に照会中…
 Quotation,見積書
 Rate,単価
+Ready to post,登録可能
 Reason for Cancellation,取消理由
 Receipt,領収書
 Receipt No,レシート番号
@@ -653,6 +688,7 @@ Recognition returned nothing,内容を認識できませんでした
 Recognizing...,読み取り中…
 Record,伝票
 Record a count,棚卸を入力
+Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
 Recount this product,この商品を再棚卸
 Redeem Loyalty Points,ロイヤルティポイントを使う
 Reference,参照番号
@@ -669,6 +705,7 @@ Reload,再読み込み
 Remaining Amount,残り金額
 Remark,備考
 Remarks,備考
+Replace the entered rows with the imported file?,入力済みの明細を取込ファイルで置き換えますか？
 Request Hash,リクエストハッシュ
 Request ID already exists,リクエスト ID は既に存在します
 Request id,リクエストID
@@ -683,6 +720,7 @@ Review differences,差異を確認
 Rotate,回転
 Rounded Total,端数調整後合計
 Rounding Adjustment,丸め調整
+Row number,行番号
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行は商品コード、次にバーコードで照合します。取り込み済みの行は上書きされます。
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
@@ -719,6 +757,7 @@ Select a Payment Method.,支払方法を選択してください
 Select a product for each stock item,各在庫明細の商品を選択してください
 Select a receipt to load its summary,レシートを選ぶと集計を表示
 Select a stock count,棚卸を選択
+Select a warehouse and opening date first,先に倉庫と期首日を選択してください
 Select an invoice to load summary data,伝票を選択すると概要が表示されます
 Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
@@ -736,6 +775,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,サービス
 Set as current,現在の会社にする
 Setup Auto Email,自動メールを設定
+Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
 Sheet,シート
 Shelf,棚番
 Shift,シフト
@@ -803,8 +843,10 @@ Supplier Tax ID,仕入先の税番号
 Supplier is disabled,仕入先は無効です
 Supplier is required,仕入先を入力してください
 Supplier not found,仕入先が見つかりません
+Supplier not found. Please select the supplier again.,仕入先が見つかりません。選択し直してください。
 Suppliers,仕入先数
 Switch Between Payment Modes,支払方法を切り替え
+Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
 System number,システム番号
 Tax Amount,税額
@@ -841,9 +883,13 @@ The company used for new documents and for the company profile page,新しい伝
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The first row must be the column headings; the sheet needs at least a product name column,1行目は見出し行です。少なくとも商品名の列が必要です
 The fiscal year start month must be between 1 and 12,会計年度の開始月は1〜12の範囲で指定してください
+The opening stock amount is too large,期首在庫金額が大きすぎます
+The opening stock file is too large,期首在庫ファイルが大きすぎます
+The opening stock value is too large to preserve its decimal precision,期首数値が大きすぎて必要な小数精度を保持できません
 The password must be at least {0} characters,パスワードは{0}文字以上にしてください
 The payment is more than the net payable,支払金額が支払残高を超えています
 The product code cannot be changed,商品コードは変更できません
+The product identifiers refer to different products,この行の商品ID・コード・バーコードは別の商品を指しています
 The quantity is not a valid number,数量が正しい数値ではありません
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
@@ -884,6 +930,8 @@ This shift is closed,このシフトは終了しています
 This status change is not allowed,このステータス変更は許可されていません
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
+This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
+This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit is not defined on the product,この単位はこの商品に定義されていません
@@ -899,6 +947,7 @@ Total Items,合計点数
 Total Quantity,合計数量
 Total Taxes and Charges,税金および諸費用合計
 Total items,合計点数
+Total opening value,期首金額合計
 Total · {0} row(s),合計 · {0} 明細
 Totals,合計
 Track batches,ロット管理
@@ -931,10 +980,15 @@ Updated {0} user(s),ユーザー{0}件を更新しました
 Upload a sheet,取り込み
 "Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
 Upload and Recognize,アップロードして読み取る
+Use a valid opening date that is not in the future,本日以前の有効な期首日を入力してください
+Use an XLSX opening stock file,XLSX形式の期首在庫ファイルを使用してください
+Use one worksheet for opening stock,期首在庫ファイルのシートは1つにしてください
 Use the stock count workbench,棚卸作業台から操作してください
+"Use unique opening stock columns, including a product identifier, quantity and unit cost",テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
 Used for new documents only. Each location keeps its own stock.,新しい伝票の初期値です。各保管場所の在庫は個別に管理します。
 Used when a new purchase line does not say otherwise,新しい仕入明細で別途指定がない場合に使います
 User,ユーザー
+User Settings,ユーザーメニュー
 Username,ユーザー名
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
 VAT,消費税
@@ -1328,6 +1382,29 @@ stock.mobile.scan,スキャン
 stock.mobile.title,棚卸
 stock.notice.counted,棚卸しました：差異 {0} → {1}
 stock.notice.totals,SKU {0} · 金額 {1} · 在庫少 {2} · 在庫切れ {3}
+stock.opening.add,明細を追加
+stock.opening.amount,期首金額
+stock.opening.cost,期首在庫単価
+stock.opening.date,期首日
+stock.opening.fixErrors,明細のエラーを修正して再確認してください
+stock.opening.headerRequired,先に倉庫と期首日を選択してください
+stock.opening.import,期首在庫を取込
+stock.opening.item,期首明細
+stock.opening.lastPage,最終ページ
+stock.opening.preview,プレビューして確認
+stock.opening.productId,商品ID
+stock.opening.qty,期首数量
+stock.opening.ready,登録可能
+stock.opening.replaceRows,入力済みの明細を取込ファイルで置き換えますか？
+stock.opening.review,期首在庫の確認
+stock.opening.rowNumber,行番号
+stock.opening.rows,期首在庫明細
+stock.opening.saved,期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
+stock.opening.skipped,登録済み・重複登録なし
+stock.opening.submit,期首在庫を確定
+stock.opening.template,期首在庫テンプレートをダウンロード
+stock.opening.title,期首在庫を登録
+stock.opening.total,期首金額合計
 stock.status.low,在庫少
 stock.status.lowWith,在庫少（≤{0}）
 stock.status.ok,在庫あり

@@ -56,14 +56,16 @@ def _balance_rows(doc, *, by_method=None, change_total=0.0) -> list[dict]:
     """
     by_method = by_method or {}
     stored = {row.method: row for row in (doc.get("balances") or [])}
-    methods = [method for method in METHODS if method in stored or method in by_method]
-    if not methods:
-        methods = [contracts.CASH]
+    methods = [method for method in METHODS
+               if method == contracts.CASH or method in stored or method in by_method]
     rows = []
     for method in methods:
         row = stored.get(method)
         if row is not None:
-            opening = contracts.d(row.opening_amount or 0)
+            # The legacy cash field is also used by expected_cash. Earlier shifts
+            # could have opening_float set while their cash child was left at zero.
+            opening = (contracts.d(doc.opening_float or 0) if method == contracts.CASH
+                       else contracts.d(row.opening_amount or 0))
             counted = None if row.counted_amount is None else contracts.d(row.counted_amount)
         else:
             # 老班次：现金那一份是父字段 `opening_float` / `counted_cash`（实点只在交班后才有意义）。
@@ -86,7 +88,11 @@ def _balance_rows(doc, *, by_method=None, change_total=0.0) -> list[dict]:
 def _get(name):
     if not name or not frappe.db.exists(DT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    return frappe.get_doc(DT, name)
+    from pearnly_erp_portal.cashier.access import require_record
+
+    doc = frappe.get_doc(DT, name)
+    require_record(doc)
+    return doc
 
 
 def _own_shift(name, *, allow_admin=True):
@@ -115,6 +121,8 @@ def open_shift(*, terminal=None, opening_float=0, balances=None, note=None) -> d
     opening = _clean_amounts(balances)
     if opening:
         opening_float = opening.get(contracts.CASH, 0)
+    else:
+        opening = {contracts.CASH: contracts.q2(opening_float)}
 
     # 行锁：两个收银员同时点开班时，只有一个能拿到这个收银台。
     frappe.db.sql("select name from `tabERP POS Terminal` where name=%s for update", terminal)
@@ -137,7 +145,7 @@ def open_shift(*, terminal=None, opening_float=0, balances=None, note=None) -> d
 def current_shift(*, terminal=None) -> dict | None:
     """本人当前开着的班（收银台不带就找本人任意一个开班）。"""
     guard.require("cashier.read")
-    filters = {"cashier": frappe.session.user, "status": contracts.OPEN}
+    filters = {"cashier": frappe.session.user, "status": contracts.OPEN, **terminals.scope_filter()}
     if terminal:
         filters["terminal"] = terminals.resolve(terminal)
     name = frappe.db.get_value(DT, filters, "name")
@@ -146,6 +154,7 @@ def current_shift(*, terminal=None) -> dict | None:
 
 def summary(name, *, own_only=True) -> dict:
     """当班汇总：笔数、毛额、各支付方式净额、找零合计。"""
+    guard.require("cashier.read" if guard.has("cashier.read") else "shifts.read")
     doc = _own_shift(name) if own_only else _get(name)
     # 一次取出当班已完成单据，再按父单取付款：退款按负号回冲，抽屉与报表才对得上。
     rows = frappe.get_all(
@@ -210,6 +219,8 @@ def close_shift(name, *, counted_cash=None, counted=None, note=None) -> dict:
                 "opening_amount": contracts.q2(doc.opening_float or 0)
                                   if method == contracts.CASH else 0})
             rows[method] = row
+        if method == contracts.CASH:
+            row.opening_amount = contracts.q2(doc.opening_float or 0)
         row.expected_amount = contracts.q2(expected_by_method.get(method, 0.0))
         row.counted_amount = contracts.q2(amount)
         row.difference = contracts.shift_difference(row.counted_amount, row.expected_amount)
@@ -234,7 +245,7 @@ def close_shift(name, *, counted_cash=None, counted=None, note=None) -> dict:
 def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, date_to=None,
                 names=None, limit=50) -> list[dict]:
     """班次列表。非管理员只能看自己的班。`names` 用来只取指定的几个班（交班记录导出选中的几行）。"""
-    guard.require("cashier.read")
+    guard.require("shifts.read")
     # 一租户多公司：只看当前公司那几台收银台上的班次（班次表本身没有仓库列）。
     filters: dict = dict(terminals.scope_filter())
     if not rules.record_scope(guard.current_roles()) == rules.ALL_RECORDS:
@@ -245,7 +256,7 @@ def list_shifts(*, terminal=None, cashier=None, status=None, date_from=None, dat
         # 权限过滤在上一步已经写进 filters，这里再按名字收窄 —— 越权传别人的班次号只会取到空。
         filters["name"] = ["in", list(names)]
     if terminal:
-        filters["terminal"] = terminal
+        filters["terminal"] = terminals.resolve(terminal)
     if status:
         filters["status"] = status
     if date_from and date_to:

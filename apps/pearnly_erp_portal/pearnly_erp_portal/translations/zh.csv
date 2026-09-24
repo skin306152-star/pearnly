@@ -32,6 +32,7 @@ Add User,添加用户
 Add VAT,计算增值税
 Add a count,记一笔
 Add a count — {0},记一笔 — {0}
+Add opening item,添加明细
 Add photos,添加照片
 Add row,添加明细
 Add terminal,新增收银台
@@ -50,6 +51,7 @@ All companies,全部公司
 All the items have been already returned.,所有物料都已退货
 Already exists,已存在
 Already received,这份文件已经收过了
+Already recorded; skipped,已录入，不重复入账
 Already used by {0} (code {1}),已经是「{0}」（编码 {1}）
 Amend,修订
 Amended,已修订
@@ -134,11 +136,14 @@ Change,找零
 Change Amount,找零
 Change Total,找零合计
 Chart by,看板按
+Check the opening stock row,请检查这条期初明细
 Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
+Choose a local opening stock file,请选择本地上传的期初库存文件
+Choose an existing product for opening stock,请选择已有的物料录入期初
 Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
 Choose the sheet to import,请先选择要导入的表格
@@ -181,6 +186,7 @@ Complete Order,完成订单
 Complete Payment,收款完成
 Completed,已完成
 Confirm,确认
+Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
 Contact Details,联系方式
 Contact Person,联系人
@@ -189,6 +195,7 @@ Contact person,联系人
 Continuous counting,连续盘点
 Conversion Factor,换算系数
 Correct entry,修改记录
+"Correct the marked rows, then preview again",请修正明细中的错误，再重新预览
 Cost,成本
 Cost Is Set,已设成本
 Cost Known,成本已知
@@ -225,6 +232,7 @@ Customer contact updated successfully.,客户联系方式已更新
 Customer is disabled,客户已停用
 Customer is required,必须填写客户
 Customer not found,未找到客户
+Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
 Customers,客户
 Date,日期
 Decided At,处理时间
@@ -274,12 +282,14 @@ Document has been cancelled,文档已取消
 Document must be submitted,请先提交单据
 Document prefix,单据前缀
 Documents,单据
+Download opening template,下载期初模板
 Download template,下载模板
 Draft,草稿
 Draft not found,找不到这条草稿
 Due Date,到期日
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
+Each product and location may appear only once,同一物料和仓位只能填写一次
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
 Edit Cart,返回购物车
@@ -304,6 +314,7 @@ Enter customer's email,输入客户邮箱
 Enter customer's phone number,输入客户电话
 Enter discount percentage,输入折扣百分比
 Enter discount percentage.,输入折扣百分比
+Enter opening stock,录入期初库存
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Enter the user name,请填写用户名
@@ -345,6 +356,7 @@ Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncou
 First warehouse of this company (more on the Warehouses page),这家公司的第一个仓库（之后在「仓库」页再加）
 Fiscal Year Starts In,会计年度起始月份
 Fiscal year start month,财年起月
+Fix all opening stock errors before submitting,请修正全部期初明细错误后再入账
 Focus on Item Group filter,定位到物料组筛选
 Focus on search input,定位到搜索框
 Following fields have missing values:,以下字段没有填：
@@ -356,6 +368,7 @@ Found: {0},已查到：{0}
 From Date,开始日期
 Full Name,姓名
 Full Screen,全屏
+General,常用功能
 Generated,已生成
 Generated automatically,自动生成
 Goods,货物
@@ -363,7 +376,6 @@ Grand Total,总计
 Gross,毛额
 Head Office,总部
 Hide Recent Orders,隐藏最近订单
-How much of this opening was already pushed into the stock ledger; a revision only posts the difference,这份期初有多少已经推进库存流水；修订时只补登差额
 ID,编号
 Idempotency anchor for a whole request; a repeat submit is ignored,整次请求的幂等锚点；重复提交会被忽略
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,幂等锚点：重复提交返回同一张小票，不会收两次钱
@@ -372,6 +384,7 @@ Image Fingerprint,影像指纹
 Image URL,图片地址
 Import a sheet,导入盘点表
 Import from Excel,Excel 导入
+Import opening stock,导入期初库存
 Import result,导入结果
 Imported {0} product(s),已导入 {0} 个物料
 "Imported {0} rows, {1} with a counted quantity",已导入 {0} 行，其中 {1} 行带实盘数量
@@ -412,6 +425,7 @@ Items,物料
 Items are required,物料明细不能为空
 Items not found.,没找到物料
 Job Roles,功能权限
+"Keep product IDs, codes and barcodes as text in the opening stock file",期初文件中的物料标识、编码和条码请使用文本格式
 LINE,LINE
 LINE Message,LINE 消息
 LINE User,LINE 用户
@@ -421,6 +435,7 @@ Last Month,上个月
 Last Movement,最后一次流水
 Last counted at,上次盘点时间
 Last counted by,上次盘点人
+Last page,末页
 Last transacted,最近交易时间
 Leave all unchecked to allow every company,不勾 = 不限制，看全部公司
 Leave blank to use the default terminal,留空使用默认收银台
@@ -528,6 +543,20 @@ Opening Cash,备用现金
 Opening Qty,期初数量
 Opening Quantity,期初数量
 Opening Unit Cost,期初单位成本
+Opening date,期初日期
+Opening quantity,期初数量
+Opening quantity already recorded in stock,已记入库存的期初数量
+Opening quantity and unit cost are required and must be non-negative,期初数量和成本单价必填，且不能小于零
+Opening quantity supports six decimal places and unit cost supports two,期初数量最多六位小数，成本单价最多两位小数
+Opening stock changed. Preview the rows again before submitting.,期初数据已变化，请重新预览核对后再入账。
+Opening stock files cannot contain formulas or error cells,期初文件不能包含公式或错误单元格，请粘贴为数值
+Opening stock item,期初明细
+Opening stock items,期初库存明细
+Opening stock must use the product base unit,期初库存必须使用物料的库存单位
+Opening stock review,期初库存核对
+Opening stock review is not configured,期初核对配置缺失，请联系管理员
+Opening unit cost,库存成本单价
+Opening value,期初金额
 Original Item and Location,原单物料与仓位
 Original Line,原单明细行
 Other,其它
@@ -592,6 +621,7 @@ Posting Date,记账日期
 Posting moves stock to the counted quantities and writes the movement. Rows never counted are left alone. Continue?,过账把结存收敛到实盘并落流水；未盘点的行不动。继续？
 Prefix for this company's document numbers,这家公司单据编号的前缀
 Preview,预览
+Preview opening stock,预览核对
 Previous,上一个
 Price,售价
 Price Is Set,已设价格
@@ -602,16 +632,20 @@ Print,打印
 Print Receipt,打印收据
 Product,产品
 Product / position / counted by / time,物料 / 位置 / 盘点人 / 时间
+Product ID,物料标识
 Product Name,物料名称
 Product Ref,物料外部标识
+Product is disabled,物料已停用
 Product name,物料名称
 Product not found,未找到物料
+Product not found or its identifiers are ambiguous,找不到物料，或编码、条码匹配不唯一
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 PromptPay,PromptPay
 PromptPay Amount,扫码（PromptPay）
 PromptPay ID,PromptPay ID
 PromptPay QR,扫码（PromptPay）
 Provide at least one line item,至少要有一行明细
+Provide between 1 and 5000 opening stock rows,请填写1至5000条期初明细
 Purchase,采购
 Purchase Amount,采购金额
 Purchase Count,采购笔数
@@ -635,6 +669,7 @@ Query,查询
 Querying the Revenue Department...,正在向税务局查询…
 Quotation,报价单
 Rate,单价
+Ready to post,待入账
 Reason for Cancellation,取消原因
 Receipt,收据
 Receipt No,小票号
@@ -653,6 +688,7 @@ Recognition returned nothing,未识别到内容
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点
+Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，{1} 行已存在未重复入账
 Recount this product,重新盘点该物料
 Redeem Loyalty Points,抵扣忠诚度积分
 Reference,参考
@@ -669,6 +705,7 @@ Reload,刷新
 Remaining Amount,剩余金额
 Remark,备注
 Remarks,备注
+Replace the entered rows with the imported file?,用导入文件替换已填写的明细？
 Request Hash,请求哈希
 Request ID already exists,请求编号已存在
 Request id,请求 ID
@@ -683,6 +720,7 @@ Review differences,查看差异
 Rotate,旋转
 Rounded Total,舍入后总计
 Rounding Adjustment,小数精度尾差调整
+Row number,行号
 Rows,行数
 "Rows are matched by product code, then barcode. Rows already imported are replaced.",行按物料编号匹配，找不到再按条码；同一条重复上传是覆盖，不是叠加。
 SKU {0} · Value {1} · Low {2} · Out {3},SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}
@@ -719,6 +757,7 @@ Select a Payment Method.,请选择支付方式
 Select a product for each stock item,请为每条货物明细选择物料
 Select a receipt to load its summary,选择小票以加载汇总
 Select a stock count,选择盘点
+Select a warehouse and opening date first,请先选择仓库和期初日期
 Select an invoice to load summary data,选择一张单据以查看汇总
 Select item group,选择物料组
 Select one receipt to refund,一次只能退一条小票
@@ -736,6 +775,7 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,服务
 Set as current,设为当前
 Setup Auto Email,设置自动邮件
+Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
 Shelf,库位
 Shift,班次
@@ -803,8 +843,10 @@ Supplier Tax ID,供应商税号
 Supplier is disabled,供应商已停用
 Supplier is required,供应商不能为空
 Supplier not found,供应商不存在
+Supplier not found. Please select the supplier again.,供应商不存在，请重新选择供应商。
 Suppliers,供应商
 Switch Between Payment Modes,切换支付方式
+Switch company,切换公司
 Switching company...,正在切换公司…
 System number,单据编号
 Tax Amount,税额
@@ -841,9 +883,13 @@ The company used for new documents and for the company profile page,新建单据
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
+The opening stock amount is too large,期初库存金额过大
+The opening stock file is too large,期初库存文件过大
+The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
 The password must be at least {0} characters,密码至少 {0} 位
 The payment is more than the net payable,付款金额超过应付金额
 The product code cannot be changed,物料编码不能改
+The product identifiers refer to different products,这行的物料标识、编码或条码对应了不同物料
 The quantity is not a valid number,数量不是有效数字
 The row has no product code or barcode,这一行没有物料编号或条码
 The sheet needs a product name column,表里要有物料名称列
@@ -884,6 +930,8 @@ This shift is closed,这个班次已经交班了
 This status change is not allowed,不允许这样改状态
 This stock count is already posted,这张盘点单已经过账了
 This stock count is closed,这张盘点已结束
+This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
+This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
 This terminal already has an open shift,这台收银台已经有开着的班次
 This terminal has no warehouse; set one in the terminal settings,这台收银台还没配仓库，请先在收银台上选一个仓
 This unit is not defined on the product,这个单位没有在这个物料上定义
@@ -899,6 +947,7 @@ Total Items,总数量
 Total Quantity,总数量
 Total Taxes and Charges,总税费
 Total items,总件数
+Total opening value,期初总金额
 Total · {0} row(s),合计 · {0} 条明细
 Totals,合计
 Track batches,批次管理
@@ -931,10 +980,15 @@ Updated {0} user(s),已更新 {0} 位用户
 Upload a sheet,上传导入
 "Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
 Upload and Recognize,上传识别
+Use a valid opening date that is not in the future,请填写有效的期初日期，不能晚于今天
+Use an XLSX opening stock file,请使用XLSX格式的期初库存文件
+Use one worksheet for opening stock,期初库存文件只能包含一个工作表
 Use the stock count workbench,请通过盘点工作台操作
+"Use unique opening stock columns, including a product identifier, quantity and unit cost",请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复
 Used for new documents only. Each location keeps its own stock.,只用于新单据的默认填写，各仓位库存独立计算。
 Used when a new purchase line does not say otherwise,新建采购明细没单独指定时用它
 User,用户
+User Settings,用户菜单
 Username,用户名
 Username can only have letters and numbers,用户名只能用英文字母和数字
 VAT,增值税
@@ -1328,6 +1382,29 @@ stock.mobile.scan,扫码
 stock.mobile.title,盘点
 stock.notice.counted,已盘点：差异 {0} → {1}
 stock.notice.totals,SKU {0} · 金额 {1} · 低库存 {2} · 缺货 {3}
+stock.opening.add,添加明细
+stock.opening.amount,期初金额
+stock.opening.cost,库存成本单价
+stock.opening.date,期初日期
+stock.opening.fixErrors,请修正明细中的错误，再重新预览
+stock.opening.headerRequired,请先选择仓库和期初日期
+stock.opening.import,导入期初库存
+stock.opening.item,期初明细
+stock.opening.lastPage,末页
+stock.opening.preview,预览核对
+stock.opening.productId,物料标识
+stock.opening.qty,期初数量
+stock.opening.ready,待入账
+stock.opening.replaceRows,用导入文件替换已填写的明细？
+stock.opening.review,期初库存核对
+stock.opening.rowNumber,行号
+stock.opening.rows,期初库存明细
+stock.opening.saved,已录入 {0} 行期初库存，{1} 行已存在未重复入账
+stock.opening.skipped,已录入，不重复入账
+stock.opening.submit,确认入账
+stock.opening.template,下载期初模板
+stock.opening.title,录入期初库存
+stock.opening.total,期初总金额
 stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常

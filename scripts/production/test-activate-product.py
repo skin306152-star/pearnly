@@ -1,4 +1,5 @@
 """Offline shell orchestration tests: no Docker, host changes, or tenant data."""
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -8,6 +9,21 @@ import unittest
 SOURCE = Path(__file__).with_name('activate-product.sh')
 CHECKER = Path(__file__).with_name('check-deploy-image.py')
 IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'a' * 64
+LEGACY_IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'b' * 64
+DMS_IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'c' * 64
+COWORK_IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'd' * 64
+
+
+def activated_services(product):
+    """Containers `activate-product.sh` recreates for one product, in order.
+
+    DMS runs an extra queue worker for the manual snapshot synchronization; the
+    other products must not get it.
+    """
+    suffixes = ['web', 'worker', 'ocr-worker', 'ocr-dispatch', 'scheduler', 'socketio', 'frontend']
+    if product == 'dms':
+        suffixes.insert(3, 'sync-worker')
+    return [f'{product}-{suffix}' for suffix in suffixes]
 
 
 class DeployToolingMatch(unittest.TestCase):
@@ -64,7 +80,7 @@ class DeployToolingMatch(unittest.TestCase):
 
 
 class Activation(unittest.TestCase):
-    def run_activation(self, failure='', source_file=SOURCE, product='dms'):
+    def run_activation(self, failure='', source_file=SOURCE, product='dms', records=None):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
             source = source_file.read_text().replace('/opt/pearnly', str(root))
@@ -72,6 +88,10 @@ class Activation(unittest.TestCase):
             source = source.replace('"$EUID" == 0', '1 == 1')
             (root / 'state').mkdir()
             (root / 'deploy').mkdir()
+            records = records if records is not None else {'active-image.json': [LEGACY_IMAGE]}
+            for name, value in records.items():
+                (root / 'deploy' / name).write_text(json.dumps(value) + '\n')
+            self.records_before = {name: (root / 'deploy' / name).read_bytes() for name in records}
             (root / 'secrets').mkdir()
             (root / 'secrets/member-identity.json').write_text('{}')
             script = root / 'activate.sh'
@@ -94,6 +114,10 @@ elif 'ps' in args:
                 target = root / name
                 target.write_text(mock)
                 target.chmod(0o755)
+            if failure == 'publish-record':
+                target = root / 'mv'
+                target.write_text('#!/bin/sh\nexit 7\n')
+                target.chmod(0o755)
             # Capacity is independently tested; replace only this one copied call.
             source = source.replace('python3 ' + str(root) + '/deploy/infrastructure/production/capacity.py', 'true')
             # The deploy-vs-image comparison is tested where it runs (server side); stub it here.
@@ -104,8 +128,9 @@ elif 'ps' in args:
                        TRACE=str(root/'trace'), FAIL_AT=failure)
             result = subprocess.run(['bash', str(script), IMAGE, product], env=env,
                                     text=True, capture_output=True, timeout=10)
-            import json
             trace = [json.loads(line) for line in (root/'trace').read_text().splitlines()]
+            self.records_after = {path.name: path.read_bytes() for path in (root / 'deploy').glob('active-image*.json')}
+            self.record_temporaries = list((root / 'deploy').glob('.active-image-*'))
             return result, trace
 
     def test_drain_and_old_version_backup_before_migration(self):
@@ -123,7 +148,7 @@ elif 'ps' in args:
     def test_migration_failure_keeps_maintenance_and_workers_stopped(self):
         result, trace = self.run_activation('migrate')
         self.assertNotEqual(result.returncode, 0)
-        self.assertIn('maintenance remains enabled', result.stderr)
+        self.assertIn('inspect maintenance status, migration and backups', result.stderr)
         calls = [' '.join(row['args']) for row in trace]
         self.assertFalse(any('set-maintenance-mode off' in call or 'up -d' in call for call in calls))
         self.assertFalse(any('start' in row['args'] for row in trace))
@@ -154,6 +179,47 @@ elif 'ps' in args:
                 self.assertEqual(result.returncode, 0, result.stderr)
                 self.assertFalse(any('dms-sync-worker' in row['args'] or
                     any('configure-dms-runtime.py' in arg for arg in row['args']) for row in trace))
+
+    def test_activation_pins_only_selected_product_and_preserves_other_versions(self):
+        for product in ('erp', 'dms', 'cowork'):
+            with self.subTest(product=product):
+                records = {'active-image.json': [LEGACY_IMAGE],
+                           'active-image-erp.json': [LEGACY_IMAGE],
+                           'active-image-dms.json': [DMS_IMAGE],
+                           'active-image-cowork.json': [COWORK_IMAGE]}
+                result, trace = self.run_activation(product=product, records=records)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                selected = f'active-image-{product}.json'
+                self.assertEqual(json.loads(self.records_after[selected]), [IMAGE])
+                for name in records:
+                    if name != selected:
+                        self.assertEqual(self.records_after[name], self.records_before[name], name)
+                self.assertEqual(self.record_temporaries, [])
+                recreate = [row['args'] for row in trace if '--force-recreate' in row['args']]
+                self.assertEqual(len(recreate), 1)
+                self.assertEqual(recreate[0][recreate[0].index('up'):],
+                                 ['up', '-d', '--no-deps', '--force-recreate',
+                                  *activated_services(product)])
+
+    def test_first_product_activation_keeps_legacy_fallback(self):
+        result, _ = self.run_activation(product='erp')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.records_after['active-image.json'], self.records_before['active-image.json'])
+        self.assertEqual(json.loads(self.records_after['active-image-erp.json']), [IMAGE])
+        self.assertEqual(set(self.records_after), {'active-image.json', 'active-image-erp.json'})
+
+    def test_failed_activation_does_not_publish_new_product_pin(self):
+        for failure in ('backup', 'migrate', 'enable-scheduler', '--force-recreate', 'off', 'publish-record'):
+            for already_pinned in (False, True):
+                with self.subTest(failure=failure, already_pinned=already_pinned):
+                    records = {'active-image.json': [LEGACY_IMAGE], 'active-image-dms.json': [DMS_IMAGE]}
+                    if already_pinned:
+                        records['active-image-erp.json'] = [LEGACY_IMAGE]
+                    result, _ = self.run_activation(failure, product='erp', records=records)
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertEqual(self.records_after, self.records_before)
+                    self.assertEqual(self.record_temporaries, [])
+
 
 
 class FoundationActivation(unittest.TestCase):
