@@ -3,8 +3,12 @@
 Requires a temporary bench serve on internal localhost:8000. Never starts a
 worker: the button's exact UUID-owned queued jobs are inspected then deleted.
 Native lab credentials are synthetic, not production secrets. No external IO.
+The queued request and route hide/show recovery are native. Only the final
+get_status response is replaced to exercise UI completion without running the
+collector; the success toast is not evidence of a completed data collection.
 """
 from pathlib import Path
+import json
 import runpy
 import time
 from urllib.parse import urlsplit
@@ -15,6 +19,30 @@ from playwright.sync_api import sync_playwright
 
 lab = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-store-native.py")))
 Fixture = lab["SnapshotLabCase"]
+STATUS = "pearnly_dms.connections.snapshots.get_status"
+REFRESH = "pearnly_dms.connections.snapshots.request_refresh"
+CACHE_FIELDS = tuple(dataset + "_" + suffix
+    for dataset in ("masters", "customers", "geo")
+    for suffix in ("state", "progress", "count", "as_of", "completed_at", "error_code"))
+
+
+def no_cache_fields(page):
+    # Inspect existence, not visibility: hiding the removed fields is not enough.
+    fields = page.locator("[data-fieldname]").evaluate_all(
+        "nodes => nodes.map(node => node.dataset.fieldname)")
+    assert not set(fields).intersection(CACHE_FIELDS), fields
+    assert not any(name.endswith("_state") for name in fields), fields
+
+
+def count_requests(requests, method, api):
+    return sum(verb == method and api in url for verb, url in requests)
+
+
+def polling_stopped(page, requests):
+    page.wait_for_timeout(250)  # allow an already completed route handler to settle
+    before = count_requests(requests, "GET", STATUS)
+    page.wait_for_timeout(3500)  # longer than the product's three-second poll
+    assert count_requests(requests, "GET", STATUS) == before
 
 
 def main():
@@ -25,58 +53,96 @@ def main():
     queue = get_queue("dms_sync")
     baseline = queue.get_job_ids()
     requests = []
+    errors = []
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
-            context = browser.new_context(viewport={"width": 1365, "height": 1000}, locale="en-US",
-                extra_http_headers={"X-Frappe-Site-Name": lab["SITE"]})
+            context = browser.new_context(viewport={"width": 1365, "height": 1000}, locale="zh-CN",
+                extra_http_headers={"X-Frappe-Site-Name": lab["SITE"], "Accept-Language": "zh-CN,zh;q=0.9"})
             context.route("**/*", lambda route: route.continue_()
                 if urlsplit(route.request.url).hostname in {"127.0.0.1", "localhost"} else route.abort())
             reply = context.request.post("http://127.0.0.1:8000/api/method/login", data={
                 "usr": "Administrator", "pwd": "unified-release-lab-only"})
             assert reply.ok, reply.status
             page = context.new_page()
-            page.on("pageerror", lambda error: print("DESK ERROR:", error.stack))
-            page.on("request", lambda request: requests.append(request.url))
-            page.goto("http://127.0.0.1:8000/desk/pearnly-connect")
+            page.on("pageerror", lambda error: errors.append(error.stack))
+            page.on("request", lambda request: requests.append((request.method, request.url)))
+            with page.expect_response(lambda r: STATUS in r.url) as response:
+                page.goto("http://127.0.0.1:8000/desk/pearnly-connect")
+            assert response.value.ok
+            assert not any(row["state"] in {"queued", "running"}
+                           for row in response.value.json()["message"]["datasets"])
             page.wait_for_function("typeof frappe !== 'undefined' && !!frappe.pearnly?.connect", timeout=30000)
-            try:
-                page.wait_for_selector('[data-fieldname="masters_state"]', timeout=15000)
-            except Exception:
-                print("DESK BODY:", page.locator("body").inner_text()[:5000])
-                print("DESK LANG:", page.evaluate("frappe.boot.lang"))
-                raise
-            page.get_by_role("button", name="Read / refresh selected data", exact=True).click()
+            page.wait_for_selector('[data-fieldname="state"]', timeout=15000)
+            # Use the same installed glossary and actual user language as Desk;
+            # do not mutate Administrator's preview language to satisfy the test.
+            labels = page.evaluate("""async () => {
+                const t = await frappe.pearnly.texts('dms.connect.cache.');
+                return {read: t('dms.connect.cache.read'),
+                    processing: t('dms.connect.cache.processing'),
+                    success: t('dms.connect.cache.state.succeeded')};
+            }""")
+            assert all(value and not value.startswith("dms.connect.cache.") for value in labels.values())
+            no_cache_fields(page)
+            assert not page.locator("#freeze:visible").count()
+            polling_stopped(page, requests)  # idle pages must not poll indefinitely
+            page.get_by_role("button", name=labels["read"], exact=True).click()
             dialog = page.locator(".modal:visible")
+            dialog.locator('input[data-fieldname="masters"]').check()
             dialog.locator('input[data-fieldname="customers"]').uncheck()
             dialog.locator('input[data-fieldname="geo"]').uncheck()
-            with page.expect_response(lambda r: "connections.snapshots.request_refresh" in r.url) as response:
-                dialog.get_by_role("button", name="Read / refresh selected data", exact=True).click()
+            with page.expect_response(lambda r: REFRESH in r.url) as response:
+                dialog.get_by_role("button", name=labels["read"], exact=True).click()
+            assert response.value.ok and response.value.request.method == "POST"
             payload = response.value.json()["message"]["datasets"]
             assert len(payload) == 1 and payload[0]["dataset"] == "masters", payload
             assert payload[0]["state"] == "queued", payload
             queued.append(payload[0]["request_id"])
             dialog.wait_for(state="hidden")
-            assert not page.locator("#freeze:visible").count()
-            # Repeat through the actual native dialog: one accepted queue identity.
-            page.get_by_role("button", name="Read / refresh selected data", exact=True).click()
-            dialog = page.locator(".modal:visible")
-            dialog.locator('input[data-fieldname="masters"]').check()
-            dialog.locator('input[data-fieldname="customers"]').uncheck()
-            dialog.locator('input[data-fieldname="geo"]').uncheck()
-            with page.expect_response(lambda r: "connections.snapshots.request_refresh" in r.url) as response:
-                dialog.get_by_role("button", name="Read / refresh selected data", exact=True).click()
-            assert response.value.json()["message"]["datasets"][0]["request_id"] == queued[0]
-            dialog.wait_for(state="hidden")
-            page.locator(".modal-backdrop").wait_for(state="hidden")
+            page.locator("#freeze").wait_for(state="visible")
+            assert labels["processing"] in page.locator("#freeze").inner_text()
+            no_cache_fields(page)
             assert len(queue.get_job_ids()) == len(baseline) + 1
-            page.screenshot(path="/tmp/dms-manual-desk-native.png", full_page=True)
+            own_jobs = set(queue.get_job_ids()) - set(baseline)
+            assert count_requests(requests, "POST", REFRESH) == 1
+
+            # Router lifecycle is real: hiding releases the overlay, returning
+            # discovers the same server-owned request instead of submitting again.
             page.evaluate("frappe.set_route('pearnly-home')")
-            page.wait_for_timeout(500)
-            before = sum("connections.snapshots.get_status" in url for url in requests)
-            page.wait_for_timeout(3500)
-            assert sum("connections.snapshots.get_status" in url for url in requests) == before
-            print("PASS native Desk: button/Dialog, selected dataset, no long freeze, queue dedup, route-leave polling stop")
+            page.wait_for_function("frappe.get_route()[0] === 'pearnly-home'")
+            page.locator("#freeze").wait_for(state="hidden")
+            polling_stopped(page, requests)
+            with page.expect_response(lambda r: STATUS in r.url) as response:
+                page.evaluate("frappe.set_route('pearnly-connect')")
+            native_status = response.value.json()["message"]
+            resumed = [row for row in native_status["datasets"] if row["dataset"] == "masters"]
+            assert len(resumed) == 1 and resumed[0]["request_id"] == queued[0], resumed
+            assert resumed[0]["state"] == "queued", resumed
+            page.locator("#freeze").wait_for(state="visible")
+            assert set(queue.get_job_ids()) - set(baseline) == own_jobs
+            assert count_requests(requests, "POST", REFRESH) == 1
+            no_cache_fields(page)
+
+            # Only terminal metadata is synthetic: no worker, collector or
+            # cache write is used to manufacture a business-success assertion.
+            terminal = {**native_status, "datasets": [
+                {**row, "state": "succeeded", "count": 0, "as_of": time.time(),
+                 "completed_at": time.time(), "stale": False, "error_code": ""}
+                if row["dataset"] == "masters" else row for row in native_status["datasets"]]}
+            def complete_status(route):
+                assert route.request.method == "GET"
+                route.fulfill(status=200, content_type="application/json", body=json.dumps({"message": terminal}))
+            context.route("http://127.0.0.1:8000/api/method/" + STATUS + "*", complete_status)
+            page.get_by_text(labels["success"], exact=True).wait_for(state="visible", timeout=10000)
+            page.locator("#freeze").wait_for(state="hidden")
+            polling_stopped(page, requests)
+            assert count_requests(requests, "POST", REFRESH) == 1
+            assert set(queue.get_job_ids()) - set(baseline) == own_jobs
+            no_cache_fields(page)
+            assert not errors, errors
+            page.screenshot(path="/tmp/dms-manual-desk-native.png", full_page=True)
+            print("PASS native Desk: selected dataset, freeze, hide/show resumes one request without POST, "
+                  "mocked completion unfreezes, no cache fields or idle polling; collector not executed")
             browser.close()
             browser = None
     finally:

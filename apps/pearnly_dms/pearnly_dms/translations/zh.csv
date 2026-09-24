@@ -43,6 +43,7 @@ Read status,读取状态
 "Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.",请在 LINE 点击读取本次查询；基础资料需请管理员到 DMS 连接页选择读取。
 Read time unknown,读取时间未知
 Reading,正在读取
+"Reading data, please wait…",正在读取资料，请稍候…
 Reading this query.,正在读取本次查询。
 Recognition could not finish. Please try again shortly.,识别未完成，请稍后重试。
 Reload List,刷新列表
@@ -50,6 +51,7 @@ Saved DMS data,DMS 已读取资料
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
 Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
+"Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
 Submission Evidence,提交凭据
 Submission Nonce,提交随机码
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
@@ -58,6 +60,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。
 The account is busy. Click Read later to continue.,账号忙，请稍后点击读取继续。
 The customer record changed after you edited it. Review the current differences before confirming again.,客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。
+The read status changed. Refresh the page to check before trying again.,读取状态已变化，请刷新页面确认后再试。
 The recognition queue is busy. Please send the image again shortly.,识别队列繁忙，请稍后重新发送图片。
 The recognition result needs checking. Please do not resend this image yet.,识别结果待核实，请先不要重复发送这张图片。
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",现有 DMS 资料已过期，暂不能使用。请等待同步完成后重试。
@@ -70,6 +73,7 @@ This read failed. Click Read to retry.,本次读取失败，可点击读取重�
 This read was interrupted. Click Read again to retry; previously completed data was retained.,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",待同步的新日期范围过多，请稍候再重试当前查询。
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。
+Unable to confirm the read result. Refresh the page to check; the background read may still be running.,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
 View result / status,查看结果／状态
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
@@ -103,6 +107,7 @@ dms.card.query.MANUAL_WAITING,账号忙，请稍后点击读取继续。
 dms.card.query.NAV_FETCH,读取／刷新本次查询
 dms.card.query.NAV_RESULT,查看结果／状态
 dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
+dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.customers,完整客户资料
 dms.connect.cache.dataset.geo,完整地址目录
 dms.connect.cache.dataset.masters,主档与全部车型颜色
@@ -112,8 +117,9 @@ dms.connect.cache.field.count,上次成功记录数
 dms.connect.cache.field.error_code,最近错误代码
 dms.connect.cache.field.progress,读取进度
 dms.connect.cache.field.state,读取状态
-dms.connect.cache.help,选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
+dms.connect.cache.help,选择需要更新的资料，点击后请等待读取完成。
 dms.connect.cache.processed,已处理 {0} 项，总数尚未确定
+dms.connect.cache.processing,正在读取资料，请稍候…
 dms.connect.cache.read,读取／刷新所选资料
 dms.connect.cache.select,请至少选择一组资料。
 dms.connect.cache.stale,旧资料：{0}
@@ -124,6 +130,7 @@ dms.connect.cache.state.running,正在读取
 dms.connect.cache.state.succeeded,读取完成
 dms.connect.cache.state.waiting,账号忙，请稍后点击读取继续
 dms.connect.cache.title,DMS 已读取资料
+dms.connect.cache.unconfirmed,暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。
 dms.edit.addPayment,添加支付方式
 dms.edit.addressSnapshotAsOf,地址资料时间：{time}；手动读取更新
 dms.edit.addressSnapshotStale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新

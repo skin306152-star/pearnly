@@ -1,127 +1,290 @@
-// Native Desk contracts, no browser/Site/HTTP. Execute real connect.js with UI adapters.
+// Real connect.js + product.js Dialog helper; native UI/HTTP/timer adapters only.
+// No browser, Site, queues, credentials or network. Run: node tests/test-dms-connect-snapshots.cjs
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
 const vm = require('node:vm');
-const source = fs.readFileSync('apps/pearnly_dms/pearnly_dms/public/desk/connect.js', 'utf8');
-const clone = (value) => JSON.parse(JSON.stringify(value));
+const root = path.resolve(__dirname, '..');
+// Repository checkout locally; task lab mounts packages under its native bench/apps.
+const appRoot = [path.join(root, 'apps'), path.join(process.cwd(), 'apps')].find(candidate =>
+  fs.existsSync(path.join(candidate, 'pearnly_dms/pearnly_dms/public/desk/connect.js')) &&
+  fs.existsSync(path.join(candidate, 'pearnly_core/pearnly_core/public/desk/product.js')));
+assert(appRoot, 'Both task-owned DMS and Core sources must be readable');
+const source = fs.readFileSync(path.join(appRoot, 'pearnly_dms/pearnly_dms/public/desk/connect.js'), 'utf8');
+const product = fs.readFileSync(path.join(appRoot, 'pearnly_core/pearnly_core/public/desk/product.js'), 'utf8');
+// Keep the production duplicate-submit guard, not a test imitation of that guard.
+const dialogStart = product.indexOf('\tp.dialog = ');
+const dialogEnd = product.indexOf('\tp.layout = ', dialogStart);
+assert(dialogStart >= 0 && dialogEnd > dialogStart, 'Native Dialog helper must remain discoverable');
+const dialogSource = product.slice(dialogStart, dialogEnd);
+const clone = value => JSON.parse(JSON.stringify(value));
 const tick = () => new Promise(resolve => setImmediate(resolve));
-
-function harness({connected = true, endpoint = true} = {}) {
-  const calls = [], forms = [], dialogs = [], handlers = {}, timers = new Map();
-  const buttons = new Map();
-  let serial = 0, freezes = 0, error = false, pending;
-  const rows = ['masters', 'customers', 'geo'].map(dataset => ({dataset, state:'idle',
-    progress:{processed:0,total:null}, count:null, as_of:0, completed_at:0, error_code:''}));
-  const page = {main:{empty(){}}, clear_inner_toolbar(){buttons.clear();},
-    set_primary_action(){}, set_indicator(){}, add_inner_button(label, fn){buttons.set(label, fn);}};
-  const wrapper = {};
-  const p = {
-    async texts(prefix) {assert.equal(prefix,'dms.connect.cache.');return t;},
-    async call(method, args = {}, type = 'GET') {
-      calls.push({method, args:clone(args), type});
-      if (method.endsWith('get_connection')) return {connected, endpoint:endpoint ? {
-        name:'PRIMARY',enabled:connected,username:'fake-admin',has_admin_creds:true} : null};
-      if (method.endsWith('get_status')) {
-        if (error) throw new Error('denied');
-        if (pending) { const wait = pending; pending = null; await wait; }
-        return {configured:true, datasets:clone(rows)};
-      }
-      if (method.endsWith('request_refresh')) return {configured:true, datasets:args.datasets.map(dataset => ({
-        dataset, state:'queued', progress:{processed:0,total:null}, as_of:0, completed_at:0}))};
-      throw new Error('Unexpected external connection call: ' + method);
-    },
-    layout(parent, fields) {
-      const form = {fields, values:{}, set_value(key,value){this.values[key]=value;}};
-      forms.push(form); return form;
-    },
-    dialog(title, fields, label, action) {
-      const dialog = {title,fields,label,hidden:false,hide(){this.hidden=true;},action};
-      dialogs.push(dialog); return dialog;
-    },
-    escape(value){return String(value).replaceAll('<','&lt;');}, success(){},
-  };
-  const frappe = {pearnly:p,boot:{lang:'en'},dom:{freeze(){freezes++;},unfreeze(){}},
-    msgprint(value){h.messages.push(value);},confirm(){throw new Error('Unexpected connection mutation');}};
-  const t = (key, ...args) => `${key}${args.length ? ':' + args.join('|') : ''}`;
-  vm.runInNewContext(source, {frappe,__:text=>text,console,
-    $:value=>({on(event, fn){assert.equal(value,wrapper);handlers[event]=fn;}}),
-    setTimeout(fn, ms){assert.equal(ms,3000);const id=++serial;timers.set(id,fn);return id;},
-    clearTimeout(id){timers.delete(id);},
-  });
-  const h = {calls,forms,dialogs,handlers,timers,buttons,rows,messages:[],
-    get freezes(){return freezes;},setError(value){error=value;},
-    delayStatus(promise){pending=promise;},start:()=>p.connect(page,t,wrapper),
-    async poll(){const [id,fn]=timers.entries().next().value;timers.delete(id);await fn();},
-    choose:()=>buttons.get('dms.connect.cache.read')(),
-  };
-  return h;
+const DATASETS = ['masters', 'customers', 'geo'];
+const ID = 'a'.repeat(32), OLD_ID = 'b'.repeat(32);
+const status = (dataset, state = 'idle', request_id = '', extra = {}) => ({
+  dataset, state, request_id, progress: {processed: 0, total: null},
+  count: null, as_of: 0, completed_at: 0, stale: false, error_code: '', ...extra,
+});
+function deferred() {
+  let resolve, reject;
+  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  return {promise, resolve, reject};
 }
 
-(async () => {
+function harness({connected = true, endpoint = true, rows = DATASETS.map(name => status(name))} = {}) {
+  const calls = [], forms = [], dialogs = [], handlers = {}, timers = new Map();
+  const buttons = new Map(), messages = [], successes = [], errors = [], freezeTexts = [];
+  let serial = 0, frozen = false, freezeCount = 0, unfreezeCount = 0;
+  let statusError = null, statusWait = null, requestError = null, requestWait = null, requestRows = null;
+  let serverRows = clone(rows);
+  const page = {main: {empty() {}}, clear_inner_toolbar() {buttons.clear();},
+    set_primary_action() {}, set_indicator() {}, add_inner_button(label, fn) {buttons.set(label, fn);}};
+  const wrapper = {};
+  const t = (key, ...args) => key + (args.length ? ':' + args.join('|') : '');
+  const p = {
+    async texts(prefix) {assert.equal(prefix, 'dms.connect.cache.'); return t;},
+    async call(method, args = {}, type = 'GET') {
+      calls.push({method, args: clone(args), type});
+      if (method.endsWith('get_connection')) return {connected, endpoint: endpoint ? {
+        name: 'PREVIEW-ONLY', enabled: connected, username: 'synthetic', has_admin_creds: false,
+      } : null};
+      if (method.endsWith('get_status')) {
+        if (statusError) throw statusError;
+        if (statusWait) {const wait = statusWait; statusWait = null; return await wait.promise;}
+        return {configured: true, datasets: clone(serverRows)};
+      }
+      if (method.endsWith('request_refresh')) {
+        if (requestError) throw requestError;
+        if (requestWait) {const wait = requestWait; requestWait = null; return await wait.promise;}
+        const accepted = requestRows || args.datasets.map(name => status(name, 'queued', ID));
+        for (const row of accepted) serverRows = serverRows.filter(old => old.dataset !== row.dataset).concat(clone(row));
+        return {configured: true, datasets: clone(accepted)};
+      }
+      throw new Error('Unexpected connection/transport call: ' + method);
+    },
+    layout(parent, fields) {
+      const form = {fields, values: {}, set_value(key, value) {this.values[key] = value;}};
+      forms.push(form); return form;
+    },
+    escape: value => String(value).replaceAll('<', '&lt;'),
+    success(value) {successes.push(value);}, tidy_number() {},
+  };
+  const frappe = {pearnly: p, boot: {lang: 'zh'},
+    dom: {freeze(value) {frozen = true; freezeCount++; freezeTexts.push(value);},
+      unfreeze() {frozen = false; unfreezeCount++;}},
+    ui: {Dialog: class {
+      constructor(options) {
+        this.options = options; this.fields = options.fields; this.hidden = true;
+        this.disabled = false; this.fields_dict = {}; this.$wrapper = {addClass() {}};
+        dialogs.push(this);
+      }
+      show() {this.hidden = false;}
+      hide() {this.hidden = true;}
+      disable_primary_action() {this.disabled = true;}
+      enable_primary_action() {this.disabled = false;}
+      submit(values) {return this.options.primary_action(values);}
+    }},
+    msgprint(value) {messages.push(value);},
+    confirm() {throw new Error('Unexpected connection mutation');},
+  };
+  const context = vm.createContext({frappe, p, __: text => text,
+    console: {error: error => errors.push(error)},
+    $: value => ({on(event, fn) {assert.equal(value, wrapper); handlers[event] = fn;}}),
+    setTimeout(fn, ms) {assert(ms > 0 && ms <= 10000); const id = ++serial; timers.set(id, fn); return id;},
+    clearTimeout(id) {timers.delete(id);},
+  });
+  vm.runInContext(dialogSource, context);
+  vm.runInContext(source, context);
+  return {
+    calls, forms, dialogs, handlers, timers, buttons, messages, successes, errors, freezeTexts,
+    get frozen() {return frozen;}, get freezeCount() {return freezeCount;},
+    get unfreezeCount() {return unfreezeCount;},
+    setRows(value) {serverRows = clone(value);},
+    setRequestRows(value) {requestRows = value;},
+    failStatus() {statusError = new Error('synthetic denied');},
+    failRequest() {requestError = new Error('synthetic request failure');},
+    deferStatus() {statusWait = deferred(); return statusWait;},
+    deferRequest() {requestWait = deferred(); return requestWait;},
+    start: () => p.connect(page, t, wrapper),
+    choose() {buttons.get('dms.connect.cache.read')(); return dialogs.at(-1);},
+    count(method) {return calls.filter(call => call.method.endsWith(method)).length;},
+    async poll() {
+      assert.equal(timers.size, 1, 'Exactly one active poll is scheduled');
+      const [id, fn] = timers.entries().next().value; timers.delete(id); await fn(); await tick();
+    },
+  };
+}
+
+test('idle page has no saved-data fields or ongoing polling; first selection is explicit', async () => {
   const h = harness(); await h.start();
-  assert.equal(h.forms.length,2);
-  const cache = h.forms[1];
-  assert.equal(cache.fields.filter(f=>f.fieldtype==='Data').length,18);
-  assert(cache.fields.filter(f=>f.fieldtype==='Data').every(f=>f.read_only===1));
-  assert.equal(h.timers.size,1);
-  assert.equal(h.calls.filter(c=>c.type==='POST').length,0);
-  h.choose();
-  const initial = h.dialogs[0];
-  assert.deepEqual(Array.from(initial.fields.filter(f=>f.fieldtype==='Check'),f=>[f.fieldname,f.default]),
-    [['masters',1],['customers',1],['geo',1]]);
-  await initial.action({},initial);
-  assert.equal(h.messages.length,1);
-  assert.equal(initial.hidden,false);
-  await initial.action({customers:1,geo:0,endpoint:'forged'},initial);
-  assert.equal(initial.hidden,true);
-  assert.deepEqual(h.calls.at(-1),{method:'pearnly_dms.connections.snapshots.request_refresh',
-    args:{datasets:['customers']},type:'POST'});
-  assert.equal(h.freezes,0,'Manual request must not use the long-operation page freeze');
-  assert.equal(cache.values.customers_state,'dms.connect.cache.state.queued');
-  assert.equal(h.timers.size,1);
-  console.log('PASS native fields + first all selection + explicit subset POST + no endpoint injection / freeze');
+  assert.equal(h.forms.length, 1, 'Only existing connection details remain on the page');
+  const names = h.forms.flatMap(form => form.fields.map(field => field.fieldname).filter(Boolean));
+  assert(!names.some(name => /^(masters|customers|geo)_/.test(name)), 'No data status/count/time/error fields');
+  assert.equal(h.timers.size, 0); assert.equal(h.frozen, false);
+  assert.equal(h.calls.filter(call => call.type === 'POST').length, 0);
+  const dialog = h.choose();
+  assert.deepEqual(Array.from(dialog.fields.filter(field => field.fieldtype === 'Check'), field => [field.fieldname, field.default]),
+    [['masters', 1], ['customers', 1], ['geo', 1]]);
+  await dialog.submit({});
+  assert.equal(h.messages.length, 1); assert.equal(dialog.hidden, false);
+  assert.equal(h.count('request_refresh'), 0); assert.equal(h.frozen, false);
+});
 
-  h.rows[1] = {dataset:'customers',state:'failed',count:18,as_of:1720000000,completed_at:1720000050,
-    stale:true,progress:{processed:9,total:20},error_code:'ERR_DMS_SNAPSHOT_INCOMPLETE'};
-  await h.poll();
-  assert.equal(cache.values.customers_progress,'9 / 20');
-  assert.equal(cache.values.customers_count,'18');
-  assert.equal(cache.values.customers_error_code,'ERR_DMS_SNAPSHOT_INCOMPLETE');
-  assert(cache.values.customers_as_of.includes(new Date(1720000000000).toLocaleString('en')));
-  assert.equal(cache.values.customers_completed_at,new Date(1720000050000).toLocaleString('en'));
-  h.choose();
-  assert(h.dialogs.at(-1).fields.filter(f=>f.fieldtype==='Check').every(f=>f.default===0));
-  assert.equal(h.calls.at(-1).method,'pearnly_dms.connections.snapshots.get_status');
-  assert.equal(h.calls.at(-1).type,'GET');
-  console.log('PASS true data/completion times, retained old-cache age on failure, subsequent selective choice');
+test('subset request excludes forged endpoint; actual Dialog helper suppresses repeated submit', async () => {
+  const h = harness(); await h.start(); const dialog = h.choose();
+  const pending = h.deferRequest();
+  const first = dialog.submit({customers: 1, geo: 0, endpoint: 'forged'});
+  await tick(); assert.equal(dialog.disabled, true);
+  h.choose(); assert.equal(h.dialogs.length, 1, 'Posting cannot open another request dialog');
+  await dialog.submit({masters: 1});
+  assert.equal(h.count('request_refresh'), 1);
+  assert.deepEqual(h.calls.find(call => call.method.endsWith('request_refresh')), {
+    method: 'pearnly_dms.connections.snapshots.request_refresh', args: {datasets: ['customers']}, type: 'POST',
+  });
+  h.setRows([status('customers', 'queued', ID)]);
+  pending.resolve({datasets: [status('customers', 'queued', ID)]}); await first;
+  assert.equal(dialog.hidden, true); assert.equal(dialog.disabled, false);
+  assert.equal(h.frozen, true); assert.equal(h.timers.size, 1); assert.equal(h.successes.length, 0);
+  assert.deepEqual(h.freezeTexts, ['dms.connect.cache.processing']);
+  h.choose(); assert.equal(h.dialogs.length, 1, 'Active read cannot open another request dialog');
+  await dialog.submit({masters: 1}); assert.equal(h.count('request_refresh'), 1);
+  h.setRows([status('customers', 'succeeded', ID)]); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 1);
+  assert.deepEqual(h.successes, ['dms.connect.cache.state.succeeded']);
+  assert(h.freezeCount >= 1 && h.unfreezeCount >= 1);
+});
 
-  const beforeHide = h.calls.length;
-  h.handlers.hide();
-  assert.equal(h.timers.size,0);
-  assert.equal(h.calls.length,beforeHide);
-  h.handlers.show(); await tick();
-  assert.equal(h.timers.size,1);
-  assert.equal(h.calls.at(-1).method,'pearnly_dms.connections.snapshots.get_status');
-  let release;
-  h.delayStatus(new Promise(resolve=>{release=resolve;}));
-  const pending = h.poll();
-  h.handlers.hide(); h.handlers.show();
-  h.rows[1].state='running';
-  release(); await pending;
-  assert.equal(cache.values.customers_state,'dms.connect.cache.state.failed','Hidden in-flight result must not repaint');
-  assert.equal(h.timers.size,1,'Rapid hide/show still resumes one poll after old request completes');
-  await h.poll();
-  assert.equal(cache.values.customers_state,'dms.connect.cache.state.running');
-  h.setError(true); await h.poll();
-  assert.equal(h.timers.size,0,'Permission/status errors stop automatic retry');
-  console.log('PASS native show/hide, stale-response rejection, no parallel polling, denied poll stops');
+test('cached data defaults to no selection; only all matching current requests may report success', async () => {
+  const h = harness({rows: [status('masters', 'succeeded', OLD_ID, {as_of: 1720000000})]});
+  await h.start(); assert.equal(h.timers.size, 0);
+  const dialog = h.choose();
+  assert(dialog.fields.filter(field => field.fieldtype === 'Check').every(field => field.default === 0));
+  await dialog.submit({masters: 1, customers: 1});
+  h.setRows([status('masters', 'succeeded', ID), status('customers', 'running', ID)]);
+  await h.poll(); assert.equal(h.frozen, true); assert.equal(h.successes.length, 0);
+  h.setRows([status('masters', 'succeeded', ID), status('customers', 'succeeded', ID)]);
+  await h.poll(); assert.equal(h.frozen, false); assert.equal(h.successes.length, 1);
+  assert.equal(h.timers.size, 0);
+});
 
-  for (const options of [{connected:false}, {connected:false,endpoint:false}]) {
-    const disabled = harness(options); await disabled.start();
-    assert.equal(disabled.buttons.has('dms.connect.cache.read'),false);
-    assert.equal(disabled.calls.filter(c=>c.type==='POST').length,0);
-    assert.equal(disabled.timers.size,0);
-    assert.equal(disabled.calls.filter(c=>c.method.endsWith('get_status')).length,0);
+for (const state of ['failed', 'waiting']) {
+  test(state + ' is terminal feedback, never success, and releases the page', async () => {
+    const h = harness(); await h.start(); await h.choose().submit({geo: 1});
+    h.setRows([status('geo', state, ID, {error_code: 'ERR_DMS_SNAPSHOT_BUSY'})]);
+    await h.poll();
+    assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
+    assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
+    assert.equal(h.messages[0].message, 'dms.connect.cache.state.' + state);
+  });
+}
+
+test('request-level failure with no request_id is failure feedback, not an empty-set success', async () => {
+  const h = harness(); await h.start();
+  h.setRequestRows([status('customers', 'failed', '', {error_code: 'ERR_DMS_SNAPSHOT_INTERRUPTED'})]);
+  await h.choose().submit({customers: 1});
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
+  assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
+  assert.equal(h.messages[0].message, 'dms.connect.cache.state.failed');
+});
+
+for (const rows of [[status('masters', 'succeeded', OLD_ID)], [status('masters')], []]) {
+  test('changed/missing request cannot turn into success: ' + JSON.stringify(rows.map(row => row.state)), async () => {
+    const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+    h.setRows(rows); await h.poll();
+    assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
+    assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
+    assert.equal(h.messages[0].message, 'dms.connect.cache.changed');
+  });
+}
+
+test('RPC request failure releases mask and native Dialog submit button', async () => {
+  const h = harness(); await h.start(); h.failRequest(); const dialog = h.choose();
+  await dialog.submit({masters: 1});
+  assert.equal(h.frozen, false); assert.equal(dialog.disabled, false);
+  assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
+  assert.equal(h.messages[0].message, 'dms.connect.cache.unconfirmed');
+});
+
+test('poll failure releases mask and stops retry', async () => {
+  const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+  h.failStatus(); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
+  assert.equal(h.messages[0].message, 'dms.connect.cache.unconfirmed');
+});
+
+test('a failed group is remembered while another selected group is still running', async () => {
+  const h = harness(); await h.start(); await h.choose().submit({masters: 1, geo: 1});
+  h.setRows([status('masters', 'failed', ID), status('geo', 'running', ID)]); await h.poll();
+  assert.equal(h.frozen, true); assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 0);
+  h.setRows([status('masters', 'failed', ID), status('geo', 'succeeded', ID)]); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
+  assert.equal(h.successes.length, 0); assert.equal(h.messages.length, 1);
+  assert.match(JSON.stringify(h.messages[0]), /state\.failed/);
+});
+
+test('failure takes priority over waiting regardless of selected group order', async () => {
+  for (const states of [['failed', 'waiting'], ['waiting', 'failed']]) {
+    const h = harness(); await h.start(); await h.choose().submit({masters: 1, customers: 1, geo: 1});
+    h.setRows([status('masters', states[0], ID), status('customers', states[1], ID), status('geo', 'running', ID)]);
+    await h.poll(); assert.equal(h.frozen, true); assert.equal(h.messages.length, 0);
+    h.setRows([status('masters', states[0], ID), status('customers', states[1], ID), status('geo', 'succeeded', ID)]);
+    await h.poll();
+    assert.equal(h.frozen, false); assert.equal(h.successes.length, 0); assert.equal(h.timers.size, 0);
+    assert.equal(h.messages[0].message, 'dms.connect.cache.state.failed');
   }
-  console.log('PASS disconnected/unconfigured cannot request external reads');
-})().catch(error=>{console.error(error);process.exitCode=1;});
+});
+
+test('leaving releases mask; returning reads current active tasks and resumes one poll', async () => {
+  const h = harness(); await h.start(); await h.choose().submit({masters: 1});
+  const before = h.count('get_status'); h.handlers.hide();
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.count('get_status'), before);
+  h.handlers.show(); await tick();
+  assert.equal(h.count('get_status'), before + 1);
+  assert.equal(h.frozen, true); assert.equal(h.timers.size, 1);
+  h.setRows([status('masters', 'succeeded', ID)]); await h.poll();
+  assert.equal(h.successes.length, 1); assert.equal(h.frozen, false);
+});
+
+test('a result delivered after hide is ignored and cannot show success or freeze a hidden page', async () => {
+  const h = harness(); await h.start(); await h.choose().submit({customers: 1});
+  const pending = h.deferStatus(), polling = h.poll(); await tick();
+  h.handlers.hide();
+  pending.resolve({datasets: [status('customers', 'succeeded', ID)]}); await polling;
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
+  h.setRows([status('customers', 'running', ID)]); h.handlers.show(); await tick();
+  assert.equal(h.frozen, true); assert.equal(h.timers.size, 1);
+});
+
+test('old in-flight response cannot finish a new show generation or cancel its poll', async () => {
+  const h = harness(); await h.start(); await h.choose().submit({customers: 1});
+  const old = h.deferStatus(), polling = h.poll(); await tick();
+  h.handlers.hide(); h.setRows([status('customers', 'running', ID)]);
+  h.handlers.show(); await tick();
+  assert.equal(h.frozen, true); assert.equal(h.timers.size, 1);
+  old.resolve({datasets: [status('customers', 'succeeded', ID)]}); await polling;
+  assert.equal(h.frozen, true); assert.equal(h.timers.size, 1); assert.equal(h.successes.length, 0);
+  h.setRows([status('customers', 'succeeded', ID)]); await h.poll();
+  assert.equal(h.frozen, false); assert.equal(h.successes.length, 1);
+});
+
+test('a POST accepted after leaving does not mask a different page; returning may resume it', async () => {
+  const h = harness(); await h.start(); const dialog = h.choose(), pending = h.deferRequest();
+  const submitting = dialog.submit({geo: 1}); await tick(); h.handlers.hide();
+  h.setRows([status('geo', 'queued', ID)]);
+  pending.resolve({datasets: [status('geo', 'queued', ID)]}); await submitting;
+  assert.equal(h.frozen, false); assert.equal(h.timers.size, 0); assert.equal(h.successes.length, 0);
+  h.handlers.show(); await tick(); assert.equal(h.frozen, true); assert.equal(h.timers.size, 1);
+});
+
+test('initial active task resumes; idle and disconnected pages never keep polling', async () => {
+  const active = harness({rows: [status('geo', 'running', ID)]}); await active.start();
+  assert.equal(active.frozen, true); assert.equal(active.timers.size, 1);
+  active.handlers.hide(); assert.equal(active.frozen, false);
+  for (const options of [{connected: false}, {connected: false, endpoint: false}]) {
+    const h = harness(options); await h.start();
+    assert.equal(h.buttons.has('dms.connect.cache.read'), false);
+    assert.equal(h.count('get_status'), 0); assert.equal(h.count('request_refresh'), 0);
+    assert.equal(h.frozen, false); assert.equal(h.timers.size, 0);
+  }
+});

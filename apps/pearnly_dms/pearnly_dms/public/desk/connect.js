@@ -5,82 +5,109 @@
 		let conn,
 			busy = false;
 		const datasets = ["masters", "customers", "geo"];
-		let cacheForm, statuses = [], timer, pollBusy = false, visible = true, generation = 0;
+		let statuses = [], timer, pollGeneration = null, visible = true, generation = 0;
+		let pending = null, outcome = null, frozen = false, posting = false;
 		const cacheMethod = "pearnly_dms.connections.snapshots.";
+		const active = (row) => ["queued", "running"].includes(row.state);
 		function stopPoll() {
 			clearTimeout(timer);
 			timer = null;
 		}
 		function schedulePoll() {
 			stopPoll();
-			if (visible && conn?.connected) timer = setTimeout(pollStatus, 3000);
+			if (visible && conn?.connected && pending?.size) timer = setTimeout(pollStatus, 3000);
 		}
-		function timestamp(value) {
-			const epoch = Number(value);
-			return epoch > 0 && Number.isFinite(epoch)
-				? new Date(epoch * 1000).toLocaleString(frappe.boot.lang || undefined)
-				: "—";
+		function freezeRead() {
+			if (frozen) return;
+			frappe.dom.freeze(p.escape(cacheText("dms.connect.cache.processing")));
+			frozen = true;
 		}
-		function paintStatus() {
-			if (!cacheForm) return;
-			for (const dataset of datasets) {
-				const row = statuses.find((item) => item.dataset === dataset) || { state: "idle" };
-				const progress = row.progress || {};
-				const values = {
-					state: cacheText("dms.connect.cache.state." + row.state),
-					progress: progress.total == null
-						? cacheText("dms.connect.cache.processed", progress.processed || 0)
-						: `${progress.processed || 0} / ${progress.total}`,
-					count: row.count == null ? "—" : String(row.count),
-					as_of: row.stale && row.as_of
-						? cacheText("dms.connect.cache.stale", timestamp(row.as_of)) : timestamp(row.as_of),
-					completed_at: timestamp(row.completed_at),
-					error_code: row.error_code || "—",
-				};
-				for (const [key, value] of Object.entries(values)) {
-					cacheForm.set_value(`${dataset}_${key}`, value);
-				}
+		function finishRead(key, indicator = "orange") {
+			stopPoll();
+			pending = null;
+			outcome = null;
+			if (frozen) { frappe.dom.unfreeze(); frozen = false; }
+			if (!key) return;
+			if (key === "dms.connect.cache.state.succeeded") p.success(cacheText(key));
+			else frappe.msgprint({ message: p.escape(cacheText(key)), indicator });
+		}
+		function checkRead() {
+			if (!pending) {
+				const running = statuses.filter((row) => active(row) && row.request_id);
+				if (!running.length) return;
+				pending = new Map(running.map((row) => [row.dataset, row.request_id]));
+				freezeRead();
 			}
+			for (const [dataset, requestId] of pending) {
+				const row = statuses.find((item) => item.dataset === dataset);
+				// Never mistake an old successful generation for this read's completion.
+				if (!row || row.request_id !== requestId || row.state === "idle") {
+					finishRead("dms.connect.cache.changed");
+					return;
+				}
+				if (active(row) && requestId) continue;
+				if (row.state === "failed") outcome = "failed";
+				else if (row.state === "waiting") { if (outcome !== "failed") outcome = "waiting"; }
+				else if (row.state !== "succeeded" || !requestId) {
+					finishRead("dms.connect.cache.changed");
+					return;
+				}
+				pending.delete(dataset);
+			}
+			if (!pending.size) finishRead("dms.connect.cache.state." + (outcome || "succeeded"),
+				outcome === "failed" ? "red" : "orange");
 		}
 		async function pollStatus() {
-			if (!visible || !conn?.connected || pollBusy) return;
+			if (!visible || !conn?.connected || pollGeneration === generation) return;
 			const request = generation;
-			pollBusy = true;
+			pollGeneration = request;
 			try {
 				const result = await p.call(cacheMethod + "get_status");
 				if (visible && request === generation) {
 					statuses = result.datasets || [];
-					paintStatus();
+					checkRead();
 				}
 			} catch (error) {
-				// Frappe reports RPC errors. Stop rather than repeatedly retrying a denied page.
-				stopPoll();
+				// A failed status request must not leave the native page frozen.
+				if (visible && request === generation) finishRead("dms.connect.cache.unconfirmed");
 				return;
 			} finally {
-				pollBusy = false;
+				if (pollGeneration === request) pollGeneration = null;
 			}
-			schedulePoll();
+			if (visible && request === generation) schedulePoll();
 		}
 		function requestCache() {
+			if (busy || posting || frozen) return;
 			const firstRead = !statuses.some((item) => item.as_of > 0);
 			p.dialog(cacheText("dms.connect.cache.read"), [
 				{ fieldtype: "Section Break", description: cacheText("dms.connect.cache.help") },
 				...datasets.map((dataset) => ({ fieldtype: "Check", fieldname: dataset,
 					label: cacheText("dms.connect.cache.dataset." + dataset), default: firstRead ? 1 : 0 })),
 			], cacheText("dms.connect.cache.read"), async (values, dialog) => {
+				if (posting || frozen || !visible) return;
 				const selected = datasets.filter((dataset) => values[dataset]);
 				if (!selected.length) {
 					frappe.msgprint(p.escape(cacheText("dms.connect.cache.select")));
 					return;
 				}
-				const result = await p.call(cacheMethod + "request_refresh", { datasets: selected }, "POST");
-				// Only wait for queue acceptance, never for the external reading job.
-				for (const row of result.datasets || []) {
-					statuses = statuses.filter((old) => old.dataset !== row.dataset).concat(row);
-				}
 				dialog.hide();
-				paintStatus();
-				schedulePoll();
+				posting = true;
+				const request = ++generation;
+				stopPoll();
+				freezeRead();
+				try {
+					const result = await p.call(cacheMethod + "request_refresh", { datasets: selected }, "POST");
+					if (!visible || request !== generation) return;
+					statuses = statuses.filter((row) => !selected.includes(row.dataset)).concat(result.datasets || []);
+					pending = new Map(selected.map((dataset) => [dataset,
+						statuses.find((row) => row.dataset === dataset)?.request_id || ""]));
+					checkRead();
+					schedulePoll();
+				} catch (error) {
+					if (visible && request === generation) finishRead("dms.connect.cache.unconfirmed");
+				} finally {
+					posting = false;
+				}
 			});
 		}
 		if (wrapper) {
@@ -88,11 +115,11 @@
 				visible = true;
 				void pollStatus();
 			});
-			$(wrapper).on("hide", () => { visible = false; generation += 1; stopPoll(); });
+			$(wrapper).on("hide", () => { visible = false; generation += 1; finishRead(); });
 		}
 		async function refresh() {
 			generation += 1;
-			stopPoll();
+			finishRead();
 			conn = await p.call("pearnly_dms.connections.api.get_connection");
 			const ep = conn.endpoint;
 			page.main.empty();
@@ -159,22 +186,8 @@
 				});
 			}
 			p.layout(page.main, fields);
-			cacheForm = null;
 			statuses = [];
-			if (ep) {
-				const cacheFields = [{ fieldtype: "Section Break", label: cacheText("dms.connect.cache.title"),
-					description: cacheText("dms.connect.cache.help") }];
-				for (const dataset of datasets) {
-					cacheFields.push({ fieldtype: "Section Break", label: cacheText("dms.connect.cache.dataset." + dataset) });
-					for (const key of ["state", "progress", "count", "as_of", "completed_at", "error_code"]) {
-						if (key === "as_of") cacheFields.push({ fieldtype: "Column Break" });
-						cacheFields.push({ fieldtype: "Data", fieldname: `${dataset}_${key}`,
-							label: cacheText("dms.connect.cache.field." + key), read_only: 1, default: "—" });
-					}
-				}
-				cacheForm = p.layout(page.main, cacheFields);
-				await pollStatus();
-			}
+			if (conn.connected) await pollStatus();
 		}
 		function feedback(result) {
 			if (!result.ok) {

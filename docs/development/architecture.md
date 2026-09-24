@@ -187,4 +187,4 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 
 ### DMS 连接页手动读取（2026-09-24）
 
-`connections.snapshots` 单向调用 `snapshots.manual` 的手动请求与本地状态服务。RPC 每次校验 DMS Admin/System Manager，只解析本站唯一主连接，不接受调用方指定 Endpoint、读取账号或操作员；GET 只返回分项状态与时间，不排队、不读取外部 DMS。POST 限主档、客户和地址三组，去重、当前作用域与后台读取由 snapshots 域负责。连接页使用原生 FieldGroup/Dialog，等待任务入队后即释放按钮，状态轮询不触发外部读取。
+`connections.snapshots` 单向调用 `snapshots.manual` 的手动请求与本地状态服务。RPC 每次校验 DMS Admin/System Manager，只解析本站唯一主连接，不接受调用方指定 Endpoint、读取账号或操作员；GET 只返回分项状态与时间，不排队、不读取外部 DMS。POST 限主档、客户和地址三组，去重、当前作用域与后台读取由 snapshots 域负责。连接页仅保留原生连接信息和读取入口，不展示快照资料、进度、数量、时间或错误码字段。原生 Dialog 选择资料后用 `frappe.dom.freeze/unfreeze` 全屏等待本次请求的终态，只提示结果；空闲不轮询，活动任务的本地状态轮询不触发外部读取。请求标识不匹配、状态异常或离页时必须解除遮罩，不能把旧代际成功当作本次成功。

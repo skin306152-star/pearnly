@@ -2,7 +2,10 @@ en	zh	th	ja	key
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.	DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。	บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ	DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
 Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
 Read / refresh selected data	读取／刷新所选资料	อ่าน / อัปเดตข้อมูลที่เลือก	選択したデータを読み取り／更新	dms.connect.cache.read
-Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.	选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。	เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ	読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。	dms.connect.cache.help
+Select the data to update, then wait for the read to finish.	选择需要更新的资料，点击后请等待读取完成。	เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ	更新するデータを選択し、読み取りが完了するまでお待ちください。	dms.connect.cache.help
+Reading data, please wait…	正在读取资料，请稍候…	กำลังอ่านข้อมูล กรุณารอสักครู่…	データを読み取り中です。しばらくお待ちください…	dms.connect.cache.processing
+The read status changed. Refresh the page to check before trying again.	读取状态已变化，请刷新页面确认后再试。	สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง	読み取り状態が変わりました。ページを更新して確認してから再試行してください。	dms.connect.cache.changed
+Unable to confirm the read result. Refresh the page to check; the background read may still be running.	暂时无法确认读取结果，请刷新页面查看；后台读取可能仍在继续。	ยังยืนยันผลการอ่านไม่ได้ กรุณารีเฟรชหน้าเพื่อตรวจสอบ ระบบอาจยังอ่านข้อมูลอยู่เบื้องหลัง	読み取り結果を確認できません。ページを更新して確認してください。バックグラウンドの読み取りが続いている場合があります。	dms.connect.cache.unconfirmed
 Select at least one data group.	请至少选择一组资料。	กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม	データを1種類以上選択してください。	dms.connect.cache.select
 Master data and all vehicle colors	主档与全部车型颜色	ข้อมูลหลักและสีรถทุกรุ่น	マスターデータと全車種の色	dms.connect.cache.dataset.masters
 Full customer records	完整客户资料	ข้อมูลลูกค้าครบชุด	完全な顧客データ	dms.connect.cache.dataset.customers

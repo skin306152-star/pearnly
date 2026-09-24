@@ -43,6 +43,7 @@ Read status,Read status
 "Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.","Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."
 Read time unknown,Read time unknown
 Reading,Reading
+"Reading data, please wait…","Reading data, please wait…"
 Reading this query.,Reading this query.
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
 Reload List,Reload List
@@ -50,6 +51,7 @@ Saved DMS data,Saved DMS data
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.","Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again."
 Select at least one data group.,Select at least one data group.
 Select one or more DMS data groups to read,Select one or more DMS data groups to read
+"Select the data to update, then wait for the read to finish.","Select the data to update, then wait for the read to finish."
 Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
@@ -58,6 +60,7 @@ The DMS connection or account changed. Data from the previous connection cannot 
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."
 The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
+The read status changed. Refresh the page to check before trying again.,The read status changed. Refresh the page to check before trying again.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.","The saved DMS data is too old to use safely. Please wait for sync to finish, then retry."
@@ -70,6 +73,7 @@ This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read was interrupted. Click Read again to retry; previously completed data was retained.,This read was interrupted. Click Read again to retry; previously completed data was retained.
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
+Unable to confirm the read result. Refresh the page to check; the background read may still be running.,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 View result / status,View result / status
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
@@ -103,6 +107,7 @@ dms.card.query.MANUAL_WAITING,The account is busy. Click Read later to continue.
 dms.card.query.NAV_FETCH,Read / refresh this query
 dms.card.query.NAV_RESULT,View result / status
 dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
+dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.customers,Full customer records
 dms.connect.cache.dataset.geo,Full address directory
 dms.connect.cache.dataset.masters,Master data and all vehicle colors
@@ -112,8 +117,9 @@ dms.connect.cache.field.count,Last successful record count
 dms.connect.cache.field.error_code,Latest error code
 dms.connect.cache.field.progress,Read progress
 dms.connect.cache.field.state,Read status
-dms.connect.cache.help,"Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
+dms.connect.cache.help,"Select the data to update, then wait for the read to finish."
 dms.connect.cache.processed,{0} processed; total not yet known
+dms.connect.cache.processing,"Reading data, please wait…"
 dms.connect.cache.read,Read / refresh selected data
 dms.connect.cache.select,Select at least one data group.
 dms.connect.cache.stale,Older data: {0}
@@ -124,6 +130,7 @@ dms.connect.cache.state.running,Reading
 dms.connect.cache.state.succeeded,Read completed
 dms.connect.cache.state.waiting,Account busy — click Read later to continue
 dms.connect.cache.title,Saved DMS data
+dms.connect.cache.unconfirmed,Unable to confirm the read result. Refresh the page to check; the background read may still be running.
 dms.edit.addPayment,Add payment method
 dms.edit.addressSnapshotAsOf,Address data as of {time}; refreshed manually
 dms.edit.addressSnapshotStale,Older address data as of {time}; ask an administrator to refresh if needed
