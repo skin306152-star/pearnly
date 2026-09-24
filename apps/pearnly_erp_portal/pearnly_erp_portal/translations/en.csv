@@ -135,6 +135,7 @@ Category Name,Category Name
 Change,Change
 Change Amount,Change Amount
 Change Total,Change Total
+Chart,Chart
 Chart by,Chart by
 Check the opening stock row,Check the opening stock row
 Checkout,Checkout
@@ -1289,6 +1290,7 @@ stock.count.addEntryTitle,Add a count — {0}
 stock.count.back,Back
 stock.count.blank,Not set
 stock.count.book,Book quantity
+stock.count.chart,Chart
 stock.count.chartEmpty,Nothing counted yet
 stock.count.chartTotals,Book {0} · counted {1} · difference {2}
 stock.count.close,Close count

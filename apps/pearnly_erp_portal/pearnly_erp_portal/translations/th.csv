@@ -135,6 +135,7 @@ Category Name,ชื่อหมวดหมู่
 Change,เงินทอน
 Change Amount,เงินทอน
 Change Total,เงินทอนรวม
+Chart,แผนภูมิ
 Chart by,แผนภูมิแบ่งตาม
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkout,ชำระเงิน
@@ -1289,6 +1290,7 @@ stock.count.addEntryTitle,บันทึกการนับ — {0}
 stock.count.back,กลับ
 stock.count.blank,ยังไม่กรอก
 stock.count.book,จำนวนตามบัญชี
+stock.count.chart,แผนภูมิ
 stock.count.chartEmpty,ยังไม่มีการนับ
 stock.count.chartTotals,ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
 stock.count.close,ปิดการตรวจนับ

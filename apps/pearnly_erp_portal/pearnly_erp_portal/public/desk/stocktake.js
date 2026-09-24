@@ -28,11 +28,19 @@
 	p.stockCount = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.inventory.api.";
 		const w = (key, ...args) => t(`stock.workbench.${key}`, ...args);
-		let list, table, chart, count, state, table_host, chart_host, summary;
+		let list, table, chart, count, state, table_host, chart_host, summary, chart_mode;
 		let sequence = 0, refresh_sequence = 0, item_filter = "all", search, filter;
 		const status_text = task => task.status === "Active" ? t("stock.count.statusActive") : t("stock.count.statusClosed");
 		const open_detail = name => frappe.set_route(root, name);
 		const qty = value => value == null ? "—" : p.number(value);
+		// 图上画几组：桌面上 12 组看得清，手机上 12 组的商品名会挤成"卷纸.生抽.气泡"、
+		// 柱顶数字也会叠在一起，所以窄屏只画差异最大的 6 组。
+		const chart_limit = () => window.innerWidth < 700 ? 6 : 12;
+		// 轴标签：小屏时宁可**少标几个商品名**（框架会给每个标签留固定字符预算，
+		// 中文名一律被截成两个字："卷 ..."），也不要每根柱都顶着看不懂的省略号。
+		const chart_axes = () => window.innerWidth < 700
+			? { shortenYAxisNumbers: 1, xIsSeries: 1 }
+			: { shortenYAxisNumbers: 1 };
 		// 有差异的地方标红：色值与差异看板、导出表同一个红（框架的 `--red-600`），
 		// 桌面表格与 Excel 因此看到的是同一处红（用户 2026-09-22 口径）。
 		const danger = value => `<span style="color: var(--red-600)">${value}</span>`;
@@ -70,6 +78,15 @@
 				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
 					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
+			// 图表的**口径**（不是筛数据）：默认"差异"＝实盘 − 账面一根柱、柱顶带数字；另一档是
+			// 账面 / 实盘两根柱。形态用原生 Select，与框架报表页那条"看板按"一致，不新增自绘控件。
+			chart_mode = page.add_field({ fieldtype: "Select", fieldname: "chart", label: t("stock.count.chart"),
+				default: "difference",
+				options: [
+					{ value: "difference", label: t("stock.count.difference") },
+					{ value: "pair", label: `${t("stock.count.book")} / ${t("stock.count.counted")}` },
+				],
+				change: () => render_data() });
 			summary = $("<div class='report-summary'>").appendTo(page.main);
 			chart_host = $("<div class='chart-wrapper'>").appendTo(page.main);
 			table_host = $("<div class='report-wrapper'>").appendTo(page.main);
@@ -179,11 +196,11 @@
 			}
 			if (state.conflicts.length) $("<p class='text-danger'>").text(w("stockChanged")).appendTo(summary);
 			// 图表按**商品**分类（用户 2026-09-24："这个柱形图设计得不合理，分类不够明确"）：
-			// x 轴是商品，取 |差异| 最大的前 12 个，两根柱是账面 / 实盘。
-			// 以前按「仓库 / 仓位 · 单位」分类，问题是三重的：一次盘点往往只有一个仓、仓位还常常是
-			// 空的，所有行于是并成一根柱；数量又是相加减的，正负差异互相抵消（表里四行全标红，
-			// 图上两根柱却几乎一样高）；分类名还只是"仓库 / 未填 · 单位"这种拼接串，本身不带信息。
-			// 与原生报表 `erp_stock_count_variance` 的"看板按＝商品名称"同一维度。
+			// x 轴是商品，取 |差异| 最大的前几组（桌面 12 / 窄屏 6，见 `chart_limit`）。
+			// 以前按「仓库 / 仓位 · 单位」分类，问题是三重的：
+			// 一次盘点往往只有一个仓、仓位还常常是空的，所有行于是并成一根柱；数量又是相加减的，
+			// 正负差异互相抵消（表里四行全标红，图上两根柱却几乎一样高）；分类名还只是
+			// "仓库 / 未填 · 单位"这种拼接串，本身不带信息。与原生报表的"看板按＝商品名称"同一维度。
 			chart_host.empty();
 			// 每条记录先按快照行归一次（原实现是每行都 `state.entries.filter(...)`，行数×记录数）。
 			const counted_qty = new Map();
@@ -202,14 +219,27 @@
 				bucket.actual += counted_qty.get(row.name) || 0;
 			}
 			const ranked = [...groups.values()]
-				.sort((a, b) => Math.abs(b.actual - b.book) - Math.abs(a.actual - a.book)).slice(0, 12);
-			if (ranked.length) chart = new frappe.Chart(chart_host[0], { type: "bar", height: 260,
-				colors: ["#a3a3a3", getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff"],
-				axisOptions: { shortenYAxisNumbers: 1 },
-				data: { labels: ranked.map(v=>v.label), datasets: [
-					{ name: t("stock.count.book"), values: ranked.map(v=>v.book) },
-					{ name: t("stock.count.counted"), values: ranked.map(v=>v.actual) },
-				] } });
+				.sort((a, b) => Math.abs(b.actual - b.book) - Math.abs(a.actual - a.book))
+				.slice(0, chart_limit());
+			if (ranked.length) {
+				const accent = getComputedStyle(document.documentElement).getPropertyValue("--pearnly-accent").trim() || "#7c4dff";
+				const labels = ranked.map(v=>v.label);
+				// 默认那一档画**差异**（实盘 − 账面）：负值＝少货、正值＝多货，柱顶直接标数字，
+				// 不用两根柱互相"目测相减"。负值柱与 `valuesOverPoints` 都是框架图表库
+				// （`frappe-charts`）自带能力，没有引第三方、也没自绘 SVG。
+				chart = new frappe.Chart(chart_host[0], (chart_mode?.get_value() || "difference") === "difference"
+					? { type: "bar", height: 260, colors: [accent], valuesOverPoints: 1,
+						axisOptions: chart_axes(),
+						data: { labels, datasets: [
+							{ name: t("stock.count.difference"), values: ranked.map(v=>v.actual - v.book) },
+						] } }
+					: { type: "bar", height: 260, colors: ["#a3a3a3", accent],
+						axisOptions: chart_axes(),
+						data: { labels, datasets: [
+							{ name: t("stock.count.book"), values: ranked.map(v=>v.book) },
+							{ name: t("stock.count.counted"), values: ranked.map(v=>v.actual) },
+						] } });
+			}
 			const q = (search?.get_value() || "").trim().toLowerCase();
 			const rows = state.items.filter(r => (!q || [r.product_name,r.code,r.barcode,r.location,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)

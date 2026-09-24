@@ -135,6 +135,7 @@ Category Name,分类名称
 Change,找零
 Change Amount,找零
 Change Total,找零合计
+Chart,图表
 Chart by,看板按
 Check the opening stock row,请检查这条期初明细
 Checkout,结账
@@ -1289,6 +1290,7 @@ stock.count.addEntryTitle,记一笔 — {0}
 stock.count.back,返回
 stock.count.blank,未填
 stock.count.book,账面数量
+stock.count.chart,图表
 stock.count.chartEmpty,还没有盘点记录
 stock.count.chartTotals,账面 {0} · 实盘 {1} · 差异 {2}
 stock.count.close,结束盘点

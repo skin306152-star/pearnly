@@ -135,6 +135,7 @@ Category Name,カテゴリ名
 Change,お釣り
 Change Amount,お釣り
 Change Total,お釣り合計
+Chart,グラフ
 Chart by,グラフの軸
 Check the opening stock row,この期首明細を確認してください
 Checkout,会計
@@ -1289,6 +1290,7 @@ stock.count.addEntryTitle,カウントを記録 — {0}
 stock.count.back,戻る
 stock.count.blank,未入力
 stock.count.book,帳簿数量
+stock.count.chart,グラフ
 stock.count.chartEmpty,まだ棚卸記録がありません
 stock.count.chartTotals,帳簿 {0} · 実地 {1} · 差異 {2}
 stock.count.close,棚卸を終了
