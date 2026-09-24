@@ -158,3 +158,14 @@
   所以复用它必须从这个工作树（或远端同名分支）跑。
 - 老记录里两处已过期、以本节为准：**账本站已经建好并导入**；**billing-web 的镜像漂移已随
   新的 per-app 栈消解**（每套栈都钉同一个 digest）。
+
+### 2026-09-25 收尾：已合入主线，测试机环境已清理
+
+**结论：这套驱动已经合进 `main`，Windows 测试机上的测试环境按用户要求清零，测试租户域名已切回线上。**
+
+- **合并**：`codex/testenv-per-app` 以 merge 提交进入 `main`（它的代码部分早先已被 DMS 分支多次合并，这次补上最后两个文档提交）。`main` = `4e9906749df96c43792c3a1b778bee1421613dad`，远端回读一致。主线上的 `scripts/testenv.sh` 与 `docs/development/test-environment.md` 现在就是这套 per-app 流程，**复用不再必须先切到工作树**。
+- **域名切回线上**：`lab-stop dms` 先 `switch-prod`，删除 `testdms.pearnly.com` 指向隧道的 CNAME；`status` 显示“当前解析”为空，即回落到通配记录 `*.pearnly.com → 107.155.65.74`；`dig @1.1.1.1` 与 `@8.8.8.8` 都解析到 `107.155.65.74`。
+- **停栈与清数据**：`lab-stop dms` 停止并删除 `pearnly-testenv-dms` 的 12 个容器与 `pearnly-testenv-dms_runtime` 网络；`reset dms` 再删本栈 4 个卷（`…-dms_{database,queue,sites-dms,sites-billing}`）。
+- **旧残留一并清掉**：上一版单栈留下的 6 个卷（`pearnly-testenv_database`、`pearnly-testenv_queue`、`pearnly-testenv_sites-{dms,erp,cowork,billing}`，早已无容器引用）与 44 个 compose 匿名 dangling 卷，先逐个列出再显式删除；删除后测试机上**容器 0、卷 0**。
+- **保留的基建**：WSL `Ubuntu-24.04` 与 docker/compose、`/opt/pearnly-testenv/deploy` 工具目录、Cloudflare 隧道及其本机凭据（`~/.config/pearnly-testenv/` 未动）、10 个基础与候选镜像（mariadb/redis/keycloak/frappe 候选；WSL 磁盘 940 GB 可用，未做镜像清理）。**没有**使用全局 prune 或通配删除。
+- **下次怎么用**：按 [测试环境文档的“复用”一节](../development/test-environment.md#复用同一套环境反复用每次只需挑一条) 跑 `lab-start <产品>`，它会重新建卷并从线上重新导出测试租户数据。留的是干净的基建与流程，不是上次的数据——“下次不会用到脏环境”指的就是这个。

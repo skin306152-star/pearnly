@@ -1,5 +1,24 @@
 # DMS 手动建缓存、交互读本地、提交查实时
 
+## 2026-09-25 已合入主线并发布上线
+
+**结论：这条方案已经合并进 `main` 并部署到生产 DMS。**主线是 `4e9906…`，生产跑的是由它构建出来的 digest `sha256:bee862f8…`；下面每行都是本次实际操作后的回读。
+
+| 环节 | 证据 |
+| --- | --- |
+| 合并 | `codex/dms-five-minute-snapshots` 已用 merge 提交合入 `main`（它此前已多次合并 `codex/testenv-per-app`，两条分支的代码部分同源）；`main` = `4e9906749df96c43792c3a1b778bee1421613dad`，`git ls-remote` 回读一致 |
+| 本地闸门 | `check-architecture.py` 0 违规；`check-dms-offline.py` 用 Python 3.12 全 PASS（client 118、booking 45/42/43、retry 61、quota 27、snapshot-reader 54、catalogue 26/8/18、change_sync 19、nightly_refresh 8、connection_snapshots 13、operator_advisors 15）；`test-dms-call-contracts.py` 与 `test-dms-customer-identity.py` 通过。注意本机 `python3` 是 3.9，缺 `TestCase.enterContext`，必须用 `/Users/skin/.local/bin/python3.12` 跑 DMS 套件 |
+| 构建 | 生产构建 `36057531877` 成功（6 分 17 秒），digest `sha256:bee862f8c7219206be8bec734423a855e545f35b3c495271588ef5a407c5be4f`；镜像 `org.opencontainers.image.revision` = `4e9906749df96c43792c3a1b778bee1421613dad`。CI 内含架构、Desk 重试、原生 POS、前端构建、编辑快照、候选运行时、无网查询/快照、签名 webhook 与原生队列、快照存储/读/手动/专道、运行时与前端资源检查，全部通过 |
+| 投递 | `stage-production.yml` 运行 `36058265936` 成功（1 分 36 秒） |
+| 部署工具同源 | 服务器 `/opt/pearnly/deploy` 原为旧版（compose、activate 脚本不同，缺新增的 `configure-dms-runtime.py`），按脚本自带提示用 `docker cp` 从镜像 `deploy-src` 覆盖；旧内容备份在 `/opt/pearnly/deploy-backup-20260924-205901`；`check-deploy-image.py` 输出 `Deploy tooling matches this image` |
+| 激活 | `activate-product.sh <digest> dms` 退出 0、139 秒；两站点原生 `backup --with-files`（ris `20260925_035928`、testdms `20260925_035931`）→ 运行配置 → `migrate` → `enable-scheduler` → 重建 8 个服务 → 关维护 |
+| 运行回读 | 8 个 dms 容器全部 running、`RestartCount=0`、镜像 digest 全为 `bee862f8…`；`active-image-dms.json` 已写入该 digest，`active-image-erp.json`（`a3d007a7…`）与旧 global `active-image.json`（`a11eb9e3…`）未动 |
+| 新代码落地 | 镜像内 `adapter/nightly_refresh.py`、`client/eventlog_reader.py`、`adapter/change_sync.py` 存在；`hooks.py` 注册 `0 4 * * *` 与 `45 4 * * *`；站点时区 `Asia/Bangkok`，即泰国凌晨 4:00 与 4:45 |
+| 新队列 | `dms-sync-worker` 已创建并订阅 `dms_sync`（`Listening on …:dms_sync`），日志无队列名报错 |
+| 可用性 | `testdms.pearnly.com` 与 `ris.pearnly.com` 的 `/api/method/ping` 均 200；维护模式已关；`enable_scheduler=1` |
+
+**仍未验收（需要真机与真实 LINE）**：菜单 5 只剩一个按钮、绑定时的百分比白屏、地址邮编自动补齐、以及“操作员每次真实动作顺手读日志增量”的实际耗时与观感。部署只证明代码上线，这些产品行为要真机点击才算。
+
 ## 换窗口总交接（2026-09-24，ERP 发布与测试环境更新后 · 新窗口从这里开始）
 
 **当前是就地交接，DMS 新方案尚未上线，也尚未在新 Windows 环境跑完真实闭环。** 用户上一条要求按刚更新的测试环境/流程试验 DMS，随后要求先写交接、换窗口继续。本轮只核对本地 Git、文档、脚本和既有 Mac 容器，更新本节；没有启动新的测试、切换测试租户、调用 OCR、写第三方 DMS 或发布服务。下面历史批次仅在需要细节时查；与本节不一致的旧基线/预览存活状态不再当作当前事实。
