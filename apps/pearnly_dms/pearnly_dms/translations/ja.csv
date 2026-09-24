@@ -1,12 +1,9 @@
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
-Address data as of {time}; full refresh scheduled daily,住所データ取得時刻：{time}。毎日、全件更新を実行します。
 Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 Booking ID,予約ID
 Booking Number,予約番号
-"Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
-"Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 DMS,DMS
