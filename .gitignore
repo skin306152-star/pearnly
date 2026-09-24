@@ -17,3 +17,4 @@ apps/pearnly_core/pearnly_core/public/pearnly-app/
 # 我们不依赖自动导入，代码里都是显式 import；留着只会每次构建都产生 diff。
 frontend/auto-imports.d.ts
 frontend/components.d.ts
+.testenv-secrets
