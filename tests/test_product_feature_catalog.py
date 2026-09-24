@@ -150,10 +150,11 @@ class AggregatedPermissions(unittest.TestCase):
     def test_cost_access_follows_declared_roles(self):
         roles = self.catalog['roles_payload']('erp', ['warehouses', 'stocktake'])
         grants = {(r['doctype'], r['role']): r for r in roles['field_permissions']}
-        self.assertEqual(set(grants), {(doctype, role)
-            for doctype in ['ERP Product', 'ERP Stock Count Item']
-            for role in ['ERP Admin', 'ERP Stock']})
-        self.assertEqual(grants['ERP Product', 'ERP Stock']['perms'], {'read': 1, 'write': 0})
+        self.assertEqual(set(grants), {('ERP Product', 'ERP Admin'),
+            ('ERP Stock Count Item', 'ERP Admin'), ('ERP Stock Count Item', 'ERP Stock')})
+        # Employee product costs are projected through live menu/feature checks.
+        # A static field grant would survive revocation; access.setup removes it.
+        self.assertNotIn(('ERP Product', 'ERP Stock'), grants)
         self.assertEqual(grants['ERP Product', 'ERP Admin']['perms'], {'read': 1, 'write': 1})
         # Frozen valuation is readable but never editable through native forms.
         for role in ['ERP Admin', 'ERP Stock']:
