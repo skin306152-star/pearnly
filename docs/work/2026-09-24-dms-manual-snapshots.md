@@ -748,3 +748,22 @@ booking-flow 33/33。两个实验室容器收尾已停，四个卷按既有约�
 `tests/test-dms-connect-overlay.cjs` 8 项通过（新增"数字不倒退、不预告 100%"一项，
 并把旧的"必须写出车辆 12/29"换成"必须只有百分比、不能再出现组名"）。架构 0 违规、
 `i18n-build --check` PASS。
+
+### 测试环境：百分比版本上线 + 清空所有缓存（2026-09-25）
+
+镜像 `ghcr.io/skin306152-star/pearnly/frappe@sha256:1e492b0c…c942c`（revision `073f735`）
+已发到测试机并 `testenv.sh up dms`，12 个容器全部 Up、站点迁移与清缓存通过。
+浏览器实际拿到的资源已确认是新的：`/assets/pearnly_dms/desk/connect.js` HTTP 200 /
+8503 字节、含 `progressPercent`。
+
+**按用户要求清空全部 DMS 缓存**（清内容、不删行 —— 该 DocType 的 `on_trash` 明确保护
+"由同步器管理"）：
+
+- 五行全空：`vehicles` / `customers` / `company` / `geo`（四组底座）＋ `changes`（增量水位）。
+  `payload/overlays/staging/refresh_request/last_error/request_json` 清空，
+  `source_started_at/completed_at/requested_at` 归零，`generation` 清空。
+- Redis 侧 `*dms*` 键为 0（重新查过，没有残留的主档缓存）。
+- 业务数据未动。现在的状态就是"冷启动"：下次绑定会重新读四组底座并重建增量水位，
+  在那之前 LINE 侧会照实说数据还没准备好。
+
+**未做**：生产部署、真实 LINE 消息与真机验收。
