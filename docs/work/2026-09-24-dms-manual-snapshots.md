@@ -78,6 +78,41 @@ ERP 已采用产品独立镜像配置：`provision-agent.image(group)` 优先读
 
 收尾状态为**交接保留**：本次仅提交本节文档，未合入 main、未推送任务分支、未部署 DMS；没有删除工作树/分支/运行资源。其它工作树、Windows 本地主线新增提交及旧 DMS 未暂存文档均不替其提交或清理。下个窗口从本节开始即可，不必重新阅读全部历史对话。
 
+## 最新续接：候选镜像已产出 + 本机试验环境已清理（2026-09-24）
+
+授权来自用户本轮原话“推，本机的试验环境删掉吧”。本轮只做推送、CI 构建与本机清理；**未部署、未切测试租户、未动测试机、未调用付费 OCR、未写第三方业务**。
+
+### 推送与候选
+
+- `codex/dms-five-minute-snapshots` **首次推送**（此前 31 个提交只在本地）。推送后本地与远端同为 `0b3a90ccd8768810ad5e2ff4f537598cd1f80d1b`。
+- 推送期间远端 main 前进到 `e73e2d2a6cca7da5c3bbfde8469b9ba5bc4b8ce5`，只多两个文档提交（本机/基础设施健康检查清理），不碰代码，故未重新合并。
+- **候选镜像**（`org.opencontainers.image.revision` = `0b3a90ccd8768810ad5e2ff4f537598cd1f80d1b`）：
+  `ghcr.io/skin306152-star/pearnly/frappe@sha256:0b37fe9775c0b9f21da0d56e105144ff9ffa8e69e9811e827418c5e8400969a9`
+  CI run `36011415839` 全绿：架构、离线契约、前端构建、候选运行时（含固定 Frappe 运行时的 36 项）、两个隔离 lab、运行时与前端资源、推送与 digest 上传。
+
+### 首次推送暴露并修掉的三类存量缺口（本分支从未跑过 CI）
+
+1. `scripts/test-dms-editor-snapshot.cjs` 仍在断言五分钟轮询/每日地址同步时代的文案。核对过：该测试与其输入文件都不在合并改动范围内，**合并前就是红的**。期望值改为已采纳的手动更新文案，现 5/5。
+2. `scripts/test-dms-line-runtime.py` 两条：`booking_edit.load` 现在按票据把补齐后的复核资料写回（补打桩，测试本意是保留已清空字段）；建单成功后不再自动刷新员工销售全量（`c5f9c54` 已写进 `booking/service.py` 模块头第 4 条）→ 断言改为“不得被调用”。固定 Frappe 运行时 36/36。
+3. `scripts/test-dms-snapshot-sync-native.py` 整套 5 条都在断言**已被收回的周期采集契约**：`adapter/snapshot_sync.refresh`、`adapter/geo_sync.refresh` 在没有手动 `request_id` 时返回 `{"ok": False, "retired": True}` 且不取 IO，`snapshots/schedule.sweep()` 返回 `{"queued": 0, "skipped": 0, "retired": True}`。该套件**已退休删除**；CI 的 lab 步骤改跑当前方案的 `scripts/test-dms-manual-native.py`。同等待遇的覆盖仍在 store / reads / manual / queue 原生套件与 `test-dms-snapshot-consumers.py`、`test-dms-query-snapshots.py` 中（后两者已显式断言 retired 入口不取 IO）。
+
+### 本轮本地验证
+
+- 一次性容器（固定 Frappe 运行时 + 挂载当前工作树源码）：`test-dms-line-runtime.py` 36/36；`test-dms-intake-queue.py`、`test-dms-query-output.py`、`tests/test_teardown_members.py`、`test-dms-query-snapshots.py`、`test-dms-snapshot-consumers.py` 全部通过（这些都是 CI 同一步骤/下一步骤里的命令）。
+- 一次性临时 lab（本地 arm64 原生镜像 + 只读挂载当前源码，用完立即 `down --volumes`，无残留）：`test-dms-snapshot-store-native.py` 27、`test-dms-snapshot-reads-native.py` 17、`test-dms-manual-native.py` 12、`test-dms-snapshot-queue-native.py` 2，全通过。
+
+### 本机试验环境清理（用户要求，本轮执行）
+
+删除：`pearnly-dms-snapshot-lab`（3 容器 + 4 卷 + 网络）、`pearnly-dms-flow-lab`（3 容器 + 2 卷 + 网络）、`pearnly-dms-manual-preview`（容器 + 2 匿名卷 + 网络）；预览目录移入废纸篓 `~/.Trash/dms-manual-preview.uGyoJv`（可恢复）。复查：本任务 DMS 的容器/卷/网络/目录均为空。
+
+未做全局 prune；未动其它任务的 lab（`erp-*`、`purchase-lab`、`tenant-lab`、`cowork-backend-lab`、`stocktake-workbench-lab`、`erp-pos-lab`）与共享镜像（`d5c8749…` 仍被 cowork 的 lab 引用，保留）。
+
+### 保留项与下一步
+
+- 保留：本任务树与分支（已推送、已构建候选）、四个 ignored 生成路径（`frontend/node_modules/`、`frontend/auto-imports.d.ts`、`frontend/components.d.ts`、`apps/pearnly_core/pearnly_core/public/pearnly-app/`）、旧 DMS 树 `dms-line-full-flow-fix`（仍有未提交文档；它引用的 `pearnly-dms-flow-lab` 运行资源已随本次清理删除，接手时按需重建）。
+- 仍未验收：新版在测试租户上的安装/升级、四组完整真实采集与首次发布（尤其全国地址整轮）、LINE 菜单 1–5（含编辑回卡与订车付款附件）、同权限第三方回读与失败恢复、真机与真实消息。
+- 下一步（在 Windows 侧）：先核对两个测试租户当前承接状态，再 `PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:0b37fe9775c0b9f21da0d56e105144ff9ffa8e69e9811e827418c5e8400969a9 bash scripts/testenv.sh up`。合并回 main 与正式发布仍需用户另行指示。
+
 ## 最新续接：对齐已确认新主线（2026-09-24，合并提交 ff6127f）
 
 本轮只做“对齐主线 + 受影响本地检查”。**没有推送、没有构建镜像、没有部署、没有动测试环境、没有删资源。** 承接的是用户“把新主线对齐过来”的指示；正式 DMS 发布与推送仍需用户届时明确指示。
