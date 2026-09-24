@@ -154,7 +154,10 @@ services:
     profiles: [dms]
     <<: *worker
     # One browser-capable background lane, never consumes interactive long/OCR.
-    mem_limit: 1g
+    # 4g：整组客户快照要一次性持在内存里再落库。rayong 租户 15,135 个客户的检查点
+    # JSON 只有 16MB，但 Python 对象膨胀到 800MB 以上，1g 会被 OOM 杀掉（2026-09-25 实测
+    # `oom=true / anon-rss 835MB`）。宿主 32GB，4g 安全。
+    mem_limit: 4g
     command: [bench, worker, --queue, dms_sync]
     volumes: [sites-dms:/home/frappe/frappe-bench/sites]
   dms-ocr-dispatch:
