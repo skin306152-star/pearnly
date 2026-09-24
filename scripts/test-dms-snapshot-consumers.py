@@ -1,7 +1,7 @@
 """Pinned Frappe consumer regressions, with no Site or external network.
 
 Real LINE framing, QA/session paths, full customer client/writeback, scopes and
-scheduler run unchanged. DB documents, authentication, queue delivery and outer
+retired scheduler run unchanged. DB documents, authentication, queue delivery and outer
 HTTP are in-memory substitutes. This does not claim database concurrency or
 external business acceptance; the separate native lab owns those checks.
 """
@@ -49,12 +49,13 @@ class SnapshotConsumers(unittest.TestCase):
         from pearnly_dms.intake import service, flow
         from pearnly_dms.booking.conversation import booking_qa
         from pearnly_dms.menu import menu_flow
-        from pearnly_dms.adapter import operations, snapshot_writeback, geo_sync
+        from pearnly_dms.adapter import operations, snapshot_writeback, geo_sync, snapshot_sync
         from pearnly_dms.snapshots import store, schedule
         from pearnly_dms.config import pacing
         cls.line, cls.sessions, cls.hooks, cls.i18n, cls.out, cls.cards = line, line_session, hooks, i18n, out, cards
         cls.service, cls.flow, cls.qa, cls.menu = service, flow, booking_qa, menu_flow
         cls.operations, cls.writeback, cls.geo_sync = operations, snapshot_writeback, geo_sync
+        cls.snapshot_sync = snapshot_sync
         cls.store, cls.schedule, cls.pacing = store, schedule, pacing
 
     def setUp(self):
@@ -143,8 +144,9 @@ class SnapshotConsumers(unittest.TestCase):
         self.replace(self.qa, "resolve_operator_advisor", return_value=({"id": "AD1", "name": "Advisor"}, "sales"))
         masters = {key: [["1", "CODE", "Synthetic"]] for key in ("cars", "place_books", "term_sales", "regis_behalfs")}
         masters["company_banks"] = []
-        snapshot = {"data": {"masters": masters, "paints": {}, "customers": {}},
-                    "as_of": 1790209380, "generation": "synthetic-generation", "stale": False}
+        snapshot = {"data": {"masters": masters, "paints": {}},
+                    "as_of": 1790209380, "completed_at": 1790209400,
+                    "generation": "synthetic-generation", "stale": False}
         reads = self.replace(self.store, "read", side_effect=self.store.SnapshotUnavailable())
         forbidden = self.replace(self.service, "push_idcard_fields", side_effect=AssertionError("No replay of saved customer"))
         self.replace(self.flow, "process_image", side_effect=AssertionError("No OCR replay"))
@@ -159,7 +161,11 @@ class SnapshotConsumers(unittest.TestCase):
         action = self.http[0][1]["messages"][0]["quickReply"]["items"][0]["action"]
         parsed = {key: value[0] for key, value in parse_qs(action["data"]).items()}
         self.assertEqual(parsed, {"action": "continue_booking", "cid": "saved-id"})
-        reads.side_effect = None; reads.return_value = snapshot
+        def masters_only(endpoint, dataset, **kwargs):
+            name = endpoint.get("name") if isinstance(endpoint, dict) else endpoint
+            self.assertEqual((name, dataset), (EP, "masters"))
+            return snapshot
+        reads.side_effect = masters_only
         self.menu.handle_postback(self.binding, UID, TOKEN, parsed["action"], parsed, saved)
         resumed = self.sessions.get_session(UID)
         self.assertEqual(resumed["state"], "booking_qa")
@@ -238,21 +244,16 @@ class SnapshotConsumers(unittest.TestCase):
         self.assertEqual(len(transport.writes()), 1)
         self.assertEqual(events[-1], "exit")
 
-    def test_sales_refresh_is_requested_not_completed_and_missing_collector_is_false(self):
-        hooks = self.replace(self.schedule, "collectors", return_value=[])
+    def test_booking_writeback_never_starts_an_employee_scan(self):
+        hooks = self.replace(self.schedule, "collectors")
         enqueue = self.replace(frappe, "enqueue", return_value=None)
         self.assertFalse(self.writeback.sales(EP))
         enqueue.assert_not_called()
-        hooks.return_value = self.hooks.pearnly_dms_snapshot_collectors
-        self.assertTrue(self.writeback.sales(EP))
-        enqueue.assert_called_once()
-        self.assertTrue(enqueue.call_args.kwargs["enqueue_after_commit"])
-        self.assertEqual(enqueue.call_args.kwargs["queue"], "dms_sync")
-        self.assertEqual(enqueue.call_args.args, ("pearnly_dms.query.snapshot_sync.refresh",))
         enqueue.side_effect = RuntimeError("synthetic dispatch failure")
         self.assertFalse(self.writeback.sales(EP))
+        enqueue.assert_not_called(); hooks.assert_not_called()
 
-    def test_booking_success_is_not_cache_completion_and_survives_refresh_failure(self):
+    def test_booking_success_keeps_live_preflight_without_automatic_sales_refresh(self):
         from pearnly_dms.booking import service as booking_service
         client = booking_fixture.DmsFixture("SNAPSHOT-ONLY")
         self.replace(self.operations, "run_logged_in", side_effect=client.session)
@@ -268,17 +269,18 @@ class SnapshotConsumers(unittest.TestCase):
                         "car": {"id": "car", "label": "CAR Car"},
                         "delivery_date_be": "30/09/2569", "regis_name": "Synthetic"},
             "payments": [{"channel": "cash", "amount": "10.25", "extra": {}}]}}
-        for expected in (True, False):
-            with self.subTest(refresh_requested=expected):
-                enqueue.side_effect = None if expected else RuntimeError("synthetic dispatch failure")
+        for queue_available in (True, False):
+            with self.subTest(queue_available=queue_available):
+                enqueue.side_effect = None if queue_available else RuntimeError("synthetic dispatch failure")
                 result = booking_service.book_in_session(EP, copy.deepcopy(payload), on_attempt=Mock())
                 self.assertTrue(result["ok"], result)
                 self.assertEqual(result["booking_id"], str(len(client.orders)))
                 self.assertFalse(result["cache_updated"])
-                self.assertEqual(result["cache_refresh_requested"], expected)
+                self.assertFalse(result["cache_refresh_requested"])
         self.assertEqual(len(client.orders), 2)
         self.assertEqual(customer_read.call_count, 2)
         self.assertEqual(master_read.call_count, 2)
+        enqueue.assert_not_called()
 
     def test_scope_dedupes_authority_but_isolates_sales_owner_revision_and_site(self):
         other = "snapshot-endpoint-two"
@@ -297,38 +299,70 @@ class SnapshotConsumers(unittest.TestCase):
         self.db.rows["User", USER]["enabled"] = 0
         with self.assertRaises(self.store.SnapshotUnavailable): self.store.scope(EP)
 
-    def test_scheduler_hook_scope_coalescing_daily_geo_and_queue_contract(self):
-        self.assertIn("pearnly_dms.snapshots.schedule.sweep", self.hooks.scheduler_events["cron"]["*/5 * * * *"])
-        self.replace(frappe, "get_all", return_value=[EP, "snapshot-endpoint-two"])
-        stage = self.replace(self.store, "stage", return_value=None)
-        read = self.replace(self.store, "read", return_value={"stale": False})
-        result = self.schedule.sweep()
-        self.assertEqual(result["queued"], 3)  # one shared authority, two employee scopes; fresh geo skipped
-        self.assertEqual(len({job[1]["job_id"] for job in self.jobs}), 3)
-        for _, options in self.jobs:
-            self.assertEqual(options["queue"], "dms_sync")
-            self.assertTrue(options["deduplicate"]); self.assertTrue(options["enqueue_after_commit"])
-        read.assert_called_once_with(EP, "geo", max_age=3 * 86400, refresh_interval=86400)
-        self.jobs.clear(); stage.return_value = {"tree": {"todo": [["districts", "P"]]}}
-        read.reset_mock(); result = self.schedule.sweep()
-        self.assertEqual(result["queued"], 4)
-        read.assert_not_called()
-        self.assertEqual(sum(method == "pearnly_dms.adapter.geo_sync.refresh" for method, _ in self.jobs), 1)
+    def test_periodic_reads_retired_but_business_recovery_hooks_preserved(self):
+        methods = {method for values in self.hooks.scheduler_events["cron"].values() for method in values}
+        self.assertFalse({"pearnly_dms.snapshots.schedule.sweep",
+            "pearnly_dms.adapter.snapshot_sync.refresh", "pearnly_dms.adapter.geo_sync.refresh",
+            "pearnly_dms.query.snapshot_sync.refresh"} & methods)
+        self.assertTrue({"pearnly_dms.booking.recovery.reconcile_due",
+            "pearnly_dms.booking.delivery.schedule_due", "pearnly_dms.booking.claim_recovery.schedule_due"} <= methods)
+        endpoints = self.replace(frappe, "get_all", side_effect=AssertionError("Retired sweep cannot discover accounts"))
+        read = self.replace(self.store, "read", side_effect=AssertionError("Retired sweep cannot read data"))
+        self.assertEqual(self.schedule.collectors(), [])
+        self.assertEqual(self.schedule.sweep(), {"queued": 0, "skipped": 0, "retired": True})
+        self.assertIsNone(self.schedule.enqueue(EP, {"method": "pearnly_dms.adapter.geo_sync.refresh"}))
+        endpoints.assert_not_called(); read.assert_not_called(); self.assertEqual(self.jobs, [])
+        registry = self.hooks.pearnly_dms_snapshot_collectors
+        self.assertEqual({item["dataset"] for item in registry if item["reader"] == "authority"},
+                         {"masters", "customers", "geo"})
+        self.assertEqual([item.get("dataset_prefix") for item in registry if item["reader"] == "sales"], ["query."])
 
-    def test_geo_fresh_direct_refresh_does_not_login_and_releases_lease(self):
-        self.replace(self.store, "stage", return_value=None)
-        self.replace(self.store, "read", return_value={"stale": False})
-        login = self.replace(self.geo_sync, "run_logged_in", side_effect=AssertionError("Fresh geo must not login"))
-        result = self.geo_sync.refresh(EP)
-        self.assertEqual(result, {"ok": True, "fresh": True}); login.assert_not_called()
-        self.cache.lock.return_value.release.assert_called_once()
+    def test_old_geo_and_directory_jobs_without_request_do_not_login_or_acquire_lease(self):
+        stage = self.replace(self.store, "stage", side_effect=AssertionError("No implicit checkpoint access"))
+        read = self.replace(self.store, "read", side_effect=AssertionError("No implicit snapshot access"))
+        for module in (self.geo_sync, self.snapshot_sync):
+            with self.subTest(module=module.__name__):
+                login = self.replace(module, "run_logged_in", side_effect=AssertionError("Old jobs must not login"))
+                self.assertEqual(module.refresh(EP), {"ok": False, "retired": True})
+                login.assert_not_called()
+        stage.assert_not_called(); read.assert_not_called()
+        self.cache.lock.assert_not_called(); self.assertEqual(self.jobs, [])
 
     def snapshot_directory(self, customers):
         from pearnly_dms.snapshots.directory import Directory
-        self.replace(self.store, "read", return_value={"data": {
-            "masters": {}, "paints": {}, "customers": customers},
-            "as_of": 1790209380, "generation": "synthetic-directory", "stale": False})
+        def customer_only(endpoint, dataset, **kwargs):
+            self.assertEqual((endpoint, dataset), (EP, "customers"))
+            return {"data": {"customers": customers}, "as_of": 1790209380,
+                    "completed_at": 1790209400, "generation": "synthetic-customers", "stale": False}
+        self.replace(self.store, "read", side_effect=customer_only)
         return Directory(EP)
+
+    def test_independent_dataset_reads_keep_real_times_and_never_trigger_refresh(self):
+        from pearnly_dms.snapshots.directory import Directory
+        snapshots = {
+            "masters": {"data": {"masters": {"prefixes": [["p", "Prefix"]]}, "paints": {"car": [["c", "Color"]]}},
+                        "as_of": 200, "completed_at": 205, "generation": "m1", "stale": False},
+            "customers": {"data": {"customers": {"c1": {"customer_id": "c1", "name": "Synthetic"}}},
+                          "as_of": 100, "completed_at": 110, "generation": "c1", "stale": True},
+            "geo": {"data": {"provinces": {"": [["p1", "Province"]]}},
+                    "as_of": 50, "completed_at": 90, "generation": "g1", "stale": True},
+        }
+        reads = self.replace(self.store, "read", side_effect=lambda ep, ds, **kw: copy.deepcopy(snapshots[ds]))
+        directory = Directory(EP)
+        directory.masters(); directory.paints("car")
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters"])
+        self.assertEqual(directory.metadata()["as_of"], 200)
+        self.assertEqual(directory.read_customer("c1")["customer_id"], "c1")
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters", "customers"])
+        self.assertEqual(directory.metadata()["as_of"], 100)
+        self.assertEqual(directory.metadata()["completed_at"], 110)
+        self.assertTrue(directory.metadata()["stale"])
+        directory.list_geo("provinces")
+        self.assertEqual(directory.metadata()["as_of"], 100, "Address age stays independent of business data")
+        self.assertEqual(directory.metadata()["geo_as_of"], 50)
+        self.assertTrue(directory.metadata()["geo_stale"])
+        self.assertEqual([call.args[1] for call in reads.call_args_list], ["masters", "customers", "geo"])
+        self.assertEqual(self.http, []); self.assertEqual(self.jobs, [])
 
     def test_ledger_hint_missing_from_generation_is_pending_not_a_new_customer(self):
         directory = self.snapshot_directory({})
