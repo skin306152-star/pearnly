@@ -113,3 +113,48 @@
 实现：本批文件。测试：`compose config`、整栈 up、三站点建站+migrate、入口 200 冒烟。
 部署：未执行（测试机不是正式环境，未动正式服务器）。外部业务结果：未产生。
 用户验收：未确认。
+
+## 每个产品一套栈 + 自动收尾 + 按产品切换（2026-09-24 深夜–09-25）
+
+新方案替代上面"一套栈、三个空白站点"的旧流程（上面的原文保留，作为当时的事实）。
+用户口径：*"我只想把测试环境固化成一个标准流程，且能快速验证的…把对应的 app 测试账号
+域名数据 line / ocr / 第三方 erp 全部一键切到测试环境，我马上就能真实测试验证…dms 单独的
+容器，未来 erp 进来也要单独的容器，不要全部放在一起到时候怕有冲突。"*
+
+### 改了什么
+
+- **一个产品一套栈**：项目名 `pearnly-testenv-<app>`，各自独立的 MariaDB、两个 Redis、站点卷、
+  网络与容器；端口固定分配（前端 8183/8182/8181、账本 8184），所以 `up <app>` 会先停掉别的
+  测试栈（容器删、**卷保留**）。改坏一个产品不会碰到另一个。
+- **驱动与被测代码分开**：`scripts/testenv.sh`、`infrastructure/testenv/*`、`docs/development/
+  test-environment.md` 取**驱动分支**；产品代码与 `production/compose.yml` 取
+  `PEARNLY_TESTENV_SRC`（默认当前工作树）——在哪台窗口跑都不会串。
+- **换镜像后的三件事自动做**（`finish-start.py`，过去靠人记）：`bench migrate`、
+  `bench clear-cache`、写 `pearnly_ocr_budget_redis` 与队列超时。漏掉的症状分别是
+  `Table 'tab<新 DocType>' doesn't exist`、"新功能看不见"（旧资源版本号）、LINE 发照片入队即失败。
+- **账本站也导进来**（`billing-init.py` + 导入脚本）：不导的话测试租户的付费链路会一直重试。
+- **按产品切换**：`lab-start|lab-stop [dms|erp]`，只动指定产品的域名；隧道本身同时带两个域名，
+  所以"切哪个"只是建/删对应那条 CNAME，不需要改隧道配置。
+
+### 现在设备上的实际状态（只读核对）
+
+- **dms 栈**：在跑（`pearnly-testenv-dms-*` 11 个容器 + mariadb + 两个 redis），per-app 卷
+  `pearnly-testenv-dms_{database,queue,sites-dms,sites-billing}` 已建在用；站点卷里有
+  `dms.test.localhost` 与导入的 `testdms.pearnly.com`。
+- **erp 栈**：**还没起过第一次**（没有 `pearnly-testenv-erp_*` 卷）。脚本已支持，第一次
+  `lab-start erp` 才建卷并导入；第一次遇到问题按文档排查，不算"流程坏了"。
+- **旧单栈卷**（`pearnly-testenv_sites-dms|erp|cowork|billing`）仍在，属上一版设计的残留，
+  未被引用；是否删除待用户确认（删了不影响现在这套）。
+
+### 复用
+
+见 [测试环境文档的"复用"一节](../development/test-environment.md#复用同一套环境反复用每次只需挑一条)：
+七条常用命令、以及几个最容易忘的点（驱动分支、一次只跑一个产品、镜像必须钉 digest）。
+
+### 分支与合并状态（如实登记）
+
+- 这套驱动在 **`codex/testenv-per-app`**，已推远端；**尚未合进 `main`**。
+  主线上的 `scripts/testenv.sh` 与 `docs/development/test-environment.md` 仍是旧的单栈流程，
+  所以复用它必须从这个工作树（或远端同名分支）跑。
+- 老记录里两处已过期、以本节为准：**账本站已经建好并导入**；**billing-web 的镜像漂移已随
+  新的 per-app 栈消解**（每套栈都钉同一个 digest）。
