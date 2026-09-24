@@ -1,10 +1,13 @@
 """Local preview only; transactional fixtures and no external network calls."""
+from contextlib import nullcontext
+from types import SimpleNamespace
 from unittest.mock import patch
 import frappe
 from frappe.utils.password import get_decrypted_password
 frappe.init(site='auth-preview.localhost'); frappe.connect()
 assert frappe.local.site == 'auth-preview.localhost'
 from pearnly_dms.operators import roster, advisors
+from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_core import line_binding
 from pearnly_core.account import preferences, oidc_session
 from pearnly_core.desk import permissions
@@ -35,19 +38,39 @@ try:
         assert not frappe.has_permission('User','read',user)
         assert not frappe.has_permission('User','write',user)
         assert frappe.has_permission('User','write',frappe.get_doc('User','preview@example.test'))
-        with patch.object(advisors.masters_cache,'get_masters',return_value={'advisors':[['A','C','Verified Name','private-phone']]}) as masters:
+        # This legacy fixture is deliberately uncommitted and rolled back below.
+        # Use its own connection for the final scope read; cross-connection/RR
+        # credential changes are covered in the dedicated snapshot lab instead.
+        live_reads = []
+        def live_advisors(endpoint, callback, **kwargs):
+            assert endpoint == ep.name and kwargs == {'authoritative_read': True}
+            def advisor_rows():
+                live_reads.append('txtusers')
+                return [['A','C','Verified Name','private-phone']]
+            return callback(SimpleNamespace(_advisor_rows=advisor_rows), None)
+        cached = {'data': {'masters': {'advisors': [['A','C','Cached Name','private-phone']]}}}
+        with patch.object(advisors.store, 'read', return_value=cached) as cache, \
+                patch.object(advisors, 'run_logged_in', side_effect=live_advisors) as live, \
+                patch.object(advisors.store, '_cache_connection', side_effect=lambda: nullcontext(frappe.db)):
             row = roster.update_operator(op['name'],display_name='Updated', dms_role='admin',can_query_dms=1,advisor_id='A',advisor_name='forged')
             assert row['advisor_name']=='Verified Name' and row['role']=='admin' and row['can_query_dms']
-            assert not any('private-phone' in str(o) for o in advisors.options())
+            choices = advisors.options()
+            assert choices == [{'id':'A','code':'C','name':'Cached Name'}]
+            assert not any('private-phone' in str(o) for o in choices)
+            cache.assert_called_once_with(ep.name, 'company')
             try: roster.update_operator(op['name'],advisor_id='missing')
             except frappe.ValidationError: pass
             else: raise AssertionError('invalid advisor accepted')
-            assert masters.call_args.kwargs == {'force_refresh':True,'require_complete':True}
-        with patch.object(advisors.masters_cache,'get_masters',return_value={}):
+            assert live.call_count == 2 and live_reads == ['txtusers', 'txtusers']
+        with patch.object(advisors.store, 'read', side_effect=DmsClientError('No snapshot', 'ERR_DMS_SNAPSHOT_PENDING')), \
+                patch.object(advisors, 'run_logged_in', return_value={'ok':False,'error_code':'ERR_DMS_AUTH'}) as live, \
+                patch.object(advisors.store, '_cache_connection', side_effect=lambda: nullcontext(frappe.db)):
             assert roster.api_advisors() == {'items': [], 'error': 'roster.advisor.loadError'}
+            live.assert_not_called()
             try: roster.update_operator(op['name'],advisor_id='A')
             except frappe.ValidationError: pass
             else: raise AssertionError('failed refresh accepted')
+            assert live.call_count == 1 and live.call_args.kwargs == {'authoritative_read':True}
         password = get_decrypted_password('DMS Operator',op['name'],'dms_password')
         roster.update_operator(op['name'],dms_password='')
         assert get_decrypted_password('DMS Operator',op['name'],'dms_password') == password

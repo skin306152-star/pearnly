@@ -11,6 +11,7 @@
 - [ADR-007 前端皮肤：色值整份沿用 pearnly-app 的设计系统](0007-frontend-skin.md)
 - [ADR-008 云端计费、本地控制面](0008-production-billing.md)
 - [ADR-009 各产品自己声明菜单、功能目录与术语表](0009-product-owned-declarations.md)
+- [ADR-010 DMS 后台完整读快照](0010-dms-background-read-snapshots.md)
 
 待定稿：
 

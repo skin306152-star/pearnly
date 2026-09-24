@@ -24,12 +24,17 @@ image_record_temp=
 trap '[[ -z "$image_record_temp" ]] || rm -f "$image_record_temp"; printf "Activation failed; inspect maintenance status, migration and backups before recovery.\n" >&2' ERR
 "${compose[@]}" stop -t 30 "$product-ocr-dispatch" "$product-scheduler"
 "${compose[@]}" stop -t 130 "$product-web" "$product-socketio"
-"${compose[@]}" stop -t 660 "$product-worker" "$product-ocr-worker"
+workers=("$product-worker" "$product-ocr-worker")
+if [[ "$product" == dms ]]; then workers+=(dms-sync-worker); fi
+"${compose[@]}" stop -t 660 "${workers[@]}"
 PEARNLY_IMAGE="$previous_image" "${compose[@]}" run --rm --no-deps "$product-web" bench --site all backup --with-files
 "${compose[@]}" run --rm --no-deps "$product-web" env/bin/python -m pearnly_core.execution.configuration --redis-url redis://redis-queue:6379/6
+if [[ "$product" == dms ]]; then
+  "${compose[@]}" run --rm --no-deps dms-web env/bin/python /opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py
+fi
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all migrate
 "${compose[@]}" run --rm --no-deps "$product-web" bench --site all enable-scheduler
-"${compose[@]}" up -d --no-deps --force-recreate "$product-web" "$product-worker" "$product-ocr-worker" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
+"${compose[@]}" up -d --no-deps --force-recreate "$product-web" "${workers[@]}" "$product-ocr-dispatch" "$product-scheduler" "$product-socketio" "$product-frontend"
 # Pin only this product. Keep the legacy shared record unchanged for products
 # that have not been activated separately; their next provisioning job must not
 # silently upgrade them. Write the exact verified input, not an arbitrary first

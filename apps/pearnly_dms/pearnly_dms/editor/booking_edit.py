@@ -9,12 +9,12 @@
 LINE 里点预览卡的 `[แก้ไข]`（编辑）→ 打开本站点网页编辑器 → 改完保存 → **新版预览卡
 发回 LINE**。所以：
 
-  · 每个请求只登录 DMS **一次**：主档、当前客户、五类银行目录、选中车型颜色、四级地址
-    标签都吃 `dms_edit_snapshot.read_edit_snapshot` 的同一份请求级新鲜快照。
+  · 每个请求不登录 DMS：主档、客户、银行和颜色使用同一代五分钟完整快照；
+    地址使用独立每日完整目录。`read_edit_snapshot` 返回各自真实采集时间。
   · `save` **只有在 LINE 确认收到新版预览卡之后才算成功** —— 页面先关、卡没发出去，
     是最难查的一种"看起来成功"。
-  · 校验全部按**当前** DMS 权威主档判（称谓/地点/车型/条件/登记/银行都可能被 12h 快照
-    带偏），拿不到权威快照就 fail closed（`master_unavailable`），绝不拿旧缓存顶上。
+  · 编辑只按完整且未超过容许期限的快照校验，缺失明确待同步；最终确认外部写入时
+    另作实时复核，不能把本地预览通过当成 DMS 已接受。
 
 ## 会话态与 nonce
 
@@ -188,14 +188,21 @@ def _snapshot(
     customer: Optional[dict] = None,
     customer_id: str = "",
     preserve_empty_geo: bool = False,
+    include_booking_masters: bool = True,
 ) -> dict:
-    """本请求唯一一次权威登录取回的快照；读不到就 fail closed（不拿旧缓存冒充实时）。"""
+    """本请求只读完整本地代际；缺失/过期明确报错，不触发外部读取。"""
     kwargs = {"car_ids": car_ids, "customer": customer}
     if customer_id:
         kwargs["customer_id"] = customer_id
     if preserve_empty_geo:
         kwargs["preserve_empty_geo"] = True
-    snapshot = read_edit_snapshot(endpoint, **kwargs)
+    if not include_booking_masters:
+        kwargs["include_booking_masters"] = False
+    from pearnly_dms.contracts.client_base import DmsClientError
+    try:
+        snapshot = read_edit_snapshot(endpoint, **kwargs)
+    except DmsClientError as exc:
+        raise DmsBookingEditError("dms.err." + exc.error_code, 503) from exc
     if not snapshot:
         raise DmsBookingEditError("dms_booking.master_unavailable", 503)
     return snapshot
@@ -231,14 +238,13 @@ def _snapshot_paints(snapshot: dict, car_id: str) -> list:
 def load(line_user_id: str, nonce: str) -> dict:
     _, payload, endpoint = _review(line_user_id, nonce)
     qa = payload.get("qa") or {}
-    # 编辑页展示的是用户即将确认的主档，不能让 12 小时前的银行/车型快照继续占位：
-    # 主档 + 本次要展示的车型颜色在**同一次登录**里读回（不再为同一车型颜色登第二次）。
+    # 主档与颜色来自同一完整本地代际，不在页面加载时排队登录。
     car_id = str(((qa.get("answers") or {}).get("car") or {}).get("id") or "")
     form = _form(qa)
     # An explicitly saved form is complete, including intentional blanks and
     # corrected identity fields. Do not refill it with the still-unsubmitted
     # external customer record when reopening the editor.
-    customer_id = "" if qa.get("customer_edited") else str((qa.get("customer") or {}).get("id") or "")
+    customer_id = "" if qa.get("customer_baseline") or qa.get("customer_edited") else str((qa.get("customer") or {}).get("id") or "")
     snapshot = _snapshot(
         endpoint,
         car_ids=(car_id,) if car_id else (),
@@ -248,10 +254,16 @@ def load(line_user_id: str, nonce: str) -> dict:
     # 身份证草稿已填的值优先；缺失的称谓/邮编/地址 id 从同一次管理员权威直读补齐。
     resolved_customer = snapshot.get("resolved_customer") or {}
     form["customer"].update({key: str(resolved_customer.get(key) or "") for key in CUSTOMER_FIELDS})
+    qa = {**qa, "customer_edit_form": dict(form["customer"])}
+    if customer_id and snapshot.get("customer"):
+        qa["customer_baseline"] = dict(snapshot["customer"])
+    if not store.replace_review_payload(line_user_id, nonce, {**payload, "qa": qa}):
+        raise DmsBookingEditError("dms_booking.expired", 409)
     masters = _masters(snapshot)
     prefix_rows = masters.get("prefixes") or []
     return {
         "form": form,
+        "snapshot": snapshot.get("snapshot", {}),
         "masters": {
             "places": _options(masters.get("place_books") or []),
             "cars": _options(masters.get("cars") or [], car_label),
@@ -266,7 +278,7 @@ def load(line_user_id: str, nonce: str) -> dict:
         },
         # 与 LINE 对话同一条规则：这几类目录权威为空 → 银行名称手工填，hidden id 留空。
         "manual_banks": _manual_bank_keys(masters),
-        # 首屏直接复用同一次权威快照，避免移动端再为四级地址重复登录 DMS 四次。
+        # 首屏携带本地完整地址目录的当前层级选项，避免多次页面往返。
         "geo": {key: _options(rows) for key, rows in (snapshot.get("geo") or {}).items()},
     }
 
@@ -287,8 +299,13 @@ def geo(line_user_id: str, nonce: str, level: str, parent_id: str = "") -> List[
         raise DmsBookingEditError("dms_booking.invalid_geo")
     result = _geo_options(endpoint, level=level, parent_id=parent_id)
     if not result.get("ok"):
-        raise DmsBookingEditError("dms_booking.geo_unavailable", 503)
+        raise _read_error(result, "dms_booking.geo_unavailable")
     return _options(result.get("options") or [])
+
+
+def _read_error(result: dict, fallback: str) -> DmsBookingEditError:
+    code = str(result.get("error_code") or "")
+    return DmsBookingEditError("dms.err." + code if code.startswith("ERR_DMS_SNAPSHOT_") else fallback, 503)
 
 
 # ── save ─────────────────────────────────────────────────────────────────
@@ -357,12 +374,12 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     """保存草稿并**同步确认**新版预览卡已送达 LINE；返回轮换后的新 nonce。"""
     binding, payload, endpoint = _review(line_user_id, nonce)
     qa = dict(payload.get("qa") or {})
-    original_customer = _form(qa)["customer"]
+    original_customer = qa.get("customer_edit_form") or _form(qa)["customer"]
     customer = _customer(dict(submitted.get("customer") or {}))
     raw_answers = dict(submitted.get("answers") or {})
     car_id = str(raw_answers.get("car_id") or "")
     # 保存校验按当前 DMS 主档判（称谓/地点/车型/条件/登记/银行都可能被 12h 快照带偏），
-    # 而主档、银行目录、选中车型颜色、客户四级地址标签**共用同一次登录**的一份新鲜快照。
+    # 主档、银行和颜色复用完整业务快照；四级地址使用每日目录，均不现场登录。
     snapshot = _snapshot(endpoint, car_ids=(car_id,), customer=customer)
     masters = _masters(snapshot)
     customer_changed = any(
@@ -389,6 +406,12 @@ def save(line_user_id: str, nonce: str, submitted: dict) -> str:
     qa["summary"] = qa_cards._fallback_summary(qa)
     # 网页端改过客户资料 → 记一条，后续"资料有差异"的分支按它走。
     qa["customer_dirty"] = bool(qa.get("customer_dirty")) or customer_changed
+    from pearnly_dms.contracts.customer_merge import flatten
+    edits = {key: customer[key] for key in CUSTOMER_DIRTY_FIELDS
+             if str(customer.get(key) or "") != str(original_customer.get(key) or "")}
+    qa["customer_changes"] = {**qa.get("customer_changes", {}), **flatten(edits)}
+    # Freeze the original server-owned view; never accept a baseline from submitted JSON.
+    # A pre-upgrade draft without a baseline will fail closed at the live write.
     qa["customer_edited"] = True
     qa["answers"] = {
         "place": _pick(masters, "place", raw_answers.get("place_id")),

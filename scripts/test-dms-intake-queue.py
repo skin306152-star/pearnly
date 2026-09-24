@@ -191,9 +191,7 @@ class IntakeQueue(unittest.TestCase):
     def test_phone_entry_reaches_real_guard_consumer_and_free_reply(self):
         self.fixture()
         self.event(text=PHONE)
-        self.assertEqual(self.jobs[0][1]["arguments"]["attempt"], 1)
-        self.assertEqual(self.jobs[0][1]["arguments"]["reply_token"], "reply-initial")
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assert_review("reply-initial")
         self.lookup.assert_called_once()
         self.assertEqual(self.lookup.call_args.kwargs["attempt"], 1)
@@ -202,10 +200,9 @@ class IntakeQueue(unittest.TestCase):
     def test_duplicate_delivery_does_not_repeat_lookup_or_result(self):
         self.fixture()
         self.event(text=PHONE)
-        delivered = copy.deepcopy(self.jobs[0])
-        self.worker()
-        self.jobs.append(delivered)
-        self.worker()
+        self.flow.run_dedup({"user_id": USER, "binding_revision": "revision-1"},
+                            LINE_USER, CARD, PHONE, "offline-endpoint", reply_token="duplicate")
+        self.assertFalse(self.jobs)
         self.lookup.assert_called_once()
         self.assertEqual(len(self.messages()), 1)
 
@@ -220,7 +217,7 @@ class IntakeQueue(unittest.TestCase):
                     else:
                         action = self.cards.ACT_MENU_CUSTOMER if choice == "1" else self.cards.ACT_MENU_BOOKING
                         self.event(action=action, token=token)
-                    self.worker()
+                    self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
                     self.assert_review(token, mode)
         self.assertEqual(self.lookup.call_count, 4)
         self.assertEqual(self.counts, {"reply_ok": 4})
@@ -229,26 +226,26 @@ class IntakeQueue(unittest.TestCase):
         self.fixture()
         self.reply_status = 400
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertEqual([kind for kind, _ in self.messages()], ["reply", "push"])
         self.assertEqual(self.counts, {"reply_rejected": 1, "push_ok": 1})
 
     def test_missing_reply_token_keeps_counted_push_fallback(self):
         self.fixture()
         self.event(text=PHONE, token="")
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertEqual([kind for kind, _ in self.messages()], ["push"])
         self.assertEqual(self.counts, {"push_ok": 1})
 
-    def test_retry_button_queues_real_dedup_with_new_token_and_attempt(self):
+    def test_retry_button_runs_cached_dedup_with_new_token_and_attempt(self):
         self.fixture()
         self.lookup.side_effect = [UNREACHABLE, SUCCESS]
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertEqual(self.store.get_session(LINE_USER)["payload"]["dms_retry"]["attempt"], 1)
         self.assertIn("quickReply", self.messages()[-1][1]["messages"][0])
         self.event(action=self.cards.ACT_RETRY, token="reply-retry")
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assert_review("reply-retry")
         self.assertEqual([call.kwargs["attempt"] for call in self.lookup.call_args_list], [1, 2])
         self.assertEqual(self.counts, {"reply_ok": 2})
@@ -257,10 +254,10 @@ class IntakeQueue(unittest.TestCase):
         self.fixture()
         self.lookup.return_value = UNREACHABLE
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         for attempt in (2, 3):
             self.event(action=self.cards.ACT_RETRY, token=f"reply-retry-{attempt}")
-            self.worker()
+            self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertNotIn("dms_retry", self.store.get_session(LINE_USER)["payload"])
         self.assertNotIn("quickReply", self.messages()[-1][1]["messages"][0])
         self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-retry-3")
@@ -272,7 +269,7 @@ class IntakeQueue(unittest.TestCase):
         self.fixture()
         self.lookup.return_value = {"ok": False, "error_code": "ERR_DMS_ADMIN_AUTH"}
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertNotIn("dms_retry", self.store.get_session(LINE_USER)["payload"])
         self.assertNotIn("quickReply", self.messages()[-1][1]["messages"][0])
         self.assertEqual(self.messages()[-1][1]["replyToken"], "reply-initial")
@@ -282,8 +279,13 @@ class IntakeQueue(unittest.TestCase):
             with self.subTest(mutation=mutation):
                 self.db = MemoryDatabase()
                 frappe.db = self.db
-                self.fixture()
-                self.event(text=PHONE)
+                self.fixture(phone=True)
+                # A persisted pre-upgrade job must still reject a revoked binding.
+                self.jobs.append(("pearnly_dms.line.out.run_guarded", {
+                    "queue": "long", "target": "pearnly_dms.intake.flow.run_dedup",
+                    "arguments": {"binding": {"user_id": USER, "binding_revision": "revision-1"},
+                        "line_user_id": LINE_USER, "id_card": CARD, "phone": PHONE,
+                        "endpoint_id": "offline-endpoint", "reply_token": "old-job"}}))
                 if mutation == "unbind":
                     self.db.rows["Pearnly LINE Binding", "binding"]["status"] = "unbound"
                 elif mutation == "rebind":
@@ -303,7 +305,7 @@ class IntakeQueue(unittest.TestCase):
             return SUCCESS
         self.lookup.side_effect = revoke
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertEqual(self.store.get_session(LINE_USER)["state"], "collecting")
         self.assertFalse(self.messages())
 
@@ -314,14 +316,14 @@ class IntakeQueue(unittest.TestCase):
             return SUCCESS
         self.lookup.side_effect = choose_another_flow
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         self.assertEqual(self.store.get_session(LINE_USER), {"state": "menu", "payload": {}})
         self.assertFalse(self.messages())
 
     def review_for_write(self, kind):
         self.fixture()
         self.event(text=PHONE)
-        self.worker()
+        self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
         payload = self.store.get_session(LINE_USER)["payload"]
         if kind == "update":
             payload.update(customer_id="offline-customer", field_diffs=[
@@ -353,7 +355,14 @@ class IntakeQueue(unittest.TestCase):
                     self.assertEqual(button["type"], "uri")
                     self.assertIn("needs-address", button["uri"])
                     self.assertIn("editor=customer", button["uri"])
-                    self.assertIn(self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"), str(card))
+                    # 话术**必须说清是"地址没选全"**：2026-09-25 实测里那条
+                    # "所选项目已不在主档"让操作员以为 DMS 把数据删了。
+                    self.assertIn(
+                        self.flow.dms_intake.friendly("ERR_DMS_ADDRESS_INCOMPLETE", lang="th"),
+                        str(card))
+                    self.assertNotIn(
+                        self.flow.dms_intake.friendly("ERR_DMS_MASTER_UNMATCHED", lang="th"),
+                        str(card))
 
     def test_incomplete_address_stale_nonce_is_rejected_without_edit_ticket(self):
         self.store.set_session(LINE_USER, "reviewing", {"nonce": "current", "draft": {}})
@@ -383,24 +392,18 @@ class IntakeQueue(unittest.TestCase):
                 self.assertIn("phone-only", button["uri"])
 
     def test_missing_catalog_name_reaches_review_and_edit_through_real_lookup(self):
-        from pearnly_dms.client.gateway import DmsClient
-        from pearnly_dms.client.transport import Resp
-
-        pages = {
-            "cus/form.php": '<select name="selprovinces"><option value="2">สมุทรปราการ</option></select><select name="selprefix"><option value="17">นาย</option></select>',
-            "drfcbc/form.php": "",
-            "cus/component/showdata.php": "ndt::",
-            "cus/component/listdistricts.php": '<option value="51">เมืองสมุทรปราการ</option>',
-            "cus/component/listsubdistricts.php": '<option value="158">ท้ายบ้าน</option><option value="155">เทศบาลนครสมุทรปราการ</option>',
-        }
-        def respond(url, data=None, **kwargs):
-            path = url.removeprefix("https://offline.invalid/dms/")
-            self.assertIn(path, pages)  # No zip request without a matched subdistrict; no writes.
-            return Resp(200, pages[path], pages[path].encode())
-        client = DmsClient(Mock(post=respond), "https://offline.invalid/dms/")
-        def authenticated(endpoint, fn, **kwargs):
-            self.assertTrue(kwargs["authoritative_read"])
-            return fn(client, None)
+        from pearnly_dms.snapshots import store as snapshots
+        geo = {"provinces": {"": [["2", "สมุทรปราการ"]]},
+               "districts": {"2": [["51", "เมืองสมุทรปราการ"]]},
+               "subdistricts": {"51": [["158", "ท้ายบ้าน"], ["155", "เทศบาลนครสมุทรปราการ"]]},
+               "zipcodes": {"158": [], "155": []}}
+        cached_groups = {"geo": geo, "customers": {"prefixes": [["17", "นาย"]], "customers": {}}}
+        cache_reads = []
+        def cached(endpoint, dataset, **kwargs):
+            self.assertIn(dataset, cached_groups, "Intake must only use customers and address data")
+            cache_reads.append(dataset)
+            return {"data": copy.deepcopy(cached_groups[dataset]), "as_of": 100,
+                    "completed_at": 110, "generation": "local-" + dataset, "stale": False}
         self.fixture()
         sess = self.store.get_session(LINE_USER)
         source = {"province": "สมุทรปราการ", "district": "เมืองสมุทรปราการ",
@@ -408,10 +411,11 @@ class IntakeQueue(unittest.TestCase):
         sess["payload"]["id_card"]["address"] = source
         self.store.set_session(LINE_USER, "collecting", sess["payload"])
         self.lookup.side_effect = self.real_lookup
-        with patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
-             patch.object(self.flow.dms_intake.time, "sleep"):
+        with patch.object(snapshots, "read", side_effect=cached), \
+             patch.object(self.flow.dms_intake, "run_logged_in", side_effect=AssertionError("cache read logged in")):
             self.event(text=PHONE)
-            self.worker()
+            self.assertFalse(self.jobs)
+        self.assertEqual(set(cache_reads), {"customers", "geo"})
         current = self.store.get_session(LINE_USER)
         self.assertEqual(current["state"], "reviewing")
         payload = current["payload"]
@@ -471,7 +475,9 @@ class IntakeQueue(unittest.TestCase):
         def list_geo(level, parent):
             self.assertEqual(parent, parents[level])
             return catalog[level]
-        client = Mock(read_customer=Mock(return_value=complete), list_geo=Mock(side_effect=list_geo))
+        client = Mock(read_customer=Mock(return_value=complete), list_geo=Mock(side_effect=list_geo),\
+                      masters=Mock(return_value={"prefixes": [["17", "นาย"]]}),\
+                      list_prefixes=Mock(return_value=[["17", "นาย"]]), metadata=Mock(return_value={}))
         def authenticated(endpoint, fn, **kwargs):
             self.assertTrue(kwargs["authoritative_read"])
             return fn(client, None)
@@ -483,9 +489,7 @@ class IntakeQueue(unittest.TestCase):
         result = {"ok": True, "scenario": "exact", "match": {
             "customer_id": "offline-customer", "current_fields": complete}}
         with patch.object(customer_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}), \
-             patch.object(edit_snapshot, "_shared_masters", return_value={"prefixes": [["17", "นาย"]]}), \
-             patch.object(edit_snapshot, "_store"), \
-             patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
+             patch.object(edit_snapshot, "Directory", return_value=client), \
              patch.object(customer_edit, "recognize_lookup", return_value=result) as lookup, \
              patch.object(customer_edit.draft, "has_admin_creds", return_value=False):
             loaded = customer_edit.load(LINE_USER, "old-customer")
@@ -519,7 +523,9 @@ class IntakeQueue(unittest.TestCase):
         def list_geo(level, parent):
             self.assertEqual(parent, parents[level])  # Never hydrate old/incorrect subdistrict 158.
             return catalog[level]
-        client = Mock(read_customer=Mock(return_value=old), list_geo=Mock(side_effect=list_geo))
+        client = Mock(read_customer=Mock(return_value=old), list_geo=Mock(side_effect=list_geo),\
+                      masters=Mock(return_value={"prefixes": [["17", "นาย"]]}),\
+                      list_prefixes=Mock(return_value=[["17", "นาย"]]), metadata=Mock(return_value={}))
         def authenticated(endpoint, fn, **kwargs):
             self.assertTrue(kwargs["authoritative_read"])
             return fn(client, None)
@@ -531,9 +537,7 @@ class IntakeQueue(unittest.TestCase):
         result = {"ok": True, "scenario": "exact", "match": {
             "customer_id": "offline-customer", "current_fields": old}}
         with patch.object(customer_edit, "resolve_dms_endpoint", return_value={"name": "offline-endpoint"}), \
-             patch.object(edit_snapshot, "_shared_masters", return_value={"prefixes": [["17", "นาย"]]}), \
-             patch.object(edit_snapshot, "_store"), \
-             patch.object(self.flow.dms_intake, "run_logged_in", side_effect=authenticated), \
+             patch.object(edit_snapshot, "Directory", return_value=client), \
              patch.object(customer_edit, "recognize_lookup", return_value=result) as lookup, \
              patch.object(customer_edit.draft, "has_admin_creds", return_value=True):
             loaded = customer_edit.load(LINE_USER, "ocr-unmatched")

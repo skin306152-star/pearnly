@@ -26,14 +26,28 @@ doc_events = {
     },
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
+pearnly_dms_snapshot_collectors = [
+    {"dataset": "vehicles", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset": "company", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset": "customers", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset_prefix": "query.", "reader": "sales",
+     "method": "pearnly_dms.query.snapshot_sync.refresh"},
+    {"dataset": "geo", "reader": "authority",
+     "method": "pearnly_dms.adapter.geo_sync.refresh"},
+]
 scheduler_events = {"cron": {
-    # 主档后台预热：每分钟只看新鲜度，超过 45 秒才派发一次刷新（口径照老产品
-    # `dms_master_refresh.sweep`）。没有它，用户点第一下就要现场等一次全量登录。
-    "* * * * *": ["pearnly_dms.adapter.warm.sweep"],
     "*/10 * * * *": [schedule_menu_reconciliation],
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
+    # 每日全量回读（第二层保险）：泰国凌晨 4:00 那一枪，4:45 那一枪是失败重试
+    # （数据已经够新的组会被跳过，所以成功之后第二枪什么都不做）。
+    # cron 按**站点时区**求值，本站 Asia/Bangkok → 就是泰国凌晨 4 点。
+    "0 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
+    "45 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
 }}
 
 # Apps

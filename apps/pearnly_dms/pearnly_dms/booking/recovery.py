@@ -15,7 +15,7 @@ from pearnly_core import line_session as store
 from pearnly_dms.booking import booking_ledger, delivery
 from pearnly_dms.booking.booking_submit import verify_created_booking
 from pearnly_dms.contracts.endpoint import endpoint_name
-from pearnly_dms.intake.service import run_logged_in
+from pearnly_dms.adapter.operations import run_logged_in
 from pearnly_dms.line.identity import matches
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
 

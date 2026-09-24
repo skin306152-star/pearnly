@@ -163,10 +163,24 @@ def _binding(line_user_id: str, user: str) -> dict:
     `tenant_id` = 站点名：我们"每产品一个站点"就是租户隔离，所以会话/台账都不用再带
     租户字段（见 `pearnly_core/line_session.py`）；这里保留这个键只是为了和对话流的
     签名对齐，值为站点名。
+
+    `binding_revision` 必须带上：菜单 5 的「读取」/「看结果」在真正入队前要核对**这张卡
+    对应的那次绑定**（`query_flow._manual_action` → `snapshot_sync._guard`），而它的判据是
+    "绑定版本非空且仍然是当前绑定"。少了这个键，那两个按钮会被判成"没有权限" ——
+    2026-09-25 线上实测就是这个症状（操作员点读取只收到"未获授权搜索"）。后台任务那条路
+    由 `line/out.py` 在入队时补上同一个版本，两处同源（都取 `identity.current`）。
     """
     import frappe
 
-    return {"line_user_id": line_user_id, "user_id": user, "tenant_id": frappe.local.site}
+    from pearnly_dms.line import identity
+
+    live = identity.current(line_user_id) or {}
+    return {
+        "line_user_id": line_user_id,
+        "user_id": user,
+        "tenant_id": frappe.local.site,
+        "binding_revision": str(live.get("binding_revision") or ""),
+    }
 
 
 def _reply_need_bind_or_help(user_id: str, reply_token: str) -> None:

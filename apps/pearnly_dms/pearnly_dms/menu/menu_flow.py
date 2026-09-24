@@ -189,6 +189,7 @@ def _continue_booking(
         summary=payload.get("summary"),
         user_id=str(binding.get("user_id") or ""),
         id_card_mid=payload.get("id_card_mid") or None,
+        reply_token=reply_token,
     )
 
 

@@ -7,7 +7,9 @@ the authenticated DMS client boundary are replaced. Does not claim external
 DMS HTML/browser or actual LINE acceptance. No scheduler/worker daemon is run.
 
 Run in bench/sites: ../env/bin/python /workspace/scripts/test-dms-native-flow.py
-Fixture records remain only in this disposable Site for failure inspection.
+Identity fixtures are disabled; ledger/delivery audit records remain only in
+this disposable Site for failure inspection. UUID-owned jobs/snapshots/sessions
+are cleared, never pre-existing native queue jobs.
 Any failed assertion or unexpected queue target fails the process.
 """
 import base64
@@ -17,6 +19,8 @@ import hmac
 import json
 import os
 from pathlib import Path
+import runpy
+import time
 import unittest
 from unittest.mock import patch
 import uuid
@@ -26,16 +30,27 @@ import requests
 from werkzeug.wrappers import Request
 from frappe.utils.background_jobs import get_queue
 from pearnly_core import line, line_session as store
+from pearnly_dms.adapter import operations
 from pearnly_dms.booking import delivery, recovery
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.intake import service as intake_service
 from pearnly_dms.line import cards
 
-SITE = "dms-flow-lab.localhost"
+SNAPSHOT_LAB = os.environ.get("PEARNLY_DMS_SNAPSHOT_LAB") == "1"
+SITE = "dms-snapshot-lab.localhost" if SNAPSHOT_LAB else "dms-flow-lab.localhost"
+SECRET = "dms-snapshot-lab-only" if SNAPSHOT_LAB else "dms-flow-lab-only"
 MARKER = "DMS-NATIVE-FLOW-"
 
 
 def connect():
+    if SNAPSHOT_LAB:
+        # Reuse the strict Site/volume marker, DB, fake credentials, Redis and
+        # paused-scheduler guard. An environment flag alone grants no access.
+        lab = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-store-native.py")))
+        lab["connect"]()
+        if frappe.conf.get("pearnly_line_channel_secret") != SECRET:
+            raise RuntimeError("Refusing foreign snapshot-lab signing credentials")
+        return
     frappe.init(site=SITE, force=True)
     frappe.connect()
     if not frappe.conf.get("pearnly_dms_flow_lab"):
@@ -55,6 +70,7 @@ class DmsFixture:
         self.attach_available = True
         self.attach_calls = 0
         self.form = {}
+        self.callback_results = []
         self.masters = {key: [[rid, rid.upper(), rid.title()]] for key, rid in (
             ("cars", "car"), ("advisors", "advisor"), ("place_books", "place"),
             ("term_sales", "term"), ("regis_behalfs", "regis"))}
@@ -63,7 +79,9 @@ class DmsFixture:
         if self.fail_before_submit:
             return {"ok": False, "error_code": "ERR_DMS_MASTER_UNAVAILABLE"}
         try:
-            return fn(self, self)
+            result = fn(self, self)
+            self.callback_results.append(copy.deepcopy(result))
+            return result
         except DmsClientError as exc:
             return intake_service.err(exc.error_code)
         except requests.RequestException:
@@ -122,14 +140,21 @@ class NativeFlow(unittest.TestCase):
         self.http = []
         self.push_status = 200
         self.jobs_run = []
+        self.snapshot_template = None
+        self.snapshot_keys = set()
+        self.snapshot_jobs = set()
         self.dms = DmsFixture(self.label)
+        self.enterContext(patch.object(frappe, "in_test", True))
         self.enterContext(patch.object(requests.sessions.Session, "request", self.transport))
-        self.enterContext(patch.object(intake_service, "run_logged_in", self.dms.session))
+        self.enterContext(patch.object(operations, "run_logged_in", self.dms.session))
         self.enterContext(patch.object(delivery, "run_logged_in", self.dms.session))
         self.enterContext(patch.object(recovery, "run_logged_in", self.dms.session))
-        frappe.get_doc({"doctype": "User", "email": self.user, "first_name": self.label,
-                        "enabled": 1, "send_welcome_email": 0,
-                        "roles": [{"role": "DMS Admin"}]}).insert(ignore_permissions=True)
+        # Native import mode is scoped to synthetic fixture creation, avoiding
+        # the hourly interactive sign-up throttle in a repeatedly reused lab.
+        with patch.dict(frappe.flags, {"in_import": True}):
+            frappe.get_doc({"doctype": "User", "email": self.user, "first_name": self.label,
+                            "enabled": 1, "send_welcome_email": 0,
+                            "roles": [{"role": "DMS Admin"}]}).insert(ignore_permissions=True)
         frappe.get_doc({"doctype": "Pearnly LINE Binding", "line_user_id": self.uid,
                         "user": self.user, "status": "active"}).insert(ignore_permissions=True)
         endpoint = frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": self.label,
@@ -148,6 +173,35 @@ class NativeFlow(unittest.TestCase):
             for row in self.deliveries():
                 if row.status == "Pending":
                     frappe.db.set_value(delivery.DT, row.name, {"status": "Review", "last_error": "lab_test_finished"})
+            for job_id in self.snapshot_jobs:
+                queue = get_queue("dms_sync")
+                job = queue.fetch_job(job_id)
+                if job:
+                    self.assertEqual(job.kwargs.get("site"), SITE)
+                    self.assertEqual(job.kwargs.get("method"), "pearnly_dms.query.snapshot_sync.refresh")
+                    self.assertEqual(job.kwargs.get("kwargs"), {"endpoint": self.endpoint})
+                    queue.remove(job_id)
+                    job.delete()
+            from pearnly_dms.snapshots import store as snapshots
+            for scope_key in self.snapshot_keys:
+                frappe.db.delete(snapshots.DT, {"scope_key": scope_key})
+            # Keep ledger/delivery audit records, but revoke this UUID-owned
+            # identity so later Site-wide schedulers cannot adopt its fixtures.
+            if frappe.db.exists("DMS Operator", self.user):
+                operator = frappe.get_doc("DMS Operator", self.user)
+                operator.status = "inactive"
+                operator.save(ignore_permissions=True)
+            session = store.get_session(self.uid) or {}
+            attempt = (session.get("payload") or {}).get("booking_attempt") or {}
+            store.clear_session(self.uid, completed_booking_nonce=attempt.get("nonce", ""))
+            frappe.db.set_value("Pearnly LINE Binding", {"line_user_id": self.uid}, "status", "unbound")
+            frappe.db.set_value("Pearnly ERP Endpoint", self.endpoint, "enabled", 0)
+            frappe.db.set_value("User", self.user, "enabled", 0)
+            if self.snapshot_template:
+                # execute_job reinitializes the Frappe globals; scope test mode
+                # again so deleting this fixture does not enqueue cleanup work.
+                with patch.object(frappe, "in_test", True):
+                    frappe.delete_doc("Pearnly ERP Endpoint", self.snapshot_template, ignore_permissions=True)
             frappe.db.commit()
             frappe.destroy()
 
@@ -170,7 +224,7 @@ class NativeFlow(unittest.TestCase):
         else:
             event.update(type="message", message={"type": "text", "text": text})
         body = json.dumps({"events": [event]}).encode()
-        signature = base64.b64encode(hmac.new(b"dms-flow-lab-only", body, hashlib.sha256).digest()).decode()
+        signature = base64.b64encode(hmac.new(SECRET.encode(), body, hashlib.sha256).digest()).decode()
         frappe.set_user("Guest")
         frappe.local.request = Request.from_values(method="POST", data=body,
             headers={"X-Line-Signature": signature}, content_type="application/json")
@@ -258,6 +312,54 @@ class NativeFlow(unittest.TestCase):
         self.assertEqual(frappe.db.count("Pearnly Push Log", {"actor": self.user, "status": "success"}), 1)
         self.assertTrue(any(self.dms.orders[0]["number"] in str(data.get("json")) for _, url, data in self.http if url.endswith("/push")))
 
+    def test_verified_booking_does_not_automatically_refresh_sales_or_claim_fresh_data(self):
+        from pearnly_dms.snapshots import store as snapshots
+        from pearnly_dms.query import snapshot_sync
+        self.assertFalse(frappe.db.exists("Pearnly ERP Endpoint", {
+            "adapter": "mrerp_dms", "owner_user": ["is", "not set"]}),
+            "Refusing an existing shared connection from another fixture")
+        template = frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": self.label,
+            "adapter": "mrerp_dms", "enabled": 1, "system_url": "https://dms.invalid/index.php",
+            "booking_defaults": "{}"}).insert(ignore_permissions=True)
+        self.snapshot_template = template.name
+        frappe.get_doc({"doctype": "DMS Operator", "user": self.user, "display_name": self.label,
+            "status": "active", "dms_role": "sales", "dms_username": self.label,
+            "dms_password": "fake-only-" + self.label, "can_query_dms": 1}).insert(ignore_permissions=True)
+        self.assertEqual(frappe.db.get_value("Pearnly ERP Endpoint", {"owner_user": self.user}, "name"), self.endpoint)
+        authority = snapshots.scope(self.endpoint)
+        self.snapshot_keys.update((authority, snapshots.scope(self.endpoint, reader="sales")))
+        masters = {**self.dms.masters, "company_banks": [], "branches": [], "employees": [],
+            "prefixes": [["17", "นาย"]], "source_banks": [], "cheque_banks": [],
+            "cashier_banks": [], "card_banks": []}
+        snapshots.publish(self.endpoint, "directory", {"masters": masters,
+            "paints": {"car": [["paint", "PAINT", "Paint"]]},
+            "customers": {"customer": {"customer_id": "customer", **self.dms.read_customer("customer")}}},
+            time.time() - 1, expected_scope=authority)
+        frappe.db.commit()
+        before = snapshots.read(self.endpoint)
+        queue = get_queue("dms_sync")
+        baseline = set(queue.get_job_ids())
+        forbidden = self.enterContext(patch.object(snapshot_sync, "run_logged_in",
+            side_effect=AssertionError("The interactive booking must not execute a sales capture")))
+        self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=self.review())
+        self.assertEqual(self.drain(), 1)
+        created = set(queue.get_job_ids()) - baseline
+        self.snapshot_jobs.update(created)
+        self.assertEqual(created, set())
+        forbidden.assert_not_called()
+        # Durable delivery deliberately projects business fields only. Observe
+        # the unchanged real service callback result, not a fabricated payload.
+        results = [value for value in self.dms.callback_results if value.get("booking_id")]
+        self.assertEqual(len(results), 1)
+        self.assertIs(results[0]["cache_refresh_requested"], False)
+        self.assertIs(results[0]["cache_updated"], False)
+        self.assertEqual(snapshots.read(self.endpoint), before)
+        with self.assertRaises(snapshots.SnapshotUnavailable):
+            snapshots.read(self.endpoint, "sales_query", reader="sales")
+        self.assertEqual(len(self.dms.orders), 1)
+        self.assertEqual(self.deliveries()[0].status, "Delivered")
+        self.assertTrue(self.queue_baseline.issubset(set(get_queue("long").get_job_ids())))
+
     def test_presubmit_failure_rotates_nonce_then_retry_uses_real_queue(self):
         self.dms.fail_before_submit = True
         nonce = self.review()
@@ -337,7 +439,7 @@ class NativeFlow(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    if os.environ.get("PEARNLY_DMS_FLOW_LAB") != "1":
+    if not SNAPSHOT_LAB and os.environ.get("PEARNLY_DMS_FLOW_LAB") != "1":
         raise SystemExit("Run only in the dedicated offline DMS flow laboratory")
     if Path("sites").is_dir():
         os.chdir("sites")

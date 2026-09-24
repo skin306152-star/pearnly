@@ -13,13 +13,12 @@ from __future__ import annotations
 
 import html
 import re
-import unicodedata
-from dataclasses import replace
 from typing import Any, Dict, List, Optional
 from urllib.parse import urljoin
 
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.models import DMSMasterRef
+from pearnly_dms.contracts.geo_matching import normalized, unique, resolve
 
 
 class DmsClientFormsMixin:
@@ -62,13 +61,7 @@ class DmsClientFormsMixin:
         return data
 
     def _norm_geo(self, name: str) -> str:
-        # Only presentation equivalence, never municipality aliases/fuzzy matches.
-        s = " ".join(unicodedata.normalize("NFKC", html.unescape(str(name or ""))).split())
-        for prefix in self._GEO_PREFIXES:
-            prefix = unicodedata.normalize("NFKC", prefix)
-            if s.startswith(prefix):
-                return s[len(prefix) :].strip()
-        return s
+        return normalized(name)
 
     def _parse_options(self, options_html: str) -> List[List[str]]:
         """一段 `<option>` → `[[value, label], ...]`，丢掉空 value 的占位行。"""
@@ -81,12 +74,7 @@ class DmsClientFormsMixin:
         return out
 
     def _match_geo(self, options: List[List[str]], name: str) -> str:
-        target = self._norm_geo(name)
-        if not target:
-            return ""
-        matches = {str(value) for value, label in options
-                   if value and self._norm_geo(label) == target}
-        return next(iter(matches)) if len(matches) == 1 else ""
+        return unique(options, name)
 
     def _resolve_address_geo(self, address, form_html: str):
         """地址文本 → DMS 主档 id，走客户表单自己的级联接口
@@ -96,36 +84,14 @@ class DmsClientFormsMixin:
         子级留空让用户编辑；绝不继承新表单默认值或目录第一项。保存仍由实时
         父级链校验拦截缺项，不能为绕过第三方必填报错而编造地址。
         """
-        address = replace(address, province_id="", district_id="", subdistrict_id="", zipcode_id="")
         prov = re.search(
             r'<select[^>]+name="selprovinces"[^>]*>(.*?)</select>', form_html, re.S | re.I
         )
-        if not prov:
-            return address
-        provinces = self._parse_options(prov.group(1))
-        province_id = self._match_geo(provinces, address.province_name)
-        if not province_id:
-            return address
-        address = replace(address, province_id=province_id)
-
-        districts = self._fetch_options(
-            "cus/component/listdistricts.php", {"selprovinces": province_id}
-        )
-        district_id = self._match_geo(districts, address.district_name)
-        if not district_id:
-            return address
-        address = replace(address, district_id=district_id)
-        subdistricts = self._fetch_options(
-            "cus/component/listsubdistricts.php", {"seldistricts": district_id}
-        )
-        subdistrict_id = self._match_geo(subdistricts, address.subdistrict_name)
-        if not subdistrict_id:
-            return address
-        address = replace(address, subdistrict_id=subdistrict_id)
-        zipcodes = self._fetch_options(
-            "cus/component/listzipcodes.php", {"selsubdistricts": subdistrict_id}
-        )
-        return replace(address, zipcode_id=self._match_geo(zipcodes, address.zipcode))
+        parents = {"districts": "selprovinces", "subdistricts": "seldistricts",
+                   "zipcodes": "selsubdistricts"}
+        return resolve(address, self._parse_options(prov.group(1)) if prov else [],
+            lambda level, parent: self._fetch_options(
+                f"cus/component/list{level}.php", {parents[level]: parent}))
 
     def _fetch_options(self, path: str, body: Dict[str, str]) -> List[List[str]]:
         return self._parse_options(self._post_text(path, body))

@@ -53,6 +53,56 @@ export interface Payment {
   extra: Record<string, string>;
 }
 
+export interface SnapshotInfo {
+  /** Source capture start, Unix seconds; never replace it with browser time. */
+  as_of: number;
+  generation: string;
+  stale: boolean;
+  geo_as_of?: number;
+  geo_stale?: boolean;
+}
+
+const SNAPSHOT_ERRORS = new Set([
+  "ERR_DMS_SNAPSHOT_PENDING", "ERR_DMS_SNAPSHOT_STALE", "ERR_DMS_SNAPSHOT_INCOMPLETE",
+  "ERR_DMS_SNAPSHOT_SCOPE_CHANGED", "ERR_DMS_SNAPSHOT_REQUEST_LIMIT",
+]);
+
+export function snapshotErrorKey(code: string): string {
+  const raw = code.replace(/^dms\.err\./, "");
+  return SNAPSHOT_ERRORS.has(raw) ? `dms.err.${raw}` : "";
+}
+
+export function snapshotLabel(
+  snapshot: SnapshotInfo | undefined,
+  locale: string,
+  translate: (key: string) => string,
+): string {
+  return capturedLabel(snapshot?.as_of, snapshot?.stale, locale, translate,
+    "dms.snapshot.as_of", "dms.snapshot.stale");
+}
+
+export function addressSnapshotLabel(
+  snapshot: SnapshotInfo | undefined,
+  locale: string,
+  translate: (key: string) => string,
+): string {
+  return capturedLabel(snapshot?.geo_as_of, snapshot?.geo_stale, locale, translate,
+    "dms.edit.addressSnapshotAsOf", "dms.edit.addressSnapshotStale");
+}
+
+function capturedLabel(asOf: number | undefined, stale: boolean | undefined, locale: string,
+  translate: (key: string) => string, freshKey: string, staleKey: string): string {
+  if (typeof asOf !== "number" || !Number.isFinite(asOf) || asOf <= 0) return "";
+  const captured = new Date(asOf * 1000);
+  if (!Number.isFinite(captured.getTime())) return "";
+  const time = new Intl.DateTimeFormat(locale, {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+    hour12: false, timeZoneName: "short",
+  }).format(captured);
+  return translate(stale ? staleKey : freshKey)
+    .replaceAll("{time}", time);
+}
+
 export interface Draft {
   form: {
     customer: CustomerForm;
@@ -64,6 +114,7 @@ export interface Draft {
   masters: Record<string, Option[]> & { [key: string]: Option[] };
   manual_banks: string[];
   geo: Record<string, Option[]>;
+  snapshot?: SnapshotInfo;
 }
 
 export interface Config {

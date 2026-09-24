@@ -23,6 +23,8 @@ def main():
     os.environ["PEARNLY_RELEASE_LAB"] = "1"
     os.environ["PEARNLY_RELEASE_LAB_SITES"] = SITE
     setup["main"]()
+    runtime = runpy.run_path(str(Path(__file__).parent / "production/configure-dms-runtime.py"))
+    runtime["install"](Path("sites/common_site_config.json"))
     path = Path("sites") / SITE / "site_config.json"
     config = json.loads(path.read_text())
     config.update(pearnly_dms_flow_lab=True, developer_mode=1,

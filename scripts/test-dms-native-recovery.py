@@ -17,6 +17,8 @@ import copy
 from html import escape
 import json
 import os
+from pathlib import Path
+import runpy
 import unittest
 from unittest.mock import patch
 from urllib.parse import urlsplit
@@ -33,12 +35,19 @@ from pearnly_dms.client.transport import Resp
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.line.identity import current
 
-SITE = "dms-flow-lab.localhost"
+SNAPSHOT_LAB = os.environ.get("PEARNLY_DMS_SNAPSHOT_LAB") == "1"
+SITE = "dms-snapshot-lab.localhost" if SNAPSHOT_LAB else "dms-flow-lab.localhost"
 RECOVER = "pearnly_dms.booking.recovery.reconcile"
 DELIVER = "pearnly_dms.booking.delivery.deliver"
 
 
 def connect():
+    if SNAPSHOT_LAB:
+        lab = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-store-native.py")))
+        lab["connect"]()
+        if frappe.conf.get("pearnly_line_channel_secret") != "dms-snapshot-lab-only":
+            raise RuntimeError("Refusing foreign snapshot-lab signing credentials")
+        return
     frappe.init(site=SITE, force=True)
     frappe.connect()
     if not (frappe.conf.get("pearnly_dms_flow_lab") and frappe.conf.get("db_host") == "db"
@@ -58,12 +67,14 @@ class NativeRecovery(unittest.TestCase):
         self.jobs = set()
         self.revoke_on_download = ""
         self.endpoint = None
+        self.enterContext(patch.object(frappe, "in_test", True))
         self.enterContext(patch.object(requests.sessions.Session, "request", self.line_transport))
         self.enterContext(patch.object(recovery, "run_logged_in", self.authenticated_session))
         self.enterContext(patch.object(delivery, "run_logged_in", self.authenticated_session))
-        frappe.get_doc({"doctype": "User", "email": self.user, "first_name": self.uid,
-                        "enabled": 1, "send_welcome_email": 0,
-                        "roles": [{"role": "DMS Admin"}]}).insert(ignore_permissions=True)
+        with patch.dict(frappe.flags, {"in_import": True}):
+            frappe.get_doc({"doctype": "User", "email": self.user, "first_name": self.uid,
+                            "enabled": 1, "send_welcome_email": 0,
+                            "roles": [{"role": "DMS Admin"}]}).insert(ignore_permissions=True)
         frappe.get_doc({"doctype": "Pearnly LINE Binding", "line_user_id": self.uid,
                         "user": self.user, "status": "active"}).insert(ignore_permissions=True)
         endpoint = frappe.get_doc({"doctype": "Pearnly ERP Endpoint", "label": self.uid,

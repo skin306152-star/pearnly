@@ -15,7 +15,7 @@ from pearnly_core import line
 from pearnly_dms.booking import attachments, booking_ledger
 from pearnly_dms.booking.booking_readback import docno_equal
 from pearnly_dms.contracts.endpoint import endpoint_name
-from pearnly_dms.intake.service import run_logged_in
+from pearnly_dms.adapter.operations import run_logged_in
 from pearnly_dms.line import cards
 from pearnly_dms.line.identity import matches
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint

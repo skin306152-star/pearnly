@@ -23,8 +23,8 @@ class QueryOutput(unittest.TestCase):
     private = "PRIVATE-RESULT-MUST-NOT-LEAK"
     record_params = {"field": "customer", "query": "fixture", "status": "",
                      "limit": 10, "page": 1}
-    top_params = {"group": "model", "metric": "quantity", "date_from": "2026-09-01",
-                  "date_to": "2026-09-24", "limit": 10, "page": 1}
+    top_params = {"group": "model", "metric": "quantity", "date_from": "01/09/2569",
+                  "date_to": "24/09/2569", "limit": 10, "page": 1}
 
     def setUp(self):
         stack = self.stack = ExitStack()
@@ -37,6 +37,7 @@ class QueryOutput(unittest.TestCase):
             "pearnly_line_channel_access_token": "fixture-access-token",
         }))
         self.db = stack.enter_context(patch.object(frappe, "db", new=Mock()))
+        stack.enter_context(patch.object(frappe, "flags", new=frappe._dict()))
         cache = Mock()
         cache.make_key.side_effect = lambda key: "fixture:" + key
         stack.enter_context(patch.object(frappe, "cache", return_value=cache))
@@ -67,6 +68,7 @@ class QueryOutput(unittest.TestCase):
         self.allowed.side_effect = None
         self.allowed.return_value = True
         self.binding_matches.return_value = True
+        self.session.return_value = {"state": "query_sales"}
         for read in self.reads.values():
             read.reset_mock()
 
@@ -83,8 +85,10 @@ class QueryOutput(unittest.TestCase):
         if kind == "dimensions":
             query_flow._run_dimensions(self.binding, self.line_user, token)
         elif kind == "records":
+            self.session.return_value = {"state": "query_results", "payload": {**self.record_params, "query_kind": "records"}}
             query_flow._run_records(self.binding, self.line_user, self.record_params, token)
         else:
+            self.session.return_value = {"state": "query_results", "payload": {**self.top_params, "query_kind": "top"}}
             query_flow._run_top(self.binding, self.line_user, self.top_params, token)
 
     def _assert_route(self, routes):

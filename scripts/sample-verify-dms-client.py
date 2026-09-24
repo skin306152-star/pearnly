@@ -211,6 +211,23 @@ def main():
           geo_client._match_geo([["155", "ปากน้ำ"], ["999", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "")
     check("同一个ID重复不产生伪歧义",
           geo_client._match_geo([["155", "ปากน้ำ"], ["155", "ตำบล ปากน้ำ"]], "ปากน้ำ") == "155")
+    # 泰国身份证正面常常不印邮编：本街道只有一个邮编时**确定性补齐**（线上基准
+    # `services/erp/mrerp_dms_client_forms.py` 的同一条注释）。少了它，拍完身份证
+    # 会因为邮编为空被写入守卫拦下，操作员被迫进编辑页手动挑邮编。
+    one_zip = {"listdistricts.php": lambda data: '<option value="51">เมืองสมุทรปราการ</option>',
+               "listsubdistricts.php": lambda data: '<option value="155">ปากน้ำ</option>',
+               "listzipcodes.php": lambda data: '<option value="116">10270</option>'}
+    resolved_one = DmsClient(FakeTransport(one_zip), "https://example.test/dms/")._resolve_address_geo(
+        replace(geo_address, zipcode=""), geo_form)
+    check("身份证没印邮编、本街道只有一个邮编 → 补齐",
+          (resolved_one.subdistrict_id, resolved_one.zipcode_id) == ("155", "116"),
+          (resolved_one.subdistrict_id, resolved_one.zipcode_id))
+    check("本街道有两个邮编时不补齐（留空让用户选）",
+          geo_client._resolve_address_geo(replace(geo_address, zipcode=""), geo_form).zipcode_id == "",
+          geo_client._resolve_address_geo(replace(geo_address, zipcode=""), geo_form).zipcode_id)
+    check("街道名对不上时连邮编也不补",
+          DmsClient(FakeTransport(one_zip), "https://example.test/dms/")._resolve_address_geo(
+              replace(geo_address, zipcode="", subdistrict_name="NOT-IN-CATALOG"), geo_form).zipcode_id == "")
     for index, name_key in enumerate(("province_name", "district_name", "subdistrict_name", "zipcode")):
         for missing in ("", "NOT-IN-CATALOG"):
             geo_transport.calls.clear()
@@ -299,14 +316,14 @@ def main():
     check("主档取数失败 → None（不能当成名册里没这个人）",
           cl4._bshsd_all("txtcar") is None, cl4._bshsd_all("txtcar"))
 
-    # ══ 6. 建档：幂等转覆盖 / 写库后必须回读复核 ══════════════════════════
+    # ══ 6. 建档：碰撞重新确认 / 写库后必须回读复核 ══════════════════════════
     state = {"name": "", "people_id": "1000000730317", "tax_id": "1000000730317"}
 
     # 新建表单**自带一组默认地址**（P1/D1/S1/Z1）：不清掉，客户就会带着一个
     # 没人选过的地址被存进 DMS。这里就用这组默认值当陷阱。
     def cus_form(data):
         nm = state["name"] if data.get("status") == "e" else ""
-        return ('<form><input name="txtcuscode" value="C0002">'
+        page = ('<form><input name="txtcuscode" value="C0002">'
                 '<input name="txtcusname" value="%s">'
                 '<input name="txtpeopleid" value="%s"><input name="txttaxid" value="%s">'
                 '<select name="selprefix"><option value="17">นาย</option></select>'
@@ -325,6 +342,11 @@ def main():
                 '<option value="Z1" selected>10100</option>'
                 '<option value="Z9">10900</option></select>'
                 '</form>' % (nm, state["people_id"], state["tax_id"]))
+        if state.get("saved") and data.get("status") == "e":
+            for old, new in (("P1", "P9"), ("D1", "D9"), ("S1", "S9"), ("Z1", "Z9")):
+                page = page.replace('value="' + old + '" selected', 'value="' + old + '"')
+                page = page.replace('value="' + new + '"', 'value="' + new + '" selected')
+        return page
 
     # 实时级联：请求哪个父级就只认那个父级下的子项（对不上要能拦下来）
     CHILD_ROUTES = {
@@ -360,17 +382,20 @@ def main():
             if "1000000730317" in (data.get("sd") or "") else "ndt::"),
         "cus/new.php": lambda data: (state.update(name=data.get("txtcusname", "")), "")[1],
         "cus/edit.php": lambda data: (state.update(name=data.get("txtcusname", ""),
-            people_id=data.get("txtpeopleid", ""), tax_id=data.get("txttaxid", "")), "")[1],
+            people_id=data.get("txtpeopleid", ""), tax_id=data.get("txttaxid", ""), saved=True), "")[1],
         **_child_routes(),
     })
     cl5 = DmsClient(saves, "https://example.test/dms/")
-    cid, converted = cl5.save_customer(
-        fields=GOOD_FIELDS, mode="create", addresses=GOOD_ADDR)
-    check("create 时发现已存在 → 转覆盖，并如实回传 converted=True",
-          cid == "777" and converted is True, (cid, converted))
-    check("转覆盖时走的是 edit.php",
-          any("cus/edit.php" in u for u, _ in saves.calls),
+    blocked, detail = raises(lambda: cl5.save_customer(
+        fields=GOOD_FIELDS, mode="create", addresses=GOOD_ADDR), DmsClientError)
+    check("create 时发现已存在 → 重新确认而非自动覆盖", blocked, detail)
+    check("碰撞确认前没有 new/edit 写请求",
+          not any(u.endswith(("cus/new.php", "cus/edit.php")) for u, _ in saves.calls),
           [u.split("/dms/")[-1] for u, _ in saves.calls])
+    baseline = cl5.read_customer("777")
+    cid, converted = cl5.save_customer(fields=GOOD_FIELDS, mode="overwrite", customer_id="777",
+                                       addresses=GOOD_ADDR, baseline=baseline)
+    check("用户重新确认后才写指定客户", cid == "777" and not converted, cid)
 
     # 面板选的地址要盖过表单自带默认值（这次转覆盖，走 edit.php）。
     # 取"真正提交那次"——保存后还有一次复核重读表单，别把那次当提交。

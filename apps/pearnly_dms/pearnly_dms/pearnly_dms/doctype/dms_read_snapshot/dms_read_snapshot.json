@@ -1,0 +1,20 @@
+{
+ "doctype": "DocType", "name": "DMS Read Snapshot", "module": "Pearnly DMS",
+ "engine": "InnoDB", "autoname": "hash", "allow_rename": 0,
+ "field_order": ["scope_key", "dataset", "generation", "source_started_at", "completed_at", "payload", "staging", "overlays", "last_error", "request_json", "requested_at", "refresh_request"],
+ "fields": [
+  {"fieldname": "scope_key", "fieldtype": "Data", "label": "Reader Scope", "read_only": 1, "search_index": 1},
+  {"fieldname": "dataset", "fieldtype": "Data", "label": "Dataset", "read_only": 1},
+  {"fieldname": "generation", "fieldtype": "Data", "label": "Generation", "read_only": 1},
+  {"fieldname": "source_started_at", "fieldtype": "Float", "label": "Source Read Started", "read_only": 1, "precision": "6"},
+  {"fieldname": "completed_at", "fieldtype": "Float", "label": "Read Completed", "read_only": 1, "precision": "6"},
+  {"fieldname": "payload", "fieldtype": "Long Text", "label": "Complete Snapshot", "read_only": 1},
+  {"fieldname": "staging", "fieldtype": "Long Text", "label": "Private Synchronization Progress", "read_only": 1},
+  {"fieldname": "overlays", "fieldtype": "Long Text", "label": "Verified Write Results", "read_only": 1},
+  {"fieldname": "last_error", "fieldtype": "Data", "label": "Last Synchronization Error", "read_only": 1},
+  {"fieldname": "request_json", "fieldtype": "Long Text", "label": "Requested Query", "read_only": 1},
+  {"fieldname": "requested_at", "fieldtype": "Float", "label": "Query Requested", "read_only": 1, "precision": "6"},
+  {"fieldname": "refresh_request", "fieldtype": "Long Text", "label": "Manual Read Request", "read_only": 1}
+ ],
+ "permissions": [], "track_changes": 0, "index_web_pages_for_search": 0
+}

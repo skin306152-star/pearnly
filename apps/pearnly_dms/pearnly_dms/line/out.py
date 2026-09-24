@@ -15,6 +15,7 @@
 from __future__ import annotations
 
 import logging
+import copy
 import secrets
 from typing import Any, Dict, Optional
 
@@ -22,6 +23,23 @@ from pearnly_core import line
 from frappe import _
 
 logger = logging.getLogger(__name__)
+
+
+def _snapshot_notice(msg):
+    """**不再往消息里拼"资料时间 / 地址资料时间"**（用户 2026-09-25 明确要求）。
+
+    以前这里会把「ข้อมูล ณ …」「ข้อมูลที่อยู่ ณ …」补到每一条 LINE 回话后面（纯文本拼一行、
+    Flex 卡在正文末尾加一小行灰字）。操作员说这行没用、还占地方，所以**消息正文不再带时间**。
+    时间本身照旧记在快照元数据里（连接页、查询结果卡按需显示），只是不再注入对方的消息。
+
+    这里保留两个 flag 的消费：一次请求里读过的快照标记仍按"本消息消费一次"处理，
+    免得残留在后面某条消息上（将来若要恢复显示，直接从这里接着写即可）。
+    """
+    import frappe
+
+    frappe.flags.pop("dms_snapshot_status", None)
+    frappe.flags.pop("dms_snapshot_geo_status", None)
+    return msg
 
 
 def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: str = "") -> bool:
@@ -37,7 +55,7 @@ def send(line_user_id: str, msg: Optional[Dict[str, Any]] = None, reply_token: s
     """
     if msg is None:
         return False
-    return line.reply_or_push(line_user_id, [msg], reply_token)
+    return line.reply_or_push(line_user_id, [_snapshot_notice(msg)], reply_token)
 
 
 def push_or_reply_text(line_user_id: str, text: str, reply_token: str = "") -> bool:
@@ -45,7 +63,7 @@ def push_or_reply_text(line_user_id: str, text: str, reply_token: str = "") -> b
 
     给"原本写死 `_push`（纯文本）"的那些地方用 —— 它们同样带着令牌，只是以前没用。
     """
-    return line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+    return line.reply_or_push(line_user_id, [_snapshot_notice({"type": "text", "text": text})], reply_token)
 
 
 def reply_text(reply_token: str, text: str) -> bool:
@@ -77,7 +95,7 @@ def download_content(message_id: str) -> Optional[bytes]:
 
 
 def enqueue(job: str, fn, *args) -> None:
-    """把重活丢后台（老产品 `_out.make_spawn` 那一层）。
+    """识别/写入进后台；纯快照查重保留身份守卫并直接完成。
 
     webhook 必须立刻返回，否则 LINE 会超时重发 —— 而重发会让同一个按钮被点两次。
 
@@ -105,6 +123,11 @@ def enqueue(job: str, fn, *args) -> None:
     if not identity or identity["user"] != (arguments.get("binding") or {}).get("user_id"):
         frappe.throw("dms_booking.not_bound", frappe.PermissionError)
     arguments["binding"] = {**arguments["binding"], "binding_revision": identity["binding_revision"]}
+    if job == "dedup":
+        # Cache-only read: never wait behind OCR, writes or background imports.
+        if fn.__module__ != "pearnly_dms.intake.flow" or fn.__name__ != "run_dedup":
+            raise ValueError("Invalid cache-only dedup target")
+        return run_guarded(f"{fn.__module__}.{fn.__name__}", arguments)
     # Show activity while the job is waiting, then the worker renews it on start.
     start_loading(arguments["line_user_id"], 60)
     if job == "image":

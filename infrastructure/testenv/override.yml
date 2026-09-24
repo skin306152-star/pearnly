@@ -1,26 +1,37 @@
 # 只在测试机上叠加；栈定义本身仍然只有 production/compose.yml 一份。
 #
 # 1) 正式 compose 用固定名 external 卷（pearnly-production_sites-*），这里换成测试项目
-#    自己的卷，落盘位置互不影响。卷名写死，便于 reset 时明确删除，不依赖项目名前缀。
+#    自己的卷。**卷名带项目名**：每个 app 一套栈（`pearnly-testenv-dms` / `-erp` / …），
+#    各自的站点文件、数据库卷、Redis 卷完全分开，测一个产品不会碰到另一个。
+#    数据库卷与队列卷在 production/compose.yml 里是非 external 的命名卷，Docker 本来就按
+#    项目名隔离，这里不用重复声明。
 # 2) 把本仓的测试辅助脚本只读挂进产品容器，用来建站点/迁移，不额外装东西。
 
 volumes:
   sites-billing:
     external: true
-    name: pearnly-testenv_sites-billing
+    name: ${TESTENV_PROJECT:-pearnly-testenv}_sites-billing
   sites-dms:
     external: true
-    name: pearnly-testenv_sites-dms
+    name: ${TESTENV_PROJECT:-pearnly-testenv}_sites-dms
   sites-erp:
     external: true
-    name: pearnly-testenv_sites-erp
+    name: ${TESTENV_PROJECT:-pearnly-testenv}_sites-erp
   sites-cowork:
     external: true
-    name: pearnly-testenv_sites-cowork
+    name: ${TESTENV_PROJECT:-pearnly-testenv}_sites-cowork
 
 services:
+  # 测试租户的身份走**线上** Keycloak（site_config 的 pearnly_oidc_issuer 指向
+  # auth.pearnly.com），所以每套 app 栈默认不需要自己的 Keycloak。放到 keycloak
+  # profile 里：只有要登那些空白的 <app>.test.localhost 站点时才显式启动。
+  keycloak:
+    profiles: [keycloak]
   billing-web:
-    volumes: ['/opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro']
+    # 账本站点也要能整站导入（付费路径依赖它），所以和产品容器一样挂 testenv 与 import。
+    volumes:
+      - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro
+      - /opt/pearnly-testenv/import:/workspace/import:ro
   dms-web:
     volumes:
       - /opt/pearnly-testenv/deploy/infrastructure/testenv:/workspace/testenv:ro

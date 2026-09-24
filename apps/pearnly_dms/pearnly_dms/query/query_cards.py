@@ -28,8 +28,11 @@ ACT_QUERY_TOP_GROUP = "query_top_group"
 ACT_QUERY_TOP_METRIC = "query_top_metric"
 ACT_QUERY_TOP_PERIOD = "query_top_period"
 ACT_QUERY_PAGE = "query_page"
+ACT_QUERY_REFRESH = "query_refresh"
 
-# 这一族的动作码（流程层用它识别 postback 归谁）
+# 这一族的动作码（流程层用它识别 postback 归谁）。
+# **没有** query_result：结果读完由服务端直接推过来，不需要"查看结果／状态"这一步
+# （用户 2026-09-25：菜单 5 只有"按类查记录"这一个功能）。
 QUERY_ACTION_NAMES = (
     ACT_QUERY_TYPE,
     ACT_QUERY_DIMENSION,
@@ -38,6 +41,7 @@ QUERY_ACTION_NAMES = (
     ACT_QUERY_TOP_METRIC,
     ACT_QUERY_TOP_PERIOD,
     ACT_QUERY_PAGE,
+    ACT_QUERY_REFRESH,
 )
 
 
@@ -75,13 +79,21 @@ def _quick(text: str, items: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
     return {"type": "text", "text": text, "quickReply": {"items": list(items)}}
 
 
+def _text(text: str) -> Dict[str, Any]:
+    """纯文本（不带任何 quick reply）—— 只报状态、不要求用户再点东西。"""
+    return {"type": "text", "text": text}
+
+
 # ── 选类别 / 选维度 / 选状态 / 看板条件 ─────────────────────────────────────
 def query_type_message() -> Dict[str, Any]:
+    """菜单 5 的入口：**只有一个按钮** —— 按类查记录。
+
+    线上基准（`services/line_dms/query_cards.py`）当年摆过三个（销售记录 / 库存 /
+    其它），后两个是占位；用户口径是"只要按钮 1，占位的取消了"。这里就只留 1。
+    """
     return _quick(
         _t("TXT_PICK_TYPE"),
-        [
-            _item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales"),
-        ],
+        [_item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales")],
     )
 
 
@@ -210,6 +222,13 @@ def _now_label() -> str:
     return datetime.now(ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M")
 
 
+def _snapshot_label(result: dict) -> str:
+    """Show source capture time, never pretend an old snapshot was just read."""
+    if result.get("as_of") is not None:
+        return datetime.fromtimestamp(float(result["as_of"]), ZoneInfo("Asia/Bangkok")).strftime("%d/%m/%Y %H:%M")
+    return _t("LBL_UNKNOWN_TIME")
+
+
 def _text_row(label: str, value: Any) -> Dict[str, Any]:
     return {
         "type": "box",
@@ -287,15 +306,40 @@ def _record_bubble(row: dict, position: int) -> Dict[str, Any]:
 
 
 def _navigation(result: dict, kind: str) -> List[Dict[str, Any]]:
-    """翻页按钮：首页不出"上一页"；没有下一页就不出"下一页"；"重新读"永远有。"""
+    """翻页导航：**与老产品同形** —— 上一页 / 重新读一次 / 下一页。
+
+    老产品（`services/line_dms/query_cards.py::_navigation`）就是这三个，而且那时是
+    "按一下就重读并出结果"。新平台把它接成"重新读一次，读完把结果发过来"，所以这里
+    **不再有"读取／刷新本次查询"和"查看结果／状态"那两个按钮** —— 那两个是后来加的
+    机械步骤，用户明确说不要（2026-09-25）。
+    """
     actions = []
     page = int(result.get("page") or 1)
+    key = result.get("query_key") or ""
     if page > 1:
-        actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev"))
-    actions.append(_item(_t("NAV_REFRESH"), ACT_QUERY_PAGE, kind=kind, direction="refresh"))
+        actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev", key=key))
+    actions.append(_item(_t("NAV_REFRESH"), ACT_QUERY_REFRESH, key=key))
     if result.get("has_more"):
-        actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next"))
+        actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next", key=key))
     return actions
+
+
+def manual_status_message(status: dict) -> Dict[str, Any]:
+    """"正在读／读到一半／读失败"的**纯文本提示**（没有任何按钮）。
+
+    Cold/waiting/failed 都不是"零记录"；来源时间也不会被改写。读取现在是**自动**发起的，
+    结果读完就推过来，所以这里不再挂"点读取 / 点看结果"的按钮。
+    """
+    state = str(status.get("state") or status.get("status") or "idle")
+    if state not in {"idle", "queued", "running", "waiting", "succeeded", "failed"}:
+        state = "failed"
+    lines = [_t("MANUAL_" + state.upper())]
+    progress = status.get("progress") or {}
+    if progress.get("total") is not None:
+        lines.append(_t("MANUAL_PROGRESS", processed=progress.get("processed") or 0, total=progress["total"]))
+    if status.get("as_of"):
+        lines.append(_t("MANUAL_AS_OF", time=_snapshot_label(status)))
+    return _text("\n".join(lines))
 
 
 def _button(item: Dict[str, Any]) -> Dict[str, Any]:
@@ -309,7 +353,7 @@ def sales_board(result: dict) -> Dict[str, Any]:
         # ⚠️ 前缀末尾那个空格**必须写在代码里**：线上那句以空格结尾（"…读完于 "），
         # 而语言包读取器对每条值做 `strip()`，行尾空格存不进 CSV —— 少了空格，
         # 前缀的最后一个词会和时间粘成一个词。既有守卫（语言包首尾空白）会直接报这个错。
-        return _quick(_t("EMPTY_RECORDS_PREFIX") + " " + _now_label(),
+        return _quick(_t("EMPTY_RECORDS_PREFIX") + " " + _snapshot_label(result),
                       _navigation(result, "records"))
     page = int(result.get("page") or 1)
     summary = {
@@ -332,7 +376,7 @@ def sales_board(result: dict) -> Dict[str, Any]:
                 },
                 _text_row(_t("LBL_PAGE"), page),
                 _text_row(_t("LBL_COUNT"), len(rows)),
-                _text_row(_t("LBL_READ_AT"), _now_label()),
+                _text_row(_t("LBL_READ_AT"), _snapshot_label(result)),
             ],
         },
         "footer": {
@@ -393,7 +437,7 @@ def top_sales_board(result: dict) -> Dict[str, Any]:
                 {
                     "type": "text",
                     # 同上：分隔空格放代码里
-                    "text": _t("TOP_NOTE_PREFIX") + " " + _now_label(),
+                    "text": _t("TOP_NOTE_PREFIX") + " " + _snapshot_label(result),
                     "size": "xxs",
                     "wrap": True,
                     "color": "#8a8a8a",

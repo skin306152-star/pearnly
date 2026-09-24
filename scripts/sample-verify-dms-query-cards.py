@@ -46,6 +46,8 @@ def main():
              "EMPTY_RECORDS_PREFIX", "CARD_TITLE", "CARD_NOTE", "LBL_PAGE", "LBL_COUNT",
              "LBL_READ_AT", "UNIT_AMOUNT", "UNIT_QTY", "EMPTY_TOP", "ALT_TOP", "TITLE_TOP",
              "TOP_NOTE_PREFIX"}
+    used.discard("MANUAL_")
+    used |= {"MANUAL_" + state for state in ("IDLE", "QUEUED", "RUNNING", "WAITING", "SUCCEEDED", "FAILED")}
 
     missing = sorted(k for k in used
                      if i18n.t("dms.card.query." + k, lang="th").startswith("dms.card.query."))
@@ -62,10 +64,12 @@ def main():
        and "ไม่พบบัญชี DMS" in qc.TXT_NO_ENDPOINT)
 
     # ── 3. 动作码与协议载荷 ─────────────────────────────────────────
-    ck("七个动作码与线上一致",
+    # 菜单 5 只有"按类查记录"这一个功能：没有"查看结果／状态"这一步，
+    # `query_result` 从动作码里去掉（用户 2026-09-25）。
+    ck("动作码里没有 query_result（读完由服务端直接推结果）",
        qc.QUERY_ACTION_NAMES == ("query_type", "query_dimension", "query_status",
                                  "query_top_group", "query_top_metric", "query_top_period",
-                                 "query_page"), qc.QUERY_ACTION_NAMES)
+                                 "query_page", "query_refresh"), qc.QUERY_ACTION_NAMES)
     ck("载荷跳过空值（免得默认值看起来像用户选的）",
        qc._data("query_page", kind="records", direction="next") == "action=query_page&kind=records&direction=next"
        and qc._data("query_page", kind="records", direction="") == "action=query_page&kind=records",
@@ -78,10 +82,12 @@ def main():
 
     # ── 4. 问法卡的结构 ────────────────────────────────────────────
     t = qc.query_type_message()
-    ck("类别卡三项且顺序照旧",
+    # 菜单 5 **只有一个功能按钮**：按类查记录。老产品当年摆过三个（后两个是占位），
+    # 后来加的「读取／刷新本次查询」「查看结果／状态」两个机械按钮也一并去掉
+    # （用户 2026-09-25 口径）。
+    ck("菜单 5 入口只有一个按钮：按类查记录",
        [i["action"]["data"] for i in t["quickReply"]["items"]]
-       == ["action=query_type&kind=sales", "action=query_type&kind=inventory",
-           "action=query_type&kind=other"], t["quickReply"]["items"][0]["action"]["data"])
+       == ["action=query_type&kind=sales"], t["quickReply"]["items"])
     d = qc.sales_dimension_message()
     dims = [i["action"]["data"] for i in d["quickReply"]["items"]]
     ck("维度卡 13 项，且顺序照旧（改顺序就是改产品）",
@@ -112,32 +118,37 @@ def main():
        "01/08/2569" in qc.top_custom_prompt()["text"], qc.top_custom_prompt()["text"])
 
     # ── 5. 看板卡片 ────────────────────────────────────────────────
-    empty = qc.sales_board({"rows": [], "page": 1})
+    stamp = 1790237700
+    source_time = qc._snapshot_label({"as_of": stamp})
+    empty = qc.sales_board({"rows": [], "page": 1, "as_of": stamp})
     ck("查不到 → 一句'没找到 + 读到几点'，不是空白",
        empty["type"] == "text" and empty["text"].startswith(qc._t("EMPTY_RECORDS_PREFIX"))
-       and qc._now_label() in empty["text"], empty["text"])
+       and source_time in empty["text"], empty["text"])
     # ⚠️ 前缀与时间之间**必须有一个空格**：线上那句以空格结尾，而语言包读取器会 strip，
     # 所以空格只能写在代码里。少了它就是 `เมื่อ19/09/2026`（粘在一起）。
     ck("前缀与时间之间有空格（行尾空格存不进语言包）",
        qc._t("EMPTY_RECORDS_PREFIX") + " " in empty["text"]
-       and "เมื่อ " + qc._now_label() in empty["text"], empty["text"][-28:])
-    ck("查不到也给了重读按钮", empty["quickReply"]["items"], len(empty["quickReply"]["items"]))
+       and " " + source_time in empty["text"], empty["text"][-28:])
+    # 空结果只给「อ่านใหม่」（重新读一次）导航 —— 与老产品 `_navigation` 同形。
+    ck("空结果只给重读导航，不给'看结果'按钮",
+       [i["action"]["data"] for i in empty["quickReply"]["items"]] == ["action=query_refresh"],
+       [i["action"]["data"] for i in empty["quickReply"]["items"]])
 
     row = {"booking_no": "BK001", "record_status": "จัดสรรแล้ว", "customer": "คุณสมชาย",
            "vehicle": "DMAX", "color": "ขาว", "advisor": "dmstest",
            "booking_date": "01/09/2569", "delivery_date": "20/09/2569",
            "finance_status": "อนุมัติ", "allocation_status": "จัดสรรแล้ว",
            "sales_doc_no": "SO-1", "engine_no": ""}
-    board = qc.sales_board({"rows": [row], "page": 2, "limit": 10, "has_more": True})
+    board = qc.sales_board({"rows": [row], "page": 2, "limit": 10, "has_more": True, "as_of": stamp})
     ck("记录看板是轮播：汇总卡 + 每行一张小卡",
        board["type"] == "flex" and board["contents"]["type"] == "carousel"
        and len(board["contents"]["contents"]) == 2, len(board["contents"]["contents"]))
-    ck("汇总卡带页码/条数/读到几点", "หน้า" in str(board) and qc._now_label() in str(board))
+    ck("汇总卡带页码/条数/原始读取时间", "หน้า" in str(board) and source_time in str(board))
     ck("行号按页码偏移（第 2 页第 1 行 = 11）", "11. BK001" in str(board))
-    ck("翻了页才出'上一页'，有下一页才出'下一页'，重读永远在",
+    ck("翻了页才出'上一页'，有下一页才出'下一页'，重读永远在（与老产品同形）",
        [i["action"]["data"] for i in qc._navigation({"page": 2, "has_more": True}, "records")]
        == ["action=query_page&kind=records&direction=prev",
-           "action=query_page&kind=records&direction=refresh",
+           "action=query_refresh",
            "action=query_page&kind=records&direction=next"]
        and len(qc._navigation({"page": 1, "has_more": False}, "records")) == 1)
     ck("单号/机号都没有时整行不出（不留空槽）",
@@ -146,7 +157,7 @@ def main():
        len(qc.sales_board({"rows": [row] * 30, "page": 1, "limit": 30})["contents"]["contents"]) == 12)
 
     top = qc.top_sales_board({"metric": "amount", "date_from": "01/09/2569", "date_to": "18/09/2569",
-                              "page": 1, "limit": 10, "has_more": False,
+                              "page": 1, "limit": 10, "has_more": False, "as_of": stamp,
                               "rows": [{"label": "DMAX", "value": 12345.5},
                                        {"label": "HILUX", "value": 100}]})
     blob = str(top)
@@ -156,9 +167,14 @@ def main():
     ck("排行是 序号. 名称  值 单位",
        "1. DMAX  12,345.50 บาท" in blob, blob[blob.find("1. DMAX"):][:30])
     ck("看板脚注的前缀与时间之间也有空格",
-       qc._t("TOP_NOTE_PREFIX") + " " + qc._now_label() in blob, blob[-40:])
+       qc._t("TOP_NOTE_PREFIX") + " " + source_time in blob, blob[-40:])
     ck("没有数据时给一句'这段时间没有销售'，不是空表",
        qc._t("EMPTY_TOP") in str(qc.top_sales_board({"metric": "quantity", "rows": []})))
+    # 读取现在由服务端自动发起、读完直接推结果：状态提示是**纯文本**，不带任何按钮。
+    status = qc.manual_status_message({"state": "idle"})
+    ck("尚未读取不显示为空，且状态提示是纯文本（没有按钮要用户点）",
+       qc._t("EMPTY_TOP") not in str(status) and status["type"] == "text"
+       and "quickReply" not in status, status)
 
     # ── 6. 时间口径 ────────────────────────────────────────────────
     label = qc._now_label()

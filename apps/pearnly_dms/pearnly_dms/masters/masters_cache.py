@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 """DMS 下拉主档（顾问/车型/颜色/分店…）的缓存。
 
-Redis 保留 12 小时；LINE 普通读取经 master_shared 限制为 90 秒新鲜度，
-编辑与最终提交使用权威读取。保留期不是业务允许使用旧数据的时长。
+旧主档 Redis 辅助缓存保留 12 小时，仅供明确的顾问配置/兼容管理调用；
+LINE 读取已改用 snapshots.Directory 的五分钟完整快照，不再调用此处冷抓。
+编辑只读新完整快照，最终提交另作实时权威复核。这里的保留期不是业务使用时限。
 缓存按 Site、外部系统及实际读取凭据隔离；相同权威读取范围可合并刷新。
 
 **失败语义（照抄，很重要）**：
@@ -185,7 +186,7 @@ def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False,
     `pearnly_dms.config.pacing`。
     """
     from pearnly_dms.masters.company_banks import fetch_payment_bank_masters
-    from pearnly_dms.intake.service import run_logged_in
+    from pearnly_dms.adapter.operations import run_logged_in
 
     def _fetch(client, adapter):
         return {
@@ -193,7 +194,8 @@ def _fetch_masters_via_login(endpoint: Any, *, require_complete: bool = False,
             **fetch_payment_bank_masters(adapter, client=client),
         }
 
-    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background)
+    res = run_logged_in(endpoint, _fetch, authoritative_read=True, background=background,
+                        catch_up=not background)
     if isinstance(res, dict) and res.get("ok") is False:
         # **把失败原因留在日志里**：这一段只返回 None，光看"没拿到完整主档"分不清
         # "连不上"、"管理员凭据不对"还是"某个下拉读不出来"——2026-09-23 排查时
@@ -209,12 +211,13 @@ def _fetch_paints_via_login(endpoint: Any, car_id: str) -> Optional[List[list]]:
 
     同理走**权威只读**：颜色主档在销售账号下可能被裁成空表，空表会被误判成"这车没颜色"。
     """
-    from pearnly_dms.intake.service import run_logged_in
+    from pearnly_dms.adapter.operations import run_logged_in
 
     res = run_logged_in(
         endpoint,
         lambda cl, ad: cl._bshsd_all("txtcarpaint", idcar=car_id),
         authoritative_read=True,
+        catch_up=True,
     )
     return res if isinstance(res, list) else None
 
@@ -225,7 +228,7 @@ def _fetch_paints_batch_via_login(endpoint: Any, car_ids: List[str],
 
     `background=True`：后台预热在跑（没人等着）→ 预算走共用口径的后台那一档。
     """
-    from pearnly_dms.intake.service import run_logged_in
+    from pearnly_dms.adapter.operations import run_logged_in
 
     want = [str(c) for c in car_ids if c]
     if not want:

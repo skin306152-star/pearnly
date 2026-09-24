@@ -125,7 +125,7 @@ def main():
           len(waits) == 2 and all(isinstance(w, ast.Name) and w.id == "budget" for w in waits),
           [getattr(w, "id", w) for w in waits])
 
-    service = _tree("apps/pearnly_dms/pearnly_dms/intake/service.py")
+    service = _tree("apps/pearnly_dms/pearnly_dms/adapter/operations.py")
     order = []
     for node in ast.walk(service):
         if isinstance(node, ast.Try):
@@ -136,7 +136,7 @@ def main():
     check("捕获顺序：子类在父类之前（写反 → 连不上又会变成「服务器内部错误」）",
           order.index("DmsUnreachableError") < order.index("DmsTechnicalError"), order)
     check("连不上回的是 ERR_DMS_UNREACHABLE（上层按这个码给按钮）",
-          '"ERR_DMS_UNREACHABLE"' in (ROOT / "apps/pearnly_dms/pearnly_dms/intake/service.py")
+          '"ERR_DMS_UNREACHABLE"' in (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/operations.py")
           .read_text(encoding="utf-8"))
 
     flow_source = (ROOT / "apps/pearnly_dms/pearnly_dms/intake/flow.py").read_text(encoding="utf-8")
@@ -266,6 +266,8 @@ def main():
         fresh_ep = "EP-TEST-2"
         R.note_failure(fresh_ep, "ERR_DMS_UNREACHABLE")
         check("光失败不算'刚用过'（预热不会因为一直失败就一直追）", not R.used_recently(fresh_ep))
+        R.note_success(fresh_ep, mark_used=False)
+        check("后台成功不冒充用户刚用过", not R.used_recently(fresh_ep))
         R.mark_used(fresh_ep)
         check("真的用过之后才算'刚用过'", R.used_recently(fresh_ep))
         check("失败不会把'刚用过'抹掉（之前有人真的用过就算）", R.used_recently(ep))
@@ -274,7 +276,7 @@ def main():
         store.clear()
 
     # 接线：所有登录入口都走同一个漏斗，漏斗自己套口径
-    service_src = (ROOT / "apps/pearnly_dms/pearnly_dms/intake/service.py").read_text(encoding="utf-8")
+    service_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/operations.py").read_text(encoding="utf-8")
     check("漏斗里用的是共用口径模块（不是各写一份常量）",
           "from pearnly_dms.config import pacing" in service_src
           and "pacing.budget_ms(" in service_src)
@@ -290,7 +292,7 @@ def main():
         if "__pycache__" in path.parts:
             continue
         rel = path.relative_to(ROOT).as_posix()
-        if rel.endswith(("intake/service.py", "adapter/push.py")):
+        if rel.endswith(("adapter/operations.py", "adapter/push.py")):
             continue  # 漏斗本身 + 连接向导的探针（探针也在 build_adapter 里拿了共用默认预算）
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"), filename=rel)):
             if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
@@ -301,14 +303,23 @@ def main():
     push_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/push.py").read_text(encoding="utf-8")
     check("建适配器时就带上共用默认预算（连接向导/直连入口也吃得到）",
           "pacing.budget_ms(1)" in push_src)
-    warm_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/warm.py").read_text(encoding="utf-8")
-    check("后台预热：冷却期不派发（不再派一个注定白跑、还占 worker 的任务）",
-          "cooldown_left(" in warm_src and "cooling" in warm_src)
-    check("后台预热：没人用就降频，并按共用口径给后台预算",
-          "should_warm(" in warm_src and "background=True" in warm_src)
+    warm_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/snapshot_sync.py").read_text(encoding="utf-8")
+    schedule_src = (ROOT / "apps/pearnly_dms/pearnly_dms/snapshots/schedule.py").read_text(encoding="utf-8")
+    hooks_src = (ROOT / "apps/pearnly_dms/pearnly_dms/hooks.py").read_text(encoding="utf-8")
+    check("后台采集使用统一登录预算和熔断；前台不承担等待",
+          "background=True" in warm_src and "run_logged_in" in warm_src
+          and "cooldown_left(" in service_src)
+    manual_src = (ROOT / "apps/pearnly_dms/pearnly_dms/snapshots/manual.py").read_text(encoding="utf-8")
+    check("只允许显式手动采集，旧定时任务退役，专用队列仍去重",
+          "pearnly_dms.snapshots.schedule.sweep" not in hooks_src
+          and '"retired": True' in schedule_src
+          and 'QUEUE = "dms_sync"' in manual_src
+          and "deduplicate=True" in manual_src and "assert_active" in warm_src)
     shared_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/master_shared.py").read_text(encoding="utf-8")
-    check("刷不动时先给手上那份曾经完整的主档（stale-while-revalidate）",
-          "_stale_but_complete(" in shared_src)
+    store_src = (ROOT / "apps/pearnly_dms/pearnly_dms/snapshots/store.py").read_text(encoding="utf-8")
+    check("前台旧兼容入口只读完整本地包，失败保旧但不假称新鲜",
+          "Directory(endpoint)" in shared_src and "_fetch_masters_via_login" not in shared_src
+          and "ERR_DMS_SNAPSHOT_STALE" in store_src and "row.last_error" in store_src)
 
     # ── 6. 2026-09-23 自查出的两处缺口（改了才知道的） ──────────────────────
     check("点完登录之后的等待窗口也按预算放宽（不只是'打开页面'那一段）",

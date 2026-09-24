@@ -1,0 +1,52 @@
+# Task-owned snapshot integration lab. No external network, ports or credentials.
+# Only this project may own its Site, MariaDB, Redis and log volumes.
+name: pearnly-dms-snapshot-lab
+
+services:
+  db:
+    extends:
+      file: unified-release-lab.yml
+      service: db
+  redis:
+    extends:
+      file: unified-release-lab.yml
+      service: redis
+    volumes: [redis-data:/data]
+  bench: &bench
+    # Local pinned arm64 default; CI supplies its exact built candidate image.
+    image: ${PEARNLY_SNAPSHOT_LAB_IMAGE:-sha256:d5c874943dc8394a011d8c2b0c795325256d697567a2706c9ed5e25f27fc93f9}
+    mem_limit: 1g
+    cpus: 1.5
+    command: [sleep, infinity]
+    environment:
+      PEARNLY_DMS_SNAPSHOT_LAB: "1"
+      PYTHONDONTWRITEBYTECODE: "1"
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+      - logs:/home/frappe/frappe-bench/logs
+      - ../../apps/pearnly_core/pearnly_core:/home/frappe/frappe-bench/apps/pearnly_core/pearnly_core:ro
+      - ../../apps/pearnly_control/pearnly_control:/home/frappe/frappe-bench/apps/pearnly_control/pearnly_control:ro
+      - ../../apps/pearnly_erp_portal/pearnly_erp_portal:/home/frappe/frappe-bench/apps/pearnly_erp_portal/pearnly_erp_portal:ro
+      - ../../apps/pearnly_dms/pearnly_dms:/home/frappe/frappe-bench/apps/pearnly_dms/pearnly_dms:ro
+      - ../../apps/pearnly_cowork/pearnly_cowork:/home/frappe/frappe-bench/apps/pearnly_cowork/pearnly_cowork:ro
+      - ../../scripts:/workspace/scripts:ro
+      - ../../tests:/workspace/tests:ro
+  # Opt-in only: the normal lab remains daemon-free. Queue smoke tests use a
+  # burst worker and synthetic native jobs, never enable the scheduler.
+  dms-sync-worker:
+    <<: *bench
+    profiles: [sync]
+    command: [bench, worker, --queue, dms_sync]
+
+networks:
+  default:
+    internal: true
+
+volumes:
+  db:
+  sites:
+  redis-data:
+  logs:

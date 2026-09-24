@@ -14,6 +14,18 @@ DMS_IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'c' * 64
 COWORK_IMAGE = 'ghcr.io/skin306152-star/pearnly/frappe@sha256:' + 'd' * 64
 
 
+def activated_services(product):
+    """Containers `activate-product.sh` recreates for one product, in order.
+
+    DMS runs an extra queue worker for the manual snapshot synchronization; the
+    other products must not get it.
+    """
+    suffixes = ['web', 'worker', 'ocr-worker', 'ocr-dispatch', 'scheduler', 'socketio', 'frontend']
+    if product == 'dms':
+        suffixes.insert(3, 'sync-worker')
+    return [f'{product}-{suffix}' for suffix in suffixes]
+
+
 class DeployToolingMatch(unittest.TestCase):
     """The activation gate that compares the server's deploy copy with the image's copy."""
 
@@ -146,6 +158,28 @@ elif 'ps' in args:
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse(any('migrate' in row['args'] for row in trace))
 
+    def test_dms_sync_is_drained_configured_and_recreated(self):
+        result, trace = self.run_activation()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        drain = next(i for i, args in enumerate(calls) if '660' in args and 'stop' in args)
+        configure = next(i for i, args in enumerate(calls) if any('configure-dms-runtime.py' in arg for arg in args))
+        migrate = next(i for i, args in enumerate(calls) if 'migrate' in args)
+        start = next(i for i, args in enumerate(calls) if 'up' in args)
+        self.assertIn('dms-sync-worker', calls[drain])
+        self.assertIn('dms-sync-worker', calls[start])
+        self.assertLess(drain, configure)
+        self.assertLess(configure, migrate)
+        self.assertLess(migrate, start)
+
+    def test_other_products_do_not_get_dms_queue_or_tick_changes(self):
+        for product in ('erp', 'cowork'):
+            with self.subTest(product=product):
+                result, trace = self.run_activation(product=product)
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertFalse(any('dms-sync-worker' in row['args'] or
+                    any('configure-dms-runtime.py' in arg for arg in row['args']) for row in trace))
+
     def test_activation_pins_only_selected_product_and_preserves_other_versions(self):
         for product in ('erp', 'dms', 'cowork'):
             with self.subTest(product=product):
@@ -165,8 +199,7 @@ elif 'ps' in args:
                 self.assertEqual(len(recreate), 1)
                 self.assertEqual(recreate[0][recreate[0].index('up'):],
                                  ['up', '-d', '--no-deps', '--force-recreate',
-                                  *[f'{product}-{suffix}' for suffix in
-                                    ('web', 'worker', 'ocr-worker', 'ocr-dispatch', 'scheduler', 'socketio', 'frontend')]])
+                                  *activated_services(product)])
 
     def test_first_product_activation_keeps_legacy_fallback(self):
         result, _ = self.run_activation(product='erp')
@@ -186,6 +219,7 @@ elif 'ps' in args:
                     self.assertNotEqual(result.returncode, 0)
                     self.assertEqual(self.records_after, self.records_before)
                     self.assertEqual(self.record_temporaries, [])
+
 
 
 class FoundationActivation(unittest.TestCase):

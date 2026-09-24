@@ -1,26 +1,15 @@
 # -*- coding: utf-8 -*-
-"""从操作员的 DMS 会话里**现读**销售/订车数据（列表 + 畅销看板）。
+"""Employee-scoped menu-5 reads from complete local snapshots only.
 
-来源为旧线上 `services/erp/mrerp_dms_sales_readback.py`；当前修正原生列表初始化、
-指定字段筛选与登录账户的看板能力，实测记录见 DMS LINE 工作记录。
-它是"查资料"那一族的底座：解析 DMS **原生网页**返回的 HTML/JSON，不改状态语义。
-
-两条要紧的性质：
-
-· **每次调用都重新登录、读完就丢**：不留 cookie、不留结果 —— 查询是只读的一次性动作，
-  留住会话只会让两个销售互相踢下线。
-· **解析 fail closed**：认不出形状（`err::` 开头、行数不足、看板的 JSON 不是 JSON）
-  一律**明确失败**，绝不回半份数据让人以为"就这么多"。
-
-新平台的两处映射：
-1. 端点解算走 `dms_ocr_service.resolve_dms_endpoint`（花名册里那个启用的 `mrerp_dms`），
-   不再自己遍历老平台的端点表；
-2. 首页那份 HTML 用 `adapter.transport().get(...)`（新适配器的 `transport()` 是公开方法）。
+Native parsers remain here; only ``query.snapshot_sync`` uses them to read DMS.
+Interaction paths recheck local permissions and never log in, refresh, or enqueue
+an external read. Only an explicit refresh action registers a one-time read.
 """
 
 from __future__ import annotations
 
 import html
+import hashlib
 import json
 import logging
 import re
@@ -28,8 +17,9 @@ from datetime import date
 from typing import Any, Dict, Iterable, List, Optional
 
 from pearnly_dms.contracts.client_base import DmsClientError
-from pearnly_dms.intake.service import run_logged_in
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
+from pearnly_dms.query.query_access import can_query
+from pearnly_dms.snapshots import store
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +63,9 @@ STATUS_FILTERS = {
 
 TOP_GROUPS = {"model": "1", "type": "2", "subtype": "3"}
 TOP_METRICS = {"quantity": "1", "amount": "2"}
+SALES_DATASET = "sales_query"  # Retired scheduled dataset; no new reads.
+CAPABILITIES_DATASET = "query.capabilities"
+SNAPSHOT_VERSION = 2
 
 _ROW_RE = re.compile(r'data-val="([^"]+)"', re.I)
 _CELL_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.S | re.I)
@@ -125,7 +118,7 @@ def _sales_page(client, column, filter_code, query, size, page):
         "selcolsort": column, "selcolsorttype": "2",
     })
     if (body or "").lstrip().startswith("err::"):
-        raise DmsClientError("DMS rejected the sales query", "ERR_DMS_TECHNICAL")
+        raise DmsClientError("DMS rejected the sales query", "ERR_DMS_QUERY_SCOPE")
     rows = parse_sales_rows(body)
     if not rows and not str(body or "").lstrip().startswith("ndt::"):
         raise DmsClientError("DMS sales response shape changed", "ERR_DMS_TECHNICAL")
@@ -153,6 +146,59 @@ def _enabled_endpoint(user_id: str) -> Optional[dict]:
     return resolve_dms_endpoint(user_id, None)
 
 
+def _query_endpoint(user_id):
+    if not can_query({"user_id": user_id}):
+        raise DmsClientError("DMS query permission is disabled", "ERR_DMS_QUERY_FORBIDDEN")
+    endpoint = _enabled_endpoint(user_id)
+    if not endpoint:
+        raise DmsClientError("No enabled employee endpoint", "ERR_NO_CREDS")
+    return endpoint
+
+
+def _metadata(snapshot):
+    return {key: snapshot[key] for key in ("as_of", "completed_at", "generation", "stale")}
+
+
+def query_parameters(kind="records", **params):
+    """Only business conditions identify a cache; pages and binding do not."""
+    if kind == "capabilities":
+        return {"kind": kind}
+    if kind == "records":
+        return {"kind": kind,
+                "field": params.get("field") if params.get("field") in SEARCH_COLUMNS else "booking_no",
+                "status": params.get("status") if params.get("status") in STATUS_FILTERS else "active",
+                "query": str(params.get("query") or "").strip()}
+    if kind == "top":
+        return {"kind": kind, **top_parameters(**{key: params.get(key, "")
+                for key in ("group", "metric", "date_from", "date_to")})}
+    raise DmsClientError("Unknown query kind", "ERR_DMS_TECHNICAL")
+
+
+def query_dataset(params):
+    conditions = query_parameters(**{key: value for key, value in params.items() if key != "_binding"})
+    if conditions["kind"] == "capabilities":
+        return CAPABILITIES_DATASET
+    return "query." + hashlib.sha256(json.dumps(conditions, sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest()[:32]
+
+
+def _read_query(endpoint, params):
+    snapshot = store.read(endpoint, query_dataset(params), reader="sales")
+    data = snapshot["data"]
+    if not data.get("ok"):
+        raise DmsClientError("DMS query snapshot is unavailable", data.get("error_code") or "ERR_DMS_SNAPSHOT_PENDING")
+    if data.get("version") != SNAPSHOT_VERSION or data.get("params") != params:
+        raise store.SnapshotUnavailable()
+    return snapshot
+
+
+def _failure(exc):
+    if isinstance(exc, DmsClientError):
+        return {"ok": False, "error_code": exc.error_code or "ERR_DMS_TECHNICAL"}
+    logger.exception("DMS local query failed")
+    return {"ok": False, "error_code": "ERR_UNEXPECTED"}
+
+
 def fetch_sales_records(
     user_id: str,
     *,
@@ -162,46 +208,31 @@ def fetch_sales_records(
     limit: int = 10,
     page: int = 1,
 ) -> Dict[str, Any]:
-    """登录并读取**一页**实时数据。调用之间不留 cookie、不留结果。"""
+    """Paginate one complete, explicitly requested native result without IO."""
     try:
-        endpoint = _enabled_endpoint(user_id)
-    except Exception:  # noqa: BLE001
-        logger.exception("DMS sales endpoint lookup failed")
-        return {"ok": False, "error_code": "ERR_UNEXPECTED"}
-    if not endpoint:
-        return {"ok": False, "error_code": "ERR_NO_CREDS"}
-    column = SEARCH_COLUMNS.get(field, SEARCH_COLUMNS["booking_no"])
-    filter_code = STATUS_FILTERS.get(status, STATUS_FILTERS["active"])
-    size = min(max(int(limit or 10), 1), 30)
-    page_no = max(int(page or 1), 1)
-
-    def _read(client, _adapter):
-        # DMS sets the session's list visibility/filter context in the native
-        # view. A fresh login queried directly at showdata returns an empty
-        # body even when this salesperson has records (verified in the lab).
-        client._post_text("drfcbc/view.php", {"idmenu": "25", "menulv": "2"})
-        needle = str(query or "").strip()
-        if needle:
-            rows, has_more = _field_page(client, field if field in SEARCH_COLUMNS else "booking_no",
-                                        column, filter_code, needle, size, page_no)
-        else:
-            rows = _sales_page(client, column, filter_code, "", size, page_no)
-            has_more = len(rows) == size
+        params = query_parameters("records", field=field, query=query, status=status)
+        snapshot = _read_query(_query_endpoint(user_id), params)
+        data = snapshot["data"]
+        field, status, needle = params["field"], params["status"], params["query"]
+        size = min(max(int(limit or 10), 1), 30)
+        page_no = max(int(page or 1), 1)
+        rows = data["rows"]
+        end = page_no * size
         return {
             "ok": True,
             "kind": "sales_records",
-            "source": "mrerp_dms_live",
+            "source": "mrerp_dms_snapshot",
             "field": field,
-            "query": str(query or "").strip(),
+            "query": needle,
             "status": status,
             "page": page_no,
             "limit": size,
-            # 拿满一页就当还有下一页（下一页可能为空，由调用方按空结果收尾）
-            "has_more": has_more,
-            "rows": rows,
+            "has_more": len(rows) > end,
+            "rows": rows[(page_no - 1) * size:end],
+            **_metadata(snapshot),
         }
-
-    return run_logged_in(endpoint, _read)
+    except Exception as exc:
+        return _failure(exc)
 
 
 def _tag(source: str, tag: str, element_id: str) -> str:
@@ -255,18 +286,13 @@ def _dashboard_scope(home):
 
 
 def query_capabilities(user_id):
-    """Only advertise dashboards that this external login actually receives."""
+    """Only advertise dashboard scope captured with this employee's login."""
     try:
-        endpoint = _enabled_endpoint(user_id)
-    except Exception:
-        logger.exception("DMS query capability endpoint lookup failed")
-        return {"ok": False, "error_code": "ERR_UNEXPECTED"}
-    if not endpoint:
-        return {"ok": False, "error_code": "ERR_NO_CREDS"}
-    def read(client, adapter):
-        _, branches, teams = _dashboard_scope(adapter.transport().get(adapter.base_url + "home/home.php").text)
-        return {"ok": True, "top_sales": bool(_concrete_ids(branches) and _concrete_ids(teams))}
-    return run_logged_in(endpoint, read)
+        snapshot = _read_query(_query_endpoint(user_id), {"kind": "capabilities"})
+        return {"ok": True, "top_sales": bool(snapshot["data"]["capabilities"]["top_sales"]),
+                **_metadata(snapshot)}
+    except Exception as exc:
+        return _failure(exc)
 
 
 def _period_default() -> tuple:
@@ -274,6 +300,29 @@ def _period_default() -> tuple:
     today = date.today()
     year_be = today.year + 543
     return f"01/{today.month:02d}/{year_be}", f"{today.day:02d}/{today.month:02d}/{year_be}"
+
+
+def top_parameters(group="model", metric="quantity", date_from="", date_to=""):
+    """Canonical native parameters; no page/limit in the snapshot identity."""
+    default_from, default_to = _period_default()
+    dates = []
+    for raw in (date_from or default_from, date_to or default_to):
+        try:
+            day, month, year = [int(part) for part in str(raw).strip().split("/")]
+            parsed = date(year - 543, month, day)
+        except (ValueError, TypeError):
+            raise DmsClientError("Invalid dashboard period", "ERR_DMS_TECHNICAL") from None
+        dates.append(parsed)
+    if dates[0] > dates[1]:
+        raise DmsClientError("Dashboard period is reversed", "ERR_DMS_TECHNICAL")
+    return {"group": group if group in TOP_GROUPS else "model",
+            "metric": metric if metric in TOP_METRICS else "quantity",
+            "date_from": f"{dates[0].day:02d}/{dates[0].month:02d}/{dates[0].year + 543}",
+            "date_to": f"{dates[1].day:02d}/{dates[1].month:02d}/{dates[1].year + 543}"}
+
+
+def top_dataset(params):
+    return query_dataset({"kind": "top", **params})
 
 
 def fetch_top_sales(
@@ -286,75 +335,48 @@ def fetch_top_sales(
     limit: int = 10,
     page: int = 1,
 ) -> Dict[str, Any]:
-    """读 DMS 原生的"卖得最好"看板（该登录能看见的所有分店/team）。"""
+    """Read one explicitly requested native ranking; never request a refresh."""
     try:
-        endpoint = _enabled_endpoint(user_id)
-    except Exception:  # noqa: BLE001
-        logger.exception("DMS highest-sales endpoint lookup failed")
-        return {"ok": False, "error_code": "ERR_UNEXPECTED"}
-    if not endpoint:
-        return {"ok": False, "error_code": "ERR_NO_CREDS"}
-    group_code = TOP_GROUPS.get(group, TOP_GROUPS["model"])
-    metric_code = TOP_METRICS.get(metric, TOP_METRICS["quantity"])
-    size = min(max(int(limit or 10), 1), 30)
-    page_no = max(int(page or 1), 1)
-    default_from, default_to = _period_default()
-
-    def _read(client, adapter):
-        # 看板的筛选条件（用户 id、分店、team）只能从首页那份 HTML 里读回来
-        home = adapter.transport().get(adapter.base_url + "home/home.php").text
-        user_id_value, branches, teams = _dashboard_scope(home)
-        branch_ids = _concrete_ids(branches)
-        team_ids = _concrete_ids(teams)
-        if not user_id_value or not branch_ids or not team_ids:
-            raise DmsClientError("This DMS login has no sales dashboard", "ERR_DMS_QUERY_SCOPE")
-        payload = {
-            "idusers": user_id_value,
-            "carmaxselltypedata": group_code,
-            "carmaxsellbranch": branch_ids,
-            "carmaxsellteam": team_ids,
-            "txtcarmaxselldate_bg": date_from or default_from,
-            "txtcarmaxselldate_to": date_to or default_to,
-            "carmaxsellqnt": metric_code,
-            "carmaxsellshow": str(size),
-            "carmaxsellpage": str(page_no),
-        }
-        # 两次 POST：一次拿总数、一次拿本页（DMS 原生的分页方式）
-        count_body = client._post_text(TOP_SALES_PATH, {**payload, "status": "all"})
-        if (count_body or "").lstrip().startswith("err::"):
-            raise DmsClientError(count_body[:200])
-        page_body = client._post_text(TOP_SALES_PATH, {**payload, "status": "page"})
+        endpoint = _query_endpoint(user_id)
+        params = top_parameters(group, metric, date_from, date_to)
+        snapshot = _read_query(endpoint, {"kind": "top", **params})
+        data = snapshot["data"]
+        if not data.get("ok"):
+            raise DmsClientError("DMS ranking snapshot unavailable", data.get("error_code") or "ERR_DMS_SNAPSHOT_PENDING")
+        # A successful ranking captured its own employee dashboard scope. An
+        # older capability cache must not veto that newer, authorized result.
+        # Conversely, a later scope reduction invalidates an older ranking.
         try:
-            labels, ids, values = json.loads(page_body)
-            if not all(isinstance(items, list) for items in (labels, ids, values)) or not len(labels) == len(ids) == len(values):
-                raise ValueError("dashboard arrays differ")
-            total = int(str(count_body).strip() or 0)
-            if total < 0:
-                raise ValueError("negative count")
-        except (TypeError, ValueError) as exc:
-            raise DmsClientError("highest-sales response is not valid JSON") from exc
-        rows = [
-            {"label": str(label), "value": value}
-            for label, value in zip(labels or [], values or [])
-        ]
+            sales = _read_query(endpoint, {"kind": "capabilities"})
+        except store.SnapshotUnavailable as exc:
+            if exc.error_code not in {"ERR_DMS_SNAPSHOT_PENDING", "ERR_DMS_SNAPSHOT_STALE"}:
+                raise
+            sales = None
+        if sales and sales["as_of"] >= snapshot["as_of"]:
+            if not sales["data"]["capabilities"]["top_sales"]:
+                raise DmsClientError("This DMS login has no sales dashboard", "ERR_DMS_QUERY_SCOPE")
+            if data.get("dashboard_scope") != sales["data"].get("dashboard_scope"):
+                raise store.SnapshotUnavailable()
+        size = min(max(int(limit or 10), 1), 30)
+        page_no = max(int(page or 1), 1)
+        end = page_no * size
+        rows = data["rows"]
         return {
             "ok": True,
             "kind": "top_sales",
-            "source": "mrerp_dms_live",
-            "group": group,
-            "metric": metric,
-            "date_from": payload["txtcarmaxselldate_bg"],
-            "date_to": payload["txtcarmaxselldate_to"],
-            "branches": [row["name"] for row in branches if row.get("id") != "0"],
-            "teams": [row["name"] for row in teams if row.get("id") != "0"],
+            "source": "mrerp_dms_snapshot",
+            **params,
+            "branches": data["branches"],
+            "teams": data["teams"],
             "page": page_no,
             "limit": size,
-            "total": total,
-            "has_more": page_no * size < total,
-            "rows": rows,
+            "total": len(rows),
+            "has_more": len(rows) > end,
+            "rows": [{"label": row["label"], "value": row["value"]} for row in rows[(page_no - 1) * size:end]],
+            **_metadata(snapshot),
         }
-
-    return run_logged_in(endpoint, _read)
+    except Exception as exc:
+        return _failure(exc)
 
 
 __all__ = [

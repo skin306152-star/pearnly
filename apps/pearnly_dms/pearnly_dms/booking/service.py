@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""建订车单：一次 DMS 会话里「复核主档 → 建单 → 挂附件 → 刷主档缓存」。
+"""建订车单：一次 DMS 会话里「复核主档 → 建单并回读 → 挂附件」。
 
 照搬老产品 `services/line_dms/booking_flow.py:_book_in_session`（那是它的建单执行体）。
 
@@ -11,7 +11,7 @@
    但客户写入/挂附件/刷主档这些慢步骤**不进共享锁**（否则一个慢附件卡住全店）；
 3. **附件在同一会话挂**（少一次登录），且**建单成功但附件没挂全要如实说**，
    绝不谎报附件成功；
-4. 建完顺手全量刷主档缓存（零额外登录）。
+4. 成功不自动刷新员工销售全量；不把部分复核资料冒充全量刷新成功。
 """
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ def book_in_session(
     *,
     on_attempt=None,
 ) -> Dict[str, Any]:
-    """一个 DMS 会话内：复核主档 → 建单 → 挂附件 → 顺手全量刷主档缓存（零额外登录）。
+    """一个 DMS 会话内：复核主档 → 建单并回读 → 挂附件。
 
     逐问选的 `place/term/regis/car/paint` id 覆盖端点默认值；**顾问**在逐问开局就按操作员
     的 DMS 账号匹配好（或端点上钉死）存进 `qa["advisor"]` —— 建单层
@@ -112,15 +112,16 @@ def book_in_session(
     from pearnly_dms.booking.booking_payload import build_booking_payload
     from pearnly_dms.booking.booking_preflight import readonly_preflight
     from pearnly_dms.contracts.payments import validate_payment_completeness
-    from pearnly_dms.intake.service import err, run_logged_in
+    from pearnly_dms.adapter.operations import err, run_logged_in
     from pearnly_dms.masters.company_banks import fetch_payment_bank_masters, validate_company_bank_payments
-    from pearnly_dms.masters.masters_cache import write_authoritative_snapshot
+    from pearnly_dms.adapter import snapshot_writeback
 
     # Resolver returns a mapping; Frappe treats mappings as SQL filters, not document names.
     endpoint = endpoint_name(endpoint)
     if not endpoint:
         return err("ERR_NO_CREDS")
     qa = payload.get("qa") or {}
+    cache_scope = snapshot_writeback.capture_scope(endpoint)
 
     def _do(cl, adapter):
         nonlocal qa
@@ -162,10 +163,36 @@ def book_in_session(
                 frappe.db.commit()
                 guard()
             if qa.get("customer_dirty"):
+                from pearnly_dms.contracts import customer_merge
+                from pearnly_dms.intake.customer_attempt import Attempt
                 draft = dict(qa.get("draft") or {})
                 draft["name"] = str((qa.get("customer") or {}).get("name") or "")
+                baseline = qa.get("customer_baseline")
+                fields = {key: value for key, value in draft.items()
+                          if key in customer_merge.IDENTITY + customer_merge.ADDRESS
+                          and (baseline is None or str(value or "") != str(baseline.get(key) or ""))}
+                fields, addresses = customer_merge.split(qa.get("customer_changes",
+                                                         customer_merge.flatten(fields)))
+                marker = Attempt(endpoint, "booking-customer:" + str(payload.get("nonce") or ""),
+                    qa.get("user_id"), fields=fields, mode="overwrite", customer_id=customer_id,
+                    addresses=addresses, baseline=baseline)
                 # DmsClient.save_customer restores the original sales writer transport.
-                cl.save_customer(fields=draft, mode="overwrite", customer_id=customer_id)
+                def begin_customer():
+                    if callable(guard):
+                        import frappe
+                        frappe.db.commit()  # live form reads must not freeze authority in an old RR view
+                        guard()
+                    marker.begin()
+                try:
+                    if not marker.previous():
+                        cl.save_customer(fields=fields, mode="overwrite", customer_id=customer_id,
+                                         addresses=addresses, baseline=baseline, on_attempt=begin_customer)
+                        marker.finish({"ok": True, "success": True, "customer_id": customer_id,
+                                       "mode": "overwrite"})
+                except customer_merge.DmsClientError as exc:
+                    result = err(exc.error_code, response_body=getattr(exc, "response_body", None))
+                    return marker.finish(result)
+                snapshot_writeback.customer(endpoint, cl, customer_id, expected_scope=cache_scope)
             master_card = card_from_customer(cl, customer_id=customer_id, people_id=card.people_id)
             org = resolve_booking_org(cl, defaults.advisor_id, defaults)
             booking = build_booking_payload(
@@ -194,15 +221,6 @@ def book_in_session(
             except Exception:
                 logger.warning("[dms booking] attachment failed after booking commit", exc_info=True)
                 failed.append({"error_code": "ERR_DMS_ATTACHMENT"})
-        cache_updated = True
-        try:
-            write_authoritative_snapshot(
-                endpoint, preflight["masters"],
-                car_id=str((answers.get("car") or {}).get("id") or ""), paints=preflight["paints"],
-            )
-        except Exception:
-            cache_updated = False
-            logger.warning("[dms booking] cache failed after booking commit", exc_info=True)
         return {
             "ok": True,
             "booking_id": booking_id,
@@ -210,7 +228,9 @@ def book_in_session(
             "attach_ok": not failed,
             "attached": attached,
             "attach_failed": failed,
-            "cache_updated": cache_updated,
+            "cache_updated": False,  # Compatibility: no complete sales read yet.
+            "cache_refresh_requested": False,
         }
 
-    return run_logged_in(endpoint, _do)
+    # 操作员自己发起的一笔：做完顺手把 DMS 使用记录里的增量补回缓存。
+    return run_logged_in(endpoint, _do, catch_up=True)

@@ -195,9 +195,12 @@ class EditedCustomer(unittest.TestCase):
             return {"resolved_customer": _merge_customer_defaults(customer, old), "prefixes": [],
                     "masters": {}, "paints": {}, "geo": {}}
         qa = {"customer": {"id": "127"}, "draft": customer, "customer_edited": True}
+        # load 会把补齐后的复核资料按票据写回；这部分由 CAS 保护，单元测试里
+        # 没有真实会话/nonce，打桩成成功，测试只关心已清空字段是否被保留。
         with patch.object(editor, "_review", return_value=({}, {"qa": qa}, "EP-own")), \
              patch.object(editor, "_snapshot", side_effect=snapshot), \
-             patch.object(editor, "_masters", return_value={}):
+             patch.object(editor, "_masters", return_value={}), \
+             patch.object(editor.store, "replace_review_payload", return_value=True):
             form = editor.load("U", "nonce")["form"]["customer"]
             self.assertEqual((form["building"], form["road"], form["people_id"]), ("", "", customer["people_id"]))
         payload = {"draft": customer, "customer_id": "127", "customer_edited": True}
@@ -257,6 +260,26 @@ class MasterRepair(unittest.TestCase):
                 self.assertTrue(handlers.handle({**event, "source": {"userId": "U"}, "replyToken": "r"}))
             self.assertEqual(reply.call_count, 3)
             route.assert_not_called()
+
+    def test_conversation_binding_carries_the_live_revision(self):
+        """菜单 5 的「读取／看结果」要求绑定版本非空且仍是当前绑定。
+
+        2026-09-25 实测：对话上下文的 binding 少了 `binding_revision`，那两个按钮
+        一律被判成"没有权限"（操作员只收到"未获授权搜索"）。这里守住这个键必须
+        来自**当前**绑定行，而不是调用方手里的旧值。
+        """
+        from pearnly_dms.line import handlers, identity
+        live = {"user": "employee", "binding_revision": "rev-9"}
+        with patch.object(frappe.local, "site", "offline-line.test", create=True), \
+             patch.object(identity, "current", return_value=live):
+            binding = handlers._binding("U-lab", "employee")
+        self.assertEqual(binding["user_id"], "employee")
+        self.assertEqual(binding["line_user_id"], "U-lab")
+        self.assertEqual(binding["binding_revision"], "rev-9")
+        with patch.object(frappe.local, "site", "offline-line.test", create=True), \
+             patch.object(identity, "current", return_value=None):
+            self.assertEqual(handlers._binding("U-lab", "employee")["binding_revision"], "",
+                             "没有当前绑定时必须留空，不能编一个版本出来")
 
 
 class LineIdentity(unittest.TestCase):
@@ -358,7 +381,7 @@ class SubmissionEvidence(unittest.TestCase):
         evidence = {"submitted": True, "booking_no": "LAB-UNKNOWN", "mismatches": ["paint"]}
         failure = DmsClientError("unverified stored result", "ERR_DMS_BOOKING_UNKNOWN")
         failure.response_body = evidence
-        with patch.object(intake_service, "build_adapter", return_value=(adapter, None)):
+        with patch("pearnly_dms.adapter.operations.build_adapter", return_value=(adapter, None)):
             result = intake_service.run_logged_in("EP-lab", Mock(side_effect=failure))
         self.assertEqual(result["error_code"], "ERR_DMS_BOOKING_UNKNOWN")
         for key, value in evidence.items():
@@ -392,25 +415,26 @@ class SalesQuery(unittest.TestCase):
                 query._sales_page(client, "1", "1", "", 10, 1)
 
     def test_ranking_respects_native_account_scope_and_array_contract(self):
-        from pearnly_dms.query import sales_readback as query
+        from pearnly_dms.query import snapshot_sync as sync, sales_readback as query
         client, adapter = Mock(), Mock()
         adapter.base_url = "https://example.test/dms/"
         home = '<input id="idusers" value="own-id">'
         adapter.transport.return_value.get.return_value.text = home
-        with patch.object(query, "_enabled_endpoint", return_value="EP-own"), \
-             patch.object(query, "run_logged_in", side_effect=lambda ep, fn: fn(client, adapter)):
-            self.assertFalse(query.query_capabilities("own")["top_sales"])
-            with self.assertRaises(DmsClientError) as failure:
-                query.fetch_top_sales("own")
-            self.assertEqual(failure.exception.error_code, "ERR_DMS_QUERY_SCOPE")
-            client._post_text.assert_not_called()
-            adapter.transport.return_value.get.return_value.text = home + ''.join(
-                f'<select id="{field}"><option value="0">All</option><option value="7">Own scope</option></select>'
-                for field in ("carmaxsellbranch", "carmaxsellteam"))
-            self.assertTrue(query.query_capabilities("own")["top_sales"])
-            client._post_text.side_effect = ["2", '[["A", "B"], ["1"], [1, 2]]']
-            with self.assertRaises(DmsClientError):
-                query.fetch_top_sales("own")
+        adapter.transport.return_value.get.return_value.status_code = 200
+        scope = sync.dashboard_scope(adapter)
+        self.assertFalse(scope["top_sales"])
+        with self.assertRaises(DmsClientError) as failure:
+            sync.collect_top(client, scope, query.top_parameters())
+        self.assertEqual(failure.exception.error_code, "ERR_DMS_QUERY_SCOPE")
+        client._post_text.assert_not_called()
+        adapter.transport.return_value.get.return_value.text = home + ''.join(
+            f'<select id="{field}"><option value="0">All</option><option value="7">Own scope</option></select>'
+            for field in ("carmaxsellbranch", "carmaxsellteam"))
+        scope = sync.dashboard_scope(adapter)
+        self.assertTrue(scope["top_sales"])
+        client._post_text.side_effect = ["2", '[["A", "B"], ["1"], [1, 2]]']
+        with self.assertRaises(DmsClientError):
+            sync.collect_top(client, scope, query.top_parameters())
 
     def test_rebound_identity_receives_no_result_after_slow_read(self):
         from pearnly_dms.query import query_flow as flow
@@ -430,7 +454,7 @@ class SalesQuery(unittest.TestCase):
                 send.assert_not_called()
 
     def test_fresh_session_initializes_native_list_before_query(self):
-        from pearnly_dms.query import sales_readback as query
+        from pearnly_dms.query import sales_readback as query, snapshot_sync as sync
         client = Mock()
         initialized = False
 
@@ -442,14 +466,14 @@ class SalesQuery(unittest.TestCase):
                 return "native view"
             self.assertTrue(initialized, "A direct query silently hides existing DMS records")
             self.assertEqual(path, query.LIST_PATH)
+            if "sdtamt" not in values:
+                return "dt::1"
             cells = ["", "active", "BK-LAB", "20/09/2569", "21/10/2569",
                      "Salesperson", "Customer", "Model", "Red", "cash", "", "", ""]
             return '<div data-val="lab">' + ''.join('<p>' + c + '</p>' for c in cells) + '</div>'
 
         client._post_text.side_effect = post
-        with patch.object(query, "_enabled_endpoint", return_value="EP-lab"), \
-                patch.object(query, "run_logged_in", side_effect=lambda endpoint, fn: fn(client, None)):
-            result = query.fetch_sales_records("user-lab")
+        result = sync.collect_sales(client, query.query_parameters())
         self.assertEqual(result["rows"][0]["booking_no"], "BK-LAB")
 
 
@@ -461,7 +485,7 @@ class BookingService(unittest.TestCase):
         self.db = Mock()
         self.db.get_value.side_effect = self.db_value
         self.enterContext(patch.object(frappe, "db", self.db))
-        self.enterContext(patch("pearnly_dms.intake.service.run_logged_in", side_effect=self.run_session))
+        self.enterContext(patch("pearnly_dms.adapter.operations.run_logged_in", side_effect=self.run_session))
         self.enterContext(patch("pearnly_dms.adapter.admin_read.authoritative_read_session", self.read_session))
         self.enterContext(patch.object(service, "booking_lock", self.write_lock))
         self.payload = {"qa": {
@@ -483,15 +507,17 @@ class BookingService(unittest.TestCase):
         self.enterContext(patch("pearnly_dms.booking.booking_customer.card_from_customer", return_value=object()))
         self.enterContext(patch("pearnly_dms.masters.company_banks.validate_company_bank_payments",
                                 side_effect=lambda adapter, payments, **kw: payments))
-        self.cache = self.enterContext(patch("pearnly_dms.masters.masters_cache.write_authoritative_snapshot"))
+        self.cache = self.enterContext(patch("pearnly_dms.adapter.snapshot_writeback.sales", return_value=True))
         self.attempt = Mock()
 
     def db_value(self, doctype, name, field):
         self.assertEqual(name, "EP-lab")  # dict-as-filter caused the production SQL error
         return "{}" if field == "booking_defaults" else "https://example.test/dms/index.php"
 
-    def run_session(self, endpoint, fn):
+    def run_session(self, endpoint, fn, **kwargs):
         self.assertEqual(endpoint, "EP-lab")
+        # 操作员自己发起的那一笔：动作之外还要顺手把使用记录里的增量补回缓存。
+        self.assertEqual(kwargs, {"catch_up": True})
         return fn(self.client, object())
 
     @contextmanager
@@ -531,7 +557,9 @@ class BookingService(unittest.TestCase):
         self.assertEqual(sent.payments[0]["amount"], "10.25")
         self.client.resolve_booking_payload.assert_not_called()
         self.client.fetch_masters.assert_not_called()
-        self.cache.assert_called_once()
+        # 建单成功只回填已确认的客户资料；不自动刷新员工销售全量
+        # （见 booking/service 模块头第 4 条），所以这里必须不被调用。
+        self.cache.assert_not_called()
         self.attempt.assert_called_once()
 
     def test_removed_master_never_submits(self):

@@ -202,12 +202,27 @@ class ProductImages(unittest.TestCase):
                 args, actual_image = commands[-1]
                 self.assertEqual(actual_image, expected)
                 self.assertEqual(args[args.index("--profile") + 1], group)
-                self.assertEqual(args[args.index("up") + 2:],
-                                 [f"{group}-{suffix}" for suffix in
-                                  ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
+                expected_containers = [f"{group}-{suffix}" for suffix in
+                                       ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler",
+                                        "socketio", "frontend")]
+                # DMS additionally runs the manual snapshot synchronization queue.
+                if group == "dms":
+                    expected_containers.append("dms-sync-worker")
+                self.assertEqual(args[args.index("up") + 2:], expected_containers)
 
 
 class Contracts(unittest.TestCase):
+    def test_sync_lane_is_in_every_dms_worker_lifecycle_and_not_other_products(self):
+        for suffixes in (("web", "worker", "scheduler"),
+                         ("scheduler", "worker", "ocr-worker", "ocr-dispatch"),
+                         ("worker", "ocr-worker", "ocr-dispatch", "scheduler")):
+            self.assertIn("dms-sync-worker", agent.services("dms", suffixes))
+            for group in ("erp", "cowork"):
+                self.assertEqual(agent.services(group, suffixes), [group + "-" + item for item in suffixes])
+        with patch.object(agent, "compose") as compose:
+            agent.restart_group("dms")
+            self.assertIn("dms-sync-worker", compose.call_args.args)
+
     def test_forced_ssh_entry_is_executable_and_rejects_invalid_job(self):
         self.assertTrue(os.access(path, os.X_OK), "Forced SSH command must retain its Git executable bit")
         result = subprocess.run([str(path)], input="{}", text=True, capture_output=True,

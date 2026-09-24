@@ -29,8 +29,9 @@
 | `booking/conversation` | 订车问答、卡片及确认流程 | `booking_flow`；不另造提交实现 |
 | `intake` | 客户识别后录入、去重、创建/修改及会话流程 | `flow` / `service` / `id_card` |
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
+| `snapshots` | 本地完整读代际、私有分批进度、凭据/员工范围与显式手动派发 | 只依赖纯契约/原生框架，不登录、不依赖业务消费者；见 ADR-010/011 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
-| `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
+| `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow`；依赖纯 `contracts` 错误类型拒绝派发前权限或认领变化 |
 | `records` | 推送台账本身（状态、租约、重试、收口）与推送历史的列表移除、审计 | `push_log`（`record` / `claim_for_push` / `status_of`）、`manage.delete_records`；只改展示标记，保留权威推送凭据 |
 | `query` | 查询权限、记录/排行及结果卡片 | `query_flow`；只读路径不承担写入 |
 | `menu`、`line` | 菜单、事件路由、公共卡片与消息输出 | `line.handlers.handle`，共享输出 `line.out` |
@@ -38,6 +39,12 @@
 | `operators` | 操作员、销售身份与绑定 | `roster`；保留管理员权限 |
 
 这次是保持行为的模块归位，已把纯契约与运行依赖分开。既有 `client` 到 `booking`、`intake` 的业务协议协作，以及会话流程间的延迟导入仍存在；不能据此宣称已完成严格无环分层。下一次改动相关链时，要围绕真实职责调整并补对应回归，不能再整批搬回根目录。
+
+### DMS 后台读快照（2026-09-24）
+
+读取架构见 [ADR-010](../adr/0010-dms-background-read-snapshots.md) 和替代触发策略的 [ADR-011](../adr/0011-dms-manual-read-snapshots.md)：手动建立完整快照，交互只读本地，客户写入和最终订车实时复核。采集器在 DMS hooks 声明，手动请求域通过框架钩子派发；不反向导入业务。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
+
+手动请求直接进入原生 `dms_sync` 队列，不再注册 Scheduled Job Type 的队列 mixin，也不修改 scheduler tick。旧读档入口无请求 token 时无副作用返回；业务恢复任务继续使用原生调度和既有队列，不修改 Frappe 源码。
 
 ### 推送台账归 DMS（2026-09-21）
 
@@ -81,7 +88,7 @@
 
 运行 `python3 scripts/check-architecture.py`：检查全部 App 的根模块基线、Frappe 必备文件、DMS 薄兼容入口、内部旧路径引用、纯契约依赖和新增跨域依赖。DMS 与 Cowork 已存在的域依赖方向分别登记在 `architecture-policy.json` 的 `dms_domain_dependencies` 与 `cowork_domain_dependencies`，新增方向必须说明契约并审查，不能自动扩充。增加领域、例外或改变基线必须同时说明责任边界与理由，不能只改基线让检查变绿。
 
-`python3 scripts/check-dms-offline.py` 只执行已审过的四组零 IO 检查，检查失败标记和退出码。完整业务 / Site / 真机验收另按影响选择。
+`python3 scripts/check-dms-offline.py` 只执行显式列出的已审计零 IO 检查（含完整快照读取器），检查失败标记和退出码。完整业务 / Site / 真机验收另按影响选择。
 
 本地运行 `sh scripts/install-dev-hooks.sh`，从长期主目录安装仓库级共享 `core.hooksPath`。提交钩子导出实际暂存快照后检查，其他窗口和工作树也使用同一钩子，不受它们是否重新读取规则影响。旧分支缺检查脚本时拒绝提交并提示同步规则；不覆盖已有钩子。该配置仅属于本仓，不改全局 Git 配置。新克隆需要安装一次；人工禁用钩子仍然属于违规，Git hook 不是权限隔离机制。
 
@@ -105,7 +112,7 @@
 
 ### 操作员提成归属的读取边界（2026-09-20）
 
-`operators.advisors` 通过 `masters.masters_cache.get_masters(force_refresh=True, require_complete=True)` 读取管理员端点的顾问名册，保存时按 ID 重新解析名称。此依赖只读，不向主档或外部 DMS 写入，不反向引用 roster；实际读取链 `masters_cache` → `intake.service.run_logged_in` → `adapter` → `client` 不调用 roster；其他业务流程的历史域间循环仍按既有债务记录。顾问业务校验归 operators，抓取、会话互斥和缓存仍归既有 masters/adapter。登记 operators → masters 是为恢复旧线上已具备的提成归属校验，不授权其他反向依赖或绕过刷新失败。
+`operators.advisors` 的下拉选项只读手动发布的 `company` 快照，缺缓存或范围失效不回退实时读取。保存非空顾问 ID 才经 `adapter.operations.run_logged_in(authoritative_read=True)` 窄读原生顾问 selector 的全部分页，并按实时 ID 取名；不再调用旧全量 `masters_cache`。返回前以当前锁定读重验同一启用管理员，并核对唯一主连接及凭据范围，失败拒绝保存，不提交调用方事务。登记的单向依赖改为 operators → snapshots/adapter；没有反向引用 roster，也没有外部业务写入。顾问业务校验归 operators，抓取与账号互斥仍归 adapter。
 
 ### 推送记录管理的边界（2026-09-20）
 
@@ -177,3 +184,9 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 `companion.wsgi:application` 显式包装原生 `frappe.app.application`；同域 `legacy_wire` 只把三个精确旧 POST URL 映射到既有心跳/lease/ACK RPC，并将成功的 `message` 字典解包为旧客户端顶层 JSON。其它请求原样交给原生应用；不注册新的 hook、角色或身份，也不复制业务校验/事务/重试。原生应用完成提交和清理后才输出适配响应，异常成功封套返回稳定502，不当空队列或成功回执处理。
 
 默认基础设施仍使用原生入口，本包没有启用监听或切换 Windows。固定旧 QueueClient 经真实 httpx WSGI 运输在隔离 Site 验证，Windows EXE 的54个业务模块及 launcher 与固定源码编译结果一致；实际机器连新平台、物理写者互斥和独立ERP回读未验收。详见[第十六批合同](../work/cowork-backend/sixteenth-source-review.md)。
+
+### DMS 连接页手动读取（2026-09-24）
+
+`connections.snapshots` 单向调用 `snapshots.manual` 的手动请求与本地状态服务。RPC 每次校验 DMS Admin/System Manager，只解析本站唯一主连接，不接受调用方指定 Endpoint、读取账号或操作员；GET 只返回分项状态与时间，不排队、不读取外部 DMS。POST 限车辆、客户、地址、公司四组，去重、当前作用域与后台读取由 snapshots 域负责。连接页仅保留原生连接信息和“更新数据”入口，不展示快照资料、进度、数量、时间或错误码字段。原生 Dialog 选择资料后用 `frappe.dom.freeze/unfreeze` 全屏显示“数据更新中...”并等待本次请求的终态，只提示结果；空闲不轮询，活动任务的本地状态轮询不触发外部读取。请求标识不匹配、状态异常或离页时必须解除遮罩，不能把旧代际成功当作本次成功。
+
+四组完整原生资料采集归 `client.catalogue_reader` 与同域 schema，adapter 只编排有界会话、私有检查点和发布。`snapshots.directory` 组合各组已完成的 LINE 投影，不把原始公司/车辆表单或员工目录扩散到公开界面；车辆颜色只依赖车辆组，称谓只依赖客户组。没有新增域依赖或后台周期扫描，最终提交的实时权限、状态和写入校验不变。

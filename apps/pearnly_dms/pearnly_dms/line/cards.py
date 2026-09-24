@@ -223,10 +223,16 @@ def edit_entry_card(nonce: str, *, notice: str = "") -> Dict[str, Any]:
     [cards._edit_button(nonce)], BTN_EDIT)`）—— 点编辑不再展开字段菜单，
     而是给一个能开浏览器编辑页的入口。一般正文为空；保存前缺项拒绝可带上既有
     已翻译错误提示，同时保持原 nonce 的编辑入口有效。
+
+    **尺寸按操作员反馈调大**（2026-09-25："这个按钮和文案做得也太小了吧"）：
+    提示正文回到默认字号（原来 `size: "sm"` 偏小），按钮用标准高度（原来的
+    `height: "sm"` 偏矮）。只动这一张卡，其它卡的按钮形状不变。
     """
     label = _t("BTN_EDIT")
-    rows = [{"type": "text", "text": notice, "wrap": True, "size": "sm"}] if notice else []
-    return _bubble(label, rows, [_edit_button(nonce)], notice or label)
+    rows = [{"type": "text", "text": notice, "wrap": True}] if notice else []
+    button = _edit_button(nonce)
+    button["height"] = "md"
+    return _bubble(label, rows, [button], notice or label)
 
 
 def new_customer_card(summary: Dict[str, str], nonce: str) -> Dict[str, Any]:

@@ -158,14 +158,15 @@ def mark_used(endpoint: Any) -> None:
     _write(endpoint, state)
 
 
-def note_success(endpoint: Any) -> None:
+def note_success(endpoint: Any, *, mark_used: bool = True) -> None:
     """连上了（哪怕业务上被拒）→ 计数归零、冷却解除。"""
     state = _read(endpoint)
+    used_at = time.time() if mark_used else state.get("used_at", 0)
     if not state.get("failures") and not state.get("until"):
-        state["used_at"] = time.time()
+        state["used_at"] = used_at
         _write(endpoint, state)
         return
-    _write(endpoint, {**state, "failures": 0, "until": 0, "used_at": time.time(),
+    _write(endpoint, {**state, "failures": 0, "until": 0, "used_at": used_at,
                       "last_code": "", "recovered_at": time.time()})
 
 

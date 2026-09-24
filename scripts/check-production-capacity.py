@@ -24,6 +24,14 @@ checks = []
 for product in ('dms', 'erp', 'cowork'):
     assert int(services[product + '-ocr-dispatch']['mem_limit']) >= 256 * M
 checks.append('All OCR dispatchers retain measured cold-start memory headroom')
+assert services['dms-sync-worker']['command'] == ['bench', 'worker', '--queue', 'dms_sync']
+assert int(services['dms-sync-worker']['mem_limit']) == 1024 * M
+assert not services['dms-sync-worker'].get('ports')
+assert services['dms-sync-worker']['profiles'] == ['dms']
+assert services['dms-worker']['command'][3] == 'short,default,long'
+assert services['dms-ocr-worker']['command'][3] == 'ocr'
+assert not any(name in services for name in ('erp-sync-worker', 'cowork-sync-worker'))
+checks.append('Dedicated DMS sync lane never consumes interactive or OCR queues')
 
 
 def test(label, containers, product, total=11960, available=9000, transient=0, reject=False):
@@ -43,7 +51,8 @@ def running(group):
 
 
 test('DMS fits current host', [], 'dms')
-test('Adding one other product fits hard budgets', running('dms'), 'erp')
+test('DMS dedicated sync lane plus ERP exceeds 12 GiB hard budgets', running('dms'), 'erp', reject=True)
+test('DMS dedicated sync lane plus ERP fits 16 GiB hard budgets', running('dms'), 'erp', total=16384)
 test('All three exceed current host before starting', running('dms')+running('erp'), 'cowork', reject=True)
 test('All three fit 16 GiB hard budgets', running('dms')+running('erp'), 'cowork', total=16384)
 test('Idle products still reserve full candidate limits', running('dms'), 'erp', total=9000, reject=True)

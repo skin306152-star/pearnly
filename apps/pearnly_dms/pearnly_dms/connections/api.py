@@ -115,8 +115,12 @@ def save_connection(username: str, password: str, system_url: str | None = None)
 
     ⚠️ **写库前不重复探针**：调用方必须先 `test_credentials` 通过再调这里。
     要求"存"之前必须"测"，是为了不出现"保存成功但连不上"的假成功。
+
+    绑定成功后**自动建缓存底座**：把四组（车辆/客户/公司/地址）排队读一次。凭据一换，
+    缓存 scope 就变（scope 含凭据指纹），所以这里总是要重读。界面用原生白屏覆盖显示
+    实时进度，管理员绑完就能看到"底座正在建"。
     """
-    _require_admin()
+    actor = _require_admin()
     username = (username or "").strip()
     if not username or not password:
         frappe.throw(_("Both account and password are required"))
@@ -148,6 +152,10 @@ def save_connection(username: str, password: str, system_url: str | None = None)
     saved = _row(frappe.get_doc(ENDPOINT, doc.name))
     if not saved["usable"]:
         frappe.throw(_("The saved credentials cannot be read back; check the site encryption key"))
+    from pearnly_dms.connections import snapshots as connection_snapshots
+
+    # 内部入口，不开 RPC：读取只在"绑定"和"操作顺手带回"两个时点发生。
+    connection_snapshots.bootstrap(doc.name, actor)
     return {"endpoint": saved}
 
 
