@@ -22,7 +22,10 @@ from pearnly_dms.contracts.endpoint import endpoint_name
 
 DT = "DMS Read Snapshot"
 INTERVAL = 300
-MAX_BYTES = 8 * 1024 * 1024
+# 单组快照的存储上限。2026-09-25 实测：rayong 有 15,135 个客户，完整快照按每条约
+# 1–1.5KB 估算要 15–22MB，旧的 8MB 会让读取全部成功却在发布时被丢掉。数据库单包
+# 上限是 16MB，取 14MB 留出余量；再大就要同时调 MariaDB 的 max_allowed_packet。
+MAX_BYTES = 14 * 1024 * 1024
 MAX_REQUESTS = 32
 REQUEST_TTL = 7 * 86400
 #: 变更流水的水位（模块事件总数 + 已处理的流水号）。不是快照，只走内部读写。
