@@ -195,9 +195,12 @@ class EditedCustomer(unittest.TestCase):
             return {"resolved_customer": _merge_customer_defaults(customer, old), "prefixes": [],
                     "masters": {}, "paints": {}, "geo": {}}
         qa = {"customer": {"id": "127"}, "draft": customer, "customer_edited": True}
+        # load 会把补齐后的复核资料按票据写回；这部分由 CAS 保护，单元测试里
+        # 没有真实会话/nonce，打桩成成功，测试只关心已清空字段是否被保留。
         with patch.object(editor, "_review", return_value=({}, {"qa": qa}, "EP-own")), \
              patch.object(editor, "_snapshot", side_effect=snapshot), \
-             patch.object(editor, "_masters", return_value={}):
+             patch.object(editor, "_masters", return_value={}), \
+             patch.object(editor.store, "replace_review_payload", return_value=True):
             form = editor.load("U", "nonce")["form"]["customer"]
             self.assertEqual((form["building"], form["road"], form["people_id"]), ("", "", customer["people_id"]))
         payload = {"draft": customer, "customer_id": "127", "customer_edited": True}
@@ -532,7 +535,9 @@ class BookingService(unittest.TestCase):
         self.assertEqual(sent.payments[0]["amount"], "10.25")
         self.client.resolve_booking_payload.assert_not_called()
         self.client.fetch_masters.assert_not_called()
-        self.cache.assert_called_once()
+        # 建单成功只回填已确认的客户资料；不自动刷新员工销售全量
+        # （见 booking/service 模块头第 4 条），所以这里必须不被调用。
+        self.cache.assert_not_called()
         self.attempt.assert_called_once()
 
     def test_removed_master_never_submits(self):
