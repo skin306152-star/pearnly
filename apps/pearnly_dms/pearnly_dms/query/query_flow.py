@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""Menu-5 conditions → local snapshots → cards, without a long-queue hop.
+"""Menu-5 conditions → local cache or explicit one-query read → cards.
 
 Every action and result delivery rechecks current permission/binding. Conditions
 remain in the LINE session; obsolete results cannot replace a newer query. The
 ``_run_*`` names are retained for queued jobs from a rolling upgrade, but new
-interactions call them directly and never log into DMS.
+local result/page actions call them directly and never log into DMS. Only the
+separate explicit refresh action registers background work.
 """
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from pearnly_dms.line.out import push_or_reply_text as _push
 from pearnly_dms.line.out import reply_text as _reply
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.line.identity import matches as current_binding
+from pearnly_dms.snapshots import manual
 
 logger = logging.getLogger(__name__)
 
@@ -97,6 +99,8 @@ def handle_postback(
         _pick_top_period(binding, line_user_id, reply_token, sess, values)
     elif action == query_cards.ACT_QUERY_PAGE:
         _paginate(binding, line_user_id, reply_token, sess, values)
+    elif action in (query_cards.ACT_QUERY_REFRESH, query_cards.ACT_QUERY_RESULT):
+        _manual_action(binding, line_user_id, reply_token, action, values)
 
 
 def handle_text(
@@ -164,7 +168,7 @@ def _run_dimensions(binding, line_user_id, reply_token: str = ""):
     if (store.get_session(line_user_id) or {}).get("state") != "query_sales":
         return
     if not result.get("ok"):
-        _push(line_user_id, _failure_text(result), reply_token)
+        _read_failure(binding, line_user_id, {"kind": "capabilities"}, result, reply_token)
         return
     _send(line_user_id, query_cards.sales_dimension_message(top_sales=result["top_sales"]),
           reply_token)
@@ -289,8 +293,9 @@ def _run_records(binding: dict, line_user_id: str, params: dict,
     if not _same_query_session(line_user_id, "records", params):
         return
     if not result.get("ok"):
-        _push(line_user_id, _failure_text(result), reply_token)
+        _read_failure(binding, line_user_id, {"kind": "records", **params}, result, reply_token)
         return
+    result = {**result, "query_key": sales_readback.query_dataset(sales_readback.query_parameters("records", **params))}
     _send(line_user_id, query_cards.sales_board(result), reply_token)
 
 
@@ -306,12 +311,14 @@ def _begin_top(
     page: int = 1,
     reply_token: str = "",
 ) -> None:
+    try:
+        normalized = sales_readback.top_parameters(group, metric, date_from, date_to)
+    except Exception as exc:
+        _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
+        return
     params = {
         "query_kind": "top",
-        "group": group,
-        "metric": metric,
-        "date_from": date_from,
-        "date_to": date_to,
+        **normalized,
         "limit": min(max(int(limit), 1), 30),
         "page": max(int(page), 1),
     }
@@ -321,7 +328,7 @@ def _begin_top(
 
 def _run_top(binding: dict, line_user_id: str, params: dict,
              reply_token: str = "") -> None:
-    """本地排行读取/登记条件；发送前再次查权限，不等待第三方同步。"""
+    """仅读本地排行；发送前再次查权限，不登记条件或等待外部同步。"""
     if not _can_query(binding):
         return
     result = sales_readback.fetch_top_sales(
@@ -342,9 +349,75 @@ def _run_top(binding: dict, line_user_id: str, params: dict,
     if not _same_query_session(line_user_id, "top", params):
         return
     if not result.get("ok"):
+        _read_failure(binding, line_user_id, {"kind": "top", **params}, result, reply_token)
+        return
+    result = {**result, "query_key": sales_readback.query_dataset(sales_readback.query_parameters("top", **params))}
+    _send(line_user_id, query_cards.top_sales_board(result), reply_token)
+
+
+def _read_failure(binding, line_user_id, conditions, result, reply_token):
+    if not str(result.get("error_code") or "").startswith("ERR_DMS_SNAPSHOT_"):
         _push(line_user_id, _failure_text(result), reply_token)
         return
-    _send(line_user_id, query_cards.top_sales_board(result), reply_token)
+    try:
+        endpoint = sales_readback._query_endpoint(binding["user_id"])
+        dataset = sales_readback.query_dataset(conditions)
+        status = manual.status(endpoint, dataset, reader="sales")
+        if status.get("state") == "succeeded":
+            # A previous request succeeded, but this result is now expired or
+            # invalid. Do not promise that clicking result will reveal it.
+            status = {**status, "state": "idle"}
+        _send(line_user_id, query_cards.manual_status_message(status, dataset), reply_token)
+    except Exception as exc:
+        _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
+
+
+def _manual_conditions(session):
+    state, payload = (session or {}).get("state"), (session or {}).get("payload") or {}
+    if state in {"query_menu", "query_sales"}:
+        return {"kind": "capabilities"}
+    if state != "query_results" or payload.get("query_kind") not in {"records", "top"}:
+        return None
+    return sales_readback.query_parameters(payload["query_kind"], **payload)
+
+
+def _manual_action(binding, line_user_id, reply_token, action, values):
+    """Only a current card and binding can explicitly enqueue this query."""
+    session = store.get_session(line_user_id)
+    try:
+        conditions = _manual_conditions(session)
+        if not conditions or values.get("key") != sales_readback.query_dataset(conditions):
+            _push(line_user_id, query_cards.TXT_EXPIRED, reply_token)
+            return
+        if (not binding.get("binding_revision") or not current_binding(binding, line_user_id)
+                or not _can_query(binding)):
+            _denied(reply_token)
+            return
+        endpoint = sales_readback._query_endpoint(binding["user_id"])
+        if action == query_cards.ACT_QUERY_RESULT:
+            status = manual.status(endpoint, values["key"], reader="sales")
+            if status.get("state") in {"queued", "running", "waiting", "failed"}:
+                _send(line_user_id, query_cards.manual_status_message(status, values["key"]), reply_token)
+                return
+            if conditions["kind"] == "capabilities":
+                store.set_session(line_user_id, "query_sales", {})
+                _run_dimensions(binding, line_user_id, reply_token)
+            else:
+                runner = _run_records if conditions["kind"] == "records" else _run_top
+                runner(binding, line_user_id, session["payload"], reply_token)
+            return
+        params = {**conditions, "_binding": {"line_user_id": line_user_id,
+                  "user_id": binding["user_id"], "binding_revision": binding["binding_revision"]}}
+        status = manual.request(endpoint, sales_readback.query_dataset(conditions), reader="sales",
+                                params=params, actor=binding["user_id"])
+        frappe.db.commit()
+        if not current_binding(binding, line_user_id) or not _can_query(binding):
+            return
+        if store.get_session(line_user_id) != session:
+            return
+        _send(line_user_id, query_cards.manual_status_message(status, values["key"]), reply_token)
+    except Exception as exc:
+        _push(line_user_id, _failure_text(sales_readback._failure(exc)), reply_token)
 
 
 def _failure_text(result: dict) -> str:
@@ -369,6 +442,9 @@ def _paginate(
     params = dict((sess or {}).get("payload") or {})
     # 卡片上的按钮带 kind：**必须和会话里那份对得上** —— 否则就是翻上一批结果的页
     if params.get("query_kind") != values.get("kind"):
+        _reply(reply_token, query_cards.TXT_EXPIRED)
+        return
+    if values.get("key") and values["key"] != sales_readback.query_dataset(_manual_conditions(sess)):
         _reply(reply_token, query_cards.TXT_EXPIRED)
         return
     direction = values.get("direction")

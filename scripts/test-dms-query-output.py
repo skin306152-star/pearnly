@@ -23,8 +23,8 @@ class QueryOutput(unittest.TestCase):
     private = "PRIVATE-RESULT-MUST-NOT-LEAK"
     record_params = {"field": "customer", "query": "fixture", "status": "",
                      "limit": 10, "page": 1}
-    top_params = {"group": "model", "metric": "quantity", "date_from": "2026-09-01",
-                  "date_to": "2026-09-24", "limit": 10, "page": 1}
+    top_params = {"group": "model", "metric": "quantity", "date_from": "01/09/2569",
+                  "date_to": "24/09/2569", "limit": 10, "page": 1}
 
     def setUp(self):
         stack = self.stack = ExitStack()
@@ -37,6 +37,7 @@ class QueryOutput(unittest.TestCase):
             "pearnly_line_channel_access_token": "fixture-access-token",
         }))
         self.db = stack.enter_context(patch.object(frappe, "db", new=Mock()))
+        stack.enter_context(patch.object(frappe, "flags", new=frappe._dict()))
         cache = Mock()
         cache.make_key.side_effect = lambda key: "fixture:" + key
         stack.enter_context(patch.object(frappe, "cache", return_value=cache))

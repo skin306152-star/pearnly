@@ -450,8 +450,8 @@ class SalesQuery(unittest.TestCase):
             return '<div data-val="lab">' + ''.join('<p>' + c + '</p>' for c in cells) + '</div>'
 
         client._post_text.side_effect = post
-        result = sync.collect_sales(client, {"top_sales": False, "key": "employee-scope"})
-        self.assertEqual(result["rows"]["lab"]["booking_no"], "BK-LAB")
+        result = sync.collect_sales(client, query.query_parameters())
+        self.assertEqual(result["rows"][0]["booking_no"], "BK-LAB")
 
 
 class BookingService(unittest.TestCase):

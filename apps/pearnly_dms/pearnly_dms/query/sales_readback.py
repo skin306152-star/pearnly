@@ -63,8 +63,9 @@ STATUS_FILTERS = {
 
 TOP_GROUPS = {"model": "1", "type": "2", "subtype": "3"}
 TOP_METRICS = {"quantity": "1", "amount": "2"}
-SALES_DATASET = "sales_query"
-SNAPSHOT_VERSION = 1
+SALES_DATASET = "sales_query"  # Retired scheduled dataset; no new reads.
+CAPABILITIES_DATASET = "query.capabilities"
+SNAPSHOT_VERSION = 2
 
 _ROW_RE = re.compile(r'data-val="([^"]+)"', re.I)
 _CELL_RE = re.compile(r"<p[^>]*>(.*?)</p>", re.S | re.I)
@@ -158,12 +159,35 @@ def _metadata(snapshot):
     return {key: snapshot[key] for key in ("as_of", "completed_at", "generation", "stale")}
 
 
-def _read_sales(endpoint):
-    snapshot = store.read(endpoint, SALES_DATASET, reader="sales")
+def query_parameters(kind="records", **params):
+    """Only business conditions identify a cache; pages and binding do not."""
+    if kind == "capabilities":
+        return {"kind": kind}
+    if kind == "records":
+        return {"kind": kind,
+                "field": params.get("field") if params.get("field") in SEARCH_COLUMNS else "booking_no",
+                "status": params.get("status") if params.get("status") in STATUS_FILTERS else "active",
+                "query": str(params.get("query") or "").strip()}
+    if kind == "top":
+        return {"kind": kind, **top_parameters(**{key: params.get(key, "")
+                for key in ("group", "metric", "date_from", "date_to")})}
+    raise DmsClientError("Unknown query kind", "ERR_DMS_TECHNICAL")
+
+
+def query_dataset(params):
+    conditions = query_parameters(**{key: value for key, value in params.items() if key != "_binding"})
+    if conditions["kind"] == "capabilities":
+        return CAPABILITIES_DATASET
+    return "query." + hashlib.sha256(json.dumps(conditions, sort_keys=True,
+        separators=(",", ":")).encode()).hexdigest()[:32]
+
+
+def _read_query(endpoint, params):
+    snapshot = store.read(endpoint, query_dataset(params), reader="sales")
     data = snapshot["data"]
     if not data.get("ok"):
         raise DmsClientError("DMS query snapshot is unavailable", data.get("error_code") or "ERR_DMS_SNAPSHOT_PENDING")
-    if data.get("version") != SNAPSHOT_VERSION:
+    if data.get("version") != SNAPSHOT_VERSION or data.get("params") != params:
         raise store.SnapshotUnavailable()
     return snapshot
 
@@ -184,18 +208,15 @@ def fetch_sales_records(
     limit: int = 10,
     page: int = 1,
 ) -> Dict[str, Any]:
-    """Filter and paginate the employee's last complete native snapshot."""
+    """Paginate one complete, explicitly requested native result without IO."""
     try:
-        snapshot = _read_sales(_query_endpoint(user_id))
+        params = query_parameters("records", field=field, query=query, status=status)
+        snapshot = _read_query(_query_endpoint(user_id), params)
         data = snapshot["data"]
-        field = field if field in SEARCH_COLUMNS else "booking_no"
-        status = status if status in STATUS_FILTERS else "active"
+        field, status, needle = params["field"], params["status"], params["query"]
         size = min(max(int(limit or 10), 1), 30)
         page_no = max(int(page or 1), 1)
-        needle = str(query or "").strip()
-        members = set(data["statuses"][status])
-        rows = [data["rows"][rid] for rid in data["orders"][field] if rid in members
-                and (not needle or needle.casefold() in data["rows"][rid][field].casefold())]
+        rows = data["rows"]
         end = page_no * size
         return {
             "ok": True,
@@ -267,7 +288,7 @@ def _dashboard_scope(home):
 def query_capabilities(user_id):
     """Only advertise dashboard scope captured with this employee's login."""
     try:
-        snapshot = _read_sales(_query_endpoint(user_id))
+        snapshot = _read_query(_query_endpoint(user_id), {"kind": "capabilities"})
         return {"ok": True, "top_sales": bool(snapshot["data"]["capabilities"]["top_sales"]),
                 **_metadata(snapshot)}
     except Exception as exc:
@@ -301,7 +322,7 @@ def top_parameters(group="model", metric="quantity", date_from="", date_to=""):
 
 
 def top_dataset(params):
-    return "top." + hashlib.sha256(json.dumps(params, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:32]
+    return query_dataset({"kind": "top", **params})
 
 
 def fetch_top_sales(
@@ -314,27 +335,28 @@ def fetch_top_sales(
     limit: int = 10,
     page: int = 1,
 ) -> Dict[str, Any]:
-    """Read a native ranking snapshot; new periods wait for scheduled sync."""
+    """Read one explicitly requested native ranking; never request a refresh."""
     try:
         endpoint = _query_endpoint(user_id)
-        sales = _read_sales(endpoint)
-        if not sales["data"]["capabilities"]["top_sales"]:
-            raise DmsClientError("This DMS login has no sales dashboard", "ERR_DMS_QUERY_SCOPE")
         params = top_parameters(group, metric, date_from, date_to)
-        dataset = top_dataset(params)
-        # Defaults are always collected; they must stay readable even when all
-        # custom-period slots are occupied. Only custom periods need renewable
-        # registration. Registration never enqueues an on-demand DMS login.
-        if (params["date_from"], params["date_to"]) != _period_default():
-            store.request(endpoint, dataset, params, reader="sales")
-        snapshot = store.read(endpoint, dataset, reader="sales")
+        snapshot = _read_query(endpoint, {"kind": "top", **params})
         data = snapshot["data"]
         if not data.get("ok"):
             raise DmsClientError("DMS ranking snapshot unavailable", data.get("error_code") or "ERR_DMS_SNAPSHOT_PENDING")
-        if data.get("version") != SNAPSHOT_VERSION or data.get("params") != params:
-            raise store.SnapshotUnavailable()
-        if data.get("dashboard_scope") != sales["data"].get("dashboard_scope"):
-            raise store.SnapshotUnavailable()
+        # A successful ranking captured its own employee dashboard scope. An
+        # older capability cache must not veto that newer, authorized result.
+        # Conversely, a later scope reduction invalidates an older ranking.
+        try:
+            sales = _read_query(endpoint, {"kind": "capabilities"})
+        except store.SnapshotUnavailable as exc:
+            if exc.error_code not in {"ERR_DMS_SNAPSHOT_PENDING", "ERR_DMS_SNAPSHOT_STALE"}:
+                raise
+            sales = None
+        if sales and sales["as_of"] >= snapshot["as_of"]:
+            if not sales["data"]["capabilities"]["top_sales"]:
+                raise DmsClientError("This DMS login has no sales dashboard", "ERR_DMS_QUERY_SCOPE")
+            if data.get("dashboard_scope") != sales["data"].get("dashboard_scope"):
+                raise store.SnapshotUnavailable()
         size = min(max(int(limit or 10), 1), 30)
         page_no = max(int(page or 1), 1)
         end = page_no * size

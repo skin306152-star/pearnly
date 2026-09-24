@@ -232,10 +232,10 @@ def main():
     qf.sales_readback.fetch_top_sales = lambda *a, **k: {"ok": True, "metric": "quantity",
                                                         "rows": [{"label": "A", "value": 1}]}
     store.set_session(uid, "query_results", {"query_kind": "top", "group": "model",
-                      "metric": "quantity", "date_from": "d", "date_to": "d", "limit": 10, "page": 1})
+                      "metric": "quantity", "date_from": "01/09/2569", "date_to": "24/09/2569", "limit": 10, "page": 1})
     sent.clear()
-    qf._run_top(binding, uid, {"group": "model", "metric": "quantity", "date_from": "d",
-                               "date_to": "d", "limit": 10, "page": 1})
+    qf._run_top(binding, uid, {"group": "model", "metric": "quantity", "date_from": "01/09/2569",
+                               "date_to": "24/09/2569", "limit": 10, "page": 1})
     ck("看板任务成功 → 推畅销卡", len(sent) == 1 and sent[-1]["type"] == "flex", len(sent))
 
     # ── 7. 打字那两条路（记录同步调用参数） ──────────────────────────────
@@ -313,7 +313,7 @@ def main():
     qf._paginate(binding, uid, "tok",
                  {"state": "query_results",
                   "payload": {"query_kind": "top", "group": "model", "metric": "amount",
-                              "date_from": "a", "date_to": "b", "limit": 10, "page": 2}},
+                              "date_from": "01/09/2569", "date_to": "24/09/2569", "limit": 10, "page": 2}},
                  {"kind": "top", "direction": "refresh"})
     ck("重读：页码不动、条件原样",
        queued[-1][1] == "_run_top" and queued[-1][2][2]["page"] == 2

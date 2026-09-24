@@ -1,4 +1,4 @@
-"""Scheduled native-query capture using exactly one employee login per run.
+"""Explicit one-condition native query using one employee login per request.
 
 No administrator scope and no reconstructed ranking: list order/status membership
 and ranking values are copied from the employee's native DMS responses. Bounds,
@@ -16,7 +16,8 @@ from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.operations import run_logged_in
 from pearnly_dms.query import sales_readback as rb
-from pearnly_dms.snapshots import store
+from pearnly_dms.line.identity import matches as current_binding
+from pearnly_dms.snapshots import manual, store
 
 PAGE_SIZE = 200
 MAX_PAGES = 20
@@ -29,7 +30,6 @@ MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 # start a request without room for both attempts. Leave cleanup time in the
 # scheduled job's 300-second hard limit (the scheduler owns that limit).
 READ_RESERVE_SECONDS = 60
-DENIED = {"ERR_DMS_AUTH", "ERR_DMS_QUERY_SCOPE", "ERR_DMS_QUERY_FORBIDDEN", "ERR_NO_CREDS"}
 
 
 def _incomplete(message):
@@ -96,12 +96,12 @@ def dashboard_scope(adapter):
             "key": hashlib.sha256(json.dumps(identity).encode()).hexdigest()}
 
 
-def _all_sales(client, column, status):
+def _all_sales(client, column, status, query=""):
     def count():
         # Native count request intentionally omits sdtamt/sdtpage. DMS-TEST
         # sale02 was verified to return dt::32 while page200 contained 32 rows;
         # a page beyond that count returned a bare empty body, not ndt::.
-        body = str(client._post_text(rb.LIST_PATH, {"sd": "", "ftd": status,
+        body = str(client._post_text(rb.LIST_PATH, {"sd": query, "ftd": status,
             "selcolsort": column, "selcolsorttype": "2"}) or "").strip()
         if body.startswith("err::"):
             raise DmsClientError("DMS rejected the sales count", "ERR_DMS_QUERY_SCOPE")
@@ -116,7 +116,7 @@ def _all_sales(client, column, status):
     total = count()
     rows, seen = [], set()
     for page in range(1, math.ceil(total / PAGE_SIZE) + 1):
-        batch = rb._sales_page(client, column, status, "", PAGE_SIZE, page)
+        batch = rb._sales_page(client, column, status, query, PAGE_SIZE, page)
         ids = {row["id"] for row in batch}
         expected = min(PAGE_SIZE, total - len(rows))
         if len(batch) != expected or len(ids) != len(batch) or ids & seen:
@@ -128,32 +128,21 @@ def _all_sales(client, column, status):
     return rows
 
 
-def collect_sales(client, scope):
+def collect_sales(client, params):
     # Required for a fresh salesperson session; direct showdata reads can
     # silently hide rows until native list visibility has been initialized.
     body = client._post_text("drfcbc/view.php", {"idmenu": "25", "menulv": "2"})
     if str(body or "").lstrip().startswith("err::"):
         raise DmsClientError("DMS rejected the sales view", "ERR_DMS_QUERY_SCOPE")
-    orders, statuses, canonical = {}, {}, None
-    for field, column in rb.SEARCH_COLUMNS.items():
-        rows = _all_sales(client, column, rb.STATUS_FILTERS["all"])
-        indexed = {row["id"]: row for row in rows}
-        if canonical is None:
-            canonical = indexed
-        elif indexed != canonical:
-            raise _incomplete("DMS sales rows changed between native sort orders")
-        orders[field] = [row["id"] for row in rows]
-    statuses["all"] = orders["booking_no"]
-    for status, code in rb.STATUS_FILTERS.items():
-        if status == "all":
-            continue
-        rows = _all_sales(client, rb.SEARCH_COLUMNS["booking_no"], code)
-        if any(canonical.get(row["id"]) != row for row in rows):
-            raise _incomplete("DMS sales state changed while collecting status membership")
-        statuses[status] = [row["id"] for row in rows]
-    return {"ok": True, "version": rb.SNAPSHOT_VERSION, "rows": canonical,
-            "orders": orders, "statuses": statuses,
-            "capabilities": {"top_sales": scope["top_sales"]}, "dashboard_scope": scope["key"]}
+    rows = _all_sales(client, rb.SEARCH_COLUMNS[params["field"]],
+                      rb.STATUS_FILTERS[params["status"]], params["query"])
+    # DMS's sd is global search, while the selected menu dimension is a field.
+    # Filter the complete native-ordered set before local pagination; do not
+    # sort it or derive ranking/financial statistics in Python.
+    needle = params["query"].casefold()
+    if needle:
+        rows = [row for row in rows if needle in row[params["field"]].casefold()]
+    return {"ok": True, "version": rb.SNAPSHOT_VERSION, "params": params, "rows": rows}
 
 
 def _top_post(client, payload):
@@ -205,80 +194,71 @@ def collect_top(client, scope, params):
                     for rid, label, value in zip(normalized_ids, labels, values))
     if _top_count(client, payload) != total:
         raise _incomplete("DMS dashboard total changed during pagination")
-    return {"ok": True, "version": rb.SNAPSHOT_VERSION, "params": params,
+    return {"ok": True, "version": rb.SNAPSHOT_VERSION, "params": {"kind": "top", **params},
             "dashboard_scope": scope["key"], "branches": scope["branches"], "teams": scope["teams"],
             "rows": rows}
 
 
-def _conditions(endpoint):
-    conditions = {}
-    for group in rb.TOP_GROUPS:
-        for metric in rb.TOP_METRICS:
-            params = rb.top_parameters(group, metric)
-            conditions[rb.top_dataset(params)] = params
-    for request in store.requested(endpoint, reader="sales"):
-        if not str(request["dataset"]).startswith("top."):
-            continue
-        params = rb.top_parameters(**request["params"])
-        if rb.top_dataset(params) != request["dataset"]:
-            raise _incomplete("Registered dashboard parameters do not match their dataset")
-        conditions[request["dataset"]] = params
-    return conditions
-
-
-def _capture(client, adapter, conditions):
+def _capture(client, adapter, params):
+    if params["kind"] == "records":
+        return collect_sales(client, params)
     scope = dashboard_scope(adapter)
-    output = {}
-    try:
-        output[rb.SALES_DATASET] = collect_sales(client, scope)
-    except DmsClientError as exc:
-        output[rb.SALES_DATASET] = {"ok": False, "error_code": exc.error_code}
-    for dataset, params in conditions.items():
-        try:
-            output[dataset] = collect_top(client, scope, params)
-        except DmsClientError as exc:
-            output[dataset] = {"ok": False, "error_code": exc.error_code}
-    return {"ok": True, "datasets": output}
+    if params["kind"] == "top":
+        return collect_top(client, scope, params)
+    return {"ok": True, "version": rb.SNAPSHOT_VERSION, "params": params,
+            "capabilities": {"top_sales": scope["top_sales"]}, "dashboard_scope": scope["key"]}
 
 
-def refresh(endpoint):
-    """Scheduled entry; local permission plus credential revision fenced publish."""
+def _guard(endpoint, dataset, request_id, params):
+    request = manual.assert_active(endpoint, dataset, request_id, reader="sales")
+    saved = request["params"]
+    binding = saved.get("_binding") or {}
+    if (params != saved or request["actor"] != binding.get("user_id")
+            or not binding.get("binding_revision") or not binding.get("line_user_id")
+            or not current_binding(binding, binding["line_user_id"])):
+        raise DmsClientError("Query binding has changed", "ERR_DMS_QUERY_FORBIDDEN")
+    conditions = rb.query_parameters(**{key: value for key, value in saved.items() if key != "_binding"})
+    if rb.query_dataset(conditions) != dataset:
+        raise DmsClientError("Query conditions do not match request", "ERR_DMS_TECHNICAL")
+    if endpoint_name(rb._query_endpoint(request["actor"])) != endpoint:
+        raise DmsClientError("Employee endpoint is no longer current", "ERR_NO_CREDS")
+    return conditions, request["expected_scope"]
+
+
+def refresh(endpoint, *, request_id=None, dataset="sales_query", params=None):
+    """Token-gated one-shot collector. Retired scheduler calls do no IO."""
+    if not request_id:
+        return {"ok": False, "retired": True}
     name = endpoint_name(endpoint)
     started = time.time()
     job_started = time.monotonic()
     expected_scope = None
     try:
-        user = frappe.db.get_value("Pearnly ERP Endpoint", name, "owner_user")
-        if endpoint_name(rb._query_endpoint(user)) != name:
-            raise DmsClientError("Employee endpoint is no longer current", "ERR_NO_CREDS")
-        expected_scope = store.scope(name, reader="sales")
-        conditions = _conditions(name)
+        conditions, expected_scope = _guard(name, dataset, request_id, params)
         def capture(client, adapter):
             budget = ScanBudget(job_started)
             return _capture(_BoundedClient(client, budget), _BoundedAdapter(adapter, budget), conditions)
 
         result = run_logged_in(name, capture,
-                               authoritative_read=False, background=True)
+                               authoritative_read=False, background=True, read_only_batch=True)
         # Capture only reads local state. End MariaDB's repeatable-read view
         # before rechecking credentials/permission in publish(expected_scope).
         # Otherwise a revocation in another connection can remain invisible.
         frappe.db.commit()
-        datasets = result.get("datasets") if result.get("ok") else {
-            dataset: {"ok": False, "error_code": result.get("error_code") or "ERR_DMS_TECHNICAL"}
-            for dataset in (rb.SALES_DATASET, *conditions)}
-        published, failed = [], {}
-        for dataset, data in datasets.items():
-            code = data.get("error_code")
-            if data.get("ok") or code in DENIED:
-                if store.publish(name, dataset, data, started, reader="sales", expected_scope=expected_scope):
-                    published.append(dataset)
-            else:
-                store.failed(name, dataset, code or "ERR_DMS_SNAPSHOT_INCOMPLETE",
+        if result.get("busy") or result.get("error_code") in {"ERR_DMS_BUSY", "ERR_DMS_SNAPSHOT_BUSY"}:
+            return {"ok": False, "busy": True}
+        with manual.publish_guard(name, dataset, request_id, reader="sales"):
+            _guard(name, dataset, request_id, params)
+            if not result.get("ok"):
+                store.failed(name, dataset, result.get("error_code") or "ERR_DMS_SNAPSHOT_INCOMPLETE",
                              reader="sales", expected_scope=expected_scope)
-            if not data.get("ok"):
-                failed[dataset] = code
-        frappe.db.commit()
-        return {"ok": not failed, "published": published, "failed": failed}
+                frappe.db.commit()
+                return result
+            published = store.publish(name, dataset, result, started, reader="sales", expected_scope=expected_scope)
+            frappe.db.commit()
+        if not published:
+            return {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_SCOPE_CHANGED"}
+        return {"ok": True, "complete": True, "count": len(result.get("rows") or [])}
     except Exception as exc:
         frappe.db.rollback()
         return rb._failure(exc)
