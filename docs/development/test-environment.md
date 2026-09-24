@@ -68,6 +68,39 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 
 **按产品切换**：`lab-start` / `lab-stop` 可以只带要测的产品名（`dms`、`erp`，不带=两个都动）。
 只切一个产品时，另一个产品的域名完全不动：它仍走通配记录、仍由线上服务。
+
+## 复用：同一套环境反复用（每次只需挑一条）
+
+环境是**一次性配好、之后重复用**的：站点、测试租户数据、产品与镜像都落在各产品自己的
+卷里（`down` 只停容器、**卷保留**），所以第二次开始不再做任何设备侧准备。
+
+| 这次想干什么 | 一条命令 | 说明 |
+| --- | --- | --- |
+| 同一镜像、同一个产品，再测一遍 | `lab-start dms` | 最快：栈已在、数据已在，只重新收尾 + 切域名 |
+| 同一个产品，**换成新镜像**（发版后复验） | `PEARNLY_TESTENV_IMAGE=<新 digest> lab-start dms` | 拉到新镜像 → 起栈 → 自动 `migrate`/`clear-cache`/写运行配置 → 导入最新租户数据 → 切域名 |
+| 只想刷新**租户数据**（不换镜像） | `import dms testdms.pearnly.com` 然后 `finish dms` | 数据来源是线上导出；导入后必须跑收尾 |
+| 换成**另一个产品** | `lab-start erp` | 会先停掉 dms 栈（容器删、卷保留），再起 erp；两个产品的域名互不影响 |
+| 测完**切回线上** | `lab-stop dms` | 域名回落通配记录；测试环境数据保留，下次接着用 |
+| 想**推倒重来**（数据也清掉） | 先 `lab-stop <产品>`，再 `reset` | `reset` 删的是 `pearnly-testenv*` 的卷；**会连导入的测试租户数据一起删掉**，之后要重新 `lab-start` 导入 |
+| 只想知道现在什么状态 | `ps` / `sites` / `check` / `urls` | 只读，不动任何东西 |
+
+几个重复用时最容易忘的点：
+
+- **驱动与被测代码是两个来源**：`scripts/testenv.sh`、`infrastructure/testenv/*`、这份文档取
+  **驱动分支 `codex/testenv-per-app`**；产品代码与 `production/compose.yml` 取
+  `PEARNLY_TESTENV_SRC`（默认当前工作树）。在哪个窗口跑都不会串。
+  ⚠️ 这套驱动目前**还没合进 `main`**：主线上的 `scripts/testenv.sh` 与这份文档仍是
+  "单栈、无产品参数"的旧流程。在合进主线之前，复用它必须从
+  `/Users/skin/.codex/worktrees/testenv-per-app` 这个工作树（或远端同名分支）跑。
+- **一次只跑一个产品**：端口是固定分配的（前端 8183/8182/8181、账本 8184），所以换产品必然
+  要停掉上一个；这是有意的，避免两个产品抢同一批端口与宿主 nginx 规则。
+- **镜像必须钉 digest**（`…@sha256:…`）：`pull` 只接受钉死的 digest，避免"以为测的是这版、
+  其实拉到的是别的标签"。
+- 产品栈与设备侧的准备是分开的：`setup` 只在**换设备/重装 WSL** 时才跑；日常复用不需要它。
+- 目前只有 **dms** 这套真跑过（含栈、卷、`testdms.pearnly.com` 站点）；**erp 那套是脚本支持、
+  但还没起过第一次**——第一次 `lab-start erp` 要建卷并导入，遇到问题按"出问题怎么查"一节处理，
+  不要当成"流程坏了"。
+
 底层是 [`testenv-cloudflare.sh`](../../scripts/testenv-cloudflare.sh) 的 `switch-lab` / `switch-prod`
 （同样接受产品名，并可 `status [dms] [erp]` 只读看某一个）。隧道本身同时带两个域名，
 所以"切哪个产品"只是"给哪个域名建/删自己的 CNAME"，不需要改隧道配置。
@@ -96,6 +129,7 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 | `bash scripts/testenv.sh urls` | 打印 Mac 侧端口转发与可访问地址 |
 | `bash scripts/testenv.sh logs <服务>` / `down` / `reset` | 看日志 / 停栈（保留数据）/ 删测试环境数据卷 |
 | `bash scripts/testenv.sh lab-start [dms\|erp]` / `lab-stop [dms\|erp]` | 见上"一键切换"；可只切一个产品 |
+| `bash scripts/testenv-cloudflare.sh status` | 只读：这两个测试域名现在指向线上还是测试机 |
 
 ## 凭据与边界
 
