@@ -1,5 +1,8 @@
 # Windows 验证环境（testenv）
 
+> 权威说明（流程、命令、边界、清理）见 [真实环境验证：Windows 测试环境](../../docs/development/test-environment.md)。
+> 本文件只记设备侧的结构与差异。
+
 在一台独立的 Windows 机器（WSL2 + Ubuntu 24.04，x86_64）上跑**与正式环境同一份镜像、同一份 compose**的验证栈。
 目的是：Mac 上改完 → 出镜像 → 在这台机器上用真实环境验一遍 → 没问题再把同一个 digest 部署到正式服务器。
 
