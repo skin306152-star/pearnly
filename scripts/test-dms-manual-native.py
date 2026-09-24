@@ -147,6 +147,27 @@ class ManualNative(lab["SnapshotLabCase"]):
         self.publish({"masters": {}, "paints": {}}, dataset="masters", start=time.time())
         self.assertTrue(store.read(self.endpoint, "customers")["stale"])
 
+    def test_invalid_customer_or_geo_checkpoint_is_discarded_not_good_generation(self):
+        from pearnly_dms.adapter import snapshot_sync, geo_sync
+        for dataset, collector, data in (("customers", snapshot_sync, lab["directory"]()),
+                                         ("geo", geo_sync, lab["geo"]())):
+            self.publish(data, dataset=dataset)
+            store.checkpoint(self.endpoint, {"started_at": time.time(), "tree": {"invalid": True}},
+                             dataset=dataset, expected_scope=self.key())
+            frappe.db.commit()
+            before = store.read(self.endpoint, dataset)
+            request_id = self.request(dataset)
+            frappe.db.rollback()
+            with patch.object(collector, "run_logged_in", return_value={
+                    "ok": False, "error_code": "ERR_DMS_SNAPSHOT_INCOMPLETE"}):
+                result = manual.execute(self.endpoint, dataset, "authority", request_id)
+            self.assertFalse(result["ok"])
+            frappe.db.rollback()
+            self.assertIsNone(store.stage(self.endpoint, dataset))
+            after = store.read(self.endpoint, dataset)
+            self.assertEqual(after["generation"], before["generation"])
+            self.assertEqual(after["data"], before["data"])
+
     def test_foreground_marker_prevents_background_and_cleanup_cannot_reverse_write(self):
         from pearnly_dms.adapter import read_priority
         accounts = [self.uid + "-priority"]

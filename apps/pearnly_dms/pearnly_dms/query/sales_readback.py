@@ -3,7 +3,7 @@
 
 Native parsers remain here; only ``query.snapshot_sync`` uses them to read DMS.
 Interaction paths recheck local permissions and never log in, refresh, or enqueue
-an external read. Custom ranking conditions are registered for the next sweep.
+an external read. Only an explicit refresh action registers a one-time read.
 """
 
 from __future__ import annotations

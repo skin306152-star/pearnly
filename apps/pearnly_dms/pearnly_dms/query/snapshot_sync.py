@@ -28,7 +28,7 @@ MAX_READS = 600
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 # Existing transport: 30-second read timeout, at most one read retry. Do not
 # start a request without room for both attempts. Leave cleanup time in the
-# scheduled job's 300-second hard limit (the scheduler owns that limit).
+# manual worker's 420-second hard limit; collector keeps a smaller read budget.
 READ_RESERVE_SECONDS = 60
 
 

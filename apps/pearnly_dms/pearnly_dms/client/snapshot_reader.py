@@ -563,7 +563,7 @@ def collect_customers(client, *, extra_customer_ids=(), limits=None):
 
 
 def collect_business(client, *, bank_masters, extra_customer_ids=(), limits=None):
-    """Frequent masters/colours/customers, independent of the daily address tree.
+    """Legacy combined reader; manual jobs use independent datasets instead.
 
     The native customer new form is still read for its prefix options. No province
     extraction or address-cascade request is part of this collector.
