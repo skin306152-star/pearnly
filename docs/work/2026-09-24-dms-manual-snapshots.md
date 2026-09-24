@@ -78,6 +78,34 @@ ERP 已采用产品独立镜像配置：`provision-agent.image(group)` 优先读
 
 收尾状态为**交接保留**：本次仅提交本节文档，未合入 main、未推送任务分支、未部署 DMS；没有删除工作树/分支/运行资源。其它工作树、Windows 本地主线新增提交及旧 DMS 未暂存文档均不替其提交或清理。下个窗口从本节开始即可，不必重新阅读全部历史对话。
 
+## 最新续接：测试环境"看不见新功能"是缓存不是代码（2026-09-24）
+
+用户问：这次部署到测试环境的是否是那个窗口改的全部代码，为什么新增功能看不见。**结论：代码是全的，看不见是测试机 Frappe 的 hooks 缓存还停在旧镜像，页面因此把浏览器指到旧版本号的 JS，本地已命中的那个 URL 继续返回旧内容。** 本轮只做只读核对加一次标准 `clear-cache`，没有改业务代码、没有重建镜像、没有动线上、没有碰 LINE。
+
+### 镜像与分支的等价证据
+
+- 测试机 `pearnly-testenv-dms-web-1` 运行 `ghcr.io/skin306152-star/pearnly/frappe@sha256:0b37fe97…0969a9`，容器标签 `org.opencontainers.image.revision=0b3a90c`。
+- `git diff --stat 0b3a90c ecbf4d1` 只有一个文件：`docs/work/2026-09-24-dms-manual-snapshots.md`。也就是说候选镜像之后两个提交全是文档，**业务代码等价于本任务分支 HEAD**；`0b3a90c` 之上还有 `0d76b6a`（测试）、`0b3a90c`（CI 套件）等非业务提交，均在镜像之内。
+- 文件级逐一核对 sha256（镜像内 vs 本工作树）：`public/desk/connect.js` `9284fbeb109168c2…`、`adapter/geo_sync.py` `00db5eec…`、`snapshots/store.py` `8c114f92…`，三份全部一致。
+
+### 根因（可复现）
+
+- Frappe 把每个 App 的 hooks 缓存在 Redis（`cache_manager.global_cache_keys` 含 `app_hooks`），**无 TTL**。`pearnly_dms/hooks.py` 的 `app_include_js` 用 `versioned_asset()` 生成 `/assets/pearnly_dms/desk/connect.js?v=<文件内容 sha256 前 16 位>`，于是这份缓存决定了页面引用哪个版本的 JS。
+- 测试机 Redis 里 `testdms.pearnly.com` 的 `app_hooks` 仍是 `desk/connect.js?v=b4eb40bb7f355411`——那正是**旧镜像** `dd81a3f` 里 `connect.js` 的内容哈希；新镜像应为 `9284fbeb109168c2`。这是替换镜像时复用了旧 `redis-cache` 卷造成的。
+- 该 URL 现在取回的内容其实已经是新版（含四组 `datasets = ["vehicles","customers","geo","company"]` 与 `add_inner_button(cacheText("dms.connect.cache.read"), requestCache)`），所以服务端文件没问题；但响应的 `cache-control: max-age=14400` 让浏览器继续用本地那份旧 JS，连接页就只显示旧的"测试连接／停用／修改账号"，没有"更新数据"。
+- 注意：`testdms.pearnly.com` 与 `dms.test.localhost` 的缓存状态不同——前者是换镜像前就存在的站点（旧值），后者是这次新建的（新值）。清缓存前后一次回读即为对照。
+
+### 本轮处置与回读
+
+- 在测试机对全部 5 个站点执行 `bench --site <site> clear-cache`：`testdms.pearnly.com`、`dms.test.localhost` 在 `pearnly-testenv-dms-web-1`；`testerp.pearnly.com`、`erp.test.localhost` 在 `pearnly-testenv-erp-web-1`；`cowork.test.localhost` 在 `pearnly-testenv-cowork-web-1`。这是换镜像后的标准操作，缓存会自行重建，不是业务数据修改。
+- 回读 Redis：两个 DMS 站点的 `app_hooks` 均已变为 `desk/connect.js?v=9284fbeb109168c2`。
+- 用户侧只需刷新浏览器标签页一次；因为版本号已变，不需要手工清浏览器缓存。
+- 待办（与"测试环境 up 自动写 `dms_sync` 队列配置"同类）：把 `up` 之后对每个站点 `clear-cache` 并入 `scripts/testenv.sh`。该脚本目前由 `codex/testenv-per-app` 分支在改，动手前先定这个分支的去留，避免两个窗口改同一个文件。
+
+### 仍未验收（不变）
+
+LINE 菜单 1–5、四组完整真实采集与首次发布（尤其全国地址整轮）、编辑回卡与订车付款附件、真机与真实消息本轮都没有测。
+
 ## 最新续接：候选跑上 Windows 测试环境 + 按产品切租户（2026-09-24）
 
 授权：用户"本机容器除了后台租户管理那个，其它的全部停掉删掉，不要占资源，然后搞到测试环境，测试环境不可以根据 app 切换对应的租户吗"。
