@@ -43,6 +43,11 @@ scheduler_events = {"cron": {
     "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
+    # 每日全量回读（第二层保险）：泰国凌晨 4:00 那一枪，4:45 那一枪是失败重试
+    # （数据已经够新的组会被跳过，所以成功之后第二枪什么都不做）。
+    # cron 按**站点时区**求值，本站 Asia/Bangkok → 就是泰国凌晨 4 点。
+    "0 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
+    "45 4 * * *": ["pearnly_dms.adapter.nightly_refresh.run"],
 }}
 
 # Apps
