@@ -55,10 +55,19 @@ def run(args, *, data=None, timeout=1800):
     return result.stdout
 
 
-def image():
-    images = json.loads((ROOT / "active-image.json").read_text())
-    value = images[0]
-    if not re.fullmatch(r"ghcr.io/skin306152-star/pearnly/frappe@sha256:[a-f0-9]{64}", value):
+def image(group):
+    if group not in APPS:
+        raise ValueError("Unsupported product image")
+    # Older deployments have one shared record. A product activation creates its
+    # own pin without changing the fallback used by products not yet migrated.
+    record = ROOT / f"active-image-{group}.json"
+    if not record.exists():
+        record = ROOT / "active-image.json"
+    images = json.loads(record.read_text())
+    value = images[0] if isinstance(images, list) and images else None
+    if not isinstance(value, str) or not re.fullmatch(
+        r"ghcr.io/skin306152-star/pearnly/frappe@sha256:[a-f0-9]{64}", value
+    ):
         raise ValueError("No verified production image")
     os.environ["PEARNLY_IMAGE"] = value
     return value
@@ -141,7 +150,7 @@ def ensure_maintenance(group, *, check=True):
     `verify_site`/`drop_site` 收尾时删除。
     """
     name = maintenance_name(group)
-    digest = image()
+    digest = image(group)
     running = _inspect(name, "{{.State.Running}}")
     label = _inspect(name, '{{index .Config.Labels "pearnly.image"}}')
     age = _maintenance_age_hours(name) if running == "true" else None
@@ -240,7 +249,7 @@ def main():
     STATE.mkdir(parents=True, exist_ok=True, mode=0o700)
     with Path("/opt/pearnly/state/provision.lock").open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX)
-        image()
+        image(p["group"])
         if action in ("new_site", "restart_web"):
             check_capacity(p["group"], transient_mib=1024 if action == "new_site" else 0)
         manifest = STATE / (p["site"] + ".json")

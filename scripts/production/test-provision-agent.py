@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
 """No network or database writes: domain, application and routing contracts."""
 import importlib.util
+import io
 import json
 import os
 import subprocess
+import sys
+import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import unittest
@@ -102,6 +105,106 @@ class MaintenanceContainer(unittest.TestCase):
         with patches[0], patches[1], patches[2] as capacity, patches[3], patches[4]:
             agent.site_step({**job_payload(), "action": "drop_site"})
         self.assertEqual(capacity.call_count, 0, "teardown frees memory; it must not be gated on admission")
+
+
+class ProductImages(unittest.TestCase):
+    LEGACY = "ghcr.io/skin306152-star/pearnly/frappe@sha256:" + "a" * 64
+    ERP = "ghcr.io/skin306152-star/pearnly/frappe@sha256:" + "b" * 64
+    COWORK = "ghcr.io/skin306152-star/pearnly/frappe@sha256:" + "c" * 64
+
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.patch = patch.object(agent, "ROOT", self.root)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+        environment = patch.dict(os.environ)
+        environment.start()
+        self.addCleanup(environment.stop)
+        self.write("active-image.json", [self.LEGACY])
+
+    def write(self, name, value):
+        (self.root / name).write_text(json.dumps(value))
+
+    def test_product_pins_do_not_change_another_products_legacy_fallback(self):
+        legacy_bytes = (self.root / "active-image.json").read_bytes()
+        self.write("active-image-erp.json", [self.ERP])
+        self.write("active-image-cowork.json", [self.COWORK])
+        for group, expected in (("erp", self.ERP), ("dms", self.LEGACY),
+                                ("cowork", self.COWORK), ("erp", self.ERP)):
+            self.assertEqual(agent.image(group), expected)
+            self.assertEqual(os.environ["PEARNLY_IMAGE"], expected)
+        self.assertEqual((self.root / "active-image.json").read_bytes(), legacy_bytes)
+
+    def test_invalid_product_pin_fails_closed_without_using_legacy(self):
+        for value in ([], {}, "not a list", [None], [123], ["ghcr.io/other/frappe@sha256:" + "a" * 64],
+                      ["ghcr.io/skin306152-star/pearnly/frappe:latest"], [self.ERP + "\n"]):
+            with self.subTest(value=value):
+                self.write("active-image-erp.json", value)
+                with self.assertRaises(ValueError):
+                    agent.image("erp")
+        (self.root / "active-image-erp.json").write_text("not json")
+        with self.assertRaises(ValueError):
+            agent.image("erp")
+        for group in ("../dms", "billing", "control", ""):
+            with self.subTest(group=group), self.assertRaises(ValueError):
+                agent.image(group)
+
+    def test_missing_or_invalid_legacy_record_is_rejected(self):
+        self.write("active-image.json", [])
+        with self.assertRaises(ValueError):
+            agent.image("dms")
+        (self.root / "active-image.json").unlink()
+        with self.assertRaises(FileNotFoundError):
+            agent.image("dms")
+
+    def test_maintenance_container_uses_the_requested_product_pin(self):
+        self.write("active-image-erp.json", [self.ERP])
+        self.write("active-image-cowork.json", [self.COWORK])
+        commands = []
+        with patch.object(agent, "_inspect", return_value=None), patch.object(agent, "check_capacity"), \
+             patch.object(agent, "run", side_effect=lambda args, **kw: commands.append(list(args))):
+            for group, expected in (("erp", self.ERP), ("dms", self.LEGACY), ("cowork", self.COWORK)):
+                agent.ensure_maintenance(group)
+                created = commands[-1]
+                self.assertEqual(created[-3], expected)
+                self.assertIn("pearnly.image=" + expected, created)
+                self.assertIn(f"pearnly-production_sites-{group}:/home/frappe/frappe-bench/sites", created)
+
+    def test_restart_web_selects_group_image_before_compose_even_after_another_group(self):
+        self.write("active-image-erp.json", [self.ERP])
+        self.write("active-image-cowork.json", [self.COWORK])
+        state = self.root / "sites"
+        state.mkdir()
+        original_open = Path.open
+        commands = []
+
+        def local_lock(path, *args, **kwargs):
+            if str(path) == "/opt/pearnly/state/provision.lock":
+                path = self.root / "provision.lock"
+            return original_open(path, *args, **kwargs)
+
+        def record(args, **kwargs):
+            commands.append((list(args), os.environ["PEARNLY_IMAGE"]))
+            return ""
+
+        with patch.object(agent, "STATE", state), patch.object(agent, "check_capacity"), \
+             patch.object(agent, "run", side_effect=record), patch.object(Path, "open", local_lock), \
+             patch.dict(os.environ, SSH_ORIGINAL_COMMAND="provision"):
+            for group, expected in (("erp", self.ERP), ("dms", self.LEGACY),
+                                    ("cowork", self.COWORK), ("erp", self.ERP)):
+                payload = {**job_payload()["payload"], "group": group, "site": f"acme-{group}.pearnly.com"}
+                (state / (payload["site"] + ".json")).write_text(json.dumps(payload))
+                job = {"action": "restart_web", "payload": payload}
+                with patch.object(sys, "stdin", io.StringIO(json.dumps(job))):
+                    self.assertEqual(agent.main(), {"status": "done"})
+                args, actual_image = commands[-1]
+                self.assertEqual(actual_image, expected)
+                self.assertEqual(args[args.index("--profile") + 1], group)
+                self.assertEqual(args[args.index("up") + 2:],
+                                 [f"{group}-{suffix}" for suffix in
+                                  ("web", "worker", "ocr-worker", "ocr-dispatch", "scheduler", "socketio", "frontend")])
 
 
 class Contracts(unittest.TestCase):

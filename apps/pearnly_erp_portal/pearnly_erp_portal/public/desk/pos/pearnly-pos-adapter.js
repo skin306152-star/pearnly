@@ -11,11 +11,9 @@
  *   5) 提交：官方的 `submit_invoice` 走 POS Invoice 的 submit；我们走 `api_create_sale`；
  *   6) 删减：忠诚度、序列号/批号、改客户资料、过期开班提示、关闭收银台监听 —— 空实现。
  *
- * 用法（临时路由，见 `desk/cashier.js` 里的 `?pearnly_pos_next=1` 分支）：
- *   frappe.require([…official-*.js, "官方 css", "本文件"], () => p.pos_next.boot(wrapper));
+ * 正式入口：原生 pearnly-cashier Page（cashier.js）；hooks.py 按版本加载上游组件。
  */
 frappe.provide("frappe.pearnly.pos_next");
-window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一版（下一轮可删）
 
 (() => {
 	const p = frappe.pearnly;
@@ -163,7 +161,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 				const name = rest[0];
 				if (!name) return Promise.resolve({ message: { email_id: "" } });
 				return db_get_value("ERP Customer", name, "contact_email")
-					.then(out => ({ message: { email_id: (out && out.message) || "" } }))
+					.then(out => ({ message: { email_id: out?.message?.contact_email || "" } }))
 					.catch(() => ({ message: { email_id: "" } }));
 			}
 			return db_get_value(doctype, ...rest);
@@ -415,6 +413,104 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 		};
 	}
 
+	// Upstream components register document, keyboard and model listeners without a
+	// destroy API. Keep the exact registrations owned by this POS instance; never
+	// call broad keys.off/form.off, which also remove other Desk pages' handlers.
+	let building_scope;
+	class PosScope {
+		constructor(parent) { this.active = true; this.parent = parent; this.cleanups = []; }
+		is_active() { return this.active && (!this.parent || this.parent.is_active()); }
+		capture(run) {
+			const scope = this;
+			const arrays = () => {
+				const out = [];
+				const visit = (node) => {
+					if (Array.isArray(node)) out.push(node);
+					else if (node && typeof node === "object") Object.values(node).forEach(visit);
+				};
+				visit(frappe.ui.keys.handlers);
+				visit(frappe.ui.form.handlers);
+				visit(frappe.model.events);
+				return out;
+			};
+			const before = new Set(arrays().flat());
+			const shortcuts = frappe.ui.keys.standard_shortcuts || [];
+			const old_shortcuts = [...shortcuts];
+			const previous_on = $.fn.on;
+			const scanner_before = document.scannerDetectionData;
+			$.fn.on = function (event, ...args) {
+				if (this[0] === document && typeof event === "string") {
+					const index = args.length - 1;
+					const callback = args[index];
+					if (typeof callback === "function") {
+						const guarded = function (...values) {
+							if (scope.is_active()) return callback.apply(this, values);
+						};
+						args[index] = guarded;
+						scope.cleanups.push(() => $(document).off(event, guarded));
+					}
+				}
+				return previous_on.call(this, event, ...args);
+			};
+			try { return run(); }
+			finally {
+				$.fn.on = previous_on;
+				for (const array of arrays()) {
+					for (const callback of [...array]) {
+						if (before.has(callback)) continue;
+						let owned = callback;
+						if (typeof callback === "function") {
+							owned = Object.assign(function (...args) {
+								if (scope.is_active()) return callback.apply(this, args);
+							}, callback);
+							array[array.indexOf(callback)] = owned;
+						}
+						this.cleanups.push(() => {
+							for (const current of arrays()) {
+								const index = current.indexOf(owned);
+								if (index !== -1) current.splice(index, 1);
+							}
+						});
+					}
+				}
+				for (const shortcut of shortcuts) {
+					if (old_shortcuts.includes(shortcut)) continue;
+					const previous = old_shortcuts.find(row => row.shortcut === shortcut.shortcut);
+					this.cleanups.push(() => {
+						const index = shortcuts.indexOf(shortcut);
+						if (index !== -1) shortcuts.splice(index, 1, ...(previous ? [previous] : []));
+					});
+				}
+				if (!scanner_before && document.scannerDetectionData) {
+					this.scanner = document.scannerDetectionData;
+					this.scanner_options = this.scanner.options;
+				}
+			}
+		}
+		suspend() {
+			this.active = false;
+			if (this.scanner && document.scannerDetectionData === this.scanner) {
+				clearTimeout(this.scanner.vars.testTimer);
+				clearTimeout(this.scanner.vars.longPressTimer);
+				window.onScan.detachFrom(document);
+				this.scanner = null;
+			}
+		}
+		resume() {
+			if (this.disposed) return;
+			if (this.scanner_options && !document.scannerDetectionData) {
+				window.onScan.attachTo(document, this.scanner_options);
+				this.scanner = document.scannerDetectionData;
+			}
+			this.active = true;
+		}
+		destroy() {
+			this.suspend();
+			this.disposed = true;
+			this.cleanups.splice(0).reverse().forEach(cleanup => cleanup());
+		}
+	}
+
 	function boot(wrapper) {
 		install_shims();
 		if (!O.Controller) {
@@ -424,7 +520,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 		return new (O.PearnlyController || O.Controller)(wrapper);
 	}
 
-	// 等官方文件都挂上命名空间之后再装子类（`frappe.require` 的回调里调 install()）。
+	// Desk assets load upstream classes before this adapter; install subclasses only once.
 	function install() {
 		if (O.pearnly_installed) return O.PearnlyController;
 		O.pearnly_installed = true;
@@ -435,21 +531,62 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			fetch_opening_entry() {
 				return p.call(api + "api_current_shift");
 			}
-			check_opening_entry() {
-				return this.fetch_opening_entry().then(async shift => {
-					this.pearnly_shift = shift || null;
+			check_opening_entry({ force = false } = {}) {
+				if (this.pearnly_active === undefined) this.pearnly_active = true;
+				const request = this.pearnly_request = (this.pearnly_request || 0) + 1;
+				this.pearnly_ready = this.fetch_opening_entry().then(async shift => {
 					await load_term();
+					if (!this.is_current(request)) return;
+					if (!force && shift?.shift.name === this.pos_opening && this.pearnly_scope) {
+						this.pearnly_shift = shift;
+						this.pearnly_scope.resume();
+						this.prepare_page_actions();
+						return;
+					}
 					if (!shift) {
-						// 没开班：**不建收银台界面**，把「开班」放成主按钮（我们之前的做法 ——
-						// 收银员点一下就开班，而不是看一句"请先去别处开班"）。
-						this.wrapper.html("");
+						this.clear_components();
+						this.pearnly_shift = null;
 						this.show_no_shift_placeholder();
 						this.prepare_page_actions();
 						return;
 					}
-					return this.prepare_app_defaults(shift);
+					return this.prepare_app_defaults(shift, request);
 				});
+				return this.pearnly_ready;
 			}
+			is_current(request) {
+				return this.pearnly_active && request === this.pearnly_request;
+			}
+			suspend() {
+				this.pearnly_active = false;
+				this.pearnly_request = (this.pearnly_request || 0) + 1;
+				clearTimeout(this.item_selector?.last_search);
+				this.pearnly_scope?.suspend();
+				if (window.cur_pos === this) window.cur_pos = null;
+			}
+			resume() {
+				if (this.pearnly_active) return this.pearnly_ready;
+				this.pearnly_active = true;
+				window.cur_pos = this;
+				return this.check_opening_entry();
+			}
+			clear_components() {
+				clearTimeout(this.item_selector?.last_search);
+				this.pearnly_scope?.destroy();
+				this.pearnly_scope = null;
+				this.frm = null;
+				this.pos_opening = null;
+				this.wrapper.empty();
+			}
+			make_app() {
+				const scope = this.pearnly_scope = new PosScope();
+				scope.controller = this;
+				building_scope = scope;
+				try { return scope.capture(() => super.make_app()); }
+				catch (error) { scope.destroy(); throw error; }
+				finally { building_scope = null; }
+			}
+
 			// 没开班时那块地方**不留一片白**（用户 2026-09-24："pos空态未开班时加官方文案和
 			// svg 图标展示"，随后又补："空态下方也加一个按钮，像官方原生那个空态一样，
 			// 不要那个添加支付方式啥的"）。所以形状照 Frappe 官方原生空态：
@@ -464,8 +601,11 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 				this.wrapper.find(".pearnly-pos-empty-btn").on("click", () => void this.open_shift_here());
 			}
 			// 设置：官方 = 开班凭证 + POS Profile；我们 = 班次 + 终端。
-			async prepare_app_defaults(shift) {
+			async prepare_app_defaults(shift, request = this.pearnly_request) {
 				await load_term();
+				const settings = await our_settings(shift);
+				if (!this.is_current(request)) return;
+				this.clear_components();
 				this.pearnly_shift = shift;
 				// 当班汇总的形状是 `{shift: {...}, balances, sales_count, …}` —— 这几格都在 `shift.shift` 里。
 				this.pos_opening = shift.shift.name;
@@ -473,7 +613,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 				this.pos_opening_time = shift.shift.opened_at;
 				this.item_stock_map = {};
 				this.allow_negative_stock = false;
-				this.settings = Object.assign(await our_settings(shift), {
+				this.settings = Object.assign(settings, {
 					frm_doctype: "ERP Sale",
 					invoice_fields: [],
 					customer_groups: [],
@@ -508,7 +648,21 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			set_pos_profile_status() {
 				this.prepare_page_actions();
 			}
+			restore_page_identity() {
+				if (!this.pearnly_active || frappe.get_route()[0] !== "pearnly-cashier") return;
+				this.page.set_title(__("nav.cashier"));
+				p.breadcrumbs({ label: __("nav.cashier"), route: p.subroute("pearnly-cashier") });
+			}
+			async refresh_shift_summary() {
+				const request = this.pearnly_request;
+				const shift = await this.fetch_opening_entry();
+				if (this.is_current(request) && shift?.shift.name === this.pos_opening) {
+					this.pearnly_shift = shift;
+					this.prepare_page_actions();
+				}
+			}
 			prepare_page_actions() {
+				this.restore_page_identity();
 				const shift = this.pearnly_shift;
 				this.page.clear_menu();
 				this.page.clear_secondary_action();
@@ -537,12 +691,22 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			}
 			// 班次变了（开班 / 交班）之后整页重来一遍：界面与页面动作都跟着新班次走。
 			async after_shift_change() {
-				this.wrapper.html("");
-				await this.check_opening_entry();
+				if (this.pearnly_active) await this.check_opening_entry({ force: true });
 			}
 			// 单据：官方用 POS Invoice 的 `items`；我们是 `ERP Sale` 的 `lines` —— 同一个数组两个名字。
 			get_new_frm(_frm, doctype = this.settings.frm_doctype) {
-				const frm = super.get_new_frm(_frm, doctype);
+				const base = _frm || new frappe.ui.form.Form(doctype, $("<div>"), false);
+				if (!base.pearnly_pos_header) {
+					base.pearnly_pos_header = true;
+					const refresh_header = base.refresh_header;
+					base.refresh_header = (...args) => {
+						if (!this.pearnly_active || frappe.get_route()[0] !== "pearnly-cashier") return;
+						const result = refresh_header.apply(base, args);
+						this.restore_page_identity();
+						return result;
+					};
+				}
+				const frm = super.get_new_frm(base, doctype);
 				alias_items(frm.doc);
 				// 官方 `checkout()` 里有一句 `frm.cscript.calculate_outstanding_amount()`
 				// （POS Invoice 的做法）。我们这张客户端单据没有那个 cscript，就给它一个同名实现 ——
@@ -650,6 +814,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 					frappe.utils.play_sound("submit");
 					this.toggle_components(false);
 					this.toggle_submitted_invoice_summary(true);
+					void this.refresh_shift_summary().catch(error => console.error(error));
 					frappe.show_alert({
 						indicator: "green",
 						message: __("POS invoice {0} created successfully", [result.receipt_no || result.name]),
@@ -715,6 +880,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyItemSelector extends O.ItemSelector {
+			constructor(args) { super(args); this.pearnly_scope = building_scope; }
 			// 扫码：**用我们现成那条路**（旧页面商品区顶上那颗相机的做法）——
 			// 官方这个搜索框只认 `onscan.js` 那种键盘楔式扫码枪；`options: "Barcode"` 是**框架自己的开关**，
 			// 打开后 `ControlData.setup_barcode_field()` 会给控件挂上那颗 `icon-scan-barcode` 的
@@ -746,6 +912,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			// 现在加货一律走官方那条路，我们只补官方没有的两件：相机按钮（`make_search_bar`）
 			// 与**声音**（官方那两声只在"回车"那条路上，而相机是 `set_value()` 回填、没有回车）。
 			add_filtered_item_to_cart() {
+				if (!this.pearnly_scope?.is_active()) return;
 				const out = super.add_filtered_item_to_cart();
 				// 相机扫到的字回填进搜索框 → 官方画出一条并自动进车 —— 这一路官方是**静音**的
 				// （它只在回车那条路上播 `submit`）。按我们旧页面的口径补同一颗音：
@@ -760,7 +927,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			// this.barcode_scanned`），相机这条路没有回车 —— 照我们旧页面的口径给一声提示 + `error`。
 			async filter_items(args) {
 				const out = await super.filter_items(args);
-				if (!this.pearnly_scanned) return out;
+				if (!this.pearnly_scope?.is_active() || !this.pearnly_scanned) return out;
 				if (this.$component.find(".items-container .item-wrapper").length) return out;
 				this.pearnly_scanned = false;
 				frappe.show_alert({
@@ -793,6 +960,10 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 					// 调用方要的是 `message.items`（对象里的数组，不是数组本身）：
 					//   `.then(({ message }) => { const { items } = message; render_item_list(items) })`
 					callback: (r) => {
+						if (this.pearnly_scope?.disposed) {
+							deferred.reject();
+							return;
+						}
 						const raw = ((r && r.message) || {}).items || [];
 						const items = raw.map(to_official_item);
 						deferred.resolve({ message: { items, filtered_items: items } });
@@ -800,6 +971,23 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 					error: () => deferred.reject(),
 				});
 				return deferred.promise();
+			}
+		}
+
+		class PearnlyItemDetails extends O.ItemDetails {
+			constructor(args) {
+				super(args);
+				this.pearnly_scope = building_scope;
+				this.pearnly_scope.cleanups.push(() => this.pearnly_detail_scope?.destroy());
+			}
+			bind_custom_control_change_event() {
+				// This upstream method is called on every selected row. Retain only
+				// its current model callback, not a callback for every past selection.
+				this.pearnly_detail_scope?.destroy();
+				const parent = this.pearnly_scope;
+				if (!parent || parent.disposed) return;
+				const detail = this.pearnly_detail_scope = new PosScope(parent);
+				return detail.capture(() => super.bind_custom_control_change_event());
 			}
 		}
 
@@ -1115,6 +1303,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 		class PearnlyPastOrderSummary extends O.PastOrderSummary {
 			constructor(opts) {
 				super(opts);
+				this.pearnly_controller = building_scope.controller;
 				// 官方是"按标签首词生成类名、再在 `bind_events()` 里各自绑动作"（`.print-btn`…
 				// 那串）。我们的动作用自己的接口，所以在**渲染那一处**整段换成我们这一版，
 				// 标记沿用官方那套（`summary-btn btn btn-default <x>-btn`）。
@@ -1157,6 +1346,7 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 			}
 			// 退货 / 作废之后这张单已经变了：重新取一遍汇总，别让界面停在做完之前的样子。
 			after_receipt_action() {
+				void this.pearnly_controller.refresh_shift_summary().catch(error => console.error(error));
 				return this.with_server_doc(doc => this.load_summary_of(summary_doc_of(doc), true));
 			}
 			add_summary_btns() {
@@ -1188,6 +1378,8 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 		}
 
 		class PearnlyPayment extends O.Payment {
+			// Phone-payment requests are not part of our terminal payment contract.
+			setup_listener_for_payments() {}
 			// 官方拿「方式名」当 CSS 类名与控件键：`sanitize_mode_of_payment()` 会把名字里
 			// 非字母数字的字符**剔掉**再小写。我们的方式名是本地化标签（泰语为主），照那样剔会
 			// 全变成空串，几种方式于是撞成同一个类名、`this[`${mode}_control`]` 也互相覆盖。
@@ -1208,12 +1400,14 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 
 		O.PearnlyController = PearnlyController;
 		O.PearnlyItemSelector = PearnlyItemSelector;
+		O.PearnlyItemDetails = PearnlyItemDetails;
 		O.PearnlyItemCart = PearnlyItemCart;
 		O.PearnlyPayment = PearnlyPayment;
 		O.PearnlyPastOrderList = PearnlyPastOrderList;
 		O.PearnlyPastOrderSummary = PearnlyPastOrderSummary;
 		// 让官方 Controller 里 `new erpnext.PointOfSale.ItemSelector/ItemCart/Payment(...)` 拿到我们的子类。
 		O.ItemSelector = PearnlyItemSelector;
+		O.ItemDetails = PearnlyItemDetails;
 		O.ItemCart = PearnlyItemCart;
 		O.Payment = PearnlyPayment;
 		O.PastOrderList = PearnlyPastOrderList;
@@ -1223,30 +1417,21 @@ window.__pos_adapter_v = 42;   // 排查用：确认页面到底加载到哪一�
 
 	p.pos_next = { boot, install };
 
-	// 临时对照路由的加载器：`/desk/pearnly-cashier?pearnly_pos_next=1` 时由 `cashier.js` 调它。
-	// 官方 9 个文件 → 官方样式 → 本适配层（顺序不能反：适配层要在官方文件之后装子类）。
-	const FILES = [
-		"onscan.js",
-		"official-pos_number_pad.js",
-		"official-pos_item_selector.js",
-		"official-pos_item_details.js",
-		"official-pos_item_cart.js",
-		"official-pos_payment.js",
-		"official-pos_past_order_list.js",
-		"official-pos_past_order_summary.js",
-		"official-pos_controller.js",
-	];
-	// 注：`official-point_of_sale.js`（官方那条 `/desk/point-of-sale` 路由的入口）**不加载** ——
-	// 它只做"官方站点的页面注册 + 启动控制器"，而启动由我们这边负责（见 `pos_next_route`）。
+	// Keep the old entry name for bookmarked ?pearnly_pos_next=1 links. The
+	// native Page is cached by Desk, so show/hide must own activation explicitly.
 	p.pos_next_route = (page) => {
-		const base = "/assets/pearnly_erp_portal/desk/pos/";
-		frappe.require([base + "official-pos.css", ...FILES.map(f => base + f)], () => {
-			O.pearnly_installed = false;           // 让 install() 这一轮真的装一遍
-			p.pos_next.install();
-			const wrapper = page.wrapper;
-			wrapper.page = page;                   // 官方 Controller 读 `wrapper.page`
-			wrapper.pos = p.pos_next.boot(wrapper);
-			window.cur_pos = wrapper.pos;
-		});
+		install();
+		const wrapper = page.wrapper;
+		wrapper.page = page;
+		if (!wrapper.pos) {
+			wrapper.pos = boot(wrapper);
+			wrapper.on_page_show = () => {
+				p.restore_sidebar();
+				void wrapper.pos.resume().catch(error => console.error(error));
+			};
+			$(wrapper).on("hide.pearnly-pos", () => wrapper.pos.suspend());
+		}
+		window.cur_pos = wrapper.pos;
+		return wrapper.pos.resume();
 	};
 })();

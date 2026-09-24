@@ -42,6 +42,8 @@ jobs:
           node-version: '22.14.0'
       - name: Verify native Desk lifecycle
         run: node tests/test-native-desk.cjs
+      - name: Verify native POS entry and lifecycle
+        run: node --test tests/test_pos_lifecycle.js
       - name: Verify product list selection and deletion
         run: |
           node tests/test-roster-selection.cjs
