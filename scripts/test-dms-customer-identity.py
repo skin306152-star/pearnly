@@ -240,16 +240,16 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(transport.records["wrong"], original)
         self.assertEqual([p for p, _ in transport.writes()], ["cus/new.php"])
 
-    def test_create_exact_existing_converts_and_verifies_identity(self):
+    def test_create_exact_existing_requires_new_review(self):
         client, transport = self.client({"right": record()})
-        self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("right", True))
-        self.assertEqual([p for p, _ in transport.writes()], ["cus/edit.php"])
-
-    def test_automatic_conversion_rechecks_loaded_identity_before_write(self):
-        client, transport = self.client({"right": record()})
-        reads = iter([form(record()), form(record(OTHER))])
-        transport.form_overrides["right"] = lambda: next(reads)
         self.rejects(lambda: client.save_customer(fields=FIELDS, mode="create"), transport)
+        self.assertEqual(transport.records["right"]["txtpeopleid"], PID)
+
+    def test_overwrite_rechecks_loaded_identity_against_baseline(self):
+        client, transport = self.client({"right": record()})
+        transport.form_overrides["right"] = form(record(OTHER))
+        self.rejects(lambda: client.save_customer(fields=FIELDS, mode="overwrite", customer_id="right",
+                     baseline=client._extract_customer_fields(record())), transport)
 
     def test_duplicate_response_research_does_not_overwrite_wrong_identity(self):
         client, transport = self.client({"wrong": record(OTHER, txtcuscode=PID)})
@@ -261,12 +261,12 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(sleep.call_count, 2)
         self.assertEqual(sum(p == "cus/component/showdata.php" for p, _ in transport.calls), 4)
 
-    def test_duplicate_response_research_can_recover_exact_identity(self):
+    def test_duplicate_response_exact_match_requires_new_review(self):
         client, transport = self.client()
         transport.create_collision = True
         transport.collision_record = record()
-        self.assertEqual(client.save_customer(fields=FIELDS, mode="create"), ("collision", True))
-        self.assertEqual([p for p, _ in transport.writes()], ["cus/new.php", "cus/edit.php"])
+        self.rejects(lambda: client.save_customer(fields=FIELDS, mode="create"), transport, writes=1)
+        self.assertEqual([p for p, _ in transport.writes()], ["cus/new.php"])
 
     def test_create_success_readback_rejects_wrong_or_missing_identity(self):
         for result in (["wrong"], [], ["wrong", "other"]):
@@ -283,13 +283,15 @@ class IdentityTests(unittest.TestCase):
             with self.subTest(ignored=ignored):
                 client, transport = self.client({"own": record(OTHER)})
                 transport.ignore_fields = {ignored}
-                self.rejects(lambda: client.save_customer(fields=FIELDS, mode="overwrite", customer_id="own"),
+                self.rejects(lambda: client.save_customer(fields=FIELDS, mode="overwrite", customer_id="own",
+                             baseline=client._extract_customer_fields(record(OTHER))),
                              transport, writes=1)
 
     def test_explicit_tax_write_must_be_read_back(self):
         client, transport = self.client({"own": record()})
         transport.ignore_fields = {"txttaxid"}
-        self.rejects(lambda: client.save_customer(fields={"tax_id": OTHER}, mode="overwrite", customer_id="own"),
+        self.rejects(lambda: client.save_customer(fields={"tax_id": OTHER}, mode="overwrite", customer_id="own",
+                     baseline=client._extract_customer_fields(record())),
                      transport, writes=1)
 
     def test_formatted_identity_is_accepted_on_write_readback(self):
@@ -304,14 +306,16 @@ class IdentityTests(unittest.TestCase):
             return response
 
         transport.post = post
-        self.assertEqual(client.save_customer(fields=FIELDS, mode="overwrite", customer_id="own"), ("own", False))
+        self.assertEqual(client.save_customer(fields={**FIELDS, "phone": "0800000002"}, mode="overwrite",
+                         customer_id="own", baseline=client._extract_customer_fields(record())), ("own", False))
 
     def test_overwrite_empty_readback_cannot_pass_even_when_name_not_submitted(self):
         client, transport = self.client({"own": record()})
         forms = iter([form(record()), ""])
         transport.form_overrides["own"] = lambda: next(forms)
         self.rejects(lambda: client.save_customer(fields={"phone": "0800000002"},
-                                                  mode="overwrite", customer_id="own"), transport, writes=1)
+                                                  mode="overwrite", customer_id="own",
+                                                  baseline=client._extract_customer_fields(record())), transport, writes=1)
 
     def test_implicit_and_explicit_tax_identity_success(self):
         for fields, expected in (({"people_id": OTHER, "tax_id": ""}, OTHER),
@@ -319,7 +323,8 @@ class IdentityTests(unittest.TestCase):
                                  ({"tax_id": ""}, "")):
             with self.subTest(fields=fields):
                 client, transport = self.client({"own": record()})
-                client.save_customer(fields=fields, mode="overwrite", customer_id="own")
+                client.save_customer(fields=fields, mode="overwrite", customer_id="own",
+                                     baseline=client._extract_customer_fields(record()))
                 self.assertEqual(transport.records["own"]["txttaxid"], expected)
 
     def test_manual_candidate_claim_and_restore_preserve_all_other_fields(self):
@@ -327,7 +332,8 @@ class IdentityTests(unittest.TestCase):
         original = deepcopy(transport.records["own"])
         for pid in (OTHER, PID):
             self.assertEqual(client.save_customer(fields={"people_id": pid, "name": NAME},
-                                                 mode="overwrite", customer_id="own"), ("own", False))
+                                                 mode="overwrite", customer_id="own",
+                                                 baseline=client.read_customer("own")), ("own", False))
             saved = transport.records["own"]
             self.assertEqual(saved["txtpeopleid"], pid)
             self.assertEqual(saved["txttaxid"], pid)
@@ -345,7 +351,8 @@ class IdentityTests(unittest.TestCase):
         original["txtcuscode"] = PID
         transport.records["own"]["txtcuscode"] = PID
         for pid, absent in ((OTHER, PID), (PID, OTHER)):
-            client.save_customer(fields={"people_id": pid, "name": NAME}, mode="overwrite", customer_id="own")
+            client.save_customer(fields={"people_id": pid, "name": NAME}, mode="overwrite", customer_id="own",
+                                 baseline=client.read_customer("own"))
             self.assertFalse(client.lookup_customer(absent, fallback_customer_ids=["own"])["found"])
         self.assertEqual({k: transport.records["own"][k] for k in original}, original)
         self.assertEqual(client.save_customer(fields={**FIELDS, "people_id": OTHER}, mode="create"), ("created", False))

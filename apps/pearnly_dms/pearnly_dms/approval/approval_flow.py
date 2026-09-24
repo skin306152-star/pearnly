@@ -153,12 +153,17 @@ def _submit(binding: dict, line_user_id: str, reply_token: str, pb: dict) -> Non
         customer_id=str(payload.get("customer_id") or ""),
         customer_name=str(draft.get("name") or ""),
         field_diffs=payload.get("field_diffs") or [],
-        draft={"fields": draft, "display_diffs": payload.get("display_diffs") or []},
+        draft={"fields": draft, "display_diffs": payload.get("display_diffs") or [],
+               "baseline": payload.get("customer_baseline"),
+               "write_fields": payload.get("write_fields"),
+               "write_addresses": payload.get("write_addresses")},
     )
     if not request_id:
         _reply(reply_token, cards.TXT_SYSTEM_ERROR)
         return
-    store.clear_session(line_user_id)
+    store.set_session(line_user_id, "approval_pending", {
+        "approval_request": request_id, "source": payload, "binding": binding,
+    })
     _send(line_user_id, approval_cards.picker_card(request_id, approvers), reply_token)
 
 
@@ -277,13 +282,17 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
     fields = {"people_id": draft.get("people_id", ""), "name": draft.get("name", "")}
     for diff in diffs:
         fields[diff.get("field")] = diff.get("new", "")
+    fields = draft_wrap.get("write_fields") if draft_wrap.get("write_fields") is not None else fields
 
     result = _dms_intake.push_idcard_fields(
         endpoint,
         fields=fields,
         mode="overwrite",
         customer_id=str(req.get("customer_id") or ""),
-        addresses=None,
+        addresses=draft_wrap.get("write_addresses"),
+        baseline=draft_wrap.get("baseline"),
+        request_id="approval:" + str(req["id"]),
+        actor=tenant_user,
     )
     success = bool(result.get("success"))
     _write_push_log(
@@ -295,12 +304,33 @@ def _execute_approved(binding: dict, admin_line_user_id: str, req: dict) -> None
         diffs=diffs,
     )
 
-    if success:
+    conflict = (result.get("response_body") or {}).get("customer_conflict")
+    if conflict:
+        # The old approval authorizes only its original baseline/diff, never the
+        # newly discovered change. Terminalize it before issuing another review.
+        approval_store.finish(str(req["id"]), "rejected")
+        operator_id = str(req.get("operator_user_id") or "")
+        luid = roster_store.line_user_id_of(operator_id)
+        current = store.get_session(luid) if luid else None
+        pending = (current or {}).get("payload") or {}
+        from pearnly_dms.line.identity import matches
+        if (current and current.get("state") == "approval_pending"
+                and pending.get("approval_request") == req["id"]
+                and matches(pending.get("binding") or {}, luid)):
+            from pearnly_dms.intake.review import build
+            new, card = build(operator_id, pending["source"], conflict,
+                              has_admin=bool(pending["source"].get("has_admin")))
+            if store.replace_session_snapshot(luid, current, "reviewing", new):
+                _send(luid, card)
+        _push(admin_line_user_id, (result.get("error_friendly") or {}).get("th") or cards.TXT_SAVE_FAIL)
+    elif success:
         approval_store.finish(str(req["id"]), "approved")
         _push(admin_line_user_id, approval_cards.TXT_REQ_APPROVED_ADMIN)
         _notify_operator(req, approval_cards.TXT_REQ_APPROVED_SALES)
     else:
-        approval_store.finish(str(req["id"]), "pending")
+        # A durable unknown dispatch cannot be authorized for replay by another approver.
+        approval_store.finish(str(req["id"]), "rejected" if
+                              (result.get("response_body") or {}).get("submitted") else "pending")
         friendly = (result.get("error_friendly") or {}).get("th") or ""
         _push(
             admin_line_user_id,

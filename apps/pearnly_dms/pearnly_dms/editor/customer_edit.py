@@ -55,13 +55,16 @@ def load(line_user_id: str, nonce: str) -> dict:
     """首屏补客户现值；OCR 未解析的地址保持空选，不能用不同旧地址掩盖。"""
     _, payload, endpoint = _review(line_user_id, nonce)
     customer = dict(payload.get("draft") or {})
+    baseline = payload.get("customer_baseline")
+    if baseline:
+        customer = {**baseline, **customer}
     preserve_empty_geo = (
         bool(payload.get("id_card")) and not payload.get("customer_edited")
         and any(key in customer and not str(customer[key] or "").strip() for key, _ in GEO_FIELDS)
     )
     snapshot = editor._snapshot(
         endpoint, customer=customer,
-        customer_id="" if payload.get("customer_edited") else payload.get("customer_id", ""),
+        customer_id="" if baseline or payload.get("customer_edited") else payload.get("customer_id", ""),
         preserve_empty_geo=preserve_empty_geo,
     )
     # 先把 OCR 的称谓在主档里解出 id（解不出就留空，交给用户在下拉里选）。
@@ -130,6 +133,9 @@ def _card(
             "approval",
             "has_admin",
             "display_diffs",
+            "write_fields",
+            "write_addresses",
+            "customer_baseline",
         }
     }
     new.update(
@@ -144,6 +150,9 @@ def _card(
     )
     if lookup["scenario"] == "exact":
         current = lookup["match"]["current_fields"]
+        if (str(payload.get("customer_id")) == str(lookup["match"]["customer_id"])
+                and payload.get("customer_baseline") is not None):
+            current = payload["customer_baseline"]
         diffs = diff_customer_fields(current, customer)
         # 网页端可以**显式清空**可选地址栏（楼/层/房/村/หมู่/ซอย/ถนน）—— OCR 的空白不算，
         # 所以这里单独把"原本有值、现在被清掉"的字段补成差异，否则用户的清除动作会静默失效。
@@ -153,6 +162,7 @@ def _card(
         new.update(
             customer_id=lookup["match"]["customer_id"], scenario="exact_diff", field_diffs=diffs
         )
+        new["customer_baseline"] = dict(current)
         new["master_draft"], new["master_summary"] = draft.master_snapshot(current)
         if diffs:
             display = draft.display_diffs(
