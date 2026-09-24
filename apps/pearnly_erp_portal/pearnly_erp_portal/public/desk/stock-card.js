@@ -294,8 +294,16 @@
 			// 日期那两格的 `change` 之前调的是一个**不存在的** `reload`
 			// （实测 `ReferenceError: reload is not defined`），于是改了日期整页没反应、
 			// 控制台还报错。先定义再挂给 `change` 和右上角那颗刷新，两处同一个函数。
-			async function refresh_card() {
+			// `force`：右上角那颗刷新不管日期有没有动都重取；两格日期只有**真的变了**才重取
+			// （建表时给默认值也会触发 `change`，照单全收的话一进页面就打 5 次同一个接口 ——
+			// 实测每次打开 5 次，现在是 1 次）。
+			async function refresh_card(force = false) {
 				const values = form.get_values() || {};
+				if (!force && values.date_from === dates.date_from && values.date_to === dates.date_to) {
+					return;
+				}
+				dates.date_from = values.date_from;
+				dates.date_to = values.date_to;
 				const current = await fetch_card({ product, warehouse, location },
 					{ date_from: values.date_from, date_to: values.date_to });
 				if (frappe.get_route()[0] !== root) return;
@@ -324,7 +332,7 @@
 			], 4));
 			const host = form.fields_dict.movements.$wrapper;
 			host.empty().append(p.ledger_table(t, card));
-			set_refresh(refresh_card);
+			set_refresh(() => void refresh_card(true));
 		}
 
 		async function render(rest) {

@@ -303,7 +303,12 @@ frappe.provide("frappe.pearnly");
 		// （菜单里那三项调用的就是同一个 `columnmanager.sortColumn`），把它绑到列头本身：
 		// 未排序 → 升序 → 倒序 → 取消（回到原始顺序）。菜单三项保留，官方行为一个字不改。
 		// 点在小箭头、列宽拖拽把手或输入控件上时不触发。
-		$(parent).on("click", ".dt-cell--header", function (event) {
+		//
+		// **先解绑再绑**：宿主被重复建表时（页面重取会重建），旧表的处理器会留在宿主上 ——
+		// 点一次列头等于同时驱动好几张**已经销毁**的表，那些表的样式表已经摘掉，于是每张都
+		// 抛一次 `Cannot read properties of null (reading 'cssRules')`（实测 4 张表就 4 次）。
+		// 命名空间解绑只清本组件自己绑的，不动别人的处理器。
+		$(parent).off("click.pearnlyTableSort").on("click.pearnlyTableSort", ".dt-cell--header", function (event) {
 			if ($(event.target).closest(".dt-dropdown, .dt-cell__resize-handle, input, select, button").length) {
 				return;
 			}

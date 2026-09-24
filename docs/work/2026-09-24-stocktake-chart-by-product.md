@@ -658,6 +658,62 @@
 - 预览 lane（8136，挂本工作树源码）与验收 lane（8126，旧镜像）保留未动；本工作树、本地分支
   `codex/stocktake-chart` 也保留（用户还要看预览）。远端无本任务分支，未创建。
 
+## 第十三轮：官方有没有"这张表"的原生组件（2026-09-25）
+
+用户问（贴的是收发存明细那张表）："你看下这个表有没有官方原生的，这是我们自己画的，如果有做一个
+预览版出来我看看"。补一句口径："我要的是官方原生表格，那个模版格式不能动"、"有就有，没有就算了，
+别硬画"。
+
+### 结论：**分组表头没有官方组件**；合计行官方是有的
+
+证据（都在预览站点装的 frappe 16.33.0 里看的）：
+
+1. 表格组件是 `frappe-datatable` **1.20.7**（`p.table`、Desk 列表、报表页都用它）。它的源码里
+   **没有 colspan/rowspan**：表头由 `rowmanager.getRowHTML(columns, {isHeader: 1})` 生成，就是
+   **一行**；列定义里没有 children / group 这种概念。所以"单据 | 入库 | 出库 | 结存"这种两层表头
+   它画不了。
+2. 官方报表页（`frappe/views/reports/query_report.js`）与报表列表页（`report_view.js`）用的**就是
+   同一个 DataTable** —— 换报表也还是单层表头。
+3. 官方**合计行是有的**：`showTotalRow` + `hooks.columnTotal`（`frappe.utils.report_column_total`），
+   报表页与报表列表页都挂这一对；列还能按 `disable_total` 逐列关掉合计。
+4. 官方 JS 里没有别的"分组表头表格"：`erpnext/erpnext/public/js` 搜 colSpan 命中 **0**；frappe 里
+   命中都在**表单布局**（dashboard / layout / column / naming_series），不是报表表格。框架自己的
+   报表打印件 `print_grid.html` 也是单层表头。
+5. 顺带核实：这几个租户**没装 erpnext**（`bench list-apps` 只有 frappe + `pearnly_core` +
+   `pearnly_erp_portal`），所以 ERPNext 的 Stock Ledger / Stock Balance 一类"官方报表"在这里
+   根本不存在，不能拿它们当参照。
+
+### 所以这一页保持原样（预览已撤）
+
+按用户"那个模版格式不能动 / 别硬画"：分组表头 + 合计行的格式继续按旧项目参考图保留，
+DOM 仍只用官方类名（`.table .table-bordered` + `text-right`，与框架自己的报表打印件同一套）；
+中途做过的"官方 DataTable 单层表头 + 官方合计行"预览（`?pearnly_native_table=1`）**已删除**，
+页面回到零变化。
+
+### 顺手修的两处（撤预览时暴露出来的真实缺陷，保留）
+
+1. `p.table`（共享层）的"点列头排序"处理器改成**带命名空间、先解绑再绑**：同一个宿主重复建表时
+   （页面重取会重建），旧表的处理器会留在宿主上 —— 点一次列头等于同时驱动好几张**已经销毁**的表，
+   那些表的样式表已经摘掉，于是每张抛一次 `Cannot read properties of null (reading 'cssRules')`
+   （实测 4 张表 = 4 次）。
+2. 收发存明细页**一进页面就把 `api_stock_card` 打了 5 次**：建表时给 Date 默认值也会触发 `change`，
+   原来自个儿照单全收。改成"日期真的变了才重取"，右上角那颗刷新仍旧强制重取（实测 5 次 → 1 次，
+   改日期仍会重取）。
+
+### 验证（预览 lane 8136）
+
+- 明细页：`table.table-bordered` 1 张、两行表头（`单据 | 入库 | 出库 | 结存` / `日期 | 单据编号 |
+  数量 单价 金额 ×3`）、`tfoot` = `合计 · 21 条明细 | 22 | — | 154.00 | 23 | — | 161.00 | -1 | — |
+  -7.00`，没有任何 DataTable 实例；带旧参数 `?pearnly_native_table=1` 也不再改变页面。
+- 一进页面 `api_stock_card` **1 次**；改起始日期 → 再 1 次；点右上角刷新 → 再 1 次。
+- 无 pageerror、无 5xx。
+- 门槛：`check-architecture.py` PASS、`i18n-build.py --check` PASS、
+  `tests/test_native_desk_contract.py` OK、`node tests/test-native-desk.cjs`、
+  `node tests/test-stock-card.cjs`（6 项，含分组表头与合计行）、`node tests/test-stock-entry.cjs`、
+  `git diff --check` 全通过。
+- **未推送、未合并、未部署**：这两处修复目前只在本地工作树。生产跑的还是 `fd5a979` 那版镜像
+  （不含这两处），要带上就再走一次构建 + 投递 + 激活。
+
 ## 未做 / 下一步
 
 - 没有"看板按"切换（商品/仓库/仓位）。
