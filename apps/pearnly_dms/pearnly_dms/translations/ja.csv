@@ -1,30 +1,79 @@
+Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
 Address data as of {time}; full refresh scheduled daily,住所データ取得時刻：{time}。毎日、全件更新を実行します。
+Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 Booking ID,予約ID
 Booking Number,予約番号
 "Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of",このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻
+"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
 "Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.",DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。
+Cached result captured at {time},保存済み結果の取得時刻：{time}
+"Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 DMS,DMS
+DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
+"DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.",DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
+DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.,DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked),DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
 Data as of {time},データ取得時刻：{time}
 Data captured at,データ取得時刻
+Enable the DMS connection before reading data,データを読み取る前に DMS 接続を有効にしてください
 Enter the DMS password.,DMS パスワードを入力してください。
+Full address directory,完全な住所一覧
+Full customer records,完全な顧客データ
 Last Error,前回のエラー
+Last successful completion,前回成功時の完了時刻
+Last successful record count,前回成功時の件数
+Latest error code,最新のエラーコード
+Master data and all vehicle colors,マスターデータと全車種の色
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
+Multiple primary DMS connections exist; ask an administrator to check the configuration,DMS の主接続が複数あります。管理者に設定の確認を依頼してください
 Next Attempt,次回試行
+Not read yet,未読み取り
+Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
+Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
+Older data: {0},古いデータ：{0}
+Progress {processed}/{total},進捗 {processed}/{total}
+Queued,待機中
+Read / refresh selected data,選択したデータを読み取り／更新
+Read / refresh this query,この検索を読み取り／更新
+Read completed,読み取り完了
+Read completed. Click View result.,読み取りが完了しました。結果を見るを押してください。
+Read failed — click Read to retry,読み取り失敗。読み取りを押して再試行してください
+Read progress,読み取りの進捗
+Read status,読み取り状態
+"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.",LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。
+Read time unknown,読み取り時刻不明
+Reading,読み取り中
+Reading this query.,この検索を読み取り中です。
 Recognition could not finish. Please try again shortly.,認識を完了できませんでした。しばらくしてから再試行してください。
 Reload List,リストを再読み込み
+Saved DMS data,読み取り済み DMS データ
+"Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
+Select at least one data group.,データを1種類以上選択してください。
+Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
+The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
+"The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
+The account is busy. Click Read later to continue.,アカウントが使用中です。後で読み取りを押して続行してください。
+The customer record changed after you edited it. Review the current differences before confirming again.,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
 The recognition queue is busy. Please send the image again shortly.,認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.,認識結果を確認中です。この画像を再送しないでください。
 "The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.",保存された DMS データは古いため使用できません。同期完了後に再試行してください。
+"The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.",保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
 The saved credentials cannot be read back; check the site encryption key,保存した認証情報を読み戻せません。サイトの暗号化キーを確認してください
+"The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.",送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
+These conditions have not been read. Click Read this query.,この条件のデータは未読み取りです。この検索の読み取りを押してください。
+This query is queued.,この検索は待機中です。
+This read failed. Click Read to retry.,今回の読み取りは失敗しました。読み取りを押して再試行できます。
+This read was interrupted. Click Read again to retry; previously completed data was retained.,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
 "Too many new date ranges are waiting to sync. Please wait, then retry the same query.",同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
+Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
+View result / status,結果／状態を見る
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
 dms.account.invalid,DMS パスワードを入力してください。
@@ -43,12 +92,44 @@ dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Web
 dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
 dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
 dms.card.TXT_EDIT_UNAVAILABLE,編集ページを開けませんでした。LINE からもう一度お試しください。
-dms.card.query.CARD_NOTE,DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。
+dms.card.query.CARD_NOTE,読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
 dms.card.query.LBL_READ_AT,データ取得時刻
-dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻
+dms.card.query.LBL_UNKNOWN_TIME,読み取り時刻不明
+dms.card.query.MANUAL_AS_OF,保存済み結果の取得時刻：{time}
+dms.card.query.MANUAL_FAILED,今回の読み取りは失敗しました。読み取りを押して再試行できます。
+dms.card.query.MANUAL_IDLE,この条件のデータは未読み取りです。この検索の読み取りを押してください。
+dms.card.query.MANUAL_PROGRESS,進捗 {processed}/{total}
+dms.card.query.MANUAL_QUEUED,この検索は待機中です。
+dms.card.query.MANUAL_RUNNING,この検索を読み取り中です。
+dms.card.query.MANUAL_SUCCEEDED,読み取りが完了しました。結果を見るを押してください。
+dms.card.query.MANUAL_WAITING,アカウントが使用中です。後で読み取りを押して続行してください。
+dms.card.query.NAV_FETCH,この検索を読み取り／更新
+dms.card.query.NAV_RESULT,結果／状態を見る
+dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
+dms.connect.cache.dataset.customers,完全な顧客データ
+dms.connect.cache.dataset.geo,完全な住所一覧
+dms.connect.cache.dataset.masters,マスターデータと全車種の色
+dms.connect.cache.field.as_of,データ取得時刻
+dms.connect.cache.field.completed_at,前回成功時の完了時刻
+dms.connect.cache.field.count,前回成功時の件数
+dms.connect.cache.field.error_code,最新のエラーコード
+dms.connect.cache.field.progress,読み取りの進捗
+dms.connect.cache.field.state,読み取り状態
+dms.connect.cache.help,読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
+dms.connect.cache.processed,{0} 件処理済み。総数は未確定です
+dms.connect.cache.read,選択したデータを読み取り／更新
+dms.connect.cache.select,データを1種類以上選択してください。
+dms.connect.cache.stale,古いデータ：{0}
+dms.connect.cache.state.failed,読み取り失敗。読み取りを押して再試行してください
+dms.connect.cache.state.idle,未読み取り
+dms.connect.cache.state.queued,待機中
+dms.connect.cache.state.running,読み取り中
+dms.connect.cache.state.succeeded,読み取り完了
+dms.connect.cache.state.waiting,アカウントが使用中です。後で読み取りを押して続行してください
+dms.connect.cache.title,読み取り済み DMS データ
 dms.edit.addPayment,支払方法を追加
-dms.edit.addressSnapshotAsOf,住所データ取得時刻：{time}。毎日、全件更新を実行します。
-dms.edit.addressSnapshotStale,住所の同期が遅延しています。{time} 時点の住所データを表示中です。
+dms.edit.addressSnapshotAsOf,住所データ取得時刻：{time}。手動で更新します。
+dms.edit.addressSnapshotStale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 dms.edit.advisor,販売担当者（システム指定）
 dms.edit.amount,金額
 dms.edit.attached,この添付を保持
@@ -146,8 +227,11 @@ dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED,下書きが変更されたか、既に�
 dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN,予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。
 dms.err.ERR_DMS_BOOKING_PATCH,予約情報の入力に失敗しました · 再試行してください
 dms.err.ERR_DMS_CONCURRENT_LOGIN,この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください
+dms.err.ERR_DMS_CUSTOMER_CHANGED,編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。
+dms.err.ERR_DMS_CUSTOMER_EXISTS,DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。
 dms.err.ERR_DMS_CUSTOMER_LOOKUP,予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。
 dms.err.ERR_DMS_CUSTOMER_SAVE,DMS への顧客保存に失敗しました · 項目を確認して再試行してください
+dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED,送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。
 dms.err.ERR_DMS_IMPORT,予約の作成に失敗しました · 再試行してください
 dms.err.ERR_DMS_IMPORT_REPORT,DMS が予約取込を拒否しました · 予約内容をご確認ください
 dms.err.ERR_DMS_MASTER_CHANGED,DMS マスターデータが変更されました。更新後の概要を確認し、もう一度確定してください
@@ -156,11 +240,14 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に�
 dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
-dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。
-dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。
-dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。
-dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
-dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。同期完了後に再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
+dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
+dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。
+dms.err.ERR_DMS_SNAPSHOT_PENDING,DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。
+dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT,登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。
+dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED,DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
+dms.err.ERR_DMS_SNAPSHOT_STALE,保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。
 dms.err.ERR_DMS_TECHNICAL,DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください
 dms.err.ERR_DMS_TEMPLATE,予約テンプレートのダウンロードに失敗しました · 再試行してください
 dms.err.ERR_DMS_UNREACHABLE,サードパーティの DMS システムに接続できません。管理者に連絡してください。
@@ -169,6 +256,7 @@ dms.err.ERR_NO_CREDS,ユーザー名とパスワードを入力してくださ�
 dms.err.ERR_PLAYWRIGHT_MISSING,サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください
 dms.err.ERR_UNEXPECTED,サーバー内部エラーが発生しました。管理者にお問い合わせください
 dms.snapshot.as_of,データ取得時刻：{time}
-dms.snapshot.geo_as_of,住所データ取得時刻：{time}。毎日、全件更新を実行します。
-dms.snapshot.geo_stale,住所の同期が遅延しています。{time} 時点の住所データを表示中です。
-dms.snapshot.stale,同期が遅延しています。{time} 時点のデータを表示中です。
+dms.snapshot.geo_as_of,住所データ取得時刻：{time}。手動で更新します。
+dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
+dms.snapshot.stale,{time} 時点の古いデータです。必要に応じて手動で更新してください。
+{0} processed; total not yet known,{0} 件処理済み。総数は未確定です

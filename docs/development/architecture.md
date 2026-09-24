@@ -184,3 +184,7 @@ MariaDB 工作单是任务事实；RQ/延迟集合仅为可修复投递记录。
 `companion.wsgi:application` 显式包装原生 `frappe.app.application`；同域 `legacy_wire` 只把三个精确旧 POST URL 映射到既有心跳/lease/ACK RPC，并将成功的 `message` 字典解包为旧客户端顶层 JSON。其它请求原样交给原生应用；不注册新的 hook、角色或身份，也不复制业务校验/事务/重试。原生应用完成提交和清理后才输出适配响应，异常成功封套返回稳定502，不当空队列或成功回执处理。
 
 默认基础设施仍使用原生入口，本包没有启用监听或切换 Windows。固定旧 QueueClient 经真实 httpx WSGI 运输在隔离 Site 验证，Windows EXE 的54个业务模块及 launcher 与固定源码编译结果一致；实际机器连新平台、物理写者互斥和独立ERP回读未验收。详见[第十六批合同](../work/cowork-backend/sixteenth-source-review.md)。
+
+### DMS 连接页手动读取（2026-09-24）
+
+`connections.snapshots` 单向调用 `snapshots.manual` 的手动请求与本地状态服务。RPC 每次校验 DMS Admin/System Manager，只解析本站唯一主连接，不接受调用方指定 Endpoint、读取账号或操作员；GET 只返回分项状态与时间，不排队、不读取外部 DMS。POST 限主档、客户和地址三组，去重、当前作用域与后台读取由 snapshots 域负责。连接页使用原生 FieldGroup/Dialog，等待任务入队后即释放按钮，状态轮询不触发外部读取。

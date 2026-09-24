@@ -1,4 +1,45 @@
 en	zh	th	ja	key
+The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.	DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。	บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ	DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。	dms.err.ERR_DMS_SNAPSHOT_BUSY
+Saved DMS data	DMS 已读取资料	ข้อมูล DMS ที่อ่านไว้	読み取り済み DMS データ	dms.connect.cache.title
+Read / refresh selected data	读取／刷新所选资料	อ่าน / อัปเดตข้อมูลที่เลือก	選択したデータを読み取り／更新	dms.connect.cache.read
+Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.	选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。	เลือกข้อมูลที่ต้องการอ่าน ระบบจะทำงานเบื้องหลังหลังจากกดเท่านั้น การดูสถานะไม่เชื่อมต่อ DMS หากบัญชีไม่ว่าง ให้กดอีกครั้งภายหลังเพื่อทำต่อ	読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。	dms.connect.cache.help
+Select at least one data group.	请至少选择一组资料。	กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม	データを1種類以上選択してください。	dms.connect.cache.select
+Master data and all vehicle colors	主档与全部车型颜色	ข้อมูลหลักและสีรถทุกรุ่น	マスターデータと全車種の色	dms.connect.cache.dataset.masters
+Full customer records	完整客户资料	ข้อมูลลูกค้าครบชุด	完全な顧客データ	dms.connect.cache.dataset.customers
+Full address directory	完整地址目录	รายการที่อยู่ครบชุด	完全な住所一覧	dms.connect.cache.dataset.geo
+Read status	读取状态	สถานะการอ่าน	読み取り状態	dms.connect.cache.field.state
+Read progress	读取进度	ความคืบหน้าการอ่าน	読み取りの進捗	dms.connect.cache.field.progress
+Last successful record count	上次成功记录数	จำนวนรายการที่อ่านสำเร็จล่าสุด	前回成功時の件数	dms.connect.cache.field.count
+Data captured at	资料取得时间	เวลาที่อ่านข้อมูล	データ取得時刻	dms.connect.cache.field.as_of
+Last successful completion	上次成功完成时间	เวลาที่อ่านสำเร็จล่าสุด	前回成功時の完了時刻	dms.connect.cache.field.completed_at
+Latest error code	最近错误代码	รหัสข้อผิดพลาดล่าสุด	最新のエラーコード	dms.connect.cache.field.error_code
+Not read yet	尚未读取	ยังไม่ได้อ่าน	未読み取り	dms.connect.cache.state.idle
+Queued	已排队	อยู่ในคิว	待機中	dms.connect.cache.state.queued
+Reading	正在读取	กำลังอ่าน	読み取り中	dms.connect.cache.state.running
+Account busy — click Read later to continue	账号忙，请稍后点击读取继续	บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ	アカウントが使用中です。後で読み取りを押して続行してください	dms.connect.cache.state.waiting
+Read completed	读取完成	อ่านเสร็จแล้ว	読み取り完了	dms.connect.cache.state.succeeded
+Read failed — click Read to retry	读取失败，点击读取可重试	อ่านไม่สำเร็จ กดอ่านเพื่อลองใหม่	読み取り失敗。読み取りを押して再試行してください	dms.connect.cache.state.failed
+{0} processed; total not yet known	已处理 {0} 项，总数尚未确定	อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด	{0} 件処理済み。総数は未確定です	dms.connect.cache.processed
+Older data: {0}	旧资料：{0}	ข้อมูลเก่า ณ {0}	古いデータ：{0}	dms.connect.cache.stale
+Multiple primary DMS connections exist; ask an administrator to check the configuration	存在多条 DMS 主连接，请管理员检查配置	มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลตรวจสอบการตั้งค่า	DMS の主接続が複数あります。管理者に設定の確認を依頼してください
+Enable the DMS connection before reading data	请先启用 DMS 连接，再读取资料	กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล	データを読み取る前に DMS 接続を有効にしてください
+Select one or more DMS data groups to read	请选择至少一组需要读取的 DMS 资料	กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม	読み取る DMS データを1種類以上選択してください
+DMS already has a customer with this ID number. Review the differences and confirm again; no automatic overwrite was made.	DMS 中已有此证号的客户，请重新核对差异并确认；没有自动覆盖资料。	DMS มีลูกค้าที่ใช้เลขบัตรนี้แล้ว กรุณาตรวจสอบความแตกต่างและยืนยันใหม่ ระบบไม่ได้เขียนทับข้อมูลอัตโนมัติ	DMS にこの身分証番号の顧客が存在します。差分を確認して再度確定してください。自動上書きは行っていません。	dms.err.ERR_DMS_CUSTOMER_EXISTS
+The customer record changed after you edited it. Review the current differences before confirming again.	客户资料在你编辑后已被更改，请重新核对当前差异，再次确认。	ข้อมูลลูกค้าถูกแก้ไขหลังจากคุณเริ่มแก้ไข กรุณาตรวจสอบความแตกต่างปัจจุบันก่อนยืนยันอีกครั้ง	編集中に顧客データが変更されました。現在の差分を確認してから再度確定してください。	dms.err.ERR_DMS_CUSTOMER_CHANGED
+The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.	提交已发出，但结果尚未确认。请勿重复提交，先核实结果。	ส่งข้อมูลแล้วแต่ยังยืนยันผลไม่ได้ กรุณาอย่าส่งซ้ำ ให้ตรวจสอบผลก่อน	送信済みですが、結果を確認できていません。再送せず、先に結果を確認してください。	dms.err.ERR_DMS_CUSTOMER_UNCONFIRMED
+Read this query in LINE, or ask an administrator to read the required data on the DMS connection page.	请在 LINE 点击读取本次查询；基础资料需请管理员到 DMS 连接页选择读取。	กรุณากดอ่านข้อมูลครั้งนี้ใน LINE สำหรับข้อมูลพื้นฐาน ให้ผู้ดูแลเลือกอ่านที่หน้าการเชื่อมต่อ DMS	LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。	dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED
+This read was interrupted. Click Read again to retry; previously completed data was retained.	本次读取已中断，请再次点击读取重试；此前成功资料仍保留。	การอ่านครั้งนี้หยุดกลางทาง กรุณากดอ่านอีกครั้งเพื่อลองใหม่ ข้อมูลที่สำเร็จก่อนหน้ายังคงอยู่	今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。	dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED
+Read / refresh this query	读取／刷新本次查询	อ่าน / อัปเดตข้อมูลครั้งนี้	この検索を読み取り／更新	dms.card.query.NAV_FETCH
+View result / status	查看结果／状态	ดูผล / สถานะการอ่าน	結果／状態を見る	dms.card.query.NAV_RESULT
+These conditions have not been read. Click Read this query.	尚未读取此条件，请点击读取本次查询。	ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้	この条件のデータは未読み取りです。この検索の読み取りを押してください。	dms.card.query.MANUAL_IDLE
+This query is queued.	本次查询已排队。	การอ่านครั้งนี้อยู่ในคิวแล้ว	この検索は待機中です。	dms.card.query.MANUAL_QUEUED
+Reading this query.	正在读取本次查询。	กำลังอ่านข้อมูลครั้งนี้	この検索を読み取り中です。	dms.card.query.MANUAL_RUNNING
+The account is busy. Click Read later to continue.	账号忙，请稍后点击读取继续。	บัญชีไม่ว่าง กรุณากดอ่านอีกครั้งภายหลังเพื่อทำต่อ	アカウントが使用中です。後で読み取りを押して続行してください。	dms.card.query.MANUAL_WAITING
+Read completed. Click View result.	读取完成，点击查看结果。	อ่านเสร็จแล้ว กดดูผลการอ่าน	読み取りが完了しました。結果を見るを押してください。	dms.card.query.MANUAL_SUCCEEDED
+This read failed. Click Read to retry.	本次读取失败，可点击读取重试。	อ่านครั้งนี้ไม่สำเร็จ กดอ่านเพื่อลองใหม่ได้	今回の読み取りは失敗しました。読み取りを押して再試行できます。	dms.card.query.MANUAL_FAILED
+Cached result captured at {time}	已缓存结果读取于 {time}	อ่านผลที่บันทึกไว้เมื่อ {time}	保存済み結果の取得時刻：{time}	dms.card.query.MANUAL_AS_OF
+Progress {processed}/{total}	进度 {processed}/{total}	ความคืบหน้า {processed}/{total}	進捗 {processed}/{total}	dms.card.query.MANUAL_PROGRESS
+Read time unknown	读取时间未知	ไม่ทราบเวลาที่อ่าน	読み取り時刻不明	dms.card.query.LBL_UNKNOWN_TIME
 The recognition queue is busy. Please send the image again shortly.	识别队列繁忙，请稍后重新发送图片。	คิวอ่านข้อมูลเต็ม กรุณาส่งรูปอีกครั้งในอีกสักครู่	認識キューが混雑しています。しばらくしてから画像を再送してください。
 The recognition result needs checking. Please do not resend this image yet.	识别结果待核实，请先不要重复发送这张图片。	กำลังตรวจสอบผลการอ่าน กรุณาอย่าส่งรูปนี้ซ้ำ	認識結果を確認中です。この画像を再送しないでください。
 Recognition could not finish. Please try again shortly.	识别未完成，请稍后重试。	อ่านข้อมูลไม่สำเร็จ กรุณาลองใหม่อีกสักครู่	認識を完了できませんでした。しばらくしてから再試行してください。
@@ -14,17 +55,17 @@ Submission Evidence	提交凭据	หลักฐานการส่ง	送信�
 Submission Nonce	提交随机码	nonce การส่ง	送信ノンス
 DMS sign-in did not finish (after retrying there was neither a successful checklogin response nor a redirect · the page may be slow to load or blocked)	DMS 登录没走完（重试之后既没有成功的 checklogin 响应、也没有跳转 · 对方页面可能加载慢或被拦）	เข้าสู่ระบบ DMS ไม่สำเร็จ (ลองใหม่แล้วไม่มีการตอบกลับ checklogin ที่สำเร็จและไม่มีการเปลี่ยนหน้า · หน้าอาจโหลดช้าหรือถูกบล็อก)	DMS サインインが完了しませんでした（再試行後も checklogin の成功応答もリダイレクトもありません · ページの読み込みが遅いかブロックされている可能性があります）
 Reload List	刷新列表	โหลดรายการใหม่	リストを再読み込み
-DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.	DMS 资料正在同步，请稍后重试。首次查询某个日期范围时，会先在后台同步。	กำลังซิงก์ข้อมูล DMS กรุณาลองใหม่อีกสักครู่ การค้นหาช่วงวันที่ครั้งแรกจะเริ่มซิงก์ข้อมูลเบื้องหลัง	DMS データを同期中です。しばらくしてから再試行してください。初めて検索する期間はバックグラウンドで同期されます。	dms.err.ERR_DMS_SNAPSHOT_PENDING
-The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.	现有 DMS 资料已过期，暂不能使用。请等待同步完成后重试。	ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณารอให้ซิงก์เสร็จแล้วลองใหม่	保存された DMS データは古いため使用できません。同期完了後に再試行してください。	dms.err.ERR_DMS_SNAPSHOT_STALE
-DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.	DMS 同步未取得完整资料，没有发布不完整结果。请等待同步成功后重试。	การซิงก์ DMS ได้ข้อมูลไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณาลองใหม่หลังซิงก์สำเร็จ	DMS の同期データが不完全なため公開していません。同期成功後に再試行してください。	dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE
-The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.	DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。	การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลจากการเชื่อมต่อเดิมไม่ได้ กรุณารอซิงก์ใหม่แล้วเปิดหน้านี้อีกครั้ง	DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。	dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED
-Too many new date ranges are waiting to sync. Please wait, then retry the same query.	待同步的新日期范围过多，请稍候再重试当前查询。	มีช่วงวันที่ใหม่รอซิงก์มากเกินไป กรุณารอสักครู่แล้วลองค้นหาเดิมอีกครั้ง	同期待ちの新しい期間が多すぎます。しばらく待って同じ検索を再試行してください。	dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT
+DMS data is not ready. Check the read status; if no read is running, explicitly request one in LINE or on the DMS connection page.	DMS 资料尚未就绪，请查看读取状态；若未在读取，请在 LINE 或 DMS 连接页手动发起读取。	ข้อมูล DMS ยังไม่พร้อม กรุณาดูสถานะการอ่าน หากยังไม่มีงานอ่าน ให้กดอ่านใน LINE หรือหน้าการเชื่อมต่อ DMS	DMS データの準備ができていません。読み取り状態を確認し、実行中でなければ LINE または DMS 接続画面で読み取りを開始してください。	dms.err.ERR_DMS_SNAPSHOT_PENDING
+The saved DMS data is too old to use safely. Request a fresh read, then retry after it succeeds.	现有 DMS 资料已过期，暂不能使用。请手动重新读取，成功后再试。	ข้อมูล DMS ที่บันทึกไว้เก่าเกินไป จึงยังใช้ไม่ได้ กรุณากดอ่านข้อมูลใหม่ แล้วลองอีกครั้งเมื่อสำเร็จ	保存された DMS データは古いため使用できません。手動で再読み取りを行い、成功後に再試行してください。	dms.err.ERR_DMS_SNAPSHOT_STALE
+DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.	DMS 未返回完整资料，没有发布不完整结果。请手动重新读取，成功后再试。	DMS ส่งข้อมูลมาไม่ครบ ระบบจึงไม่แสดงข้อมูลชุดที่ไม่ครบ กรุณากดอ่านใหม่ แล้วลองอีกครั้งเมื่อสำเร็จ	DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。	dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE
+The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.	DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。	การเชื่อมต่อหรือบัญชี DMS เปลี่ยนแล้ว จึงใช้ข้อมูลเดิมไม่ได้ กรุณากดอ่านข้อมูลของการเชื่อมต่อใหม่ แล้วเปิดหน้านี้อีกครั้ง	DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。	dms.err.ERR_DMS_SNAPSHOT_SCOPE_CHANGED
+Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.	已登记的查询条件过多，请稍后重试当前条件，暂勿增加新条件。	มีเงื่อนไขการค้นหาที่ลงทะเบียนมากเกินไป กรุณาลองเงื่อนไขเดิมภายหลัง แทนการเพิ่มเงื่อนไขใหม่	登録済みの検索条件が多すぎます。新しい条件を追加せず、後で同じ条件で再試行してください。	dms.err.ERR_DMS_SNAPSHOT_REQUEST_LIMIT
 Data as of {time}	资料时间：{time}	ข้อมูล ณ {time}	データ取得時刻：{time}	dms.snapshot.as_of
-Sync is delayed; showing data as of {time}	同步有延迟，当前显示 {time} 的资料	การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}	同期が遅延しています。{time} 時点のデータを表示中です。	dms.snapshot.stale
-Address data as of {time}; full refresh scheduled daily	地址资料时间：{time}；每天安排完整更新	ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน	住所データ取得時刻：{time}。毎日、全件更新を実行します。	dms.snapshot.geo_as_of
-Address sync is delayed; showing address data as of {time}	地址同步有延迟，当前显示 {time} 的地址资料	การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}	住所の同期が遅延しています。{time} 時点の住所データを表示中です。	dms.snapshot.geo_stale
-Address data as of {time}; full refresh scheduled daily	地址资料时间：{time}；每天安排完整更新	ข้อมูลที่อยู่ ณ {time} กำหนดอัปเดตครบชุดทุกวัน	住所データ取得時刻：{time}。毎日、全件更新を実行します。	dms.edit.addressSnapshotAsOf
-Address sync is delayed; showing address data as of {time}	地址同步有延迟，当前显示 {time} 的地址资料	การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}	住所の同期が遅延しています。{time} 時点の住所データを表示中です。	dms.edit.addressSnapshotStale
-Cached DMS records; refresh scheduled every 5 minutes. Native document status, not draft revenue. A first query for a date range may wait for sync.	DMS 缓存记录，每 5 分钟安排同步。状态来自原生单据，草稿不计营业额；首次查询日期范围可能需要等待同步。	ข้อมูล DMS ที่ซิงก์ไว้ กำหนดซิงก์ทุก 5 นาที แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การค้นหาช่วงวันที่ครั้งแรกอาจต้องรอซิงก์	DMS のキャッシュ記録です。5 分ごとに同期を実行します。元の伝票の状態を表示し、下書きは売上に含めません。初めて検索する期間は同期を待つ場合があります。	dms.card.query.CARD_NOTE
+Older data as of {time}; refresh manually if needed	当前为 {time} 的旧资料，需要时请手动刷新	ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง	{time} 時点の古いデータです。必要に応じて手動で更新してください。	dms.snapshot.stale
+Address data as of {time}; refreshed manually	地址资料时间：{time}；手动读取更新	ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน	住所データ取得時刻：{time}。手動で更新します。	dms.snapshot.geo_as_of
+Older address data as of {time}; ask an administrator to refresh if needed	当前为 {time} 的旧地址资料，需要时请管理员手动刷新	ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง	{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。	dms.snapshot.geo_stale
+Address data as of {time}; refreshed manually	地址资料时间：{time}；手动读取更新	ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน	住所データ取得時刻：{time}。手動で更新します。	dms.edit.addressSnapshotAsOf
+Older address data as of {time}; ask an administrator to refresh if needed	当前为 {time} 的旧地址资料，需要时请管理员手动刷新	ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง	{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。	dms.edit.addressSnapshotStale
+Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.	DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。	ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ	読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。	dms.card.query.CARD_NOTE
 Data captured at	资料取得时间	เวลาที่ซิงก์ข้อมูล	データ取得時刻	dms.card.query.LBL_READ_AT
-Branches and teams visible to this account; cached native DMS totals, not draft revenue. Refresh scheduled every 5 minutes; a new period may wait for sync. Data as of	本账号可见分店和团队的原生 DMS 统计缓存，草稿不计营业额。每 5 分钟安排同步，新日期范围可能需要等待。资料时间	สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย กำหนดซิงก์ทุก 5 นาที ช่วงวันที่ใหม่อาจต้องรอซิงก์ ข้อมูล ณ	このアカウントに表示される支店・チームの DMS 集計キャッシュです。下書きは売上に含めません。5 分ごとに同期し、新しい期間は同期を待つ場合があります。データ取得時刻	dms.card.query.TOP_NOTE_PREFIX
+Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of	本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间	สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ	このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻	dms.card.query.TOP_NOTE_PREFIX
