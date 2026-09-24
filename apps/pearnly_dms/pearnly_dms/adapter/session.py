@@ -30,7 +30,8 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 
 from pearnly_core.browser import BrowserSession
 from pearnly_core.endpoints import read_password
-from pearnly_core.session_lock import account_lock, dms_login_key
+from pearnly_core.session_lock import account_lock, dms_login_key, SessionLockUnavailable
+from pearnly_dms.adapter.read_priority import foreground, yield_to_foreground, ReadDeferred
 from pearnly_dms.config import pacing
 from frappe import _
 
@@ -210,9 +211,22 @@ class MrerpDmsAdapter:
             accounts = {dms_login_key(self.login_url, self._username)}
             if self.has_distinct_admin_creds:
                 accounts.add(dms_login_key(self.login_url, self._admin_username))
-            self._lock_held = all([
-                self._lock_cm.enter_context(account_lock(key)) for key in sorted(accounts)
-            ])
+            read_batch = bool(getattr(self, "read_only_batch", False))
+            if read_batch:
+                yield_to_foreground(accounts)
+            else:
+                self._lock_cm.enter_context(foreground(accounts))
+            try:
+                self._lock_held = all([
+                    self._lock_cm.enter_context(account_lock(key, timeout_sec=0 if read_batch else 180))
+                    for key in sorted(accounts)
+                ])
+            except SessionLockUnavailable as exc:
+                if read_batch:
+                    raise ReadDeferred("The DMS account is busy") from exc
+                raise
+            if read_batch:
+                yield_to_foreground(accounts)
             secrets = [self._password]
             if len(self._username) >= 3:
                 secrets.append(self._username)

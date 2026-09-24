@@ -148,7 +148,6 @@ def main():
         ensure_product_workspace(json.dumps(p))
     elif action == "verify_site":
         if group == "dms":
-            assert frappe.conf.get("scheduler_tick_interval") == 60
             assert frappe.conf.get("workers", {}).get("dms_sync", {}).get("timeout") == 420
         assert frappe.conf.pearnly_tenant == p["tenant"]
         assert frappe.conf.pearnly_product == group

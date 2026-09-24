@@ -1,12 +1,7 @@
-"""Real native dms_sync queue consumption, isolated snapshot lab only.
+"""Native manual-read lane and scheduler retirement; isolated lab only.
 
-Enqueues UUID-owned frappe.utils.now jobs and one exact native sweep job. A real bounded burst worker must
-consume dms_sync while leaving an owned long-queue sentinel queued. No scheduler,
-collector, third-party request or business write runs. Native scheduler checks
-read registration, compute due boundaries in memory, then enqueue but never
-perform the exact sweep job. They preserve last_execution and precisely remove
-only their new job. Queue must initially be empty for the burst test; foreign
-jobs are never consumed or cleaned.
+Only UUID-owned harmless jobs are executed. The retired read schedulers do no
+IO, and unrelated business recovery hooks/queues must remain intact.
 """
 from datetime import datetime, timedelta
 import os
@@ -26,97 +21,25 @@ lab = runpy.run_path(str(Path(__file__).with_name("test-dms-snapshot-store-nativ
 
 
 class DedicatedQueue(unittest.TestCase):
-    def test_native_scheduler_registration_and_five_minute_due_boundaries(self):
+    def test_native_scheduler_retires_reads_and_preserves_business_recovery(self):
         lab["connect"]()
-        method = "pearnly_dms.snapshots.schedule.sweep"
         try:
-            fields = ["name", "method", "frequency", "cron_format", "stopped", "last_execution", "modified"]
-            rows = frappe.get_all("Scheduled Job Type", filters={"method": method}, fields=fields)
-            self.assertEqual(len(rows), 1, "Hooks must be synchronized to the native scheduler table")
-            persisted = rows[0]
-            self.assertEqual(persisted.frequency, "Cron")
-            self.assertEqual(persisted.cron_format, "*/5 * * * *")
-            self.assertFalse(persisted.stopped)
-            self.assertEqual(frappe.get_all("Scheduled Job Type", filters={
-                "method": "pearnly_dms.adapter.warm.sweep", "stopped": 0}, pluck="name"), [],
-                "The legacy one-minute warm sweep must not remain active")
-            self.assertEqual(get_scheduler_tick(), 60)
-            self.assertTrue(frappe.conf.pause_scheduler, "The lab scheduler must remain disabled")
-            before_queues = {name: get_queue(name).get_job_ids() for name in ("default", "long", "dms_sync")}
-            job = frappe.get_doc("Scheduled Job Type", persisted.name)
-            self.assertEqual(job.get_queue_name(), "dms_sync")
-            start = datetime(2026, 9, 24, 0, 0, 0)  # Fixed naive UTC, matching native scheduler timestamps.
-            job.last_execution = start
-            first = job.get_next_execution()
-            self.assertEqual(first, start + timedelta(seconds=300))
-            self.assertFalse(job.is_event_due(first - timedelta(microseconds=1)))
-            self.assertTrue(job.is_event_due(first))
-            self.assertTrue(job.is_event_due(first + timedelta(microseconds=1)))
-            job.last_execution = first
-            second = job.get_next_execution()
-            self.assertEqual(second - first, timedelta(seconds=300))
-            job.last_execution = start + timedelta(minutes=7, seconds=12)
-            self.assertEqual(job.get_next_execution(), start + timedelta(minutes=10),
-                             "Cron follows five-minute wall-clock boundaries, not time since completion")
-            job.last_execution = datetime(2026, 9, 24, 23, 55, 0)
-            self.assertEqual(job.get_next_execution(), datetime(2026, 9, 25, 0, 0, 0))
-            self.assertEqual(frappe.get_all("Scheduled Job Type", filters={"method": method}, fields=fields), rows)
-            self.assertEqual({name: get_queue(name).get_job_ids() for name in before_queues}, before_queues)
+            from pearnly_dms.snapshots import schedule
+            from pearnly_dms.adapter import snapshot_sync, geo_sync
+            for method in ("pearnly_dms.snapshots.schedule.sweep", "pearnly_dms.adapter.warm.sweep"):
+                self.assertEqual(frappe.get_all("Scheduled Job Type",
+                    filters={"method": method, "stopped": 0}, pluck="name"), [])
+            for method in ("pearnly_dms.booking.recovery.reconcile_due",
+                           "pearnly_dms.booking.delivery.schedule_due",
+                           "pearnly_dms.booking.claim_recovery.schedule_due"):
+                self.assertTrue(frappe.db.exists("Scheduled Job Type", {"method": method, "stopped": 0}))
+            baseline = {name: get_queue(name).get_job_ids() for name in ("default", "long", "dms_sync")}
+            self.assertTrue(schedule.sweep()["retired"])
+            self.assertTrue(snapshot_sync.refresh("not-a-real-endpoint")["retired"])
+            self.assertTrue(geo_sync.refresh("not-a-real-endpoint")["retired"])
+            self.assertEqual({name: get_queue(name).get_job_ids() for name in baseline}, baseline)
+            self.assertTrue(frappe.conf.pause_scheduler)
         finally:
-            frappe.db.rollback()
-            frappe.destroy()
-            self.assertEqual(lab["HTTP_ATTEMPTS"], [])
-
-    def test_native_scheduler_enqueue_routes_only_snapshot_sweep_to_dedicated_queue(self):
-        lab["connect"]()
-        method = "pearnly_dms.snapshots.schedule.sweep"
-        runner = "frappe.core.doctype.scheduled_job_type.scheduled_job_type.run_scheduled_job"
-        created = None
-        try:
-            from frappe.core.doctype.scheduled_job_type.scheduled_job_type import ScheduledJobType
-            from pearnly_dms.snapshots.scheduler_job import DmsSnapshotScheduler
-            name = frappe.db.get_value("Scheduled Job Type", {"method": method}, "name")
-            self.assertTrue(name)
-            native = frappe.get_doc("Scheduled Job Type", name)
-            self.assertIn(DmsSnapshotScheduler, type(native).__mro__)
-            self.assertIn(ScheduledJobType, type(native).__mro__)
-            self.assertEqual(native.get_queue_name(), "dms_sync")
-            # Resolve the actual extended native class for other jobs too;
-            # ordinary Cron and Long routing must still come from super().
-            other = frappe.get_doc({"doctype": "Scheduled Job Type", "method": "frappe.utils.now",
-                                    "frequency": "Cron", "cron_format": "*/5 * * * *"})
-            self.assertIn(DmsSnapshotScheduler, type(other).__mro__)
-            self.assertEqual(other.get_queue_name(), "default")
-            other.frequency = "Daily Long"
-            self.assertEqual(other.get_queue_name(), "long")
-            queues = {key: get_queue(key) for key in ("default", "long", "dms_sync")}
-            baseline = {key: queue.get_job_ids() for key, queue in queues.items()}
-            before = frappe.db.get_value("Scheduled Job Type", name, ["last_execution", "modified"])
-            self.assertIsNone(get_job(native.rq_job_id), "Refusing to replace any existing native sweep job")
-            self.assertTrue(native.enqueue(force=True))
-            created = get_job(native.rq_job_id)
-            self.assertIsNotNone(created)
-            self.assertEqual(created.func_name, "frappe.utils.background_jobs.execute_job")
-            self.assertEqual(created.kwargs.get("site"), lab["SITE"])
-            self.assertEqual(created.kwargs.get("method"), runner)
-            self.assertEqual(created.kwargs.get("kwargs"), {"job_type": method, "scheduled_job_type": name})
-            self.assertEqual(created.origin, queues["dms_sync"].name)
-            self.assertEqual(created.timeout, 420)
-            self.assertEqual(created.get_status(refresh=True), "queued")
-            self.assertEqual(queues["dms_sync"].get_job_ids(), baseline["dms_sync"] + [created.id])
-            for key in ("default", "long"):
-                self.assertEqual(queues[key].get_job_ids(), baseline[key])
-            self.assertEqual(frappe.db.get_value("Scheduled Job Type", name, ["last_execution", "modified"]), before)
-        finally:
-            if created:
-                # Recheck exact ownership before removing the never-executed job.
-                self.assertEqual(created.kwargs.get("site"), lab["SITE"])
-                self.assertEqual(created.kwargs.get("method"), runner)
-                self.assertEqual(created.kwargs.get("kwargs", {}).get("scheduled_job_type"), name)
-                self.assertEqual(created.get_status(refresh=True), "queued")
-                queues["dms_sync"].remove(created.id)
-                created.delete()
-                self.assertEqual({key: queue.get_job_ids() for key, queue in queues.items()}, baseline)
             frappe.db.rollback()
             frappe.destroy()
             self.assertEqual(lab["HTTP_ATTEMPTS"], [])
@@ -125,8 +48,6 @@ class DedicatedQueue(unittest.TestCase):
         lab["connect"]()
         jobs = []
         try:
-            self.assertEqual(frappe.conf.get("scheduler_tick_interval"), 60)
-            self.assertEqual(get_scheduler_tick(), 60)
             self.assertEqual(frappe.conf.get("workers", {}).get("dms_sync", {}).get("timeout"), 420)
             self.assertTrue(frappe.conf.get("pause_scheduler"))
             queues = {name: get_queue(name) for name in ("long", "dms_sync")}

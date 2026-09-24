@@ -309,10 +309,12 @@ def main():
     check("后台采集使用统一登录预算和熔断；前台不承担等待",
           "background=True" in warm_src and "run_logged_in" in warm_src
           and "cooldown_left(" in service_src)
-    check("新同步固定五分钟且专用队列去重，不再按用户活跃降频",
-          '"*/5 * * * *": ["pearnly_dms.snapshots.schedule.sweep"' in hooks_src
-          and 'QUEUE = "dms_sync"' in schedule_src
-          and "deduplicate=True" in schedule_src and "should_warm" not in schedule_src)
+    manual_src = (ROOT / "apps/pearnly_dms/pearnly_dms/snapshots/manual.py").read_text(encoding="utf-8")
+    check("只允许显式手动采集，旧定时任务退役，专用队列仍去重",
+          "pearnly_dms.snapshots.schedule.sweep" not in hooks_src
+          and '"retired": True' in schedule_src
+          and 'QUEUE = "dms_sync"' in manual_src
+          and "deduplicate=True" in manual_src and "assert_active" in warm_src)
     shared_src = (ROOT / "apps/pearnly_dms/pearnly_dms/adapter/master_shared.py").read_text(encoding="utf-8")
     store_src = (ROOT / "apps/pearnly_dms/pearnly_dms/snapshots/store.py").read_text(encoding="utf-8")
     check("前台旧兼容入口只读完整本地包，失败保旧但不假称新鲜",

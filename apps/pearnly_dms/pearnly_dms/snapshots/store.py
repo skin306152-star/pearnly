@@ -25,6 +25,8 @@ INTERVAL = 300
 MAX_BYTES = 8 * 1024 * 1024
 MAX_REQUESTS = 32
 REQUEST_TTL = 7 * 86400
+AUTH_ERRORS = {"ERR_DMS_AUTH", "ERR_DMS_ADMIN_AUTH", "ERR_DMS_NO_ADMIN_CREDS",
+               "ERR_DMS_QUERY_FORBIDDEN", "ERR_DMS_QUERY_SCOPE", "ERR_NO_CREDS"}
 
 
 class SnapshotUnavailable(DmsClientError):
@@ -133,17 +135,21 @@ def _ensure(name, scope_key, dataset, *, _database=None, exclusive=False):
 
 def read(endpoint, dataset="directory", *, reader="authority", max_age=None, refresh_interval=INTERVAL):
     key = scope(endpoint, reader=reader)
+    rejection = frappe.db.get_value(DT, _name(key, "authorization"), "last_error")
+    if rejection in AUTH_ERRORS:
+        raise SnapshotUnavailable(rejection)
     row = frappe.db.get_value(DT, _name(key, dataset),
         ["payload", "source_started_at", "completed_at", "generation", "last_error"], as_dict=True)
     if not row or not row.generation or not row.payload:
         raise SnapshotUnavailable()
-    if row.last_error in {"ERR_DMS_AUTH", "ERR_DMS_ADMIN_AUTH", "ERR_DMS_NO_ADMIN_CREDS",
-                          "ERR_DMS_QUERY_FORBIDDEN", "ERR_DMS_QUERY_SCOPE", "ERR_NO_CREDS"}:
+    if row.last_error in AUTH_ERRORS:
         # A known authorization rejection cannot use the transient stale fallback.
         raise SnapshotUnavailable(row.last_error)
-    maximum = int(max_age if max_age is not None else frappe.conf.get("pearnly_dms_snapshot_max_age", 1800))
+    # Manual refresh: data age is a visible warning, not an implicit login or a
+    # global 30-minute outage. Callers can still require a bounded-age result.
+    maximum = int(max_age) if max_age is not None else None
     age = max(0, time.time() - float(row.source_started_at or 0))
-    if age > max(INTERVAL, maximum):
+    if maximum is not None and age > max(INTERVAL, maximum):
         raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_STALE")
     result = {"data": json.loads(row.payload), "as_of": float(row.source_started_at),
               "completed_at": float(row.completed_at), "generation": row.generation,
@@ -177,8 +183,9 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
         return False
     data = copy.deepcopy(data)
     overlays = json.loads(rows[0].overlays or "{}")
-    if dataset == "directory":
-        if not all(isinstance(data.get(k), dict) for k in ("masters", "paints", "customers")):
+    if dataset in ("directory", "customers"):
+        required = ("masters", "paints", "customers") if dataset == "directory" else ("customers",)
+        if not all(isinstance(data.get(k), dict) for k in required):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
         for cid, item in overlays.items():
             if float(item["at"]) >= float(source_started_at):
@@ -189,6 +196,9 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
         # The collector directly rereads known IDs; until then retain its verified
         # overlay rather than erasing a successful write from the local directory.
         overlays = {cid: {**item, "fields": data["customers"][cid]} for cid, item in overlays.items()}
+    elif dataset == "masters":
+        if not all(isinstance(data.get(k), dict) for k in ("masters", "paints")):
+            raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
     elif dataset == "geo":
         from pearnly_dms.contracts.geo_matching import complete_tree
         if not complete_tree(data):
@@ -196,6 +206,9 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
     frappe.db.set_value(DT, name, {"payload": _dump(data), "overlays": _dump(overlays),
         "source_started_at": float(source_started_at), "completed_at": time.time(),
         "generation": uuid.uuid4().hex, "last_error": ""})
+    # A verified complete collection proves this reader can authenticate again.
+    # A transient failure never clears a known denial from another dataset.
+    frappe.db.set_value(DT, _name(key, "authorization"), "last_error", "")
     return True
 
 
@@ -224,11 +237,15 @@ def failed(endpoint, dataset, code, *, reader="authority", expected_scope=None):
     # Never record upstream HTML, credentials, customer data or exception repr.
     safe = str(code) if re.fullmatch(r"[A-Z_0-9]{1,100}", str(code)) else "ERR_DMS_SNAPSHOT_INCOMPLETE"
     frappe.db.set_value(DT, name, "last_error", safe)
+    if safe in AUTH_ERRORS:
+        guard = _name(key, "authorization")
+        _ensure(guard, key, "authorization")
+        frappe.db.set_value(DT, guard, "last_error", safe)
 
 
 def overlay_customer_ids(endpoint):
     key = scope(endpoint)
-    raw = frappe.db.get_value(DT, _name(key, "directory"), "overlays")
+    raw = frappe.db.get_value(DT, _name(key, "customers"), "overlays")
     return tuple(json.loads(raw or "{}"))
 
 
@@ -268,8 +285,8 @@ def _verified_customer(database, endpoint, customer_id, fields, *, expected_scop
     key = scope(endpoint, current=True, _database=database)
     if expected_scope is not None and key != expected_scope:
         raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
-    name = _name(key, "directory")
-    _ensure(name, key, "directory", _database=database, exclusive=True)
+    name = _name(key, "customers")
+    _ensure(name, key, "customers", _database=database, exclusive=True)
     rows = database.sql(f"SELECT payload, overlays, generation FROM `tab{DT}` WHERE name=%s FOR UPDATE", name, as_dict=True)
     cid = str(customer_id)
     fields = {**fields, "customer_id": cid}

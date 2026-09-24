@@ -104,7 +104,16 @@ def request_refresh(datasets):
     endpoint = _primary_endpoint(required=True)
     from pearnly_dms.snapshots import manual
 
-    return {"configured": True, "datasets": [
-        _public_status(dataset, manual.request(endpoint, dataset, reader="authority", actor=actor))
-        for dataset in selected
-    ]}
+    results = []
+    for dataset in selected:
+        try:
+            value = manual.request(endpoint, dataset, reader="authority", actor=actor)
+        except frappe.PermissionError:
+            raise
+        except Exception as exc:
+            # Each registration has its own committed queue state. A failure in
+            # one selection must not hide the others or expose raw exception data.
+            value = {"state": "failed", "error_code": getattr(exc, "error_code", None)
+                     or "ERR_DMS_SNAPSHOT_INTERRUPTED"}
+        results.append(_public_status(dataset, value))
+    return {"configured": True, "datasets": results}

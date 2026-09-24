@@ -26,22 +26,19 @@ doc_events = {
     },
 }
 schedule_menu_reconciliation = "pearnly_dms.menu.rich_menu.reconcile"
-extend_doctype_class = {
-    "Scheduled Job Type": ["pearnly_dms.snapshots.scheduler_job.DmsSnapshotScheduler"],
-}
-
 pearnly_dms_snapshot_collectors = [
-    {"dataset": "directory", "reader": "authority",
+    {"dataset": "masters", "reader": "authority",
      "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
-    {"dataset": "sales_query", "reader": "sales",
+    {"dataset": "customers", "reader": "authority",
+     "method": "pearnly_dms.adapter.snapshot_sync.refresh"},
+    {"dataset_prefix": "query.", "reader": "sales",
      "method": "pearnly_dms.query.snapshot_sync.refresh"},
     {"dataset": "geo", "reader": "authority",
      "method": "pearnly_dms.adapter.geo_sync.refresh"},
 ]
 scheduler_events = {"cron": {
     "*/10 * * * *": [schedule_menu_reconciliation],
-    "*/5 * * * *": ["pearnly_dms.snapshots.schedule.sweep",
-                      "pearnly_dms.booking.recovery.reconcile_due",
+    "*/5 * * * *": ["pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],
 }}

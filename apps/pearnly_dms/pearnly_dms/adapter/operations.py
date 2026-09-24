@@ -26,7 +26,7 @@ def err(code: str, raw: str = "", response_body: Optional[dict] = None) -> Dict[
 
 
 def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attempt: int = 1,
-                  background: bool = False):
+                  background: bool = False, read_only_batch: bool = False):
     """建适配器 → 登录 → `fn(client, adapter)`。**从不抛异常**。
 
     会话随 adapter 退出即注销，不缓存 cookie 复用。
@@ -65,6 +65,9 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
         return err(build_err["error_code"], build_err["raw"])
     # 这一次的"打开登录页"预算（默认那档就比老的 15 秒宽）。
     adapter.page_timeout_ms = pacing.budget_ms(attempt, background=background)
+    adapter.read_only_batch = bool(read_only_batch)
+    if read_only_batch:
+        adapter.page_timeout_ms = min(adapter.page_timeout_ms, 15000)
     try:
         from pearnly_dms.adapter.session import (
             DmsAdminAuthError,
@@ -136,5 +139,8 @@ def run_logged_in(endpoint: Any, fn, *, authoritative_read: bool = False, attemp
             return err(exc.error_code or "ERR_DMS_TECHNICAL", str(exc),
                        getattr(exc, "response_body", None))
     except Exception as exc:  # noqa: BLE001
+        from pearnly_dms.adapter.read_priority import ReadDeferred
+        if isinstance(exc, ReadDeferred):
+            return {**err("ERR_DMS_SNAPSHOT_BUSY"), "busy": True}
         logger.exception("DMS 操作意外失败")
         return err("ERR_UNEXPECTED", f"{type(exc).__name__}: {exc}")

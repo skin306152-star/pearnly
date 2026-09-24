@@ -29,7 +29,7 @@
 | `booking/conversation` | 订车问答、卡片及确认流程 | `booking_flow`；不另造提交实现 |
 | `intake` | 客户识别后录入、去重、创建/修改及会话流程 | `flow` / `service` / `id_card` |
 | `masters` | 主档契约、快照、顾问、银行、员工等 | 钉住的 ID 不回落首行 |
-| `snapshots` | 本地完整读代际、私有分批进度、凭据/员工范围与后台派发 | 只依赖纯契约/原生框架，不登录、不依赖业务消费者；见 ADR-010 |
+| `snapshots` | 本地完整读代际、私有分批进度、凭据/员工范围与显式手动派发 | 只依赖纯契约/原生框架，不登录、不依赖业务消费者；见 ADR-010/011 |
 | `editor` | 浏览器编辑、票据、快照及保存 | `browser_api`；保留票据与权限校验 |
 | `approval` | 改写审批、状态锁和批准后执行 | `approval_store` / `approval_flow` |
 | `records` | 推送台账本身（状态、租约、重试、收口）与推送历史的列表移除、审计 | `push_log`（`record` / `claim_for_push` / `status_of`）、`manage.delete_records`；只改展示标记，保留权威推送凭据 |
@@ -42,7 +42,7 @@
 
 ### DMS 后台读快照（2026-09-24）
 
-读取架构的后续有意变化见 [ADR-010](../adr/0010-dms-background-read-snapshots.md)：交互只读后台完整快照，客户写入和最终订车仍实时复核。采集器在 DMS hooks 声明，调度域通过框架钩子派发；不通过反向业务导入形成循环。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
+读取架构见 [ADR-010](../adr/0010-dms-background-read-snapshots.md) 和替代触发策略的 [ADR-011](../adr/0011-dms-manual-read-snapshots.md)：手动建立完整快照，交互只读本地，客户写入和最终订车实时复核。采集器在 DMS hooks 声明，手动请求域通过框架钩子派发；不反向导入业务。contracts 的 html/unicodedata 仅纯字符串正规化，无 IO；不扩大违规基线。
 
 DMS 的 `extend_doctype_class` 对原生 Scheduled Job Type 只扩展本 dispatcher 的队列选择，入口及采集器都用 `dms_sync`；其余任务调用 `super()` 保留默认/long 选择，执行、去重与调度记录仍为原生实现。不重写通用 scheduler 或修改 Frappe 源码。
 

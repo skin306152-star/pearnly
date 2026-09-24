@@ -154,7 +154,7 @@ class SnapshotLabCase(unittest.TestCase):
         self.scope_keys.add(key)
         return key
 
-    def publish(self, data=None, *, start=None, endpoint=None, dataset="directory", reader="authority"):
+    def publish(self, data=None, *, start=None, endpoint=None, dataset="customers", reader="authority"):
         endpoint = endpoint or self.endpoint
         return store.publish(endpoint, dataset, directory() if data is None else data,
             time.time() - 1 if start is None else start, reader=reader,
@@ -165,7 +165,7 @@ class SnapshotLabCase(unittest.TestCase):
             fn(*args, **kwargs)
         self.assertEqual(caught.exception.error_code, code)
 
-    def observe(self, *, dataset="directory", reader="authority"):
+    def observe(self, *, dataset="customers", reader="authority"):
         result = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--observe",
             self.endpoint, reader, dataset], capture_output=True, text=True, timeout=20)
         self.assertEqual(result.returncode, 0, result.stderr[-1500:])
@@ -175,12 +175,12 @@ class SnapshotLabCase(unittest.TestCase):
 class NativeSnapshotStore(SnapshotLabCase):
     def test_cold_and_failed_cold_are_not_successful_empty(self):
         self.key()
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint)
-        store.failed(self.endpoint, "directory", "ERR_SYNTHETIC_FAILURE")
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint)
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")
+        store.failed(self.endpoint, "customers", "ERR_SYNTHETIC_FAILURE")
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")
         empty = {name: {} for name in ("masters", "paints", "customers")}
         self.assertTrue(self.publish(empty))
-        result = store.read(self.endpoint)
+        result = store.read(self.endpoint, "customers")
         self.assertEqual(result["data"], empty)
         self.assertTrue(result["generation"])
         self.assertFalse(result["stale"])
@@ -190,7 +190,7 @@ class NativeSnapshotStore(SnapshotLabCase):
         frappe.db.commit()
         old = self.observe()
         self.publish(directory("new"), start=time.time())
-        self.assertEqual(store.read(self.endpoint)["data"], directory("new"))
+        self.assertEqual(store.read(self.endpoint, "customers")["data"], directory("new"))
         self.assertEqual(self.observe(), old, "Uncommitted partial/new data leaked")
         frappe.db.commit()
         new = self.observe()
@@ -201,7 +201,7 @@ class NativeSnapshotStore(SnapshotLabCase):
         self.publish()
         self.assertEqual(self.observe(), {"unavailable": "ERR_DMS_SNAPSHOT_PENDING"})
         frappe.db.rollback()
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint)
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")
         self.publish()
         frappe.db.commit()
         old = self.observe()
@@ -212,109 +212,110 @@ class NativeSnapshotStore(SnapshotLabCase):
     def test_sync_failure_preserves_payload_generation_and_timestamps(self):
         self.publish()
         frappe.db.commit()
-        before = store.read(self.endpoint)
-        store.failed(self.endpoint, "directory", "private upstream body must not persist")
-        after = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
+        store.failed(self.endpoint, "customers", "private upstream body must not persist")
+        after = store.read(self.endpoint, "customers")
         for field in ("data", "generation", "as_of", "completed_at"):
             self.assertEqual(after[field], before[field])
         self.assertTrue(after["stale"])
-        row = frappe.db.get_value(store.DT, store._name(self.key(), "directory"), "last_error")
+        row = frappe.db.get_value(store.DT, store._name(self.key(), "customers"), "last_error")
         self.assertEqual(row, "ERR_DMS_SNAPSHOT_INCOMPLETE")
 
     def test_partial_bundle_rejected_without_replacing_success(self):
         self.publish()
         frappe.db.commit()
-        before = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
         incomplete = directory("partial")
-        del incomplete["paints"]
+        del incomplete["customers"]
         self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish, incomplete, start=time.time())
-        self.assertEqual(store.read(self.endpoint), before)
+        self.assertEqual(store.read(self.endpoint, "customers"), before)
 
     def test_expiry_uses_collection_start_not_recent_completion(self):
         self.publish(start=time.time() - 301)
-        self.assertTrue(store.read(self.endpoint)["stale"])
-        self.assertLess(time.time() - store.read(self.endpoint)["completed_at"], 5)
+        self.assertTrue(store.read(self.endpoint, "customers")["stale"])
+        self.assertLess(time.time() - store.read(self.endpoint, "customers")["completed_at"], 5)
         frappe.db.rollback()
         self.publish(start=time.time() - 1900)
-        self.unavailable("ERR_DMS_SNAPSHOT_STALE", store.read, self.endpoint)
+        self.assertTrue(store.read(self.endpoint, "customers")["stale"])
+        self.unavailable("ERR_DMS_SNAPSHOT_STALE", store.read, self.endpoint, "customers", max_age=1800)
 
     def test_late_older_collector_cannot_replace_newer_generation(self):
         started = time.time() - 1
         self.publish(directory("new"), start=started)
-        before = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
         self.assertFalse(self.publish(directory("late-old"), start=started - 60))
-        self.assertEqual(store.read(self.endpoint), before)
+        self.assertEqual(store.read(self.endpoint, "customers"), before)
 
     def test_verified_write_wins_over_inflight_scan_without_refreshing_age(self):
         self.publish(start=time.time() - 100)
         frappe.db.commit()
-        before = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
         scan_started = time.time() - 1
         fields = {"name": "verified synthetic customer", "people_id": "TEST-NOT-A-PERSON"}
         store.verified_customer(self.endpoint, "customer-1", fields)
         # Write-through owns a separate native cache transaction; the caller's
         # preexisting RR snapshot is not refreshed or committed by the helper.
         frappe.db.rollback()
-        verified = store.read(self.endpoint)
+        verified = store.read(self.endpoint, "customers")
         self.assertEqual(verified["as_of"], before["as_of"])
         self.assertEqual(verified["completed_at"], before["completed_at"])
         self.assertNotEqual(verified["generation"], before["generation"])
         expected = {**fields, "customer_id": "customer-1"}
         self.assertEqual(verified["data"]["customers"]["customer-1"], expected)
         self.publish(directory("older-inflight-data"), start=scan_started)
-        self.assertEqual(store.read(self.endpoint)["data"]["customers"]["customer-1"], expected)
+        self.assertEqual(store.read(self.endpoint, "customers")["data"]["customers"]["customer-1"], expected)
         self.publish(directory("later-authoritative-scan"), start=time.time())
-        self.assertEqual(store.read(self.endpoint)["data"], directory("later-authoritative-scan"))
+        self.assertEqual(store.read(self.endpoint, "customers")["data"], directory("later-authoritative-scan"))
 
     def test_verified_write_without_full_directory_is_still_cold(self):
         self.key()
         started = time.time() - 1
         store.verified_customer(self.endpoint, "customer-2", {"name": "synthetic new"})
         frappe.db.rollback()
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint)
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")
         self.publish(start=started)
-        self.assertEqual(store.read(self.endpoint)["data"]["customers"]["customer-2"]["name"], "synthetic new")
+        self.assertEqual(store.read(self.endpoint, "customers")["data"]["customers"]["customer-2"]["name"], "synthetic new")
 
     def test_verified_customer_hidden_from_newer_search_survives_until_fresh_form_read(self):
         self.publish()
         frappe.db.commit()
         store.verified_customer(self.endpoint, "just-created", {"name": "verified synthetic"})
         frappe.db.rollback()
-        before = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
         self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish,
                          directory("newer-list-still-omits-id"), start=time.time())
-        self.assertEqual(store.read(self.endpoint), before, "A missing fresh form must not advance freshness")
-        self.assertEqual(store.read(self.endpoint)["data"]["customers"]["just-created"]["name"], "verified synthetic")
+        self.assertEqual(store.read(self.endpoint, "customers"), before, "A missing fresh form must not advance freshness")
+        self.assertEqual(store.read(self.endpoint, "customers")["data"]["customers"]["just-created"]["name"], "verified synthetic")
         self.assertIn("just-created", store.overlay_customer_ids(self.endpoint))
         reread = directory("newer-full-form")
         reread["customers"]["just-created"] = {"name": "freshly reread", "customer_id": "just-created"}
         self.publish(reread, start=time.time())
-        self.assertEqual(store.read(self.endpoint)["data"]["customers"]["just-created"]["name"], "freshly reread")
+        self.assertEqual(store.read(self.endpoint, "customers")["data"]["customers"]["just-created"]["name"], "freshly reread")
         self.assertIn("just-created", store.overlay_customer_ids(self.endpoint),
                       "Future scans must keep rereading the confirmed ID even if search omits it")
 
     def test_invalid_source_time_cannot_claim_a_fresh_generation(self):
         self.publish()
-        before = store.read(self.endpoint)
+        before = store.read(self.endpoint, "customers")
         for value in (0, -1, float("nan"), float("inf"), time.time() + 3600):
             with self.subTest(source=value):
                 self.unavailable("ERR_DMS_SNAPSHOT_INCOMPLETE", self.publish, start=value)
-                self.assertEqual(store.read(self.endpoint), before)
+                self.assertEqual(store.read(self.endpoint, "customers"), before)
 
     def test_credential_rotation_rejects_inflight_and_hides_old_scope(self):
         old_key = self.key()
         self.publish()
         frappe.db.commit()
-        old_name = store._name(old_key, "directory")
+        old_name = store._name(old_key, "customers")
         old_payload = frappe.db.get_value(store.DT, old_name, "payload")
         endpoint = frappe.get_doc("Pearnly ERP Endpoint", self.endpoint)
         endpoint.admin_password = self.password + "-rotated"
         endpoint.save(ignore_permissions=True)
         self.assertNotEqual(self.key(), old_key)
         self.unavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED", store.publish, self.endpoint,
-            "directory", directory("old-credential-result"), time.time(), expected_scope=old_key)
-        store.failed(self.endpoint, "directory", "ERR_LATE_FAILURE", expected_scope=old_key)
-        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint)
+            "customers", directory("old-credential-result"), time.time(), expected_scope=old_key)
+        store.failed(self.endpoint, "customers", "ERR_LATE_FAILURE", expected_scope=old_key)
+        self.unavailable("ERR_DMS_SNAPSHOT_PENDING", store.read, self.endpoint, "customers")
         self.assertEqual(frappe.db.get_value(store.DT, old_name, "payload"), old_payload)
 
     def test_sales_are_isolated_despite_same_upstream_login(self):
@@ -351,7 +352,7 @@ class NativeSnapshotStore(SnapshotLabCase):
         ):
             with self.subTest(doctype=doctype):
                 frappe.db.set_value(doctype, name, field, disabled)
-                self.unavailable("ERR_NO_CREDS", store.read, self.endpoint)
+                self.unavailable("ERR_NO_CREDS", store.read, self.endpoint, "customers")
                 frappe.db.set_value(doctype, name, field, enabled)
 
     def test_query_requests_are_private_and_do_not_claim_data_ready(self):
@@ -475,8 +476,8 @@ class NativeSnapshotStore(SnapshotLabCase):
         self.publish()
         for code in ("ERR_DMS_AUTH", "ERR_DMS_ADMIN_AUTH", "ERR_NO_CREDS", "ERR_DMS_QUERY_FORBIDDEN"):
             with self.subTest(code=code):
-                store.failed(self.endpoint, "directory", code)
-                self.unavailable(code, store.read, self.endpoint)
+                store.failed(self.endpoint, "customers", code)
+                self.unavailable(code, store.read, self.endpoint, "customers")
 
     def test_current_overlay_guard_sees_cross_connection_revoke_without_committing_business(self):
         from pearnly_core import line_session
@@ -495,7 +496,7 @@ class NativeSnapshotStore(SnapshotLabCase):
                     line_session.set_session(marker, "booking_review", {"stage": "committed"})
                     frappe.db.commit()
                     captured_scope = self.key()
-                    snapshot_name = store._name(captured_scope, "directory")
+                    snapshot_name = store._name(captured_scope, "customers")
                     old_payload = frappe.db.get_value(store.DT, snapshot_name, "payload")
                     pending = json.dumps({"stage": "business-write-not-committed"})
                     frappe.db.set_value(line_session.DT, marker, "payload", pending)
@@ -539,7 +540,7 @@ class NativeSnapshotStore(SnapshotLabCase):
             self.publish(start=time.time() - 100)
             line_session.set_session(marker, "booking_review", {"stage": "committed"})
             frappe.db.commit()
-            before = store.read(self.endpoint)
+            before = store.read(self.endpoint, "customers")
             captured = snapshot_writeback.capture_scope(self.endpoint)
             pending = json.dumps({"stage": "not-committed"})
             frappe.db.set_value(line_session.DT, marker, "payload", pending)
@@ -571,13 +572,13 @@ class NativeSnapshotStore(SnapshotLabCase):
         from frappe import client, share
         self.publish()
         frappe.db.commit()
-        name = store._name(self.key(), "directory")
+        name = store._name(self.key(), "customers")
         before = self.observe()
         frappe.set_user(self.users[0])
         actions = {
             "read": lambda: client.get(store.DT, name),
             "update": lambda: client.set_value(store.DT, name, "payload", "{}"),
-            "insert": lambda: frappe.get_doc({"doctype": store.DT, "scope_key": "forged", "dataset": "directory"}).insert(),
+            "insert": lambda: frappe.get_doc({"doctype": store.DT, "scope_key": "forged", "dataset": "customers"}).insert(),
             "delete": lambda: frappe.delete_doc(store.DT, name),
             "rename": lambda: frappe.rename_doc(store.DT, name, name + "-forged"),
             "share": lambda: share.add(store.DT, name, user=self.users[1], read=1),

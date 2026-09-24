@@ -87,9 +87,15 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         data = copy.deepcopy(complete_directory() if data is None else data)
         geo = data.pop("geo")
         self.publish(geo, start=time.time() - geo_age, dataset="geo")
-        self.publish(data, start=time.time() - age)
+        stamp = time.time() - age
+        self.publish({key: data[key] for key in ("masters", "paints")}, start=stamp, dataset="masters")
+        self.publish({"customers": data["customers"]}, start=stamp, dataset="customers")
         frappe.db.commit()
-        return store.read(self.endpoint)
+        from pearnly_dms.snapshots.directory import Directory
+        view = Directory(self.endpoint)
+        view.read_customer("customer-1")
+        view.masters()
+        return {**view.metadata(), "master_generation": view.loaded["masters"]["generation"]}
 
     def lookup(self, *, people_id=PID, name="Synthetic Customer", address=None):
         return service.recognize_lookup(self.endpoint, people_id=people_id, name=name,
@@ -146,22 +152,21 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         self.assertFalse(result["ok"])
         self.assertEqual(result["error_code"], "ERR_DMS_CUSTOMER_LOOKUP")
 
-    def test_missing_and_expired_snapshot_do_not_become_empty_results(self):
-        for state in ("cold", "expired"):
-            with self.subTest(state=state):
-                if state == "expired":
-                    self.publish(complete_directory(), start=time.time() - 1900)
-                    frappe.db.commit()
-                code = "ERR_DMS_SNAPSHOT_PENDING" if state == "cold" else "ERR_DMS_SNAPSHOT_STALE"
-                for result in (self.lookup(), service.customer_fields(self.endpoint, customer_id="customer-1"),
-                               service.geo_options(self.endpoint, level="provinces")):
-                    self.assertFalse(result["ok"])
-                    self.assertEqual(result["error_code"], code)
-                with self.assertRaises(store.SnapshotUnavailable):
-                    edit_snapshot.read_edit_snapshot(self.endpoint)
-                with self.assertRaises(MasterSyncError) as caught:
-                    self.master(self.qa(), "cars")
-                self.assertEqual(caught.exception.code, code)
+    def test_cold_is_pending_but_old_good_manual_cache_still_reads_with_age(self):
+        for result in (self.lookup(), service.customer_fields(self.endpoint, customer_id="customer-1"),
+                       service.geo_options(self.endpoint, level="provinces")):
+            self.assertFalse(result["ok"])
+            self.assertEqual(result["error_code"], "ERR_DMS_SNAPSHOT_PENDING")
+        with self.assertRaises(store.SnapshotUnavailable):
+            edit_snapshot.read_edit_snapshot(self.endpoint)
+        with self.assertRaises(MasterSyncError) as caught:
+            self.master(self.qa(), "cars")
+        self.assertEqual(caught.exception.code, "ERR_DMS_SNAPSHOT_PENDING")
+        self.seed(age=1900)
+        result = self.lookup()
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["snapshot"]["stale"])
+        self.assertEqual(self.master(self.qa(), "cars")[0][0], "cars-1")
 
     def test_unmatched_and_ambiguous_address_never_choose_first_option(self):
         self.seed()
@@ -249,13 +254,13 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         captured = datetime.fromtimestamp(snapshot["as_of"], timezone.utc).isoformat(timespec="seconds")
         for value in (qa["master_snapshot"], qa["paint_snapshots"]["cars-1"]):
             self.assertEqual(value["captured_at"], captured)
-            self.assertEqual(value["source_generation"], snapshot["generation"])
+            self.assertEqual(value["source_generation"], snapshot["master_generation"])
         before = copy.deepcopy(qa)
         self.master(qa, "cars")
         self.paints(qa)
         self.assertEqual(qa, before)
 
-    def test_geo_daily_age_is_independent_of_five_minute_business_generation(self):
+    def test_geo_age_is_independent_of_business_generation_and_warns_without_login(self):
         self.seed(geo_age=2 * 86400)
         result = self.lookup()
         self.assertTrue(result["ok"])
@@ -264,9 +269,9 @@ class NativeSnapshotReads(lab["SnapshotLabCase"]):
         frappe.db.delete(store.DT, {"name": store._name(self.key(), "geo")})
         self.publish(complete_directory()["geo"], start=time.time() - 4 * 86400, dataset="geo")
         result = self.lookup()
-        self.assertFalse(result["ok"])
-        self.assertEqual(result["error_code"], "ERR_DMS_SNAPSHOT_STALE")
-        # Expired address data cannot disable unrelated car/paint choices.
+        self.assertTrue(result["ok"])
+        self.assertTrue(result["snapshot"]["geo_stale"])
+        # Old address data cannot disable unrelated car/paint choices.
         self.assertEqual(self.master(self.qa(), "cars")[0][0], "cars-1")
 
     def test_query_refresh_to_native_store_then_local_reads_and_revoke(self):

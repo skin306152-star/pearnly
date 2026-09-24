@@ -33,17 +33,5 @@ def customer(endpoint, client, customer_id, *, expected_scope):
 
 
 def sales(endpoint):
-    """Request a native employee refresh; True does not mean it has finished."""
-    try:
-        from pearnly_dms.snapshots.schedule import collectors, enqueue
-        requested = False
-        for collector in collectors():
-            if collector["reader"] == "sales":
-                enqueue(endpoint, collector)
-                # enqueue_after_commit returns None even when successfully
-                # registered. Native job deduplication happens at dispatch.
-                requested = True
-        return requested
-    except Exception:
-        logger.warning("DMS post-write sales refresh dispatch failed")
-        return False
+    """Compatibility only: a booking never starts a full employee scan."""
+    return False

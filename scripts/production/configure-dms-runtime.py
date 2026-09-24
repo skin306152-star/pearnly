@@ -1,4 +1,4 @@
-"""DMS-only native bench queue/tick configuration; no Site or external IO.
+"""DMS-only native manual-read queue configuration; no Site or external IO.
 
 Run explicitly against the DMS bench common_site_config.json before restarting
 its scheduler/workers. Other product benches must not invoke this operation.
@@ -12,9 +12,7 @@ from pathlib import Path
 def configured(values):
     result = copy.deepcopy(values)
     result.setdefault("workers", {}).setdefault("dms_sync", {})["timeout"] = 420
-    # Native cron is evaluated on scheduler ticks; Frappe's default 240 seconds
-    # cannot consistently dispatch a five-minute cron on its minute boundary.
-    result["scheduler_tick_interval"] = 60
+    # Manual reads enqueue directly. Do not change a bench's scheduler cadence.
     return result
 
 

@@ -159,6 +159,13 @@ class ConnectionSnapshotTests(unittest.TestCase):
         self.assertEqual(self.manual.request.call_count, 2)
         # The real domain owns atomic dedup; the RPC must not bypass it or invent jobs.
 
+    def test_failure_in_one_group_does_not_hide_another_accepted_request(self):
+        self.manual.request.side_effect = [RuntimeError("private upstream data"),
+            {"state": "queued", "request_id": "ab" * 16}]
+        result = self.api.request_refresh(["masters", "customers"])
+        self.assertEqual([r["state"] for r in result["datasets"]], ["failed", "queued"])
+        self.assertNotIn("private", json.dumps(result))
+
     def test_product_owned_four_language_keys_and_named_placeholders(self):
         source = (ROOT / "apps/pearnly_dms/pearnly_dms/public/desk/connect.js").read_text()
         self.assertIn('p.texts("dms.connect.cache.")', source)

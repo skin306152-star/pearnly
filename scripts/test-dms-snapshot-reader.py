@@ -469,6 +469,54 @@ class SnapshotReaderTests(unittest.TestCase):
                 replace(LIMITS, **changes)
 
 
+class ManualCustomerChunks(unittest.TestCase):
+    def setUp(self):
+        self.transport = Transport()
+        self.client = DmsClient(self.transport, "https://snapshot.invalid/dms/")
+
+    def run_chunks(self, *, extras=()):
+        from pearnly_dms.client.snapshot_reader import start_customers, advance_customers
+        stage = start_customers(self.client, extra_customer_ids=extras, limits=LIMITS)
+        for _ in range(40):
+            before = json.loads(json.dumps(stage))
+            new = advance_customers(self.client, stage, max_nodes=1, limits=LIMITS)
+            self.assertEqual(stage, before, "A failed chunk must not mutate its checkpoint")
+            stage = new
+            if stage["phase"] == "done":
+                return stage
+        self.fail("Bounded fixture never completed")
+
+    def test_multiple_chunks_recheck_ids_and_reread_overlay_extras(self):
+        result = self.run_chunks(extras=("HIDDEN", "C1", "HIDDEN"))
+        self.assertEqual(result["ids"], ["C1", "C2", "C3"])
+        self.assertEqual(result["verified"], result["ids"])
+        self.assertEqual(set(result["customers"]), {"C1", "C2", "C3", "HIDDEN"})
+        self.assertEqual(self.transport.list_pass, 2)
+
+    def test_explicit_empty_is_verified_not_assumed(self):
+        self.transport.ids = []
+        result = self.run_chunks()
+        self.assertEqual(result["customers"], {})
+        self.assertEqual(self.transport.count_calls, 3)
+
+    def test_drift_between_chunks_rejects_publication(self):
+        from pearnly_dms.client.snapshot_reader import start_customers, advance_customers
+        stage = start_customers(self.client, limits=LIMITS)
+        stage = advance_customers(self.client, stage, max_nodes=8, limits=LIMITS)
+        self.transport.ids.reverse()
+        with self.assertRaises(DmsClientError):
+            for _ in range(10):
+                stage = advance_customers(self.client, stage, max_nodes=1, limits=LIMITS)
+
+    def test_masters_do_not_read_customer_or_address_lists(self):
+        from pearnly_dms.client.snapshot_reader import collect_masters
+        result = collect_masters(self.client, bank_masters=BANKS, limits=LIMITS)
+        self.assertEqual(set(result), {"masters", "paints"})
+        for path, data in self.transport.calls:
+            self.assertNotIn(path, {"cus/component/showdata.php", "cus/component/listdistricts.php",
+                                    "cus/component/listsubdistricts.php", "cus/component/listzipcodes.php"})
+
+
 if __name__ == "__main__":
     with patch.object(socket, "create_connection", side_effect=AssertionError("Network forbidden")), \
             patch.object(socket.socket, "connect", side_effect=AssertionError("Network forbidden")):

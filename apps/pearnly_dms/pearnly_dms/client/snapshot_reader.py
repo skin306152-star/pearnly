@@ -454,6 +454,104 @@ def collect_catalog(client, *, bank_masters, limits=None):
     return _collect(client, lambda budget: _catalog(client, bank_masters, budget), limits)
 
 
+def collect_masters(client, *, bank_masters, limits=None):
+    """Independent complete options and colours; no customer or address scan."""
+    return _collect(client, lambda budget: _business_catalog(client, bank_masters, budget), limits)
+
+
+def start_customers(client, *, extra_customer_ids=(), limits=None):
+    """Begin a private, resumable full scan, not an incrementally fresh result."""
+    def begin(budget):
+        extras = list(dict.fromkeys(_customer_id(cid) for cid in extra_customer_ids))
+        count = _customer_count(client, budget)
+        if len(extras) > budget.limits.max_customers:
+            _fail("extra customer count exceeds bound")
+        return {"version": 1, "phase": "list", "count": count, "ids": [],
+                "extras": extras, "customers": {}, "verified": [], "page": 1}
+    return _collect(client, begin, limits)
+
+
+def _customer_page(client, budget, count, page):
+    body = client._post_text("cus/component/showdata.php", {
+        "sdtamt": str(budget.limits.page_size), "sdtpage": str(page), "sd": "",
+        "selcolsort": "1", "selcolsorttype": "1"})
+    parser = _IdentitySearchRows()
+    parser.feed(body)
+    parser.close()
+    expected = min(budget.limits.page_size, count - (page - 1) * budget.limits.page_size)
+    if (expected <= 0 or parser.invalid or parser.depth or not body.lstrip().startswith("dt::")
+            or len(parser.ids) != expected or len(set(parser.ids)) != expected
+            or len(parser.ids) != len(re.findall(r"\bdata-val\s*=", body, re.I))):
+        _fail("invalid customer page")
+    return parser.ids
+
+
+def advance_customers(client, stage, *, max_nodes=20, limits=None):
+    """List, full details, then list/count verification across short sessions."""
+    if type(max_nodes) is not int or not 1 <= max_nodes <= 100:
+        _fail("invalid customer chunk size")
+    def advance(budget):
+        candidate = deepcopy(stage)
+        if (not isinstance(candidate, dict) or candidate.get("version") != 1
+                or candidate.get("phase") not in {"list", "details", "verify", "done"}
+                or type(candidate.get("count")) is not int or not 0 <= candidate["count"] <= budget.limits.max_customers
+                or not all(isinstance(candidate.get(key), list) for key in ("ids", "extras", "verified"))
+                or not isinstance(candidate.get("customers"), dict)
+                or type(candidate.get("page")) is not int or candidate["page"] < 1):
+            _fail("invalid customer checkpoint")
+        count = candidate["count"]
+        ids, extras, verified, customers = (candidate[key] for key in ("ids", "extras", "verified", "customers"))
+        if (len(ids) > count or len(set(ids)) != len(ids) or len(set(extras)) != len(extras)
+                or len(set(verified)) != len(verified) or verified != ids[:len(verified)]
+                or not set(customers).issubset(set(ids + extras))):
+            _fail("invalid customer checkpoint coverage")
+        for cid in ids + extras + verified:
+            _customer_id(cid)
+        detail_ids = list(dict.fromkeys(ids + extras))
+        if len(detail_ids) > budget.limits.max_customers:
+            _fail("combined customer count exceeds bound")
+        if candidate["phase"] != "list" and len(ids) != count:
+            _fail("incomplete customer checkpoint list")
+        for _ in range(max_nodes):
+            if budget.limits.max_seconds - (time.monotonic() - budget.started) < 5:
+                break
+            phase = candidate["phase"]
+            if phase in {"list", "verify"}:
+                target = ids if phase == "list" else verified
+                if len(target) < count:
+                    page = len(target) // budget.limits.page_size + 1
+                    if page > budget.limits.max_pages:
+                        _fail("customer page bound exceeded")
+                    rows = _customer_page(client, budget, count, page)
+                    if set(target).intersection(rows):
+                        _fail("duplicate customer page")
+                    target.extend(rows)
+                    if phase == "verify" and verified != ids[:len(verified)]:
+                        _fail("customer list changed during capture")
+                    candidate["page"] = page + 1
+                else:
+                    if _customer_count(client, budget) != count:
+                        _fail("customer count changed during capture")
+                    candidate["phase"] = "details" if phase == "list" else "done"
+                    candidate["page"] = 1
+                    detail_ids = list(dict.fromkeys(ids + extras))
+                    if len(detail_ids) > budget.limits.max_customers:
+                        _fail("combined customer count exceeds bound")
+            elif phase == "details":
+                pending = [cid for cid in detail_ids if cid not in customers]
+                if pending:
+                    cid = pending[0]
+                    customers[cid] = _read_customer_complete(client, cid, budget)
+                else:
+                    candidate["phase"] = "verify"
+            else:
+                if set(customers) != set(detail_ids) or verified != ids:
+                    _fail("incomplete customer checkpoint result")
+                break
+        return candidate
+    return _collect(client, advance, limits)
+
+
 def read_customer_complete(client, cid, *, limits=None):
     """A bounded full native read for write-through, never default-filled truncation."""
     return _collect(client, lambda budget: _read_customer_complete(client, cid, budget), limits)

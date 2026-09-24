@@ -1,7 +1,7 @@
 """Compatibility reads for old callers: published snapshots only.
 
 The 45/90-second request-driven warmer is retired. Cache misses never log in or
-wait for a worker; scheduling lives in snapshots.schedule.
+wait for a worker; explicit read requests live in snapshots.manual.
 """
 from pearnly_dms.snapshots.directory import Directory
 
