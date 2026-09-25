@@ -463,7 +463,8 @@ class Escalation(unittest.TestCase):
             calls.append((model, thinking))
             return answers[len(calls) - 1]
 
-        with patch.object(ocr, "json_from_images", side_effect=fake):
+        with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(frappe, "logger", return_value=Mock(), create=True):
             result = policy.read("P", [(b"x", "image/jpeg")], structured=lambda raw: raw if "lines" in raw else None,
                                  review=review, label="t")
         return result, calls
