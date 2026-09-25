@@ -31,7 +31,7 @@ DocType JSON 的 label），各写一份必然对不上。所以**术语表是�
 用法：
 
     python3 scripts/i18n-build.py            # 生成（幂等）
-    python3 scripts/i18n-build.py --check    # 只校验术语表，不写文件
+    python3 scripts/i18n-build.py --check    # 只校验，不写文件：术语表 + 翻译包是否已按术语表生成
 """
 
 from __future__ import annotations
@@ -93,9 +93,44 @@ def _aliases(items: list[dict]) -> list[dict]:
     return out
 
 
+def tables(by_app: dict[str, list[dict]]) -> dict[tuple[str, str], dict]:
+    """按术语表算出每个 App 每种语言的翻译包应有的样子（在已有内容上覆盖，不删手工行）。"""
+    out = {}
+    for app, items in sorted(by_app.items()):
+        extra = _aliases(items)
+        for lang in (EN,) + LANGS:
+            table = existing(app, lang)
+            for item in items + extra:
+                msgid = item["msgid"]
+                # 别名单行：msgid 用英文原文（`key` 为空的那种写法）
+                if item.get("alias"):
+                    msgid = item[EN]
+                # 英文档：语义键的值是英文文案，英文原文当 msgid 的那种值就是它自己
+                table[msgid] = item["en"] if lang == EN else item[lang]
+            out[(app, lang)] = table
+    return out
+
+
+def stale(expected: dict[tuple[str, str], dict]) -> list[str]:
+    """翻译包里缺的、或与术语表不一致的条目。
+
+    运行时读的是翻译包，不是术语表：只改术语表不重新生成，用户看到的仍是旧文案
+    （2026-09-25 实际发生：DMS 两条提示在线上一直是改前的说法）。所以 `--check` 连这个一起拦。
+    """
+    problems = []
+    for (app, lang), table in sorted(expected.items()):
+        current = existing(app, lang)
+        wrong = sorted(msgid for msgid, text in table.items() if current.get(msgid) != text)
+        if wrong:
+            shown = ", ".join(wrong[:5]) + (" …" if len(wrong) > 5 else "")
+            problems.append("%s/%s.csv 有 %d 条与术语表不一致：%s" % (app, lang, len(wrong), shown))
+    return problems
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--check", action="store_true", help="只校验术语表，不写文件")
+    parser.add_argument("--check", action="store_true",
+                        help="只校验，不写文件：术语表本身 + 翻译包是否已按术语表重新生成")
     args = parser.parse_args()
 
     rows, problems = read_glossary()
@@ -110,23 +145,18 @@ def main() -> int:
     for app, items in sorted(by_app.items()):
         print("  %-22s %d 条" % (app, len(items)))
 
+    expected = tables(by_app)
     if args.check:
-        print("RESULT: %s" % ("FAIL" if problems else "PASS"))
-        return 1 if problems else 0
+        outdated = stale(expected)
+        for problem in outdated:
+            print("  [翻译包] %s" % problem)
+        if outdated:
+            print("  改了术语表就要重新生成：python3 scripts/i18n-build.py，并提交生成的翻译包。")
+        failed = bool(problems or outdated)
+        print("RESULT: %s" % ("FAIL" if failed else "PASS"))
+        return 1 if failed else 0
 
-    written = []
-    for app, items in sorted(by_app.items()):
-        extra = _aliases(items)
-        for lang in (EN,) + LANGS:
-            table = existing(app, lang)
-            for item in items + extra:
-                msgid = item["msgid"]
-                # 别名单行：msgid 用英文原文（`key` 为空的那种写法）
-                if item.get("alias"):
-                    msgid = item[EN]
-                # 英文档：语义键的值是英文文案，英文原文当 msgid 的那种值就是它自己
-                table[msgid] = item["en"] if lang == EN else item[lang]
-            written.append(write(app, lang, table))
+    written = [write(app, lang, table) for (app, lang), table in sorted(expected.items())]
     for path in written:
         print("  写入 %s" % path)
 
