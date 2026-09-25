@@ -1,6 +1,6 @@
 # ERP 前端：用户逐项反馈（2026-09-25 起）
 
-- 状态：进行中（用户在本窗口边看边改）。**未部署**：线上 ERP 仍是 `f0f5a43`，用户明确"先不急部署"。
+- 状态：**交接保留**（2026-09-25 本窗口收尾，见文末「交接」）。**未部署**：线上 ERP 仍是 `f0f5a43`，用户明确"先不急部署"。
 - 仓库 / 分支：`codex/erp-frontend`，工作树 `/Users/skin/.codex/worktrees/erp-frontend/pearnly`，
   基线为当日本地 main。本地预览 `http://qerp.localhost:8102`（`pearnly-sample` 的 erp 组，挂载主目录 `/Users/skin/pearnly`，
   所以预览前先快进合入本地 main，改 JS/Python 后 `bash scripts/stack.sh restart erp-web`）。
@@ -93,3 +93,49 @@
 ## 暂不处理
 
 - 窄布局（约 800px 宽、两列）下物料框悬停时右侧图标占位导致长物料名被截：用户表示先不管。
+
+## 交接（2026-09-25 本窗口收尾）
+
+**代码位置**：全部成果在远端 `main`（本节所在提交之前为 `75a8e27`），GitHub Development checks 均通过。**线上未部署**：
+ERP 线上仍是 `f0f5a43`（DMS `583262a`、billing `6a13b98`，09-25 回读）。
+
+**下一个窗口的任务（用户指定）**：在另一台电脑（隔离局域网 Windows，`lenovo-office-lan`）为 ERP 搭测试环境，
+照 DMS 已跑通的做法，把线上测试租户 `testerp.pearnly.com` 切到测试环境。
+- 必读：[测试环境](../development/test-environment.md)、[`scripts/testenv.sh`](../../scripts/testenv.sh)、
+  [`infrastructure/testenv/`](../../infrastructure/testenv/README.md)、[Windows 测试环境记录](2026-09-24-windows-testenv.md)、
+  DMS 实际使用见 [DMS 手动快照](2026-09-24-dms-manual-snapshots.md)。
+- 现状：ERP 栈**脚本支持、从未起过**；第一次 `lab-start erp` 会建卷并导入。09-25 21:4x 查看测试机没有运行中的测试栈
+  （DMS 栈未在跑）。一次只能跑一个产品，起 ERP 会停掉 DMS 栈（卷保留）——开工前与 DMS 窗口确认它不在用。
+- 镜像：测试机只能跑 CI 产出的 x86 镜像。先对包含本记录的 `main` 提交手动触发 `build-production.yml` 拿 **digest**，
+  再 `PEARNLY_TESTENV_SRC=<该提交的工作树> PEARNLY_TESTENV_IMAGE=<digest> bash scripts/testenv.sh lab-start erp`。
+- 需用户授权的动作：`lab-start` 会把 `testerp.pearnly.com` 域名切到测试机（影响真实访问者），`lab-stop` 切回。
+- 口令：`testenv.sh` 的 `.testenv-secrets` 取**运行它的工作树根目录**；原件在已删除的 `windows-testenv` 工作树里，
+  DMS 记录写过"新树没有它会重新生成口令、导致 keycloak 反复重启"。开工前先确认口令文件在哪
+  （`~/.config/pearnly-testenv/` 目前只有 cloudflare/tunnel 凭据），找不到就停下问用户，不要让脚本重新生成。
+- 注意：`testenv.sh ps` 会先把栈定义同步到测试机 `/opt/pearnly-testenv/deploy` 再列容器（本窗口 09-25 执行过一次）；
+  文档提到的 `status` 子命令当前脚本没有。
+
+**测试环境里要验的（本窗口做了、线上没法验的）**：
+1. LINE：团队管理「用户菜单」勾 LINE → 本人「个人信息」出二维码 / Bot ID / 绑定码 → 真 LINE 加好友发码 → 自动已绑定；
+   发 ซื้อ/ขาย 切方向、发单据进采购/销售页「LINE」；取消勾选即解绑、再发被拒。
+   **前提**：官方号 ERP-TEST（`@063eadty`）LINE 后台回调仍是已退役的 `https://pearnly.com/api/line/erp/webhook`，
+   要改成 `https://testerp.pearnly.com/api/method/pearnly_core.line.webhook`（外部写入，**需用户授权**；域名不变，
+   切到测试机后 LINE 就打到测试机）。
+2. 切换公司：新建第二家公司后不点刷新即出现「公司 >」（`58c3de0`）。
+3. 采购/销售：供应商、客户框无扫码，物料框扫码带出（`5cc7d00`）。
+4. 静态资源缓存与 HTTP/2（`7f68801`、`d156e39`）：测试机前端容器会用新模板；主机 nginx 的 http2 只在线上主机生效，
+   测试机经 Cloudflare 隧道，不能替代线上回读。
+
+**本机遗留（本窗口造成，已登记）**：
+- 本地样板 qerp 站点加了一条身份绑定（业务 realm 的 `tenant-admin` → `owner@qerp.local`），为了免去 `qerpowner` 未知密码；
+  删掉该 `Pearnly Identity` 行即恢复。
+- 本地样板测试账号 `linetest@qerp.local`：无 LINE、已停用。
+- 内置浏览器里本窗口的测试标签页登录着本地样板。
+
+**交接保留**：`/Users/skin/.codex/worktrees/cowork-frontend/pearnly`（`codex/cowork-frontend` @ `7bdc61d`，无远端分支）
+—— 另一窗口留下、本窗口接手但未完成的 Cowork 录入工作台：38 处未提交改动，本地 `pearnly-sample-cowork-*` 容器挂载它。
+其中「共用原件预览框」那一块已单独合入 main（`f848f91`），同步 main 时这几份文件会与 main 相同。
+解除条件：下一个做 Cowork 前端的窗口同步 main、提交剩余改动并按主线规则合入后清理；在那之前不要删这个目录。
+
+**其它提醒**：DMS 的术语表改过但没重新生成翻译包，在任何分支跑 `scripts/i18n-build.py` 会连带改 4 个 DMS 翻译 CSV，
+本窗口每次都撤掉了、未提交；归 DMS 窗口处理。
