@@ -262,6 +262,52 @@ class Language(Base):
                 profile.assert_called_once()  # 第二次走缓存
 
 
+class RichMenu(Base):
+    def test_tiles_follow_permissions_and_stocktake_opens_the_native_page(self):
+        from pearnly_erp_portal.integrations import line_menu
+
+        self.enterContext(patch.object(line_menu, "_", _same))
+        self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
+        self.assertEqual(len(line_menu.VARIANTS), 7)
+        areas = line_menu.payload("purchase+stocktake", "zh")["areas"]
+        self.assertEqual([area["bounds"]["x"] for area in areas], [0, 1666])  # 销售那格是锁、不可点
+        self.assertEqual(areas[0]["action"]["data"], "a=mode:purchase")
+        self.assertEqual(areas[1]["action"], {"type": "uri", "label": "Stock count",
+                         "uri": "https://testerp.pearnly.com/desk/pearnly-stock-count"})
+        self.roles["buyer"] = {"integration.read", "purchase.write", "count.write"}
+        self.assertEqual(line_menu.wanted_variant("buyer"), "purchase+stocktake")
+        self.roles["buyer"] = {"purchase.write"}
+        self.assertEqual(line_menu.wanted_variant("buyer"), "")
+
+    def test_menu_image_is_composed_from_the_tiles_for_each_language(self):
+        import io
+        from pathlib import Path
+
+        from PIL import Image
+
+        from pearnly_erp_portal.integrations import line_menu
+
+        root = Path(line_menu.__file__).resolve().parents[1]
+        self.enterContext(patch.object(frappe, "get_app_path", create=True,
+                                       side_effect=lambda app, *parts: str(root.joinpath(*parts))))
+        for language in line_menu.LANGUAGES:
+            image = line_menu._image("purchase+sales+stocktake", language)
+            self.assertEqual(Image.open(io.BytesIO(image)).size, (2500, 1686))
+        self.assertEqual(line_menu._image("sales", "th"), line_menu._image("sales", "th"))  # 同内容同散列，重发复用
+
+    def test_each_user_gets_the_menu_of_their_phone_language(self):
+        from pearnly_erp_portal.integrations import line_menu
+
+        menus = {line_menu.key(language, variant): f"{language}/{variant}"
+                 for language in line_menu.LANGUAGES for variant in line_menu.VARIANTS}
+        self.enterContext(patch.object(frappe, "conf", {line_menu.CONFIG: menus}, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.binding_of", return_value=SimpleNamespace(user="buyer")))
+        self.roles["buyer"] = {"integration.read", "sales.write"}
+        self.assertEqual(line_menu.wanted_menu("U1", "ja")[1], "ja/sales")
+        self.enterContext(patch.object(frappe, "conf", {line_menu.CONFIG: {"both": "old", "sales": "old"}}, create=True))
+        self.assertIsNone(line_menu.wanted_menu("U1", "ja")[0])  # 旧的三套泰文发布：不碰官方号
+
+
 class Recognition(unittest.TestCase):
     def test_percent_discounts_become_amounts(self):
         # 09-26 采购票面「20.00%」被整个丢掉，合计多记 16,963.20。

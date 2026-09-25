@@ -225,6 +225,7 @@ Count at least one item before finishing,終了する前に少なくとも1件�
 Count by,棚卸方法
 Count closed,棚卸を終了しました
 Count saved,保存しました
+Count stock on the web,Webで在庫を数える
 Counted,棚卸済み
 Counted Amount,実地金額
 Counted Cash,実際の現金
@@ -318,6 +319,7 @@ Draft not found,下書きが見つかりません
 Due Date,支払期日
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
+ERP menu,ERPメニュー
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
 Edit,編集
@@ -441,6 +443,7 @@ Invoice Amount,請求金額
 Invoice Status,伝票ステータス
 Is Paid,支払済み
 Is Reversal,取消仕訳
+Issue documents and deduct stock,伝票を登録して出庫
 Issued,出庫数量
 Item,品目
 Item / Description,品名・説明
@@ -723,6 +726,7 @@ Receipt,領収書
 Receipt No,レシート番号
 Receipt Status,レシート状態
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
+Receive documents and add stock,伝票を登録して入庫
 Received,入庫数量
 Received Amount,入金額
 Received At,受信日時
@@ -736,6 +740,8 @@ Recognition returned nothing,内容を認識できませんでした
 Recognizing...,読み取り中…
 Record,伝票
 Record a count,棚卸を入力
+Record purchases,仕入入力
+Record sales,売上入力
 Recorded,記録しました
 Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
 Recount this product,この商品を再棚卸

@@ -225,6 +225,7 @@ Count at least one item before finishing,请至少盘点一项后再结束
 Count by,盘点方式
 Count closed,盘点已结束
 Count saved,已保存
+Count stock on the web,在网页端清点库存
 Counted,已盘点
 Counted Amount,实点金额
 Counted Cash,实点现金
@@ -318,6 +319,7 @@ Draft not found,找不到这条草稿
 Due Date,到期日
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
+ERP menu,ERP 菜单
 Each product and location may appear only once,同一物料和仓位只能填写一次
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
@@ -441,6 +443,7 @@ Invoice Amount,发票金额
 Invoice Status,单据状态
 Is Paid,已付款
 Is Reversal,冲销
+Issue documents and deduct stock,开单并出库
 Issued,出库数量
 Item,物料
 Item / Description,品名/说明
@@ -723,6 +726,7 @@ Receipt,收据
 Receipt No,小票号
 Receipt Status,小票状态
 Receipt {0} · Change {1},小票 {0} · 找零 {1}
+Receive documents and add stock,收单并入库
 Received,入库数量
 Received Amount,已收金额
 Received At,收到时间
@@ -736,6 +740,8 @@ Recognition returned nothing,未识别到内容
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点
+Record purchases,采购录入
+Record sales,销售录入
 Recorded,已入账
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，{1} 行已存在未重复入账
 Recount this product,重新盘点该物料

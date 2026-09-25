@@ -225,6 +225,7 @@ Count at least one item before finishing,โปรดนับอย่างน
 Count by,วิธีตรวจนับ
 Count closed,ปิดการตรวจนับแล้ว
 Count saved,บันทึกแล้ว
+Count stock on the web,นับสินค้าคงคลังผ่านหน้าเว็บ
 Counted,นับแล้ว
 Counted Amount,ยอดนับได้
 Counted Cash,เงินสดที่นับได้
@@ -318,6 +319,7 @@ Draft not found,ไม่พบรายการร่าง
 Due Date,วันที่ครบกำหนด
 ERP,ERP
 ERP Stock Count Variance,กระดานผลต่างการตรวจนับ
+ERP menu,เมนู ERP
 Each product and location may appear only once,สินค้าและตำแหน่งเดียวกันระบุได้เพียงครั้งเดียว
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
@@ -441,6 +443,7 @@ Invoice Amount,ยอดตามใบแจ้งหนี้
 Invoice Status,สถานะเอกสาร
 Is Paid,ชำระแล้ว
 Is Reversal,รายการกลับบัญชี
+Issue documents and deduct stock,ออกเอกสารและตัดสินค้าออกจากสต๊อก
 Issued,จ่ายออก
 Item,รายการ
 Item / Description,ชื่อสินค้า/คำอธิบาย
@@ -723,6 +726,7 @@ Receipt,ใบเสร็จ
 Receipt No,เลขที่ใบเสร็จ
 Receipt Status,สถานะใบเสร็จ
 Receipt {0} · Change {1},ใบเสร็จ {0} · เงินทอน {1}
+Receive documents and add stock,รับเอกสารและเพิ่มสินค้าเข้าสต๊อก
 Received,รับเข้า
 Received Amount,ยอดรับเงิน
 Received At,เวลาที่ได้รับ
@@ -736,6 +740,8 @@ Recognition returned nothing,ไม่พบข้อมูลจากการ
 Recognizing...,กำลังอ่านข้อความ…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
+Record purchases,บันทึกซื้อ
+Record sales,บันทึกขาย
 Recorded,บันทึกแล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
 Recount this product,นับสินค้านี้ใหม่

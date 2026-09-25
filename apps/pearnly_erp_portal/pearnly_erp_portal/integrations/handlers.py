@@ -108,6 +108,7 @@ def handle(event: dict) -> bool:
     previous = getattr(frappe.local, "lang", None)
     if user_id:
         frappe.local.lang = line.user_language(user_id, default=intake.channel_language())
+        line_menu.ensure(user_id, frappe.local.lang)
     try:
         return _handle(event)
     finally:

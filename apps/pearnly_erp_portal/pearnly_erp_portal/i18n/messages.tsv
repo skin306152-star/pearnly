@@ -1270,3 +1270,9 @@ Payment method	支付方式	วิธีชำระเงิน	支払方法
 For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	识别更准的拍法：单据摆正拍，文字朝上，整张入镜。	เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น	読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Buy	采购	ซื้อ	仕入
 Sell	销售	ขาย	売上
+Record purchases	采购录入	บันทึกซื้อ	仕入入力
+Record sales	销售录入	บันทึกขาย	売上入力
+Receive documents and add stock	收单并入库	รับเอกสารและเพิ่มสินค้าเข้าสต๊อก	伝票を登録して入庫
+Issue documents and deduct stock	开单并出库	ออกเอกสารและตัดสินค้าออกจากสต๊อก	伝票を登録して出庫
+Count stock on the web	在网页端清点库存	นับสินค้าคงคลังผ่านหน้าเว็บ	Webで在庫を数える
+ERP menu	ERP 菜单	เมนู ERP	ERPメニュー

@@ -225,6 +225,7 @@ Count at least one item before finishing,Count at least one item before finishin
 Count by,Count by
 Count closed,Count closed
 Count saved,Count saved
+Count stock on the web,Count stock on the web
 Counted,Counted
 Counted Amount,Counted Amount
 Counted Cash,Counted Cash
@@ -318,6 +319,7 @@ Draft not found,Draft not found
 Due Date,Due Date
 ERP,ERP
 ERP Stock Count Variance,ERP Stock Count Variance
+ERP menu,ERP menu
 Each product and location may appear only once,Each product and location may appear only once
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 Edit,Edit
@@ -441,6 +443,7 @@ Invoice Amount,Invoice Amount
 Invoice Status,Invoice Status
 Is Paid,Is Paid
 Is Reversal,Is Reversal
+Issue documents and deduct stock,Issue documents and deduct stock
 Issued,Issued
 Item,Item
 Item / Description,Item / Description
@@ -723,6 +726,7 @@ Receipt,Receipt
 Receipt No,Receipt No
 Receipt Status,Receipt Status
 Receipt {0} · Change {1},Receipt {0} · Change {1}
+Receive documents and add stock,Receive documents and add stock
 Received,Received
 Received Amount,Received Amount
 Received At,Received At
@@ -736,6 +740,8 @@ Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count
+Record purchases,Record purchases
+Record sales,Record sales
 Recorded,Recorded
 Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
 Recount this product,Recount this product
