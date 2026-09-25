@@ -200,7 +200,8 @@ def build_payload(doc, result=None) -> dict:
             payload["supplier_name"] = _fallback_name("purchase")
         return payload
     payload = {key: result.get(key) for key in ("doc_kind", "doc_date", "buyer_name", "party_type",
-                                                  "address", "has_vat", "vat_rate", "price_includes_vat")}
+                                                  "address", "has_vat", "vat_rate", "price_includes_vat",
+                                                  "header_discount")}
     payload = {key: value for key, value in payload.items() if value not in (None, "")}
     lines = []
     for row in result.get("lines") or []:
@@ -280,7 +281,11 @@ def open_for_edit(name) -> dict:
     if doc.direction == "sales" and form.get("customer"):
         form["buyer_name"] = frappe.db.get_value("ERP Customer", form["customer"], "customer_name")
     form.pop("company", None)
-    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form}
+    from pearnly_erp_portal.recognition import policy
+
+    review = policy.describe(json.loads(doc.result or "{}").get("review") or [])
+    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form,
+            "review": review}
 
 
 def submit(name, payload) -> dict:

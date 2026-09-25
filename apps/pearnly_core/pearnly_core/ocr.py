@@ -225,9 +225,24 @@ def detect_image_mime(data: bytes) -> str:
     return "image/jpeg"
 
 
+def thinking_for(model: str) -> dict:
+    """旧线上直读的思考设置（`pearnly-app@ec2e5c95` `services/ai_gateway/providers/vertex.py:118-132`）：
+    2.5 关掉思考，3.8 用 LOW，其余（含 3.1-flash-lite）用 MINIMAL。
+
+    不设时模型按默认深度思考：09-26 一张横拍发票思考了 10,553 个 token（按输出计费）、单次 76 秒。
+    默认不加到每个调用上（DMS 证件识别不在本次范围），由调用方显式传 `thinking=`。
+    """
+    name = (model or "").lower()
+    if name.startswith("gemini-2.5"):
+        return {"thinkingBudget": 0}
+    if name.startswith("gemini-3.8"):
+        return {"thinkingLevel": "LOW"}
+    return {"thinkingLevel": "MINIMAL"}
+
+
 def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
                      model: str, timeout_s: int = DEFAULT_TIMEOUT_SECONDS,
-                     max_tokens: int = 16384) -> dict | None:
+                     max_tokens: int = 16384, thinking: dict | None = None) -> dict | None:
     """图片（或 PDF）+ 提示词 → JSON dict。失败返回 None，由调用方决定是否升档。
 
     temperature=0，要求模型直接吐 JSON。限流/临时不可用在同一模型上
@@ -263,6 +278,7 @@ def json_from_images(prompt: str, images: list[tuple[bytes, str]], *,
             "temperature": 0,
             "maxOutputTokens": max_tokens,
             "responseMimeType": "application/json",
+            **({"thinkingConfig": dict(thinking)} if thinking else {}),
         },
     }
 

@@ -172,6 +172,7 @@
 					state.ocr_hash = result.image_sha256;
 					if (result.lines) await state.set_lines(result.lines);
 					state.ocr_complete = true;
+					p.recognition_review(result.review_text);
 					changes(); state.sync_entry();
 					layout.navigate("information");
 				} catch (error) {

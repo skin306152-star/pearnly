@@ -1276,3 +1276,16 @@ Receive documents and add stock	收单并入库	รับเอกสารแ�
 Issue documents and deduct stock	开单并出库	ออกเอกสารและตัดสินค้าออกจากสต๊อก	伝票を登録して出庫
 Count stock on the web	在网页端清点库存	นับสินค้าคงคลังผ่านหน้าเว็บ	Webで在庫を数える
 ERP menu	ERP 菜单	เมนู ERP	ERPメニュー
+The total printed on the document was not found	没找到票面上的合计	ไม่พบยอดรวมบนเอกสาร	書類に合計が見つかりません
+Subtotal, discount and VAT do not add up to the printed total	小计、折扣、VAT 与票面合计对不上	ยอดก่อนภาษี ส่วนลด และ VAT ไม่ตรงกับยอดรวมบนเอกสาร	小計・割引・VAT が書類の合計と一致しません
+The items do not add up to the printed total	明细算出的合计与票面合计不符	ยอดรวมจากรายการไม่ตรงกับยอดรวมบนเอกสาร	明細の合計が書類の合計と一致しません
+A negative amount was read	读到了负数金额	อ่านได้ยอดเงินติดลบ	マイナスの金額が読み取られました
+Seller and buyer have the same tax ID	卖方与买方税号相同	ผู้ขายและผู้ซื้อมีเลขผู้เสียภาษีเดียวกัน	売り手と買い手の税番号が同じです
+A tax ID failed its check digit	税号校验位不对，可能读错一位	เลขผู้เสียภาษีไม่ผ่านการตรวจสอบหลัก	税番号のチェックディジットが一致しません
+VAT is not 7% of the amount before VAT	VAT 不是税前金额的 7%	VAT ไม่ใช่ 7% ของยอดก่อนภาษี	VAT が税抜金額の 7% ではありません
+The items add up to more than the subtotal	明细之和大于小计	ผลรวมรายการมากกว่ายอดก่อนภาษี	明細の合計が小計を超えています
+The total is less than one of the items	合计小于其中一行明细	ยอดรวมน้อยกว่ารายการใดรายการหนึ่ง	合計が明細の1行より少ないです
+The document date is in the future	单据日期在未来，请核对年份	วันที่เอกสารอยู่ในอนาคต กรุณาตรวจสอบปี	書類の日付が未来です。年を確認してください
+The document date is more than 5 years old	单据日期早于 5 年前，请核对年份	วันที่เอกสารเก่ากว่า 5 ปี กรุณาตรวจสอบปี	書類の日付が5年以上前です。年を確認してください
+Please check this document before submitting	提交前请核对	กรุณาตรวจสอบก่อนบันทึก	提出前に確認してください
+This is not a purchase or sales document	这不是采购或销售单据	เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません

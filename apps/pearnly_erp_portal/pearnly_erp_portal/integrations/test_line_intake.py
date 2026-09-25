@@ -398,6 +398,114 @@ class Amounts(unittest.TestCase):
         self.assertNotIn("amount", clean["lines"][0])
 
 
+class Checks(unittest.TestCase):
+    """旧线上发票硬闸 / 软标注（`recognition.checks`），数字取自 09-26 真机那几张。"""
+
+    def test_consistent_documents_pass(self):
+        from pearnly_erp_portal.recognition import checks
+
+        # กิจสยามยานยนต์ 税票：含税 7,500，税前 7,009.35 + VAT 490.65。
+        printed = {"subtotal": "7,009.35", "discount": "0.00", "vat": "490.65", "total": "7,500.00"}
+        self.assertEqual(checks.printed_issues(printed, [6400, 750, 350], seller_tax="0105542027023",
+                                               buyer_tax="0105546015062"), [])
+        self.assertEqual(checks.computed_issues(printed, "7500.00"), [])
+        # Sister Makeup 含税小票（ABB）：明细和 2,768 = 合计，大于税前小计也放行。
+        receipt = {"subtotal": "2,586.92", "vat": "181.08", "total": "2,768.00"}
+        self.assertEqual(checks.printed_issues(receipt, [390, 390, 940, 79, 189, 780]), [])
+
+    def test_the_two_real_failures_are_caught(self):
+        from pearnly_erp_portal.recognition import checks
+
+        # NBC：票面合计 67,852.80，丢了 20% 折扣算出 84,816.00。
+        self.assertEqual(checks.computed_issues({"total": "67,852.80"}, "84816.00"), ["computed_total"])
+        # 小票只印金额：单价全 0，算出 0，票面 2,768。
+        self.assertEqual(checks.computed_issues({"total": "2768"}, "0.00"), ["computed_total"])
+
+    def test_old_hard_gates(self):
+        from pearnly_erp_portal.recognition import checks
+
+        self.assertIn("total_missing", checks.printed_issues({"subtotal": "100"}, []))
+        self.assertIn("printed_math", checks.printed_issues({"subtotal": "100", "vat": "7", "total": "120"}, []))
+        self.assertIn("vat_ratio", checks.printed_issues({"subtotal": "100", "vat": "10", "total": "110"}, []))
+        self.assertIn("negative", checks.printed_issues({"subtotal": "-100", "vat": "-7", "total": "-107"}, []))
+        self.assertIn("same_tax_id", checks.printed_issues({"total": "1"}, [], seller_tax="0105555167627",
+                                                           buyer_tax="0105-555-167627"))
+        self.assertIn("tax_id_checksum", checks.printed_issues({"total": "1"}, [], seller_tax="0105555167628"))
+        self.assertIn("total_below_line", checks.printed_issues({"total": "50"}, [100]))
+        self.assertIn("line_sum", checks.printed_issues({"subtotal": "100", "total": "100"}, [80, 80]))
+        # 折扣印在表尾：折前明细和 − 折扣 = 小计，不误杀（旧线上 f003 实案）。
+        self.assertEqual(checks.printed_issues({"subtotal": "110", "discount": "5", "vat": "7.35",
+                                                "total": "112.35"}, [60, 55]), [])
+
+    def test_dates_are_soft(self):
+        from datetime import date
+
+        from pearnly_erp_portal.recognition import checks
+
+        today = date(2026, 9, 26)
+        self.assertEqual(checks.date_issues("2026-09-28", today), ["date_future"])
+        self.assertEqual(checks.date_issues("2016-05-07", today), ["date_old"])  # 佛历年份读错十年
+        self.assertEqual(checks.date_issues("2026-05-07", today), [])
+        self.assertEqual(checks.hard(["date_old", "computed_total"]), ["computed_total"])
+
+
+class Escalation(unittest.TestCase):
+    """先 3.1-flash-lite + MINIMAL，硬闸不过才 3.8 + LOW（旧线上发票直读）。"""
+
+    def read(self, answers, review):
+        from pearnly_core import ocr
+
+        from pearnly_erp_portal.recognition import policy
+
+        calls = []
+
+        def fake(prompt, images, *, model, thinking=None, **kw):
+            calls.append((model, thinking))
+            return answers[len(calls) - 1]
+
+        with patch.object(ocr, "json_from_images", side_effect=fake):
+            result = policy.read("P", [(b"x", "image/jpeg")], structured=lambda raw: raw if "lines" in raw else None,
+                                 review=review, label="t")
+        return result, calls
+
+    def test_a_clean_first_read_is_not_escalated(self):
+        (result, issues, model), calls = self.read([{"lines": [], "n": 1}], lambda r: [])
+        self.assertEqual(calls, [("gemini-3.1-flash-lite", {"thinkingLevel": "MINIMAL"})])
+        self.assertEqual((result["n"], issues, model), (1, [], "gemini-3.1-flash-lite"))
+
+    def test_a_failed_gate_escalates_and_soft_flags_do_not(self):
+        answers = [{"lines": [], "n": 1}, {"lines": [], "n": 2}]
+        (result, issues, model), calls = self.read(answers, lambda r: ["computed_total"] if r["n"] == 1 else ["date_old"])
+        self.assertEqual([c[1] for c in calls], [{"thinkingLevel": "MINIMAL"}, {"thinkingLevel": "LOW"}])
+        self.assertEqual((result["n"], issues, model), (2, ["date_old"], "gemini-3.8-flash"))
+        (_result, _issues, _model), calls = self.read([{"lines": [], "n": 1}], lambda r: ["date_old"])
+        self.assertEqual(len(calls), 1)
+
+    def test_unreadable_first_answer_escalates(self):
+        (result, issues, model), calls = self.read([None, {"lines": [], "n": 2}], lambda r: [])
+        self.assertEqual((len(calls), result["n"], model), (2, 2, "gemini-3.8-flash"))
+
+    def test_thinking_is_sent_only_when_asked(self):
+        from pearnly_core import ocr
+
+        sent = {}
+
+        def post(url, headers, payload, timeout_s, model):
+            sent.update(payload["generationConfig"])
+            return Mock(status_code=200, json=Mock(return_value={"candidates": [
+                {"content": {"parts": [{"text": "{}"}]}}]}))
+
+        self.enterContext(patch.object(ocr, "backend", return_value="aistudio"))
+        self.enterContext(patch.object(ocr, "api_key", return_value="k"))
+        self.enterContext(patch.object(ocr, "endpoint", return_value="https://x/{model}"))
+        self.enterContext(patch.object(ocr, "_post_with_backoff", side_effect=post))
+        ocr.json_from_images("P", [(b"x", "image/jpeg")], model="gemini-3.8-flash", thinking=ocr.thinking_for("gemini-3.8-flash"))
+        self.assertEqual(sent["thinkingConfig"], {"thinkingLevel": "LOW"})
+        sent.clear()
+        ocr.json_from_images("P", [(b"x", "image/jpeg")], model="gemini-3.8-flash")
+        self.assertNotIn("thinkingConfig", sent)  # DMS 等不传的调用照旧
+
+
 class Products(Base):
     def test_purchase_created_items_take_our_running_code_not_the_printed_one(self):
         from pearnly_erp_portal.products import purchase, service

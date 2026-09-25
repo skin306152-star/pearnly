@@ -273,6 +273,14 @@ def unit_price_of(row: dict):
     return 0
 
 
+def _header_discount(value):
+    try:
+        amount = _d(str(value or 0).replace(",", ""))
+    except ArithmeticError:
+        return 0
+    return float(amount.quantize(_CENT)) if amount > 0 else 0
+
+
 def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = "") -> dict:
     """把识别结果归一成 `create_document` 的入参形状。缺什么就留空，不猜。"""
     payload = payload or {}
@@ -304,6 +312,8 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         "vat_rate": payload.get("vat_rate") if payload.get("vat_rate") is not None else 7,
         # 门市小票（ABB）通常是含税价：票面写着含税就按含税算，不在上面再加一次 VAT。
         "price_includes_vat": payload.get("price_includes_vat") is True,
+        # 票面整单折扣（金额）：以前没读，有整单折扣的小票入账会多记。
+        "header_discount": _header_discount(payload.get("discount_total")),
         "lines": lines,
         "source_file": source_file or None,
         "image_sha256": image_sha256 or None,

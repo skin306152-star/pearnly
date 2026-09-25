@@ -4,6 +4,12 @@
 	// 仓库字段一律是**官方原生**的 Link → `ERP Warehouse`，下拉里只列当前公司的仓库
 	// （仓库属于公司，一租户多公司）。`df.get_query` 是框架 Link 控件自己认的写法：
 	// 给一个普通对象它就当过滤条件用（`link.js`：`$.isPlainObject(get_query)`）。
+	// 识别没过检查（服务端 `recognition.checks`，采购、销售共用）：原生提示框写明要核对什么。
+	p.recognition_review = texts => {
+		if (!texts?.length) return;
+		frappe.msgprint({title: __("Please check this document before submitting"), indicator: "orange",
+			message: `<ul>${texts.map(text => `<li>${frappe.utils.escape_html(text)}</li>`).join("")}</ul>`});
+	};
 	p.warehouse_query = () => ({
 		filters: {company: frappe.boot.pearnly_company || "", is_active: 1},
 	});

@@ -149,6 +149,22 @@ def _items(result, totals, shown):
     return {"type": "box", "layout": "vertical", "margin": "md", "contents": rows}
 
 
+def _review(result):
+    """没过识别检查（`recognition.checks`）：卡片最上面用红字写明要核对什么。"""
+    from pearnly_erp_portal.recognition import policy
+
+    texts = policy.describe(result.get("review") or [])
+    if not texts:
+        return []
+    return [{"type": "box", "layout": "vertical", "margin": "none", "paddingAll": "8px", "cornerRadius": "6px",
+             "borderWidth": "1px", "borderColor": "#D93025", "contents": [
+                 {"type": "text", "text": _("Please check this document before submitting"), "size": "xs",
+                  "weight": "bold", "color": "#D93025", "wrap": True},
+                 *({"type": "text", "text": "• " + text, "size": "xxs", "color": "#D93025", "wrap": True}
+                   for text in texts)]},
+            _separator()]
+
+
 def _amounts(doc, totals):
     """(税前, 折扣, VAT, 预扣, 合计)。税前 = 合计 − VAT：含税价与不含税价同一个口径。"""
     if not totals:
@@ -180,6 +196,7 @@ def _card(doc, result, totals, shown) -> dict:
     before, discount, vat, wht, grand = _amounts(doc, totals)
     kind = result.get("doc_kind")
     body = [
+        *_review(result),
         _kv(_("Company"), _company(doc)["name"]),
         _kv(_("Direction"), head),
         _kv(_("Documents"), "1"),

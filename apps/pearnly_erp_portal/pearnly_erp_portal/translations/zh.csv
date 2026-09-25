@@ -7,6 +7,7 @@ A confirmed document cannot be edited,已提交的单据不能修改
 A confirmed draft must point at the purchase record it created,已确认的草稿必须指向它建出的采购记录
 A confirmed draft must point at the record it created,已确认的草稿必须指向它创建的那条记录
 A customer needs a name,客户要有名称
+A negative amount was read,读到了负数金额
 A payment has to be approved before it counts as paid,付款要先经过审批才算已付
 A product needs a name,物料要有名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
@@ -17,6 +18,7 @@ A stored source file must carry its hash,留底文件必须带内容指纹
 A submitted document cannot be changed,已提交的单据不能改
 A submitted entry cannot be changed,已提交的出入库不能改
 A supplier needs a name,供应商要有名称
+A tax ID failed its check digit,税号校验位不对，可能读错一位
 A terminal needs a name,收银台要有名称
 A warehouse must belong to a company,仓库必须挂在某家公司名下
 A warehouse needs a name,仓库要有名称
@@ -651,6 +653,7 @@ Pick a warehouse,请选择仓库
 "Pick quantity, discount or price first",先点数量、折扣或单价
 Place,位置
 Please add Mode of payments and opening balance details.,请添加支付方式与开班余额明细
+Please check this document before submitting,提交前请核对
 Please select a field to edit from numpad,请先用键盘选择要修改的字段
 Please select an Item,请选择物料
 Please upload a PDF or image,请上传 PDF 或图片
@@ -822,6 +825,7 @@ Select the original sale line,请选择原单中的物料行
 Sell,销售
 Seller,卖方名称
 Seller address,卖方地址
+Seller and buyer have the same tax ID,卖方与买方税号相同
 Seller branch,卖方分店
 Seller tax ID,卖方税号
 Selling Units,销售单位
@@ -898,6 +902,7 @@ Submitted At,提交时间
 Submitted {0},已提交 {0}
 Substitute Receipt,替代收据
 Subtotal,小计
+"Subtotal, discount and VAT do not add up to the printed total",小计、折扣、VAT 与票面合计对不上
 Summary,概要
 Supplier,供应商
 Supplier Doc Reference,供应商单据参考号
@@ -948,8 +953,12 @@ The cashier assets did not load (official-*.js).,收银台资源没加载完（o
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据与公司资料页用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
+The document date is in the future,单据日期在未来，请核对年份
+The document date is more than 5 years old,单据日期早于 5 年前，请核对年份
 The first row must be the column headings; the sheet needs at least a product name column,第一行是表头；表里至少要有物料名称列
 The fiscal year start month must be between 1 and 12,会计年度的起始月份必须在 1 到 12 之间
+The items add up to more than the subtotal,明细之和大于小计
+The items do not add up to the printed total,明细算出的合计与票面合计不符
 The opening stock amount is too large,期初库存金额过大
 The opening stock file is too large,期初库存文件过大
 The opening stock value is too large to preserve its decimal precision,期初数值过大，无法保持所需小数精度
@@ -963,6 +972,8 @@ The recognition result needs checking. Please do not resend this document yet.,�
 The row has no product code or barcode,这一行没有物料编号或条码
 The sheet needs a product name column,表里要有物料名称列
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
+The total is less than one of the items,合计小于其中一行明细
+The total printed on the document was not found,没找到票面上的合计
 The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
 There is nothing to save,没有要保存的行
@@ -993,6 +1004,7 @@ This document is void,这张单据已作废
 This document was already recorded,这张单据已经入账
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
+This is not a purchase or sales document,这不是采购或销售单据
 This item is also stocked at:,这件货还在别处：
 This option is no longer current,这个选项已失效，请按最新一步选择
 This payment method is not enabled for this company,这家公司没有开这种收款方式
@@ -1077,6 +1089,7 @@ VAT Applies,计增值税
 VAT Rate,增值税率
 VAT Rate %,税率%
 VAT applies,含 VAT
+VAT is not 7% of the amount before VAT,VAT 不是税前金额的 7%
 Value,金额
 Void Reason,撤销原因
 Void all current observations for this product and recount it? Previous records remain in the history.,将撤销该物料在本任务中的当前记录，然后重新盘点。原记录保留在历史中，确定继续？
