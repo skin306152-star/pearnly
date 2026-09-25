@@ -279,6 +279,8 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         "address": (str(payload.get("buyer_address") or "").strip() or None),
         "has_vat": payload.get("has_vat") is not False,
         "vat_rate": payload.get("vat_rate") if payload.get("vat_rate") is not None else 7,
+        # 门市小票（ABB）通常是含税价：票面写着含税就按含税算，不在上面再加一次 VAT。
+        "price_includes_vat": payload.get("price_includes_vat") is True,
         "lines": lines,
         "source_file": source_file or None,
         "image_sha256": image_sha256 or None,

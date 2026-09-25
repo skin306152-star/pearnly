@@ -314,6 +314,33 @@ def try_with_fallback(call, *, ok, label: str = "ocr"):
     return data
 
 
+# ── 照片方向 ──────────────────────────────────────────────────────────────────
+#
+# 实测（2026-09-26，ERP LINE 收单一张横拍的采购税票）：图片侧着送进去，同一模型三次读出三组
+# **完全不同、全是编的**商品名（数量、金额反而是对的）；转正后再读，商品名与票面一致。
+# 用户口径：不为转正多花识别费 —— 这里只做**本地、免费**的那一步：照片自带 EXIF 方向就按它
+# 转正再送；没有方向信息（LINE 转发的图会去掉 EXIF）就原样送，靠上传前的拍摄提示让人拍正。
+
+
+def upright(data: bytes, mime: str) -> tuple[bytes, str]:
+    """按 EXIF 方向把照片转正；PDF、方向本来就对、没有方向信息或打不开的图原样返回。"""
+    if not mime.startswith("image/"):
+        return data, mime
+    try:
+        import io
+
+        from PIL import Image, ImageOps
+
+        image = Image.open(io.BytesIO(data))
+        if (image.getexif().get(0x0112) or 1) == 1:
+            return data, mime
+        out = io.BytesIO()
+        ImageOps.exif_transpose(image).convert("RGB").save(out, "JPEG", quality=92)
+        return out.getvalue(), "image/jpeg"
+    except Exception:
+        return data, mime
+
+
 def _post_with_backoff(url, headers, payload, timeout_s, model):
     """Shared cross-App admission; deferred work resumes outside the worker."""
     from pearnly_core.execution import budget, provider

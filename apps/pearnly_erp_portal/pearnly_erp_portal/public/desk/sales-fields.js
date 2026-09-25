@@ -87,7 +87,9 @@
 			f("add_line", "purchase.action.addLine", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),
 			u.section("Taxes and Charges"),
-			f("has_vat", "trade.hasVat", "Check", {hidden: !editable}), col(),
+			f("has_vat", "trade.hasVat", "Check", {hidden: !editable}),
+			// 门市小票多是含税价（旧线上销项的 `price_includes_vat`）：勾上就从金额里反算 VAT。
+			f("price_includes_vat", "Prices Include Tax", "Check", {hidden: !editable}), col(),
 			f("header_discount", "Discount Amount", "Currency", {default: 0}),
 			...[["subtotal", "Net Total"], ["discount_total", "Discount Total"], ["vat_amount", "VAT"],
 				["grand_total", "Grand Total"]].map(([key, label]) => f(key, label, "Currency", {read_only: 1})),

@@ -160,6 +160,12 @@ def ocr_failed(arguments, code):
 # ── 预览卡 → 入账 ────────────────────────────────────────────────────────────
 
 
+def _fallback_name(direction):
+    """「一般供应商 / 散客」落进单据和主档的名字用官方号语言（站点系统语言），不随打开网页的
+    那个人的界面语言变 —— 否则同一个兜底供应商会按不同语言各建一个（09-26 实测记成了中文「散客」）。"""
+    return _(line_flow.FALLBACK_LABELS[direction], lang=channel_language())
+
+
 def build_payload(doc, result=None) -> dict:
     """把「选好的主档 + 识别字段」拼成网页端入账函数要的入参（同一个形状）。"""
     result = result if result is not None else json.loads(doc.result or "{}")
@@ -188,10 +194,10 @@ def build_payload(doc, result=None) -> dict:
             for key in ("supplier_tax_id", "supplier_branch_type", "supplier_branch_no",
                         "supplier_branch_name", "supplier_address"):
                 payload.pop(key, None)
-            payload["supplier_name"] = _(line_flow.FALLBACK_LABELS["purchase"])
+            payload["supplier_name"] = _fallback_name("purchase")
         return payload
     payload = {key: result.get(key) for key in ("doc_kind", "doc_date", "buyer_name", "party_type",
-                                                  "address", "has_vat", "vat_rate")}
+                                                  "address", "has_vat", "vat_rate", "price_includes_vat")}
     payload = {key: value for key, value in payload.items() if value not in (None, "")}
     lines = []
     for row in result.get("lines") or []:
@@ -204,12 +210,15 @@ def build_payload(doc, result=None) -> dict:
                    payment_method=doc.payment_method or None, source="line", attachments=attachments)
     if not doc.is_paid:
         payload["paid_amount"] = 0
+    elif payload.get("doc_date"):
+        # 定·09-25：已付的付款日期取单据日期（网页端表单默认是今天，这里预先填好）。
+        payload["payment_date"] = payload["doc_date"]
     if party:
         payload["customer"] = party
     elif fallback:
         # 散客：不建客户档案，不用票面买方信息。
         payload.pop("address", None)
-        payload.update(buyer_name=_(line_flow.FALLBACK_LABELS["sales"]), party_type="anonymous")
+        payload.update(buyer_name=_fallback_name("sales"), party_type="anonymous")
     elif not payload.get("buyer_name"):
         payload["buyer_name"] = _("Unknown buyer")
     return payload

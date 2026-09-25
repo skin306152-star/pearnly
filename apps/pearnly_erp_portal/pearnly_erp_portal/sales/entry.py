@@ -76,7 +76,8 @@ def _calculate(payload):
     """金额一律由纯规则层算：服务端与前端不各算一份。"""
     tots = contracts.compute_totals(payload.get("lines") or [],
                                     vat_rate=_vat_rate(payload) if flag(payload.get("has_vat"), True) else 0,
-                                    header_discount_amount=payload.get("header_discount") or 0)
+                                    header_discount_amount=payload.get("header_discount") or 0,
+                                    price_includes_vat=flag(payload.get("price_includes_vat"), False))
     return {"subtotal": str(tots["subtotal"]), "discount_total": str(tots["discount_total"]),
             "vat_amount": str(tots["vat_amount"]), "grand_total": str(tots["grand_total"]),
             "lines": [{"line_no": row["line_no"], "line_total": str(row["line_total"])}
@@ -159,7 +160,8 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     totals = contracts.compute_totals(
         payload["lines"],
         vat_rate=_vat_rate(payload) if flag(payload.get("has_vat"), True) else 0,
-        header_discount_amount=payload.get("header_discount") or 0)
+        header_discount_amount=payload.get("header_discount") or 0,
+        price_includes_vat=flag(payload.get("price_includes_vat"), False))
     reasons = contracts.confirm_gates({"doc_kind": kind, "grand_total": totals["grand_total"]})
     if reasons:
         frappe.throw(f"{_(BLOCKED)}: {', '.join(reasons)}")
@@ -182,6 +184,7 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
         doc.append("lines", row)
     doc.update({"doc_kind": kind, "doc_date": day, "customer": customer, "buyer_name": buyer_name,
         "has_vat": int(flag(payload.get("has_vat"), True)), "vat_rate": _vat_rate(payload),
+        "price_includes_vat": int(flag(payload.get("price_includes_vat"), False)),
         "header_discount": totals["header_discount"],
         "system_no": doc.get("system_no") or numbering.allocate(
             direction="sales", on=day,
