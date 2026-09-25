@@ -18,7 +18,7 @@ from pearnly_erp_portal.access.setup import sync_roles
 from pearnly_erp_portal.cashier import api as cashier_api
 from pearnly_erp_portal.inventory import api as stock_api, stock, workbook
 from pearnly_erp_portal.masters import api as master_api, company
-from pearnly_erp_portal.products import service as products
+from pearnly_erp_portal.products import contracts as product_contracts, service as products
 from pearnly_erp_portal.purchasing import entry as purchase, recognition, suppliers
 from pearnly_erp_portal.team import service as team
 
@@ -207,7 +207,10 @@ class EntryFlowAcceptance(unittest.TestCase):
         result = purchase.post(payload, request_id=request)
         doc = frappe.get_doc("Purchase Document", result["name"])
         self.assertEqual(frappe.db.count("ERP Supplier", {"supplier_name": label}), 1)
-        self.assertEqual(frappe.db.count("ERP Product", {"code": label.replace(" ", "-")}), 1)
+        # 票面货号只用来匹配，新建的商品按本系统续号（用户 2026-09-26）。
+        self.assertEqual(frappe.db.count("ERP Product", {"product_name": label}), 1)
+        self.assertFalse(frappe.db.exists("ERP Product", {"code": label.replace(" ", "-")}))
+        self.assertTrue(frappe.db.get_value("ERP Product", doc.lines[0].product, "code").startswith(product_contracts.CODE_PREFIX))
         self.assertEqual(stock.current_balance(doc.lines[0].product, self.warehouse).qty, Decimal(2))
         self.assertTrue(purchase.post(payload, request_id=request)["duplicate"])
         self.assertEqual(stock.current_balance(doc.lines[0].product, self.warehouse).qty, Decimal(2))

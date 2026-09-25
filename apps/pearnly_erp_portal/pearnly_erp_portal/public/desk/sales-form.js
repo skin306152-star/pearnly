@@ -2,7 +2,8 @@
 (() => {
 	const p = frappe.pearnly, u = p.sales_ui;
 	u.editor = async ({page, doc, defaults, editable, intake, still_current, reload, go}) => {
-		const state = {page, doc, defaults, editable, can_write: frappe.model.can_write("ERP Sales Document"),
+		// `intake`：从 LINE 卡片进来、已经识别完 —— 不再问「上传识别 / 手动录入」，直接显示字段。
+		const state = {page, doc, defaults, editable, intake, can_write: frappe.model.can_write("ERP Sales Document"),
 			attachments: (doc.attachments || []).map(row => ({...row})), request_id: frappe.utils.get_random(32),
 			form: null, lines: [], ready: false, busy: false, disposed: false, revision: 0};
 		const changes = frappe.utils.debounce(async () => {
@@ -86,7 +87,7 @@
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
 		await form.set_values({system_no: defaults.system_no, doc_kind: "receipt", doc_date: frappe.datetime.get_today(),
-			party_type: "person", has_vat: 1, vat_rate: defaults.default_vat_rate || 7, is_paid: 1,
+			party_type: "person", has_vat: 1, price_includes_vat: 0, vat_rate: defaults.default_vat_rate || 7, is_paid: 1,
 			payment_method: "cash", payment_date: frappe.datetime.get_today(), header_discount: 0,
 			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")),
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});

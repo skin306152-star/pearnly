@@ -14,7 +14,8 @@
 				row.wht_rate = cents / Number(row.line_total); remaining -= cents;
 			});
 		}
-		const state = {page, doc, defaults, editable, amended_from, can_write: frappe.model.can_write("Purchase Document"),
+		// `intake`：从 LINE 卡片进来、已经识别完 —— 不再问「上传识别 / 手动录入」，直接显示字段。
+		const state = {page, doc, defaults, editable, amended_from, intake, can_write: frappe.model.can_write("Purchase Document"),
 			attachments: (doc.attachments || []).map(row => ({...row})), request_id: frappe.utils.get_random(32),
 			form: null, lines: [], ready: false, busy: false, disposed: false, revision: 0};
 		const changes = frappe.utils.debounce(async () => {

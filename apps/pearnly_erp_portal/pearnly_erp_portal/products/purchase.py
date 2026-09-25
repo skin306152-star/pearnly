@@ -27,7 +27,9 @@ def resolve(line, *, create=True, currency_rate=1):
         name = matches[0] if matches else None
     if not name and create:
         product_name = contracts.require_name(line["description"])
-        code = service._text(line.get("code"), contracts.MAX_CODE) or service._allocate_code()
+        # 编码一律由本系统续号发（用户 2026-09-26：采购与销售同一条规则）。票面上印的是供应商
+        # 自己的货号，只拿来在上面匹配已有商品，不当成我们的商品编码。
+        code = service._allocate_code()
         barcode = service._text(line.get("barcode"), contracts.MAX_BARCODE)
         service._assert_unique(code, barcode)
         item = frappe.get_doc({"doctype": "ERP Product", "product_name": product_name,
