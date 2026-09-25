@@ -42,13 +42,22 @@ jobs:
       - name: Verify offline DMS editor snapshot rendering
         run: node --test scripts/test-dms-editor-snapshot.cjs
       - name: Build an amd64 image from the exact source revision
+        # Layer cache: reuse the dependency layers of the last *verified* image (tagged
+        # build-cache by the publish step, after every check passed). Only safe while every
+        # Dockerfile step is deterministic: pin versions/digests, never fetch "latest".
+        # Credentials are removed right after the build so later test steps never hold them.
         env:
+          REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+          CACHE: ghcr.io/${{ github.repository }}/frappe:build-cache
         run: |
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build --platform linux/amd64 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from "$CACHE" \
             --label org.opencontainers.image.revision="$GITHUB_SHA" \
             --label org.opencontainers.image.source="https://github.com/$GITHUB_REPOSITORY" \
             -f infrastructure/images/frappe.Dockerfile -t "$IMAGE" .
+          docker logout ghcr.io
       - name: Verify account policy and legacy entry points in the candidate runtime
         env:
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
@@ -133,10 +142,14 @@ jobs:
         env:
           REGISTRY_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE: ghcr.io/${{ github.repository }}/frappe:${{ github.sha }}
+          CACHE: ghcr.io/${{ github.repository }}/frappe:build-cache
         run: |
           printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker push "$IMAGE"
           docker image inspect "$IMAGE" --format '{{index .RepoDigests 0}}' > image-digest.txt
+          # Same layers under a second tag: the next build's cache source. Pushed only here,
+          # after every verification step passed, so an unverified build never seeds it.
+          docker tag "$IMAGE" "$CACHE" && docker push "$CACHE"
           printf 'Source: `%s`\n\nImage: `%s`\n' "$GITHUB_SHA" "$(cat image-digest.txt)" >> "$GITHUB_STEP_SUMMARY"
           docker logout ghcr.io
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
