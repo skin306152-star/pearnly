@@ -39,6 +39,27 @@
 
 未验：供应商已选中后跳转箭头位置（本地无供应商数据）；非管理员账号按公司受限的浏览器视角；线上部署与真机。
 
+## 线上每次打开/刷新都慢（`7f68801`、`d156e39`，未部署）
+
+- 现象：线上每次打开或刷新都像强制刷新，每页都慢。
+- 证据（09-25 只读）：线上 `/assets` 响应没有 `Cache-Control`/`Expires`，只有 ETag；一次整页 96 个请求（脚本 58）；
+  主机 nginx 只有 HTTP/1.1。同一静态文件：服务器本机直连容器 0.002–0.01s、本机经主机 https 约 0.1s、从用户 Mac 1.3–5.9s；
+  服务器负载 0.5、内存 5G/32G。左侧菜单切换是页面内路由（不整页重载），每次约 6 个数据请求，正常。
+- 根因：官方 bench nginx 模板给 `/assets` 加 `Cache-Control "max-age=31536000"`；线上前端用的 frappe_docker 镜像模板没有这行。
+- 修改：
+  - `infrastructure/production/frappe.conf.template` = 线上镜像模板原文 + `/assets` 一年缓存；`/assets/**.html` 用 `no-cache`
+    （DMS LINE 预约页以不带版本的 `pearnly-app/index.html` 进入编辑器）；两处都重新 `include` 安全头。三个前端在 compose 里挂载它。
+    本地样板模板同步同样规则。
+  - 主机 nginx：`auth-tls.conf`、`default-deny.conf`、开户脚本生成的租户配置全部 `listen 443 ssl http2`（服务器 nginx 1.24 的写法）。
+- 发新版后用户怎么拿到新的：`/desk` 页面本身 `no-store`，每次取最新；站点实际加载的 60 个脚本、8 个样式全部带内容版本
+  （`?v=` 或打包哈希），改了就换地址。未带版本的只有：LINE 编辑器入口 html（已 no-cache）与原样照搬的扫码库
+  `vendor/barcode-detector/`（升级时须换目录名）。
+- 本地验证：用本仓线上模板起临时前端连本地 ERP：`nginx -t` 通过；静态文件 `max-age=31536000` 且 5 个安全头在；
+  `pearnly-app/index.html` 为 `no-cache`；`/desk` 为 `no-store`；404 不带缓存头。临时容器已删。
+- **部署时额外要做**（需授权）：按产品激活时前端会重建，模板随 `infrastructure/production/` 投递；但主机 nginx 已存在的
+  站点文件（`/etc/nginx/conf.d/pearnly-tenant-*.conf`、`pearnly-auth.conf`、`pearnly-default.conf` 等）不会自动重写，
+  要逐个改成 `listen 443 ssl http2`，`nginx -t` 通过后 `reload`，再从外网回读 `http_version=2` 与缓存头。
+
 ## 暂不处理
 
 - 窄布局（约 800px 宽、两列）下物料框悬停时右侧图标占位导致长物料名被截：用户表示先不管。
