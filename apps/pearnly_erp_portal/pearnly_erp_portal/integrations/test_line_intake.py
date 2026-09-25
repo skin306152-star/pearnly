@@ -14,14 +14,17 @@ from unittest.mock import Mock, patch
 import frappe
 
 from pearnly_core import line, line_binding
-from pearnly_erp_portal.access import guard, menu
+from pearnly_erp_portal.access import guard, menu, rules
 from pearnly_erp_portal.integrations import handlers, intake
 
 
 class GuestIntake(unittest.TestCase):
     def setUp(self):
         self.session = SimpleNamespace(user="Guest")
-        self.users = {"buyer": ["ERP Purchase"], "seller": ["ERP Sales"], "cashier": ["ERP Cashier"]}
+        # LINE is switched on per user (the "ERP LINE" role); every sender here has it,
+        # so the business role alone decides what they may send.
+        self.users = {"buyer": ["ERP Purchase", rules.LINE_ROLE], "seller": ["ERP Sales", rules.LINE_ROLE],
+                      "cashier": ["ERP Cashier", rules.LINE_ROLE]}
         self.enabled = set(self.users)
         self.bindings = {"U-buyer": "buyer", "U-seller": "seller", "U-cashier": "cashier"}
         self.directions = {"U-seller": "sales"}
@@ -160,12 +163,20 @@ class GuestIntake(unittest.TestCase):
                 self.download.assert_not_called()
                 self.assert_restored()
 
+    def test_line_switched_off_refuses_before_download(self):
+        self.users["buyer"] = ["ERP Purchase"]
+        self.webhook()
+        self.assertEqual(self.replies[-1][1][0]["text"], "LINE is not enabled for this account")
+        self.download.assert_not_called()
+        self.assertEqual((self.docs, self.files), ({}, []))
+        self.assert_restored()
+
     def test_revoked_feature_blocks_legacy_and_menu_roles_before_download(self):
         for user, direction, legacy in (("buyer", "purchase", "ERP Purchase"),
                                         ("seller", "sales", "ERP Sales")):
             for role in (legacy, menu.role(direction)):
                 with self.subTest(direction=direction, role=role):
-                    self.users[user] = [role]
+                    self.users[user] = [role, rules.LINE_ROLE]
                     frappe.conf["pearnly_features"] = ["purchase", "sales", "cashier"]
                     self.assertTrue(guard.has(direction + ".write", user=user))
                     frappe.conf["pearnly_features"].remove(direction)
