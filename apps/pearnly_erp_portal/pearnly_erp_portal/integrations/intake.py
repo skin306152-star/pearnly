@@ -43,18 +43,11 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
     if sent_by != frappe.session.user or line_binding.user_of(line_user_id) != sent_by:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     guard.require(DIRECTION_CAPABILITY[direction])
-    if not content:
-        frappe.throw(_("This document has no content"))
-    if len(content) > MAX_BYTES:
-        frappe.throw(_("This document is too large"))
     from pearnly_erp_portal.masters import company
 
     company.document_company(choices.get("company"), sent_by)  # still permitted?
-    # 私有、归本人、先不挂任何单据：识别与入账都按「本人上传的未挂文件」来认它。
-    # 所以记录上的源文件字段是 Data 不是 Attach —— Attach 会让 Frappe 保存时把这份文件
-    # 自动挂到收单记录上，识别就会被判「不是本人未挂出的上传」而拒绝（2026-09-26 真机）。
-    file = frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
-                           "content": content}).insert(ignore_permissions=True)
+    # `content` 为 None：webhook 不下载，识别任务里再取（见 `_fetch`）。
+    file = _store(content, filename) if content is not None else None
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "status": QUEUED, "direction": direction, "owner": sent_by,
         "sent_by": sent_by, "line_user_id": line_user_id,
@@ -62,8 +55,10 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
         # 重试，重试时不能再指望缓存或临时去问 LINE（09-26 一次重试回成了泰文）。
         "language": getattr(frappe.local, "lang", None) or channel_language(),
         "media_type": MEDIA_TYPES.get(media_type, media_type or ""),
-        "line_message_id": line_message_id, "file_hash": hashlib.sha256(content).hexdigest(),
-        "source_file": file.file_url, "source_file_name": file.name, "received_at": now(),
+        "line_message_id": line_message_id,
+        "file_hash": hashlib.sha256(content).hexdigest() if file else None,
+        "source_file": file.file_url if file else None, "source_file_name": file.name if file else None,
+        "received_at": now(),
         "company": choices.get("company"), "party": choices.get("party") or "",
         "is_paid": int(bool(choices.get("is_paid"))), "payment_method": choices.get("payment_method") or "",
         "item_kind": choices.get("item_kind"), "warehouse": choices.get("warehouse") or None,
@@ -75,12 +70,41 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
     line.start_loading(line_user_id, 60)
     try:
         submit(OCR_KIND, doc.name, {"intake": doc.name, "line_user_id": line_user_id,
-                                    "reply_token": reply_token}, sent_by)
+                                    "reply_token": reply_token, "filename": filename}, sent_by)
     except (QueueFull, Deferred):
         _drop(doc, FAILED, "queue_busy")
         line.reply(reply_token, [{"type": "text", "text": _(
             "The recognition queue is busy. Please send the document again shortly.")}])
     return {"name": doc.name}
+
+
+def _store(content, filename):
+    """私有、归本人（当前会话用户）、先不挂任何单据：识别与入账都按「本人上传的未挂文件」来认它。
+    所以记录上的源文件字段是 Data 不是 Attach —— Attach 会让 Frappe 保存时把这份文件
+    自动挂到收单记录上，识别就会被判「不是本人未挂出的上传」而拒绝（2026-09-26 真机）。"""
+    if not content:
+        frappe.throw(_("This document has no content"))
+    if len(content) > MAX_BYTES:
+        frappe.throw(_("This document is too large"))
+    return frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
+                           "content": content}).insert(ignore_permissions=True)
+
+
+def _fetch(doc, filename):
+    """识别任务里从 LINE 取这张图 / PDF，存成本人的私有文件，先提交 —— 识别若被限流推迟重跑，
+    不会再下载一次。取不到（过期、网络、过大）就落为失败，告诉本人重发。"""
+    try:
+        content = line.download_message_content(doc.line_message_id or "")
+        file = _store(content, filename or f"line-{doc.line_message_id or 'document'}.jpg")
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="ERP LINE document download failed", message=frappe.get_traceback()[-1500:])
+        return False
+    doc.update(file_hash=hashlib.sha256(content).hexdigest(), source_file=file.file_url,
+               source_file_name=file.name)
+    doc.save(ignore_permissions=True)
+    frappe.db.commit()
+    return True
 
 
 def _file_name(doc):
@@ -110,7 +134,7 @@ def _recogniser(direction):
     return recognition
 
 
-def run(intake, line_user_id, reply_token=""):
+def run(intake, line_user_id, reply_token="", filename=""):
     """登记在 `pearnly_ocr_handlers` 的识别入口。换绑 / 停用时不识别、不扣费。"""
     doc = frappe.get_doc(DOCTYPE, intake)
     if doc.status != QUEUED:
@@ -124,6 +148,11 @@ def run(intake, line_user_id, reply_token=""):
     # 不随这个账号在网页端的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
     frappe.local.lang = doc.get("language") or line.user_language(line_user_id, default=channel_language())
     try:
+        if not _file_name(doc) and not _fetch(doc, filename):
+            _drop(doc, FAILED, "download_failed")
+            line.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
+                               reply_token)
+            return {"failed": "download_failed", "notified": True}
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}])
         except frappe.ValidationError as exc:

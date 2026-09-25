@@ -9,7 +9,7 @@ from frappe import _
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.purchasing import files
-from pearnly_erp_portal.recognition import checks, policy
+from pearnly_erp_portal.recognition import checks, dates, policy
 
 PROMPT = '''Read this purchase document. Return only a JSON object containing fields actually printed:
 doc_no, doc_date (YYYY-MM-DD), due_date, doc_kind (purchase_invoice|purchase_order|expense),
@@ -22,7 +22,7 @@ Copy doc_no, codes and every line description exactly as printed, character by c
 original language and spelling; never replace them with a similar or better-known product name.
 discount is the line discount amount; when the discount column is a percentage (e.g. headed "%" or
 "ส่วนลด %"), put that number in discount_percent instead. discount_total is the bill-level discount amount.
-Also return is_document (false when the image is not a purchase document at all), buyer_tax_id,
+Also return doc_date_raw (the document date exactly as printed, e.g. 19/05/69 or 10/05/2569), is_document (false when the image is not a purchase document at all), buyer_tax_id,
 and printed {subtotal, discount, vat, total}: the summary amounts exactly as printed at the foot of the
 document, where subtotal is the amount before VAT (e.g. ราคาสินค้า / มูลค่าก่อนภาษี / ยอดก่อน VAT), vat
 the VAT amount and total the grand total; null for any that is not printed.
@@ -135,6 +135,8 @@ def _structured(raw):
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
     result["buyer_tax_id"] = raw.get("buyer_tax_id")
+    # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
+    result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
     mode = checks.vat_mode(result["printed"], _line_sum(result["lines"]), result.get("discount_total"))
     if mode:
         result.update(has_vat=True, price_mode=mode)

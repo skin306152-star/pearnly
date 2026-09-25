@@ -738,6 +738,7 @@ Received By,Received By
 Received; confirm it on the ERP page,Received; confirm it on the ERP page
 Recent Orders,Recent Orders
 Recent Transactions,Recent Transactions
+Recognition is busy right now. Please try again in a minute.,Recognition is busy right now. Please try again in a minute.
 Recognition is not configured for this account,Recognition is not configured for this account
 Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
@@ -970,6 +971,7 @@ The product identifiers refer to different products,The product identifiers refe
 The quantity is not a valid number,The quantity is not a valid number
 The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
 The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
+The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.

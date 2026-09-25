@@ -53,3 +53,17 @@ def describe(codes):
     from frappe import _
 
     return [_(checks.MESSAGES[code]) for code in codes if code in checks.MESSAGES]
+
+
+def for_web(call):
+    """网页端「上传识别」是同步请求：限流 / 容量不足 / 结果不确定给人话，不把内部异常抛到页面上。
+    只给网页入口用 —— LINE 收单在队列里跑，`Deferred` 要原样抛出去让队列按时重试。"""
+    from frappe import _
+    from pearnly_core.execution.errors import Deferred, QueueFull, Uncertain
+
+    try:
+        return call()
+    except (Deferred, QueueFull):
+        frappe.throw(_("Recognition is busy right now. Please try again in a minute."))
+    except Uncertain:
+        frappe.throw(_("The recognition service did not answer in time. Please try again."))

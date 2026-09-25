@@ -1290,3 +1290,5 @@ The document date is more than 5 years old	单据日期早于 5 年前，请核�
 Please check this document before submitting	提交前请核对	กรุณาตรวจสอบก่อนบันทึก	提出前に確認してください
 This is not a purchase or sales document	这不是采购或销售单据	เอกสารนี้ไม่ใช่เอกสารซื้อหรือขาย	これは仕入・売上の書類ではありません
 The VAT worked out from the items does not match the printed VAT	明细算出的 VAT 与票面 VAT 不符	VAT ที่คำนวณจากรายการไม่ตรงกับ VAT บนเอกสาร	明細から計算した VAT が書類の VAT と一致しません
+Recognition is busy right now. Please try again in a minute.	识别服务繁忙，请一分钟后再试。	ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	読み取りが混み合っています。1 分後にもう一度お試しください。
+The recognition service did not answer in time. Please try again.	识别服务没有按时回应，请重试。	ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。

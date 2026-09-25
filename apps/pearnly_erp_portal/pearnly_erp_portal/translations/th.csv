@@ -738,6 +738,7 @@ Received By,ผู้รับเงิน
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Recent Orders,ออเดอร์ล่าสุด
 Recent Transactions,ธุรกรรมล่าสุด
+Recognition is busy right now. Please try again in a minute.,ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที
 Recognition is not configured for this account,ยังไม่ได้ตั้งค่าการรู้จำข้อความ
 Recognition returned nothing,ไม่พบข้อมูลจากการรู้จำ
 Recognizing...,กำลังอ่านข้อความ…
@@ -970,6 +971,7 @@ The product identifiers refer to different products,รหัสในแถว�
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
 The recognition queue is busy. Please send the document again shortly.,คิวอ่านเอกสารเต็ม กรุณาส่งใหม่อีกครั้งในอีกสักครู่
 The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านต้องตรวจสอบ กรุณายังไม่ต้องส่งเอกสารนี้ซ้ำ
+The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง

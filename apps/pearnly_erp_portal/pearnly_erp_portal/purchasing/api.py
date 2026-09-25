@@ -113,8 +113,9 @@ def api_purchase_voucher(name, kind):
 @frappe.whitelist(methods=["POST"])
 def api_recognise_purchase(attachments=None, document_name=None):
     from pearnly_erp_portal.purchasing import recognition
+    from pearnly_erp_portal.recognition import policy
 
-    return recognition.recognise(frappe.parse_json(attachments), document_name=document_name)
+    return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name))
 
 
 @frappe.whitelist()

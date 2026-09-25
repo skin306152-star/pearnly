@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.recognition import checks, policy
+from pearnly_erp_portal.recognition import checks, dates, policy
 from pearnly_erp_portal.sales import access, contracts, files
 
 # 只要票面上真有的字段；**不要模型替我们算金额**（算错看不出来）。
@@ -19,7 +19,7 @@ price_includes_vat (true when the printed prices already include VAT, e.g. "VAT 
 price per unit, amount the printed line amount (many receipts print only the amount), discount a line
 discount amount and discount_percent a line discount printed as a percentage. Copy every line description exactly as printed,
 character by character, in the original language and spelling; never replace it with a similar or
-better-known product name. Also return discount_total (a bill-level discount amount as printed),
+better-known product name. Also return doc_date_raw (the document date exactly as printed, e.g. 19/05/69 or 10/05/2569), discount_total (a bill-level discount amount as printed),
 seller_tax_id, buyer_tax_id, is_document (false when the image is not a sales document at all) and
 printed {subtotal, discount, vat, total}: the summary amounts exactly as printed at the foot of the
 document, where subtotal is the amount before VAT (e.g. ยอดก่อนภาษี / มูลค่าก่อน VAT), vat the VAT amount
@@ -73,6 +73,8 @@ def _structured(raw):
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
     result.update(seller_tax_id=raw.get("seller_tax_id"), buyer_tax_id=raw.get("buyer_tax_id"))
+    # 票面日期由代码换算佛历（旧线上口径），换算不出才用模型给的。
+    result["doc_date"] = dates.printed(raw.get("doc_date_raw")) or result.get("doc_date")
     line_sum = sum((checks.money(row.get("qty") or 1) or 0) * (checks.money(row.get("unit_price")) or 0)
                    - (checks.money(row.get("discount")) or 0) for row in result["lines"])
     mode = checks.vat_mode(result["printed"], line_sum, result.get("header_discount"))

@@ -738,6 +738,7 @@ Received By,收款人
 Received; confirm it on the ERP page,已收到，请到 ERP 页面确认
 Recent Orders,最近订单
 Recent Transactions,最近交易
+Recognition is busy right now. Please try again in a minute.,识别服务繁忙，请一分钟后再试。
 Recognition is not configured for this account,尚未配置文字识别
 Recognition returned nothing,未识别到内容
 Recognizing...,识别中…
@@ -970,6 +971,7 @@ The product identifiers refer to different products,这行的物料标识、编�
 The quantity is not a valid number,数量不是有效数字
 The recognition queue is busy. Please send the document again shortly.,识别队列繁忙，请稍后重新发送
 The recognition result needs checking. Please do not resend this document yet.,识别结果需要核对，请先不要重发
+The recognition service did not answer in time. Please try again.,识别服务没有按时回应，请重试。
 The row has no product code or barcode,这一行没有物料编号或条码
 The sheet needs a product name column,表里要有物料名称列
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。

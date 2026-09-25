@@ -738,6 +738,7 @@ Received By,受領者
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Recent Orders,最近の会計
 Recent Transactions,最近の取引
+Recognition is busy right now. Please try again in a minute.,読み取りが混み合っています。1 分後にもう一度お試しください。
 Recognition is not configured for this account,文字認識が設定されていません
 Recognition returned nothing,内容を認識できませんでした
 Recognizing...,読み取り中…
@@ -970,6 +971,7 @@ The product identifiers refer to different products,この行の商品ID・コ�
 The quantity is not a valid number,数量が正しい数値ではありません
 The recognition queue is busy. Please send the document again shortly.,読み取りが混み合っています。しばらくしてからもう一度送ってください
 The recognition result needs checking. Please do not resend this document yet.,読み取り結果の確認が必要です。まだ再送しないでください
+The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。

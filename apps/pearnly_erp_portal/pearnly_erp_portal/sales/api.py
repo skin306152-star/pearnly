@@ -89,8 +89,9 @@ def api_sales_export(params=None):
 @frappe.whitelist(methods=["POST"])
 def api_recognise_sales(attachments=None, document_name=None):
     from pearnly_erp_portal.sales import recognition
+    from pearnly_erp_portal.recognition import policy
 
-    return recognition.recognise(frappe.parse_json(attachments), document_name=document_name)
+    return policy.for_web(lambda: recognition.recognise(frappe.parse_json(attachments), document_name=document_name))
 
 
 @frappe.whitelist()

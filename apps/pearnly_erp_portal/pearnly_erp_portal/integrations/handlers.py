@@ -61,7 +61,8 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
         filename = f"line-{message.get('id') or 'document'}.jpg" if media_type == "image" \
             else f"line-{message.get('id') or 'document'}.pdf"
     try:
-        content = line.download_message_content(message.get("id") or "")
+        # 不在回调里下载（用户 09-25：发图片时回调里同步下载，LINE 先断开，访问日志 499）：
+        # 这里只登记、排队，图片在识别任务里再从 LINE 取（`intake.run` → `_fetch`）。
         # A signed webhook is still a Guest request. Use only the verified local
         # binding, never Administrator, and restore it before another event runs.
         previous_user = frappe.session.user
@@ -70,7 +71,7 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
             # 同一组选择可以连发多张：每张各排一次识别、各出一张卡；选择的 30 分钟重新计时。
             line_flow.keep(user_id, choices)
             intake.receive(line_user_id=user_id, sent_by=bound, choices=choices,
-                           media_type=media_type, content=content, filename=filename,
+                           media_type=media_type, content=None, filename=filename,
                            line_message_id=message.get("id") or "", reply_token=reply_token)
         finally:
             frappe.set_user(previous_user)

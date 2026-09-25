@@ -160,7 +160,7 @@ class Documents(Base):
     def test_ready_document_is_received_as_the_bound_user_and_guest_restored(self):
         self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload", "company": "CO-1",
             "party": "@doc", "is_paid": 0, "payment_method": "", "item_kind": "service"}}
-        self.enterContext(patch("pearnly_core.line.download_message_content", return_value=b"file"))
+        download = self.enterContext(patch("pearnly_core.line.download_message_content", return_value=b"file"))
         seen = {}
         receive = self.enterContext(patch.object(intake, "receive",
                                     side_effect=lambda **kw: seen.update(user=frappe.session.user, **kw)))
@@ -169,6 +169,44 @@ class Documents(Base):
         receive.assert_called_once()
         self.assertEqual((seen["user"], seen["sent_by"], seen["choices"]["company"]), ("buyer", "buyer", "CO-1"))
         self.assertEqual(frappe.session.user, "Guest")
+        # 回调里不下载（09-25 发图 499）：只登记排队，识别任务里再取。
+        download.assert_not_called()
+        self.assertEqual((seen["content"], seen["line_message_id"]), (None, "M1"))
+
+    def test_the_recognition_job_fetches_the_document_once(self):
+        from pearnly_core import line
+
+        doc = _doc(status=intake.QUEUED, language="th", source_file_name=None, source_file=None, line_message_id="M1")
+        doc.update = lambda **values: [setattr(doc, key, value) for key, value in values.items()]
+        doc.get = lambda key, default=None: getattr(doc, key, default)
+        doc.save = lambda **kw: None
+        doc.reload = lambda: None
+        stored = SimpleNamespace(name="FILE-9", file_url="/private/files/x.jpg")
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda *a, **kw: doc if a and a[0] == intake.DOCTYPE
+                                       else SimpleNamespace(insert=lambda **k: stored), create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        download = self.enterContext(patch.object(line, "download_message_content", return_value=b"img"))
+        seen = {}
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
+            recognise=lambda files: seen.setdefault("files", files) and {"lines": []})))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
+        intake.run("LI-1", "U1", filename="line-M1.jpg")
+        download.assert_called_once_with("M1")
+        self.assertEqual((doc.source_file_name, seen["files"]), ("FILE-9", [{"file": "FILE-9", "kind": "bill"}]))
+
+    def test_a_document_that_cannot_be_fetched_fails_and_says_so(self):
+        from pearnly_core import line
+
+        doc = _doc(status=intake.QUEUED, language="th", source_file_name=None, line_message_id="M1")
+        self.enterContext(patch.object(frappe, "get_doc", return_value=doc, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch.object(line, "download_message_content", side_effect=RuntimeError("expired")))
+        self.enterContext(patch.object(frappe, "log_error", create=True))
+        dropped = self.enterContext(patch.object(intake, "_drop"))
+        self.assertEqual(intake.run("LI-1", "U1"), {"failed": "download_failed", "notified": True})
+        dropped.assert_called_once_with(doc, intake.FAILED, "download_failed")
+        self.assertEqual(self.last_text(), "Could not store this document")
 
 
 def _doc(**values):
@@ -473,6 +511,20 @@ class Checks(unittest.TestCase):
         self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
         self.assertEqual(recognition.review(result), [])
 
+    def test_printed_dates_are_converted_by_code(self):
+        from datetime import date
+
+        from pearnly_erp_portal.recognition import dates
+
+        today = date(2026, 9, 26)
+        self.assertEqual(dates.printed("10/05/2569", today), "2026-05-10")   # 佛历四位
+        self.assertEqual(dates.printed("07/05/2026", today), "2026-05-07")   # 公历四位
+        self.assertEqual(dates.printed("19/05/69", today), "2026-05-19")     # 两位：只有佛历说得通
+        self.assertEqual(dates.printed("07.05.26", today), "2026-05-07")     # 两位：只有公历说得通
+        self.assertEqual(dates.printed("2569-05-27", today), "2026-05-27")
+        self.assertIsNone(dates.printed("10 พ.ค. 69", today))               # 泰文月份：交给模型
+        self.assertIsNone(dates.printed("31/02/2026", today))
+
     def test_dates_are_soft(self):
         from datetime import date
 
@@ -541,6 +593,24 @@ class Escalation(unittest.TestCase):
         sent.clear()
         ocr.json_from_images("P", [(b"x", "image/jpeg")], model="gemini-3.8-flash")
         self.assertNotIn("thinkingConfig", sent)  # DMS 等不传的调用照旧
+
+
+class WebRecognition(unittest.TestCase):
+    def test_busy_provider_gives_a_plain_message_on_the_web_only(self):
+        from pearnly_core.execution.errors import Deferred
+
+        from pearnly_erp_portal.recognition import policy
+
+        def busy():
+            raise Deferred("provider_429", 10)
+
+        with patch.object(frappe, "throw", side_effect=RuntimeError, create=True) as thrown, \
+                patch.object(frappe, "_", _same, create=True):
+            with self.assertRaises(RuntimeError):
+                policy.for_web(busy)
+        self.assertIn("busy", thrown.call_args.args[0])
+        with self.assertRaises(Deferred):
+            busy()  # LINE 队列那条路不包：限流要原样交给队列重试
 
 
 class Products(Base):
