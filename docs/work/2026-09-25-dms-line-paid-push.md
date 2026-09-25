@@ -78,3 +78,21 @@
   `reply_ok` 上升。HTTP 200 或测试通过不等于账单变化。
 - 合并后，同一次反应里的消息在处理结束时一起到达（以前是逐条到）；建档、订车这些后台任务本来就只在结束时发消息，
   看起来不会有差别。
+
+## 合并与上线（2026-09-25 泰国 19:44–20:05）
+
+- 合并：`codex/dms-line-paid-push` 快进合入 `main` = `583262acf24688e723a1d1ac45457e7ae03fac6c`，远端回读一致。
+  分支与 main 上的 Development checks 均通过；Build production image `36136873895` 通过。
+- 镜像：`ghcr.io/skin306152-star/pearnly/frappe@sha256:b2e32d176c2637f762890e8ca1f0f4570b6f9a04de3dd005c014903c076e5ffe`
+  （revision 标签 `583262a`），Stage `36137733418` 成功，`activate-product.sh … dms` 输出
+  “Product dms activated with verified image.”，日志 `/opt/pearnly/state/activate-dms-583262a.log`。
+  上一版为 `sha256:ed26caae…`（源码 `4997d72`）。
+- 回读：8 个 DMS 容器均为 `b2e32d176c26`；`testdms` / `ris` ping 200、`maintenance_mode=0`、scheduler 已开；
+  容器内 `line.batch`、webhook 与 `run_guarded` 的收集块、订车令牌透传均在；新容器 3 分钟内日志 0 条错误。
+- 部署前用量基线（当天 15:55 发版后）：testdms `reply_ok=1`；ris `reply_ok=30, push_ok=4`。
+
+### 仍未验收
+
+- 真实 LINE 操作后的计费变化：需要实际走一遍菜单 1（保存 / 保留旧资料）、问候语、订车确认，
+  再读 `bench --site testdms.pearnly.com execute pearnly_core.line.usage` 看 `push_ok` 是否不再增加。
+- 用户确认前不算业务验收。
