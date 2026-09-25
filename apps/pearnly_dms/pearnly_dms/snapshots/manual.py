@@ -23,7 +23,12 @@ LEASE_AGE = 15 * 60
 # 可续读的失败自动接着排下一步：断点还在，所以那是真的往前推进，不是从零重来。
 # 连失败这么多次就停手，交给下一次显式请求或夜间任务，免得对着坏掉的上游空转。
 MAX_RETRIES = 5
-RETRYABLE = "ERR_DMS_SNAPSHOT_RETRY"
+#: 值得再排一次的错误码。
+#: · `ERR_DMS_SNAPSHOT_RETRY` —— 传输抖动、单步租约用完（断点还在）。
+#: · `ERR_UNEXPECTED` —— 采集器抛了非预期异常（浏览器崩、网络库异常这类）。
+#:   2026-09-25 实测：testdms 的客户组偶发栽在这上面，整组作废、任务链断掉，
+#:   而手工重跑立刻成功 —— 说明它多半是瞬时的，值得重试。有 MAX_RETRIES 兜底。
+RETRYABLE = {"ERR_DMS_SNAPSHOT_RETRY", "ERR_UNEXPECTED"}
 
 
 def _collector(dataset, reader):
@@ -203,7 +208,7 @@ def execute(endpoint, dataset, reader, request_id, step=0):
         if result.get("busy"):
             state = "waiting"
         elif not result.get("ok"):
-            if result.get("error_code") == RETRYABLE and retries < MAX_RETRIES:
+            if result.get("error_code") in RETRYABLE and retries < MAX_RETRIES:
                 # 传输抖动、单步租约用完这类失败可以接着读：检查点没有被丢掉。
                 state = "queued"
                 retries += 1
