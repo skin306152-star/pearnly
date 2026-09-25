@@ -7,6 +7,7 @@ Address sync is delayed; showing address data as of {time},地址同步有延迟
 Booking ID,订车编号
 Booking Number,订车单号
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
+"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 Cached result captured at {time},已缓存结果读取于 {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",选择需要读取的资料，点击后在后台处理。查看状态不会连接 DMS。账号忙时，请稍后再次点击继续。
 Company information,公司资料
@@ -67,6 +68,7 @@ Submission Nonce,提交随机码
 Sync is delayed; showing data as of {time},同步有延迟，当前显示 {time} 的资料
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
 The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
+The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS 连接或账号已变更，不能继续使用旧连接资料。请等待重新同步，再打开此页面。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS 连接或账号已变更，不能继续使用旧资料。请手动读取新连接资料，成功后重新打开此页面。

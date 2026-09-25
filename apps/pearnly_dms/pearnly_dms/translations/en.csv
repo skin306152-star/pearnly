@@ -7,6 +7,7 @@ Address sync is delayed; showing address data as of {time},Address sync is delay
 Booking ID,Booking ID
 Booking Number,Booking Number
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
+"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 Cached result captured at {time},Cached result captured at {time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
 Company information,Company information
@@ -67,6 +68,7 @@ Submission Nonce,Submission Nonce
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
+The DMS account stayed busy; automatic retries did not get through. Please try again later.,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.","The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.","The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page."

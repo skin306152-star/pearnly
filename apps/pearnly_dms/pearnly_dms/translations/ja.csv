@@ -7,6 +7,7 @@ Address sync is delayed; showing address data as of {time},住所の同期が遅
 Booking ID,予約ID
 Booking Number,予約番号
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
+"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of",このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 Cached result captured at {time},保存済み結果の取得時刻：{time}
 "Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.",読み取るデータを選択してください。クリック後のみバックグラウンドで処理します。状態確認は DMS に接続しません。アカウントが使用中の場合は、後で再度クリックして続行してください。
 Company information,会社情報
@@ -67,6 +68,7 @@ Submission Nonce,送信ノンス
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS account is busy. The read retries automatically; please wait.,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
+The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.",DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。
 The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,DMS の接続またはアカウントが変更されました。以前の接続のデータは使用できません。再同期後にページを開き直してください。
 "The DMS connection or account changed. Previous data cannot be used. Request a read for the new connection, then reopen this page.",DMS の接続またはアカウントが変更されました。以前のデータは使用できません。新しい接続で読み取りを行い、この画面を開き直してください。
