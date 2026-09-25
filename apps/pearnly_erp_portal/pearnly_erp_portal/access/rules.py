@@ -58,18 +58,16 @@ CAPABILITY_FEATURES = {
     # 按税号查泰国税务局的官方登记信息（建供应商/客户时带出抬头与地址）。
     # 采购与销售两侧都要用，所以两个岗位都给；收银不开票、不需要。
     "tax.lookup": ("purchase", "clients", "sales"),
-    # 集成（本租户自己的 LINE 官方号绑定）。绑定是**自己绑自己**：页面只给当前登录
-    # 账号发码，服务层也不收"绑哪个账号"的参数（见 integrations/binding.py）。
-    # 所以这里不放宽也不收紧：任何拿到业务岗位的员工都能绑自己的账号 —— 旧线上
-    # 就是"有 ERP 入口的员工都能绑"，而没岗位的账号连集成页都进不去。
-    "integration.read": ("products", "warehouses", "stockcard", "purchase", "sales",
-                         "clients", "cashier"),
-    "integration.manage": ("products", "warehouses", "stockcard", "purchase", "sales",
-                           "clients", "cashier"),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。
 ADMIN_CAPABILITIES = ("team.manage",)
+
+# LINE（本租户官方号）：团队管理里**逐人勾选**才开通（用户 2026-09-25），不再随业务岗位自动给；
+# 租户管理员本人默认可用。绑定仍是**自己绑自己**（码只发给当前登录账号，见 integrations/binding.py），
+# 绑上之后能往账上发什么单据，另按采购 / 销售岗位判（`intake.DIRECTION_CAPABILITY`）。
+LINE_ROLE = "ERP LINE"
+LINE_CAPABILITIES = ("integration.read", "integration.manage")
 
 # 成本可见的岗位。
 #
@@ -94,6 +92,8 @@ def required_roles(capability: str) -> tuple[str, ...]:
     """某能力需要的角色。未知能力返回空元组，调用方据此一律拒绝（fail-closed）。"""
     if capability in ADMIN_CAPABILITIES:
         return (ADMIN_ROLE,)
+    if capability in LINE_CAPABILITIES:
+        return (LINE_ROLE, ADMIN_ROLE)
     if capability == "company.manage":
         return COMPANY_MANAGE_ROLES
     aliases = {"suppliers.read": "purchase.read", "suppliers.write": "purchase.write",

@@ -15,6 +15,7 @@ import re
 
 import frappe
 from frappe import _
+from frappe.utils import cint
 
 from pearnly_erp_portal.access import guard, rules, menu
 
@@ -237,6 +238,7 @@ def list_members() -> list[dict]:
     emails = sorted(set(frappe.get_all(
         "Has Role", filters={"role": ["in", list(roles | {rules.ADMIN_ROLE})], "parenttype": "User"}, pluck="parent"
     )))
+    bindings = _line_bindings(emails)
     members = []
     for email in emails:
         if email == "Administrator":
@@ -261,11 +263,42 @@ def list_members() -> list[dict]:
             "companies": member_companies(email),
             "last_login": user.last_login,
             "is_admin": bool(set(rules.ALL_RECORDS_ROLES) & {r.role for r in user.roles}),
+            # LINE：开没开（租户管理员本人默认开），以及绑到了哪个 LINE。绑定码只有本人看得到
+            # （`integrations/binding.py`），名单里只给状态。
+            "line": admin_row or rules.LINE_ROLE in {r.role for r in user.roles},
+            "line_name": (bindings.get(email) or {}).get("display_name") or "",
+            "line_bound_at": (bindings.get(email) or {}).get("bound_at"),
         })
     return members
 
 
-def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None) -> dict:
+def _line_bindings(emails) -> dict:
+    rows = frappe.get_all("Pearnly LINE Binding", filters={"user": ["in", list(emails) or [""]],
+                          "status": "active"}, fields=["user", "display_name", "bound_at"])
+    return {row.user: row for row in rows}
+
+
+def _set_line(user, enabled) -> bool:
+    """勾上 / 取消 LINE（`ERP LINE` 角色）。返回"是否刚取消"，调用方在保存后解绑。"""
+    held = [row for row in user.roles if row.role == rules.LINE_ROLE]
+    if enabled and not held:
+        user.append("roles", {"role": rules.LINE_ROLE})
+    for row in ([] if enabled else held):
+        user.roles.remove(row)
+    return bool(held) and not enabled
+
+
+def _unbind_line(user: str) -> None:
+    """取消 LINE = 立即解绑（用户 2026-09-25）：这个 LINE 再发单据会被拒。"""
+    from pearnly_core import line_binding
+
+    for line_user_id in frappe.get_all("Pearnly LINE Binding", filters={"user": user, "status": "active"},
+                                       pluck="line_user_id"):
+        line_binding.unbind(line_user_id)
+
+
+def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None,
+               line=0) -> dict:
     """新增员工：**用户名** + 邮箱 + 初始密码 + 勾选的岗位。
 
     用户 2026-09-24 的口径："添加用户必须是英文和数字，不区分大小写，长度不限；密码可以自由
@@ -305,7 +338,8 @@ def add_member(username: str = "", email: str = "", roles=None, password=None, c
         "first_name": username,
         "send_welcome_email": 0,
         "user_type": "System User",
-        "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted)],
+        "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted),
+                  *([{"role": rules.LINE_ROLE}] if cint(line) else [])],
     })
     # 初始密码由老板当面给员工，不走"邀请邮件"那条路（本租户不接邮件通道）。
     if _local_password_allowed():
@@ -341,7 +375,7 @@ def set_member_password(email: str, password=None) -> dict:
     return {"email": user.name}
 
 
-def set_member_roles(email: str, roles=None, companies=None) -> dict:
+def set_member_roles(email: str, roles=None, companies=None, line=None) -> dict:
     """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。
 
     这里**只有岗位**可改：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
@@ -370,7 +404,10 @@ def set_member_roles(email: str, roles=None, companies=None) -> dict:
     for role in wanted:
         if role not in held:
             user.append("roles", {"role": role})
+    turned_off = _set_line(user, cint(line)) if line is not None else False
     user.save(ignore_permissions=True)
+    if turned_off:
+        _unbind_line(user.name)
     if wanted_companies is not None:
         _write_companies(user, wanted_companies)
     frappe.db.commit()

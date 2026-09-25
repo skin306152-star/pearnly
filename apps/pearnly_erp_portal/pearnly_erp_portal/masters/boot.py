@@ -17,6 +17,10 @@ def boot_session(bootinfo):
         # 「这家公司卖货的那个仓」：进货/出入库那些表单的仓库建议值用它（原来取的是商品上
         # 那个遗留的"默认仓"，会让进货落在一个仓、收银从另一个仓卖）。没有收银台时是空串。
         bootinfo.pearnly_warehouse = companies.selling_warehouse() or ""
+        # 个人信息页要不要出现「LINE」那一块：与绑定接口同一个能力码（团队管理里逐人勾选）。
+        from pearnly_erp_portal.access import guard
+
+        bootinfo.pearnly_line = guard.has("integration.read")
     except Exception:
         # boot 失败会让整个 desk 打不开，这里绝不往外抛。
         frappe.log_error(title="pearnly_erp_portal.masters.boot 失败")

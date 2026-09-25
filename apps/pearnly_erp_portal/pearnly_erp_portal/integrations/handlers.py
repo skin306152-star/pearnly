@@ -49,6 +49,10 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
     if not consumed:
         line.reply(reply_token, [{"type": "text", "text": _("That code is not valid")}])
         return
+    # 码是本人在网页上领的，但领码之后 LINE 可能已被管理员取消（团队管理那一勾）。
+    if not guard.has("integration.manage", user=consumed["user"]):
+        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        return
     profile = line.get_profile(user_id) or {}
     line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
     line.reply(reply_token, [{"type": "text", "text": _("Bound to {0}").format(
@@ -58,6 +62,9 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
 def _receive_document(user_id: str, bound: str, message: dict, reply_token: str,
                       direction: str = "purchase") -> None:
     """收到图片/PDF：留底并落草稿。没有对应岗位的人不能往账上放单据。"""
+    if not guard.has("integration.read", user=bound):
+        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        return
     capability = intake.DIRECTION_CAPABILITY.get(direction) or "purchase.write"
     if not guard.has(capability, user=bound):
         line.reply(reply_token, [{"type": "text",

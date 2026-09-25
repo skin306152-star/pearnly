@@ -94,9 +94,7 @@ class NativeDeskContract(unittest.TestCase):
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
             'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
-            'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
-            # 2026-09-25 ERP 的 LINE 集成页（绑定官方号）做好了，入口开放。
-            'pearnly-integrations'})
+            'pearnly-team', 'pearnly-company', 'pearnly-warehouses'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])

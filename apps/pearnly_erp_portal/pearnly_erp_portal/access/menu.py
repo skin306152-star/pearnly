@@ -41,7 +41,7 @@ def capabilities(held):
     if selected:
         result.add("company.read")
     if any(key not in ("home", "profile", "team") for key in selected):
-        result.update(("integration.read", "integration.manage", "products.view", "stock.read"))
+        result.update(("products.view", "stock.read"))
     if any(key in selected for key in ("stock-in", "stock-out")):
         result.add("stock.write")
     return result

@@ -27,6 +27,8 @@ def sync_roles():
                 _grant(doctype, role, write if doctype in writable else read)
         if key in ("inventory", "stock-in", "stock-out", "stock-card", "stock-count", "warehouses"):
             _grant("ERP Stock Count Item", role, {"read": 1}, permlevel=1)
+    # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
+    _ensure_role(rules.LINE_ROLE)
     from pearnly_erp_portal.access.sharing import remove_legacy_shares
 
     remove_legacy_shares()

@@ -556,22 +556,31 @@ class BuyerNormalisation(unittest.TestCase):
 
 
 class IntegrationBinding(unittest.TestCase):
-    """集成（LINE 绑定）：任何业务岗位都能绑**自己**的账号，没岗位的账号不能。"""
+    """LINE：团队管理里逐人勾选（`ERP LINE`）才开通，租户管理员本人默认可用（用户 2026-09-25）。"""
 
-    def test_any_business_job_can_bind(self):
+    def test_the_line_switch_opens_it(self):
+        for capability in ("integration.read", "integration.manage"):
+            with self.subTest(capability=capability):
+                self.assertTrue(rules.can({rules.LINE_ROLE}, capability))
+                self.assertTrue(rules.can({rules.ADMIN_ROLE}, capability))
+
+    def test_a_business_job_alone_does_not_open_it(self):
         for feature, role in rules.FEATURE_ROLES.items():
             with self.subTest(feature=feature):
-                self.assertTrue(rules.can({role}, "integration.read"))
-                self.assertTrue(rules.can({role}, "integration.manage"))
+                self.assertFalse(rules.can({role}, "integration.read"))
+                self.assertFalse(rules.can({role}, "integration.manage"))
+        from pearnly_erp_portal.access import menu
+        self.assertFalse(rules.can(set(menu.roles()) - {menu.role("team")}, "integration.read"))
 
-    def test_without_a_business_job_there_is_nothing_to_bind(self):
+    def test_without_the_switch_there_is_nothing_to_bind(self):
         self.assertFalse(rules.can({"Desk User"}, "integration.read"))
-        self.assertFalse(rules.can({"Desk User"}, "integration.manage"))
         self.assertEqual(rules.required_roles("integration.read"),
                          rules.required_roles("integration.manage"))
 
-    def test_the_admin_role_alone_does_not_open_it(self):
-        self.assertFalse(rules.can({rules.ADMIN_ROLE}, "integration.manage"))
+    def test_the_line_switch_carries_no_document_rights(self):
+        for capability in ("purchase.write", "sales.write", "products.view"):
+            with self.subTest(capability=capability):
+                self.assertFalse(rules.can({rules.LINE_ROLE}, capability))
 
     def test_unbind_word_list_keeps_the_words_the_user_types(self):
         """解绑是**用户手打的词**，翻了就等于这个功能不存在（登记在 keep-cjk）。"""

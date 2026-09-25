@@ -28,7 +28,6 @@ Add Column,Add Column
 Add Discount,Add Discount
 Add Employee,Add Employee
 Add Order Discount,Add Order Discount
-Add Pearnly ERP as a friend,Add Pearnly ERP as a friend
 Add User,Add User
 Add VAT,Add VAT
 Add a count,Add a count
@@ -45,7 +44,6 @@ Additional Information,Additional Information
 Additional Information updated successfully.,Additional Information updated successfully.
 Address,Address
 Address and notes,Address and notes
-"After you send the code, this page shows ""Bound"" by itself.","After you send the code, this page shows ""Bound"" by itself."
 Against Payment,Against Payment
 All,All
 All Items,All Items
@@ -195,7 +193,6 @@ Completed,Completed
 Confirm,Confirm
 Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
-Connect this account to the dedicated Pearnly ERP LINE in the steps below.,Connect this account to the dedicated Pearnly ERP LINE in the steps below.
 Contact Details,Contact Details
 Contact Person,Contact Person
 Contact email,Contact email
@@ -290,7 +287,6 @@ Document has been cancelled,Document has been cancelled
 Document must be submitted,Document must be submitted
 Document prefix,Document prefix
 Documents,Documents
-Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.,Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.
 Download opening template,Download opening template
 Download template,Download template
 Draft,Draft
@@ -438,9 +434,9 @@ Items not found.,Items not found.
 Job Roles,Job Roles
 "Keep product IDs, codes and barcodes as text in the opening stock file","Keep product IDs, codes and barcodes as text in the opening stock file"
 LINE,LINE
-LINE Integration,LINE Integration
 LINE Message,LINE Message
 LINE User,LINE User
+LINE is not enabled for this account,LINE is not enabled for this account
 LINE name,LINE name
 LINE unbound,LINE unbound
 Last Login,Last Login
@@ -543,7 +539,6 @@ Only the checked features are visible to this employee,Only the checked features
 Only the checked features are visible to this user,Only the checked features are visible to this user
 Only the product admin can change this,Only the product admin can change this
 Open Form View,Open Form View
-Open Pearnly ERP in LINE,Open Pearnly ERP in LINE
 Open Shift,Open Shift
 Open a shift before selling,Open a shift before selling
 Open a shift on the cashier page first.,Open a shift on the cashier page first.
@@ -689,7 +684,6 @@ Querying the Revenue Department...,Querying the Revenue Department...
 Quotation,Quotation
 Rate,Rate
 Ready to post,Ready to post
-Ready to use,Ready to use
 Reason for Cancellation,Reason for Cancellation
 Receipt,Receipt
 Receipt No,Receipt No
@@ -760,7 +754,6 @@ Saved. Scan the next item.,Saved. Scan the next item.
 Scan,Scan
 Scan a code,Scan a code
 Scan barcode or QR code,Scan barcode or QR code
-Scan the QR code or search by Bot ID.,Scan the QR code or search by Bot ID.
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned,Scanned
 Search,Search
@@ -788,10 +781,7 @@ Selling Units,Selling Units
 Selling price,Selling price
 Selling warehouse,Selling warehouse
 Send,Send
-Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.,Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.
-"Send purchase or sales documents in LINE, then review and confirm them in ERP","Send purchase or sales documents in LINE, then review and confirm them in ERP"
 Send the code from the ERP page to bind,Send the code from the ERP page to bind
-Send this 6-digit code to the Bot,Send this 6-digit code to the Bot
 Sending the same file twice must not create two drafts,Sending the same file twice must not create two drafts
 Sent By,Sent By
 Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
@@ -903,7 +893,6 @@ The account you give customers for transfers,The account you give customers for 
 The amount received is less than the total,The amount received is less than the total
 The cart is empty,The cart is empty
 The cashier assets did not load (official-*.js).,The cashier assets did not load (official-*.js).
-The code is valid for 10 minutes.,The code is valid for 10 minutes.
 The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
@@ -1038,7 +1027,6 @@ Void {0} selected,Void {0} selected
 Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
-Wait for binding to finish,Wait for binding to finish
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name
@@ -1189,24 +1177,11 @@ draft,draft
 erp.line.boundAt,Bound at
 erp.line.code,Binding code
 erp.line.expired,Code expired
-erp.line.intro,Connect this account to the dedicated Pearnly ERP LINE in the steps below.
 erp.line.lineName,LINE name
 erp.line.newCode,New code
-erp.line.openLine,Open Pearnly ERP in LINE
-erp.line.readyTitle,Ready to use
 erp.line.remaining,Time left {0}
 erp.line.status.bound,Bound
 erp.line.status.unbound,Not bound
-erp.line.step1.desc,Scan the QR code or search by Bot ID.
-erp.line.step1.title,Add Pearnly ERP as a friend
-erp.line.step2.desc,The code is valid for 10 minutes.
-erp.line.step2.title,Send this 6-digit code to the Bot
-erp.line.step3.desc,"After you send the code, this page shows ""Bound"" by itself."
-erp.line.step3.title,Wait for binding to finish
-erp.line.subtitle,"Send purchase or sales documents in LINE, then review and confirm them in ERP"
-erp.line.tip.direction,Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.
-erp.line.tip.inbox,Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.
-erp.line.title,LINE Integration
 erp.line.unbind,Unbind LINE
 erp.line.unbindConfirm,Unbind Pearnly ERP LINE?
 goods,goods

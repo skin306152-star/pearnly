@@ -28,7 +28,6 @@ Add Column,เพิ่มคอลัมน์
 Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
 Add Order Discount,เพิ่มส่วนลดทั้งบิล
-Add Pearnly ERP as a friend,เพิ่ม Pearnly ERP เป็นเพื่อน
 Add User,เพิ่มผู้ใช้
 Add VAT,คำนวณ VAT
 Add a count,บันทึกการนับ
@@ -45,7 +44,6 @@ Additional Information,ข้อมูลเพิ่มเติม
 Additional Information updated successfully.,อัปเดตข้อมูลเพิ่มเติมแล้ว
 Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
-"After you send the code, this page shows ""Bound"" by itself.","หลังส่งรหัส หน้านี้จะแสดง ""เชื่อมต่อแล้ว"" เอง"
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,รายการทั้งหมด
@@ -195,7 +193,6 @@ Completed,เสร็จสิ้น
 Confirm,ยืนยัน
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
-Connect this account to the dedicated Pearnly ERP LINE in the steps below.,เชื่อมต่อบัญชีนี้กับ Pearnly ERP LINE โดยทำตามขั้นตอนด้านล่าง
 Contact Details,ข้อมูลติดต่อ
 Contact Person,ผู้ติดต่อ
 Contact email,อีเมลติดต่อ
@@ -290,7 +287,6 @@ Document has been cancelled,เอกสารถูกยกเลิกแล�
 Document must be submitted,กรุณาส่งเอกสารก่อน
 Document prefix,คำนำหน้าเอกสาร
 Documents,เอกสาร
-Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.,ค่าเริ่มต้นคือเอกสารซื้อ พิมพ์ ซื้อ หรือ ขาย ใน LINE เพื่อสลับ
 Download opening template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 Download template,ดาวน์โหลดแบบฟอร์ม
 Draft,ร่าง
@@ -438,9 +434,9 @@ Items not found.,ไม่พบสินค้า
 Job Roles,สิทธิ์การใช้งาน
 "Keep product IDs, codes and barcodes as text in the opening stock file",รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ
 LINE,LINE
-LINE Integration,การเชื่อมต่อ LINE
 LINE Message,ข้อความ LINE
 LINE User,ผู้ใช้ LINE
+LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
 LINE name,ชื่อ LINE
 LINE unbound,ยกเลิกการเชื่อมต่อแล้ว
 Last Login,เข้าใช้ล่าสุด
@@ -543,7 +539,6 @@ Only the checked features are visible to this employee,พนักงานค�
 Only the checked features are visible to this user,ผู้ใช้คนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
 Open Form View,เปิดมุมมองฟอร์ม
-Open Pearnly ERP in LINE,เปิด Pearnly ERP ใน LINE
 Open Shift,เปิดกะ
 Open a shift before selling,ต้องเปิดกะก่อนขาย
 Open a shift on the cashier page first.,กรุณาเปิดกะที่หน้าจุดขายก่อน
@@ -689,7 +684,6 @@ Querying the Revenue Department...,กำลังค้นหาจากกร
 Quotation,ใบเสนอราคา
 Rate,อัตรา
 Ready to post,พร้อมบันทึก
-Ready to use,ใช้งานได้ทันที
 Reason for Cancellation,เหตุผลในการยกเลิก
 Receipt,ใบเสร็จ
 Receipt No,เลขที่ใบเสร็จ
@@ -760,7 +754,6 @@ Saved. Scan the next item.,บันทึกแล้ว สแกนราย�
 Scan,สแกน
 Scan a code,สแกนโค้ด
 Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
-Scan the QR code or search by Bot ID.,สแกน QR หรือค้นหาด้วย Bot ID
 "Scan, enter the actual position and quantity, then save to continue.",สแกน ระบุตำแหน่งจริงและจำนวน แล้วบันทึกเพื่อไปต่อ
 Scanned,สแกนแล้ว
 Search,ค้นหา
@@ -788,10 +781,7 @@ Selling Units,หน่วยขาย
 Selling price,ราคาขาย
 Selling warehouse,คลังที่ขาย
 Send,ส่ง
-Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.,ส่งรูปหรือ PDF ของเอกสาร เอกสารจะรออยู่ที่ปุ่ม LINE ในหน้าซื้อหรือขาย จนกว่าคุณจะตรวจสอบและยืนยัน
-"Send purchase or sales documents in LINE, then review and confirm them in ERP",ส่งเอกสารซื้อหรือขายผ่าน LINE แล้วตรวจสอบและยืนยันใน ERP
 Send the code from the ERP page to bind,กรุณาส่งรหัสจากหน้า ERP เพื่อเชื่อมต่อ
-Send this 6-digit code to the Bot,ส่งรหัส 6 หลักนี้ให้ Bot
 Sending the same file twice must not create two drafts,ส่งไฟล์เดิมสองครั้งต้องไม่สร้างฉบับร่างสองใบ
 Sent By,ผู้ส่ง
 Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
@@ -903,7 +893,6 @@ The account you give customers for transfers,บัญชีที่ให้�
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไฟล์ของหน้าจุดขายโหลดไม่ครบ (official-*.js)
-The code is valid for 10 minutes.,รหัสใช้ได้ 10 นาที
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันล้าสมัย กรุณาปิดกะแล้วเปิดกะใหม่
@@ -1038,7 +1027,6 @@ Void {0} selected,ยกเลิก {0} รายการที่เลือ
 Voided,ยกเลิกแล้ว
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
-Wait for binding to finish,รอให้การเชื่อมต่อเสร็จสิ้น
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
@@ -1189,24 +1177,11 @@ draft,ฉบับร่าง
 erp.line.boundAt,เชื่อมต่อเมื่อ
 erp.line.code,รหัสเชื่อมต่อ
 erp.line.expired,รหัสหมดอายุแล้ว
-erp.line.intro,เชื่อมต่อบัญชีนี้กับ Pearnly ERP LINE โดยทำตามขั้นตอนด้านล่าง
 erp.line.lineName,ชื่อ LINE
 erp.line.newCode,ขอรหัสใหม่
-erp.line.openLine,เปิด Pearnly ERP ใน LINE
-erp.line.readyTitle,ใช้งานได้ทันที
 erp.line.remaining,เหลือเวลา {0}
 erp.line.status.bound,เชื่อมต่อแล้ว
 erp.line.status.unbound,ยังไม่เชื่อมต่อ
-erp.line.step1.desc,สแกน QR หรือค้นหาด้วย Bot ID
-erp.line.step1.title,เพิ่ม Pearnly ERP เป็นเพื่อน
-erp.line.step2.desc,รหัสใช้ได้ 10 นาที
-erp.line.step2.title,ส่งรหัส 6 หลักนี้ให้ Bot
-erp.line.step3.desc,"หลังส่งรหัส หน้านี้จะแสดง ""เชื่อมต่อแล้ว"" เอง"
-erp.line.step3.title,รอให้การเชื่อมต่อเสร็จสิ้น
-erp.line.subtitle,ส่งเอกสารซื้อหรือขายผ่าน LINE แล้วตรวจสอบและยืนยันใน ERP
-erp.line.tip.direction,ค่าเริ่มต้นคือเอกสารซื้อ พิมพ์ ซื้อ หรือ ขาย ใน LINE เพื่อสลับ
-erp.line.tip.inbox,ส่งรูปหรือ PDF ของเอกสาร เอกสารจะรออยู่ที่ปุ่ม LINE ในหน้าซื้อหรือขาย จนกว่าคุณจะตรวจสอบและยืนยัน
-erp.line.title,การเชื่อมต่อ LINE
 erp.line.unbind,ยกเลิกการเชื่อมต่อ LINE
 erp.line.unbindConfirm,ยืนยันการยกเลิกการเชื่อมต่อ?
 goods,สินค้า
