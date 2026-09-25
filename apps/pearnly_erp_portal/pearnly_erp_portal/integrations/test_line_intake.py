@@ -189,7 +189,7 @@ class Documents(Base):
         download = self.enterContext(patch.object(line, "download_message_content", return_value=b"img"))
         seen = {}
         self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
-            recognise=lambda files: seen.setdefault("files", files) and {"lines": []})))
+            recognise=lambda files, **kw: seen.setdefault("files", files) and {"lines": []})))
         self.enterContext(patch.object(intake, "totals", return_value={}))
         self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
         intake.run("LI-1", "U1", filename="line-M1.jpg")
@@ -218,7 +218,7 @@ class Documents(Base):
         self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
         self.enterContext(patch.object(intake, "totals", return_value={}))
         self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
-            recognise=lambda files: {"doc_no": "A", "lines": [], "additional": [{"doc_no": "B", "lines": []},
+            recognise=lambda files, **kw: {"doc_no": "A", "lines": [], "additional": [{"doc_no": "B", "lines": []},
                                                                                  {"doc_no": "C", "lines": []}]})))
         self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview",
                                 side_effect=lambda card, data, totals: data["doc_no"]))
@@ -355,7 +355,7 @@ class Language(Base):
         self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
         self.enterContext(patch.object(intake, "totals", return_value={}))
         self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
-            recognise=lambda files: seen.setdefault("lang", frappe.local.lang) and {"lines": []})))
+            recognise=lambda files, **kw: seen.setdefault("lang", frappe.local.lang) and {"lines": []})))
         self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
         self.enterContext(patch.object(frappe.db, "commit", create=True))
         intake.run("LI-1", "U1")
@@ -714,6 +714,60 @@ class WebRecognition(unittest.TestCase):
         self.assertIn("busy", thrown.call_args.args[0])
         with self.assertRaises(Deferred):
             busy()  # LINE 队列那条路不包：限流要原样交给队列重试
+
+
+class Billing(Base):
+    """按套餐扣：开工前查余额，识别成功才报账，按物理页，B 档（用户 2026-09-26）。"""
+
+    def test_units_are_physical_pages(self):
+        from pearnly_erp_portal.recognition import billing, inputs
+
+        with patch.object(inputs, "pdf_page_count", return_value=13):
+            self.assertEqual(billing.pages([(b"%PDF", "application/pdf"), (b"img", "image/jpeg")]), 14)
+
+    def test_gate_says_insufficient_balance_but_never_blames_the_user_for_our_outage(self):
+        from pearnly_core import billing_client
+        from pearnly_core.execution.errors import Deferred
+
+        from pearnly_erp_portal.recognition import billing
+
+        self.enterContext(patch.object(billing, "_", _same))
+        self.enterContext(patch.object(frappe, "throw", side_effect=lambda msg, exc=None: (_ for _ in ()).throw(
+            (exc or frappe.ValidationError)(msg)), create=True))
+        with patch.object(billing_client, "status", return_value={"allowed": False, "error_code": "insufficient_balance"}):
+            with self.assertRaises(billing.InsufficientBalance):
+                billing.gate(1)
+        with patch.object(billing_client, "status", return_value={"allowed": False, "error_code": "lookup_error"}):
+            with self.assertRaises(Deferred):
+                billing.gate(1)
+        with patch.object(billing_client, "status", return_value={"allowed": True}) as status:
+            billing.gate(3)
+        status.assert_called_once_with("pdf", 3, tier="B")
+
+    def test_line_charges_once_per_intake_and_tells_the_sender_to_top_up(self):
+        from pearnly_erp_portal.recognition import billing
+
+        doc = _doc(status=intake.QUEUED, language="th")
+        doc.reload = lambda: None
+        doc.save = lambda **kw: None
+        self.enterContext(patch.object(frappe, "get_doc", return_value=doc, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        seen = {}
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
+            recognise=lambda files, **kw: seen.update(kw) or {"lines": []})))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
+        intake.run("LI-1", "U1")
+        self.assertEqual(seen["billing_reference"], "erp.line_intake:LI-1")
+
+        def broke(files, **kw):
+            raise billing.InsufficientBalance("Top up please")
+
+        doc.status = intake.QUEUED
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(recognise=broke)))
+        self.enterContext(patch.object(intake, "_drop"))
+        intake.run("LI-1", "U1")
+        self.assertEqual(self.last_text(), "Top up please")
 
 
 class Products(Base):

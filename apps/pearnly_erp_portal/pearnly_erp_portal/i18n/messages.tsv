@@ -1294,3 +1294,5 @@ Recognition is busy right now. Please try again in a minute.	识别服务繁忙�
 The recognition service did not answer in time. Please try again.	识别服务没有按时回应，请重试。	ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 This PDF has more than {0} pages	PDF 超过 {0} 页	PDF มีมากกว่า {0} หน้า	PDF が {0} ページを超えています
 This file holds {0} documents; only the first is filled in. Upload the others separately.	这个文件里有 {0} 张单据，这里只填了第一张，其余请分开上传。	ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน	このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。
+Your balance is not enough for recognition. Please top up and send it again.	余额不足，无法识别。请充值后重新发送。	ยอดเงินคงเหลือไม่พอสำหรับการอ่านเอกสาร กรุณาเติมเงินแล้วส่งใหม่อีกครั้ง	残高が不足しているため読み取りできません。チャージしてからもう一度送信してください。
+The balance could not be checked right now. Please try again in a minute.	暂时查不到余额，请一分钟后再试。	ยังตรวจสอบยอดเงินไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	現在残高を確認できません。1 分後にもう一度お試しください。

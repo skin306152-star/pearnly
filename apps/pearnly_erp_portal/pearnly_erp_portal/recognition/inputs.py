@@ -65,3 +65,12 @@ def pdf_pages(content):
         raise
     except Exception:
         return []
+
+
+def pdf_page_count(content) -> int:
+    try:
+        import pypdf
+
+        return len(pypdf.PdfReader(io.BytesIO(content)).pages)
+    except Exception:
+        return 1

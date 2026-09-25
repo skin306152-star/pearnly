@@ -950,6 +950,7 @@ The Revenue Department replied in an unreadable format,รูปแบบข้�
 The VAT worked out from the items does not match the printed VAT,VAT ที่คำนวณจากรายการไม่ตรงกับ VAT บนเอกสาร
 The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The amount received is less than the total,รับเงินน้อยกว่ายอดที่ต้องชำระ
+The balance could not be checked right now. Please try again in a minute.,ยังตรวจสอบยอดเงินไม่ได้ในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที
 The cart is empty,ตะกร้าว่างเปล่า
 The cashier assets did not load (official-*.js).,ไฟล์ของหน้าจุดขายโหลดไม่ครบ (official-*.js)
 The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
@@ -1129,6 +1130,7 @@ You cannot submit the order without payment.,ยังไม่รับชำ�
 You don't have enough points to redeem.,คะแนนไม่พอสำหรับการใช้แต้ม
 You have unsaved changes. Do you want to save the invoice?,มีการแก้ไขที่ยังไม่บันทึก ต้องการบันทึกเอกสารหรือไม่
 You must select a customer before adding an item.,ต้องเลือกลูกค้าก่อนเพิ่มสินค้า
+Your balance is not enough for recognition. Please top up and send it again.,ยอดเงินคงเหลือไม่พอสำหรับการอ่านเอกสาร กรุณาเติมเงินแล้วส่งใหม่อีกครั้ง
 Zoom In,ขยาย
 Zoom Out,ย่อ
 adjust,ปรับปรุง

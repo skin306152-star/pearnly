@@ -950,6 +950,7 @@ The Revenue Department replied in an unreadable format,税務局の応答形式�
 The VAT worked out from the items does not match the printed VAT,明細から計算した VAT が書類の VAT と一致しません
 The account you give customers for transfers,入金時に相手へ伝える口座
 The amount received is less than the total,受取額が合計に足りません
+The balance could not be checked right now. Please try again in a minute.,現在残高を確認できません。1 分後にもう一度お試しください。
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
 The company on your documents,書類に使う自社情報
@@ -1129,6 +1130,7 @@ You cannot submit the order without payment.,入金がないと送信できま�
 You don't have enough points to redeem.,ポイントが足りないため利用できません
 You have unsaved changes. Do you want to save the invoice?,未保存の変更があります。伝票を保存しますか？
 You must select a customer before adding an item.,商品を追加する前に顧客を選択してください
+Your balance is not enough for recognition. Please top up and send it again.,残高が不足しているため読み取りできません。チャージしてからもう一度送信してください。
 Zoom In,拡大
 Zoom Out,縮小
 adjust,調整

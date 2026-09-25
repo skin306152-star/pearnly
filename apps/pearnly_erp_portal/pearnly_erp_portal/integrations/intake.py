@@ -156,7 +156,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
     if line_binding.user_of(line_user_id) != doc.sent_by or doc.line_user_id != line_user_id:
         _drop(doc, FAILED, "binding_changed")
         return {"cancelled": "binding_changed"}
-    previous, previous_lang = frappe.session.user, frappe.local.lang
+    previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(doc.sent_by)
     # 卡片与 webhook 回复同一口径：用这个人手机上 LINE 的语言（用户 2026-09-26），
     # 不随这个账号在网页端的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
@@ -168,11 +168,16 @@ def run(intake, line_user_id, reply_token="", filename=""):
                                reply_token)
             return {"failed": "download_failed", "notified": True}
         try:
-            result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}])
+            result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
+                                                          billing_reference="erp.line_intake:" + doc.name)
         except frappe.ValidationError as exc:
+            from pearnly_erp_portal.recognition import billing
+
             _drop(doc, FAILED, str(exc))
-            line.reply_or_push(line_user_id, [{"type": "text", "text": _(
-                "Could not read this document. Please send it again.")}], reply_token)
+            # 余额不足要原话告诉本人（去充值）；其余识别失败统一请他重发。
+            text = str(exc) if isinstance(exc, billing.InsufficientBalance) else _(
+                "Could not read this document. Please send it again.")
+            line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": "recognition_failed", "notified": True}
         extras = result.pop("additional", None) or []
         doc.reload()

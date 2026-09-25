@@ -75,7 +75,9 @@ def for_web(call):
 
     try:
         return call()
-    except (Deferred, QueueFull):
+    except (Deferred, QueueFull) as exc:
+        if getattr(exc, "reason", "") == "billing_unavailable":
+            frappe.throw(_("The balance could not be checked right now. Please try again in a minute."))
         frappe.throw(_("Recognition is busy right now. Please try again in a minute."))
     except Uncertain:
         frappe.throw(_("The recognition service did not answer in time. Please try again."))

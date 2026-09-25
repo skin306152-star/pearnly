@@ -950,6 +950,7 @@ The Revenue Department replied in an unreadable format,税务局的回复格式�
 The VAT worked out from the items does not match the printed VAT,明细算出的 VAT 与票面 VAT 不符
 The account you give customers for transfers,收款时给对方看的账号
 The amount received is less than the total,实收不够应收
+The balance could not be checked right now. Please try again in a minute.,暂时查不到余额，请一分钟后再试。
 The cart is empty,购物车是空的
 The cashier assets did not load (official-*.js).,收银台资源没加载完（official-*.js）
 The company on your documents,单据上用的本公司资料
@@ -1129,6 +1130,7 @@ You cannot submit the order without payment.,没有收款不能提交
 You don't have enough points to redeem.,积分不足，无法抵扣
 You have unsaved changes. Do you want to save the invoice?,有未保存的改动，要保存这张单据吗？
 You must select a customer before adding an item.,添加物料前必须先选择客户
+Your balance is not enough for recognition. Please top up and send it again.,余额不足，无法识别。请充值后重新发送。
 Zoom In,放大
 Zoom Out,缩小
 adjust,调整

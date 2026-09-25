@@ -5,7 +5,7 @@ import frappe
 from frappe import _
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.recognition import checks, dates, policy
+from pearnly_erp_portal.recognition import billing, checks, dates, policy
 from pearnly_erp_portal.sales import access, contracts, files
 
 # 只要票面上真有的字段；**不要模型替我们算金额**（算错看不出来）。
@@ -29,7 +29,7 @@ the document.'''
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/heic", "application/pdf"}
 
 
-def recognise(attachments, document_name=None):
+def recognise(attachments, document_name=None, billing_reference=None):
     guard.require("sales.write")
     from pearnly_core import ocr
 
@@ -56,6 +56,8 @@ def recognise(attachments, document_name=None):
     # 照片自带方向信息就先在本地转正（免费；侧着读会编商品名，见 `ocr.upright`）。
     images = [ocr.upright(content, mime) for content, mime in images]
     # 照旧线上：先便宜模型、最低思考读，过不了确定性检查才升级重读（见 `recognition.policy`）。
+    units = billing.pages(images)
+    billing.gate(units)
     documents = policy.read_all(PROMPT, images, structured=_structured, review=review, label="sales",
                                 fields=_HEAD, finish=_finish)
     if not documents:
@@ -63,6 +65,9 @@ def recognise(attachments, document_name=None):
     result, issues, model = documents[0]
     if result.get("not_document"):
         frappe.throw(_("This is not a purchase or sales document"))
+    # 识别成功才报账（同一 reference 只扣一次）；网页每次识别都是一次付费调用，各用一个编号。
+    billing.charge(units, billing_reference or f"erp.sales:{frappe.generate_hash(length=20)}",
+                   "ERP sales recognition")
     # 同一文件里的其余单据（多页 / 一张图几张票）：LINE 各出一张卡；网页一次只填第一张。
     extras = [{**doc, "review": codes, "review_text": policy.describe(codes), "ocr_model": used}
               for doc, codes, used in documents[1:]]
