@@ -117,6 +117,9 @@
 			poll = poll || setInterval(() => void refresh().catch(stop), POLL_MS);
 		}
 
+		// 弹窗里的格子可能在我们被调用之后才挂到页面上（团队管理的员工弹窗实测如此）：
+		// 先等它挂上再开始，否则 `alive()` 为假、整块什么都不画。
+		for (let i = 0; i < 100 && !alive(); i++) await new Promise(resolve => setTimeout(resolve, 50));
 		await refresh();
 		return {destroy: stop};
 	};
