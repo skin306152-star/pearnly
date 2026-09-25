@@ -45,7 +45,10 @@ function harness({connected = true, rows = null} = {}) {
   };
   let primaryAction = null;
   const wrapper = {};
-  const t = (key, ...args) => (zh[key] || key) + (args.length ? ':' + args.join('|') : '');
+  // 必须和 `p.texts` 的真实签名一致：它**总是**替换 `{n}`，不带参数时就换成空串。
+  // 老替身只做拼接，于是「{0}/{1} 组」在测试里通过、在线上变成「/ 组」——2026-09-25 实际踩到。
+  const t = (key, ...args) => (zh[key] || key)
+    .replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? ''));
   const p = {
     async texts(prefix) {assert.equal(prefix, 'dms.connect.cache.'); return t;},
     async call(method, args = {}, type = 'GET') {

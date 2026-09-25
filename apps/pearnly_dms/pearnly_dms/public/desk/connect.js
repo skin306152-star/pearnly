@@ -38,12 +38,12 @@
 				.filter(Boolean);
 			// 已完成组数只往上走：轮询之间偶发的状态回退不该让数字倒退，那看着像出错。
 			peakDone = Math.max(peakDone, rows.filter((row) => row.state === "succeeded").length);
-			const parts = [cacheText("dms.connect.cache.groups")
-				.replace("{0}", String(peakDone)).replace("{1}", String(datasets.length))];
+			// 占位符交给 `p.texts` 的取值函数填 —— 它**总是**会替换 `{n}`，自己先 replace
+			// 等于白填（不带参数时那些占位符会被换成空串，页面上只剩「/ 组」）。
+			const parts = [cacheText("dms.connect.cache.groups", peakDone, datasets.length)];
 			const records = rows.reduce((sum, row) => sum + (Number(row.progress?.processed) || 0), 0);
 			if (records > 0) {
-				parts.push(cacheText("dms.connect.cache.records")
-					.replace("{0}", records.toLocaleString("en-US")));
+				parts.push(cacheText("dms.connect.cache.records", records.toLocaleString("en-US")));
 			}
 			if (startedAt) parts.push(elapsedText());
 			return parts.join(" · ");
