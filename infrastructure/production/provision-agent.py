@@ -192,7 +192,7 @@ def nginx(site, group, tls=False):
     if not tls:
         return http
     return http + f"""server {{
-    listen 443 ssl;
+    listen 443 ssl http2;
     server_name {site};
     ssl_certificate /etc/letsencrypt/live/{site}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{site}/privkey.pem;
