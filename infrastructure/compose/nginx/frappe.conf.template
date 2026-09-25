@@ -31,8 +31,24 @@ server {
 	real_ip_header ${UPSTREAM_REAL_IP_HEADER};
 	real_ip_recursive ${UPSTREAM_REAL_IP_RECURSIVE};
 
+	# Static assets: cache for a year, as the official bench nginx template does
+	# (`add_header Cache-Control "max-age=31536000"`). This is safe because every asset
+	# the pages load has a version in its URL (`?v=` content hash from `versioned_asset`,
+	# Frappe bundle names carry a hash): after a release the page points at new URLs.
+	# `add_header` in a location drops the server-level ones, so re-include the security headers.
 	location /assets {
 		try_files $uri =404;
+		include /etc/nginx/snippets/security_headers.conf;
+		add_header Cache-Control "max-age=31536000";
+	}
+
+	# HTML under /assets is an entry page loaded by a fixed, unversioned URL (the LINE
+	# editor's `pearnly-app/index.html`). It must be revalidated every time, otherwise a
+	# release leaves phones on an old entry that points at removed bundles.
+	location ~* ^/assets/.+\.html$ {
+		try_files $uri =404;
+		include /etc/nginx/snippets/security_headers.conf;
+		add_header Cache-Control "no-cache";
 	}
 
 	location ~ ^/protected/(.*) {

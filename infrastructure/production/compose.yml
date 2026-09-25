@@ -41,6 +41,8 @@ x-socketio: &socketio
   mem_limit: 256m
   command: [node, /home/frappe/frappe-bench/apps/frappe/socketio.js]
 
+# 前端 nginx 用本仓的 `frappe.conf.template`（镜像自带那份的原文 + 静态文件缓存规则），
+# 挂在各前端的 volumes 里（列表不随锚点合并）。
 x-frontend: &frontend
   <<: *runtime
   mem_limit: 128m
@@ -186,7 +188,7 @@ services:
     profiles: [dms]
     <<: *frontend
     environment: {BACKEND: 'dms-web:8000', SOCKETIO: 'dms-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
-    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+    volumes: [sites-dms:/home/frappe/frappe-bench/sites, ./frappe.conf.template:/templates/nginx/frappe.conf.template:ro]
     ports: ['127.0.0.1:8183:8080']
     depends_on: [dms-web, dms-socketio]
 
@@ -234,7 +236,7 @@ services:
     profiles: [erp]
     <<: *frontend
     environment: {BACKEND: 'erp-web:8000', SOCKETIO: 'erp-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
-    volumes: [sites-erp:/home/frappe/frappe-bench/sites]
+    volumes: [sites-erp:/home/frappe/frappe-bench/sites, ./frappe.conf.template:/templates/nginx/frappe.conf.template:ro]
     ports: ['127.0.0.1:8182:8080']
     depends_on: [erp-web, erp-socketio]
 
@@ -282,7 +284,7 @@ services:
     profiles: [cowork]
     <<: *frontend
     environment: {BACKEND: 'cowork-web:8000', SOCKETIO: 'cowork-socketio:9000', FRAPPE_SITE_NAME_HEADER: '$$host'}
-    volumes: [sites-cowork:/home/frappe/frappe-bench/sites]
+    volumes: [sites-cowork:/home/frappe/frappe-bench/sites, ./frappe.conf.template:/templates/nginx/frappe.conf.template:ro]
     ports: ['127.0.0.1:8181:8080']
     depends_on: [cowork-web, cowork-socketio]
 
