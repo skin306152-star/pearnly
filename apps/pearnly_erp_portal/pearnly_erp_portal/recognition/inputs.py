@@ -40,3 +40,28 @@ def text_path(images):
         if len(images) == 1 and pages and len(text) >= MIN_CHARS_PER_PAGE * pages:
             return text
     return None
+
+
+def pdf_pages(content):
+    """多页 PDF 拆成单页（每页一个 PDF，输出确定：同一文件每次拆出的字节相同，识别断点才对得上）。
+    不是 PDF 或只有一页返回 []。页数超限在这里就拒。"""
+    try:
+        import pypdf
+
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        if len(reader.pages) > MAX_PAGES:
+            frappe.throw(_("This PDF has more than {0} pages").format(MAX_PAGES))
+        if len(reader.pages) < 2:
+            return []
+        pages = []
+        for page in reader.pages:
+            writer = pypdf.PdfWriter()
+            writer.add_page(page)
+            out = io.BytesIO()
+            writer.write(out)
+            pages.append(out.getvalue())
+        return pages
+    except frappe.ValidationError:
+        raise
+    except Exception:
+        return []

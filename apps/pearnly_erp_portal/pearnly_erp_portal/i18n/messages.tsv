@@ -1293,3 +1293,4 @@ The VAT worked out from the items does not match the printed VAT	明细算出的
 Recognition is busy right now. Please try again in a minute.	识别服务繁忙，请一分钟后再试。	ระบบอ่านเอกสารไม่ว่างในขณะนี้ กรุณาลองใหม่อีกครั้งในอีกหนึ่งนาที	読み取りが混み合っています。1 分後にもう一度お試しください。
 The recognition service did not answer in time. Please try again.	识别服务没有按时回应，请重试。	ระบบอ่านเอกสารไม่ตอบกลับตามเวลา กรุณาลองใหม่	読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
 This PDF has more than {0} pages	PDF 超过 {0} 页	PDF มีมากกว่า {0} หน้า	PDF が {0} ページを超えています
+This file holds {0} documents; only the first is filled in. Upload the others separately.	这个文件里有 {0} 张单据，这里只填了第一张，其余请分开上传。	ไฟล์นี้มีเอกสาร {0} ฉบับ ระบบกรอกให้เฉพาะฉบับแรก กรุณาอัปโหลดฉบับอื่นแยกกัน	このファイルには {0} 件の書類があります。最初の 1 件だけ入力しました。残りは別々にアップロードしてください。

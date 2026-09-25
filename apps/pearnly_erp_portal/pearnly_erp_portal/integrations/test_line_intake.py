@@ -195,6 +195,39 @@ class Documents(Base):
         download.assert_called_once_with("M1")
         self.assertEqual((doc.source_file_name, seen["files"]), ("FILE-9", [{"file": "FILE-9", "kind": "bill"}]))
 
+    def test_each_document_in_a_file_gets_its_own_record_and_card(self):
+        from pearnly_core import line
+
+        doc = _doc(status=intake.QUEUED, language="th")
+        doc.reload = lambda: None
+        doc.save = lambda **kw: None
+        inserted = []
+
+        def get_doc(value, name=None):
+            if isinstance(value, dict) and value.get("doctype") == "File":
+                return SimpleNamespace(insert=lambda **kw: SimpleNamespace(name="FILE-X", file_url="/private/files/x.jpg"))
+            if isinstance(value, dict):
+                return SimpleNamespace(insert=lambda **kw: inserted.append(value) or SimpleNamespace(
+                    **value, get=value.get, name=f"NEW-{len(inserted)}"))
+            if value == "File":
+                return SimpleNamespace(get_content=lambda: b"img")
+            return doc
+
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=get_doc, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
+            recognise=lambda files: {"doc_no": "A", "lines": [], "additional": [{"doc_no": "B", "lines": []},
+                                                                                 {"doc_no": "C", "lines": []}]})))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview",
+                                side_effect=lambda card, data, totals: data["doc_no"]))
+        intake.run("LI-1", "U1")
+        siblings = [row for row in inserted if row.get("doctype") == intake.DOCTYPE]
+        self.assertEqual([json.loads(row["result"])["doc_no"] for row in siblings], ["B", "C"])
+        self.assertEqual({row["status"] for row in siblings}, {intake.READY})
+        self.assertEqual(self.replies[-1], ["A", "B", "C"])
+        self.assertNotIn("additional", json.loads(doc.result))
+
     def test_a_document_that_cannot_be_fetched_fails_and_says_so(self):
         from pearnly_core import line
 
@@ -605,6 +638,43 @@ class Escalation(unittest.TestCase):
                 patch.object(frappe, "_", _same, create=True):
             with self.assertRaises(frappe.ValidationError):
                 inputs.pdf_text(b"%PDF")
+
+    def read_all(self, pages, answers, review=lambda result: []):
+        from pearnly_core import ocr
+
+        from pearnly_erp_portal.recognition import inputs, policy
+
+        calls = []
+
+        def fake(prompt, images, *, model, thinking=None, **kw):
+            calls.append(model)
+            return answers[len(calls) - 1]
+
+        with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(frappe, "logger", return_value=Mock(), create=True), \
+                patch.object(inputs, "pdf_pages", return_value=pages), \
+                patch.object(inputs, "text_path", return_value=None):
+            documents = policy.read_all("P", [(b"%PDF", "application/pdf")], structured=lambda raw: dict(raw),
+                                        review=review, label="t", fields=("doc_no", "supplier_name"))
+        return documents, calls
+
+    def test_pages_are_read_one_by_one_and_grouped_by_document_number(self):
+        # 旧线上 13 页撞限流：逐页读、按单号归组；续页没合计不触发升级。
+        answers = [{"doc_no": "A1", "supplier_name": "S", "lines": [{"n": 1}], "printed": {}},
+                   {"doc_no": "", "lines": [{"n": 2}], "printed": {"total": 30}},
+                   {"doc_no": "B7", "lines": [{"n": 3}], "printed": {"total": 5}}]
+        missing = lambda result: [] if (result.get("printed") or {}).get("total") else ["total_missing"]
+        documents, calls = self.read_all([b"p1", b"p2", b"p3"], answers, review=missing)
+        self.assertEqual(calls, ["gemini-3.1-flash-lite"] * 3)
+        self.assertEqual([(d["doc_no"], [row["n"] for row in d["lines"]], d["printed"].get("total"), codes)
+                          for d, codes, _model in documents],
+                         [("A1", [1, 2], 30, []), ("B7", [3], 5, [])])
+
+    def test_several_documents_on_one_image_become_separate_documents(self):
+        answers = [{"doc_no": "R1", "lines": [], "additional_documents": [{"doc_no": "R2", "lines": []}]}]
+        documents, calls = self.read_all([], answers)
+        self.assertEqual([d["doc_no"] for d, _codes, _model in documents], ["R1", "R2"])
+        self.assertTrue(all("additional_documents" not in d for d, _codes, _model in documents))
 
     def test_thinking_is_sent_only_when_asked(self):
         from pearnly_core import ocr

@@ -1008,6 +1008,7 @@ This document is void,这张单据已作废
 This document was already recorded,这张单据已经入账
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
+This file holds {0} documents; only the first is filled in. Upload the others separately.,这个文件里有 {0} 张单据，这里只填了第一张，其余请分开上传。
 This is not a purchase or sales document,这不是采购或销售单据
 This item is also stocked at:,这件货还在别处：
 This option is no longer current,这个选项已失效，请按最新一步选择

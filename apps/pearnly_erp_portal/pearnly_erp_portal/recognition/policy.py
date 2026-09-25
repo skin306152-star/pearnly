@@ -79,3 +79,59 @@ def for_web(call):
         frappe.throw(_("Recognition is busy right now. Please try again in a minute."))
     except Uncertain:
         frappe.throw(_("The recognition service did not answer in time. Please try again."))
+
+
+def read_all(prompt, images, *, structured, review, label, fields, finish=None):
+    """一个文件里的**全部**单据：[(结果, 检查代码, 模型), …]，第一张在前。
+
+    照旧线上（`direct_read.py` 按页直读、`layer2_prompts.py` 第 9 条 `additional_invoices`、
+    `invoice_grouper.py` 按票号归组）：
+    - 多页 PDF 拆成单页逐页读（不并发）。某页被限流时整个任务按队列退避推迟；已读完的页有断点，
+      重跑时直接复用、不重复付费，也不整份作废（旧线上遗留的「一页失败整份作废」）。
+    - 一页 / 一张图里有几张单：模型把第二张起放在 `additional_documents`，各算一张。
+    - 相邻几页单号相同（或后一页没有单号）归成一张：明细接起来，票面合计取后面印了的那页。
+    续页上没有合计是正常的，所以逐页读时「合计缺失」不触发升级；归组后整张再检查一次。
+    """
+    from pearnly_erp_portal.recognition import inputs
+
+    pages = inputs.pdf_pages(images[0][0]) if len(images) == 1 and images[0][1] == "application/pdf" else []
+    units = [[(page, "application/pdf")] for page in pages] or [images]
+    page_review = (lambda result: [code for code in review(result) if code != "total_missing"]) if pages else review
+    found = []
+    for index, unit in enumerate(units, 1):
+        result, issues, model = read(prompt, unit, structured=structured, review=page_review,
+                                     label=f"{label} page {index}" if pages else label)
+        if result is None:
+            continue
+        extras = [structured(raw) for raw in result.pop("additional_documents", None) or [] if isinstance(raw, dict)]
+        for extra in extras:
+            if extra:
+                extra.pop("additional_documents", None)
+        found.append((result, model))
+        found.extend((extra, model) for extra in extras if extra)
+    documents = [row for row in found if not row[0].get("not_document")]
+    if pages:
+        documents = _group(documents, fields)
+    if finish:
+        for result, _model in documents:
+            finish(result)
+    return [(result, review(result), model) for result, model in documents] or (
+        [(found[0][0], [], found[0][1])] if found else [])
+
+
+def _group(documents, fields):
+    merged = []
+    for result, model in documents:
+        previous = merged[-1][0] if merged else None
+        number = str(result.get("doc_no") or "").strip()
+        if previous is not None and (not number or number == str(previous.get("doc_no") or "").strip()):
+            previous["lines"] = (previous.get("lines") or []) + (result.get("lines") or [])
+            for key in fields:
+                if previous.get(key) in (None, "") and result.get(key) not in (None, ""):
+                    previous[key] = result[key]
+            printed = result.get("printed") or {}
+            if any(printed.get(key) not in (None, "") for key in ("total", "vat", "subtotal")):
+                previous["printed"] = printed
+            continue
+        merged.append((result, model))
+    return merged

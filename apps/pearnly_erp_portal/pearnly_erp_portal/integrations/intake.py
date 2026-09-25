@@ -107,6 +107,20 @@ def _fetch(doc, filename):
     return True
 
 
+def _sibling(doc, result):
+    """同一文件里的另一张单（多页 / 一张图几张票）：同样的选择，自己一份源文件（内容相同；入账时
+    各挂各的，不抢同一个 File），自己一张卡、自己入账。"""
+    content = frappe.get_doc("File", _file_name(doc)).get_content()
+    file = _store(content if isinstance(content, bytes) else content.encode(), frappe.db.get_value(
+        "File", _file_name(doc), "file_name") or "document")
+    fields = ("direction", "sent_by", "line_user_id", "language", "media_type", "line_message_id", "file_hash",
+              "company", "party", "is_paid", "payment_method", "item_kind", "warehouse")
+    return frappe.get_doc({"doctype": DOCTYPE, "status": READY, "owner": doc.sent_by, "received_at": doc.get("received_at"),
+                           **{key: doc.get(key) for key in fields},
+                           "source_file": file.file_url, "source_file_name": file.name,
+                           "result": json.dumps(result, ensure_ascii=False, default=str)}).insert(ignore_permissions=True)
+
+
 def _file_name(doc):
     """这张单自己那份 File。按记录编号取，不按地址找：同一张照片再发一次时，Frappe 会让新旧
     两份 File 共用同一个文件地址，按地址找可能拿到另一张单的那份。"""
@@ -160,12 +174,18 @@ def run(intake, line_user_id, reply_token="", filename=""):
             line.reply_or_push(line_user_id, [{"type": "text", "text": _(
                 "Could not read this document. Please send it again.")}], reply_token)
             return {"failed": "recognition_failed", "notified": True}
+        extras = result.pop("additional", None) or []
         doc.reload()
         doc.result = json.dumps(result, ensure_ascii=False, default=str)
         doc.status = READY
         doc.save(ignore_permissions=True)
+        cards = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
         frappe.db.commit()
-        line.reply_or_push(line_user_id, [line_cards.preview(doc, result, totals(doc))], reply_token)
+        messages = [line_cards.preview(card, data, totals(card, data)) for card, data in cards]
+        # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送。
+        line.reply_or_push(line_user_id, messages[:5], reply_token)
+        for start in range(5, len(messages), 5):
+            line.push(line_user_id, messages[start:start + 5])
         return {}
     finally:
         frappe.set_user(previous)

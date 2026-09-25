@@ -173,6 +173,8 @@
 					if (result.lines) await state.set_lines(result.lines);
 					state.ocr_complete = true;
 					p.recognition_review(result.review_text);
+					// 同一文件里还有别的单据：网页一次只填第一张，照实告诉用户（LINE 那边会各出一张卡）。
+					if (result.additional?.length) frappe.msgprint(__("This file holds {0} documents; only the first is filled in. Upload the others separately.", [result.additional.length + 1]));
 					changes(); state.sync_entry();
 					layout.navigate("information");
 				} catch (error) {
