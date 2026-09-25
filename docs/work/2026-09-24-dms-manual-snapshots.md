@@ -1,5 +1,80 @@
 # DMS 手动建缓存、交互读本地、提交查实时
 
+## 2026-09-25 第二次激活仍失败的真因：备份客户端的 16MB 单包上限（已修并上线）
+
+**结论：卡住发布的不是"那一行 22MB 太大"，也不是网络、超时或数据库上限，而是镜像里备份工具一个
+写死的 16MB 单包上限。**`activate-product.sh` 按设计不自动恢复，DMS 的 8 个服务因此第三次停摆
+（本次 5 分钟，已用上一版镜像手动拉起：维护模式关闭、scheduler 开启、前端重建，两站点 `ping` 均 200）。
+
+### 真因与可复现证据
+
+- 镜像自带 `/etc/mysql/conf.d/mysqldump.cnf`：`[mysqldump] max_allowed_packet = 16M`。
+  **`mariadb-dump` 取最后读到的那个值**，所以它就是实际生效的上限；它与服务端的 64M 无关。
+- ris 的客户快照一行 21,805,979 字节 > 16MB → dump 客户端断开连接：
+  `mariadb-dump: Error 2013: Lost connection to server during query when dumping table
+  tabDMS Read Snapshot at row: 4`（"row: 4"只是当时的行进度，不是第 4 行有毛病）。
+- 同一行、同一账号、同样的 `--single-transaction --quick --lock-tables=false`，
+  只加 `--max-allowed-packet=64M`：**0.9 秒读完 29,221,375 字节、退出码 0**。
+- 反证"数据量太大"这个说法：testdms 最大的行只有 1.9MB，`bench --site all backup` 一样失败；
+  而单独备份 testdms 是成功的。所以失败与行大小无关，是 `--site all` 里第一个站点（ris）先炸。
+
+### 修法
+
+- 新增 `infrastructure/production/mariadb-client.cnf`（`[client] max_allowed_packet=64M`），
+  由部署 compose 挂成容器里的 `/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf`。
+  挂 `mariadb.conf.d/` 而不是 `conf.d/`：`/etc/mysql/mariadb.cnf` 里前者的 `!includedir`
+  在后，只有它才真正覆盖镜像里那个 16M。
+- **挂在 compose 上，而不是只写进镜像**：激活脚本故意用"还在跑的旧镜像"做备份
+  （先备份旧 schema 自己），只改镜像的话这一次仍然会失败。挂载对旧镜像同样生效。
+- 覆盖范围：`dms-web` / `dms-worker` / `dms-ocr-worker` / `dms-sync-worker`，以及 erp、cowork、
+  billing 的 web/worker（Frappe 的定时备份跑在 worker 上，不能只挂 web）。
+
+### 上线回读（源码 `46213c8`，镜像 `sha256:7ea2621f…`）
+
+| 环节 | 证据 |
+| --- | --- |
+| 构建 | `36103150369` 成功；digest `sha256:7ea2621fe585490596007a78aa2d3a8520b30924dd6ee2d1f9e572940b6aab81` |
+| 投递 | `stage-production.yml` `36103727761` 成功 |
+| 部署工具同源 | 先备份旧份到 `/opt/pearnly/deploy-backup-20260925-064048`，再用 `docker cp` 从镜像 `deploy-src` 覆盖；`check-deploy-image.py` 输出 `Deploy tooling matches this image` |
+| 备份预演（旧镜像） | 同一条 `--site all backup --with-files` 两站点成功、21 秒 —— 这是本次修复的决定性证据 |
+| 激活 | `activate-product.sh <digest> dms` 退出 0；8 个容器全部 `7ea2621f…`、RestartCount 0 |
+| 运行回读 | 两站点 `ping` 200；`maintenance=0`、`scheduler=1`；`active-image-dms.json` 写入新 digest，erp（`a3d007a7…`）与 global（`a11eb9e3…`）未动 |
+| 新代码落地 | 容器内 `store.py` 含 `pearnly-gz`、`manual.py` 的 `RETRYABLE` 是集合；`mariadb-dump --print-defaults` 里最后一个 `max_allowed_packet` 是 64M |
+
+### 客户快照改为压缩存储 + 原地压小（不需要那 61 分钟重读）
+
+- `store.py` 的 `payload`/`staging`/`overlays` 改走 zlib+base64、带 `pearnly-gz:` 前缀；
+  旧行没有前缀仍按普通 JSON 读，所以**不需要一次性迁移**；`MAX_BYTES` 仍卡压缩前体积。
+- 库里那一行原地压小：18,937,159 字符 → **1,667,855**（DB 21.8MB → **1.6MB**，约 1/11），
+  `store.read("EP-00001","customers")` 回读 **15,135 条**、`generation 443708785a` 与
+  `completed_at`（2026-09-25 00:37:29）都没变。写回耗时 0.17 秒，没有占用 DMS 账号。
+- 因为备份上限已在客户端侧修掉、行也小了，**原先计划的重读一次（约 61 分钟）不再必要**。
+  夜间 `0 4 * * *`（泰国 04:00）那一枪会自然复验新上限与新压缩路径。
+
+### 顺带量到的数字：读满客户缓存只要 235MB
+
+在 8g 的同步容器里，`store.read` 整份客户快照 **峰值 235MB、2.17 秒**。之前记录里"要 800MB+"
+说的是**采集写入**路径（要同时持检查点与上游状态），不是读取路径 —— 所以 1g 的 `dms-web`
+服务菜单/客户查询是够的，不需要给它加内存。
+
+### 顺带修掉：主干 CI 连续 6 次红
+
+`fix(dms): give the sync worker 4g`（09-24 23:34）之后 `scripts/check-production-capacity.py` 一直
+按 1g 检查同步道，且"当前宿主"还是迁移前的 11960 MiB，`Development checks` 于是连续 6 次失败。
+改为：同步道必须 8g（附实测理由）、当前宿主 32095 MiB、12 GiB 组合保留为负例。
+现机器上的候选上限：DMS 15616 / +ERP 18496 / +Cowork 21376 MiB，加保留 3209 MiB 共 24585 MiB，
+余量约 7.5 GiB。`Development checks` `36103144619` 成功；本地 12 项全过。
+
+### 仍未验收
+
+- 菜单 1/2 走缓存后的**真机观感与响应速度**：只有真实 LINE 点击能验，本轮没验。
+- 夜间 04:00（泰国）那一枪要用新上限、新压缩路径跑通，且不重复读 —— 下一枪在 2026-09-26 04:00。
+- 用户之前看到的 LINE 失败项（`dms.card.query.TXT_QUERY_FAILED`、"อ่านข้อมูลจาก DMS ไม่สำเร็จ"）
+  都发生在 2026-09-24 04:05–04:08 的旧版本上；`tabError Log` 里 testdms 只有那一天的 7 条
+  `run_dedup 需要 7 个参数但只排了 5 个`，而该签名在当前镜像里已是 7 参数、三个调用点全部对齐，
+  之后再无同类记录；本次激活后新容器日志无任何 `ERR_DMS_*`。**这说明失败项来自旧版本，不等于
+  新版本已端到端验收。**
+
 ## 2026-09-25 大数据量租户（rayong）：六道防呆阀 + 一次生产事故
 
 **结论：客户资料读不出来，不是网络、超时或账号问题，而是六道写死的防呆阀被真实数据量逐层顶穿。**
@@ -52,8 +127,9 @@ tabDMS Read Snapshot at row: 4` —— 那一行里有读取中途留下的 **16
 - 恢复：手动用**上一版镜像**（`21f73f4…`）`compose up -d` 八个服务 → `set-maintenance-mode off` →
   `enable-scheduler` → 重建前端（前端还指向旧 web 容器，502）。恢复后两站点 `ping` 均 200。
 - 数据影响：迁移没有执行，数据库结构未变；没有半份脏数据发布。
-- 教训：**读取中途的大检查点会让备份 dump 断开**，进而卡住部署。清理后再激活即通过
-  （第二次激活 exit=0、135 秒）。
+- 「清理检查点后再激活即通过」当时被当成了结论，**并不可靠**：同一条错误随后又发生一次
+  （当时库里已经没有大检查点）。真因见本文顶部"第二次激活仍失败的真因"一节 ——
+  是备份客户端的 16MB 单包上限顶不住那一行 21.8MB 的快照，与检查点无关。
 
 独立发布两次的 digest 与 pin：`sha256:12bd7439…`（源码 `663e3a3`），两次激活均写入
 `active-image-dms.json`；运行身份由回读确认为该 digest。
