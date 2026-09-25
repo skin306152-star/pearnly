@@ -18,6 +18,7 @@ import io
 import frappe
 import pyqrcode
 from frappe import _
+from frappe.utils import get_datetime
 
 from pearnly_core import line, line_binding
 
@@ -56,7 +57,9 @@ def status() -> dict:
     return {
         "bound": bool(row),
         "display_name": (row or {}).get("display_name") or None,
-        "bound_at": str((row or {}).get("bound_at") or "") or None,
+        # 页面用官方 Datetime 控件显示：库里带微秒，控件只认到秒，原样给会弹"日期格式不对"。
+        "bound_at": (get_datetime(row.bound_at).strftime("%Y-%m-%d %H:%M:%S")
+                     if row and row.get("bound_at") else None),
     }
 
 
