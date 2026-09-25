@@ -120,7 +120,8 @@ def _buyer(payload):
 # ── 提交 ────────────────────────────────────────────────────────────────────
 
 
-def post(payload, *, request_id, name=None, finalize=None):
+def post(payload, *, request_id, name=None, finalize=None, allow_duplicate=False):
+    """`allow_duplicate` is server-only (LINE intake records duplicates, user 2026-09-25)."""
     guard.require("sales.write")
     if not isinstance(payload, dict) or not request_id or len(str(request_id)) > 140:
         frappe.throw(_("Invalid value"))
@@ -135,7 +136,7 @@ def post(payload, *, request_id, name=None, finalize=None):
                 if doc.request_hash != fingerprint:
                     frappe.throw(_("Request ID already exists"))
                 return {"name": doc.name, "status": doc.status, "duplicate": True}
-            result = _post(payload, request_id, fingerprint, name)
+            result = _post(payload, request_id, fingerprint, name, allow_duplicate)
             if finalize:
                 finalize(result)
             frappe.db.commit()
@@ -145,7 +146,7 @@ def post(payload, *, request_id, name=None, finalize=None):
             raise
 
 
-def _post(payload, request_id, fingerprint, name):
+def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
     kind = payload.get("doc_kind") or contracts.RECEIPT
     if kind not in contracts.DOC_KINDS:
         frappe.throw(_("Invalid value"))
@@ -162,7 +163,7 @@ def _post(payload, request_id, fingerprint, name):
     reasons = contracts.confirm_gates({"doc_kind": kind, "grand_total": totals["grand_total"]})
     if reasons:
         frappe.throw(f"{_(BLOCKED)}: {', '.join(reasons)}")
-    if payload.get("image_sha256"):
+    if payload.get("image_sha256") and not allow_duplicate:
         duplicates = frappe.get_all(DOCTYPE, filters={"image_sha256": payload["image_sha256"],
             "status": ["!=", contracts.VOID]}, pluck="name")
         if any(key != name for key in duplicates):
@@ -195,7 +196,7 @@ def _post(payload, request_id, fingerprint, name):
     if digest:
         duplicates = frappe.get_all(DOCTYPE, filters={"image_sha256": digest,
             "status": ["!=", contracts.VOID]}, pluck="name")
-        if any(key != doc.name for key in duplicates):
+        if not allow_duplicate and any(key != doc.name for key in duplicates):
             frappe.throw(_("Document already exists"))
         doc.image_sha256 = digest
     doc.flags.sales_action = True

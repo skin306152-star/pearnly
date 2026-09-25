@@ -214,8 +214,9 @@ class Card(Base):
     def test_confirm_posts_once_through_the_web_entry_and_replies_with_text(self):
         seen = {}
 
-        def post(payload, *, request_id, finalize):
-            seen.update(payload=payload, request_id=request_id, user=frappe.session.user)
+        def post(payload, *, request_id, finalize, allow_duplicate):
+            seen.update(payload=payload, request_id=request_id, user=frappe.session.user,
+                        allow_duplicate=allow_duplicate)
             finalize({"name": "PD-1"})
             return {"name": "PD-1", "system_no": "P-1"}
 
@@ -223,7 +224,8 @@ class Card(Base):
         self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.receipt", return_value="Recorded P-1"))
         result = intake.confirm("LI-1", "n1", "U1", "r")
         self.assertTrue(result["ok"])
-        self.assertEqual((seen["request_id"], seen["user"]), ("line-intake:LI-1", "buyer"))
+        self.assertEqual((seen["request_id"], seen["user"], seen["allow_duplicate"]),
+                         ("line-intake:LI-1", "buyer", True))
         self.assertEqual(seen["payload"]["company"], "CO-1")
         args = frappe.db.set_value.call_args.args
         self.assertEqual((args[1], args[2]["purchase"], args[2]["status"], args[2]["card_nonce"]),

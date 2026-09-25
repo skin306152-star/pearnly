@@ -108,7 +108,9 @@ def _calculate(payload):
         frappe.throw(_(str(exc)))
 
 
-def post(payload, *, request_id, name=None, amended_from=None, finalize=None):
+def post(payload, *, request_id, name=None, amended_from=None, finalize=None, allow_duplicate=False):
+    """`allow_duplicate` is server-only (LINE intake, user 2026-09-25: duplicates are
+    recorded, not blocked); the web API cannot pass it."""
     guard.require("purchase.write")
     if not isinstance(payload, dict) or not request_id or len(str(request_id)) > 140:
         frappe.throw(_("Invalid value"))
@@ -124,7 +126,7 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None):
                 if doc.request_hash != fingerprint:
                     frappe.throw(_("Request ID already exists"))
                 return {"name": doc.name, "status": doc.status, "duplicate": True}
-            result = _post(payload, request_id, fingerprint, name, amended_from)
+            result = _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate)
             if finalize:
                 finalize(result)
             frappe.db.commit()
@@ -134,7 +136,7 @@ def post(payload, *, request_id, name=None, amended_from=None, finalize=None):
             raise
 
 
-def _post(payload, request_id, fingerprint, name, amended_from):
+def _post(payload, request_id, fingerprint, name, amended_from, allow_duplicate=False):
     kind = payload.get("doc_kind") or "purchase_invoice"
     if kind not in KINDS:
         frappe.throw(_("Invalid value"))
@@ -163,14 +165,14 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     has_vat = flag(payload.get("has_vat"), True)
     if has_vat and not str(payload.get("doc_no") or "").strip():
         frappe.throw(_("Supplier Invoice No is required"))
-    if payload.get("image_sha256"):
+    if payload.get("image_sha256") and not allow_duplicate:
         duplicates = frappe.get_all("Purchase Document", filters={"image_sha256": payload["image_sha256"],
             "status": ["!=", "void"]}, pluck="name")
         if any(key not in (name, amended_from) for key in duplicates):
             frappe.throw(_("Document already exists"))
     supplier, supplier_name = _supplier(payload)
     reference = contracts.duplicate_key(supplier, payload.get("doc_no"))
-    if reference and settings.read_settings()["dedupe_block"]:
+    if reference and settings.read_settings()["dedupe_block"] and not allow_duplicate:
         duplicates = frappe.get_all("Purchase Document", filters={"dedupe_ref": reference,
                     "status": ["!=", "void"]}, pluck="name")
         if any(key not in (name, amended_from) for key in duplicates):
@@ -230,7 +232,7 @@ def _post(payload, request_id, fingerprint, name, amended_from):
     if digest:
         duplicates = frappe.get_all("Purchase Document", filters={"image_sha256": digest,
             "status": ["!=", "void"]}, pluck="name")
-        if any(key not in (doc.name, amended_from) for key in duplicates):
+        if not allow_duplicate and any(key not in (doc.name, amended_from) for key in duplicates):
             frappe.throw(_("Document already exists"))
         doc.image_sha256 = digest
     doc.flags.purchase_action = True

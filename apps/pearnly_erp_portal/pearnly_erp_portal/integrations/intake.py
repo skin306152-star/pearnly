@@ -8,7 +8,7 @@
 几条口径：
 - **不做草稿**：这张内部记录网页端不显示；没点入账的，丢弃或过期就连文件一起清掉。
 - 预览卡 10 分钟没有任何操作就失效；入账或丢弃之后这张卡也失效（卡上带一次性 nonce）。
-- 重复单据允许入账（用户 2026-09-25）；同一个请求号只入一次（`line-intake:<记录名>`）。
+- 重复单据允许入账，同一个文件也放行（用户 2026-09-25）；同一张卡只入一次（`line-intake:<记录名>`）。
 - 服务类不动库存；库存类采购入库、销售出库（允许负库存，回执里写明）。
 """
 import hashlib
@@ -255,7 +255,8 @@ def confirm(name, nonce, line_user_id, reply_token="", result=None) -> dict:
 
                 if doc.item_kind == "goods":
                     payload["lines"] = [sale_items.resolve(dict(row)) for row in payload["lines"]]
-            created = entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish)
+            created = entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish,
+                                 allow_duplicate=True)
         except frappe.ValidationError as exc:
             frappe.db.rollback()
             frappe.clear_messages()
