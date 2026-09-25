@@ -931,12 +931,18 @@ class CardShape(Base):
         rows = self.rows(card)
         labels = [label for label in rows]
         self.assertEqual(labels[:4], ["Company", "Direction", "Documents", "Item Type"])
+        # 采购只列卖方；金额与付款在明细下面（用户 2026-09-26）。
         self.assertEqual(labels[4:], ["Document no.", "Date (BE)", "Document type", "Seller", "Seller tax ID",
-                         "Seller branch", "Seller address", "Buyer", "Buyer tax ID", "Buyer branch", "Buyer address",
-                         "Subtotal", "Discount", "VAT", "WHT amount", "Document total", "Currency",
-                         "Payment method", "Notes"])
-        self.assertEqual((rows["Date (BE)"], rows["Seller"], rows["Buyer"], rows["Subtotal"], rows["Document total"]),
-                         ("25/09/2569", "NBC", "Sister Makeup Co., Ltd.", "100.00", "107.00"))
+                         "Seller branch", "Seller address", "Notes",
+                         "Subtotal", "Discount", "VAT", "WHT amount", "Document total", "Currency", "Payment method"])
+        body = card["contents"]["body"]["contents"]
+        items_at = next(i for i, row in enumerate(body) if row.get("layout") == "vertical" and "contents" in row
+                        and any("Items" in str(part.get("text", "")) for part in row["contents"]))
+        subtotal_at = next(i for i, row in enumerate(body) if row.get("layout") == "horizontal"
+                           and row["contents"][0]["text"] == "Subtotal")
+        self.assertLess(items_at, subtotal_at)
+        self.assertEqual((rows["Date (BE)"], rows["Seller"], rows["Subtotal"], rows["Document total"]),
+                         ("25/09/2569", "NBC", "100.00", "107.00"))
         text = json.dumps(card, ensure_ascii=False)
         for i in range(12):  # 商品名称全部显示（用户 2026-09-26）
             self.assertIn(f"{i + 1}. Item {i}", text)
@@ -959,8 +965,8 @@ class CardShape(Base):
         doc = _doc(direction="sales", party="@any")
         card = self.card(doc, {"doc_date": "2026-05-27", "lines": []}, {})
         rows = self.rows(card)
-        self.assertEqual((rows["Direction"], rows["Seller"], rows["Buyer"], rows["Payment method"]),
-                         ("Sell", "Sister Makeup Co., Ltd.", "Walk-in customer", "Transfer"))
+        self.assertEqual((rows["Direction"], rows["Buyer"], rows["Payment method"]), ("Sell", "Walk-in customer", "Transfer"))
+        self.assertNotIn("Seller", rows)  # 销售不列卖方（就是我方公司）
         self.assertEqual(card["contents"]["header"]["backgroundColor"], "#B11B50")
         self.assertIn("No items were read", json.dumps(card))
 

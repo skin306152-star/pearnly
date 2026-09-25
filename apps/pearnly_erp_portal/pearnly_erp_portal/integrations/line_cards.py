@@ -110,6 +110,12 @@ def _parties(doc, result):
     return ours, buyer
 
 
+def _party_rows(role, party):
+    """对方那一组：名称、税号、分店、地址（标签沿用旧卡片的「ชื่อผู้ขาย / ชื่อผู้ซื้อ」等）。"""
+    return [_kv(_(role), party.get("name")), _kv(_(role + " tax ID"), party.get("tax_id")),
+            _kv(_(role + " branch"), party.get("branch")), _kv(_(role + " address"), party.get("address"))]
+
+
 def _payment(doc):
     if not doc.is_paid:
         return _("Unpaid")
@@ -205,14 +211,15 @@ def _card(doc, result, totals, shown) -> dict:
         _kv(_("Document no."), result.get("doc_no")),
         _kv(_("Date (BE)"), _be_date(result["doc_date"]) if result.get("doc_date") else "-"),
         _kv(_("Document type"), _(DOC_KINDS[kind]) if kind in DOC_KINDS else "-"),
-        _kv(_("Seller"), seller.get("name")),
-        _kv(_("Seller tax ID"), seller.get("tax_id")),
-        _kv(_("Seller branch"), seller.get("branch")),
-        _kv(_("Seller address"), seller.get("address")),
-        _kv(_("Buyer"), buyer.get("name")),
-        _kv(_("Buyer tax ID"), buyer.get("tax_id")),
-        _kv(_("Buyer branch"), buyer.get("branch")),
-        _kv(_("Buyer address"), buyer.get("address")),
+        # 采购只列卖方（供应商，票面识别或 LINE 里选的），销售只列买方（客户）；我方公司已在上面
+        # 「公司」一行（用户 2026-09-26）。
+        *_party_rows("Seller" if doc.direction == "purchase" else "Buyer",
+                     seller if doc.direction == "purchase" else buyer),
+        _kv(_("Notes"), result.get("notes")),
+        _separator(),
+        _items(result, totals, shown),
+        # 金额与付款放到明细下面（用户 2026-09-26）。
+        _separator(),
         _kv(_("Subtotal"), _money(before) if before is not None else "-"),
         _kv(_("Discount"), _money(discount) if discount else "-"),
         _kv(_("VAT"), _money(vat)),
@@ -220,9 +227,6 @@ def _card(doc, result, totals, shown) -> dict:
         _kv(_("Document total"), _money(grand), accent=accent),
         _kv(_("Currency"), result.get("currency") or "THB"),
         _kv(_("Payment method"), _payment(doc)),
-        _kv(_("Notes"), result.get("notes")),
-        _separator(),
-        _items(result, totals, shown),
     ]
     title = f"{_('Review document')} · {head}"
     button = {"type": "button", "style": "primary", "height": "sm", "color": accent,
