@@ -33,7 +33,17 @@ def _is_unbind(text: str) -> bool:
 
 
 def handle(event: dict) -> bool:
-    """DMS 处理入口。返回 True 表示这个事件由 DMS 处理了。"""
+    """DMS 处理入口。返回 True 表示这个事件由 DMS 处理了。
+
+    一个事件 = 一次反应：这次要回给对方的所有消息攒成**一次**发送（`line.batch`）。
+    以前"先回一句、再发一张卡"会让第二条变成计费推播；现在整批走免费回覆。
+    """
+    source = event.get("source") or {}
+    with line.batch(source.get("userId") or "", event.get("replyToken") or ""):
+        return _handle(event)
+
+
+def _handle(event: dict) -> bool:
     etype = event.get("type")
     source = event.get("source") or {}
     user_id = source.get("userId") or ""

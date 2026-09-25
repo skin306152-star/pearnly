@@ -98,7 +98,7 @@ def handle_postback(
         if payload is None:
             _reply(reply_token, cards.TXT_EXPIRED)
             return
-        _queue_claimed(binding, line_user_id, payload)
+        _queue_claimed(binding, line_user_id, payload, reply_token)
         return
 
     # 确认守卫（`booking_review` 态 + nonce 吻合）**原子清 nonce** 并回 payload；
@@ -107,12 +107,14 @@ def handle_postback(
     if payload is None:
         _reply(reply_token, cards.TXT_EXPIRED)
         return
-    _queue_claimed(binding, line_user_id, payload)
+    _queue_claimed(binding, line_user_id, payload, reply_token)
 
 
-def _queue_claimed(binding, line_user_id, payload):
+def _queue_claimed(binding, line_user_id, payload, reply_token=""):
+    # 点「确认建单」那一下的令牌带进后台：这次点击本身什么都不回，建单结果、回执、
+    # 失败提示因此能在一分钟内走免费回覆（以前一律计费推播）。
     try:
-        _enqueue("booking", _execute_booking, binding, line_user_id, payload)
+        _enqueue("booking", _execute_booking, binding, line_user_id, payload, reply_token)
     except Exception:
         # Even an ambiguous enqueue cannot authorize two writes: rotating the
         # claim revokes any old job before its customer/order write guard.
@@ -122,7 +124,9 @@ def _queue_claimed(binding, line_user_id, payload):
 
 
 # ── 建订车单 ─────────────────────────────────────────────────────────────────
-def _execute_booking(binding: dict, line_user_id: str, payload: dict) -> None:
+def _execute_booking(binding: dict, line_user_id: str, payload: dict,
+                     reply_token: str = "") -> None:
+    """令牌由 `run_guarded` 的 `line.batch` 使用：本任务发给本人的消息合成一次发送。"""
     try:
         _execute_owned_booking(binding, line_user_id, payload)
     except Exception:

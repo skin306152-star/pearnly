@@ -156,7 +156,10 @@ def run_guarded(target, arguments):
         raise ValueError("Invalid DMS job target")
     if not matches(arguments.get("binding") or {}, arguments.get("line_user_id")):
         return {"cancelled": "binding_changed"}
-    return frappe.get_attr(target)(**arguments)
+    # 一个后台任务 = 一次反应：发给本人的消息攒到任务结束一次发出，带着令牌就免费回覆，
+    # 没令牌（或已过期）也只算一条推播。见 `pearnly_core.line.batch`。
+    with line.batch(arguments.get("line_user_id") or "", arguments.get("reply_token") or ""):
+        return frappe.get_attr(target)(**arguments)
 
 
 def run_image(binding, line_user_id, message_id, reply_token=""):
@@ -177,4 +180,5 @@ def ocr_failed(arguments, code):
         text = (_("The recognition result needs checking. Please do not resend this image yet.")
                 if code == "provider_outcome_unknown"
                 else _("Recognition could not finish. Please try again shortly."))
-        push_text(user, text)
+        # 发图那口气的令牌还在就免费回覆（识别失败往往在一分钟内就能确定）
+        push_or_reply_text(user, text, arguments.get("reply_token") or "")

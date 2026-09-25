@@ -240,6 +240,105 @@ def main():
           "notice=qa_cards.TXT_MASTER_CHANGED" in booking_src
           and "_send(line_user_id, qa_cards.master_changed())" not in booking_src)
 
+    # ── 5. 一次反应，一次发送（`line.batch`，2026-09-25） ─────────────────
+    # LINE 推播按"发给几个人"计数，一次请求 1～5 个气泡只算 1 条；回覆令牌只能用一次。
+    def urls():
+        return [call["url"].rsplit("/", 1)[-1] for call in FakeRequests.calls]
+
+    def texts(index):
+        return [m.get("text") for m in FakeRequests.calls[index]["json"]["messages"]]
+
+    reset()
+    with line.batch("U1", "tok"):
+        line.reply("tok", [{"type": "text", "text": "saved #119"}])
+        line.push("U1", [{"type": "text", "text": "done, type menu"}])
+    check("菜单 1：「保存成功」+「已保存，输入 เมนู」合成一次免费回覆，不再推播",
+          urls() == ["reply"] and texts(0) == ["saved #119", "done, type menu"], FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", "tok"):
+        line.reply_or_push("U1", [{"type": "text", "text": "hello"}], "tok")
+        line.reply_or_push("U1", [{"type": "flex", "altText": "menu"}], "tok")
+    check("问候语：欢迎语 + 菜单卡一次回覆（以前第二条必推播）", urls() == ["reply"], FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", ""):
+        line.push("U1", [{"type": "text", "text": "a"}])
+        line.push("U1", [{"type": "text", "text": "b"}])
+    check("没令牌的后台任务：两条合成一次推播 = 只算 1 条", urls() == ["push"] and texts(0) == ["a", "b"],
+          FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", "tok"):
+        line.reply_or_push("U1", [{"type": "text", "text": "mine"}], "tok")
+        line.push("ADMIN", [{"type": "text", "text": "to someone else"}])
+        check("块内发给别人的消息立即照常发送（不被截留）", urls() == ["push"], FakeRequests.calls)
+    check("…… 本人的消息块结束才走免费回覆", urls() == ["push", "reply"], FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", "tok"):
+        with line.batch("U1", "tok"):
+            line.reply("tok", [{"type": "text", "text": "inner"}])
+        check("嵌套同一用户：内层不单独发送", FakeRequests.calls == [], FakeRequests.calls)
+        line.push("U1", [{"type": "text", "text": "outer"}])
+    check("…… 外层结束时整批一次发出", urls() == ["reply"] and texts(0) == ["inner", "outer"])
+
+    reset()
+    with line.batch("U1", ""):
+        with line.batch("U1", "late"):
+            pass
+        line.push("U1", [{"type": "text", "text": "x"}])
+    check("外层没令牌、内层带来令牌 → 用上这张令牌（免费）", urls() == ["reply"], FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", "tok"):
+        for index in range(7):
+            line.push("U1", [{"type": "text", "text": str(index)}])
+    check("超过 5 条：前 5 条免费回覆，其余合成 1 次推播", urls() == ["reply", "push"]
+          and len(FakeRequests.calls[0]["json"]["messages"]) == 5
+          and len(FakeRequests.calls[1]["json"]["messages"]) == 2, FakeRequests.calls)
+
+    reset()
+    with line.batch("U1", "tok"):
+        line.push("U1", [{"type": "text", "text": "receipt"}], retry_key="rk")
+        check("带 retry_key 的回执当场发出并拿到真实结果（台账按它记送达）", urls() == ["reply"])
+        line.push("U1", [{"type": "text", "text": "after"}])
+    check("…… 令牌已用掉，之后的消息改推播，不拿用过的令牌再试", urls() == ["reply", "push"],
+          FakeRequests.calls)
+
+    reset()
+    FakeRequests.mode = "rejected"
+    with line.batch("U1", "tok"):
+        ok = line.push("U1", [{"type": "text", "text": "receipt"}], retry_key="rk")
+    check("回执：令牌被拒 → 带同一个 retry_key 推播（LINE 去重仍有效）",
+          ok and urls() == ["reply", "push"], FakeRequests.calls)
+
+    reset()
+    try:
+        with line.batch("U1", "tok"):
+            line.push("U1", [{"type": "text", "text": "before crash"}])
+            raise RuntimeError("business failure")
+    except RuntimeError:
+        pass
+    check("业务异常时已攒的消息仍发出，异常照样上抛", urls() == ["reply"], FakeRequests.calls)
+    check("块结束后不残留收集状态", getattr(sys.modules["frappe"].local, "pearnly_line_batch", None) is None)
+
+    reset()
+    line.push("U1", [{"type": "text", "text": "plain"}])
+    check("没开块的调用方（ERP/Cowork/网页编辑页）行为不变", urls() == ["push"], FakeRequests.calls)
+
+    check("webhook 每个事件都在 line.batch 里处理",
+          "with line.batch(source.get(\"userId\") or \"\", event.get(\"replyToken\") or \"\"):" in handlers_src)
+    check("后台任务（run_guarded）都在 line.batch 里执行",
+          'with line.batch(arguments.get("line_user_id") or "", arguments.get("reply_token") or ""):'
+          in out_src)
+    check("订车确认的令牌进了建单任务",
+          '_enqueue("booking", _execute_booking, binding, line_user_id, payload, reply_token)' in booking_src
+          and "reply_token" in (params("apps/pearnly_dms/pearnly_dms/booking/conversation/booking_flow.py",
+                                       "_execute_booking") or []))
+    check("识别失败提示用发图那口气的令牌",
+          'push_or_reply_text(user, text, arguments.get("reply_token") or "")' in out_src)
+
     failed = [row for row in results if not row[1]]
     print("")
     print("合计: 通过 %d / 失败 %d" % (len(results) - len(failed), len(failed)))

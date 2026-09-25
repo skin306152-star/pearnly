@@ -147,10 +147,110 @@ def _mirror(kind: str, target: str, messages: list) -> bool:
     return True
 
 
+# ── 一次反应，一次发送（2026-09-25 省额度） ─────────────────────────────────
+#
+# LINE 的账是这么算的（官方定价页）：回覆**免费**；推播按"发给几个人"计数，一次请求里
+# 带 1～5 个气泡**都只算 1 条**。而一张回覆令牌只能用一次。
+#
+# 所以"同一次反应里先回一句、再发一张卡"是最贵的写法：第一条用掉了令牌，第二条只能推播。
+# `batch` 把一次反应里发给**同一个人**的所有消息攒起来，结束时一次发出：有令牌就整批
+# 免费回覆，没令牌也只算一条推播。消息内容、顺序都不变，只是合成一次调用。
+#
+# 只有调用方显式 `with line.batch(...)` 才生效 —— 没开的产品行为逐字节不变。
+
+_BATCH_LIMIT = 5  # LINE 单次请求最多 5 个消息对象
+
+
+def _batch():
+    return getattr(frappe.local, "pearnly_line_batch", None)
+
+
+class batch:
+    """`with line.batch(用户, 令牌):` —— 块内发给该用户的消息攒到块结束一次发出。
+
+    · 嵌套同一用户：并入外层（外层没令牌、内层有，就接过令牌）；
+    · 块内发给**别人**的（例如审批通知管理员）照常立即发送；
+    · 需要真实送达结果的发送（带 `retry_key` 的回执）会当场连同已攒的消息一起发出，
+      并返回真实结果；其余发送在块内返回 True（已接收，块结束时发）。
+    """
+
+    def __init__(self, to: str, reply_token: str = ""):
+        self.to = to or ""
+        self.token = reply_token or ""
+        self._owner = False
+
+    def __enter__(self):
+        current = _batch()
+        if current is not None:
+            if current["to"] == self.to and self.token and not current["token"] and not current["used"]:
+                current["token"] = current["origin"] = self.token
+            return self
+        if not self.to:
+            return self
+        frappe.local.pearnly_line_batch = {"to": self.to, "token": self.token,
+                                           "origin": self.token, "used": False, "messages": []}
+        self._owner = True
+        return self
+
+    def __exit__(self, *exc):
+        if not self._owner:
+            return False
+        try:
+            flush()
+        except Exception:
+            # 块内的业务异常优先上抛；发送失败只记日志，不能把它盖掉
+            logger.warning("[line] 合并发送失败", exc_info=True)
+        finally:
+            frappe.local.pearnly_line_batch = None
+        return False
+
+
+def _collects(to: str = "", reply_token: str = "") -> "dict | None":
+    """当前块是否接收这条消息：按用户认，或按本块的（原始）令牌认。"""
+    current = _batch()
+    if current is None:
+        return None
+    if to and to == current["to"]:
+        return current
+    if reply_token and reply_token == current["origin"]:
+        return current
+    return None
+
+
+def flush(*, retry_key: str = "") -> bool:
+    """把攒着的消息现在发出去（每 5 条一次请求）。令牌只给第一次请求用。"""
+    current = _batch()
+    if current is None or not current["messages"]:
+        return True
+    messages, current["messages"] = current["messages"], []
+    frappe.local.pearnly_line_batch = None  # 发送本身不能再被自己收集
+    try:
+        ok = True
+        for start in range(0, len(messages), _BATCH_LIMIT):
+            chunk = messages[start:start + _BATCH_LIMIT]
+            token = "" if current["used"] else current["token"]
+            key = retry_key if start + _BATCH_LIMIT >= len(messages) else ""
+            # 与 `reply_or_push` 同一口径：回覆不成（被拒或不确定）就推播。
+            # 走公开的 `reply` / `push`，替换它们的调用方（测试记录器）同样能拦住。
+            sent = bool(token) and reply(token, chunk)
+            if token:
+                current["used"] = True
+            if not sent:
+                sent = push(current["to"], chunk, retry_key=key) if key else push(current["to"], chunk)
+            ok = sent and ok
+        return ok
+    finally:
+        frappe.local.pearnly_line_batch = current
+
+
 def reply(reply_token: str, messages: list) -> bool:
     """用 reply token 回复（免费、一次有效、60 秒内）。"""
     if not reply_token:
         return False
+    current = _collects(reply_token=reply_token)
+    if current is not None:
+        current["messages"].extend(messages)
+        return True
     return _post_reply(reply_token, messages)[0]
 
 
@@ -187,6 +287,11 @@ def push(to: str, messages: list, *, retry_key: str = "") -> bool:
     """主动推送（计费）。用于没有 reply token 的场合，例如定时提醒。"""
     if not to:
         return False
+    current = _collects(to=to)
+    if current is not None:
+        current["messages"].extend(messages)
+        # 回执类要真实结果（台账按它记"已送达"），当场连同已攒的一起发
+        return flush(retry_key=retry_key) if retry_key else True
     if mirroring():
         return _mirror("push", to, messages)
     headers = _headers()
@@ -236,6 +341,12 @@ def reply_or_push(to: str, messages: list, reply_token: str = "", *,
        丢一条会让操作员卡住、再重发一次，浪费更多，而且他会以为系统坏了。
        这种"不确定"单独记成 `reply_unknown`：比例一高就说明 LINE 或网络在抖。
     """
+    current = _collects(to=to, reply_token=reply_token)
+    if current is not None:
+        if reply_token and not current["token"] and not current["used"]:
+            current["token"] = current["origin"] = reply_token  # 块开时没令牌，块内拿到了就用它
+        current["messages"].extend(messages)
+        return flush(retry_key=retry_key) if retry_key else True
     if not reply_token:
         return push(to, messages, retry_key=retry_key)
     ok, status, _why = _post_reply(reply_token, messages)

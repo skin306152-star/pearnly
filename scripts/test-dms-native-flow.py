@@ -139,6 +139,7 @@ class NativeFlow(unittest.TestCase):
         self.user = self.label.lower() + "@example.invalid"
         self.http = []
         self.push_status = 200
+        self.reply_status = 200
         self.jobs_run = []
         self.snapshot_template = None
         self.snapshot_keys = set()
@@ -210,7 +211,8 @@ class NativeFlow(unittest.TestCase):
             raise AssertionError("Unexpected external HTTP attempt: " + url)
         self.http.append((method.upper(), url, copy.deepcopy(kwargs)))
         response = requests.Response()
-        response.status_code = self.push_status if url.endswith("/push") else 200
+        response.status_code = (self.push_status if url.endswith("/push")
+                                else self.reply_status if url.endswith("/reply") else 200)
         response._content = b"\xff\xd8local-fixture" if url.endswith("/content") else b"{}"
         response._content_consumed = True
         response.headers["Content-Type"] = "image/jpeg" if url.endswith("/content") else "application/json"
@@ -310,7 +312,12 @@ class NativeFlow(unittest.TestCase):
         self.assertIsNone(store.get_session(self.uid))
         self.assertEqual(self.deliveries()[0].status, "Delivered")
         self.assertEqual(frappe.db.count("Pearnly Push Log", {"actor": self.user, "status": "success"}), 1)
-        self.assertTrue(any(self.dms.orders[0]["number"] in str(data.get("json")) for _, url, data in self.http if url.endswith("/push")))
+        # The receipt rides the confirm click's reply token: free, not a paid push.
+        receipts = [data["json"] for _, url, data in self.http
+                    if self.dms.orders[0]["number"] in str(data.get("json"))]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(receipts[0]["replyToken"], "reply-" + event)
+        self.assertFalse(any(url.endswith("/push") for _, url, _ in self.http))
 
     def test_verified_booking_does_not_automatically_refresh_sales_or_claim_fresh_data(self):
         from pearnly_dms.snapshots import store as snapshots
@@ -389,11 +396,14 @@ class NativeFlow(unittest.TestCase):
         self.assertTrue(self.dms.form.get("fulcurrname1"))
 
     def test_receipt_failure_reuses_key_without_creating_another_order(self):
+        # The free reply is refused (token expired), then the paid push fails too.
+        self.reply_status = 400
         self.push_status = 500
         self.send(action=cards.ACT_CONFIRM_BOOKING, nonce=self.review())
         self.assertEqual(self.drain(), 1)
         self.assertEqual(self.deliveries()[0].last_error, "receipt_pending")
         self.push_status = 200
+        self.reply_status = 200
         self.assertEqual(self.due_delivery().status, "Delivered")
         keys = [data["headers"]["X-Line-Retry-Key"] for _, url, data in self.http if url.endswith("/push")]
         self.assertEqual(len(keys), 2)
@@ -431,10 +441,11 @@ class NativeFlow(unittest.TestCase):
         payload = store.get_session(self.uid)["payload"]
         self.assertNotEqual(payload["nonce"], nonce)
         self.assertFalse(self.dms.orders)
-        pushes = [data["json"]["messages"] for _, url, data in self.http if url.endswith("/push")]
-        self.assertEqual(len(pushes), 1)
-        self.assertEqual(len(pushes[0]), 1)
-        self.assertIn(qa_cards.TXT_MASTER_CHANGED, str(pushes[0]))
+        self.assertFalse(any(url.endswith("/push") for _, url, _ in self.http))
+        replies = [data["json"]["messages"] for _, url, data in self.http
+                   if url.endswith("/reply") and qa_cards.TXT_MASTER_CHANGED in str(data["json"])]
+        self.assertEqual(len(replies), 1)
+        self.assertEqual(len(replies[0]), 1)
         self.assertEqual(payload["qa"]["answers"]["place"]["name"], "Renamed Place")
 
 
