@@ -10,6 +10,7 @@
 - 〔定·09-26〕「字段细一点、商品名称全部显示」：在 LINE 里选的（商品类别 / 仓库、供应商或客户、
   付款）照实显示在对应行里；明细不再只报条数，每一行商品名、数量 × 单价 = 金额都列出来。
 """
+import json
 from decimal import Decimal, InvalidOperation
 
 import frappe
@@ -20,8 +21,9 @@ from pearnly_erp_portal.integrations import line_flow
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
 DOC_KINDS = {"purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order",
              "expense": "Expense", "receipt": "Receipt", "quotation": "Quotation"}
-# 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细列到这么多行，再多的报「还有 N 项」。
-MAX_LINES = 40
+# 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」。
+# 实测一行泰文商品约 570 字节，40 行就到 32.5 KB（09-26）；留一点余量。
+MAX_BYTES = 28 * 1024
 
 
 def _money(value) -> str:
@@ -121,12 +123,12 @@ def _item_kind(doc):
     return kind
 
 
-def _items(result, totals):
+def _items(result, totals, shown):
     lines = result.get("lines") or []
     computed = (totals or {}).get("lines") or []
     rows = [{"type": "text", "text": f"{_('Items')} · {len(lines)}", "size": "sm", "weight": "bold",
              "color": "#30295F", "wrap": True}]
-    for index, row in enumerate(lines[:MAX_LINES]):
+    for index, row in enumerate(lines[:shown]):
         amount = computed[index].get("line_total") if index < len(computed) else None
         detail = " ".join(part for part in (_number(row.get("qty") or 1), str(row.get("unit") or ""),
                                             "×", _money(row.get("unit_price"))) if part)
@@ -138,9 +140,9 @@ def _items(result, totals):
             {"type": "text", "text": _money(amount) if amount is not None else " ", "size": "xxs",
              "weight": "bold", "color": "#1B1B2B", "align": "end", "flex": 2, "wrap": True}]})
         rows.append({"type": "text", "text": detail, "size": "xxs", "color": "#6F688C", "wrap": True})
-    if len(lines) > MAX_LINES:
+    if len(lines) > shown:
         rows.append({"type": "text", "size": "xxs", "color": "#6F688C", "margin": "sm",
-                     "text": _("{0} more items").format(len(lines) - MAX_LINES)})
+                     "text": _("{0} more items").format(len(lines) - shown)})
     if not lines:
         rows.append({"type": "text", "size": "xxs", "color": "#6F688C", "text": _("No items were read")})
     return {"type": "box", "layout": "vertical", "margin": "md", "paddingAll": "12px",
@@ -164,6 +166,15 @@ def _amounts(doc, totals):
 
 def preview(doc, result, totals) -> dict:
     """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，只有「编辑」。"""
+    shown = len(result.get("lines") or [])
+    while True:
+        card = _card(doc, result, totals, shown)
+        if shown == 0 or len(json.dumps(card, ensure_ascii=False).encode()) <= MAX_BYTES:
+            return card
+        shown -= 1
+
+
+def _card(doc, result, totals, shown) -> dict:
     accent, head = COLORS[doc.direction], _(line_flow.DIRECTION_LABELS[doc.direction])
     seller, buyer = _parties(doc, result)
     before, discount, vat, wht, grand = _amounts(doc, totals)
@@ -194,7 +205,7 @@ def preview(doc, result, totals) -> dict:
         _kv(_("Payment method"), _payment(doc)),
         _kv(_("Notes"), result.get("notes")),
         _separator(),
-        _items(result, totals),
+        _items(result, totals, shown),
     ]
     title = f"{_('Review document')} · {head}"
     button = {"type": "button", "style": "primary", "height": "sm", "color": accent,

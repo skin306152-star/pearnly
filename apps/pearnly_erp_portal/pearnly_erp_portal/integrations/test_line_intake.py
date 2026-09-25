@@ -519,6 +519,16 @@ class CardShape(Base):
         self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/line/LI-1"})
 
+    def test_long_documents_stay_within_the_line_bubble_limit(self):
+        doc = _doc()
+        name = "เอสเอ็มเอ็กซ์อาร์ ดิวอี้สกินคุชชั่น 01พิงค์ไอวอรี่ 12 กรัม"
+        lines = [{"description": name, "qty": 48, "unit": "ชิ้น", "unit_price": 589, "discount": 5654.4}] * 60
+        card = self.card(doc, {"lines": lines}, {"grand_total": "1", "vat_amount": "0",
+                                                  "lines": [{"line_total": "22617.60", "discount": "5654.40"}] * 60})
+        text = json.dumps(card, ensure_ascii=False)
+        self.assertLessEqual(len(text.encode()), 28 * 1024)
+        self.assertIn("more items", text)
+
     def test_sales_card_shows_our_company_as_seller_and_the_fallback_buyer(self):
         doc = _doc(direction="sales", party="@any")
         card = self.card(doc, {"doc_date": "2026-05-27", "lines": []}, {})
