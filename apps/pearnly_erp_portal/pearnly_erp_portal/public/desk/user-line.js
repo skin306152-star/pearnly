@@ -10,9 +10,10 @@ frappe.ui.form.on("User", {
 		frm.$wrapper.find(".pearnly-line-profile").remove();
 		if (!frappe.boot.pearnly_product || !frappe.boot.pearnly_line) return;
 		if (frm.doc.name !== frappe.session.user || frm.is_new()) return;
+		// 块体不用原生的 `.section-body`：那是横向排列的容器，里面再放一组字段会被压成窄条。
 		const block = $(`<div class="pearnly-line-profile form-section card-section">
-			<div class="section-head">LINE</div><div class="section-body"></div></div>`)
+			<div class="section-head">LINE</div><div class="pearnly-line-body"></div></div>`)
 			.appendTo(frm.layout.wrapper);
-		void frappe.pearnly.line_binding(block.find(".section-body"));
+		void frappe.pearnly.line_binding(block.find(".pearnly-line-body"));
 	},
 });
