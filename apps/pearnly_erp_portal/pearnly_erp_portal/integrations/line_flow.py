@@ -24,6 +24,8 @@ FROM_DOCUMENT = "@doc"
 FALLBACK = "@any"
 FALLBACK_LABELS = {"purchase": "General supplier", "sales": "Walk-in customer"}
 DIRECTIONS = ("purchase", "sales")
+# 方向在 LINE 里的叫法（泰文照旧菜单「ซื้อ / ขาย」，其他语言跟手机语言翻译）。
+DIRECTION_LABELS = {"purchase": "Buy", "sales": "Sell"}
 # 快捷回复一次最多 13 个按钮：选项最多 12 个，留一个给「取消」。
 MAX_CHOICES = 12
 PURCHASE_METHODS = ("cash", "transfer", "promptpay", "bank", "cheque", "other")
@@ -78,8 +80,8 @@ def _text(reply_token, text):
 
 def menu(user, reply_token):
     """手打「เมนู」：按岗位给 ซื้อ / ขาย 两个原生按钮（与富菜单同一口径）。"""
-    items = [_button(label, "a=mode:" + direction)
-             for direction, label in (("purchase", "ซื้อ"), ("sales", "ขาย"))
+    items = [_button(_(DIRECTION_LABELS[direction]), "a=mode:" + direction)
+             for direction in DIRECTIONS
              if guard.has(direction + ".write", user=user)]
     if not items:
         return _text(reply_token, _("This account cannot send documents"))
@@ -271,7 +273,7 @@ def summary(payload) -> str:
         kind += " · " + (frappe.db.get_value("ERP Warehouse", payload["warehouse"], "warehouse_name")
                          or payload["warehouse"])
     parts.append(kind)
-    head = "ซื้อ" if payload["direction"] == "purchase" else "ขาย"
+    head = _(DIRECTION_LABELS[payload["direction"]])
     return head + " · " + " · ".join(part for part in parts if part)
 
 

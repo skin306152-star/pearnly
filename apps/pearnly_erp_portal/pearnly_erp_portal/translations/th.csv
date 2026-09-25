@@ -110,6 +110,7 @@ Branch Office,สาขา
 Branch Type,ประเภทสาขา
 Branch {0},สาขา {0}
 Bucket,ช่วงรหัส
+Buy,ซื้อ
 Buyer,ชื่อผู้ซื้อ
 Buyer Type,ประเภทลูกค้า
 Buyer address,ที่อยู่ผู้ซื้อ
@@ -812,6 +813,7 @@ Select item group,เลือกกลุ่มรายการ
 Select one receipt to refund,เลือกได้ครั้งละหนึ่งใบเสร็จ
 Select one row to open its ledger,เลือกได้ครั้งละหนึ่งรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
+Sell,ขาย
 Seller,ชื่อผู้ขาย
 Seller address,ที่อยู่ผู้ขาย
 Seller branch,สาขาผู้ขาย

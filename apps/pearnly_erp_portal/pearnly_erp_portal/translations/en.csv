@@ -110,6 +110,7 @@ Branch Office,Branch Office
 Branch Type,Branch Type
 Branch {0},Branch {0}
 Bucket,Bucket
+Buy,Buy
 Buyer,Buyer
 Buyer Type,Buyer Type
 Buyer address,Buyer address
@@ -812,6 +813,7 @@ Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
+Sell,Sell
 Seller,Seller
 Seller address,Seller address
 Seller branch,Seller branch

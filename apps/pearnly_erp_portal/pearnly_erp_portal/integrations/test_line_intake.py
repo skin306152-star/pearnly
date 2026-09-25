@@ -237,6 +237,31 @@ class Payload(Base):
         self.assertEqual(seen, ["th"])
 
 
+class Language(Base):
+    def test_replies_follow_the_phone_language_and_restore_the_site_language(self):
+        from pearnly_core import line
+
+        frappe.local.lang = "th"
+        seen = []
+        self.enterContext(patch.object(line, "user_language", return_value="zh"))
+        self.enterContext(patch.object(handlers, "_handle", side_effect=lambda event: seen.append(frappe.local.lang)))
+        handlers.handle({"type": "follow", "source": {"userId": "U1"}})
+        self.assertEqual((seen, frappe.local.lang), (["zh"], "th"))
+
+    def test_phone_language_is_read_from_the_line_profile(self):
+        from pearnly_core import line
+
+        cache = {}
+        self.enterContext(patch.object(frappe, "cache", Mock(**{"get_value.side_effect": cache.get,
+            "set_value.side_effect": lambda key, value, expires_in_sec=None: cache.__setitem__(key, value)}), create=True))
+        for tag, expected in (("zh-Hant", "zh"), ("ja", "ja"), ("ko", "th"), (None, "th")):
+            cache.clear()
+            with patch.object(line, "get_profile", return_value={"language": tag} if tag else {}) as profile:
+                self.assertEqual(line.user_language("U1", default="th"), expected)
+                self.assertEqual(line.user_language("U1", default="th"), expected)
+                profile.assert_called_once()  # 第二次走缓存
+
+
 class Recognition(unittest.TestCase):
     def test_percent_discounts_become_amounts(self):
         # 09-26 采购票面「20.00%」被整个丢掉，合计多记 16,963.20。
@@ -430,7 +455,7 @@ class CardShape(Base):
                                        "lines": [{"line_total": "10.00", "discount": "0"}] * 12})
         header = card["contents"]["header"]["contents"]
         self.assertEqual((header[0]["text"], card["contents"]["header"]["backgroundColor"]),
-                         ("Review document · ซื้อ", "#16873E"))
+                         ("Review document · Buy", "#16873E"))
         rows = self.rows(card)
         labels = [label for label in rows]
         self.assertEqual(labels[:4], ["Company", "Direction", "Documents", "Item Type"])
@@ -453,7 +478,7 @@ class CardShape(Base):
         card = self.card(doc, {"doc_date": "2026-05-27", "lines": []}, {})
         rows = self.rows(card)
         self.assertEqual((rows["Direction"], rows["Seller"], rows["Buyer"], rows["Payment method"]),
-                         ("ขาย", "Sister Makeup Co., Ltd.", "Walk-in customer", "Transfer"))
+                         ("Sell", "Sister Makeup Co., Ltd.", "Walk-in customer", "Transfer"))
         self.assertEqual(card["contents"]["header"]["backgroundColor"], "#B11B50")
         self.assertIn("No items were read", json.dumps(card))
 

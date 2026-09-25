@@ -101,7 +101,20 @@ def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
 
 
 def handle(event: dict) -> bool:
-    """ERP 处理入口。返回 True 表示这个事件由 ERP 处理了。"""
+    """ERP 处理入口。返回 True 表示这个事件由 ERP 处理了。
+
+    回给这个人的话、按钮都用他手机上 LINE 的语言（用户 2026-09-26），处理完还原。"""
+    user_id = (event.get("source") or {}).get("userId") or ""
+    previous = getattr(frappe.local, "lang", None)
+    if user_id:
+        frappe.local.lang = line.user_language(user_id, default=intake.channel_language())
+    try:
+        return _handle(event)
+    finally:
+        frappe.local.lang = previous
+
+
+def _handle(event: dict) -> bool:
     etype = event.get("type")
     source = event.get("source") or {}
     user_id = source.get("userId") or ""

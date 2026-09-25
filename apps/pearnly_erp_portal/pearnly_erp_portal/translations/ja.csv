@@ -110,6 +110,7 @@ Branch Office,支店
 Branch Type,支店区分
 Branch {0},支店 {0}
 Bucket,採番区分
+Buy,仕入
 Buyer,買い手
 Buyer Type,顧客種類
 Buyer address,買い手住所
@@ -812,6 +813,7 @@ Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
 Select the original sale line,元の販売明細を選択してください
+Sell,売上
 Seller,売り手
 Seller address,売り手住所
 Seller branch,売り手支店

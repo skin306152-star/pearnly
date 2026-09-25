@@ -110,6 +110,7 @@ Branch Office,分支机构
 Branch Type,分支类型
 Branch {0},分支机构 {0}
 Bucket,号段
+Buy,采购
 Buyer,买方名称
 Buyer Type,客户类型
 Buyer address,买方地址
@@ -812,6 +813,7 @@ Select item group,选择物料组
 Select one receipt to refund,一次只能退一条小票
 Select one row to open its ledger,一次只能看一条流水
 Select the original sale line,请选择原单中的物料行
+Sell,销售
 Seller,卖方名称
 Seller address,卖方地址
 Seller branch,卖方分店

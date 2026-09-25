@@ -445,6 +445,40 @@ def get_profile(user_id: str) -> dict:
     return resp.json() if resp.status_code == 200 else {}
 
 
+# 平台有翻译的语言；LINE 给的是 BCP 47（`th`、`zh-Hant`、`en-US`、`ja`）。
+USER_LANGUAGES = ("th", "zh", "en", "ja")
+_LANGUAGE_TTL = 3600
+
+
+def user_language(user_id: str, default: str | None = None) -> str:
+    """这个 LINE 用户手机上 LINE App 的语言（用户 2026-09-26：LINE 里的字段与按钮跟着手机语言走）。
+
+    问 LINE 的 profile（没同意隐私政策的用户不给这个字段），按一小时缓存，免得每个事件都多一次
+    外部请求；问不到或不是平台有翻译的语言，就退回 `default`（再没有就用站点系统语言）。
+    """
+    fallback = default or frappe.db.get_single_value("System Settings", "language") or "th"
+    if not user_id:
+        return fallback
+    key = f"pearnly:line:user-language:{user_id}"
+    try:
+        cached = frappe.cache.get_value(key)
+        if cached:
+            return cached if cached in USER_LANGUAGES else fallback
+    except Exception:
+        cached = None
+    try:
+        tag = str((get_profile(user_id) or {}).get("language") or "").strip().lower()
+    except Exception:
+        return fallback
+    code = tag.split("-")[0]
+    language = code if code in USER_LANGUAGES else ""
+    try:
+        frappe.cache.set_value(key, language or "-", expires_in_sec=_LANGUAGE_TTL)
+    except Exception:
+        pass
+    return language or fallback
+
+
 def public_account() -> dict:
     """本站点这个官方号对外的身份：名字、Basic ID、加好友链接。
 

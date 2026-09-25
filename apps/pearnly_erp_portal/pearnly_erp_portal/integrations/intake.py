@@ -117,9 +117,9 @@ def run(intake, line_user_id, reply_token=""):
         return {"cancelled": "binding_changed"}
     previous, previous_lang = frappe.session.user, frappe.local.lang
     frappe.set_user(doc.sent_by)
-    # LINE 里的话一律用官方号的语言（站点系统语言，与 webhook 回复同一口径），
-    # 不随这个账号个人的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
-    frappe.local.lang = channel_language()
+    # 卡片与 webhook 回复同一口径：用这个人手机上 LINE 的语言（用户 2026-09-26），
+    # 不随这个账号在网页端的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
+    frappe.local.lang = line.user_language(line_user_id, default=channel_language())
     try:
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}])
@@ -151,7 +151,7 @@ def ocr_failed(arguments, code):
     if not doc or doc.status != QUEUED:
         return
     _drop(doc, FAILED, code)
-    frappe.local.lang = channel_language()
+    frappe.local.lang = line.user_language(arguments.get("line_user_id"), default=channel_language())
     text = (_("The recognition result needs checking. Please do not resend this document yet.")
             if code == "provider_outcome_unknown" else _("Could not read this document. Please send it again."))
     line.push(arguments.get("line_user_id"), [{"type": "text", "text": text}])

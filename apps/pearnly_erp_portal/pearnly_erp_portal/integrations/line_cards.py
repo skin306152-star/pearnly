@@ -18,8 +18,6 @@ from frappe import _
 from pearnly_erp_portal.integrations import line_flow
 
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
-# 方向词与富菜单、对话里同一组泰文词（`line_flow` / `line_menu`），不走翻译。
-HEADS = {"purchase": "ซื้อ", "sales": "ขาย"}
 DOC_KINDS = {"purchase_invoice": "Purchase Invoice", "purchase_order": "Purchase Order",
              "expense": "Expense", "receipt": "Receipt", "quotation": "Quotation"}
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细列到这么多行，再多的报「还有 N 项」。
@@ -166,7 +164,7 @@ def _amounts(doc, totals):
 
 def preview(doc, result, totals) -> dict:
     """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，只有「编辑」。"""
-    accent, head = COLORS[doc.direction], HEADS[doc.direction]
+    accent, head = COLORS[doc.direction], _(line_flow.DIRECTION_LABELS[doc.direction])
     seller, buyer = _parties(doc, result)
     before, discount, vat, wht, grand = _amounts(doc, totals)
     kind = result.get("doc_kind")
