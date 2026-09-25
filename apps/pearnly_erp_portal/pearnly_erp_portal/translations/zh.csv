@@ -984,6 +984,7 @@ There were errors while sending email. Please try again.,发送邮件时出错�
 This LINE account is not bound to an ERP user,这个 LINE 账号还没绑定 ERP 用户
 "This LINE account is not linked to a staff account. Open the page from LINE, or sign in to the site first.",这个 LINE 账号还没绑到员工账号。请从 LINE 里打开，或先在网页登录。
 This Month,本月
+This PDF has more than {0} pages,PDF 超过 {0} 页
 This Quarter,本季度
 This account cannot send documents,这个账号不能传单据
 This barcode already exists,这个条码已经存在

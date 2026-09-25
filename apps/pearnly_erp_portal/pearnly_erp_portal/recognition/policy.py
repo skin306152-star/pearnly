@@ -22,18 +22,30 @@ def models():
     return table["flash_lite"], table["fallback"]
 
 
+TEXT_NOTE = ("The document is given below as the text layer extracted from its PDF instead of an image; "
+             "read it the same way.\n\n")
+
+
 def read(prompt, images, *, structured, review, label):
     """读一次；硬闸不过就用升级模型再读一次。
 
+    PDF 自带文字层时首读只传文字（`inputs.text_path`，旧线上文字快路）；升级那次一律读原件。
     `structured(raw)` 把模型原始输出整理成结果（不合格返回 None）；`review(result)` 给出检查
     代码。返回 (结果, 检查代码, 用的模型)；两次都读不出结构返回 (None, [], 模型)。
     """
     from pearnly_core import ocr
 
+    from pearnly_erp_portal.recognition import inputs
+
     primary, fallback = models()
+    text = inputs.text_path(images)
     best = None
     for model in (primary, fallback):
-        raw = ocr.json_from_images(prompt, images, model=model, thinking=ocr.thinking_for(model))
+        if text is not None and model == primary:
+            raw = ocr.json_from_images(prompt + "\n" + TEXT_NOTE + text, [], model=model,
+                                       thinking=ocr.thinking_for(model))
+        else:
+            raw = ocr.json_from_images(prompt, images, model=model, thinking=ocr.thinking_for(model))
         result = structured(raw) if isinstance(raw, dict) else None
         if result is None:
             frappe.logger("pearnly.ocr").info(f"{label}: {model} 没读出结构")

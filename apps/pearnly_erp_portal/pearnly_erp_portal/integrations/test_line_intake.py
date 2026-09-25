@@ -574,6 +574,38 @@ class Escalation(unittest.TestCase):
         (result, issues, model), calls = self.read([None, {"lines": [], "n": 2}], lambda r: [])
         self.assertEqual((len(calls), result["n"], model), (2, 2, "gemini-3.8-flash"))
 
+    def test_a_pdf_with_a_text_layer_is_read_as_text_first(self):
+        from pearnly_core import ocr
+
+        from pearnly_erp_portal.recognition import inputs, policy
+
+        sent = []
+
+        def fake(prompt, images, *, model, thinking=None, **kw):
+            sent.append((model, "PAGE TEXT" in prompt, len(images)))
+            return {"lines": [], "n": len(sent)}
+
+        pdf = [(b"%PDF", "application/pdf")]
+        with patch.object(ocr, "json_from_images", side_effect=fake), \
+                patch.object(frappe, "logger", return_value=Mock(), create=True), \
+                patch.object(inputs, "pdf_text", return_value=(1, "PAGE TEXT " * 40)):
+            policy.read("P", pdf, structured=lambda raw: raw, review=lambda r: ["computed_total"] if r["n"] == 1 else [],
+                        label="t")
+        # 首读 3.1 只给文字、不传原件；过不了检查，升级 3.8 读 PDF 原件。
+        self.assertEqual(sent, [("gemini-3.1-flash-lite", True, 0), ("gemini-3.8-flash", False, 1)])
+        with patch.object(inputs, "pdf_text", return_value=(3, "short")):
+            self.assertIsNone(inputs.text_path(pdf))  # 文字太少（扫描件）：照常传原件
+
+    def test_pdf_page_limit(self):
+        from pearnly_erp_portal.recognition import inputs
+
+        pages = SimpleNamespace(pages=[SimpleNamespace(extract_text=lambda: "x")] * 21)
+        with patch("pypdf.PdfReader", return_value=pages, create=True), \
+                patch.object(frappe, "throw", side_effect=frappe.ValidationError, create=True), \
+                patch.object(frappe, "_", _same, create=True):
+            with self.assertRaises(frappe.ValidationError):
+                inputs.pdf_text(b"%PDF")
+
     def test_thinking_is_sent_only_when_asked(self):
         from pearnly_core import ocr
 
