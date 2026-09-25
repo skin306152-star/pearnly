@@ -118,7 +118,8 @@ class ManualNative(lab["SnapshotLabCase"]):
 
     def test_a_busy_session_gives_up_loudly_after_the_budget(self):
         request_id = self.request()
-        for step in range(manual.BUSY_ATTEMPTS):
+        # 第一次尝试 + BUSY_ATTEMPTS 次重排 = 把预算用完
+        for step in range(manual.BUSY_ATTEMPTS + 1):
             self.execute(request_id, {"ok": False, "busy": True,
                                       "error_code": "ERR_DMS_SNAPSHOT_BUSY"}, step=step)
 
