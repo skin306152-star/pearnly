@@ -51,6 +51,8 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
 
     company.document_company(choices.get("company"), sent_by)  # still permitted?
     # 私有、归本人、先不挂任何单据：识别与入账都按「本人上传的未挂文件」来认它。
+    # 所以记录上的源文件字段是 Data 不是 Attach —— Attach 会让 Frappe 保存时把这份文件
+    # 自动挂到收单记录上，识别就会被判「不是本人未挂出的上传」而拒绝（2026-09-26 真机）。
     file = frappe.get_doc({"doctype": "File", "file_name": filename, "is_private": 1,
                            "content": content}).insert(ignore_permissions=True)
     doc = frappe.get_doc({
@@ -80,7 +82,7 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
 
 def _file_name(doc):
     """这张单自己那份 File。按记录编号取，不按地址找：同一张照片再发一次时，Frappe 会让新旧
-    两份 File 共用同一个文件地址，按地址找会拿到上一张单已挂出去的那份（识别时被判无权）。"""
+    两份 File 共用同一个文件地址，按地址找可能拿到另一张单的那份。"""
     return doc.get("source_file_name") or ""
 
 

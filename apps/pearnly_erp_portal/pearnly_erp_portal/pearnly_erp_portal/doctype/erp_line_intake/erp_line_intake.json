@@ -93,14 +93,14 @@
   },
   {
    "fieldname": "source_file",
-   "fieldtype": "Attach",
-   "label": "Source File"
+   "fieldtype": "Data",
+   "label": "Source File",
+   "description": "Data, not Attach: an Attach field makes Frappe attach the File to this record, and recognition then refuses it as not the uploader's own unattached upload."
   },
   {
    "fieldname": "source_file_name",
-   "fieldtype": "Link",
-   "label": "Source File Record",
-   "options": "File"
+   "fieldtype": "Data",
+   "label": "Source File Record"
   },
   {
    "fieldname": "section_decision",

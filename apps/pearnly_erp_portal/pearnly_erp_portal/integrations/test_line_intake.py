@@ -223,6 +223,17 @@ class SourceFile(Base):
         # file up by URL returned the earlier card's attached copy and recognition was refused.
         self.assertEqual(intake._file_name(_doc(source_file_name="FILE-2")), "FILE-2")
 
+    def test_the_source_file_is_never_auto_attached_to_the_intake_record(self):
+        # Frappe attaches Files referenced by Attach fields to the saved record; an attached
+        # file is no longer the uploader's own unattached upload, so recognition refused it.
+        from pathlib import Path
+
+        meta = json.loads((Path(intake.__file__).parents[1] / "pearnly_erp_portal" / "doctype"
+                           / "erp_line_intake" / "erp_line_intake.json").read_text())
+        types = {f["fieldname"]: f["fieldtype"] for f in meta["fields"]}
+        self.assertNotIn("Attach", {types["source_file"], types["source_file_name"]})
+        self.assertFalse([name for name, kind in types.items() if kind in ("Attach", "Attach Image")])
+
 
 class Web(Base):
     """卡片「编辑」打开网页端原生页 → 提交入账（用户 2026-09-25）。"""
