@@ -31,7 +31,15 @@ from urllib.parse import urljoin, urlsplit, urlunsplit
 from pearnly_core.browser import BrowserSession
 from pearnly_core.endpoints import read_password
 from pearnly_core.session_lock import account_lock, dms_login_key, SessionLockUnavailable
-from pearnly_dms.adapter.read_priority import foreground, yield_to_foreground, ReadDeferred
+from pearnly_dms.adapter.read_priority import (
+    foreground, yield_to_foreground, wait_for_foreground, ReadDeferred,
+)
+
+#: 后台读取最多等交互操作多久（秒）。等不到才退回 `busy` —— 以前是"一点都不等"，
+#: 于是必然 busy，而 busy 之后没人重排，缓存再也不更新（2026-09-25 实测）。
+READ_DEFER_TIMEOUT_SECONDS = 30.0
+#: 后台读取拿账号锁最多等多久（秒）。同一笔操作刚收尾时锁可能还没放。
+READ_LOCK_WAIT_SECONDS = 10.0
 from pearnly_dms.config import pacing
 from frappe import _
 
@@ -213,12 +221,14 @@ class MrerpDmsAdapter:
                 accounts.add(dms_login_key(self.login_url, self._admin_username))
             read_batch = bool(getattr(self, "read_only_batch", False))
             if read_batch:
-                yield_to_foreground(accounts)
+                # 撞上操作员的会话就**等它做完**（有界），不要立刻退回 busy。
+                wait_for_foreground(accounts, READ_DEFER_TIMEOUT_SECONDS)
             else:
                 self._lock_cm.enter_context(foreground(accounts))
             try:
                 self._lock_held = all([
-                    self._lock_cm.enter_context(account_lock(key, timeout_sec=0 if read_batch else 180))
+                    self._lock_cm.enter_context(account_lock(
+                        key, timeout_sec=READ_LOCK_WAIT_SECONDS if read_batch else 180))
                     for key in sorted(accounts)
                 ])
             except SessionLockUnavailable as exc:

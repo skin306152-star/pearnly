@@ -56,32 +56,30 @@ class ManualBusyRetryTests(unittest.TestCase):
         out = self._execute({"ok": False, "busy": True, "error_code": "ERR_DMS_SNAPSHOT_BUSY"})
 
         self.assertEqual(out, {"ok": True, "state": "queued"})
-        self.assertEqual(self.manual._enqueue.call_args.kwargs["countdown"],
-                         self.manual.BUSY_DELAYS[0])
+        self.manual._enqueue.assert_called_once()
         self.assertEqual(self._values()["state"], "queued")
         self.assertEqual(self._values()["busy_waits"], 1)
         self.assertEqual(self._values()["error_code"], "",
                          "还在等账号时不该让操作员看见一个并不存在的失败")
 
-    def test_each_busy_attempt_waits_longer(self):
-        self._execute({"ok": False, "busy": True}, busy_waits=2)
-        self.assertEqual(self.manual._enqueue.call_args.kwargs["countdown"],
-                         self.manual.BUSY_DELAYS[2])
+    def test_the_retry_is_bounded_not_unlimited(self):
+        self._execute({"ok": False, "busy": True}, busy_waits=self.manual.BUSY_ATTEMPTS - 1)
+        self.manual._enqueue.assert_called_once()
 
     def test_giving_up_fails_loudly_so_the_nightly_can_pick_it_up(self):
         out = self._execute({"ok": False, "busy": True, "error_code": "ERR_DMS_SNAPSHOT_BUSY"},
-                            busy_waits=len(self.manual.BUSY_DELAYS))
+                            busy_waits=self.manual.BUSY_ATTEMPTS)
 
         self.assertEqual(out, {"ok": False, "state": "failed"})
         self.assertEqual(self._values()["state"], "failed")
         self.assertEqual(self._values()["error_code"], "ERR_DMS_SNAPSHOT_BUSY")
         self.manual._enqueue.assert_not_called()
 
-    def test_a_transport_retry_still_re_enqueues_without_a_delay(self):
+    def test_a_transport_retry_still_re_enqueues(self):
         out = self._execute({"ok": False, "error_code": "ERR_DMS_SNAPSHOT_RETRY"})
 
         self.assertEqual(out, {"ok": True, "state": "queued"})
-        self.assertEqual(self.manual._enqueue.call_args.kwargs["countdown"], 0)
+        self.manual._enqueue.assert_called_once()
         self.assertEqual(self._values()["retries"], 1)
 
 

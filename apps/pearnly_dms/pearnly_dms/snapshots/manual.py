@@ -29,13 +29,13 @@ MAX_RETRIES = 5
 #:   2026-09-25 实测：testdms 的客户组偶发栽在这上面，整组作废、任务链断掉，
 #:   而手工重跑立刻成功 —— 说明它多半是瞬时的，值得重试。有 MAX_RETRIES 兜底。
 RETRYABLE = {"ERR_DMS_SNAPSHOT_RETRY", "ERR_UNEXPECTED"}
-#: 抢不到账号时的等待阶梯（秒）。**必须延时重排，不能停在"等待中"。**
-#: 后台读取的等待时间是 0（它要让位给操作员），所以第一枪几乎必然撞上"操作员自己
-#: 还握着这个账号的会话"。2026-09-25 实测：以前这里写 `waiting` 就收工，而 `waiting`
-#: 不会重排、也没有任何清扫者 —— 缓存从此不再更新；夜间任务还把 `waiting` 当"正在跑"
-#: 而跳过这一组，等于一处卡住就永久失效。走完这五档（≈7.75 分钟）仍拿不到账号，才明确
-#: 失败：失败态夜间任务会重试，下一次"顺手同步"也会重新登记。
-BUSY_DELAYS = (15, 30, 60, 120, 240)
+#: 抢不到账号时最多再排几次。**不能停在"等待中"**：`waiting` 不会被任何东西重排，
+#: 夜间任务还把它当"正在跑"而跳过，等于一处卡住就永久失效（2026-09-25 实测）。
+#: 每一次尝试本身已经带**有界等待**（`adapter/read_priority.wait_for_foreground`
+#: 最多 30 秒、账号锁最多等 10 秒），所以这里不必再延时排队（Frappe 的队列也没有
+#: 延时参数：`countdown` 会被当成任务参数传下去，CI 实测直接 TypeError）。
+#: 用满次数仍然拿不到，才明确失败：失败态夜间任务会重试，下一次"顺手同步"也会重新登记。
+BUSY_ATTEMPTS = 3
 
 
 def _collector(dataset, reader):
@@ -144,10 +144,9 @@ def request(endpoint, dataset, *, reader="authority", params=None, actor=None):
     return out
 
 
-def _enqueue(endpoint, dataset, reader, request_id, step, *, countdown=0):
+def _enqueue(endpoint, dataset, reader, request_id, step):
     frappe.enqueue("pearnly_dms.snapshots.manual.execute", endpoint=endpoint, dataset=dataset,
         reader=reader, request_id=request_id, step=step, queue=QUEUE, timeout=420,
-        countdown=countdown,
         # Registration/step claim is already committed on a separate connection.
         # A surrounding RPC rollback must not strand an independently queued row.
         job_id=f"dms-manual-{request_id}-{step}", deduplicate=True, enqueue_after_commit=False)
@@ -216,16 +215,15 @@ def execute(endpoint, dataset, reader, request_id, step=0):
                     "total": result.get("total", result.get("count")), "unit": "records"}
         retries = int(req.get("retries") or 0)
         busy_waits = int(req.get("busy_waits") or 0)
-        delay = 0
         if result.get("busy"):
-            # 账号被"操作员自己那一笔"占着：不是错误，是"等一会儿再来"。
-            # 必须**延时重排**（见 BUSY_DELAYS）；预算用完才明确失败。
-            if busy_waits < len(BUSY_DELAYS):
-                delay = BUSY_DELAYS[busy_waits]
+            # 账号被"操作员自己那一笔"占着：不是错误，是"再来一次"。
+            # 每次尝试里已经有一次有界等待（见 adapter 的 READ_DEFER_TIMEOUT_SECONDS），
+            # 所以这里直接重排；次数用完才明确失败。
+            if busy_waits < BUSY_ATTEMPTS:
                 busy_waits += 1
                 state = "queued"
-                logger.info("DMS 账号忙，%s 秒后重排（第 %s 次）dataset=%s endpoint=%s",
-                            delay, busy_waits, dataset, endpoint)
+                logger.info("DMS 账号忙，重排第 %s/%s 次 dataset=%s endpoint=%s",
+                            busy_waits, BUSY_ATTEMPTS, dataset, endpoint)
             else:
                 state = "failed"
         elif not result.get("ok"):
@@ -244,13 +242,14 @@ def execute(endpoint, dataset, reader, request_id, step=0):
         values = {"state": state, "progress": progress,
                   # 还在等账号时**不留错误码**：那会让操作员看见一个并不存在的失败。
                   # 真的等不到了才把 ERR_DMS_SNAPSHOT_BUSY 亮出来。
-                  "error_code": "" if (state == "queued" and delay) else result.get("error_code", ""),
+                  "error_code": "" if (state == "queued" and result.get("busy"))
+                                else result.get("error_code", ""),
                   "step": step + 1, "retries": retries, "busy_waits": busy_waits}
         if state == "succeeded":
             values["count"] = result.get("count", progress["processed"])
         if _update(endpoint, dataset, reader, request_id, values) and state == "queued":
             try:
-                _enqueue(endpoint, dataset, reader, request_id, step + 1, countdown=delay)
+                _enqueue(endpoint, dataset, reader, request_id, step + 1)
             except Exception:
                 _update(endpoint, dataset, reader, request_id,
                     {"state": "failed", "error_code": "ERR_DMS_SNAPSHOT_INTERRUPTED"}, expected_step=step + 1)

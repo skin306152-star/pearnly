@@ -24,6 +24,7 @@ UNIT_TESTS = (
     "tests/test_dms_operator_advisors.py",
     "tests/test_dms_snapshot_storage.py",
     "tests/test_dms_manual_busy_retry.py",
+    "tests/test_dms_read_priority_wait.py",
 )
 
 if __name__ == "__main__":

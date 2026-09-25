@@ -101,16 +101,35 @@ class ManualNative(lab["SnapshotLabCase"]):
         self.assertEqual(value["count"], 50)
         self.assertIsNone(get_job(f"dms-manual-{request_id}-2"))
 
-    def test_foreground_contention_waits_for_user_not_automatic_retry(self):
+    def test_a_busy_session_is_retried_instead_of_parked(self):
+        # 2026-09-25 用户报的就是这条：`waiting` 不会被任何东西重排，操作员录入之后的
+        # 改动再也回不到缓存，夜间任务还把 `waiting` 当成"正在跑"而跳过。
+        # 现在忙碌就再排一次（每次尝试自带一次有界等待），次数用完才明确失败。
         request_id = self.request()
-        self.execute(request_id, {"ok": False, "busy": True, "error_code": "ERR_DMS_SNAPSHOT_BUSY"})
-        self.assertEqual(manual.status(self.endpoint, "vehicles")["state"], "waiting")
-        self.assertIsNone(get_job(f"dms-manual-{request_id}-1"))
-        self.assertNotEqual(self.request(), request_id)
 
-    def test_old_job_replay_cannot_change_success_or_waiting(self):
+        self.execute(request_id, {"ok": False, "busy": True, "error_code": "ERR_DMS_SNAPSHOT_BUSY"})
+
+        status = manual.status(self.endpoint, "vehicles")
+        self.assertEqual(status["state"], "queued", "忙碌必须重排，不能停在 waiting")
+        self.assertEqual(status["request_id"], request_id)
+        self.assertIsNotNone(get_job(f"dms-manual-{request_id}-1"))
+        self.assertEqual(status["error_code"], "",
+                         "还在等账号时不该让操作员看见一个并不存在的失败")
+
+    def test_a_busy_session_gives_up_loudly_after_the_budget(self):
+        request_id = self.request()
+        for step in range(manual.BUSY_ATTEMPTS):
+            self.execute(request_id, {"ok": False, "busy": True,
+                                      "error_code": "ERR_DMS_SNAPSHOT_BUSY"}, step=step)
+
+        status = manual.status(self.endpoint, "vehicles")
+        self.assertEqual(status["state"], "failed", "用完次数必须明确失败，好让夜间任务接手")
+        self.assertEqual(status["error_code"], "ERR_DMS_SNAPSHOT_BUSY")
+        self.assertIsNone(get_job(f"dms-manual-{request_id}-{manual.BUSY_ATTEMPTS + 1}"))
+
+    def test_old_job_replay_cannot_change_success_or_queued(self):
         for value, expected in (({"ok": True, "count": 12}, "succeeded"),
-                                ({"ok": False, "busy": True}, "waiting")):
+                                ({"ok": False, "busy": True}, "queued")):
             request_id = self.request()
             self.execute(request_id, value)
             before = manual.status(self.endpoint, "vehicles")
