@@ -65,7 +65,9 @@ def clean_result(raw):
     for raw_row in raw.get("lines", []):
         if not isinstance(raw_row, dict):
             continue
-        row = {key: raw_row[key] for key in LINE_FIELDS if key in raw_row}
+        # 空值不带：`amounts.calculate` 与网页表单都按「没这个键就用默认」（税率 7 等），
+        # 带着 None 进去税率会被当成 0（09-26：含税票被算成没有 VAT）。
+        row = {key: raw_row[key] for key in LINE_FIELDS if raw_row.get(key) not in (None, "")}
         percent = _number(raw_row.get("discount_percent") or 0)
         if percent and not row.get("discount"):
             row["discount"] = f"{percent}%"

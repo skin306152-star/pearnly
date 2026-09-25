@@ -467,7 +467,8 @@ class Checks(unittest.TestCase):
         self.assertIsNone(checks.vat_mode({"total": 100}, 100))
         # 模型读成「无 VAT、不含税」，票面数字说它是含税的 —— 用票面的。
         result = recognition._structured({"has_vat": False, "price_mode": "exclusive", "printed": printed, "lines": [
-            {"description": "Tyre", "qty": 1, "unit_price": 6400}, {"description": "Tube", "qty": 1, "unit_price": 750},
+            {"description": "Tyre", "qty": 1, "unit_price": 6400, "vat_rate": None, "discount": None},
+            {"description": "Tube", "qty": 1, "unit_price": 750},
             {"description": "Flap", "qty": 1, "unit_price": 350}]})
         self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
         self.assertEqual(recognition.review(result), [])
