@@ -332,6 +332,7 @@ Enter customer's email,顧客のメールを入力
 Enter customer's phone number,顧客の電話番号を入力
 Enter discount percentage,割引率を入力
 Enter discount percentage.,割引率を入力してください
+Enter manually,手入力
 Enter opening stock,期首在庫を登録
 Enter purchase details. Files are added as attachments only.,仕入情報を手入力します。ファイルは添付のみです。
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
@@ -388,6 +389,7 @@ From the document,書類から読み取る
 Full Name,氏名
 Full Screen,全画面
 General,一般
+General supplier,一般仕入先
 Generated,生成済み
 Generated automatically,自動生成
 Goods,商品
@@ -1027,10 +1029,12 @@ Updated {0} product(s),{0}件を更新しました
 Updated {0} record(s),{0}件を更新しました
 Updated {0} supplier(s),仕入先 {0}件を更新しました
 Updated {0} user(s),ユーザー{0}件を更新しました
+Upload a document or enter it manually?,書類をアップロードしますか、手入力しますか？
 "Upload a receipt, then review the recognized details.",領収書をアップロードし、読み取り結果を確認・修正します。
 Upload a sheet,取り込み
 "Upload an invoice, then review the recognized details.",請求書をアップロードし、読み取り結果を確認・修正します。
 Upload and Recognize,アップロードして読み取る
+Upload and recognise,アップロードして読み取る
 Use a valid opening date that is not in the future,本日以前の有効な期首日を入力してください
 Use an XLSX opening stock file,XLSX形式の期首在庫ファイルを使用してください
 Use one worksheet for opening stock,期首在庫ファイルのシートは1つにしてください

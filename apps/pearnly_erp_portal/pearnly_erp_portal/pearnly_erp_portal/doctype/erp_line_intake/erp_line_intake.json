@@ -13,6 +13,7 @@
   "line_message_id",
   "file_hash",
   "source_file",
+  "source_file_name",
   "section_decision",
   "received_at",
   "decided_at",
@@ -94,6 +95,12 @@
    "fieldname": "source_file",
    "fieldtype": "Attach",
    "label": "Source File"
+  },
+  {
+   "fieldname": "source_file_name",
+   "fieldtype": "Link",
+   "label": "Source File Record",
+   "options": "File"
   },
   {
    "fieldname": "section_decision",

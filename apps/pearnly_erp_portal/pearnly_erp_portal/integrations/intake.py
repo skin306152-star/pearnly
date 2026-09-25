@@ -58,7 +58,7 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
         "sent_by": sent_by, "line_user_id": line_user_id,
         "media_type": MEDIA_TYPES.get(media_type, media_type or ""),
         "line_message_id": line_message_id, "file_hash": hashlib.sha256(content).hexdigest(),
-        "source_file": file.file_url, "received_at": now(),
+        "source_file": file.file_url, "source_file_name": file.name, "received_at": now(),
         "company": choices.get("company"), "party": choices.get("party") or "",
         "is_paid": int(bool(choices.get("is_paid"))), "payment_method": choices.get("payment_method") or "",
         "item_kind": choices.get("item_kind"), "warehouse": choices.get("warehouse") or None,
@@ -79,7 +79,9 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
 
 
 def _file_name(doc):
-    return frappe.db.get_value("File", {"file_url": doc.source_file, "owner": doc.sent_by}, "name")
+    """这张单自己那份 File。按记录编号取，不按地址找：同一张照片再发一次时，Frappe 会让新旧
+    两份 File 共用同一个文件地址，按地址找会拿到上一张单已挂出去的那份（识别时被判无权）。"""
+    return doc.get("source_file_name") or ""
 
 
 def _drop(doc, status, reason=""):
@@ -111,8 +113,11 @@ def run(intake, line_user_id, reply_token=""):
     if line_binding.user_of(line_user_id) != doc.sent_by or doc.line_user_id != line_user_id:
         _drop(doc, FAILED, "binding_changed")
         return {"cancelled": "binding_changed"}
-    previous = frappe.session.user
+    previous, previous_lang = frappe.session.user, frappe.local.lang
     frappe.set_user(doc.sent_by)
+    # LINE 里的话一律用官方号的语言（站点系统语言，与 webhook 回复同一口径），
+    # 不随这个账号个人的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
+    frappe.local.lang = channel_language()
     try:
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}])
@@ -130,15 +135,21 @@ def run(intake, line_user_id, reply_token=""):
         return {}
     finally:
         frappe.set_user(previous)
+        frappe.local.lang = previous_lang
+
+
+def channel_language():
+    return frappe.db.get_single_value("System Settings", "language") or "th"
 
 
 def ocr_failed(arguments, code):
     """队列本身失败（排队超时、结果不确定）：告诉本人，记录落定。"""
-    doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file",
-                              "sent_by"], as_dict=True)
+    doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file_name"],
+                              as_dict=True)
     if not doc or doc.status != QUEUED:
         return
     _drop(doc, FAILED, code)
+    frappe.local.lang = channel_language()
     text = (_("The recognition result needs checking. Please do not resend this document yet.")
             if code == "provider_outcome_unknown" else _("Could not read this document. Please send it again."))
     line.push(arguments.get("line_user_id"), [{"type": "text", "text": text}])
@@ -152,7 +163,8 @@ def build_payload(doc, result=None) -> dict:
     result = result if result is not None else json.loads(doc.result or "{}")
     goods = doc.item_kind == "goods"
     attachments = [{"file": _file_name(doc), "kind": "bill"}]
-    party = doc.party if doc.party and doc.party != line_flow.FROM_DOCUMENT else None
+    party = doc.party if doc.party not in ("", None, line_flow.FROM_DOCUMENT, line_flow.FALLBACK) else None
+    fallback = doc.party == line_flow.FALLBACK
     if doc.direction == "purchase":
         from pearnly_erp_portal.purchasing import recognition
 
@@ -169,6 +181,12 @@ def build_payload(doc, result=None) -> dict:
                        auto_create_product=int(goods), source="line", attachments=attachments)
         if party:
             payload["supplier"] = party
+        elif fallback:
+            # 一般供应商：票面上的供应商信息不用，统一记到同名的那一个（第一次按名字新建，之后复用）。
+            for key in ("supplier_tax_id", "supplier_branch_type", "supplier_branch_no",
+                        "supplier_branch_name", "supplier_address"):
+                payload.pop(key, None)
+            payload["supplier_name"] = _(line_flow.FALLBACK_LABELS["purchase"])
         return payload
     payload = {key: result.get(key) for key in ("doc_kind", "doc_date", "buyer_name", "party_type",
                                                   "address", "has_vat", "vat_rate")}
@@ -186,6 +204,10 @@ def build_payload(doc, result=None) -> dict:
         payload["paid_amount"] = 0
     if party:
         payload["customer"] = party
+    elif fallback:
+        # 散客：不建客户档案，不用票面买方信息。
+        payload.pop("address", None)
+        payload.update(buyer_name=_(line_flow.FALLBACK_LABELS["sales"]), party_type="anonymous")
     elif not payload.get("buyer_name"):
         payload["buyer_name"] = _("Unknown buyer")
     return payload
@@ -285,5 +307,5 @@ def expire_stale():
     """每小时：卡在排队里超过 6 小时的记录落为失败并清掉源文件（卡片本身不过期）。"""
     cutoff = add_to_date(now_datetime(), hours=-6)
     for row in frappe.get_all(DOCTYPE, filters={"status": QUEUED, "received_at": ["<", cutoff]},
-                              fields=["name", "source_file", "sent_by"], limit_page_length=500):
+                              fields=["name", "source_file_name"], limit_page_length=500):
         _drop(row, FAILED, "stale")

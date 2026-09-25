@@ -56,10 +56,13 @@ class Flow(Base):
                                 side_effect=lambda user=None: list(self.companies)))
         self.enterContext(patch.object(line_flow, "_options", side_effect=self.options))
         self.enterContext(patch.object(line_flow, "_default_warehouse", return_value="WH-1"))
+        self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
 
     def options(self, step, payload, user):
-        return {"company": [("CO-1", "Alpha"), ("CO-2", "Beta")],
-                "party": [(line_flow.FROM_DOCUMENT, "From the document"), ("SUP-1", "Acme")],
+        return {"entry": [("upload", "Upload and recognise")],
+                "company": [("CO-1", "Alpha"), ("CO-2", "Beta")],
+                "party": [(line_flow.FROM_DOCUMENT, "From the document"), (line_flow.FALLBACK, "General supplier"),
+                          ("SUP-1", "Acme")],
                 "paid": [("1", "Paid"), ("0", "Unpaid")],
                 "method": [("cash", "Cash"), ("transfer", "Transfer")],
                 "kind": [("goods", "Stock item"), ("service", "Service")],
@@ -72,14 +75,16 @@ class Flow(Base):
     def test_steps_run_in_order_and_skip_single_company_and_default_warehouse(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode:purchase"})
+            self.tap(self.buttons()[0])                        # Upload and recognise
             self.assertEqual(self.buttons()[0]["label"], "1. From the document")
             self.assertEqual(self.buttons()[-1]["data"], "a=erp&s=cancel")
-            self.tap(self.buttons()[1])                        # Acme
+            self.assertEqual(self.buttons()[1]["label"], "2. General supplier")
+            self.tap(self.buttons()[2])                        # Acme
             self.tap(self.buttons()[0])                        # Paid
             self.tap(next(b for b in self.buttons() if "transfer" in b["data"]))
             self.tap(self.buttons()[0])                        # Stock item
         payload = self.sessions["U1"]["payload"]
-        self.assertEqual(payload, {"direction": "purchase", "company": "CO-1", "party": "SUP-1",
+        self.assertEqual(payload, {"direction": "purchase", "entry": "upload", "company": "CO-1", "party": "SUP-1",
                                    "is_paid": 1, "payment_method": "transfer", "item_kind": "goods",
                                    "warehouse": "WH-1"})
         self.assertTrue(line_flow.ready(payload))
@@ -89,6 +94,7 @@ class Flow(Base):
         self.companies = ["CO-1", "CO-2"]
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.tap({"data": "a=mode%3Apurchase"})           # the old menu's encoding
+            self.tap({"data": "a=erp&s=entry&v=upload"})
         self.assertEqual([b["label"] for b in self.buttons()], ["1. Alpha", "2. Beta", "Cancel"])
 
     def test_stale_or_forged_answers_do_not_advance(self):
@@ -102,12 +108,21 @@ class Flow(Base):
 
     def test_unpaid_skips_method_and_service_skips_warehouse(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
-            for data in ("a=mode:purchase", "a=erp&s=party&v=%40doc", "a=erp&s=paid&v=0",
+            for data in ("a=mode:purchase", "a=erp&s=entry&v=upload", "a=erp&s=party&v=%40doc", "a=erp&s=paid&v=0",
                          "a=erp&s=kind&v=service"):
                 self.tap({"data": data})
         payload = self.sessions["U1"]["payload"]
         self.assertEqual((payload["is_paid"], payload["payment_method"], payload.get("warehouse")), (0, "", None))
         self.assertTrue(line_flow.ready(payload))
+
+    def test_manual_entry_is_a_link_to_the_blank_native_page(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+        upload, manual, cancel = self.buttons()
+        self.assertEqual((upload["label"], upload["data"]), ("Upload and recognise", "a=erp&s=entry&v=upload"))
+        self.assertEqual(manual, {"type": "uri", "label": "Enter manually",
+                                  "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/new"})
+        self.assertEqual(cancel["data"], "a=erp&s=cancel")
 
     def test_role_and_binding_are_checked_before_any_step(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
@@ -139,7 +154,7 @@ class Documents(Base):
         download.assert_not_called()
 
     def test_ready_document_is_received_as_the_bound_user_and_guest_restored(self):
-        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "company": "CO-1",
+        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload", "company": "CO-1",
             "party": "@doc", "is_paid": 0, "payment_method": "", "item_kind": "service"}}
         self.enterContext(patch("pearnly_core.line.download_message_content", return_value=b"file"))
         seen = {}
@@ -155,7 +170,7 @@ class Documents(Base):
 def _doc(**values):
     base = dict(name="LI-1", direction="purchase", company="CO-1", party="SUP-1", is_paid=1,
                 payment_method="transfer", item_kind="goods", warehouse="WH-1", status="ready",
-                purchase=None, sales_document=None, line_user_id="U1", sent_by="buyer", source_file="/private/files/a.jpg",
+                purchase=None, sales_document=None, line_user_id="U1", source_file_name="FILE-1", sent_by="buyer", source_file="/private/files/a.jpg",
                 result=json.dumps({"doc_no": "INV-1", "doc_date": "2026-09-25", "supplier_name": "Acme",
                                    "lines": [{"description": "Soap", "qty": 2, "unit_price": 10}]}))
     base.update(values)
@@ -184,12 +199,29 @@ class Payload(Base):
         self.assertEqual((payload["update_stock"], payload["lines"][0]["item_type"]), (0, "service"))
         self.assertNotIn("warehouse", payload["lines"][0])
 
+    def test_fallback_parties_ignore_the_document_party(self):
+        purchase = intake.build_payload(_doc(party="@any", result=json.dumps({"doc_no": "INV-1",
+            "supplier_name": "Shop", "supplier_tax_id": "0105", "lines": []})))
+        self.assertEqual((purchase["supplier_name"], "supplier" in purchase, "supplier_tax_id" in purchase),
+                         ("General supplier", False, False))
+        sales = intake.build_payload(_doc(direction="sales", party="@any", result=json.dumps(
+            {"buyer_name": "Somchai", "address": "Bangkok", "lines": []})))
+        self.assertEqual((sales["buyer_name"], sales["party_type"], "customer" in sales, "address" in sales),
+                         ("Walk-in customer", "anonymous", False, False))
+
     def test_sales_payload_is_unpaid_and_names_an_unknown_buyer(self):
         doc = _doc(direction="sales", party="@doc", is_paid=0, payment_method="",
                    result=json.dumps({"doc_date": "2026-09-25", "lines": [{"description": "Soap", "qty": 1, "unit_price": 5}]}))
         payload = intake.build_payload(doc)
         self.assertEqual((payload["is_paid"], payload["paid_amount"], payload["buyer_name"]), (0, 0, "Unknown buyer"))
         self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
+
+
+class SourceFile(Base):
+    def test_the_card_uses_its_own_file_record_not_a_shared_url(self):
+        # The same photo sent twice gets two File records sharing one file_url; looking the
+        # file up by URL returned the earlier card's attached copy and recognition was refused.
+        self.assertEqual(intake._file_name(_doc(source_file_name="FILE-2")), "FILE-2")
 
 
 class Web(Base):

@@ -33,6 +33,8 @@ def _row(label, value, *, bold=False):
 def _party(doc, result):
     purchase = doc.direction == "purchase"
     label = _("Supplier") if purchase else _("Customer")
+    if doc.party == line_flow.FALLBACK:
+        return label, _(line_flow.FALLBACK_LABELS[doc.direction])
     if doc.party and doc.party != line_flow.FROM_DOCUMENT:
         master, title = ("ERP Supplier", "supplier_name") if purchase else ("ERP Customer", "customer_name")
         return label, frappe.db.get_value(master, doc.party, title) or doc.party

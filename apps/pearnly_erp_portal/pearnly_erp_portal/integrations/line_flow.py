@@ -1,8 +1,9 @@
 """LINE 里录单前的几步选择（用户 2026-09-25 定稿，见 docs/work/2026-09-25-erp-line-intake.md）。
 
-点菜单「ซื้อ / ขาย」（或手打 1 / 2 / ซื้อ / ขาย）之后，依次用 **LINE 原生快捷回复按钮**问：
-公司 → 供应商（采购）/ 客户（销售）→ 已付 / 未付 →（已付）付款方式 → 服务 / 库存商品 →
-（库存商品且默认仓定不下来时）仓库 → 提示上传 PDF 或图片。每一步末尾都有「取消」。
+点菜单「ซื้อ / ขาย」（或手打 1 / 2 / ซื้อ / ขาย）之后，先问「上传识别 / 手动录入」：手动录入
+直接在 LINE 里打开网页端原生的空白新建页（快捷回复的链接按钮，不再多发消息）；上传识别则依次用
+**LINE 原生快捷回复按钮**问：公司 → 供应商（采购）/ 客户（销售）→ 已付 / 未付 →（已付）付款方式 →
+服务 / 库存商品 →（库存商品且默认仓定不下来时）仓库 → 提示上传 PDF 或图片。每一步末尾都有「取消」。
 
 选择存在本人的 LINE 会话里（30 分钟），上传的每一张都按这组选择识别、各出一张预览卡。
 这里只管问与记；识别、预览卡、入账在 `intake`。权限全部按绑定的这个账号在服务端判。
@@ -19,6 +20,9 @@ from pearnly_erp_portal.access import guard
 STATE = "erp_intake"
 TTL_MINUTES = 30
 FROM_DOCUMENT = "@doc"
+# 兜底对方（用户 2026-09-25）：销售「散客」、采购「一般供应商」—— 不用票面上的对方信息。
+FALLBACK = "@any"
+FALLBACK_LABELS = {"purchase": "General supplier", "sales": "Walk-in customer"}
 DIRECTIONS = ("purchase", "sales")
 # 快捷回复一次最多 13 个按钮：选项最多 12 个，留一个给「取消」。
 MAX_CHOICES = 12
@@ -113,7 +117,9 @@ def answer(line_user_id, user, data, reply_token):
     options = {key for key, _label in _options(step, payload, user)}
     if value not in options:
         return _text(reply_token, _("This option is no longer current"))
-    if step == "paid":
+    if step == "entry":
+        payload["entry"] = value
+    elif step == "paid":
         payload["is_paid"] = int(value == "1")
         if not payload["is_paid"]:
             payload["payment_method"] = ""
@@ -127,6 +133,8 @@ def answer(line_user_id, user, data, reply_token):
 
 def _pending(payload):
     """还差哪一步。仓库只在「库存商品 + 默认仓定不下来」时才问。"""
+    if payload.get("entry") != "upload":
+        return "entry"
     if not payload.get("company"):
         return "company"
     if "party" not in payload:
@@ -158,12 +166,21 @@ def _next(line_user_id, user, payload, reply_token):
         line_session.clear_session(line_user_id)
         return _text(reply_token, _("No warehouse is available for this company"))
     numbered = step in ("company", "party", "warehouse")
+    if step == "entry":
+        # 手动录入是链接按钮：点了直接打开网页端原生空白新建页，不回 webhook、不多发消息。
+        root = "pearnly-purchase" if payload["direction"] == "purchase" else "pearnly-sales"
+        manual = {"type": "action", "action": {"type": "uri", "label": str(_("Enter manually"))[:20],
+                  "uri": f"{frappe.utils.get_url().rstrip('/')}/desk/{root}/new"}}
+        return _ask(reply_token, _QUESTIONS[step](payload),
+                    [_button(label, urlencode({"a": "erp", "s": step, "v": key})) for key, label in options]
+                    + [manual])
     items = [_button(f"{index}. {label}" if numbered else label, urlencode({"a": "erp", "s": step, "v": key}))
              for index, (key, label) in enumerate(options, 1)]
     _ask(reply_token, _QUESTIONS[step](payload), items)
 
 
 _QUESTIONS = {
+    "entry": lambda p: _("Upload a document or enter it manually?"),
     "company": lambda p: _("Choose the company"),
     "party": lambda p: _("Choose the supplier") if p["direction"] == "purchase" else _("Choose the customer"),
     "paid": lambda p: _("Paid or unpaid?"),
@@ -176,13 +193,17 @@ _QUESTIONS = {
 def _options(step, payload, user):
     from pearnly_erp_portal.masters import company
 
+    if step == "entry":
+        return [("upload", _("Upload and recognise"))]
     if step == "company":
         allowed = company.allowed_companies(user)
         rows = frappe.get_all("ERP Company", filters={"name": ["in", allowed or [""]]},
                               fields=["name", "company_name"], order_by="is_default desc, company_name asc")
         return [(row.name, row.company_name or row.name) for row in rows]
     if step == "party":
-        return [(FROM_DOCUMENT, _("From the document"))] + recent_parties(payload, MAX_CHOICES - 1)
+        return ([(FROM_DOCUMENT, _("From the document")),
+                 (FALLBACK, _(FALLBACK_LABELS[payload["direction"]]))]
+                + recent_parties(payload, MAX_CHOICES - 2))
     if step == "paid":
         return [("1", _("Paid")), ("0", _("Unpaid"))]
     if step == "method":
@@ -231,7 +252,9 @@ def summary(payload) -> str:
     """一行说清楚这次按什么录：公司 · 供应商 · 已付（方式）· 类别（仓）。"""
     parts = [frappe.db.get_value("ERP Company", payload.get("company"), "company_name") or ""]
     party = payload.get("party")
-    if party and party != FROM_DOCUMENT:
+    if party == FALLBACK:
+        parts.append(_(FALLBACK_LABELS[payload["direction"]]))
+    elif party and party != FROM_DOCUMENT:
         master = "ERP Supplier" if payload["direction"] == "purchase" else "ERP Customer"
         title = "supplier_name" if payload["direction"] == "purchase" else "customer_name"
         parts.append(frappe.db.get_value(master, party, title) or party)

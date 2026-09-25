@@ -288,6 +288,8 @@
 				// 收银台清单用**原生表格**（架构检查也拦自定义 HTML 表格）：
 				// 一行一台，改名字 / 换卖货的仓 / 启用停用都在格子里改，随这一屏一起保存。
 				// **不给删行**：要停用就把状态那格取消勾选（数据留着，历史小票还指着它）。
+				// 前面必须另起一段：付款方式那一排是 4 列，不分段表格会被塞进最后一列（右下角跑偏）。
+				{fieldtype: "Section Break", label: __("Terminal")},
 				{fieldtype: "Table", fieldname: "terminals", label: "",
 					cannot_add_rows: !can_edit_pos, cannot_delete_rows: 1,
 					data: (data.terminals || []).map(row => ({name: row.name,

@@ -332,6 +332,7 @@ Enter customer's email,输入客户邮箱
 Enter customer's phone number,输入客户电话
 Enter discount percentage,输入折扣百分比
 Enter discount percentage.,输入折扣百分比
+Enter manually,手动录入
 Enter opening stock,录入期初库存
 Enter purchase details. Files are added as attachments only.,手动填写采购信息，文件仅作为附件。
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
@@ -388,6 +389,7 @@ From the document,按票面识别
 Full Name,姓名
 Full Screen,全屏
 General,常用功能
+General supplier,一般供应商
 Generated,已生成
 Generated automatically,自动生成
 Goods,货物
@@ -1027,10 +1029,12 @@ Updated {0} product(s),已更新 {0} 个物料
 Updated {0} record(s),已更新 {0} 条
 Updated {0} supplier(s),已更新 {0} 家供应商
 Updated {0} user(s),已更新 {0} 位用户
+Upload a document or enter it manually?,上传单据识别，还是手动录入？
 "Upload a receipt, then review the recognized details.",上传收据，识别后复核并修改。
 Upload a sheet,上传导入
 "Upload an invoice, then review the recognized details.",上传发票，识别后复核并修改。
 Upload and Recognize,上传识别
+Upload and recognise,上传识别
 Use a valid opening date that is not in the future,请填写有效的期初日期，不能晚于今天
 Use an XLSX opening stock file,请使用XLSX格式的期初库存文件
 Use one worksheet for opening stock,期初库存文件只能包含一个工作表

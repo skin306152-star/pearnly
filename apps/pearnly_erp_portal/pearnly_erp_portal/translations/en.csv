@@ -332,6 +332,7 @@ Enter customer's email,Enter customer's email
 Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
 Enter discount percentage.,Enter discount percentage.
+Enter manually,Enter manually
 Enter opening stock,Enter opening stock
 Enter purchase details. Files are added as attachments only.,Enter purchase details. Files are added as attachments only.
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
@@ -388,6 +389,7 @@ From the document,From the document
 Full Name,Full Name
 Full Screen,Full Screen
 General,General
+General supplier,General supplier
 Generated,Generated
 Generated automatically,Generated automatically
 Goods,Goods
@@ -1027,10 +1029,12 @@ Updated {0} product(s),Updated {0} product(s)
 Updated {0} record(s),Updated {0} record(s)
 Updated {0} supplier(s),Updated {0} supplier(s)
 Updated {0} user(s),Updated {0} user(s)
+Upload a document or enter it manually?,Upload a document or enter it manually?
 "Upload a receipt, then review the recognized details.","Upload a receipt, then review the recognized details."
 Upload a sheet,Upload a sheet
 "Upload an invoice, then review the recognized details.","Upload an invoice, then review the recognized details."
 Upload and Recognize,Upload and Recognize
+Upload and recognise,Upload and recognise
 Use a valid opening date that is not in the future,Use a valid opening date that is not in the future
 Use an XLSX opening stock file,Use an XLSX opening stock file
 Use one worksheet for opening stock,Use one worksheet for opening stock

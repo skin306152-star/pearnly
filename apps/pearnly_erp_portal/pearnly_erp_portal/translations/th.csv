@@ -332,6 +332,7 @@ Enter customer's email,กรอกอีเมลลูกค้า
 Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
 Enter discount percentage.,กรอกเปอร์เซ็นต์ส่วนลด
+Enter manually,กรอกเอง
 Enter opening stock,บันทึกสต็อกยกมา
 Enter purchase details. Files are added as attachments only.,กรอกข้อมูลการซื้อด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
@@ -388,6 +389,7 @@ From the document,อ่านจากเอกสาร
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
 General,ทั่วไป
+General supplier,ผู้ขายทั่วไป
 Generated,สร้างขึ้น
 Generated automatically,สร้างอัตโนมัติ
 Goods,สินค้า
@@ -1027,10 +1029,12 @@ Updated {0} product(s),อัปเดต {0} รายการแล้ว
 Updated {0} record(s),อัปเดต {0} รายการ
 Updated {0} supplier(s),อัปเดตผู้ขาย {0} ราย
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
+Upload a document or enter it manually?,อัปโหลดเอกสารหรือกรอกเอง?
 "Upload a receipt, then review the recognized details.",อัปโหลดใบเสร็จ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload a sheet,อัปโหลดไฟล์
 "Upload an invoice, then review the recognized details.",อัปโหลดใบแจ้งหนี้ แล้วตรวจสอบและแก้ไขข้อมูลที่อ่านได้
 Upload and Recognize,อัปโหลดเพื่ออ่านข้อความ
+Upload and recognise,อัปโหลดเอกสาร
 Use a valid opening date that is not in the future,กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้
 Use an XLSX opening stock file,กรุณาใช้ไฟล์สต็อกยกมารูปแบบXLSX
 Use one worksheet for opening stock,ไฟล์สต็อกยกมาต้องมีแผ่นงานเดียว
