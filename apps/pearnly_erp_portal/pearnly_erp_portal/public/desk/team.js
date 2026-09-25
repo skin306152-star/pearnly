@@ -170,6 +170,11 @@
 
 		function editor(row, full_page = false, initial = {}) {
 			const is_new = !row;
+			// 管理员本人：全部功能、全部公司（包括之后新建的公司）都已拥有，这里只看不改
+			// （用户 2026-09-25："管理员默认全部勾选和灰色，不可操作，公司那里也是"）。
+			const locked = !is_new && row.locked;
+			const shown_roles = locked ? data.roles.map(role => role.name) : row?.roles || [];
+			const shown_companies = locked ? (data.companies || []).map(c => c.value) : row?.companies || [];
 			let dialog;
 			const fields = [
 				// 用户名：**英文和数字**（用户 2026-09-24 的口径），既是显示名也是登录名
@@ -183,9 +188,9 @@
 					{ fieldtype: "Column Break" },
 					field("password", "team.password", "Password", { reqd: 1 }),
 				] : []),
-				...roles_fields(row?.roles || [], () => dialog),
+				...roles_fields(shown_roles, () => dialog),
 				{fieldtype: "Section Break"},
-				companies_field(row?.companies || []),
+				companies_field(shown_companies),
 			];
 			for (const item of fields) {
 				if (!Object.hasOwn(initial, item.fieldname)) continue;
@@ -218,7 +223,7 @@
 				p.breadcrumbs({label: __("nav.team"), route: p.subroute(root), trail: [{label: title}]});
 				dialog = p.layout(page.main, fields);
 				let busy = false;
-				const button = page.set_primary_action(label, async () => {
+				const button = locked ? null : page.set_primary_action(label, async () => {
 					const values = dialog.get_values();
 					if (!values || busy) return;
 					busy = true; button.prop("disabled", true);
@@ -245,6 +250,11 @@
 				const count = dialog.fields_dict["roles_" + index].get_value().length;
 				parent.$input.prop("indeterminate", count > 0 && count < data.roles.filter(role => role.group === group).length);
 			});
+			if (locked) {
+				lock(dialog);
+				if (!full_page) dialog.get_primary_btn().addClass("hide");
+				return;
+			}
 			if (is_new || full_page) return;
 			// 两个动作挂在原生弹窗的自定义动作槽里（与产品其它弹窗同一个位置）。
 			dialog.add_custom_action(t("team.resetPassword"), () => password_dialog(row));
@@ -258,6 +268,13 @@
 					await list.reload();
 					restore_new();
 				});
+		}
+
+		// 只读：所有勾选框（分组、岗位、公司）置灰；框架禁用态就是官方的灰色样式。
+		function lock(form) {
+			const $root = form.$wrapper || $(form.wrapper);   // 弹窗 / 全屏页（FieldGroup）
+			$root.find("input[type=checkbox]").prop("disabled", true);
+			$root.find(".select-all, .deselect-all").addClass("hide");
 		}
 
 		function password_dialog(row) {

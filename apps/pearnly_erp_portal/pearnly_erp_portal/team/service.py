@@ -268,6 +268,9 @@ def list_members() -> list[dict]:
             "companies": member_companies(email),
             "last_login": user.last_login,
             "is_admin": bool(set(rules.ALL_RECORDS_ROLES) & {r.role for r in user.roles}),
+            # 管理员本人那一行：本来就拥有全部功能与全部公司，服务端也不许在这里改
+            # （`_employee` 拒绝）。页面据此把勾选全部画成已勾、灰色不可点（用户 2026-09-25）。
+            "locked": not _within_management_scope(user),
             # LINE：开没开（租户管理员本人默认开），以及绑到了哪个 LINE。绑定码只有本人看得到
             # （`integrations/binding.py`），名单里只给状态。
             "line": admin_row or rules.LINE_ROLE in {r.role for r in user.roles},
