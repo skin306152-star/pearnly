@@ -1,0 +1,15 @@
+# 备份工具默认只肯收 16MB 的单个数据块。
+#
+# 为什么需要这个文件（2026-09-25 两次实测）：镜像里 `/etc/mysql/conf.d/mysqldump.cnf`
+# 把 `max_allowed_packet` 钉在 16M，而 mariadb-dump 取**最后一个**读到的值。rayong 租户的
+# 客户快照一行 21.8MB，于是备份在 dump 那一步直接断开：
+#   mariadb-dump: Error 2013: Lost connection to server during query
+#     when dumping table `tabDMS Read Snapshot` at row: 4
+# `activate-product.sh` 按设计不自动恢复，DMS 的 8 个服务因此停摆两次。手工复现确认：
+# 同一行、同一账号，只加 `--max-allowed-packet=64M` 就 0.9 秒读完 29MB、退出码 0。
+#
+# 挂到 `mariadb.conf.d/` 而不是 `conf.d/`：`/etc/mysql/mariadb.cnf` 里
+# `!includedir /etc/mysql/conf.d/` 在前、`!includedir /etc/mysql/mariadb.conf.d/` 在后，
+# 所以这里才是真正覆盖镜像里那个 16M 的位置。上限与服务端 `--max-allowed-packet=64M` 对齐。
+[client]
+max_allowed_packet=64M

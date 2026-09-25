@@ -120,7 +120,10 @@ services:
     <<: *web
     mem_limit: 512m
     ports: ['127.0.0.1:8184:8000']
-    volumes: [sites-billing:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-billing:/home/frappe/frappe-bench/sites
+      # 备份/迁移都在这个容器里跑，见 mariadb-client.cnf 的头注。
+      - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
 
   dms-web:
     profiles: [dms]
@@ -129,6 +132,7 @@ services:
     volumes: &dms-volumes
       - sites-dms:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+      - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
@@ -160,7 +164,9 @@ services:
     # 宿主 32GB，8g 安全。
     mem_limit: 8g
     command: [bench, worker, --queue, dms_sync]
-    volumes: [sites-dms:/home/frappe/frappe-bench/sites]
+    volumes:
+      - sites-dms:/home/frappe/frappe-bench/sites
+      - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
   dms-ocr-dispatch:
     profiles: [dms]
     <<: *runtime
@@ -190,6 +196,7 @@ services:
     volumes: &erp-volumes
       - sites-erp:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+      - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
@@ -237,6 +244,7 @@ services:
     volumes: &cowork-volumes
       - sites-cowork:/home/frappe/frappe-bench/sites
       - /opt/pearnly/secrets/ocr.json:/run/secrets/ocr.json:ro
+      - ./mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
