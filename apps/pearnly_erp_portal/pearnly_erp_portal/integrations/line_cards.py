@@ -145,8 +145,8 @@ def _items(result, totals, shown):
                      "text": _("{0} more items").format(len(lines) - shown)})
     if not lines:
         rows.append({"type": "text", "size": "xxs", "color": "#6F688C", "text": _("No items were read")})
-    return {"type": "box", "layout": "vertical", "margin": "md", "paddingAll": "12px",
-            "cornerRadius": "10px", "backgroundColor": "#F5F1FF", "contents": rows}
+    # 明细不加底色（用户 09-26）：与上面的字段同一块白底。
+    return {"type": "box", "layout": "vertical", "margin": "md", "contents": rows}
 
 
 def _amounts(doc, totals):

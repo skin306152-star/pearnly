@@ -15,7 +15,8 @@ doc_no, doc_date (YYYY-MM-DD), due_date, doc_kind (purchase_invoice|purchase_ord
 supplier_name, supplier_tax_id, supplier_branch_type (head_office|branch|none), supplier_branch_no,
 supplier_branch_name, supplier_address, currency, has_vat, price_mode (inclusive|exclusive),
 requester, notes, discount_total, rounding, lines [{item_type (goods|service), description, code,
-barcode, qty, unit, unit_price, discount, vat_rate, wht_rate, batch_no, expiry_date}].
+barcode, qty, unit, unit_price, amount, discount, vat_rate, wht_rate, batch_no, expiry_date}] where
+unit_price is the printed price per unit and amount the printed line amount.
 Copy doc_no, codes and every line description exactly as printed, character by character, in the
 original language and spelling; never replace them with a similar or better-known product name.
 discount and discount_total are written as printed: a number for an amount, or a string ending in
@@ -55,8 +56,16 @@ def _discount(value, base):
 def clean_result(raw):
     """OCR is document content, never trusted master IDs, company IDs or posting flags."""
     result = {key: raw[key] for key in HEADER_FIELDS if key in raw}
-    result["lines"] = [{key: row[key] for key in LINE_FIELDS if key in row}
-                       for row in raw.get("lines", []) if isinstance(row, dict)]
+    result["lines"] = []
+    for raw_row in raw.get("lines", []):
+        if not isinstance(raw_row, dict):
+            continue
+        row = {key: raw_row[key] for key in LINE_FIELDS if key in raw_row}
+        # 只印了行金额、没印单价：单价 = 票面行金额 ÷ 数量（09-26 小票就是这样，单价全成了 0）。
+        amount, qty = _number(raw_row.get("amount") or 0), _number(row.get("qty") or 1)
+        if not (_number(row.get("unit_price") or 0) or 0) and amount and qty:
+            row["unit_price"] = float((amount / qty).quantize(Decimal("0.01"), ROUND_HALF_UP))
+        result["lines"].append(row)
     net = Decimal(0)
     for row in result["lines"]:
         gross = (_number(row.get("qty") or 0) or 0) * (_number(row.get("unit_price") or 0) or 0)

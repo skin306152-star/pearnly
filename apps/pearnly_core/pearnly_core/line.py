@@ -467,8 +467,15 @@ def user_language(user_id: str, default: str | None = None) -> str:
     except Exception:
         cached = None
     try:
-        tag = str((get_profile(user_id) or {}).get("language") or "").strip().lower()
+        response = requests.get(f"https://api.line.me/v2/bot/profile/{user_id}",
+                                headers=_headers(), timeout=TIMEOUT)
     except Exception:
+        return fallback
+    if response.status_code != 200:
+        return fallback  # 没问到（限流、网络）不记缓存，下一次再问。
+    try:
+        tag = str(response.json().get("language") or "").strip().lower()
+    except ValueError:
         return fallback
     code = tag.split("-")[0]
     language = code if code in USER_LANGUAGES else ""

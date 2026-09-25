@@ -58,6 +58,9 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "status": QUEUED, "direction": direction, "owner": sent_by,
         "sent_by": sent_by, "line_user_id": line_user_id,
+        # 收到时这个人手机上 LINE 的语言（webhook 已按它设好）：识别在队列里跑、可能被限流后
+        # 重试，重试时不能再指望缓存或临时去问 LINE（09-26 一次重试回成了泰文）。
+        "language": getattr(frappe.local, "lang", None) or channel_language(),
         "media_type": MEDIA_TYPES.get(media_type, media_type or ""),
         "line_message_id": line_message_id, "file_hash": hashlib.sha256(content).hexdigest(),
         "source_file": file.file_url, "source_file_name": file.name, "received_at": now(),
@@ -119,7 +122,7 @@ def run(intake, line_user_id, reply_token=""):
     frappe.set_user(doc.sent_by)
     # 卡片与 webhook 回复同一口径：用这个人手机上 LINE 的语言（用户 2026-09-26），
     # 不随这个账号在网页端的界面语言走 —— 否则同一段对话里前面泰文、卡片突然变中文。
-    frappe.local.lang = line.user_language(line_user_id, default=channel_language())
+    frappe.local.lang = doc.get("language") or line.user_language(line_user_id, default=channel_language())
     try:
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}])
@@ -146,12 +149,12 @@ def channel_language():
 
 def ocr_failed(arguments, code):
     """队列本身失败（排队超时、结果不确定）：告诉本人，记录落定。"""
-    doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file_name"],
+    doc = frappe.db.get_value(DOCTYPE, arguments.get("intake"), ["name", "status", "source_file_name", "language"],
                               as_dict=True)
     if not doc or doc.status != QUEUED:
         return
     _drop(doc, FAILED, code)
-    frappe.local.lang = line.user_language(arguments.get("line_user_id"), default=channel_language())
+    frappe.local.lang = doc.language or line.user_language(arguments.get("line_user_id"), default=channel_language())
     text = (_("The recognition result needs checking. Please do not resend this document yet.")
             if code == "provider_outcome_unknown" else _("Could not read this document. Please send it again."))
     line.push(arguments.get("line_user_id"), [{"type": "text", "text": text}])

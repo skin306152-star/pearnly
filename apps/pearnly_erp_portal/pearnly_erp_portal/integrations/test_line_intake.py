@@ -254,12 +254,40 @@ class Language(Base):
         cache = {}
         self.enterContext(patch.object(frappe, "cache", Mock(**{"get_value.side_effect": cache.get,
             "set_value.side_effect": lambda key, value, expires_in_sec=None: cache.__setitem__(key, value)}), create=True))
+        def reply(status, body):
+            return Mock(status_code=status, json=Mock(return_value=body))
+
+        self.enterContext(patch.object(line, "_headers", return_value={}))
         for tag, expected in (("zh-Hant", "zh"), ("ja", "ja"), ("ko", "th"), (None, "th")):
             cache.clear()
-            with patch.object(line, "get_profile", return_value={"language": tag} if tag else {}) as profile:
+            with patch("requests.get", return_value=reply(200, {"language": tag} if tag else {})) as profile:
                 self.assertEqual(line.user_language("U1", default="th"), expected)
                 self.assertEqual(line.user_language("U1", default="th"), expected)
                 profile.assert_called_once()  # 第二次走缓存
+        cache.clear()
+        with patch("requests.get", return_value=reply(429, {})) as profile:
+            self.assertEqual(line.user_language("U1", default="th"), "th")
+            self.assertEqual(line.user_language("U1", default="th"), "th")
+            self.assertEqual(profile.call_count, 2)  # 没问到不记缓存
+
+    def test_the_card_uses_the_language_recorded_when_the_document_arrived(self):
+        from pearnly_core import line
+
+        seen = {}
+        doc = _doc(status=intake.QUEUED, language="zh")
+        doc.reload = lambda: None
+        doc.save = lambda **kw: None
+        self.enterContext(patch.object(frappe, "get_doc", return_value=doc, create=True))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch.object(line, "user_language", side_effect=AssertionError("must not ask LINE")))
+        self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
+        self.enterContext(patch.object(intake, "totals", return_value={}))
+        self.enterContext(patch.object(intake, "_recogniser", return_value=SimpleNamespace(
+            recognise=lambda files: seen.setdefault("lang", frappe.local.lang) and {"lines": []})))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.preview", return_value={}))
+        self.enterContext(patch.object(frappe.db, "commit", create=True))
+        intake.run("LI-1", "U1")
+        self.assertEqual(seen["lang"], "zh")
 
 
 class RichMenu(Base):
@@ -351,6 +379,23 @@ class Recognition(unittest.TestCase):
         plain = jpeg()
         self.assertIs(ocr.upright(plain, "image/jpeg")[0], plain)
         self.assertEqual(ocr.upright(b"%PDF-1.4", "application/pdf"), (b"%PDF-1.4", "application/pdf"))
+
+
+class Amounts(unittest.TestCase):
+    def test_amount_only_lines_get_a_unit_price(self):
+        # 09-26：小票只印「数量 + 金额」，单价全成了 0，整张单金额为 0。
+        from pearnly_erp_portal.purchasing import recognition
+        from pearnly_erp_portal.sales import contracts
+
+        mapped = contracts.map_recognised({"doc_no": "02000137", "lines": [
+            {"description": "Clinicare", "qty": 2, "amount": "940.00"},
+            {"description": "Tweezers", "qty": 1, "unit_price": 79, "amount": 79},
+            {"description": "Gift", "qty": 1}]})
+        self.assertEqual([row["unit_price"] for row in mapped["lines"]], [470.0, 79.0, 0])
+        self.assertEqual(mapped["doc_no"], "02000137")
+        clean = recognition.clean_result({"lines": [{"description": "Tyre", "qty": 2, "unit_price": None, "amount": "1,500"}]})
+        self.assertEqual(clean["lines"][0]["unit_price"], 750.0)
+        self.assertNotIn("amount", clean["lines"][0])
 
 
 class Products(Base):

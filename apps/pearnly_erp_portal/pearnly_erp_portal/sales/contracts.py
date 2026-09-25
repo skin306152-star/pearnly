@@ -252,6 +252,27 @@ def should_post_stock(doc_kind: str, status: str) -> bool:
 # 断言里看见，不必花钱调模型。金额不在这里算 —— 识别结果只描述票面，不替我们算数。
 
 
+def unit_price_of(row: dict):
+    """票面单价；只印了行金额（门市小票常见：数量 + 金额两列）就用 金额 ÷ 数量。
+
+    09-26 真机：小票只有 Amount 一列，识别按「不许自己算」把单价全给了 0，整张单金额为 0。
+    除法不是替模型算账：行金额是票面上印的，这里只是换成本单要的「单价」口径。"""
+    for key in ("unit_price", "amount"):
+        try:
+            value = _d(str(row.get(key) or 0).replace(",", ""))
+        except ArithmeticError:
+            continue
+        if value > 0:
+            if key == "unit_price":
+                return float(value)
+            try:
+                qty = _d(str(row.get("qty") or 1).replace(",", ""))
+            except ArithmeticError:
+                qty = _d(1)
+            return float((value / (qty if qty > 0 else 1)).quantize(_CENT))
+    return 0
+
+
 def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = "") -> dict:
     """把识别结果归一成 `create_document` 的入参形状。缺什么就留空，不猜。"""
     payload = payload or {}
@@ -264,7 +285,7 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
             "description": description[:300],
             "qty": row.get("qty") or 1,
             "unit": (str(row.get("unit") or "").strip() or None),
-            "unit_price": row.get("unit_price") or 0,
+            "unit_price": unit_price_of(row),
             "discount": row.get("discount") or 0,
         })
     buyer_type = str(payload.get("buyer_type") or "company").strip().lower()
@@ -272,6 +293,8 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         buyer_type = "company"
     return {
         "doc_kind": RECEIPT,
+        # 票面收据号：本单没有外部单号字段（系统号另发），只给 LINE 卡片显示。
+        "doc_no": (str(payload.get("doc_no") or "").strip()[:140] or None),
         "doc_date": (str(payload.get("doc_date") or "").strip() or None),
         "buyer_name": (str(payload.get("buyer_name") or "").strip()[:200]
                        or str(payload.get("seller_name") or "").strip()[:200]),

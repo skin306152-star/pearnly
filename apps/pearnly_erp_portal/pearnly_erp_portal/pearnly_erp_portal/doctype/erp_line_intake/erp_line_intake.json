@@ -8,6 +8,7 @@
   "direction",
   "sent_by",
   "line_user_id",
+  "language",
   "column_break_media",
   "media_type",
   "line_message_id",
@@ -66,6 +67,13 @@
    "label": "LINE User",
    "length": 100,
    "description": "The LINE account that sent the document"
+  },
+  {
+   "description": "The sender's LINE app language when the document arrived; the card and any failure message use it.",
+   "fieldname": "language",
+   "fieldtype": "Data",
+   "label": "Language",
+   "read_only": 1
   },
   {
    "fieldname": "column_break_media",
@@ -203,7 +211,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-25 23:30:00.000000",
+ "modified": "2026-09-26 00:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP LINE Intake",
  "owner": "Administrator",
