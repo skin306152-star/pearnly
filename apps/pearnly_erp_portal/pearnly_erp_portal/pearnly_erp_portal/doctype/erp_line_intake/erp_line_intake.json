@@ -30,8 +30,6 @@
   "warehouse",
   "section_card",
   "result",
-  "card_nonce",
-  "card_expires_at",
   "error"
  ],
  "fields": [
@@ -39,7 +37,7 @@
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "queued\nready\nfailed\nconfirmed\ndiscarded\nexpired\nreceived",
+   "options": "queued\nready\nfailed\nconfirmed\nreceived",
    "default": "queued",
    "reqd": 1,
    "in_list_view": 1,
@@ -183,22 +181,12 @@
   {
    "fieldname": "section_card",
    "fieldtype": "Section Break",
-   "label": "Card"
+   "label": "Recognition"
   },
   {
    "fieldname": "result",
    "fieldtype": "Long Text",
    "label": "Recognition Result"
-  },
-  {
-   "fieldname": "card_nonce",
-   "fieldtype": "Data",
-   "label": "Card Nonce"
-  },
-  {
-   "fieldname": "card_expires_at",
-   "fieldtype": "Datetime",
-   "label": "Card Expires At"
   },
   {
    "fieldname": "error",

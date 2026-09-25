@@ -88,16 +88,23 @@
 			cleanup(); list_cleanup(); cleanup = list_cleanup = () => {};
 			p.clear_page(page); page.clear_menu();
 			if (!rest.length) {await listing(still_current); return;}
-			const is_new = rest[0] === "new", amended_from = rest[0] === "amend" ? rest[1] : undefined;
+			// 从 LINE 卡片「编辑」进来（`line/<记录>`）：识别结果与 LINE 里的选择已填好；
+			// 已入账就转去那张单的查看页；按 LINE 里选的公司打开（切了公司就整页重载）。
+			const from_line = rest[0] === "line" && rest.length === 2 ? rest[1] : undefined;
+			const opened = from_line ? await p.call("pearnly_erp_portal.integrations.api.api_open_line_intake", {name: from_line}, "POST") : null;
+			if (!still_current()) return;
+			if (opened?.recorded) {await go(opened.recorded); return;}
+			if (opened?.switched_company) {window.location.reload(); return;}
+			const is_new = rest[0] === "new" || Boolean(opened), amended_from = rest[0] === "amend" ? rest[1] : undefined;
 			if ((!is_new && !amended_from && rest.length > 1) || (rest[0] === "amend" && !amended_from)) {await go(); return;}
 			const defaults = await u.call("api_purchase_defaults");
-			let doc = is_new ? {} : await u.call("api_purchase_document", {name: amended_from || rest[0]});
+			let doc = opened ? opened.doc : is_new ? {} : await u.call("api_purchase_document", {name: amended_from || rest[0]});
 			if (!still_current()) return;
 			const editable = can_write && (is_new || amended_from || doc.status === "draft");
 			page.set_title(is_new ? __("New") : amended_from ? __("Amend") : doc.system_no || doc.name);
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			if (amended_from) doc = {...doc, system_no: defaults.system_no, attachments: doc.attachments.filter(row => row.kind === "bill")};
-			cleanup = await u.editor({page, doc, defaults, editable, amended_from, still_current, reload: () => show(), go});
+			cleanup = await u.editor({page, doc, defaults, editable, amended_from, intake: opened?.intake, still_current, reload: () => show(), go});
 		}});
 		await show();
 	};

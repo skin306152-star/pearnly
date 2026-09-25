@@ -1,7 +1,7 @@
 """ERP 的 LINE 事件处理器（通道侧）。
 
 传输层（`pearnly_core.line`）负责验签、幂等与回执；这里只做 ERP 的分派：
-绑定 / 解绑、菜单与录单前的选择（`line_flow`）、收单据与预览卡按钮（`intake`）。
+绑定 / 解绑、菜单与录单前的选择（`line_flow`）、收单据（`intake`）。
 业务口径见 docs/work/2026-09-25-erp-line-intake.md（用户 2026-09-25 定稿）。
 """
 from urllib.parse import parse_qs
@@ -84,7 +84,7 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
 def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
-    if not (action.startswith("mode:") or action in ("erp", "card")):
+    if not (action.startswith("mode:") or action == "erp"):
         return False
     if not bound:
         line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -95,14 +95,8 @@ def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
     if action.startswith("mode:"):
         # 富菜单（新旧两套都是 `a=mode:purchase|sales`）与「เมนู」回的按钮。
         line_flow.start(user_id, bound, action[len("mode:"):], reply_token)
-    elif action == "erp":
-        line_flow.answer(user_id, bound, data, reply_token)
-    elif params.get("op") == "confirm":
-        intake.confirm(params.get("i"), params.get("n"), user_id, reply_token)
-    elif params.get("op") == "discard":
-        intake.discard(params.get("i"), params.get("n"), user_id, reply_token)
     else:
-        return False
+        line_flow.answer(user_id, bound, data, reply_token)
     return True
 
 

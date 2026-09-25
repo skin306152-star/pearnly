@@ -1,7 +1,7 @@
 /* Page-level sales form. All controls, upload, gallery and item sections are native. */
 (() => {
 	const p = frappe.pearnly, u = p.sales_ui;
-	u.editor = async ({page, doc, defaults, editable, still_current, reload, go}) => {
+	u.editor = async ({page, doc, defaults, editable, intake, still_current, reload, go}) => {
 		const state = {page, doc, defaults, editable, can_write: frappe.model.can_write("ERP Sales Document"),
 			attachments: (doc.attachments || []).map(row => ({...row})), request_id: frappe.utils.get_random(32),
 			form: null, lines: [], ready: false, busy: false, disposed: false, revision: 0};
@@ -123,7 +123,7 @@
 				on_open: row => show_preview(row),
 				columns: [{fieldname: "file_name", label: __("File Name"), width: 150, min_width: 100},
 					{fieldname: "kind", label: __("Attachment Type"), width: 80, min_width: 56, format: u.label}],
-				row_actions: row => !state.can_write || doc.status === "void" ? [] : [{id: "delete", label: __("Delete"),
+				row_actions: row => !state.can_write || doc.status === "void" || row.intake ? [] : [{id: "delete", label: __("Delete"),
 					action: () => frappe.confirm(__("Are you sure you want to delete the attachment?"), async () => {
 						if (doc.name) await u.call("api_remove_sale_attachment", {name: doc.name, file: row.file}, true);
 						else await frappe.call({method: "frappe.client.delete", args: {doctype: "File", name: row.file}, type: "POST"});
@@ -150,8 +150,10 @@
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
-				values.attachments = state.attachments;
-				const result = await u.call("api_post_sale", {payload: values, request_id: state.request_id, name: doc.name || undefined}, true);
+				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
+				values.attachments = state.attachments.filter(row => !row.intake);
+				const result = intake ? await p.call("pearnly_erp_portal.integrations.api.api_submit_line_intake", {name: intake, payload: values}, "POST")
+					: await u.call("api_post_sale", {payload: values, request_id: state.request_id, name: doc.name || undefined}, true);
 				p.success(__("Submitted")); await go(result.name);
 			}));
 			state.recognise = () => act(async () => {

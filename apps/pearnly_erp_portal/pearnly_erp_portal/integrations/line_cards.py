@@ -1,11 +1,10 @@
-"""LINE 预览卡与回执文字。
+"""LINE 预览卡。
 
 版式照旧线上的审核卡（`services/line_erp/cards.py`）：标题「ตรวจสอบ · ซื้อ/ขาย」，采购绿、
-销售红；内容按用户 2026-09-25 的口径改为「已选主档信息 + 识别字段」，按钮是
-确定入账 / 编辑 / 丢弃。回执是纯文字简要信息。
+销售红；内容按用户 2026-09-25 的口径是「已选主档信息 + 识别字段」。按钮只有「编辑」：
+打开网页端原生的采购 / 销售页，提交才入账；卡片不过期，入账后再点是查看页。
 """
 from decimal import Decimal, InvalidOperation
-from urllib.parse import urlencode
 
 import frappe
 from frappe import _
@@ -77,49 +76,20 @@ def preview(doc, result, totals) -> dict:
                  _row(_("Total"), _money(totals.get("grand_total")), bold=True)]
     separator = {"type": "separator", "margin": "md"}
     body = [*head, separator, *fields, separator, *(items or [{"type": "text", "size": "sm",
-            "text": _("No items were read")}]), *( [separator, *money] if money else []),
-            {"type": "text", "size": "xxs", "color": "#AAAAAA", "margin": "md",
-             "text": _("This card expires in {0} minutes").format(10)}]
-    action = lambda op: urlencode({"a": "card", "op": op, "i": doc.name, "n": doc.card_nonce})
-    buttons = [{"type": "button", "style": "primary", "color": COLORS[doc.direction], "height": "sm",
-                "action": {"type": "postback", "label": _("Confirm and record"), "data": action("confirm"),
-                           "displayText": _("Confirm and record")}}]
-    link = editor_link(doc)
-    if link:
-        buttons.append({"type": "button", "style": "secondary", "height": "sm",
-                        "action": {"type": "uri", "label": _("Edit"), "uri": link}})
-    buttons.append({"type": "button", "style": "link", "height": "sm",
-                    "action": {"type": "postback", "label": _("Discard"), "data": action("discard"),
-                               "displayText": _("Discard")}})
+            "text": _("No items were read")}]), *([separator, *money] if money else [])]
     title = "ตรวจสอบ · " + HEADS[doc.direction]
+    button = {"type": "button", "style": "primary", "color": COLORS[doc.direction], "height": "sm",
+              "action": {"type": "uri", "label": _("Edit"), "uri": editor_link(doc)}}
     return {"type": "flex", "altText": title + " · " + _money((totals or {}).get("grand_total") or ""),
             "contents": {"type": "bubble", "size": "mega",
                 "header": {"type": "box", "layout": "vertical", "backgroundColor": COLORS[doc.direction],
                            "paddingAll": "md", "contents": [{"type": "text", "text": title,
                            "color": "#FFFFFF", "weight": "bold", "size": "md"}]},
                 "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": body},
-                "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": buttons}}}
+                "footer": {"type": "box", "layout": "vertical", "contents": [button]}}}
 
 
 def editor_link(doc) -> str:
-    """编辑页的入口（LINE 一次性票据编辑器，第三批接上）；还没有就不出「编辑」按钮。"""
-    getter = frappe.get_hooks("pearnly_erp_line_editor_link")
-    return frappe.get_attr(getter[-1])(doc) if getter else ""
-
-
-def receipt(doc, created, *, negatives=()) -> str:
-    """入账后的纯文字回执：单号、公司、对方、金额，负库存另起一行写明。"""
-    if doc.direction == "purchase":
-        row = frappe.db.get_value("Purchase Document", created["name"],
-                                  ["system_no", "supplier_name", "grand_total", "company"], as_dict=True)
-        party = row.supplier_name
-    else:
-        row = frappe.db.get_value("ERP Sales Document", created["name"],
-                                  ["system_no", "buyer_name", "grand_total", "company"], as_dict=True)
-        party = row.buyer_name
-    company = frappe.db.get_value("ERP Company", row.company, "company_name") or row.company
-    lines = [_("Recorded") + f" · {HEADS[doc.direction]} {row.system_no or created['name']}",
-             f"{company} · {party}", _("Total") + f" {_money(row.grand_total)}"]
-    for name, qty in negatives:
-        lines.append(_("Stock of {0} is now {1}").format(name, qty))
-    return "\n".join(lines)
+    """网页端原生页里「从这张 LINE 单据打开」的地址（LINE 内置浏览器打开；没登录先走正常登录）。"""
+    root = "pearnly-purchase" if doc.direction == "purchase" else "pearnly-sales"
+    return f"{frappe.utils.get_url().rstrip('/')}/desk/{root}/line/{doc.name}"

@@ -3,12 +3,10 @@
 Runs in the pinned Frappe runtime via unittest. No Site, database, credentials, OCR,
 outbound LINE or DMS call is used: collaborators are replaced and network is blocked.
 """
-from datetime import datetime, timedelta
 import json
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
-from urllib.parse import parse_qs
 
 import frappe
 
@@ -25,6 +23,7 @@ class Base(unittest.TestCase):
             self.enterContext(patch.object(module, "_", lambda text: text))
         self.enterContext(patch.object(frappe, "session", SimpleNamespace(user="Guest"), create=True))
         self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": None}), create=True))
+        self.enterContext(patch.object(frappe, "throw", side_effect=self.reject))
         self.enterContext(patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user)))
         self.enterContext(patch("pearnly_core.line.reply", side_effect=lambda token, messages: self.replies.append(messages) or True))
         self.enterContext(patch("pearnly_core.line.reply_or_push",
@@ -37,6 +36,10 @@ class Base(unittest.TestCase):
                                 side_effect=lambda capability, user=None: capability in self.roles.get(user or frappe.session.user, set())))
         self.network = self.enterContext(patch("requests.sessions.Session.request",
                                                side_effect=AssertionError("External network forbidden")))
+
+    @staticmethod
+    def reject(message, exception=frappe.ValidationError, **kwargs):
+        raise exception(message)
 
     def last_text(self):
         return self.replies[-1][0]["text"]
@@ -152,8 +155,7 @@ class Documents(Base):
 def _doc(**values):
     base = dict(name="LI-1", direction="purchase", company="CO-1", party="SUP-1", is_paid=1,
                 payment_method="transfer", item_kind="goods", warehouse="WH-1", status="ready",
-                card_nonce="n1", card_expires_at=datetime.now() + timedelta(minutes=5),
-                line_user_id="U1", sent_by="buyer", source_file="/private/files/a.jpg",
+                purchase=None, sales_document=None, line_user_id="U1", sent_by="buyer", source_file="/private/files/a.jpg",
                 result=json.dumps({"doc_no": "INV-1", "doc_date": "2026-09-25", "supplier_name": "Acme",
                                    "lines": [{"description": "Soap", "qty": 2, "unit_price": 10}]}))
     base.update(values)
@@ -190,80 +192,100 @@ class Payload(Base):
         self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
 
 
-class Card(Base):
+class Web(Base):
+    """卡片「编辑」打开网页端原生页 → 提交入账（用户 2026-09-25）。"""
+
     def setUp(self):
         super().setUp()
         self.doc = _doc()
         self.enterContext(patch.object(frappe, "db", Mock(), create=True))
         frappe.db.exists.return_value = True
+        frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
+            frappe._dict(name="FILE-1", file_name="a.jpg", file_url="/private/files/a.jpg") if doctype == "File"
+            else "Acme Co" if doctype == "ERP Supplier" else None)
         self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda doctype, name=None: self.doc))
-        self.dropped = self.enterContext(patch.object(intake, "_drop"))
         self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
-        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
-        self.enterContext(patch.object(intake, "now_datetime", datetime.now))
         self.enterContext(patch.object(intake, "now", lambda: "2026-09-25 23:00:00"))
+        self.active = self.enterContext(patch("pearnly_erp_portal.masters.company.active_company", return_value="CO-1"))
+        self.switch = self.enterContext(patch("pearnly_erp_portal.masters.company.set_active_company"))
+        frappe.session.user = "buyer"
         self.roles["buyer"] |= {"purchase.write"}
 
-    def test_wrong_nonce_other_user_and_expired_cards_are_refused(self):
-        self.assertEqual(intake._card("LI-1", "bad", "U1")[1], "This card is no longer valid")
-        self.assertEqual(intake._card("LI-1", "n1", "U2")[1], "This card is no longer valid")
-        self.doc.card_expires_at = datetime.now() - timedelta(minutes=1)
-        self.assertIn("expired", intake._card("LI-1", "n1", "U1")[1])
-        self.dropped.assert_called_once_with(self.doc, intake.EXPIRED)
+    def test_only_the_sender_can_open_or_submit(self):
+        frappe.session.user = "someone-else"
+        self.roles["someone-else"] = {"purchase.write"}
+        with self.assertRaises(frappe.PermissionError):
+            intake.open_for_edit("LI-1")
+        with self.assertRaises(frappe.PermissionError):
+            intake.submit("LI-1", {})
 
-    def test_confirm_posts_once_through_the_web_entry_and_replies_with_text(self):
+    def test_open_prefills_the_native_form_with_choices_and_source_file(self):
+        opened = intake.open_for_edit("LI-1")
+        form = opened["doc"]
+        self.assertEqual((opened["intake"], opened["switched_company"]), ("LI-1", False))
+        self.assertEqual((form["supplier"], form["supplier_name"], form["is_paid"], form["payment_method"]),
+                         ("SUP-1", "Acme Co", 1, "transfer"))
+        self.assertEqual((form["doc_no"], form["lines"][0]["item_type"], form["lines"][0]["warehouse"]),
+                         ("INV-1", "goods", "WH-1"))
+        self.assertEqual(form["attachments"], [{"file": "FILE-1", "file_name": "a.jpg",
+                         "file_url": "/private/files/a.jpg", "kind": "bill", "intake": True}])
+        self.assertNotIn("company", form)
+        self.switch.assert_not_called()
+
+    def test_open_switches_to_the_company_chosen_in_line(self):
+        self.active.return_value = "CO-2"
+        self.assertTrue(intake.open_for_edit("LI-1")["switched_company"])
+        self.switch.assert_called_once_with("CO-1")
+
+    def test_recorded_card_opens_the_record(self):
+        self.doc.status, self.doc.purchase = "confirmed", "PD-1"
+        self.assertEqual(intake.open_for_edit("LI-1"), {"direction": "purchase", "recorded": "PD-1"})
+
+    def test_submit_posts_once_with_the_card_company_and_file_and_no_line_reply(self):
         seen = {}
 
         def post(payload, *, request_id, finalize, allow_duplicate):
-            seen.update(payload=payload, request_id=request_id, user=frappe.session.user,
-                        allow_duplicate=allow_duplicate)
+            seen.update(payload=payload, request_id=request_id, allow_duplicate=allow_duplicate)
             finalize({"name": "PD-1"})
-            return {"name": "PD-1", "system_no": "P-1"}
+            return {"name": "PD-1"}
 
         self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post", side_effect=post))
-        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.receipt", return_value="Recorded P-1"))
-        result = intake.confirm("LI-1", "n1", "U1", "r")
-        self.assertTrue(result["ok"])
-        self.assertEqual((seen["request_id"], seen["user"], seen["allow_duplicate"]),
-                         ("line-intake:LI-1", "buyer", True))
-        self.assertEqual(seen["payload"]["company"], "CO-1")
+        result = intake.submit("LI-1", {"company": "CO-9", "doc_no": "INV-9", "lines": [],
+                                        "attachments": [{"file": "EXTRA", "kind": "payment_proof"}]})
+        self.assertEqual(result, {"name": "PD-1"})
+        self.assertEqual((seen["request_id"], seen["allow_duplicate"]), ("line-intake:LI-1", True))
+        self.assertEqual((seen["payload"]["company"], seen["payload"]["source"], seen["payload"]["doc_no"]),
+                         ("CO-1", "line", "INV-9"))
+        self.assertEqual([row["file"] for row in seen["payload"]["attachments"]], ["FILE-1", "EXTRA"])
         args = frappe.db.set_value.call_args.args
-        self.assertEqual((args[1], args[2]["purchase"], args[2]["status"], args[2]["card_nonce"]),
-                         ("LI-1", "PD-1", "confirmed", ""))
-        self.assertEqual(self.last_text(), "Recorded P-1")
-        self.assertEqual(frappe.session.user, "Guest")
+        self.assertEqual((args[1], args[2]["purchase"], args[2]["status"]), ("LI-1", "PD-1", "confirmed"))
+        self.assertEqual(self.replies, [])
 
-    def test_failed_entry_keeps_the_card_and_explains(self):
-        self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post",
-                                side_effect=frappe.ValidationError("Supplier Invoice No is required")))
-        self.enterContext(patch.object(frappe, "clear_messages"))
-        result = intake.confirm("LI-1", "n1", "U1", "r")
-        self.assertFalse(result["ok"])
-        self.assertIn("Supplier Invoice No is required", self.last_text())
-        self.dropped.assert_not_called()
-        self.assertEqual(frappe.session.user, "Guest")
-
-    def test_discard_drops_the_card(self):
-        intake.discard("LI-1", "n1", "U1", "r")
-        self.dropped.assert_called_once_with(self.doc, intake.DISCARDED)
-        self.assertEqual(self.last_text(), "Discarded")
+    def test_submitted_card_is_not_recorded_twice(self):
+        self.doc.status, self.doc.purchase = "confirmed", "PD-1"
+        post = self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post"))
+        self.assertEqual(intake.submit("LI-1", {}), {"name": "PD-1", "duplicate": True})
+        post.assert_not_called()
 
 
-class CardButtons(Base):
-    def test_card_postbacks_reach_confirm_and_discard_with_nonce(self):
-        confirm = self.enterContext(patch.object(intake, "confirm"))
-        discard = self.enterContext(patch.object(intake, "discard"))
-        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
-            for op in ("confirm", "discard"):
-                handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r",
-                                 "postback": {"data": f"a=card&op={op}&i=LI-1&n=n1"}})
-        confirm.assert_called_once_with("LI-1", "n1", "U1", "r")
-        discard.assert_called_once_with("LI-1", "n1", "U1", "r")
+class CardShape(Base):
+    def test_card_has_only_an_edit_link_to_the_native_page(self):
+        from pearnly_erp_portal.integrations import line_cards
 
-    def test_unknown_postbacks_are_left_for_other_handlers(self):
+        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": "Alpha"}), create=True))
+        self.enterContext(patch.object(line_cards, "_", lambda text: text))
+        self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
+        doc = _doc()
+        card = line_cards.preview(doc, json.loads(doc.result), {"grand_total": "20"})
+        footer = card["contents"]["footer"]["contents"]
+        self.assertEqual(len(footer), 1)
+        self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
+                         "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/line/LI-1"})
+
+    def test_old_card_postbacks_are_not_handled(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             self.assertFalse(handlers.handle({"type": "postback", "source": {"userId": "U1"},
-                                              "postback": {"data": "action=menu_customer"}}))
+                                              "postback": {"data": "a=card&op=confirm&i=LI-1&n=n1"}}))
 
 
 if __name__ == "__main__":

@@ -1,23 +1,22 @@
-"""LINE 收单：按选好的选项识别 → 预览卡 → 确定入账 / 丢弃（用户 2026-09-25 定稿）。
+"""LINE 收单：按选好的选项识别 → 一张只有「编辑」的卡 → 网页端原生采购 / 销售页提交入账。
 
-链条：`line_flow` 问完公司、供应商/客户、已付/未付、付款方式、服务/库存（必要时仓库）→
-用户发 PDF/图片 → 这里留底（私有 File）并落一条内部记录 → 交共用 OCR 队列识别 →
-推一张预览卡（`line_cards`）→ 点「确定入账」走**网页端同一个**采购 / 销售入账函数
-（供应商/客户匹配或新建、商品匹配或新建、付款、库存过账都在那里，收发存按现有功能关联）。
+链条（用户 2026-09-25 定稿）：`line_flow` 问完公司、供应商/客户、已付/未付、付款方式、
+服务/库存（必要时仓库）→ 用户发 PDF/图片 → 这里留底（私有 File）并落一条内部记录 →
+交共用 OCR 队列识别 → 推一张卡，**只有「编辑」**（不过期、不回执，省官方号消息额度）→
+点「编辑」在 LINE 里打开网页端**原生**的采购 / 销售新建页，识别结果与选择已填好 →
+点「提交」才入账过账（与手工录入同一个入账函数，收发存按现有功能关联）→ 之后再点
+「编辑」打开的是那张单的查看页，不能再改。
 
-几条口径：
-- **不做草稿**：这张内部记录网页端不显示；没点入账的，丢弃或过期就连文件一起清掉。
-- 预览卡 10 分钟没有任何操作就失效；入账或丢弃之后这张卡也失效（卡上带一次性 nonce）。
-- 重复单据允许入账，同一个文件也放行（用户 2026-09-25）；同一张卡只入一次（`line-intake:<记录名>`）。
-- 服务类不动库存；库存类采购入库、销售出库（允许负库存，回执里写明）。
+- 不是草稿：这条内部记录网页端列表里看不到，只能从卡片进来。
+- 重复单据放行，同一个文件也放行（用户 2026-09-25）；同一张卡只入一次（`line-intake:<记录名>`）。
+- 服务类不动库存；库存类采购入库、销售出库（销售匹配不到商品自动新建，允许负库存）。
 """
 import hashlib
 import json
-import secrets
 
 import frappe
 from frappe import _
-from frappe.utils import add_to_date, get_datetime, now, now_datetime
+from frappe.utils import add_to_date, now, now_datetime
 
 from pearnly_core import line, line_binding
 
@@ -25,10 +24,8 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.integrations import line_cards, line_flow
 
 DOCTYPE = "ERP LINE Intake"
-QUEUED, READY, FAILED = "queued", "ready", "failed"
-CONFIRMED, DISCARDED, EXPIRED = "confirmed", "discarded", "expired"
+QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
 OCR_KIND = "erp.line_intake"
-CARD_MINUTES = 10
 MEDIA_TYPES = {"image": "image", "file": "pdf"}
 DIRECTION_CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
 MAX_BYTES = 20 * 1024 * 1024
@@ -86,12 +83,12 @@ def _file_name(doc):
 
 
 def _drop(doc, status, reason=""):
-    """没入账就结束：状态落定，源文件删掉（不做草稿，不留件）。"""
+    """识别没成：状态落定，源文件删掉（不留件）。"""
     name = _file_name(doc)
     if name and not frappe.db.get_value("File", name, "attached_to_name"):
         frappe.delete_doc("File", name, ignore_permissions=True, force=True)
     frappe.db.set_value(DOCTYPE, doc.name, {"status": status, "decided_at": now(),
-                                            "card_nonce": "", "error": reason[:500] or None})
+                                            "error": reason[:500] or None})
     frappe.db.commit()
 
 
@@ -127,8 +124,6 @@ def run(intake, line_user_id, reply_token=""):
         doc.reload()
         doc.result = json.dumps(result, ensure_ascii=False, default=str)
         doc.status = READY
-        doc.card_nonce = secrets.token_urlsafe(12)
-        doc.card_expires_at = add_to_date(now_datetime(), minutes=CARD_MINUTES)
         doc.save(ignore_permissions=True)
         frappe.db.commit()
         line.reply_or_push(line_user_id, [line_cards.preview(doc, result, totals(doc))], reply_token)
@@ -210,113 +205,85 @@ def totals(doc, result=None) -> dict:
         return {}
 
 
-def _card(name, nonce, line_user_id, *, lock=False):
-    """点卡片按钮：只认本人、当前这张、没过期的卡。"""
+# ── 网页端：从卡片打开 → 提交 ────────────────────────────────────────────────
+
+
+def _owned(name, *, lock=False):
+    """只有发这张单据的本人能打开 / 提交（服务端判，不靠页面）。"""
+    if not name or not frappe.db.exists(DOCTYPE, name):
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
     if lock:
         frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", name)
-    doc = frappe.get_doc(DOCTYPE, name) if name and frappe.db.exists(DOCTYPE, name) else None
-    if not doc or doc.line_user_id != line_user_id or line_binding.user_of(line_user_id) != doc.sent_by:
-        return None, _("This card is no longer valid")
-    if doc.status == CONFIRMED:
-        return None, _("This document was already recorded")
-    if doc.status != READY or not nonce or nonce != doc.card_nonce:
-        return None, _("This card is no longer valid")
-    if doc.card_expires_at and get_datetime(doc.card_expires_at) < now_datetime():
-        _drop(doc, EXPIRED)
-        return None, _("This card has expired. Please upload the document again.")
-    return doc, ""
+    doc = frappe.get_doc(DOCTYPE, name)
+    if doc.sent_by != frappe.session.user:
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    guard.require(DIRECTION_CAPABILITY[doc.direction])
+    return doc
 
 
-def confirm(name, nonce, line_user_id, reply_token="", result=None) -> dict:
-    """确定入账：按选项录入，成功回一段文字回执；失败说清原因，卡片仍有效。"""
-    doc, problem = _card(name, nonce, line_user_id, lock=True)
-    if not doc:
-        _reply(line_user_id, reply_token, problem)
-        return {"ok": False, "message": problem}
-    previous = frappe.session.user
-    frappe.set_user(doc.sent_by)
-    try:
-        guard.require(DIRECTION_CAPABILITY[doc.direction])
-        if result is not None:
-            doc.result = json.dumps(result, ensure_ascii=False, default=str)
-        payload = build_payload(doc)
+def open_for_edit(name) -> dict:
+    """卡片「编辑」打开的数据：已入账就给单号（页面转去查看页），否则给预填好的表单数据。"""
+    doc = _owned(name)
+    recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
+    if doc.status == CONFIRMED and recorded:
+        return {"direction": doc.direction, "recorded": recorded}
+    if doc.status != READY:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    from pearnly_erp_portal.masters import company
 
-        def finish(created):
-            link = "purchase" if doc.direction == "purchase" else "sales_document"
-            frappe.db.set_value(DOCTYPE, doc.name, {link: created["name"], "status": CONFIRMED,
-                                "decided_at": now(), "card_nonce": "", "result": doc.result})
-
-        try:
-            if doc.direction == "purchase":
-                from pearnly_erp_portal.purchasing import entry
-            else:
-                from pearnly_erp_portal.products import sales as sale_items
-                from pearnly_erp_portal.sales import entry
-
-                if doc.item_kind == "goods":
-                    payload["lines"] = [sale_items.resolve(dict(row)) for row in payload["lines"]]
-            created = entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish,
-                                 allow_duplicate=True)
-        except frappe.ValidationError as exc:
-            frappe.db.rollback()
-            frappe.clear_messages()
-            message = _("Could not record: {0}").format(frappe.utils.strip_html(str(exc)))
-            _reply(line_user_id, reply_token, message)
-            return {"ok": False, "message": message}
-        except Exception:
-            frappe.db.rollback()
-            frappe.clear_messages()
-            frappe.log_error(title="ERP LINE record failed")
-            message = _("Could not record this document. Please try again.")
-            _reply(line_user_id, reply_token, message)
-            return {"ok": False, "message": message}
-        text = line_cards.receipt(doc, created, negatives=_negatives(doc, created))
-        _reply(line_user_id, reply_token, text)
-        return {"ok": True, "name": created["name"], "message": text}
-    finally:
-        frappe.set_user(previous)
+    # 这张单在 LINE 里选的是哪家公司，页面就按哪家打开（仓库、商品选择都跟当前公司走）。
+    switched = company.active_company() != doc.company
+    if switched:
+        company.set_active_company(doc.company)
+    form = build_payload(doc)
+    file = frappe.db.get_value("File", _file_name(doc), ["name", "file_name", "file_url"], as_dict=True)
+    form["attachments"] = [{"file": file.name, "file_name": file.file_name, "file_url": file.file_url,
+                            "kind": "bill", "intake": True}] if file else []
+    if doc.direction == "purchase" and form.get("supplier"):
+        form["supplier_name"] = frappe.db.get_value("ERP Supplier", form["supplier"], "supplier_name")
+    if doc.direction == "sales" and form.get("customer"):
+        form["buyer_name"] = frappe.db.get_value("ERP Customer", form["customer"], "customer_name")
+    form.pop("company", None)
+    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form}
 
 
-def discard(name, nonce, line_user_id, reply_token=""):
-    doc, problem = _card(name, nonce, line_user_id, lock=True)
-    if not doc:
-        return _reply(line_user_id, reply_token, problem)
-    _drop(doc, DISCARDED)
-    _reply(line_user_id, reply_token, _("Discarded"))
+def submit(name, payload) -> dict:
+    """页面点「提交」：用页面上的内容入账（公司与源文件以这张卡为准），不回 LINE 回执。"""
+    doc = _owned(name, lock=True)
+    recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
+    if doc.status == CONFIRMED and recorded:
+        return {"name": recorded, "duplicate": True}
+    if doc.status != READY:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    payload = dict(payload or {})
+    payload["company"] = doc.company
+    payload["source"] = "line"
+    source = {"file": _file_name(doc), "kind": "bill"}
+    others = [row for row in payload.get("attachments") or [] if row.get("file") != source["file"]]
+    payload["attachments"] = [source, *others]
 
+    def finish(created):
+        link = "purchase" if doc.direction == "purchase" else "sales_document"
+        frappe.db.set_value(DOCTYPE, doc.name, {link: created["name"], "status": CONFIRMED,
+                                                "decided_at": now()})
 
-def _reply(line_user_id, reply_token, text):
-    line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+    if doc.direction == "purchase":
+        from pearnly_erp_portal.purchasing import entry
+    else:
+        from pearnly_erp_portal.products import sales as sale_items
+        from pearnly_erp_portal.sales import entry
 
-
-def _negatives(doc, created) -> list:
-    """销售出库后变成负数的商品（回执里写明）。"""
-    if doc.direction != "sales" or doc.item_kind != "goods":
-        return []
-    from pearnly_erp_portal.inventory import stock
-
-    lines = frappe.get_all("ERP Sales Document Line", filters={"parent": created["name"]},
-                           fields=["product", "warehouse", "location"])
-    result = []
-    for row in lines:
-        if not row.product:
-            continue
-        balance = stock.current_balance(row.product, row.warehouse or doc.warehouse, row.location or "")
-        if balance.qty < 0:
-            result.append((frappe.db.get_value("ERP Product", row.product, "product_name"), balance.qty))
-    return result
+        if doc.item_kind == "goods":
+            payload["lines"] = [sale_items.resolve(dict(row)) for row in payload.get("lines") or []]
+    return entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish, allow_duplicate=True)
 
 
 # ── 清理 ────────────────────────────────────────────────────────────────────
 
 
 def expire_stale():
-    """每小时：过期没点的卡、卡住的排队记录，连源文件一起清掉（不留草稿）。"""
-    now_at = now_datetime()
-    for row in frappe.get_all(DOCTYPE, filters={"status": READY, "card_expires_at": ["<", now_at]},
-                              fields=["name", "source_file", "sent_by"], limit_page_length=500):
-        _drop(row, EXPIRED)
-    for row in frappe.get_all(DOCTYPE, filters={"status": QUEUED,
-                              "received_at": ["<", add_to_date(now_at, hours=-6)]},
+    """每小时：卡在排队里超过 6 小时的记录落为失败并清掉源文件（卡片本身不过期）。"""
+    cutoff = add_to_date(now_datetime(), hours=-6)
+    for row in frappe.get_all(DOCTYPE, filters={"status": QUEUED, "received_at": ["<", cutoff]},
                               fields=["name", "source_file", "sent_by"], limit_page_length=500):
         _drop(row, FAILED, "stale")

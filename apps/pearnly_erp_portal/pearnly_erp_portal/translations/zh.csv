@@ -960,6 +960,7 @@ This device has no camera to scan with,这台设备没有可用的摄像头
 This document cannot be recorded yet,这张单据还不能落定
 This document has no content,这份文件是空的
 This document is already recorded: {0},这张单据已经录入过了：{0}
+This document is no longer available,这张单据已不可用
 This document is too large,这份文件太大
 This document is void,这张单据已作废
 This document was already recorded,这张单据已经入账
