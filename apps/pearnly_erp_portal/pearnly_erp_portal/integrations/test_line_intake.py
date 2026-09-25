@@ -177,7 +177,8 @@ class Documents(Base):
         from pearnly_core import line
 
         doc = _doc(status=intake.QUEUED, language="th", source_file_name=None, source_file=None, line_message_id="M1")
-        doc.update = lambda **values: [setattr(doc, key, value) for key, value in values.items()]
+        # 与 Frappe `Document.update(d)` 同一签名（传字典）：09-26 用关键字参数写错，测试替身没拦住。
+        doc.update = lambda values: [setattr(doc, key, value) for key, value in values.items()]
         doc.get = lambda key, default=None: getattr(doc, key, default)
         doc.save = lambda **kw: None
         doc.reload = lambda: None

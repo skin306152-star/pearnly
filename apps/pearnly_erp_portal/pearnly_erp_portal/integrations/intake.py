@@ -100,8 +100,8 @@ def _fetch(doc, filename):
         frappe.db.rollback()
         frappe.log_error(title="ERP LINE document download failed", message=frappe.get_traceback()[-1500:])
         return False
-    doc.update(file_hash=hashlib.sha256(content).hexdigest(), source_file=file.file_url,
-               source_file_name=file.name)
+    doc.update({"file_hash": hashlib.sha256(content).hexdigest(), "source_file": file.file_url,
+                "source_file_name": file.name})
     doc.save(ignore_permissions=True)
     frappe.db.commit()
     return True
