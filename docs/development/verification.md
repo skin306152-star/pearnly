@@ -38,7 +38,7 @@ npm --prefix frontend run build
 
 构建输出在 `apps/pearnly_core/pearnly_core/public/pearnly-app/`，是被忽略的生成目录。正式构建需确保镜像包含对应版本的产物；不能把旧仓的 `static/dist` 提交规则搬过来。前端开发入口见 [前端说明](../../frontend/README.md)。
 
-App 下虽然有 `.pre-commit-config.yaml`，本工作树根目录尚未配置统一 hook。整合后的主线已有手动镜像构建/投递工作流，这与统一 PR 检查不同。不能认为进入 App 目录就会自动检查整个单仓，也不要未经核对运行带 `--fix` 的全仓钩子。
+App 下虽然有 `.pre-commit-config.yaml`，但它们不是根级统一检查；根级只有 `.githooks` 的共享钩子（提交时跑架构检查并禁止在 `main` 上提交，推送 `main` 时要求快进且 CI 已通过）。整合后的主线已有手动镜像构建/投递工作流，这与统一 PR 检查不同。不能认为进入 App 目录就会自动检查整个单仓，也不要未经核对运行带 `--fix` 的全仓钩子。
 
 ### Frappe 与 DMS
 

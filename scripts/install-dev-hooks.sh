@@ -13,10 +13,12 @@ if [ -n "$current" ] && [ "$current" != "$wanted" ]; then
     echo 'An existing hooksPath is configured; preserve and integrate those hooks before installing.' >&2
     exit 1
 fi
-if [ -z "$current" ] && [ -f "$common/hooks/pre-commit" ]; then
-    echo 'An existing pre-commit hook is installed; preserve and integrate it before installing.' >&2
-    exit 1
-fi
-test -x "$wanted/pre-commit"
+for hook in pre-commit pre-push; do
+    if [ -z "$current" ] && [ -f "$common/hooks/$hook" ]; then
+        echo "An existing $hook hook is installed; preserve and integrate it before installing." >&2
+        exit 1
+    fi
+    test -x "$wanted/$hook"
+done
 git config --local core.hooksPath "$wanted"
-printf 'Repository hook installed: %s\n' "$wanted/pre-commit"
+printf 'Repository hooks installed: %s\n' "$wanted/pre-commit $wanted/pre-push"

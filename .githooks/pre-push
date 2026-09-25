@@ -1,0 +1,31 @@
+#!/bin/sh
+# Shared by this repository's worktrees. main only moves forward to a commit
+# whose GitHub CI already passed (GitHub branch protection is unavailable on
+# this private repository's plan, so this hook is the guard).
+set -eu
+zero=0000000000000000000000000000000000000000
+check=architecture-and-offline
+status=0
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$remote_ref" = refs/heads/main ] || continue
+    if [ "$local_sha" = "$zero" ]; then
+        echo "pre-push: refusing to delete main." >&2
+        status=1
+        continue
+    fi
+    if [ "$remote_sha" != "$zero" ] && ! git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null; then
+        echo "pre-push: main must fast-forward. Fetch, rebase the task branch onto origin/main, rerun CI, then merge again." >&2
+        status=1
+        continue
+    fi
+    conclusion=$(gh api "repos/{owner}/{repo}/commits/$local_sha/check-runs?check_name=$check" \
+        --jq 'if any(.check_runs[]; .conclusion == "success") then "success"
+              else ([.check_runs[] | .conclusion // .status] | join(",")) end' 2>/dev/null || true)
+    if [ "$conclusion" != success ]; then
+        short=$(git rev-parse --short "$local_sha")
+        echo "pre-push: $short has no passing '$check' run on GitHub (got '${conclusion:-none}')." >&2
+        echo "pre-push: push the task branch first, wait for Development checks to pass, then fast-forward main to that commit." >&2
+        status=1
+    fi
+done
+exit "$status"

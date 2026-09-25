@@ -1,6 +1,11 @@
 #!/bin/sh
 # Shared by this repository's worktrees. Validate the index, not unstaged fixes.
 set -eu
+# main is the integration line: work on codex/<topic>, then fast-forward main.
+if [ "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)" = main ]; then
+    echo 'pre-commit: do not commit on main; commit on a codex/<topic> branch and fast-forward main after CI passes.' >&2
+    exit 1
+fi
 if ! git diff --cached --name-only --diff-filter=ACDMR | grep -Eq '^(apps/|AGENTS\.md$|\.githooks/|scripts/check-architecture\.py$|docs/development/(architecture-policy|dms-module-map)\.json$)'; then
     exit 0
 fi
