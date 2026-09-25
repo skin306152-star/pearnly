@@ -60,68 +60,6 @@
 	min-width: 0;
 }
 
-.sales-document-viewer .sales-document-canvas {
-	position: relative;
-	height: min(360px, 48vh);
-	overflow: hidden;
-	touch-action: none;
-	cursor: grab;
-	background: var(--subtle-fg);
-}
-
-.sales-document-viewer .sales-document-canvas img {
-	position: absolute;
-	left: 50%;
-	top: 50%;
-	max-width: 100%;
-	max-height: 100%;
-	transform-origin: center;
-	user-select: none;
-}
-
-.sales-document-viewer .sales-document-status {
-	padding-top: 40%;
-}
-
-.sales-document-viewer .sales-document-tools {
-	display: flex;
-	flex-wrap: wrap;
-	align-items: center;
-	justify-content: center;
-	gap: var(--margin-xs);
-	padding-block: var(--padding-xs);
-}
-
-.sales-document-viewer .sales-document-tool-group {
-	display: inline-flex;
-	align-items: center;
-	gap: var(--margin-xs);
-	white-space: nowrap;
-}
-
-.sales-document-viewer .sales-document-value {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	min-width: 4ch;
-	line-height: 1;
-	font-variant-numeric: tabular-nums;
-}
-
-.sales-preview-dialog .modal-dialog {
-	width: 100%;
-	max-width: 100%;
-	margin: 0;
-}
-
-.sales-preview-dialog .modal-content {
-	min-height: 100dvh;
-}
-
-.sales-preview-dialog .sales-document-canvas {
-	height: calc(100dvh - 160px);
-}
-
 .pearnly-product-desk .pearnly-sales-form [data-fieldname="attachment_list"] .result {
 	min-height: 0;
 }

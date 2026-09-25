@@ -328,3 +328,58 @@ body.pearnly-product-desk .pearnly-count-photo img {
 body.pearnly-product-desk .dt-cell--header {
 	cursor: pointer;
 }
+/* 原件预览框（见 `desk/viewer.js`）：ERP 采购/销售与 Cowork 复核共用这一套。
+   只排布官方控件，颜色取皮肤变量。 */
+.pearnly-document-viewer .pearnly-document-canvas {
+	position: relative;
+	height: min(360px, 48vh);
+	overflow: hidden;
+	touch-action: none;
+	cursor: grab;
+	background: var(--subtle-fg);
+}
+.pearnly-document-viewer .pearnly-document-canvas img {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	max-width: 100%;
+	max-height: 100%;
+	transform-origin: center;
+	user-select: none;
+}
+.pearnly-document-viewer .pearnly-document-status {
+	padding-top: 40%;
+}
+.pearnly-document-viewer .pearnly-document-tools {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: var(--margin-xs);
+	padding-block: var(--padding-xs);
+}
+.pearnly-document-viewer .pearnly-document-tool-group {
+	display: inline-flex;
+	align-items: center;
+	gap: var(--margin-xs);
+	white-space: nowrap;
+}
+.pearnly-document-viewer .pearnly-document-value {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 4ch;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+}
+.pearnly-preview-dialog .modal-dialog {
+	width: 100%;
+	max-width: 100%;
+	margin: 0;
+}
+.pearnly-preview-dialog .modal-content {
+	min-height: 100dvh;
+}
+.pearnly-preview-dialog .pearnly-document-canvas {
+	height: calc(100dvh - 160px);
+}
