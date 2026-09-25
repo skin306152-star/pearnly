@@ -110,7 +110,11 @@ Branch Office,支店
 Branch Type,支店区分
 Branch {0},支店 {0}
 Bucket,採番区分
+Buyer,買い手
 Buyer Type,顧客種類
+Buyer address,買い手住所
+Buyer branch,買い手支店
+Buyer tax ID,買い手税番号
 By Payment Method,支払方法別
 Calculation Version,計算バージョン
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
@@ -251,6 +255,7 @@ Customer not found,顧客が見つかりません
 Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
 Customers,顧客
 Date,日付
+Date (BE),日付（仏暦）
 Decided At,判定日時
 Dedupe Key,重複防止キー
 Default,既定
@@ -272,6 +277,7 @@ Details,詳細
 Difference,差異
 Difference value,差異金額
 Differences,差異合計
+Direction,方向
 Direction must be in or out,方向は入庫か出庫のいずれかです
 Disable,無効化
 Disable {0},{0}件を無効化
@@ -298,8 +304,12 @@ Document has already been cancelled,伝票は取消済みです
 Document has already been submitted,伝票は提出済みです
 Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
+Document no.,書類番号
 Document prefix,書類プレフィックス
-Documents,書類
+Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
+Document total,合計
+Document type,書類種類
+Documents,書類数
 Download opening template,期首在庫テンプレートをダウンロード
 Download template,テンプレートをダウンロード
 Draft,下書き
@@ -379,6 +389,7 @@ Fix all opening stock errors before submitting,期首明細のエラーをすべ
 Focus on Item Group filter,品目グループ絞り込みにフォーカス
 Focus on search input,検索欄にフォーカス
 Following fields have missing values:,次の項目が未入力です:
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。
 Foreigner,外国人
 Found,検出
 Found: {0},取得: {0}
@@ -622,6 +633,7 @@ Payment Receipt,支払証憑
 Payment Received,入金済み
 Payment Reconciliation,支払方法の照合
 Payment Status,支払状況
+Payment method,支払方法
 Payment of {0} received successfully.,{0} の入金に成功しました
 Payment of {0} received successfully. Waiting for other requests to complete...,{0} の入金に成功しました。他の処理の完了を待っています…
 Payments,支払履歴
@@ -753,6 +765,7 @@ Return,返品・返金
 Returned,返品済み
 Reversal,取消仕訳
 Review differences,差異を確認
+Review document,書類を確認
 Rotate,回転
 Rounded Total,端数調整後合計
 Rounding Adjustment,丸め調整
@@ -799,6 +812,10 @@ Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
 Select the original sale line,元の販売明細を選択してください
+Seller,売り手
+Seller address,売り手住所
+Seller branch,売り手支店
+Seller tax ID,売り手税番号
 Selling Units,販売単位
 Selling price,販売価格
 Selling warehouse,販売する倉庫
@@ -1064,6 +1081,7 @@ Void {0} selected,選択した{0}件を取り消す
 Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
+WHT amount,源泉税額
 Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse name,倉庫名

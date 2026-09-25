@@ -110,7 +110,11 @@ Branch Office,分支机构
 Branch Type,分支类型
 Branch {0},分支机构 {0}
 Bucket,号段
+Buyer,买方名称
 Buyer Type,客户类型
+Buyer address,买方地址
+Buyer branch,买方分店
+Buyer tax ID,买方税号
 By Payment Method,按收款方式
 Calculation Version,计算版本
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。
@@ -251,6 +255,7 @@ Customer not found,未找到客户
 Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
 Customers,客户
 Date,日期
+Date (BE),日期（佛历）
 Decided At,处理时间
 Dedupe Key,去重键
 Default,默认
@@ -272,6 +277,7 @@ Details,详细信息
 Difference,差异
 Difference value,差异金额
 Differences,差异合计
+Direction,方向
 Direction must be in or out,方向只能是入库或出库
 Disable,停用
 Disable {0},停用 {0}
@@ -298,8 +304,12 @@ Document has already been cancelled,单据已取消
 Document has already been submitted,单据已提交
 Document has been cancelled,文档已取消
 Document must be submitted,请先提交单据
+Document no.,单据号
 Document prefix,单据前缀
-Documents,单据
+Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
+Document total,总金额
+Document type,单据类型
+Documents,单据数量
 Download opening template,下载期初模板
 Download template,下载模板
 Draft,草稿
@@ -379,6 +389,7 @@ Fix all opening stock errors before submitting,请修正全部期初明细错误
 Focus on Item Group filter,定位到物料组筛选
 Focus on search input,定位到搜索框
 Following fields have missing values:,以下字段没有填：
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",识别更准的拍法：单据摆正拍，文字朝上，整张入镜。
 Foreigner,外国人
 Found,已找到
 Found: {0},已查到：{0}
@@ -622,6 +633,7 @@ Payment Receipt,付款凭证
 Payment Received,收款成功
 Payment Reconciliation,支付方式对账
 Payment Status,付款状态
+Payment method,支付方式
 Payment of {0} received successfully.,已成功收款 {0}
 Payment of {0} received successfully. Waiting for other requests to complete...,已成功收款 {0}，正在等待其它请求完成…
 Payments,付款
@@ -753,6 +765,7 @@ Return,退货退款
 Returned,已退货
 Reversal,冲销
 Review differences,查看差异
+Review document,复核单据
 Rotate,旋转
 Rounded Total,舍入后总计
 Rounding Adjustment,小数精度尾差调整
@@ -799,6 +812,10 @@ Select item group,选择物料组
 Select one receipt to refund,一次只能退一条小票
 Select one row to open its ledger,一次只能看一条流水
 Select the original sale line,请选择原单中的物料行
+Seller,卖方名称
+Seller address,卖方地址
+Seller branch,卖方分店
+Seller tax ID,卖方税号
 Selling Units,销售单位
 Selling price,售价
 Selling warehouse,卖货的仓库
@@ -1064,6 +1081,7 @@ Void {0} selected,作废选中的 {0} 张
 Voided,已作废
 Voided {0},已作废 {0} 张
 "Voided, not in the total",已撤销，不计入合计
+WHT amount,预扣税额
 Walk-in customer,散客
 Warehouse,仓库
 Warehouse name,仓库名称

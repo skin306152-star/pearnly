@@ -13,14 +13,18 @@ import frappe
 from pearnly_erp_portal.integrations import handlers, intake, line_flow
 
 
+def _same(text, *args, **kwargs):
+    return text
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         self.replies = []
         self.sessions = {}
         self.roles = {"buyer": {"purchase.write", "integration.read"}}
-        self.enterContext(patch.object(frappe, "_", lambda text: text, create=True))
+        self.enterContext(patch.object(frappe, "_", _same, create=True))
         for module in (handlers, intake, line_flow):
-            self.enterContext(patch.object(module, "_", lambda text: text))
+            self.enterContext(patch.object(module, "_", _same))
         self.enterContext(patch.object(frappe, "session", SimpleNamespace(user="Guest"), create=True))
         self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": None}), create=True))
         self.enterContext(patch.object(frappe, "throw", side_effect=self.reject))
@@ -217,6 +221,91 @@ class Payload(Base):
         self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
 
 
+    def test_paid_sales_takes_the_document_date_and_vat_mode(self):
+        # 定·09-25：付款日期取单据日期（09-26 实测记成了当天）；含税小票不再加一次 VAT。
+        doc = _doc(direction="sales", party="@any", payment_method="cash", result=json.dumps(
+            {"doc_date": "2026-05-27", "price_includes_vat": True,
+             "lines": [{"description": "Tweezers", "qty": 1, "unit_price": 79}]}))
+        payload = intake.build_payload(doc)
+        self.assertEqual((payload["payment_date"], payload["price_includes_vat"]), ("2026-05-27", True))
+
+    def test_fallback_names_are_stored_in_the_channel_language(self):
+        seen = []
+        self.enterContext(patch.object(intake, "channel_language", return_value="th"))
+        self.enterContext(patch.object(intake, "_", lambda text, lang=None: seen.append(lang) or text))
+        intake.build_payload(_doc(direction="sales", party="@any", result=json.dumps({"lines": []})))
+        self.assertEqual(seen, ["th"])
+
+
+class Recognition(unittest.TestCase):
+    def test_percent_discounts_become_amounts(self):
+        # 09-26 采购票面「20.00%」被整个丢掉，合计多记 16,963.20。
+        from pearnly_erp_portal.purchasing import recognition
+
+        clean = recognition.clean_result({"lines": [
+            {"description": "A", "qty": 48, "unit_price": 589, "discount": "20.00%"},
+            {"description": "B", "qty": "60", "unit_price": "589.00", "discount": "1,000"},
+            {"description": "C", "qty": 1, "unit_price": 10, "discount": "n/a"}],
+            "discount_total": "10%"})
+        self.assertEqual([row["discount"] for row in clean["lines"]], [5654.4, 1000.0, 0])
+        self.assertEqual(clean["discount_total"], round((48 * 589 * 0.8 + 60 * 589 - 1000 + 10) * 0.1, 2))
+
+    def test_vat_included_sales_prices_are_not_taxed_again(self):
+        from pearnly_erp_portal.sales import entry
+
+        base = {"has_vat": 1, "vat_rate": 7, "lines": [{"description": "Cool Betty Inliner", "qty": 1, "unit_price": 290},
+                {"description": "Eyelash Curler", "qty": 1, "unit_price": 120},
+                {"description": "Tweezers", "qty": 1, "unit_price": 79}]}
+        included = entry._calculate({**base, "price_includes_vat": 1})
+        self.assertEqual((included["grand_total"], included["vat_amount"]), ("489.00", "31.99"))
+        self.assertEqual(entry._calculate(base)["grand_total"], "523.23")
+
+    def test_sideways_photo_with_orientation_is_turned_upright_locally(self):
+        import io
+
+        from PIL import Image
+
+        from pearnly_core import ocr
+
+        def jpeg(orientation=None):
+            out, image = io.BytesIO(), Image.new("RGB", (40, 20), "white")
+            exif = image.getexif()
+            if orientation:
+                exif[0x0112] = orientation
+            image.save(out, "JPEG", exif=exif)
+            return out.getvalue()
+
+        turned, mime = ocr.upright(jpeg(6), "image/jpeg")
+        self.assertEqual((Image.open(io.BytesIO(turned)).size, mime), ((20, 40), "image/jpeg"))
+        plain = jpeg()
+        self.assertIs(ocr.upright(plain, "image/jpeg")[0], plain)
+        self.assertEqual(ocr.upright(b"%PDF-1.4", "application/pdf"), (b"%PDF-1.4", "application/pdf"))
+
+
+class Products(Base):
+    def test_purchase_created_items_take_our_running_code_not_the_printed_one(self):
+        from pearnly_erp_portal.products import purchase, service
+
+        created = []
+        item = SimpleNamespace(name="PRD-9", code="P-000099", barcode=None, base_unit="pcs", unit="pcs", is_active=1)
+
+        def get_doc(value, name=None):
+            if isinstance(value, dict):
+                created.append(value)
+                return SimpleNamespace(insert=lambda **kw: None, name="PRD-9")
+            return item
+
+        self.enterContext(patch("pearnly_erp_portal.access.guard.require"))
+        self.enterContext(patch.object(frappe, "get_all", return_value=[], create=True))
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=get_doc, create=True))
+        self.enterContext(patch.object(service, "_allocate_code", return_value="P-000099"))
+        self.enterContext(patch.object(service, "_assert_unique"))
+        line = purchase.resolve({"description": "Cushion 01", "code": "110814SX001", "qty": 48,
+                                 "unit": "pcs", "unit_price": 589, "line_total": 22617.6})
+        self.assertEqual(created[0]["code"], "P-000099")
+        self.assertEqual((line["product"], line["code"]), ("PRD-9", "P-000099"))
+
+
 class SourceFile(Base):
     def test_the_card_uses_its_own_file_record_not_a_shared_url(self):
         # The same photo sent twice gets two File records sharing one file_url; looking the
@@ -312,18 +401,61 @@ class Web(Base):
 
 
 class CardShape(Base):
-    def test_card_has_only_an_edit_link_to_the_native_page(self):
+    def card(self, doc, result, totals):
         from pearnly_erp_portal.integrations import line_cards
 
-        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": "Alpha"}), create=True))
-        self.enterContext(patch.object(line_cards, "_", lambda text: text))
+        masters = {"ERP Company": {"company_name": "Sister Makeup Co., Ltd.", "tax_id": "0105567178203"},
+                   "ERP Supplier": {"supplier_name": "NBC", "tax_id": "0105555167627", "branch_type": "head"}}
+
+        def get_value(doctype, name=None, fields=None, as_dict=False):
+            row = masters.get(doctype, {})
+            return row if as_dict else (row.get(fields) if isinstance(fields, str) else "Main")
+
+        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.side_effect": get_value}), create=True))
+        self.enterContext(patch.object(line_cards, "_", _same))
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
+        return line_cards.preview(doc, result, totals)
+
+    @staticmethod
+    def rows(card):
+        # 顶层的横排行就是「左标签 · 右值」那些字段行；明细在底下那个框里。
+        return {row["contents"][0]["text"]: row["contents"][1]["text"]
+                for row in card["contents"]["body"]["contents"] if row.get("layout") == "horizontal"}
+
+    def test_card_follows_the_old_layout_and_has_only_an_edit_link(self):
         doc = _doc()
-        card = line_cards.preview(doc, json.loads(doc.result), {"grand_total": "20"})
+        result = {**json.loads(doc.result), "doc_kind": "purchase_invoice",
+                  "lines": [{"description": f"Item {i}", "qty": 1, "unit_price": 10} for i in range(12)]}
+        card = self.card(doc, result, {"grand_total": "107.00", "vat_amount": "7.00", "discount_total": "0",
+                                       "lines": [{"line_total": "10.00", "discount": "0"}] * 12})
+        header = card["contents"]["header"]["contents"]
+        self.assertEqual((header[0]["text"], card["contents"]["header"]["backgroundColor"]),
+                         ("Review document · ซื้อ", "#16873E"))
+        rows = self.rows(card)
+        labels = [label for label in rows]
+        self.assertEqual(labels[:4], ["Company", "Direction", "Documents", "Item Type"])
+        self.assertEqual(labels[4:], ["Document no.", "Date (BE)", "Document type", "Seller", "Seller tax ID",
+                         "Seller branch", "Seller address", "Buyer", "Buyer tax ID", "Buyer branch", "Buyer address",
+                         "Subtotal", "Discount", "VAT", "WHT amount", "Document total", "Currency",
+                         "Payment method", "Notes"])
+        self.assertEqual((rows["Date (BE)"], rows["Seller"], rows["Buyer"], rows["Subtotal"], rows["Document total"]),
+                         ("25/09/2569", "NBC", "Sister Makeup Co., Ltd.", "100.00", "107.00"))
+        text = json.dumps(card, ensure_ascii=False)
+        for i in range(12):  # 商品名称全部显示（用户 2026-09-26）
+            self.assertIn(f"{i + 1}. Item {i}", text)
         footer = card["contents"]["footer"]["contents"]
         self.assertEqual(len(footer), 1)
         self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/desk/pearnly-purchase/line/LI-1"})
+
+    def test_sales_card_shows_our_company_as_seller_and_the_fallback_buyer(self):
+        doc = _doc(direction="sales", party="@any")
+        card = self.card(doc, {"doc_date": "2026-05-27", "lines": []}, {})
+        rows = self.rows(card)
+        self.assertEqual((rows["Direction"], rows["Seller"], rows["Buyer"], rows["Payment method"]),
+                         ("ขาย", "Sister Makeup Co., Ltd.", "Walk-in customer", "Transfer"))
+        self.assertEqual(card["contents"]["header"]["backgroundColor"], "#B11B50")
+        self.assertIn("No items were read", json.dumps(card))
 
     def test_old_card_postbacks_are_not_handled(self):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):

@@ -1249,3 +1249,22 @@ Upload a document or enter it manually?	上传单据识别，还是手动录入�
 Upload and recognise	上传识别	อัปโหลดเอกสาร	アップロードして読み取る
 Enter manually	手动录入	กรอกเอง	手入力
 General supplier	一般供应商	ผู้ขายทั่วไป	一般仕入先
+Review document	复核单据	ตรวจสอบเอกสาร	書類を確認
+Document summary · open details to review and post	单据摘要 · 进入明细完成复核与入账	สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี	書類の概要 · 明細画面で確認して計上してください
+Direction	方向	ทิศทาง	方向
+Documents	单据数量	เอกสาร	書類数
+Document no.	单据号	เลขที่เอกสาร	書類番号
+Date (BE)	日期（佛历）	วันที่ พ.ศ.	日付（仏暦）
+Document type	单据类型	ประเภทเอกสาร	書類種類
+Seller	卖方名称	ชื่อผู้ขาย	売り手
+Seller tax ID	卖方税号	เลขผู้เสียภาษีผู้ขาย	売り手税番号
+Seller branch	卖方分店	สาขาผู้ขาย	売り手支店
+Seller address	卖方地址	ที่อยู่ผู้ขาย	売り手住所
+Buyer	买方名称	ชื่อผู้ซื้อ	買い手
+Buyer tax ID	买方税号	เลขผู้เสียภาษีผู้ซื้อ	買い手税番号
+Buyer branch	买方分店	สาขาผู้ซื้อ	買い手支店
+Buyer address	买方地址	ที่อยู่ผู้ซื้อ	買い手住所
+WHT amount	预扣税额	ภาษีหัก ณ ที่จ่าย	源泉税額
+Document total	总金额	ยอดรวม	合計
+Payment method	支付方式	วิธีชำระเงิน	支払方法
+For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	识别更准的拍法：单据摆正拍，文字朝上，整张入镜。	เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น	読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。

@@ -159,7 +159,9 @@ def _next(line_user_id, user, payload, reply_token):
             step = _pending(payload)
     _save(line_user_id, payload)
     if step == "upload":
-        return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image"))
+        # 上传前的拍摄提示（用户 2026-09-26）：侧着的照片会读错商品名，不另花识别费去转正。
+        return _text(reply_token, summary(payload) + "\n" + _("Please upload a PDF or image") + "\n"
+                     + _("For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."))
     options = _options(step, payload, user)
     if not options:
         # 公司下没有启用的仓库之类：说清楚，而不是给一排空按钮。

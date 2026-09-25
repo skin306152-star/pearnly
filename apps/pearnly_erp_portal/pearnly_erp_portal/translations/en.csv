@@ -110,7 +110,11 @@ Branch Office,Branch Office
 Branch Type,Branch Type
 Branch {0},Branch {0}
 Bucket,Bucket
+Buyer,Buyer
 Buyer Type,Buyer Type
+Buyer address,Buyer address
+Buyer branch,Buyer branch
+Buyer tax ID,Buyer tax ID
 By Payment Method,By Payment Method
 Calculation Version,Calculation Version
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
@@ -251,6 +255,7 @@ Customer not found,Customer not found
 Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
 Customers,Customers
 Date,Date
+Date (BE),Date (BE)
 Decided At,Decided At
 Dedupe Key,Dedupe Key
 Default,Default
@@ -272,6 +277,7 @@ Details,Details
 Difference,Difference
 Difference value,Difference value
 Differences,Differences
+Direction,Direction
 Direction must be in or out,Direction must be in or out
 Disable,Disable
 Disable {0},Disable {0}
@@ -298,7 +304,11 @@ Document has already been cancelled,Document has already been cancelled
 Document has already been submitted,Document has already been submitted
 Document has been cancelled,Document has been cancelled
 Document must be submitted,Document must be submitted
+Document no.,Document no.
 Document prefix,Document prefix
+Document summary · open details to review and post,Document summary · open details to review and post
+Document total,Document total
+Document type,Document type
 Documents,Documents
 Download opening template,Download opening template
 Download template,Download template
@@ -379,6 +389,7 @@ Fix all opening stock errors before submitting,Fix all opening stock errors befo
 Focus on Item Group filter,Focus on Item Group filter
 Focus on search input,Focus on search input
 Following fields have missing values:,Following fields have missing values:
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
 Foreigner,Foreigner
 Found,Found
 Found: {0},Found: {0}
@@ -622,6 +633,7 @@ Payment Receipt,Payment Receipt
 Payment Received,Payment Received
 Payment Reconciliation,Payment Reconciliation
 Payment Status,Payment Status
+Payment method,Payment method
 Payment of {0} received successfully.,Payment of {0} received successfully.
 Payment of {0} received successfully. Waiting for other requests to complete...,Payment of {0} received successfully. Waiting for other requests to complete...
 Payments,Payments
@@ -753,6 +765,7 @@ Return,Return
 Returned,Returned
 Reversal,Reversal
 Review differences,Review differences
+Review document,Review document
 Rotate,Rotate
 Rounded Total,Rounded Total
 Rounding Adjustment,Rounding Adjustment
@@ -799,6 +812,10 @@ Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
 Select the original sale line,Select the original sale line
+Seller,Seller
+Seller address,Seller address
+Seller branch,Seller branch
+Seller tax ID,Seller tax ID
 Selling Units,Selling Units
 Selling price,Selling price
 Selling warehouse,Selling warehouse
@@ -1064,6 +1081,7 @@ Void {0} selected,Void {0} selected
 Voided,Voided
 Voided {0},Voided {0}
 "Voided, not in the total","Voided, not in the total"
+WHT amount,WHT amount
 Walk-in customer,Walk-in customer
 Warehouse,Warehouse
 Warehouse name,Warehouse name

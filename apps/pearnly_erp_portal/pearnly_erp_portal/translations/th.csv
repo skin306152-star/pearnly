@@ -110,7 +110,11 @@ Branch Office,สาขา
 Branch Type,ประเภทสาขา
 Branch {0},สาขา {0}
 Bucket,ช่วงรหัส
+Buyer,ชื่อผู้ซื้อ
 Buyer Type,ประเภทลูกค้า
+Buyer address,ที่อยู่ผู้ซื้อ
+Buyer branch,สาขาผู้ซื้อ
+Buyer tax ID,เลขผู้เสียภาษีผู้ซื้อ
 By Payment Method,แยกตามวิธีรับเงิน
 Calculation Version,เวอร์ชันการคำนวณ
 "Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",เปิดกล้องไม่ได้ โปรดอนุญาตกล้องบนหน้า HTTPS หรือป้อนรหัสเอง
@@ -251,6 +255,7 @@ Customer not found,ไม่พบลูกค้า
 Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
 Customers,ลูกค้า
 Date,วันที่
+Date (BE),วันที่ พ.ศ.
 Decided At,เวลาตัดสินใจ
 Dedupe Key,คีย์กันซ้ำ
 Default,ค่าเริ่มต้น
@@ -272,6 +277,7 @@ Details,รายละเอียด
 Difference,ผลต่าง
 Difference value,มูลค่าผลต่าง
 Differences,ผลต่างรวม
+Direction,ทิศทาง
 Direction must be in or out,ทิศทางต้องเป็น รับเข้า หรือ จ่ายออก เท่านั้น
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
@@ -298,7 +304,11 @@ Document has already been cancelled,เอกสารถูกยกเลิ�
 Document has already been submitted,ส่งเอกสารแล้ว
 Document has been cancelled,เอกสารถูกยกเลิกแล้ว
 Document must be submitted,กรุณาส่งเอกสารก่อน
+Document no.,เลขที่เอกสาร
 Document prefix,คำนำหน้าเอกสาร
+Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจสอบและลงบัญชี
+Document total,ยอดรวม
+Document type,ประเภทเอกสาร
 Documents,เอกสาร
 Download opening template,ดาวน์โหลดแบบฟอร์มสต็อกยกมา
 Download template,ดาวน์โหลดแบบฟอร์ม
@@ -379,6 +389,7 @@ Fix all opening stock errors before submitting,กรุณาแก้ไขข
 Focus on Item Group filter,โฟกัสตัวกรองกลุ่มรายการ
 Focus on search input,โฟกัสช่องค้นหา
 Following fields have missing values:,ฟิลด์ต่อไปนี้ยังไม่ได้กรอก:
+"For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น
 Foreigner,ชาวต่างชาติ
 Found,พบ
 Found: {0},พบ: {0}
@@ -622,6 +633,7 @@ Payment Receipt,หลักฐานการชำระเงิน
 Payment Received,รับชำระแล้ว
 Payment Reconciliation,กระทบยอดวิธีชำระ
 Payment Status,สถานะการชำระ
+Payment method,วิธีชำระเงิน
 Payment of {0} received successfully.,รับชำระ {0} สำเร็จ
 Payment of {0} received successfully. Waiting for other requests to complete...,รับชำระ {0} สำเร็จ กำลังรอคำขออื่นเสร็จสิ้น...
 Payments,การชำระเงิน
@@ -753,6 +765,7 @@ Return,คืนสินค้า
 Returned,คืนแล้ว
 Reversal,กลับรายการ
 Review differences,ตรวจสอบผลต่าง
+Review document,ตรวจสอบเอกสาร
 Rotate,หมุน
 Rounded Total,ยอดรวมหลังปัดเศษ
 Rounding Adjustment,การปรับปัดเศษ
@@ -799,6 +812,10 @@ Select item group,เลือกกลุ่มรายการ
 Select one receipt to refund,เลือกได้ครั้งละหนึ่งใบเสร็จ
 Select one row to open its ledger,เลือกได้ครั้งละหนึ่งรายการ
 Select the original sale line,เลือกรายการจากบิลขายเดิม
+Seller,ชื่อผู้ขาย
+Seller address,ที่อยู่ผู้ขาย
+Seller branch,สาขาผู้ขาย
+Seller tax ID,เลขผู้เสียภาษีผู้ขาย
 Selling Units,หน่วยขาย
 Selling price,ราคาขาย
 Selling warehouse,คลังที่ขาย
@@ -1064,6 +1081,7 @@ Void {0} selected,ยกเลิก {0} รายการที่เลือ
 Voided,ยกเลิกแล้ว
 Voided {0},ยกเลิก {0} รายการแล้ว
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
+WHT amount,ภาษีหัก ณ ที่จ่าย
 Walk-in customer,ลูกค้าทั่วไป
 Warehouse,คลังสินค้า
 Warehouse name,ชื่อคลังสินค้า
