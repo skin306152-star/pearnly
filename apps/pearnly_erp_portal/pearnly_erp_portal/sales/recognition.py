@@ -92,9 +92,9 @@ def review(result):
         computed = contracts.compute_totals(
             lines, vat_rate=result.get("vat_rate") if result.get("has_vat") else 0,
             header_discount_amount=result.get("header_discount") or 0,
-            price_includes_vat=bool(result.get("price_includes_vat")))["grand_total"] if lines else None
+            price_includes_vat=bool(result.get("price_includes_vat"))) if lines else None
     except (ValueError, KeyError, ArithmeticError, TypeError):
         computed = None
-    issues += checks.computed_issues(printed, computed) if computed is not None else (
+    issues += checks.computed_issues(printed, computed["grand_total"], computed["vat_amount"]) if computed else (
         ["computed_total"] if checks.money(printed.get("total")) is not None else [])
     return issues + checks.date_issues(result.get("doc_date"))

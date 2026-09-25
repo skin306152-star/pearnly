@@ -434,6 +434,9 @@ class Checks(unittest.TestCase):
 
         # NBC：票面合计 67,852.80，丢了 20% 折扣算出 84,816.00。
         self.assertEqual(checks.computed_issues({"total": "67,852.80"}, "84816.00"), ["computed_total"])
+        # กิจสยามยานยนต์：合计对上了，但读成「无 VAT」—— 入账会少记 490.65 的税。
+        self.assertEqual(checks.computed_issues({"total": "7500", "vat": "490.65"}, "7500.00", "0.00"), ["computed_vat"])
+        self.assertEqual(checks.computed_issues({"total": "7500", "vat": "490.65"}, "7500.00", "490.65"), [])
         # 小票只印金额：单价全 0，算出 0，票面 2,768。
         self.assertEqual(checks.computed_issues({"total": "2768"}, "0.00"), ["computed_total"])
 

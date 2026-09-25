@@ -27,6 +27,7 @@ MESSAGES = {
     "total_missing": "The total printed on the document was not found",
     "printed_math": "Subtotal, discount and VAT do not add up to the printed total",
     "computed_total": "The items do not add up to the printed total",
+    "computed_vat": "The VAT worked out from the items does not match the printed VAT",
     "negative": "A negative amount was read",
     "same_tax_id": "Seller and buyer have the same tax ID",
     "tax_id_checksum": "A tax ID failed its check digit",
@@ -119,12 +120,18 @@ def printed_issues(printed: dict, line_amounts: list, *, seller_tax=None, buyer_
     return issues
 
 
-def computed_issues(printed: dict, computed_total) -> list:
-    """按识别出的明细算出的合计 ≠ 票面合计（旧线上入账时的 422，这里提前）。"""
+def computed_issues(printed: dict, computed_total, computed_vat=None) -> list:
+    """按识别出的明细算出的合计 / VAT ≠ 票面（旧线上入账时的 422，这里提前）。
+
+    VAT 也要比：09-26 实测一张含税票被读成「无 VAT」，合计照样对得上，入账却会少记 490.65 的税。"""
+    issues = []
     total, computed = money(printed.get("total")), money(computed_total)
-    if total is None or computed is None:
-        return []
-    return ["computed_total"] if abs(total - computed) > TOLERANCE else []
+    if total is not None and computed is not None and abs(total - computed) > TOLERANCE:
+        issues.append("computed_total")
+    vat, worked = money(printed.get("vat")), money(computed_vat)
+    if vat is not None and worked is not None and abs(vat - worked) > max(TOLERANCE, vat * RELATIVE):
+        issues.append("computed_vat")
+    return issues
 
 
 def date_issues(value, today=None) -> list:
