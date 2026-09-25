@@ -105,9 +105,13 @@
 			control.$input.on("input.entry-choice", () => {++revision; void sync(); search();});
 			control.$input.on("focus.entry-choice click.entry-choice", search);
 			control.$input.on("change.entry-choice awesomplete-selectcomplete.entry-choice", () => void sync());
-			const button = $('<button type="button" class="btn btn-default btn-xs pearnly-link-scan"></button>')
-				.attr({title: __("Scan"), "aria-label": __("Scan")}).html(frappe.utils.icon("scan-barcode", "sm"));
-			const holder = $(control.input_area).addClass("pearnly-link-scan-input").append(button);
+			// Only product choices carry the scanner: suppliers and customers have no code to
+			// scan. Same declaration as the shared Link fields (`p.scan_doctypes`, scan.js).
+			const button = (p.scan_doctypes || []).includes(doctype)
+				? $('<button type="button" class="btn btn-default btn-xs pearnly-link-scan"></button>')
+					.attr({title: __("Scan"), "aria-label": __("Scan")}).html(frappe.utils.icon("scan-barcode", "sm"))
+				: null;
+			const holder = $(control.input_area).addClass("pearnly-link-scan-input").append(button || []);
 			arrow = $('<span class="link-btn"><a class="btn-open" href="#"></a></span>').appendTo(holder);
 			arrow.find("a").attr({title: __("Open Link"), "aria-label": __("Open Link")})
 				.html(frappe.utils.icon("arrow-right", "xs")).on("click", event => {
@@ -116,7 +120,7 @@
 				});
 			update_arrow();
 			p.watch_master_control(control, doctype, () => {++revision; ++value_revision; set_rows([]);});
-			button.on("click", () => {
+			button?.on("click", () => {
 				const own = ++value_revision;
 				++revision;
 				return p.scan({kind: "all", on_result: async code => {
