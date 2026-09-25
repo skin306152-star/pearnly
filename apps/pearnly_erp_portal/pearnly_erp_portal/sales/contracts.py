@@ -295,6 +295,7 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
             "unit": (str(row.get("unit") or "").strip() or None),
             "unit_price": unit_price_of(row),
             "discount": row.get("discount") or 0,
+            "discount_pct": row.get("discount_percent") or 0,
         })
     buyer_type = str(payload.get("buyer_type") or "company").strip().lower()
     if buyer_type not in PARTY_TYPES:

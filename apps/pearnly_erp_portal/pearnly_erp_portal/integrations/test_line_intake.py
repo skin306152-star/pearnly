@@ -413,6 +413,22 @@ class Checks(unittest.TestCase):
         receipt = {"subtotal": "2,586.92", "vat": "181.08", "total": "2,768.00"}
         self.assertEqual(checks.printed_issues(receipt, [390, 390, 940, 79, 189, 780]), [])
 
+    def test_a_vat_inclusive_amount_read_as_subtotal_is_not_a_mismatch(self):
+        from pearnly_erp_portal.recognition import checks
+
+        # 09-26 实测：模型把「รวมเป็นเงิน 7,500」当小计，VAT 490.65、合计 7,500 —— 票面本身是平的。
+        self.assertEqual(checks.printed_issues({"subtotal": 7500, "discount": 0, "vat": 490.65, "total": 7500},
+                                               [6400, 750, 350]), [])
+        self.assertEqual(checks.printed_issues({"subtotal": 67852.8, "discount": 0, "vat": 4438.97,
+                                                "total": 67852.8}, [22617.6, 28272, 16963.2]), [])
+
+    def test_percent_discount_column_becomes_an_amount(self):
+        from pearnly_erp_portal.purchasing import recognition
+
+        clean = recognition.clean_result({"lines": [{"description": "A", "qty": 48, "unit_price": 589,
+                                                     "discount": None, "discount_percent": 20}]})
+        self.assertEqual(clean["lines"][0]["discount"], 5654.4)
+
     def test_the_two_real_failures_are_caught(self):
         from pearnly_erp_portal.recognition import checks
 

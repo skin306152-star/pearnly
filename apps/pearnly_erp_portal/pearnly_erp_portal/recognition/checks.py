@@ -93,7 +93,12 @@ def printed_issues(printed: dict, line_amounts: list, *, seller_tax=None, buyer_
     lines = [amount for amount in line_amounts if amount is not None]
     if total is not None and total > 0 and lines and not discount and total < max(lines) - TOLERANCE:
         issues.append("total_below_line")
-    if sub is not None and total is not None and sub > 0:
+    # 模型有时把票面的含税金额（如「รวมเป็นเงิน」）当成小计：小计 ≈ 合计、VAT ≈ 合计 × 7/107
+    # 就是含税票面，本身是平的（09-26 实测两张采购票都这样误报过）。
+    inclusive = (sub is not None and total is not None and vat is not None and total > 0
+                 and abs(sub - discount - total) <= TOLERANCE
+                 and abs(vat - total * VAT_RATE / (1 + VAT_RATE)) <= max(TOLERANCE, total * VAT_RATE * RELATIVE))
+    if sub is not None and total is not None and sub > 0 and not inclusive:
         if vat is None:
             net = sub - discount
             expected = net * VAT_RATE
@@ -101,11 +106,11 @@ def printed_issues(printed: dict, line_amounts: list, *, seller_tax=None, buyer_
                 issues.append("printed_math")
         elif min(abs(sub + vat - total), abs(sub - discount + vat - total)) > TOLERANCE:
             issues.append("printed_math")
-    if not _vat_ratio_ok(sub, vat, discount):
+    if not inclusive and not _vat_ratio_ok(sub, vat, discount):
         issues.append("vat_ratio")
     if any(not valid_tax_id(value) for value in (seller, buyer) if value):
         issues.append("tax_id_checksum")
-    if sub is not None and sub > 0 and len(lines) >= 2:
+    if sub is not None and sub > 0 and len(lines) >= 2 and not inclusive:
         line_sum, tol = sum(lines), max(TOLERANCE, sub * RELATIVE)
         after = line_sum - discount
         discounted_ok = discount and (abs(after - sub) <= tol or (total is not None and abs(after - total) <= max(tol, total * RELATIVE)))
