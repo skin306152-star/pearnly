@@ -150,3 +150,20 @@ def date_issues(value, today=None) -> list:
 
 def hard(issues) -> list:
     return [code for code in issues if code not in SOFT]
+
+
+def vat_mode(printed: dict, line_sum, discount=0):
+    """票面是含税价还是不含税价：旧线上入账时的判法（`services/erp/invoice_amounts.py:28-58`）——
+    明细合计 − 折扣 等于票面合计就是含税，等于税前金额（合计 − VAT）就是不含税；都不等返回 None。
+
+    09-26 实测：一张含税采购票两个模型都读成「无 VAT」，合计照样对，税却会少记。模型给的
+    has_vat / price_mode 不可靠时，用票面自己的数字定。"""
+    total, vat, lines = money(printed.get("total")), money(printed.get("vat")), money(line_sum)
+    if total is None or lines is None or vat is None or vat <= 0:
+        return None
+    net = lines - (money(discount) or 0)
+    if abs(net - total) <= TOLERANCE:
+        return "inclusive"
+    if abs(net - (total - vat)) <= TOLERANCE:
+        return "exclusive"
+    return None

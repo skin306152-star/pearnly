@@ -73,6 +73,11 @@ def _structured(raw):
     printed = raw.get("printed") if isinstance(raw.get("printed"), dict) else {}
     result["printed"] = {key: printed.get(key) for key in ("subtotal", "discount", "vat", "total")}
     result.update(seller_tax_id=raw.get("seller_tax_id"), buyer_tax_id=raw.get("buyer_tax_id"))
+    line_sum = sum((checks.money(row.get("qty") or 1) or 0) * (checks.money(row.get("unit_price")) or 0)
+                   - (checks.money(row.get("discount")) or 0) for row in result["lines"])
+    mode = checks.vat_mode(result["printed"], line_sum, result.get("header_discount"))
+    if mode:
+        result.update(has_vat=True, price_includes_vat=mode == "inclusive")
     return result
 
 

@@ -456,6 +456,22 @@ class Checks(unittest.TestCase):
         self.assertEqual(checks.printed_issues({"subtotal": "110", "discount": "5", "vat": "7.35",
                                                 "total": "112.35"}, [60, 55]), [])
 
+    def test_vat_mode_comes_from_the_printed_numbers(self):
+        from pearnly_erp_portal.purchasing import recognition
+        from pearnly_erp_portal.recognition import checks
+
+        printed = {"subtotal": 7009.35, "vat": 490.65, "total": 7500}
+        self.assertEqual(checks.vat_mode(printed, 7500), "inclusive")
+        self.assertEqual(checks.vat_mode(printed, "7009.35"), "exclusive")
+        self.assertIsNone(checks.vat_mode(printed, 1000))
+        self.assertIsNone(checks.vat_mode({"total": 100}, 100))
+        # 模型读成「无 VAT、不含税」，票面数字说它是含税的 —— 用票面的。
+        result = recognition._structured({"has_vat": False, "price_mode": "exclusive", "printed": printed, "lines": [
+            {"description": "Tyre", "qty": 1, "unit_price": 6400}, {"description": "Tube", "qty": 1, "unit_price": 750},
+            {"description": "Flap", "qty": 1, "unit_price": 350}]})
+        self.assertEqual((result["has_vat"], result["price_mode"]), (True, "inclusive"))
+        self.assertEqual(recognition.review(result), [])
+
     def test_dates_are_soft(self):
         from datetime import date
 
