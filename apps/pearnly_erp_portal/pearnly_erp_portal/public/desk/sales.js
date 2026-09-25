@@ -92,7 +92,6 @@
 				const query = new URLSearchParams({params: JSON.stringify(parameters())});
 				window.open(`/api/method/${u.api}api_sales_export?${query}`, "_blank", "noopener,noreferrer");
 			});
-			if (can_write && defaults.capabilities.line_intakes) page.add_inner_button(__("LINE"), () => go("intakes"));
 			p.add_refresh(page, refresh);
 			primary(); await list.ready;
 			list_cleanup = () => {live = false; list.destroy();};
@@ -101,19 +100,15 @@
 			cleanup(); list_cleanup(); cleanup = list_cleanup = () => {};
 			p.clear_page(page); page.clear_menu();
 			if (!rest.length) {await listing(still_current); return;}
-			if (rest[0] === "intakes") {cleanup = await u.intakes({page, go, still_current}); return;}
-			const is_intake = rest[0] === "intake";
-			const is_new = rest[0] === "new" || is_intake;
+			const is_new = rest[0] === "new";
 			if (!is_new && rest.length > 1) {await go(); return;}
 			const defaults = await u.call("api_sales_defaults");
-			const incoming = is_intake ? await u.get_intake(rest[1]) : null;
-			if (incoming?.intake.status === "confirmed") {await go(incoming.intake.sales_document); return;}
-			const doc = incoming?.doc || (is_new ? {} : await u.call("api_sales_document", {name: rest[0]}));
+			const doc = is_new ? {} : await u.call("api_sales_document", {name: rest[0]});
 			if (!still_current()) return;
 			const editable = can_write && (is_new || doc.status === "draft");
 			page.set_title(is_new ? __("trade.newSale") : doc.system_no || doc.name);
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
-			cleanup = await u.editor({page, doc, defaults, editable, intake: incoming?.intake, still_current, reload: () => show(), go});
+			cleanup = await u.editor({page, doc, defaults, editable, still_current, reload: () => show(), go});
 		}});
 		await show();
 	};

@@ -1222,3 +1222,36 @@ Bound at	绑定时间	เชื่อมต่อเมื่อ	連携日時	er
 Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ LINE	LINE 連携を解除	erp.line.unbind
 Unbind Pearnly ERP LINE?	确认解绑 Pearnly ERP LINE？	ยืนยันการยกเลิกการเชื่อมต่อ?	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm
 LINE is not enabled for this account	这个账号没有开通 LINE	บัญชีนี้ยังไม่ได้เปิดใช้ LINE	このアカウントは LINE が有効になっていません
+Choose purchase or sales first	请先选择采购或销售	กรุณาเลือก ซื้อ หรือ ขาย ก่อนส่งเอกสาร	先に仕入か売上を選んでください
+Choose the company	请选择公司	เลือกบริษัทที่ต้องการบันทึกครับ	会社を選んでください
+Choose the customer	请选择客户	เลือกลูกค้า	顧客を選んでください
+Choose the payment method	请选择付款方式	เลือกวิธีชำระเงิน	支払方法を選んでください
+Choose the supplier	请选择供应商	เลือกผู้จัดจำหน่าย	仕入先を選んでください
+Choose the warehouse	请选择仓库	เลือกคลังสินค้า	倉庫を選んでください
+Choose what to record	请选择要录入的类型	เลือกรายการที่ต้องการบันทึก	記録する種類を選んでください
+Could not read this document. Please send it again.	识别失败，请重新发送	อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่อีกครั้ง	読み取れませんでした。もう一度送ってください
+Could not record this document. Please try again.	入账失败，请重试	บันทึกเอกสารไม่สำเร็จ กรุณาลองใหม่	記録できませんでした。もう一度お試しください
+Could not record: {0}	无法入账：{0}	บันทึกไม่สำเร็จ: {0}	記録できません：{0}
+Confirm and record	确定入账	ยืนยันบันทึก	確定して記録
+Discard	丢弃	ทิ้ง	破棄
+Discarded	已丢弃	ทิ้งรายการแล้ว	破棄しました
+From the document	按票面识别	อ่านจากเอกสาร	書類から読み取る
+No items were read	未识别到明细	ไม่พบรายการสินค้า	明細を読み取れませんでした
+No warehouse is available for this company	这家公司没有可用的仓库	บริษัทนี้ยังไม่มีคลังสินค้า	この会社に使用できる倉庫がありません
+Not found on the document	票面上没有	ไม่พบในเอกสาร	書類に記載がありません
+Paid or unpaid?	已付还是未付？	ชำระแล้วหรือยังไม่ได้ชำระ?	支払済みですか、未払いですか？
+Please upload a PDF or image	请上传 PDF 或图片	กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ	PDF または画像をアップロードしてください
+Recorded	已入账	บันทึกแล้ว	記録しました
+Service or stock item?	服务还是库存商品？	บริการหรือสินค้าคงคลัง?	サービスですか、在庫品ですか？
+Stock item	库存商品	สินค้าคงคลัง	在庫品
+Stock of {0} is now {1}	{0} 的库存现为 {1}	สต๊อก {0} คงเหลือ {1}	{0} の在庫は {1} になりました
+Subtotal	小计	ยอดก่อนภาษี	小計
+Tap the menu to start	请点击下方菜单开始	กดเมนูด้านล่างเพื่อเริ่มต้น	下のメニューから始めてください
+The recognition queue is busy. Please send the document again shortly.	识别队列繁忙，请稍后重新发送	คิวอ่านเอกสารเต็ม กรุณาส่งใหม่อีกครั้งในอีกสักครู่	読み取りが混み合っています。しばらくしてからもう一度送ってください
+The recognition result needs checking. Please do not resend this document yet.	识别结果需要核对，请先不要重发	ผลการอ่านต้องตรวจสอบ กรุณายังไม่ต้องส่งเอกสารนี้ซ้ำ	読み取り結果の確認が必要です。まだ再送しないでください
+This card expires in {0} minutes	本卡片 {0} 分钟内有效	การ์ดนี้หมดอายุใน {0} นาที	このカードは {0} 分で期限切れになります
+This card has expired. Please upload the document again.	卡片已过期，请重新上传	การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่	カードの期限が切れました。もう一度アップロードしてください
+This card is no longer valid	这张卡片已失效	การ์ดนี้ใช้ไม่ได้แล้ว	このカードは無効です
+This document was already recorded	这张单据已经入账	เอกสารนี้บันทึกแล้ว	この書類は記録済みです
+This option is no longer current	这个选项已失效，请按最新一步选择	ตัวเลือกนี้ไม่ใช่ขั้นตอนปัจจุบันแล้ว	この選択肢は現在の手順ではありません
+{0} more items	另有 {0} 项	และอีก {0} รายการ	ほか {0} 件

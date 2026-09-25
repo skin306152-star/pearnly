@@ -19,15 +19,28 @@
   "purchase",
   "sales_document",
   "discard_reason",
-  "note"
+  "note",
+  "section_choices",
+  "company",
+  "party",
+  "is_paid",
+  "payment_method",
+  "column_break_choices",
+  "item_kind",
+  "warehouse",
+  "section_card",
+  "result",
+  "card_nonce",
+  "card_expires_at",
+  "error"
  ],
  "fields": [
   {
    "fieldname": "status",
    "fieldtype": "Select",
    "label": "Status",
-   "options": "received\nconfirmed\ndiscarded",
-   "default": "received",
+   "options": "queued\nready\nfailed\nconfirmed\ndiscarded\nexpired\nreceived",
+   "default": "queued",
    "reqd": 1,
    "in_list_view": 1,
    "description": "Received from LINE, then confirmed into a purchase record or discarded"
@@ -124,11 +137,78 @@
    "options": "ERP Sales Document",
    "read_only": 1,
    "description": "Created when a sales draft is confirmed"
+  },
+  {
+   "fieldname": "section_choices",
+   "fieldtype": "Section Break",
+   "label": "Choices"
+  },
+  {
+   "fieldname": "company",
+   "fieldtype": "Link",
+   "label": "Company",
+   "options": "ERP Company"
+  },
+  {
+   "fieldname": "party",
+   "fieldtype": "Data",
+   "label": "Party"
+  },
+  {
+   "fieldname": "is_paid",
+   "fieldtype": "Check",
+   "label": "Paid"
+  },
+  {
+   "fieldname": "payment_method",
+   "fieldtype": "Data",
+   "label": "Payment Method"
+  },
+  {
+   "fieldname": "column_break_choices",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "item_kind",
+   "fieldtype": "Select",
+   "label": "Item Kind",
+   "options": "goods\nservice"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "ERP Warehouse"
+  },
+  {
+   "fieldname": "section_card",
+   "fieldtype": "Section Break",
+   "label": "Card"
+  },
+  {
+   "fieldname": "result",
+   "fieldtype": "Long Text",
+   "label": "Recognition Result"
+  },
+  {
+   "fieldname": "card_nonce",
+   "fieldtype": "Data",
+   "label": "Card Nonce"
+  },
+  {
+   "fieldname": "card_expires_at",
+   "fieldtype": "Datetime",
+   "label": "Card Expires At"
+  },
+  {
+   "fieldname": "error",
+   "fieldtype": "Small Text",
+   "label": "Error"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-09-25 23:30:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP LINE Intake",
  "owner": "Administrator",

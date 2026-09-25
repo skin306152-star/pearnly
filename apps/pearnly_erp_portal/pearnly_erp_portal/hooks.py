@@ -266,11 +266,9 @@ app_license = "mit"
 
 
 has_permission = {"Purchase Document": "pearnly_erp_portal.purchasing.access.document_permission",
-                  "ERP Sales Document": "pearnly_erp_portal.sales.access.document_permission",
-                  "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.has_permission"}
+                  "ERP Sales Document": "pearnly_erp_portal.sales.access.document_permission"}
 permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasing.access.query_conditions",
-                               "ERP Sales Document": "pearnly_erp_portal.sales.access.query_conditions",
-                               "ERP LINE Intake": "pearnly_erp_portal.integrations.intake.permission_query"}
+                               "ERP Sales Document": "pearnly_erp_portal.sales.access.query_conditions"}
 
 # 个人信息页（原生 User 表单）里 ERP 自己那一块（LINE 绑定）；页面本身归共用层。
 doctype_js = {"User": "public/desk/user-line.js"}
@@ -285,7 +283,6 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/purchase-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-viewer.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-form.js"),
-    versioned_asset("pearnly_erp_portal", "desk/purchase-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase.js"),
     versioned_asset("pearnly_erp_portal", "desk/products.js"),
     versioned_asset("pearnly_erp_portal", "desk/stock-opening.js"),
@@ -297,7 +294,6 @@ app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/sales-entry.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales-viewer.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales-form.js"),
-    versioned_asset("pearnly_erp_portal", "desk/sales-intake.js"),
     versioned_asset("pearnly_erp_portal", "desk/sales.js"),
     versioned_asset("pearnly_erp_portal", "desk/suppliers.js"),
     versioned_asset("pearnly_erp_portal", "desk/clients.js"),
@@ -334,8 +330,13 @@ app_include_css = [
 ]
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。
-# 本批只做账号绑定；LINE 录单（发单据 → 识别 → 入账）尚未迁，见 integrations/handlers.py。
+# 绑定、菜单与录单前的选择、收单据 → 识别 → 预览卡 → 入账，见 integrations/handlers.py。
 pearnly_line_handlers = ["pearnly_erp_portal.integrations.handlers.handle"]
+# LINE 收单的识别走共用 OCR 队列（容量、计费与不重复扣费都在共用层）。
+pearnly_ocr_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.run"}
+pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrations.intake.ocr_failed"}
+# 过期没点的预览卡连源文件一起清掉（不做草稿）。
+scheduler_events = {"hourly": ["pearnly_erp_portal.integrations.intake.expire_stale"]}
 
 # 产品自己的启动数据（多公司：能切哪几家、当前是哪家）。官方扩展点，见 boot.py。
 boot_session = "pearnly_erp_portal.masters.boot.boot_session"

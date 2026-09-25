@@ -150,7 +150,14 @@ Choose a local opening stock file,请选择本地上传的期初库存文件
 Choose an existing product for opening stock,请选择已有的物料录入期初
 Choose at least one job role,至少勾一个功能权限
 Choose file,选择文件
+Choose purchase or sales first,请先选择采购或销售
+Choose the company,请选择公司
+Choose the customer,请选择客户
+Choose the payment method,请选择付款方式
 Choose the sheet to import,请先选择要导入的表格
+Choose the supplier,请选择供应商
+Choose the warehouse,请选择仓库
+Choose what to record,请选择要录入的类型
 Clear,清除
 Clear Link,清除关联
 Clear cart,清空购物车
@@ -191,6 +198,7 @@ Complete Order,完成订单
 Complete Payment,收款完成
 Completed,已完成
 Confirm,确认
+Confirm and record,确定入账
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
 Contact Details,联系方式
@@ -204,6 +212,9 @@ Correct entry,修改记录
 Cost,成本
 Cost Is Set,已设成本
 Cost Known,成本已知
+Could not read this document. Please send it again.,识别失败，请重新发送
+Could not record this document. Please try again.,入账失败，请重试
+Could not record: {0},无法入账：{0}
 Could not store this document,单据留底失败，请重发
 Count at least one item before finishing,请至少盘点一项后再结束
 Count by,盘点方式
@@ -266,7 +277,9 @@ Disable,停用
 Disable {0},停用 {0}
 Disable {0} selected,停用选中的 {0} 个
 Disabled,已停用
+Discard,丢弃
 Discard Reason,丢弃原因
+Discarded,已丢弃
 Discount,折扣金额
 Discount (%),折扣率 (%)
 Discount Amount,折扣金额
@@ -371,6 +384,7 @@ Found: {0},已查到：{0}
 "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",Frappe 的 Currency 列存不了 NULL，所以 0 既是真实成本又是「没设过」。收银台要能分辨这两者（和 price_set 同一个理由）。
 "Free note kept with the collection record (who took the money, reference).",跟着这张收款记录一起留的说明（谁收的钱、参考号）。
 From Date,开始日期
+From the document,按票面识别
 Full Name,姓名
 Full Screen,全屏
 General,常用功能
@@ -503,12 +517,14 @@ No company is available for this account,这个账号没有可用的公司
 No item matches the scanned code {0},扫到的码没有对应的物料：{0}
 No items found. Scan barcode again.,没有找到物料，请重新扫码
 No items in cart,购物车是空的
+No items were read,未识别到明细
 No product for this code: {0},没找到这个码对应的物料：{0}
 No product matches this code,该编号找不到物料
 No receipts in this shift,当班暂无小票
 No recent transactions found,没有最近的交易
 No stock count in progress,无进行中的盘点
 No terminal yet,还没有收银台
+No warehouse is available for this company,这家公司没有可用的仓库
 No warehouse matches that name,该仓库名不存在
 None,无
 Normal,正常
@@ -518,6 +534,7 @@ Not bound,未绑定
 Not counted,未盘点
 Not enough stock on hand,库存不足
 Not found in the Revenue Department records,税务局没有这家登记
+Not found on the document,票面上没有
 Not permitted,没有权限
 Note,备注
 Notes,备注
@@ -587,6 +604,7 @@ POS invoice {0} created successfully,收银单据 {0} 已生成
 Paid,已付款
 Paid Amount,付款金额
 Paid amount cannot exceed the total,收款金额不能超过合计
+Paid or unpaid?,已付还是未付？
 Paid {0},已付款 {0}
 Parent Category,上级分类
 Parent Item Group,父物料组
@@ -617,6 +635,7 @@ Place,位置
 Please add Mode of payments and opening balance details.,请添加支付方式与开班余额明细
 Please select a field to edit from numpad,请先用键盘选择要修改的字段
 Please select an Item,请选择物料
+Please upload a PDF or image,请上传 PDF 或图片
 Point of Sale,收银台
 Point the camera at the barcode or QR code,把条码或二维码对准摄像头
 Position Balance,该仓位结存
@@ -702,6 +721,7 @@ Recognition returned nothing,未识别到内容
 Recognizing...,识别中…
 Record,单据
 Record a count,录入盘点
+Recorded,已入账
 Recorded {0} opening row(s); skipped {1} already recorded row(s),已录入 {0} 行期初库存，{1} 行已存在未重复入账
 Recount this product,重新盘点该物料
 Redeem Loyalty Points,抵扣忠诚度积分
@@ -787,6 +807,7 @@ Sent By,发送人
 Serial No: {0} has already been transacted into another POS Invoice.,序列号 {0} 已在另一张收银单据上使用过
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,物料 {0} 在仓库 {1} 没有可用序列号，请换个仓库试试
 Service,服务
+Service or stock item?,服务还是库存商品？
 Set as current,设为当前
 Setup Auto Email,设置自动邮件
 Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
@@ -836,8 +857,10 @@ Stock count workbench,盘点工作台
 Stock entry not found,找不到这张出入库单
 Stock is counted in this unit; leave it empty to use the selling unit,库存按这个单位记数；留空就跟售卖单位一样
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,库存按这个单位计数，其他单位换算成它。留空就用销售单位。
+Stock item,库存商品
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,库存从这个仓库出（必须属于同一家公司）。留空 = 这家公司唯一的仓
 Stock ledger,查看流水
+Stock of {0} is now {1},{0} 的库存现为 {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}
 Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
 Subcategory,子分类
@@ -847,6 +870,7 @@ Submitted,已提交
 Submitted At,提交时间
 Submitted {0},已提交 {0}
 Substitute Receipt,替代收据
+Subtotal,小计
 Summary,概要
 Supplier,供应商
 Supplier Doc Reference,供应商单据参考号
@@ -864,6 +888,7 @@ Switch Between Payment Modes,切换支付方式
 Switch company,切换公司
 Switching company...,正在切换公司…
 System number,单据编号
+Tap the menu to start,请点击下方菜单开始
 Tax Amount,税额
 Tax Exclusive,不含税
 Tax ID,纳税登记号
@@ -906,6 +931,8 @@ The payment is more than the net payable,付款金额超过应付金额
 The product code cannot be changed,物料编码不能改
 The product identifiers refer to different products,这行的物料标识、编码或条码对应了不同物料
 The quantity is not a valid number,数量不是有效数字
+The recognition queue is busy. Please send the document again shortly.,识别队列繁忙，请稍后重新发送
+The recognition result needs checking. Please do not resend this document yet.,识别结果需要核对，请先不要重发
 The row has no product code or barcode,这一行没有物料编号或条码
 The sheet needs a product name column,表里要有物料名称列
 The stock count changed. Review the differences again.,盘点数据已变化，请重新查看并确认差异。
@@ -921,6 +948,9 @@ This account cannot send documents,这个账号不能传单据
 This barcode already exists,这个条码已经存在
 This browser cannot scan with the camera,这个浏览器不支持摄像头扫码
 This browser cannot scan with the camera; use a scanner or type the code,这个浏览器不支持摄像头扫码，请用扫码枪或手输
+This card expires in {0} minutes,本卡片 {0} 分钟内有效
+This card has expired. Please upload the document again.,卡片已过期，请重新上传
+This card is no longer valid,这张卡片已失效
 This channel is not open yet,这个通道还没开放
 This code is already taken,这个码已经被占用
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
@@ -932,9 +962,11 @@ This document has no content,这份文件是空的
 This document is already recorded: {0},这张单据已经录入过了：{0}
 This document is too large,这份文件太大
 This document is void,这张单据已作废
+This document was already recorded,这张单据已经入账
 This draft was already confirmed or discarded,这条草稿已经确认或作废过了
 This entry changed underneath you; reload and try again,这张单在别处被改过了，刷新后重试
 This item is also stocked at:,这件货还在别处：
+This option is no longer current,这个选项已失效，请按最新一步选择
 This payment method is not enabled for this company,这家公司没有开这种收款方式
 This product code already exists,这个物料编号已经存在
 This request was already recorded,这次请求已经记录过了
@@ -1724,5 +1756,6 @@ trade.warehouseHint,来自收银台；这里空的话要先去收银台上配一
 transfer,转账
 unpaid,未付款
 void,已作废
+{0} more items,另有 {0} 项
 {0} rows were not imported,{0} 行没有导入
 {0} · counted {1} / {2} · differences {3},{0} · 已盘点 {1} / {2} · 差异 {3}

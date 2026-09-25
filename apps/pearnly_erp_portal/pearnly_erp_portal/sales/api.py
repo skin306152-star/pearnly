@@ -41,9 +41,7 @@ def api_sales_defaults(doc_date=None):
     guard.require("sales.read")
     return {"system_no": numbering.preview(direction="sales", on=doc_date),
             "is_paid": 1, "default_vat_rate": 7,
-            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("sales.write")),
-                "line_intakes": bool(guard.has("sales.write") and frappe.db.exists("ERP LINE Intake",
-                    {**guard.scope_filters(), "direction": "sales", "status": "received"}))}}
+            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("sales.write"))}}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -89,10 +87,10 @@ def api_sales_export(params=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_recognise_sales(attachments=None, intake_name=None, document_name=None):
+def api_recognise_sales(attachments=None, document_name=None):
     from pearnly_erp_portal.sales import recognition
 
-    return recognition.recognise(frappe.parse_json(attachments), intake_name, document_name)
+    return recognition.recognise(frappe.parse_json(attachments), document_name=document_name)
 
 
 @frappe.whitelist()

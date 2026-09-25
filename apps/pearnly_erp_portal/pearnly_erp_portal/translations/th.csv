@@ -150,7 +150,14 @@ Choose a local opening stock file,กรุณาเลือกไฟล์ส�
 Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
 Choose file,เลือกไฟล์
+Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อนส่งเอกสาร
+Choose the company,เลือกบริษัทที่ต้องการบันทึกครับ
+Choose the customer,เลือกลูกค้า
+Choose the payment method,เลือกวิธีชำระเงิน
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+Choose the supplier,เลือกผู้จัดจำหน่าย
+Choose the warehouse,เลือกคลังสินค้า
+Choose what to record,เลือกรายการที่ต้องการบันทึก
 Clear,ล้าง
 Clear Link,ล้างการเชื่อมโยง
 Clear cart,ล้างตะกร้า
@@ -191,6 +198,7 @@ Complete Order,ปิดการขาย
 Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
 Confirm,ยืนยัน
+Confirm and record,ยืนยันบันทึก
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณาส่งเอกสารก่อนบันทึกการชำระเงิน
 Contact Details,ข้อมูลติดต่อ
@@ -204,6 +212,9 @@ Correct entry,แก้ไขรายการ
 Cost,ต้นทุน
 Cost Is Set,ตั้งต้นทุนแล้ว
 Cost Known,ทราบต้นทุนแล้ว
+Could not read this document. Please send it again.,อ่านเอกสารไม่สำเร็จ กรุณาส่งใหม่อีกครั้ง
+Could not record this document. Please try again.,บันทึกเอกสารไม่สำเร็จ กรุณาลองใหม่
+Could not record: {0},บันทึกไม่สำเร็จ: {0}
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Count at least one item before finishing,โปรดนับอย่างน้อยหนึ่งรายการก่อนจบ
 Count by,วิธีตรวจนับ
@@ -266,7 +277,9 @@ Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Disable {0} selected,ปิดใช้งาน {0} รายการที่เลือก
 Disabled,ปิดใช้งาน
+Discard,ทิ้ง
 Discard Reason,เหตุผลที่ทิ้ง
+Discarded,ทิ้งรายการแล้ว
 Discount,ส่วนลด
 Discount (%),ส่วนลด (%)
 Discount Amount,จำนวนส่วนลด
@@ -371,6 +384,7 @@ Found: {0},พบ: {0}
 "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).","คอลัมน์ Currency ของ Frappe เก็บ NULL ไม่ได้ 0 จึงเป็นได้ทั้งต้นทุนจริงและ ""ยังไม่ตั้ง"" จุดขายต้องแยกสองกรณีนี้ออกจากกัน (เหตุผลเดียวกับ price_set)"
 "Free note kept with the collection record (who took the money, reference).",บันทึกอิสระที่เก็บไว้กับรายการรับเงิน (ใครรับเงิน เอกสารอ้างอิง)
 From Date,จากวันที่
+From the document,อ่านจากเอกสาร
 Full Name,ชื่อ-นามสกุล
 Full Screen,เต็มหน้าจอ
 General,ทั่วไป
@@ -503,12 +517,14 @@ No company is available for this account,บัญชีนี้ไม่มี
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
 No items in cart,ยังไม่มีสินค้าในตะกร้า
+No items were read,ไม่พบรายการสินค้า
 No product for this code: {0},ไม่พบสินค้าสำหรับรหัสนี้: {0}
 No product matches this code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No receipts in this shift,กะนี้ยังไม่มีใบเสร็จ
 No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่เปิดอยู่
 No terminal yet,ยังไม่มีเครื่องขาย
+No warehouse is available for this company,บริษัทนี้ยังไม่มีคลังสินค้า
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
 None,ไม่มี
 Normal,ปกติ
@@ -518,6 +534,7 @@ Not bound,ยังไม่เชื่อมต่อ
 Not counted,ยังไม่นับ
 Not enough stock on hand,สต็อกคงเหลือไม่พอ
 Not found in the Revenue Department records,ไม่พบข้อมูลในกรมสรรพากร
+Not found on the document,ไม่พบในเอกสาร
 Not permitted,ไม่ได้รับอนุญาต
 Note,หมายเหตุ
 Notes,หมายเหตุ
@@ -587,6 +604,7 @@ POS invoice {0} created successfully,สร้างเอกสารขาย 
 Paid,ชำระแล้ว
 Paid Amount,จำนวนเงินที่ชำระแล้ว
 Paid amount cannot exceed the total,ยอดรับเงินต้องไม่เกินยอดรวม
+Paid or unpaid?,ชำระแล้วหรือยังไม่ได้ชำระ?
 Paid {0},ชำระแล้ว {0}
 Parent Category,หมวดหมู่หลัก
 Parent Item Group,กลุ่มรายการผู้ปกครอง
@@ -617,6 +635,7 @@ Place,ตำแหน่ง
 Please add Mode of payments and opening balance details.,กรุณาเพิ่มวิธีชำระเงินและรายละเอียดยอดยกมา
 Please select a field to edit from numpad,กรุณาเลือกช่องที่ต้องการแก้ไขจากแป้นตัวเลข
 Please select an Item,กรุณาเลือกสินค้า
+Please upload a PDF or image,กรุณาอัปโหลดไฟล์ PDF หรือรูปภาพ
 Point of Sale,จุดขาย
 Point the camera at the barcode or QR code,เล็งกล้องไปที่บาร์โค้ดหรือคิวอาร์
 Position Balance,คงเหลือในตำแหน่ง
@@ -702,6 +721,7 @@ Recognition returned nothing,ไม่พบข้อมูลจากการ
 Recognizing...,กำลังอ่านข้อความ…
 Record,เอกสาร
 Record a count,บันทึกการตรวจนับ
+Recorded,บันทึกแล้ว
 Recorded {0} opening row(s); skipped {1} already recorded row(s),บันทึกสต็อกยกมา {0} แถว ข้าม {1} แถวที่บันทึกแล้ว
 Recount this product,นับสินค้านี้ใหม่
 Redeem Loyalty Points,ใช้คะแนนสะสม
@@ -787,6 +807,7 @@ Sent By,ผู้ส่ง
 Serial No: {0} has already been transacted into another POS Invoice.,หมายเลขเครื่อง {0} ถูกใช้ในเอกสารขายอื่นแล้ว
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,สินค้า {0} ในคลัง {1} ไม่มีหมายเลขเครื่อง กรุณาเปลี่ยนคลัง
 Service,บริการ
+Service or stock item?,บริการหรือสินค้าคงคลัง?
 Set as current,ตั้งเป็นปัจจุบัน
 Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
 Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
@@ -836,8 +857,10 @@ Stock count workbench,หน้าปฏิบัติงานตรวจน�
 Stock entry not found,ไม่พบเอกสารสต็อกนี้
 Stock is counted in this unit; leave it empty to use the selling unit,นับสต็อกเป็นหน่วยนี้ เว้นว่างไว้จะใช้หน่วยขาย
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,สต็อกนับด้วยหน่วยนี้ หน่วยอื่นแปลงมาเป็นหน่วยนี้ ถ้าเว้นว่างจะใช้หน่วยขาย
+Stock item,สินค้าคงคลัง
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,สต็อกจ่ายออกจากคลังนี้ (ต้องเป็นของบริษัทเดียวกัน) ถ้าเว้นว่าง = คลังเดียวของบริษัทนี้
 Stock ledger,ดูบัญชีสต็อก
+Stock of {0} is now {1},สต๊อก {0} คงเหลือ {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,สินค้า {0} ในคลัง {1} มีไม่พอ คงเหลือ {2} {3}
 Stored here for now; document numbers still come from the numbering rules,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 Subcategory,หมวดหมู่ย่อย
@@ -847,6 +870,7 @@ Submitted,ส่งแล้ว
 Submitted At,เวลาส่ง
 Submitted {0},ยืนยันแล้ว {0}
 Substitute Receipt,ใบสำคัญรับเงิน
+Subtotal,ยอดก่อนภาษี
 Summary,สรุป
 Supplier,ผู้จัดจำหน่าย
 Supplier Doc Reference,เลขอ้างอิงเอกสารผู้จำหน่าย
@@ -864,6 +888,7 @@ Switch Between Payment Modes,สลับวิธีชำระเงิน
 Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
 System number,เลขที่ระบบ
+Tap the menu to start,กดเมนูด้านล่างเพื่อเริ่มต้น
 Tax Amount,จำนวนภาษี
 Tax Exclusive,ไม่รวมภาษี
 Tax ID,หมายเลขประจำตัวผู้เสียภาษี
@@ -906,6 +931,8 @@ The payment is more than the net payable,ยอดชำระเกินยอ
 The product code cannot be changed,รหัสสินค้าแก้ไม่ได้
 The product identifiers refer to different products,รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ
 The quantity is not a valid number,จำนวนไม่ถูกต้อง
+The recognition queue is busy. Please send the document again shortly.,คิวอ่านเอกสารเต็ม กรุณาส่งใหม่อีกครั้งในอีกสักครู่
+The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านต้องตรวจสอบ กรุณายังไม่ต้องส่งเอกสารนี้ซ้ำ
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
 The sheet needs a product name column,ต้องมีคอลัมน์ชื่อสินค้า
 The stock count changed. Review the differences again.,ข้อมูลตรวจนับเปลี่ยนแล้ว โปรดตรวจสอบผลต่างอีกครั้ง
@@ -921,6 +948,9 @@ This account cannot send documents,บัญชีนี้ส่งเอกส
 This barcode already exists,บาร์โค้ดนี้มีอยู่แล้ว
 This browser cannot scan with the camera,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ใช้กล้องสแกนไม่ได้ กรุณาใช้เครื่องสแกนหรือพิมพ์เอง
+This card expires in {0} minutes,การ์ดนี้หมดอายุใน {0} นาที
+This card has expired. Please upload the document again.,การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่
+This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This code is already taken,รหัสนี้ถูกใช้ไปแล้ว
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
@@ -932,9 +962,11 @@ This document has no content,ไฟล์นี้ไม่มีเนื้อ
 This document is already recorded: {0},เอกสารนี้บันทึกแล้ว: {0}
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
+This document was already recorded,เอกสารนี้บันทึกแล้ว
 This draft was already confirmed or discarded,รายการนี้ยืนยันหรือยกเลิกไปแล้ว
 This entry changed underneath you; reload and try again,รายการนี้ถูกแก้ไขจากที่อื่น กรุณารีเฟรชแล้วลองใหม่
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
+This option is no longer current,ตัวเลือกนี้ไม่ใช่ขั้นตอนปัจจุบันแล้ว
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
@@ -1724,5 +1756,6 @@ trade.warehouseHint,มาจากเครื่องขาย ถ้าว�
 transfer,โอนเงิน
 unpaid,ยังไม่ชำระ
 void,ยกเลิกแล้ว
+{0} more items,และอีก {0} รายการ
 {0} rows were not imported,นำเข้าไม่ได้ {0} แถว
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}

@@ -1,245 +1,267 @@
-"""Signed Guest webhook regressions with real services and fake storage/LINE.
+"""ERP LINE intake regressions (user-approved flow of 2026-09-25).
 
-Run in the pinned Frappe runtime via unittest. No Site, real database, credentials,
-OCR, outbound LINE or DMS call is used; requests are explicitly blocked.
+Runs in the pinned Frappe runtime via unittest. No Site, database, credentials, OCR,
+outbound LINE or DMS call is used: collaborators are replaced and network is blocked.
 """
-import base64
-import hashlib
-import hmac
+from datetime import datetime, timedelta
 import json
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
+from urllib.parse import parse_qs
 
 import frappe
 
-from pearnly_core import line, line_binding
-from pearnly_erp_portal.access import guard, menu, rules
-from pearnly_erp_portal.integrations import handlers, intake
+from pearnly_erp_portal.integrations import handlers, intake, line_flow
 
 
-class GuestIntake(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
-        self.session = SimpleNamespace(user="Guest")
-        # LINE is switched on per user (the "ERP LINE" role); every sender here has it,
-        # so the business role alone decides what they may send.
-        self.users = {"buyer": ["ERP Purchase", rules.LINE_ROLE], "seller": ["ERP Sales", rules.LINE_ROLE],
-                      "cashier": ["ERP Cashier", rules.LINE_ROLE]}
-        self.enabled = set(self.users)
-        self.bindings = {"U-buyer": "buyer", "U-seller": "seller", "U-cashier": "cashier"}
-        self.directions = {"U-seller": "sales"}
-        self.docs, self.files, self.replies, self.switches = {}, [], [], []
-        self.body = b""
-        self.signature = ""
-        self.db = Mock()
-        self.db.get_value.side_effect = self.get_value
-        self.db.exists.side_effect = lambda dt, name: name in self.docs
-        self.db.savepoint.side_effect = self.savepoint
-        self.db.rollback.side_effect = self.rollback
-        self.list = Mock(return_value=[])
-        patches = {
-            "session": self.session, "db": self.db,
-            "conf": {"pearnly_line_channel_secret": "synthetic-webhook-secret",
-                     "pearnly_features": ["purchase", "sales", "cashier"]},
-            "local": SimpleNamespace(response=SimpleNamespace(http_status_code=200)),
-            "request": SimpleNamespace(get_data=lambda: self.body),
-            "get_request_header": lambda name: self.signature,
-            "set_user": self.set_user,
-            "get_roles": lambda user=None: self.users.get(user or self.session.user, []),
-            "get_doc": self.get_doc, "get_list": self.list,
-            "get_hooks": lambda key: ["pearnly_erp_portal.integrations.handlers.handle"],
-            "get_attr": lambda path: handlers.handle,
-            "throw": self.reject, "log_error": Mock(), "get_traceback": lambda: "synthetic failure",
-        }
-        for name, value in patches.items():
-            self.enterContext(patch.object(frappe, name, value, create=True))
-        for module in (handlers, intake, guard):
+        self.replies = []
+        self.sessions = {}
+        self.roles = {"buyer": {"purchase.write", "integration.read"}}
+        self.enterContext(patch.object(frappe, "_", lambda text: text, create=True))
+        for module in (handlers, intake, line_flow):
             self.enterContext(patch.object(module, "_", lambda text: text))
-        self.enterContext(patch.object(frappe.utils, "now", return_value="2026-09-24 00:00:00"))
-        self.enterContext(patch.object(line, "_claim_event", return_value=True))
-        self.finish = self.enterContext(patch.object(line, "_finish_event"))
-        self.enterContext(patch.object(line, "reply", side_effect=self.reply))
-        self.download = self.enterContext(patch.object(line, "download_message_content", return_value=b"synthetic file"))
-        self.enterContext(patch.object(handlers.line_session, "get_session", side_effect=lambda user:
-            {"payload": {"direction": self.directions.get(user, "purchase")}}))
+        self.enterContext(patch.object(frappe, "session", SimpleNamespace(user="Guest"), create=True))
+        self.enterContext(patch.object(frappe, "db", Mock(**{"get_value.return_value": None}), create=True))
+        self.enterContext(patch.object(frappe, "set_user", lambda user: setattr(frappe.session, "user", user)))
+        self.enterContext(patch("pearnly_core.line.reply", side_effect=lambda token, messages: self.replies.append(messages) or True))
+        self.enterContext(patch("pearnly_core.line.reply_or_push",
+                                side_effect=lambda to, messages, token="", **kw: self.replies.append(messages) or True))
+        self.enterContext(patch("pearnly_core.line_session.get_session", side_effect=lambda uid: self.sessions.get(uid)))
+        self.enterContext(patch("pearnly_core.line_session.set_session",
+                                side_effect=lambda uid, state, payload, ttl_minutes=None: self.sessions.__setitem__(uid, {"state": state, "payload": dict(payload)})))
+        self.enterContext(patch("pearnly_core.line_session.clear_session", side_effect=lambda uid, **kw: self.sessions.pop(uid, None)))
+        self.enterContext(patch("pearnly_erp_portal.access.guard.has",
+                                side_effect=lambda capability, user=None: capability in self.roles.get(user or frappe.session.user, set())))
         self.network = self.enterContext(patch("requests.sessions.Session.request",
-            side_effect=AssertionError("External network forbidden in this test")))
+                                               side_effect=AssertionError("External network forbidden")))
 
-    @staticmethod
-    def reject(message, exception=frappe.ValidationError):
-        raise exception(message)
+    def last_text(self):
+        return self.replies[-1][0]["text"]
 
-    def set_user(self, user):
-        self.switches.append(user)
-        self.session.user = user
+    def buttons(self):
+        return [item["action"] for item in self.replies[-1][0]["quickReply"]["items"]]
 
-    def savepoint(self, name):
-        self.snapshot = (dict(self.docs), list(self.files))
 
-    def rollback(self, **kwargs):
-        self.docs, self.files = self.snapshot
+class Flow(Base):
+    def setUp(self):
+        super().setUp()
+        self.companies = ["CO-1"]
+        self.enterContext(patch("pearnly_erp_portal.masters.company.allowed_companies",
+                                side_effect=lambda user=None: list(self.companies)))
+        self.enterContext(patch.object(line_flow, "_options", side_effect=self.options))
+        self.enterContext(patch.object(line_flow, "_default_warehouse", return_value="WH-1"))
 
-    def get_value(self, doctype, name, field, **kwargs):
-        if doctype == "User":
-            return int(name in self.enabled) if field == "enabled" else name
-        if doctype == line_binding.BINDING:
-            user = self.bindings.get(name.get("line_user_id"))
-            return frappe._dict(user=user, name="binding-" + user) if user else None
-        if doctype == intake.DOCTYPE:
-            for doc in self.docs.values():
-                if all(doc.get(key) == value or (isinstance(value, list) and doc.get(key) in value[1])
-                       for key, value in name.items()):
-                    return doc.name
-        return None
+    def options(self, step, payload, user):
+        return {"company": [("CO-1", "Alpha"), ("CO-2", "Beta")],
+                "party": [(line_flow.FROM_DOCUMENT, "From the document"), ("SUP-1", "Acme")],
+                "paid": [("1", "Paid"), ("0", "Unpaid")],
+                "method": [("cash", "Cash"), ("transfer", "Transfer")],
+                "kind": [("goods", "Stock item"), ("service", "Service")],
+                "warehouse": [("WH-1", "Main")]}[step]
 
-    def get_doc(self, values, name=None):
-        if isinstance(values, str):
-            return self.docs[name]
-        doc = frappe._dict(values)
-        doc.owner = values.get("owner") or self.session.user
-        doc.name = "intake-" + str(len(self.docs)) if doc.doctype == intake.DOCTYPE else "file-" + str(len(self.files))
-        def insert(**kwargs):
-            if doc.doctype == intake.DOCTYPE:
-                self.docs[doc.name] = doc
-            else:
-                doc.file_url = "/private/files/synthetic.pdf"
-                self.files.append(doc)
-            return doc
-        doc.insert = insert
-        doc.save = lambda **kwargs: doc
-        doc.check_permission = Mock()
-        return doc
+    def tap(self, action):
+        handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r",
+                         "postback": {"data": action["data"]}})
 
-    def reply(self, token, messages):
-        self.replies.append((self.session.user, messages))
-        return True
+    def test_steps_run_in_order_and_skip_single_company_and_default_warehouse(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.assertEqual(self.buttons()[0]["label"], "1. From the document")
+            self.assertEqual(self.buttons()[-1]["data"], "a=erp&s=cancel")
+            self.tap(self.buttons()[1])                        # Acme
+            self.tap(self.buttons()[0])                        # Paid
+            self.tap(next(b for b in self.buttons() if "transfer" in b["data"]))
+            self.tap(self.buttons()[0])                        # Stock item
+        payload = self.sessions["U1"]["payload"]
+        self.assertEqual(payload, {"direction": "purchase", "company": "CO-1", "party": "SUP-1",
+                                   "is_paid": 1, "payment_method": "transfer", "item_kind": "goods",
+                                   "warehouse": "WH-1"})
+        self.assertTrue(line_flow.ready(payload))
+        self.assertIn("Please upload a PDF or image", self.last_text())
 
-    def webhook(self, user="U-buyer", *, invalid_signature=False):
-        self.body = json.dumps({"events": [{"type": "message", "webhookEventId": "synthetic-event",
-            "source": {"userId": user}, "replyToken": "synthetic-reply",
-            "message": {"type": "file", "id": "synthetic-media", "fileName": "bill.pdf"}}]}).encode()
-        self.signature = base64.b64encode(hmac.new(b"synthetic-webhook-secret", self.body, hashlib.sha256).digest()).decode()
-        if invalid_signature:
-            self.signature = "wrong-signature"
-        return line.webhook()
+    def test_several_companies_are_offered_as_numbered_buttons(self):
+        self.companies = ["CO-1", "CO-2"]
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode%3Apurchase"})           # the old menu's encoding
+        self.assertEqual([b["label"] for b in self.buttons()], ["1. Alpha", "2. Beta", "Cancel"])
 
-    def assert_restored(self):
-        self.assertEqual(self.session.user, "Guest")
-        self.assertNotIn("Administrator", self.switches)
-        self.assertTrue(all(user == "Guest" for user, _messages in self.replies))
-        self.network.assert_not_called()
+    def test_stale_or_forged_answers_do_not_advance(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.tap({"data": "a=erp&s=kind&v=goods"})         # not the current step
+            self.assertEqual(self.last_text(), "This option is no longer current")
+            self.tap({"data": "a=erp&s=party&v=SUP-404"})      # not an offered value
+            self.assertEqual(self.last_text(), "This option is no longer current")
+        self.assertNotIn("party", self.sessions["U1"]["payload"])
 
-    def test_signed_guest_purchase_and_sales_are_owned_by_bound_user(self):
-        for user in ("buyer", "seller"):
-            with self.subTest(user=user):
-                self.assertEqual(self.webhook("U-" + user), {"ok": True})
-                saved = list(self.docs.values())[-1]
-                self.assertEqual((saved.owner, saved.sent_by), (user, user))
-                self.assertEqual(saved.direction, "purchase" if user == "buyer" else "sales")
-                self.assertEqual(self.files[-1].owner, user)
-                self.assertTrue(self.files[-1].is_private)
-                self.assert_restored()
+    def test_unpaid_skips_method_and_service_skips_warehouse(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            for data in ("a=mode:purchase", "a=erp&s=party&v=%40doc", "a=erp&s=paid&v=0",
+                         "a=erp&s=kind&v=service"):
+                self.tap({"data": data})
+        payload = self.sessions["U1"]["payload"]
+        self.assertEqual((payload["is_paid"], payload["payment_method"], payload.get("warehouse")), (0, "", None))
+        self.assertTrue(line_flow.ready(payload))
 
-    def test_repeat_file_is_not_stored_twice(self):
-        self.webhook()
-        self.webhook()
-        self.assertEqual((len(self.docs), len(self.files)), (1, 1))
-        self.assertEqual(self.replies[-1][1][0]["text"], "Already received")
-        self.assert_restored()
+    def test_role_and_binding_are_checked_before_any_step(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:sales"})
+        self.assertEqual(self.last_text(), "This account cannot send documents")
+        with patch("pearnly_core.line_binding.user_of", return_value=None):
+            self.tap({"data": "a=mode:purchase"})
+        self.assertEqual(self.last_text(), "Bind this account first")
+        self.assertNotIn("U1", self.sessions)
 
-    def test_bad_signature_never_downloads_or_switches_identity(self):
-        self.assertEqual(self.webhook(invalid_signature=True)["error"], "bad_signature")
-        self.download.assert_not_called()
-        self.assertEqual(self.switches, [])
-        self.assertEqual(self.docs, {})
+    def test_cancel_clears_the_choices(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.tap({"data": "a=erp&s=cancel"})
+        self.assertNotIn("U1", self.sessions)
+        self.assertEqual(self.last_text(), "Cancelled")
 
-    def test_unbound_disabled_and_wrong_role_do_not_download_or_store(self):
-        self.enabled.remove("buyer")
-        for user in ("U-unbound", "U-buyer", "U-cashier"):
-            with self.subTest(user=user):
-                self.webhook(user)
-                self.assertEqual(self.docs, {})
-                self.assertEqual(self.files, [])
-                self.download.assert_not_called()
-                self.assert_restored()
 
-    def test_line_switched_off_refuses_before_download(self):
-        self.users["buyer"] = ["ERP Purchase"]
-        self.webhook()
-        self.assertEqual(self.replies[-1][1][0]["text"], "LINE is not enabled for this account")
-        self.download.assert_not_called()
-        self.assertEqual((self.docs, self.files), ({}, []))
-        self.assert_restored()
+class Documents(Base):
+    def event(self):
+        return {"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
+                "message": {"type": "image", "id": "M1"}}
 
-    def test_revoked_feature_blocks_legacy_and_menu_roles_before_download(self):
-        for user, direction, legacy in (("buyer", "purchase", "ERP Purchase"),
-                                        ("seller", "sales", "ERP Sales")):
-            for role in (legacy, menu.role(direction)):
-                with self.subTest(direction=direction, role=role):
-                    self.users[user] = [role, rules.LINE_ROLE]
-                    frappe.conf["pearnly_features"] = ["purchase", "sales", "cashier"]
-                    self.assertTrue(guard.has(direction + ".write", user=user))
-                    frappe.conf["pearnly_features"].remove(direction)
-                    self.webhook("U-" + user)
-                    self.assertEqual(self.replies[-1][1][0]["text"], "This account cannot send documents")
-                    self.download.assert_not_called()
-                    self.assertEqual(self.docs, {})
-                    self.assertEqual(self.files, [])
-                    self.assert_restored()
+    def test_document_before_choices_is_refused_without_download(self):
+        download = self.enterContext(patch("pearnly_core.line.download_message_content"))
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle(self.event())
+        self.assertEqual(self.last_text(), "Choose purchase or sales first")
+        download.assert_not_called()
 
-    def test_rebinding_or_disabling_during_download_does_not_store(self):
-        for change in (lambda: self.bindings.update({"U-buyer": "seller"}),
-                       lambda: self.enabled.discard("buyer")):
-            self.bindings["U-buyer"] = "buyer"
-            self.enabled.add("buyer")
-            self.download.side_effect = lambda *args, **kwargs: (change(), b"synthetic file")[1]
-            self.webhook()
-            self.assertEqual(self.docs, {})
-            self.assert_restored()
+    def test_ready_document_is_received_as_the_bound_user_and_guest_restored(self):
+        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "company": "CO-1",
+            "party": "@doc", "is_paid": 0, "payment_method": "", "item_kind": "service"}}
+        self.enterContext(patch("pearnly_core.line.download_message_content", return_value=b"file"))
+        seen = {}
+        receive = self.enterContext(patch.object(intake, "receive",
+                                    side_effect=lambda **kw: seen.update(user=frappe.session.user, **kw)))
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle(self.event())
+        receive.assert_called_once()
+        self.assertEqual((seen["user"], seen["sent_by"], seen["choices"]["company"]), ("buyer", "buyer", "CO-1"))
+        self.assertEqual(frappe.session.user, "Guest")
 
-    def test_storage_exception_restores_guest_before_reply(self):
-        with patch.object(intake, "_store_file", side_effect=RuntimeError("synthetic storage failure")):
-            self.webhook()
-        self.assertEqual(self.replies[-1][1][0]["text"], "Could not store this document")
-        self.assertEqual(self.docs, {})
-        self.assertEqual(self.files, [])
-        self.db.rollback.assert_called_once_with(save_point="erp_line_intake_receive")
-        self.assert_restored()
 
-    def test_receive_cannot_impersonate_another_sender(self):
-        self.session.user = "seller"
-        with self.assertRaises(frappe.PermissionError):
-            intake.receive(line_user_id="U-buyer", sent_by="buyer", media_type="file",
-                           content=b"file", filename="bill.pdf")
-        self.assertEqual(self.docs, {})
+def _doc(**values):
+    base = dict(name="LI-1", direction="purchase", company="CO-1", party="SUP-1", is_paid=1,
+                payment_method="transfer", item_kind="goods", warehouse="WH-1", status="ready",
+                card_nonce="n1", card_expires_at=datetime.now() + timedelta(minutes=5),
+                line_user_id="U1", sent_by="buyer", source_file="/private/files/a.jpg",
+                result=json.dumps({"doc_no": "INV-1", "doc_date": "2026-09-25", "supplier_name": "Acme",
+                                   "lines": [{"description": "Soap", "qty": 2, "unit_price": 10}]}))
+    base.update(values)
+    return SimpleNamespace(**base, get=lambda key, default=None: base.get(key, default))
 
-    def test_sales_only_user_lists_and_reads_own_sales_without_purchase_role(self):
-        self.webhook("U-seller")
-        name = next(iter(self.docs))
-        self.session.user = "seller"
-        intake.list_intakes(direction="sales")
-        self.assertEqual(self.list.call_args.kwargs["filters"],
-                         {"owner": "seller", "status": "received", "direction": ["in", ["sales"]]})
-        self.assertEqual(intake.get_intake(name)["sent_by"], "seller")
-        intake.list_intakes()
-        self.assertEqual(self.list.call_args.kwargs["filters"]["direction"], ["in", ["sales"]])
-        with self.assertRaises(frappe.PermissionError):
-            intake.list_intakes(direction="purchase")
 
-    def test_other_employee_cannot_read_someone_elses_draft(self):
-        self.webhook()
-        self.users["other-buyer"] = ["ERP Purchase"]
-        self.session.user = "other-buyer"
-        with self.assertRaises(frappe.PermissionError):
-            intake.get_intake(next(iter(self.docs)))
+class Payload(Base):
+    def setUp(self):
+        super().setUp()
+        self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
 
-    def test_guest_and_unprivileged_cannot_list(self):
-        with self.assertRaises(frappe.AuthenticationError):
-            intake.list_intakes()
-        self.session.user = "cashier"
-        with self.assertRaises(frappe.PermissionError):
-            intake.list_intakes()
-        self.list.assert_not_called()
+    def test_purchase_payload_uses_the_chosen_masters_and_stock_choice(self):
+        payload = intake.build_payload(_doc())
+        self.assertEqual((payload["company"], payload["supplier"], payload["is_paid"], payload["payment_method"]),
+                         ("CO-1", "SUP-1", 1, "transfer"))
+        self.assertEqual((payload["update_stock"], payload["auto_create_product"]), (1, 1))
+        self.assertEqual(payload["lines"][0]["item_type"], "goods")
+        self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
+        self.assertEqual(payload["attachments"], [{"file": "FILE-1", "kind": "bill"}])
+        self.assertNotIn("company", json.loads(_doc().result))  # OCR never chooses the company
+
+    def test_purchase_from_document_and_service_does_not_touch_stock(self):
+        payload = intake.build_payload(_doc(party="@doc", item_kind="service", warehouse=None))
+        self.assertNotIn("supplier", payload)
+        self.assertEqual(payload["supplier_name"], "Acme")
+        self.assertEqual((payload["update_stock"], payload["lines"][0]["item_type"]), (0, "service"))
+        self.assertNotIn("warehouse", payload["lines"][0])
+
+    def test_sales_payload_is_unpaid_and_names_an_unknown_buyer(self):
+        doc = _doc(direction="sales", party="@doc", is_paid=0, payment_method="",
+                   result=json.dumps({"doc_date": "2026-09-25", "lines": [{"description": "Soap", "qty": 1, "unit_price": 5}]}))
+        payload = intake.build_payload(doc)
+        self.assertEqual((payload["is_paid"], payload["paid_amount"], payload["buyer_name"]), (0, 0, "Unknown buyer"))
+        self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
+
+
+class Card(Base):
+    def setUp(self):
+        super().setUp()
+        self.doc = _doc()
+        self.enterContext(patch.object(frappe, "db", Mock(), create=True))
+        frappe.db.exists.return_value = True
+        self.enterContext(patch.object(frappe, "get_doc", side_effect=lambda doctype, name=None: self.doc))
+        self.dropped = self.enterContext(patch.object(intake, "_drop"))
+        self.enterContext(patch.object(intake, "_file_name", return_value="FILE-1"))
+        self.enterContext(patch("pearnly_core.line_binding.user_of", return_value="buyer"))
+        self.enterContext(patch.object(intake, "now_datetime", datetime.now))
+        self.enterContext(patch.object(intake, "now", lambda: "2026-09-25 23:00:00"))
+        self.roles["buyer"] |= {"purchase.write"}
+
+    def test_wrong_nonce_other_user_and_expired_cards_are_refused(self):
+        self.assertEqual(intake._card("LI-1", "bad", "U1")[1], "This card is no longer valid")
+        self.assertEqual(intake._card("LI-1", "n1", "U2")[1], "This card is no longer valid")
+        self.doc.card_expires_at = datetime.now() - timedelta(minutes=1)
+        self.assertIn("expired", intake._card("LI-1", "n1", "U1")[1])
+        self.dropped.assert_called_once_with(self.doc, intake.EXPIRED)
+
+    def test_confirm_posts_once_through_the_web_entry_and_replies_with_text(self):
+        seen = {}
+
+        def post(payload, *, request_id, finalize):
+            seen.update(payload=payload, request_id=request_id, user=frappe.session.user)
+            finalize({"name": "PD-1"})
+            return {"name": "PD-1", "system_no": "P-1"}
+
+        self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post", side_effect=post))
+        self.enterContext(patch("pearnly_erp_portal.integrations.line_cards.receipt", return_value="Recorded P-1"))
+        result = intake.confirm("LI-1", "n1", "U1", "r")
+        self.assertTrue(result["ok"])
+        self.assertEqual((seen["request_id"], seen["user"]), ("line-intake:LI-1", "buyer"))
+        self.assertEqual(seen["payload"]["company"], "CO-1")
+        args = frappe.db.set_value.call_args.args
+        self.assertEqual((args[1], args[2]["purchase"], args[2]["status"], args[2]["card_nonce"]),
+                         ("LI-1", "PD-1", "confirmed", ""))
+        self.assertEqual(self.last_text(), "Recorded P-1")
+        self.assertEqual(frappe.session.user, "Guest")
+
+    def test_failed_entry_keeps_the_card_and_explains(self):
+        self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post",
+                                side_effect=frappe.ValidationError("Supplier Invoice No is required")))
+        self.enterContext(patch.object(frappe, "clear_messages"))
+        result = intake.confirm("LI-1", "n1", "U1", "r")
+        self.assertFalse(result["ok"])
+        self.assertIn("Supplier Invoice No is required", self.last_text())
+        self.dropped.assert_not_called()
+        self.assertEqual(frappe.session.user, "Guest")
+
+    def test_discard_drops_the_card(self):
+        intake.discard("LI-1", "n1", "U1", "r")
+        self.dropped.assert_called_once_with(self.doc, intake.DISCARDED)
+        self.assertEqual(self.last_text(), "Discarded")
+
+
+class CardButtons(Base):
+    def test_card_postbacks_reach_confirm_and_discard_with_nonce(self):
+        confirm = self.enterContext(patch.object(intake, "confirm"))
+        discard = self.enterContext(patch.object(intake, "discard"))
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            for op in ("confirm", "discard"):
+                handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r",
+                                 "postback": {"data": f"a=card&op={op}&i=LI-1&n=n1"}})
+        confirm.assert_called_once_with("LI-1", "n1", "U1", "r")
+        discard.assert_called_once_with("LI-1", "n1", "U1", "r")
+
+    def test_unknown_postbacks_are_left_for_other_handlers(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.assertFalse(handlers.handle({"type": "postback", "source": {"userId": "U1"},
+                                              "postback": {"data": "action=menu_customer"}}))
 
 
 if __name__ == "__main__":

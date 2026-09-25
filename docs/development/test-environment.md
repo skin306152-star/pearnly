@@ -98,7 +98,7 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
   其实拉到的是别的标签"。
 - 产品栈与设备侧的准备是分开的：`setup` 只在**换设备/重装 WSL** 时才跑；日常复用不需要它。
 - **dms** 与 **erp** 两套都真跑过（erp 于 2026-09-25 第一次起，见
-  [ERP 测试环境记录](../work/2026-09-25-erp-testenv.md)）；第一次 `lab-start <产品>` 会建卷并导入，
+  [ERP 测试环境记录](../work/2026-09-25-erp-line-intake.md)）；第一次 `lab-start <产品>` 会建卷并导入，
   遇到问题按"出问题怎么查"一节处理，
   不要当成"流程坏了"。
 

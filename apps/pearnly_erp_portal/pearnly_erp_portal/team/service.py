@@ -403,6 +403,10 @@ def set_member_roles(email: str, roles=None, companies=None) -> dict:
     user.save(ignore_permissions=True)
     if rules.LINE_ROLE in held_roles and rules.LINE_ROLE not in wanted:
         _unbind_line(user.name)
+    # 岗位变了，LINE 菜单跟着变（只有采购 / 只有销售 / 两者都有；解绑了就摘掉）。
+    from pearnly_erp_portal.integrations import line_menu
+
+    line_menu.user_changed(user.name)
     if wanted_companies is not None:
         _write_companies(user, wanted_companies)
     frappe.db.commit()

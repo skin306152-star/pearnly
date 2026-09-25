@@ -150,7 +150,14 @@ Choose a local opening stock file,アップロード済みの期首在庫ファ�
 Choose an existing product for opening stock,登録済みの商品を選択してください
 Choose at least one job role,機能権限を1つ以上選んでください
 Choose file,ファイルを選択
+Choose purchase or sales first,先に仕入か売上を選んでください
+Choose the company,会社を選んでください
+Choose the customer,顧客を選んでください
+Choose the payment method,支払方法を選んでください
 Choose the sheet to import,取り込むシートを選択してください
+Choose the supplier,仕入先を選んでください
+Choose the warehouse,倉庫を選んでください
+Choose what to record,記録する種類を選んでください
 Clear,クリア
 Clear Link,リンクを解除
 Clear cart,カートを空にする
@@ -191,6 +198,7 @@ Complete Order,会計を確定
 Complete Payment,支払完了
 Completed,完了
 Confirm,確認
+Confirm and record,確定して記録
 Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
 Contact Details,連絡先
@@ -204,6 +212,9 @@ Correct entry,記録を修正
 Cost,原価
 Cost Is Set,原価設定済み
 Cost Known,原価判明
+Could not read this document. Please send it again.,読み取れませんでした。もう一度送ってください
+Could not record this document. Please try again.,記録できませんでした。もう一度お試しください
+Could not record: {0},記録できません：{0}
 Could not store this document,書類を保存できませんでした。再送してください
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
 Count by,棚卸方法
@@ -266,7 +277,9 @@ Disable,無効化
 Disable {0},{0}件を無効化
 Disable {0} selected,選択した{0}件を無効化
 Disabled,無効
+Discard,破棄
 Discard Reason,破棄理由
+Discarded,破棄しました
 Discount,割引額
 Discount (%),割引率 (%)
 Discount Amount,割引額
@@ -371,6 +384,7 @@ Found: {0},取得: {0}
 "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).",Frappe の Currency 列は NULL を保持できないため、0 は実コストと「未設定」の両方を意味します。レジはこの2つを区別する必要があります（price_set と同じ理由）。
 "Free note kept with the collection record (who took the money, reference).",入金記録に残す自由記入（受け取った人、参照番号）。
 From Date,開始日
+From the document,書類から読み取る
 Full Name,氏名
 Full Screen,全画面
 General,一般
@@ -503,12 +517,14 @@ No company is available for this account,このアカウントで使える会社
 No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
+No items were read,明細を読み取れませんでした
 No product for this code: {0},このコードの商品が見つかりません: {0}
 No product matches this code,このコードに一致する商品がありません
 No receipts in this shift,このシフトのレシートはありません
 No recent transactions found,最近の取引はありません
 No stock count in progress,進行中の棚卸はありません
 No terminal yet,レジはまだありません
+No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
 None,なし
 Normal,正常
@@ -518,6 +534,7 @@ Not bound,未連携
 Not counted,未棚卸
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
+Not found on the document,書類に記載がありません
 Not permitted,権限がありません
 Note,備考
 Notes,備考
@@ -587,6 +604,7 @@ POS invoice {0} created successfully,レジ伝票 {0} を作成しました
 Paid,支払済み
 Paid Amount,支払済金額
 Paid amount cannot exceed the total,入金額は合計を超えられません
+Paid or unpaid?,支払済みですか、未払いですか？
 Paid {0},{0} を支払いました
 Parent Category,親カテゴリ
 Parent Item Group,親品目グループ
@@ -617,6 +635,7 @@ Place,保管場所
 Please add Mode of payments and opening balance details.,支払方法と開始残高の明細を追加してください
 Please select a field to edit from numpad,テンキーから編集する項目を選択してください
 Please select an Item,品目を選択してください
+Please upload a PDF or image,PDF または画像をアップロードしてください
 Point of Sale,レジ
 Point the camera at the barcode or QR code,カメラをバーコード・QR コードに向けてください
 Position Balance,保管場所の残高
@@ -702,6 +721,7 @@ Recognition returned nothing,内容を認識できませんでした
 Recognizing...,読み取り中…
 Record,伝票
 Record a count,棚卸を入力
+Recorded,記録しました
 Recorded {0} opening row(s); skipped {1} already recorded row(s),期首在庫を{0}行登録しました。登録済みの{1}行はスキップしました
 Recount this product,この商品を再棚卸
 Redeem Loyalty Points,ロイヤルティポイントを使う
@@ -787,6 +807,7 @@ Sent By,送信者
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,商品 {0} は倉庫 {1} にシリアル番号がありません。倉庫を変更してください
 Service,サービス
+Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Setup Auto Email,自動メールを設定
 Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
@@ -836,8 +857,10 @@ Stock count workbench,棚卸作業台
 Stock entry not found,入出庫伝票が見つかりません
 Stock is counted in this unit; leave it empty to use the selling unit,在庫はこの単位で数えます。空欄なら販売単位と同じ
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,在庫はこの単位で数え、他の単位はこれに換算します。空欄なら販売単位を使います
+Stock item,在庫品
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
 Stock ledger,在庫の受け払いを開く
+Stock of {0} is now {1},{0} の在庫は {1} になりました
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
 Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
 Subcategory,サブカテゴリ
@@ -847,6 +870,7 @@ Submitted,提出済み
 Submitted At,提出日時
 Submitted {0},{0} を提出しました
 Substitute Receipt,代替領収書
+Subtotal,小計
 Summary,摘要
 Supplier,仕入先
 Supplier Doc Reference,仕入先伝票参照番号
@@ -864,6 +888,7 @@ Switch Between Payment Modes,支払方法を切り替え
 Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
 System number,システム番号
+Tap the menu to start,下のメニューから始めてください
 Tax Amount,税額
 Tax Exclusive,税抜
 Tax ID,納税者番号
@@ -906,6 +931,8 @@ The payment is more than the net payable,支払金額が支払残高を超えて
 The product code cannot be changed,商品コードは変更できません
 The product identifiers refer to different products,この行の商品ID・コード・バーコードは別の商品を指しています
 The quantity is not a valid number,数量が正しい数値ではありません
+The recognition queue is busy. Please send the document again shortly.,読み取りが混み合っています。しばらくしてからもう一度送ってください
+The recognition result needs checking. Please do not resend this document yet.,読み取り結果の確認が必要です。まだ再送しないでください
 The row has no product code or barcode,この行に商品コードもバーコードもありません
 The sheet needs a product name column,商品名の列が必要です
 The stock count changed. Review the differences again.,棚卸内容が変更されました。差異を再確認してください。
@@ -921,6 +948,9 @@ This account cannot send documents,このアカウントは書類を送信でき
 This barcode already exists,このバーコードは既に存在します
 This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
+This card expires in {0} minutes,このカードは {0} 分で期限切れになります
+This card has expired. Please upload the document again.,カードの期限が切れました。もう一度アップロードしてください
+This card is no longer valid,このカードは無効です
 This channel is not open yet,このチャンネルはまだ開放していません
 This code is already taken,このコードは既に使われています
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
@@ -932,9 +962,11 @@ This document has no content,この書類は中身がありません
 This document is already recorded: {0},この伝票は登録済みです: {0}
 This document is too large,この書類は大きすぎます
 This document is void,この伝票は無効です
+This document was already recorded,この書類は記録済みです
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
 This entry changed underneath you; reload and try again,この明細は他で変更されました。再読み込みしてやり直してください
 This item is also stocked at:,この商品は他の場所にも在庫があります:
+This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
 This request was already recorded,このリクエストは登録済みです
@@ -1724,5 +1756,6 @@ trade.warehouseHint,レジの設定によります。空の場合はレジ側で
 transfer,振込
 unpaid,未払い
 void,取消済み
+{0} more items,ほか {0} 件
 {0} rows were not imported,{0} 行は取り込めませんでした
 {0} · counted {1} / {2} · differences {3},{0} · 棚卸済み {1} / {2} · 差異 {3}

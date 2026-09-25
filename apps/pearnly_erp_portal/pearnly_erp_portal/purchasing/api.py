@@ -43,9 +43,7 @@ def api_purchase_defaults(doc_date=None):
     return {"system_no": numbering.preview(direction="purchase", on=doc_date),
             "is_paid": 1, "update_stock": 1, "auto_create_product": 1,
             "categories": records.categories(), "settings": settings.read_settings(),
-            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("purchase.write")),
-                "line_intakes": bool(guard.has("purchase.write") and frappe.db.exists("ERP LINE Intake",
-                    {**guard.scope_filters(), "direction": "purchase", "status": "received"}))}}
+            "capabilities": {"ocr": bool(ocr.is_configured() and guard.has("purchase.write"))}}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -113,10 +111,10 @@ def api_purchase_voucher(name, kind):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_recognise_purchase(attachments=None, intake_name=None, document_name=None):
+def api_recognise_purchase(attachments=None, document_name=None):
     from pearnly_erp_portal.purchasing import recognition
 
-    return recognition.recognise(frappe.parse_json(attachments), intake_name, document_name)
+    return recognition.recognise(frappe.parse_json(attachments), document_name=document_name)
 
 
 @frappe.whitelist()

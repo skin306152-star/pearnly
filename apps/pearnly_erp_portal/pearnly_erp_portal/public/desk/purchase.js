@@ -80,7 +80,6 @@
 				const query = new URLSearchParams({params: JSON.stringify(parameters())});
 				window.open(`/api/method/${u.api}api_purchase_export?${query}`, "_blank", "noopener,noreferrer");
 			});
-			if (can_write && defaults.capabilities.line_intakes) page.add_inner_button(__("LINE"), () => go("intakes"));
 			p.add_refresh(page, refresh);
 			primary(); await list.ready;
 			list_cleanup = () => {live = false; list.destroy();};
@@ -89,20 +88,16 @@
 			cleanup(); list_cleanup(); cleanup = list_cleanup = () => {};
 			p.clear_page(page); page.clear_menu();
 			if (!rest.length) {await listing(still_current); return;}
-			if (rest[0] === "intakes") {cleanup = await u.intakes({page, go, still_current}); return;}
-			const is_intake = rest[0] === "intake";
-			const is_new = rest[0] === "new" || is_intake, amended_from = rest[0] === "amend" ? rest[1] : undefined;
+			const is_new = rest[0] === "new", amended_from = rest[0] === "amend" ? rest[1] : undefined;
 			if ((!is_new && !amended_from && rest.length > 1) || (rest[0] === "amend" && !amended_from)) {await go(); return;}
 			const defaults = await u.call("api_purchase_defaults");
-			const incoming = is_intake ? await u.get_intake(rest[1]) : null;
-			if (incoming?.intake.status === "confirmed") {await go(incoming.intake.purchase); return;}
-			let doc = incoming?.doc || (is_new ? {} : await u.call("api_purchase_document", {name: amended_from || rest[0]}));
+			let doc = is_new ? {} : await u.call("api_purchase_document", {name: amended_from || rest[0]});
 			if (!still_current()) return;
 			const editable = can_write && (is_new || amended_from || doc.status === "draft");
 			page.set_title(is_new ? __("New") : amended_from ? __("Amend") : doc.system_no || doc.name);
 			p.breadcrumbs({label: title(), route: p.subroute(root), trail: [{label: page.title, route: ""}]});
 			if (amended_from) doc = {...doc, system_no: defaults.system_no, attachments: doc.attachments.filter(row => row.kind === "bill")};
-			cleanup = await u.editor({page, doc, defaults, editable, amended_from, intake: incoming?.intake, still_current, reload: () => show(), go});
+			cleanup = await u.editor({page, doc, defaults, editable, amended_from, still_current, reload: () => show(), go});
 		}});
 		await show();
 	};

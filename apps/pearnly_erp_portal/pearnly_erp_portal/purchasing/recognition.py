@@ -32,22 +32,14 @@ def clean_result(raw):
     return result
 
 
-def recognise(attachments, intake_name=None, document_name=None):
+def recognise(attachments, document_name=None):
     guard.require("purchase.write")
     from pearnly_core import ocr
 
     if not ocr.is_configured():
         frappe.throw(_("Recognition is not configured for this account"))
     context = None
-    if intake_name:
-        from pearnly_erp_portal.integrations import intake
-
-        context = intake._get(intake_name, write=True)
-        if context.status != "received" or context.direction != "purchase":
-            frappe.throw(_("Invalid value"))
-        attachments = [{"file": frappe.db.get_value("File", {"file_url": context.source_file,
-            "attached_to_doctype": context.doctype, "attached_to_name": context.name}, "name")}]
-    elif document_name:
+    if document_name:
         from pearnly_erp_portal.purchasing import access
 
         context = access.get_document(document_name, write=True)

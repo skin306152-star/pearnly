@@ -150,7 +150,14 @@ Choose a local opening stock file,Choose a local opening stock file
 Choose an existing product for opening stock,Choose an existing product for opening stock
 Choose at least one job role,Choose at least one job role
 Choose file,Choose file
+Choose purchase or sales first,Choose purchase or sales first
+Choose the company,Choose the company
+Choose the customer,Choose the customer
+Choose the payment method,Choose the payment method
 Choose the sheet to import,Choose the sheet to import
+Choose the supplier,Choose the supplier
+Choose the warehouse,Choose the warehouse
+Choose what to record,Choose what to record
 Clear,Clear
 Clear Link,Clear Link
 Clear cart,Clear cart
@@ -191,6 +198,7 @@ Complete Order,Complete Order
 Complete Payment,Complete Payment
 Completed,Completed
 Confirm,Confirm
+Confirm and record,Confirm and record
 Confirm opening stock,Confirm opening stock
 Confirm the document before recording a payment,Confirm the document before recording a payment
 Contact Details,Contact Details
@@ -204,6 +212,9 @@ Correct entry,Correct entry
 Cost,Cost
 Cost Is Set,Cost Is Set
 Cost Known,Cost Known
+Could not read this document. Please send it again.,Could not read this document. Please send it again.
+Could not record this document. Please try again.,Could not record this document. Please try again.
+Could not record: {0},Could not record: {0}
 Could not store this document,Could not store this document
 Count at least one item before finishing,Count at least one item before finishing
 Count by,Count by
@@ -266,7 +277,9 @@ Disable,Disable
 Disable {0},Disable {0}
 Disable {0} selected,Disable {0} selected
 Disabled,Disabled
+Discard,Discard
 Discard Reason,Discard Reason
+Discarded,Discarded
 Discount,Discount
 Discount (%),Discount (%)
 Discount Amount,Discount Amount
@@ -371,6 +384,7 @@ Found: {0},Found: {0}
 "Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set).","Frappe's Currency column cannot hold NULL, so 0 is both a real cost and ""never set"". The counter needs to tell them apart (same reason as price_set)."
 "Free note kept with the collection record (who took the money, reference).","Free note kept with the collection record (who took the money, reference)."
 From Date,From Date
+From the document,From the document
 Full Name,Full Name
 Full Screen,Full Screen
 General,General
@@ -503,12 +517,14 @@ No company is available for this account,No company is available for this accoun
 No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
 No items in cart,No items in cart
+No items were read,No items were read
 No product for this code: {0},No product for this code: {0}
 No product matches this code,No product matches this code
 No receipts in this shift,No receipts in this shift
 No recent transactions found,No recent transactions found
 No stock count in progress,No stock count in progress
 No terminal yet,No terminal yet
+No warehouse is available for this company,No warehouse is available for this company
 No warehouse matches that name,No warehouse matches that name
 None,None
 Normal,Normal
@@ -518,6 +534,7 @@ Not bound,Not bound
 Not counted,Not counted
 Not enough stock on hand,Not enough stock on hand
 Not found in the Revenue Department records,Not found in the Revenue Department records
+Not found on the document,Not found on the document
 Not permitted,Not permitted
 Note,Note
 Notes,Notes
@@ -587,6 +604,7 @@ POS invoice {0} created successfully,POS invoice {0} created successfully
 Paid,Paid
 Paid Amount,Paid Amount
 Paid amount cannot exceed the total,Paid amount cannot exceed the total
+Paid or unpaid?,Paid or unpaid?
 Paid {0},Paid {0}
 Parent Category,Parent Category
 Parent Item Group,Parent Item Group
@@ -617,6 +635,7 @@ Place,Place
 Please add Mode of payments and opening balance details.,Please add Mode of payments and opening balance details.
 Please select a field to edit from numpad,Please select a field to edit from numpad
 Please select an Item,Please select an Item
+Please upload a PDF or image,Please upload a PDF or image
 Point of Sale,Point of Sale
 Point the camera at the barcode or QR code,Point the camera at the barcode or QR code
 Position Balance,Position Balance
@@ -702,6 +721,7 @@ Recognition returned nothing,Recognition returned nothing
 Recognizing...,Recognizing...
 Record,Record
 Record a count,Record a count
+Recorded,Recorded
 Recorded {0} opening row(s); skipped {1} already recorded row(s),Recorded {0} opening row(s); skipped {1} already recorded row(s)
 Recount this product,Recount this product
 Redeem Loyalty Points,Redeem Loyalty Points
@@ -787,6 +807,7 @@ Sent By,Sent By
 Serial No: {0} has already been transacted into another POS Invoice.,Serial No: {0} has already been transacted into another POS Invoice.
 Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.,Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing warehouse.
 Service,Service
+Service or stock item?,Service or stock item?
 Set as current,Set as current
 Setup Auto Email,Setup Auto Email
 Several matches found. Please select a record.,Several matches found. Please select a record.
@@ -836,8 +857,10 @@ Stock count workbench,Stock count workbench
 Stock entry not found,Stock entry not found
 Stock is counted in this unit; leave it empty to use the selling unit,Stock is counted in this unit; leave it empty to use the selling unit
 Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.,Stock is counted in this unit; other units convert into it. Leave it empty to use the selling unit.
+Stock item,Stock item
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company
 Stock ledger,Stock ledger
+Stock of {0} is now {1},Stock of {0} is now {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.
 Stored here for now; document numbers still come from the numbering rules,Stored here for now; document numbers still come from the numbering rules
 Subcategory,Subcategory
@@ -847,6 +870,7 @@ Submitted,Submitted
 Submitted At,Submitted At
 Submitted {0},Submitted {0}
 Substitute Receipt,Substitute Receipt
+Subtotal,Subtotal
 Summary,Summary
 Supplier,Supplier
 Supplier Doc Reference,Supplier Doc Reference
@@ -864,6 +888,7 @@ Switch Between Payment Modes,Switch Between Payment Modes
 Switch company,Switch company
 Switching company...,Switching company...
 System number,System number
+Tap the menu to start,Tap the menu to start
 Tax Amount,Tax Amount
 Tax Exclusive,Tax Exclusive
 Tax ID,Tax ID
@@ -906,6 +931,8 @@ The payment is more than the net payable,The payment is more than the net payabl
 The product code cannot be changed,The product code cannot be changed
 The product identifiers refer to different products,The product identifiers refer to different products
 The quantity is not a valid number,The quantity is not a valid number
+The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
+The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
 The row has no product code or barcode,The row has no product code or barcode
 The sheet needs a product name column,The sheet needs a product name column
 The stock count changed. Review the differences again.,The stock count changed. Review the differences again.
@@ -921,6 +948,9 @@ This account cannot send documents,This account cannot send documents
 This barcode already exists,This barcode already exists
 This browser cannot scan with the camera,This browser cannot scan with the camera
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
+This card expires in {0} minutes,This card expires in {0} minutes
+This card has expired. Please upload the document again.,This card has expired. Please upload the document again.
+This card is no longer valid,This card is no longer valid
 This channel is not open yet,This channel is not open yet
 This code is already taken,This code is already taken
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.","This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these."
@@ -932,9 +962,11 @@ This document has no content,This document has no content
 This document is already recorded: {0},This document is already recorded: {0}
 This document is too large,This document is too large
 This document is void,This document is void
+This document was already recorded,This document was already recorded
 This draft was already confirmed or discarded,This draft was already confirmed or discarded
 This entry changed underneath you; reload and try again,This entry changed underneath you; reload and try again
 This item is also stocked at:,This item is also stocked at:
+This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
 This product code already exists,This product code already exists
 This request was already recorded,This request was already recorded
@@ -1724,5 +1756,6 @@ trade.warehouseHint,Comes from the terminal; set it there if it is empty
 transfer,transfer
 unpaid,unpaid
 void,void
+{0} more items,{0} more items
 {0} rows were not imported,{0} rows were not imported
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}

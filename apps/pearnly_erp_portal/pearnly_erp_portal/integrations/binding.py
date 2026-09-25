@@ -89,4 +89,7 @@ def unbind() -> dict:
     row = _active_binding(_current_user())
     if row:
         line_binding.unbind(row.line_user_id)
+        from pearnly_erp_portal.integrations import line_menu
+
+        line_menu.request_sync(row.line_user_id)
     return {"bound": False}

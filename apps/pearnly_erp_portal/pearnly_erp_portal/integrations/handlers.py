@@ -1,37 +1,22 @@
 """ERP 的 LINE 事件处理器（通道侧）。
 
-传输层（`pearnly_core.line`）负责验签、幂等与回执；这里只做 ERP 的判断。
-绑定后的图片/PDF 按采购或销售方向留底，交 ERP 页面识别、复核和确认。
-未承接的消息类型明确提示未开放，不声称已经录入。
+传输层（`pearnly_core.line`）负责验签、幂等与回执；这里只做 ERP 的分派：
+绑定 / 解绑、菜单与录单前的选择（`line_flow`）、收单据与预览卡按钮（`intake`）。
+业务口径见 docs/work/2026-09-25-erp-line-intake.md（用户 2026-09-25 定稿）。
 """
+from urllib.parse import parse_qs
 
 import frappe
 from frappe import _
 
-from pearnly_core import line, line_binding, line_session
+from pearnly_core import line, line_binding
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import intake
+from pearnly_erp_portal.integrations import intake, line_flow, line_menu
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。
 UNBIND_WORDS = ("ยกเลิกการผูก", "ยกเลิกการเชื่อมต่อ", "解绑", "unbind")
-
-# 方向词：用户手打的词，翻了就等于这个功能不存在（与解绑词同理）。
-# 旧线上是在菜单里选"买/卖"再发单据；菜单卡片还没做，先用一句话切。
-DIRECTION_WORDS = {
-    "ซื้อ": "purchase", "purchase": "purchase",
-    "ขาย": "sales", "sell": "sales", "sales": "sales",
-}
-
-SESSION_STATE = "erp_intake"
-
-
-def _direction_of(line_user_id: str) -> str:
-    """这位 LINE 用户当前在录哪个方向；没说过就是进项（与旧线上默认一致）。"""
-    payload = ((line_session.get_session(line_user_id) or {}).get("payload") or {})
-    direction = payload.get("direction")
-    return direction if direction in ("purchase", "sales") else "purchase"
 
 
 def _is_unbind(text: str) -> bool:
@@ -55,20 +40,20 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
         return
     profile = line.get_profile(user_id) or {}
     line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
+    # 绑上就挂按岗位的那套菜单；回执里同时给 ซื้อ / ขาย 两个原生按钮（旧线上绑定后回菜单）。
+    line_menu.request_sync(user_id)
     line.reply(reply_token, [{"type": "text", "text": _("Bound to {0}").format(
         _display_name(consumed["user"]))}])
 
 
-def _receive_document(user_id: str, bound: str, message: dict, reply_token: str,
-                      direction: str = "purchase") -> None:
-    """收到图片/PDF：留底并落草稿。没有对应岗位的人不能往账上放单据。"""
-    if not guard.has("integration.read", user=bound):
-        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+def _receive_document(user_id: str, bound: str, message: dict, reply_token: str) -> None:
+    """收到图片/PDF：必须先选好方向与各项；按这组选择留底并排队识别。"""
+    choices = line_flow.choices(user_id)
+    if not line_flow.ready(choices):
+        line.reply(reply_token, [{"type": "text", "text": _("Choose purchase or sales first")}])
         return
-    capability = intake.DIRECTION_CAPABILITY.get(direction) or "purchase.write"
-    if not guard.has(capability, user=bound):
-        line.reply(reply_token, [{"type": "text",
-                                  "text": _("This account cannot send documents")}])
+    if not guard.has(intake.DIRECTION_CAPABILITY[choices["direction"]], user=bound):
+        line.reply(reply_token, [{"type": "text", "text": _("This account cannot send documents")}])
         return
     media_type = message.get("type") or ""
     filename = message.get("fileName") or ""
@@ -82,22 +67,43 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str,
         previous_user = frappe.session.user
         try:
             frappe.set_user(bound)
-            saved = intake.receive(line_user_id=user_id, sent_by=bound, media_type=media_type,
-                                   content=content, filename=filename, direction=direction,
-                                   line_message_id=message.get("id") or "")
+            # 同一组选择可以连发多张：每张各排一次识别、各出一张卡；选择的 30 分钟重新计时。
+            line_flow.keep(user_id, choices)
+            intake.receive(line_user_id=user_id, sent_by=bound, choices=choices,
+                           media_type=media_type, content=content, filename=filename,
+                           line_message_id=message.get("id") or "", reply_token=reply_token)
         finally:
             frappe.set_user(previous_user)
     except Exception:
         # 日志标题也走英文：`check-i18n` 的存量清单已经够长，新代码不再往里加中文。
         frappe.log_error(title="ERP LINE document storage failed",
                          message=frappe.get_traceback()[-1500:])
-        line.reply(reply_token, [{"type": "text",
-                                  "text": _("Could not store this document")}])
-        return
-    if saved.get("duplicate"):
-        line.reply(reply_token, [{"type": "text", "text": _("Already received")}])
-        return
-    line.reply(reply_token, [{"type": "text", "text": _("Received; confirm it on the ERP page")}])
+        line.reply(reply_token, [{"type": "text", "text": _("Could not store this document")}])
+
+
+def _postback(user_id: str, bound, data: str, reply_token: str) -> bool:
+    params = {key: values[0] for key, values in parse_qs(data or "").items()}
+    action = params.get("a") or ""
+    if not (action.startswith("mode:") or action in ("erp", "card")):
+        return False
+    if not bound:
+        line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
+        return True
+    if not guard.has("integration.read", user=bound):
+        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        return True
+    if action.startswith("mode:"):
+        # 富菜单（新旧两套都是 `a=mode:purchase|sales`）与「เมนู」回的按钮。
+        line_flow.start(user_id, bound, action[len("mode:"):], reply_token)
+    elif action == "erp":
+        line_flow.answer(user_id, bound, data, reply_token)
+    elif params.get("op") == "confirm":
+        intake.confirm(params.get("i"), params.get("n"), user_id, reply_token)
+    elif params.get("op") == "discard":
+        intake.discard(params.get("i"), params.get("n"), user_id, reply_token)
+    else:
+        return False
+    return True
 
 
 def handle(event: dict) -> bool:
@@ -115,21 +121,24 @@ def handle(event: dict) -> bool:
 
     if etype == "unfollow":
         line_binding.unbind(user_id)
+        line_menu.request_sync(user_id)
         return True
 
+    bound = line_binding.user_of(user_id)
+    if etype == "postback":
+        return _postback(user_id, bound, (event.get("postback") or {}).get("data") or "", reply_token)
     if etype != "message":
         return False
     message = event.get("message") or {}
-
     text = (message.get("text") or "").strip()
-    bound = line_binding.user_of(user_id)
 
     if message.get("type") in ("image", "file"):
         if not bound:
-            line.reply(reply_token, [{"type": "text",
-                                      "text": _("Bind this account first")}])
-            return True
-        _receive_document(user_id, bound, message, reply_token, _direction_of(user_id))
+            line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
+        elif not guard.has("integration.read", user=bound):
+            line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        else:
+            _receive_document(user_id, bound, message, reply_token)
         return True
 
     if message.get("type") != "text":
@@ -139,6 +148,7 @@ def handle(event: dict) -> bool:
     if _is_unbind(text):
         if bound:
             line_binding.unbind(user_id)
+            line_menu.request_sync(user_id)
             line.reply(reply_token, [{"type": "text", "text": _("Unbound")}])
         else:
             line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -148,12 +158,15 @@ def handle(event: dict) -> bool:
         _bind_with_code(user_id, text, reply_token)
         return True
 
-    direction = DIRECTION_WORDS.get(text.casefold()) or DIRECTION_WORDS.get(text.strip())
-    if direction:
-        line_session.set_session(user_id, SESSION_STATE, {"direction": direction})
-        line.reply(reply_token, [{"type": "text", "text": _("Now sending {0} documents").format(
-            _("purchase") if direction == "purchase" else _("sales"))}])
+    if not guard.has("integration.read", user=bound):
+        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
         return True
-
-    line.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])
+    if text.casefold() in line_flow.MENU_WORDS:
+        line_flow.menu(bound, reply_token)
+        return True
+    direction = line_flow.DIRECTION_WORDS.get(text.casefold())
+    if direction:
+        line_flow.start(user_id, bound, direction, reply_token)
+        return True
+    line.reply(reply_token, [{"type": "text", "text": _("Tap the menu to start")}])
     return True
