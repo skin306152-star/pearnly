@@ -5,6 +5,7 @@ empty customer list. Native DocType storage survives Redis eviction/restarts;
 generic customer CRUD and sharing are not granted. All timestamps are UTC epoch.
 """
 import copy
+import base64
 from contextlib import contextmanager
 import hashlib
 import json
@@ -12,6 +13,7 @@ import math
 import re
 import time
 import uuid
+import zlib
 
 import frappe
 
@@ -127,6 +129,33 @@ def _dump(data):
     return raw
 
 
+#: 压缩后的字段带这个前缀。读的时候看到它就解压，看不到就当普通 JSON ——
+#: 所以本改动对已经在库里的旧行**向后兼容**，不需要一次性迁移。
+_GZ = "pearnly-gz:"
+
+
+def _dump_big(data):
+    """体积可能上到几十 MB 的字段（payload / staging / overlays）走这一条。
+
+    为什么必须压缩：rayong 租户 15,135 个客户的快照有 22MB，塞在一行里会让
+    `mariadb-dump` 在备份时断开（2026-09-25 实际卡住两次发布），也让读取时要
+    800MB 以上的内存。压缩后通常只剩几分之一，备份和落库都轻松。
+    `MAX_BYTES` 卡的是**压缩前**的数据量，语义不变。
+    """
+    raw = json.dumps(data, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    if len(raw) > MAX_BYTES:
+        raise DmsClientError("DMS snapshot exceeds storage budget", "ERR_DMS_SNAPSHOT_INCOMPLETE")
+    return _GZ + base64.b64encode(zlib.compress(raw, 6)).decode("ascii")
+
+
+def _load_big(raw):
+    if not raw:
+        return None
+    if isinstance(raw, str) and raw.startswith(_GZ):
+        return json.loads(zlib.decompress(base64.b64decode(raw[len(_GZ):])).decode("utf-8"))
+    return json.loads(raw)
+
+
 def _ensure(name, scope_key, dataset, *, _database=None, exclusive=False):
     # SQL writes are private service operations. User-facing Document mutations
     # are denied by the controller, including import/rename/share bypasses.
@@ -158,7 +187,7 @@ def read(endpoint, dataset="directory", *, reader="authority", max_age=None, ref
     age = max(0, time.time() - float(row.source_started_at or 0))
     if maximum is not None and age > max(INTERVAL, maximum):
         raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_STALE")
-    result = {"data": json.loads(row.payload), "as_of": float(row.source_started_at),
+    result = {"data": _load_big(row.payload), "as_of": float(row.source_started_at),
               "completed_at": float(row.completed_at), "generation": row.generation,
               "stale": age > refresh_interval or bool(row.last_error)}
     status_key = "dms_snapshot_geo_status" if dataset == "geo" else "dms_snapshot_status"
@@ -189,7 +218,7 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
     if float(rows[0].source_started_at or 0) > float(source_started_at):
         return False
     data = copy.deepcopy(data)
-    overlays = json.loads(rows[0].overlays or "{}")
+    overlays = _load_big(rows[0].overlays) or {}
     if dataset in ("directory", "customers"):
         required = ("masters", "paints", "customers") if dataset == "directory" else ("customers",)
         if not all(isinstance(data.get(k), dict) for k in required):
@@ -215,7 +244,7 @@ def publish(endpoint, dataset, data, source_started_at, *, reader="authority", e
         tree = {key: data.get(key) for key in ("provinces", "districts", "subdistricts", "zipcodes")}
         if not complete_tree(tree) or ("catalogues" in data and not isinstance(data["catalogues"], dict)):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_INCOMPLETE")
-    frappe.db.set_value(DT, name, {"payload": _dump(data), "overlays": _dump(overlays),
+    frappe.db.set_value(DT, name, {"payload": _dump_big(data), "overlays": _dump_big(overlays),
         "source_started_at": float(source_started_at), "completed_at": time.time(),
         "generation": uuid.uuid4().hex, "last_error": ""})
     # A verified complete collection proves this reader can authenticate again.
@@ -228,7 +257,7 @@ def stage(endpoint, dataset="geo"):
     """Private resumable work, never visible through read() without a generation."""
     key = scope(endpoint)
     raw = frappe.db.get_value(DT, _name(key, dataset), "staging")
-    return json.loads(raw) if raw else None
+    return _load_big(raw)
 
 
 def checkpoint(endpoint, data, *, dataset="geo", expected_scope):
@@ -237,7 +266,7 @@ def checkpoint(endpoint, data, *, dataset="geo", expected_scope):
         raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_SCOPE_CHANGED")
     name = _name(key, dataset)
     _ensure(name, key, dataset)
-    frappe.db.set_value(DT, name, "staging", _dump(data) if data is not None else "")
+    frappe.db.set_value(DT, name, "staging", _dump_big(data) if data is not None else "")
 
 
 def failed(endpoint, dataset, code, *, reader="authority", expected_scope=None):
@@ -258,7 +287,7 @@ def failed(endpoint, dataset, code, *, reader="authority", expected_scope=None):
 def overlay_customer_ids(endpoint):
     key = scope(endpoint)
     raw = frappe.db.get_value(DT, _name(key, "customers"), "overlays")
-    return tuple(json.loads(raw or "{}"))
+    return tuple(_load_big(raw) or {})
 
 
 def change_state(endpoint):
@@ -269,7 +298,7 @@ def change_state(endpoint):
     """
     key = scope(endpoint)
     raw = frappe.db.get_value(DT, _name(key, CHANGE_DATASET), "staging")
-    return json.loads(raw) if raw else None
+    return _load_big(raw)
 
 
 def _furthest(stored, incoming):
@@ -307,10 +336,10 @@ def merge_change_state(endpoint, incoming, *, base, expected_scope=None):
         _ensure(name, key, CHANGE_DATASET, _database=database, exclusive=True)
         rows = database.sql(f"SELECT staging FROM `tab{DT}` WHERE name=%s FOR UPDATE",
                             name, as_dict=True)
-        stored = json.loads(rows[0].staging or "{}")
+        stored = _load_big(rows[0].staging) or {}
         merged = incoming if stored == (base or {}) else _furthest(stored, incoming)
         database.sql(f"UPDATE `tab{DT}` SET staging=%s, modified=UTC_TIMESTAMP(6) WHERE name=%s",
-                     (_dump(merged), name))
+                     (_dump_big(merged), name))
         return merged
 
 
@@ -325,7 +354,7 @@ def customer_index(endpoint):
     key = scope(endpoint)
     raw = frappe.db.get_value(DT, _name(key, "customers"), "payload")
     index, ambiguous = {}, set()
-    for cid, item in ((json.loads(raw).get("customers") if raw else {}) or {}).items():
+    for cid, item in (((_load_big(raw) or {}).get("customers")) or {}).items():
         people = normalize_thai_id((item or {}).get("people_id"))
         if not people:
             continue
@@ -358,14 +387,14 @@ def _forget_customer(database, endpoint, customer_id, *, expected_scope):
     if not rows:
         return False
     cid = str(customer_id)
-    overlays = json.loads(rows[0].overlays or "{}")
+    overlays = _load_big(rows[0].overlays) or {}
     dropped = overlays.pop(cid, None) is not None
-    values = {"overlays": _dump(overlays)}
+    values = {"overlays": _dump_big(overlays)}
     if rows[0].payload:
-        data = json.loads(rows[0].payload)
+        data = _load_big(rows[0].payload)
         if (data.get("customers") or {}).pop(cid, None) is not None:
             dropped = True
-            values["payload"] = _dump(data)
+            values["payload"] = _dump_big(data)
             values["generation"] = uuid.uuid4().hex
     if not dropped:
         return False
@@ -417,13 +446,13 @@ def _verified_customer(database, endpoint, customer_id, fields, *, expected_scop
     rows = database.sql(f"SELECT payload, overlays, generation FROM `tab{DT}` WHERE name=%s FOR UPDATE", name, as_dict=True)
     cid = str(customer_id)
     fields = {**fields, "customer_id": cid}
-    overlays = json.loads(rows[0].overlays or "{}")
+    overlays = _load_big(rows[0].overlays) or {}
     overlays[cid] = {"at": time.time(), "fields": fields}
-    values = {"overlays": _dump(overlays)}
+    values = {"overlays": _dump_big(overlays)}
     if rows[0].payload:
-        data = json.loads(rows[0].payload)
+        data = _load_big(rows[0].payload)
         data["customers"][cid] = fields
-        values["payload"] = _dump(data)
+        values["payload"] = _dump_big(data)
         values["generation"] = uuid.uuid4().hex
     database.sql(f"UPDATE `tab{DT}` SET overlays=%s, payload=%s, generation=%s, "
         "modified=UTC_TIMESTAMP(6) WHERE name=%s",

@@ -22,6 +22,7 @@ UNIT_TESTS = (
     "tests/test_dms_nightly_refresh.py",
     "tests/test_dms_connection_snapshots.py",
     "tests/test_dms_operator_advisors.py",
+    "tests/test_dms_snapshot_storage.py",
 )
 
 if __name__ == "__main__":
