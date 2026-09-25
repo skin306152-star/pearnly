@@ -28,6 +28,7 @@ Add Column,列を追加
 Add Discount,割引を追加
 Add Employee,従業員を追加
 Add Order Discount,伝票割引を追加
+Add Pearnly ERP as a friend,Pearnly ERP を友だち追加
 Add User,ユーザーを追加
 Add VAT,付加価値税を計算
 Add a count,カウントを記録
@@ -44,6 +45,7 @@ Additional Information,追加情報
 Additional Information updated successfully.,追加情報を更新しました
 Address,住所
 Address and notes,住所と備考
+"After you send the code, this page shows ""Bound"" by itself.",送信後、この画面は自動的に「連携済み」になります。
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
@@ -92,11 +94,14 @@ Basis Qty,基準数量
 Basis Set,基準設定済み
 Batch No,バッチ番号
 Bind this account first,先に ERP アカウントを連携してください
+Binding code,連携コード
 Block Duplicate Documents,重複伝票をブロック
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
 Book quantity {0} {1},帳簿数量 {0} {1}
 Book {0} · counted {1} · difference {2},帳簿 {0} · 実地 {1} · 差異 {2}
+Bound,連携済み
+Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,支店
 Branch Name,支店名
@@ -167,6 +172,7 @@ Closed by,終了者
 Closing Quantity,期末数量
 Closing locks every entry. Rows never counted stay empty. Continue?,終了すると記録はロックされます。未棚卸の行は空のままです。続けますか？
 Code,コード
+Code expired,コードの有効期限が切れました
 Code or barcode,コード・バーコード
 Codes start at {0},{0} から採番します
 Collected {0},入金しました {0}
@@ -189,6 +195,7 @@ Completed,完了
 Confirm,確認
 Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
+Connect this account to the dedicated Pearnly ERP LINE in the steps below.,次の手順で、この ERP アカウントを専用 Pearnly ERP LINE に連携します。
 Contact Details,連絡先
 Contact Person,担当者
 Contact email,連絡先メール
@@ -283,6 +290,7 @@ Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
 Document prefix,書類プレフィックス
 Documents,書類
+Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.,既定は仕入です。LINE で「ซื้อ」（仕入）または「ขาย」（売上）と送ると切り替わります。
 Download opening template,期首在庫テンプレートをダウンロード
 Download template,テンプレートをダウンロード
 Draft,下書き
@@ -430,8 +438,10 @@ Items not found.,商品が見つかりません
 Job Roles,機能権限
 "Keep product IDs, codes and barcodes as text in the opening stock file",商品ID・コード・バーコードは文字列形式にしてください
 LINE,LINE
+LINE Integration,LINE 連携
 LINE Message,LINEメッセージ
 LINE User,LINEユーザー
+LINE name,LINE の名前
 LINE unbound,LINE の連携を解除しました
 Last Login,最終ログイン
 Last Month,先月
@@ -483,6 +493,7 @@ New Sales Document,販売伝票を作成
 New Stock Issue,出庫伝票を作成
 New Stock Receipt,入庫伝票を作成
 New Supplier,仕入先を追加
+New code,新しいコード
 New company,会社を追加
 New product,商品を追加
 New stock count,棚卸を作成
@@ -507,6 +518,7 @@ None,なし
 Normal,正常
 Not Available,在庫なし
 Not Posted,未計上
+Not bound,未連携
 Not counted,未棚卸
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
@@ -531,6 +543,7 @@ Only the checked features are visible to this employee,チェックした機能�
 Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
 Only the product admin can change this,製品管理者のみ変更できます
 Open Form View,フォーム表示を開く
+Open Pearnly ERP in LINE,LINE で Pearnly ERP を開く
 Open Shift,シフト開始
 Open a shift before selling,販売前にシフトを開始してください
 Open a shift on the cashier page first.,先にレジでシフトを開始してください
@@ -676,6 +689,7 @@ Querying the Revenue Department...,税務局に照会中…
 Quotation,見積書
 Rate,単価
 Ready to post,登録可能
+Ready to use,利用を開始できます
 Reason for Cancellation,取消理由
 Receipt,領収書
 Receipt No,レシート番号
@@ -746,6 +760,7 @@ Saved. Scan the next item.,保存しました。次の商品を読み取って�
 Scan,スキャン
 Scan a code,コードをスキャン
 Scan barcode or QR code,バーコード・QRコードを読む
+Scan the QR code or search by Bot ID.,QR コードを読み取るか、Bot ID で検索します。
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned,読み取りました
 Search,検索
@@ -773,7 +788,10 @@ Selling Units,販売単位
 Selling price,販売価格
 Selling warehouse,販売する倉庫
 Send,送信
+Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.,書類の写真または PDF を送ると、仕入・売上ページの「LINE」で確認・確定を待ちます。
+"Send purchase or sales documents in LINE, then review and confirm them in ERP",LINE で仕入・売上書類を送り、ERP で確認・確定します
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
+Send this 6-digit code to the Bot,この6桁コードを Bot に送信
 Sending the same file twice must not create two drafts,同じファイルを2回送っても下書きを2件作らない
 Sent By,送信者
 Serial No: {0} has already been transacted into another POS Invoice.,シリアル番号 {0} は他のレジ伝票で使用済みです
@@ -885,6 +903,7 @@ The account you give customers for transfers,入金時に相手へ伝える口�
 The amount received is less than the total,受取額が合計に足りません
 The cart is empty,カートは空です
 The cashier assets did not load (official-*.js).,レジのファイルが読み込めませんでした（official-*.js）
+The code is valid for 10 minutes.,コードの有効期限は10分です。
 The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
@@ -946,6 +965,7 @@ This warehouse already exists,この倉庫は既に存在します
 This warehouse belongs to the company above,この倉庫は上の会社に属します
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
+Time left {0},残り {0}
 To Date,終了日
 Total,請求額
 Total Amount,合計金額
@@ -964,6 +984,8 @@ Type,種別
 Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
 UOM,単位
 Unable to load preview,プレビューを読み込めません
+Unbind LINE,LINE 連携を解除
+Unbind Pearnly ERP LINE?,Pearnly ERP LINE の連携を解除しますか？
 Unbound,未連携
 Unit,単位
 Unit Cost,単位原価
@@ -1016,6 +1038,7 @@ Void {0} selected,選択した{0}件を取り消す
 Voided,取消済み
 Voided {0},{0}件を取り消しました
 "Voided, not in the total",取消済み（合計に含まない）
+Wait for binding to finish,連携完了を待つ
 Walk-in customer,一般客
 Warehouse,倉庫
 Warehouse name,倉庫名
@@ -1163,6 +1186,29 @@ completed,完了
 count,棚卸
 discount applied,割引を適用しました
 draft,下書き
+erp.line.boundAt,連携日時
+erp.line.code,連携コード
+erp.line.expired,コードの有効期限が切れました
+erp.line.intro,次の手順で、この ERP アカウントを専用 Pearnly ERP LINE に連携します。
+erp.line.lineName,LINE の名前
+erp.line.newCode,新しいコード
+erp.line.openLine,LINE で Pearnly ERP を開く
+erp.line.readyTitle,利用を開始できます
+erp.line.remaining,残り {0}
+erp.line.status.bound,連携済み
+erp.line.status.unbound,未連携
+erp.line.step1.desc,QR コードを読み取るか、Bot ID で検索します。
+erp.line.step1.title,Pearnly ERP を友だち追加
+erp.line.step2.desc,コードの有効期限は10分です。
+erp.line.step2.title,この6桁コードを Bot に送信
+erp.line.step3.desc,送信後、この画面は自動的に「連携済み」になります。
+erp.line.step3.title,連携完了を待つ
+erp.line.subtitle,LINE で仕入・売上書類を送り、ERP で確認・確定します
+erp.line.tip.direction,既定は仕入です。LINE で「ซื้อ」（仕入）または「ขาย」（売上）と送ると切り替わります。
+erp.line.tip.inbox,書類の写真または PDF を送ると、仕入・売上ページの「LINE」で確認・確定を待ちます。
+erp.line.title,LINE 連携
+erp.line.unbind,LINE 連携を解除
+erp.line.unbindConfirm,Pearnly ERP LINE の連携を解除しますか？
 goods,物品
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）

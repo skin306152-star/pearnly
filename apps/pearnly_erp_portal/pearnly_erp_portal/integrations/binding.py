@@ -12,7 +12,11 @@
 "当前账号是谁"。
 """
 
+import base64
+import io
+
 import frappe
+import pyqrcode
 from frappe import _
 
 from pearnly_core import line, line_binding
@@ -65,7 +69,15 @@ def start() -> dict:
     bot = line.public_account()
     code = line_binding.generate_bind_code(user, TTL_MINUTES)
     return {**code, "bot_basic_id": bot["basic_id"], "bot_friend_url": bot["url"],
-            "bot_name": bot["name"]}
+            "bot_name": bot["name"], "bot_qr": _qr(bot["url"])}
+
+
+def _qr(url: str) -> str:
+    """加好友二维码在本站生成（与 DMS 花名册同一个库）。旧线上把链接交给第三方网站
+    画图（api.qrserver.com），等于把本租户官方号地址发给外部服务，这里不照搬。"""
+    output = io.BytesIO()
+    pyqrcode.create(url).svg(output, scale=4, background="white")
+    return "data:image/svg+xml;base64," + base64.b64encode(output.getvalue()).decode()
 
 
 def unbind() -> dict:

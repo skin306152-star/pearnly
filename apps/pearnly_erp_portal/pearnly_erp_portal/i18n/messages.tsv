@@ -1211,3 +1211,26 @@ Use an XLSX opening stock file	请使用XLSX格式的期初库存文件	กร�
 Use one worksheet for opening stock	期初库存文件只能包含一个工作表	ไฟล์สต็อกยกมาต้องมีแผ่นงานเดียว	期首在庫ファイルのシートは1つにしてください
 Use unique opening stock columns, including a product identifier, quantity and unit cost	请使用期初模板表头，至少包含物料标识、数量和成本单价，列不能重复	กรุณาใช้หัวตารางตามแบบฟอร์ม ต้องมีรหัสสินค้า จำนวนและต้นทุนต่อหน่วย โดยไม่ซ้ำคอลัมน์	テンプレートの見出しを使用し、商品識別子・数量・単価を含めてください。列の重複は不可です
 The opening stock value is too large to preserve its decimal precision	期初数值过大，无法保持所需小数精度	ค่าสต็อกยกมามากเกินกว่าจะรักษาความละเอียดทศนิยม	期首数値が大きすぎて必要な小数精度を保持できません
+LINE Integration	LINE 集成	การเชื่อมต่อ LINE	LINE 連携	erp.line.title
+Send purchase or sales documents in LINE, then review and confirm them in ERP	在 LINE 发送采购或销售单据，再到 ERP 里复核确认	ส่งเอกสารซื้อหรือขายผ่าน LINE แล้วตรวจสอบและยืนยันใน ERP	LINE で仕入・売上書類を送り、ERP で確認・確定します	erp.line.subtitle
+Bound	已绑定	เชื่อมต่อแล้ว	連携済み	erp.line.status.bound
+Not bound	未绑定	ยังไม่เชื่อมต่อ	未連携	erp.line.status.unbound
+Connect this account to the dedicated Pearnly ERP LINE in the steps below.	按下面步骤，把当前 ERP 账号绑定到专用 Pearnly ERP LINE。	เชื่อมต่อบัญชีนี้กับ Pearnly ERP LINE โดยทำตามขั้นตอนด้านล่าง	次の手順で、この ERP アカウントを専用 Pearnly ERP LINE に連携します。	erp.line.intro
+Add Pearnly ERP as a friend	添加 Pearnly ERP 为好友	เพิ่ม Pearnly ERP เป็นเพื่อน	Pearnly ERP を友だち追加	erp.line.step1.title
+Scan the QR code or search by Bot ID.	扫描二维码，或在 LINE 搜索下面的 Bot ID。	สแกน QR หรือค้นหาด้วย Bot ID	QR コードを読み取るか、Bot ID で検索します。	erp.line.step1.desc
+Open Pearnly ERP in LINE	在 LINE 打开 Pearnly ERP	เปิด Pearnly ERP ใน LINE	LINE で Pearnly ERP を開く	erp.line.openLine
+Send this 6-digit code to the Bot	把这组 6 位数字发给 Bot	ส่งรหัส 6 หลักนี้ให้ Bot	この6桁コードを Bot に送信	erp.line.step2.title
+The code is valid for 10 minutes.	绑定码 10 分钟内有效。	รหัสใช้ได้ 10 นาที	コードの有効期限は10分です。	erp.line.step2.desc
+Binding code	绑定码	รหัสเชื่อมต่อ	連携コード	erp.line.code
+New code	换一个码	ขอรหัสใหม่	新しいコード	erp.line.newCode
+Time left {0}	剩余 {0}	เหลือเวลา {0}	残り {0}	erp.line.remaining
+Code expired	绑定码已过期	รหัสหมดอายุแล้ว	コードの有効期限が切れました	erp.line.expired
+Wait for binding to finish	等待绑定完成	รอให้การเชื่อมต่อเสร็จสิ้น	連携完了を待つ	erp.line.step3.title
+After you send the code, this page shows "Bound" by itself.	发送成功后，本页会自动显示“已绑定”。	หลังส่งรหัส หน้านี้จะแสดง "เชื่อมต่อแล้ว" เอง	送信後、この画面は自動的に「連携済み」になります。	erp.line.step3.desc
+LINE name	LINE 名称	ชื่อ LINE	LINE の名前	erp.line.lineName
+Bound at	绑定时间	เชื่อมต่อเมื่อ	連携日時	erp.line.boundAt
+Ready to use	现在可以这样使用	ใช้งานได้ทันที	利用を開始できます	erp.line.readyTitle
+Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.	默认发的是采购单据；在 LINE 里发“ซื้อ”（采购）或“ขาย”（销售）即可切换。	ค่าเริ่มต้นคือเอกสารซื้อ พิมพ์ ซื้อ หรือ ขาย ใน LINE เพื่อสลับ	既定は仕入です。LINE で「ซื้อ」（仕入）または「ขาย」（売上）と送ると切り替わります。	erp.line.tip.direction
+Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.	发单据照片或 PDF；它会停在采购或销售页的「LINE」里，等你复核确认后才入账。	ส่งรูปหรือ PDF ของเอกสาร เอกสารจะรออยู่ที่ปุ่ม LINE ในหน้าซื้อหรือขาย จนกว่าคุณจะตรวจสอบและยืนยัน	書類の写真または PDF を送ると、仕入・売上ページの「LINE」で確認・確定を待ちます。	erp.line.tip.inbox
+Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ LINE	LINE 連携を解除	erp.line.unbind
+Unbind Pearnly ERP LINE?	确认解绑 Pearnly ERP LINE？	ยืนยันการยกเลิกการเชื่อมต่อ?	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm

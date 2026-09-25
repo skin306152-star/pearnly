@@ -274,6 +274,7 @@ permission_query_conditions = {"Purchase Document": "pearnly_erp_portal.purchasi
 
 app_include_js = [
     versioned_asset("pearnly_erp_portal", "desk/transactions.js"),
+    versioned_asset("pearnly_erp_portal", "desk/integrations.js"),
     versioned_asset("pearnly_erp_portal", "desk/company-menu.js"),
     versioned_asset("pearnly_erp_portal", "desk/entry-choice.js"),
     versioned_asset("pearnly_erp_portal", "desk/purchase-fields.js"),
@@ -380,7 +381,8 @@ pearnly_navigation = [{'product': 'erp',
                 'pearnly-pos-shifts',
                 'pearnly-team',
                 'pearnly-company',
-                'pearnly-warehouses'],
+                'pearnly-warehouses',
+                'pearnly-integrations'],
   'permissions': {'pearnly-products': {'doctype': 'ERP Product'},
                   'pearnly-inventory': {'doctype': 'ERP Stock Balance'},
                   'pearnly-stock-in': {'doctype': 'ERP Stock Entry'},
@@ -401,7 +403,11 @@ pearnly_navigation = [{'product': 'erp',
                   'pearnly-warehouses': {'doctype': 'ERP Warehouse'},
                   # 员工账号与岗位：能管本产品员工的是产品管理员（ERP Admin）。
                   # 用角色判，不新增权限码 —— Frappe 的用户与权限体系就是判据。
-                  'pearnly-team': {'any_role': ['ERP Admin']}},
+                  'pearnly-team': {'any_role': ['ERP Admin']},
+                  # LINE 集成：谁拿得到 `integration.read` 谁才有入口（旧业务角色写在这里，
+                  # 按菜单授权的那些角色在文件后面补上，与服务端同一个判据）。
+                  'pearnly-integrations': {'any_role': ['ERP Products', 'ERP Stock', 'ERP Purchase',
+                                                        'ERP Sales', 'ERP Cashier']}},
   'groups': [('nav.group.goodsStock',
               'boxes',
               ['pearnly-products',
@@ -453,6 +459,10 @@ for _key, _spec in _menu_permissions.CATALOG.items():
 for _key in ("home", "profile"):
     pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)]["any_role"] += [
         "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier"]
+# LINE 集成：`access/menu.capabilities` 给任一业务菜单都发 `integration.*`，所以这些菜单角色也有入口；
+# 只有管理员身份、没有业务岗位的账号绑不了 LINE，也就不给入口，免得点进去才报无权限。
+pearnly_navigation[0]["permissions"]["pearnly-integrations"]["any_role"] += [
+    _menu_permissions.role(_key) for _key in _menu_permissions.CATALOG if _key not in ("home", "profile", "team")]
 after_install = "pearnly_erp_portal.access.setup.sync_roles"
 after_migrate = "pearnly_erp_portal.access.setup.sync_roles"
 

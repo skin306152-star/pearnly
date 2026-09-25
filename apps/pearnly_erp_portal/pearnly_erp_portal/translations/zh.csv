@@ -28,6 +28,7 @@ Add Column,添加列
 Add Discount,折扣
 Add Employee,添加员工
 Add Order Discount,添加整单折扣
+Add Pearnly ERP as a friend,添加 Pearnly ERP 为好友
 Add User,添加用户
 Add VAT,计算增值税
 Add a count,记一笔
@@ -44,6 +45,7 @@ Additional Information,附加信息
 Additional Information updated successfully.,附加信息已更新
 Address,地址
 Address and notes,地址与备注
+"After you send the code, this page shows ""Bound"" by itself.",发送成功后，本页会自动显示“已绑定”。
 Against Payment,关联付款
 All,全部
 All Items,所有物料
@@ -92,11 +94,14 @@ Basis Qty,基准数量
 Basis Set,已设基准
 Batch No,批号
 Bind this account first,请先绑定 ERP 账号
+Binding code,绑定码
 Block Duplicate Documents,阻止重复单据
 Book position,账面仓库／仓位
 Book quantity,账面数量
 Book quantity {0} {1},账面数量 {0} {1}
 Book {0} · counted {1} · difference {2},账面 {0} · 实盘 {1} · 差异 {2}
+Bound,已绑定
+Bound at,绑定时间
 Bound to {0},已绑定到 {0}
 Branch,分支机构（分公司）
 Branch Name,分支名称
@@ -167,6 +172,7 @@ Closed by,结束人
 Closing Quantity,期末数量
 Closing locks every entry. Rows never counted stay empty. Continue?,结束后记录锁定，未盘点的行保持为空。继续？
 Code,编码
+Code expired,绑定码已过期
 Code or barcode,编号或条码
 Codes start at {0},本次从 {0} 开始发
 Collected {0},已收款 {0}
@@ -189,6 +195,7 @@ Completed,已完成
 Confirm,确认
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
+Connect this account to the dedicated Pearnly ERP LINE in the steps below.,按下面步骤，把当前 ERP 账号绑定到专用 Pearnly ERP LINE。
 Contact Details,联系方式
 Contact Person,联系人
 Contact email,联系邮箱
@@ -283,6 +290,7 @@ Document has been cancelled,文档已取消
 Document must be submitted,请先提交单据
 Document prefix,单据前缀
 Documents,单据
+Documents go to purchase by default. Type ซื้อ or ขาย in LINE to switch between purchase and sales.,默认发的是采购单据；在 LINE 里发“ซื้อ”（采购）或“ขาย”（销售）即可切换。
 Download opening template,下载期初模板
 Download template,下载模板
 Draft,草稿
@@ -430,8 +438,10 @@ Items not found.,没找到物料
 Job Roles,功能权限
 "Keep product IDs, codes and barcodes as text in the opening stock file",期初文件中的物料标识、编码和条码请使用文本格式
 LINE,LINE
+LINE Integration,LINE 集成
 LINE Message,LINE 消息
 LINE User,LINE 用户
+LINE name,LINE 名称
 LINE unbound,LINE 已解绑
 Last Login,最后登录
 Last Month,上个月
@@ -483,6 +493,7 @@ New Sales Document,新建销售单
 New Stock Issue,新建出库单
 New Stock Receipt,新建入库单
 New Supplier,新建供应商
+New code,换一个码
 New company,新建公司
 New product,新建物料
 New stock count,新建盘点
@@ -507,6 +518,7 @@ None,无
 Normal,正常
 Not Available,无货
 Not Posted,未记入库存
+Not bound,未绑定
 Not counted,未盘点
 Not enough stock on hand,库存不足
 Not found in the Revenue Department records,税务局没有这家登记
@@ -531,6 +543,7 @@ Only the checked features are visible to this employee,只勾选的功能，这�
 Only the checked features are visible to this user,只勾选的功能，这个用户才看得到
 Only the product admin can change this,只有产品管理员能改
 Open Form View,打开表单视图
+Open Pearnly ERP in LINE,在 LINE 打开 Pearnly ERP
 Open Shift,开班
 Open a shift before selling,卖货前先开班
 Open a shift on the cashier page first.,请先在收银台开班（旧页面那条路）
@@ -676,6 +689,7 @@ Querying the Revenue Department...,正在向税务局查询…
 Quotation,报价单
 Rate,单价
 Ready to post,待入账
+Ready to use,现在可以这样使用
 Reason for Cancellation,取消原因
 Receipt,收据
 Receipt No,小票号
@@ -746,6 +760,7 @@ Saved. Scan the next item.,已保存，请扫描下一项。
 Scan,扫码
 Scan a code,扫码
 Scan barcode or QR code,扫描条形码或二维码
+Scan the QR code or search by Bot ID.,扫描二维码，或在 LINE 搜索下面的 Bot ID。
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际位置和数量，保存后自动进入下一项。
 Scanned,扫到了
 Search,搜索
@@ -773,7 +788,10 @@ Selling Units,销售单位
 Selling price,售价
 Selling warehouse,卖货的仓库
 Send,发送
+Send a photo or PDF of the document. It waits under the LINE button on the Purchase or Sales page until you review and confirm it.,发单据照片或 PDF；它会停在采购或销售页的「LINE」里，等你复核确认后才入账。
+"Send purchase or sales documents in LINE, then review and confirm them in ERP",在 LINE 发送采购或销售单据，再到 ERP 里复核确认
 Send the code from the ERP page to bind,请把 ERP 页面上的绑定码发过来
+Send this 6-digit code to the Bot,把这组 6 位数字发给 Bot
 Sending the same file twice must not create two drafts,同一个文件发两次不能生成两张草稿
 Sent By,发送人
 Serial No: {0} has already been transacted into another POS Invoice.,序列号 {0} 已在另一张收银单据上使用过
@@ -885,6 +903,7 @@ The account you give customers for transfers,收款时给对方看的账号
 The amount received is less than the total,实收不够应收
 The cart is empty,购物车是空的
 The cashier assets did not load (official-*.js).,收银台资源没加载完（official-*.js）
+The code is valid for 10 minutes.,绑定码 10 分钟内有效。
 The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据与公司资料页用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
@@ -946,6 +965,7 @@ This warehouse already exists,这个仓库已经存在
 This warehouse belongs to the company above,这个仓挂在上面那家公司名下
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
+Time left {0},剩余 {0}
 To Date,结束日期
 Total,总计
 Total Amount,总金额
@@ -964,6 +984,8 @@ Type,类型
 Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
 UOM,单位
 Unable to load preview,无法加载预览
+Unbind LINE,解绑 LINE
+Unbind Pearnly ERP LINE?,确认解绑 Pearnly ERP LINE？
 Unbound,未绑定
 Unit,单位
 Unit Cost,单位成本
@@ -1016,6 +1038,7 @@ Void {0} selected,作废选中的 {0} 张
 Voided,已作废
 Voided {0},已作废 {0} 张
 "Voided, not in the total",已撤销，不计入合计
+Wait for binding to finish,等待绑定完成
 Walk-in customer,散客
 Warehouse,仓库
 Warehouse name,仓库名称
@@ -1163,6 +1186,29 @@ completed,已完成
 count,盘点
 discount applied,已应用折扣
 draft,草稿
+erp.line.boundAt,绑定时间
+erp.line.code,绑定码
+erp.line.expired,绑定码已过期
+erp.line.intro,按下面步骤，把当前 ERP 账号绑定到专用 Pearnly ERP LINE。
+erp.line.lineName,LINE 名称
+erp.line.newCode,换一个码
+erp.line.openLine,在 LINE 打开 Pearnly ERP
+erp.line.readyTitle,现在可以这样使用
+erp.line.remaining,剩余 {0}
+erp.line.status.bound,已绑定
+erp.line.status.unbound,未绑定
+erp.line.step1.desc,扫描二维码，或在 LINE 搜索下面的 Bot ID。
+erp.line.step1.title,添加 Pearnly ERP 为好友
+erp.line.step2.desc,绑定码 10 分钟内有效。
+erp.line.step2.title,把这组 6 位数字发给 Bot
+erp.line.step3.desc,发送成功后，本页会自动显示“已绑定”。
+erp.line.step3.title,等待绑定完成
+erp.line.subtitle,在 LINE 发送采购或销售单据，再到 ERP 里复核确认
+erp.line.tip.direction,默认发的是采购单据；在 LINE 里发“ซื้อ”（采购）或“ขาย”（销售）即可切换。
+erp.line.tip.inbox,发单据照片或 PDF；它会停在采购或销售页的「LINE」里，等你复核确认后才入账。
+erp.line.title,LINE 集成
+erp.line.unbind,解绑 LINE
+erp.line.unbindConfirm,确认解绑 Pearnly ERP LINE？
 goods,货物
 hq,总店
 "image or pdf, as LINE reported it",image 或 pdf（LINE 报来的原样）
