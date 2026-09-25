@@ -19,3 +19,12 @@ class ERPCompany(Document):
             for other in frappe.get_all("ERP Company", filters={
                     "is_default": 1, "name": ["!=", self.name or ""]}, pluck="name"):
                 frappe.db.set_value("ERP Company", other, "is_default", 0)
+
+    # 左上角「切换公司」读的是启动数据里的公司清单（`masters/boot.py`），而框架把启动数据
+    # 按人缓存（`frappe.sessions.get` 的 `bootinfo`）。新建、改名、停用或删掉一家公司后
+    # 不清它，页面会一直拿旧清单 —— 新建第二家公司后菜单不出现，就是这个原因。
+    def on_change(self):
+        frappe.cache.delete_key("bootinfo")
+
+    def on_trash(self):
+        frappe.cache.delete_key("bootinfo")
