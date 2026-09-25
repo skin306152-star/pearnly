@@ -186,12 +186,6 @@
 				...roles_fields(row?.roles || [], () => dialog),
 				{fieldtype: "Section Break"},
 				companies_field(row?.companies || []),
-				// LINE 开关（用户 2026-09-25：添加用户时就勾，可选）。租户管理员本人默认开，不给勾。
-				...(row?.is_admin ? [] : [{fieldtype: "Section Break"},
-					field("line", "LINE", "Check", { default: row?.line ? 1 : 0 })]),
-				// 已经开了 LINE 的人：本人看到二维码 / 绑定码，别人只看绑定状态。
-				...(row?.line ? [{fieldtype: "Section Break", ...(row.is_admin ? {label: "LINE"} : {})},
-					{fieldtype: "HTML", fieldname: "line_panel"}] : []),
 			];
 			for (const item of fields) {
 				if (!Object.hasOwn(initial, item.fieldname)) continue;
@@ -206,12 +200,11 @@
 				const roles = permission_groups().flatMap((_group, i) => values["roles_" + i] || []);
 				if (is_new) {
 					await p.call(api + "api_add_member", {username: values.username, email: values.email,
-						password: values.password, roles, companies: values.companies || [],
-						line: values.line ? 1 : 0}, "POST");
+						password: values.password, roles, companies: values.companies || []}, "POST");
 					p.success(t("team.notice.added", values.username), "click");
 				} else {
 					await p.call(api + "api_set_member_roles", {email: row.email, roles,
-						companies: values.companies || [], line: values.line ? 1 : 0}, "POST");
+						companies: values.companies || []}, "POST");
 					p.success(t("team.notice.saved"), "click");
 				}
 				if (full_page) return frappe.set_route(root);
@@ -252,7 +245,6 @@
 				const count = dialog.fields_dict["roles_" + index].get_value().length;
 				parent.$input.prop("indeterminate", count > 0 && count < data.roles.filter(role => role.group === group).length);
 			});
-			if (row?.line) line_panel(dialog.fields_dict.line_panel.$wrapper, row);
 			if (is_new || full_page) return;
 			// 两个动作挂在原生弹窗的自定义动作槽里（与产品其它弹窗同一个位置）。
 			dialog.add_custom_action(t("team.resetPassword"), () => password_dialog(row));
@@ -266,26 +258,6 @@
 					await list.reload();
 					restore_new();
 				});
-		}
-
-		// 绑定码只有本人看得到（用户 2026-09-25 选的"只能员工本人出码"）：打开自己那一行
-		// 就是本人的绑定块；打开别人只看 LINE 名称与绑定时间。
-		function line_panel(wrapper, row) {
-			if (row.email === frappe.session.user) {
-				void p.line_binding(wrapper);
-				return;
-			}
-			if (!row.line_name) {
-				wrapper.html(`<span class="indicator-pill gray">${p.escape(lt("erp.line.status.unbound"))}</span>`);
-				return;
-			}
-			p.layout(wrapper, [
-				{fieldtype: "Data", fieldname: "line_name", label: lt("erp.line.lineName"), read_only: 1,
-					default: row.line_name},
-				{fieldtype: "Column Break"},
-				{fieldtype: "Datetime", fieldname: "line_bound_at", label: lt("erp.line.boundAt"), read_only: 1,
-					default: row.line_bound_at || ""},
-			]);
 		}
 
 		function password_dialog(row) {

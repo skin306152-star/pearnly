@@ -15,7 +15,6 @@ import re
 
 import frappe
 from frappe import _
-from frappe.utils import cint
 
 from pearnly_erp_portal.access import guard, rules, menu
 
@@ -62,9 +61,14 @@ def role_catalog() -> list[dict]:
     labels["user"] = spec.get("profile_label", "My Profile")
     groups.update({route: label for label, routes in spec.get("permission_groups", []) for route in routes})
     allowed = set(assignable_roles())
-    return [{"name": menu.role(key), "label": _(labels.get(menu.route(key), key)),
-             "group": _(groups.get(menu.route(key), "User Settings"))}
-            for key in menu.CATALOG if menu.role(key) in allowed]
+    catalog = [{"name": menu.role(key), "label": _(labels.get(menu.route(key), key)),
+                "group": _(groups.get(menu.route(key), "User Settings"))}
+               for key in menu.CATALOG if menu.role(key) in allowed]
+    # LINE 和个人信息、团队管理放在同一组（用户 2026-09-25："line 的勾选应该在用户菜单那里"）。
+    if rules.LINE_ROLE in allowed:
+        catalog.append({"name": rules.LINE_ROLE, "label": "LINE",
+                        "group": _(groups.get("user", "User Settings"))})
+    return catalog
 
 
 def _clean_username(username, *, exclude=None) -> str:
@@ -172,7 +176,8 @@ def assignable_roles() -> tuple[str, ...]:
     return tuple(menu.role(key) for key, spec in menu.CATALOG.items()
                  if (not spec[0] or spec[0] in features)
                  and (spec[0] != "cashier" or pos)
-                 and frappe.db.exists("Role", menu.role(key)))
+                 and frappe.db.exists("Role", menu.role(key))) + (
+        (rules.LINE_ROLE,) if frappe.db.exists("Role", rules.LINE_ROLE) else ())
 
 
 def _clean_roles(roles, *, existing=()) -> list[str]:
@@ -198,7 +203,7 @@ def _clean_roles(roles, *, existing=()) -> list[str]:
 
 def _member_roles():
     """Membership survives entitlement/POS changes; the assignable catalog does not."""
-    return set(rules.FEATURE_ROLES.values()) | set(menu.roles())
+    return set(rules.FEATURE_ROLES.values()) | set(menu.roles()) | {rules.LINE_ROLE}
 
 
 def _tenant_admin():
@@ -278,16 +283,6 @@ def _line_bindings(emails) -> dict:
     return {row.user: row for row in rows}
 
 
-def _set_line(user, enabled) -> bool:
-    """勾上 / 取消 LINE（`ERP LINE` 角色）。返回"是否刚取消"，调用方在保存后解绑。"""
-    held = [row for row in user.roles if row.role == rules.LINE_ROLE]
-    if enabled and not held:
-        user.append("roles", {"role": rules.LINE_ROLE})
-    for row in ([] if enabled else held):
-        user.roles.remove(row)
-    return bool(held) and not enabled
-
-
 def _unbind_line(user: str) -> None:
     """取消 LINE = 立即解绑（用户 2026-09-25）：这个 LINE 再发单据会被拒。"""
     from pearnly_core import line_binding
@@ -297,8 +292,7 @@ def _unbind_line(user: str) -> None:
         line_binding.unbind(line_user_id)
 
 
-def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None,
-               line=0) -> dict:
+def add_member(username: str = "", email: str = "", roles=None, password=None, companies=None) -> dict:
     """新增员工：**用户名** + 邮箱 + 初始密码 + 勾选的岗位。
 
     用户 2026-09-24 的口径："添加用户必须是英文和数字，不区分大小写，长度不限；密码可以自由
@@ -338,8 +332,7 @@ def add_member(username: str = "", email: str = "", roles=None, password=None, c
         "first_name": username,
         "send_welcome_email": 0,
         "user_type": "System User",
-        "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted),
-                  *([{"role": rules.LINE_ROLE}] if cint(line) else [])],
+        "roles": [{"role": rules.BASE_ROLE}, *({"role": role} for role in wanted)],
     })
     # 初始密码由老板当面给员工，不走"邀请邮件"那条路（本租户不接邮件通道）。
     if _local_password_allowed():
@@ -375,7 +368,7 @@ def set_member_password(email: str, password=None) -> dict:
     return {"email": user.name}
 
 
-def set_member_roles(email: str, roles=None, companies=None, line=None) -> dict:
+def set_member_roles(email: str, roles=None, companies=None) -> dict:
     """改岗位：只动 ERP 功能角色，其它角色（如 Desk User）保持不动。
 
     这里**只有岗位**可改：用户名（发号时填的那个名字，就是登录用的身份）和邮箱是
@@ -389,7 +382,7 @@ def set_member_roles(email: str, roles=None, companies=None, line=None) -> dict:
     # must not silently erase their inactive grants.
     wanted = _clean_roles(roles, existing=held_roles.intersection(menu.roles()))
     wanted_companies = _clean_companies(companies) if companies is not None else None
-    known = set(rules.FEATURE_ROLES.values()) | set(menu.roles())
+    known = set(rules.FEATURE_ROLES.values()) | set(menu.roles()) | {rules.LINE_ROLE}
     # 只动子表、最后自己 save（`ignore_permissions`）：框架的 `add_roles/remove_roles`
     # 会各自 `save()` 一次、且不带 `ignore_permissions`，在租户站点上会被产品自己的
     # User 权限钩子挡下（非超管只能改自己那条）。直接给 `user.roles` 赋一串 dict 也不行，
@@ -404,9 +397,8 @@ def set_member_roles(email: str, roles=None, companies=None, line=None) -> dict:
     for role in wanted:
         if role not in held:
             user.append("roles", {"role": role})
-    turned_off = _set_line(user, cint(line)) if line is not None else False
     user.save(ignore_permissions=True)
-    if turned_off:
+    if rules.LINE_ROLE in held_roles and rules.LINE_ROLE not in wanted:
         _unbind_line(user.name)
     if wanted_companies is not None:
         _write_companies(user, wanted_companies)

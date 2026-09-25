@@ -457,6 +457,9 @@ for _key, _spec in _menu_permissions.CATALOG.items():
 for _key in ("home", "profile"):
     pearnly_navigation[0]["permissions"][_menu_permissions.route(_key)]["any_role"] += [
         "ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier"]
+# LINE 只在本人的「个人信息」里绑（用户 2026-09-25），所以勾了 LINE 的人一定进得去那一页。
+from pearnly_erp_portal.access import rules as _rules
+pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_role"].append(_rules.LINE_ROLE)
 after_install = "pearnly_erp_portal.access.setup.sync_roles"
 after_migrate = "pearnly_erp_portal.access.setup.sync_roles"
 
