@@ -306,7 +306,7 @@ def set_status(name, target, reason=None, receive_stock=None):
     guard.require("purchase.write")
     frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
     doc = _get(name)
-    if doc.calculation_version == 2 and target == contracts.VOID:
+    if (doc.calculation_version or 0) >= 2 and target == contracts.VOID:
         from pearnly_erp_portal.purchasing import entry
 
         result = entry.cancel(name, reason)
@@ -393,7 +393,7 @@ def pay(name, *, amount, method=None, date=None, note=None):
     """登记一笔付款。多笔累加；超过净应付的付款被拒。"""
     guard.require("purchase.write")
     doc = _get(name)
-    if doc.calculation_version == 2:
+    if (doc.calculation_version or 0) >= 2:
         from pearnly_erp_portal.purchasing import entry
 
         result = entry.payment(name, amount=amount, method=method or "cash", date=date, note=note)
@@ -428,7 +428,7 @@ def set_payment_status(name, status):
     """直接把单据标成未付/已付（旧线上有这条快捷路径，用于线下已结清的单据）。"""
     guard.require("purchase.write")
     doc = _get(name)
-    if doc.calculation_version == 2:
+    if (doc.calculation_version or 0) >= 2:
         from pearnly_erp_portal.purchasing import entry
 
         if status not in (contracts.UNPAID, contracts.PAID):

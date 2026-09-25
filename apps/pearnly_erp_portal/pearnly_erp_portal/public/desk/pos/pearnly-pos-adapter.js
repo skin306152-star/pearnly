@@ -892,19 +892,16 @@ frappe.provide("frappe.pearnly.pos_next");
 				if (field && field.setup_barcode_field && field.df.options !== "Barcode") {
 					field.df.options = "Barcode";
 					field.setup_barcode_field();
-					field.$wrapper.on("click", `a[title="${__("Scan")}"]`, () => {
+					// 相机用**与盘点、选商品同一个读码器**（`scan.js` 的 `p.scan`：原生 BarcodeDetector，
+					// 没有就本地 WASM；同一个码连读两次才算；闪一下 + 震动），不用框架那只 `frappe.ui.Scanner`
+					// （用户 2026-09-26：「POS 的扫码不好用，和其它的不是一个」）。按钮仍是框架那颗，只换动作。
+					field.$scan_btn?.off("click");
+					field.$scan_btn?.on("click", "a", () => void p.scan({ kind: "all", on_result: code => {
+						// 官方搜索框只听 `input` 才筛选、再「唯一命中直接进车」（`set_search_value` 同一写法）；
+						// `set_value()` 回填不发 `input`，扫到的码会停在框里、不进车（09-26 真机）。
 						this.pearnly_scanned = true;
-					});
-					// 框架相机扫到后是 `set_value()` 回填（`data.js` `setup_barcode_field`），不发 `input`；
-					// 官方搜索框只听 `input` 才筛选、再「唯一命中直接进车」。于是扫到的码停在框里、
-					// 列表不变、也不进车（用户 2026-09-26 真机）。扫码回填后补发一次 `input`，
-					// 后面照旧走官方那条路（筛选 → 唯一命中 → add_filtered_item_to_cart）。
-					const set_value = field.set_value.bind(field);
-					field.set_value = (...args) => {
-						const done = set_value(...args);
-						if (this.pearnly_scanned) Promise.resolve(done).then(() => field.$input.trigger("input"));
-						return done;
-					};
+						field.$input.val(code).trigger("input");
+					} }));
 				}
 				// 「物料组」我们产品**没有**（用户 2026-09-24："物料组我们是没有的，删掉"）。
 				// 官方那一格就在这个方法里建（`item_group_field`，一个 `Item Group` 的 Link，

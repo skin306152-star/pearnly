@@ -12,7 +12,7 @@ from pearnly_erp_portal.purchasing import contracts
 class PurchaseDocument(Document):
     def validate(self):
         previous = self.get_doc_before_save()
-        if (self.calculation_version == 2 or (previous and previous.calculation_version == 2)) and not self.flags.get("purchase_action"):
+        if ((self.calculation_version or 0) >= 2 or (previous and (previous.calculation_version or 0) >= 2)) and not self.flags.get("purchase_action"):
             if self.is_new() or (previous and previous.status != "draft") or self.status != "draft":
                 frappe.throw(_("Document has already been submitted"))
 
@@ -21,7 +21,7 @@ class PurchaseDocument(Document):
         self._recompute()
 
     def on_trash(self):
-        if self.calculation_version == 2 and self.status != "draft":
+        if (self.calculation_version or 0) >= 2 and self.status != "draft":
             frappe.throw(_("Only Draft documents can be deleted"))
 
     def _recompute(self):
@@ -30,7 +30,7 @@ class PurchaseDocument(Document):
         规则本体在 `purchasing/contracts.py`（纯逻辑、可离线验证），这里只负责把它
         接到单据上：这样网页、LINE、识别入库三条路径用的是同一份金额口径。
         """
-        if self.get("calculation_version") == 2:
+        if (self.get("calculation_version") or 0) >= 2:
             from pearnly_erp_portal.purchasing import amounts
 
             override = None
@@ -42,7 +42,9 @@ class PurchaseDocument(Document):
                 totals = amounts.calculate([row.as_dict() for row in self.lines],
                     has_vat=bool(self.has_vat), price_mode=self.price_mode or "exclusive",
                     discount_total=self.discount_total, rounding=self.rounding,
-                    amount_override=override)
+                    amount_override=override,
+                    # 版本 2 的旧单据保持原算法（保存时金额不变），版本 3 起整单折扣先于 VAT。
+                    discount_before_vat=self.calculation_version >= amounts.DISCOUNT_BEFORE_VAT)
             except (ValueError, KeyError) as exc:
                 frappe.throw(_(str(exc)))
             for row, result in zip(self.lines, totals.pop("lines")):

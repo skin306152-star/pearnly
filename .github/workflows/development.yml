@@ -58,6 +58,8 @@ jobs:
         run: node scripts/production/test-issue-actions.cjs
       - name: Verify welcome email contracts
         run: python3 tests/test_welcome_email.py
+      - name: Verify purchase amount contracts
+        run: python3 tests/test_purchase_amounts.py
       - name: Check generated translations
         run: python3 scripts/i18n-build.py --check
       - name: Check whitespace

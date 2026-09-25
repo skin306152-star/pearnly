@@ -169,7 +169,7 @@ def review(result):
         computed = amounts.calculate(lines, has_vat=result.get("has_vat") is not False,
                                      price_mode=result.get("price_mode") or "exclusive",
                                      discount_total=result.get("discount_total") or 0,
-                                     rounding=result.get("rounding") or 0)
+                                     rounding=result.get("rounding") or 0, discount_before_vat=True)
     except (ValueError, KeyError, ArithmeticError, TypeError):
         computed = None
     issues += checks.computed_issues(printed, computed["grand_total"], computed["vat_amount"]) if computed else (

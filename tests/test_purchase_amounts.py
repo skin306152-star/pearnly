@@ -41,6 +41,30 @@ class PurchaseAmounts(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Totals do not match'):
             a.calculate(lines, amount_override={**override, 'grand_total': '204.02'})
 
+    def test_version_3_takes_the_bill_discount_before_vat(self):
+        # MR.ERP `allform.js:702-720`：beforevat = total − discount，vat = beforevat × rate。
+        result = a.calculate([{'qty': 1, 'unit_price': 1000, 'vat_rate': 7}], discount_total=100,
+                             discount_before_vat=True)
+        self.assertEqual((result['vat_amount'], result['grand_total']), (Decimal('63.00'), Decimal('963.00')))
+        # 09-26 Giffarine 含税票：12,810 − 折扣 3,162 = 9,648，VAT 631.18（版本 2 算成 838.04）。
+        lines = [{'qty': 40, 'unit_price': 300, 'vat_rate': 7}, {'qty': 6, 'unit_price': 135, 'vat_rate': 7}]
+        v3 = a.calculate(lines, price_mode='inclusive', discount_total=3162, discount_before_vat=True)
+        self.assertEqual((v3['discount_total'], v3['vat_amount'], v3['grand_total']),
+                         (Decimal('3162.00'), Decimal('631.18'), Decimal('9648.00')))
+        self.assertEqual(sum(row['vat_amount'] for row in v3['lines']), v3['vat_amount'])
+        # 存的是输入的折扣：拿结果再算一遍，金额不变（每次保存都会重算）。
+        again = a.calculate([dict(row) for row in lines], price_mode='inclusive',
+                            discount_total=v3['discount_total'], discount_before_vat=True)
+        self.assertEqual(again['grand_total'], v3['grand_total'])
+        # 版本 2 的旧单据照旧：先算 VAT、后扣折扣。
+        self.assertEqual(a.calculate(lines, price_mode='inclusive', discount_total=3162)['vat_amount'],
+                         Decimal('838.04'))
+
+    def test_version_3_discount_cannot_exceed_the_amount(self):
+        with self.assertRaises(ValueError):
+            a.calculate([{'qty': 1, 'unit_price': 100, 'vat_rate': 7}], discount_total=101,
+                        discount_before_vat=True)
+
     def test_invalid_numbers_and_discount(self):
         for row in [{'qty': 0, 'unit_price': 1}, {'qty': 1, 'unit_price': 'NaN'},
                     {'qty': 1, 'unit_price': '-1'}, {'qty': 1, 'unit_price': 1, 'discount': 2},

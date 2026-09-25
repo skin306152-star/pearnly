@@ -19,8 +19,28 @@ def money(value):
     return decimal(value, signed=True).quantize(CENT, rounding=ROUND_HALF_EVEN)
 
 
+# 计算版本 3（2026-09-26 起新建的单据）：整单折扣先扣、再按折后金额算 VAT —— 照 MR.ERP
+# （用户给的泰国 ERP 源码 `mrerp-source` `src/appe/component/javascript/allform.js:650-721`：
+# `beforevat = grandtotal − discount`，`vat = beforevat × rate`；采购、销售同一函数）与本仓销售。
+# 版本 2 是「先算 VAT、后扣折扣」（旧线上手工录入口径），已有单据按它继续算，保存时金额不变。
+DISCOUNT_BEFORE_VAT = 3
+
+
+def _allocate(total, weights):
+    """按权重分摊一笔钱，尾差落在最后一行（每行两位小数）。"""
+    base = sum(weights, Decimal(0))
+    shares, remaining = [], total
+    for index, weight in enumerate(weights):
+        share = remaining if index == len(weights) - 1 else (
+            money(total * weight / base) if base else Decimal(0))
+        share = min(share, remaining) if index < len(weights) - 1 else share
+        shares.append(share)
+        remaining -= share
+    return shares
+
+
 def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
-              rounding=0, amount_override=None):
+              rounding=0, amount_override=None, discount_before_vat=False):
     if not isinstance(lines, list) or not lines:
         raise ValueError("Items are required")
     if price_mode not in ("exclusive", "inclusive"):
@@ -46,9 +66,23 @@ def calculate(lines, *, has_vat=True, price_mode="exclusive", discount_total=0,
                            "wht_rate": wht_rate, "vat_amount": line_vat, "wht_amount": line_wht})
     discount = money(decimal(discount_total))
     adjustment = money(rounding)
-    if discount > subtotal:
+    exclusive_discount = discount
+    if discount_before_vat and discount and normalized:
+        # 整单折扣按票面口径输入、原样存（含税票就是含税的折扣，与行折扣同一口径）；按各行金额
+        # 分摊、换成不含税后从 VAT 基数里扣掉。存的是输入值，所以反复保存重算结果不变。
+        factors = [1 + row["vat_rate"] / 100 if price_mode == "inclusive" else Decimal(1) for row in normalized]
+        shares = _allocate(discount, [row["line_total"] * factor for row, factor in zip(normalized, factors)])
+        exclusive_discount, vat = Decimal(0), Decimal(0)
+        for row, share, factor in zip(normalized, shares, factors):
+            exclusive = money(share / factor)
+            if exclusive > row["line_total"]:
+                raise ValueError("Discount cannot exceed the amount")
+            row["vat_amount"] = money((row["line_total"] - exclusive) * row["vat_rate"] / 100)
+            exclusive_discount += exclusive
+            vat += row["vat_amount"]
+    if exclusive_discount > subtotal:
         raise ValueError("Discount cannot exceed the amount")
-    grand = money(subtotal - discount + vat + adjustment)
+    grand = money(subtotal - exclusive_discount + vat + adjustment)
     if amount_override:
         subtotal, discount, vat, grand = (money(decimal(amount_override[key])) for key in
                                          ("subtotal", "discount_total", "vat_amount", "grand_total"))
