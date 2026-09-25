@@ -313,8 +313,10 @@ class NativeFlow(unittest.TestCase):
         self.assertEqual(self.deliveries()[0].status, "Delivered")
         self.assertEqual(frappe.db.count("Pearnly Push Log", {"actor": self.user, "status": "success"}), 1)
         # The receipt rides the confirm click's reply token: free, not a paid push.
+        # Match message content only: reply tokens embed the label too ("reply-<label>-<hex>"),
+        # so a token whose hex starts with the order suffix would count as a second receipt.
         receipts = [data["json"] for _, url, data in self.http
-                    if self.dms.orders[0]["number"] in str(data.get("json"))]
+                    if self.dms.orders[0]["number"] in str((data.get("json") or {}).get("messages"))]
         self.assertEqual(len(receipts), 1)
         self.assertEqual(receipts[0]["replyToken"], "reply-" + event)
         self.assertFalse(any(url.endswith("/push") for _, url, _ in self.http))
