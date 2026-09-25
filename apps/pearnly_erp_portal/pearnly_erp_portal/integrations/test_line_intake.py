@@ -494,6 +494,15 @@ class Checks(unittest.TestCase):
         self.assertEqual(checks.printed_issues({"subtotal": 67852.8, "discount": 0, "vat": 4438.97,
                                                 "total": 67852.8}, [22617.6, 28272, 16963.2]), [])
 
+    def test_a_printed_line_amount_below_qty_times_price_is_a_discount(self):
+        from pearnly_erp_portal.purchasing import recognition
+
+        clean = recognition.clean_result({"lines": [
+            {"description": "A", "qty": 6, "unit_price": 589, "amount": "2,827.20"},
+            {"description": "B", "qty": 2, "unit_price": 589},
+            {"description": "C", "qty": 1, "unit_price": 100, "amount": 100}]})
+        self.assertEqual([row.get("discount") for row in clean["lines"]], [706.8, None, None])
+
     def test_percent_discount_column_becomes_an_amount(self):
         from pearnly_erp_portal.purchasing import recognition
 

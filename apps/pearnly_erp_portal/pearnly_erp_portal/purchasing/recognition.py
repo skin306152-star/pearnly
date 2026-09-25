@@ -20,8 +20,9 @@ barcode, qty, unit, unit_price, amount, discount, vat_rate, wht_rate, batch_no, 
 unit_price is the printed price per unit and amount the printed line amount.
 Copy doc_no, codes and every line description exactly as printed, character by character, in the
 original language and spelling; never replace them with a similar or better-known product name.
-discount is the line discount amount; when the discount column is a percentage (e.g. headed "%" or
-"ส่วนลด %"), put that number in discount_percent instead. discount_total is the bill-level discount amount.
+discount is the line discount amount; when the discount column is a percentage (headed "%" or
+"ส่วนลด %", even if the numbers are printed without a % sign, e.g. 20.00), put that number in
+discount_percent instead. discount_total is the bill-level discount amount.
 Also return doc_date_raw (the document date exactly as printed, e.g. 19/05/69 or 10/05/2569), is_document (false when the image is not a purchase document at all), buyer_tax_id,
 and printed {subtotal, discount, vat, total}: the summary amounts exactly as printed at the foot of the
 document, where subtotal is the amount before VAT (e.g. ราคาสินค้า / มูลค่าก่อนภาษี / ยอดก่อน VAT), vat
@@ -74,8 +75,14 @@ def clean_result(raw):
             row["discount"] = f"{percent}%"
         # 只印了行金额、没印单价：单价 = 票面行金额 ÷ 数量（09-26 小票就是这样，单价全成了 0）。
         amount, qty = _number(raw_row.get("amount") or 0), _number(row.get("qty") or 1)
-        if not (_number(row.get("unit_price") or 0) or 0) and amount and qty:
+        price = _number(row.get("unit_price") or 0) or 0
+        if not price and amount and qty:
             row["unit_price"] = float((amount / qty).quantize(Decimal("0.01"), ROUND_HALF_UP))
+        elif price and amount and qty and not row.get("discount") and not raw_row.get("discount_percent") \
+                and qty * price - amount > Decimal("0.005"):
+            # 票面印了行金额、比「数量 × 单价」少，又没读到折扣：差额就是这一行的折扣
+            # （09-26 NBC 票「ส่วนลด %」一列没读到；旧线上靠合计反推折扣，这里按行更准）。
+            row["discount"] = float((qty * price - amount).quantize(Decimal("0.01"), ROUND_HALF_UP))
         result["lines"].append(row)
     net = Decimal(0)
     for row in result["lines"]:
