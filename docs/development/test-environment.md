@@ -24,7 +24,7 @@
    ```bash
    export PEARNLY_TESTENV_SRC=/Users/skin/.codex/worktrees/<被测分支工作树>
    export PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:…
-   bash scripts/testenv.sh lab-start dms        # 起 DMS 栈 + 导入最新租户数据 + 切域名
+   bash scripts/testenv.sh lab-start dms        # 必要时拉镜像 → 起 DMS 栈 →（首次才导入）→ 切域名
    ```
 4. 按下面的"一键切换"用测试租户做真实验证。
 5. 通过 → 合并推送，再用**同一个 digest** 部署；不通过 → 在测试环境里改，线上从没被动过。
@@ -56,12 +56,12 @@ ERP，两边的库、队列、缓存都不共享。
 | `bench clear-cache`（清 Frappe hooks/资源缓存） | "新功能看不见"——缓存里存着旧的资源版本号，页面一直加载旧 JS |
 | 写 `pearnly_ocr_budget_redis` 与队列超时 | LINE 发照片在入队处就失败，回"识别队列繁忙，请稍后重发" |
 
-`lab-start` 会在导入完成后再跑一次收尾：导入是全新的库，起栈时那次升级没有覆盖到它。
+`lab-start` 在导入数据之后会再跑一次收尾：导入是全新的库，起栈时那次升级没有覆盖到它。
 
 ## 一键切换（把测试租户整体切到测试环境）
 
 ```bash
-bash scripts/testenv.sh lab-start dms   # 起 DMS 栈 → 导出 testdms → 取回 → 导入 → 收尾 → 切域名
+bash scripts/testenv.sh lab-start dms   # 拉镜像（测试机没有才拉）→ 起 DMS 栈 →（首次或要求刷新才导出导入）→ 切域名
 bash scripts/testenv.sh lab-stop  dms   # 域名切回线上 → 停 DMS 栈（卷保留）
 bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 ```
@@ -76,9 +76,9 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 
 | 这次想干什么 | 一条命令 | 说明 |
 | --- | --- | --- |
-| 同一镜像、同一个产品，再测一遍 | `lab-start dms` | 最快：栈已在、数据已在，只重新收尾 + 切域名 |
-| 同一个产品，**换成新镜像**（发版后复验） | `PEARNLY_TESTENV_IMAGE=<新 digest> lab-start dms` | 拉到新镜像 → 起栈 → 自动 `migrate`/`clear-cache`/写运行配置 → 导入最新租户数据 → 切域名 |
-| 只想刷新**租户数据**（不换镜像） | `import dms testdms.pearnly.com` 然后 `finish dms` | 数据来源是线上导出；导入后必须跑收尾 |
+| 同一镜像、同一个产品，再测一遍 | `lab-start dms` | 最快：镜像已在不再拉，栈起来时自动收尾，租户数据复用，然后切域名 |
+| 同一个产品，**换成新镜像**（发版后复验） | `PEARNLY_TESTENV_IMAGE=<新 digest> lab-start dms` | 拉新镜像 → 起栈 → 自动 `migrate`/`clear-cache`/写运行配置 → 切域名；已导入的租户数据原样复用并升级 |
+| 要**线上最新的租户数据** | `PEARNLY_TESTENV_REFRESH=1 lab-start dms` | 线上导出到本次专用目录 → 只取这一组 → 导入租户与账本 → 收尾 → 切域名；测试机上原来的该租户数据被覆盖 |
 | 换成**另一个产品** | `lab-start erp` | 会先停掉 dms 栈（容器删、卷保留），再起 erp；两个产品的域名互不影响 |
 | 测完**切回线上** | `lab-stop dms` | 域名回落通配记录；测试环境数据保留，下次接着用 |
 | 想**推倒重来**（数据也清掉） | 先 `lab-stop <产品>`，再 `reset` | `reset` 删的是 `pearnly-testenv*` 的卷；**会连导入的测试租户数据一起删掉**，之后要重新 `lab-start` 导入 |
@@ -97,8 +97,9 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 - **镜像必须钉 digest**（`…@sha256:…`）：`pull` 只接受钉死的 digest，避免"以为测的是这版、
   其实拉到的是别的标签"。
 - 产品栈与设备侧的准备是分开的：`setup` 只在**换设备/重装 WSL** 时才跑；日常复用不需要它。
-- 目前只有 **dms** 这套真跑过（含栈、卷、`testdms.pearnly.com` 站点）；**erp 那套是脚本支持、
-  但还没起过第一次**——第一次 `lab-start erp` 要建卷并导入，遇到问题按"出问题怎么查"一节处理，
+- **dms** 与 **erp** 两套都真跑过（erp 于 2026-09-25 第一次起，见
+  [ERP 测试环境记录](../work/2026-09-25-erp-testenv.md)）；第一次 `lab-start <产品>` 会建卷并导入，
+  遇到问题按"出问题怎么查"一节处理，
   不要当成"流程坏了"。
 
 底层是 [`testenv-cloudflare.sh`](../../scripts/testenv-cloudflare.sh) 的 `switch-lab` / `switch-prod`
@@ -135,7 +136,13 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 
 - Cloudflare API token 与隧道运行令牌只存在**本机** `~/.config/pearnly-testenv/`（权限 600），
   设备侧令牌在测试机 `/opt/pearnly-testenv/`；都不进仓库、不写进文档。
-- 测试环境不接正式账本、不启用付费 OCR（占位空凭据）、LINE 用测试租户自己的频道。
+- 测试机数据库与本地 Keycloak 的口令在 `~/.config/pearnly-testenv/testenv-secrets`（600）。
+  驱动只认这一份（工作树根的 `.testenv-secrets` 是旧位置，仍兼容），两处都没有才生成；
+  已有数据卷时换一份口令会让数据库对不上，所以不要删它。
+- 测试环境不接正式账本（账本站是整站导入的副本）、LINE 用测试租户自己的频道。
+- **OCR 是真凭据**：测试机 `/opt/pearnly/secrets/ocr.json` 自 2026-09-24 起是线上那份
+  （DMS 验证识别时放入），所以在测试环境经 LINE 发单据会产生**真实付费调用**。只用于人工验收，
+  不跑会自动调用 OCR 的脚本；要回到零费用就换回空占位。
 - 测试机上另有一个**空的** Keycloak（仅本地），不代表线上身份；身份以线上为准。
 
 ## 它证明不了什么

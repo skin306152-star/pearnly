@@ -60,8 +60,12 @@ write_env() {
     echo 'PEARNLY_TESTENV_IMAGE must be the digest the production host is running' >&2
     exit 2
   fi
-  local state=$root/.testenv-secrets
+  # 口令只认一份：本机凭据目录（与 Cloudflare 凭据同处，600）。工作树根目录那份是旧位置，
+  # 仍兼容；两处都没有才生成，并直接写进凭据目录——换工作树不会再"重新生成口令"。
+  local state=$HOME/.config/pearnly-testenv/testenv-secrets
+  [[ -s "$state" ]] || [[ ! -s "$root/.testenv-secrets" ]] || state=$root/.testenv-secrets
   if [[ ! -s "$state" ]]; then
+    mkdir -p "$(dirname "$state")"
     umask 077
     {
       printf 'DB_ROOT_PASSWORD=%s\n' "$(openssl rand -hex 24)"
@@ -122,7 +126,7 @@ publish_import() {
   local group=$1 site=$2 src=${PEARNLY_TESTENV_IMPORT_SRC:-/tmp/te-export}
   local slug; slug=$(printf '%s' "$site" | tr '.' '_')
   local stage=/tmp/pearnly-import/$site
-  mkdir -p "$stage"
+  rm -rf "$stage"; mkdir -p "$stage"
   local db pub priv
   db=$(ls -1t "$src"/*"$slug"*database.sql.gz 2>/dev/null | head -1)
   pub=$(ls -1t "$src"/*"$slug"*files.tar 2>/dev/null | grep -v private-files | head -1)
@@ -130,23 +134,20 @@ publish_import() {
   [[ -n "$db" && -n "$pub" && -n "$priv" && -f "$src/$site-site_config.json" ]] || {
     echo "missing export for $site under $src (need db/public/private/site_config)" >&2; exit 2; }
   cp "$db" "$pub" "$priv" "$src/$site-site_config.json" "$stage/"
-  # 传父目录，远端结构与 win_temp/pearnly-import/<site>/ 一致
-  scp -q -o BatchMode=yes -r /tmp/pearnly-import "$host:C:/Users/codexops/AppData/Local/Temp/"
-  wsl mkdir -p "/opt/pearnly-testenv/import/$site"
+  # 只传本站点这一组（以前传整个 /tmp/pearnly-import，别的站点暂存过的文件也跟着走）。
+  wsl mkdir -p "$win_temp/pearnly-import" "/opt/pearnly-testenv/import/$site"
+  wsl rm -rf "$win_temp/pearnly-import/$site"
+  scp -q -o BatchMode=yes -r "$stage" "$host:C:/Users/codexops/AppData/Local/Temp/pearnly-import/"
   wsl cp -r "$win_temp/pearnly-import/$site/." "/opt/pearnly-testenv/import/$site/"
   echo "published $(ls -1 "$stage" | wc -l | tr -d ' ') files for $site"
 }
 
 lab_start() {
-  # 一键开始测试（一个产品一套栈，一次只跑一个）：
-  #   起本栈 → 线上导出该租户 → 取回 → 导入 → 收尾（升级库 + 清缓存）→ 域名切过来。
-  # `lab-start dms` 只动 DMS：DMS 域名切测试机，ERP 域名与线上都不碰。
-  local prod_host=${PEARNLY_TESTENV_PROD_HOST:-107.155.65.74}
-  local prod_key=${PEARNLY_TESTENV_PROD_KEY:-$HOME/.config/pearnly-production/operator}
-  local prod_dir=/root/te-export
-  [[ -s "$prod_key" ]] || { echo "missing production key $prod_key" >&2; exit 2; }
+  # 一键开始测试（一个产品一套栈，一次只跑一个）。**默认复用**：栈、站点卷与导入过的租户
+  # 数据都留在测试机上，再跑只做「必要时拉镜像 → 起栈（自动升级库、清缓存）→ 切域名」。
+  # 只有测试机上还没有这个租户，或显式 PEARNLY_TESTENV_REFRESH=1，才从线上重新导出导入。
+  # `lab-start erp` 只动 ERP：ERP 域名切测试机，DMS 域名与线上都不碰。
   local apps; apps=$(lab_apps "$@" | paste -sd' ' -)
-  local specs; specs=$(lab_apps "$@" | tenant_spec | paste -sd' ' -)
   local count; count=$(lab_apps "$@" | wc -l | tr -d ' ')
   (( count == 1 )) || {
     echo '一次只跑一个产品：每个 app 一套独立栈（数据库/Redis/卷都分开），' >&2
@@ -155,36 +156,62 @@ lab_start() {
     exit 2
   }
   local first; first=$(lab_apps "$@" | head -1)
-  echo "本次涉及产品：$apps"
+  local spec; spec=$(printf '%s\n' "$first" | tenant_spec)
+  local site=${spec#*:}
+  # 账本导入 / 升级跟着本产品的栈走，不能落回默认的 dms。
+  export PEARNLY_TESTENV_APP=$first
+  echo "本次涉及产品：$apps（站点 $site）"
 
-  echo "== 1/6 起本栈（拉镜像 → 起服务；自动升级站点库、清缓存、写运行配置）"
+  echo "== 1/4 镜像：测试机上没有这个 digest 才拉"
+  if has_image; then echo "· 已在测试机：$(image_from_env)"; else bash "$0" pull | tail -2; fi
+
+  echo "== 2/4 起本栈（先停别的测试栈；自动升级站点库、清缓存、写运行配置）"
   bash "$0" up "$first" | tail -8
 
-  echo "== 2/6 线上导出测试租户与账本"
-  ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" 'bash -s' "$prod_dir" \
-    $specs billing:billing.internal \
-    < "$root/infrastructure/testenv/export-test-tenant.sh" | tail -3
+  if [[ "${PEARNLY_TESTENV_REFRESH:-0}" == 1 ]] || ! tenant_present "$first" "$site"; then
+    echo "== 3/4 刷新租户数据：线上导出 → 只取本次这一组 → 导入 → 账本 → 再收尾"
+    lab_refresh "$first" "$spec"
+  else
+    echo "== 3/4 复用测试机上已导入的 $site（要最新线上数据：PEARNLY_TESTENV_REFRESH=1）"
+  fi
 
-  echo "== 3/6 取回本机"
-  mkdir -p /tmp/te-export
-  scp -q -i "$prod_key" -o BatchMode=yes "root@$prod_host:$prod_dir/*" /tmp/te-export/
-
-  echo "== 4/6 导入测试环境"
-  for spec in $specs; do
-    bash "$0" import "${spec%%:*}" "${spec#*:}" | tail -2
-  done
-
-  # 账本（控制面）必须在本栈自己的 billing-web 里，否则产品的付费路径（DMS 身份证识别
-  # 等）会卡在计费那一步无限重试。它和产品租户一起从线上整站导入，与线上账本物理隔离。
-  echo "== 5/6 导入账本站点"
-  bash "$0" import billing billing.internal | tail -2
-  bash "$0" migrate billing billing.internal | tail -2
-
-  echo "== 6/6 收尾（升级导入的站点库 + 清缓存）并把域名切到测试环境"
-  # 导入是全新的库，起栈时那次升级没有覆盖到，必须再来一次。
-  bash "$0" finish "$first" | tail -10
+  echo "== 4/4 域名切到测试环境"
   bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
+}
+
+lab_refresh() {
+  local first=$1 spec=$2
+  local prod_host=${PEARNLY_TESTENV_PROD_HOST:-107.155.65.74}
+  local prod_key=${PEARNLY_TESTENV_PROD_KEY:-$HOME/.config/pearnly-production/operator}
+  [[ -s "$prod_key" ]] || { echo "missing production key $prod_key" >&2; exit 2; }
+  # 每次一个新目录：线上 /root/te-export 下以前的导出（别的产品、旧批次）一律不取。
+  local run; run=$(date -u +%Y%m%dT%H%M%SZ)
+  local prod_dir=/root/te-export/$run
+  local local_dir; local_dir=$(mktemp -d "${TMPDIR:-/tmp}/te-export.XXXXXX")
+  ssh -i "$prod_key" -o BatchMode=yes "root@$prod_host" 'bash -s' "$prod_dir" \
+    "$spec" billing:billing.internal \
+    < "$root/infrastructure/testenv/export-test-tenant.sh" | tail -3
+  scp -q -i "$prod_key" -o BatchMode=yes "root@$prod_host:$prod_dir/*" "$local_dir/"
+  echo "· 取回 $(ls -1 "$local_dir" | wc -l | tr -d ' ') 个文件（$(du -sh "$local_dir" | cut -f1)）"
+  export PEARNLY_TESTENV_IMPORT_SRC=$local_dir
+  bash "$0" import "${spec%%:*}" "${spec#*:}" | tail -2
+  # 账本（控制面）必须在本栈自己的 billing-web 里，否则产品的付费路径会卡在计费那一步无限重试。
+  bash "$0" import billing billing.internal | tail -2
+  bash "$0" migrate billing billing.internal | tail -2
+  # 导入是全新的库，起栈时那次升级没有覆盖到，必须再来一次。
+  bash "$0" finish "$first" | tail -10
+  rm -rf "$local_dir"
+}
+
+has_image() {
+  local image; image=$(image_from_env)
+  [[ "$image" == *@sha256:* ]] && wsl docker image inspect "$image" >/dev/null 2>&1
+}
+
+tenant_present() {
+  local app=$1 site=$2
+  wsl test -s "/var/lib/docker/volumes/pearnly-testenv-${app}_sites-${app}/_data/$site/site_config.json"
 }
 
 lab_stop() {
