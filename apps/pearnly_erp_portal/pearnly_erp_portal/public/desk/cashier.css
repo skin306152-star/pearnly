@@ -38,3 +38,38 @@
 .pearnly-pos-empty .pearnly-pos-empty-btn {
 	margin-top: 2px;
 }
+
+/* Phone width (user 2026-09-26: the search box and scan button were too small to use).
+ * The official stylesheet gives the filter row 12 columns for label + search + item
+ * group; we removed the item group, so on a phone the search takes the whole row,
+ * with a 44px touch height and a larger scan button. 16px text stops iOS zooming. */
+@media screen and (max-width: 620px) {
+	.point-of-sale-app > .items-selector > .filter-section {
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--margin-sm);
+	}
+	.point-of-sale-app > .items-selector > .filter-section > .search-field {
+		grid-column: 1 / -1;
+		margin: 0;
+	}
+	.point-of-sale-app > .items-selector > .filter-section > .search-field .frappe-control {
+		width: 100%;
+		margin-bottom: 0;
+	}
+	.point-of-sale-app > .items-selector > .filter-section > .search-field input {
+		height: 44px;
+		font-size: 16px;
+		padding-right: 84px;
+	}
+	.point-of-sale-app > .items-selector > .filter-section > .search-field .link-btn a {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		min-width: 40px;
+		min-height: 40px;
+	}
+	.point-of-sale-app > .items-selector > .filter-section > .search-field .link-btn svg.icon {
+		width: 22px;
+		height: 22px;
+	}
+}

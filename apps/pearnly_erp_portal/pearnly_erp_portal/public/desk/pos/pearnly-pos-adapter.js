@@ -895,6 +895,16 @@ frappe.provide("frappe.pearnly.pos_next");
 					field.$wrapper.on("click", `a[title="${__("Scan")}"]`, () => {
 						this.pearnly_scanned = true;
 					});
+					// 框架相机扫到后是 `set_value()` 回填（`data.js` `setup_barcode_field`），不发 `input`；
+					// 官方搜索框只听 `input` 才筛选、再「唯一命中直接进车」。于是扫到的码停在框里、
+					// 列表不变、也不进车（用户 2026-09-26 真机）。扫码回填后补发一次 `input`，
+					// 后面照旧走官方那条路（筛选 → 唯一命中 → add_filtered_item_to_cart）。
+					const set_value = field.set_value.bind(field);
+					field.set_value = (...args) => {
+						const done = set_value(...args);
+						if (this.pearnly_scanned) Promise.resolve(done).then(() => field.$input.trigger("input"));
+						return done;
+					};
 				}
 				// 「物料组」我们产品**没有**（用户 2026-09-24："物料组我们是没有的，删掉"）。
 				// 官方那一格就在这个方法里建（`item_group_field`，一个 `Item Group` 的 Link，

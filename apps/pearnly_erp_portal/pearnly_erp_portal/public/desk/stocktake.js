@@ -189,19 +189,24 @@
 				empty.find(".btn-new-doc").text(w("record")).on("click", () => entry_form());
 				table_host.empty().append(empty); return;
 			}
+			// 手机上（用户 2026-09-26：11 列挤成一堆看不了）只留盘点时要看的五列：物料、账面、实际、
+			// 差异、状态；编码 / 条码 / 仓位 / 单位 / 金额点物料名进去看。仍是同一张官方表格，只是列少了。
+			const narrow = window.matchMedia("(max-width: 767px)").matches;
 			const columns = [
-				{ name: t("stock.col.name"), width: 210, format: value => value },
+				{ name: t("stock.col.name"), width: narrow ? 120 : 210, format: value => value, phone: true },
 				{ name: t("stock.col.code"), width: 100 }, { name: t("stock.col.barcode"), width: 140 },
 				{ name: w("bookPosition"), width: 160 },
 				// 这几列会自己拼红字（差异那几格），所以不走默认的 `p.escape`。
 				{ name: w("actualPositions"), width: 230, format: value => value },
-				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: 90 },
-				{ name: t("stock.count.counted"), width: 90 },
-				{ name: w("quantityDiff"), width: 90, format: value => value },
+				{ name: t("stock.col.unit"), width: 70 }, { name: t("stock.count.book"), width: narrow ? 64 : 90, phone: true },
+				{ name: t("stock.count.counted"), width: narrow ? 64 : 90, phone: true },
+				{ name: w("quantityDiff"), width: narrow ? 64 : 90, format: value => value, phone: true },
 				...(state.can_view_costs ? [{ name: t("stock.count.differenceValue"), width: 110, format: value => value }] : []),
-				{ name: t("stock.col.status"), width: 140, format: value => value },
+				{ name: t("stock.col.status"), width: narrow ? 84 : 140, format: value => value, phone: true },
 			];
-			table = await p.table(table_host, columns.map(c=>({ ...c, format: c.format || p.escape })), rows.map(r=>{
+			const shown = columns.map((column, index) => [column, index]).filter(([column]) => !narrow || column.phone);
+			const pick = cells => shown.map(([_column, index]) => cells[index]);
+			table = await p.table(table_host, shown.map(([c])=>({ ...c, format: c.format || p.escape })), rows.map(r=>{
 				// 有差异的三处：数量差异、差异金额、以及仓位对不上时的实际仓位 —— 标红；
 				// 状态列在这一行有问题时一起标红（"未盘点"不算差异，保持原色）。
 				const quantity_diff = Boolean(r.counted) && Number(r.difference) !== 0;
@@ -209,7 +214,7 @@
 				const moved = Boolean(r.location_difference);
 				const status = r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted")
 					: moved ? w("locationDiff") : quantity_diff ? t("stock.count.rowDifference") : t("stock.count.rowMatch");
-				return [
+				return pick([
 					`<a href="#" data-count-row="${p.escape(r.name)}">${p.escape(r.product_name)}</a>`, r.code || "", r.barcode || "",
 					`${p.escape(r.warehouse_name)} / ${p.escape(r.location || t("stock.count.blank"))}`,
 					moved ? danger(p.escape(r.actual_positions || "—")) : p.escape(r.actual_positions || "—"),
@@ -218,7 +223,7 @@
 					r.counted ? (quantity_diff ? danger(qty(r.difference)) : qty(r.difference)) : "—",
 					...(state.can_view_costs ? [value_diff ? danger(qty(r.difference_value)) : qty(r.difference_value)] : []),
 					quantity_diff || moved || r.stock_changed ? danger(p.escape(status)) : p.escape(status),
-				];
+				]);
 			}), table_options());
 		}
 		async function records(row) {
