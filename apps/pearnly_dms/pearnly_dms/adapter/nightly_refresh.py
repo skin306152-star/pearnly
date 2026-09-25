@@ -64,8 +64,23 @@ FRESH_SECONDS = 20 * 3600
 #: 一次全量回读要覆盖的组（与绑定时建底座的那四组一致）。
 READ_ORDER = ("vehicles", "customers", "company", "geo")
 
-#: 还在读的状态：这几种就不必再排一次。
+#: 还在读的状态：这几种就不必再排一次 —— **只在它们确实还活着的时候**。
 IN_FLIGHT = ("queued", "running", "waiting")
+
+#: "还在跑"的有效期（秒）。不加这条期限会出事：busy 曾经把请求写成 `waiting` 之后
+#: 再没有任何东西重排它，而这里把 `waiting` 当成"正在跑"永久跳过 —— 一处卡住等于
+#: 这一组再也不回读（2026-09-25 实测，车型那条标记挂了一个多小时没人管）。
+#: 超过期限就按"已经停了"处理，重新登记一次。
+IN_FLIGHT_STALE_SECONDS = 20 * 60
+
+
+def _stalled(status: dict) -> bool:
+    """看着还在跑、其实早停了？（用请求自己的 `updated_at` 判，不看完成时间）"""
+    updated = float((status or {}).get("updated_at") or 0)
+    if not updated:
+        # 老行没有这个字段：保守地当它活着，下一次再看。
+        return False
+    return time.time() - updated > IN_FLIGHT_STALE_SECONDS
 
 #: "刚刚还有人在用这条连接"的窗口。时段设错的护栏用它（见 `_busy_with_people`）。
 PEOPLE_WINDOW_SECONDS = 900
@@ -107,7 +122,7 @@ def run():
     requested, skipped = [], {}
     for dataset in READ_ORDER:
         status = manual.status(endpoint, dataset, reader="authority")
-        if status.get("state") in IN_FLIGHT:
+        if status.get("state") in IN_FLIGHT and not _stalled(status):
             skipped[dataset] = "already-running"
             continue
         as_of = float(status.get("as_of") or 0)

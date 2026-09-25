@@ -29,6 +29,13 @@ MAX_RETRIES = 5
 #:   2026-09-25 实测：testdms 的客户组偶发栽在这上面，整组作废、任务链断掉，
 #:   而手工重跑立刻成功 —— 说明它多半是瞬时的，值得重试。有 MAX_RETRIES 兜底。
 RETRYABLE = {"ERR_DMS_SNAPSHOT_RETRY", "ERR_UNEXPECTED"}
+#: 抢不到账号时的等待阶梯（秒）。**必须延时重排，不能停在"等待中"。**
+#: 后台读取的等待时间是 0（它要让位给操作员），所以第一枪几乎必然撞上"操作员自己
+#: 还握着这个账号的会话"。2026-09-25 实测：以前这里写 `waiting` 就收工，而 `waiting`
+#: 不会重排、也没有任何清扫者 —— 缓存从此不再更新；夜间任务还把 `waiting` 当"正在跑"
+#: 而跳过这一组，等于一处卡住就永久失效。走完这五档（≈7.75 分钟）仍拿不到账号，才明确
+#: 失败：失败态夜间任务会重试，下一次"顺手同步"也会重新登记。
+BUSY_DELAYS = (15, 30, 60, 120, 240)
 
 
 def _collector(dataset, reader):
@@ -80,6 +87,8 @@ def status(endpoint, dataset, *, reader="authority"):
     return {"dataset": dataset, "state": _state(req), "request_id": req.get("id", ""),
         "progress": req.get("progress", {"processed": 0, "total": None, "unit": "records"}),
         "count": req.get("count"), "as_of": stamp,
+        # `updated_at` 让调用方（夜间任务）能分辨"真的在跑"和"停在那里没人管"。
+        "updated_at": float(req.get("updated_at") or 0),
         "completed_at": float(row.completed_at or 0) if row else 0,
         "stale": bool(stamp and (time.time() - stamp > (86400 if dataset == "geo" else 1800)
                                  or row.last_error)),
@@ -135,9 +144,10 @@ def request(endpoint, dataset, *, reader="authority", params=None, actor=None):
     return out
 
 
-def _enqueue(endpoint, dataset, reader, request_id, step):
+def _enqueue(endpoint, dataset, reader, request_id, step, *, countdown=0):
     frappe.enqueue("pearnly_dms.snapshots.manual.execute", endpoint=endpoint, dataset=dataset,
         reader=reader, request_id=request_id, step=step, queue=QUEUE, timeout=420,
+        countdown=countdown,
         # Registration/step claim is already committed on a separate connection.
         # A surrounding RPC rollback must not strand an independently queued row.
         job_id=f"dms-manual-{request_id}-{step}", deduplicate=True, enqueue_after_commit=False)
@@ -205,8 +215,19 @@ def execute(endpoint, dataset, reader, request_id, step=0):
         progress = {"processed": int(result.get("processed", result.get("count", 0))),
                     "total": result.get("total", result.get("count")), "unit": "records"}
         retries = int(req.get("retries") or 0)
+        busy_waits = int(req.get("busy_waits") or 0)
+        delay = 0
         if result.get("busy"):
-            state = "waiting"
+            # 账号被"操作员自己那一笔"占着：不是错误，是"等一会儿再来"。
+            # 必须**延时重排**（见 BUSY_DELAYS）；预算用完才明确失败。
+            if busy_waits < len(BUSY_DELAYS):
+                delay = BUSY_DELAYS[busy_waits]
+                busy_waits += 1
+                state = "queued"
+                logger.info("DMS 账号忙，%s 秒后重排（第 %s 次）dataset=%s endpoint=%s",
+                            delay, busy_waits, dataset, endpoint)
+            else:
+                state = "failed"
         elif not result.get("ok"):
             if result.get("error_code") in RETRYABLE and retries < MAX_RETRIES:
                 # 传输抖动、单步租约用完这类失败可以接着读：检查点没有被丢掉。
@@ -221,12 +242,15 @@ def execute(endpoint, dataset, reader, request_id, step=0):
             state = "queued"
             retries = 0
         values = {"state": state, "progress": progress,
-                  "error_code": result.get("error_code", ""), "step": step + 1, "retries": retries}
+                  # 还在等账号时**不留错误码**：那会让操作员看见一个并不存在的失败。
+                  # 真的等不到了才把 ERR_DMS_SNAPSHOT_BUSY 亮出来。
+                  "error_code": "" if (state == "queued" and delay) else result.get("error_code", ""),
+                  "step": step + 1, "retries": retries, "busy_waits": busy_waits}
         if state == "succeeded":
             values["count"] = result.get("count", progress["processed"])
         if _update(endpoint, dataset, reader, request_id, values) and state == "queued":
             try:
-                _enqueue(endpoint, dataset, reader, request_id, step + 1)
+                _enqueue(endpoint, dataset, reader, request_id, step + 1, countdown=delay)
             except Exception:
                 _update(endpoint, dataset, reader, request_id,
                     {"state": "failed", "error_code": "ERR_DMS_SNAPSHOT_INTERRUPTED"}, expected_step=step + 1)

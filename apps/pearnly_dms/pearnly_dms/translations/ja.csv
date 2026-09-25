@@ -268,7 +268,7 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS のマスターデータを一時的に�
 dms.err.ERR_DMS_MASTER_UNMATCHED,選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。
 dms.err.ERR_DMS_QUERY_SCOPE,この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。
-dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
+dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS のデータが不完全なため公開していません。手動で再読み取りを行い、成功後に再試行してください。
 dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,今回の読み取りは中断されました。読み取りを押して再試行してください。以前の成功データは保持されています。
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,LINE でこの検索の読み取りを押してください。基礎データは管理者に DMS 接続画面で読み取るよう依頼してください。

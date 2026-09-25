@@ -94,6 +94,31 @@ class NightlyRefreshTests(unittest.TestCase):
                                                     "company": "already-running", "geo": "fresh"})
         self.assertEqual(self.requests, [])
 
+    def test_a_request_that_stopped_running_is_not_treated_as_in_flight(self):
+        # 2026-09-25 实测：busy 会把请求写成 `waiting`，而那时**没有任何东西会重排它**。
+        # 这里再把它当"正在跑"永久跳过，这一组就再也回读不了。所以只看它是否还活着。
+        import time
+
+        for dataset in self.job.READ_ORDER:
+            self.fresh(dataset)
+        self.statuses["company"] = {"state": "waiting", "updated_at": time.time() - 3600,
+                                    "as_of": time.time() - 30 * 3600}
+
+        result = self.job.run()
+
+        self.assertIn("company", result["requested"], "停了一个小时的请求必须重新登记")
+        self.assertEqual([dataset for dataset, _ in self.requests], ["company"])
+
+    def test_a_still_running_request_keeps_its_place(self):
+        import time
+
+        for dataset in self.job.READ_ORDER:
+            self.fresh(dataset)
+        self.statuses["company"] = {"state": "running", "updated_at": time.time() - 30}
+
+        self.assertEqual(self.job.run()["detail"]["company"], "already-running")
+        self.assertEqual(self.requests, [])
+
     def test_everything_fresh_does_nothing_at_all(self):
         for dataset in self.job.READ_ORDER:
             self.fresh(dataset)

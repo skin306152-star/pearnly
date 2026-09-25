@@ -268,7 +268,7 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS 主档暂时无法读取 · 请稍后重�
 dms.err.ERR_DMS_MASTER_UNMATCHED,所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。
 dms.err.ERR_DMS_QUERY_SCOPE,当前 DMS 账号未开放销售排行，请联系 DMS 管理员。
-dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
+dms.err.ERR_DMS_SNAPSHOT_BUSY,DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS 未返回完整资料，没有发布不完整结果。请手动重新读取，成功后再试。
 dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,本次读取已中断，请再次点击读取重试；此前成功资料仍保留。
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,请在 LINE 点击读取本次查询；基础资料需请管理员到 DMS 连接页选择读取。

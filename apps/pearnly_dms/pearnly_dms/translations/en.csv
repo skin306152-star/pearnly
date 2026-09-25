@@ -268,7 +268,7 @@ dms.err.ERR_DMS_MASTER_UNAVAILABLE,DMS master data is temporarily unavailable â€
 dms.err.ERR_DMS_MASTER_UNMATCHED,"The selected item is no longer in the DMS master data â€” go back, re-select it, and retry"
 dms.err.ERR_DMS_PAYMENT_INCOMPLETE,Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.
 dms.err.ERR_DMS_QUERY_SCOPE,Sales rankings are not available to this DMS account. Contact your DMS administrator.
-dms.err.ERR_DMS_SNAPSHOT_BUSY,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
+dms.err.ERR_DMS_SNAPSHOT_BUSY,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 dms.err.ERR_DMS_SNAPSHOT_INCOMPLETE,DMS did not return complete data. No partial data was published. Request a new read and retry after it succeeds.
 dms.err.ERR_DMS_SNAPSHOT_INTERRUPTED,This read was interrupted. Click Read again to retry; previously completed data was retained.
 dms.err.ERR_DMS_SNAPSHOT_MANUAL_REQUIRED,"Read this query in LINE, or ask an administrator to read the required data on the DMS connection page."

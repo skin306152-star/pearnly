@@ -403,10 +403,11 @@ def _manual_conditions(session):
 
 
 def _manual_action(binding, line_user_id, reply_token, action, values):
-    """卡上的"重新读一次"：只有当前卡 + 当前绑定才能登记这次读取。
+    """"重新读一次"按键的处理器。只服务**已经发出去的旧卡片**。
 
-    登记完照旧把"正在读"的文本回给操作员，读完由 `snapshot_sync` 推结果 ——
-    这一条对应老产品 `_navigation` 里那个"重新读"按键（那时是就地重读并出结果）。
+    新卡片不再带这个按钮（读取由服务端自动发起、读完直接推结果），但聊天记录里
+    那些老卡片上还留着它 —— 点旧按钮不能变成死键，所以处理器和动作码都保留。
+    只有当前卡 + 当前绑定才能登记这次读取，读完由 `snapshot_sync` 推结果。
     """
     session = store.get_session(line_user_id)
     try:
