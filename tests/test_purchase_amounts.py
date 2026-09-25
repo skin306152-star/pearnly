@@ -60,6 +60,14 @@ class PurchaseAmounts(unittest.TestCase):
         self.assertEqual(a.calculate(lines, price_mode='inclusive', discount_total=3162)['vat_amount'],
                          Decimal('838.04'))
 
+    def test_version_3_rounds_vat_once_per_document(self):
+        # 三行各 10.05：逐行 0.70×3 = 2.10；票面按整单 30.15 × 7% = 2.11。
+        lines = [{'qty': 1, 'unit_price': '10.05', 'vat_rate': 7} for _ in range(3)]
+        v3 = a.calculate(lines, discount_before_vat=True)
+        self.assertEqual((v3['vat_amount'], v3['grand_total']), (Decimal('2.11'), Decimal('32.26')))
+        self.assertEqual(sum(row['vat_amount'] for row in v3['lines']), Decimal('2.11'))
+        self.assertEqual(a.calculate(lines)['vat_amount'], Decimal('2.10'))  # 版本 2 照旧逐行
+
     def test_version_3_discount_cannot_exceed_the_amount(self):
         with self.assertRaises(ValueError):
             a.calculate([{'qty': 1, 'unit_price': 100, 'vat_rate': 7}], discount_total=101,
