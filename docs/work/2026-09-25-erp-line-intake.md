@@ -152,6 +152,12 @@
 | `e18c556` / `8e5e1e40` | 测试机 testerp | 复用路径换镜像 116 秒；新表字段已迁移；公网新 Desk 脚本含打开 / 提交接口，旧 `purchase-intake.js` 404 | 通过 |
 | `e18c556` | ERP-TEST 官方号（已授权外部写入） | `line_menu.publish()`：`pearnly-erp-{both,purchase,sales}-*` 三套；管理员账号挂 both；默认菜单仍为旧 `pearnly-erp-v1` | 读回一致 |
 | — | 真机 | LINE 选择步骤、识别、卡片、原生页提交、菜单 | 待用户验收 |
+| `9508cf4` / `45858eed` | 真机（用户 09-26） | 采购 / 销售识别成功、自动出入库、收发存有记录 | 用户确认；反馈见「09-26 第二轮」 |
+| `e4e56a4` | 本地运行时（`pearnly/frappe-sample:16.34.1`，无网络） | `test_line_intake` + 团队 / 成员服务共 53；CI 同名闸门 | 通过 |
+| `dc47e8c` / `2324a28b` | CI | Development checks、生产镜像构建（含镜像内 ERP LINE 用例） | 通过 |
+| `dc47e8c` / `2324a28b` | 测试机 testerp | 复用路径换镜像 114 秒；`price_includes_vat` 列已迁移；读出绑定账号手机语言 `zh`、权限组合「采购+销售+盘点」 | 通过 |
+| `dc47e8c` | ERP-TEST 官方号（已授权外部写入） | `line_menu.publish()`：28 套（4 语言 × 7 组合）；本人挂 `pearnly-erp-zh-purchase-sales-stocktake-*`，标签「采购 / 销售 / 盘点」，盘点指向 `/desk/pearnly-stock-count`；默认菜单未变 | 读回一致 |
+| `dc47e8c` | 测试机 testerp（只生成不发送） | 用 `LI-00054` 的识别结果生成新卡：合计 67,852.80、VAT 4,438.97、折扣 16,963.20，与票面一致；60 行泰文明细卡片超 30 KB | 金额通过；超限由 `74543e1` 修（按 28 KB 截断并报「还有 N 项」），待换镜像 |
 
 另：`e18c556` 修了 DMS 隔离站点用例的随机失败（回复令牌里带标签，按整包搜订单号会多数一条），
 此前 `f033c9c` 之后约四分之一的生产镜像构建因此失败。
