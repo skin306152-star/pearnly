@@ -1,6 +1,6 @@
 # ERP 测试环境与 LINE 收单迁移（2026-09-25）
 
-**范围状态：进行中。** 本记录管两件事：① 在 Windows 测试机为 ERP 起测试环境并把测试租户
+**范围状态：已上线（2026-09-26），测试环境保留数据待复用；真机验收以用户确认为准。** 本记录管两件事：① 在 Windows 测试机为 ERP 起测试环境并把测试租户
 `testerp.pearnly.com` 切过去（已完成，见第 1 节）；② 用户在真机验收中要求把 ERP 的 LINE 收单
 迁回旧线上的业务逻辑，并按用户 2026-09-25 的新口径调整（方案见第 3 节，分批实施）。
 
@@ -261,6 +261,27 @@ VAT 631.18）；入账 VAT 却是 838.04 —— 采购计算「先按折扣前�
 此前 `f033c9c` 之后约四分之一的生产镜像构建因此失败。
 
 HTTP 200、页面能打开不算业务验收；真机验收以用户确认为准。
+
+## 5a. 合并与上线（2026-09-26，接手窗口 f58107，用户授权「合并推送部署」）
+
+- 合并：`codex/erp-testenv` 快进进 `main` = `a1f6488d199096a924668dfcb60439b9b0ef3e69`（`a38d043..a1f6488`，远端回读一致；
+  分支与 main 的 Development checks 均通过）。从本会话工作树直接推送：主目录 `/Users/skin/pearnly` 的本地 main 当时停在
+  `a38d043`（落后、未改动，下次拉取即同步），因本会话不写其它工作树。
+- 镜像：main 上 Build production image `36195771036` 通过 → `ghcr.io/skin306152-star/pearnly/frappe@sha256:b7c07a7f7104a1b5c8048f06d054570ccbec81d28fac744e3e6c5266afe95a5c`
+  （revision `a1f6488`）；Stage `36196351744` 成功。
+- 部署工具同源：服务器 `/opt/pearnly/deploy` 落后 main 5 个文件（ERP 前端交接里未部署的 `7f68801` 静态资源缓存模板、
+  `d156e39` HTTP/2 开户脚本等），按 `check-deploy-image.py` 给出的方式从该镜像 `docker cp` 同步后检查通过。
+  主机 nginx 已有站点文件改 `http2` 与 `reload`（ERP 前端交接「部署时额外要做」）**未做**。
+- 激活：`activate-product.sh <digest> erp` → “Product erp activated with verified image.”，日志
+  `/opt/pearnly/state/activate-erp-a1f6488.log`；部署前备份 `20260926_052428-testerp_pearnly_com-*`（库、文件、私有文件、站点配置）。
+  上一版 `sha256:a3d007a7…`（源码 `f0f5a43`）。
+- 回读：7 个 ERP 容器均 `b7c07a7f`；`maintenance_mode=0`、调度器开；`price_includes_vat`、`ERP LINE Intake.language` 已迁移；
+  采购计算版本 3 生效；计费 `status` 可查（测试租户余额 1,000）；主机经 https 访问 ping 200，新容器日志 0 错误。
+- 线上站点发布富菜单：28 套全部复用（LINE 上新建 0），默认菜单未变。
+- 测试租户切回：`lab-stop erp` → `testerp.pearnly.com` 回落通配记录，`@1.1.1.1` 解析 `107.155.65.74`，公网 ping 200 落在线上
+  erp 前端；测试机 ERP 栈已停，4 个数据卷**按用户要求保留**（见 [测试环境](../development/test-environment.md) “当前状态与交接”）。
+
+仍未验收（用户确认前不算）：线上真机走一遍 LINE 收单（识别、卡片新排版、扣费）、POS 扫码进车、盘点手机端、采购整单折扣 VAT。
 
 ## 5. 交接（2026-09-26 本窗口收尾，交接保留）
 

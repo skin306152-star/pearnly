@@ -87,11 +87,8 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 几个重复用时最容易忘的点：
 
 - **驱动与被测代码是两个来源**：`scripts/testenv.sh`、`infrastructure/testenv/*`、这份文档取
-  **驱动分支 `codex/testenv-per-app`**；产品代码与 `production/compose.yml` 取
-  `PEARNLY_TESTENV_SRC`（默认当前工作树）。在哪个窗口跑都不会串。
-  ⚠️ 这套驱动目前**还没合进 `main`**：主线上的 `scripts/testenv.sh` 与这份文档仍是
-  "单栈、无产品参数"的旧流程。在合进主线之前，复用它必须从
-  `/Users/skin/.codex/worktrees/testenv-per-app` 这个工作树（或远端同名分支）跑。
+  **当前工作树**（按产品分栈的驱动已随 `a1f6488` 合进 `main`，任何基于 main 的工作树都能跑）；
+  产品代码与 `production/compose.yml` 取 `PEARNLY_TESTENV_SRC`（默认当前工作树）。在哪个窗口跑都不会串。
 - **一次只跑一个产品**：端口是固定分配的（前端 8183/8182/8181、账本 8184），所以换产品必然
   要停掉上一个；这是有意的，避免两个产品抢同一批端口与宿主 nginx 规则。
 - **镜像必须钉 digest**（`…@sha256:…`）：`pull` 只接受钉死的 digest，避免"以为测的是这版、
@@ -114,6 +111,38 @@ bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 - 影响范围只有这两个测试租户；其它租户完全不受影响。
   切换期间这两个租户由测试机提供服务，线上容器照常在跑，只是没有流量。
 - 明细开关（排查时用）：`bash scripts/testenv-cloudflare.sh status|switch-lab|switch-prod`。
+
+## 当前状态与交接（2026-09-26）
+
+基建（WSL、docker、隧道、工具目录、镜像）一直在；两个产品的栈都**停着**，域名都**在线上**。下一个窗口不需要任何设备侧准备：
+
+| 产品 | 数据卷 | 测试租户 | 下次 `lab-start` |
+| --- | --- | --- | --- |
+| DMS | 09-25 按用户要求清零（见 [Windows 测试环境记录](../work/2026-09-24-windows-testenv.md)） | `testdms.pearnly.com` | 建卷并从线上重新导出导入（首次较慢） |
+| ERP | **保留**（用户 09-26 定）：`pearnly-testenv-erp_{database,queue,sites-erp,sites-billing}` | `testerp.pearnly.com`（09-25 导入 + 09-26 测试数据） | 复用，约 2 分钟；要线上最新数据加 `PEARNLY_TESTENV_REFRESH=1` |
+
+ERP 上次跑的是已上线的 `a1f6488`（`sha256:b7c07a7f…`）。
+
+ERP 这套的外部状态（下次切过去就生效，不用再配）：
+
+- LINE 官方号 ERP-TEST（`@063eadty`）Webhook 指向 `https://testerp.pearnly.com/api/method/pearnly_core.line.webhook`，
+  域名跟着切：切到测试机时 LINE 打到测试机，切回时打到线上。
+- 富菜单 28 套（4 语言 × 7 权限组合）线上与测试机两边站点配置指向同一批（内容散列命名，重复发布复用，不新建）。
+- 测试机账本是整站导入的副本（测试租户余额与线上不同步）；识别扣费扣的是这份副本。
+- OCR 是线上真凭据：经 LINE 发单据会产生真实付费调用，只用于人工验收。
+
+复用一条命令（在任意基于 main 的工作树里跑）：
+
+```bash
+PEARNLY_TESTENV_IMAGE=ghcr.io/skin306152-star/pearnly/frappe@sha256:<被测镜像> \
+PEARNLY_TESTENV_SRC=<被测分支工作树> bash scripts/testenv.sh lab-start erp   # 约 2 分钟：起栈 → 升级库/清缓存 → 切域名
+bash scripts/testenv.sh lab-stop erp                                          # 测完切回线上、停栈、卷保留
+```
+
+**测试机可以关机**，前提是两个测试域名都已切回线上（`bash scripts/testenv-cloudflare.sh status` 没有 CNAME 记录）：
+关机不影响线上任何租户；数据在卷里，开机后 Windows SSH（自动启动）、WSL 的 docker / 隧道 / nginx（systemd 开机自启）
+都会在下一次 `lab-start` 远程拉起 WSL 时自己起来。**切在测试机上时关机**，被切过去的那个测试租户会整体打不开，
+所以关机前先 `lab-stop`。
 
 ## 命令速查
 
