@@ -125,7 +125,7 @@ dms.card.query.MANUAL_RUNNING,正在读取这个条件的记录，读完马上�
 dms.card.query.MANUAL_SUCCEEDED,读取完成，正在把结果发过来。
 dms.card.query.MANUAL_WAITING,DMS 账号忙，系统会自动重读，请稍等。
 dms.card.query.NAV_REFRESH,重新读取
-dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。点击读取／刷新才会更新。资料时间
+dms.card.query.TOP_NOTE_PREFIX,本账号可见分店和团队的原生 DMS 已读取统计，草稿不计营业额。资料时间
 dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.company,公司资料
 dms.connect.cache.dataset.customers,客户资料

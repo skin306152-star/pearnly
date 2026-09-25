@@ -125,7 +125,7 @@ dms.card.query.MANUAL_RUNNING,この条件のデータを読み取っていま�
 dms.card.query.MANUAL_SUCCEEDED,読み取りが完了しました。結果をお送りします。
 dms.card.query.MANUAL_WAITING,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
 dms.card.query.NAV_REFRESH,再読み取り
-dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。読み取り／更新を押すと更新します。データ取得時刻
+dms.card.query.TOP_NOTE_PREFIX,このアカウントに表示される支店・チームの読み取り済み DMS 集計です。下書きは売上に含めません。データ取得時刻
 dms.connect.cache.changed,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 dms.connect.cache.dataset.company,会社情報
 dms.connect.cache.dataset.customers,顧客情報

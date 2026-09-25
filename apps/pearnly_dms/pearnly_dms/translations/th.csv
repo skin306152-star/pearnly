@@ -370,7 +370,7 @@ dms.card.query.ST_MANAGER_PENDING,รอ ผจก.ขาย
 dms.card.query.ST_READY,พร้อมรับรถ
 dms.card.query.ST_UNALLOCATED,ยังไม่จัดสรรรถ
 dms.card.query.TITLE_TOP,ยอดขายสูงสุด
-dms.card.query.TOP_NOTE_PREFIX,สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย อัปเดตเมื่อกดอ่าน / อัปเดต ข้อมูล ณ
+dms.card.query.TOP_NOTE_PREFIX,สถิติจาก DMS ต้นทางที่บัญชีนี้เห็นตามสาขาและทีม แบบร่างไม่นับเป็นยอดขาย ข้อมูล ณ
 dms.card.query.TXT_COMING_SOON,เมนูนี้ยังไม่เปิดใช้งานในรุ่นแรก กรุณาเลือก 1 บันทึกการขาย
 dms.card.query.TXT_DENIED,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
 dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแล้ว พิมพ์ เมนู เพื่อค้นหาใหม่

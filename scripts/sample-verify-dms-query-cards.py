@@ -40,10 +40,10 @@ def main():
     used |= set(qc._PROMPTS.values())
     used |= {key for pairs in qc._STATUS_CHOICES.values() for key, _ in pairs}
     used |= {"TXT_PICK_TYPE", "PICK_STATUS", "ASK_TOP_GROUP", "ASK_TOP_METRIC",
-             "ASK_TOP_PERIOD", "STATUS_UNKNOWN", "NAV_PREV", "NAV_REFRESH", "NAV_NEXT",
+             "ASK_TOP_PERIOD", "STATUS_UNKNOWN", "NAV_PREV", "NAV_NEXT",
              "LBL_CUSTOMER", "LBL_CAR", "LBL_ADVISOR", "LBL_DATE", "LBL_DELIVERY",
              "LBL_FINANCE", "LBL_ALLOCATION", "LBL_DOCS", "ALT_RECORDS",
-             "EMPTY_RECORDS_PREFIX", "CARD_TITLE", "CARD_NOTE", "LBL_PAGE", "LBL_COUNT",
+             "EMPTY_RECORDS_PREFIX", "CARD_TITLE", "LBL_PAGE", "LBL_COUNT",
              "LBL_READ_AT", "UNIT_AMOUNT", "UNIT_QTY", "EMPTY_TOP", "ALT_TOP", "TITLE_TOP",
              "TOP_NOTE_PREFIX"}
     used.discard("MANUAL_")
@@ -129,10 +129,9 @@ def main():
     ck("前缀与时间之间有空格（行尾空格存不进语言包）",
        qc._t("EMPTY_RECORDS_PREFIX") + " " in empty["text"]
        and " " + source_time in empty["text"], empty["text"][-28:])
-    # 空结果只给「อ่านใหม่」（重新读一次）导航 —— 与老产品 `_navigation` 同形。
-    ck("空结果只给重读导航，不给'看结果'按钮",
-       [i["action"]["data"] for i in empty["quickReply"]["items"]] == ["action=query_refresh"],
-       [i["action"]["data"] for i in empty["quickReply"]["items"]])
+    # 空结果**不挂任何按钮**：读取由服务端自动发起，"重新读一次"已按用户口径取消
+    # （2026-09-25）。一个按钮都没有时也不能挂空的 quickReply，LINE 会拒收。
+    ck("空结果不挂任何按钮（重读已取消）", "quickReply" not in empty, sorted(empty))
 
     row = {"booking_no": "BK001", "record_status": "จัดสรรแล้ว", "customer": "คุณสมชาย",
            "vehicle": "DMAX", "color": "ขาว", "advisor": "dmstest",
@@ -145,12 +144,11 @@ def main():
        and len(board["contents"]["contents"]) == 2, len(board["contents"]["contents"]))
     ck("汇总卡带页码/条数/原始读取时间", "หน้า" in str(board) and source_time in str(board))
     ck("行号按页码偏移（第 2 页第 1 行 = 11）", "11. BK001" in str(board))
-    ck("翻了页才出'上一页'，有下一页才出'下一页'，重读永远在（与老产品同形）",
+    ck("翻了页才出'上一页'，有下一页才出'下一页'；没有'重新读一次'",
        [i["action"]["data"] for i in qc._navigation({"page": 2, "has_more": True}, "records")]
        == ["action=query_page&kind=records&direction=prev",
-           "action=query_refresh",
            "action=query_page&kind=records&direction=next"]
-       and len(qc._navigation({"page": 1, "has_more": False}, "records")) == 1)
+       and not qc._navigation({"page": 1, "has_more": False}, "records"))
     ck("单号/机号都没有时整行不出（不留空槽）",
        "SO-1" not in str(qc._record_bubble({**row, "sales_doc_no": "", "engine_no": ""}, 1)))
     ck("超长结果被轮播上限截住（LINE 最多 12 张）",

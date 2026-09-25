@@ -125,7 +125,7 @@ dms.card.query.MANUAL_RUNNING,Reading this query now. The result arrives as soon
 dms.card.query.MANUAL_SUCCEEDED,Read completed. Sending the result now.
 dms.card.query.MANUAL_WAITING,The DMS account is busy. The read retries automatically; please wait.
 dms.card.query.NAV_REFRESH,Read again
-dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
+dms.card.query.TOP_NOTE_PREFIX,"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.company,Company information
 dms.connect.cache.dataset.customers,Customer records

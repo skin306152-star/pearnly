@@ -76,7 +76,12 @@ def _item(label: str, action: str, **values: str) -> Dict[str, Any]:
 
 
 def _quick(text: str, items: Iterable[Dict[str, Any]]) -> Dict[str, Any]:
-    return {"type": "text", "text": text, "quickReply": {"items": list(items)}}
+    # 一个按钮都没有时**不能**挂空的 quickReply：LINE 会直接拒收整条消息。
+    # 去掉"重新读一次"之后，空结果就可能真的一个按钮都不剩，所以这里必须兜住。
+    items = list(items)
+    if not items:
+        return _text(text)
+    return {"type": "text", "text": text, "quickReply": {"items": items}}
 
 
 def _text(text: str) -> Dict[str, Any]:
@@ -306,19 +311,20 @@ def _record_bubble(row: dict, position: int) -> Dict[str, Any]:
 
 
 def _navigation(result: dict, kind: str) -> List[Dict[str, Any]]:
-    """翻页导航：**与老产品同形** —— 上一页 / 重新读一次 / 下一页。
+    """翻页导航：**只有上一页 / 下一页**，没有"重新读一次"。
 
-    老产品（`services/line_dms/query_cards.py::_navigation`）就是这三个，而且那时是
-    "按一下就重读并出结果"。新平台把它接成"重新读一次，读完把结果发过来"，所以这里
-    **不再有"读取／刷新本次查询"和"查看结果／状态"那两个按钮** —— 那两个是后来加的
-    机械步骤，用户明确说不要（2026-09-25）。
+    老产品（`services/line_dms/query_cards.py::_navigation`）是三个（含重读），因为那时
+    "按一下才去读并出结果"。新平台的读取是**服务端自动发起、读完直接推结果**，那个按钮
+    只是多余的一步；用户 2026-09-25 明确取消它和配套文案。
+
+    动作码 `query_refresh` 与它的处理器**保留**：聊天记录里已经发出去的旧卡片上还有那个
+    按钮，点旧按钮不能变成死键。
     """
     actions = []
     page = int(result.get("page") or 1)
     key = result.get("query_key") or ""
     if page > 1:
         actions.append(_item(_t("NAV_PREV"), ACT_QUERY_PAGE, kind=kind, direction="prev", key=key))
-    actions.append(_item(_t("NAV_REFRESH"), ACT_QUERY_REFRESH, key=key))
     if result.get("has_more"):
         actions.append(_item(_t("NAV_NEXT"), ACT_QUERY_PAGE, kind=kind, direction="next", key=key))
     return actions
@@ -356,6 +362,7 @@ def sales_board(result: dict) -> Dict[str, Any]:
         return _quick(_t("EMPTY_RECORDS_PREFIX") + " " + _snapshot_label(result),
                       _navigation(result, "records"))
     page = int(result.get("page") or 1)
+    actions = _navigation(result, "records")
     summary = {
         "type": "bubble",
         "size": "micro",
@@ -366,26 +373,16 @@ def sales_board(result: dict) -> Dict[str, Any]:
             "backgroundColor": "#f5f1ff",
             "contents": [
                 {"type": "text", "text": _t("CARD_TITLE"), "weight": "bold", "size": "md"},
-                {
-                    "type": "text",
-                    "text": _t("CARD_NOTE"),
-                    "size": "xxs",
-                    "wrap": True,
-                    "color": "#6d6680",
-                    "margin": "sm",
-                },
                 _text_row(_t("LBL_PAGE"), page),
                 _text_row(_t("LBL_COUNT"), len(rows)),
                 _text_row(_t("LBL_READ_AT"), _snapshot_label(result)),
             ],
         },
-        "footer": {
-            "type": "box",
-            "layout": "vertical",
-            "spacing": "sm",
-            "contents": [_button(item) for item in _navigation(result, "records")],
-        },
     }
+    if actions:
+        # `contents` 为空的 box 会被 LINE 拒收，所以没有导航就整块不挂。
+        summary["footer"] = {"type": "box", "layout": "vertical", "spacing": "sm",
+                             "contents": [_button(item) for item in actions]}
     bubbles = [summary]
     offset = (page - 1) * int(result.get("limit") or 10)
     bubbles.extend(_record_bubble(row, offset + index) for index, row in enumerate(rows, 1))
@@ -445,10 +442,9 @@ def top_sales_board(result: dict) -> Dict[str, Any]:
                 },
             ],
         },
-        "footer": {
-            "type": "box",
-            "layout": "horizontal",
-            "contents": [_button(item) for item in navigation],
-        },
     }
+    if navigation:
+        # 同 records 看板：空 box 会被 LINE 拒收。
+        bubble["footer"] = {"type": "box", "layout": "horizontal",
+                            "contents": [_button(item) for item in navigation]}
     return {"type": "flex", "altText": _t("ALT_TOP"), "contents": bubble}
