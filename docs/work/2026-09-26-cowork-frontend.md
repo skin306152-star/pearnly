@@ -102,6 +102,12 @@
 - 架构策略：`line` 新增依赖 `companion / connections / files / ocr / stocktake`；`companion.credentials.online` 给录入入口判断助手在线（不要求管理权限）。
 - 未做：Cowork 的 LINE 登录（`LINE_LOGIN_PRODUCTS` 只有 erp，属共用身份改动，随 Cowork 独立账号池一起做）；生产官方号的菜单发布（另行授权）。
 
+**识别配置（2026-09-27 真机：LINE 发票回“请先配置 Cowork 发票识别参数”）**：Cowork 发票识别只认显式的
+`pearnly_cowork_ocr_environment` / `pearnly_cowork_ocr_policy`，开户（`site-step.py set_ocr`）只写了共用 OCR 连接，
+**所有 Cowork 租户（含生产）都缺**。改为按产品组写进 Cowork 栈的共用配置（`site-step.py` 的 `COWORK_OCR`，每次站点步骤都会带上；
+测试环境 `finish-start.py` 同一份）：Vertex + 旧线上兜底档 `economy`。测试机已写入，`settings.snapshot()` 通过（economy / B 档 / vertex / 凭据在）。
+**生产未改**（随下次上线、另行授权）。另：testcowork 的账本副本余额不足（`insufficient_balance`），识别会被拒，待用户决定。
+
 ## 第六批：菜单收口 + 团队管理 + LINE 绑定（2026-09-26，第三个窗口）
 
 用户：“按 ERP 的团队管理和 LINE 先把配置搭建好，前端画出来，团队管理的功能权限写 Cowork”；

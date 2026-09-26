@@ -36,6 +36,10 @@ def log(message: str) -> None:
     print(message, flush=True)
 
 
+COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
+              "pearnly_cowork_ocr_policy": {"mode": "economy"}}
+
+
 def configure() -> None:
     """补齐换镜像后缺的运行配置。缺 OCR 容量会让识别在入队处直接失败。"""
     path = SITES / "common_site_config.json"
@@ -44,6 +48,12 @@ def configure() -> None:
     if not data.get("pearnly_ocr_budget_redis"):
         data["pearnly_ocr_budget_redis"] = "redis://redis-queue:6379/6"
         changed.append("pearnly_ocr_budget_redis")
+    # 与线上开户同一份 Cowork 发票识别配置（`infrastructure/production/site-step.py` 的 `COWORK_OCR`）。
+    if os.environ.get("TESTENV_GROUP", "dms") == "cowork":
+        for key, value in COWORK_OCR.items():
+            if data.get(key) != value:
+                data[key] = value
+                changed.append(key)
     queues = {"ocr": OCR_QUEUE_TIMEOUT}
     if os.environ.get("TESTENV_GROUP", "dms") == "dms":
         queues["dms_sync"] = DMS_SYNC_QUEUE_TIMEOUT

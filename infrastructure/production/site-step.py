@@ -9,6 +9,10 @@ import sys
 import runpy
 
 
+COWORK_OCR = {"pearnly_cowork_ocr_environment": {"OCR_LLM_BACKEND": "vertex"},
+              "pearnly_cowork_ocr_policy": {"mode": "economy"}}
+
+
 def line_login(p, group, runtime):
     """在该产品的账号池（ERP / DMS 业务 realm，Cowork 自己的 realm）建/更新 LIFF 所属 LINE Login 频道的
     共用隐藏入口，返回别名；不开就返回空串。"""
@@ -44,6 +48,11 @@ def main():
     if group == "dms":
         configure = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-dms-runtime.py")
         values = configure["configured"](values)
+    if group == "cowork":
+        # Cowork 发票识别只认显式配置（`pearnly_cowork.ocr.execution.settings`），开户从没写过，
+        # 所以每个 Cowork 租户识别都报“请先配置 Cowork 发票识别参数”（testcowork 2026-09-27 真机）。
+        # 档位取旧线上的兜底档 economy（`engine_policy._FAILSAFE_MODE`），模型走 Vertex（与 `set_ocr` 同一连接）。
+        values.update(COWORK_OCR)
     common.write_text(json.dumps(values))
     Path("apps.txt").write_text("\n".join(["frappe", "erpnext", "pearnly_core", "pearnly_dms",
                                         "pearnly_cowork", "pearnly_erp_portal"]) + "\n")
