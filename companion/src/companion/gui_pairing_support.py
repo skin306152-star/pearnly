@@ -140,9 +140,11 @@ def build_pairing_ui(dialog) -> None:
     top.addWidget(dialog.lang_btn)
     root.addLayout(top)
 
+    # 账套 / 年度由网页第一步选择（用户 2026-09-26）：介绍文案与账套区不再摆出来，
+    # 控件仍挂在窗口上隐藏着——配对要用检测出的数据根和账套名单（内部默认账套、授权全部数据根）。
+    hidden = []
     dialog.intro = QLabel(dialog._t("intro"))
-    dialog.intro.setWordWrap(True)
-    root.addWidget(dialog.intro)
+    hidden.append(dialog.intro)
 
     form = _compact_form()
     dialog.sec_connect = QLabel(dialog._t("sec_connect"))
@@ -155,26 +157,22 @@ def build_pairing_ui(dialog) -> None:
     form.addRow(dialog.lbl_code, dialog.token)
 
     dialog.sec_account = QLabel(dialog._t("sec_account"))
-    dialog.sec_account.setStyleSheet("margin-top:8px")
-    form.addRow(dialog.sec_account)
     dialog.root_combo = NoScrollComboBox()
     dialog.root_combo.setPlaceholderText(dialog._t(dialog._root_placeholder_key))
     dialog.root_combo.currentIndexChanged.connect(dialog._on_root_changed)
     dialog.lbl_root = QLabel(dialog._t("lbl_root"))
-    form.addRow(dialog.lbl_root, dialog.root_combo)
     dialog.account = NoScrollComboBox()
     dialog.account.setPlaceholderText(dialog._t(dialog._account_placeholder_key))
     dialog.account.currentIndexChanged.connect(dialog._on_account_changed)
     dialog.lbl_acct = QLabel(dialog._t("lbl_acct"))
-    form.addRow(dialog.lbl_acct, dialog.account)
     dialog.help_acct = QLabel(dialog._t("help_acct"))
-    dialog.help_acct.setWordWrap(True)
-    dialog.help_acct.setStyleSheet("color:#888")
-    form.addRow(dialog.help_acct)
-
     dialog.all_roots = QCheckBox(dialog._t("chk_all_roots"))
-    dialog.all_roots.setChecked(bool(dialog._share_all_roots))
-    form.addRow(dialog.all_roots)
+    dialog.all_roots.setChecked(True)  # 检测到的数据根全部授权，目标由网页选
+    hidden += [dialog.sec_account, dialog.root_combo, dialog.lbl_root, dialog.account,
+               dialog.lbl_acct, dialog.help_acct, dialog.all_roots]
+    for widget in hidden:
+        widget.setParent(dialog)
+        widget.setVisible(False)
 
     dialog.autostart = QCheckBox(dialog._t("chk_autostart"))
     dialog.autostart.setChecked(

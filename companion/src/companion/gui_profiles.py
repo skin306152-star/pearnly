@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import ntpath
 from typing import Callable, Mapping, Optional
 
 from PySide6.QtCore import QTimer, Qt
@@ -54,16 +53,10 @@ def profile_item_text(
     state: Optional[tuple[str, str]] = None,
     token: str = "",
 ) -> str:
-    company = str(record.account_company or "").strip() or "-"
-    raw_account = str(record.account_dir or record.account_set or "").rstrip("\\/")
-    account = ntpath.basename(raw_account) or raw_account or "-"
+    # 只显示连接人的 Pearnly 账号 + 状态；账套 / 年度由网页第一步选择，这里不显示（用户 2026-09-26）。
     label = t(profile_status_key(record, state), lang)
     owner = str(getattr(record, "pearnly_account", "") or "").strip() or "-"
-    endpoint = str(getattr(record, "endpoint_name", "") or "").strip() or "Express"
-    credential = masked_token(token)
-    return (
-        f"{company}\n{account} · {label}\nPearnly: {owner} · {endpoint} · {credential}"
-    )
+    return f"{owner} · {label}"
 
 
 class ProfileManagerDialog(QDialog):
@@ -102,9 +95,7 @@ class ProfileManagerDialog(QDialog):
     def _build(self) -> None:
         layout = QVBoxLayout(self)
         header = QHBoxLayout()
-        self.intro = QLabel(t("profiles_intro", self.lang))
-        self.intro.setWordWrap(True)
-        header.addWidget(self.intro, 1)
+        header.addStretch(1)
         self.lang_lbl = QLabel(t("profiles_lang", self.lang))
         header.addWidget(self.lang_lbl)
         self.lang_btn = QPushButton(t("lang_toggle", self.lang))
@@ -138,7 +129,6 @@ class ProfileManagerDialog(QDialog):
 
     def _retranslate(self) -> None:
         self.setWindowTitle(t("profiles_title", self.lang))
-        self.intro.setText(t("profiles_intro", self.lang))
         self.lang_lbl.setText(t("profiles_lang", self.lang))
         self.lang_btn.setText(t("lang_toggle", self.lang))
         self.add_btn.setText(t("profiles_add", self.lang))

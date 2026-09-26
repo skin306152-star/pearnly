@@ -235,8 +235,6 @@ class PairingDialog(QDialog):
         self.browse_btn.setVisible(True)
         saved = (self._cfg.express_root or "").strip()
         # 探测数据根要读 \\accserver 上一堆 SCCOMP,慢 → 放后台,窗口先秒开、显示"正在检测"。
-        self.lbl_root.setVisible(True)
-        self.root_combo.setVisible(True)
         self._set_root_placeholder("ph_root_scanning")
         self._set_status("status_scanning", ok=True)
 
@@ -279,9 +277,6 @@ class PairingDialog(QDialog):
         for r, n in roots:
             self.root_combo.addItem(self._root_item_label(r, n), r)
         self.root_combo.blockSignals(False)
-        multi = len(roots) > 1
-        self.lbl_root.setVisible(multi)
-        self.root_combo.setVisible(multi)
         if not roots:
             return
         idx = 0
@@ -304,8 +299,6 @@ class PairingDialog(QDialog):
         for i in range(self.root_combo.count()):  # 已在列表 → 直接选中(无需再数)
             if _same_root(self.root_combo.itemData(i), p):
                 self.root_combo.setCurrentIndex(i)
-                self.lbl_root.setVisible(self.root_combo.count() > 1)
-                self.root_combo.setVisible(self.root_combo.count() > 1)
                 return
         # 新根:数登记公司(读 \\accserver 上 SCCOMP)也走后台,不冻结 UI;只数一次,复用于校验+标签。
         self._set_status("status_scanning", ok=True)
@@ -318,8 +311,6 @@ class PairingDialog(QDialog):
             self.root_combo.insertItem(0, self._root_item_label(p, n), p)
             self.root_combo.blockSignals(False)
             self._roots.insert(0, (p, n))
-            self.lbl_root.setVisible(True)
-            self.root_combo.setVisible(True)
             self.root_combo.setCurrentIndex(0)  # 触发装载
 
         def fail(e):
@@ -358,16 +349,12 @@ class PairingDialog(QDialog):
         self._spawn("root", lambda: probe_account_sets(root), done, fail)
 
     def _prefill_account_index(self, sets) -> int:
-        """已配过 → 按账套 PATH(唯一键)命中已选账套的下标;未命中/首次返 -1(未选)。"""
-        if not self._prefill:
-            return -1
-        want = (self._cfg.account_set or self._cfg.account_dir or "").strip()
-        if not want:
-            return -1
+        """内部默认账套（不显示，用户 2026-09-26：账套由网页第一步选）：已配过且还在 → 沿用；否则取第一个。"""
+        want = (self._cfg.account_set or self._cfg.account_dir or "").strip() if self._prefill else ""
         for i, acc in enumerate(sets):
-            if str(getattr(acc, "path", "") or "").strip() == want:
+            if want and str(getattr(acc, "path", "") or "").strip() == want:
                 return i
-        return -1
+        return 0 if sets else -1
 
     def _on_account_changed(self, _idx: int = -1) -> None:
         acc = self.account.currentData()
@@ -422,14 +409,8 @@ class PairingDialog(QDialog):
         self._set_status("pairing", ok=True)
         token, root, sets = self.token.text(), self._express_root or "", self._sets
         autostart, lang = self.autostart.isChecked(), self.lang
-        share_all_roots = bool(
-            getattr(self, "all_roots", None) and self.all_roots.isChecked()
-        )
-        authorized_roots = (
-            [candidate for candidate, _count in self._roots]
-            if share_all_roots
-            else [root]
-        )
+        # 检测到的数据根全部授权：网页第一步选哪个年度 / 账套就写哪个（端侧逐次对照可写目录复核）。
+        authorized_roots = [candidate for candidate, _count in getattr(self, "_roots", ())] or [root]
 
         def work():
             return pairing.pair(

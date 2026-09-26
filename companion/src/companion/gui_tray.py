@@ -113,6 +113,15 @@ def _status_icon(key: str) -> QIcon:
     return icon
 
 
+
+MENU_TEXT_MAX = 48
+
+
+def _menu_text(text: str) -> str:
+    """托盘菜单状态行：过长截断（完整内容在悬停提示里），不把菜单撑宽。"""
+    value = " ".join(str(text or "").split())
+    return value if len(value) <= MENU_TEXT_MAX else value[: MENU_TEXT_MAX - 1] + "…"
+
 class TrayApp(QObject):
     worker_stopped = Signal(object)
 
@@ -226,7 +235,7 @@ class TrayApp(QObject):
             text = f"{self._profile_label(display_profile)} · {text}"
         self.tray.setToolTip(f"{t('tray_tooltip', self.lang)} · {text}")
         if self._status_action:
-            self._status_action.setText(text)
+            self._status_action.setText(_menu_text(text))
 
     def _on_update_available(self, version: str, url: str) -> None:
         if self._pending_update and self._pending_update[0] == version:
@@ -323,7 +332,8 @@ class TrayApp(QObject):
     def _profile_label(self, profile_id: str) -> str:
         for cfg in self.configs:
             if cfg.profile_id == profile_id:
-                return str(cfg.account_company or cfg.account_set or profile_id)
+                # 连接人的 Pearnly 账号；不显示 Express 公司 / 账套（账套由网页第一步选择）。
+                return str(getattr(cfg, "pearnly_account", "") or profile_id)
         return profile_id
 
     def _aggregate_status(self) -> tuple[str, str, object]:

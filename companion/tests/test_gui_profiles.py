@@ -14,7 +14,8 @@ from src.companion.gui_profiles import (
 from src.companion import gui_profiles  # noqa: E402
 
 
-def test_profile_item_shows_company_account_and_state():
+def test_profile_item_shows_only_the_pearnly_account_and_state():
+    # 账套 / 年度由网页第一步选择（2026-09-26）：列表不显示公司、账套、端点、密钥。
     active = SimpleNamespace(
         account_company="Acme Co.",
         account_dir=r"S:\\EXP68\\ACME",
@@ -26,8 +27,7 @@ def test_profile_item_shows_company_account_and_state():
     paused = SimpleNamespace(**{**vars(active), "paused": True})
 
     assert profile_item_text(active, "zh", ("idle", ""), "exp_secret-1234") == (
-        "Acme Co.\nACME · Pearnly 已连接\n"
-        "Pearnly: owner@example.com · Cowork Express · exp***1234"
+        "owner@example.com · Pearnly 已连接"
     )
     assert "พักการใช้งาน" in profile_item_text(paused, "th", ("idle", ""))
 
