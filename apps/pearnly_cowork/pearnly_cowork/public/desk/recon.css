@@ -155,18 +155,14 @@
 	box-shadow: 1px 0 0 var(--table-border-color);
 }
 
-/* 可改的格子（两边输入落在表里的那几格）：悬停出细框，编辑时主题色框。 */
+/* 可改的格子（两边输入落在表里的那几格）：不画边框（用户 2026-09-27："不要出现紫色边框"），编辑时换输入框的浅底色。 */
 .pearnly-recon-table td.editable {
 	cursor: text;
 }
 
-.pearnly-recon-table td.editable:hover {
-	box-shadow: inset 0 0 0 1px var(--gray-400);
-}
-
-.pearnly-recon-table td.editable:focus {
+.pearnly-recon-table tbody tr td.editable:focus {
 	outline: none;
-	box-shadow: inset 0 0 0 2px var(--primary);
+	background: var(--control-bg);
 	text-overflow: clip;
 }
 

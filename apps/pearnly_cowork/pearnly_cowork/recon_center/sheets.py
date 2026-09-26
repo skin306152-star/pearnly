@@ -369,6 +369,72 @@ def _task(kind, task_id, for_update=False):
     return revision.task(kind, task_id, for_update=for_update)
 
 
+# ── 页面上不显示的内容（用户 2026-09-27："有关模型的信息就不要留，和对账无关的备注文案取消掉"）──
+# 只影响页面：导出的 Excel 与计算不变。去掉识别置信度列、各种"原文件"列、汇总里的 OCR 准确性检查段与文件信息段、
+# 销项税备注里的"请核对原 PDF"；匹配层保留（它是对账依据：精确日期 / 日期容差 / 仅金额），只去掉 L1 / L2 / L3 代号。
+HEADER_BG = "#1F2937"
+_LAYER_CODE = re.compile(r"^L\d\s*-\s*")
+
+
+def _hidden(lang):
+    from pearnly_cowork.reconciliation import vat_check_core
+    from pearnly_cowork.reconciliation.export import labels, vat_check_i18n
+
+    t = lambda key: labels.t(key, lang)  # noqa: E731
+    vat = vat_check_i18n._I18N.get(lang) or vat_check_i18n._I18N["th"]
+    source = vat_check_i18n._I18N["zh"]["h_inv"].index("原文件")
+    return {
+        "columns": {t("col_confidence"), t("col_source_file"), t("col_source_stmt"), t("col_source_gl"),
+                    vat["h_inv"][source]},
+        "sections": {t("lbl_ocr_check"), t("sh_fileinfo")},
+        "layers": {t(f"layer_{n}") for n in (1, 2, 3)},
+        "notes": [vat_check_core.diff_labels(lang)["ocr_incomplete"]],
+    }
+
+
+def _for_page(view, lang):
+    hidden, styles = _hidden(lang), view["styles"]
+    header = lambda item: bool(item) and styles[item[1]].get("bg") == HEADER_BG  # noqa: E731
+    for sheet in view["sheets"]:
+        rows = sheet["rows"]
+        # 1. 整列去掉：表头行里标题命中的列（明细表没有合并格）。
+        head = next((row for row in rows if any(header(item) for item in row["c"])), None)
+        drop = [index for index, item in enumerate(head["c"]) if header(item) and item[0] in hidden["columns"]] if head else []
+        for index in reversed(drop):
+            sheet["widths"].pop(index)
+            for row in rows:
+                if index < len(row["c"]):
+                    row["c"].pop(index)
+            if index < sheet["freeze"][1]:
+                sheet["freeze"][1] -= 1
+        # 2. 汇总里整段去掉：段标题行起，到下一个空行为止。
+        kept, skipping = [], False
+        for row in rows:
+            first = row["c"][0] if row["c"] else None
+            blank = all(not item or item[0] == "" for item in row["c"])
+            if first and first[0] in hidden["sections"]:
+                skipping = True
+                continue
+            if skipping and not blank:
+                continue
+            skipping = False
+            kept.append(row)
+        while kept and all(not item or item[0] == "" for item in kept[-1]["c"]):
+            kept.pop()
+        sheet["rows"] = kept
+        # 3. 格子里的字：匹配层去代号，备注去掉"核对原 PDF"。
+        for row in kept:
+            for item in row["c"]:
+                if not item or not item[0]:
+                    continue
+                if item[0] in hidden["layers"]:
+                    item[0] = _LAYER_CODE.sub("", item[0])
+                for note in hidden["notes"]:
+                    if note in item[0]:
+                        item[0] = " · ".join(part for part in item[0].replace(note, "").split(" · ") if part.strip())
+    return view
+
+
 def _view(kind, doc, inputs, lang):
     if kind == "vat":
         content, _summary = vat_check_service.compute(vat_check_service._inputs(inputs), lang)
@@ -378,7 +444,7 @@ def _view(kind, doc, inputs, lang):
     else:
         _rows, results, summary = revision.income_compute(doc, inputs)
         content = revision.income_workbook_bytes(results, summary, lang)
-    return {**_render(kind, content, inputs), "inputs": inputs}
+    return {**_for_page(_render(kind, content, inputs), lang), "inputs": inputs}
 
 
 def _parse(kind, inputs):
