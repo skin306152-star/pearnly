@@ -10,14 +10,13 @@ import runpy
 
 
 def line_login(p, group, runtime):
-    """在业务 realm 建/更新本站隐藏的 LINE 入口，返回别名；不开就返回空串。"""
-    liff, secret = str(p.get("liff_id") or ""), p.get("login_channel_secret") or ""
-    channel = liff.split("-", 1)[0]
-    if not secret or not channel.isdigit():
-        return ""
-    from pearnly_core.account.line_login_contract import idp_alias
+    """在业务 realm 建/更新 LIFF 所属 LINE Login 频道的共用隐藏入口，返回别名；不开就返回空串。"""
+    from pearnly_core.account.line_login_contract import idp_alias, login_channel_of
 
-    alias = idp_alias(group, p["tenant"])
+    channel, secret = login_channel_of(p.get("liff_id")), p.get("login_channel_secret") or ""
+    if not secret or not channel:
+        return ""
+    alias = idp_alias(channel)
     keycloak = runpy.run_path("/opt/pearnly/deploy-src/scripts/production/configure-line-login.py")
     api = keycloak["Keycloak"]("http://keycloak:8080", keycloak["REALM"], "pearnly-bootstrap",
                                runtime["KEYCLOAK_ADMIN_PASSWORD"])

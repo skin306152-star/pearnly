@@ -345,10 +345,42 @@ def _line_payload(dep, site: str, group: str) -> dict:
         "liff_id": channel.liff_id or "",
         "channel_secret": _secret("channel_secret"),
         "channel_access_token": _secret("channel_access_token"),
-        # 有它才在身份服务里开本站的 LINE 登录入口（见 scripts/production/configure-line-login.py）。
-        "login_channel_secret": _secret("login_channel_secret"),
+        # 有它才在身份服务里开 LINE 登录入口（见 scripts/production/configure-line-login.py）。
+        "login_channel_secret": line_login_secret(frappe.db.get_value(ISSUE, dep.issue, "target"),
+                                                  dep.product, channel.liff_id),
     })
     return payload
+
+
+# 目前接 LINE 登录的产品（用户 2026-09-26：DMS 不接，已有 LIFF 票据门户；Cowork 接入后加上）。
+LINE_LOGIN_PRODUCTS = ("erp",)
+
+
+def line_login_secret(target, product, liff_id) -> str:
+    """开户目标上全平台一份的 LINE Login 频道密钥；该渠道 LIFF 属于这个频道、产品已接入才给。"""
+    from frappe.utils.password import get_decrypted_password
+    from pearnly_core.account.line_login_contract import login_channel_of
+
+    if product not in LINE_LOGIN_PRODUCTS or not target:
+        return ""
+    channel = frappe.db.get_value("Pearnly Target", target, "line_login_channel_id")
+    if not channel or login_channel_of(liff_id) != channel:
+        return ""
+    return get_decrypted_password("Pearnly Target", target, "line_login_channel_secret",
+                                  raise_exception=False) or ""
+
+
+def requeue_line_login(target) -> int:
+    """开户目标的 LINE 登录配置变了：已开通的可接入渠道全部重排 `set_line`。"""
+    count = 0
+    for name in frappe.get_all(LINE_CHANNEL, filters={"status": "active", "product": ("in", LINE_LOGIN_PRODUCTS)},
+                               pluck="name"):
+        channel = frappe.get_doc(LINE_CHANNEL, name)
+        dep_issue = frappe.db.get_value(DEPLOYMENT, channel.deployment, "issue")
+        if dep_issue and frappe.db.get_value(ISSUE, dep_issue, "target") == target:
+            queue_cloud_line_config(channel)
+            count += 1
+    return count
 
 
 def queue_cloud_line_config(channel, *, enabled: bool | None = None):
@@ -383,8 +415,7 @@ def queue_cloud_line_config(channel, *, enabled: bool | None = None):
         frappe.throw(_("LINE configuration is being applied. Try again shortly."))
     secret = channel.get_password("channel_secret", raise_exception=False) if enabled else ""
     token = channel.get_password("channel_access_token", raise_exception=False) if enabled else ""
-    login_secret = (channel.get_password("login_channel_secret", raise_exception=False) or ""
-                    if enabled and channel.login_channel_secret else "")
+    login_secret = line_login_secret(target, dep.product, channel.liff_id) if enabled else ""
     if enabled and not (secret and token):
         frappe.throw(_("LINE credentials are required before activation."))
     # `restart`: 这是**改一个正在服务的站点**，站点会继续按进程内的旧副本应答最长一分钟

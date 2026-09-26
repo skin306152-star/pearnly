@@ -18,6 +18,10 @@
   "password_check_client_secret",
   "section_provision",
   "provision_url",
+  "section_line_login",
+  "line_login_channel_id",
+  "line_login_channel_secret",
+  "line_login_callback_url",
   "section_invite",
   "invite_client_id",
   "notes"
@@ -97,6 +101,28 @@
    "description": "The provisioning API on the server, e.g. https://api.pearnly.com/v1/deployments. Fill it in once the server is ready; empty means the issue is recorded but no site is built."
   },
   {
+   "fieldname": "section_line_login",
+   "fieldtype": "Section Break",
+   "label": "LINE Login"
+  },
+  {
+   "fieldname": "line_login_channel_id",
+   "fieldtype": "Data",
+   "label": "LINE Login Channel ID"
+  },
+  {
+   "fieldname": "line_login_channel_secret",
+   "fieldtype": "Password",
+   "length": 200,
+   "label": "LINE Login Channel Secret"
+  },
+  {
+   "fieldname": "line_login_callback_url",
+   "fieldtype": "Data",
+   "label": "LINE Login Callback URL",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_invite",
    "fieldtype": "Section Break",
    "label": "Invitation Email"
@@ -115,7 +141,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-09-17 00:00:00.000000",
+ "modified": "2026-09-26 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Control",
  "name": "Pearnly Target",

@@ -57,6 +57,7 @@ Create the site,建站点
 Create the tenant account,建租户账号
 Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
 Credential Delivery,凭据交付方式
+Credentials,凭据
 "Credentials (stored only here, pushed to the tenant site at provisioning)",凭据（只在这里存一份，开通时推到租户站点）
 Credited ฿{0}; {1} now has ฿{2},已到账 ฿{0}，{1} 现在余额 ฿{2}
 Crediting…,入账中…
@@ -110,6 +111,7 @@ Install core apps,装基础 App
 Install the product app,装产品 App
 Insufficient balance; please top up first,余额不足，请先充值
 "Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID 格式不对：{0}。只填编号，例如 2010411313-abcd1234
+Invalid LINE Login channel ID,LINE Login 频道 ID 不正确
 Invalid amount,金额不对
 Invalid billing reference,计费参考号不对
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",域名前缀不合法：{0}。只能用小写字母、数字和短横线，首尾不能是短横线，长度 1–63
@@ -133,6 +135,10 @@ LINE Channel Access Token,LINE 渠道访问令牌
 LINE Channel ID,LINE 渠道 ID
 LINE Channel Secret,LINE 渠道密钥
 LINE LIFF ID,LINE LIFF ID
+LINE Login,LINE 登录
+LINE Login Callback URL,LINE Login 回调地址
+LINE Login Channel ID,LINE Login 频道 ID
+LINE Login Channel Secret,LINE Login 频道密钥
 LINE channel (optional),LINE 渠道（可选）
 LINE configuration is being applied. Try again shortly.,LINE 配置正在应用，请稍后再试。
 LINE credentials are required before activation.,启用前必须先填 LINE 凭据。

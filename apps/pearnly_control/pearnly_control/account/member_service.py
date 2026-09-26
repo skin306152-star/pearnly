@@ -24,6 +24,8 @@ IDENTITY = "Pearnly Member Identity"
 OPERATION = "Pearnly Member Operation"
 # 开户时登记的租户管理员（员工台账只记团队里建的号，管理员由控制面发号）。
 TENANT_IDENTITY = "Pearnly Tenant Identity"
+# 每个站点（租户 × 产品）上各身份当前关联的 LINE —— 共用入口下解绑时据此判断还能不能摘。
+LINE_LINK = "Pearnly LINE Login Link"
 # ERP keys must stay byte-identical: ledger keys and owner stamps already exist.
 PRODUCTS = ("erp", "cowork")
 _CAPABILITY = object()
@@ -156,44 +158,81 @@ def _registered(tenant, subject):
                 or frappe.db.exists(IDENTITY, {"tenant": tenant, "subject": subject}))
 
 
-def link_line(tenant, product, subject, line_user_id):
+def _alias(login_channel):
+    try:
+        return line_contract.idp_alias(login_channel)
+    except ValueError:
+        raise MemberError("invalid_request") from None
+
+
+def _link_key(tenant, product, subject, alias):
+    return hashlib.sha256(json.dumps([tenant, product, subject, alias], separators=(",", ":")).encode()).hexdigest()
+
+
+def _movable(tenant, product, holder, alias):
+    """同租户内改绑：旧持有人是本租户登记的身份，且它的这条 LINE 只挂在本站点上，才可以摘。"""
+    if not _registered(tenant, holder):
+        return False
+    elsewhere = frappe.get_all(LINE_LINK, filters={"subject": holder, "alias": alias}, fields=["tenant", "product"])
+    return all(row.tenant == tenant and row.product == product for row in elsewhere)
+
+
+def link_line(tenant, product, subject, line_user_id, login_channel):
     """把站点上已生效的 LINE 绑定关联到该身份在 Keycloak 的 LINE 登录入口。
 
-    站点只能替**本租户已登记**的身份关联；别名按（产品, 租户）计算，站点给不了别的别名。
+    入口按 LINE Login 频道共用（全平台只配一次）；站点只能替**本租户已登记**的身份关联，
+    并按（租户, 产品, 身份）记账 —— 同一身份在别的站点也绑着时，解绑一处不会断掉另一处。
     """
     if not line_contract.valid_line_user_id(line_user_id) or not _registered(tenant, subject):
         raise MemberError("not_permitted")
-    alias = line_contract.idp_alias(product, tenant)
+    alias = _alias(login_channel)
     provider = MemberProvider(product)
     try:
         provider.link_line(subject, alias, line_user_id)
     except MemberError as error:
-        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户登记过的身份，
-        # 挂在别处（不属于本租户）的一律不动、不抢。
+        # 同一个 LINE 在本站从 A 改绑到 B：A 身上的旧关联要先摘掉。只摘本租户、只挂在本站的，
+        # 挂在别处（别的租户、或 A 在别的站点也用着）的一律不动、不抢。
         if error.code != "conflict":
             raise
         others = [h for h in provider.line_holders(alias, line_user_id) if h != subject]
-        if not others or not all(_registered(tenant, holder) for holder in others):
+        if not others or not all(_movable(tenant, product, holder, alias) for holder in others):
             raise
         for holder in others:
             provider.unlink_line(holder, alias)
+            frappe.db.delete(LINE_LINK, {"tenant": tenant, "product": product, "subject": holder, "alias": alias})
         provider.link_line(subject, alias, line_user_id)
+    key = _link_key(tenant, product, subject, alias)
+    if frappe.db.exists(LINE_LINK, key):
+        frappe.db.set_value(LINE_LINK, key, "line_user_id", line_user_id)
+    else:
+        _insert({"doctype": LINE_LINK, "name": key, "tenant": tenant, "product": product,
+                 "subject": subject, "alias": alias, "line_user_id": line_user_id})
     return {"subject": subject}
 
 
-def unlink_line(tenant, product, subject):
+def unlink_line(tenant, product, subject, login_channel):
     if not _registered(tenant, subject):
         raise MemberError("not_permitted")
-    MemberProvider(product).unlink_line(subject, line_contract.idp_alias(product, tenant))
+    alias = _alias(login_channel)
+    frappe.db.delete(LINE_LINK, {"tenant": tenant, "product": product, "subject": subject, "alias": alias})
+    remaining = frappe.get_all(LINE_LINK, filters={"subject": subject, "alias": alias},
+                               fields=["line_user_id"], order_by="modified desc", limit=1)
+    provider = MemberProvider(product)
+    if remaining:
+        # 这个身份在别的站点还绑着：保持（或恢复成）那边的 LINE，不摘。
+        provider.link_line(subject, alias, remaining[0].line_user_id)
+    else:
+        provider.unlink_line(subject, alias)
     return {"subject": subject}
 
 
-def execute(tenant, action, email, password, username="", request_id="", subject="", line_user_id=""):
+def execute(tenant, action, email, password, username="", request_id="", subject="", line_user_id="",
+            login_channel=""):
     if action in ("link-line", "unlink-line"):
         tenant, product = authorize(tenant, line_contract.PRODUCTS)
         if action == "link-line":
-            return link_line(tenant, product, subject, line_user_id)
-        return unlink_line(tenant, product, subject)
+            return link_line(tenant, product, subject, line_user_id, login_channel)
+        return unlink_line(tenant, product, subject, login_channel)
     tenant, product = authorize(tenant)
     if (not isinstance(email, str) or "@" not in email or len(email) > 140
             or not isinstance(password, str) or not password):
@@ -251,4 +290,5 @@ def purge_members(tenant):
         frappe.db.delete(OPERATION, {"member": row.name})
         frappe.db.delete(IDENTITY, {"name": row.name, "tenant": tenant})
     frappe.db.delete(TENANT_IDENTITY, {"tenant": tenant})
+    frappe.db.delete(LINE_LINK, {"tenant": tenant})
     return {"members": len(members)}

@@ -57,6 +57,7 @@ Create the site,Create the site
 Create the tenant account,Create the tenant account
 Creating a channel requires both secret and access token,Creating a channel requires both secret and access token
 Credential Delivery,Credential Delivery
+Credentials,Credentials
 "Credentials (stored only here, pushed to the tenant site at provisioning)","Credentials (stored only here, pushed to the tenant site at provisioning)"
 Credited ฿{0}; {1} now has ฿{2},Credited ฿{0}; {1} now has ฿{2}
 Crediting…,Crediting…
@@ -110,6 +111,7 @@ Install core apps,Install core apps
 Install the product app,Install the product app
 Insufficient balance; please top up first,Insufficient balance; please top up first
 "Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234","Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234"
+Invalid LINE Login channel ID,Invalid LINE Login channel ID
 Invalid amount,Invalid amount
 Invalid billing reference,Invalid billing reference
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63","Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63"
@@ -133,6 +135,10 @@ LINE Channel Access Token,LINE Channel Access Token
 LINE Channel ID,LINE Channel ID
 LINE Channel Secret,LINE Channel Secret
 LINE LIFF ID,LINE LIFF ID
+LINE Login,LINE Login
+LINE Login Callback URL,LINE Login Callback URL
+LINE Login Channel ID,LINE Login Channel ID
+LINE Login Channel Secret,LINE Login Channel Secret
 LINE channel (optional),LINE channel (optional)
 LINE configuration is being applied. Try again shortly.,LINE configuration is being applied. Try again shortly.
 LINE credentials are required before activation.,LINE credentials are required before activation.

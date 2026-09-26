@@ -57,6 +57,7 @@ Create the site,サイトを作成
 Create the tenant account,テナントアカウントを作成
 Creating a channel requires both secret and access token,チャネル作成には secret と access token の両方が必要です
 Credential Delivery,資格情報の受け渡し方法
+Credentials,資格情報
 "Credentials (stored only here, pushed to the tenant site at provisioning)",資格情報（ここにだけ保存し、開通時にテナントサイトへ配布）
 Credited ฿{0}; {1} now has ฿{2},฿{0} を入金しました。{1} の残高は ฿{2} です
 Crediting…,入金処理中…
@@ -110,6 +111,7 @@ Install core apps,基盤アプリを導入
 Install the product app,製品アプリを導入
 Insufficient balance; please top up first,残高不足です。先にチャージしてください
 "Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID の形式が正しくありません: {0}。ID のみ入力してください（例: 2010411313-abcd1234）
+Invalid LINE Login channel ID,LINE LoginチャネルIDが正しくありません
 Invalid amount,金額が正しくありません
 Invalid billing reference,課金参照番号が正しくありません
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",ドメイン接頭辞が不正です: {0}。半角小文字英数字とハイフンのみ、先頭と末尾にハイフン不可、長さ1〜63
@@ -133,6 +135,10 @@ LINE Channel Access Token,LINEチャネルアクセストークン
 LINE Channel ID,LINEチャネルID
 LINE Channel Secret,LINEチャネルシークレット
 LINE LIFF ID,LINE LIFF ID
+LINE Login,LINEログイン
+LINE Login Callback URL,LINE LoginコールバックURL
+LINE Login Channel ID,LINE LoginチャネルID
+LINE Login Channel Secret,LINE Loginチャネルシークレット
 LINE channel (optional),LINEチャネル（任意）
 LINE configuration is being applied. Try again shortly.,LINE 設定を適用中です。しばらくしてから再試行してください。
 LINE credentials are required before activation.,有効化の前に LINE の認証情報が必要です。

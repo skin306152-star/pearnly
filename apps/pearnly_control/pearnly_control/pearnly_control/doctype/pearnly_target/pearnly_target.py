@@ -31,3 +31,19 @@ class PearnlyTarget(Document):
             )
             for other in others:
                 frappe.db.set_value("Pearnly Target", other, "is_default", 0)
+        self.line_login_channel_id = (self.line_login_channel_id or "").strip()
+        if self.line_login_channel_id and not self.line_login_channel_id.isdigit():
+            frappe.throw(_("Invalid LINE Login channel ID"))
+        # LINE Login 频道要登记的回调地址：身份服务里这个频道的共用 LINE 入口（全平台只登记一次）。
+        self.line_login_callback_url = (
+            f"{self.base_url}/realms/{self.realm}/broker/line-{self.line_login_channel_id}/endpoint"
+            if self.line_login_channel_id and self.realm else "")
+
+    def on_update(self):
+        """LINE 登录配置变了：把这个目标下可接 LINE 登录的渠道重排 `set_line`，已开通的租户随之开 / 关。"""
+        if not (self.has_value_changed("line_login_channel_id")
+                or self.has_value_changed("line_login_channel_secret")):
+            return
+        from pearnly_control.provisioning import requeue_line_login
+
+        requeue_line_login(self.name)

@@ -56,16 +56,17 @@ def _call(action, *, email, password, username=""):
     return result
 
 
-def link_line(subject, line_user_id):
-    """把本站生效的 LINE 绑定关联到该身份的 LINE 登录入口（服务端核对归属、计算别名）。"""
-    result = _post({"action": "link-line", "subject": subject, "line_user_id": line_user_id},
-                   line_login_contract.PRODUCTS)
+def link_line(subject, line_user_id, login_channel):
+    """把本站生效的 LINE 绑定关联到该身份的 LINE 登录入口（服务端核对归属、按站点记账）。"""
+    result = _post({"action": "link-line", "subject": subject, "line_user_id": line_user_id,
+                    "login_channel": login_channel}, line_login_contract.PRODUCTS)
     if result.get("subject") != subject:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-def unlink_line(subject):
-    result = _post({"action": "unlink-line", "subject": subject}, line_login_contract.PRODUCTS)
+def unlink_line(subject, login_channel):
+    result = _post({"action": "unlink-line", "subject": subject, "login_channel": login_channel},
+                   line_login_contract.PRODUCTS)
     if result.get("subject") != subject:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 

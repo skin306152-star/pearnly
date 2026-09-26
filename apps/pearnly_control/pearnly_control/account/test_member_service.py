@@ -180,8 +180,12 @@ class TestMembers(unittest.TestCase):
 LINE = "U" + "a" * 32
 
 
+CHANNEL = "2010411313"
+ALIAS = "line-2010411313"
+
+
 class TestLineLinks(unittest.TestCase):
-    """LINE 登录关联：只替本租户登记过的身份写 Keycloak，别名由服务端按（产品, 租户）算。"""
+    """LINE 登录关联：只替本租户登记过的身份写 Keycloak；入口按 LINE Login 频道共用，按站点记账。"""
 
     def setUp(self):
         self.native = MagicMock()
@@ -190,43 +194,77 @@ class TestLineLinks(unittest.TestCase):
         self.headers = {}
         self.native.get_request_header.side_effect = lambda name: self.headers.get(name)
         self.native.db.get_value.return_value = "active"
-        self.owners = {("tenant-a", "owner-subject")}
+        self.owners = {("tenant-a", "owner-subject"), ("tenant-b", "owner-subject")}
         self.members = {("tenant-a", "member-subject")}
-        self.native.db.exists.side_effect = lambda doctype, filters=None: (
-            (filters["tenant"], filters["subject"]) in (
-                self.owners if doctype == service.TENANT_IDENTITY else self.members)
-            if isinstance(filters, dict) else False)
+        self.links = {}
+
+        def exists(doctype, filters=None):
+            if doctype == service.LINE_LINK:
+                return filters in self.links
+            if isinstance(filters, dict):
+                pool = self.owners if doctype == service.TENANT_IDENTITY else self.members
+                return (filters["tenant"], filters["subject"]) in pool
+            return False
+
+        def matches(row, filters):
+            return all(getattr(row, key) == value for key, value in filters.items())
+
+        def get_all(doctype, filters=None, fields=None, **kwargs):
+            return [row for row in self.links.values() if matches(row, filters or {})]
+
+        def delete(doctype, filters):
+            for key in [k for k, row in self.links.items() if matches(row, filters)]:
+                del self.links[key]
+
+        def insert(values):
+            self.links[values["name"]] = SimpleNamespace(**values)
+
+        self.native.db.exists.side_effect = exists
+        self.native.get_all.side_effect = get_all
+        self.native.db.delete.side_effect = delete
+        self.native.db.set_value.side_effect = lambda doctype, name, field, value: setattr(
+            self.links[name], field, value)
         for module in (service, member_api, member_provider):
             p = patch.object(module, "frappe", self.native)
             p.start()
             self.addCleanup(p.stop)
-        p = patch.object(service, "MemberProvider")
-        self.provider_class = p.start()
-        self.provider = self.provider_class.return_value
-        self.addCleanup(p.stop)
+        for target, value in (("MemberProvider", None), ("_insert", insert)):
+            p = patch.object(service, target, side_effect=value) if value else patch.object(service, target)
+            mocked = p.start()
+            self.addCleanup(p.stop)
+            if target == "MemberProvider":
+                self.provider_class, self.provider = mocked, mocked.return_value
 
     def scope(self, product, tenant="tenant-a"):
         self.headers.update({"X-Pearnly-Billing-Product": product,
                              "X-Pearnly-Billing-Token": tenant_token("unit-test-root-only", tenant, product)})
 
-    def test_owner_and_member_link_to_the_site_alias(self):
-        for product, subject in (("erp", "owner-subject"), ("dms", "member-subject")):
-            self.scope(product)
-            self.assertEqual(service.execute("tenant-a", "link-line", None, None, subject=subject,
-                                             line_user_id=LINE), {"subject": subject})
-            self.provider_class.assert_called_with(product)
-            self.provider.link_line.assert_called_with(subject, f"line-{product}-tenant-a", LINE)
+    def link(self, subject, line=LINE, tenant="tenant-a", product="erp", channel=CHANNEL):
+        self.scope(product, tenant)
+        return service.execute(tenant, "link-line", None, None, subject=subject, line_user_id=line,
+                               login_channel=channel)
 
-    def test_unregistered_or_other_tenant_subject_and_bad_line_id_rejected(self):
-        self.scope("erp")
-        for subject, line_user_id in (("stranger", LINE), ("owner-subject", "not-a-line-id"),
-                                      ("owner-subject", "U" + "A" * 32)):
+    def unlink(self, subject, tenant="tenant-a", product="erp"):
+        self.scope(product, tenant)
+        return service.execute(tenant, "unlink-line", None, None, subject=subject, login_channel=CHANNEL)
+
+    def test_owner_and_member_link_to_the_shared_channel_entry(self):
+        for product, subject in (("erp", "owner-subject"), ("dms", "member-subject")):
+            self.assertEqual(self.link(subject, product=product), {"subject": subject})
+            self.provider_class.assert_called_with(product)
+            self.provider.link_line.assert_called_with(subject, ALIAS, LINE)
+        self.assertEqual(len(self.links), 2)
+
+    def test_unregistered_subject_bad_line_or_channel_rejected(self):
+        for subject, line, channel in (("stranger", LINE, CHANNEL), ("owner-subject", "not-a-line-id", CHANNEL),
+                                       ("owner-subject", "U" + "A" * 32, CHANNEL), ("owner-subject", LINE, "abc"),
+                                       ("owner-subject", LINE, "")):
             with self.assertRaises(member_provider.MemberError):
-                service.execute("tenant-a", "link-line", None, None, subject=subject, line_user_id=line_user_id)
-        self.scope("erp", "tenant-b")
+                self.link(subject, line, channel=channel)
         with self.assertRaises(member_provider.MemberError):
-            service.execute("tenant-b", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
+            self.link("member-subject", tenant="tenant-b")
         self.provider.link_line.assert_not_called()
+        self.assertEqual(self.links, {})
 
     def test_dms_scope_can_link_but_never_create_or_reset(self):
         self.scope("dms")
@@ -236,26 +274,38 @@ class TestLineLinks(unittest.TestCase):
         self.provider.create.assert_not_called()
         self.provider.reset_password.assert_not_called()
 
-    def test_line_moved_between_own_identities_is_relinked_but_foreign_holder_is_not(self):
-        self.scope("erp")
+    def test_unlinking_one_site_keeps_the_link_while_another_site_still_binds(self):
+        self.link("owner-subject", tenant="tenant-a")
+        self.link("owner-subject", tenant="tenant-b")
+        self.unlink("owner-subject", tenant="tenant-a")
+        self.provider.unlink_line.assert_not_called()
+        self.provider.link_line.assert_called_with("owner-subject", ALIAS, LINE)
+        self.unlink("owner-subject", tenant="tenant-b")
+        self.provider.unlink_line.assert_called_once_with("owner-subject", ALIAS)
+        self.assertEqual(self.links, {})
+
+    def test_line_moved_between_own_identities_is_relinked_but_not_from_elsewhere(self):
         conflict = member_provider.MemberError("conflict")
+        self.link("member-subject")
         self.provider.link_line.side_effect = [conflict, None]
         self.provider.line_holders.return_value = ["member-subject", "owner-subject"]
-        service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
-        self.provider.unlink_line.assert_called_once_with("member-subject", "line-erp-tenant-a")
-        self.provider.link_line.side_effect = [conflict]
-        self.provider.line_holders.return_value = ["member-subject", "other-tenant-subject"]
-        with self.assertRaises(member_provider.MemberError):
-            service.execute("tenant-a", "link-line", None, None, subject="owner-subject", line_user_id=LINE)
+        self.link("owner-subject")
+        self.provider.unlink_line.assert_called_once_with("member-subject", ALIAS)
+        self.assertEqual({row.subject for row in self.links.values()}, {"owner-subject"})
+        # 持有人不是本租户的，或它在别的站点也用着这个 LINE：不抢。
+        for holders in (["other-tenant-subject"], ["owner-subject"]):
+            self.provider.link_line.side_effect = [conflict]
+            self.provider.line_holders.return_value = holders
+            with self.assertRaises(member_provider.MemberError):
+                self.link("member-subject" if holders == ["owner-subject"] else "owner-subject",
+                          tenant="tenant-a", product="dms")
         self.provider.unlink_line.assert_called_once()
 
     def test_unlink_is_scoped_too(self):
-        self.scope("erp")
-        self.assertEqual(service.execute("tenant-a", "unlink-line", None, None, subject="member-subject"),
-                         {"subject": "member-subject"})
-        self.provider.unlink_line.assert_called_once_with("member-subject", "line-erp-tenant-a")
+        self.assertEqual(self.unlink("member-subject"), {"subject": "member-subject"})
+        self.provider.unlink_line.assert_called_once_with("member-subject", ALIAS)
         with self.assertRaises(member_provider.MemberError):
-            service.execute("tenant-a", "unlink-line", None, None, subject="stranger")
+            self.unlink("stranger")
 
     def test_register_owner_is_idempotent_and_validated(self):
         with patch.object(service, "_insert") as insert:

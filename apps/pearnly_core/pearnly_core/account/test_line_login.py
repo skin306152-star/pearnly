@@ -8,7 +8,7 @@ from pearnly_core.account import line_login
 
 LINE_A = "U" + "a" * 32
 LINE_B = "U" + "b" * 32
-ALIAS = "line-erp-t-2026-0283"
+ALIAS = "line-2010411313"
 
 
 class PermissionError_(Exception):
@@ -21,7 +21,8 @@ class Base(unittest.TestCase):
         self.native.PermissionError = PermissionError_
         self.native.throw.side_effect = lambda message, exc=Exception: (_ for _ in ()).throw(exc(message))
         self.native.conf = {"pearnly_product": "erp", "pearnly_tenant": "T-2026-0283",
-                            "pearnly_line_login_idp": ALIAS, "pearnly_oidc_client_id": "testerp.pearnly.com"}
+                            "pearnly_line_login_idp": ALIAS, "pearnly_oidc_client_id": "testerp.pearnly.com",
+                            "pearnly_line_liff_id": "2010411313-pBXFYD2S"}
         self.native.local = SimpleNamespace(response={}, site="testerp.pearnly.com", request=object())
         self.native.session = SimpleNamespace(user="Guest")
         self.users = {"owner@example.test": 1, "gone@example.test": 0}
@@ -62,10 +63,13 @@ class Base(unittest.TestCase):
 class TestConfigAndEntry(Base):
     def test_alias_must_match_computed_value(self):
         self.assertEqual(line_login.enabled_alias(), ALIAS)
-        self.native.conf["pearnly_line_login_idp"] = "line-erp-someone-else"
+        self.native.conf["pearnly_line_login_idp"] = "line-999999999"
         self.assertEqual(line_login.enabled_alias(), "")
         self.native.conf["pearnly_line_login_idp"] = ALIAS
-        self.native.conf["pearnly_product"] = "control"
+        # 站点的 LIFF 换到别的 LINE Login 频道（别的 Provider）：旧入口不再算开通。
+        self.native.conf["pearnly_line_liff_id"] = "2099999999-other"
+        self.assertEqual(line_login.enabled_alias(), "")
+        self.native.conf["pearnly_line_liff_id"] = ""
         self.assertEqual(line_login.enabled_alias(), "")
 
     def test_unsafe_targets_fall_back_to_root(self):
@@ -107,7 +111,7 @@ class TestLoginSource(Base):
                          {"identity_provider": ALIAS, "line_user_id": LINE_A})
 
     def test_other_site_other_line_unbound_disabled_or_not_enabled_are_refused(self):
-        cases = [(self.claims(idp="line-dms-t-2026-0283"), "owner@example.test"),
+        cases = [(self.claims(idp="line-999999999"), "owner@example.test"),
                  (self.claims(line=LINE_B), "owner@example.test"),
                  (self.claims(line="garbage"), "owner@example.test")]
         for claims, user in cases:
@@ -150,12 +154,12 @@ class TestSessionsAndSync(Base):
                 patch.object(line_login, "subject_of", return_value="kc-subject"), \
                 patch("frappe.sessions.delete_session"):
             line_login.sync_user("owner@example.test")
-            client.link_line.assert_called_once_with("kc-subject", LINE_A)
+            client.link_line.assert_called_once_with("kc-subject", LINE_A, "2010411313")
             self.native.db.set_value.assert_called_with(line_login.BINDING, "B1", {
                 "login_link": "linked", "login_link_at": "2026-09-26 12:00:00"}, update_modified=False)
             self.bindings[0].status = "unbound"
             line_login.sync_user("owner@example.test")
-            client.unlink_line.assert_called_once_with("kc-subject")
+            client.unlink_line.assert_called_once_with("kc-subject", "2010411313")
             self.assertEqual(self.native.db.set_value.call_args[0][2]["login_link"], "unlinked")
 
     def test_failed_sync_is_marked_for_reconcile(self):

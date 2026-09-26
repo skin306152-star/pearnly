@@ -11,7 +11,8 @@
    解绑、改绑、停用之后身份服务里残留的会话也进不来。
 3. **会话作废**：绑定不再对应时，立即作废本站经 LINE 登录的会话（密码登录的不动）。
 
-站点上是否启用由开通步骤写入的 `pearnly_line_login_idp` 决定，且必须等于按（产品, 租户）算出的别名。
+站点上是否启用由开通步骤写入的 `pearnly_line_login_idp` 决定，且必须等于按本站 LIFF 所属
+LINE Login 频道算出的别名（一个频道一个入口，见 `line_login_contract`）。
 """
 
 from urllib.parse import urlencode
@@ -30,13 +31,15 @@ IDENTITY = "Pearnly Identity"
 # ── 配置 ────────────────────────────────────────────────────────────────────
 
 
+def login_channel() -> str:
+    """本站 LIFF 所属的 LINE Login 频道号（没配 LIFF 就空）。"""
+    return contract.login_channel_of(frappe.conf.get("pearnly_line_liff_id"))
+
+
 def site_alias() -> str:
-    """本站的 LINE 登录入口别名；按（产品, 租户）算，算不出来就空。"""
-    try:
-        return contract.idp_alias(str(frappe.conf.get("pearnly_product") or ""),
-                                  str(frappe.conf.get("pearnly_tenant") or ""))
-    except ValueError:
-        return ""
+    """本站的 LINE 登录入口别名；算不出来就空。"""
+    channel = login_channel()
+    return contract.idp_alias(channel) if channel else ""
 
 
 def enabled_alias() -> str:
@@ -170,9 +173,9 @@ def sync_user(user):
     rows = frappe.get_all(BINDING, filters={"user": user}, fields=["name", "line_user_id", "status"])
     try:
         if active and subject:
-            member_client.link_line(subject, active)
+            member_client.link_line(subject, active, login_channel())
         elif subject:
-            member_client.unlink_line(subject)
+            member_client.unlink_line(subject, login_channel())
     except Exception:
         # 不记请求与异常细节（含身份标识）；对账会重试。
         frappe.db.rollback()

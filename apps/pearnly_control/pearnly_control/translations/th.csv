@@ -57,6 +57,7 @@ Create the site,สร้างเว็บไซต์
 Create the tenant account,สร้างบัญชีผู้เช่า
 Creating a channel requires both secret and access token,การสร้างช่องทางต้องระบุทั้ง secret และ access token
 Credential Delivery,วิธีส่งมอบข้อมูลรับรอง
+Credentials,ข้อมูลรับรอง
 "Credentials (stored only here, pushed to the tenant site at provisioning)",ข้อมูลรับรอง (เก็บไว้ที่นี่ที่เดียว ผลักไปเว็บไซต์ผู้เช่าตอนเปิดใช้)
 Credited ฿{0}; {1} now has ฿{2},บันทึก ฿{0} เข้าบัญชีแล้ว ตอนนี้ {1} มียอดคงเหลือ ฿{2}
 Crediting…,กำลังบันทึกเข้าบัญชี…
@@ -110,6 +111,7 @@ Install core apps,ติดตั้งแอปพื้นฐาน
 Install the product app,ติดตั้งแอปผลิตภัณฑ์
 Insufficient balance; please top up first,ยอดคงเหลือไม่พอ กรุณาเติมเงินก่อน
 "Invalid LIFF ID: {0}. Enter only the ID, e.g. 2010411313-abcd1234",LIFF ID ไม่ถูกต้อง: {0} กรอกเฉพาะรหัส เช่น 2010411313-abcd1234
+Invalid LINE Login channel ID,Channel ID ของ LINE Login ไม่ถูกต้อง
 Invalid amount,จำนวนเงินไม่ถูกต้อง
 Invalid billing reference,เลขอ้างอิงการเรียกเก็บเงินไม่ถูกต้อง
 "Invalid domain prefix: {0}. Use lowercase letters, digits and hyphens only, no leading or trailing hyphen, length 1–63",คำนำหน้าโดเมนไม่ถูกต้อง: {0} ใช้ได้เฉพาะตัวพิมพ์เล็ก ตัวเลข และขีดกลาง ห้ามขีดกลางหัวท้าย ยาว 1–63
@@ -133,6 +135,10 @@ LINE Channel Access Token,LINE Channel Access Token
 LINE Channel ID,LINE Channel ID
 LINE Channel Secret,LINE Channel Secret
 LINE LIFF ID,LINE LIFF ID
+LINE Login,เข้าสู่ระบบด้วย LINE
+LINE Login Callback URL,Callback URL ของ LINE Login
+LINE Login Channel ID,Channel ID ของ LINE Login
+LINE Login Channel Secret,Channel secret ของ LINE Login
 LINE channel (optional),ช่องทาง LINE (ไม่บังคับ)
 LINE configuration is being applied. Try again shortly.,กำลังใช้การตั้งค่า LINE กรุณาลองใหม่ภายหลัง
 LINE credentials are required before activation.,ต้องกรอกข้อมูลรับรอง LINE ก่อนเปิดใช้งาน
