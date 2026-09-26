@@ -297,10 +297,11 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         description = str(row.get("description") or "").strip()
         if not description:
             continue
-        if checks.is_discount_line(description, row.get("amount"), row.get("unit_price")):
-            # 折扣 / 优惠券行不是商品：并进整单折扣（`recognition.checks.is_discount_line`）。
-            discount_lines += abs(checks.money(row.get("amount")) or checks.money(row.get("unit_price"))
-                                  or checks.money(row.get("discount")) or 0)
+        value = abs(checks.money(row.get("amount")) or checks.money(row.get("unit_price"))
+                    or checks.money(row.get("discount")) or 0)
+        if value and checks.is_discount_line(description, row.get("amount"), row.get("unit_price")):
+            # 折扣 / 优惠券行不是商品：并进整单折扣（`recognition.checks.is_discount_line`）；0 元的照常留作一行。
+            discount_lines += value
             continue
         lines.append({
             "description": description[:300],

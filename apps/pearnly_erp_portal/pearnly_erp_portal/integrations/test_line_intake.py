@@ -640,6 +640,16 @@ class Checks(unittest.TestCase):
         self.assertIsNone(checks.withholding_rate(1000, 70, 1051))
         self.assertEqual(checks.withholding_rate(1000, 70, 1000, wht_amount=30), 3)
         self.assertEqual(checks.money("(183.82)"), -checks.money("183.82"))
+        # 语料 v2_006：5% 折扣与 5% 预扣的算式凑巧相同 —— 扣了折扣已经平，就不是预扣税。
+        discounted = recognition._structured({**raw, "discount_total": 63.5,
+            "printed": {"subtotal": 1270, "discount": 63.5, "vat": 84.46, "total": 1290.96},
+            "lines": [{"description": "a", "qty": 3, "unit_price": 137}, {"description": "b", "qty": 4, "unit_price": 166},
+                      {"description": "c", "qty": 1, "unit_price": 195}]})
+        self.assertFalse(any(row.get("wht_rate") for row in discounted["lines"]))
+        # 语料 v2_005：整张单只有一行 0 元「ส่วนลดคูปอง」—— 照常留作一行。
+        zero = recognition._structured({"document_type": "tax_invoice", "printed": {"total": 0},
+                                        "lines": [{"description": "ส่วนลดคูปองเต็มจำนวน", "qty": 1, "unit_price": 0}]})
+        self.assertEqual(len(zero["lines"]), 1)
 
     def test_credit_notes_are_not_recorded_as_purchases(self):
         from pearnly_erp_portal.purchasing import recognition

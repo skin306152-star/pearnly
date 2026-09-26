@@ -79,9 +79,10 @@ def clean_result(raw):
         # 带着 None 进去税率会被当成 0（09-26：含税票被算成没有 VAT）。
         row = {key: raw_row[key] for key in LINE_FIELDS if raw_row.get(key) not in (None, "")}
         amount, price = _number(raw_row.get("amount") or 0), _number(row.get("unit_price") or 0) or 0
-        if checks.is_discount_line(row.get("description"), amount, price):
-            # 折扣行不是商品，并进整单折扣（语料实测：单价为空时算不出合计）。
-            value = abs(amount or (_number(row.get("qty") or 1) or 1) * price or _number(row.get("discount") or 0) or 0)
+        value = abs(amount or (_number(row.get("qty") or 1) or 1) * price or _number(row.get("discount") or 0) or 0)
+        if value and checks.is_discount_line(row.get("description"), amount, price):
+            # 折扣行不是商品，并进整单折扣（语料实测：单价为空时算不出合计）。0 元的「ส่วนลดคูปอง」行
+            # 照常留作一行（语料 v2_005：整张单只有这一行，拿掉就没有明细了）。
             discount_lines += value
             continue
         if "qty" not in row and (price or amount):
@@ -224,9 +225,10 @@ def _withholding(result):
     base = printed.get("subtotal")
     if base in (None, ""):
         base = _line_sum(lines)
-        base = base - (checks.money(result.get("discount_total")) or 0) if base is not None else None
+    discount = checks.money(printed.get("discount")) or checks.money(result.get("discount_total")) or 0
     rate = _number(result.get("wht_rate") or 0) or checks.withholding_rate(
-        base, printed.get("vat") if result.get("has_vat") is not False else 0, printed.get("total"),
+        checks.money(base) - discount if checks.money(base) is not None else None,
+        printed.get("vat") if result.get("has_vat") is not False else 0, printed.get("total"),
         result.get("wht_amount"))
     if rate:
         for row in lines:

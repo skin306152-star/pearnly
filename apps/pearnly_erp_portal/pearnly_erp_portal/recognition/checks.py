@@ -90,6 +90,9 @@ def withholding_rate(base, vat, total, wht_amount=None):
     base, vat, total = money(base), money(vat) or Decimal(0), money(total)
     if base is None or total is None or base <= 0:
         return None
+    if abs(base + vat - total) <= Decimal("0.01"):
+        # 不扣预扣税就已经平了：不猜（语料 v2_006：5% 折扣与 5% 预扣算式凑巧相同）。
+        return None
     printed = money(wht_amount)
     if printed and printed > 0:
         candidates = [rate for rate in WHT_RATES if abs(base * rate / 100 - printed) <= Decimal("0.01")]
