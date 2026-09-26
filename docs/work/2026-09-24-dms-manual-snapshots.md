@@ -1344,3 +1344,24 @@ REPEATABLE READ，独立连接刚提交的写入在它眼里看不见；`frappe.
 `check-architecture.py` 0 违规；`check-dms-offline.py`（Python 3.12）18 项全 PASS；`test_queue_targets.py` 通过。
 没有在真实 Site 上跑 `migrate` 看 `Scheduled Job Type` 变成两条，也未部署；部署后需回读两站点的
 `Scheduled Job Type`（应为 `0 3` 的 `run` 与 `30 4` 的 `retry`），并在次日回读 3:00 那一枪四组（含客户组）是否都换了新代。
+
+### 合并与上线（2026-09-26 泰国 16:00–16:21）
+
+- 合并：`codex/dms-nightly-force` 快进合入 `main` = `4207bf154e99173bfcf00e1df91905da57047123`，`git ls-remote` 回读一致；
+  分支 Development checks `36231366399` 通过。
+- 同批带上线的共享改动（`583262a..4207bf1`，ERP 已按 `a1f6488` 在生产跑了 11 小时）：`pearnly_core` 的 `line.user_language`、
+  `ocr.thinking_for/upright` 与可选 `thinking=` 参数（均为新增、默认不启用，DMS 调用不变）、共用原件预览 `desk/viewer.js` 与样式、
+  前端 nginx 静态缓存模板；DMS 仅词条补齐。
+- 镜像：Build production image `36231576940`，`ghcr.io/skin306152-star/pearnly/frappe@sha256:ea8f7cab001024718550ed62cb0535f97e4108161e358615277335aec13e8fcd`
+  （revision `4207bf1`）；Stage `36231957135` 成功。
+- 部署工具：服务器副本仅 `scripts/production/test-issue-actions.cjs` 与镜像不同，旧目录备份到
+  `/opt/pearnly/deploy-backup-20260926-091121` 后从镜像 `deploy-src` 同步，`check-deploy-image.py` 通过。
+- 激活：`activate-product.sh … dms` 输出 "Product dms activated with verified image."，日志
+  `/opt/pearnly/state/activate-dms-4207bf1.log`；两站点备份成功、migrate 完成；维护窗口约 2.5 分钟（UTC 09:11–09:13）。
+  上一版 `sha256:b2e32d17…`（`583262a`）。
+- 回读：8 个 DMS 容器均为 `ea8f7cab0010`、revision `4207bf1`、`RestartCount=0`；`active-image-dms.json` 已写入该 digest，
+  ERP（`b7c07a7f…`）、Cowork、MariaDB、Keycloak 未动；`ris` / `testdms` ping 200、`maintenance_mode=0`、`pause_scheduler=0`；
+  两站点 `Scheduled Job Type` = `nightly_refresh.run`＠`0 3 * * *` 与 `nightly_refresh.retry`＠`30 4 * * *`；新容器 15 分钟内日志 0 条错误。
+
+**仍未验收**：9/27 凌晨 3:00 这一枪要回读 —— 两站点四组（含客户组）都应换新代、`last_error` 空，且日志里 `change_sync.seed` 先于各组第一步；
+4:30 补读应返回 `nothing-to-do`（除非 3:00 有组失败或仍在读）。
