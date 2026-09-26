@@ -19,24 +19,11 @@ from __future__ import annotations
 from typing import Any, Dict
 from pearnly_dms.menu.links import account_action
 
+from pearnly_dms.line import cards
 from pearnly_dms.line.cards import (
     ACT_MENU_BOOKING,
     ACT_MENU_CUSTOMER,
     ACT_MENU_QUERY,
-    TXT_MENU_D1,
-    TXT_MENU_D2,
-    TXT_MENU_D3,
-    TXT_MENU_D4,
-    TXT_MENU_D5,
-    TXT_MENU_HINT,
-    TXT_MENU_ITEM1,
-    TXT_MENU_ITEM2,
-    TXT_MENU_ITEM3,
-    TXT_MENU_ITEM4,
-    TXT_MENU_ITEM5,
-    TXT_MENU_PICK,
-    TXT_MENU_PICK_SUB,
-    TXT_MENU_TITLE,
     _data,
 )
 
@@ -163,14 +150,14 @@ def menu_card(
                 "contents": [
                     {
                         "type": "text",
-                        "text": TXT_MENU_PICK,
+                        "text": cards.TXT_MENU_PICK,
                         "size": "sm",
                         "weight": "bold",
                         "wrap": True,
                     },
                     {
                         "type": "text",
-                        "text": TXT_MENU_PICK_SUB,
+                        "text": cards.TXT_MENU_PICK_SUB,
                         "size": "xxs",
                         "color": "#8a8a8a",
                         "wrap": True,
@@ -187,22 +174,22 @@ def menu_card(
             "1",
             "menu-1",
             THEME_BLUE,
-            TXT_MENU_ITEM1,
-            TXT_MENU_D1,
+            cards.TXT_MENU_ITEM1,
+            cards.TXT_MENU_D1,
             {"type": "postback", "data": _data(ACT_MENU_CUSTOMER)},
         ),
         menu_item(
             "2",
             "menu-2",
             THEME_PINK,
-            TXT_MENU_ITEM2,
-            TXT_MENU_D2,
+            cards.TXT_MENU_ITEM2,
+            cards.TXT_MENU_D2,
             {"type": "postback", "data": _data(ACT_MENU_BOOKING)},
         ),
     ]
     for num, kind, theme, title, desc in (
-        ("3", "portal", THEME_PURPLE, TXT_MENU_ITEM3, TXT_MENU_D3),
-        ("4", "credentials", THEME_GREEN, TXT_MENU_ITEM4, TXT_MENU_D4),
+        ("3", "portal", THEME_PURPLE, cards.TXT_MENU_ITEM3, cards.TXT_MENU_D3),
+        ("4", "credentials", THEME_GREEN, cards.TXT_MENU_ITEM4, cards.TXT_MENU_D4),
     ):
         action = account_action(kind, title)
         if action:
@@ -213,15 +200,15 @@ def menu_card(
                 "5",
                 "menu-5",
                 THEME_ORANGE,
-                TXT_MENU_ITEM5,
-                TXT_MENU_D5,
+                cards.TXT_MENU_ITEM5,
+                cards.TXT_MENU_D5,
                 {"type": "postback", "data": _data(ACT_MENU_QUERY)},
             )
         )
     contents.append(
         {
             "type": "text",
-            "text": TXT_MENU_HINT,
+            "text": cards.TXT_MENU_HINT,
             "size": "xxs",
             "color": "#aaaaaa",
             "align": "center",
@@ -235,4 +222,4 @@ def menu_card(
         "paddingAll": "16px",
         "contents": contents,
     }
-    return {"type": "flex", "altText": TXT_MENU_TITLE, "contents": {"type": "bubble", "body": body}}
+    return {"type": "flex", "altText": cards.TXT_MENU_TITLE, "contents": {"type": "bubble", "body": body}}

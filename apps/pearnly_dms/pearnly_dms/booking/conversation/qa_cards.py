@@ -31,12 +31,11 @@ from pearnly_dms.booking import booking_car_details as booking_car_details
 from pearnly_dms.editor import edit_link as dms_edit_link
 from pearnly_dms import i18n
 from pearnly_dms.booking.booking_payments import payment_preview_detail
+from pearnly_dms.line import cards as _cards
 from pearnly_dms.line.cards import (
     ACT_CANCEL_BOOKING,
     ACT_CONFIRM_BOOKING,
     ACT_RETRY_BOOKING,
-    BTN_RETRY_BOOKING,
-    TXT_NO_ENDPOINT,
     _bubble,
     _btn,
     _data,
@@ -190,7 +189,7 @@ def _plus_years(d: date, years: int) -> date:
 # ── 开局闸 ───────────────────────────────────────────────────────────────
 def no_endpoint() -> Dict[str, Any]:
     """端点没配/被停用 → 沿用全站同一句无端点话术。"""
-    return _msg(TXT_NO_ENDPOINT)
+    return _msg(_cards.TXT_NO_ENDPOINT)
 
 
 def advisor_block_msg(username: str) -> Dict[str, Any]:
@@ -325,7 +324,7 @@ def master_problem(code: str) -> Dict[str, Any]:
 
 
 def master_changed() -> Dict[str, Any]:
-    return _msg(TXT_MASTER_CHANGED)
+    return _msg(_c("TXT_MASTER_CHANGED"))
 
 
 def ask_more() -> Dict[str, Any]:
@@ -466,15 +465,20 @@ def preview_card(qa: Dict[str, Any], nonce: str, notice: str = "") -> Dict[str, 
     return _bubble(qat("TXT_PREVIEW_TITLE"), rows, footer, qat("TXT_PREVIEW_TITLE"))
 
 
-def booking_retry_card(message: str, nonce: str) -> Dict[str, Any]:
-    """建单在外部 DMS 写入前失败时，保留草稿并发一次性重试按钮。"""
+def booking_retry_card(message: str, nonce: str, code: str = "") -> Dict[str, Any]:
+    """建单在外部 DMS 写入前失败时，保留草稿并发一次性重试按钮。
+
+    "先在别处退出 DMS"只对被顶下线（`ERR_DMS_CONCURRENT_LOGIN`）成立；连不上、排队超时、
+    系统中断只提示"30 分钟内点重试"，不叫人去退出一个根本没登录的地方。
+    """
     failed = qat("retry.failed")
+    hint = qat("retry.hint" if code == "ERR_DMS_CONCURRENT_LOGIN" else "retry.hint_later")
     rows = [
         {"type": "text", "text": message or failed, "wrap": True},
-        {"type": "text", "text": qat("retry.hint"), "size": "sm", "wrap": True},
+        {"type": "text", "text": hint, "size": "sm", "wrap": True},
     ]
     footer = [
-        _btn(BTN_RETRY_BOOKING, _data(ACT_RETRY_BOOKING, nonce=nonce), "primary"),
+        _btn(_cards.BTN_RETRY_BOOKING, _data(ACT_RETRY_BOOKING, nonce=nonce), "primary"),
         _btn(qat("BTN_DISCARD"), _data(ACT_CANCEL_BOOKING, nonce=nonce), "secondary"),
     ]
     return _bubble(failed, rows, footer, qat("retry.alt"))

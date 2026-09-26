@@ -200,6 +200,7 @@ def _execute_owned_booking(binding: dict, line_user_id: str, payload: dict) -> N
                 qa_cards.booking_retry_card(
                     friendly.get(i18n.line_lang()) or cards.TXT_BOOKING_FAIL,
                     retry_nonce,
+                    code=result.get("error_code") or "",
                 ),
             )
             return
@@ -270,6 +271,10 @@ def _retryable_result(result: Dict[str, Any]) -> bool:
         return False
     if result.get("error_code") in (
         "ERR_DMS_BUSY",  # 排队等账号超时：锁没拿到，什么都没提交
+        # 打不开登录页：还没进 DMS，更谈不上提交（提交后的失败由上面 booking_id / submitted
+        # 与提交前登记的尝试标记拦下）。以前不在名单里，一次网络抖动就把草稿卡死，
+        # 用户只能从头再录（2026-09-27 测试机实测）；与 `config/pacing` 的"给重试"口径一致。
+        "ERR_DMS_UNREACHABLE",
         "ERR_DMS_CONCURRENT_LOGIN",
         "ERR_DMS_MASTER_UNAVAILABLE",
         "ERR_DMS_CUSTOMER_LOOKUP",

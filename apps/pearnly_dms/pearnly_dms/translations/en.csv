@@ -290,6 +290,7 @@ System accounts,System accounts
 THB,THB
 Take a photo of the customer's ID card to start a new customer record.,Take a photo of the customer's ID card to start a new customer record.
 Tap Confirm or Discard on the summary above,Tap Confirm or Discard on the summary above
+Tap Retry within 30 minutes,Tap Retry within 30 minutes
 Test and add,Test and add
 That's all,That's all
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
@@ -582,6 +583,7 @@ dms.card.qa.pay.transfer,Bank transfer
 dms.card.qa.retry.alt,Booking failed · Retry
 dms.card.qa.retry.failed,The booking could not be created
 dms.card.qa.retry.hint,"Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
+dms.card.qa.retry.hint_later,Tap Retry within 30 minutes
 dms.card.query.ALT_RECORDS,{n} latest sales records from DMS
 dms.card.query.ALT_TOP,Top sales from DMS
 dms.card.query.ASK_ADVISOR,Type the sales advisor's name

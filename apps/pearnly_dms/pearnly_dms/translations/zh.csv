@@ -290,6 +290,7 @@ System accounts,系统账号
 THB,泰铢
 Take a photo of the customer's ID card to start a new customer record.,拍摄客户身份证即可开始登记新客户。
 Tap Confirm or Discard on the summary above,请在上方汇总中点「确认」或「放弃」
+Tap Retry within 30 minutes,请在 30 分钟内点「重试」
 Test and add,测试并添加
 That's all,已全部添加
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
@@ -582,6 +583,7 @@ dms.card.qa.pay.transfer,转账
 dms.card.qa.retry.alt,订车单建立失败 · 重试
 dms.card.qa.retry.failed,订车单建立失败
 dms.card.qa.retry.hint,请先在其他地方退出 DMS，再在 30 分钟内点「重试」
+dms.card.qa.retry.hint_later,请在 30 分钟内点「重试」
 dms.card.query.ALT_RECORDS,DMS 最新销售记录 {n} 条
 dms.card.query.ALT_TOP,DMS 销售排行
 dms.card.query.ASK_ADVISOR,请输入销售顾问姓名

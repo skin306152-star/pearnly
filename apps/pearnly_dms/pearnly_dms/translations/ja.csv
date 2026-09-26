@@ -290,6 +290,7 @@ System accounts,システムアカウント
 THB,バーツ
 Take a photo of the customer's ID card to start a new customer record.,お客様の身分証明書を撮影すると、新規顧客の登録を始めます。
 Tap Confirm or Discard on the summary above,上の概要で「確定」または「破棄」を押してください
+Tap Retry within 30 minutes,30 分以内に「再試行」を押してください
 Test and add,テストして追加
 That's all,これで全部
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
@@ -582,6 +583,7 @@ dms.card.qa.pay.transfer,振込
 dms.card.qa.retry.alt,予約作成に失敗 · 再試行
 dms.card.qa.retry.failed,予約を作成できませんでした
 dms.card.qa.retry.hint,ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください
+dms.card.qa.retry.hint_later,30 分以内に「再試行」を押してください
 dms.card.query.ALT_RECORDS,DMS の最新販売記録 {n} 件
 dms.card.query.ALT_TOP,DMS の販売ランキング
 dms.card.query.ASK_ADVISOR,営業担当の名前を入力してください

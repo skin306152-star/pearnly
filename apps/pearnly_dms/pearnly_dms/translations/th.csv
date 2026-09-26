@@ -290,6 +290,7 @@ System accounts,บัญชีระบบ
 THB,บาท
 Take a photo of the customer's ID card to start a new customer record.,ถ่ายรูปบัตรประชาชนของลูกค้าเพื่อเริ่มบันทึกลูกค้าใหม่
 Tap Confirm or Discard on the summary above,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
+Tap Retry within 30 minutes,กรุณากดลองใหม่ภายใน 30 นาที
 Test and add,ทดสอบและเพิ่ม
 That's all,ครบแล้ว
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
@@ -582,6 +583,7 @@ dms.card.qa.pay.transfer,เงินโอน
 dms.card.qa.retry.alt,สร้างใบจองไม่สำเร็จ · ลองใหม่
 dms.card.qa.retry.failed,สร้างใบจองไม่สำเร็จ
 dms.card.qa.retry.hint,กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที
+dms.card.qa.retry.hint_later,กรุณากดลองใหม่ภายใน 30 นาที
 dms.card.query.ALT_RECORDS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 dms.card.query.ALT_TOP,ยอดขายสูงสุดจาก DMS
 dms.card.query.ASK_ADVISOR,พิมพ์ชื่อที่ปรึกษาการขาย

@@ -74,6 +74,52 @@ class Texts(unittest.TestCase):
                 self.assertEqual(holes(packs[lang][key]), holes(thai), f"{key} placeholders in {lang}")
 
 
+class ImportTimeFreeze(unittest.TestCase):
+    """`cards.TXT_X` 每次按当前收件人现取；`from cards import TXT_X` 写在模块顶层会在导入时定死成
+    当时那个语言 —— 测试机实测：网页进程先处理了一个中文事件，之后给英文用户的菜单卡也是中文。"""
+
+    APP = Path(__file__).resolve().parents[1] / "apps/pearnly_dms/pearnly_dms"
+
+    def test_no_module_level_import_of_lazy_texts(self):
+        import ast
+
+        lazy = {}
+        for path in self.APP.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            if not any(isinstance(n, ast.FunctionDef) and n.name == "__getattr__" for n in tree.body):
+                continue
+            defined = set()
+            for node in tree.body:
+                if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+                    defined.add(node.name)
+                elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+                    targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                    defined |= {x.id for t in targets for x in ast.walk(t) if isinstance(x, ast.Name)}
+                elif isinstance(node, (ast.Import, ast.ImportFrom)):
+                    defined |= {(a.asname or a.name).split(".")[0] for a in node.names}
+            lazy["pearnly_dms." + ".".join(path.relative_to(self.APP).with_suffix("").parts)] = defined
+        frozen = []
+        for path in self.APP.rglob("*.py"):
+            for node in ast.parse(path.read_text(encoding="utf-8")).body:  # 只看模块顶层
+                if isinstance(node, ast.ImportFrom) and node.module in lazy:
+                    frozen += [f"{path.name}:{node.lineno} {a.name}" for a in node.names
+                               if a.name not in lazy[node.module]]
+        self.assertEqual(frozen, [])
+
+    def test_menu_card_follows_the_recipient(self):
+        from pearnly_dms.menu import menu_cards
+
+        with patch.object(menu_cards, "account_action", return_value=None), \
+                patch.object(menu_cards, "icon_base", return_value="https://x"):
+            with i18n.line_language(language="zh"):
+                zh = menu_cards.menu_card()
+            with i18n.line_language(language="en"):
+                en = menu_cards.menu_card()
+        self.assertEqual(zh["altText"], i18n.t("dms.card.TXT_MENU_TITLE", lang="zh"))
+        self.assertEqual(en["altText"], i18n.t("dms.card.TXT_MENU_TITLE", lang="en"))
+        self.assertNotEqual(zh["altText"], en["altText"])
+
+
 class Commands(unittest.TestCase):
     def test_localised_command_words(self):
         for word in ("เมนู", "menu", "MENU", "菜单", "メニュー"):

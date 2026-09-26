@@ -275,6 +275,7 @@ Bank transfer	转账	เงินโอน	振込	dms.card.qa.pay.transfer
 Booking failed · Retry	订车单建立失败 · 重试	สร้างใบจองไม่สำเร็จ · ลองใหม่	予約作成に失敗 · 再試行	dms.card.qa.retry.alt
 The booking could not be created	订车单建立失败	สร้างใบจองไม่สำเร็จ	予約を作成できませんでした	dms.card.qa.retry.failed
 Please sign out of DMS elsewhere, then tap Retry within 30 minutes	请先在其他地方退出 DMS，再在 30 分钟内点「重试」	กรุณาออกจากระบบ DMS ที่อื่น แล้วกดลองใหม่ภายใน 30 นาที	ほかの場所で DMS からログアウトし、30 分以内に「再試行」を押してください	dms.card.qa.retry.hint
+Tap Retry within 30 minutes	请在 30 分钟内点「重试」	กรุณากดลองใหม่ภายใน 30 นาที	30 分以内に「再試行」を押してください	dms.card.qa.retry.hint_later
 {n} latest sales records from DMS	DMS 最新销售记录 {n} 条	บันทึกการขายล่าสุดจาก DMS {n} รายการ	DMS の最新販売記録 {n} 件	dms.card.query.ALT_RECORDS
 Top sales from DMS	DMS 销售排行	ยอดขายสูงสุดจาก DMS	DMS の販売ランキング	dms.card.query.ALT_TOP
 Type the sales advisor's name	请输入销售顾问姓名	พิมพ์ชื่อที่ปรึกษาการขาย	営業担当の名前を入力してください	dms.card.query.ASK_ADVISOR
