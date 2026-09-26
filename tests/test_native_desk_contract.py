@@ -97,7 +97,9 @@ class NativeDeskContract(unittest.TestCase):
             'pearnly-products', 'pearnly-inventory', 'pearnly-stock-count',
             'pearnly-stock-in', 'pearnly-stock-out', 'pearnly-stock-card', 'pearnly-sales', 'pearnly-cashier',
             'pearnly-suppliers', 'pearnly-clients', 'pearnly-pos-receipts', 'pearnly-pos-shifts',
-            'pearnly-team', 'pearnly-company', 'pearnly-warehouses'})
+            'pearnly-team', 'pearnly-company', 'pearnly-warehouses',
+            # Cowork 库存盘点（上传盘点，2026-09-26）。
+            'pearnly-stocktake'})
         # The visible list, the saved sidebar and the personal order all filter
         # on the product's own list instead of one shared route set.
         self.assertNotIn('pearnly-', source.split('"""', 2)[-1])

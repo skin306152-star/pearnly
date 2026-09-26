@@ -24,8 +24,12 @@ Active Attempt,ความพยายามปัจจุบัน
 Active Key,คีย์ป้องกันรายการซ้ำที่ใช้งาน
 Actor,ผู้ดำเนินการ
 Actual Qty,จำนวนที่ตรวจนับจริง
+Actual location,ตำแหน่งจริง
+Actual warehouse,คลังสินค้าจริง
 Add User,เพิ่มผู้ใช้
+Add photo,เพิ่มรูปภาพ
 Added {0},เพิ่มแล้ว {0}
+All,ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Already exists,มีอยู่แล้ว
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,รายการในใบแจ้งหนี้ไม่มีจำนวนเงิน และข้อมูลจำนวนกับราคาต่อหน่วยไม่ครบ กรุณากรอกให้ครบก่อนส่งออก
@@ -35,6 +39,8 @@ Anchor Date,วันที่อ้างอิง
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
 Assign Cowork access through company and client permissions.,กรุณากำหนดสิทธิ์เข้าถึง Cowork ผ่านสิทธิ์บริษัทและลูกค้า
 At least one invoice page is required when editing.,เมื่อแก้ไขต้องมีหน้าใบแจ้งหนี้อย่างน้อยหนึ่งหน้า
+At most 5 photos per entry,บันทึกละไม่เกิน 5 รูป
+At most {0} photos per entry,บันทึกละไม่เกิน {0} รูป
 Attempt Secret,ข้อมูลลับของการพยายาม
 Barcode,บาร์โค้ด
 Billing Code,รหัสค่าบริการ
@@ -47,7 +53,10 @@ Bind this account first,กรุณาผูกบัญชีก่อนใ�
 Binding Generation,รุ่นการผูก
 Binding code,รหัสเชื่อมต่อ
 Blocked By,รายการที่ขัดขวาง
+Book,ตามบัญชี
 Book Qty,จำนวนตามบัญชี
+Book location,ตำแหน่งตามบัญชี
+Book quantity,จำนวนตามบัญชี
 Bound,เชื่อมต่อแล้ว
 Bound Account Set,ชุดบัญชีที่ผูกไว้
 Bound Invoice Records,รายการใบแจ้งหนี้ที่เชื่อมโยงแล้ว
@@ -56,6 +65,7 @@ Bound at,เชื่อมต่อเมื่อ
 Bound to {0},เชื่อมต่อกับ {0} แล้ว
 Branch,สาขาการดำเนินการ
 Buyer Client,ลูกค้าผู้ซื้อ
+Camera,กล้อง
 Cannot tell which company this entry belongs to; the site must have exactly one.,ไม่สามารถระบุได้ว่ารายการนี้เป็นของบริษัทใด ไซต์ต้องมีข้อมูลบริษัทเพียงรายการเดียว
 Cash,เงินสด
 Changed At (UTC),เวลาที่แก้ไข (UTC)
@@ -65,10 +75,15 @@ Check the statement balance differences before confirming.,กรุณาแก
 Check the warehouse and location. A warehouse is required.,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 Checks Json,ผลตรวจสอบ JSON
 Choose at least one job role,เลือกสิทธิ์อย่างน้อยหนึ่งอย่าง
+Choose file,เลือกไฟล์
 Client,ลูกค้า
+Close count,ปิดการตรวจนับ
+Closed,ปิดแล้ว
 Closed At,เวลาปิด
 Closed By,ผู้ปิด
+Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
+Code or barcode,รหัสหรือบาร์โค้ด
 Collection is not connected for this ERP data type.,ยังไม่ได้เชื่อมต่อการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Companion Report,รายงานจาก Companion
 Companion authentication failed.,การยืนยันตัวตนผู้ช่วยไม่สำเร็จ
@@ -86,10 +101,15 @@ Connection Name,ชื่อการเชื่อมต่อ
 Connection Revision,รุ่นการเชื่อมต่อ
 Connection or directory record not found.,ไม่พบการเชื่อมต่อหรือรายการไดเรกทอรี
 Content Hash,แฮชเนื้อหา
+Continuous counting,ตรวจนับต่อเนื่อง
 Corrected Value,ค่าที่แก้ไข
 Count Mode,วิธีตรวจนับ
+Count sheet,ไฟล์ตรวจนับ
 Counted At,เวลาตรวจนับ
 Counted By,ผู้ตรวจนับ
+Counted at,เวลาที่นับ
+Counted by,ผู้ตรวจนับ
+Counted quantity,จำนวนที่นับได้
 Cowork,Cowork
 Cowork Bank Evidence,หลักฐานธนาคารของ Cowork
 Cowork Client,Cowork ลูกค้าผู้ซื้อ
@@ -119,6 +139,7 @@ Cowork Stocktake Task,งานตรวจนับสต็อก Cowork
 Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Workspace,Cowork บริษัทที่จัดทำบัญชี
 Create invoice records through the Cowork intake service.,กรุณาสร้างรายการใบแจ้งหนี้ผ่านฟังก์ชันบันทึกข้อมูลของ Cowork
+Created,สร้างเมื่อ
 Created By,ผู้สร้าง
 Creation Request Hash,แฮชคำขอสร้าง
 Credential ID,รหัสข้อมูลรับรอง
@@ -128,6 +149,10 @@ Current Json,ข้อมูลปัจจุบัน (JSON)
 Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
+Delete {0},ลบ {0} รายการ
+Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
+Deleted {0},ลบแล้ว {0} รายการ
+Difference,ผลต่าง
 Direction,ทิศทางรายการ
 Directory Revision,รุ่นไดเรกทอรี
 Directory Scope Key,คีย์ขอบเขตไดเรกทอรี
@@ -136,6 +161,8 @@ Directory Snapshot,ภาพข้อมูลไดเรกทอรี
 Disable,ปิดใช้งาน
 Disable {0},ปิดใช้งาน {0}
 Document Key,คีย์ป้องกันเอกสารซ้ำ
+Done,เสร็จสิ้น
+Download template,ดาวน์โหลดแม่แบบ
 Draft,ฉบับร่าง
 Duplicate records are not allowed.,ไม่สามารถเลือกข้อมูลรายการเดียวกันซ้ำได้
 ERP Code,รหัส ERP
@@ -146,20 +173,25 @@ ERP Username,ชื่อผู้ใช้ ERP
 ERP records cannot be saved in Cowork.,ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและรุ่นของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
+Edit,แก้ไข
 Edit Count,จำนวนครั้งที่แก้ไข
 Edit in Full Page,แก้ไขแบบเต็มหน้า
 Email,อีเมล
 Enable,เปิดใช้งาน
 Enable {0},เปิดใช้งาน {0}
+Enter a quantity,กรุณากรอกจำนวน
 Enter a stock count title of 1 to 120 characters.,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter a valid quantity with no more than six decimal places.,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
 Enter the user name,กรุณากรอกชื่อผู้ใช้
+Entries · {0},รายการบันทึก · {0}
 Entry,รายการ
+Entry saved,บันทึกแล้ว
 Event Key,รหัสเหตุการณ์
 Evidence Fingerprint,ลายนิ้วมือหลักฐาน
 Evidence Owner,เจ้าของหลักฐาน
 Examples Json,ข้อมูลตัวอย่างการแก้ไข (JSON)
+Export,ส่งออก
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 External Docnum,เลขที่เอกสาร ERP
@@ -168,6 +200,7 @@ Failure Count,จำนวนครั้งที่ล้มเหลว
 Fence,ลำดับแยกความพยายาม
 Field,ฟิลด์
 File Hash,ค่าแฮชของไฟล์
+Find,ค้นหา
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
 First Recognition Value,ค่าที่อ่านได้ครั้งแรก
 General,ทั่วไป
@@ -178,6 +211,8 @@ History Version,รุ่นประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับผู้ถือล็อก
 IN,เงินเข้า
+"Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
+In progress,กำลังตรวจนับ
 Inactive,ปิดใช้งาน
 Initial Password,รหัสผ่านเริ่มต้น
 Installed At (UTC),เวลาติดตั้ง (UTC)
@@ -218,20 +253,26 @@ Last Request Hash,แฮชคำขอล่าสุด
 Last Request Key,คีย์คำขอล่าสุด
 Lease Expires At,เวลาที่สิทธิ์ถือครองหมดอายุ
 Location,ตำแหน่ง
+Location mismatch,ตำแหน่งไม่ตรง
 Lock Key,คีย์ล็อก
 Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
 Manual,กรอกเอง
 Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
+Matched,ตรงกัน
+Name,ชื่อการตรวจนับ
 Native Content Hash,ค่าแฮชเนื้อหาไฟล์ของระบบ
 Needs review,รอตรวจสอบ
 New code,ขอรหัสใหม่
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
+New stock count,สร้างการตรวจนับ
 No Companion credential has been issued for this connection.,ยังไม่ได้ออกข้อมูลรับรองผู้ช่วยสำหรับการเชื่อมต่อนี้
 No invoice summary found,ไม่พบข้อมูลสรุปใบแจ้งหนี้
+No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 Not Permitted,ไม่ได้รับอนุญาต
 Not bound,ยังไม่เชื่อมต่อ
+Not counted,ยังไม่นับ
 OUT,เงินออก
 Observed At (UTC),เวลาสังเกต (UTC)
 Only manual records can be created through this entry.,ช่องทางนี้สร้างได้เฉพาะรายการที่กรอกเอง
@@ -248,6 +289,7 @@ Original files cannot be changed.,ไม่สามารถเปลี่ย�
 Original files cannot be deleted while invoice references may exist.,ไม่สามารถลบไฟล์ต้นฉบับได้หากยังอาจมีใบแจ้งหนี้ที่เชื่อมโยงอยู่
 Original files cannot be shared separately from their invoices.,ไม่สามารถแชร์ไฟล์ต้นฉบับแยกจากใบแจ้งหนี้ที่เชื่อมโยงอยู่ได้
 Outcome,ผลการดำเนินการ
+Over,เกิน
 Owner ID,รหัสเจ้าของ
 Owner Id,รหัสผู้ดำเนินการ
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
@@ -260,6 +302,7 @@ Payment Method,วิธีชำระเงิน
 Pearnly Cowork,Pearnly Cowork
 Pending,รอดำเนินการ
 Phase,ขั้นตอนการประมวลผล
+Photos,รูปภาพ
 Posting Kind,ประเภทการผ่านรายการ
 Preparation Evidence,หลักฐานข้อมูลเตรียมส่ง
 Preparation data does not match the connection or account set.,ข้อมูลเตรียมส่งไม่ตรงกับการเชื่อมต่อหรือชุดบัญชี
@@ -267,15 +310,19 @@ Preparation data for this account set is incomplete.,ข้อมูลเตร
 Previous Json,ข้อมูลก่อนเปลี่ยนแปลง (JSON)
 Private File,ไฟล์ส่วนตัว
 Private Storage URL,URL ที่จัดเก็บส่วนตัว
+Product,สินค้า
 Product Code,รหัสสินค้า
 Product Name,ชื่อสินค้า
+Product code,รหัสสินค้า
 Product codes and barcodes must be stored as text.,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
+Product name,ชื่อสินค้า
 Provider Evidence,หลักฐานการเรียกใช้ผู้ให้บริการ
 Push Attempt,ความพยายามส่ง
 Push Record,รายการส่ง
 Push record not found.,ไม่พบรายการส่ง
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดการส่ง ยังไม่มีการส่งข้อมูลใด ๆ
 Quantity,จำนวน
+Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Reason,เหตุผล
 Recognition Confidence,ระดับความมั่นใจในการอ่าน
 Recognition Quality,คุณภาพการอ่าน
@@ -283,10 +330,12 @@ Recognition input and ownership cannot be changed.,ไม่สามารถ�
 Recognition tasks cannot be deleted through the document API.,ไม่สามารถลบงานอ่านเอกสารผ่าน API เอกสารทั่วไปได้
 Recognition tasks cannot be shared separately from their originals.,ไม่สามารถแชร์งานอ่านเอกสารแยกจากไฟล์ต้นฉบับได้
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
+Record,บันทึก
 Record ID,รหัสรายการ
 Record Id,รหัสรายการ
 Record Key,คีย์รายการ
 Record Revision,รุ่นของรายการ
+Recount,นับใหม่
 Refresh Error Code,รหัสข้อผิดพลาดการรีเฟรช
 Refresh Lease Expires At (UTC),เวลาหมดอายุสิทธิ์การรีเฟรช (UTC)
 Refresh Lease Generation,รุ่นสิทธิ์การรีเฟรช
@@ -297,6 +346,7 @@ Refresh Started At (UTC),เวลาเริ่มรีเฟรช (UTC)
 Refresh Status,สถานะการรีเฟรช
 Refresh the account directory before continuing.,โปรดรีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 Reimporting review workbooks is not available on the new platform yet.,แพลตฟอร์มใหม่ยังไม่รองรับการนำเข้าสมุดงานที่ตรวจทานแล้วกลับเข้าระบบ
+Remove,นำออก
 Remove legacy document shares before accessing Cowork records.,กรุณายกเลิกการแชร์เอกสารเดิมก่อนเข้าถึงรายการ Cowork
 Report Credential,ข้อมูลรับรองของรายงาน
 Report Credential Generation,รุ่นข้อมูลรับรองของรายงาน
@@ -312,6 +362,7 @@ Required invoice amounts are missing. Complete them before exporting.,ใบแ�
 Requires Review,ต้องตรวจสอบโดยผู้ใช้
 Reset Password,ตั้งรหัสผ่านใหม่
 Response Json,ผลตอบรับ JSON
+Result,ผลการนับ
 Result Directory Revision,รุ่นไดเรกทอรีผลลัพธ์
 Result Json,ผลการอ่านเอกสาร (JSON)
 Result Unknown,ไม่ทราบผลลัพธ์
@@ -323,8 +374,10 @@ Revocation Reason,เหตุผลที่ยกเลิก
 Revoked At (UTC),เวลายกเลิก (UTC)
 Revoked By,ผู้ยกเลิก
 Row {0}: {1},แถว {0}: {1}
+Rows,จำนวนรายการ
 Sales invoices need line items with tax-exclusive amounts before export.,ใบแจ้งหนี้ขายต้องมีรายการที่ระบุยอดก่อนภาษีก่อนจึงจะส่งออกได้
 Sample Key,รหัสตัวอย่างการแก้ไข
+Save and next,บันทึกและถัดไป
 Saved,บันทึกแล้ว
 Scope Key,รหัสขอบเขตสิทธิ์
 Select a file to upload.,กรุณาเลือกไฟล์ที่จะอัปโหลด
@@ -336,8 +389,12 @@ Seller Tax ID,เลขประจำตัวผู้เสียภาษี
 Send the code from the Cowork page to bind,กรุณาส่งรหัสจากหน้า Cowork เพื่อเชื่อมต่อ
 Service,บริการ
 Settings Json,ข้อมูลการตั้งค่า (JSON)
+Short,ขาด
+Show,แสดง
 Site,เว็บไซต์
 Site Name,ชื่อไซต์
+Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
+Some rows were skipped,บางแถวไม่ได้นำเข้า
 Source Digest,ค่าแฮชของข้อมูลต้นทาง
 Source File,ไฟล์ต้นฉบับ
 Source Format,รูปแบบข้อมูลต้นทาง
@@ -348,10 +405,12 @@ Source Page Indices,หมายเลขหน้าไฟล์ต้นฉบ
 Source Reference Count,จำนวนรายการอ้างอิงต้นฉบับ
 Source Reference Kind,ประเภทการอ้างอิงต้นฉบับ
 Source Sha256,SHA-256 ของไฟล์ต้นฉบับ
+Start counting,เริ่มตรวจนับ
 Started At,เริ่มเมื่อ
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
 Status,สถานะ
 Stock,สต็อก
+Stock count closed,ปิดการตรวจนับแล้ว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
 Submit,ยืนยัน
 Summary table import,นำเข้าตารางสรุป
@@ -359,6 +418,7 @@ Target Json,ปลายทางที่ตรึงไว้ JSON
 Task,งาน
 Tax ID,เลขประจำตัวผู้เสียภาษี
 That code is not valid,รหัสไม่ถูกต้อง
+That photo cannot be attached. Upload it again.,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
 The Companion delivery record is invalid.,บันทึกการรับงานของผู้ช่วยไม่ถูกต้อง
 The Companion delivery record was not found.,ไม่พบบันทึกการรับงานของผู้ช่วย
 The Companion identity is no longer valid. Authenticate again.,ตัวตนผู้ช่วยใช้ไม่ได้แล้ว โปรดยืนยันตัวตนใหม่
@@ -390,6 +450,7 @@ The PDF file cannot be read.,ไม่สามารถอ่านไฟล์
 The account directory is out of date. Refresh it again.,ไดเรกทอรีชุดบัญชีล้าสมัย โปรดรีเฟรชใหม่
 The acknowledgement conflicts with the recorded result.,ผลตอบรับขัดแย้งกับผลที่บันทึกไว้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
+The camera could not start,ไม่สามารถเปิดกล้องได้
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง โปรดโหลดใหม่แล้วลองอีกครั้ง
@@ -416,6 +477,7 @@ The document reader is unavailable. Contact your administrator.,บริกา�
 The document sections are incomplete or invalid.,ส่วนข้อมูลของเอกสารไม่ครบถ้วนหรือไม่ถูกต้อง
 The export contains an invalid or repeated history reference.,ข้อมูลส่งออกมีรหัสอ้างอิงประวัติที่ไม่ถูกต้องหรือซ้ำกัน
 The file exceeds the allowed size.,ไฟล์มีขนาดเกินขีดจำกัดที่อนุญาต
+The file is larger than 5 MB.,ไฟล์มีขนาดเกิน 5 MB
 The file size or page metadata is invalid.,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
 The frozen push target does not match the authorized target.,ปลายทางที่บันทึกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
 The image file cannot be read.,ไม่สามารถอ่านไฟล์รูปภาพนี้ได้
@@ -502,13 +564,16 @@ Token Digest,แฮชโทเค็น
 Token Generation,รุ่นโทเคน
 Token Tail,อักขระท้ายโทเคน
 Transaction Date,วันที่ทำรายการ
+"Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ยืนยันการยกเลิกการเชื่อมต่อ?
+Unit,หน่วย
 Unsupported ERP connection type.,ไม่รองรับประเภทการเชื่อมต่อ ERP นี้
 Update invoice records through the Cowork review service.,กรุณาแก้ไขรายการใบแจ้งหนี้ผ่านฟังก์ชันตรวจสอบของ Cowork
 Updated At,เวลาแก้ไข
 Updated By,ผู้แก้ไข
 Updated {0} user(s),อัปเดตผู้ใช้ {0} คน
+Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
 Uploaded By,ผู้อัปโหลด
 Use the Cowork Companion credential service to access credentials.,โปรดใช้บริการข้อมูลรับรองผู้ช่วย Cowork เพื่อเข้าถึงข้อมูลรับรอง
 Use the Cowork Companion service to access deliveries.,โปรดใช้บริการผู้ช่วย Cowork เพื่อเข้าถึงบันทึกการรับงาน
@@ -518,7 +583,10 @@ Use the Cowork original-file service to access this file.,กรุณาเข�
 Use the stock count workflow to change these records.,กรุณาเปลี่ยนแปลงรายการเหล่านี้ผ่านขั้นตอนตรวจนับสต็อก
 User Settings,เมนูผู้ใช้
 Username can only have letters and numbers,ชื่อผู้ใช้ใช้ได้เฉพาะตัวอักษรและตัวเลข
+Valid,ใช้งาน
 Version,เวอร์ชัน
+View differences,ดูผลต่าง
+Void,ยกเลิก
 Voided,ยกเลิกแล้ว
 Warehouse,คลังสินค้า
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
@@ -582,6 +650,83 @@ cowork.nav.work,ประสานงาน
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปใบแจ้งหนี้
 cowork.quality.pending,รอตรวจสอบ
+cowork.stock.actualLocation,ตำแหน่งจริง
+cowork.stock.actualWarehouse,คลังสินค้าจริง
+cowork.stock.addPhoto,เพิ่มรูปภาพ
+cowork.stock.camera,กล้อง
+cowork.stock.cameraFailed,ไม่สามารถเปิดกล้องได้
+cowork.stock.close,ปิดการตรวจนับ
+cowork.stock.closed,ปิดการตรวจนับแล้ว
+cowork.stock.code,รหัสหรือบาร์โค้ด
+cowork.stock.col.actual,นับได้
+cowork.stock.col.barcode,บาร์โค้ด
+cowork.stock.col.book,ตามบัญชี
+cowork.stock.col.code,รหัส
+cowork.stock.col.difference,ผลต่าง
+cowork.stock.col.name,สินค้า
+cowork.stock.col.position,ตำแหน่งตามบัญชี
+cowork.stock.col.result,ผลการนับ
+cowork.stock.col.unit,หน่วย
+cowork.stock.continuous,ตรวจนับต่อเนื่อง
+cowork.stock.countedAt,เวลาที่นับ
+cowork.stock.countedBy,ผู้ตรวจนับ
+cowork.stock.countedRows,นับแล้ว
+cowork.stock.created,นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
+cowork.stock.createdAt,สร้างเมื่อ
+cowork.stock.deleteConfirm,ลบการตรวจนับ {0} รายการ?
+cowork.stock.deleteSelected,ลบ {0} รายการ
+cowork.stock.deleted,ลบแล้ว {0} รายการ
+cowork.stock.differenceRows,ผลต่าง
+cowork.stock.done,เสร็จสิ้น
+cowork.stock.editEntry,แก้ไข
+cowork.stock.entriesTitle,รายการบันทึก · {0}
+cowork.stock.entryLive,ใช้งาน
+cowork.stock.entryQty,จำนวน
+cowork.stock.entrySaved,บันทึกแล้ว
+cowork.stock.entryVoided,ยกเลิกแล้ว
+cowork.stock.export,ส่งออก
+cowork.stock.file,ไฟล์ตรวจนับ
+cowork.stock.filter,แสดง
+cowork.stock.filter.all,ทั้งหมด
+cowork.stock.filter.differences,มีผลต่าง
+cowork.stock.filter.locations,ตำแหน่งไม่ตรง
+cowork.stock.filter.uncounted,ยังไม่นับ
+cowork.stock.find,ค้นหา
+cowork.stock.headline,{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
+cowork.stock.importSkipped,ข้าม {0} แถว (แถว: เหตุผล)
+cowork.stock.importTitle,บางแถวไม่ได้นำเข้า
+cowork.stock.lookupFailed,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
+cowork.stock.name,ชื่อการตรวจนับ
+cowork.stock.new,สร้างการตรวจนับ
+cowork.stock.nextReady,พร้อมตรวจนับสินค้าถัดไป
+cowork.stock.photoLimit,บันทึกละไม่เกิน 5 รูป
+cowork.stock.photos,รูปภาพ
+cowork.stock.pick,เลือกไฟล์
+cowork.stock.record,บันทึก
+cowork.stock.recount,นับใหม่
+cowork.stock.removePhoto,นำออก
+cowork.stock.result.matched,ตรงกัน
+cowork.stock.result.not_counted,ยังไม่นับ
+cowork.stock.result.over,เกิน
+cowork.stock.result.short,ขาด
+cowork.stock.review,ดูผลต่าง
+cowork.stock.rows,จำนวนรายการ
+cowork.stock.saveNext,บันทึกและถัดไป
+cowork.stock.scanHint,พิมพ์หรือสแกน แล้วกด Enter
+cowork.stock.start,เริ่มตรวจนับ
+cowork.stock.status,สถานะ
+cowork.stock.statusActive,กำลังตรวจนับ
+cowork.stock.statusClosed,ปิดแล้ว
+cowork.stock.template,ดาวน์โหลดแม่แบบ
+cowork.stock.void,ยกเลิก
+cowork.stocktake.col.actual_qty,จำนวนที่นับได้
+cowork.stocktake.col.barcode,บาร์โค้ด
+cowork.stocktake.col.book_qty,จำนวนตามบัญชี
+cowork.stocktake.col.location,ตำแหน่ง
+cowork.stocktake.col.product_code,รหัสสินค้า
+cowork.stocktake.col.product_name,ชื่อสินค้า
+cowork.stocktake.col.unit,หน่วย
+cowork.stocktake.col.warehouse,คลังสินค้า
 cowork.team.action.bulkDisable,ปิดใช้งาน {0}
 cowork.team.action.bulkEnable,เปิดใช้งาน {0}
 cowork.team.active,ปกติ
@@ -742,12 +887,16 @@ stocktake.dedicated_api_required,กรุณาเปลี่ยนแปล�
 stocktake.duplicate,ข้อมูลนำเข้ามีรหัสสินค้าซ้ำ
 stocktake.empty,ข้อมูลนำเข้าไม่มีรายการสินค้า
 stocktake.export_incomplete,ข้อมูลส่งออกการตรวจนับไม่ครบ โปรดโหลดใหม่แล้วลองอีกครั้ง
+stocktake.file_invalid,กรุณาอัปโหลดไฟล์ตรวจนับเป็น .xlsx
+stocktake.file_too_large,ไฟล์มีขนาดเกิน 5 MB
 stocktake.headers_invalid,คอลัมน์ที่นำเข้าไม่ตรงกับแม่แบบตรวจนับสต็อก
 stocktake.import_conflict,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 stocktake.legacy_task,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 stocktake.name_invalid,กรุณาระบุชื่องานตรวจนับสต็อก 1 ถึง 120 ตัวอักษร
 stocktake.not_found,ไม่พบรายการตรวจนับสต็อก
 stocktake.operation_conflict,รหัสการดำเนินการนี้ถูกใช้กับคำขออื่นแล้ว
+stocktake.photo_invalid,ไม่สามารถแนบรูปนี้ได้ กรุณาอัปโหลดใหม่
+stocktake.photo_limit,บันทึกละไม่เกิน {0} รูป
 stocktake.photos_not_supported,ยังไม่รองรับรูปภาพการตรวจนับสต็อก กรุณานำรูปภาพออกก่อนบันทึก
 stocktake.quantity_invalid,กรุณาระบุจำนวนที่ถูกต้อง โดยมีทศนิยมไม่เกินหกตำแหน่ง
 stocktake.request_invalid,คำขอตรวจนับสต็อกไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -755,3 +904,4 @@ stocktake.row_invalid,แถวนำเข้าไม่ถูกต้อง�
 stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
 summary_table_batch,นำเข้าตารางสรุป
+{0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}

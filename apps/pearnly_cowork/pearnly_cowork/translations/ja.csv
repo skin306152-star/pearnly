@@ -24,8 +24,12 @@ Active Attempt,現在の試行
 Active Key,有効な重複防止キー
 Actor,実行者
 Actual Qty,実棚数量
+Actual location,実際の棚番
+Actual warehouse,実際の倉庫
 Add User,ユーザーを追加
+Add photo,写真を追加
 Added {0},{0}を追加しました
+All,すべて
 Allowed Users,許可ユーザー
 Already exists,すでに存在します
 An invoice line has no amount or complete quantity and unit price. Complete it before exporting.,請求書の明細に金額がなく、数量と単価も揃っていません。入力を補ってからエクスポートしてください。
@@ -35,6 +39,8 @@ Anchor Date,基準日
 Another push holds the writer lock.,別の送信が書き込みロックを保持しています。
 Assign Cowork access through company and client permissions.,会社と顧客の権限からCoworkのアクセス範囲を設定してください。
 At least one invoice page is required when editing.,編集時には請求書のページが少なくとも1ページ必要です。
+At most 5 photos per entry,1件の記録につき写真は5枚まで
+At most {0} photos per entry,1件の記録につき写真は{0}枚まで
 Attempt Secret,試行用シークレット
 Barcode,バーコード
 Billing Code,課金コード
@@ -47,7 +53,10 @@ Bind this account first,先にアカウントを連携してください
 Binding Generation,関連付け世代
 Binding code,連携コード
 Blocked By,ブロック元の記録
+Book,帳簿
 Book Qty,帳簿数量
+Book location,帳簿上の棚番
+Book quantity,帳簿数量
 Bound,連携済み
 Bound Account Set,関連付けられた会計データ
 Bound Invoice Records,関連付け済みの請求書記録
@@ -56,6 +65,7 @@ Bound at,連携日時
 Bound to {0},{0} に連携しました
 Branch,実行分岐
 Buyer Client,買い手顧客
+Camera,カメラ
 Cannot tell which company this entry belongs to; the site must have exactly one.,この記録がどの会社に属するか特定できません。サイトには会社情報が1件だけ必要です。
 Cash,現金
 Changed At (UTC),変更日時（UTC）
@@ -65,10 +75,15 @@ Check the statement balance differences before confirming.,明細の残高差異
 Check the warehouse and location. A warehouse is required.,倉庫と場所を確認してください。倉庫は必須です。
 Checks Json,検証結果JSON
 Choose at least one job role,機能権限を1つ以上選んでください
+Choose file,ファイルを選択
 Client,顧客
+Close count,棚卸を終了
+Closed,終了
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
+Code,コード
 Code expired,コードの有効期限が切れました
+Code or barcode,コードまたはバーコード
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Companion Report,Companion レポート
 Companion authentication failed.,アシスタント認証に失敗しました。
@@ -86,10 +101,15 @@ Connection Name,接続名
 Connection Revision,接続リビジョン
 Connection or directory record not found.,接続またはディレクトリの記録が見つかりません。
 Content Hash,内容ハッシュ
+Continuous counting,連続棚卸
 Corrected Value,修正値
 Count Mode,棚卸方式
+Count sheet,棚卸表
 Counted At,棚卸日時
 Counted By,棚卸担当者
+Counted at,棚卸日時
+Counted by,棚卸担当
+Counted quantity,実地数量
 Cowork,Cowork
 Cowork Bank Evidence,Cowork 銀行取引の根拠
 Cowork Client,Cowork 買い手顧客
@@ -119,6 +139,7 @@ Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
 Cowork Workspace,Cowork 会計対象会社
 Create invoice records through the Cowork intake service.,Coworkの取り込み機能から請求書の記録を作成してください。
+Created,作成日時
 Created By,作成者
 Creation Request Hash,作成要求ハッシュ
 Credential ID,認証情報 ID
@@ -128,6 +149,10 @@ Current Json,現在のデータ（JSON）
 Decimal summary; pages retain the original amount.,概要の金額は正確な十進数を使用し、ページデータには元の金額を保持します。
 Default Item Type,既定の明細種類
 Default Payment,既定の支払方法
+Delete {0},{0}件を削除
+Delete {0} stock count(s)?,{0}件の棚卸を削除しますか？
+Deleted {0},{0}件を削除しました
+Difference,差異
 Direction,取引方向
 Directory Revision,ディレクトリリビジョン
 Directory Scope Key,ディレクトリ範囲キー
@@ -136,6 +161,8 @@ Directory Snapshot,ディレクトリスナップショット
 Disable,無効化
 Disable {0},{0}件を無効化
 Document Key,伝票重複防止キー
+Done,完了
+Download template,テンプレートをダウンロード
 Draft,下書き
 Duplicate records are not allowed.,同じレコードを重複して選択することはできません。
 ERP Code,ERP コード
@@ -146,20 +173,25 @@ ERP Username,ERPユーザー名
 ERP records cannot be saved in Cowork.,ERPのレコードはCoworkに保存できません。
 Each record must have a name and revision.,各レコードには識別子と版が必要です。
 Each record must have a valid name.,各レコードには有効な識別子が必要です。
+Edit,修正
 Edit Count,編集回数
 Edit in Full Page,全画面で編集
 Email,メール
 Enable,有効化
 Enable {0},{0}件を有効化
+Enter a quantity,数量を入力してください
 Enter a stock count title of 1 to 120 characters.,棚卸のタイトルを 1～120 文字で入力してください。
 Enter a valid email,正しいメールアドレスを入力してください
 Enter a valid quantity with no more than six decimal places.,有効な数量を小数点以下 6 桁以内で入力してください。
 Enter the user name,ユーザー名を入力してください
+Entries · {0},記録 · {0}
 Entry,エントリー
+Entry saved,記録しました
 Event Key,イベント識別子
 Evidence Fingerprint,証跡フィンガープリント
 Evidence Owner,根拠データの所有者
 Examples Json,修正例データ（JSON）
+Export,エクスポート
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
 "Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",この請求書は、エクスポート後に再取り込みすると金額が変わります。明細金額、税抜金額、VAT、合計を確認してください。
 External Docnum,ERP伝票番号
@@ -168,6 +200,7 @@ Failure Count,失敗回数
 Fence,試行分離番号
 Field,項目
 File Hash,ファイルのハッシュ値
+Find,検索
 First Recognition Snapshot,初回認識結果のスナップショット
 First Recognition Value,初回認識値
 General,一般
@@ -178,6 +211,8 @@ History Version,伝票履歴バージョン
 Holder,ロック保持者
 Holder Fence,ロック保持試行番号
 IN,入金
+"Imported {0} rows, {1} counted",{0}行を取り込み、{1}行に実数あり
+In progress,進行中
 Inactive,無効
 Initial Password,初期パスワード
 Installed At (UTC),インストール日時（UTC）
@@ -218,20 +253,26 @@ Last Request Hash,最終要求ハッシュ
 Last Request Key,最終要求キー
 Lease Expires At,リース有効期限
 Location,場所
+Location mismatch,棚番不一致
 Lock Key,ロックキー
 Lock Kind,ロック種別
 Lock the connection before reading the push target.,送信先を読み取る前に接続をロックしてください。
 Manual,手入力
 Mapping Key,マッピングキー
 Mapping Kind,マッピング種類
+Matched,一致
+Name,棚卸名
 Native Content Hash,標準ファイルの内容ハッシュ
 Needs review,要確認
 New code,新しいコード
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
+New stock count,新規棚卸
 No Companion credential has been issued for this connection.,この接続にはアシスタント認証情報が発行されていません。
 No invoice summary found,請求書の概要情報なし
+No product in this count matches that code,この棚卸にそのコードの商品はありません
 Not Permitted,適切な権限がありません
 Not bound,未連携
+Not counted,未棚卸
 OUT,出金
 Observed At (UTC),観測日時（UTC）
 Only manual records can be created through this entry.,この画面からは手入力のレコードのみ作成できます。
@@ -248,6 +289,7 @@ Original files cannot be changed.,元ファイルは変更できません。
 Original files cannot be deleted while invoice references may exist.,関連する請求書が存在する可能性がある間は、元ファイルを削除できません。
 Original files cannot be shared separately from their invoices.,元ファイルを関連する請求書と別に共有することはできません。
 Outcome,実行結果
+Over,過剰
 Owner ID,所有者 ID
 Owner Id,実行者ID
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
@@ -260,6 +302,7 @@ Payment Method,支払方法
 Pearnly Cowork,Pearnly Cowork
 Pending,処理待ち
 Phase,処理段階
+Photos,写真
 Posting Kind,記帳区分
 Preparation Evidence,準備情報の証拠
 Preparation data does not match the connection or account set.,準備情報が接続または会計データと一致しません。
@@ -267,15 +310,19 @@ Preparation data for this account set is incomplete.,この会計データの送
 Previous Json,変更前のデータ（JSON）
 Private File,非公開ファイル
 Private Storage URL,非公開ストレージ URL
+Product,商品
 Product Code,商品コード
 Product Name,商品名
+Product code,商品コード
 Product codes and barcodes must be stored as text.,商品コードとバーコードは文字列として保存してください。
+Product name,商品名
 Provider Evidence,プロバイダー呼び出し証跡
 Push Attempt,送信試行
 Push Record,送信記録
 Push record not found.,送信記録が見つかりません。
 "Pushing is not enabled for this site, so nothing was sent.",このサイトでは送信が有効になっていないため、何も送信されていません。
 Quantity,数量
+Ready for the next product,次の商品を棚卸できます
 Reason,理由
 Recognition Confidence,認識の信頼度
 Recognition Quality,認識品質
@@ -283,10 +330,12 @@ Recognition input and ownership cannot be changed.,認識入力と所有情報�
 Recognition tasks cannot be deleted through the document API.,認識タスクは汎用ドキュメント API から削除できません。
 Recognition tasks cannot be shared separately from their originals.,認識タスクは元ファイルと切り離して共有できません。
 Recognized with high confidence,高い信頼度で認識
+Record,記録
 Record ID,レコード ID
 Record Id,レコード ID
 Record Key,記録キー
 Record Revision,レコードの版
+Recount,再棚卸
 Refresh Error Code,更新エラーコード
 Refresh Lease Expires At (UTC),更新リース有効期限（UTC）
 Refresh Lease Generation,更新リースの世代
@@ -297,6 +346,7 @@ Refresh Started At (UTC),更新開始日時（UTC）
 Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
 Reimporting review workbooks is not available on the new platform yet.,新プラットフォームでは、確認用ワークブックの再取り込みにまだ対応していません。
+Remove,削除
 Remove legacy document shares before accessing Cowork records.,旧ドキュメントの共有権限を削除してからCoworkのレコードにアクセスしてください。
 Report Credential,レポート認証情報
 Report Credential Generation,レポート認証情報の世代
@@ -312,6 +362,7 @@ Required invoice amounts are missing. Complete them before exporting.,請求書�
 Requires Review,確認が必要
 Reset Password,パスワードを再設定
 Response Json,確認応答JSON
+Result,結果
 Result Directory Revision,結果ディレクトリリビジョン
 Result Json,認識結果（JSON）
 Result Unknown,結果不明
@@ -323,8 +374,10 @@ Revocation Reason,失効理由
 Revoked At (UTC),失効日時 (UTC)
 Revoked By,失効者
 Row {0}: {1},{0} 行目：{1}
+Rows,行数
 Sales invoices need line items with tax-exclusive amounts before export.,売上請求書をエクスポートするには、税抜金額を含む明細が必要です。
 Sample Key,修正例識別子
+Save and next,保存して次へ
 Saved,保存しました
 Scope Key,権限範囲識別子
 Select a file to upload.,アップロードするファイルを選択してください。
@@ -336,8 +389,12 @@ Seller Tax ID,売り手の納税者番号
 Send the code from the Cowork page to bind,Cowork 画面のコードを送信して連携してください
 Service,サービス
 Settings Json,設定データ（JSON）
+Short,不足
+Show,表示
 Site,サイト
 Site Name,サイト名
+Skipped {0} row(s) (row: reason),{0}行をスキップ（行: 理由）
+Some rows were skipped,一部の行を取り込めませんでした
 Source Digest,元データのダイジェスト
 Source File,元ファイル
 Source Format,元データの形式
@@ -348,10 +405,12 @@ Source Page Indices,元ファイルのページ番号
 Source Reference Count,元ファイルの参照項目数
 Source Reference Kind,元ファイルの参照種別
 Source Sha256,元ファイルの SHA-256
+Start counting,棚卸を開始
 Started At,開始日時
 Statement review is not available for this task.,このタスクには明細確認記録がありません。
 Status,状態
 Stock,在庫
+Stock count closed,棚卸を終了しました
 Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
 Submit,確定
 Summary table import,集計表の取り込み
@@ -359,6 +418,7 @@ Target Json,固定送信先JSON
 Task,タスク
 Tax ID,納税者番号
 That code is not valid,コードが正しくありません
+That photo cannot be attached. Upload it again.,この写真は添付できません。もう一度アップロードしてください。
 The Companion delivery record is invalid.,アシスタントのタスク受領記録が無効です。
 The Companion delivery record was not found.,アシスタントのタスク受領記録が見つかりません。
 The Companion identity is no longer valid. Authenticate again.,アシスタントの認証が無効になりました。再認証してください。
@@ -390,6 +450,7 @@ The PDF file cannot be read.,この PDF ファイルを読み取れません。
 The account directory is out of date. Refresh it again.,会計データのディレクトリが古くなっています。再度更新してください。
 The acknowledgement conflicts with the recorded result.,確認応答が記録済みの結果と矛盾しています。
 The billing receipt cannot be reverted.,課金処理結果は元に戻せません。
+The camera could not start,カメラを起動できません
 "The company, client and type of a connection cannot be changed.",接続の会社、顧客、タイプは変更できません。
 The completed recognition result cannot be replaced.,完了済みの認識結果は置き換えられません。
 The connection has changed. Reload and try again.,接続が更新されました。再読み込みしてお試しください。
@@ -416,6 +477,7 @@ The document reader is unavailable. Contact your administrator.,文書の読み�
 The document sections are incomplete or invalid.,文書の論理単位が不完全または無効です。
 The export contains an invalid or repeated history reference.,エクスポート対象に無効または重複した履歴参照があります。
 The file exceeds the allowed size.,ファイルサイズが上限を超えています。
+The file is larger than 5 MB.,ファイルが5MBを超えています。
 The file size or page metadata is invalid.,ファイルサイズまたはページ情報が無効です。
 The frozen push target does not match the authorized target.,固定された送信先が許可された送信先と一致しません。
 The image file cannot be read.,この画像ファイルを読み取れません。
@@ -502,13 +564,16 @@ Token Digest,トークンダイジェスト
 Token Generation,トークン世代
 Token Tail,トークン末尾
 Transaction Date,取引日
+"Type or scan, then press Enter",入力またはスキャンして Enter
 Unbind LINE,LINE 連携を解除
 Unbind Pearnly Cowork LINE?,Pearnly Cowork LINE の連携を解除しますか？
+Unit,単位
 Unsupported ERP connection type.,このERP接続タイプはサポートされていません。
 Update invoice records through the Cowork review service.,Coworkの確認機能から請求書の記録を更新してください。
 Updated At,更新日時
 Updated By,更新者
 Updated {0} user(s),ユーザー{0}件を更新しました
+Upload the stock count sheet as an .xlsx file.,棚卸表は .xlsx 形式でアップロードしてください。
 Uploaded By,アップロードしたユーザー
 Use the Cowork Companion credential service to access credentials.,認証情報には Cowork アシスタント認証情報サービスからアクセスしてください。
 Use the Cowork Companion service to access deliveries.,タスク受領記録へのアクセスには Cowork アシスタントサービスを使用してください。
@@ -518,7 +583,10 @@ Use the Cowork original-file service to access this file.,このファイルに�
 Use the stock count workflow to change these records.,これらの記録は棚卸の操作から変更してください。
 User Settings,ユーザーメニュー
 Username can only have letters and numbers,ユーザー名は英数字のみ使用できます
+Valid,有効
 Version,バージョン
+View differences,差異を見る
+Void,取消
 Voided,無効化済み
 Warehouse,倉庫
 Wire Attempt,送信試行回数
@@ -582,6 +650,83 @@ cowork.nav.work,業務連携
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.quality.pending,要確認
+cowork.stock.actualLocation,実際の棚番
+cowork.stock.actualWarehouse,実際の倉庫
+cowork.stock.addPhoto,写真を追加
+cowork.stock.camera,カメラ
+cowork.stock.cameraFailed,カメラを起動できません
+cowork.stock.close,棚卸を終了
+cowork.stock.closed,棚卸を終了しました
+cowork.stock.code,コードまたはバーコード
+cowork.stock.col.actual,実数
+cowork.stock.col.barcode,バーコード
+cowork.stock.col.book,帳簿
+cowork.stock.col.code,コード
+cowork.stock.col.difference,差異
+cowork.stock.col.name,商品
+cowork.stock.col.position,帳簿上の棚番
+cowork.stock.col.result,結果
+cowork.stock.col.unit,単位
+cowork.stock.continuous,連続棚卸
+cowork.stock.countedAt,棚卸日時
+cowork.stock.countedBy,棚卸担当
+cowork.stock.countedRows,棚卸済み
+cowork.stock.created,{0}行を取り込み、{1}行に実数あり
+cowork.stock.createdAt,作成日時
+cowork.stock.deleteConfirm,{0}件の棚卸を削除しますか？
+cowork.stock.deleteSelected,{0}件を削除
+cowork.stock.deleted,{0}件を削除しました
+cowork.stock.differenceRows,差異
+cowork.stock.done,完了
+cowork.stock.editEntry,修正
+cowork.stock.entriesTitle,記録 · {0}
+cowork.stock.entryLive,有効
+cowork.stock.entryQty,数量
+cowork.stock.entrySaved,記録しました
+cowork.stock.entryVoided,取消済み
+cowork.stock.export,エクスポート
+cowork.stock.file,棚卸表
+cowork.stock.filter,表示
+cowork.stock.filter.all,すべて
+cowork.stock.filter.differences,差異あり
+cowork.stock.filter.locations,棚番不一致
+cowork.stock.filter.uncounted,未棚卸
+cowork.stock.find,検索
+cowork.stock.headline,{0} · 棚卸済み {1}/{2} · 差異 {3}
+cowork.stock.importSkipped,{0}行をスキップ（行: 理由）
+cowork.stock.importTitle,一部の行を取り込めませんでした
+cowork.stock.lookupFailed,この棚卸にそのコードの商品はありません
+cowork.stock.name,棚卸名
+cowork.stock.new,新規棚卸
+cowork.stock.nextReady,次の商品を棚卸できます
+cowork.stock.photoLimit,1件の記録につき写真は5枚まで
+cowork.stock.photos,写真
+cowork.stock.pick,ファイルを選択
+cowork.stock.record,記録
+cowork.stock.recount,再棚卸
+cowork.stock.removePhoto,削除
+cowork.stock.result.matched,一致
+cowork.stock.result.not_counted,未棚卸
+cowork.stock.result.over,過剰
+cowork.stock.result.short,不足
+cowork.stock.review,差異を見る
+cowork.stock.rows,行数
+cowork.stock.saveNext,保存して次へ
+cowork.stock.scanHint,入力またはスキャンして Enter
+cowork.stock.start,棚卸を開始
+cowork.stock.status,状態
+cowork.stock.statusActive,進行中
+cowork.stock.statusClosed,終了
+cowork.stock.template,テンプレートをダウンロード
+cowork.stock.void,取消
+cowork.stocktake.col.actual_qty,実地数量
+cowork.stocktake.col.barcode,バーコード
+cowork.stocktake.col.book_qty,帳簿数量
+cowork.stocktake.col.location,棚番
+cowork.stocktake.col.product_code,商品コード
+cowork.stocktake.col.product_name,商品名
+cowork.stocktake.col.unit,単位
+cowork.stocktake.col.warehouse,倉庫
 cowork.team.action.bulkDisable,{0}件を無効化
 cowork.team.action.bulkEnable,{0}件を有効化
 cowork.team.active,正常
@@ -742,12 +887,16 @@ stocktake.dedicated_api_required,これらの記録は棚卸の操作から変�
 stocktake.duplicate,インポートデータに重複する商品コードがあります。
 stocktake.empty,インポートデータに商品行がありません。
 stocktake.export_incomplete,棚卸しのエクスポートデータが不完全です。再読み込みして再試行してください。
+stocktake.file_invalid,棚卸表は .xlsx 形式でアップロードしてください。
+stocktake.file_too_large,ファイルが5MBを超えています。
 stocktake.headers_invalid,インポートする列が棚卸テンプレートと一致しません。
 stocktake.import_conflict,このインポートリクエスト ID は異なる内容で使用されています。
 stocktake.legacy_task,このタスクは旧形式の棚卸を使用しているため、スキャン記録を追加できません。
 stocktake.name_invalid,棚卸のタイトルを 1～120 文字で入力してください。
 stocktake.not_found,棚卸記録が見つかりません。
 stocktake.operation_conflict,この操作 ID は別のリクエストで使用されています。
+stocktake.photo_invalid,この写真は添付できません。もう一度アップロードしてください。
+stocktake.photo_limit,1件の記録につき写真は{0}枚まで
 stocktake.photos_not_supported,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
 stocktake.quantity_invalid,有効な数量を小数点以下 6 桁以内で入力してください。
 stocktake.request_invalid,棚卸リクエストが無効です。再読み込みしてから再試行してください。
@@ -755,3 +904,4 @@ stocktake.row_invalid,インポート行が無効か、必須項目が不足し�
 stocktake.too_many_rows,"インポートデータが上限の 10,000 行を超えています。"
 stocktake.warehouse_required,倉庫と場所を確認してください。倉庫は必須です。
 summary_table_batch,集計表の取り込み
+{0} · counted {1}/{2} · differences {3},{0} · 棚卸済み {1}/{2} · 差異 {3}

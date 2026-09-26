@@ -276,6 +276,9 @@ app_include_js = [
     versioned_asset("pearnly_cowork", "desk/intake-choices.js"),
     versioned_asset("pearnly_cowork", "desk/intake-upload.js"),
     versioned_asset("pearnly_cowork", "desk/team.js"),
+    versioned_asset("pearnly_cowork", "desk/post-file.js"),
+    versioned_asset("pearnly_cowork", "desk/stocktake-entry.js"),
+    versioned_asset("pearnly_cowork", "desk/stocktake.js"),
     versioned_asset("pearnly_cowork", "desk/line-binding.js"),
 ]
 app_include_css = [versioned_asset("pearnly_cowork", "desk/intake.css")]
@@ -386,8 +389,8 @@ pearnly_ocr_handlers = {"cowork.invoice": "pearnly_cowork.ocr.execution.workflow
 
 # Product-owned menu, implemented routes, permissions and native sidebar groups (ADR-009).
 # 菜单（用户 2026-09-26）：录入工作台、对账中心、库存盘点、工作协调；团队管理放左下角用户菜单。
-# 识别记录、推送日志、客户、公司资料、集成、使用教程不做。对账、盘点、工作协调的页面还没做，
-# 不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
+# 识别记录、推送日志、客户、公司资料、集成、使用教程不做。库存盘点只做上传盘点（2026-09-26）；
+# 对账、工作协调的页面还没做，不在 `available` 里 —— 侧栏不出现，团队管理里已能先勾（角色见 `access.menu`）。
 pearnly_navigation = [{'product': 'cowork',
   'app': 'pearnly_cowork',
   'profile_label': 'My Profile',
@@ -400,7 +403,7 @@ pearnly_navigation = [{'product': 'cowork',
             ('nav.stocktake', 'pearnly-stocktake', 'boxes', 'stocktake'),
             ('cowork.nav.work', 'pearnly-work', 'users', None),
             ('nav.team', 'pearnly-team', 'users-round', None)],
-  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-team'],
+  'available': ['pearnly-home', 'pearnly-intake', 'pearnly-stocktake', 'pearnly-team'],
   'permissions': {'pearnly-intake': {'doctype': 'Intake Record'},
                   'pearnly-reconcile': {'any_role': ['Cowork Bank Reconciliation', 'Cowork Admin']},
                   'pearnly-stocktake': {'any_role': ['Cowork Stocktake', 'Cowork Admin']},

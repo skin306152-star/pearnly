@@ -98,6 +98,27 @@ Cowork 录入 + 推送本地已走通（MR.ERP 在 test01 真推验证过）；*
 样板 `cowork-a`（迁移后）服务端实测：三个新角色已建、LINE 处理器已注册；管理员能看到 6 项勾选、侧栏只有首页 / 录入、团队管理进左下角；
 管理员本人一行锁定。浏览器：团队管理名单与「添加用户」弹窗、个人信息 LINE 块已看。未验：添加用户成功路径、员工视角、真实 LINE 绑定。
 
+## 第八批：库存盘点页（2026-09-26）
+
+用户：“库存盘点采用 ERP 前端布局……所有前端界面优先采用官方原生界面”；随后更正：“开始盘点、逐笔记录、重盘、照片这些也要，
+只去掉盘点在库就好了，因为 Cowork 这边没库存系统”；上传表“带实盘，跳过错行并列出”。
+
+| 入口 | 实现 | 角色 / 配置 | 状态 |
+| --- | --- | --- | --- |
+| 侧栏「库存盘点」`/desk/pearnly-stocktake` | `public/desk/stocktake.js`（列表 / 详情两级，照 ERP）；core 页面文件改为到用时取 `frappe.pearnly.coworkStocktake` | `Cowork Stocktake` 或 `Cowork Admin`，功能 `stocktake` | 已加进 `available` |
+| 新建：名称 + 上传盘点表 + 下载模板 | `stocktake/upload.py`、`upload_sheet.py`（纯）；`api.upload_count / template` | 同上 | 样板验：4 行导入、3 行带实盘、3 个错行列出原因 |
+| 列表：排序、勾选删除 | `api.tasks / delete` | 同上 | 样板验 |
+| 详情：搜索、筛选（全部 / 未盘 / 有差异 / 仓位不符）、结果（一致 / 盘盈 / 盘亏 / 未盘）、结束、导出 | `api.task`（= report）、`close`、`export` | 同上 | 样板验 |
+| 开始盘点（连续）/ 记录 / 修改 / 作废 / 重盘 / 照片 | `public/desk/stocktake-entry.js`；`stocktake/counting.py`（lookup、recount、照片挂记录）；`add_entry / edit_entry` 收照片 | 同上 | 样板验：编码查商品、保存下一条、重盘作废留痕、照片私有可读、别处已挂的照片拒收且整笔回滚 |
+
+- 与 ERP 的差别：无「盘点在库」、无仓库主档（实际仓库自由填写，默认账面仓位 / 上一条位置）、一商品一行不选账面行、无备注列、
+  无差异金额（没有成本）。**摄像头扫码未接**：扫码组件在 ERP 应用（含 WASM），Cowork 不跨产品引用；要挪进共用层需与 ERP 窗口协调。
+  目前是编码框（扫码枪 = 输入 + 回车）。导出表的“查看照片”列仍为空（导出沿用原实现）。
+- 上传导入的实盘落成一笔逐笔记录（仓位 = 表里的仓位，空则 `-`），所以重盘、导出、结果对照都复用原实现；任务仍是 `count_mode = scan`。
+- 不设确认步骤（用户口径）：结束盘点、重盘、作废直接执行；删除沿用录入工作台的确认。
+- 验证：架构 / 四语 / 前端文案 / 空白 PASS；`test_cowork_stocktake_upload.py` 5 项；Cowork 离线全量 1443 项，6 个既有错误无新增；
+  样板 `cowork-a` 浏览器与接口实测如上表。
+
 ## 第七批：Cowork 测试环境（2026-09-26，已起过一次，按用户要求暂停）
 
 - 分支提交 `cfcc66d` 已推 `origin/codex/cowork-frontend`（用户授权“只推任务分支”）；Development checks 通过；
