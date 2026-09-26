@@ -1,21 +1,23 @@
 # -*- coding: utf-8 -*-
-"""管理员（系统）账号池：多个操作员同时要用管理员会话时，各挑一个空闲的（2026-09-27）。
+"""本系统专用的 DMS 账号：一个读档账号 + 若干改写账号（用户 2026-09-27 定）。
 
 ## 为什么
 
-客户档写入、订车前复核、后台读取都借"管理员"会话，而本站所有操作员连接配的是**同一个**
-管理员账号（通常就是老板自己的 DMS 账号）。DMS 一个账号同时只允许一处登录，所以这些
-操作全在这一把账号锁上排队；几十人同时用时，排在后面的人会等满锁超时直接失败。
+DMS 一个账号同时只能有一处会话（2026-09-27 测试机实测：页面/表单流程会以
+「มีผู้เข้าใช้งานในระบบซ้ำ」把重复登录踢下线）。以前客户档写入、后台读取、白天同步全借连接
+自己的管理员账号（通常是有人在网页上用的那个），系统一直占着它，网页上的人就会被踢；
+几十人同时操作时也全在这一把账号锁上排队。
 
-池子让系统多几个"座位"：在 DMS 后台正常新建几个账号，在连接页登记（先真登一次再存），
-需要管理员会话时按轮转顺序试每个账号的锁，谁空用谁；都不空才排队等其中一个。
+所以在 DMS 后台另建几个只给本系统用的账号，按用途分开：
 
-## 规则
+* **读档账号（一个）**：只用于白天窗口内的后台读取（每分钟的增量同步、它发现改动后的整组重读、
+  白天发生的底座读取）。没登记它，白天就不做每分钟同步（`adapter/live_sync.enabled`）。
+* **改写账号（若干）**：操作员路径上需要管理员会话的事（客户档建/改、权威读取）。登记了改写账号，
+  **就不再用连接自己的管理员账号**；按轮转顺序试锁，谁空用谁，都忙才排队等一个。
+  一个都没登记时，照旧只用连接自己的管理员账号（与改动前一致）。
+* 夜里（窗口外）的后台读取照旧用连接自己的管理员账号：那时没人在网页上用它。
 
-* 连接自己配的管理员账号永远是池里的第一个成员 —— 池子是空的时，行为与改动前逐字节一致。
-* 只登记本站这套 DMS 的账号；和销售账号同名的跳过（同一账号不能同时当两种会话）。
-* 池里的账号需要与连接的管理员账号**同等权限**（能改客户档、能看全部主档），
-  这由 DMS 那边建账号时决定；登记时的真登只能证明能登录，证明不了权限。
+读档账号不进改写池，操作员永远不会占到它；两类账号都要求在登记时真登并按用途试读（`account_probe`）。
 """
 
 from __future__ import annotations
@@ -28,6 +30,7 @@ import frappe
 logger = logging.getLogger(__name__)
 
 DOCTYPE = "DMS System Account"
+READ, WRITE = "read", "write"
 _ROTATE_KEY = "pearnly:dms:admin-pool:next"
 
 
@@ -39,29 +42,42 @@ class Account(NamedTuple):
 
 def members(default_username: Optional[str], default_password: Optional[str],
             *, exclude: str = "") -> List[Account]:
-    """池成员：连接自带的管理员在前，其后是登记表里启用的账号（去重、排除销售账号）。"""
-    out: List[Account] = []
-    seen = set()
-    if default_username and default_password:
-        out.append(Account(default_username, default_password, False))
-        seen.add(default_username)
-    try:
-        rows = frappe.get_all(DOCTYPE, filters={"enabled": 1}, fields=["name", "username"],
-                              order_by="creation asc")
-    except Exception:
-        rows = []  # 表还没迁移出来 / 读不到：退回单账号，不影响原有行为
-    if rows:
-        from pearnly_core.endpoints import read_password
+    """需要管理员会话时可用的账号：登记了改写账号就只用它们，否则只用连接自己的管理员账号。"""
+    pooled = _registered(WRITE, exclude=exclude)
+    if pooled:
+        return pooled
+    if default_username and default_password and default_username != exclude:
+        return [Account(default_username, default_password, False)]
+    return []
 
-        for row in rows:
-            username = (row.username or "").strip()
-            if not username or username in seen or username == exclude:
-                continue
-            password = read_password(DOCTYPE, row.name, "password")
-            if not password:
-                continue
-            out.append(Account(username, password, True))
-            seen.add(username)
+
+def read_account(*, exclude: str = "") -> Optional[Account]:
+    """登记且启用的读档账号；没有就是 None。"""
+    accounts = _registered(READ, exclude=exclude)
+    return accounts[0] if accounts else None
+
+
+def _registered(purpose: str, *, exclude: str = "") -> List[Account]:
+    try:
+        rows = frappe.get_all(DOCTYPE, filters={"enabled": 1, "purpose": purpose},
+                              fields=["name", "username"], order_by="creation asc")
+    except Exception:
+        rows = []  # 表或字段还没迁移出来 / 读不到：当作没登记，行为与改动前一致
+    out: List[Account] = []
+    if not rows:
+        return out
+    from pearnly_core.endpoints import read_password
+
+    seen = set()
+    for row in rows:
+        username = (row.username or "").strip()
+        if not username or username in seen or username == exclude:
+            continue
+        password = read_password(DOCTYPE, row.name, "password")
+        if not password:
+            continue
+        out.append(Account(username, password, True))
+        seen.add(username)
     return out
 
 

@@ -29,9 +29,12 @@ const row = (dataset, state = 'idle', extra = {}) => ({
   as_of: 0, completed_at: 0, stale: false, error_code: '', ...extra,
 });
 
-function harness({connected = true, rows = null} = {}) {
+function harness({connected = true, rows = null, accounts = null} = {}) {
   const calls = [], timers = new Map(), messages = [], successes = [], freezeTexts = [];
-  const buttons = [], handlers = {};
+  const buttons = [], handlers = {}, menu = [], dialogs = [], layouts = [];
+  let serverAccounts = clone(accounts || {read: null, write: []});
+  let accountReply = {ok: true};
+  let secondary = null, secondaryCleared = 0;
   let dialogSubmit = null;
   let savedConnection = false;
   let serial = 0, frozen = false, freezeCount = 0, unfreezeCount = 0, freezeMessage = '';
@@ -39,18 +42,22 @@ function harness({connected = true, rows = null} = {}) {
   let serverRows = clone(rows || groups.map(name => row(name)));
   const page = {
     main: {empty() {}}, clear_inner_toolbar() {},
-    set_primary_action(label, fn) {primaryAction = fn;},
+    set_primary_action(label, fn) {primaryAction = fn; primaryLabel = label;},
+    set_secondary_action(label, fn) {secondary = {label, fn};},
+    clear_secondary_action() {secondary = null; secondaryCleared++;},
+    clear_menu() {menu.length = 0;},
+    add_menu_item(label, fn) {menu.push({label, fn});},
     set_indicator() {},
     add_inner_button(label) {buttons.push(label);},
   };
-  let primaryAction = null;
+  let primaryAction = null, primaryLabel = '';
   const wrapper = {};
   // 必须和 `p.texts` 的真实签名一致：它**总是**替换 `{n}`，不带参数时就换成空串。
   // 老替身只做拼接，于是「{0}/{1} 组」在测试里通过、在线上变成「/ 组」——2026-09-25 实际踩到。
   const t = (key, ...args) => (zh[key] || key)
     .replace(/\{(\d+)\}/g, (_, i) => String(args[Number(i)] ?? ''));
   const p = {
-    async texts(prefix) {assert.equal(prefix, 'dms.connect.cache.'); return t;},
+    async texts(prefix) {assert(['dms.connect.cache.', 'dms.connect.acct.'].includes(prefix), prefix); return t;},
     async call(method, args = {}, type = 'GET') {
       calls.push({method, args: clone(args), type});
       if (method.endsWith('get_connection')) {
@@ -64,10 +71,12 @@ function harness({connected = true, rows = null} = {}) {
       }
       if (method.endsWith('test_credentials')) return {ok: true, masters: {car_models: [1]}};
       if (method.endsWith('save_connection')) {savedConnection = true; return {ok: true};}
+      if (method.endsWith('get_accounts')) return clone(serverAccounts);
+      if (method.endsWith('set_read_account') || method.endsWith('save_write_accounts')) return clone(accountReply);
       throw new Error('Unexpected connection call: ' + method);
     },
-    dialog(title, fields, action, submit) {dialogSubmit = submit;},
-    layout() {return {fields: [], values: {}, set_value() {}};},
+    dialog(title, fields, action, submit) {dialogSubmit = submit; dialogs.push({title, fields, action, submit});},
+    layout(parent, fields) {layouts.push(fields); return {fields: [], values: {}, set_value() {}};},
     escape: value => String(value),
     success(value) {successes.push(value);},
     tidy_number() {},
@@ -96,9 +105,17 @@ function harness({connected = true, rows = null} = {}) {
   return {
     calls, buttons, messages, successes, freezeTexts, handlers,
     get savedConnection() {return savedConnection;},
+    menu, dialogs, layouts,
+    primary() {assert(primaryAction, 'a primary action must exist'); primaryAction();},
+    get primaryLabel() {return primaryLabel;}, get secondary() {return secondary;},
+    get secondaryCleared() {return secondaryCleared;},
+    setAccountReply(value) {accountReply = clone(value);},
+    // 已连上时换连接账号在「…」菜单里；没连上时右上角唯一的按钮就是「连接」。
     async connect(values = {username: 'synthetic', password: 'synthetic'}) {
-      assert(primaryAction, 'the page must expose exactly one primary action');
-      primaryAction();
+      const edit = menu.find(item => item.label === 'connect.action.edit');
+      const open = connected ? edit?.fn : primaryAction;
+      assert(open, 'the connection dialog must be reachable');
+      open();
       await tick();
       assert(dialogSubmit, 'the connection dialog must have been opened');
       await dialogSubmit(values, {set_value() {}, hide() {}});
@@ -282,4 +299,82 @@ test('the removed manual trigger leaves no glossary text promising a button', ()
     assert(allText[key], `${key} must exist in the glossary`);
     assert.equal(allText[key].filter(Boolean).length, 4, `${key} needs all four languages`);
   }
+});
+
+test('connected page keeps exactly two buttons: write accounts and the read account', async () => {
+  const h = harness();
+  await h.start();
+  assert.equal(h.primaryLabel, zh['dms.connect.acct.writeAdd']);
+  assert.equal(h.secondary.label, zh['dms.connect.acct.readAdd']);
+  assert.deepEqual(clone(h.menu.map(item => item.label)), ['connect.action.edit'],
+    'changing the connection account moved into the page menu');
+  assert.equal(h.buttons.length, 0, 'no inner toolbar buttons');
+  const fields = h.layouts.at(-1);
+  assert.equal(fields.find(f => f.fieldname === 'read').default, zh['dms.connect.acct.readNone']);
+  assert.equal(fields.find(f => f.fieldname === 'write').default, zh['dms.connect.acct.writeNone']);
+});
+
+test('a saved read account turns the button into "change" and shows its name', async () => {
+  const h = harness({accounts: {read: {name: 'R1', username: 'reader'}, write: [
+    {name: 'W1', username: 'w1'}, {name: 'W2', username: 'w2'}]}});
+  await h.start();
+  assert.equal(h.secondary.label, zh['dms.connect.acct.readChange']);
+  const fields = h.layouts.at(-1);
+  assert.equal(fields.find(f => f.fieldname === 'read').default, 'reader');
+  assert.equal(fields.find(f => f.fieldname === 'write').default, 'w1, w2');
+});
+
+test('not connected: only the connect button, no account buttons', async () => {
+  const h = harness({connected: false});
+  await h.start();
+  assert.equal(h.secondary, null);
+  assert(h.secondaryCleared > 0);
+  assert.equal(h.menu.length, 0);
+  assert.equal(h.count('get_accounts'), 0);
+});
+
+test('read account dialog saves through the probe and names missing rights', async () => {
+  const h = harness();
+  await h.start();
+  h.setAccountReply({ok: false, username: 'reader', missing: ['events', 'customer']});
+  h.secondary.fn();
+  const dialog = h.dialogs.at(-1);
+  assert.equal(dialog.action, zh['dms.connect.acct.testAndSave']);
+  await dialog.submit({username: 'reader', password: 'x'}, {set_value() {}, hide() {}});
+  const call = h.calls.find(c => c.method.endsWith('set_read_account'));
+  assert.equal(call.type, 'POST');
+  assert.match(h.messages.at(-1).message, new RegExp(`${zh['dms.connect.acct.check.events']}.*${zh['dms.connect.acct.check.customer']}`));
+  h.setAccountReply({ok: false, username: 'reader', missing: [],
+    error_friendly: {th: 'ไทย', zh: '登录失败', en: 'failed', ja: '失敗'}});
+  await dialog.submit({username: 'reader', password: 'bad'}, {set_value() {}, hide() {}});
+  assert.equal(h.messages.at(-1).message, '登录失败', 'the four-language reply shows in the page language');
+  h.setAccountReply({ok: true});
+  let hidden = false;
+  await dialog.submit({username: 'reader', password: 'x'}, {set_value() {}, hide() {hidden = true;}});
+  assert(hidden);
+  assert.equal(h.successes.at(-1), zh['dms.connect.acct.saved']);
+});
+
+test('write accounts dialog starts with one empty row and sends the whole table', async () => {
+  const fresh = harness();
+  await fresh.start();
+  fresh.primary();
+  const empty = fresh.dialogs.at(-1).fields.find(f => f.fieldname === 'accounts');
+  assert.equal(empty.fieldtype, 'Table', 'rows are added with the native grid');
+  assert.deepEqual(clone(empty.data), [{}], 'one account/password row by default');
+  assert.deepEqual(clone(empty.fields.filter(f => f.in_list_view).map(f => f.fieldname)), ['username', 'password']);
+
+  const h = harness({accounts: {read: null, write: [{name: 'W1', username: 'w1'}]}});
+  await h.start();
+  h.primary();
+  const dialog = h.dialogs.at(-1);
+  assert.deepEqual(clone(dialog.fields.find(f => f.fieldname === 'accounts').data),
+    [{account_id: 'W1', username: 'w1'}], 'saved accounts come back without a password');
+  let hidden = false;
+  await dialog.submit({accounts: [{account_id: 'W1', username: 'w1'}, {username: ' w2 ', password: 'p2'}]},
+    {set_value() {}, hide() {hidden = true;}});
+  const call = h.calls.find(c => c.method.endsWith('save_write_accounts'));
+  assert.deepEqual(JSON.parse(call.args.accounts), [
+    {name: 'W1', username: 'w1', password: ''}, {name: '', username: 'w2', password: 'p2'}]);
+  assert(hidden);
 });

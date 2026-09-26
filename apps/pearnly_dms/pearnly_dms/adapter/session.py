@@ -166,6 +166,8 @@ class MrerpDmsAdapter:
         self._admin_lock_held: Optional[bool] = None
         # 本次是否复用了缓存的销售会话（诊断用）
         self.session_reused = False
+        # True = 本次是在验证账号密码：不复用缓存会话，一定真登一次
+        self.verify_password = False
 
     # ----- 凭据来源 ---------------------------------------------------
 
@@ -280,6 +282,15 @@ class MrerpDmsAdapter:
 
     def _sales_key(self) -> str:
         return self._key(self._username)
+
+    def use_account(self, username: str, password: str) -> None:
+        """整次只用这一个账号（读档账号）：不登销售账号、不借管理员。必须在 `with` 之前调用。"""
+        if self._session is not None:
+            raise DmsTechnicalError(_("The DMS account can only be switched before the session starts"))
+        self._username, self._password = username, password
+        self._admin_username = self._admin_password = None
+        self._admin_pool = []
+        self.skip_sales_session = False
 
     def _admin_members(self):
         if self._admin_pool is None:
@@ -451,7 +462,16 @@ class MrerpDmsAdapter:
             return
         from pearnly_dms.adapter import session_cache
 
-        if session_cache.restore(self.page.context, self._sales_key(), self.base_url):
+        if self.verify_password:
+            # 验证账号密码时（连接向导、登记系统账号）必须真登：复用缓存的会话等于没验密码 ——
+            # 2026-09-27 测试机实测，输错密码也"测试通过"了。缓存里还活着的旧会话先正常登出，
+            # 否则这次真登会被 DMS 当成同账号重复登录。
+            if session_cache.restore(self.page.context, self._sales_key(), self.base_url):
+                self._logout_page(self.page)
+                self.page.context.clear_cookies()
+            session_cache.forget(self._sales_key())
+            self._perform_login(self.page, self._username, self._password)
+        elif session_cache.restore(self.page.context, self._sales_key(), self.base_url):
             self.session_reused = True
         else:
             self._perform_login(self.page, self._username, self._password)

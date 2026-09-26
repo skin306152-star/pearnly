@@ -193,18 +193,48 @@ class AdapterTests(unittest.TestCase):
             pass
         self.assertEqual(self.locks.taken, [self.key("boss")])
 
-    def test_pool_picks_a_free_account_and_skips_the_sales_name(self):
-        self.locks.busy = {self.key("boss")}
-        rows = [frappe._dict(name="A1", username="sys1"), frappe._dict(name="A2", username="sale01")]
+    def pooled(self, rows):
+        """登记表：`rows` = [(name, username, purpose)]；按用途过滤，与 frappe.get_all 同形。"""
+        def get_all(doctype, filters=None, fields=None, order_by=None, **kwargs):
+            purpose = (filters or {}).get("purpose")
+            return [frappe._dict(name=n, username=u) for n, u, p in rows if p == purpose]
+        return patch.object(frappe, "get_all", side_effect=get_all)
+
+    def test_write_accounts_replace_the_connection_admin_and_skip_the_sales_name(self):
+        self.locks.busy = {self.key("sys1")}
+        rows = [("A1", "sys1", "write"), ("A2", "sale01", "write"), ("A3", "sys2", "write"),
+                ("R1", "reader", "read")]
         adapter = self.adapter()
-        with patch.object(frappe, "get_all", return_value=rows), \
+        with self.pooled(rows), \
              patch("pearnly_core.endpoints.read_password", return_value="pw"), \
              patch.object(admin_pool, "rotated", side_effect=lambda accounts: list(accounts)):
             with adapter, patch.object(adapter, "_perform_login") as login:
                 adapter.ensure_admin_session()
-        self.assertIn(self.key("sys1"), self.locks.taken)
-        self.assertEqual(login.call_args[0][1], "sys1")
-        self.assertEqual([a.username for a in adapter._admin_pool], ["boss", "sys1"])
+        self.assertEqual([a.username for a in adapter._admin_pool], ["sys1", "sys2"],
+                         "the connection's own admin and the read account are not used")
+        self.assertEqual(login.call_args[0][1], "sys2", "busy sys1 is skipped for a free one")
+        self.assertNotIn(self.key("boss"), self.locks.taken)
+
+    def test_without_write_accounts_the_connection_admin_is_used(self):
+        adapter = self.adapter()
+        with self.pooled([("R1", "reader", "read")]), \
+             patch("pearnly_core.endpoints.read_password", return_value="pw"):
+            with adapter, patch.object(adapter, "_perform_login") as login:
+                adapter.ensure_admin_session()
+        self.assertEqual(login.call_args[0][1], "boss")
+
+    def test_use_account_runs_everything_on_that_one_account(self):
+        adapter = self.adapter()
+        adapter.skip_sales_session = True
+        adapter.use_account("reader", "pr")
+        with adapter, patch.object(adapter, "_perform_login") as login:
+            adapter.login()
+        self.assertEqual(self.locks.taken, [self.key("reader")])
+        self.assertEqual(login.call_args[0][1], "reader")
+        self.assertFalse(adapter.has_admin_creds)
+        with adapter:
+            with self.assertRaises(session.DmsTechnicalError):
+                adapter.use_account("other", "x")
 
     def test_clean_exit_keeps_the_session_and_skips_logout(self):
         adapter = self.adapter(admin=False)
@@ -219,6 +249,21 @@ class AdapterTests(unittest.TestCase):
             second.login()
             login.assert_not_called()
         self.assertTrue(second.session_reused)
+
+    def test_password_check_never_reuses_a_cached_session(self):
+        first = self.adapter(admin=False)
+        with first, patch.object(first, "_perform_login"):
+            first.login()
+        self.assertIsNotNone(session_cache.load(self.key("sale01")))
+        check = self.adapter(admin=False)
+        check.verify_password = True
+        with patch.object(check, "_logout_page") as logout:
+            with check, patch.object(check, "_perform_login", side_effect=session.DmsAuthError("bad")) as login:
+                with self.assertRaises(session.DmsAuthError):
+                    check.login()
+        login.assert_called_once()
+        logout.assert_called_once()  # the live cached session is ended first, not left to collide
+        self.assertFalse(check.session_reused)
 
     def test_technical_failure_logs_out_and_drops_the_cache(self):
         adapter = self.adapter(admin=False)
@@ -247,6 +292,8 @@ class LiveSyncTests(unittest.TestCase):
         _patch_env(self)
 
     def test_heavy_groups_wait_for_the_night_inside_business_hours(self):
+        self.enterContext(patch.object(admin_pool, "read_account",
+                                       return_value=admin_pool.Account("reader", "pr", True)))
         noon = datetime.datetime(2026, 9, 27, 12, 0)
         night = datetime.datetime(2026, 9, 27, 3, 0)
         with patch.object(frappe.utils, "now_datetime", return_value=noon):
@@ -256,18 +303,30 @@ class LiveSyncTests(unittest.TestCase):
         with patch.object(frappe.utils, "now_datetime", return_value=night):
             self.assertFalse(live_sync.defer_heavy("customers"))
 
-    def test_disabled_by_interval_or_by_session_reuse(self):
-        with patch.object(frappe, "conf", frappe._dict(pearnly_dms_live_sync_seconds=0)):
-            self.assertFalse(live_sync.enabled())
-        with patch.object(frappe, "conf", frappe._dict(pearnly_dms_session_idle_seconds=0)):
-            self.assertFalse(live_sync.enabled())
-        self.assertTrue(live_sync.enabled())
+    def test_disabled_by_interval_by_session_reuse_or_without_a_read_account(self):
+        reader = admin_pool.Account("reader", "pr", True)
+        with patch.object(admin_pool, "read_account", return_value=reader):
+            with patch.object(frappe, "conf", frappe._dict(pearnly_dms_live_sync_seconds=0)):
+                self.assertFalse(live_sync.enabled())
+            with patch.object(frappe, "conf", frappe._dict(pearnly_dms_session_idle_seconds=0)):
+                self.assertFalse(live_sync.enabled())
+            self.assertTrue(live_sync.enabled())
+        with patch.object(admin_pool, "read_account", return_value=None):
+            self.assertFalse(live_sync.enabled(), "no read account: no daytime sync on the connection account")
+
+    def test_window_is_6_to_22(self):
+        for hour, inside in ((5, False), (6, True), (21, True), (22, False)):
+            with patch.object(frappe.utils, "now_datetime",
+                              return_value=datetime.datetime(2026, 9, 27, hour, 30)):
+                self.assertEqual(live_sync.in_business_hours(), inside, hour)
 
     def test_bad_hours_fall_back_to_the_default_window(self):
         with patch.object(frappe, "conf", frappe._dict(pearnly_dms_live_sync_hours="22-3")):
-            self.assertEqual(live_sync._hours(), (7, 21))
+            self.assertEqual(live_sync._hours(), (6, 22))
 
     def test_tick_throttles_and_deduplicates(self):
+        self.enterContext(patch.object(admin_pool, "read_account",
+                                       return_value=admin_pool.Account("reader", "pr", True)))
         noon = datetime.datetime(2026, 9, 27, 12, 0)
         with patch.object(frappe.utils, "now_datetime", return_value=noon), \
              patch.object(live_sync, "_primary_endpoint", return_value="EP-1"), \
@@ -332,6 +391,64 @@ class BusyErrorTests(unittest.TestCase):
         self.assertEqual(result["error_code"], "ERR_DMS_BUSY")
         self.assertTrue(result["busy"])
         self.assertTrue(pacing.is_retryable("ERR_DMS_BUSY"))
+
+
+class AccountProbeTests(unittest.TestCase):
+    """登记前按用途试：缺哪项回哪项；登录失败走统一错误码。"""
+
+    def probe(self, purpose, *, fail=(), login_error=None):
+        from pearnly_dms.adapter import account_probe
+
+        adapter = MagicMock()
+        adapter.__enter__.return_value = adapter
+        adapter.concurrent_login_detected = False
+        if login_error:
+            adapter.login.side_effect = login_error
+        checks = {purpose: [(name, (lambda client, n=name: n not in fail)) for name, _check
+                            in account_probe.CHECKS[purpose]]}
+        with patch.object(session, "MrerpDmsAdapter", return_value=adapter), \
+             patch.object(account_probe, "CHECKS", checks), \
+             patch("pearnly_dms.line.errors.friendly", side_effect=lambda code: "text:" + code):
+            return account_probe.probe(URL, "u", "p", purpose)
+
+    def test_missing_rights_are_named(self):
+        self.assertEqual(self.probe("read"), {"ok": True, "missing": []})
+        self.assertEqual(self.probe("read", fail={"events"}), {"ok": False, "missing": ["events"]})
+        self.assertEqual(self.probe("write", fail={"customer_form"})["missing"], ["customer_form"])
+
+    def test_bad_password_is_an_auth_error(self):
+        result = self.probe("read", login_error=session.DmsAuthError("no"))
+        self.assertEqual((result["ok"], result["error_code"]), (False, "ERR_DMS_AUTH"))
+
+
+class ReadAccountRoutingTests(unittest.TestCase):
+    """用户 2026-09-27：白天的后台读取只用读档账号；夜里、前台操作照旧。"""
+
+    def setUp(self):
+        _patch_env(self)
+
+    def run_with(self, *, hour, reader, **kwargs):
+        from pearnly_dms.adapter import operations
+        from pearnly_dms.config import pacing
+
+        adapter = MagicMock()
+        adapter.__enter__.side_effect = SessionLockUnavailable("stop here")
+        with patch.object(operations, "build_adapter", return_value=(adapter, None)), \
+             patch.object(pacing, "cooldown_left", return_value=0), \
+             patch.object(admin_pool, "read_account", return_value=reader), \
+             patch.object(frappe.utils, "now_datetime",
+                          return_value=datetime.datetime(2026, 9, 27, hour, 0)):
+            operations.run_logged_in("EP-1", lambda client, a: {"ok": True}, **kwargs)
+        return adapter
+
+    def test_daytime_background_reads_use_the_read_account(self):
+        reader = admin_pool.Account("reader", "pr", True)
+        background = dict(authoritative_read=True, background=True, read_only_batch=True)
+        self.run_with(hour=10, reader=reader, **background).use_account.assert_called_once_with("reader", "pr")
+        self.run_with(hour=3, reader=reader, **background).use_account.assert_not_called()
+        self.run_with(hour=10, reader=None, **background).use_account.assert_not_called()
+        self.run_with(hour=10, reader=reader, authoritative_read=True).use_account.assert_not_called()
+        self.run_with(hour=10, reader=reader, background=True, read_only_batch=True).use_account.assert_not_called()
 
 
 if __name__ == "__main__":

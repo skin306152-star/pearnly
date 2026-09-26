@@ -54,6 +54,8 @@ jobs:
           node --test scripts/test-dms-editor-snapshot.cjs
       - name: Verify native Desk lifecycle
         run: node tests/test-native-desk.cjs
+      - name: Verify the DMS connection page (reading overlay, system accounts)
+        run: node tests/test-dms-connect-overlay.cjs
       - name: Verify native POS entry and lifecycle
         run: node --test tests/test_pos_lifecycle.js
       - name: Verify product list selection and deletion

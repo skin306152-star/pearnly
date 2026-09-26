@@ -106,6 +106,7 @@ def test_credentials(username: str, password: str, system_url: str | None = None
         headless=True,
         screenshot_dir=frappe.get_site_path("private", "files", "dms-shots"),
     )
+    adapter.verify_password = True  # 先测再存：必须真登，不能复用缓存里的会话
     return test_adapter(adapter)
 
 
@@ -197,81 +198,144 @@ def _default_url() -> str:
     return DMS_DEFAULT_URL
 
 
-# ── 系统账号池（ADR-013）─────────────────────────────────────────────────
-# 管理员会话（客户档写入、订车前复核、后台读取）从池里挑空闲账号；池子是空的就只用
-# 连接自己那组账号，行为与以前一致。先真登一次再存，和主账号同一个口径。
+# ── 本系统专用账号（ADR-013，用户 2026-09-27）──────────────────────────────
+# 读档账号一个：只用于白天的后台读取（每分钟同步）。改写账号若干：客户档写入与权威读取，
+# 登记了就不再用连接自己的管理员账号。都要先按用途真试一次（`adapter/account_probe`）才存。
 
 SYSTEM_ACCOUNT = "DMS System Account"
 
 
-def _pool_row(doc) -> dict:
-    return {
-        "name": doc.name,
-        "username": doc.username,
-        "enabled": bool(doc.enabled),
-        "usable": bool(read_password(SYSTEM_ACCOUNT, doc.name, "password")),
-        "last_status": doc.last_status or "",
-        "last_checked_at": str(doc.last_checked_at or ""),
-    }
-
-
-@frappe.whitelist()
-def list_system_accounts() -> list:
-    _require_admin()
-    names = frappe.get_all(SYSTEM_ACCOUNT, pluck="name", order_by="creation asc")
-    return [_pool_row(frappe.get_doc(SYSTEM_ACCOUNT, name)) for name in names]
-
-
-@frappe.whitelist(methods=["POST"])
-def add_system_account(username: str, password: str) -> dict:
-    """真登一次通过才存；与主账号、已登记账号同名的拒绝。"""
-    _require_admin()
-    username = (username or "").strip()
-    if not username or not password:
-        frappe.throw(_("Both account and password are required"))
+def _connection():
     name = _endpoint_name()
     if not name:
         frappe.throw(_("No DMS connection has been configured yet"))
-    endpoint = frappe.get_doc(ENDPOINT, name)
-    if username in {endpoint.username, endpoint.admin_username}:
-        frappe.throw(_("This account is already the connection's own account"))
-    if frappe.db.exists(SYSTEM_ACCOUNT, {"username": username}):
-        frappe.throw(_("This system account is already registered"))
-    probe = test_credentials(username, password, endpoint.system_url)
-    if not probe.get("ok"):
-        return {"ok": False, "error_friendly": probe.get("error_friendly")}
-    doc = frappe.get_doc({"doctype": SYSTEM_ACCOUNT, "username": username, "password": password,
-                          "enabled": 1, "last_status": "ok",
-                          "last_checked_at": frappe.utils.now_datetime()})
-    doc.insert(ignore_permissions=True)
-    frappe.db.commit()
-    return {"ok": True, "account": _pool_row(doc)}
+    return frappe.get_doc(ENDPOINT, name)
+
+
+def _forget_session(system_url: str, username: str) -> None:
+    from pearnly_core.session_lock import dms_login_key
+    from pearnly_dms.adapter import session_cache
+    from pearnly_dms.adapter.session import MrerpDmsAdapter
+
+    login_url, _base = MrerpDmsAdapter._normalize_urls(system_url or "")
+    session_cache.forget(dms_login_key(login_url, username))
+
+
+def _taken_names(endpoint, *, ignore: set) -> set:
+    """不能再登记的用户名：本站启用中的 DMS 连接用到的账号（公司连接 + 每个操作员的销售账号），
+    以及已登记的系统账号（`ignore` 里的那几条除外）。同一账号不能同时给两处用 —— DMS 会互踢。"""
+    names = {endpoint.username, endpoint.admin_username}
+    for row in frappe.get_all(ENDPOINT, filters={"adapter": "mrerp_dms", "enabled": 1},
+                              fields=["username", "admin_username"]):
+        names.update((row.username, row.admin_username))
+    for row in frappe.get_all(SYSTEM_ACCOUNT, fields=["name", "username"]):
+        if row.name not in ignore:
+            names.add(row.username)
+    return {name for name in names if name}
+
+
+def _probe_failure(result: dict, username: str) -> dict:
+    return {"ok": False, "username": username, "missing": result.get("missing") or [],
+            "error_friendly": result.get("error_friendly") or ""}
+
+
+@frappe.whitelist()
+def get_accounts() -> dict:
+    """连接页展示用：读档账号（最多一个）与改写账号（按登记顺序）。不回密码。"""
+    _require_admin()
+    rows = frappe.get_all(SYSTEM_ACCOUNT, fields=["name", "username", "purpose", "enabled"],
+                          order_by="creation asc")
+    read = next((row for row in rows if row.purpose == "read"), None)
+    return {
+        "read": {"name": read.name, "username": read.username} if read else None,
+        "write": [{"name": row.name, "username": row.username}
+                  for row in rows if row.purpose != "read"],
+    }
 
 
 @frappe.whitelist(methods=["POST"])
-def set_system_account_enabled(name: str, enabled: int | bool = 1) -> dict:
+def set_read_account(username: str, password: str) -> dict:
+    """添加或更换读档账号：按"读档"真试一次，通过才替换旧的那个。"""
     _require_admin()
-    doc = frappe.get_doc(SYSTEM_ACCOUNT, name)
-    doc.enabled = 1 if int(enabled or 0) else 0
-    doc.save(ignore_permissions=True)
+    from pearnly_dms.adapter.account_probe import probe
+
+    username = (username or "").strip()
+    if not username or not password:
+        frappe.throw(_("Both account and password are required"))
+    endpoint = _connection()
+    current = frappe.get_all(SYSTEM_ACCOUNT, filters={"purpose": "read"}, fields=["name", "username"])
+    keep = {row.name for row in current if row.username == username}
+    if username in _taken_names(endpoint, ignore=keep):
+        frappe.throw(_("This account is already in use by the connection or another system account"))
+    result = probe(endpoint.system_url, username, password, "read")
+    if not result.get("ok"):
+        return _probe_failure(result, username)
+    for row in current:
+        _forget_session(endpoint.system_url, row.username)
+        frappe.delete_doc(SYSTEM_ACCOUNT, row.name, ignore_permissions=True)
+    frappe.get_doc({"doctype": SYSTEM_ACCOUNT, "username": username, "password": password,
+                    "purpose": "read", "enabled": 1, "last_status": "ok",
+                    "last_checked_at": frappe.utils.now_datetime()}).insert(ignore_permissions=True)
     frappe.db.commit()
-    return _pool_row(doc)
+    return {"ok": True}
 
 
 @frappe.whitelist(methods=["POST"])
-def remove_system_account(name: str) -> dict:
-    """移除前先把它缓存着的会话丢掉，免得还有人接着用。"""
-    _require_admin()
-    doc = frappe.get_doc(SYSTEM_ACCOUNT, name)
-    endpoint_name = _endpoint_name()
-    if endpoint_name:
-        from pearnly_core.session_lock import dms_login_key
-        from pearnly_dms.adapter import session_cache
-        from pearnly_dms.adapter.session import MrerpDmsAdapter
+def save_write_accounts(accounts) -> dict:
+    """改写账号整表保存：新行与改了密码的行按"改写"真试；有一行不通过就一行都不存。
 
-        system_url = frappe.db.get_value(ENDPOINT, endpoint_name, "system_url") or ""
-        login_url, _base = MrerpDmsAdapter._normalize_urls(system_url)
-        session_cache.forget(dms_login_key(login_url, doc.username))
-    frappe.delete_doc(SYSTEM_ACCOUNT, name, ignore_permissions=True)
+    `accounts` = `[{name?, username, password?}]`。带 `name` 且没填密码 = 原样保留；
+    表里没有了的已登记改写账号 = 移除（同时丢掉它缓存着的会话）。
+    """
+    _require_admin()
+    from pearnly_dms.adapter.account_probe import probe
+
+    rows = frappe.parse_json(accounts) if isinstance(accounts, str) else (accounts or [])
+    endpoint = _connection()
+    existing = {row.name: row for row in frappe.get_all(
+        SYSTEM_ACCOUNT, filters={"purpose": ["!=", "read"]}, fields=["name", "username"])}
+    taken = _taken_names(endpoint, ignore=set(existing))
+    seen, plan = set(), []
+    for row in rows:
+        name = str(row.get("name") or "")
+        username = str(row.get("username") or "").strip()
+        password = row.get("password") or ""
+        if not username and not password:
+            continue  # 点了"添加"又没填的空行
+        if name and name not in existing:
+            frappe.throw(_("This system account no longer exists; reload the page"))
+        if name and username != existing[name].username:
+            frappe.throw(_("Remove the account and add it again to change its name"))
+        if not username or (not name and not password):
+            frappe.throw(_("Both account and password are required"))
+        if username in taken or username in seen:
+            frappe.throw(_("This account is already in use by the connection or another system account"))
+        seen.add(username)
+        plan.append((name, username, password))
+    for name, username, password in plan:
+        if password:
+            result = probe(endpoint.system_url, username, password, "write")
+            if not result.get("ok"):
+                return _probe_failure(result, username)
+    kept = {name for name, _u, _p in plan if name}
+    for name, row in existing.items():
+        if name not in kept:
+            _forget_session(endpoint.system_url, row.username)
+            frappe.delete_doc(SYSTEM_ACCOUNT, name, ignore_permissions=True)
+    for name, username, password in plan:
+        if name and not password:
+            continue
+        if name:
+            doc = frappe.get_doc(SYSTEM_ACCOUNT, name)
+            doc.password = password
+            _forget_session(endpoint.system_url, username)
+        else:
+            doc = frappe.get_doc({"doctype": SYSTEM_ACCOUNT, "username": username, "password": password,
+                                  "purpose": "write", "enabled": 1})
+        doc.last_status, doc.last_checked_at = "ok", frappe.utils.now_datetime()
+        if name:
+            doc.save(ignore_permissions=True)
+        else:
+            doc.insert(ignore_permissions=True)
     frappe.db.commit()
     return {"ok": True}

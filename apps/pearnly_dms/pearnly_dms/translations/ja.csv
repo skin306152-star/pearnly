@@ -7,8 +7,10 @@ Account busy — the read will continue shortly,アカウントが使用中で�
 Action,操作
 Add a channel,支払方法を追加
 Add and edit customers,顧客の追加と編集
+Add read account,読み取りアカウントを追加
 Add system account,システムアカウントを追加
 Add transfer,振込を追加
+Add write accounts,書き込みアカウントを追加
 Added {0},{0} を追加しました
 Address,住所
 Address data as of {time}; refreshed manually,住所データ取得時刻：{time}。手動で更新します。
@@ -60,6 +62,7 @@ Cash purchase,現金購入
 Cash/finance,現金/ローン
 Cashier's cheque,預金小切手
 Change approver,承認者を変更
+Change read account,読み取りアカウントを変更
 Change request sent. Waiting for the approver.,変更申請を送りました。承認者の対応を待っています。
 Channel details — type them,支払方法の詳細 — 入力してください
 Cheque,小切手
@@ -186,6 +189,8 @@ Not all files were attached. Please add them in DMS.,添付ファイルがすべ
 Not allocated yet,未割当
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,クレジットが不足しています。会社の管理者にチャージ、または pearnly.com/dms でのプラン契約を依頼してください
 Not read yet,未読み取り
+Not set (no daytime sync),未設定（日中は同期しない）
+Not set (the connection account is used),未設定（接続アカウントを使用）
 Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 Older data as of {time}; refresh manually if needed,{time} 時点の古いデータです。必要に応じて手動で更新してください。
@@ -217,6 +222,7 @@ Rank by number of cars or amount?,台数と金額のどちらでランキング�
 Rank sales by what?,何で販売ランキングを出しますか？
 Read / refresh selected data,選択したデータを読み取り／更新
 Read / refresh this query,この検索を読み取り／更新
+Read account,読み取りアカウント
 Read completed,読み取り完了
 Read completed. Click View result.,読み取りが完了しました。結果を見るを押してください。
 Read completed. Sending the result now.,読み取りが完了しました。結果をお送りします。
@@ -242,6 +248,7 @@ Reject,却下
 Reload List,リストを再読み込み
 Remove,削除
 "Remove slip, go on",明細を削除して続ける
+Remove the account and add it again to change its name,アカウント名を変えるには行を削除して追加し直してください
 Removed {0},{0} を削除しました
 Request approval,承認を申請
 Request rejected,申請を却下しました
@@ -258,6 +265,7 @@ Sales terms — choose below,販売条件 — 下から選択
 Salesperson,営業担当
 Save failed. Please try again.,保存できませんでした。もう一度お試しください。
 Save new customer,新規顧客を保存
+Saved,保存しました
 Saved DMS data,読み取り済み DMS データ
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",読み取り済みの DMS 記録です。読み取り／更新を押したときのみ更新します。元の伝票の状態を表示し、下書きは売上に含めません。結果表示では DMS を再読み取りしません。
 "Saved · {action}
@@ -293,7 +301,9 @@ Take a photo of the customer's ID card to start a new customer record.,お客様
 Tap Confirm or Discard on the summary above,上の概要で「確定」または「破棄」を押してください
 Tap Retry within 30 minutes,30 分以内に「再試行」を押してください
 Test and add,テストして追加
+Test and save,テストして保存
 That's all,これで全部
+The DMS account can only be switched before the session starts,DMS アカウントはセッション開始前にのみ切り替えられます
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS アカウントが使用中、または送信待ちです。読み取りは自動再試行しません。後で読み取りを押して続行してください。
 The DMS account is busy. The read retries automatically; please wait.,DMS アカウントが使用中です。自動で再読み取りしますので少々お待ちください。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS アカウントが混み合い、自動再試行を繰り返しましたが完了できませんでした。しばらくしてからもう一度お試しください。
@@ -321,6 +331,7 @@ There are more colours. Type a colour name to search.,ほかにも色があり�
 There is a transfer payment. Please send the transfer slip before viewing the summary.,振込の支払いがあります。概要を見る前に振込明細を送ってください。
 These conditions have not been read. Click Read this query.,この条件のデータは未読み取りです。この検索の読み取りを押してください。
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,このアカウントはまだ LINE でデータを検索できません。オーナーに担当者ページで権限を付けてもらってください。
+This account is already in use by the connection or another system account,このアカウントは接続または他のシステムアカウントで使用中です
 This account is already the connection's own account,このアカウントはすでに接続自身のアカウントです
 This customer already exists and the data matches,この顧客はすでに登録済みで、データも一致しています
 This item has expired. Please start again.,有効期限が切れました。もう一度やり直してください。
@@ -339,6 +350,7 @@ This request has expired. Please start again.,この申請は期限切れです�
 This step does not need a picture. Please follow the question above.,この手順では画像は不要です。上の質問に沿って進めてください。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",この手順では明細の画像が必要です。画像で送るか、振込がない場合は 現金 と入力してください。
 This system account is already registered,このシステムアカウントは登録済みです
+This system account no longer exists; reload the page,このシステムアカウントはもうありません。ページを再読み込みしてください
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",このテナントのデータ量が現在の読み取り上限を超えているため、このグループは読み取っていません。接続は正常です。管理者が上限を上げてから再度読み取ってください。
 This year Top 10,今年 Top 10
 Title,敬称
@@ -373,16 +385,21 @@ Updating data…,データを更新中…
 "Updating the data, please wait",データを更新しています。しばらくお待ちください
 Use name on card,カードの氏名を使う
 Use the back office,管理画面を使う
+"Used only for the every-minute sync, 6:00–22:00.",6:00〜22:00 の毎分同期にのみ使います。
+Used to create and edit customers. Leave a saved account's password empty to keep it.,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
 Vehicle master data,車両マスター情報
 View result / status,結果／状態を見る
 View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
 Welcome to Pearnly DMS,Pearnly DMS へようこそ
 Who should approve this request?,誰に承認を依頼しますか？
+Write accounts,書き込みアカウント
 Your account cannot approve this request,あなたのアカウントにはこの申請を承認する権限がありません
 "Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",あなたのアカウントには DMS 接続が設定されていないため承認できません。管理者に連絡してください。
 Your change request was approved and the customer data is updated.,変更申請が承認され、顧客データを更新しました。
 Your change request was rejected. Contact the approver if needed.,変更申請は却下されました。必要なら承認者に連絡してください。
 cars,台
+customer details,顧客情報
+customer list,顧客一覧
 dms.account.expired,リンクの期限が切れました。LINE メニューから開き直してください。
 dms.account.failed,完了できませんでした。再試行するかメニューから開き直してください。
 dms.account.invalid,DMS パスワードを入力してください。
@@ -693,6 +710,26 @@ dms.card.sum.birthday_be,生年月日
 dms.card.sum.name,氏名
 dms.card.sum.people_id,身分証番号
 dms.card.sum.phone,電話番号
+dms.connect.acct.check.customer,顧客情報
+dms.connect.acct.check.customer_form,新規顧客フォーム
+dms.connect.acct.check.customers,顧客一覧
+dms.connect.acct.check.events,利用履歴
+dms.connect.acct.errGone,このシステムアカウントはもうありません。ページを再読み込みしてください
+dms.connect.acct.errRename,アカウント名を変えるには行を削除して追加し直してください
+dms.connect.acct.errSwitch,DMS アカウントはセッション開始前にのみ切り替えられます
+dms.connect.acct.errTaken,このアカウントは接続または他のシステムアカウントで使用中です
+dms.connect.acct.missing,{0} に権限がありません：{1}
+dms.connect.acct.readAdd,読み取りアカウントを追加
+dms.connect.acct.readChange,読み取りアカウントを変更
+dms.connect.acct.readField,読み取りアカウント
+dms.connect.acct.readHelp,6:00〜22:00 の毎分同期にのみ使います。
+dms.connect.acct.readNone,未設定（日中は同期しない）
+dms.connect.acct.saved,保存しました
+dms.connect.acct.testAndSave,テストして保存
+dms.connect.acct.writeAdd,書き込みアカウントを追加
+dms.connect.acct.writeField,書き込みアカウント
+dms.connect.acct.writeHelp,顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。
+dms.connect.acct.writeNone,未設定（接続アカウントを使用）
 dms.connect.cache.changed,読み取り状態が変わりました。ページを更新して確認してから再試行してください。
 dms.connect.cache.dataset.company,会社情報
 dms.connect.cache.dataset.customers,顧客情報
@@ -881,8 +918,11 @@ dms.snapshot.geo_as_of,住所データ取得時刻：{time}。手動で更新し
 dms.snapshot.geo_stale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
 dms.snapshot.stale,{time} 時点の古いデータです。必要に応じて手動で更新してください。
 in use,使用中
+new customer form,新規顧客フォーム
 stopped,停止中
 then try again,その後もう一度お試しください
+usage log,利用履歴
+{0} lacks access to: {1},{0} に権限がありません：{1}
 {0} processed; total not yet known,{0} 件処理済み。総数は未確定です
 {0} records,{0} 件
 "{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件

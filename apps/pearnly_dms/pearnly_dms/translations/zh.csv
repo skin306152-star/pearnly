@@ -7,8 +7,10 @@ Account busy — the read will continue shortly,账号忙，读取稍后会自�
 Action,操作
 Add a channel,添加付款方式
 Add and edit customers,新增和修改客户资料
+Add read account,添加读档账号
 Add system account,添加系统账号
 Add transfer,添加转账
+Add write accounts,添加改写权限账号
 Added {0},已添加 {0}
 Address,地址
 Address data as of {time}; refreshed manually,地址资料时间：{time}；手动读取更新
@@ -60,6 +62,7 @@ Cash purchase,现金购买
 Cash/finance,现金/贷款
 Cashier's cheque,本票
 Change approver,更换审批人
+Change read account,修改读档账号
 Change request sent. Waiting for the approver.,修改申请已发出，等待审批人处理。
 Channel details — type them,付款方式说明 — 请输入
 Cheque,支票
@@ -186,6 +189,8 @@ Not all files were attached. Please add them in DMS.,附件没有全部上传，
 Not allocated yet,尚未配车
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 Not read yet,尚未读取
+Not set (no daytime sync),未设置（白天不同步）
+Not set (the connection account is used),未设置（使用连接账号）
 Number of cars,台数
 Older address data as of {time}; ask an administrator to refresh if needed,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 Older data as of {time}; refresh manually if needed,当前为 {time} 的旧资料，需要时请手动刷新
@@ -217,6 +222,7 @@ Rank by number of cars or amount?,按台数还是金额排行？
 Rank sales by what?,按什么排行销售？
 Read / refresh selected data,读取／刷新所选资料
 Read / refresh this query,读取／刷新本次查询
+Read account,读档账号
 Read completed,读取完成
 Read completed. Click View result.,读取完成，点击查看结果。
 Read completed. Sending the result now.,读取完成，正在把结果发过来。
@@ -242,6 +248,7 @@ Reject,拒绝
 Reload List,刷新列表
 Remove,移除
 "Remove slip, go on",删除凭证后继续
+Remove the account and add it again to change its name,要改账号名，请删掉这一行再重新添加
 Removed {0},已移除 {0}
 Request approval,提交审批
 Request rejected,已拒绝申请
@@ -258,6 +265,7 @@ Sales terms — choose below,销售条件 — 请在下方选择
 Salesperson,销售
 Save failed. Please try again.,保存失败，请重试。
 Save new customer,保存新客户
+Saved,已保存
 Saved DMS data,DMS 已读取资料
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",DMS 已读取记录，仅点击读取／刷新后更新。状态来自原生单据，草稿不计营业额；查看结果不会再次读取 DMS。
 "Saved · {action}
@@ -293,7 +301,9 @@ Take a photo of the customer's ID card to start a new customer record.,拍摄客
 Tap Confirm or Discard on the summary above,请在上方汇总中点「确认」或「放弃」
 Tap Retry within 30 minutes,请在 30 分钟内点「重试」
 Test and add,测试并添加
+Test and save,测试并保存
 That's all,已全部添加
+The DMS account can only be switched before the session starts,只能在开始会话前切换 DMS 账号
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,DMS 账号忙或有提交待执行，本次读取不会自动重试，请稍后点击读取继续。
 The DMS account is busy. The read retries automatically; please wait.,DMS 账号忙，系统会自动重读，请稍等。
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,DMS 账号一直占用中，系统已自动重试多次仍未成功。请稍后再试。
@@ -321,6 +331,7 @@ There are more colours. Type a colour name to search.,还有更多颜色，可�
 There is a transfer payment. Please send the transfer slip before viewing the summary.,有转账付款，请先发送转账凭证再查看汇总。
 These conditions have not been read. Click Read this query.,尚未读取此条件，请点击读取本次查询。
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,此账号还没有在 LINE 查询资料的权限，请老板在操作员页面开通。
+This account is already in use by the connection or another system account,这个账号已被连接或其他系统账号使用
 This account is already the connection's own account,这个账号已经是连接自己的账号
 This customer already exists and the data matches,这位客户已有资料，资料一致
 This item has expired. Please start again.,此项已过期，请重新开始。
@@ -339,6 +350,7 @@ This request has expired. Please start again.,此申请已过期，请重新开�
 This step does not need a picture. Please follow the question above.,这一步不需要图片，按上面的问题操作即可。
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",这一步需要凭证的图片，请以图片发送；没有转账就输入 现金。
 This system account is already registered,这个系统账号已经登记过了
+This system account no longer exists; reload the page,这个系统账号已不存在，请刷新页面
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",这个租户的数据量超过了当前读取上限，所以这一组没有读。连接本身是正常的；需要管理员调高上限后再读一次。
 This year Top 10,今年 Top 10
 Title,称谓
@@ -373,16 +385,21 @@ Updating data…,数据更新中...
 "Updating the data, please wait",正在更新资料，请稍候
 Use name on card,使用证件上的姓名
 Use the back office,使用后台系统
+"Used only for the every-minute sync, 6:00–22:00.",只用于白天 6:00–22:00 每分钟同步。
+Used to create and edit customers. Leave a saved account's password empty to keep it.,建档、改资料时使用；已登记的账号密码留空即不改。
 Vehicle master data,车辆主档信息
 View result / status,查看结果／状态
 View the latest sales data from DMS within your permissions,按你的权限查看 DMS 最新的销售资料
 Welcome to Pearnly DMS,欢迎使用 Pearnly DMS
 Who should approve this request?,把申请发给谁审批？
+Write accounts,改写权限账号
 Your account cannot approve this request,你的账号没有权限审批这项申请
 "Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",你的账号还没有设置 DMS 连接，无法审批，请通知管理员。
 Your change request was approved and the customer data is updated.,修改申请已获批准，客户资料已更新。
 Your change request was rejected. Contact the approver if needed.,修改申请被拒绝，如有需要请联系审批人。
 cars,台
+customer details,客户资料
+customer list,客户列表
 dms.account.expired,链接已失效，请从 LINE 菜单重新打开。
 dms.account.failed,操作未完成，请重试或重新打开菜单。
 dms.account.invalid,请填写 DMS 密码。
@@ -693,6 +710,26 @@ dms.card.sum.birthday_be,出生日期
 dms.card.sum.name,姓名
 dms.card.sum.people_id,证件号码
 dms.card.sum.phone,电话
+dms.connect.acct.check.customer,客户资料
+dms.connect.acct.check.customer_form,新建客户
+dms.connect.acct.check.customers,客户列表
+dms.connect.acct.check.events,使用记录
+dms.connect.acct.errGone,这个系统账号已不存在，请刷新页面
+dms.connect.acct.errRename,要改账号名，请删掉这一行再重新添加
+dms.connect.acct.errSwitch,只能在开始会话前切换 DMS 账号
+dms.connect.acct.errTaken,这个账号已被连接或其他系统账号使用
+dms.connect.acct.missing,{0} 权限不足：{1}
+dms.connect.acct.readAdd,添加读档账号
+dms.connect.acct.readChange,修改读档账号
+dms.connect.acct.readField,读档账号
+dms.connect.acct.readHelp,只用于白天 6:00–22:00 每分钟同步。
+dms.connect.acct.readNone,未设置（白天不同步）
+dms.connect.acct.saved,已保存
+dms.connect.acct.testAndSave,测试并保存
+dms.connect.acct.writeAdd,添加改写权限账号
+dms.connect.acct.writeField,改写权限账号
+dms.connect.acct.writeHelp,建档、改资料时使用；已登记的账号密码留空即不改。
+dms.connect.acct.writeNone,未设置（使用连接账号）
 dms.connect.cache.changed,读取状态已变化，请刷新页面确认后再试。
 dms.connect.cache.dataset.company,公司资料
 dms.connect.cache.dataset.customers,客户资料
@@ -881,8 +918,11 @@ dms.snapshot.geo_as_of,地址资料时间：{time}；手动读取更新
 dms.snapshot.geo_stale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
 dms.snapshot.stale,当前为 {time} 的旧资料，需要时请手动刷新
 in use,启用
+new customer form,新建客户
 stopped,停用
 then try again,然后再试一次
+usage log,使用记录
+{0} lacks access to: {1},{0} 权限不足：{1}
 {0} processed; total not yet known,已处理 {0} 项，总数尚未确定
 {0} records,{0} 条
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个

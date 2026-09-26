@@ -77,25 +77,26 @@ Branches and teams visible to this account; saved native DMS totals, not draft r
 The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.	DMS 连接中断了本次读取。系统会从断点继续，不用从头再来；已经读好的组仍然保留。	การเชื่อมต่อ DMS ขัดจังหวะการอ่านครั้งนี้ ระบบจะอ่านต่อจากจุดเดิม ไม่ได้เริ่มใหม่ กลุ่มที่อ่านเสร็จแล้วยังคงอยู่	DMS 接続で読み取りが中断しました。最初からではなく続きから再開します。読み取り済みのグループはそのまま残ります。	dms.err.ERR_DMS_SNAPSHOT_RETRY
 The data volume exceeds the read limit. Please contact an administrator.	数据量超过了读取上限，请联系管理人员。	ปริมาณข้อมูลเกินเพดานการอ่าน กรุณาติดต่อผู้ดูแลระบบ	データ量が読み取り上限を超えています。管理者にご連絡ください。	dms.err.ERR_DMS_SNAPSHOT_TOO_LARGE
 Many people are using DMS right now, so this request timed out in the queue. Nothing was submitted. Please try again shortly.	现在使用 DMS 的人较多，本次排队超时，尚未提交任何内容。请稍后再试。	ขณะนี้มีผู้ใช้ DMS จำนวนมาก คำขอนี้รอคิวนานเกินไป ยังไม่มีการบันทึกข้อมูลใด ๆ กรุณาลองใหม่อีกครั้งในอีกสักครู่	現在 DMS の利用者が多く、順番待ちがタイムアウトしました。まだ何も送信されていません。しばらくしてからもう一度お試しください。	dms.err.ERR_DMS_BUSY
-Add system account	添加系统账号	เพิ่มบัญชีระบบ	システムアカウントを追加	dms.connect.pool.add
-Manage system accounts	管理系统账号	จัดการบัญชีระบบ	システムアカウントを管理	dms.connect.pool.manage
-System accounts	系统账号	บัญชีระบบ	システムアカウント	dms.connect.pool.field
-None (the connection's own account is used)	未配置（只用连接自己的账号）	ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)	未設定（接続自身のアカウントのみ使用）	dms.connect.pool.none
-{0} registered, {1} in use	已登记 {0} 个，可用 {1} 个	ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี	登録 {0} 件、利用可能 {1} 件	dms.connect.pool.summary
-Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.	人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。	ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS	同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。	dms.connect.pool.help
-Test and add	测试并添加	ทดสอบและเพิ่ม	テストして追加	dms.connect.pool.testAndAdd
-Added {0}	已添加 {0}	เพิ่ม {0} แล้ว	{0} を追加しました	dms.connect.pool.added
-in use	启用	ใช้งาน	使用中	dms.connect.pool.on
-stopped	停用	หยุดใช้	停止中	dms.connect.pool.off
-Action	操作	การดำเนินการ	操作	dms.connect.pool.action
-Stop / resume	停用 / 启用	หยุดใช้ / ใช้งาน	停止 / 再開	dms.connect.pool.toggle
-Remove	移除	ลบออก	削除	dms.connect.pool.remove
-Apply	执行	ดำเนินการ	実行	dms.connect.pool.apply
-Removed {0}	已移除 {0}	ลบ {0} แล้ว	{0} を削除しました	dms.connect.pool.removed
-Stopped {0}	已停用 {0}	หยุดใช้ {0} แล้ว	{0} を停止しました	dms.connect.pool.disabled
-Resumed {0}	已启用 {0}	ใช้งาน {0} แล้ว	{0} を再開しました	dms.connect.pool.enabled
-This account is already the connection's own account	这个账号已经是连接自己的账号	บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว	このアカウントはすでに接続自身のアカウントです	dms.connect.pool.errOwn
-This system account is already registered	这个系统账号已经登记过了	บัญชีระบบนี้ลงทะเบียนไว้แล้ว	このシステムアカウントは登録済みです	dms.connect.pool.errDuplicate
+Add read account	添加读档账号	เพิ่มบัญชีอ่านข้อมูล	読み取りアカウントを追加	dms.connect.acct.readAdd
+Change read account	修改读档账号	แก้ไขบัญชีอ่านข้อมูล	読み取りアカウントを変更	dms.connect.acct.readChange
+Read account	读档账号	บัญชีอ่านข้อมูล	読み取りアカウント	dms.connect.acct.readField
+Not set (no daytime sync)	未设置（白天不同步）	ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)	未設定（日中は同期しない）	dms.connect.acct.readNone
+Used only for the every-minute sync, 6:00–22:00.	只用于白天 6:00–22:00 每分钟同步。	ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00	6:00〜22:00 の毎分同期にのみ使います。	dms.connect.acct.readHelp
+Add write accounts	添加改写权限账号	เพิ่มบัญชีสิทธิ์แก้ไข	書き込みアカウントを追加	dms.connect.acct.writeAdd
+Write accounts	改写权限账号	บัญชีสิทธิ์แก้ไข	書き込みアカウント	dms.connect.acct.writeField
+Not set (the connection account is used)	未设置（使用连接账号）	ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)	未設定（接続アカウントを使用）	dms.connect.acct.writeNone
+Used to create and edit customers. Leave a saved account's password empty to keep it.	建档、改资料时使用；已登记的账号密码留空即不改。	ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน	顧客の登録・編集に使います。登録済みのパスワードは空欄なら変更しません。	dms.connect.acct.writeHelp
+Test and save	测试并保存	ทดสอบและบันทึก	テストして保存	dms.connect.acct.testAndSave
+Saved	已保存	บันทึกแล้ว	保存しました	dms.connect.acct.saved
+{0} lacks access to: {1}	{0} 权限不足：{1}	{0} ไม่มีสิทธิ์: {1}	{0} に権限がありません：{1}	dms.connect.acct.missing
+usage log	使用记录	บันทึกการใช้งาน	利用履歴	dms.connect.acct.check.events
+customer list	客户列表	รายชื่อลูกค้า	顧客一覧	dms.connect.acct.check.customers
+customer details	客户资料	ข้อมูลลูกค้า	顧客情報	dms.connect.acct.check.customer
+new customer form	新建客户	ฟอร์มเพิ่มลูกค้า	新規顧客フォーム	dms.connect.acct.check.customer_form
+This account is already in use by the connection or another system account	这个账号已被连接或其他系统账号使用	บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว	このアカウントは接続または他のシステムアカウントで使用中です	dms.connect.acct.errTaken
+This system account no longer exists; reload the page	这个系统账号已不存在，请刷新页面	บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า	このシステムアカウントはもうありません。ページを再読み込みしてください	dms.connect.acct.errGone
+Remove the account and add it again to change its name	要改账号名，请删掉这一行再重新添加	หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่	アカウント名を変えるには行を削除して追加し直してください	dms.connect.acct.errRename
+The DMS account can only be switched before the session starts	只能在开始会话前切换 DMS 账号	เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น	DMS アカウントはセッション開始前にのみ切り替えられます	dms.connect.acct.errSwitch
 DMS System Account	DMS 系统账号	บัญชีระบบ DMS	DMS システムアカウント	dms.doctype.system_account
 Last Check	最近检查	ตรวจสอบล่าสุด	最終チェック	dms.doctype.system_account.last_status
 Last Checked At	最近检查时间	เวลาตรวจสอบล่าสุด	最終チェック日時	dms.doctype.system_account.last_checked_at

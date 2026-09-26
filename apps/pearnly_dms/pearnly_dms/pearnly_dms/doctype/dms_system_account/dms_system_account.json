@@ -3,12 +3,13 @@
  "allow_rename": 0,
  "autoname": "hash",
  "creation": "2026-09-27 00:00:00.000000",
- "description": "Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.",
+ "description": "DMS accounts reserved for the system: one read account for daytime background reads, and write accounts for customer writes and admin reads so operators do not queue on one account.",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
   "username",
   "password",
+  "purpose",
   "enabled",
   "column_break_main",
   "last_status",
@@ -28,6 +29,15 @@
    "fieldname": "password",
    "fieldtype": "Password",
    "label": "DMS Password",
+   "reqd": 1
+  },
+  {
+   "default": "write",
+   "fieldname": "purpose",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Purpose",
+   "options": "write\nread",
    "reqd": 1
   },
   {
@@ -62,7 +72,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-27 00:00:00.000000",
+ "modified": "2026-09-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly DMS",
  "name": "DMS System Account",

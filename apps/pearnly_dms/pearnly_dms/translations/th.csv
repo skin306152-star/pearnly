@@ -7,8 +7,10 @@ Account busy — the read will continue shortly,บัญชีไม่ว่�
 Action,การดำเนินการ
 Add a channel,เพิ่มช่องทาง
 Add and edit customers,เพิ่มและแก้ไขข้อมูลลูกค้า
+Add read account,เพิ่มบัญชีอ่านข้อมูล
 Add system account,เพิ่มบัญชีระบบ
 Add transfer,เพิ่มเงินโอน
+Add write accounts,เพิ่มบัญชีสิทธิ์แก้ไข
 Added {0},เพิ่ม {0} แล้ว
 Address,ที่อยู่
 Address data as of {time}; refreshed manually,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
@@ -60,6 +62,7 @@ Cash purchase,ซื้อเงินสด
 Cash/finance,เงินสด/ไฟแนนซ์
 Cashier's cheque,แคชเชียร์เช็ค
 Change approver,เปลี่ยนผู้อนุมัติ
+Change read account,แก้ไขบัญชีอ่านข้อมูล
 Change request sent. Waiting for the approver.,ส่งคำขอแก้ไขแล้ว รอผู้อนุมัติดำเนินการ
 Channel details — type them,รายละเอียดช่องทาง — พิมพ์
 Cheque,เช็ค
@@ -186,6 +189,8 @@ Not all files were attached. Please add them in DMS.,แนบไฟล์ไม
 Not allocated yet,ยังไม่จัดสรรรถ
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 Not read yet,ยังไม่ได้อ่าน
+Not set (no daytime sync),ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)
+Not set (the connection account is used),ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)
 Number of cars,จำนวนคัน
 Older address data as of {time}; ask an administrator to refresh if needed,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 Older data as of {time}; refresh manually if needed,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
@@ -217,6 +222,7 @@ Rank by number of cars or amount?,จัดอันดับด้วยจำ�
 Rank sales by what?,จัดอันดับยอดขายตามอะไร
 Read / refresh selected data,อ่าน / อัปเดตข้อมูลที่เลือก
 Read / refresh this query,อ่าน / อัปเดตข้อมูลครั้งนี้
+Read account,บัญชีอ่านข้อมูล
 Read completed,อ่านเสร็จแล้ว
 Read completed. Click View result.,อ่านเสร็จแล้ว กดดูผลการอ่าน
 Read completed. Sending the result now.,อ่านเสร็จแล้ว กำลังส่งผลการอ่านให้
@@ -242,6 +248,7 @@ Reject,ปฏิเสธ
 Reload List,โหลดรายการใหม่
 Remove,ลบออก
 "Remove slip, go on",ลบสลิปแล้วไปต่อ
+Remove the account and add it again to change its name,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 Removed {0},ลบ {0} แล้ว
 Request approval,ส่งขออนุมัติ
 Request rejected,ปฏิเสธคำขอแล้ว
@@ -258,6 +265,7 @@ Sales terms — choose below,เงื่อนไขการขาย — ก�
 Salesperson,พนักงานขาย
 Save failed. Please try again.,บันทึกไม่สำเร็จ กรุณาลองใหม่
 Save new customer,บันทึกลูกค้าใหม่
+Saved,บันทึกแล้ว
 Saved DMS data,ข้อมูล DMS ที่อ่านไว้
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.",ข้อมูล DMS ที่อ่านไว้ อัปเดตเมื่อกดอ่าน / อัปเดตเท่านั้น แสดงสถานะเอกสารต้นทาง แบบร่างไม่นับเป็นยอดขาย การดูผลไม่อ่าน DMS ซ้ำ
 "Saved · {action}
@@ -293,7 +301,9 @@ Take a photo of the customer's ID card to start a new customer record.,ถ่า
 Tap Confirm or Discard on the summary above,กด ยืนยัน หรือ ทิ้ง ที่สรุปด้านบนครับ
 Tap Retry within 30 minutes,กรุณากดลองใหม่ภายใน 30 นาที
 Test and add,ทดสอบและเพิ่ม
+Test and save,ทดสอบและบันทึก
 That's all,ครบแล้ว
+The DMS account can only be switched before the session starts,เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,บัญชี DMS ไม่ว่างหรือมีรายการรอส่ง ระบบจะไม่ลองอ่านซ้ำอัตโนมัติ กรุณากดอ่านภายหลังเพื่อทำต่อ
 The DMS account is busy. The read retries automatically; please wait.,บัญชี DMS ไม่ว่าง ระบบจะอ่านให้ใหม่โดยอัตโนมัติ กรุณารอสักครู่
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,บัญชี DMS ไม่ว่าง ระบบลองอ่านซ้ำอัตโนมัติหลายครั้งแล้วยังไม่สำเร็จ กรุณาลองอีกครั้งภายหลัง
@@ -321,6 +331,7 @@ There are more colours. Type a colour name to search.,มีสีมากก�
 There is a transfer payment. Please send the transfer slip before viewing the summary.,มีช่องทางเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุปครับ
 These conditions have not been read. Click Read this query.,ยังไม่ได้อ่านข้อมูลตามเงื่อนไขนี้ กรุณากดอ่านข้อมูลครั้งนี้
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,บัญชีนี้ยังไม่ได้รับสิทธิ์ค้นหาข้อมูลใน LINE กรุณาให้เจ้าของเปิดสิทธิ์ในหน้าผู้ปฏิบัติงาน
+This account is already in use by the connection or another system account,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
 This account is already the connection's own account,บัญชีนี้เป็นบัญชีของการเชื่อมต่ออยู่แล้ว
 This customer already exists and the data matches,ลูกค้าท่านนี้มีข้อมูลอยู่แล้ว ข้อมูลตรงกัน
 This item has expired. Please start again.,รายการหมดอายุ เริ่มใหม่อีกครั้ง
@@ -339,6 +350,7 @@ This request has expired. Please start again.,คำขอนี้หมดอ�
 This step does not need a picture. Please follow the question above.,ขั้นตอนนี้ไม่ต้องการรูปภาพครับ ทำตามคำถามด้านบนได้เลย
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.",ขั้นนี้ต้องการรูปสลิปครับ ส่งเป็นรูปภาพ หรือพิมพ์ เงินสด ถ้าไม่มีการโอน
 This system account is already registered,บัญชีระบบนี้ลงทะเบียนไว้แล้ว
+This system account no longer exists; reload the page,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.",ข้อมูลของ租户นี้มากกว่าเพดานการอ่านปัจจุบัน กลุ่มนี้จึงยังไม่ได้อ่าน การเชื่อมต่อปกติดี ผู้ดูแลต้องปรับเพดานแล้วอ่านอีกครั้ง
 This year Top 10,ปีนี้ Top 10
 Title,คำนำหน้า
@@ -373,16 +385,21 @@ Updating data…,กำลังอัปเดตข้อมูล…
 "Updating the data, please wait",กำลังอัปเดตข้อมูล กรุณารอสักครู่
 Use name on card,ใช้ชื่อตามบัตร
 Use the back office,เข้าใช้งานระบบหลังบ้าน
+"Used only for the every-minute sync, 6:00–22:00.",ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00
+Used to create and edit customers. Leave a saved account's password empty to keep it.,ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน
 Vehicle master data,ข้อมูลหลักรถยนต์
 View result / status,ดูผล / สถานะการอ่าน
 View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 Welcome to Pearnly DMS,ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
 Who should approve this request?,ส่งคำขอให้ใครอนุมัติ
+Write accounts,บัญชีสิทธิ์แก้ไข
 Your account cannot approve this request,บัญชีของคุณไม่มีสิทธิ์อนุมัติคำขอนี้
 "Your account has no DMS connection set up, so it cannot approve. Please tell the admin.",บัญชีของคุณยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS จึงอนุมัติไม่ได้ กรุณาแจ้งผู้ดูแล
 Your change request was approved and the customer data is updated.,คำขอแก้ไขได้รับอนุมัติแล้ว ข้อมูลลูกค้าอัปเดตเรียบร้อย
 Your change request was rejected. Contact the approver if needed.,คำขอแก้ไขถูกปฏิเสธ หากจำเป็นกรุณาติดต่อผู้อนุมัติ
 cars,คัน
+customer details,ข้อมูลลูกค้า
+customer list,รายชื่อลูกค้า
 dms.account.expired,ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง
 dms.account.failed,ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่
 dms.account.invalid,กรุณากรอกรหัสผ่าน DMS
@@ -693,6 +710,26 @@ dms.card.sum.birthday_be,วันเกิด
 dms.card.sum.name,ชื่อ
 dms.card.sum.people_id,เลขบัตร
 dms.card.sum.phone,เบอร์โทร
+dms.connect.acct.check.customer,ข้อมูลลูกค้า
+dms.connect.acct.check.customer_form,ฟอร์มเพิ่มลูกค้า
+dms.connect.acct.check.customers,รายชื่อลูกค้า
+dms.connect.acct.check.events,บันทึกการใช้งาน
+dms.connect.acct.errGone,บัญชีระบบนี้ไม่มีแล้ว กรุณารีเฟรชหน้า
+dms.connect.acct.errRename,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
+dms.connect.acct.errSwitch,เปลี่ยนบัญชี DMS ได้ก่อนเริ่มเซสชันเท่านั้น
+dms.connect.acct.errTaken,บัญชีนี้ถูกใช้โดยการเชื่อมต่อหรือบัญชีระบบอื่นแล้ว
+dms.connect.acct.missing,{0} ไม่มีสิทธิ์: {1}
+dms.connect.acct.readAdd,เพิ่มบัญชีอ่านข้อมูล
+dms.connect.acct.readChange,แก้ไขบัญชีอ่านข้อมูล
+dms.connect.acct.readField,บัญชีอ่านข้อมูล
+dms.connect.acct.readHelp,ใช้เฉพาะซิงก์ทุกนาที 6:00–22:00
+dms.connect.acct.readNone,ยังไม่ตั้ง (ไม่ซิงก์ช่วงกลางวัน)
+dms.connect.acct.saved,บันทึกแล้ว
+dms.connect.acct.testAndSave,ทดสอบและบันทึก
+dms.connect.acct.writeAdd,เพิ่มบัญชีสิทธิ์แก้ไข
+dms.connect.acct.writeField,บัญชีสิทธิ์แก้ไข
+dms.connect.acct.writeHelp,ใช้เพิ่มและแก้ไขลูกค้า บัญชีที่บันทึกแล้วเว้นรหัสผ่านว่างไว้ = ไม่เปลี่ยน
+dms.connect.acct.writeNone,ยังไม่ตั้ง (ใช้บัญชีการเชื่อมต่อ)
 dms.connect.cache.changed,สถานะการอ่านเปลี่ยนไป กรุณารีเฟรชหน้าเพื่อตรวจสอบก่อนลองอีกครั้ง
 dms.connect.cache.dataset.company,ข้อมูลบริษัท
 dms.connect.cache.dataset.customers,ข้อมูลลูกค้า
@@ -881,8 +918,11 @@ dms.snapshot.geo_as_of,ข้อมูลที่อยู่ ณ {time} อั
 dms.snapshot.geo_stale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลกดอ่านอีกครั้ง
 dms.snapshot.stale,ข้อมูลเดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณากดอ่านอีกครั้ง
 in use,ใช้งาน
+new customer form,ฟอร์มเพิ่มลูกค้า
 stopped,หยุดใช้
 then try again,แล้วลองใหม่อีกครั้ง
+usage log,บันทึกการใช้งาน
+{0} lacks access to: {1},{0} ไม่มีสิทธิ์: {1}
 {0} processed; total not yet known,อ่านแล้ว {0} รายการ ยังไม่ทราบจำนวนทั้งหมด
 {0} records,{0} รายการ
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี

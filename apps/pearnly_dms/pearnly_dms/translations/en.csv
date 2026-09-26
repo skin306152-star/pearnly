@@ -7,8 +7,10 @@ Account busy — the read will continue shortly,Account busy — the read will c
 Action,Action
 Add a channel,Add a channel
 Add and edit customers,Add and edit customers
+Add read account,Add read account
 Add system account,Add system account
 Add transfer,Add transfer
+Add write accounts,Add write accounts
 Added {0},Added {0}
 Address,Address
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
@@ -60,6 +62,7 @@ Cash purchase,Cash purchase
 Cash/finance,Cash/finance
 Cashier's cheque,Cashier's cheque
 Change approver,Change approver
+Change read account,Change read account
 Change request sent. Waiting for the approver.,Change request sent. Waiting for the approver.
 Channel details — type them,Channel details — type them
 Cheque,Cheque
@@ -186,6 +189,8 @@ Not all files were attached. Please add them in DMS.,Not all files were attached
 Not allocated yet,Not allocated yet
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
+Not set (no daytime sync),Not set (no daytime sync)
+Not set (the connection account is used),Not set (the connection account is used)
 Number of cars,Number of cars
 Older address data as of {time}; ask an administrator to refresh if needed,Older address data as of {time}; ask an administrator to refresh if needed
 Older data as of {time}; refresh manually if needed,Older data as of {time}; refresh manually if needed
@@ -217,6 +222,7 @@ Rank by number of cars or amount?,Rank by number of cars or amount?
 Rank sales by what?,Rank sales by what?
 Read / refresh selected data,Read / refresh selected data
 Read / refresh this query,Read / refresh this query
+Read account,Read account
 Read completed,Read completed
 Read completed. Click View result.,Read completed. Click View result.
 Read completed. Sending the result now.,Read completed. Sending the result now.
@@ -242,6 +248,7 @@ Reject,Reject
 Reload List,Reload List
 Remove,Remove
 "Remove slip, go on","Remove slip, go on"
+Remove the account and add it again to change its name,Remove the account and add it again to change its name
 Removed {0},Removed {0}
 Request approval,Request approval
 Request rejected,Request rejected
@@ -258,6 +265,7 @@ Sales terms — choose below,Sales terms — choose below
 Salesperson,Salesperson
 Save failed. Please try again.,Save failed. Please try again.
 Save new customer,Save new customer
+Saved,Saved
 Saved DMS data,Saved DMS data
 "Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again.","Saved DMS records; updated only when you click Read / refresh. Native document status, not draft revenue. Viewing results does not read DMS again."
 "Saved · {action}
@@ -293,7 +301,9 @@ Take a photo of the customer's ID card to start a new customer record.,Take a ph
 Tap Confirm or Discard on the summary above,Tap Confirm or Discard on the summary above
 Tap Retry within 30 minutes,Tap Retry within 30 minutes
 Test and add,Test and add
+Test and save,Test and save
 That's all,That's all
+The DMS account can only be switched before the session starts,The DMS account can only be switched before the session starts
 The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,The DMS account stayed busy; automatic retries did not get through. Please try again later.
@@ -321,6 +331,7 @@ There are more colours. Type a colour name to search.,There are more colours. Ty
 There is a transfer payment. Please send the transfer slip before viewing the summary.,There is a transfer payment. Please send the transfer slip before viewing the summary.
 These conditions have not been read. Click Read this query.,These conditions have not been read. Click Read this query.
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
+This account is already in use by the connection or another system account,This account is already in use by the connection or another system account
 This account is already the connection's own account,This account is already the connection's own account
 This customer already exists and the data matches,This customer already exists and the data matches
 This item has expired. Please start again.,This item has expired. Please start again.
@@ -339,6 +350,7 @@ This request has expired. Please start again.,This request has expired. Please s
 This step does not need a picture. Please follow the question above.,This step does not need a picture. Please follow the question above.
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.","This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer."
 This system account is already registered,This system account is already registered
+This system account no longer exists; reload the page,This system account no longer exists; reload the page
 "This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.","This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
 This year Top 10,This year Top 10
 Title,Title
@@ -373,16 +385,21 @@ Updating data…,Updating data…
 "Updating the data, please wait","Updating the data, please wait"
 Use name on card,Use name on card
 Use the back office,Use the back office
+"Used only for the every-minute sync, 6:00–22:00.","Used only for the every-minute sync, 6:00–22:00."
+Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
 Vehicle master data,Vehicle master data
 View result / status,View result / status
 View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
 Welcome to Pearnly DMS,Welcome to Pearnly DMS
 Who should approve this request?,Who should approve this request?
+Write accounts,Write accounts
 Your account cannot approve this request,Your account cannot approve this request
 "Your account has no DMS connection set up, so it cannot approve. Please tell the admin.","Your account has no DMS connection set up, so it cannot approve. Please tell the admin."
 Your change request was approved and the customer data is updated.,Your change request was approved and the customer data is updated.
 Your change request was rejected. Contact the approver if needed.,Your change request was rejected. Contact the approver if needed.
 cars,cars
+customer details,customer details
+customer list,customer list
 dms.account.expired,This link expired. Open it from the LINE menu again.
 dms.account.failed,Could not complete this action. Try again or reopen the menu.
 dms.account.invalid,Enter the DMS password.
@@ -693,6 +710,26 @@ dms.card.sum.birthday_be,Date of birth
 dms.card.sum.name,Name
 dms.card.sum.people_id,ID no.
 dms.card.sum.phone,Phone
+dms.connect.acct.check.customer,customer details
+dms.connect.acct.check.customer_form,new customer form
+dms.connect.acct.check.customers,customer list
+dms.connect.acct.check.events,usage log
+dms.connect.acct.errGone,This system account no longer exists; reload the page
+dms.connect.acct.errRename,Remove the account and add it again to change its name
+dms.connect.acct.errSwitch,The DMS account can only be switched before the session starts
+dms.connect.acct.errTaken,This account is already in use by the connection or another system account
+dms.connect.acct.missing,{0} lacks access to: {1}
+dms.connect.acct.readAdd,Add read account
+dms.connect.acct.readChange,Change read account
+dms.connect.acct.readField,Read account
+dms.connect.acct.readHelp,"Used only for the every-minute sync, 6:00–22:00."
+dms.connect.acct.readNone,Not set (no daytime sync)
+dms.connect.acct.saved,Saved
+dms.connect.acct.testAndSave,Test and save
+dms.connect.acct.writeAdd,Add write accounts
+dms.connect.acct.writeField,Write accounts
+dms.connect.acct.writeHelp,Used to create and edit customers. Leave a saved account's password empty to keep it.
+dms.connect.acct.writeNone,Not set (the connection account is used)
 dms.connect.cache.changed,The read status changed. Refresh the page to check before trying again.
 dms.connect.cache.dataset.company,Company information
 dms.connect.cache.dataset.customers,Customer records
@@ -881,8 +918,11 @@ dms.snapshot.geo_as_of,Address data as of {time}; refreshed manually
 dms.snapshot.geo_stale,Older address data as of {time}; ask an administrator to refresh if needed
 dms.snapshot.stale,Older data as of {time}; refresh manually if needed
 in use,in use
+new customer form,new customer form
 stopped,stopped
 then try again,then try again
+usage log,usage log
+{0} lacks access to: {1},{0} lacks access to: {1}
 {0} processed; total not yet known,{0} processed; total not yet known
 {0} records,{0} records
 "{0} registered, {1} in use","{0} registered, {1} in use"

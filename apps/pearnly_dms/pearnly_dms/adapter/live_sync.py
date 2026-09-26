@@ -12,14 +12,16 @@
 
 ## 规则
 
-* 只在白天窗口内跑（`pearnly_dms_live_sync_hours`，默认 `7-21`，站点时区）；夜里交给全量回读。
+* 只在白天窗口内跑（`pearnly_dms_live_sync_hours`，默认 `6-22` 即 6:00–22:00，站点时区）；夜里交给全量回读。
+* **只用读档账号**（`adapter/admin_pool.read_account`，用户 2026-09-27）：没登记读档账号就不跑，
+  绝不拿连接自己的管理员账号每分钟登录 —— 网页上可能有人正用着它，DMS 会把重复登录踢下线。
 * 间隔 `pearnly_dms_live_sync_seconds`（默认 60 秒，`0` 关闭）；会话复用关闭时也不跑 ——
   没有复用就等于每分钟登录一次，会一直顶掉同账号的人。
 * 走专用 `dms_sync` 队列、只读批次（遇到操作员的交互会话就让路），同一连接同时只跑一个。
 * **白天不做大组整组重读**：日志点不出具体记录时，客户/地址两个大组只标记"待重读"，
   由凌晨全量完成；车辆、公司这类小组照常立即整组重读（`change_sync._request_refresh`）。
-* 管理员会话刚被人顶掉（有人在用同一账号登录网页）时，接下来一段时间不再为了同步去登录，
-  免得每分钟把那个人踢下线一次；配了系统账号池（`adapter/admin_pool`）就不会遇到这个问题。
+* 读档账号的会话刚被人顶掉（有人拿它登录了网页）时，接下来一段时间不再为了同步去登录，
+  免得每分钟把那个人踢下线一次。
 """
 
 from __future__ import annotations
@@ -32,7 +34,7 @@ import frappe
 logger = logging.getLogger(__name__)
 
 DEFAULT_SECONDS = 60
-DEFAULT_HOURS = "7-21"
+DEFAULT_HOURS = "6-22"
 #: 客户、地址：整组重读一次可能要一个多小时，白天只标记，留给夜里。
 HEAVY_DATASETS = frozenset({"customers", "geo"})
 _THROTTLE_KEY = "pearnly:dms:live-sync:last"
@@ -54,13 +56,13 @@ def _hours() -> Tuple[int, int]:
             return start, end
     except (TypeError, ValueError):
         pass
-    return 7, 21
+    return 6, 22
 
 
 def enabled() -> bool:
-    from pearnly_dms.adapter import session_cache
+    from pearnly_dms.adapter import admin_pool, session_cache
 
-    return interval_seconds() > 0 and session_cache.enabled()
+    return interval_seconds() > 0 and session_cache.enabled() and admin_pool.read_account() is not None
 
 
 def in_business_hours(now=None) -> bool:
@@ -123,22 +125,14 @@ def pull(endpoint: str) -> dict:
 
 
 def _admin_account_in_use(endpoint: str) -> bool:
-    """连接自带的管理员账号最近被人顶掉过、又没有系统账号池可换时，这一轮不去登录。"""
+    """读档账号最近被人顶掉过（有人拿它登录了网页）时，这一轮不去登录。"""
     from pearnly_core.session_lock import dms_login_key
     from pearnly_dms.adapter import admin_pool, session_cache
-
-    row = frappe.db.get_value("Pearnly ERP Endpoint", endpoint,
-                              ["system_url", "username", "admin_username"], as_dict=True) or {}
-    username = row.get("admin_username") or row.get("username") or ""
-    if not username:
-        return False
-    try:
-        pooled = frappe.db.count(admin_pool.DOCTYPE, {"enabled": 1})
-    except Exception:
-        pooled = 0
-    if pooled:
-        return False
     from pearnly_dms.adapter.session import MrerpDmsAdapter
 
-    login_url, _base = MrerpDmsAdapter._normalize_urls(row.get("system_url") or "")
-    return session_cache.recently_kicked(dms_login_key(login_url, username))
+    reader = admin_pool.read_account()
+    if reader is None:
+        return True  # 没有读档账号就不跑（`enabled` 已挡住；这里再兜一次）
+    system_url = frappe.db.get_value("Pearnly ERP Endpoint", endpoint, "system_url") or ""
+    login_url, _base = MrerpDmsAdapter._normalize_urls(system_url)
+    return session_cache.recently_kicked(dms_login_key(login_url, reader.username))

@@ -2,8 +2,8 @@
 	const p = frappe.pearnly;
 	p.connect = async (page, t, wrapper) => {
 		const cacheText = await p.texts("dms.connect.cache.");
-		const poolText = await p.texts("dms.connect.pool.");
-		let pool = [];
+		const acct = await p.texts("dms.connect.acct.");
+		let accounts = { read: null, write: [] };
 		let conn;
 		// 四组都在：绑定成功时它们会被一起排队（缓存底座），这里是**进度显示**，
 		// 不是"等操作员点按钮"。页面不再有手动触发。
@@ -128,28 +128,29 @@
 			unfreeze();
 			conn = await p.call("pearnly_dms.connections.api.get_connection");
 			const ep = conn.endpoint;
-			pool = ep ? await p.call("pearnly_dms.connections.api.list_system_accounts") : [];
+			accounts = ep ? await p.call("pearnly_dms.connections.api.get_accounts") : { read: null, write: [] };
 			page.main.empty();
 			page.clear_inner_toolbar();
-			// 系统账号池（ADR-013）放进页面菜单：页面上仍然只有右上角那一个主按钮。
+			// 右上角只留两个按钮（用户 2026-09-27）：改写权限账号（主）+ 读档账号（次）；
+			// 换连接账号放进「…」菜单。还没连上 DMS 时只有「连接」一个按钮。
 			page.clear_menu();
 			if (ep) {
-				page.add_menu_item(poolText("dms.connect.pool.add"), addSystemAccount);
-				if (pool.length) page.add_menu_item(poolText("dms.connect.pool.manage"), manageSystemAccounts);
+				page.add_menu_item(t("connect.action.edit"), wizard);
+				page.set_primary_action(acct("dms.connect.acct.writeAdd"), editWriteAccounts);
+				page.set_secondary_action(
+					acct(accounts.read ? "dms.connect.acct.readChange" : "dms.connect.acct.readAdd"),
+					editReadAccount,
+				);
+			} else {
+				page.set_primary_action(t("connect.action.connect"), wizard);
+				page.clear_secondary_action();
 			}
-			page.set_primary_action(
-				t(ep ? "connect.action.edit" : "connect.action.connect"),
-				wizard,
-			);
 			page.set_indicator(
 				t(conn.connected ? "connect.state.connected" : "connect.state.notConnected"),
 				conn.connected ? "green" : "orange",
 			);
-			// **页面上只留一个动作按钮**（用户 2026-09-25："功能按钮只保留一个"）。
-			// 原来的「测试连接」「停用/启用」是内联按钮，和右上角的主按钮挤在一块，
-			// 操作员看不出该按哪个。这个页面只有一件事要做：换账号（右上角那个）。
-			// 服务端两个 RPC（test_endpoint / set_connection_enabled）保留不动，
-			// 只是不再从这个页面露出。
+			// 不再有内联的「测试连接」「停用/启用」按钮（用户 2026-09-25）；服务端两个 RPC
+			// （test_endpoint / set_connection_enabled）保留不动，只是不再从这个页面露出。
 			const fields = [{ fieldtype: "Section Break", label: t("connect.title") }];
 			for (const [name, key, value] of [
 				[
@@ -160,13 +161,13 @@
 				["account", "account", ep?.username || "—"],
 				["url", "url", ep?.system_url || "—"],
 				["admin", "adminCreds", t(ep?.has_admin_creds ? "connect.yes" : "connect.no")],
-				["pool", null, poolSummary()],
-
+				["read", null, accounts.read?.username || acct("dms.connect.acct.readNone")],
+				["write", null, accounts.write.map((row) => row.username).join(", ") || acct("dms.connect.acct.writeNone")],
 			]) {
 				fields.push({
 					fieldtype: "Data",
 					fieldname: name,
-					label: key ? t("connect.field." + key) : poolText("dms.connect.pool.field"),
+					label: key ? t("connect.field." + key) : acct(`dms.connect.acct.${name}Field`),
 					default: value,
 					read_only: 1,
 				});
@@ -176,10 +177,16 @@
 			shownPercent = 0;
 			if (conn.connected) await pollStatus();
 		}
+		// 服务端的错误话术按四种语言一起回（`{th, zh, en, ja}`）：按当前界面语言取一句，取不到退回泰文。
+		function friendlyText(value) {
+			if (!value || typeof value !== "object") return value || "";
+			const lang = (frappe.boot.lang || "th").slice(0, 2);
+			return value[lang] || value.th || "";
+		}
 		function feedback(result) {
 			if (!result.ok) {
 				frappe.msgprint({
-					message: p.escape(result.error_friendly || t("connect.error.failed")),
+					message: p.escape(friendlyText(result.error_friendly) || t("connect.error.failed")),
 					indicator: "red",
 				});
 				return false;
@@ -198,73 +205,73 @@
 			);
 			return true;
 		}
-		function poolSummary() {
-			if (!pool.length) return poolText("dms.connect.pool.none");
-			const on = pool.filter((row) => row.enabled && row.usable).length;
-			return poolText("dms.connect.pool.summary", pool.length, on);
+		// 按用途试过但权限不够：列出缺的那几项（使用记录 / 客户列表 …），不笼统说"失败"。
+		function accountFailure(result) {
+			const missing = (result.missing || []).map((key) => acct(`dms.connect.acct.check.${key}`));
+			const message = missing.length
+				? acct("dms.connect.acct.missing", result.username, missing.join(", "))
+				: friendlyText(result.error_friendly) || t("connect.error.failed");
+			frappe.msgprint({ message: p.escape(message), indicator: "red" });
 		}
-		function addSystemAccount() {
+		function editReadAccount() {
 			p.dialog(
-				poolText("dms.connect.pool.add"),
+				acct(accounts.read ? "dms.connect.acct.readChange" : "dms.connect.acct.readAdd"),
 				[
-					{ fieldtype: "HTML", fieldname: "help", options: `<p class="text-muted">${p.escape(poolText("dms.connect.pool.help"))}</p>` },
-					{ fieldtype: "Data", fieldname: "username", label: t("connect.field.account"), reqd: 1 },
+					{ fieldtype: "HTML", fieldname: "help", options: `<p class="text-muted">${p.escape(acct("dms.connect.acct.readHelp"))}</p>` },
+					{ fieldtype: "Data", fieldname: "username", label: t("connect.field.account"),
+						default: accounts.read?.username || "", reqd: 1 },
 					{ fieldtype: "Password", fieldname: "password", label: __("Password"), reqd: 1 },
 				],
-				poolText("dms.connect.pool.testAndAdd"),
+				acct("dms.connect.acct.testAndSave"),
 				async (values, d) => {
-					const result = await p.call("pearnly_dms.connections.api.add_system_account", values, "POST");
-					if (!result.ok) {
-						feedback(result);
-						return;
-					}
+					const result = await p.call("pearnly_dms.connections.api.set_read_account", values, "POST");
+					if (!result.ok) return accountFailure(result);
 					d.set_value("password", "");
 					d.hide();
-					p.success(poolText("dms.connect.pool.added", values.username));
+					p.success(acct("dms.connect.acct.saved"));
 					await refresh();
 				},
 			);
 		}
-		function manageSystemAccounts() {
-			const options = pool.map((row) => ({
-				value: row.name,
-				label: `${row.username} · ${poolText(row.enabled ? "dms.connect.pool.on" : "dms.connect.pool.off")}`,
-			}));
-			const d = p.dialog(
-				poolText("dms.connect.pool.manage"),
+		// 改写账号：默认一行账号密码，表格下方「添加行」再加一行（官方 Grid）。已登记的行密码留空 = 不改；
+		// 删掉的行 = 移除。服务端整表校验，有一行试不过就一行都不存。
+		function editWriteAccounts() {
+			const rows = accounts.write.map((row) => ({ account_id: row.name, username: row.username }));
+			p.dialog(
+				acct("dms.connect.acct.writeAdd"),
 				[
-					{ fieldtype: "Select", fieldname: "account", label: t("connect.field.account"), options, reqd: 1 },
+					{ fieldtype: "HTML", fieldname: "help", options: `<p class="text-muted">${p.escape(acct("dms.connect.acct.writeHelp"))}</p>` },
 					{
-						fieldtype: "Select",
-						fieldname: "action",
-						label: poolText("dms.connect.pool.action"),
-						reqd: 1,
-						options: [
-							{ value: "toggle", label: poolText("dms.connect.pool.toggle") },
-							{ value: "remove", label: poolText("dms.connect.pool.remove") },
+						fieldtype: "Table",
+						fieldname: "accounts",
+						cannot_add_rows: 0,
+						in_place_edit: 1,
+						data: rows.length ? rows : [{}],
+						fields: [
+							{ fieldtype: "Data", fieldname: "account_id", hidden: 1 },
+							{ fieldtype: "Data", fieldname: "username", label: t("connect.field.account"), in_list_view: 1 },
+							{ fieldtype: "Password", fieldname: "password", label: __("Password"), in_list_view: 1 },
 						],
 					},
 				],
-				poolText("dms.connect.pool.apply"),
-				async (values, dialog) => {
-					const row = pool.find((item) => item.name === values.account);
-					if (!row) return;
-					if (values.action === "remove") {
-						await p.call("pearnly_dms.connections.api.remove_system_account", { name: row.name }, "POST");
-						p.success(poolText("dms.connect.pool.removed", row.username), "delete");
-					} else {
-						await p.call(
-							"pearnly_dms.connections.api.set_system_account_enabled",
-							{ name: row.name, enabled: row.enabled ? 0 : 1 },
-							"POST",
-						);
-						p.success(poolText(row.enabled ? "dms.connect.pool.disabled" : "dms.connect.pool.enabled", row.username));
-					}
-					dialog.hide();
+				acct("dms.connect.acct.testAndSave"),
+				async (values, d) => {
+					const payload = (values.accounts || []).map((row) => ({
+						name: row.account_id || "",
+						username: String(row.username || "").trim(),
+						password: row.password || "",
+					}));
+					const result = await p.call(
+						"pearnly_dms.connections.api.save_write_accounts",
+						{ accounts: JSON.stringify(payload) },
+						"POST",
+					);
+					if (!result.ok) return accountFailure(result);
+					d.hide();
+					p.success(acct("dms.connect.acct.saved"));
 					await refresh();
 				},
 			);
-			return d;
 		}
 		function wizard() {
 			p.dialog(
